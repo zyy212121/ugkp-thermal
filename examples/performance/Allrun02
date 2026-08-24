@@ -1,0 +1,99 @@
+#!/usr/bin/env bash
+REQUESTED_CASES=("$@")
+source /opt/openfoam10/etc/bashrc
+set -euo pipefail
+
+ROOT=$(cd "$(dirname "$0")" && pwd)
+RUN_ID=$(date +%Y%m%d_%H%M%S)
+LOG_ROOT="$ROOT/run_logs/Allrun02/$RUN_ID"
+SUMMARY="$LOG_ROOT/summary.tsv"
+ALL_CASES=(sparse dense denseL2)
+START_TIME_TOLERANCE=${UGKP_START_TIME_TOLERANCE:-1e-6}
+
+find_matching_time_dir() {
+    local root_dir=$1
+    local target=$2
+    local tol=$3
+
+    find "$root_dir" -mindepth 1 -maxdepth 1 -type d -printf '%f\n' |
+        awk -v target="$target" -v tol="$tol" '
+            $0 ~ /^[-+]?[0-9]+([.][0-9]*)?([eE][-+]?[0-9]+)?$/ {
+                diff = $0 - target
+                if (diff < 0) diff = -diff
+                if (diff <= tol + 0.0) print $0
+            }
+        ' |
+        sort -g |
+        head -n 1
+}
+
+if [[ ${1:-} == --list ]]; then
+    echo "sparse [L0]"
+    echo "dense  [L1]"
+    echo "denseL2 [L2]"
+    exit 0
+fi
+
+if ((${#REQUESTED_CASES[@]} == 0)); then
+    REQUESTED_CASES=("${ALL_CASES[@]}")
+fi
+for requested in "${REQUESTED_CASES[@]}"; do
+    [[ " ${ALL_CASES[*]} " == *" $requested "* ]] || {
+        echo "Unknown two-phase validation case: $requested" >&2
+        exit 2
+    }
+done
+
+if nvidia-smi --query-compute-apps=pid --format=csv,noheader,nounits 2>/dev/null | grep -q '[0-9]'; then
+    echo "GPU has an active compute process; refusing to overlap." >&2
+    exit 3
+fi
+
+mkdir -p "$LOG_ROOT"
+printf 'case\tlevel\tstatus\tlog\n' > "$SUMMARY"
+overall=0
+
+for name in "${REQUESTED_CASES[@]}"; do
+    case "$name" in
+        sparse) level=L0 ;;
+        dense) level=L1 ;;
+        denseL2) level=L2 ;;
+    esac
+    rel="02_two_phase_validation/$name"
+    case_dir="$ROOT/$rel"
+    log="$LOG_ROOT/${name}.log"
+    target_time=$(awk '/^[[:space:]]*startTime[[:space:]]+/{gsub(/;/, "", $2); print $2; exit}' "$case_dir/system/controlDict")
+    start_time_dir=$(find_matching_time_dir "$case_dir" "$target_time" "$START_TIME_TOLERANCE")
+
+    if [[ -z $start_time_dir ]]; then
+        source_case="$ROOT/01_single_phase_nozzle/flux/slau2_2"
+        source_time_dir=$(find_matching_time_dir "$source_case" "$target_time" "$START_TIME_TOLERANCE")
+
+        if [[ -z $source_time_dir || ! -d "$source_case/$source_time_dir" ]]; then
+            echo "[Allrun02] FAIL: $rel missing start checkpoint near $target_time +/- $START_TIME_TOLERANCE, and source case does not have a valid copy candidate." >&2
+            printf '%s\t%s\tFAIL(missing-start-checkpoint)\t-\n' "$rel" "$level" >> "$SUMMARY"
+            overall=1
+            continue
+        fi
+
+        cp -a "$source_case/$source_time_dir" "$case_dir/"
+        start_time_dir=$source_time_dir
+    fi
+
+    echo "[Allrun02] $rel [$level] using start time dir '$start_time_dir' (gasUGKP)"
+    if (
+        cd "$case_dir"
+        blockMesh
+        gasUGKP
+    ) >"$log" 2>&1; then
+        printf '%s\t%s\tPASS\t%s\n' "$rel" "$level" "$log" >> "$SUMMARY"
+    else
+        rc=$?
+        printf '%s\t%s\tFAIL(%s)\t%s\n' "$rel" "$level" "$rc" "$log" >> "$SUMMARY"
+        echo "[Allrun02] FAIL($rc): $rel; see $log" >&2
+        overall=1
+    fi
+done
+
+echo "summary=$SUMMARY"
+exit "$overall"

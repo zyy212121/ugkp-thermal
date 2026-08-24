@@ -1,0 +1,47 @@
+FoamFile
+{
+    version     2.0;
+    format      ascii;
+    class       volScalarField;
+    location    "0";
+    object      p;
+}
+
+dimensions      [1 -1 -2 0 0 0 0];
+internalField   uniform 101325;
+
+boundaryField
+{
+    inlet
+    {
+        type            uniformFixedValue;
+        uniformValue    table
+        (
+            (0.0 252063.4)
+            (0.1 4479014.4)
+        );
+        value           uniform 252063.4;
+    }
+    outlet
+    {
+        type            waveTransmissive;
+        field           p;
+        psi             thermo:psi;
+        gamma           1.2;
+        fieldInf        101325;
+        lInf            0.3461702088;
+        value           uniform 101325;
+    }
+    wall
+    {
+        type            zeroGradient;
+    }
+    wedgeBack
+    {
+        type            wedge;
+    }
+    wedgeFront
+    {
+        type            wedge;
+    }
+}

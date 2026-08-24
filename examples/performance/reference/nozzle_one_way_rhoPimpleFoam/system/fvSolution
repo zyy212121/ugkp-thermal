@@ -1,0 +1,48 @@
+FoamFile
+{
+    version     2.0;
+    format      ascii;
+    class       dictionary;
+    location    "system";
+    object      fvSolution;
+}
+
+solvers
+{
+    "(p|U|e).*"
+    {
+        solver          smoothSolver;
+        smoother        symGaussSeidel;
+        tolerance       1e-09;
+        relTol          0.05;
+    }
+
+    "rho.*"
+    {
+        solver          PCG;
+        preconditioner  DIC;
+        tolerance       1e-09;
+        relTol          0.05;
+    }
+}
+
+PIMPLE
+{
+    nOuterCorrectors         2;
+    nCorrectors              1;
+    nNonOrthogonalCorrectors 0;
+    transonic                yes;
+}
+
+relaxationFactors
+{
+    fields
+    {
+        rho             1;
+    }
+    equations
+    {
+        U               1;
+        e               1;
+    }
+}

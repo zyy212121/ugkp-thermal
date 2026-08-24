@@ -1,0 +1,10 @@
+diluteUgkwpFoam.C
+thermal/MieTable.C
+thermal/MieDoRadiationSolver.C
+thermal/GpuParticleRadiationCoupler.C
+thermal/GpuSolidThermalProperties.C
+thermal/GpuSolidPatchMapper.C
+thermal/GpuThermalExchangeState.C
+thermal/GpuSolidThermalCoupler.C
+
+EXE = $(FOAM_USER_APPBIN)/CHT

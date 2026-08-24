@@ -1,0 +1,102 @@
+FoamFile
+{
+    version     2.0;
+    format      ascii;
+    class       dictionary;
+    location    "constant";
+    object      solidRegionProperties;
+}
+
+schemaVersion 1;
+
+solidThermalCoupling
+{
+    formatVersion 1;
+    couplingInterval             0.1;
+    solidContactCouplingInterval 0.1;
+    radiationCouplingInterval    1;
+    radiationEnabled             false;
+
+    mapping     oneToOneConformal;
+    solidRegion graphite;
+                                                                              
+    fluidPatch fluid_to_graphite;
+    solidPatch graphite_to_fluid;
+
+    coupledInterfaces
+    (
+        {
+            fluidPatch fluid_to_graphite;
+            solidPatch graphite_to_fluid;
+        }
+    );
+
+    properties
+    {
+                                                        
+        rho { type constant; value 1850; }
+
+                                                     
+        Cp
+        {
+                    type table;
+                    interpolationScheme linear;
+                    outOfBounds clamp;
+                    values
+                    (
+                        (200 572.204606)
+                        (300 836.162391)
+                        (400 1023.443420)
+                        (500 1168.709872)
+                        (750 1432.667657)
+                        (1000 1619.948687)
+                        (1250 1765.215139)
+                        (1500 1883.906472)
+                        (1750 1984.258565)
+                        (2000 2071.187501)
+                        (2250 2147.864257)
+                        (2500 2216.453953)
+                        (3000 2335.145287)
+                    );
+        }
+
+                                                
+        kappa
+        {
+                    type table;
+                    interpolationScheme linear;
+                    outOfBounds clamp;
+                    values
+                    (
+                        (200 154.521875)
+                        (300 121.153291)
+                        (400 101.946418)
+                        (500 89.171478)
+                        (750 69.915136)
+                        (1000 58.831235)
+                        (1250 51.459073)
+                        (1500 46.126788)
+                        (1750 42.051853)
+                        (2000 38.814140)
+                        (2250 36.165832)
+                        (2500 33.950327)
+                    );
+        }
+
+                                                                        
+        emissivity { type constant; value 0; }
+    }
+
+    nonlinearMaxIterations 100;
+    nonlinearRelativeTolerance 1e-8;
+    energyRelativeTolerance 1e-7;
+    energyAbsoluteTolerance 1e-10;
+    nonlinearAitken true;
+    nonlinearInitialRelaxation 0.2;
+    nonlinearMinimumRelaxation 0.01;
+    nonlinearMaximumRelaxation 1.0;
+    particleWallHeatTransfer
+    {
+        enabled false;
+    }
+}

@@ -1,0 +1,26 @@
+FoamFile
+{
+    version 2.0;
+    format ascii;
+    class dictionary;
+    location "1.5";
+    object thermalExchangeState;
+}
+
+formatVersion 1;
+initialState true;
+exchangeSequence "0";
+completedTimeIndex 0;
+completedSimulationTimeS 1.5;
+previousExchangeSimulationTimeS 1.5;
+fluidMeshTopologySha1 "2f338be9d7db81d0c9b60617029e37f0567f5ef8";
+solidMeshTopologySha1 "9794946ef693d794861a0f05078e008731967b8a";
+couplingConfigurationSha1 "14847be512f99d9ab1296695aaa02de4c4f71c53";
+wallTemperatureSha1UsedForCompletedInterval "0000000000000000000000000000000000000000";
+newlyUploadedWallTemperatureSha1 "0000000000000000000000000000000000000000";
+gasWallLedgerConsumed false;
+particleRadiationApplied false;
+solidStateUpdated false;
+wallTemperatureUploaded false;
+particleMomentsRebuilt false;
+particleContactEnergyJ 0;

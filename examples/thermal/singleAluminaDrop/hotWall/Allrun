@@ -1,0 +1,3 @@
+#!/usr/bin/env bash
+case_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+exec "${case_root}/run_variant" hotWall

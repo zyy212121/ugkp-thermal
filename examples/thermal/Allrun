@@ -1,0 +1,51 @@
+#!/usr/bin/env bash
+REQUESTED_ARGS=("$@")
+source /opt/openfoam10/etc/bashrc
+set -- "${REQUESTED_ARGS[@]}"
+set -euo pipefail
+
+ROOT=$(cd "$(dirname "$0")" && pwd)
+CASES=(singleAluminaDrop/hotWall singleAluminaDrop/coldWall bentSRM_hotWall bentSRM_coldWall MSS7_laminar MSS7_turbulent_wallModel)
+LOG_ROOT="$ROOT/run_logs/$(date +%Y%m%d_%H%M%S)"
+SUMMARY="$LOG_ROOT/summary.tsv"
+
+if [[ ${1:-} == --list ]]; then
+    printf '%s\n' "${CASES[@]}"
+    exit 0
+fi
+
+status=0
+mkdir -p "$LOG_ROOT"
+printf 'case\tstatus\n' > "$SUMMARY"
+SELECTED=("${CASES[@]}")
+if (( ${#REQUESTED_ARGS[@]} > 0 )); then
+    SELECTED=("${REQUESTED_ARGS[@]}")
+    for requested in "${SELECTED[@]}"; do
+        [[ " ${CASES[*]} " == *" ${requested} "* ]] || {
+            echo "Unknown thermal case: ${requested}" >&2
+            exit 2
+        }
+    done
+fi
+for name in "${SELECTED[@]}"; do
+    caseDir="$ROOT/$name"
+    logName=${name//\//__}
+    if [[ "$name" == singleAluminaDrop/* ]]; then
+        variant=${name#singleAluminaDrop/}
+        echo "[THERMAL] $name (isolated FSH)"
+        (
+            cd "$ROOT/singleAluminaDrop"
+            ./Allrun "$variant"
+        ) >"$LOG_ROOT/$logName.log" 2>&1 && printf '%s\tPASS\n' "$name" >> "$SUMMARY" || { printf '%s\tFAIL\n' "$name" >> "$SUMMARY"; status=1; }
+    else
+        app=$(awk '/^[[:space:]]*application[[:space:]]+/{gsub(/;/,"",$2); print $2; exit}' "$caseDir/system/controlDict")
+        echo "[THERMAL] $name ($app)"
+        (
+            cd "$caseDir"
+            [[ -f constant/polyMesh/points ]] || { [[ -f system/blockMeshDict ]] && blockMesh; }
+            [[ ! -f system/setFieldsDict ]] || setFields
+            "$app"
+        ) >"$LOG_ROOT/$logName.log" 2>&1 && printf '%s\tPASS\n' "$name" >> "$SUMMARY" || { printf '%s\tFAIL\n' "$name" >> "$SUMMARY"; status=1; }
+    fi
+done
+exit "$status"

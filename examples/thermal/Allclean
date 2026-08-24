@@ -1,0 +1,34 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+ROOT=$(cd "$(dirname "$0")" && pwd)
+CLEANER="${ROOT}/../tools/clean_case_results.sh"
+CASES=(singleAluminaDrop/hotWall singleAluminaDrop/coldWall bentSRM_hotWall bentSRM_coldWall MSS7_laminar MSS7_turbulent_wallModel)
+REQUESTED_CASES=("$@")
+
+if [[ ${1:-} == --list ]]; then
+    printf '%s\n' "${CASES[@]}"
+    exit 0
+fi
+clean_all=false
+if (( ${#REQUESTED_CASES[@]} == 0 )); then
+    REQUESTED_CASES=("${CASES[@]}")
+    clean_all=true
+fi
+for requested in "${REQUESTED_CASES[@]}"; do
+    [[ " ${CASES[*]} " == *" ${requested} "* ]] || {
+        echo "Unknown thermal case: ${requested}" >&2
+        exit 2
+    }
+done
+for requested in "${REQUESTED_CASES[@]}"; do
+    if [[ "$requested" == singleAluminaDrop/* ]]; then
+        variant=${requested#singleAluminaDrop/}
+        "${ROOT}/singleAluminaDrop/Allclean" "$variant"
+    else
+        "${CLEANER}" --check "${ROOT}/${requested}"
+        "${CLEANER}" "${ROOT}/${requested}"
+    fi
+done
+${clean_all} && rm -rf -- "${ROOT}/run_logs"

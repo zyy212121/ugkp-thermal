@@ -1,0 +1,32 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+ROOT=$(cd "$(dirname "$0")" && pwd)
+CLEANER="${ROOT}/../tools/clean_case_results.sh"
+CASES=(sodShockTube planarCouette dustyBox windSandShockTube)
+REQUESTED_CASES=("$@")
+
+if [[ ${1:-} == --list ]]; then
+    printf '%s\n' "${CASES[@]}"
+    exit 0
+fi
+clean_all=false
+if (( ${#REQUESTED_CASES[@]} == 0 )); then
+    REQUESTED_CASES=("${CASES[@]}")
+    clean_all=true
+fi
+for requested in "${REQUESTED_CASES[@]}"; do
+    [[ " ${CASES[*]} " == *" ${requested} "* ]] || {
+        echo "Unknown consistency case: ${requested}" >&2
+        exit 2
+    }
+    "${CLEANER}" --check "${ROOT}/${requested}"
+done
+for requested in "${REQUESTED_CASES[@]}"; do
+    "${CLEANER}" "${ROOT}/${requested}"
+done
+if ${clean_all}; then
+    rm -rf -- "${ROOT}/run_logs"
+fi
+exit 0

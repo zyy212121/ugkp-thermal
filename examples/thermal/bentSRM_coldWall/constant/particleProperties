@@ -1,0 +1,100 @@
+FoamFile
+{
+    version     2.0;
+    format      ascii;
+    class       dictionary;
+    location    "constant";
+    object      particleProperties;
+}
+
+schemaVersion 1;
+gpuResidentSolidThermalCoupling true;
+gpuResidentRandomSeed 12345;
+gpuResidentInletPatch inlet;
+
+gpuResidentPressureTable inletPressure.table;
+
+gpuResidentVolumeFractionTable inletVolumeFraction.table;
+
+gpuResidentInletTemperature 3200;
+rhoS            2800;
+
+particleRho     2800;
+
+particleCp      1542;
+
+particleTemperatureTransport true;
+
+particleTMin    300;
+
+particleTMax    5000;
+
+TgasMin         1;
+
+dS              0.00012;
+
+dMin            1e-05;
+
+dMax            0.0004;
+
+dSigma          0.6;
+
+parcelMass      1e-07;
+
+                                                                           
+                                                                            
+                                                                     
+injectionParcelMass     1e-07;
+legacyRestartParcelMass 1e-07;
+
+gpuResidentCollisionalPressure true;
+gpuResidentCollisionalRestitution 0.9;
+gpuResidentPressureKickFraction 0.25;
+
+gpuResidentJammingPressure       true;
+gpuResidentPackingFraction       0.63;
+gpuResidentPackingProjectionIterations 20;
+
+epsSMin         1e-12;
+
+thetaMin        1e-12;
+
+gpuResidentInjectionTheta 1e-12;
+
+gpuResidentInjectionTp 3200;
+
+particleWallCoeffs
+{
+    default         0.5;
+    outlet          0;
+}
+
+gpuResidentFluidRegion fluid;
+
+gpuResidentStuckWallPatches ( fluid_to_graphite );
+
+gpuResidentStuckModel
+{
+    wallInteractionModel coldWall1D;
+    sommerfeldThreshold 20;
+    heatTransfer    true;
+    maximumCoverage 0.63;
+    depositionHeatTransferEfficiency 0.1;
+    reflectionHeatTransferEfficiency 0.004;
+    adhesionEnergyScale 20000;
+    contactAngleDegree 145;
+    meltingTemperature 2327;
+    mushyRange 20;
+    latentHeat 1.16e6;
+    solidDensity 3990;
+    solidSpecificHeat 1273;
+    solidThermalConductivity 5.9;
+    pinningThicknessFraction 0.25;
+    interfaceThermalResistance 0;
+    wallTransientResistance true;
+    solidificationIterations 4;
+    heatFluxField   particleStuckWallHeatFlux;
+    reflectionHeatFluxField particleReflectedWallHeatFlux;
+}
+
+                                                                               

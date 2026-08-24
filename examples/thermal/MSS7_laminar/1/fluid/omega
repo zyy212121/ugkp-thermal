@@ -1,0 +1,56 @@
+                                                                               
+                             
+                                                                   
+                                                            
+                                          
+                             
+                                                                               
+FoamFile
+{
+    format          ascii;
+    class           volScalarField;
+    location        1 / fluid;
+    object          omega;
+}
+                                                                               
+
+dimensions      [ 0 0 -1 0 0 0 0 ];
+
+internalField   uniform 247.536;
+
+boundaryField
+{
+    inlet
+    {
+        type            fixedValue;
+        value           uniform 247.536;
+    }
+    outlet
+    {
+        type            inletOutlet;
+        inletValue      uniform 247.536;
+        value           uniform 247.536;
+    }
+    fluid_to_graphite
+    {
+        beta1           0.075;
+        blended         0;
+        type            omegaWallFunction;
+        value           uniform 247.536;
+    }
+    wedgeBack
+    {
+        type            wedge;
+    }
+    wedgeFront
+    {
+        type            wedge;
+    }
+    defaultFaces
+    {
+        type            empty;
+    }
+}
+
+
+                                                                               

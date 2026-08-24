@@ -1,0 +1,80 @@
+FoamFile
+{
+    version     2.0;
+    format      ascii;
+    class       dictionary;
+    location    "constant";
+    object      fluidProperties;
+}
+
+schemaVersion 1;
+
+                                                                 
+                                                          
+thermoType
+{
+    type            hePsiThermo;
+    mixture         pureMixture;
+    transport       const;
+    thermo          hConst;
+    equationOfState perfectGas;
+    specie          specie;
+    energy          sensibleInternalEnergy;
+}
+
+mixture
+{
+    specie
+    {
+        molWeight   28.970253;
+    }
+    thermodynamics
+    {
+        Cp          1722;
+        Hf          0;
+    }
+    transport
+    {
+        mu          9.29152148664344e-05;
+        Pr          0.4;
+    }
+}
+
+turbulence
+{
+    simulationType RAS;
+
+    RAS
+    {
+        model               kOmegaSST;
+        turbulence          on;
+        printCoeffs         on;
+        turbulentPrandtl    0.85;
+
+        kOmegaSSTCoeffs
+        {
+            wallTreatment   wallFunction;
+            wallKappa       0.41;
+            wallE           9.8;
+            wallCmu         0.09;
+
+            alphaK1         0.85;
+            alphaK2         1.0;
+            alphaOmega1     0.5;
+            alphaOmega2     0.856;
+            beta1           0.075;
+            beta2           0.0828;
+            betaStar        0.09;
+            gamma1          0.5555555555555556;
+            gamma2          0.44;
+            a1              0.31;
+            b1              1.0;
+            c1              10.0;
+            F3              false;
+
+            kMin            1e-12;
+            omegaMin        1e-6;
+            maxSourceNumber 0.25;
+        }
+    }
+}

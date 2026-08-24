@@ -1,0 +1,37 @@
+FoamFile
+{
+    version     2.0;
+    format      ascii;
+    class       dictionary;
+    location    "constant";
+    object      particleProperties;
+}
+
+schemaVersion 1;
+gpuResidentRandomSeed 24681357;
+rhoS 1000;
+dS 0.0001;
+dMin 0.0001;
+dMax 0.0001;
+dSigma 0;
+parcelMass 5.0000000000000004e-06;
+injectionParcelMass 5.0000000000000004e-06;
+legacyRestartParcelMass 5.0000000000000004e-06;
+
+dragModel SchillerNaumann;
+
+gpuResidentCollisionalPressure false;
+gpuResidentCollisionalRestitution 1.0;
+gpuResidentPressureKickFraction 0.25;
+gpuResidentJammingPressure false;
+gpuResidentPackingProjectionIterations 20;
+epsSMin 1e-14;
+thetaMin 0;
+TgasMin 1e-8;
+gpuResidentInjectionTheta 0;
+gpuResidentInjectionTp 1;
+
+particleWallCoeffs
+{
+    default 1.0;
+}

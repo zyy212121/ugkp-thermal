@@ -1,0 +1,24 @@
+FoamFile
+{
+    version     2.0;
+    format      ascii;
+    class       dictionary;
+    location    "system";
+    object      createPatchDict;
+}
+
+pointSync false;
+
+patches
+(
+    {
+        name fluid_to_graphite;
+        patchInfo
+        {
+            type wall;
+        }
+        constructFrom set;
+        set graphiteInterfaceFaces;
+    }
+);
+

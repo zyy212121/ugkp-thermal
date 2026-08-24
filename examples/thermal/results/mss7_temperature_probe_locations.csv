@@ -1,0 +1,4 @@
+label,x_m,r_m,z_m,depth_from_initial_throat_wall_m,sampling_method,source
+Tw,0.151945102963,0.0118,0,0,linear interpolation of bracketing graphite_to_fluid boundary-face values,Kamps2020_Fig5c_MSS_geometry
+Tn1,0.151945102963,0.0218,0,0.010,cellPoint interpolation in graphite,Kamps2020_Fig5c_10mm_thermocouple_depth
+Tn2,0.151945102963,0.0418,0,0.030,cellPoint interpolation in graphite,Kamps2020_Fig5c_30mm_thermocouple_depth

@@ -1,0 +1,27 @@
+FoamFile
+{
+    version 2.0;
+    format ascii;
+    class dictionary;
+    location "system";
+    object controlDict;
+}
+
+application FSH;
+startFrom startTime;
+startTime 0;
+stopAt endTime;
+endTime 0.010051;
+deltaT 1e-6;
+writeControl runTime;
+writeInterval 5e-5;
+purgeWrite 0;
+writeFormat ascii;
+writePrecision 12;
+writeCompression off;
+timeFormat general;
+timePrecision 12;
+runTimeModifiable false;
+adjustTimeStep no;
+maxCo 0.3;
+maxDeltaT 1e-6;

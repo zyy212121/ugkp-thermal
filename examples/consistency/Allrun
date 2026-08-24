@@ -1,0 +1,52 @@
+#!/usr/bin/env bash
+REQUESTED_CASES=("$@")
+source /opt/openfoam10/etc/bashrc
+set -euo pipefail
+
+ROOT=$(cd "$(dirname "$0")" && pwd)
+CASES=(sodShockTube planarCouette dustyBox windSandShockTube)
+LOG_ROOT="$ROOT/run_logs/$(date +%Y%m%d_%H%M%S)"
+SUMMARY="$LOG_ROOT/summary.tsv"
+
+if [[ ${1:-} == --list ]]; then
+    printf '%s\n' "${CASES[@]}"
+    exit 0
+fi
+
+if ((${#REQUESTED_CASES[@]} == 0)); then
+    REQUESTED_CASES=("${CASES[@]}")
+fi
+for requested in "${REQUESTED_CASES[@]}"; do
+    [[ " ${CASES[*]} " == *" ${requested} "* ]] || {
+        echo "Unknown consistency case: ${requested}" >&2
+        exit 2
+    }
+done
+
+status=0
+mkdir -p "$LOG_ROOT"
+printf 'case\tstatus\n' > "$SUMMARY"
+for name in "${REQUESTED_CASES[@]}"; do
+    caseDir="$ROOT/$name"
+    app=$(awk '/^[[:space:]]*application[[:space:]]+/{gsub(/;/,"",$2); print $2; exit}' "$caseDir/system/controlDict")
+    echo "[CONSISTENCY] $name ($app)"
+    if (
+        cd "$caseDir"
+        if [[ -x ./Allrun ]]; then
+            ./Allrun
+        else
+            [[ -f constant/polyMesh/points ]] || { [[ -f system/blockMeshDict ]] && blockMesh; }
+            [[ ! -f system/setFieldsDict ]] || setFields
+            "$app"
+        fi
+    ) >"$LOG_ROOT/$name.log" 2>&1; then
+        printf '%s\tPASS\n' "$name" >> "$SUMMARY"
+        echo "[CONSISTENCY] $name PASS"
+    else
+        printf '%s\tFAIL\n' "$name" >> "$SUMMARY"
+        echo "[CONSISTENCY] $name FAIL: $LOG_ROOT/$name.log" >&2
+        status=1
+    fi
+done
+echo "summary=$SUMMARY"
+exit "$status"

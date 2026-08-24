@@ -1,0 +1,14 @@
+#!/usr/bin/env bash
+case_root="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source /opt/openfoam10/etc/bashrc
+set -euo pipefail
+
+variant="${1:-}"
+if [ "${variant}" != "hotWall" ] \
+&& [ "${variant}" != "coldWall" ]; then
+    exit 2
+fi
+
+cd "${case_root}/${variant}"
+blockMesh > log.blockMesh 2>&1
+"${FOAM_USER_APPBIN}/FSH" > log.FSH 2>&1

@@ -1,0 +1,44 @@
+FoamFile
+{
+    version     2.0;
+    format      ascii;
+    class       dictionary;
+    location    "constant";
+    object      fluidProperties;
+}
+
+schemaVersion 1;
+
+thermoType
+{
+    type            hePsiThermo;
+    mixture         pureMixture;
+    transport       const;
+    thermo          hConst;
+    equationOfState perfectGas;
+    specie          specie;
+    energy          sensibleInternalEnergy;
+}
+
+mixture
+{
+    specie
+    {
+        molWeight       28.970253;
+    }
+    thermodynamics
+    {
+        Cp              1722;
+        Hf              0;
+    }
+    transport
+    {
+        mu              9.29152148664344e-05;
+        Pr              0.4;
+    }
+}
+
+turbulence
+{
+    simulationType  laminar;
+}

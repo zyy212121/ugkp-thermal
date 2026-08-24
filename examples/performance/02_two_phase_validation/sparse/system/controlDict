@@ -1,0 +1,54 @@
+                                                                               
+                             
+                                                                   
+                                                            
+                                          
+                             
+                                                                               
+FoamFile
+{
+    version         2;
+    format          ascii;
+    class           dictionary;
+    object          controlDict;
+}
+                                                                               
+
+application     gasUGKP;
+
+startFrom firstTime;
+
+startTime 0.1;
+
+stopAt          endTime;
+
+endTime   0.11;
+
+deltaT          1e-08;
+
+writeControl runTime;
+
+writeInterval 0.001;
+
+purgeWrite      0;
+
+writeFormat     ascii;
+
+writePrecision  14;
+
+writeCompression off;
+
+timeFormat      general;
+
+timePrecision   8;
+
+runTimeModifiable yes;
+
+adjustTimeStep  yes;
+
+maxCo           0.5;
+
+maxDeltaT       0.0001;
+
+
+                                                                               

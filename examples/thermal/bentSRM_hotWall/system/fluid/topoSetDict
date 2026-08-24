@@ -1,0 +1,32 @@
+FoamFile
+{
+    version     2.0;
+    format      ascii;
+    class       dictionary;
+    location    "system";
+    object      topoSetDict;
+}
+
+actions
+(
+    {
+        name graphiteInterfaceFaces;
+        type faceSet;
+        action new;
+        source patchToFace;
+        sourceInfo
+        {
+            name focusWall;
+        }
+    }
+    {
+        name graphiteInterfaceFaces;
+        type faceSet;
+        action subset;
+        source boxToFace;
+        sourceInfo
+        {
+            box (-1e-9 -0.0061 0.4359) (0.021000001 0.0081 0.4501);
+        }
+    }
+);

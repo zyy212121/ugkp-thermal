@@ -1,0 +1,105 @@
+FoamFile
+{
+    version     2.0;
+    format      ascii;
+    class       volScalarField;
+    location    "1.5/graphite";
+    object      T;
+}
+
+dimensions      [0 0 0 1 0 0 0];
+
+internalField nonuniform List<scalar>
+50
+(
+485.60799971912655
+485.60799971912718
+469.40399971881783
+469.40399971881783
+453.19999971851064
+453.19999971850888
+436.99599971820169
+436.99599971820032
+420.79199971789205
+420.79199971789274
+404.58799971758481
+404.58799971758532
+388.38399971727711
+388.38399971727648
+372.17999971696997
+372.17999971696867
+355.97599971666045
+355.97599971666034
+339.77199971635065
+339.77199971635144
+329.75599993291877
+329.75599993291877
+325.92799993284552
+325.92799993284586
+322.09999993277324
+322.09999993277296
+318.27199993270006
+318.27199993270023
+314.44399993262761
+314.44399993262761
+312.29599999175429
+312.29599999175434
+311.82799999174546
+311.8279999917454
+311.35999999173652
+311.35999999173652
+310.89199999172763
+310.89199999172763
+310.42399999171869
+310.42399999171869
+309.08972556101935
+309.08972556101918
+306.88917676097759
+306.88917676097742
+304.68862796093538
+304.68862796093549
+302.48807916089351
+302.48807916089334
+300.2875303608518
+300.28753036085175
+);
+
+boundaryField
+{
+    graphite_to_fluid
+    {
+        type            fixedGradient;
+        gradient        uniform 0;
+        value           uniform 493.70999999999998;
+    }
+    graphiteBottom
+    {
+        type            uniformFixedValue;
+        uniformValue
+        {
+            type                tableFile;
+            format              csv;
+            nHeaderLine         1;
+            refColumn           0;
+            componentColumns    (1);
+            separator           ",";
+            mergeSeparators     no;
+            file                "$FOAM_CASE/constant/graphiteBottomTemperature.table";
+            outOfBounds         clamp;
+            interpolationScheme linear;
+        }
+        value           uniform 299.18725599999999;
+    }
+    graphiteSymmetry
+    {
+        type            symmetry;
+    }
+    graphiteTransverseAdiabatic
+    {
+        type            zeroGradient;
+    }
+    graphiteAxialAdiabatic
+    {
+        type            zeroGradient;
+    }
+}

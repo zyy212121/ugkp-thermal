@@ -1,0 +1,18 @@
+    graphiteDepthTemperature
+    {
+        type                probes;
+        libs                ("libsampling.so");
+        region              graphite;
+        writeControl        runTime;
+        writeInterval       0.01;
+        fixedLocations      true;
+        interpolationScheme cellPoint;
+        fields              (T);
+        probeLocations
+        (
+            (0.0105 -0.002519899557 0.446551168256)
+            (0.0105 -0.006055433463 0.450086702162)
+            (0.0105 -0.009590967369 0.453622236068)
+            (0.0105 -0.013126501275 0.457157769974)
+        );
+    }

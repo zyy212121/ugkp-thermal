@@ -1,0 +1,22 @@
+FoamFile
+{
+    version     2.0;
+    format      ascii;
+    class       dictionary;
+    location    "constant";
+    object      schedulingProperties;
+}
+
+schemaVersion 1;
+
+gpuResidentPureGasOnly          true;
+gpuResidentDynamicInlet         false;
+gpuResidentParticleCapacity     0;
+gpuResidentMaxFaceWalkHops      8;
+gpuResidentCourantUpdateInterval 1;
+gpuResidentMaxDeltaTGrowth      1.05;
+
+gpuCsrLevel                     L0;
+
+gpuParticleBlockThreads         128;
+gpuReductionBlockThreads        128;

@@ -1,0 +1,17 @@
+#!/usr/bin/env bash
+case_root="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+set -euo pipefail
+
+variant="${1:-}"
+if [ "${variant}" != "hotWall" ] \
+&& [ "${variant}" != "coldWall" ]; then
+    exit 2
+fi
+
+case_dir="${case_root}/${variant}"
+cd "${case_dir}"
+find . -maxdepth 1 -mindepth 1 -type d -printf '%f\n' \
+    | awk '$0 != "0" && $0 ~ /^[0-9]+([.][0-9]+)?([eE][+-]?[0-9]+)?$/' \
+    | while IFS= read -r time_dir; do rm -rf -- "${time_dir}"; done
+rm -rf -- constant/polyMesh postProcessing processor*
+rm -f -- log.FSH log.blockMesh case.foam

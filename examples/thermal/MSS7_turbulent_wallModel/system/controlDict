@@ -1,0 +1,31 @@
+FoamFile
+{
+    version     2.0;
+    format      ascii;
+    class       dictionary;
+    object      controlDict;
+}
+
+application     CHT;
+
+                                                                         
+                                                                          
+startFrom       startTime;
+startTime       1;
+stopAt          endTime;
+endTime         4.5;
+deltaT          1e-08;
+
+writeControl    adjustableRunTime;
+writeInterval   0.1;
+purgeWrite      0;
+writeFormat     ascii;
+writePrecision  17;
+writeCompression off;
+timeFormat      general;
+timePrecision   17;
+runTimeModifiable yes;
+
+adjustTimeStep  yes;
+maxCo           0.5;
+maxDeltaT       1e-06;

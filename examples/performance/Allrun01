@@ -1,0 +1,55 @@
+#!/usr/bin/env bash
+REQUESTED_CASES=("$@")
+source /opt/openfoam10/etc/bashrc
+set -euo pipefail
+
+ROOT=$(cd "$(dirname "$0")" && pwd)
+RUN_ID=$(date +%Y%m%d_%H%M%S)
+LOG_ROOT="$ROOT/run_logs/Allrun01/$RUN_ID"
+SUMMARY="$LOG_ROOT/summary.tsv"
+ALL_CASES=(tadmor kurganov hlle hllc roe hllem hllc_adc slau2 slau2_2)
+
+if [[ ${1:-} == --list ]]; then
+    printf '%s\n' "${ALL_CASES[@]}"
+    exit 0
+fi
+
+if ((${#REQUESTED_CASES[@]} == 0)); then
+    REQUESTED_CASES=("${ALL_CASES[@]}")
+fi
+for requested in "${REQUESTED_CASES[@]}"; do
+    [[ " ${ALL_CASES[*]} " == *" $requested "* ]] || {
+        echo "Unknown single-phase case: $requested" >&2
+        exit 2
+    }
+done
+
+if nvidia-smi --query-compute-apps=pid --format=csv,noheader,nounits 2>/dev/null | grep -q '[0-9]'; then
+    echo "GPU has an active compute process; refusing to overlap." >&2
+    exit 3
+fi
+
+mkdir -p "$LOG_ROOT"
+printf 'case\tstatus\tlog\n' > "$SUMMARY"
+overall=0
+
+for flux in "${REQUESTED_CASES[@]}"; do
+    rel="01_single_phase_nozzle/flux/$flux"
+    case_dir="$ROOT/$rel"
+    log="$LOG_ROOT/${flux}.log"
+    echo "[Allrun01] $rel (gasUGKP)"
+    if (
+        cd "$case_dir"
+        blockMesh
+        gasUGKP
+    ) >"$log" 2>&1; then
+        printf '%s\tPASS\t%s\n' "$rel" "$log" >> "$SUMMARY"
+    else
+        rc=$?
+        printf '%s\tFAIL(%s)\t%s\n' "$rel" "$rc" "$log" >> "$SUMMARY"
+        overall=1
+    fi
+done
+
+echo "summary=$SUMMARY"
+exit "$overall"

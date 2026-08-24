@@ -1,0 +1,15 @@
+#!/usr/bin/env bash
+case_root="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+set -euo pipefail
+
+if [ "$#" -gt 1 ]; then
+    exit 2
+fi
+
+if [ "$#" -eq 1 ]; then
+    "${case_root}/run_variant" "$1"
+    exit 0
+fi
+
+"${case_root}/run_variant" hotWall
+"${case_root}/run_variant" coldWall

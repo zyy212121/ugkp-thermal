@@ -1,0 +1,60 @@
+--- GpuResidentStrict.H
++++ GpuResidentStrict.H
+@@ -346,6 +346,7 @@
+     label hostMirrorFaces_;
+     const fvMesh* residentMesh_;
+     scalar legacyRestartParcelMass_;
++    label particleFluctuationDimensions_;
+ 
+ public:
+     GpuResidentStrictBase()
+@@ -354,7 +355,8 @@
+         hostMirrorCells_(0),
+         hostMirrorFaces_(0),
+         residentMesh_(nullptr),
+-        legacyRestartParcelMass_(0)
++        legacyRestartParcelMass_(0),
++        particleFluctuationDimensions_(3)
+     {}
+ 
+     ~GpuResidentStrictBase()
+@@ -450,6 +452,24 @@
+         hostMirrorFaces_ = nFaces;
+         residentMesh_ = &mesh;
+         legacyRestartParcelMass_ = legacyRestartParcelMass;
++        particleFluctuationDimensions_ = particleWallProps == nullptr
++          ? label(3)
++          : particleWallProps->lookupOrDefault<label>
++            (
++                "gpuResidentParticleFluctuationDimensions",
++                label(3)
++            );
++        if
++        (
++            particleFluctuationDimensions_ < 1
++         || particleFluctuationDimensions_ > 3
++        )
++        {
++            FatalErrorInFunction
++                << "gpuResidentParticleFluctuationDimensions must be 1, 2 "
++                << "or 3; received " << particleFluctuationDimensions_
++                << exit(FatalError);
++        }
+ 
+         if (particleCapacity < 0)
+         {
+@@ -2175,6 +2195,14 @@
+ 
+         for (label i = 0; i < nParticles; ++i)
+         {
++            if (particleFluctuationDimensions_ < 3)
++            {
++                puz[i] = scalar(0);
++            }
++            if (particleFluctuationDimensions_ < 2)
++            {
++                puy[i] = scalar(0);
++            }
+             if (!std::isfinite(pm[i]) || pm[i] <= scalar(0))
+             {
+                 FatalErrorInFunction

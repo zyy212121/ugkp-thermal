@@ -1,0 +1,24 @@
+                                                                               
+                             
+                                                                   
+                                                            
+                                          
+                             
+                                                                               
+FoamFile
+{
+    format      ascii;
+    class       faceSet;
+    location    "constant/fluid/polyMesh/sets";
+    object      graphiteInterfaceFaces;
+}
+                                                                               
+
+
+2
+(
+16285 
+16295 
+)
+
+                                                                               

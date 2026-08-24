@@ -1,0 +1,56 @@
+FoamFile
+{
+    version 2.0;
+    format ascii;
+    class dictionary;
+    location "constant";
+    object particleProperties;
+}
+
+schemaVersion 1;
+gpuResidentRandomSeed 12345;
+rhoS 2911.33278;
+particleRho 2911.33278;
+particleCp 1505.5;
+particleTemperatureTransport true;
+particleTMin 300;
+particleTMax 4000;
+TgasMin 1;
+dS 0.005;
+dMin 0.005;
+dMax 0.005;
+dSigma 0;
+parcelMass 1.9054628487089897e-4;
+injectionParcelMass 1.9054628487089897e-4;
+legacyRestartParcelMass 1.9054628487089897e-4;
+gpuResidentCollisionalPressure false;
+gpuResidentJammingPressure false;
+epsSMin 1e-12;
+thetaMin 1e-12;
+gpuResidentInjectionTheta 0;
+gpuResidentInjectionTp 2373.15;
+
+particleWallCoeffs
+{
+    default 1;
+    impactWall 0.5;
+}
+
+gpuResidentStuckWallPatches (impactWall);
+
+gpuResidentStuckModel
+{
+    wallInteractionModel liquidDeposition;
+    sommerfeldThreshold 20;
+    heatTransfer true;
+    maximumCoverage 0.63;
+    depositionHeatTransferEfficiency 1;
+    reflectionHeatTransferEfficiency 1;
+    adhesionEnergyScale 1;
+    contactAngleDegree 70;
+    wallDensity 7900;
+    wallSpecificHeat 500;
+    wallThermalConductivity 15;
+    heatFluxField particleStuckWallHeatFlux;
+    reflectionHeatFluxField particleReflectedWallHeatFlux;
+}

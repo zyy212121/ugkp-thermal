@@ -1,0 +1,53 @@
+                                                                               
+                             
+                                                                   
+                                                            
+                                          
+                             
+                                                                               
+FoamFile
+{
+    format          ascii;
+    class           volScalarField;
+    location        1 / fluid;
+    object          rhoE;
+}
+                                                                               
+
+dimensions      [ 1 -1 -2 0 0 0 0 ];
+
+internalField   uniform 13500000;
+
+boundaryField
+{
+    inlet
+    {
+        type            calculated;
+        value           uniform 13500000;
+    }
+    outlet
+    {
+        type            calculated;
+        value           uniform 13500000;
+    }
+    fluid_to_graphite
+    {
+        type            calculated;
+        value           uniform 13500000;
+    }
+    wedgeBack
+    {
+        type            wedge;
+    }
+    wedgeFront
+    {
+        type            wedge;
+    }
+    defaultFaces
+    {
+        type            empty;
+    }
+}
+
+
+                                                                               

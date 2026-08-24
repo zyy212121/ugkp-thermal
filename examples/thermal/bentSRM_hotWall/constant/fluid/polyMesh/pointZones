@@ -1,0 +1,20 @@
+                                                                               
+                             
+                                                                   
+                                                            
+                                          
+                             
+                                                                               
+FoamFile
+{
+    format      ascii;
+    class       regIOobject;
+    location    "constant/fluid/polyMesh";
+    object      pointZones;
+}
+                                                                               
+
+0
+()
+
+                                                                               

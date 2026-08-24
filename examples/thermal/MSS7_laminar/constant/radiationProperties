@@ -1,0 +1,17 @@
+FoamFile
+{
+    version     2.0;
+    format      ascii;
+    class       dictionary;
+    location    "constant";
+    object      radiationProperties;
+}
+
+schemaVersion 1;
+
+enabled false;
+couplingInterval 1e30;
+
+model
+{
+}

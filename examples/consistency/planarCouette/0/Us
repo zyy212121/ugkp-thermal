@@ -1,0 +1,11 @@
+FoamFile { version 2.0; format ascii; class volVectorField; location "0"; object Us; }
+dimensions [0 1 -1 0 0 0 0];
+internalField uniform (0 0 0);
+boundaryField
+{
+    xMin { type symmetryPlane; }
+    xMax { type symmetryPlane; }
+    bottom { type zeroGradient; }
+    top { type zeroGradient; }
+    zEmpty { type empty; }
+}

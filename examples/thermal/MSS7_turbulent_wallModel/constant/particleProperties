@@ -1,0 +1,68 @@
+FoamFile
+{
+    version     2.0;
+    format      ascii;
+    class       dictionary;
+    location    "constant";
+    object      particleProperties;
+}
+
+schemaVersion 1;
+gpuResidentFluidRegion fluid;
+gpuResidentSolidThermalCoupling true;
+gpuResidentRandomSeed 12345;
+gpuResidentInletPatch inlet;
+
+gpuResidentPressureTable inletPressure.table;
+
+gpuResidentVolumeFractionTable inletVolumeFraction.table;
+
+gpuResidentInletTemperature 3200;
+particleTemperatureTransport false;
+
+particleRho     2800;
+
+particleCp      1500;
+
+particleTMin    300;
+
+particleTMax    5000;
+
+gpuResidentCollisionalPressure false;
+
+gpuResidentJammingPressure false;
+gpuCsrHeavyCellThreshold 4096;
+
+gpuCsrHeavyTileParticles 4096;
+
+gpuCsrHeavyWorkerBlocksPerSM 4;
+
+rhoS            2800;
+
+dS              0.00012;
+
+dMin            0.00012;
+
+dMax            0.00012;
+
+dSigma          0;
+
+parcelMass      1e-09;
+
+epsSMin         1e-12;
+
+thetaMin        1e-12;
+
+TgasMin         1;
+
+gpuResidentInjectionTheta 0;
+
+gpuResidentInjectionTp 3200;
+
+particleWallCoeffs
+{
+    default         1;
+    outlet          0;
+}
+
+                                                                               

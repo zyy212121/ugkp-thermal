@@ -1,0 +1,121 @@
+#!/bin/bash
+cd "${0%/*}" || exit 1
+
+echo "=== UGKPUnified Allwmake ==="
+echo "Building three GPU solvers: gasUGKP, FSH, CHT"
+echo ""
+
+
+if [ -z "$WM_PROJECT_DIR" ]; then
+    echo "ERROR: OpenFOAM environment not loaded."
+    echo "Source OpenFOAM etc/bashrc first:"
+    echo "  source /opt/openfoam10/etc/bashrc  # or your OpenFOAM installation"
+    exit 1
+fi
+echo "OpenFOAM: $WM_PROJECT ($WM_PROJECT_VERSION)"
+
+
+if [ -z "$UGKWP_CUDA_EXE_INC" ]; then
+    echo ""
+    echo "Detecting CUDA..."
+
+
+    CUDA_ROOTS=(
+        "$CUDA_HOME"
+        "/usr/local/cuda"
+        "/opt/cuda"
+    )
+
+    CUDA_ROOT=""
+    for root in "${CUDA_ROOTS[@]}"; do
+        if [ -n "$root" ] && [ -d "$root/include" ]; then
+            CUDA_ROOT="$root"
+            break
+        fi
+    done
+
+    if [ -z "$CUDA_ROOT" ]; then
+        echo "ERROR: CUDA not found."
+        echo "Checked locations: ${CUDA_ROOTS[*]}"
+        echo ""
+        echo "Please set CUDA_HOME or UGKWP_CUDA_EXE_INC manually:"
+        echo "  export CUDA_HOME=/path/to/cuda"
+        echo "  export UGKWP_CUDA_EXE_INC=\"-I\$CUDA_HOME/include -DUGKWP_USE_CUDA\""
+        exit 1
+    fi
+
+    export UGKWP_CUDA_EXE_INC="-I$CUDA_ROOT/include -DUGKWP_USE_CUDA"
+    echo "CUDA found: $CUDA_ROOT"
+fi
+
+if [ -z "$CUDA_ROOT" ]; then
+    CUDA_ROOT="${CUDA_HOME:-/usr/local/cuda}"
+fi
+if [ ! -x "$CUDA_ROOT/bin/nvcc" ]; then
+    echo "ERROR: CUDA compiler not found at $CUDA_ROOT/bin/nvcc"
+    exit 1
+fi
+
+echo "UGKWP_CUDA_EXE_INC=$UGKWP_CUDA_EXE_INC"
+echo "CUDA compiler: $CUDA_ROOT/bin/nvcc"
+"$CUDA_ROOT/bin/nvcc" --version | tail -n 1
+SOURCE_HASH="$({ find applications/gasUGKP applications/FSH applications/CHT \
+    -type f \( -name '*.C' -o -name '*.H' -o -name '*.cu' -o -name '*.cuh' \
+    -o -name 'Makefile' -o -name 'options' -o -name 'files' \) -print0; } \
+    | sort -z | xargs -0 sha256sum | sha256sum | awk '{print $1}')"
+echo "Solver source hash: $SOURCE_HASH"
+echo ""
+
+
+SOLVERS=(gasUGKP FSH CHT)
+BUILD_SCRIPTS=(
+    applications/gasUGKP/private_backend/build_private_backend.sh
+    applications/FSH/private_backend/build_private_backend.sh
+    applications/CHT/tools/build_cuda_solver.sh
+)
+FAILED=()
+
+for index in "${!SOLVERS[@]}"; do
+    solver="${SOLVERS[$index]}"
+    build_script="${BUILD_SCRIPTS[$index]}"
+    echo "============================================"
+    echo "Building $solver via $build_script..."
+    echo "============================================"
+
+    if bash "$build_script"; then
+        echo "✓ $solver built successfully"
+    else
+        echo "✗ $solver build FAILED at $build_script"
+        FAILED+=("$solver ($build_script)")
+    fi
+    echo ""
+done
+
+
+echo "============================================"
+echo "Build summary"
+echo "============================================"
+if [ ${#FAILED[@]} -eq 0 ]; then
+    echo "✓ All solvers built successfully."
+    echo ""
+    echo "Executables:"
+    for solver in "${SOLVERS[@]}"; do
+        EXE="$FOAM_USER_APPBIN/${solver}"
+        if [ -f "$EXE" ]; then
+            echo "  $(sha256sum "$EXE")"
+        fi
+    done
+    for backend in gasUGKPCudaBackend FSHCudaBackend; do
+        EXE="$FOAM_USER_APPBIN/$backend"
+        if [ -f "$EXE" ]; then
+            echo "  $(sha256sum "$EXE")"
+        fi
+    done
+    exit 0
+else
+    echo "✗ ${#FAILED[@]} solver(s) failed:"
+    for solver in "${FAILED[@]}"; do
+        echo "  - $solver"
+    done
+    exit 1
+fi
