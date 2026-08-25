@@ -83,7 +83,7 @@ ax.plot(
     markeredgewidth=0.9,
     markersize=5.0,
     markevery=8,
-    label="coldWall1D free surface",
+    label="coldWall free surface",
 )
 ax.plot(
     cold_contact_time,
@@ -96,7 +96,7 @@ ax.plot(
     markeredgewidth=0.9,
     markersize=5.0,
     markevery=8,
-    label="coldWall1D wall contact",
+    label="coldWall wall contact",
 )
 ax.plot(
     cold_volume_time,
@@ -109,7 +109,7 @@ ax.plot(
     markeredgewidth=0.9,
     markersize=4.8,
     markevery=8,
-    label="coldWall1D volume mean",
+    label="coldWall volume mean",
 )
 ax.set_xlabel(r"Time after impact $t$ (ms)")
 ax.set_ylabel(r"Temperature $T$ ($^{\circ}$C)")

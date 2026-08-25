@@ -118,13 +118,18 @@ def particle_chunks(path):
             arrays["contact_maximum_area"] = np.zeros(count)
             arrays["contact_peak_fraction"] = np.zeros(count)
             arrays["cold_frozen_area"] = np.zeros(count)
+            arrays["cold_node_specific_enthalpy"] = np.zeros((count, 8))
             if schema >= 2:
                 arrays["contact_duration"] = np.fromfile(stream, dtype="<f4", count=count)
                 arrays["contact_maximum_area"] = np.fromfile(stream, dtype="<f4", count=count)
             if schema >= 3:
                 arrays["contact_peak_fraction"] = np.fromfile(stream, dtype="<f4", count=count)
             if schema >= 4:
-                stream.seek(count*4*(8 + 8), 1)
+                cold_enthalpy = np.fromfile(stream, dtype="<f4", count=count*8)
+                if cold_enthalpy.size != count*8:
+                    raise RuntimeError(f"Truncated particle restart {path}")
+                arrays["cold_node_specific_enthalpy"] = cold_enthalpy.reshape(count, 8)
+                stream.seek(count*4*8, 1)
                 arrays["cold_frozen_area"] = np.fromfile(stream, dtype="<f4", count=count)
                 stream.seek(count*4, 1)
             if schema >= 5:
@@ -223,6 +228,92 @@ def read_probe_history():
     times = np.array(sorted(rows), dtype=float)
     temperatures = np.array([rows[time] for time in times], dtype=float)
     return times, temperatures
+
+
+def _graphite_depth_cell_centres():
+    source = CASE / "system/graphite/blockMeshDict"
+    text = re.sub(r"/\*.*?\*/|//[^\n]*", " ", source.read_text(errors="replace"), flags=re.S)
+    vertices_match = re.search(
+        r"\bvertices\s*\(\s*((?:\([^()]+\)\s*)+)\)\s*;", text, re.S
+    )
+    block_match = re.search(
+        r"\bhex\s*\(([^()]*)\)\s*\(\s*(\d+)\s+(\d+)\s+(\d+)\s*\)", text
+    )
+    if not vertices_match or not block_match:
+        raise RuntimeError(f"Cannot recover graphite block geometry from {source}")
+    vertices = np.asarray(
+        [[float(value) for value in item.split()]
+         for item in re.findall(r"\(([^()]*)\)", vertices_match.group(1))],
+        dtype=float,
+    )
+    block_vertices = np.fromstring(block_match.group(1), sep=" ", dtype=np.int64)
+    nx, ny, nz = (int(block_match.group(index)) for index in range(2, 5))
+    if block_vertices.size != 8 or vertices.shape[1] != 3 or min(nx, ny, nz) < 1:
+        raise RuntimeError(f"Unsupported graphite block geometry in {source}")
+    interface_centre = np.mean(vertices[block_vertices[:4]], axis=0)
+    back_centre = np.mean(vertices[block_vertices[4:]], axis=0)
+    thickness = float(np.linalg.norm(back_centre - interface_centre))
+    if not thickness > 0.0:
+        raise RuntimeError(f"Non-positive graphite thickness in {source}")
+    depth_centres = (np.arange(nz, dtype=float) + 0.5)*thickness/nz
+    return depth_centres, nx*ny
+
+
+def _read_internal_scalar_field(path, expected_count):
+    text = re.sub(r"/\*.*?\*/|//[^\n]*", " ", path.read_text(errors="replace"), flags=re.S)
+    uniform = re.search(r"\binternalField\s+uniform\s+([-+0-9.eE]+)\s*;", text)
+    if uniform:
+        return np.full(expected_count, float(uniform.group(1)), dtype=float)
+    nonuniform = re.search(
+        r"\binternalField\s+nonuniform\s+List<scalar>\s+(\d+)\s*\((.*?)\)\s*;",
+        text,
+        re.S,
+    )
+    if not nonuniform:
+        raise RuntimeError(f"Cannot read graphite internal temperature field {path}")
+    declared = int(nonuniform.group(1))
+    values = np.fromstring(nonuniform.group(2), sep=" ", dtype=float)
+    if declared != expected_count or values.size != expected_count or not np.all(np.isfinite(values)):
+        raise RuntimeError(f"Malformed graphite internal temperature field {path}")
+    return values
+
+
+def read_graphite_depth_band_history(depths_mm=(5.0, 10.0, 15.0, 20.0), half_width_mm=2.0):
+    depth_centres, cells_per_depth = _graphite_depth_cell_centres()
+    selections = []
+    for depth_mm in depths_mm:
+        selected = np.flatnonzero(
+            np.abs(depth_centres - depth_mm*1.0e-3)
+            <= half_width_mm*1.0e-3 + 1.0e-12
+        )
+        if selected.size == 0:
+            raise RuntimeError(
+                f"No graphite cells lie within {depth_mm:g} +/- {half_width_mm:g} mm"
+            )
+        selections.append(selected)
+    rows = []
+    for directory in numeric_subdirectories(CASE):
+        source = directory / "graphite/T"
+        if not source.is_file():
+            continue
+        temperature = _read_internal_scalar_field(
+            source, depth_centres.size*cells_per_depth
+        )
+        centreline_profile = np.mean(
+            temperature.reshape(depth_centres.size, cells_per_depth), axis=1
+        )
+        means = np.asarray([np.mean(centreline_profile[selected]) for selected in selections])
+        minima = np.asarray([np.min(centreline_profile[selected]) for selected in selections])
+        maxima = np.asarray([np.max(centreline_profile[selected]) for selected in selections])
+        rows.append((float(directory.name), means, minima, maxima))
+    if not rows:
+        raise RuntimeError(f"No graphite temperature fields found in written times below {CASE}")
+    return (
+        np.asarray([row[0] for row in rows], dtype=float),
+        np.asarray([row[1] for row in rows], dtype=float),
+        np.asarray([row[2] for row in rows], dtype=float),
+        np.asarray([row[3] for row in rows], dtype=float),
+    )
 
 
 def read_experiment():
@@ -434,4 +525,3 @@ def main():
     write_sommerfeld_results()
     write_radiating_area_results()
     print(f"wrote={OUTPUT}")
-

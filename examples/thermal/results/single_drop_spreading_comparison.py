@@ -71,7 +71,7 @@ ax.plot(
     markeredgewidth=0.9,
     markersize=5.0,
     markevery=8,
-    label="coldWall1D",
+    label="coldWall",
 )
 ax.set_xlabel(r"Time after impact $t$ (ms)")
 ax.set_ylabel(r"Spreading factor $\beta$")

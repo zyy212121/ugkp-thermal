@@ -5,7 +5,7 @@ echo "=== UGKPUnified Allwmake ==="
 echo "Building three GPU solvers: gasUGKP, FSH, CHT"
 echo ""
 
-
+# Check OpenFOAM environment
 if [ -z "$WM_PROJECT_DIR" ]; then
     echo "ERROR: OpenFOAM environment not loaded."
     echo "Source OpenFOAM etc/bashrc first:"
@@ -14,12 +14,12 @@ if [ -z "$WM_PROJECT_DIR" ]; then
 fi
 echo "OpenFOAM: $WM_PROJECT ($WM_PROJECT_VERSION)"
 
-
+# Detect CUDA
 if [ -z "$UGKWP_CUDA_EXE_INC" ]; then
     echo ""
     echo "Detecting CUDA..."
 
-
+    # Try multiple common CUDA locations
     CUDA_ROOTS=(
         "$CUDA_HOME"
         "/usr/local/cuda"
@@ -66,7 +66,7 @@ SOURCE_HASH="$({ find applications/gasUGKP applications/FSH applications/CHT \
 echo "Solver source hash: $SOURCE_HASH"
 echo ""
 
-
+# Build each solver through its production CUDA entry point.
 SOLVERS=(gasUGKP FSH CHT)
 BUILD_SCRIPTS=(
     applications/gasUGKP/private_backend/build_private_backend.sh
@@ -91,7 +91,7 @@ for index in "${!SOLVERS[@]}"; do
     echo ""
 done
 
-
+# Summary
 echo "============================================"
 echo "Build summary"
 echo "============================================"

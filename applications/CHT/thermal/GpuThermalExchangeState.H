@@ -6,6 +6,7 @@
 #include "label.H"
 #include "labelList.H"
 #include "scalar.H"
+#include "scalarField.H"
 #include "word.H"
 #include "volFieldsFwd.H"
 
@@ -61,6 +62,18 @@ struct ThermalExchangeWriteDecision
     label timeIndex{0};
     scalar simulationTimeS{0};
     scalar deltaTExchangeS{0};
+};
+
+struct PendingWallEnergyLedgerSnapshot
+{
+    scalar checkpointSimulationTimeS{0};
+    scalar completedExchangeSimulationTimeS{0};
+    word fluidMeshTopologySha1;
+    label nMeshFaces{0};
+    labelList faceIds;
+    scalarField gasConvectiveEnergyJ;
+    scalarField particleDepositedEnergyJ;
+    scalarField particleReflectedEnergyJ;
 };
 
 class ThermalExchangeWriteEventStateMachine
@@ -121,6 +134,8 @@ public:
 
     static const word& manifestObjectName();
 
+    static const fileName& pendingWallEnergyObjectName();
+
     static void validateStateSemantics
     (
         const ThermalExchangeRestartState& state
@@ -137,6 +152,15 @@ public:
         const Time& runTime,
         const fvMesh& fluidMesh,
         const dictionary& couplingDictionary
+    );
+
+    static PendingWallEnergyLedgerSnapshot readPendingWallEnergyLedgers
+    (
+        const fileName& timeDirectory,
+        scalar checkpointSimulationTimeS,
+        scalar completedExchangeSimulationTimeS,
+        const word& fluidMeshTopologySha1,
+        label nMeshFaces
     );
 
     static void validateFiniteRestartFields

@@ -1852,9 +1852,20 @@ __global__ void validateDevelopmentProbeParticlesKernel
              && (
                     s.pTheta[i] != 0.0
                  || !(s.pDepositionArea[i] > 0.0f)
-                 || s.pContactDuration[i] != 0.0f
-                 || s.pContactMaximumArea[i] != 0.0f
-                 || s.pContactPeakFraction[i] != 0.0f
+                 || !
+                    (
+                        (
+                            s.pContactDuration[i] == 0.0f
+                         && s.pContactMaximumArea[i] == 0.0f
+                         && s.pContactPeakFraction[i] == 0.0f
+                        )
+                     || (
+                            s.pContactDuration[i] > 0.0f
+                         && s.pContactMaximumArea[i] > 0.0f
+                         && s.pContactPeakFraction[i] > 0.0f
+                         && s.pContactPeakFraction[i] < 1.0f
+                        )
+                    )
                 )
             )
          || (
@@ -17440,6 +17451,172 @@ extern "C" int ugkwpGpuResidentStrictPeekGasWallEnergy
         static_cast<size_t>(nFaces),
         "cudaMemcpy gas-wall energy ledger peek"
     );
+}
+
+extern "C" int ugkwpGpuResidentStrictPeekWallEnergyLedgerRange
+(
+    void* handle,
+    int firstFace,
+    int nFaces,
+    double* gasWallEnergyJ,
+    double* particleDepositedWallEnergyJ,
+    double* particleReflectedWallEnergyJ
+)
+{
+    DeviceState* s = asState(handle);
+    if
+    (
+        validateState(s, "pending wall-energy ledger range peek") != 0
+     || firstFace < s->nInternalFaces
+     || nFaces <= 0
+     || firstFace > s->nFaces - nFaces
+     || gasWallEnergyJ == nullptr
+     || particleDepositedWallEnergyJ == nullptr
+     || particleReflectedWallEnergyJ == nullptr
+     || s->gasWallEnergy == nullptr
+     || s->gasWallEnergyMask == nullptr
+    )
+    {
+        setLastErrorText("invalid pending wall-energy ledger range peek");
+        return 1;
+    }
+    const size_t count = static_cast<size_t>(nFaces);
+    if
+    (
+        copyToHost
+        (
+            gasWallEnergyJ,
+            s->gasWallEnergy + firstFace,
+            count,
+            "cudaMemcpy compact gas-wall energy ledger peek"
+        ) != 0
+    )
+    {
+        return 1;
+    }
+    if (s->particleWallHeatTransferEnabled == 0)
+    {
+        std::fill_n(particleDepositedWallEnergyJ, count, 0.0);
+        std::fill_n(particleReflectedWallEnergyJ, count, 0.0);
+        return 0;
+    }
+    if
+    (
+        s->particleWallDepositedEnergy == nullptr
+     || s->particleWallReflectedEnergy == nullptr
+     || copyToHost
+        (
+            particleDepositedWallEnergyJ,
+            s->particleWallDepositedEnergy + firstFace,
+            count,
+            "cudaMemcpy compact deposited-particle wall energy peek"
+        ) != 0
+     || copyToHost
+        (
+            particleReflectedWallEnergyJ,
+            s->particleWallReflectedEnergy + firstFace,
+            count,
+            "cudaMemcpy compact reflected-particle wall energy peek"
+        ) != 0
+    )
+    {
+        setLastErrorText("invalid configured particle wall-energy ledgers");
+        return 1;
+    }
+    return 0;
+}
+
+extern "C" int ugkwpGpuResidentStrictUploadWallEnergyLedgerRange
+(
+    void* handle,
+    int firstFace,
+    int nFaces,
+    const double* gasWallEnergyJ,
+    const double* particleDepositedWallEnergyJ,
+    const double* particleReflectedWallEnergyJ
+)
+{
+    DeviceState* s = asState(handle);
+    if
+    (
+        validateState(s, "pending wall-energy ledger range restore") != 0
+     || firstFace < s->nInternalFaces
+     || nFaces <= 0
+     || firstFace > s->nFaces - nFaces
+     || gasWallEnergyJ == nullptr
+     || particleDepositedWallEnergyJ == nullptr
+     || particleReflectedWallEnergyJ == nullptr
+     || s->gasWallEnergy == nullptr
+     || s->gasWallEnergyMask == nullptr
+    )
+    {
+        setLastErrorText("invalid pending wall-energy ledger range restore");
+        return 1;
+    }
+    const size_t count = static_cast<size_t>(nFaces);
+    if
+    (
+        copyToDevice
+        (
+            s->gasWallEnergy + firstFace,
+            gasWallEnergyJ,
+            count,
+            "cudaMemcpy compact gas-wall energy ledger restore"
+        ) != 0
+    )
+    {
+        return 1;
+    }
+    if (s->particleWallHeatTransferEnabled == 0)
+    {
+        if
+        (
+            !std::all_of
+            (
+                particleDepositedWallEnergyJ,
+                particleDepositedWallEnergyJ + count,
+                [](const double value){ return value == 0.0; }
+            )
+         || !std::all_of
+            (
+                particleReflectedWallEnergyJ,
+                particleReflectedWallEnergyJ + count,
+                [](const double value){ return value == 0.0; }
+            )
+        )
+        {
+            setLastErrorText
+            (
+                "nonzero particle wall-energy restore for disabled heat transfer"
+            );
+            return 1;
+        }
+        return 0;
+    }
+    if
+    (
+        s->particleWallDepositedEnergy == nullptr
+     || s->particleWallReflectedEnergy == nullptr
+     || copyToDevice
+        (
+            s->particleWallDepositedEnergy + firstFace,
+            particleDepositedWallEnergyJ,
+            count,
+            "cudaMemcpy compact deposited-particle wall energy restore"
+        ) != 0
+     || copyToDevice
+        (
+            s->particleWallReflectedEnergy + firstFace,
+            particleReflectedWallEnergyJ,
+            count,
+            "cudaMemcpy compact reflected-particle wall energy restore"
+        ) != 0
+    )
+    {
+        setLastErrorText("invalid configured particle wall-energy ledgers");
+        return 1;
+    }
+    return 0;
 }
 
 extern "C" int ugkwpGpuResidentStrictDownloadAndResetGasWallEnergy

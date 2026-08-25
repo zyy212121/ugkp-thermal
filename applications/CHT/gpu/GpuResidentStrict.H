@@ -243,6 +243,26 @@ extern "C" int ugkwpGpuResidentStrictConfigureGasWallEnergyLedger
     const int* enabledFaceIds
 );
 
+extern "C" int ugkwpGpuResidentStrictPeekWallEnergyLedgerRange
+(
+    void* handle,
+    int firstFace,
+    int nFaces,
+    double* gasWallEnergyJ,
+    double* particleDepositedWallEnergyJ,
+    double* particleReflectedWallEnergyJ
+);
+
+extern "C" int ugkwpGpuResidentStrictUploadWallEnergyLedgerRange
+(
+    void* handle,
+    int firstFace,
+    int nFaces,
+    const double* gasWallEnergyJ,
+    const double* particleDepositedWallEnergyJ,
+    const double* particleReflectedWallEnergyJ
+);
+
 extern "C" int ugkwpGpuResidentStrictPeekGasWallEnergy
 (
     void* handle,
@@ -687,6 +707,115 @@ public:
         gasWallEnergyFaceIds_.transfer(faceIds);
         gasWallEnergyPatchSizes_.transfer(patchSizes);
         gasWallEnergyConfigured_ = !gasWallEnergyFaceIds_.empty();
+    }
+
+    const labelList& configuredGasWallEnergyFaceIds() const
+    {
+        return gasWallEnergyFaceIds_;
+    }
+
+    void peekPendingWallEnergyLedgers
+    (
+        scalarField& gasEnergy,
+        scalarField& depositedEnergy,
+        scalarField& reflectedEnergy
+    ) const
+    {
+        requireInitialised("peekPendingWallEnergyLedgers");
+        const label nConfigured = gasWallEnergyFaceIds_.size();
+        gasEnergy.setSize(nConfigured, scalar(0));
+        depositedEnergy.setSize(nConfigured, scalar(0));
+        reflectedEnergy.setSize(nConfigured, scalar(0));
+        label offset = 0;
+        forAll(gasWallEnergyPatchSizes_, patchListI)
+        {
+            const label patchSize = gasWallEnergyPatchSizes_[patchListI];
+            if (patchSize == 0)
+            {
+                continue;
+            }
+            const label firstFace = gasWallEnergyFaceIds_[offset];
+            for (label faceI = 1; faceI < patchSize; ++faceI)
+            {
+                if (gasWallEnergyFaceIds_[offset + faceI] != firstFace + faceI)
+                {
+                    FatalErrorInFunction
+                        << "Configured coupled-patch faces are not contiguous."
+                        << exit(FatalError);
+                }
+            }
+            check
+            (
+                ugkwpGpuResidentStrictPeekWallEnergyLedgerRange
+                (
+                    handle_,
+                    int(firstFace),
+                    int(patchSize),
+                    gasEnergy.begin() + offset,
+                    depositedEnergy.begin() + offset,
+                    reflectedEnergy.begin() + offset
+                ),
+                "peek compact GPU pending wall-energy ledgers"
+            );
+            offset += patchSize;
+        }
+        if (offset != nConfigured)
+        {
+            FatalErrorInFunction
+                << "Configured gas-wall ledger patch sizes are inconsistent."
+                << exit(FatalError);
+        }
+    }
+
+    void restorePendingWallEnergyLedgers
+    (
+        const scalarField& gasEnergy,
+        const scalarField& depositedEnergy,
+        const scalarField& reflectedEnergy
+    )
+    {
+        requireInitialised("restorePendingWallEnergyLedgers");
+        const label nConfigured = gasWallEnergyFaceIds_.size();
+        if
+        (
+            gasEnergy.size() != nConfigured
+         || depositedEnergy.size() != nConfigured
+         || reflectedEnergy.size() != nConfigured
+        )
+        {
+            FatalErrorInFunction
+                << "Pending wall-energy ledger size does not match the "
+                << "configured coupled faces." << exit(FatalError);
+        }
+        label offset = 0;
+        forAll(gasWallEnergyPatchSizes_, patchListI)
+        {
+            const label patchSize = gasWallEnergyPatchSizes_[patchListI];
+            if (patchSize == 0)
+            {
+                continue;
+            }
+            check
+            (
+                ugkwpGpuResidentStrictUploadWallEnergyLedgerRange
+                (
+                    handle_,
+                    int(gasWallEnergyFaceIds_[offset]),
+                    int(patchSize),
+                    gasEnergy.begin() + offset,
+                    depositedEnergy.begin() + offset,
+                    reflectedEnergy.begin() + offset
+                ),
+                "restore compact GPU pending wall-energy ledgers"
+            );
+            offset += patchSize;
+        }
+        if (offset != nConfigured)
+        {
+            FatalErrorInFunction
+                << "Configured gas-wall ledger patch sizes are inconsistent."
+                << exit(FatalError);
+        }
     }
 
     List<scalarField> peekGasWallEnergy() const
@@ -2991,9 +3120,20 @@ protected:
                  || (pStuck[i] == 1 && pStuckFaceId[i] >= 0
                      && pDepositionArea[i] <= 0.0f)
                  || (pStuck[i] == 1 && pTheta[i] != 0.0)
-                 || (pStuck[i] == 1 && pContactDuration[i] != 0.0f)
-                 || (pStuck[i] == 1 && pContactMaximumArea[i] != 0.0f)
-                 || (pStuck[i] == 1 && pContactPeakFraction[i] != 0.0f)
+                 || (pStuck[i] == 1 && !
+                    (
+                        (
+                            pContactDuration[i] == 0.0f
+                         && pContactMaximumArea[i] == 0.0f
+                         && pContactPeakFraction[i] == 0.0f
+                        )
+                     || (
+                            pContactDuration[i] > 0.0f
+                         && pContactMaximumArea[i] > 0.0f
+                         && pContactPeakFraction[i] > 0.0f
+                         && pContactPeakFraction[i] < 1.0f
+                        )
+                    ))
                  || ((pStuck[i] == 2 || pStuck[i] == 3)
                      && !(pContactDuration[i] > 0.0f))
                  || ((pStuck[i] == 2 || pStuck[i] == 3)
@@ -3019,7 +3159,7 @@ protected:
         if
         (
             !weightedFshV1 && !weightedFshV2
-         && !weightedFshV3 && !weightedFshV4
+         && !weightedFshV3 && !weightedFshV4 && !weightedFshV5
         )
         {
           std::getline(is, line);

@@ -1796,9 +1796,20 @@ __global__ void validateDevelopmentProbeParticlesKernel
              && (
                     s.pTheta[i] != 0.0
                  || !(s.pDepositionArea[i] > 0.0f)
-                 || s.pContactDuration[i] != 0.0f
-                 || s.pContactMaximumArea[i] != 0.0f
-                 || s.pContactPeakFraction[i] != 0.0f
+                 || !
+                    (
+                        (
+                            s.pContactDuration[i] == 0.0f
+                         && s.pContactMaximumArea[i] == 0.0f
+                         && s.pContactPeakFraction[i] == 0.0f
+                        )
+                     || (
+                            s.pContactDuration[i] > 0.0f
+                         && s.pContactMaximumArea[i] > 0.0f
+                         && s.pContactPeakFraction[i] > 0.0f
+                         && s.pContactPeakFraction[i] < 1.0f
+                        )
+                    )
                 )
             )
          || (

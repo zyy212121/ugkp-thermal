@@ -7,9 +7,13 @@
 #include "SolverPerformance.H"
 #include "zeroGradientFvPatchFields.H"
 #include "surfaceFields.H"
+#include "OSspecific.H"
 
 #include <algorithm>
 #include <cmath>
+#include <cstring>
+#include <fstream>
+#include <iomanip>
 #include <limits>
 #include <sstream>
 
@@ -1332,7 +1336,7 @@ public:
                     "gasConvectiveWallHeatFlux",
                     runTime.timeName(),
                     fluidMesh,
-                    IOobject::NO_READ,
+                    IOobject::READ_IF_PRESENT,
                     IOobject::AUTO_WRITE,
                     true
                 ),
@@ -1352,7 +1356,7 @@ public:
                     "particleRadiationWallHeatFlux",
                     runTime.timeName(),
                     fluidMesh,
-                    IOobject::NO_READ,
+                    IOobject::READ_IF_PRESENT,
                     IOobject::AUTO_WRITE,
                     true
                 ),
@@ -1372,7 +1376,7 @@ public:
                     resident.particleStuckWallHeatFluxFieldName(),
                     runTime.timeName(),
                     fluidMesh,
-                    IOobject::NO_READ,
+                    IOobject::READ_IF_PRESENT,
                     IOobject::AUTO_WRITE,
                     true
                 ),
@@ -1389,7 +1393,7 @@ public:
                     resident.particleReflectedWallHeatFluxFieldName(),
                     runTime.timeName(),
                     fluidMesh,
-                    IOobject::NO_READ,
+                    IOobject::READ_IF_PRESENT,
                     IOobject::AUTO_WRITE,
                     true
                 ),
@@ -1446,6 +1450,166 @@ public:
                 );
             }
         }
+        restorePendingWallEnergyLedgers(restartState);
+    }
+
+    void restorePendingWallEnergyLedgers
+    (
+        const ThermalExchangeRestartState& restartState
+    )
+    {
+        const fileName pendingPath
+        (
+            runTime.timePath()
+           /ThermalRestartPreflight::pendingWallEnergyObjectName()
+        );
+        if (!Foam::isFile(pendingPath))
+        {
+            if (restartState.completedSimulationTimeS != runTime.value())
+            {
+                solidFailure
+                (
+                    "lagged CHT restart is missing its pending wall-energy ledger"
+                );
+            }
+            return;
+        }
+        const PendingWallEnergyLedgerSnapshot pending =
+            ThermalRestartPreflight::readPendingWallEnergyLedgers
+            (
+                runTime.timePath(),
+                runTime.value(),
+                restartState.completedSimulationTimeS,
+                restartState.fluidMeshTopologySha1,
+                fluidMesh.nFaces()
+            );
+        const labelList& configuredFaces =
+            resident.configuredGasWallEnergyFaceIds();
+        if
+        (
+            pending.faceIds.size() != configuredFaces.size()
+         ||
+            (
+                !configuredFaces.empty()
+             && std::memcmp
+                (
+                    pending.faceIds.begin(),
+                    configuredFaces.begin(),
+                    static_cast<std::size_t>(configuredFaces.size())
+                   *sizeof(label)
+                ) != 0
+            )
+        )
+        {
+            solidFailure
+            (
+                "pending wall-energy ledger faces do not exactly match the "
+                "configured CHT coupled faces"
+            );
+        }
+        resident.restorePendingWallEnergyLedgers
+        (
+            pending.gasConvectiveEnergyJ,
+            pending.particleDepositedEnergyJ,
+            pending.particleReflectedEnergyJ
+        );
+    }
+
+    PendingWallEnergyLedgerSnapshot pendingWallEnergySnapshot
+    (
+        const ThermalExchangeRestartState& state
+    ) const
+    {
+        PendingWallEnergyLedgerSnapshot pending;
+        pending.checkpointSimulationTimeS = runTime.value();
+        pending.completedExchangeSimulationTimeS =
+            state.completedSimulationTimeS;
+        pending.fluidMeshTopologySha1 = state.fluidMeshTopologySha1;
+        pending.nMeshFaces = fluidMesh.nFaces();
+        pending.faceIds = resident.configuredGasWallEnergyFaceIds();
+        resident.peekPendingWallEnergyLedgers
+        (
+            pending.gasConvectiveEnergyJ,
+            pending.particleDepositedEnergyJ,
+            pending.particleReflectedEnergyJ
+        );
+        return pending;
+    }
+
+    std::pair<fileName, fileName> writePendingWallEnergyTemporary
+    (
+        const PendingWallEnergyLedgerSnapshot& pending
+    ) const
+    {
+        const fileName finalPath
+        (
+            runTime.timePath()
+           /ThermalRestartPreflight::pendingWallEnergyObjectName()
+        );
+        const fileName temporaryPath(finalPath + ".tmp");
+        std::ofstream os(temporaryPath.c_str(), std::ios::out | std::ios::trunc);
+        if (!os)
+        {
+            solidFailure("cannot create temporary pending wall-energy ledger");
+        }
+        if
+        (
+            pending.gasConvectiveEnergyJ.size() != pending.faceIds.size()
+         || pending.particleDepositedEnergyJ.size() != pending.faceIds.size()
+         || pending.particleReflectedEnergyJ.size() != pending.faceIds.size()
+        )
+        {
+            solidFailure("pending wall-energy ledger arrays have inconsistent sizes");
+        }
+        os.setf(std::ios::scientific);
+        os.precision(std::numeric_limits<scalar>::max_digits10);
+        os << "FoamFile\n{\nversion 2.0;\nformat ascii;\nclass dictionary;\n"
+           << "location \"" << runTime.timeName() << "\";\n"
+           << "object gpuPendingWallEnergyLedgers;\n}\n\n"
+           << "formatVersion 1;\n"
+           << "checkpointSimulationTimeS "
+           << pending.checkpointSimulationTimeS << ";\n"
+           << "completedExchangeSimulationTimeS "
+           << pending.completedExchangeSimulationTimeS << ";\n"
+           << "fluidMeshTopologySha1 \""
+           << pending.fluidMeshTopologySha1 << "\";\n"
+           << "nMeshFaces " << pending.nMeshFaces << ";\n"
+           << "nEntries " << pending.faceIds.size() << ";\n\n"
+           << "entries\n(\n";
+        scalar gasTotal = scalar(0);
+        scalar depositedTotal = scalar(0);
+        scalar reflectedTotal = scalar(0);
+        forAll(pending.faceIds, entryI)
+        {
+            const scalar gas = pending.gasConvectiveEnergyJ[entryI];
+            const scalar deposited = pending.particleDepositedEnergyJ[entryI];
+            const scalar reflected = pending.particleReflectedEnergyJ[entryI];
+            if
+            (
+                !finiteScalar(gas)
+             || !finiteScalar(deposited)
+             || !finiteScalar(reflected)
+            )
+            {
+                solidFailure("non-finite pending wall-energy ledger value");
+            }
+            gasTotal += gas;
+            depositedTotal += deposited;
+            reflectedTotal += reflected;
+            os << "    (" << pending.faceIds[entryI] << " " << gas << " "
+               << deposited << " " << reflected << ")\n";
+        }
+        os << ");\n\n"
+           << "gasConvectiveEnergyJ " << gasTotal << ";\n"
+           << "particleDepositedEnergyJ " << depositedTotal << ";\n"
+           << "particleReflectedEnergyJ " << reflectedTotal << ";\n";
+        os.flush();
+        os.close();
+        if (!os)
+        {
+            solidFailure("failed completing temporary pending wall-energy ledger");
+        }
+        return std::make_pair(temporaryPath, finalPath);
     }
 
     void mapSolidWallTemperatureToFluid(volScalarField& Tgas)
@@ -1555,7 +1719,8 @@ public:
     std::pair<fileName, fileName> writeManifestTemporary
     (
         const ThermalExchangeRestartState& state,
-        const GpuThermalRestartMirrorMetadata& mirrors
+        const GpuThermalRestartMirrorMetadata& mirrors,
+        const PendingWallEnergyLedgerSnapshot& pendingWallEnergy
     )
     {
         const fileName timePath(runTime.timePath());
@@ -1583,6 +1748,21 @@ public:
             mirrors.epsGPrevSha1, mirrors.epsGPrevCount);
         writeArtifact(os, "sourceResidualRestart", mirrors.sourceResidualFile,
             mirrors.sourceResidualSha1, mirrors.sourceResidualCount);
+        const fileName pendingWallEnergyFile
+        (
+            ThermalRestartPreflight::pendingWallEnergyObjectName()
+        );
+        writeArtifact
+        (
+            os,
+            "pendingWallEnergyLedgers",
+            pendingWallEnergyFile,
+            ThermalRestartPreflight::fileSha1
+            (
+                timePath/pendingWallEnergyFile
+            ),
+            pendingWallEnergy.faceIds.size()
+        );
         const fileName solidRelative(solidRegion/"T");
         writeArtifact(os, "solidTemperature", solidRelative,
             ThermalRestartPreflight::fileSha1(timePath/solidRelative), -1);
@@ -2224,7 +2404,7 @@ GpuThermalCouplingResult GpuSolidThermalCoupler::exchangeIfDue
         }
         ThermalExchangeRestartState completed =
             data_->writeState.committedState();
-        completed.formatVersion = 3;
+        completed.formatVersion = 4;
         completed.initialState = false;
         completed.exchangeSequence = decision.exchangeSequence;
         completed.previousExchangeSimulationTimeS =
@@ -2312,8 +2492,13 @@ label GpuSolidThermalCoupler::persistAtWriteTime
     }
     const GpuThermalRestartMirrorMetadata mirrors =
         data_->resident.stageThermalRestartMirrors(runTime);
-    const ThermalExchangeRestartState completed =
+    ThermalExchangeRestartState completed =
         data_->writeState.committedState();
+    completed.formatVersion = 4;
+    const PendingWallEnergyLedgerSnapshot pendingWallEnergy =
+        data_->pendingWallEnergySnapshot(completed);
+    const std::pair<fileName, fileName> preparedPendingWallEnergy =
+        data_->writePendingWallEnergyTemporary(pendingWallEnergy);
     IOdictionary stateObject
     (
         IOobject
@@ -2328,6 +2513,11 @@ label GpuSolidThermalCoupler::persistAtWriteTime
     {
         solidFailure("ordinary OpenFOAM field write failed during thermal persistence");
     }
+    ThermalRestartPreflight::commitManifestAtomically
+    (
+        preparedPendingWallEnergy.first,
+        preparedPendingWallEnergy.second
+    );
     ThermalRestartPreflight::validateFiniteRestartFields
     (
         data_->fluidMesh, data_->solidMesh()
@@ -2340,7 +2530,12 @@ label GpuSolidThermalCoupler::persistAtWriteTime
         );
     }
     const std::pair<fileName, fileName> preparedManifest =
-        data_->writeManifestTemporary(completed, mirrors);
+        data_->writeManifestTemporary
+        (
+            completed,
+            mirrors,
+            pendingWallEnergy
+        );
     ThermalRestartPreflight::commitManifestAtomically
     (
         preparedManifest.first,

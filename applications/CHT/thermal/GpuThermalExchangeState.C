@@ -53,6 +53,7 @@ using Foam::fileName;
 using Foam::fvMesh;
 using Foam::gpuThermal::ThermalExchangeRestartState;
 using Foam::gpuThermal::ThermalExchangeStateError;
+using Foam::gpuThermal::PendingWallEnergyLedgerSnapshot;
 using Foam::gpuThermal::ThermalRestartPreflight;
 using Foam::gpuThermal::ThermalRestartPreflightExpectations;
 using Foam::label;
@@ -500,6 +501,178 @@ dictionary readDictionaryFile(const fileName& path)
     return dictionary(stream);
 }
 
+struct PendingWallEnergyEntry
+{
+    label face{-1};
+    scalar gasEnergyJ{0};
+    scalar depositedEnergyJ{0};
+    scalar reflectedEnergyJ{0};
+};
+
+Foam::Istream& operator>>
+(
+    Foam::Istream& stream,
+    PendingWallEnergyEntry& value
+)
+{
+    stream.readBegin("pending wall-energy ledger entry");
+    stream >> value.face >> value.gasEnergyJ >> value.depositedEnergyJ
+           >> value.reflectedEnergyJ;
+    stream.readEnd("pending wall-energy ledger entry");
+    return stream;
+}
+
+bool ledgerTotalMatches(const scalar declared, const scalar accumulated)
+{
+    const scalar scale = std::max
+    (
+        scalar(1), std::max(std::abs(declared), std::abs(accumulated))
+    );
+    return
+        finiteScalar(declared)
+     && std::abs(declared - accumulated)
+        <= scalar(64)*std::numeric_limits<scalar>::epsilon()*scale;
+}
+
+PendingWallEnergyLedgerSnapshot readPendingWallEnergyLedgersImpl
+(
+    const fileName& timeDirectory,
+    const scalar checkpointSimulationTimeS,
+    const scalar completedExchangeSimulationTimeS,
+    const word& fluidMeshTopologySha1,
+    const label nMeshFaces
+)
+{
+    const fileName path
+    (
+        timeDirectory/ThermalRestartPreflight::pendingWallEnergyObjectName()
+    );
+    const dictionary dict = readDictionaryFile(path);
+    for (const word& key : Foam::wordList
+    {
+        "formatVersion",
+        "checkpointSimulationTimeS",
+        "completedExchangeSimulationTimeS",
+        "fluidMeshTopologySha1",
+        "nMeshFaces",
+        "nEntries",
+        "entries",
+        "gasConvectiveEnergyJ",
+        "particleDepositedEnergyJ",
+        "particleReflectedEnergyJ"
+    })
+    {
+        requireEntry(dict, key, path);
+    }
+
+    PendingWallEnergyLedgerSnapshot result;
+    const label formatVersion = dict.lookup<label>
+    (
+        "formatVersion", false, false
+    );
+    result.checkpointSimulationTimeS = dict.lookup<scalar>
+    (
+        "checkpointSimulationTimeS", false, false
+    );
+    result.completedExchangeSimulationTimeS = dict.lookup<scalar>
+    (
+        "completedExchangeSimulationTimeS", false, false
+    );
+    result.fluidMeshTopologySha1 = word
+    (
+        readTextToken(dict, "fluidMeshTopologySha1", path)
+    );
+    result.nMeshFaces = dict.lookup<label>("nMeshFaces", false, false);
+    const label nEntries = dict.lookup<label>("nEntries", false, false);
+    const Foam::List<PendingWallEnergyEntry> entries
+    (
+        dict.lookup("entries", false, false)
+    );
+    if
+    (
+        formatVersion != 1
+     || !finiteScalar(result.checkpointSimulationTimeS)
+     || !finiteScalar(result.completedExchangeSimulationTimeS)
+     || result.checkpointSimulationTimeS != checkpointSimulationTimeS
+     || result.completedExchangeSimulationTimeS
+        != completedExchangeSimulationTimeS
+     || result.completedExchangeSimulationTimeS
+        > result.checkpointSimulationTimeS
+     || result.fluidMeshTopologySha1 != fluidMeshTopologySha1
+     || result.nMeshFaces != nMeshFaces
+     || nEntries < 0
+     || nEntries != entries.size()
+    )
+    {
+        stateError("pending wall-energy ledger metadata mismatch in " + pathText(path));
+    }
+
+    result.faceIds.setSize(nEntries);
+    result.gasConvectiveEnergyJ.setSize(nEntries);
+    result.particleDepositedEnergyJ.setSize(nEntries);
+    result.particleReflectedEnergyJ.setSize(nEntries);
+    std::set<label> uniqueFaces;
+    scalar gasTotal = scalar(0);
+    scalar depositedTotal = scalar(0);
+    scalar reflectedTotal = scalar(0);
+    forAll(entries, entryI)
+    {
+        const PendingWallEnergyEntry& value = entries[entryI];
+        if
+        (
+            value.face < 0
+         || value.face >= nMeshFaces
+         || !uniqueFaces.insert(value.face).second
+         || !finiteScalar(value.gasEnergyJ)
+         || !finiteScalar(value.depositedEnergyJ)
+         || !finiteScalar(value.reflectedEnergyJ)
+        )
+        {
+            stateError("invalid pending wall-energy ledger entry in " + pathText(path));
+        }
+        result.faceIds[entryI] = value.face;
+        result.gasConvectiveEnergyJ[entryI] = value.gasEnergyJ;
+        result.particleDepositedEnergyJ[entryI] = value.depositedEnergyJ;
+        result.particleReflectedEnergyJ[entryI] = value.reflectedEnergyJ;
+        gasTotal += value.gasEnergyJ;
+        depositedTotal += value.depositedEnergyJ;
+        reflectedTotal += value.reflectedEnergyJ;
+    }
+    const scalar declaredGas = dict.lookup<scalar>
+    (
+        "gasConvectiveEnergyJ", false, false
+    );
+    const scalar declaredDeposited = dict.lookup<scalar>
+    (
+        "particleDepositedEnergyJ", false, false
+    );
+    const scalar declaredReflected = dict.lookup<scalar>
+    (
+        "particleReflectedEnergyJ", false, false
+    );
+    if
+    (
+        !ledgerTotalMatches(declaredGas, gasTotal)
+     || !ledgerTotalMatches(declaredDeposited, depositedTotal)
+     || !ledgerTotalMatches(declaredReflected, reflectedTotal)
+     ||
+        (
+            result.completedExchangeSimulationTimeS
+         == result.checkpointSimulationTimeS
+         &&
+            (
+                gasTotal != scalar(0)
+             || depositedTotal != scalar(0)
+             || reflectedTotal != scalar(0)
+            )
+        )
+    )
+    {
+        stateError("pending wall-energy ledger totals are inconsistent in " + pathText(path));
+    }
+    return result;
+}
+
 struct ManifestArtifact
 {
     word role;
@@ -638,13 +811,20 @@ label validateParticleMirror
 
     const bool legacyText = version == "UGKP_PARTICLES_SCHEMA4";
     const bool weightedBinary = version == "UGKP_PARTICLES_SCHEMA1_BIN";
-    if (!legacyText && !weightedBinary)
+    int fshBinarySchema = 0;
+    if (version == "UGKP_FSH_PARTICLES_SCHEMA1_BIN") fshBinarySchema = 1;
+    else if (version == "UGKP_FSH_PARTICLES_SCHEMA2_BIN") fshBinarySchema = 2;
+    else if (version == "UGKP_FSH_PARTICLES_SCHEMA3_BIN") fshBinarySchema = 3;
+    else if (version == "UGKP_FSH_PARTICLES_SCHEMA4_BIN") fshBinarySchema = 4;
+    else if (version == "UGKP_FSH_PARTICLES_SCHEMA5_BIN") fshBinarySchema = 5;
+    const bool fshBinary = fshBinarySchema != 0;
+    if (!legacyText && !weightedBinary && !fshBinary)
     {
         stateError("unsupported GPU particle mirror version in " + pathText(path));
     }
     if
     (
-        weightedBinary
+        (weightedBinary || fshBinary)
      && (!(header >> chunkCapacity) || chunkCapacity <= 0)
     )
     {
@@ -656,7 +836,7 @@ label validateParticleMirror
         stateError("GPU particle mirror header has trailing data in " + pathText(path));
     }
 
-    if (weightedBinary)
+    if (weightedBinary || fshBinary)
     {
         if (sizeof(double) != 8 || sizeof(label) != 4)
         {
@@ -664,7 +844,9 @@ label validateParticleMirror
         }
         long long consumed = 0;
         std::vector<double> scalarBuffer;
+        std::vector<float> floatBuffer;
         std::vector<label> labelBuffer;
+        std::vector<std::uint8_t> byteBuffer;
         std::vector<unsigned long long> ullBuffer;
         while (consumed < count)
         {
@@ -765,6 +947,62 @@ label validateParticleMirror
                 if (!stream)
                 {
                     stateError("truncated UGKP particle metadata block in " + pathText(path));
+                }
+            }
+            if (fshBinary)
+            {
+                byteBuffer.resize(n);
+                stream.read
+                (
+                    reinterpret_cast<char*>(byteBuffer.data()),
+                    static_cast<std::streamsize>(n*sizeof(std::uint8_t))
+                );
+                if (!stream)
+                {
+                    stateError("truncated FSH particle wall-state block in " + pathText(path));
+                }
+                for (const std::uint8_t wallState : byteBuffer)
+                {
+                    if (wallState > 3u)
+                    {
+                        stateError("invalid FSH particle wall state in " + pathText(path));
+                    }
+                }
+
+                stream.read
+                (
+                    reinterpret_cast<char*>(labelBuffer.data()),
+                    static_cast<std::streamsize>(n*sizeof(label))
+                );
+                if (!stream)
+                {
+                    stateError("truncated FSH particle wall-face block in " + pathText(path));
+                }
+
+                int scalar32Fields = 1;
+                if (fshBinarySchema >= 2) scalar32Fields += 2;
+                if (fshBinarySchema >= 3) scalar32Fields += 1;
+                if (fshBinarySchema >= 4) scalar32Fields += 18;
+                if (fshBinarySchema >= 5) scalar32Fields += 73;
+                floatBuffer.resize(n);
+                for (int field = 0; field < scalar32Fields; ++field)
+                {
+                    stream.read
+                    (
+                        reinterpret_cast<char*>(floatBuffer.data()),
+                        static_cast<std::streamsize>(n*sizeof(float))
+                    );
+                    if (!stream)
+                    {
+                        stateError("truncated FSH particle thermal-state block in " + pathText(path));
+                    }
+                    for (const float value : floatBuffer)
+                    {
+                        if (!std::isfinite(value))
+                        {
+                            stateError("non-finite FSH particle thermal state in " + pathText(path));
+                        }
+                    }
                 }
             }
             consumed += chunkCount;
@@ -930,7 +1168,8 @@ struct RequiredArtifact
 
 std::vector<RequiredArtifact> requiredArtifacts
 (
-    const ThermalRestartPreflightExpectations& expected
+    const ThermalRestartPreflightExpectations& expected,
+    const bool includePendingWallEnergy
 )
 {
     const std::string fluidPrefix =
@@ -970,6 +1209,20 @@ std::vector<RequiredArtifact> requiredArtifacts
             }
         );
     }
+    if (includePendingWallEnergy)
+    {
+        result.push_back
+        (
+            {
+                "pendingWallEnergyLedgers",
+                std::string
+                (
+                    ThermalRestartPreflight::pendingWallEnergyObjectName().c_str()
+                ),
+                true
+            }
+        );
+    }
     return result;
 }
 
@@ -991,7 +1244,11 @@ void validateArtifacts
         }
     }
 
-    const std::vector<RequiredArtifact> required = requiredArtifacts(expected);
+    const std::vector<RequiredArtifact> required = requiredArtifacts
+    (
+        expected,
+        manifest.state.formatVersion >= 4
+    );
     if (byRole.size() != required.size())
     {
         stateError("thermal restart manifest has missing or unexpected artifacts");
@@ -1067,6 +1324,25 @@ void validateArtifacts
                 expected.fluidFaceCount
             );
         }
+        else if (role == "pendingWallEnergyLedgers")
+        {
+            const PendingWallEnergyLedgerSnapshot pending =
+                readPendingWallEnergyLedgersImpl
+                (
+                    timeDirectory,
+                    expected.completedSimulationTimeS,
+                    manifest.state.completedSimulationTimeS,
+                    expected.fluidMeshTopologySha1,
+                    expected.fluidFaceCount
+                );
+            if (artifact.count != pending.faceIds.size())
+            {
+                stateError
+                (
+                    "pending wall-energy ledger count does not match manifest"
+                );
+            }
+        }
         else
         {
             validateNoNonFiniteFieldToken(path);
@@ -1080,7 +1356,7 @@ void validateManifestlessInitialFiles
     const ThermalRestartPreflightExpectations& expected
 )
 {
-    for (const RequiredArtifact& contract : requiredArtifacts(expected))
+    for (const RequiredArtifact& contract : requiredArtifacts(expected, false))
     {
         const fileName path = timeDirectory/fileName(contract.path);
         if (!contract.counted)
@@ -1395,6 +1671,35 @@ ThermalExchangeRestartState validateDirectoryImpl
     }
 
     validateArtifacts(timeDirectory, manifest, expected);
+    if (state.formatVersion < 4)
+    {
+        const fileName pendingPath
+        (
+            timeDirectory/ThermalRestartPreflight::pendingWallEnergyObjectName()
+        );
+        if (Foam::isFile(pendingPath))
+        {
+            (void)readPendingWallEnergyLedgersImpl
+            (
+                timeDirectory,
+                expected.completedSimulationTimeS,
+                state.completedSimulationTimeS,
+                expected.fluidMeshTopologySha1,
+                expected.fluidFaceCount
+            );
+        }
+        else if
+        (
+            state.completedSimulationTimeS
+         != expected.completedSimulationTimeS
+        )
+        {
+            stateError
+            (
+                "legacy lagged CHT checkpoint has no pending wall-energy ledger"
+            );
+        }
+    }
     if (scanNewer && expected.rejectNewerUncommittedTime)
     {
         rejectNewerUncommittedDirectories(timeDirectory, expected);
@@ -1561,6 +1866,13 @@ const Foam::word& Foam::gpuThermal::ThermalRestartPreflight::manifestObjectName(
     return name;
 }
 
+const Foam::fileName&
+Foam::gpuThermal::ThermalRestartPreflight::pendingWallEnergyObjectName()
+{
+    static const fileName name("gpuPendingWallEnergyLedgers.dat");
+    return name;
+}
+
 void Foam::gpuThermal::ThermalRestartPreflight::validateStateSemantics
 (
     const ThermalExchangeRestartState& state
@@ -1571,6 +1883,7 @@ void Foam::gpuThermal::ThermalRestartPreflight::validateStateSemantics
         state.formatVersion != 1
      && state.formatVersion != 2
      && state.formatVersion != 3
+     && state.formatVersion != 4
     )
     {
         stateError("unsupported thermal exchange restart formatVersion");
@@ -1883,6 +2196,26 @@ Foam::gpuThermal::ThermalRestartPreflight::validateBeforeResidentInitialise
                     
     state.completedTimeIndex = runTime.timeIndex();
     return state;
+}
+
+Foam::gpuThermal::PendingWallEnergyLedgerSnapshot
+Foam::gpuThermal::ThermalRestartPreflight::readPendingWallEnergyLedgers
+(
+    const fileName& timeDirectory,
+    const scalar checkpointSimulationTimeS,
+    const scalar completedExchangeSimulationTimeS,
+    const word& fluidMeshTopologySha1,
+    const label nMeshFaces
+)
+{
+    return readPendingWallEnergyLedgersImpl
+    (
+        timeDirectory,
+        checkpointSimulationTimeS,
+        completedExchangeSimulationTimeS,
+        fluidMeshTopologySha1,
+        nMeshFaces
+    );
 }
 
 void Foam::gpuThermal::ThermalRestartPreflight::validateFiniteRestartFields

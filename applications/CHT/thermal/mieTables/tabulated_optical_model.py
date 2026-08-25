@@ -1,4 +1,4 @@
-
+"""Strict rectangular external optical model for offline Mie generation."""
 
 from __future__ import annotations
 
@@ -14,7 +14,7 @@ _HEADER = ["wavelength_m", "temperature_k", "n", "k"]
 
 
 class TabulatedOpticalModel:
-    
+    """Bilinear ``n - i*k`` interpolation with no extrapolation or fallback."""
 
     def __init__(self, path: Path):
         self.path = Path(path)

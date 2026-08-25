@@ -6,11 +6,13 @@ import sys
 
 import matplotlib.pyplot as plt
 from matplotlib.lines import Line2D
+from matplotlib.patches import Patch
 import numpy as np
 
 RESULTS = Path(__file__).resolve().parent
 sys.path.insert(0, str(RESULTS))
 import bentsrm_case_reader as reader
+import single_alumina_drop_validation as single_drop
 
 
 THERMAL = RESULTS.parent
@@ -51,8 +53,24 @@ def configure_axes(axis):
         spine.set_linewidth(1.0)
 
 
-def markevery(values):
-    return max(1, len(values)//18)
+def marker_spacing(reference_values):
+    values = np.asarray(reference_values, dtype=float)
+    if values.size < 2:
+        return max(PLOT_END - PLOT_START, 1.0)
+    return max((values[-1] - values[0])/18.0, np.finfo(float).eps)
+
+
+def markevery(values, spacing):
+    values = np.asarray(values, dtype=float)
+    if values.size == 0:
+        return []
+    first_target = PLOT_START + math.ceil(
+        (values[0] - PLOT_START)/spacing - 1.0e-12
+    )*spacing
+    targets = np.arange(first_target, values[-1] + 0.5*spacing, spacing)
+    indices = np.searchsorted(values, targets, side="left")
+    indices = indices[indices < values.size]
+    return np.unique(indices).tolist()
 
 
 def inside_legend(axis, handles, labels, location="best", columns=2):
@@ -72,46 +90,90 @@ def inside_legend(axis, handles, labels, location="best", columns=2):
 
 def temperature_results():
     select_case(HOT)
-    hot_time, hot_temperature = reader.read_probe_history()
+    hot_probe_time, hot_probe_temperature = reader.read_probe_history()
+    hot_time, _, hot_minimum, hot_maximum = (
+        reader.read_graphite_depth_band_history()
+    )
+    hot_temperature = np.column_stack([
+        np.interp(hot_time, hot_probe_time, hot_probe_temperature[:, index])
+        for index in range(4)
+    ])
     experiment_time, measured = reader.read_experiment()
     select_case(COLD)
-    cold_time, cold_temperature = reader.read_probe_history()
+    cold_probe_time, cold_probe_temperature = reader.read_probe_history()
+    cold_time, _, cold_minimum, cold_maximum = (
+        reader.read_graphite_depth_band_history()
+    )
+    cold_temperature = np.column_stack([
+        np.interp(cold_time, cold_probe_time, cold_probe_temperature[:, index])
+        for index in range(4)
+    ])
 
     destination = RESULTS / f"{PREFIX}_temperature_comparison.csv"
     with destination.open("w", newline="", encoding="utf-8") as stream:
         writer = csv.writer(stream)
-        writer.writerow(("wall_model", "time_s", "TC1_5mm_K", "TC2_10mm_K", "TC3_15mm_K", "TC4_20mm_K"))
-        for model, times, values in (
-            ("measured", experiment_time, measured),
-            ("hotWall", hot_time, hot_temperature),
-            ("coldWall1D", cold_time, cold_temperature),
+        header = ["wall_model", "time_s"]
+        for index, depth in enumerate((5, 10, 15, 20), 1):
+            header.extend((
+                f"TC{index}_{depth}mm_K",
+                f"TC{index}_{depth}mm_band_min_K",
+                f"TC{index}_{depth}mm_band_max_K",
+            ))
+        writer.writerow(header)
+        for model, times, values, minima, maxima in (
+            ("measured", experiment_time, measured, measured, measured),
+            ("hotWall", hot_time, hot_temperature, hot_minimum, hot_maximum),
+            ("coldWall1D", cold_time, cold_temperature, cold_minimum, cold_maximum),
         ):
-            for time, row in zip(times, values):
-                writer.writerow((model, f"{time:.17g}", *(f"{value:.12g}" for value in row)))
+            for row_index, time in enumerate(times):
+                row = [model, f"{time:.17g}"]
+                for column in range(4):
+                    row.extend((
+                        f"{values[row_index, column]:.12g}",
+                        f"{minima[row_index, column]:.12g}",
+                        f"{maxima[row_index, column]:.12g}",
+                    ))
+                writer.writerow(row)
 
     fig, axis = plt.subplots(figsize=(10, 8), facecolor="white")
     measured_mask = (experiment_time >= PLOT_START) & (experiment_time <= PLOT_END)
     hot_mask = (hot_time >= PLOT_START) & (hot_time <= PLOT_END)
     cold_mask = (cold_time >= PLOT_START) & (cold_time <= PLOT_END)
+    hot_plot_time = hot_time[hot_mask]
+    cold_plot_time = cold_time[cold_mask]
+    spacing = marker_spacing(hot_plot_time)
     for index in range(4):
         axis.plot(experiment_time[measured_mask], measured[measured_mask, index],
                   color=TC_COLORS[index], linestyle="-", linewidth=2.2)
-        axis.plot(hot_time[hot_mask], hot_temperature[hot_mask, index],
+        axis.fill_between(
+            hot_plot_time,
+            hot_minimum[hot_mask, index],
+            hot_maximum[hot_mask, index],
+            color=TC_COLORS[index], alpha=0.12, linewidth=0,
+        )
+        axis.plot(hot_plot_time, hot_temperature[hot_mask, index],
                   color=TC_COLORS[index], linestyle="--", linewidth=1.4,
                   marker="o", markersize=5, markerfacecolor="white",
-                  markeredgewidth=0.9, markevery=markevery(hot_time[hot_mask]))
-        axis.plot(cold_time[cold_mask], cold_temperature[cold_mask, index],
+                  markeredgewidth=0.9, markevery=markevery(hot_plot_time, spacing))
+        axis.fill_between(
+            cold_plot_time,
+            cold_minimum[cold_mask, index],
+            cold_maximum[cold_mask, index],
+            color=TC_COLORS[index], alpha=0.06, linewidth=0,
+        )
+        axis.plot(cold_plot_time, cold_temperature[cold_mask, index],
                   color=TC_COLORS[index], linestyle="-.", linewidth=1.4,
                   marker="^", markersize=5, markerfacecolor="white",
-                  markeredgewidth=0.9, markevery=markevery(cold_time[cold_mask]))
+                  markeredgewidth=0.9, markevery=markevery(cold_plot_time, spacing))
     handles = [Line2D([], [], color=color, linewidth=2.2) for color in TC_COLORS]
     labels = [f"TC{index}" for index in range(1, 5)]
     handles.extend((
         Line2D([], [], color="black", linestyle="-", linewidth=2.2),
         Line2D([], [], color="black", linestyle="--", marker="o", markerfacecolor="white", linewidth=1.4),
         Line2D([], [], color="black", linestyle="-.", marker="^", markerfacecolor="white", linewidth=1.4),
+        Patch(facecolor="gray", edgecolor="none", alpha=0.12),
     ))
-    labels.extend(("Mea.", "Hot wall", "Cold wall"))
+    labels.extend(("Mea.", "Hot wall", "Cold wall", r"Calc. $\pm2$ mm"))
     inside_legend(axis, handles, labels, location="best", columns=2)
     axis.set_xlabel("Time $t$ (s)")
     axis.set_ylabel("Temperature $T$ (K)")
@@ -138,6 +200,9 @@ def heat_flux_results():
         writer.writerows(records)
 
     fig, axis = plt.subplots(figsize=(10, 8), facecolor="white")
+    hot_times = series[0][1]
+    hot_mask = (hot_times >= PLOT_START) & (hot_times <= PLOT_END)
+    spacing = marker_spacing(hot_times[hot_mask])
     for model_index, (_, times, values) in enumerate(series):
         mask = (times >= PLOT_START) & (times <= PLOT_END)
         marker = "o" if model_index == 0 else "^"
@@ -146,7 +211,7 @@ def heat_flux_results():
             axis.plot(times[mask], values[mask, component], color=FLUX_COLORS[component],
                       linestyle=linestyle, linewidth=1.5, marker=marker,
                       markersize=4.8, markerfacecolor="white", markeredgewidth=0.9,
-                      markevery=markevery(times[mask]))
+                      markevery=markevery(times[mask], spacing))
     component_labels = ("Total", "Radiation", "Reflection", "Deposition", "Convection")
     handles = [Line2D([], [], color=color, linewidth=1.8) for color in FLUX_COLORS]
     labels = list(component_labels)
@@ -194,6 +259,12 @@ def sommerfeld_results():
             for row in data:
                 writer.writerow((label, *(f"{value:.17g}" for value in row)))
     fig, axis = plt.subplots(figsize=(10, 8), facecolor="white")
+    hot_valid = (
+        np.isfinite(series[0][1][:, 2])
+        & (series[0][1][:, 0] >= PLOT_START)
+        & (series[0][1][:, 0] <= PLOT_END)
+    )
+    spacing = marker_spacing(series[0][1][hot_valid, 0])
     for index, (label, data) in enumerate(series):
         valid = np.isfinite(data[:, 2]) & (data[:, 0] >= PLOT_START) & (data[:, 0] <= PLOT_END)
         color = ("#4C72B0", "#C44E52")[index]
@@ -201,7 +272,8 @@ def sommerfeld_results():
         axis.fill_between(data[valid, 0], data[valid, 4], data[valid, 5], color=color, alpha=0.14, linewidth=0)
         axis.plot(data[valid, 0], data[valid, 2], color=color, linewidth=1.6,
                   linestyle=("--", "-.")[index], marker=marker, markersize=5,
-                  markerfacecolor="white", markeredgewidth=0.9, label=label)
+                  markerfacecolor="white", markeredgewidth=0.9,
+                  markevery=markevery(data[valid, 0], spacing), label=label)
     axis.axhline(20.0, color="black", linestyle="--", linewidth=1.4, label="Threshold")
     axis.set_yscale("log")
     axis.set_xlabel("Time $t$ (s)")
@@ -236,12 +308,18 @@ def radiating_area_results():
             for row in data:
                 writer.writerow((label, *(f"{value:.17g}" for value in row)))
     fig, axis = plt.subplots(figsize=(10, 8), facecolor="white")
+    hot_valid = (
+        (series[0][1][:, 0] >= PLOT_START)
+        & (series[0][1][:, 0] <= PLOT_END)
+    )
+    spacing = marker_spacing(series[0][1][hot_valid, 0])
     for index, (label, data) in enumerate(series):
         valid = (data[:, 0] >= PLOT_START) & (data[:, 0] <= PLOT_END)
         axis.plot(data[valid, 0], data[valid, 1], color=("#4C72B0", "#C44E52")[index],
                   linestyle=("--", "-.")[index], linewidth=1.6,
                   marker=("o", "^")[index], markersize=5, markerfacecolor="white",
-                  markeredgewidth=0.9, label=label)
+                  markeredgewidth=0.9, markevery=markevery(data[valid, 0], spacing),
+                  label=label)
     axis.set_xlabel("Time $t$ (s)")
     axis.set_ylabel("Normalized radiating area $1-A_c/A_w$")
     axis.set_ylim(0.0, 1.02)
@@ -252,12 +330,167 @@ def radiating_area_results():
     plt.close(fig)
 
 
+def coupled_wall_particle_temperature_records(case, cold_wall):
+    select_case(case)
+    _, face_areas = reader.coupled_owner_normals()
+    coupled_faces = np.asarray(tuple(face_areas), dtype=np.int64)
+    properties = (
+        single_drop.read_cold_wall_thermal_properties(case)
+        if cold_wall else None
+    )
+    records = []
+    for directory in reader.numeric_subdirectories(case):
+        restart = directory / "gpuResidentStrictParticles.dat"
+        if not restart.is_file():
+            continue
+        direct_temperature = []
+        bottom_temperature = []
+        top_temperature = []
+        enthalpy_mean_temperature = []
+        for chunk in reader.particle_chunks(restart):
+            selected = (
+                (chunk["stuck"] != 0)
+                & np.isin(chunk["stuck_face"], coupled_faces)
+            )
+            if not np.any(selected):
+                continue
+            if not cold_wall:
+                values = chunk["T"][selected]
+                direct_temperature.extend(values[np.isfinite(values)].tolist())
+                continue
+            enthalpy = chunk["cold_node_specific_enthalpy"][selected]
+            active = np.all(np.isfinite(enthalpy) & (enthalpy > 0.0), axis=1)
+            if not np.all(active):
+                raise RuntimeError(
+                    f"Cold-wall contact particles lack an active 8-node enthalpy profile in {restart}"
+                )
+            bottom_temperature.extend(
+                single_drop.cold_wall_temperature_from_specific_enthalpy_k(
+                    float(value), properties
+                )
+                for value in enthalpy[:, 0]
+            )
+            top_temperature.extend(
+                single_drop.cold_wall_temperature_from_specific_enthalpy_k(
+                    float(value), properties
+                )
+                for value in enthalpy[:, -1]
+            )
+            enthalpy_mean_temperature.extend(
+                single_drop.cold_wall_temperature_from_specific_enthalpy_k(
+                    float(value), properties
+                )
+                for value in np.mean(enthalpy, axis=1)
+            )
+        time = float(directory.name)
+        if cold_wall:
+            for component, values in (
+                ("bottomLayer", bottom_temperature),
+                ("topLayer", top_temperature),
+                ("enthalpyMean", enthalpy_mean_temperature),
+            ):
+                values = np.asarray(values, dtype=float)
+                if values.size:
+                    records.append((
+                        time, component, int(values.size),
+                        float(np.median(values)), float(np.mean(values)),
+                        float(np.percentile(values, 25)),
+                        float(np.percentile(values, 75)),
+                    ))
+        else:
+            values = np.asarray(direct_temperature, dtype=float)
+            if values.size:
+                records.append((
+                    time, "particle", int(values.size),
+                    float(np.median(values)), float(np.mean(values)),
+                    float(np.percentile(values, 25)),
+                    float(np.percentile(values, 75)),
+                ))
+    return records, properties
+
+
+def coupled_wall_particle_temperature_results():
+    hot_records, _ = coupled_wall_particle_temperature_records(HOT, False)
+    cold_records, properties = coupled_wall_particle_temperature_records(COLD, True)
+    if not hot_records and not cold_records:
+        raise RuntimeError("No coupled-wall contact-particle temperatures are available")
+    destination = RESULTS / f"{PREFIX}_coupled_wall_particle_temperature.csv"
+    with destination.open("w", newline="", encoding="utf-8") as stream:
+        writer = csv.writer(stream)
+        writer.writerow((
+            "wall_model", "temperature_component", "time_s", "particle_count",
+            "temperature_median_K", "temperature_mean_K",
+            "temperature_p25_K", "temperature_p75_K",
+        ))
+        for model, records in (("hotWall", hot_records), ("coldWall", cold_records)):
+            for time, component, count, median, mean, p25, p75 in records:
+                writer.writerow((
+                    model, component, f"{time:.17g}", count,
+                    f"{median:.12g}", f"{mean:.12g}",
+                    f"{p25:.12g}", f"{p75:.12g}",
+                ))
+
+    fig, axis = plt.subplots(figsize=(10, 8), facecolor="white")
+    hot_times = np.asarray([row[0] for row in hot_records], dtype=float)
+    hot_window = hot_times[(hot_times >= PLOT_START) & (hot_times <= PLOT_END)]
+    spacing = marker_spacing(hot_window)
+    specifications = (
+        ("Hot wall", hot_records, "particle", "#4C72B0", "--", "o"),
+        ("Cold wall bottom layer", cold_records, "bottomLayer", "#C44E52", "-.", "^"),
+        ("Cold wall top (gas-side) layer", cold_records, "topLayer", "#DD8452", (0, (5, 2)), "D"),
+        ("Cold wall enthalpy mean", cold_records, "enthalpyMean", "#55A868", ":", "s"),
+    )
+    for label, records, component, color, linestyle, marker in specifications:
+        selected = [row for row in records if row[1] == component]
+        if not selected:
+            continue
+        data = np.asarray(
+            [(row[0], row[3], row[5], row[6]) for row in selected],
+            dtype=float,
+        )
+        visible = (data[:, 0] >= PLOT_START) & (data[:, 0] <= PLOT_END)
+        data = data[visible]
+        if data.size == 0:
+            continue
+        axis.fill_between(
+            data[:, 0], data[:, 2], data[:, 3], color=color,
+            alpha=0.12, linewidth=0,
+        )
+        axis.plot(
+            data[:, 0], data[:, 1], color=color, linestyle=linestyle,
+            linewidth=1.6, marker=marker, markersize=5,
+            markerfacecolor="white", markeredgewidth=0.9,
+            markevery=markevery(data[:, 0], spacing), label=label,
+        )
+    if properties is not None:
+        solidification_temperature = properties.melting_temperature_k
+        axis.axhline(
+            solidification_temperature, color="black", linestyle="--",
+            linewidth=1.2,
+            label=f"Solidification temperature ({solidification_temperature:.0f} K)",
+        )
+    axis.set_xlabel("Time $t$ (s)")
+    axis.set_ylabel("Wall-contact particle temperature $T_p$ (K)")
+    inside_legend(
+        axis, *axis.get_legend_handles_labels(),
+        location="center right", columns=1,
+    )
+    configure_axes(axis)
+    fig.tight_layout(pad=0.7)
+    fig.savefig(
+        RESULTS / f"{PREFIX}_coupled_wall_particle_temperature.png",
+        dpi=600, facecolor="white",
+    )
+    plt.close(fig)
+
+
 def main():
     RESULTS.mkdir(exist_ok=True)
     temperature_results()
     heat_flux_results()
     sommerfeld_results()
     radiating_area_results()
+    coupled_wall_particle_temperature_results()
     print(f"wrote={RESULTS}")
 
 

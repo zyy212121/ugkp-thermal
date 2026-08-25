@@ -22,7 +22,7 @@ python3 "${asset}/tests/test_constant_response_time_contract.py"
 
 install -m 0644 "${canonical}"/*.H "${stage}/"
 install -m 0644 "${canonical}"/*.C "${stage}/"
-cp -aL "${canonical}/gpu/." "${stage}/gpu/"
+cp -a "${canonical}/gpu/." "${stage}/gpu/"
 patch --batch --forward -d "${stage}/gpu" -p0 \
     < "${asset}/GpuResidentStrict.axial-fluctuation.patch"
 install -m 0644 \
@@ -37,7 +37,7 @@ sed -i \
     's#$(FOAM_USER_APPBIN)/gasUGKP#$(FOAM_USER_APPBIN)/windSandUGKP#' \
     "${stage}/Make/files"
 
-cp -aL "${canonical}/private_backend/." "${backend_source}/"
+cp -a "${canonical}/private_backend/." "${backend_source}/"
 install -m 0644 \
     "${asset}/private_backend/GpuDragModels.cuh" \
     "${backend_source}/GpuDragModels.cuh"

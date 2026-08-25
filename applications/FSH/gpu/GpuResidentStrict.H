@@ -2331,9 +2331,20 @@ protected:
                  || (pStuck[i] == 1 && pStuckFaceId[i] >= 0
                      && pDepositionArea[i] <= 0.0f)
                  || (pStuck[i] == 1 && pTheta[i] != 0.0)
-                 || (pStuck[i] == 1 && pContactDuration[i] != 0.0f)
-                 || (pStuck[i] == 1 && pContactMaximumArea[i] != 0.0f)
-                 || (pStuck[i] == 1 && pContactPeakFraction[i] != 0.0f)
+                 || (pStuck[i] == 1 && !
+                    (
+                        (
+                            pContactDuration[i] == 0.0f
+                         && pContactMaximumArea[i] == 0.0f
+                         && pContactPeakFraction[i] == 0.0f
+                        )
+                     || (
+                            pContactDuration[i] > 0.0f
+                         && pContactMaximumArea[i] > 0.0f
+                         && pContactPeakFraction[i] > 0.0f
+                         && pContactPeakFraction[i] < 1.0f
+                        )
+                    ))
                  || ((pStuck[i] == 2 || pStuck[i] == 3)
                      && !(pContactDuration[i] > 0.0f))
                  || ((pStuck[i] == 2 || pStuck[i] == 3)
@@ -2359,7 +2370,7 @@ protected:
         if
         (
             !weightedFshV1 && !weightedFshV2
-         && !weightedFshV3 && !weightedFshV4
+         && !weightedFshV3 && !weightedFshV4 && !weightedFshV5
         )
         {
           std::getline(is, line);

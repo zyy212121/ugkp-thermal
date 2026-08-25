@@ -1,5 +1,15 @@
 #!/usr/bin/env python3
+"""Create reproducible MSS7 k-omega SST restart fields.
 
+The reference velocity is the area-weighted velocity magnitude of the
+inlet-adjacent cells in the restored GPU2.6CHT developed 1 s field.  The
+standard engineering inlet estimates are
+
+    k = 3/2 (I U_ref)^2
+    omega = sqrt(k)/(C_mu^(1/4) L)
+
+with I=5 percent and L=0.07*D_h=9.1 mm for the 130 mm chamber.
+"""
 
 from __future__ import annotations
 

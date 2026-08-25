@@ -1,5 +1,10 @@
 #!/usr/bin/env python3
+"""CPU-only 1-D check of the MSS7 graphite initial-temperature profile.
 
+The digitized throat-wall temperature is imposed from t=1 s.  The script
+compares the former piecewise-linear depth profile with the production PCHIP
+profile using the same graphite density, Cp(T) and k(T) as the CHT case.
+"""
 
 from __future__ import annotations
 

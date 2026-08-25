@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-
+"""Compare the MSS7 laminar and SST temperature histories with experiment."""
 
 from __future__ import annotations
 

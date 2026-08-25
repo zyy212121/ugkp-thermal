@@ -257,6 +257,20 @@ extern "C" int ugkwpGpuResidentStrictDownloadAndResetParticleWallHeatLedgers
     double* reflectedWallEnergyJ
 );
 
+extern "C" int ugkwpGpuResidentStrictPeekWallEnergyLedgerRange
+(
+    void* handle, int firstFace, int nFaces, double* gasWallEnergyJ,
+    double* particleDepositedWallEnergyJ,
+    double* particleReflectedWallEnergyJ
+);
+
+extern "C" int ugkwpGpuResidentStrictUploadWallEnergyLedgerRange
+(
+    void* handle, int firstFace, int nFaces, const double* gasWallEnergyJ,
+    const double* particleDepositedWallEnergyJ,
+    const double* particleReflectedWallEnergyJ
+);
+
 extern "C" void ugkwpGpuResidentStrictRelease(void* handle);
 extern "C" const char* ugkwpGpuResidentStrictLastError();
 

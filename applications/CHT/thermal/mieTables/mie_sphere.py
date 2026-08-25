@@ -1,4 +1,4 @@
-
+"""Mie coefficients and complete S1/S2 angular phase for a homogeneous sphere."""
 
 from dataclasses import dataclass
 import math
@@ -143,7 +143,7 @@ def coefficients(
     initial_padding: int = 15,
     max_padding: int = 1920,
 ) -> MieSolution:
-    
+    """Compute Mie optics after a fatal-on-failure radial convergence check."""
     if not math.isfinite(convergence_rel_tolerance) or convergence_rel_tolerance <= 0.0:
         raise MieError("radial convergence tolerance must be finite and positive")
     if (
@@ -176,7 +176,7 @@ def coefficients(
 
 
 def angular_functions(mu_values, n_stop: int) -> Tuple[list, list]:
-    
+    """Return indexed pi_n and tau_n arrays using the corrected recurrence."""
     mu = np.asarray(mu_values, dtype=float)
     if n_stop < 1:
         raise ValueError("n_stop must be at least one")
@@ -217,7 +217,7 @@ def amplitudes(solution: MieSolution, mu_values) -> Tuple[np.ndarray, np.ndarray
 
 
 def phase_function(solution: MieSolution, mu_values) -> np.ndarray:
-    
+    """Return the full Mie S1/S2 phase with theoretical integral equal to two."""
     mu = np.asarray(mu_values, dtype=float)
     if solution.qsca <= _SMALL:
         return np.ones_like(mu)
