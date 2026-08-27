@@ -11,5 +11,4 @@ if [ "$#" -eq 1 ]; then
     exit 0
 fi
 
-"${case_root}/clean_variant" hotWall
 "${case_root}/clean_variant" coldWall

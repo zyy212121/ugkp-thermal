@@ -225,9 +225,12 @@ __device__ bool advanceColdWall1DThermalGroup
     );
     const double firstWetAge =
         contactDurationS*peakTimeFraction*spreadCoordinate;
-    const double ageMid = profileContactAgeS + 0.5*deltaTSeconds;
-    const double localAge = ageMid > firstWetAge
-      ? ageMid - firstWetAge
+    const double profileContactAge1S = profileContactAgeS + deltaTSeconds;
+    const double localAge0 = profileContactAgeS > firstWetAge
+      ? profileContactAgeS - firstWetAge
+      : 0.0;
+    const double localAge1 = profileContactAge1S > firstWetAge
+      ? profileContactAge1S - firstWetAge
       : 0.0;
     double ringCoolingPower = 0.0;
     double acceptedWallPower = 0.0;
@@ -249,16 +252,24 @@ __device__ bool advanceColdWall1DThermalGroup
             __shfl_sync(mask, conductivity, 0, 8);
         const double particleResistance =
             0.5*nodeThickness/bottomConductivity;
-        const double wallResistance =
-            s.coldWallSolidificationParameters.wallTransientResistance != 0
-          ? ::sqrt(Foam::gpuThermal::coldWallPi*localAge)/wallEffusivity
-          : 0.0;
-        const double resistance = particleResistance
-          + s.coldWallSolidificationParameters.interfaceResistanceM2KW
-          + wallResistance;
-        const double ringConductance = ringWetArea > 0.0
-          ? thermalAreaFactor*ringWetArea/(resistance + DBL_MIN)
-          : 0.0;
+        const double ringConductanceIntegral =
+            Foam::gpuThermal::wallInterfaceConductanceTimeIntegral
+            (
+                ringWetArea,
+                thermalAreaFactor,
+                localAge0,
+                localAge1,
+                s.coldWallSolidificationParameters.interfaceResistanceM2KW,
+                particleResistance,
+                wallEffusivity,
+                s.coldWallSolidificationParameters.wallTransientResistance != 0
+            );
+        const double ringConductance =
+            ringConductanceIntegral/(deltaTSeconds + DBL_MIN);
+        if (!__all_sync(mask, ringConductanceIntegral >= 0.0))
+        {
+            return false;
+        }
         const double wallConductance =
             coldWall1DGroupSum(ringConductance, mask);
         const double bottomTemperature =

@@ -1,0 +1,12 @@
+Make/linux64GccDPInt32Opt/
+gpu/libugkwp_cuda_internal.a
+experiments/artifacts/
+experiments/runs/
+experiments/assets/mie/alumina_mieTable.dat
+legacy/tests/thermal/*.o
+legacy/tests/thermal/*.dep
+legacy/tests/thermal/prepareTask8InitialState/Make/linux64*/
+*.nsys-rep
+*.ncu-rep
+__pycache__/
+*.pyc

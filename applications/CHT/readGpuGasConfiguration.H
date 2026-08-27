@@ -26,9 +26,10 @@ IOdictionary schedulingPropertiesFile
     (
         "schedulingProperties",
         runTime.constant(),
-        mesh,
+        runTime,
         IOobject::MUST_READ,
-        IOobject::NO_WRITE
+        IOobject::NO_WRITE,
+        false
     )
 );
 

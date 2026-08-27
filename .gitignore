@@ -1,0 +1,22 @@
+**/__pycache__/
+**/*.pyc
+**/*.log
+**/log.*
+**/core
+**/core.*
+**/*.tmp
+**/*.foam
+**/*:Zone.Identifier
+**/postProcessing/
+**/processor*/
+**/VTK/
+**/.validation-build/
+**/.validation-bin/
+examples/consistency/*/constant/polyMesh/
+examples/consistency/dustyBox/[1-9]*/
+examples/performance/01_single_phase_nozzle/flux/*/constant/polyMesh/
+examples/performance/02_two_phase_validation/*/constant/polyMesh/
+examples/thermal/singleAluminaDrop/coldWall/constant/polyMesh/
+examples/thermal/singleAluminaDrop/coldWall/[1-9]*/
+examples/thermal/MSS7_*/data/developed_gas_start/runtime.*
+examples/thermal/bentSRM copy/

@@ -1,4 +1,4 @@
-"""Isolated engineering optical model for high-temperature alumina."""
+                                                                      
 
 import math
 
@@ -54,7 +54,7 @@ def _legacy_n_squared(wavelength_m: float) -> float:
 
 
 def validate_band(wavelength_min_m: float, wavelength_max_m: float) -> None:
-    """Reject every legacy band crossing a pole or a nonpositive-n² interval."""
+                                                                                
     if not (
         math.isfinite(wavelength_min_m)
         and math.isfinite(wavelength_max_m)
@@ -79,7 +79,7 @@ def validate_band(wavelength_min_m: float, wavelength_max_m: float) -> None:
 
 
 def refractive_index(wavelength_m: float, temperature_k: float) -> complex:
-    """Return the legacy engineering alumina refractive index ``n - i*k``."""
+                                                                             
     if not math.isfinite(temperature_k) or temperature_k <= 0.0:
         raise ValueError("temperature must be finite and positive")
 

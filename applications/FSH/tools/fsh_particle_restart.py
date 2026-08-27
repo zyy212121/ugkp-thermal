@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Chunked reader/writer for the weighted UGKP FSH particle restart."""
+                                                                       
 
 from __future__ import annotations
 
@@ -74,7 +74,7 @@ def iter_restart_chunks(
     legacy_parcel_mass: float | None = None,
     text_chunk_particles: int = 262144,
 ) -> Iterator[dict[str, np.ndarray]]:
-    """Yield canonical chunks; legacy formats require their original uniform mass."""
+                                                                                     
     path = Path(path)
     with path.open("rb") as stream:
         try:

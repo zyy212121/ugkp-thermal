@@ -2,6 +2,7 @@
 #define GPU_THERMAL_GPU_PARTICLE_WALL_CONTACT_HEAT_H
 
 #include "GpuAluminaProperties.H"
+#include "GpuWallInterfaceHeat.H"
 
 #include <cmath>
 #include <cfloat>
@@ -56,21 +57,115 @@ invalidParticleWallContactResult() noexcept
     };
 }
 
-GPU_PARTICLE_WALL_CONTACT_HD inline double boundedContactFraction
+GPU_PARTICLE_WALL_CONTACT_HD inline ParticleWallContactResult
+lumpedParticleWallInterfaceContact
 (
-    const double strength
+    const double particleTemperatureK,
+    const double wallTemperatureK,
+    const double physicalParticleMassKg,
+    const double parcelMassKg,
+    const double conductanceTimeIntegralJK
 ) noexcept
 {
-    if (!(strength > 0.0))
+    if
+    (
+        !finiteParticleWallContactValue(particleTemperatureK)
+     || !finiteParticleWallContactValue(wallTemperatureK)
+     || !finiteParticleWallContactValue(physicalParticleMassKg)
+     || !finiteParticleWallContactValue(parcelMassKg)
+     || !finiteParticleWallContactValue(conductanceTimeIntegralJK)
+     || !(particleTemperatureK > 0.0)
+     || !(wallTemperatureK > 0.0)
+     || !(physicalParticleMassKg > 0.0)
+     || !(parcelMassKg > 0.0)
+     || conductanceTimeIntegralJK < 0.0
+    )
     {
-        return 0.0;
+        return invalidParticleWallContactResult();
     }
-    if (!finiteParticleWallContactValue(strength) || strength > 745.0)
+    if (!(conductanceTimeIntegralJK > 0.0))
     {
-        return 1.0;
+        return
+        {
+            true,
+            particleTemperatureK,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            physicalParticleMassKg,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+        };
     }
-    const double fraction = -::expm1(-strength);
-    return fraction < 0.0 ? 0.0 : (fraction > 1.0 ? 1.0 : fraction);
+
+    const double oldSpecificEnthalpy =
+        aluminaSpecificEnthalpyJkg(particleTemperatureK);
+    double lower = particleTemperatureK < wallTemperatureK
+      ? particleTemperatureK
+      : wallTemperatureK;
+    double upper = particleTemperatureK > wallTemperatureK
+      ? particleTemperatureK
+      : wallTemperatureK;
+    for (int iteration = 0; iteration < 48; ++iteration)
+    {
+        const double middle = 0.5*(lower + upper);
+        const double residual =
+            physicalParticleMassKg
+           *(aluminaSpecificEnthalpyJkg(middle) - oldSpecificEnthalpy)
+          + conductanceTimeIntegralJK*(middle - wallTemperatureK);
+        if (!finiteParticleWallContactValue(residual))
+        {
+            return invalidParticleWallContactResult();
+        }
+        if (residual < 0.0)
+        {
+            lower = middle;
+        }
+        else
+        {
+            upper = middle;
+        }
+    }
+    const double newTemperatureK = 0.5*(lower + upper);
+    const double physicalWallEnergyJ =
+        physicalParticleMassKg
+       *(
+            oldSpecificEnthalpy
+          - aluminaSpecificEnthalpyJkg(newTemperatureK)
+        );
+    const double parcelWallEnergyJ =
+        physicalWallEnergyJ*parcelMassKg/physicalParticleMassKg;
+    if
+    (
+        !finiteParticleWallContactValue(newTemperatureK)
+     || !finiteParticleWallContactValue(physicalWallEnergyJ)
+     || !finiteParticleWallContactValue(parcelWallEnergyJ)
+     || !(newTemperatureK > 0.0)
+    )
+    {
+        return invalidParticleWallContactResult();
+    }
+    return
+    {
+        true,
+        newTemperatureK,
+        -parcelWallEnergyJ,
+        parcelWallEnergyJ,
+        0.0,
+        conductanceTimeIntegralJK,
+        physicalParticleMassKg,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        conductanceTimeIntegralJK,
+        0.0
+    };
 }
 
 GPU_PARTICLE_WALL_CONTACT_HD inline double representedDepositionContactArea
@@ -117,128 +212,6 @@ GPU_PARTICLE_WALL_CONTACT_HD inline double representedDepositionContactArea
       : -1.0;
 }
 
-GPU_PARTICLE_WALL_CONTACT_HD inline ParticleWallContactResult
-depositedParticleWallContact
-(
-    const double diameterM,
-    const double depositionAreaM2,
-    const double depositionHeatTransferEfficiency,
-    const double contactAreaScale,
-    const double deltaTSeconds,
-    const double particleTemperatureK,
-    const double wallTemperatureK,
-    const double parcelMassKg
-) noexcept
-{
-    if
-    (
-        !finiteParticleWallContactValue(diameterM)
-     || !finiteParticleWallContactValue(depositionAreaM2)
-     || !finiteParticleWallContactValue(depositionHeatTransferEfficiency)
-     || !finiteParticleWallContactValue(contactAreaScale)
-     || !finiteParticleWallContactValue(deltaTSeconds)
-     || !finiteParticleWallContactValue(particleTemperatureK)
-     || !finiteParticleWallContactValue(wallTemperatureK)
-     || !finiteParticleWallContactValue(parcelMassKg)
-     || !(diameterM > 0.0)
-     || !(depositionAreaM2 > 0.0)
-     || !(depositionHeatTransferEfficiency > 0.0)
-     || depositionHeatTransferEfficiency > 1.0
-     || !(contactAreaScale > 0.0)
-     || contactAreaScale > 1.0
-     || deltaTSeconds < 0.0
-     || !(particleTemperatureK > 0.0)
-     || !(wallTemperatureK > 0.0)
-     || !(parcelMassKg > 0.0)
-    )
-    {
-        return invalidParticleWallContactResult();
-    }
-
-    const AluminaLiquidProperties material =
-        liquidAluminaProperties(particleTemperatureK);
-    if (!material.valid)
-    {
-        return invalidParticleWallContactResult();
-    }
-
-    const double physicalVolume =
-        (particleWallContactPi/6.0)*diameterM*diameterM*diameterM;
-    const double physicalMass = material.densityKgM3*physicalVolume;
-                                                                            
-                                                                       
-                                                                         
-                         
-    const double length = physicalVolume/depositionAreaM2;
-    const double alpha =
-        material.thermalConductivityWmK
-       /(material.densityKgM3*material.specificHeatJkgK);
-    double strength = alpha*deltaTSeconds/(length*length);
-    if
-    (
-        !finiteParticleWallContactValue(physicalVolume)
-     || !finiteParticleWallContactValue(physicalMass)
-     || !finiteParticleWallContactValue(length)
-     || !finiteParticleWallContactValue(alpha)
-     || !(physicalVolume > 0.0)
-     || !(physicalMass > 0.0)
-     || !(length > 0.0)
-     || !(alpha > 0.0)
-     || strength < 0.0
-    )
-    {
-        return invalidParticleWallContactResult();
-    }
-    if (!finiteParticleWallContactValue(strength))
-    {
-        strength = DBL_MAX;
-    }
-
-    const double fraction = boundedContactFraction(strength);
-    const double fullNewTemperature =
-        particleTemperatureK
-      - (particleTemperatureK - wallTemperatureK)*fraction;
-    const double fullWallEnergy =
-        parcelMassKg
-       *(
-            aluminaSpecificEnthalpyJkg(particleTemperatureK)
-          - aluminaSpecificEnthalpyJkg(fullNewTemperature)
-        );
-    const double wallEnergy =
-        depositionHeatTransferEfficiency*contactAreaScale*fullWallEnergy;
-    const double newSpecificEnthalpy =
-        aluminaSpecificEnthalpyJkg(particleTemperatureK)
-      - wallEnergy/parcelMassKg;
-    const double newTemperature =
-        aluminaTemperatureFromSpecificEnthalpyK(newSpecificEnthalpy);
-    if
-    (
-        !finiteParticleWallContactValue(newTemperature)
-     || !finiteParticleWallContactValue(fullWallEnergy)
-     || !finiteParticleWallContactValue(wallEnergy)
-     || newTemperature <= 0.0
-    )
-    {
-        return invalidParticleWallContactResult();
-    }
-
-    return
-    {
-        true,
-        newTemperature,
-        -wallEnergy,
-        wallEnergy,
-        fraction,
-        strength,
-        physicalMass,
-        0.0,
-        0.0,
-        0.0,
-        deltaTSeconds,
-        0.0,
-        depositionAreaM2
-    };
-}
 
 }                        
 }                  
@@ -246,3 +219,4 @@ depositedParticleWallContact
 #undef GPU_PARTICLE_WALL_CONTACT_HD
 
 #endif
+

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-source /opt/openfoam10/etc/bashrc
+if [ -z "${WM_PROJECT_DIR:-}" ]; then echo "OpenFOAM environment is not loaded" >&2; exit 1; fi
 set -euo pipefail
 
 case_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
@@ -22,7 +22,7 @@ python3 "${asset}/tests/test_constant_response_time_contract.py"
 
 install -m 0644 "${canonical}"/*.H "${stage}/"
 install -m 0644 "${canonical}"/*.C "${stage}/"
-cp -a "${canonical}/gpu/." "${stage}/gpu/"
+cp -aL "${canonical}/gpu/." "${stage}/gpu/"
 patch --batch --forward -d "${stage}/gpu" -p0 \
     < "${asset}/GpuResidentStrict.axial-fluctuation.patch"
 install -m 0644 \
@@ -37,7 +37,8 @@ sed -i \
     's#$(FOAM_USER_APPBIN)/gasUGKP#$(FOAM_USER_APPBIN)/windSandUGKP#' \
     "${stage}/Make/files"
 
-cp -a "${canonical}/private_backend/." "${backend_source}/"
+cp -aL "${canonical}/private_backend/." "${backend_source}/"
+sed -i 's#"../../../common/#"../../../../../common/#g' "${backend_source}/GpuResidentStrict.cu"
 install -m 0644 \
     "${asset}/private_backend/GpuDragModels.cuh" \
     "${backend_source}/GpuDragModels.cuh"
@@ -89,11 +90,12 @@ if ldd "${bin_dir}/windSandUGKPCudaBackend" \
 fi
 
 printf 'canonical_source=%s\nadapter=%s\nfrontend=%s\nbackend=%s\n' \
-    "$(find "${canonical}" -type f \
+    "$(cd "${canonical}" && find . -type f \
         \( -name '*.C' -o -name '*.H' -o -name '*.cu' -o -name '*.cuh' \) \
         -print0 | sort -z | xargs -0 sha256sum | sha256sum | awk '{print $1}')" \
-    "$(sha256sum "${asset}/GpuResidentStrict.constant-response-time.patch" \
-        "${asset}/GpuResidentStrict.axial-fluctuation.patch" \
+    "$(cd "${asset}" && sha256sum \
+        GpuResidentStrict.constant-response-time.patch \
+        GpuResidentStrict.axial-fluctuation.patch \
         | sha256sum | awk '{print $1}')" \
     "$(sha256sum "${bin_dir}/windSandUGKP" | awk '{print $1}')" \
     "$(sha256sum "${bin_dir}/windSandUGKPCudaBackend" | awk '{print $1}')"

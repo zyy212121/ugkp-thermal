@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-source /opt/openfoam10/etc/bashrc >/dev/null 2>&1 || true
+if [ -z "${WM_PROJECT_DIR:-}" ]; then echo "OpenFOAM environment is not loaded" >&2; exit 1; fi
 set -eo pipefail
 
 case_dir=${1:?usage: initialise_uniform_gas_3200.sh CASE_DIR}

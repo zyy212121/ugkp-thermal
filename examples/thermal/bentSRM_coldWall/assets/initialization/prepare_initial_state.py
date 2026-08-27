@@ -132,7 +132,7 @@ def create_preconditioning_case() -> None:
     particle = (PRECASE / "constant/particleProperties").read_text()
     particle = re.sub(r"^gpuResidentSolidThermalCoupling\s+true;\s*$", "", particle, flags=re.M)
     (PRECASE / "constant/particleProperties").write_text(particle)
-    scheduling = (CASE / "constant/fluid/schedulingProperties").read_text()
+    scheduling = (CASE / "constant/schedulingProperties").read_text()
     scheduling = scheduling.replace("gpuResidentPureGasOnly          false;", "gpuResidentPureGasOnly          true;")
     (PRECASE / "constant/schedulingProperties").write_text(scheduling)
     (PRECASE / "constant/radiationProperties").write_text(foam_header("constant", "radiationProperties", "dictionary") + "\nschemaVersion 1;\nenabled false;\nmodel {}\n")
@@ -240,7 +240,7 @@ def install_formal_state(source_time: str) -> None:
         (fluid / name).write_text(vector_field("1.5/fluid", name, dims, (0, 0, 0), "type fixedValue; value uniform (0 0 0);", "type zeroGradient;", "type zeroGradient;", "type zeroGradient;"))
     (fluid / "Tp").write_text(scalar_field("1.5/fluid", "Tp", "[0 0 0 1 0 0 0]", 3200, "type fixedValue; value uniform 3200;", "type zeroGradient;", "type zeroGradient;", "type zeroGradient;"))
     for name in ("particleStuckWallHeatFlux", "particleReflectedWallHeatFlux"):
-        (fluid / name).write_text(foam_header("1.5/fluid", name, "surfaceScalarField") + "\ndimensions [1 0 -3 0 0 0 0];\ninternalField uniform 0;\nboundaryField { inlet {type calculated; value uniform 0;} outlet {type calculated; value uniform 0;} symmetry {type symmetry;} focusWall {type calculated; value uniform 0;} walls {type calculated; value uniform 0;} fluid_to_graphite {type calculated; value uniform 0;} }\n")
+        (fluid / name).write_text(foam_header("1.5/fluid", name, "surfaceScalarField") + "\ndimensions [1 0 -3 0 0 0 0];\ninternalField uniform 0;\nboundaryField { inlet {type calculated; value uniform 0;} outlet {type calculated; value uniform 0;} symmetry {type symmetry; value uniform 0;} focusWall {type calculated; value uniform 0;} walls {type calculated; value uniform 0;} fluid_to_graphite {type calculated; value uniform 0;} }\n")
     shutil.copy2(CASE / "2.500000008807/graphite/T", graphite / "T")
     text = (graphite / "T").read_text().replace('location    "2.500000008807/graphite";', 'location    "1.5/graphite";').replace("internalField   uniform 750;", "internalField   uniform 350;")
     text = text.replace("value           uniform 750;", "value           uniform 493.71;", 1)

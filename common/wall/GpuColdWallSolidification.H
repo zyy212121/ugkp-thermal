@@ -2,6 +2,7 @@
 #define GPU_THERMAL_GPU_COLD_WALL_SOLIDIFICATION_H
 
 #include "GpuAluminaProperties.H"
+#include "GpuWallInterfaceHeat.H"
 
 #include <cmath>
 #include <cfloat>
@@ -27,7 +28,6 @@ enum ParticleWallInteractionModel : unsigned char
 {
     particleWallInteractionNone = 0,
     particleWallReboundContact = 1,
-    particleWallLiquidDeposition = 2,
     particleWallSolidifyingDeposition = 3,
     particleWallColdWall2D = 4
 };
@@ -393,7 +393,6 @@ GPU_COLD_WALL_HD inline ColdWallSolidificationStep advanceColdWallProfile
         return {false, 0.0, 0.0, 0.0, 0.0, 0.0};
     }
 
-    const double ageMid = profileContactAgeS + 0.5*deltaTSeconds;
     const double ageNew = profileContactAgeS + deltaTSeconds;
     const double contactArea = coldWallClamp
     (
@@ -457,20 +456,32 @@ GPU_COLD_WALL_HD inline ColdWallSolidificationStep advanceColdWallProfile
                 1.0 - ::sqrt(coldWallClamp(1.0 - radialFraction, 0.0, 1.0));
             const double firstWetAge =
                 contactDurationS*peakTimeFraction*spreadCoordinate;
-            const double localAge =
-                ageMid > firstWetAge ? ageMid - firstWetAge : 0.0;
+            const double localAge0 =
+                profileContactAgeS > firstWetAge
+              ? profileContactAgeS - firstWetAge
+              : 0.0;
+            const double localAge1 =
+                ageNew > firstWetAge ? ageNew - firstWetAge : 0.0;
             const double particleResistance =
                 0.5*nodeThickness/bottomConductivity;
-            const double wallResistance =
-                parameters.wallTransientResistance != 0
-              ? ::sqrt(coldWallPi*localAge)/wallEffusivity
-              : 0.0;
-            const double resistance =
-                particleResistance
-              + parameters.interfaceResistanceM2KW
-              + wallResistance;
+            const double conductanceIntegral =
+                wallInterfaceConductanceTimeIntegral
+                (
+                    wetArea,
+                    thermalAreaFactor,
+                    localAge0,
+                    localAge1,
+                    parameters.interfaceResistanceM2KW,
+                    particleResistance,
+                    wallEffusivity,
+                    parameters.wallTransientResistance != 0
+                );
             const double conductance =
-                thermalAreaFactor*wetArea/(resistance + DBL_MIN);
+                conductanceIntegral/(deltaTSeconds + DBL_MIN);
+            if (!(conductanceIntegral >= 0.0))
+            {
+                return {false, 0.0, 0.0, 0.0, 0.0, 0.0};
+            }
             wallConductance += conductance;
             ringCoolingPower[ring] = conductance*
                 (guessedTemperature[0] - wallTemperatureK);

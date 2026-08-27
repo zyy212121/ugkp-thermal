@@ -278,7 +278,7 @@ def _read_internal_scalar_field(path, expected_count):
     return values
 
 
-def read_graphite_depth_band_history(depths_mm=(5.0, 10.0, 15.0, 20.0), half_width_mm=2.0):
+def read_graphite_depth_band_history(depths_mm=(5.0, 10.0, 15.0, 20.0), half_width_mm=1.0):
     depth_centres, cells_per_depth = _graphite_depth_cell_centres()
     selections = []
     for depth_mm in depths_mm:
@@ -313,6 +313,45 @@ def read_graphite_depth_band_history(depths_mm=(5.0, 10.0, 15.0, 20.0), half_wid
         np.asarray([row[1] for row in rows], dtype=float),
         np.asarray([row[2] for row in rows], dtype=float),
         np.asarray([row[3] for row in rows], dtype=float),
+    )
+
+
+def read_graphite_depth_interpolated_history(depths_mm=(6.0, 9.0)):
+    depth_centres, cells_per_depth = _graphite_depth_cell_centres()
+    requested_depths = np.asarray(depths_mm, dtype=float)*1.0e-3
+    if (
+        requested_depths.ndim != 1
+        or requested_depths.size == 0
+        or not np.all(np.isfinite(requested_depths))
+        or np.any(requested_depths < depth_centres[0])
+        or np.any(requested_depths > depth_centres[-1])
+    ):
+        raise RuntimeError(
+            "Requested graphite depths must lie within the cell-centre range "
+            f"[{depth_centres[0]*1.0e3:g}, {depth_centres[-1]*1.0e3:g}] mm"
+        )
+    rows = []
+    for directory in numeric_subdirectories(CASE):
+        source = directory / "graphite/T"
+        if not source.is_file():
+            continue
+        temperature = _read_internal_scalar_field(
+            source, depth_centres.size*cells_per_depth
+        )
+        depth_profile = np.mean(
+            temperature.reshape(depth_centres.size, cells_per_depth), axis=1
+        )
+        rows.append(
+            (
+                float(directory.name),
+                np.interp(requested_depths, depth_centres, depth_profile),
+            )
+        )
+    if not rows:
+        raise RuntimeError(f"No graphite temperature fields found in written times below {CASE}")
+    return (
+        np.asarray([row[0] for row in rows], dtype=float),
+        np.asarray([row[1] for row in rows], dtype=float),
     )
 
 

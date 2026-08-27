@@ -3,8 +3,7 @@ case_root="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 set -euo pipefail
 
 variant="${1:-}"
-if [ "${variant}" != "hotWall" ] \
-&& [ "${variant}" != "coldWall" ]; then
+if [ "${variant}" != "coldWall" ]; then
     exit 2
 fi
 

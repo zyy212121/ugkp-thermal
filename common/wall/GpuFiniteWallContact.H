@@ -2,6 +2,7 @@
 #define GPU_THERMAL_GPU_FINITE_WALL_CONTACT_H
 
 #include "GpuAluminaProperties.H"
+#include "GpuWallInterfaceHeat.H"
 
 #include <cmath>
 #include <cfloat>
@@ -22,6 +23,7 @@ constexpr double finiteContactPi =
 constexpr int finiteContactTimeTableSize = 257;
 constexpr int finiteContactDamageTableSize = 65;
 constexpr int finiteContactPeakTableSize = 33;
+constexpr int finiteContactThermalRingCount = 8;
 
                                                                            
                                                                               
@@ -321,6 +323,99 @@ GPU_FINITE_CONTACT_HD inline double normalizedEffectiveArea
         normalizedKinematicArea(normalizedAge, peakTimeFraction)
       - clampFiniteContact(normalizedDamage, 0.0, 1.0);
     return value > 0.0 ? value : 0.0;
+}
+
+GPU_FINITE_CONTACT_HD inline double finiteContactWallConductanceTimeIntegral
+(
+    const double maximumAreaM2,
+    const double contactAreaM2,
+    const double contactDurationS,
+    const double peakTimeFraction,
+    const double profileAge0S,
+    const double deltaTSeconds,
+    const double efficiency,
+    const double interfaceResistanceM2KW,
+    const double particleAdditionalResistanceM2KW,
+    const double wallEffusivityWsHalfM2K,
+    const bool wallTransientResistance
+) noexcept
+{
+    if
+    (
+        !finiteContactValue(maximumAreaM2)
+     || !finiteContactValue(contactAreaM2)
+     || !finiteContactValue(contactDurationS)
+     || !finiteContactValue(peakTimeFraction)
+     || !finiteContactValue(profileAge0S)
+     || !finiteContactValue(deltaTSeconds)
+     || !(maximumAreaM2 > 0.0)
+     || contactAreaM2 < 0.0
+     || contactAreaM2 > maximumAreaM2
+     || !(contactDurationS > 0.0)
+     || !(peakTimeFraction > 0.0)
+     || !(peakTimeFraction < 1.0)
+     || profileAge0S < 0.0
+     || deltaTSeconds < 0.0
+    )
+    {
+        return -1.0;
+    }
+    if (!(contactAreaM2 > 0.0))
+    {
+        return 0.0;
+    }
+    if (!(deltaTSeconds > 0.0))
+    {
+        return 0.0;
+    }
+    const double ringArea =
+        maximumAreaM2/static_cast<double>(finiteContactThermalRingCount);
+    double total = 0.0;
+    for (int ring = 0; ring < finiteContactThermalRingCount; ++ring)
+    {
+        const double ringInnerArea = static_cast<double>(ring)*ringArea;
+        const double ringWetArea = clampFiniteContact
+        (
+            contactAreaM2 - ringInnerArea,
+            0.0,
+            ringArea
+        );
+        if (!(ringWetArea > 0.0))
+        {
+            continue;
+        }
+        const double radialFraction =
+            (static_cast<double>(ring) + 0.5)
+           /static_cast<double>(finiteContactThermalRingCount);
+        const double spreadCoordinate =
+            1.0 - ::sqrt(clampFiniteContact(1.0 - radialFraction, 0.0, 1.0));
+        const double firstWetAgeS =
+            contactDurationS*peakTimeFraction*spreadCoordinate;
+        const double localAge0S = profileAge0S > firstWetAgeS
+          ? profileAge0S - firstWetAgeS
+          : 0.0;
+        const double profileAge1S = profileAge0S + deltaTSeconds;
+        const double localAge1S = profileAge1S > firstWetAgeS
+          ? profileAge1S - firstWetAgeS
+          : 0.0;
+        const double contribution = wallInterfaceConductanceTimeIntegral
+        (
+            ringWetArea,
+            efficiency,
+            localAge0S,
+            localAge1S,
+            interfaceResistanceM2KW,
+            particleAdditionalResistanceM2KW,
+            wallEffusivityWsHalfM2K,
+            wallTransientResistance
+        );
+        if (!(contribution >= 0.0) || !finiteContactValue(contribution))
+        {
+            return -1.0;
+        }
+        total += contribution;
+    }
+    return finiteContactValue(total) && total >= 0.0 ? total : -1.0;
 }
 
 GPU_FINITE_CONTACT_HD inline double combinedContactEffusivityFromWallEffusivity

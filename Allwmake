@@ -5,21 +5,21 @@ echo "=== UGKPUnified Allwmake ==="
 echo "Building three GPU solvers: gasUGKP, FSH, CHT"
 echo ""
 
-# Check OpenFOAM environment
-if [ -z "$WM_PROJECT_DIR" ]; then
+
+if [ -z "${WM_PROJECT_DIR:-}" ]; then
     echo "ERROR: OpenFOAM environment not loaded."
     echo "Source OpenFOAM etc/bashrc first:"
-    echo "  source /opt/openfoam10/etc/bashrc  # or your OpenFOAM installation"
+    echo "Load the OpenFOAM environment before running Allwmake."
     exit 1
 fi
 echo "OpenFOAM: $WM_PROJECT ($WM_PROJECT_VERSION)"
 
-# Detect CUDA
+
 if [ -z "$UGKWP_CUDA_EXE_INC" ]; then
     echo ""
     echo "Detecting CUDA..."
 
-    # Try multiple common CUDA locations
+
     CUDA_ROOTS=(
         "$CUDA_HOME"
         "/usr/local/cuda"
@@ -59,14 +59,11 @@ fi
 echo "UGKWP_CUDA_EXE_INC=$UGKWP_CUDA_EXE_INC"
 echo "CUDA compiler: $CUDA_ROOT/bin/nvcc"
 "$CUDA_ROOT/bin/nvcc" --version | tail -n 1
-SOURCE_HASH="$({ find applications/gasUGKP applications/FSH applications/CHT \
-    -type f \( -name '*.C' -o -name '*.H' -o -name '*.cu' -o -name '*.cuh' \
-    -o -name 'Makefile' -o -name 'options' -o -name 'files' \) -print0; } \
-    | sort -z | xargs -0 sha256sum | sha256sum | awk '{print $1}')"
+SOURCE_HASH="$(python3 tools/compute_source_hash.py)"
 echo "Solver source hash: $SOURCE_HASH"
 echo ""
 
-# Build each solver through its production CUDA entry point.
+
 SOLVERS=(gasUGKP FSH CHT)
 BUILD_SCRIPTS=(
     applications/gasUGKP/private_backend/build_private_backend.sh
@@ -91,7 +88,7 @@ for index in "${!SOLVERS[@]}"; do
     echo ""
 done
 
-# Summary
+
 echo "============================================"
 echo "Build summary"
 echo "============================================"

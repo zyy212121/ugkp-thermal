@@ -71,10 +71,7 @@
      if
      (
          s.solveParticleTemperature != 0
-@@ -8118,9 +8119,13 @@
-         const double gasConductivity = molecularGasConductivity(s);
-         const double nu =
-             2.0 + 0.6*sqrt(clampMin(re, 0.0))*s.gasPrOneThird;
+@@ -8125,3 +8125,7 @@
 -        const double rate =
 +        const double rateRanzMarshall =
              6.0*nu*gasConductivity
@@ -83,9 +80,6 @@
 +        const double rate = constantResponseTime
 +          ? 1.0/clampMin(s.dragParameter1, OfSmall)
 +          : rateRanzMarshall;
-         const double decay = exp(-clampMin(rate, 0.0)*dt);
-         const double tpOld = clampRange(s.pT[i], s.TpMin, s.TpMax);
-         const double tgOld =
 @@ -8174,7 +8179,7 @@
              break;
          case 2:

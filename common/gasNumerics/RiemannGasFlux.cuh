@@ -2004,22 +2004,7 @@ UGKP_RIEMANN_HD FluxResult fluxUnitArea
                 pressureFloor
             );
         case Scheme::SLAU2_2:
-        {
-            const DensityGradient unavailableGradient{0.0, 0.0, 0.0};
-            return slau22FluxUnitNormal
-            (
-                left,
-                right,
-                unavailableGradient,
-                unavailableGradient,
-                nx,
-                ny,
-                nz,
-                gamma,
-                rhoFloor,
-                pressureFloor
-            );
-        }
+            return invalidResult(Scheme::SLAU2_2);
         default:
             return rusanovTadmorFluxUnitNormal
             (

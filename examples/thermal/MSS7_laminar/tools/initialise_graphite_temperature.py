@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Reconstruct the t=1 s graphite field from digitized MSS7 temperatures."""
+                                                                            
 
 from __future__ import annotations
 
@@ -75,7 +75,7 @@ def inner_radius(x: float) -> float:
 def monotone_pchip_slopes(
     coordinates: tuple[float, ...], values: tuple[float, ...]
 ) -> tuple[float, ...]:
-    """Return shape-preserving cubic-Hermite slopes without SciPy."""
+                                                                     
     if len(coordinates) != len(values) or len(coordinates) < 2:
         raise ValueError("PCHIP requires equally sized coordinate/value arrays")
     widths = [right - left for left, right in zip(coordinates, coordinates[1:])]
@@ -124,7 +124,7 @@ DEPTH_SLOPES_K_PER_M = monotone_pchip_slopes(
 
 
 def measured_depth_temperature(depth: float) -> float:
-    """Shape-preserving C1 reconstruction of the digitized t=1 s profile."""
+                                                                            
     if depth <= DEPTHS_M[0]:
         return DEPTH_TEMPERATURES_K[0]
     if depth >= DEPTHS_M[-1]:
@@ -152,7 +152,7 @@ def measured_depth_temperature(depth: float) -> float:
 
 
 def axial_weight(x: float) -> float:
-    """C2 throat plateau followed by a compact quintic taper."""
+                                                                
     distance = abs(x - X_THROAT)
     if distance <= AXIAL_PLATEAU_HALF_WIDTH_M:
         return 1.0
@@ -171,9 +171,9 @@ def cell_temperature(x: float, y: float, z: float) -> float:
     radius = math.hypot(y, z)
     depth = max(0.0, radius - inner_radius(x))
     throat_profile = measured_depth_temperature(depth)
-    # Measurements provide the throat-depth profile only. Retain that profile
-    # across a finite throat neighbourhood and taper it with zero first and
-    # second derivatives, avoiding an artificial axial heat-flux spike.
+                                                                             
+                                                                           
+                                                                       
     return T_AMBIENT + axial_weight(x) * (throat_profile - T_AMBIENT)
 
 

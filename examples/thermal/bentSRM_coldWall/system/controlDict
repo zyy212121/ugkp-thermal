@@ -17,7 +17,7 @@ FoamFile
 
 application     CHT;
 
-startFrom       startTime;
+startFrom       latestTime;
 
 startTime       1.5;
 

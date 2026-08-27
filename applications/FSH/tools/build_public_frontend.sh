@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 solver_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-source /opt/openfoam10/etc/bashrc
+if [ -z "${WM_PROJECT_DIR:-}" ]; then echo "OpenFOAM environment is not loaded" >&2; exit 1; fi
 set -euo pipefail
 
 cd "${solver_root}"

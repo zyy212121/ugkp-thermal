@@ -3119,7 +3119,6 @@ protected:
                  || (pStuck[i] != 0 && pStuckFaceId[i] == -1)
                  || (pStuck[i] == 1 && pStuckFaceId[i] >= 0
                      && pDepositionArea[i] <= 0.0f)
-                 || (pStuck[i] == 1 && pTheta[i] != 0.0)
                  || (pStuck[i] == 1 && !
                     (
                         (
@@ -3554,10 +3553,10 @@ protected:
             );
         const word defaultWallInteractionModel =
             model == nullptr
-          ? word("liquidDeposition")
+          ? word("coldWall1D")
           : model->lookupOrDefault<word>
             (
-                "wallInteractionModel", word("liquidDeposition")
+                "wallInteractionModel", word("coldWall1D")
             );
         const scalar meltingTemperatureK =
             model == nullptr
@@ -3600,8 +3599,8 @@ protected:
                 "interfaceThermalResistance", scalar(0)
             );
         const bool wallTransientResistance = model == nullptr
-          ? false
-          : model->lookupOrDefault<bool>("wallTransientResistance", false);
+          ? true
+          : model->lookupOrDefault<bool>("wallTransientResistance", true);
         const label nonlinearIterations = model == nullptr
           ? label(4)
           : model->lookupOrDefault<label>("solidificationIterations", 4);
@@ -3757,13 +3756,12 @@ protected:
         [&](const word& name) -> unsigned char
         {
             if (name == "reboundContact") return 1;
-            if (name == "liquidDeposition") return 2;
             if (name == "solidifyingDeposition" || name == "coldWall1D") return 3;
             if (name == "coldWall2D") return 4;
             FatalErrorInFunction
                 << "Unknown wall interaction model '" << name << "'. Valid "
-                << "models are reboundContact, liquidDeposition, coldWall1D, "
-                << "and coldWall2D. solidifyingDeposition is retained as an "
+                << "models are reboundContact, coldWall1D, and coldWall2D. "
+                << "solidifyingDeposition is retained as an "
                 << "alias of coldWall1D."
                 << exit(FatalError);
             return 0;

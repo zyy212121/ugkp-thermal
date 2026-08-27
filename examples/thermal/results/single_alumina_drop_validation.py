@@ -3,6 +3,7 @@ from __future__ import annotations
 import math
 import struct
 from dataclasses import dataclass
+from functools import lru_cache
 from pathlib import Path
 
 
@@ -81,13 +82,19 @@ def alumina_liquid_specific_heat_j_kg_k(temperature_k: float):
     ) / ALUMINA_MOLAR_MASS_KG_MOL
 
 
+@lru_cache(maxsize=None)
 def cold_wall_mushy_specific_heat_j_kg_k(
     properties: ColdWallThermalProperties,
 ):
+    solid_specific_heat = float(properties.solid_specific_heat_j_kg_k)
+    liquid_specific_heat = alumina_liquid_specific_heat_j_kg_k(
+        float(properties.melting_temperature_k)
+    )
+    latent_heat = float(properties.latent_heat_j_kg)
+    mushy_range = float(properties.mushy_range_k)
     return 0.5 * (
-        properties.solid_specific_heat_j_kg_k
-        + alumina_liquid_specific_heat_j_kg_k(properties.melting_temperature_k)
-    ) + properties.latent_heat_j_kg / properties.mushy_range_k
+        solid_specific_heat + liquid_specific_heat
+    ) + latent_heat/mushy_range
 
 
 def cold_wall_specific_enthalpy_j_kg(

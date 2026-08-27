@@ -43,7 +43,7 @@
  
          if (particleCapacity < 0)
          {
-@@ -2175,6 +2195,14 @@
+@@ -2166,6 +2186,14 @@
  
          for (label i = 0; i < nParticles; ++i)
          {

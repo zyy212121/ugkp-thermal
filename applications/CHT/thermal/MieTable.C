@@ -221,10 +221,12 @@ MieTable::MieTable(const fileName& tableFile)
 
     std::string line;
     if (!std::getline(in, line) || line != "DATA") fail(tableFile, "missing DATA");
-    const std::size_t count = data->D.size()*data->T.size();
+    const std::size_t diameterCount = static_cast<std::size_t>(data->D.size());
+    const std::size_t temperatureCount = static_cast<std::size_t>(data->T.size());
+    const std::size_t count = diameterCount*temperatureCount;
     data->nodes.reserve(count);
-    for (std::size_t d=0; d<data->D.size(); ++d)
-    for (std::size_t t=0; t<data->T.size(); ++t)
+    for (std::size_t d=0; d<diameterCount; ++d)
+    for (std::size_t t=0; t<temperatureCount; ++t)
     {
         if (!std::getline(in, line)) fail(tableFile, "missing NODE");
         std::istringstream words(line);

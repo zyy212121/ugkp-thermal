@@ -1,25 +1,25 @@
 #!/usr/bin/env python3
                        
-"""
-Generate the unique production grey-Mie lookup table for UGKP_CHT.
+   
+                                                                  
 
-Output format: custom ASCII MIE_TABLE read by MieTable.C.
+                                                         
 
-This is the corrected version of the previous table generator. The important
-fix is in mie_phase_raw(): the angular functions use
-    pi_0 = 0, pi_1 = 1
-and
-    tau_n = n*mu*pi_n - (n+1)*pi_{n-1}.
-The old version effectively used pi_0 = 1 in tau_1, which makes Phi(mu)
-inconsistent with the Mie asymmetry factor g.
+                                                                            
+                                                    
+                      
+   
+                                       
+                                                                       
+                                             
 
-The table stores Qabs_gray, Qsca_gray, Qext_gray, Phi_gray and the Planck band
-fraction. Generation is offline and publication is atomic.
+                                                                              
+                                                          
 
-Conventions:
-    integral_{-1}^{1} Phi(mu) dmu = 2
-    g_phi = 0.5 * integral_{-1}^{1} mu * Phi(mu) dmu
-"""
+            
+                                     
+                                                    
+   
 import argparse
 import hashlib
 import json
@@ -46,7 +46,7 @@ def clamp(x, lo, hi):
 
 
 def alumina_refractive_index(lam, T):
-    """Same engineering alumina optical model used in the earlier doPre/mieDo code."""
+                                                                                      
     lam_um = lam*1.0e6
     l2 = lam_um*lam_um
 
@@ -70,7 +70,7 @@ def alumina_refractive_index(lam, T):
 
 
 def planck_weight_lambda(lam, T):
-    """Planck spectral weight without constants that cancel in grey averaging."""
+                                                                                 
     if T <= 0.0 or lam <= 0.0:
         return 0.0
 
@@ -86,13 +86,13 @@ def planck_weight_lambda(lam, T):
 
 
 def mie_coefficients(x, m):
-    """
-    Mie coefficients and efficiencies.
+       
+                                      
 
-    The coefficient implementation intentionally follows the previous script's
-    logarithmic-derivative/Riccati-Bessel structure to avoid changing the
-    Qabs/Qsca/Qext/g model while fixing only the angular phase function bug.
-    """
+                                                                              
+                                                                         
+                                                                            
+       
     if x <= 0.0:
         return 0.0, 0.0, 0.0, 0.0, np.zeros(2, complex), np.zeros(2, complex)
 
@@ -165,18 +165,18 @@ def mie_coefficients(x, m):
 
 
 def mie_phase_raw(x, q_sca, an, bn, mu_values):
-    """
-    Correct Mie phase shape Phi(mu), up to normalization.
+       
+                                                         
 
-    Correct angular-function recurrence:
-        pi_0 = 0
-        pi_1 = 1
-        tau_n = n*mu*pi_n - (n+1)*pi_{n-1}
-        pi_{n+1} = ((2n+1)/n)*mu*pi_n - ((n+1)/n)*pi_{n-1}
+                                        
+                
+                
+                                          
+                                                          
 
-    The previous buggy code used pi_{n-1}=1 when n=1, giving tau_1 = mu - 2
-    instead of tau_1 = mu.
-    """
+                                                                           
+                          
+       
     n_stop = len(an) - 2
 
     if n_stop < 1 or q_sca <= 1.0e-300 or x <= 0.0:
@@ -290,7 +290,7 @@ def compute_node(d, T, mu_values, lambdas):
 
 
 def planck_band_fraction(T, lambda_min, lambda_max):
-    """Fraction of black-body power inside [lambda_min, lambda_max]."""
+                                                                       
     c2 = 1.438776877e-2
 
     def tail(x):

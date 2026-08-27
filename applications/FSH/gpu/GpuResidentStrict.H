@@ -2330,7 +2330,6 @@ protected:
                  || (pStuck[i] != 0 && pStuckFaceId[i] == -1)
                  || (pStuck[i] == 1 && pStuckFaceId[i] >= 0
                      && pDepositionArea[i] <= 0.0f)
-                 || (pStuck[i] == 1 && pTheta[i] != 0.0)
                  || (pStuck[i] == 1 && !
                     (
                         (
@@ -2780,10 +2779,10 @@ protected:
             );
         const word defaultWallInteractionModel =
             model == nullptr
-          ? word("liquidDeposition")
+          ? word("coldWall1D")
           : model->lookupOrDefault<word>
             (
-                "wallInteractionModel", word("liquidDeposition")
+                "wallInteractionModel", word("coldWall1D")
             );
         const scalar meltingTemperatureK =
             model == nullptr
@@ -2996,10 +2995,6 @@ protected:
             {
                 return static_cast<unsigned char>(1);
             }
-            if (name == "liquidDeposition")
-            {
-                return static_cast<unsigned char>(2);
-            }
             if (name == "solidifyingDeposition" || name == "coldWall1D")
             {
                 return static_cast<unsigned char>(3);
@@ -3010,8 +3005,8 @@ protected:
             }
             FatalErrorInFunction
                 << "Unknown wall interaction model '" << name << "'. "
-                << "Valid models are reboundContact, liquidDeposition, "
-                << "coldWall1D, and coldWall2D. solidifyingDeposition is "
+                << "Valid models are reboundContact, coldWall1D, and "
+                << "coldWall2D. solidifyingDeposition is "
                 << "retained as an alias of coldWall1D." << exit(FatalError);
             return static_cast<unsigned char>(0);
         };

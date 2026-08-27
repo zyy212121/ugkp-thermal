@@ -8,6 +8,8 @@
 #include "RiemannBoundaryState.cuh"
 #include "RiemannGasFlux.cuh"
 #include "GpuSstAlgebra.cuh"
+#include "../../../common/gasNumerics/GpuLesAlgebra.cuh"
+#include "../../../common/gasNumerics/GpuParticlePhysicsAlgebra.cuh"
 #include "GpuDragModels.cuh"
 
 #include <thrust/device_ptr.h>
@@ -3017,8 +3019,7 @@ __global__ void computeGasEddyViscosityKernel(DeviceState* sp)
     double nuT = 0.0;
     if (s.turbulenceModel == 2)
     {
-        nuT = s.smagorinskyCs*s.smagorinskyCs*delta*delta
-          *sqrt(fmax(2.0*ss, 0.0));
+        nuT = ugkwp::smagorinskyNut(s.smagorinskyCs, delta, ss);
     }
     else
     {
@@ -3045,17 +3046,18 @@ __global__ void computeGasEddyViscosityKernel(DeviceState* sp)
                 sd2 += sd*sd;
             }
         }
-        const double numerator = pow(fmax(sd2, 0.0), 1.5);
+        nuT = ugkwp::waleNut
+        (
+            s.waleCw,
+            delta,
+            symmetricGradientSquared,
+            sd2,
+            OfSmall
+        );
                                                                  
                                                                            
                                                                              
                                    
-        const double denominator =
-            pow(fmax(symmetricGradientSquared, 0.0), 2.5)
-          + pow(fmax(sd2, 0.0), 1.25);
-        nuT = denominator > OfSmall
-          ? s.waleCw*s.waleCw*delta*delta*numerator/denominator
-          : 0.0;
     }
     s.nut[c] = finiteDevice(nuT) && nuT > 0.0 ? nuT : 0.0;
 }
@@ -5716,10 +5718,11 @@ __global__ void applyEulerianParticleMaterialHeatKernel
     const double pr = s.gasPrClamped;
     const double gasConductivity = molecularGasConductivity(s);
 
-    const double nu =
-        2.0
-      + 0.6*sqrt(clampMin(re, 0.0))
-         *pow(clampMin(pr, 1.0e-12), 1.0/3.0);
+    const double nu = ugkwp::ranzMarshallNuFromPr
+    (
+        clampMin(re, 0.0),
+        clampMin(pr, 1.0e-12)
+    );
 
     const double rate =
         6.0*nu*gasConductivity
@@ -5904,7 +5907,7 @@ __device__ double sampleDiameterFromPoolMomentDevice
 __device__ double radialDistributionG0Device(const double eps)
 {
     double cRatio = clampRange(eps/(0.63 + 1.0e-6), 0.0, 0.99);
-    return (2.0 - cRatio)/(2.0*pow(1.0 - cRatio, 3.0) + 1.0e-5);
+    return ugkwp::radialDistributionG0FromRatio(cRatio);
 }
 
 __device__ double solidPressureFromMomentsDevice
@@ -5940,9 +5943,14 @@ __device__ double solidPressureFromMomentsDevice
     if (s.collisionalPressureEnabled)
     {
         const double g0 = radialDistributionG0Device(eps);
-        pColl =
-            2.0*(1.0 + s.collisionalRestitution)
-           *s.rhoSolid*eps*eps*g0*theta;
+        pColl = ugkwp::collisionalPressure
+        (
+            s.collisionalRestitution,
+            s.rhoSolid,
+            eps,
+            g0,
+            theta
+        );
         pColl = clampRange(finiteOr(pColl, 0.0), 0.0, OfGreat);
     }
 
@@ -6758,37 +6766,7 @@ __global__ void normalizeMobilePackingMomentsKernel(DeviceState* sp)
     s.mobilePackingMomZ[c] *= invV;
 }
 
-__device__ void mobilePackingPrimitive
-(
-    const DeviceState& s,
-    const int c,
-    double& eps,
-    double& ux,
-    double& uy,
-    double& uz
-)
-{
-    if (c < 0 || c >= s.nCells)
-    {
-        eps = 0.0;
-        ux = 0.0;
-        uy = 0.0;
-        uz = 0.0;
-        return;
-    }
-    const double rho = clampMin(finiteOr(s.mobilePackingRho[c], 0.0), 0.0);
-    eps = rho/clampMin(s.rhoSolid, OfVSmall);
-    if (rho <= s.epsSMin*s.rhoSolid)
-    {
-        ux = 0.0;
-        uy = 0.0;
-        uz = 0.0;
-        return;
-    }
-    ux = finiteOr(s.mobilePackingMomX[c], 0.0)/rho;
-    uy = finiteOr(s.mobilePackingMomY[c], 0.0)/rho;
-    uz = finiteOr(s.mobilePackingMomZ[c], 0.0)/rho;
-}
+#include "../../../common/gasNumerics/GpuPackingProjectionAlgebra.cuh"
 
 __global__ void prepareMobilePackingProjectionKernel
 (
@@ -6970,64 +6948,7 @@ __global__ void initialiseMobilePackingCorrectionRegionKernel
     s.mobilePackingCorrectionCellList[activeI] = c;
 }
 
-__device__ double mobilePackingProjectedJacobiValue
-(
-    const DeviceState& s,
-    const int c,
-    const double* oldPressure
-)
-{
-    double diagonal = 0.0;
-    double neighbourSum = 0.0;
-    const int start = s.cellPlaneStart[c];
-    const int count = s.cellPlaneCount[c];
-    for (int j = 0; j < count; ++j)
-    {
-        const int f = s.cellFaceId[start + j];
-        if (f < 0 || f >= s.nFaces)
-        {
-            continue;
-        }
-        const int own = s.faceOwner[f];
-        const int nei = s.faceNeighbour[f];
-        const double a = clampMin
-        (
-            finiteOr(s.magSf[f]*s.deltaCoeffs[f], 0.0),
-            0.0
-        );
-        if (nei >= 0 && nei < s.nCells)
-        {
-            const int other = own == c ? nei : own;
-            diagonal += a;
-            neighbourSum +=
-                a*clampMin(finiteOr(oldPressure[other], 0.0), 0.0);
-        }
-        else if (own == c && s.gasBoundaryKind[f] == 0)
-        {
                                                                        
-            diagonal += a;
-        }
-    }
-    if (diagonal <= OfVSmall)
-    {
-        return 0.0;
-    }
-
-    const double rhs = clampRange
-    (
-        finiteOr(s.pressureDeltaEnergy[c], 0.0),
-        -OfGreat,
-        OfGreat
-    );
-    const double candidate =
-        clampMin((rhs + neighbourSum)/diagonal, 0.0);
-    const double relaxed =
-        (1.0 - mobilePackingJacobiOmega)
-       *clampMin(finiteOr(oldPressure[c], 0.0), 0.0)
-      + mobilePackingJacobiOmega*candidate;
-    return clampRange(finiteOr(relaxed, 0.0), 0.0, OfGreat);
-}
-
 __global__ void solveActiveMobilePackingPressureJacobiKernel
 (
     DeviceState* sp,
@@ -7257,82 +7178,6 @@ __global__ void reconstructMobilePackingVelocityCorrectionKernel
     s.pressureDeltaMomX[c] = finiteOr(ux, 0.0);
     s.pressureDeltaMomY[c] = finiteOr(uy, 0.0);
     s.pressureDeltaMomZ[c] = finiteOr(uz, 0.0);
-}
-
-__device__ void mobilePackingParticleVelocityCorrection
-(
-    const DeviceState& s,
-    const int particleI,
-    double& dux,
-    double& duy,
-    double& duz
-)
-{
-    const int c = s.pCellId[particleI];
-    dux = finiteOr(s.pressureDeltaMomX[c], 0.0);
-    duy = finiteOr(s.pressureDeltaMomY[c], 0.0);
-    duz = finiteOr(s.pressureDeltaMomZ[c], 0.0);
-
-    int closestPlane = -1;
-    double closestCoordinate = 1.0;
-    const int start = s.cellPlaneStart[c];
-    const int count = s.cellPlaneCount[c];
-    for (int j = 0; j < count; ++j)
-    {
-        const int plane = start + j;
-        const double nx = s.planeNx[plane];
-        const double ny = s.planeNy[plane];
-        const double nz = s.planeNz[plane];
-        const double centreToFaceDistance =
-            s.planeD[plane]
-          - (nx*s.Cx[c] + ny*s.Cy[c] + nz*s.Cz[c]);
-        if (!(centreToFaceDistance > OfVSmall))
-        {
-            continue;
-        }
-        const double particleToFaceDistance =
-            s.planeD[plane]
-          - (nx*s.px[particleI] + ny*s.py[particleI] + nz*s.pz[particleI]);
-        const double coordinate = clampRange
-        (
-            finiteOr(particleToFaceDistance/centreToFaceDistance, 1.0),
-            0.0,
-            1.0
-        );
-        if (coordinate < closestCoordinate)
-        {
-            closestCoordinate = coordinate;
-            closestPlane = plane;
-        }
-    }
-    if (closestPlane < 0)
-    {
-        return;
-    }
-
-    const int faceI = s.cellFaceId[closestPlane];
-    if (faceI < 0 || faceI >= s.nFaces)
-    {
-        return;
-    }
-    const double magSf = clampMin(finiteOr(s.magSf[faceI], 0.0), 0.0);
-    if (magSf <= OfVSmall)
-    {
-        return;
-    }
-    const double nx = s.planeNx[closestPlane];
-    const double ny = s.planeNy[closestPlane];
-    const double nz = s.planeNz[closestPlane];
-    const double sign = s.faceOwner[faceI] == c ? 1.0 : -1.0;
-    const double faceVelocityCorrection =
-        sign*finiteOr(s.solidPressurePhiEnergy[faceI], 0.0)/magSf;
-    const double cellNormalCorrection = dux*nx + duy*ny + duz*nz;
-    const double faceBlend = 1.0 - closestCoordinate;
-    const double normalAdjustment =
-        faceBlend*(faceVelocityCorrection - cellNormalCorrection);
-    dux += normalAdjustment*nx;
-    duy += normalAdjustment*ny;
-    duz += normalAdjustment*nz;
 }
 
 __global__ void applyMobilePackingCorrectionToParticlesKernel(DeviceState* sp)
@@ -7643,10 +7488,20 @@ __device__ double granularCollisionTauFromCellDevice(const DeviceState& s, const
         );
 
     const double g0 = radialDistributionG0Device(eps);
-    const double lmfp =
-        sqrt(OfPi)*dPart/(12.0*eps*g0 + OfSmall);
+    const double lmfp = ugkwp::granularMeanFreePath
+    (
+        OfPi,
+        dPart,
+        eps,
+        g0,
+        OfSmall
+    );
 
-    return clampMin(lmfp/(sqrt(theta) + OfSmall), OfSmall);
+    return clampMin
+    (
+        ugkwp::granularCollisionTime(lmfp, theta, OfSmall),
+        OfSmall
+    );
 }
 
 __global__ void injectBoundaryParticlesKernel
@@ -8116,8 +7971,11 @@ __device__ void relaxOneParticleToResidentGas(DeviceState& s, const int i, const
     )
     {
         const double gasConductivity = molecularGasConductivity(s);
-        const double nu =
-            2.0 + 0.6*sqrt(clampMin(re, 0.0))*s.gasPrOneThird;
+        const double nu = ugkwp::ranzMarshallNuFromPrOneThird
+        (
+            clampMin(re, 0.0),
+            s.gasPrOneThird
+        );
         const double rate =
             6.0*nu*gasConductivity
            /(s.particleThermalCapacity*dPart*dPart + 1.0e-300);

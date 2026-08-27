@@ -4,7 +4,7 @@ set -o pipefail
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 case_dir="$(cd "${script_dir}/../.." && pwd)"
 
-source /opt/openfoam10/etc/bashrc
+if [ -z "${WM_PROJECT_DIR:-}" ]; then echo "OpenFOAM environment is not loaded" >&2; exit 1; fi
 set -eu
 python3 "${script_dir}/prepare_initial_state.py" create
 (

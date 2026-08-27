@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Offline, conservative local refinement of a stopped UGKP FSH restart."""
+                                                                           
 
 from __future__ import annotations
 

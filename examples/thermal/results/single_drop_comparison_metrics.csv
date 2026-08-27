@@ -1,0 +1,9 @@
+model,quantity,metric,value,unit
+coldWall,free_surface_temperature,rmse,144.16692982377427,degC
+coldWall,free_surface_temperature,mae,131.76099599071267,degC
+coldWall,free_surface_temperature,bias,131.7608344562982,degC
+coldWall,free_surface_temperature,maximum_absolute_error,293.69654283910563,degC
+coldWall,spreading_factor,rmse,0.129031195852928,1
+coldWall,spreading_factor,mae,0.06699341830518137,1
+coldWall,spreading_factor,bias,0.04072641415573987,1
+coldWall,spreading_factor,maximum_absolute_error,0.3316564486122706,1
