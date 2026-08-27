@@ -1,0 +1,17 @@
+UGKP Thermal GPU Solvers
+Copyright (C) 2026 Shashi Liu
+
+This software is distributed under the GNU General Public License,
+version 3 or, at your option, any later version.
+
+This software is developed for OpenFOAM 10 and includes software derived
+from or designed to link with OpenFOAM. OpenFOAM is Copyright (C) the
+OpenFOAM Foundation and is distributed under the GNU General Public License,
+version 3 or, at your option, any later version.
+
+OpenFOAM is a registered trademark of OpenCFD Limited. This project is not
+endorsed by or affiliated with OpenCFD Limited or the OpenFOAM Foundation.
+
+CUDA, NVIDIA, and associated product names are trademarks or registered
+trademarks of NVIDIA Corporation. The NVIDIA CUDA Toolkit is an external
+build dependency and is not distributed with this repository.
