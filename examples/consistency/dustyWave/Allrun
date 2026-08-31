@@ -1,0 +1,20 @@
+#!/usr/bin/env bash
+
+if [ -z "${WM_PROJECT_DIR:-}" ]; then echo "OpenFOAM environment is not loaded" >&2; exit 1; fi
+set -euo pipefail
+
+case_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+cleanup()
+{
+    rc=$?
+    "${case_dir}/assets/build/clean_validation_solver.sh" || true
+    exit "${rc}"
+}
+trap cleanup EXIT
+
+cd "${case_dir}"
+./assets/build/build_validation_solver.sh
+[[ -f constant/polyMesh/points ]] || blockMesh
+export GAS_UGKP_CUDA_BACKEND="${case_dir}/.validation-bin/dustyWaveUGKPCudaBackend"
+"${case_dir}/.validation-bin/dustyWaveUGKP"
+PYTHONDONTWRITEBYTECODE=1 python3 ../result/dusty_wave.py

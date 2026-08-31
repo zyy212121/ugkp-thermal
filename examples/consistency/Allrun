@@ -4,7 +4,7 @@ if [ -z "${WM_PROJECT_DIR:-}" ]; then echo "OpenFOAM environment is not loaded" 
 set -euo pipefail
 
 ROOT=$(cd "$(dirname "$0")" && pwd)
-CASES=(sodShockTube planarCouette dustyBox windSandShockTube)
+CASES=(sodShockTube planarCouette dustyBox dustyWave windSandShockTube)
 LOG_ROOT="$ROOT/run_logs/$(date +%Y%m%d_%H%M%S)"
 SUMMARY="$LOG_ROOT/summary.tsv"
 

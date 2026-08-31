@@ -4,7 +4,7 @@ set -euo pipefail
 
 ROOT=$(cd "$(dirname "$0")" && pwd)
 CLEANER="${ROOT}/../tools/clean_case_results.sh"
-CASES=(sodShockTube planarCouette dustyBox windSandShockTube)
+CASES=(sodShockTube planarCouette dustyBox dustyWave windSandShockTube)
 REQUESTED_CASES=("$@")
 
 if [[ ${1:-} == --list ]]; then

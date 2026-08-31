@@ -1,0 +1,57 @@
+{
+  "case": "dustyWave",
+  "final_time_s": 0.2,
+  "metrics": {
+    "relative_perturbation_l2": {
+      "rho": 0.005075956149559587,
+      "rhoP": 0.13321859991567683,
+      "U": 0.008085474153557346,
+      "Us": 0.004096407467241898,
+      "p": 0.00591685073867266
+    },
+    "harmonic": {
+      "rho": {
+        "relative_amplitude_error": 0.000480468900833816,
+        "phase_error_radian": 0.0001472904081646796
+      },
+      "rhoP": {
+        "relative_amplitude_error": 0.003235969641936851,
+        "phase_error_radian": 0.006009517630256597
+      },
+      "U": {
+        "relative_amplitude_error": 0.0007539102217735474,
+        "phase_error_radian": 0.0011041921371292692
+      },
+      "Us": {
+        "relative_amplitude_error": 0.0004804587140113237,
+        "phase_error_radian": 0.0012232099804292183
+      },
+      "p": {
+        "relative_amplitude_error": 0.0004900346336471303,
+        "phase_error_radian": 0.00014563841014181213
+      }
+    },
+    "mean_drift": {
+      "rho": 1.3925305353268413e-11,
+      "rhoP": 0.0,
+      "U": 1.6642589109585464e-06,
+      "Us": 2.833759364761698e-07,
+      "p": 3.9162072749121535e-06
+    },
+    "minimum_values": {
+      "rho": 0.99052236434088,
+      "rhoP": 0.9849999999999601,
+      "U": -0.0090648818833809,
+      "Us": -0.0088706276589784,
+      "p": 0.98675742372116
+    },
+    "all_values_finite": true
+  },
+  "tolerances": {
+    "maximum_relative_perturbation_l2": 0.15,
+    "maximum_relative_harmonic_amplitude_error": 0.12,
+    "maximum_harmonic_phase_error_radian": 0.1,
+    "maximum_mean_drift": 0.005
+  },
+  "passed": true
+}

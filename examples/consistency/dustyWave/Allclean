@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+case_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+"${case_dir}/assets/build/clean_validation_solver.sh"
+"${case_dir}/../../tools/clean_case_results.sh" "${case_dir}"
