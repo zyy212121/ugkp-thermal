@@ -6,6 +6,11 @@ ROOT = Path(__file__).resolve().parents[1]
 PATCH = (ROOT / "GpuResidentStrict.constant-response-time.patch").read_text(
     encoding="utf-8"
 )
+ADDED = "\n".join(
+    line[1:]
+    for line in PATCH.splitlines()
+    if line.startswith("+") and not line.startswith("+++")
+)
 AXIAL_PATCH = (ROOT / "GpuResidentStrict.axial-fluctuation.patch").read_text(
     encoding="utf-8"
 )
@@ -46,9 +51,15 @@ def main() -> None:
         "ConstantResponseTimeDeviceDrag" in DEVICE_MODEL,
         "device drag adapter missing",
     )
-    require(PATCH.count("ConstantResponseTimeDeviceDrag") == 2, "both launches required")
-    require(PATCH.count("s.hostDragModel == 2") == 2, "both heat paths required")
-    require("dragParameter0 <= 0.0" in PATCH, "adapter validation missing")
+    require(
+        ADDED.count("ConstantResponseTimeDeviceDrag") == 2,
+        "both launches required",
+    )
+    require(ADDED.count("s.hostDragModel == 2") == 2, "both heat paths required")
+    require("const double gasCapacity = epsG*rhoG*gasHeatCapacity;" in ADDED, "gas capacity basis missing")
+    require("gasCv/clampMin(gasHeatCapacity, OfSmall)" in ADDED, "gas energy-capacity conversion missing")
+    require("(void)modelId;" in ADDED and "return true;" in ADDED, "drag activity override missing")
+    require("dragParameter0 <= 0.0" in ADDED, "adapter validation missing")
     require("particleFluctuationDimensions_ < 3" in AXIAL_PATCH, "axial z clamp missing")
     require("particleFluctuationDimensions_ < 2" in AXIAL_PATCH, "axial y clamp missing")
     print("constant-response-time adapter contract: PASS")

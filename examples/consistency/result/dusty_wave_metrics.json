@@ -3,46 +3,46 @@
   "final_time_s": 0.2,
   "metrics": {
     "relative_perturbation_l2": {
-      "rho": 0.005075956149559587,
+      "rho": 0.005075956149558412,
       "rhoP": 0.13321859991567683,
-      "U": 0.008085474153557346,
-      "Us": 0.004096407467241898,
-      "p": 0.00591685073867266
+      "U": 0.008085474153556038,
+      "Us": 0.004096407467240948,
+      "p": 0.005916850738666062
     },
     "harmonic": {
       "rho": {
-        "relative_amplitude_error": 0.000480468900833816,
-        "phase_error_radian": 0.0001472904081646796
+        "relative_amplitude_error": 0.00048046890083472784,
+        "phase_error_radian": 0.00014729040816371773
       },
       "rhoP": {
         "relative_amplitude_error": 0.003235969641936851,
         "phase_error_radian": 0.006009517630256597
       },
       "U": {
-        "relative_amplitude_error": 0.0007539102217735474,
-        "phase_error_radian": 0.0011041921371292692
+        "relative_amplitude_error": 0.0007539102217733564,
+        "phase_error_radian": 0.0011041921371269417
       },
       "Us": {
-        "relative_amplitude_error": 0.0004804587140113237,
-        "phase_error_radian": 0.0012232099804292183
+        "relative_amplitude_error": 0.00048045871401191075,
+        "phase_error_radian": 0.001223209980428785
       },
       "p": {
-        "relative_amplitude_error": 0.0004900346336471303,
-        "phase_error_radian": 0.00014563841014181213
+        "relative_amplitude_error": 0.0004900346336527316,
+        "phase_error_radian": 0.00014563841013675297
       }
     },
     "mean_drift": {
       "rho": 1.3925305353268413e-11,
       "rhoP": 0.0,
-      "U": 1.6642589109585464e-06,
-      "Us": 2.833759364761698e-07,
+      "U": 1.6642589109527873e-06,
+      "Us": 2.833759364750769e-07,
       "p": 3.9162072749121535e-06
     },
     "minimum_values": {
       "rho": 0.99052236434088,
       "rhoP": 0.9849999999999601,
-      "U": -0.0090648818833809,
-      "Us": -0.0088706276589784,
+      "U": -0.009064881883381,
+      "Us": -0.0088706276589783,
       "p": 0.98675742372116
     },
     "all_values_finite": true

@@ -208,9 +208,10 @@ def write_wind():
     x = (np.arange(n) + 0.5)/n
     source = OUT/"wind_sand_shock_tube_reference.csv"
     published = np.genfromtxt(source, delimiter=",", names=True)
+    epsilon_s = scalar_field(directory/"epsilonS", n)
     fields = {
-        "rho_g": scalar_field(directory/"rho", n),
-        "rho_p": scalar_field(directory/"epsilonS", n)*1000.0,
+        "rho_g": (1.0 - epsilon_s)*scalar_field(directory/"rho", n),
+        "rho_p": epsilon_s*1000.0,
         "u_g": vector_field(directory/"U", n)[:, 0],
         "u_p": vector_field(directory/"Us", n)[:, 0],
         "p_g": scalar_field(directory/"p", n),

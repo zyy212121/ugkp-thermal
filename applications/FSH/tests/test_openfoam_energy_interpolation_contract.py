@@ -102,7 +102,9 @@ class OpenFoamEnergyInterpolationContract(unittest.TestCase):
 
     def test_particle_functions_do_not_use_energy_interpolation_helper(self) -> None:
         for name in (
-            "applyEulerianGasSolidCouplingKernelStatic",
+            "applyGasVolumeFractionSourceKernel",
+            "applyEulerianGasSolidDragKernelStatic",
+            "applyEulerianParticleMaterialHeatKernel",
             "trackParticlesLocalFaceWalkKernel",
             "samplePoissonPoolParticlesKernel",
         ):

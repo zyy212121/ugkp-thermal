@@ -54,16 +54,34 @@ __global__ void accumulateCsrSegmentedPoolTasksPersistentKernel
                 continue;
             }
             double sums[8];
-            const bool directParticleIndex =
+            if
+            (
                 descriptor.source == static_cast<int>
                 (
-                    CsrReductionTaskSource::splitBaseDirect
+                    CsrReductionTaskSource::splitLogical
+                )
+            )
+            {
+                accumulateCsrSplitLogicalPoolTask<PoissonMode>
+                (
+                    s, c, descriptor.begin, descriptor.end,
+                    collisionProbability, sums, warpPartials
                 );
-            accumulateCsrHeavyPoolTask<PoissonMode>
-            (
-                s, c, descriptor.begin, descriptor.end, directParticleIndex,
-                collisionProbability, sums, warpPartials
-            );
+            }
+            else
+            {
+                const bool directParticleIndex =
+                    descriptor.source == static_cast<int>
+                    (
+                        CsrReductionTaskSource::splitBaseDirect
+                    );
+                accumulateCsrHeavyPoolTask<PoissonMode>
+                (
+                    s, c, descriptor.begin, descriptor.end,
+                    directParticleIndex, collisionProbability,
+                    sums, warpPartials
+                );
+            }
             if (threadIdx.x == 0)
             {
                 if (s.csrCellTaskCount[c] == 1)

@@ -64,7 +64,9 @@ class OpenFoamViscousFluxSourceContract(unittest.TestCase):
 
     def test_particle_functions_do_not_use_transport_helper(self) -> None:
         for name in (
-            "applyEulerianGasSolidCouplingKernelStatic",
+            "applyGasVolumeFractionSourceKernel",
+            "applyEulerianGasSolidDragKernelStatic",
+            "applyEulerianParticleMaterialHeatKernel",
             "trackParticlesLocalFaceWalkKernel",
             "samplePoissonPoolParticlesKernel",
         ):

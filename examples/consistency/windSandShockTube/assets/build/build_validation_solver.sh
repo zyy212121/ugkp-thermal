@@ -44,6 +44,8 @@ install -m 0644 \
     "${backend_source}/GpuDragModels.cuh"
 patch --batch --forward -d "${backend_source}" -p0 \
     < "${asset}/GpuResidentStrict.constant-response-time.patch"
+python3 "${asset}/tests/test_staged_coupling_contract.py" \
+    "${backend_source}/GpuResidentStrict.cu"
 
 cuda_home="${CUDA_HOME:-/usr/local/cuda}"
 cuda_arch="${UGKWP_CUDA_ARCH:-sm_89}"
@@ -96,6 +98,8 @@ printf 'canonical_source=%s\nadapter=%s\nfrontend=%s\nbackend=%s\n' \
     "$(cd "${asset}" && sha256sum \
         GpuResidentStrict.constant-response-time.patch \
         GpuResidentStrict.axial-fluctuation.patch \
+        gpu/GpuDragModel.H \
+        private_backend/GpuDragModels.cuh \
         | sha256sum | awk '{print $1}')" \
     "$(sha256sum "${bin_dir}/windSandUGKP" | awk '{print $1}')" \
     "$(sha256sum "${bin_dir}/windSandUGKPCudaBackend" | awk '{print $1}')"

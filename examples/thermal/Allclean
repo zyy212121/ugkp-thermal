@@ -29,9 +29,6 @@ for requested in "${REQUESTED_CASES[@]}"; do
     else
         "${CLEANER}" --check "${ROOT}/${requested}"
         "${CLEANER}" "${ROOT}/${requested}"
-        if [[ "$requested" == bentSRM_coldWall ]]; then
-            rm -f -- "${ROOT}/${requested}/assets/radiation/alumina_mieTable.dat"
-        fi
     fi
 done
 ${clean_all} && rm -rf -- "${ROOT}/run_logs"

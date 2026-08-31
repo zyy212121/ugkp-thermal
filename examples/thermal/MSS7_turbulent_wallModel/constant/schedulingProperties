@@ -20,4 +20,3 @@ gpuCsrLevel                     L0;
 
 gpuParticleBlockThreads         128;
 gpuReductionBlockThreads        128;
-

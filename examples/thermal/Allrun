@@ -42,10 +42,6 @@ for name in "${SELECTED[@]}"; do
         echo "[THERMAL] $name ($app)"
         (
             cd "$caseDir"
-            if [[ "$name" == bentSRM_coldWall ]] && [[ ! -f assets/radiation/alumina_mieTable.dat ]]; then
-                python3 "$ROOT/../../applications/CHT/thermal/mieTables/make_alumina_mie_table.py" \
-                    --out assets/radiation/alumina_mieTable.dat
-            fi
             [[ -f constant/polyMesh/points ]] || { [[ -f system/blockMeshDict ]] && blockMesh; }
             [[ ! -f system/setFieldsDict ]] || setFields
             "$app"

@@ -7,10 +7,7 @@ Make/linux*/
 
 
 
-private_backend/build/
-private_backend/build_logs/
-private_backend/libugkwp_cuda_backend.a
-private_backend/FSHCudaBackend
+/private_backend/
 
 
 log*

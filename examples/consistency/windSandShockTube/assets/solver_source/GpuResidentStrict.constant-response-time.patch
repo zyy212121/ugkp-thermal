@@ -1,38 +1,29 @@
 --- GpuResidentStrict.cu
 +++ GpuResidentStrict.cu
-@@ -5219,15 +5219,8 @@
-     {
-         return;
-     }
--    if (s.dragModel == 2)
--    {
--        s.epsGPrev[c] = 1.0;
--    }
--    else
--    {
--        const double eps = clampRange(finiteOr(s.epsS[c], 0.0), 0.0, 1.0);
--        s.epsGPrev[c] = 1.0 - eps;
--    }
-+    const double eps = clampRange(finiteOr(s.epsS[c], 0.0), 0.0, 1.0);
-+    s.epsGPrev[c] = 1.0 - eps;
+@@ -5301,6 +5301,7 @@
+ __host__ __device__ inline bool gasDragModelActive(const int modelId)
+ {
+-    return modelId != 2;
++    (void)modelId;
++    return true;
  }
  
- __global__ void initialiseThetaDragAlphaKernel(DeviceState* sp)
-@@ -5622,6 +5615,11 @@
+ __global__ void applyGasVolumeFractionSourceKernel
+@@ -5645,6 +5646,11 @@
                  <ugkwpGpuDrag::GidaspowErgunWenYuDeviceDrag>
                  <<<grid, block>>>(s->deviceState, dt);
              break;
 +        case 2:
-+            applyEulerianGasSolidCouplingKernel
++            applyEulerianGasSolidDragKernel
 +                <ugkwpGpuDrag::ConstantResponseTimeDeviceDrag>
 +                <<<grid, block>>>(s->deviceState, dt);
 +            break;
          default:
              setLastErrorText
              (
-@@ -5721,13 +5719,20 @@
-       + 0.6*sqrt(clampMin(re, 0.0))
-          *pow(clampMin(pr, 1.0e-12), 1.0/3.0);
+@@ -5738,13 +5744,20 @@
+         clampMin(pr, 1.0e-12)
+     );
  
 -    const double rate =
 +    const double rateRanzMarshall =
@@ -45,33 +36,30 @@
  
      const double gasCv =
          s.Rgas/clampMin(s.gammaGas - 1.0, OfSmall);
--    const double gasCapacity = rhoG*gasCv;
+-    const double gasCapacity = epsG*rhoG*gasCv;
 +    const double gasHeatCapacity = constantResponseTime
 +      ? s.dragParameter2
 +      : gasCv;
-+    const double gasCapacity = rhoG*gasHeatCapacity;
++    const double gasCapacity = epsG*rhoG*gasHeatCapacity;
      const double solidCapacity = rhoP*heatFactor;
  
                                                                             
-@@ -8064,8 +8069,6 @@
-         s.dragParameter3
-     };
-     const double re = DragModel::reynoldsNumber(dragInput);
--    if (s.dragModel != 2)
--    {
-     const double invTauDrag = DragModel::inverseResponseTime(dragInput);
+@@ -5770,8 +5783,10 @@
+             dt
+         );
  
-     const double xDrag = dt*clampMin(invTauDrag, 0.0);
-@@ -8105,8 +8108,6 @@
-     const double unresolvedTheta =
-         clampMin(finiteOr(s.pTheta[i], 0.0), 0.0);
-     s.pTheta[i] = unresolvedTheta*alphaTheta;
--    }
--
-     if
-     (
-         s.solveParticleTemperature != 0
-@@ -8125,3 +8125,7 @@
+     const double rhoEold = finiteOr(s.rhoE[c], 0.0);
+-    double rhoEnew = rhoEold - dHp/epsGsafe;
++    const double gasEnergyScale =
++        gasCv/clampMin(gasHeatCapacity, OfSmall);
++    double rhoEnew = rhoEold - gasEnergyScale*dHp/epsGsafe;
+ 
+     const double rhoGCurrent =
+         clampMin(finiteOr(s.rho[c], rhoG), s.rhoMin);
+@@ -8000,9 +8013,13 @@
+             clampMin(re, 0.0),
+             s.gasPrOneThird
+         );
 -        const double rate =
 +        const double rateRanzMarshall =
              6.0*nu*gasConductivity
@@ -80,7 +68,10 @@
 +        const double rate = constantResponseTime
 +          ? 1.0/clampMin(s.dragParameter1, OfSmall)
 +          : rateRanzMarshall;
-@@ -8174,7 +8179,7 @@
+         const double decay = exp(-clampMin(rate, 0.0)*dt);
+         const double tpOld = clampRange(s.pT[i], s.TpMin, s.TpMax);
+         const double tgOld =
+@@ -8059,7 +8076,7 @@
              break;
          case 2:
              relaxParticlesToResidentGasKernel
@@ -89,7 +80,7 @@
                  <<<grid, block>>>(s->deviceState, dt);
              break;
          default:
-@@ -14245,6 +14250,10 @@
+@@ -14125,6 +14142,10 @@
       || !std::isfinite(dragParameter2)
       || !std::isfinite(dragParameter3)
       || (dragModel == 1 && dragParameter0 <= 0.0)

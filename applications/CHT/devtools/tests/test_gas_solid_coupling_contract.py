@@ -9,80 +9,120 @@ CUDA = ROOT / "gpu" / "GpuResidentStrict.cu"
 class GasSolidCouplingContract(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:
-        source = CUDA.read_text(encoding="utf-8")
-        begin = source.index("__global__ void applyEulerianGasSolidCouplingKernel")
-        end = source.index(
-            "__global__ void applyEulerianParticleMaterialHeatKernel",
-            begin,
+        cls.source = CUDA.read_text(encoding="utf-8")
+        volume_begin = cls.source.index(
+            "__global__ void applyGasVolumeFractionSourceKernel"
         )
-        cls.body = source[begin:end]
+        drag_begin = cls.source.index(
+            "__global__ void applyEulerianGasSolidDragKernel",
+            volume_begin,
+        )
+        heat_begin = cls.source.index(
+            "__global__ void applyEulerianParticleMaterialHeatKernel",
+            drag_begin,
+        )
+        snapshot_begin = cls.source.index(
+            "__global__ void snapshotParticleGasCouplingStateKernel",
+            heat_begin,
+        )
+        init_begin = cls.source.index("__global__ void initialiseEpsGPrevKernel")
+        init_end = cls.source.index(
+            "__global__ void initialiseThetaDragAlphaKernel",
+            init_begin,
+        )
+        advance_begin = cls.source.index(
+            'extern "C" int ugkwpGpuResidentStrictAdvance\n'
+        )
+        coupling_begin = cls.source.index(
+            "const bool skipParticlePath",
+            advance_begin,
+        )
+        coupling_end = cls.source.index(
+            "UGKP_DEV_PROBE_ENTER(ProbeInjection)",
+            coupling_begin,
+        )
+        cls.volume = cls.source[volume_begin:drag_begin]
+        cls.drag = cls.source[drag_begin:heat_begin]
+        cls.heat = cls.source[heat_begin:snapshot_begin]
+        cls.initializer = cls.source[init_begin:init_end]
+        cls.schedule = cls.source[coupling_begin:coupling_end]
 
-    def test_volume_source_commits_before_early_returns(self) -> None:
+    def test_volume_source_includes_pressure_work(self) -> None:
+        self.assertIn(
+            "enerGOld*massScale + dt*cepsG*pressureOld",
+            self.volume,
+        )
+        self.assertIn("s.rhoE[c] = enerGCandidate;", self.volume)
+        self.assertIn("s.epsGPrev[c] = epsG;", self.volume)
+        rho_energy = 29.0
+        pressure = 4.0
+        ceps = -0.3
+        dt = 0.01
+        scale = 1.0 + dt*ceps
+        corrected = rho_energy*scale + dt*ceps*pressure
+        self.assertNotEqual(corrected, rho_energy*scale)
+
+    def test_drag_uses_apparent_gas_capacity_and_intrinsic_writeback(self) -> None:
         required = (
-            "const double enerGCandidate = s.rhoE[c]*massScale;",
-            "s.rho[c] = mgCandidate;",
-            "s.rhoUx[c] = momGXCandidate;",
-            "s.rhoUy[c] = momGYCandidate;",
-            "s.rhoUz[c] = momGZCandidate;",
-            "s.rhoE[c] = enerGCandidate;",
-            "s.epsGPrev[c] = epsG;",
+            "const double mg = epsG*rhoG;",
+            "const double momGX0 = epsG*s.rhoUx[c];",
+            "const double enerG0 = epsG*s.rhoE[c];",
+            "const double kW = dt*invTauDragCell*(1.0 + ms/(mg + OfSmall));",
+            "s.rhoUx[c] = rhoG*ugNewX;",
+            "s.rhoE[c] = (kgNew + igAfter + diss)/epsGsafe;",
         )
         for statement in required:
-            self.assertIn(statement, self.body)
-
-        history_commit = self.body.index("s.epsGPrev[c] = epsG;")
-        no_particle_return = self.body.index(
-            "if (rhoP <= s.epsSMin*s.rhoSolid)"
-        )
-        no_drag_return = self.body.index(
-            "if (!finiteDevice(beta) || beta <= OfSmall)"
-        )
-        self.assertLess(history_commit, no_particle_return)
-        self.assertLess(history_commit, no_drag_return)
-        self.assertEqual(self.body.count("s.epsGPrev[c] = epsG;"), 1)
-
-    def test_volume_source_scales_all_five_conservative_components(self) -> None:
-        self.assertIn("!finiteDevice(enerGCandidate)", self.body)
-        self.assertIn(
-            "enerGCandidate < kineticCandidate + internalEnergyFloorCandidate",
-            self.body,
-        )
-        self.assertEqual(self.body.count("s.rhoE[c] = enerGCandidate;"), 1)
-
-        rho = 3.25
-        momentum = (4.5, -1.75, 0.625)
-        rho_energy = 29.0
-        eps_old = 0.71
-        eps_new = 0.83
-        scale = eps_old/eps_new
-        scaled_rho = rho*scale
-        scaled_momentum = tuple(value*scale for value in momentum)
-        scaled_energy = rho_energy*scale
-        for old, new in zip(momentum, scaled_momentum):
-            self.assertAlmostEqual(new/scaled_rho, old/rho, places=14)
+            self.assertIn(statement, self.drag)
+        eps_g = 0.73
+        rho_g = 2.8
+        rho_p = 0.64
+        ug = 12.0
+        up = -3.0
+        alpha = 0.41
+        mg = eps_g*rho_g
+        relative_new = (ug - up)*alpha
+        total_momentum = mg*ug + rho_p*up
+        up_new = (total_momentum - mg*relative_new)/(mg + rho_p)
+        ug_new = up_new + relative_new
         self.assertAlmostEqual(
-            scaled_energy/scaled_rho,
-            rho_energy/rho,
-            places=14,
-        )
-        self.assertAlmostEqual(
-            eps_new*scaled_energy,
-            eps_old*rho_energy,
+            mg*ug_new + rho_p*up_new,
+            total_momentum,
             places=14,
         )
 
-    def test_volume_source_has_no_late_duplicate_update(self) -> None:
-        self.assertNotIn("mg += dt*cepsG*mg", self.body)
-        self.assertNotIn("momGX0 + dt*cepsG*momGX0", self.body)
-        self.assertNotIn("momGY0 + dt*cepsG*momGY0", self.body)
-        self.assertNotIn("momGZ0 + dt*cepsG*momGZ0", self.body)
+    def test_heat_uses_apparent_capacity_and_intrinsic_writeback(self) -> None:
+        self.assertIn("const double gasCapacity = epsG*rhoG*gasCv;", self.heat)
+        self.assertIn("rhoEold - dHp/epsGsafe", self.heat)
+        eps_g = 0.61
+        rho_energy = 18.0
+        particle_enthalpy = 7.0
+        exchange = 1.25
+        gas_after = rho_energy - exchange/eps_g
+        particle_after = particle_enthalpy + exchange
+        self.assertAlmostEqual(
+            eps_g*gas_after + particle_after,
+            eps_g*rho_energy + particle_enthalpy,
+            places=14,
+        )
 
-    def test_unmatched_macro_mechanical_energy_source_is_absent(self) -> None:
-        self.assertNotIn("const double qE =", self.body)
-        self.assertNotIn("enerG0 + dt*qE", self.body)
-        self.assertNotIn("enerS0 - dt*qE", self.body)
-        self.assertIn("double enerG = enerG0;", self.body)
-        self.assertIn("double enerS = enerS0;", self.body)
+    def test_volume_source_is_independent_of_drag_schedule(self) -> None:
+        volume_launch = self.schedule.index(
+            "applyGasVolumeFractionSourceKernel<<<grid, block>>>"
+        )
+        drag_gate = self.schedule.index("if (dragActive)")
+        drag_launch = self.schedule.index("EulerianGasSolidDrag", drag_gate)
+        self.assertLess(volume_launch, drag_gate)
+        self.assertLess(drag_gate, drag_launch)
+        self.assertEqual(
+            self.schedule.count("applyGasVolumeFractionSourceKernel<<<grid, block>>>")
+            ,
+            1,
+        )
+        self.assertIn("post-volume-source", self.schedule)
+
+    def test_volume_history_initialization_is_drag_independent(self) -> None:
+        self.assertNotIn("dragModel", self.initializer)
+        self.assertIn("s.epsGPrev[c] = 1.0 - eps;", self.initializer)
 
 
 if __name__ == "__main__":

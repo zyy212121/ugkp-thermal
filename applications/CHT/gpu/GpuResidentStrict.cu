@@ -62,7 +62,8 @@ enum class CsrReductionTaskSource : int
 {
     fullIndexed = 0,
     splitBaseDirect = 1,
-    splitInjectionIndexed = 2
+    splitInjectionIndexed = 2,
+    splitLogical = 3
 };
 
 struct CsrReductionTask
@@ -5401,15 +5402,8 @@ __global__ void initialiseEpsGPrevKernel(DeviceState* sp)
     {
         return;
     }
-    if (s.dragModelId == 0)
-    {
-        s.epsGPrev[c] = 1.0;
-    }
-    else
-    {
-        const double eps = clampRange(finiteOr(s.epsS[c], 0.0), 0.0, 1.0);
-        s.epsGPrev[c] = 1.0 - eps;
-    }
+    const double eps = clampRange(finiteOr(s.epsS[c], 0.0), 0.0, 1.0);
+    s.epsGPrev[c] = 1.0 - eps;
 }
 
 __global__ void initialiseThetaDragAlphaKernel(DeviceState* sp)
@@ -5509,6 +5503,11 @@ __device__ double solidEpsFromMomentDevice(const DeviceState& s, const int c)
     );
 }
 
+__host__ __device__ inline bool gasDragModelActive(const int modelId)
+{
+    return modelId != 0;
+}
+
 template<class DragModel>
 __device__ double dragInverseTimeDevice
 (
@@ -5532,12 +5531,10 @@ __device__ double dragInverseTimeDevice
     return model.inverseRelaxationTime(input);
 }
 
-template<class DragModel>
-__global__ void applyEulerianGasSolidCouplingKernelStatic
+__global__ void applyGasVolumeFractionSourceKernel
 (
     DeviceState* sp,
-    const double dt,
-    const DragModel dragModel
+    const double dt
 )
 {
     DeviceState& s = *sp;
@@ -5547,18 +5544,6 @@ __global__ void applyEulerianGasSolidCouplingKernelStatic
         return;
     }
 
-                                                                         
-                                                                   
-    s.couplingRhoOld[c] =
-        clampMin(finiteOr(s.rho[c], s.rhoMin), s.rhoMin);
-    s.couplingUxOld[c] = finiteOr(s.Ux[c], 0.0);
-    s.couplingUyOld[c] = finiteOr(s.Uy[c], 0.0);
-    s.couplingUzOld[c] = finiteOr(s.Uz[c], 0.0);
-    s.couplingTgasOld[c] =
-        clampMin(finiteOr(s.Tgas[c], s.TgasMin), s.TgasMin);
-
-    s.thetaDragAlpha[c] = 1.0;
-    const double rhoP = clampMin(finiteOr(s.momRhoP[c], 0.0), 0.0);
     const double eps = solidEpsFromMomentDevice(s, c);
     const double epsG = 1.0 - eps;
     const double epsGsafe = clampMin(epsG, OfSmall);
@@ -5607,21 +5592,26 @@ __global__ void applyEulerianGasSolidCouplingKernelStatic
     gradEy *= invV;
     gradEz *= invV;
 
-    const double ugx0 = s.couplingUxOld[c];
-    const double ugy0 = s.couplingUyOld[c];
-    const double ugz0 = s.couplingUzOld[c];
+    const double ugx0 = finiteOr(s.Ux[c], 0.0);
+    const double ugy0 = finiteOr(s.Uy[c], 0.0);
+    const double ugz0 = finiteOr(s.Uz[c], 0.0);
 
     const double cepsG =
         -((epsG - epsGOld)/(dt + OfSmall)
           + ugx0*gradEx + ugy0*gradEy + ugz0*gradEz)/epsGsafe;
 
-    const double mgOld = s.couplingRhoOld[c];
+    const double mgOld =
+        clampMin(finiteOr(s.rho[c], s.rhoMin), s.rhoMin);
+    const double pressureOld =
+        clampMin(finiteOr(s.p[c], 0.0), 0.0);
+    const double enerGOld = finiteOr(s.rhoE[c], 0.0);
     const double massScale = 1.0 + dt*cepsG;
     const double mgCandidate = mgOld*massScale;
     const double momGXCandidate = s.rhoUx[c]*massScale;
     const double momGYCandidate = s.rhoUy[c]*massScale;
     const double momGZCandidate = s.rhoUz[c]*massScale;
-    const double enerGCandidate = s.rhoE[c]*massScale;
+    const double enerGCandidate =
+        enerGOld*massScale + dt*cepsG*pressureOld;
     const double kineticCandidate =
         0.5
        *sqr3(momGXCandidate, momGYCandidate, momGZCandidate)
@@ -5637,6 +5627,7 @@ __global__ void applyEulerianGasSolidCouplingKernelStatic
      || !finiteDevice(momGXCandidate)
      || !finiteDevice(momGYCandidate)
      || !finiteDevice(momGZCandidate)
+     || !finiteDevice(pressureOld)
      || !finiteDevice(enerGCandidate)
      || !finiteDevice(kineticCandidate)
      || !finiteDevice(internalEnergyFloorCandidate)
@@ -5661,13 +5652,47 @@ __global__ void applyEulerianGasSolidCouplingKernelStatic
     s.rhoUz[c] = momGZCandidate;
     s.rhoE[c] = enerGCandidate;
     s.epsGPrev[c] = epsG;
+}
+
+template<class DragModel>
+__global__ void applyEulerianGasSolidDragKernelStatic
+(
+    DeviceState* sp,
+    const double dt,
+    const DragModel dragModel
+)
+{
+    DeviceState& s = *sp;
+    const int c = blockIdx.x*blockDim.x + threadIdx.x;
+    if (c >= s.nCells)
+    {
+        return;
+    }
+
+    s.couplingRhoOld[c] =
+        clampMin(finiteOr(s.rho[c], s.rhoMin), s.rhoMin);
+    s.couplingUxOld[c] = finiteOr(s.Ux[c], 0.0);
+    s.couplingUyOld[c] = finiteOr(s.Uy[c], 0.0);
+    s.couplingUzOld[c] = finiteOr(s.Uz[c], 0.0);
+    s.couplingTgasOld[c] =
+        clampMin(finiteOr(s.Tgas[c], s.TgasMin), s.TgasMin);
+
+    s.thetaDragAlpha[c] = 1.0;
+    const double rhoP = clampMin(finiteOr(s.momRhoP[c], 0.0), 0.0);
 
     if (rhoP <= s.epsSMin*s.rhoSolid)
     {
         return;
     }
 
-    double mg = mgCandidate;
+    const double eps = solidEpsFromMomentDevice(s, c);
+    const double epsG = 1.0 - eps;
+    const double epsGsafe = clampMin(epsG, OfSmall);
+    const double rhoG = s.couplingRhoOld[c];
+    const double mg = epsG*rhoG;
+    const double ugx0 = s.couplingUxOld[c];
+    const double ugy0 = s.couplingUyOld[c];
+    const double ugz0 = s.couplingUzOld[c];
 
     const double momSX = finiteOr(s.momRhoUPx[c], 0.0);
     const double momSY = finiteOr(s.momRhoUPy[c], 0.0);
@@ -5699,7 +5724,7 @@ __global__ void applyEulerianGasSolidCouplingKernelStatic
     const double beta = dragInverseTimeDevice
     (
         s,
-        mg,
+        rhoG,
         epsG,
         dLocal,
         urMag,
@@ -5713,10 +5738,10 @@ __global__ void applyEulerianGasSolidCouplingKernelStatic
 
     const double tauDragCell = clampMin(1.0/beta, OfSmall);
 
-    const double momGX0 = momGXCandidate;
-    const double momGY0 = momGYCandidate;
-    const double momGZ0 = momGZCandidate;
-    const double enerG0 = s.rhoE[c];
+    const double momGX0 = epsG*s.rhoUx[c];
+    const double momGY0 = epsG*s.rhoUy[c];
+    const double momGZ0 = epsG*s.rhoUz[c];
+    const double enerG0 = epsG*s.rhoE[c];
 
     double momGX = momGX0;
     double momGY = momGY0;
@@ -5822,11 +5847,11 @@ __global__ void applyEulerianGasSolidCouplingKernelStatic
         diss = 0.0;
     }
 
-    s.rho[c] = mg;
-    s.rhoUx[c] = mg*ugNewX;
-    s.rhoUy[c] = mg*ugNewY;
-    s.rhoUz[c] = mg*ugNewZ;
-    s.rhoE[c] = kgNew + igAfter + diss;
+    s.rho[c] = rhoG;
+    s.rhoUx[c] = rhoG*ugNewX;
+    s.rhoUy[c] = rhoG*ugNewY;
+    s.rhoUz[c] = rhoG*ugNewZ;
+    s.rhoE[c] = (kgNew + igAfter + diss)/epsGsafe;
 }
 }
 
@@ -5854,6 +5879,8 @@ __global__ void applyEulerianParticleMaterialHeatKernel
     {
         return;
     }
+    const double epsG = 1.0 - solidEpsFromMomentDevice(s, c);
+    const double epsGsafe = clampMin(epsG, OfSmall);
 
     const double hp = clampMin(finiteOr(s.momRhoHpP[c], 0.0), 0.0);
     if (hp <= 0.0)
@@ -5927,7 +5954,7 @@ __global__ void applyEulerianParticleMaterialHeatKernel
 
     const double gasCv =
         s.Rgas/clampMin(s.gammaGas - 1.0, OfSmall);
-    const double gasCapacity = rhoG*gasCv;
+    const double gasCapacity = epsG*rhoG*gasCv;
     const double solidCapacity = rhoP*particleCp;
 
                                                                            
@@ -5945,7 +5972,7 @@ __global__ void applyEulerianParticleMaterialHeatKernel
         );
 
     const double rhoEold = finiteOr(s.rhoE[c], 0.0);
-    double rhoEnew = rhoEold - dHp;
+    double rhoEnew = rhoEold - dHp/epsGsafe;
 
     const double rhoGCurrent =
         clampMin(finiteOr(s.rho[c], rhoG), s.rhoMin);
@@ -8680,7 +8707,7 @@ __device__ void relaxOneParticleToResidentGas
         );
     const double mu = clampMin(s.gasMu, 1.0e-30);
     const double re = rhoG*dPart*relMag/mu;
-    if (s.dragModelId != 0)
+    if (gasDragModelActive(s.dragModelId))
     {
     const double invTauDrag = dragInverseTimeDevice
     (
@@ -9936,6 +9963,157 @@ __device__ void accumulateCsrHeavyPoolTask
     sums[7] = count;
     blockReduceComponentSums<8>(sums, warpPartials);
 }
+
+template<bool PoissonMode>
+__device__ __forceinline__ void accumulateCsrSplitLogicalPoolParticle
+(
+    DeviceState& s,
+    const int c,
+    const int i,
+    const double collisionProbability,
+    double& mass,
+    double& momX,
+    double& momY,
+    double& momZ,
+    double& energy,
+    double& diameter,
+    double& diameter2,
+    double& count
+)
+{
+    if
+    (
+        i < 0
+     || i >= s.particleCapacity
+     || s.pStatus[i] == 0
+     || s.pCellId[i] != c
+    )
+    {
+        return;
+    }
+
+    const double theta = particleMomentThetaDevice(s, i);
+    if (!PoissonMode && theta <= 10.0*s.thetaMin)
+    {
+        return;
+    }
+
+    if (PoissonMode)
+    {
+        unsigned long long rng = s.pRng[i];
+        if (uniform01Device(rng) >= collisionProbability)
+        {
+            s.pRng[i] = rng;
+            return;
+        }
+        s.pRng[i] = rng;
+    }
+
+    const double m =
+        clampMin(finiteOr(s.pm[i], s.injectionParcelMass), 0.0);
+    const double ux = finiteOr(s.pux[i], 0.0);
+    const double uy = finiteOr(s.puy[i], 0.0);
+    const double uz = finiteOr(s.puz[i], 0.0);
+    const double d =
+        clampMin
+        (
+            finiteOr(s.pd[i], s.particleDiameterFallback),
+            1.0e-12
+        );
+    const double specificEnergy =
+        0.5*sqr3(ux, uy, uz) + 1.5*theta;
+
+    if
+    (
+        nonFiniteDevice(m) || m < 0.0
+     || nonFiniteDevice(ux) || nonFiniteDevice(uy)
+     || nonFiniteDevice(uz)
+     || nonFiniteDevice(theta) || theta < 0.0
+     || nonFiniteDevice(specificEnergy)
+    )
+    {
+        asm("trap;");
+    }
+
+    mass += m;
+    momX += m*ux;
+    momY += m*uy;
+    momZ += m*uz;
+    energy += m*specificEnergy;
+    diameter += m*d;
+    diameter2 += m*d*d;
+    count += 1.0;
+    s.pStatus[i] = 2;
+}
+
+template<bool PoissonMode>
+__device__ void accumulateCsrSplitLogicalPoolTask
+(
+    DeviceState& s,
+    const int c,
+    const int logicalBegin,
+    const int logicalEnd,
+    const double collisionProbability,
+    double (&sums)[8],
+    double* warpPartials
+)
+{
+    double mass = 0.0;
+    double momX = 0.0;
+    double momY = 0.0;
+    double momZ = 0.0;
+    double energy = 0.0;
+    double diameter = 0.0;
+    double diameter2 = 0.0;
+    double count = 0.0;
+
+    const int baseBegin = s.preBaseCellOffset[c];
+    const int baseCount = s.preBaseCellOffset[c + 1] - baseBegin;
+    const int injectionBegin = s.cellParticleOffset[c];
+    const int baseLogicalEnd = min(logicalEnd, baseCount);
+    for
+    (
+        int logical = logicalBegin + threadIdx.x;
+        logical < baseLogicalEnd;
+        logical += blockDim.x
+    )
+    {
+        accumulateCsrSplitLogicalPoolParticle<PoissonMode>
+        (
+            s, c, baseBegin + logical, collisionProbability,
+            mass, momX, momY, momZ, energy, diameter, diameter2, count
+        );
+    }
+
+    const int injectionLogicalBegin = max(logicalBegin, baseCount);
+    for
+    (
+        int logical = injectionLogicalBegin + threadIdx.x;
+        logical < logicalEnd;
+        logical += blockDim.x
+    )
+    {
+        const int injectionPosition =
+            injectionBegin + logical - baseCount;
+        accumulateCsrSplitLogicalPoolParticle<PoissonMode>
+        (
+            s, c, s.sortedParticleIndex[injectionPosition],
+            collisionProbability,
+            mass, momX, momY, momZ, energy, diameter, diameter2, count
+        );
+    }
+
+    sums[0] = mass;
+    sums[1] = momX;
+    sums[2] = momY;
+    sums[3] = momZ;
+    sums[4] = energy;
+    sums[5] = diameter;
+    sums[6] = diameter2;
+    sums[7] = count;
+    blockReduceComponentSums<8>(sums, warpPartials);
+}
+
 
 template<bool PoissonMode>
 __global__ void accumulateCsrHeavyPoolTasksPersistentKernel
@@ -12125,9 +12303,9 @@ __global__ void countCsrReductionTasksKernel(DeviceState* sp, const int splitDir
     }
     const int baseCount = s.preBaseCellOffset[c + 1] - s.preBaseCellOffset[c];
     const int injectionCount = s.cellParticleOffset[c + 1] - s.cellParticleOffset[c];
-    const int baseTasks = baseCount > 0 ? 1 + (baseCount - 1)/tile : 0;
-    const int injectionTasks = injectionCount > 0 ? 1 + (injectionCount - 1)/tile : 0;
-    s.csrCellTaskCount[c] = baseTasks + injectionTasks;
+    const int totalCount = baseCount + injectionCount;
+    s.csrCellTaskCount[c] =
+        totalCount > 0 ? 1 + (totalCount - 1)/tile : 0;
 }
 
 __device__ void writeCsrReductionTask
@@ -12174,17 +12352,15 @@ __global__ void materializeCsrReductionTasksKernel(DeviceState* sp, const int sp
         }
         const int baseBegin = s.preBaseCellOffset[c];
         const int baseEnd = s.preBaseCellOffset[c + 1];
-        for (int begin = baseBegin; begin < baseEnd; begin += tile)
-        {
-            writeCsrReductionTask(s, taskStart + localTask++, c, begin,
-                min(baseEnd, begin + tile), CsrReductionTaskSource::splitBaseDirect);
-        }
         const int injectionBegin = s.cellParticleOffset[c];
         const int injectionEnd = s.cellParticleOffset[c + 1];
-        for (int begin = injectionBegin; begin < injectionEnd; begin += tile)
+        const int baseCount = baseEnd - baseBegin;
+        const int injectionCount = injectionEnd - injectionBegin;
+        const int totalCount = baseCount + injectionCount;
+        for (int begin = 0; begin < totalCount; begin += tile)
         {
             writeCsrReductionTask(s, taskStart + localTask++, c, begin,
-                min(injectionEnd, begin + tile), CsrReductionTaskSource::splitInjectionIndexed);
+                min(totalCount, begin + tile), CsrReductionTaskSource::splitLogical);
         }
         if (localTask != nTasks) asm("trap;");
     }
@@ -15796,17 +15972,31 @@ extern "C" int ugkwpGpuResidentStrictAdvance
     UGKP_DEV_PROBE_LEAVE(ProbeGasFlux);
 
     const bool skipParticlePath = !s->particlesMayBePresent;
+    const bool dragActive = gasDragModelActive(s->dragModelId);
 
     if (!skipParticlePath)
     {
-    if
-    (
-        s->dragModelId != 0
-     || s->particleGasHeatTransferModelId != 0
-    )
-    {
     UGKP_DEV_PROBE_ENTER(ProbeEulerianCoupling);
-    if (s->dragModelId != 0)
+    applyGasVolumeFractionSourceKernel<<<grid, block>>>
+    (
+        s->deviceState,
+        dt
+    );
+    err = cudaGetLastError();
+    if (err != cudaSuccess)
+    {
+        setLastError("applyGasVolumeFractionSourceKernel launch", err);
+        return 1;
+    }
+    recoverPrimitivesKernel<<<grid, block>>>(s->deviceState);
+    err = cudaGetLastError();
+    if (err != cudaSuccess)
+    {
+        setLastError("recoverPrimitivesKernel post-volume-source launch", err);
+        return 1;
+    }
+
+    if (dragActive)
     {
     computePressureGradientKernel<<<grid, block>>>(s->deviceState);
     err = cudaGetLastError();
@@ -15818,7 +16008,7 @@ extern "C" int ugkwpGpuResidentStrictAdvance
 
     if (s->dragModelId == 2)
     {
-        applyEulerianGasSolidCouplingKernelStatic
+        applyEulerianGasSolidDragKernelStatic
             <<<grid, block>>>
             (
                 s->deviceState,
@@ -15828,7 +16018,7 @@ extern "C" int ugkwpGpuResidentStrictAdvance
     }
     else
     {
-        applyEulerianGasSolidCouplingKernelStatic
+        applyEulerianGasSolidDragKernelStatic
             <<<grid, block>>>
             (
                 s->deviceState,
@@ -15839,7 +16029,7 @@ extern "C" int ugkwpGpuResidentStrictAdvance
     err = cudaGetLastError();
     if (err != cudaSuccess)
     {
-        setLastError("applyEulerianGasSolidCouplingKernel launch", err);
+        setLastError("applyEulerianGasSolidDragKernel launch", err);
         return 1;
     }
     recoverPrimitivesKernel<<<grid, block>>>(s->deviceState);
@@ -15850,7 +16040,7 @@ extern "C" int ugkwpGpuResidentStrictAdvance
         return 1;
     }
     }
-    else
+    else if (s->particleGasHeatTransferModelId != 0)
     {
         snapshotParticleGasCouplingStateKernel<<<grid, block>>>
         (
@@ -15887,8 +16077,6 @@ extern "C" int ugkwpGpuResidentStrictAdvance
     }
 
     UGKP_DEV_PROBE_LEAVE(ProbeEulerianCoupling);
-    }
-
 
     UGKP_DEV_PROBE_ENTER(ProbeInjection);
     if (s->nBoundarySources > 0)

@@ -91,10 +91,9 @@ class CompactionGeneratedDpreContract(unittest.TestCase):
         count_tasks = function_block(CUDA, "countCsrReductionTasksKernel")
         self.assertIn("preBaseCellOffset", count_tasks)
         self.assertIn("cellParticleOffset", count_tasks)
-        self.assertIn("baseTasks + injectionTasks", count_tasks)
+        self.assertIn("totalCount = baseCount + injectionCount", count_tasks)
         materialize = function_block(CUDA, "materializeCsrReductionTasksKernel")
-        self.assertIn("splitBaseDirect", materialize)
-        self.assertIn("splitInjectionIndexed", materialize)
+        self.assertIn("splitLogical", materialize)
 
         heavy_pool = function_block(CUDA, "launchCsrHeavyPoolReduction")
         self.assertIn("launchCsrSegmentedPoolReduction", heavy_pool)
@@ -102,6 +101,12 @@ class CompactionGeneratedDpreContract(unittest.TestCase):
         self.assertIn("const bool directParticleIndex", heavy_task)
         self.assertIn("directParticleIndex", heavy_task)
         self.assertIn("s.sortedParticleIndex[pos]", heavy_task)
+        logical_task = function_block(
+            CUDA, "accumulateCsrSplitLogicalPoolTask"
+        )
+        self.assertIn("preBaseCellOffset", logical_task)
+        self.assertIn("cellParticleOffset", logical_task)
+        self.assertIn("sortedParticleIndex[injectionPosition]", logical_task)
 
         light_pool = function_block(
             CUDA, "accumulatePoissonPoolSplitSegmentByCellKernel"

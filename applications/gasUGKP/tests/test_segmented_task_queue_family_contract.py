@@ -82,21 +82,21 @@ class SegmentedTaskQueueFamilyContract(unittest.TestCase):
                 name,
             )
 
-    def test_split_task_count_keeps_direct_and_indexed_sources_separate(self) -> None:
+    def test_split_task_count_uses_one_logical_concatenation(self) -> None:
         for name, (_, cuda_path) in BRANCHES.items():
             cuda = self._implementation_text(cuda_path)
-            self.assertIn("splitBaseDirect", cuda, name)
-            self.assertIn("splitInjectionIndexed", cuda, name)
+            self.assertIn("splitLogical", cuda, name)
             self.assertRegex(
                 cuda,
-                r"baseTasks\s*\+\s*injectionTasks",
+                r"totalCount\s*=\s*baseCount\s*\+\s*injectionCount",
                 name,
             )
             self.assertRegex(
                 cuda,
-                r"source\s*==\s*static_cast<int>\s*\(\s*CsrReductionTaskSource::splitBaseDirect",
+                r"CsrReductionTaskSource::splitLogical",
                 name,
             )
+            self.assertIn("accumulateCsrSplitLogicalPoolTask", cuda, name)
 
     def test_enabled_path_is_not_light_then_heavy(self) -> None:
         for name, (_, cuda_path) in BRANCHES.items():
@@ -142,7 +142,7 @@ class SegmentedTaskQueueFamilyContract(unittest.TestCase):
         self.assertIn("csrHeavyPartials", body)
         self.assertIn("continue", body)
 
-    def test_pool_worker_has_one_runtime_source_selection_not_two_inlined_tasks(self) -> None:
+    def test_pool_worker_selects_logical_or_single_source_once_per_task(self) -> None:
         pool = (UNIFIED_ROOT / "gpu/CsrSegmentedPoolWorkers.cuh").read_text(
             encoding="utf-8"
         )
@@ -150,6 +150,9 @@ class SegmentedTaskQueueFamilyContract(unittest.TestCase):
             pool, "__global__ void accumulateCsrSegmentedPoolTasksPersistentKernel"
         )
         self.assertEqual(worker.count("accumulateCsrHeavyPoolTask<PoissonMode>"), 1)
+        self.assertEqual(
+            worker.count("accumulateCsrSplitLogicalPoolTask<PoissonMode>"), 1
+        )
         self.assertIn("const bool directParticleIndex", worker)
         self.assertIn("descriptor.source", worker)
 
@@ -203,7 +206,7 @@ class SegmentedTaskQueueFamilyContract(unittest.TestCase):
             self.assertNotIn("accumulateCsrHeavyPoolTasksPersistentKernel", body, name)
             self.assertNotIn("accumulateCsrHeavyMomentTasksPersistentKernel", body, name)
 
-    def test_task_capacity_covers_two_split_source_boundaries_per_cell(self) -> None:
+    def test_task_capacity_remains_a_conservative_logical_queue_bound(self) -> None:
         for name, (_, cuda_path) in BRANCHES.items():
             cuda = self._implementation_text(cuda_path)
             allocation = re.search(
@@ -225,25 +228,25 @@ class SegmentedTaskQueueFamilyContract(unittest.TestCase):
                 population = 0
                 for base_count, injection_count in zip(base, injection):
                     population += base_count + injection_count
-                    base_tasks = (base_count + block - 1) // block
-                    injection_tasks = (injection_count + block - 1) // block
-                    tasks += base_tasks + injection_tasks
-                    base_lengths = [
-                        min(block, base_count - begin)
-                        for begin in range(0, base_count, block)
+                    total_count = base_count + injection_count
+                    tasks += (total_count + block - 1) // block
+                    logical_lengths = [
+                        min(block, total_count - begin)
+                        for begin in range(0, total_count, block)
                     ]
-                    injection_lengths = [
-                        min(block, injection_count - begin)
-                        for begin in range(0, injection_count, block)
-                    ]
-                    self.assertEqual(sum(base_lengths), base_count)
-                    self.assertEqual(sum(injection_lengths), injection_count)
-                    self.assertTrue(all(0 < length <= block for length in base_lengths))
+                    self.assertEqual(sum(logical_lengths), total_count)
                     self.assertTrue(
-                        all(0 < length <= block for length in injection_lengths)
+                        all(0 < length <= block for length in logical_lengths)
                     )
                 capacity = (population + block - 1) // block + 2 * len(base) + 1
                 self.assertLessEqual(tasks, capacity)
+
+    def test_small_injection_tail_does_not_create_a_second_task(self) -> None:
+        block = 256
+        base_count = 100
+        injection_count = 1
+        total_count = base_count + injection_count
+        self.assertEqual((total_count + block - 1) // block, 1)
 
 
 if __name__ == "__main__":
