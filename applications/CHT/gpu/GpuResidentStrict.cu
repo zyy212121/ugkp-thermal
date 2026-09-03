@@ -492,6 +492,7 @@ struct DeviceState
     int* csrHeavyTaskCount = nullptr;
     int* csrHeavyTaskCursor = nullptr;
     int* csrHeavyCellCount = nullptr;
+    int* csrMaximumOccupancy = nullptr;
     int* csrHeavyCellList = nullptr;
     int* csrHeavyTaskCell = nullptr;
     int* csrHeavyTaskBegin = nullptr;
@@ -1147,6 +1148,7 @@ void releaseState(DeviceState* s)
     release(s->csrHeavyTaskCount);
     release(s->csrHeavyTaskCursor);
     release(s->csrHeavyCellCount);
+    release(s->csrMaximumOccupancy);
     release(s->csrHeavyCellList);
     release(s->csrHeavyTaskCell);
     release(s->csrHeavyTaskBegin);
@@ -1475,6 +1477,7 @@ int allocateFields(DeviceState* s)
         rc |= allocate(s->csrHeavyTaskCount, 1, "cudaMalloc CSR heavy task count");
         rc |= allocate(s->csrHeavyTaskCursor, 1, "cudaMalloc CSR heavy task cursor");
         rc |= allocate(s->csrHeavyCellCount, 1, "cudaMalloc CSR heavy cell count");
+        rc |= allocate(s->csrMaximumOccupancy, 1, "cudaMalloc CSR maximum occupancy");
         rc |= allocate(s->csrHeavyPartials, 8u*segmentedTaskCapacity, "cudaMalloc CSR heavy partials");
     }
     rc |= allocate(s->compactPx, np, "cudaMalloc strict compact particle x");
@@ -3530,6 +3533,63 @@ __device__ double molecularGasConductivity(const DeviceState& s)
     return s.gasMu*s.gasCp/s.gasPrClamped;
 }
 
+__device__ double gasWallExposedAreaFraction
+(
+    const DeviceState& s,
+    const int f
+)
+{
+    if
+    (
+        f < s.nInternalFaces
+     || f >= s.nFaces
+     || s.particleStuckModelConfigured == 0
+     || !s.particlesMayBePresent
+     || s.particleStuckCandidateMask == nullptr
+     || s.particleStuckCandidateMask[f] == 0
+    )
+    {
+        return 1.0;
+    }
+    if
+    (
+        s.particleWallRepresentedContactArea == nullptr
+     || s.particleWallContactAreaScale == nullptr
+    )
+    {
+        asm("trap;");
+        return 0.0;
+    }
+
+    const double faceArea = s.magSf[f];
+    const double representedArea =
+        s.particleWallRepresentedContactArea[f];
+    const double contactAreaScale =
+        s.particleWallContactAreaScale[f];
+    if
+    (
+        !finiteDevice(faceArea)
+     || !finiteDevice(representedArea)
+     || !finiteDevice(contactAreaScale)
+     || !(faceArea > 0.0)
+     || representedArea < 0.0
+     || !(contactAreaScale > 0.0)
+     || contactAreaScale > 1.0
+    )
+    {
+        asm("trap;");
+        return 0.0;
+    }
+
+    const double occupiedArea = representedArea*contactAreaScale;
+    if (!finiteDevice(occupiedArea) || occupiedArea < 0.0)
+    {
+        asm("trap;");
+        return 0.0;
+    }
+    return clampRange(1.0 - occupiedArea/faceArea, 0.0, 1.0);
+}
+
 __device__ void gasFaceSubgridTransportProperties
 (
     const DeviceState& s,
@@ -4252,6 +4312,10 @@ __device__ bool computeRiemannGasFaceFluxDevice
         const double muEffective = s.gasMu + muTurbulent;
         const double kEffective =
             molecularGasConductivity(s) + kTurbulent;
+        const double wallThermalAreaFraction =
+            nei < 0 && boundaryKind == 2
+          ? gasWallExposedAreaFraction(s, f)
+          : 1.0;
         if (muEffective > 0.0 || kEffective > 0.0)
         {
             const ugkptransport::Vector3 traction =
@@ -4307,11 +4371,14 @@ __device__ bool computeRiemannGasFaceFluxDevice
               + traction.z*faceUz;
             if (directWallHeatFluxActive != 0)
             {
-                energyFlux += directWallHeatFlux;
+                energyFlux +=
+                    wallThermalAreaFraction*directWallHeatFlux;
             }
             else
             {
-                energyFlux -= kEffective*normalTemperatureGradient;
+                energyFlux -=
+                    wallThermalAreaFraction
+                   *kEffective*normalTemperatureGradient;
             }
         }
     }
@@ -12822,7 +12889,7 @@ int runToolB3(DeviceState* s, const int block)
     {
         return 1;
     }
-    cudaError_t err = cudaMemset(s->csrHeavyCellCount, 0, sizeof(int));
+    cudaError_t err = cudaMemset(s->csrMaximumOccupancy, 0, sizeof(int));
     if (err != cudaSuccess)
     {
         setLastError("ToolB3 clear maximum occupancy", err);
@@ -12832,7 +12899,7 @@ int runToolB3(DeviceState* s, const int block)
     maximumDirectoryOccupancyKernel<<<grid, block>>>
     (
         s->deviceState,
-        s->csrHeavyCellCount
+        s->csrMaximumOccupancy
     );
     err = cudaGetLastError();
     int maximumOccupancy = 0;
@@ -12841,7 +12908,7 @@ int runToolB3(DeviceState* s, const int block)
         err = cudaMemcpy
         (
             &maximumOccupancy,
-            s->csrHeavyCellCount,
+            s->csrMaximumOccupancy,
             sizeof(int),
             cudaMemcpyDeviceToHost
         );
@@ -12854,7 +12921,30 @@ int runToolB3(DeviceState* s, const int block)
     const int active = maximumOccupancy > s->dynamicHeavyThreshold ? 1 : 0;
     s->csrHeavyReductionActive = active;
     s->csrHeavyReductionEnabled = active;
-    return syncDeviceState(s, "ToolB3 publish automatic L2 decision");
+    if (syncDeviceState(s, "ToolB3 publish automatic L2 decision") != 0)
+    {
+        return 1;
+    }
+    if (active != 0)
+    {
+        return prepareCsrSegmentedReductionTasks
+        (
+            s,
+            block,
+            s->splitPreDirectoryActive != 0
+        );
+    }
+    err = cudaMemset(s->csrHeavyTaskCount, 0, sizeof(int));
+    if (err == cudaSuccess)
+    {
+        err = cudaMemset(s->csrHeavyCellCount, 0, sizeof(int));
+    }
+    if (err != cudaSuccess)
+    {
+        setLastError("ToolB3 clear inactive segmented schedule", err);
+        return 1;
+    }
+    return 0;
 }
 
 int binParticlesByCell(DeviceState* s, const int block)
@@ -15941,6 +16031,16 @@ extern "C" int ugkwpGpuResidentStrictAdvance
 #endif
 
     UGKP_DEV_PROBE_ENTER(ProbeGasFlux);
+    if
+    (
+        s->particlesMayBePresent
+     && s->particleStuckModelConfigured != 0
+     && s->particleWorkGrid > 0
+     && prepareParticleWallContactAreaScale(s, block) != 0
+    )
+    {
+        return 1;
+    }
     if (advanceGasFluxStage(s, dt, simulationTime) != 0)
     {
         return 1;
@@ -16124,14 +16224,6 @@ extern "C" int ugkwpGpuResidentStrictAdvance
                                                      
 
     UGKP_DEV_PROBE_ENTER(ProbeCollisionPool);
-    if
-    (
-        particleGrid > 0
-     && prepareParticleWallContactAreaScale(s, block) != 0
-    )
-    {
-        return 1;
-    }
     recoverPrimitivesKernel<<<grid, block>>>(s->deviceState);
     err = cudaGetLastError();
     if (err != cudaSuccess)
@@ -16156,9 +16248,8 @@ extern "C" int ugkwpGpuResidentStrictAdvance
         {
             if (s->csrHeavyReductionEnabled != 0)
             {
-                const int heavyPoolStatus = s->splitPreDirectoryActive != 0
-                  ? launchSplitCsrHeavyPoolReduction(s, dt, block)
-                  : launchCsrHeavyPoolReduction(s, dt, true, block);
+                const int heavyPoolStatus =
+                    launchCsrHeavyPoolReduction(s, dt, true, block);
                 if (heavyPoolStatus != 0)
                 {
                     return 1;
@@ -18039,6 +18130,31 @@ extern "C" int ugkwpGpuResidentStrictConfigureParticleStuckModel
     }
     if (heatTransferEnabled != 0)
     {
+        const std::vector<double> initialAreaScale
+        (
+            static_cast<size_t>(nFaces),
+            1.0
+        );
+        if
+        (
+            copyToDevice
+            (
+                areaScale,
+                initialAreaScale.data(),
+                initialAreaScale.size(),
+                "cudaMemcpy initial particle wall contact area scale"
+            ) != 0
+        )
+        {
+            release(candidateMask);
+            release(depositedWallEnergy);
+            release(reflectedWallEnergy);
+            release(representedArea);
+            release(areaScale);
+            release(wallEffusivityByFace);
+            release(finiteContactTable);
+            return 1;
+        }
         std::vector<float> hostFiniteContactTable
         (
             static_cast<size_t>

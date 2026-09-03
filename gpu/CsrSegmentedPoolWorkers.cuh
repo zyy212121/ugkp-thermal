@@ -51,6 +51,7 @@ __global__ void accumulateCsrSegmentedPoolTasksPersistentKernel
                         ] = 0.0;
                     }
                 }
+                __syncthreads();
                 continue;
             }
             double sums[8];
@@ -108,6 +109,7 @@ __global__ void accumulateCsrSegmentedPoolTasksPersistentKernel
                     }
                 }
             }
+            __syncthreads();
     }
 }
 

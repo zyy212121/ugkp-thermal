@@ -77,7 +77,8 @@ class SourceContracts(unittest.TestCase):
             "advanceGasFluxStage", "downloadNutToHostMirror",
         ):
             self.assertIn(token, cuda + header)
-        self.assertIn("energyFlux -= kEffective*normalTemperatureGradient;", cuda)
+        self.assertIn("wallThermalAreaFraction", cuda)
+        self.assertIn("*kEffective*normalTemperatureGradient;", cuda)
 
     def test_csr_hierarchy_and_warp_binning(self) -> None:
         header = read("gpu/GpuResidentStrict.H")

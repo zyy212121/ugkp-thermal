@@ -174,7 +174,8 @@ public:
         volVectorField& Us,
         volScalarField& theta,
         volScalarField& Tp,
-        volScalarField& dMeanCell
+        volScalarField& dMeanCell,
+        bool thermalCouplingWrite
     );
 };
 

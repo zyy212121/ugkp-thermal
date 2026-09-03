@@ -1,0 +1,50 @@
+                                                                               
+                             
+                                                                   
+                                                            
+                                          
+                             
+                                                                               
+FoamFile
+{
+    format          ascii;
+    class           volScalarField;
+    location        1 / fluid;
+    object          nut;
+}
+                                                                               
+
+dimensions      [ 0 2 -1 0 0 0 0 ];
+
+internalField   uniform 0.00614953;
+
+boundaryField
+{
+    inlet
+    {
+        type            zeroGradient;
+    }
+    outlet
+    {
+        type            zeroGradient;
+    }
+    fluid_to_graphite
+    {
+        type            zeroGradient;
+    }
+    wedgeBack
+    {
+        type            wedge;
+    }
+    wedgeFront
+    {
+        type            wedge;
+    }
+    defaultFaces
+    {
+        type            empty;
+    }
+}
+
+
+                                                                               

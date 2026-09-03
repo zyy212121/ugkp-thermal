@@ -1,0 +1,56 @@
+                                                                               
+                             
+                                                                   
+                                                            
+                                          
+                             
+                                                                               
+FoamFile
+{
+    format          ascii;
+    class           volScalarField;
+    location        1 / fluid;
+    object          p;
+}
+                                                                               
+
+dimensions      [ 1 -1 -2 0 0 0 0 ];
+
+internalField   uniform 2700000;
+
+boundaryField
+{
+    inlet
+    {
+        type            fixedValue;
+        value           uniform 2700000;
+    }
+    outlet
+    {
+        type            waveTransmissive;
+        psi             psi;
+        gamma           1.2;
+        fieldInf        101325;
+        lInf            0.0693549;
+        value           uniform 2700000;
+    }
+    fluid_to_graphite
+    {
+        type            zeroGradient;
+    }
+    wedgeBack
+    {
+        type            wedge;
+    }
+    wedgeFront
+    {
+        type            wedge;
+    }
+    defaultFaces
+    {
+        type            empty;
+    }
+}
+
+
+                                                                               

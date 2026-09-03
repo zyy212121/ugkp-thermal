@@ -54,6 +54,7 @@ __global__ void accumulateCsrSegmentedMomentTasksPersistentKernel(DeviceState* s
                     }
                 }
             }
+            __syncthreads();
     }
 }
 

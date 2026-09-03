@@ -87,6 +87,10 @@ void validateRadiationResult
     (
         result.incidentRadiationG_Wm2.size() != mesh.nCells()
      || result.particlePowerDensityWm3.size() != mesh.nCells()
+     || result.absorptionCoefficientInvM.size() != mesh.nCells()
+     || result.scatteringCoefficientInvM.size() != mesh.nCells()
+     || result.extinctionCoefficientInvM.size() != mesh.nCells()
+     || result.asymmetryFactor.size() != mesh.nCells()
      || result.boundaryQrOutwardWm2.size() != mesh.boundary().size()
     )
     {
@@ -104,6 +108,13 @@ void validateRadiationResult
 
     forAll(result.incidentRadiationG_Wm2, cellI)
     {
+        const scalar absorption = result.absorptionCoefficientInvM[cellI];
+        const scalar scattering = result.scatteringCoefficientInvM[cellI];
+        const scalar extinction = result.extinctionCoefficientInvM[cellI];
+        const scalar asymmetry = result.asymmetryFactor[cellI];
+        const scalar extinctionTolerance = scalar(1024)
+           *std::numeric_limits<scalar>::epsilon()
+           *max(scalar(1), mag(extinction));
         if
         (
             !detail::finiteParticleRadiationScalar
@@ -115,6 +126,16 @@ void validateRadiationResult
             (
                 result.particlePowerDensityWm3[cellI]
             )
+         || !detail::finiteParticleRadiationScalar(absorption)
+         || !detail::finiteParticleRadiationScalar(scattering)
+         || !detail::finiteParticleRadiationScalar(extinction)
+         || !detail::finiteParticleRadiationScalar(asymmetry)
+         || absorption < scalar(0)
+         || scattering < scalar(0)
+         || extinction < scalar(0)
+         || mag(extinction - absorption - scattering) > extinctionTolerance
+         || asymmetry < scalar(-1)
+         || asymmetry > scalar(1)
         )
         {
             materialFailure
@@ -619,6 +640,10 @@ try
     scalarField currentTemperatureK(snapshot.particleMeanTemperatureK);
     const MieDoResult radiationResult = solveRadiation(currentTemperatureK);
     validateRadiationResult(context, radiationResult, 1);
+    result.absorptionCoefficientInvM = radiationResult.absorptionCoefficientInvM;
+    result.scatteringCoefficientInvM = radiationResult.scatteringCoefficientInvM;
+    result.extinctionCoefficientInvM = radiationResult.extinctionCoefficientInvM;
+    result.asymmetryFactor = radiationResult.asymmetryFactor;
 
     const scalar legalMinimumTemperatureK = max
     (

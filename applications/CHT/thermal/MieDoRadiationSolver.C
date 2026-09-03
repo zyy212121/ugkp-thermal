@@ -62,6 +62,43 @@ inline bool finiteScalar(const scalar value)
     return std::isfinite(value);
 }
 
+scalar mieAsymmetryFactor
+(
+    const MieTable& table,
+    const scalar diameterM,
+    const scalar temperatureK
+)
+{
+    const scalarField& mu = table.muValues();
+    if (mu.size() < 2)
+    {
+        solveFailure("Mie phase table has fewer than two angular samples");
+    }
+    scalar denominator = scalar(0);
+    scalar firstMoment = scalar(0);
+    scalar previousPhase = table.phase(diameterM, temperatureK, mu[0]);
+    for (label i = 1; i < mu.size(); ++i)
+    {
+        const scalar currentPhase = table.phase(diameterM, temperatureK, mu[i]);
+        const scalar deltaMu = mu[i] - mu[i - 1];
+        denominator += scalar(0.5)*(previousPhase + currentPhase)*deltaMu;
+        firstMoment += scalar(0.5)
+            *(mu[i - 1]*previousPhase + mu[i]*currentPhase)*deltaMu;
+        previousPhase = currentPhase;
+    }
+    if (!finiteScalar(denominator) || denominator <= scalar(0))
+    {
+        solveFailure("Mie phase table has an invalid angular integral");
+    }
+    const scalar value = firstMoment/denominator;
+    const scalar tolerance = scalar(1024)*std::numeric_limits<scalar>::epsilon();
+    if (!finiteScalar(value) || value < scalar(-1) - tolerance || value > scalar(1) + tolerance)
+    {
+        solveFailure("Mie phase table has an invalid asymmetry factor", 0, value);
+    }
+    return max(scalar(-1), min(scalar(1), value));
+}
+
 scalar validatedNonnegativeIntensity
 (
     const scalar value,
@@ -493,6 +530,10 @@ public:
 
         forAll(mesh.boundary(), patchI)
         {
+            if (mesh.boundary()[patchI].size() == 0)
+            {
+                continue;
+            }
             const word polyType = mesh.boundaryMesh()[patchI].type();
             if (!isSupportedSerialPatch(polyType))
             {
@@ -856,6 +897,7 @@ public:
     std::shared_ptr<const MieDoRadiationSolverData> solverData;
     scalarField absorption;
     scalarField scattering;
+    scalarField asymmetryFactor;
     scalarField emissionIntensity;
     List<List<scalarField>> phaseProbability;
     List<scalarField> rawPhaseKernel;
@@ -888,9 +930,11 @@ public:
 
         absorption.setSize(nCells);
         scattering.setSize(nCells);
+        asymmetryFactor.setSize(nCells);
         emissionIntensity.setSize(nCells);
         absorption = scalar(0);
         scattering = scalar(0);
+        asymmetryFactor = scalar(0);
         emissionIntensity = scalar(0);
 
         phaseProbability.setSize(nCells);
@@ -1063,6 +1107,7 @@ MieDoResult MieDoRadiationSolver::solve
     const label nDirections = data.directions.size();
     scalarField& absorption = scratch.absorption;
     scalarField& scattering = scratch.scattering;
+    scalarField& asymmetryFactor = scratch.asymmetryFactor;
     scalarField& emissionIntensity = scratch.emissionIntensity;
     List<List<scalarField>>& phaseProbability = scratch.phaseProbability;
     scalar initialIntensity = 0;
@@ -1082,6 +1127,12 @@ MieDoResult MieDoRadiationSolver::solve
             const MieOpticalSample optical = data.mieTable.query(diameter, temperature);
             absorption[cellI] = scalar(3)*epsilon*optical.Qabs/(scalar(2)*diameter);
             scattering[cellI] = scalar(3)*epsilon*optical.Qsca/(scalar(2)*diameter);
+            asymmetryFactor[cellI] = mieAsymmetryFactor
+            (
+                data.mieTable,
+                diameter,
+                temperature
+            );
             emissionIntensity[cellI] =
                 bandBlackBodyIntensity(temperature, optical.planckBandFraction);
             initialIntensity = max(initialIntensity, emissionIntensity[cellI]);
@@ -1571,6 +1622,15 @@ MieDoResult MieDoRadiationSolver::solve
     data.computeIncidentFlux(intensities, incidentFlux);
 
     MieDoResult result;
+    result.absorptionCoefficientInvM = absorption;
+    result.scatteringCoefficientInvM = scattering;
+    result.extinctionCoefficientInvM.setSize(nCells, scalar(0));
+    forAll(result.extinctionCoefficientInvM, cellI)
+    {
+        result.extinctionCoefficientInvM[cellI] =
+            absorption[cellI] + scattering[cellI];
+    }
+    result.asymmetryFactor = asymmetryFactor;
     result.incidentRadiationG_Wm2.setSize(nCells, scalar(0));
     result.particlePowerDensityWm3.setSize(nCells, scalar(0));
     result.boundaryQrOutwardWm2.setSize(mesh.boundary().size());

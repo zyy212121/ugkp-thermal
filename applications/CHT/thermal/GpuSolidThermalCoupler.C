@@ -951,7 +951,7 @@ public:
     scalar rhoSolid;
     scalar particleHeatFactor;
     scalar solidContactCouplingInterval;
-    scalar radiationCouplingInterval;
+    label radiationCouplingFrequency;
     label solidInterfaceMaxIterations;
     scalar solidInterfaceTemperatureTolerance;
     scalar solidInterfaceEnergyTolerance;
@@ -961,6 +961,10 @@ public:
     labelList particleContactFluidPatchIds;
     autoPtr<surfaceScalarField> gasConvectiveWallHeatFlux;
     autoPtr<surfaceScalarField> particleRadiationWallHeatFlux;
+    autoPtr<volScalarField> particleRadiationAbsorptionCoefficient;
+    autoPtr<volScalarField> particleRadiationScatteringCoefficient;
+    autoPtr<volScalarField> particleRadiationExtinctionCoefficient;
+    autoPtr<volScalarField> particleRadiationAsymmetryFactor;
     autoPtr<surfaceScalarField> particleStuckWallHeatFlux;
     autoPtr<surfaceScalarField> particleReflectedWallHeatFlux;
 
@@ -998,7 +1002,7 @@ public:
         rhoSolid(0),
         particleHeatFactor(0),
         solidContactCouplingInterval(0),
-        radiationCouplingInterval(0),
+        radiationCouplingFrequency(1),
         solidInterfaceMaxIterations(1),
         solidInterfaceTemperatureTolerance(0),
         solidInterfaceEnergyTolerance(0),
@@ -1008,6 +1012,10 @@ public:
         particleContactFluidPatchIds(),
         gasConvectiveWallHeatFlux(nullptr),
         particleRadiationWallHeatFlux(nullptr),
+        particleRadiationAbsorptionCoefficient(nullptr),
+        particleRadiationScatteringCoefficient(nullptr),
+        particleRadiationExtinctionCoefficient(nullptr),
+        particleRadiationAsymmetryFactor(nullptr),
         particleStuckWallHeatFlux(nullptr),
         particleReflectedWallHeatFlux(nullptr)
     {
@@ -1027,27 +1035,18 @@ public:
         (
             "solidContactCouplingInterval", legacyCouplingInterval
         );
-        radiationCouplingInterval = coupling.lookupOrDefault<scalar>
+        radiationCouplingFrequency = coupling.lookupOrDefault<label>
         (
-            "radiationCouplingInterval", legacyCouplingInterval
+            "radiationCouplingFrequency", 1
         );
         if
         (
             !std::isfinite(solidContactCouplingInterval)
-         || !std::isfinite(radiationCouplingInterval)
          || solidContactCouplingInterval <= scalar(0)
-         || radiationCouplingInterval <= scalar(0)
+         || radiationCouplingFrequency <= 0
         )
         {
-            solidFailure("thermal coupling intervals must be finite and strictly positive");
-        }
-        if (radiationCouplingInterval < solidContactCouplingInterval)
-        {
-            solidFailure
-            (
-                "radiationCouplingInterval must not be smaller than "
-                "solidContactCouplingInterval"
-            );
+            solidFailure("thermal coupling interval and radiation frequency must be strictly positive");
         }
         if (threeRegion)
         {
@@ -1295,6 +1294,62 @@ public:
                 (
                     fluidMesh, mieTable(), radiationSolver(),
                     mapper->fluidPatchIds(), TpMin, TpMax
+                )
+            );
+            particleRadiationAbsorptionCoefficient.reset
+            (
+                new volScalarField
+                (
+                    IOobject
+                    (
+                        "particleRadiationAbsorptionCoefficient",
+                        runTime.timeName(), fluidMesh,
+                        IOobject::READ_IF_PRESENT, IOobject::AUTO_WRITE, true
+                    ),
+                    fluidMesh,
+                    dimensionedScalar("zero", dimless/dimLength, scalar(0))
+                )
+            );
+            particleRadiationScatteringCoefficient.reset
+            (
+                new volScalarField
+                (
+                    IOobject
+                    (
+                        "particleRadiationScatteringCoefficient",
+                        runTime.timeName(), fluidMesh,
+                        IOobject::READ_IF_PRESENT, IOobject::AUTO_WRITE, true
+                    ),
+                    fluidMesh,
+                    dimensionedScalar("zero", dimless/dimLength, scalar(0))
+                )
+            );
+            particleRadiationExtinctionCoefficient.reset
+            (
+                new volScalarField
+                (
+                    IOobject
+                    (
+                        "particleRadiationExtinctionCoefficient",
+                        runTime.timeName(), fluidMesh,
+                        IOobject::READ_IF_PRESENT, IOobject::AUTO_WRITE, true
+                    ),
+                    fluidMesh,
+                    dimensionedScalar("zero", dimless/dimLength, scalar(0))
+                )
+            );
+            particleRadiationAsymmetryFactor.reset
+            (
+                new volScalarField
+                (
+                    IOobject
+                    (
+                        "particleRadiationAsymmetryFactor",
+                        runTime.timeName(), fluidMesh,
+                        IOobject::READ_IF_PRESENT, IOobject::AUTO_WRITE, true
+                    ),
+                    fluidMesh,
+                    dimensionedScalar("zero", dimless, scalar(0))
                 )
             );
         }
@@ -1931,11 +1986,9 @@ GpuThermalCouplingResult GpuSolidThermalCoupler::exchangeIfDue
     }
     const bool radiationDue =
         data_->radiationEnabled
-     && ugkpcht::thermalEventIsDue
-        (
-            elapsedSinceRadiation,
-            data_->radiationCouplingInterval
-        );
+     && decision.exchangeSequence
+          % static_cast<std::uint64_t>(data_->radiationCouplingFrequency)
+        == 0;
     bool commitPhaseStarted = false;
 
     try
@@ -2029,6 +2082,14 @@ GpuThermalCouplingResult GpuSolidThermalCoupler::exchangeIfDue
                     data_->particleRadiationCoupler->solve(radiationSnapshot)
                 )
             );
+            data_->particleRadiationAbsorptionCoefficient->primitiveFieldRef() =
+                radiation().absorptionCoefficientInvM;
+            data_->particleRadiationScatteringCoefficient->primitiveFieldRef() =
+                radiation().scatteringCoefficientInvM;
+            data_->particleRadiationExtinctionCoefficient->primitiveFieldRef() =
+                radiation().extinctionCoefficientInvM;
+            data_->particleRadiationAsymmetryFactor->primitiveFieldRef() =
+                radiation().asymmetryFactor;
         }
 
         const List<scalarField> gasPreview =
@@ -2464,13 +2525,23 @@ label GpuSolidThermalCoupler::persistAtWriteTime
     volVectorField& Us,
     volScalarField& theta,
     volScalarField& Tp,
-    volScalarField& dMeanCell
+    volScalarField& dMeanCell,
+    const bool thermalCouplingWrite
 )
 {
     if
     (
         &runTime != &data_->runTime
-     || !runTime.writeTime()
+     ||
+        (
+            !runTime.writeTime()
+         &&
+            (
+                !thermalCouplingWrite
+             || data_->writeState.committedState().completedSimulationTimeS
+                != runTime.value()
+            )
+        )
      || !data_->wallInitialised
      || data_->writeState.hasPendingExchange()
     )
@@ -2480,18 +2551,23 @@ label GpuSolidThermalCoupler::persistAtWriteTime
 
     if
     (
-        data_->writeState.committedState().completedSimulationTimeS
-     != runTime.value()
+        thermalCouplingWrite
+     || data_->writeState.committedState().completedSimulationTimeS
+        != runTime.value()
     )
     {
         data_->resident.downloadToHostMirror
         (
             runTime, rho, rhoU, rhoE, U, p, Tgas, epsilonS, rhoUs, rhoEs,
-            rhoDs, rhoHp, Us, theta, Tp, dMeanCell
+            rhoDs, rhoHp, Us, theta, Tp, dMeanCell, true
         );
     }
     const GpuThermalRestartMirrorMetadata mirrors =
-        data_->resident.stageThermalRestartMirrors(runTime);
+        data_->resident.stageThermalRestartMirrors
+        (
+            runTime,
+            thermalCouplingWrite
+        );
     ThermalExchangeRestartState completed =
         data_->writeState.committedState();
     completed.formatVersion = 4;
@@ -2509,7 +2585,11 @@ label GpuSolidThermalCoupler::persistAtWriteTime
         ),
         ThermalRestartPreflight::stateDictionary(completed)
     );
-    if (!runTime.write())
+    const bool fieldWriteSucceeded =
+        thermalCouplingWrite && !runTime.writeTime()
+      ? runTime.writeNow()
+      : runTime.write();
+    if (!fieldWriteSucceeded)
     {
         solidFailure("ordinary OpenFOAM field write failed during thermal persistence");
     }

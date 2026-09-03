@@ -29,6 +29,10 @@ struct ParticleRadiationMaterialSnapshot
 
 struct ParticleRadiationMaterialResult
 {
+    scalarField absorptionCoefficientInvM;
+    scalarField scatteringCoefficientInvM;
+    scalarField extinctionCoefficientInvM;
+    scalarField asymmetryFactor;
     scalarField finalMeanTemperatureK;
     scalarField deltaParticleRadiationEnergyJ;
     List<scalarField> solidWallRadiationEnergyJ;

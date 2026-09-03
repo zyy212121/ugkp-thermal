@@ -1,0 +1,54 @@
+                                                                               
+                             
+                                                                   
+                                                            
+                                          
+                             
+                                                                               
+FoamFile
+{
+    version         2;
+    format          ascii;
+    class           volScalarField;
+    location        "1/fluid";
+    object          dMeanCell;
+}
+                                                                               
+
+dimensions      [ 0 1 0 0 0 0 0 ];
+
+internalField   uniform 0;
+
+boundaryField
+{
+    inlet
+    {
+        type            calculated;
+        value           uniform 0;
+    }
+    outlet
+    {
+        type            calculated;
+        value           uniform 0;
+    }
+    fluid_to_graphite
+    {
+        type            calculated;
+        value           uniform 0;
+    }
+    wedgeBack
+    {
+        type            wedge;
+    }
+    wedgeFront
+    {
+        type            wedge;
+    }
+    defaultFaces
+    {
+        type            empty;
+    }
+}
+
+
+                                                                               

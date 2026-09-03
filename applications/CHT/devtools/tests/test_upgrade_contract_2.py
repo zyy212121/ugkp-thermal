@@ -61,7 +61,7 @@ def test_gravity_drag_and_block_size_cross_the_direct_link_abi() -> None:
     ):
         assert token in wrapper
         assert token in cuda
-    assert "applyEulerianGasSolidCouplingKernelStatic" in cuda
+    assert "applyEulerianGasSolidDragKernelStatic" in cuda
     assert "relaxMobileParticlesToResidentGasKernelStatic" in cuda
     assert "relaxWallBoundParticlesToResidentGasKernelStatic" in cuda
     assert "applyGasGravityKernel" in cuda

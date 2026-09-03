@@ -41,6 +41,10 @@ struct MieDoSnapshot
 
 struct MieDoResult
 {
+    scalarField absorptionCoefficientInvM;
+    scalarField scatteringCoefficientInvM;
+    scalarField extinctionCoefficientInvM;
+    scalarField asymmetryFactor;
     scalarField incidentRadiationG_Wm2;
     scalarField particlePowerDensityWm3;
     List<scalarField> boundaryQrOutwardWm2;

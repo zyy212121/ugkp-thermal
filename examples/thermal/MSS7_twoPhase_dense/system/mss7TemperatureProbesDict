@@ -1,0 +1,55 @@
+FoamFile
+{
+    version     2.0;
+    format      ascii;
+    class       dictionary;
+    object      mss7TemperatureProbesDict;
+}
+
+                                                     
+                                       
+                                                                     
+                                                                      
+                                                                           
+                                                                               
+                                                                            
+
+functions
+{
+    mss7ThroatWallProbe
+    {
+        type                patchProbes;
+        libs                ("libsampling.so");
+        region              graphite;
+        patchName           graphite_to_fluid;
+        fields              (T);
+        fixedLocations      true;
+        probeLocations
+        (
+            (0.151410366795 0.011821249473 0)                                 
+            (0.152401606784 0.011803651873 0)                                   
+        );
+
+        writeControl        adjustableRunTime;
+        writeInterval       0.001;
+    }
+
+    mss7ThroatTemperatureProbes
+    {
+        type                probes;
+        libs                ("libsampling.so");
+        region              graphite;
+        fields              (T);
+        fixedLocations      true;
+        interpolationScheme cellPoint;
+
+        probeLocations
+        (
+            (0.151945102963 0.021800000 0)                     
+            (0.151945102963 0.041800000 0)                     
+        );
+
+        writeControl        adjustableRunTime;
+        writeInterval       0.001;
+    }
+}

@@ -19,7 +19,8 @@ def test_ugkpcht_has_only_local_fourier_wall_heat_transfer():
     ):
         assert forbidden not in combined
 
-    assert "energyFlux -= kEffective*normalTemperatureGradient;" in source
+    assert "wallThermalAreaFraction" in source
+    assert "*kEffective*normalTemperatureGradient;" in source
     assert "const double thermalAlpha = kEffective/(rhoSafe*s.gasCp + OfSmall);" in source
     assert "fmax(nu, thermalAlpha)*s.magSf[f]*s.deltaCoeffs[f]" in source
 

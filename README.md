@@ -170,10 +170,16 @@ cd examples/thermal
 ./Allrun bentSRM_coldWall
 ./Allrun MSS7_laminar
 ./Allrun MSS7_turbulent_wallModel
+./Allrun MSS7_twoPhase_sparse
+./Allrun MSS7_twoPhase_dense
 ```
 
 Some thermal cases are computationally expensive and may require several
 hours or longer depending on the GPU.
+
+`MSS7_twoPhase_sparse` preserves the development-case parcel mass of
+`1e-9 kg` and uses L0 scheduling. `MSS7_twoPhase_dense` uses a parcel mass of
+`5e-11 kg` and L2 automatic scheduling with a 1000-step inspection interval.
 
 ## Cleaning generated case data
 
@@ -195,6 +201,8 @@ cd ../performance
 cd ../thermal
 ./Allclean
 ./Allclean bentSRM_coldWall
+./Allclean MSS7_twoPhase_sparse
+./Allclean MSS7_twoPhase_dense
 ```
 
 ## Case configuration
@@ -367,8 +375,11 @@ solid conduction equation.
 
 ## Particle-radiation table
 
-The large alumina Mie table used by `bentSRM_coldWall` is generated locally
-rather than stored in the Git repository:
+The large alumina Mie table used by `bentSRM_coldWall`,
+`MSS7_twoPhase_sparse`, and `MSS7_twoPhase_dense` is generated locally rather
+than stored in the Git repository. The thermal `Allrun` entry generates one
+cached table and links it into each selected radiation case automatically.
+It can also be generated manually for an individual case:
 
 ```bash
 python3 applications/CHT/thermal/mieTables/make_alumina_mie_table.py \

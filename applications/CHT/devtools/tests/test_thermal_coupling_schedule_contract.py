@@ -39,10 +39,16 @@ class ThermalCouplingScheduleContract(unittest.TestCase):
             )
             self.assertIn("PASS", completed.stdout)
 
-    def test_contact_and_radiation_paths_use_shared_schedule_predicate(self) -> None:
+    def test_contact_uses_tolerant_time_schedule_and_radiation_uses_sequence(self) -> None:
         source = COUPLER.read_text(encoding="utf-8")
         self.assertIn('#include "ThermalCouplingSchedule.H"', source)
-        self.assertGreaterEqual(source.count("ugkpcht::thermalEventIsDue"), 2)
+        self.assertEqual(source.count("ugkpcht::thermalEventIsDue"), 1)
+        self.assertIn("radiationCouplingFrequency", source)
+        self.assertRegex(
+            source,
+            r"decision\.exchangeSequence[\s\S]{0,160}?%[\s\S]{0,160}?radiationCouplingFrequency",
+        )
+        self.assertNotIn("radiationCouplingInterval", source)
         self.assertNotIn("elapsedSinceCoupling + SMALL", source)
         self.assertNotIn("elapsedSinceRadiation + SMALL", source)
 

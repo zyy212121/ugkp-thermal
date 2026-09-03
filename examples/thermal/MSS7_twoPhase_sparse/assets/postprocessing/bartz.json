@@ -1,0 +1,10 @@
+{
+  "throat_diameter_m": 0.02357753803,
+  "throat_curvature_radius_m": 0.0154,
+  "total_temperature_k": 3200.0,
+  "gamma": 1.2,
+  "gas_constant_j_kg_k": 287.0,
+  "specific_heat_j_kg_k": 1722.0,
+  "dynamic_viscosity_pa_s": 9.29152148664344e-05,
+  "prandtl": 0.4
+}

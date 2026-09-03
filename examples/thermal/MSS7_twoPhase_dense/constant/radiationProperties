@@ -1,0 +1,58 @@
+FoamFile
+{
+    version     2.0;
+    format      ascii;
+    class       dictionary;
+    location    "constant";
+    object      radiationProperties;
+}
+
+schemaVersion 1;
+
+enabled true;
+couplingFrequency 2;
+
+model
+{
+    mieTable "assets/radiation/alumina_mieTable.dat";
+
+    do
+    {
+        nTheta 1;
+        nPhi 8;
+        maxSourceIterations 10000;
+        sourceRelativeTolerance 1e-5;
+        phaseBalanceTolerance 1e-8;
+        maxPhaseBalanceIterations 100;
+        radiationActiveEpsilonMin 1e-12;
+        conservationRelativeTolerance 2e-5;
+        maxPhaseScalingCorrection 100;
+        IBoundaryCondition diffuseGrey;
+        boundaryAbsorptivity 0.9;
+        sourceRelaxation 0.7;
+        linearSolverTolerance 1e-8;
+        linearSolverRelTol 0;
+        linearSolverMaxIterations 200;
+        angleParallelThreads 4;
+
+        boundaryRadiation
+        {
+            default
+            {
+                type diffuseGrey;
+                emissivity 0.9;
+            }
+            inlet
+            {
+                type diffuseGrey;
+                emissivity 0.95;
+                T 2000;
+            }
+            outlet
+            {
+                type zeroIncoming;
+                emissivity 1;
+            }
+        }
+    }
+}

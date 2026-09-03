@@ -1900,11 +1900,12 @@ public:
         const Time& runTime,
         volScalarField& k,
         volScalarField& omega,
-        volScalarField& nut
+        volScalarField& nut,
+        const bool allowThermalCouplingWrite = false
     )
     {
         requireInitialised("download SST fields");
-        if (!runTime.writeTime())
+        if (!runTime.writeTime() && !allowThermalCouplingWrite)
         {
             FatalErrorInFunction
                 << "SST fields may only be downloaded at writeTime()."
@@ -1975,11 +1976,12 @@ public:
     void downloadNutToHostMirror
     (
         const Time& runTime,
-        volScalarField& nut
+        volScalarField& nut,
+        const bool allowThermalCouplingWrite = false
     )
     {
         requireInitialised("downloadNutToHostMirror");
-        if (!runTime.writeTime())
+        if (!runTime.writeTime() && !allowThermalCouplingWrite)
         {
             FatalErrorInFunction
                 << "downloadNutToHostMirror is only allowed at writeTime(). "
@@ -2191,11 +2193,16 @@ public:
 
     GpuThermalRestartMirrorMetadata stageThermalRestartMirrors
     (
-        const Time& runTime
+        const Time& runTime,
+        const bool allowThermalCouplingWrite = false
     ) const
     {
         requireInitialised("stageThermalRestartMirrors");
-        const label nParticles = writeParticleRestartMirror(runTime);
+        const label nParticles = writeParticleRestartMirror
+        (
+            runTime,
+            allowThermalCouplingWrite
+        );
         int nSources = 0;
         check
         (
@@ -2221,10 +2228,14 @@ public:
         return result;
     }
 
-    label writeParticleRestartMirror(const Time& runTime) const
+    label writeParticleRestartMirror
+    (
+        const Time& runTime,
+        const bool allowThermalCouplingWrite = false
+    ) const
     {
         requireInitialised("writeParticleRestartMirror");
-        if (!runTime.writeTime())
+        if (!runTime.writeTime() && !allowThermalCouplingWrite)
         {
             FatalErrorInFunction
                 << "writeParticleRestartMirror is only allowed at writeTime(). "
@@ -2404,16 +2415,20 @@ public:
                 << error.what() << exit(FatalError);
         }
 
-        writeEpsGPrevRestartMirror(runTime);
-        writeSourceResidualRestartMirror(runTime);
+        writeEpsGPrevRestartMirror(runTime, allowThermalCouplingWrite);
+        writeSourceResidualRestartMirror(runTime, allowThermalCouplingWrite);
         return label(nParticles);
     }
 
-    void writeEpsGPrevRestartMirror(const Time& runTime) const
+    void writeEpsGPrevRestartMirror
+    (
+        const Time& runTime,
+        const bool allowThermalCouplingWrite = false
+    ) const
     {
         requireInitialised("writeEpsGPrevRestartMirror");
 
-        if (!runTime.writeTime())
+        if (!runTime.writeTime() && !allowThermalCouplingWrite)
         {
             FatalErrorInFunction
                 << "writeEpsGPrevRestartMirror is only allowed at writeTime()."
@@ -2451,10 +2466,14 @@ public:
         }
     }
 
-    void writeSourceResidualRestartMirror(const Time& runTime) const
+    void writeSourceResidualRestartMirror
+    (
+        const Time& runTime,
+        const bool allowThermalCouplingWrite = false
+    ) const
     {
         requireInitialised("writeSourceResidualRestartMirror");
-        if (!runTime.writeTime())
+        if (!runTime.writeTime() && !allowThermalCouplingWrite)
         {
             FatalErrorInFunction
                 << "writeSourceResidualRestartMirror is only allowed at writeTime()."

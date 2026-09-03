@@ -14,7 +14,6 @@ solidThermalCoupling
     formatVersion 1;
     couplingInterval             0.1;
     solidContactCouplingInterval 0.1;
-    radiationCouplingInterval    1;
     radiationEnabled             false;
 
     mapping     oneToOneConformal;

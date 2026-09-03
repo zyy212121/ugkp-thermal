@@ -4,7 +4,7 @@ set -euo pipefail
 
 ROOT=$(cd "$(dirname "$0")" && pwd)
 CLEANER="${ROOT}/../tools/clean_case_results.sh"
-CASES=(singleAluminaDrop/coldWall bentSRM_coldWall MSS7_laminar MSS7_turbulent_wallModel)
+CASES=(singleAluminaDrop/coldWall bentSRM_coldWall MSS7_laminar MSS7_turbulent_wallModel MSS7_twoPhase_sparse MSS7_twoPhase_dense)
 REQUESTED_CASES=("$@")
 
 if [[ ${1:-} == --list ]]; then
@@ -29,6 +29,7 @@ for requested in "${REQUESTED_CASES[@]}"; do
     else
         "${CLEANER}" --check "${ROOT}/${requested}"
         "${CLEANER}" "${ROOT}/${requested}"
+        rm -f -- "${ROOT}/${requested}/assets/radiation/alumina_mieTable.dat"
     fi
 done
-${clean_all} && rm -rf -- "${ROOT}/run_logs"
+${clean_all} && rm -rf -- "${ROOT}/run_logs" "${ROOT}/.generated"

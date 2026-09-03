@@ -39,6 +39,17 @@ int main(int argc, char *argv[])
 {
     #include "setRootCase.H"
     #include "createTime.H"
+    const scalar configuredWriteInterval =
+        runTime.controlDict().lookup<scalar>("writeInterval");
+    const bool writeAtThermalCoupling =
+        configuredWriteInterval == scalar(-1);
+    if (configuredWriteInterval <= scalar(0) && !writeAtThermalCoupling)
+    {
+        FatalErrorInFunction
+            << "CHT writeInterval must be positive or exactly -1 for "
+            << "thermal-coupling writes."
+            << exit(FatalError);
+    }
     Info<< "CHT: weighted-parcel directly linked GPU-Riemann-GKP/CHT solver" << nl;
     IOdictionary particlePropertiesFile
     (
@@ -99,6 +110,16 @@ int main(int argc, char *argv[])
             "gpuResidentSolidThermalCoupling",
             Switch(false)
         );
+    if (writeAtThermalCoupling && !gpuResidentSolidThermalCoupling)
+    {
+        FatalErrorInFunction
+            << "writeInterval -1 requires gpuResidentSolidThermalCoupling true."
+            << exit(FatalError);
+    }
+    if (writeAtThermalCoupling)
+    {
+        runTime.setWriteInterval(GREAT);
+    }
     if (gpuResidentSolidThermalCoupling)
     {
         rhoHp.writeOpt() = IOobject::AUTO_WRITE;
@@ -594,10 +615,10 @@ int main(int argc, char *argv[])
             );
             resolvedCoupling.set
             (
-                "radiationCouplingInterval",
-                radiationProperties.lookupOrDefault<scalar>
+                "radiationCouplingFrequency",
+                radiationProperties.lookupOrDefault<label>
                 (
-                    "couplingInterval", GREAT
+                    "couplingFrequency", 1
                 )
             );
             resolvedCoupling.set
@@ -732,6 +753,10 @@ int main(int argc, char *argv[])
 
         while (runTime.run())
         {
+            if (writeAtThermalCoupling)
+            {
+                runTime.setWriteInterval(GREAT);
+            }
             #include "readTimeControls.H"
 
             const bool courantRefreshDue =
@@ -773,6 +798,7 @@ int main(int argc, char *argv[])
                 runTime.value()
             );
 
+            bool thermalCoupledThisStep = false;
             if (solidThermalCoupler.valid())
             {
                 const gpuThermal::GpuThermalCouplingResult coupling =
@@ -797,6 +823,7 @@ int main(int argc, char *argv[])
                 );
                 if (coupling.coupled)
                 {
+                    thermalCoupledThisStep = true;
                     Info<< "runTime = " << runTime.elapsedClockTime()
                         << " simulationTime = " << runTime.timeName()
                         << " particleCount = " << coupling.particleCount
@@ -808,8 +835,14 @@ int main(int argc, char *argv[])
                 }
             }
 
-            if (runTime.writeTime())
+            if
+            (
+                runTime.writeTime()
+             || (writeAtThermalCoupling && thermalCoupledThisStep)
+            )
             {
+                const bool thermalCouplingWrite =
+                    writeAtThermalCoupling && thermalCoupledThisStep;
                 if (gasTurbulenceModel == 3)
                 {
                     resident.downloadSstToHostMirror
@@ -817,12 +850,18 @@ int main(int argc, char *argv[])
                         runTime,
                         k,
                         omega,
-                        nut
+                        nut,
+                        thermalCouplingWrite
                     );
                 }
                 else
                 {
-                    resident.downloadNutToHostMirror(runTime, nut);
+                    resident.downloadNutToHostMirror
+                    (
+                        runTime,
+                        nut,
+                        thermalCouplingWrite
+                    );
                 }
                 if (solidThermalCoupler.valid())
                 {
@@ -844,7 +883,8 @@ int main(int argc, char *argv[])
                             Us,
                             theta,
                             Tp,
-                            dMeanCell
+                            dMeanCell,
+                            thermalCouplingWrite
                         );
                 }
                 else
