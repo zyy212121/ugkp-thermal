@@ -14,7 +14,7 @@ import numpy as np
 from scipy.linalg import expm
 
 
-ROOT = Path(__file__).resolve().parent
+ROOT = Path(__file__).resolve().parent.parent / "result"
 CASE = ROOT.parent / "dustyWave"
 NUMBER = r"[-+]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][-+]?\d+)?"
 

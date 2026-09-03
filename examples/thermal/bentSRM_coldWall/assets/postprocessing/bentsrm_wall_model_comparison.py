@@ -7,16 +7,18 @@ import sys
 import matplotlib.pyplot as plt
 import numpy as np
 
-RESULTS = Path(__file__).resolve().parent
+CASE_ROOT = Path(__file__).resolve().parents[2]
+THERMAL = CASE_ROOT.parent
+RESULTS = THERMAL/"results"/CASE_ROOT.name
 DATA = RESULTS/"data"
 FIGURES = RESULTS/"figures"
-sys.path.insert(0, str(RESULTS.parent/"common"))
-sys.path.insert(0, str(RESULTS.parent/"singleAluminaDrop/coldWall"))
+sys.path.insert(0, str(THERMAL/"postprocessing"))
+sys.path.insert(0, str(THERMAL/"singleAluminaDrop/assets/postprocessing"))
 import bentsrm_case_reader as reader
 import single_alumina_drop_validation as single_drop
 
 
-COLD = RESULTS.parents[1] / "bentSRM_coldWall"
+COLD = CASE_ROOT
 PREFIX = "bentSRM_wall_model"
 PLOT_START = 1.5
 PLOT_END = 2.6

@@ -5,7 +5,7 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
-ROOT = Path(__file__).resolve().parent
+ROOT = Path(__file__).resolve().parent.parent / "result"
 with (ROOT/"planar_couette.csv").open(encoding="utf-8", newline="") as stream:
     rows = list(csv.DictReader(stream))
 def values(name):

@@ -7,7 +7,7 @@ import struct
 import numpy as np
 
 ROOT = Path(__file__).resolve().parent.parent
-OUT = Path(__file__).resolve().parent
+OUT = ROOT / "result"
 NUMBER = r"[-+]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][-+]?\d+)?"
 
 

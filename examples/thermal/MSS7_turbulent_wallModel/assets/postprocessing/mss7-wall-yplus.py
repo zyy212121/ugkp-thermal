@@ -4,7 +4,8 @@ from pathlib import Path
 import matplotlib.pyplot as plt
 
 
-ROOT = Path(__file__).resolve().parent
+CASE_ROOT = Path(__file__).resolve().parents[2]
+ROOT = CASE_ROOT.parent / "results" / CASE_ROOT.name
 BASE = ROOT/"data"/Path(__file__).stem
 FIGURE = ROOT/"figures"/f"{Path(__file__).stem}.png"
 

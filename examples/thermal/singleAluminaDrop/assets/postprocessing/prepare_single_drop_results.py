@@ -7,11 +7,13 @@ import sys
 from pathlib import Path
 
 
-RESULTS = Path(__file__).resolve().parent
+CASE_ROOT = Path(__file__).resolve().parents[2]
+RESULTS = CASE_ROOT.parent/"results"/CASE_ROOT.name/"coldWall"
 DATA = RESULTS/"data"
-CASE = RESULTS.parents[2] / "singleAluminaDrop" / "coldWall"
+CASE = CASE_ROOT/"coldWall"
 POSTPROCESS_END_MS = 10.0
-MODULE_PATH = RESULTS / "single_alumina_drop_validation.py"
+MODULE_PATH = Path(__file__).resolve().parent/"single_alumina_drop_validation.py"
+ASSET_DATA = Path(__file__).resolve().parent/"data"
 SPEC = importlib.util.spec_from_file_location("single_drop_post", MODULE_PATH)
 MODULE = importlib.util.module_from_spec(SPEC)
 sys.modules[SPEC.name] = MODULE
@@ -78,11 +80,11 @@ def main():
     DATA.mkdir(parents=True, exist_ok=True)
     impact_time, cold = normalize_model(CASE)
     temperature_experiment = [
-        row for row in read_csv(RESULTS/"data"/"experiment_surface_temperature.csv")
+        row for row in read_csv(ASSET_DATA/"experiment_surface_temperature.csv")
         if float(row["time_ms"]) <= POSTPROCESS_END_MS + 1.0e-9
     ]
     beta_experiment = [
-        row for row in read_csv(RESULTS/"data"/"experiment_beta.csv")
+        row for row in read_csv(ASSET_DATA/"experiment_beta.csv")
         if float(row["time_ms"]) <= POSTPROCESS_END_MS + 1.0e-9
     ]
 

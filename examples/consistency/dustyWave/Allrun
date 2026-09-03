@@ -17,4 +17,4 @@ cd "${case_dir}"
 [[ -f constant/polyMesh/points ]] || blockMesh
 export GAS_UGKP_CUDA_BACKEND="${case_dir}/.validation-bin/dustyWaveUGKPCudaBackend"
 "${case_dir}/.validation-bin/dustyWaveUGKP"
-PYTHONDONTWRITEBYTECODE=1 python3 ../result/dusty_wave.py
+PYTHONDONTWRITEBYTECODE=1 python3 ../postprocessing/dusty_wave.py

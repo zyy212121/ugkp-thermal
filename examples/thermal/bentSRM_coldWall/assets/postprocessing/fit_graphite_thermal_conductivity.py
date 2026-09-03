@@ -7,8 +7,9 @@ import numpy as np
 from scipy.interpolate import UnivariateSpline
 
 
-ROOT = Path(__file__).resolve().parent
-RAW = ROOT / "data/graphite_diffusivity_blue_points.csv"
+CASE_ROOT = Path(__file__).resolve().parents[2]
+ROOT = CASE_ROOT.parent / "results" / CASE_ROOT.name
+RAW = Path(__file__).resolve().parent / "data/graphite_diffusivity_blue_points.csv"
 TABLE = ROOT / "data/graphite_thermal_conductivity_fit.csv"
 FIGURE = ROOT / "figures/graphite_thermal_conductivity_fit.png"
 RHO = 1800.0

@@ -1,12 +1,15 @@
 #!/usr/bin/env python3
 
+import argparse
 import csv
 from pathlib import Path
 
 import matplotlib.pyplot as plt
 
 
-root = Path(__file__).resolve().parent
+parser = argparse.ArgumentParser()
+parser.add_argument("--root", type=Path, default=Path(__file__).resolve().parent)
+root = parser.parse_args().root.resolve()
 with (root / "heavy_laval_s1_s2_l2.csv").open(encoding="utf-8", newline="") as stream:
     data = list(csv.DictReader(stream))
 

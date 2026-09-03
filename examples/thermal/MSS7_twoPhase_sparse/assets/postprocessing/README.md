@@ -4,7 +4,7 @@ Run `./draw.py` from the case directory after at least one result time has been 
 
 The reusable Bartz implementation is `tools/postprocessing/bartz.py`. Case geometry and gas-property inputs are in `bartz.json`. The Bartz curve uses the inlet chamber-pressure schedule, the nozzle area ratio, and the gas properties used by the case. It is a comparison curve only and is not coupled back into CHT.
 
-Outputs are written below `examples/thermal/results/MSS7_twoPhase`:
+Outputs are written below `examples/thermal/results/MSS7_twoPhase_sparse`:
 
 - `data/temperature_comparison.csv` and `figures/temperature_comparison.png`
 - `data/wall_heat_flux_profiles` and `figures/wall_heat_flux_profiles`

@@ -397,8 +397,8 @@ particle restart data preserve parcel identity, random state, particle
 thermal history, and finite-contact state.
 
 Runner logs and status summaries are written below the corresponding
-`run_logs/` directory. Lightweight reference data, metrics, figures, and
-plotting scripts are retained under:
+`run_logs/` directory. Lightweight reference data, metrics, and figures are
+retained under:
 
 ```text
 examples/consistency/result
@@ -406,8 +406,9 @@ examples/performance/results
 examples/thermal/results
 ```
 
-Case-specific Python plotting scripts can be executed after the corresponding
-simulation has completed.
+Case-specific Python plotting scripts are stored with persistent case assets,
+never below disposable result directories, and can be executed through each
+case's `draw.py` after the corresponding simulation has completed.
 
 ## Reproducibility notes
 

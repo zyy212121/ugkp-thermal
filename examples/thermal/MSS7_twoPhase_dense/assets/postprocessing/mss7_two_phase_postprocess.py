@@ -16,13 +16,14 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 
-OUTPUT = Path(__file__).resolve().parent
+CASE_ROOT = Path(__file__).resolve().parents[2]
+THERMAL = CASE_ROOT.parent
+OUTPUT = THERMAL / "results" / CASE_ROOT.name
 DATA = OUTPUT / "data"
 FIGURES = OUTPUT / "figures"
-THERMAL = OUTPUT.parents[1]
 PROJECT = THERMAL.parents[1]
 sys.path.insert(0, str(PROJECT / "tools/postprocessing"))
-sys.path.insert(0, str(OUTPUT.parent / "common"))
+sys.path.insert(0, str(THERMAL / "postprocessing"))
 from bartz import bartz_wall_heat_flux
 import bentsrm_case_reader as particle_reader
 

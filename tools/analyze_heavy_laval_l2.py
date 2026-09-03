@@ -5,7 +5,6 @@ from __future__ import annotations
 import argparse
 import csv
 import json
-import shutil
 import math
 import statistics
 import subprocess
@@ -70,10 +69,8 @@ def summarize(result_root: Path, archive_root: Path, output: Path) -> None:
         writer = csv.DictWriter(stream, fieldnames=list(records[0]))
         writer.writeheader()
         writer.writerows(records)
-    source_plot = Path(__file__).with_name("plot_heavy_laval_jcp.py")
-    plot_path = output / "heavy_laval_s1_s2_l2.py"
-    shutil.copy2(source_plot, plot_path)
-    subprocess.run(["python3", str(plot_path)], cwd=output, check=True)
+    plot_path = Path(__file__).with_name("plot_heavy_laval_jcp.py")
+    subprocess.run(["python3", str(plot_path), "--root", str(output)], check=True)
     manifest = {
         "schema": "unified-heavy-laval-s1-s2-l2-analysis-v1",
         "current_result_root": str(result_root),

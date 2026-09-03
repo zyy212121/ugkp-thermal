@@ -15,14 +15,16 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 
-RESULTS = Path(__file__).resolve().parent
+CASE_ROOT = Path(__file__).resolve().parents[2]
+THERMAL = CASE_ROOT.parent
+RESULTS = THERMAL / "results" / CASE_ROOT.name
 DATA = RESULTS/"data"
 FIGURES = RESULTS/"figures"
-THERMAL = RESULTS.parents[1]
 DEFAULT_LAMINAR = THERMAL / "MSS7_laminar"
 DEFAULT_SST = THERMAL / "MSS7_turbulent_wallModel"
-EXPERIMENT = DATA / "mss7_temperature_histories_digitized.csv"
-PROBE_LOCATIONS = DATA / "mss7_temperature_probe_locations.csv"
+ASSET_DATA = Path(__file__).resolve().parent / "data"
+EXPERIMENT = ASSET_DATA / "mss7_temperature_histories_digitized.csv"
+PROBE_LOCATIONS = ASSET_DATA / "mss7_temperature_probe_locations.csv"
 OUTPUT_CSV = DATA / "mss7_temperature_laminar_sst_experiment.csv"
 OUTPUT_PNG = FIGURES / "mss7_temperature_laminar_sst_experiment.png"
 TIME_TOLERANCE_S = 1.0e-8
