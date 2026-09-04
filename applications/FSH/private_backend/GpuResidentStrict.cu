@@ -169,6 +169,7 @@ struct DeviceState
     int csrHeavyTileParticles = 256;
     int csrHeavyTaskCapacity = 0;
     int csrHeavyWorkerGrid = 0;
+    int mobilePackingCooperativeGrid = 0;
 
     int* faceOwner = nullptr;
     int* faceNeighbour = nullptr;
@@ -6815,12 +6816,18 @@ __global__ void clearMobilePackingActivityCountsKernel(DeviceState* sp)
     }
 }
 
-__global__ void clearMobilePackingFrontierCountKernel(int* count)
+__device__ int checkedMobilePackingCount
+(
+    const DeviceState& s,
+    const int* count
+)
 {
-    if (blockIdx.x == 0 && threadIdx.x == 0)
+    const int value = *count;
+    if (value < 0 || value > s.nCells)
     {
-        *count = 0;
+        asm("trap;");
     }
+    return value;
 }
 
 __global__ void clearMobilePackingMomentsKernel(DeviceState* sp)
@@ -7015,361 +7022,16 @@ __global__ void prepareMobilePackingProjectionKernel
     }
 }
 
-__global__ void expandMobilePackingActivityFrontierKernel
+__device__ bool mobilePackingParticleEligible
 (
-    DeviceState* sp,
-    const int* frontier,
-    const int* frontierCount,
-    int* nextFrontier,
-    int* nextFrontierCount,
-    int* accumulatedCells,
-    int* accumulatedCount,
-    int* activityMask
+    const DeviceState& s,
+    const int i
 )
 {
-    DeviceState& s = *sp;
-    const int count = clampRange(*frontierCount, 0, s.nCells);
-    const int frontierI = blockIdx.x*blockDim.x + threadIdx.x;
-    if (frontierI >= count)
-    {
-        return;
-    }
-    const int c = frontier[frontierI];
-    if (c < 0 || c >= s.nCells)
-    {
-        return;
-    }
-    const int start = s.cellPlaneStart[c];
-    const int nCellFaces = s.cellPlaneCount[c];
-    for (int j = 0; j < nCellFaces; ++j)
-    {
-        const int f = s.cellFaceId[start + j];
-        if (f < 0 || f >= s.nFaces)
-        {
-            continue;
-        }
-        const int own = s.faceOwner[f];
-        const int nei = s.faceNeighbour[f];
-        if (nei < 0 || nei >= s.nCells)
-        {
-            continue;
-        }
-        const int other = own == c ? nei : own;
-        if (other < 0 || other >= s.nCells)
-        {
-            continue;
-        }
-        if (atomicCAS(&activityMask[other], 0, 1) != 0)
-        {
-            continue;
-        }
-        const int nextSlot = atomicAdd(nextFrontierCount, 1);
-        const int accumulatedSlot = atomicAdd(accumulatedCount, 1);
-        if (nextSlot < s.nCells)
-        {
-            nextFrontier[nextSlot] = other;
-        }
-        if (accumulatedSlot < s.nCells)
-        {
-            accumulatedCells[accumulatedSlot] = other;
-        }
-    }
+    return s.pStatus[i] == 1 && s.pStuck[i] == 0;
 }
 
-__global__ void initialiseMobilePackingCorrectionRegionKernel
-(
-    DeviceState* sp,
-    const int pressureActiveCount
-)
-{
-    DeviceState& s = *sp;
-    const int activeI = blockIdx.x*blockDim.x + threadIdx.x;
-    if (activeI >= pressureActiveCount)
-    {
-        return;
-    }
-    const int c = s.mobilePackingActiveCellList[activeI];
-    if (c < 0 || c >= s.nCells)
-    {
-        return;
-    }
-    if (activeI == 0)
-    {
-        *s.mobilePackingCorrectionCellCount = pressureActiveCount;
-    }
-    s.mobilePackingCorrectionCellMask[c] = 1;
-    s.mobilePackingCorrectionCellList[activeI] = c;
-}
-
-                                                                       
-__global__ void solveActiveMobilePackingPressureJacobiKernel
-(
-    DeviceState* sp,
-    const int* activeCells,
-    const int activeCount,
-    const double* oldPressure,
-    double* newPressure
-)
-{
-    DeviceState& s = *sp;
-    const int activeI = blockIdx.x*blockDim.x + threadIdx.x;
-    if (activeI >= activeCount)
-    {
-        return;
-    }
-    const int c = activeCells[activeI];
-    newPressure[c] =
-        mobilePackingProjectedJacobiValue(s, c, oldPressure);
-}
-
-__global__ void computeMobilePackingFaceCorrectionFluxKernel
-(
-    DeviceState* sp,
-    const double* pressure,
-    const double dt
-)
-{
-    DeviceState& s = *sp;
-    const int f = blockIdx.x*blockDim.x + threadIdx.x;
-    if (f >= s.nFaces)
-    {
-        return;
-    }
-
-    const int own = s.faceOwner[f];
-    const int nei = s.faceNeighbour[f];
-    const bool ownerPressureActive =
-        own >= 0 && own < s.nCells
-     && s.mobilePackingActiveCellMask[own] != 0;
-    const bool neighbourPressureActive =
-        nei >= 0 && nei < s.nCells
-     && s.mobilePackingActiveCellMask[nei] != 0;
-    if (!ownerPressureActive && !neighbourPressureActive)
-    {
-        s.solidPressurePhiMomX[f] = 0.0;
-        s.solidPressurePhiMomY[f] = 0.0;
-        s.solidPressurePhiMomZ[f] = 0.0;
-        s.solidPressurePhiEnergy[f] = 0.0;
-        return;
-    }
-    const double invRhoSolid = 1.0/clampMin(s.rhoSolid, OfVSmall);
-    double solidVolumeFlux = 0.0;
-    double faceMobileFraction = 0.0;
-    double velocityCorrectionFlux = 0.0;
-
-    if (own >= 0 && own < s.nCells && nei >= 0 && nei < s.nCells)
-    {
-        const double a = clampMin
-        (
-            finiteOr(s.magSf[f]*s.deltaCoeffs[f], 0.0),
-            0.0
-        );
-        const double pressureOwn =
-            clampMin(finiteOr(pressure[own], 0.0), 0.0);
-        const double pressureNei =
-            clampMin(finiteOr(pressure[nei], 0.0), 0.0);
-        const double epsOwn = clampMin
-        (
-            finiteOr(s.mobilePackingRho[own], 0.0)*invRhoSolid,
-            0.0
-        );
-        const double epsNei = clampMin
-        (
-            finiteOr(s.mobilePackingRho[nei], 0.0)*invRhoSolid,
-            0.0
-        );
-        const double w =
-            clampRange(finiteOr(s.faceWeight[f], 0.5), 0.0, 1.0);
-        faceMobileFraction = clampMin
-        (
-            w*epsOwn + (1.0 - w)*epsNei,
-            s.epsSMin
-        );
-                                                                              
-                                                                            
-                                                             
-        solidVolumeFlux = finiteOr
-        (
-            dt*invRhoSolid*a*(pressureOwn - pressureNei),
-            0.0
-        );
-        velocityCorrectionFlux = finiteOr
-        (
-            solidVolumeFlux/faceMobileFraction,
-            0.0
-        );
-    }
-    else if
-    (
-        own >= 0
-     && own < s.nCells
-     && s.gasBoundaryKind[f] == 0
-    )
-    {
-        const double a = clampMin
-        (
-            finiteOr(s.magSf[f]*s.deltaCoeffs[f], 0.0),
-            0.0
-        );
-        const double pressureOwn =
-            clampMin(finiteOr(pressure[own], 0.0), 0.0);
-        faceMobileFraction = clampMin
-        (
-            finiteOr(s.mobilePackingRho[own], 0.0)*invRhoSolid,
-            s.epsSMin
-        );
-        solidVolumeFlux = finiteOr
-        (
-            dt*invRhoSolid*a*pressureOwn,
-            0.0
-        );
-        velocityCorrectionFlux = finiteOr
-        (
-            solidVolumeFlux/faceMobileFraction,
-            0.0
-        );
-    }
-
-                                                                          
-                                                                              
-    s.solidPressurePhiMomX[f] = solidVolumeFlux;
-    s.solidPressurePhiMomY[f] = faceMobileFraction;
-    s.solidPressurePhiMomZ[f] = 0.0;
-    s.solidPressurePhiEnergy[f] = velocityCorrectionFlux;
-}
-
-__global__ void reconstructMobilePackingVelocityCorrectionKernel
-(
-    DeviceState* sp,
-    const int* correctionCells,
-    const int correctionActiveCount
-)
-{
-    DeviceState& s = *sp;
-    const int activeI = blockIdx.x*blockDim.x + threadIdx.x;
-    if (activeI >= correctionActiveCount)
-    {
-        return;
-    }
-    const int c = correctionCells[activeI];
-
-                                                                  
-                                                                            
-                                                                              
-                                               
-    double m00 = 0.0;
-    double m01 = 0.0;
-    double m02 = 0.0;
-    double m11 = 0.0;
-    double m12 = 0.0;
-    double m22 = 0.0;
-    double b0 = 0.0;
-    double b1 = 0.0;
-    double b2 = 0.0;
-    const int start = s.cellPlaneStart[c];
-    const int count = s.cellPlaneCount[c];
-    for (int j = 0; j < count; ++j)
-    {
-        const int f = s.cellFaceId[start + j];
-        if (f < 0 || f >= s.nFaces)
-        {
-            continue;
-        }
-        const double magSf = clampMin(finiteOr(s.magSf[f], 0.0), 0.0);
-        if (magSf <= OfVSmall)
-        {
-            continue;
-        }
-        const double nx = s.Sfx[f]/magSf;
-        const double ny = s.Sfy[f]/magSf;
-        const double nz = s.Sfz[f]/magSf;
-        const double velocityCorrectionFlux =
-            finiteOr(s.solidPressurePhiEnergy[f], 0.0);
-        m00 += nx*s.Sfx[f];
-        m01 += nx*s.Sfy[f];
-        m02 += nx*s.Sfz[f];
-        m11 += ny*s.Sfy[f];
-        m12 += ny*s.Sfz[f];
-        m22 += nz*s.Sfz[f];
-        b0 += nx*velocityCorrectionFlux;
-        b1 += ny*velocityCorrectionFlux;
-        b2 += nz*velocityCorrectionFlux;
-    }
-
-    const double trace = m00 + m11 + m22;
-    if (!(trace > OfVSmall) || !finiteDevice(trace))
-    {
-        s.pressureDeltaMomX[c] = 0.0;
-        s.pressureDeltaMomY[c] = 0.0;
-        s.pressureDeltaMomZ[c] = 0.0;
-        return;
-    }
-    const double regularisation = 1.0e-12*trace;
-    const double l00 = sqrt(fmax(m00 + regularisation, regularisation));
-    const double l10 = m01/l00;
-    const double l20 = m02/l00;
-    const double l11 = sqrt
-    (
-        fmax(m11 + regularisation - l10*l10, regularisation)
-    );
-    const double l21 = (m12 - l20*l10)/l11;
-    const double l22 = sqrt
-    (
-        fmax
-        (
-            m22 + regularisation - l20*l20 - l21*l21,
-            regularisation
-        )
-    );
-
-    const double y0 = b0/l00;
-    const double y1 = (b1 - l10*y0)/l11;
-    const double y2 = (b2 - l20*y0 - l21*y1)/l22;
-    const double uz = y2/l22;
-    const double uy = (y1 - l21*uz)/l11;
-    const double ux = (y0 - l10*uy - l20*uz)/l00;
-    s.pressureDeltaMomX[c] = finiteOr(ux, 0.0);
-    s.pressureDeltaMomY[c] = finiteOr(uy, 0.0);
-    s.pressureDeltaMomZ[c] = finiteOr(uz, 0.0);
-}
-
-__global__ void applyMobilePackingCorrectionToParticlesKernel(DeviceState* sp)
-{
-    DeviceState& s = *sp;
-    const int nParticles =
-        clampRange(*s.particleCountDevice, 0, s.particleCapacity);
-    for
-    (
-        int i = blockIdx.x*blockDim.x + threadIdx.x;
-        i < nParticles;
-        i += blockDim.x*gridDim.x
-    )
-    {
-        if (s.pStatus[i] != 1 || s.pStuck[i] != 0)
-        {
-            continue;
-        }
-        const int c = s.pCellId[i];
-        if (c < 0 || c >= s.nCells)
-        {
-            continue;
-        }
-        if (s.mobilePackingCorrectionCellMask[c] == 0)
-        {
-            continue;
-        }
-        double dux = 0.0;
-        double duy = 0.0;
-        double duz = 0.0;
-        mobilePackingParticleVelocityCorrection(s, i, dux, duy, duz);
-        s.pux[i] = finiteOr(s.pux[i], 0.0) + dux;
-        s.puy[i] = finiteOr(s.puy[i], 0.0) + duy;
-        s.puz[i] = finiteOr(s.puz[i], 0.0) + duz;
-        s.puxOld[i] = finiteOr(s.puxOld[i], 0.0) + dux;
-        s.puyOld[i] = finiteOr(s.puyOld[i], 0.0) + duy;
-        s.puzOld[i] = finiteOr(s.puzOld[i], 0.0) + duz;
-    }
-}
+#include "../../../common/gasNumerics/GpuPackingProjectionCooperative.cuh"
 
 int applyMobilePackingProjection
 (
@@ -7388,7 +7050,6 @@ int applyMobilePackingProjection
         return 1;
     }
     const int cellGrid = (s->nCells + block - 1)/block;
-    const int faceGrid = (s->nFaces + block - 1)/block;
     cudaError_t err = cudaSuccess;
 
 #define PACKING_LAUNCH(CALL, NAME) \
@@ -7428,181 +7089,28 @@ int applyMobilePackingProjection
         "prepare mobile packing projection launch"
     );
 
-    int seedCount = 0;
-    if
-    (
-        copyToHost
-        (
-            &seedCount,
-            s->mobilePackingFrontierCurrentCount,
-            1,
-            "cudaMemcpy mobile packing seed count"
-        ) != 0
-    )
+    if (s->mobilePackingCooperativeGrid <= 0)
     {
+        setLastErrorText("mobile packing cooperative grid is unavailable");
         return 1;
     }
-    if (seedCount == 0)
-    {
-        return 0;
-    }
-
-    int* currentFrontier = s->mobilePackingFrontierCurrent;
-    int* nextFrontier = s->mobilePackingFrontierNext;
-    int* currentFrontierCount = s->mobilePackingFrontierCurrentCount;
-    int* nextFrontierCount = s->mobilePackingFrontierNextCount;
-    for (int layer = 0; layer < s->packingProjectionIterations; ++layer)
-    {
-        PACKING_LAUNCH
-        (
-            (clearMobilePackingFrontierCountKernel<<<1, 1>>>
-            (nextFrontierCount)),
-            "clear mobile packing next-frontier count launch"
-        );
-        PACKING_LAUNCH
-        (
-            (expandMobilePackingActivityFrontierKernel<<<cellGrid, block>>>
-            (
-                s->deviceState,
-                currentFrontier,
-                currentFrontierCount,
-                nextFrontier,
-                nextFrontierCount,
-                s->mobilePackingActiveCellList,
-                s->mobilePackingActiveCellCount,
-                s->mobilePackingActiveCellMask
-            )),
-            "expand mobile packing pressure activity launch"
-        );
-        int* frontierSwap = currentFrontier;
-        currentFrontier = nextFrontier;
-        nextFrontier = frontierSwap;
-        int* countSwap = currentFrontierCount;
-        currentFrontierCount = nextFrontierCount;
-        nextFrontierCount = countSwap;
-    }
-
-    int pressureActiveCount = 0;
-    if
+    double kernelDt = dt;
+    void* cooperativeArguments[] = {&s->deviceState, &kernelDt};
+    err = cudaLaunchCooperativeKernel
     (
-        copyToHost
-        (
-            &pressureActiveCount,
-            s->mobilePackingActiveCellCount,
-            1,
-            "cudaMemcpy mobile packing pressure-active count"
-        ) != 0
-    )
+        reinterpret_cast<const void*>
+        (completeMobilePackingProjectionCooperativeKernel),
+        dim3(s->mobilePackingCooperativeGrid),
+        dim3(block),
+        cooperativeArguments,
+        0,
+        nullptr
+    );
+    if (err != cudaSuccess)
     {
+        setLastError("complete mobile packing projection launch", err);
         return 1;
     }
-    if (pressureActiveCount < 1 || pressureActiveCount > s->nCells)
-    {
-        setLastErrorText("invalid mobile packing pressure-active count");
-        return 1;
-    }
-    const int activeGrid = (pressureActiveCount + block - 1)/block;
-
-    double* oldPressure = s->collisionalPressure;
-    double* newPressure = s->pressureKickScale;
-    for (int iter = 0; iter < s->packingProjectionIterations; ++iter)
-    {
-        PACKING_LAUNCH
-        (
-            (solveActiveMobilePackingPressureJacobiKernel
-            <<<activeGrid, block>>>
-            (
-                s->deviceState,
-                s->mobilePackingActiveCellList,
-                pressureActiveCount,
-                oldPressure,
-                newPressure
-            )),
-            "mobile packing projected Jacobi launch"
-        );
-        double* swap = oldPressure;
-        oldPressure = newPressure;
-        newPressure = swap;
-    }
-
-    PACKING_LAUNCH
-    (
-        (initialiseMobilePackingCorrectionRegionKernel
-        <<<activeGrid, block>>>
-        (s->deviceState, pressureActiveCount)),
-        "initialise mobile packing correction region launch"
-    );
-    PACKING_LAUNCH
-    (
-        (clearMobilePackingFrontierCountKernel<<<1, 1>>>
-        (s->mobilePackingFrontierNextCount)),
-        "clear mobile packing correction-halo frontier count launch"
-    );
-    PACKING_LAUNCH
-    (
-        (expandMobilePackingActivityFrontierKernel<<<activeGrid, block>>>
-        (
-            s->deviceState,
-            s->mobilePackingActiveCellList,
-            s->mobilePackingActiveCellCount,
-            s->mobilePackingFrontierNext,
-            s->mobilePackingFrontierNextCount,
-            s->mobilePackingCorrectionCellList,
-            s->mobilePackingCorrectionCellCount,
-            s->mobilePackingCorrectionCellMask
-        )),
-        "expand mobile packing correction halo launch"
-    );
-
-    int correctionActiveCount = 0;
-    if
-    (
-        copyToHost
-        (
-            &correctionActiveCount,
-            s->mobilePackingCorrectionCellCount,
-            1,
-            "cudaMemcpy mobile packing correction-active count"
-        ) != 0
-    )
-    {
-        return 1;
-    }
-    if
-    (
-        correctionActiveCount < pressureActiveCount
-     || correctionActiveCount > s->nCells
-    )
-    {
-        setLastErrorText("invalid mobile packing correction-active count");
-        return 1;
-    }
-    const int correctionGrid =
-        (correctionActiveCount + block - 1)/block;
-    PACKING_LAUNCH
-    (
-        (computeMobilePackingFaceCorrectionFluxKernel<<<faceGrid, block>>>
-        (s->deviceState, oldPressure, dt)),
-        "compute mobile packing face correction flux launch"
-    );
-    PACKING_LAUNCH
-    (
-        (reconstructMobilePackingVelocityCorrectionKernel
-        <<<correctionGrid, block>>>
-        (
-            s->deviceState,
-            s->mobilePackingCorrectionCellList,
-            correctionActiveCount
-        )),
-        "reconstruct mobile packing velocity correction launch"
-    );
-    PACKING_LAUNCH
-    (
-        (applyMobilePackingCorrectionToParticlesKernel
-        <<<s->particleWorkGrid, block>>>(s->deviceState)),
-        "apply mobile packing particle correction launch"
-    );
-
 #undef PACKING_LAUNCH
     return 0;
 }
@@ -12353,6 +11861,48 @@ int configureLaunchOccupancy(DeviceState* s)
             lightPool < lightMoment ? lightPool : lightMoment;
         s->heavyResidentBlocksPerSm = 0;
         s->csrHeavyWorkerGrid = 0;
+    }
+
+    s->mobilePackingCooperativeGrid = 0;
+    if (s->jammingPressureEnabled != 0)
+    {
+        int device = 0;
+        int cooperativeLaunch = 0;
+        int residentBlocks = 0;
+        err = cudaGetDevice(&device);
+        if (err == cudaSuccess)
+        {
+            err = cudaDeviceGetAttribute
+            (
+                &cooperativeLaunch,
+                cudaDevAttrCooperativeLaunch,
+                device
+            );
+        }
+        if (err == cudaSuccess && cooperativeLaunch != 0)
+        {
+            err = cudaOccupancyMaxActiveBlocksPerMultiprocessor
+            (
+                &residentBlocks,
+                completeMobilePackingProjectionCooperativeKernel,
+                s->particleBlockThreads,
+                0
+            );
+        }
+        if (err != cudaSuccess || cooperativeLaunch == 0 || residentBlocks <= 0)
+        {
+            if (err != cudaSuccess)
+            {
+                setLastError("CUDA mobile-packing cooperative occupancy", err);
+            }
+            else
+            {
+                setLastErrorText("GPU does not support mobile-packing cooperative launch");
+            }
+            return 1;
+        }
+        s->mobilePackingCooperativeGrid =
+            s->multiprocessorCount*residentBlocks;
     }
 
     const int capacityGrid =

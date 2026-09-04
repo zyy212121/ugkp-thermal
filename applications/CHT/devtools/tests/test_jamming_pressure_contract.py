@@ -10,6 +10,28 @@ PACKING_ALGEBRA = (
     ROOT.parents[1] / "common" / "gasNumerics" /
     "GpuPackingProjectionAlgebra.cuh"
 )
+PACKING_COOPERATIVE = (
+    ROOT.parents[1] / "common" / "gasNumerics" /
+    "GpuPackingProjectionCooperative.cuh"
+)
+
+
+def braced_block_after(source: str, marker_pattern: str) -> str:
+    marker = re.search(marker_pattern, source)
+    if marker is None:
+        raise AssertionError(f"missing block marker: {marker_pattern}")
+    opening = source.find("{", marker.end())
+    if opening < 0:
+        raise AssertionError(f"missing opening brace after: {marker_pattern}")
+    depth = 0
+    for index in range(opening, len(source)):
+        if source[index] == "{":
+            depth += 1
+        elif source[index] == "}":
+            depth -= 1
+            if depth == 0:
+                return source[opening + 1:index]
+    raise AssertionError(f"unclosed block after: {marker_pattern}")
 
 
 def projected_jacobi_two_cell(rhs0: float, rhs1: float, iterations: int = 256):
@@ -122,6 +144,7 @@ class MobilePackingProjectionSourceContractTests(unittest.TestCase):
         cls.source = CUDA_SOURCE.read_text(encoding="utf-8")
         cls.header = MIRROR_HEADER.read_text(encoding="utf-8")
         cls.packing_algebra = PACKING_ALGEBRA.read_text(encoding="utf-8")
+        cls.packing_cooperative = PACKING_COOPERATIVE.read_text(encoding="utf-8")
 
     def test_singular_jamming_equation_of_state_is_removed(self):
         self.assertNotIn("jammingPressureFromEpsilonDevice", self.source)
@@ -138,33 +161,35 @@ class MobilePackingProjectionSourceContractTests(unittest.TestCase):
         self.assertIn("s.mobilePackingRho", body)
 
     def test_projection_is_cell_iterative_and_particle_single_pass(self):
-        self.assertIn("solveActiveMobilePackingPressureJacobiKernel", self.source)
-        self.assertNotIn("solveMobilePackingPressureFusedKernel", self.source)
-        self.assertNotIn("mobilePackingSingleBlockCellLimit", self.source)
-        self.assertIn("computeMobilePackingFaceCorrectionFluxKernel", self.source)
-        self.assertIn("reconstructMobilePackingVelocityCorrectionKernel", self.source)
-        self.assertIn("applyMobilePackingCorrectionToParticlesKernel", self.source)
-        self.assertIn("int applyMobilePackingProjection", self.source)
-        projection = self.source[
-            self.source.index("int applyMobilePackingProjection") :
-            self.source.index("__device__ double granularCollisionTauFromCellDevice")
-        ]
-        self.assertIn(
-            "for (int iter = 0; iter < s->packingProjectionIterations; ++iter)",
-            projection,
+        projection = braced_block_after(
+            self.source,
+            r"\bint\s+applyMobilePackingProjection\s*\(",
         )
-        self.assertRegex(
-            projection,
-            r"solveActiveMobilePackingPressureJacobiKernel\s*"
-            r"<<<activeGrid, block>>>",
+        cooperative = braced_block_after(
+            self.packing_cooperative,
+            r"\b__global__\s+void\s+"
+            r"completeMobilePackingProjectionCooperativeKernel\s*\(",
         )
-        self.assertNotIn("if (s->nCells <=", projection)
-        self.assertNotIn("trackParticlesLocalFaceWalkKernel", projection)
+        self.assertIn("cudaLaunchCooperativeKernel", projection)
         self.assertEqual(
-            projection.count("applyMobilePackingCorrectionToParticlesKernel"),
+            projection.count("completeMobilePackingProjectionCooperativeKernel"),
             1,
         )
-
+        self.assertIn(
+            "for (int iter = 0; iter < s.packingProjectionIterations; ++iter)",
+            cooperative,
+        )
+        self.assertIn(
+            "layer < s.packingProjectionIterations",
+            cooperative,
+        )
+        self.assertIn("packingCg::this_grid()", self.packing_cooperative)
+        self.assertIn("grid.sync()", cooperative)
+        self.assertEqual(
+            cooperative.count("applyMobilePackingCorrectionToParticleDevice"),
+            1,
+        )
+        self.assertNotIn("trackParticlesLocalFaceWalkKernel", projection)
     def test_projection_iteration_count_is_runtime_configurable(self):
         self.assertIn("gpuResidentPackingProjectionIterations", self.header)
         self.assertIn("label(20)", self.header)
@@ -174,64 +199,55 @@ class MobilePackingProjectionSourceContractTests(unittest.TestCase):
             self.source,
         )
 
-    def test_projection_builds_fixed_local_support_and_zero_seed_fast_path(self):
-        projection = self.source[
-            self.source.index("int applyMobilePackingProjection") :
-            self.source.index("__device__ double granularCollisionTauFromCellDevice")
-        ]
+    def test_projection_keeps_local_support_and_control_counts_on_device(self):
+        projection = braced_block_after(
+            self.source,
+            r"\bint\s+applyMobilePackingProjection\s*\(",
+        )
+        cooperative = braced_block_after(
+            self.packing_cooperative,
+            r"\b__global__\s+void\s+"
+            r"completeMobilePackingProjectionCooperativeKernel\s*\(",
+        )
         self.assertIn("seedMobilePackingActivity", self.source)
-        self.assertIn("expandMobilePackingActivityFrontierKernel", projection)
-        self.assertIn(
-            "layer < s->packingProjectionIterations",
-            projection,
+        self.assertIn("checkedMobilePackingCount", self.packing_cooperative)
+        self.assertIn("s.mobilePackingFrontierCurrentCount", cooperative)
+        self.assertIn("s.mobilePackingActiveCellCount", cooperative)
+        self.assertIn("s.mobilePackingCorrectionCellCount", cooperative)
+        zero_seed = braced_block_after(
+            cooperative,
+            r"\bif\s*\(\s*seedCount\s*==\s*0\s*\)",
         )
-        self.assertIn("if (seedCount == 0)", projection)
-        zero_seed = re.search(
-            r"if\s*\(\s*seedCount\s*==\s*0\s*\)\s*"
-            r"\{(?P<body>[^{}]*)\}",
-            projection,
-            re.DOTALL,
-        )
-        self.assertIsNotNone(zero_seed)
-        self.assertEqual(
-            re.sub(r"\s+", " ", zero_seed.group("body")).strip(),
-            "return 0;",
-        )
-        self.assertIn("pressureActiveCount", projection)
-        self.assertIn("correctionActiveCount", projection)
-        self.assertNotIn("activeFraction", projection)
-        self.assertNotIn("denseFallback", projection)
-
+        self.assertRegex(zero_seed, r"\A\s*return\s*;\s*\Z")
+        self.assertNotIn("copyToHost", projection)
+        self.assertNotIn("cudaMemcpyDeviceToHost", projection)
+        self.assertNotIn("activeFraction", cooperative)
+        self.assertNotIn("denseFallback", cooperative)
+        self.assertIn("cudaDevAttrCooperativeLaunch", self.source)
     def test_local_projection_has_one_correction_halo(self):
-        projection = self.source[
-            self.source.index("int applyMobilePackingProjection") :
-            self.source.index("__device__ double granularCollisionTauFromCellDevice")
-        ]
-        expansion = "expandMobilePackingActivityFrontierKernel"
-        self.assertEqual(projection.count(expansion), 2)
-
-        pressure_start = projection.index(
-            "for (int layer = 0; "
-            "layer < s->packingProjectionIterations; ++layer)"
+        cooperative = braced_block_after(
+            self.packing_cooperative,
+            r"\b__global__\s+void\s+"
+            r"completeMobilePackingProjectionCooperativeKernel\s*\(",
         )
-        pressure_end = projection.index(
-            "int pressureActiveCount = 0",
-            pressure_start,
+        expansion = "expandMobilePackingActivityFrontierDevice"
+        self.assertEqual(cooperative.count(expansion), 2)
+        pressure_loop = braced_block_after(
+            cooperative,
+            r"for\s*\(\s*int\s+layer\s*=\s*0\s*;\s*"
+            r"layer\s*<\s*s\.packingProjectionIterations\s*;\s*"
+            r"\+\+layer\s*\)",
         )
-        pressure_expansion = projection[pressure_start:pressure_end]
-        self.assertEqual(pressure_expansion.count(expansion), 1)
-
-        correction_start = projection.index(
-            "initialiseMobilePackingCorrectionRegionKernel",
-            pressure_end,
+        self.assertEqual(pressure_loop.count(expansion), 1)
+        correction_begin = cooperative.index(
+            "initialiseMobilePackingCorrectionRegionDevice"
         )
-        correction_end = projection.index(
-            "int correctionActiveCount = 0",
-            correction_start,
+        correction_end = cooperative.index(
+            "computeMobilePackingFaceCorrectionFluxDevice",
+            correction_begin,
         )
-        correction_expansion = projection[correction_start:correction_end]
-        self.assertEqual(correction_expansion.count(expansion), 1)
-        self.assertNotRegex(correction_expansion, r"\b(?:for|while)\s*\(")
+        correction_setup = cooperative[correction_begin:correction_end]
+        self.assertEqual(correction_setup.count(expansion), 1)
         for field in (
             "mobilePackingActiveCellList",
             "mobilePackingActiveCellCount",
@@ -240,12 +256,11 @@ class MobilePackingProjectionSourceContractTests(unittest.TestCase):
             "mobilePackingCorrectionCellMask",
         ):
             with self.subTest(field=field):
-                self.assertIn(field, correction_expansion)
-
+                self.assertIn(field, cooperative)
     def test_projection_uses_signed_slack_in_the_lcp_rhs(self):
         start = self.source.index("prepareMobilePackingProjectionKernel")
         end = self.source.index(
-            "solveActiveMobilePackingPressureJacobiKernel",
+            "__device__ bool mobilePackingParticleEligible",
             start,
         )
         body = self.source[start:end]
@@ -258,23 +273,28 @@ class MobilePackingProjectionSourceContractTests(unittest.TestCase):
             "clampMin(finiteOr(s.pressureDeltaEnergy[c], 0.0), 0.0)",
             body,
         )
-
     def test_pressure_maps_through_conservative_face_flux_not_cell_density(self):
-        self.assertNotIn("computeMobilePackingCorrectionKernel", self.source)
-        start = self.source.index("computeMobilePackingFaceCorrectionFluxKernel")
-        end = self.source.index("reconstructMobilePackingVelocityCorrectionKernel", start)
-        face_body = self.source[start:end]
+        body = self.packing_cooperative
+        self.assertNotIn("computeMobilePackingCorrectionKernel", body)
+        start = body.index("computeMobilePackingFaceCorrectionFluxDevice")
+        end = body.index(
+            "reconstructMobilePackingVelocityCorrectionDevice",
+            start,
+        )
+        face_body = body[start:end]
         self.assertIn("solidVolumeFlux", face_body)
         self.assertIn("faceMobileFraction", face_body)
         self.assertIn("velocityCorrectionFlux", face_body)
 
-        start = self.source.index("reconstructMobilePackingVelocityCorrectionKernel")
-        end = self.source.index("applyMobilePackingCorrectionToParticlesKernel", start)
-        reconstruction = self.source[start:end]
+        start = body.index("reconstructMobilePackingVelocityCorrectionDevice")
+        end = body.index(
+            "applyMobilePackingCorrectionToParticleDevice",
+            start,
+        )
+        reconstruction = body[start:end]
         self.assertIn("m00 += nx*s.Sfx[f];", reconstruction)
         self.assertIn("b0 += nx*velocityCorrectionFlux;", reconstruction)
         self.assertNotIn("-dt/(rho*", reconstruction)
-
     def test_particle_mapping_recovers_face_normal_flux(self):
         body = self.packing_algebra
         self.assertIn("closestPlane", body)

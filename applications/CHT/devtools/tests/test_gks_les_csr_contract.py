@@ -102,6 +102,10 @@ class SourceContracts(unittest.TestCase):
         main = read("diluteUgkwpFoam.C")
         header = read("gpu/GpuResidentStrict.H")
         cuda = read("gpu/GpuResidentStrict.cu")
+        packing = (
+            ROOT.parents[1] / "common" / "gasNumerics" /
+            "GpuPackingProjectionCooperative.cuh"
+        ).read_text(encoding="utf-8")
         thermal = read("thermal/GpuThermalExchangeState.C") + read(
             "thermal/GpuParticleWallContactHeat.H"
         )
@@ -123,13 +127,17 @@ class SourceContracts(unittest.TestCase):
         for token in (
             "accumulateMobilePackingMomentsKernel",
             "prepareMobilePackingProjectionKernel",
-            "solveActiveMobilePackingPressureJacobiKernel",
-            "computeMobilePackingFaceCorrectionFluxKernel",
-            "reconstructMobilePackingVelocityCorrectionKernel",
-            "applyMobilePackingCorrectionToParticlesKernel",
             "applyMobilePackingProjection(s, dt, block)",
         ):
             self.assertIn(token, cuda)
+        for token in (
+            "completeMobilePackingProjectionCooperativeKernel",
+            "solveActiveMobilePackingPressureJacobiDevice",
+            "computeMobilePackingFaceCorrectionFluxDevice",
+            "reconstructMobilePackingVelocityCorrectionDevice",
+            "applyMobilePackingCorrectionToParticleDevice",
+        ):
+            self.assertIn(token, packing)
         self.assertIn("gpuResidentPackingProjectionIterations", header)
         self.assertIn("thermalExchangeState", thermal)
 

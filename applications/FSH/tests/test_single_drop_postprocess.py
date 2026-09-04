@@ -12,7 +12,9 @@ MODULE_PATH = (
     ROOT
     / "examples"
     / "thermal"
-    / "results"
+    / "singleAluminaDrop"
+    / "assets"
+    / "postprocessing"
     / "single_alumina_drop_validation.py"
 )
 SPEC = importlib.util.spec_from_file_location("single_drop_post", MODULE_PATH)
