@@ -85,3 +85,31 @@ A fixed-cell-grid version was compiled during development but was not retained. 
 - No case or long GPU test is launched because the available RTX 4060 is occupied by an unrelated production process.
 - No production-server process is touched.
 - ToolB3 interval diagnostics, configured Courant updates, CHT/radiation coupling, and write-time persistence remain intentional bounded host interactions; this item removes the leftover per-step mobile-packing control synchronization.
+
+## 2026-09-04: opt-in CHT wall-contact failure diagnosis
+
+### Trigger and diagnosis plan
+
+- The server dense/L2 case repeatedly passes the first checkpoint after restart and then fails before the next checkpoint. The development sparse/L0 case on the RTX 4060 does not fail.
+- `CUDA_LAUNCH_BLOCKING=1` located the first reported CUDA failure in `accumulateParticleWallRepresentedContactAreaKernel`; the later mobile-packing seed-count error was only the next synchronization point.
+- The local machine does not contain the server dense checkpoint and therefore cannot reproduce that state quickly. The selected route is an externally enabled diagnostic kernel that records every state value needed to distinguish all deliberate traps in the production contact-area kernel.
+- The production kernel, its launch, its arithmetic, and all physical models remain unchanged when diagnostics are disabled.
+
+### Completed implementation
+
+- `UGKP_WALL_CONTACT_DIAGNOSTICS=1` selects a dedicated CHT diagnostic contact-area kernel; absence of the variable preserves the original production kernel.
+- The diagnostic path records only the first failure and reports: failure code, directory entry/count, particle array index and original ID, active/stuck state, face and candidate type, deposition area, duration, maximum area, peak fraction, contact age, frozen/kinematic/physical/represented areas, diameter, parcel mass, solid density, and particle temperature.
+- Failure codes cover invalid directory particles, invalid/noncandidate faces, nonpositive deposited area, invalid transient metadata, unknown wall state, and invalid represented area.
+- The diagnostic path replaces traps with a device error record and performs one diagnostic D2H read per contact-area pass. This overhead exists only while the external switch is enabled.
+- Default production execution performs no diagnostic allocation, no diagnostic D2H copy, and no diagnostic per-particle checks.
+- The change is confined to CHT because the observed failure is in the CHT-only wall-contact area scaling path used by the server case.
+
+### Verification
+
+- The project CHT direct-link build completed successfully with CUDA `sm_89`.
+- `git diff --check` passes.
+- No case was launched and no production process was touched.
+
+### Rollback
+
+- The diagnostic change is isolated to `applications/CHT/gpu/GpuResidentStrict.cu` and this log entry. It can be reverted as one commit after the server failure record is collected, or retained disabled with the production path unchanged.

@@ -86,6 +86,33 @@ struct ParticleRadiationValidationError
     double proposedTemperatureK = 0.0;
 };
 
+struct WallContactAreaDiagnosticError
+{
+    int code = 0;
+    int directoryEntry = -1;
+    int directoryCount = 0;
+    int particleArrayIndex = -1;
+    int particleStatus = -1;
+    int wallState = -1;
+    int faceId = -1;
+    int faceCount = 0;
+    int candidateType = -1;
+    unsigned long long particleOriginalId = 0;
+    double depositionArea = 0.0;
+    double contactDuration = 0.0;
+    double contactMaximumArea = 0.0;
+    double contactPeakFraction = 0.0;
+    double contactAge = 0.0;
+    double frozenArea = 0.0;
+    double kinematicArea = 0.0;
+    double physicalContactArea = 0.0;
+    double representedArea = 0.0;
+    double diameter = 0.0;
+    double parcelMass = 0.0;
+    double solidDensity = 0.0;
+    double temperature = 0.0;
+};
+
 struct DeviceState
 {
     DeviceState* deviceState = nullptr;
@@ -468,6 +495,8 @@ struct DeviceState
     Foam::gpuThermal::RadiationAffineTemperatureUpdate*
         particleRadiationAffineUpdate = nullptr;
     ParticleRadiationValidationError* particleRadiationValidationError = nullptr;
+    int wallContactAreaDiagnosticsEnabled = 0;
+    WallContactAreaDiagnosticError* wallContactAreaDiagnosticError = nullptr;
     int* wallBoundParticleIndex = nullptr;
     int* wallBoundParticleCountDevice = nullptr;
     int* sortedParticleIndex = nullptr;
@@ -1130,6 +1159,7 @@ void releaseState(DeviceState* s)
     release(s->pOrigId);
     release(s->particleRadiationAffineUpdate);
     release(s->particleRadiationValidationError);
+    release(s->wallContactAreaDiagnosticError);
     release(s->wallBoundParticleIndex);
     release(s->wallBoundParticleCountDevice);
     release(s->sortedParticleIndex);
@@ -7891,6 +7921,227 @@ __global__ void accumulateParticleWallRepresentedContactAreaKernel
     }
 }
 
+__device__ void recordWallContactAreaDiagnosticError
+(
+    WallContactAreaDiagnosticError* error,
+    const int code,
+    DeviceState& s,
+    const int directoryEntry,
+    const int directoryCount,
+    const int particleI,
+    const int faceI,
+    const int candidateType,
+    const double depositionArea,
+    const double duration,
+    const double maximumArea,
+    const double peakTimeFraction,
+    const double age,
+    const double frozenArea,
+    const double kinematicArea,
+    const double physicalContactArea,
+    const double representedArea
+)
+{
+    if (atomicCAS(&error->code, 0, code) != 0)
+    {
+        return;
+    }
+    error->directoryEntry = directoryEntry;
+    error->directoryCount = directoryCount;
+    error->particleArrayIndex = particleI;
+    error->faceId = faceI;
+    error->faceCount = s.nFaces;
+    error->candidateType = candidateType;
+    error->depositionArea = depositionArea;
+    error->contactDuration = duration;
+    error->contactMaximumArea = maximumArea;
+    error->contactPeakFraction = peakTimeFraction;
+    error->contactAge = age;
+    error->frozenArea = frozenArea;
+    error->kinematicArea = kinematicArea;
+    error->physicalContactArea = physicalContactArea;
+    error->representedArea = representedArea;
+    error->solidDensity = s.rhoSolid;
+    if (particleI >= 0 && particleI < s.particleCapacity)
+    {
+        error->particleStatus = s.pStatus[particleI];
+        error->wallState = static_cast<int>(s.pStuck[particleI]);
+        error->particleOriginalId = s.pOrigId[particleI];
+        error->diameter = s.pd[particleI];
+        error->parcelMass = s.pm[particleI];
+        error->temperature = s.pT[particleI];
+    }
+}
+
+__global__ void diagnoseParticleWallRepresentedContactAreaKernel
+(
+    DeviceState* sp,
+    WallContactAreaDiagnosticError* error
+)
+{
+    DeviceState& s = *sp;
+    const int nWallBound = Foam::gpuWall::wallBoundDirectoryCount(s);
+    for
+    (
+        int entry = blockIdx.x*blockDim.x + threadIdx.x;
+        entry < nWallBound;
+        entry += blockDim.x*gridDim.x
+    )
+    {
+        const int i = Foam::gpuWall::wallBoundDirectoryParticle(s, entry);
+        if (i < 0 || i >= s.particleCapacity)
+        {
+            recordWallContactAreaDiagnosticError
+            (
+                error, 1, s, entry, nWallBound, i, -1, -1,
+                0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0
+            );
+            continue;
+        }
+        if
+        (
+            s.pStatus[i] == 0
+         || s.pStuck[i] == Foam::gpuThermal::particleWallMobile
+        )
+        {
+            continue;
+        }
+        const unsigned char wallState = s.pStuck[i];
+        const int faceI = s.pStuckFaceId[i];
+        const int candidateType =
+            faceI >= 0 && faceI < s.nFaces
+          ? static_cast<int>(s.particleStuckCandidateMask[faceI])
+          : -1;
+        if
+        (
+            faceI < 0
+         || faceI >= s.nFaces
+         || candidateType == 0
+        )
+        {
+            recordWallContactAreaDiagnosticError
+            (
+                error, 2, s, entry, nWallBound, i, faceI, candidateType,
+                static_cast<double>(s.pDepositionArea[i]),
+                static_cast<double>(s.pContactDuration[i]),
+                static_cast<double>(s.pContactMaximumArea[i]),
+                static_cast<double>(s.pContactPeakFraction[i]),
+                s.pTheta[i], 0.0, 0.0, 0.0, 0.0
+            );
+            continue;
+        }
+
+        double physicalContactArea = 0.0;
+        double duration = 0.0;
+        double maximumArea = 0.0;
+        double peakTimeFraction = 0.0;
+        double age = 0.0;
+        double frozenArea = 0.0;
+        double kinematicArea = 0.0;
+        const double depositionArea =
+            static_cast<double>(s.pDepositionArea[i]);
+        if (wallState == Foam::gpuThermal::particleWallDeposited)
+        {
+            physicalContactArea = depositionArea;
+            if (!(physicalContactArea > 0.0))
+            {
+                recordWallContactAreaDiagnosticError
+                (
+                    error, 3, s, entry, nWallBound, i, faceI, candidateType,
+                    depositionArea, 0.0, 0.0, 0.0, s.pTheta[i],
+                    0.0, 0.0, physicalContactArea, 0.0
+                );
+                continue;
+            }
+        }
+        else if
+        (
+            wallState == Foam::gpuThermal::particleWallTransientRebound
+         || wallState == Foam::gpuThermal::particleWallTransientDeposit
+        )
+        {
+            duration = static_cast<double>(s.pContactDuration[i]);
+            maximumArea = static_cast<double>(s.pContactMaximumArea[i]);
+            peakTimeFraction = static_cast<double>(s.pContactPeakFraction[i]);
+            age = clampRange(finiteOr(s.pTheta[i], 0.0), 0.0, duration);
+            if
+            (
+                !(duration > 0.0) || !(maximumArea > 0.0)
+             || !(peakTimeFraction > 0.0) || !(peakTimeFraction < 1.0)
+             || depositionArea < 0.0
+            )
+            {
+                recordWallContactAreaDiagnosticError
+                (
+                    error, 4, s, entry, nWallBound, i, faceI, candidateType,
+                    depositionArea, duration, maximumArea, peakTimeFraction,
+                    age, 0.0, 0.0, 0.0, 0.0
+                );
+                continue;
+            }
+            kinematicArea =
+                maximumArea*Foam::gpuThermal::normalizedKinematicArea
+                (
+                    age/duration, peakTimeFraction
+                );
+            frozenArea =
+                candidateType
+             == Foam::gpuThermal::particleWallSolidifyingDeposition
+              ? static_cast<double>(s.pColdFrozenArea[i])
+              : candidateType == Foam::gpuThermal::particleWallColdWall2D
+              ? static_cast<double>(s.pCold2DFrozenArea[i])
+              : 0.0;
+            physicalContactArea = clampMin
+            (
+                fmax(kinematicArea, frozenArea) - depositionArea,
+                0.0
+            );
+            if (!(physicalContactArea > 0.0))
+            {
+                continue;
+            }
+        }
+        else
+        {
+            recordWallContactAreaDiagnosticError
+            (
+                error, 5, s, entry, nWallBound, i, faceI, candidateType,
+                depositionArea,
+                static_cast<double>(s.pContactDuration[i]),
+                static_cast<double>(s.pContactMaximumArea[i]),
+                static_cast<double>(s.pContactPeakFraction[i]),
+                s.pTheta[i], 0.0, 0.0, 0.0, 0.0
+            );
+            continue;
+        }
+
+        const double representedArea =
+            Foam::gpuThermal::representedDepositionContactArea
+            (
+                s.rhoSolid,
+                s.pd[i],
+                physicalContactArea,
+                s.pm[i]
+            );
+        if (!(representedArea > 0.0))
+        {
+            recordWallContactAreaDiagnosticError
+            (
+                error, 6, s, entry, nWallBound, i, faceI, candidateType,
+                depositionArea, duration, maximumArea, peakTimeFraction,
+                age, frozenArea, kinematicArea, physicalContactArea,
+                representedArea
+            );
+            continue;
+        }
+        atomicAdd
+        (
+            &s.particleWallRepresentedContactArea[faceI],
+            representedArea
+        );
+    }
+}
+
 __global__ void rebuildWallBoundParticleDirectoryKernel(DeviceState* sp)
 {
     DeviceState& s = *sp;
@@ -8680,17 +8931,116 @@ int prepareParticleWallContactAreaScale(DeviceState* s, const int block)
         return 1;
     }
 
-    accumulateParticleWallRepresentedContactAreaKernel
-        <<<s->particleWorkGrid, block>>>(s->deviceState);
-    err = cudaGetLastError();
-    if (err != cudaSuccess)
+    if (s->wallContactAreaDiagnosticsEnabled != 0)
     {
-        setLastError
+        if
         (
-            "accumulateParticleWallRepresentedContactAreaKernel launch",
-            err
+            s->wallContactAreaDiagnosticError == nullptr
+         && allocate
+            (
+                s->wallContactAreaDiagnosticError,
+                1,
+                "cudaMalloc wall-contact area diagnostic error"
+            ) != 0
+        )
+        {
+            return 1;
+        }
+        err = cudaMemset
+        (
+            s->wallContactAreaDiagnosticError,
+            0,
+            sizeof(WallContactAreaDiagnosticError)
         );
-        return 1;
+        if (err != cudaSuccess)
+        {
+            setLastError("cudaMemset wall-contact area diagnostic error", err);
+            return 1;
+        }
+        diagnoseParticleWallRepresentedContactAreaKernel
+            <<<s->particleWorkGrid, block>>>
+            (
+                s->deviceState,
+                s->wallContactAreaDiagnosticError
+            );
+        err = cudaGetLastError();
+        if (err != cudaSuccess)
+        {
+            setLastError
+            (
+                "diagnoseParticleWallRepresentedContactAreaKernel launch",
+                err
+            );
+            return 1;
+        }
+        WallContactAreaDiagnosticError hostError;
+        if
+        (
+            copyToHost
+            (
+                &hostError,
+                s->wallContactAreaDiagnosticError,
+                1,
+                "cudaMemcpy wall-contact area diagnostic error"
+            ) != 0
+        )
+        {
+            return 1;
+        }
+        if (hostError.code != 0)
+        {
+            std::snprintf
+            (
+                lastError,
+                sizeof(lastError),
+                "wall-contact area diagnostic failed: code=%d, entry=%d/%d, "
+                "particle=%d, originalId=%llu, status=%d, wallState=%d, "
+                "face=%d/%d, candidateType=%d, depositionArea=%.17g, "
+                "duration=%.17g, maximumArea=%.17g, peakFraction=%.17g, "
+                "age=%.17g, frozenArea=%.17g, kinematicArea=%.17g, "
+                "physicalArea=%.17g, representedArea=%.17g, diameter=%.17g, "
+                "parcelMass=%.17g, solidDensity=%.17g, temperature=%.17g",
+                hostError.code,
+                hostError.directoryEntry,
+                hostError.directoryCount,
+                hostError.particleArrayIndex,
+                static_cast<unsigned long long>(hostError.particleOriginalId),
+                hostError.particleStatus,
+                hostError.wallState,
+                hostError.faceId,
+                hostError.faceCount,
+                hostError.candidateType,
+                hostError.depositionArea,
+                hostError.contactDuration,
+                hostError.contactMaximumArea,
+                hostError.contactPeakFraction,
+                hostError.contactAge,
+                hostError.frozenArea,
+                hostError.kinematicArea,
+                hostError.physicalContactArea,
+                hostError.representedArea,
+                hostError.diameter,
+                hostError.parcelMass,
+                hostError.solidDensity,
+                hostError.temperature
+            );
+            return 1;
+        }
+    }
+    else
+    {
+        accumulateParticleWallRepresentedContactAreaKernel
+            <<<s->particleWorkGrid, block>>>(s->deviceState);
+        err = cudaGetLastError();
+        if (err != cudaSuccess)
+        {
+            setLastError
+            (
+                "accumulateParticleWallRepresentedContactAreaKernel launch",
+                err
+            );
+            return 1;
+        }
     }
 
     const int faceGrid = (s->nFaces + block - 1)/block;
@@ -14318,6 +14668,22 @@ extern "C" int ugkwpGpuResidentStrictCreate
     s->jammingPressureEnabled = jammingPressureEnabled != 0 ? 1 : 0;
     s->packingFraction = packingFraction;
     s->packingProjectionIterations = packingProjectionIterations;
+    const char* const wallContactDiagnostics =
+        std::getenv("UGKP_WALL_CONTACT_DIAGNOSTICS");
+    s->wallContactAreaDiagnosticsEnabled =
+        wallContactDiagnostics != nullptr
+     && wallContactDiagnostics[0] == '1'
+     && wallContactDiagnostics[1] == '\0'
+      ? 1 : 0;
+    if (s->wallContactAreaDiagnosticsEnabled != 0)
+    {
+        std::fprintf
+        (
+            stderr,
+            "CHT wall-contact diagnostics enabled; production contact-area "
+            "kernel replaced by fail-fast diagnostic kernel.\n"
+        );
+    }
 
     if (allocateFields(s) != 0)
     {
