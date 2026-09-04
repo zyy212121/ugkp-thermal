@@ -12380,78 +12380,68 @@ int configureLaunchOccupancy(DeviceState* s)
     return syncDeviceState(s, "sync occupancy-derived launch geometry");
 }
 
+__global__ void updateDynamicHeavyPolicyKernel
+(
+    DeviceState* sp,
+    const int splitPreDirectoryActive
+)
+{
+    if (blockIdx.x != 0 || threadIdx.x != 0)
+    {
+        return;
+    }
+
+    DeviceState& s = *sp;
+    long long population = s.cellParticleOffset[s.nCells];
+    if (splitPreDirectoryActive != 0)
+    {
+        population += *s.preBaseParticleCountDevice;
+    }
+    const long long concurrency =
+        static_cast<long long>(s.reductionBlockThreads)
+       *static_cast<long long>(s.multiprocessorCount)
+       *static_cast<long long>(s.lightResidentBlocksPerSm);
+    if (population < 0 || population > s.particleCapacity || concurrency <= 0)
+    {
+        asm("trap;");
+    }
+    const long long total = population > 0 ? population : 1;
+    long long shares = (total + concurrency - 1)/concurrency;
+    shares = shares > 0 ? shares : 1;
+    const long long threshold =
+        static_cast<long long>(s.reductionBlockThreads)*shares;
+    if (threshold <= 0 || threshold > 2147483647LL)
+    {
+        asm("trap;");
+    }
+    s.dynamicHeavyThreshold = static_cast<int>(threshold);
+    s.csrHeavyTileParticles = static_cast<int>(threshold);
+}
+
 int updateDynamicHeavyPolicy(DeviceState* s)
 {
     if (s->csrHeavyReductionMode == 0)
     {
         return 0;
     }
-    int population = 0;
-    cudaError_t err = cudaMemcpy
+    updateDynamicHeavyPolicyKernel<<<1, 1>>>
     (
-        &population,
-        s->cellParticleOffset + s->nCells,
-        sizeof(int),
-        cudaMemcpyDeviceToHost
+        s->deviceState,
+        s->splitPreDirectoryActive
     );
+    const cudaError_t err = cudaGetLastError();
     if (err != cudaSuccess)
     {
-        setLastError("download directory population for dynamic heavy policy", err);
+        setLastError("update dynamic heavy policy launch", err);
         return 1;
     }
-    if (s->splitPreDirectoryActive != 0)
-    {
-        int basePopulation = 0;
-        err = cudaMemcpy
-        (
-            &basePopulation,
-            s->preBaseParticleCountDevice,
-            sizeof(int),
-            cudaMemcpyDeviceToHost
-        );
-        if (err != cudaSuccess)
-        {
-            setLastError("download split-Dpre base population", err);
-            return 1;
-        }
-        if
-        (
-            basePopulation < 0
-         || population < 0
-         || basePopulation > s->particleCapacity - population
-        )
-        {
-            setLastErrorText("invalid combined split-Dpre population");
-            return 1;
-        }
-        population += basePopulation;
-    }
-    const unsigned long long concurrency =
-        static_cast<unsigned long long>(s->reductionBlockThreads)
-       *static_cast<unsigned long long>(s->multiprocessorCount)
-       *static_cast<unsigned long long>(s->lightResidentBlocksPerSm);
-    const unsigned long long total = static_cast<unsigned long long>
-    (
-        population > 0 ? population : 1
-    );
-    const unsigned long long shares =
-        concurrency > 0u ? (total + concurrency - 1u)/concurrency : 1u;
-    const unsigned long long threshold =
-        static_cast<unsigned long long>(s->reductionBlockThreads)
-       *(shares > 0u ? shares : 1u);
-    if (threshold > static_cast<unsigned long long>(2147483647))
-    {
-        setLastErrorText("dynamic heavy threshold exceeds 32-bit indexing");
-        return 1;
-    }
-    s->dynamicHeavyThreshold = static_cast<int>(threshold);
-    s->csrHeavyTileParticles = s->dynamicHeavyThreshold;
-    return syncDeviceState(s, "sync per-directory dynamic heavy policy");
+    return 0;
 }
 
 __global__ void maximumDirectoryOccupancyKernel
 (
     DeviceState* sp,
+    const int splitPreDirectoryActive,
     int* maximumOccupancy
 )
 {
@@ -12460,11 +12450,24 @@ __global__ void maximumDirectoryOccupancyKernel
     for (int c = blockIdx.x*blockDim.x + threadIdx.x; c < s.nCells; c += stride)
     {
         int count = s.cellParticleOffset[c + 1] - s.cellParticleOffset[c];
-        if (s.splitPreDirectoryActive != 0)
+        if (splitPreDirectoryActive != 0)
         {
             count += s.preBaseCellOffset[c + 1] - s.preBaseCellOffset[c];
         }
         atomicMax(maximumOccupancy, count);
+    }
+}
+
+__global__ void publishHeavyReductionDecisionKernel
+(
+    DeviceState* sp,
+    const int active
+)
+{
+    if (blockIdx.x == 0 && threadIdx.x == 0)
+    {
+        sp->csrHeavyReductionActive = active;
+        sp->csrHeavyReductionEnabled = active;
     }
 }
 
@@ -12498,10 +12501,12 @@ int runToolB3(DeviceState* s, const int block)
     maximumDirectoryOccupancyKernel<<<grid, block>>>
     (
         s->deviceState,
+        s->splitPreDirectoryActive,
         s->csrHeavyCellCount
     );
     err = cudaGetLastError();
     int maximumOccupancy = 0;
+    int threshold = 0;
     if (err == cudaSuccess)
     {
         err = cudaMemcpy
@@ -12512,15 +12517,35 @@ int runToolB3(DeviceState* s, const int block)
             cudaMemcpyDeviceToHost
         );
     }
+    if (err == cudaSuccess)
+    {
+        err = cudaMemcpy
+        (
+            &threshold,
+            reinterpret_cast<const unsigned char*>(s->deviceState)
+              + offsetof(DeviceState, dynamicHeavyThreshold),
+            sizeof(int),
+            cudaMemcpyDeviceToHost
+        );
+    }
     if (err != cudaSuccess)
     {
         setLastError("ToolB3 maximum occupancy", err);
         return 1;
     }
-    const int active = maximumOccupancy > s->dynamicHeavyThreshold ? 1 : 0;
+    const int active = maximumOccupancy > threshold ? 1 : 0;
+    s->dynamicHeavyThreshold = threshold;
+    s->csrHeavyTileParticles = threshold;
     s->csrHeavyReductionActive = active;
     s->csrHeavyReductionEnabled = active;
-    return syncDeviceState(s, "ToolB3 publish automatic L2 decision");
+    publishHeavyReductionDecisionKernel<<<1, 1>>>(s->deviceState, active);
+    err = cudaGetLastError();
+    if (err != cudaSuccess)
+    {
+        setLastError("ToolB3 publish automatic L2 decision launch", err);
+        return 1;
+    }
+    return 0;
 }
 
 int binParticlesByCell(DeviceState* s, const int block)
@@ -12605,18 +12630,10 @@ int buildSplitPreDirectory(DeviceState* s, const int block)
     )
     {
         s->splitPreDirectoryActive = 0;
-        if (syncDeviceState(s, "disable unavailable split-Dpre") != 0)
-        {
-            return 1;
-        }
         return binParticlesByCell(s, block);
     }
 
     s->splitPreDirectoryActive = 1;
-    if (syncDeviceState(s, "enable compaction-seeded split-Dpre") != 0)
-    {
-        return 1;
-    }
 
     const int cellGrid = (s->nCells + 1 + block - 1)/block;
     clearSplitPreInjectionBinsKernel<<<cellGrid, block>>>(s->deviceState);
@@ -12706,10 +12723,6 @@ int buildSplitPreDirectory(DeviceState* s, const int block)
 int buildPostTransportDirectory(DeviceState* s, const int block)
 {
     s->splitPreDirectoryActive = 0;
-    if (syncDeviceState(s, "close split-Dpre before full Dpost build") != 0)
-    {
-        return 1;
-    }
     return binParticlesByCell(s, block);
 }
 
@@ -16221,10 +16234,6 @@ extern "C" int ugkwpGpuResidentStrictAdvance
     }
     swapParticleBufferPointersHost(s);
     s->splitPreDirectoryActive = 0;
-    if (syncDeviceState(s, "publish post-compaction particle state") != 0)
-    {
-        return 1;
-    }
     UGKP_DEV_PROBE_LEAVE(ProbeCompaction);
     }
     else

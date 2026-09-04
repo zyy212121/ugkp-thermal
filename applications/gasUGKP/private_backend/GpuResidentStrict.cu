@@ -10988,6 +10988,19 @@ __global__ void maximumDirectoryOccupancyKernel
     }
 }
 
+__global__ void publishHeavyReductionDecisionKernel
+(
+    DeviceState* sp,
+    const int active
+)
+{
+    if (blockIdx.x == 0 && threadIdx.x == 0)
+    {
+        sp->csrHeavyReductionActive = active;
+        sp->csrHeavyReductionEnabled = active;
+    }
+}
+
 int runToolB3
 (
     DeviceState* s,
@@ -11056,9 +11069,18 @@ int runToolB3
         return 1;
     }
     const int active = maximumOccupancy > threshold ? 1 : 0;
+    s->csrHeavyCellThreshold = threshold;
+    s->csrHeavyTileParticles = threshold;
     s->csrHeavyReductionActive = active;
     s->csrHeavyReductionEnabled = active;
-    return syncDeviceState(s, "ToolB3 publish automatic L2 decision");
+    publishHeavyReductionDecisionKernel<<<1, 1>>>(s->deviceState, active);
+    err = cudaGetLastError();
+    if (err != cudaSuccess)
+    {
+        setLastError("ToolB3 publish automatic L2 decision launch", err);
+        return 1;
+    }
+    return 0;
 }
 
 __global__ void countCsrReductionTasksKernel
