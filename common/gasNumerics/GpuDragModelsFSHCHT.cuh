@@ -1,3 +1,4 @@
+#include "GpuPrecisionTypes.H"
 #ifndef UGKWP_GPU_DRAG_MODELS_CUH
 #define UGKWP_GPU_DRAG_MODELS_CUH
 
@@ -8,17 +9,17 @@ namespace ugkwpGpuDrag
 
 struct DragInput
 {
-    double gasDensity;
-    double gasVolumeFraction;
-    double gasViscosity;
-    double solidDensity;
-    double diameter;
-    double relativeSpeed;
+    GpuReal gasDensity;
+    GpuReal gasVolumeFraction;
+    GpuReal gasViscosity;
+    GpuReal solidDensity;
+    GpuReal diameter;
+    GpuReal relativeSpeed;
 };
 
 struct SchillerNaumannDrag
 {
-    __device__ static double inverseRelaxationTime(const DragInput& in)
+    __device__ static GpuReal inverseRelaxationTime(const DragInput& in)
     {
         return
             ugkwpGpuDragAlgebra::fshChtSchillerNaumannInverseRelaxationTime
@@ -34,9 +35,9 @@ struct SchillerNaumannDrag
 
 struct GidaspowErgunWenYuDrag
 {
-    double residualRe;
+    GpuReal residualRe;
 
-    __device__ double inverseRelaxationTime(const DragInput& in) const
+    __device__ GpuReal inverseRelaxationTime(const DragInput& in) const
     {
         return
             ugkwpGpuDragAlgebra::fshChtGidaspowInverseRelaxationTime

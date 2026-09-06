@@ -1,3 +1,4 @@
+#include "GpuPrecisionTypes.H"
 #ifndef UGKWP_GPU_DRAG_ALGEBRA_CUH
 #define UGKWP_GPU_DRAG_ALGEBRA_CUH
 
@@ -12,69 +13,69 @@
 namespace ugkwpGpuDragAlgebra
 {
 
-UGKWP_DRAG_HD double gasUgkpReynolds
+UGKWP_DRAG_HD GpuReal gasUgkpReynolds
 (
-    const double gasDensity,
-    const double diameter,
-    const double relativeSpeed,
-    const double gasViscosity
+    const GpuReal gasDensity,
+    const GpuReal diameter,
+    const GpuReal relativeSpeed,
+    const GpuReal gasViscosity
 )
 {
     return
         gasDensity*diameter*relativeSpeed
-       /fmax(gasViscosity, 1.0e-30);
+       /fmax(gasViscosity, GPU_R(1.0e-30));
 }
 
-UGKWP_DRAG_HD double gasUgkpSchillerNaumannCoefficient
+UGKWP_DRAG_HD GpuReal gasUgkpSchillerNaumannCoefficient
 (
-    const double reynolds
+    const GpuReal reynolds
 )
 {
-    const double reSafe = fmax(reynolds, 1.0e-12);
-    if (reSafe < 1000.0)
+    const GpuReal reSafe = fmax(reynolds, GPU_R(1.0e-12));
+    if (reSafe < GPU_R(1000.0))
     {
-        return 24.0/reSafe*(1.0 + 0.15*pow(reSafe, 0.687));
+        return GPU_R(24.0)/reSafe*(GPU_R(1.0) + GPU_R(0.15)*pow(reSafe, GPU_R(0.687)));
     }
-    return 0.44;
+    return GPU_R(0.44);
 }
 
-UGKWP_DRAG_HD double gasUgkpSchillerNaumannInverseResponseTime
+UGKWP_DRAG_HD GpuReal gasUgkpSchillerNaumannInverseResponseTime
 (
-    const double gasDensity,
-    const double gasViscosity,
-    const double solidDensity,
-    const double diameter,
-    const double relativeSpeed,
-    const double denominatorRegularization
+    const GpuReal gasDensity,
+    const GpuReal gasViscosity,
+    const GpuReal solidDensity,
+    const GpuReal diameter,
+    const GpuReal relativeSpeed,
+    const GpuReal denominatorRegularization
 )
 {
-    const double reynolds = gasUgkpReynolds
+    const GpuReal reynolds = gasUgkpReynolds
     (
         gasDensity,
         diameter,
         relativeSpeed,
         gasViscosity
     );
-    const double coefficient =
+    const GpuReal coefficient =
         gasUgkpSchillerNaumannCoefficient(reynolds);
     return
-        0.75*coefficient*gasDensity*relativeSpeed
+        GPU_R(0.75)*coefficient*gasDensity*relativeSpeed
        /(solidDensity*diameter + denominatorRegularization);
 }
 
-UGKWP_DRAG_HD double gasUgkpGidaspowCdRe
+UGKWP_DRAG_HD GpuReal gasUgkpGidaspowCdRe
 (
-    const double gasDensity,
-    const double gasViscosity,
-    const double gasVolumeFraction,
-    const double diameter,
-    const double relativeSpeed,
-    const double residualRe
+    const GpuReal gasDensity,
+    const GpuReal gasViscosity,
+    const GpuReal gasVolumeFraction,
+    const GpuReal diameter,
+    const GpuReal relativeSpeed,
+    const GpuReal residualRe
 )
 {
-    const double alphaGas =
-        fmin(fmax(gasVolumeFraction, 1.0e-12), 1.0);
-    const double reynolds = fmax
+    const GpuReal alphaGas =
+        fmin(fmax(gasVolumeFraction, GPU_R(1.0e-12)), GPU_R(1.0));
+    const GpuReal reynolds = fmax
     (
         gasUgkpReynolds
         (
@@ -83,39 +84,39 @@ UGKWP_DRAG_HD double gasUgkpGidaspowCdRe
             relativeSpeed,
             gasViscosity
         ),
-        0.0
+        GPU_R(0.0)
     );
-    if (alphaGas >= 0.8)
+    if (alphaGas >= GPU_R(0.8))
     {
-        const double dispersedReynolds = alphaGas*reynolds;
-        const double cdsReynolds = dispersedReynolds < 1000.0
-          ? 24.0*(1.0 + 0.15*pow(dispersedReynolds, 0.687))
-          : 0.44*fmax(dispersedReynolds, residualRe);
-        return cdsReynolds*pow(alphaGas, -2.65);
+        const GpuReal dispersedReynolds = alphaGas*reynolds;
+        const GpuReal cdsReynolds = dispersedReynolds < GPU_R(1000.0)
+          ? GPU_R(24.0)*(GPU_R(1.0) + GPU_R(0.15)*pow(dispersedReynolds, GPU_R(0.687)))
+          : GPU_R(0.44)*fmax(dispersedReynolds, residualRe);
+        return cdsReynolds*pow(alphaGas, -GPU_R(2.65));
     }
     return
-        (4.0/3.0)
+        (GPU_R(4.0)/GPU_R(3.0))
        *(
-            150.0*(1.0 - alphaGas)/alphaGas
-          + 1.75*reynolds
+            GPU_R(150.0)*(GPU_R(1.0) - alphaGas)/alphaGas
+          + GPU_R(1.75)*reynolds
         );
 }
 
-UGKWP_DRAG_HD double gasUgkpGidaspowInverseResponseTime
+UGKWP_DRAG_HD GpuReal gasUgkpGidaspowInverseResponseTime
 (
-    const double gasDensity,
-    const double gasViscosity,
-    const double gasVolumeFraction,
-    const double solidDensity,
-    const double diameterInput,
-    const double relativeSpeed,
-    const double denominatorRegularization,
-    const double residualRe
+    const GpuReal gasDensity,
+    const GpuReal gasViscosity,
+    const GpuReal gasVolumeFraction,
+    const GpuReal solidDensity,
+    const GpuReal diameterInput,
+    const GpuReal relativeSpeed,
+    const GpuReal denominatorRegularization,
+    const GpuReal residualRe
 )
 {
-    const double diameter = fmax(diameterInput, 1.0e-30);
+    const GpuReal diameter = fmax(diameterInput, GPU_R(1.0e-30));
     return
-        0.75
+        GPU_R(0.75)
        *gasUgkpGidaspowCdRe
         (
             gasDensity,
@@ -125,69 +126,69 @@ UGKWP_DRAG_HD double gasUgkpGidaspowInverseResponseTime
             relativeSpeed,
             residualRe
         )
-       *fmax(gasViscosity, 1.0e-30)
+       *fmax(gasViscosity, GPU_R(1.0e-30))
        /(solidDensity*diameter*diameter + denominatorRegularization);
 }
 
-UGKWP_DRAG_HD double fshChtSchillerNaumannInverseRelaxationTime
+UGKWP_DRAG_HD GpuReal fshChtSchillerNaumannInverseRelaxationTime
 (
-    const double gasDensityInput,
-    const double gasViscosity,
-    const double solidDensityInput,
-    const double diameterInput,
-    const double relativeSpeedInput
+    const GpuReal gasDensityInput,
+    const GpuReal gasViscosity,
+    const GpuReal solidDensityInput,
+    const GpuReal diameterInput,
+    const GpuReal relativeSpeedInput
 )
 {
-    const double mu = fmax(gasViscosity, 1.0e-30);
-    const double re =
-        fmax(gasDensityInput, 0.0)*fmax(diameterInput, 1.0e-30)
-       *fmax(relativeSpeedInput, 0.0)/mu;
-    if (re <= 1.0e-30 || relativeSpeedInput <= 1.0e-30)
+    const GpuReal mu = fmax(gasViscosity, GPU_R(1.0e-30));
+    const GpuReal re =
+        fmax(gasDensityInput, GPU_R(0.0))*fmax(diameterInput, GPU_R(1.0e-30))
+       *fmax(relativeSpeedInput, GPU_R(0.0))/mu;
+    if (re <= GPU_R(1.0e-30) || relativeSpeedInput <= GPU_R(1.0e-30))
     {
-        return 0.0;
+        return GPU_R(0.0);
     }
-    const double coefficient =
-        re < 1000.0
-      ? 24.0*(1.0 + 0.15*pow(re, 0.687))/re
-      : 0.44;
+    const GpuReal coefficient =
+        re < GPU_R(1000.0)
+      ? GPU_R(24.0)*(GPU_R(1.0) + GPU_R(0.15)*pow(re, GPU_R(0.687)))/re
+      : GPU_R(0.44);
     return
-        0.75*coefficient*fmax(gasDensityInput, 0.0)
-       *fmax(relativeSpeedInput, 0.0)
-       /(fmax(solidDensityInput, 1.0e-30)
-        *fmax(diameterInput, 1.0e-30));
+        GPU_R(0.75)*coefficient*fmax(gasDensityInput, GPU_R(0.0))
+       *fmax(relativeSpeedInput, GPU_R(0.0))
+       /(fmax(solidDensityInput, GPU_R(1.0e-30))
+        *fmax(diameterInput, GPU_R(1.0e-30)));
 }
 
-UGKWP_DRAG_HD double fshChtGidaspowInverseRelaxationTime
+UGKWP_DRAG_HD GpuReal fshChtGidaspowInverseRelaxationTime
 (
-    const double gasDensityInput,
-    const double gasVolumeFraction,
-    const double gasViscosity,
-    const double solidDensityInput,
-    const double diameterInput,
-    const double relativeSpeedInput,
-    const double residualRe
+    const GpuReal gasDensityInput,
+    const GpuReal gasVolumeFraction,
+    const GpuReal gasViscosity,
+    const GpuReal solidDensityInput,
+    const GpuReal diameterInput,
+    const GpuReal relativeSpeedInput,
+    const GpuReal residualRe
 )
 {
-    const double alpha =
-        fmin(fmax(gasVolumeFraction, 1.0e-12), 1.0);
-    const double mu = fmax(gasViscosity, 1.0e-30);
-    const double diameter = fmax(diameterInput, 1.0e-30);
-    const double re =
-        fmax(gasDensityInput, 0.0)*diameter
-       *fmax(relativeSpeedInput, 0.0)/mu;
-    const double alphaRe = alpha*re;
-    const double cdReWenYu =
-        alphaRe < 1000.0
-      ? 24.0*(1.0 + 0.15*pow(fmax(alphaRe, 0.0), 0.687))
-      : 0.44*fmax(alphaRe, residualRe);
-    const double cdRe =
-        alpha >= 0.8
-      ? cdReWenYu*pow(alpha, -2.65)
-      : (4.0/3.0)
-       *(150.0*(1.0 - alpha)/alpha + 1.75*re);
+    const GpuReal alpha =
+        fmin(fmax(gasVolumeFraction, GPU_R(1.0e-12)), GPU_R(1.0));
+    const GpuReal mu = fmax(gasViscosity, GPU_R(1.0e-30));
+    const GpuReal diameter = fmax(diameterInput, GPU_R(1.0e-30));
+    const GpuReal re =
+        fmax(gasDensityInput, GPU_R(0.0))*diameter
+       *fmax(relativeSpeedInput, GPU_R(0.0))/mu;
+    const GpuReal alphaRe = alpha*re;
+    const GpuReal cdReWenYu =
+        alphaRe < GPU_R(1000.0)
+      ? GPU_R(24.0)*(GPU_R(1.0) + GPU_R(0.15)*pow(fmax(alphaRe, GPU_R(0.0)), GPU_R(0.687)))
+      : GPU_R(0.44)*fmax(alphaRe, residualRe);
+    const GpuReal cdRe =
+        alpha >= GPU_R(0.8)
+      ? cdReWenYu*pow(alpha, -GPU_R(2.65))
+      : (GPU_R(4.0)/GPU_R(3.0))
+       *(GPU_R(150.0)*(GPU_R(1.0) - alpha)/alpha + GPU_R(1.75)*re);
     return
-        0.75*cdRe*mu
-       /(fmax(solidDensityInput, 1.0e-30)*diameter*diameter);
+        GPU_R(0.75)*cdRe*mu
+       /(fmax(solidDensityInput, GPU_R(1.0e-30))*diameter*diameter);
 }
 
 }

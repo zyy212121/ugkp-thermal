@@ -1,3 +1,4 @@
+#include "GpuPrecisionTypes.H"
 #pragma once
 
   
@@ -31,166 +32,166 @@ namespace ugkpwall
 
 struct SpaldingWallState
 {
-    double uTau;
-    double yPlus;
-    double nut;
+    GpuReal uTau;
+    GpuReal yPlus;
+    GpuReal nut;
 };
 
 struct WallSubgridTransport
 {
-    double dynamicViscosity;
-    double thermalConductivity;
+    GpuReal dynamicViscosity;
+    GpuReal thermalConductivity;
 };
 
 struct OmegaWallFunctionState
 {
-    double omega;
-    double production;
-    double yPlus;
+    GpuReal omega;
+    GpuReal production;
+    GpuReal yPlus;
 };
 
 struct JayatillekeWallHeatState
 {
-    double heatFlux;
-    double temperaturePlus;
-    double yPlusThermal;
+    GpuReal heatFlux;
+    GpuReal temperaturePlus;
+    GpuReal yPlusThermal;
     int valid;
 };
 
-UGKP_WALL_HD double maximum(const double a, const double b)
+UGKP_WALL_HD GpuReal maximum(const GpuReal a, const GpuReal b)
 {
     return a > b ? a : b;
 }
 
-UGKP_WALL_HD double minimum(const double a, const double b)
+UGKP_WALL_HD GpuReal minimum(const GpuReal a, const GpuReal b)
 {
     return a < b ? a : b;
 }
 
-UGKP_WALL_HD double wallYPlusLaminar
+UGKP_WALL_HD GpuReal wallYPlusLaminar
 (
-    const double kappa = 0.41,
-    const double E = 9.8
+    const GpuReal kappa = GPU_R(0.41),
+    const GpuReal E = GPU_R(9.8)
 )
 {
-    constexpr double small = 2.2204460492503131e-16;
-    double yPlus = 11.0;
+    constexpr GpuReal small = GPU_R(2.2204460492503131e-16);
+    GpuReal yPlus = GPU_R(11.0);
     for (int iteration = 0; iteration < 10; ++iteration)
     {
-        const double argument = maximum(E*yPlus, 1.0 + small);
-        const double function = yPlus - log(argument)/kappa;
-        const double derivative = 1.0 - 1.0/(kappa*yPlus);
-        const double updated = yPlus - function/maximum(derivative, small);
+        const GpuReal argument = maximum(E*yPlus, GPU_R(1.0) + small);
+        const GpuReal function = yPlus - log(argument)/kappa;
+        const GpuReal derivative = GPU_R(1.0) - GPU_R(1.0)/(kappa*yPlus);
+        const GpuReal updated = yPlus - function/maximum(derivative, small);
         if (updated <= small)
         {
             break;
         }
-        if (fabs(updated - yPlus) <= 1.0e-8*maximum(yPlus, 1.0))
+        if (fabs(updated - yPlus) <= GPU_R(1.0e-8)*maximum(yPlus, GPU_R(1.0)))
         {
             yPlus = updated;
             break;
         }
         yPlus = updated;
     }
-    return maximum(yPlus, 0.0);
+    return maximum(yPlus, GPU_R(0.0));
 }
 
 UGKP_WALL_HD SpaldingWallState spaldingWallState
 (
-    const double velocityDifference,
-    const double wallDistance,
-    const double kinematicViscosity,
-    const double kappa = 0.41,
-    const double E = 9.8
+    const GpuReal velocityDifference,
+    const GpuReal wallDistance,
+    const GpuReal kinematicViscosity,
+    const GpuReal kappa = GPU_R(0.41),
+    const GpuReal E = GPU_R(9.8)
 )
 {
-    constexpr double rootVSmall = 1.4916681462400413e-154;
-    const double up = maximum(velocityDifference, 0.0);
-    const double y = maximum(wallDistance, rootVSmall);
-    const double nu = maximum(kinematicViscosity, rootVSmall);
-    const double magGradU = up/y;
-    double uTau = sqrt(nu*magGradU);
+    constexpr GpuReal rootVSmall = GPU_TINY(1.4916681462400413e-154);
+    const GpuReal up = maximum(velocityDifference, GPU_R(0.0));
+    const GpuReal y = maximum(wallDistance, rootVSmall);
+    const GpuReal nu = maximum(kinematicViscosity, rootVSmall);
+    const GpuReal magGradU = up/y;
+    GpuReal uTau = sqrt(nu*magGradU);
 
     if (uTau > rootVSmall)
     {
         int iteration = 0;
-        double error = 1.0e300;
+        GpuReal error = GPU_LARGE(1.0e300);
         do
         {
-            const double kUu = minimum(kappa*up/uTau, 50.0);
-            const double fkUu =
-                exp(kUu) - 1.0 - kUu*(1.0 + 0.5*kUu);
-            const double f =
+            const GpuReal kUu = minimum(kappa*up/uTau, GPU_R(50.0));
+            const GpuReal fkUu =
+                exp(kUu) - GPU_R(1.0) - kUu*(GPU_R(1.0) + GPU_R(0.5)*kUu);
+            const GpuReal f =
                 -uTau*y/nu
               + up/uTau
-              + (fkUu - (1.0/6.0)*kUu*kUu*kUu)/E;
-            const double df =
+              + (fkUu - (GPU_R(1.0)/GPU_R(6.0))*kUu*kUu*kUu)/E;
+            const GpuReal df =
                 y/nu
               + up/(uTau*uTau)
               + kUu*fkUu/(E*uTau);
-            const double uTauNew = uTau + f/maximum(df, rootVSmall);
+            const GpuReal uTauNew = uTau + f/maximum(df, rootVSmall);
             error = fabs((uTau - uTauNew)/uTau);
             uTau = uTauNew;
         }
         while
         (
             uTau > rootVSmall
-         && error > 0.01
+         && error > GPU_R(0.01)
          && ++iteration < 10
         );
     }
 
-    uTau = maximum(uTau, 0.0);
-    const double nut = maximum
+    uTau = maximum(uTau, GPU_R(0.0));
+    const GpuReal nut = maximum
     (
         uTau*uTau/(magGradU + rootVSmall) - nu,
-        0.0
+        GPU_R(0.0)
     );
     return SpaldingWallState{uTau, y*uTau/nu, nut};
 }
 
 UGKP_WALL_HD WallSubgridTransport wallSubgridTransport
 (
-    const double density,
-    const double heatCapacity,
-    const double turbulentPrandtl,
-    const double wallNut
+    const GpuReal density,
+    const GpuReal heatCapacity,
+    const GpuReal turbulentPrandtl,
+    const GpuReal wallNut
 )
 {
-    constexpr double small = 2.2204460492503131e-16;
-    const double muT =
-        maximum(density, 0.0)*maximum(wallNut, 0.0);
+    constexpr GpuReal small = GPU_R(2.2204460492503131e-16);
+    const GpuReal muT =
+        maximum(density, GPU_R(0.0))*maximum(wallNut, GPU_R(0.0));
     return WallSubgridTransport
     {
         muT,
-        maximum(heatCapacity, 0.0)*muT
+        maximum(heatCapacity, GPU_R(0.0))*muT
        /maximum(turbulentPrandtl, small)
     };
 }
 
 UGKP_WALL_HD OmegaWallFunctionState omegaWallFunctionState
 (
-    const double k,
-    const double velocityNormalGradient,
-    const double wallDistance,
-    const double kinematicViscosity,
-    const double beta1 = 0.075,
-    const double Cmu = 0.09,
-    const double kappa = 0.41,
-    const double E = 9.8,
-    const double cellProduction = 0.0
+    const GpuReal k,
+    const GpuReal velocityNormalGradient,
+    const GpuReal wallDistance,
+    const GpuReal kinematicViscosity,
+    const GpuReal beta1 = GPU_R(0.075),
+    const GpuReal Cmu = GPU_R(0.09),
+    const GpuReal kappa = GPU_R(0.41),
+    const GpuReal E = GPU_R(9.8),
+    const GpuReal cellProduction = GPU_R(0.0)
 )
 {
-    constexpr double small = 2.2204460492503131e-16;
-    const double kSafe = maximum(k, 0.0);
-    const double y = maximum(wallDistance, small);
-    const double nu = maximum(kinematicViscosity, small);
-    const double CmuSafe = maximum(Cmu, small);
-    const double Cmu25 = sqrt(sqrt(CmuSafe));
-    const double Cmu5 = sqrt(CmuSafe);
-    const double reynoldsY = y*sqrt(kSafe)/nu;
-    const double yPlus = Cmu25*reynoldsY;
-    const double omegaViscous = 6.0*nu/(maximum(beta1, small)*y*y);
+    constexpr GpuReal small = GPU_R(2.2204460492503131e-16);
+    const GpuReal kSafe = maximum(k, GPU_R(0.0));
+    const GpuReal y = maximum(wallDistance, small);
+    const GpuReal nu = maximum(kinematicViscosity, small);
+    const GpuReal CmuSafe = maximum(Cmu, small);
+    const GpuReal Cmu25 = sqrt(sqrt(CmuSafe));
+    const GpuReal Cmu5 = sqrt(CmuSafe);
+    const GpuReal reynoldsY = y*sqrt(kSafe)/nu;
+    const GpuReal yPlus = Cmu25*reynoldsY;
+    const GpuReal omegaViscous = GPU_R(6.0)*nu/(maximum(beta1, small)*y*y);
 
     if (yPlus < wallYPlusLaminar(kappa, E))
     {
@@ -202,103 +203,103 @@ UGKP_WALL_HD OmegaWallFunctionState omegaWallFunctionState
         };
     }
 
-    const double uPlus = log(maximum(E*yPlus, 1.0 + small))
+    const GpuReal uPlus = log(maximum(E*yPlus, GPU_R(1.0) + small))
       /maximum(kappa, small);
-    const double uStar = Cmu25*sqrt(kSafe);
-    const double omegaLog =
+    const GpuReal uStar = Cmu25*sqrt(kSafe);
+    const GpuReal omegaLog =
         uStar/(Cmu5*maximum(kappa, small)*y);
-    const double scaledShear =
-        uStar*maximum(velocityNormalGradient, 0.0)*y
+    const GpuReal scaledShear =
+        uStar*maximum(velocityNormalGradient, GPU_R(0.0))*y
        /maximum(uPlus, small);
-    const double productionLog =
+    const GpuReal productionLog =
         scaledShear*scaledShear
        /(nu*maximum(kappa, small)*maximum(yPlus, small));
     return OmegaWallFunctionState
     {
-        maximum(omegaLog, 0.0),
-        maximum(productionLog, 0.0),
+        maximum(omegaLog, GPU_R(0.0)),
+        maximum(productionLog, GPU_R(0.0)),
         yPlus
     };
 }
 
-UGKP_WALL_HD double jayatillekeSmoothP(const double Prat)
+UGKP_WALL_HD GpuReal jayatillekeSmoothP(const GpuReal Prat)
 {
-    const double ratio = maximum(Prat, 2.2204460492503131e-16);
+    const GpuReal ratio = maximum(Prat, GPU_R(2.2204460492503131e-16));
     return
-        9.24*(pow(ratio, 0.75) - 1.0)
-       *(1.0 + 0.28*exp(-0.007*ratio));
+        GPU_R(9.24)*(pow(ratio, GPU_R(0.75)) - GPU_R(1.0))
+       *(GPU_R(1.0) + GPU_R(0.28)*exp(-GPU_R(0.007)*ratio));
 }
 
-UGKP_WALL_HD double jayatillekeThermalYPlus
+UGKP_WALL_HD GpuReal jayatillekeThermalYPlus
 (
-    const double Prat,
-    const double kappa = 0.41,
-    const double E = 9.8
+    const GpuReal Prat,
+    const GpuReal kappa = GPU_R(0.41),
+    const GpuReal E = GPU_R(9.8)
 )
 {
-    constexpr double small = 2.2204460492503131e-16;
-    const double ratio = maximum(Prat, small);
-    const double P = jayatillekeSmoothP(ratio);
-    double yPlus = 11.0;
+    constexpr GpuReal small = GPU_R(2.2204460492503131e-16);
+    const GpuReal ratio = maximum(Prat, small);
+    const GpuReal P = jayatillekeSmoothP(ratio);
+    GpuReal yPlus = GPU_R(11.0);
     for (int iteration = 0; iteration < 10; ++iteration)
     {
-        const double argument = maximum(E*yPlus, 1.0 + small);
-        const double function =
+        const GpuReal argument = maximum(E*yPlus, GPU_R(1.0) + small);
+        const GpuReal function =
             yPlus - (log(argument)/maximum(kappa, small) + P)/ratio;
-        const double derivative =
-            1.0 - 1.0/(yPlus*maximum(kappa, small)*ratio);
-        const double updated = yPlus - function/maximum(derivative, small);
+        const GpuReal derivative =
+            GPU_R(1.0) - GPU_R(1.0)/(yPlus*maximum(kappa, small)*ratio);
+        const GpuReal updated = yPlus - function/maximum(derivative, small);
         if (updated <= small)
         {
-            return 0.0;
+            return GPU_R(0.0);
         }
-        if (fabs(updated - yPlus) < 0.01)
+        if (fabs(updated - yPlus) < GPU_R(0.01))
         {
             return updated;
         }
         yPlus = updated;
     }
-    return maximum(yPlus, 0.0);
+    return maximum(yPlus, GPU_R(0.0));
 }
 
 UGKP_WALL_HD JayatillekeWallHeatState jayatillekeWallHeatFluxPrecomputed
 (
-    const double density,
-    const double heatCapacity,
-    const double molecularPrandtl,
-    const double turbulentPrandtl,
-    const double kappa,
-    const double E,
-    const double P,
-    const double thermalYPlus,
-    const double uTau,
-    const double yPlus,
-    const double cellTemperature,
-    const double wallTemperature
+    const GpuReal density,
+    const GpuReal heatCapacity,
+    const GpuReal molecularPrandtl,
+    const GpuReal turbulentPrandtl,
+    const GpuReal kappa,
+    const GpuReal E,
+    const GpuReal P,
+    const GpuReal thermalYPlus,
+    const GpuReal uTau,
+    const GpuReal yPlus,
+    const GpuReal cellTemperature,
+    const GpuReal wallTemperature
 )
 {
-    constexpr double small = 2.2204460492503131e-16;
-    const double Pr = maximum(molecularPrandtl, small);
-    const double Prt = maximum(turbulentPrandtl, small);
-    const double yPlusSafe = maximum(yPlus, 0.0);
+    constexpr GpuReal small = GPU_R(2.2204460492503131e-16);
+    const GpuReal Pr = maximum(molecularPrandtl, small);
+    const GpuReal Prt = maximum(turbulentPrandtl, small);
+    const GpuReal yPlusSafe = maximum(yPlus, GPU_R(0.0));
     const bool valid =
-        density > 0.0
-     && heatCapacity > 0.0
+        density > GPU_R(0.0)
+     && heatCapacity > GPU_R(0.0)
      && uTau > small
      && yPlusSafe > small;
     if (!valid)
     {
-        return JayatillekeWallHeatState{0.0, 0.0, thermalYPlus, 0};
+        return JayatillekeWallHeatState{GPU_R(0.0), GPU_R(0.0), thermalYPlus, 0};
     }
 
-    const double temperaturePlus = yPlusSafe < thermalYPlus
+    const GpuReal temperaturePlus = yPlusSafe < thermalYPlus
       ? Pr*yPlusSafe
       : Prt*
         (
-            log(maximum(E*yPlusSafe, 1.0 + small))/maximum(kappa, small)
+            log(maximum(E*yPlusSafe, GPU_R(1.0) + small))/maximum(kappa, small)
           + P
         );
-    const double heatFlux =
+    const GpuReal heatFlux =
         density*heatCapacity*uTau*(cellTemperature - wallTemperature)
        /maximum(temperaturePlus, small);
     return JayatillekeWallHeatState
@@ -312,22 +313,22 @@ UGKP_WALL_HD JayatillekeWallHeatState jayatillekeWallHeatFluxPrecomputed
 
 UGKP_WALL_HD JayatillekeWallHeatState jayatillekeWallHeatFlux
 (
-    const double density,
-    const double heatCapacity,
-    const double molecularPrandtl,
-    const double turbulentPrandtl,
-    const double kappa,
-    const double E,
-    const double uTau,
-    const double yPlus,
-    const double cellTemperature,
-    const double wallTemperature
+    const GpuReal density,
+    const GpuReal heatCapacity,
+    const GpuReal molecularPrandtl,
+    const GpuReal turbulentPrandtl,
+    const GpuReal kappa,
+    const GpuReal E,
+    const GpuReal uTau,
+    const GpuReal yPlus,
+    const GpuReal cellTemperature,
+    const GpuReal wallTemperature
 )
 {
-    constexpr double small = 2.2204460492503131e-16;
-    const double Pr = maximum(molecularPrandtl, small);
-    const double Prt = maximum(turbulentPrandtl, small);
-    const double PrRatio = Pr/Prt;
+    constexpr GpuReal small = GPU_R(2.2204460492503131e-16);
+    const GpuReal Pr = maximum(molecularPrandtl, small);
+    const GpuReal Prt = maximum(turbulentPrandtl, small);
+    const GpuReal PrRatio = Pr/Prt;
     return jayatillekeWallHeatFluxPrecomputed
     (
         density,

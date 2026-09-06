@@ -1,3 +1,4 @@
+#include "GpuPrecisionTypes.H"
 #ifndef UGKWP_GPU_LES_ALGEBRA_CUH
 #define UGKWP_GPU_LES_ALGEBRA_CUH
 
@@ -12,35 +13,35 @@
 namespace ugkwp
 {
 
-UGKWP_LES_HD double smagorinskyNut
+UGKWP_LES_HD GpuReal smagorinskyNut
 (
-    const double coefficient,
-    const double delta,
-    const double deviatoricStrainSquared
+    const GpuReal coefficient,
+    const GpuReal delta,
+    const GpuReal deviatoricStrainSquared
 )
 {
     return
         coefficient*coefficient*delta*delta
-       *sqrt(fmax(2.0*deviatoricStrainSquared, 0.0));
+       *sqrt(fmax(GPU_R(2.0)*deviatoricStrainSquared, GPU_R(0.0)));
 }
 
-UGKWP_LES_HD double waleNut
+UGKWP_LES_HD GpuReal waleNut
 (
-    const double coefficient,
-    const double delta,
-    const double symmetricGradientSquared,
-    const double tracelessSquaredGradientSquared,
-    const double small
+    const GpuReal coefficient,
+    const GpuReal delta,
+    const GpuReal symmetricGradientSquared,
+    const GpuReal tracelessSquaredGradientSquared,
+    const GpuReal small
 )
 {
-    const double numerator =
-        pow(fmax(tracelessSquaredGradientSquared, 0.0), 1.5);
-    const double denominator =
-        pow(fmax(symmetricGradientSquared, 0.0), 2.5)
-      + pow(fmax(tracelessSquaredGradientSquared, 0.0), 1.25);
+    const GpuReal numerator =
+        pow(fmax(tracelessSquaredGradientSquared, GPU_R(0.0)), GPU_R(1.5));
+    const GpuReal denominator =
+        pow(fmax(symmetricGradientSquared, GPU_R(0.0)), GPU_R(2.5))
+      + pow(fmax(tracelessSquaredGradientSquared, GPU_R(0.0)), GPU_R(1.25));
     return denominator > small
       ? coefficient*coefficient*delta*delta*numerator/denominator
-      : 0.0;
+      : GPU_R(0.0);
 }
 
 }

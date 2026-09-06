@@ -1,3 +1,4 @@
+#include "gpu/GpuPrecisionApi.H"
 #include "fvCFD.H"
 #include "physicoChemicalConstants.H"
 #include "zeroGradientFvPatchFields.H"
@@ -101,6 +102,14 @@ int main(int argc, char *argv[])
             << " maxSourceNumber=" << sstMaxSourceNumber << nl;
     }
 
+#ifdef UGKWP_USE_CUDA
+    if (ugkwpGpuSelectPrecision(gpuScheduling.precision) != 0)
+    {
+        FatalErrorInFunction << "Cannot select GPU precision" << exit(FatalError);
+    }
+    Info<< "GPU precision: physical=" << gpuScheduling.precision
+        << " time=64 wallEnergyAccumulation=64 (schedulingProperties gpuPrecision; default 32)" << nl;
+#endif
     constexpr bool gpuResidentStrict = true;
     const bool gpuResidentPureGasOnly = gpuScheduling.pureGasOnly;
     const Switch gpuResidentDynamicInlet(gpuScheduling.dynamicInlet);
@@ -511,6 +520,14 @@ int main(int argc, char *argv[])
                 }
 
                 runTime++;
+            if (runTime.timeIndex() % 5000 == 0)
+            {
+                Info<< "UGKP_REPRO step=" << runTime.timeIndex()
+                    << " time=" << runTime.timeName()
+                    << " dt=" << runTime.deltaTValue()
+                    << " elapsed=" << runTime.elapsedClockTime() << endl;
+            }
+
 
                 resident.advanceOneStep
                 (
@@ -791,6 +808,14 @@ int main(int argc, char *argv[])
             }
 
             runTime++;
+            if (runTime.timeIndex() % 5000 == 0)
+            {
+                Info<< "UGKP_REPRO step=" << runTime.timeIndex()
+                    << " time=" << runTime.timeName()
+                    << " dt=" << runTime.deltaTValue()
+                    << " elapsed=" << runTime.elapsedClockTime() << endl;
+            }
+
 
             resident.advanceOneStep
             (

@@ -1,3 +1,4 @@
+#include "GpuPrecisionTypes.H"
 #pragma once
 
 __global__ void accumulateCsrSegmentedMomentTasksPersistentKernel(DeviceState* sp)
@@ -6,7 +7,7 @@ __global__ void accumulateCsrSegmentedMomentTasksPersistentKernel(DeviceState* s
     __shared__ int task;
     __shared__ int taskCount;
     __shared__ CsrReductionTask descriptor;
-    extern __shared__ double warpPartials[];
+    extern __shared__ GpuReal warpPartials[];
     for (;;)
     {
         if (threadIdx.x == 0)
@@ -21,7 +22,7 @@ __global__ void accumulateCsrSegmentedMomentTasksPersistentKernel(DeviceState* s
         __syncthreads();
         if (task >= taskCount) return;
         const int c = descriptor.cell;
-            double sums[8];
+            GpuReal sums[8];
             accumulateCsrHeavyMomentTask
             (
                 s, c, descriptor.begin, descriptor.end, sums, warpPartials
@@ -32,7 +33,7 @@ __global__ void accumulateCsrSegmentedMomentTasksPersistentKernel(DeviceState* s
                 {
                     s.cellParticleCount[c] = static_cast<int>(sums[7]);
                     if (c == 0) s.cellParticleCount[s.nCells] = 0;
-                    const double invV = 1.0/clampMin(s.V[c], s.rhoMin);
+                    const GpuReal invV = GPU_R(1.0)/clampMin(s.V[c], s.rhoMin);
                     s.momRhoP[c] = sums[0]*invV;
                     s.momRhoUPx[c] = sums[1]*invV;
                     s.momRhoUPy[c] = sums[2]*invV;
@@ -62,7 +63,7 @@ __global__ void finalizeCsrSegmentedMomentCellsKernel(DeviceState* sp)
 {
     DeviceState& s = *sp;
     __shared__ int multiIndex;
-    extern __shared__ double warpPartials[];
+    extern __shared__ GpuReal warpPartials[];
     for (;;)
     {
         if (threadIdx.x == 0) multiIndex = atomicAdd(s.csrHeavyTaskCursor, 1);
@@ -70,7 +71,7 @@ __global__ void finalizeCsrSegmentedMomentCellsKernel(DeviceState* sp)
         if (multiIndex >= *s.csrHeavyCellCount) return;
         const int c = s.csrMultiTaskCellList[multiIndex];
         if (!(s.csrCellTaskCount[c] > 1)) asm("trap;");
-        double sums[8] = {0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
+        GpuReal sums[8] = {GPU_R(0.0), GPU_R(0.0), GPU_R(0.0), GPU_R(0.0), GPU_R(0.0), GPU_R(0.0), GPU_R(0.0), GPU_R(0.0)};
         const int firstTask = s.csrCellTaskOffset[c];
         const int endTask = s.csrCellTaskOffset[c + 1];
         for (int task = firstTask + threadIdx.x; task < endTask; task += blockDim.x)
@@ -90,7 +91,7 @@ __global__ void finalizeCsrSegmentedMomentCellsKernel(DeviceState* sp)
         {
             s.cellParticleCount[c] = static_cast<int>(sums[7]);
             if (c == 0) s.cellParticleCount[s.nCells] = 0;
-            const double invV = 1.0/clampMin(s.V[c], s.rhoMin);
+            const GpuReal invV = GPU_R(1.0)/clampMin(s.V[c], s.rhoMin);
             s.momRhoP[c] = sums[0]*invV;
             s.momRhoUPx[c] = sums[1]*invV;
             s.momRhoUPy[c] = sums[2]*invV;
@@ -113,7 +114,7 @@ int launchCsrSegmentedMomentReduction(DeviceState* s, const int block)
         return 1;
     }
     const int warpCount = (block + 31)/32;
-    const size_t sharedBytes = 8u*static_cast<size_t>(warpCount)*sizeof(double);
+    const size_t sharedBytes = 8u*static_cast<size_t>(warpCount)*sizeof(GpuReal);
     accumulateCsrSegmentedMomentTasksPersistentKernel
         <<<s->csrHeavyWorkerGrid, block, sharedBytes>>>(s->deviceState);
     err = cudaGetLastError();

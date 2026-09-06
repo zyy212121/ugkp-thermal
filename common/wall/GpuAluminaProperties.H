@@ -1,3 +1,4 @@
+#include "GpuPrecisionTypes.H"
 #ifndef GPU_THERMAL_GPU_ALUMINA_PROPERTIES_H
 #define GPU_THERMAL_GPU_ALUMINA_PROPERTIES_H
 
@@ -15,49 +16,49 @@ namespace Foam
 namespace gpuThermal
 {
 
-constexpr double aluminaPropertyTemperatureMinK = 2327.0;
-constexpr double aluminaPropertyTemperatureMaxK = 4000.0;
-constexpr double aluminaMolarMassKgMol = 0.101961276;
-constexpr double aluminaCpAtMeltingMolarJMolK = 153.5;
-constexpr double aluminaCpMolarSlopeJMolK2 = 3.1e-3;
-constexpr double aluminaThermalConductivityWmK = 2.70;
+constexpr GpuReal aluminaPropertyTemperatureMinK = GPU_R(2327.0);
+constexpr GpuReal aluminaPropertyTemperatureMaxK = GPU_R(4000.0);
+constexpr GpuReal aluminaMolarMassKgMol = GPU_R(0.101961276);
+constexpr GpuReal aluminaCpAtMeltingMolarJMolK = GPU_R(153.5);
+constexpr GpuReal aluminaCpMolarSlopeJMolK2 = GPU_R(3.1e-3);
+constexpr GpuReal aluminaThermalConductivityWmK = GPU_R(2.70);
 
 struct AluminaLiquidProperties
 {
     bool valid;
-    double temperatureK;
-    double densityKgM3;
-    double viscosityPaS;
-    double surfaceTensionNM;
-    double specificHeatJkgK;
-    double thermalConductivityWmK;
+    GpuReal temperatureK;
+    GpuReal densityKgM3;
+    GpuReal viscosityPaS;
+    GpuReal surfaceTensionNM;
+    GpuReal specificHeatJkgK;
+    GpuReal thermalConductivityWmK;
 };
 
-GPU_ALUMINA_HD inline bool finiteAluminaValue(const double value) noexcept
+GPU_ALUMINA_HD inline bool finiteAluminaValue(const GpuReal value) noexcept
 {
-    return value == value && value >= -DBL_MAX && value <= DBL_MAX;
+    return value == value && value >= -GPU_REAL_MAX && value <= GPU_REAL_MAX;
 }
 
-GPU_ALUMINA_HD inline double clampAlumina
+GPU_ALUMINA_HD inline GpuReal clampAlumina
 (
-    const double value,
-    const double lower,
-    const double upper
+    const GpuReal value,
+    const GpuReal lower,
+    const GpuReal upper
 ) noexcept
 {
     return value < lower ? lower : (value > upper ? upper : value);
 }
 
-GPU_ALUMINA_HD inline double aluminaSpecificHeatJkgK
+GPU_ALUMINA_HD inline GpuReal aluminaSpecificHeatJkgK
 (
-    const double temperatureK
+    const GpuReal temperatureK
 ) noexcept
 {
-    if (!finiteAluminaValue(temperatureK) || !(temperatureK > 0.0))
+    if (!finiteAluminaValue(temperatureK) || !(temperatureK > GPU_R(0.0)))
     {
-        return 0.0;
+        return GPU_R(0.0);
     }
-    const double boundedTemperatureK = clampAlumina
+    const GpuReal boundedTemperatureK = clampAlumina
     (
         temperatureK,
         aluminaPropertyTemperatureMinK,
@@ -71,85 +72,85 @@ GPU_ALUMINA_HD inline double aluminaSpecificHeatJkgK
     )/aluminaMolarMassKgMol;
 }
 
-GPU_ALUMINA_HD inline double aluminaSpecificEnthalpyJkg
+GPU_ALUMINA_HD inline GpuReal aluminaSpecificEnthalpyJkg
 (
-    const double temperatureK
+    const GpuReal temperatureK
 ) noexcept
 {
-    if (!finiteAluminaValue(temperatureK) || temperatureK < 0.0)
+    if (!finiteAluminaValue(temperatureK) || temperatureK < GPU_R(0.0))
     {
-        return -1.0;
+        return -GPU_R(1.0);
     }
 
-    const double cpMin = aluminaSpecificHeatJkgK
+    const GpuReal cpMin = aluminaSpecificHeatJkgK
     (
         aluminaPropertyTemperatureMinK
     );
-    const double cpMax = aluminaSpecificHeatJkgK
+    const GpuReal cpMax = aluminaSpecificHeatJkgK
     (
         aluminaPropertyTemperatureMaxK
     );
-    const double cpSlope = aluminaCpMolarSlopeJMolK2/aluminaMolarMassKgMol;
+    const GpuReal cpSlope = aluminaCpMolarSlopeJMolK2/aluminaMolarMassKgMol;
     if (temperatureK <= aluminaPropertyTemperatureMinK)
     {
         return cpMin*temperatureK;
     }
 
-    const double spanK =
+    const GpuReal spanK =
         aluminaPropertyTemperatureMaxK - aluminaPropertyTemperatureMinK;
-    const double hAtMin = cpMin*aluminaPropertyTemperatureMinK;
+    const GpuReal hAtMin = cpMin*aluminaPropertyTemperatureMinK;
     if (temperatureK <= aluminaPropertyTemperatureMaxK)
     {
-        const double deltaK =
+        const GpuReal deltaK =
             temperatureK - aluminaPropertyTemperatureMinK;
-        return hAtMin + cpMin*deltaK + 0.5*cpSlope*deltaK*deltaK;
+        return hAtMin + cpMin*deltaK + GPU_R(0.5)*cpSlope*deltaK*deltaK;
     }
 
-    const double hAtMax =
-        hAtMin + cpMin*spanK + 0.5*cpSlope*spanK*spanK;
+    const GpuReal hAtMax =
+        hAtMin + cpMin*spanK + GPU_R(0.5)*cpSlope*spanK*spanK;
     return
         hAtMax
       + cpMax*(temperatureK - aluminaPropertyTemperatureMaxK);
 }
 
-GPU_ALUMINA_HD inline double aluminaTemperatureFromSpecificEnthalpyK
+GPU_ALUMINA_HD inline GpuReal aluminaTemperatureFromSpecificEnthalpyK
 (
-    const double specificEnthalpyJkg
+    const GpuReal specificEnthalpyJkg
 ) noexcept
 {
     if
     (
         !finiteAluminaValue(specificEnthalpyJkg)
-     || specificEnthalpyJkg < 0.0
+     || specificEnthalpyJkg < GPU_R(0.0)
     )
     {
-        return -1.0;
+        return -GPU_R(1.0);
     }
 
-    const double cpMin = aluminaSpecificHeatJkgK
+    const GpuReal cpMin = aluminaSpecificHeatJkgK
     (
         aluminaPropertyTemperatureMinK
     );
-    const double cpMax = aluminaSpecificHeatJkgK
+    const GpuReal cpMax = aluminaSpecificHeatJkgK
     (
         aluminaPropertyTemperatureMaxK
     );
-    const double cpSlope = aluminaCpMolarSlopeJMolK2/aluminaMolarMassKgMol;
-    const double hAtMin = cpMin*aluminaPropertyTemperatureMinK;
+    const GpuReal cpSlope = aluminaCpMolarSlopeJMolK2/aluminaMolarMassKgMol;
+    const GpuReal hAtMin = cpMin*aluminaPropertyTemperatureMinK;
     if (specificEnthalpyJkg <= hAtMin)
     {
         return specificEnthalpyJkg/cpMin;
     }
 
-    const double spanK =
+    const GpuReal spanK =
         aluminaPropertyTemperatureMaxK - aluminaPropertyTemperatureMinK;
-    const double hAtMax =
-        hAtMin + cpMin*spanK + 0.5*cpSlope*spanK*spanK;
+    const GpuReal hAtMax =
+        hAtMin + cpMin*spanK + GPU_R(0.5)*cpSlope*spanK*spanK;
     if (specificEnthalpyJkg <= hAtMax)
     {
-        const double deltaH = specificEnthalpyJkg - hAtMin;
-        const double root = ::sqrt(cpMin*cpMin + 2.0*cpSlope*deltaH);
-        const double deltaK = 2.0*deltaH/(cpMin + root);
+        const GpuReal deltaH = specificEnthalpyJkg - hAtMin;
+        const GpuReal root = ::sqrt(cpMin*cpMin + GPU_R(2.0)*cpSlope*deltaH);
+        const GpuReal deltaK = GPU_R(2.0)*deltaH/(cpMin + root);
         return aluminaPropertyTemperatureMinK + deltaK;
     }
 
@@ -160,48 +161,48 @@ GPU_ALUMINA_HD inline double aluminaTemperatureFromSpecificEnthalpyK
 
 GPU_ALUMINA_HD inline AluminaLiquidProperties liquidAluminaProperties
 (
-    const double particleTemperatureK
+    const GpuReal particleTemperatureK
 ) noexcept
 {
-    if (!finiteAluminaValue(particleTemperatureK) || !(particleTemperatureK > 0.0))
+    if (!finiteAluminaValue(particleTemperatureK) || !(particleTemperatureK > GPU_R(0.0)))
     {
-        return {false, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
+        return {false, GPU_R(0.0), GPU_R(0.0), GPU_R(0.0), GPU_R(0.0), GPU_R(0.0), GPU_R(0.0)};
     }
 
-    const double temperatureK = clampAlumina
+    const GpuReal temperatureK = clampAlumina
     (
         particleTemperatureK,
         aluminaPropertyTemperatureMinK,
         aluminaPropertyTemperatureMaxK
     );
-    const double densityKgM3 =
-        1000.0*(2.917 - 1.228e-4*(temperatureK - 2327.0));
-    const double surfaceTensionNM =
-        0.632 - 2.310e-5*(temperatureK - 2327.0);
-    const double viscosityPaS =
-        5.77e-4*::exp(9743.0/temperatureK);
-    const double specificHeatJkgK = aluminaSpecificHeatJkgK(temperatureK);
-    const double thermalConductivityWmK = aluminaThermalConductivityWmK;
+    const GpuReal densityKgM3 =
+        GPU_R(1000.0)*(GPU_R(2.917) - GPU_R(1.228e-4)*(temperatureK - GPU_R(2327.0)));
+    const GpuReal surfaceTensionNM =
+        GPU_R(0.632) - GPU_R(2.310e-5)*(temperatureK - GPU_R(2327.0));
+    const GpuReal viscosityPaS =
+        GPU_R(5.77e-4)*::exp(GPU_R(9743.0)/temperatureK);
+    const GpuReal specificHeatJkgK = aluminaSpecificHeatJkgK(temperatureK);
+    const GpuReal thermalConductivityWmK = aluminaThermalConductivityWmK;
 
     const bool valid =
         finiteAluminaValue(densityKgM3)
      && finiteAluminaValue(surfaceTensionNM)
      && finiteAluminaValue(viscosityPaS)
      && finiteAluminaValue(specificHeatJkgK)
-     && densityKgM3 > 0.0
-     && surfaceTensionNM > 0.0
-     && viscosityPaS > 0.0
-     && specificHeatJkgK > 0.0
-     && thermalConductivityWmK > 0.0;
+     && densityKgM3 > GPU_R(0.0)
+     && surfaceTensionNM > GPU_R(0.0)
+     && viscosityPaS > GPU_R(0.0)
+     && specificHeatJkgK > GPU_R(0.0)
+     && thermalConductivityWmK > GPU_R(0.0);
     return
     {
         valid,
         temperatureK,
-        valid ? densityKgM3 : 0.0,
-        valid ? viscosityPaS : 0.0,
-        valid ? surfaceTensionNM : 0.0,
-        valid ? specificHeatJkgK : 0.0,
-        valid ? thermalConductivityWmK : 0.0
+        valid ? densityKgM3 : GPU_R(0.0),
+        valid ? viscosityPaS : GPU_R(0.0),
+        valid ? surfaceTensionNM : GPU_R(0.0),
+        valid ? specificHeatJkgK : GPU_R(0.0),
+        valid ? thermalConductivityWmK : GPU_R(0.0)
     };
 }
 

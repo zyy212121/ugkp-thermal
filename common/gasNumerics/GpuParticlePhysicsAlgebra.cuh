@@ -1,3 +1,4 @@
+#include "GpuPrecisionTypes.H"
 #ifndef UGKWP_GPU_PARTICLE_PHYSICS_ALGEBRA_CUH
 #define UGKWP_GPU_PARTICLE_PHYSICS_ALGEBRA_CUH
 
@@ -12,72 +13,72 @@
 namespace ugkwp
 {
 
-UGKWP_PARTICLE_PHYSICS_HD double ranzMarshallNuFromPr
+UGKWP_PARTICLE_PHYSICS_HD GpuReal ranzMarshallNuFromPr
 (
-    const double nonnegativeReynolds,
-    const double positivePrandtl
+    const GpuReal nonnegativeReynolds,
+    const GpuReal positivePrandtl
 )
 {
     return
-        2.0
-      + 0.6*sqrt(nonnegativeReynolds)
-         *pow(positivePrandtl, 1.0/3.0);
+        GPU_R(2.0)
+      + GPU_R(0.6)*sqrt(nonnegativeReynolds)
+         *pow(positivePrandtl, GPU_R(1.0)/GPU_R(3.0));
 }
 
-UGKWP_PARTICLE_PHYSICS_HD double ranzMarshallNuFromPrOneThird
+UGKWP_PARTICLE_PHYSICS_HD GpuReal ranzMarshallNuFromPrOneThird
 (
-    const double nonnegativeReynolds,
-    const double prandtlOneThird
+    const GpuReal nonnegativeReynolds,
+    const GpuReal prandtlOneThird
 )
 {
     return
-        2.0 + 0.6*sqrt(nonnegativeReynolds)*prandtlOneThird;
+        GPU_R(2.0) + GPU_R(0.6)*sqrt(nonnegativeReynolds)*prandtlOneThird;
 }
 
-UGKWP_PARTICLE_PHYSICS_HD double radialDistributionG0FromRatio
+UGKWP_PARTICLE_PHYSICS_HD GpuReal radialDistributionG0FromRatio
 (
-    const double concentrationRatio
+    const GpuReal concentrationRatio
 )
 {
     return
-        (2.0 - concentrationRatio)
-       /(2.0*pow(1.0 - concentrationRatio, 3.0) + 1.0e-5);
+        (GPU_R(2.0) - concentrationRatio)
+       /(GPU_R(2.0)*pow(GPU_R(1.0) - concentrationRatio, GPU_R(3.0)) + GPU_R(1.0e-5));
 }
 
-UGKWP_PARTICLE_PHYSICS_HD double collisionalPressure
+UGKWP_PARTICLE_PHYSICS_HD GpuReal collisionalPressure
 (
-    const double restitution,
-    const double solidDensity,
-    const double solidVolumeFraction,
-    const double radialDistribution,
-    const double granularTemperature
+    const GpuReal restitution,
+    const GpuReal solidDensity,
+    const GpuReal solidVolumeFraction,
+    const GpuReal radialDistribution,
+    const GpuReal granularTemperature
 )
 {
     return
-        2.0*(1.0 + restitution)
+        GPU_R(2.0)*(GPU_R(1.0) + restitution)
        *solidDensity*solidVolumeFraction*solidVolumeFraction
        *radialDistribution*granularTemperature;
 }
 
-UGKWP_PARTICLE_PHYSICS_HD double granularMeanFreePath
+UGKWP_PARTICLE_PHYSICS_HD GpuReal granularMeanFreePath
 (
-    const double pi,
-    const double diameter,
-    const double solidVolumeFraction,
-    const double radialDistribution,
-    const double small
+    const GpuReal pi,
+    const GpuReal diameter,
+    const GpuReal solidVolumeFraction,
+    const GpuReal radialDistribution,
+    const GpuReal small
 )
 {
     return
         sqrt(pi)*diameter
-       /(12.0*solidVolumeFraction*radialDistribution + small);
+       /(GPU_R(12.0)*solidVolumeFraction*radialDistribution + small);
 }
 
-UGKWP_PARTICLE_PHYSICS_HD double granularCollisionTime
+UGKWP_PARTICLE_PHYSICS_HD GpuReal granularCollisionTime
 (
-    const double meanFreePath,
-    const double granularTemperature,
-    const double small
+    const GpuReal meanFreePath,
+    const GpuReal granularTemperature,
+    const GpuReal small
 )
 {
     return meanFreePath/(sqrt(granularTemperature) + small);

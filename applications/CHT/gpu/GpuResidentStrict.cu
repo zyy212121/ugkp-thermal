@@ -1,4 +1,8 @@
+#include "GpuPrecisionTypes.H"
 #include <cuda_runtime.h>
+#if UGKWP_GPU_REAL_BITS == 32
+#include <cooperative_groups.h>
+#endif
 
 #include "GpuBackendApi.H"
 #include "CharacteristicMuscl.cuh"
@@ -34,6 +38,7 @@
 #include "../../../common/wall/GpuWallContactDirectory.cuh"
 
 #include <algorithm>
+#include <type_traits>
 #include <cfloat>
 #include <cstdio>
 #include <cstdlib>
@@ -49,14 +54,40 @@
 #include <unistd.h>
 #endif
 
+#if UGKWP_GPU_REAL_BITS == 32
+namespace ugkwpCudaFp32
+{
+#endif
 namespace
 {
 
+
+
+#if UGKWP_GPU_REAL_BITS == 32
+constexpr int coldWallBlockThreads = 256;
+constexpr int coldWallSmBlocks = 48;
+constexpr int pressureProjectionThreads = 512;
+constexpr int particleIndexThreads = 1024;
+constexpr int particlePayloadThreads = 64;
+constexpr int particlePayloadSmBlocks = 0;
+constexpr int flatParticleThreads = 256;
+constexpr int flatParticleSmBlocks = 8;
+#else
+constexpr int coldWallBlockThreads = 32;
+constexpr int coldWallSmBlocks = 0;
+constexpr int pressureProjectionThreads = 128;
+constexpr int particleIndexThreads = 0;
+constexpr int particlePayloadThreads = 128;
+constexpr int particlePayloadSmBlocks = 0;
+constexpr int flatParticleThreads = 256;
+constexpr int flatParticleSmBlocks = 8;
+#endif
+
 char lastError[2048] = "no GPU resident strict error";
-static constexpr double OfSmall = 2.22044604925031308085e-16;
-static constexpr double OfVSmall = 2.22507385850720138309e-308;
-static constexpr double OfGreat = 1.0/OfSmall;
-static constexpr double OfPi = 3.141592653589793238462643383279502884;
+static constexpr GpuReal OfSmall = GPU_R(2.22044604925031308085e-16);
+static constexpr GpuReal OfVSmall = GPU_REAL_MIN;
+static constexpr GpuReal OfGreat = GPU_R(1.0)/OfSmall;
+static constexpr GpuReal OfPi = GPU_R(3.141592653589793238462643383279502884);
 
 enum class CsrReductionTaskSource : int
 {
@@ -80,37 +111,10 @@ struct ParticleRadiationValidationError
     int particleArrayIndex = -1;
     int cellId = -1;
     unsigned long long particleOriginalId = 0;
-    double oldTemperatureK = 0.0;
-    double scale = 0.0;
-    double offset = 0.0;
-    double proposedTemperatureK = 0.0;
-};
-
-struct WallContactAreaDiagnosticError
-{
-    int code = 0;
-    int directoryEntry = -1;
-    int directoryCount = 0;
-    int particleArrayIndex = -1;
-    int particleStatus = -1;
-    int wallState = -1;
-    int faceId = -1;
-    int faceCount = 0;
-    int candidateType = -1;
-    unsigned long long particleOriginalId = 0;
-    double depositionArea = 0.0;
-    double contactDuration = 0.0;
-    double contactMaximumArea = 0.0;
-    double contactPeakFraction = 0.0;
-    double contactAge = 0.0;
-    double frozenArea = 0.0;
-    double kinematicArea = 0.0;
-    double physicalContactArea = 0.0;
-    double representedArea = 0.0;
-    double diameter = 0.0;
-    double parcelMass = 0.0;
-    double solidDensity = 0.0;
-    double temperature = 0.0;
+    GpuReal oldTemperatureK = GPU_R(0.0);
+    GpuReal scale = GPU_R(0.0);
+    GpuReal offset = GPU_R(0.0);
+    GpuReal proposedTemperatureK = GPU_R(0.0);
 };
 
 struct DeviceState
@@ -126,24 +130,24 @@ struct DeviceState
     bool particlesMayBePresent = false;
     int maxFaceWalkHops = 8;
     int* particleCountDevice = nullptr;
-    double injectionParcelMass = 0.0;
+    GpuReal injectionParcelMass = GPU_R(0.0);
     unsigned long long rngSeed = 0;
-    double gammaGas = 1.4;
-    double Rgas = 287.0;
-    double gasCp = 0.0;
-    double rhoSolid = 2500.0;
-    double invRhoSolid = 0.0;
+    GpuReal gammaGas = GPU_R(1.4);
+    GpuReal Rgas = GPU_R(287.0);
+    GpuReal gasCp = GPU_R(0.0);
+    GpuReal rhoSolid = GPU_R(2500.0);
+    GpuReal invRhoSolid = GPU_R(0.0);
     int solveParticleTemperature = 0;
-    double gasMu = 0.0;
-    double gasPr = 0.4;
-    double gasPrClamped = 0.4;
-    double gasPrOneThird = 0.0;
+    GpuReal gasMu = GPU_R(0.0);
+    GpuReal gasPr = GPU_R(0.4);
+    GpuReal gasPrClamped = GPU_R(0.4);
+    GpuReal gasPrOneThird = GPU_R(0.0);
     int dragModelId = 1;
     int particleGasHeatTransferModelId = 1;
-    double dragResidualRe = 1.0e-3;
-    double gravityX = 0.0;
-    double gravityY = 0.0;
-    double gravityZ = 0.0;
+    GpuReal dragResidualRe = GPU_R(1.0e-3);
+    GpuReal gravityX = GPU_R(0.0);
+    GpuReal gravityY = GPU_R(0.0);
+    GpuReal gravityZ = GPU_R(0.0);
     int gravityEnabled = 0;
     int gasFluxScheme = 2;
     int gasReconstruction = 0;
@@ -157,39 +161,39 @@ struct DeviceState
     int hostGasFluxScheme = 2;
     int hostGasTimeIntegrator = 1;
     int hostTurbulenceModel = 0;
-    double lesDeltaCoeff = 1.0;
-    double turbulentPrandtl = 0.9;
-    double waleCw = 0.325;
-    double smagorinskyCs = 0.17;
-    double maxDiffusionNumber = 0.25;
+    GpuReal lesDeltaCoeff = GPU_R(1.0);
+    GpuReal turbulentPrandtl = GPU_R(0.9);
+    GpuReal waleCw = GPU_R(0.325);
+    GpuReal smagorinskyCs = GPU_R(0.17);
+    GpuReal maxDiffusionNumber = GPU_R(0.25);
     int sstConfigured = 0;
     ugkwp::SstCoefficients sstCoefficients =
         ugkwp::defaultSstCoefficients();
-    double sstKMin = 1.0e-12;
-    double sstOmegaMin = 1.0e-6;
-    double sstMaxSourceNumber = 0.25;
+    GpuReal sstKMin = GPU_R(1.0e-12);
+    GpuReal sstOmegaMin = GPU_R(1.0e-6);
+    GpuReal sstMaxSourceNumber = GPU_R(0.25);
     int sstWallTreatment = 0;
-    double sstWallKappa = 0.41;
-    double sstWallE = 9.8;
-    double sstWallCmu = 0.09;
-    double sstJayatillekeP = 0.0;
-    double sstThermalYPlus = 0.0;
-    double particleDiameterFallback = 0.0;
-    double particleDiameterMin = 0.0;
-    double particleDiameterMax = 0.0;
-    double particleDiameterSigma = 0.0;
-    double injectionTheta = 0.0;
-    double rhoMin = 1.0e-12;
-    double TgasMin = 1.0e-12;
-    double epsSMin = 1.0e-12;
-    double thetaMin = 1.0e-12;
-    double TpMin = 1.0e-12;
-    double TpMax = 1.0e30;
+    GpuReal sstWallKappa = GPU_R(0.41);
+    GpuReal sstWallE = GPU_R(9.8);
+    GpuReal sstWallCmu = GPU_R(0.09);
+    GpuReal sstJayatillekeP = GPU_R(0.0);
+    GpuReal sstThermalYPlus = GPU_R(0.0);
+    GpuReal particleDiameterFallback = GPU_R(0.0);
+    GpuReal particleDiameterMin = GPU_R(0.0);
+    GpuReal particleDiameterMax = GPU_R(0.0);
+    GpuReal particleDiameterSigma = GPU_R(0.0);
+    GpuReal injectionTheta = GPU_R(0.0);
+    GpuReal rhoMin = GPU_R(1.0e-12);
+    GpuReal TgasMin = GPU_R(1.0e-12);
+    GpuReal epsSMin = GPU_R(1.0e-12);
+    GpuReal thetaMin = GPU_R(1.0e-12);
+    GpuReal TpMin = GPU_R(1.0e-12);
+    GpuReal TpMax = GPU_R(1.0e30);
     int collisionalPressureEnabled = 0;
-    double collisionalRestitution = 0.9;
-    double pressureKickFraction = 0.25;
+    GpuReal collisionalRestitution = GPU_R(0.9);
+    GpuReal pressureKickFraction = GPU_R(0.25);
     int jammingPressureEnabled = 0;
-    double packingFraction = 0.63;
+    GpuReal packingFraction = GPU_R(0.63);
     int packingProjectionIterations = 20;
     int csrCellLocalPathEnabled = 1;
     int csrHeavyReductionEnabled = 0;
@@ -216,72 +220,72 @@ struct DeviceState
     int* faceNeighbour = nullptr;
     int* facePeriodicPair = nullptr;
     int hasPeriodicFaces = 0;
-    double* facePeriodicDx = nullptr;
-    double* facePeriodicDy = nullptr;
-    double* facePeriodicDz = nullptr;
-    double* V = nullptr;
-    double* Cx = nullptr;
-    double* Cy = nullptr;
-    double* Cz = nullptr;
-    double* faceCx = nullptr;
-    double* faceCy = nullptr;
-    double* faceCz = nullptr;
-    double* Sfx = nullptr;
-    double* Sfy = nullptr;
-    double* Sfz = nullptr;
-    double* magSf = nullptr;
-    double* deltaCoeffs = nullptr;
-    double* faceWeight = nullptr;
-    double* cellLength = nullptr;
+    GpuReal* facePeriodicDx = nullptr;
+    GpuReal* facePeriodicDy = nullptr;
+    GpuReal* facePeriodicDz = nullptr;
+    GpuReal* V = nullptr;
+    GpuReal* Cx = nullptr;
+    GpuReal* Cy = nullptr;
+    GpuReal* Cz = nullptr;
+    GpuReal* faceCx = nullptr;
+    GpuReal* faceCy = nullptr;
+    GpuReal* faceCz = nullptr;
+    GpuReal* Sfx = nullptr;
+    GpuReal* Sfy = nullptr;
+    GpuReal* Sfz = nullptr;
+    GpuReal* magSf = nullptr;
+    GpuReal* deltaCoeffs = nullptr;
+    GpuReal* faceWeight = nullptr;
+    GpuReal* cellLength = nullptr;
     int* cellPlaneStart = nullptr;
     int* cellPlaneCount = nullptr;
     int* cellFaceId = nullptr;
     int* cellFaceNeighbor = nullptr;
     int* cellFaceKind = nullptr;
-    double* cellFaceRestitution = nullptr;
-    double* cellFaceTangential = nullptr;
-    double* planeNx = nullptr;
-    double* planeNy = nullptr;
-    double* planeNz = nullptr;
-    double* planeD = nullptr;
+    GpuReal* cellFaceRestitution = nullptr;
+    GpuReal* cellFaceTangential = nullptr;
+    GpuReal* planeNx = nullptr;
+    GpuReal* planeNy = nullptr;
+    GpuReal* planeNz = nullptr;
+    GpuReal* planeD = nullptr;
 
-    double* rho = nullptr;
-    double* rhoUx = nullptr;
-    double* rhoUy = nullptr;
-    double* rhoUz = nullptr;
-    double* rhoE = nullptr;
-    double* rhoNext = nullptr;
-    double* rhoUxNext = nullptr;
-    double* rhoUyNext = nullptr;
-    double* rhoUzNext = nullptr;
-    double* rhoENext = nullptr;
-    double* gasPhiRho = nullptr;
-    double* gasPhiRhoUx = nullptr;
-    double* gasPhiRhoUy = nullptr;
-    double* gasPhiRhoUz = nullptr;
-    double* gasPhiRhoE = nullptr;
-    double* gasWallEnergy = nullptr;
+    GpuReal* rho = nullptr;
+    GpuReal* rhoUx = nullptr;
+    GpuReal* rhoUy = nullptr;
+    GpuReal* rhoUz = nullptr;
+    GpuReal* rhoE = nullptr;
+    GpuReal* rhoNext = nullptr;
+    GpuReal* rhoUxNext = nullptr;
+    GpuReal* rhoUyNext = nullptr;
+    GpuReal* rhoUzNext = nullptr;
+    GpuReal* rhoENext = nullptr;
+    GpuReal* gasPhiRho = nullptr;
+    GpuReal* gasPhiRhoUx = nullptr;
+    GpuReal* gasPhiRhoUy = nullptr;
+    GpuReal* gasPhiRhoUz = nullptr;
+    GpuReal* gasPhiRhoE = nullptr;
+    GpuReal* gasWallEnergy = nullptr;
     unsigned char* gasWallEnergyMask = nullptr;
-    double* gasFluxPositivityScale = nullptr;
-    double* gasHllcAdcSensor = nullptr;
+    GpuReal* gasFluxPositivityScale = nullptr;
+    GpuReal* gasHllcAdcSensor = nullptr;
     unsigned char* particleStuckCandidateMask = nullptr;
-    double* particleWallDepositedEnergy = nullptr;
-    double* particleWallReflectedEnergy = nullptr;
-    double* particleWallRepresentedContactArea = nullptr;
-    double* particleWallContactAreaScale = nullptr;
-    double* particleWallEffusivityByFace = nullptr;
+    GpuWallEnergy* particleWallDepositedEnergy = nullptr;
+    GpuWallEnergy* particleWallReflectedEnergy = nullptr;
+    GpuReal* particleWallRepresentedContactArea = nullptr;
+    GpuReal* particleWallContactAreaScale = nullptr;
+    GpuReal* particleWallEffusivityByFace = nullptr;
     int particleStuckModelConfigured = 0;
     int particleWallHeatTransferEnabled = 0;
-    double sommerfeldThreshold = 20.0;
-    double particleWallMaximumCoverage = 0.63;
-    double particleWallDepositionHeatTransferEfficiency = 1.0;
-    double particleWallReflectionHeatTransferEfficiency = 1.0;
-    double particleWallAdhesionEnergyScale = 1.0;
-    double particleWallContactAngleCosine =
-        ::cos(145.0*M_PI/180.0);
-    double particleWallDensityKgM3 = 1800.0;
-    double particleWallSpecificHeatJkgK = 710.0;
-    double particleWallConductivityWmK = 100.0;
+    GpuReal sommerfeldThreshold = GPU_R(20.0);
+    GpuReal particleWallMaximumCoverage = GPU_R(0.63);
+    GpuReal particleWallDepositionHeatTransferEfficiency = GPU_R(1.0);
+    GpuReal particleWallReflectionHeatTransferEfficiency = GPU_R(1.0);
+    GpuReal particleWallAdhesionEnergyScale = GPU_R(1.0);
+    GpuReal particleWallContactAngleCosine =
+        ::cos(GPU_R(145.0)*M_PI/GPU_R(180.0));
+    GpuReal particleWallDensityKgM3 = GPU_R(1800.0);
+    GpuReal particleWallSpecificHeatJkgK = GPU_R(710.0);
+    GpuReal particleWallConductivityWmK = GPU_R(100.0);
     int coldWallSolidificationEnabled = 0;
     int coldWall2DEnabled = 0;
     Foam::gpuThermal::ColdWallSolidificationParameters
@@ -293,15 +297,15 @@ struct DeviceState
     int* gasBoundaryPFix = nullptr;
     int* gasBoundaryTFix = nullptr;
     int* gasBoundaryPWave = nullptr;
-    double* gasBoundaryPWaveGamma = nullptr;
-    double* gasBoundaryPWaveFieldInf = nullptr;
-    double* gasBoundaryPWaveLInf = nullptr;
-    double* gasBoundaryRho = nullptr;
-    double* gasBoundaryUx = nullptr;
-    double* gasBoundaryUy = nullptr;
-    double* gasBoundaryUz = nullptr;
-    double* gasBoundaryP = nullptr;
-    double* gasBoundaryT = nullptr;
+    GpuReal* gasBoundaryPWaveGamma = nullptr;
+    GpuReal* gasBoundaryPWaveFieldInf = nullptr;
+    GpuReal* gasBoundaryPWaveLInf = nullptr;
+    GpuReal* gasBoundaryRho = nullptr;
+    GpuReal* gasBoundaryUx = nullptr;
+    GpuReal* gasBoundaryUy = nullptr;
+    GpuReal* gasBoundaryUz = nullptr;
+    GpuReal* gasBoundaryP = nullptr;
+    GpuReal* gasBoundaryT = nullptr;
                                                                            
                                                                               
                                                                             
@@ -311,117 +315,121 @@ struct DeviceState
     int* riemannBoundaryPFix = nullptr;
     int* riemannBoundaryTFix = nullptr;
     int* riemannBoundaryPWave = nullptr;
-    double* riemannBoundaryPWaveGamma = nullptr;
-    double* riemannBoundaryPWaveFieldInf = nullptr;
-    double* riemannBoundaryPWaveLInf = nullptr;
-    double* riemannBoundaryRho = nullptr;
-    double* riemannBoundaryUx = nullptr;
-    double* riemannBoundaryUy = nullptr;
-    double* riemannBoundaryUz = nullptr;
-    double* riemannBoundaryP = nullptr;
-    double* riemannBoundaryT = nullptr;
+    GpuReal* riemannBoundaryPWaveGamma = nullptr;
+    GpuReal* riemannBoundaryPWaveFieldInf = nullptr;
+    GpuReal* riemannBoundaryPWaveLInf = nullptr;
+    GpuReal* riemannBoundaryRho = nullptr;
+    GpuReal* riemannBoundaryUx = nullptr;
+    GpuReal* riemannBoundaryUy = nullptr;
+    GpuReal* riemannBoundaryUz = nullptr;
+    GpuReal* riemannBoundaryP = nullptr;
+    GpuReal* riemannBoundaryT = nullptr;
     int nScheduledInletFaces = 0;
     int* scheduledInletFaceMask = nullptr;
-    double scheduledInletTemperature = 0.0;
+    GpuReal scheduledInletTemperature = GPU_R(0.0);
     int nPressureScheduleRows = 0;
-    double* pressureScheduleTimes = nullptr;
-    double* pressureScheduleValues = nullptr;
+    GpuTime* pressureScheduleTimes = nullptr;
+    GpuReal* pressureScheduleValues = nullptr;
     int nVolumeFractionScheduleRows = 0;
-    double* volumeFractionScheduleTimes = nullptr;
-    double* volumeFractionScheduleValues = nullptr;
-    double* gradPx = nullptr;
-    double* gradPy = nullptr;
-    double* gradPz = nullptr;
-    double* gradRhoX = nullptr;
-    double* gradRhoY = nullptr;
-    double* gradRhoZ = nullptr;
-    double* gradUxX = nullptr;
-    double* gradUxY = nullptr;
-    double* gradUxZ = nullptr;
-    double* gradUyX = nullptr;
-    double* gradUyY = nullptr;
-    double* gradUyZ = nullptr;
-    double* gradUzX = nullptr;
-    double* gradUzY = nullptr;
-    double* gradUzZ = nullptr;
-    double* gradTX = nullptr;
-    double* gradTY = nullptr;
-    double* gradTZ = nullptr;
+    GpuTime* volumeFractionScheduleTimes = nullptr;
+    GpuReal* volumeFractionScheduleValues = nullptr;
+    GpuReal* gradPx = nullptr;
+    GpuReal* gradPy = nullptr;
+    GpuReal* gradPz = nullptr;
+    GpuReal* gradRhoX = nullptr;
+    GpuReal* gradRhoY = nullptr;
+    GpuReal* gradRhoZ = nullptr;
+    GpuReal* gradUxX = nullptr;
+    GpuReal* gradUxY = nullptr;
+    GpuReal* gradUxZ = nullptr;
+    GpuReal* gradUyX = nullptr;
+    GpuReal* gradUyY = nullptr;
+    GpuReal* gradUyZ = nullptr;
+    GpuReal* gradUzX = nullptr;
+    GpuReal* gradUzY = nullptr;
+    GpuReal* gradUzZ = nullptr;
+    GpuReal* gradTX = nullptr;
+    GpuReal* gradTY = nullptr;
+    GpuReal* gradTZ = nullptr;
                                                                      
                                                                    
                                                                            
                                                                   
-    double* gasGradientLimiterRho = nullptr;
-    double* gasGradientLimiterUx = nullptr;
-    double* gasGradientLimiterUy = nullptr;
-    double* gasGradientLimiterUz = nullptr;
-    double* gasGradientLimiterP = nullptr;
-    double* gasGradientLimiterT = nullptr;
-    double* nut = nullptr;
-    double* gasDiffusionNumber = nullptr;
-    double* rhoK = nullptr;
-    double* rhoOmega = nullptr;
-    double* rhoKInitial = nullptr;
-    double* rhoOmegaInitial = nullptr;
-    double* k = nullptr;
-    double* omega = nullptr;
-    double* sstWallDistance = nullptr;
-    double* sstF1 = nullptr;
-    double* sstF2 = nullptr;
-    double* gradKX = nullptr;
-    double* gradKY = nullptr;
-    double* gradKZ = nullptr;
-    double* gradOmegaX = nullptr;
-    double* gradOmegaY = nullptr;
-    double* gradOmegaZ = nullptr;
-    double* sstPhiRhoK = nullptr;
-    double* sstPhiRhoOmega = nullptr;
+    GpuReal* gasGradientLimiterRho = nullptr;
+    GpuReal* gasGradientLimiterUx = nullptr;
+    GpuReal* gasGradientLimiterUy = nullptr;
+    GpuReal* gasGradientLimiterUz = nullptr;
+    GpuReal* gasGradientLimiterP = nullptr;
+    GpuReal* gasGradientLimiterT = nullptr;
+    GpuReal* nut = nullptr;
+    GpuReal* gasDiffusionNumber = nullptr;
+    GpuReal* rhoK = nullptr;
+    GpuReal* rhoOmega = nullptr;
+    GpuReal* rhoKInitial = nullptr;
+    GpuReal* rhoOmegaInitial = nullptr;
+    GpuReal* k = nullptr;
+    GpuReal* omega = nullptr;
+    GpuReal* sstWallDistance = nullptr;
+    GpuReal* sstF1 = nullptr;
+    GpuReal* sstF2 = nullptr;
+    GpuReal* gradKX = nullptr;
+    GpuReal* gradKY = nullptr;
+    GpuReal* gradKZ = nullptr;
+    GpuReal* gradOmegaX = nullptr;
+    GpuReal* gradOmegaY = nullptr;
+    GpuReal* gradOmegaZ = nullptr;
+    GpuReal* sstPhiRhoK = nullptr;
+    GpuReal* sstPhiRhoOmega = nullptr;
     int* sstBoundaryKMode = nullptr;
     int* sstBoundaryOmegaMode = nullptr;
-    double* sstBoundaryK = nullptr;
-    double* sstBoundaryOmega = nullptr;
-    double* sstSourceNumber = nullptr;
-    double* Ux = nullptr;
-    double* Uy = nullptr;
-    double* Uz = nullptr;
-    double* p = nullptr;
-    double* Tgas = nullptr;
-    double* couplingRhoOld = nullptr;
-    double* couplingUxOld = nullptr;
-    double* couplingUyOld = nullptr;
-    double* couplingUzOld = nullptr;
-    double* couplingTgasOld = nullptr;
+    GpuReal* sstBoundaryK = nullptr;
+    GpuReal* sstBoundaryOmega = nullptr;
+    GpuReal* sstSourceNumber = nullptr;
+    GpuReal* Ux = nullptr;
+    GpuReal* Uy = nullptr;
+    GpuReal* Uz = nullptr;
+    GpuReal* p = nullptr;
+    GpuReal* Tgas = nullptr;
+    GpuReal* couplingRhoOld = nullptr;
+    GpuReal* couplingUxOld = nullptr;
+    GpuReal* couplingUyOld = nullptr;
+    GpuReal* couplingUzOld = nullptr;
+    GpuReal* couplingTgasOld = nullptr;
 
-    double* epsS = nullptr;
-    double* rhoUsx = nullptr;
-    double* rhoUsy = nullptr;
-    double* rhoUsz = nullptr;
-    double* rhoEs = nullptr;
-    double* rhoDs = nullptr;
-    double* rhoHp = nullptr;
-    double* Usx = nullptr;
-    double* Usy = nullptr;
-    double* Usz = nullptr;
-    double* theta = nullptr;
-    double* Tp = nullptr;
-    double* dMeanCell = nullptr;
-    double* epsGPrev = nullptr;
-    double* collisionalPressure = nullptr;
-    double* pressureKickScale = nullptr;
-    double* pressureDeltaMomX = nullptr;
-    double* pressureDeltaMomY = nullptr;
-    double* pressureDeltaMomZ = nullptr;
-    double* pressureDeltaEnergy = nullptr;
-    double* solidPressurePhiMomX = nullptr;
-    double* solidPressurePhiMomY = nullptr;
-    double* solidPressurePhiMomZ = nullptr;
-    double* solidPressurePhiEnergy = nullptr;
+    GpuReal* epsS = nullptr;
+    GpuReal* rhoUsx = nullptr;
+    GpuReal* rhoUsy = nullptr;
+    GpuReal* rhoUsz = nullptr;
+    GpuReal* rhoEs = nullptr;
+    GpuReal* rhoDs = nullptr;
+    GpuReal* rhoHp = nullptr;
+    GpuReal* Usx = nullptr;
+    GpuReal* Usy = nullptr;
+    GpuReal* Usz = nullptr;
+    GpuReal* theta = nullptr;
+    GpuReal* Tp = nullptr;
+    GpuReal* dMeanCell = nullptr;
+    GpuReal* epsGPrev = nullptr;
+    GpuReal* collisionalPressure = nullptr;
+    GpuReal* pressureKickScale = nullptr;
+    GpuReal* pressureDeltaMomX = nullptr;
+    GpuReal* pressureDeltaMomY = nullptr;
+    GpuReal* pressureDeltaMomZ = nullptr;
+    GpuReal* pressureDeltaEnergy = nullptr;
+#if UGKWP_GPU_REAL_BITS == 32
+    GpuReal* flatPressureParameters = nullptr;
+    int* flatPressureFlags = nullptr;
+#endif
+    GpuReal* solidPressurePhiMomX = nullptr;
+    GpuReal* solidPressurePhiMomY = nullptr;
+    GpuReal* solidPressurePhiMomZ = nullptr;
+    GpuReal* solidPressurePhiEnergy = nullptr;
                                                                              
                                                                        
-    double* mobilePackingRho = nullptr;
-    double* mobilePackingMomX = nullptr;
-    double* mobilePackingMomY = nullptr;
-    double* mobilePackingMomZ = nullptr;
+    GpuReal* mobilePackingRho = nullptr;
+    GpuReal* mobilePackingMomX = nullptr;
+    GpuReal* mobilePackingMomY = nullptr;
+    GpuReal* mobilePackingMomZ = nullptr;
     int* mobilePackingActiveCellMask = nullptr;
     int* mobilePackingCorrectionCellMask = nullptr;
     int* mobilePackingActiveCellList = nullptr;
@@ -436,67 +444,66 @@ struct DeviceState
                                                                      
                                                                                 
                                                             
-    double* thetaDragAlpha = nullptr;
+    GpuReal* thetaDragAlpha = nullptr;
 
-    double* momRhoP = nullptr;
-    double* momRhoUPx = nullptr;
-    double* momRhoUPy = nullptr;
-    double* momRhoUPz = nullptr;
-    double* momRhoEP = nullptr;
-    double* momRhoPD = nullptr;
-    double* momRhoHpP = nullptr;
-    double* radiationMobileMass = nullptr;
-    double* radiationMobileTemperatureMass = nullptr;
-    double* radiationMobileDiameterMass = nullptr;
+    GpuReal* momRhoP = nullptr;
+    GpuReal* momRhoUPx = nullptr;
+    GpuReal* momRhoUPy = nullptr;
+    GpuReal* momRhoUPz = nullptr;
+    GpuReal* momRhoEP = nullptr;
+    GpuReal* momRhoPD = nullptr;
+    GpuReal* momRhoHpP = nullptr;
+    GpuReal* radiationMobileMass = nullptr;
+    GpuReal* radiationMobileTemperatureMass = nullptr;
+    GpuReal* radiationMobileDiameterMass = nullptr;
     int* poolThermalCount = nullptr;
-    double* poolThermalSumUx = nullptr;
-    double* poolThermalSumUy = nullptr;
-    double* poolThermalSumUz = nullptr;
-    double* poolThermalSumU2 = nullptr;
+    GpuReal* poolThermalSumUx = nullptr;
+    GpuReal* poolThermalSumUy = nullptr;
+    GpuReal* poolThermalSumUz = nullptr;
+    GpuReal* poolThermalSumU2 = nullptr;
     int* poissonPoolSampleTargetCount = nullptr;
-    double* poissonPoolMass = nullptr;
-    double* poissonPoolMomX = nullptr;
-    double* poissonPoolMomY = nullptr;
-    double* poissonPoolMomZ = nullptr;
-    double* poissonPoolEnergy = nullptr;
-    double* poissonPoolDiameter = nullptr;
-    double* poissonPoolDiameter2 = nullptr;
+    GpuReal* poissonPoolMass = nullptr;
+    GpuReal* poissonPoolMomX = nullptr;
+    GpuReal* poissonPoolMomY = nullptr;
+    GpuReal* poissonPoolMomZ = nullptr;
+    GpuReal* poissonPoolEnergy = nullptr;
+    GpuReal* poissonPoolDiameter = nullptr;
+    GpuReal* poissonPoolDiameter2 = nullptr;
 
-    double* px = nullptr;
-    double* py = nullptr;
-    double* pz = nullptr;
-    double* pux = nullptr;
-    double* puy = nullptr;
-    double* puz = nullptr;
-    double* puxOld = nullptr;
-    double* puyOld = nullptr;
-    double* puzOld = nullptr;
-    double* pT = nullptr;
-    double* pTheta = nullptr;
-    double* pd = nullptr;
-    double* pm = nullptr;
+    GpuReal* px = nullptr;
+    GpuReal* py = nullptr;
+    GpuReal* pz = nullptr;
+    GpuReal* pux = nullptr;
+    GpuReal* puy = nullptr;
+    GpuReal* puz = nullptr;
+    GpuReal* puxOld = nullptr;
+    GpuReal* puyOld = nullptr;
+    GpuReal* puzOld = nullptr;
+    GpuReal* pT = nullptr;
+    GpuReal* pTheta = nullptr;
+    GpuTime* pContactAge = nullptr;
+    GpuReal* pd = nullptr;
+    GpuReal* pm = nullptr;
     int* pCellId = nullptr;
     int* pStatus = nullptr;
     unsigned char* pStuck = nullptr;
     int* pStuckFaceId = nullptr;
     float* pDepositionArea = nullptr;
-    float* pContactDuration = nullptr;
+    double* pContactDuration = nullptr;
     float* pContactMaximumArea = nullptr;
     float* pContactPeakFraction = nullptr;
     float* pColdNodeSpecificEnthalpy = nullptr;
     float* pColdRingSolidMass = nullptr;
     float* pColdFrozenArea = nullptr;
-    float* pColdContactAge = nullptr;
+    double* pColdContactAge = nullptr;
     float* pCold2DNodeSpecificEnthalpy = nullptr;
-    float* pCold2DRingContactAge = nullptr;
+    double* pCold2DRingContactAge = nullptr;
     float* pCold2DFrozenArea = nullptr;
     unsigned long long* pRng = nullptr;
     unsigned long long* pOrigId = nullptr;
     Foam::gpuThermal::RadiationAffineTemperatureUpdate*
         particleRadiationAffineUpdate = nullptr;
     ParticleRadiationValidationError* particleRadiationValidationError = nullptr;
-    int wallContactAreaDiagnosticsEnabled = 0;
-    WallContactAreaDiagnosticError* wallContactAreaDiagnosticError = nullptr;
     int* wallBoundParticleIndex = nullptr;
     int* wallBoundParticleCountDevice = nullptr;
     int* sortedParticleIndex = nullptr;
@@ -529,7 +536,7 @@ struct DeviceState
     int* csrHeavyTaskEnd = nullptr;
     int* csrHeavyCellTaskStart = nullptr;
     int* csrHeavyCellTaskCount = nullptr;
-    double* csrHeavyPartials = nullptr;
+    GpuReal* csrHeavyPartials = nullptr;
     int* csrHeavyInjectionTaskCount = nullptr;
     int* csrHeavyInjectionTaskCursor = nullptr;
     int* csrHeavyInjectionTaskCell = nullptr;
@@ -537,47 +544,48 @@ struct DeviceState
     int* csrHeavyInjectionTaskEnd = nullptr;
     int* csrHeavyInjectionCellTaskStart = nullptr;
     int* csrHeavyInjectionCellTaskCount = nullptr;
-    double* csrHeavyInjectionPartials = nullptr;
+    GpuReal* csrHeavyInjectionPartials = nullptr;
 
     int nBoundarySources = 0;
     int* sourceCell = nullptr;
     int* sourceFace = nullptr;
-    double* sourcePx = nullptr;
-    double* sourcePy = nullptr;
-    double* sourcePz = nullptr;
-    double* sourceUx = nullptr;
-    double* sourceUy = nullptr;
-    double* sourceUz = nullptr;
-    double* sourceT = nullptr;
-    double* sourceTheta = nullptr;
-    double* sourceD = nullptr;
-    double* sourceMassRate = nullptr;
-    double* sourceResidualMass = nullptr;
+    GpuReal* sourcePx = nullptr;
+    GpuReal* sourcePy = nullptr;
+    GpuReal* sourcePz = nullptr;
+    GpuReal* sourceUx = nullptr;
+    GpuReal* sourceUy = nullptr;
+    GpuReal* sourceUz = nullptr;
+    GpuReal* sourceT = nullptr;
+    GpuReal* sourceTheta = nullptr;
+    GpuReal* sourceD = nullptr;
+    GpuReal* sourceMassRate = nullptr;
+    GpuReal* sourceResidualMass = nullptr;
 
-    double* compactPx = nullptr;
-    double* compactPy = nullptr;
-    double* compactPz = nullptr;
-    double* compactPux = nullptr;
-    double* compactPuy = nullptr;
-    double* compactPuz = nullptr;
-    double* compactPT = nullptr;
-    double* compactPTheta = nullptr;
-    double* compactPd = nullptr;
-    double* compactPm = nullptr;
+    GpuReal* compactPx = nullptr;
+    GpuReal* compactPy = nullptr;
+    GpuReal* compactPz = nullptr;
+    GpuReal* compactPux = nullptr;
+    GpuReal* compactPuy = nullptr;
+    GpuReal* compactPuz = nullptr;
+    GpuReal* compactPT = nullptr;
+    GpuReal* compactPTheta = nullptr;
+    GpuTime* compactPContactAge = nullptr;
+    GpuReal* compactPd = nullptr;
+    GpuReal* compactPm = nullptr;
     int* compactPCellId = nullptr;
     int* compactPStatus = nullptr;
     unsigned char* compactPStuck = nullptr;
     int* compactPStuckFaceId = nullptr;
     float* compactPDepositionArea = nullptr;
-    float* compactPContactDuration = nullptr;
+    double* compactPContactDuration = nullptr;
     float* compactPContactMaximumArea = nullptr;
     float* compactPContactPeakFraction = nullptr;
     float* compactPColdNodeSpecificEnthalpy = nullptr;
     float* compactPColdRingSolidMass = nullptr;
     float* compactPColdFrozenArea = nullptr;
-    float* compactPColdContactAge = nullptr;
+    double* compactPColdContactAge = nullptr;
     float* compactPCold2DNodeSpecificEnthalpy = nullptr;
-    float* compactPCold2DRingContactAge = nullptr;
+    double* compactPCold2DRingContactAge = nullptr;
     float* compactPCold2DFrozenArea = nullptr;
     unsigned long long* compactPRng = nullptr;
     unsigned long long* compactPOrigId = nullptr;
@@ -680,8 +688,8 @@ struct DevelopmentProbeDeviceSummary
 struct DevelopmentProbeSample
 {
     unsigned long long step = 0;
-    double simulationTime = 0.0;
-    double dt = 0.0;
+    GpuTime simulationTime = GPU_R(0.0);
+    GpuTime dt = GPU_R(0.0);
     const char* status = "ok";
     const char* errorStage = "";
     const char* errorMessage = "";
@@ -690,13 +698,13 @@ struct DevelopmentProbeSample
     int particlePath = 0;
     int particleCount = -1;
     int particleCapacity = 0;
-    double particleUtilisation = 0.0;
+    GpuReal particleUtilisation = GPU_R(0.0);
     long long occupancySum = 0;
     int occupancyNonEmpty = 0;
     int occupancyMin = 0;
-    double occupancyMean = 0.0;
-    double occupancyStddev = 0.0;
-    double occupancyCv = 0.0;
+    GpuReal occupancyMean = GPU_R(0.0);
+    GpuReal occupancyStddev = GPU_R(0.0);
+    GpuReal occupancyCv = GPU_R(0.0);
     int occupancyP50 = 0;
     int occupancyP95 = 0;
     int occupancyP99 = 0;
@@ -821,6 +829,26 @@ int copyToHost(T* dst, const T* src, const size_t n, const char* name)
     return 0;
 }
 
+template<class D, class S>
+int copyToDevice(D* dst, const S* src, const size_t n, const char* name)
+{
+    if (n == 0) return 0;
+    std::vector<D> staging(n);
+    for (size_t i = 0; i < n; ++i) staging[i] = static_cast<D>(src[i]);
+    return copyToDevice(dst, staging.data(), n, name);
+}
+
+template<class D, class S>
+int copyToHost(D* dst, const S* src, const size_t n, const char* name)
+{
+    if (n == 0) return 0;
+    std::vector<S> staging(n);
+    const int rc = copyToHost(staging.data(), src, n, name);
+    if (rc) return rc;
+    for (size_t i = 0; i < n; ++i) dst[i] = static_cast<D>(staging[i]);
+    return 0;
+}
+
 int syncDeviceState(DeviceState* s, const char* name)
 {
     if (s == nullptr || s->deviceState == nullptr)
@@ -844,7 +872,7 @@ int syncGasWallLedgerPointers(DeviceState* s, const char* name)
     static_assert
     (
         offsetof(DeviceState, gasWallEnergyMask)
-     == offsetof(DeviceState, gasWallEnergy) + sizeof(double*),
+     == offsetof(DeviceState, gasWallEnergy) + sizeof(GpuReal*),
         "gas-wall ledger pointers must remain adjacent"
     );
     const cudaError_t err = cudaMemcpy
@@ -1091,6 +1119,10 @@ void releaseState(DeviceState* s)
     release(s->pressureDeltaMomY);
     release(s->pressureDeltaMomZ);
     release(s->pressureDeltaEnergy);
+#if UGKWP_GPU_REAL_BITS == 32
+    release(s->flatPressureParameters);
+    release(s->flatPressureFlags);
+#endif
     release(s->solidPressurePhiMomX);
     release(s->solidPressurePhiMomY);
     release(s->solidPressurePhiMomZ);
@@ -1145,6 +1177,7 @@ void releaseState(DeviceState* s)
     release(s->puzOld);
     release(s->pT);
     release(s->pTheta);
+    release(s->pContactAge);
     release(s->pd);
     release(s->pm);
     release(s->pCellId);
@@ -1159,7 +1192,6 @@ void releaseState(DeviceState* s)
     release(s->pOrigId);
     release(s->particleRadiationAffineUpdate);
     release(s->particleRadiationValidationError);
-    release(s->wallContactAreaDiagnosticError);
     release(s->wallBoundParticleIndex);
     release(s->wallBoundParticleCountDevice);
     release(s->sortedParticleIndex);
@@ -1218,6 +1250,7 @@ void releaseState(DeviceState* s)
     release(s->compactPuz);
     release(s->compactPT);
     release(s->compactPTheta);
+    release(s->compactPContactAge);
     release(s->compactPd);
     release(s->compactPm);
     release(s->compactPCellId);
@@ -1412,6 +1445,10 @@ int allocateFields(DeviceState* s)
     rc |= allocate(s->pressureDeltaMomY, nc, "cudaMalloc strict pressureDeltaMomY");
     rc |= allocate(s->pressureDeltaMomZ, nc, "cudaMalloc strict pressureDeltaMomZ");
     rc |= allocate(s->pressureDeltaEnergy, nc, "cudaMalloc strict pressureDeltaEnergy");
+#if UGKWP_GPU_REAL_BITS == 32
+    rc |= allocate(s->flatPressureParameters, nc*13, "cudaMalloc pressure parameters");
+    rc |= allocate(s->flatPressureFlags, nc*2, "cudaMalloc pressure flags");
+#endif
     rc |= allocate(s->solidPressurePhiMomX, nf, "cudaMalloc strict solidPressurePhiMomX");
     rc |= allocate(s->solidPressurePhiMomY, nf, "cudaMalloc strict solidPressurePhiMomY");
     rc |= allocate(s->solidPressurePhiMomZ, nf, "cudaMalloc strict solidPressurePhiMomZ");
@@ -1466,6 +1503,7 @@ int allocateFields(DeviceState* s)
     rc |= allocate(s->puzOld, np, "cudaMalloc strict particle old uz");
     rc |= allocate(s->pT, np, "cudaMalloc strict particle T");
     rc |= allocate(s->pTheta, np, "cudaMalloc strict particle theta");
+    rc |= allocate(s->pContactAge, np, "cudaMalloc strict particle theta");
     rc |= allocate(s->pd, np, "cudaMalloc strict particle d");
     rc |= allocate(s->pm, np, "cudaMalloc strict particle m");
     rc |= allocate(s->pCellId, np, "cudaMalloc strict particle cellId");
@@ -1519,6 +1557,7 @@ int allocateFields(DeviceState* s)
     rc |= allocate(s->compactPuz, np, "cudaMalloc strict compact particle uz");
     rc |= allocate(s->compactPT, np, "cudaMalloc strict compact particle T");
     rc |= allocate(s->compactPTheta, np, "cudaMalloc strict compact particle theta");
+    rc |= allocate(s->compactPContactAge, np, "cudaMalloc strict compact particle theta");
     rc |= allocate(s->compactPd, np, "cudaMalloc strict compact particle d");
     rc |= allocate(s->compactPm, np, "cudaMalloc strict compact particle m");
     rc |= allocate(s->compactPCellId, np, "cudaMalloc strict compact particle cellId");
@@ -1663,22 +1702,26 @@ int allocateFields(DeviceState* s)
     return 0;
 }
 
-__device__ double clampMin(const double x, const double lo)
+template<class A, class B>
+__device__ typename std::common_type<A,B>::type clampMin(const A x, const B lo)
 {
     return x < lo ? lo : x;
 }
 
-__device__ bool finiteDevice(const double x)
+template<class T>
+__device__ bool finiteDevice(const T x)
 {
-    return (x == x) && (fabs(x) < 1.0e300);
+    return (x == x) && (fabs(x) < (sizeof(T) == 8 ? 1.0e300 : 1.0e30));
 }
 
-__device__ bool nonFiniteDevice(const double x)
+template<class T>
+__device__ bool nonFiniteDevice(const T x)
 {
     return !finiteDevice(x);
 }
 
-__device__ double finiteOr(const double x, const double fallback)
+template<class A, class B>
+__device__ typename std::common_type<A,B>::type finiteOr(const A x, const B fallback)
 {
     return finiteDevice(x) ? x : fallback;
 }
@@ -1758,9 +1801,9 @@ __global__ void validateDevelopmentProbeCellsKernel
 
         if
         (
-            !(s.rho[c] > 0.0)
-         || !(s.p[c] > 0.0)
-         || !(s.Tgas[c] > 0.0)
+            !(s.rho[c] > GPU_R(0.0))
+         || !(s.p[c] > GPU_R(0.0))
+         || !(s.Tgas[c] > GPU_R(0.0))
         )
         {
             mask |= ProbeBadCellRange;
@@ -1811,11 +1854,11 @@ __global__ void validateDevelopmentProbeCellsKernel
 
             if
             (
-                s.epsS[c] < 0.0
-             || s.epsS[c] > 1.0
-             || s.theta[c] < 0.0
-             || (s.solveParticleTemperature != 0 && !(s.Tp[c] > 0.0))
-             || (s.epsS[c] > s.epsSMin && !(s.dMeanCell[c] > 0.0))
+                s.epsS[c] < GPU_R(0.0)
+             || s.epsS[c] > GPU_R(1.0)
+             || s.theta[c] < GPU_R(0.0)
+             || (s.solveParticleTemperature != 0 && !(s.Tp[c] > GPU_R(0.0)))
+             || (s.epsS[c] > s.epsSMin && !(s.dMeanCell[c] > GPU_R(0.0)))
             )
             {
                 mask |= ProbeBadCellRange;
@@ -1870,10 +1913,10 @@ __global__ void validateDevelopmentProbeParticlesKernel
          || !finiteDevice(s.pTheta[i])
          || !finiteDevice(s.pd[i])
          || !finiteDevice(s.pm[i])
-         || s.pTheta[i] < 0.0
-         || !(s.pd[i] > 0.0)
-         || s.pm[i] < 0.0
-         || (s.solveParticleTemperature != 0 && !(s.pT[i] > 0.0))
+         || s.pTheta[i] < GPU_R(0.0)
+         || !(s.pd[i] > GPU_R(0.0))
+         || s.pm[i] < GPU_R(0.0)
+         || (s.solveParticleTemperature != 0 && !(s.pT[i] > GPU_R(0.0)))
         )
         {
             mask |= ProbeBadParticleThermal;
@@ -1916,7 +1959,7 @@ __global__ void validateDevelopmentProbeParticlesKernel
                  || !(s.pContactMaximumArea[i] > 0.0f)
                  || !(s.pContactPeakFraction[i] > 0.0f)
                  || !(s.pContactPeakFraction[i] < 1.0f)
-                 || s.pTheta[i] > s.pContactDuration[i]
+                 || s.pContactAge[i] > s.pContactDuration[i]
                  || s.pDepositionArea[i] < 0.0f
                 )
             )
@@ -1931,12 +1974,12 @@ __global__ void validateDevelopmentProbeParticlesKernel
 
 #endif
 
-__device__ double particleSpecificHeatDevice(const double temperatureK)
+__device__ GpuReal particleSpecificHeatDevice(const GpuReal temperatureK)
 {
     return Foam::gpuThermal::aluminaSpecificHeatJkgK(temperatureK);
 }
 
-__device__ double particleSpecificEnthalpyDevice(const double temperatureK)
+__device__ GpuReal particleSpecificEnthalpyDevice(const GpuReal temperatureK)
 {
     return Foam::gpuThermal::aluminaSpecificEnthalpyJkg(temperatureK);
 }
@@ -1946,20 +1989,20 @@ __device__ double particleSpecificEnthalpyDevice(const double temperatureK)
                                                                                
                                                                               
                                                                                
-__device__ double particleMomentThetaDevice
+__device__ GpuReal particleMomentThetaDevice
 (
     const DeviceState& s,
     const int i
 )
 {
     return s.pStuck[i] == Foam::gpuThermal::particleWallMobile
-      ? clampMin(finiteOr(s.pTheta[i], 0.0), 0.0)
-      : 0.0;
+      ? clampMin(finiteOr(s.pTheta[i], GPU_R(0.0)), GPU_R(0.0))
+      : GPU_R(0.0);
 }
 
-__device__ double particleTemperatureFromSpecificEnthalpyDevice
+__device__ GpuReal particleTemperatureFromSpecificEnthalpyDevice
 (
-    const double specificEnthalpyJkg
+    const GpuReal specificEnthalpyJkg
 )
 {
     return Foam::gpuThermal::aluminaTemperatureFromSpecificEnthalpyK
@@ -2004,10 +2047,10 @@ __global__ void validateParticleRadiationAffineTemperatureKernel
             continue;
         }
         const int cellI = s.pCellId[particleI];
-        const double oldTemperatureK = s.pT[particleI];
-        double scale = nan("");
-        double offset = nan("");
-        double proposedTemperatureK = nan("");
+        const GpuReal oldTemperatureK = s.pT[particleI];
+        GpuReal scale = nan("");
+        GpuReal offset = nan("");
+        GpuReal proposedTemperatureK = nan("");
         int errorCode = particleRadiationValid;
         if (cellI < 0 || cellI >= s.nCells)
         {
@@ -2098,38 +2141,39 @@ __global__ void applyParticleRadiationAffineTemperatureKernel
 
 __device__ void clearSolidCell(DeviceState& s, const int c)
 {
-    s.epsS[c] = 0.0;
-    s.rhoUsx[c] = 0.0;
-    s.rhoUsy[c] = 0.0;
-    s.rhoUsz[c] = 0.0;
-    s.rhoEs[c] = 0.0;
-    s.rhoDs[c] = 0.0;
-    s.rhoHp[c] = 0.0;
-    s.Usx[c] = 0.0;
-    s.Usy[c] = 0.0;
-    s.Usz[c] = 0.0;
-    s.theta[c] = 0.0;
+    s.epsS[c] = GPU_R(0.0);
+    s.rhoUsx[c] = GPU_R(0.0);
+    s.rhoUsy[c] = GPU_R(0.0);
+    s.rhoUsz[c] = GPU_R(0.0);
+    s.rhoEs[c] = GPU_R(0.0);
+    s.rhoDs[c] = GPU_R(0.0);
+    s.rhoHp[c] = GPU_R(0.0);
+    s.Usx[c] = GPU_R(0.0);
+    s.Usy[c] = GPU_R(0.0);
+    s.Usz[c] = GPU_R(0.0);
+    s.theta[c] = GPU_R(0.0);
     s.Tp[c] = s.TpMin;
     s.dMeanCell[c] =
-        clampMin(finiteOr(s.particleDiameterFallback, 1.0e-12), 1.0e-12);
+        clampMin(finiteOr(s.particleDiameterFallback, GPU_R(1.0e-12)), GPU_R(1.0e-12));
 }
 
-__device__ double clampRange(const double x, const double lo, const double hi)
+template<class A, class B, class C>
+__device__ typename std::common_type<A,B,C>::type clampRange(const A x, const B lo, const C hi)
 {
     return x < lo ? lo : (x > hi ? hi : x);
 }
 
-__device__ double linearScheduledValueDevice
+__device__ GpuReal linearScheduledValueDevice
 (
-    const double* times,
-    const double* values,
+    const GpuTime* times,
+    const GpuReal* values,
     const int count,
-    const double simulationTime
+    const GpuTime simulationTime
 )
 {
     if (count <= 0 || times == nullptr || values == nullptr)
     {
-        return 0.0;
+        return GPU_R(0.0);
     }
     if (simulationTime <= times[0])
     {
@@ -2153,13 +2197,13 @@ __device__ double linearScheduledValueDevice
             high = middle;
         }
     }
-    const double t0 = times[low];
-    const double t1 = times[high];
-    const double fraction = clampRange
+    const GpuTime t0 = times[low];
+    const GpuTime t1 = times[high];
+    const GpuReal fraction = clampRange
     (
         (simulationTime - t0)/clampMin(t1 - t0, OfSmall),
-        0.0,
-        1.0
+        GPU_R(0.0),
+        GPU_R(1.0)
     );
     return values[low] + fraction*(values[high] - values[low]);
 }
@@ -2178,10 +2222,10 @@ __device__ bool scheduledInletFaceDevice
      && s.scheduledInletFaceMask[face] != 0;
 }
 
-__device__ double scheduledPressureDevice
+__device__ GpuReal scheduledPressureDevice
 (
     const DeviceState& s,
-    const double simulationTime
+    const GpuTime simulationTime
 )
 {
     return linearScheduledValueDevice
@@ -2193,10 +2237,10 @@ __device__ double scheduledPressureDevice
     );
 }
 
-__device__ double scheduledSolidVolumeFractionDevice
+__device__ GpuReal scheduledSolidVolumeFractionDevice
 (
     const DeviceState& s,
-    const double simulationTime
+    const GpuTime simulationTime
 )
 {
     return clampRange
@@ -2208,8 +2252,8 @@ __device__ double scheduledSolidVolumeFractionDevice
             s.nVolumeFractionScheduleRows,
             simulationTime
         ),
-        0.0,
-        1.0 - OfSmall
+        GPU_R(0.0),
+        GPU_R(1.0) - GPU_R(GPU_REAL_EPSILON)
     );
 }
 
@@ -2218,13 +2262,13 @@ __global__ void publishScheduledInletConfigurationKernel
     DeviceState* sp,
     const int nFaces,
     int* faceMask,
-    const double inletTemperature,
+    const GpuReal inletTemperature,
     const int nPressureRows,
-    double* pressureTimes,
-    double* pressureValues,
+    GpuTime* pressureTimes,
+    GpuReal* pressureValues,
     const int nVolumeFractionRows,
-    double* volumeFractionTimes,
-    double* volumeFractionValues,
+    GpuTime* volumeFractionTimes,
+    GpuReal* volumeFractionValues,
     const int particlesMayBePresent
 )
 {
@@ -2248,39 +2292,39 @@ __global__ void publishScheduledInletConfigurationKernel
     }
 }
 
-__device__ double sqr3(const double x, const double y, const double z)
+__device__ GpuReal sqr3(const GpuReal x, const GpuReal y, const GpuReal z)
 {
     return x*x + y*y + z*z;
 }
 
 struct GasPrimDevice
 {
-    double rho;
-    double ux;
-    double uy;
-    double uz;
-    double p;
-    double T;
+    GpuReal rho;
+    GpuReal ux;
+    GpuReal uy;
+    GpuReal uz;
+    GpuReal p;
+    GpuReal T;
 };
 
 __device__ GasPrimDevice makeGasPrimDevice
 (
-    const double rho,
-    const double ux,
-    const double uy,
-    const double uz,
-    const double p,
-    const double Rgas,
-    const double rhoMin,
-    const double Tmin
+    const GpuReal rho,
+    const GpuReal ux,
+    const GpuReal uy,
+    const GpuReal uz,
+    const GpuReal p,
+    const GpuReal Rgas,
+    const GpuReal rhoMin,
+    const GpuReal Tmin
 )
 {
     GasPrimDevice g;
     g.rho = clampMin(finiteOr(rho, rhoMin), rhoMin);
-    g.ux = finiteOr(ux, 0.0);
-    g.uy = finiteOr(uy, 0.0);
-    g.uz = finiteOr(uz, 0.0);
-    const double pMinimum =
+    g.ux = finiteOr(ux, GPU_R(0.0));
+    g.uy = finiteOr(uy, GPU_R(0.0));
+    g.uz = finiteOr(uz, GPU_R(0.0));
+    const GpuReal pMinimum =
         g.rho*clampMin(Rgas, OfSmall)*clampMin(Tmin, OfSmall);
     g.p = clampMin(finiteOr(p, pMinimum), pMinimum);
     g.T = g.p/clampMin(g.rho*Rgas, OfSmall);
@@ -2305,12 +2349,12 @@ __device__ bool useRiemannBoundaryVelocity
     }
 
                                                                            
-    const double area = clampMin(s.magSf[f], OfSmall);
-    const double outwardVelocity =
+    const GpuReal area = clampMin(s.magSf[f], OfSmall);
+    const GpuReal outwardVelocity =
         (ownerState.ux*s.Sfx[f]
        + ownerState.uy*s.Sfy[f]
        + ownerState.uz*s.Sfz[f])/area;
-    return outwardVelocity < 0.0;
+    return outwardVelocity < GPU_R(0.0);
 }
 
 __device__ GasPrimDevice riemannBoundaryState
@@ -2322,17 +2366,17 @@ __device__ GasPrimDevice riemannBoundaryState
 {
     if (s.riemannBoundaryUFix[f] == 3)
     {
-        const double totalTemperature = clampMin
+        const GpuReal totalTemperature = clampMin
         (
             finiteOr(s.riemannBoundaryT[f], ownerState.T),
             s.TgasMin
         );
-        const double totalPressure = clampMin
+        const GpuReal totalPressure = clampMin
         (
             finiteOr(s.riemannBoundaryP[f], ownerState.p),
             s.rhoMin*s.Rgas*totalTemperature
         );
-        const double area = clampMin(s.magSf[f], OfSmall);
+        const GpuReal area = clampMin(s.magSf[f], OfSmall);
         const ugkpboundary::Primitive boundary =
             ugkpboundary::totalConditionInletState
             (
@@ -2376,9 +2420,9 @@ __device__ GasPrimDevice riemannBoundaryState
      || s.riemannBoundaryPWave[f] != 0;
     const bool TFixed = s.riemannBoundaryTFix[f] != 0;
 
-    double rho = ownerState.rho;
-    double p = ownerState.p;
-    double T = ownerState.T;
+    GpuReal rho = ownerState.rho;
+    GpuReal p = ownerState.p;
+    GpuReal T = ownerState.T;
     if (rhoFixed)
     {
         rho = clampMin
@@ -2432,11 +2476,11 @@ __device__ GasPrimDevice riemannBoundaryState
         rho = p/clampMin(s.Rgas*T, OfSmall);
     }
 
-    const double ux = velocityFixed
+    const GpuReal ux = velocityFixed
       ? s.riemannBoundaryUx[f] : ownerState.ux;
-    const double uy = velocityFixed
+    const GpuReal uy = velocityFixed
       ? s.riemannBoundaryUy[f] : ownerState.uy;
-    const double uz = velocityFixed
+    const GpuReal uz = velocityFixed
       ? s.riemannBoundaryUz[f] : ownerState.uz;
     return makeGasPrimDevice
     (
@@ -2464,9 +2508,9 @@ __device__ void periodicMappedCellCentre
     const DeviceState& s,
     const int f,
     const int c,
-    double& x,
-    double& y,
-    double& z
+    GpuReal& x,
+    GpuReal& y,
+    GpuReal& z
 )
 {
     x = s.Cx[c];
@@ -2537,18 +2581,18 @@ __device__ GasPrimDevice riemannFacePrimitiveForGradient
             finiteOr(s.Tgas[other], adjacent.T),
             s.TgasMin
         );
-        const double ownerWeight = clampRange(s.faceWeight[f], 0.0, 1.0);
-        const double wc = c == own ? ownerWeight : 1.0 - ownerWeight;
+        const GpuReal ownerWeight = clampRange(s.faceWeight[f], GPU_R(0.0), GPU_R(1.0));
+        const GpuReal wc = c == own ? ownerWeight : GPU_R(1.0) - ownerWeight;
         GasPrimDevice face = makeGasPrimDevice
         (
-            wc*centre.rho + (1.0 - wc)*adjacent.rho,
-            wc*centre.ux + (1.0 - wc)*adjacent.ux,
-            wc*centre.uy + (1.0 - wc)*adjacent.uy,
-            wc*centre.uz + (1.0 - wc)*adjacent.uz,
-            wc*centre.p + (1.0 - wc)*adjacent.p,
+            wc*centre.rho + (GPU_R(1.0) - wc)*adjacent.rho,
+            wc*centre.ux + (GPU_R(1.0) - wc)*adjacent.ux,
+            wc*centre.uy + (GPU_R(1.0) - wc)*adjacent.uy,
+            wc*centre.uz + (GPU_R(1.0) - wc)*adjacent.uz,
+            wc*centre.p + (GPU_R(1.0) - wc)*adjacent.p,
             s.Rgas, s.rhoMin, s.TgasMin
         );
-        face.T = wc*centre.T + (1.0 - wc)*adjacent.T;
+        face.T = wc*centre.T + (GPU_R(1.0) - wc)*adjacent.T;
         return face;
     }
 
@@ -2559,11 +2603,11 @@ __device__ GasPrimDevice riemannFacePrimitiveForGradient
     }
     if (kind == 1)
     {
-        const double area = clampMin(s.magSf[f], OfSmall);
-        const double nx = s.Sfx[f]/area;
-        const double ny = s.Sfy[f]/area;
-        const double nz = s.Sfz[f]/area;
-        const double un = centre.ux*nx + centre.uy*ny + centre.uz*nz;
+        const GpuReal area = clampMin(s.magSf[f], OfSmall);
+        const GpuReal nx = s.Sfx[f]/area;
+        const GpuReal ny = s.Sfy[f]/area;
+        const GpuReal nz = s.Sfz[f]/area;
+        const GpuReal un = centre.ux*nx + centre.uy*ny + centre.uz*nz;
         GasPrimDevice face = centre;
         face.ux -= un*nx;
         face.uy -= un*ny;
@@ -2575,11 +2619,11 @@ __device__ GasPrimDevice riemannFacePrimitiveForGradient
     {
         GasPrimDevice wall = centre;
         wall.ux = s.riemannBoundaryUFix[f] != 0
-          ? finiteOr(s.riemannBoundaryUx[f], 0.0) : 0.0;
+          ? finiteOr(s.riemannBoundaryUx[f], GPU_R(0.0)) : GPU_R(0.0);
         wall.uy = s.riemannBoundaryUFix[f] != 0
-          ? finiteOr(s.riemannBoundaryUy[f], 0.0) : 0.0;
+          ? finiteOr(s.riemannBoundaryUy[f], GPU_R(0.0)) : GPU_R(0.0);
         wall.uz = s.riemannBoundaryUFix[f] != 0
-          ? finiteOr(s.riemannBoundaryUz[f], 0.0) : 0.0;
+          ? finiteOr(s.riemannBoundaryUz[f], GPU_R(0.0)) : GPU_R(0.0);
         if (s.riemannBoundaryTFix[f] != 0)
         {
             wall.T = clampMin
@@ -2604,12 +2648,12 @@ __global__ void computeGasPrimitiveGradientsKernel(DeviceState* sp)
         return;
     }
 
-    double grx = 0.0, gry = 0.0, grz = 0.0;
-    double guxx = 0.0, guxy = 0.0, guxz = 0.0;
-    double guyx = 0.0, guyy = 0.0, guyz = 0.0;
-    double guzx = 0.0, guzy = 0.0, guzz = 0.0;
-    double gpx = 0.0, gpy = 0.0, gpz = 0.0;
-    double gtx = 0.0, gty = 0.0, gtz = 0.0;
+    GpuReal grx = GPU_R(0.0), gry = GPU_R(0.0), grz = GPU_R(0.0);
+    GpuReal guxx = GPU_R(0.0), guxy = GPU_R(0.0), guxz = GPU_R(0.0);
+    GpuReal guyx = GPU_R(0.0), guyy = GPU_R(0.0), guyz = GPU_R(0.0);
+    GpuReal guzx = GPU_R(0.0), guzy = GPU_R(0.0), guzz = GPU_R(0.0);
+    GpuReal gpx = GPU_R(0.0), gpy = GPU_R(0.0), gpz = GPU_R(0.0);
+    GpuReal gtx = GPU_R(0.0), gty = GPU_R(0.0), gtz = GPU_R(0.0);
     const int start = s.cellPlaneStart[c];
     const int count = s.cellPlaneCount[c];
     for (int i = 0; i < count; ++i)
@@ -2619,10 +2663,10 @@ __global__ void computeGasPrimitiveGradientsKernel(DeviceState* sp)
         {
             continue;
         }
-        const double sign = s.faceOwner[f] == c ? 1.0 : -1.0;
-        const double sx = sign*s.Sfx[f];
-        const double sy = sign*s.Sfy[f];
-        const double sz = sign*s.Sfz[f];
+        const GpuReal sign = s.faceOwner[f] == c ? GPU_R(1.0) : -GPU_R(1.0);
+        const GpuReal sx = sign*s.Sfx[f];
+        const GpuReal sy = sign*s.Sfy[f];
+        const GpuReal sz = sign*s.Sfz[f];
         const GasPrimDevice qf =
             riemannFacePrimitiveForGradient(s, c, f);
         grx += qf.rho*sx; gry += qf.rho*sy; grz += qf.rho*sz;
@@ -2632,7 +2676,7 @@ __global__ void computeGasPrimitiveGradientsKernel(DeviceState* sp)
         gpx += qf.p*sx; gpy += qf.p*sy; gpz += qf.p*sz;
         gtx += qf.T*sx; gty += qf.T*sy; gtz += qf.T*sz;
     }
-    const double invV = 1.0/clampMin(s.V[c], OfSmall);
+    const GpuReal invV = GPU_R(1.0)/clampMin(s.V[c], OfSmall);
     s.gradRhoX[c] = grx*invV; s.gradRhoY[c] = gry*invV; s.gradRhoZ[c] = grz*invV;
     s.gradUxX[c] = guxx*invV; s.gradUxY[c] = guxy*invV; s.gradUxZ[c] = guxz*invV;
     s.gradUyX[c] = guyx*invV; s.gradUyY[c] = guyy*invV; s.gradUyZ[c] = guyz*invV;
@@ -2641,26 +2685,26 @@ __global__ void computeGasPrimitiveGradientsKernel(DeviceState* sp)
     s.gradTX[c] = gtx*invV; s.gradTY[c] = gty*invV; s.gradTZ[c] = gtz*invV;
 }
 
-__device__ double sstDynamicOmegaWallValue
+__device__ GpuReal sstDynamicOmegaWallValue
 (
     const DeviceState& s,
     const int f,
     const int owner
 )
 {
-    const double rhoSafe = clampMin(s.rho[owner], s.rhoMin);
-    const double nu = s.gasMu/rhoSafe;
-    const double wallUx = s.riemannBoundaryUFix[f] != 0
-      ? finiteOr(s.riemannBoundaryUx[f], 0.0) : 0.0;
-    const double wallUy = s.riemannBoundaryUFix[f] != 0
-      ? finiteOr(s.riemannBoundaryUy[f], 0.0) : 0.0;
-    const double wallUz = s.riemannBoundaryUFix[f] != 0
-      ? finiteOr(s.riemannBoundaryUz[f], 0.0) : 0.0;
-    const double dux = s.Ux[owner] - wallUx;
-    const double duy = s.Uy[owner] - wallUy;
-    const double duz = s.Uz[owner] - wallUz;
-    const double y = clampMin(s.sstWallDistance[owner], OfVSmall);
-    const double magGradU = sqrt(dux*dux + duy*duy + duz*duz)/y;
+    const GpuReal rhoSafe = clampMin(s.rho[owner], s.rhoMin);
+    const GpuReal nu = s.gasMu/rhoSafe;
+    const GpuReal wallUx = s.riemannBoundaryUFix[f] != 0
+      ? finiteOr(s.riemannBoundaryUx[f], GPU_R(0.0)) : GPU_R(0.0);
+    const GpuReal wallUy = s.riemannBoundaryUFix[f] != 0
+      ? finiteOr(s.riemannBoundaryUy[f], GPU_R(0.0)) : GPU_R(0.0);
+    const GpuReal wallUz = s.riemannBoundaryUFix[f] != 0
+      ? finiteOr(s.riemannBoundaryUz[f], GPU_R(0.0)) : GPU_R(0.0);
+    const GpuReal dux = s.Ux[owner] - wallUx;
+    const GpuReal duy = s.Uy[owner] - wallUy;
+    const GpuReal duz = s.Uz[owner] - wallUz;
+    const GpuReal y = clampMin(s.sstWallDistance[owner], OfVSmall);
+    const GpuReal magGradU = sqrt(dux*dux + duy*duy + duz*duz)/y;
     return ugkpwall::omegaWallFunctionState
     (
         s.k[owner],
@@ -2674,7 +2718,7 @@ __device__ double sstDynamicOmegaWallValue
     ).omega;
 }
 
-__device__ double sstBoundaryValue
+__device__ GpuReal sstBoundaryValue
 (
     const DeviceState& s,
     const int f,
@@ -2682,17 +2726,17 @@ __device__ double sstBoundaryValue
     const bool omegaField
 )
 {
-    const double centre = omegaField ? s.omega[owner] : s.k[owner];
+    const GpuReal centre = omegaField ? s.omega[owner] : s.k[owner];
     const int boundaryKind = s.riemannBoundaryKind[f];
     if (boundaryKind == 2)
     {
         if (!omegaField)
         {
-            return s.sstWallTreatment == 0 ? 0.0 : centre;
+            return s.sstWallTreatment == 0 ? GPU_R(0.0) : centre;
         }
         if (s.sstWallTreatment == 0)
         {
-            const double rhoSafe = clampMin(s.rho[owner], s.rhoMin);
+            const GpuReal rhoSafe = clampMin(s.rho[owner], s.rhoMin);
             return ugkwp::sstLowReWallOmega
             (
                 s.gasMu/rhoSafe,
@@ -2709,7 +2753,7 @@ __device__ double sstBoundaryValue
 
     const int mode = omegaField
       ? s.sstBoundaryOmegaMode[f] : s.sstBoundaryKMode[f];
-    const double prescribed = omegaField
+    const GpuReal prescribed = omegaField
       ? s.sstBoundaryOmega[f] : s.sstBoundaryK[f];
     if (mode == 1)
     {
@@ -2717,11 +2761,11 @@ __device__ double sstBoundaryValue
     }
     if (mode == 2)
     {
-        const double outwardMassDirection =
+        const GpuReal outwardMassDirection =
             s.Ux[owner]*s.Sfx[f]
           + s.Uy[owner]*s.Sfy[f]
           + s.Uz[owner]*s.Sfz[f];
-        return outwardMassDirection >= 0.0 ? centre : prescribed;
+        return outwardMassDirection >= GPU_R(0.0) ? centre : prescribed;
     }
     return centre;
 }
@@ -2740,7 +2784,7 @@ __global__ void applySstWallFunctionStateKernel(DeviceState* sp)
         return;
     }
 
-    double omegaSum = 0.0;
+    GpuReal omegaSum = GPU_R(0.0);
     int wallCount = 0;
     const int start = s.cellPlaneStart[c];
     const int count = s.cellPlaneCount[c];
@@ -2760,10 +2804,10 @@ __global__ void applySstWallFunctionStateKernel(DeviceState* sp)
     }
     if (wallCount > 0)
     {
-        const double rhoSafe = clampMin(s.rho[c], s.rhoMin);
-        const double omegaTarget = clampMin
+        const GpuReal rhoSafe = clampMin(s.rho[c], s.rhoMin);
+        const GpuReal omegaTarget = clampMin
         (
-            finiteOr(omegaSum/double(wallCount), s.sstOmegaMin),
+            finiteOr(omegaSum/GpuReal(wallCount), s.sstOmegaMin),
             s.sstOmegaMin
         );
         s.omega[c] = omegaTarget;
@@ -2777,7 +2821,7 @@ __global__ void initialiseSstConservativeStateKernel(DeviceState* sp)
     const int c = blockIdx.x*blockDim.x + threadIdx.x;
     if (c == 0 && s.sstConfigured != 0)
     {
-        const double PrRatio =
+        const GpuReal PrRatio =
             s.gasPrClamped/clampMin(s.turbulentPrandtl, OfSmall);
         s.sstJayatillekeP = ugkpwall::jayatillekeSmoothP(PrRatio);
         s.sstThermalYPlus = ugkpwall::jayatillekeThermalYPlus
@@ -2791,9 +2835,9 @@ __global__ void initialiseSstConservativeStateKernel(DeviceState* sp)
     {
         return;
     }
-    const double rhoSafe = clampMin(s.rho[c], s.rhoMin);
-    const double kSafe = clampMin(finiteOr(s.k[c], s.sstKMin), s.sstKMin);
-    const double omegaSafe =
+    const GpuReal rhoSafe = clampMin(s.rho[c], s.rhoMin);
+    const GpuReal kSafe = clampMin(finiteOr(s.k[c], s.sstKMin), s.sstKMin);
+    const GpuReal omegaSafe =
         clampMin(finiteOr(s.omega[c], s.sstOmegaMin), s.sstOmegaMin);
     s.k[c] = kSafe;
     s.omega[c] = omegaSafe;
@@ -2801,7 +2845,7 @@ __global__ void initialiseSstConservativeStateKernel(DeviceState* sp)
     s.rhoOmega[c] = rhoSafe*omegaSafe;
     s.rhoKInitial[c] = s.rhoK[c];
     s.rhoOmegaInitial[c] = s.rhoOmega[c];
-    s.nut[c] = 0.0;
+    s.nut[c] = GPU_R(0.0);
 }
 
 __global__ void recoverSstPrimitivesKernel(DeviceState* sp)
@@ -2812,9 +2856,9 @@ __global__ void recoverSstPrimitivesKernel(DeviceState* sp)
     {
         return;
     }
-    const double rhoSafe = clampMin(s.rho[c], s.rhoMin);
-    const double rhoKFloor = rhoSafe*s.sstKMin;
-    const double rhoOmegaFloor = rhoSafe*s.sstOmegaMin;
+    const GpuReal rhoSafe = clampMin(s.rho[c], s.rhoMin);
+    const GpuReal rhoKFloor = rhoSafe*s.sstKMin;
+    const GpuReal rhoOmegaFloor = rhoSafe*s.sstOmegaMin;
     s.rhoK[c] = clampMin(finiteOr(s.rhoK[c], rhoKFloor), rhoKFloor);
     s.rhoOmega[c] =
         clampMin(finiteOr(s.rhoOmega[c], rhoOmegaFloor), rhoOmegaFloor);
@@ -2831,8 +2875,8 @@ __global__ void computeSstGradientsKernel(DeviceState* sp)
         return;
     }
 
-    double gkx = 0.0, gky = 0.0, gkz = 0.0;
-    double gox = 0.0, goy = 0.0, goz = 0.0;
+    GpuReal gkx = GPU_R(0.0), gky = GPU_R(0.0), gkz = GPU_R(0.0);
+    GpuReal gox = GPU_R(0.0), goy = GPU_R(0.0), goz = GPU_R(0.0);
     const int start = s.cellPlaneStart[c];
     const int count = s.cellPlaneCount[c];
     for (int i = 0; i < count; ++i)
@@ -2842,9 +2886,9 @@ __global__ void computeSstGradientsKernel(DeviceState* sp)
         {
             continue;
         }
-        const double sign = s.faceOwner[f] == c ? 1.0 : -1.0;
-        double kFace = s.k[c];
-        double omegaFace = s.omega[c];
+        const GpuReal sign = s.faceOwner[f] == c ? GPU_R(1.0) : -GPU_R(1.0);
+        GpuReal kFace = s.k[c];
+        GpuReal omegaFace = s.omega[c];
         if (f < s.nInternalFaces || isPeriodicFace(s, f))
         {
             const int own = s.faceOwner[f];
@@ -2852,15 +2896,15 @@ __global__ void computeSstGradientsKernel(DeviceState* sp)
             const int other = isPeriodicFace(s, f) ? nei : (c == own ? nei : own);
             if (other >= 0 && other < s.nCells)
             {
-                const double ownerWeight =
-                    clampRange(s.faceWeight[f], 0.0, 1.0);
-                const double cellWeight =
-                    c == own ? ownerWeight : 1.0 - ownerWeight;
+                const GpuReal ownerWeight =
+                    clampRange(s.faceWeight[f], GPU_R(0.0), GPU_R(1.0));
+                const GpuReal cellWeight =
+                    c == own ? ownerWeight : GPU_R(1.0) - ownerWeight;
                 kFace =
-                    cellWeight*s.k[c] + (1.0 - cellWeight)*s.k[other];
+                    cellWeight*s.k[c] + (GPU_R(1.0) - cellWeight)*s.k[other];
                 omegaFace =
                     cellWeight*s.omega[c]
-                  + (1.0 - cellWeight)*s.omega[other];
+                  + (GPU_R(1.0) - cellWeight)*s.omega[other];
             }
         }
         else
@@ -2868,9 +2912,9 @@ __global__ void computeSstGradientsKernel(DeviceState* sp)
             kFace = sstBoundaryValue(s, f, c, false);
             omegaFace = sstBoundaryValue(s, f, c, true);
         }
-        const double sx = sign*s.Sfx[f];
-        const double sy = sign*s.Sfy[f];
-        const double sz = sign*s.Sfz[f];
+        const GpuReal sx = sign*s.Sfx[f];
+        const GpuReal sy = sign*s.Sfy[f];
+        const GpuReal sz = sign*s.Sfz[f];
         gkx += kFace*sx;
         gky += kFace*sy;
         gkz += kFace*sz;
@@ -2878,7 +2922,7 @@ __global__ void computeSstGradientsKernel(DeviceState* sp)
         goy += omegaFace*sy;
         goz += omegaFace*sz;
     }
-    const double invV = 1.0/clampMin(s.V[c], OfSmall);
+    const GpuReal invV = GPU_R(1.0)/clampMin(s.V[c], OfSmall);
     s.gradKX[c] = gkx*invV;
     s.gradKY[c] = gky*invV;
     s.gradKZ[c] = gkz*invV;
@@ -2891,33 +2935,33 @@ __device__ void sstVelocityInvariants
 (
     const DeviceState& s,
     const int c,
-    double& divU,
-    double& s2,
-    double& gByNu
+    GpuReal& divU,
+    GpuReal& s2,
+    GpuReal& gByNu
 )
 {
-    const double g[3][3] =
+    const GpuReal g[3][3] =
     {
         {s.gradUxX[c], s.gradUxY[c], s.gradUxZ[c]},
         {s.gradUyX[c], s.gradUyY[c], s.gradUyZ[c]},
         {s.gradUzX[c], s.gradUzY[c], s.gradUzZ[c]}
     };
     divU = g[0][0] + g[1][1] + g[2][2];
-    double symmSquared = 0.0;
-    gByNu = 0.0;
+    GpuReal symmSquared = GPU_R(0.0);
+    gByNu = GPU_R(0.0);
     for (int i = 0; i < 3; ++i)
     {
         for (int j = 0; j < 3; ++j)
         {
-            const double twoSymm = g[i][j] + g[j][i];
-            const double devTwoSymm =
-                twoSymm - (i == j ? (2.0/3.0)*divU : 0.0);
-            const double symm = 0.5*twoSymm;
+            const GpuReal twoSymm = g[i][j] + g[j][i];
+            const GpuReal devTwoSymm =
+                twoSymm - (i == j ? (GPU_R(2.0)/GPU_R(3.0))*divU : GPU_R(0.0));
+            const GpuReal symm = GPU_R(0.5)*twoSymm;
             symmSquared += symm*symm;
             gByNu += devTwoSymm*g[i][j];
         }
     }
-    s2 = 2.0*symmSquared;
+    s2 = GPU_R(2.0)*symmSquared;
 }
 
   
@@ -2941,8 +2985,8 @@ __global__ void computeGasHllcAdcSensorKernel(DeviceState* sp)
         return;
     }
 
-    const double centrePressure = clampMin(s.p[c], OfSmall);
-    double omega = 1.0;
+    const GpuReal centrePressure = clampMin(s.p[c], OfSmall);
+    GpuReal omega = GPU_R(1.0);
     const int start = s.cellPlaneStart[c];
     const int count = s.cellPlaneCount[c];
     for (int i = 0; i < count; ++i)
@@ -2953,7 +2997,7 @@ __global__ void computeGasHllcAdcSensorKernel(DeviceState* sp)
             continue;
         }
 
-        double otherPressure = centrePressure;
+        GpuReal otherPressure = centrePressure;
         if (f < s.nInternalFaces || isPeriodicFace(s, f))
         {
             const int own = s.faceOwner[f];
@@ -2985,33 +3029,33 @@ __global__ void computeGasHllcAdcSensorKernel(DeviceState* sp)
             );
         }
 
-        const double ratio = clampRange
+        const GpuReal ratio = clampRange
         (
             fmin
             (
                 otherPressure/centrePressure,
                 centrePressure/otherPressure
             ),
-            0.0,
-            1.0
+            GPU_R(0.0),
+            GPU_R(1.0)
         );
-        const double faceSensor = ratio*ratio*ratio;
+        const GpuReal faceSensor = ratio*ratio*ratio;
         omega = fmin(omega, faceSensor);
     }
     s.gasHllcAdcSensor[c] = finiteDevice(omega)
-      ? clampRange(omega, 0.0, 1.0) : 0.0;
+      ? clampRange(omega, GPU_R(0.0), GPU_R(1.0)) : GPU_R(0.0);
 }
 
 __device__ void updateBarthLimiter
 (
-    const double centre,
-    const double predicted,
-    const double minimum,
-    const double maximum,
-    double& limiter
+    const GpuReal centre,
+    const GpuReal predicted,
+    const GpuReal minimum,
+    const GpuReal maximum,
+    GpuReal& limiter
 )
 {
-    const double delta = predicted - centre;
+    const GpuReal delta = predicted - centre;
     if (delta > OfSmall)
     {
         limiter = fmin(limiter, (maximum - centre)/delta);
@@ -3024,46 +3068,46 @@ __device__ void updateBarthLimiter
 
 __device__ void updateVenkatakrishnanLimiter
 (
-    const double centre,
-    const double predicted,
-    const double minimum,
-    const double maximum,
-    double& limiter
+    const GpuReal centre,
+    const GpuReal predicted,
+    const GpuReal minimum,
+    const GpuReal maximum,
+    GpuReal& limiter
 )
 {
-    const double delta = predicted - centre;
+    const GpuReal delta = predicted - centre;
     if (fabs(delta) <= OfSmall)
     {
         return;
     }
-    const double admissible =
-        delta > 0.0 ? maximum - centre : minimum - centre;
-    if (admissible*delta <= 0.0)
+    const GpuReal admissible =
+        delta > GPU_R(0.0) ? maximum - centre : minimum - centre;
+    if (admissible*delta <= GPU_R(0.0))
     {
-        limiter = 0.0;
+        limiter = GPU_R(0.0);
         return;
     }
 
                                                                           
                                                                     
-    const double ratio = fmax(admissible/delta, 0.0);
-    const double numerator = ratio*ratio + 2.0*ratio;
-    const double denominator = ratio*ratio + ratio + 2.0;
+    const GpuReal ratio = fmax(admissible/delta, GPU_R(0.0));
+    const GpuReal numerator = ratio*ratio + GPU_R(2.0)*ratio;
+    const GpuReal denominator = ratio*ratio + ratio + GPU_R(2.0);
     limiter = fmin
     (
         limiter,
-        denominator > OfSmall ? numerator/denominator : 0.0
+        denominator > OfSmall ? numerator/denominator : GPU_R(0.0)
     );
 }
 
 __device__ void updateConfiguredGasLimiter
 (
     const int limiterScheme,
-    const double centre,
-    const double predicted,
-    const double minimum,
-    const double maximum,
-    double& limiter
+    const GpuReal centre,
+    const GpuReal predicted,
+    const GpuReal minimum,
+    const GpuReal maximum,
+    GpuReal& limiter
 )
 {
     if (limiterScheme == 2)
@@ -3092,12 +3136,12 @@ __global__ void computeGasGradientLimiterKernel(DeviceState* sp)
     }
     if (s.gasLimiter == 0)
     {
-        s.gasGradientLimiterRho[c] = 1.0;
-        s.gasGradientLimiterUx[c] = 1.0;
-        s.gasGradientLimiterUy[c] = 1.0;
-        s.gasGradientLimiterUz[c] = 1.0;
-        s.gasGradientLimiterP[c] = 1.0;
-        s.gasGradientLimiterT[c] = 1.0;
+        s.gasGradientLimiterRho[c] = GPU_R(1.0);
+        s.gasGradientLimiterUx[c] = GPU_R(1.0);
+        s.gasGradientLimiterUy[c] = GPU_R(1.0);
+        s.gasGradientLimiterUz[c] = GPU_R(1.0);
+        s.gasGradientLimiterP[c] = GPU_R(1.0);
+        s.gasGradientLimiterT[c] = GPU_R(1.0);
         return;
     }
     const GasPrimDevice qc = makeGasPrimDevice
@@ -3105,12 +3149,12 @@ __global__ void computeGasGradientLimiterKernel(DeviceState* sp)
         s.rho[c], s.Ux[c], s.Uy[c], s.Uz[c], s.p[c],
         s.Rgas, s.rhoMin, s.TgasMin
     );
-    double rMin = qc.rho, rMax = qc.rho;
-    double uxMin = qc.ux, uxMax = qc.ux;
-    double uyMin = qc.uy, uyMax = qc.uy;
-    double uzMin = qc.uz, uzMax = qc.uz;
-    double pMin = qc.p, pMax = qc.p;
-    double tMin = qc.T, tMax = qc.T;
+    GpuReal rMin = qc.rho, rMax = qc.rho;
+    GpuReal uxMin = qc.ux, uxMax = qc.ux;
+    GpuReal uyMin = qc.uy, uyMax = qc.uy;
+    GpuReal uzMin = qc.uz, uzMax = qc.uz;
+    GpuReal pMin = qc.p, pMax = qc.p;
+    GpuReal tMin = qc.T, tMax = qc.T;
     const int start = s.cellPlaneStart[c];
     const int count = s.cellPlaneCount[c];
     for (int i = 0; i < count; ++i)
@@ -3153,18 +3197,18 @@ __global__ void computeGasGradientLimiterKernel(DeviceState* sp)
     rMin = fmax(rMin, s.rhoMin);
     pMin = fmax(pMin, s.rhoMin);
     tMin = fmax(tMin, s.TgasMin);
-    double rhoLimiter = 1.0;
-    double uxLimiter = 1.0;
-    double uyLimiter = 1.0;
-    double uzLimiter = 1.0;
-    double pLimiter = 1.0;
-    double tLimiter = 1.0;
+    GpuReal rhoLimiter = GPU_R(1.0);
+    GpuReal uxLimiter = GPU_R(1.0);
+    GpuReal uyLimiter = GPU_R(1.0);
+    GpuReal uzLimiter = GPU_R(1.0);
+    GpuReal pLimiter = GPU_R(1.0);
+    GpuReal tLimiter = GPU_R(1.0);
     for (int i = 0; i < count; ++i)
     {
         const int f = s.cellFaceId[start + i];
-        const double dx = s.faceCx[f] - s.Cx[c];
-        const double dy = s.faceCy[f] - s.Cy[c];
-        const double dz = s.faceCz[f] - s.Cz[c];
+        const GpuReal dx = s.faceCx[f] - s.Cx[c];
+        const GpuReal dy = s.faceCy[f] - s.Cy[c];
+        const GpuReal dz = s.faceCz[f] - s.Cz[c];
         updateConfiguredGasLimiter(s.gasLimiter, qc.rho, qc.rho + s.gradRhoX[c]*dx + s.gradRhoY[c]*dy + s.gradRhoZ[c]*dz, rMin, rMax, rhoLimiter);
         updateConfiguredGasLimiter(s.gasLimiter, qc.ux, qc.ux + s.gradUxX[c]*dx + s.gradUxY[c]*dy + s.gradUxZ[c]*dz, uxMin, uxMax, uxLimiter);
         updateConfiguredGasLimiter(s.gasLimiter, qc.uy, qc.uy + s.gradUyX[c]*dx + s.gradUyY[c]*dy + s.gradUyZ[c]*dz, uyMin, uyMax, uyLimiter);
@@ -3173,17 +3217,17 @@ __global__ void computeGasGradientLimiterKernel(DeviceState* sp)
         updateConfiguredGasLimiter(s.gasLimiter, qc.T, qc.T + s.gradTX[c]*dx + s.gradTY[c]*dy + s.gradTZ[c]*dz, tMin, tMax, tLimiter);
     }
     s.gasGradientLimiterRho[c] =
-        clampRange(finiteOr(rhoLimiter, 0.0), 0.0, 1.0);
+        clampRange(finiteOr(rhoLimiter, GPU_R(0.0)), GPU_R(0.0), GPU_R(1.0));
     s.gasGradientLimiterUx[c] =
-        clampRange(finiteOr(uxLimiter, 0.0), 0.0, 1.0);
+        clampRange(finiteOr(uxLimiter, GPU_R(0.0)), GPU_R(0.0), GPU_R(1.0));
     s.gasGradientLimiterUy[c] =
-        clampRange(finiteOr(uyLimiter, 0.0), 0.0, 1.0);
+        clampRange(finiteOr(uyLimiter, GPU_R(0.0)), GPU_R(0.0), GPU_R(1.0));
     s.gasGradientLimiterUz[c] =
-        clampRange(finiteOr(uzLimiter, 0.0), 0.0, 1.0);
+        clampRange(finiteOr(uzLimiter, GPU_R(0.0)), GPU_R(0.0), GPU_R(1.0));
     s.gasGradientLimiterP[c] =
-        clampRange(finiteOr(pLimiter, 0.0), 0.0, 1.0);
+        clampRange(finiteOr(pLimiter, GPU_R(0.0)), GPU_R(0.0), GPU_R(1.0));
     s.gasGradientLimiterT[c] =
-        clampRange(finiteOr(tLimiter, 0.0), 0.0, 1.0);
+        clampRange(finiteOr(tLimiter, GPU_R(0.0)), GPU_R(0.0), GPU_R(1.0));
 }
 
 __global__ void computeGasEddyViscosityKernel(DeviceState* sp)
@@ -3196,7 +3240,7 @@ __global__ void computeGasEddyViscosityKernel(DeviceState* sp)
     }
     if (s.turbulenceModel == 0)
     {
-        s.nut[c] = 0.0;
+        s.nut[c] = GPU_R(0.0);
         return;
     }
     if (s.turbulenceModel == 3)
@@ -3206,25 +3250,25 @@ __global__ void computeGasEddyViscosityKernel(DeviceState* sp)
             asm("trap;");
             return;
         }
-        double divU = 0.0;
-        double s2 = 0.0;
-        double gByNu = 0.0;
+        GpuReal divU = GPU_R(0.0);
+        GpuReal s2 = GPU_R(0.0);
+        GpuReal gByNu = GPU_R(0.0);
         sstVelocityInvariants(s, c, divU, s2, gByNu);
         (void)divU;
         (void)gByNu;
-        const double rhoSafe = clampMin(s.rho[c], s.rhoMin);
-        const double nu = s.gasMu/rhoSafe;
-        const double gradDot =
+        const GpuReal rhoSafe = clampMin(s.rho[c], s.rhoMin);
+        const GpuReal nu = s.gasMu/rhoSafe;
+        const GpuReal gradDot =
             s.gradKX[c]*s.gradOmegaX[c]
           + s.gradKY[c]*s.gradOmegaY[c]
           + s.gradKZ[c]*s.gradOmegaZ[c];
-        const double cd = ugkwp::sstCrossDiffusion
+        const GpuReal cd = ugkwp::sstCrossDiffusion
         (
             s.omega[c],
             gradDot,
             s.sstCoefficients
         );
-        const double f1 = ugkwp::sstF1
+        const GpuReal f1 = ugkwp::sstF1
         (
             s.k[c],
             s.omega[c],
@@ -3233,7 +3277,7 @@ __global__ void computeGasEddyViscosityKernel(DeviceState* sp)
             cd,
             s.sstCoefficients
         );
-        const double f2 = ugkwp::sstF2
+        const GpuReal f2 = ugkwp::sstF2
         (
             s.k[c],
             s.omega[c],
@@ -3241,7 +3285,7 @@ __global__ void computeGasEddyViscosityKernel(DeviceState* sp)
             s.sstWallDistance[c],
             s.sstCoefficients
         );
-        const double nuT = ugkwp::sstNut
+        const GpuReal nuT = ugkwp::sstNut
         (
             s.k[c],
             s.omega[c],
@@ -3249,60 +3293,60 @@ __global__ void computeGasEddyViscosityKernel(DeviceState* sp)
             f2,
             s.sstCoefficients
         );
-        s.sstF1[c] = clampRange(finiteOr(f1, 1.0), 0.0, 1.0);
-        s.sstF2[c] = clampRange(finiteOr(f2, 1.0), 0.0, 1.0);
-        s.nut[c] = finiteDevice(nuT) && nuT > 0.0 ? nuT : 0.0;
+        s.sstF1[c] = clampRange(finiteOr(f1, GPU_R(1.0)), GPU_R(0.0), GPU_R(1.0));
+        s.sstF2[c] = clampRange(finiteOr(f2, GPU_R(1.0)), GPU_R(0.0), GPU_R(1.0));
+        s.nut[c] = finiteDevice(nuT) && nuT > GPU_R(0.0) ? nuT : GPU_R(0.0);
         return;
     }
-    double g[3][3] =
+    GpuReal g[3][3] =
     {
         {s.gradUxX[c], s.gradUxY[c], s.gradUxZ[c]},
         {s.gradUyX[c], s.gradUyY[c], s.gradUyZ[c]},
         {s.gradUzX[c], s.gradUzY[c], s.gradUzZ[c]}
     };
-    const double tr = g[0][0] + g[1][1] + g[2][2];
-    double ss = 0.0;
-    double symmetricGradientSquared = 0.0;
-    double strain[3][3];
+    const GpuReal tr = g[0][0] + g[1][1] + g[2][2];
+    GpuReal ss = GPU_R(0.0);
+    GpuReal symmetricGradientSquared = GPU_R(0.0);
+    GpuReal strain[3][3];
     for (int i = 0; i < 3; ++i)
     {
         for (int j = 0; j < 3; ++j)
         {
-            const double symmetricGradient = 0.5*(g[i][j] + g[j][i]);
+            const GpuReal symmetricGradient = GPU_R(0.5)*(g[i][j] + g[j][i]);
             symmetricGradientSquared += symmetricGradient*symmetricGradient;
             strain[i][j] = symmetricGradient
-              - (i == j ? tr/3.0 : 0.0);
+              - (i == j ? tr/GPU_R(3.0) : GPU_R(0.0));
             ss += strain[i][j]*strain[i][j];
         }
     }
-    const double delta = s.lesDeltaCoeff*clampMin(s.cellLength[c], OfSmall);
-    double nuT = 0.0;
+    const GpuReal delta = s.lesDeltaCoeff*clampMin(s.cellLength[c], OfSmall);
+    GpuReal nuT = GPU_R(0.0);
     if (s.turbulenceModel == 2)
     {
         nuT = ugkwp::smagorinskyNut(s.smagorinskyCs, delta, ss);
     }
     else
     {
-        double g2[3][3];
+        GpuReal g2[3][3];
         for (int i = 0; i < 3; ++i)
         {
             for (int j = 0; j < 3; ++j)
             {
-                g2[i][j] = 0.0;
+                g2[i][j] = GPU_R(0.0);
                 for (int k = 0; k < 3; ++k)
                 {
                     g2[i][j] += g[i][k]*g[k][j];
                 }
             }
         }
-        const double trG2 = g2[0][0] + g2[1][1] + g2[2][2];
-        double sd2 = 0.0;
+        const GpuReal trG2 = g2[0][0] + g2[1][1] + g2[2][2];
+        GpuReal sd2 = GPU_R(0.0);
         for (int i = 0; i < 3; ++i)
         {
             for (int j = 0; j < 3; ++j)
             {
-                const double sd = 0.5*(g2[i][j] + g2[j][i])
-                  - (i == j ? trG2/3.0 : 0.0);
+                const GpuReal sd = GPU_R(0.5)*(g2[i][j] + g2[j][i])
+                  - (i == j ? trG2/GPU_R(3.0) : GPU_R(0.0));
                 sd2 += sd*sd;
             }
         }
@@ -3317,13 +3361,13 @@ __global__ void computeGasEddyViscosityKernel(DeviceState* sp)
                                                                         
                                                                           
     }
-    s.nut[c] = finiteDevice(nuT) && nuT > 0.0 ? nuT : 0.0;
+    s.nut[c] = finiteDevice(nuT) && nuT > GPU_R(0.0) ? nuT : GPU_R(0.0);
 }
 
 __global__ void updateWaveTransmissivePressureBoundaryKernel
 (
     DeviceState* sp,
-    const double dt
+    const GpuTime dt
 )
 {
     DeviceState& s = *sp;
@@ -3339,51 +3383,51 @@ __global__ void updateWaveTransmissivePressureBoundaryKernel
         return;
     }
 
-    const double area = clampMin(s.magSf[f], 1.0e-300);
-    double boundaryUx = s.gasBoundaryUx[f];
-    double boundaryUy = s.gasBoundaryUy[f];
-    double boundaryUz = s.gasBoundaryUz[f];
+    const GpuReal area = clampMin(s.magSf[f], GPU_TINY(1.0e-300));
+    GpuReal boundaryUx = s.gasBoundaryUx[f];
+    GpuReal boundaryUy = s.gasBoundaryUy[f];
+    GpuReal boundaryUz = s.gasBoundaryUz[f];
     if (s.gasBoundaryUFix[f] == 2)
     {
-        const double ownerOutwardVelocity =
+        const GpuReal ownerOutwardVelocity =
             s.Ux[own]*s.Sfx[f]
           + s.Uy[own]*s.Sfy[f]
           + s.Uz[own]*s.Sfz[f];
-        if (ownerOutwardVelocity >= 0.0)
+        if (ownerOutwardVelocity >= GPU_R(0.0))
         {
             boundaryUx = s.Ux[own];
             boundaryUy = s.Uy[own];
             boundaryUz = s.Uz[own];
         }
     }
-    const double phip =
+    const GpuReal phip =
         boundaryUx*s.Sfx[f]
       + boundaryUy*s.Sfy[f]
       + boundaryUz*s.Sfz[f];
-    const double psi =
+    const GpuReal psi =
         s.gasBoundaryRho[f]
        /clampMin(s.gasBoundaryP[f], OfSmall);
-    double w =
+    GpuReal w =
         phip/area
-      + sqrt(clampMin(s.gasBoundaryPWaveGamma[f]/clampMin(psi, OfSmall), 0.0));
-    w = w > 0.0 ? w : 0.0;
+      + sqrt(clampMin(s.gasBoundaryPWaveGamma[f]/clampMin(psi, OfSmall), GPU_R(0.0)));
+    w = w > GPU_R(0.0) ? w : GPU_R(0.0);
 
-    const double alpha = w*dt*s.deltaCoeffs[f];
-    const double lInf = s.gasBoundaryPWaveLInf[f];
-    const bool hasRelaxation = lInf > 1.0e-300;
-    const double k = hasRelaxation ? w*dt/lInf : 0.0;
-    const double oldBoundaryP = s.gasBoundaryP[f];
-    const double refValue = hasRelaxation
-      ? (oldBoundaryP + k*s.gasBoundaryPWaveFieldInf[f])/(1.0 + k)
+    const GpuReal alpha = w*dt*s.deltaCoeffs[f];
+    const GpuReal lInf = s.gasBoundaryPWaveLInf[f];
+    const bool hasRelaxation = lInf > GPU_TINY(1.0e-300);
+    const GpuReal k = hasRelaxation ? w*dt/lInf : GPU_R(0.0);
+    const GpuReal oldBoundaryP = s.gasBoundaryP[f];
+    const GpuReal refValue = hasRelaxation
+      ? (oldBoundaryP + k*s.gasBoundaryPWaveFieldInf[f])/(GPU_R(1.0) + k)
       : oldBoundaryP;
-    const double valueFraction = hasRelaxation
-      ? (1.0 + k)/(1.0 + alpha + k)
-      : 1.0/(1.0 + alpha);
-    const double boundaryP =
+    const GpuReal valueFraction = hasRelaxation
+      ? (GPU_R(1.0) + k)/(GPU_R(1.0) + alpha + k)
+      : GPU_R(1.0)/(GPU_R(1.0) + alpha);
+    const GpuReal boundaryP =
         valueFraction*refValue
-      + (1.0 - valueFraction)*s.p[own];
+      + (GPU_R(1.0) - valueFraction)*s.p[own];
 
-    const double updatedPressure =
+    const GpuReal updatedPressure =
         clampMin(finiteOr(boundaryP, s.p[own]), OfVSmall);
     s.gasBoundaryP[f] = updatedPressure;
     s.riemannBoundaryP[f] = updatedPressure;
@@ -3392,7 +3436,7 @@ __global__ void updateWaveTransmissivePressureBoundaryKernel
 __global__ void updateLegacyGasBoundaryMirrorKernel
 (
     DeviceState* sp,
-    const double simulationTime
+    const GpuTime simulationTime
 )
 {
     DeviceState& s = *sp;
@@ -3404,17 +3448,17 @@ __global__ void updateLegacyGasBoundaryMirrorKernel
 
     if (scheduledInletFaceDevice(s, f))
     {
-        const double temperature = clampMin
+        const GpuReal temperature = clampMin
         (
             finiteOr(s.scheduledInletTemperature, s.TgasMin),
             s.TgasMin
         );
-        const double pressure = clampMin
+        const GpuReal pressure = clampMin
         (
             finiteOr(scheduledPressureDevice(s, simulationTime), OfSmall),
             s.rhoMin*s.Rgas*temperature
         );
-        const double density = pressure/clampMin(s.Rgas*temperature, OfSmall);
+        const GpuReal density = pressure/clampMin(s.Rgas*temperature, OfSmall);
         s.gasBoundaryP[f] = pressure;
         s.gasBoundaryRho[f] = density;
         s.gasBoundaryT[f] = temperature;
@@ -3526,45 +3570,45 @@ __device__ GasPrimDevice reconstructGasCellToFace
         );
     }
 
-    double mappedCx = 0.0;
-    double mappedCy = 0.0;
-    double mappedCz = 0.0;
+    GpuReal mappedCx = GPU_R(0.0);
+    GpuReal mappedCy = GPU_R(0.0);
+    GpuReal mappedCz = GPU_R(0.0);
     periodicMappedCellCentre(s, f, c, mappedCx, mappedCy, mappedCz);
-    const double dx = s.faceCx[f] - mappedCx;
-    const double dy = s.faceCy[f] - mappedCy;
-    const double dz = s.faceCz[f] - mappedCz;
-    double rhoIncrement = s.gasGradientLimiterRho[c]
+    const GpuReal dx = s.faceCx[f] - mappedCx;
+    const GpuReal dy = s.faceCy[f] - mappedCy;
+    const GpuReal dz = s.faceCz[f] - mappedCz;
+    GpuReal rhoIncrement = s.gasGradientLimiterRho[c]
       *(s.gradRhoX[c]*dx + s.gradRhoY[c]*dy + s.gradRhoZ[c]*dz);
-    double pressureIncrement = s.gasGradientLimiterP[c]
+    GpuReal pressureIncrement = s.gasGradientLimiterP[c]
       *(s.gradPx[c]*dx + s.gradPy[c]*dy + s.gradPz[c]*dz);
-    double uxIncrement = s.gasGradientLimiterUx[c]
+    GpuReal uxIncrement = s.gasGradientLimiterUx[c]
       *(s.gradUxX[c]*dx + s.gradUxY[c]*dy + s.gradUxZ[c]*dz);
-    double uyIncrement = s.gasGradientLimiterUy[c]
+    GpuReal uyIncrement = s.gasGradientLimiterUy[c]
       *(s.gradUyX[c]*dx + s.gradUyY[c]*dy + s.gradUyZ[c]*dz);
-    double uzIncrement = s.gasGradientLimiterUz[c]
+    GpuReal uzIncrement = s.gasGradientLimiterUz[c]
       *(s.gradUzX[c]*dx + s.gradUzY[c]*dy + s.gradUzZ[c]*dz);
 
                                                                              
                                                                        
                                                                            
                                                                         
-    const double rho = s.rho[c] + rhoIncrement;
-    const double ux = s.Ux[c] + uxIncrement;
-    const double uy = s.Uy[c] + uyIncrement;
-    const double uz = s.Uz[c] + uzIncrement;
-    const double p = s.p[c] + pressureIncrement;
+    const GpuReal rho = s.rho[c] + rhoIncrement;
+    const GpuReal ux = s.Ux[c] + uxIncrement;
+    const GpuReal uy = s.Uy[c] + uyIncrement;
+    const GpuReal uz = s.Uz[c] + uzIncrement;
+    const GpuReal p = s.p[c] + pressureIncrement;
     return makeGasPrimDevice
     (
         rho, ux, uy, uz, p, s.Rgas, s.rhoMin, s.TgasMin
     );
 }
 
-__device__ double molecularGasConductivity(const DeviceState& s)
+__device__ GpuReal molecularGasConductivity(const DeviceState& s)
 {
     return s.gasMu*s.gasCp/s.gasPrClamped;
 }
 
-__device__ double gasWallExposedAreaFraction
+__device__ GpuReal gasWallExposedAreaFraction
 (
     const DeviceState& s,
     const int f
@@ -3580,7 +3624,7 @@ __device__ double gasWallExposedAreaFraction
      || s.particleStuckCandidateMask[f] == 0
     )
     {
-        return 1.0;
+        return GPU_R(1.0);
     }
     if
     (
@@ -3589,36 +3633,36 @@ __device__ double gasWallExposedAreaFraction
     )
     {
         asm("trap;");
-        return 0.0;
+        return GPU_R(0.0);
     }
 
-    const double faceArea = s.magSf[f];
-    const double representedArea =
+    const GpuReal faceArea = s.magSf[f];
+    const GpuReal representedArea =
         s.particleWallRepresentedContactArea[f];
-    const double contactAreaScale =
+    const GpuReal contactAreaScale =
         s.particleWallContactAreaScale[f];
     if
     (
         !finiteDevice(faceArea)
      || !finiteDevice(representedArea)
      || !finiteDevice(contactAreaScale)
-     || !(faceArea > 0.0)
-     || representedArea < 0.0
-     || !(contactAreaScale > 0.0)
-     || contactAreaScale > 1.0
+     || !(faceArea > GPU_R(0.0))
+     || representedArea < GPU_R(0.0)
+     || !(contactAreaScale > GPU_R(0.0))
+     || contactAreaScale > GPU_R(1.0)
     )
     {
         asm("trap;");
-        return 0.0;
+        return GPU_R(0.0);
     }
 
-    const double occupiedArea = representedArea*contactAreaScale;
-    if (!finiteDevice(occupiedArea) || occupiedArea < 0.0)
+    const GpuReal occupiedArea = representedArea*contactAreaScale;
+    if (!finiteDevice(occupiedArea) || occupiedArea < GPU_R(0.0))
     {
         asm("trap;");
-        return 0.0;
+        return GPU_R(0.0);
     }
-    return clampRange(1.0 - occupiedArea/faceArea, 0.0, 1.0);
+    return clampRange(GPU_R(1.0) - occupiedArea/faceArea, GPU_R(0.0), GPU_R(1.0));
 }
 
 __device__ void gasFaceSubgridTransportProperties
@@ -3628,56 +3672,56 @@ __device__ void gasFaceSubgridTransportProperties
     const int own,
     const int nei,
     const int boundaryKind,
-    const double rhoFace,
-    double& muTurbulent,
-    double& kTurbulent,
-    double& directWallHeatFlux,
+    const GpuReal rhoFace,
+    GpuReal& muTurbulent,
+    GpuReal& kTurbulent,
+    GpuReal& directWallHeatFlux,
     int& directWallHeatFluxActive
 )
 {
-    directWallHeatFlux = 0.0;
+    directWallHeatFlux = GPU_R(0.0);
     directWallHeatFluxActive = 0;
-    double nutFace = nei >= 0
-      ? 0.5*(s.nut[own] + s.nut[nei])
+    GpuReal nutFace = nei >= 0
+      ? GPU_R(0.5)*(s.nut[own] + s.nut[nei])
       : s.nut[own];
 
     if (nei < 0 && boundaryKind == 2)
     {
         if (s.turbulenceModel == 3 && s.sstWallTreatment == 0)
         {
-            muTurbulent = 0.0;
-            kTurbulent = 0.0;
+            muTurbulent = GPU_R(0.0);
+            kTurbulent = GPU_R(0.0);
             return;
         }
-        const double wallUx = s.riemannBoundaryUFix[f] != 0
-          ? finiteOr(s.riemannBoundaryUx[f], 0.0) : 0.0;
-        const double wallUy = s.riemannBoundaryUFix[f] != 0
-          ? finiteOr(s.riemannBoundaryUy[f], 0.0) : 0.0;
-        const double wallUz = s.riemannBoundaryUFix[f] != 0
-          ? finiteOr(s.riemannBoundaryUz[f], 0.0) : 0.0;
-        const double dux = s.Ux[own] - wallUx;
-        const double duy = s.Uy[own] - wallUy;
-        const double duz = s.Uz[own] - wallUz;
-        const double velocityDifference = sqrt
+        const GpuReal wallUx = s.riemannBoundaryUFix[f] != 0
+          ? finiteOr(s.riemannBoundaryUx[f], GPU_R(0.0)) : GPU_R(0.0);
+        const GpuReal wallUy = s.riemannBoundaryUFix[f] != 0
+          ? finiteOr(s.riemannBoundaryUy[f], GPU_R(0.0)) : GPU_R(0.0);
+        const GpuReal wallUz = s.riemannBoundaryUFix[f] != 0
+          ? finiteOr(s.riemannBoundaryUz[f], GPU_R(0.0)) : GPU_R(0.0);
+        const GpuReal dux = s.Ux[own] - wallUx;
+        const GpuReal duy = s.Uy[own] - wallUy;
+        const GpuReal duz = s.Uz[own] - wallUz;
+        const GpuReal velocityDifference = sqrt
         (
             dux*dux + duy*duy + duz*duz
         );
-        const double wallDistance = s.turbulenceModel == 3
+        const GpuReal wallDistance = s.turbulenceModel == 3
           ? clampMin(s.sstWallDistance[own], OfVSmall)
-          : 1.0/clampMin(s.deltaCoeffs[f], OfVSmall);
-        const double rhoSafe = clampMin(rhoFace, s.rhoMin);
+          : GPU_R(1.0)/clampMin(s.deltaCoeffs[f], OfVSmall);
+        const GpuReal rhoSafe = clampMin(rhoFace, s.rhoMin);
         const ugkpwall::SpaldingWallState wallState =
             ugkpwall::spaldingWallState
             (
                 velocityDifference,
                 wallDistance,
                 s.gasMu/rhoSafe,
-                s.turbulenceModel == 3 ? s.sstWallKappa : 0.41,
-                s.turbulenceModel == 3 ? s.sstWallE : 9.8
+                s.turbulenceModel == 3 ? s.sstWallKappa : GPU_R(0.41),
+                s.turbulenceModel == 3 ? s.sstWallE : GPU_R(9.8)
             );
         if (s.turbulenceModel == 3)
         {
-            const double wallTemperature = s.riemannBoundaryTFix[f] != 0
+            const GpuReal wallTemperature = s.riemannBoundaryTFix[f] != 0
               ? s.riemannBoundaryT[f] : s.Tgas[own];
             const ugkpwall::JayatillekeWallHeatState heatState =
                 ugkpwall::jayatillekeWallHeatFluxPrecomputed
@@ -3699,7 +3743,7 @@ __device__ void gasFaceSubgridTransportProperties
             directWallHeatFlux = heatState.heatFlux;
             directWallHeatFluxActive =
                 s.riemannBoundaryTFix[f] != 0 && heatState.valid != 0;
-            const double equivalentConductivity = heatState.valid != 0
+            const GpuReal equivalentConductivity = heatState.valid != 0
               ? rhoSafe*s.gasCp*wallState.uTau
                /(clampMin(heatState.temperaturePlus, OfSmall)
                 *clampMin(s.deltaCoeffs[f], OfSmall))
@@ -3707,7 +3751,7 @@ __device__ void gasFaceSubgridTransportProperties
             kTurbulent = fmax
             (
                 equivalentConductivity - molecularGasConductivity(s),
-                0.0
+                GPU_R(0.0)
             );
             return;
         }
@@ -3724,7 +3768,7 @@ __device__ void gasFaceSubgridTransportProperties
         return;
     }
 
-    const double muT = clampMin(rhoFace, s.rhoMin)*fmax(nutFace, 0.0);
+    const GpuReal muT = clampMin(rhoFace, s.rhoMin)*fmax(nutFace, GPU_R(0.0));
     muTurbulent = muT;
     kTurbulent =
         s.gasCp*muT/clampMin(s.turbulentPrandtl, OfSmall);
@@ -3735,18 +3779,18 @@ __device__ bool computeRiemannGasFaceFluxDevice
 (
     const DeviceState& s,
     const int f,
-    double& massFluxArea,
-    double& momFluxXArea,
-    double& momFluxYArea,
-    double& momFluxZArea,
-    double& energyFluxArea
+    GpuReal& massFluxArea,
+    GpuReal& momFluxXArea,
+    GpuReal& momFluxYArea,
+    GpuReal& momFluxZArea,
+    GpuReal& energyFluxArea
 )
 {
-    massFluxArea = 0.0;
-    momFluxXArea = 0.0;
-    momFluxYArea = 0.0;
-    momFluxZArea = 0.0;
-    energyFluxArea = 0.0;
+    massFluxArea = GPU_R(0.0);
+    momFluxXArea = GPU_R(0.0);
+    momFluxYArea = GPU_R(0.0);
+    momFluxZArea = GPU_R(0.0);
+    energyFluxArea = GPU_R(0.0);
 
     if (f < 0 || f >= s.nFaces)
     {
@@ -3760,9 +3804,9 @@ __device__ bool computeRiemannGasFaceFluxDevice
 
     const int nei = coupledFaceNeighbour(s, f);
     const int boundaryKind = nei >= 0 ? 0 : s.riemannBoundaryKind[f];
-    double mappedNeiCx = 0.0;
-    double mappedNeiCy = 0.0;
-    double mappedNeiCz = 0.0;
+    GpuReal mappedNeiCx = GPU_R(0.0);
+    GpuReal mappedNeiCy = GPU_R(0.0);
+    GpuReal mappedNeiCz = GPU_R(0.0);
     if (nei >= 0)
     {
         periodicMappedCellCentre
@@ -3775,18 +3819,18 @@ __device__ bool computeRiemannGasFaceFluxDevice
         return false;
     }
 
-    const double area = clampMin(s.magSf[f], OfSmall);
-    const double nx = s.Sfx[f]/area;
-    const double ny = s.Sfy[f]/area;
-    const double nz = s.Sfz[f]/area;
+    const GpuReal area = clampMin(s.magSf[f], OfSmall);
+    const GpuReal nx = s.Sfx[f]/area;
+    const GpuReal ny = s.Sfy[f]/area;
+    const GpuReal nz = s.Sfz[f]/area;
     GasPrimDevice left = reconstructGasCellToFace(s, own, f);
     GasPrimDevice right = left;
 
-    double massFlux = 0.0;
-    double momentumFluxX = 0.0;
-    double momentumFluxY = 0.0;
-    double momentumFluxZ = 0.0;
-    double energyFlux = 0.0;
+    GpuReal massFlux = GPU_R(0.0);
+    GpuReal momentumFluxX = GPU_R(0.0);
+    GpuReal momentumFluxY = GPU_R(0.0);
+    GpuReal momentumFluxZ = GPU_R(0.0);
+    GpuReal energyFlux = GPU_R(0.0);
 
     if (boundaryKind == 1)
     {
@@ -3799,9 +3843,9 @@ __device__ bool computeRiemannGasFaceFluxDevice
     else if (boundaryKind == 2)
     {
         right = riemannFacePrimitiveForGradient(s, own, f);
-        const double wallUx = right.ux;
-        const double wallUy = right.uy;
-        const double wallUz = right.uz;
+        const GpuReal wallUx = right.ux;
+        const GpuReal wallUy = right.uy;
+        const GpuReal wallUz = right.uz;
         momentumFluxX = left.p*nx;
         momentumFluxY = left.p*ny;
         momentumFluxZ = left.p*nz;
@@ -3911,14 +3955,14 @@ __device__ bool computeRiemannGasFaceFluxDevice
             asm("trap;");
             return false;
         }
-        double hllcAdcOmega = 1.0;
+        GpuReal hllcAdcOmega = GPU_R(1.0);
         if (scheme == ugkpriemann::Scheme::HLLC_ADC)
         {
             hllcAdcOmega = clampRange
             (
-                finiteOr(s.gasHllcAdcSensor[own], 0.0),
-                0.0,
-                1.0
+                finiteOr(s.gasHllcAdcSensor[own], GPU_R(0.0)),
+                GPU_R(0.0),
+                GPU_R(1.0)
             );
             if (nei >= 0)
             {
@@ -3927,9 +3971,9 @@ __device__ bool computeRiemannGasFaceFluxDevice
                     hllcAdcOmega,
                     clampRange
                     (
-                        finiteOr(s.gasHllcAdcSensor[nei], 0.0),
-                        0.0,
-                        1.0
+                        finiteOr(s.gasHllcAdcSensor[nei], GPU_R(0.0)),
+                        GPU_R(0.0),
+                        GPU_R(1.0)
                     )
                 );
             }
@@ -4000,19 +4044,19 @@ __device__ bool computeRiemannGasFaceFluxDevice
                                                                           
                                                                            
                                                                      
-            const double ownerVelocitySquared =
+            const GpuReal ownerVelocitySquared =
                 s.Ux[own]*s.Ux[own]
               + s.Uy[own]*s.Uy[own]
               + s.Uz[own]*s.Uz[own];
-            const double neighbourVelocitySquared =
+            const GpuReal neighbourVelocitySquared =
                 s.Ux[nei]*s.Ux[nei]
               + s.Uy[nei]*s.Uy[nei]
               + s.Uz[nei]*s.Uz[nei];
-            const double ownerThermalEnthalpy = s.gasCp*s.Tgas[own];
-            const double neighbourThermalEnthalpy = s.gasCp*s.Tgas[nei];
-            const double ownerKineticEnergy = 0.5*ownerVelocitySquared;
-            const double neighbourKineticEnergy =
-                0.5*neighbourVelocitySquared;
+            const GpuReal ownerThermalEnthalpy = s.gasCp*s.Tgas[own];
+            const GpuReal neighbourThermalEnthalpy = s.gasCp*s.Tgas[nei];
+            const GpuReal ownerKineticEnergy = GPU_R(0.5)*ownerVelocitySquared;
+            const GpuReal neighbourKineticEnergy =
+                GPU_R(0.5)*neighbourVelocitySquared;
             const ugkpinterpolation::Vector3
                 ownerThermalEnthalpyGradient
             {
@@ -4058,9 +4102,9 @@ __device__ bool computeRiemannGasFaceFluxDevice
                 mappedNeiCy - s.Cy[own],
                 mappedNeiCz - s.Cz[own]
             };
-            const double ownerWeight =
-                clampRange(s.faceWeight[f], 0.0, 1.0);
-            const double faceThermalEnthalpy =
+            const GpuReal ownerWeight =
+                clampRange(s.faceWeight[f], GPU_R(0.0), GPU_R(1.0));
+            const GpuReal faceThermalEnthalpy =
                 ugkpinterpolation::limitedLinearFaceValue
                 (
                     ownerThermalEnthalpy,
@@ -4070,9 +4114,9 @@ __device__ bool computeRiemannGasFaceFluxDevice
                     centreToCentre,
                     ownerWeight,
                     massFlux,
-                    1.0
+                    GPU_R(1.0)
                 );
-            const double faceKineticEnergy =
+            const GpuReal faceKineticEnergy =
                 ugkpinterpolation::limitedLinearFaceValue
                 (
                     ownerKineticEnergy,
@@ -4082,17 +4126,17 @@ __device__ bool computeRiemannGasFaceFluxDevice
                     centreToCentre,
                     ownerWeight,
                     massFlux,
-                    1.0
+                    GPU_R(1.0)
                 );
-            const bool ownerIsUpwind = massFlux >= 0.0;
-            const double upwindSpecificEnergy =
+            const bool ownerIsUpwind = massFlux >= GPU_R(0.0);
+            const GpuReal upwindSpecificEnergy =
                 (ownerIsUpwind
                   ? ownerThermalEnthalpy
                   : neighbourThermalEnthalpy)
               + (ownerIsUpwind
                   ? ownerKineticEnergy
                   : neighbourKineticEnergy);
-            const double limitedSpecificEnergy =
+            const GpuReal limitedSpecificEnergy =
                 faceThermalEnthalpy + faceKineticEnergy;
             energyFlux =
                 ugkpinterpolation::limitedLinearRiemannEnergyFlux
@@ -4112,18 +4156,18 @@ __device__ bool computeRiemannGasFaceFluxDevice
                                                                           
                                                                      
                                                     
-        double gradUxX = s.gradUxX[own];
-        double gradUxY = s.gradUxY[own];
-        double gradUxZ = s.gradUxZ[own];
-        double gradUyX = s.gradUyX[own];
-        double gradUyY = s.gradUyY[own];
-        double gradUyZ = s.gradUyZ[own];
-        double gradUzX = s.gradUzX[own];
-        double gradUzY = s.gradUzY[own];
-        double gradUzZ = s.gradUzZ[own];
-        double gradTX = s.gradTX[own];
-        double gradTY = s.gradTY[own];
-        double gradTZ = s.gradTZ[own];
+        GpuReal gradUxX = s.gradUxX[own];
+        GpuReal gradUxY = s.gradUxY[own];
+        GpuReal gradUxZ = s.gradUxZ[own];
+        GpuReal gradUyX = s.gradUyX[own];
+        GpuReal gradUyY = s.gradUyY[own];
+        GpuReal gradUyZ = s.gradUyZ[own];
+        GpuReal gradUzX = s.gradUzX[own];
+        GpuReal gradUzY = s.gradUzY[own];
+        GpuReal gradUzZ = s.gradUzZ[own];
+        GpuReal gradTX = s.gradTX[own];
+        GpuReal gradTY = s.gradTY[own];
+        GpuReal gradTZ = s.gradTZ[own];
         const ugkptransport::Vector3 unitNormal{nx, ny, nz};
         ugkptransport::Vector3 compactSnGradU
         {
@@ -4131,13 +4175,13 @@ __device__ bool computeRiemannGasFaceFluxDevice
             gradUyX*nx + gradUyY*ny + gradUyZ*nz,
             gradUzX*nx + gradUzY*ny + gradUzZ*nz
         };
-        double normalTemperatureGradient =
+        GpuReal normalTemperatureGradient =
             gradTX*nx + gradTY*ny + gradTZ*nz;
 
         if (nei >= 0)
         {
-            const double ownerWeight =
-                clampRange(s.faceWeight[f], 0.0, 1.0);
+            const GpuReal ownerWeight =
+                clampRange(s.faceWeight[f], GPU_R(0.0), GPU_R(1.0));
             const ugkptransport::SnGradGeometry snGradGeometry =
                 ugkptransport::makeInternalSnGradGeometry
                 (
@@ -4282,24 +4326,24 @@ __device__ bool computeRiemannGasFaceFluxDevice
         {
             const bool velocityFixed = boundaryKind == 2
               || useRiemannBoundaryVelocity(s, f, left);
-            const double boundaryUx = boundaryKind == 2
+            const GpuReal boundaryUx = boundaryKind == 2
               ? right.ux : s.riemannBoundaryUx[f];
-            const double boundaryUy = boundaryKind == 2
+            const GpuReal boundaryUy = boundaryKind == 2
               ? right.uy : s.riemannBoundaryUy[f];
-            const double boundaryUz = boundaryKind == 2
+            const GpuReal boundaryUz = boundaryKind == 2
               ? right.uz : s.riemannBoundaryUz[f];
-            const double currentNormalGradUx =
+            const GpuReal currentNormalGradUx =
                 gradUxX*nx + gradUxY*ny + gradUxZ*nz;
-            const double currentNormalGradUy =
+            const GpuReal currentNormalGradUy =
                 gradUyX*nx + gradUyY*ny + gradUyZ*nz;
-            const double currentNormalGradUz =
+            const GpuReal currentNormalGradUz =
                 gradUzX*nx + gradUzY*ny + gradUzZ*nz;
-            const double targetNormalGradUx = velocityFixed
-              ? (boundaryUx - s.Ux[own])*s.deltaCoeffs[f] : 0.0;
-            const double targetNormalGradUy = velocityFixed
-              ? (boundaryUy - s.Uy[own])*s.deltaCoeffs[f] : 0.0;
-            const double targetNormalGradUz = velocityFixed
-              ? (boundaryUz - s.Uz[own])*s.deltaCoeffs[f] : 0.0;
+            const GpuReal targetNormalGradUx = velocityFixed
+              ? (boundaryUx - s.Ux[own])*s.deltaCoeffs[f] : GPU_R(0.0);
+            const GpuReal targetNormalGradUy = velocityFixed
+              ? (boundaryUy - s.Uy[own])*s.deltaCoeffs[f] : GPU_R(0.0);
+            const GpuReal targetNormalGradUz = velocityFixed
+              ? (boundaryUz - s.Uz[own])*s.deltaCoeffs[f] : GPU_R(0.0);
             (void)currentNormalGradUx;
             (void)currentNormalGradUy;
             (void)currentNormalGradUz;
@@ -4310,19 +4354,19 @@ __device__ bool computeRiemannGasFaceFluxDevice
                     targetNormalGradUy,
                     targetNormalGradUz
                 };
-            const double targetNormalGradT =
+            const GpuReal targetNormalGradT =
                 s.riemannBoundaryTFix[f] != 0
               ? (s.riemannBoundaryT[f] - s.Tgas[own])
                *s.deltaCoeffs[f]
-              : 0.0;
+              : GPU_R(0.0);
             normalTemperatureGradient = targetNormalGradT;
         }
 
-        const double rhoFace =
-            0.5*(left.rho + right.rho);
-        double muTurbulent = 0.0;
-        double kTurbulent = 0.0;
-        double directWallHeatFlux = 0.0;
+        const GpuReal rhoFace =
+            GPU_R(0.5)*(left.rho + right.rho);
+        GpuReal muTurbulent = GPU_R(0.0);
+        GpuReal kTurbulent = GPU_R(0.0);
+        GpuReal directWallHeatFlux = GPU_R(0.0);
         int directWallHeatFluxActive = 0;
         if constexpr (IncludeTurbulence)
         {
@@ -4340,14 +4384,14 @@ __device__ bool computeRiemannGasFaceFluxDevice
                 directWallHeatFluxActive
             );
         }
-        const double muEffective = s.gasMu + muTurbulent;
-        const double kEffective =
+        const GpuReal muEffective = s.gasMu + muTurbulent;
+        const GpuReal kEffective =
             molecularGasConductivity(s) + kTurbulent;
-        const double wallThermalAreaFraction =
+        const GpuReal wallThermalAreaFraction =
             nei < 0 && boundaryKind == 2
           ? gasWallExposedAreaFraction(s, f)
-          : 1.0;
-        if (muEffective > 0.0 || kEffective > 0.0)
+          : GPU_R(1.0);
+        if (muEffective > GPU_R(0.0) || kEffective > GPU_R(0.0))
         {
             const ugkptransport::Vector3 traction =
                 ugkptransport::openFoamNewtonianTraction
@@ -4369,19 +4413,19 @@ __device__ bool computeRiemannGasFaceFluxDevice
                     }
                 );
 
-            double faceUx = 0.5*(left.ux + right.ux);
-            double faceUy = 0.5*(left.uy + right.uy);
-            double faceUz = 0.5*(left.uz + right.uz);
+            GpuReal faceUx = GPU_R(0.5)*(left.ux + right.ux);
+            GpuReal faceUy = GPU_R(0.5)*(left.uy + right.uy);
+            GpuReal faceUz = GPU_R(0.5)*(left.uz + right.uz);
             if (nei >= 0)
             {
-                const double ownerWeight =
-                    clampRange(s.faceWeight[f], 0.0, 1.0);
+                const GpuReal ownerWeight =
+                    clampRange(s.faceWeight[f], GPU_R(0.0), GPU_R(1.0));
                 faceUx =
-                    ownerWeight*left.ux + (1.0 - ownerWeight)*right.ux;
+                    ownerWeight*left.ux + (GPU_R(1.0) - ownerWeight)*right.ux;
                 faceUy =
-                    ownerWeight*left.uy + (1.0 - ownerWeight)*right.uy;
+                    ownerWeight*left.uy + (GPU_R(1.0) - ownerWeight)*right.uy;
                 faceUz =
-                    ownerWeight*left.uz + (1.0 - ownerWeight)*right.uz;
+                    ownerWeight*left.uz + (GPU_R(1.0) - ownerWeight)*right.uz;
             }
             if
             (
@@ -4423,7 +4467,7 @@ __device__ bool computeRiemannGasFaceFluxDevice
 }
 
 template<bool IncludeTurbulence>
-__global__ void computeGasInternalFaceFluxKernel(DeviceState* sp, const double dt)
+__global__ void computeGasInternalFaceFluxKernel(DeviceState* sp, const GpuTime dt)
 {
     DeviceState& s = *sp;
     const int f = blockIdx.x*blockDim.x + threadIdx.x;
@@ -4432,11 +4476,11 @@ __global__ void computeGasInternalFaceFluxKernel(DeviceState* sp, const double d
         return;
     }
 
-    s.gasPhiRho[f] = 0.0;
-    s.gasPhiRhoUx[f] = 0.0;
-    s.gasPhiRhoUy[f] = 0.0;
-    s.gasPhiRhoUz[f] = 0.0;
-    s.gasPhiRhoE[f] = 0.0;
+    s.gasPhiRho[f] = GPU_R(0.0);
+    s.gasPhiRhoUx[f] = GPU_R(0.0);
+    s.gasPhiRhoUy[f] = GPU_R(0.0);
+    s.gasPhiRhoUz[f] = GPU_R(0.0);
+    s.gasPhiRhoE[f] = GPU_R(0.0);
 
     (void)dt;
     computeRiemannGasFaceFluxDevice<IncludeTurbulence>
@@ -4465,11 +4509,11 @@ __global__ void enforcePeriodicGasFluxAntisymmetryKernel(DeviceState* sp)
         return;
     }
 
-    const double rho = 0.5*(s.gasPhiRho[f] - s.gasPhiRho[pair]);
-    const double rhoUx = 0.5*(s.gasPhiRhoUx[f] - s.gasPhiRhoUx[pair]);
-    const double rhoUy = 0.5*(s.gasPhiRhoUy[f] - s.gasPhiRhoUy[pair]);
-    const double rhoUz = 0.5*(s.gasPhiRhoUz[f] - s.gasPhiRhoUz[pair]);
-    const double rhoE = 0.5*(s.gasPhiRhoE[f] - s.gasPhiRhoE[pair]);
+    const GpuReal rho = GPU_R(0.5)*(s.gasPhiRho[f] - s.gasPhiRho[pair]);
+    const GpuReal rhoUx = GPU_R(0.5)*(s.gasPhiRhoUx[f] - s.gasPhiRhoUx[pair]);
+    const GpuReal rhoUy = GPU_R(0.5)*(s.gasPhiRhoUy[f] - s.gasPhiRhoUy[pair]);
+    const GpuReal rhoUz = GPU_R(0.5)*(s.gasPhiRhoUz[f] - s.gasPhiRhoUz[pair]);
+    const GpuReal rhoE = GPU_R(0.5)*(s.gasPhiRhoE[f] - s.gasPhiRhoE[pair]);
     s.gasPhiRho[f] = rho;
     s.gasPhiRhoUx[f] = rhoUx;
     s.gasPhiRhoUy[f] = rhoUy;
@@ -4483,7 +4527,7 @@ __global__ void enforcePeriodicGasFluxAntisymmetryKernel(DeviceState* sp)
 }
 
 
-__global__ void computeGasFluxPositivityScaleKernel(DeviceState* sp, const double dt)
+__global__ void computeGasFluxPositivityScaleKernel(DeviceState* sp, const GpuTime dt)
 {
     DeviceState& s = *sp;
     const int c = blockIdx.x*blockDim.x + threadIdx.x;
@@ -4492,7 +4536,7 @@ __global__ void computeGasFluxPositivityScaleKernel(DeviceState* sp, const doubl
         return;
     }
 
-    double outgoingMassFlux = 0.0;
+    GpuReal outgoingMassFlux = GPU_R(0.0);
     const int start = s.cellPlaneStart[c];
     const int count = s.cellPlaneCount[c];
     for (int i = 0; i < count; ++i)
@@ -4503,31 +4547,31 @@ __global__ void computeGasFluxPositivityScaleKernel(DeviceState* sp, const doubl
             continue;
         }
 
-        const double phi = finiteOr(s.gasPhiRho[f], 0.0);
-        if (s.faceOwner[f] == c && phi > 0.0)
+        const GpuReal phi = finiteOr(s.gasPhiRho[f], GPU_R(0.0));
+        if (s.faceOwner[f] == c && phi > GPU_R(0.0))
         {
             outgoingMassFlux += phi;
         }
-        else if (s.faceNeighbour[f] == c && phi < 0.0)
+        else if (s.faceNeighbour[f] == c && phi < GPU_R(0.0))
         {
             outgoingMassFlux -= phi;
         }
     }
 
-    double scale = 1.0;
-    if (outgoingMassFlux > 0.0 && dt > 0.0)
+    GpuReal scale = GPU_R(1.0);
+    if (outgoingMassFlux > GPU_R(0.0) && dt > GPU_R(0.0))
     {
-        const double availableMass =
-            clampMin(s.rho[c] - s.rhoMin, 0.0)*s.V[c];
-        const double requestedOutflowMass = dt*outgoingMassFlux;
+        const GpuReal availableMass =
+            clampMin(s.rho[c] - s.rhoMin, GPU_R(0.0))*s.V[c];
+        const GpuReal requestedOutflowMass = dt*outgoingMassFlux;
         if (requestedOutflowMass > availableMass)
         {
             scale = clampRange
             (
-                0.999*availableMass
-               /(requestedOutflowMass + 1.0e-300),
-                0.0,
-                1.0
+                GPU_R(0.999)*availableMass
+               /(requestedOutflowMass + GPU_TINY(1.0e-300)),
+                GPU_R(0.0),
+                GPU_R(1.0)
             );
         }
     }
@@ -4537,7 +4581,7 @@ __global__ void computeGasFluxPositivityScaleKernel(DeviceState* sp, const doubl
 __global__ void applyGasFluxPositivityScaleKernel
 (
     DeviceState* sp,
-    const double ledgerDt
+    const GpuTime ledgerDt
 )
 {
     DeviceState& s = *sp;
@@ -4547,9 +4591,9 @@ __global__ void applyGasFluxPositivityScaleKernel
         return;
     }
 
-    const double phi = finiteOr(s.gasPhiRho[f], 0.0);
-    double scale = 1.0;
-    if (phi > 0.0)
+    const GpuReal phi = finiteOr(s.gasPhiRho[f], GPU_R(0.0));
+    GpuReal scale = GPU_R(1.0);
+    if (phi > GPU_R(0.0))
     {
         const int own = s.faceOwner[f];
         if (own >= 0 && own < s.nCells)
@@ -4557,7 +4601,7 @@ __global__ void applyGasFluxPositivityScaleKernel
             scale = s.gasFluxPositivityScale[own];
         }
     }
-    else if (phi < 0.0 && coupledFaceNeighbour(s, f) >= 0)
+    else if (phi < GPU_R(0.0) && coupledFaceNeighbour(s, f) >= 0)
     {
         const int nei = s.faceNeighbour[f];
         if (nei >= 0 && nei < s.nCells)
@@ -4566,7 +4610,7 @@ __global__ void applyGasFluxPositivityScaleKernel
         }
     }
 
-    scale = clampRange(finiteOr(scale, 0.0), 0.0, 1.0);
+    scale = clampRange(finiteOr(scale, GPU_R(0.0)), GPU_R(0.0), GPU_R(1.0));
     s.gasPhiRho[f] *= scale;
     s.gasPhiRhoUx[f] *= scale;
     s.gasPhiRhoUy[f] *= scale;
@@ -4597,15 +4641,15 @@ __global__ void computeSstFaceFluxKernel(DeviceState* sp)
     const int own = s.faceOwner[f];
     if (own < 0 || own >= s.nCells)
     {
-        s.sstPhiRhoK[f] = 0.0;
-        s.sstPhiRhoOmega[f] = 0.0;
+        s.sstPhiRhoK[f] = GPU_R(0.0);
+        s.sstPhiRhoOmega[f] = GPU_R(0.0);
         return;
     }
     const int nei = coupledFaceNeighbour(s, f);
     const int boundaryKind = nei >= 0 ? 0 : s.riemannBoundaryKind[f];
-    double sstMappedNeiCx = 0.0;
-    double sstMappedNeiCy = 0.0;
-    double sstMappedNeiCz = 0.0;
+    GpuReal sstMappedNeiCx = GPU_R(0.0);
+    GpuReal sstMappedNeiCy = GPU_R(0.0);
+    GpuReal sstMappedNeiCz = GPU_R(0.0);
     if (nei >= 0)
     {
         periodicMappedCellCentre
@@ -4616,45 +4660,45 @@ __global__ void computeSstFaceFluxKernel(DeviceState* sp)
     }
     if (boundaryKind == 1 || boundaryKind == 3 || boundaryKind == 4)
     {
-        s.sstPhiRhoK[f] = 0.0;
-        s.sstPhiRhoOmega[f] = 0.0;
+        s.sstPhiRhoK[f] = GPU_R(0.0);
+        s.sstPhiRhoOmega[f] = GPU_R(0.0);
         return;
     }
 
-    const double massFlux = s.gasPhiRho[f];
-    const double ownerWeight = clampRange(s.faceWeight[f], 0.0, 1.0);
-    const double kExterior = nei >= 0
+    const GpuReal massFlux = s.gasPhiRho[f];
+    const GpuReal ownerWeight = clampRange(s.faceWeight[f], GPU_R(0.0), GPU_R(1.0));
+    const GpuReal kExterior = nei >= 0
       ? s.k[nei] : sstBoundaryValue(s, f, own, false);
-    const double omegaExterior = nei >= 0
+    const GpuReal omegaExterior = nei >= 0
       ? s.omega[nei] : sstBoundaryValue(s, f, own, true);
-    const double kUpwind = massFlux >= 0.0 ? s.k[own] : kExterior;
-    const double omegaUpwind =
-        massFlux >= 0.0 ? s.omega[own] : omegaExterior;
+    const GpuReal kUpwind = massFlux >= GPU_R(0.0) ? s.k[own] : kExterior;
+    const GpuReal omegaUpwind =
+        massFlux >= GPU_R(0.0) ? s.omega[own] : omegaExterior;
 
-    const double rhoFace = nei >= 0
-      ? ownerWeight*s.rho[own] + (1.0 - ownerWeight)*s.rho[nei]
+    const GpuReal rhoFace = nei >= 0
+      ? ownerWeight*s.rho[own] + (GPU_R(1.0) - ownerWeight)*s.rho[nei]
       : s.rho[own];
-    const double f1Face = nei >= 0
-      ? ownerWeight*s.sstF1[own] + (1.0 - ownerWeight)*s.sstF1[nei]
+    const GpuReal f1Face = nei >= 0
+      ? ownerWeight*s.sstF1[own] + (GPU_R(1.0) - ownerWeight)*s.sstF1[nei]
       : s.sstF1[own];
-    const double nuFace = s.gasMu/clampMin(rhoFace, s.rhoMin);
-    double nutFace = nei >= 0
-      ? ownerWeight*s.nut[own] + (1.0 - ownerWeight)*s.nut[nei]
+    const GpuReal nuFace = s.gasMu/clampMin(rhoFace, s.rhoMin);
+    GpuReal nutFace = nei >= 0
+      ? ownerWeight*s.nut[own] + (GPU_R(1.0) - ownerWeight)*s.nut[nei]
       : s.nut[own];
     if (boundaryKind == 2)
     {
-        nutFace = 0.0;
+        nutFace = GPU_R(0.0);
         if (s.sstWallTreatment == 1)
         {
-            const double wallUx = s.riemannBoundaryUFix[f] != 0
-              ? finiteOr(s.riemannBoundaryUx[f], 0.0) : 0.0;
-            const double wallUy = s.riemannBoundaryUFix[f] != 0
-              ? finiteOr(s.riemannBoundaryUy[f], 0.0) : 0.0;
-            const double wallUz = s.riemannBoundaryUFix[f] != 0
-              ? finiteOr(s.riemannBoundaryUz[f], 0.0) : 0.0;
-            const double dux = s.Ux[own] - wallUx;
-            const double duy = s.Uy[own] - wallUy;
-            const double duz = s.Uz[own] - wallUz;
+            const GpuReal wallUx = s.riemannBoundaryUFix[f] != 0
+              ? finiteOr(s.riemannBoundaryUx[f], GPU_R(0.0)) : GPU_R(0.0);
+            const GpuReal wallUy = s.riemannBoundaryUFix[f] != 0
+              ? finiteOr(s.riemannBoundaryUy[f], GPU_R(0.0)) : GPU_R(0.0);
+            const GpuReal wallUz = s.riemannBoundaryUFix[f] != 0
+              ? finiteOr(s.riemannBoundaryUz[f], GPU_R(0.0)) : GPU_R(0.0);
+            const GpuReal dux = s.Ux[own] - wallUx;
+            const GpuReal duy = s.Uy[own] - wallUy;
+            const GpuReal duz = s.Uz[own] - wallUz;
             nutFace = ugkpwall::spaldingWallState
             (
                 sqrt(dux*dux + duy*duy + duz*duz),
@@ -4665,17 +4709,17 @@ __global__ void computeSstFaceFluxKernel(DeviceState* sp)
             ).nut;
         }
     }
-    const double dk =
+    const GpuReal dk =
         nuFace + ugkwp::sstAlphaK(f1Face, s.sstCoefficients)*nutFace;
-    const double domega =
+    const GpuReal domega =
         nuFace
       + ugkwp::sstAlphaOmega(f1Face, s.sstCoefficients)*nutFace;
 
-    double snGradK = 0.0;
-    double snGradOmega = 0.0;
+    GpuReal snGradK = GPU_R(0.0);
+    GpuReal snGradOmega = GPU_R(0.0);
     if (nei >= 0)
     {
-        const double area = clampMin(s.magSf[f], OfSmall);
+        const GpuReal area = clampMin(s.magSf[f], OfSmall);
         const ugkptransport::SnGradGeometry geometry =
             ugkptransport::makeInternalSnGradGeometry
             (
@@ -4729,9 +4773,9 @@ __global__ void computeSstFaceFluxKernel(DeviceState* sp)
         const bool kFixed =
             (boundaryKind == 2 && s.sstWallTreatment == 0)
           || kMode == 1
-          || (kMode == 2 && massFlux < 0.0);
+          || (kMode == 2 && massFlux < GPU_R(0.0));
         const bool omegaFixed = boundaryKind == 2 || omegaMode == 1
-          || (omegaMode == 2 && massFlux < 0.0);
+          || (omegaMode == 2 && massFlux < GPU_R(0.0));
         if (kFixed)
         {
             snGradK = s.deltaCoeffs[f]*(kExterior - s.k[own]);
@@ -4743,7 +4787,7 @@ __global__ void computeSstFaceFluxKernel(DeviceState* sp)
         }
     }
 
-    const double area = s.magSf[f];
+    const GpuReal area = s.magSf[f];
     s.sstPhiRhoK[f] =
         massFlux*kUpwind - rhoFace*dk*snGradK*area;
     s.sstPhiRhoOmega[f] =
@@ -4763,23 +4807,23 @@ __global__ void enforcePeriodicSstFluxAntisymmetryKernel(DeviceState* sp)
     {
         return;
     }
-    const double rhoK = 0.5*(s.sstPhiRhoK[f] - s.sstPhiRhoK[pair]);
-    const double rhoOmega =
-        0.5*(s.sstPhiRhoOmega[f] - s.sstPhiRhoOmega[pair]);
+    const GpuReal rhoK = GPU_R(0.5)*(s.sstPhiRhoK[f] - s.sstPhiRhoK[pair]);
+    const GpuReal rhoOmega =
+        GPU_R(0.5)*(s.sstPhiRhoOmega[f] - s.sstPhiRhoOmega[pair]);
     s.sstPhiRhoK[f] = rhoK;
     s.sstPhiRhoOmega[f] = rhoOmega;
     s.sstPhiRhoK[pair] = -rhoK;
     s.sstPhiRhoOmega[pair] = -rhoOmega;
 }
 
-__device__ double sstKProductionForCell
+__device__ GpuReal sstKProductionForCell
 (
     const DeviceState& s,
     const int c,
-    const double gByNu
+    const GpuReal gByNu
 )
 {
-    double production = ugkwp::sstKProduction
+    GpuReal production = ugkwp::sstKProduction
     (
         s.k[c],
         s.omega[c],
@@ -4792,7 +4836,7 @@ __device__ double sstKProductionForCell
         return production;
     }
 
-    double wallProductionSum = 0.0;
+    GpuReal wallProductionSum = GPU_R(0.0);
     int wallCount = 0;
     const int start = s.cellPlaneStart[c];
     const int count = s.cellPlaneCount[c];
@@ -4808,17 +4852,17 @@ __device__ double sstKProductionForCell
         {
             continue;
         }
-        const double wallUx = s.riemannBoundaryUFix[f] != 0
-          ? finiteOr(s.riemannBoundaryUx[f], 0.0) : 0.0;
-        const double wallUy = s.riemannBoundaryUFix[f] != 0
-          ? finiteOr(s.riemannBoundaryUy[f], 0.0) : 0.0;
-        const double wallUz = s.riemannBoundaryUFix[f] != 0
-          ? finiteOr(s.riemannBoundaryUz[f], 0.0) : 0.0;
-        const double dux = s.Ux[c] - wallUx;
-        const double duy = s.Uy[c] - wallUy;
-        const double duz = s.Uz[c] - wallUz;
-        const double y = clampMin(s.sstWallDistance[c], OfVSmall);
-        const double magGradU = sqrt(dux*dux + duy*duy + duz*duz)/y;
+        const GpuReal wallUx = s.riemannBoundaryUFix[f] != 0
+          ? finiteOr(s.riemannBoundaryUx[f], GPU_R(0.0)) : GPU_R(0.0);
+        const GpuReal wallUy = s.riemannBoundaryUFix[f] != 0
+          ? finiteOr(s.riemannBoundaryUy[f], GPU_R(0.0)) : GPU_R(0.0);
+        const GpuReal wallUz = s.riemannBoundaryUFix[f] != 0
+          ? finiteOr(s.riemannBoundaryUz[f], GPU_R(0.0)) : GPU_R(0.0);
+        const GpuReal dux = s.Ux[c] - wallUx;
+        const GpuReal duy = s.Uy[c] - wallUy;
+        const GpuReal duz = s.Uz[c] - wallUz;
+        const GpuReal y = clampMin(s.sstWallDistance[c], OfVSmall);
+        const GpuReal magGradU = sqrt(dux*dux + duy*duy + duz*duz)/y;
         wallProductionSum += ugkpwall::omegaWallFunctionState
         (
             s.k[c],
@@ -4834,14 +4878,14 @@ __device__ double sstKProductionForCell
         ++wallCount;
     }
     return wallCount > 0
-      ? wallProductionSum/double(wallCount)
+      ? wallProductionSum/GpuReal(wallCount)
       : production;
 }
 
 __global__ void applySstFluxAndSourceKernel
 (
     DeviceState* sp,
-    const double dt
+    const GpuTime dt
 )
 {
     DeviceState& s = *sp;
@@ -4851,8 +4895,8 @@ __global__ void applySstFluxAndSourceKernel
         return;
     }
 
-    double fluxK = 0.0;
-    double fluxOmega = 0.0;
+    GpuReal fluxK = GPU_R(0.0);
+    GpuReal fluxOmega = GPU_R(0.0);
     const int start = s.cellPlaneStart[c];
     const int count = s.cellPlaneCount[c];
     for (int i = 0; i < count; ++i)
@@ -4862,33 +4906,33 @@ __global__ void applySstFluxAndSourceKernel
         {
             continue;
         }
-        const double sign = s.faceOwner[f] == c ? -1.0 : 1.0;
+        const GpuReal sign = s.faceOwner[f] == c ? -GPU_R(1.0) : GPU_R(1.0);
         fluxK += sign*s.sstPhiRhoK[f];
         fluxOmega += sign*s.sstPhiRhoOmega[f];
     }
 
-    double divU = 0.0;
-    double s2 = 0.0;
-    double gByNu = 0.0;
+    GpuReal divU = GPU_R(0.0);
+    GpuReal s2 = GPU_R(0.0);
+    GpuReal gByNu = GPU_R(0.0);
     sstVelocityInvariants(s, c, divU, s2, gByNu);
-    const double gradDot =
+    const GpuReal gradDot =
         s.gradKX[c]*s.gradOmegaX[c]
       + s.gradKY[c]*s.gradOmegaY[c]
       + s.gradKZ[c]*s.gradOmegaZ[c];
-    const double cd = ugkwp::sstCrossDiffusion
+    const GpuReal cd = ugkwp::sstCrossDiffusion
     (
         s.omega[c],
         gradDot,
         s.sstCoefficients
     );
-    const double kProduction = sstKProductionForCell(s, c, gByNu);
-    const double sourceK = s.rho[c]*
+    const GpuReal kProduction = sstKProductionForCell(s, c, gByNu);
+    const GpuReal sourceK = s.rho[c]*
     (
         kProduction
-      - (2.0/3.0)*divU*s.k[c]
+      - (GPU_R(2.0)/GPU_R(3.0))*divU*s.k[c]
       - s.sstCoefficients.betaStar*s.k[c]*s.omega[c]
     );
-    const double sourceOmega = ugkwp::sstOmegaSource
+    const GpuReal sourceOmega = ugkwp::sstOmegaSource
     (
         s.rho[c],
         s.k[c],
@@ -4901,12 +4945,12 @@ __global__ void applySstFluxAndSourceKernel
         cd,
         s.sstCoefficients
     );
-    const double invV = 1.0/clampMin(s.V[c], OfSmall);
-    const double deltaRhoK = dt*(fluxK*invV + sourceK);
-    const double deltaRhoOmega = dt*(fluxOmega*invV + sourceOmega);
-    const double rhoSafe = clampMin(s.rho[c], s.rhoMin);
-    const double rhoKFloor = rhoSafe*s.sstKMin;
-    const double rhoOmegaFloor = rhoSafe*s.sstOmegaMin;
+    const GpuReal invV = GPU_R(1.0)/clampMin(s.V[c], OfSmall);
+    const GpuReal deltaRhoK = dt*(fluxK*invV + sourceK);
+    const GpuReal deltaRhoOmega = dt*(fluxOmega*invV + sourceOmega);
+    const GpuReal rhoSafe = clampMin(s.rho[c], s.rhoMin);
+    const GpuReal rhoKFloor = rhoSafe*s.sstKMin;
+    const GpuReal rhoOmegaFloor = rhoSafe*s.sstOmegaMin;
     s.sstSourceNumber[c] = fmax
     (
         fabs(dt*sourceK)/clampMin(s.rhoK[c], rhoKFloor),
@@ -4920,7 +4964,7 @@ __global__ void applySstFluxAndSourceKernel
         rhoOmegaFloor
     );
 }
-__global__ void computeGasCourantFieldKernel(DeviceState* sp, const double dt)
+__global__ void computeGasCourantFieldKernel(DeviceState* sp, const GpuTime dt)
 {
     DeviceState& s = *sp;
     (void)dt;
@@ -4947,14 +4991,14 @@ __global__ void computeGasCourantFieldKernel(DeviceState* sp, const double dt)
         )
     )
     {
-        s.gasPhiRho[f] = 0.0;
+        s.gasPhiRho[f] = GPU_R(0.0);
         return;
     }
 
-    const double area = clampMin(s.magSf[f], OfSmall);
-    const double nx = s.Sfx[f]/area;
-    const double ny = s.Sfy[f]/area;
-    const double nz = s.Sfz[f]/area;
+    const GpuReal area = clampMin(s.magSf[f], OfSmall);
+    const GpuReal nx = s.Sfx[f]/area;
+    const GpuReal ny = s.Sfy[f]/area;
+    const GpuReal nz = s.Sfz[f]/area;
     const GasPrimDevice left = makeGasPrimDevice
     (
         s.rho[own],
@@ -4995,20 +5039,20 @@ __global__ void computeGasCourantFieldKernel(DeviceState* sp, const double dt)
     {
         right = riemannBoundaryState(s, f, left);
     }
-    const double unLeft =
+    const GpuReal unLeft =
         left.ux*nx + left.uy*ny + left.uz*nz;
-    const double unRight =
+    const GpuReal unRight =
         right.ux*nx + right.uy*ny + right.uz*nz;
-    const double aLeft =
+    const GpuReal aLeft =
         sqrt(clampMin(s.gammaGas*left.p/left.rho, OfSmall));
-    const double aRight =
+    const GpuReal aRight =
         sqrt(clampMin(s.gammaGas*right.p/right.rho, OfSmall));
-    const double spectralRadius = fmax
+    const GpuReal spectralRadius = fmax
     (
         fabs(unLeft) + aLeft,
         fabs(unRight) + aRight
     );
-    const double amaxSf = spectralRadius*area;
+    const GpuReal amaxSf = spectralRadius*area;
 
     s.gasPhiRho[f] = finiteDevice(amaxSf) ? amaxSf : OfGreat;
 }
@@ -5016,7 +5060,7 @@ __global__ void computeGasCourantFieldKernel(DeviceState* sp, const double dt)
 __global__ void computeGasConvectiveCourantByCellKernel
 (
     DeviceState* sp,
-    const double dt
+    const GpuTime dt
 )
 {
     DeviceState& s = *sp;
@@ -5026,7 +5070,7 @@ __global__ void computeGasConvectiveCourantByCellKernel
         return;
     }
 
-    double sumAmaxSf = 0.0;
+    GpuReal sumAmaxSf = GPU_R(0.0);
     const int start = s.cellPlaneStart[c];
     const int count = s.cellPlaneCount[c];
     for (int i = 0; i < count; ++i)
@@ -5041,16 +5085,16 @@ __global__ void computeGasConvectiveCourantByCellKernel
 
                                                      
                                               
-    const double co =
-        0.5*dt*sumAmaxSf/clampMin(s.V[c], OfSmall);
+    const GpuReal co =
+        GPU_R(0.5)*dt*sumAmaxSf/clampMin(s.V[c], OfSmall);
     s.gasFluxPositivityScale[c] = finiteDevice(co) ? co : OfGreat;
 }
 
 __global__ void computeGasDiffusionNumberKernel
 (
     DeviceState* sp,
-    const double dt,
-    const double targetMaxCo
+    const GpuTime dt,
+    const GpuReal targetMaxCo
 )
 {
     DeviceState& s = *sp;
@@ -5059,7 +5103,7 @@ __global__ void computeGasDiffusionNumberKernel
     {
         return;
     }
-    double sum = 0.0;
+    GpuReal sum = GPU_R(0.0);
     const int start = s.cellPlaneStart[c];
     const int count = s.cellPlaneCount[c];
     for (int i = 0; i < count; ++i)
@@ -5077,11 +5121,11 @@ __global__ void computeGasDiffusionNumberKernel
         const int other = (f < s.nInternalFaces || isPeriodicFace(s, f))
           ? (s.faceOwner[f] == c ? s.faceNeighbour[f] : s.faceOwner[f])
           : -1;
-        const double rhoFace = other >= 0
-          ? 0.5*(s.rho[c] + s.rho[other]) : s.rho[c];
-        double muTurbulent = 0.0;
-        double kTurbulent = 0.0;
-        double directWallHeatFlux = 0.0;
+        const GpuReal rhoFace = other >= 0
+          ? GPU_R(0.5)*(s.rho[c] + s.rho[other]) : s.rho[c];
+        GpuReal muTurbulent = GPU_R(0.0);
+        GpuReal kTurbulent = GPU_R(0.0);
+        GpuReal directWallHeatFlux = GPU_R(0.0);
         int directWallHeatFluxActive = 0;
         const int boundaryKind = (f < s.nInternalFaces || isPeriodicFace(s, f))
           ? 0 : s.riemannBoundaryKind[f];
@@ -5094,15 +5138,15 @@ __global__ void computeGasDiffusionNumberKernel
         (void)directWallHeatFlux;
         (void)directWallHeatFluxActive;
                                                                          
-        const double muEffective = s.gasMu + muTurbulent;
-        const double kEffective = molecularGasConductivity(s) + kTurbulent;
-        const double rhoSafe = clampMin(rhoFace, s.rhoMin);
-        const double nu = muEffective/rhoSafe;
-        const double thermalAlpha = kEffective/(rhoSafe*s.gasCp + OfSmall);
+        const GpuReal muEffective = s.gasMu + muTurbulent;
+        const GpuReal kEffective = molecularGasConductivity(s) + kTurbulent;
+        const GpuReal rhoSafe = clampMin(rhoFace, s.rhoMin);
+        const GpuReal nu = muEffective/rhoSafe;
+        const GpuReal thermalAlpha = kEffective/(rhoSafe*s.gasCp + OfSmall);
         sum += fmax(nu, thermalAlpha)*s.magSf[f]*s.deltaCoeffs[f];
     }
-    const double d = dt*sum/clampMin(s.V[c], OfSmall);
-    const double equivalentCo =
+    const GpuReal d = dt*sum/clampMin(s.V[c], OfSmall);
+    const GpuReal equivalentCo =
         targetMaxCo*d/clampMin(s.maxDiffusionNumber, OfSmall);
     s.gasDiffusionNumber[c] = finiteDevice(equivalentCo)
       ? equivalentCo : OfGreat;
@@ -5111,8 +5155,8 @@ __global__ void computeGasDiffusionNumberKernel
 __global__ void computeSstStabilityNumberKernel
 (
     DeviceState* sp,
-    const double dt,
-    const double targetMaxCo
+    const GpuTime dt,
+    const GpuReal targetMaxCo
 )
 {
     DeviceState& s = *sp;
@@ -5122,7 +5166,7 @@ __global__ void computeSstStabilityNumberKernel
         return;
     }
 
-    double diffusionRate = 0.0;
+    GpuReal diffusionRate = GPU_R(0.0);
     const int start = s.cellPlaneStart[c];
     const int count = s.cellPlaneCount[c];
     for (int i = 0; i < count; ++i)
@@ -5142,31 +5186,31 @@ __global__ void computeSstStabilityNumberKernel
         const int other = (f < s.nInternalFaces || isPeriodicFace(s, f))
           ? (s.faceOwner[f] == c ? s.faceNeighbour[f] : s.faceOwner[f])
           : -1;
-        const double rhoFace = other >= 0
-          ? 0.5*(s.rho[c] + s.rho[other]) : s.rho[c];
-        const double f1Face = other >= 0
-          ? 0.5*(s.sstF1[c] + s.sstF1[other]) : s.sstF1[c];
-        const double nu = s.gasMu/clampMin(rhoFace, s.rhoMin);
+        const GpuReal rhoFace = other >= 0
+          ? GPU_R(0.5)*(s.rho[c] + s.rho[other]) : s.rho[c];
+        const GpuReal f1Face = other >= 0
+          ? GPU_R(0.5)*(s.sstF1[c] + s.sstF1[other]) : s.sstF1[c];
+        const GpuReal nu = s.gasMu/clampMin(rhoFace, s.rhoMin);
         const bool physicalWall =
             f >= s.nInternalFaces
          && !isPeriodicFace(s, f)
          && s.riemannBoundaryKind[f] == 2;
-        double nutFace = other >= 0
-          ? 0.5*(s.nut[c] + s.nut[other]) : s.nut[c];
+        GpuReal nutFace = other >= 0
+          ? GPU_R(0.5)*(s.nut[c] + s.nut[other]) : s.nut[c];
         if (physicalWall)
         {
-            nutFace = 0.0;
+            nutFace = GPU_R(0.0);
             if (s.sstWallTreatment == 1)
             {
-                const double wallUx = s.riemannBoundaryUFix[f] != 0
-                  ? finiteOr(s.riemannBoundaryUx[f], 0.0) : 0.0;
-                const double wallUy = s.riemannBoundaryUFix[f] != 0
-                  ? finiteOr(s.riemannBoundaryUy[f], 0.0) : 0.0;
-                const double wallUz = s.riemannBoundaryUFix[f] != 0
-                  ? finiteOr(s.riemannBoundaryUz[f], 0.0) : 0.0;
-                const double dux = s.Ux[c] - wallUx;
-                const double duy = s.Uy[c] - wallUy;
-                const double duz = s.Uz[c] - wallUz;
+                const GpuReal wallUx = s.riemannBoundaryUFix[f] != 0
+                  ? finiteOr(s.riemannBoundaryUx[f], GPU_R(0.0)) : GPU_R(0.0);
+                const GpuReal wallUy = s.riemannBoundaryUFix[f] != 0
+                  ? finiteOr(s.riemannBoundaryUy[f], GPU_R(0.0)) : GPU_R(0.0);
+                const GpuReal wallUz = s.riemannBoundaryUFix[f] != 0
+                  ? finiteOr(s.riemannBoundaryUz[f], GPU_R(0.0)) : GPU_R(0.0);
+                const GpuReal dux = s.Ux[c] - wallUx;
+                const GpuReal duy = s.Uy[c] - wallUy;
+                const GpuReal duz = s.Uz[c] - wallUz;
                 nutFace = ugkpwall::spaldingWallState
                 (
                     sqrt(dux*dux + duy*duy + duz*duz),
@@ -5177,7 +5221,7 @@ __global__ void computeSstStabilityNumberKernel
                 ).nut;
             }
         }
-        const double maximumDiffusivity = fmax
+        const GpuReal maximumDiffusivity = fmax
         (
             nu + ugkwp::sstAlphaK(f1Face, s.sstCoefficients)*nutFace,
             nu + ugkwp::sstAlphaOmega(f1Face, s.sstCoefficients)*nutFace
@@ -5185,41 +5229,41 @@ __global__ void computeSstStabilityNumberKernel
         diffusionRate +=
             maximumDiffusivity*s.magSf[f]*s.deltaCoeffs[f];
     }
-    const double diffusionNumber =
+    const GpuReal diffusionNumber =
         dt*diffusionRate/clampMin(s.V[c], OfSmall);
 
-    double divU = 0.0;
-    double s2 = 0.0;
-    double gByNu = 0.0;
+    GpuReal divU = GPU_R(0.0);
+    GpuReal s2 = GPU_R(0.0);
+    GpuReal gByNu = GPU_R(0.0);
     sstVelocityInvariants(s, c, divU, s2, gByNu);
-    const double gradDot =
+    const GpuReal gradDot =
         s.gradKX[c]*s.gradOmegaX[c]
       + s.gradKY[c]*s.gradOmegaY[c]
       + s.gradKZ[c]*s.gradOmegaZ[c];
-    const double cd = ugkwp::sstCrossDiffusion
+    const GpuReal cd = ugkwp::sstCrossDiffusion
     (
         s.omega[c],
         gradDot,
         s.sstCoefficients
     );
-    const double sourceK = s.rho[c]*
+    const GpuReal sourceK = s.rho[c]*
     (
         sstKProductionForCell(s, c, gByNu)
-      - (2.0/3.0)*divU*s.k[c]
+      - (GPU_R(2.0)/GPU_R(3.0))*divU*s.k[c]
       - s.sstCoefficients.betaStar*s.k[c]*s.omega[c]
     );
-    const double sourceOmega = ugkwp::sstOmegaSource
+    const GpuReal sourceOmega = ugkwp::sstOmegaSource
     (
         s.rho[c], s.k[c], s.omega[c], divU, gByNu, s2,
         s.sstF1[c], s.sstF2[c], cd, s.sstCoefficients
     );
-    const double sourceNumber = fmax
+    const GpuReal sourceNumber = fmax
     (
         fabs(dt*sourceK)/clampMin(s.rhoK[c], s.rho[c]*s.sstKMin),
         fabs(dt*sourceOmega)
        /clampMin(s.rhoOmega[c], s.rho[c]*s.sstOmegaMin)
     );
-    const double equivalentCo = targetMaxCo*fmax
+    const GpuReal equivalentCo = targetMaxCo*fmax
     (
         diffusionNumber/clampMin(s.maxDiffusionNumber, OfSmall),
         sourceNumber/clampMin(s.sstMaxSourceNumber, OfSmall)
@@ -5228,7 +5272,7 @@ __global__ void computeSstStabilityNumberKernel
       ? equivalentCo : OfGreat;
 }
 
-__global__ void applyGasFluxDivergenceByCellKernel(DeviceState* sp, const double dt)
+__global__ void applyGasFluxDivergenceByCellKernel(DeviceState* sp, const GpuTime dt)
 {
     DeviceState& s = *sp;
     const int c = blockIdx.x*blockDim.x + threadIdx.x;
@@ -5237,11 +5281,11 @@ __global__ void applyGasFluxDivergenceByCellKernel(DeviceState* sp, const double
         return;
     }
 
-    double dRho = 0.0;
-    double dRhoUx = 0.0;
-    double dRhoUy = 0.0;
-    double dRhoUz = 0.0;
-    double dRhoE = 0.0;
+    GpuReal dRho = GPU_R(0.0);
+    GpuReal dRhoUx = GPU_R(0.0);
+    GpuReal dRhoUy = GPU_R(0.0);
+    GpuReal dRhoUz = GPU_R(0.0);
+    GpuReal dRhoE = GPU_R(0.0);
 
     const int start = s.cellPlaneStart[c];
     const int count = s.cellPlaneCount[c];
@@ -5253,14 +5297,14 @@ __global__ void applyGasFluxDivergenceByCellKernel(DeviceState* sp, const double
             continue;
         }
 
-        double sign = 0.0;
+        GpuReal sign = GPU_R(0.0);
         if (s.faceOwner[faceI] == c)
         {
-            sign = -1.0;
+            sign = -GPU_R(1.0);
         }
         else if (s.faceNeighbour[faceI] == c)
         {
-            sign = 1.0;
+            sign = GPU_R(1.0);
         }
         else
         {
@@ -5274,10 +5318,10 @@ __global__ void applyGasFluxDivergenceByCellKernel(DeviceState* sp, const double
         dRhoE += sign*s.gasPhiRhoE[faceI];
     }
 
-    const double scale = dt/clampMin(s.V[c], s.rhoMin);
-    const double rhoBefore = s.rho[c];
-    const double rhoAfter = rhoBefore + scale*dRho;
-    if (!finiteDevice(rhoAfter) || rhoAfter <= 0.0)
+    const GpuReal scale = dt/clampMin(s.V[c], s.rhoMin);
+    const GpuReal rhoBefore = s.rho[c];
+    const GpuReal rhoAfter = rhoBefore + scale*dRho;
+    if (!finiteDevice(rhoAfter) || rhoAfter <= GPU_R(0.0))
     {
         asm("trap;");
     }
@@ -5311,8 +5355,8 @@ __global__ void saveGasConservativeStateKernel(DeviceState* sp)
 __global__ void blendGasConservativeStateKernel
 (
     DeviceState* sp,
-    const double initialWeight,
-    const double stageWeight
+    const GpuReal initialWeight,
+    const GpuReal stageWeight
 )
 {
     DeviceState& s = *sp;
@@ -5343,25 +5387,25 @@ __global__ void blendGasConservativeStateKernel
 
 __device__ void recoverGasPrimitiveCell(DeviceState& s, const int c)
 {
-    const double rhoSafe =
+    const GpuReal rhoSafe =
         clampMin(finiteOr(s.rho[c], s.rhoMin), s.rhoMin);
-    const double ux = finiteOr(s.rhoUx[c]/rhoSafe, 0.0);
-    const double uy = finiteOr(s.rhoUy[c]/rhoSafe, 0.0);
-    const double uz = finiteOr(s.rhoUz[c]/rhoSafe, 0.0);
-    const double kinetic = 0.5*rhoSafe*(ux*ux + uy*uy + uz*uz);
-    const double minimumInternalEnergy = fmax
+    const GpuReal ux = finiteOr(s.rhoUx[c]/rhoSafe, GPU_R(0.0));
+    const GpuReal uy = finiteOr(s.rhoUy[c]/rhoSafe, GPU_R(0.0));
+    const GpuReal uz = finiteOr(s.rhoUz[c]/rhoSafe, GPU_R(0.0));
+    const GpuReal kinetic = GPU_R(0.5)*rhoSafe*(ux*ux + uy*uy + uz*uz);
+    const GpuReal minimumInternalEnergy = fmax
     (
         s.rhoMin,
         rhoSafe*s.Rgas*s.TgasMin
-       /clampMin(s.gammaGas - 1.0, OfSmall)
+       /clampMin(s.gammaGas - GPU_R(1.0), OfSmall)
     );
-    const double internalE = clampMin
+    const GpuReal internalE = clampMin
     (
         finiteOr(s.rhoE[c] - kinetic, minimumInternalEnergy),
         minimumInternalEnergy
     );
-    const double p = (s.gammaGas - 1.0)*internalE;
-    const double T = p/(rhoSafe*s.Rgas);
+    const GpuReal p = (s.gammaGas - GPU_R(1.0))*internalE;
+    const GpuReal T = p/(rhoSafe*s.Rgas);
 
     s.rho[c] = rhoSafe;
     s.rhoUx[c] = rhoSafe*ux;
@@ -5397,39 +5441,39 @@ __global__ void recoverPrimitivesKernel(DeviceState* sp)
 
     recoverGasPrimitiveCell(s, c);
 
-    const double eps = clampMin(finiteOr(s.epsS[c], 0.0), 0.0);
-    const double solidMass = eps*s.rhoSolid;
+    const GpuReal eps = clampMin(finiteOr(s.epsS[c], GPU_R(0.0)), GPU_R(0.0));
+    const GpuReal solidMass = eps*s.rhoSolid;
     if (eps <= s.epsSMin || solidMass <= s.epsSMin*s.rhoSolid)
     {
         clearSolidCell(s, c);
         return;
     }
 
-    const double usx = finiteOr(s.rhoUsx[c]/solidMass, 0.0);
-    const double usy = finiteOr(s.rhoUsy[c]/solidMass, 0.0);
-    const double usz = finiteOr(s.rhoUsz[c]/solidMass, 0.0);
-    const double solidKinetic = 0.5*sqr3(usx, usy, usz);
-    double theta =
-        (finiteOr(s.rhoEs[c], 0.0)/solidMass - solidKinetic)/1.5;
-    if (!finiteDevice(theta) || theta < 0.0)
+    const GpuReal usx = finiteOr(s.rhoUsx[c]/solidMass, GPU_R(0.0));
+    const GpuReal usy = finiteOr(s.rhoUsy[c]/solidMass, GPU_R(0.0));
+    const GpuReal usz = finiteOr(s.rhoUsz[c]/solidMass, GPU_R(0.0));
+    const GpuReal solidKinetic = GPU_R(0.5)*sqr3(usx, usy, usz);
+    GpuReal theta =
+        (finiteOr(s.rhoEs[c], GPU_R(0.0))/solidMass - solidKinetic)/GPU_R(1.5);
+    if (!finiteDevice(theta) || theta < GPU_R(0.0))
     {
-        theta = 0.0;
-        s.rhoEs[c] = solidMass*(solidKinetic + 1.5*theta);
+        theta = GPU_R(0.0);
+        s.rhoEs[c] = solidMass*(solidKinetic + GPU_R(1.5)*theta);
     }
 
-    double dMean = finiteOr(s.rhoDs[c]/solidMass, s.particleDiameterFallback);
-    if (!finiteDevice(dMean) || dMean <= 0.0)
+    GpuReal dMean = finiteOr(s.rhoDs[c]/solidMass, s.particleDiameterFallback);
+    if (!finiteDevice(dMean) || dMean <= GPU_R(0.0))
     {
         dMean = s.particleDiameterFallback;
         s.rhoDs[c] = solidMass*dMean;
     }
-    dMean = clampMin(dMean, 1.0e-12);
+    dMean = clampMin(dMean, GPU_R(1.0e-12));
 
     if (s.solveParticleTemperature != 0)
     {
-        const double specificEnthalpy =
-            finiteOr(s.rhoHp[c]/solidMass, -1.0);
-        double Tp = particleTemperatureFromSpecificEnthalpyDevice
+        const GpuReal specificEnthalpy =
+            finiteOr(s.rhoHp[c]/solidMass, -GPU_R(1.0));
+        GpuReal Tp = particleTemperatureFromSpecificEnthalpyDevice
         (
             specificEnthalpy
         );
@@ -5441,7 +5485,7 @@ __global__ void recoverPrimitivesKernel(DeviceState* sp)
     else
     {
         s.Tp[c] = s.TpMin;
-        s.rhoHp[c] = 0.0;
+        s.rhoHp[c] = GPU_R(0.0);
     }
 
     s.epsS[c] = eps;
@@ -5461,11 +5505,11 @@ __global__ void initialiseParticleMaterialEnthalpyKernel(DeviceState* sp)
         return;
     }
 
-    const double eps = clampMin(s.epsS[c], 0.0);
+    const GpuReal eps = clampMin(s.epsS[c], GPU_R(0.0));
     if (eps <= s.epsSMin)
     {
         s.Tp[c] = s.TpMin;
-        s.rhoHp[c] = 0.0;
+        s.rhoHp[c] = GPU_R(0.0);
         return;
     }
 
@@ -5483,13 +5527,13 @@ __global__ void clearParticleMomentsKernel(DeviceState* sp)
         return;
     }
 
-    s.momRhoP[c] = 0.0;
-    s.momRhoUPx[c] = 0.0;
-    s.momRhoUPy[c] = 0.0;
-    s.momRhoUPz[c] = 0.0;
-    s.momRhoEP[c] = 0.0;
-    s.momRhoPD[c] = 0.0;
-    s.momRhoHpP[c] = 0.0;
+    s.momRhoP[c] = GPU_R(0.0);
+    s.momRhoUPx[c] = GPU_R(0.0);
+    s.momRhoUPy[c] = GPU_R(0.0);
+    s.momRhoUPz[c] = GPU_R(0.0);
+    s.momRhoEP[c] = GPU_R(0.0);
+    s.momRhoPD[c] = GPU_R(0.0);
+    s.momRhoHpP[c] = GPU_R(0.0);
 }
 
 __global__ void initialiseEpsGPrevKernel(DeviceState* sp)
@@ -5500,8 +5544,8 @@ __global__ void initialiseEpsGPrevKernel(DeviceState* sp)
     {
         return;
     }
-    const double eps = clampRange(finiteOr(s.epsS[c], 0.0), 0.0, 1.0);
-    s.epsGPrev[c] = 1.0 - eps;
+    const GpuReal eps = clampRange(finiteOr(s.epsS[c], GPU_R(0.0)), GPU_R(0.0), GPU_R(1.0));
+    s.epsGPrev[c] = GPU_R(1.0) - eps;
 }
 
 __global__ void initialiseThetaDragAlphaKernel(DeviceState* sp)
@@ -5513,10 +5557,10 @@ __global__ void initialiseThetaDragAlphaKernel(DeviceState* sp)
         return;
     }
 
-    s.thetaDragAlpha[c] = 1.0;
+    s.thetaDragAlpha[c] = GPU_R(1.0);
 }
 
-__global__ void applyGasGravityKernel(DeviceState* sp, const double dt)
+__global__ void applyGasGravityKernel(DeviceState* sp, const GpuTime dt)
 {
     DeviceState& s = *sp;
     const int c = blockIdx.x*blockDim.x + threadIdx.x;
@@ -5524,19 +5568,19 @@ __global__ void applyGasGravityKernel(DeviceState* sp, const double dt)
     {
         return;
     }
-    const double rho = clampMin(finiteOr(s.rho[c], s.rhoMin), s.rhoMin);
-    const double oldMomX = finiteOr(s.rhoUx[c], 0.0);
-    const double oldMomY = finiteOr(s.rhoUy[c], 0.0);
-    const double oldMomZ = finiteOr(s.rhoUz[c], 0.0);
-    const double work =
+    const GpuReal rho = clampMin(finiteOr(s.rho[c], s.rhoMin), s.rhoMin);
+    const GpuReal oldMomX = finiteOr(s.rhoUx[c], GPU_R(0.0));
+    const GpuReal oldMomY = finiteOr(s.rhoUy[c], GPU_R(0.0));
+    const GpuReal oldMomZ = finiteOr(s.rhoUz[c], GPU_R(0.0));
+    const GpuReal work =
         dt*(oldMomX*s.gravityX + oldMomY*s.gravityY + oldMomZ*s.gravityZ);
-    const double gravitySquared =
+    const GpuReal gravitySquared =
         sqr3(s.gravityX, s.gravityY, s.gravityZ);
     s.rhoUx[c] = oldMomX + rho*s.gravityX*dt;
     s.rhoUy[c] = oldMomY + rho*s.gravityY*dt;
     s.rhoUz[c] = oldMomZ + rho*s.gravityZ*dt;
-    s.rhoE[c] = finiteOr(s.rhoE[c], 0.0)
-              + work + 0.5*rho*dt*dt*gravitySquared;
+    s.rhoE[c] = finiteOr(s.rhoE[c], GPU_R(0.0))
+              + work + GPU_R(0.5)*rho*dt*dt*gravitySquared;
 }
 
 __global__ void computePressureGradientKernel(DeviceState* sp)
@@ -5548,9 +5592,9 @@ __global__ void computePressureGradientKernel(DeviceState* sp)
         return;
     }
 
-    double gx = 0.0;
-    double gy = 0.0;
-    double gz = 0.0;
+    GpuReal gx = GPU_R(0.0);
+    GpuReal gy = GPU_R(0.0);
+    GpuReal gz = GPU_R(0.0);
     const int start = s.cellPlaneStart[c];
     const int count = s.cellPlaneCount[c];
     for (int i = 0; i < count; ++i)
@@ -5565,39 +5609,39 @@ __global__ void computePressureGradientKernel(DeviceState* sp)
         const int kind = s.cellFaceKind[p];
         const int own = s.faceOwner[f];
         const int neiFace = s.faceNeighbour[f];
-        const double lambda = finiteOr(s.faceWeight[f], 0.5);
-        const double pf =
+        const GpuReal lambda = finiteOr(s.faceWeight[f], GPU_R(0.5));
+        const GpuReal pf =
             (own >= 0 && own < s.nCells && neiFace >= 0 && neiFace < s.nCells)
-          ? lambda*s.p[own] + (1.0 - lambda)*s.p[neiFace]
+          ? lambda*s.p[own] + (GPU_R(1.0) - lambda)*s.p[neiFace]
           : ((kind != 4 && f >= 0 && f < s.nFaces)
               ? s.gasBoundaryP[f]
               : s.p[c]);
-        const double sign = (own == c) ? 1.0 : -1.0;
+        const GpuReal sign = (own == c) ? GPU_R(1.0) : -GPU_R(1.0);
         gx += pf*sign*s.Sfx[f];
         gy += pf*sign*s.Sfy[f];
         gz += pf*sign*s.Sfz[f];
     }
 
-    const double invV = 1.0/clampMin(s.V[c], s.rhoMin);
+    const GpuReal invV = GPU_R(1.0)/clampMin(s.V[c], s.rhoMin);
     s.gradPx[c] = gx*invV;
     s.gradPy[c] = gy*invV;
     s.gradPz[c] = gz*invV;
 }
 
-__device__ double solidEpsFromMomentDevice(const DeviceState& s, const int c)
+__device__ GpuReal solidEpsFromMomentDevice(const DeviceState& s, const int c)
 {
     if (c < 0 || c >= s.nCells)
     {
-        return 0.0;
+        return GPU_R(0.0);
     }
 
-    const double rhoP = clampMin(finiteOr(s.momRhoP[c], 0.0), 0.0);
+    const GpuReal rhoP = clampMin(finiteOr(s.momRhoP[c], GPU_R(0.0)), GPU_R(0.0));
 
     return clampRange
     (
-        rhoP/clampMin(s.rhoSolid, 1.0e-300),
-        0.0,
-        1.0
+        rhoP/clampMin(s.rhoSolid, GPU_TINY(1.0e-300)),
+        GPU_R(0.0),
+        GPU_R(1.0)
     );
 }
 
@@ -5607,13 +5651,13 @@ __host__ __device__ inline bool gasDragModelActive(const int modelId)
 }
 
 template<class DragModel>
-__device__ double dragInverseTimeDevice
+__device__ GpuReal dragInverseTimeDevice
 (
     const DeviceState& s,
-    const double gasDensity,
-    const double gasVolumeFraction,
-    const double diameter,
-    const double relativeSpeed,
+    const GpuReal gasDensity,
+    const GpuReal gasVolumeFraction,
+    const GpuReal diameter,
+    const GpuReal relativeSpeed,
     const DragModel& model
 )
 {
@@ -5632,7 +5676,7 @@ __device__ double dragInverseTimeDevice
 __global__ void applyGasVolumeFractionSourceKernel
 (
     DeviceState* sp,
-    const double dt
+    const GpuTime dt
 )
 {
     DeviceState& s = *sp;
@@ -5642,14 +5686,14 @@ __global__ void applyGasVolumeFractionSourceKernel
         return;
     }
 
-    const double eps = solidEpsFromMomentDevice(s, c);
-    const double epsG = 1.0 - eps;
-    const double epsGsafe = clampMin(epsG, OfSmall);
-    const double epsGOld = finiteOr(s.epsGPrev[c], epsG);
+    const GpuReal eps = solidEpsFromMomentDevice(s, c);
+    const GpuReal epsG = GPU_R(1.0) - eps;
+    const GpuReal epsGsafe = clampMin(epsG, OfSmall);
+    const GpuReal epsGOld = finiteOr(s.epsGPrev[c], epsG);
 
-    double gradEx = 0.0;
-    double gradEy = 0.0;
-    double gradEz = 0.0;
+    GpuReal gradEx = GPU_R(0.0);
+    GpuReal gradEy = GPU_R(0.0);
+    GpuReal gradEz = GPU_R(0.0);
 
     const int start = s.cellPlaneStart[c];
     const int count = s.cellPlaneCount[c];
@@ -5666,57 +5710,57 @@ __global__ void applyGasVolumeFractionSourceKernel
         const int own = s.faceOwner[f];
         const int neiFace = s.faceNeighbour[f];
 
-        const double epsOwn =
+        const GpuReal epsOwn =
             (own >= 0 && own < s.nCells)
-          ? 1.0 - solidEpsFromMomentDevice(s, own)
+          ? GPU_R(1.0) - solidEpsFromMomentDevice(s, own)
           : epsG;
 
-        const double epsNei =
+        const GpuReal epsNei =
             (neiFace >= 0 && neiFace < s.nCells)
-          ? 1.0 - solidEpsFromMomentDevice(s, neiFace)
+          ? GPU_R(1.0) - solidEpsFromMomentDevice(s, neiFace)
           : epsG;
 
-        const double lambda = finiteOr(s.faceWeight[f], 0.5);
-        const double epsFace = lambda*epsOwn + (1.0 - lambda)*epsNei;
-        const double sign = (own == c) ? 1.0 : -1.0;
+        const GpuReal lambda = finiteOr(s.faceWeight[f], GPU_R(0.5));
+        const GpuReal epsFace = lambda*epsOwn + (GPU_R(1.0) - lambda)*epsNei;
+        const GpuReal sign = (own == c) ? GPU_R(1.0) : -GPU_R(1.0);
 
         gradEx += epsFace*sign*s.Sfx[f];
         gradEy += epsFace*sign*s.Sfy[f];
         gradEz += epsFace*sign*s.Sfz[f];
     }
 
-    const double invV = 1.0/clampMin(s.V[c], OfSmall);
+    const GpuReal invV = GPU_R(1.0)/clampMin(s.V[c], OfSmall);
     gradEx *= invV;
     gradEy *= invV;
     gradEz *= invV;
 
-    const double ugx0 = finiteOr(s.Ux[c], 0.0);
-    const double ugy0 = finiteOr(s.Uy[c], 0.0);
-    const double ugz0 = finiteOr(s.Uz[c], 0.0);
+    const GpuReal ugx0 = finiteOr(s.Ux[c], GPU_R(0.0));
+    const GpuReal ugy0 = finiteOr(s.Uy[c], GPU_R(0.0));
+    const GpuReal ugz0 = finiteOr(s.Uz[c], GPU_R(0.0));
 
-    const double cepsG =
+    const GpuReal cepsG =
         -((epsG - epsGOld)/(dt + OfSmall)
           + ugx0*gradEx + ugy0*gradEy + ugz0*gradEz)/epsGsafe;
 
-    const double mgOld =
+    const GpuReal mgOld =
         clampMin(finiteOr(s.rho[c], s.rhoMin), s.rhoMin);
-    const double pressureOld =
-        clampMin(finiteOr(s.p[c], 0.0), 0.0);
-    const double enerGOld = finiteOr(s.rhoE[c], 0.0);
-    const double massScale = 1.0 + dt*cepsG;
-    const double mgCandidate = mgOld*massScale;
-    const double momGXCandidate = s.rhoUx[c]*massScale;
-    const double momGYCandidate = s.rhoUy[c]*massScale;
-    const double momGZCandidate = s.rhoUz[c]*massScale;
-    const double enerGCandidate =
+    const GpuReal pressureOld =
+        clampMin(finiteOr(s.p[c], GPU_R(0.0)), GPU_R(0.0));
+    const GpuReal enerGOld = finiteOr(s.rhoE[c], GPU_R(0.0));
+    const GpuReal massScale = GPU_R(1.0) + dt*cepsG;
+    const GpuReal mgCandidate = mgOld*massScale;
+    const GpuReal momGXCandidate = s.rhoUx[c]*massScale;
+    const GpuReal momGYCandidate = s.rhoUy[c]*massScale;
+    const GpuReal momGZCandidate = s.rhoUz[c]*massScale;
+    const GpuReal enerGCandidate =
         enerGOld*massScale + dt*cepsG*pressureOld;
-    const double kineticCandidate =
-        0.5
+    const GpuReal kineticCandidate =
+        GPU_R(0.5)
        *sqr3(momGXCandidate, momGYCandidate, momGZCandidate)
        /clampMin(mgCandidate, s.rhoMin);
-    const double internalEnergyFloorCandidate =
+    const GpuReal internalEnergyFloorCandidate =
         mgCandidate*s.Rgas*s.TgasMin
-       /clampMin(s.gammaGas - 1.0, OfSmall);
+       /clampMin(s.gammaGas - GPU_R(1.0), OfSmall);
     if
     (
         !finiteDevice(cepsG)
@@ -5756,7 +5800,7 @@ template<class DragModel>
 __global__ void applyEulerianGasSolidDragKernelStatic
 (
     DeviceState* sp,
-    const double dt,
+    const GpuTime dt,
     const DragModel dragModel
 )
 {
@@ -5769,57 +5813,57 @@ __global__ void applyEulerianGasSolidDragKernelStatic
 
     s.couplingRhoOld[c] =
         clampMin(finiteOr(s.rho[c], s.rhoMin), s.rhoMin);
-    s.couplingUxOld[c] = finiteOr(s.Ux[c], 0.0);
-    s.couplingUyOld[c] = finiteOr(s.Uy[c], 0.0);
-    s.couplingUzOld[c] = finiteOr(s.Uz[c], 0.0);
+    s.couplingUxOld[c] = finiteOr(s.Ux[c], GPU_R(0.0));
+    s.couplingUyOld[c] = finiteOr(s.Uy[c], GPU_R(0.0));
+    s.couplingUzOld[c] = finiteOr(s.Uz[c], GPU_R(0.0));
     s.couplingTgasOld[c] =
         clampMin(finiteOr(s.Tgas[c], s.TgasMin), s.TgasMin);
 
-    s.thetaDragAlpha[c] = 1.0;
-    const double rhoP = clampMin(finiteOr(s.momRhoP[c], 0.0), 0.0);
+    s.thetaDragAlpha[c] = GPU_R(1.0);
+    const GpuReal rhoP = clampMin(finiteOr(s.momRhoP[c], GPU_R(0.0)), GPU_R(0.0));
 
     if (rhoP <= s.epsSMin*s.rhoSolid)
     {
         return;
     }
 
-    const double eps = solidEpsFromMomentDevice(s, c);
-    const double epsG = 1.0 - eps;
-    const double epsGsafe = clampMin(epsG, OfSmall);
-    const double rhoG = s.couplingRhoOld[c];
-    const double mg = epsG*rhoG;
-    const double ugx0 = s.couplingUxOld[c];
-    const double ugy0 = s.couplingUyOld[c];
-    const double ugz0 = s.couplingUzOld[c];
+    const GpuReal eps = solidEpsFromMomentDevice(s, c);
+    const GpuReal epsG = GPU_R(1.0) - eps;
+    const GpuReal epsGsafe = clampMin(epsG, OfSmall);
+    const GpuReal rhoG = s.couplingRhoOld[c];
+    const GpuReal mg = epsG*rhoG;
+    const GpuReal ugx0 = s.couplingUxOld[c];
+    const GpuReal ugy0 = s.couplingUyOld[c];
+    const GpuReal ugz0 = s.couplingUzOld[c];
 
-    const double momSX = finiteOr(s.momRhoUPx[c], 0.0);
-    const double momSY = finiteOr(s.momRhoUPy[c], 0.0);
-    const double momSZ = finiteOr(s.momRhoUPz[c], 0.0);
-    const double enerS0 = clampMin(finiteOr(s.momRhoEP[c], 0.0), 0.0);
+    const GpuReal momSX = finiteOr(s.momRhoUPx[c], GPU_R(0.0));
+    const GpuReal momSY = finiteOr(s.momRhoUPy[c], GPU_R(0.0));
+    const GpuReal momSZ = finiteOr(s.momRhoUPz[c], GPU_R(0.0));
+    const GpuReal enerS0 = clampMin(finiteOr(s.momRhoEP[c], GPU_R(0.0)), GPU_R(0.0));
 
-    const double ms = rhoP;
+    const GpuReal ms = rhoP;
     if (!finiteDevice(ms) || ms < s.rhoMin)
     {
         return;
     }
 
-    const double usx0 = momSX/ms;
-    const double usy0 = momSY/ms;
-    const double usz0 = momSZ/ms;
+    const GpuReal usx0 = momSX/ms;
+    const GpuReal usy0 = momSY/ms;
+    const GpuReal usz0 = momSZ/ms;
 
-    const double dLocal =
+    const GpuReal dLocal =
         clampMin
         (
             finiteOr(s.momRhoPD[c]/ms, s.particleDiameterFallback),
-            1.0e-12
+            GPU_R(1.0e-12)
         );
 
-    const double urx = ugx0 - usx0;
-    const double ury = ugy0 - usy0;
-    const double urz = ugz0 - usz0;
+    const GpuReal urx = ugx0 - usx0;
+    const GpuReal ury = ugy0 - usy0;
+    const GpuReal urz = ugz0 - usz0;
 
-    const double urMag = sqrt(sqr3(urx, ury, urz));
-    const double beta = dragInverseTimeDevice
+    const GpuReal urMag = sqrt(sqr3(urx, ury, urz));
+    const GpuReal beta = dragInverseTimeDevice
     (
         s,
         rhoG,
@@ -5834,48 +5878,48 @@ __global__ void applyEulerianGasSolidDragKernelStatic
         return;
     }
 
-    const double tauDragCell = clampMin(1.0/beta, OfSmall);
+    const GpuReal tauDragCell = clampMin(GPU_R(1.0)/beta, OfSmall);
 
-    const double momGX0 = epsG*s.rhoUx[c];
-    const double momGY0 = epsG*s.rhoUy[c];
-    const double momGZ0 = epsG*s.rhoUz[c];
-    const double enerG0 = epsG*s.rhoE[c];
+    const GpuReal momGX0 = epsG*s.rhoUx[c];
+    const GpuReal momGY0 = epsG*s.rhoUy[c];
+    const GpuReal momGZ0 = epsG*s.rhoUz[c];
+    const GpuReal enerG0 = epsG*s.rhoE[c];
 
-    double momGX = momGX0;
-    double momGY = momGY0;
-    double momGZ = momGZ0;
+    GpuReal momGX = momGX0;
+    GpuReal momGY = momGY0;
+    GpuReal momGZ = momGZ0;
 
                                                                               
                                                                                 
                                                                               
                                                                             
-    double enerG = enerG0;
-    double enerS = enerS0;
+    GpuReal enerG = enerG0;
+    GpuReal enerS = enerS0;
 
     if (!finiteDevice(mg) || mg < s.rhoMin)
     {
         return;
     }
 
-    const double ugx = momGX/mg;
-    const double ugy = momGY/mg;
-    const double ugz = momGZ/mg;
+    const GpuReal ugx = momGX/mg;
+    const GpuReal ugy = momGY/mg;
+    const GpuReal ugz = momGZ/mg;
 
-    const double usx = momSX/ms;
-    const double usy = momSY/ms;
-    const double usz = momSZ/ms;
+    const GpuReal usx = momSX/ms;
+    const GpuReal usy = momSY/ms;
+    const GpuReal usz = momSZ/ms;
 
-    const double gm1 = clampMin(s.gammaGas - 1.0, OfSmall);
-    const double eMinGas = s.Rgas*s.TgasMin/gm1;
+    const GpuReal gm1 = clampMin(s.gammaGas - GPU_R(1.0), OfSmall);
+    const GpuReal eMinGas = s.Rgas*s.TgasMin/gm1;
 
-    const double kgOld = 0.5*mg*sqr3(ugx, ugy, ugz);
-    const double ksOld = 0.5*ms*sqr3(usx, usy, usz);
+    const GpuReal kgOld = GPU_R(0.5)*mg*sqr3(ugx, ugy, ugz);
+    const GpuReal ksOld = GPU_R(0.5)*ms*sqr3(usx, usy, usz);
 
-    double igOld = enerG - kgOld;
-    double isOld = enerS - ksOld;
+    GpuReal igOld = enerG - kgOld;
+    GpuReal isOld = enerS - ksOld;
 
-    const double igMin = mg*eMinGas;
-    const double isMin = 0.0;
+    const GpuReal igMin = mg*eMinGas;
+    const GpuReal isMin = GPU_R(0.0);
 
     if (!finiteDevice(igOld) || igOld < igMin)
     {
@@ -5887,14 +5931,14 @@ __global__ void applyEulerianGasSolidDragKernelStatic
         isOld = isMin;
     }
 
-    const double invTauDragCell = 1.0/clampMin(tauDragCell, OfSmall);
+    const GpuReal invTauDragCell = GPU_R(1.0)/clampMin(tauDragCell, OfSmall);
 
-    const double alphaI =
+    const GpuReal alphaI =
         clampRange
         (
-            finiteOr(exp(-2.0*dt*invTauDragCell), 1.0),
-            0.0,
-            1.0
+            finiteOr(exp(-GPU_R(2.0)*dt*invTauDragCell), GPU_R(1.0)),
+            GPU_R(0.0),
+            GPU_R(1.0)
         );
 
                                                                    
@@ -5902,47 +5946,47 @@ __global__ void applyEulerianGasSolidDragKernelStatic
                                                       
     s.thetaDragAlpha[c] = alphaI;
 
-    double isAfter = isOld*alphaI;
+    GpuReal isAfter = isOld*alphaI;
     if (isAfter < isMin)
     {
         isAfter = isMin;
     }
 
-    const double dI = isOld - isAfter;
-    const double igAfter = igOld + dI;
+    const GpuReal dI = isOld - isAfter;
+    const GpuReal igAfter = igOld + dI;
 
-    const double wx = ugx - usx;
-    const double wy = ugy - usy;
-    const double wz = ugz - usz;
+    const GpuReal wx = ugx - usx;
+    const GpuReal wy = ugy - usy;
+    const GpuReal wz = ugz - usz;
 
-    const double kW = dt*invTauDragCell*(1.0 + ms/(mg + OfSmall));
-    const double alphaW = exp(-kW);
+    const GpuReal kW = dt*invTauDragCell*(GPU_R(1.0) + ms/(mg + OfSmall));
+    const GpuReal alphaW = exp(-kW);
 
-    const double wxNew = wx*alphaW;
-    const double wyNew = wy*alphaW;
-    const double wzNew = wz*alphaW;
+    const GpuReal wxNew = wx*alphaW;
+    const GpuReal wyNew = wy*alphaW;
+    const GpuReal wzNew = wz*alphaW;
 
-    const double pX = momGX + momSX;
-    const double pY = momGY + momSY;
-    const double pZ = momGZ + momSZ;
+    const GpuReal pX = momGX + momSX;
+    const GpuReal pY = momGY + momSY;
+    const GpuReal pZ = momGZ + momSZ;
 
-    const double mTot = mg + ms;
+    const GpuReal mTot = mg + ms;
 
-    const double usNewX = (pX - mg*wxNew)/mTot;
-    const double usNewY = (pY - mg*wyNew)/mTot;
-    const double usNewZ = (pZ - mg*wzNew)/mTot;
+    const GpuReal usNewX = (pX - mg*wxNew)/mTot;
+    const GpuReal usNewY = (pY - mg*wyNew)/mTot;
+    const GpuReal usNewZ = (pZ - mg*wzNew)/mTot;
 
-    const double ugNewX = usNewX + wxNew;
-    const double ugNewY = usNewY + wyNew;
-    const double ugNewZ = usNewZ + wzNew;
+    const GpuReal ugNewX = usNewX + wxNew;
+    const GpuReal ugNewY = usNewY + wyNew;
+    const GpuReal ugNewZ = usNewZ + wzNew;
 
-    const double kgNew = 0.5*mg*sqr3(ugNewX, ugNewY, ugNewZ);
-    const double ksNew = 0.5*ms*sqr3(usNewX, usNewY, usNewZ);
+    const GpuReal kgNew = GPU_R(0.5)*mg*sqr3(ugNewX, ugNewY, ugNewZ);
+    const GpuReal ksNew = GPU_R(0.5)*ms*sqr3(usNewX, usNewY, usNewZ);
 
-    double diss = (kgOld + ksOld) - (kgNew + ksNew);
-    if (!finiteDevice(diss) || diss < 0.0)
+    GpuReal diss = (kgOld + ksOld) - (kgNew + ksNew);
+    if (!finiteDevice(diss) || diss < GPU_R(0.0))
     {
-        diss = 0.0;
+        diss = GPU_R(0.0);
     }
 
     s.rho[c] = rhoG;
@@ -5956,7 +6000,7 @@ __global__ void applyEulerianGasSolidDragKernelStatic
 __global__ void applyEulerianParticleMaterialHeatKernel
 (
     DeviceState* sp,
-    const double dt
+    const GpuTime dt
 )
 {
     DeviceState& s = *sp;
@@ -5972,22 +6016,22 @@ __global__ void applyEulerianParticleMaterialHeatKernel
         return;
     }
 
-    const double rhoP = clampMin(finiteOr(s.momRhoP[c], 0.0), 0.0);
+    const GpuReal rhoP = clampMin(finiteOr(s.momRhoP[c], GPU_R(0.0)), GPU_R(0.0));
     if (rhoP <= s.epsSMin*s.rhoSolid)
     {
         return;
     }
-    const double epsG = 1.0 - solidEpsFromMomentDevice(s, c);
-    const double epsGsafe = clampMin(epsG, OfSmall);
+    const GpuReal epsG = GPU_R(1.0) - solidEpsFromMomentDevice(s, c);
+    const GpuReal epsGsafe = clampMin(epsG, OfSmall);
 
-    const double hp = clampMin(finiteOr(s.momRhoHpP[c], 0.0), 0.0);
-    if (hp <= 0.0)
+    const GpuReal hp = clampMin(finiteOr(s.momRhoHpP[c], GPU_R(0.0)), GPU_R(0.0));
+    if (hp <= GPU_R(0.0))
     {
         return;
     }
 
-    const double specificEnthalpy = finiteOr(hp/(rhoP + OfSmall), -1.0);
-    const double tpAvg =
+    const GpuReal specificEnthalpy = finiteOr(hp/(rhoP + OfSmall), -GPU_R(1.0));
+    const GpuReal tpAvg =
         clampRange
         (
             finiteOr
@@ -6001,92 +6045,92 @@ __global__ void applyEulerianParticleMaterialHeatKernel
             s.TpMin,
             s.TpMax
         );
-    const double particleCp = particleSpecificHeatDevice(tpAvg);
-    if (!(particleCp > 0.0))
+    const GpuReal particleCp = particleSpecificHeatDevice(tpAvg);
+    if (!(particleCp > GPU_R(0.0)))
     {
         return;
     }
 
-    const double rhoG =
-        clampMin(finiteOr(s.couplingRhoOld[c], 0.0), s.rhoMin);
-    const double tg =
+    const GpuReal rhoG =
+        clampMin(finiteOr(s.couplingRhoOld[c], GPU_R(0.0)), s.rhoMin);
+    const GpuReal tg =
         clampRange
         (
             finiteOr(s.couplingTgasOld[c], s.TgasMin),
             s.TgasMin,
-            1.0e30
+            GPU_R(1.0e30)
         );
 
-    const double rhoDP = clampMin(finiteOr(s.momRhoPD[c], 0.0), 0.0);
-    const double dLocal =
+    const GpuReal rhoDP = clampMin(finiteOr(s.momRhoPD[c], GPU_R(0.0)), GPU_R(0.0));
+    const GpuReal dLocal =
         clampMin
         (
             finiteOr(rhoDP/rhoP, s.particleDiameterFallback),
-            1.0e-12
+            GPU_R(1.0e-12)
         );
 
-    const double usx = finiteOr(s.momRhoUPx[c], 0.0)/(rhoP + OfSmall);
-    const double usy = finiteOr(s.momRhoUPy[c], 0.0)/(rhoP + OfSmall);
-    const double usz = finiteOr(s.momRhoUPz[c], 0.0)/(rhoP + OfSmall);
+    const GpuReal usx = finiteOr(s.momRhoUPx[c], GPU_R(0.0))/(rhoP + OfSmall);
+    const GpuReal usy = finiteOr(s.momRhoUPy[c], GPU_R(0.0))/(rhoP + OfSmall);
+    const GpuReal usz = finiteOr(s.momRhoUPz[c], GPU_R(0.0))/(rhoP + OfSmall);
 
-    const double urx = finiteOr(s.couplingUxOld[c], 0.0) - usx;
-    const double ury = finiteOr(s.couplingUyOld[c], 0.0) - usy;
-    const double urz = finiteOr(s.couplingUzOld[c], 0.0) - usz;
-    const double urMag = sqrt(sqr3(urx, ury, urz));
+    const GpuReal urx = finiteOr(s.couplingUxOld[c], GPU_R(0.0)) - usx;
+    const GpuReal ury = finiteOr(s.couplingUyOld[c], GPU_R(0.0)) - usy;
+    const GpuReal urz = finiteOr(s.couplingUzOld[c], GPU_R(0.0)) - usz;
+    const GpuReal urMag = sqrt(sqr3(urx, ury, urz));
 
-    const double mu = clampMin(s.gasMu, 1.0e-30);
-    const double re = rhoG*dLocal*urMag/mu;
+    const GpuReal mu = clampMin(s.gasMu, GPU_R(1.0e-30));
+    const GpuReal re = rhoG*dLocal*urMag/mu;
 
-    const double pr = s.gasPrClamped;
-    const double gasConductivity = molecularGasConductivity(s);
+    const GpuReal pr = s.gasPrClamped;
+    const GpuReal gasConductivity = molecularGasConductivity(s);
 
-    const double nu = ugkwp::ranzMarshallNuFromPr
+    const GpuReal nu = ugkwp::ranzMarshallNuFromPr
     (
-        clampMin(re, 0.0),
-        clampMin(pr, 1.0e-12)
+        clampMin(re, GPU_R(0.0)),
+        clampMin(pr, GPU_R(1.0e-12))
     );
 
-    const double rate =
-        6.0*nu*gasConductivity
-       /(s.rhoSolid*particleCp*dLocal*dLocal + 1.0e-300);
+    const GpuReal rate =
+        GPU_R(6.0)*nu*gasConductivity
+       /(s.rhoSolid*particleCp*dLocal*dLocal + GPU_TINY(1.0e-300));
 
-    const double gasCv =
-        s.Rgas/clampMin(s.gammaGas - 1.0, OfSmall);
-    const double gasCapacity = epsG*rhoG*gasCv;
-    const double solidCapacity = rhoP*particleCp;
+    const GpuReal gasCv =
+        s.Rgas/clampMin(s.gammaGas - GPU_R(1.0), OfSmall);
+    const GpuReal gasCapacity = epsG*rhoG*gasCv;
+    const GpuReal solidCapacity = rhoP*particleCp;
 
                                                                            
                                                                              
                                                                         
-    const double dHp =
+    const GpuReal dHp =
         gpuFiniteCapacityHeatExchange
         (
             gasCapacity,
             solidCapacity,
             tg,
             tpAvg,
-            clampMin(rate, 0.0),
+            clampMin(rate, GPU_R(0.0)),
             dt
         );
 
-    const double rhoEold = finiteOr(s.rhoE[c], 0.0);
-    double rhoEnew = rhoEold - dHp/epsGsafe;
+    const GpuReal rhoEold = finiteOr(s.rhoE[c], GPU_R(0.0));
+    GpuReal rhoEnew = rhoEold - dHp/epsGsafe;
 
-    const double rhoGCurrent =
+    const GpuReal rhoGCurrent =
         clampMin(finiteOr(s.rho[c], rhoG), s.rhoMin);
-    const double kinetic =
-        0.5
+    const GpuReal kinetic =
+        GPU_R(0.5)
        *sqr3
         (
-            finiteOr(s.rhoUx[c], 0.0),
-            finiteOr(s.rhoUy[c], 0.0),
-            finiteOr(s.rhoUz[c], 0.0)
+            finiteOr(s.rhoUx[c], GPU_R(0.0)),
+            finiteOr(s.rhoUy[c], GPU_R(0.0)),
+            finiteOr(s.rhoUz[c], GPU_R(0.0))
         )
        /rhoGCurrent;
 
-    const double eMinGas =
+    const GpuReal eMinGas =
         rhoGCurrent*s.Rgas*s.TgasMin
-       /clampMin(s.gammaGas - 1.0, OfSmall);
+       /clampMin(s.gammaGas - GPU_R(1.0), OfSmall);
 
     rhoEnew = clampMin(finiteOr(rhoEnew, rhoEold), kinetic + eMinGas);
     s.rhoE[c] = rhoEnew;
@@ -6102,9 +6146,9 @@ __global__ void snapshotParticleGasCouplingStateKernel(DeviceState* sp)
     }
     s.couplingRhoOld[c] =
         clampMin(finiteOr(s.rho[c], s.rhoMin), s.rhoMin);
-    s.couplingUxOld[c] = finiteOr(s.Ux[c], 0.0);
-    s.couplingUyOld[c] = finiteOr(s.Uy[c], 0.0);
-    s.couplingUzOld[c] = finiteOr(s.Uz[c], 0.0);
+    s.couplingUxOld[c] = finiteOr(s.Ux[c], GPU_R(0.0));
+    s.couplingUyOld[c] = finiteOr(s.Uy[c], GPU_R(0.0));
+    s.couplingUzOld[c] = finiteOr(s.Uz[c], GPU_R(0.0));
     s.couplingTgasOld[c] =
         clampMin(finiteOr(s.Tgas[c], s.TgasMin), s.TgasMin);
 }
@@ -6119,49 +6163,54 @@ __device__ unsigned long long mixSeed(unsigned long long x)
     return x;
 }
 
-__device__ double uniform01Device(unsigned long long& state)
+__device__ GpuReal uniform01Device(unsigned long long& state)
 {
     state = mixSeed(state + 0x9e3779b97f4a7c15ULL);
-    return static_cast<double>(state >> 11)*(1.0/9007199254740992.0);
+    #if UGKWP_GPU_REAL_BITS == 32
+
+    return static_cast<GpuReal>(state >> 40)*0x1p-24f;
+#else
+    return static_cast<GpuReal>(state >> 11)*(GPU_R(1.0)/GPU_R(9007199254740992.0));
+#endif
 }
 
-__device__ double normalDevice(unsigned long long& state)
+__device__ GpuReal normalDevice(unsigned long long& state)
 {
-    const double u1 = clampMin(uniform01Device(state), 1.0e-12);
-    const double u2 = uniform01Device(state);
-    return sqrt(-2.0*log(u1))*cos(6.28318530717958647692*u2);
+    const GpuReal u1 = clampMin(uniform01Device(state), GPU_R(1.0e-12));
+    const GpuReal u2 = uniform01Device(state);
+    return sqrt(-GPU_R(2.0)*log(u1))*cos(GPU_R(6.28318530717958647692)*u2);
 }
 __device__ void normalPairDevice(
     unsigned long long& state,
-    double& z0,
-    double& z1
+    GpuReal& z0,
+    GpuReal& z1
 )
 {
-    const double u1 = clampMin(uniform01Device(state), 1.0e-12);
-    const double u2 = uniform01Device(state);
+    const GpuReal u1 = clampMin(uniform01Device(state), GPU_R(1.0e-12));
+    const GpuReal u2 = uniform01Device(state);
 
-    const double r = sqrt(-2.0*log(u1));
-    double sVal = 0.0;
-    double cVal = 0.0;
+    const GpuReal r = sqrt(-GPU_R(2.0)*log(u1));
+    GpuReal sVal = GPU_R(0.0);
+    GpuReal cVal = GPU_R(0.0);
 
-    sincos(6.28318530717958647692*u2, &sVal, &cVal);
+    sincos(GPU_R(6.28318530717958647692)*u2, &sVal, &cVal);
 
     z0 = r*cVal;
     z1 = r*sVal;
 
 }
 
-__device__ double sampleDiameterAroundDevice
+__device__ GpuReal sampleDiameterAroundDevice
 (
     const DeviceState& s,
-    const double dCenter,
+    const GpuReal dCenter,
     unsigned long long& rng
 )
 {
-    const double dMin = clampMin(s.particleDiameterMin, 1.0e-12);
-    const double dMax =
-        clampMin(s.particleDiameterMax, clampMin(dMin, 1.0e-12));
-    const double dLocal = clampRange
+    const GpuReal dMin = clampMin(s.particleDiameterMin, GPU_R(1.0e-12));
+    const GpuReal dMax =
+        clampMin(s.particleDiameterMax, clampMin(dMin, GPU_R(1.0e-12)));
+    const GpuReal dLocal = clampRange
     (
         finiteOr(dCenter, s.particleDiameterFallback),
         dMin,
@@ -6173,17 +6222,17 @@ __device__ double sampleDiameterAroundDevice
         return dLocal;
     }
 
-    const double sigma = s.particleDiameterSigma;
-    const double lnMin = log(dMin);
-    const double lnMax = log(dMax);
-    const double lnD =
-        log(clampMin(dLocal, 1.0e-12))
-      - 0.5*sigma*sigma
+    const GpuReal sigma = s.particleDiameterSigma;
+    const GpuReal lnMin = log(dMin);
+    const GpuReal lnMax = log(dMax);
+    const GpuReal lnD =
+        log(clampMin(dLocal, GPU_R(1.0e-12)))
+      - GPU_R(0.5)*sigma*sigma
       + sigma*normalDevice(rng);
 
     if (!finiteDevice(lnD))
     {
-        return lnD < 0.0 ? dMin : dMax;
+        return lnD < GPU_R(0.0) ? dMin : dMax;
     }
     if (lnD <= lnMin)
     {
@@ -6196,28 +6245,28 @@ __device__ double sampleDiameterAroundDevice
     return exp(lnD);
 }
 
-__device__ double sampleDiameterFromPoolMomentDevice
+__device__ GpuReal sampleDiameterFromPoolMomentDevice
 (
     const DeviceState& s,
-    const double meanD,
-    const double secondD,
+    const GpuReal meanD,
+    const GpuReal secondD,
     unsigned long long& rng
 )
 {
-    const double dMin = clampMin(s.particleDiameterMin, 1.0e-12);
-    const double dMax = clampMin(s.particleDiameterMax, dMin);
+    const GpuReal dMin = clampMin(s.particleDiameterMin, GPU_R(1.0e-12));
+    const GpuReal dMax = clampMin(s.particleDiameterMax, dMin);
 
-    const double mean =
+    const GpuReal mean =
         clampRange(finiteOr(meanD, s.particleDiameterFallback), dMin, dMax);
-    const double second = clampMin(finiteOr(secondD, mean*mean), 0.0);
-    const double varD = second - mean*mean;
+    const GpuReal second = clampMin(finiteOr(secondD, mean*mean), GPU_R(0.0));
+    const GpuReal varD = second - mean*mean;
 
-    if (!finiteDevice(varD) || varD <= 0.0 || dMax <= dMin)
+    if (!finiteDevice(varD) || varD <= GPU_R(0.0) || dMax <= dMin)
     {
         return mean;
     }
 
-    const double sampledD = mean + sqrt(varD)*normalDevice(rng);
+    const GpuReal sampledD = mean + sqrt(varD)*normalDevice(rng);
     if (!finiteDevice(sampledD))
     {
         return mean;
@@ -6226,13 +6275,13 @@ __device__ double sampleDiameterFromPoolMomentDevice
     return clampRange(sampledD, dMin, dMax);
 }
 
-__device__ double radialDistributionG0Device(const double eps)
+__device__ GpuReal radialDistributionG0Device(const GpuReal eps)
 {
-    double cRatio = clampRange(eps/(0.63 + 1.0e-6), 0.0, 0.99);
+    GpuReal cRatio = clampRange(eps/(GPU_R(0.63) + GPU_R(1.0e-6)), GPU_R(0.0), GPU_R(0.99));
     return ugkwp::radialDistributionG0FromRatio(cRatio);
 }
 
-__device__ double solidPressureFromMomentsDevice
+__device__ GpuReal solidPressureFromMomentsDevice
 (
     const DeviceState& s,
     const int c
@@ -6240,31 +6289,31 @@ __device__ double solidPressureFromMomentsDevice
 {
     if (c < 0 || c >= s.nCells)
     {
-        return 0.0;
+        return GPU_R(0.0);
     }
 
-    const double rhoP = clampMin(finiteOr(s.momRhoP[c], 0.0), 0.0);
+    const GpuReal rhoP = clampMin(finiteOr(s.momRhoP[c], GPU_R(0.0)), GPU_R(0.0));
     if (rhoP <= s.epsSMin*s.rhoSolid)
     {
-        return 0.0;
+        return GPU_R(0.0);
     }
 
-    const double eps =
-        clampRange(rhoP/clampMin(s.rhoSolid, 1.0e-300), 0.0, 1.0);
-    const double ux = finiteOr(s.momRhoUPx[c], 0.0)/rhoP;
-    const double uy = finiteOr(s.momRhoUPy[c], 0.0)/rhoP;
-    const double uz = finiteOr(s.momRhoUPz[c], 0.0)/rhoP;
-    const double kinetic = 0.5*rhoP*sqr3(ux, uy, uz);
-    const double theta =
+    const GpuReal eps =
+        clampRange(rhoP/clampMin(s.rhoSolid, GPU_TINY(1.0e-300)), GPU_R(0.0), GPU_R(1.0));
+    const GpuReal ux = finiteOr(s.momRhoUPx[c], GPU_R(0.0))/rhoP;
+    const GpuReal uy = finiteOr(s.momRhoUPy[c], GPU_R(0.0))/rhoP;
+    const GpuReal uz = finiteOr(s.momRhoUPz[c], GPU_R(0.0))/rhoP;
+    const GpuReal kinetic = GPU_R(0.5)*rhoP*sqr3(ux, uy, uz);
+    const GpuReal theta =
         clampMin
         (
-            (finiteOr(s.momRhoEP[c], kinetic) - kinetic)/(1.5*rhoP),
-            0.0
+            (finiteOr(s.momRhoEP[c], kinetic) - kinetic)/(GPU_R(1.5)*rhoP),
+            GPU_R(0.0)
         );
-    double pColl = 0.0;
+    GpuReal pColl = GPU_R(0.0);
     if (s.collisionalPressureEnabled)
     {
-        const double g0 = radialDistributionG0Device(eps);
+        const GpuReal g0 = radialDistributionG0Device(eps);
         pColl = ugkwp::collisionalPressure
         (
             s.collisionalRestitution,
@@ -6273,10 +6322,10 @@ __device__ double solidPressureFromMomentsDevice
             g0,
             theta
         );
-        pColl = clampRange(finiteOr(pColl, 0.0), 0.0, OfGreat);
+        pColl = clampRange(finiteOr(pColl, GPU_R(0.0)), GPU_R(0.0), OfGreat);
     }
 
-    return clampRange(finiteOr(pColl, OfGreat), 0.0, OfGreat);
+    return clampRange(finiteOr(pColl, OfGreat), GPU_R(0.0), OfGreat);
 }
 
 __global__ void computeCollisionalPressureKernel(DeviceState* sp)
@@ -6301,30 +6350,30 @@ __global__ void computeCollisionalPressureFaceFluxKernel(DeviceState* sp)
 
     const int own = s.faceOwner[f];
     const int nei = s.faceNeighbour[f];
-    double pFace = 0.0;
-    double ufx = 0.0;
-    double ufy = 0.0;
-    double ufz = 0.0;
+    GpuReal pFace = GPU_R(0.0);
+    GpuReal ufx = GPU_R(0.0);
+    GpuReal ufy = GPU_R(0.0);
+    GpuReal ufz = GPU_R(0.0);
 
     if (own >= 0 && own < s.nCells && nei >= 0 && nei < s.nCells)
     {
-        const double w = clampRange(finiteOr(s.faceWeight[f], 0.5), 0.0, 1.0);
-        const double rhoOwn =
-            clampMin(finiteOr(s.momRhoP[own], 0.0), s.epsSMin*s.rhoSolid);
-        const double rhoNei =
-            clampMin(finiteOr(s.momRhoP[nei], 0.0), s.epsSMin*s.rhoSolid);
+        const GpuReal w = clampRange(finiteOr(s.faceWeight[f], GPU_R(0.5)), GPU_R(0.0), GPU_R(1.0));
+        const GpuReal rhoOwn =
+            clampMin(finiteOr(s.momRhoP[own], GPU_R(0.0)), s.epsSMin*s.rhoSolid);
+        const GpuReal rhoNei =
+            clampMin(finiteOr(s.momRhoP[nei], GPU_R(0.0)), s.epsSMin*s.rhoSolid);
         pFace =
             w*solidPressureFromMomentsDevice(s, own)
-          + (1.0 - w)*solidPressureFromMomentsDevice(s, nei);
+          + (GPU_R(1.0) - w)*solidPressureFromMomentsDevice(s, nei);
         ufx =
-            w*finiteOr(s.momRhoUPx[own], 0.0)/rhoOwn
-          + (1.0 - w)*finiteOr(s.momRhoUPx[nei], 0.0)/rhoNei;
+            w*finiteOr(s.momRhoUPx[own], GPU_R(0.0))/rhoOwn
+          + (GPU_R(1.0) - w)*finiteOr(s.momRhoUPx[nei], GPU_R(0.0))/rhoNei;
         ufy =
-            w*finiteOr(s.momRhoUPy[own], 0.0)/rhoOwn
-          + (1.0 - w)*finiteOr(s.momRhoUPy[nei], 0.0)/rhoNei;
+            w*finiteOr(s.momRhoUPy[own], GPU_R(0.0))/rhoOwn
+          + (GPU_R(1.0) - w)*finiteOr(s.momRhoUPy[nei], GPU_R(0.0))/rhoNei;
         ufz =
-            w*finiteOr(s.momRhoUPz[own], 0.0)/rhoOwn
-          + (1.0 - w)*finiteOr(s.momRhoUPz[nei], 0.0)/rhoNei;
+            w*finiteOr(s.momRhoUPz[own], GPU_R(0.0))/rhoOwn
+          + (GPU_R(1.0) - w)*finiteOr(s.momRhoUPz[nei], GPU_R(0.0))/rhoNei;
     }
     else if
     (
@@ -6335,25 +6384,25 @@ __global__ void computeCollisionalPressureFaceFluxKernel(DeviceState* sp)
     {
         pFace = solidPressureFromMomentsDevice(s, own);
                                                                                  
-        ufx = 0.0;
-        ufy = 0.0;
-        ufz = 0.0;
+        ufx = GPU_R(0.0);
+        ufy = GPU_R(0.0);
+        ufz = GPU_R(0.0);
     }
 
-    const double fx = pFace*s.Sfx[f];
-    const double fy = pFace*s.Sfy[f];
-    const double fz = pFace*s.Sfz[f];
-    s.solidPressurePhiMomX[f] = finiteOr(fx, 0.0);
-    s.solidPressurePhiMomY[f] = finiteOr(fy, 0.0);
-    s.solidPressurePhiMomZ[f] = finiteOr(fz, 0.0);
+    const GpuReal fx = pFace*s.Sfx[f];
+    const GpuReal fy = pFace*s.Sfy[f];
+    const GpuReal fz = pFace*s.Sfz[f];
+    s.solidPressurePhiMomX[f] = finiteOr(fx, GPU_R(0.0));
+    s.solidPressurePhiMomY[f] = finiteOr(fy, GPU_R(0.0));
+    s.solidPressurePhiMomZ[f] = finiteOr(fz, GPU_R(0.0));
     s.solidPressurePhiEnergy[f] =
-        finiteOr(ufx*fx + ufy*fy + ufz*fz, 0.0);
+        finiteOr(ufx*fx + ufy*fy + ufz*fz, GPU_R(0.0));
 }
 
 __global__ void accumulateCollisionalPressureKickByCellKernel
 (
     DeviceState* sp,
-    const double kickDt,
+    const GpuTime kickDt,
     const int computeScale
 )
 {
@@ -6364,10 +6413,10 @@ __global__ void accumulateCollisionalPressureKickByCellKernel
         return;
     }
 
-    double dpx = 0.0;
-    double dpy = 0.0;
-    double dpz = 0.0;
-    double de = 0.0;
+    GpuReal dpx = GPU_R(0.0);
+    GpuReal dpy = GPU_R(0.0);
+    GpuReal dpz = GPU_R(0.0);
+    GpuReal de = GPU_R(0.0);
     const int start = s.cellPlaneStart[c];
     const int count = s.cellPlaneCount[c];
     for (int j = 0; j < count; ++j)
@@ -6378,18 +6427,18 @@ __global__ void accumulateCollisionalPressureKickByCellKernel
         {
             continue;
         }
-        const double sign = s.faceOwner[f] == c ? 1.0 : -1.0;
+        const GpuReal sign = s.faceOwner[f] == c ? GPU_R(1.0) : -GPU_R(1.0);
         dpx -= sign*s.solidPressurePhiMomX[f];
         dpy -= sign*s.solidPressurePhiMomY[f];
         dpz -= sign*s.solidPressurePhiMomZ[f];
         de -= sign*s.solidPressurePhiEnergy[f];
     }
 
-    const double factor = kickDt/clampMin(s.V[c], OfVSmall);
-    const double deltaPx = finiteOr(factor*dpx, 0.0);
-    const double deltaPy = finiteOr(factor*dpy, 0.0);
-    const double deltaPz = finiteOr(factor*dpz, 0.0);
-    const double deltaE = finiteOr(factor*de, 0.0);
+    const GpuReal factor = kickDt/clampMin(s.V[c], OfVSmall);
+    const GpuReal deltaPx = finiteOr(factor*dpx, GPU_R(0.0));
+    const GpuReal deltaPy = finiteOr(factor*dpy, GPU_R(0.0));
+    const GpuReal deltaPz = finiteOr(factor*dpz, GPU_R(0.0));
+    const GpuReal deltaE = finiteOr(factor*de, GPU_R(0.0));
     s.pressureDeltaMomX[c] = deltaPx;
     s.pressureDeltaMomY[c] = deltaPy;
     s.pressureDeltaMomZ[c] = deltaPz;
@@ -6400,31 +6449,31 @@ __global__ void accumulateCollisionalPressureKickByCellKernel
         return;
     }
 
-    const double rhoP = clampMin(finiteOr(s.momRhoP[c], 0.0), 0.0);
+    const GpuReal rhoP = clampMin(finiteOr(s.momRhoP[c], GPU_R(0.0)), GPU_R(0.0));
     if (rhoP <= s.epsSMin*s.rhoSolid)
     {
-        s.pressureKickScale[c] = 0.0;
+        s.pressureKickScale[c] = GPU_R(0.0);
         return;
     }
 
-    double lambda = 1.0;
-    const double dUmag = sqrt(sqr3(deltaPx, deltaPy, deltaPz))/rhoP;
-    const double maxDU =
-        s.pressureKickFraction*clampMin(s.cellLength[c], 1.0e-12)
+    GpuReal lambda = GPU_R(1.0);
+    const GpuReal dUmag = sqrt(sqr3(deltaPx, deltaPy, deltaPz))/rhoP;
+    const GpuReal maxDU =
+        s.pressureKickFraction*clampMin(s.cellLength[c], GPU_R(1.0e-12))
        /clampMin(kickDt, OfSmall);
     if (dUmag > maxDU)
     {
-        lambda = clampRange(maxDU/dUmag, 0.0, 1.0);
+        lambda = clampRange(maxDU/dUmag, GPU_R(0.0), GPU_R(1.0));
     }
 
-    const double px0 = finiteOr(s.momRhoUPx[c], 0.0);
-    const double py0 = finiteOr(s.momRhoUPy[c], 0.0);
-    const double pz0 = finiteOr(s.momRhoUPz[c], 0.0);
-    const double e0 = clampMin(finiteOr(s.momRhoEP[c], 0.0), 0.0);
-    const double minInternal = 1.5*rhoP*clampMin(s.thetaMin, 0.0);
-    const double trialInternal =
+    const GpuReal px0 = finiteOr(s.momRhoUPx[c], GPU_R(0.0));
+    const GpuReal py0 = finiteOr(s.momRhoUPy[c], GPU_R(0.0));
+    const GpuReal pz0 = finiteOr(s.momRhoUPz[c], GPU_R(0.0));
+    const GpuReal e0 = clampMin(finiteOr(s.momRhoEP[c], GPU_R(0.0)), GPU_R(0.0));
+    const GpuReal minInternal = GPU_R(1.5)*rhoP*clampMin(s.thetaMin, GPU_R(0.0));
+    const GpuReal trialInternal =
         e0 + lambda*deltaE
-      - 0.5*sqr3
+      - GPU_R(0.5)*sqr3
         (
             px0 + lambda*deltaPx,
             py0 + lambda*deltaPy,
@@ -6432,14 +6481,14 @@ __global__ void accumulateCollisionalPressureKickByCellKernel
         )/rhoP;
     if (!finiteDevice(trialInternal) || trialInternal < minInternal)
     {
-        double lo = 0.0;
-        double hi = lambda;
+        GpuReal lo = GPU_R(0.0);
+        GpuReal hi = lambda;
         for (int iter = 0; iter < 20; ++iter)
         {
-            const double mid = 0.5*(lo + hi);
-            const double internal =
+            const GpuReal mid = GPU_R(0.5)*(lo + hi);
+            const GpuReal internal =
                 e0 + mid*deltaE
-              - 0.5*sqr3
+              - GPU_R(0.5)*sqr3
                 (
                     px0 + mid*deltaPx,
                     py0 + mid*deltaPy,
@@ -6456,25 +6505,25 @@ __global__ void accumulateCollisionalPressureKickByCellKernel
         }
         lambda = lo;
     }
-    s.pressureKickScale[c] = clampRange(finiteOr(lambda, 0.0), 0.0, 1.0);
+    s.pressureKickScale[c] = clampRange(finiteOr(lambda, GPU_R(0.0)), GPU_R(0.0), GPU_R(1.0));
 }
 
-__device__ double pressureKickInternalEnergy
+__device__ GpuReal pressureKickInternalEnergy
 (
-    const double rhoP,
-    const double px,
-    const double py,
-    const double pz,
-    const double energy
+    const GpuReal rhoP,
+    const GpuReal px,
+    const GpuReal py,
+    const GpuReal pz,
+    const GpuReal energy
 )
 {
-    return energy - 0.5*sqr3(px, py, pz)/clampMin(rhoP, OfVSmall);
+    return energy - GPU_R(0.5)*sqr3(px, py, pz)/clampMin(rhoP, OfVSmall);
 }
 
 __global__ void computeCollisionalPressureKickScaleKernel
 (
     DeviceState* sp,
-    const double kickDt
+    const GpuTime kickDt
 )
 {
     DeviceState& s = *sp;
@@ -6484,35 +6533,35 @@ __global__ void computeCollisionalPressureKickScaleKernel
         return;
     }
 
-    const double rhoP = clampMin(finiteOr(s.momRhoP[c], 0.0), 0.0);
+    const GpuReal rhoP = clampMin(finiteOr(s.momRhoP[c], GPU_R(0.0)), GPU_R(0.0));
     if (rhoP <= s.epsSMin*s.rhoSolid)
     {
-        s.pressureKickScale[c] = 0.0;
+        s.pressureKickScale[c] = GPU_R(0.0);
         return;
     }
 
-    const double dpx = finiteOr(s.pressureDeltaMomX[c], 0.0);
-    const double dpy = finiteOr(s.pressureDeltaMomY[c], 0.0);
-    const double dpz = finiteOr(s.pressureDeltaMomZ[c], 0.0);
-    const double de = finiteOr(s.pressureDeltaEnergy[c], 0.0);
-    double lambda = 1.0;
+    const GpuReal dpx = finiteOr(s.pressureDeltaMomX[c], GPU_R(0.0));
+    const GpuReal dpy = finiteOr(s.pressureDeltaMomY[c], GPU_R(0.0));
+    const GpuReal dpz = finiteOr(s.pressureDeltaMomZ[c], GPU_R(0.0));
+    const GpuReal de = finiteOr(s.pressureDeltaEnergy[c], GPU_R(0.0));
+    GpuReal lambda = GPU_R(1.0);
 
-    const double dUmag = sqrt(sqr3(dpx, dpy, dpz))/rhoP;
-    const double maxDU =
-        s.pressureKickFraction*clampMin(s.cellLength[c], 1.0e-12)
+    const GpuReal dUmag = sqrt(sqr3(dpx, dpy, dpz))/rhoP;
+    const GpuReal maxDU =
+        s.pressureKickFraction*clampMin(s.cellLength[c], GPU_R(1.0e-12))
        /clampMin(kickDt, OfSmall);
     if (dUmag > maxDU)
     {
-        lambda = clampRange(maxDU/dUmag, 0.0, 1.0);
+        lambda = clampRange(maxDU/dUmag, GPU_R(0.0), GPU_R(1.0));
     }
 
-    const double px0 = finiteOr(s.momRhoUPx[c], 0.0);
-    const double py0 = finiteOr(s.momRhoUPy[c], 0.0);
-    const double pz0 = finiteOr(s.momRhoUPz[c], 0.0);
-    const double e0 = clampMin(finiteOr(s.momRhoEP[c], 0.0), 0.0);
-    const double minInternal = 1.5*rhoP*clampMin(s.thetaMin, 0.0);
+    const GpuReal px0 = finiteOr(s.momRhoUPx[c], GPU_R(0.0));
+    const GpuReal py0 = finiteOr(s.momRhoUPy[c], GPU_R(0.0));
+    const GpuReal pz0 = finiteOr(s.momRhoUPz[c], GPU_R(0.0));
+    const GpuReal e0 = clampMin(finiteOr(s.momRhoEP[c], GPU_R(0.0)), GPU_R(0.0));
+    const GpuReal minInternal = GPU_R(1.5)*rhoP*clampMin(s.thetaMin, GPU_R(0.0));
 
-    const double trialInternal = pressureKickInternalEnergy
+    const GpuReal trialInternal = pressureKickInternalEnergy
     (
         rhoP,
         px0 + lambda*dpx,
@@ -6522,12 +6571,12 @@ __global__ void computeCollisionalPressureKickScaleKernel
     );
     if (!finiteDevice(trialInternal) || trialInternal < minInternal)
     {
-        double lo = 0.0;
-        double hi = lambda;
+        GpuReal lo = GPU_R(0.0);
+        GpuReal hi = lambda;
         for (int iter = 0; iter < 20; ++iter)
         {
-            const double mid = 0.5*(lo + hi);
-            const double internal = pressureKickInternalEnergy
+            const GpuReal mid = GPU_R(0.5)*(lo + hi);
+            const GpuReal internal = pressureKickInternalEnergy
             (
                 rhoP,
                 px0 + mid*dpx,
@@ -6546,7 +6595,7 @@ __global__ void computeCollisionalPressureKickScaleKernel
         }
         lambda = lo;
     }
-    s.pressureKickScale[c] = clampRange(finiteOr(lambda, 0.0), 0.0, 1.0);
+    s.pressureKickScale[c] = clampRange(finiteOr(lambda, GPU_R(0.0)), GPU_R(0.0), GPU_R(1.0));
 }
 
 __global__ void scaleCollisionalPressureFaceFluxKernel(DeviceState* sp)
@@ -6559,22 +6608,23 @@ __global__ void scaleCollisionalPressureFaceFluxKernel(DeviceState* sp)
     }
     const int own = s.faceOwner[f];
     const int nei = s.faceNeighbour[f];
-    double scale = own >= 0 && own < s.nCells ? s.pressureKickScale[own] : 0.0;
+    GpuReal scale = own >= 0 && own < s.nCells ? s.pressureKickScale[own] : GPU_R(0.0);
     if (nei >= 0 && nei < s.nCells)
     {
         scale = fmin(scale, s.pressureKickScale[nei]);
     }
-    scale = clampRange(finiteOr(scale, 0.0), 0.0, 1.0);
+    scale = clampRange(finiteOr(scale, GPU_R(0.0)), GPU_R(0.0), GPU_R(1.0));
     s.solidPressurePhiMomX[f] *= scale;
     s.solidPressurePhiMomY[f] *= scale;
     s.solidPressurePhiMomZ[f] *= scale;
     s.solidPressurePhiEnergy[f] *= scale;
 }
 
+#if UGKWP_GPU_REAL_BITS == 32
 __global__ void applyCollisionalPressureProjectionKernel
 (
     DeviceState* sp,
-    const double kickDt
+    const GpuTime kickDt
 )
 {
     DeviceState& s = *sp;
@@ -6584,13 +6634,16 @@ __global__ void applyCollisionalPressureProjectionKernel
         return;
     }
 
-    __shared__ double scaledDelta[4];
+    __shared__ GpuReal scaledDelta[4];
+    __shared__ GpuReal pressureParameters[13];
+    __shared__ int pressureParameterActive;
+    __shared__ int pressureParameterResolved;
     if (threadIdx.x == 0)
     {
-        double dpx = 0.0;
-        double dpy = 0.0;
-        double dpz = 0.0;
-        double de = 0.0;
+        GpuReal dpx = GPU_R(0.0);
+        GpuReal dpy = GPU_R(0.0);
+        GpuReal dpz = GPU_R(0.0);
+        GpuReal de = GPU_R(0.0);
         const int startFace = s.cellPlaneStart[c];
         const int faceCount = s.cellPlaneCount[c];
         for (int j = 0; j < faceCount; ++j)
@@ -6600,51 +6653,82 @@ __global__ void applyCollisionalPressureProjectionKernel
             {
                 continue;
             }
-            const double sign = s.faceOwner[f] == c ? 1.0 : -1.0;
+            const GpuReal sign = s.faceOwner[f] == c ? GPU_R(1.0) : -GPU_R(1.0);
             dpx -= sign*s.solidPressurePhiMomX[f];
             dpy -= sign*s.solidPressurePhiMomY[f];
             dpz -= sign*s.solidPressurePhiMomZ[f];
             de -= sign*s.solidPressurePhiEnergy[f];
         }
-        const double factor = kickDt/clampMin(s.V[c], OfVSmall);
-        scaledDelta[0] = finiteOr(factor*dpx, 0.0);
-        scaledDelta[1] = finiteOr(factor*dpy, 0.0);
-        scaledDelta[2] = finiteOr(factor*dpz, 0.0);
-        scaledDelta[3] = finiteOr(factor*de, 0.0);
+        const GpuReal factor = kickDt/clampMin(s.V[c], OfVSmall);
+        scaledDelta[0] = finiteOr(factor*dpx, GPU_R(0.0));
+        scaledDelta[1] = finiteOr(factor*dpy, GPU_R(0.0));
+        scaledDelta[2] = finiteOr(factor*dpz, GPU_R(0.0));
+        scaledDelta[3] = finiteOr(factor*de, GPU_R(0.0));
         s.pressureDeltaMomX[c] = scaledDelta[0];
         s.pressureDeltaMomY[c] = scaledDelta[1];
         s.pressureDeltaMomZ[c] = scaledDelta[2];
         s.pressureDeltaEnergy[c] = scaledDelta[3];
+
+        const GpuReal rhoP = clampMin(finiteOr(s.momRhoP[c], GPU_R(0.0)), GPU_R(0.0));
+        pressureParameterActive = !(rhoP <= s.epsSMin*s.rhoSolid);
+        if (pressureParameterActive)
+        {
+        const GpuReal px0 = finiteOr(s.momRhoUPx[c], GPU_R(0.0));
+        const GpuReal py0 = finiteOr(s.momRhoUPy[c], GPU_R(0.0));
+        const GpuReal pz0 = finiteOr(s.momRhoUPz[c], GPU_R(0.0));
+        const GpuReal e0 = clampMin(finiteOr(s.momRhoEP[c], GPU_R(0.0)), GPU_R(0.0));
+        const GpuReal px1 = px0 + scaledDelta[0];
+        const GpuReal py1 = py0 + scaledDelta[1];
+        const GpuReal pz1 = pz0 + scaledDelta[2];
+        const GpuReal e1 = e0 + scaledDelta[3];
+        const GpuReal ux0 = px0/rhoP;
+        const GpuReal uy0 = py0/rhoP;
+        const GpuReal uz0 = pz0/rhoP;
+        const GpuReal ux1 = px1/rhoP;
+        const GpuReal uy1 = py1/rhoP;
+        const GpuReal uz1 = pz1/rhoP;
+        const GpuReal theta0 =
+            clampMin(pressureKickInternalEnergy(rhoP, px0, py0, pz0, e0)/(GPU_R(1.5)*rhoP), GPU_R(0.0));
+        const GpuReal theta1 =
+            clampMin(pressureKickInternalEnergy(rhoP, px1, py1, pz1, e1)/(GPU_R(1.5)*rhoP), GPU_R(0.0));
+        const bool resolved = theta0 > GPU_R(10.0)*s.thetaMin;
+        const GpuReal thermalScale =
+            resolved ? sqrt(clampMin(theta1/theta0, GPU_R(0.0))) : GPU_R(0.0);
+        const GpuReal thetaScale = resolved ? thermalScale*thermalScale : GPU_R(0.0);
+
+            pressureParameters[0] = px1;
+            pressureParameters[1] = py1;
+            pressureParameters[2] = pz1;
+            pressureParameters[3] = e1;
+            pressureParameters[4] = ux0;
+            pressureParameters[5] = uy0;
+            pressureParameters[6] = uz0;
+            pressureParameters[7] = ux1;
+            pressureParameters[8] = uy1;
+            pressureParameters[9] = uz1;
+            pressureParameters[10] = theta1;
+            pressureParameters[11] = thermalScale;
+            pressureParameters[12] = thetaScale;
+            pressureParameterResolved = resolved;
+        }
     }
     __syncthreads();
 
-    const double rhoP = clampMin(finiteOr(s.momRhoP[c], 0.0), 0.0);
-    if (rhoP <= s.epsSMin*s.rhoSolid)
-    {
-        return;
-    }
-    const double px0 = finiteOr(s.momRhoUPx[c], 0.0);
-    const double py0 = finiteOr(s.momRhoUPy[c], 0.0);
-    const double pz0 = finiteOr(s.momRhoUPz[c], 0.0);
-    const double e0 = clampMin(finiteOr(s.momRhoEP[c], 0.0), 0.0);
-    const double px1 = px0 + scaledDelta[0];
-    const double py1 = py0 + scaledDelta[1];
-    const double pz1 = pz0 + scaledDelta[2];
-    const double e1 = e0 + scaledDelta[3];
-    const double ux0 = px0/rhoP;
-    const double uy0 = py0/rhoP;
-    const double uz0 = pz0/rhoP;
-    const double ux1 = px1/rhoP;
-    const double uy1 = py1/rhoP;
-    const double uz1 = pz1/rhoP;
-    const double theta0 =
-        clampMin(pressureKickInternalEnergy(rhoP, px0, py0, pz0, e0)/(1.5*rhoP), 0.0);
-    const double theta1 =
-        clampMin(pressureKickInternalEnergy(rhoP, px1, py1, pz1, e1)/(1.5*rhoP), 0.0);
-    const bool resolved = theta0 > 10.0*s.thetaMin;
-    const double thermalScale =
-        resolved ? sqrt(clampMin(theta1/theta0, 0.0)) : 0.0;
-    const double thetaScale = resolved ? thermalScale*thermalScale : 0.0;
+    if (!pressureParameterActive) return;
+    const GpuReal px1 = pressureParameters[0];
+    const GpuReal py1 = pressureParameters[1];
+    const GpuReal pz1 = pressureParameters[2];
+    const GpuReal e1 = pressureParameters[3];
+    const GpuReal ux0 = pressureParameters[4];
+    const GpuReal uy0 = pressureParameters[5];
+    const GpuReal uz0 = pressureParameters[6];
+    const GpuReal ux1 = pressureParameters[7];
+    const GpuReal uy1 = pressureParameters[8];
+    const GpuReal uz1 = pressureParameters[9];
+    const GpuReal theta1 = pressureParameters[10];
+    const GpuReal thermalScale = pressureParameters[11];
+    const GpuReal thetaScale = pressureParameters[12];
+    const bool resolved = pressureParameterResolved != 0;
 
     const int start = s.cellParticleOffset[c];
     const int end = s.cellParticleOffset[c + 1];
@@ -6657,28 +6741,30 @@ __global__ void applyCollisionalPressureProjectionKernel
         }
         if (s.pStuck[i] != 0)
         {
-            s.pux[i] = 0.0;
-            s.puy[i] = 0.0;
-            s.puz[i] = 0.0;
+            s.pux[i] = GPU_R(0.0);
+            s.puy[i] = GPU_R(0.0);
+            s.puz[i] = GPU_R(0.0);
             if (s.pStuck[i] == Foam::gpuThermal::particleWallDeposited)
             {
-                s.puxOld[i] = 0.0;
-                s.puyOld[i] = 0.0;
-                s.puzOld[i] = 0.0;
+                s.puxOld[i] = GPU_R(0.0);
+                s.puyOld[i] = GPU_R(0.0);
+                s.puzOld[i] = GPU_R(0.0);
             }
             continue;
         }
-        const double dux = finiteOr(s.pux[i], ux0) - ux0;
-        const double duy = finiteOr(s.puy[i], uy0) - uy0;
-        const double duz = finiteOr(s.puz[i], uz0) - uz0;
+        const GpuReal dux = finiteOr(s.pux[i], ux0) - ux0;
+        const GpuReal duy = finiteOr(s.puy[i], uy0) - uy0;
+        const GpuReal duz = finiteOr(s.puz[i], uz0) - uz0;
         s.pux[i] = resolved ? ux1 + thermalScale*dux : ux1;
         s.puy[i] = resolved ? uy1 + thermalScale*duy : uy1;
         s.puz[i] = resolved ? uz1 + thermalScale*duz : uz1;
         s.pTheta[i] = resolved
-          ? clampMin(finiteOr(s.pTheta[i], 0.0)*thetaScale, 0.0)
+          ? clampMin(finiteOr(s.pTheta[i], GPU_R(0.0))*thetaScale, GPU_R(0.0))
           : theta1;
     }
 
+
+    __syncthreads();
     if (threadIdx.x == 0)
     {
         s.momRhoUPx[c] = px1;
@@ -6709,37 +6795,66 @@ __global__ void applyCollisionalPressureProjectionSplitSegmentKernel
         return;
     }
 
-    const double rhoP = clampMin(finiteOr(s.momRhoP[c], 0.0), 0.0);
-    if (rhoP <= s.epsSMin*s.rhoSolid)
+    __shared__ GpuReal pressureParameters[9];
+    __shared__ int pressureParameterActive;
+    __shared__ int pressureParameterResolved;
+    if (threadIdx.x == 0)
     {
-        return;
+        const GpuReal rhoP = clampMin(finiteOr(s.momRhoP[c], GPU_R(0.0)), GPU_R(0.0));
+        pressureParameterActive = !(rhoP <= s.epsSMin*s.rhoSolid);
+        if (pressureParameterActive)
+        {
+        const GpuReal px0 = finiteOr(s.momRhoUPx[c], GPU_R(0.0));
+        const GpuReal py0 = finiteOr(s.momRhoUPy[c], GPU_R(0.0));
+        const GpuReal pz0 = finiteOr(s.momRhoUPz[c], GPU_R(0.0));
+        const GpuReal e0 = clampMin(finiteOr(s.momRhoEP[c], GPU_R(0.0)), GPU_R(0.0));
+        const GpuReal dpx = finiteOr(s.pressureDeltaMomX[c], GPU_R(0.0));
+        const GpuReal dpy = finiteOr(s.pressureDeltaMomY[c], GPU_R(0.0));
+        const GpuReal dpz = finiteOr(s.pressureDeltaMomZ[c], GPU_R(0.0));
+        const GpuReal de = finiteOr(s.pressureDeltaEnergy[c], GPU_R(0.0));
+        const GpuReal px1 = px0 + dpx;
+        const GpuReal py1 = py0 + dpy;
+        const GpuReal pz1 = pz0 + dpz;
+        const GpuReal e1 = e0 + de;
+        const GpuReal ux0 = px0/rhoP;
+        const GpuReal uy0 = py0/rhoP;
+        const GpuReal uz0 = pz0/rhoP;
+        const GpuReal ux1 = px1/rhoP;
+        const GpuReal uy1 = py1/rhoP;
+        const GpuReal uz1 = pz1/rhoP;
+        const GpuReal theta0 =
+            clampMin(pressureKickInternalEnergy(rhoP, px0, py0, pz0, e0)/(GPU_R(1.5)*rhoP), GPU_R(0.0));
+        const GpuReal theta1 =
+            clampMin(pressureKickInternalEnergy(rhoP, px1, py1, pz1, e1)/(GPU_R(1.5)*rhoP), GPU_R(0.0));
+        const bool resolved = theta0 > GPU_R(10.0)*s.thetaMin;
+        const GpuReal thermalScale =
+            resolved ? sqrt(clampMin(theta1/theta0, GPU_R(0.0))) : GPU_R(0.0);
+        const GpuReal thetaScale = resolved ? thermalScale*thermalScale : GPU_R(0.0);
+
+            pressureParameters[0] = ux0;
+            pressureParameters[1] = uy0;
+            pressureParameters[2] = uz0;
+            pressureParameters[3] = ux1;
+            pressureParameters[4] = uy1;
+            pressureParameters[5] = uz1;
+            pressureParameters[6] = theta1;
+            pressureParameters[7] = thermalScale;
+            pressureParameters[8] = thetaScale;
+            pressureParameterResolved = resolved;
+        }
     }
-    const double px0 = finiteOr(s.momRhoUPx[c], 0.0);
-    const double py0 = finiteOr(s.momRhoUPy[c], 0.0);
-    const double pz0 = finiteOr(s.momRhoUPz[c], 0.0);
-    const double e0 = clampMin(finiteOr(s.momRhoEP[c], 0.0), 0.0);
-    const double dpx = finiteOr(s.pressureDeltaMomX[c], 0.0);
-    const double dpy = finiteOr(s.pressureDeltaMomY[c], 0.0);
-    const double dpz = finiteOr(s.pressureDeltaMomZ[c], 0.0);
-    const double de = finiteOr(s.pressureDeltaEnergy[c], 0.0);
-    const double px1 = px0 + dpx;
-    const double py1 = py0 + dpy;
-    const double pz1 = pz0 + dpz;
-    const double e1 = e0 + de;
-    const double ux0 = px0/rhoP;
-    const double uy0 = py0/rhoP;
-    const double uz0 = pz0/rhoP;
-    const double ux1 = px1/rhoP;
-    const double uy1 = py1/rhoP;
-    const double uz1 = pz1/rhoP;
-    const double theta0 =
-        clampMin(pressureKickInternalEnergy(rhoP, px0, py0, pz0, e0)/(1.5*rhoP), 0.0);
-    const double theta1 =
-        clampMin(pressureKickInternalEnergy(rhoP, px1, py1, pz1, e1)/(1.5*rhoP), 0.0);
-    const bool resolved = theta0 > 10.0*s.thetaMin;
-    const double thermalScale =
-        resolved ? sqrt(clampMin(theta1/theta0, 0.0)) : 0.0;
-    const double thetaScale = resolved ? thermalScale*thermalScale : 0.0;
+    __syncthreads();
+    if (!pressureParameterActive) return;
+    const GpuReal ux0 = pressureParameters[0];
+    const GpuReal uy0 = pressureParameters[1];
+    const GpuReal uz0 = pressureParameters[2];
+    const GpuReal ux1 = pressureParameters[3];
+    const GpuReal uy1 = pressureParameters[4];
+    const GpuReal uz1 = pressureParameters[5];
+    const GpuReal theta1 = pressureParameters[6];
+    const GpuReal thermalScale = pressureParameters[7];
+    const GpuReal thetaScale = pressureParameters[8];
+    const bool resolved = pressureParameterResolved != 0;
 
     const int start = DirectBase
       ? s.preBaseCellOffset[c]
@@ -6760,25 +6875,25 @@ __global__ void applyCollisionalPressureProjectionSplitSegmentKernel
         }
         if (s.pStuck[i] != 0)
         {
-            s.pux[i] = 0.0;
-            s.puy[i] = 0.0;
-            s.puz[i] = 0.0;
+            s.pux[i] = GPU_R(0.0);
+            s.puy[i] = GPU_R(0.0);
+            s.puz[i] = GPU_R(0.0);
             if (s.pStuck[i] == Foam::gpuThermal::particleWallDeposited)
             {
-                s.puxOld[i] = 0.0;
-                s.puyOld[i] = 0.0;
-                s.puzOld[i] = 0.0;
+                s.puxOld[i] = GPU_R(0.0);
+                s.puyOld[i] = GPU_R(0.0);
+                s.puzOld[i] = GPU_R(0.0);
             }
             continue;
         }
-        const double dux = finiteOr(s.pux[i], ux0) - ux0;
-        const double duy = finiteOr(s.puy[i], uy0) - uy0;
-        const double duz = finiteOr(s.puz[i], uz0) - uz0;
+        const GpuReal dux = finiteOr(s.pux[i], ux0) - ux0;
+        const GpuReal duy = finiteOr(s.puy[i], uy0) - uy0;
+        const GpuReal duz = finiteOr(s.puz[i], uz0) - uz0;
         s.pux[i] = resolved ? ux1 + thermalScale*dux : ux1;
         s.puy[i] = resolved ? uy1 + thermalScale*duy : uy1;
         s.puz[i] = resolved ? uz1 + thermalScale*duz : uz1;
         s.pTheta[i] = resolved
-          ? clampMin(finiteOr(s.pTheta[i], 0.0)*thetaScale, 0.0)
+          ? clampMin(finiteOr(s.pTheta[i], GPU_R(0.0))*thetaScale, GPU_R(0.0))
           : theta1;
     }
 }
@@ -6794,25 +6909,288 @@ __global__ void finalizeCollisionalPressureProjectionSplitCellsKernel
     {
         return;
     }
-    const double rhoP = clampMin(finiteOr(s.momRhoP[c], 0.0), 0.0);
+    const GpuReal rhoP = clampMin(finiteOr(s.momRhoP[c], GPU_R(0.0)), GPU_R(0.0));
     if (rhoP <= s.epsSMin*s.rhoSolid)
     {
         return;
     }
-    const double px1 =
-        finiteOr(s.momRhoUPx[c], 0.0) + finiteOr(s.pressureDeltaMomX[c], 0.0);
-    const double py1 =
-        finiteOr(s.momRhoUPy[c], 0.0) + finiteOr(s.pressureDeltaMomY[c], 0.0);
-    const double pz1 =
-        finiteOr(s.momRhoUPz[c], 0.0) + finiteOr(s.pressureDeltaMomZ[c], 0.0);
-    const double e1 =
-        clampMin(finiteOr(s.momRhoEP[c], 0.0), 0.0)
-      + finiteOr(s.pressureDeltaEnergy[c], 0.0);
-    const double theta1 =
+    const GpuReal px1 =
+        finiteOr(s.momRhoUPx[c], GPU_R(0.0)) + finiteOr(s.pressureDeltaMomX[c], GPU_R(0.0));
+    const GpuReal py1 =
+        finiteOr(s.momRhoUPy[c], GPU_R(0.0)) + finiteOr(s.pressureDeltaMomY[c], GPU_R(0.0));
+    const GpuReal pz1 =
+        finiteOr(s.momRhoUPz[c], GPU_R(0.0)) + finiteOr(s.pressureDeltaMomZ[c], GPU_R(0.0));
+    const GpuReal e1 =
+        clampMin(finiteOr(s.momRhoEP[c], GPU_R(0.0)), GPU_R(0.0))
+      + finiteOr(s.pressureDeltaEnergy[c], GPU_R(0.0));
+    const GpuReal theta1 =
         clampMin
         (
-            pressureKickInternalEnergy(rhoP, px1, py1, pz1, e1)/(1.5*rhoP),
-            0.0
+            pressureKickInternalEnergy(rhoP, px1, py1, pz1, e1)/(GPU_R(1.5)*rhoP),
+            GPU_R(0.0)
+        );
+    s.momRhoUPx[c] = px1;
+    s.momRhoUPy[c] = py1;
+    s.momRhoUPz[c] = pz1;
+    s.momRhoEP[c] = e1;
+    s.rhoUsx[c] = px1;
+    s.rhoUsy[c] = py1;
+    s.rhoUsz[c] = pz1;
+    s.rhoEs[c] = e1;
+    s.Usx[c] = px1/rhoP;
+    s.Usy[c] = py1/rhoP;
+    s.Usz[c] = pz1/rhoP;
+    s.theta[c] = theta1;
+}
+
+
+
+
+#else
+__global__ void applyCollisionalPressureProjectionKernel
+(
+    DeviceState* sp,
+    const GpuTime kickDt
+)
+{
+    DeviceState& s = *sp;
+    const int c = blockIdx.x;
+    if (c >= s.nCells)
+    {
+        return;
+    }
+
+    __shared__ GpuReal scaledDelta[4];
+    if (threadIdx.x == 0)
+    {
+        GpuReal dpx = GPU_R(0.0);
+        GpuReal dpy = GPU_R(0.0);
+        GpuReal dpz = GPU_R(0.0);
+        GpuReal de = GPU_R(0.0);
+        const int startFace = s.cellPlaneStart[c];
+        const int faceCount = s.cellPlaneCount[c];
+        for (int j = 0; j < faceCount; ++j)
+        {
+            const int f = s.cellFaceId[startFace + j];
+            if (f < 0 || f >= s.nFaces)
+            {
+                continue;
+            }
+            const GpuReal sign = s.faceOwner[f] == c ? GPU_R(1.0) : -GPU_R(1.0);
+            dpx -= sign*s.solidPressurePhiMomX[f];
+            dpy -= sign*s.solidPressurePhiMomY[f];
+            dpz -= sign*s.solidPressurePhiMomZ[f];
+            de -= sign*s.solidPressurePhiEnergy[f];
+        }
+        const GpuReal factor = kickDt/clampMin(s.V[c], OfVSmall);
+        scaledDelta[0] = finiteOr(factor*dpx, GPU_R(0.0));
+        scaledDelta[1] = finiteOr(factor*dpy, GPU_R(0.0));
+        scaledDelta[2] = finiteOr(factor*dpz, GPU_R(0.0));
+        scaledDelta[3] = finiteOr(factor*de, GPU_R(0.0));
+        s.pressureDeltaMomX[c] = scaledDelta[0];
+        s.pressureDeltaMomY[c] = scaledDelta[1];
+        s.pressureDeltaMomZ[c] = scaledDelta[2];
+        s.pressureDeltaEnergy[c] = scaledDelta[3];
+    }
+    __syncthreads();
+
+    const GpuReal rhoP = clampMin(finiteOr(s.momRhoP[c], GPU_R(0.0)), GPU_R(0.0));
+    if (rhoP <= s.epsSMin*s.rhoSolid)
+    {
+        return;
+    }
+    const GpuReal px0 = finiteOr(s.momRhoUPx[c], GPU_R(0.0));
+    const GpuReal py0 = finiteOr(s.momRhoUPy[c], GPU_R(0.0));
+    const GpuReal pz0 = finiteOr(s.momRhoUPz[c], GPU_R(0.0));
+    const GpuReal e0 = clampMin(finiteOr(s.momRhoEP[c], GPU_R(0.0)), GPU_R(0.0));
+    const GpuReal px1 = px0 + scaledDelta[0];
+    const GpuReal py1 = py0 + scaledDelta[1];
+    const GpuReal pz1 = pz0 + scaledDelta[2];
+    const GpuReal e1 = e0 + scaledDelta[3];
+    const GpuReal ux0 = px0/rhoP;
+    const GpuReal uy0 = py0/rhoP;
+    const GpuReal uz0 = pz0/rhoP;
+    const GpuReal ux1 = px1/rhoP;
+    const GpuReal uy1 = py1/rhoP;
+    const GpuReal uz1 = pz1/rhoP;
+    const GpuReal theta0 =
+        clampMin(pressureKickInternalEnergy(rhoP, px0, py0, pz0, e0)/(GPU_R(1.5)*rhoP), GPU_R(0.0));
+    const GpuReal theta1 =
+        clampMin(pressureKickInternalEnergy(rhoP, px1, py1, pz1, e1)/(GPU_R(1.5)*rhoP), GPU_R(0.0));
+    const bool resolved = theta0 > GPU_R(10.0)*s.thetaMin;
+    const GpuReal thermalScale =
+        resolved ? sqrt(clampMin(theta1/theta0, GPU_R(0.0))) : GPU_R(0.0);
+    const GpuReal thetaScale = resolved ? thermalScale*thermalScale : GPU_R(0.0);
+
+    const int start = s.cellParticleOffset[c];
+    const int end = s.cellParticleOffset[c + 1];
+    for (int pos = start + threadIdx.x; pos < end; pos += blockDim.x)
+    {
+        const int i = s.sortedParticleIndex[pos];
+        if (i < 0 || i >= s.particleCapacity || s.pStatus[i] == 0)
+        {
+            continue;
+        }
+        if (s.pStuck[i] != 0)
+        {
+            s.pux[i] = GPU_R(0.0);
+            s.puy[i] = GPU_R(0.0);
+            s.puz[i] = GPU_R(0.0);
+            if (s.pStuck[i] == Foam::gpuThermal::particleWallDeposited)
+            {
+                s.puxOld[i] = GPU_R(0.0);
+                s.puyOld[i] = GPU_R(0.0);
+                s.puzOld[i] = GPU_R(0.0);
+            }
+            continue;
+        }
+        const GpuReal dux = finiteOr(s.pux[i], ux0) - ux0;
+        const GpuReal duy = finiteOr(s.puy[i], uy0) - uy0;
+        const GpuReal duz = finiteOr(s.puz[i], uz0) - uz0;
+        s.pux[i] = resolved ? ux1 + thermalScale*dux : ux1;
+        s.puy[i] = resolved ? uy1 + thermalScale*duy : uy1;
+        s.puz[i] = resolved ? uz1 + thermalScale*duz : uz1;
+        s.pTheta[i] = resolved
+          ? clampMin(finiteOr(s.pTheta[i], GPU_R(0.0))*thetaScale, GPU_R(0.0))
+          : theta1;
+    }
+
+
+    __syncthreads();
+    if (threadIdx.x == 0)
+    {
+        s.momRhoUPx[c] = px1;
+        s.momRhoUPy[c] = py1;
+        s.momRhoUPz[c] = pz1;
+        s.momRhoEP[c] = e1;
+        s.rhoUsx[c] = px1;
+        s.rhoUsy[c] = py1;
+        s.rhoUsz[c] = pz1;
+        s.rhoEs[c] = e1;
+        s.Usx[c] = ux1;
+        s.Usy[c] = uy1;
+        s.Usz[c] = uz1;
+        s.theta[c] = theta1;
+    }
+}
+
+template<bool DirectBase>
+__global__ void applyCollisionalPressureProjectionSplitSegmentKernel
+(
+    DeviceState* sp
+)
+{
+    DeviceState& s = *sp;
+    const int c = blockIdx.x;
+    if (c >= s.nCells)
+    {
+        return;
+    }
+
+    const GpuReal rhoP = clampMin(finiteOr(s.momRhoP[c], GPU_R(0.0)), GPU_R(0.0));
+    if (rhoP <= s.epsSMin*s.rhoSolid)
+    {
+        return;
+    }
+    const GpuReal px0 = finiteOr(s.momRhoUPx[c], GPU_R(0.0));
+    const GpuReal py0 = finiteOr(s.momRhoUPy[c], GPU_R(0.0));
+    const GpuReal pz0 = finiteOr(s.momRhoUPz[c], GPU_R(0.0));
+    const GpuReal e0 = clampMin(finiteOr(s.momRhoEP[c], GPU_R(0.0)), GPU_R(0.0));
+    const GpuReal dpx = finiteOr(s.pressureDeltaMomX[c], GPU_R(0.0));
+    const GpuReal dpy = finiteOr(s.pressureDeltaMomY[c], GPU_R(0.0));
+    const GpuReal dpz = finiteOr(s.pressureDeltaMomZ[c], GPU_R(0.0));
+    const GpuReal de = finiteOr(s.pressureDeltaEnergy[c], GPU_R(0.0));
+    const GpuReal px1 = px0 + dpx;
+    const GpuReal py1 = py0 + dpy;
+    const GpuReal pz1 = pz0 + dpz;
+    const GpuReal e1 = e0 + de;
+    const GpuReal ux0 = px0/rhoP;
+    const GpuReal uy0 = py0/rhoP;
+    const GpuReal uz0 = pz0/rhoP;
+    const GpuReal ux1 = px1/rhoP;
+    const GpuReal uy1 = py1/rhoP;
+    const GpuReal uz1 = pz1/rhoP;
+    const GpuReal theta0 =
+        clampMin(pressureKickInternalEnergy(rhoP, px0, py0, pz0, e0)/(GPU_R(1.5)*rhoP), GPU_R(0.0));
+    const GpuReal theta1 =
+        clampMin(pressureKickInternalEnergy(rhoP, px1, py1, pz1, e1)/(GPU_R(1.5)*rhoP), GPU_R(0.0));
+    const bool resolved = theta0 > GPU_R(10.0)*s.thetaMin;
+    const GpuReal thermalScale =
+        resolved ? sqrt(clampMin(theta1/theta0, GPU_R(0.0))) : GPU_R(0.0);
+    const GpuReal thetaScale = resolved ? thermalScale*thermalScale : GPU_R(0.0);
+
+    const int start = DirectBase
+      ? s.preBaseCellOffset[c]
+      : s.cellParticleOffset[c];
+    const int end = DirectBase
+      ? s.preBaseCellOffset[c + 1]
+      : s.cellParticleOffset[c + 1];
+    for (int pos = start + threadIdx.x; pos < end; pos += blockDim.x)
+    {
+        const int i = DirectBase ? pos : s.sortedParticleIndex[pos];
+        if
+        (
+            i < 0 || i >= s.particleCapacity
+         || s.pStatus[i] == 0 || s.pCellId[i] != c
+        )
+        {
+            continue;
+        }
+        if (s.pStuck[i] != 0)
+        {
+            s.pux[i] = GPU_R(0.0);
+            s.puy[i] = GPU_R(0.0);
+            s.puz[i] = GPU_R(0.0);
+            if (s.pStuck[i] == Foam::gpuThermal::particleWallDeposited)
+            {
+                s.puxOld[i] = GPU_R(0.0);
+                s.puyOld[i] = GPU_R(0.0);
+                s.puzOld[i] = GPU_R(0.0);
+            }
+            continue;
+        }
+        const GpuReal dux = finiteOr(s.pux[i], ux0) - ux0;
+        const GpuReal duy = finiteOr(s.puy[i], uy0) - uy0;
+        const GpuReal duz = finiteOr(s.puz[i], uz0) - uz0;
+        s.pux[i] = resolved ? ux1 + thermalScale*dux : ux1;
+        s.puy[i] = resolved ? uy1 + thermalScale*duy : uy1;
+        s.puz[i] = resolved ? uz1 + thermalScale*duz : uz1;
+        s.pTheta[i] = resolved
+          ? clampMin(finiteOr(s.pTheta[i], GPU_R(0.0))*thetaScale, GPU_R(0.0))
+          : theta1;
+    }
+}
+
+__global__ void finalizeCollisionalPressureProjectionSplitCellsKernel
+(
+    DeviceState* sp
+)
+{
+    DeviceState& s = *sp;
+    const int c = blockIdx.x*blockDim.x + threadIdx.x;
+    if (c >= s.nCells)
+    {
+        return;
+    }
+    const GpuReal rhoP = clampMin(finiteOr(s.momRhoP[c], GPU_R(0.0)), GPU_R(0.0));
+    if (rhoP <= s.epsSMin*s.rhoSolid)
+    {
+        return;
+    }
+    const GpuReal px1 =
+        finiteOr(s.momRhoUPx[c], GPU_R(0.0)) + finiteOr(s.pressureDeltaMomX[c], GPU_R(0.0));
+    const GpuReal py1 =
+        finiteOr(s.momRhoUPy[c], GPU_R(0.0)) + finiteOr(s.pressureDeltaMomY[c], GPU_R(0.0));
+    const GpuReal pz1 =
+        finiteOr(s.momRhoUPz[c], GPU_R(0.0)) + finiteOr(s.pressureDeltaMomZ[c], GPU_R(0.0));
+    const GpuReal e1 =
+        clampMin(finiteOr(s.momRhoEP[c], GPU_R(0.0)), GPU_R(0.0))
+      + finiteOr(s.pressureDeltaEnergy[c], GPU_R(0.0));
+    const GpuReal theta1 =
+        clampMin
+        (
+            pressureKickInternalEnergy(rhoP, px1, py1, pz1, e1)/(GPU_R(1.5)*rhoP),
+            GPU_R(0.0)
         );
     s.momRhoUPx[c] = px1;
     s.momRhoUPy[c] = py1;
@@ -6831,10 +7209,12 @@ __global__ void finalizeCollisionalPressureProjectionSplitCellsKernel
                                                                                
                                                                             
                                                                     
+#endif
+
 __global__ void applyCollisionalPressureProjectionCellAtomicKernel
 (
     DeviceState* sp,
-    const double kickDt
+    const GpuTime kickDt
 )
 {
     DeviceState& s = *sp;
@@ -6844,10 +7224,10 @@ __global__ void applyCollisionalPressureProjectionCellAtomicKernel
         return;
     }
 
-    double dpx = 0.0;
-    double dpy = 0.0;
-    double dpz = 0.0;
-    double de = 0.0;
+    GpuReal dpx = GPU_R(0.0);
+    GpuReal dpy = GPU_R(0.0);
+    GpuReal dpz = GPU_R(0.0);
+    GpuReal de = GPU_R(0.0);
     const int startFace = s.cellPlaneStart[c];
     const int faceCount = s.cellPlaneCount[c];
     for (int j = 0; j < faceCount; ++j)
@@ -6857,38 +7237,38 @@ __global__ void applyCollisionalPressureProjectionCellAtomicKernel
         {
             continue;
         }
-        const double sign = s.faceOwner[f] == c ? 1.0 : -1.0;
+        const GpuReal sign = s.faceOwner[f] == c ? GPU_R(1.0) : -GPU_R(1.0);
         dpx -= sign*s.solidPressurePhiMomX[f];
         dpy -= sign*s.solidPressurePhiMomY[f];
         dpz -= sign*s.solidPressurePhiMomZ[f];
         de -= sign*s.solidPressurePhiEnergy[f];
     }
 
-    const double factor = kickDt/clampMin(s.V[c], OfVSmall);
-    dpx = finiteOr(factor*dpx, 0.0);
-    dpy = finiteOr(factor*dpy, 0.0);
-    dpz = finiteOr(factor*dpz, 0.0);
-    de = finiteOr(factor*de, 0.0);
+    const GpuReal factor = kickDt/clampMin(s.V[c], OfVSmall);
+    dpx = finiteOr(factor*dpx, GPU_R(0.0));
+    dpy = finiteOr(factor*dpy, GPU_R(0.0));
+    dpz = finiteOr(factor*dpz, GPU_R(0.0));
+    de = finiteOr(factor*de, GPU_R(0.0));
     s.pressureDeltaMomX[c] = dpx;
     s.pressureDeltaMomY[c] = dpy;
     s.pressureDeltaMomZ[c] = dpz;
     s.pressureDeltaEnergy[c] = de;
 
-    const double rhoP = clampMin(finiteOr(s.momRhoP[c], 0.0), 0.0);
+    const GpuReal rhoP = clampMin(finiteOr(s.momRhoP[c], GPU_R(0.0)), GPU_R(0.0));
     if (rhoP <= s.epsSMin*s.rhoSolid)
     {
         return;
     }
 
-    const double px1 = finiteOr(s.momRhoUPx[c], 0.0) + dpx;
-    const double py1 = finiteOr(s.momRhoUPy[c], 0.0) + dpy;
-    const double pz1 = finiteOr(s.momRhoUPz[c], 0.0) + dpz;
-    const double e1 = clampMin(finiteOr(s.momRhoEP[c], 0.0), 0.0) + de;
-    const double theta1 =
+    const GpuReal px1 = finiteOr(s.momRhoUPx[c], GPU_R(0.0)) + dpx;
+    const GpuReal py1 = finiteOr(s.momRhoUPy[c], GPU_R(0.0)) + dpy;
+    const GpuReal pz1 = finiteOr(s.momRhoUPz[c], GPU_R(0.0)) + dpz;
+    const GpuReal e1 = clampMin(finiteOr(s.momRhoEP[c], GPU_R(0.0)), GPU_R(0.0)) + de;
+    const GpuReal theta1 =
         clampMin
         (
-            pressureKickInternalEnergy(rhoP, px1, py1, pz1, e1)/(1.5*rhoP),
-            0.0
+            pressureKickInternalEnergy(rhoP, px1, py1, pz1, e1)/(GPU_R(1.5)*rhoP),
+            GPU_R(0.0)
         );
 
     s.momRhoUPx[c] = px1;
@@ -6931,75 +7311,346 @@ __global__ void applyCollisionalPressureProjectionParticlesAtomicKernel
         }
         if (s.pStuck[i] != 0)
         {
-            s.pux[i] = 0.0;
-            s.puy[i] = 0.0;
-            s.puz[i] = 0.0;
+            s.pux[i] = GPU_R(0.0);
+            s.puy[i] = GPU_R(0.0);
+            s.puz[i] = GPU_R(0.0);
             if (s.pStuck[i] == Foam::gpuThermal::particleWallDeposited)
             {
-                s.puxOld[i] = 0.0;
-                s.puyOld[i] = 0.0;
-                s.puzOld[i] = 0.0;
+                s.puxOld[i] = GPU_R(0.0);
+                s.puyOld[i] = GPU_R(0.0);
+                s.puzOld[i] = GPU_R(0.0);
             }
             continue;
         }
 
-        const double rhoP = clampMin(finiteOr(s.momRhoP[c], 0.0), 0.0);
+        const GpuReal rhoP = clampMin(finiteOr(s.momRhoP[c], GPU_R(0.0)), GPU_R(0.0));
         if (rhoP <= s.epsSMin*s.rhoSolid)
         {
             continue;
         }
-        const double dpx = finiteOr(s.pressureDeltaMomX[c], 0.0);
-        const double dpy = finiteOr(s.pressureDeltaMomY[c], 0.0);
-        const double dpz = finiteOr(s.pressureDeltaMomZ[c], 0.0);
-        const double de = finiteOr(s.pressureDeltaEnergy[c], 0.0);
-        const double px1 = finiteOr(s.momRhoUPx[c], 0.0);
-        const double py1 = finiteOr(s.momRhoUPy[c], 0.0);
-        const double pz1 = finiteOr(s.momRhoUPz[c], 0.0);
-        const double e1 = clampMin(finiteOr(s.momRhoEP[c], 0.0), 0.0);
-        const double px0 = px1 - dpx;
-        const double py0 = py1 - dpy;
-        const double pz0 = pz1 - dpz;
-        const double e0 = e1 - de;
-        const double ux0 = px0/rhoP;
-        const double uy0 = py0/rhoP;
-        const double uz0 = pz0/rhoP;
-        const double ux1 = px1/rhoP;
-        const double uy1 = py1/rhoP;
-        const double uz1 = pz1/rhoP;
-        const double theta0 =
+        const GpuReal dpx = finiteOr(s.pressureDeltaMomX[c], GPU_R(0.0));
+        const GpuReal dpy = finiteOr(s.pressureDeltaMomY[c], GPU_R(0.0));
+        const GpuReal dpz = finiteOr(s.pressureDeltaMomZ[c], GPU_R(0.0));
+        const GpuReal de = finiteOr(s.pressureDeltaEnergy[c], GPU_R(0.0));
+        const GpuReal px1 = finiteOr(s.momRhoUPx[c], GPU_R(0.0));
+        const GpuReal py1 = finiteOr(s.momRhoUPy[c], GPU_R(0.0));
+        const GpuReal pz1 = finiteOr(s.momRhoUPz[c], GPU_R(0.0));
+        const GpuReal e1 = clampMin(finiteOr(s.momRhoEP[c], GPU_R(0.0)), GPU_R(0.0));
+        const GpuReal px0 = px1 - dpx;
+        const GpuReal py0 = py1 - dpy;
+        const GpuReal pz0 = pz1 - dpz;
+        const GpuReal e0 = e1 - de;
+        const GpuReal ux0 = px0/rhoP;
+        const GpuReal uy0 = py0/rhoP;
+        const GpuReal uz0 = pz0/rhoP;
+        const GpuReal ux1 = px1/rhoP;
+        const GpuReal uy1 = py1/rhoP;
+        const GpuReal uz1 = pz1/rhoP;
+        const GpuReal theta0 =
             clampMin
             (
                 pressureKickInternalEnergy(rhoP, px0, py0, pz0, e0)
-               /(1.5*rhoP),
-                0.0
+               /(GPU_R(1.5)*rhoP),
+                GPU_R(0.0)
             );
-        const double theta1 =
+        const GpuReal theta1 =
             clampMin
             (
                 pressureKickInternalEnergy(rhoP, px1, py1, pz1, e1)
-               /(1.5*rhoP),
-                0.0
+               /(GPU_R(1.5)*rhoP),
+                GPU_R(0.0)
             );
-        const bool resolved = theta0 > 10.0*s.thetaMin;
-        const double thermalScale =
-            resolved ? sqrt(clampMin(theta1/theta0, 0.0)) : 0.0;
-        const double thetaScale = resolved ? thermalScale*thermalScale : 0.0;
-        const double dux = finiteOr(s.pux[i], ux0) - ux0;
-        const double duy = finiteOr(s.puy[i], uy0) - uy0;
-        const double duz = finiteOr(s.puz[i], uz0) - uz0;
+        const bool resolved = theta0 > GPU_R(10.0)*s.thetaMin;
+        const GpuReal thermalScale =
+            resolved ? sqrt(clampMin(theta1/theta0, GPU_R(0.0))) : GPU_R(0.0);
+        const GpuReal thetaScale = resolved ? thermalScale*thermalScale : GPU_R(0.0);
+        const GpuReal dux = finiteOr(s.pux[i], ux0) - ux0;
+        const GpuReal duy = finiteOr(s.puy[i], uy0) - uy0;
+        const GpuReal duz = finiteOr(s.puz[i], uz0) - uz0;
         s.pux[i] = resolved ? ux1 + thermalScale*dux : ux1;
         s.puy[i] = resolved ? uy1 + thermalScale*duy : uy1;
         s.puz[i] = resolved ? uz1 + thermalScale*duz : uz1;
         s.pTheta[i] = resolved
-          ? clampMin(finiteOr(s.pTheta[i], 0.0)*thetaScale, 0.0)
+          ? clampMin(finiteOr(s.pTheta[i], GPU_R(0.0))*thetaScale, GPU_R(0.0))
           : theta1;
     }
+}
+
+#if UGKWP_GPU_REAL_BITS == 32
+__global__ void prepareFlatFullPressureKernel
+(
+    DeviceState* sp,
+    const GpuTime kickDt
+)
+{
+    DeviceState& s = *sp;
+    const int c = blockIdx.x*blockDim.x + threadIdx.x;
+    if (c >= s.nCells)
+    {
+        return;
+    }
+
+    GpuReal scaledDelta[4];
+    GpuReal* pressureParameters = s.flatPressureParameters + 13*c;
+    int& pressureParameterActive = s.flatPressureFlags[2*c];
+    int& pressureParameterResolved = s.flatPressureFlags[2*c + 1];
+    {
+        GpuReal dpx = GPU_R(0.0);
+        GpuReal dpy = GPU_R(0.0);
+        GpuReal dpz = GPU_R(0.0);
+        GpuReal de = GPU_R(0.0);
+        const int startFace = s.cellPlaneStart[c];
+        const int faceCount = s.cellPlaneCount[c];
+        for (int j = 0; j < faceCount; ++j)
+        {
+            const int f = s.cellFaceId[startFace + j];
+            if (f < 0 || f >= s.nFaces)
+            {
+                continue;
+            }
+            const GpuReal sign = s.faceOwner[f] == c ? GPU_R(1.0) : -GPU_R(1.0);
+            dpx -= sign*s.solidPressurePhiMomX[f];
+            dpy -= sign*s.solidPressurePhiMomY[f];
+            dpz -= sign*s.solidPressurePhiMomZ[f];
+            de -= sign*s.solidPressurePhiEnergy[f];
+        }
+        const GpuReal factor = kickDt/clampMin(s.V[c], OfVSmall);
+        scaledDelta[0] = finiteOr(factor*dpx, GPU_R(0.0));
+        scaledDelta[1] = finiteOr(factor*dpy, GPU_R(0.0));
+        scaledDelta[2] = finiteOr(factor*dpz, GPU_R(0.0));
+        scaledDelta[3] = finiteOr(factor*de, GPU_R(0.0));
+        s.pressureDeltaMomX[c] = scaledDelta[0];
+        s.pressureDeltaMomY[c] = scaledDelta[1];
+        s.pressureDeltaMomZ[c] = scaledDelta[2];
+        s.pressureDeltaEnergy[c] = scaledDelta[3];
+
+        const GpuReal rhoP = clampMin(finiteOr(s.momRhoP[c], GPU_R(0.0)), GPU_R(0.0));
+        pressureParameterActive = !(rhoP <= s.epsSMin*s.rhoSolid);
+        if (pressureParameterActive)
+        {
+        const GpuReal px0 = finiteOr(s.momRhoUPx[c], GPU_R(0.0));
+        const GpuReal py0 = finiteOr(s.momRhoUPy[c], GPU_R(0.0));
+        const GpuReal pz0 = finiteOr(s.momRhoUPz[c], GPU_R(0.0));
+        const GpuReal e0 = clampMin(finiteOr(s.momRhoEP[c], GPU_R(0.0)), GPU_R(0.0));
+        const GpuReal px1 = px0 + scaledDelta[0];
+        const GpuReal py1 = py0 + scaledDelta[1];
+        const GpuReal pz1 = pz0 + scaledDelta[2];
+        const GpuReal e1 = e0 + scaledDelta[3];
+        const GpuReal ux0 = px0/rhoP;
+        const GpuReal uy0 = py0/rhoP;
+        const GpuReal uz0 = pz0/rhoP;
+        const GpuReal ux1 = px1/rhoP;
+        const GpuReal uy1 = py1/rhoP;
+        const GpuReal uz1 = pz1/rhoP;
+        const GpuReal theta0 =
+            clampMin(pressureKickInternalEnergy(rhoP, px0, py0, pz0, e0)/(GPU_R(1.5)*rhoP), GPU_R(0.0));
+        const GpuReal theta1 =
+            clampMin(pressureKickInternalEnergy(rhoP, px1, py1, pz1, e1)/(GPU_R(1.5)*rhoP), GPU_R(0.0));
+        const bool resolved = theta0 > GPU_R(10.0)*s.thetaMin;
+        const GpuReal thermalScale =
+            resolved ? sqrt(clampMin(theta1/theta0, GPU_R(0.0))) : GPU_R(0.0);
+        const GpuReal thetaScale = resolved ? thermalScale*thermalScale : GPU_R(0.0);
+
+            pressureParameters[0] = px1;
+            pressureParameters[1] = py1;
+            pressureParameters[2] = pz1;
+            pressureParameters[3] = e1;
+            pressureParameters[4] = ux0;
+            pressureParameters[5] = uy0;
+            pressureParameters[6] = uz0;
+            pressureParameters[7] = ux1;
+            pressureParameters[8] = uy1;
+            pressureParameters[9] = uz1;
+            pressureParameters[10] = theta1;
+            pressureParameters[11] = thermalScale;
+            pressureParameters[12] = thetaScale;
+            pressureParameterResolved = resolved;
+        }
+    }
+}
+
+__global__ void prepareFlatSplitPressureKernel
+(
+    DeviceState* sp
+)
+{
+    DeviceState& s = *sp;
+    const int c = blockIdx.x*blockDim.x + threadIdx.x;
+    if (c >= s.nCells)
+    {
+        return;
+    }
+
+    GpuReal* pressureParameters = s.flatPressureParameters + 13*c;
+    int& pressureParameterActive = s.flatPressureFlags[2*c];
+    int& pressureParameterResolved = s.flatPressureFlags[2*c + 1];
+    {
+        const GpuReal rhoP = clampMin(finiteOr(s.momRhoP[c], GPU_R(0.0)), GPU_R(0.0));
+        pressureParameterActive = !(rhoP <= s.epsSMin*s.rhoSolid);
+        if (pressureParameterActive)
+        {
+        const GpuReal px0 = finiteOr(s.momRhoUPx[c], GPU_R(0.0));
+        const GpuReal py0 = finiteOr(s.momRhoUPy[c], GPU_R(0.0));
+        const GpuReal pz0 = finiteOr(s.momRhoUPz[c], GPU_R(0.0));
+        const GpuReal e0 = clampMin(finiteOr(s.momRhoEP[c], GPU_R(0.0)), GPU_R(0.0));
+        const GpuReal dpx = finiteOr(s.pressureDeltaMomX[c], GPU_R(0.0));
+        const GpuReal dpy = finiteOr(s.pressureDeltaMomY[c], GPU_R(0.0));
+        const GpuReal dpz = finiteOr(s.pressureDeltaMomZ[c], GPU_R(0.0));
+        const GpuReal de = finiteOr(s.pressureDeltaEnergy[c], GPU_R(0.0));
+        const GpuReal px1 = px0 + dpx;
+        const GpuReal py1 = py0 + dpy;
+        const GpuReal pz1 = pz0 + dpz;
+        const GpuReal e1 = e0 + de;
+        const GpuReal ux0 = px0/rhoP;
+        const GpuReal uy0 = py0/rhoP;
+        const GpuReal uz0 = pz0/rhoP;
+        const GpuReal ux1 = px1/rhoP;
+        const GpuReal uy1 = py1/rhoP;
+        const GpuReal uz1 = pz1/rhoP;
+        const GpuReal theta0 =
+            clampMin(pressureKickInternalEnergy(rhoP, px0, py0, pz0, e0)/(GPU_R(1.5)*rhoP), GPU_R(0.0));
+        const GpuReal theta1 =
+            clampMin(pressureKickInternalEnergy(rhoP, px1, py1, pz1, e1)/(GPU_R(1.5)*rhoP), GPU_R(0.0));
+        const bool resolved = theta0 > GPU_R(10.0)*s.thetaMin;
+        const GpuReal thermalScale =
+            resolved ? sqrt(clampMin(theta1/theta0, GPU_R(0.0))) : GPU_R(0.0);
+        const GpuReal thetaScale = resolved ? thermalScale*thermalScale : GPU_R(0.0);
+
+            pressureParameters[0] = ux0;
+            pressureParameters[1] = uy0;
+            pressureParameters[2] = uz0;
+            pressureParameters[3] = ux1;
+            pressureParameters[4] = uy1;
+            pressureParameters[5] = uz1;
+            pressureParameters[6] = theta1;
+            pressureParameters[7] = thermalScale;
+            pressureParameters[8] = thetaScale;
+            pressureParameterResolved = resolved;
+        }
+    }
+}
+
+template<int Mode>
+__global__ void applyFlatPressureParticlesKernel(DeviceState* sp)
+{
+    DeviceState& s = *sp;
+    const int* offsets = Mode == 1 ? s.preBaseCellOffset : s.cellParticleOffset;
+    const int count = offsets[s.nCells];
+    for (int pos=blockIdx.x*blockDim.x+threadIdx.x;
+         pos<count;pos+=gridDim.x*blockDim.x)
+    {
+
+        int lo=0,hi=s.nCells;
+        while(lo<hi)
+        {
+            const int mid=lo+(hi-lo+1)/2;
+            if(offsets[mid]<=pos)lo=mid;else hi=mid-1;
+        }
+        const int c=lo;
+        if(!s.flatPressureFlags[2*c])continue;
+        const GpuReal* p=s.flatPressureParameters+13*c+(Mode==0?4:0);
+        const GpuReal ux0=p[0];
+        const GpuReal uy0=p[1];
+        const GpuReal uz0=p[2];
+        const GpuReal ux1=p[3];
+        const GpuReal uy1=p[4];
+        const GpuReal uz1=p[5];
+        const GpuReal theta1=p[6];
+        const GpuReal thermalScale=p[7];
+        const GpuReal thetaScale=p[8];
+        const bool resolved=s.flatPressureFlags[2*c+1]!=0;
+
+        const int i = Mode == 1 ? pos : s.sortedParticleIndex[pos];
+        if (i < 0 || i >= s.particleCapacity || s.pStatus[i] == 0
+            || (Mode != 0 && s.pCellId[i] != c))
+        {
+            continue;
+        }
+        if (s.pStuck[i] != 0)
+        {
+            s.pux[i] = GPU_R(0.0);
+            s.puy[i] = GPU_R(0.0);
+            s.puz[i] = GPU_R(0.0);
+            if (s.pStuck[i] == Foam::gpuThermal::particleWallDeposited)
+            {
+                s.puxOld[i] = GPU_R(0.0);
+                s.puyOld[i] = GPU_R(0.0);
+                s.puzOld[i] = GPU_R(0.0);
+            }
+            continue;
+        }
+        const GpuReal dux = finiteOr(s.pux[i], ux0) - ux0;
+        const GpuReal duy = finiteOr(s.puy[i], uy0) - uy0;
+        const GpuReal duz = finiteOr(s.puz[i], uz0) - uz0;
+        s.pux[i] = resolved ? ux1 + thermalScale*dux : ux1;
+        s.puy[i] = resolved ? uy1 + thermalScale*duy : uy1;
+        s.puz[i] = resolved ? uz1 + thermalScale*duz : uz1;
+        s.pTheta[i] = resolved
+          ? clampMin(finiteOr(s.pTheta[i], GPU_R(0.0))*thetaScale, GPU_R(0.0))
+          : theta1;
+    }
+}
+
+__global__ void publishFlatFullPressureKernel(DeviceState* sp)
+{
+    DeviceState& s=*sp;
+    const int c=blockIdx.x*blockDim.x+threadIdx.x;
+    if(c>=s.nCells||!s.flatPressureFlags[2*c])return;
+    const GpuReal* p=s.flatPressureParameters+13*c;
+    const GpuReal px1=p[0];
+    const GpuReal py1=p[1];
+    const GpuReal pz1=p[2];
+    const GpuReal e1=p[3];
+    const GpuReal ux0=p[4];
+    const GpuReal uy0=p[5];
+    const GpuReal uz0=p[6];
+    const GpuReal ux1=p[7];
+    const GpuReal uy1=p[8];
+    const GpuReal uz1=p[9];
+    const GpuReal theta1=p[10];
+    const GpuReal thermalScale=p[11];
+    const GpuReal thetaScale=p[12];
+
+        s.momRhoUPx[c] = px1;
+        s.momRhoUPy[c] = py1;
+        s.momRhoUPz[c] = pz1;
+        s.momRhoEP[c] = e1;
+        s.rhoUsx[c] = px1;
+        s.rhoUsy[c] = py1;
+        s.rhoUsz[c] = pz1;
+        s.rhoEs[c] = e1;
+        s.Usx[c] = ux1;
+        s.Usy[c] = uy1;
+        s.Usz[c] = uz1;
+        s.theta[c] = theta1;
+}
+
+#endif
+
+void launchFlatPressure(DeviceState* host,DeviceState* device,GpuTime dt,int mode)
+{
+#if UGKWP_GPU_REAL_BITS == 32
+    const int cells=(host->nCells+127)/128;
+    const int grid=host->multiprocessorCount*flatParticleSmBlocks;
+    if(mode==0)prepareFlatFullPressureKernel<<<cells,128>>>(device,dt);
+    else prepareFlatSplitPressureKernel<<<cells,128>>>(device);
+    if(cudaPeekAtLastError()!=cudaSuccess)return;
+    if(mode==0)applyFlatPressureParticlesKernel<0><<<grid,flatParticleThreads>>>(device);
+    else if(mode==1)applyFlatPressureParticlesKernel<1><<<grid,flatParticleThreads>>>(device);
+    else applyFlatPressureParticlesKernel<2><<<grid,flatParticleThreads>>>(device);
+    if(cudaPeekAtLastError()!=cudaSuccess)return;
+    if(mode==0)publishFlatFullPressureKernel<<<cells,128>>>(device);
+#else
+    if(mode==0)applyCollisionalPressureProjectionKernel<<<host->nCells,128>>>(device,dt);
+    else if(mode==1)applyCollisionalPressureProjectionSplitSegmentKernel<true><<<host->nCells,128>>>(device);
+    else applyCollisionalPressureProjectionSplitSegmentKernel<false><<<host->nCells,128>>>(device);
+#endif
 }
 
 int applyCollisionalPressureKick
 (
     DeviceState* s,
-    const double kickDt,
+    const GpuTime kickDt,
     const int block
 )
 {
@@ -7007,12 +7658,13 @@ int applyCollisionalPressureKick
     {
         return 0;
     }
-    if (!(kickDt > 0.0) || !std::isfinite(kickDt))
+    if (!(kickDt > GPU_R(0.0)) || !std::isfinite(kickDt))
     {
         setLastErrorText("invalid collisional-pressure kick dt");
         return 1;
     }
 
+    const int pressureThreads = pressureProjectionThreads;
     const int cellGrid = (s->nCells + block - 1)/block;
     const int faceGrid = (s->nFaces + block - 1)/block;
     cudaError_t err = cudaSuccess;
@@ -7049,16 +7701,14 @@ int applyCollisionalPressureKick
     {
         PRESSURE_LAUNCH
         (
-            (applyCollisionalPressureProjectionSplitSegmentKernel<true>
-                <<<s->nCells, block>>>(s->deviceState)),
+            (launchFlatPressure(s,s->deviceState,kickDt,1)),
             "apply split-Dpre base pressure projection launch"
         );
         if (s->nBoundarySources > 0)
         {
             PRESSURE_LAUNCH
             (
-                (applyCollisionalPressureProjectionSplitSegmentKernel<false>
-                    <<<s->nCells, block>>>(s->deviceState)),
+                (launchFlatPressure(s,s->deviceState,kickDt,2)),
                 "apply split-Dpre injection pressure projection launch"
             );
         }
@@ -7073,7 +7723,7 @@ int applyCollisionalPressureKick
     {
         PRESSURE_LAUNCH
         (
-            (applyCollisionalPressureProjectionKernel<<<s->nCells, block>>>(s->deviceState, kickDt)),
+            (launchFlatPressure(s,s->deviceState,kickDt,0)),
             "applyCollisionalPressureProjectionKernel launch"
         );
     }
@@ -7098,7 +7748,7 @@ int applyCollisionalPressureKick
                                                                            
                                                                            
                                                                        
-constexpr double mobilePackingJacobiOmega = 0.8;
+constexpr GpuReal mobilePackingJacobiOmega = GPU_R(0.8);
 
 __global__ void clearMobilePackingActivityCountsKernel(DeviceState* sp)
 {
@@ -7134,17 +7784,17 @@ __global__ void clearMobilePackingMomentsKernel(DeviceState* sp)
     {
         return;
     }
-    s.mobilePackingRho[c] = 0.0;
-    s.mobilePackingMomX[c] = 0.0;
-    s.mobilePackingMomY[c] = 0.0;
-    s.mobilePackingMomZ[c] = 0.0;
+    s.mobilePackingRho[c] = GPU_R(0.0);
+    s.mobilePackingMomX[c] = GPU_R(0.0);
+    s.mobilePackingMomY[c] = GPU_R(0.0);
+    s.mobilePackingMomZ[c] = GPU_R(0.0);
     s.mobilePackingActiveCellMask[c] = 0;
     s.mobilePackingCorrectionCellMask[c] = 0;
-    s.collisionalPressure[c] = 0.0;
-    s.pressureKickScale[c] = 0.0;
-    s.pressureDeltaMomX[c] = 0.0;
-    s.pressureDeltaMomY[c] = 0.0;
-    s.pressureDeltaMomZ[c] = 0.0;
+    s.collisionalPressure[c] = GPU_R(0.0);
+    s.pressureKickScale[c] = GPU_R(0.0);
+    s.pressureDeltaMomX[c] = GPU_R(0.0);
+    s.pressureDeltaMomY[c] = GPU_R(0.0);
+    s.pressureDeltaMomZ[c] = GPU_R(0.0);
 }
 
 __device__ void seedMobilePackingActivity(DeviceState& s, const int c)
@@ -7187,18 +7837,18 @@ __global__ void accumulateMobilePackingMomentsKernel(DeviceState* sp)
         {
             continue;
         }
-        const double m = clampMin(finiteOr(s.pm[i], 0.0), 0.0);
-        const double ux = 0.5*
+        const GpuReal m = clampMin(finiteOr(s.pm[i], GPU_R(0.0)), GPU_R(0.0));
+        const GpuReal ux = GPU_R(0.5)*
         (
-            finiteOr(s.puxOld[i], s.pux[i]) + finiteOr(s.pux[i], 0.0)
+            finiteOr(s.puxOld[i], s.pux[i]) + finiteOr(s.pux[i], GPU_R(0.0))
         );
-        const double uy = 0.5*
+        const GpuReal uy = GPU_R(0.5)*
         (
-            finiteOr(s.puyOld[i], s.puy[i]) + finiteOr(s.puy[i], 0.0)
+            finiteOr(s.puyOld[i], s.puy[i]) + finiteOr(s.puy[i], GPU_R(0.0))
         );
-        const double uz = 0.5*
+        const GpuReal uz = GPU_R(0.5)*
         (
-            finiteOr(s.puzOld[i], s.puz[i]) + finiteOr(s.puz[i], 0.0)
+            finiteOr(s.puzOld[i], s.puz[i]) + finiteOr(s.puz[i], GPU_R(0.0))
         );
         atomicAdd(&s.mobilePackingRho[c], m);
         atomicAdd(&s.mobilePackingMomX[c], m*ux);
@@ -7215,7 +7865,7 @@ __global__ void normalizeMobilePackingMomentsKernel(DeviceState* sp)
     {
         return;
     }
-    const double invV = 1.0/clampMin(s.V[c], OfVSmall);
+    const GpuReal invV = GPU_R(1.0)/clampMin(s.V[c], OfVSmall);
     s.mobilePackingRho[c] *= invV;
     s.mobilePackingMomX[c] *= invV;
     s.mobilePackingMomY[c] *= invV;
@@ -7227,7 +7877,7 @@ __global__ void normalizeMobilePackingMomentsKernel(DeviceState* sp)
 __global__ void prepareMobilePackingProjectionKernel
 (
     DeviceState* sp,
-    const double dt
+    const GpuTime dt
 )
 {
     DeviceState& s = *sp;
@@ -7237,12 +7887,12 @@ __global__ void prepareMobilePackingProjectionKernel
         return;
     }
 
-    double epsC = 0.0;
-    double uxC = 0.0;
-    double uyC = 0.0;
-    double uzC = 0.0;
+    GpuReal epsC = GPU_R(0.0);
+    GpuReal uxC = GPU_R(0.0);
+    GpuReal uyC = GPU_R(0.0);
+    GpuReal uzC = GPU_R(0.0);
     mobilePackingPrimitive(s, c, epsC, uxC, uyC, uzC);
-    double volumeFluxSum = 0.0;
+    GpuReal volumeFluxSum = GPU_R(0.0);
     const int start = s.cellPlaneStart[c];
     const int count = s.cellPlaneCount[c];
     for (int j = 0; j < count; ++j)
@@ -7254,17 +7904,17 @@ __global__ void prepareMobilePackingProjectionKernel
         }
         const int own = s.faceOwner[f];
         const int nei = s.faceNeighbour[f];
-        const double sign = own == c ? 1.0 : -1.0;
+        const GpuReal sign = own == c ? GPU_R(1.0) : -GPU_R(1.0);
         if (nei >= 0 && nei < s.nCells)
         {
-            double epsOwn = 0.0;
-            double uxOwn = 0.0;
-            double uyOwn = 0.0;
-            double uzOwn = 0.0;
-            double epsNei = 0.0;
-            double uxNei = 0.0;
-            double uyNei = 0.0;
-            double uzNei = 0.0;
+            GpuReal epsOwn = GPU_R(0.0);
+            GpuReal uxOwn = GPU_R(0.0);
+            GpuReal uyOwn = GPU_R(0.0);
+            GpuReal uzOwn = GPU_R(0.0);
+            GpuReal epsNei = GPU_R(0.0);
+            GpuReal uxNei = GPU_R(0.0);
+            GpuReal uyNei = GPU_R(0.0);
+            GpuReal uzNei = GPU_R(0.0);
             mobilePackingPrimitive
             (
                 s, own, epsOwn, uxOwn, uyOwn, uzOwn
@@ -7273,46 +7923,46 @@ __global__ void prepareMobilePackingProjectionKernel
             (
                 s, nei, epsNei, uxNei, uyNei, uzNei
             );
-            const double w =
-                clampRange(finiteOr(s.faceWeight[f], 0.5), 0.0, 1.0);
-            const double ufx = w*uxOwn + (1.0 - w)*uxNei;
-            const double ufy = w*uyOwn + (1.0 - w)*uyNei;
-            const double ufz = w*uzOwn + (1.0 - w)*uzNei;
-            const double un =
+            const GpuReal w =
+                clampRange(finiteOr(s.faceWeight[f], GPU_R(0.5)), GPU_R(0.0), GPU_R(1.0));
+            const GpuReal ufx = w*uxOwn + (GPU_R(1.0) - w)*uxNei;
+            const GpuReal ufy = w*uyOwn + (GPU_R(1.0) - w)*uyNei;
+            const GpuReal ufz = w*uzOwn + (GPU_R(1.0) - w)*uzNei;
+            const GpuReal un =
                 ufx*s.Sfx[f] + ufy*s.Sfy[f] + ufz*s.Sfz[f];
-            const double epsUpwind = un >= 0.0 ? epsOwn : epsNei;
+            const GpuReal epsUpwind = un >= GPU_R(0.0) ? epsOwn : epsNei;
             volumeFluxSum += sign*epsUpwind*un;
         }
         else if (own == c && s.gasBoundaryKind[f] == 0)
         {
                                                                             
                                                                              
-            const double un =
+            const GpuReal un =
                 uxC*s.Sfx[f] + uyC*s.Sfy[f] + uzC*s.Sfz[f];
-            volumeFluxSum += epsC*fmax(un, 0.0);
+            volumeFluxSum += epsC*fmax(un, GPU_R(0.0));
         }
     }
 
-    const double epsPred = clampMin
+    const GpuReal epsPred = clampMin
     (
         epsC - dt*volumeFluxSum/clampMin(s.V[c], OfVSmall),
-        0.0
+        GPU_R(0.0)
     );
                                                                             
                                                                             
                                                                             
-    const double signedSlack = epsPred - s.packingFraction;
+    const GpuReal signedSlack = epsPred - s.packingFraction;
     s.pressureDeltaEnergy[c] = clampRange
     (
         finiteOr
         (
             s.rhoSolid*s.V[c]*signedSlack/(dt*dt),
-            0.0
+            GPU_R(0.0)
         ),
         -OfGreat,
         OfGreat
     );
-    if (signedSlack > 0.0)
+    if (signedSlack > GPU_R(0.0))
     {
         seedMobilePackingActivity(s, c);
     }
@@ -7332,7 +7982,7 @@ __device__ bool mobilePackingParticleEligible
 int applyMobilePackingProjection
 (
     DeviceState* s,
-    const double dt,
+    const GpuTime dt,
     const int block
 )
 {
@@ -7340,7 +7990,7 @@ int applyMobilePackingProjection
     {
         return 0;
     }
-    if (!(dt > 0.0) || !std::isfinite(dt))
+    if (!(dt > GPU_R(0.0)) || !std::isfinite(dt))
     {
         setLastErrorText("invalid mobile packing-projection dt");
         return 1;
@@ -7390,7 +8040,7 @@ int applyMobilePackingProjection
         setLastErrorText("mobile packing cooperative grid is unavailable");
         return 1;
     }
-    double kernelDt = dt;
+    GpuTime kernelDt = dt;
     void* cooperativeArguments[] = {&s->deviceState, &kernelDt};
     err = cudaLaunchCooperativeKernel
     (
@@ -7411,41 +8061,41 @@ int applyMobilePackingProjection
     return 0;
 }
 
-__device__ double granularCollisionTauFromCellDevice(const DeviceState& s, const int c)
+__device__ GpuReal granularCollisionTauFromCellDevice(const DeviceState& s, const int c)
 {
     if (c < 0 || c >= s.nCells)
     {
         return OfGreat;
     }
 
-    const double rhoP = clampMin(finiteOr(s.momRhoP[c], 0.0), 0.0);
+    const GpuReal rhoP = clampMin(finiteOr(s.momRhoP[c], GPU_R(0.0)), GPU_R(0.0));
     if (rhoP <= s.epsSMin*s.rhoSolid)
     {
         return OfGreat;
     }
 
-    const double eps =
-        clampRange(rhoP/clampMin(s.rhoSolid, 1.0e-300), 0.0, 1.0);
+    const GpuReal eps =
+        clampRange(rhoP/clampMin(s.rhoSolid, GPU_TINY(1.0e-300)), GPU_R(0.0), GPU_R(1.0));
 
-    const double usx = finiteOr(s.momRhoUPx[c], 0.0)/rhoP;
-    const double usy = finiteOr(s.momRhoUPy[c], 0.0)/rhoP;
-    const double usz = finiteOr(s.momRhoUPz[c], 0.0)/rhoP;
+    const GpuReal usx = finiteOr(s.momRhoUPx[c], GPU_R(0.0))/rhoP;
+    const GpuReal usy = finiteOr(s.momRhoUPy[c], GPU_R(0.0))/rhoP;
+    const GpuReal usz = finiteOr(s.momRhoUPz[c], GPU_R(0.0))/rhoP;
 
-    const double e =
-        clampMin(finiteOr(s.momRhoEP[c], 0.0), 0.0)/rhoP;
+    const GpuReal e =
+        clampMin(finiteOr(s.momRhoEP[c], GPU_R(0.0)), GPU_R(0.0))/rhoP;
 
-    const double theta =
-        clampMin((e - 0.5*sqr3(usx, usy, usz))/1.5, 0.0);
+    const GpuReal theta =
+        clampMin((e - GPU_R(0.5)*sqr3(usx, usy, usz))/GPU_R(1.5), GPU_R(0.0));
 
-    const double dPart =
+    const GpuReal dPart =
         clampMin
         (
             finiteOr(s.momRhoPD[c]/rhoP, s.particleDiameterFallback),
-            1.0e-12
+            GPU_R(1.0e-12)
         );
 
-    const double g0 = radialDistributionG0Device(eps);
-    const double lmfp = ugkwp::granularMeanFreePath
+    const GpuReal g0 = radialDistributionG0Device(eps);
+    const GpuReal lmfp = ugkwp::granularMeanFreePath
     (
         OfPi,
         dPart,
@@ -7462,15 +8112,15 @@ __device__ double granularCollisionTauFromCellDevice(const DeviceState& s, const
 }
 
 __device__ void clearColdWallParticleState(DeviceState&, int);
-__device__ void initialiseColdWallParticleState(DeviceState&, int, double);
+__device__ void initialiseColdWallParticleState(DeviceState&, int, GpuReal);
 __device__ void clearColdWall2DParticleState(DeviceState&, int);
-__device__ void initialiseColdWall2DParticleState(DeviceState&, int, double);
+__device__ void initialiseColdWall2DParticleState(DeviceState&, int, GpuReal);
 
 __global__ void injectBoundaryParticlesKernel
 (
     DeviceState* sp,
-    const double dt,
-    const double simulationTime
+    const GpuTime dt,
+    const GpuTime simulationTime
 )
 {
     DeviceState& s = *sp;
@@ -7479,7 +8129,7 @@ __global__ void injectBoundaryParticlesKernel
     (
         j >= s.nBoundarySources
      || s.particleCapacity <= 0
-     || s.injectionParcelMass <= 0.0
+     || s.injectionParcelMass <= GPU_R(0.0)
     )
     {
         return;
@@ -7499,19 +8149,19 @@ __global__ void injectBoundaryParticlesKernel
 
     const bool scheduledInletActive =
         scheduledInletFaceDevice(s, sourceFace);
-    const double sourceUx = scheduledInletActive
-      ? finiteOr(s.gasBoundaryUx[sourceFace], finiteOr(s.sourceUx[j], 0.0))
-      : finiteOr(s.sourceUx[j], 0.0);
-    const double sourceUy = scheduledInletActive
-      ? finiteOr(s.gasBoundaryUy[sourceFace], finiteOr(s.sourceUy[j], 0.0))
-      : finiteOr(s.sourceUy[j], 0.0);
-    const double sourceUz = scheduledInletActive
-      ? finiteOr(s.gasBoundaryUz[sourceFace], finiteOr(s.sourceUz[j], 0.0))
-      : finiteOr(s.sourceUz[j], 0.0);
-    const double sourceTheta = scheduledInletActive
-      ? clampMin(finiteOr(s.theta[sourceCell], 0.0), 0.0)
-      : clampMin(finiteOr(s.sourceTheta[j], 0.0), 0.0);
-    const double scheduledRate =
+    const GpuReal sourceUx = scheduledInletActive
+      ? finiteOr(s.gasBoundaryUx[sourceFace], finiteOr(s.sourceUx[j], GPU_R(0.0)))
+      : finiteOr(s.sourceUx[j], GPU_R(0.0));
+    const GpuReal sourceUy = scheduledInletActive
+      ? finiteOr(s.gasBoundaryUy[sourceFace], finiteOr(s.sourceUy[j], GPU_R(0.0)))
+      : finiteOr(s.sourceUy[j], GPU_R(0.0));
+    const GpuReal sourceUz = scheduledInletActive
+      ? finiteOr(s.gasBoundaryUz[sourceFace], finiteOr(s.sourceUz[j], GPU_R(0.0)))
+      : finiteOr(s.sourceUz[j], GPU_R(0.0));
+    const GpuReal sourceTheta = scheduledInletActive
+      ? clampMin(finiteOr(s.theta[sourceCell], GPU_R(0.0)), GPU_R(0.0))
+      : clampMin(finiteOr(s.sourceTheta[j], GPU_R(0.0)), GPU_R(0.0));
+    const GpuReal scheduledRate =
         scheduledSolidVolumeFractionDevice(s, simulationTime)
        *s.rhoSolid
        *clampMin
@@ -7519,19 +8169,19 @@ __global__ void injectBoundaryParticlesKernel
            -(sourceUx*s.Sfx[sourceFace]
            + sourceUy*s.Sfy[sourceFace]
            + sourceUz*s.Sfz[sourceFace]),
-            0.0
+            GPU_R(0.0)
         );
-    const double rate = scheduledInletActive
+    const GpuReal rate = scheduledInletActive
       ? scheduledRate
-      : finiteOr(s.sourceMassRate[j], 0.0);
-    if (rate <= 0.0)
+      : finiteOr(s.sourceMassRate[j], GPU_R(0.0));
+    if (rate <= GPU_R(0.0))
     {
         return;
     }
 
-    const double parcelMass = s.injectionParcelMass;
-    double available =
-        clampMin(finiteOr(s.sourceResidualMass[j], 0.0), 0.0) + rate*dt;
+    const GpuReal parcelMass = s.injectionParcelMass;
+    GpuReal available =
+        clampMin(finiteOr(s.sourceResidualMass[j], GPU_R(0.0)), GPU_R(0.0)) + rate*dt;
     if (available < parcelMass)
     {
         s.sourceResidualMass[j] = available;
@@ -7539,7 +8189,7 @@ __global__ void injectBoundaryParticlesKernel
     }
 
     const int nNew = static_cast<int>(floor(available/parcelMass));
-    double consumed = 0.0;
+    GpuReal consumed = GPU_R(0.0);
 
     for (int k = 0; k < nNew; ++k)
     {
@@ -7570,6 +8220,7 @@ __global__ void injectBoundaryParticlesKernel
         s.pT[slot] =
             clampRange(finiteOr(s.sourceT[j], s.TpMin), s.TpMin, s.TpMax);
         s.pTheta[slot] = sourceTheta;
+        s.pContactAge[slot] = GpuTime(0);
         s.pd[slot] = sampleDiameterAroundDevice(s, finiteOr(s.sourceD[j], s.particleDiameterFallback), rng);
         s.pm[slot] = parcelMass;
         s.pCellId[slot] = sourceCell;
@@ -7592,17 +8243,50 @@ __global__ void injectBoundaryParticlesKernel
     s.sourceResidualMass[j] = available - consumed;
 }
 
-__device__ bool pointInsideCell(const DeviceState& s, const int c, const double x, const double y, const double z)
+
+
+__device__ GpuReal facePlaneDistance(const DeviceState& s, int p, GpuReal x, GpuReal y, GpuReal z)
+{
+#if UGKWP_GPU_REAL_BITS == 32
+    const int f = s.cellFaceId[p];
+    return s.planeNx[p]*(x-s.faceCx[f]) + s.planeNy[p]*(y-s.faceCy[f]) + s.planeNz[p]*(z-s.faceCz[f]);
+#else
+    return s.planeNx[p]*x + s.planeNy[p]*y + s.planeNz[p]*z - s.planeD[p];
+#endif
+}
+__device__ GpuReal faceClassificationTolerance(const DeviceState& s, int c, int p, GpuReal x, GpuReal y, GpuReal z)
+{
+    const GpuReal legacy = GPU_R(1e-9)*clampMin(s.cellLength[c], GPU_R(1e-12));
+#if UGKWP_GPU_REAL_BITS == 32
+    const int f = s.cellFaceId[p];
+    const GpuReal scale = fabs(s.planeNx[p])*(fabs(x)+fabs(s.faceCx[f]))
+        + fabs(s.planeNy[p])*(fabs(y)+fabs(s.faceCy[f]))
+        + fabs(s.planeNz[p])*(fabs(z)+fabs(s.faceCz[f]));
+    return fmax(legacy, GPU_R(4)*FLT_EPSILON*scale);
+#else
+    return legacy;
+#endif
+}
+__device__ GpuReal insideFaceCoordinate(GpuReal hit, GpuReal normal, GpuReal eps)
+{
+    const GpuReal shifted = hit - eps*normal;
+#if UGKWP_GPU_REAL_BITS == 32
+    return normal == GPU_R(0) ? shifted : nextafterf(shifted, normal > GPU_R(0) ? -INFINITY : INFINITY);
+#else
+    return shifted;
+#endif
+}
+
+__device__ bool pointInsideCell(const DeviceState& s, const int c, const GpuReal x, const GpuReal y, const GpuReal z)
 {
     const int start = s.cellPlaneStart[c];
     const int count = s.cellPlaneCount[c];
-    const double tol = 1.0e-9*clampMin(s.cellLength[c], 1.0e-12);
     for (int i = 0; i < count; ++i)
     {
         const int p = start + i;
-        const double dist =
-            s.planeNx[p]*x + s.planeNy[p]*y + s.planeNz[p]*z - s.planeD[p];
-        if (dist > tol)
+        const GpuReal dist =
+            facePlaneDistance(s,p,x,y,z);
+        if (dist > faceClassificationTolerance(s,c,p,x,y,z))
         {
             return false;
         }
@@ -7614,20 +8298,20 @@ __device__ int mostViolatedPlane
 (
     const DeviceState& s,
     const int c,
-    const double x,
-    const double y,
-    const double z
+    const GpuReal x,
+    const GpuReal y,
+    const GpuReal z
 )
 {
     const int start = s.cellPlaneStart[c];
     const int count = s.cellPlaneCount[c];
     int plane = -1;
-    double maxDist = -1.0e300;
+    GpuReal maxDist = -GPU_LARGE(1.0e300);
     for (int i = 0; i < count; ++i)
     {
         const int p = start + i;
-        const double dist =
-            s.planeNx[p]*x + s.planeNy[p]*y + s.planeNz[p]*z - s.planeD[p];
+        const GpuReal dist =
+            facePlaneDistance(s,p,x,y,z);
         if (dist > maxDist)
         {
             maxDist = dist;
@@ -7641,39 +8325,43 @@ __device__ int firstSegmentIntersection
 (
     const DeviceState& s,
     const int c,
-    const double x0,
-    const double y0,
-    const double z0,
-    const double x1,
-    const double y1,
-    const double z1,
-    double& hitT
+    const GpuReal x0,
+    const GpuReal y0,
+    const GpuReal z0,
+    const GpuReal x1,
+    const GpuReal y1,
+    const GpuReal z1,
+    GpuReal& hitT
 )
 {
     const int start = s.cellPlaneStart[c];
     const int count = s.cellPlaneCount[c];
-    const double tol = 1.0e-9*clampMin(s.cellLength[c], 1.0e-12);
     int plane = -1;
-    double bestT = 2.0;
+    GpuReal bestT = GPU_R(2.0);
     for (int i = 0; i < count; ++i)
     {
         const int p = start + i;
-        const double d0 =
-            s.planeNx[p]*x0 + s.planeNy[p]*y0 + s.planeNz[p]*z0 - s.planeD[p];
-        const double d1 =
-            s.planeNx[p]*x1 + s.planeNy[p]*y1 + s.planeNz[p]*z1 - s.planeD[p];
+        const GpuReal d0 =
+            facePlaneDistance(s,p,x0,y0,z0);
+        const GpuReal d1 =
+            facePlaneDistance(s,p,x1,y1,z1);
+        const GpuReal tol = faceClassificationTolerance(s,c,p,x1,y1,z1);
         if (d1 <= tol)
         {
             continue;
         }
 
-        const double denom = d1 - d0;
-        double t = 1.0;
-        if (denom > 1.0e-300)
+        const GpuReal denom = d1 - d0;
+        GpuReal t = GPU_R(1.0);
+        if (denom > GPU_TINY(1.0e-300))
         {
+            #if UGKWP_GPU_REAL_BITS == 32
+            t = -d0/denom;
+#else
             t = (tol - d0)/denom;
+#endif
         }
-        t = clampRange(t, 0.0, 1.0);
+        t = clampRange(t, GPU_R(0.0), GPU_R(1.0));
         if (t < bestT)
         {
             bestT = t;
@@ -7681,7 +8369,7 @@ __device__ int firstSegmentIntersection
         }
     }
 
-    hitT = bestT <= 1.0 ? bestT : 1.0;
+    hitT = bestT <= GPU_R(1.0) ? bestT : GPU_R(1.0);
     if (plane < 0)
     {
         plane = mostViolatedPlane(s, c, x1, y1, z1);
@@ -7692,12 +8380,12 @@ __device__ int firstSegmentIntersection
 __device__ void atomicAddParticleWallEnergyByFace
 (
     DeviceState& s,
-    double* const wallEnergyLedger,
+    GpuWallEnergy* const wallEnergyLedger,
     const int globalFaceId,
-    const double wallEnergyJ
+    const GpuReal wallEnergyJ
 )
 {
-    if (wallEnergyJ == 0.0)
+    if (wallEnergyJ == GPU_R(0.0))
     {
         return;
     }
@@ -7710,12 +8398,12 @@ __device__ void atomicAddParticleWallEnergyByFace
         __match_any_sync(active, faceChannelKey);
     const int leader = __ffs(static_cast<int>(group)) - 1;
     const int lane = static_cast<int>(threadIdx.x) & 31;
-    double groupEnergy = 0.0;
+    GpuWallEnergy groupEnergy = 0.0;
     unsigned int remaining = group;
     while (remaining != 0u)
     {
         const int sourceLane = __ffs(static_cast<int>(remaining)) - 1;
-        groupEnergy += __shfl_sync(group, wallEnergyJ, sourceLane);
+        groupEnergy += static_cast<GpuWallEnergy>(__shfl_sync(group, wallEnergyJ, sourceLane));
         remaining &= remaining - 1u;
     }
     if (lane == leader)
@@ -7723,7 +8411,7 @@ __device__ void atomicAddParticleWallEnergyByFace
         atomicAdd(&wallEnergyLedger[globalFaceId], groupEnergy);
     }
 #else
-    atomicAdd(&wallEnergyLedger[globalFaceId], wallEnergyJ);
+    atomicAdd(&wallEnergyLedger[globalFaceId], static_cast<GpuWallEnergy>(wallEnergyJ));
 #endif
 }
 
@@ -7755,7 +8443,7 @@ __device__ void initialiseColdWallParticleState
 (
     DeviceState& s,
     const int particleI,
-    const double temperatureK
+    const GpuReal temperatureK
 )
 {
     if
@@ -7769,8 +8457,8 @@ __device__ void initialiseColdWallParticleState
     {
         asm("trap;");
     }
-    double nodeEnthalpy[Foam::gpuThermal::coldWallAxialNodeCount];
-    double ringSolidMass[Foam::gpuThermal::coldWallRadialRingCount];
+    GpuReal nodeEnthalpy[Foam::gpuThermal::coldWallAxialNodeCount];
+    GpuReal ringSolidMass[Foam::gpuThermal::coldWallRadialRingCount];
     Foam::gpuThermal::initialiseColdWallProfile
     (
         nodeEnthalpy,
@@ -7835,12 +8523,12 @@ __global__ void accumulateParticleWallRepresentedContactAreaKernel
             asm("trap;");
         }
 
-        double physicalContactArea = 0.0;
+        GpuReal physicalContactArea = GPU_R(0.0);
         if (wallState == Foam::gpuThermal::particleWallDeposited)
         {
             physicalContactArea =
-                static_cast<double>(s.pDepositionArea[i]);
-            if (!(physicalContactArea > 0.0))
+                static_cast<GpuReal>(s.pDepositionArea[i]);
+            if (!(physicalContactArea > GPU_R(0.0)))
             {
                 asm("trap;");
             }
@@ -7851,47 +8539,47 @@ __global__ void accumulateParticleWallRepresentedContactAreaKernel
          || wallState == Foam::gpuThermal::particleWallTransientDeposit
         )
         {
-            const double duration =
-                static_cast<double>(s.pContactDuration[i]);
-            const double maximumArea =
-                static_cast<double>(s.pContactMaximumArea[i]);
-            const double peakTimeFraction =
-                static_cast<double>(s.pContactPeakFraction[i]);
-            const double damageArea =
-                static_cast<double>(s.pDepositionArea[i]);
-            const double age =
-                clampRange(finiteOr(s.pTheta[i], 0.0), 0.0, duration);
+            const GpuTime duration =
+                static_cast<GpuTime>(s.pContactDuration[i]);
+            const GpuReal maximumArea =
+                static_cast<GpuReal>(s.pContactMaximumArea[i]);
+            const GpuReal peakTimeFraction =
+                static_cast<GpuReal>(s.pContactPeakFraction[i]);
+            const GpuReal damageArea =
+                static_cast<GpuReal>(s.pDepositionArea[i]);
+            const GpuTime age =
+                clampRange(finiteOr(s.pContactAge[i], GpuTime(0)), GpuTime(0), duration);
             if
             (
-                !(duration > 0.0) || !(maximumArea > 0.0)
-             || !(peakTimeFraction > 0.0) || !(peakTimeFraction < 1.0)
-             || damageArea < 0.0
+                !(duration > GPU_R(0.0)) || !(maximumArea > GPU_R(0.0))
+             || !(peakTimeFraction > GPU_R(0.0)) || !(peakTimeFraction < GPU_R(1.0))
+             || damageArea < GPU_R(0.0)
             )
             {
                 asm("trap;");
             }
-            const double kinematicArea =
+            const GpuReal kinematicArea =
                 maximumArea*Foam::gpuThermal::normalizedKinematicArea
                 (
                     age/duration, peakTimeFraction
                 );
             const unsigned char interactionType =
                 s.particleStuckCandidateMask[faceI];
-            const double frozenArea =
+            const GpuReal frozenArea =
                 interactionType
              == Foam::gpuThermal::particleWallSolidifyingDeposition
-              ? static_cast<double>(s.pColdFrozenArea[i])
+              ? static_cast<GpuReal>(s.pColdFrozenArea[i])
               : interactionType == Foam::gpuThermal::particleWallColdWall2D
-              ? static_cast<double>(s.pCold2DFrozenArea[i])
-              : 0.0;
+              ? static_cast<GpuReal>(s.pCold2DFrozenArea[i])
+              : GPU_R(0.0);
             physicalContactArea = clampMin
             (
                 fmax(kinematicArea, frozenArea) - damageArea,
-                0.0
+                GPU_R(0.0)
             );
-                                                                           
-                                                                           
-            if (!(physicalContactArea > 0.0))
+
+
+            if (!(physicalContactArea > GPU_R(0.0)))
             {
                 continue;
             }
@@ -7901,7 +8589,7 @@ __global__ void accumulateParticleWallRepresentedContactAreaKernel
             asm("trap;");
         }
 
-        const double representedArea =
+        const GpuReal representedArea =
             Foam::gpuThermal::representedDepositionContactArea
             (
                 s.rhoSolid,
@@ -7909,230 +8597,9 @@ __global__ void accumulateParticleWallRepresentedContactAreaKernel
                 physicalContactArea,
                 s.pm[i]
             );
-        if (!(representedArea > 0.0))
+        if (!(representedArea > GPU_R(0.0)))
         {
             asm("trap;");
-        }
-        atomicAdd
-        (
-            &s.particleWallRepresentedContactArea[faceI],
-            representedArea
-        );
-    }
-}
-
-__device__ void recordWallContactAreaDiagnosticError
-(
-    WallContactAreaDiagnosticError* error,
-    const int code,
-    DeviceState& s,
-    const int directoryEntry,
-    const int directoryCount,
-    const int particleI,
-    const int faceI,
-    const int candidateType,
-    const double depositionArea,
-    const double duration,
-    const double maximumArea,
-    const double peakTimeFraction,
-    const double age,
-    const double frozenArea,
-    const double kinematicArea,
-    const double physicalContactArea,
-    const double representedArea
-)
-{
-    if (atomicCAS(&error->code, 0, code) != 0)
-    {
-        return;
-    }
-    error->directoryEntry = directoryEntry;
-    error->directoryCount = directoryCount;
-    error->particleArrayIndex = particleI;
-    error->faceId = faceI;
-    error->faceCount = s.nFaces;
-    error->candidateType = candidateType;
-    error->depositionArea = depositionArea;
-    error->contactDuration = duration;
-    error->contactMaximumArea = maximumArea;
-    error->contactPeakFraction = peakTimeFraction;
-    error->contactAge = age;
-    error->frozenArea = frozenArea;
-    error->kinematicArea = kinematicArea;
-    error->physicalContactArea = physicalContactArea;
-    error->representedArea = representedArea;
-    error->solidDensity = s.rhoSolid;
-    if (particleI >= 0 && particleI < s.particleCapacity)
-    {
-        error->particleStatus = s.pStatus[particleI];
-        error->wallState = static_cast<int>(s.pStuck[particleI]);
-        error->particleOriginalId = s.pOrigId[particleI];
-        error->diameter = s.pd[particleI];
-        error->parcelMass = s.pm[particleI];
-        error->temperature = s.pT[particleI];
-    }
-}
-
-__global__ void diagnoseParticleWallRepresentedContactAreaKernel
-(
-    DeviceState* sp,
-    WallContactAreaDiagnosticError* error
-)
-{
-    DeviceState& s = *sp;
-    const int nWallBound = Foam::gpuWall::wallBoundDirectoryCount(s);
-    for
-    (
-        int entry = blockIdx.x*blockDim.x + threadIdx.x;
-        entry < nWallBound;
-        entry += blockDim.x*gridDim.x
-    )
-    {
-        const int i = Foam::gpuWall::wallBoundDirectoryParticle(s, entry);
-        if (i < 0 || i >= s.particleCapacity)
-        {
-            recordWallContactAreaDiagnosticError
-            (
-                error, 1, s, entry, nWallBound, i, -1, -1,
-                0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0
-            );
-            continue;
-        }
-        if
-        (
-            s.pStatus[i] == 0
-         || s.pStuck[i] == Foam::gpuThermal::particleWallMobile
-        )
-        {
-            continue;
-        }
-        const unsigned char wallState = s.pStuck[i];
-        const int faceI = s.pStuckFaceId[i];
-        const int candidateType =
-            faceI >= 0 && faceI < s.nFaces
-          ? static_cast<int>(s.particleStuckCandidateMask[faceI])
-          : -1;
-        if
-        (
-            faceI < 0
-         || faceI >= s.nFaces
-         || candidateType == 0
-        )
-        {
-            recordWallContactAreaDiagnosticError
-            (
-                error, 2, s, entry, nWallBound, i, faceI, candidateType,
-                static_cast<double>(s.pDepositionArea[i]),
-                static_cast<double>(s.pContactDuration[i]),
-                static_cast<double>(s.pContactMaximumArea[i]),
-                static_cast<double>(s.pContactPeakFraction[i]),
-                s.pTheta[i], 0.0, 0.0, 0.0, 0.0
-            );
-            continue;
-        }
-
-        double physicalContactArea = 0.0;
-        double duration = 0.0;
-        double maximumArea = 0.0;
-        double peakTimeFraction = 0.0;
-        double age = 0.0;
-        double frozenArea = 0.0;
-        double kinematicArea = 0.0;
-        const double depositionArea =
-            static_cast<double>(s.pDepositionArea[i]);
-        if (wallState == Foam::gpuThermal::particleWallDeposited)
-        {
-            physicalContactArea = depositionArea;
-            if (!(physicalContactArea > 0.0))
-            {
-                recordWallContactAreaDiagnosticError
-                (
-                    error, 3, s, entry, nWallBound, i, faceI, candidateType,
-                    depositionArea, 0.0, 0.0, 0.0, s.pTheta[i],
-                    0.0, 0.0, physicalContactArea, 0.0
-                );
-                continue;
-            }
-        }
-        else if
-        (
-            wallState == Foam::gpuThermal::particleWallTransientRebound
-         || wallState == Foam::gpuThermal::particleWallTransientDeposit
-        )
-        {
-            duration = static_cast<double>(s.pContactDuration[i]);
-            maximumArea = static_cast<double>(s.pContactMaximumArea[i]);
-            peakTimeFraction = static_cast<double>(s.pContactPeakFraction[i]);
-            age = clampRange(finiteOr(s.pTheta[i], 0.0), 0.0, duration);
-            if
-            (
-                !(duration > 0.0) || !(maximumArea > 0.0)
-             || !(peakTimeFraction > 0.0) || !(peakTimeFraction < 1.0)
-             || depositionArea < 0.0
-            )
-            {
-                recordWallContactAreaDiagnosticError
-                (
-                    error, 4, s, entry, nWallBound, i, faceI, candidateType,
-                    depositionArea, duration, maximumArea, peakTimeFraction,
-                    age, 0.0, 0.0, 0.0, 0.0
-                );
-                continue;
-            }
-            kinematicArea =
-                maximumArea*Foam::gpuThermal::normalizedKinematicArea
-                (
-                    age/duration, peakTimeFraction
-                );
-            frozenArea =
-                candidateType
-             == Foam::gpuThermal::particleWallSolidifyingDeposition
-              ? static_cast<double>(s.pColdFrozenArea[i])
-              : candidateType == Foam::gpuThermal::particleWallColdWall2D
-              ? static_cast<double>(s.pCold2DFrozenArea[i])
-              : 0.0;
-            physicalContactArea = clampMin
-            (
-                fmax(kinematicArea, frozenArea) - depositionArea,
-                0.0
-            );
-            if (!(physicalContactArea > 0.0))
-            {
-                continue;
-            }
-        }
-        else
-        {
-            recordWallContactAreaDiagnosticError
-            (
-                error, 5, s, entry, nWallBound, i, faceI, candidateType,
-                depositionArea,
-                static_cast<double>(s.pContactDuration[i]),
-                static_cast<double>(s.pContactMaximumArea[i]),
-                static_cast<double>(s.pContactPeakFraction[i]),
-                s.pTheta[i], 0.0, 0.0, 0.0, 0.0
-            );
-            continue;
-        }
-
-        const double representedArea =
-            Foam::gpuThermal::representedDepositionContactArea
-            (
-                s.rhoSolid,
-                s.pd[i],
-                physicalContactArea,
-                s.pm[i]
-            );
-        if (!(representedArea > 0.0))
-        {
-            recordWallContactAreaDiagnosticError
-            (
-                error, 6, s, entry, nWallBound, i, faceI, candidateType,
-                depositionArea, duration, maximumArea, peakTimeFraction,
-                age, frozenArea, kinematicArea, physicalContactArea,
-                representedArea
-            );
-            continue;
         }
         atomicAdd
         (
@@ -8174,19 +8641,19 @@ __global__ void finalizeParticleWallContactAreaScaleKernel(DeviceState* sp)
         return;
     }
 
-    double scale = 1.0;
+    GpuReal scale = GPU_R(1.0);
     if (s.particleStuckCandidateMask[faceI] != 0)
     {
-        const double representedArea =
+        const GpuReal representedArea =
             s.particleWallRepresentedContactArea[faceI];
-        const double maximumArea =
+        const GpuReal maximumArea =
             s.particleWallMaximumCoverage*s.magSf[faceI];
         if
         (
             !finiteDevice(representedArea)
          || !finiteDevice(maximumArea)
-         || representedArea < 0.0
-         || !(maximumArea > 0.0)
+         || representedArea < GPU_R(0.0)
+         || !(maximumArea > GPU_R(0.0))
         )
         {
             asm("trap;");
@@ -8196,14 +8663,14 @@ __global__ void finalizeParticleWallContactAreaScaleKernel(DeviceState* sp)
             scale = maximumArea/representedArea;
         }
     }
-    if (!(scale > 0.0) || scale > 1.0)
+    if (!(scale > GPU_R(0.0)) || scale > GPU_R(1.0))
     {
         asm("trap;");
     }
     s.particleWallContactAreaScale[faceI] = scale;
 }
 
-__device__ void trackOneParticleLocalFaceWalk(DeviceState& s, const int i, const double dt)
+__device__ void trackOneParticleLocalFaceWalk(DeviceState& s, const int i, const GpuTime dt)
 {
     if (i >= s.particleCapacity || s.pStatus[i] == 0)
     {
@@ -8219,42 +8686,42 @@ __device__ void trackOneParticleLocalFaceWalk(DeviceState& s, const int i, const
 
     if (s.pStuck[i] != 0)
     {
-        s.pux[i] = 0.0;
-        s.puy[i] = 0.0;
-        s.puz[i] = 0.0;
+        s.pux[i] = GPU_R(0.0);
+        s.puy[i] = GPU_R(0.0);
+        s.puz[i] = GPU_R(0.0);
         if (s.pStuck[i] == Foam::gpuThermal::particleWallDeposited)
         {
-            s.puxOld[i] = 0.0;
-            s.puyOld[i] = 0.0;
-            s.puzOld[i] = 0.0;
+            s.puxOld[i] = GPU_R(0.0);
+            s.puyOld[i] = GPU_R(0.0);
+            s.puzOld[i] = GPU_R(0.0);
         }
         return;
     }
 
-    double x = s.px[i];
-    double y = s.py[i];
-    double z = s.pz[i];
-    double vxStep = 0.5*(s.puxOld[i] + s.pux[i]);
-    double vyStep = 0.5*(s.puyOld[i] + s.puy[i]);
-    double vzStep = 0.5*(s.puzOld[i] + s.puz[i]);
-    double remainingDt = dt;
+    GpuReal x = s.px[i];
+    GpuReal y = s.py[i];
+    GpuReal z = s.pz[i];
+    GpuReal vxStep = GPU_R(0.5)*(s.puxOld[i] + s.pux[i]);
+    GpuReal vyStep = GPU_R(0.5)*(s.puyOld[i] + s.puy[i]);
+    GpuReal vzStep = GPU_R(0.5)*(s.puzOld[i] + s.puz[i]);
+    GpuTime remainingDt = dt;
     bool inside = pointInsideCell(s, c, x, y, z);
-    for (int hop = 0; hop < s.maxFaceWalkHops && remainingDt > 0.0; ++hop)
+    for (int hop = 0; hop < s.maxFaceWalkHops && remainingDt > GPU_R(0.0); ++hop)
     {
-        const double x1 = x + vxStep*remainingDt;
-        const double y1 = y + vyStep*remainingDt;
-        const double z1 = z + vzStep*remainingDt;
+        const GpuReal x1 = x + vxStep*remainingDt;
+        const GpuReal y1 = y + vyStep*remainingDt;
+        const GpuReal z1 = z + vzStep*remainingDt;
         inside = pointInsideCell(s, c, x1, y1, z1);
         if (inside)
         {
             x = x1;
             y = y1;
             z = z1;
-            remainingDt = 0.0;
+            remainingDt = GPU_R(0.0);
             break;
         }
 
-        double hitT = 1.0;
+        GpuReal hitT = GPU_R(1.0);
         const int plane = firstSegmentIntersection(s, c, x, y, z, x1, y1, z1, hitT);
         if (plane < 0)
         {
@@ -8264,10 +8731,10 @@ __device__ void trackOneParticleLocalFaceWalk(DeviceState& s, const int i, const
 
         const int kind = s.cellFaceKind[plane];
         const int next = s.cellFaceNeighbor[plane];
-        const double xHit = x + hitT*(x1 - x);
-        const double yHit = y + hitT*(y1 - y);
-        const double zHit = z + hitT*(z1 - z);
-        remainingDt *= clampRange(1.0 - hitT, 0.0, 1.0);
+        const GpuReal xHit = x + hitT*(x1 - x);
+        const GpuReal yHit = y + hitT*(y1 - y);
+        const GpuReal zHit = z + hitT*(z1 - z);
+        remainingDt *= clampRange(GPU_R(1.0) - hitT, GPU_R(0.0), GPU_R(1.0));
         if (kind == 0 && next >= 0 && next < s.nCells)
         {
             c = next;
@@ -8283,38 +8750,38 @@ __device__ void trackOneParticleLocalFaceWalk(DeviceState& s, const int i, const
                 s.pStatus[i] = 0;
                 return;
             }
-            const double eps =
-                1.0e-9*clampMin(s.cellLength[next], 1.0e-12);
+            const GpuReal eps =
+                GPU_R(1.0e-9)*clampMin(s.cellLength[next], GPU_R(1.0e-12));
             c = next;
-            x = xHit - s.facePeriodicDx[faceI] + eps*s.planeNx[plane];
-            y = yHit - s.facePeriodicDy[faceI] + eps*s.planeNy[plane];
-            z = zHit - s.facePeriodicDz[faceI] + eps*s.planeNz[plane];
+            x = insideFaceCoordinate(xHit - s.facePeriodicDx[faceI], -s.planeNx[plane], eps);
+            y = insideFaceCoordinate(yHit - s.facePeriodicDy[faceI], -s.planeNy[plane], eps);
+            z = insideFaceCoordinate(zHit - s.facePeriodicDz[faceI], -s.planeNz[plane], eps);
         }
         else if (kind == 1 || kind == 2)
         {
-            const double nx = s.planeNx[plane];
-            const double ny = s.planeNy[plane];
-            const double nz = s.planeNz[plane];
-            const double un = s.pux[i]*nx + s.puy[i]*ny + s.puz[i]*nz;
-            const double unStep = vxStep*nx + vyStep*ny + vzStep*nz;
-            const double restitution = s.cellFaceRestitution[plane];
-            s.pux[i] -= (1.0 + restitution)*un*nx;
-            s.puy[i] -= (1.0 + restitution)*un*ny;
-            s.puz[i] -= (1.0 + restitution)*un*nz;
-            vxStep -= (1.0 + restitution)*unStep*nx;
-            vyStep -= (1.0 + restitution)*unStep*ny;
-            vzStep -= (1.0 + restitution)*unStep*nz;
+            const GpuReal nx = s.planeNx[plane];
+            const GpuReal ny = s.planeNy[plane];
+            const GpuReal nz = s.planeNz[plane];
+            const GpuReal un = s.pux[i]*nx + s.puy[i]*ny + s.puz[i]*nz;
+            const GpuReal unStep = vxStep*nx + vyStep*ny + vzStep*nz;
+            const GpuReal restitution = s.cellFaceRestitution[plane];
+            s.pux[i] -= (GPU_R(1.0) + restitution)*un*nx;
+            s.puy[i] -= (GPU_R(1.0) + restitution)*un*ny;
+            s.puz[i] -= (GPU_R(1.0) + restitution)*un*nz;
+            vxStep -= (GPU_R(1.0) + restitution)*unStep*nx;
+            vyStep -= (GPU_R(1.0) + restitution)*unStep*ny;
+            vzStep -= (GPU_R(1.0) + restitution)*unStep*nz;
 
-            const double eps = 1.0e-9*clampMin(s.cellLength[c], 1.0e-12);
-            x = xHit - eps*nx;
-            y = yHit - eps*ny;
-            z = zHit - eps*nz;
+            const GpuReal eps = GPU_R(1.0e-9)*clampMin(s.cellLength[c], GPU_R(1.0e-12));
+            x = insideFaceCoordinate(xHit, nx, eps);
+            y = insideFaceCoordinate(yHit, ny, eps);
+            z = insideFaceCoordinate(zHit, nz, eps);
         }
         else if (kind == 5)
         {
-            const double nx = s.planeNx[plane];
-            const double ny = s.planeNy[plane];
-            const double nz = s.planeNz[plane];
+            const GpuReal nx = s.planeNx[plane];
+            const GpuReal ny = s.planeNy[plane];
+            const GpuReal nz = s.planeNz[plane];
             const int globalFaceId = s.cellFaceId[plane];
             if
             (
@@ -8328,9 +8795,9 @@ __device__ void trackOneParticleLocalFaceWalk(DeviceState& s, const int i, const
             }
             const unsigned char wallInteractionType =
                 s.particleStuckCandidateMask[globalFaceId];
-            const double un =
+            const GpuReal un =
                 s.pux[i]*nx + s.puy[i]*ny + s.puz[i]*nz;
-            const double normalSpeed = fabs
+            const GpuReal normalSpeed = fabs
             (
                 (s.pux[i] - s.gasBoundaryUx[globalFaceId])*nx
               + (s.puy[i] - s.gasBoundaryUy[globalFaceId])*ny
@@ -8359,24 +8826,24 @@ __device__ void trackOneParticleLocalFaceWalk(DeviceState& s, const int i, const
             if
             (
                 !finiteImpact.valid
-             || finiteImpact.contactDurationS > static_cast<double>(FLT_MAX)
-             || finiteImpact.maximumAreaM2 > static_cast<double>(FLT_MAX)
-             || finiteImpact.peakTimeFraction > static_cast<double>(FLT_MAX)
+             || finiteImpact.contactDurationS > static_cast<GpuReal>(FLT_MAX)
+             || finiteImpact.maximumAreaM2 > static_cast<GpuReal>(FLT_MAX)
+             || finiteImpact.peakTimeFraction > static_cast<GpuReal>(FLT_MAX)
             )
             {
                 asm("trap;");
             }
-            const double eps = 1.0e-9*clampMin(s.cellLength[c], 1.0e-12);
-            x = xHit - eps*nx;
-            y = yHit - eps*ny;
-            z = zHit - eps*nz;
-            const double restitution = s.cellFaceRestitution[plane];
-            s.puxOld[i] = s.pux[i] - (1.0 + restitution)*un*nx;
-            s.puyOld[i] = s.puy[i] - (1.0 + restitution)*un*ny;
-            s.puzOld[i] = s.puz[i] - (1.0 + restitution)*un*nz;
-            s.pux[i] = 0.0;
-            s.puy[i] = 0.0;
-            s.puz[i] = 0.0;
+            const GpuReal eps = GPU_R(1.0e-9)*clampMin(s.cellLength[c], GPU_R(1.0e-12));
+            x = insideFaceCoordinate(xHit, nx, eps);
+            y = insideFaceCoordinate(yHit, ny, eps);
+            z = insideFaceCoordinate(zHit, nz, eps);
+            const GpuReal restitution = s.cellFaceRestitution[plane];
+            s.puxOld[i] = s.pux[i] - (GPU_R(1.0) + restitution)*un*nx;
+            s.puyOld[i] = s.puy[i] - (GPU_R(1.0) + restitution)*un*ny;
+            s.puzOld[i] = s.puz[i] - (GPU_R(1.0) + restitution)*un*nz;
+            s.pux[i] = GPU_R(0.0);
+            s.puy[i] = GPU_R(0.0);
+            s.puz[i] = GPU_R(0.0);
             s.pStuck[i] =
                 wallInteractionType
              == Foam::gpuThermal::particleWallReboundContact
@@ -8388,14 +8855,18 @@ __device__ void trackOneParticleLocalFaceWalk(DeviceState& s, const int i, const
                   : Foam::gpuThermal::particleWallTransientRebound
                 );
             s.pStuckFaceId[i] = globalFaceId;
-            s.pTheta[i] = 0.0;
+            s.pTheta[i] = GPU_R(0.0);
+            s.pContactAge[i] = GpuTime(0);
             s.pDepositionArea[i] = 0.0f;
             s.pContactDuration[i] =
-                static_cast<float>(finiteImpact.contactDurationS);
+                static_cast<GpuTime>(finiteImpact.contactDurationS);
             s.pContactMaximumArea[i] =
                 static_cast<float>(finiteImpact.maximumAreaM2);
             s.pContactPeakFraction[i] =
-                static_cast<float>(finiteImpact.peakTimeFraction);
+                Foam::gpuThermal::finiteContactPeakFractionForStorage
+                (
+                    finiteImpact.peakTimeFraction
+                );
             if
             (
                 wallInteractionType
@@ -8419,13 +8890,13 @@ __device__ void trackOneParticleLocalFaceWalk(DeviceState& s, const int i, const
                 clearColdWallParticleState(s, i);
                 clearColdWall2DParticleState(s, i);
             }
-            remainingDt = 0.0;
+            remainingDt = GPU_R(0.0);
             break;
         }
         else
         {
-            const double exitMass =
-                clampMin(finiteOr(s.pm[i], s.injectionParcelMass), 0.0);
+            const GpuReal exitMass =
+                clampMin(finiteOr(s.pm[i], s.injectionParcelMass), GPU_R(0.0));
             s.pStatus[i] = 0;
             return;
         }
@@ -8438,7 +8909,7 @@ __device__ void trackOneParticleLocalFaceWalk(DeviceState& s, const int i, const
     }
 
     inside = pointInsideCell(s, c, x, y, z);
-    if (!inside || remainingDt > 0.0)
+    if (!inside || remainingDt > GPU_R(0.0))
     {
         s.pStatus[i] = 0;
         return;
@@ -8449,7 +8920,7 @@ __device__ void trackOneParticleLocalFaceWalk(DeviceState& s, const int i, const
     s.pCellId[i] = c;
 }
 
-__global__ void trackParticlesLocalFaceWalkKernel(DeviceState* sp, const double dt)
+__global__ void trackParticlesLocalFaceWalkKernel(DeviceState* sp, const GpuTime dt)
 {
     DeviceState& s = *sp;
     const int nParticles = clampRange(*s.particleCountDevice, 0, s.particleCapacity);
@@ -8469,7 +8940,7 @@ __device__ void relaxOneParticleToResidentGas
 (
     DeviceState& s,
     const int i,
-    const double dt,
+    const GpuTime dt,
     const DragModel dragModel
 )
 {
@@ -8485,11 +8956,11 @@ __device__ void relaxOneParticleToResidentGas
         return;
     }
 
-    const double rhoG =
+    const GpuReal rhoG =
         clampMin(finiteOr(s.couplingRhoOld[c], s.rhoMin), s.rhoMin);
-    const double ugx = finiteOr(s.couplingUxOld[c], 0.0);
-    const double ugy = finiteOr(s.couplingUyOld[c], 0.0);
-    const double ugz = finiteOr(s.couplingUzOld[c], 0.0);
+    const GpuReal ugx = finiteOr(s.couplingUxOld[c], GPU_R(0.0));
+    const GpuReal ugy = finiteOr(s.couplingUyOld[c], GPU_R(0.0));
+    const GpuReal ugz = finiteOr(s.couplingUzOld[c], GPU_R(0.0));
     const unsigned char wallStateAtStepStart = s.pStuck[i];
     const bool stuck = wallStateAtStepStart != Foam::gpuThermal::particleWallMobile;
     const bool finiteContact =
@@ -8511,9 +8982,9 @@ __device__ void relaxOneParticleToResidentGas
     const bool coldWallContact =
         wallInteractionType
      == Foam::gpuThermal::particleWallSolidifyingDeposition;
-    const double ux = stuck ? 0.0 : s.pux[i];
-    const double uy = stuck ? 0.0 : s.puy[i];
-    const double uz = stuck ? 0.0 : s.puz[i];
+    const GpuReal ux = stuck ? GPU_R(0.0) : s.pux[i];
+    const GpuReal uy = stuck ? GPU_R(0.0) : s.puy[i];
+    const GpuReal uz = stuck ? GPU_R(0.0) : s.puz[i];
     if (!finiteContact)
     {
         s.puxOld[i] = ux;
@@ -8521,25 +8992,25 @@ __device__ void relaxOneParticleToResidentGas
         s.puzOld[i] = uz;
     }
 
-    const double relX = ugx - ux;
-    const double relY = ugy - uy;
-    const double relZ = ugz - uz;
-    const double relMag = sqrt(sqr3(relX, relY, relZ));
-    const double dPart =
+    const GpuReal relX = ugx - ux;
+    const GpuReal relY = ugy - uy;
+    const GpuReal relZ = ugz - uz;
+    const GpuReal relMag = sqrt(sqr3(relX, relY, relZ));
+    const GpuReal dPart =
         clampMin
         (
             finiteOr(s.pd[i], s.particleDiameterFallback),
-            1.0e-12
+            GPU_R(1.0e-12)
         );
-    const double mu = clampMin(s.gasMu, 1.0e-30);
-    const double re = rhoG*dPart*relMag/mu;
+    const GpuReal mu = clampMin(s.gasMu, GPU_R(1.0e-30));
+    const GpuReal re = rhoG*dPart*relMag/mu;
     if (gasDragModelActive(s.dragModelId))
     {
-    const double invTauDrag = dragInverseTimeDevice
+    const GpuReal invTauDrag = dragInverseTimeDevice
     (
         s,
         rhoG,
-        clampRange(1.0 - solidEpsFromMomentDevice(s, c), 0.0, 1.0),
+        clampRange(GPU_R(1.0) - solidEpsFromMomentDevice(s, c), GPU_R(0.0), GPU_R(1.0)),
         dPart,
         relMag,
         dragModel
@@ -8547,22 +9018,22 @@ __device__ void relaxOneParticleToResidentGas
 
     if (!stuck)
     {
-        const double xDrag = dt*clampMin(invTauDrag, 0.0);
-        const double alpha = exp(-xDrag);
-        const double ax =
-            s.gravityX - finiteOr(s.gradPx[c], 0.0)*s.invRhoSolid;
-        const double ay =
-            s.gravityY - finiteOr(s.gradPy[c], 0.0)*s.invRhoSolid;
-        const double az =
-            s.gravityZ - finiteOr(s.gradPz[c], 0.0)*s.invRhoSolid;
+        const GpuReal xDrag = dt*clampMin(invTauDrag, GPU_R(0.0));
+        const GpuReal alpha = exp(-xDrag);
+        const GpuReal ax =
+            s.gravityX - finiteOr(s.gradPx[c], GPU_R(0.0))*s.invRhoSolid;
+        const GpuReal ay =
+            s.gravityY - finiteOr(s.gradPy[c], GPU_R(0.0))*s.invRhoSolid;
+        const GpuReal az =
+            s.gravityZ - finiteOr(s.gradPz[c], GPU_R(0.0))*s.invRhoSolid;
 
-        const double impulse =
-            (xDrag < 1.0e-6)
-          ? dt*(1.0 - 0.5*xDrag + xDrag*xDrag/6.0)
-          : (1.0 - alpha)/(invTauDrag + 1.0e-300);
-    const double uNewX = ugx + (ux - ugx)*alpha + ax*impulse;
-    const double uNewY = ugy + (uy - ugy)*alpha + ay*impulse;
-    const double uNewZ = ugz + (uz - ugz)*alpha + az*impulse;
+        const GpuReal impulse =
+            (xDrag < GPU_R(1.0e-6))
+          ? dt*(GPU_R(1.0) - GPU_R(0.5)*xDrag + xDrag*xDrag/GPU_R(6.0))
+          : (GPU_R(1.0) - alpha)/(invTauDrag + GPU_TINY(1.0e-300));
+    const GpuReal uNewX = ugx + (ux - ugx)*alpha + ax*impulse;
+    const GpuReal uNewY = ugy + (uy - ugy)*alpha + ay*impulse;
+    const GpuReal uNewZ = ugz + (uz - ugz)*alpha + az*impulse;
     if
     (
         nonFiniteDevice(uNewX) || nonFiniteDevice(uNewY)
@@ -8577,9 +9048,9 @@ __device__ void relaxOneParticleToResidentGas
     }
     else
     {
-        s.pux[i] = 0.0;
-        s.puy[i] = 0.0;
-        s.puz[i] = 0.0;
+        s.pux[i] = GPU_R(0.0);
+        s.puy[i] = GPU_R(0.0);
+        s.puz[i] = GPU_R(0.0);
     }
 
                                                                          
@@ -8588,18 +9059,18 @@ __device__ void relaxOneParticleToResidentGas
                                                                   
     if (!finiteContact)
     {
-        const double alphaTheta =
-            clampRange(finiteOr(s.thetaDragAlpha[c], 1.0), 0.0, 1.0);
-        const double unresolvedTheta =
-            clampMin(finiteOr(s.pTheta[i], 0.0), 0.0);
+        const GpuReal alphaTheta =
+            clampRange(finiteOr(s.thetaDragAlpha[c], GPU_R(1.0)), GPU_R(0.0), GPU_R(1.0));
+        const GpuReal unresolvedTheta =
+            clampMin(finiteOr(s.pTheta[i], GPU_R(0.0)), GPU_R(0.0));
         s.pTheta[i] = unresolvedTheta*alphaTheta;
     }
     }
     else if (stuck)
     {
-        s.pux[i] = 0.0;
-        s.puy[i] = 0.0;
-        s.puz[i] = 0.0;
+        s.pux[i] = GPU_R(0.0);
+        s.puy[i] = GPU_R(0.0);
+        s.puz[i] = GPU_R(0.0);
     }
 
     if
@@ -8609,25 +9080,25 @@ __device__ void relaxOneParticleToResidentGas
      && !coldWallContact
     )
     {
-        const double gasConductivity = molecularGasConductivity(s);
-        const double nu = ugkwp::ranzMarshallNuFromPrOneThird
+        const GpuReal gasConductivity = molecularGasConductivity(s);
+        const GpuReal nu = ugkwp::ranzMarshallNuFromPrOneThird
         (
-            clampMin(re, 0.0),
+            clampMin(re, GPU_R(0.0)),
             s.gasPrOneThird
         );
-        const double tpOld = clampRange(s.pT[i], s.TpMin, s.TpMax);
-        const double particleCp = particleSpecificHeatDevice(tpOld);
-        const double rate =
-            6.0*nu*gasConductivity
-           /(s.rhoSolid*particleCp*dPart*dPart + 1.0e-300);
-        const double decay = exp(-clampMin(rate, 0.0)*dt);
-        const double gasTemperatureK = clampRange
+        const GpuReal tpOld = clampRange(s.pT[i], s.TpMin, s.TpMax);
+        const GpuReal particleCp = particleSpecificHeatDevice(tpOld);
+        const GpuReal rate =
+            GPU_R(6.0)*nu*gasConductivity
+           /(s.rhoSolid*particleCp*dPart*dPart + GPU_TINY(1.0e-300));
+        const GpuReal decay = exp(-clampMin(rate, GPU_R(0.0))*dt);
+        const GpuReal gasTemperatureK = clampRange
         (
             finiteOr(s.couplingTgasOld[c], s.TgasMin),
             s.TgasMin,
-            1.0e30
+            GPU_R(1.0e30)
         );
-        const double tpNew = clampRange
+        const GpuReal tpNew = clampRange
         (
             gasTemperatureK + (tpOld - gasTemperatureK)*decay,
             s.TpMin,
@@ -8639,34 +9110,34 @@ __device__ void relaxOneParticleToResidentGas
     if (finiteContact)
     {
         const int faceI = s.pStuckFaceId[i];
-        const double duration = static_cast<double>(s.pContactDuration[i]);
-        const double maximumArea = static_cast<double>(s.pContactMaximumArea[i]);
-        const double peakTimeFraction =
-            static_cast<double>(s.pContactPeakFraction[i]);
-        const double damageArea = static_cast<double>(s.pDepositionArea[i]);
-        const double age0 = clampRange(finiteOr(s.pTheta[i], 0.0), 0.0, duration);
+        const GpuTime duration = static_cast<GpuTime>(s.pContactDuration[i]);
+        const GpuReal maximumArea = static_cast<GpuReal>(s.pContactMaximumArea[i]);
+        const GpuReal peakTimeFraction =
+            static_cast<GpuReal>(s.pContactPeakFraction[i]);
+        const GpuReal damageArea = static_cast<GpuReal>(s.pDepositionArea[i]);
+        const GpuTime age0 = clampRange(finiteOr(s.pContactAge[i], GpuTime(0)), GpuTime(0), duration);
         if
         (
             faceI < 0 || faceI >= s.nFaces
          || s.particleStuckCandidateMask[faceI] == 0
-         || !(duration > 0.0) || !(maximumArea > 0.0)
-         || !(peakTimeFraction > 0.0) || !(peakTimeFraction < 1.0)
-         || damageArea < 0.0
+         || !(duration > GPU_R(0.0)) || !(maximumArea > GPU_R(0.0))
+         || !(peakTimeFraction > GPU_R(0.0)) || !(peakTimeFraction < GPU_R(1.0))
+         || damageArea < GPU_R(0.0)
         )
         {
             asm("trap;");
         }
-        const double activeDt = clampRange(dt, 0.0, duration - age0);
-        const double age1 = age0 + activeDt;
+        const GpuTime activeDt = clampRange(dt, GPU_R(0.0), duration - age0);
+        const GpuTime age1 = age0 + activeDt;
         if
         (
-            activeDt > 0.0
+            activeDt > GPU_R(0.0)
          && s.particleWallHeatTransferEnabled != 0
          && !coldWallContact
         )
         {
-            const double thetaMid = (age0 + 0.5*activeDt)/duration;
-            const double contactAreaMid = fmax
+            const GpuReal thetaMid = (age0 + GPU_R(0.5)*activeDt)/duration;
+            const GpuReal contactAreaMid = fmax
             (
                 maximumArea
                *Foam::gpuThermal::normalizedKinematicArea
@@ -8674,9 +9145,9 @@ __device__ void relaxOneParticleToResidentGas
                     thetaMid, peakTimeFraction
                 )
               - damageArea,
-                0.0
+                GPU_R(0.0)
             );
-            const double wallEffusivity =
+            const GpuReal wallEffusivity =
                 s.particleWallEffusivityByFace != nullptr
               ? s.particleWallEffusivityByFace[faceI]
               : sqrt
@@ -8687,10 +9158,10 @@ __device__ void relaxOneParticleToResidentGas
                 );
             const Foam::gpuThermal::AluminaLiquidProperties material =
                 Foam::gpuThermal::liquidAluminaProperties(s.pT[i]);
-            const double physicalMass =
-                (Foam::gpuThermal::finiteContactPi/6.0)
+            const GpuReal physicalMass =
+                (Foam::gpuThermal::finiteContactPi/GPU_R(6.0))
                *material.densityKgM3*s.pd[i]*s.pd[i]*s.pd[i];
-            const double conductanceTimeIntegral =
+            const GpuReal conductanceTimeIntegral =
                 Foam::gpuThermal::finiteContactWallConductanceTimeIntegral
                 (
                     maximumArea,
@@ -8703,7 +9174,7 @@ __device__ void relaxOneParticleToResidentGas
                    *s.particleWallContactAreaScale[faceI],
                     s.coldWallSolidificationParameters
                      .interfaceResistanceM2KW,
-                    0.0,
+                    GPU_R(0.0),
                     wallEffusivity,
                     s.coldWallSolidificationParameters
                      .wallTransientResistance != 0
@@ -8719,9 +9190,9 @@ __device__ void relaxOneParticleToResidentGas
                 );
             if
             (
-                contactAreaMid < 0.0 || !(wallEffusivity > 0.0)
-             || !material.valid || !(physicalMass > 0.0)
-             || !(conductanceTimeIntegral >= 0.0) || !result.valid
+                contactAreaMid < GPU_R(0.0) || !(wallEffusivity > GPU_R(0.0))
+             || !material.valid || !(physicalMass > GPU_R(0.0))
+             || !(conductanceTimeIntegral >= GPU_R(0.0)) || !result.valid
             )
             {
                 asm("trap;");
@@ -8735,22 +9206,22 @@ __device__ void relaxOneParticleToResidentGas
                 result.wallEnergyJ
             );
         }
-        s.pTheta[i] = age1;
+        s.pContactAge[i] = age1;
 
         bool detach = false;
         bool enterLongDeposit = false;
-        double longDepositArea = 0.0;
-        const double theta1 = age1/duration;
-        const double kinematicArea =
+        GpuReal longDepositArea = GPU_R(0.0);
+        const GpuReal theta1 = age1/duration;
+        const GpuReal kinematicArea =
             maximumArea
            *Foam::gpuThermal::normalizedKinematicArea
             (
                 theta1, peakTimeFraction
             );
-        const double frozenArea = coldWallContact
-          ? static_cast<double>(s.pColdFrozenArea[i])
-          : 0.0;
-        const double effectiveContactArea =
+        const GpuReal frozenArea = coldWallContact
+          ? static_cast<GpuReal>(s.pColdFrozenArea[i])
+          : GPU_R(0.0);
+        const GpuReal effectiveContactArea =
             fmax(kinematicArea, frozenArea) - damageArea;
         if
         (
@@ -8758,9 +9229,9 @@ __device__ void relaxOneParticleToResidentGas
          == Foam::gpuThermal::particleWallTransientRebound
         )
         {
-            detach = !(effectiveContactArea > 0.0);
+            detach = !(effectiveContactArea > GPU_R(0.0));
             enterLongDeposit =
-                coldWallContact && !detach && !(kinematicArea > 0.0);
+                coldWallContact && !detach && !(kinematicArea > GPU_R(0.0));
             longDepositArea = effectiveContactArea;
         }
         else
@@ -8771,23 +9242,23 @@ __device__ void relaxOneParticleToResidentGas
                     s.pT[i], s.pd[i], s.particleWallAdhesionEnergyScale,
                     s.particleWallContactAngleCosine
                 );
-            const double equilibriumArea =
+            const GpuReal equilibriumArea =
                 capillary.equilibriumContactAreaM2;
-            const double targetContactArea = fmin(equilibriumArea, maximumArea);
+            const GpuReal targetContactArea = fmin(equilibriumArea, maximumArea);
             if (!coldWallContact)
             {
                 asm("trap;");
             }
             longDepositArea =
                 fmax(targetContactArea, frozenArea) - damageArea;
-            detach = !(effectiveContactArea > 0.0);
+            detach = !(effectiveContactArea > GPU_R(0.0));
             enterLongDeposit =
                 !detach
              && theta1 >= peakTimeFraction
              &&
                 (
                     kinematicArea <= targetContactArea
-                 || !(kinematicArea > 0.0)
+                 || !(kinematicArea > GPU_R(0.0))
                 );
             if (!capillary.valid)
             {
@@ -8802,7 +9273,8 @@ __device__ void relaxOneParticleToResidentGas
             s.puz[i] = s.puzOld[i];
             s.pStuck[i] = Foam::gpuThermal::particleWallMobile;
             s.pStuckFaceId[i] = -1;
-            s.pTheta[i] = 0.0;
+            s.pTheta[i] = GPU_R(0.0);
+            s.pContactAge[i] = GpuTime(0);
             s.pDepositionArea[i] = 0.0f;
             s.pContactDuration[i] = 0.0f;
             s.pContactMaximumArea[i] = 0.0f;
@@ -8813,11 +9285,12 @@ __device__ void relaxOneParticleToResidentGas
         else if (enterLongDeposit)
         {
             s.pStuck[i] = Foam::gpuThermal::particleWallDeposited;
-            s.pTheta[i] = 0.0;
+            s.pTheta[i] = GPU_R(0.0);
+            s.pContactAge[i] = GpuTime(0);
             s.pDepositionArea[i] = static_cast<float>(longDepositArea);
-            s.puxOld[i] = 0.0;
-            s.puyOld[i] = 0.0;
-            s.puzOld[i] = 0.0;
+            s.puxOld[i] = GPU_R(0.0);
+            s.puyOld[i] = GPU_R(0.0);
+            s.puzOld[i] = GPU_R(0.0);
         }
     }
     else if
@@ -8827,21 +9300,21 @@ __device__ void relaxOneParticleToResidentGas
     )
     {
         const int stuckFaceId = s.pStuckFaceId[i];
-        const double storedDepositionArea =
-            static_cast<double>(s.pDepositionArea[i]);
+        const GpuReal storedDepositionArea =
+            static_cast<GpuReal>(s.pDepositionArea[i]);
         if
         (
             stuckFaceId < 0
          || stuckFaceId >= s.nFaces
          || s.particleStuckCandidateMask[stuckFaceId] == 0
-         || !(storedDepositionArea > 0.0)
+         || !(storedDepositionArea > GPU_R(0.0))
         )
         {
             asm("trap;");
         }
-        const double contactAreaScale =
+        const GpuReal contactAreaScale =
             s.particleWallContactAreaScale[stuckFaceId];
-        if (!(contactAreaScale > 0.0) || contactAreaScale > 1.0)
+        if (!(contactAreaScale > GPU_R(0.0)) || contactAreaScale > GPU_R(1.0))
         {
             asm("trap;");
         }
@@ -8856,7 +9329,7 @@ template<class DragModel>
 __global__ void relaxMobileParticlesToResidentGasKernelStatic
 (
     DeviceState* sp,
-    const double dt,
+    const GpuTime dt,
     const DragModel dragModel
 )
 {
@@ -8884,7 +9357,7 @@ template<class DragModel>
 __global__ void relaxWallBoundParticlesToResidentGasKernelStatic
 (
     DeviceState* sp,
-    const double dt,
+    const GpuTime dt,
     const DragModel dragModel
 )
 {
@@ -8923,7 +9396,7 @@ int prepareParticleWallContactAreaScale(DeviceState* s, const int block)
     (
         s->particleWallRepresentedContactArea,
         0,
-        static_cast<size_t>(s->nFaces)*sizeof(double)
+        static_cast<size_t>(s->nFaces)*sizeof(GpuReal)
     );
     if (err != cudaSuccess)
     {
@@ -8931,116 +9404,17 @@ int prepareParticleWallContactAreaScale(DeviceState* s, const int block)
         return 1;
     }
 
-    if (s->wallContactAreaDiagnosticsEnabled != 0)
+    accumulateParticleWallRepresentedContactAreaKernel
+        <<<s->particleWorkGrid, block>>>(s->deviceState);
+    err = cudaGetLastError();
+    if (err != cudaSuccess)
     {
-        if
+        setLastError
         (
-            s->wallContactAreaDiagnosticError == nullptr
-         && allocate
-            (
-                s->wallContactAreaDiagnosticError,
-                1,
-                "cudaMalloc wall-contact area diagnostic error"
-            ) != 0
-        )
-        {
-            return 1;
-        }
-        err = cudaMemset
-        (
-            s->wallContactAreaDiagnosticError,
-            0,
-            sizeof(WallContactAreaDiagnosticError)
+            "accumulateParticleWallRepresentedContactAreaKernel launch",
+            err
         );
-        if (err != cudaSuccess)
-        {
-            setLastError("cudaMemset wall-contact area diagnostic error", err);
-            return 1;
-        }
-        diagnoseParticleWallRepresentedContactAreaKernel
-            <<<s->particleWorkGrid, block>>>
-            (
-                s->deviceState,
-                s->wallContactAreaDiagnosticError
-            );
-        err = cudaGetLastError();
-        if (err != cudaSuccess)
-        {
-            setLastError
-            (
-                "diagnoseParticleWallRepresentedContactAreaKernel launch",
-                err
-            );
-            return 1;
-        }
-        WallContactAreaDiagnosticError hostError;
-        if
-        (
-            copyToHost
-            (
-                &hostError,
-                s->wallContactAreaDiagnosticError,
-                1,
-                "cudaMemcpy wall-contact area diagnostic error"
-            ) != 0
-        )
-        {
-            return 1;
-        }
-        if (hostError.code != 0)
-        {
-            std::snprintf
-            (
-                lastError,
-                sizeof(lastError),
-                "wall-contact area diagnostic failed: code=%d, entry=%d/%d, "
-                "particle=%d, originalId=%llu, status=%d, wallState=%d, "
-                "face=%d/%d, candidateType=%d, depositionArea=%.17g, "
-                "duration=%.17g, maximumArea=%.17g, peakFraction=%.17g, "
-                "age=%.17g, frozenArea=%.17g, kinematicArea=%.17g, "
-                "physicalArea=%.17g, representedArea=%.17g, diameter=%.17g, "
-                "parcelMass=%.17g, solidDensity=%.17g, temperature=%.17g",
-                hostError.code,
-                hostError.directoryEntry,
-                hostError.directoryCount,
-                hostError.particleArrayIndex,
-                static_cast<unsigned long long>(hostError.particleOriginalId),
-                hostError.particleStatus,
-                hostError.wallState,
-                hostError.faceId,
-                hostError.faceCount,
-                hostError.candidateType,
-                hostError.depositionArea,
-                hostError.contactDuration,
-                hostError.contactMaximumArea,
-                hostError.contactPeakFraction,
-                hostError.contactAge,
-                hostError.frozenArea,
-                hostError.kinematicArea,
-                hostError.physicalContactArea,
-                hostError.representedArea,
-                hostError.diameter,
-                hostError.parcelMass,
-                hostError.solidDensity,
-                hostError.temperature
-            );
-            return 1;
-        }
-    }
-    else
-    {
-        accumulateParticleWallRepresentedContactAreaKernel
-            <<<s->particleWorkGrid, block>>>(s->deviceState);
-        err = cudaGetLastError();
-        if (err != cudaSuccess)
-        {
-            setLastError
-            (
-                "accumulateParticleWallRepresentedContactAreaKernel launch",
-                err
-            );
-            return 1;
-        }
+        return 1;
     }
 
     const int faceGrid = (s->nFaces + block - 1)/block;
@@ -9069,25 +9443,25 @@ __global__ void clearPoissonThermalPoolKernel(DeviceState* sp)
     }
 
     s.poolThermalCount[c] = 0;
-    s.poolThermalSumUx[c] = 0.0;
-    s.poolThermalSumUy[c] = 0.0;
-    s.poolThermalSumUz[c] = 0.0;
-    s.poolThermalSumU2[c] = 0.0;
+    s.poolThermalSumUx[c] = GPU_R(0.0);
+    s.poolThermalSumUy[c] = GPU_R(0.0);
+    s.poolThermalSumUz[c] = GPU_R(0.0);
+    s.poolThermalSumU2[c] = GPU_R(0.0);
     s.poissonPoolSampleTargetCount[c] = 0;
-    s.poissonPoolMass[c] = 0.0;
-    s.poissonPoolMomX[c] = 0.0;
-    s.poissonPoolMomY[c] = 0.0;
-    s.poissonPoolMomZ[c] = 0.0;
-    s.poissonPoolEnergy[c] = 0.0;
-    s.poissonPoolDiameter[c] = 0.0;
-    s.poissonPoolDiameter2[c] = 0.0;
+    s.poissonPoolMass[c] = GPU_R(0.0);
+    s.poissonPoolMomX[c] = GPU_R(0.0);
+    s.poissonPoolMomY[c] = GPU_R(0.0);
+    s.poissonPoolMomZ[c] = GPU_R(0.0);
+    s.poissonPoolEnergy[c] = GPU_R(0.0);
+    s.poissonPoolDiameter[c] = GPU_R(0.0);
+    s.poissonPoolDiameter2[c] = GPU_R(0.0);
 }
 
 template<int NumComponents>
 __device__ void blockReduceComponentSums
 (
-    double (&sums)[NumComponents],
-    double* warpPartials
+    GpuReal (&sums)[NumComponents],
+    GpuReal* warpPartials
 )
 {
     const int lane = threadIdx.x & 31;
@@ -9112,7 +9486,7 @@ __device__ void blockReduceComponentSums
         #pragma unroll
         for (int component = 0; component < NumComponents; ++component)
         {
-            const double other =
+            const GpuReal other =
                 __shfl_down_sync(fullWarpMask, sums[component], offset);
             if (lane + offset < 32)
             {
@@ -9139,14 +9513,14 @@ __device__ void blockReduceComponentSums
         #pragma unroll
         for (int component = 0; component < NumComponents; ++component)
         {
-            double value =
+            GpuReal value =
                 lane < warpCount
               ? warpPartials[component*warpCount + lane]
-              : 0.0;
+              : GPU_R(0.0);
 
             for (int offset = 16; offset > 0; offset >>= 1)
             {
-                const double other =
+                const GpuReal other =
                     __shfl_down_sync(fullWarpMask, value, offset);
                 if (lane + offset < 32)
                 {
@@ -9170,9 +9544,9 @@ __global__ void clearMobileParticleRadiationSumsKernel(DeviceState* sp)
     {
         return;
     }
-    s.radiationMobileMass[c] = 0.0;
-    s.radiationMobileTemperatureMass[c] = 0.0;
-    s.radiationMobileDiameterMass[c] = 0.0;
+    s.radiationMobileMass[c] = GPU_R(0.0);
+    s.radiationMobileTemperatureMass[c] = GPU_R(0.0);
+    s.radiationMobileDiameterMass[c] = GPU_R(0.0);
 }
 
 __global__ void accumulateMobileParticleRadiationSumsAtomicKernel
@@ -9203,14 +9577,14 @@ __global__ void accumulateMobileParticleRadiationSumsAtomicKernel
         {
             continue;
         }
-        const double mass = clampMin(finiteOr(s.pm[i], 0.0), 0.0);
-        const double temperature =
+        const GpuReal mass = clampMin(finiteOr(s.pm[i], GPU_R(0.0)), GPU_R(0.0));
+        const GpuReal temperature =
             clampRange(finiteOr(s.pT[i], s.TpMin), s.TpMin, s.TpMax);
-        const double diameter =
+        const GpuReal diameter =
             clampMin
             (
                 finiteOr(s.pd[i], s.particleDiameterFallback),
-                1.0e-12
+                GPU_R(1.0e-12)
             );
         atomicAdd(&s.radiationMobileMass[c], mass);
         atomicAdd(&s.radiationMobileTemperatureMass[c], mass*temperature);
@@ -9229,9 +9603,9 @@ __global__ void accumulatePackedMobileParticleRadiationSumsKernel
     {
         return;
     }
-    double mass = 0.0;
-    double temperatureMass = 0.0;
-    double diameterMass = 0.0;
+    GpuReal mass = GPU_R(0.0);
+    GpuReal temperatureMass = GPU_R(0.0);
+    GpuReal diameterMass = GPU_R(0.0);
     const int begin = s.preBaseCellOffset[c];
     const int end = s.preBaseCellOffset[c + 1];
     for (int i = begin + threadIdx.x; i < end; i += blockDim.x)
@@ -9247,21 +9621,21 @@ __global__ void accumulatePackedMobileParticleRadiationSumsKernel
         {
             continue;
         }
-        const double particleMass = clampMin(finiteOr(s.pm[i], 0.0), 0.0);
-        const double temperature =
+        const GpuReal particleMass = clampMin(finiteOr(s.pm[i], GPU_R(0.0)), GPU_R(0.0));
+        const GpuReal temperature =
             clampRange(finiteOr(s.pT[i], s.TpMin), s.TpMin, s.TpMax);
-        const double diameter =
+        const GpuReal diameter =
             clampMin
             (
                 finiteOr(s.pd[i], s.particleDiameterFallback),
-                1.0e-12
+                GPU_R(1.0e-12)
             );
         mass += particleMass;
         temperatureMass += particleMass*temperature;
         diameterMass += particleMass*diameter;
     }
-    double sums[3] = {mass, temperatureMass, diameterMass};
-    extern __shared__ double warpPartials[];
+    GpuReal sums[3] = {mass, temperatureMass, diameterMass};
+    extern __shared__ GpuReal warpPartials[];
     blockReduceComponentSums<3>(sums, warpPartials);
     if (threadIdx.x == 0)
     {
@@ -9275,26 +9649,26 @@ __device__ void publishParticleEnthalpyMoment
 (
     DeviceState& s,
     const int c,
-    const double heatDensity
+    const GpuReal heatDensity
 )
 {
-    const double rhoP = clampMin(finiteOr(s.momRhoP[c], 0.0), 0.0);
+    const GpuReal rhoP = clampMin(finiteOr(s.momRhoP[c], GPU_R(0.0)), GPU_R(0.0));
     if
     (
         s.solveParticleTemperature == 0
      || rhoP <= s.epsSMin*s.rhoSolid
     )
     {
-        s.momRhoHpP[c] = 0.0;
-        s.rhoHp[c] = 0.0;
+        s.momRhoHpP[c] = GPU_R(0.0);
+        s.rhoHp[c] = GPU_R(0.0);
         s.Tp[c] = s.TpMin;
         return;
     }
-    const double totalHeat = clampMin(finiteOr(heatDensity, 0.0), 0.0);
+    const GpuReal totalHeat = clampMin(finiteOr(heatDensity, GPU_R(0.0)), GPU_R(0.0));
     s.momRhoHpP[c] = totalHeat;
     s.rhoHp[c] = totalHeat;
-    const double specificEnthalpy =
-        finiteOr(totalHeat/(rhoP + OfSmall), -1.0);
+    const GpuReal specificEnthalpy =
+        finiteOr(totalHeat/(rhoP + OfSmall), -GPU_R(1.0));
     s.Tp[c] = clampRange
     (
         finiteOr
@@ -9313,7 +9687,7 @@ __global__ void clearParticleEnthalpyMomentKernel(DeviceState* sp)
     const int c = blockIdx.x*blockDim.x + threadIdx.x;
     if (c < s.nCells)
     {
-        s.momRhoHpP[c] = 0.0;
+        s.momRhoHpP[c] = GPU_R(0.0);
     }
 }
 
@@ -9338,8 +9712,8 @@ __global__ void accumulateParticleEnthalpyMomentAtomicKernel(DeviceState* sp)
         {
             continue;
         }
-        const double mass = clampMin(finiteOr(s.pm[i], 0.0), 0.0);
-        const double temperature =
+        const GpuReal mass = clampMin(finiteOr(s.pm[i], GPU_R(0.0)), GPU_R(0.0));
+        const GpuReal temperature =
             clampRange(finiteOr(s.pT[i], s.TpMin), s.TpMin, s.TpMax);
         atomicAdd
         (
@@ -9357,7 +9731,7 @@ __global__ void recoverParticleEnthalpyMomentAtomicKernel(DeviceState* sp)
     {
         return;
     }
-    const double heatDensity =
+    const GpuReal heatDensity =
         s.momRhoHpP[c]/clampMin(s.V[c], s.rhoMin);
     publishParticleEnthalpyMoment(s, c, heatDensity);
 }
@@ -9370,7 +9744,7 @@ __global__ void refreshPackedParticleEnthalpyKernel(DeviceState* sp)
     {
         return;
     }
-    double heat = 0.0;
+    GpuReal heat = GPU_R(0.0);
     const int begin = s.preBaseCellOffset[c];
     const int end = s.preBaseCellOffset[c + 1];
     for (int i = begin + threadIdx.x; i < end; i += blockDim.x)
@@ -9385,17 +9759,17 @@ __global__ void refreshPackedParticleEnthalpyKernel(DeviceState* sp)
         {
             continue;
         }
-        const double mass = clampMin(finiteOr(s.pm[i], 0.0), 0.0);
-        const double temperature =
+        const GpuReal mass = clampMin(finiteOr(s.pm[i], GPU_R(0.0)), GPU_R(0.0));
+        const GpuReal temperature =
             clampRange(finiteOr(s.pT[i], s.TpMin), s.TpMin, s.TpMax);
         heat += mass*particleSpecificEnthalpyDevice(temperature);
     }
-    double sums[1] = {heat};
-    extern __shared__ double warpPartials[];
+    GpuReal sums[1] = {heat};
+    extern __shared__ GpuReal warpPartials[];
     blockReduceComponentSums<1>(sums, warpPartials);
     if (threadIdx.x == 0)
     {
-        const double heatDensity =
+        const GpuReal heatDensity =
             sums[0]/clampMin(s.V[c], s.rhoMin);
         publishParticleEnthalpyMoment(s, c, heatDensity);
     }
@@ -9404,7 +9778,7 @@ __global__ void refreshPackedParticleEnthalpyKernel(DeviceState* sp)
 __global__ void accumulatePoissonPoolParticlesByCellKernel
 (
     DeviceState* sp,
-    const double dt
+    const GpuTime dt
 )
 {
     DeviceState& s = *sp;
@@ -9422,40 +9796,40 @@ __global__ void accumulatePoissonPoolParticlesByCellKernel
         return;
     }
 
-    __shared__ double cellCollisionProbability;
+    __shared__ GpuReal cellCollisionProbability;
 
     if (threadIdx.x == 0)
     {
-        const double tauColl = granularCollisionTauFromCellDevice(s, c);
+        const GpuReal tauColl = granularCollisionTauFromCellDevice(s, c);
 
-        if (!(tauColl < 0.5*OfGreat) || tauColl <= OfSmall)
+        if (!(tauColl < GPU_R(0.5)*OfGreat) || tauColl <= OfSmall)
         {
-            cellCollisionProbability = 0.0;
+            cellCollisionProbability = GPU_R(0.0);
         }
         else
         {
             cellCollisionProbability =
-                clampRange(1.0 - exp(-dt/tauColl), 0.0, 1.0);
+                clampRange(GPU_R(1.0) - exp(-dt/tauColl), GPU_R(0.0), GPU_R(1.0));
         }
     }
 
     __syncthreads();
 
-    const double prob = cellCollisionProbability;
+    const GpuReal prob = cellCollisionProbability;
 
-    if (prob <= 0.0)
+    if (prob <= GPU_R(0.0))
     {
         return;
     }
 
-    double locMass = 0.0;
-    double locMomX = 0.0;
-    double locMomY = 0.0;
-    double locMomZ = 0.0;
-    double locEnergy = 0.0;
-    double locDiameter = 0.0;
-    double locDiameter2 = 0.0;
-    double locCount = 0.0;
+    GpuReal locMass = GPU_R(0.0);
+    GpuReal locMomX = GPU_R(0.0);
+    GpuReal locMomY = GPU_R(0.0);
+    GpuReal locMomZ = GPU_R(0.0);
+    GpuReal locEnergy = GPU_R(0.0);
+    GpuReal locDiameter = GPU_R(0.0);
+    GpuReal locDiameter2 = GPU_R(0.0);
+    GpuReal locCount = GPU_R(0.0);
 
     for (int pos = start + threadIdx.x; pos < end; pos += blockDim.x)
     {
@@ -9484,25 +9858,25 @@ __global__ void accumulatePoissonPoolParticlesByCellKernel
             continue;
         }
 
-        const double m =
-            clampMin(finiteOr(s.pm[i], s.injectionParcelMass), 0.0);
-        const double ux = finiteOr(s.pux[i], 0.0);
-        const double uy = finiteOr(s.puy[i], 0.0);
-        const double uz = finiteOr(s.puz[i], 0.0);
-        const double theta = particleMomentThetaDevice(s, i);
-        const double d =
+        const GpuReal m =
+            clampMin(finiteOr(s.pm[i], s.injectionParcelMass), GPU_R(0.0));
+        const GpuReal ux = finiteOr(s.pux[i], GPU_R(0.0));
+        const GpuReal uy = finiteOr(s.puy[i], GPU_R(0.0));
+        const GpuReal uz = finiteOr(s.puz[i], GPU_R(0.0));
+        const GpuReal theta = particleMomentThetaDevice(s, i);
+        const GpuReal d =
             clampMin
             (
                 finiteOr(s.pd[i], s.particleDiameterFallback),
-                1.0e-12
+                GPU_R(1.0e-12)
             );
-        const double specificEnergy = 0.5*sqr3(ux, uy, uz) + 1.5*theta;
+        const GpuReal specificEnergy = GPU_R(0.5)*sqr3(ux, uy, uz) + GPU_R(1.5)*theta;
 
         if
         (
-            nonFiniteDevice(m) || m < 0.0
+            nonFiniteDevice(m) || m < GPU_R(0.0)
          || nonFiniteDevice(ux) || nonFiniteDevice(uy) || nonFiniteDevice(uz)
-         || nonFiniteDevice(theta) || theta < 0.0
+         || nonFiniteDevice(theta) || theta < GPU_R(0.0)
          || nonFiniteDevice(specificEnergy)
         )
         {
@@ -9516,23 +9890,23 @@ __global__ void accumulatePoissonPoolParticlesByCellKernel
         locEnergy += m*specificEnergy;
         locDiameter += m*d;
         locDiameter2 += m*d*d;
-        locCount += 1.0;
+        locCount += GPU_R(1.0);
 
         s.pRng[i] = rng;
         s.pStatus[i] = 2;
 
     }
 
-    extern __shared__ double sh[];
+    extern __shared__ GpuReal sh[];
 
-    double* shMass = sh;
-    double* shMomX = shMass + blockDim.x;
-    double* shMomY = shMomX + blockDim.x;
-    double* shMomZ = shMomY + blockDim.x;
-    double* shEnergy = shMomZ + blockDim.x;
-    double* shDiameter = shEnergy + blockDim.x;
-    double* shDiameter2 = shDiameter + blockDim.x;
-    double* shCount = shDiameter2 + blockDim.x;
+    GpuReal* shMass = sh;
+    GpuReal* shMomX = shMass + blockDim.x;
+    GpuReal* shMomY = shMomX + blockDim.x;
+    GpuReal* shMomZ = shMomY + blockDim.x;
+    GpuReal* shEnergy = shMomZ + blockDim.x;
+    GpuReal* shDiameter = shEnergy + blockDim.x;
+    GpuReal* shDiameter2 = shDiameter + blockDim.x;
+    GpuReal* shCount = shDiameter2 + blockDim.x;
 
     shMass[threadIdx.x] = locMass;
     shMomX[threadIdx.x] = locMomX;
@@ -9580,7 +9954,7 @@ template<bool DirectBase, bool AddToCell>
 __global__ void accumulatePoissonPoolSplitSegmentKernel
 (
     DeviceState* sp,
-    const double dt
+    const GpuTime dt
 )
 {
     DeviceState& s = *sp;
@@ -9599,22 +9973,22 @@ __global__ void accumulatePoissonPoolSplitSegmentKernel
         return;
     }
 
-    __shared__ double cellCollisionProbability;
+    __shared__ GpuReal cellCollisionProbability;
     if (threadIdx.x == 0)
     {
-        const double tauColl = granularCollisionTauFromCellDevice(s, c);
+        const GpuReal tauColl = granularCollisionTauFromCellDevice(s, c);
         cellCollisionProbability =
-            (!(tauColl < 0.5*OfGreat) || tauColl <= OfSmall)
-          ? 0.0
-          : clampRange(1.0 - exp(-dt/tauColl), 0.0, 1.0);
+            (!(tauColl < GPU_R(0.5)*OfGreat) || tauColl <= OfSmall)
+          ? GPU_R(0.0)
+          : clampRange(GPU_R(1.0) - exp(-dt/tauColl), GPU_R(0.0), GPU_R(1.0));
     }
     __syncthreads();
 
     const int start = DirectBase ? baseBegin : injectionBegin;
     const int end = DirectBase ? baseEnd : injectionEnd;
-    double sums[8] = {0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
-    const double prob = cellCollisionProbability;
-    if (prob > 0.0)
+    GpuReal sums[8] = {GPU_R(0.0), GPU_R(0.0), GPU_R(0.0), GPU_R(0.0), GPU_R(0.0), GPU_R(0.0), GPU_R(0.0), GPU_R(0.0)};
+    const GpuReal prob = cellCollisionProbability;
+    if (prob > GPU_R(0.0))
     {
         for (int pos = start + threadIdx.x; pos < end; pos += blockDim.x)
         {
@@ -9634,20 +10008,20 @@ __global__ void accumulatePoissonPoolSplitSegmentKernel
                 continue;
             }
 
-            const double m =
-                clampMin(finiteOr(s.pm[i], s.injectionParcelMass), 0.0);
-            const double ux = finiteOr(s.pux[i], 0.0);
-            const double uy = finiteOr(s.puy[i], 0.0);
-            const double uz = finiteOr(s.puz[i], 0.0);
-            const double theta = particleMomentThetaDevice(s, i);
-            const double d =
-                clampMin(finiteOr(s.pd[i], s.particleDiameterFallback), 1.0e-12);
-            const double specificEnergy = 0.5*sqr3(ux, uy, uz) + 1.5*theta;
+            const GpuReal m =
+                clampMin(finiteOr(s.pm[i], s.injectionParcelMass), GPU_R(0.0));
+            const GpuReal ux = finiteOr(s.pux[i], GPU_R(0.0));
+            const GpuReal uy = finiteOr(s.puy[i], GPU_R(0.0));
+            const GpuReal uz = finiteOr(s.puz[i], GPU_R(0.0));
+            const GpuReal theta = particleMomentThetaDevice(s, i);
+            const GpuReal d =
+                clampMin(finiteOr(s.pd[i], s.particleDiameterFallback), GPU_R(1.0e-12));
+            const GpuReal specificEnergy = GPU_R(0.5)*sqr3(ux, uy, uz) + GPU_R(1.5)*theta;
             if
             (
-                nonFiniteDevice(m) || m < 0.0
+                nonFiniteDevice(m) || m < GPU_R(0.0)
              || nonFiniteDevice(ux) || nonFiniteDevice(uy) || nonFiniteDevice(uz)
-             || nonFiniteDevice(theta) || theta < 0.0
+             || nonFiniteDevice(theta) || theta < GPU_R(0.0)
              || nonFiniteDevice(specificEnergy)
             )
             {
@@ -9660,13 +10034,13 @@ __global__ void accumulatePoissonPoolSplitSegmentKernel
             sums[4] += m*specificEnergy;
             sums[5] += m*d;
             sums[6] += m*d*d;
-            sums[7] += 1.0;
+            sums[7] += GPU_R(1.0);
             s.pRng[i] = rng;
             s.pStatus[i] = 2;
         }
     }
 
-    extern __shared__ double warpPartials[];
+    extern __shared__ GpuReal warpPartials[];
     blockReduceComponentSums<8>(sums, warpPartials);
     if (threadIdx.x == 0)
     {
@@ -9699,7 +10073,7 @@ template<bool PoissonMode>
 __global__ void accumulateParticlePoolAtomicKernel
 (
     DeviceState* sp,
-    const double dt
+    const GpuTime dt
 )
 {
     DeviceState& s = *sp;
@@ -9722,19 +10096,19 @@ __global__ void accumulateParticlePoolAtomicKernel
             continue;
         }
 
-        const double theta = particleMomentThetaDevice(s, i);
-        if (!PoissonMode && theta <= 10.0*s.thetaMin)
+        const GpuReal theta = particleMomentThetaDevice(s, i);
+        if (!PoissonMode && theta <= GPU_R(10.0)*s.thetaMin)
         {
             continue;
         }
         if (PoissonMode)
         {
-            const double tauColl = granularCollisionTauFromCellDevice(s, c);
-            const double probability =
-                (!(tauColl < 0.5*OfGreat) || tauColl <= OfSmall)
-              ? 0.0
-              : clampRange(1.0 - exp(-dt/tauColl), 0.0, 1.0);
-            if (probability <= 0.0)
+            const GpuReal tauColl = granularCollisionTauFromCellDevice(s, c);
+            const GpuReal probability =
+                (!(tauColl < GPU_R(0.5)*OfGreat) || tauColl <= OfSmall)
+              ? GPU_R(0.0)
+              : clampRange(GPU_R(1.0) - exp(-dt/tauColl), GPU_R(0.0), GPU_R(1.0));
+            if (probability <= GPU_R(0.0))
             {
                 continue;
             }
@@ -9747,26 +10121,26 @@ __global__ void accumulateParticlePoolAtomicKernel
             s.pRng[i] = rng;
         }
 
-        const double m =
-            clampMin(finiteOr(s.pm[i], s.injectionParcelMass), 0.0);
-        const double ux = finiteOr(s.pux[i], 0.0);
-        const double uy = finiteOr(s.puy[i], 0.0);
-        const double uz = finiteOr(s.puz[i], 0.0);
-        const double d =
+        const GpuReal m =
+            clampMin(finiteOr(s.pm[i], s.injectionParcelMass), GPU_R(0.0));
+        const GpuReal ux = finiteOr(s.pux[i], GPU_R(0.0));
+        const GpuReal uy = finiteOr(s.puy[i], GPU_R(0.0));
+        const GpuReal uz = finiteOr(s.puz[i], GPU_R(0.0));
+        const GpuReal d =
             clampMin
             (
                 finiteOr(s.pd[i], s.particleDiameterFallback),
-                1.0e-12
+                GPU_R(1.0e-12)
             );
-        const double specificEnergy =
-            0.5*sqr3(ux, uy, uz) + 1.5*theta;
+        const GpuReal specificEnergy =
+            GPU_R(0.5)*sqr3(ux, uy, uz) + GPU_R(1.5)*theta;
 
         if
         (
-            nonFiniteDevice(m) || m < 0.0
+            nonFiniteDevice(m) || m < GPU_R(0.0)
          || nonFiniteDevice(ux) || nonFiniteDevice(uy)
          || nonFiniteDevice(uz)
-         || nonFiniteDevice(theta) || theta < 0.0
+         || nonFiniteDevice(theta) || theta < GPU_R(0.0)
          || nonFiniteDevice(specificEnergy)
         )
         {
@@ -9793,21 +10167,21 @@ __device__ void accumulateCsrHeavyPoolTask
     const int begin,
     const int end,
     const bool directIndex,
-    const double collisionProbability,
-    double (&sums)[8],
-    double* warpPartials
+    const GpuReal collisionProbability,
+    GpuReal (&sums)[8],
+    GpuReal* warpPartials
 )
 {
-    double mass = 0.0;
-    double momX = 0.0;
-    double momY = 0.0;
-    double momZ = 0.0;
-    double energy = 0.0;
-    double diameter = 0.0;
-    double diameter2 = 0.0;
-    double count = 0.0;
+    GpuReal mass = GPU_R(0.0);
+    GpuReal momX = GPU_R(0.0);
+    GpuReal momY = GPU_R(0.0);
+    GpuReal momZ = GPU_R(0.0);
+    GpuReal energy = GPU_R(0.0);
+    GpuReal diameter = GPU_R(0.0);
+    GpuReal diameter2 = GPU_R(0.0);
+    GpuReal count = GPU_R(0.0);
 
-    if (!PoissonMode || collisionProbability > 0.0)
+    if (!PoissonMode || collisionProbability > GPU_R(0.0))
     {
         for (int pos = begin + threadIdx.x; pos < end; pos += blockDim.x)
         {
@@ -9823,8 +10197,8 @@ __device__ void accumulateCsrHeavyPoolTask
                 continue;
             }
 
-            const double theta = particleMomentThetaDevice(s, i);
-            if (!PoissonMode && theta <= 10.0*s.thetaMin)
+            const GpuReal theta = particleMomentThetaDevice(s, i);
+            if (!PoissonMode && theta <= GPU_R(10.0)*s.thetaMin)
             {
                 continue;
             }
@@ -9840,26 +10214,26 @@ __device__ void accumulateCsrHeavyPoolTask
                 s.pRng[i] = rng;
             }
 
-            const double m =
-                clampMin(finiteOr(s.pm[i], s.injectionParcelMass), 0.0);
-            const double ux = finiteOr(s.pux[i], 0.0);
-            const double uy = finiteOr(s.puy[i], 0.0);
-            const double uz = finiteOr(s.puz[i], 0.0);
-            const double d =
+            const GpuReal m =
+                clampMin(finiteOr(s.pm[i], s.injectionParcelMass), GPU_R(0.0));
+            const GpuReal ux = finiteOr(s.pux[i], GPU_R(0.0));
+            const GpuReal uy = finiteOr(s.puy[i], GPU_R(0.0));
+            const GpuReal uz = finiteOr(s.puz[i], GPU_R(0.0));
+            const GpuReal d =
                 clampMin
                 (
                     finiteOr(s.pd[i], s.particleDiameterFallback),
-                    1.0e-12
+                    GPU_R(1.0e-12)
                 );
-            const double specificEnergy =
-                0.5*sqr3(ux, uy, uz) + 1.5*theta;
+            const GpuReal specificEnergy =
+                GPU_R(0.5)*sqr3(ux, uy, uz) + GPU_R(1.5)*theta;
 
             if
             (
-                nonFiniteDevice(m) || m < 0.0
+                nonFiniteDevice(m) || m < GPU_R(0.0)
              || nonFiniteDevice(ux) || nonFiniteDevice(uy)
              || nonFiniteDevice(uz)
-             || nonFiniteDevice(theta) || theta < 0.0
+             || nonFiniteDevice(theta) || theta < GPU_R(0.0)
              || nonFiniteDevice(specificEnergy)
             )
             {
@@ -9873,7 +10247,7 @@ __device__ void accumulateCsrHeavyPoolTask
             energy += m*specificEnergy;
             diameter += m*d;
             diameter2 += m*d*d;
-            count += 1.0;
+            count += GPU_R(1.0);
             s.pStatus[i] = 2;
         }
     }
@@ -9895,15 +10269,15 @@ __device__ __forceinline__ void accumulateCsrSplitLogicalPoolParticle
     DeviceState& s,
     const int c,
     const int i,
-    const double collisionProbability,
-    double& mass,
-    double& momX,
-    double& momY,
-    double& momZ,
-    double& energy,
-    double& diameter,
-    double& diameter2,
-    double& count
+    const GpuReal collisionProbability,
+    GpuReal& mass,
+    GpuReal& momX,
+    GpuReal& momY,
+    GpuReal& momZ,
+    GpuReal& energy,
+    GpuReal& diameter,
+    GpuReal& diameter2,
+    GpuReal& count
 )
 {
     if
@@ -9917,8 +10291,8 @@ __device__ __forceinline__ void accumulateCsrSplitLogicalPoolParticle
         return;
     }
 
-    const double theta = particleMomentThetaDevice(s, i);
-    if (!PoissonMode && theta <= 10.0*s.thetaMin)
+    const GpuReal theta = particleMomentThetaDevice(s, i);
+    if (!PoissonMode && theta <= GPU_R(10.0)*s.thetaMin)
     {
         return;
     }
@@ -9934,26 +10308,26 @@ __device__ __forceinline__ void accumulateCsrSplitLogicalPoolParticle
         s.pRng[i] = rng;
     }
 
-    const double m =
-        clampMin(finiteOr(s.pm[i], s.injectionParcelMass), 0.0);
-    const double ux = finiteOr(s.pux[i], 0.0);
-    const double uy = finiteOr(s.puy[i], 0.0);
-    const double uz = finiteOr(s.puz[i], 0.0);
-    const double d =
+    const GpuReal m =
+        clampMin(finiteOr(s.pm[i], s.injectionParcelMass), GPU_R(0.0));
+    const GpuReal ux = finiteOr(s.pux[i], GPU_R(0.0));
+    const GpuReal uy = finiteOr(s.puy[i], GPU_R(0.0));
+    const GpuReal uz = finiteOr(s.puz[i], GPU_R(0.0));
+    const GpuReal d =
         clampMin
         (
             finiteOr(s.pd[i], s.particleDiameterFallback),
-            1.0e-12
+            GPU_R(1.0e-12)
         );
-    const double specificEnergy =
-        0.5*sqr3(ux, uy, uz) + 1.5*theta;
+    const GpuReal specificEnergy =
+        GPU_R(0.5)*sqr3(ux, uy, uz) + GPU_R(1.5)*theta;
 
     if
     (
-        nonFiniteDevice(m) || m < 0.0
+        nonFiniteDevice(m) || m < GPU_R(0.0)
      || nonFiniteDevice(ux) || nonFiniteDevice(uy)
      || nonFiniteDevice(uz)
-     || nonFiniteDevice(theta) || theta < 0.0
+     || nonFiniteDevice(theta) || theta < GPU_R(0.0)
      || nonFiniteDevice(specificEnergy)
     )
     {
@@ -9967,7 +10341,7 @@ __device__ __forceinline__ void accumulateCsrSplitLogicalPoolParticle
     energy += m*specificEnergy;
     diameter += m*d;
     diameter2 += m*d*d;
-    count += 1.0;
+    count += GPU_R(1.0);
     s.pStatus[i] = 2;
 }
 
@@ -9978,19 +10352,19 @@ __device__ void accumulateCsrSplitLogicalPoolTask
     const int c,
     const int logicalBegin,
     const int logicalEnd,
-    const double collisionProbability,
-    double (&sums)[8],
-    double* warpPartials
+    const GpuReal collisionProbability,
+    GpuReal (&sums)[8],
+    GpuReal* warpPartials
 )
 {
-    double mass = 0.0;
-    double momX = 0.0;
-    double momY = 0.0;
-    double momZ = 0.0;
-    double energy = 0.0;
-    double diameter = 0.0;
-    double diameter2 = 0.0;
-    double count = 0.0;
+    GpuReal mass = GPU_R(0.0);
+    GpuReal momX = GPU_R(0.0);
+    GpuReal momY = GPU_R(0.0);
+    GpuReal momZ = GPU_R(0.0);
+    GpuReal energy = GPU_R(0.0);
+    GpuReal diameter = GPU_R(0.0);
+    GpuReal diameter2 = GPU_R(0.0);
+    GpuReal count = GPU_R(0.0);
 
     const int baseBegin = s.preBaseCellOffset[c];
     const int baseCount = s.preBaseCellOffset[c + 1] - baseBegin;
@@ -10044,13 +10418,13 @@ template<bool PoissonMode>
 __global__ void accumulateCsrHeavyPoolTasksPersistentKernel
 (
     DeviceState* sp,
-    const double dt
+    const GpuTime dt
 )
 {
     DeviceState& s = *sp;
     __shared__ int task;
-    __shared__ double collisionProbability;
-    extern __shared__ double warpPartials[];
+    __shared__ GpuReal collisionProbability;
+    extern __shared__ GpuReal warpPartials[];
 
     for (;;)
     {
@@ -10069,20 +10443,20 @@ __global__ void accumulateCsrHeavyPoolTasksPersistentKernel
         {
             if (PoissonMode)
             {
-                const double tauColl = granularCollisionTauFromCellDevice(s, c);
+                const GpuReal tauColl = granularCollisionTauFromCellDevice(s, c);
                 collisionProbability =
-                    (!(tauColl < 0.5*OfGreat) || tauColl <= OfSmall)
-                  ? 0.0
-                  : clampRange(1.0 - exp(-dt/tauColl), 0.0, 1.0);
+                    (!(tauColl < GPU_R(0.5)*OfGreat) || tauColl <= OfSmall)
+                  ? GPU_R(0.0)
+                  : clampRange(GPU_R(1.0) - exp(-dt/tauColl), GPU_R(0.0), GPU_R(1.0));
             }
             else
             {
-                collisionProbability = 1.0;
+                collisionProbability = GPU_R(1.0);
             }
         }
         __syncthreads();
 
-        double sums[8];
+        GpuReal sums[8];
         accumulateCsrHeavyPoolTask<PoissonMode>
         (
             s,
@@ -10114,7 +10488,7 @@ __global__ void finalizeCsrHeavyPoolCellsKernel(DeviceState* sp)
 {
     DeviceState& s = *sp;
     __shared__ int heavyCellIndex;
-    extern __shared__ double warpPartials[];
+    extern __shared__ GpuReal warpPartials[];
     for (;;)
     {
         if (threadIdx.x == 0)
@@ -10128,9 +10502,9 @@ __global__ void finalizeCsrHeavyPoolCellsKernel(DeviceState* sp)
         }
 
         const int c = s.csrHeavyCellList[heavyCellIndex];
-        double sums[8] =
+        GpuReal sums[8] =
         {
-            0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0
+            GPU_R(0.0), GPU_R(0.0), GPU_R(0.0), GPU_R(0.0), GPU_R(0.0), GPU_R(0.0), GPU_R(0.0), GPU_R(0.0)
         };
         const int firstTask = s.csrHeavyCellTaskStart[c];
         const int nTasks = s.csrHeavyCellTaskCount[c];
@@ -10175,7 +10549,7 @@ __global__ void finalizeCsrHeavyPoolCellsKernel(DeviceState* sp)
 int launchCsrHeavyPoolReduction
 (
     DeviceState* s,
-    const double dt,
+    const GpuTime dt,
     const bool poissonMode,
     const int block
 )
@@ -10195,7 +10569,7 @@ int launchCsrHeavyPoolReduction
     }
     const int warpCount = (block + 31)/32;
     const size_t sharedBytes =
-        8u*static_cast<size_t>(warpCount)*sizeof(double);
+        8u*static_cast<size_t>(warpCount)*sizeof(GpuReal);
     if (poissonMode)
     {
         accumulateCsrHeavyPoolTasksPersistentKernel<true>
@@ -10242,13 +10616,13 @@ template<bool DirectBase>
 __global__ void accumulateSplitCsrHeavyPoolTasksPersistentKernel
 (
     DeviceState* sp,
-    const double dt
+    const GpuTime dt
 )
 {
     DeviceState& s = *sp;
     __shared__ int task;
-    __shared__ double collisionProbability;
-    extern __shared__ double warpPartials[];
+    __shared__ GpuReal collisionProbability;
+    extern __shared__ GpuReal warpPartials[];
     int* const cursor = DirectBase
       ? s.csrHeavyTaskCursor
       : s.csrHeavyInjectionTaskCursor;
@@ -10273,15 +10647,15 @@ __global__ void accumulateSplitCsrHeavyPoolTasksPersistentKernel
           : s.csrHeavyInjectionTaskCell[task];
         if (threadIdx.x == 0)
         {
-            const double tauColl = granularCollisionTauFromCellDevice(s, c);
+            const GpuReal tauColl = granularCollisionTauFromCellDevice(s, c);
             collisionProbability =
-                (!(tauColl < 0.5*OfGreat) || tauColl <= OfSmall)
-              ? 0.0
-              : clampRange(1.0 - exp(-dt/tauColl), 0.0, 1.0);
+                (!(tauColl < GPU_R(0.5)*OfGreat) || tauColl <= OfSmall)
+              ? GPU_R(0.0)
+              : clampRange(GPU_R(1.0) - exp(-dt/tauColl), GPU_R(0.0), GPU_R(1.0));
         }
         __syncthreads();
 
-        double sums[8];
+        GpuReal sums[8];
         const int begin = DirectBase
           ? s.csrHeavyTaskBegin[task]
           : s.csrHeavyInjectionTaskBegin[task];
@@ -10301,7 +10675,7 @@ __global__ void accumulateSplitCsrHeavyPoolTasksPersistentKernel
         );
         if (threadIdx.x == 0)
         {
-            double* const partials = DirectBase
+            GpuReal* const partials = DirectBase
               ? s.csrHeavyPartials
               : s.csrHeavyInjectionPartials;
             #pragma unroll
@@ -10322,7 +10696,7 @@ __global__ void finalizeSplitCsrHeavyPoolCellsKernel(DeviceState* sp)
 {
     DeviceState& s = *sp;
     __shared__ int heavyCellIndex;
-    extern __shared__ double warpPartials[];
+    extern __shared__ GpuReal warpPartials[];
     for (;;)
     {
         if (threadIdx.x == 0)
@@ -10335,7 +10709,7 @@ __global__ void finalizeSplitCsrHeavyPoolCellsKernel(DeviceState* sp)
             return;
         }
         const int c = s.csrHeavyCellList[heavyCellIndex];
-        double sums[8] = {0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
+        GpuReal sums[8] = {GPU_R(0.0), GPU_R(0.0), GPU_R(0.0), GPU_R(0.0), GPU_R(0.0), GPU_R(0.0), GPU_R(0.0), GPU_R(0.0)};
         const int baseFirst = s.csrHeavyCellTaskStart[c];
         const int baseCount = s.csrHeavyCellTaskCount[c];
         for (int local = threadIdx.x; local < baseCount; local += blockDim.x)
@@ -10390,7 +10764,7 @@ __global__ void finalizeSplitCsrHeavyPoolCellsKernel(DeviceState* sp)
 int launchSplitCsrHeavyPoolReduction
 (
     DeviceState* s,
-    const double dt,
+    const GpuTime dt,
     const int block
 )
 {
@@ -10410,7 +10784,7 @@ int launchSplitCsrHeavyPoolReduction
     }
     const int warpCount = (block + 31)/32;
     const size_t sharedBytes =
-        8u*static_cast<size_t>(warpCount)*sizeof(double);
+        8u*static_cast<size_t>(warpCount)*sizeof(GpuReal);
     accumulateSplitCsrHeavyPoolTasksPersistentKernel<true>
         <<<s->csrHeavyWorkerGrid, block, sharedBytes>>>(s->deviceState, dt);
     err = cudaGetLastError();
@@ -10461,11 +10835,11 @@ __global__ void preparePoissonPoolSamplingKernel(DeviceState* sp)
     }
 
     const int representatives = s.poolThermalCount[c];
-    const double poolMass =
-        clampMin(finiteOr(s.poissonPoolMass[c], 0.0), 0.0);
+    const GpuReal poolMass =
+        clampMin(finiteOr(s.poissonPoolMass[c], GPU_R(0.0)), GPU_R(0.0));
 
     int target = 0;
-    if (poolMass > 0.0 && representatives > 0)
+    if (poolMass > GPU_R(0.0) && representatives > 0)
     {
         target = representatives;
     }
@@ -10512,46 +10886,46 @@ __device__ void sampleOnePoissonPoolParticle
     }
 
     const int n = s.poissonPoolSampleTargetCount[c];
-    const double poolMass = clampMin(s.poissonPoolMass[c], 0.0);
-    if (n <= 0 || poolMass <= 0.0)
+    const GpuReal poolMass = clampMin(s.poissonPoolMass[c], GPU_R(0.0));
+    if (n <= 0 || poolMass <= GPU_R(0.0))
     {
         s.pStatus[i] = 0;
         return;
     }
 
-    const double invM = 1.0/poolMass;
-    const double targetUx = s.poissonPoolMomX[c]*invM;
-    const double targetUy = s.poissonPoolMomY[c]*invM;
-    const double targetUz = s.poissonPoolMomZ[c]*invM;
-    const double targetKinetic = 0.5*sqr3(targetUx, targetUy, targetUz);
-    const double targetThetaRaw =
-        clampMin(s.poissonPoolEnergy[c]*invM - targetKinetic, 0.0)/1.5;
+    const GpuReal invM = GPU_R(1.0)/poolMass;
+    const GpuReal targetUx = s.poissonPoolMomX[c]*invM;
+    const GpuReal targetUy = s.poissonPoolMomY[c]*invM;
+    const GpuReal targetUz = s.poissonPoolMomZ[c]*invM;
+    const GpuReal targetKinetic = GPU_R(0.5)*sqr3(targetUx, targetUy, targetUz);
+    const GpuReal targetThetaRaw =
+        clampMin(s.poissonPoolEnergy[c]*invM - targetKinetic, GPU_R(0.0))/GPU_R(1.5);
 
-    double targetTheta = targetThetaRaw;
+    GpuReal targetTheta = targetThetaRaw;
 
     if (applyThetaDrag)
     {
-        const double alphaTheta =
-            clampRange(finiteOr(s.thetaDragAlpha[c], 1.0), 0.0, 1.0);
+        const GpuReal alphaTheta =
+            clampRange(finiteOr(s.thetaDragAlpha[c], GPU_R(1.0)), GPU_R(0.0), GPU_R(1.0));
 
         targetTheta *= alphaTheta;
     }
 
-    const double sigma = sqrt(clampRange(targetTheta, 0.0, OfGreat));
+    const GpuReal sigma = sqrt(clampRange(targetTheta, GPU_R(0.0), OfGreat));
     unsigned long long rng = s.pRng[i];
 
-    double z0 = 0.0;
-    double z1 = 0.0;
-    double z2 = 0.0;
-    double z3 = 0.0;
+    GpuReal z0 = GPU_R(0.0);
+    GpuReal z1 = GPU_R(0.0);
+    GpuReal z2 = GPU_R(0.0);
+    GpuReal z3 = GPU_R(0.0);
 
     normalPairDevice(rng, z0, z1);
     normalPairDevice(rng, z2, z3);
     (void) z3;
 
-    const double ux = targetUx + sigma*z0;
-    const double uy = targetUy + sigma*z1;
-    const double uz = targetUz + sigma*z2;
+    const GpuReal ux = targetUx + sigma*z0;
+    const GpuReal uy = targetUy + sigma*z1;
+    const GpuReal uz = targetUz + sigma*z2;
     if
     (
         n > 1
@@ -10567,13 +10941,14 @@ __device__ void sampleOnePoissonPoolParticle
     const bool wasFiniteContact =
         s.pStuck[i] == Foam::gpuThermal::particleWallTransientRebound
      || s.pStuck[i] == Foam::gpuThermal::particleWallTransientDeposit;
-    const double finiteContactAge = wasFiniteContact ? s.pTheta[i] : 0.0;
+    const GpuTime finiteContactAge = wasFiniteContact ? s.pContactAge[i] : GpuTime(0);
     s.pux[i] = finiteOr(ux, targetUx);
     s.puy[i] = finiteOr(uy, targetUy);
     s.puz[i] = finiteOr(uz, targetUz);
-    s.pTheta[i] = 0.0;
-    const double dMin = clampMin(s.particleDiameterMin, 1.0e-12);
-    const double dMax = clampMin(s.particleDiameterMax, dMin);
+    s.pTheta[i] = GPU_R(0.0);
+    s.pContactAge[i] = GpuTime(0);
+    const GpuReal dMin = clampMin(s.particleDiameterMin, GPU_R(1.0e-12));
+    const GpuReal dMax = clampMin(s.particleDiameterMax, dMin);
 
     s.pd[i] =
         clampRange
@@ -10583,7 +10958,7 @@ __device__ void sampleOnePoissonPoolParticle
             dMax
         );
 
-    if (!finiteDevice(s.pm[i]) || s.pm[i] <= 0.0)
+    if (!finiteDevice(s.pm[i]) || s.pm[i] <= GPU_R(0.0))
     {
         asm("trap;");
     }
@@ -10597,14 +10972,14 @@ __device__ void sampleOnePoissonPoolParticle
     }
     else if (wasFiniteContact)
     {
-        s.pTheta[i] = finiteContactAge;
+        s.pContactAge[i] = finiteContactAge;
     }
     s.pRng[i] = rng;
 
-    const double sampleMass = s.pm[i];
-    const double sampleFluctuationX = s.pux[i] - targetUx;
-    const double sampleFluctuationY = s.puy[i] - targetUy;
-    const double sampleFluctuationZ = s.puz[i] - targetUz;
+    const GpuReal sampleMass = s.pm[i];
+    const GpuReal sampleFluctuationX = s.pux[i] - targetUx;
+    const GpuReal sampleFluctuationY = s.puy[i] - targetUy;
+    const GpuReal sampleFluctuationZ = s.puz[i] - targetUz;
     atomicAdd
     (
         &s.poolThermalSumUx[c],
@@ -10637,15 +11012,16 @@ __device__ void finalizeOneThermalizedMobileParticle
 (
     DeviceState& s,
     const int i,
-    const double candidateUx,
-    const double candidateUy,
-    const double candidateUz
+    const GpuReal candidateUx,
+    const GpuReal candidateUy,
+    const GpuReal candidateUz
 )
 {
     s.pux[i] = candidateUx;
     s.puy[i] = candidateUy;
     s.puz[i] = candidateUz;
-    s.pTheta[i] = 0.0;
+    s.pTheta[i] = GPU_R(0.0);
+    s.pContactAge[i] = GpuTime(0);
     s.pStatus[i] = 1;
 }
 
@@ -10653,12 +11029,12 @@ __device__ void finalizeOneThermalizedStuckParticle
 (
     DeviceState& s,
     const int i,
-    const double candidateUx,
-    const double candidateUy,
-    const double candidateUz,
-    const double poolMeanUx,
-    const double poolMeanUy,
-    const double poolMeanUz
+    const GpuReal candidateUx,
+    const GpuReal candidateUy,
+    const GpuReal candidateUz,
+    const GpuReal poolMeanUx,
+    const GpuReal poolMeanUy,
+    const GpuReal poolMeanUz
 )
 {
     if (s.pStuck[i] == 0)
@@ -10684,74 +11060,74 @@ __device__ void finalizeOneThermalizedStuckParticle
             s.particleWallAdhesionEnergyScale,
             s.particleWallContactAngleCosine
         );
-    const double wallUx = s.gasBoundaryUx[faceI];
-    const double wallUy = s.gasBoundaryUy[faceI];
-    const double wallUz = s.gasBoundaryUz[faceI];
+    const GpuReal wallUx = s.gasBoundaryUx[faceI];
+    const GpuReal wallUy = s.gasBoundaryUy[faceI];
+    const GpuReal wallUz = s.gasBoundaryUz[faceI];
                                                                         
                                                                             
-    const double fluctuationUx = candidateUx - poolMeanUx;
-    const double fluctuationUy = candidateUy - poolMeanUy;
-    const double fluctuationUz = candidateUz - poolMeanUz;
-    const double sampledSpecificEnergy =
-        0.5*sqr3(fluctuationUx, fluctuationUy, fluctuationUz);
-    const double contactAreaScale =
+    const GpuReal fluctuationUx = candidateUx - poolMeanUx;
+    const GpuReal fluctuationUy = candidateUy - poolMeanUy;
+    const GpuReal fluctuationUz = candidateUz - poolMeanUz;
+    const GpuReal sampledSpecificEnergy =
+        GPU_R(0.5)*sqr3(fluctuationUx, fluctuationUy, fluctuationUz);
+    const GpuReal contactAreaScale =
         s.particleWallContactAreaScale[faceI];
-    if (!(contactAreaScale > 0.0) || contactAreaScale > 1.0)
+    if (!(contactAreaScale > GPU_R(0.0)) || contactAreaScale > GPU_R(1.0))
     {
         asm("trap;");
     }
     const bool finiteContact =
         s.pStuck[i] == Foam::gpuThermal::particleWallTransientRebound
      || s.pStuck[i] == Foam::gpuThermal::particleWallTransientDeposit;
-    const double contactAge = finiteContact ? s.pTheta[i] : 0.0;
+    const GpuTime contactAge = finiteContact ? s.pContactAge[i] : GpuTime(0);
     Foam::gpuThermal::CapillaryContactDamageResult damage;
-    double accumulatedDamageArea = 0.0;
+    GpuReal accumulatedDamageArea = GPU_R(0.0);
     if (finiteContact)
     {
-        const double duration = static_cast<double>(s.pContactDuration[i]);
-        const double maximumArea = static_cast<double>(s.pContactMaximumArea[i]);
-        const double peakTimeFraction =
-            static_cast<double>(s.pContactPeakFraction[i]);
-        const double oldDamage = static_cast<double>(s.pDepositionArea[i]);
-        const double kinematicArea =
+        const GpuTime duration = static_cast<GpuTime>(s.pContactDuration[i]);
+        const GpuReal maximumArea = static_cast<GpuReal>(s.pContactMaximumArea[i]);
+        const GpuReal peakTimeFraction =
+            static_cast<GpuReal>(s.pContactPeakFraction[i]);
+        const GpuReal oldDamage = static_cast<GpuReal>(s.pDepositionArea[i]);
+        const GpuReal kinematicArea =
             maximumArea*Foam::gpuThermal::normalizedKinematicArea
             (
                 contactAge/duration, peakTimeFraction
             );
         const unsigned char interactionType =
             s.particleStuckCandidateMask[faceI];
-        const double frozenArea =
+        const GpuReal frozenArea =
             interactionType
          == Foam::gpuThermal::particleWallSolidifyingDeposition
-          ? static_cast<double>(s.pColdFrozenArea[i])
+          ? static_cast<GpuReal>(s.pColdFrozenArea[i])
           : interactionType == Foam::gpuThermal::particleWallColdWall2D
-          ? static_cast<double>(s.pCold2DFrozenArea[i])
-          : 0.0;
-        const double remainingArea =
+          ? static_cast<GpuReal>(s.pCold2DFrozenArea[i])
+          : GPU_R(0.0);
+        const GpuReal remainingArea =
             fmax(kinematicArea, frozenArea) - oldDamage;
-        const double adhesionSpecificEnergyPerArea =
+        const GpuReal adhesionSpecificEnergyPerArea =
             capillary.adhesionSpecificEnergyJkg
            /capillary.equilibriumContactAreaM2;
-        const double requiredEnergy =
+        const GpuReal requiredEnergy =
             contactAreaScale*adhesionSpecificEnergyPerArea
-           *clampMin(remainingArea, 0.0);
+           *clampMin(remainingArea, GPU_R(0.0));
         if
         (
-            !(duration > 0.0) || !(maximumArea > 0.0)
-         || !(peakTimeFraction > 0.0) || !(peakTimeFraction < 1.0)
-         || oldDamage < 0.0 || !(adhesionSpecificEnergyPerArea > 0.0)
+            !(duration > GPU_R(0.0)) || !(maximumArea > GPU_R(0.0))
+         || !(peakTimeFraction > GPU_R(0.0)) || !(peakTimeFraction < GPU_R(1.0))
+         || oldDamage < GPU_R(0.0) || !(adhesionSpecificEnergyPerArea > GPU_R(0.0))
         )
         {
             asm("trap;");
         }
         if (sampledSpecificEnergy >= requiredEnergy)
         {
-            const double residual = sampledSpecificEnergy - requiredEnergy;
-            damage = {finiteDevice(residual), true, 0.0, residual};
+            const GpuReal residual = sampledSpecificEnergy - requiredEnergy;
+            damage = {finiteDevice(residual), true, GPU_R(0.0), residual};
         }
         else
         {
-            const double consumedArea =
+            const GpuReal consumedArea =
                 sampledSpecificEnergy
                /(contactAreaScale*adhesionSpecificEnergyPerArea);
             accumulatedDamageArea = oldDamage + consumedArea;
@@ -10760,14 +11136,14 @@ __device__ void finalizeOneThermalizedStuckParticle
                 finiteDevice(accumulatedDamageArea),
                 false,
                 remainingArea - consumedArea,
-                0.0
+                GPU_R(0.0)
             };
         }
     }
     else
     {
-        const double currentContactAreaM2 =
-            static_cast<double>(s.pDepositionArea[i]);
+        const GpuReal currentContactAreaM2 =
+            static_cast<GpuReal>(s.pDepositionArea[i]);
         damage = Foam::gpuThermal::applyCapillaryContactDamage
         (
             capillary,
@@ -10780,47 +11156,48 @@ __device__ void finalizeOneThermalizedStuckParticle
     (
         !damage.valid
      || nonFiniteDevice(sampledSpecificEnergy)
-     || sampledSpecificEnergy < 0.0
+     || sampledSpecificEnergy < GPU_R(0.0)
     )
     {
         asm("trap;");
     }
 
-    s.pTheta[i] = finiteContact ? contactAge : 0.0;
+    s.pContactAge[i] = finiteContact ? contactAge : GpuTime(0);
+    s.pTheta[i] = GPU_R(0.0);
     if (damage.detached)
     {
-        const double area = s.magSf[faceI];
-        if (!(area > 0.0) || nonFiniteDevice(area))
+        const GpuReal area = s.magSf[faceI];
+        if (!(area > GPU_R(0.0)) || nonFiniteDevice(area))
         {
             asm("trap;");
         }
-        const double fluctuationScale =
-            sampledSpecificEnergy > 0.0
+        const GpuReal fluctuationScale =
+            sampledSpecificEnergy > GPU_R(0.0)
           ? sqrt
             (
                 clampRange
                 (
                     damage.residualSpecificEnergyJkg/sampledSpecificEnergy,
-                    0.0,
-                    1.0
+                    GPU_R(0.0),
+                    GPU_R(1.0)
                 )
             )
-          : 0.0;
-        const double outwardNx = s.Sfx[faceI]/area;
-        const double outwardNy = s.Sfy[faceI]/area;
-        const double outwardNz = s.Sfz[faceI]/area;
-        double releaseUx = poolMeanUx + fluctuationScale*fluctuationUx;
-        double releaseUy = poolMeanUy + fluctuationScale*fluctuationUy;
-        double releaseUz = poolMeanUz + fluctuationScale*fluctuationUz;
-        const double relativeNormal =
+          : GPU_R(0.0);
+        const GpuReal outwardNx = s.Sfx[faceI]/area;
+        const GpuReal outwardNy = s.Sfy[faceI]/area;
+        const GpuReal outwardNz = s.Sfz[faceI]/area;
+        GpuReal releaseUx = poolMeanUx + fluctuationScale*fluctuationUx;
+        GpuReal releaseUy = poolMeanUy + fluctuationScale*fluctuationUy;
+        GpuReal releaseUz = poolMeanUz + fluctuationScale*fluctuationUz;
+        const GpuReal relativeNormal =
             (releaseUx - wallUx)*outwardNx
           + (releaseUy - wallUy)*outwardNy
           + (releaseUz - wallUz)*outwardNz;
-        if (relativeNormal > 0.0)
+        if (relativeNormal > GPU_R(0.0))
         {
-            releaseUx -= 2.0*relativeNormal*outwardNx;
-            releaseUy -= 2.0*relativeNormal*outwardNy;
-            releaseUz -= 2.0*relativeNormal*outwardNz;
+            releaseUx -= GPU_R(2.0)*relativeNormal*outwardNx;
+            releaseUy -= GPU_R(2.0)*relativeNormal*outwardNy;
+            releaseUz -= GPU_R(2.0)*relativeNormal*outwardNz;
         }
         s.pux[i] = releaseUx;
         s.puy[i] = releaseUy;
@@ -10841,15 +11218,15 @@ __device__ void finalizeOneThermalizedStuckParticle
     {
         if
         (
-            !(damage.remainingContactAreaM2 > 0.0)
-         || damage.remainingContactAreaM2 > static_cast<double>(FLT_MAX)
+            !(damage.remainingContactAreaM2 > GPU_R(0.0))
+         || damage.remainingContactAreaM2 > static_cast<GpuReal>(FLT_MAX)
         )
         {
             asm("trap;");
         }
-        s.pux[i] = 0.0;
-        s.puy[i] = 0.0;
-        s.puz[i] = 0.0;
+        s.pux[i] = GPU_R(0.0);
+        s.puy[i] = GPU_R(0.0);
+        s.puz[i] = GPU_R(0.0);
         if (finiteContact)
         {
             s.pDepositionArea[i] =
@@ -10857,9 +11234,9 @@ __device__ void finalizeOneThermalizedStuckParticle
         }
         else
         {
-            s.puxOld[i] = 0.0;
-            s.puyOld[i] = 0.0;
-            s.puzOld[i] = 0.0;
+            s.puxOld[i] = GPU_R(0.0);
+            s.puyOld[i] = GPU_R(0.0);
+            s.puzOld[i] = GPU_R(0.0);
             s.pDepositionArea[i] =
                 static_cast<float>(damage.remainingContactAreaM2);
         }
@@ -10872,12 +11249,12 @@ __device__ void finalizeOneThermalizedParticlePath
 (
     DeviceState& s,
     const int i,
-    const double candidateUx,
-    const double candidateUy,
-    const double candidateUz,
-    const double poolMeanUx,
-    const double poolMeanUy,
-    const double poolMeanUz
+    const GpuReal candidateUx,
+    const GpuReal candidateUy,
+    const GpuReal candidateUz,
+    const GpuReal poolMeanUx,
+    const GpuReal poolMeanUy,
+    const GpuReal poolMeanUz
 )
 {
     if (StuckPath)
@@ -10950,47 +11327,47 @@ __device__ void correctOnePoissonThermalizedParticlePath
     }
 
     const int n = s.poissonPoolSampleTargetCount[c];
-    const double poolMass = clampMin(s.poissonPoolMass[c], 0.0);
-    if (n <= 0 || poolMass <= 0.0)
+    const GpuReal poolMass = clampMin(s.poissonPoolMass[c], GPU_R(0.0));
+    if (n <= 0 || poolMass <= GPU_R(0.0))
     {
         return;
     }
 
-    const double targetUx = s.poissonPoolMomX[c]/poolMass;
-    const double targetUy = s.poissonPoolMomY[c]/poolMass;
-    const double targetUz = s.poissonPoolMomZ[c]/poolMass;
-    const double targetMean2 = sqr3(targetUx, targetUy, targetUz);
-    const double targetThetaRaw =
-        clampMin(s.poissonPoolEnergy[c]/poolMass - 0.5*targetMean2, 0.0)/1.5;
-    const double meanParticleMass = poolMass/static_cast<double>(n);
-    const double sampleMeanDeltaX = s.poolThermalSumUx[c]/poolMass;
-    const double sampleMeanDeltaY = s.poolThermalSumUy[c]/poolMass;
-    const double sampleMeanDeltaZ = s.poolThermalSumUz[c]/poolMass;
-    const double sampleMeanDelta2 = sqr3
+    const GpuReal targetUx = s.poissonPoolMomX[c]/poolMass;
+    const GpuReal targetUy = s.poissonPoolMomY[c]/poolMass;
+    const GpuReal targetUz = s.poissonPoolMomZ[c]/poolMass;
+    const GpuReal targetMean2 = sqr3(targetUx, targetUy, targetUz);
+    const GpuReal targetThetaRaw =
+        clampMin(s.poissonPoolEnergy[c]/poolMass - GPU_R(0.5)*targetMean2, GPU_R(0.0))/GPU_R(1.5);
+    const GpuReal meanParticleMass = poolMass/static_cast<GpuReal>(n);
+    const GpuReal sampleMeanDeltaX = s.poolThermalSumUx[c]/poolMass;
+    const GpuReal sampleMeanDeltaY = s.poolThermalSumUy[c]/poolMass;
+    const GpuReal sampleMeanDeltaZ = s.poolThermalSumUz[c]/poolMass;
+    const GpuReal sampleMeanDelta2 = sqr3
     (
         sampleMeanDeltaX,
         sampleMeanDeltaY,
         sampleMeanDeltaZ
     );
-    const double sampleFluctuationEnergy = 0.5*clampMin
+    const GpuReal sampleFluctuationEnergy = GPU_R(0.5)*clampMin
     (
         s.poolThermalSumU2[c] - poolMass*sampleMeanDelta2,
-        0.0
+        GPU_R(0.0)
     );
 
-    double targetTheta = targetThetaRaw;
+    GpuReal targetTheta = targetThetaRaw;
 
     if (applyThetaDrag)
     {
-        const double alphaTheta =
-            clampRange(finiteOr(s.thetaDragAlpha[c], 1.0), 0.0, 1.0);
+        const GpuReal alphaTheta =
+            clampRange(finiteOr(s.thetaDragAlpha[c], GPU_R(1.0)), GPU_R(0.0), GPU_R(1.0));
 
         targetTheta *= alphaTheta;
     }
 
-    const double targetRandomEnergy = 1.5*poolMass*targetTheta;
+    const GpuReal targetRandomEnergy = GPU_R(1.5)*poolMass*targetTheta;
 
-    if (targetRandomEnergy <= 0.0)
+    if (targetRandomEnergy <= GPU_R(0.0))
     {
         finalizeOneThermalizedParticlePath<StuckPath>
         (
@@ -11026,13 +11403,13 @@ __device__ void correctOnePoissonThermalizedParticlePath
         return;
     }
 
-    double scale = 1.0;
+    GpuReal scale = GPU_R(1.0);
     scale = sqrt(targetRandomEnergy/sampleFluctuationEnergy);
-    const double correctedUx = targetUx + scale*
+    const GpuReal correctedUx = targetUx + scale*
         ((s.pux[i] - targetUx) - sampleMeanDeltaX);
-    const double correctedUy = targetUy + scale*
+    const GpuReal correctedUy = targetUy + scale*
         ((s.puy[i] - targetUy) - sampleMeanDeltaY);
-    const double correctedUz = targetUz + scale*
+    const GpuReal correctedUz = targetUz + scale*
         ((s.puz[i] - targetUz) - sampleMeanDeltaZ);
     if
     (
@@ -11139,7 +11516,7 @@ __global__ void correctPoissonThermalizedStuckParticlesKernel
 }
 
 template<int BlockSize>
-__global__ void gatherCellLocalParticlesKernel(DeviceState* sp)
+__global__ void indexCellLocalParticlesKernel(DeviceState* sp)
 {
     DeviceState& s = *sp;
     const int c = blockIdx.x;
@@ -11173,85 +11550,116 @@ __global__ void gatherCellLocalParticlesKernel(DeviceState* sp)
         if (keep != 0)
         {
             const int dst = outputStart + tileOutputOffset + localOffset;
-            s.compactPx[dst] = s.px[i];
-            s.compactPy[dst] = s.py[i];
-            s.compactPz[dst] = s.pz[i];
-            s.compactPux[dst] = s.pux[i];
-            s.compactPuy[dst] = s.puy[i];
-            s.compactPuz[dst] = s.puz[i];
-            s.compactPT[dst] = s.pT[i];
-            s.compactPTheta[dst] = s.pTheta[i];
-            s.compactPd[dst] = s.pd[i];
-            s.compactPm[dst] = s.pm[i];
-            s.compactPCellId[dst] = c;
-            s.compactPStatus[dst] = 1;
-            s.compactPStuck[dst] = s.pStuck[i];
-            s.compactPStuckFaceId[dst] = s.pStuckFaceId[i];
-            s.compactPDepositionArea[dst] = s.pDepositionArea[i];
-            s.compactPContactDuration[dst] = s.pContactDuration[i];
-            s.compactPContactMaximumArea[dst] = s.pContactMaximumArea[i];
-            s.compactPContactPeakFraction[dst] = s.pContactPeakFraction[i];
-            if (s.coldWallSolidificationEnabled != 0)
-            {
-                for (int node = 0; node < Foam::gpuThermal::coldWallAxialNodeCount; ++node)
-                {
-                    s.compactPColdNodeSpecificEnthalpy
-                    [dst*Foam::gpuThermal::coldWallAxialNodeCount + node] =
-                        s.pColdNodeSpecificEnthalpy
-                        [i*Foam::gpuThermal::coldWallAxialNodeCount + node];
-                }
-                for (int ring = 0; ring < Foam::gpuThermal::coldWallRadialRingCount; ++ring)
-                {
-                    s.compactPColdRingSolidMass
-                    [dst*Foam::gpuThermal::coldWallRadialRingCount + ring] =
-                        s.pColdRingSolidMass
-                        [i*Foam::gpuThermal::coldWallRadialRingCount + ring];
-                }
-                s.compactPColdFrozenArea[dst] = s.pColdFrozenArea[i];
-                s.compactPColdContactAge[dst] = s.pColdContactAge[i];
-            }
-            if (s.coldWall2DEnabled != 0)
-            {
-                for
-                (
-                    int node = 0;
-                    node < Foam::gpuThermal::coldWall2DNodeCount;
-                    ++node
-                )
-                {
-                    s.compactPCold2DNodeSpecificEnthalpy
-                    [dst*Foam::gpuThermal::coldWall2DNodeCount + node] =
-                        s.pCold2DNodeSpecificEnthalpy
-                        [i*Foam::gpuThermal::coldWall2DNodeCount + node];
-                }
-                for
-                (
-                    int ring = 0;
-                    ring < Foam::gpuThermal::coldWall2DRadialNodeCount;
-                    ++ring
-                )
-                {
-                    s.compactPCold2DRingContactAge
-                    [dst*Foam::gpuThermal::coldWall2DRadialNodeCount + ring] =
-                        s.pCold2DRingContactAge
-                        [i*Foam::gpuThermal::coldWall2DRadialNodeCount + ring];
-                }
-                s.compactPCold2DFrozenArea[dst] = s.pCold2DFrozenArea[i];
-            }
-            s.compactPRng[dst] = s.pRng[i];
-            s.compactPOrigId[dst] = s.pOrigId[i];
-            if
-            (
-                s.compactPStuck[dst]
-             != Foam::gpuThermal::particleWallMobile
-            )
-            {
-                Foam::gpuWall::publishWallBoundParticleIndex(s, dst);
-            }
+
+            s.compactPStatus[dst] = i;
         }
 
         tileOutputOffset += tileCount;
         __syncthreads();
+    }
+}
+
+
+
+__global__ void gatherCellLocalParticlePayloadKernel(DeviceState* sp)
+{
+    DeviceState& s = *sp;
+    const int count = s.compactCellOffset[s.nCells];
+    for (int dst = blockIdx.x*blockDim.x + threadIdx.x;
+         dst < count; dst += gridDim.x*blockDim.x)
+    {
+        const int i = s.compactPStatus[dst];
+        if (i < 0 || i >= s.particleCapacity || s.pStatus[i] != 1)
+        {
+            asm("trap;");
+        }
+        const int c = s.pCellId[i];
+        s.compactPx[dst] = s.px[i];
+        s.compactPy[dst] = s.py[i];
+        s.compactPz[dst] = s.pz[i];
+        s.compactPux[dst] = s.pux[i];
+        s.compactPuy[dst] = s.puy[i];
+        s.compactPuz[dst] = s.puz[i];
+        s.compactPT[dst] = s.pT[i];
+        s.compactPTheta[dst] = s.pTheta[i];
+        s.compactPContactAge[dst] = s.pContactAge[i];
+        s.compactPd[dst] = s.pd[i];
+        s.compactPm[dst] = s.pm[i];
+        s.compactPCellId[dst] = c;
+        s.compactPStatus[dst] = 1;
+        s.compactPStuck[dst] = s.pStuck[i];
+        s.compactPStuckFaceId[dst] = s.pStuckFaceId[i];
+        s.compactPDepositionArea[dst] = s.pDepositionArea[i];
+        s.compactPContactDuration[dst] = s.pContactDuration[i];
+        s.compactPContactMaximumArea[dst] = s.pContactMaximumArea[i];
+        s.compactPContactPeakFraction[dst] = s.pContactPeakFraction[i];
+        if (s.coldWallSolidificationEnabled != 0)
+        {
+            static_assert(Foam::gpuThermal::coldWallAxialNodeCount % 4 == 0,
+                "cold-wall node stride must preserve float4 alignment");
+            static_assert(Foam::gpuThermal::coldWallRadialRingCount % 4 == 0,
+                "cold-wall ring stride must preserve float4 alignment");
+
+
+            const int nodeVectors = Foam::gpuThermal::coldWallAxialNodeCount/4;
+            const int ringVectors = Foam::gpuThermal::coldWallRadialRingCount/4;
+            #pragma unroll
+            for (int node = 0; node < nodeVectors; ++node)
+            {
+                reinterpret_cast<float4*>(s.compactPColdNodeSpecificEnthalpy)
+                    [dst*nodeVectors + node] =
+                reinterpret_cast<const float4*>(s.pColdNodeSpecificEnthalpy)
+                    [i*nodeVectors + node];
+            }
+            #pragma unroll
+            for (int ring = 0; ring < ringVectors; ++ring)
+            {
+                reinterpret_cast<float4*>(s.compactPColdRingSolidMass)
+                    [dst*ringVectors + ring] =
+                reinterpret_cast<const float4*>(s.pColdRingSolidMass)
+                    [i*ringVectors + ring];
+            }
+            s.compactPColdFrozenArea[dst] = s.pColdFrozenArea[i];
+            s.compactPColdContactAge[dst] = s.pColdContactAge[i];
+        }
+        if (s.coldWall2DEnabled != 0)
+        {
+            for
+            (
+                int node = 0;
+                node < Foam::gpuThermal::coldWall2DNodeCount;
+                ++node
+            )
+            {
+                s.compactPCold2DNodeSpecificEnthalpy
+                [dst*Foam::gpuThermal::coldWall2DNodeCount + node] =
+                    s.pCold2DNodeSpecificEnthalpy
+                    [i*Foam::gpuThermal::coldWall2DNodeCount + node];
+            }
+            for
+            (
+                int ring = 0;
+                ring < Foam::gpuThermal::coldWall2DRadialNodeCount;
+                ++ring
+            )
+            {
+                s.compactPCold2DRingContactAge
+                [dst*Foam::gpuThermal::coldWall2DRadialNodeCount + ring] =
+                    s.pCold2DRingContactAge
+                    [i*Foam::gpuThermal::coldWall2DRadialNodeCount + ring];
+            }
+            s.compactPCold2DFrozenArea[dst] = s.pCold2DFrozenArea[i];
+        }
+        s.compactPRng[dst] = s.pRng[i];
+        s.compactPOrigId[dst] = s.pOrigId[i];
+        if
+        (
+            s.compactPStuck[dst]
+         != Foam::gpuThermal::particleWallMobile
+        )
+        {
+            Foam::gpuWall::publishWallBoundParticleIndex(s, dst);
+        }
     }
 }
 
@@ -11291,6 +11699,7 @@ __global__ void gatherSelectedParticlesKernel(DeviceState* sp)
         s.compactPuz[dst] = s.puz[i];
         s.compactPT[dst] = s.pT[i];
         s.compactPTheta[dst] = s.pTheta[i];
+        s.compactPContactAge[dst] = s.pContactAge[i];
         s.compactPd[dst] = s.pd[i];
         s.compactPm[dst] = s.pm[i];
         s.compactPCellId[dst] = c;
@@ -11391,6 +11800,7 @@ __global__ void commitCellLocalParticleBuffersKernel(DeviceState* sp)
     swapParticlePointerDevice(s.puz, s.compactPuz);
     swapParticlePointerDevice(s.pT, s.compactPT);
     swapParticlePointerDevice(s.pTheta, s.compactPTheta);
+    swapParticlePointerDevice(s.pContactAge, s.compactPContactAge);
     swapParticlePointerDevice(s.pd, s.compactPd);
     swapParticlePointerDevice(s.pm, s.compactPm);
     swapParticlePointerDevice(s.pCellId, s.compactPCellId);
@@ -11438,6 +11848,7 @@ __global__ void commitSelectedParticleBuffersKernel(DeviceState* sp)
     swapParticlePointerDevice(s.puz, s.compactPuz);
     swapParticlePointerDevice(s.pT, s.compactPT);
     swapParticlePointerDevice(s.pTheta, s.compactPTheta);
+    swapParticlePointerDevice(s.pContactAge, s.compactPContactAge);
     swapParticlePointerDevice(s.pd, s.compactPd);
     swapParticlePointerDevice(s.pm, s.compactPm);
     swapParticlePointerDevice(s.pCellId, s.compactPCellId);
@@ -11483,6 +11894,7 @@ void swapParticleBufferPointersHost(DeviceState* s)
     swapParticlePointerHost(s->puz, s->compactPuz);
     swapParticlePointerHost(s->pT, s->compactPT);
     swapParticlePointerHost(s->pTheta, s->compactPTheta);
+    swapParticlePointerHost(s->pContactAge, s->compactPContactAge);
     swapParticlePointerHost(s->pd, s->compactPd);
     swapParticlePointerHost(s->pm, s->compactPm);
     swapParticlePointerHost(s->pCellId, s->compactPCellId);
@@ -11523,13 +11935,13 @@ __global__ void clearParticleMomentsAndCountsAtomicKernel(DeviceState* sp)
     {
         return;
     }
-    s.momRhoP[c] = 0.0;
-    s.momRhoUPx[c] = 0.0;
-    s.momRhoUPy[c] = 0.0;
-    s.momRhoUPz[c] = 0.0;
-    s.momRhoEP[c] = 0.0;
-    s.momRhoPD[c] = 0.0;
-    s.momRhoHpP[c] = 0.0;
+    s.momRhoP[c] = GPU_R(0.0);
+    s.momRhoUPx[c] = GPU_R(0.0);
+    s.momRhoUPy[c] = GPU_R(0.0);
+    s.momRhoUPz[c] = GPU_R(0.0);
+    s.momRhoEP[c] = GPU_R(0.0);
+    s.momRhoPD[c] = GPU_R(0.0);
+    s.momRhoHpP[c] = GPU_R(0.0);
 }
 
 __global__ void accumulateParticleMomentsAtomicKernel(DeviceState* sp)
@@ -11553,18 +11965,18 @@ __global__ void accumulateParticleMomentsAtomicKernel(DeviceState* sp)
         {
             continue;
         }
-        const double m = clampMin(finiteOr(s.pm[i], 0.0), 0.0);
-        const double ux = finiteOr(s.pux[i], 0.0);
-        const double uy = finiteOr(s.puy[i], 0.0);
-        const double uz = finiteOr(s.puz[i], 0.0);
-        const double theta = particleMomentThetaDevice(s, i);
-        const double d =
+        const GpuReal m = clampMin(finiteOr(s.pm[i], GPU_R(0.0)), GPU_R(0.0));
+        const GpuReal ux = finiteOr(s.pux[i], GPU_R(0.0));
+        const GpuReal uy = finiteOr(s.puy[i], GPU_R(0.0));
+        const GpuReal uz = finiteOr(s.puz[i], GPU_R(0.0));
+        const GpuReal theta = particleMomentThetaDevice(s, i);
+        const GpuReal d =
             clampMin
             (
                 finiteOr(s.pd[i], s.particleDiameterFallback),
-                1.0e-12
+                GPU_R(1.0e-12)
             );
-        const double tp =
+        const GpuReal tp =
             clampRange(finiteOr(s.pT[i], s.TpMin), s.TpMin, s.TpMax);
         atomicAdd(&s.momRhoP[c], m);
         atomicAdd(&s.momRhoUPx[c], m*ux);
@@ -11573,7 +11985,7 @@ __global__ void accumulateParticleMomentsAtomicKernel(DeviceState* sp)
         atomicAdd
         (
             &s.momRhoEP[c],
-            m*(0.5*sqr3(ux, uy, uz) + 1.5*theta)
+            m*(GPU_R(0.5)*sqr3(ux, uy, uz) + GPU_R(1.5)*theta)
         );
         atomicAdd(&s.momRhoPD[c], m*d);
         atomicAdd(&s.momRhoHpP[c], m*particleSpecificEnthalpyDevice(tp));
@@ -11589,7 +12001,7 @@ __global__ void normalizeParticleMomentsAtomicKernel(DeviceState* sp)
     {
         return;
     }
-    const double invV = 1.0/clampMin(s.V[c], s.rhoMin);
+    const GpuReal invV = GPU_R(1.0)/clampMin(s.V[c], s.rhoMin);
     s.momRhoP[c] *= invV;
     s.momRhoUPx[c] *= invV;
     s.momRhoUPy[c] *= invV;
@@ -11615,13 +12027,13 @@ __global__ void accumulateParticleMomentsSegmentedKernel(DeviceState* sp)
         return;
     }
 
-    double rho = 0.0;
-    double momX = 0.0;
-    double momY = 0.0;
-    double momZ = 0.0;
-    double energy = 0.0;
-    double diameter = 0.0;
-    double heat = 0.0;
+    GpuReal rho = GPU_R(0.0);
+    GpuReal momX = GPU_R(0.0);
+    GpuReal momY = GPU_R(0.0);
+    GpuReal momZ = GPU_R(0.0);
+    GpuReal energy = GPU_R(0.0);
+    GpuReal diameter = GPU_R(0.0);
+    GpuReal heat = GPU_R(0.0);
     int survivorCount = 0;
 
     for (int pos = start + threadIdx.x; pos < end; pos += blockDim.x)
@@ -11638,18 +12050,18 @@ __global__ void accumulateParticleMomentsSegmentedKernel(DeviceState* sp)
             continue;
         }
 
-        const double m = clampMin(finiteOr(s.pm[i], 0.0), 0.0);
-        const double ux = finiteOr(s.pux[i], 0.0);
-        const double uy = finiteOr(s.puy[i], 0.0);
-        const double uz = finiteOr(s.puz[i], 0.0);
-        const double theta = particleMomentThetaDevice(s, i);
-        const double d =
+        const GpuReal m = clampMin(finiteOr(s.pm[i], GPU_R(0.0)), GPU_R(0.0));
+        const GpuReal ux = finiteOr(s.pux[i], GPU_R(0.0));
+        const GpuReal uy = finiteOr(s.puy[i], GPU_R(0.0));
+        const GpuReal uz = finiteOr(s.puz[i], GPU_R(0.0));
+        const GpuReal theta = particleMomentThetaDevice(s, i);
+        const GpuReal d =
             clampMin
             (
                 finiteOr(s.pd[i], s.particleDiameterFallback),
-                1.0e-12
+                GPU_R(1.0e-12)
             );
-        const double tp =
+        const GpuReal tp =
             clampRange
             (
                 finiteOr(s.pT[i], s.TpMin),
@@ -11660,13 +12072,13 @@ __global__ void accumulateParticleMomentsSegmentedKernel(DeviceState* sp)
         momX += m*ux;
         momY += m*uy;
         momZ += m*uz;
-        energy += m*(0.5*sqr3(ux, uy, uz) + 1.5*theta);
+        energy += m*(GPU_R(0.5)*sqr3(ux, uy, uz) + GPU_R(1.5)*theta);
         diameter += m*d;
         heat += m*particleSpecificEnthalpyDevice(tp);
         ++survivorCount;
     }
 
-    double sums[8] =
+    GpuReal sums[8] =
     {
         rho,
         momX,
@@ -11675,9 +12087,9 @@ __global__ void accumulateParticleMomentsSegmentedKernel(DeviceState* sp)
         energy,
         diameter,
         heat,
-        static_cast<double>(survivorCount)
+        static_cast<GpuReal>(survivorCount)
     };
-    extern __shared__ double warpPartials[];
+    extern __shared__ GpuReal warpPartials[];
     blockReduceComponentSums<8>(sums, warpPartials);
 
     if (threadIdx.x == 0)
@@ -11687,7 +12099,7 @@ __global__ void accumulateParticleMomentsSegmentedKernel(DeviceState* sp)
         {
             s.cellParticleCount[s.nCells] = 0;
         }
-        const double invV = 1.0/clampMin(s.V[c], s.rhoMin);
+        const GpuReal invV = GPU_R(1.0)/clampMin(s.V[c], s.rhoMin);
         s.momRhoP[c] = sums[0]*invV;
         s.momRhoUPx[c] = sums[1]*invV;
         s.momRhoUPy[c] = sums[2]*invV;
@@ -11704,18 +12116,18 @@ __device__ void accumulateCsrHeavyMomentTask
     const int c,
     const int begin,
     const int end,
-    double (&sums)[8],
-    double* warpPartials
+    GpuReal (&sums)[8],
+    GpuReal* warpPartials
 )
 {
-    double rho = 0.0;
-    double momX = 0.0;
-    double momY = 0.0;
-    double momZ = 0.0;
-    double energy = 0.0;
-    double diameter = 0.0;
-    double heat = 0.0;
-    double count = 0.0;
+    GpuReal rho = GPU_R(0.0);
+    GpuReal momX = GPU_R(0.0);
+    GpuReal momY = GPU_R(0.0);
+    GpuReal momZ = GPU_R(0.0);
+    GpuReal energy = GPU_R(0.0);
+    GpuReal diameter = GPU_R(0.0);
+    GpuReal heat = GPU_R(0.0);
+    GpuReal count = GPU_R(0.0);
 
     for (int pos = begin + threadIdx.x; pos < end; pos += blockDim.x)
     {
@@ -11731,18 +12143,18 @@ __device__ void accumulateCsrHeavyMomentTask
             continue;
         }
 
-        const double m = clampMin(finiteOr(s.pm[i], 0.0), 0.0);
-        const double ux = finiteOr(s.pux[i], 0.0);
-        const double uy = finiteOr(s.puy[i], 0.0);
-        const double uz = finiteOr(s.puz[i], 0.0);
-        const double theta = particleMomentThetaDevice(s, i);
-        const double d =
+        const GpuReal m = clampMin(finiteOr(s.pm[i], GPU_R(0.0)), GPU_R(0.0));
+        const GpuReal ux = finiteOr(s.pux[i], GPU_R(0.0));
+        const GpuReal uy = finiteOr(s.puy[i], GPU_R(0.0));
+        const GpuReal uz = finiteOr(s.puz[i], GPU_R(0.0));
+        const GpuReal theta = particleMomentThetaDevice(s, i);
+        const GpuReal d =
             clampMin
             (
                 finiteOr(s.pd[i], s.particleDiameterFallback),
-                1.0e-12
+                GPU_R(1.0e-12)
             );
-        const double tp =
+        const GpuReal tp =
             clampRange
             (
                 finiteOr(s.pT[i], s.TpMin),
@@ -11753,10 +12165,10 @@ __device__ void accumulateCsrHeavyMomentTask
         momX += m*ux;
         momY += m*uy;
         momZ += m*uz;
-        energy += m*(0.5*sqr3(ux, uy, uz) + 1.5*theta);
+        energy += m*(GPU_R(0.5)*sqr3(ux, uy, uz) + GPU_R(1.5)*theta);
         diameter += m*d;
         heat += m*particleSpecificEnthalpyDevice(tp);
-        count += 1.0;
+        count += GPU_R(1.0);
     }
 
     sums[0] = rho;
@@ -11774,7 +12186,7 @@ __global__ void accumulateCsrHeavyMomentTasksPersistentKernel(DeviceState* sp)
 {
     DeviceState& s = *sp;
     __shared__ int task;
-    extern __shared__ double warpPartials[];
+    extern __shared__ GpuReal warpPartials[];
 
     for (;;)
     {
@@ -11789,7 +12201,7 @@ __global__ void accumulateCsrHeavyMomentTasksPersistentKernel(DeviceState* sp)
         }
 
         const int c = s.csrHeavyTaskCell[task];
-        double sums[8];
+        GpuReal sums[8];
         accumulateCsrHeavyMomentTask
         (
             s,
@@ -11819,7 +12231,7 @@ __global__ void finalizeCsrHeavyMomentCellsKernel(DeviceState* sp)
 {
     DeviceState& s = *sp;
     __shared__ int heavyCellIndex;
-    extern __shared__ double warpPartials[];
+    extern __shared__ GpuReal warpPartials[];
     for (;;)
     {
         if (threadIdx.x == 0)
@@ -11833,7 +12245,7 @@ __global__ void finalizeCsrHeavyMomentCellsKernel(DeviceState* sp)
         }
 
         const int c = s.csrHeavyCellList[heavyCellIndex];
-        double sums[8] = {0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
+        GpuReal sums[8] = {GPU_R(0.0), GPU_R(0.0), GPU_R(0.0), GPU_R(0.0), GPU_R(0.0), GPU_R(0.0), GPU_R(0.0), GPU_R(0.0)};
         const int firstTask = s.csrHeavyCellTaskStart[c];
         const int nTasks = s.csrHeavyCellTaskCount[c];
         for
@@ -11864,7 +12276,7 @@ __global__ void finalizeCsrHeavyMomentCellsKernel(DeviceState* sp)
             {
                 s.cellParticleCount[s.nCells] = 0;
             }
-            const double invV = 1.0/clampMin(s.V[c], s.rhoMin);
+            const GpuReal invV = GPU_R(1.0)/clampMin(s.V[c], s.rhoMin);
             s.momRhoP[c] = sums[0]*invV;
             s.momRhoUPx[c] = sums[1]*invV;
             s.momRhoUPy[c] = sums[2]*invV;
@@ -11896,7 +12308,7 @@ int launchCsrHeavyMomentReduction(DeviceState* s, const int block)
     }
     const int warpCount = (block + 31)/32;
     const size_t sharedBytes =
-        8u*static_cast<size_t>(warpCount)*sizeof(double);
+        8u*static_cast<size_t>(warpCount)*sizeof(GpuReal);
     accumulateCsrHeavyMomentTasksPersistentKernel
         <<<s->csrHeavyWorkerGrid, block, sharedBytes>>>(s->deviceState);
     err = cudaGetLastError();
@@ -12532,9 +12944,9 @@ int configureLaunchOccupancy(DeviceState* s)
     const int block = s->reductionBlockThreads;
     const int warpCount = (block + 31)/32;
     const size_t poolSharedBytes =
-        8u*static_cast<size_t>(block)*sizeof(double);
+        8u*static_cast<size_t>(block)*sizeof(GpuReal);
     const size_t momentSharedBytes =
-        8u*static_cast<size_t>(warpCount)*sizeof(double);
+        8u*static_cast<size_t>(warpCount)*sizeof(GpuReal);
     cudaError_t err = cudaSuccess;
     if (s->csrHeavyReductionEnabled != 0)
     {
@@ -13079,7 +13491,7 @@ int rebuildResidentParticleMomentsFromParticles
             }
 
             const size_t momentSharedBytes =
-                8u*static_cast<size_t>(warpCount)*sizeof(double);
+                8u*static_cast<size_t>(warpCount)*sizeof(GpuReal);
 
             accumulateParticleMomentsSegmentedKernel
                 <<<s->nCells, block, momentSharedBytes>>>
@@ -13203,19 +13615,19 @@ __global__ void solidRecoveryFromParticleMomentsKernel(DeviceState* sp)
         return;
     }
 
-    const double rhoP = clampMin(finiteOr(s.momRhoP[c], 0.0), 0.0);
+    const GpuReal rhoP = clampMin(finiteOr(s.momRhoP[c], GPU_R(0.0)), GPU_R(0.0));
     if (rhoP <= s.epsSMin*s.rhoSolid)
     {
         clearSolidCell(s, c);
         return;
     }
 
-    const double totalMomX = finiteOr(s.momRhoUPx[c], 0.0);
-    const double totalMomY = finiteOr(s.momRhoUPy[c], 0.0);
-    const double totalMomZ = finiteOr(s.momRhoUPz[c], 0.0);
-    double totalEnergy = clampMin(finiteOr(s.momRhoEP[c], 0.0), 0.0);
-    const double totalDiameter = clampMin(finiteOr(s.momRhoPD[c], 0.0), 0.0);
-    const double totalHeat = clampMin(finiteOr(s.momRhoHpP[c], 0.0), 0.0);
+    const GpuReal totalMomX = finiteOr(s.momRhoUPx[c], GPU_R(0.0));
+    const GpuReal totalMomY = finiteOr(s.momRhoUPy[c], GPU_R(0.0));
+    const GpuReal totalMomZ = finiteOr(s.momRhoUPz[c], GPU_R(0.0));
+    GpuReal totalEnergy = clampMin(finiteOr(s.momRhoEP[c], GPU_R(0.0)), GPU_R(0.0));
+    const GpuReal totalDiameter = clampMin(finiteOr(s.momRhoPD[c], GPU_R(0.0)), GPU_R(0.0));
+    const GpuReal totalHeat = clampMin(finiteOr(s.momRhoHpP[c], GPU_R(0.0)), GPU_R(0.0));
 
     s.epsS[c] = rhoP/s.rhoSolid;
     s.rhoUsx[c] = totalMomX;
@@ -13227,22 +13639,22 @@ __global__ void solidRecoveryFromParticleMomentsKernel(DeviceState* sp)
     s.Usy[c] = totalMomY/rhoP;
     s.Usz[c] = totalMomZ/rhoP;
 
-    const double invRhoP = 1.0/rhoP;
-    const double kinetic =
-        0.5*(sqr3(totalMomX*invRhoP, totalMomY*invRhoP, totalMomZ*invRhoP)*rhoP);
+    const GpuReal invRhoP = GPU_R(1.0)/rhoP;
+    const GpuReal kinetic =
+        GPU_R(0.5)*(sqr3(totalMomX*invRhoP, totalMomY*invRhoP, totalMomZ*invRhoP)*rhoP);
     if (totalEnergy < kinetic)
     {
         totalEnergy = kinetic;
     }
     s.rhoEs[c] = totalEnergy;
-    s.theta[c] = clampMin((totalEnergy - kinetic)/(1.5*rhoP), 0.0);
+    s.theta[c] = clampMin((totalEnergy - kinetic)/(GPU_R(1.5)*rhoP), GPU_R(0.0));
     s.dMeanCell[c] =
-        clampMin(finiteOr(totalDiameter/rhoP, s.particleDiameterFallback), 1.0e-12);
+        clampMin(finiteOr(totalDiameter/rhoP, s.particleDiameterFallback), GPU_R(1.0e-12));
 
     if (s.solveParticleTemperature != 0)
     {
-        const double specificEnthalpy =
-            finiteOr(totalHeat/(rhoP + OfSmall), -1.0);
+        const GpuReal specificEnthalpy =
+            finiteOr(totalHeat/(rhoP + OfSmall), -GPU_R(1.0));
         s.Tp[c] = clampRange
         (
             finiteOr
@@ -13260,7 +13672,7 @@ __global__ void solidRecoveryFromParticleMomentsKernel(DeviceState* sp)
     else
     {
         s.Tp[c] = s.TpMin;
-        s.rhoHp[c] = 0.0;
+        s.rhoHp[c] = GPU_R(0.0);
     }
 }
 
@@ -13418,11 +13830,11 @@ int writeDevelopmentProbeSample(const DevelopmentProbeSample& sample)
         sample.badFieldMask,
         sample.firstBadCell,
         sample.firstBadParticle,
-        static_cast<double>(sample.totalMs)
+        static_cast<GpuReal>(sample.totalMs)
     );
     for (int i = 0; i < ProbeStageCount; ++i)
     {
-        std::fprintf(file, ",%.9g", static_cast<double>(sample.stageMs[i]));
+        std::fprintf(file, ",%.9g", static_cast<GpuReal>(sample.stageMs[i]));
     }
     std::fputc('\n', file);
 
@@ -13706,8 +14118,8 @@ int collectDevelopmentProbeSample
     }
     sample.particleCount = rawParticleCount;
     sample.particleUtilisation = s->particleCapacity > 0
-      ? static_cast<double>(rawParticleCount)/static_cast<double>(s->particleCapacity)
-      : 0.0;
+      ? static_cast<GpuReal>(rawParticleCount)/static_cast<GpuReal>(s->particleCapacity)
+      : GPU_R(0.0);
     if (rawParticleCount < 0 || rawParticleCount > s->particleCapacity)
     {
         sample.badFieldMask |= ProbeBadParticleCount;
@@ -13739,13 +14151,13 @@ int collectDevelopmentProbeSample
         );
     }
 
-    long double sumSquares = 0.0L;
+    long GpuReal sumSquares = 0.0L;
     int occupancyMin = INT_MAX;
     int occupancyMax = INT_MIN;
     for (const int count : developmentProbe.occupancy)
     {
         sample.occupancySum += static_cast<long long>(count);
-        sumSquares += static_cast<long double>(count)*count;
+        sumSquares += static_cast<long GpuReal>(count)*count;
         occupancyMin = std::min(occupancyMin, count);
         occupancyMax = std::max(occupancyMax, count);
         sample.occupancyNonEmpty += count > 0 ? 1 : 0;
@@ -13759,15 +14171,15 @@ int collectDevelopmentProbeSample
         sample.occupancyMin = occupancyMin;
         sample.occupancyMax = occupancyMax;
         sample.occupancyMean =
-            static_cast<double>(sample.occupancySum)/static_cast<double>(s->nCells);
-        const long double mean = static_cast<long double>(sample.occupancyMean);
-        long double variance = sumSquares/static_cast<long double>(s->nCells)
+            static_cast<GpuReal>(sample.occupancySum)/static_cast<GpuReal>(s->nCells);
+        const long GpuReal mean = static_cast<long GpuReal>(sample.occupancyMean);
+        long GpuReal variance = sumSquares/static_cast<long GpuReal>(s->nCells)
                              - mean*mean;
         variance = variance > 0.0L ? variance : 0.0L;
-        sample.occupancyStddev = std::sqrt(static_cast<double>(variance));
-        sample.occupancyCv = sample.occupancyMean > 0.0
+        sample.occupancyStddev = std::sqrt(static_cast<GpuReal>(variance));
+        sample.occupancyCv = sample.occupancyMean > GPU_R(0.0)
           ? sample.occupancyStddev/sample.occupancyMean
-          : 0.0;
+          : GPU_R(0.0);
 
         std::sort
         (
@@ -13868,8 +14280,8 @@ class DevelopmentAdvanceProbe
 {
     DeviceState* state_ = nullptr;
     unsigned long long step_ = 0;
-    double simulationTime_ = 0.0;
-    double dt_ = 0.0;
+    GpuTime simulationTime_ = GPU_R(0.0);
+    GpuTime dt_ = GPU_R(0.0);
     const char* currentStage_ = "advance_begin";
     bool enabled_ = false;
     bool sampled_ = false;
@@ -13881,8 +14293,8 @@ public:
     DevelopmentAdvanceProbe
     (
         DeviceState* state,
-        const double dt,
-        const double simulationTime
+        const GpuTime dt,
+        const GpuTime simulationTime
     )
     :
         state_(state),
@@ -14018,12 +14430,16 @@ public:
 
 #endif
 
-extern "C" const char* ugkwpGpuResidentStrictLastError()
+extern "C" const char* ugkwpGpuResidentStrictLastError
+(
+
+)
 {
+
     return lastError;
 }
 
-int advanceGasEulerSubstage(DeviceState* s, const double dt)
+int advanceGasEulerSubstage(DeviceState* s, const GpuTime dt)
 {
     const int cellBlock = s->fixedCellBlockThreads;
     const int faceBlock = s->fixedFaceBlockThreads;
@@ -14247,8 +14663,8 @@ int advanceGasEulerSubstage(DeviceState* s, const double dt)
 int blendGasRungeKuttaStage
 (
     DeviceState* s,
-    const double initialWeight,
-    const double stageWeight
+    const GpuReal initialWeight,
+    const GpuReal stageWeight
 )
 {
     const int block = s->fixedCellBlockThreads;
@@ -14285,7 +14701,7 @@ int blendGasRungeKuttaStage
     return 0;
 }
 
-int advanceGasFluxStage(DeviceState* s, const double dt, const double simulationTime)
+int advanceGasFluxStage(DeviceState* s, const GpuTime dt, const GpuTime simulationTime)
 {
                                                                             
                                                                         
@@ -14354,7 +14770,7 @@ int advanceGasFluxStage(DeviceState* s, const double dt, const double simulation
     if (s->hostGasTimeIntegrator == 2)
     {
                                                          
-        return blendGasRungeKuttaStage(s, 0.5, 0.5);
+        return blendGasRungeKuttaStage(s, GPU_R(0.5), GPU_R(0.5));
     }
     if (s->hostGasTimeIntegrator != 3)
     {
@@ -14365,7 +14781,7 @@ int advanceGasFluxStage(DeviceState* s, const double dt, const double simulation
                   
                                         
                                          
-    if (blendGasRungeKuttaStage(s, 0.75, 0.25) != 0)
+    if (blendGasRungeKuttaStage(s, GPU_R(0.75), GPU_R(0.25)) != 0)
     {
         return 1;
     }
@@ -14376,12 +14792,12 @@ int advanceGasFluxStage(DeviceState* s, const double dt, const double simulation
     return blendGasRungeKuttaStage
     (
         s,
-        1.0/3.0,
-        2.0/3.0
+        GPU_R(1.0)/GPU_R(3.0),
+        GPU_R(2.0)/GPU_R(3.0)
     );
 }
 
-int finaliseGasBoundaryStage(DeviceState* s, const double dt, const double simulationTime)
+int finaliseGasBoundaryStage(DeviceState* s, const GpuTime dt, const GpuTime simulationTime)
 {
     const int block = s->fixedFaceBlockThreads;
     const int allFaceGrid = (s->nFaces + block - 1)/block;
@@ -14447,36 +14863,36 @@ extern "C" int ugkwpGpuResidentStrictCreate
     int nCellPlanes,
     int particleCapacity,
     int maxFaceWalkHops,
-    double injectionParcelMass,
+    double injectionParcelMassWire,
     unsigned long long rngSeed,
-    double gammaGas,
-    double Rgas,
-    double rhoSolid,
+    double gammaGasWire,
+    double RgasWire,
+    double rhoSolidWire,
     int solveParticleTemperature,
-    double gasMu,
-    double gasPr,
+    double gasMuWire,
+    double gasPrWire,
     int dragModelId,
     int particleGasHeatTransferModelId,
-    double dragResidualRe,
-    double gravityX,
-    double gravityY,
-    double gravityZ,
-    double particleDiameterFallback,
-    double particleDiameterMin,
-    double particleDiameterMax,
-    double particleDiameterSigma,
-    double injectionTheta,
-    double rhoMin,
-    double TgasMin,
-    double epsSMin,
-    double thetaMin,
-    double TpMin,
-    double TpMax,
+    double dragResidualReWire,
+    double gravityXWire,
+    double gravityYWire,
+    double gravityZWire,
+    double particleDiameterFallbackWire,
+    double particleDiameterMinWire,
+    double particleDiameterMaxWire,
+    double particleDiameterSigmaWire,
+    double injectionThetaWire,
+    double rhoMinWire,
+    double TgasMinWire,
+    double epsSMinWire,
+    double thetaMinWire,
+    double TpMinWire,
+    double TpMaxWire,
     int collisionalPressureEnabled,
-    double collisionalRestitution,
-    double pressureKickFraction,
+    double collisionalRestitutionWire,
+    double pressureKickFractionWire,
     int jammingPressureEnabled,
-    double packingFraction,
+    double packingFractionWire,
     int packingProjectionIterations,
     int gasFluxScheme,
     int gasReconstruction,
@@ -14484,11 +14900,11 @@ extern "C" int ugkwpGpuResidentStrictCreate
     int gasTimeIntegrator,
     int gasRobustFallback,
     int turbulenceModel,
-    double lesDeltaCoeff,
-    double turbulentPrandtl,
-    double waleCw,
-    double smagorinskyCs,
-    double maxDiffusionNumber,
+    double lesDeltaCoeffWire,
+    double turbulentPrandtlWire,
+    double waleCwWire,
+    double smagorinskyCsWire,
+    double maxDiffusionNumberWire,
     int csrCellLocalPathEnabled,
     int csrHeavyReductionMode,
     int csrHeavyAutoInterval,
@@ -14498,6 +14914,35 @@ extern "C" int ugkwpGpuResidentStrictCreate
     void** handle
 )
 {
+    const GpuReal injectionParcelMass = static_cast<GpuReal>(injectionParcelMassWire);
+    const GpuReal gammaGas = static_cast<GpuReal>(gammaGasWire);
+    const GpuReal Rgas = static_cast<GpuReal>(RgasWire);
+    const GpuReal rhoSolid = static_cast<GpuReal>(rhoSolidWire);
+    const GpuReal gasMu = static_cast<GpuReal>(gasMuWire);
+    const GpuReal gasPr = static_cast<GpuReal>(gasPrWire);
+    const GpuReal dragResidualRe = static_cast<GpuReal>(dragResidualReWire);
+    const GpuReal gravityX = static_cast<GpuReal>(gravityXWire);
+    const GpuReal gravityY = static_cast<GpuReal>(gravityYWire);
+    const GpuReal gravityZ = static_cast<GpuReal>(gravityZWire);
+    const GpuReal particleDiameterFallback = static_cast<GpuReal>(particleDiameterFallbackWire);
+    const GpuReal particleDiameterMin = static_cast<GpuReal>(particleDiameterMinWire);
+    const GpuReal particleDiameterMax = static_cast<GpuReal>(particleDiameterMaxWire);
+    const GpuReal particleDiameterSigma = static_cast<GpuReal>(particleDiameterSigmaWire);
+    const GpuReal injectionTheta = static_cast<GpuReal>(injectionThetaWire);
+    const GpuReal rhoMin = static_cast<GpuReal>(rhoMinWire);
+    const GpuReal TgasMin = static_cast<GpuReal>(TgasMinWire);
+    const GpuReal epsSMin = static_cast<GpuReal>(epsSMinWire);
+    const GpuReal thetaMin = static_cast<GpuReal>(thetaMinWire);
+    const GpuReal TpMin = static_cast<GpuReal>(TpMinWire);
+    const GpuReal TpMax = static_cast<GpuReal>(TpMaxWire);
+    const GpuReal collisionalRestitution = static_cast<GpuReal>(collisionalRestitutionWire);
+    const GpuReal pressureKickFraction = static_cast<GpuReal>(pressureKickFractionWire);
+    const GpuReal packingFraction = static_cast<GpuReal>(packingFractionWire);
+    const GpuReal lesDeltaCoeff = static_cast<GpuReal>(lesDeltaCoeffWire);
+    const GpuReal turbulentPrandtl = static_cast<GpuReal>(turbulentPrandtlWire);
+    const GpuReal waleCw = static_cast<GpuReal>(waleCwWire);
+    const GpuReal smagorinskyCs = static_cast<GpuReal>(smagorinskyCsWire);
+    const GpuReal maxDiffusionNumber = static_cast<GpuReal>(maxDiffusionNumberWire);
     if (handle == nullptr)
     {
         setLastErrorText("null output handle");
@@ -14513,14 +14958,14 @@ extern "C" int ugkwpGpuResidentStrictCreate
      || nInternalFaces > nFaces
      || nCellPlanes < 0
      || particleCapacity < 0
-     || !std::isfinite(gammaGas) || gammaGas <= 1.0 || gammaGas > 5.0/3.0
-     || !std::isfinite(Rgas) || Rgas <= 0.0
-     || !std::isfinite(gasMu) || gasMu < 0.0
-     || !std::isfinite(gasPr) || gasPr <= 0.0
+     || !std::isfinite(gammaGas) || gammaGas <= GPU_R(1.0) || gammaGas > GPU_R(5.0)/GPU_R(3.0)
+     || !std::isfinite(Rgas) || Rgas <= GPU_R(0.0)
+     || !std::isfinite(gasMu) || gasMu < GPU_R(0.0)
+     || !std::isfinite(gasPr) || gasPr <= GPU_R(0.0)
      || dragModelId < 0 || dragModelId > 2
      || particleGasHeatTransferModelId < 0
      || particleGasHeatTransferModelId > 1
-     || !std::isfinite(dragResidualRe) || dragResidualRe <= 0.0
+     || !std::isfinite(dragResidualRe) || dragResidualRe <= GPU_R(0.0)
      || !std::isfinite(gravityX)
      || !std::isfinite(gravityY)
      || !std::isfinite(gravityZ)
@@ -14543,15 +14988,15 @@ extern "C" int ugkwpGpuResidentStrictCreate
      || turbulenceModel < 0
      || turbulenceModel > 3
      || !std::isfinite(lesDeltaCoeff)
-     || lesDeltaCoeff <= 0.0
+     || lesDeltaCoeff <= GPU_R(0.0)
      || !std::isfinite(turbulentPrandtl)
-     || turbulentPrandtl <= 0.0
+     || turbulentPrandtl <= GPU_R(0.0)
      || !std::isfinite(waleCw)
-     || waleCw < 0.0
+     || waleCw < GPU_R(0.0)
      || !std::isfinite(smagorinskyCs)
-     || smagorinskyCs < 0.0
+     || smagorinskyCs < GPU_R(0.0)
      || !std::isfinite(maxDiffusionNumber)
-     || maxDiffusionNumber <= 0.0
+     || maxDiffusionNumber <= GPU_R(0.0)
      || (csrCellLocalPathEnabled != 0 && csrCellLocalPathEnabled != 1)
      || csrHeavyReductionMode < 0 || csrHeavyReductionMode > 2
      || csrHeavyAutoInterval < 1
@@ -14576,8 +15021,8 @@ extern "C" int ugkwpGpuResidentStrictCreate
      &&
         (
             !std::isfinite(packingFraction)
-         || packingFraction <= 0.0
-         || packingFraction >= 1.0
+         || packingFraction <= GPU_R(0.0)
+         || packingFraction >= GPU_R(1.0)
         )
     )
     {
@@ -14604,19 +15049,19 @@ extern "C" int ugkwpGpuResidentStrictCreate
     s->rngSeed = rngSeed;
     s->gammaGas = gammaGas;
     s->Rgas = Rgas;
-    const double gammaMinusOne = gammaGas - 1.0;
-    const double gammaCpDenominator =
-        gammaMinusOne < 1.0e-12 ? 1.0e-12 : gammaMinusOne;
+    const GpuReal gammaMinusOne = gammaGas - GPU_R(1.0);
+    const GpuReal gammaCpDenominator =
+        gammaMinusOne < GPU_R(1.0e-12) ? GPU_R(1.0e-12) : gammaMinusOne;
     s->gasCp = gammaGas*Rgas/gammaCpDenominator;
     s->rhoSolid = rhoSolid;
-    const double rhoSolidDenominator =
-        rhoSolid < 1.0e-300 ? 1.0e-300 : rhoSolid;
-    s->invRhoSolid = 1.0/rhoSolidDenominator;
+    const GpuReal rhoSolidDenominator =
+        rhoSolid < GPU_TINY(1.0e-300) ? GPU_TINY(1.0e-300) : rhoSolid;
+    s->invRhoSolid = GPU_R(1.0)/rhoSolidDenominator;
     s->solveParticleTemperature = solveParticleTemperature;
     s->gasMu = gasMu;
     s->gasPr = gasPr;
-    s->gasPrClamped = gasPr < 1.0e-12 ? 1.0e-12 : gasPr;
-    s->gasPrOneThird = std::pow(s->gasPrClamped, 1.0/3.0);
+    s->gasPrClamped = gasPr < GPU_R(1.0e-12) ? GPU_R(1.0e-12) : gasPr;
+    s->gasPrOneThird = std::pow(s->gasPrClamped, GPU_R(1.0)/GPU_R(3.0));
     s->dragModelId = dragModelId;
     s->particleGasHeatTransferModelId = particleGasHeatTransferModelId;
     s->dragResidualRe = dragResidualRe;
@@ -14624,7 +15069,7 @@ extern "C" int ugkwpGpuResidentStrictCreate
     s->gravityY = gravityY;
     s->gravityZ = gravityZ;
     s->gravityEnabled =
-        gravityX != 0.0 || gravityY != 0.0 || gravityZ != 0.0 ? 1 : 0;
+        gravityX != GPU_R(0.0) || gravityY != GPU_R(0.0) || gravityZ != GPU_R(0.0) ? 1 : 0;
     s->gasFluxScheme = gasFluxScheme;
     s->gasReconstruction = gasReconstruction;
     s->gasLimiter = gasLimiter;
@@ -14662,28 +15107,12 @@ extern "C" int ugkwpGpuResidentStrictCreate
     s->TpMax = TpMax;
     s->collisionalPressureEnabled = collisionalPressureEnabled != 0 ? 1 : 0;
     s->collisionalRestitution =
-        std::fmin(std::fmax(collisionalRestitution, 0.0), 1.0);
+        std::fmin(std::fmax(collisionalRestitution, GPU_R(0.0)), GPU_R(1.0));
     s->pressureKickFraction =
-        std::fmin(std::fmax(pressureKickFraction, OfSmall), 1.0);
+        std::fmin(std::fmax(pressureKickFraction, OfSmall), GPU_R(1.0));
     s->jammingPressureEnabled = jammingPressureEnabled != 0 ? 1 : 0;
     s->packingFraction = packingFraction;
     s->packingProjectionIterations = packingProjectionIterations;
-    const char* const wallContactDiagnostics =
-        std::getenv("UGKP_WALL_CONTACT_DIAGNOSTICS");
-    s->wallContactAreaDiagnosticsEnabled =
-        wallContactDiagnostics != nullptr
-     && wallContactDiagnostics[0] == '1'
-     && wallContactDiagnostics[1] == '\0'
-      ? 1 : 0;
-    if (s->wallContactAreaDiagnosticsEnabled != 0)
-    {
-        std::fprintf
-        (
-            stderr,
-            "CHT wall-contact diagnostics enabled; production contact-area "
-            "kernel replaced by fail-fast diagnostic kernel.\n"
-        );
-    }
 
     if (allocateFields(s) != 0)
     {
@@ -14743,6 +15172,7 @@ extern "C" int ugkwpGpuResidentStrictUploadMesh
     const double* planeD
 )
 {
+
     DeviceState* s = asState(handle);
     if (validateState(s, "mesh upload") != 0)
     {
@@ -14851,6 +15281,7 @@ extern "C" int ugkwpGpuResidentStrictUploadBoundarySources
     const double* sourceMassRate
 )
 {
+
     DeviceState* s = asState(handle);
     if (validateState(s, "boundary source upload") != 0)
     {
@@ -14941,14 +15372,14 @@ extern "C" int ugkwpGpuResidentStrictUploadBoundarySources
     }
     for (int i = 0; i < nBoundarySources; ++i)
     {
-        if (std::isfinite(sourceMassRate[i]) && sourceMassRate[i] > 0.0)
+        if (std::isfinite(sourceMassRate[i]) && sourceMassRate[i] > GPU_R(0.0))
         {
             s->particlesMayBePresent = true;
             break;
         }
     }
 
-    cudaError_t err = cudaMemset(s->sourceResidualMass, 0, n*sizeof(double));
+    cudaError_t err = cudaMemset(s->sourceResidualMass, 0, n*sizeof(GpuReal));
     if (err != cudaSuccess)
     {
         setLastError("cudaMemset strict sourceResidualMass", err);
@@ -14964,7 +15395,7 @@ extern "C" int ugkwpGpuResidentStrictConfigureScheduledInlet
     void* handle,
     int nFaces,
     const int* faceIds,
-    double inletTemperature,
+    double inletTemperatureWire,
     int nPressureRows,
     const double* pressureTimes,
     const double* pressureValues,
@@ -14973,6 +15404,7 @@ extern "C" int ugkwpGpuResidentStrictConfigureScheduledInlet
     const double* volumeFractionValues
 )
 {
+    const GpuReal inletTemperature = static_cast<GpuReal>(inletTemperatureWire);
     DeviceState* s = asState(handle);
     if (validateState(s, "scheduled inlet configuration") != 0)
     {
@@ -14983,7 +15415,7 @@ extern "C" int ugkwpGpuResidentStrictConfigureScheduledInlet
         nFaces <= 0
      || faceIds == nullptr
      || !std::isfinite(inletTemperature)
-     || inletTemperature <= 0.0
+     || inletTemperature <= GPU_R(0.0)
      || nPressureRows <= 0
      || pressureTimes == nullptr
      || pressureValues == nullptr
@@ -15007,7 +15439,7 @@ extern "C" int ugkwpGpuResidentStrictConfigureScheduledInlet
     }
     for (int i = 0; i < nPressureRows; ++i)
     {
-        if (!std::isfinite(pressureTimes[i]) || !std::isfinite(pressureValues[i]) || pressureTimes[i] < 0.0 || pressureValues[i] <= 0.0 || (i > 0 && pressureTimes[i] <= pressureTimes[i - 1]))
+        if (!std::isfinite(pressureTimes[i]) || !std::isfinite(pressureValues[i]) || pressureTimes[i] < GPU_R(0.0) || pressureValues[i] <= GPU_R(0.0) || (i > 0 && pressureTimes[i] <= pressureTimes[i - 1]))
         {
             setLastErrorText("invalid scheduled inlet pressure table");
             return 1;
@@ -15016,12 +15448,12 @@ extern "C" int ugkwpGpuResidentStrictConfigureScheduledInlet
     bool futureParticleInflow = false;
     for (int i = 0; i < nVolumeFractionRows; ++i)
     {
-        if (!std::isfinite(volumeFractionTimes[i]) || !std::isfinite(volumeFractionValues[i]) || volumeFractionTimes[i] < 0.0 || volumeFractionValues[i] < 0.0 || volumeFractionValues[i] >= 1.0 || (i > 0 && volumeFractionTimes[i] <= volumeFractionTimes[i - 1]))
+        if (!std::isfinite(volumeFractionTimes[i]) || !std::isfinite(volumeFractionValues[i]) || volumeFractionTimes[i] < GPU_R(0.0) || volumeFractionValues[i] < GPU_R(0.0) || volumeFractionValues[i] >= GPU_R(1.0) || (i > 0 && volumeFractionTimes[i] <= volumeFractionTimes[i - 1]))
         {
             setLastErrorText("invalid scheduled inlet volume-fraction table");
             return 1;
         }
-        futureParticleInflow = futureParticleInflow || volumeFractionValues[i] > 0.0;
+        futureParticleInflow = futureParticleInflow || volumeFractionValues[i] > GPU_R(0.0);
     }
 
     release(s->scheduledInletFaceMask);
@@ -15094,6 +15526,7 @@ extern "C" int ugkwpGpuResidentStrictDownloadSourceResidualMass
     double* residualMass
 )
 {
+
     DeviceState* s = asState(handle);
     if (validateState(s, "source residual download") != 0 || nSources == nullptr)
     {
@@ -15129,6 +15562,7 @@ extern "C" int ugkwpGpuResidentStrictUploadSourceResidualMass
     const double* residualMass
 )
 {
+
     DeviceState* s = asState(handle);
     if (validateState(s, "source residual upload") != 0)
     {
@@ -15164,7 +15598,7 @@ extern "C" int ugkwpGpuResidentStrictUploadSourceResidualMass
         (
             currentFaces[static_cast<size_t>(i)] != sourceFace[i]
          || !std::isfinite(residualMass[i])
-         || residualMass[i] < 0.0
+         || residualMass[i] < GPU_R(0.0)
         )
         {
             setLastErrorText("source residual restart face/value mismatch");
@@ -15200,6 +15634,7 @@ extern "C" int ugkwpGpuResidentStrictUploadGasBoundaryFields
     const double* gasBoundaryT
 )
 {
+
     DeviceState* s = asState(handle);
     if (validateState(s, "gas boundary upload") != 0)
     {
@@ -15272,6 +15707,7 @@ extern "C" int ugkwpGpuResidentStrictUploadGasBoundaryTemperaturePatch
     const double* temperatures
 )
 {
+
     DeviceState* s = asState(handle);
     if (validateState(s, "gas boundary temperature patch upload") != 0)
     {
@@ -15322,6 +15758,7 @@ extern "C" int ugkwpGpuResidentStrictUploadParticleWallEffusivityPatch
     const double* wallEffusivity
 )
 {
+
     DeviceState* s = asState(handle);
     if (validateState(s, "particle-wall effusivity patch upload") != 0)
     {
@@ -15351,7 +15788,7 @@ extern "C" int ugkwpGpuResidentStrictUploadParticleWallEffusivityPatch
     }
     for (int i = 0; i < patchFaceCount; ++i)
     {
-        if (!std::isfinite(wallEffusivity[i]) || wallEffusivity[i] <= 0.0)
+        if (!std::isfinite(wallEffusivity[i]) || wallEffusivity[i] <= GPU_R(0.0))
         {
             setLastErrorText("particle-wall effusivity must be finite and positive");
             return 1;
@@ -15381,6 +15818,7 @@ extern "C" int ugkwpGpuResidentStrictUploadFields
     const double* Tgas
 )
 {
+
     DeviceState* s = asState(handle);
     if (validateState(s, "field upload") != 0)
     {
@@ -15408,7 +15846,7 @@ extern "C" int ugkwpGpuResidentStrictUploadFields
     cudaError_t clearErr = cudaSuccess;
 
 #define CLEAR_SOLID_ARRAY(ptr, name)                                      \
-    clearErr = cudaMemset((ptr), 0, n*sizeof(double));                    \
+    clearErr = cudaMemset((ptr), 0, n*sizeof(GpuReal));                    \
     if (clearErr != cudaSuccess)                                          \
     {                                                                     \
         setLastError((name), clearErr);                                   \
@@ -15475,25 +15913,25 @@ extern "C" int ugkwpGpuResidentStrictUploadFields
 extern "C" int ugkwpGpuResidentStrictConfigureSst
 (
     void* handle,
-    double alphaK1,
-    double alphaK2,
-    double alphaOmega1,
-    double alphaOmega2,
-    double beta1,
-    double beta2,
-    double betaStar,
-    double gamma1,
-    double gamma2,
-    double a1,
-    double b1,
-    double c1,
-    double kMin,
-    double omegaMin,
-    double maxSourceNumber,
+    double alphaK1Wire,
+    double alphaK2Wire,
+    double alphaOmega1Wire,
+    double alphaOmega2Wire,
+    double beta1Wire,
+    double beta2Wire,
+    double betaStarWire,
+    double gamma1Wire,
+    double gamma2Wire,
+    double a1Wire,
+    double b1Wire,
+    double c1Wire,
+    double kMinWire,
+    double omegaMinWire,
+    double maxSourceNumberWire,
     int wallTreatment,
-    double wallKappa,
-    double wallE,
-    double wallCmu,
+    double wallKappaWire,
+    double wallEWire,
+    double wallCmuWire,
     const double* k,
     const double* omega,
     const double* wallDistance,
@@ -15503,6 +15941,24 @@ extern "C" int ugkwpGpuResidentStrictConfigureSst
     const double* boundaryOmega
 )
 {
+    const GpuReal alphaK1 = static_cast<GpuReal>(alphaK1Wire);
+    const GpuReal alphaK2 = static_cast<GpuReal>(alphaK2Wire);
+    const GpuReal alphaOmega1 = static_cast<GpuReal>(alphaOmega1Wire);
+    const GpuReal alphaOmega2 = static_cast<GpuReal>(alphaOmega2Wire);
+    const GpuReal beta1 = static_cast<GpuReal>(beta1Wire);
+    const GpuReal beta2 = static_cast<GpuReal>(beta2Wire);
+    const GpuReal betaStar = static_cast<GpuReal>(betaStarWire);
+    const GpuReal gamma1 = static_cast<GpuReal>(gamma1Wire);
+    const GpuReal gamma2 = static_cast<GpuReal>(gamma2Wire);
+    const GpuReal a1 = static_cast<GpuReal>(a1Wire);
+    const GpuReal b1 = static_cast<GpuReal>(b1Wire);
+    const GpuReal c1 = static_cast<GpuReal>(c1Wire);
+    const GpuReal kMin = static_cast<GpuReal>(kMinWire);
+    const GpuReal omegaMin = static_cast<GpuReal>(omegaMinWire);
+    const GpuReal maxSourceNumber = static_cast<GpuReal>(maxSourceNumberWire);
+    const GpuReal wallKappa = static_cast<GpuReal>(wallKappaWire);
+    const GpuReal wallE = static_cast<GpuReal>(wallEWire);
+    const GpuReal wallCmu = static_cast<GpuReal>(wallCmuWire);
     DeviceState* s = asState(handle);
     if (validateState(s, "configure SST") != 0)
     {
@@ -15527,22 +15983,22 @@ extern "C" int ugkwpGpuResidentStrictConfigureSst
         setLastErrorText("null SST configuration array");
         return 1;
     }
-    const double values[] =
+    const GpuReal values[] =
     {
         alphaK1, alphaK2, alphaOmega1, alphaOmega2,
         beta1, beta2, betaStar, gamma1, gamma2,
         a1, b1, c1, kMin, omegaMin, maxSourceNumber,
         wallKappa, wallE, wallCmu
     };
-    for (const double value : values)
+    for (const GpuReal value : values)
     {
-        if (!std::isfinite(value) || value <= 0.0)
+        if (!std::isfinite(value) || value <= GPU_R(0.0))
         {
             setLastErrorText("SST coefficients and limits must be positive");
             return 1;
         }
     }
-    if (wallTreatment < 0 || wallTreatment > 1 || wallE <= 1.0)
+    if (wallTreatment < 0 || wallTreatment > 1 || wallE <= GPU_R(1.0))
     {
         setLastErrorText("invalid SST wall-function configuration");
         return 1;
@@ -15554,7 +16010,7 @@ extern "C" int ugkwpGpuResidentStrictConfigureSst
             !std::isfinite(k[c])
          || !std::isfinite(omega[c])
          || !std::isfinite(wallDistance[c])
-         || wallDistance[c] <= 0.0
+         || wallDistance[c] <= GPU_R(0.0)
         )
         {
             setLastErrorText("invalid SST cell state or wall distance");
@@ -15659,11 +16115,12 @@ extern "C" int ugkwpGpuResidentStrictComputeGasCourant
 (
     void* handle,
     double dt,
-    double targetMaxCo,
+    double targetMaxCoWire,
     double scheduleTime,
     double* maxCo
 )
 {
+    const GpuReal targetMaxCo = static_cast<GpuReal>(targetMaxCoWire);
     DeviceState* s = asState(handle);
     if (validateState(s, "compute gas Courant") != 0)
     {
@@ -15673,11 +16130,11 @@ extern "C" int ugkwpGpuResidentStrictComputeGasCourant
     (
         maxCo == nullptr
      || !std::isfinite(dt)
-     || dt <= 0.0
+     || dt <= GPU_R(0.0)
      || !std::isfinite(targetMaxCo)
-     || targetMaxCo <= 0.0
+     || targetMaxCo <= GPU_R(0.0)
      || !std::isfinite(scheduleTime)
-     || scheduleTime < 0.0
+     || scheduleTime < GPU_R(0.0)
     )
     {
         setLastErrorText
@@ -15687,7 +16144,7 @@ extern "C" int ugkwpGpuResidentStrictComputeGasCourant
         );
         return 1;
     }
-    *maxCo = 0.0;
+    *maxCo = GPU_R(0.0);
 
     if (tuneFixedWorkBlockThreads(s, dt, scheduleTime) != 0)
     {
@@ -15843,11 +16300,11 @@ extern "C" int ugkwpGpuResidentStrictComputeGasCourant
         }
     }
 
-    thrust::device_ptr<double> convectiveBegin
+    thrust::device_ptr<GpuReal> convectiveBegin
     (
         s->gasFluxPositivityScale
     );
-    const thrust::device_ptr<double> maxConvectiveIt = thrust::max_element
+    const thrust::device_ptr<GpuReal> maxConvectiveIt = thrust::max_element
     (
         thrust::device,
         convectiveBegin,
@@ -15855,33 +16312,33 @@ extern "C" int ugkwpGpuResidentStrictComputeGasCourant
     );
     *maxCo = *maxConvectiveIt;
     const int cell = static_cast<int>(maxConvectiveIt - convectiveBegin);
-    thrust::device_ptr<double> diffusionBegin(s->gasDiffusionNumber);
-    const thrust::device_ptr<double> maxDiffusionIt = thrust::max_element
+    thrust::device_ptr<GpuReal> diffusionBegin(s->gasDiffusionNumber);
+    const thrust::device_ptr<GpuReal> maxDiffusionIt = thrust::max_element
     (
         thrust::device,
         diffusionBegin,
         diffusionBegin + s->nCells
     );
-    *maxCo = fmax(*maxCo, *maxDiffusionIt);
+    *maxCo = fmax(static_cast<GpuReal>(*maxCo), static_cast<GpuReal>(*maxDiffusionIt));
     if (s->hostTurbulenceModel == 3)
     {
-        thrust::device_ptr<double> sstBegin(s->sstSourceNumber);
-        const thrust::device_ptr<double> maxSstIt = thrust::max_element
+        thrust::device_ptr<GpuReal> sstBegin(s->sstSourceNumber);
+        const thrust::device_ptr<GpuReal> maxSstIt = thrust::max_element
         (
             thrust::device,
             sstBegin,
             sstBegin + s->nCells
         );
-        *maxCo = fmax(*maxCo, *maxSstIt);
+        *maxCo = fmax(static_cast<GpuReal>(*maxCo), static_cast<GpuReal>(*maxSstIt));
     }
-    if (!std::isfinite(*maxCo) || *maxCo >= 0.5*OfGreat)
+    if (!std::isfinite(*maxCo) || *maxCo >= GPU_R(0.5)*OfGreat)
     {
         int owner = cell;
-        double ownerUx = 0.0;
-        double ownerT = 0.0;
-        double ownerRho = 0.0;
-        double ownerRhoUx = 0.0;
-        double ownerRhoE = 0.0;
+        GpuReal ownerUx = GPU_R(0.0);
+        GpuReal ownerT = GPU_R(0.0);
+        GpuReal ownerRho = GPU_R(0.0);
+        GpuReal ownerRhoUx = GPU_R(0.0);
+        GpuReal ownerRhoE = GPU_R(0.0);
         if (owner >= 0 && owner < s->nCells)
         {
             copyToHost(&ownerUx, s->Ux + owner, 1, "diagnose Courant owner Ux");
@@ -15920,6 +16377,7 @@ extern "C" int ugkwpGpuResidentStrictAdvance
     double simulationTime
 )
 {
+
     DeviceState* s = asState(handle);
     if (validateState(s, "advance") != 0)
     {
@@ -16138,7 +16596,7 @@ extern "C" int ugkwpGpuResidentStrictAdvance
     UGKP_DEV_PROBE_LEAVE(ProbeBinPre);
 
     UGKP_DEV_PROBE_ENTER(ProbePressurePre);
-    if (applyCollisionalPressureKick(s, 0.5*dt, block) != 0)
+    if (applyCollisionalPressureKick(s, GPU_R(0.5)*dt, block) != 0)
     {
         return 1;
     }
@@ -16165,7 +16623,7 @@ extern "C" int ugkwpGpuResidentStrictAdvance
         return 1;
     }
     const size_t poolReduceSharedBytes =
-        8u*static_cast<size_t>(block)*sizeof(double);
+        8u*static_cast<size_t>(block)*sizeof(GpuReal);
 
     if (particleGrid > 0)
     {
@@ -16183,7 +16641,7 @@ extern "C" int ugkwpGpuResidentStrictAdvance
             else if (s->splitPreDirectoryActive != 0)
             {
                 const size_t splitSharedBytes =
-                    8u*static_cast<size_t>((block + 31)/32)*sizeof(double);
+                    8u*static_cast<size_t>((block + 31)/32)*sizeof(GpuReal);
                 accumulatePoissonPoolSplitSegmentKernel<true, false>
                     <<<s->nCells, block, splitSharedBytes>>>
                     (s->deviceState, dt);
@@ -16299,7 +16757,8 @@ extern "C" int ugkwpGpuResidentStrictAdvance
         if (s->coldWallSolidificationEnabled != 0)
         {
             relaxColdWall1DParticlesToResidentGasKernel
-                <<<particleGrid, block>>>(s->deviceState, dt);
+                <<<coldWallSmBlocks ? s->multiprocessorCount*coldWallSmBlocks : particleGrid,
+                   coldWallBlockThreads>>>(s->deviceState, dt);
             err = cudaGetLastError();
             if (err != cudaSuccess)
             {
@@ -16426,7 +16885,7 @@ extern "C" int ugkwpGpuResidentStrictAdvance
             }
 
             const size_t momentSharedBytes =
-                8u*static_cast<size_t>(warpCount)*sizeof(double);
+                8u*static_cast<size_t>(warpCount)*sizeof(GpuReal);
             if (s->csrHeavyReductionEnabled != 0)
             {
                 if (launchCsrHeavyMomentReduction(s, block) != 0)
@@ -16504,7 +16963,7 @@ extern "C" int ugkwpGpuResidentStrictAdvance
     UGKP_DEV_PROBE_ENTER(ProbePressurePost);
     if (particleGrid > 0)
     {
-        if (applyCollisionalPressureKick(s, 0.5*dt, block) != 0)
+        if (applyCollisionalPressureKick(s, GPU_R(0.5)*dt, block) != 0)
         {
             return 1;
         }
@@ -16534,29 +16993,44 @@ extern "C" int ugkwpGpuResidentStrictAdvance
             return 1;
         }
 
-        switch (s->reductionBlockThreads)
+        switch (particleIndexThreads ? particleIndexThreads : s->reductionBlockThreads)
         {
             case 32:
-                gatherCellLocalParticlesKernel<32>
+                indexCellLocalParticlesKernel<32>
                     <<<s->nCells, 32>>>(s->deviceState);
                 break;
             case 64:
-                gatherCellLocalParticlesKernel<64>
+                indexCellLocalParticlesKernel<64>
                     <<<s->nCells, 64>>>(s->deviceState);
                 break;
             case 128:
-                gatherCellLocalParticlesKernel<128>
+                indexCellLocalParticlesKernel<128>
                     <<<s->nCells, 128>>>(s->deviceState);
                 break;
+            case 512:
+                indexCellLocalParticlesKernel<512>
+                    <<<s->nCells, 512>>>(s->deviceState);
+                break;
+            case 1024:
+                indexCellLocalParticlesKernel<1024>
+                    <<<s->nCells, 1024>>>(s->deviceState);
+                break;
             default:
-                gatherCellLocalParticlesKernel<256>
+                indexCellLocalParticlesKernel<256>
                     <<<s->nCells, 256>>>(s->deviceState);
                 break;
         }
         err = cudaGetLastError();
         if (err != cudaSuccess)
         {
-            setLastError("gatherCellLocalParticlesKernel launch", err);
+            setLastError("indexCellLocalParticlesKernel launch", err);
+            return 1;
+        }
+        gatherCellLocalParticlePayloadKernel<<<particlePayloadSmBlocks ? s->multiprocessorCount*particlePayloadSmBlocks : (particleGrid > 0 ? particleGrid : 1), particlePayloadThreads>>>(s->deviceState);
+        err = cudaGetLastError();
+        if (err != cudaSuccess)
+        {
+            setLastError("gatherCellLocalParticlePayloadKernel launch", err);
             return 1;
         }
 
@@ -16689,6 +17163,7 @@ extern "C" int ugkwpGpuResidentStrictAdvanceGasOnly
     double simulationTime
 )
 {
+
     DeviceState* s = asState(handle);
     if (validateState(s, "pure-gas advance") != 0)
     {
@@ -16709,7 +17184,7 @@ extern "C" int ugkwpGpuResidentStrictAdvanceGasOnly
         return 1;
     }
 
-    if (!std::isfinite(simulationTime) || simulationTime < 0.0 || advanceGasFluxStage(s, dt, simulationTime) != 0)
+    if (!std::isfinite(simulationTime) || simulationTime < GPU_R(0.0) || advanceGasFluxStage(s, dt, simulationTime) != 0)
     {
         return 1;
     }
@@ -16767,6 +17242,7 @@ extern "C" int ugkwpGpuResidentStrictDownloadFields
     double* dMeanCell
 )
 {
+
     DeviceState* s = asState(handle);
     if (validateState(s, "field download") != 0)
     {
@@ -16808,6 +17284,19 @@ extern "C" int ugkwpGpuResidentStrictApplyParticleRadiationAffineTemperature
     const Foam::gpuThermal::RadiationAffineTemperatureUpdate* updateByCell
 )
 {
+
+#if UGKWP_GPU_REAL_BITS == 32
+    struct WireUpdate { double scale; double offset; };
+    const WireUpdate* wire = reinterpret_cast<const WireUpdate*>(updateByCell);
+    std::vector<Foam::gpuThermal::RadiationAffineTemperatureUpdate> converted;
+    if (wire && nCells > 0)
+    {
+        converted.resize(nCells);
+        for (int i = 0; i < nCells; ++i)
+            converted[i] = {static_cast<GpuReal>(wire[i].scale), static_cast<GpuReal>(wire[i].offset)};
+        updateByCell = converted.data();
+    }
+#endif
     DeviceState* s = asState(handle);
     if
     (
@@ -16967,6 +17456,7 @@ extern "C" int ugkwpGpuResidentStrictDownloadMobileParticleRadiationSums
     double* particleDiameterMassKgM
 )
 {
+
     DeviceState* s = asState(handle);
     if
     (
@@ -17009,7 +17499,7 @@ extern "C" int ugkwpGpuResidentStrictDownloadMobileParticleRadiationSums
             }
             const int warpCount = (block + 31)/32;
             const size_t sharedBytes =
-                3u*static_cast<size_t>(warpCount)*sizeof(double);
+                3u*static_cast<size_t>(warpCount)*sizeof(GpuReal);
             accumulatePackedMobileParticleRadiationSumsKernel
                 <<<s->nCells, block, sharedBytes>>>(s->deviceState);
         }
@@ -17062,6 +17552,7 @@ extern "C" int ugkwpGpuResidentStrictDownloadParticleWallOccupiedArea
     double* occupiedAreaM2
 )
 {
+
     DeviceState* s = asState(handle);
     if (validateState(s, "particle-wall occupied area download") != 0)
     {
@@ -17074,7 +17565,7 @@ extern "C" int ugkwpGpuResidentStrictDownloadParticleWallOccupiedArea
     }
     if (s->particleStuckModelConfigured == 0 || s->particleWorkGrid <= 0)
     {
-        std::fill(occupiedAreaM2, occupiedAreaM2 + nFaces, 0.0);
+        std::fill(occupiedAreaM2, occupiedAreaM2 + nFaces, GPU_R(0.0));
         return 0;
     }
     const int block = s->reductionBlockThreads;
@@ -17082,7 +17573,7 @@ extern "C" int ugkwpGpuResidentStrictDownloadParticleWallOccupiedArea
     {
         return 1;
     }
-    std::vector<double> areaScale(static_cast<size_t>(nFaces), 1.0);
+    std::vector<GpuReal> areaScale(static_cast<size_t>(nFaces), GPU_R(1.0));
     if
     (
         copyToHost
@@ -17105,15 +17596,15 @@ extern "C" int ugkwpGpuResidentStrictDownloadParticleWallOccupiedArea
     }
     for (int faceI = 0; faceI < nFaces; ++faceI)
     {
-        const double represented = occupiedAreaM2[faceI];
-        const double scale = areaScale[static_cast<size_t>(faceI)];
+        const GpuReal represented = occupiedAreaM2[faceI];
+        const GpuReal scale = areaScale[static_cast<size_t>(faceI)];
         if
         (
             !std::isfinite(represented)
          || !std::isfinite(scale)
-         || represented < 0.0
-         || !(scale > 0.0)
-         || scale > 1.0
+         || represented < GPU_R(0.0)
+         || !(scale > GPU_R(0.0))
+         || scale > GPU_R(1.0)
         )
         {
             setLastErrorText("invalid particle-wall occupied area state");
@@ -17129,6 +17620,7 @@ extern "C" int ugkwpGpuResidentStrictRefreshParticleEnthalpyPacked
     void* handle
 )
 {
+
     DeviceState* s = asState(handle);
     if (validateState(s, "post-radiation particle enthalpy refresh") != 0)
     {
@@ -17149,7 +17641,7 @@ extern "C" int ugkwpGpuResidentStrictRefreshParticleEnthalpyPacked
         }
         const int warpCount = (block + 31)/32;
         const size_t sharedBytes =
-            static_cast<size_t>(warpCount)*sizeof(double);
+            static_cast<size_t>(warpCount)*sizeof(GpuReal);
         refreshPackedParticleEnthalpyKernel
             <<<s->nCells, block, sharedBytes>>>(s->deviceState);
         err = cudaGetLastError();
@@ -17203,6 +17695,7 @@ extern "C" int ugkwpGpuResidentStrictDownloadEpsGPrev
     double* epsGPrev
 )
 {
+
     DeviceState* s = asState(handle);
     if (validateState(s, "epsGPrev download") != 0)
     {
@@ -17230,6 +17723,7 @@ extern "C" int ugkwpGpuResidentStrictUploadEpsGPrev
     const double* epsGPrev
 )
 {
+
     DeviceState* s = asState(handle);
     if (validateState(s, "epsGPrev upload") != 0)
     {
@@ -17262,6 +17756,7 @@ extern "C" int ugkwpGpuResidentStrictDownloadGasBoundaryFields
     double* Tgas
 )
 {
+
     DeviceState* s = asState(handle);
     if (validateState(s, "gas boundary field download") != 0)
     {
@@ -17285,6 +17780,7 @@ extern "C" int ugkwpGpuResidentStrictDownloadNut
     double* nut
 )
 {
+
     DeviceState* s = asState(handle);
     if (validateState(s, "turbulent viscosity download") != 0)
     {
@@ -17311,6 +17807,7 @@ extern "C" int ugkwpGpuResidentStrictConfigureGasWallEnergyLedger
     const int* enabledFaceIds
 )
 {
+
     DeviceState* s = asState(handle);
     if (validateState(s, "gas-wall energy ledger configuration") != 0)
     {
@@ -17361,7 +17858,7 @@ extern "C" int ugkwpGpuResidentStrictConfigureGasWallEnergyLedger
         hostMask[static_cast<size_t>(faceI)] = 1;
     }
 
-    double* newEnergy = nullptr;
+    GpuReal* newEnergy = nullptr;
     unsigned char* newMask = nullptr;
     if
     (
@@ -17388,7 +17885,7 @@ extern "C" int ugkwpGpuResidentStrictConfigureGasWallEnergyLedger
     (
         newEnergy,
         0,
-        static_cast<size_t>(s->nFaces)*sizeof(double)
+        static_cast<size_t>(s->nFaces)*sizeof(GpuReal)
     );
     if
     (
@@ -17438,6 +17935,7 @@ extern "C" int ugkwpGpuResidentStrictPeekGasWallEnergy
     double* gasWallEnergy
 )
 {
+
     DeviceState* s = asState(handle);
     if
     (
@@ -17471,6 +17969,7 @@ extern "C" int ugkwpGpuResidentStrictPeekWallEnergyLedgerRange
     double* particleReflectedWallEnergyJ
 )
 {
+
     DeviceState* s = asState(handle);
     if
     (
@@ -17504,8 +18003,8 @@ extern "C" int ugkwpGpuResidentStrictPeekWallEnergyLedgerRange
     }
     if (s->particleWallHeatTransferEnabled == 0)
     {
-        std::fill_n(particleDepositedWallEnergyJ, count, 0.0);
-        std::fill_n(particleReflectedWallEnergyJ, count, 0.0);
+        std::fill_n(particleDepositedWallEnergyJ, count, GPU_R(0.0));
+        std::fill_n(particleReflectedWallEnergyJ, count, GPU_R(0.0));
         return 0;
     }
     if
@@ -17544,6 +18043,7 @@ extern "C" int ugkwpGpuResidentStrictUploadWallEnergyLedgerRange
     const double* particleReflectedWallEnergyJ
 )
 {
+
     DeviceState* s = asState(handle);
     if
     (
@@ -17583,13 +18083,13 @@ extern "C" int ugkwpGpuResidentStrictUploadWallEnergyLedgerRange
             (
                 particleDepositedWallEnergyJ,
                 particleDepositedWallEnergyJ + count,
-                [](const double value){ return value == 0.0; }
+                [](const GpuReal value){ return value == GPU_R(0.0); }
             )
          || !std::all_of
             (
                 particleReflectedWallEnergyJ,
                 particleReflectedWallEnergyJ + count,
-                [](const double value){ return value == 0.0; }
+                [](const GpuReal value){ return value == GPU_R(0.0); }
             )
         )
         {
@@ -17634,6 +18134,7 @@ extern "C" int ugkwpGpuResidentStrictDownloadAndResetGasWallEnergy
     double* gasWallEnergy
 )
 {
+
     DeviceState* s = asState(handle);
     if
     (
@@ -17665,7 +18166,7 @@ extern "C" int ugkwpGpuResidentStrictDownloadAndResetGasWallEnergy
     (
         s->gasWallEnergy,
         0,
-        static_cast<size_t>(nFaces)*sizeof(double)
+        static_cast<size_t>(nFaces)*sizeof(GpuReal)
     );
     if (err != cudaSuccess)
     {
@@ -17686,25 +18187,39 @@ extern "C" int ugkwpGpuResidentStrictConfigureParticleStuckModel
     void* handle,
     int nFaces,
     const unsigned char* candidateFaceMask,
-    double sommerfeldThreshold,
+    double sommerfeldThresholdWire,
     int heatTransferEnabled,
-    double maximumCoverage,
-    double depositionHeatTransferEfficiency,
-    double reflectionHeatTransferEfficiency,
-    double adhesionEnergyScale,
-    double contactAngleDegree,
+    double maximumCoverageWire,
+    double depositionHeatTransferEfficiencyWire,
+    double reflectionHeatTransferEfficiencyWire,
+    double adhesionEnergyScaleWire,
+    double contactAngleDegreeWire,
     int wallTransientResistance,
     int nonlinearIterations,
-    double meltingTemperatureK,
-    double mushyRangeK,
-    double latentHeatJkg,
-    double solidDensityKgM3,
-    double solidSpecificHeatJkgK,
-    double solidThermalConductivityWmK,
-    double pinningThicknessFraction,
-    double interfaceResistanceM2KW
+    double meltingTemperatureKWire,
+    double mushyRangeKWire,
+    double latentHeatJkgWire,
+    double solidDensityKgM3Wire,
+    double solidSpecificHeatJkgKWire,
+    double solidThermalConductivityWmKWire,
+    double pinningThicknessFractionWire,
+    double interfaceResistanceM2KWWire
 )
 {
+    const GpuReal sommerfeldThreshold = static_cast<GpuReal>(sommerfeldThresholdWire);
+    const GpuReal maximumCoverage = static_cast<GpuReal>(maximumCoverageWire);
+    const GpuReal depositionHeatTransferEfficiency = static_cast<GpuReal>(depositionHeatTransferEfficiencyWire);
+    const GpuReal reflectionHeatTransferEfficiency = static_cast<GpuReal>(reflectionHeatTransferEfficiencyWire);
+    const GpuReal adhesionEnergyScale = static_cast<GpuReal>(adhesionEnergyScaleWire);
+    const GpuReal contactAngleDegree = static_cast<GpuReal>(contactAngleDegreeWire);
+    const GpuReal meltingTemperatureK = static_cast<GpuReal>(meltingTemperatureKWire);
+    const GpuReal mushyRangeK = static_cast<GpuReal>(mushyRangeKWire);
+    const GpuReal latentHeatJkg = static_cast<GpuReal>(latentHeatJkgWire);
+    const GpuReal solidDensityKgM3 = static_cast<GpuReal>(solidDensityKgM3Wire);
+    const GpuReal solidSpecificHeatJkgK = static_cast<GpuReal>(solidSpecificHeatJkgKWire);
+    const GpuReal solidThermalConductivityWmK = static_cast<GpuReal>(solidThermalConductivityWmKWire);
+    const GpuReal pinningThicknessFraction = static_cast<GpuReal>(pinningThicknessFractionWire);
+    const GpuReal interfaceResistanceM2KW = static_cast<GpuReal>(interfaceResistanceM2KWWire);
     DeviceState* s = asState(handle);
     if (validateState(s, "particle stuck-model configuration") != 0)
     {
@@ -17716,14 +18231,14 @@ extern "C" int ugkwpGpuResidentStrictConfigureParticleStuckModel
      && std::isfinite(reflectionHeatTransferEfficiency)
      && std::isfinite(adhesionEnergyScale)
      && std::isfinite(contactAngleDegree)
-     && sommerfeldThreshold > 0.0
-     && depositionHeatTransferEfficiency > 0.0
-     && depositionHeatTransferEfficiency <= 1.0
-     && reflectionHeatTransferEfficiency > 0.0
-     && reflectionHeatTransferEfficiency <= 1.0
-     && adhesionEnergyScale > 0.0
-     && contactAngleDegree > 0.0
-     && contactAngleDegree < 180.0;
+     && sommerfeldThreshold > GPU_R(0.0)
+     && depositionHeatTransferEfficiency > GPU_R(0.0)
+     && depositionHeatTransferEfficiency <= GPU_R(1.0)
+     && reflectionHeatTransferEfficiency > GPU_R(0.0)
+     && reflectionHeatTransferEfficiency <= GPU_R(1.0)
+     && adhesionEnergyScale > GPU_R(0.0)
+     && contactAngleDegree > GPU_R(0.0)
+     && contactAngleDegree < GPU_R(180.0);
     const Foam::gpuThermal::ColdWallSolidificationParameters coldWallParameters
     {
         meltingTemperatureK,
@@ -17791,8 +18306,8 @@ extern "C" int ugkwpGpuResidentStrictConfigureParticleStuckModel
      && (
             candidateCount == 0
          || !std::isfinite(maximumCoverage)
-         || maximumCoverage <= 0.0
-         || maximumCoverage > 1.0
+         || maximumCoverage <= GPU_R(0.0)
+         || maximumCoverage > GPU_R(1.0)
         )
     )
     {
@@ -17805,25 +18320,25 @@ extern "C" int ugkwpGpuResidentStrictConfigureParticleStuckModel
     }
 
     unsigned char* candidateMask = nullptr;
-    double* depositedWallEnergy = nullptr;
-    double* reflectedWallEnergy = nullptr;
-    double* representedArea = nullptr;
-    double* areaScale = nullptr;
-    double* wallEffusivityByFace = nullptr;
+    GpuWallEnergy* depositedWallEnergy = nullptr;
+    GpuWallEnergy* reflectedWallEnergy = nullptr;
+    GpuReal* representedArea = nullptr;
+    GpuReal* areaScale = nullptr;
+    GpuReal* wallEffusivityByFace = nullptr;
     float* finiteContactTable = nullptr;
     float* coldNodeSpecificEnthalpy = nullptr;
     float* coldRingSolidMass = nullptr;
     float* coldFrozenArea = nullptr;
-    float* coldContactAge = nullptr;
+    double* coldContactAge = nullptr;
     float* compactColdNodeSpecificEnthalpy = nullptr;
     float* compactColdRingSolidMass = nullptr;
     float* compactColdFrozenArea = nullptr;
-    float* compactColdContactAge = nullptr;
+    double* compactColdContactAge = nullptr;
     float* cold2DNodeSpecificEnthalpy = nullptr;
-    float* cold2DRingContactAge = nullptr;
+    double* cold2DRingContactAge = nullptr;
     float* cold2DFrozenArea = nullptr;
     float* compactCold2DNodeSpecificEnthalpy = nullptr;
-    float* compactCold2DRingContactAge = nullptr;
+    double* compactCold2DRingContactAge = nullptr;
     float* compactCold2DFrozenArea = nullptr;
     const size_t particleCapacity = static_cast<size_t>(s->particleCapacity);
     const size_t coldNodeStorage = particleCapacity
@@ -17995,7 +18510,7 @@ extern "C" int ugkwpGpuResidentStrictConfigureParticleStuckModel
         const cudaError_t e0 = cudaMemset(coldNodeSpecificEnthalpy, 0, coldNodeStorage*sizeof(float));
         const cudaError_t e1 = cudaMemset(coldRingSolidMass, 0, coldRingStorage*sizeof(float));
         const cudaError_t e2 = cudaMemset(coldFrozenArea, 0, particleCapacity*sizeof(float));
-        const cudaError_t e3 = cudaMemset(coldContactAge, 0, particleCapacity*sizeof(float));
+        const cudaError_t e3 = cudaMemset(coldContactAge, 0, particleCapacity*sizeof(*coldContactAge));
         if (e0 != cudaSuccess || e1 != cudaSuccess || e2 != cudaSuccess || e3 != cudaSuccess)
         {
             setLastErrorText("cudaMemset cold-wall particle state");
@@ -18020,7 +18535,7 @@ extern "C" int ugkwpGpuResidentStrictConfigureParticleStuckModel
     if (coldWall2DEnabled)
     {
         const cudaError_t e0 = cudaMemset(cold2DNodeSpecificEnthalpy, 0, cold2DNodeStorage*sizeof(float));
-        const cudaError_t e1 = cudaMemset(cold2DRingContactAge, 0, cold2DRingStorage*sizeof(float));
+        const cudaError_t e1 = cudaMemset(cold2DRingContactAge, 0, cold2DRingStorage*sizeof(*cold2DRingContactAge));
         const cudaError_t e2 = cudaMemset(cold2DFrozenArea, 0, particleCapacity*sizeof(float));
         if (e0 != cudaSuccess || e1 != cudaSuccess || e2 != cudaSuccess)
         {
@@ -18051,10 +18566,10 @@ extern "C" int ugkwpGpuResidentStrictConfigureParticleStuckModel
     }
     if (heatTransferEnabled != 0)
     {
-        const std::vector<double> initialAreaScale
+        const std::vector<GpuReal> initialAreaScale
         (
             static_cast<size_t>(nFaces),
-            1.0
+            GPU_R(1.0)
         );
         if
         (
@@ -18113,21 +18628,21 @@ extern "C" int ugkwpGpuResidentStrictConfigureParticleStuckModel
         (
             depositedWallEnergy,
             0,
-            static_cast<size_t>(nFaces)*sizeof(double)
+            static_cast<size_t>(nFaces)*sizeof(GpuWallEnergy)
         );
         const cudaError_t reflectedEnergyErr = cudaMemset
         (
             reflectedWallEnergy,
             0,
-            static_cast<size_t>(nFaces)*sizeof(double)
+            static_cast<size_t>(nFaces)*sizeof(GpuWallEnergy)
         );
         const cudaError_t areaErr = cudaMemset
         (
-            representedArea, 0, static_cast<size_t>(nFaces)*sizeof(double)
+            representedArea, 0, static_cast<size_t>(nFaces)*sizeof(GpuReal)
         );
         const cudaError_t effusivityErr = cudaMemset
         (
-            wallEffusivityByFace, 0, static_cast<size_t>(nFaces)*sizeof(double)
+            wallEffusivityByFace, 0, static_cast<size_t>(nFaces)*sizeof(GpuReal)
         );
         if
         (
@@ -18205,7 +18720,7 @@ extern "C" int ugkwpGpuResidentStrictConfigureParticleStuckModel
         reflectionHeatTransferEfficiency;
     s->particleWallAdhesionEnergyScale = adhesionEnergyScale;
     s->particleWallContactAngleCosine =
-        ::cos(contactAngleDegree*M_PI/180.0);
+        ::cos(contactAngleDegree*M_PI/GPU_R(180.0));
     if
     (
         syncDeviceState
@@ -18273,6 +18788,7 @@ extern "C" int ugkwpGpuResidentStrictPeekParticleWallHeatLedgers
     double* reflectedWallEnergyJ
 )
 {
+
     DeviceState* s = asState(handle);
     if
     (
@@ -18320,6 +18836,7 @@ extern "C" int ugkwpGpuResidentStrictDownloadAndResetParticleWallHeatLedgers
     double* reflectedWallEnergyJ
 )
 {
+
     DeviceState* s = asState(handle);
     if
     (
@@ -18360,7 +18877,7 @@ extern "C" int ugkwpGpuResidentStrictDownloadAndResetParticleWallHeatLedgers
     (
         s->particleWallDepositedEnergy,
         0,
-        static_cast<size_t>(nFaces)*sizeof(double)
+        static_cast<size_t>(nFaces)*sizeof(GpuWallEnergy)
     );
     if (err != cudaSuccess)
     {
@@ -18371,7 +18888,7 @@ extern "C" int ugkwpGpuResidentStrictDownloadAndResetParticleWallHeatLedgers
     (
         s->particleWallReflectedEnergy,
         0,
-        static_cast<size_t>(nFaces)*sizeof(double)
+        static_cast<size_t>(nFaces)*sizeof(GpuWallEnergy)
     );
     if (err != cudaSuccess)
     {
@@ -18395,6 +18912,7 @@ extern "C" int ugkwpGpuResidentStrictDownloadSst
     double* nut
 )
 {
+
     DeviceState* s = asState(handle);
     if (validateState(s, "SST field download") != 0)
     {
@@ -18438,20 +18956,21 @@ extern "C" int ugkwpGpuResidentStrictUploadParticleRestartMirror
     const unsigned char* pStuck,
     const int* pStuckFaceId,
     const float* pDepositionArea,
-    const float* pContactDuration,
+    const double* pContactDuration,
     const float* pContactMaximumArea,
     const float* pContactPeakFraction,
     const float* pColdNodeSpecificEnthalpy,
     const float* pColdRingSolidMass,
     const float* pColdFrozenArea,
-    const float* pColdContactAge,
+    const double* pColdContactAge,
     const float* pCold2DNodeSpecificEnthalpy,
-    const float* pCold2DRingContactAge,
+    const double* pCold2DRingContactAge,
     const float* pCold2DFrozenArea,
     const unsigned long long* pRng,
     const unsigned long long* pOrigId
 )
 {
+
     DeviceState* s = asState(handle);
     if (validateState(s, "particle restart mirror upload") != 0)
     {
@@ -18485,7 +19004,7 @@ extern "C" int ugkwpGpuResidentStrictUploadParticleRestartMirror
     (
         s->pContactDuration,
         0,
-        static_cast<size_t>(s->particleCapacity)*sizeof(float)
+        static_cast<size_t>(s->particleCapacity)*sizeof(*s->pContactDuration)
     );
     if (err != cudaSuccess)
     {
@@ -18582,23 +19101,23 @@ extern "C" int ugkwpGpuResidentStrictUploadParticleRestartMirror
     {
         if
         (
-            !std::isfinite(pm[i]) || pm[i] <= 0.0
-         || !std::isfinite(pTheta[i]) || pTheta[i] < 0.0
+            !std::isfinite(pm[i]) || pm[i] <= GPU_R(0.0)
+         || !std::isfinite(pTheta[i]) || pTheta[i] < GPU_R(0.0)
          || pStuck[i] > Foam::gpuThermal::particleWallTransientDeposit
          || pStuckFaceId[i] < -2
          || pStuckFaceId[i] >= s->nFaces
-         || !std::isfinite(static_cast<double>(pDepositionArea[i]))
+         || !std::isfinite(static_cast<GpuReal>(pDepositionArea[i]))
          || pDepositionArea[i] < 0.0f
-         || !std::isfinite(static_cast<double>(pContactDuration[i]))
-         || !std::isfinite(static_cast<double>(pContactMaximumArea[i]))
-         || !std::isfinite(static_cast<double>(pContactPeakFraction[i]))
+         || !std::isfinite(static_cast<GpuTime>(pContactDuration[i]))
+         || !std::isfinite(static_cast<GpuReal>(pContactMaximumArea[i]))
+         || !std::isfinite(static_cast<GpuReal>(pContactPeakFraction[i]))
          || pContactDuration[i] < 0.0f
          || pContactMaximumArea[i] < 0.0f
          || pContactPeakFraction[i] < 0.0f
-         || !std::isfinite(static_cast<double>(pColdFrozenArea[i]))
-         || !std::isfinite(static_cast<double>(pColdContactAge[i]))
+         || !std::isfinite(static_cast<GpuReal>(pColdFrozenArea[i]))
+         || !std::isfinite(static_cast<GpuTime>(pColdContactAge[i]))
          || pColdFrozenArea[i] < 0.0f || pColdContactAge[i] < 0.0f
-         || !std::isfinite(static_cast<double>(pCold2DFrozenArea[i]))
+         || !std::isfinite(static_cast<GpuReal>(pCold2DFrozenArea[i]))
          || pCold2DFrozenArea[i] < 0.0f
          || (pStuck[i] == 0 && pStuckFaceId[i] != -1)
          || (pStuck[i] == 0 && pDepositionArea[i] != 0.0f)
@@ -18657,7 +19176,7 @@ extern "C" int ugkwpGpuResidentStrictUploadParticleRestartMirror
             [
                 i*Foam::gpuThermal::coldWallAxialNodeCount + node
             ];
-            if (!std::isfinite(static_cast<double>(value)))
+            if (!std::isfinite(static_cast<GpuReal>(value)))
             {
                 setLastErrorText("particle restart cold-wall enthalpy is invalid");
                 return 1;
@@ -18669,7 +19188,7 @@ extern "C" int ugkwpGpuResidentStrictUploadParticleRestartMirror
             [
                 i*Foam::gpuThermal::coldWallRadialRingCount + ring
             ];
-            if (!std::isfinite(static_cast<double>(value)) || value < 0.0f)
+            if (!std::isfinite(static_cast<GpuReal>(value)) || value < 0.0f)
             {
                 setLastErrorText("particle restart cold-wall ring mass is invalid");
                 return 1;
@@ -18679,7 +19198,7 @@ extern "C" int ugkwpGpuResidentStrictUploadParticleRestartMirror
         {
             const float value = pCold2DNodeSpecificEnthalpy
             [i*Foam::gpuThermal::coldWall2DNodeCount + node];
-            if (!std::isfinite(static_cast<double>(value)) || value < 0.0f)
+            if (!std::isfinite(static_cast<GpuReal>(value)) || value < 0.0f)
             {
                 setLastErrorText("particle restart cold-wall-2D enthalpy is invalid");
                 return 1;
@@ -18694,7 +19213,7 @@ extern "C" int ugkwpGpuResidentStrictUploadParticleRestartMirror
         {
             const float value = pCold2DRingContactAge
             [i*Foam::gpuThermal::coldWall2DRadialNodeCount + ring];
-            if (!std::isfinite(static_cast<double>(value)) || value < 0.0f)
+            if (!std::isfinite(static_cast<GpuReal>(value)) || value < 0.0f)
             {
                 setLastErrorText("particle restart cold-wall-2D contact age is invalid");
                 return 1;
@@ -18708,7 +19227,15 @@ extern "C" int ugkwpGpuResidentStrictUploadParticleRestartMirror
     rc |= copyToDevice(s->puy, puy, n, "cudaMemcpy strict restart puy");
     rc |= copyToDevice(s->puz, puz, n, "cudaMemcpy strict restart puz");
     rc |= copyToDevice(s->pT, pT, n, "cudaMemcpy strict restart pT");
-    rc |= copyToDevice(s->pTheta, pTheta, n, "cudaMemcpy strict restart pTheta");
+    std::vector<GpuReal> physicalTheta(n);
+    std::vector<GpuTime> contactAge(n);
+    for (size_t i = 0; i < n; ++i)
+    {
+        physicalTheta[i] = pStuck[i] == 0 ? static_cast<GpuReal>(pTheta[i]) : GPU_R(0.0);
+        contactAge[i] = pStuck[i] != 0 ? pTheta[i] : GpuTime(0);
+    }
+    rc |= copyToDevice(s->pTheta, physicalTheta.data(), n, "cudaMemcpy restart physical theta");
+    rc |= copyToDevice(s->pContactAge, contactAge.data(), n, "cudaMemcpy restart contact age");
     rc |= copyToDevice(s->pd, pd, n, "cudaMemcpy strict restart pd");
     rc |= copyToDevice(s->pm, pm, n, "cudaMemcpy strict restart pm");
     rc |= copyToDevice(s->pCellId, pCellId, n, "cudaMemcpy strict restart pCellId");
@@ -18828,20 +19355,21 @@ extern "C" int ugkwpGpuResidentStrictDownloadParticleRestartMirror
     unsigned char* pStuck,
     int* pStuckFaceId,
     float* pDepositionArea,
-    float* pContactDuration,
+    double* pContactDuration,
     float* pContactMaximumArea,
     float* pContactPeakFraction,
     float* pColdNodeSpecificEnthalpy,
     float* pColdRingSolidMass,
     float* pColdFrozenArea,
-    float* pColdContactAge,
+    double* pColdContactAge,
     float* pCold2DNodeSpecificEnthalpy,
-    float* pCold2DRingContactAge,
+    double* pCold2DRingContactAge,
     float* pCold2DFrozenArea,
     unsigned long long* pRng,
     unsigned long long* pOrigId
 )
 {
+
     DeviceState* s = asState(handle);
     if (validateState(s, "particle restart mirror download") != 0)
     {
@@ -19010,11 +19538,20 @@ extern "C" int ugkwpGpuResidentStrictDownloadParticleRestartMirror
     }
     rc |= copyToHost(pRng, s->pRng, n, "cudaMemcpy strict restart pRng");
     rc |= copyToHost(pOrigId, s->pOrigId, n, "cudaMemcpy strict restart pOrigId");
+    std::vector<GpuTime> contactAge(n);
+    rc |= copyToHost(contactAge.data(), s->pContactAge, n, "cudaMemcpy restart contact age");
+    if (rc == 0)
+        for (size_t i = 0; i < n; ++i)
+            if (pStuck[i] != 0) pTheta[i] = contactAge[i];
     return rc == 0 ? 0 : 1;
 }
 
-extern "C" void ugkwpGpuResidentStrictRelease(void* handle)
+extern "C" void ugkwpGpuResidentStrictRelease
+(
+    void* handle
+)
 {
+
 #ifdef UGKP_DEVELOPMENT_PROBES
     if (developmentProbe.owner == asState(handle))
     {
@@ -19023,3 +19560,7 @@ extern "C" void ugkwpGpuResidentStrictRelease(void* handle)
 #endif
     releaseState(asState(handle));
 }
+
+#if UGKWP_GPU_REAL_BITS == 32
+}
+#endif

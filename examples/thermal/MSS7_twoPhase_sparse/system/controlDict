@@ -1,10 +1,10 @@
-/*--------------------------------*- C++ -*----------------------------------*\
-  =========                 |
-  \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
-   \\    /   O peration     | Website:  https://openfoam.org
-    \\  /    A nd           | Version:  10
-     \\/     M anipulation  |
-\*---------------------------------------------------------------------------*/
+
+
+
+
+
+
+
 FoamFile
 {
     version         2;
@@ -12,17 +12,17 @@ FoamFile
     class           dictionary;
     object          controlDict;
 }
-// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
 
 application     CHT;
 
-startFrom       latestTime;
+startFrom startTime;
 
-startTime       1;
+startTime 1;
 
 stopAt          endTime;
 
-endTime         4.5;
+endTime 4.5;
 
 deltaT          1e-08;
 
@@ -49,6 +49,3 @@ adjustTimeStep  yes;
 maxCo           0.5;
 
 maxDeltaT       1e-06;
-
-
-// ************************************************************************* //

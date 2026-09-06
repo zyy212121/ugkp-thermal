@@ -24,6 +24,7 @@ FIGURES = OUTPUT / "figures"
 PROJECT = THERMAL.parents[1]
 sys.path.insert(0, str(PROJECT / "tools/postprocessing"))
 sys.path.insert(0, str(THERMAL / "postprocessing"))
+sys.path.insert(0, str(Path(__file__).resolve().parent))
 from bartz import bartz_wall_heat_flux
 import bentsrm_case_reader as particle_reader
 
@@ -77,7 +78,11 @@ def pressure_table(path: Path):
 
 
 def run_probes(case: Path):
-    command = ["postProcess", "-region", "graphite", "-dict", "system/mss7TemperatureProbesDict", "-time", "1:"]
+    command = [
+        "bash", "-lc",
+        "source /opt/openfoam10/etc/bashrc >/dev/null 2>&1 && "
+        "exec postProcess -region graphite -dict system/mss7TemperatureProbesDict -time 1:",
+    ]
     completed = subprocess.run(command, cwd=case, text=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
     if completed.returncode != 0:
         raise RuntimeError("temperature probe extraction failed:\n" + completed.stdout[-4000:])
@@ -242,21 +247,61 @@ def time_name(value: float):
 
 
 def temperature_figure(case: Path, baseline: Path):
-    two_times, two_phase, pure_gas = matched_temperature(case, baseline)
+    run_probes(case)
+    tw_t, tw_v, tw_c = read_probe_series(case / "postProcessing/mss7ThroatWallProbe/graphite")
+    tw_t, tw = wall_temperature(tw_t, tw_v, tw_c)
+    ti_t, ti, _ = read_probe_series(case / "postProcessing/mss7ThroatTemperatureProbes/graphite")
+    lower = max(float(np.min(tw_t)), float(np.min(ti_t)))
+    upper = min(float(np.max(tw_t)), float(np.max(ti_t)))
+    common = sorted(set(np.round(tw_t, 8)) & set(np.round(ti_t, 8)))
+    times = np.asarray([value for value in common if lower - 1.0e-8 <= value <= upper + 1.0e-8])
+    if times.size == 0:
+        raise RuntimeError("active-case wall and internal probe ranges do not overlap")
+    radiation_times = {round(1.0, 8)}
+    radiation_times.update(round(time_s, 8) for time_s, _ in radiation_directories(case))
+    keep = np.asarray(
+        [round(value, 8) in radiation_times for value in times],
+        dtype=bool,
+    )
+    times = times[keep]
+    if times.size == 0:
+        raise RuntimeError("no completed radiation-step temperature data remains")
+
+    active = np.column_stack((
+        np.interp(times, tw_t, tw),
+        np.interp(times, ti_t, ti[:, 0]),
+        np.interp(times, ti_t, ti[:, 1]),
+    ))
+
+    baseline_values = None
+    try:
+        bt_t, bt_v, bt_c = read_probe_series(baseline / "postProcessing/mss7ThroatWallProbe/graphite")
+        bt_t, btw = wall_temperature(bt_t, bt_v, bt_c)
+        bi_t, bi, _ = read_probe_series(baseline / "postProcessing/mss7ThroatTemperatureProbes/graphite")
+        baseline_values = np.column_stack((
+            np.interp(times, bt_t, btw),
+            np.interp(times, bi_t, bi[:, 0]),
+            np.interp(times, bi_t, bi[:, 1]),
+        ))
+    except (OSError, RuntimeError) as error:
+        print(f"temperature baseline comparison skipped: {error}", file=sys.stderr)
+
     rows = []
     labels = ("wall", "10mm", "30mm")
-    for index, time_s in enumerate(two_times):
+    for index, time_s in enumerate(times):
         row = {"time_s": time_s}
         for column, label in enumerate(labels):
-            row[f"{label}_two_phase_K"] = two_phase[index, column]
-            row[f"{label}_pure_gas_K"] = pure_gas[index, column]
+            row[f"{label}_two_phase_K"] = active[index, column]
+            if baseline_values is not None:
+                row[f"{label}_pure_gas_K"] = baseline_values[index, column]
         rows.append(row)
     write_rows(DATA / "temperature_comparison.csv", rows)
     fig, axes = plt.subplots(1, 3, figsize=(15.2, 4.8), sharex=True)
     for column, (axis, label) in enumerate(zip(axes, ("Wall", "10 mm", "30 mm"))):
-        axis.plot(two_times, pure_gas[:, column], color="#1f77b4", lw=2.2, label="Pure gas")
-        axis.plot(two_times, two_phase[:, column], color="#d62728", lw=2.0, label="Two phase")
-        axis.set_xlim(float(two_times[0]), float(two_times[-1]))
+        axis.plot(times, active[:, column], color="#d62728", lw=2.0, label="Two phase")
+        if baseline_values is not None:
+            axis.plot(times, baseline_values[:, column], color="#1f77b4", lw=2.2, label="Pure gas")
+        axis.set_xlim(float(times[0]), float(times[-1]))
         axis.set_xlabel(r"Time $t$ (s)")
         axis.set_title(label)
         axis.grid(alpha=0.18)
@@ -265,7 +310,6 @@ def temperature_figure(case: Path, baseline: Path):
     fig.tight_layout()
     fig.savefig(FIGURES / "temperature_comparison.png", dpi=300, facecolor="white")
     plt.close(fig)
-
 
 def spatial_figures(case: Path, patch: str):
     face_ids, centres, face_areas = coupled_face_geometry(case, patch)
@@ -364,7 +408,10 @@ def main():
     FIGURES.mkdir(parents=True, exist_ok=True)
     particle_reader.CASE = case
     particle_reader.COUPLED_PATCH = "fluid_to_graphite"
-    temperature_figure(case, case.parent / "MSS7_turbulent_wallModel")
+    try:
+        temperature_figure(case, case.parent / "MSS7_turbulent_wallModel")
+    except (OSError, RuntimeError) as error:
+        print(f"temperature comparison skipped: {error}", file=sys.stderr)
     spatial_figures(case, "fluid_to_graphite")
     print(f"data={DATA}")
     print(f"figures={FIGURES}")

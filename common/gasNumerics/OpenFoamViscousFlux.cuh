@@ -1,3 +1,4 @@
+#include "GpuPrecisionTypes.H"
 #pragma once
 
   
@@ -38,18 +39,18 @@ namespace ugkptransport
 
 struct Vector3
 {
-    double x;
-    double y;
-    double z;
+    GpuReal x;
+    GpuReal y;
+    GpuReal z;
 };
 
 struct SnGradGeometry
 {
-    double delta;
+    GpuReal delta;
     Vector3 correction;
 };
 
-UGKP_TRANSPORT_HD double dot(const Vector3& a, const Vector3& b)
+UGKP_TRANSPORT_HD GpuReal dot(const Vector3& a, const Vector3& b)
 {
     return a.x*b.x + a.y*b.y + a.z*b.z;
 }
@@ -64,7 +65,7 @@ UGKP_TRANSPORT_HD Vector3 subtract(const Vector3& a, const Vector3& b)
     return Vector3{a.x - b.x, a.y - b.y, a.z - b.z};
 }
 
-UGKP_TRANSPORT_HD Vector3 scale(const Vector3& value, const double factor)
+UGKP_TRANSPORT_HD Vector3 scale(const Vector3& value, const GpuReal factor)
 {
     return Vector3
     {
@@ -74,12 +75,12 @@ UGKP_TRANSPORT_HD Vector3 scale(const Vector3& value, const double factor)
     };
 }
 
-UGKP_TRANSPORT_HD double magnitude(const Vector3& value)
+UGKP_TRANSPORT_HD GpuReal magnitude(const Vector3& value)
 {
     return sqrt(dot(value, value));
 }
 
-UGKP_TRANSPORT_HD double maximum(const double a, const double b)
+UGKP_TRANSPORT_HD GpuReal maximum(const GpuReal a, const GpuReal b)
 {
     return a > b ? a : b;
 }
@@ -88,13 +89,13 @@ UGKP_TRANSPORT_HD Vector3 linearInterpolate
 (
     const Vector3& owner,
     const Vector3& neighbour,
-    const double ownerWeight
+    const GpuReal ownerWeight
 )
 {
     return add
     (
         scale(owner, ownerWeight),
-        scale(neighbour, 1.0 - ownerWeight)
+        scale(neighbour, GPU_R(1.0) - ownerWeight)
     );
 }
 
@@ -106,17 +107,17 @@ UGKP_TRANSPORT_HD SnGradGeometry makeInternalSnGradGeometry
 )
 {
     const Vector3 centreDelta = subtract(neighbourCentre, ownerCentre);
-    const double centreDistance = magnitude(centreDelta);
-    const double normalDistance = dot(unitNormal, centreDelta);
-    const double denominator = maximum
+    const GpuReal centreDistance = magnitude(centreDelta);
+    const GpuReal normalDistance = dot(unitNormal, centreDelta);
+    const GpuReal denominator = maximum
     (
         normalDistance,
-        0.05*centreDistance
+        GPU_R(0.05)*centreDistance
     );
-    const double delta =
-        denominator > 2.22507385850720138309e-308
-      ? 1.0/denominator
-      : 0.0;
+    const GpuReal delta =
+        denominator > GPU_TINY(2.22507385850720138309e-308)
+      ? GPU_R(1.0)/denominator
+      : GPU_R(0.0);
     return SnGradGeometry
     {
         delta,
@@ -124,13 +125,13 @@ UGKP_TRANSPORT_HD SnGradGeometry makeInternalSnGradGeometry
     };
 }
 
-UGKP_TRANSPORT_HD double correctedSnGrad
+UGKP_TRANSPORT_HD GpuReal correctedSnGrad
 (
-    const double ownerValue,
-    const double neighbourValue,
+    const GpuReal ownerValue,
+    const GpuReal neighbourValue,
     const Vector3& ownerGradient,
     const Vector3& neighbourGradient,
-    const double ownerWeight,
+    const GpuReal ownerWeight,
     const SnGradGeometry& geometry
 )
 {
@@ -147,7 +148,7 @@ UGKP_TRANSPORT_HD double correctedSnGrad
 
 UGKP_TRANSPORT_HD Vector3 openFoamNewtonianTraction
 (
-    const double dynamicViscosity,
+    const GpuReal dynamicViscosity,
     const Vector3& unitNormal,
     const Vector3& compactSnGradU,
     const Vector3& gradUx,
@@ -155,7 +156,7 @@ UGKP_TRANSPORT_HD Vector3 openFoamNewtonianTraction
     const Vector3& gradUz
 )
 {
-    const double divU = gradUx.x + gradUy.y + gradUz.z;
+    const GpuReal divU = gradUx.x + gradUy.y + gradUz.z;
     const Vector3 transposedGradientNormal
     (
         Vector3
@@ -176,7 +177,7 @@ UGKP_TRANSPORT_HD Vector3 openFoamNewtonianTraction
         add
         (
             add(compactSnGradU, transposedGradientNormal),
-            scale(unitNormal, -(2.0/3.0)*divU)
+            scale(unitNormal, -(GPU_R(2.0)/GPU_R(3.0))*divU)
         ),
         dynamicViscosity
     );

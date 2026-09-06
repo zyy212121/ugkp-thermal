@@ -1,3 +1,4 @@
+#include "GpuPrecisionTypes.H"
 #pragma once
 
 #include <cmath>
@@ -13,35 +14,35 @@ namespace ugkpcharacteristic
 
 struct Increment
 {
-    double rho;
-    double ux;
-    double uy;
-    double uz;
-    double p;
+    GpuReal rho;
+    GpuReal ux;
+    GpuReal uy;
+    GpuReal uz;
+    GpuReal p;
 };
 
-UGKP_CHARACTERISTIC_HD double clamp01(const double value)
+UGKP_CHARACTERISTIC_HD GpuReal clamp01(const GpuReal value)
 {
-    return value < 0.0 ? 0.0 : (value > 1.0 ? 1.0 : value);
+    return value < GPU_R(0.0) ? GPU_R(0.0) : (value > GPU_R(1.0) ? GPU_R(1.0) : value);
 }
 
-UGKP_CHARACTERISTIC_HD double boundedTowardAdjacent
+UGKP_CHARACTERISTIC_HD GpuReal boundedTowardAdjacent
 (
-    const double raw,
-    const double adjacentDifference,
-    const double faceFraction
+    const GpuReal raw,
+    const GpuReal adjacentDifference,
+    const GpuReal faceFraction
 )
 {
     if
     (
         !::isfinite(raw)
      || !::isfinite(adjacentDifference)
-     || raw*adjacentDifference <= 0.0
+     || raw*adjacentDifference <= GPU_R(0.0)
     )
     {
-        return 0.0;
+        return GPU_R(0.0);
     }
-    const double bound =
+    const GpuReal bound =
         clamp01(faceFraction)*::fabs(adjacentDifference);
     return ::copysign(::fmin(::fabs(raw), bound), raw);
 }
@@ -50,81 +51,81 @@ UGKP_CHARACTERISTIC_HD Increment limitOneSide
 (
     const Increment& raw,
     const Increment& adjacentDifference,
-    const double nx,
-    const double ny,
-    const double nz,
-    const double roeDensity,
-    const double roeSoundSpeed,
-    const double faceFraction
+    const GpuReal nx,
+    const GpuReal ny,
+    const GpuReal nz,
+    const GpuReal roeDensity,
+    const GpuReal roeSoundSpeed,
+    const GpuReal faceFraction
 )
 {
-    const double soundSquared = roeSoundSpeed*roeSoundSpeed;
-    const double impedance = roeDensity*roeSoundSpeed;
+    const GpuReal soundSquared = roeSoundSpeed*roeSoundSpeed;
+    const GpuReal impedance = roeDensity*roeSoundSpeed;
     if
     (
         !::isfinite(soundSquared)
      || !::isfinite(impedance)
-     || soundSquared <= 0.0
-     || impedance <= 0.0
+     || soundSquared <= GPU_R(0.0)
+     || impedance <= GPU_R(0.0)
     )
     {
-        return Increment{0.0, 0.0, 0.0, 0.0, 0.0};
+        return Increment{GPU_R(0.0), GPU_R(0.0), GPU_R(0.0), GPU_R(0.0), GPU_R(0.0)};
     }
 
-    const double rawNormal = raw.ux*nx + raw.uy*ny + raw.uz*nz;
-    const double adjacentNormal =
+    const GpuReal rawNormal = raw.ux*nx + raw.uy*ny + raw.uz*nz;
+    const GpuReal adjacentNormal =
         adjacentDifference.ux*nx
       + adjacentDifference.uy*ny
       + adjacentDifference.uz*nz;
-    const double rawMinus = raw.p - impedance*rawNormal;
-    const double rawContact = raw.rho - raw.p/soundSquared;
-    const double rawPlus = raw.p + impedance*rawNormal;
-    const double adjacentMinus =
+    const GpuReal rawMinus = raw.p - impedance*rawNormal;
+    const GpuReal rawContact = raw.rho - raw.p/soundSquared;
+    const GpuReal rawPlus = raw.p + impedance*rawNormal;
+    const GpuReal adjacentMinus =
         adjacentDifference.p - impedance*adjacentNormal;
-    const double adjacentContact =
+    const GpuReal adjacentContact =
         adjacentDifference.rho
       - adjacentDifference.p/soundSquared;
-    const double adjacentPlus =
+    const GpuReal adjacentPlus =
         adjacentDifference.p + impedance*adjacentNormal;
 
-    const double limitedMinus = boundedTowardAdjacent
+    const GpuReal limitedMinus = boundedTowardAdjacent
     (
         rawMinus, adjacentMinus, faceFraction
     );
-    const double limitedContact = boundedTowardAdjacent
+    const GpuReal limitedContact = boundedTowardAdjacent
     (
         rawContact, adjacentContact, faceFraction
     );
-    const double limitedPlus = boundedTowardAdjacent
+    const GpuReal limitedPlus = boundedTowardAdjacent
     (
         rawPlus, adjacentPlus, faceFraction
     );
 
-    const double rawTangentialX = raw.ux - rawNormal*nx;
-    const double rawTangentialY = raw.uy - rawNormal*ny;
-    const double rawTangentialZ = raw.uz - rawNormal*nz;
-    const double adjacentTangentialX =
+    const GpuReal rawTangentialX = raw.ux - rawNormal*nx;
+    const GpuReal rawTangentialY = raw.uy - rawNormal*ny;
+    const GpuReal rawTangentialZ = raw.uz - rawNormal*nz;
+    const GpuReal adjacentTangentialX =
         adjacentDifference.ux - adjacentNormal*nx;
-    const double adjacentTangentialY =
+    const GpuReal adjacentTangentialY =
         adjacentDifference.uy - adjacentNormal*ny;
-    const double adjacentTangentialZ =
+    const GpuReal adjacentTangentialZ =
         adjacentDifference.uz - adjacentNormal*nz;
-    const double limitedTangentialX = boundedTowardAdjacent
+    const GpuReal limitedTangentialX = boundedTowardAdjacent
     (
         rawTangentialX, adjacentTangentialX, faceFraction
     );
-    const double limitedTangentialY = boundedTowardAdjacent
+    const GpuReal limitedTangentialY = boundedTowardAdjacent
     (
         rawTangentialY, adjacentTangentialY, faceFraction
     );
-    const double limitedTangentialZ = boundedTowardAdjacent
+    const GpuReal limitedTangentialZ = boundedTowardAdjacent
     (
         rawTangentialZ, adjacentTangentialZ, faceFraction
     );
 
-    const double limitedPressure = 0.5*(limitedPlus + limitedMinus);
-    const double limitedNormal =
-        (limitedPlus - limitedMinus)/(2.0*impedance);
+    const GpuReal limitedPressure = GPU_R(0.5)*(limitedPlus + limitedMinus);
+    const GpuReal limitedNormal =
+        (limitedPlus - limitedMinus)/(GPU_R(2.0)*impedance);
     return Increment
     {
         limitedContact + limitedPressure/soundSquared,
@@ -140,12 +141,12 @@ UGKP_CHARACTERISTIC_HD void limitFacePair
     Increment& leftIncrement,
     Increment& rightIncrement,
     const Increment& centreDifference,
-    const double nx,
-    const double ny,
-    const double nz,
-    const double roeDensity,
-    const double roeSoundSpeed,
-    const double ownerWeight
+    const GpuReal nx,
+    const GpuReal ny,
+    const GpuReal nz,
+    const GpuReal roeDensity,
+    const GpuReal roeSoundSpeed,
+    const GpuReal ownerWeight
 )
 {
     leftIncrement = limitOneSide
@@ -157,7 +158,7 @@ UGKP_CHARACTERISTIC_HD void limitFacePair
         nz,
         roeDensity,
         roeSoundSpeed,
-        1.0 - clamp01(ownerWeight)
+        GPU_R(1.0) - clamp01(ownerWeight)
     );
     const Increment reverseDifference
     {

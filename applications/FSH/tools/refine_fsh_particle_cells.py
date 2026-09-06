@@ -15,10 +15,11 @@ from typing import Iterator
 
 import numpy as np
 
-from fsh_particle_restart import (
+from fsh_particle_restart_schema6 import (
     ALL_FIELDS,
     FLOAT_FIELDS,
     iter_restart_chunks,
+    restart_schema,
     sha256,
     write_fsh_restart,
 )
@@ -297,6 +298,7 @@ def refine_restart(
     capacity_reserve_fraction: float = 0.05,
     capacity_reserve_minimum: int = 100000,
     tolerance: float = 5.0e-13,
+    output_schema: int | None = None,
 ) -> dict[str, object]:
     source = Path(source).resolve()
     output = Path(output).resolve()
@@ -313,6 +315,11 @@ def refine_restart(
     if not source.is_file():
         raise FileNotFoundError(source)
 
+    source_schema = restart_schema(source)
+    if output_schema is None:
+        output_schema = source_schema
+    if output_schema not in range(1, 7) or output_schema < source_schema:
+        raise ValueError("output schema must be 1..6 and cannot be older than the source schema")
     source_hash_before = sha256(source)
     before, source_ids, source_rng = scan_restart(source, legacy_parcel_mass)
     missing = sorted(cells - set(before.counts))
@@ -351,6 +358,7 @@ def refine_restart(
             ),
             output_particles,
             chunk_particles,
+            schema=output_schema,
         )
         after, output_ids, output_rng = scan_restart(temporary, None)
         if len(output_ids) != output_particles or len(output_rng) != output_particles:
@@ -396,7 +404,8 @@ def refine_restart(
     _atomic_text(conservation_csv, "\n".join(csv_lines) + "\n")
 
     manifest: dict[str, object] = {
-        "format": "UGKP_FSH_PARTICLES_SCHEMA1_BIN",
+        "format": f"UGKP_FSH_PARTICLES_SCHEMA{output_schema}_BIN",
+        "source_format": f"UGKP_FSH_PARTICLES_SCHEMA{source_schema}_BIN",
         "source": str(source),
         "source_sha256": source_hash_before,
         "output": str(output),
@@ -434,6 +443,10 @@ def main() -> None:
     parser.add_argument("--capacity-reserve-fraction", type=float, default=0.05)
     parser.add_argument("--capacity-reserve-minimum", type=int, default=100000)
     parser.add_argument("--tolerance", type=float, default=5.0e-13)
+    parser.add_argument(
+        "--output-schema", type=int,
+        help="output FSH schema (default: preserve input; use 6 for the current solver)",
+    )
     args = parser.parse_args()
     manifest = refine_restart(
         args.source,
@@ -448,6 +461,7 @@ def main() -> None:
         args.capacity_reserve_fraction,
         args.capacity_reserve_minimum,
         args.tolerance,
+        args.output_schema,
     )
     print(json.dumps(manifest, sort_keys=True))
 

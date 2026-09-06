@@ -268,18 +268,22 @@ def parse_particle_restart(path: Path):
             "UGKP_FSH_PARTICLES_SCHEMA3_BIN",
             "UGKP_FSH_PARTICLES_SCHEMA4_BIN",
             "UGKP_FSH_PARTICLES_SCHEMA5_BIN",
+            "UGKP_FSH_PARTICLES_SCHEMA6_BIN",
         ):
             raise ValueError("unsupported particle restart format: " + header)
         has_peak_fraction = tokens[0] in (
             "UGKP_FSH_PARTICLES_SCHEMA3_BIN",
             "UGKP_FSH_PARTICLES_SCHEMA4_BIN",
             "UGKP_FSH_PARTICLES_SCHEMA5_BIN",
+            "UGKP_FSH_PARTICLES_SCHEMA6_BIN",
         )
         has_cold_profile = tokens[0] in (
             "UGKP_FSH_PARTICLES_SCHEMA4_BIN",
             "UGKP_FSH_PARTICLES_SCHEMA5_BIN",
+            "UGKP_FSH_PARTICLES_SCHEMA6_BIN",
         )
-        has_cold_2d_profile = tokens[0] == "UGKP_FSH_PARTICLES_SCHEMA5_BIN"
+        has_cold_2d_profile = tokens[0] in ("UGKP_FSH_PARTICLES_SCHEMA5_BIN", "UGKP_FSH_PARTICLES_SCHEMA6_BIN")
+        time_code = "d" if tokens[0] == "UGKP_FSH_PARTICLES_SCHEMA6_BIN" else "f"
         count = int(tokens[1])
         maximum_chunk = int(tokens[2])
         if count < 0 or maximum_chunk <= 0:
@@ -302,7 +306,7 @@ def parse_particle_restart(path: Path):
             ("wall_state", "B"),
             ("wall_face", "i"),
             ("area", "f"),
-            ("duration", "f"),
+            ("duration", time_code),
             ("maximum_area", "f"),
         )
         if has_peak_fraction:
@@ -330,7 +334,7 @@ def parse_particle_restart(path: Path):
                     _read_values(stream, "f", chunk)
                 )
                 arrays["cold_contact_age"].extend(
-                    _read_values(stream, "f", chunk)
+                    _read_values(stream, time_code, chunk)
                 )
             else:
                 arrays["cold_node_specific_enthalpy"].extend(
@@ -343,7 +347,7 @@ def parse_particle_restart(path: Path):
                     _read_values(stream, "f", chunk * COLD_2D_NODE_COUNT)
                 )
                 arrays["cold_2d_ring_contact_age"].extend(
-                    _read_values(stream, "f", chunk * RADIAL_NODE_COUNT)
+                    _read_values(stream, time_code, chunk * RADIAL_NODE_COUNT)
                 )
                 arrays["cold_2d_frozen_area"].extend(
                     _read_values(stream, "f", chunk)

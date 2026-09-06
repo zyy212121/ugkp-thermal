@@ -1,3 +1,4 @@
+#include "GpuPrecisionTypes.H"
 #ifndef GPU_COUPLING_MATH_H
 #define GPU_COUPLING_MATH_H
 
@@ -9,47 +10,47 @@
 #define GPU_COUPLING_HD
 #endif
 
-GPU_COUPLING_HD inline double gpuCouplingOneMinusExpNeg(const double x)
+GPU_COUPLING_HD inline GpuReal gpuCouplingOneMinusExpNeg(const GpuReal x)
 {
-    if (!(x > 0.0))
+    if (!(x > GPU_R(0.0)))
     {
-        return 0.0;
+        return GPU_R(0.0);
     }
 
-    if (x < 1.0e-6)
+    if (x < GPU_R(1.0e-6))
     {
-        return x*(1.0 - 0.5*x + x*x/6.0);
+        return x*(GPU_R(1.0) - GPU_R(0.5)*x + x*x/GPU_R(6.0));
     }
 
-    return 1.0 - ::exp(-x);
+    return GPU_R(1.0) - ::exp(-x);
 }
 
-GPU_COUPLING_HD inline double gpuFiniteCapacityHeatExchange
+GPU_COUPLING_HD inline GpuReal gpuFiniteCapacityHeatExchange
 (
-    const double gasCapacity,
-    const double solidCapacity,
-    const double gasTemperature,
-    const double solidTemperature,
-    const double solidRelaxationRate,
-    const double dt
+    const GpuReal gasCapacity,
+    const GpuReal solidCapacity,
+    const GpuReal gasTemperature,
+    const GpuReal solidTemperature,
+    const GpuReal solidRelaxationRate,
+    const GpuTime dt
 )
 {
     if
     (
-        !(gasCapacity > 0.0)
-     || !(solidCapacity > 0.0)
-     || !(solidRelaxationRate > 0.0)
-     || !(dt > 0.0)
+        !(gasCapacity > GPU_R(0.0))
+     || !(solidCapacity > GPU_R(0.0))
+     || !(solidRelaxationRate > GPU_R(0.0))
+     || !(dt > GPU_R(0.0))
     )
     {
-        return 0.0;
+        return GPU_R(0.0);
     }
 
-    const double totalCapacity = gasCapacity + solidCapacity;
-    const double effectiveCapacity =
+    const GpuReal totalCapacity = gasCapacity + solidCapacity;
+    const GpuReal effectiveCapacity =
         gasCapacity*solidCapacity/totalCapacity;
-    const double coupledRate =
-        solidRelaxationRate*(1.0 + solidCapacity/gasCapacity);
+    const GpuReal coupledRate =
+        solidRelaxationRate*(GPU_R(1.0) + solidCapacity/gasCapacity);
 
     return effectiveCapacity
        *(gasTemperature - solidTemperature)

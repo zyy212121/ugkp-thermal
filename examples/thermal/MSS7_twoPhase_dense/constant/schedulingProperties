@@ -16,8 +16,13 @@ gpuResidentMaxFaceWalkHops      12;
 gpuResidentCourantUpdateInterval 1000;
 gpuResidentMaxDeltaTGrowth      1.05;
 
+
 gpuCsrLevel                     auto;
 gpuCsrHeavyReductionAutoInterval 1000;
 
-gpuParticleBlockThreads         128;
-gpuReductionBlockThreads        128;
+gpuParticleBlockThreads         32;
+gpuReductionBlockThreads        32;
+
+
+
+gpuPrecision 32;

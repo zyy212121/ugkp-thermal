@@ -1,3 +1,4 @@
+#include "GpuPrecisionTypes.H"
 #pragma once
 
   
@@ -23,60 +24,60 @@ namespace ugkpboundary
 
 struct Primitive
 {
-    double rho;
-    double ux;
-    double uy;
-    double uz;
-    double p;
-    double T;
+    GpuReal rho;
+    GpuReal ux;
+    GpuReal uy;
+    GpuReal uz;
+    GpuReal p;
+    GpuReal T;
 };
 
-UGKP_BOUNDARY_HD double maximum(const double a, const double b)
+UGKP_BOUNDARY_HD GpuReal maximum(const GpuReal a, const GpuReal b)
 {
     return a > b ? a : b;
 }
 
-UGKP_BOUNDARY_HD double minimum(const double a, const double b)
+UGKP_BOUNDARY_HD GpuReal minimum(const GpuReal a, const GpuReal b)
 {
     return a < b ? a : b;
 }
 
-UGKP_BOUNDARY_HD double finiteOr(const double value, const double fallback)
+UGKP_BOUNDARY_HD GpuReal finiteOr(const GpuReal value, const GpuReal fallback)
 {
     return ::isfinite(value) ? value : fallback;
 }
 
-UGKP_BOUNDARY_HD double subsonicInletMach
+UGKP_BOUNDARY_HD GpuReal subsonicInletMach
 (
-    const double outgoingInvariant,
-    const double reservoirSoundSpeed,
-    const double gamma
+    const GpuReal outgoingInvariant,
+    const GpuReal reservoirSoundSpeed,
+    const GpuReal gamma
 )
 {
-    const double gammaMinusOne = maximum(gamma - 1.0, 1.0e-12);
-    const double coefficient = 0.5*gammaMinusOne;
-    const double invariantRatio =
-        outgoingInvariant/maximum(reservoirSoundSpeed, 1.0e-300);
-    const double zeroMachRatio = 2.0/gammaMinusOne;
-    const double sonicRatio =
-        (zeroMachRatio - 1.0)/::sqrt(1.0 + coefficient);
+    const GpuReal gammaMinusOne = maximum(gamma - GPU_R(1.0), GPU_R(1.0e-12));
+    const GpuReal coefficient = GPU_R(0.5)*gammaMinusOne;
+    const GpuReal invariantRatio =
+        outgoingInvariant/maximum(reservoirSoundSpeed, GPU_TINY(1.0e-300));
+    const GpuReal zeroMachRatio = GPU_R(2.0)/gammaMinusOne;
+    const GpuReal sonicRatio =
+        (zeroMachRatio - GPU_R(1.0))/::sqrt(GPU_R(1.0) + coefficient);
     if (invariantRatio >= zeroMachRatio)
     {
-        return 0.0;
+        return GPU_R(0.0);
     }
     if (invariantRatio <= sonicRatio)
     {
-        return 1.0;
+        return GPU_R(1.0);
     }
 
-    double lower = 0.0;
-    double upper = 1.0;
+    GpuReal lower = GPU_R(0.0);
+    GpuReal upper = GPU_R(1.0);
     for (int iteration = 0; iteration < 48; ++iteration)
     {
-        const double middle = 0.5*(lower + upper);
-        const double ratio =
+        const GpuReal middle = GPU_R(0.5)*(lower + upper);
+        const GpuReal ratio =
             (zeroMachRatio - middle)
-           /::sqrt(1.0 + coefficient*middle*middle);
+           /::sqrt(GPU_R(1.0) + coefficient*middle*middle);
         if (ratio > invariantRatio)
         {
             lower = middle;
@@ -86,65 +87,65 @@ UGKP_BOUNDARY_HD double subsonicInletMach
             upper = middle;
         }
     }
-    return 0.5*(lower + upper);
+    return GPU_R(0.5)*(lower + upper);
 }
 
 UGKP_BOUNDARY_HD Primitive totalConditionInletState
 (
     const Primitive& owner,
-    const double nx,
-    const double ny,
-    const double nz,
-    const double totalPressure,
-    const double totalTemperature,
-    const double gamma,
-    const double gasConstant,
-    const double densityFloor,
-    const double temperatureFloor
+    const GpuReal nx,
+    const GpuReal ny,
+    const GpuReal nz,
+    const GpuReal totalPressure,
+    const GpuReal totalTemperature,
+    const GpuReal gamma,
+    const GpuReal gasConstant,
+    const GpuReal densityFloor,
+    const GpuReal temperatureFloor
 )
 {
-    const double safeGamma = maximum(finiteOr(gamma, 1.4), 1.0 + 1.0e-12);
-    const double gammaMinusOne = safeGamma - 1.0;
-    const double safeR = maximum(finiteOr(gasConstant, 1.0), 1.0e-300);
-    const double safeRhoFloor =
-        maximum(finiteOr(densityFloor, 1.0e-300), 1.0e-300);
-    const double safeTemperatureFloor =
-        maximum(finiteOr(temperatureFloor, 1.0), 1.0e-300);
-    const double safeTotalTemperature = maximum
+    const GpuReal safeGamma = maximum(finiteOr(gamma, GPU_R(1.4)), GPU_R(1.0) + GPU_R(1.0e-12));
+    const GpuReal gammaMinusOne = safeGamma - GPU_R(1.0);
+    const GpuReal safeR = maximum(finiteOr(gasConstant, GPU_R(1.0)), GPU_TINY(1.0e-300));
+    const GpuReal safeRhoFloor =
+        maximum(finiteOr(densityFloor, GPU_TINY(1.0e-300)), GPU_TINY(1.0e-300));
+    const GpuReal safeTemperatureFloor =
+        maximum(finiteOr(temperatureFloor, GPU_R(1.0)), GPU_TINY(1.0e-300));
+    const GpuReal safeTotalTemperature = maximum
     (
         finiteOr(totalTemperature, safeTemperatureFloor),
         safeTemperatureFloor
     );
-    const double safeTotalPressure = maximum
+    const GpuReal safeTotalPressure = maximum
     (
         finiteOr(totalPressure, safeRhoFloor*safeR*safeTotalTemperature),
         safeRhoFloor*safeR*safeTotalTemperature
     );
 
-    const double ownerRho = maximum(finiteOr(owner.rho, safeRhoFloor), safeRhoFloor);
-    const double ownerP = maximum
+    const GpuReal ownerRho = maximum(finiteOr(owner.rho, safeRhoFloor), safeRhoFloor);
+    const GpuReal ownerP = maximum
     (
         finiteOr(owner.p, ownerRho*safeR*safeTemperatureFloor),
         ownerRho*safeR*safeTemperatureFloor
     );
-    const double ownerSoundSpeed =
-        ::sqrt(maximum(safeGamma*ownerP/ownerRho, 1.0e-300));
-    const double ownerNormalVelocity =
-        finiteOr(owner.ux, 0.0)*nx
-      + finiteOr(owner.uy, 0.0)*ny
-      + finiteOr(owner.uz, 0.0)*nz;
-    const double outgoingInvariant =
-        ownerNormalVelocity + 2.0*ownerSoundSpeed/gammaMinusOne;
-    const double reservoirSoundSpeed =
+    const GpuReal ownerSoundSpeed =
+        ::sqrt(maximum(safeGamma*ownerP/ownerRho, GPU_TINY(1.0e-300)));
+    const GpuReal ownerNormalVelocity =
+        finiteOr(owner.ux, GPU_R(0.0))*nx
+      + finiteOr(owner.uy, GPU_R(0.0))*ny
+      + finiteOr(owner.uz, GPU_R(0.0))*nz;
+    const GpuReal outgoingInvariant =
+        ownerNormalVelocity + GPU_R(2.0)*ownerSoundSpeed/gammaMinusOne;
+    const GpuReal reservoirSoundSpeed =
         ::sqrt(safeGamma*safeR*safeTotalTemperature);
-    const double mach = subsonicInletMach
+    const GpuReal mach = subsonicInletMach
     (
         outgoingInvariant,
         reservoirSoundSpeed,
         safeGamma
     );
-    const double totalFactor =
-        1.0 + 0.5*gammaMinusOne*mach*mach;
+    const GpuReal totalFactor =
+        GPU_R(1.0) + GPU_R(0.5)*gammaMinusOne*mach*mach;
 
     Primitive boundary;
     boundary.T = maximum
@@ -164,7 +165,7 @@ UGKP_BOUNDARY_HD Primitive totalConditionInletState
         safeRhoFloor
     );
     boundary.p = boundary.rho*safeR*boundary.T;
-    const double speed =
+    const GpuReal speed =
         mach*::sqrt(safeGamma*safeR*boundary.T);
     boundary.ux = -speed*nx;
     boundary.uy = -speed*ny;

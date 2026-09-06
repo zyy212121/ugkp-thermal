@@ -3,7 +3,7 @@
 
 #include "fvCFD.H"
 #include "GpuSchedulingConfiguration.H"
-#include "../../FSH/gpu/GpuFshParticleRestart.H"
+#include "GpuChtParticleRestart.H"
 #include "GpuGasBoundarySpec.H"
 #include "GpuParticleRadiationMath.H"
 #include "SHA1.H"
@@ -373,15 +373,15 @@ extern "C" int ugkwpGpuResidentStrictUploadParticleRestartMirror
     const unsigned char* pStuck,
     const int* pStuckFaceId,
     const float* pDepositionArea,
-    const float* pContactDuration,
+    const double* pContactDuration,
     const float* pContactMaximumArea,
     const float* pContactPeakFraction,
     const float* pColdNodeSpecificEnthalpy,
     const float* pColdRingSolidMass,
     const float* pColdFrozenArea,
-    const float* pColdContactAge,
+    const double* pColdContactAge,
     const float* pCold2DNodeSpecificEnthalpy,
-    const float* pCold2DRingContactAge,
+    const double* pCold2DRingContactAge,
     const float* pCold2DFrozenArea,
     const unsigned long long* pRng,
     const unsigned long long* pOrigId
@@ -407,15 +407,15 @@ extern "C" int ugkwpGpuResidentStrictDownloadParticleRestartMirror
     unsigned char* pStuck,
     int* pStuckFaceId,
     float* pDepositionArea,
-    float* pContactDuration,
+    double* pContactDuration,
     float* pContactMaximumArea,
     float* pContactPeakFraction,
     float* pColdNodeSpecificEnthalpy,
     float* pColdRingSolidMass,
     float* pColdFrozenArea,
-    float* pColdContactAge,
+    double* pColdContactAge,
     float* pCold2DNodeSpecificEnthalpy,
-    float* pCold2DRingContactAge,
+    double* pCold2DRingContactAge,
     float* pCold2DFrozenArea,
     unsigned long long* pRng,
     unsigned long long* pOrigId
@@ -1540,7 +1540,7 @@ protected:
                 }
                 if
                 (
-                    restartHeader == gpuFshRestart::formatName
+                    (restartHeader == gpuFshRestart::formatName || restartHeader == gpuFshRestart::schema5FormatName)
                  || restartHeader == gpuFshRestart::schema4FormatName
                  || restartHeader == gpuFshRestart::schema3FormatName
                  || restartHeader == gpuFshRestart::schema2FormatName
@@ -2301,7 +2301,7 @@ public:
         pStuck = static_cast<unsigned char>(0);
         labelList pStuckFaceId(nParticles, -1);
         List<float> pDepositionArea(nParticles, 0.0f);
-        List<float> pContactDuration(nParticles, 0.0f);
+        List<double> pContactDuration(nParticles, 0.0f);
         List<float> pContactMaximumArea(nParticles, 0.0f);
         List<float> pContactPeakFraction(nParticles, 0.0f);
         List<float> pColdNodeSpecificEnthalpy
@@ -2315,13 +2315,13 @@ public:
             0.0f
         );
         List<float> pColdFrozenArea(nParticles, 0.0f);
-        List<float> pColdContactAge(nParticles, 0.0f);
+        List<double> pColdContactAge(nParticles, 0.0f);
         List<float> pCold2DNodeSpecificEnthalpy
         (
             nParticles*gpuFshRestart::coldWall2DNodeCount,
             0.0f
         );
-        List<float> pCold2DRingContactAge
+        List<double> pCold2DRingContactAge
         (
             nParticles*gpuFshRestart::coldWall2DRadialNodeCount,
             0.0f
@@ -2406,7 +2406,7 @@ public:
         };
         try
         {
-            gpuFshRestart::writeV5(os, restartView);
+            gpuFshRestart::writeV6(os, restartView);
         }
         catch (const std::exception& error)
         {
@@ -2900,7 +2900,7 @@ protected:
                 << "Invalid GPU resident particle restart mirror: "
                 << restartFile << exit(FatalError);
         }
-        if (restartHeader == gpuFshRestart::formatName)
+        if ((restartHeader == gpuFshRestart::formatName || restartHeader == gpuFshRestart::schema5FormatName))
         {
             weightedFshV5 = true;
             if (!(is >> nParticles >> maximumChunk))
@@ -3003,7 +3003,7 @@ protected:
         pStuck = static_cast<unsigned char>(0);
         labelList pStuckFaceId(nParticles, -1);
         List<float> pDepositionArea(nParticles, 0.0f);
-        List<float> pContactDuration(nParticles, 0.0f);
+        List<double> pContactDuration(nParticles, 0.0f);
         List<float> pContactMaximumArea(nParticles, 0.0f);
         List<float> pContactPeakFraction(nParticles, 0.0f);
         List<float> pColdNodeSpecificEnthalpy
@@ -3017,13 +3017,13 @@ protected:
             0.0f
         );
         List<float> pColdFrozenArea(nParticles, 0.0f);
-        List<float> pColdContactAge(nParticles, 0.0f);
+        List<double> pColdContactAge(nParticles, 0.0f);
         List<float> pCold2DNodeSpecificEnthalpy
         (
             nParticles*gpuFshRestart::coldWall2DNodeCount,
             0.0f
         );
-        List<float> pCold2DRingContactAge
+        List<double> pCold2DRingContactAge
         (
             nParticles*gpuFshRestart::coldWall2DRadialNodeCount,
             0.0f
@@ -3066,7 +3066,7 @@ protected:
             {
                 if (weightedFshV5)
                 {
-                    gpuFshRestart::readV5Payload
+                    (restartHeader == gpuFshRestart::formatName ? gpuFshRestart::readV6Payload : gpuFshRestart::readV5Payload)
                     (
                         is,
                         static_cast<std::uint32_t>(maximumChunk),

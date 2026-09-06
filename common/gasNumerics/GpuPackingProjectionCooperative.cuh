@@ -1,3 +1,4 @@
+#include "GpuPrecisionTypes.H"
 #ifndef UGKWP_GPU_PACKING_PROJECTION_COOPERATIVE_CUH
 #define UGKWP_GPU_PACKING_PROJECTION_COOPERATIVE_CUH
 
@@ -84,8 +85,8 @@ __device__ void solveActiveMobilePackingPressureJacobiDevice
     DeviceState& s,
     const int activeI,
     const int* activeCells,
-    const double* oldPressure,
-    double* newPressure
+    const GpuReal* oldPressure,
+    GpuReal* newPressure
 )
 {
     const int c = activeCells[activeI];
@@ -96,8 +97,8 @@ __device__ void computeMobilePackingFaceCorrectionFluxDevice
 (
     DeviceState& s,
     const int f,
-    const double* pressure,
-    const double dt
+    const GpuReal* pressure,
+    const GpuTime dt
 )
 {
     const int own = s.faceOwner[f];
@@ -110,54 +111,54 @@ __device__ void computeMobilePackingFaceCorrectionFluxDevice
      && s.mobilePackingActiveCellMask[nei] != 0;
     if (!ownerPressureActive && !neighbourPressureActive)
     {
-        s.solidPressurePhiMomX[f] = 0.0;
-        s.solidPressurePhiMomY[f] = 0.0;
-        s.solidPressurePhiMomZ[f] = 0.0;
-        s.solidPressurePhiEnergy[f] = 0.0;
+        s.solidPressurePhiMomX[f] = GPU_R(0.0);
+        s.solidPressurePhiMomY[f] = GPU_R(0.0);
+        s.solidPressurePhiMomZ[f] = GPU_R(0.0);
+        s.solidPressurePhiEnergy[f] = GPU_R(0.0);
         return;
     }
-    const double invRhoSolid = 1.0/clampMin(s.rhoSolid, OfVSmall);
-    double solidVolumeFlux = 0.0;
-    double faceMobileFraction = 0.0;
-    double velocityCorrectionFlux = 0.0;
+    const GpuReal invRhoSolid = GPU_R(1.0)/clampMin(s.rhoSolid, OfVSmall);
+    GpuReal solidVolumeFlux = GPU_R(0.0);
+    GpuReal faceMobileFraction = GPU_R(0.0);
+    GpuReal velocityCorrectionFlux = GPU_R(0.0);
 
     if (own >= 0 && own < s.nCells && nei >= 0 && nei < s.nCells)
     {
-        const double a = clampMin
+        const GpuReal a = clampMin
         (
-            finiteOr(s.magSf[f]*s.deltaCoeffs[f], 0.0),
-            0.0
+            finiteOr(s.magSf[f]*s.deltaCoeffs[f], GPU_R(0.0)),
+            GPU_R(0.0)
         );
-        const double pressureOwn =
-            clampMin(finiteOr(pressure[own], 0.0), 0.0);
-        const double pressureNei =
-            clampMin(finiteOr(pressure[nei], 0.0), 0.0);
-        const double epsOwn = clampMin
+        const GpuReal pressureOwn =
+            clampMin(finiteOr(pressure[own], GPU_R(0.0)), GPU_R(0.0));
+        const GpuReal pressureNei =
+            clampMin(finiteOr(pressure[nei], GPU_R(0.0)), GPU_R(0.0));
+        const GpuReal epsOwn = clampMin
         (
-            finiteOr(s.mobilePackingRho[own], 0.0)*invRhoSolid,
-            0.0
+            finiteOr(s.mobilePackingRho[own], GPU_R(0.0))*invRhoSolid,
+            GPU_R(0.0)
         );
-        const double epsNei = clampMin
+        const GpuReal epsNei = clampMin
         (
-            finiteOr(s.mobilePackingRho[nei], 0.0)*invRhoSolid,
-            0.0
+            finiteOr(s.mobilePackingRho[nei], GPU_R(0.0))*invRhoSolid,
+            GPU_R(0.0)
         );
-        const double w =
-            clampRange(finiteOr(s.faceWeight[f], 0.5), 0.0, 1.0);
+        const GpuReal w =
+            clampRange(finiteOr(s.faceWeight[f], GPU_R(0.5)), GPU_R(0.0), GPU_R(1.0));
         faceMobileFraction = clampMin
         (
-            w*epsOwn + (1.0 - w)*epsNei,
+            w*epsOwn + (GPU_R(1.0) - w)*epsNei,
             s.epsSMin
         );
         solidVolumeFlux = finiteOr
         (
             dt*invRhoSolid*a*(pressureOwn - pressureNei),
-            0.0
+            GPU_R(0.0)
         );
         velocityCorrectionFlux = finiteOr
         (
             solidVolumeFlux/faceMobileFraction,
-            0.0
+            GPU_R(0.0)
         );
     }
     else if
@@ -167,33 +168,33 @@ __device__ void computeMobilePackingFaceCorrectionFluxDevice
      && s.gasBoundaryKind[f] == 0
     )
     {
-        const double a = clampMin
+        const GpuReal a = clampMin
         (
-            finiteOr(s.magSf[f]*s.deltaCoeffs[f], 0.0),
-            0.0
+            finiteOr(s.magSf[f]*s.deltaCoeffs[f], GPU_R(0.0)),
+            GPU_R(0.0)
         );
-        const double pressureOwn =
-            clampMin(finiteOr(pressure[own], 0.0), 0.0);
+        const GpuReal pressureOwn =
+            clampMin(finiteOr(pressure[own], GPU_R(0.0)), GPU_R(0.0));
         faceMobileFraction = clampMin
         (
-            finiteOr(s.mobilePackingRho[own], 0.0)*invRhoSolid,
+            finiteOr(s.mobilePackingRho[own], GPU_R(0.0))*invRhoSolid,
             s.epsSMin
         );
         solidVolumeFlux = finiteOr
         (
             dt*invRhoSolid*a*pressureOwn,
-            0.0
+            GPU_R(0.0)
         );
         velocityCorrectionFlux = finiteOr
         (
             solidVolumeFlux/faceMobileFraction,
-            0.0
+            GPU_R(0.0)
         );
     }
 
     s.solidPressurePhiMomX[f] = solidVolumeFlux;
     s.solidPressurePhiMomY[f] = faceMobileFraction;
-    s.solidPressurePhiMomZ[f] = 0.0;
+    s.solidPressurePhiMomZ[f] = GPU_R(0.0);
     s.solidPressurePhiEnergy[f] = velocityCorrectionFlux;
 }
 
@@ -205,15 +206,15 @@ __device__ void reconstructMobilePackingVelocityCorrectionDevice
 )
 {
     const int c = correctionCells[activeI];
-    double m00 = 0.0;
-    double m01 = 0.0;
-    double m02 = 0.0;
-    double m11 = 0.0;
-    double m12 = 0.0;
-    double m22 = 0.0;
-    double b0 = 0.0;
-    double b1 = 0.0;
-    double b2 = 0.0;
+    GpuReal m00 = GPU_R(0.0);
+    GpuReal m01 = GPU_R(0.0);
+    GpuReal m02 = GPU_R(0.0);
+    GpuReal m11 = GPU_R(0.0);
+    GpuReal m12 = GPU_R(0.0);
+    GpuReal m22 = GPU_R(0.0);
+    GpuReal b0 = GPU_R(0.0);
+    GpuReal b1 = GPU_R(0.0);
+    GpuReal b2 = GPU_R(0.0);
     const int start = s.cellPlaneStart[c];
     const int count = s.cellPlaneCount[c];
     for (int j = 0; j < count; ++j)
@@ -223,16 +224,16 @@ __device__ void reconstructMobilePackingVelocityCorrectionDevice
         {
             continue;
         }
-        const double magSf = clampMin(finiteOr(s.magSf[f], 0.0), 0.0);
+        const GpuReal magSf = clampMin(finiteOr(s.magSf[f], GPU_R(0.0)), GPU_R(0.0));
         if (magSf <= OfVSmall)
         {
             continue;
         }
-        const double nx = s.Sfx[f]/magSf;
-        const double ny = s.Sfy[f]/magSf;
-        const double nz = s.Sfz[f]/magSf;
-        const double velocityCorrectionFlux =
-            finiteOr(s.solidPressurePhiEnergy[f], 0.0);
+        const GpuReal nx = s.Sfx[f]/magSf;
+        const GpuReal ny = s.Sfy[f]/magSf;
+        const GpuReal nz = s.Sfz[f]/magSf;
+        const GpuReal velocityCorrectionFlux =
+            finiteOr(s.solidPressurePhiEnergy[f], GPU_R(0.0));
         m00 += nx*s.Sfx[f];
         m01 += nx*s.Sfy[f];
         m02 += nx*s.Sfz[f];
@@ -244,24 +245,24 @@ __device__ void reconstructMobilePackingVelocityCorrectionDevice
         b2 += nz*velocityCorrectionFlux;
     }
 
-    const double trace = m00 + m11 + m22;
+    const GpuReal trace = m00 + m11 + m22;
     if (!(trace > OfVSmall) || !finiteDevice(trace))
     {
-        s.pressureDeltaMomX[c] = 0.0;
-        s.pressureDeltaMomY[c] = 0.0;
-        s.pressureDeltaMomZ[c] = 0.0;
+        s.pressureDeltaMomX[c] = GPU_R(0.0);
+        s.pressureDeltaMomY[c] = GPU_R(0.0);
+        s.pressureDeltaMomZ[c] = GPU_R(0.0);
         return;
     }
-    const double regularisation = 1.0e-12*trace;
-    const double l00 = sqrt(fmax(m00 + regularisation, regularisation));
-    const double l10 = m01/l00;
-    const double l20 = m02/l00;
-    const double l11 = sqrt
+    const GpuReal regularisation = GPU_R(1.0e-12)*trace;
+    const GpuReal l00 = sqrt(fmax(m00 + regularisation, regularisation));
+    const GpuReal l10 = m01/l00;
+    const GpuReal l20 = m02/l00;
+    const GpuReal l11 = sqrt
     (
         fmax(m11 + regularisation - l10*l10, regularisation)
     );
-    const double l21 = (m12 - l20*l10)/l11;
-    const double l22 = sqrt
+    const GpuReal l21 = (m12 - l20*l10)/l11;
+    const GpuReal l22 = sqrt
     (
         fmax
         (
@@ -270,15 +271,15 @@ __device__ void reconstructMobilePackingVelocityCorrectionDevice
         )
     );
 
-    const double y0 = b0/l00;
-    const double y1 = (b1 - l10*y0)/l11;
-    const double y2 = (b2 - l20*y0 - l21*y1)/l22;
-    const double uz = y2/l22;
-    const double uy = (y1 - l21*uz)/l11;
-    const double ux = (y0 - l10*uy - l20*uz)/l00;
-    s.pressureDeltaMomX[c] = finiteOr(ux, 0.0);
-    s.pressureDeltaMomY[c] = finiteOr(uy, 0.0);
-    s.pressureDeltaMomZ[c] = finiteOr(uz, 0.0);
+    const GpuReal y0 = b0/l00;
+    const GpuReal y1 = (b1 - l10*y0)/l11;
+    const GpuReal y2 = (b2 - l20*y0 - l21*y1)/l22;
+    const GpuReal uz = y2/l22;
+    const GpuReal uy = (y1 - l21*uz)/l11;
+    const GpuReal ux = (y0 - l10*uy - l20*uz)/l00;
+    s.pressureDeltaMomX[c] = finiteOr(ux, GPU_R(0.0));
+    s.pressureDeltaMomY[c] = finiteOr(uy, GPU_R(0.0));
+    s.pressureDeltaMomZ[c] = finiteOr(uz, GPU_R(0.0));
 }
 
 __device__ void applyMobilePackingCorrectionToParticleDevice
@@ -300,22 +301,22 @@ __device__ void applyMobilePackingCorrectionToParticleDevice
     {
         return;
     }
-    double dux = 0.0;
-    double duy = 0.0;
-    double duz = 0.0;
+    GpuReal dux = GPU_R(0.0);
+    GpuReal duy = GPU_R(0.0);
+    GpuReal duz = GPU_R(0.0);
     mobilePackingParticleVelocityCorrection(s, i, dux, duy, duz);
-    s.pux[i] = finiteOr(s.pux[i], 0.0) + dux;
-    s.puy[i] = finiteOr(s.puy[i], 0.0) + duy;
-    s.puz[i] = finiteOr(s.puz[i], 0.0) + duz;
-    s.puxOld[i] = finiteOr(s.puxOld[i], 0.0) + dux;
-    s.puyOld[i] = finiteOr(s.puyOld[i], 0.0) + duy;
-    s.puzOld[i] = finiteOr(s.puzOld[i], 0.0) + duz;
+    s.pux[i] = finiteOr(s.pux[i], GPU_R(0.0)) + dux;
+    s.puy[i] = finiteOr(s.puy[i], GPU_R(0.0)) + duy;
+    s.puz[i] = finiteOr(s.puz[i], GPU_R(0.0)) + duz;
+    s.puxOld[i] = finiteOr(s.puxOld[i], GPU_R(0.0)) + dux;
+    s.puyOld[i] = finiteOr(s.puyOld[i], GPU_R(0.0)) + duy;
+    s.puzOld[i] = finiteOr(s.puzOld[i], GPU_R(0.0)) + duz;
 }
 
 __global__ void completeMobilePackingProjectionCooperativeKernel
 (
     DeviceState* sp,
-    const double dt
+    const GpuTime dt
 )
 {
     packingCg::grid_group grid = packingCg::this_grid();
@@ -370,8 +371,8 @@ __global__ void completeMobilePackingProjectionCooperativeKernel
         nextFrontierCount = countSwap;
     }
 
-    double* oldPressure = s.collisionalPressure;
-    double* newPressure = s.pressureKickScale;
+    GpuReal* oldPressure = s.collisionalPressure;
+    GpuReal* newPressure = s.pressureKickScale;
     for (int iter = 0; iter < s.packingProjectionIterations; ++iter)
     {
         const int activeCount =
@@ -393,7 +394,7 @@ __global__ void completeMobilePackingProjectionCooperativeKernel
             );
         }
         grid.sync();
-        double* pressureSwap = oldPressure;
+        GpuReal* pressureSwap = oldPressure;
         oldPressure = newPressure;
         newPressure = pressureSwap;
     }

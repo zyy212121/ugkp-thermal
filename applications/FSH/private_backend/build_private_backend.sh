@@ -67,14 +67,14 @@ log="${log_dir}/separated_build_$(date +%Y%m%d_%H%M%S).log"
         "${fmad_flag}" \
         -arch="${cuda_arch}" \
         -Xcompiler -fPIC \
-        -I"${solver_root}/gpu" \
+        -I"${solver_root}/gpu" -I"${solver_root}/../../common" \
         -c "${private_root}/GpuResidentStrict.cu" \
         -o "${obj_dir}/GpuResidentStrict.o"
 
     ar rcs "${backend_lib}" "${obj_dir}/GpuResidentStrict.o"
 
     c++ -std=c++17 -O3 \
-        -I"${solver_root}/gpu" \
+        -I"${solver_root}/gpu" -I"${solver_root}/../../common" \
         "${private_root}/GpuBackendServer.C" \
         "${backend_lib}" \
         -L"${cuda_home}/lib64" -Wl,-rpath,"${cuda_home}/lib64" -lcudart \

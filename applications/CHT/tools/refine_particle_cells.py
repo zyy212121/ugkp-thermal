@@ -9,6 +9,7 @@ import json
 import math
 import os
 import re
+import sys
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Iterator
@@ -415,7 +416,37 @@ def main() -> None:
     parser.add_argument("--capacity-reserve-fraction", type=float, default=0.05)
     parser.add_argument("--capacity-reserve-minimum", type=int, default=100000)
     parser.add_argument("--tolerance", type=float, default=5.0e-13)
+    parser.add_argument(
+        "--output-schema", type=int,
+        help="FSH output schema when the source is UGKP_FSH_PARTICLES (default: preserve input)",
+    )
     args = parser.parse_args()
+    with args.source.open("rb") as stream:
+        source_header = stream.readline().decode("ascii", errors="replace").split()
+    if source_header and source_header[0].startswith("UGKP_FSH_PARTICLES_SCHEMA"):
+        fsh_tools = Path(__file__).resolve().parents[2] / "FSH" / "tools"
+        sys.path.insert(0, str(fsh_tools))
+        from refine_fsh_particle_cells import refine_restart as refine_fsh_restart
+
+        manifest = refine_fsh_restart(
+            args.source,
+            args.output,
+            set(args.cell),
+            args.factor,
+            args.legacy_parcel_mass,
+            args.seed,
+            args.chunk_particles,
+            args.manifest,
+            args.properties,
+            args.capacity_reserve_fraction,
+            args.capacity_reserve_minimum,
+            args.tolerance,
+            args.output_schema,
+        )
+        print(json.dumps(manifest, sort_keys=True))
+        return
+    if args.output_schema is not None:
+        raise ValueError("--output-schema is only valid for UGKP_FSH_PARTICLES input")
     manifest = refine_restart(
         args.source,
         args.output,

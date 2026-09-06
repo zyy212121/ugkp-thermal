@@ -1,3 +1,4 @@
+#include "GpuPrecisionTypes.H"
 #ifndef GPU_THERMAL_GPU_COLD_WALL_2D_SOLIDIFICATION_H
 #define GPU_THERMAL_GPU_COLD_WALL_2D_SOLIDIFICATION_H
 
@@ -25,11 +26,11 @@ constexpr int coldWall2DNodeCount =
 struct ColdWall2DGeometry
 {
     bool valid;
-    double maximumRadiusM;
-    double filmThicknessM;
-    double axialNodeThicknessM;
-    double ringAreaM2;
-    double nodeMassKg;
+    GpuReal maximumRadiusM;
+    GpuReal filmThicknessM;
+    GpuReal axialNodeThicknessM;
+    GpuReal ringAreaM2;
+    GpuReal nodeMassKg;
 };
 
 GPU_COLD_WALL_2D_HD inline int coldWall2DNodeIndex
@@ -43,35 +44,35 @@ GPU_COLD_WALL_2D_HD inline int coldWall2DNodeIndex
 
 GPU_COLD_WALL_2D_HD inline ColdWall2DGeometry coldWall2DGeometry
 (
-    const double particleVolumeM3,
-    const double physicalParticleMassKg,
-    const double maximumAreaM2
+    const GpuReal particleVolumeM3,
+    const GpuReal physicalParticleMassKg,
+    const GpuReal maximumAreaM2
 ) noexcept
 {
     const bool valid =
         finiteColdWallValue(particleVolumeM3)
      && finiteColdWallValue(physicalParticleMassKg)
      && finiteColdWallValue(maximumAreaM2)
-     && particleVolumeM3 > 0.0
-     && physicalParticleMassKg > 0.0
-     && maximumAreaM2 > 0.0;
+     && particleVolumeM3 > GPU_R(0.0)
+     && physicalParticleMassKg > GPU_R(0.0)
+     && maximumAreaM2 > GPU_R(0.0);
     if (!valid)
     {
-        return {false, 0.0, 0.0, 0.0, 0.0, 0.0};
+        return {false, GPU_R(0.0), GPU_R(0.0), GPU_R(0.0), GPU_R(0.0), GPU_R(0.0)};
     }
-    const double filmThickness = particleVolumeM3/maximumAreaM2;
+    const GpuReal filmThickness = particleVolumeM3/maximumAreaM2;
     return
     {
         true,
         ::sqrt(maximumAreaM2/coldWallPi),
         filmThickness,
-        filmThickness/static_cast<double>(coldWall2DAxialNodeCount),
-        maximumAreaM2/static_cast<double>(coldWall2DRadialNodeCount),
-        physicalParticleMassKg/static_cast<double>(coldWall2DNodeCount)
+        filmThickness/static_cast<GpuReal>(coldWall2DAxialNodeCount),
+        maximumAreaM2/static_cast<GpuReal>(coldWall2DRadialNodeCount),
+        physicalParticleMassKg/static_cast<GpuReal>(coldWall2DNodeCount)
     };
 }
 
-GPU_COLD_WALL_2D_HD inline double coldWall2DRingBoundaryRadiusM
+GPU_COLD_WALL_2D_HD inline GpuReal coldWall2DRingBoundaryRadiusM
 (
     const ColdWall2DGeometry& geometry,
     const int boundary
@@ -82,49 +83,49 @@ GPU_COLD_WALL_2D_HD inline double coldWall2DRingBoundaryRadiusM
         (
             coldWallClamp
             (
-                static_cast<double>(boundary)
-               /static_cast<double>(coldWall2DRadialNodeCount),
-                0.0,
-                1.0
+                static_cast<GpuReal>(boundary)
+               /static_cast<GpuReal>(coldWall2DRadialNodeCount),
+                GPU_R(0.0),
+                GPU_R(1.0)
             )
         );
 }
 
-GPU_COLD_WALL_2D_HD inline double coldWall2DRingCentroidRadiusM
+GPU_COLD_WALL_2D_HD inline GpuReal coldWall2DRingCentroidRadiusM
 (
     const ColdWall2DGeometry& geometry,
     const int ring
 ) noexcept
 {
-    const double inner = coldWall2DRingBoundaryRadiusM(geometry, ring);
-    const double outer = coldWall2DRingBoundaryRadiusM(geometry, ring + 1);
-    const double denominator = outer*outer - inner*inner;
-    return (2.0/3.0)
-       *(outer*outer*outer - inner*inner*inner)/(denominator + DBL_MIN);
+    const GpuReal inner = coldWall2DRingBoundaryRadiusM(geometry, ring);
+    const GpuReal outer = coldWall2DRingBoundaryRadiusM(geometry, ring + 1);
+    const GpuReal denominator = outer*outer - inner*inner;
+    return (GPU_R(2.0)/GPU_R(3.0))
+       *(outer*outer*outer - inner*inner*inner)/(denominator + GPU_REAL_MIN);
 }
 
-GPU_COLD_WALL_2D_HD inline double coldWall2DRingWetAreaM2
+GPU_COLD_WALL_2D_HD inline GpuReal coldWall2DRingWetAreaM2
 (
     const ColdWall2DGeometry& geometry,
-    const double intrinsicContactAreaM2,
+    const GpuReal intrinsicContactAreaM2,
     const int ring
 ) noexcept
 {
     return coldWallClamp
     (
         intrinsicContactAreaM2
-       -static_cast<double>(ring)*geometry.ringAreaM2,
-        0.0,
+       -static_cast<GpuReal>(ring)*geometry.ringAreaM2,
+        GPU_R(0.0),
         geometry.ringAreaM2
     );
 }
 
-GPU_COLD_WALL_2D_HD inline double coldWall2DRadialFaceConductanceWK
+GPU_COLD_WALL_2D_HD inline GpuReal coldWall2DRadialFaceConductanceWK
 (
     const ColdWall2DGeometry& geometry,
     const int innerRing,
-    const double innerConductivityWmK,
-    const double outerConductivityWmK
+    const GpuReal innerConductivityWmK,
+    const GpuReal outerConductivityWmK
 ) noexcept
 {
     if
@@ -132,50 +133,50 @@ GPU_COLD_WALL_2D_HD inline double coldWall2DRadialFaceConductanceWK
         !geometry.valid
      || innerRing < 0
      || innerRing + 1 >= coldWall2DRadialNodeCount
-     || !(innerConductivityWmK > 0.0)
-     || !(outerConductivityWmK > 0.0)
+     || !(innerConductivityWmK > GPU_R(0.0))
+     || !(outerConductivityWmK > GPU_R(0.0))
     )
     {
-        return 0.0;
+        return GPU_R(0.0);
     }
-    const double faceRadius = coldWall2DRingBoundaryRadiusM
+    const GpuReal faceRadius = coldWall2DRingBoundaryRadiusM
     (
         geometry,
         innerRing + 1
     );
-    const double innerCenter = coldWall2DRingCentroidRadiusM
+    const GpuReal innerCenter = coldWall2DRingCentroidRadiusM
     (
         geometry,
         innerRing
     );
-    const double outerCenter = coldWall2DRingCentroidRadiusM
+    const GpuReal outerCenter = coldWall2DRingCentroidRadiusM
     (
         geometry,
         innerRing + 1
     );
-    const double harmonicConductivity =
-        2.0*innerConductivityWmK*outerConductivityWmK
-       /(innerConductivityWmK + outerConductivityWmK + DBL_MIN);
+    const GpuReal harmonicConductivity =
+        GPU_R(2.0)*innerConductivityWmK*outerConductivityWmK
+       /(innerConductivityWmK + outerConductivityWmK + GPU_REAL_MIN);
     return harmonicConductivity
-       *(2.0*coldWallPi*faceRadius*geometry.axialNodeThicknessM)
-       /(outerCenter - innerCenter + DBL_MIN);
+       *(GPU_R(2.0)*coldWallPi*faceRadius*geometry.axialNodeThicknessM)
+       /(outerCenter - innerCenter + GPU_REAL_MIN);
 }
 
-GPU_COLD_WALL_2D_HD inline double coldWall2DConnectedSolidThicknessFraction
+GPU_COLD_WALL_2D_HD inline GpuReal coldWall2DConnectedSolidThicknessFraction
 (
-    const double* ringSpecificEnthalpyJkg,
+    const GpuReal* ringSpecificEnthalpyJkg,
     const ColdWallSolidificationParameters& parameters
 ) noexcept
 {
     if (ringSpecificEnthalpyJkg == nullptr)
     {
-        return 0.0;
+        return GPU_R(0.0);
     }
-    double connectedFraction = 1.0;
-    double connectedThickness = 0.0;
+    GpuReal connectedFraction = GPU_R(1.0);
+    GpuReal connectedThickness = GPU_R(0.0);
     for (int node = 0; node < coldWall2DAxialNodeCount; ++node)
     {
-        const double solidFraction = coldWallSolidFraction
+        const GpuReal solidFraction = coldWallSolidFraction
         (
             ringSpecificEnthalpyJkg[node],
             parameters
@@ -186,21 +187,21 @@ GPU_COLD_WALL_2D_HD inline double coldWall2DConnectedSolidThicknessFraction
     }
     return coldWallClamp
     (
-        connectedThickness/static_cast<double>(coldWall2DAxialNodeCount),
-        0.0,
-        1.0
+        connectedThickness/static_cast<GpuReal>(coldWall2DAxialNodeCount),
+        GPU_R(0.0),
+        GPU_R(1.0)
     );
 }
 
 GPU_COLD_WALL_2D_HD inline void initialiseColdWall2DProfile
 (
-    double* nodeSpecificEnthalpyJkg,
-    double* ringContactAgeS,
-    const double initialTemperatureK,
+    GpuReal* nodeSpecificEnthalpyJkg,
+    GpuTime* ringContactAgeS,
+    const GpuReal initialTemperatureK,
     const ColdWallSolidificationParameters& parameters
 ) noexcept
 {
-    const double initialEnthalpy = coldWallSpecificEnthalpyJkg
+    const GpuReal initialEnthalpy = coldWallSpecificEnthalpyJkg
     (
         initialTemperatureK,
         parameters
@@ -211,7 +212,7 @@ GPU_COLD_WALL_2D_HD inline void initialiseColdWall2DProfile
     }
     for (int ring = 0; ring < coldWall2DRadialNodeCount; ++ring)
     {
-        ringContactAgeS[ring] = 0.0;
+        ringContactAgeS[ring] = GPU_R(0.0);
     }
 }
 

@@ -16,6 +16,30 @@ DISCRETE = ("cell", "status", "rng")
 
 
 def read_restart(path: Path) -> tuple[list[int], dict[int, dict[str, float | int]]]:
+    with path.open("rb") as stream:
+        binary_fsh = stream.readline().startswith(b"UGKP_FSH_PARTICLES_SCHEMA")
+    if binary_fsh:
+        sys.path.insert(0, str(Path(__file__).resolve().parents[3] / "examples/thermal/postprocessing"))
+        from fsh_restart_reader import iter_fsh_chunks
+
+        aliases = {"px": "x", "py": "y", "pz": "z", "T": "temperature", "d": "diameter", "original_id": "orig_id"}
+        order = []
+        particles = {}
+        for chunk in iter_fsh_chunks(path):
+            for index, original_id in enumerate(chunk["original_id"]):
+                original_id = int(original_id)
+                if original_id in particles:
+                    raise ValueError(f"duplicate orig_id {original_id} in {path}")
+                values = {}
+                for name, array in chunk.items():
+                    if array.ndim == 1:
+                        values[aliases.get(name, name)] = array[index].item()
+                    else:
+                        for node, value in enumerate(array[index]):
+                            values[f"{name}_{node}"] = value.item()
+                order.append(original_id)
+                particles[original_id] = values
+        return order, particles
     with path.open("r", encoding="utf-8") as stream:
         header = stream.readline().split()
         if len(header) != 2 or header[0] != "UGKP_PARTICLES_SCHEMA4":
@@ -54,9 +78,15 @@ def compare(reference: Path, candidate: Path) -> dict[str, object]:
     cand_ids = set(cand)
     common = sorted(ref_ids & cand_ids)
 
-    discrete_mismatches = {name: 0 for name in DISCRETE}
+    ref_fields = set(next(iter(ref.values()), {}))
+    cand_fields = set(next(iter(cand.values()), {}))
+    common_fields = ref_fields & cand_fields
+    discrete_names = [name for name in sorted(common_fields) if name in
+                      {"cell", "status", "rng", "orig_id", "stuck", "stuck_face"}]
+    continuous_names = sorted(common_fields - set(discrete_names))
+    discrete_mismatches = {name: 0 for name in discrete_names}
     continuous: dict[str, dict[str, float | int | bool]] = {}
-    for name in CONTINUOUS:
+    for name in continuous_names:
         max_abs = 0.0
         max_scaled = 0.0
         mismatch_count = 0
@@ -77,7 +107,7 @@ def compare(reference: Path, candidate: Path) -> dict[str, object]:
         }
 
     for orig_id in common:
-        for name in DISCRETE:
+        for name in discrete_names:
             discrete_mismatches[name] += int(ref[orig_id][name] != cand[orig_id][name])
 
     ref_cells = Counter(int(values["cell"]) for values in ref.values())
@@ -88,6 +118,9 @@ def compare(reference: Path, candidate: Path) -> dict[str, object]:
     return {
         "reference": str(reference),
         "candidate": str(candidate),
+        "state_fields_equal": ref_fields == cand_fields,
+        "reference_only_fields": sorted(ref_fields - cand_fields),
+        "candidate_only_fields": sorted(cand_fields - ref_fields),
         "reference_count": len(ref),
         "candidate_count": len(cand),
         "id_sets_equal": ref_ids == cand_ids,
@@ -116,6 +149,8 @@ def gate_failures(
         raise ValueError("--max-scaled must be a finite non-negative value")
 
     failures: list[str] = []
+    if not result.get("state_fields_equal", True):
+        failures.append("particle state fields differ between restart formats")
     if not bool(result["id_sets_equal"]):
         failures.append(
             f"particle ID sets differ: {result['missing_ids']} missing, "

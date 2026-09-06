@@ -817,6 +817,7 @@ label validateParticleMirror
     else if (version == "UGKP_FSH_PARTICLES_SCHEMA3_BIN") fshBinarySchema = 3;
     else if (version == "UGKP_FSH_PARTICLES_SCHEMA4_BIN") fshBinarySchema = 4;
     else if (version == "UGKP_FSH_PARTICLES_SCHEMA5_BIN") fshBinarySchema = 5;
+    else if (version == "UGKP_FSH_PARTICLES_SCHEMA6_BIN") fshBinarySchema = 6;
     const bool fshBinary = fshBinarySchema != 0;
     if (!legacyText && !weightedBinary && !fshBinary)
     {
@@ -987,6 +988,18 @@ label validateParticleMirror
                 floatBuffer.resize(n);
                 for (int field = 0; field < scalar32Fields; ++field)
                 {
+                    const bool time64 = fshBinarySchema >= 6
+                        && (field == 1 || field == 21 || (field >= 86 && field <= 93));
+                    if (time64)
+                    {
+                        stream.read(reinterpret_cast<char*>(scalarBuffer.data()),
+                            static_cast<std::streamsize>(n*sizeof(double)));
+                        if (!stream) stateError("truncated CHT time block in " + pathText(path));
+                        for (const double value : scalarBuffer)
+                            if (!std::isfinite(value) || value < 0.0)
+                                stateError("invalid CHT time state in " + pathText(path));
+                        continue;
+                    }
                     stream.read
                     (
                         reinterpret_cast<char*>(floatBuffer.data()),

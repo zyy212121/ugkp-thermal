@@ -24,19 +24,24 @@ log="${log_dir}/cuda_solver_build_$(date +%Y%m%d_%H%M%S).log"
 
     rm -f "${obj_dir}"/*.o "${lib_path}"
 
-    "${cuda_home}/bin/nvcc" \
-        -std=c++17 \
-        -O3 \
-        --fmad=false \
-        -arch="${cuda_arch}" \
-        -Xcompiler -fPIC \
-        -I"${solver_root}/thermal" \
-        -c "${solver_root}/gpu/GpuResidentStrict.cu" \
-        -o "${obj_dir}/GpuResidentStrict.o"
-
-    ar rcs \
-        "${lib_path}" \
-        "${obj_dir}/GpuResidentStrict.o"
+    for bits in 64 32; do
+        echo "[cuda-build] physical=$bits time=64"
+        namespace_flags=()
+        if [ "$bits" = 32 ]; then
+            namespace_flags=(-DFoam=FoamGpuFp32 -Dugkwp=ugkwpGpuFp32)
+        fi
+        "${cuda_home}/bin/nvcc" -std=c++17 -O3 -lineinfo --fmad=false \
+            -arch="${cuda_arch}" -Xcompiler -fPIC \
+            -DUGKWP_GPU_REAL_BITS="$bits" "${namespace_flags[@]}" \
+            -include "${solver_root}/gpu/GpuBackendNames${bits}.H" \
+            -I"${solver_root}/thermal" -I"${solver_root}/../../common" \
+            -c "${solver_root}/gpu/GpuResidentStrict.cu" \
+            -o "${obj_dir}/GpuResidentStrict${bits}.o"
+    done
+    g++ -std=c++14 -O3 -fPIC -I"${solver_root}/../../common" -c "${solver_root}/gpu/GpuPrecisionDispatch.C" \
+        -o "${obj_dir}/GpuPrecisionDispatch.o"
+    ar rcs "${lib_path}" "${obj_dir}/GpuResidentStrict64.o" \
+        "${obj_dir}/GpuResidentStrict32.o" "${obj_dir}/GpuPrecisionDispatch.o"
 
     rm -f \
         "${solver_root}/Make/${WM_OPTIONS}/diluteUgkwpFoam.o" \

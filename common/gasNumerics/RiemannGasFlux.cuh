@@ -1,3 +1,4 @@
+#include "GpuPrecisionTypes.H"
 #pragma once
 
   
@@ -145,29 +146,29 @@ UGKP_RIEMANN_HD int createCodeFromScheme(const Scheme scheme)
 
 struct Primitive
 {
-    double rho;
-    double ux;
-    double uy;
-    double uz;
-    double p;
+    GpuReal rho;
+    GpuReal ux;
+    GpuReal uy;
+    GpuReal uz;
+    GpuReal p;
 };
 
 struct DensityGradient
 {
-    double x;
-    double y;
-    double z;
+    GpuReal x;
+    GpuReal y;
+    GpuReal z;
 };
 
 struct Conservative
 {
-    double q[5];
+    GpuReal q[5];
 };
 
 struct FluxResult
 {
-    double flux[5];
-    double maxSignalSpeed;
+    GpuReal flux[5];
+    GpuReal maxSignalSpeed;
     Scheme evaluatedScheme;
     bool valid;
     bool usedFallback;
@@ -175,37 +176,37 @@ struct FluxResult
 
 struct RoeAverage
 {
-    double ux;
-    double uy;
-    double uz;
-    double enthalpy;
-    double soundSpeed;
-    double normalVelocity;
-    double density;
+    GpuReal ux;
+    GpuReal uy;
+    GpuReal uz;
+    GpuReal enthalpy;
+    GpuReal soundSpeed;
+    GpuReal normalVelocity;
+    GpuReal density;
     bool valid;
 };
 
-UGKP_RIEMANN_HD double minimum(const double a, const double b)
+UGKP_RIEMANN_HD GpuReal minimum(const GpuReal a, const GpuReal b)
 {
     return a < b ? a : b;
 }
 
-UGKP_RIEMANN_HD double maximum(const double a, const double b)
+UGKP_RIEMANN_HD GpuReal maximum(const GpuReal a, const GpuReal b)
 {
     return a > b ? a : b;
 }
 
-UGKP_RIEMANN_HD double absolute(const double a)
+UGKP_RIEMANN_HD GpuReal absolute(const GpuReal a)
 {
-    return a < 0.0 ? -a : a;
+    return a < GPU_R(0.0) ? -a : a;
 }
 
-UGKP_RIEMANN_HD bool finiteScalar(const double value)
+UGKP_RIEMANN_HD bool finiteScalar(const GpuReal value)
 {
-    return value == value && value <= DBL_MAX && value >= -DBL_MAX;
+    return value == value && value <= GPU_REAL_MAX && value >= -GPU_REAL_MAX;
 }
 
-UGKP_RIEMANN_HD bool finiteFive(const double values[5])
+UGKP_RIEMANN_HD bool finiteFive(const GpuReal values[5])
 {
     for (int component = 0; component < 5; ++component)
     {
@@ -222,9 +223,9 @@ UGKP_RIEMANN_HD FluxResult invalidResult(const Scheme scheme)
     FluxResult result;
     for (int component = 0; component < 5; ++component)
     {
-        result.flux[component] = 0.0;
+        result.flux[component] = GPU_R(0.0);
     }
-    result.maxSignalSpeed = 0.0;
+    result.maxSignalSpeed = GPU_R(0.0);
     result.evaluatedScheme = scheme;
     result.valid = false;
     result.usedFallback = false;
@@ -233,42 +234,42 @@ UGKP_RIEMANN_HD FluxResult invalidResult(const Scheme scheme)
 
 UGKP_RIEMANN_HD bool normalise
 (
-    const double normalX,
-    const double normalY,
-    const double normalZ,
-    double& nx,
-    double& ny,
-    double& nz,
-    double& magnitude
+    const GpuReal normalX,
+    const GpuReal normalY,
+    const GpuReal normalZ,
+    GpuReal& nx,
+    GpuReal& ny,
+    GpuReal& nz,
+    GpuReal& magnitude
 )
 {
-    const double scale = maximum
+    const GpuReal scale = maximum
     (
         absolute(normalX),
         maximum(absolute(normalY), absolute(normalZ))
     );
-    if (!finiteScalar(scale) || scale <= 0.0)
+    if (!finiteScalar(scale) || scale <= GPU_R(0.0))
     {
-        nx = 0.0;
-        ny = 0.0;
-        nz = 0.0;
-        magnitude = 0.0;
+        nx = GPU_R(0.0);
+        ny = GPU_R(0.0);
+        nz = GPU_R(0.0);
+        magnitude = GPU_R(0.0);
         return false;
     }
 
-    const double scaledX = normalX/scale;
-    const double scaledY = normalY/scale;
-    const double scaledZ = normalZ/scale;
-    const double scaledMagnitude = ::sqrt
+    const GpuReal scaledX = normalX/scale;
+    const GpuReal scaledY = normalY/scale;
+    const GpuReal scaledZ = normalZ/scale;
+    const GpuReal scaledMagnitude = ::sqrt
     (
         scaledX*scaledX + scaledY*scaledY + scaledZ*scaledZ
     );
-    if (!finiteScalar(scaledMagnitude) || scaledMagnitude <= 0.0)
+    if (!finiteScalar(scaledMagnitude) || scaledMagnitude <= GPU_R(0.0))
     {
-        nx = 0.0;
-        ny = 0.0;
-        nz = 0.0;
-        magnitude = 0.0;
+        nx = GPU_R(0.0);
+        ny = GPU_R(0.0);
+        nz = GPU_R(0.0);
+        magnitude = GPU_R(0.0);
         return false;
     }
     nx = scaledX/scaledMagnitude;
@@ -284,18 +285,18 @@ UGKP_RIEMANN_HD bool normalise
 UGKP_RIEMANN_HD bool physicalPrimitive
 (
     const Primitive& state,
-    const double gamma,
-    const double rhoFloor,
-    const double pressureFloor
+    const GpuReal gamma,
+    const GpuReal rhoFloor,
+    const GpuReal pressureFloor
 )
 {
     return
         finiteScalar(gamma)
-     && gamma > 1.0
+     && gamma > GPU_R(1.0)
      && finiteScalar(rhoFloor)
-     && rhoFloor > 0.0
+     && rhoFloor > GPU_R(0.0)
      && finiteScalar(pressureFloor)
-     && pressureFloor > 0.0
+     && pressureFloor > GPU_R(0.0)
      && finiteScalar(state.rho)
      && finiteScalar(state.ux)
      && finiteScalar(state.uy)
@@ -308,7 +309,7 @@ UGKP_RIEMANN_HD bool physicalPrimitive
 UGKP_RIEMANN_HD Conservative conservative
 (
     const Primitive& state,
-    const double gamma
+    const GpuReal gamma
 )
 {
     Conservative result;
@@ -317,8 +318,8 @@ UGKP_RIEMANN_HD Conservative conservative
     result.q[2] = state.rho*state.uy;
     result.q[3] = state.rho*state.uz;
     result.q[4] =
-        state.p/(gamma - 1.0)
-      + 0.5*state.rho*
+        state.p/(gamma - GPU_R(1.0))
+      + GPU_R(0.5)*state.rho*
        (
            state.ux*state.ux
          + state.uy*state.uy
@@ -327,25 +328,25 @@ UGKP_RIEMANN_HD Conservative conservative
     return result;
 }
 
-UGKP_RIEMANN_HD double totalEnthalpy
+UGKP_RIEMANN_HD GpuReal totalEnthalpy
 (
     const Primitive& state,
-    const double gamma
+    const GpuReal gamma
 )
 {
-    const double velocitySquared =
+    const GpuReal velocitySquared =
         state.ux*state.ux + state.uy*state.uy + state.uz*state.uz;
     return
-        gamma*state.p/(state.rho*(gamma - 1.0))
-      + 0.5*velocitySquared;
+        gamma*state.p/(state.rho*(gamma - GPU_R(1.0)))
+      + GPU_R(0.5)*velocitySquared;
 }
 
-UGKP_RIEMANN_HD double normalVelocity
+UGKP_RIEMANN_HD GpuReal normalVelocity
 (
     const Primitive& state,
-    const double nx,
-    const double ny,
-    const double nz
+    const GpuReal nx,
+    const GpuReal ny,
+    const GpuReal nz
 )
 {
     return state.ux*nx + state.uy*ny + state.uz*nz;
@@ -355,13 +356,13 @@ UGKP_RIEMANN_HD void projectedEulerFlux
 (
     const Primitive& state,
     const Conservative& conserved,
-    const double nx,
-    const double ny,
-    const double nz,
-    double flux[5]
+    const GpuReal nx,
+    const GpuReal ny,
+    const GpuReal nz,
+    GpuReal flux[5]
 )
 {
-    const double un = normalVelocity(state, nx, ny, nz);
+    const GpuReal un = normalVelocity(state, nx, ny, nz);
     flux[0] = state.rho*un;
     flux[1] = state.rho*state.ux*un + state.p*nx;
     flux[2] = state.rho*state.uy*un + state.p*ny;
@@ -372,19 +373,19 @@ UGKP_RIEMANN_HD void projectedEulerFlux
 UGKP_RIEMANN_HD bool physicalConservative
 (
     const Conservative& state,
-    const double gamma,
-    const double rhoFloor,
-    const double pressureFloor
+    const GpuReal gamma,
+    const GpuReal rhoFloor,
+    const GpuReal pressureFloor
 )
 {
     if
     (
         !finiteScalar(gamma)
-     || gamma <= 1.0
+     || gamma <= GPU_R(1.0)
      || !finiteScalar(rhoFloor)
-     || rhoFloor <= 0.0
+     || rhoFloor <= GPU_R(0.0)
      || !finiteScalar(pressureFloor)
-     || pressureFloor <= 0.0
+     || pressureFloor <= GPU_R(0.0)
      || !finiteFive(state.q)
      || state.q[0] < rhoFloor
     )
@@ -392,15 +393,15 @@ UGKP_RIEMANN_HD bool physicalConservative
         return false;
     }
 
-    const double inverseDensity = 1.0/state.q[0];
-    const double kineticEnergy =
-        0.5*
+    const GpuReal inverseDensity = GPU_R(1.0)/state.q[0];
+    const GpuReal kineticEnergy =
+        GPU_R(0.5)*
        (
            state.q[1]*state.q[1]
          + state.q[2]*state.q[2]
          + state.q[3]*state.q[3]
        )*inverseDensity;
-    const double pressure = (gamma - 1.0)*(state.q[4] - kineticEnergy);
+    const GpuReal pressure = (gamma - GPU_R(1.0))*(state.q[4] - kineticEnergy);
     return finiteScalar(pressure) && pressure >= pressureFloor;
 }
 
@@ -408,26 +409,26 @@ UGKP_RIEMANN_HD RoeAverage makeRoeAverage
 (
     const Primitive& left,
     const Primitive& right,
-    const double nx,
-    const double ny,
-    const double nz,
-    const double gamma
+    const GpuReal nx,
+    const GpuReal ny,
+    const GpuReal nz,
+    const GpuReal gamma
 )
 {
     RoeAverage average;
     average.valid = false;
-    average.ux = 0.0;
-    average.uy = 0.0;
-    average.uz = 0.0;
-    average.enthalpy = 0.0;
-    average.soundSpeed = 0.0;
-    average.normalVelocity = 0.0;
-    average.density = 0.0;
+    average.ux = GPU_R(0.0);
+    average.uy = GPU_R(0.0);
+    average.uz = GPU_R(0.0);
+    average.enthalpy = GPU_R(0.0);
+    average.soundSpeed = GPU_R(0.0);
+    average.normalVelocity = GPU_R(0.0);
+    average.density = GPU_R(0.0);
 
-    const double sqrtLeftDensity = ::sqrt(left.rho);
-    const double sqrtRightDensity = ::sqrt(right.rho);
-    const double denominator = sqrtLeftDensity + sqrtRightDensity;
-    if (!finiteScalar(denominator) || denominator <= DBL_MIN)
+    const GpuReal sqrtLeftDensity = ::sqrt(left.rho);
+    const GpuReal sqrtRightDensity = ::sqrt(right.rho);
+    const GpuReal denominator = sqrtLeftDensity + sqrtRightDensity;
+    if (!finiteScalar(denominator) || denominator <= GPU_REAL_MIN)
     {
         return average;
     }
@@ -445,13 +446,13 @@ UGKP_RIEMANN_HD RoeAverage makeRoeAverage
        )/denominator;
     average.density = sqrtLeftDensity*sqrtRightDensity;
 
-    const double velocitySquared =
+    const GpuReal velocitySquared =
         average.ux*average.ux
       + average.uy*average.uy
       + average.uz*average.uz;
-    const double soundSpeedSquared =
-        (gamma - 1.0)*(average.enthalpy - 0.5*velocitySquared);
-    if (!finiteScalar(soundSpeedSquared) || soundSpeedSquared <= DBL_MIN)
+    const GpuReal soundSpeedSquared =
+        (gamma - GPU_R(1.0))*(average.enthalpy - GPU_R(0.5)*velocitySquared);
+    if (!finiteScalar(soundSpeedSquared) || soundSpeedSquared <= GPU_REAL_MIN)
     {
         return average;
     }
@@ -474,26 +475,26 @@ UGKP_RIEMANN_HD FluxResult rusanovTadmorFluxUnitNormal
 (
     const Primitive& left,
     const Primitive& right,
-    const double nx,
-    const double ny,
-    const double nz,
-    const double gamma,
+    const GpuReal nx,
+    const GpuReal ny,
+    const GpuReal nz,
+    const GpuReal gamma,
     const bool inheritedFallback
 )
 {
     FluxResult result = invalidResult(Scheme::RusanovTadmor);
     const Conservative leftConserved = conservative(left, gamma);
     const Conservative rightConserved = conservative(right, gamma);
-    double leftFlux[5];
-    double rightFlux[5];
+    GpuReal leftFlux[5];
+    GpuReal rightFlux[5];
     projectedEulerFlux(left, leftConserved, nx, ny, nz, leftFlux);
     projectedEulerFlux(right, rightConserved, nx, ny, nz, rightFlux);
 
-    const double leftSoundSpeed = ::sqrt(gamma*left.p/left.rho);
-    const double rightSoundSpeed = ::sqrt(gamma*right.p/right.rho);
-    const double leftNormalVelocity = normalVelocity(left, nx, ny, nz);
-    const double rightNormalVelocity = normalVelocity(right, nx, ny, nz);
-    const double signalSpeed = maximum
+    const GpuReal leftSoundSpeed = ::sqrt(gamma*left.p/left.rho);
+    const GpuReal rightSoundSpeed = ::sqrt(gamma*right.p/right.rho);
+    const GpuReal leftNormalVelocity = normalVelocity(left, nx, ny, nz);
+    const GpuReal rightNormalVelocity = normalVelocity(right, nx, ny, nz);
+    const GpuReal signalSpeed = maximum
     (
         absolute(leftNormalVelocity) + leftSoundSpeed,
         absolute(rightNormalVelocity) + rightSoundSpeed
@@ -502,14 +503,14 @@ UGKP_RIEMANN_HD FluxResult rusanovTadmorFluxUnitNormal
     for (int component = 0; component < 5; ++component)
     {
         result.flux[component] =
-            0.5*(leftFlux[component] + rightFlux[component])
-          - 0.5*signalSpeed*
+            GPU_R(0.5)*(leftFlux[component] + rightFlux[component])
+          - GPU_R(0.5)*signalSpeed*
             (rightConserved.q[component] - leftConserved.q[component]);
     }
     result.maxSignalSpeed = signalSpeed;
     result.valid =
         finiteScalar(signalSpeed)
-     && signalSpeed >= 0.0
+     && signalSpeed >= GPU_R(0.0)
      && finiteFive(result.flux);
     result.usedFallback = inheritedFallback;
     return result;
@@ -519,53 +520,53 @@ UGKP_RIEMANN_HD FluxResult hllKurganovFluxUnitNormal
 (
     const Primitive& left,
     const Primitive& right,
-    const double nx,
-    const double ny,
-    const double nz,
-    const double gamma,
+    const GpuReal nx,
+    const GpuReal ny,
+    const GpuReal nz,
+    const GpuReal gamma,
     const bool inheritedFallback
 )
 {
     const Conservative leftConserved = conservative(left, gamma);
     const Conservative rightConserved = conservative(right, gamma);
-    double leftFlux[5];
-    double rightFlux[5];
+    GpuReal leftFlux[5];
+    GpuReal rightFlux[5];
     projectedEulerFlux(left, leftConserved, nx, ny, nz, leftFlux);
     projectedEulerFlux(right, rightConserved, nx, ny, nz, rightFlux);
 
-    const double leftSoundSpeed = ::sqrt(gamma*left.p/left.rho);
-    const double rightSoundSpeed = ::sqrt(gamma*right.p/right.rho);
-    const double leftNormalVelocity = normalVelocity(left, nx, ny, nz);
-    const double rightNormalVelocity = normalVelocity(right, nx, ny, nz);
-    const double positiveSpeed = maximum
+    const GpuReal leftSoundSpeed = ::sqrt(gamma*left.p/left.rho);
+    const GpuReal rightSoundSpeed = ::sqrt(gamma*right.p/right.rho);
+    const GpuReal leftNormalVelocity = normalVelocity(left, nx, ny, nz);
+    const GpuReal rightNormalVelocity = normalVelocity(right, nx, ny, nz);
+    const GpuReal positiveSpeed = maximum
     (
-        0.0,
+        GPU_R(0.0),
         maximum
         (
             leftNormalVelocity + leftSoundSpeed,
             rightNormalVelocity + rightSoundSpeed
         )
     );
-    const double negativeSpeed = minimum
+    const GpuReal negativeSpeed = minimum
     (
-        0.0,
+        GPU_R(0.0),
         minimum
         (
             leftNormalVelocity - leftSoundSpeed,
             rightNormalVelocity - rightSoundSpeed
         )
     );
-    const double denominator = positiveSpeed - negativeSpeed;
-    const double scale =
+    const GpuReal denominator = positiveSpeed - negativeSpeed;
+    const GpuReal scale =
         maximum
         (
-            1.0,
+            GPU_R(1.0),
             maximum(absolute(positiveSpeed), absolute(negativeSpeed))
         );
     if
     (
         !finiteScalar(denominator)
-     || denominator <= 64.0*DBL_EPSILON*scale
+     || denominator <= GPU_R(64.0)*GPU_REAL_EPSILON*scale
     )
     {
         return rusanovTadmorFluxUnitNormal
@@ -575,7 +576,7 @@ UGKP_RIEMANN_HD FluxResult hllKurganovFluxUnitNormal
     }
 
     FluxResult result = invalidResult(Scheme::HllKurganov);
-    const double diffusion =
+    const GpuReal diffusion =
         positiveSpeed*negativeSpeed/denominator;
     for (int component = 0; component < 5; ++component)
     {
@@ -598,41 +599,41 @@ UGKP_RIEMANN_HD FluxResult hlleFluxUnitNormal
 (
     const Primitive& left,
     const Primitive& right,
-    const double nx,
-    const double ny,
-    const double nz,
-    const double gamma,
-    const double rhoFloor,
-    const double pressureFloor,
+    const GpuReal nx,
+    const GpuReal ny,
+    const GpuReal nz,
+    const GpuReal gamma,
+    const GpuReal rhoFloor,
+    const GpuReal pressureFloor,
     const bool inheritedFallback
 )
 {
     const Conservative leftConserved = conservative(left, gamma);
     const Conservative rightConserved = conservative(right, gamma);
-    double leftFlux[5];
-    double rightFlux[5];
+    GpuReal leftFlux[5];
+    GpuReal rightFlux[5];
     projectedEulerFlux(left, leftConserved, nx, ny, nz, leftFlux);
     projectedEulerFlux(right, rightConserved, nx, ny, nz, rightFlux);
 
-    const double leftSoundSpeed = ::sqrt(gamma*left.p/left.rho);
-    const double rightSoundSpeed = ::sqrt(gamma*right.p/right.rho);
-    const double leftNormalVelocity = normalVelocity(left, nx, ny, nz);
-    const double rightNormalVelocity = normalVelocity(right, nx, ny, nz);
+    const GpuReal leftSoundSpeed = ::sqrt(gamma*left.p/left.rho);
+    const GpuReal rightSoundSpeed = ::sqrt(gamma*right.p/right.rho);
+    const GpuReal leftNormalVelocity = normalVelocity(left, nx, ny, nz);
+    const GpuReal rightNormalVelocity = normalVelocity(right, nx, ny, nz);
     const RoeAverage roe =
         makeRoeAverage(left, right, nx, ny, nz, gamma);
 
-    double negativeSpeed = minimum
+    GpuReal negativeSpeed = minimum
     (
-        0.0,
+        GPU_R(0.0),
         minimum
         (
             leftNormalVelocity - leftSoundSpeed,
             rightNormalVelocity - rightSoundSpeed
         )
     );
-    double positiveSpeed = maximum
+    GpuReal positiveSpeed = maximum
     (
-        0.0,
+        GPU_R(0.0),
         maximum
         (
             leftNormalVelocity + leftSoundSpeed,
@@ -653,7 +654,7 @@ UGKP_RIEMANN_HD FluxResult hlleFluxUnitNormal
         );
     }
 
-    if (negativeSpeed >= 0.0)
+    if (negativeSpeed >= GPU_R(0.0))
     {
         FluxResult result = invalidResult(Scheme::HLLE);
         for (int component = 0; component < 5; ++component)
@@ -667,7 +668,7 @@ UGKP_RIEMANN_HD FluxResult hlleFluxUnitNormal
         result.usedFallback = inheritedFallback;
         return result;
     }
-    if (positiveSpeed <= 0.0)
+    if (positiveSpeed <= GPU_R(0.0))
     {
         FluxResult result = invalidResult(Scheme::HLLE);
         for (int component = 0; component < 5; ++component)
@@ -682,17 +683,17 @@ UGKP_RIEMANN_HD FluxResult hlleFluxUnitNormal
         return result;
     }
 
-    const double denominator = positiveSpeed - negativeSpeed;
-    const double scale =
+    const GpuReal denominator = positiveSpeed - negativeSpeed;
+    const GpuReal scale =
         maximum
         (
-            1.0,
+            GPU_R(1.0),
             maximum(absolute(positiveSpeed), absolute(negativeSpeed))
         );
     if
     (
         !finiteScalar(denominator)
-     || denominator <= 64.0*DBL_EPSILON*scale
+     || denominator <= GPU_R(64.0)*GPU_REAL_EPSILON*scale
     )
     {
         return rusanovTadmorFluxUnitNormal
@@ -749,12 +750,12 @@ UGKP_RIEMANN_HD FluxResult hllemFluxUnitNormal
 (
     const Primitive& left,
     const Primitive& right,
-    const double nx,
-    const double ny,
-    const double nz,
-    const double gamma,
-    const double rhoFloor,
-    const double pressureFloor
+    const GpuReal nx,
+    const GpuReal ny,
+    const GpuReal nz,
+    const GpuReal gamma,
+    const GpuReal rhoFloor,
+    const GpuReal pressureFloor
 )
 {
     FluxResult result = hlleFluxUnitNormal
@@ -779,10 +780,10 @@ UGKP_RIEMANN_HD FluxResult hllemFluxUnitNormal
         return result;
     }
 
-    const double leftSoundSpeed = ::sqrt(gamma*left.p/left.rho);
-    const double rightSoundSpeed = ::sqrt(gamma*right.p/right.rho);
-    const double leftNormalVelocity = normalVelocity(left, nx, ny, nz);
-    const double rightNormalVelocity = normalVelocity(right, nx, ny, nz);
+    const GpuReal leftSoundSpeed = ::sqrt(gamma*left.p/left.rho);
+    const GpuReal rightSoundSpeed = ::sqrt(gamma*right.p/right.rho);
+    const GpuReal leftNormalVelocity = normalVelocity(left, nx, ny, nz);
+    const GpuReal rightNormalVelocity = normalVelocity(right, nx, ny, nz);
     const RoeAverage roe =
         makeRoeAverage(left, right, nx, ny, nz, gamma);
     if (!roe.valid)
@@ -790,18 +791,18 @@ UGKP_RIEMANN_HD FluxResult hllemFluxUnitNormal
         return result;
     }
 
-    double negativeSpeed = minimum
+    GpuReal negativeSpeed = minimum
     (
-        0.0,
+        GPU_R(0.0),
         minimum
         (
             leftNormalVelocity - leftSoundSpeed,
             rightNormalVelocity - rightSoundSpeed
         )
     );
-    double positiveSpeed = maximum
+    GpuReal positiveSpeed = maximum
     (
-        0.0,
+        GPU_R(0.0),
         maximum
         (
             leftNormalVelocity + leftSoundSpeed,
@@ -818,47 +819,47 @@ UGKP_RIEMANN_HD FluxResult hllemFluxUnitNormal
         positiveSpeed,
         roe.normalVelocity + roe.soundSpeed
     );
-    if (negativeSpeed >= 0.0 || positiveSpeed <= 0.0)
+    if (negativeSpeed >= GPU_R(0.0) || positiveSpeed <= GPU_R(0.0))
     {
         result.evaluatedScheme = Scheme::HLLEM;
         return result;
     }
 
-    const double denominator = positiveSpeed - negativeSpeed;
-    const double scale = maximum
+    const GpuReal denominator = positiveSpeed - negativeSpeed;
+    const GpuReal scale = maximum
     (
-        1.0,
+        GPU_R(1.0),
         maximum(absolute(positiveSpeed), absolute(negativeSpeed))
     );
     if
     (
         !finiteScalar(denominator)
-     || denominator <= 64.0*DBL_EPSILON*scale
+     || denominator <= GPU_R(64.0)*GPU_REAL_EPSILON*scale
     )
     {
         return result;
     }
 
-    const double densityJump = right.rho - left.rho;
-    const double pressureJump = right.p - left.p;
-    const double velocityJumpX = right.ux - left.ux;
-    const double velocityJumpY = right.uy - left.uy;
-    const double velocityJumpZ = right.uz - left.uz;
-    const double normalVelocityJump =
+    const GpuReal densityJump = right.rho - left.rho;
+    const GpuReal pressureJump = right.p - left.p;
+    const GpuReal velocityJumpX = right.ux - left.ux;
+    const GpuReal velocityJumpY = right.uy - left.uy;
+    const GpuReal velocityJumpZ = right.uz - left.uz;
+    const GpuReal normalVelocityJump =
         velocityJumpX*nx + velocityJumpY*ny + velocityJumpZ*nz;
-    const double tangentialVelocityJumpX =
+    const GpuReal tangentialVelocityJumpX =
         velocityJumpX - normalVelocityJump*nx;
-    const double tangentialVelocityJumpY =
+    const GpuReal tangentialVelocityJumpY =
         velocityJumpY - normalVelocityJump*ny;
-    const double tangentialVelocityJumpZ =
+    const GpuReal tangentialVelocityJumpZ =
         velocityJumpZ - normalVelocityJump*nz;
-    const double soundSpeedSquared = roe.soundSpeed*roe.soundSpeed;
-    const double contactStrength =
+    const GpuReal soundSpeedSquared = roe.soundSpeed*roe.soundSpeed;
+    const GpuReal contactStrength =
         densityJump - pressureJump/soundSpeedSquared;
-    const double roeVelocitySquared =
+    const GpuReal roeVelocitySquared =
         roe.ux*roe.ux + roe.uy*roe.uy + roe.uz*roe.uz;
 
-    double linearlyDegenerateJump[5];
+    GpuReal linearlyDegenerateJump[5];
     linearlyDegenerateJump[0] = contactStrength;
     linearlyDegenerateJump[1] =
         contactStrength*roe.ux
@@ -870,7 +871,7 @@ UGKP_RIEMANN_HD FluxResult hllemFluxUnitNormal
         contactStrength*roe.uz
       + roe.density*tangentialVelocityJumpZ;
     linearlyDegenerateJump[4] =
-        0.5*contactStrength*roeVelocitySquared
+        GPU_R(0.5)*contactStrength*roeVelocitySquared
       + roe.density*
        (
            roe.ux*tangentialVelocityJumpX
@@ -883,18 +884,18 @@ UGKP_RIEMANN_HD FluxResult hllemFluxUnitNormal
                                                                        
                                                                 
                                                    
-    const double antidiffusion = minimum
+    const GpuReal antidiffusion = minimum
     (
-        1.0,
+        GPU_R(1.0),
         maximum
         (
-            0.0,
-            roe.normalVelocity >= 0.0
+            GPU_R(0.0),
+            roe.normalVelocity >= GPU_R(0.0)
           ? (positiveSpeed - roe.normalVelocity)/positiveSpeed
           : (roe.normalVelocity - negativeSpeed)/(-negativeSpeed)
         )
     );
-    const double correction =
+    const GpuReal correction =
         -negativeSpeed*positiveSpeed/denominator*antidiffusion;
     for (int component = 0; component < 5; ++component)
     {
@@ -937,36 +938,36 @@ UGKP_RIEMANN_HD FluxResult slau2FluxUnitNormalImpl
     const DensityGradient& leftDensityGradient,
     const DensityGradient& rightDensityGradient,
     const bool densityGradientAlignedDamping,
-    const double nx,
-    const double ny,
-    const double nz,
-    const double gamma,
-    const double rhoFloor,
-    const double pressureFloor,
+    const GpuReal nx,
+    const GpuReal ny,
+    const GpuReal nz,
+    const GpuReal gamma,
+    const GpuReal rhoFloor,
+    const GpuReal pressureFloor,
     const Scheme evaluatedScheme
 )
 {
-    const double leftNormalVelocity =
+    const GpuReal leftNormalVelocity =
         normalVelocity(left, nx, ny, nz);
-    const double rightNormalVelocity =
+    const GpuReal rightNormalVelocity =
         normalVelocity(right, nx, ny, nz);
-    const double leftVelocitySquared =
+    const GpuReal leftVelocitySquared =
         left.ux*left.ux + left.uy*left.uy + left.uz*left.uz;
-    const double rightVelocitySquared =
+    const GpuReal rightVelocitySquared =
         right.ux*right.ux + right.uy*right.uy + right.uz*right.uz;
-    const double leftSoundSpeed = ::sqrt(gamma*left.p/left.rho);
-    const double rightSoundSpeed = ::sqrt(gamma*right.p/right.rho);
-    const double interfaceSoundSpeed =
-        0.5*(leftSoundSpeed + rightSoundSpeed);
-    const double soundScale = maximum
+    const GpuReal leftSoundSpeed = ::sqrt(gamma*left.p/left.rho);
+    const GpuReal rightSoundSpeed = ::sqrt(gamma*right.p/right.rho);
+    const GpuReal interfaceSoundSpeed =
+        GPU_R(0.5)*(leftSoundSpeed + rightSoundSpeed);
+    const GpuReal soundScale = maximum
     (
-        1.0,
+        GPU_R(1.0),
         maximum(leftSoundSpeed, rightSoundSpeed)
     );
     if
     (
         !finiteScalar(interfaceSoundSpeed)
-     || interfaceSoundSpeed <= 64.0*DBL_EPSILON*soundScale
+     || interfaceSoundSpeed <= GPU_R(64.0)*GPU_REAL_EPSILON*soundScale
     )
     {
         return hlleFluxUnitNormal
@@ -983,34 +984,34 @@ UGKP_RIEMANN_HD FluxResult slau2FluxUnitNormalImpl
         );
     }
 
-    const double leftMach = leftNormalVelocity/interfaceSoundSpeed;
-    const double rightMach = rightNormalVelocity/interfaceSoundSpeed;
-    const double velocityMagnitude = ::sqrt
+    const GpuReal leftMach = leftNormalVelocity/interfaceSoundSpeed;
+    const GpuReal rightMach = rightNormalVelocity/interfaceSoundSpeed;
+    const GpuReal velocityMagnitude = ::sqrt
     (
-        0.5*(leftVelocitySquared + rightVelocitySquared)
+        GPU_R(0.5)*(leftVelocitySquared + rightVelocitySquared)
     );
-    double dampingMach = velocityMagnitude/interfaceSoundSpeed;
+    GpuReal dampingMach = velocityMagnitude/interfaceSoundSpeed;
     if (densityGradientAlignedDamping)
     {
-        const double leftGradientMagnitude = ::sqrt
+        const GpuReal leftGradientMagnitude = ::sqrt
         (
             leftDensityGradient.x*leftDensityGradient.x
           + leftDensityGradient.y*leftDensityGradient.y
           + leftDensityGradient.z*leftDensityGradient.z
         );
-        const double rightGradientMagnitude = ::sqrt
+        const GpuReal rightGradientMagnitude = ::sqrt
         (
             rightDensityGradient.x*rightDensityGradient.x
           + rightDensityGradient.y*rightDensityGradient.y
           + rightDensityGradient.z*rightDensityGradient.z
         );
-        const double gradientScale = maximum
+        const GpuReal gradientScale = maximum
         (
-            1.0,
+            GPU_R(1.0),
             maximum(leftGradientMagnitude, rightGradientMagnitude)
         );
-        const double gradientFloor = 64.0*DBL_EPSILON*gradientScale;
-        const double leftGradientMach =
+        const GpuReal gradientFloor = GPU_R(64.0)*GPU_REAL_EPSILON*gradientScale;
+        const GpuReal leftGradientMach =
             leftGradientMagnitude > gradientFloor
           ? (
                 left.ux*leftDensityGradient.x
@@ -1018,7 +1019,7 @@ UGKP_RIEMANN_HD FluxResult slau2FluxUnitNormalImpl
               + left.uz*leftDensityGradient.z
             )/(leftGradientMagnitude*interfaceSoundSpeed)
           : velocityMagnitude/interfaceSoundSpeed;
-        const double rightGradientMach =
+        const GpuReal rightGradientMach =
             rightGradientMagnitude > gradientFloor
           ? (
                 right.ux*rightDensityGradient.x
@@ -1028,24 +1029,24 @@ UGKP_RIEMANN_HD FluxResult slau2FluxUnitNormalImpl
           : velocityMagnitude/interfaceSoundSpeed;
         dampingMach = ::sqrt
         (
-            0.5*
+            GPU_R(0.5)*
             (
                 leftGradientMach*leftGradientMach
               + rightGradientMach*rightGradientMach
             )
         );
     }
-    const double limitedMach = minimum(1.0, dampingMach);
-    const double chi = (1.0 - limitedMach)*(1.0 - limitedMach);
-    const double densitySwitch =
-       -maximum(minimum(leftMach, 0.0), -1.0)
-       *minimum(maximum(rightMach, 0.0), 1.0);
+    const GpuReal limitedMach = minimum(GPU_R(1.0), dampingMach);
+    const GpuReal chi = (GPU_R(1.0) - limitedMach)*(GPU_R(1.0) - limitedMach);
+    const GpuReal densitySwitch =
+       -maximum(minimum(leftMach, GPU_R(0.0)), -GPU_R(1.0))
+       *minimum(maximum(rightMach, GPU_R(0.0)), GPU_R(1.0));
 
-    const double densitySum = left.rho + right.rho;
+    const GpuReal densitySum = left.rho + right.rho;
     if
     (
         !finiteScalar(densitySum)
-     || densitySum < maximum(2.0*rhoFloor, DBL_MIN)
+     || densitySum < maximum(GPU_R(2.0)*rhoFloor, GPU_REAL_MIN)
     )
     {
         return hlleFluxUnitNormal
@@ -1061,62 +1062,62 @@ UGKP_RIEMANN_HD FluxResult slau2FluxUnitNormalImpl
             true
         );
     }
-    const double densityWeightedNormalSpeed =
+    const GpuReal densityWeightedNormalSpeed =
        (
            left.rho*absolute(leftNormalVelocity)
          + right.rho*absolute(rightNormalVelocity)
        )/densitySum;
-    const double leftNormalSpeed =
-        (1.0 - densitySwitch)*densityWeightedNormalSpeed
+    const GpuReal leftNormalSpeed =
+        (GPU_R(1.0) - densitySwitch)*densityWeightedNormalSpeed
       + densitySwitch*absolute(leftNormalVelocity);
-    const double rightNormalSpeed =
-        (1.0 - densitySwitch)*densityWeightedNormalSpeed
+    const GpuReal rightNormalSpeed =
+        (GPU_R(1.0) - densitySwitch)*densityWeightedNormalSpeed
       + densitySwitch*absolute(rightNormalVelocity);
-    const double massFlux = 0.5*
+    const GpuReal massFlux = GPU_R(0.5)*
     (
         left.rho*(leftNormalVelocity + leftNormalSpeed)
       + right.rho*(rightNormalVelocity - rightNormalSpeed)
       - chi/interfaceSoundSpeed*(right.p - left.p)
     );
 
-    double leftPressureWeight = 0.0;
-    if (absolute(leftMach) < 1.0)
+    GpuReal leftPressureWeight = GPU_R(0.0);
+    if (absolute(leftMach) < GPU_R(1.0))
     {
-        const double shifted = leftMach + 1.0;
+        const GpuReal shifted = leftMach + GPU_R(1.0);
         leftPressureWeight =
-            0.25*(2.0 - leftMach)*shifted*shifted;
+            GPU_R(0.25)*(GPU_R(2.0) - leftMach)*shifted*shifted;
     }
-    else if (leftMach >= 0.0)
+    else if (leftMach >= GPU_R(0.0))
     {
-        leftPressureWeight = 1.0;
+        leftPressureWeight = GPU_R(1.0);
     }
 
-    double rightPressureWeight = 0.0;
-    if (absolute(rightMach) < 1.0)
+    GpuReal rightPressureWeight = GPU_R(0.0);
+    if (absolute(rightMach) < GPU_R(1.0))
     {
-        const double shifted = rightMach - 1.0;
+        const GpuReal shifted = rightMach - GPU_R(1.0);
         rightPressureWeight =
-            0.25*(2.0 + rightMach)*shifted*shifted;
+            GPU_R(0.25)*(GPU_R(2.0) + rightMach)*shifted*shifted;
     }
-    else if (rightMach < 0.0)
+    else if (rightMach < GPU_R(0.0))
     {
-        rightPressureWeight = 1.0;
+        rightPressureWeight = GPU_R(1.0);
     }
 
-    const double interfacePressure =
-        0.5*(left.p + right.p)
-      + 0.5*(leftPressureWeight - rightPressureWeight)
+    const GpuReal interfacePressure =
+        GPU_R(0.5)*(left.p + right.p)
+      + GPU_R(0.5)*(leftPressureWeight - rightPressureWeight)
        *(left.p - right.p)
       + velocityMagnitude*
-       (leftPressureWeight + rightPressureWeight - 1.0)
-       *interfaceSoundSpeed*0.5*densitySum;
+       (leftPressureWeight + rightPressureWeight - GPU_R(1.0))
+       *interfaceSoundSpeed*GPU_R(0.5)*densitySum;
 
-    const Primitive& upwind = massFlux >= 0.0 ? left : right;
-    const double upwindVelocitySquared =
-        massFlux >= 0.0 ? leftVelocitySquared : rightVelocitySquared;
-    const double upwindEnthalpy =
-        gamma/(gamma - 1.0)*upwind.p/upwind.rho
-      + 0.5*upwindVelocitySquared;
+    const Primitive& upwind = massFlux >= GPU_R(0.0) ? left : right;
+    const GpuReal upwindVelocitySquared =
+        massFlux >= GPU_R(0.0) ? leftVelocitySquared : rightVelocitySquared;
+    const GpuReal upwindEnthalpy =
+        gamma/(gamma - GPU_R(1.0))*upwind.p/upwind.rho
+      + GPU_R(0.5)*upwindVelocitySquared;
 
     FluxResult result = invalidResult(evaluatedScheme);
     result.flux[0] = massFlux;
@@ -1157,15 +1158,15 @@ UGKP_RIEMANN_HD FluxResult slau2FluxUnitNormal
 (
     const Primitive& left,
     const Primitive& right,
-    const double nx,
-    const double ny,
-    const double nz,
-    const double gamma,
-    const double rhoFloor,
-    const double pressureFloor
+    const GpuReal nx,
+    const GpuReal ny,
+    const GpuReal nz,
+    const GpuReal gamma,
+    const GpuReal rhoFloor,
+    const GpuReal pressureFloor
 )
 {
-    const DensityGradient unusedGradient{0.0, 0.0, 0.0};
+    const DensityGradient unusedGradient{GPU_R(0.0), GPU_R(0.0), GPU_R(0.0)};
     return slau2FluxUnitNormalImpl
     (
         left,
@@ -1189,12 +1190,12 @@ UGKP_RIEMANN_HD FluxResult slau22FluxUnitNormal
     const Primitive& right,
     const DensityGradient& leftDensityGradient,
     const DensityGradient& rightDensityGradient,
-    const double nx,
-    const double ny,
-    const double nz,
-    const double gamma,
-    const double rhoFloor,
-    const double pressureFloor
+    const GpuReal nx,
+    const GpuReal ny,
+    const GpuReal nz,
+    const GpuReal gamma,
+    const GpuReal rhoFloor,
+    const GpuReal pressureFloor
 )
 {
     return slau2FluxUnitNormalImpl
@@ -1218,32 +1219,32 @@ UGKP_RIEMANN_HD bool makeHllcStarState
 (
     const Primitive& side,
     const Conservative& sideConserved,
-    const double sideSpeed,
-    const double middleSpeed,
-    const double starPressure,
-    const double nx,
-    const double ny,
-    const double nz,
+    const GpuReal sideSpeed,
+    const GpuReal middleSpeed,
+    const GpuReal starPressure,
+    const GpuReal nx,
+    const GpuReal ny,
+    const GpuReal nz,
     Conservative& starState
 )
 {
-    const double sideNormalVelocity = normalVelocity(side, nx, ny, nz);
-    const double denominator = sideSpeed - middleSpeed;
-    const double scale = maximum
+    const GpuReal sideNormalVelocity = normalVelocity(side, nx, ny, nz);
+    const GpuReal denominator = sideSpeed - middleSpeed;
+    const GpuReal scale = maximum
     (
-        1.0,
+        GPU_R(1.0),
         maximum(absolute(sideSpeed), absolute(middleSpeed))
     );
     if
     (
         !finiteScalar(denominator)
-     || absolute(denominator) <= 64.0*DBL_EPSILON*scale
+     || absolute(denominator) <= GPU_R(64.0)*GPU_REAL_EPSILON*scale
     )
     {
         return false;
     }
 
-    const double densityRatio =
+    const GpuReal densityRatio =
         (sideSpeed - sideNormalVelocity)/denominator;
     starState.q[0] = densityRatio*side.rho;
     starState.q[1] =
@@ -1265,25 +1266,25 @@ UGKP_RIEMANN_HD FluxResult hllcFluxUnitNormal
 (
     const Primitive& left,
     const Primitive& right,
-    const double nx,
-    const double ny,
-    const double nz,
-    const double gamma,
-    const double rhoFloor,
-    const double pressureFloor
+    const GpuReal nx,
+    const GpuReal ny,
+    const GpuReal nz,
+    const GpuReal gamma,
+    const GpuReal rhoFloor,
+    const GpuReal pressureFloor
 )
 {
     const Conservative leftConserved = conservative(left, gamma);
     const Conservative rightConserved = conservative(right, gamma);
-    double leftFlux[5];
-    double rightFlux[5];
+    GpuReal leftFlux[5];
+    GpuReal rightFlux[5];
     projectedEulerFlux(left, leftConserved, nx, ny, nz, leftFlux);
     projectedEulerFlux(right, rightConserved, nx, ny, nz, rightFlux);
 
-    const double leftSoundSpeed = ::sqrt(gamma*left.p/left.rho);
-    const double rightSoundSpeed = ::sqrt(gamma*right.p/right.rho);
-    const double leftNormalVelocity = normalVelocity(left, nx, ny, nz);
-    const double rightNormalVelocity = normalVelocity(right, nx, ny, nz);
+    const GpuReal leftSoundSpeed = ::sqrt(gamma*left.p/left.rho);
+    const GpuReal rightSoundSpeed = ::sqrt(gamma*right.p/right.rho);
+    const GpuReal leftNormalVelocity = normalVelocity(left, nx, ny, nz);
+    const GpuReal rightNormalVelocity = normalVelocity(right, nx, ny, nz);
     const RoeAverage roe =
         makeRoeAverage(left, right, nx, ny, nz, gamma);
     if (!roe.valid)
@@ -1303,17 +1304,17 @@ UGKP_RIEMANN_HD FluxResult hllcFluxUnitNormal
     }
 
                                                               
-    const double leftSpeed = minimum
+    const GpuReal leftSpeed = minimum
     (
         roe.normalVelocity - roe.soundSpeed,
         leftNormalVelocity - leftSoundSpeed
     );
-    const double rightSpeed = maximum
+    const GpuReal rightSpeed = maximum
     (
         roe.normalVelocity + roe.soundSpeed,
         rightNormalVelocity + rightSoundSpeed
     );
-    if (leftSpeed >= 0.0)
+    if (leftSpeed >= GPU_R(0.0))
     {
         FluxResult result = invalidResult(Scheme::HLLC);
         for (int component = 0; component < 5; ++component)
@@ -1327,7 +1328,7 @@ UGKP_RIEMANN_HD FluxResult hllcFluxUnitNormal
          && finiteFive(result.flux);
         return result;
     }
-    if (rightSpeed <= 0.0)
+    if (rightSpeed <= GPU_R(0.0))
     {
         FluxResult result = invalidResult(Scheme::HLLC);
         for (int component = 0; component < 5; ++component)
@@ -1342,12 +1343,12 @@ UGKP_RIEMANN_HD FluxResult hllcFluxUnitNormal
         return result;
     }
 
-    const double middleDenominator =
+    const GpuReal middleDenominator =
         right.rho*(rightSpeed - rightNormalVelocity)
       - left.rho*(leftSpeed - leftNormalVelocity);
-    const double middleScale = maximum
+    const GpuReal middleScale = maximum
     (
-        1.0,
+        GPU_R(1.0),
         maximum
         (
             absolute(right.rho*(rightSpeed - rightNormalVelocity)),
@@ -1358,7 +1359,7 @@ UGKP_RIEMANN_HD FluxResult hllcFluxUnitNormal
     (
         !finiteScalar(middleDenominator)
      || absolute(middleDenominator)
-        <= 64.0*DBL_EPSILON*middleScale
+        <= GPU_R(64.0)*GPU_REAL_EPSILON*middleScale
     )
     {
         return hlleFluxUnitNormal
@@ -1375,7 +1376,7 @@ UGKP_RIEMANN_HD FluxResult hllcFluxUnitNormal
         );
     }
 
-    const double middleSpeed =
+    const GpuReal middleSpeed =
        (
            left.p - right.p
          - left.rho*leftNormalVelocity*
@@ -1383,7 +1384,7 @@ UGKP_RIEMANN_HD FluxResult hllcFluxUnitNormal
          + right.rho*rightNormalVelocity*
            (rightSpeed - rightNormalVelocity)
        )/middleDenominator;
-    const double starPressure =
+    const GpuReal starPressure =
         right.rho*
         (rightNormalVelocity - rightSpeed)*
         (rightNormalVelocity - middleSpeed)
@@ -1462,14 +1463,14 @@ UGKP_RIEMANN_HD FluxResult hllcFluxUnitNormal
     }
 
     FluxResult result = invalidResult(Scheme::HLLC);
-    if (leftSpeed >= 0.0)
+    if (leftSpeed >= GPU_R(0.0))
     {
         for (int component = 0; component < 5; ++component)
         {
             result.flux[component] = leftFlux[component];
         }
     }
-    else if (rightSpeed <= 0.0)
+    else if (rightSpeed <= GPU_R(0.0))
     {
         for (int component = 0; component < 5; ++component)
         {
@@ -1479,7 +1480,7 @@ UGKP_RIEMANN_HD FluxResult hllcFluxUnitNormal
     else
     {
         const Conservative& selectedStar =
-            middleSpeed >= 0.0 ? leftStar : rightStar;
+            middleSpeed >= GPU_R(0.0) ? leftStar : rightStar;
         result.flux[0] = middleSpeed*selectedStar.q[0];
         result.flux[1] =
             middleSpeed*selectedStar.q[1] + starPressure*nx;
@@ -1534,13 +1535,13 @@ UGKP_RIEMANN_HD FluxResult hllcAdcFluxUnitNormal
 (
     const Primitive& left,
     const Primitive& right,
-    const double nx,
-    const double ny,
-    const double nz,
-    const double gamma,
-    const double rhoFloor,
-    const double pressureFloor,
-    const double suppliedOmega
+    const GpuReal nx,
+    const GpuReal ny,
+    const GpuReal nz,
+    const GpuReal gamma,
+    const GpuReal rhoFloor,
+    const GpuReal pressureFloor,
+    const GpuReal suppliedOmega
 )
 {
     const FluxResult hllc = hllcFluxUnitNormal
@@ -1586,21 +1587,21 @@ UGKP_RIEMANN_HD FluxResult hllcAdcFluxUnitNormal
         return hll;
     }
 
-    const double omega = minimum
+    const GpuReal omega = minimum
     (
-        1.0,
-        maximum(0.0, finiteScalar(suppliedOmega) ? suppliedOmega : 0.0)
+        GPU_R(1.0),
+        maximum(GPU_R(0.0), finiteScalar(suppliedOmega) ? suppliedOmega : GPU_R(0.0))
     );
     FluxResult result = hllc;
     result.evaluatedScheme = Scheme::HLLC_ADC;
     result.maxSignalSpeed =
         maximum(hllc.maxSignalSpeed, hll.maxSignalSpeed);
 
-    const double oneMinusOmega = 1.0 - omega;
+    const GpuReal oneMinusOmega = GPU_R(1.0) - omega;
     result.flux[0] =
         hll.flux[0] + omega*(hllc.flux[0] - hll.flux[0]);
 
-    const double normalMomentumCorrection =
+    const GpuReal normalMomentumCorrection =
        (hllc.flux[1] - hll.flux[1])*nx
      + (hllc.flux[2] - hll.flux[2])*ny
      + (hllc.flux[3] - hll.flux[3])*nz;
@@ -1639,12 +1640,12 @@ UGKP_RIEMANN_HD FluxResult roeFluxUnitNormal
 (
     const Primitive& left,
     const Primitive& right,
-    const double nx,
-    const double ny,
-    const double nz,
-    const double gamma,
-    const double rhoFloor,
-    const double pressureFloor
+    const GpuReal nx,
+    const GpuReal ny,
+    const GpuReal nz,
+    const GpuReal gamma,
+    const GpuReal rhoFloor,
+    const GpuReal pressureFloor
 )
 {
     const RoeAverage roe =
@@ -1667,62 +1668,62 @@ UGKP_RIEMANN_HD FluxResult roeFluxUnitNormal
 
     const Conservative leftConserved = conservative(left, gamma);
     const Conservative rightConserved = conservative(right, gamma);
-    double leftFlux[5];
-    double rightFlux[5];
+    GpuReal leftFlux[5];
+    GpuReal rightFlux[5];
     projectedEulerFlux(left, leftConserved, nx, ny, nz, leftFlux);
     projectedEulerFlux(right, rightConserved, nx, ny, nz, rightFlux);
-    const double leftSoundSpeed = ::sqrt(gamma*left.p/left.rho);
-    const double rightSoundSpeed = ::sqrt(gamma*right.p/right.rho);
-    const double leftNormalVelocity = normalVelocity(left, nx, ny, nz);
-    const double rightNormalVelocity = normalVelocity(right, nx, ny, nz);
+    const GpuReal leftSoundSpeed = ::sqrt(gamma*left.p/left.rho);
+    const GpuReal rightSoundSpeed = ::sqrt(gamma*right.p/right.rho);
+    const GpuReal leftNormalVelocity = normalVelocity(left, nx, ny, nz);
+    const GpuReal rightNormalVelocity = normalVelocity(right, nx, ny, nz);
 
-    const double soundSpeedSquared = roe.soundSpeed*roe.soundSpeed;
-    const double densityJump = right.rho - left.rho;
-    const double pressureJump = right.p - left.p;
-    const double velocityJumpX = right.ux - left.ux;
-    const double velocityJumpY = right.uy - left.uy;
-    const double velocityJumpZ = right.uz - left.uz;
-    const double normalVelocityJump =
+    const GpuReal soundSpeedSquared = roe.soundSpeed*roe.soundSpeed;
+    const GpuReal densityJump = right.rho - left.rho;
+    const GpuReal pressureJump = right.p - left.p;
+    const GpuReal velocityJumpX = right.ux - left.ux;
+    const GpuReal velocityJumpY = right.uy - left.uy;
+    const GpuReal velocityJumpZ = right.uz - left.uz;
+    const GpuReal normalVelocityJump =
         velocityJumpX*nx + velocityJumpY*ny + velocityJumpZ*nz;
-    const double tangentialVelocityJumpX =
+    const GpuReal tangentialVelocityJumpX =
         velocityJumpX - normalVelocityJump*nx;
-    const double tangentialVelocityJumpY =
+    const GpuReal tangentialVelocityJumpY =
         velocityJumpY - normalVelocityJump*ny;
-    const double tangentialVelocityJumpZ =
+    const GpuReal tangentialVelocityJumpZ =
         velocityJumpZ - normalVelocityJump*nz;
 
-    const double acousticMinusStrength =
+    const GpuReal acousticMinusStrength =
        (
            pressureJump
          - roe.density*roe.soundSpeed*normalVelocityJump
-       )/(2.0*soundSpeedSquared);
-    const double acousticPlusStrength =
+       )/(GPU_R(2.0)*soundSpeedSquared);
+    const GpuReal acousticPlusStrength =
        (
            pressureJump
          + roe.density*roe.soundSpeed*normalVelocityJump
-       )/(2.0*soundSpeedSquared);
-    const double contactStrength =
+       )/(GPU_R(2.0)*soundSpeedSquared);
+    const GpuReal contactStrength =
         densityJump - pressureJump/soundSpeedSquared;
 
-    const double leftAcousticMinus =
+    const GpuReal leftAcousticMinus =
         leftNormalVelocity - leftSoundSpeed;
-    const double rightAcousticMinus =
+    const GpuReal rightAcousticMinus =
         rightNormalVelocity - rightSoundSpeed;
-    const double roeAcousticMinus =
+    const GpuReal roeAcousticMinus =
         roe.normalVelocity - roe.soundSpeed;
-    const double minusSpread =
+    const GpuReal minusSpread =
         rightAcousticMinus - leftAcousticMinus;
-    double lambdaMinus = absolute(roeAcousticMinus);
+    GpuReal lambdaMinus = absolute(roeAcousticMinus);
     if
     (
-        leftAcousticMinus < 0.0
-     && rightAcousticMinus > 0.0
-     && minusSpread > DBL_MIN
+        leftAcousticMinus < GPU_R(0.0)
+     && rightAcousticMinus > GPU_R(0.0)
+     && minusSpread > GPU_REAL_MIN
      && lambdaMinus < minusSpread
     )
     {
         lambdaMinus =
-            0.5*
+            GPU_R(0.5)*
            (
                roeAcousticMinus*roeAcousticMinus/minusSpread
              + minusSpread
@@ -1730,26 +1731,26 @@ UGKP_RIEMANN_HD FluxResult roeFluxUnitNormal
     }
                                                                            
                                       
-    const double lambdaContact = absolute(roe.normalVelocity);
-    const double leftAcousticPlus =
+    const GpuReal lambdaContact = absolute(roe.normalVelocity);
+    const GpuReal leftAcousticPlus =
         leftNormalVelocity + leftSoundSpeed;
-    const double rightAcousticPlus =
+    const GpuReal rightAcousticPlus =
         rightNormalVelocity + rightSoundSpeed;
-    const double roeAcousticPlus =
+    const GpuReal roeAcousticPlus =
         roe.normalVelocity + roe.soundSpeed;
-    const double plusSpread =
+    const GpuReal plusSpread =
         rightAcousticPlus - leftAcousticPlus;
-    double lambdaPlus = absolute(roeAcousticPlus);
+    GpuReal lambdaPlus = absolute(roeAcousticPlus);
     if
     (
-        leftAcousticPlus < 0.0
-     && rightAcousticPlus > 0.0
-     && plusSpread > DBL_MIN
+        leftAcousticPlus < GPU_R(0.0)
+     && rightAcousticPlus > GPU_R(0.0)
+     && plusSpread > GPU_REAL_MIN
      && lambdaPlus < plusSpread
     )
     {
         lambdaPlus =
-            0.5*
+            GPU_R(0.5)*
            (
                roeAcousticPlus*roeAcousticPlus/plusSpread
              + plusSpread
@@ -1760,17 +1761,17 @@ UGKP_RIEMANN_HD FluxResult roeFluxUnitNormal
                                                                      
     Conservative leftAcousticState = leftConserved;
     Conservative rightAcousticState = rightConserved;
-    const double roeVelocitySquared =
+    const GpuReal roeVelocitySquared =
         roe.ux*roe.ux + roe.uy*roe.uy + roe.uz*roe.uz;
-    const double minusMomentumX = roe.ux - roe.soundSpeed*nx;
-    const double minusMomentumY = roe.uy - roe.soundSpeed*ny;
-    const double minusMomentumZ = roe.uz - roe.soundSpeed*nz;
-    const double minusEnergy =
+    const GpuReal minusMomentumX = roe.ux - roe.soundSpeed*nx;
+    const GpuReal minusMomentumY = roe.uy - roe.soundSpeed*ny;
+    const GpuReal minusMomentumZ = roe.uz - roe.soundSpeed*nz;
+    const GpuReal minusEnergy =
         roe.enthalpy - roe.soundSpeed*roe.normalVelocity;
-    const double plusMomentumX = roe.ux + roe.soundSpeed*nx;
-    const double plusMomentumY = roe.uy + roe.soundSpeed*ny;
-    const double plusMomentumZ = roe.uz + roe.soundSpeed*nz;
-    const double plusEnergy =
+    const GpuReal plusMomentumX = roe.ux + roe.soundSpeed*nx;
+    const GpuReal plusMomentumY = roe.uy + roe.soundSpeed*ny;
+    const GpuReal plusMomentumZ = roe.uz + roe.soundSpeed*nz;
+    const GpuReal plusEnergy =
         roe.enthalpy + roe.soundSpeed*roe.normalVelocity;
 
     leftAcousticState.q[0] += acousticMinusStrength;
@@ -1810,14 +1811,14 @@ UGKP_RIEMANN_HD FluxResult roeFluxUnitNormal
         );
     }
 
-    const double tangentialEnergyJump =
+    const GpuReal tangentialEnergyJump =
         roe.density*
        (
            roe.ux*tangentialVelocityJumpX
          + roe.uy*tangentialVelocityJumpY
          + roe.uz*tangentialVelocityJumpZ
        );
-    double dissipation[5];
+    GpuReal dissipation[5];
     dissipation[0] =
         lambdaMinus*acousticMinusStrength
       + lambdaContact*contactStrength
@@ -1839,7 +1840,7 @@ UGKP_RIEMANN_HD FluxResult roeFluxUnitNormal
       + lambdaPlus*acousticPlusStrength*plusMomentumZ;
     dissipation[4] =
         lambdaMinus*acousticMinusStrength*minusEnergy
-      + lambdaContact*contactStrength*0.5*roeVelocitySquared
+      + lambdaContact*contactStrength*GPU_R(0.5)*roeVelocitySquared
       + lambdaContact*tangentialEnergyJump
       + lambdaPlus*acousticPlusStrength*plusEnergy;
 
@@ -1847,8 +1848,8 @@ UGKP_RIEMANN_HD FluxResult roeFluxUnitNormal
     for (int component = 0; component < 5; ++component)
     {
         result.flux[component] =
-            0.5*(leftFlux[component] + rightFlux[component])
-          - 0.5*dissipation[component];
+            GPU_R(0.5)*(leftFlux[component] + rightFlux[component])
+          - GPU_R(0.5)*dissipation[component];
     }
     result.maxSignalSpeed =
         absolute(roe.normalVelocity) + roe.soundSpeed;
@@ -1883,14 +1884,14 @@ UGKP_RIEMANN_HD FluxResult fluxUnitArea
 (
     const Primitive& left,
     const Primitive& right,
-    const double normalX,
-    const double normalY,
-    const double normalZ,
-    const double gamma,
+    const GpuReal normalX,
+    const GpuReal normalY,
+    const GpuReal normalZ,
+    const GpuReal gamma,
     const Scheme scheme,
-    const double rhoFloor = 1.0e-14,
-    const double pressureFloor = 1.0e-12,
-    const double hllcAdcOmega = 1.0
+    const GpuReal rhoFloor = GPU_R(1.0e-14),
+    const GpuReal pressureFloor = GPU_R(1.0e-12),
+    const GpuReal hllcAdcOmega = GPU_R(1.0)
 )
 {
     if
@@ -1902,10 +1903,10 @@ UGKP_RIEMANN_HD FluxResult fluxUnitArea
         return invalidResult(scheme);
     }
 
-    double nx;
-    double ny;
-    double nz;
-    double magnitude;
+    GpuReal nx;
+    GpuReal ny;
+    GpuReal nz;
+    GpuReal magnitude;
     if
     (
         !normalise
@@ -2017,20 +2018,20 @@ UGKP_RIEMANN_HD FluxResult fluxAreaVector
 (
     const Primitive& left,
     const Primitive& right,
-    const double areaX,
-    const double areaY,
-    const double areaZ,
-    const double gamma,
+    const GpuReal areaX,
+    const GpuReal areaY,
+    const GpuReal areaZ,
+    const GpuReal gamma,
     const Scheme scheme,
-    const double rhoFloor = 1.0e-14,
-    const double pressureFloor = 1.0e-12,
-    const double hllcAdcOmega = 1.0
+    const GpuReal rhoFloor = GPU_R(1.0e-14),
+    const GpuReal pressureFloor = GPU_R(1.0e-12),
+    const GpuReal hllcAdcOmega = GPU_R(1.0)
 )
 {
-    double nx;
-    double ny;
-    double nz;
-    double area;
+    GpuReal nx;
+    GpuReal ny;
+    GpuReal nz;
+    GpuReal area;
     if (!normalise(areaX, areaY, areaZ, nx, ny, nz, area))
     {
         return invalidResult(scheme);

@@ -24,6 +24,7 @@ enum class GpuCsrLevel : label
 
 struct GpuSchedulingConfiguration
 {
+    label precision = 32;
     bool pureGasOnly = false;
     bool dynamicInlet = false;
     label particleCapacity = 1000000;
@@ -86,6 +87,11 @@ inline GpuSchedulingConfiguration readGpuSchedulingConfiguration
 )
 {
     GpuSchedulingConfiguration value;
+    value.precision = properties.lookupOrDefault<label>("gpuPrecision", 32);
+    if (value.precision != 32 && value.precision != 64)
+    {
+        FatalErrorInFunction << "gpuPrecision must be 32 or 64" << exit(FatalError);
+    }
     const word forbiddenGpuSchedulingKeys[] =
     {
         "gpuResidentStrict",

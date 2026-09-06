@@ -7501,8 +7501,10 @@ __device__ void initialiseColdWallParticleState
     s.pColdContactAge[particleI] = 0.0f;
 }
 
+#define pContactAge pTheta
 #include "../../../common/wall/GpuColdWall2DDevice.cuh"
 #include "../../../common/wall/GpuColdWall1DDevice.cuh"
+#undef pContactAge
 
 __global__ void accumulateParticleWallRepresentedContactAreaKernel
 (

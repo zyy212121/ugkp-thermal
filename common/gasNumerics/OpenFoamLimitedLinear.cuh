@@ -1,3 +1,4 @@
+#include "GpuPrecisionTypes.H"
 #pragma once
 
   
@@ -26,78 +27,78 @@ namespace ugkpinterpolation
 
 struct Vector3
 {
-    double x;
-    double y;
-    double z;
+    GpuReal x;
+    GpuReal y;
+    GpuReal z;
 };
 
-UGKP_INTERPOLATION_HD double dot(const Vector3& a, const Vector3& b)
+UGKP_INTERPOLATION_HD GpuReal dot(const Vector3& a, const Vector3& b)
 {
     return a.x*b.x + a.y*b.y + a.z*b.z;
 }
 
-UGKP_INTERPOLATION_HD double absolute(const double value)
+UGKP_INTERPOLATION_HD GpuReal absolute(const GpuReal value)
 {
-    return value >= 0.0 ? value : -value;
+    return value >= GPU_R(0.0) ? value : -value;
 }
 
-UGKP_INTERPOLATION_HD double sign(const double value)
+UGKP_INTERPOLATION_HD GpuReal sign(const GpuReal value)
 {
-    return value > 0.0 ? 1.0 : (value < 0.0 ? -1.0 : 0.0);
+    return value > GPU_R(0.0) ? GPU_R(1.0) : (value < GPU_R(0.0) ? -GPU_R(1.0) : GPU_R(0.0));
 }
 
-UGKP_INTERPOLATION_HD double clamp01(const double value)
+UGKP_INTERPOLATION_HD GpuReal clamp01(const GpuReal value)
 {
-    return value < 0.0 ? 0.0 : (value > 1.0 ? 1.0 : value);
+    return value < GPU_R(0.0) ? GPU_R(0.0) : (value > GPU_R(1.0) ? GPU_R(1.0) : value);
 }
 
-UGKP_INTERPOLATION_HD double nvdTvdRatio
+UGKP_INTERPOLATION_HD GpuReal nvdTvdRatio
 (
-    const double faceFlux,
-    const double ownerValue,
-    const double neighbourValue,
+    const GpuReal faceFlux,
+    const GpuReal ownerValue,
+    const GpuReal neighbourValue,
     const Vector3& ownerGradient,
     const Vector3& neighbourGradient,
     const Vector3& centreDelta
 )
 {
-    const double faceDifference = neighbourValue - ownerValue;
-    const double upwindProjectedGradient =
+    const GpuReal faceDifference = neighbourValue - ownerValue;
+    const GpuReal upwindProjectedGradient =
         dot
         (
             centreDelta,
-            faceFlux > 0.0 ? ownerGradient : neighbourGradient
+            faceFlux > GPU_R(0.0) ? ownerGradient : neighbourGradient
         );
     if
     (
         absolute(upwindProjectedGradient)
-     >= 1000.0*absolute(faceDifference)
+     >= GPU_R(1000.0)*absolute(faceDifference)
     )
     {
         return
-            2000.0*sign(upwindProjectedGradient)*sign(faceDifference) - 1.0;
+            GPU_R(2000.0)*sign(upwindProjectedGradient)*sign(faceDifference) - GPU_R(1.0);
     }
-    if (absolute(faceDifference) <= DBL_MIN)
+    if (absolute(faceDifference) <= GPU_REAL_MIN)
     {
-        return -1.0;
+        return -GPU_R(1.0);
     }
-    return 2.0*(upwindProjectedGradient/faceDifference) - 1.0;
+    return GPU_R(2.0)*(upwindProjectedGradient/faceDifference) - GPU_R(1.0);
 }
 
-UGKP_INTERPOLATION_HD double limitedLinearLimiter
+UGKP_INTERPOLATION_HD GpuReal limitedLinearLimiter
 (
-    const double faceFlux,
-    const double ownerValue,
-    const double neighbourValue,
+    const GpuReal faceFlux,
+    const GpuReal ownerValue,
+    const GpuReal neighbourValue,
     const Vector3& ownerGradient,
     const Vector3& neighbourGradient,
     const Vector3& centreDelta,
-    const double coefficient
+    const GpuReal coefficient
 )
 {
-    const double safeCoefficient =
-        coefficient > DBL_MIN ? coefficient : DBL_MIN;
-    const double ratio = nvdTvdRatio
+    const GpuReal safeCoefficient =
+        coefficient > GPU_REAL_MIN ? coefficient : GPU_REAL_MIN;
+    const GpuReal ratio = nvdTvdRatio
     (
         faceFlux,
         ownerValue,
@@ -106,22 +107,22 @@ UGKP_INTERPOLATION_HD double limitedLinearLimiter
         neighbourGradient,
         centreDelta
     );
-    return clamp01((2.0/safeCoefficient)*ratio);
+    return clamp01((GPU_R(2.0)/safeCoefficient)*ratio);
 }
 
-UGKP_INTERPOLATION_HD double limitedLinearFaceValue
+UGKP_INTERPOLATION_HD GpuReal limitedLinearFaceValue
 (
-    const double ownerValue,
-    const double neighbourValue,
+    const GpuReal ownerValue,
+    const GpuReal neighbourValue,
     const Vector3& ownerGradient,
     const Vector3& neighbourGradient,
     const Vector3& centreDelta,
-    const double ownerCentralWeight,
-    const double faceFlux,
-    const double coefficient
+    const GpuReal ownerCentralWeight,
+    const GpuReal faceFlux,
+    const GpuReal coefficient
 )
 {
-    const double limiter = limitedLinearLimiter
+    const GpuReal limiter = limitedLinearLimiter
     (
         faceFlux,
         ownerValue,
@@ -131,13 +132,13 @@ UGKP_INTERPOLATION_HD double limitedLinearFaceValue
         centreDelta,
         coefficient
     );
-    const double upwindOwnerWeight = faceFlux >= 0.0 ? 1.0 : 0.0;
-    const double ownerWeight =
+    const GpuReal upwindOwnerWeight = faceFlux >= GPU_R(0.0) ? GPU_R(1.0) : GPU_R(0.0);
+    const GpuReal ownerWeight =
         limiter*clamp01(ownerCentralWeight)
-      + (1.0 - limiter)*upwindOwnerWeight;
+      + (GPU_R(1.0) - limiter)*upwindOwnerWeight;
     return
         ownerWeight*ownerValue
-      + (1.0 - ownerWeight)*neighbourValue;
+      + (GPU_R(1.0) - ownerWeight)*neighbourValue;
 }
 
   
@@ -150,12 +151,12 @@ UGKP_INTERPOLATION_HD double limitedLinearFaceValue
                                                                         
                                                 
    
-UGKP_INTERPOLATION_HD double limitedLinearRiemannEnergyFlux
+UGKP_INTERPOLATION_HD GpuReal limitedLinearRiemannEnergyFlux
 (
-    const double baselineRiemannEnergyFlux,
-    const double massFlux,
-    const double upwindSpecificEnergy,
-    const double limitedSpecificEnergy
+    const GpuReal baselineRiemannEnergyFlux,
+    const GpuReal massFlux,
+    const GpuReal upwindSpecificEnergy,
+    const GpuReal limitedSpecificEnergy
 )
 {
     return

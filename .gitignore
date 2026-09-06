@@ -7,7 +7,6 @@
 **/*.tmp
 **/*.foam
 **/*:Zone.Identifier
-**/postProcessing/
 **/processor*/
 **/VTK/
 **/.validation-build/
@@ -19,4 +18,16 @@ examples/performance/02_two_phase_validation/*/constant/polyMesh/
 examples/thermal/singleAluminaDrop/coldWall/constant/polyMesh/
 examples/thermal/singleAluminaDrop/coldWall/[1-9]*/
 examples/thermal/MSS7_*/data/developed_gas_start/runtime.*
-examples/thermal/bentSRM copy/
+
+**/*.a
+**/*.o
+**/*.so
+**/Make/linux*/
+**/private_backend/build/
+**/build_logs/
+**/run_logs/
+**/.generated/
+**/assets/radiation/alumina_mieTable.dat
+examples/thermal/MSS7_twoPhase_*/postProcessing/
+examples/thermal/MSS7_twoPhase_*/[1-9].*/
+examples/thermal/results/MSS7_twoPhase_*/

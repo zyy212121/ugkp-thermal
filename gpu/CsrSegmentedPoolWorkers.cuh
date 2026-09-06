@@ -1,18 +1,19 @@
+#include "GpuPrecisionTypes.H"
 #pragma once
 
 template<bool PoissonMode>
 __global__ void accumulateCsrSegmentedPoolTasksPersistentKernel
 (
     DeviceState* sp,
-    const double dt
+    const GpuTime dt
 )
 {
     DeviceState& s = *sp;
     __shared__ int task;
     __shared__ int taskCount;
     __shared__ CsrReductionTask descriptor;
-    __shared__ double collisionProbability;
-    extern __shared__ double warpPartials[];
+    __shared__ GpuReal collisionProbability;
+    extern __shared__ GpuReal warpPartials[];
     for (;;)
     {
         if (threadIdx.x == 0)
@@ -24,20 +25,20 @@ __global__ void accumulateCsrSegmentedPoolTasksPersistentKernel
                 descriptor = s.csrReductionTasks[task];
                 if (PoissonMode)
                 {
-                    const double tauColl =
+                    const GpuReal tauColl =
                         granularCollisionTauFromCellDevice(s, descriptor.cell);
                     collisionProbability =
-                        (!(tauColl < 0.5*OfGreat) || tauColl <= OfSmall)
-                      ? 0.0
-                      : clampRange(1.0 - exp(-dt/tauColl), 0.0, 1.0);
+                        (!(tauColl < GPU_R(0.5)*OfGreat) || tauColl <= OfSmall)
+                      ? GPU_R(0.0)
+                      : clampRange(GPU_R(1.0) - exp(-dt/tauColl), GPU_R(0.0), GPU_R(1.0));
                 }
-                else collisionProbability = 1.0;
+                else collisionProbability = GPU_R(1.0);
             }
         }
         __syncthreads();
         if (task >= taskCount) return;
         const int c = descriptor.cell;
-            if (PoissonMode && collisionProbability <= 0.0)
+            if (PoissonMode && collisionProbability <= GPU_R(0.0))
             {
                 if (threadIdx.x == 0 && s.csrCellTaskCount[c] > 1)
                 {
@@ -48,13 +49,13 @@ __global__ void accumulateCsrSegmentedPoolTasksPersistentKernel
                         [
                             8u*static_cast<size_t>(task)
                           + static_cast<size_t>(component)
-                        ] = 0.0;
+                        ] = GPU_R(0.0);
                     }
                 }
                 __syncthreads();
                 continue;
             }
-            double sums[8];
+            GpuReal sums[8];
             if
             (
                 descriptor.source == static_cast<int>
@@ -117,7 +118,7 @@ __global__ void finalizeCsrSegmentedPoolCellsKernel(DeviceState* sp)
 {
     DeviceState& s = *sp;
     __shared__ int multiIndex;
-    extern __shared__ double warpPartials[];
+    extern __shared__ GpuReal warpPartials[];
     for (;;)
     {
         if (threadIdx.x == 0) multiIndex = atomicAdd(s.csrHeavyTaskCursor, 1);
@@ -125,7 +126,7 @@ __global__ void finalizeCsrSegmentedPoolCellsKernel(DeviceState* sp)
         if (multiIndex >= *s.csrHeavyCellCount) return;
         const int c = s.csrMultiTaskCellList[multiIndex];
         if (!(s.csrCellTaskCount[c] > 1)) asm("trap;");
-        double sums[8] = {0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
+        GpuReal sums[8] = {GPU_R(0.0), GPU_R(0.0), GPU_R(0.0), GPU_R(0.0), GPU_R(0.0), GPU_R(0.0), GPU_R(0.0), GPU_R(0.0)};
         const int firstTask = s.csrCellTaskOffset[c];
         const int endTask = s.csrCellTaskOffset[c + 1];
         for (int task = firstTask + threadIdx.x; task < endTask; task += blockDim.x)
@@ -159,7 +160,7 @@ __global__ void finalizeCsrSegmentedPoolCellsKernel(DeviceState* sp)
 int launchCsrSegmentedPoolReduction
 (
     DeviceState* s,
-    const double dt,
+    const GpuTime dt,
     const bool poissonMode,
     const int block
 )
@@ -172,7 +173,7 @@ int launchCsrSegmentedPoolReduction
         return 1;
     }
     const int warpCount = (block + 31)/32;
-    const size_t sharedBytes = 8u*static_cast<size_t>(warpCount)*sizeof(double);
+    const size_t sharedBytes = 8u*static_cast<size_t>(warpCount)*sizeof(GpuReal);
     if (poissonMode)
     {
         accumulateCsrSegmentedPoolTasksPersistentKernel<true>

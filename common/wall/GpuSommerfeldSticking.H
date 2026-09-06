@@ -1,3 +1,4 @@
+#include "GpuPrecisionTypes.H"
 #ifndef GPU_THERMAL_GPU_SOMMERFELD_STICKING_H
 #define GPU_THERMAL_GPU_SOMMERFELD_STICKING_H
 
@@ -21,25 +22,25 @@ struct SommerfeldImpact
 {
     bool valid;
     bool deposit;
-    double weber;
-    double reynolds;
-    double sommerfeld;
+    GpuReal weber;
+    GpuReal reynolds;
+    GpuReal sommerfeld;
 };
 
 GPU_SOMMERFELD_HD inline bool finiteSommerfeldValue
 (
-    const double value
+    const GpuReal value
 ) noexcept
 {
-    return value == value && value >= -DBL_MAX && value <= DBL_MAX;
+    return value == value && value >= -GPU_REAL_MAX && value <= GPU_REAL_MAX;
 }
 
 GPU_SOMMERFELD_HD inline SommerfeldImpact evaluateSommerfeldImpact
 (
-    const double particleTemperatureK,
-    const double normalSpeed,
-    const double particleDiameter,
-    const double threshold
+    const GpuReal particleTemperatureK,
+    const GpuReal normalSpeed,
+    const GpuReal particleDiameter,
+    const GpuReal threshold
 ) noexcept
 {
     if
@@ -48,40 +49,40 @@ GPU_SOMMERFELD_HD inline SommerfeldImpact evaluateSommerfeldImpact
      || !finiteSommerfeldValue(normalSpeed)
      || !finiteSommerfeldValue(particleDiameter)
      || !finiteSommerfeldValue(threshold)
-     || !(particleTemperatureK > 0.0)
-     || normalSpeed < 0.0
-     || !(particleDiameter > 0.0)
-     || !(threshold > 0.0)
+     || !(particleTemperatureK > GPU_R(0.0))
+     || normalSpeed < GPU_R(0.0)
+     || !(particleDiameter > GPU_R(0.0))
+     || !(threshold > GPU_R(0.0))
     )
     {
-        return {false, false, 0.0, 0.0, 0.0};
+        return {false, false, GPU_R(0.0), GPU_R(0.0), GPU_R(0.0)};
     }
 
     const AluminaLiquidProperties material =
         liquidAluminaProperties(particleTemperatureK);
     if (!material.valid)
     {
-        return {false, false, 0.0, 0.0, 0.0};
+        return {false, false, GPU_R(0.0), GPU_R(0.0), GPU_R(0.0)};
     }
 
-    const double weber =
+    const GpuReal weber =
         material.densityKgM3*normalSpeed*normalSpeed*particleDiameter
        /material.surfaceTensionNM;
-    const double reynolds =
+    const GpuReal reynolds =
         material.densityKgM3*normalSpeed*particleDiameter
        /material.viscosityPaS;
-    const double sommerfeld = ::sqrt(weber)*::pow(reynolds, 0.25);
+    const GpuReal sommerfeld = ::sqrt(weber)*::pow(reynolds, GPU_R(0.25));
     if
     (
         !finiteSommerfeldValue(weber)
      || !finiteSommerfeldValue(reynolds)
      || !finiteSommerfeldValue(sommerfeld)
-     || weber < 0.0
-     || reynolds < 0.0
-     || sommerfeld < 0.0
+     || weber < GPU_R(0.0)
+     || reynolds < GPU_R(0.0)
+     || sommerfeld < GPU_R(0.0)
     )
     {
-        return {false, false, 0.0, 0.0, 0.0};
+        return {false, false, GPU_R(0.0), GPU_R(0.0), GPU_R(0.0)};
     }
     return
     {

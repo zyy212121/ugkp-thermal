@@ -39,12 +39,12 @@ dMax            0.0004;
 
 dSigma          0.6;
 
-parcelMass      5e-11;
+parcelMass      1e-10;
 
                                                                            
                                                                             
                                                                      
-injectionParcelMass     5e-11;
+injectionParcelMass     1e-10;
 
 gpuResidentCollisionalPressure true;
 gpuResidentCollisionalRestitution 0.9;

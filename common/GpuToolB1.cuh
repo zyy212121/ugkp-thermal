@@ -1,3 +1,4 @@
+#include "GpuPrecisionTypes.H"
 #pragma once
 
 static constexpr int toolB1WarmupRuns = 1;
@@ -36,8 +37,8 @@ int launchToolB1FaceBundle
 (
     DeviceState* s,
     const int block,
-    const double dt,
-    const double simulationTime
+    const GpuTime dt,
+    const GpuTime simulationTime
 )
 {
     const int grid = (s->nFaces + block - 1)/block;
@@ -161,8 +162,8 @@ int measureToolB1Candidate
 int tuneFixedWorkBlockThreads
 (
     DeviceState* s,
-    const double dt,
-    const double simulationTime
+    const GpuTime dt,
+    const GpuTime simulationTime
 )
 {
     if (s->fixedWorkBlockTuned != 0)

@@ -15,6 +15,39 @@ The package contains three maintained solvers:
 The three solvers share the numerical and physical implementations under
 `common/`.
 
+## Formal 368W release (2026-09-06)
+
+This is the formal `ugkp-thermal` release derived from the validated 368W
+production repair. The solver names remain `gasUGKP`, `FSH`, and `CHT`.
+368W identifies the measured execution version; it is not a fixed power limit.
+
+CHT builds both GPU precision implementations. Select `gpuPrecision 32;` or
+`gpuPrecision 64;` in `constant/schedulingProperties`; the default is 32.
+Time, contact-time state, and the mandatory wall-energy ledger remain FP64.
+OpenFOAM host fields, solid conduction, and radiation retain their established
+precision. No physical model, tolerance, time-step rule, CP-CST step, or
+heavy-cell segmentation rule was changed by this release cleanup.
+
+The FP32 cold-wall solver retains its original successful path. If an
+enthalpy iteration becomes invalid before any particle state is written, the
+same thermal step is retried with positive-row-sum PCR elimination at the same
+precision. Each attempt retains the configured nonlinear iteration count.
+
+Both `examples/thermal/MSS7_twoPhase_sparse` and
+`examples/thermal/MSS7_twoPhase_dense` start from their supplied `1/` states.
+They contain no previous time results or postprocessing output. Dense uses
+the stopped validated production configuration (parcel mass `1e-10` kg,
+particle/reduction blocks 32, GPU precision 32); sparse retains its distinct
+case configuration. Their updated `draw.py` entry points and postprocessors
+are synchronized, including schema-6 restart reading, radiation-exchange
+temperature sampling, and operation without optional baseline probe data.
+The initialized `0/` or `1/` fields and initialization datasets are retained.
+Existing postprocessing data for other cases are retained.
+
+Run only the intended case when restarting; the release itself does not
+start production or enable monitoring. See `README_RELEASE_368W.md` for
+validation, provenance, and upload instructions.
+
 ## Requirements
 
 The released version has been built and tested with:
