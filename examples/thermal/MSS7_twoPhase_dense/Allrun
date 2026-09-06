@@ -1,0 +1,22 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+[[ -n ${WM_PROJECT_DIR:-} ]] || { echo "OpenFOAM environment is not loaded" >&2; exit 1; }
+case_dir=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+case_name=${case_dir##*/}
+thermal_root=$(realpath -e -- "${case_dir}/..")
+"${case_dir}/Allclean"
+"${thermal_root}/mss7pre/restore_initial_state.sh" "${case_name}" "${case_dir}"
+target="${case_dir}/assets/radiation/alumina_mieTable.dat"
+if [[ ! -s ${target} ]]; then
+    cache="${thermal_root}/.generated/alumina_mieTable.dat"
+    if [[ ! -s ${cache} ]]; then
+        mkdir -p -- "$(dirname "${cache}")"
+        python3 "${thermal_root}/../../applications/CHT/thermal/mieTables/make_alumina_mie_table.py" --out "${cache}"
+    fi
+    mkdir -p -- "$(dirname "${target}")"
+    ln -f -- "${cache}" "${target}"
+fi
+cd "${case_dir}"
+app=$(awk '/^[[:space:]]*application[[:space:]]+/{gsub(/;/,"",$2); print $2; exit}' system/controlDict)
+exec "${app}"

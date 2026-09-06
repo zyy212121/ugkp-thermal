@@ -54,6 +54,12 @@ for name in "${SELECTED[@]}"; do
             cd "$ROOT/singleAluminaDrop"
             ./Allrun "$variant"
         ) >"$LOG_ROOT/$logName.log" 2>&1 && printf '%s\tPASS\n' "$name" >> "$SUMMARY" || { printf '%s\tFAIL\n' "$name" >> "$SUMMARY"; status=1; }
+    elif [[ -x "$caseDir/Allrun" ]]; then
+        echo "[THERMAL] $name (CHT, external pre-developed initial state)"
+        (
+            cd "$caseDir"
+            ./Allrun
+        ) >"$LOG_ROOT/$logName.log" 2>&1 && printf '%s\tPASS\n' "$name" >> "$SUMMARY" || { printf '%s\tFAIL\n' "$name" >> "$SUMMARY"; status=1; }
     else
         app=$(awk '/^[[:space:]]*application[[:space:]]+/{gsub(/;/,"",$2); print $2; exit}' "$caseDir/system/controlDict")
         echo "[THERMAL] $name ($app)"

@@ -26,6 +26,8 @@ for requested in "${REQUESTED_CASES[@]}"; do
     if [[ "$requested" == singleAluminaDrop/* ]]; then
         variant=${requested#singleAluminaDrop/}
         "${ROOT}/singleAluminaDrop/Allclean" "$variant"
+    elif [[ -x "${ROOT}/${requested}/Allclean" ]]; then
+        "${ROOT}/${requested}/Allclean"
     else
         "${CLEANER}" --check "${ROOT}/${requested}"
         "${CLEANER}" "${ROOT}/${requested}"
