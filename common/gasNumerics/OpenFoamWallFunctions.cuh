@@ -96,6 +96,37 @@ UGKP_WALL_HD GpuReal wallYPlusLaminar
     return maximum(yPlus, GPU_R(0.0));
 }
 
+UGKP_WALL_HD GpuReal spaldingReynoldsRatio
+(
+    const GpuReal uPlus,
+    const GpuReal reynolds,
+    const GpuReal logReynolds,
+    const GpuReal kappa,
+    const GpuReal E
+)
+{
+    const GpuReal z = kappa*uPlus;
+    GpuReal remainderOverRe;
+    if (z < GPU_R(1.0))
+    {
+        GpuReal term = z*z*z*z/GPU_R(24.0);
+        GpuReal remainder = term;
+        for (int order = 5; order <= 12; ++order)
+        {
+            term *= z/GpuReal(order);
+            remainder += term;
+        }
+        remainderOverRe = remainder/reynolds;
+    }
+    else
+    {
+        remainderOverRe = exp(z - logReynolds)
+          - (GPU_R(1.0) + z*(GPU_R(1.0)
+            + z*(GPU_R(0.5) + z/GPU_R(6.0))))/reynolds;
+    }
+    return (uPlus/reynolds)*uPlus + (uPlus/E)*remainderOverRe;
+}
+
 UGKP_WALL_HD SpaldingWallState spaldingWallState
 (
     const GpuReal velocityDifference,
@@ -139,6 +170,52 @@ UGKP_WALL_HD SpaldingWallState spaldingWallState
          && error > GPU_R(0.01)
          && ++iteration < 10
         );
+    }
+
+    if (up > rootVSmall)
+    {
+        const GpuReal reynolds = up*y/nu;
+        const GpuReal logReynolds = log(reynolds);
+        const GpuReal ratio = spaldingReynoldsRatio
+        (
+            up/maximum(uTau, rootVSmall), reynolds, logReynolds, kappa, E
+        );
+        if (!(fabs(ratio - GPU_R(1.0)) <= GPU_R(0.01)))
+        {
+            GpuReal lower = GPU_R(0.0);
+            GpuReal upper = minimum
+            (
+                sqrt(reynolds),
+                (log(maximum(reynolds, GPU_R(1.0)))
+                 + log(maximum(E, GPU_R(1.0))) + GPU_R(4.0))/kappa
+            );
+            for (int iteration = 0; iteration < 64; ++iteration)
+            {
+                const GpuReal middle = GPU_R(0.5)*(lower + upper);
+                if (middle == lower || middle == upper)
+                {
+                    break;
+                }
+                const GpuReal middleRatio = spaldingReynoldsRatio
+                (
+                    middle, reynolds, logReynolds, kappa, E
+                );
+                if (middleRatio > GPU_R(1.0))
+                {
+                    upper = middle;
+                }
+                else
+                {
+                    lower = middle;
+                }
+                if (fabs(middleRatio - GPU_R(1.0)) <= GPU_R(1.0e-5))
+                {
+                    lower = upper = middle;
+                    break;
+                }
+            }
+            uTau = up/(GPU_R(0.5)*(lower + upper));
+        }
     }
 
     uTau = maximum(uTau, GPU_R(0.0));
@@ -260,6 +337,61 @@ UGKP_WALL_HD GpuReal jayatillekeThermalYPlus
         yPlus = updated;
     }
     return maximum(yPlus, GPU_R(0.0));
+}
+
+struct JayatillekeThermalTransport
+{
+    GpuReal conductivity;
+    int valid;
+    GpuReal heatFlux = GPU_R(0.0);
+};
+
+UGKP_WALL_HD JayatillekeThermalTransport sstJayatillekeThermalTransport
+(
+    const GpuReal rhoWall,
+    const GpuReal cp,
+    const GpuReal mu,
+    const GpuReal Pr,
+    const GpuReal Prt,
+    const GpuReal Cmu,
+    const GpuReal kappa,
+    const GpuReal E,
+    const GpuReal P,
+    const GpuReal yPlusThermal,
+    const GpuReal turbulentK,
+    const GpuReal y,
+    const GpuReal velocityDifference,
+    const GpuReal wallSpeed,
+    const GpuReal temperatureNormalGradient
+)
+{
+    const GpuReal molecular = mu*cp/Pr;
+    const GpuReal uStar = sqrt(sqrt(Cmu))*sqrt(maximum(turbulentK, GPU_R(0.0)));
+    if (!(rhoWall > GPU_R(0.0) && cp > GPU_R(0.0) && mu > GPU_R(0.0)
+       && Pr > GPU_R(0.0) && Prt > GPU_R(0.0) && y > GPU_R(0.0))
+       || !std::isfinite(temperatureNormalGradient))
+    {
+        return {molecular, 0};
+    }
+    if (uStar == GPU_R(0.0))
+    {
+        return {molecular, 1, -molecular*temperatureNormalGradient};
+    }
+    const GpuReal yPlus = uStar*y*rhoWall/mu;
+    const bool viscous = yPlus < yPlusThermal;
+    const GpuReal tPlus = viscous ? Pr*yPlus : Prt*(log(E*yPlus)/kappa + P);
+    if (!(tPlus > GPU_R(0.0)) || !std::isfinite(tPlus))
+    {
+        return {molecular, 0};
+    }
+    const GpuReal uc = viscous ? GPU_R(0.0)
+      : uStar/kappa*log(E*yPlusThermal) - wallSpeed;
+    const GpuReal C = GPU_R(0.5)*rhoWall*uStar
+      *(viscous ? Pr*velocityDifference*velocityDifference
+        : Prt*velocityDifference*velocityDifference + (Pr-Prt)*uc*uc);
+    const GpuReal conductivity = maximum(molecular, cp*rhoWall*uStar*y/tPlus);
+    const GpuReal heatFlux = -conductivity*temperatureNormalGradient + C/tPlus;
+    return {conductivity, std::isfinite(heatFlux) ? 1 : 0, heatFlux};
 }
 
 UGKP_WALL_HD JayatillekeWallHeatState jayatillekeWallHeatFluxPrecomputed

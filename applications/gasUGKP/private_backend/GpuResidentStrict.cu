@@ -161,6 +161,13 @@ struct DeviceState
     int fixedCellBlockThreads = 128;
     int fixedFaceBlockThreads = 128;
     int fixedWorkBlockTuned = 0;
+    cudaStream_t gasCaptureStream = nullptr;
+    cudaGraph_t gasGraph = nullptr;
+    cudaGraphExec_t gasGraphExec = nullptr;
+    std::vector<cudaGraphNode_t> gasGraphTimeNodes;
+    std::vector<cudaKernelNodeParams> gasGraphTimeParams;
+    double gasGraphDt = -1;
+    int gasGraphMode = -1;
     int particleBlockThreads = 128;
     int reductionBlockThreads = 128;
     int multiprocessorCount = 1;
@@ -892,6 +899,9 @@ void releaseState(DeviceState* s)
         return;
     }
 
+    if (s->gasGraphExec) cudaGraphExecDestroy(s->gasGraphExec);
+    if (s->gasGraph) cudaGraphDestroy(s->gasGraph);
+    if (s->gasCaptureStream) cudaStreamDestroy(s->gasCaptureStream);
     release(s->deviceState);
     release(s->faceOwner);
     release(s->faceNeighbour);
@@ -2388,7 +2398,7 @@ __device__ double sstDynamicOmegaWallValue
     const int owner
 )
 {
-    const double rhoSafe = clampMin(s.rho[owner], s.rhoMin);
+    const double rhoSafe = clampMin(riemannFacePrimitiveForGradient(s, owner, f).rho, s.rhoMin);
     const double nu = s.gasMu/rhoSafe;
     const double wallUx = s.riemannBoundaryUFix[f] != 0
       ? finiteOr(s.riemannBoundaryUx[f], 0.0) : 0.0;
@@ -3165,7 +3175,6 @@ __global__ void updateLegacyGasBoundaryMirrorKernel
         s.riemannBoundaryP[f] = pressure;
         s.riemannBoundaryRho[f] = density;
         s.riemannBoundaryT[f] = temperature;
-        s.riemannBoundaryUFix[f] = 3;
         return;
     }
 
@@ -3352,7 +3361,10 @@ __device__ void gasFaceSubgridTransportProperties
         const double wallDistance = s.turbulenceModel == 3
           ? clampMin(s.sstWallDistance[own], OfVSmall)
           : 1.0/clampMin(s.deltaCoeffs[f], OfVSmall);
-        const double rhoSafe = clampMin(rhoFace, s.rhoMin);
+        const double rhoSafe = clampMin
+        (
+            riemannFacePrimitiveForGradient(s, own, f).rho, s.rhoMin
+        );
         const ugkpwall::SpaldingWallState wallState =
             ugkpwall::spaldingWallState
             (
@@ -3366,36 +3378,34 @@ __device__ void gasFaceSubgridTransportProperties
         {
             const double wallTemperature = s.riemannBoundaryTFix[f] != 0
               ? s.riemannBoundaryT[f] : s.Tgas[own];
-            const ugkpwall::JayatillekeWallHeatState heatState =
-                ugkpwall::jayatillekeWallHeatFluxPrecomputed
-                (
-                    rhoSafe,
-                    s.gasCp,
-                    s.gasPrClamped,
-                    s.turbulentPrandtl,
-                    s.sstWallKappa,
-                    s.sstWallE,
-                    s.sstJayatillekeP,
-                    s.sstThermalYPlus,
-                    wallState.uTau,
-                    wallState.yPlus,
-                    s.Tgas[own],
-                    wallTemperature
-                );
-            muTurbulent = rhoSafe*wallState.nut;
-            directWallHeatFlux = heatState.heatFlux;
-            directWallHeatFluxActive =
-                s.riemannBoundaryTFix[f] != 0 && heatState.valid != 0;
-            const double equivalentConductivity = heatState.valid != 0
-              ? rhoSafe*s.gasCp*wallState.uTau
-               /(clampMin(heatState.temperaturePlus, OfSmall)
-                *clampMin(s.deltaCoeffs[f], OfSmall))
-              : molecularGasConductivity(s);
-            kTurbulent = fmax
+            const double wallRho = clampMin
             (
-                equivalentConductivity - molecularGasConductivity(s),
-                0.0
+                s.p[own]/(s.Rgas*clampMin(wallTemperature, s.TgasMin)),
+                s.rhoMin
             );
+            const double gradient = (wallTemperature-s.Tgas[own])*s.deltaCoeffs[f];
+            const auto thermal = ugkpwall::sstJayatillekeThermalTransport
+            (
+                wallRho, s.gasCp, s.gasMu, s.gasPrClamped,
+                s.turbulentPrandtl, s.sstWallCmu, s.sstWallKappa,
+                s.sstWallE, s.sstJayatillekeP, s.sstThermalYPlus,
+                s.k[own], wallDistance, velocityDifference,
+                sqrt(wallUx*wallUx + wallUy*wallUy + wallUz*wallUz),
+                gradient
+            );
+            if (thermal.valid == 0)
+            {
+                printf("Jayatilleke thermal closure failed face=%d cell=%d rho=%g k=%g Tw=%g Tc=%g\n",
+                    f, own, double(wallRho), double(s.k[own]), double(wallTemperature), double(s.Tgas[own]));
+                printf("closure input mu=%g Cp=%g Pr=%g Prt=%g Cmu=%g kappa=%g E=%g P=%g yt=%g y=%g U=%g grad=%g\n",
+                    double(s.gasMu),double(s.gasCp),double(s.gasPrClamped),double(s.turbulentPrandtl),double(s.sstWallCmu),double(s.sstWallKappa),double(s.sstWallE),double(s.sstJayatillekeP),double(s.sstThermalYPlus),double(wallDistance),double(velocityDifference),double(gradient));
+                asm("trap;");
+                return;
+            }
+            muTurbulent = rhoSafe*wallState.nut;
+            directWallHeatFlux = thermal.heatFlux;
+            directWallHeatFluxActive = s.riemannBoundaryTFix[f] != 0;
+            kTurbulent = thermal.conductivity - molecularGasConductivity(s);
             return;
         }
         const ugkpwall::WallSubgridTransport wallTransport =
@@ -4267,8 +4277,7 @@ __global__ void computeSstFaceFluxKernel(DeviceState* sp)
         return;
     }
     const int nei = coupledFaceNeighbour(s, f);
-    const int boundaryKind =
-        nei >= 0 ? 0 : s.riemannBoundaryKind[f];
+    const int boundaryKind = nei >= 0 ? 0 : s.riemannBoundaryKind[f];
     double sstMappedNeiCx = 0.0;
     double sstMappedNeiCy = 0.0;
     double sstMappedNeiCz = 0.0;
@@ -4299,7 +4308,7 @@ __global__ void computeSstFaceFluxKernel(DeviceState* sp)
 
     const double rhoFace = nei >= 0
       ? ownerWeight*s.rho[own] + (1.0 - ownerWeight)*s.rho[nei]
-      : s.rho[own];
+      : (boundaryKind == 2 ? riemannFacePrimitiveForGradient(s, own, f).rho : s.rho[own]);
     const double f1Face = nei >= 0
       ? ownerWeight*s.sstF1[own] + (1.0 - ownerWeight)*s.sstF1[nei]
       : s.sstF1[own];
@@ -4490,7 +4499,7 @@ __device__ double sstKProductionForCell
             s.k[c],
             magGradU,
             y,
-            s.gasMu/clampMin(s.rho[c], s.rhoMin),
+            s.gasMu/clampMin(riemannFacePrimitiveForGradient(s, c, f).rho, s.rhoMin),
             s.sstCoefficients.beta1,
             s.sstWallCmu,
             s.sstWallKappa,
@@ -4810,7 +4819,9 @@ __global__ void computeSstStabilityNumberKernel
           ? (s.faceOwner[f] == c ? s.faceNeighbour[f] : s.faceOwner[f])
           : -1;
         const double rhoFace = other >= 0
-          ? 0.5*(s.rho[c] + s.rho[other]) : s.rho[c];
+          ? 0.5*(s.rho[c] + s.rho[other])
+          : (s.riemannBoundaryKind[f] == 2
+            ? riemannFacePrimitiveForGradient(s, c, f).rho : s.rho[c]);
         const double f1Face = other >= 0
           ? 0.5*(s.sstF1[c] + s.sstF1[other]) : s.sstF1[c];
         const double nu = s.gasMu/clampMin(rhoFace, s.rhoMin);
@@ -4850,7 +4861,8 @@ __global__ void computeSstStabilityNumberKernel
             nu + ugkwp::sstAlphaOmega(f1Face, s.sstCoefficients)*nutFace
         );
         diffusionRate +=
-            maximumDiffusivity*s.magSf[f]*s.deltaCoeffs[f];
+            (rhoFace/clampMin(s.rho[c], s.rhoMin))
+           *maximumDiffusivity*s.magSf[f]*s.deltaCoeffs[f];
     }
     const double diffusionNumber =
         dt*diffusionRate/clampMin(s.V[c], OfSmall);
@@ -12746,7 +12758,7 @@ int advanceGasEulerSubstage(DeviceState* s, const double dt)
     const int faceGrid = (s->nFaces + faceBlock - 1)/faceBlock;
     cudaError_t err = cudaSuccess;
 
-    recoverGasPrimitivesKernel<<<cellGrid, cellBlock>>>(s->deviceState);
+    recoverGasPrimitivesKernel<<<cellGrid, cellBlock, 0, s->gasCaptureStream>>>(s->deviceState);
     err = cudaGetLastError();
     if (err != cudaSuccess)
     {
@@ -12755,7 +12767,7 @@ int advanceGasEulerSubstage(DeviceState* s, const double dt)
     }
     if (s->hostTurbulenceModel == 3)
     {
-        recoverSstPrimitivesKernel<<<cellGrid, cellBlock>>>(s->deviceState);
+        recoverSstPrimitivesKernel<<<cellGrid, cellBlock, 0, s->gasCaptureStream>>>(s->deviceState);
         err = cudaGetLastError();
         if (err != cudaSuccess)
         {
@@ -12765,7 +12777,7 @@ int advanceGasEulerSubstage(DeviceState* s, const double dt)
     }
     if (faceGrid > 0)
     {
-        updateRiemannBoundaryMirrorKernel<<<faceGrid, faceBlock>>>(s->deviceState);
+        updateRiemannBoundaryMirrorKernel<<<faceGrid, faceBlock, 0, s->gasCaptureStream>>>(s->deviceState);
         err = cudaGetLastError();
         if (err != cudaSuccess)
         {
@@ -12775,7 +12787,7 @@ int advanceGasEulerSubstage(DeviceState* s, const double dt)
     }
     if (s->hostTurbulenceModel == 3)
     {
-        applySstWallFunctionStateKernel<<<cellGrid, cellBlock>>>(s->deviceState);
+        applySstWallFunctionStateKernel<<<cellGrid, cellBlock, 0, s->gasCaptureStream>>>(s->deviceState);
         err = cudaGetLastError();
         if (err != cudaSuccess)
         {
@@ -12785,7 +12797,7 @@ int advanceGasEulerSubstage(DeviceState* s, const double dt)
     }
     if (s->hostGasFluxScheme == 7)
     {
-        computeGasHllcAdcSensorKernel<<<cellGrid, cellBlock>>>(s->deviceState);
+        computeGasHllcAdcSensorKernel<<<cellGrid, cellBlock, 0, s->gasCaptureStream>>>(s->deviceState);
         err = cudaGetLastError();
         if (err != cudaSuccess)
         {
@@ -12793,7 +12805,7 @@ int advanceGasEulerSubstage(DeviceState* s, const double dt)
             return 1;
         }
     }
-    computeGasPrimitiveGradientsKernel<<<cellGrid, cellBlock>>>(s->deviceState);
+    computeGasPrimitiveGradientsKernel<<<cellGrid, cellBlock, 0, s->gasCaptureStream>>>(s->deviceState);
     err = cudaGetLastError();
     if (err != cudaSuccess)
     {
@@ -12802,7 +12814,7 @@ int advanceGasEulerSubstage(DeviceState* s, const double dt)
     }
     if (s->hostTurbulenceModel == 3)
     {
-        computeSstGradientsKernel<<<cellGrid, cellBlock>>>(s->deviceState);
+        computeSstGradientsKernel<<<cellGrid, cellBlock, 0, s->gasCaptureStream>>>(s->deviceState);
         err = cudaGetLastError();
         if (err != cudaSuccess)
         {
@@ -12810,14 +12822,14 @@ int advanceGasEulerSubstage(DeviceState* s, const double dt)
             return 1;
         }
     }
-    computeGasGradientLimiterKernel<<<cellGrid, cellBlock>>>(s->deviceState);
+    computeGasGradientLimiterKernel<<<cellGrid, cellBlock, 0, s->gasCaptureStream>>>(s->deviceState);
     err = cudaGetLastError();
     if (err != cudaSuccess)
     {
         setLastError("computeGasGradientLimiterKernel launch", err);
         return 1;
     }
-    computeGasEddyViscosityKernel<<<cellGrid, cellBlock>>>(s->deviceState);
+    computeGasEddyViscosityKernel<<<cellGrid, cellBlock, 0, s->gasCaptureStream>>>(s->deviceState);
     err = cudaGetLastError();
     if (err != cudaSuccess)
     {
@@ -12830,7 +12842,7 @@ int advanceGasEulerSubstage(DeviceState* s, const double dt)
     }
     if (s->hostTurbulenceModel == 0)
     {
-        computeGasInternalFaceFluxKernel<false><<<faceGrid, faceBlock>>>
+        computeGasInternalFaceFluxKernel<false><<<faceGrid, faceBlock, 0, s->gasCaptureStream>>>
         (
             s->deviceState,
             dt
@@ -12838,7 +12850,7 @@ int advanceGasEulerSubstage(DeviceState* s, const double dt)
     }
     else
     {
-        computeGasInternalFaceFluxKernel<true><<<faceGrid, faceBlock>>>
+        computeGasInternalFaceFluxKernel<true><<<faceGrid, faceBlock, 0, s->gasCaptureStream>>>
         (
             s->deviceState,
             dt
@@ -12852,7 +12864,7 @@ int advanceGasEulerSubstage(DeviceState* s, const double dt)
     }
     if (s->hasPeriodicFaces != 0)
     {
-        enforcePeriodicGasFluxAntisymmetryKernel<<<faceGrid, faceBlock>>>
+        enforcePeriodicGasFluxAntisymmetryKernel<<<faceGrid, faceBlock, 0, s->gasCaptureStream>>>
         (
             s->deviceState
         );
@@ -12867,14 +12879,14 @@ int advanceGasEulerSubstage(DeviceState* s, const double dt)
             return 1;
         }
     }
-    computeGasFluxPositivityScaleKernel<<<cellGrid, cellBlock>>>(s->deviceState, dt);
+    computeGasFluxPositivityScaleKernel<<<cellGrid, cellBlock, 0, s->gasCaptureStream>>>(s->deviceState, dt);
     err = cudaGetLastError();
     if (err != cudaSuccess)
     {
         setLastError("computeGasFluxPositivityScaleKernel launch", err);
         return 1;
     }
-    applyGasFluxPositivityScaleKernel<<<faceGrid, faceBlock>>>(s->deviceState);
+    applyGasFluxPositivityScaleKernel<<<faceGrid, faceBlock, 0, s->gasCaptureStream>>>(s->deviceState);
     err = cudaGetLastError();
     if (err != cudaSuccess)
     {
@@ -12883,7 +12895,7 @@ int advanceGasEulerSubstage(DeviceState* s, const double dt)
     }
     if (s->hasPeriodicFaces != 0)
     {
-        enforcePeriodicGasFluxAntisymmetryKernel<<<faceGrid, faceBlock>>>
+        enforcePeriodicGasFluxAntisymmetryKernel<<<faceGrid, faceBlock, 0, s->gasCaptureStream>>>
         (
             s->deviceState
         );
@@ -12900,7 +12912,7 @@ int advanceGasEulerSubstage(DeviceState* s, const double dt)
     }
     if (s->hostTurbulenceModel == 3)
     {
-        computeSstFaceFluxKernel<<<faceGrid, faceBlock>>>(s->deviceState);
+        computeSstFaceFluxKernel<<<faceGrid, faceBlock, 0, s->gasCaptureStream>>>(s->deviceState);
         err = cudaGetLastError();
         if (err != cudaSuccess)
         {
@@ -12909,7 +12921,7 @@ int advanceGasEulerSubstage(DeviceState* s, const double dt)
         }
         if (s->hasPeriodicFaces != 0)
         {
-            enforcePeriodicSstFluxAntisymmetryKernel<<<faceGrid, faceBlock>>>
+            enforcePeriodicSstFluxAntisymmetryKernel<<<faceGrid, faceBlock, 0, s->gasCaptureStream>>>
             (
                 s->deviceState
             );
@@ -12924,7 +12936,7 @@ int advanceGasEulerSubstage(DeviceState* s, const double dt)
                 return 1;
             }
         }
-        applySstFluxAndSourceKernel<<<cellGrid, cellBlock>>>
+        applySstFluxAndSourceKernel<<<cellGrid, cellBlock, 0, s->gasCaptureStream>>>
         (
             s->deviceState,
             dt
@@ -12936,14 +12948,14 @@ int advanceGasEulerSubstage(DeviceState* s, const double dt)
             return 1;
         }
     }
-    applyGasFluxDivergenceByCellKernel<<<cellGrid, cellBlock>>>(s->deviceState, dt);
+    applyGasFluxDivergenceByCellKernel<<<cellGrid, cellBlock, 0, s->gasCaptureStream>>>(s->deviceState, dt);
     err = cudaGetLastError();
     if (err != cudaSuccess)
     {
         setLastError("applyGasFluxDivergenceByCellKernel launch", err);
         return 1;
     }
-    recoverGasPrimitivesKernel<<<cellGrid, cellBlock>>>(s->deviceState);
+    recoverGasPrimitivesKernel<<<cellGrid, cellBlock, 0, s->gasCaptureStream>>>(s->deviceState);
     err = cudaGetLastError();
     if (err != cudaSuccess)
     {
@@ -12952,7 +12964,7 @@ int advanceGasEulerSubstage(DeviceState* s, const double dt)
     }
     if (s->hostTurbulenceModel == 3)
     {
-        recoverSstPrimitivesKernel<<<cellGrid, cellBlock>>>(s->deviceState);
+        recoverSstPrimitivesKernel<<<cellGrid, cellBlock, 0, s->gasCaptureStream>>>(s->deviceState);
         err = cudaGetLastError();
         if (err != cudaSuccess)
         {
@@ -12972,7 +12984,7 @@ int blendGasRungeKuttaStage
 {
     const int block = s->fixedCellBlockThreads;
     const int cellGrid = (s->nCells + block - 1)/block;
-    blendGasConservativeStateKernel<<<cellGrid, block>>>
+    blendGasConservativeStateKernel<<<cellGrid, block, 0, s->gasCaptureStream>>>
     (
         s->deviceState,
         initialWeight,
@@ -12984,7 +12996,7 @@ int blendGasRungeKuttaStage
         setLastError("blendGasConservativeStateKernel launch", err);
         return 1;
     }
-    recoverGasPrimitivesKernel<<<cellGrid, block>>>(s->deviceState);
+    recoverGasPrimitivesKernel<<<cellGrid, block, 0, s->gasCaptureStream>>>(s->deviceState);
     err = cudaGetLastError();
     if (err != cudaSuccess)
     {
@@ -12993,7 +13005,7 @@ int blendGasRungeKuttaStage
     }
     if (s->hostTurbulenceModel == 3)
     {
-        recoverSstPrimitivesKernel<<<cellGrid, block>>>(s->deviceState);
+        recoverSstPrimitivesKernel<<<cellGrid, block, 0, s->gasCaptureStream>>>(s->deviceState);
         err = cudaGetLastError();
         if (err != cudaSuccess)
         {
@@ -13021,7 +13033,7 @@ int advanceGasFluxStage
         (s->nCells + preparationCellBlock - 1)/preparationCellBlock;
     const int preparationFaceGrid =
         (s->nFaces + preparationFaceBlock - 1)/preparationFaceBlock;
-    recoverGasPrimitivesKernel<<<preparationCellGrid, preparationCellBlock>>>
+    recoverGasPrimitivesKernel<<<preparationCellGrid, preparationCellBlock, 0, s->gasCaptureStream>>>
     (
         s->deviceState
     );
@@ -13038,7 +13050,7 @@ int advanceGasFluxStage
     if (preparationFaceGrid > 0)
     {
         updateLegacyGasBoundaryMirrorKernel
-            <<<preparationFaceGrid, preparationFaceBlock>>>
+            <<<preparationFaceGrid, preparationFaceBlock, 0, s->gasCaptureStream>>>
             (s->deviceState, simulationTime);
         preparationError = cudaGetLastError();
         if (preparationError != cudaSuccess)
@@ -13059,7 +13071,7 @@ int advanceGasFluxStage
 
     const int block = s->fixedCellBlockThreads;
     const int cellGrid = (s->nCells + block - 1)/block;
-    saveGasConservativeStateKernel<<<cellGrid, block>>>(s->deviceState);
+    saveGasConservativeStateKernel<<<cellGrid, block, 0, s->gasCaptureStream>>>(s->deviceState);
     cudaError_t err = cudaGetLastError();
     if (err != cudaSuccess)
     {
@@ -13120,7 +13132,7 @@ int finaliseGasBoundaryStage
         return 0;
     }
 
-    updateLegacyGasBoundaryMirrorKernel<<<allFaceGrid, block>>>
+    updateLegacyGasBoundaryMirrorKernel<<<allFaceGrid, block, 0, s->gasCaptureStream>>>
     (
         s->deviceState,
         simulationTime
@@ -13136,7 +13148,7 @@ int finaliseGasBoundaryStage
         return 1;
     }
 
-    updateRiemannBoundaryMirrorKernel<<<allFaceGrid, block>>>
+    updateRiemannBoundaryMirrorKernel<<<allFaceGrid, block, 0, s->gasCaptureStream>>>
     (
         s->deviceState
     );
@@ -13151,7 +13163,7 @@ int finaliseGasBoundaryStage
         return 1;
     }
 
-    updateWaveTransmissivePressureBoundaryKernel<<<allFaceGrid, block>>>
+    updateWaveTransmissivePressureBoundaryKernel<<<allFaceGrid, block, 0, s->gasCaptureStream>>>
     (
         s->deviceState,
         dt
@@ -13761,6 +13773,93 @@ int configureParticleLaunchGeometry(DeviceState* s)
         s->heavyBlocksPerSm
     );
     return syncDeviceState(s, "sync Particle launch geometry");
+}
+
+int advancePureGasGraph(DeviceState* s, const double dt, const double simulationTime)
+{
+    if (s->gasGraphExec == nullptr || s->gasGraphDt != dt)
+    {
+        cudaError_t err = cudaSuccess;
+        if (s->gasGraphExec)
+        {
+            err = cudaGraphExecDestroy(s->gasGraphExec);
+            if (err != cudaSuccess) { setLastError("gas graph destroy executable", err); return 1; }
+            s->gasGraphExec = nullptr;
+        }
+        if (s->gasGraph)
+        {
+            err = cudaGraphDestroy(s->gasGraph);
+            if (err != cudaSuccess) { setLastError("gas graph destroy", err); return 1; }
+            s->gasGraph = nullptr;
+        }
+        s->gasGraphTimeNodes.clear();
+        s->gasGraphTimeParams.clear();
+        err = cudaStreamCreate(&s->gasCaptureStream);
+        if (err != cudaSuccess) { setLastError("gas graph stream create", err); return 1; }
+        err = cudaStreamBeginCapture(s->gasCaptureStream, cudaStreamCaptureModeThreadLocal);
+        if (err != cudaSuccess)
+        {
+            cudaStreamDestroy(s->gasCaptureStream);
+            s->gasCaptureStream = nullptr;
+            setLastError("gas graph capture begin", err);
+            return 1;
+        }
+        int status = advanceGasFluxStage(s, dt, simulationTime);
+        if (status == 0) status = finaliseGasBoundaryStage(s, dt, simulationTime);
+        err = cudaStreamEndCapture(s->gasCaptureStream, &s->gasGraph);
+        const cudaError_t streamError = cudaStreamDestroy(s->gasCaptureStream);
+        s->gasCaptureStream = nullptr;
+        if (status != 0) return status;
+        if (err != cudaSuccess) { setLastError("gas graph capture end", err); return 1; }
+        if (streamError != cudaSuccess) { setLastError("gas graph stream destroy", streamError); return 1; }
+        size_t nodeCount = 0;
+        err = cudaGraphGetNodes(s->gasGraph, nullptr, &nodeCount);
+        if (err != cudaSuccess) { setLastError("gas graph node count", err); return 1; }
+        std::vector<cudaGraphNode_t> nodes(nodeCount);
+        err = cudaGraphGetNodes(s->gasGraph, nodes.data(), &nodeCount);
+        if (err != cudaSuccess) { setLastError("gas graph nodes", err); return 1; }
+        for (const auto node : nodes)
+        {
+            cudaGraphNodeType type;
+            err = cudaGraphNodeGetType(node, &type);
+            if (err != cudaSuccess) { setLastError("gas graph node type", err); return 1; }
+            if (type != cudaGraphNodeTypeKernel) continue;
+            cudaKernelNodeParams params{};
+            err = cudaGraphKernelNodeGetParams(node, &params);
+            if (err != cudaSuccess) { setLastError("gas graph kernel parameters", err); return 1; }
+            if (params.func == reinterpret_cast<void*>(updateLegacyGasBoundaryMirrorKernel))
+            {
+                s->gasGraphTimeNodes.push_back(node);
+                params.kernelParams = nullptr;
+                params.extra = nullptr;
+                s->gasGraphTimeParams.push_back(params);
+            }
+        }
+        if (s->nFaces > 0 && s->gasGraphTimeNodes.size() != 2)
+        {
+            setLastErrorText("gas graph requires both scheduled boundary time nodes");
+            return 1;
+        }
+        err = cudaGraphInstantiate(&s->gasGraphExec, s->gasGraph, nullptr, nullptr, 0);
+        if (err != cudaSuccess) { setLastError("gas graph instantiate", err); return 1; }
+        s->gasGraphDt = dt;
+    }
+    DeviceState* device = s->deviceState;
+    double currentTime = simulationTime;
+    void* args[] = {&device, &currentTime};
+    for (size_t i = 0; i < s->gasGraphTimeNodes.size(); ++i)
+    {
+        cudaKernelNodeParams params = s->gasGraphTimeParams[i];
+        params.kernelParams = args;
+        const cudaError_t err = cudaGraphExecKernelNodeSetParams
+        (
+            s->gasGraphExec, s->gasGraphTimeNodes[i], &params
+        );
+        if (err != cudaSuccess) { setLastError("gas graph time update", err); return 1; }
+    }
+    const cudaError_t err = cudaGraphLaunch(s->gasGraphExec, nullptr);
+    if (err != cudaSuccess) { setLastError("gas graph launch", err); return 1; }
+    return 0;
 }
 
 extern "C" int ugkwpGpuResidentStrictCreate
@@ -15256,6 +15355,16 @@ extern "C" int ugkwpGpuResidentStrictAdvance
         return 1;
     }
 
+#ifndef UGKP_DEVELOPMENT_PROBES
+    if (s->gasGraphMode < 0)
+    {
+        const char* value = std::getenv("UGKP_GAS_GRAPH");
+        s->gasGraphMode = !value || std::strcmp(value, "1") == 0;
+    }
+    if (s->gasGraphMode && !s->particlesMayBePresent && !s->hostGravityActive)
+        return advancePureGasGraph(s, dt, simulationTime);
+#endif
+
     const int block = s->reductionBlockThreads;
     const int warpCount = (block + 31)/32;
     const int grid = (s->nCells + block - 1)/block;
@@ -15904,6 +16013,18 @@ extern "C" int ugkwpGpuResidentStrictAdvanceGasOnly
         );
         return 1;
     }
+
+    if (!std::isfinite(simulationTime) || simulationTime < 0.0)
+        return 1;
+#ifndef UGKP_DEVELOPMENT_PROBES
+    if (s->gasGraphMode < 0)
+    {
+        const char* value = std::getenv("UGKP_GAS_GRAPH");
+        s->gasGraphMode = !value || std::strcmp(value, "1") == 0;
+    }
+    if (s->gasGraphMode && !s->particlesMayBePresent && !s->hostGravityActive)
+        return advancePureGasGraph(s, dt, simulationTime);
+#endif
 
     if
     (

@@ -145,8 +145,8 @@ def foam_list(path: Path):
     return int(match.group(1)), text[match.end():text.rfind(")")]
 
 
-def coupled_face_geometry(case: Path, patch_name: str):
-    mesh = case / "constant/fluid/polyMesh"
+def coupled_face_geometry(case: Path, patch_name: str, region: str = "fluid", axisymmetric: bool = False):
+    mesh = case / "constant" / region / "polyMesh"
     boundary = clean_text(mesh / "boundary")
     patch = re.search(rf"\b{re.escape(patch_name)}\s*\{{(.*?)\}}", boundary, re.S)
     if not patch:
@@ -165,9 +165,64 @@ def coupled_face_geometry(case: Path, patch_name: str):
     for local, face_id in enumerate(face_ids):
         polygon = points[faces[int(face_id)]]
         centres[local] = np.mean(polygon, axis=0)
+        if axisymmetric:
+            radius = np.mean(np.linalg.norm(polygon[:, 1:], axis=1))
+            centres[local, 1:] *= radius/np.linalg.norm(centres[local, 1:])
         area_vector = 0.5*np.sum(np.cross(polygon, np.roll(polygon, -1, axis=0)), axis=0)
         areas[local] = np.linalg.norm(area_vector)
     return face_ids, centres, areas
+
+
+def interval_wall_temperature(case: Path, directory: Path, patch: str, expected: int) -> tuple[np.ndarray, str]:
+    state = clean_text(directory / "thermalExchangeState")
+    if not re.search(r"\binitialState\s+true\s*;", state):
+        return patch_values(directory / "fluid/T", patch, expected), "previous_fluid_boundary"
+    config = clean_text(case / "constant/solidRegionProperties")
+    if not re.search(r"\bmapping\s+oneToOneConformal\s*;", config):
+        raise RuntimeError("initial wall-temperature reconstruction requires oneToOneConformal mapping")
+    region_match = re.search(r"\bsolidRegion\s+(\w+)\s*;", config)
+    pairs = re.findall(r"\{[^{}]*\bfluidPatch\s+" + re.escape(patch) + r"\s*;[^{}]*\bsolidPatch\s+(\w+)\s*;[^{}]*\}", config)
+    if region_match is None or len(pairs) != 1:
+        raise RuntimeError(f"initial solid coupling pair is ambiguous for {patch}")
+    region, solid_patch = region_match.group(1), pairs[0]
+    fluid_ids, fluid_centres = coupled_face_geometry(case, patch)[:2]
+    solid_ids, solid_centres = coupled_face_geometry(case, solid_patch, region)[:2]
+    if len(fluid_ids) != expected or len(solid_ids) != expected or not np.allclose(fluid_centres, solid_centres, rtol=0, atol=1e-9):
+        raise RuntimeError("initial solid/fluid coupling faces do not match in solver order")
+    owner_count, owner_body = foam_list(case / "constant" / region / "polyMesh/owner")
+    owners = np.fromstring(owner_body, sep=" ", dtype=np.int64)
+    if owners.size != owner_count or solid_ids[-1] >= owner_count:
+        raise RuntimeError("malformed solid face owner list")
+    text = clean_text(directory / region / "T")
+    uniform = re.search(r"\binternalField\s+uniform\s+([-+0-9.eE]+)\s*;", text)
+    if uniform:
+        values = np.full(expected, float(uniform.group(1)))
+    else:
+        field = re.search(r"\binternalField\s+nonuniform\s+List<scalar>\s+(\d+)\s*\((.*?)\)\s*;", text, re.S)
+        if field is None:
+            raise RuntimeError(f"solid internal temperature missing in {directory / region / 'T'}")
+        internal = np.fromstring(field.group(2), sep=" ")
+        selected = owners[solid_ids]
+        if internal.size != int(field.group(1)) or np.any(selected < 0) or np.any(selected >= internal.size):
+            raise RuntimeError("invalid solid temperature/owner addressing")
+        values = internal[selected]
+    if not np.all(np.isfinite(values)) or np.any(values <= 0):
+        raise RuntimeError("invalid initial coupled wall temperature")
+    return values, "initial_solid_owner_mapped"
+
+def completed_exchange_time(path: Path) -> float:
+    text = clean_text(path)
+    match = re.search(r"\bcompletedSimulationTimeS\s+([-+0-9.eE]+)\s*;", text)
+    if not match:
+        raise RuntimeError(f"completedSimulationTimeS missing in {path}")
+    return float(match.group(1))
+
+def previous_exchange_time(path: Path) -> float:
+    text = clean_text(path)
+    match = re.search(r"\bpreviousExchangeSimulationTimeS\s+([-+0-9.eE]+)\s*;", text)
+    if not match:
+        raise RuntimeError(f"previousExchangeSimulationTimeS missing in {path}")
+    return float(match.group(1))
 
 
 def completed_radiation_time(path: Path):
@@ -312,12 +367,12 @@ def temperature_figure(case: Path, baseline: Path):
     plt.close(fig)
 
 def spatial_figures(case: Path, patch: str):
-    face_ids, centres, face_areas = coupled_face_geometry(case, patch)
+    face_ids, centres, face_areas = coupled_face_geometry(case, patch, axisymmetric=True)
     coordinate_mm = centres[:, 0]*1000.0
     radius = np.sqrt(centres[:, 1]**2 + centres[:, 2]**2)
-    throat_x = float(centres[np.argmin(radius), 0])
     order = np.argsort(coordinate_mm)
     config = json.loads((case / "assets/postprocessing/bartz.json").read_text())
+    throat_x = float(config["throat_axial_coordinate_m"])
     pressure_time, pressure = pressure_table(case / "constant/fluid/inletPressure.table")
     heat_data = DATA / "wall_heat_flux_profiles"
     area_data = DATA / "effective_radiating_area_profiles"
@@ -334,10 +389,29 @@ def spatial_figures(case: Path, patch: str):
         "Gas convection": "gasConvectiveWallHeatFlux",
     }
     records = radiation_directories(case)
+    exchange_directories = [
+        (completed_exchange_time(directory / "thermalExchangeState"), directory)
+        for _, directory in numeric_directories(case)
+        if (directory / "thermalExchangeState").is_file()
+    ]
     for time_s, directory in records:
         values = {label: patch_values(directory / "fluid" / field, patch, face_ids.size) for label, field in fields.items()}
-        wall_temperature = patch_values(directory / "fluid/T", patch, face_ids.size)
-        chamber_pressure = float(np.interp(time_s, pressure_time, pressure))
+        wall_temperature_end = patch_values(directory / "fluid/T", patch, face_ids.size)
+        exchange_time = completed_exchange_time(directory / "thermalExchangeState")
+        if abs(exchange_time - time_s) > 1.0e-8:
+            raise RuntimeError(f"gas/radiation output intervals are misaligned in {directory}")
+        previous_time = previous_exchange_time(directory / "thermalExchangeState")
+        previous_error, previous_directory = min(
+            ((abs(t - previous_time), path) for t, path in exchange_directories),
+            key=lambda item: item[0],
+        )
+        if previous_error > 1.0e-8:
+            raise RuntimeError(f"wall-temperature state {previous_time:.17g} is missing for {directory}")
+        wall_temperature, wall_temperature_source = interval_wall_temperature(
+            case, previous_directory, patch, face_ids.size
+        )
+        pressure_time_s = 0.5*(previous_time + time_s)
+        chamber_pressure = float(np.interp(pressure_time_s, pressure_time, pressure))
         bartz_result = [
             bartz_wall_heat_flux(
                 chamber_pressure, float(wall_temperature[i]), float(radius[i]), float(centres[i, 0]), throat_x,
@@ -361,6 +435,10 @@ def spatial_figures(case: Path, patch: str):
                 "deposition_W_m2": values["Deposition"][i], "convection_W_m2": values["Gas convection"][i],
                 "bartz_W_m2": bartz[i], "bartz_h_W_m2_K": bartz_h[i], "bartz_mach": bartz_mach[i],
                 "local_radius_m": radius[i], "wall_temperature_K": wall_temperature[i],
+                "wall_temperature_end_K": wall_temperature_end[i],
+                "wall_temperature_source": wall_temperature_source,
+                "interval_start_s": previous_time, "pressure_time_s": pressure_time_s,
+                "chamber_pressure_Pa": chamber_pressure,
             })
             area_rows.append({
                 "time_s": time_s, "wall_coordinate_mm": coordinate_mm[i],

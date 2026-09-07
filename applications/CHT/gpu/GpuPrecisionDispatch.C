@@ -585,68 +585,16 @@ extern "C" int ugkwpGpuResidentStrictDownloadNut_64(
     void* handle,
     double* nut
 );
-extern "C" int ugkwpGpuResidentStrictConfigureGasWallEnergyLedger_32(
-    void* handle,
-    int nEnabledFaces,
-    const int* enabledFaceIds
-);
-extern "C" int ugkwpGpuResidentStrictConfigureGasWallEnergyLedger_64(
-    void* handle,
-    int nEnabledFaces,
-    const int* enabledFaceIds
-);
-extern "C" int ugkwpGpuResidentStrictPeekGasWallEnergy_32(
-    void* handle,
-    int nFaces,
-    double* gasWallEnergy
-);
-extern "C" int ugkwpGpuResidentStrictPeekGasWallEnergy_64(
-    void* handle,
-    int nFaces,
-    double* gasWallEnergy
-);
-extern "C" int ugkwpGpuResidentStrictPeekWallEnergyLedgerRange_32(
-    void* handle,
-    int firstFace,
-    int nFaces,
-    double* gasWallEnergyJ,
-    double* particleDepositedWallEnergyJ,
-    double* particleReflectedWallEnergyJ
-);
-extern "C" int ugkwpGpuResidentStrictPeekWallEnergyLedgerRange_64(
-    void* handle,
-    int firstFace,
-    int nFaces,
-    double* gasWallEnergyJ,
-    double* particleDepositedWallEnergyJ,
-    double* particleReflectedWallEnergyJ
-);
-extern "C" int ugkwpGpuResidentStrictUploadWallEnergyLedgerRange_32(
-    void* handle,
-    int firstFace,
-    int nFaces,
-    const double* gasWallEnergyJ,
-    const double* particleDepositedWallEnergyJ,
-    const double* particleReflectedWallEnergyJ
-);
-extern "C" int ugkwpGpuResidentStrictUploadWallEnergyLedgerRange_64(
-    void* handle,
-    int firstFace,
-    int nFaces,
-    const double* gasWallEnergyJ,
-    const double* particleDepositedWallEnergyJ,
-    const double* particleReflectedWallEnergyJ
-);
-extern "C" int ugkwpGpuResidentStrictDownloadAndResetGasWallEnergy_32(
-    void* handle,
-    int nFaces,
-    double* gasWallEnergy
-);
-extern "C" int ugkwpGpuResidentStrictDownloadAndResetGasWallEnergy_64(
-    void* handle,
-    int nFaces,
-    double* gasWallEnergy
-);
+
+
+
+
+
+
+
+
+
+
 extern "C" int ugkwpGpuResidentStrictConfigureParticleStuckModel_32(
     void* handle,
     int nFaces,
@@ -691,30 +639,10 @@ extern "C" int ugkwpGpuResidentStrictConfigureParticleStuckModel_64(
     double pinningThicknessFraction,
     double interfaceResistanceM2KW
 );
-extern "C" int ugkwpGpuResidentStrictPeekParticleWallHeatLedgers_32(
-    void* handle,
-    int nFaces,
-    double* depositedWallEnergyJ,
-    double* reflectedWallEnergyJ
-);
-extern "C" int ugkwpGpuResidentStrictPeekParticleWallHeatLedgers_64(
-    void* handle,
-    int nFaces,
-    double* depositedWallEnergyJ,
-    double* reflectedWallEnergyJ
-);
-extern "C" int ugkwpGpuResidentStrictDownloadAndResetParticleWallHeatLedgers_32(
-    void* handle,
-    int nFaces,
-    double* depositedWallEnergyJ,
-    double* reflectedWallEnergyJ
-);
-extern "C" int ugkwpGpuResidentStrictDownloadAndResetParticleWallHeatLedgers_64(
-    void* handle,
-    int nFaces,
-    double* depositedWallEnergyJ,
-    double* reflectedWallEnergyJ
-);
+
+
+
+
 extern "C" int ugkwpGpuResidentStrictDownloadSst_32(
     void* handle,
     double* k,
@@ -1242,56 +1170,15 @@ extern "C" int ugkwpGpuResidentStrictDownloadNut(
     return selectedPrecision == 32 ? ugkwpGpuResidentStrictDownloadNut_32(handle, nut) : ugkwpGpuResidentStrictDownloadNut_64(handle, nut);
 }
 
-extern "C" int ugkwpGpuResidentStrictConfigureGasWallEnergyLedger(
-    void* handle,
-    int nEnabledFaces,
-    const int* enabledFaceIds
-)
-{
-    return selectedPrecision == 32 ? ugkwpGpuResidentStrictConfigureGasWallEnergyLedger_32(handle, nEnabledFaces, enabledFaceIds) : ugkwpGpuResidentStrictConfigureGasWallEnergyLedger_64(handle, nEnabledFaces, enabledFaceIds);
-}
 
-extern "C" int ugkwpGpuResidentStrictPeekGasWallEnergy(
-    void* handle,
-    int nFaces,
-    double* gasWallEnergy
-)
-{
-    return selectedPrecision == 32 ? ugkwpGpuResidentStrictPeekGasWallEnergy_32(handle, nFaces, gasWallEnergy) : ugkwpGpuResidentStrictPeekGasWallEnergy_64(handle, nFaces, gasWallEnergy);
-}
 
-extern "C" int ugkwpGpuResidentStrictPeekWallEnergyLedgerRange(
-    void* handle,
-    int firstFace,
-    int nFaces,
-    double* gasWallEnergyJ,
-    double* particleDepositedWallEnergyJ,
-    double* particleReflectedWallEnergyJ
-)
-{
-    return selectedPrecision == 32 ? ugkwpGpuResidentStrictPeekWallEnergyLedgerRange_32(handle, firstFace, nFaces, gasWallEnergyJ, particleDepositedWallEnergyJ, particleReflectedWallEnergyJ) : ugkwpGpuResidentStrictPeekWallEnergyLedgerRange_64(handle, firstFace, nFaces, gasWallEnergyJ, particleDepositedWallEnergyJ, particleReflectedWallEnergyJ);
-}
 
-extern "C" int ugkwpGpuResidentStrictUploadWallEnergyLedgerRange(
-    void* handle,
-    int firstFace,
-    int nFaces,
-    const double* gasWallEnergyJ,
-    const double* particleDepositedWallEnergyJ,
-    const double* particleReflectedWallEnergyJ
-)
-{
-    return selectedPrecision == 32 ? ugkwpGpuResidentStrictUploadWallEnergyLedgerRange_32(handle, firstFace, nFaces, gasWallEnergyJ, particleDepositedWallEnergyJ, particleReflectedWallEnergyJ) : ugkwpGpuResidentStrictUploadWallEnergyLedgerRange_64(handle, firstFace, nFaces, gasWallEnergyJ, particleDepositedWallEnergyJ, particleReflectedWallEnergyJ);
-}
 
-extern "C" int ugkwpGpuResidentStrictDownloadAndResetGasWallEnergy(
-    void* handle,
-    int nFaces,
-    double* gasWallEnergy
-)
-{
-    return selectedPrecision == 32 ? ugkwpGpuResidentStrictDownloadAndResetGasWallEnergy_32(handle, nFaces, gasWallEnergy) : ugkwpGpuResidentStrictDownloadAndResetGasWallEnergy_64(handle, nFaces, gasWallEnergy);
-}
+
+
+
+
+
 
 extern "C" int ugkwpGpuResidentStrictConfigureParticleStuckModel(
     void* handle,
@@ -1319,25 +1206,9 @@ extern "C" int ugkwpGpuResidentStrictConfigureParticleStuckModel(
     return selectedPrecision == 32 ? ugkwpGpuResidentStrictConfigureParticleStuckModel_32(handle, nFaces, candidateFaceMask, sommerfeldThreshold, heatTransferEnabled, maximumCoverage, depositionHeatTransferEfficiency, reflectionHeatTransferEfficiency, adhesionEnergyScale, contactAngleDegree, wallTransientResistance, nonlinearIterations, meltingTemperatureK, mushyRangeK, latentHeatJkg, solidDensityKgM3, solidSpecificHeatJkgK, solidThermalConductivityWmK, pinningThicknessFraction, interfaceResistanceM2KW) : ugkwpGpuResidentStrictConfigureParticleStuckModel_64(handle, nFaces, candidateFaceMask, sommerfeldThreshold, heatTransferEnabled, maximumCoverage, depositionHeatTransferEfficiency, reflectionHeatTransferEfficiency, adhesionEnergyScale, contactAngleDegree, wallTransientResistance, nonlinearIterations, meltingTemperatureK, mushyRangeK, latentHeatJkg, solidDensityKgM3, solidSpecificHeatJkgK, solidThermalConductivityWmK, pinningThicknessFraction, interfaceResistanceM2KW);
 }
 
-extern "C" int ugkwpGpuResidentStrictPeekParticleWallHeatLedgers(
-    void* handle,
-    int nFaces,
-    double* depositedWallEnergyJ,
-    double* reflectedWallEnergyJ
-)
-{
-    return selectedPrecision == 32 ? ugkwpGpuResidentStrictPeekParticleWallHeatLedgers_32(handle, nFaces, depositedWallEnergyJ, reflectedWallEnergyJ) : ugkwpGpuResidentStrictPeekParticleWallHeatLedgers_64(handle, nFaces, depositedWallEnergyJ, reflectedWallEnergyJ);
-}
 
-extern "C" int ugkwpGpuResidentStrictDownloadAndResetParticleWallHeatLedgers(
-    void* handle,
-    int nFaces,
-    double* depositedWallEnergyJ,
-    double* reflectedWallEnergyJ
-)
-{
-    return selectedPrecision == 32 ? ugkwpGpuResidentStrictDownloadAndResetParticleWallHeatLedgers_32(handle, nFaces, depositedWallEnergyJ, reflectedWallEnergyJ) : ugkwpGpuResidentStrictDownloadAndResetParticleWallHeatLedgers_64(handle, nFaces, depositedWallEnergyJ, reflectedWallEnergyJ);
-}
+
+
 
 extern "C" int ugkwpGpuResidentStrictDownloadSst(
     void* handle,

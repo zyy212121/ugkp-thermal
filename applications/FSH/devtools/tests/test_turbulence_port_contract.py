@@ -38,7 +38,7 @@ def test_explicit_gpu_sst_is_orthogonal_to_fsh_particle_physics() -> None:
         "computeSstFaceFluxKernel",
         "applySstFluxAndSourceKernel",
         "applySstWallFunctionStateKernel",
-        "jayatillekeWallHeatFluxPrecomputed",
+        "sstJayatillekeThermalTransport",
     ):
         assert token in cuda
     for retained in (

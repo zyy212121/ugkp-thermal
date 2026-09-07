@@ -7,7 +7,7 @@ import pytest
 
 
 ROOT = Path(__file__).resolve().parents[2]
-SOURCE = Path(__file__).with_name("ugkp_sst_algebra_test.cpp")
+SOURCE = Path(__file__).with_name("sst_algebra_test.cpp")
 
 
 def test_host_cuda_shared_sst_algebra_matches_openfoam10_equations() -> None:
@@ -23,6 +23,8 @@ def test_host_cuda_shared_sst_algebra_matches_openfoam10_equations() -> None:
                 "-Wall",
                 "-Wextra",
                 "-pedantic",
+                "-I",
+                str(ROOT.parents[1] / "common"),
                 str(SOURCE),
                 "-o",
                 str(executable),

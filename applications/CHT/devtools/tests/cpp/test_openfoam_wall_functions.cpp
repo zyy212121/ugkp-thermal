@@ -37,9 +37,9 @@ int main()
             4.918204314309113e-05,
             9.29152148664344e-05/4.0906
         );
-        requireNear("uTau", result.uTau, 38.83, 0.01);
-        requireNear("yPlus", result.yPlus, 84.08, 0.01);
-        requireNear("nut", result.nut, 9.06e-05, 0.015);
+        requireNear("uTau", result.uTau, 40.332452308563326, 1.0e-4);
+        requireNear("yPlus", result.yPlus, 87.3295804781942, 1.0e-4);
+        requireNear("nut", result.nut, 9.951618807901895e-05, 1.0e-4);
 
         const auto transport = ugkpwall::wallSubgridTransport
         (

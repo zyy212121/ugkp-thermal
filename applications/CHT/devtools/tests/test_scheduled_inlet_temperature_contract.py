@@ -12,6 +12,27 @@ ROOT = Path(__file__).resolve().parents[2]
 
 
 class ScheduledInletTemperatureContract(unittest.TestCase):
+    def test_coupled_wall_temperature_updates_both_boundary_views(self) -> None:
+        backend = (ROOT / "gpu/GpuResidentStrict.cu").read_text(encoding="utf-8")
+        function = re.search(
+            r'extern "C" int ugkwpGpuResidentStrictUploadGasBoundaryTemperaturePatch'
+            r'(?P<body>[\s\S]*?)extern "C" int '
+            r'ugkwpGpuResidentStrictUploadParticleWallEffusivityPatch',
+            backend,
+        )
+        self.assertIsNotNone(function)
+        body = function.group("body")
+        self.assertIn("s->gasBoundaryT + patchStartFace", body)
+        self.assertIn("s->riemannBoundaryT + patchStartFace", body)
+
+    def test_scheduling_does_not_override_configured_velocity_operator(self) -> None:
+        backend = (ROOT / "gpu/GpuResidentStrict.cu").read_text(encoding="utf-8")
+        start = backend.index("__global__ void updateLegacyGasBoundaryMirrorKernel")
+        branch = backend[start:backend.index("    const int kind =", start)]
+        self.assertNotRegex(branch, r"riemannBoundaryUFix\s*\[.*?\]\s*=")
+        self.assertIn("s.riemannBoundaryP[f] = pressure", branch)
+        self.assertIn("s.riemannBoundaryT[f] = temperature", branch)
+
     def test_temperature_and_tables_are_uploaded_once(self) -> None:
         frontend = (ROOT / "diluteUgkwpFoam.C").read_text(encoding="utf-8")
         header = (ROOT / "gpu/GpuResidentStrict.H").read_text(encoding="utf-8")

@@ -1,0 +1,1 @@
+#include "../../thermal/GpuSolidThermalCoupler.C"

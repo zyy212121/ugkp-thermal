@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+cd -- "$(dirname -- "${BASH_SOURCE[0]}")" || exit 1
+source /opt/openfoam10/etc/bashrc
+set -e
+exec python3 "$PWD/run.py"

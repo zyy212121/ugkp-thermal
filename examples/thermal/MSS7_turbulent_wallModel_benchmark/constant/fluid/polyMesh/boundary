@@ -1,0 +1,61 @@
+
+FoamFile
+{
+    format      ascii;
+    class       polyBoundaryMesh;
+    location    "constant/fluid/polyMesh";
+    object      boundary;
+}
+
+
+6
+(
+    inlet
+    {
+        type            patch;
+        nFaces          56;
+        startFace       18148;
+    }
+    outlet
+    {
+        type            patch;
+        nFaces          56;
+        startFace       18204;
+    }
+    fluid_to_graphite
+    {
+        type mappedWall;
+        inGroups        List<word> 1(wall);
+        nFaces          164;
+        startFace       18260;
+    
+ sampleMode nearestPatchFace;
+ sampleRegion graphite;
+ samplePatch graphite_to_fluid;
+ offsetMode uniform;
+ offset (0 0 0);
+}
+    wedgeBack
+    {
+        type            wedge;
+        inGroups        List<word> 1(wedge);
+        nFaces          9184;
+        startFace       18424;
+    }
+    wedgeFront
+    {
+        type            wedge;
+        inGroups        List<word> 1(wedge);
+        nFaces          9184;
+        startFace       27608;
+    }
+    defaultFaces
+    {
+        type            empty;
+        inGroups        List<word> 1(empty);
+        nFaces          0;
+        startFace       36792;
+    }
+)
+
+

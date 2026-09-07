@@ -1,3 +1,4 @@
+#include "GpuWallEnergy64.H"
 #include "GpuPrecisionTypes.H"
 #include <cuda_runtime.h>
 #if UGKWP_GPU_REAL_BITS == 32
@@ -66,7 +67,6 @@ namespace
 #if UGKWP_GPU_REAL_BITS == 32
 constexpr int coldWallBlockThreads = 256;
 constexpr int coldWallSmBlocks = 48;
-constexpr int pressureProjectionThreads = 512;
 constexpr int particleIndexThreads = 1024;
 constexpr int particlePayloadThreads = 64;
 constexpr int particlePayloadSmBlocks = 0;
@@ -75,12 +75,9 @@ constexpr int flatParticleSmBlocks = 8;
 #else
 constexpr int coldWallBlockThreads = 32;
 constexpr int coldWallSmBlocks = 0;
-constexpr int pressureProjectionThreads = 128;
 constexpr int particleIndexThreads = 0;
 constexpr int particlePayloadThreads = 128;
 constexpr int particlePayloadSmBlocks = 0;
-constexpr int flatParticleThreads = 256;
-constexpr int flatParticleSmBlocks = 8;
 #endif
 
 char lastError[2048] = "no GPU resident strict error";
@@ -119,6 +116,7 @@ struct ParticleRadiationValidationError
 
 struct DeviceState
 {
+    GpuWallEnergyState wallEnergy;
     DeviceState* deviceState = nullptr;
 
     int nCells = 0;
@@ -205,6 +203,13 @@ struct DeviceState
     int fixedCellBlockThreads = 128;
     int fixedFaceBlockThreads = 128;
     int fixedWorkBlockTuned = 0;
+    cudaStream_t gasCaptureStream = nullptr;
+    cudaGraph_t gasGraph = nullptr;
+    cudaGraphExec_t gasGraphExec = nullptr;
+    std::vector<cudaGraphNode_t> gasGraphTimeNodes;
+    std::vector<cudaKernelNodeParams> gasGraphTimeParams;
+    GpuTime gasGraphDt = -1;
+    int gasGraphMode = -1;
     int particleBlockThreads = 128;
     int reductionBlockThreads = 128;
     int multiprocessorCount = 1;
@@ -264,8 +269,6 @@ struct DeviceState
     GpuReal* gasPhiRhoUy = nullptr;
     GpuReal* gasPhiRhoUz = nullptr;
     GpuReal* gasPhiRhoE = nullptr;
-    GpuReal* gasWallEnergy = nullptr;
-    unsigned char* gasWallEnergyMask = nullptr;
     GpuReal* gasFluxPositivityScale = nullptr;
     GpuReal* gasHllcAdcSensor = nullptr;
     unsigned char* particleStuckCandidateMask = nullptr;
@@ -857,6 +860,14 @@ int syncDeviceState(DeviceState* s, const char* name)
         return 1;
     }
 
+    static_assert(offsetof(DeviceState, wallEnergy) == 0, "wall-energy state must be first");
+    s->wallEnergy.deviceState = reinterpret_cast<GpuWallEnergyState*>(s->deviceState);
+    s->wallEnergy.errorBuffer = lastError;
+    s->wallEnergy.nFaces = s->nFaces;
+    s->wallEnergy.nInternalFaces = s->nInternalFaces;
+    s->wallEnergy.particleWallHeatTransferEnabled = s->particleWallHeatTransferEnabled;
+    s->wallEnergy.particleWallDepositedEnergy = s->particleWallDepositedEnergy;
+    s->wallEnergy.particleWallReflectedEnergy = s->particleWallReflectedEnergy;
     const cudaError_t err =
         cudaMemcpy(s->deviceState, s, sizeof(DeviceState), cudaMemcpyHostToDevice);
     if (err != cudaSuccess)
@@ -867,28 +878,7 @@ int syncDeviceState(DeviceState* s, const char* name)
     return 0;
 }
 
-int syncGasWallLedgerPointers(DeviceState* s, const char* name)
-{
-    static_assert
-    (
-        offsetof(DeviceState, gasWallEnergyMask)
-     == offsetof(DeviceState, gasWallEnergy) + sizeof(GpuReal*),
-        "gas-wall ledger pointers must remain adjacent"
-    );
-    const cudaError_t err = cudaMemcpy
-    (
-        &(s->deviceState->gasWallEnergy),
-        &(s->gasWallEnergy),
-        sizeof(s->gasWallEnergy) + sizeof(s->gasWallEnergyMask),
-        cudaMemcpyHostToDevice
-    );
-    if (err != cudaSuccess)
-    {
-        setLastError(name, err);
-        return 1;
-    }
-    return 0;
-}
+
 
 int syncSstConfiguration(DeviceState* s, const char* name)
 {
@@ -939,6 +929,9 @@ void releaseState(DeviceState* s)
         return;
     }
 
+    if (s->gasGraphExec) cudaGraphExecDestroy(s->gasGraphExec);
+    if (s->gasGraph) cudaGraphDestroy(s->gasGraph);
+    if (s->gasCaptureStream) cudaStreamDestroy(s->gasCaptureStream);
     release(s->deviceState);
     release(s->faceOwner);
     release(s->faceNeighbour);
@@ -987,8 +980,7 @@ void releaseState(DeviceState* s)
     release(s->gasPhiRhoUy);
     release(s->gasPhiRhoUz);
     release(s->gasPhiRhoE);
-    release(s->gasWallEnergy);
-    release(s->gasWallEnergyMask);
+    ugkpReleaseGasWallEnergy64(&s->wallEnergy);
     release(s->gasFluxPositivityScale);
     release(s->gasHllcAdcSensor);
     release(s->particleStuckCandidateMask);
@@ -2692,7 +2684,7 @@ __device__ GpuReal sstDynamicOmegaWallValue
     const int owner
 )
 {
-    const GpuReal rhoSafe = clampMin(s.rho[owner], s.rhoMin);
+    const GpuReal rhoSafe = clampMin(riemannFacePrimitiveForGradient(s, owner, f).rho, s.rhoMin);
     const GpuReal nu = s.gasMu/rhoSafe;
     const GpuReal wallUx = s.riemannBoundaryUFix[f] != 0
       ? finiteOr(s.riemannBoundaryUx[f], GPU_R(0.0)) : GPU_R(0.0);
@@ -3465,7 +3457,6 @@ __global__ void updateLegacyGasBoundaryMirrorKernel
         s.riemannBoundaryP[f] = pressure;
         s.riemannBoundaryRho[f] = density;
         s.riemannBoundaryT[f] = temperature;
-        s.riemannBoundaryUFix[f] = 3;
         return;
     }
 
@@ -3709,7 +3700,10 @@ __device__ void gasFaceSubgridTransportProperties
         const GpuReal wallDistance = s.turbulenceModel == 3
           ? clampMin(s.sstWallDistance[own], OfVSmall)
           : GPU_R(1.0)/clampMin(s.deltaCoeffs[f], OfVSmall);
-        const GpuReal rhoSafe = clampMin(rhoFace, s.rhoMin);
+        const GpuReal rhoSafe = clampMin
+        (
+            riemannFacePrimitiveForGradient(s, own, f).rho, s.rhoMin
+        );
         const ugkpwall::SpaldingWallState wallState =
             ugkpwall::spaldingWallState
             (
@@ -3723,36 +3717,34 @@ __device__ void gasFaceSubgridTransportProperties
         {
             const GpuReal wallTemperature = s.riemannBoundaryTFix[f] != 0
               ? s.riemannBoundaryT[f] : s.Tgas[own];
-            const ugkpwall::JayatillekeWallHeatState heatState =
-                ugkpwall::jayatillekeWallHeatFluxPrecomputed
-                (
-                    rhoSafe,
-                    s.gasCp,
-                    s.gasPrClamped,
-                    s.turbulentPrandtl,
-                    s.sstWallKappa,
-                    s.sstWallE,
-                    s.sstJayatillekeP,
-                    s.sstThermalYPlus,
-                    wallState.uTau,
-                    wallState.yPlus,
-                    s.Tgas[own],
-                    wallTemperature
-                );
-            muTurbulent = rhoSafe*wallState.nut;
-            directWallHeatFlux = heatState.heatFlux;
-            directWallHeatFluxActive =
-                s.riemannBoundaryTFix[f] != 0 && heatState.valid != 0;
-            const GpuReal equivalentConductivity = heatState.valid != 0
-              ? rhoSafe*s.gasCp*wallState.uTau
-               /(clampMin(heatState.temperaturePlus, OfSmall)
-                *clampMin(s.deltaCoeffs[f], OfSmall))
-              : molecularGasConductivity(s);
-            kTurbulent = fmax
+            const GpuReal wallRho = clampMin
             (
-                equivalentConductivity - molecularGasConductivity(s),
-                GPU_R(0.0)
+                s.p[own]/(s.Rgas*clampMin(wallTemperature, s.TgasMin)),
+                s.rhoMin
             );
+            const GpuReal gradient = (wallTemperature-s.Tgas[own])*s.deltaCoeffs[f];
+            const auto thermal = ugkpwall::sstJayatillekeThermalTransport
+            (
+                wallRho, s.gasCp, s.gasMu, s.gasPrClamped,
+                s.turbulentPrandtl, s.sstWallCmu, s.sstWallKappa,
+                s.sstWallE, s.sstJayatillekeP, s.sstThermalYPlus,
+                s.k[own], wallDistance, velocityDifference,
+                sqrt(wallUx*wallUx + wallUy*wallUy + wallUz*wallUz),
+                gradient
+            );
+            if (thermal.valid == 0)
+            {
+                printf("Jayatilleke thermal closure failed face=%d cell=%d rho=%g k=%g Tw=%g Tc=%g\n",
+                    f, own, double(wallRho), double(s.k[own]), double(wallTemperature), double(s.Tgas[own]));
+                printf("closure input mu=%g Cp=%g Pr=%g Prt=%g Cmu=%g kappa=%g E=%g P=%g yt=%g y=%g U=%g grad=%g\n",
+                    double(s.gasMu),double(s.gasCp),double(s.gasPrClamped),double(s.turbulentPrandtl),double(s.sstWallCmu),double(s.sstWallKappa),double(s.sstWallE),double(s.sstJayatillekeP),double(s.sstThermalYPlus),double(wallDistance),double(velocityDifference),double(gradient));
+                asm("trap;");
+                return;
+            }
+            muTurbulent = rhoSafe*wallState.nut;
+            directWallHeatFlux = thermal.heatFlux;
+            directWallHeatFluxActive = s.riemannBoundaryTFix[f] != 0;
+            kTurbulent = thermal.conductivity - molecularGasConductivity(s);
             return;
         }
         const ugkpwall::WallSubgridTransport wallTransport =
@@ -4580,8 +4572,7 @@ __global__ void computeGasFluxPositivityScaleKernel(DeviceState* sp, const GpuTi
 
 __global__ void applyGasFluxPositivityScaleKernel
 (
-    DeviceState* sp,
-    const GpuTime ledgerDt
+    DeviceState* sp
 )
 {
     DeviceState& s = *sp;
@@ -4619,14 +4610,14 @@ __global__ void applyGasFluxPositivityScaleKernel
 
     if
     (
-        s.gasWallEnergy != nullptr
-     && s.gasWallEnergyMask != nullptr
-     && s.gasWallEnergyMask[f] != 0
+        s.wallEnergy.gasWallEnergy != nullptr
+     && s.wallEnergy.gasWallEnergyMask != nullptr
+     && s.wallEnergy.gasWallEnergyMask[f] != 0
      && f >= s.nInternalFaces
-     && s.gasBoundaryKind[f] == 2
     )
     {
-        s.gasWallEnergy[f] += ledgerDt*s.gasPhiRhoE[f];
+        s.wallEnergy.gasWallFlux[f] = s.gasBoundaryKind[f] == 2
+            ? static_cast<double>(s.gasPhiRhoE[f]) : 0.0;
     }
 }
 
@@ -4677,7 +4668,7 @@ __global__ void computeSstFaceFluxKernel(DeviceState* sp)
 
     const GpuReal rhoFace = nei >= 0
       ? ownerWeight*s.rho[own] + (GPU_R(1.0) - ownerWeight)*s.rho[nei]
-      : s.rho[own];
+      : (boundaryKind == 2 ? riemannFacePrimitiveForGradient(s, own, f).rho : s.rho[own]);
     const GpuReal f1Face = nei >= 0
       ? ownerWeight*s.sstF1[own] + (GPU_R(1.0) - ownerWeight)*s.sstF1[nei]
       : s.sstF1[own];
@@ -4868,7 +4859,7 @@ __device__ GpuReal sstKProductionForCell
             s.k[c],
             magGradU,
             y,
-            s.gasMu/clampMin(s.rho[c], s.rhoMin),
+            s.gasMu/clampMin(riemannFacePrimitiveForGradient(s, c, f).rho, s.rhoMin),
             s.sstCoefficients.beta1,
             s.sstWallCmu,
             s.sstWallKappa,
@@ -5187,7 +5178,9 @@ __global__ void computeSstStabilityNumberKernel
           ? (s.faceOwner[f] == c ? s.faceNeighbour[f] : s.faceOwner[f])
           : -1;
         const GpuReal rhoFace = other >= 0
-          ? GPU_R(0.5)*(s.rho[c] + s.rho[other]) : s.rho[c];
+          ? GPU_R(0.5)*(s.rho[c] + s.rho[other])
+          : (s.riemannBoundaryKind[f] == 2
+            ? riemannFacePrimitiveForGradient(s, c, f).rho : s.rho[c]);
         const GpuReal f1Face = other >= 0
           ? GPU_R(0.5)*(s.sstF1[c] + s.sstF1[other]) : s.sstF1[c];
         const GpuReal nu = s.gasMu/clampMin(rhoFace, s.rhoMin);
@@ -5227,7 +5220,8 @@ __global__ void computeSstStabilityNumberKernel
             nu + ugkwp::sstAlphaOmega(f1Face, s.sstCoefficients)*nutFace
         );
         diffusionRate +=
-            maximumDiffusivity*s.magSf[f]*s.deltaCoeffs[f];
+            (rhoFace/clampMin(s.rho[c], s.rhoMin))
+           *maximumDiffusivity*s.magSf[f]*s.deltaCoeffs[f];
     }
     const GpuReal diffusionNumber =
         dt*diffusionRate/clampMin(s.V[c], OfSmall);
@@ -7601,15 +7595,10 @@ __global__ void publishFlatFullPressureKernel(DeviceState* sp)
     const GpuReal py1=p[1];
     const GpuReal pz1=p[2];
     const GpuReal e1=p[3];
-    const GpuReal ux0=p[4];
-    const GpuReal uy0=p[5];
-    const GpuReal uz0=p[6];
     const GpuReal ux1=p[7];
     const GpuReal uy1=p[8];
     const GpuReal uz1=p[9];
     const GpuReal theta1=p[10];
-    const GpuReal thermalScale=p[11];
-    const GpuReal thetaScale=p[12];
 
         s.momRhoUPx[c] = px1;
         s.momRhoUPy[c] = py1;
@@ -7664,7 +7653,6 @@ int applyCollisionalPressureKick
         return 1;
     }
 
-    const int pressureThreads = pressureProjectionThreads;
     const int cellGrid = (s->nCells + block - 1)/block;
     const int faceGrid = (s->nFaces + block - 1)/block;
     cudaError_t err = cudaSuccess;
@@ -14439,7 +14427,7 @@ extern "C" const char* ugkwpGpuResidentStrictLastError
     return lastError;
 }
 
-int advanceGasEulerSubstage(DeviceState* s, const GpuTime dt)
+int advanceGasEulerSubstage(DeviceState* s, const GpuTime dt, const GpuTime ledgerDt)
 {
     const int cellBlock = s->fixedCellBlockThreads;
     const int faceBlock = s->fixedFaceBlockThreads;
@@ -14447,7 +14435,7 @@ int advanceGasEulerSubstage(DeviceState* s, const GpuTime dt)
     const int faceGrid = (s->nFaces + faceBlock - 1)/faceBlock;
     cudaError_t err = cudaSuccess;
 
-    recoverGasPrimitivesKernel<<<cellGrid, cellBlock>>>(s->deviceState);
+    recoverGasPrimitivesKernel<<<cellGrid, cellBlock, 0, s->gasCaptureStream>>>(s->deviceState);
     err = cudaGetLastError();
     if (err != cudaSuccess)
     {
@@ -14456,7 +14444,7 @@ int advanceGasEulerSubstage(DeviceState* s, const GpuTime dt)
     }
     if (s->hostTurbulenceModel == 3)
     {
-        recoverSstPrimitivesKernel<<<cellGrid, cellBlock>>>(s->deviceState);
+        recoverSstPrimitivesKernel<<<cellGrid, cellBlock, 0, s->gasCaptureStream>>>(s->deviceState);
         err = cudaGetLastError();
         if (err != cudaSuccess)
         {
@@ -14466,7 +14454,7 @@ int advanceGasEulerSubstage(DeviceState* s, const GpuTime dt)
     }
     if (faceGrid > 0)
     {
-        updateRiemannBoundaryMirrorKernel<<<faceGrid, faceBlock>>>(s->deviceState);
+        updateRiemannBoundaryMirrorKernel<<<faceGrid, faceBlock, 0, s->gasCaptureStream>>>(s->deviceState);
         err = cudaGetLastError();
         if (err != cudaSuccess)
         {
@@ -14476,7 +14464,7 @@ int advanceGasEulerSubstage(DeviceState* s, const GpuTime dt)
     }
     if (s->hostTurbulenceModel == 3)
     {
-        applySstWallFunctionStateKernel<<<cellGrid, cellBlock>>>(s->deviceState);
+        applySstWallFunctionStateKernel<<<cellGrid, cellBlock, 0, s->gasCaptureStream>>>(s->deviceState);
         err = cudaGetLastError();
         if (err != cudaSuccess)
         {
@@ -14486,7 +14474,7 @@ int advanceGasEulerSubstage(DeviceState* s, const GpuTime dt)
     }
     if (s->hostGasFluxScheme == 7)
     {
-        computeGasHllcAdcSensorKernel<<<cellGrid, cellBlock>>>(s->deviceState);
+        computeGasHllcAdcSensorKernel<<<cellGrid, cellBlock, 0, s->gasCaptureStream>>>(s->deviceState);
         err = cudaGetLastError();
         if (err != cudaSuccess)
         {
@@ -14494,7 +14482,7 @@ int advanceGasEulerSubstage(DeviceState* s, const GpuTime dt)
             return 1;
         }
     }
-    computeGasPrimitiveGradientsKernel<<<cellGrid, cellBlock>>>(s->deviceState);
+    computeGasPrimitiveGradientsKernel<<<cellGrid, cellBlock, 0, s->gasCaptureStream>>>(s->deviceState);
     err = cudaGetLastError();
     if (err != cudaSuccess)
     {
@@ -14503,7 +14491,7 @@ int advanceGasEulerSubstage(DeviceState* s, const GpuTime dt)
     }
     if (s->hostTurbulenceModel == 3)
     {
-        computeSstGradientsKernel<<<cellGrid, cellBlock>>>(s->deviceState);
+        computeSstGradientsKernel<<<cellGrid, cellBlock, 0, s->gasCaptureStream>>>(s->deviceState);
         err = cudaGetLastError();
         if (err != cudaSuccess)
         {
@@ -14511,14 +14499,14 @@ int advanceGasEulerSubstage(DeviceState* s, const GpuTime dt)
             return 1;
         }
     }
-    computeGasGradientLimiterKernel<<<cellGrid, cellBlock>>>(s->deviceState);
+    computeGasGradientLimiterKernel<<<cellGrid, cellBlock, 0, s->gasCaptureStream>>>(s->deviceState);
     err = cudaGetLastError();
     if (err != cudaSuccess)
     {
         setLastError("computeGasGradientLimiterKernel launch", err);
         return 1;
     }
-    computeGasEddyViscosityKernel<<<cellGrid, cellBlock>>>(s->deviceState);
+    computeGasEddyViscosityKernel<<<cellGrid, cellBlock, 0, s->gasCaptureStream>>>(s->deviceState);
     err = cudaGetLastError();
     if (err != cudaSuccess)
     {
@@ -14531,7 +14519,7 @@ int advanceGasEulerSubstage(DeviceState* s, const GpuTime dt)
     }
     if (s->hostTurbulenceModel == 0)
     {
-        computeGasInternalFaceFluxKernel<false><<<faceGrid, faceBlock>>>
+        computeGasInternalFaceFluxKernel<false><<<faceGrid, faceBlock, 0, s->gasCaptureStream>>>
         (
             s->deviceState,
             dt
@@ -14539,7 +14527,7 @@ int advanceGasEulerSubstage(DeviceState* s, const GpuTime dt)
     }
     else
     {
-        computeGasInternalFaceFluxKernel<true><<<faceGrid, faceBlock>>>
+        computeGasInternalFaceFluxKernel<true><<<faceGrid, faceBlock, 0, s->gasCaptureStream>>>
         (
             s->deviceState,
             dt
@@ -14553,7 +14541,7 @@ int advanceGasEulerSubstage(DeviceState* s, const GpuTime dt)
     }
     if (s->hasPeriodicFaces != 0)
     {
-        enforcePeriodicGasFluxAntisymmetryKernel<<<faceGrid, faceBlock>>>
+        enforcePeriodicGasFluxAntisymmetryKernel<<<faceGrid, faceBlock, 0, s->gasCaptureStream>>>
         (
             s->deviceState
         );
@@ -14564,17 +14552,16 @@ int advanceGasEulerSubstage(DeviceState* s, const GpuTime dt)
             return 1;
         }
     }
-    computeGasFluxPositivityScaleKernel<<<cellGrid, cellBlock>>>(s->deviceState, dt);
+    computeGasFluxPositivityScaleKernel<<<cellGrid, cellBlock, 0, s->gasCaptureStream>>>(s->deviceState, dt);
     err = cudaGetLastError();
     if (err != cudaSuccess)
     {
         setLastError("computeGasFluxPositivityScaleKernel launch", err);
         return 1;
     }
-    applyGasFluxPositivityScaleKernel<<<faceGrid, faceBlock>>>
+    applyGasFluxPositivityScaleKernel<<<faceGrid, faceBlock, 0, s->gasCaptureStream>>>
     (
-        s->deviceState,
-        dt
+        s->deviceState
     );
     err = cudaGetLastError();
     if (err != cudaSuccess)
@@ -14582,9 +14569,10 @@ int advanceGasEulerSubstage(DeviceState* s, const GpuTime dt)
         setLastError("applyGasFluxPositivityScaleKernel launch", err);
         return 1;
     }
+    if (ugkpAccumulateGasWallEnergy64(&s->wallEnergy, ledgerDt, s->gasCaptureStream) != 0) return 1;
     if (s->hasPeriodicFaces != 0)
     {
-        enforcePeriodicGasFluxAntisymmetryKernel<<<faceGrid, faceBlock>>>
+        enforcePeriodicGasFluxAntisymmetryKernel<<<faceGrid, faceBlock, 0, s->gasCaptureStream>>>
         (
             s->deviceState
         );
@@ -14601,7 +14589,7 @@ int advanceGasEulerSubstage(DeviceState* s, const GpuTime dt)
     }
     if (s->hostTurbulenceModel == 3)
     {
-        computeSstFaceFluxKernel<<<faceGrid, faceBlock>>>(s->deviceState);
+        computeSstFaceFluxKernel<<<faceGrid, faceBlock, 0, s->gasCaptureStream>>>(s->deviceState);
         err = cudaGetLastError();
         if (err != cudaSuccess)
         {
@@ -14610,7 +14598,7 @@ int advanceGasEulerSubstage(DeviceState* s, const GpuTime dt)
         }
         if (s->hasPeriodicFaces != 0)
         {
-            enforcePeriodicSstFluxAntisymmetryKernel<<<faceGrid, faceBlock>>>
+            enforcePeriodicSstFluxAntisymmetryKernel<<<faceGrid, faceBlock, 0, s->gasCaptureStream>>>
             (
                 s->deviceState
             );
@@ -14621,7 +14609,7 @@ int advanceGasEulerSubstage(DeviceState* s, const GpuTime dt)
                 return 1;
             }
         }
-        applySstFluxAndSourceKernel<<<cellGrid, cellBlock>>>
+        applySstFluxAndSourceKernel<<<cellGrid, cellBlock, 0, s->gasCaptureStream>>>
         (
             s->deviceState,
             dt
@@ -14633,14 +14621,14 @@ int advanceGasEulerSubstage(DeviceState* s, const GpuTime dt)
             return 1;
         }
     }
-    applyGasFluxDivergenceByCellKernel<<<cellGrid, cellBlock>>>(s->deviceState, dt);
+    applyGasFluxDivergenceByCellKernel<<<cellGrid, cellBlock, 0, s->gasCaptureStream>>>(s->deviceState, dt);
     err = cudaGetLastError();
     if (err != cudaSuccess)
     {
         setLastError("applyGasFluxDivergenceByCellKernel launch", err);
         return 1;
     }
-    recoverGasPrimitivesKernel<<<cellGrid, cellBlock>>>(s->deviceState);
+    recoverGasPrimitivesKernel<<<cellGrid, cellBlock, 0, s->gasCaptureStream>>>(s->deviceState);
     err = cudaGetLastError();
     if (err != cudaSuccess)
     {
@@ -14649,7 +14637,7 @@ int advanceGasEulerSubstage(DeviceState* s, const GpuTime dt)
     }
     if (s->hostTurbulenceModel == 3)
     {
-        recoverSstPrimitivesKernel<<<cellGrid, cellBlock>>>(s->deviceState);
+        recoverSstPrimitivesKernel<<<cellGrid, cellBlock, 0, s->gasCaptureStream>>>(s->deviceState);
         err = cudaGetLastError();
         if (err != cudaSuccess)
         {
@@ -14669,7 +14657,7 @@ int blendGasRungeKuttaStage
 {
     const int block = s->fixedCellBlockThreads;
     const int cellGrid = (s->nCells + block - 1)/block;
-    blendGasConservativeStateKernel<<<cellGrid, block>>>
+    blendGasConservativeStateKernel<<<cellGrid, block, 0, s->gasCaptureStream>>>
     (
         s->deviceState,
         initialWeight,
@@ -14681,7 +14669,7 @@ int blendGasRungeKuttaStage
         setLastError("blendGasConservativeStateKernel launch", err);
         return 1;
     }
-    recoverGasPrimitivesKernel<<<cellGrid, block>>>(s->deviceState);
+    recoverGasPrimitivesKernel<<<cellGrid, block, 0, s->gasCaptureStream>>>(s->deviceState);
     err = cudaGetLastError();
     if (err != cudaSuccess)
     {
@@ -14690,7 +14678,7 @@ int blendGasRungeKuttaStage
     }
     if (s->hostTurbulenceModel == 3)
     {
-        recoverSstPrimitivesKernel<<<cellGrid, block>>>(s->deviceState);
+        recoverSstPrimitivesKernel<<<cellGrid, block, 0, s->gasCaptureStream>>>(s->deviceState);
         err = cudaGetLastError();
         if (err != cudaSuccess)
         {
@@ -14713,7 +14701,7 @@ int advanceGasFluxStage(DeviceState* s, const GpuTime dt, const GpuTime simulati
         (s->nCells + preparationCellBlock - 1)/preparationCellBlock;
     const int preparationFaceGrid =
         (s->nFaces + preparationFaceBlock - 1)/preparationFaceBlock;
-    recoverGasPrimitivesKernel<<<preparationCellGrid, preparationCellBlock>>>
+    recoverGasPrimitivesKernel<<<preparationCellGrid, preparationCellBlock, 0, s->gasCaptureStream>>>
     (
         s->deviceState
     );
@@ -14730,7 +14718,7 @@ int advanceGasFluxStage(DeviceState* s, const GpuTime dt, const GpuTime simulati
     if (preparationFaceGrid > 0)
     {
         updateLegacyGasBoundaryMirrorKernel
-            <<<preparationFaceGrid, preparationFaceBlock>>>(s->deviceState, simulationTime);
+            <<<preparationFaceGrid, preparationFaceBlock, 0, s->gasCaptureStream>>>(s->deviceState, simulationTime);
         preparationError = cudaGetLastError();
         if (preparationError != cudaSuccess)
         {
@@ -14745,12 +14733,12 @@ int advanceGasFluxStage(DeviceState* s, const GpuTime dt, const GpuTime simulati
 
     if (s->hostGasTimeIntegrator == 1)
     {
-        return advanceGasEulerSubstage(s, dt);
+        return advanceGasEulerSubstage(s, dt, dt);
     }
 
     const int block = s->fixedCellBlockThreads;
     const int cellGrid = (s->nCells + block - 1)/block;
-    saveGasConservativeStateKernel<<<cellGrid, block>>>(s->deviceState);
+    saveGasConservativeStateKernel<<<cellGrid, block, 0, s->gasCaptureStream>>>(s->deviceState);
     cudaError_t err = cudaGetLastError();
     if (err != cudaSuccess)
     {
@@ -14758,11 +14746,12 @@ int advanceGasFluxStage(DeviceState* s, const GpuTime dt, const GpuTime simulati
         return 1;
     }
 
-    if (advanceGasEulerSubstage(s, dt) != 0)
+    const GpuTime firstLedgerDt = dt*(s->hostGasTimeIntegrator == 2 ? 0.5 : 1.0/6.0);
+    if (advanceGasEulerSubstage(s, dt, firstLedgerDt) != 0)
     {
         return 1;
     }
-    if (advanceGasEulerSubstage(s, dt) != 0)
+    if (advanceGasEulerSubstage(s, dt, firstLedgerDt) != 0)
     {
         return 1;
     }
@@ -14785,7 +14774,7 @@ int advanceGasFluxStage(DeviceState* s, const GpuTime dt, const GpuTime simulati
     {
         return 1;
     }
-    if (advanceGasEulerSubstage(s, dt) != 0)
+    if (advanceGasEulerSubstage(s, dt, dt*(2.0/3.0)) != 0)
     {
         return 1;
     }
@@ -14806,7 +14795,7 @@ int finaliseGasBoundaryStage(DeviceState* s, const GpuTime dt, const GpuTime sim
         return 0;
     }
 
-    updateLegacyGasBoundaryMirrorKernel<<<allFaceGrid, block>>>
+    updateLegacyGasBoundaryMirrorKernel<<<allFaceGrid, block, 0, s->gasCaptureStream>>>
     (
         s->deviceState,
         simulationTime
@@ -14822,7 +14811,7 @@ int finaliseGasBoundaryStage(DeviceState* s, const GpuTime dt, const GpuTime sim
         return 1;
     }
 
-    updateRiemannBoundaryMirrorKernel<<<allFaceGrid, block>>>
+    updateRiemannBoundaryMirrorKernel<<<allFaceGrid, block, 0, s->gasCaptureStream>>>
     (
         s->deviceState
     );
@@ -14837,7 +14826,7 @@ int finaliseGasBoundaryStage(DeviceState* s, const GpuTime dt, const GpuTime sim
         return 1;
     }
 
-    updateWaveTransmissivePressureBoundaryKernel<<<allFaceGrid, block>>>
+    updateWaveTransmissivePressureBoundaryKernel<<<allFaceGrid, block, 0, s->gasCaptureStream>>>
     (
         s->deviceState,
         dt
@@ -14852,6 +14841,94 @@ int finaliseGasBoundaryStage(DeviceState* s, const GpuTime dt, const GpuTime sim
         );
         return 1;
     }
+    return 0;
+}
+
+
+int advancePureGasGraph(DeviceState* s, const GpuTime dt, const GpuTime simulationTime)
+{
+    if (s->gasGraphExec == nullptr || s->gasGraphDt != dt)
+    {
+        cudaError_t err = cudaSuccess;
+        if (s->gasGraphExec)
+        {
+            err = cudaGraphExecDestroy(s->gasGraphExec);
+            if (err != cudaSuccess) { setLastError("gas graph destroy executable", err); return 1; }
+            s->gasGraphExec = nullptr;
+        }
+        if (s->gasGraph)
+        {
+            err = cudaGraphDestroy(s->gasGraph);
+            if (err != cudaSuccess) { setLastError("gas graph destroy", err); return 1; }
+            s->gasGraph = nullptr;
+        }
+        s->gasGraphTimeNodes.clear();
+        s->gasGraphTimeParams.clear();
+        err = cudaStreamCreate(&s->gasCaptureStream);
+        if (err != cudaSuccess) { setLastError("gas graph stream create", err); return 1; }
+        err = cudaStreamBeginCapture(s->gasCaptureStream, cudaStreamCaptureModeThreadLocal);
+        if (err != cudaSuccess)
+        {
+            cudaStreamDestroy(s->gasCaptureStream);
+            s->gasCaptureStream = nullptr;
+            setLastError("gas graph capture begin", err);
+            return 1;
+        }
+        int status = advanceGasFluxStage(s, dt, simulationTime);
+        if (status == 0) status = finaliseGasBoundaryStage(s, dt, simulationTime);
+        err = cudaStreamEndCapture(s->gasCaptureStream, &s->gasGraph);
+        const cudaError_t streamError = cudaStreamDestroy(s->gasCaptureStream);
+        s->gasCaptureStream = nullptr;
+        if (status != 0) return status;
+        if (err != cudaSuccess) { setLastError("gas graph capture end", err); return 1; }
+        if (streamError != cudaSuccess) { setLastError("gas graph stream destroy", streamError); return 1; }
+        size_t nodeCount = 0;
+        err = cudaGraphGetNodes(s->gasGraph, nullptr, &nodeCount);
+        if (err != cudaSuccess) { setLastError("gas graph node count", err); return 1; }
+        std::vector<cudaGraphNode_t> nodes(nodeCount);
+        err = cudaGraphGetNodes(s->gasGraph, nodes.data(), &nodeCount);
+        if (err != cudaSuccess) { setLastError("gas graph nodes", err); return 1; }
+        for (const auto node : nodes)
+        {
+            cudaGraphNodeType type;
+            err = cudaGraphNodeGetType(node, &type);
+            if (err != cudaSuccess) { setLastError("gas graph node type", err); return 1; }
+            if (type != cudaGraphNodeTypeKernel) continue;
+            cudaKernelNodeParams params{};
+            err = cudaGraphKernelNodeGetParams(node, &params);
+            if (err != cudaSuccess) { setLastError("gas graph kernel parameters", err); return 1; }
+            if (params.func == reinterpret_cast<void*>(updateLegacyGasBoundaryMirrorKernel))
+            {
+                s->gasGraphTimeNodes.push_back(node);
+                params.kernelParams = nullptr;
+                params.extra = nullptr;
+                s->gasGraphTimeParams.push_back(params);
+            }
+        }
+        if (s->nFaces > 0 && s->gasGraphTimeNodes.size() != 2)
+        {
+            setLastErrorText("gas graph requires both scheduled boundary time nodes");
+            return 1;
+        }
+        err = cudaGraphInstantiate(&s->gasGraphExec, s->gasGraph, nullptr, nullptr, 0);
+        if (err != cudaSuccess) { setLastError("gas graph instantiate", err); return 1; }
+        s->gasGraphDt = dt;
+    }
+    DeviceState* device = s->deviceState;
+    GpuTime currentTime = simulationTime;
+    void* args[] = {&device, &currentTime};
+    for (size_t i = 0; i < s->gasGraphTimeNodes.size(); ++i)
+    {
+        cudaKernelNodeParams params = s->gasGraphTimeParams[i];
+        params.kernelParams = args;
+        const cudaError_t err = cudaGraphExecKernelNodeSetParams
+        (
+            s->gasGraphExec, s->gasGraphTimeNodes[i], &params
+        );
+        if (err != cudaSuccess) { setLastError("gas graph time update", err); return 1; }
+    }
+    const cudaError_t err = cudaGraphLaunch(s->gasGraphExec, nullptr);
+    if (err != cudaSuccess) { setLastError("gas graph launch", err); return 1; }
     return 0;
 }
 
@@ -15741,13 +15818,21 @@ extern "C" int ugkwpGpuResidentStrictUploadGasBoundaryTemperaturePatch
             return 1;
         }
     }
-    return copyToDevice
+    int rc = copyToDevice
     (
         s->gasBoundaryT + patchStartFace,
         temperatures,
         static_cast<size_t>(patchFaceCount),
         "cudaMemcpy strict gas boundary temperature patch"
     );
+    rc |= copyToDevice
+    (
+        s->riemannBoundaryT + patchStartFace,
+        temperatures,
+        static_cast<size_t>(patchFaceCount),
+        "cudaMemcpy strict Riemann boundary temperature patch"
+    );
+    return rc == 0 ? 0 : 1;
 }
 
 extern "C" int ugkwpGpuResidentStrictUploadParticleWallEffusivityPatch
@@ -16387,6 +16472,16 @@ extern "C" int ugkwpGpuResidentStrictAdvance
     {
         return 1;
     }
+
+#ifndef UGKP_DEVELOPMENT_PROBES
+    if (s->gasGraphMode < 0)
+    {
+        const char* value = std::getenv("UGKP_GAS_GRAPH");
+        s->gasGraphMode = !value || std::strcmp(value, "1") == 0;
+    }
+    if (s->gasGraphMode && !s->particlesMayBePresent && !s->gravityEnabled)
+        return advancePureGasGraph(s, dt, simulationTime);
+#endif
 
     const int block = s->reductionBlockThreads;
     const int warpCount = (block + 31)/32;
@@ -17800,387 +17895,15 @@ extern "C" int ugkwpGpuResidentStrictDownloadNut
     );
 }
 
-extern "C" int ugkwpGpuResidentStrictConfigureGasWallEnergyLedger
-(
-    void* handle,
-    int nEnabledFaces,
-    const int* enabledFaceIds
-)
-{
 
-    DeviceState* s = asState(handle);
-    if (validateState(s, "gas-wall energy ledger configuration") != 0)
-    {
-        return 1;
-    }
-    if
-    (
-        nEnabledFaces < 0
-     || nEnabledFaces > s->nFaces
-     || (nEnabledFaces > 0 && enabledFaceIds == nullptr)
-    )
-    {
-        setLastErrorText("invalid gas-wall energy ledger face list");
-        return 1;
-    }
-    if
-    (
-        (s->gasWallEnergy == nullptr) != (s->gasWallEnergyMask == nullptr)
-     || s->gasWallEnergy != nullptr
-    )
-    {
-        setLastErrorText("gas-wall energy ledger is already configured");
-        return 1;
-    }
-    if (nEnabledFaces == 0)
-    {
-        return 0;
-    }
 
-    std::vector<unsigned char> hostMask
-    (
-        static_cast<size_t>(s->nFaces),
-        static_cast<unsigned char>(0)
-    );
-    for (int enabledI = 0; enabledI < nEnabledFaces; ++enabledI)
-    {
-        const int faceI = enabledFaceIds[enabledI];
-        if
-        (
-            faceI < s->nInternalFaces
-         || faceI >= s->nFaces
-         || hostMask[static_cast<size_t>(faceI)] != 0
-        )
-        {
-            setLastErrorText("invalid or duplicate gas-wall ledger face");
-            return 1;
-        }
-        hostMask[static_cast<size_t>(faceI)] = 1;
-    }
 
-    GpuReal* newEnergy = nullptr;
-    unsigned char* newMask = nullptr;
-    if
-    (
-        allocate
-        (
-            newEnergy,
-            static_cast<size_t>(s->nFaces),
-            "cudaMalloc gas-wall energy ledger"
-        ) != 0
-     || allocate
-        (
-            newMask,
-            static_cast<size_t>(s->nFaces),
-            "cudaMalloc gas-wall energy mask"
-        ) != 0
-    )
-    {
-        release(newEnergy);
-        release(newMask);
-        return 1;
-    }
 
-    cudaError_t err = cudaMemset
-    (
-        newEnergy,
-        0,
-        static_cast<size_t>(s->nFaces)*sizeof(GpuReal)
-    );
-    if
-    (
-        err != cudaSuccess
-     || copyToDevice
-        (
-            newMask,
-            hostMask.data(),
-            hostMask.size(),
-            "cudaMemcpy gas-wall energy mask"
-        ) != 0
-    )
-    {
-        if (err != cudaSuccess)
-        {
-            setLastError("cudaMemset gas-wall energy ledger", err);
-        }
-        release(newEnergy);
-        release(newMask);
-        return 1;
-    }
 
-    s->gasWallEnergy = newEnergy;
-    s->gasWallEnergyMask = newMask;
-    if
-    (
-        syncGasWallLedgerPointers
-        (
-            s,
-            "cudaMemcpy configure gas-wall energy ledger pointers"
-        ) != 0
-    )
-    {
-        s->gasWallEnergy = nullptr;
-        s->gasWallEnergyMask = nullptr;
-        release(newEnergy);
-        release(newMask);
-        return 1;
-    }
-    return 0;
-}
 
-extern "C" int ugkwpGpuResidentStrictPeekGasWallEnergy
-(
-    void* handle,
-    int nFaces,
-    double* gasWallEnergy
-)
-{
 
-    DeviceState* s = asState(handle);
-    if
-    (
-        validateState(s, "gas-wall energy ledger peek") != 0
-     || nFaces != s->nFaces
-     || nFaces <= 0
-     || gasWallEnergy == nullptr
-     || s->gasWallEnergy == nullptr
-     || s->gasWallEnergyMask == nullptr
-    )
-    {
-        setLastErrorText("invalid gas-wall energy ledger peek input");
-        return 1;
-    }
-    return copyToHost
-    (
-        gasWallEnergy,
-        s->gasWallEnergy,
-        static_cast<size_t>(nFaces),
-        "cudaMemcpy gas-wall energy ledger peek"
-    );
-}
 
-extern "C" int ugkwpGpuResidentStrictPeekWallEnergyLedgerRange
-(
-    void* handle,
-    int firstFace,
-    int nFaces,
-    double* gasWallEnergyJ,
-    double* particleDepositedWallEnergyJ,
-    double* particleReflectedWallEnergyJ
-)
-{
 
-    DeviceState* s = asState(handle);
-    if
-    (
-        validateState(s, "pending wall-energy ledger range peek") != 0
-     || firstFace < s->nInternalFaces
-     || nFaces <= 0
-     || firstFace > s->nFaces - nFaces
-     || gasWallEnergyJ == nullptr
-     || particleDepositedWallEnergyJ == nullptr
-     || particleReflectedWallEnergyJ == nullptr
-     || s->gasWallEnergy == nullptr
-     || s->gasWallEnergyMask == nullptr
-    )
-    {
-        setLastErrorText("invalid pending wall-energy ledger range peek");
-        return 1;
-    }
-    const size_t count = static_cast<size_t>(nFaces);
-    if
-    (
-        copyToHost
-        (
-            gasWallEnergyJ,
-            s->gasWallEnergy + firstFace,
-            count,
-            "cudaMemcpy compact gas-wall energy ledger peek"
-        ) != 0
-    )
-    {
-        return 1;
-    }
-    if (s->particleWallHeatTransferEnabled == 0)
-    {
-        std::fill_n(particleDepositedWallEnergyJ, count, GPU_R(0.0));
-        std::fill_n(particleReflectedWallEnergyJ, count, GPU_R(0.0));
-        return 0;
-    }
-    if
-    (
-        s->particleWallDepositedEnergy == nullptr
-     || s->particleWallReflectedEnergy == nullptr
-     || copyToHost
-        (
-            particleDepositedWallEnergyJ,
-            s->particleWallDepositedEnergy + firstFace,
-            count,
-            "cudaMemcpy compact deposited-particle wall energy peek"
-        ) != 0
-     || copyToHost
-        (
-            particleReflectedWallEnergyJ,
-            s->particleWallReflectedEnergy + firstFace,
-            count,
-            "cudaMemcpy compact reflected-particle wall energy peek"
-        ) != 0
-    )
-    {
-        setLastErrorText("invalid configured particle wall-energy ledgers");
-        return 1;
-    }
-    return 0;
-}
-
-extern "C" int ugkwpGpuResidentStrictUploadWallEnergyLedgerRange
-(
-    void* handle,
-    int firstFace,
-    int nFaces,
-    const double* gasWallEnergyJ,
-    const double* particleDepositedWallEnergyJ,
-    const double* particleReflectedWallEnergyJ
-)
-{
-
-    DeviceState* s = asState(handle);
-    if
-    (
-        validateState(s, "pending wall-energy ledger range restore") != 0
-     || firstFace < s->nInternalFaces
-     || nFaces <= 0
-     || firstFace > s->nFaces - nFaces
-     || gasWallEnergyJ == nullptr
-     || particleDepositedWallEnergyJ == nullptr
-     || particleReflectedWallEnergyJ == nullptr
-     || s->gasWallEnergy == nullptr
-     || s->gasWallEnergyMask == nullptr
-    )
-    {
-        setLastErrorText("invalid pending wall-energy ledger range restore");
-        return 1;
-    }
-    const size_t count = static_cast<size_t>(nFaces);
-    if
-    (
-        copyToDevice
-        (
-            s->gasWallEnergy + firstFace,
-            gasWallEnergyJ,
-            count,
-            "cudaMemcpy compact gas-wall energy ledger restore"
-        ) != 0
-    )
-    {
-        return 1;
-    }
-    if (s->particleWallHeatTransferEnabled == 0)
-    {
-        if
-        (
-            !std::all_of
-            (
-                particleDepositedWallEnergyJ,
-                particleDepositedWallEnergyJ + count,
-                [](const GpuReal value){ return value == GPU_R(0.0); }
-            )
-         || !std::all_of
-            (
-                particleReflectedWallEnergyJ,
-                particleReflectedWallEnergyJ + count,
-                [](const GpuReal value){ return value == GPU_R(0.0); }
-            )
-        )
-        {
-            setLastErrorText
-            (
-                "nonzero particle wall-energy restore for disabled heat transfer"
-            );
-            return 1;
-        }
-        return 0;
-    }
-    if
-    (
-        s->particleWallDepositedEnergy == nullptr
-     || s->particleWallReflectedEnergy == nullptr
-     || copyToDevice
-        (
-            s->particleWallDepositedEnergy + firstFace,
-            particleDepositedWallEnergyJ,
-            count,
-            "cudaMemcpy compact deposited-particle wall energy restore"
-        ) != 0
-     || copyToDevice
-        (
-            s->particleWallReflectedEnergy + firstFace,
-            particleReflectedWallEnergyJ,
-            count,
-            "cudaMemcpy compact reflected-particle wall energy restore"
-        ) != 0
-    )
-    {
-        setLastErrorText("invalid configured particle wall-energy ledgers");
-        return 1;
-    }
-    return 0;
-}
-
-extern "C" int ugkwpGpuResidentStrictDownloadAndResetGasWallEnergy
-(
-    void* handle,
-    int nFaces,
-    double* gasWallEnergy
-)
-{
-
-    DeviceState* s = asState(handle);
-    if
-    (
-        validateState(s, "gas-wall energy ledger download/reset") != 0
-     || nFaces != s->nFaces
-     || nFaces <= 0
-     || gasWallEnergy == nullptr
-     || s->gasWallEnergy == nullptr
-     || s->gasWallEnergyMask == nullptr
-    )
-    {
-        setLastErrorText("invalid gas-wall energy ledger download/reset input");
-        return 1;
-    }
-    if
-    (
-        copyToHost
-        (
-            gasWallEnergy,
-            s->gasWallEnergy,
-            static_cast<size_t>(nFaces),
-            "cudaMemcpy gas-wall energy ledger download"
-        ) != 0
-    )
-    {
-        return 1;
-    }
-    cudaError_t err = cudaMemset
-    (
-        s->gasWallEnergy,
-        0,
-        static_cast<size_t>(nFaces)*sizeof(GpuReal)
-    );
-    if (err != cudaSuccess)
-    {
-        setLastError("cudaMemset gas-wall energy ledger reset", err);
-        return 1;
-    }
-    err = cudaDeviceSynchronize();
-    if (err != cudaSuccess)
-    {
-        setLastError("cudaDeviceSynchronize gas-wall ledger reset", err);
-        return 1;
-    }
-    return 0;
-}
 
 extern "C" int ugkwpGpuResidentStrictConfigureParticleStuckModel
 (
@@ -18780,129 +18503,9 @@ extern "C" int ugkwpGpuResidentStrictConfigureParticleStuckModel
     return 0;
 }
 
-extern "C" int ugkwpGpuResidentStrictPeekParticleWallHeatLedgers
-(
-    void* handle,
-    int nFaces,
-    double* depositedWallEnergyJ,
-    double* reflectedWallEnergyJ
-)
-{
 
-    DeviceState* s = asState(handle);
-    if
-    (
-        validateState(s, "particle wall heat-ledger peek") != 0
-     || nFaces != s->nFaces
-     || nFaces <= 0
-     || depositedWallEnergyJ == nullptr
-     || reflectedWallEnergyJ == nullptr
-     || s->particleWallHeatTransferEnabled == 0
-     || s->particleWallDepositedEnergy == nullptr
-     || s->particleWallReflectedEnergy == nullptr
-    )
-    {
-        setLastErrorText("invalid particle wall heat-ledger peek");
-        return 1;
-    }
-    if
-    (
-        copyToHost
-        (
-            depositedWallEnergyJ,
-            s->particleWallDepositedEnergy,
-            static_cast<size_t>(nFaces),
-            "cudaMemcpy deposited-particle wall energy peek"
-        ) != 0
-     || copyToHost
-        (
-            reflectedWallEnergyJ,
-            s->particleWallReflectedEnergy,
-            static_cast<size_t>(nFaces),
-            "cudaMemcpy reflected-particle wall energy peek"
-        ) != 0
-    )
-    {
-        return 1;
-    }
-    return 0;
-}
 
-extern "C" int ugkwpGpuResidentStrictDownloadAndResetParticleWallHeatLedgers
-(
-    void* handle,
-    int nFaces,
-    double* depositedWallEnergyJ,
-    double* reflectedWallEnergyJ
-)
-{
 
-    DeviceState* s = asState(handle);
-    if
-    (
-        validateState(s, "particle wall heat-ledger download/reset") != 0
-     || nFaces != s->nFaces
-     || nFaces <= 0
-     || depositedWallEnergyJ == nullptr
-     || reflectedWallEnergyJ == nullptr
-     || s->particleWallHeatTransferEnabled == 0
-     || s->particleWallDepositedEnergy == nullptr
-     || s->particleWallReflectedEnergy == nullptr
-    )
-    {
-        setLastErrorText("invalid particle wall heat-ledger download/reset");
-        return 1;
-    }
-    if
-    (
-        copyToHost
-        (
-            depositedWallEnergyJ,
-            s->particleWallDepositedEnergy,
-            static_cast<size_t>(nFaces),
-            "cudaMemcpy deposited-particle wall energy download"
-        ) != 0
-     || copyToHost
-        (
-            reflectedWallEnergyJ,
-            s->particleWallReflectedEnergy,
-            static_cast<size_t>(nFaces),
-            "cudaMemcpy reflected-particle wall energy download"
-        ) != 0
-    )
-    {
-        return 1;
-    }
-    cudaError_t err = cudaMemset
-    (
-        s->particleWallDepositedEnergy,
-        0,
-        static_cast<size_t>(nFaces)*sizeof(GpuWallEnergy)
-    );
-    if (err != cudaSuccess)
-    {
-        setLastError("cudaMemset deposited-particle wall energy reset", err);
-        return 1;
-    }
-    err = cudaMemset
-    (
-        s->particleWallReflectedEnergy,
-        0,
-        static_cast<size_t>(nFaces)*sizeof(GpuWallEnergy)
-    );
-    if (err != cudaSuccess)
-    {
-        setLastError("cudaMemset reflected-particle wall energy reset", err);
-        return 1;
-    }
-    err = cudaDeviceSynchronize();
-    if (err != cudaSuccess)
-    {
-        setLastError("cudaDeviceSynchronize particle wall ledgers reset", err);
-        return 1;
-    }
-    return 0;
-}
 
 extern "C" int ugkwpGpuResidentStrictDownloadSst
 (

@@ -20,6 +20,8 @@ def test_host_cuda_shared_sst_algebra_matches_openfoam10_equations() -> None:
                 "-Wall",
                 "-Wextra",
                 "-pedantic",
+                "-I",
+                str(ROOT.parents[1] / "common"),
                 str(SOURCE),
                 "-o",
                 str(executable),

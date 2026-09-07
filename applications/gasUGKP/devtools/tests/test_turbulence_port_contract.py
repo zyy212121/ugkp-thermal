@@ -42,7 +42,7 @@ def test_explicit_gpu_sst_path_is_available_to_pure_gas_and_two_phase() -> None:
         "computeSstStabilityNumberKernel",
         "recoverSstPrimitivesKernel",
         "applySstWallFunctionStateKernel",
-        "jayatillekeWallHeatFluxPrecomputed",
+        "sstJayatillekeThermalTransport",
     ):
         assert token in cuda
     assert "kOmegaSST = 3" in protocol

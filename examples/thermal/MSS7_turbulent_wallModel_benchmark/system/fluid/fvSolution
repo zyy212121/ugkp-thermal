@@ -1,0 +1,17 @@
+FoamFile { version 2.0; format ascii; class dictionary; object fvSolution; }
+solvers {
+ rho { solver diagonal; } rhoFinal { $rho; }
+ p_rgh { solver GAMG; smoother symGaussSeidel; tolerance 1e-9; relTol 0.01; }
+ p_rghFinal { $p_rgh; relTol 0; }
+ "(U|h|k|omega)" { solver PBiCGStab; preconditioner DILU; tolerance 1e-9; relTol 0.01; }
+ "(U|h|k|omega)Final" { $U; relTol 0; }
+}
+PIMPLE {
+ nCorrectors 2; nNonOrthogonalCorrectors 1; transonic no; consistent no;
+ momentumPredictor yes; turbOnFinalIter no;
+ 
+}
+relaxationFactors {
+ fields {}
+ equations { ".*" 1; }
+}
