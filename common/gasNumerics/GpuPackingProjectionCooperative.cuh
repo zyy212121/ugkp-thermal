@@ -133,33 +133,60 @@ __device__ void computeMobilePackingFaceCorrectionFluxDevice
             clampMin(finiteOr(pressure[own], GPU_R(0.0)), GPU_R(0.0));
         const GpuReal pressureNei =
             clampMin(finiteOr(pressure[nei], GPU_R(0.0)), GPU_R(0.0));
-        const GpuReal epsOwn = clampMin
+        const GpuReal epsMobileOwn = clampMin
         (
             finiteOr(s.mobilePackingRho[own], GPU_R(0.0))*invRhoSolid,
             GPU_R(0.0)
         );
-        const GpuReal epsNei = clampMin
+        const GpuReal epsMobileNei = clampMin
         (
             finiteOr(s.mobilePackingRho[nei], GPU_R(0.0))*invRhoSolid,
+            GPU_R(0.0)
+        );
+        const GpuReal epsTotalOwn = clampMin
+        (
+            (finiteOr(s.mobilePackingRho[own], GPU_R(0.0))
+           + finiteOr(s.packingStuckRho[own], GPU_R(0.0)))*invRhoSolid,
+            GPU_R(0.0)
+        );
+        const GpuReal epsTotalNei = clampMin
+        (
+            (finiteOr(s.mobilePackingRho[nei], GPU_R(0.0))
+           + finiteOr(s.packingStuckRho[nei], GPU_R(0.0)))*invRhoSolid,
             GPU_R(0.0)
         );
         const GpuReal w =
             clampRange(finiteOr(s.faceWeight[f], GPU_R(0.5)), GPU_R(0.0), GPU_R(1.0));
         faceMobileFraction = clampMin
         (
-            w*epsOwn + (GPU_R(1.0) - w)*epsNei,
+            w*epsMobileOwn + (GPU_R(1.0) - w)*epsMobileNei,
+            GPU_R(0.0)
+        );
+        const GpuReal faceTotalFraction = clampMin
+        (
+            w*epsTotalOwn + (GPU_R(1.0) - w)*epsTotalNei,
             s.epsSMin
         );
-        solidVolumeFlux = finiteOr
+        const GpuReal responseFraction = packingResponseFraction
+        (
+            s,
+            own,
+            nei,
+            w
+        );
+        const GpuReal unconstrainedVolumeFlux = finiteOr
         (
             dt*invRhoSolid*a*(pressureOwn - pressureNei),
             GPU_R(0.0)
         );
-        velocityCorrectionFlux = finiteOr
-        (
-            solidVolumeFlux/faceMobileFraction,
-            GPU_R(0.0)
-        );
+        solidVolumeFlux = responseFraction*unconstrainedVolumeFlux;
+        velocityCorrectionFlux = responseFraction > GPU_R(0.0)
+          ? finiteOr
+            (
+                unconstrainedVolumeFlux/faceTotalFraction,
+                GPU_R(0.0)
+            )
+          : GPU_R(0.0);
     }
     else if
     (
@@ -178,18 +205,34 @@ __device__ void computeMobilePackingFaceCorrectionFluxDevice
         faceMobileFraction = clampMin
         (
             finiteOr(s.mobilePackingRho[own], GPU_R(0.0))*invRhoSolid,
+            GPU_R(0.0)
+        );
+        const GpuReal faceTotalFraction = clampMin
+        (
+            (finiteOr(s.mobilePackingRho[own], GPU_R(0.0))
+           + finiteOr(s.packingStuckRho[own], GPU_R(0.0)))*invRhoSolid,
             s.epsSMin
         );
-        solidVolumeFlux = finiteOr
+        const GpuReal responseFraction = packingResponseFraction
+        (
+            s,
+            own,
+            -1,
+            GPU_R(1.0)
+        );
+        const GpuReal unconstrainedVolumeFlux = finiteOr
         (
             dt*invRhoSolid*a*pressureOwn,
             GPU_R(0.0)
         );
-        velocityCorrectionFlux = finiteOr
-        (
-            solidVolumeFlux/faceMobileFraction,
-            GPU_R(0.0)
-        );
+        solidVolumeFlux = responseFraction*unconstrainedVolumeFlux;
+        velocityCorrectionFlux = responseFraction > GPU_R(0.0)
+          ? finiteOr
+            (
+                unconstrainedVolumeFlux/faceTotalFraction,
+                GPU_R(0.0)
+            )
+          : GPU_R(0.0);
     }
 
     s.solidPressurePhiMomX[f] = solidVolumeFlux;

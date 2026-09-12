@@ -419,6 +419,8 @@ struct DeviceState
     GpuReal* pressureDeltaMomY = nullptr;
     GpuReal* pressureDeltaMomZ = nullptr;
     GpuReal* pressureDeltaEnergy = nullptr;
+    GpuReal* pressureParticleMoments = nullptr;
+    int* pressureParticleCount = nullptr;
 #if UGKWP_GPU_REAL_BITS == 32
     GpuReal* flatPressureParameters = nullptr;
     int* flatPressureFlags = nullptr;
@@ -430,6 +432,7 @@ struct DeviceState
                                                                              
                                                                        
     GpuReal* mobilePackingRho = nullptr;
+    GpuReal* packingStuckRho = nullptr;
     GpuReal* mobilePackingMomX = nullptr;
     GpuReal* mobilePackingMomY = nullptr;
     GpuReal* mobilePackingMomZ = nullptr;
@@ -1111,6 +1114,8 @@ void releaseState(DeviceState* s)
     release(s->pressureDeltaMomY);
     release(s->pressureDeltaMomZ);
     release(s->pressureDeltaEnergy);
+    release(s->pressureParticleMoments);
+    release(s->pressureParticleCount);
 #if UGKWP_GPU_REAL_BITS == 32
     release(s->flatPressureParameters);
     release(s->flatPressureFlags);
@@ -1120,6 +1125,7 @@ void releaseState(DeviceState* s)
     release(s->solidPressurePhiMomZ);
     release(s->solidPressurePhiEnergy);
     release(s->mobilePackingRho);
+    release(s->packingStuckRho);
     release(s->mobilePackingMomX);
     release(s->mobilePackingMomY);
     release(s->mobilePackingMomZ);
@@ -1437,6 +1443,8 @@ int allocateFields(DeviceState* s)
     rc |= allocate(s->pressureDeltaMomY, nc, "cudaMalloc strict pressureDeltaMomY");
     rc |= allocate(s->pressureDeltaMomZ, nc, "cudaMalloc strict pressureDeltaMomZ");
     rc |= allocate(s->pressureDeltaEnergy, nc, "cudaMalloc strict pressureDeltaEnergy");
+    rc |= allocate(s->pressureParticleMoments, nc*7, "cudaMalloc pressure particle moments");
+    rc |= allocate(s->pressureParticleCount, nc, "cudaMalloc pressure particle count");
 #if UGKWP_GPU_REAL_BITS == 32
     rc |= allocate(s->flatPressureParameters, nc*13, "cudaMalloc pressure parameters");
     rc |= allocate(s->flatPressureFlags, nc*2, "cudaMalloc pressure flags");
@@ -1446,6 +1454,7 @@ int allocateFields(DeviceState* s)
     rc |= allocate(s->solidPressurePhiMomZ, nf, "cudaMalloc strict solidPressurePhiMomZ");
     rc |= allocate(s->solidPressurePhiEnergy, nf, "cudaMalloc strict solidPressurePhiEnergy");
     rc |= allocate(s->mobilePackingRho, nc, "cudaMalloc mobile packing density");
+    rc |= allocate(s->packingStuckRho, nc, "cudaMalloc stuck packing density");
     rc |= allocate(s->mobilePackingMomX, nc, "cudaMalloc mobile packing momentum x");
     rc |= allocate(s->mobilePackingMomY, nc, "cudaMalloc mobile packing momentum y");
     rc |= allocate(s->mobilePackingMomZ, nc, "cudaMalloc mobile packing momentum z");
@@ -5741,13 +5750,24 @@ __global__ void applyGasVolumeFractionSourceKernel
     const GpuReal pressureOld =
         clampMin(finiteOr(s.p[c], GPU_R(0.0)), GPU_R(0.0));
     const GpuReal enerGOld = finiteOr(s.rhoE[c], GPU_R(0.0));
-    const GpuReal massScale = GPU_R(1.0) + dt*cepsG;
+    const GpuReal sourceExponent = dt*cepsG;
+    const GpuReal massScale = exp(sourceExponent);
+    const GpuReal kineticOld =
+        GPU_R(0.5)
+       *sqr3(s.rhoUx[c], s.rhoUy[c], s.rhoUz[c])
+       /mgOld;
+    const GpuReal internalEnergyOld = enerGOld - kineticOld;
     const GpuReal mgCandidate = mgOld*massScale;
     const GpuReal momGXCandidate = s.rhoUx[c]*massScale;
     const GpuReal momGYCandidate = s.rhoUy[c]*massScale;
     const GpuReal momGZCandidate = s.rhoUz[c]*massScale;
     const GpuReal enerGCandidate =
-        enerGOld*massScale + dt*cepsG*pressureOld;
+        massScale
+       *(
+            enerGOld
+          + internalEnergyOld
+           *expm1((s.gammaGas - GPU_R(1.0))*sourceExponent)
+        );
     const GpuReal kineticCandidate =
         GPU_R(0.5)
        *sqr3(momGXCandidate, momGYCandidate, momGZCandidate)
@@ -6393,11 +6413,349 @@ __global__ void computeCollisionalPressureFaceFluxKernel(DeviceState* sp)
         finiteOr(ufx*fx + ufy*fy + ufz*fz, GPU_R(0.0));
 }
 
+template<int NumComponents>
+__device__ void blockReduceComponentSums
+(
+    GpuReal (&sums)[NumComponents],
+    GpuReal* warpPartials
+);
+
+template<bool FullMoments>
+__device__ void accumulatePressureParticleMomentsDevice
+(
+    const DeviceState& s,
+    const int c,
+    const int i,
+    GpuReal* moments,
+    int& count
+)
+{
+    if (s.pStatus[i] != 1 || s.pCellId[i] != c)
+    {
+        return;
+    }
+    const GpuReal m = clampMin(finiteOr(s.pm[i], GPU_R(0.0)), GPU_R(0.0));
+    const GpuReal ux = finiteOr(s.pux[i], GPU_R(0.0));
+    const GpuReal uy = finiteOr(s.puy[i], GPU_R(0.0));
+    const GpuReal uz = finiteOr(s.puz[i], GPU_R(0.0));
+    const GpuReal particleTheta = particleMomentThetaDevice(s, i);
+    moments[0] += m*ux;
+    moments[1] += m*uy;
+    moments[2] += m*uz;
+    moments[3] +=
+        m*(GPU_R(0.5)*sqr3(ux, uy, uz) + GPU_R(1.5)*particleTheta);
+    if (FullMoments)
+    {
+        const GpuReal diameter = clampMin
+        (
+            finiteOr(s.pd[i], s.particleDiameterFallback),
+            GPU_R(1.0e-12)
+        );
+        const GpuReal temperature = clampRange
+        (
+            finiteOr(s.pT[i], s.TpMin),
+            s.TpMin,
+            s.TpMax
+        );
+        moments[4] += m;
+        moments[5] += m*diameter;
+        moments[6] += m*particleSpecificEnthalpyDevice(temperature);
+    }
+    ++count;
+}
+
+template<bool FullMoments>
+__device__ void reducePressureParticleMomentsDevice
+(
+    GpuReal (&moments)[FullMoments ? 7 : 4],
+    int& count,
+    GpuReal* warpPartials
+)
+{
+    blockReduceComponentSums<FullMoments ? 7 : 4>(moments, warpPartials);
+    __shared__ int countPartials[32];
+    const int lane = threadIdx.x & 31;
+    const int warp = threadIdx.x >> 5;
+    const int warpCount = (blockDim.x + 31)/32;
+    for (int offset = 16; offset > 0; offset >>= 1)
+    {
+        count += __shfl_down_sync(0xffffffffu, count, offset);
+    }
+    if (lane == 0)
+    {
+        countPartials[warp] = count;
+    }
+    __syncthreads();
+    if (warp == 0)
+    {
+        count = lane < warpCount ? countPartials[lane] : 0;
+        for (int offset = 16; offset > 0; offset >>= 1)
+        {
+            count += __shfl_down_sync(0xffffffffu, count, offset);
+        }
+    }
+    __syncthreads();
+}
+
+template<bool FullMoments>
+__device__ void storePressureParticleMomentsDevice
+(
+    DeviceState& s,
+    const int c,
+    const GpuReal* moments,
+    const int count,
+    const bool add
+)
+{
+    for (int component = 0; component < (FullMoments ? 7 : 4); ++component)
+    {
+        GpuReal& output = s.pressureParticleMoments[7u*static_cast<size_t>(c) + component];
+        if (add)
+        {
+            output += moments[component];
+        }
+        else
+        {
+            output = moments[component];
+        }
+    }
+    if (add)
+    {
+        s.pressureParticleCount[c] += count;
+    }
+    else
+    {
+        s.pressureParticleCount[c] = count;
+    }
+}
+
+__device__ int pressureMomentLaneAtRank(unsigned int mask, int rank)
+{
+    int lane = 0;
+    for (int step = 16; step > 0; step >>= 1)
+    {
+        const unsigned int lowerMask = (1u << step) - 1u;
+        const int lowerCount = __popc(mask & lowerMask);
+        if (rank >= lowerCount)
+        {
+            lane += step;
+            rank -= lowerCount;
+            mask >>= step;
+        }
+        else
+        {
+            mask &= lowerMask;
+        }
+    }
+    return lane;
+}
+
+template<bool FullMoments>
+__device__ void atomicPressureParticleMomentsDevice
+(
+    DeviceState& s,
+    const int c,
+    GpuReal* moments,
+    int count
+)
+{
+#if __CUDA_ARCH__ >= 700
+    const unsigned int activeMask = __activemask();
+    const unsigned int groupMask = __match_any_sync(activeMask, c);
+    const int lane = threadIdx.x & 31;
+    const int leader = __ffs(groupMask) - 1;
+    const int rank = __popc(groupMask & ((1u << lane) - 1u));
+    const int groupCount = __popc(groupMask);
+    const unsigned int shiftedMask = groupMask >> leader;
+    const bool contiguous = (shiftedMask & (shiftedMask + 1u)) == 0;
+    int offset = 1;
+    while (offset < groupCount)
+    {
+        offset <<= 1;
+    }
+    for (offset >>= 1; offset > 0; offset >>= 1)
+    {
+        const bool hasOther = rank + offset < groupCount;
+        const int otherLane = hasOther
+          ? (contiguous ? lane + offset : pressureMomentLaneAtRank(groupMask, rank + offset))
+          : leader;
+        for (int component = 0; component < (FullMoments ? 7 : 4); ++component)
+        {
+            const GpuReal other = __shfl_sync(groupMask, moments[component], otherLane);
+            if (hasOther)
+            {
+                moments[component] += other;
+            }
+        }
+        const int otherCount = __shfl_sync(groupMask, count, otherLane);
+        if (hasOther)
+        {
+            count += otherCount;
+        }
+    }
+    if (lane != leader)
+    {
+        return;
+    }
+#endif
+    for (int component = 0; component < (FullMoments ? 7 : 4); ++component)
+    {
+        atomicAdd
+        (
+            &s.pressureParticleMoments[7u*static_cast<size_t>(c) + component],
+            moments[component]
+        );
+    }
+    atomicAdd(&s.pressureParticleCount[c], count);
+}
+
+template<bool FullMoments>
+__device__ void publishPressureParticleMomentsDevice
+(
+    DeviceState& s,
+    const int c,
+    const GpuReal* moments,
+    const int count
+)
+{
+    const GpuReal invV = GPU_R(1.0)/clampMin(s.V[c], s.rhoMin);
+    s.momRhoUPx[c] = moments[0]*invV;
+    s.momRhoUPy[c] = moments[1]*invV;
+    s.momRhoUPz[c] = moments[2]*invV;
+    s.momRhoEP[c] = moments[3]*invV;
+    if (FullMoments)
+    {
+        s.momRhoP[c] = moments[4]*invV;
+        s.momRhoPD[c] = moments[5]*invV;
+        s.momRhoHpP[c] = moments[6]*invV;
+    }
+    s.cellParticleCount[c] = count;
+    if (c == 0)
+    {
+        s.cellParticleCount[s.nCells] = 0;
+    }
+    const GpuReal rhoP = clampMin(finiteOr(s.momRhoP[c], GPU_R(0.0)), GPU_R(0.0));
+    if (rhoP <= s.epsSMin*s.rhoSolid)
+    {
+        s.epsS[c] = GPU_R(0.0);
+        s.rhoUsx[c] = GPU_R(0.0);
+        s.rhoUsy[c] = GPU_R(0.0);
+        s.rhoUsz[c] = GPU_R(0.0);
+        s.rhoEs[c] = GPU_R(0.0);
+        s.Usx[c] = GPU_R(0.0);
+        s.Usy[c] = GPU_R(0.0);
+        s.Usz[c] = GPU_R(0.0);
+        s.theta[c] = GPU_R(0.0);
+        return;
+    }
+    const GpuReal totalMomX = finiteOr(s.momRhoUPx[c], GPU_R(0.0));
+    const GpuReal totalMomY = finiteOr(s.momRhoUPy[c], GPU_R(0.0));
+    const GpuReal totalMomZ = finiteOr(s.momRhoUPz[c], GPU_R(0.0));
+    GpuReal totalEnergy = clampMin(finiteOr(s.momRhoEP[c], GPU_R(0.0)), GPU_R(0.0));
+    const GpuReal kinetic =
+        GPU_R(0.5)*sqr3(totalMomX, totalMomY, totalMomZ)/rhoP;
+    if (totalEnergy < kinetic)
+    {
+        totalEnergy = kinetic;
+        s.momRhoEP[c] = totalEnergy;
+    }
+    s.epsS[c] = rhoP/s.rhoSolid;
+    s.rhoUsx[c] = totalMomX;
+    s.rhoUsy[c] = totalMomY;
+    s.rhoUsz[c] = totalMomZ;
+    s.rhoEs[c] = totalEnergy;
+    s.Usx[c] = totalMomX/rhoP;
+    s.Usy[c] = totalMomY/rhoP;
+    s.Usz[c] = totalMomZ/rhoP;
+    s.theta[c] = clampMin
+    (
+        (totalEnergy - kinetic)/(GPU_R(1.5)*rhoP),
+        GPU_R(0.0)
+    );
+}
+
+template<bool FullMoments>
+__global__ void publishPressureParticleMomentsKernel(DeviceState* sp)
+{
+    DeviceState& s = *sp;
+    const int c = blockIdx.x*blockDim.x + threadIdx.x;
+    if (c >= s.nCells)
+    {
+        return;
+    }
+    publishPressureParticleMomentsDevice<FullMoments>
+    (
+        s,
+        c,
+        s.pressureParticleMoments + 7u*static_cast<size_t>(c),
+        s.pressureParticleCount[c]
+    );
+}
+
+template<bool FullMoments>
+__device__ void accumulatePressureParticleMomentsAtomicDevice
+(
+    DeviceState& s,
+    const int c,
+    const int i
+)
+{
+    GpuReal moments[FullMoments ? 7 : 4] = {};
+    int count = 0;
+    accumulatePressureParticleMomentsDevice<FullMoments>(s, c, i, moments, count);
+    if (count != 0)
+    {
+        atomicPressureParticleMomentsDevice<FullMoments>(s, c, moments, count);
+    }
+}
+
+__device__ void applyPressureParticleStateDevice
+(
+    DeviceState& s,
+    const int i,
+    const GpuReal ux0,
+    const GpuReal uy0,
+    const GpuReal uz0,
+    const GpuReal ux1,
+    const GpuReal uy1,
+    const GpuReal uz1,
+    const GpuReal theta1,
+    const GpuReal thermalScale,
+    const GpuReal thetaScale,
+    const bool resolved
+)
+{
+    if (s.pStuck[i] != 0)
+    {
+        s.pux[i] = GPU_R(0.0);
+        s.puy[i] = GPU_R(0.0);
+        s.puz[i] = GPU_R(0.0);
+        if (s.pStuck[i] == Foam::gpuThermal::particleWallDeposited)
+        {
+            s.puxOld[i] = GPU_R(0.0);
+            s.puyOld[i] = GPU_R(0.0);
+            s.puzOld[i] = GPU_R(0.0);
+        }
+        return;
+    }
+    const GpuReal dux = finiteOr(s.pux[i], ux0) - ux0;
+    const GpuReal duy = finiteOr(s.puy[i], uy0) - uy0;
+    const GpuReal duz = finiteOr(s.puz[i], uz0) - uz0;
+    s.pux[i] = resolved ? ux1 + thermalScale*dux : ux1;
+    s.puy[i] = resolved ? uy1 + thermalScale*duy : uy1;
+    s.puz[i] = resolved ? uz1 + thermalScale*duz : uz1;
+    s.pTheta[i] = resolved
+      ? clampMin(finiteOr(s.pTheta[i], GPU_R(0.0))*thetaScale, GPU_R(0.0))
+      : theta1;
+}
+
+template<bool FullMoments>
 __global__ void accumulateCollisionalPressureKickByCellKernel
 (
     DeviceState* sp,
     const GpuTime kickDt,
-    const int computeScale
+    const int computeScale,
+    const int initialiseMoments
 )
 {
     DeviceState& s = *sp;
@@ -6405,6 +6763,15 @@ __global__ void accumulateCollisionalPressureKickByCellKernel
     if (c >= s.nCells)
     {
         return;
+    }
+
+    if (initialiseMoments != 0)
+    {
+        for (int component = 0; component < (FullMoments ? 7 : 4); ++component)
+        {
+            s.pressureParticleMoments[7u*static_cast<size_t>(c) + component] = GPU_R(0.0);
+        }
+        s.pressureParticleCount[c] = 0;
     }
 
     GpuReal dpx = GPU_R(0.0);
@@ -6614,7 +6981,7 @@ __global__ void scaleCollisionalPressureFaceFluxKernel(DeviceState* sp)
     s.solidPressurePhiEnergy[f] *= scale;
 }
 
-#if UGKWP_GPU_REAL_BITS == 32
+template<bool FullMoments>
 __global__ void applyCollisionalPressureProjectionKernel
 (
     DeviceState* sp,
@@ -6708,22 +7075,19 @@ __global__ void applyCollisionalPressureProjectionKernel
     }
     __syncthreads();
 
-    if (!pressureParameterActive) return;
-    const GpuReal px1 = pressureParameters[0];
-    const GpuReal py1 = pressureParameters[1];
-    const GpuReal pz1 = pressureParameters[2];
-    const GpuReal e1 = pressureParameters[3];
-    const GpuReal ux0 = pressureParameters[4];
-    const GpuReal uy0 = pressureParameters[5];
-    const GpuReal uz0 = pressureParameters[6];
-    const GpuReal ux1 = pressureParameters[7];
-    const GpuReal uy1 = pressureParameters[8];
-    const GpuReal uz1 = pressureParameters[9];
-    const GpuReal theta1 = pressureParameters[10];
-    const GpuReal thermalScale = pressureParameters[11];
-    const GpuReal thetaScale = pressureParameters[12];
-    const bool resolved = pressureParameterResolved != 0;
+    const GpuReal ux0 = pressureParameterActive ? pressureParameters[4] : GPU_R(0.0);
+    const GpuReal uy0 = pressureParameterActive ? pressureParameters[5] : GPU_R(0.0);
+    const GpuReal uz0 = pressureParameterActive ? pressureParameters[6] : GPU_R(0.0);
+    const GpuReal ux1 = pressureParameterActive ? pressureParameters[7] : GPU_R(0.0);
+    const GpuReal uy1 = pressureParameterActive ? pressureParameters[8] : GPU_R(0.0);
+    const GpuReal uz1 = pressureParameterActive ? pressureParameters[9] : GPU_R(0.0);
+    const GpuReal theta1 = pressureParameterActive ? pressureParameters[10] : GPU_R(0.0);
+    const GpuReal thermalScale = pressureParameterActive ? pressureParameters[11] : GPU_R(0.0);
+    const GpuReal thetaScale = pressureParameterActive ? pressureParameters[12] : GPU_R(0.0);
+    const bool resolved = pressureParameterActive && pressureParameterResolved != 0;
 
+    GpuReal pressureMoments[FullMoments ? 7 : 4] = {};
+    int pressureCount = 0;
     const int start = s.cellParticleOffset[c];
     const int end = s.cellParticleOffset[c + 1];
     for (int pos = start + threadIdx.x; pos < end; pos += blockDim.x)
@@ -6733,50 +7097,35 @@ __global__ void applyCollisionalPressureProjectionKernel
         {
             continue;
         }
-        if (s.pStuck[i] != 0)
+        if (pressureParameterActive)
         {
-            s.pux[i] = GPU_R(0.0);
-            s.puy[i] = GPU_R(0.0);
-            s.puz[i] = GPU_R(0.0);
-            if (s.pStuck[i] == Foam::gpuThermal::particleWallDeposited)
-            {
-                s.puxOld[i] = GPU_R(0.0);
-                s.puyOld[i] = GPU_R(0.0);
-                s.puzOld[i] = GPU_R(0.0);
-            }
-            continue;
+            applyPressureParticleStateDevice
+            (
+                s, i, ux0, uy0, uz0, ux1, uy1, uz1,
+                theta1, thermalScale, thetaScale, resolved
+            );
         }
-        const GpuReal dux = finiteOr(s.pux[i], ux0) - ux0;
-        const GpuReal duy = finiteOr(s.puy[i], uy0) - uy0;
-        const GpuReal duz = finiteOr(s.puz[i], uz0) - uz0;
-        s.pux[i] = resolved ? ux1 + thermalScale*dux : ux1;
-        s.puy[i] = resolved ? uy1 + thermalScale*duy : uy1;
-        s.puz[i] = resolved ? uz1 + thermalScale*duz : uz1;
-        s.pTheta[i] = resolved
-          ? clampMin(finiteOr(s.pTheta[i], GPU_R(0.0))*thetaScale, GPU_R(0.0))
-          : theta1;
+        accumulatePressureParticleMomentsDevice<FullMoments>
+        (
+            s, c, i, pressureMoments, pressureCount
+        );
     }
 
-
-    __syncthreads();
+    extern __shared__ GpuReal pressureWarpPartials[];
+    reducePressureParticleMomentsDevice<FullMoments>
+    (
+        pressureMoments, pressureCount, pressureWarpPartials
+    );
     if (threadIdx.x == 0)
     {
-        s.momRhoUPx[c] = px1;
-        s.momRhoUPy[c] = py1;
-        s.momRhoUPz[c] = pz1;
-        s.momRhoEP[c] = e1;
-        s.rhoUsx[c] = px1;
-        s.rhoUsy[c] = py1;
-        s.rhoUsz[c] = pz1;
-        s.rhoEs[c] = e1;
-        s.Usx[c] = ux1;
-        s.Usy[c] = uy1;
-        s.Usz[c] = uz1;
-        s.theta[c] = theta1;
+        publishPressureParticleMomentsDevice<FullMoments>
+        (
+            s, c, pressureMoments, pressureCount
+        );
     }
 }
 
-template<bool DirectBase>
+template<bool DirectBase, bool FullMoments>
 __global__ void applyCollisionalPressureProjectionSplitSegmentKernel
 (
     DeviceState* sp
@@ -6838,18 +7187,19 @@ __global__ void applyCollisionalPressureProjectionSplitSegmentKernel
         }
     }
     __syncthreads();
-    if (!pressureParameterActive) return;
-    const GpuReal ux0 = pressureParameters[0];
-    const GpuReal uy0 = pressureParameters[1];
-    const GpuReal uz0 = pressureParameters[2];
-    const GpuReal ux1 = pressureParameters[3];
-    const GpuReal uy1 = pressureParameters[4];
-    const GpuReal uz1 = pressureParameters[5];
-    const GpuReal theta1 = pressureParameters[6];
-    const GpuReal thermalScale = pressureParameters[7];
-    const GpuReal thetaScale = pressureParameters[8];
-    const bool resolved = pressureParameterResolved != 0;
+    const GpuReal ux0 = pressureParameterActive ? pressureParameters[0] : GPU_R(0.0);
+    const GpuReal uy0 = pressureParameterActive ? pressureParameters[1] : GPU_R(0.0);
+    const GpuReal uz0 = pressureParameterActive ? pressureParameters[2] : GPU_R(0.0);
+    const GpuReal ux1 = pressureParameterActive ? pressureParameters[3] : GPU_R(0.0);
+    const GpuReal uy1 = pressureParameterActive ? pressureParameters[4] : GPU_R(0.0);
+    const GpuReal uz1 = pressureParameterActive ? pressureParameters[5] : GPU_R(0.0);
+    const GpuReal theta1 = pressureParameterActive ? pressureParameters[6] : GPU_R(0.0);
+    const GpuReal thermalScale = pressureParameterActive ? pressureParameters[7] : GPU_R(0.0);
+    const GpuReal thetaScale = pressureParameterActive ? pressureParameters[8] : GPU_R(0.0);
+    const bool resolved = pressureParameterActive && pressureParameterResolved != 0;
 
+    GpuReal pressureMoments[FullMoments ? 7 : 4] = {};
+    int pressureCount = 0;
     const int start = DirectBase
       ? s.preBaseCellOffset[c]
       : s.cellParticleOffset[c];
@@ -6867,343 +7217,33 @@ __global__ void applyCollisionalPressureProjectionSplitSegmentKernel
         {
             continue;
         }
-        if (s.pStuck[i] != 0)
+        if (pressureParameterActive)
         {
-            s.pux[i] = GPU_R(0.0);
-            s.puy[i] = GPU_R(0.0);
-            s.puz[i] = GPU_R(0.0);
-            if (s.pStuck[i] == Foam::gpuThermal::particleWallDeposited)
-            {
-                s.puxOld[i] = GPU_R(0.0);
-                s.puyOld[i] = GPU_R(0.0);
-                s.puzOld[i] = GPU_R(0.0);
-            }
-            continue;
+            applyPressureParticleStateDevice
+            (
+                s, i, ux0, uy0, uz0, ux1, uy1, uz1,
+                theta1, thermalScale, thetaScale, resolved
+            );
         }
-        const GpuReal dux = finiteOr(s.pux[i], ux0) - ux0;
-        const GpuReal duy = finiteOr(s.puy[i], uy0) - uy0;
-        const GpuReal duz = finiteOr(s.puz[i], uz0) - uz0;
-        s.pux[i] = resolved ? ux1 + thermalScale*dux : ux1;
-        s.puy[i] = resolved ? uy1 + thermalScale*duy : uy1;
-        s.puz[i] = resolved ? uz1 + thermalScale*duz : uz1;
-        s.pTheta[i] = resolved
-          ? clampMin(finiteOr(s.pTheta[i], GPU_R(0.0))*thetaScale, GPU_R(0.0))
-          : theta1;
-    }
-}
-
-__global__ void finalizeCollisionalPressureProjectionSplitCellsKernel
-(
-    DeviceState* sp
-)
-{
-    DeviceState& s = *sp;
-    const int c = blockIdx.x*blockDim.x + threadIdx.x;
-    if (c >= s.nCells)
-    {
-        return;
-    }
-    const GpuReal rhoP = clampMin(finiteOr(s.momRhoP[c], GPU_R(0.0)), GPU_R(0.0));
-    if (rhoP <= s.epsSMin*s.rhoSolid)
-    {
-        return;
-    }
-    const GpuReal px1 =
-        finiteOr(s.momRhoUPx[c], GPU_R(0.0)) + finiteOr(s.pressureDeltaMomX[c], GPU_R(0.0));
-    const GpuReal py1 =
-        finiteOr(s.momRhoUPy[c], GPU_R(0.0)) + finiteOr(s.pressureDeltaMomY[c], GPU_R(0.0));
-    const GpuReal pz1 =
-        finiteOr(s.momRhoUPz[c], GPU_R(0.0)) + finiteOr(s.pressureDeltaMomZ[c], GPU_R(0.0));
-    const GpuReal e1 =
-        clampMin(finiteOr(s.momRhoEP[c], GPU_R(0.0)), GPU_R(0.0))
-      + finiteOr(s.pressureDeltaEnergy[c], GPU_R(0.0));
-    const GpuReal theta1 =
-        clampMin
+        accumulatePressureParticleMomentsDevice<FullMoments>
         (
-            pressureKickInternalEnergy(rhoP, px1, py1, pz1, e1)/(GPU_R(1.5)*rhoP),
-            GPU_R(0.0)
+            s, c, i, pressureMoments, pressureCount
         );
-    s.momRhoUPx[c] = px1;
-    s.momRhoUPy[c] = py1;
-    s.momRhoUPz[c] = pz1;
-    s.momRhoEP[c] = e1;
-    s.rhoUsx[c] = px1;
-    s.rhoUsy[c] = py1;
-    s.rhoUsz[c] = pz1;
-    s.rhoEs[c] = e1;
-    s.Usx[c] = px1/rhoP;
-    s.Usy[c] = py1/rhoP;
-    s.Usz[c] = pz1/rhoP;
-    s.theta[c] = theta1;
-}
-
-
-
-
-#else
-__global__ void applyCollisionalPressureProjectionKernel
-(
-    DeviceState* sp,
-    const GpuTime kickDt
-)
-{
-    DeviceState& s = *sp;
-    const int c = blockIdx.x;
-    if (c >= s.nCells)
-    {
-        return;
     }
 
-    __shared__ GpuReal scaledDelta[4];
+    extern __shared__ GpuReal pressureWarpPartials[];
+    reducePressureParticleMomentsDevice<FullMoments>
+    (
+        pressureMoments, pressureCount, pressureWarpPartials
+    );
     if (threadIdx.x == 0)
     {
-        GpuReal dpx = GPU_R(0.0);
-        GpuReal dpy = GPU_R(0.0);
-        GpuReal dpz = GPU_R(0.0);
-        GpuReal de = GPU_R(0.0);
-        const int startFace = s.cellPlaneStart[c];
-        const int faceCount = s.cellPlaneCount[c];
-        for (int j = 0; j < faceCount; ++j)
-        {
-            const int f = s.cellFaceId[startFace + j];
-            if (f < 0 || f >= s.nFaces)
-            {
-                continue;
-            }
-            const GpuReal sign = s.faceOwner[f] == c ? GPU_R(1.0) : -GPU_R(1.0);
-            dpx -= sign*s.solidPressurePhiMomX[f];
-            dpy -= sign*s.solidPressurePhiMomY[f];
-            dpz -= sign*s.solidPressurePhiMomZ[f];
-            de -= sign*s.solidPressurePhiEnergy[f];
-        }
-        const GpuReal factor = kickDt/clampMin(s.V[c], OfVSmall);
-        scaledDelta[0] = finiteOr(factor*dpx, GPU_R(0.0));
-        scaledDelta[1] = finiteOr(factor*dpy, GPU_R(0.0));
-        scaledDelta[2] = finiteOr(factor*dpz, GPU_R(0.0));
-        scaledDelta[3] = finiteOr(factor*de, GPU_R(0.0));
-        s.pressureDeltaMomX[c] = scaledDelta[0];
-        s.pressureDeltaMomY[c] = scaledDelta[1];
-        s.pressureDeltaMomZ[c] = scaledDelta[2];
-        s.pressureDeltaEnergy[c] = scaledDelta[3];
-    }
-    __syncthreads();
-
-    const GpuReal rhoP = clampMin(finiteOr(s.momRhoP[c], GPU_R(0.0)), GPU_R(0.0));
-    if (rhoP <= s.epsSMin*s.rhoSolid)
-    {
-        return;
-    }
-    const GpuReal px0 = finiteOr(s.momRhoUPx[c], GPU_R(0.0));
-    const GpuReal py0 = finiteOr(s.momRhoUPy[c], GPU_R(0.0));
-    const GpuReal pz0 = finiteOr(s.momRhoUPz[c], GPU_R(0.0));
-    const GpuReal e0 = clampMin(finiteOr(s.momRhoEP[c], GPU_R(0.0)), GPU_R(0.0));
-    const GpuReal px1 = px0 + scaledDelta[0];
-    const GpuReal py1 = py0 + scaledDelta[1];
-    const GpuReal pz1 = pz0 + scaledDelta[2];
-    const GpuReal e1 = e0 + scaledDelta[3];
-    const GpuReal ux0 = px0/rhoP;
-    const GpuReal uy0 = py0/rhoP;
-    const GpuReal uz0 = pz0/rhoP;
-    const GpuReal ux1 = px1/rhoP;
-    const GpuReal uy1 = py1/rhoP;
-    const GpuReal uz1 = pz1/rhoP;
-    const GpuReal theta0 =
-        clampMin(pressureKickInternalEnergy(rhoP, px0, py0, pz0, e0)/(GPU_R(1.5)*rhoP), GPU_R(0.0));
-    const GpuReal theta1 =
-        clampMin(pressureKickInternalEnergy(rhoP, px1, py1, pz1, e1)/(GPU_R(1.5)*rhoP), GPU_R(0.0));
-    const bool resolved = theta0 > GPU_R(10.0)*s.thetaMin;
-    const GpuReal thermalScale =
-        resolved ? sqrt(clampMin(theta1/theta0, GPU_R(0.0))) : GPU_R(0.0);
-    const GpuReal thetaScale = resolved ? thermalScale*thermalScale : GPU_R(0.0);
-
-    const int start = s.cellParticleOffset[c];
-    const int end = s.cellParticleOffset[c + 1];
-    for (int pos = start + threadIdx.x; pos < end; pos += blockDim.x)
-    {
-        const int i = s.sortedParticleIndex[pos];
-        if (i < 0 || i >= s.particleCapacity || s.pStatus[i] == 0)
-        {
-            continue;
-        }
-        if (s.pStuck[i] != 0)
-        {
-            s.pux[i] = GPU_R(0.0);
-            s.puy[i] = GPU_R(0.0);
-            s.puz[i] = GPU_R(0.0);
-            if (s.pStuck[i] == Foam::gpuThermal::particleWallDeposited)
-            {
-                s.puxOld[i] = GPU_R(0.0);
-                s.puyOld[i] = GPU_R(0.0);
-                s.puzOld[i] = GPU_R(0.0);
-            }
-            continue;
-        }
-        const GpuReal dux = finiteOr(s.pux[i], ux0) - ux0;
-        const GpuReal duy = finiteOr(s.puy[i], uy0) - uy0;
-        const GpuReal duz = finiteOr(s.puz[i], uz0) - uz0;
-        s.pux[i] = resolved ? ux1 + thermalScale*dux : ux1;
-        s.puy[i] = resolved ? uy1 + thermalScale*duy : uy1;
-        s.puz[i] = resolved ? uz1 + thermalScale*duz : uz1;
-        s.pTheta[i] = resolved
-          ? clampMin(finiteOr(s.pTheta[i], GPU_R(0.0))*thetaScale, GPU_R(0.0))
-          : theta1;
-    }
-
-
-    __syncthreads();
-    if (threadIdx.x == 0)
-    {
-        s.momRhoUPx[c] = px1;
-        s.momRhoUPy[c] = py1;
-        s.momRhoUPz[c] = pz1;
-        s.momRhoEP[c] = e1;
-        s.rhoUsx[c] = px1;
-        s.rhoUsy[c] = py1;
-        s.rhoUsz[c] = pz1;
-        s.rhoEs[c] = e1;
-        s.Usx[c] = ux1;
-        s.Usy[c] = uy1;
-        s.Usz[c] = uz1;
-        s.theta[c] = theta1;
-    }
-}
-
-template<bool DirectBase>
-__global__ void applyCollisionalPressureProjectionSplitSegmentKernel
-(
-    DeviceState* sp
-)
-{
-    DeviceState& s = *sp;
-    const int c = blockIdx.x;
-    if (c >= s.nCells)
-    {
-        return;
-    }
-
-    const GpuReal rhoP = clampMin(finiteOr(s.momRhoP[c], GPU_R(0.0)), GPU_R(0.0));
-    if (rhoP <= s.epsSMin*s.rhoSolid)
-    {
-        return;
-    }
-    const GpuReal px0 = finiteOr(s.momRhoUPx[c], GPU_R(0.0));
-    const GpuReal py0 = finiteOr(s.momRhoUPy[c], GPU_R(0.0));
-    const GpuReal pz0 = finiteOr(s.momRhoUPz[c], GPU_R(0.0));
-    const GpuReal e0 = clampMin(finiteOr(s.momRhoEP[c], GPU_R(0.0)), GPU_R(0.0));
-    const GpuReal dpx = finiteOr(s.pressureDeltaMomX[c], GPU_R(0.0));
-    const GpuReal dpy = finiteOr(s.pressureDeltaMomY[c], GPU_R(0.0));
-    const GpuReal dpz = finiteOr(s.pressureDeltaMomZ[c], GPU_R(0.0));
-    const GpuReal de = finiteOr(s.pressureDeltaEnergy[c], GPU_R(0.0));
-    const GpuReal px1 = px0 + dpx;
-    const GpuReal py1 = py0 + dpy;
-    const GpuReal pz1 = pz0 + dpz;
-    const GpuReal e1 = e0 + de;
-    const GpuReal ux0 = px0/rhoP;
-    const GpuReal uy0 = py0/rhoP;
-    const GpuReal uz0 = pz0/rhoP;
-    const GpuReal ux1 = px1/rhoP;
-    const GpuReal uy1 = py1/rhoP;
-    const GpuReal uz1 = pz1/rhoP;
-    const GpuReal theta0 =
-        clampMin(pressureKickInternalEnergy(rhoP, px0, py0, pz0, e0)/(GPU_R(1.5)*rhoP), GPU_R(0.0));
-    const GpuReal theta1 =
-        clampMin(pressureKickInternalEnergy(rhoP, px1, py1, pz1, e1)/(GPU_R(1.5)*rhoP), GPU_R(0.0));
-    const bool resolved = theta0 > GPU_R(10.0)*s.thetaMin;
-    const GpuReal thermalScale =
-        resolved ? sqrt(clampMin(theta1/theta0, GPU_R(0.0))) : GPU_R(0.0);
-    const GpuReal thetaScale = resolved ? thermalScale*thermalScale : GPU_R(0.0);
-
-    const int start = DirectBase
-      ? s.preBaseCellOffset[c]
-      : s.cellParticleOffset[c];
-    const int end = DirectBase
-      ? s.preBaseCellOffset[c + 1]
-      : s.cellParticleOffset[c + 1];
-    for (int pos = start + threadIdx.x; pos < end; pos += blockDim.x)
-    {
-        const int i = DirectBase ? pos : s.sortedParticleIndex[pos];
-        if
+        storePressureParticleMomentsDevice<FullMoments>
         (
-            i < 0 || i >= s.particleCapacity
-         || s.pStatus[i] == 0 || s.pCellId[i] != c
-        )
-        {
-            continue;
-        }
-        if (s.pStuck[i] != 0)
-        {
-            s.pux[i] = GPU_R(0.0);
-            s.puy[i] = GPU_R(0.0);
-            s.puz[i] = GPU_R(0.0);
-            if (s.pStuck[i] == Foam::gpuThermal::particleWallDeposited)
-            {
-                s.puxOld[i] = GPU_R(0.0);
-                s.puyOld[i] = GPU_R(0.0);
-                s.puzOld[i] = GPU_R(0.0);
-            }
-            continue;
-        }
-        const GpuReal dux = finiteOr(s.pux[i], ux0) - ux0;
-        const GpuReal duy = finiteOr(s.puy[i], uy0) - uy0;
-        const GpuReal duz = finiteOr(s.puz[i], uz0) - uz0;
-        s.pux[i] = resolved ? ux1 + thermalScale*dux : ux1;
-        s.puy[i] = resolved ? uy1 + thermalScale*duy : uy1;
-        s.puz[i] = resolved ? uz1 + thermalScale*duz : uz1;
-        s.pTheta[i] = resolved
-          ? clampMin(finiteOr(s.pTheta[i], GPU_R(0.0))*thetaScale, GPU_R(0.0))
-          : theta1;
-    }
-}
-
-__global__ void finalizeCollisionalPressureProjectionSplitCellsKernel
-(
-    DeviceState* sp
-)
-{
-    DeviceState& s = *sp;
-    const int c = blockIdx.x*blockDim.x + threadIdx.x;
-    if (c >= s.nCells)
-    {
-        return;
-    }
-    const GpuReal rhoP = clampMin(finiteOr(s.momRhoP[c], GPU_R(0.0)), GPU_R(0.0));
-    if (rhoP <= s.epsSMin*s.rhoSolid)
-    {
-        return;
-    }
-    const GpuReal px1 =
-        finiteOr(s.momRhoUPx[c], GPU_R(0.0)) + finiteOr(s.pressureDeltaMomX[c], GPU_R(0.0));
-    const GpuReal py1 =
-        finiteOr(s.momRhoUPy[c], GPU_R(0.0)) + finiteOr(s.pressureDeltaMomY[c], GPU_R(0.0));
-    const GpuReal pz1 =
-        finiteOr(s.momRhoUPz[c], GPU_R(0.0)) + finiteOr(s.pressureDeltaMomZ[c], GPU_R(0.0));
-    const GpuReal e1 =
-        clampMin(finiteOr(s.momRhoEP[c], GPU_R(0.0)), GPU_R(0.0))
-      + finiteOr(s.pressureDeltaEnergy[c], GPU_R(0.0));
-    const GpuReal theta1 =
-        clampMin
-        (
-            pressureKickInternalEnergy(rhoP, px1, py1, pz1, e1)/(GPU_R(1.5)*rhoP),
-            GPU_R(0.0)
+            s, c, pressureMoments, pressureCount, !DirectBase
         );
-    s.momRhoUPx[c] = px1;
-    s.momRhoUPy[c] = py1;
-    s.momRhoUPz[c] = pz1;
-    s.momRhoEP[c] = e1;
-    s.rhoUsx[c] = px1;
-    s.rhoUsy[c] = py1;
-    s.rhoUsz[c] = pz1;
-    s.rhoEs[c] = e1;
-    s.Usx[c] = px1/rhoP;
-    s.Usy[c] = py1/rhoP;
-    s.Usz[c] = pz1/rhoP;
-    s.theta[c] = theta1;
+    }
 }
-
-                                                                               
-                                                                            
-                                                                    
-#endif
 
 __global__ void applyCollisionalPressureProjectionCellAtomicKernel
 (
@@ -7279,6 +7319,7 @@ __global__ void applyCollisionalPressureProjectionCellAtomicKernel
     s.theta[c] = theta1;
 }
 
+template<bool FullMoments>
 __global__ void applyCollisionalPressureProjectionParticlesAtomicKernel
 (
     DeviceState* sp
@@ -7314,12 +7355,14 @@ __global__ void applyCollisionalPressureProjectionParticlesAtomicKernel
                 s.puyOld[i] = GPU_R(0.0);
                 s.puzOld[i] = GPU_R(0.0);
             }
+            accumulatePressureParticleMomentsAtomicDevice<FullMoments>(s, c, i);
             continue;
         }
 
         const GpuReal rhoP = clampMin(finiteOr(s.momRhoP[c], GPU_R(0.0)), GPU_R(0.0));
         if (rhoP <= s.epsSMin*s.rhoSolid)
         {
+            accumulatePressureParticleMomentsAtomicDevice<FullMoments>(s, c, i);
             continue;
         }
         const GpuReal dpx = finiteOr(s.pressureDeltaMomX[c], GPU_R(0.0));
@@ -7367,6 +7410,7 @@ __global__ void applyCollisionalPressureProjectionParticlesAtomicKernel
         s.pTheta[i] = resolved
           ? clampMin(finiteOr(s.pTheta[i], GPU_R(0.0))*thetaScale, GPU_R(0.0))
           : theta1;
+        accumulatePressureParticleMomentsAtomicDevice<FullMoments>(s, c, i);
     }
 }
 
@@ -7524,7 +7568,7 @@ __global__ void prepareFlatSplitPressureKernel
     }
 }
 
-template<int Mode>
+template<int Mode, bool FullMoments>
 __global__ void applyFlatPressureParticlesKernel(DeviceState* sp)
 {
     DeviceState& s = *sp;
@@ -7541,80 +7585,39 @@ __global__ void applyFlatPressureParticlesKernel(DeviceState* sp)
             if(offsets[mid]<=pos)lo=mid;else hi=mid-1;
         }
         const int c=lo;
-        if(!s.flatPressureFlags[2*c])continue;
-        const GpuReal* p=s.flatPressureParameters+13*c+(Mode==0?4:0);
-        const GpuReal ux0=p[0];
-        const GpuReal uy0=p[1];
-        const GpuReal uz0=p[2];
-        const GpuReal ux1=p[3];
-        const GpuReal uy1=p[4];
-        const GpuReal uz1=p[5];
-        const GpuReal theta1=p[6];
-        const GpuReal thermalScale=p[7];
-        const GpuReal thetaScale=p[8];
-        const bool resolved=s.flatPressureFlags[2*c+1]!=0;
-
         const int i = Mode == 1 ? pos : s.sortedParticleIndex[pos];
         if (i < 0 || i >= s.particleCapacity || s.pStatus[i] == 0
             || (Mode != 0 && s.pCellId[i] != c))
         {
             continue;
         }
-        if (s.pStuck[i] != 0)
+        if (s.flatPressureFlags[2*c] != 0)
         {
-            s.pux[i] = GPU_R(0.0);
-            s.puy[i] = GPU_R(0.0);
-            s.puz[i] = GPU_R(0.0);
-            if (s.pStuck[i] == Foam::gpuThermal::particleWallDeposited)
-            {
-                s.puxOld[i] = GPU_R(0.0);
-                s.puyOld[i] = GPU_R(0.0);
-                s.puzOld[i] = GPU_R(0.0);
-            }
-            continue;
+            const GpuReal* p=s.flatPressureParameters+13*c+(Mode==0?4:0);
+            const GpuReal ux0=p[0];
+            const GpuReal uy0=p[1];
+            const GpuReal uz0=p[2];
+            const GpuReal ux1=p[3];
+            const GpuReal uy1=p[4];
+            const GpuReal uz1=p[5];
+            const GpuReal theta1=p[6];
+            const GpuReal thermalScale=p[7];
+            const GpuReal thetaScale=p[8];
+            const bool resolved=s.flatPressureFlags[2*c+1]!=0;
+            applyPressureParticleStateDevice
+            (
+                s, i, ux0, uy0, uz0, ux1, uy1, uz1,
+                theta1, thermalScale, thetaScale, resolved
+            );
         }
-        const GpuReal dux = finiteOr(s.pux[i], ux0) - ux0;
-        const GpuReal duy = finiteOr(s.puy[i], uy0) - uy0;
-        const GpuReal duz = finiteOr(s.puz[i], uz0) - uz0;
-        s.pux[i] = resolved ? ux1 + thermalScale*dux : ux1;
-        s.puy[i] = resolved ? uy1 + thermalScale*duy : uy1;
-        s.puz[i] = resolved ? uz1 + thermalScale*duz : uz1;
-        s.pTheta[i] = resolved
-          ? clampMin(finiteOr(s.pTheta[i], GPU_R(0.0))*thetaScale, GPU_R(0.0))
-          : theta1;
+        accumulatePressureParticleMomentsAtomicDevice<FullMoments>(s, c, i);
     }
 }
 
-__global__ void publishFlatFullPressureKernel(DeviceState* sp)
-{
-    DeviceState& s=*sp;
-    const int c=blockIdx.x*blockDim.x+threadIdx.x;
-    if(c>=s.nCells||!s.flatPressureFlags[2*c])return;
-    const GpuReal* p=s.flatPressureParameters+13*c;
-    const GpuReal px1=p[0];
-    const GpuReal py1=p[1];
-    const GpuReal pz1=p[2];
-    const GpuReal e1=p[3];
-    const GpuReal ux1=p[7];
-    const GpuReal uy1=p[8];
-    const GpuReal uz1=p[9];
-    const GpuReal theta1=p[10];
 
-        s.momRhoUPx[c] = px1;
-        s.momRhoUPy[c] = py1;
-        s.momRhoUPz[c] = pz1;
-        s.momRhoEP[c] = e1;
-        s.rhoUsx[c] = px1;
-        s.rhoUsy[c] = py1;
-        s.rhoUsz[c] = pz1;
-        s.rhoEs[c] = e1;
-        s.Usx[c] = ux1;
-        s.Usy[c] = uy1;
-        s.Usz[c] = uz1;
-        s.theta[c] = theta1;
-}
 
 #endif
+template<bool FullMoments>
 
 void launchFlatPressure(DeviceState* host,DeviceState* device,GpuTime dt,int mode)
 {
@@ -7622,19 +7625,21 @@ void launchFlatPressure(DeviceState* host,DeviceState* device,GpuTime dt,int mod
     const int cells=(host->nCells+127)/128;
     const int grid=host->multiprocessorCount*flatParticleSmBlocks;
     if(mode==0)prepareFlatFullPressureKernel<<<cells,128>>>(device,dt);
-    else prepareFlatSplitPressureKernel<<<cells,128>>>(device);
+    else if(mode==1)prepareFlatSplitPressureKernel<<<cells,128>>>(device);
     if(cudaPeekAtLastError()!=cudaSuccess)return;
-    if(mode==0)applyFlatPressureParticlesKernel<0><<<grid,flatParticleThreads>>>(device);
-    else if(mode==1)applyFlatPressureParticlesKernel<1><<<grid,flatParticleThreads>>>(device);
-    else applyFlatPressureParticlesKernel<2><<<grid,flatParticleThreads>>>(device);
+    if(mode==0)applyFlatPressureParticlesKernel<0, FullMoments><<<grid,flatParticleThreads>>>(device);
+    else if(mode==1)applyFlatPressureParticlesKernel<1, FullMoments><<<grid,flatParticleThreads>>>(device);
+    else applyFlatPressureParticlesKernel<2, FullMoments><<<grid,flatParticleThreads>>>(device);
     if(cudaPeekAtLastError()!=cudaSuccess)return;
-    if(mode==0)publishFlatFullPressureKernel<<<cells,128>>>(device);
+    if(mode==0)publishPressureParticleMomentsKernel<FullMoments><<<cells,128>>>(device);
 #else
-    if(mode==0)applyCollisionalPressureProjectionKernel<<<host->nCells,128>>>(device,dt);
-    else if(mode==1)applyCollisionalPressureProjectionSplitSegmentKernel<true><<<host->nCells,128>>>(device);
-    else applyCollisionalPressureProjectionSplitSegmentKernel<false><<<host->nCells,128>>>(device);
+    const size_t sharedBytes = (FullMoments ? 7u : 4u)*4u*sizeof(GpuReal);
+    if(mode==0)applyCollisionalPressureProjectionKernel<FullMoments><<<host->nCells,128,sharedBytes>>>(device,dt);
+    else if(mode==1)applyCollisionalPressureProjectionSplitSegmentKernel<true, FullMoments><<<host->nCells,128,sharedBytes>>>(device);
+    else applyCollisionalPressureProjectionSplitSegmentKernel<false, FullMoments><<<host->nCells,128,sharedBytes>>>(device);
 #endif
 }
+template<bool FullMoments>
 
 int applyCollisionalPressureKick
 (
@@ -7656,6 +7661,13 @@ int applyCollisionalPressureKick
     const int cellGrid = (s->nCells + block - 1)/block;
     const int faceGrid = (s->nFaces + block - 1)/block;
     cudaError_t err = cudaSuccess;
+#if UGKWP_GPU_REAL_BITS == 32
+    const int pressureUsesScratch = 1;
+#else
+    const int pressureUsesScratch =
+        s->csrCellLocalPathEnabled == 0 || s->splitPreDirectoryActive != 0;
+#endif
+
 
 #define PRESSURE_LAUNCH(CALL, NAME) \
     CALL; \
@@ -7673,7 +7685,7 @@ int applyCollisionalPressureKick
     );
     PRESSURE_LAUNCH
     (
-        (accumulateCollisionalPressureKickByCellKernel<<<cellGrid, block>>>(s->deviceState, kickDt, 1)),
+        (accumulateCollisionalPressureKickByCellKernel<FullMoments><<<cellGrid, block>>>(s->deviceState, kickDt, 1, pressureUsesScratch)),
         "accumulate and limit collisional pressure kick launch"
     );
     PRESSURE_LAUNCH
@@ -7689,20 +7701,26 @@ int applyCollisionalPressureKick
     {
         PRESSURE_LAUNCH
         (
-            (launchFlatPressure(s,s->deviceState,kickDt,1)),
+            (accumulateCollisionalPressureKickByCellKernel<FullMoments>
+                <<<cellGrid, block>>>(s->deviceState, kickDt, 0, 0)),
+            "accumulate limited split-Dpre collisional pressure kick launch"
+        );
+        PRESSURE_LAUNCH
+        (
+            (launchFlatPressure<FullMoments>(s,s->deviceState,kickDt,1)),
             "apply split-Dpre base pressure projection launch"
         );
         if (s->nBoundarySources > 0)
         {
             PRESSURE_LAUNCH
             (
-                (launchFlatPressure(s,s->deviceState,kickDt,2)),
+                (launchFlatPressure<FullMoments>(s,s->deviceState,kickDt,2)),
                 "apply split-Dpre injection pressure projection launch"
             );
         }
         PRESSURE_LAUNCH
         (
-            (finalizeCollisionalPressureProjectionSplitCellsKernel
+            (publishPressureParticleMomentsKernel<FullMoments>
                 <<<cellGrid, block>>>(s->deviceState)),
             "finalize split-Dpre pressure projection cells launch"
         );
@@ -7711,7 +7729,7 @@ int applyCollisionalPressureKick
     {
         PRESSURE_LAUNCH
         (
-            (launchFlatPressure(s,s->deviceState,kickDt,0)),
+            (launchFlatPressure<FullMoments>(s,s->deviceState,kickDt,0)),
             "applyCollisionalPressureProjectionKernel launch"
         );
     }
@@ -7724,8 +7742,14 @@ int applyCollisionalPressureKick
         );
         PRESSURE_LAUNCH
         (
-            (applyCollisionalPressureProjectionParticlesAtomicKernel<<<s->particleWorkGrid, block>>>(s->deviceState)),
+            (applyCollisionalPressureProjectionParticlesAtomicKernel<FullMoments><<<s->particleWorkGrid, block>>>(s->deviceState)),
             "applyCollisionalPressureProjectionParticlesAtomicKernel launch"
+        );
+        PRESSURE_LAUNCH
+        (
+            (publishPressureParticleMomentsKernel<FullMoments>
+                <<<cellGrid, block>>>(s->deviceState)),
+            "publish pressure particle moments launch"
         );
     }
 
@@ -7773,6 +7797,7 @@ __global__ void clearMobilePackingMomentsKernel(DeviceState* sp)
         return;
     }
     s.mobilePackingRho[c] = GPU_R(0.0);
+    s.packingStuckRho[c] = GPU_R(0.0);
     s.mobilePackingMomX[c] = GPU_R(0.0);
     s.mobilePackingMomY[c] = GPU_R(0.0);
     s.mobilePackingMomZ[c] = GPU_R(0.0);
@@ -7816,7 +7841,7 @@ __global__ void accumulateMobilePackingMomentsKernel(DeviceState* sp)
         i += blockDim.x*gridDim.x
     )
     {
-        if (s.pStatus[i] != 1 || s.pStuck[i] != 0)
+        if (s.pStatus[i] != 1)
         {
             continue;
         }
@@ -7826,6 +7851,11 @@ __global__ void accumulateMobilePackingMomentsKernel(DeviceState* sp)
             continue;
         }
         const GpuReal m = clampMin(finiteOr(s.pm[i], GPU_R(0.0)), GPU_R(0.0));
+        if (s.pStuck[i] != 0)
+        {
+            atomicAdd(&s.packingStuckRho[c], m);
+            continue;
+        }
         const GpuReal ux = GPU_R(0.5)*
         (
             finiteOr(s.puxOld[i], s.pux[i]) + finiteOr(s.pux[i], GPU_R(0.0))
@@ -7855,6 +7885,7 @@ __global__ void normalizeMobilePackingMomentsKernel(DeviceState* sp)
     }
     const GpuReal invV = GPU_R(1.0)/clampMin(s.V[c], OfVSmall);
     s.mobilePackingRho[c] *= invV;
+    s.packingStuckRho[c] *= invV;
     s.mobilePackingMomX[c] *= invV;
     s.mobilePackingMomY[c] *= invV;
     s.mobilePackingMomZ[c] *= invV;
@@ -7880,6 +7911,7 @@ __global__ void prepareMobilePackingProjectionKernel
     GpuReal uyC = GPU_R(0.0);
     GpuReal uzC = GPU_R(0.0);
     mobilePackingPrimitive(s, c, epsC, uxC, uyC, uzC);
+    const GpuReal epsTotalC = packingTotalFraction(s, c);
     GpuReal volumeFluxSum = GPU_R(0.0);
     const int start = s.cellPlaneStart[c];
     const int count = s.cellPlaneCount[c];
@@ -7933,7 +7965,7 @@ __global__ void prepareMobilePackingProjectionKernel
 
     const GpuReal epsPred = clampMin
     (
-        epsC - dt*volumeFluxSum/clampMin(s.V[c], OfVSmall),
+        epsTotalC - dt*volumeFluxSum/clampMin(s.V[c], OfVSmall),
         GPU_R(0.0)
     );
                                                                             
@@ -13664,6 +13696,7 @@ __global__ void solidRecoveryFromParticleMomentsKernel(DeviceState* sp)
     }
 }
 
+
 #ifdef UGKP_DEVELOPMENT_PROBES
 
 bool developmentProbeEnabled()
@@ -16691,7 +16724,7 @@ extern "C" int ugkwpGpuResidentStrictAdvance
     UGKP_DEV_PROBE_LEAVE(ProbeBinPre);
 
     UGKP_DEV_PROBE_ENTER(ProbePressurePre);
-    if (applyCollisionalPressureKick(s, GPU_R(0.5)*dt, block) != 0)
+    if (applyCollisionalPressureKick<true>(s, GPU_R(0.5)*dt, block) != 0)
     {
         return 1;
     }
@@ -17058,7 +17091,7 @@ extern "C" int ugkwpGpuResidentStrictAdvance
     UGKP_DEV_PROBE_ENTER(ProbePressurePost);
     if (particleGrid > 0)
     {
-        if (applyCollisionalPressureKick(s, GPU_R(0.5)*dt, block) != 0)
+        if (applyCollisionalPressureKick<false>(s, GPU_R(0.5)*dt, block) != 0)
         {
             return 1;
         }

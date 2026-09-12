@@ -364,6 +364,7 @@ struct DeviceState
     double* solidPressurePhiEnergy = nullptr;
                                                                              
     double* mobilePackingRho = nullptr;
+    double* packingStuckRho = nullptr;
     double* mobilePackingMomX = nullptr;
     double* mobilePackingMomY = nullptr;
     double* mobilePackingMomZ = nullptr;
@@ -1074,6 +1075,7 @@ void releaseState(DeviceState* s)
     release(s->solidPressurePhiMomZ);
     release(s->solidPressurePhiEnergy);
     release(s->mobilePackingRho);
+    release(s->packingStuckRho);
     release(s->mobilePackingMomX);
     release(s->mobilePackingMomY);
     release(s->mobilePackingMomZ);
@@ -1377,6 +1379,7 @@ int allocateFields(DeviceState* s)
     rc |= allocate(s->solidPressurePhiMomZ, nf, "cudaMalloc strict solidPressurePhiMomZ");
     rc |= allocate(s->solidPressurePhiEnergy, nf, "cudaMalloc strict solidPressurePhiEnergy");
     rc |= allocate(s->mobilePackingRho, nc, "cudaMalloc mobile packing density");
+    rc |= allocate(s->packingStuckRho, nc, "cudaMalloc stuck packing density");
     rc |= allocate(s->mobilePackingMomX, nc, "cudaMalloc mobile packing momentum x");
     rc |= allocate(s->mobilePackingMomY, nc, "cudaMalloc mobile packing momentum y");
     rc |= allocate(s->mobilePackingMomZ, nc, "cudaMalloc mobile packing momentum z");
@@ -6722,6 +6725,7 @@ __global__ void clearMobilePackingMomentsKernel(DeviceState* sp)
         return;
     }
     s.mobilePackingRho[c] = 0.0;
+    s.packingStuckRho[c] = 0.0;
     s.mobilePackingMomX[c] = 0.0;
     s.mobilePackingMomY[c] = 0.0;
     s.mobilePackingMomZ[c] = 0.0;
@@ -6804,6 +6808,7 @@ __global__ void normalizeMobilePackingMomentsKernel(DeviceState* sp)
     }
     const double invV = 1.0/clampMin(s.V[c], OfVSmall);
     s.mobilePackingRho[c] *= invV;
+    s.packingStuckRho[c] *= invV;
     s.mobilePackingMomX[c] *= invV;
     s.mobilePackingMomY[c] *= invV;
     s.mobilePackingMomZ[c] *= invV;
@@ -6829,6 +6834,7 @@ __global__ void prepareMobilePackingProjectionKernel
     double uyC = 0.0;
     double uzC = 0.0;
     mobilePackingPrimitive(s, c, epsC, uxC, uyC, uzC);
+    const double epsTotalC = packingTotalFraction(s, c);
     double volumeFluxSum = 0.0;
     const int start = s.cellPlaneStart[c];
     const int count = s.cellPlaneCount[c];
@@ -6882,7 +6888,7 @@ __global__ void prepareMobilePackingProjectionKernel
 
     const double epsPred = clampMin
     (
-        epsC - dt*volumeFluxSum/clampMin(s.V[c], OfVSmall),
+        epsTotalC - dt*volumeFluxSum/clampMin(s.V[c], OfVSmall),
         0.0
     );
                                                                             

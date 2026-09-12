@@ -34,6 +34,67 @@ __device__ void mobilePackingPrimitive
     uz = finiteOr(s.mobilePackingMomZ[c], GPU_R(0.0))/rho;
 }
 
+__device__ GpuReal packingTotalFraction
+(
+    const DeviceState& s,
+    const int c
+)
+{
+    if (c < 0 || c >= s.nCells)
+    {
+        return GPU_R(0.0);
+    }
+    const GpuReal rho =
+        clampMin
+        (
+            finiteOr(s.mobilePackingRho[c], GPU_R(0.0))
+          + finiteOr(s.packingStuckRho[c], GPU_R(0.0)),
+            GPU_R(0.0)
+        );
+    return rho/clampMin(s.rhoSolid, OfVSmall);
+}
+
+__device__ GpuReal packingResponseFraction
+(
+    const DeviceState& s,
+    const int own,
+    const int nei,
+    const GpuReal w
+)
+{
+    const GpuReal rhoMobileOwn =
+        clampMin(finiteOr(s.mobilePackingRho[own], GPU_R(0.0)), GPU_R(0.0));
+    const GpuReal rhoTotalOwn =
+        clampMin
+        (
+            finiteOr(s.mobilePackingRho[own], GPU_R(0.0))
+          + finiteOr(s.packingStuckRho[own], GPU_R(0.0)),
+            GPU_R(0.0)
+        );
+    GpuReal rhoMobile = rhoMobileOwn;
+    GpuReal rhoTotal = rhoTotalOwn;
+    if (nei >= 0 && nei < s.nCells)
+    {
+        const GpuReal rhoMobileNei =
+            clampMin(finiteOr(s.mobilePackingRho[nei], GPU_R(0.0)), GPU_R(0.0));
+        const GpuReal rhoTotalNei =
+            clampMin
+            (
+                finiteOr(s.mobilePackingRho[nei], GPU_R(0.0))
+              + finiteOr(s.packingStuckRho[nei], GPU_R(0.0)),
+                GPU_R(0.0)
+            );
+        rhoMobile = w*rhoMobileOwn + (GPU_R(1.0) - w)*rhoMobileNei;
+        rhoTotal = w*rhoTotalOwn + (GPU_R(1.0) - w)*rhoTotalNei;
+    }
+    const GpuReal minimumRho = s.epsSMin*s.rhoSolid;
+    if (rhoTotal <= minimumRho)
+    {
+        return GPU_R(0.0);
+    }
+    return clampRange(rhoMobile/rhoTotal, GPU_R(0.0), GPU_R(1.0));
+}
+
 __device__ GpuReal mobilePackingProjectedJacobiValue
 (
     const DeviceState& s,
@@ -54,7 +115,7 @@ __device__ GpuReal mobilePackingProjectedJacobiValue
         }
         const int own = s.faceOwner[f];
         const int nei = s.faceNeighbour[f];
-        const GpuReal a = clampMin
+        const GpuReal geometricA = clampMin
         (
             finiteOr(s.magSf[f]*s.deltaCoeffs[f], GPU_R(0.0)),
             GPU_R(0.0)
@@ -62,13 +123,22 @@ __device__ GpuReal mobilePackingProjectedJacobiValue
         if (nei >= 0 && nei < s.nCells)
         {
             const int other = own == c ? nei : own;
+            const GpuReal w =
+                clampRange(finiteOr(s.faceWeight[f], GPU_R(0.5)), GPU_R(0.0), GPU_R(1.0));
+            const GpuReal a = geometricA*packingResponseFraction(s, own, nei, w);
             diagonal += a;
             neighbourSum +=
                 a*clampMin(finiteOr(oldPressure[other], GPU_R(0.0)), GPU_R(0.0));
         }
         else if (own == c && s.gasBoundaryKind[f] == 0)
         {
-            diagonal += a;
+            diagonal += geometricA*packingResponseFraction
+            (
+                s,
+                own,
+                -1,
+                GPU_R(1.0)
+            );
         }
     }
     if (diagonal <= OfVSmall)
