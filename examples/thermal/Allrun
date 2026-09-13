@@ -14,8 +14,65 @@ esac
 
 [[ -n ${WM_PROJECT_DIR:-} ]] || { echo "OpenFOAM environment is not loaded" >&2; exit 1; }
 
+
+prepare_mie_table()
+{
+    local case_dir=$1
+    local radiation_properties="${case_dir}/constant/radiationProperties"
+    [[ -f "${radiation_properties}" ]] || return 0
+
+    if ! grep -Eq '^[[:space:]]*enabled[[:space:]]+true[[:space:]]*;' "${radiation_properties}"; then
+        return 0
+    fi
+
+    local table_ref
+    table_ref=$(awk '$1 == "mieTable" {gsub(/[";]/, "", $2); print $2; exit}' "${radiation_properties}")
+    [[ -n "${table_ref}" ]] || {
+        echo "Radiation is enabled but mieTable is missing in ${radiation_properties}" >&2
+        return 2
+    }
+
+    local target="${table_ref}"
+    if [[ "${target}" != /* ]]; then
+        target="${case_dir}/${target}"
+    fi
+
+    if [[ -s "${target}" ]]; then
+        echo "MIE table present: ${target}"
+        return 0
+    fi
+
+    local generator="${root}/../../applications/CHT/thermal/mieTables/make_alumina_mie_table.py"
+    [[ -f "${generator}" ]] || {
+        echo "MIE table is missing and generator was not found: ${generator}" >&2
+        return 1
+    }
+
+    if [[ ! -t 0 ]]; then
+        echo "MIE table is missing: ${target}" >&2
+        echo "Run the generator manually before using Allrun; see the repository README." >&2
+        return 1
+    fi
+
+    local answer
+    read -r -p "MIE table is missing at ${target}. Generate it now with the default grid? [y/N] " answer
+    case "${answer}" in
+        y|Y|yes|YES) ;;
+        *)
+            echo "MIE table generation declined; CHT was not started." >&2
+            return 1
+            ;;
+    esac
+
+    mkdir -p -- "$(dirname "${target}")"
+    local force_args=()
+    [[ -e "${target}" ]] && force_args+=(--force)
+    python3 "${generator}" --out "${target}" "${force_args[@]}"
+}
+
 case_dir="${root}/${case_name}"
 [[ -f "${case_dir}/system/controlDict" ]] || { echo "Invalid thermal case: ${case_dir}" >&2; exit 2; }
+prepare_mie_table "${case_dir}"
 "${root}/mss7pre/prepare_run.sh" "${case_name}" "${case_dir}"
 
 app=$(awk '/^[[:space:]]*application[[:space:]]+/{gsub(/;/,"",$2); print $2; exit}' "${case_dir}/system/controlDict")

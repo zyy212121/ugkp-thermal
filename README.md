@@ -408,20 +408,63 @@ solid conduction equation.
 
 ## Particle-radiation table
 
-The large alumina Mie table used by `bentSRM_coldWall`,
-`MSS7_twoPhase_sparse`, and `MSS7_twoPhase_dense` is generated locally rather
-than stored in the Git repository. The thermal `Allrun` entry generates one
-cached table and links it into each selected radiation case automatically.
-It can also be generated manually for an individual case:
+The CHT radiation model reads an offline alumina Mie table from the path in
+the case `constant/radiationProperties`. The large table is not stored in the
+Git repository. The thermal `Allrun` runner checks the table before starting
+CHT:
+
+- If radiation is disabled, the check is skipped.
+- If the referenced file is non-empty, `Allrun` proceeds immediately.
+- If the file is missing or empty, `Allrun` asks for interactive
+  confirmation before generating it with the default grid. Answer `y` to
+  generate the table; any other answer stops before CHT starts.
+- Non-interactive jobs must create or copy the table first, then invoke
+  `Allrun`.
+
+The supplied radiation cases are `bentSRM_coldWall`,
+`MSS7_twoPhase_sparse`, and `MSS7_twoPhase_dense`. Their
+`constant/radiationProperties` files refer to
+`assets/radiation/alumina_mieTable.dat`.
+
+The generator is:
+
+```text
+applications/CHT/thermal/mieTables/make_alumina_mie_table.py
+```
+
+For one case, run it from the repository root and write the file to the path
+referenced by that case:
 
 ```bash
 python3 applications/CHT/thermal/mieTables/make_alumina_mie_table.py \
-    --out examples/thermal/bentSRM_coldWall/assets/radiation/alumina_mieTable.dat \
-    --force
+    --out examples/thermal/MSS7_twoPhase_dense/assets/radiation/alumina_mieTable.dat
 ```
 
-The generated file is referenced by the `mieTable` entry in the case
-`constant/radiationProperties`.
+Replace `MSS7_twoPhase_dense` with the selected case name for the other
+radiation cases. A single generated table can be copied to the other case
+directories when the same diameter and temperature coverage is appropriate;
+each case still needs its own file at the path named by `mieTable`.
+
+The default sampling is configurable through command-line options rather than
+fixed in the calculation:
+
+| Quantity | Default range/count | Sampling | Options |
+| --- | --- | --- | --- |
+| Temperature | 300–5000 K, 80 points | linear | `--t-min`, `--t-max`, `--n-t` |
+| Particle diameter | 1e-5–4e-4 m, 20 points | logarithmic | `--d-min`, `--d-max`, `--n-d` |
+| Scattering angle cosine `mu` | -1–1, 5001 points | linear | `--n-mu` |
+| Wavelength | 5e-7–8e-6 m, 120 points | logarithmic | `--lambda-min`, `--lambda-max`, `--n-lambda` |
+
+The diameter and temperature intervals must cover the values reached by the
+case. Use `--dry-run` to print the selected grid without writing a file. If
+the output already exists, pass `--force` to permit replacement; otherwise the
+generator refuses to overwrite it. Generation at the default resolution can
+be expensive.
+
+If the referenced file is absent or its ranges do not overlap the particle
+diameter/temperature range, CHT stops during radiation preflight before the
+first physical time step. Manual preparation or the interactive `Allrun`
+confirmation is therefore required for every case with radiation enabled.
 
 ## Output and post-processing
 

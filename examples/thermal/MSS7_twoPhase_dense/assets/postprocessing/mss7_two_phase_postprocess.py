@@ -37,6 +37,10 @@ plt.rcParams.update({
 })
 
 
+TARGET_COMPARISON_TIME_S = 2.0
+TIME_MATCH_TOLERANCE_S = 1.0e-3
+
+
 def numeric_directories(path: Path):
     result = []
     if path.is_dir():
@@ -47,6 +51,55 @@ def numeric_directories(path: Path):
                 except ValueError:
                     pass
     return sorted(result)
+
+
+def target_time_directory(case: Path, target: float = TARGET_COMPARISON_TIME_S):
+    """Return a completed written time directory close to *target*, if present."""
+    candidates = [
+        (time_s, directory)
+        for time_s, directory in numeric_directories(case)
+        if abs(time_s - target) <= TIME_MATCH_TOLERANCE_S
+        and (directory / "thermalExchangeState").is_file()
+    ]
+    if not candidates:
+        return None
+    return min(candidates, key=lambda item: abs(item[0] - target))
+
+
+def sparse_comparison_case(case: Path):
+    """Find the sibling sparse case only when it reaches the comparison time."""
+    candidate = case.parent / "MSS7_twoPhase_sparse"
+    if not candidate.is_dir():
+        return None
+    matched = target_time_directory(candidate)
+    if matched is None:
+        print(
+            f"sparse comparison skipped: no completed data at "
+            f"{TARGET_COMPARISON_TIME_S:g} s +/- {TIME_MATCH_TOLERANCE_S:g} s below {candidate}",
+            file=sys.stderr,
+        )
+        return None
+    print(f"sparse comparison enabled: {matched[0]:.17g} s from {candidate}")
+    return candidate
+
+
+def nearest_record(records, target: float):
+    if not records:
+        return None
+    match = min(records, key=lambda item: abs(item[0] - target))
+    return match if abs(match[0] - target) <= TIME_MATCH_TOLERANCE_S else None
+
+
+def previous_exchange_directory(exchange_directories, target: float):
+    """Use the latest written exchange state at or before the requested state."""
+    if not exchange_directories:
+        raise RuntimeError("no written wall-temperature exchange states")
+    previous = [item for item in exchange_directories if item[0] <= target + TIME_MATCH_TOLERANCE_S]
+    if previous:
+        time_s, directory = max(previous, key=lambda item: item[0])
+        return abs(time_s - target), directory
+    time_s, directory = min(exchange_directories, key=lambda item: abs(item[0] - target))
+    return abs(time_s - target), directory
 
 
 def clean_text(path: Path):
@@ -305,7 +358,7 @@ def time_name(value: float):
     return f"{value:.9f}".rstrip("0").rstrip(".")
 
 
-def temperature_figure(case: Path, baseline: Path):
+def temperature_series(case: Path):
     run_probes(case)
     tw_t, tw_v, tw_c = read_probe_series(case / "postProcessing/mss7ThroatWallProbe/graphite")
     tw_t, tw = wall_temperature(tw_t, tw_v, tw_c)
@@ -331,6 +384,19 @@ def temperature_figure(case: Path, baseline: Path):
         np.interp(times, ti_t, ti[:, 0]),
         np.interp(times, ti_t, ti[:, 1]),
     ))
+    return times, active
+
+
+def temperature_figure(case: Path, baseline: Path, sparse_case: Path | None = None):
+    times, active = temperature_series(case)
+
+    sparse_times = None
+    sparse_active = None
+    if sparse_case is not None:
+        try:
+            sparse_times, sparse_active = temperature_series(sparse_case)
+        except (OSError, RuntimeError) as error:
+            print(f"temperature sparse comparison skipped: {error}", file=sys.stderr)
 
     baseline_values = None
     try:
@@ -351,13 +417,22 @@ def temperature_figure(case: Path, baseline: Path):
         row = {"time_s": time_s}
         for column, label in enumerate(labels):
             row[f"{label}_two_phase_K"] = active[index, column]
+            if sparse_active is not None:
+                row[f"{label}_two_phase_sparse_K"] = np.interp(
+                    time_s, sparse_times, sparse_active[:, column]
+                )
             if baseline_values is not None:
                 row[f"{label}_pure_gas_K"] = baseline_values[index, column]
         rows.append(row)
     write_rows(DATA / "temperature_comparison.csv", rows)
     fig, axes = plt.subplots(1, 3, figsize=(15.2, 4.8), sharex=True)
     for column, (axis, label) in enumerate(zip(axes, ("Wall", "10 mm", "30 mm"))):
-        axis.plot(times, active[:, column], color="#d62728", lw=2.0, label="Two phase")
+        axis.plot(times, active[:, column], color="#d62728", lw=2.0, label="Two phase_dense")
+        if sparse_active is not None:
+            axis.plot(
+                sparse_times, sparse_active[:, column], color="#d62728", lw=1.8,
+                linestyle="--", label="Two phase_sparse",
+            )
         if baseline_values is not None:
             axis.plot(times, baseline_values[:, column], color="#1f77b4", lw=2.2, label="Pure gas")
         axis.set_xlim(float(times[0]), float(times[-1]))
@@ -370,13 +445,90 @@ def temperature_figure(case: Path, baseline: Path):
     fig.savefig(FIGURES / "temperature_comparison.png", dpi=300, facecolor="white")
     plt.close(fig)
 
-def spatial_figures(case: Path, patch: str):
+def spatial_snapshot(
+    case: Path,
+    patch: str,
+    time_s: float,
+    directory: Path,
+    face_ids: np.ndarray,
+    centres: np.ndarray,
+    face_areas: np.ndarray,
+    radius: np.ndarray,
+    pressure_time: np.ndarray,
+    pressure: np.ndarray,
+    config: dict,
+    exchange_directories,
+):
+    fields = {
+        "Radiation": "particleRadiationWallHeatFlux",
+        "Reflection": "particleReflectedWallHeatFlux",
+        "Deposition": "particleStuckWallHeatFlux",
+        "Gas convection": "gasConvectiveWallHeatFlux",
+    }
+    values = {
+        label: patch_values(directory / "fluid" / field, patch, face_ids.size)
+        for label, field in fields.items()
+    }
+    wall_temperature_end = patch_values(directory / "fluid/T", patch, face_ids.size)
+    exchange_time = completed_exchange_time(directory / "thermalExchangeState")
+    if abs(exchange_time - time_s) > 1.0e-8:
+        raise RuntimeError(f"gas/radiation output intervals are misaligned in {directory}")
+    previous_time = previous_exchange_time(directory / "thermalExchangeState")
+    previous_error, previous_directory = previous_exchange_directory(exchange_directories, previous_time)
+    if previous_error > TIME_MATCH_TOLERANCE_S:
+        print(
+            f"wall-temperature state {previous_time:.17g} is not written; "
+            f"using {previous_directory.name} for {directory}",
+            file=sys.stderr,
+        )
+    wall_temperature, wall_temperature_source = interval_wall_temperature(
+        case, previous_directory, patch, face_ids.size
+    )
+    pressure_time_s = 0.5*(previous_time + time_s)
+    chamber_pressure = float(np.interp(pressure_time_s, pressure_time, pressure))
+    throat_x = float(config["throat_axial_coordinate_m"])
+    bartz_result = [
+        bartz_wall_heat_flux(
+            chamber_pressure, float(wall_temperature[i]), float(radius[i]), float(centres[i, 0]), throat_x,
+            config["total_temperature_k"], config["throat_diameter_m"], config["throat_curvature_radius_m"],
+            config["dynamic_viscosity_pa_s"], config["specific_heat_j_kg_k"], config["prandtl"],
+            config["gamma"], config["gas_constant_j_kg_k"],
+        ) for i in range(face_ids.size)
+    ]
+    bartz = np.asarray([item[0] for item in bartz_result])
+    bartz_h = np.asarray([item[1] for item in bartz_result])
+    bartz_mach = np.asarray([item[2] for item in bartz_result])
+    total = sum(values.values())
+    effective, fraction, contact = effective_radiating_area(
+        directory / "gpuResidentStrictParticles.dat", face_ids, face_areas,
+        case / "constant/particleProperties",
+    )
+    return {
+        "time_s": time_s,
+        "directory": directory,
+        "values": values,
+        "wall_temperature_end": wall_temperature_end,
+        "wall_temperature": wall_temperature,
+        "wall_temperature_source": wall_temperature_source,
+        "previous_time": previous_time,
+        "pressure_time_s": pressure_time_s,
+        "chamber_pressure": chamber_pressure,
+        "bartz": bartz,
+        "bartz_h": bartz_h,
+        "bartz_mach": bartz_mach,
+        "total": total,
+        "effective": effective,
+        "fraction": fraction,
+        "contact": contact,
+    }
+
+
+def spatial_figures(case: Path, patch: str, sparse_case: Path | None = None):
     face_ids, centres, face_areas, face_normals = coupled_face_geometry(case, patch, axisymmetric=True)
     coordinate_mm = centres[:, 0]*1000.0
     radius = np.sqrt(centres[:, 1]**2 + centres[:, 2]**2)
     order = np.argsort(coordinate_mm)
     config = json.loads((case / "assets/postprocessing/bartz.json").read_text())
-    throat_x = float(config["throat_axial_coordinate_m"])
     pressure_time, pressure = pressure_table(case / "constant/fluid/inletPressure.table")
     heat_data = DATA / "wall_heat_flux_profiles"
     area_data = DATA / "effective_radiating_area_profiles"
@@ -392,80 +544,121 @@ def spatial_figures(case: Path, patch: str):
             shutil.rmtree(obsolete)
         elif obsolete.exists():
             obsolete.unlink()
-    fields = {
-        "Radiation": "particleRadiationWallHeatFlux",
-        "Reflection": "particleReflectedWallHeatFlux",
-        "Deposition": "particleStuckWallHeatFlux",
-        "Gas convection": "gasConvectiveWallHeatFlux",
-    }
+
     records = radiation_directories(case)
     exchange_directories = [
         (completed_exchange_time(directory / "thermalExchangeState"), directory)
         for _, directory in numeric_directories(case)
         if (directory / "thermalExchangeState").is_file()
     ]
+
+    sparse_context = None
+    if sparse_case is not None:
+        try:
+            sparse_face_ids, sparse_centres, sparse_face_areas, sparse_face_normals = coupled_face_geometry(
+                sparse_case, patch, axisymmetric=True
+            )
+            sparse_records = radiation_directories(sparse_case)
+            sparse_exchange_directories = [
+                (completed_exchange_time(directory / "thermalExchangeState"), directory)
+                for _, directory in numeric_directories(sparse_case)
+                if (directory / "thermalExchangeState").is_file()
+            ]
+            if not sparse_records or not sparse_exchange_directories:
+                raise RuntimeError("no completed sparse radiation records")
+            sparse_coordinate_mm = sparse_centres[:, 0]*1000.0
+            sparse_radius = np.sqrt(sparse_centres[:, 1]**2 + sparse_centres[:, 2]**2)
+            sparse_order = np.argsort(sparse_coordinate_mm)
+            sparse_config = json.loads((sparse_case / "assets/postprocessing/bartz.json").read_text())
+            sparse_pressure_time, sparse_pressure = pressure_table(
+                sparse_case / "constant/fluid/inletPressure.table"
+            )
+            sparse_context = {
+                "case": sparse_case,
+                "face_ids": sparse_face_ids,
+                "centres": sparse_centres,
+                "face_areas": sparse_face_areas,
+                "radius": sparse_radius,
+                "coordinate_mm": sparse_coordinate_mm,
+                "order": sparse_order,
+                "records": sparse_records,
+                "exchange_directories": sparse_exchange_directories,
+                "config": sparse_config,
+                "pressure_time": sparse_pressure_time,
+                "pressure": sparse_pressure,
+            }
+        except (OSError, RuntimeError) as error:
+            print(f"spatial sparse comparison skipped: {error}", file=sys.stderr)
+
     for time_s, directory in records:
-        values = {label: patch_values(directory / "fluid" / field, patch, face_ids.size) for label, field in fields.items()}
-        wall_temperature_end = patch_values(directory / "fluid/T", patch, face_ids.size)
-        exchange_time = completed_exchange_time(directory / "thermalExchangeState")
-        if abs(exchange_time - time_s) > 1.0e-8:
-            raise RuntimeError(f"gas/radiation output intervals are misaligned in {directory}")
-        previous_time = previous_exchange_time(directory / "thermalExchangeState")
-        previous_error, previous_directory = min(
-            ((abs(t - previous_time), path) for t, path in exchange_directories),
-            key=lambda item: item[0],
+        dense = spatial_snapshot(
+            case, patch, time_s, directory, face_ids, centres, face_areas, radius,
+            pressure_time, pressure, config, exchange_directories,
         )
-        if previous_error > 1.0e-8:
-            raise RuntimeError(f"wall-temperature state {previous_time:.17g} is missing for {directory}")
-        wall_temperature, wall_temperature_source = interval_wall_temperature(
-            case, previous_directory, patch, face_ids.size
-        )
-        pressure_time_s = 0.5*(previous_time + time_s)
-        chamber_pressure = float(np.interp(pressure_time_s, pressure_time, pressure))
-        bartz_result = [
-            bartz_wall_heat_flux(
-                chamber_pressure, float(wall_temperature[i]), float(radius[i]), float(centres[i, 0]), throat_x,
-                config["total_temperature_k"], config["throat_diameter_m"], config["throat_curvature_radius_m"],
-                config["dynamic_viscosity_pa_s"], config["specific_heat_j_kg_k"], config["prandtl"],
-                config["gamma"], config["gas_constant_j_kg_k"],
-            ) for i in range(face_ids.size)
-        ]
-        bartz = np.asarray([item[0] for item in bartz_result])
-        bartz_h = np.asarray([item[1] for item in bartz_result])
-        bartz_mach = np.asarray([item[2] for item in bartz_result])
-        total = sum(values.values())
-        effective, fraction, contact = effective_radiating_area(
-            directory / "gpuResidentStrictParticles.dat", face_ids, face_areas, case / "constant/particleProperties"
-        )
+        sparse = None
+        if sparse_context is not None:
+            sparse_record = nearest_record(sparse_context["records"], time_s)
+            if sparse_record is not None:
+                try:
+                    sparse = spatial_snapshot(
+                        sparse_context["case"], patch, sparse_record[0], sparse_record[1],
+                        sparse_context["face_ids"], sparse_context["centres"],
+                        sparse_context["face_areas"], sparse_context["radius"],
+                        sparse_context["pressure_time"], sparse_context["pressure"],
+                        sparse_context["config"], sparse_context["exchange_directories"],
+                    )
+                except (OSError, RuntimeError) as error:
+                    print(
+                        f"spatial sparse snapshot {sparse_record[0]:.17g} s skipped: {error}",
+                        file=sys.stderr,
+                    )
+
         name = time_name(time_s)
         heat_rows, area_rows = [], []
         for i in order:
             heat_rows.append({
                 "time_s": time_s, "wall_coordinate_mm": coordinate_mm[i],
-                "radiation_W_m2": values["Radiation"][i], "reflection_W_m2": values["Reflection"][i],
-                "deposition_W_m2": values["Deposition"][i], "convection_W_m2": values["Gas convection"][i],
-                "total_calculated_W_m2": total[i],
-                "bartz_W_m2": bartz[i], "bartz_h_W_m2_K": bartz_h[i], "bartz_mach": bartz_mach[i],
-                "local_radius_m": radius[i], "wall_temperature_K": wall_temperature[i],
-                "wall_temperature_end_K": wall_temperature_end[i],
-                "wall_temperature_source": wall_temperature_source,
-                "interval_start_s": previous_time, "pressure_time_s": pressure_time_s,
-                "chamber_pressure_Pa": chamber_pressure,
+                "radiation_W_m2": dense["values"]["Radiation"][i],
+                "reflection_W_m2": dense["values"]["Reflection"][i],
+                "deposition_W_m2": dense["values"]["Deposition"][i],
+                "convection_W_m2": dense["values"]["Gas convection"][i],
+                "total_calculated_W_m2": dense["total"][i],
+                "bartz_W_m2": dense["bartz"][i], "bartz_h_W_m2_K": dense["bartz_h"][i],
+                "bartz_mach": dense["bartz_mach"][i], "local_radius_m": radius[i],
+                "wall_temperature_K": dense["wall_temperature"][i],
+                "wall_temperature_end_K": dense["wall_temperature_end"][i],
+                "wall_temperature_source": dense["wall_temperature_source"],
+                "interval_start_s": dense["previous_time"],
+                "pressure_time_s": dense["pressure_time_s"],
+                "chamber_pressure_Pa": dense["chamber_pressure"],
             })
             area_rows.append({
                 "time_s": time_s, "wall_coordinate_mm": coordinate_mm[i],
-                "effective_radiating_area_m2": effective[i], "effective_radiating_area_fraction": fraction[i],
-                "contact_area_m2": contact[i], "face_area_m2": face_areas[i],
+                "effective_radiating_area_m2": dense["effective"][i],
+                "effective_radiating_area_fraction": dense["fraction"][i],
+                "contact_area_m2": dense["contact"][i], "face_area_m2": face_areas[i],
             })
         write_rows(heat_data / f"{name}.csv", heat_rows)
         write_rows(area_data / f"{name}.csv", area_rows)
+
         fig, axis = plt.subplots(figsize=(9.4, 6.0))
         styles = (("Gas convection", "#2ca02c"), ("Radiation", "#9467bd"),
                   ("Reflection", "#d62728"), ("Deposition", "#1f77b4"),
                   ("Bartz", "#ff7f0e"))
         for label, color in styles:
-            values_to_plot = bartz if label == "Bartz" else values[label]
-            axis.plot(coordinate_mm[order], values_to_plot[order]/1.0e6, lw=2.0, color=color, label=label)
+            values_to_plot = dense["bartz"] if label == "Bartz" else dense["values"][label]
+            axis.plot(
+                coordinate_mm[order], values_to_plot[order]/1.0e6,
+                lw=2.0, color=color, label=f"{label}_dense",
+            )
+        if sparse is not None:
+            for label, color in styles:
+                values_to_plot = sparse["bartz"] if label == "Bartz" else sparse["values"][label]
+                axis.plot(
+                    sparse_context["coordinate_mm"][sparse_context["order"]],
+                    values_to_plot[sparse_context["order"]]/1.0e6,
+                    lw=1.8, linestyle="--", color=color, label=f"{label}_sparse",
+                )
         axis.set_xlabel("Axial wall coordinate (mm)")
         axis.set_ylabel(r"Wall heat flux (MW m$^{-2}$)")
         axis.set_title(rf"$t={time_s:.6f}$ s")
@@ -475,12 +668,23 @@ def spatial_figures(case: Path, patch: str):
         fig.savefig(heat_figures / f"{name}.png", dpi=300, facecolor="white")
         fig.savefig(FIGURES / "wall_heat_flux_profile.png", dpi=300, facecolor="white")
         plt.close(fig)
+
         fig, axis = plt.subplots(figsize=(9.4, 6.0))
-        axis.plot(coordinate_mm[order], fraction[order], color="#1f77b4", lw=2.2)
+        axis.plot(
+            coordinate_mm[order], dense["fraction"][order], color="#1f77b4", lw=2.2,
+            label="Effective radiating area_dense",
+        )
+        if sparse is not None:
+            axis.plot(
+                sparse_context["coordinate_mm"][sparse_context["order"]],
+                sparse["fraction"][sparse_context["order"]], color="#1f77b4",
+                lw=1.8, linestyle="--", label="Effective radiating area_sparse",
+            )
         axis.set_xlabel("Axial wall coordinate (mm)")
         axis.set_ylabel(r"Normalized radiating area $A_{\mathrm{rad}}/A_f$")
         axis.set_ylim(0.0, 1.02)
         axis.set_title(rf"$t={time_s:.6f}$ s")
+        axis.legend(loc="best", frameon=False)
         axis.grid(alpha=0.18)
         fig.tight_layout()
         fig.savefig(area_figures / f"{name}.png", dpi=300, facecolor="white")
@@ -499,11 +703,12 @@ def main():
     FIGURES.mkdir(parents=True, exist_ok=True)
     particle_reader.CASE = case
     particle_reader.COUPLED_PATCH = "fluid_to_graphite"
+    sparse_case = sparse_comparison_case(case)
     try:
-        temperature_figure(case, case.parent / "MSS7_turbulent_wallModel")
+        temperature_figure(case, case.parent / "MSS7_turbulent_wallModel", sparse_case)
     except (OSError, RuntimeError) as error:
         print(f"temperature comparison skipped: {error}", file=sys.stderr)
-    spatial_figures(case, "fluid_to_graphite")
+    spatial_figures(case, "fluid_to_graphite", sparse_case)
     print(f"data={DATA}")
     print(f"figures={FIGURES}")
 

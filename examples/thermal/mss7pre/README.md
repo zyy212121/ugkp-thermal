@@ -15,6 +15,15 @@ The graphite field is independently reconstructed from the prescribed experiment
 
 The stored checkpoints were regenerated with the current solver on 2026-09-06. The written pre-development time was `1.0050000000000439 s`. At the first axial cell station, the laminar field has 22.3141 m/s at the symmetry-side cell and 20.3654 m/s at the wall-side cell; the SST field has 22.2893 m/s and 19.9219 m/s, respectively. The former inverse near-wall profile is therefore absent. The common fluid and graphite mesh hashes are `533bb0c8a46eb13b91413b9b39db21542a8d8e3e98ec5dc53b74abc5bfebe2f3` and `0cfdc21a935451fc1e38f15b4c7ecf30ff33461d75e49479565df87367180299`. The reconstructed graphite field contains 6888 cells and spans 300.000-888.965 K.
 
-Each target case provides a local `Allrun` and `Allclean`. `Allrun` first removes previous calculated times, restores its matching time `1` from this directory, prepares the radiation table when required, and then starts `CHT`. `Allclean` removes every numeric time directory, including time `1`; the authoritative initial state remains here and is restored by the next `Allrun`. To resume an existing calculation, run `CHT` directly instead of `Allrun`.
+The root thermal runner restores the matching time `1` from this directory and
+then starts `CHT`. It checks the radiation table before starting: an existing
+non-empty table is used immediately, while a missing table prompts for
+confirmation before generation with the default grid. Non-interactive runs
+must create or copy `assets/radiation/alumina_mieTable.dat` into each case
+with `enabled true;` in `constant/radiationProperties`; see the particle
+radiation section in the repository README for the generator and its
+configurable ranges. `Allclean` removes calculated time directories while the
+authoritative initial state remains here and is restored by the next run. To
+resume an existing calculation, run `CHT` directly instead of the runner.
 
 `build_predeveloped_checkpoints.sh` regenerates all four checkpoints with the currently built `CHT` executable. This directory intentionally has no `Allrun` or `Allclean` entry point.
