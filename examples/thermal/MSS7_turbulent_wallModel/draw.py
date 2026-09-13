@@ -18,6 +18,11 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
 
+if hasattr(np, "trapezoid"):
+    _trapezoid = np.trapezoid
+else:
+    _trapezoid = np.trapz
+
 
 SCRIPT_CASE = Path(__file__).resolve().parent
 THERMAL = SCRIPT_CASE.parent
@@ -199,12 +204,14 @@ def heat_flux_directories(case: Path, interval_s: float = 0.1) -> list[tuple[flo
         )
         if all(foam_file_complete(path) for path in required):
             exchange_time = completed_exchange_time(directory / "thermalExchangeState")
-            grid_index = round(exchange_time / interval_s)
             if exchange_time <= 1.0 + TIME_TOLERANCE_S:
                 continue
-            if abs(exchange_time - grid_index * interval_s) > interval_s * 1.0e-4:
+            grid_index = round(directory_time / interval_s)
+            if abs(directory_time - grid_index * interval_s) > interval_s * 1.0e-4:
                 continue
-            records.setdefault(grid_index, (exchange_time, directory))
+            if exchange_time > directory_time + TIME_TOLERANCE_S:
+                raise RuntimeError(f"thermal exchange time exceeds directory time in {directory}")
+            records.setdefault(grid_index, (directory_time, directory))
     return [records[index] for index in sorted(records)]
 
 
@@ -312,49 +319,9 @@ def write_rows(path: Path, rows: list[dict[str, float]]) -> None:
         writer.writerows(rows)
 
 
-def benchmark_heat_samples(patch: str = "fluid_to_graphite") -> tuple[np.ndarray, list[tuple[float, np.ndarray, np.ndarray]]]:
-    if not (BENCHMARK_CASE / "constant/fluid/polyMesh/boundary").is_file():
-        return np.empty(0), []
-    _, centres = coupled_face_geometry(BENCHMARK_CASE, patch)
-    order = np.argsort(centres[:, 0])
-    records = []
-    for time_s, directory in numeric_directories(BENCHMARK_CASE):
-        paths = (directory / "fluid/wallHeatFlux", directory / "fluid/T")
-        if not all(foam_file_complete(path) for path in paths):
-            continue
-        try:
-            q = -patch_values(paths[0], patch, len(order))
-            tw = patch_values(paths[1], patch, len(order))
-        except (RuntimeError, ValueError, OSError):
-            continue
-        if np.all(np.isfinite(q)) and np.all(np.isfinite(tw)):
-            records.append((time_s, q[order], tw[order]))
-    return centres[order, 0] * 1000, records
-
-
-def benchmark_interval(samples: tuple[np.ndarray, list], start: float, end: float, x_mm: np.ndarray) -> np.ndarray:
-    x, records = samples
-    missing = np.full(x_mm.shape, np.nan)
-    if len(records) < 2 or end <= start:
-        return missing
-    times = np.asarray([item[0] for item in records])
-    tolerance = 2.0e-6
-    if times[0] > start + tolerance or times[-1] < end - tolerance:
-        return missing
-    start = max(start, float(times[0]))
-    end = min(end, float(times[-1]))
-    points = np.unique(np.r_[start, times[(times > start) & (times < end)], end])
-    if np.max(np.diff(points)) > 0.011:
-        return missing
-    q = np.stack([item[1] for item in records])
-    interpolated = np.stack([np.interp(points, times, q[:, i]) for i in range(len(x))], axis=1)
-    average = np.trapezoid(interpolated, points, axis=0) / (end - start)
-    return np.interp(x_mm, x, average, left=np.nan, right=np.nan)
-
-
 def gas_wall_heat_flux_profiles(case: Path, patch: str = "fluid_to_graphite") -> int:
     if case == BENCHMARK_CASE.resolve():
-        return benchmark_wall_heat_flux_profiles(patch)
+        raise RuntimeError("benchmark heat-flux post-processing is disabled")
     _, centres = coupled_face_geometry(case, patch, axisymmetric=True)
     coordinate_mm = centres[:, 0] * 1000.0
     radius = np.sqrt(centres[:, 1] ** 2 + centres[:, 2] ** 2)
@@ -370,22 +337,23 @@ def gas_wall_heat_flux_profiles(case: Path, patch: str = "fluid_to_graphite") ->
             shutil.rmtree(directory)
         directory.mkdir(parents=True)
     records = heat_flux_directories(case)
-    benchmark_samples = benchmark_heat_samples(patch)
     if not records:
         raise RuntimeError(f"no completed 0.1 s wall-heat-flux outputs in {case}")
-    all_time_directories = [
-        (completed_exchange_time(directory / "thermalExchangeState"), directory)
-        for _, directory in numeric_directories(case)
-        if (directory / "thermalExchangeState").is_file()
-    ]
+    all_time_directories = numeric_directories(case)
     replay_records: list[tuple[Path, float, np.ndarray]] = []
+    previous_written_time = max(
+        candidate_time
+        for candidate_time, _ in all_time_directories
+        if candidate_time < records[0][0] - TIME_TOLERANCE_S
+    )
     for time_s, directory in records:
         actual = patch_values(directory / "fluid/gasConvectiveWallHeatFlux", patch, centres.shape[0])
         wall_temperature_end = patch_values(directory / "fluid/T", patch, centres.shape[0])
-        previous_time = previous_exchange_time(directory / "thermalExchangeState")
-        benchmark = benchmark_interval(benchmark_samples, previous_time, time_s, coordinate_mm)
+        state_path = directory / "thermalExchangeState"
+        actual_interval_start = previous_exchange_time(state_path)
+        actual_interval_end = completed_exchange_time(state_path)
         previous_candidates = [
-            (abs(candidate_time - previous_time), candidate_directory)
+            (abs(candidate_time - previous_written_time), candidate_directory)
             for candidate_time, candidate_directory in all_time_directories
         ]
         if not previous_candidates:
@@ -393,12 +361,12 @@ def gas_wall_heat_flux_profiles(case: Path, patch: str = "fluid_to_graphite") ->
         previous_error, previous_directory = min(previous_candidates, key=lambda item: item[0])
         if previous_error > TIME_TOLERANCE_S:
             raise RuntimeError(
-                f"wall-temperature state {previous_time:.17g} is missing for {directory}"
+                f"wall-temperature state {previous_written_time:.17g} is missing for {directory}"
             )
         wall_temperature, wall_temperature_source = interval_wall_temperature(
             case, previous_directory, patch, centres.shape[0]
         )
-        interval_midpoint = 0.5*(previous_time + time_s)
+        interval_midpoint = 0.5*(previous_written_time + time_s)
         chamber_pressure = float(np.interp(interval_midpoint, pressure_time, pressure))
         bartz_result = [
             bartz_wall_heat_flux(
@@ -421,14 +389,12 @@ def gas_wall_heat_flux_profiles(case: Path, patch: str = "fluid_to_graphite") ->
         bartz = np.asarray([item[0] for item in bartz_result])
         bartz_h = np.asarray([item[1] for item in bartz_result])
         bartz_mach = np.asarray([item[2] for item in bartz_result])
-        replay_records.append((directory, time_s - previous_time, bartz.copy()))
+        replay_records.append((directory, time_s - previous_written_time, bartz.copy()))
         rows = [
             {
                 "time_s": time_s,
                 "wall_coordinate_mm": coordinate_mm[index],
                 "calculated_wall_heat_flux_W_m2": actual[index],
-                "benchmark_W_m2": benchmark[index],
-                "benchmark_sampling": "trapezoidal_average_over_same_physical_interval",
                 "bartz_W_m2": bartz[index],
                 "bartz_h_W_m2_K": bartz_h[index],
                 "bartz_mach": bartz_mach[index],
@@ -436,8 +402,10 @@ def gas_wall_heat_flux_profiles(case: Path, patch: str = "fluid_to_graphite") ->
                 "wall_temperature_K": wall_temperature[index],
                 "wall_temperature_source": wall_temperature_source,
                 "wall_temperature_end_K": wall_temperature_end[index],
-                "interval_start_time_s": previous_time,
+                "interval_start_time_s": previous_written_time,
                 "interval_midpoint_time_s": interval_midpoint,
+                "calculated_flux_interval_start_time_s": actual_interval_start,
+                "calculated_flux_interval_end_time_s": actual_interval_end,
             }
             for index in order
         ]
@@ -451,7 +419,7 @@ def gas_wall_heat_flux_profiles(case: Path, patch: str = "fluid_to_graphite") ->
             actual[order] / 1.0e6,
             color="#1f77b4",
             linewidth=2.2,
-            label="Calculated wall heat flux",
+            label="Turbulent wall model",
         )
         axis.plot(
             coordinate_mm[order],
@@ -461,10 +429,6 @@ def gas_wall_heat_flux_profiles(case: Path, patch: str = "fluid_to_graphite") ->
             linestyle="--",
             label="Bartz",
         )
-        if np.any(np.isfinite(benchmark)):
-            axis.plot(coordinate_mm[order], benchmark[order] / 1.0e6,
-                      color="#2ca02c", linewidth=2, linestyle="-.",
-                      label="OpenFOAM SST CHT Benchmark")
         axis.set_xlabel("Axial wall coordinate (mm)")
         axis.set_ylabel(r"Wall heat flux (MW m$^{-2}$)")
         axis.set_title(rf"{case.name.replace('_', ' ')}, $t={time_s:.6f}$ s")
@@ -476,55 +440,9 @@ def gas_wall_heat_flux_profiles(case: Path, patch: str = "fluid_to_graphite") ->
         plt.close(fig)
         shutil.copy2(csv_path, output / "data/wall_heat_flux_profile.csv")
         shutil.copy2(png_path, output / "figures/wall_heat_flux_profile.png")
+        previous_written_time = time_s
     replay_bartz_solid_temperature(case, replay_records)
     return len(records)
-
-
-def benchmark_wall_heat_flux_profiles(patch: str = "fluid_to_graphite") -> int:
-    x, samples = benchmark_heat_samples(patch)
-    if not samples:
-        raise RuntimeError("the OpenFOAM Benchmark has no complete wall-heat-flux output yet")
-    output = THERMAL / "results" / BENCHMARK_CASE.name
-    data = output / "data/wall_heat_flux_profiles"
-    figures = output / "figures/wall_heat_flux_profiles"
-    data.mkdir(parents=True, exist_ok=True)
-    figures.mkdir(parents=True, exist_ok=True)
-    _, centres = coupled_face_geometry(BENCHMARK_CASE, patch, axisymmetric=True)
-    order = np.argsort(centres[:, 0])
-    radius = np.linalg.norm(centres[order, 1:], axis=1)
-    config = json.loads((SHARED_ASSETS / "bartz.json").read_text())
-    throat_x = float(config["throat_axial_coordinate_m"])
-    pt, pv = pressure_table(SST_CASE / "constant/fluid/inletPressure.table")
-    count = 0
-    for time_s, q, tw in samples:
-        if abs(time_s * 10 - round(time_s * 10)) > 1e-6:
-            continue
-        bartz = np.asarray([
-            bartz_wall_heat_flux(float(np.interp(time_s, pt, pv)), float(tw[i]), float(radius[i]),
-                                float(x[i] / 1000), throat_x, config["total_temperature_k"],
-                                config["throat_diameter_m"], config["throat_curvature_radius_m"],
-                                config["dynamic_viscosity_pa_s"], config["specific_heat_j_kg_k"],
-                                config["prandtl"], config["gamma"], config["gas_constant_j_kg_k"])[0]
-            for i in range(len(x))])
-        rows = [{"time_s": time_s, "wall_coordinate_mm": x[i], "benchmark_W_m2": q[i],
-                 "bartz_W_m2": bartz[i], "wall_temperature_K": tw[i],
-                 "sampling": "instantaneous_at_written_physical_time"} for i in range(len(x))]
-        name = time_name(time_s)
-        write_rows(data / f"{name}.csv", rows)
-        fig, axis = plt.subplots(figsize=(9.4, 6), facecolor="white")
-        axis.plot(x, q / 1e6, color="#2ca02c", label="OpenFOAM SST CHT Benchmark")
-        axis.plot(x, bartz / 1e6, color="#ff7f0e", linestyle="--", label="Bartz")
-        axis.set_xlabel("Axial wall coordinate (mm)")
-        axis.set_ylabel(r"Wall heat flux (MW m$^{-2}$)")
-        axis.set_title(f"OpenFOAM Benchmark, t={time_s:g} s (instantaneous)")
-        axis.legend(frameon=False)
-        fig.tight_layout()
-        fig.savefig(figures / f"{name}.png", dpi=300)
-        plt.close(fig)
-        shutil.copy2(data / f"{name}.csv", output / "data/wall_heat_flux_profile.csv")
-        shutil.copy2(figures / f"{name}.png", output / "figures/wall_heat_flux_profile.png")
-        count += 1
-    return count
 
 
 def refresh_probes(case: Path) -> None:
@@ -695,28 +613,16 @@ def read_experiment() -> tuple[np.ndarray, dict[str, np.ndarray]]:
     return time, values
 
 
-def benchmark_temperatures(target_x: float) -> dict[float, tuple[float, float, float]]:
-    _, internal = read_probe_series(BENCHMARK_CASE / "postProcessing/mss7ThroatTemperatureProbes/graphite")
-    x, heat = benchmark_heat_samples()
-    result = {}
-    for time_s, _, wall in heat:
-        matches = [candidate for candidate in internal if abs(candidate - time_s) <= 2e-6]
-        if not matches:
-            continue
-        values = internal[matches[0]]
-        if len(values) != 2 or not np.all(np.isfinite(values)) or any(v <= 0 or v > 1e5 for v in values):
-            continue
-        if x[0] <= target_x * 1000 <= x[-1]:
-            result[time_s] = (float(np.interp(target_x * 1000, x, wall)), values[0], values[1])
-    return result
-
-
 def temperature_comparison() -> int:
-    for case in (LAMINAR_CASE, SST_CASE):
+    try:
+        refresh_probes(SST_CASE)
+    except RuntimeError as error:
+        print(f"probe refresh skipped for {SST_CASE.name}: {error}", file=sys.stderr)
+    if BENCHMARK_CASE.is_dir():
         try:
-            refresh_probes(case)
+            refresh_probes(BENCHMARK_CASE)
         except RuntimeError as error:
-            print(f"probe refresh skipped for {case.name}: {error}", file=sys.stderr)
+            print(f"probe refresh skipped for {BENCHMARK_CASE.name}: {error}", file=sys.stderr)
     try:
         refresh_bartz_probes(SST_CASE)
     except RuntimeError as error:
@@ -739,7 +645,7 @@ def temperature_comparison() -> int:
     benchmark = {}
     if BENCHMARK_CASE.is_dir():
         try:
-            benchmark = benchmark_temperatures(target_wall_x)
+            benchmark = read_case(BENCHMARK_CASE, target_wall_x)
         except (OSError, RuntimeError, ValueError) as error:
             print(f"Benchmark temperature pending: {error}", file=sys.stderr)
     times = sorted(set(round(t, 8) for data in (laminar, sst, benchmark, bartz) for t in data))
@@ -819,7 +725,7 @@ def main() -> None:
     args = parser.parse_args()
     case = args.case.resolve()
     tasks = []
-    if args.only in ("all", "wall-heat-flux"):
+    if args.only in ("all", "wall-heat-flux") and case != BENCHMARK_CASE.resolve():
         tasks.append((f"{case.name} wall heat flux", lambda: gas_wall_heat_flux_profiles(case)))
     if args.only in ("all", "temperature"):
         tasks.append(("temperature comparison", temperature_comparison))

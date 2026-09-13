@@ -1,30 +1,3 @@
-FoamFile
-{
-    version 2.0;
-    format ascii;
-    class volScalarField;
-    location "0";
-    object T;
-}
-
-dimensions [0 0 0 1 0 0 0];
-internalField uniform 300;
-
-boundaryField
-{
-    impactWall
-    {
-        type fixedValue;
-        value uniform 473.15;
-    }
-    top
-    {
-        type fixedValue;
-        value uniform 300;
-    }
-    sideWalls
-    {
-        type fixedValue;
-        value uniform 300;
-    }
-}
+version https://git-lfs.github.com/spec/v1
+oid sha256:cd6a2398abf79a434ef9f353d67b42f6d6b73c70f74a8d31fea558735c3c219b
+size 413

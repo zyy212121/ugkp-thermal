@@ -17,14 +17,14 @@ BINARY = (
 
 
 class CouplingLoggingContract(unittest.TestCase):
-    def test_production_thermal_cadence_is_point_one_second(self) -> None:
+    def test_production_thermal_cadence_is_point_zero_one_second(self) -> None:
         coupling = (
             ROOT.parents[1]
             / "examples/thermal/MSS7_laminar/constant/solidRegionProperties"
         ).read_text(encoding="utf-8")
-        self.assertRegex(coupling, r"couplingInterval\s+0\.1\s*;")
+        self.assertRegex(coupling, r"couplingInterval\s+0\.01\s*;")
         self.assertRegex(
-            coupling, r"solidContactCouplingInterval\s+0\.1\s*;"
+            coupling, r"solidContactCouplingInterval\s+0\.01\s*;"
         )
 
     def test_every_completed_exchange_is_flushed(self) -> None:

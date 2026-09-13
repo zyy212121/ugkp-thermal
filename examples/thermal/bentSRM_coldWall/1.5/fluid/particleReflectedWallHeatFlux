@@ -1,12 +1,3 @@
-FoamFile
-{
-    version 2.0;
-    format ascii;
-    class surfaceScalarField;
-    location "1.5/fluid";
-    object particleReflectedWallHeatFlux;
-}
-
-dimensions [1 0 -3 0 0 0 0];
-internalField uniform 0;
-boundaryField { inlet {type calculated; value uniform 0;} outlet {type calculated; value uniform 0;} symmetry {type symmetry;} focusWall {type calculated; value uniform 0;} walls {type calculated; value uniform 0;} fluid_to_graphite {type calculated; value uniform 0;} }
+version https://git-lfs.github.com/spec/v1
+oid sha256:f7bb423d3f644e1f0e32abd89a26edb72a9a182169c52b6efbf94606181cc8d0
+size 472

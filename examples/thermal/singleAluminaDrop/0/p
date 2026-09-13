@@ -1,27 +1,3 @@
-FoamFile
-{
-    version 2.0;
-    format ascii;
-    class volScalarField;
-    location "0";
-    object p;
-}
-
-dimensions [1 -1 -2 0 0 0 0];
-internalField uniform 101325;
-
-boundaryField
-{
-    impactWall
-    {
-        type zeroGradient;
-    }
-    top
-    {
-        type zeroGradient;
-    }
-    sideWalls
-    {
-        type zeroGradient;
-    }
-}
+version https://git-lfs.github.com/spec/v1
+oid sha256:59d4a84b8cadfe422699895238591c0c03cb8e199b762b191c5c7e16581e103f
+size 340

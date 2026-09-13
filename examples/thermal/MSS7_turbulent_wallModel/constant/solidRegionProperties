@@ -12,8 +12,8 @@ schemaVersion 1;
 solidThermalCoupling
 {
     formatVersion 1;
-    couplingInterval             0.1;
-    solidContactCouplingInterval 0.1;
+    couplingInterval             0.01;
+    solidContactCouplingInterval 0.01;
     radiationEnabled             false;
 
     mapping     oneToOneConformal;

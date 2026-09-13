@@ -1,0 +1,4 @@
+examples/thermal/**/[0-9]*/** filter=lfs diff=lfs merge=lfs -text
+examples/thermal/**/data/** filter=lfs diff=lfs merge=lfs -text
+examples/thermal/results/** filter=lfs diff=lfs merge=lfs -text
+examples/thermal/**/postProcessing/** filter=lfs diff=lfs merge=lfs -text

@@ -1,25 +1,3 @@
-FoamFile
-{
-    format ascii;
-    class dictionary;
-    location "1";
-    object thermalExchangeState;
-}
-
-formatVersion 1;
-initialState true;
-exchangeSequence "0";
-completedTimeIndex 0;
-completedSimulationTimeS 1;
-previousExchangeSimulationTimeS 1;
-fluidMeshTopologySha1 "c723a896f35f08b464c845028043149f2272b763";
-solidMeshTopologySha1 "83fe8f458f87f07536d4ac0359a8e3ed61810849";
-couplingConfigurationSha1 "694f572122f5f08bc80d048a59709baab542faa0";
-wallTemperatureSha1UsedForCompletedInterval "0000000000000000000000000000000000000000";
-newlyUploadedWallTemperatureSha1 "0000000000000000000000000000000000000000";
-gasWallLedgerConsumed false;
-particleRadiationApplied false;
-solidStateUpdated false;
-wallTemperatureUploaded false;
-particleMomentsRebuilt false;
-particleContactEnergyJ 0;
+version https://git-lfs.github.com/spec/v1
+oid sha256:280deaf4b8dfcda6513f5adc41c580116c1cef82d9dbf15e43fed53cbd3bad86
+size 788

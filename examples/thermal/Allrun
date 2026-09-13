@@ -1,75 +1,36 @@
 #!/usr/bin/env bash
-REQUESTED_ARGS=("$@")
-if [ -z "${WM_PROJECT_DIR:-}" ]; then echo "OpenFOAM environment is not loaded" >&2; exit 1; fi
-set -- "${REQUESTED_ARGS[@]}"
+
 set -euo pipefail
 
-ROOT=$(cd "$(dirname "$0")" && pwd)
-CASES=(singleAluminaDrop/coldWall bentSRM_coldWall MSS7_laminar MSS7_turbulent_wallModel MSS7_twoPhase_sparse MSS7_twoPhase_dense)
-LOG_ROOT="$ROOT/run_logs/$(date +%Y%m%d_%H%M%S)"
-SUMMARY="$LOG_ROOT/summary.tsv"
+[[ $# -eq 1 ]] || { echo "Usage: ./Allrun <case-name>" >&2; exit 2; }
 
-prepare_mie_table()
-{
-    local caseDir=$1
-    local radiationProperties="$caseDir/constant/radiationProperties"
-    [[ -f "$radiationProperties" ]] || return 0
-    grep -Eq '^[[:space:]]*enabled[[:space:]]+true[[:space:]]*;' "$radiationProperties" || return 0
-    local target="$caseDir/assets/radiation/alumina_mieTable.dat"
-    [[ -s "$target" ]] && return 0
-    local cache="$ROOT/.generated/alumina_mieTable.dat"
-    if [[ ! -s "$cache" ]]; then
-        mkdir -p "$(dirname "$cache")"
-        python3 "$ROOT/../../applications/CHT/thermal/mieTables/make_alumina_mie_table.py" --out "$cache"
-    fi
-    mkdir -p "$(dirname "$target")"
-    ln -f "$cache" "$target"
-}
+root=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+case_name=$1
 
-if [[ ${1:-} == --list ]]; then
-    printf '%s\n' "${CASES[@]}"
-    exit 0
+case "${case_name}" in
+    MSS7_laminar|MSS7_turbulent_wallModel|MSS7_twoPhase_sparse|MSS7_twoPhase_dense) ;;
+    *) echo "Unknown thermal case: ${case_name}" >&2; exit 2 ;;
+esac
+
+[[ -n ${WM_PROJECT_DIR:-} ]] || { echo "OpenFOAM environment is not loaded" >&2; exit 1; }
+
+case_dir="${root}/${case_name}"
+[[ -f "${case_dir}/system/controlDict" ]] || { echo "Invalid thermal case: ${case_dir}" >&2; exit 2; }
+"${root}/mss7pre/prepare_run.sh" "${case_name}" "${case_dir}"
+
+app=$(awk '/^[[:space:]]*application[[:space:]]+/{gsub(/;/,"",$2); print $2; exit}' "${case_dir}/system/controlDict")
+[[ -n ${app} ]] || { echo "Missing application in ${case_dir}/system/controlDict" >&2; exit 2; }
+
+solver=${app}
+packaged_solver="${root}/../ugkp_server_update_02/bin/${app}"
+if [[ -x ${packaged_solver} ]]; then
+    solver=${packaged_solver}
+elif ! command -v "${app}" >/dev/null 2>&1; then
+    echo "Solver is not available: ${app}" >&2
+    exit 127
 fi
 
-status=0
-mkdir -p "$LOG_ROOT"
-printf 'case\tstatus\n' > "$SUMMARY"
-SELECTED=("${CASES[@]}")
-if (( ${#REQUESTED_ARGS[@]} > 0 )); then
-    SELECTED=("${REQUESTED_ARGS[@]}")
-    for requested in "${SELECTED[@]}"; do
-        [[ " ${CASES[*]} " == *" ${requested} "* ]] || {
-            echo "Unknown thermal case: ${requested}" >&2
-            exit 2
-        }
-    done
-fi
-for name in "${SELECTED[@]}"; do
-    caseDir="$ROOT/$name"
-    logName=${name//\//__}
-    if [[ "$name" == singleAluminaDrop/* ]]; then
-        variant=${name#singleAluminaDrop/}
-        echo "[THERMAL] $name (isolated FSH)"
-        (
-            cd "$ROOT/singleAluminaDrop"
-            ./Allrun "$variant"
-        ) >"$LOG_ROOT/$logName.log" 2>&1 && printf '%s\tPASS\n' "$name" >> "$SUMMARY" || { printf '%s\tFAIL\n' "$name" >> "$SUMMARY"; status=1; }
-    elif [[ -x "$caseDir/Allrun" ]]; then
-        echo "[THERMAL] $name (CHT, external pre-developed initial state)"
-        (
-            cd "$caseDir"
-            ./Allrun
-        ) >"$LOG_ROOT/$logName.log" 2>&1 && printf '%s\tPASS\n' "$name" >> "$SUMMARY" || { printf '%s\tFAIL\n' "$name" >> "$SUMMARY"; status=1; }
-    else
-        app=$(awk '/^[[:space:]]*application[[:space:]]+/{gsub(/;/,"",$2); print $2; exit}' "$caseDir/system/controlDict")
-        echo "[THERMAL] $name ($app)"
-        (
-            cd "$caseDir"
-            prepare_mie_table "$caseDir"
-            [[ -f constant/polyMesh/points ]] || { [[ -f system/blockMeshDict ]] && blockMesh; }
-            [[ ! -f system/setFieldsDict ]] || setFields
-            "$app"
-        ) >"$LOG_ROOT/$logName.log" 2>&1 && printf '%s\tPASS\n' "$name" >> "$SUMMARY" || { printf '%s\tFAIL\n' "$name" >> "$SUMMARY"; status=1; }
-    fi
-done
-exit "$status"
+log_root="${root}/run_logs/$(date +%Y%m%d_%H%M%S)"
+mkdir -p "${log_root}"
+cd "${case_dir}"
+exec "${solver}" >"${log_root}/${case_name}.log" 2>&1

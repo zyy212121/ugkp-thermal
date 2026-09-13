@@ -1,20 +1,3 @@
-FoamFile
-{
-    version 2.0;
-    format ascii;
-    class volVectorField;
-    location "1.5/fluid";
-    object Us;
-}
-
-dimensions [0 1 -1 0 0 0 0];
-internalField uniform (0 0 0);
-boundaryField
-{
-    inlet { type fixedValue; value uniform (0 0 0); }
-    outlet { type zeroGradient; }
-    symmetry { type symmetry; }
-    focusWall { type zeroGradient; }
-    walls { type zeroGradient; }
-    fluid_to_graphite { type zeroGradient; }
-}
+version https://git-lfs.github.com/spec/v1
+oid sha256:e712caae0810cf09a94e94be1a6fab1742ae51b7dc4c38f43fbd5ae591aef7aa
+size 429

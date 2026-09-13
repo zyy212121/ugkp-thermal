@@ -38,5 +38,5 @@ rm -rf -- "${case_dir}/postProcessing" "${case_dir}/VTK" "${case_dir}/dynamicCod
 find "${case_dir}" -mindepth 1 -maxdepth 1 -type f \
     \( -name 'log' -o -name 'log.*' -o -name '*.log' -o -name 'case.foam' -o -name '*.OpenFOAM' -o -name 'core' -o -name 'core.*' \) \
     -delete
-rm -f -- "${case_dir}/assets/radiation/alumina_mieTable.dat"
+sed -Ei 's/^[[:space:]]*startFrom[[:space:]]+[^;]+;/startFrom       startTime;/' "${case_dir}/system/controlDict"
 echo "cleaned=${case_dir} initialCheckpoint=external"

@@ -74,6 +74,21 @@ class InitialWallTemperatureTest(unittest.TestCase):
                 c["gamma"], c["gas_constant_j_kg_k"])[0]
         self.assertGreater(flux(300), flux(893.836))
 
+    def test_heat_flux_output_uses_write_time_when_coupling_is_more_frequent(self):
+        directory = self.case / "1.1000000000000183"
+        (directory / "fluid").mkdir(parents=True)
+        terminator = "\n// ************************************************************************* //\n"
+        (directory / "fluid/gasConvectiveWallHeatFlux").write_text("field" + terminator)
+        (directory / "fluid/T").write_text("field" + terminator)
+        (directory / "thermalExchangeState").write_text(
+            "completedSimulationTimeS 1.0900002367230901;\n"
+            "previousExchangeSimulationTimeS 1.0800001995284871;" + terminator
+        )
+        records = DRAW.heat_flux_directories(self.case)
+        self.assertEqual(len(records), 1)
+        self.assertAlmostEqual(records[0][0], 1.1)
+        self.assertEqual(records[0][1], directory)
+
 
 if __name__ == "__main__":
     unittest.main()
