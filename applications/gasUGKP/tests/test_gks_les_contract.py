@@ -405,8 +405,7 @@ class SourceContractTests(unittest.TestCase):
         cuda = "\n".join(
             (
                 read("private_backend/GpuResidentStrict.cu"),
-                (ROOT.parents[1] / "gpu/CsrSegmentedPoolWorkers.cuh").read_text(),
-                (ROOT.parents[1] / "gpu/CsrSegmentedMomentWorkers.cuh").read_text(),
+                (ROOT.parents[1] / "common/CsrPersistentQueue.cuh").read_text(),
             )
         )
         for token in (
@@ -519,11 +518,11 @@ class SourceContractTests(unittest.TestCase):
         self.assertIn("if constexpr (IncludeTurbulence)", cuda)
         self.assertIn("s->hostTurbulenceModel == 0", cuda)
         self.assertIn(
-            "computeGasInternalFaceFluxKernel<false><<<faceGrid, faceBlock>>>",
+            "computeGasInternalFaceFluxKernel<false><<<faceGrid, faceBlock, 0, s->gasCaptureStream>>>",
             cuda,
         )
         self.assertIn(
-            "computeGasInternalFaceFluxKernel<true><<<faceGrid, faceBlock>>>",
+            "computeGasInternalFaceFluxKernel<true><<<faceGrid, faceBlock, 0, s->gasCaptureStream>>>",
             cuda,
         )
         self.assertIn("s->hostTurbulenceModel = turbulenceModel;", cuda)

@@ -1,0 +1,47 @@
+
+#include <algorithm>
+#include <cmath>
+#include <cassert>
+#include <iostream>
+#define __device__
+#define __global__
+#define __shared__
+struct Dim {int x;};Dim threadIdx{0},blockIdx{0},blockDim{1},gridDim{1};
+double finiteOr(double x,double fallback){return std::isfinite(x)?x:fallback;}
+double clampMin(double a,double b){return std::max(a,b);}
+template<class T>T clampRange(T a,T lo,T hi){return std::min(std::max(a,lo),hi);}
+double sqr3(double x,double y,double z){return x*x+y*y+z*z;}
+template<class T,class U>T atomicAdd(T*p,U v){T old=*p;*p+=v;return old;}
+template<int N>void blockReduceComponentSums(double (&)[N],double*){}
+double warpPartials[256];
+struct Temperatures {double values[3]={300,400,NAN};int reads=0;double operator[](int i){++reads;return values[i];}};
+struct DeviceState {
+ int copied[3]={-1,-1,-1};
+ bool active=false;int factorCalls=0,nCells=1,particleCapacity=3,particleCount=3;int* particleCountDevice=&particleCount;
+ int sortedParticleIndex[3]={0,1,2},pStatus[3]={1,1,0},pCellId[3]={0,0,0};
+ int cellParticleOffset[2]={0,3},cellParticleCount[2]={0,0};
+ double pm[3]={3,2,4},pux[3]={2,2,2},puy[3]={3,3,3},puz[3]={4,4,4},pTheta[3]={2,2,2},pd[3]={.5,.5,.5};
+ Temperatures pT;double TpMin=10,TpMax=1000,particleDiameterFallback=1,rhoMin=1e-12,V[1]={1};
+ double momRhoP[1]={0},momRhoUPx[1]={0},momRhoUPy[1]={0},momRhoUPz[1]={0},momRhoEP[1]={0},momRhoPD[1]={0},momRhoHpP[1]={0};
+};
+double particleHeatFactorDevice(DeviceState&s){++s.factorCalls;return s.active?2:0;}
+void copyCellLocalParticle(DeviceState&s,int i,int c,int dst){assert(c==0);assert(s.copied[dst]==-1);s.copied[dst]=i;}
+{{accumulateParticleMomentsAtomicKernel}}
+template<bool HeavyReductionEnabled>
+{{accumulateParticleMomentsSegmentedKernel}}
+{{accumulateCsrHeavyMomentTask}}
+int main(){
+ for(bool active:{false,true})for(int mode:{0,1,2}){
+  DeviceState s;s.active=active;double sums[8]={};
+  if(mode==0)accumulateParticleMomentsAtomicKernel(&s);
+  if(mode==1)accumulateParticleMomentsSegmentedKernel<false>(&s);
+  if(mode==2)accumulateCsrHeavyMomentTask(s,0,0,3,sums,warpPartials);
+  double heat=mode==2?sums[6]:s.momRhoHpP[0];
+  double mass=mode==2?sums[0]:s.momRhoP[0];
+  int count=mode==2?int(sums[7]):s.cellParticleCount[0];
+  assert(s.copied[0]==-1 && s.copied[1]==-1 && s.copied[2]==-1);
+  assert(heat==(active?3400:0) && mass==5 && count==2);
+  std::cout<<"mode="<<mode<<" active="<<active<<" temperature_reads="<<s.pT.reads<<" factor_calls="<<s.factorCalls<<std::endl;
+  if(s.pT.reads!=(active?2:0) || s.factorCalls!=1)return 2;
+ }
+}

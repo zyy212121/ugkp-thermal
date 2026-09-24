@@ -3870,6 +3870,17 @@ protected:
                 << exit(FatalError);
         }
 
+        if (candidatePatches.empty() && !heatTransfer)
+        {
+            particleWallHeatTransferEnabled_ = false;
+            particleStuckWallHeatFluxFieldName_ = heatFluxField;
+            particleReflectedWallHeatFluxFieldName_ = reflectionHeatFluxField;
+            particleStuckCandidateFaceMask_.transfer(candidateFaceMask);
+            Info<< "Particle stuck model: disabled (no candidate patches, "
+                << "heatTransfer=0)" << endl;
+            return;
+        }
+
         check
         (
             ugkwpGpuResidentStrictConfigureParticleStuckModel

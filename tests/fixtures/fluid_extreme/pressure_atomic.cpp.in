@@ -1,0 +1,118 @@
+#include <algorithm>
+#include <cmath>
+#include <cassert>
+#include <iostream>
+#define __device__
+#define __global__
+#define __shared__
+#define __forceinline__ inline
+void __syncthreads(){}
+struct Dim{int x;};Dim threadIdx{0},blockIdx{0},blockDim{1},gridDim{1};
+constexpr double OfVSmall=2.2250738585072014e-308;
+double clampMin(double x,double lo){return std::max(x,lo);}
+template<class T>T clampRange(T x,T lo,T hi){return std::min(std::max(x,lo),hi);}
+double finiteOr(double x,double alt){return std::isfinite(x)?x:alt;}
+double sqr3(double x,double y,double z){return x*x+y*y+z*z;}
+struct PressureProjectionCell
+{
+    double ux0, uy0, uz0, ux1, uy1, uz1, theta1, thermalScale, thetaScale;
+    bool active, resolved;
+};
+
+struct DeviceState{
+ int compactPStatus[32]={},compactPCellId[32]={};
+ double compactPux[32]={},compactPuy[32]={},compactPuz[32]={},compactPTheta[32]={};
+ int csrCellLocalPathEnabled=0; int nCells=3,nFaces=6,particleCapacity=9;
+ int* particleCountDevice;double rhoSolid=1000,epsSMin=1e-9,thetaMin=1e-8;
+ PressureProjectionCell pressureProjectionCache[3]={};
+double Usx[32]={};
+double Usy[32]={};
+double Usz[32]={};
+double V[32]={};
+int cellFaceId[32]={};
+int cellParticleOffset[32]={};
+int cellPlaneCount[32]={};
+int cellPlaneStart[32]={};
+int faceOwner[32]={};
+double momRhoEP[32]={};
+double momRhoP[32]={};
+double momRhoUPx[32]={};
+double momRhoUPy[32]={};
+double momRhoUPz[32]={};
+int pCellId[32]={};
+int pStatus[32]={};
+double pTheta[32]={};
+int preBaseCellOffset[32]={};
+double pressureDeltaEnergy[32]={};
+double pressureDeltaMomX[32]={};
+double pressureDeltaMomY[32]={};
+double pressureDeltaMomZ[32]={};
+double pux[32]={};
+double puy[32]={};
+double puz[32]={};
+double rhoEs[32]={};
+double rhoUsx[32]={};
+double rhoUsy[32]={};
+double rhoUsz[32]={};
+double solidPressurePhiEnergy[32]={};
+double solidPressurePhiMomX[32]={};
+double solidPressurePhiMomY[32]={};
+double solidPressurePhiMomZ[32]={};
+int sortedParticleIndex[32]={};
+double theta[32]={};
+};
+__device__ double pressureKickInternalEnergy
+(
+    const double rhoP,
+    const double px,
+    const double py,
+    const double pz,
+    const double energy
+)
+{
+    return energy - 0.5*sqr3(px, py, pz)/clampMin(rhoP, OfVSmall);
+}
+{{applyCollisionalPressureProjectionOneParticle}}
+{{preparePressureProjectionCell}}
+template<bool SplitDirectory, bool CompactParticles=false>
+{{applyCollisionalPressureProjectionKernel}}
+{{preparePressureProjectionCacheKernel}}
+
+{{applyCachedPressureProjectionParticlesKernel}}
+
+
+{{applyCollisionalPressureProjectionCellAtomicKernel}}
+{{applyCollisionalPressureProjectionParticlesAtomicKernel}}
+int main(){
+ for(int edge=0;edge<7;++edge){
+  DeviceState before;int count=1;before.particleCountDevice=&count;
+  before.nCells=1;before.nFaces=1;before.particleCapacity=1;
+  before.rhoSolid=1;before.epsSMin=1e-15;before.thetaMin=1e-18;
+  before.V[0]=1;before.cellPlaneCount[0]=1;before.cellPlaneStart[0]=0;
+  before.cellFaceId[0]=0;before.faceOwner[0]=0;before.momRhoP[0]=1;
+  before.momRhoEP[0]=edge==0?1e-17:(edge==1?3e-17:1e-12);
+  before.solidPressurePhiEnergy[0]=-1;
+  before.pStatus[0]=1;before.pCellId[0]=0;before.pux[0]=0.1;before.pTheta[0]=1e-17;
+  if(edge>=3){
+   before.momRhoUPx[0]=.3;before.momRhoUPy[0]=-.4;before.momRhoUPz[0]=.5;before.momRhoEP[0]=1;
+   before.solidPressurePhiMomX[0]=.1;before.solidPressurePhiMomY[0]=-.2;before.solidPressurePhiMomZ[0]=.3;
+   before.solidPressurePhiEnergy[0]=edge==3?.95:2;
+   before.puy[0]=-.3;before.puz[0]=.7;
+  }
+  if(edge==5)before.momRhoP[0]=0;
+  if(edge==6)before.pStatus[0]=0;
+  DeviceState cached=before;
+  blockIdx.x=0;threadIdx.x=0;blockDim.x=gridDim.x=1;
+  applyCollisionalPressureProjectionCellAtomicKernel(&before,1.0);
+  applyCollisionalPressureProjectionParticlesAtomicKernel(&before);
+  preparePressureProjectionCacheKernel(&cached,1.0);
+  applyCachedPressureProjectionParticlesKernel(&cached);
+  if(before.pux[0]!=cached.pux[0] || before.puy[0]!=cached.puy[0] || before.puz[0]!=cached.puz[0] || before.pTheta[0]!=cached.pTheta[0] || before.momRhoUPx[0]!=cached.momRhoUPx[0] || before.momRhoUPy[0]!=cached.momRhoUPy[0] || before.momRhoUPz[0]!=cached.momRhoUPz[0] || before.momRhoEP[0]!=cached.momRhoEP[0] || before.rhoUsx[0]!=cached.rhoUsx[0] || before.rhoUsy[0]!=cached.rhoUsy[0] || before.rhoUsz[0]!=cached.rhoUsz[0] || before.rhoEs[0]!=cached.rhoEs[0] || before.Usx[0]!=cached.Usx[0] || before.Usy[0]!=cached.Usy[0] || before.Usz[0]!=cached.Usz[0] || before.theta[0]!=cached.theta[0] || before.pressureDeltaMomX[0]!=cached.pressureDeltaMomX[0] || before.pressureDeltaMomY[0]!=cached.pressureDeltaMomY[0] || before.pressureDeltaMomZ[0]!=cached.pressureDeltaMomZ[0] || before.pressureDeltaEnergy[0]!=cached.pressureDeltaEnergy[0]){
+   std::cerr<<"Atomic pressure finite-precision branch changed: edge="<<edge
+            <<" oldUx="<<before.pux[0]<<" cachedUx="<<cached.pux[0]
+            <<" oldTheta="<<before.pTheta[0]<<" cachedTheta="<<cached.pTheta[0]<<"\n";
+   return 1;
+  }
+ }
+ std::cout<<"Atomic pressure cancellation/threshold equivalence PASS\n";
+}

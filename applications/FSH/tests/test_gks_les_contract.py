@@ -390,7 +390,7 @@ class SourceContractTests(unittest.TestCase):
             "materializeCsrReductionTasksKernel",
             "csrHeavyCellCount",
             "csrMultiTaskCellList",
-            "accumulateCsrSegmentedPoolTasksPersistentKernel",
+            "thermalPoolLaunchOccupancy",
             "finalizeCsrHeavyPoolCellsKernel",
             "accumulateCsrSegmentedMomentTasksPersistentKernel",
             "finalizeCsrHeavyMomentCellsKernel",

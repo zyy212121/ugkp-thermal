@@ -57,12 +57,25 @@ enum class CsrReductionTaskSource : int
     splitLogical = 3
 };
 
+enum class HeavyDirectoryKind : int
+{
+    full = 0,
+    splitBaseAndInjection = 1,
+    baseOnly = 2
+};
+
 struct CsrReductionTask
 {
     int cell;
     int begin;
     int end;
     int source;
+};
+
+struct PressureProjectionCell
+{
+    double ux0, uy0, uz0, ux1, uy1, uz1, theta1, thermalScale, thetaScale;
+    bool active, resolved;
 };
 
 struct DeviceState
@@ -178,6 +191,7 @@ struct DeviceState
     int heavyBlocksPerSm = 1;
     int csrHeavyCellThreshold = 0;
     int csrHeavyTileParticles = 0;
+    int csrReductionDirectoryKind = 0;
     int csrWarpAggregatedBinning = 0;
     int csrSplitPreDirectoryEnabled = 1;
     int csrHeavyTaskCapacity = 0;
@@ -498,6 +512,8 @@ struct DeviceState
     int* compactPStatus = nullptr;
     unsigned long long* compactPRng = nullptr;
     unsigned long long* compactPOrigId = nullptr;
+    double* poissonCellCollisionProbability = nullptr;
+    PressureProjectionCell* pressureProjectionCache = nullptr;
 };
 
 struct ActiveParticleIndexPredicate
@@ -1104,6 +1120,8 @@ void releaseState(DeviceState* s)
     release(s->poolThermalSumU2);
     release(s->poissonPoolSampleTargetCount);
     release(s->poissonPoolMass);
+    release(s->poissonCellCollisionProbability);
+    release(s->pressureProjectionCache);
     release(s->poissonPoolMomX);
     release(s->poissonPoolMomY);
     release(s->poissonPoolMomZ);
@@ -1408,6 +1426,8 @@ int allocateFields(DeviceState* s)
     rc |= allocate(s->poolThermalSumU2, nc, "cudaMalloc strict poolThermalSumU2");
     rc |= allocate(s->poissonPoolSampleTargetCount, nc, "cudaMalloc strict poissonPoolSampleTargetCount");
     rc |= allocate(s->poissonPoolMass, nc, "cudaMalloc strict poissonPoolMass");
+    rc |= allocate(s->poissonCellCollisionProbability, nc, "cudaMalloc strict poissonCellCollisionProbability");
+    rc |= allocate(s->pressureProjectionCache, nc, "cudaMalloc strict pressureProjectionCache");
     rc |= allocate(s->poissonPoolMomX, nc, "cudaMalloc strict poissonPoolMomX");
     rc |= allocate(s->poissonPoolMomY, nc, "cudaMalloc strict poissonPoolMomY");
     rc |= allocate(s->poissonPoolMomZ, nc, "cudaMalloc strict poissonPoolMomZ");
@@ -6289,6 +6309,7 @@ __global__ void scaleCollisionalPressureFaceFluxKernel(DeviceState* sp)
     s.solidPressurePhiEnergy[f] *= scale;
 }
 
+template<bool CompactParticles = false>
 __device__ inline void applyCollisionalPressureProjectionOneParticle
 (
     DeviceState& s,
@@ -6310,24 +6331,140 @@ __device__ inline void applyCollisionalPressureProjectionOneParticle
     (
         i < 0
      || i >= s.particleCapacity
-     || s.pStatus[i] == 0
-     || s.pCellId[i] != c
+     || (CompactParticles ? s.compactPStatus : s.pStatus)[i] == 0
+     || (CompactParticles ? s.compactPCellId : s.pCellId)[i] != c
     )
     {
         return;
     }
-    const double dux = finiteOr(s.pux[i], ux0) - ux0;
-    const double duy = finiteOr(s.puy[i], uy0) - uy0;
-    const double duz = finiteOr(s.puz[i], uz0) - uz0;
-    s.pux[i] = resolved ? ux1 + thermalScale*dux : ux1;
-    s.puy[i] = resolved ? uy1 + thermalScale*duy : uy1;
-    s.puz[i] = resolved ? uz1 + thermalScale*duz : uz1;
-    s.pTheta[i] = resolved
-      ? clampMin(finiteOr(s.pTheta[i], 0.0)*thetaScale, 0.0)
+    const double dux = finiteOr((CompactParticles ? s.compactPux : s.pux)[i], ux0) - ux0;
+    const double duy = finiteOr((CompactParticles ? s.compactPuy : s.puy)[i], uy0) - uy0;
+    const double duz = finiteOr((CompactParticles ? s.compactPuz : s.puz)[i], uz0) - uz0;
+    (CompactParticles ? s.compactPux : s.pux)[i] = resolved ? ux1 + thermalScale*dux : ux1;
+    (CompactParticles ? s.compactPuy : s.puy)[i] = resolved ? uy1 + thermalScale*duy : uy1;
+    (CompactParticles ? s.compactPuz : s.puz)[i] = resolved ? uz1 + thermalScale*duz : uz1;
+    (CompactParticles ? s.compactPTheta : s.pTheta)[i] = resolved
+      ? clampMin(finiteOr((CompactParticles ? s.compactPTheta : s.pTheta)[i], 0.0)*thetaScale, 0.0)
       : theta1;
 }
 
-template<bool SplitDirectory>
+__device__ PressureProjectionCell preparePressureProjectionCell
+(DeviceState& s, const int c, const double kickDt)
+{
+    PressureProjectionCell projection{};
+    double scaledDelta[4];
+
+        double dpx = 0.0;
+        double dpy = 0.0;
+        double dpz = 0.0;
+        double de = 0.0;
+        const int startFace = s.cellPlaneStart[c];
+        const int faceCount = s.cellPlaneCount[c];
+        for (int j = 0; j < faceCount; ++j)
+        {
+            const int f = s.cellFaceId[startFace + j];
+            if (f < 0 || f >= s.nFaces)
+            {
+                continue;
+            }
+            const double sign = s.faceOwner[f] == c ? 1.0 : -1.0;
+            dpx -= sign*s.solidPressurePhiMomX[f];
+            dpy -= sign*s.solidPressurePhiMomY[f];
+            dpz -= sign*s.solidPressurePhiMomZ[f];
+            de -= sign*s.solidPressurePhiEnergy[f];
+        }
+        const double factor = kickDt/clampMin(s.V[c], OfVSmall);
+        scaledDelta[0] = finiteOr(factor*dpx, 0.0);
+        scaledDelta[1] = finiteOr(factor*dpy, 0.0);
+        scaledDelta[2] = finiteOr(factor*dpz, 0.0);
+        scaledDelta[3] = finiteOr(factor*de, 0.0);
+        s.pressureDeltaMomX[c] = scaledDelta[0];
+        s.pressureDeltaMomY[c] = scaledDelta[1];
+        s.pressureDeltaMomZ[c] = scaledDelta[2];
+        s.pressureDeltaEnergy[c] = scaledDelta[3];
+
+
+
+    projection.active = false;
+    const double rhoP = clampMin(finiteOr(s.momRhoP[c], 0.0), 0.0);
+    if (rhoP <= s.epsSMin*s.rhoSolid)
+    {
+        return projection;
+    }
+    const double px0 = finiteOr(s.momRhoUPx[c], 0.0);
+    const double py0 = finiteOr(s.momRhoUPy[c], 0.0);
+    const double pz0 = finiteOr(s.momRhoUPz[c], 0.0);
+    const double e0 = clampMin(finiteOr(s.momRhoEP[c], 0.0), 0.0);
+    const double px1 = px0 + scaledDelta[0];
+    const double py1 = py0 + scaledDelta[1];
+    const double pz1 = pz0 + scaledDelta[2];
+    const double e1 = e0 + scaledDelta[3];
+    const double ux0 = px0/rhoP;
+    const double uy0 = py0/rhoP;
+    const double uz0 = pz0/rhoP;
+    const double ux1 = px1/rhoP;
+    const double uy1 = py1/rhoP;
+    const double uz1 = pz1/rhoP;
+    const double theta0 =
+        clampMin(pressureKickInternalEnergy(rhoP, px0, py0, pz0, e0)/(1.5*rhoP), 0.0);
+    const double theta1 =
+        clampMin(pressureKickInternalEnergy(rhoP, px1, py1, pz1, e1)/(1.5*rhoP), 0.0);
+    const bool resolved = theta0 > 10.0*s.thetaMin;
+    const double thermalScale =
+        resolved ? sqrt(clampMin(theta1/theta0, 0.0)) : 0.0;
+    const double thetaScale = resolved ? thermalScale*thermalScale : 0.0;
+
+
+    projection =
+        {ux0, uy0, uz0, ux1, uy1, uz1, theta1, thermalScale, thetaScale, true, resolved};
+
+        s.momRhoUPx[c] = px1;
+        s.momRhoUPy[c] = py1;
+        s.momRhoUPz[c] = pz1;
+        s.momRhoEP[c] = e1;
+        s.rhoUsx[c] = px1;
+        s.rhoUsy[c] = py1;
+        s.rhoUsz[c] = pz1;
+        s.rhoEs[c] = e1;
+        s.Usx[c] = ux1;
+        s.Usy[c] = uy1;
+        s.Usz[c] = uz1;
+        s.theta[c] = theta1;
+
+
+    // The atomic path historically publishes the cell update, then reads it
+    // back and reconstructs the old state. Preserve its rounding and clamps:
+    // (e0 + de) - de is not equivalent to e0 near the resolved-theta threshold.
+    if (!s.csrCellLocalPathEnabled)
+    {
+        const double ax1 = finiteOr(px1, 0.0);
+        const double ay1 = finiteOr(py1, 0.0);
+        const double az1 = finiteOr(pz1, 0.0);
+        const double ae1 = clampMin(finiteOr(e1, 0.0), 0.0);
+        const double ax0 = ax1 - scaledDelta[0];
+        const double ay0 = ay1 - scaledDelta[1];
+        const double az0 = az1 - scaledDelta[2];
+        const double ae0 = ae1 - scaledDelta[3];
+        const double at0 = clampMin
+        (
+            pressureKickInternalEnergy(rhoP, ax0, ay0, az0, ae0)/(1.5*rhoP), 0.0
+        );
+        const double at1 = clampMin
+        (
+            pressureKickInternalEnergy(rhoP, ax1, ay1, az1, ae1)/(1.5*rhoP), 0.0
+        );
+        const bool ar = at0 > 10.0*s.thetaMin;
+        const double scale = ar ? sqrt(clampMin(at1/at0, 0.0)) : 0.0;
+        projection =
+        {
+            ax0/rhoP, ay0/rhoP, az0/rhoP, ax1/rhoP, ay1/rhoP, az1/rhoP,
+            at1, scale, ar ? scale*scale : 0.0, true, ar
+        };
+    }
+    return projection;
+}
+
+template<bool SplitDirectory, bool CompactParticles = false>
 __global__ void applyCollisionalPressureProjectionKernel
 (
     DeviceState* sp,
@@ -6409,7 +6546,7 @@ __global__ void applyCollisionalPressureProjectionKernel
         const int baseEnd = s.preBaseCellOffset[c + 1];
         for (int i = baseStart + threadIdx.x; i < baseEnd; i += blockDim.x)
         {
-            applyCollisionalPressureProjectionOneParticle
+            applyCollisionalPressureProjectionOneParticle<CompactParticles>
             (
                 s, i, c, ux0, uy0, uz0, ux1, uy1, uz1, theta1,
                 resolved, thermalScale, thetaScale
@@ -6421,8 +6558,8 @@ __global__ void applyCollisionalPressureProjectionKernel
     const int end = s.cellParticleOffset[c + 1];
     for (int pos = start + threadIdx.x; pos < end; pos += blockDim.x)
     {
-        const int i = s.sortedParticleIndex[pos];
-        applyCollisionalPressureProjectionOneParticle
+        const int i = CompactParticles ? pos : s.sortedParticleIndex[pos];
+        applyCollisionalPressureProjectionOneParticle<CompactParticles>
         (
             s, i, c, ux0, uy0, uz0, ux1, uy1, uz1, theta1,
             resolved, thermalScale, thetaScale
@@ -6445,6 +6582,32 @@ __global__ void applyCollisionalPressureProjectionKernel
         s.theta[c] = theta1;
     }
 }
+__global__ void preparePressureProjectionCacheKernel
+(DeviceState* sp, const double kickDt)
+{
+    DeviceState& s = *sp;
+    const int c = blockIdx.x*blockDim.x + threadIdx.x;
+    if (c < s.nCells)
+        s.pressureProjectionCache[c] = preparePressureProjectionCell(s, c, kickDt);
+}
+
+__global__ void applyCachedPressureProjectionParticlesKernel(DeviceState* sp)
+{
+    DeviceState& s = *sp;
+    const int nParticles = clampRange(*s.particleCountDevice, 0, s.particleCapacity);
+    for (int i = blockIdx.x*blockDim.x + threadIdx.x; i < nParticles; i += blockDim.x*gridDim.x)
+    {
+        if (s.pStatus[i] == 0) continue;
+        const int c = s.pCellId[i];
+        if (c < 0 || c >= s.nCells) continue;
+        const PressureProjectionCell q = s.pressureProjectionCache[c];
+        if (!q.active) continue;
+        applyCollisionalPressureProjectionOneParticle(s, i, c,
+            q.ux0, q.uy0, q.uz0, q.ux1, q.uy1, q.uz1, q.theta1,
+            q.resolved, q.thermalScale, q.thetaScale);
+    }
+}
+
 
                                                                                
                                                                             
@@ -6605,7 +6768,7 @@ int applyCollisionalPressureKick
     DeviceState* s,
     const double kickDt,
     const int block,
-    const int useSplitPreDirectory
+    const int useSplitPreDirectory, const bool compactParticles = false
 )
 {
     if (!s->collisionalPressureEnabled)
@@ -6648,37 +6811,40 @@ int applyCollisionalPressureKick
     );
     if (s->csrCellLocalPathEnabled != 0)
     {
-        if (useSplitPreDirectory != 0)
+        if (compactParticles)
         {
             PRESSURE_LAUNCH
-            (
-                (applyCollisionalPressureProjectionKernel<true>
+            ((applyCollisionalPressureProjectionKernel<false, true>
                 <<<s->nCells, block>>>(s->deviceState, kickDt)),
-                "applyCollisionalPressureProjectionKernel<split> launch"
-            );
+                "applyCollisionalPressureProjectionKernel compact launch");
+        }
+        else if (useSplitPreDirectory != 0)
+        {
+            PRESSURE_LAUNCH
+            ((applyCollisionalPressureProjectionKernel<true>
+                <<<s->nCells, block>>>(s->deviceState, kickDt)),
+                "applyCollisionalPressureProjectionKernel split launch");
         }
         else
         {
             PRESSURE_LAUNCH
-            (
-                (applyCollisionalPressureProjectionKernel<false>
+            ((applyCollisionalPressureProjectionKernel<false>
                 <<<s->nCells, block>>>(s->deviceState, kickDt)),
-                "applyCollisionalPressureProjectionKernel<full> launch"
-            );
+                "applyCollisionalPressureProjectionKernel full launch");
         }
     }
     else
     {
-        PRESSURE_LAUNCH
-        (
-            (applyCollisionalPressureProjectionCellAtomicKernel<<<cellGrid, block>>>(s->deviceState, kickDt)),
-            "applyCollisionalPressureProjectionCellAtomicKernel launch"
-        );
-        PRESSURE_LAUNCH
-        (
-            (applyCollisionalPressureProjectionParticlesAtomicKernel<<<s->particleWorkGrid, block>>>(s->deviceState)),
-            "applyCollisionalPressureProjectionParticlesAtomicKernel launch"
-        );
+    PRESSURE_LAUNCH
+    (
+        (preparePressureProjectionCacheKernel<<<cellGrid, block>>>(s->deviceState, kickDt)),
+        "preparePressureProjectionCacheKernel launch"
+    );
+    PRESSURE_LAUNCH
+    (
+        (applyCachedPressureProjectionParticlesKernel<<<s->particleWorkGrid, block>>>(s->deviceState)),
+        "applyCachedPressureProjectionParticlesKernel launch"
+    );
     }
 
 #undef PRESSURE_LAUNCH
@@ -7602,7 +7768,15 @@ int launchParticleDragRelaxation
     return 0;
 }
 
-__global__ void clearPoissonThermalPoolKernel(DeviceState* sp)
+__device__ __forceinline__ double poissonCollisionProbabilityForCell
+(DeviceState& s, const int c, const double dt)
+{
+    const double tauColl = granularCollisionTauFromCellDevice(s, c);
+    return (!(tauColl < 0.5*OfGreat) || tauColl <= OfSmall)
+      ? 0.0 : clampRange(1.0 - exp(-dt/tauColl), 0.0, 1.0);
+}
+
+__global__ void clearPoissonThermalPoolKernel(DeviceState* sp, const double dt)
 {
     DeviceState& s = *sp;
     const int c = blockIdx.x*blockDim.x + threadIdx.x;
@@ -7618,6 +7792,13 @@ __global__ void clearPoissonThermalPoolKernel(DeviceState* sp)
         return;
     }
 
+    // This producer runs after this step's pressure kick and primitive
+    // recovery. Only multi-segment consumers need cross-block reuse.
+    if (s.csrHeavyReductionEnabled != 0 && s.csrCellTaskCount[c] > 1)
+    {
+        s.poissonCellCollisionProbability[c] =
+            poissonCollisionProbabilityForCell(s, c, dt);
+    }
     s.poolThermalCount[c] = 0;
     s.poolThermalSumUx[c] = 0.0;
     s.poolThermalSumUy[c] = 0.0;
@@ -7662,7 +7843,7 @@ __device__ void blockReduceComponentSums
         {
             const double other =
                 __shfl_down_sync(fullWarpMask, sums[component], offset);
-            if (lane + offset < 32)
+            if (lane < offset)
             {
                 sums[component] += other;
             }
@@ -7692,11 +7873,13 @@ __device__ void blockReduceComponentSums
               ? warpPartials[component*warpCount + lane]
               : 0.0;
 
-            for (int offset = 16; offset > 0; offset >>= 1)
+            int firstOffset = 16;
+            while (firstOffset >= warpCount) firstOffset >>= 1;
+            for (int offset = firstOffset; offset > 0; offset >>= 1)
             {
                 const double other =
                     __shfl_down_sync(fullWarpMask, value, offset);
-                if (lane + offset < 32)
+                if (lane < offset && lane + offset < warpCount)
                 {
                     value += other;
                 }
@@ -7708,6 +7891,89 @@ __device__ void blockReduceComponentSums
             }
         }
     }
+}
+
+template<bool PoissonMode>
+__device__ __forceinline__ void accumulateOnePoolParticle
+(
+    DeviceState& s,
+    const int c,
+    const int i,
+    const double collisionProbability,
+    double& mass,
+    double& momX,
+    double& momY,
+    double& momZ,
+    double& energy,
+    double& diameter,
+    double& diameter2,
+    double& count
+)
+{
+    if
+    (
+        i < 0
+     || i >= s.particleCapacity
+     || s.pStatus[i] == 0
+     || s.pCellId[i] != c
+    )
+    {
+        return;
+    }
+
+    if (PoissonMode)
+    {
+        unsigned long long rng = s.pRng[i];
+        if (uniform01Device(rng) >= collisionProbability)
+        {
+            s.pRng[i] = rng;
+            return;
+        }
+        s.pRng[i] = rng;
+    }
+
+    // Poisson rejection needs only status, cell and RNG. Read thermal data
+    // only for accepted particles; non-Poisson cutoff still precedes physics.
+    const double theta = clampMin(finiteOr(s.pTheta[i], 0.0), 0.0);
+    if (!PoissonMode && theta <= 10.0*s.thetaMin)
+    {
+        return;
+    }
+
+    const double m = clampMin(finiteOr(s.pm[i], 0.0), 0.0);
+    const double ux = finiteOr(s.pux[i], 0.0);
+    const double uy = finiteOr(s.puy[i], 0.0);
+    const double uz = finiteOr(s.puz[i], 0.0);
+    const double d =
+        clampMin
+        (
+            finiteOr(s.pd[i], s.particleDiameterFallback),
+            1.0e-12
+        );
+    const double specificEnergy =
+        0.5*sqr3(ux, uy, uz) + 1.5*theta;
+
+    if
+    (
+        nonFiniteDevice(m) || m < 0.0
+     || nonFiniteDevice(ux) || nonFiniteDevice(uy)
+     || nonFiniteDevice(uz)
+     || nonFiniteDevice(theta) || theta < 0.0
+     || nonFiniteDevice(specificEnergy)
+    )
+    {
+        asm("trap;");
+    }
+
+    mass += m;
+    momX += m*ux;
+    momY += m*uy;
+    momZ += m*uz;
+    energy += m*specificEnergy;
+    diameter += m*d;
+    diameter2 += m*d*d;
+    count += 1.0;
+    s.pStatus[i] = 2;
 }
 
 __device__ inline void accumulateOnePoissonPoolParticle
@@ -7726,58 +7992,11 @@ __device__ inline void accumulateOnePoissonPoolParticle
     double& locCount
 )
 {
-    if
+    accumulateOnePoolParticle<true>
     (
-        i < 0
-     || i >= s.particleCapacity
-     || s.pStatus[i] == 0
-     || s.pCellId[i] != c
-    )
-    {
-        return;
-    }
-
-    unsigned long long rng = s.pRng[i];
-    if (uniform01Device(rng) >= prob)
-    {
-        s.pRng[i] = rng;
-        return;
-    }
-
-    const double m = clampMin(finiteOr(s.pm[i], 0.0), 0.0);
-    const double ux = finiteOr(s.pux[i], 0.0);
-    const double uy = finiteOr(s.puy[i], 0.0);
-    const double uz = finiteOr(s.puz[i], 0.0);
-    const double theta = clampMin(finiteOr(s.pTheta[i], 0.0), 0.0);
-    const double d =
-        clampMin
-        (
-            finiteOr(s.pd[i], s.particleDiameterFallback),
-            1.0e-12
-        );
-    const double specificEnergy = 0.5*sqr3(ux, uy, uz) + 1.5*theta;
-
-    if
-    (
-        nonFiniteDevice(m) || m < 0.0
-     || nonFiniteDevice(ux) || nonFiniteDevice(uy) || nonFiniteDevice(uz)
-     || nonFiniteDevice(theta) || theta < 0.0
-     || nonFiniteDevice(specificEnergy)
-    )
-    {
-        asm("trap;");
-    }
-
-    locMass += m;
-    locMomX += m*ux;
-    locMomY += m*uy;
-    locMomZ += m*uz;
-    locEnergy += m*specificEnergy;
-    locDiameter += m*d;
-    locDiameter2 += m*d*d;
-    locCount += 1.0;
-    s.pRng[i] = rng;
-    s.pStatus[i] = 2;
+        s, c, i, prob, locMass, locMomX, locMomY, locMomZ,
+        locEnergy, locDiameter, locDiameter2, locCount
+    );
 }
 
 template<bool HeavyReductionEnabled>
@@ -7797,6 +8016,7 @@ __global__ void accumulatePoissonPoolParticlesByCellKernel
 
     const int start = s.cellParticleOffset[c];
     const int end = s.cellParticleOffset[c + 1];
+    if (start >= end) return;
     if constexpr (HeavyReductionEnabled)
     {
         return;
@@ -7806,17 +8026,7 @@ __global__ void accumulatePoissonPoolParticlesByCellKernel
 
     if (threadIdx.x == 0)
     {
-        const double tauColl = granularCollisionTauFromCellDevice(s, c);
-
-        if (!(tauColl < 0.5*OfGreat) || tauColl <= OfSmall)
-        {
-            cellCollisionProbability = 0.0;
-        }
-        else
-        {
-            cellCollisionProbability =
-                clampRange(1.0 - exp(-dt/tauColl), 0.0, 1.0);
-        }
+        cellCollisionProbability = poissonCollisionProbabilityForCell(s, c, dt);
     }
 
     __syncthreads();
@@ -7940,17 +8150,7 @@ __global__ void accumulatePoissonPoolSplitSegmentByCellKernel
 
     if (threadIdx.x == 0)
     {
-        const double tauColl = granularCollisionTauFromCellDevice(s, c);
-
-        if (!(tauColl < 0.5*OfGreat) || tauColl <= OfSmall)
-        {
-            cellCollisionProbability = 0.0;
-        }
-        else
-        {
-            cellCollisionProbability =
-                clampRange(1.0 - exp(-dt/tauColl), 0.0, 1.0);
-        }
+        cellCollisionProbability = poissonCollisionProbabilityForCell(s, c, dt);
     }
 
     __syncthreads();
@@ -8132,11 +8332,7 @@ __global__ void accumulateParticlePoolAtomicKernel
         }
         if (PoissonMode)
         {
-            const double tauColl = granularCollisionTauFromCellDevice(s, c);
-            const double probability =
-                (!(tauColl < 0.5*OfGreat) || tauColl <= OfSmall)
-              ? 0.0
-              : clampRange(1.0 - exp(-dt/tauColl), 0.0, 1.0);
+            const double probability = poissonCollisionProbabilityForCell(s, c, dt);
             if (probability <= 0.0)
             {
                 continue;
@@ -8216,68 +8412,11 @@ __device__ void accumulateCsrHeavyPoolTask
             const int i = directParticleIndex
               ? pos
               : s.sortedParticleIndex[pos];
-            if
+            accumulateOnePoolParticle<PoissonMode>
             (
-                i < 0
-             || i >= s.particleCapacity
-             || s.pStatus[i] == 0
-             || s.pCellId[i] != c
-            )
-            {
-                continue;
-            }
-
-            const double theta = clampMin(finiteOr(s.pTheta[i], 0.0), 0.0);
-            if (!PoissonMode && theta <= 10.0*s.thetaMin)
-            {
-                continue;
-            }
-
-            if (PoissonMode)
-            {
-                unsigned long long rng = s.pRng[i];
-                if (uniform01Device(rng) >= collisionProbability)
-                {
-                    s.pRng[i] = rng;
-                    continue;
-                }
-                s.pRng[i] = rng;
-            }
-
-            const double m = clampMin(finiteOr(s.pm[i], 0.0), 0.0);
-            const double ux = finiteOr(s.pux[i], 0.0);
-            const double uy = finiteOr(s.puy[i], 0.0);
-            const double uz = finiteOr(s.puz[i], 0.0);
-            const double d =
-                clampMin
-                (
-                    finiteOr(s.pd[i], s.particleDiameterFallback),
-                    1.0e-12
-                );
-            const double specificEnergy =
-                0.5*sqr3(ux, uy, uz) + 1.5*theta;
-
-            if
-            (
-                nonFiniteDevice(m) || m < 0.0
-             || nonFiniteDevice(ux) || nonFiniteDevice(uy)
-             || nonFiniteDevice(uz)
-             || nonFiniteDevice(theta) || theta < 0.0
-             || nonFiniteDevice(specificEnergy)
-            )
-            {
-                asm("trap;");
-            }
-
-            mass += m;
-            momX += m*ux;
-            momY += m*uy;
-            momZ += m*uz;
-            energy += m*specificEnergy;
-            diameter += m*d;
-            diameter2 += m*d*d;
-            count += 1.0;
-            s.pStatus[i] = 2;
+                s, c, i, collisionProbability,
+                mass, momX, momY, momZ, energy, diameter, diameter2, count
+            );
         }
     }
 
@@ -8309,68 +8448,11 @@ __device__ __forceinline__ void accumulateCsrSplitLogicalPoolParticle
     double& count
 )
 {
-    if
+    accumulateOnePoolParticle<PoissonMode>
     (
-        i < 0
-     || i >= s.particleCapacity
-     || s.pStatus[i] == 0
-     || s.pCellId[i] != c
-    )
-    {
-        return;
-    }
-
-    const double theta = clampMin(finiteOr(s.pTheta[i], 0.0), 0.0);
-    if (!PoissonMode && theta <= 10.0*s.thetaMin)
-    {
-        return;
-    }
-
-    if (PoissonMode)
-    {
-        unsigned long long rng = s.pRng[i];
-        if (uniform01Device(rng) >= collisionProbability)
-        {
-            s.pRng[i] = rng;
-            return;
-        }
-        s.pRng[i] = rng;
-    }
-
-    const double m = clampMin(finiteOr(s.pm[i], 0.0), 0.0);
-    const double ux = finiteOr(s.pux[i], 0.0);
-    const double uy = finiteOr(s.puy[i], 0.0);
-    const double uz = finiteOr(s.puz[i], 0.0);
-    const double d =
-        clampMin
-        (
-            finiteOr(s.pd[i], s.particleDiameterFallback),
-            1.0e-12
-        );
-    const double specificEnergy =
-        0.5*sqr3(ux, uy, uz) + 1.5*theta;
-
-    if
-    (
-        nonFiniteDevice(m) || m < 0.0
-     || nonFiniteDevice(ux) || nonFiniteDevice(uy)
-     || nonFiniteDevice(uz)
-     || nonFiniteDevice(theta) || theta < 0.0
-     || nonFiniteDevice(specificEnergy)
-    )
-    {
-        asm("trap;");
-    }
-
-    mass += m;
-    momX += m*ux;
-    momY += m*uy;
-    momZ += m*uz;
-    energy += m*specificEnergy;
-    diameter += m*d;
-    diameter2 += m*d*d;
-    count += 1.0;
-    s.pStatus[i] = 2;
+        s, c, i, collisionProbability,
+        mass, momX, momY, momZ, energy, diameter, diameter2, count
+    );
 }
 
 template<bool PoissonMode>
@@ -8480,11 +8562,7 @@ __global__ void accumulateCsrHeavyPoolTasksPersistentKernel
         {
             if (PoissonMode)
             {
-                const double tauColl = granularCollisionTauFromCellDevice(s, c);
-                collisionProbability =
-                    (!(tauColl < 0.5*OfGreat) || tauColl <= OfSmall)
-                  ? 0.0
-                  : clampRange(1.0 - exp(-dt/tauColl), 0.0, 1.0);
+                collisionProbability = poissonCollisionProbabilityForCell(s, c, dt);
             }
             else
             {
@@ -8674,48 +8752,48 @@ __global__ void finalizeCsrHeavyPoolCellsKernel(DeviceState* sp)
     }
 }
 
-template<bool PoissonMode>
-__global__ void accumulateCsrSegmentedPoolTasksPersistentKernel
-(
-    DeviceState* sp,
-    const double dt
-)
+
+
+
+
+__device__ __forceinline__ void preparePoissonPoolSamplingCell(DeviceState& s, const int c)
 {
-    DeviceState& s = *sp;
-    __shared__ int task;
-    __shared__ int taskCount;
-    __shared__ CsrReductionTask descriptor;
-    __shared__ double collisionProbability;
-    extern __shared__ double warpPartials[];
-    for (;;)
+    const int representatives = s.poolThermalCount[c];
+    const double poolMass =
+        clampMin(finiteOr(s.poissonPoolMass[c], 0.0), 0.0);
+
+    int target = 0;
+    if (poolMass > 0.0 && representatives > 0)
     {
-        if (threadIdx.x == 0)
-        {
-            taskCount = *s.csrHeavyTaskCount;
-            task = atomicAdd(s.csrHeavyTaskCursor, 1);
-            if (task < taskCount)
-            {
-                descriptor = s.csrReductionTasks[task];
-                if (PoissonMode)
-                {
-                    const double tauColl =
-                        granularCollisionTauFromCellDevice(s, descriptor.cell);
-                    collisionProbability =
-                        (!(tauColl < 0.5*OfGreat) || tauColl <= OfSmall)
-                      ? 0.0
-                      : clampRange(1.0 - exp(-dt/tauColl), 0.0, 1.0);
-                }
-                else
-                {
-                    collisionProbability = 1.0;
-                }
-            }
-        }
-        __syncthreads();
-        if (task >= taskCount)
-        {
-            return;
-        }
+        target = representatives;
+    }
+
+    s.poissonPoolSampleTargetCount[c] = target;
+}
+
+#include "CsrPersistentQueue.cuh"
+
+template<bool PoissonMode, HeavyDirectoryKind DirectoryKind = HeavyDirectoryKind::full>
+struct CsrPoolOperation
+{
+    CsrReductionTask* current;
+    double* probability;
+    double* warpPartials;
+    double dt;
+    __device__ bool prepare(DeviceState& s, const int task)
+    {
+        *current = s.csrReductionTasks[task];
+        if constexpr (PoissonMode)
+            *probability = s.csrCellTaskCount[current->cell] > 1
+                ? s.poissonCellCollisionProbability[current->cell]
+                : poissonCollisionProbabilityForCell(s, current->cell, dt);
+        else *probability = 1.0;
+        return true;
+    }
+    __device__ void execute(DeviceState& s, const int task)
+    {
+        const CsrReductionTask& descriptor = *current;
+        const double collisionProbability = *probability;
         const int c = descriptor.cell;
             if (PoissonMode && collisionProbability <= 0.0)
             {
@@ -8731,15 +8809,12 @@ __global__ void accumulateCsrSegmentedPoolTasksPersistentKernel
                         ] = 0.0;
                     }
                 }
-                continue;
+                return;
             }
             double sums[8];
             if
             (
-                descriptor.source == static_cast<int>
-                (
-                    CsrReductionTaskSource::splitLogical
-                )
+                DirectoryKind == HeavyDirectoryKind::splitBaseAndInjection
             )
             {
                 accumulateCsrSplitLogicalPoolTask<PoissonMode>
@@ -8751,10 +8826,7 @@ __global__ void accumulateCsrSegmentedPoolTasksPersistentKernel
             else
             {
                 const bool directParticleIndex =
-                    descriptor.source == static_cast<int>
-                    (
-                        CsrReductionTaskSource::splitBaseDirect
-                    );
+                    DirectoryKind == HeavyDirectoryKind::baseOnly;
                 accumulateCsrHeavyPoolTask<PoissonMode>
                 (
                     s, c, descriptor.begin, descriptor.end,
@@ -8774,6 +8846,7 @@ __global__ void accumulateCsrSegmentedPoolTasksPersistentKernel
                     s.poissonPoolDiameter[c] = sums[5];
                     s.poissonPoolDiameter2[c] = sums[6];
                     s.poolThermalCount[c] = static_cast<int>(sums[7]);
+                    preparePoissonPoolSamplingCell(s, c);
                 }
                 else
                 {
@@ -8788,33 +8861,37 @@ __global__ void accumulateCsrSegmentedPoolTasksPersistentKernel
                     }
                 }
             }
-    }
-}
 
-__global__ void finalizeCsrSegmentedPoolCellsKernel(DeviceState* sp)
+    }
+};
+
+template<bool PoissonMode, HeavyDirectoryKind DirectoryKind = HeavyDirectoryKind::full>
+__global__ void accumulateCsrSegmentedPoolTasksPersistentKernel
+(DeviceState* sp, const double dt)
 {
     DeviceState& s = *sp;
-    __shared__ int multiIndex;
+    __shared__ CsrReductionTask descriptor;
+    __shared__ double probability;
     extern __shared__ double warpPartials[];
-    for (;;)
+    CsrPoolOperation<PoissonMode, DirectoryKind> operation
+        {&descriptor, &probability, warpPartials, dt};
+    runCsrPersistentQueue(s, *s.csrHeavyTaskCount, operation);
+}
+
+struct CsrPoolFinalizeOperation
+{
+    double* warpPartials;
+    __device__ bool prepare(DeviceState&, int) { return true; }
+    __device__ void execute(DeviceState& s, const int multiIndex)
     {
-        if (threadIdx.x == 0)
-        {
-            multiIndex = atomicAdd(s.csrHeavyTaskCursor, 1);
-        }
-        __syncthreads();
-        if (multiIndex >= *s.csrHeavyCellCount)
-        {
-            return;
-        }
-        const int c = s.csrMultiTaskCellList[multiIndex];
+    const int c = s.csrMultiTaskCellList[multiIndex];
         if (!(s.csrCellTaskCount[c] > 1))
         {
             asm("trap;");
         }
         double sums[8] = {0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
         const int firstTask = s.csrCellTaskOffset[c];
-        const int endTask = s.csrCellTaskOffset[c + 1];
+        const int endTask = firstTask + s.csrCellTaskCount[c];
         for (int task = firstTask + threadIdx.x; task < endTask; task += blockDim.x)
         {
             #pragma unroll
@@ -8838,9 +8915,18 @@ __global__ void finalizeCsrSegmentedPoolCellsKernel(DeviceState* sp)
             s.poissonPoolDiameter[c] = sums[5];
             s.poissonPoolDiameter2[c] = sums[6];
             s.poolThermalCount[c] = static_cast<int>(sums[7]);
+                    preparePoissonPoolSamplingCell(s, c);
         }
-        __syncthreads();
+
     }
+};
+
+__global__ void finalizeCsrSegmentedPoolCellsKernel(DeviceState* sp)
+{
+    DeviceState& s = *sp;
+    extern __shared__ double warpPartials[];
+    CsrPoolFinalizeOperation operation{warpPartials};
+    runCsrPersistentQueue(s, *s.csrHeavyCellCount, operation);
 }
 
 int launchCsrSegmentedPoolReduction
@@ -8855,10 +8941,11 @@ int launchCsrSegmentedPoolReduction
     {
         return 0;
     }
-    cudaError_t err = cudaMemset(s->csrHeavyTaskCursor, 0, sizeof(int));
+    cudaError_t err = cudaSuccess;
+    err = resetCsrPersistentQueue(s);
     if (err != cudaSuccess)
     {
-        setLastError("reset CSR segmented pool task cursor", err);
+        setLastError("reset CSR persistent queue", err);
         return 1;
     }
     const int warpCount = (block + 31)/32;
@@ -8866,13 +8953,39 @@ int launchCsrSegmentedPoolReduction
         8u*static_cast<size_t>(warpCount)*sizeof(double);
     if (poissonMode)
     {
-        accumulateCsrSegmentedPoolTasksPersistentKernel<true>
-            <<<s->csrHeavyWorkerGrid, block, sharedBytes>>>(s->deviceState, dt);
+        if (s->csrReductionDirectoryKind == static_cast<int>(HeavyDirectoryKind::full))
+        {
+            accumulateCsrSegmentedPoolTasksPersistentKernel<true, HeavyDirectoryKind::full>
+                <<<s->csrHeavyWorkerGrid, block, sharedBytes>>>(s->deviceState, dt);
+        }
+        else if (s->csrReductionDirectoryKind == static_cast<int>(HeavyDirectoryKind::baseOnly))
+        {
+            accumulateCsrSegmentedPoolTasksPersistentKernel<true, HeavyDirectoryKind::baseOnly>
+                <<<s->csrHeavyWorkerGrid, block, sharedBytes>>>(s->deviceState, dt);
+        }
+        else
+        {
+            accumulateCsrSegmentedPoolTasksPersistentKernel<true, HeavyDirectoryKind::splitBaseAndInjection>
+                <<<s->csrHeavyWorkerGrid, block, sharedBytes>>>(s->deviceState, dt);
+        }
     }
     else
     {
-        accumulateCsrSegmentedPoolTasksPersistentKernel<false>
-            <<<s->csrHeavyWorkerGrid, block, sharedBytes>>>(s->deviceState, dt);
+        if (s->csrReductionDirectoryKind == static_cast<int>(HeavyDirectoryKind::full))
+        {
+            accumulateCsrSegmentedPoolTasksPersistentKernel<false, HeavyDirectoryKind::full>
+                <<<s->csrHeavyWorkerGrid, block, sharedBytes>>>(s->deviceState, dt);
+        }
+        else if (s->csrReductionDirectoryKind == static_cast<int>(HeavyDirectoryKind::baseOnly))
+        {
+            accumulateCsrSegmentedPoolTasksPersistentKernel<false, HeavyDirectoryKind::baseOnly>
+                <<<s->csrHeavyWorkerGrid, block, sharedBytes>>>(s->deviceState, dt);
+        }
+        else
+        {
+            accumulateCsrSegmentedPoolTasksPersistentKernel<false, HeavyDirectoryKind::splitBaseAndInjection>
+                <<<s->csrHeavyWorkerGrid, block, sharedBytes>>>(s->deviceState, dt);
+        }
     }
     err = cudaGetLastError();
     if (err != cudaSuccess)
@@ -8880,16 +8993,16 @@ int launchCsrSegmentedPoolReduction
         setLastError("CSR segmented pool worker launch", err);
         return 1;
     }
-    err = cudaMemset(s->csrHeavyTaskCursor, 0, sizeof(int));
-    if (err != cudaSuccess)
-    {
-        setLastError("reset CSR segmented pool finalize cursor", err);
-        return 1;
-    }
     const int finalizeGrid =
         s->multiprocessorCount < s->nCells
       ? s->multiprocessorCount
       : s->nCells;
+    err = resetCsrPersistentQueue(s);
+    if (err != cudaSuccess)
+    {
+        setLastError("reset CSR persistent queue", err);
+        return 1;
+    }
     finalizeCsrSegmentedPoolCellsKernel
         <<<finalizeGrid, block, sharedBytes>>>(s->deviceState);
     err = cudaGetLastError();
@@ -8911,114 +9024,7 @@ int launchCsrHeavyPoolReduction
 )
 {
     return launchCsrSegmentedPoolReduction(s, dt, poissonMode, block);
-#if 0
-    if (s->csrHeavyReductionEnabled == 0 || s->particleCapacity <= 0)
-    {
-        return 0;
-    }
 
-    cudaError_t err = cudaMemset(s->csrHeavyTaskCursor, 0, sizeof(int));
-    if (err != cudaSuccess)
-    {
-        setLastError("reset CSR heavy pool task cursor", err);
-        return 1;
-    }
-    const int warpCount = (block + 31)/32;
-    const size_t sharedBytes =
-        8u*static_cast<size_t>(warpCount)*sizeof(double);
-    if (poissonMode && useSplitPreDirectory != 0)
-    {
-        accumulateCsrHeavyPoolTasksPersistentKernel<true, true, false>
-            <<<s->csrHeavyWorkerGrid, block, sharedBytes>>>(s->deviceState, dt);
-    }
-    else if (poissonMode)
-    {
-        accumulateCsrHeavyPoolTasksPersistentKernel<true, false, false>
-            <<<s->csrHeavyWorkerGrid, block, sharedBytes>>>(s->deviceState, dt);
-    }
-    else if (useSplitPreDirectory != 0)
-    {
-        accumulateCsrHeavyPoolTasksPersistentKernel<false, true, false>
-            <<<s->csrHeavyWorkerGrid, block, sharedBytes>>>(s->deviceState, dt);
-    }
-    else
-    {
-        accumulateCsrHeavyPoolTasksPersistentKernel<false, false, false>
-            <<<s->csrHeavyWorkerGrid, block, sharedBytes>>>(s->deviceState, dt);
-    }
-    err = cudaGetLastError();
-    if (err != cudaSuccess)
-    {
-        setLastError("CSR heavy pool persistent kernel launch", err);
-        return 1;
-    }
-
-    if (useSplitPreDirectory != 0)
-    {
-        if (s->preInjectionSegmentActive != 0)
-        {
-            err = cudaMemset(s->csrHeavyTaskCursor, 0, sizeof(int));
-            if (err != cudaSuccess)
-            {
-                setLastError
-                (
-                    "reset split-pre injection heavy pool task cursor",
-                    err
-                );
-                return 1;
-            }
-            if (poissonMode)
-            {
-                accumulateCsrHeavyPoolTasksPersistentKernel<true, false, true>
-                    <<<s->csrHeavyWorkerGrid, block, sharedBytes>>>
-                    (s->deviceState, dt);
-            }
-            else
-            {
-                accumulateCsrHeavyPoolTasksPersistentKernel<false, false, true>
-                    <<<s->csrHeavyWorkerGrid, block, sharedBytes>>>
-                    (s->deviceState, dt);
-            }
-            err = cudaGetLastError();
-            if (err != cudaSuccess)
-            {
-                setLastError
-                (
-                    "split-pre injection CSR heavy pool worker kernel launch",
-                    err
-                );
-                return 1;
-            }
-        }
-    }
-
-    err = cudaMemset(s->csrHeavyTaskCursor, 0, sizeof(int));
-    if (err != cudaSuccess)
-    {
-        setLastError("reset CSR heavy pool finalize cursor", err);
-        return 1;
-    }
-    const int finalizeGridFromSm = s->multiprocessorCount;
-    const int finalizeGrid =
-        finalizeGridFromSm < s->nCells ? finalizeGridFromSm : s->nCells;
-    if (useSplitPreDirectory != 0)
-    {
-        finalizeSplitPreCsrHeavyPoolCellsKernel
-            <<<finalizeGrid, block, sharedBytes>>>(s->deviceState);
-    }
-    else
-    {
-        finalizeCsrHeavyPoolCellsKernel
-            <<<finalizeGrid, block, sharedBytes>>>(s->deviceState);
-    }
-    err = cudaGetLastError();
-    if (err != cudaSuccess)
-    {
-        setLastError("finalizeCsrHeavyPoolCellsKernel launch", err);
-        return 1;
-    }
-    return 0;
-#endif
 }
 
 __global__ void preparePoissonPoolSamplingKernel(DeviceState* sp)
@@ -9030,17 +9036,7 @@ __global__ void preparePoissonPoolSamplingKernel(DeviceState* sp)
         return;
     }
 
-    const int representatives = s.poolThermalCount[c];
-    const double poolMass =
-        clampMin(finiteOr(s.poissonPoolMass[c], 0.0), 0.0);
-
-    int target = 0;
-    if (poolMass > 0.0 && representatives > 0)
-    {
-        target = representatives;
-    }
-
-    s.poissonPoolSampleTargetCount[c] = target;
+    preparePoissonPoolSamplingCell(s, c);
 }
 
 __device__ void sampleOnePoissonPoolParticle
@@ -9296,46 +9292,9 @@ __global__ void correctPoissonThermalizedParticlesKernel
     }
 }
 
-template<int BlockThreads>
-__global__ void gatherCellLocalParticlesKernel(DeviceState* sp)
+__device__ __forceinline__ void copyCellLocalParticle
+(DeviceState& s, const int i, const int c, const int dst)
 {
-    DeviceState& s = *sp;
-    const int c = blockIdx.x;
-    if (c >= s.nCells || blockDim.x != BlockThreads)
-    {
-        return;
-    }
-
-    using BlockScan = cub::BlockScan<int, BlockThreads>;
-    __shared__ typename BlockScan::TempStorage scanStorage;
-
-    const int start = s.cellParticleOffset[c];
-    const int end = s.cellParticleOffset[c + 1];
-    const int outputStart = s.compactCellOffset[c];
-    int tileOutputOffset = 0;
-
-    for
-    (
-        int tileStart = start;
-        tileStart < end;
-        tileStart += BlockThreads
-    )
-    {
-        const int pos = tileStart + threadIdx.x;
-        const int i = pos < end ? s.sortedParticleIndex[pos] : -1;
-        const int keep =
-            i >= 0
-         && i < s.particleCapacity
-         && s.pStatus[i] == 1
-         && s.pCellId[i] == c;
-
-        int localOffset = 0;
-        int tileCount = 0;
-        BlockScan(scanStorage).ExclusiveSum(keep, localOffset, tileCount);
-
-        if (keep != 0)
-        {
-            const int dst = outputStart + tileOutputOffset + localOffset;
             s.compactPx[dst] = s.px[i];
             s.compactPy[dst] = s.py[i];
             s.compactPz[dst] = s.pz[i];
@@ -9350,31 +9309,80 @@ __global__ void gatherCellLocalParticlesKernel(DeviceState* sp)
             s.compactPStatus[dst] = 1;
             s.compactPRng[dst] = s.pRng[i];
             s.compactPOrigId[dst] = s.pOrigId[i];
-        }
-
-        tileOutputOffset += tileCount;
-        __syncthreads();
-    }
 }
+
+#include "GpuCellLocalGather.cuh"
+
+template<int BlockThreads>
+struct CsrGatherOperation
+{
+    __device__ bool prepare(DeviceState&, int) { return true; }
+    __device__ void execute(DeviceState& s, const int task)
+    {
+        const CsrReductionTask descriptor = s.csrReductionTasks[task];
+        const int c = descriptor.cell;
+        const int start = s.cellParticleOffset[c];
+        const int end = s.cellParticleOffset[c + 1];
+        if (s.cellParticleCount[c] == 0) return;
+        const bool allKept = s.cellParticleCount[c] == end - start;
+        if (allKept)
+            gatherCellLocalRange<BlockThreads>(s, c, descriptor.begin, descriptor.end,
+                s.compactCellOffset[c] + descriptor.begin - start, true);
+        else if (task == s.csrCellTaskOffset[c])
+            gatherCellLocalRange<BlockThreads>(s, c, start, end,
+                s.compactCellOffset[c], false);
+
+    }
+};
+
+template<int BlockThreads>
+__global__ void gatherCsrSegmentedParticlesKernel(DeviceState* sp)
+{
+    DeviceState& s = *sp;
+    CsrGatherOperation<BlockThreads> operation;
+    runCsrPersistentQueue(s, *s.csrHeavyTaskCount, operation);
+}
+
 
 int launchGatherCellLocalParticles(DeviceState* s)
 {
+    if (s->csrHeavyReductionEnabled != 0)
+    {
+        const cudaError_t resetError = resetCsrPersistentQueue(s);
+        if (resetError != cudaSuccess)
+        {
+            setLastError("reset CSR gather queue", resetError);
+            return 1;
+        }
+    }
     switch (s->reductionBlockThreads)
     {
         case 32:
-            gatherCellLocalParticlesKernel<32>
+            if (s->csrHeavyReductionEnabled != 0)
+                gatherCsrSegmentedParticlesKernel<32><<<s->csrHeavyWorkerGrid, 32>>>(s->deviceState);
+            else
+                gatherCellLocalParticlesKernel<32>
                 <<<s->nCells, 32>>>(s->deviceState);
             break;
         case 64:
-            gatherCellLocalParticlesKernel<64>
+            if (s->csrHeavyReductionEnabled != 0)
+                gatherCsrSegmentedParticlesKernel<64><<<s->csrHeavyWorkerGrid, 64>>>(s->deviceState);
+            else
+                gatherCellLocalParticlesKernel<64>
                 <<<s->nCells, 64>>>(s->deviceState);
             break;
         case 128:
-            gatherCellLocalParticlesKernel<128>
+            if (s->csrHeavyReductionEnabled != 0)
+                gatherCsrSegmentedParticlesKernel<128><<<s->csrHeavyWorkerGrid, 128>>>(s->deviceState);
+            else
+                gatherCellLocalParticlesKernel<128>
                 <<<s->nCells, 128>>>(s->deviceState);
             break;
         case 256:
-            gatherCellLocalParticlesKernel<256>
+            if (s->csrHeavyReductionEnabled != 0)
+                gatherCsrSegmentedParticlesKernel<256><<<s->csrHeavyWorkerGrid, 256>>>(s->deviceState);
+            else
+                gatherCellLocalParticlesKernel<256>
                 <<<s->nCells, 256>>>(s->deviceState);
             break;
         default:
@@ -9554,6 +9562,7 @@ __global__ void accumulateParticleMomentsAtomicKernel(DeviceState* sp)
     DeviceState& s = *sp;
     const int nParticles =
         clampRange(*s.particleCountDevice, 0, s.particleCapacity);
+    const double heatFactor = particleHeatFactorDevice(s);
     for
     (
         int i = blockIdx.x*blockDim.x + threadIdx.x;
@@ -9581,8 +9590,6 @@ __global__ void accumulateParticleMomentsAtomicKernel(DeviceState* sp)
                 finiteOr(s.pd[i], s.particleDiameterFallback),
                 1.0e-12
             );
-        const double tp =
-            clampRange(finiteOr(s.pT[i], s.TpMin), s.TpMin, s.TpMax);
         atomicAdd(&s.momRhoP[c], m);
         atomicAdd(&s.momRhoUPx[c], m*ux);
         atomicAdd(&s.momRhoUPy[c], m*uy);
@@ -9593,7 +9600,12 @@ __global__ void accumulateParticleMomentsAtomicKernel(DeviceState* sp)
             m*(0.5*sqr3(ux, uy, uz) + 1.5*theta)
         );
         atomicAdd(&s.momRhoPD[c], m*d);
-        atomicAdd(&s.momRhoHpP[c], m*particleHeatFactorDevice(s)*tp);
+        if (heatFactor > 0.0)
+        {
+            const double tp =
+                clampRange(finiteOr(s.pT[i], s.TpMin), s.TpMin, s.TpMax);
+            atomicAdd(&s.momRhoHpP[c], m*heatFactor*tp);
+        }
         atomicAdd(&s.cellParticleCount[c], 1);
     }
 }
@@ -9642,6 +9654,7 @@ __global__ void accumulateParticleMomentsSegmentedKernel(DeviceState* sp)
     double heat = 0.0;
     int survivorCount = 0;
 
+    const double heatFactor = particleHeatFactorDevice(s);
     for (int pos = start + threadIdx.x; pos < end; pos += blockDim.x)
     {
         const int i = s.sortedParticleIndex[pos];
@@ -9667,7 +9680,11 @@ __global__ void accumulateParticleMomentsSegmentedKernel(DeviceState* sp)
         momZ += m*uz;
         energy += m*(0.5*sqr3(ux, uy, uz) + 1.5*theta);
         diameter += m*clampMin(finiteOr(s.pd[i], s.particleDiameterFallback), 1.0e-12);
-        heat += m*particleHeatFactorDevice(s)*clampRange(finiteOr(s.pT[i], s.TpMin), s.TpMin, s.TpMax);
+        if (heatFactor > 0.0)
+        {
+            heat += m*heatFactor
+                *clampRange(finiteOr(s.pT[i], s.TpMin), s.TpMin, s.TpMax);
+        }
         ++survivorCount;
     }
 
@@ -9703,6 +9720,7 @@ __global__ void accumulateParticleMomentsSegmentedKernel(DeviceState* sp)
     }
 }
 
+template<bool GatherSurvivors = false>
 __device__ void accumulateCsrHeavyMomentTask
 (
     DeviceState& s,
@@ -9720,8 +9738,9 @@ __device__ void accumulateCsrHeavyMomentTask
     double energy = 0.0;
     double diameter = 0.0;
     double heat = 0.0;
-    double count = 0.0;
+    int count = 0;
 
+    const double heatFactor = particleHeatFactorDevice(s);
     for (int pos = begin + threadIdx.x; pos < end; pos += blockDim.x)
     {
         const int i = s.sortedParticleIndex[pos];
@@ -9752,10 +9771,13 @@ __device__ void accumulateCsrHeavyMomentTask
                 finiteOr(s.pd[i], s.particleDiameterFallback),
                 1.0e-12
             );
-        heat +=
-            m*particleHeatFactorDevice(s)
-             *clampRange(finiteOr(s.pT[i], s.TpMin), s.TpMin, s.TpMax);
-        count += 1.0;
+        if (heatFactor > 0.0)
+        {
+            heat += m*heatFactor
+                *clampRange(finiteOr(s.pT[i], s.TpMin), s.TpMin, s.TpMax);
+        }
+        if constexpr (GatherSurvivors) copyCellLocalParticle(s, i, c, pos);
+        ++count;
     }
 
     sums[0] = rho;
@@ -9765,7 +9787,7 @@ __device__ void accumulateCsrHeavyMomentTask
     sums[4] = energy;
     sums[5] = diameter;
     sums[6] = heat;
-    sums[7] = count;
+    sums[7] = static_cast<double>(count);
     blockReduceComponentSums<8>(sums, warpPartials);
 }
 
@@ -9876,32 +9898,22 @@ __global__ void finalizeCsrHeavyMomentCellsKernel(DeviceState* sp)
     }
 }
 
-__global__ void accumulateCsrSegmentedMomentTasksPersistentKernel(DeviceState* sp)
+template<bool GatherSurvivors = false>
+struct CsrMomentOperation
 {
-    DeviceState& s = *sp;
-    __shared__ int task;
-    __shared__ int taskCount;
-    __shared__ CsrReductionTask descriptor;
-    extern __shared__ double warpPartials[];
-    for (;;)
+    CsrReductionTask* current;
+    double* warpPartials;
+    __device__ bool prepare(DeviceState& s, const int task)
     {
-        if (threadIdx.x == 0)
-        {
-            taskCount = *s.csrHeavyTaskCount;
-            task = atomicAdd(s.csrHeavyTaskCursor, 1);
-            if (task < taskCount)
-            {
-                descriptor = s.csrReductionTasks[task];
-            }
-        }
-        __syncthreads();
-        if (task >= taskCount)
-        {
-            return;
-        }
+        *current = s.csrReductionTasks[task];
+        return true;
+    }
+    __device__ void execute(DeviceState& s, const int task)
+    {
+        const CsrReductionTask& descriptor = *current;
         const int c = descriptor.cell;
             double sums[8];
-            accumulateCsrHeavyMomentTask
+            accumulateCsrHeavyMomentTask<GatherSurvivors>
             (
                 s, c, descriptor.begin, descriptor.end, sums, warpPartials
             );
@@ -9936,33 +9948,34 @@ __global__ void accumulateCsrSegmentedMomentTasksPersistentKernel(DeviceState* s
                     }
                 }
             }
-    }
-}
 
-__global__ void finalizeCsrSegmentedMomentCellsKernel(DeviceState* sp)
+    }
+};
+
+template<bool GatherSurvivors = false>
+__global__ void accumulateCsrSegmentedMomentTasksPersistentKernel(DeviceState* sp)
 {
     DeviceState& s = *sp;
-    __shared__ int multiIndex;
+    __shared__ CsrReductionTask descriptor;
     extern __shared__ double warpPartials[];
-    for (;;)
+    CsrMomentOperation<GatherSurvivors> operation{&descriptor, warpPartials};
+    runCsrPersistentQueue(s, *s.csrHeavyTaskCount, operation);
+}
+
+struct CsrMomentFinalizeOperation
+{
+    double* warpPartials;
+    __device__ bool prepare(DeviceState&, int) { return true; }
+    __device__ void execute(DeviceState& s, const int multiIndex)
     {
-        if (threadIdx.x == 0)
-        {
-            multiIndex = atomicAdd(s.csrHeavyTaskCursor, 1);
-        }
-        __syncthreads();
-        if (multiIndex >= *s.csrHeavyCellCount)
-        {
-            return;
-        }
-        const int c = s.csrMultiTaskCellList[multiIndex];
+    const int c = s.csrMultiTaskCellList[multiIndex];
         if (!(s.csrCellTaskCount[c] > 1))
         {
             asm("trap;");
         }
         double sums[8] = {0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
         const int firstTask = s.csrCellTaskOffset[c];
-        const int endTask = s.csrCellTaskOffset[c + 1];
+        const int endTask = firstTask + s.csrCellTaskCount[c];
         for (int task = firstTask + threadIdx.x; task < endTask; task += blockDim.x)
         {
             #pragma unroll
@@ -9992,103 +10005,75 @@ __global__ void finalizeCsrSegmentedMomentCellsKernel(DeviceState* sp)
             s.momRhoPD[c] = sums[5]*invV;
             s.momRhoHpP[c] = sums[6]*invV;
         }
-        __syncthreads();
+
     }
+};
+
+__global__ void finalizeCsrSegmentedMomentCellsKernel(DeviceState* sp)
+{
+    DeviceState& s = *sp;
+    extern __shared__ double warpPartials[];
+    CsrMomentFinalizeOperation operation{warpPartials};
+    runCsrPersistentQueue(s, *s.csrHeavyCellCount, operation);
 }
 
-int launchCsrSegmentedMomentReduction(DeviceState* s, const int block)
+int launchCsrSegmentedMomentReduction(DeviceState* s, const int block, const bool deferRecovery = false, const bool gatherSurvivors = false)
 {
     if (s->csrHeavyReductionEnabled == 0 || s->particleCapacity <= 0)
     {
         return 0;
     }
-    cudaError_t err = cudaMemset(s->csrHeavyTaskCursor, 0, sizeof(int));
+    cudaError_t err = cudaSuccess;
+    err = resetCsrPersistentQueue(s);
     if (err != cudaSuccess)
     {
-        setLastError("reset CSR segmented moment task cursor", err);
+        setLastError("reset CSR persistent queue", err);
         return 1;
     }
     const int warpCount = (block + 31)/32;
     const size_t sharedBytes =
         8u*static_cast<size_t>(warpCount)*sizeof(double);
-    accumulateCsrSegmentedMomentTasksPersistentKernel
-        <<<s->csrHeavyWorkerGrid, block, sharedBytes>>>(s->deviceState);
+    if (gatherSurvivors)
+        accumulateCsrSegmentedMomentTasksPersistentKernel<true>
+            <<<s->csrHeavyWorkerGrid, block, sharedBytes>>>(s->deviceState);
+    else
+        accumulateCsrSegmentedMomentTasksPersistentKernel<false>
+            <<<s->csrHeavyWorkerGrid, block, sharedBytes>>>(s->deviceState);
     err = cudaGetLastError();
     if (err != cudaSuccess)
     {
         setLastError("CSR segmented moment worker launch", err);
         return 1;
     }
-    err = cudaMemset(s->csrHeavyTaskCursor, 0, sizeof(int));
-    if (err != cudaSuccess)
+    // Only advance has a following fused recovery; restart must complete here.
+    if (!deferRecovery)
     {
-        setLastError("reset CSR segmented moment finalize cursor", err);
-        return 1;
-    }
-    const int finalizeGrid =
-        s->multiprocessorCount < s->nCells
-      ? s->multiprocessorCount
-      : s->nCells;
-    finalizeCsrSegmentedMomentCellsKernel
-        <<<finalizeGrid, block, sharedBytes>>>(s->deviceState);
-    err = cudaGetLastError();
-    if (err != cudaSuccess)
-    {
-        setLastError("finalizeCsrSegmentedMomentCellsKernel launch", err);
-        return 1;
+        const int finalizeGrid =
+            s->multiprocessorCount < s->nCells
+          ? s->multiprocessorCount
+          : s->nCells;
+        err = resetCsrPersistentQueue(s);
+        if (err != cudaSuccess)
+        {
+            setLastError("reset CSR persistent queue", err);
+            return 1;
+        }
+        finalizeCsrSegmentedMomentCellsKernel
+            <<<finalizeGrid, block, sharedBytes>>>(s->deviceState);
+        err = cudaGetLastError();
+        if (err != cudaSuccess)
+        {
+            setLastError("finalizeCsrSegmentedMomentCellsKernel launch", err);
+            return 1;
+        }
     }
     return 0;
 }
 
-int launchCsrHeavyMomentReduction(DeviceState* s, const int block)
+int launchCsrHeavyMomentReduction(DeviceState* s, const int block, const bool deferRecovery = false, const bool gatherSurvivors = false)
 {
-    return launchCsrSegmentedMomentReduction(s, block);
-#if 0
-    if (s->csrHeavyReductionEnabled == 0 || s->particleCapacity <= 0)
-    {
-        return 0;
-    }
+    return launchCsrSegmentedMomentReduction(s, block, deferRecovery, gatherSurvivors);
 
-    cudaError_t err = cudaMemset(s->csrHeavyTaskCursor, 0, sizeof(int));
-    if (err != cudaSuccess)
-    {
-        setLastError("reset CSR heavy moment task cursor", err);
-        return 1;
-    }
-    const int warpCount = (block + 31)/32;
-    const size_t sharedBytes =
-        8u*static_cast<size_t>(warpCount)*sizeof(double);
-    accumulateCsrHeavyMomentTasksPersistentKernel
-        <<<s->csrHeavyWorkerGrid, block, sharedBytes>>>(s->deviceState);
-    err = cudaGetLastError();
-    if (err != cudaSuccess)
-    {
-        setLastError("CSR heavy moment persistent kernel launch", err);
-        return 1;
-    }
-
-    err = cudaMemset(s->csrHeavyTaskCursor, 0, sizeof(int));
-    if (err != cudaSuccess)
-    {
-        setLastError("reset CSR heavy moment finalize cursor", err);
-        return 1;
-    }
-    const int finalizeGridFromSm = s->multiprocessorCount;
-    const int finalizeGrid =
-        finalizeGridFromSm < s->nCells ? finalizeGridFromSm : s->nCells;
-    finalizeCsrHeavyMomentCellsKernel
-        <<<finalizeGrid, block, sharedBytes>>>
-    (
-        s->deviceState
-    );
-    err = cudaGetLastError();
-    if (err != cudaSuccess)
-    {
-        setLastError("finalizeCsrHeavyMomentCellsKernel launch", err);
-        return 1;
-    }
-    return 0;
-#endif
 }
 
 __global__ void solidRecoveryFromParticleMomentsKernel(DeviceState* sp);
@@ -10103,7 +10088,7 @@ __global__ void clearParticleCellBinsKernel(DeviceState* sp)
     }
 }
 
-template<bool WarpAggregated>
+template<bool WarpAggregated, bool SurvivorsOnly = false>
 __global__ void countParticlesByCellKernel(DeviceState* sp)
 {
     DeviceState& s = *sp;
@@ -10111,7 +10096,7 @@ __global__ void countParticlesByCellKernel(DeviceState* sp)
     for (int i = blockIdx.x*blockDim.x + threadIdx.x; i < nParticles; i += blockDim.x*gridDim.x)
     {
         const int c = s.pCellId[i];
-        const bool valid = s.pStatus[i] != 0 && c >= 0 && c < s.nCells;
+        const bool valid = (SurvivorsOnly ? s.pStatus[i] == 1 : s.pStatus[i] != 0) && c >= 0 && c < s.nCells;
         if (!WarpAggregated)
         {
             if (valid)
@@ -10152,7 +10137,7 @@ __global__ void initialiseParticleCellWritesKernel(DeviceState* sp)
     }
 }
 
-template<bool WarpAggregated>
+template<bool WarpAggregated, bool SurvivorsOnly = false>
 __global__ void scatterParticlesByCellKernel(DeviceState* sp)
 {
     DeviceState& s = *sp;
@@ -10160,7 +10145,7 @@ __global__ void scatterParticlesByCellKernel(DeviceState* sp)
     for (int i = blockIdx.x*blockDim.x + threadIdx.x; i < nParticles; i += blockDim.x*gridDim.x)
     {
         const int c = s.pCellId[i];
-        const bool valid = s.pStatus[i] != 0 && c >= 0 && c < s.nCells;
+        const bool valid = (SurvivorsOnly ? s.pStatus[i] == 1 : s.pStatus[i] != 0) && c >= 0 && c < s.nCells;
         if (!WarpAggregated)
         {
             if (valid)
@@ -10390,25 +10375,14 @@ __global__ void captureCompactedPreBaseOffsetsKernel(DeviceState* sp)
     }
 }
 
-enum class HeavyDirectoryKind : int
-{
-    full = 0,
-    splitBaseAndInjection = 1,
-    baseOnly = 2
-};
 
-__global__ void configureDynamicCsrHeavyPolicyKernel
+
+__device__ __forceinline__ int csrReductionTileParticles
 (
-    DeviceState* sp,
+    const DeviceState& s,
     const int directoryKind
 )
 {
-    if (blockIdx.x != 0 || threadIdx.x != 0)
-    {
-        return;
-    }
-
-    DeviceState& s = *sp;
     long long totalParticles = 0;
     if (directoryKind == static_cast<int>(HeavyDirectoryKind::baseOnly))
     {
@@ -10452,6 +10426,22 @@ __global__ void configureDynamicCsrHeavyPolicyKernel
     {
         asm("trap;");
     }
+    return static_cast<int>(threshold);
+}
+
+__global__ void configureDynamicCsrHeavyPolicyKernel
+(
+    DeviceState* sp,
+    const int directoryKind
+)
+{
+    if (blockIdx.x != 0 || threadIdx.x != 0)
+    {
+        return;
+    }
+
+    DeviceState& s = *sp;
+    const int threshold = csrReductionTileParticles(s, directoryKind);
     s.csrHeavyCellThreshold = static_cast<int>(threshold);
     s.csrHeavyTileParticles = static_cast<int>(threshold);
 }
@@ -10621,12 +10611,20 @@ __global__ void countCsrReductionTasksKernel
     {
         return;
     }
+    const int tile = csrReductionTileParticles(s, directoryKind);
+    if (c == 0)
+    {
+        s.csrHeavyCellThreshold = tile;
+        s.csrHeavyTileParticles = tile;
+        *s.csrHeavyCellCount = 0;
+        *s.csrHeavyTaskCount = 0;
+        s.csrReductionDirectoryKind = directoryKind;
+    }
     if (c == s.nCells)
     {
         s.csrCellTaskCount[c] = 0;
         return;
     }
-    const int tile = s.csrHeavyTileParticles;
     if (tile <= 0)
     {
         asm("trap;");
@@ -10681,6 +10679,10 @@ __global__ void materializeCsrReductionTasksKernel
 )
 {
     DeviceState& s = *sp;
+    // The scan is complete. Publish its total within the existing producer;
+    // consumers launch after this kernel, so no separate publication is needed.
+    if (blockIdx.x == 0 && threadIdx.x == 0)
+        *s.csrHeavyTaskCount = s.csrCellTaskOffset[s.nCells];
     const int stride = blockDim.x*gridDim.x;
     for (int c = blockIdx.x*blockDim.x + threadIdx.x; c < s.nCells; c += stride)
     {
@@ -10791,11 +10793,7 @@ __global__ void materializeCsrReductionTasksKernel
     }
 }
 
-__global__ void publishCsrReductionTaskCountKernel(DeviceState* sp)
-{
-    DeviceState& s = *sp;
-    *s.csrHeavyTaskCount = s.csrCellTaskOffset[s.nCells];
-}
+
 
 int prepareCsrSegmentedReductionTasks
 (
@@ -10808,16 +10806,8 @@ int prepareCsrSegmentedReductionTasks
     {
         return 0;
     }
-    if (configureDynamicCsrHeavyPolicy(s, directoryKind) != 0)
-    {
-        return 1;
-    }
-    cudaError_t err = cudaMemset(s->csrHeavyCellCount, 0, sizeof(int));
-    if (err != cudaSuccess)
-    {
-        setLastError("clear CSR multi-task cell count", err);
-        return 1;
-    }
+    s->csrReductionDirectoryKind = static_cast<int>(directoryKind);
+    cudaError_t err = cudaSuccess;
     const int countGrid = (s->nCells + 1 + block - 1)/block;
     countCsrReductionTasksKernel<<<countGrid, block>>>
     (
@@ -10841,13 +10831,6 @@ int prepareCsrSegmentedReductionTasks
     if (err != cudaSuccess)
     {
         setLastError("CSR cell task count exclusive scan", err);
-        return 1;
-    }
-    publishCsrReductionTaskCountKernel<<<1, 1>>>(s->deviceState);
-    err = cudaGetLastError();
-    if (err != cudaSuccess)
-    {
-        setLastError("publish CSR segmented task count", err);
         return 1;
     }
     const int cellGrid = (s->nCells + block - 1)/block;
@@ -11251,7 +11234,7 @@ int prepareSplitPreCsrHeavyReductionTasks(DeviceState* s, const int block)
 #endif
 }
 
-int binParticlesByCell(DeviceState* s, const int block)
+int binParticlesByCell(DeviceState* s, const int block, const bool survivorsOnly = false)
 {
     s->useSplitPreDirectory = 0;
     s->preInjectionSegmentActive = 0;
@@ -11266,12 +11249,18 @@ int binParticlesByCell(DeviceState* s, const int block)
 
     if (s->csrWarpAggregatedBinning != 0)
     {
-        countParticlesByCellKernel<true>
+        if (survivorsOnly)
+            countParticlesByCellKernel<true, true><<<s->particleWorkGrid, block>>>(s->deviceState);
+        else
+            countParticlesByCellKernel<true>
             <<<s->particleWorkGrid, block>>>(s->deviceState);
     }
     else
     {
-        countParticlesByCellKernel<false>
+        if (survivorsOnly)
+            countParticlesByCellKernel<false, true><<<s->particleWorkGrid, block>>>(s->deviceState);
+        else
+            countParticlesByCellKernel<false>
             <<<s->particleWorkGrid, block>>>(s->deviceState);
     }
     err = cudaGetLastError();
@@ -11305,12 +11294,18 @@ int binParticlesByCell(DeviceState* s, const int block)
 
     if (s->csrWarpAggregatedBinning != 0)
     {
-        scatterParticlesByCellKernel<true>
+        if (survivorsOnly)
+            scatterParticlesByCellKernel<true, true><<<s->particleWorkGrid, block>>>(s->deviceState);
+        else
+            scatterParticlesByCellKernel<true>
             <<<s->particleWorkGrid, block>>>(s->deviceState);
     }
     else
     {
-        scatterParticlesByCellKernel<false>
+        if (survivorsOnly)
+            scatterParticlesByCellKernel<false, true><<<s->particleWorkGrid, block>>>(s->deviceState);
+        else
+            scatterParticlesByCellKernel<false>
             <<<s->particleWorkGrid, block>>>(s->deviceState);
     }
     err = cudaGetLastError();
@@ -11592,15 +11587,8 @@ int rebuildResidentParticleMomentsFromParticles
     return 0;
 }
 
-__global__ void solidRecoveryFromParticleMomentsKernel(DeviceState* sp)
+__device__ __forceinline__ void solidRecoveryFromParticleMomentsCell(DeviceState& s, const int c)
 {
-    DeviceState& s = *sp;
-    const int c = blockIdx.x*blockDim.x + threadIdx.x;
-    if (c >= s.nCells)
-    {
-        return;
-    }
-
     const double rhoP = clampMin(finiteOr(s.momRhoP[c], 0.0), 0.0);
     if (rhoP <= s.epsSMin*s.rhoSolid)
     {
@@ -11653,6 +11641,86 @@ __global__ void solidRecoveryFromParticleMomentsKernel(DeviceState* sp)
         s.Tp[c] = s.TpMin;
         s.rhoHp[c] = 0.0;
     }
+}
+
+__global__ void solidRecoveryFromParticleMomentsKernel(DeviceState* sp)
+{
+    DeviceState& s = *sp;
+    const int c = blockIdx.x*blockDim.x + threadIdx.x;
+    if (c >= s.nCells)
+    {
+        return;
+    }
+
+    solidRecoveryFromParticleMomentsCell(s, c);
+}
+
+struct CsrMomentRecoveryOperation
+{
+    double* warpPartials;
+    __device__ bool prepare(DeviceState&, int) { return true; }
+    __device__ void execute(DeviceState& s, const int multiIndex)
+    {
+        const int c = s.csrMultiTaskCellList[multiIndex];
+        if (!(s.csrCellTaskCount[c] > 1))
+        {
+            asm("trap;");
+        }
+        double sums[8] = {0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
+        const int firstTask = s.csrCellTaskOffset[c];
+        const int endTask = firstTask + s.csrCellTaskCount[c];
+        for (int task = firstTask + threadIdx.x; task < endTask; task += blockDim.x)
+        {
+            #pragma unroll
+            for (int component = 0; component < 8; ++component)
+            {
+                sums[component] += s.csrHeavyPartials
+                [
+                    8u*static_cast<size_t>(task)
+                  + static_cast<size_t>(component)
+                ];
+            }
+        }
+        blockReduceComponentSums<8>(sums, warpPartials);
+        if (threadIdx.x == 0)
+        {
+            s.cellParticleCount[c] = static_cast<int>(sums[7]);
+            if (c == 0)
+            {
+                s.cellParticleCount[s.nCells] = 0;
+            }
+            const double invV = 1.0/clampMin(s.V[c], s.rhoMin);
+            s.momRhoP[c] = sums[0]*invV;
+            s.momRhoUPx[c] = sums[1]*invV;
+            s.momRhoUPy[c] = sums[2]*invV;
+            s.momRhoUPz[c] = sums[3]*invV;
+            s.momRhoEP[c] = sums[4]*invV;
+            s.momRhoPD[c] = sums[5]*invV;
+            s.momRhoHpP[c] = sums[6]*invV;
+            solidRecoveryFromParticleMomentsCell(s, c);
+        }
+
+    }
+};
+
+__global__ void finalizeCsrSegmentedMomentsAndRecoverKernel(DeviceState* sp)
+{
+
+    DeviceState& s = *sp;
+    const int heavyGrid = s.multiprocessorCount < s.nCells
+        ? s.multiprocessorCount : s.nCells;
+    if (static_cast<int>(blockIdx.x) >= heavyGrid)
+    {
+        const int c = (static_cast<int>(blockIdx.x) - heavyGrid)*blockDim.x + threadIdx.x;
+        if (c < s.nCells && s.csrCellTaskCount[c] <= 1)
+        {
+            solidRecoveryFromParticleMomentsCell(s, c);
+        }
+        return;
+    }
+    extern __shared__ double warpPartials[];
+    CsrMomentRecoveryOperation operation{warpPartials};
+    runCsrPersistentQueue(s, *s.csrHeavyCellCount, operation);
 }
 
 #ifdef UGKP_DEVELOPMENT_PROBES
@@ -13632,6 +13700,8 @@ int configureParticleLaunchGeometry(DeviceState* s)
     if (s->csrHeavyReductionEnabled != 0)
     {
         int heavyPoolBlocks = 0;
+        int heavyPoolBaseBlocks = 0;
+        int heavyPoolSplitBlocks = 0;
         int heavyMomentBlocks = 0;
         if
         (
@@ -13639,7 +13709,23 @@ int configureParticleLaunchGeometry(DeviceState* s)
             (
                 heavyPoolBlocks,
                 "occupancy query segmented pool worker kernel",
-                accumulateCsrSegmentedPoolTasksPersistentKernel<true>,
+                accumulateCsrSegmentedPoolTasksPersistentKernel<true, HeavyDirectoryKind::full>,
+                reductionBlock,
+                componentSharedBytes
+            ) != 0
+         || queryKernelBlocksPerSm
+            (
+                heavyPoolBaseBlocks,
+                "occupancy query segmented pool baseOnly worker kernel",
+                accumulateCsrSegmentedPoolTasksPersistentKernel<true, HeavyDirectoryKind::baseOnly>,
+                reductionBlock,
+                componentSharedBytes
+            ) != 0
+         || queryKernelBlocksPerSm
+            (
+                heavyPoolSplitBlocks,
+                "occupancy query segmented pool splitBaseAndInjection worker kernel",
+                accumulateCsrSegmentedPoolTasksPersistentKernel<true, HeavyDirectoryKind::splitBaseAndInjection>,
                 reductionBlock,
                 componentSharedBytes
             ) != 0
@@ -13647,7 +13733,7 @@ int configureParticleLaunchGeometry(DeviceState* s)
             (
                 heavyMomentBlocks,
                 "occupancy query segmented moment worker kernel",
-                accumulateCsrSegmentedMomentTasksPersistentKernel,
+                accumulateCsrSegmentedMomentTasksPersistentKernel<true>,
                 reductionBlock,
                 componentSharedBytes
             ) != 0
@@ -13655,6 +13741,7 @@ int configureParticleLaunchGeometry(DeviceState* s)
         {
             return 1;
         }
+        heavyPoolBlocks = std::min(heavyPoolBlocks, std::min(heavyPoolBaseBlocks, heavyPoolSplitBlocks));
         s->heavyBlocksPerSm =
             heavyPoolBlocks < heavyMomentBlocks
           ? heavyPoolBlocks
@@ -15575,7 +15662,7 @@ extern "C" int ugkwpGpuResidentStrictAdvance
         return 1;
     }
 
-    clearPoissonThermalPoolKernel<<<grid, block>>>(s->deviceState);
+    clearPoissonThermalPoolKernel<<<grid, block>>>(s->deviceState, dt);
     err = cudaGetLastError();
     if (err != cudaSuccess)
     {
@@ -15657,12 +15744,15 @@ extern "C" int ugkwpGpuResidentStrictAdvance
                 return 1;
             }
         }
-        preparePoissonPoolSamplingKernel<<<grid, block>>>(s->deviceState);
-        err = cudaGetLastError();
-        if (err != cudaSuccess)
+        if (s->csrHeavyReductionEnabled == 0)
         {
-            setLastError("preparePoissonPoolSamplingKernel launch", err);
-            return 1;
+            preparePoissonPoolSamplingKernel<<<grid, block>>>(s->deviceState);
+            err = cudaGetLastError();
+            if (err != cudaSuccess)
+            {
+                setLastError("preparePoissonPoolSamplingKernel launch", err);
+                return 1;
+            }
         }
 
         samplePoissonPoolParticlesKernel<<<particleGrid, block>>>
@@ -15744,7 +15834,7 @@ extern "C" int ugkwpGpuResidentStrictAdvance
         particleGrid > 0 && s->csrCellLocalPathEnabled != 0;
     if (runBinPost)
     {
-        if (binParticlesByCell(s, block) != 0)
+        if (binParticlesByCell(s, block, s->csrHeavyReductionEnabled != 0) != 0)
         {
             return 1;
         }
@@ -15768,7 +15858,7 @@ extern "C" int ugkwpGpuResidentStrictAdvance
                 8u*static_cast<size_t>(warpCount)*sizeof(double);
             if (s->csrHeavyReductionEnabled != 0)
             {
-                if (launchCsrHeavyMomentReduction(s, block) != 0)
+                if (launchCsrHeavyMomentReduction(s, block, true, true) != 0)
                 {
                     return 1;
                 }
@@ -15830,7 +15920,24 @@ extern "C" int ugkwpGpuResidentStrictAdvance
                 return 1;
             }
         }
-        solidRecoveryFromParticleMomentsKernel<<<grid, block>>>(s->deviceState);
+        if (s->csrHeavyReductionEnabled != 0)
+        {
+            const int heavyGrid = s->multiprocessorCount < s->nCells
+                ? s->multiprocessorCount : s->nCells;
+            const size_t sharedBytes = 8u*static_cast<size_t>((block + 31)/32)*sizeof(double);
+            err = resetCsrPersistentQueue(s);
+            if (err != cudaSuccess)
+            {
+                setLastError("reset CSR persistent queue", err);
+                return 1;
+            }
+            finalizeCsrSegmentedMomentsAndRecoverKernel
+                <<<heavyGrid + grid, block, sharedBytes>>>(s->deviceState);
+        }
+        else
+        {
+            solidRecoveryFromParticleMomentsKernel<<<grid, block>>>(s->deviceState);
+        }
         err = cudaGetLastError();
         if (err != cudaSuccess)
         {
@@ -15843,7 +15950,7 @@ extern "C" int ugkwpGpuResidentStrictAdvance
     UGKP_DEV_PROBE_ENTER(ProbePressurePost);
     if (particleGrid > 0)
     {
-        if (applyCollisionalPressureKick(s, 0.5*dt, block, 0) != 0)
+        if (applyCollisionalPressureKick(s, 0.5*dt, block, 0, s->csrHeavyReductionEnabled != 0) != 0)
         {
             return 1;
         }
@@ -15867,7 +15974,7 @@ extern "C" int ugkwpGpuResidentStrictAdvance
             return 1;
         }
 
-        if (launchGatherCellLocalParticles(s) != 0)
+        if (s->csrHeavyReductionEnabled == 0 && launchGatherCellLocalParticles(s) != 0)
         {
             return 1;
         }
@@ -15942,6 +16049,7 @@ extern "C" int ugkwpGpuResidentStrictAdvance
     s->preBaseDirectoryReady = s->csrCellLocalPathEnabled != 0 ? 1 : 0;
     s->useSplitPreDirectory = 0;
     UGKP_DEV_PROBE_LEAVE(ProbeCompaction);
+
     }
     else
     {

@@ -57,12 +57,12 @@ class StrictCsrLevelContract(unittest.TestCase):
             if levels[0] == "auto":
                 self.assertRegex(
                     text,
-                    r"^\s*gpuCsrHeavyReductionAutoInterval\s+[1-9][0-9]*\s*;",
+                    r"(?m)^\s*gpuCsrHeavyReductionAutoInterval\s+[1-9][0-9]*\s*;",
                 )
             else:
                 self.assertNotRegex(
                     text,
-                    r"^\s*gpuCsrHeavyReductionAutoInterval\b",
+                    r"(?m)^\s*gpuCsrHeavyReductionAutoInterval\b",
                     str(path),
                 )
 

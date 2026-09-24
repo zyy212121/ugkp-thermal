@@ -7,11 +7,21 @@ from pathlib import Path
 
 UNIFIED_ROOT = Path(__file__).resolve().parents[3]
 SHARED_WORKERS = (
-    UNIFIED_ROOT / "common/CsrPersistentQueue.cuh",
+    UNIFIED_ROOT / "gpu/thermal/CsrSegmentedPoolWorkers.cuh",
+    UNIFIED_ROOT / "gpu/thermal/CsrSegmentedMomentWorkers.cuh",
 )
 
 
-BRANCHES = {"gasUGKP": (UNIFIED_ROOT / 'applications/gasUGKP/gpu/GpuResidentStrict.H', UNIFIED_ROOT / 'applications/gasUGKP/private_backend/GpuResidentStrict.cu')}
+BRANCHES = {
+    "FSH": (
+        UNIFIED_ROOT / "applications/FSH/gpu/GpuResidentStrict.H",
+        UNIFIED_ROOT / "applications/FSH/private_backend/GpuResidentStrict.cu",
+    ),
+    "CHT": (
+        UNIFIED_ROOT / "applications/CHT/gpu/GpuResidentStrict.H",
+        UNIFIED_ROOT / "applications/CHT/gpu/GpuResidentStrict.cu",
+    ),
+}
 
 
 class SegmentedTaskQueueFamilyContract(unittest.TestCase):
@@ -48,7 +58,7 @@ class SegmentedTaskQueueFamilyContract(unittest.TestCase):
             header = header_path.read_text(encoding="utf-8")
             self.assertIn("GpuSchedulingConfiguration", header, name)
 
-    def test_l2_materializes_only_nonempty_tasks_and_fuses_publication(self) -> None:
+    def test_l2_materializes_one_deterministic_queue_for_every_cell(self) -> None:
         for name, (_, cuda_path) in BRANCHES.items():
             cuda = self._implementation_text(cuda_path)
             for token in (
@@ -61,14 +71,12 @@ class SegmentedTaskQueueFamilyContract(unittest.TestCase):
                 "csrMultiTaskCellList",
             ):
                 self.assertIn(token, cuda, f"{name}: {token}")
-            prepare = self._braced_block(cuda, 'int prepareCsrSegmentedReductionTasks')
-            materialize = self._braced_block(cuda, '__global__ void materializeCsrReductionTasksKernel')
-            self.assertIn('cub::DeviceScan::ExclusiveSum', prepare)
-            self.assertNotIn('publishCsrReductionTaskCountKernel<<<', prepare)
-            self.assertIn('if (nTasks == 0)', materialize)
-            self.assertNotIn('atomicAdd(s.csrHeavyTaskCount, nTasks)', materialize)
-            self.assertIn('*s.csrHeavyTaskCount = s.csrCellTaskOffset[s.nCells]', materialize)
-            self.assertIn('const int taskStart = s.csrCellTaskOffset[c]', materialize)
+            self.assertIn("cub::DeviceScan::ExclusiveSum", cuda, name)
+            self.assertRegex(
+                cuda,
+                r"csrCellTaskOffset,\s*s->nCells\s*\+\s*1",
+                name,
+            )
 
     def test_split_task_count_uses_one_logical_concatenation(self) -> None:
         for name, (_, cuda_path) in BRANCHES.items():
@@ -121,40 +129,28 @@ class SegmentedTaskQueueFamilyContract(unittest.TestCase):
             self.assertIn("launchCsrHeavyMomentReduction", moments_heavy, name)
             self.assertNotIn("accumulateParticleMoments", moments_heavy, name)
 
-    def test_zero_collision_probability_skips_eight_component_reduction(self) -> None:
-        pool = BRANCHES["gasUGKP"][1].read_text(encoding="utf-8")
-        body = self._braced_block(
-            pool, "if (PoissonMode && collisionProbability <= 0.0)"
-        )
-        self.assertNotIn("blockReduceComponentSums", body)
-        self.assertIn("csrHeavyPartials", body)
-        self.assertIn("return", body)
-
     def test_pool_worker_selects_logical_or_single_source_once_per_task(self) -> None:
-        pool = BRANCHES["gasUGKP"][1].read_text(
+        pool = (UNIFIED_ROOT / "gpu/thermal/CsrSegmentedPoolWorkers.cuh").read_text(
             encoding="utf-8"
         )
         worker = self._braced_block(
-            pool, "struct CsrPoolOperation"
+            pool, "__device__ __forceinline__ void executeCsrSegmentedPoolTask"
         )
         self.assertEqual(worker.count("accumulateCsrHeavyPoolTask<PoissonMode>"), 1)
         self.assertEqual(
             worker.count("accumulateCsrSplitLogicalPoolTask<PoissonMode>"), 1
         )
         self.assertIn("const bool directParticleIndex", worker)
-        self.assertNotIn("descriptor.source", worker)
-        self.assertIn("DirectoryKind == HeavyDirectoryKind::splitBaseAndInjection", worker)
+        self.assertIn("descriptor.source", worker)
 
-    def test_workers_route_through_the_shared_persistent_protocol(self) -> None:
-        cuda = BRANCHES["gasUGKP"][1].read_text()
+    def test_scheduler_protocol_is_shared_between_thermal_workers(self) -> None:
         shared = (UNIFIED_ROOT / "common/CsrPersistentQueue.cuh").read_text()
         self.assertIn("atomicAdd(s.csrHeavyTaskCursor, 1)", shared)
-        for stage in ("Pool", "Moment"):
-            worker = self._braced_block(cuda, "__global__ void accumulateCsrSegmented" + stage + "TasksPersistentKernel")
-            self.assertIn("runCsrPersistentQueue", worker)
-            self.assertNotIn("atomicAdd", worker)
-            launch = self._braced_block(cuda, "int launchCsrSegmented" + stage + "Reduction")
-            self.assertIn("resetCsrPersistentQueue(s)", launch)
+        for path in SHARED_WORKERS:
+            code = path.read_text()
+            self.assertIn("runCsrPersistentQueue", code)
+            self.assertIn("resetCsrPersistentQueue", code)
+            self.assertNotIn("directThermalPoolDispatch", code)
 
 
     def test_l2_occupancy_queries_the_executed_segmented_workers(self) -> None:
@@ -171,7 +167,7 @@ class SegmentedTaskQueueFamilyContract(unittest.TestCase):
             )
             self.assertIsNotNone(occupancy, name)
             body = occupancy.group(0)
-            self.assertIn("accumulateCsrSegmentedPoolTasksPersistentKernel", body, name)
+            self.assertIn("thermalPoolLaunchOccupancy", body, name)
             self.assertIn("accumulateCsrSegmentedMomentTasksPersistentKernel", body, name)
             self.assertNotIn("accumulateCsrHeavyPoolTasksPersistentKernel", body, name)
             self.assertNotIn("accumulateCsrHeavyMomentTasksPersistentKernel", body, name)

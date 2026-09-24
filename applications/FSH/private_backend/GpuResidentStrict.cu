@@ -677,6 +677,8 @@ struct DevelopmentProbeSample
     }
 };
 
+constexpr int ProbeMaxOccurrences = 2;
+
 struct DevelopmentProbeState
 {
     DeviceState* owner = nullptr;
@@ -690,7 +692,14 @@ struct DevelopmentProbeState
     std::string runId;
     std::string variant;
     std::string logPath;
-    cudaEvent_t events[ProbeStageCount + 1]{};
+    cudaEvent_t totalStartEvent = nullptr;
+    cudaEvent_t totalStopEvent = nullptr;
+    cudaEvent_t
+        stageStartEvents[ProbeStageCount][ProbeMaxOccurrences]{};
+    cudaEvent_t
+        stageStopEvents[ProbeStageCount][ProbeMaxOccurrences]{};
+    int stageOccurrenceCount[ProbeStageCount]{};
+    bool stageOccurrenceExecuted[ProbeStageCount][ProbeMaxOccurrences]{};
     DevelopmentProbeDeviceSummary* deviceSummary = nullptr;
     std::vector<int> occupancy;
 };
@@ -1876,14 +1885,15 @@ __device__ double particleSpecificEnthalpyDevice(const double temperatureK)
                                                                                
                                                                               
                                                                                
+template<bool CompactParticles = false>
 __device__ double particleMomentThetaDevice
 (
     const DeviceState& s,
     const int i
 )
 {
-    return s.pStuck[i] == Foam::gpuThermal::particleWallMobile
-      ? clampMin(finiteOr(s.pTheta[i], 0.0), 0.0)
+    return (CompactParticles ? s.compactPStuck : s.pStuck)[i] == Foam::gpuThermal::particleWallMobile
+      ? clampMin(finiteOr((CompactParticles ? s.compactPTheta : s.pTheta)[i], 0.0), 0.0)
       : 0.0;
 }
 
@@ -6083,7 +6093,7 @@ __device__ void blockReduceComponentSums
     double* warpPartials
 );
 
-template<bool FullMoments>
+template<bool FullMoments, bool CompactParticles = false>
 __device__ void accumulatePressureParticleMomentsDevice
 (
     const DeviceState& s,
@@ -6093,15 +6103,15 @@ __device__ void accumulatePressureParticleMomentsDevice
     int& count
 )
 {
-    if (s.pStatus[i] != 1 || s.pCellId[i] != c)
+    if ((CompactParticles ? s.compactPStatus : s.pStatus)[i] != 1 || (CompactParticles ? s.compactPCellId : s.pCellId)[i] != c)
     {
         return;
     }
-    const double m = clampMin(finiteOr(s.pm[i], 0.0), 0.0);
-    const double ux = finiteOr(s.pux[i], 0.0);
-    const double uy = finiteOr(s.puy[i], 0.0);
-    const double uz = finiteOr(s.puz[i], 0.0);
-    const double particleTheta = particleMomentThetaDevice(s, i);
+    const double m = clampMin(finiteOr((CompactParticles ? s.compactPm : s.pm)[i], 0.0), 0.0);
+    const double ux = finiteOr((CompactParticles ? s.compactPux : s.pux)[i], 0.0);
+    const double uy = finiteOr((CompactParticles ? s.compactPuy : s.puy)[i], 0.0);
+    const double uz = finiteOr((CompactParticles ? s.compactPuz : s.puz)[i], 0.0);
+    const double particleTheta = particleMomentThetaDevice<CompactParticles>(s, i);
     moments[0] += m*ux;
     moments[1] += m*uy;
     moments[2] += m*uz;
@@ -6111,12 +6121,12 @@ __device__ void accumulatePressureParticleMomentsDevice
     {
         const double diameter = clampMin
         (
-            finiteOr(s.pd[i], s.particleDiameterFallback),
+            finiteOr((CompactParticles ? s.compactPd : s.pd)[i], s.particleDiameterFallback),
             1.0e-12
         );
         const double temperature = clampRange
         (
-            finiteOr(s.pT[i], s.TpMin),
+            finiteOr((CompactParticles ? s.compactPT : s.pT)[i], s.TpMin),
             s.TpMin,
             s.TpMax
         );
@@ -6372,6 +6382,7 @@ __device__ void accumulatePressureParticleMomentsAtomicDevice
     }
 }
 
+template<bool CompactParticles = false>
 __device__ void applyPressureParticleStateDevice
 (
     DeviceState& s,
@@ -6388,27 +6399,27 @@ __device__ void applyPressureParticleStateDevice
     const bool resolved
 )
 {
-    if (s.pStuck[i] != 0)
+    if ((CompactParticles ? s.compactPStuck : s.pStuck)[i] != 0)
     {
-        s.pux[i] = 0.0;
-        s.puy[i] = 0.0;
-        s.puz[i] = 0.0;
-        if (s.pStuck[i] == Foam::gpuThermal::particleWallDeposited)
+        (CompactParticles ? s.compactPux : s.pux)[i] = 0.0;
+        (CompactParticles ? s.compactPuy : s.puy)[i] = 0.0;
+        (CompactParticles ? s.compactPuz : s.puz)[i] = 0.0;
+        if ((CompactParticles ? s.compactPStuck : s.pStuck)[i] == Foam::gpuThermal::particleWallDeposited)
         {
-            s.puxOld[i] = 0.0;
-            s.puyOld[i] = 0.0;
-            s.puzOld[i] = 0.0;
+            s.puxOld[CompactParticles ? s.sortedParticleIndex[i] : i] = 0.0;
+            s.puyOld[CompactParticles ? s.sortedParticleIndex[i] : i] = 0.0;
+            s.puzOld[CompactParticles ? s.sortedParticleIndex[i] : i] = 0.0;
         }
         return;
     }
-    const double dux = finiteOr(s.pux[i], ux0) - ux0;
-    const double duy = finiteOr(s.puy[i], uy0) - uy0;
-    const double duz = finiteOr(s.puz[i], uz0) - uz0;
-    s.pux[i] = resolved ? ux1 + thermalScale*dux : ux1;
-    s.puy[i] = resolved ? uy1 + thermalScale*duy : uy1;
-    s.puz[i] = resolved ? uz1 + thermalScale*duz : uz1;
-    s.pTheta[i] = resolved
-      ? clampMin(finiteOr(s.pTheta[i], 0.0)*thetaScale, 0.0)
+    const double dux = finiteOr((CompactParticles ? s.compactPux : s.pux)[i], ux0) - ux0;
+    const double duy = finiteOr((CompactParticles ? s.compactPuy : s.puy)[i], uy0) - uy0;
+    const double duz = finiteOr((CompactParticles ? s.compactPuz : s.puz)[i], uz0) - uz0;
+    (CompactParticles ? s.compactPux : s.pux)[i] = resolved ? ux1 + thermalScale*dux : ux1;
+    (CompactParticles ? s.compactPuy : s.puy)[i] = resolved ? uy1 + thermalScale*duy : uy1;
+    (CompactParticles ? s.compactPuz : s.puz)[i] = resolved ? uz1 + thermalScale*duz : uz1;
+    (CompactParticles ? s.compactPTheta : s.pTheta)[i] = resolved
+      ? clampMin(finiteOr((CompactParticles ? s.compactPTheta : s.pTheta)[i], 0.0)*thetaScale, 0.0)
       : theta1;
 }
 
@@ -6644,7 +6655,7 @@ __global__ void scaleCollisionalPressureFaceFluxKernel(DeviceState* sp)
     s.solidPressurePhiEnergy[f] *= scale;
 }
 
-template<bool FullMoments>
+template<bool FullMoments, bool CompactParticles = false>
 __global__ void applyCollisionalPressureProjectionKernel
 (
     DeviceState* sp,
@@ -6755,20 +6766,20 @@ __global__ void applyCollisionalPressureProjectionKernel
     const int end = s.cellParticleOffset[c + 1];
     for (int pos = start + threadIdx.x; pos < end; pos += blockDim.x)
     {
-        const int i = s.sortedParticleIndex[pos];
-        if (i < 0 || i >= s.particleCapacity || s.pStatus[i] == 0)
+        const int i = CompactParticles ? pos : s.sortedParticleIndex[pos];
+        if (i < 0 || i >= s.particleCapacity || (CompactParticles ? s.compactPStatus : s.pStatus)[i] == 0)
         {
             continue;
         }
         if (pressureParameterActive)
         {
-            applyPressureParticleStateDevice
+            applyPressureParticleStateDevice<CompactParticles>
             (
                 s, i, ux0, uy0, uz0, ux1, uy1, uz1,
                 theta1, thermalScale, thetaScale, resolved
             );
         }
-        accumulatePressureParticleMomentsDevice<FullMoments>
+        accumulatePressureParticleMomentsDevice<FullMoments, CompactParticles>
         (
             s, c, i, pressureMoments, pressureCount
         );
@@ -7082,7 +7093,7 @@ int applyCollisionalPressureKick
 (
     DeviceState* s,
     const double kickDt,
-    const int block
+    const int block, const bool compactParticles = false
 )
 {
     if (!s->collisionalPressureEnabled)
@@ -7154,6 +7165,15 @@ int applyCollisionalPressureKick
             (publishPressureParticleMomentsKernel<FullMoments>
                 <<<cellGrid, block>>>(s->deviceState)),
             "finalize split-Dpre pressure projection cells launch"
+        );
+    }
+    else if (compactParticles)
+    {
+        PRESSURE_LAUNCH
+        (
+            (applyCollisionalPressureProjectionKernel<FullMoments, true>
+                <<<s->nCells, block, pressureSharedBytes>>>(s->deviceState, kickDt)),
+            "apply compact thermal pressure projection launch"
         );
     }
     else if (s->csrCellLocalPathEnabled != 0)
@@ -9718,7 +9738,7 @@ __global__ void finalizeCsrHeavyPoolCellsKernel(DeviceState* sp)
     }
 }
 
-#include "../../../gpu/CsrSegmentedPoolWorkers.cuh"
+#include "../../../gpu/thermal/CsrSegmentedPoolWorkers.cuh"
 
 int launchCsrHeavyPoolReduction
 (
@@ -10686,138 +10706,104 @@ __global__ void correctPoissonThermalizedStuckParticlesKernel
     }
 }
 
-template<int BlockSize>
-__global__ void gatherCellLocalParticlesKernel(DeviceState* sp)
+// Solver-specific payload: preserve all existing history and publication semantics.
+__device__ __forceinline__ void copyCellLocalParticle(DeviceState& s, const int i, const int c, const int dst)
 {
-    DeviceState& s = *sp;
-    const int c = blockIdx.x;
-    if (c >= s.nCells || blockDim.x != BlockSize)
+    s.compactPx[dst] = s.px[i];
+    s.compactPy[dst] = s.py[i];
+    s.compactPz[dst] = s.pz[i];
+    s.compactPux[dst] = s.pux[i];
+    s.compactPuy[dst] = s.puy[i];
+    s.compactPuz[dst] = s.puz[i];
+    s.compactPT[dst] = s.pT[i];
+    s.compactPTheta[dst] = s.pTheta[i];
+    s.compactPd[dst] = s.pd[i];
+    s.compactPm[dst] = s.pm[i];
+    s.compactPCellId[dst] = c;
+    s.compactPStatus[dst] = 1;
+    s.compactPStuck[dst] = s.pStuck[i];
+    s.compactPStuckFaceId[dst] = s.pStuckFaceId[i];
+    s.compactPDepositionArea[dst] = s.pDepositionArea[i];
+    s.compactPContactDuration[dst] = s.pContactDuration[i];
+    s.compactPContactMaximumArea[dst] = s.pContactMaximumArea[i];
+    s.compactPContactPeakFraction[dst] = s.pContactPeakFraction[i];
+    if (s.coldWallSolidificationEnabled != 0)
     {
-        return;
-    }
-
-    using BlockScan = cub::BlockScan<int, BlockSize>;
-    __shared__ typename BlockScan::TempStorage scanStorage;
-
-    const int start = s.cellParticleOffset[c];
-    const int end = s.cellParticleOffset[c + 1];
-    const int outputStart = s.compactCellOffset[c];
-    int tileOutputOffset = 0;
-
-    for (int tileStart = start; tileStart < end; tileStart += BlockSize)
-    {
-        const int pos = tileStart + threadIdx.x;
-        const int i = pos < end ? s.sortedParticleIndex[pos] : -1;
-        const int keep =
-            i >= 0
-         && i < s.particleCapacity
-         && s.pStatus[i] == 1
-         && s.pCellId[i] == c;
-
-        int localOffset = 0;
-        int tileCount = 0;
-        BlockScan(scanStorage).ExclusiveSum(keep, localOffset, tileCount);
-
-        if (keep != 0)
+        for
+        (
+            int node = 0;
+            node < Foam::gpuThermal::coldWallAxialNodeCount;
+            ++node
+        )
         {
-            const int dst = outputStart + tileOutputOffset + localOffset;
-            s.compactPx[dst] = s.px[i];
-            s.compactPy[dst] = s.py[i];
-            s.compactPz[dst] = s.pz[i];
-            s.compactPux[dst] = s.pux[i];
-            s.compactPuy[dst] = s.puy[i];
-            s.compactPuz[dst] = s.puz[i];
-            s.compactPT[dst] = s.pT[i];
-            s.compactPTheta[dst] = s.pTheta[i];
-            s.compactPd[dst] = s.pd[i];
-            s.compactPm[dst] = s.pm[i];
-            s.compactPCellId[dst] = c;
-            s.compactPStatus[dst] = 1;
-            s.compactPStuck[dst] = s.pStuck[i];
-            s.compactPStuckFaceId[dst] = s.pStuckFaceId[i];
-            s.compactPDepositionArea[dst] = s.pDepositionArea[i];
-            s.compactPContactDuration[dst] = s.pContactDuration[i];
-            s.compactPContactMaximumArea[dst] = s.pContactMaximumArea[i];
-            s.compactPContactPeakFraction[dst] = s.pContactPeakFraction[i];
-            if (s.coldWallSolidificationEnabled != 0)
-            {
-                for
-                (
-                    int node = 0;
-                    node < Foam::gpuThermal::coldWallAxialNodeCount;
-                    ++node
-                )
-                {
-                    s.compactPColdNodeSpecificEnthalpy
-                    [
-                        dst*Foam::gpuThermal::coldWallAxialNodeCount + node
-                    ] = s.pColdNodeSpecificEnthalpy
-                    [
-                        i*Foam::gpuThermal::coldWallAxialNodeCount + node
-                    ];
-                }
-                for
-                (
-                    int ring = 0;
-                    ring < Foam::gpuThermal::coldWallRadialRingCount;
-                    ++ring
-                )
-                {
-                    s.compactPColdRingSolidMass
-                    [
-                        dst*Foam::gpuThermal::coldWallRadialRingCount + ring
-                    ] = s.pColdRingSolidMass
-                    [
-                        i*Foam::gpuThermal::coldWallRadialRingCount + ring
-                    ];
-                }
-                s.compactPColdFrozenArea[dst] = s.pColdFrozenArea[i];
-                s.compactPColdContactAge[dst] = s.pColdContactAge[i];
-            }
-            if (s.coldWall2DEnabled != 0)
-            {
-                for
-                (
-                    int node = 0;
-                    node < Foam::gpuThermal::coldWall2DNodeCount;
-                    ++node
-                )
-                {
-                    s.compactPCold2DNodeSpecificEnthalpy
-                    [dst*Foam::gpuThermal::coldWall2DNodeCount + node] =
-                        s.pCold2DNodeSpecificEnthalpy
-                        [i*Foam::gpuThermal::coldWall2DNodeCount + node];
-                }
-                for
-                (
-                    int ring = 0;
-                    ring < Foam::gpuThermal::coldWall2DRadialNodeCount;
-                    ++ring
-                )
-                {
-                    s.compactPCold2DRingContactAge
-                    [dst*Foam::gpuThermal::coldWall2DRadialNodeCount + ring] =
-                        s.pCold2DRingContactAge
-                        [i*Foam::gpuThermal::coldWall2DRadialNodeCount + ring];
-                }
-                s.compactPCold2DFrozenArea[dst] = s.pCold2DFrozenArea[i];
-            }
-            s.compactPRng[dst] = s.pRng[i];
-            s.compactPOrigId[dst] = s.pOrigId[i];
-            if
-            (
-                s.compactPStuck[dst]
-             != Foam::gpuThermal::particleWallMobile
-            )
-            {
-                Foam::gpuWall::publishWallBoundParticleIndex(s, dst);
-            }
+            s.compactPColdNodeSpecificEnthalpy
+            [
+                dst*Foam::gpuThermal::coldWallAxialNodeCount + node
+            ] = s.pColdNodeSpecificEnthalpy
+            [
+                i*Foam::gpuThermal::coldWallAxialNodeCount + node
+            ];
         }
-
-        tileOutputOffset += tileCount;
-        __syncthreads();
+        for
+        (
+            int ring = 0;
+            ring < Foam::gpuThermal::coldWallRadialRingCount;
+            ++ring
+        )
+        {
+            s.compactPColdRingSolidMass
+            [
+                dst*Foam::gpuThermal::coldWallRadialRingCount + ring
+            ] = s.pColdRingSolidMass
+            [
+                i*Foam::gpuThermal::coldWallRadialRingCount + ring
+            ];
+        }
+        s.compactPColdFrozenArea[dst] = s.pColdFrozenArea[i];
+        s.compactPColdContactAge[dst] = s.pColdContactAge[i];
+    }
+    if (s.coldWall2DEnabled != 0)
+    {
+        for
+        (
+            int node = 0;
+            node < Foam::gpuThermal::coldWall2DNodeCount;
+            ++node
+        )
+        {
+            s.compactPCold2DNodeSpecificEnthalpy
+            [dst*Foam::gpuThermal::coldWall2DNodeCount + node] =
+                s.pCold2DNodeSpecificEnthalpy
+                [i*Foam::gpuThermal::coldWall2DNodeCount + node];
+        }
+        for
+        (
+            int ring = 0;
+            ring < Foam::gpuThermal::coldWall2DRadialNodeCount;
+            ++ring
+        )
+        {
+            s.compactPCold2DRingContactAge
+            [dst*Foam::gpuThermal::coldWall2DRadialNodeCount + ring] =
+                s.pCold2DRingContactAge
+                [i*Foam::gpuThermal::coldWall2DRadialNodeCount + ring];
+        }
+        s.compactPCold2DFrozenArea[dst] = s.pCold2DFrozenArea[i];
+    }
+    s.compactPRng[dst] = s.pRng[i];
+    s.compactPOrigId[dst] = s.pOrigId[i];
+    if
+    (
+        s.compactPStuck[dst]
+     != Foam::gpuThermal::particleWallMobile
+    )
+    {
+        Foam::gpuWall::publishWallBoundParticleIndex(s, dst);
     }
 }
+#include "GpuCellLocalGather.cuh"
+#include "../../../gpu/thermal/CsrSegmentedGather.cuh"
+
 
 __global__ void gatherSelectedParticlesKernel(DeviceState* sp)
 {
@@ -11346,6 +11332,7 @@ __global__ void accumulateParticleMomentsSegmentedKernel(DeviceState* sp)
     }
 }
 
+template<bool GatherSurvivors = false>
 __device__ void accumulateCsrHeavyMomentTask
 (
     DeviceState& s,
@@ -11404,6 +11391,7 @@ __device__ void accumulateCsrHeavyMomentTask
         energy += m*(0.5*sqr3(ux, uy, uz) + 1.5*theta);
         diameter += m*d;
         heat += m*particleSpecificEnthalpyDevice(tp);
+        if constexpr (GatherSurvivors) copyCellLocalParticle(s, i, c, pos);
         count += 1.0;
     }
 
@@ -11525,11 +11513,11 @@ __global__ void finalizeCsrHeavyMomentCellsKernel(DeviceState* sp)
     }
 }
 
-#include "../../../gpu/CsrSegmentedMomentWorkers.cuh"
+#include "../../../gpu/thermal/CsrSegmentedMomentWorkers.cuh"
 
-int launchCsrHeavyMomentReduction(DeviceState* s, const int block)
+int launchCsrHeavyMomentReduction(DeviceState* s, const int block, const bool gatherSurvivors = false)
 {
-    return launchCsrSegmentedMomentReduction(s, block);
+    return launchCsrSegmentedMomentReduction(s, block, gatherSurvivors);
 #if 0
     if (s->csrHeavyReductionEnabled == 0 || s->particleCapacity <= 0)
     {
@@ -11743,7 +11731,7 @@ __global__ void scatterSplitPreInjectionParticlesKernel(DeviceState* sp)
     }
 }
 
-template<bool WarpAggregated>
+template<bool WarpAggregated, bool SurvivorsOnly = false>
 __global__ void countParticlesByCellKernel(DeviceState* sp)
 {
     DeviceState& s = *sp;
@@ -11751,7 +11739,7 @@ __global__ void countParticlesByCellKernel(DeviceState* sp)
     for (int i = blockIdx.x*blockDim.x + threadIdx.x; i < nParticles; i += blockDim.x*gridDim.x)
     {
         const int c = s.pCellId[i];
-        const bool valid = s.pStatus[i] != 0 && c >= 0 && c < s.nCells;
+        const bool valid = (SurvivorsOnly ? s.pStatus[i] == 1 : s.pStatus[i] != 0) && c >= 0 && c < s.nCells;
         if (!WarpAggregated)
         {
             if (valid)
@@ -11792,7 +11780,7 @@ __global__ void initialiseParticleCellWritesKernel(DeviceState* sp)
     }
 }
 
-template<bool WarpAggregated>
+template<bool WarpAggregated, bool SurvivorsOnly = false>
 __global__ void scatterParticlesByCellKernel(DeviceState* sp)
 {
     DeviceState& s = *sp;
@@ -11800,7 +11788,7 @@ __global__ void scatterParticlesByCellKernel(DeviceState* sp)
     for (int i = blockIdx.x*blockDim.x + threadIdx.x; i < nParticles; i += blockDim.x*gridDim.x)
     {
         const int c = s.pCellId[i];
-        const bool valid = s.pStatus[i] != 0 && c >= 0 && c < s.nCells;
+        const bool valid = (SurvivorsOnly ? s.pStatus[i] == 1 : s.pStatus[i] != 0) && c >= 0 && c < s.nCells;
         if (!WarpAggregated)
         {
             if (valid)
@@ -12188,19 +12176,13 @@ int configureLaunchOccupancy(DeviceState* s)
     {
         int segmentedPool = 0;
         int segmentedMoment = 0;
-        err = cudaOccupancyMaxActiveBlocksPerMultiprocessor
-        (
-            &segmentedPool,
-            accumulateCsrSegmentedPoolTasksPersistentKernel<true>,
-            block,
-            momentSharedBytes
-        );
+        err = thermalPoolLaunchOccupancy(&segmentedPool, block, momentSharedBytes);
         if (err == cudaSuccess)
         {
             err = cudaOccupancyMaxActiveBlocksPerMultiprocessor
             (
                 &segmentedMoment,
-                accumulateCsrSegmentedMomentTasksPersistentKernel,
+                accumulateCsrSegmentedMomentTasksPersistentKernel<true>,
                 block,
                 momentSharedBytes
             );
@@ -12440,7 +12422,7 @@ int runToolB3(DeviceState* s, const int block)
     {
         return 1;
     }
-    cudaError_t err = cudaMemset(s->csrHeavyCellCount, 0, sizeof(int));
+    cudaError_t err = cudaMemset(s->csrHeavyTaskCursor, 0, sizeof(int));
     if (err != cudaSuccess)
     {
         setLastError("ToolB3 clear maximum occupancy", err);
@@ -12451,7 +12433,7 @@ int runToolB3(DeviceState* s, const int block)
     (
         s->deviceState,
         s->splitPreDirectoryActive,
-        s->csrHeavyCellCount
+        s->csrHeavyTaskCursor
     );
     err = cudaGetLastError();
     int maximumOccupancy = 0;
@@ -12461,7 +12443,7 @@ int runToolB3(DeviceState* s, const int block)
         err = cudaMemcpy
         (
             &maximumOccupancy,
-            s->csrHeavyCellCount,
+            s->csrHeavyTaskCursor,
             sizeof(int),
             cudaMemcpyDeviceToHost
         );
@@ -12483,6 +12465,7 @@ int runToolB3(DeviceState* s, const int block)
         return 1;
     }
     const int active = maximumOccupancy > threshold ? 1 : 0;
+    const bool activating = active != 0 && s->csrHeavyReductionEnabled == 0;
     s->dynamicHeavyThreshold = threshold;
     s->csrHeavyTileParticles = threshold;
     s->csrHeavyReductionActive = active;
@@ -12494,10 +12477,19 @@ int runToolB3(DeviceState* s, const int block)
         setLastError("ToolB3 publish automatic L2 decision launch", err);
         return 1;
     }
+    // The pre-directory was built while the old decision was still active.
+    // Switching on requires descriptors for that directory before workers run.
+    if (activating)
+    {
+        return prepareCsrSegmentedReductionTasks
+        (
+            s, block, s->splitPreDirectoryActive != 0
+        );
+    }
     return 0;
 }
 
-int binParticlesByCell(DeviceState* s, const int block)
+int binParticlesByCell(DeviceState* s, const int block, const bool survivorsOnly = false)
 {
     const int cellGrid = (s->nCells + 1 + block - 1)/block;
     clearParticleCellBinsKernel<<<cellGrid, block>>>(s->deviceState);
@@ -12510,12 +12502,18 @@ int binParticlesByCell(DeviceState* s, const int block)
 
     if (s->csrWarpAggregatedBinning != 0)
     {
-        countParticlesByCellKernel<true>
+        if (survivorsOnly)
+            countParticlesByCellKernel<true, true><<<s->particleWorkGrid, block>>>(s->deviceState);
+        else
+            countParticlesByCellKernel<true>
             <<<s->particleWorkGrid, block>>>(s->deviceState);
     }
     else
     {
-        countParticlesByCellKernel<false>
+        if (survivorsOnly)
+            countParticlesByCellKernel<false, true><<<s->particleWorkGrid, block>>>(s->deviceState);
+        else
+            countParticlesByCellKernel<false>
             <<<s->particleWorkGrid, block>>>(s->deviceState);
     }
     err = cudaGetLastError();
@@ -12549,12 +12547,18 @@ int binParticlesByCell(DeviceState* s, const int block)
 
     if (s->csrWarpAggregatedBinning != 0)
     {
-        scatterParticlesByCellKernel<true>
+        if (survivorsOnly)
+            scatterParticlesByCellKernel<true, true><<<s->particleWorkGrid, block>>>(s->deviceState);
+        else
+            scatterParticlesByCellKernel<true>
             <<<s->particleWorkGrid, block>>>(s->deviceState);
     }
     else
     {
-        scatterParticlesByCellKernel<false>
+        if (survivorsOnly)
+            scatterParticlesByCellKernel<false, true><<<s->particleWorkGrid, block>>>(s->deviceState);
+        else
+            scatterParticlesByCellKernel<false>
             <<<s->particleWorkGrid, block>>>(s->deviceState);
     }
     err = cudaGetLastError();
@@ -12672,7 +12676,7 @@ int buildSplitPreDirectory(DeviceState* s, const int block)
 int buildPostTransportDirectory(DeviceState* s, const int block)
 {
     s->splitPreDirectoryActive = 0;
-    return binParticlesByCell(s, block);
+    return binParticlesByCell(s, block, s->csrHeavyReductionEnabled != 0);
 }
 
 int rebuildResidentParticleMomentsFromParticles
@@ -12913,12 +12917,37 @@ void shutdownDevelopmentProbe()
         cudaFree(developmentProbe.deviceSummary);
         developmentProbe.deviceSummary = nullptr;
     }
-    for (int i = 0; i <= ProbeStageCount; ++i)
+    if (developmentProbe.totalStartEvent != nullptr)
     {
-        if (developmentProbe.events[i] != nullptr)
+        cudaEventDestroy(developmentProbe.totalStartEvent);
+        developmentProbe.totalStartEvent = nullptr;
+    }
+    if (developmentProbe.totalStopEvent != nullptr)
+    {
+        cudaEventDestroy(developmentProbe.totalStopEvent);
+        developmentProbe.totalStopEvent = nullptr;
+    }
+    for (int stage = 0; stage < ProbeStageCount; ++stage)
+    {
+        developmentProbe.stageOccurrenceCount[stage] = 0;
+        for (int occurrence = 0; occurrence < ProbeMaxOccurrences; ++occurrence)
         {
-            cudaEventDestroy(developmentProbe.events[i]);
-            developmentProbe.events[i] = nullptr;
+            if (developmentProbe.stageStartEvents[stage][occurrence] != nullptr)
+            {
+                cudaEventDestroy
+                (
+                    developmentProbe.stageStartEvents[stage][occurrence]
+                );
+                developmentProbe.stageStartEvents[stage][occurrence] = nullptr;
+            }
+            if (developmentProbe.stageStopEvents[stage][occurrence] != nullptr)
+            {
+                cudaEventDestroy
+                (
+                    developmentProbe.stageStopEvents[stage][occurrence]
+                );
+                developmentProbe.stageStopEvents[stage][occurrence] = nullptr;
+            }
         }
     }
     if (developmentProbe.log != nullptr)
@@ -12978,7 +13007,7 @@ int writeDevelopmentProbeHeader()
         "bad_particles,bad_field_mask,first_bad_cell,first_bad_particle,"
         "total_ms,gas_flux_ms,eulerian_coupling_ms,injection_ms,bin_pre_ms,"
         "pressure_pre_ms,collision_pool_ms,relax_ms,track_ms,bin_post_ms,"
-        "theta_pool_ms,moments_ms,pressure_post_ms,compaction_ms,boundary_ms\n";
+        "moments_ms,pressure_post_ms,compaction_ms,boundary_ms\n";
 
     if (std::fputs(header, developmentProbe.log) == EOF)
     {
@@ -13237,15 +13266,43 @@ int initialiseDevelopmentProbe(DeviceState* owner)
         return 1;
     }
 
-    for (int i = 0; i <= ProbeStageCount; ++i)
+    cudaError_t err = cudaEventCreate(&developmentProbe.totalStartEvent);
+    if (err == cudaSuccess)
     {
-        const cudaError_t err = cudaEventCreate(&developmentProbe.events[i]);
-        if (err != cudaSuccess)
+        err = cudaEventCreate(&developmentProbe.totalStopEvent);
+    }
+    for
+    (
+        int stage = 0;
+        err == cudaSuccess && stage < ProbeStageCount;
+        ++stage
+    )
+    {
+        for
+        (
+            int occurrence = 0;
+            err == cudaSuccess && occurrence < ProbeMaxOccurrences;
+            ++occurrence
+        )
         {
-            setLastError("cudaEventCreate UGKP development probe", err);
-            shutdownDevelopmentProbe();
-            return 1;
+            err = cudaEventCreate
+            (
+                &developmentProbe.stageStartEvents[stage][occurrence]
+            );
+            if (err == cudaSuccess)
+            {
+                err = cudaEventCreate
+                (
+                    &developmentProbe.stageStopEvents[stage][occurrence]
+                );
+            }
         }
+    }
+    if (err != cudaSuccess)
+    {
+        setLastError("cudaEventCreate UGKP development probe", err);
+        shutdownDevelopmentProbe();
+        return 1;
     }
 
     if (developmentProbeFullValidation())
@@ -13284,10 +13341,7 @@ int collectDevelopmentProbeSample
     DevelopmentProbeSample& sample
 )
 {
-    cudaError_t err = cudaEventSynchronize
-    (
-        developmentProbe.events[ProbeStageCount]
-    );
+    cudaError_t err = cudaEventSynchronize(developmentProbe.totalStopEvent);
     if (err != cudaSuccess)
     {
         setLastError("UGKP development probe final event synchronization", err);
@@ -13297,26 +13351,48 @@ int collectDevelopmentProbeSample
     err = cudaEventElapsedTime
     (
         &sample.totalMs,
-        developmentProbe.events[0],
-        developmentProbe.events[ProbeStageCount]
+        developmentProbe.totalStartEvent,
+        developmentProbe.totalStopEvent
     );
     if (err != cudaSuccess)
     {
         setLastError("cudaEventElapsedTime UGKP development probe total", err);
         return 1;
     }
-    for (int i = 0; i < ProbeStageCount; ++i)
+    for (int stage = 0; stage < ProbeStageCount; ++stage)
     {
-        err = cudaEventElapsedTime
+        sample.stageMs[stage] = 0.0f;
+        for
         (
-            &sample.stageMs[i],
-            developmentProbe.events[i],
-            developmentProbe.events[i + 1]
-        );
-        if (err != cudaSuccess)
+            int occurrence = 0;
+            occurrence < developmentProbe.stageOccurrenceCount[stage];
+            ++occurrence
+        )
         {
-            setLastError("cudaEventElapsedTime UGKP development probe stage", err);
-            return 1;
+            if
+            (
+                !developmentProbe.stageOccurrenceExecuted[stage][occurrence]
+            )
+            {
+                continue;
+            }
+            float elapsedMs = 0.0f;
+            err = cudaEventElapsedTime
+            (
+                &elapsedMs,
+                developmentProbe.stageStartEvents[stage][occurrence],
+                developmentProbe.stageStopEvents[stage][occurrence]
+            );
+            if (err != cudaSuccess)
+            {
+                setLastError
+                (
+                    "cudaEventElapsedTime UGKP development probe stage",
+                    err
+                );
+                return 1;
+            }
+            sample.stageMs[stage] += elapsedMs;
         }
     }
     sample.timingValid = 1;
@@ -13529,7 +13605,25 @@ public:
         sampled_ = (step_ % developmentProbe.interval) == 0;
         if (sampled_)
         {
-            const cudaError_t err = cudaEventRecord(developmentProbe.events[0], 0);
+            for (int stage = 0; stage < ProbeStageCount; ++stage)
+            {
+                developmentProbe.stageOccurrenceCount[stage] = 0;
+                for
+                (
+                    int occurrence = 0;
+                    occurrence < ProbeMaxOccurrences;
+                    ++occurrence
+                )
+                {
+                    developmentProbe.stageOccurrenceExecuted[stage][occurrence] =
+                        false;
+                }
+            }
+            const cudaError_t err = cudaEventRecord
+            (
+                developmentProbe.totalStartEvent,
+                0
+            );
             if (err != cudaSuccess)
             {
                 setLastError("cudaEventRecord UGKP development probe start", err);
@@ -13579,17 +13673,59 @@ public:
     void enter(const DevelopmentProbeStage stage)
     {
         currentStage_ = developmentProbeStageNames[stage];
+        if (!sampled_ || failed_)
+        {
+            return;
+        }
+        const int occurrence = developmentProbe.stageOccurrenceCount[stage];
+        if (occurrence < 0 || occurrence >= ProbeMaxOccurrences)
+        {
+            setLastErrorText
+            (
+                "UGKP development probe stage occurrence capacity exceeded"
+            );
+            failed_ = true;
+            return;
+        }
+        const cudaError_t err = cudaEventRecord
+        (
+            developmentProbe.stageStartEvents[stage][occurrence],
+            0
+        );
+        if (err != cudaSuccess)
+        {
+            setLastError("cudaEventRecord UGKP development probe stage start", err);
+            failed_ = true;
+        }
     }
 
-    int leave(const DevelopmentProbeStage stage)
+    int leave
+    (
+        const DevelopmentProbeStage stage,
+        const bool executed = true
+    )
     {
         if (!sampled_)
         {
             return 0;
         }
+        if (failed_)
+        {
+            return 1;
+        }
+        const int occurrence = developmentProbe.stageOccurrenceCount[stage];
+        if (occurrence < 0 || occurrence >= ProbeMaxOccurrences)
+        {
+            setLastErrorText
+            (
+                "UGKP development probe stage occurrence capacity exceeded"
+            );
+            failed_ = true;
+            return 1;
+        }
         const cudaError_t err = cudaEventRecord
         (
-            developmentProbe.events[static_cast<int>(stage) + 1],
+            developmentProbe.stageStopEvents[stage][occurrence],
             0
         );
         if (err != cudaSuccess)
@@ -13598,6 +13734,8 @@ public:
             failed_ = true;
             return 1;
         }
+        developmentProbe.stageOccurrenceExecuted[stage][occurrence] = executed;
+        developmentProbe.stageOccurrenceCount[stage] = occurrence + 1;
         return 0;
     }
 
@@ -13610,6 +13748,20 @@ public:
         }
 
         currentStage_ = "probe_collect";
+        const cudaError_t stopError = cudaEventRecord
+        (
+            developmentProbe.totalStopEvent,
+            0
+        );
+        if (stopError != cudaSuccess)
+        {
+            setLastError
+            (
+                "cudaEventRecord UGKP development probe total stop",
+                stopError
+            );
+            return 1;
+        }
         DevelopmentProbeSample sample;
         sample.step = step_;
         sample.simulationTime = simulationTime_;
@@ -15823,9 +15975,8 @@ extern "C" int ugkwpGpuResidentStrictAdvance
         {
             if (s->csrHeavyReductionEnabled != 0)
             {
-                const int heavyPoolStatus = s->splitPreDirectoryActive != 0
-                  ? launchSplitCsrHeavyPoolReduction(s, dt, block)
-                  : launchCsrHeavyPoolReduction(s, dt, true, block);
+                const int heavyPoolStatus =
+                    launchCsrHeavyPoolReduction(s, dt, true, block);
                 if (heavyPoolStatus != 0)
                 {
                     return 1;
@@ -16053,6 +16204,9 @@ extern "C" int ugkwpGpuResidentStrictAdvance
     }
     UGKP_DEV_PROBE_LEAVE(ProbeTrack);
 
+    const bool fusedSurvivorGather =
+        particleGrid > 0 && s->csrCellLocalPathEnabled != 0
+        && s->csrHeavyReductionEnabled != 0;
     UGKP_DEV_PROBE_ENTER(ProbeBinPost);
     if (particleGrid > 0 && s->csrCellLocalPathEnabled != 0)
     {
@@ -16064,6 +16218,15 @@ extern "C" int ugkwpGpuResidentStrictAdvance
     UGKP_DEV_PROBE_LEAVE(ProbeBinPost);
 
     UGKP_DEV_PROBE_ENTER(ProbeMoments);
+    if (fusedSurvivorGather)
+    {
+        err = cudaMemset(s->wallBoundParticleCountDevice, 0, sizeof(int));
+        if (err != cudaSuccess)
+        {
+            setLastError("reset wall-bound particle directory count", err);
+            return 1;
+        }
+    }
     if (particleGrid > 0)
     {
         if (s->csrCellLocalPathEnabled != 0)
@@ -16080,7 +16243,7 @@ extern "C" int ugkwpGpuResidentStrictAdvance
                 8u*static_cast<size_t>(warpCount)*sizeof(double);
             if (s->csrHeavyReductionEnabled != 0)
             {
-                if (launchCsrHeavyMomentReduction(s, block) != 0)
+                if (launchCsrHeavyMomentReduction(s, block, true) != 0)
                 {
                     return 1;
                 }
@@ -16155,7 +16318,7 @@ extern "C" int ugkwpGpuResidentStrictAdvance
     UGKP_DEV_PROBE_ENTER(ProbePressurePost);
     if (particleGrid > 0)
     {
-        if (applyCollisionalPressureKick<false>(s, 0.5*dt, block) != 0)
+        if (applyCollisionalPressureKick<false>(s, 0.5*dt, block, fusedSurvivorGather) != 0)
         {
             return 1;
         }
@@ -16163,11 +16326,14 @@ extern "C" int ugkwpGpuResidentStrictAdvance
     UGKP_DEV_PROBE_LEAVE(ProbePressurePost);
 
     UGKP_DEV_PROBE_ENTER(ProbeCompaction);
-    err = cudaMemset(s->wallBoundParticleCountDevice, 0, sizeof(int));
-    if (err != cudaSuccess)
+    if (!fusedSurvivorGather)
     {
-        setLastError("reset wall-bound particle directory count", err);
-        return 1;
+        err = cudaMemset(s->wallBoundParticleCountDevice, 0, sizeof(int));
+        if (err != cudaSuccess)
+        {
+            setLastError("reset wall-bound particle directory count", err);
+            return 1;
+        }
     }
     if (s->csrCellLocalPathEnabled != 0)
     {
@@ -16185,30 +16351,60 @@ extern "C" int ugkwpGpuResidentStrictAdvance
             return 1;
         }
 
-        switch (s->reductionBlockThreads)
+        if (!fusedSurvivorGather)
         {
-            case 32:
-                gatherCellLocalParticlesKernel<32>
-                    <<<s->nCells, 32>>>(s->deviceState);
-                break;
-            case 64:
-                gatherCellLocalParticlesKernel<64>
-                    <<<s->nCells, 64>>>(s->deviceState);
-                break;
-            case 128:
-                gatherCellLocalParticlesKernel<128>
-                    <<<s->nCells, 128>>>(s->deviceState);
-                break;
-            default:
-                gatherCellLocalParticlesKernel<256>
-                    <<<s->nCells, 256>>>(s->deviceState);
-                break;
-        }
-        err = cudaGetLastError();
-        if (err != cudaSuccess)
-        {
-            setLastError("gatherCellLocalParticlesKernel launch", err);
-            return 1;
+            if (s->csrHeavyReductionEnabled != 0)
+            {
+                err = resetCsrPersistentQueue(s);
+                if (err != cudaSuccess)
+                {
+                    setLastError("reset CSR gather queue", err);
+                    return 1;
+                }
+            }
+            const int gatherTaskGrid = s->csrHeavyWorkerGrid;
+            switch (s->reductionBlockThreads)
+            {
+                case 32:
+                    if (s->csrHeavyReductionEnabled != 0)
+                        gatherThermalSegmentedParticlesKernel<32, false>
+                            <<<gatherTaskGrid, 32>>>(s->deviceState);
+                    else
+                        gatherCellLocalParticlesKernel<32>
+                        <<<s->nCells, 32>>>(s->deviceState);
+                    break;
+                case 64:
+                    if (s->csrHeavyReductionEnabled != 0)
+                        gatherThermalSegmentedParticlesKernel<64, false>
+                            <<<gatherTaskGrid, 64>>>(s->deviceState);
+                    else
+                        gatherCellLocalParticlesKernel<64>
+                        <<<s->nCells, 64>>>(s->deviceState);
+                    break;
+                case 128:
+                    if (s->csrHeavyReductionEnabled != 0)
+                        gatherThermalSegmentedParticlesKernel<128, false>
+                            <<<gatherTaskGrid, 128>>>(s->deviceState);
+                    else
+                        gatherCellLocalParticlesKernel<128>
+                        <<<s->nCells, 128>>>(s->deviceState);
+                    break;
+                default:
+                    if (s->csrHeavyReductionEnabled != 0)
+                        gatherThermalSegmentedParticlesKernel<256, false>
+                            <<<gatherTaskGrid, 256>>>(s->deviceState);
+                    else
+                        gatherCellLocalParticlesKernel<256>
+                        <<<s->nCells, 256>>>(s->deviceState);
+                    break;
+            }
+            err = cudaGetLastError();
+            if (err != cudaSuccess)
+            {
+                setLastError("gatherCellLocalParticlesKernel launch", err);
+                return 1;
+            }
+
         }
 
         commitCellLocalParticleBuffersKernel<<<1, 1>>>(s->deviceState);

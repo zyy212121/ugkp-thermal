@@ -1,0 +1,119 @@
+#include <cub/cub.cuh>
+#include <thrust/iterator/counting_iterator.h>
+#include <cuda_runtime.h>
+#include <algorithm>
+#include <vector>
+#include <cstdio>
+#include <cstdlib>
+#include <cmath>
+#include <cassert>
+#include "GpuPrecisionTypes.H"
+constexpr GpuReal OfGreat=GPU_R(1e30), OfSmall=GPU_R(1e-30);
+__device__ GpuReal clampRange(GpuReal x,GpuReal a,GpuReal b){return x<a?a:x>b?b:x;}
+__device__ GpuReal clampMin(GpuReal x,GpuReal a){return x<a?a:x;}
+enum class CsrReductionTaskSource { fullIndexed=0,splitBaseDirect=1,splitInjectionIndexed=2,splitLogical=3 };
+enum class HeavyDirectoryKind {full,splitBaseAndInjection,baseOnly};
+struct CsrReductionTask{int cell,begin,end,source;};
+struct DeviceState{
+ unsigned char* cellScanTempStorage;size_t cellScanTempBytes;
+ DeviceState* deviceState;
+ int reductionBlockThreads,lightBlocksPerSm,csrHeavyCellThreshold,csrHeavyTileParticles;
+ int csrReductionDirectoryKind=0;int *cellParticleOffset,*preBaseCellOffset,*poissonPoolSampleTargetCount;
+ double* poissonCellCollisionProbability;
+ int nCells,particleCapacity,csrHeavyReductionEnabled,csrHeavyTaskCapacity,csrHeavyWorkerGrid,multiprocessorCount,lightResidentBlocksPerSm;
+ GpuReal rhoMin;
+ int *csrHeavyTaskCount,*csrHeavyCellCount,*csrHeavyTaskCursor,*csrCellTaskCount,*csrCellTaskOffset,*csrMultiTaskCellList,*cellParticleCount,*poolThermalCount;
+ CsrReductionTask* csrReductionTasks;
+ GpuReal *V,*csrHeavyPartials,*poissonPoolMass,*poissonPoolMomX,*poissonPoolMomY,*poissonPoolMomZ,*poissonPoolEnergy,*poissonPoolDiameter,*poissonPoolDiameter2,*momRhoP,*momRhoUPx,*momRhoUPy,*momRhoUPz,*momRhoEP,*momRhoPD,*momRhoHpP;
+};
+void setLastError(const char*,cudaError_t){}
+template<int NumComponents>
+__device__ void blockReduceComponentSums
+(
+    GpuReal (&sums)[NumComponents],
+    GpuReal* warpPartials
+)
+{
+    const int lane = threadIdx.x & 31;
+    const int warp = threadIdx.x >> 5;
+    const int warpCount = (blockDim.x + 31)/32;
+    constexpr unsigned int fullWarpMask = 0xffffffffu;
+
+
+
+
+
+
+
+    if ((blockDim.x & 31) != 0)
+    {
+        asm("trap;");
+    }
+    __syncwarp(fullWarpMask);
+
+    for (int offset = 16; offset > 0; offset >>= 1)
+    {
+        #pragma unroll
+        for (int component = 0; component < NumComponents; ++component)
+        {
+            const GpuReal other =
+                __shfl_down_sync(fullWarpMask, sums[component], offset);
+            if (lane + offset < 32)
+            {
+                sums[component] += other;
+            }
+        }
+    }
+
+    if (lane == 0)
+    {
+        #pragma unroll
+        for (int component = 0; component < NumComponents; ++component)
+        {
+            warpPartials[component*warpCount + warp] = sums[component];
+        }
+    }
+
+    __syncthreads();
+
+    if (warp == 0)
+    {
+        __syncwarp(fullWarpMask);
+
+        #pragma unroll
+        for (int component = 0; component < NumComponents; ++component)
+        {
+            GpuReal value =
+                lane < warpCount
+              ? warpPartials[component*warpCount + lane]
+              : GPU_R(0.0);
+
+            for (int offset = 16; offset > 0; offset >>= 1)
+            {
+                const GpuReal other =
+                    __shfl_down_sync(fullWarpMask, value, offset);
+                if (lane + offset < 32)
+                {
+                    value += other;
+                }
+            }
+
+            if (lane == 0)
+            {
+                sums[component] = value;
+            }
+        }
+    }
+}
+__device__ GpuReal granularCollisionTauFromCellDevice(DeviceState&,int c){return c%4==0?OfGreat:GPU_R(1);}
+__device__ void accumulateMock(int begin,int end,int source,GpuReal* sums,GpuReal* partials){
+ for(int k=0;k<8;++k)sums[k]=0;
+ for(int i=begin+threadIdx.x;i<end;i+=blockDim.x)for(int k=0;k<8;++k)sums[k]+=k==7?GPU_R(1):GpuReal((i%7+1)*(k+1)+source);
+ blockReduceComponentSums<8>(*reinterpret_cast<GpuReal(*)[8]>(sums),partials);
+}
+template<bool P> __device__ void accumulateCsrSplitLogicalPoolTask(DeviceState&,int,int a,int b,GpuReal,GpuReal* sums,GpuReal* w){accumulateMock(a,b,2,sums,w);}
+template<bool P> __device__ void accumulateCsrHeavyPoolTask(DeviceState&,int,int a,int b,bool direct,GpuReal,GpuReal* sums,GpuReal* w){accumulateMock(a,b,direct?1:0,sums,w);}
+template<bool GatherSurvivors=false>
+__device__ void accumulateCsrHeavyMomentTask(DeviceState&,int,int a,int b,GpuReal* sums,GpuReal* w){accumulateMock(a,b,0,sums,w);}
+
+__device__ double finiteOr(double x,double y){return isfinite(x)?x:y;}

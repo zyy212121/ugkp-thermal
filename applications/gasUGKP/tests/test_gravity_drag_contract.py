@@ -133,7 +133,7 @@ def test_device_drag_model_is_static_and_shared_by_both_consumers() -> None:
     assert "virtual" not in drag
     assert "snCdDevice" not in core
 
-    coupling = function_block(core, "applyEulerianGasSolidCouplingKernel")
+    coupling = function_block(core, "applyEulerianGasSolidDragKernel")
     relax_one = function_block(core, "relaxOneParticleToResidentGas")
     relax_kernel = function_block(core, "relaxParticlesToResidentGasKernel")
     assert "template<class DragModel>" in core[: core.index(coupling)]
@@ -144,7 +144,7 @@ def test_device_drag_model_is_static_and_shared_by_both_consumers() -> None:
 
 def test_model_switch_occurs_only_in_host_launch_helpers() -> None:
     core = read("private_backend/GpuResidentStrict.cu")
-    coupling_launch = function_block(core, "launchEulerianGasSolidCoupling")
+    coupling_launch = function_block(core, "launchEulerianGasSolidDrag")
     relax_launch = function_block(core, "launchParticleDragRelaxation")
     assert "switch" in coupling_launch
     assert "switch" in relax_launch
@@ -155,7 +155,7 @@ def test_model_switch_occurs_only_in_host_launch_helpers() -> None:
     assert "case 1:" in coupling_launch
     assert "case 1:" in relax_launch
     assert "dragModel" not in function_block(
-        core, "applyEulerianGasSolidCouplingKernel"
+        core, "applyEulerianGasSolidDragKernel"
     )
     assert "dragModel" not in function_block(
         core, "relaxParticlesToResidentGasKernel"

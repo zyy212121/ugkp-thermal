@@ -1,0 +1,65 @@
+#include <cassert>
+#include <iostream>
+#define __device__
+#define __global__
+#define __forceinline__ inline
+#define __shared__
+void __syncthreads(){}
+int atomicAdd(int* p,int v){int old=*p;*p+=v;return old;}
+struct Dim{int x;};Dim threadIdx{0},blockIdx{0},blockDim{1};
+int scans=0;
+namespace cub{template<class T,int B>struct BlockScan{struct TempStorage{};BlockScan(TempStorage&){};void ExclusiveSum(int keep,int& offset,int& count){offset=0;count=keep;++scans;}};}
+struct CsrReductionTask{int cell,begin,end;};
+struct DeviceState{
+ int cursor=0;int* csrHeavyTaskCursor=&cursor;
+ int nCells=4,particleCapacity=8,heavyCount=5;int* csrHeavyTaskCount=&heavyCount;
+ CsrReductionTask csrReductionTasks[5]={{0,0,2},{0,2,4},{1,4,5},{1,5,7},{2,7,8}};
+ int csrCellTaskCount[4]={2,2,1,0};
+ int csrCellTaskOffset[4]={0,2,4,5};
+ int cellParticleOffset[5]={0,4,7,8,8};int compactCellOffset[5]={0,4,6,7,7};int cellParticleCount[5]={4,2,1,0,0};
+ int sortedParticleIndex[8]={3,1,2,0,6,5,4,7};
+ int pStatus[8]={1,1,1,1,1,2,1,1},pCellId[8]={0,0,0,0,1,1,1,2};
+double px[8]={0,1,2,3,4,5,6,7};
+double compactPx[8]={-1,-1,-1,-1,-1,-1,-1,-1};
+double py[8]={0,1,2,3,4,5,6,7};
+double compactPy[8]={-1,-1,-1,-1,-1,-1,-1,-1};
+double pz[8]={0,1,2,3,4,5,6,7};
+double compactPz[8]={-1,-1,-1,-1,-1,-1,-1,-1};
+double pux[8]={0,1,2,3,4,5,6,7};
+double compactPux[8]={-1,-1,-1,-1,-1,-1,-1,-1};
+double puy[8]={0,1,2,3,4,5,6,7};
+double compactPuy[8]={-1,-1,-1,-1,-1,-1,-1,-1};
+double puz[8]={0,1,2,3,4,5,6,7};
+double compactPuz[8]={-1,-1,-1,-1,-1,-1,-1,-1};
+double pT[8]={0,1,2,3,4,5,6,7};
+double compactPT[8]={-1,-1,-1,-1,-1,-1,-1,-1};
+double pTheta[8]={0,1,2,3,4,5,6,7};
+double compactPTheta[8]={-1,-1,-1,-1,-1,-1,-1,-1};
+double pd[8]={0,1,2,3,4,5,6,7};
+double compactPd[8]={-1,-1,-1,-1,-1,-1,-1,-1};
+double pm[8]={0,1,2,3,4,5,6,7};
+double compactPm[8]={-1,-1,-1,-1,-1,-1,-1,-1};
+double compactPCellId[8]={-1,-1,-1,-1,-1,-1,-1,-1};
+double compactPStatus[8]={-1,-1,-1,-1,-1,-1,-1,-1};
+double pRng[8]={0,1,2,3,4,5,6,7};
+double compactPRng[8]={-1,-1,-1,-1,-1,-1,-1,-1};
+double pOrigId[8]={0,1,2,3,4,5,6,7};
+double compactPOrigId[8]={-1,-1,-1,-1,-1,-1,-1,-1};
+};
+{{copyCellLocalParticle}}
+template<int BlockThreads>
+{{gatherCellLocalRange}}
+template<int BlockThreads>
+{{gatherCellLocalParticlesKernel}}
+template<class State, class Operation>
+{{runCsrPersistentQueue}}
+template<int BlockThreads>
+{{gatherCsrSegmentedParticlesKernel}}int main(){
+for(int path=0;path<2;++path){DeviceState s;scans=0;
+ for(int block=0;block<(path?8:4);++block){blockIdx.x=block;if(path)gatherCsrSegmentedParticlesKernel<1>(&s);else gatherCellLocalParticlesKernel<1>(&s);}
+ int expected[7]={3,1,2,0,6,4,7};
+ for(int i=0;i<7;++i){assert(s.compactPOrigId[i]==expected[i]);assert(s.compactPStatus[i]==1);}
+ assert(s.compactPOrigId[7]==-1);
+ assert(scans==3);
+ std::cout<<"path="<<path<<" ordered filtering and heavy coverage PASS scans="<<scans<<"\n";
+}}

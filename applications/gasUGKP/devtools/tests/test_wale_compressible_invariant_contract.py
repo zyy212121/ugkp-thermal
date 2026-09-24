@@ -23,14 +23,14 @@ class WaleCompressibleInvariantContract(unittest.TestCase):
             source,
         )
         self.assertIn(
-            "pow(fmax(symmetricGradientSquared, 0.0), 2.5)",
+            "pow(fmax(symmetricGradientSquared, GPU_R(0.0)), GPU_R(2.5))",
             algebra,
         )
 
     def test_smagorinsky_keeps_deviatoric_strain_invariant(self) -> None:
         algebra = LES_ALGEBRA.read_text(encoding="utf-8")
         self.assertIn(
-            "*sqrt(fmax(2.0*deviatoricStrainSquared, 0.0));",
+            "*sqrt(fmax(GPU_R(2.0)*deviatoricStrainSquared, GPU_R(0.0)));",
             algebra,
         )
 

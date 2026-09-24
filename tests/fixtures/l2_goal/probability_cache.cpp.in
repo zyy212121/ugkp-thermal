@@ -1,0 +1,39 @@
+#include <cmath>
+#include <algorithm>
+#include <cassert>
+#include <iostream>
+#define __device__
+#define __forceinline__ inline
+#define __global__
+struct Dim{int x;}; Dim blockIdx{0},blockDim{1},threadIdx{0};
+constexpr double OfGreat=1e30, OfSmall=1e-15;
+double clampRange(double x,double lo,double hi){return std::min(std::max(x,lo),hi);}
+struct DeviceState{int csrHeavyReductionEnabled=1;int csrCellTaskCount[8]={2,2,2,2,2,2,2,2};int* particleCountDevice=nullptr;int particleCapacity=0;int dragModel=0;double* dragHindranceCache=nullptr;int nCells=8;double tau[8]={0,1e-15,1e-14,1,1e29,1e30,INFINITY,NAN};
+double poissonCellCollisionProbability[8]={};
+double poissonPoolDiameter[8]={};
+double poissonPoolDiameter2[8]={};
+double poissonPoolEnergy[8]={};
+double poissonPoolMass[8]={};
+double poissonPoolMomX[8]={};
+double poissonPoolMomY[8]={};
+double poissonPoolMomZ[8]={};
+double poissonPoolSampleTargetCount[8]={};
+double poolThermalCount[8]={};
+double poolThermalSumU2[8]={};
+double poolThermalSumUx[8]={};
+double poolThermalSumUy[8]={};
+double poolThermalSumUz[8]={};
+};
+double granularCollisionTauFromCellDevice(DeviceState&s,int c){return s.tau[c];}
+double solidEpsFromMomentDevice(const DeviceState&,int){return 0.0;}
+{{poissonCollisionProbabilityForCell}}
+{{clearPoissonThermalPoolKernel}}
+int main(){DeviceState s;
+for(int step=0;step<3;++step){double dt=step==0?0:step==1?5e-8:0.3;
+ if(step==2)s.tau[3]=0.7;
+ for(int c=0;c<8;++c){blockIdx.x=c;s.poissonCellCollisionProbability[c]=-1;clearPoissonThermalPoolKernel(&s,dt);
+  double tau=s.tau[c];double expected=(!(tau<0.5*OfGreat)||tau<=OfSmall)?0:clampRange(1-std::exp(-dt/tau),0,1);
+  if(s.poissonCellCollisionProbability[c]!=expected)return 2;
+ }
+}std::cout<<"cache refreshed: 3 steps x 8 edge/normal cells PASS\n";
+}

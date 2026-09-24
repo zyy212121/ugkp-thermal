@@ -3,6 +3,7 @@
 
 #include "fvCFD.H"
 #include <cmath>
+#include "GpuResearchHierarchy.H"
 
 namespace Foam
 {
@@ -204,6 +205,27 @@ inline GpuSchedulingConfiguration readGpuSchedulingConfiguration
             << "gpuCsrHeavyReductionAutoInterval must be positive in auto mode. "
             << "Current value = " << value.heavyReductionAutoInterval
             << exit(FatalError);
+    }
+    if (properties.found("gpuResearchVariant"))
+    {
+        const word variant(properties.lookup("gpuResearchVariant"));
+        gpuResearch::Flags flags{};
+        if (!gpuResearch::decode(variant.c_str(), flags)
+         || value.csrLevel == GpuCsrLevel::automatic)
+        {
+            FatalErrorInFunction
+                << "gpuResearchVariant requires L0|L1|T1|S1|T2|S2 (E1/E2 aliases) "
+                << "and cannot be combined with gpuCsrLevel auto"
+                << exit(FatalError);
+        }
+        value.csrCellLocalPath = flags.cell;
+        value.warpAggregatedBinning = flags.warp;
+        value.splitPreDirectory = flags.split;
+        value.heavyReductionMode = flags.heavy
+          ? GpuHeavyReductionMode::enabled : GpuHeavyReductionMode::disabled;
+        Info<< "Research hierarchy: " << variant
+            << " cell=" << flags.cell << " warp=" << flags.warp
+            << " split=" << flags.split << " heavy=" << flags.heavy << nl;
     }
     return value;
 }

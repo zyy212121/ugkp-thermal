@@ -5,18 +5,13 @@ from __future__ import annotations
 
 from pathlib import Path
 import re
+import os
 import subprocess
 import unittest
 
 
 ROOT = Path(__file__).resolve().parents[1]
-BACKEND = (
-    ROOT.parents[4]
-    / "platforms"
-    / "linux64GccDPInt32Opt"
-    / "bin"
-    / "gasUGKPCudaBackend"
-)
+BACKEND = Path(os.environ.get("GAS_UGKP_RESOURCE_BACKEND", str(ROOT.parents[4] / "platforms/linux64GccDPInt32Opt/bin/gasUGKPCudaBackend")))
 CUOBJDUMP = Path("/usr/local/cuda/bin/cuobjdump")
 
 
@@ -73,13 +68,33 @@ class S1KernelResourceContract(unittest.TestCase):
             if any(token in resource["symbol"] for token in s1_symbols):
                 self.assertLessEqual(resource["reg"], 48, resource)
 
-    def test_pressure_projection_has_two_spill_free_specialisations(self) -> None:
-        resources = kernel_resources("applyCollisionalPressureProjectionKernel")
-        self.assertEqual(len(resources), 2, resources)
-        for resource in resources:
+    def test_active_pressure_cache_kernels_are_spill_free(self) -> None:
+        # Validate this package's active kernels, not an unrelated engineering
+        # installation or the old, no-longer-launched template specialisations.
+        for name, register_limit in (
+            ("preparePressureProjectionCacheKernel", 80),
+            ("applyCachedPressureProjectionParticlesKernel", 48),
+        ):
+            resources = kernel_resources(name)
+            self.assertEqual(len(resources), 1, resources)
+            for resource in resources:
+                self.assertEqual(resource["stack"], 0, resource)
+                self.assertEqual(resource["local"], 0, resource)
+                self.assertLessEqual(resource["reg"], register_limit, resource)
+
+    def test_uncached_drag_and_pool_clear_are_spill_free(self) -> None:
+        clear = kernel_resources("clearPoissonThermalPoolKernel")
+        relax = kernel_resources("relaxParticlesToResidentGasKernel")
+        self.assertEqual(len(clear), 1, clear)
+        self.assertEqual(len(relax), 2, relax)
+        for resource in clear + relax:
             self.assertEqual(resource["stack"], 0, resource)
             self.assertEqual(resource["local"], 0, resource)
-            self.assertLessEqual(resource["reg"], 64, resource)
+            if resource in clear:
+                limit = 42
+            else:
+                limit = 58
+            self.assertLessEqual(resource["reg"], limit, resource)
 
 
 if __name__ == "__main__":

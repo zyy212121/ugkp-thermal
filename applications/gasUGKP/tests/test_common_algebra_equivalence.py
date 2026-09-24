@@ -19,6 +19,8 @@ def test_common_algebra_is_bitwise_equivalent_to_frozen_formulas(
             "-O3",
             "-I",
             str(ROOT),
+            "-I",
+            str(ROOT / "common"),
             str(SOURCE),
             "-o",
             str(executable),

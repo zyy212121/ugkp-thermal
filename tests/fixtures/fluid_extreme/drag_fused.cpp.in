@@ -1,0 +1,217 @@
+
+ #include <cmath>
+ #include <cassert>
+ #include <cstdlib>
+ #include <iostream>
+ #include <type_traits>
+ int powers=0;
+ double measuredPow(double a,double b){if(b==-2.65)++powers;return std::pow(a,b);}
+ #define pow measuredPow
+ #define __device__
+ #define __global__
+ #define __forceinline__ inline
+ #include "GpuDragModels.cuh"
+ struct Dim{int x=0;};Dim blockIdx,threadIdx;Dim blockDim{1};Dim gridDim{1};
+ double clampMin(double a,double b){return fmax(a,b);}
+ double clampRange(double a,double lo,double hi){return fmin(fmax(a,lo),hi);}
+ double finiteOr(double a,double b){return std::isfinite(a)?a:b;}
+ bool nonFiniteDevice(double x){return !std::isfinite(x);}
+ double sqr3(double x,double y,double z){return x*x+y*y+z*z;}
+ bool gasDragModelActive(int id){return id!=2;}
+ struct DeviceState{
+  double poissonCellCollisionProbability[8192]={};
+ double poissonPoolDiameter[8192]={};
+ double poissonPoolDiameter2[8192]={};
+ double poissonPoolEnergy[8192]={};
+ double poissonPoolMass[8192]={};
+ double poissonPoolMomX[8192]={};
+ double poissonPoolMomY[8192]={};
+ double poissonPoolMomZ[8192]={};
+ double poissonPoolSampleTargetCount[8192]={};
+ double poolThermalCount[8192]={};
+ double poolThermalSumU2[8192]={};
+ double poolThermalSumUx[8192]={};
+ double poolThermalSumUy[8192]={};
+ double poolThermalSumUz[8192]={};
+ int* particleCountDevice=nullptr; int particleCapacity=8192,nCells=2,dragModel=1,solveParticleTemperature=0,particleGasHeatTransferModelId=0;
+  int pStatus[8192]={1,1,1,1},pCellId[8192]={0,0,1,1};
+  double rhoMin=1e-15,TgasMin=1e-8,gasMu=1.8e-5,rhoSolid=2500,particleDiameterFallback=1e-4;
+  double dragParameter0=1e-6,dragParameter1=0,dragParameter2=0,dragParameter3=0;
+  double gravityX=0,gravityY=-9.8,gravityZ=0,invRhoSolid=1.0/2500;
+  double particleThermalRho=2500,particleCp=1000,gasPrOneThird=.9,particleThermalCapacity=2500000,TpMin=1e-8,TpMax=1e4;
+  double couplingRhoOld[8192]={1.2,1.3},couplingUxOld[8192]={1,2},couplingUyOld[8192]={0},couplingUzOld[8192]={0},couplingTgasOld[8192]={300,400};
+  double pux[8192]={.1,.2,.3,.4},puy[8192]={.4,.3,.2,.1},puz[8192]={.2,.1,.2,.1},puxOld[8192]={},puyOld[8192]={},puzOld[8192]={};
+  double pd[8192]={1e-4,1e-5,1e-3,1e-6},pTheta[8192]={.1,.2,.3,.4},pT[8192]={250,350,300,600};
+  double gradPx[8192]={},gradPy[8192]={},gradPz[8192]={},thetaDragAlpha[8192]={.95,.85},solidEps[8192]={.1,.3},cacheStorage[8192]={};double* dragHindranceCache=cacheStorage;
+ };
+ double solidEpsFromMomentDevice(const DeviceState&s,int c){return s.solidEps[c];}
+ double molecularGasConductivity(const DeviceState&){return .02;}
+ namespace ugkwp {double ranzMarshallNuFromPrOneThird(double re,double pr){return 2+.6*sqrt(re)*pr;}}
+ const double OfGreat=1e15,OfSmall=1e-15;
+double granularCollisionTauFromCellDevice(const DeviceState&,int){return 1.0;}
+template<bool CacheHindrance=false>
+{{clearPoissonThermalPoolKernel}}
+template<class DragModel>
+__device__ void referenceRelax(DeviceState& s, const int i, const double dt)
+{
+    if (i >= s.particleCapacity || s.pStatus[i] == 0)
+    {
+        return;
+    }
+
+    const int c = s.pCellId[i];
+    if (c < 0 || c >= s.nCells)
+    {
+        s.pStatus[i] = 0;
+        return;
+    }
+
+    const double rhoG =
+        clampMin(finiteOr(s.couplingRhoOld[c], s.rhoMin), s.rhoMin);
+    const double ugx = finiteOr(s.couplingUxOld[c], 0.0);
+    const double ugy = finiteOr(s.couplingUyOld[c], 0.0);
+    const double ugz = finiteOr(s.couplingUzOld[c], 0.0);
+    const double ux = s.pux[i];
+    const double uy = s.puy[i];
+    const double uz = s.puz[i];
+    s.puxOld[i] = ux;
+    s.puyOld[i] = uy;
+    s.puzOld[i] = uz;
+
+    const double relX = ugx - ux;
+    const double relY = ugy - uy;
+    const double relZ = ugz - uz;
+    const double relMag = sqrt(sqr3(relX, relY, relZ));
+    const double dPart =
+        clampMin
+        (
+            finiteOr(s.pd[i], s.particleDiameterFallback),
+            1.0e-12
+        );
+    const double mu = clampMin(s.gasMu, 1.0e-30);
+    const ugkwpGpuDrag::DragInput dragInput =
+    {
+        rhoG,
+        mu,
+        1.0 - solidEpsFromMomentDevice(s, c),
+        s.rhoSolid,
+        dPart,
+        relMag,
+        1.0e-300,
+        s.dragParameter0,
+        s.dragParameter1,
+        s.dragParameter2,
+        s.dragParameter3
+    };
+    const double re = DragModel::reynoldsNumber(dragInput);
+    if (gasDragModelActive(s.dragModel))
+    {
+    const double invTauDrag = DragModel::inverseResponseTime(dragInput);
+
+    const double xDrag = dt*clampMin(invTauDrag, 0.0);
+        const double alpha = exp(-xDrag);
+        const double ax =
+            s.gravityX - finiteOr(s.gradPx[c], 0.0)*s.invRhoSolid;
+        const double ay =
+            s.gravityY - finiteOr(s.gradPy[c], 0.0)*s.invRhoSolid;
+        const double az =
+            s.gravityZ - finiteOr(s.gradPz[c], 0.0)*s.invRhoSolid;
+
+        const double impulse =
+            (xDrag < 1.0e-6)
+          ? dt*(1.0 - 0.5*xDrag + xDrag*xDrag/6.0)
+          : (1.0 - alpha)/(invTauDrag + 1.0e-300);
+    const double uNewX = ugx + (ux - ugx)*alpha + ax*impulse;
+    const double uNewY = ugy + (uy - ugy)*alpha + ay*impulse;
+    const double uNewZ = ugz + (uz - ugz)*alpha + az*impulse;
+    if
+    (
+        nonFiniteDevice(uNewX) || nonFiniteDevice(uNewY)
+     || nonFiniteDevice(uNewZ)
+    )
+    {
+        std::abort();
+    }
+        s.pux[i] = finiteOr(uNewX, ux);
+        s.puy[i] = finiteOr(uNewY, uy);
+    s.puz[i] = finiteOr(uNewZ, uz);
+
+                                                                      
+                                                                          
+                                                                          
+                                                                              
+    const double alphaTheta =
+        clampRange(finiteOr(s.thetaDragAlpha[c], 1.0), 0.0, 1.0);
+    const double unresolvedTheta =
+        clampMin(finiteOr(s.pTheta[i], 0.0), 0.0);
+    s.pTheta[i] = unresolvedTheta*alphaTheta;
+    }
+
+    if
+    (
+        s.solveParticleTemperature != 0
+     && s.particleGasHeatTransferModelId != 0
+     && s.particleThermalRho > 0.0
+     && s.particleCp > 0.0
+    )
+    {
+        const double gasConductivity = molecularGasConductivity(s);
+        const double nu = ugkwp::ranzMarshallNuFromPrOneThird
+        (
+            clampMin(re, 0.0),
+            s.gasPrOneThird
+        );
+        const double rate =
+            6.0*nu*gasConductivity
+           /(s.particleThermalCapacity*dPart*dPart + 1.0e-300);
+        const double decay = exp(-clampMin(rate, 0.0)*dt);
+        const double tpOld = clampRange(s.pT[i], s.TpMin, s.TpMax);
+        const double tgOld =
+            clampRange
+            (
+                finiteOr(s.couplingTgasOld[c], s.TgasMin),
+                s.TgasMin,
+                1.0e30
+            );
+        const double tpNew =
+            clampRange(tgOld + (tpOld - tgOld)*decay, s.TpMin, s.TpMax);
+        s.pT[i] = tpNew;
+    }
+}
+template<class DragModel,bool CacheHindrance=false>
+{{relaxOneParticleToResidentGas}}
+template<class DragModel,bool CacheHindrance=false>
+{{relaxParticlesToResidentGasKernel}}
+
+template<class Model> void run(int model){
+ for(int hot:{0,1})for(int capacity:{4096,4097,8192})for(int cells:{2,128,129}){
+  DeviceState cached;cached.particleCapacity=capacity;cached.nCells=cells;cached.dragModel=model;cached.solveParticleTemperature=hot;cached.particleGasHeatTransferModelId=hot;
+  const bool hostCache=model==1 && capacity>4096 && capacity>=32LL*cells;
+  if(!hostCache)cached.dragHindranceCache=nullptr;
+  int live=0;cached.particleCountDevice=&live;
+  // One state crosses both thresholds in both directions across time steps.
+  for(int count:{0,4,4096,4097,4127,4128,8193,4096,4128,4,-1}){
+   live=count;const int n=std::min(std::max(live,0),capacity);
+   cached.solidEps[0]=live%2?.25:.1;cached.solidEps[1]=live%2?.05:.3;
+   DeviceState ref=cached;
+   for(int c=0;c<cells;++c){blockIdx.x=c;
+    if(hostCache)clearPoissonThermalPoolKernel<true>(&cached,1e-6);
+    else clearPoissonThermalPoolKernel<false>(&cached,1e-6);
+   }
+   for(int i=0;i<std::min(n,4);++i)referenceRelax<Model>(ref,i,1e-6);
+   powers=0;blockIdx.x=0;
+   if(hostCache)relaxParticlesToResidentGasKernel<Model,true>(&cached,1e-6);
+   else relaxParticlesToResidentGasKernel<Model,false>(&cached,1e-6);
+   bool use=hostCache && n>4096 && n>=32LL*cells;
+   if(model==1 && powers!=(use?0:(n?2:0))){
+    std::cerr<<"dispatch mismatch count="<<live<<", capacity="<<capacity<<", cells="<<cells<<", pow="<<powers<<"\n";std::exit(1);
+   }
+   for(int i=0;i<std::min(n,4);++i){
+    assert(ref.pux[i]==cached.pux[i]);assert(ref.puy[i]==cached.puy[i]);assert(ref.puz[i]==cached.puz[i]);
+    assert(ref.pTheta[i]==cached.pTheta[i]);assert(ref.pT[i]==cached.pT[i]);
+    assert(ref.puxOld[i]==cached.puxOld[i]);assert(ref.pStatus[i]==cached.pStatus[i]);
+   }
+  }
+ }
+}
+int main(){run<ugkwpGpuDrag::GidaspowErgunWenYuDeviceDrag>(1);run<ugkwpGpuDrag::SchillerNaumannDeviceDrag>(0);run<ugkwpGpuDrag::SchillerNaumannDeviceDrag>(2);std::cout<<"Capacity/count/density boundary transitions, heat-only/SN null cache PASS\n";}

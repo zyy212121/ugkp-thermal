@@ -77,7 +77,8 @@ class CompactionGeneratedDpreContract(unittest.TestCase):
         self.assertIn("preInjectionSegmentActive = 0", source_free)
         self.assertIn("preInjectionSegmentActive = 1", prepare)
         self.assertIn("if (s->preInjectionSegmentActive != 0)", split_light)
-        self.assertIn("if (s->preInjectionSegmentActive != 0)", split_heavy)
+        self.assertIn("launchCsrSegmentedPoolReduction", split_heavy)
+        self.assertIn("HeavyDirectoryKind::baseOnly", CUDA)
 
     def test_heavy_preparation_preserves_base_and_injection_segments(self) -> None:
         prepare = function_block(CUDA, "preparePreTransportParticleDirectory")
@@ -134,7 +135,7 @@ class CompactionGeneratedDpreContract(unittest.TestCase):
         self.assertIn("cellParticleOffset", pressure)
         self.assertIn("sortedParticleIndex", pressure)
         pressure_declaration = re.compile(
-            r"template\s*<\s*bool\s+SplitDirectory\s*>\s*"
+            r"template\s*<\s*bool\s+SplitDirectory\s*,\s*bool\s+CompactParticles\s*=\s*false\s*>\s*"
             r"__global__\s+void\s+applyCollisionalPressureProjectionKernel\s*\("
         )
         self.assertRegex(CUDA, pressure_declaration)
@@ -154,8 +155,17 @@ class CompactionGeneratedDpreContract(unittest.TestCase):
 
         pressure_launch = function_block(CUDA, "applyCollisionalPressureKick")
         advance = function_block(CUDA, "ugkwpGpuResidentStrictAdvance")
-        self.assertIn("applyCollisionalPressureProjectionKernel<true>", pressure_launch)
-        self.assertIn("applyCollisionalPressureProjectionKernel<false>", pressure_launch)
+        # Cached projection visits the complete active particle buffer, covering
+        # both base and injected particles without a second directory traversal.
+        self.assertIn("preparePressureProjectionCacheKernel", pressure_launch)
+        self.assertIn("applyCachedPressureProjectionParticlesKernel", pressure_launch)
+        self.assertLess(
+            pressure_launch.index("preparePressureProjectionCacheKernel"),
+            pressure_launch.index("applyCachedPressureProjectionParticlesKernel"),
+        )
+        cached = function_block(CUDA, "applyCachedPressureProjectionParticlesKernel")
+        for token in ("particleCountDevice", "particleCapacity", "pCellId", "pStatus"):
+            self.assertIn(token, cached)
         self.assertIn("launchSplitPrePoissonPoolLightReduction", advance)
         self.assertIn("accumulatePoissonPoolParticlesByCellKernel", advance)
         split_launch = function_block(

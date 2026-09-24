@@ -91,7 +91,7 @@ class SourceContracts(unittest.TestCase):
             self.assertIn(token, scheduling)
         for token in (
             "prepareCsrSegmentedReductionTasks",
-            "accumulateCsrSegmentedPoolTasksPersistentKernel",
+            "thermalPoolLaunchOccupancy",
             "finalizeCsrHeavyPoolCellsKernel",
             "accumulateCsrSegmentedMomentTasksPersistentKernel",
             "finalizeCsrHeavyMomentCellsKernel", "__match_any_sync",

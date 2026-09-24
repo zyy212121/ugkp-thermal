@@ -268,7 +268,7 @@ class MobilePackingProjectionSourceContractTests(unittest.TestCase):
         self.assertIn("epsPred - s.packingFraction", body)
         self.assertNotIn("fmax(epsPred - s.packingFraction", body)
 
-        body = self.packing_algebra
+        body = re.sub(r"GPU_R\(([^()]*)\)", r"\1", self.packing_algebra)
         self.assertIn("finiteOr(s.pressureDeltaEnergy[c], 0.0)", body)
         self.assertNotIn(
             "clampMin(finiteOr(s.pressureDeltaEnergy[c], 0.0), 0.0)",
@@ -297,7 +297,7 @@ class MobilePackingProjectionSourceContractTests(unittest.TestCase):
         self.assertIn("b0 += nx*velocityCorrectionFlux;", reconstruction)
         self.assertNotIn("-dt/(rho*", reconstruction)
     def test_particle_mapping_recovers_face_normal_flux(self):
-        body = self.packing_algebra
+        body = re.sub(r"GPU_R\(([^()]*)\)", r"\1", self.packing_algebra)
         self.assertIn("closestPlane", body)
         self.assertIn("centreToFaceDistance", body)
         self.assertIn("particleToFaceDistance", body)

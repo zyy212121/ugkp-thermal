@@ -51,7 +51,7 @@ class UGKPSparseStuckFinalizationContract(unittest.TestCase):
         body = function_body(
             cuda,
             "__global__ void correctPoissonThermalizedStuckParticlesKernel",
-            "__global__ void gatherCellLocalParticlesKernel",
+            "__device__ __forceinline__ void copyCellLocalParticle",
         )
         self.assertIn("*s.compactCountDevice", body)
         self.assertIn("const int i = s.compactPStatus[pos];", body)

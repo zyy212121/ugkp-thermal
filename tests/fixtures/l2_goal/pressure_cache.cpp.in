@@ -1,0 +1,123 @@
+#include <algorithm>
+#include <cmath>
+#include <cassert>
+#include <iostream>
+#define __device__
+#define __global__
+#define __shared__
+#define __forceinline__ inline
+void __syncthreads(){}
+struct Dim{int x;};Dim threadIdx{0},blockIdx{0},blockDim{1},gridDim{1};
+constexpr double OfVSmall=2.2250738585072014e-308;
+double clampMin(double x,double lo){return std::max(x,lo);}
+template<class T>T clampRange(T x,T lo,T hi){return std::min(std::max(x,lo),hi);}
+double finiteOr(double x,double alt){return std::isfinite(x)?x:alt;}
+double sqr3(double x,double y,double z){return x*x+y*y+z*z;}
+struct PressureProjectionCell
+{
+    double ux0, uy0, uz0, ux1, uy1, uz1, theta1, thermalScale, thetaScale;
+    bool active, resolved;
+};
+
+struct DeviceState{
+ int compactPStatus[32]={},compactPCellId[32]={};
+ double compactPux[32]={},compactPuy[32]={},compactPuz[32]={},compactPTheta[32]={};
+ int csrCellLocalPathEnabled=1; int nCells=3,nFaces=6,particleCapacity=9;
+ int* particleCountDevice;double rhoSolid=1000,epsSMin=1e-9,thetaMin=1e-8;
+ PressureProjectionCell pressureProjectionCache[3]={};
+double Usx[32]={};
+double Usy[32]={};
+double Usz[32]={};
+double V[32]={};
+int cellFaceId[32]={};
+int cellParticleOffset[32]={};
+int cellPlaneCount[32]={};
+int cellPlaneStart[32]={};
+int faceOwner[32]={};
+double momRhoEP[32]={};
+double momRhoP[32]={};
+double momRhoUPx[32]={};
+double momRhoUPy[32]={};
+double momRhoUPz[32]={};
+int pCellId[32]={};
+int pStatus[32]={};
+double pTheta[32]={};
+int preBaseCellOffset[32]={};
+double pressureDeltaEnergy[32]={};
+double pressureDeltaMomX[32]={};
+double pressureDeltaMomY[32]={};
+double pressureDeltaMomZ[32]={};
+double pux[32]={};
+double puy[32]={};
+double puz[32]={};
+double rhoEs[32]={};
+double rhoUsx[32]={};
+double rhoUsy[32]={};
+double rhoUsz[32]={};
+double solidPressurePhiEnergy[32]={};
+double solidPressurePhiMomX[32]={};
+double solidPressurePhiMomY[32]={};
+double solidPressurePhiMomZ[32]={};
+int sortedParticleIndex[32]={};
+double theta[32]={};
+};
+__device__ double pressureKickInternalEnergy
+(
+    const double rhoP,
+    const double px,
+    const double py,
+    const double pz,
+    const double energy
+)
+{
+    return energy - 0.5*sqr3(px, py, pz)/clampMin(rhoP, OfVSmall);
+}
+{{applyCollisionalPressureProjectionOneParticle}}
+{{preparePressureProjectionCell}}
+template<bool SplitDirectory, bool CompactParticles=false>
+{{applyCollisionalPressureProjectionKernel}}
+{{preparePressureProjectionCacheKernel}}
+
+{{applyCachedPressureProjectionParticlesKernel}}
+
+int main(){for(int split=0;split<2;++split){DeviceState oldState;int count=9;oldState.particleCountDevice=&count;
+ for(int i=0;i<9;++i){oldState.pStatus[i]=i==5?0:1;oldState.pux[i]=i*0.2;oldState.puy[i]=i*0.3;oldState.puz[i]=i*0.1;oldState.pTheta[i]=0.04;}
+ int cells[9]={0,0,1,2,0,0,1,2,2};for(int i=0;i<9;++i)oldState.pCellId[i]=cells[i];
+ int fullOff[4]={0,4,6,9},fullIdx[9]={0,1,4,5,2,6,3,7,8};
+ int splitOff[4]={0,2,3,5},splitIdx[5]={4,5,6,7,8},baseOff[4]={0,2,3,4};
+ for(int c=0;c<4;++c){oldState.cellParticleOffset[c]=split?splitOff[c]:fullOff[c];oldState.preBaseCellOffset[c]=baseOff[c];}
+ for(int i=0;i<(split?5:9);++i)oldState.sortedParticleIndex[i]=split?splitIdx[i]:fullIdx[i];
+ for(int c=0;c<3;++c){oldState.V[c]=1;oldState.cellPlaneStart[c]=2*c;oldState.cellPlaneCount[c]=2;
+  oldState.momRhoP[c]=c==1?0:2;oldState.momRhoUPx[c]=2;oldState.momRhoUPy[c]=0;oldState.momRhoUPz[c]=0;oldState.momRhoEP[c]=c==2?1:10;
+  for(int j=0;j<2;++j){int face=2*c+j;oldState.cellFaceId[face]=face;oldState.faceOwner[face]=c;oldState.solidPressurePhiMomX[face]=0.1;oldState.solidPressurePhiMomY[face]=0.02;oldState.solidPressurePhiMomZ[face]=-0.03;oldState.solidPressurePhiEnergy[face]=0.04;}}
+ DeviceState newState=oldState;
+ for(int c=0;c<3;++c){blockIdx.x=c;if(split)applyCollisionalPressureProjectionKernel<true>(&oldState,0.01);else applyCollisionalPressureProjectionKernel<false>(&oldState,0.01);}
+ for(int c=0;c<3;++c){blockIdx.x=c;preparePressureProjectionCacheKernel(&newState,0.01);}
+ blockIdx.x=0;applyCachedPressureProjectionParticlesKernel(&newState);
+for(int i=0;i<32;++i)assert(oldState.Usx[i]==newState.Usx[i]);
+for(int i=0;i<32;++i)assert(oldState.Usy[i]==newState.Usy[i]);
+for(int i=0;i<32;++i)assert(oldState.Usz[i]==newState.Usz[i]);
+for(int i=0;i<32;++i)assert(oldState.V[i]==newState.V[i]);
+for(int i=0;i<32;++i)assert(oldState.momRhoEP[i]==newState.momRhoEP[i]);
+for(int i=0;i<32;++i)assert(oldState.momRhoP[i]==newState.momRhoP[i]);
+for(int i=0;i<32;++i)assert(oldState.momRhoUPx[i]==newState.momRhoUPx[i]);
+for(int i=0;i<32;++i)assert(oldState.momRhoUPy[i]==newState.momRhoUPy[i]);
+for(int i=0;i<32;++i)assert(oldState.momRhoUPz[i]==newState.momRhoUPz[i]);
+for(int i=0;i<32;++i)assert(oldState.pTheta[i]==newState.pTheta[i]);
+for(int i=0;i<32;++i)assert(oldState.pressureDeltaEnergy[i]==newState.pressureDeltaEnergy[i]);
+for(int i=0;i<32;++i)assert(oldState.pressureDeltaMomX[i]==newState.pressureDeltaMomX[i]);
+for(int i=0;i<32;++i)assert(oldState.pressureDeltaMomY[i]==newState.pressureDeltaMomY[i]);
+for(int i=0;i<32;++i)assert(oldState.pressureDeltaMomZ[i]==newState.pressureDeltaMomZ[i]);
+for(int i=0;i<32;++i)assert(oldState.pux[i]==newState.pux[i]);
+for(int i=0;i<32;++i)assert(oldState.puy[i]==newState.puy[i]);
+for(int i=0;i<32;++i)assert(oldState.puz[i]==newState.puz[i]);
+for(int i=0;i<32;++i)assert(oldState.rhoEs[i]==newState.rhoEs[i]);
+for(int i=0;i<32;++i)assert(oldState.rhoUsx[i]==newState.rhoUsx[i]);
+for(int i=0;i<32;++i)assert(oldState.rhoUsy[i]==newState.rhoUsy[i]);
+for(int i=0;i<32;++i)assert(oldState.rhoUsz[i]==newState.rhoUsz[i]);
+for(int i=0;i<32;++i)assert(oldState.solidPressurePhiEnergy[i]==newState.solidPressurePhiEnergy[i]);
+for(int i=0;i<32;++i)assert(oldState.solidPressurePhiMomX[i]==newState.solidPressurePhiMomX[i]);
+for(int i=0;i<32;++i)assert(oldState.solidPressurePhiMomY[i]==newState.solidPressurePhiMomY[i]);
+for(int i=0;i<32;++i)assert(oldState.solidPressurePhiMomZ[i]==newState.solidPressurePhiMomZ[i]);
+for(int i=0;i<32;++i)assert(oldState.theta[i]==newState.theta[i]);
+std::cout<<"split="<<split<<" pressure cache exact CPU field equivalence PASS\n";}}

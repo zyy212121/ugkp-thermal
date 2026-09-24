@@ -318,6 +318,19 @@ GPU scheduling is controlled by `constant/schedulingProperties`.
 
 The block sizes can be 32, 64, 128, or 256.
 
+These values are **threads per CUDA block**, not warp counts or the total
+number of blocks. A warp contains 32 threads: a value of 64 means two warps
+per block. Both dictionary entries default to 128 when omitted.
+
+The CHT 1D cold-wall kernel keeps a separate `coldWallWorkGrid` (total block
+count). Its existing compile-time settings are near the top of
+`applications/CHT/gpu/GpuResidentStrict.cu`: `coldWallBlockThreads` is 32
+threads per block for FP64 and 256 for FP32; `coldWallSmBlocks` is 0 for
+FP64 and 48 for FP32. A positive `coldWallSmBlocks` specifies blocks per SM.
+When it is zero, `coldWallWorkGrid` inherits `particleWorkGrid`, using the
+existing particle-capacity, block-size, and occupancy calculation. These
+cold-wall constants are compile-time settings, not `schedulingProperties` keys.
+
 `gpuCsrLevel` has four valid settings:
 
 - `L0`: direct atomic reduction without a CP-CST particle-cell directory;
@@ -327,6 +340,48 @@ The block sizes can be 32, 64, 128, or 256.
   occupied cells;
 - `auto`: retains the L1 directory and periodically determines whether L2
   heavy-cell segmentation should be activated.
+
+## GPU execution and retained optimizations
+
+`gasUGKP`, `FSH`, and `CHT` use the same persistent queue protocol for L2
+collision-pool accumulation, particle moments, heavy-cell finalization, and
+standalone segmented particle gathering where required. Resident blocks repeatedly claim work until the
+queue is exhausted. Each consumer resets its cursor, including when a particle
+directory is reused between steps. Worker resources are evaluated for the
+actual persistent kernels.
+
+The solvers share task scheduling and cell-local gather operations while
+retaining their physical particle payloads. FSH and CHT also share the thermal
+segmented collision-pool and moment workers. Gas L2 uses a compact descriptor
+directory: each nonempty ordinary cell has one task, and heavy cells have one
+task per segment. Empty source cells create no consumer queue entries.
+Workers consume these descriptors directly. Filtered heavy cells retain one
+owner for stable compaction.
+
+| Optimization | Scope | Work avoided or dependency used |
+| --- | --- | --- |
+| Deferred granular-temperature read | Gas collision pool | A particle rejected by Poisson sampling does not need its granular temperature; RNG updates and accepted-particle contributions are preserved. |
+| Fused directory initialization and task publication | Gas L2 | Existing producer stages initialize counters and publish descriptor totals, removing separate setup passes. Every queue consumer still has its own reset. |
+| Compile-time full/base/split directory selection | Gas L2 | A launch's known directory type removes repeated runtime source selection. |
+| Pool-target and moment-recovery fusion | Gas L2 | Complete cell-local sums feed their dependent calculation immediately, avoiding separate passes and intermediate reads. Restart initialization still performs complete finalization. |
+| Reduction-tree pruning | Gas reductions | Shuffle accumulation omits nodes that cannot contribute to the final sum and unused warp-reduction levels. Supported block sizes are 32, 64, 128, and 256. |
+| Loop-invariant thermal factors and disabled-exchange specialization | Gas particle relaxation | Cell-invariant factors are reused; particle temperature is not read for a disabled exchange term. |
+| Bounded integer particle counts | Gas collision pool | Particle counts use the existing integer-capacity contract rather than floating-point count accumulation. |
+| Heavy-cell collision-probability reuse | Gas L2 | A current-step probability is prepared only for multi-segment cells, after pressure preparation and state recovery, and reused by their segments. Ordinary cells compute it in their consuming worker. |
+| All-live gather fast path | Cell-local gas/thermal gather | When the existing count proves every source particle survives, gathering skips the filtering scan while copying the full payload. |
+| Segmented gather | Gas/FSH/CHT L2 | Independent ranges of heavily occupied all-live cells can be copied by multiple blocks. Filtered cells retain a single owner for stable compaction. |
+| Exact-survivor post-transport directory | Gas/FSH/CHT active L2 | The post-transport directory contains exactly the particles kept by compaction, so its offsets already identify their final positions. Pre-transport and restart directories retain their original rules. |
+| Moment/gather fusion | Gas/FSH active L2 | The moment traversal also copies each surviving particle to its final position, removing the separate gather traversal. The second pressure kick updates these compact buffers; FSH preserves all thermal/contact fields and publishes each wall-bound index once. |
+| Moment/index fusion | CHT active L2 | The moment traversal writes final source indices, removing the separate index-gather traversal. The existing full thermal-payload copy remains after the second pressure kick, including both FP32 and FP64 paths. |
+| Shared scheduler, gather, and thermal workers | Gas/FSH/CHT | Common execution code preserves solver-specific particle and wall-contact fields. |
+
+These transformations follow data dependencies and supported solver settings;
+they do not select policies by case name or by a measured benchmark result.
+They preserve the physical models and required particle fields. Floating-point
+reduction ordering can affect roundoff and stochastic trajectories. The amount
+of elapsed-time improvement depends on the workload and GPU; no fixed speedup
+is implied by this list.
+
 
 ## Particle-wall models
 
