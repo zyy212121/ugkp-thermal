@@ -31,7 +31,7 @@ struct DeviceState {
 };
 template<bool GatherSurvivors> int accumulateCsrSegmentedMomentTasksPersistentKernel=0;
 int accumulatePoissonPoolParticlesByCellKernel=0;
-int accumulateParticleMomentsSegmentedKernel=0;
+template<bool Heavy, bool Gather=false> int accumulateParticleMomentsSegmentedKernel=0;
 int completeMobilePackingProjectionCooperativeKernel=0;
 int relaxColdWall1DParticlesToResidentGasKernel=0;
 int cudaOccupancyMaxActiveBlocksPerMultiprocessor(int* p,int,int block,size_t){*p=768/block;return 0;}
@@ -41,7 +41,7 @@ int cudaDeviceGetAttribute(int* p,int,int){*p=1;return 0;}
 void setLastError(const char*,int){}
 void setLastErrorText(const char*){}
 int syncDeviceState(DeviceState*,const char*){return 0;}
-""" + 'constexpr int coldWallSmBlocks='+str(override)+';\n' + function + r"""
+""" + 'constexpr int coldWallSmBlocks='+str(override)+';\n' + re.search(r'constexpr bool postTransportFusePayload = [^;]+;', source).group(0) + '\n' + function + r"""
 int main(){
  for(int block:{32,64,128,256})for(int capacity:{1,513,1000000})for(int heavy:{0,1}){
   DeviceState s;s.reductionBlockThreads=block;s.particleBlockThreads=block;

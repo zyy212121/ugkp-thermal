@@ -35,13 +35,22 @@ def compile_and_run(tmp_path, text, bits):
 def test_gather_preserves_all_payload_order_and_exact_wall_publication(tmp_path, branch, bits):
     folder = "private_backend" if branch == "FSH" else "gpu"
     source = (ROOT / "applications" / branch / folder / "GpuResidentStrict.cu").read_text()
-    hook = function(source, "__device__ __forceinline__ void copyCellLocalParticle")
+    thermal = (ROOT / "common/GpuCellLocalThermalFields.cuh").read_text()
+    primary = (ROOT / "common/GpuCellLocalPrimary.cuh").read_text()
+    params = "false, false" if branch == "FSH" else "true, true"
+    hook = thermal + "\n#define GPU_PARTICLE_EXTRA_FIELDS CellLocalThermalExtraFields<" + params + ">\n" + primary
     fixture = (FIXTURES / ("gather_" + branch + ".cu.in")).read_text()
     compile_and_run(tmp_path, fixture.replace("@PARTICLE_COPY_HOOK@", hook)
                     .replace("@REAL_TYPE@", "float" if bits == 32 else "double"), bits)
 
-@pytest.mark.parametrize("bits", [32, 64])
-def test_shared_persistent_dispatch_matches_independent_sums_and_legacy(tmp_path, bits):
-    # Physical accumulation is replaced with independently known exact sums;
-    # both production dispatch headers and their launch helpers run on the GPU.
-    compile_and_run(tmp_path, (FIXTURES / "direct_dispatch.cu").read_text(), bits)
+@pytest.mark.parametrize("branch,bits", [("FSH", 64), ("CHT", 64), ("CHT", 32)])
+def test_actual_pool_matches_cpu_moments_and_schedule_state(tmp_path, branch, bits):
+    if not Path('/usr/local/cuda/bin/nvcc').is_file():
+        pytest.skip('CUDA compiler required')
+    smi = shutil.which('nvidia-smi') or '/usr/lib/wsl/lib/nvidia-smi'
+    if not Path(smi).is_file() or subprocess.run([smi, '-L'], capture_output=True).returncode:
+        pytest.skip('CUDA GPU required')
+    q = subprocess.run(['python3', str(ROOT / 'tests/fixtures/shared_operators/collision_behavior.py'),
+                        str(ROOT), str(tmp_path), branch, str(bits)], capture_output=True, text=True, timeout=240)
+    assert q.returncode == 0, q.stdout + q.stderr
+    assert 'PASS collision pool CPU moments' in q.stdout

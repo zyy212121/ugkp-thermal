@@ -10,7 +10,7 @@ The package contains three maintained solvers:
 | --- | --- |
 | `gasUGKP` | Compressible gas flow, UGKP particle transport, statistical particle collisions, and two-way gas-particle momentum and sensible-heat coupling |
 | `FSH` | Extends `gasUGKP` with finite-duration particle-wall contact, spreading and retraction, rebound or deposition, particle internal heat conduction, solidification, and wall heat transfer |
-| `CHT` | Extends the common gas-particle framework with transient solid conduction, particle radiation, and conjugate fluid-particle-solid heat transfer |
+| `CHT` | Flow and finite-contact particle-wall heat transfer with two-way solid coupling, transient solid conduction, and particle radiation |
 
 The three solvers share the numerical and physical implementations under
 `common/`.
@@ -70,6 +70,7 @@ applications/
     CHT/           conjugate heat-transfer and radiation solver
 
 common/
+    operators/     shared device operations with compile-time field adapters
     gasNumerics/   shared gas-phase fluxes and reconstruction methods
     gpu/           shared GPU scheduling and coupling utilities
     wall/          shared finite-contact and particle thermal models
@@ -341,6 +342,29 @@ cold-wall constants are compile-time settings, not `schedulingProperties` keys.
 - `auto`: retains the L1 directory and periodically determines whether L2
   heavy-cell segmentation should be activated.
 
+Explicit `L2` (or research `S2`) is a user-selected execution mode. The
+application does not disable it based on an estimated speedup. Once enabled,
+task segmentation uses the current reduction block size, device SM count,
+kernel occupancy, and directory population to determine its adaptive tile
+size. This scheduling tile is not a profitability criterion for selecting L2.
+`auto` remains a separate, explicitly selected mode.
+
+## Common numerical operators
+
+The applications instantiate one maintained implementation of each shared
+operation through compile-time scalar, field and physical-model adapters.
+Particle tracking, collision selection and moments, Gaussian sampling,
+weighted sampling correction, task queues, moment recovery and pressure
+projection are maintained under `common/`. FSH and CHT additionally share
+finite-contact relaxation and capillary/contact finalization.
+
+The adapters preserve native precision, contact-age storage, wall states,
+thermal closures and particle payloads. FSH and CHT retain their thermal
+application responsibilities; they do not switch into a gas application when
+an individual thermal term is inactive. Alternative reduction layouts remain
+explicit scheduling policies around the shared operation, without a runtime
+solver-name branch in the particle loop.
+
 ## GPU execution and retained optimizations
 
 `gasUGKP`, `FSH`, and `CHT` use the same persistent queue protocol for L2
@@ -350,9 +374,9 @@ queue is exhausted. Each consumer resets its cursor, including when a particle
 directory is reused between steps. Worker resources are evaluated for the
 actual persistent kernels.
 
-The solvers share task scheduling and cell-local gather operations while
-retaining their physical particle payloads. FSH and CHT also share the thermal
-segmented collision-pool and moment workers. Gas L2 uses a compact descriptor
+The solvers share task construction, collision-pool operations, particle
+transport, moment recovery, pressure operations, and cell-local gathering
+while retaining their native physical fields and closures. Gas L2 uses a compact descriptor
 directory: each nonempty ordinary cell has one task, and heavy cells have one
 task per segment. Empty source cells create no consumer queue entries.
 Workers consume these descriptors directly. Filtered heavy cells retain one
@@ -363,17 +387,20 @@ owner for stable compaction.
 | Deferred granular-temperature read | Gas collision pool | A particle rejected by Poisson sampling does not need its granular temperature; RNG updates and accepted-particle contributions are preserved. |
 | Fused directory initialization and task publication | Gas L2 | Existing producer stages initialize counters and publish descriptor totals, removing separate setup passes. Every queue consumer still has its own reset. |
 | Compile-time full/base/split directory selection | Gas L2 | A launch's known directory type removes repeated runtime source selection. |
-| Pool-target and moment-recovery fusion | Gas L2 | Complete cell-local sums feed their dependent calculation immediately, avoiding separate passes and intermediate reads. Restart initialization still performs complete finalization. |
+| Pool-target fusion and shared moment recovery | Gas pool targets; Gas/FSH/CHT L2 recovery | Completed cell-local moment sums feed recovery immediately. Single-task and empty cells retain their own recovery path; restart initialization completes all partial reductions before recovery. |
 | Reduction-tree pruning | Gas reductions | Shuffle accumulation omits nodes that cannot contribute to the final sum and unused warp-reduction levels. Supported block sizes are 32, 64, 128, and 256. |
 | Loop-invariant thermal factors and disabled-exchange specialization | Gas particle relaxation | Cell-invariant factors are reused; particle temperature is not read for a disabled exchange term. |
 | Bounded integer particle counts | Gas collision pool | Particle counts use the existing integer-capacity contract rather than floating-point count accumulation. |
 | Heavy-cell collision-probability reuse | Gas L2 | A current-step probability is prepared only for multi-segment cells, after pressure preparation and state recovery, and reused by their segments. Ordinary cells compute it in their consuming worker. |
 | All-live gather fast path | Cell-local gas/thermal gather | When the existing count proves every source particle survives, gathering skips the filtering scan while copying the full payload. |
 | Segmented gather | Gas/FSH/CHT L2 | Independent ranges of heavily occupied all-live cells can be copied by multiple blocks. Filtered cells retain a single owner for stable compaction. |
-| Exact-survivor post-transport directory | Gas/FSH/CHT active L2 | The post-transport directory contains exactly the particles kept by compaction, so its offsets already identify their final positions. Pre-transport and restart directories retain their original rules. |
-| Moment/gather fusion | Gas/FSH active L2 | The moment traversal also copies each surviving particle to its final position, removing the separate gather traversal. The second pressure kick updates these compact buffers; FSH preserves all thermal/contact fields and publishes each wall-bound index once. |
-| Moment/index fusion | CHT active L2 | The moment traversal writes final source indices, removing the separate index-gather traversal. The existing full thermal-payload copy remains after the second pressure kick, including both FP32 and FP64 paths. |
+| Exact-survivor post-transport directory | Gas/FSH/CHT S1 and L2 | The post-transport directory contains exactly the particles kept by compaction, so its offsets identify final positions. Pre-transport and restart directories retain their original rules. |
+| Shared moment traversal and reduction | Gas/FSH/CHT S1 and L2 | One common implementation performs survivor validation, eight moment sums and block reduction. Precision, enthalpy and wall-state physics use compile-time adapters. No runtime model dispatch is added. |
+| Moment/gather fusion | Gas/FSH S1 and L2 | The same moment traversal copies each surviving particle to its final position. Pressure updates the compact fields before commit; FSH copies every thermal/contact field and publishes each wall-bound index once. |
+| Survivor-directory reuse | CHT S1/L2 | The full thermal-payload kernel directly reads the exact source directory after pressure. No separate index-gather pass or redundant source-index writes are needed. |
+| Shared particle-field copy | Gas/FSH/CHT | Primary fields and thermal/contact extensions use a shared copy implementation. A compile-time copy-placement policy is independent of S1/L2: Gas/FSH copy during moment traversal; CHT retains a global parallel payload copy after pressure. The field-copy body is maintained once and copies every enabled field exactly once. |
 | Shared scheduler, gather, and thermal workers | Gas/FSH/CHT | Common execution code preserves solver-specific particle and wall-contact fields. |
+| Shared pressure projection | Gas/FSH/CHT | One cell traversal and mobile-particle update use the limited face flux. Thermal adapters enforce stuck/deposited states and close moments from the constrained particle state. FP32 flat scheduling uses the same pressure-parameter equations. |
 
 These transformations follow data dependencies and supported solver settings;
 they do not select policies by case name or by a measured benchmark result.
@@ -508,6 +535,16 @@ Case-specific Python plotting scripts are stored with persistent case assets,
 never below disposable result directories, and can be executed through each
 case's `draw.py` after the corresponding simulation has completed.
 
+## Common particle-kernel interfaces
+
+`common/GpuMomentPipeline.cuh` owns the post-transport S1/L2 moment and recovery sequence. `common/GpuPressurePipeline.cuh` owns the pressure launch protocol; cell traversal, pressure parameters and mobile-particle updates are shared device implementations. Thermal adapters preserve contact state, enthalpy, and constrained moment closure. These are compile-time interfaces, with no runtime application selection.
+
+Within each application, S1 and L2 use the same payload placement and physical operations; L2 partitions heavy-cell reductions. Across applications, payload launch sequences need not be identical: CHT keeps its global parallel copy for wide thermal fields, while Gas/FSH fuse copying into moment traversal. Pressure receives the matching original or compact storage view.
+
+The CUDA regression suite checks limited-face local momentum balance, particle/cell moment consistency, conserved totals in a closed two-cell test, survivor indexing, and preservation of enabled thermal/contact fields.
+
+Pressure projection consumes the limited face flux consistently in full and split particle directories. Thermal closure retains constrained particle states and their physical moment accounting.
+
 ## Reproducibility notes
 
 - Use the Git commit or release tag cited in the associated manuscript.
@@ -537,3 +574,15 @@ Copyright (C) 2026 Shashi Liu.
 This software is distributed under the GNU General Public License, version 3
 or any later version (`GPL-3.0-or-later`). See [LICENSE](LICENSE) and
 [NOTICE](NOTICE).
+
+### Particle tracking at geometric boundaries
+
+Particle reflection at `wedge`, `empty`, and symmetry boundaries is non-dissipative. Physical wall restitution and finite-contact thermal laws remain controlled by the wall configuration.
+
+The maximum number of face-walk events per particle and time step is configured in `constant/schedulingProperties`:
+
+```foam
+gpuResidentMaxFaceWalkHops 512;
+```
+
+The library default is 32. Increase this limit for trajectories that cross or reflect from many faces in one time step, such as passages near a narrow wedge axis. This limit counts all face-walk events, not only physical wall impacts.

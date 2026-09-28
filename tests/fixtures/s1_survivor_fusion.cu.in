@@ -1,0 +1,60 @@
+#include "GpuResidentStrict.cu"
+#include <cstdio>
+#include <cstdlib>
+#include <vector>
+#include <new>
+template<class T> void mem(T*& p,int n){if(cudaMallocManaged(&p,sizeof(T)*n)!=cudaSuccess)std::abort();for(int i=0;i<n;++i)new(p+i) T{};}
+#define CHECK(x) do{if(!(x)){printf("FAIL line=%d block=%d scenario=%d warp=%d: %s\n",__LINE__,block,scenario,warp,#x);return 1;}}while(0)
+int main(){
+ setvbuf(stdout,nullptr,_IONBF,0);
+ constexpr int N=513;DeviceState* d;mem(d,1);d->deviceState=d;d->nCells=5;d->particleCapacity=N;d->particleWorkGrid=5;d->csrCellLocalPathEnabled=1;d->csrHeavyReductionEnabled=0;
+ @ALLOCATE@
+ d->cellScanTempStorage=nullptr;d->cellScanTempBytes=0;
+ if(cub::DeviceScan::ExclusiveSum(nullptr,d->cellScanTempBytes,d->cellParticleCount,d->cellParticleOffset,6)!=cudaSuccess)return 2;
+ if(cudaMalloc(&d->cellScanTempStorage,d->cellScanTempBytes)!=cudaSuccess)return 2;
+ for(int block:{32,64,128,256})for(int scenario=0;scenario<5;++scenario)for(int warp:{0,1}){
+ @INITIALIZE@
+ *d->particleCountDevice=N;d->csrWarpAggregatedBinning=warp;d->reductionBlockThreads=block;d->rhoMin=1e-20;d->rhoSolid=1;d->thetaMin=1e-10;d->TpMin=1;d->TpMax=5000;
+ int expected[5]={};
+ for(int i=0;i<N;++i){
+  d->pStatus[i]=scenario==0?1:scenario==1?i%4:scenario==2?0:scenario==3?i%2:(i==512);
+  d->pCellId[i]=i<370?0:3;if(scenario==3&&i%11==0)d->pCellId[i]=-1;
+  d->pOrigId[i]=10000+i;d->pRng[i]=20000+i;d->pm[i]=2;d->pux[i]=1;d->puy[i]=2;d->puz[i]=3;d->pTheta[i]=4;d->pd[i]=.25;
+  if(d->pStatus[i]==1&&d->pCellId[i]>=0)++expected[d->pCellId[i]];
+ }
+ for(int c=0;c<5;++c)d->V[c]=1;
+ DeviceState host=*d;DeviceState* s=&host;
+ CHECK(binParticlesByCell(s,block,@SURVIVOR_ARG@)==0);CHECK(cudaDeviceSynchronize()==cudaSuccess);
+ for(int c=0;c<5;++c)CHECK(d->cellParticleCount[c]==expected[c]);
+ const int kept=d->cellParticleOffset[5];
+ // A restart moment reduction must leave the scratch payload untouched.
+ accumulateParticleMomentsSegmentedKernel<false><<<5,block,8*(block/32)*sizeof(double)>>>(d);
+ CHECK(cudaDeviceSynchronize()==cudaSuccess);
+ for(int pos=0;pos<kept;++pos)CHECK(d->compactPStatus[pos]==91);
+ CHECK(launchPostTransportMomentPipeline(s,5,block)==0);
+ CHECK(cudaDeviceSynchronize()==cudaSuccess);
+ for(int c=0;c<5;++c){CHECK(d->cellParticleCount[c]==expected[c]);CHECK(d->momRhoP[c]==2*expected[c]);CHECK(d->momRhoUPx[c]==2*expected[c]);CHECK(d->momRhoUPy[c]==4*expected[c]);CHECK(d->momRhoUPz[c]==6*expected[c]);CHECK(d->momRhoEP[c]==26*expected[c]);CHECK(d->momRhoPD[c]==.5*expected[c]);}
+ for(int pos=0;pos<kept;++pos){int i=d->sortedParticleIndex[pos];CHECK(i>=0&&i<N);@CHECK_PAYLOAD@}
+ for(int pos=kept;pos<N;++pos)CHECK(d->compactPStatus[pos]==91);
+ // Compare the complete original-index pressure kernel with compact addressing.
+ for(int cutoff:{0,1}){
+  d->epsSMin=cutoff?1e10:0;d->nFaces=5;
+  for(int c=0;c<5;++c){d->cellPlaneStart[c]=c;d->cellPlaneCount[c]=1;d->cellFaceId[c]=c;d->faceOwner[c]=c;d->solidPressurePhiMomX[c]=.01;d->solidPressurePhiEnergy[c]=.1;}
+  double* moments[4]={d->momRhoUPx,d->momRhoUPy,d->momRhoUPz,d->momRhoEP};double before[5][4],after[5][4];
+  for(int c=0;c<5;++c)for(int k=0;k<4;++k)before[c][k]=moments[k][c];
+  applyCollisionalPressureProjectionKernel<false,false><<<5,block>>>(d,.01);CHECK(cudaDeviceSynchronize()==cudaSuccess);
+  for(int c=0;c<5;++c)for(int k=0;k<4;++k){after[c][k]=moments[k][c];moments[k][c]=before[c][k];}
+  if(@PRESSURE_ARG@)applyCollisionalPressureProjectionKernel<false,true><<<5,block>>>(d,.01);
+  else applyCollisionalPressureProjectionKernel<false,false><<<5,block>>>(d,.01);
+  CHECK(cudaDeviceSynchronize()==cudaSuccess);
+  for(int c=0;c<5;++c)for(int k=0;k<4;++k)CHECK(after[c][k]==moments[k][c]);
+  for(int pos=0;pos<kept;++pos){int i=d->sortedParticleIndex[pos];@CHECK_PAYLOAD@}
+ }
+ std::vector<unsigned long long> ids;for(int pos=0;pos<kept;++pos)ids.push_back(d->pOrigId[d->sortedParticleIndex[pos]]);
+ CHECK(cub::DeviceScan::ExclusiveSum(host.cellScanTempStorage,host.cellScanTempBytes,host.cellParticleCount,host.compactCellOffset,6)==cudaSuccess);
+ captureCompactedPreBaseOffsetsKernel<<<1,32>>>(d);commitCellLocalParticleBuffersKernel<<<1,1>>>(d);CHECK(cudaDeviceSynchronize()==cudaSuccess);
+ CHECK(*d->particleCountDevice==kept);for(int pos=0;pos<kept;++pos){CHECK(d->pOrigId[pos]==ids[pos]);CHECK(d->pStatus[pos]==1);}
+ for(int c=0;c<=5;++c)CHECK(d->preBaseCellOffset[c]==d->cellParticleOffset[c]);
+ }
+ puts("PASS S1 real CUDA survivor binning, fused moments, 14 payloads, pressure addressing, commit, restart; 4 block sizes, 5 survivor patterns, warp on/off");
+}

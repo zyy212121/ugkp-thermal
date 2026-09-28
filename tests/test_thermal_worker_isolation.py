@@ -14,6 +14,9 @@ def test_thermal_workers_share_physics_and_queue_without_solver_policy():
     assert pool.count("executeCsrSegmentedPoolTask<PoissonMode>") == 1
     for stage in ("Pool", "Moment"):
         code = (ROOT / "gpu/thermal" / ("CsrSegmented" + stage + "Workers.cuh")).read_text()
+        if stage == 'Moment':
+            assert '#include "GpuSegmentedMomentWorkers.cuh"' in code
+            code = (ROOT / 'common/GpuSegmentedMomentWorkers.cuh').read_text()
         assert '#include "CsrPersistentQueue.cuh"' in code
         assert "runCsrPersistentQueue" in code
     for branch, folder in [("FSH", "private_backend"), ("CHT", "gpu")]:

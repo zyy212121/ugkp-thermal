@@ -12,6 +12,12 @@ ROOT = Path(__file__).resolve().parents[1]
 SOURCE = ROOT / 'applications/gasUGKP/private_backend/GpuResidentStrict.cu'
 
 def function(text, name):
+    if name in {'finalizeCsrMomentCell', 'CsrMomentOperation', 'CsrMomentFinalizeOperation',
+                'accumulateCsrSegmentedMomentTasksPersistentKernel', 'finalizeCsrSegmentedMomentCellsKernel',
+                'launchCommonSegmentedMomentReduction'}:
+        text = (ROOT / 'common/GpuSegmentedMomentWorkers.cuh').read_text().replace('GPU_PIPELINE_REAL', 'double')
+    elif name in {'CsrMomentRecoveryOperation', 'finalizeCsrSegmentedMomentsAndRecoverKernel'}:
+        text = (ROOT / 'common/GpuMomentRecovery.cuh').read_text().replace('GPU_PIPELINE_REAL', 'double')
     match = re.search(r'^(?:__\w+__\s+)*(?:inline\s+)?(?:void|int|double|PressureProjectionCell) ' + name + r'\s*\(', text, re.M)
     if not match:
         match = re.search(r'^struct ' + name + r'\b', text, re.M)
@@ -39,6 +45,8 @@ def function(text, name):
         queue = (ROOT / 'common/CsrPersistentQueue.cuh').read_text()
         shared = 'template<class State, class Operation>\n' + function(queue, 'runCsrPersistentQueue')
         op = function(text, dependencies[name])
+        if name == 'finalizeCsrSegmentedMomentsAndRecoverKernel':
+            op = function(text, 'finalizeCsrMomentCell') + '\n' + op
         if name == 'gatherCsrSegmentedParticlesKernel':
             # Its surrounding fixture supplies template<int BlockThreads>.
             result = op + '\n' + result
@@ -306,14 +314,17 @@ int main() {
 
 
 def test_moment_fusion_is_opt_in_for_advance_not_restart():
-    text=SOURCE.read_text()
-    launch=function(text,'launchCsrSegmentedMomentReduction')
-    wrapper=function(text,'launchCsrHeavyMomentReduction')
+    text = SOURCE.read_text()
+    launch = function(text, 'launchCsrSegmentedMomentReduction')
+    common = function(text, 'launchCommonSegmentedMomentReduction')
+    wrapper = function(text, 'launchCsrHeavyMomentReduction')
+    pipeline = (ROOT / 'common/GpuMomentPipeline.cuh').read_text()
     assert 'const bool deferRecovery = false' in launch
-    assert 'if (!deferRecovery)' in launch
-    assert 'finalizeCsrSegmentedMomentCellsKernel' in launch
+    assert 'if (!deferRecovery)' in common
+    assert 'finalizeCsrSegmentedMomentCellsKernel' in common
     assert 'const bool deferRecovery = false' in wrapper
     assert 'launchCsrSegmentedMomentReduction(s, block, deferRecovery, gatherSurvivors)' in wrapper
-    advance=text[text.index('int ugkwpGpuResidentStrictAdvance'):]
-    assert 'launchCsrHeavyMomentReduction(s, block, true, true)' in advance
+    advance = text[text.index('int ugkwpGpuResidentStrictAdvance'):]
+    assert 'launchPostTransportMomentPipeline(s, particleGrid, block)' in advance
+    assert 'launchCommonSegmentedMomentReduction(s, block, postTransportFusePayload, true)' in pipeline
     assert 'launchCsrHeavyMomentReduction(s, block)' in text[:text.index('int ugkwpGpuResidentStrictAdvance')]

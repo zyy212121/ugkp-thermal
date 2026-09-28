@@ -12,6 +12,7 @@
 #include "symmetryPolyPatch.H"
 #include "wallPolyPatch.H"
 #include "wedgePolyPatch.H"
+#include "../../../common/GpuParticleBoundaryModel.H"
 #include "waveTransmissiveFvPatchField.H"
 
 #ifdef UGKWP_USE_CUDA
@@ -2619,7 +2620,7 @@ protected:
                                                                          
                                                                           
                                                                         
-                            restitution = 0.0;
+                            restitution = gpuParticleBoundary::geometricReflectionRestitution;
                         }
                         else if
                         (

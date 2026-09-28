@@ -27,7 +27,8 @@ struct DeviceState {
 double particleHeatFactorDevice(DeviceState&s){++s.factorCalls;return s.active?2:0;}
 void copyCellLocalParticle(DeviceState&s,int i,int c,int dst){assert(c==0);assert(s.copied[dst]==-1);s.copied[dst]=i;}
 {{accumulateParticleMomentsAtomicKernel}}
-template<bool HeavyReductionEnabled>
+template<class... Args> void copyCellLocalParticle(Args...);
+template<bool HeavyReductionEnabled, bool GatherSurvivors = false>
 {{accumulateParticleMomentsSegmentedKernel}}
 {{accumulateCsrHeavyMomentTask}}
 int main(){
