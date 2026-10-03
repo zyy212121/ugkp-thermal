@@ -1,0 +1,4 @@
+PASS bitwise moments and face states: invalid cells, nonfinite inputs, internal faces from both sides, periodic owners and wall kinds
+PASS 2048 bitwise drag rates including zero slip, Re/alpha thresholds and denominator bounds
+PASS bitwise pressure face deltas and published cell moments
+PASS all frozen-implementation differential checks

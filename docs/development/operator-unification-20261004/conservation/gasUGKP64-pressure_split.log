@@ -1,0 +1,5 @@
+BUILD gasUGKP 64 0
+RUN_RETURN 0 cell0 limitedPhi=0.01 momentum=-0.010000000000000005 mass=1 energy=1.7499999999999996
+cell1 limitedPhi=0.01 momentum=0.010000000000000005 mass=1 energy=1.7499999999999996
+PASS limited pressure: local face balance, particle/Eulerian moments, mass, momentum and energy
+

@@ -1,0 +1,6 @@
+/home/lss/ugkp-operator-unification-20261004/baseline/applications/gasUGKP/private_backend/GpuResidentStrict.cu(5995): warning #177-D: variable "warpCount" was declared but never referenced
+      const int warpCount = (block + 31)/32;
+                ^
+
+Remark: The warnings can be suppressed with "-diag-suppress <warning-number>"
+

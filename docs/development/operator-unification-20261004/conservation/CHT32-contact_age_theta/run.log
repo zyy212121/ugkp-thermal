@@ -1,0 +1,5 @@
+WITNESS case=0 detach=1 status=1 ageBefore=0.00020000000000000001 storedAgeAfter=0 thetaRaw=0 thetaForMoment=0 kinetic=1.000000274664329e-09 mechanicalMoment=1.000000274664329e-09 excessThetaEnergy=0 expectedAgeLeak=2.9999999151542058e-13 requiredSpecific=3.310547109322215
+WITNESS case=1 detach=1 status=1 ageBefore=0.00020000000000000001 storedAgeAfter=0 thetaRaw=0 thetaForMoment=0 kinetic=1.000000274664329e-09 mechanicalMoment=1.000000274664329e-09 excessThetaEnergy=0 expectedAgeLeak=2.9999999151542058e-13 requiredSpecific=3.310547109322215
+WITNESS case=2 detach=1 status=1 ageBefore=0 storedAgeAfter=0 thetaRaw=0 thetaForMoment=0 kinetic=9.999994317274325e-10 mechanicalMoment=9.999994317274325e-10 excessThetaEnergy=0 expectedAgeLeak=0 requiredSpecific=5.1727294921875
+WITNESS case=3 detach=0 status=1 ageBefore=0.00020000000000000001 storedAgeAfter=0.00020000000000000001 thetaRaw=0 thetaForMoment=0 kinetic=0 mechanicalMoment=0 excessThetaEnergy=0 expectedAgeLeak=2.9999999151542058e-13 requiredSpecific=3.310547109322215
+PASS detached contact age and mobile theta are zero after native correction and relaxation

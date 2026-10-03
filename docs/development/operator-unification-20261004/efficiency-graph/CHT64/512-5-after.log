@@ -1,0 +1,5 @@
+TIME gas_gradients 0.0388640016
+TIME gas_limiter 0.0493394993
+TIME pressure_cell 0.0328284986
+TIME pressure_particles 3.11987209
+TIME gas_diffusion 0.0332479998

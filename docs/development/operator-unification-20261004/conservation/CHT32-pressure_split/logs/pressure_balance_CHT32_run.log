@@ -1,0 +1,3 @@
+cell0 limitedPhi=0.0099999997764825821 momentum=-0.010000010021030903 mass=1 energy=1.7500001523130777
+cell1 limitedPhi=0.0099999997764825821 momentum=0.010000010021030903 mass=1 energy=1.7500001523130777
+PASS limited pressure: local face balance, particle/Eulerian moments, mass, momentum and energy

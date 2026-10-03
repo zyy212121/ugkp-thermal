@@ -1,0 +1,8 @@
+PASS bitwise moments and face states: invalid cells, nonfinite inputs, internal faces from both sides, periodic owners and wall kinds
+PASS 2048 bitwise drag rates including zero slip, Re/alpha thresholds and denominator bounds
+PASS bitwise unsorted particle update with mobile, transient and deposited wall constraints
+PASS bitwise pressure face deltas and published cell moments
+PASS bitwise signed wall ledger with partial warps, multiple faces/channels and block sizes
+COLD_ENERGY maximum_abs_residual=2.6901404874998713e-10 maximum_rounding_bound=8.000005374301054e-10
+PASS bitwise cold-wall temperature, wall heat, enthalpy and ring mass across precision policies
+PASS all frozen-implementation differential checks

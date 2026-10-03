@@ -29,6 +29,7 @@ def test_production_behavior(tmp_path, name):
     if name == "pressure_cache":
         common = SOURCE.parents[3] / "common"
         closure = '\nusing PressureReal=double; using PressureTime=double;\n'
+        closure += '#include "' + str(common / 'GpuPressureUnsortedAlgebra.cuh') + '"\n'
         closure += '#include "' + str(common / 'GpuPressureParticleUpdate.cuh') + '"\n'
         closure += '#include "' + str(common / 'GpuPressureCellTraversal.cuh') + '"\n'
         fixture = fixture.replace('{{applyCollisionalPressureProjectionOneParticle}}',

@@ -4,14 +4,14 @@ __device__ GPU_OPERATOR_REAL solidEpsFromMomentDevice(const DeviceState& s, cons
 {
     if (c < 0 || c >= s.nCells)
     {
-        return 0.0;
+        return GPU_OPERATOR_R(0.0);
     }
 
-    const GPU_OPERATOR_REAL rhoP = clampMin(finiteOr(s.momRhoP[c], 0.0), 0.0);
+    const GPU_OPERATOR_REAL rhoP = clampMin(finiteOr(s.momRhoP[c], GPU_OPERATOR_R(0.0)), GPU_OPERATOR_R(0.0));
     return clampRange
     (
-        rhoP/clampMin(s.rhoSolid, 1.0e-300),
-        0.0,
-        1.0
+        rhoP/clampMin(s.rhoSolid, GPU_OPERATOR_TINY(1.0e-300)),
+        GPU_OPERATOR_R(0.0),
+        GPU_OPERATOR_R(1.0)
     );
 }

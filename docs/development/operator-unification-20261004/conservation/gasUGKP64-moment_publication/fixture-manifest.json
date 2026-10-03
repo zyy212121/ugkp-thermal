@@ -1,0 +1,57 @@
+{
+  "app": "gasUGKP",
+  "bits": 64,
+  "source_root": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test",
+  "source_files": [
+    {
+      "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/tests/fixtures/shared_operators/moment_publication_paths.cu",
+      "sha256": "77cf3f7745e3ff969c70e30c7081b78d5f4796fd81571c9727c943a121e27d1b"
+    },
+    {
+      "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/applications/gasUGKP/private_backend/GpuResidentStrict.cu",
+      "sha256": "395c44ba3e20c123699d71fd9bdff68d218a54b0914a122ca0eb260775cd708d"
+    },
+    {
+      "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/common/GpuParticleMoments.cuh",
+      "sha256": "41f1cbcabd63a9e0e01887a66180ababe260019877cf0ba25c29022f22da350a"
+    },
+    {
+      "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/common/GpuSegmentedMomentWorkers.cuh",
+      "sha256": "53ed3f6a0ad447cbab8188990dbeacd97c024871187976a3af929f16bae32d14"
+    },
+    {
+      "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/common/GpuParticleMomentRange.inl",
+      "sha256": "ad3cd9dcf322933dc073afd04290f5b58f0eacf465069ef06766537aa7a5a1ec"
+    },
+    {
+      "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/common/GpuParticleMomentContribution.inl",
+      "sha256": "e05aefa98a03ccaae5d6436d6cae2a22ee2b439740398512fca6254ecbea4fa8"
+    },
+    {
+      "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/common/CsrPersistentQueue.cuh",
+      "sha256": "a2e3b26121898d5d23a92c0fe0f5bbd71318f2d96396356c46c654416f16b064"
+    }
+  ],
+  "compile_command": [
+    "/usr/local/cuda/bin/nvcc",
+    "-std=c++17",
+    "-O3",
+    "-arch=sm_89",
+    "--fmad=true",
+    "-DUGKP_DEVELOPMENT_PROBES=1",
+    "-DUGKWP_GPU_REAL_BITS=64",
+    "-DMH04_THERMAL=0",
+    "-DMH04_CHT=0",
+    "-I/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/applications/gasUGKP/private_backend",
+    "-I/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/common",
+    "-I/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/applications/gasUGKP/gpu",
+    "/home/lss/ugkp-operator-unification-20261004/conservation/gasUGKP64-moment_publication/moment_publication_paths.cu",
+    "-o",
+    "/home/lss/ugkp-operator-unification-20261004/conservation/gasUGKP64-moment_publication/moment_publication"
+  ],
+  "run_command": [
+    "/home/lss/ugkp-operator-unification-20261004/conservation/gasUGKP64-moment_publication/moment_publication"
+  ],
+  "compile_returncode": 0,
+  "run_returncode": 0
+}

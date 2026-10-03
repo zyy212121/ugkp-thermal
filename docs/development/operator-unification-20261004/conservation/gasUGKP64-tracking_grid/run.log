@@ -1,0 +1,43 @@
+RESOURCES regs=86 staticShared=0 localBytes=0 maxThreads=640 SM=24
+GEOMETRY B2=32 state=0 particleGrid=480 trackingGrid=480 trackingBlocksPerSM=20
+GEOMETRY B2=32 state=1 particleGrid=480 trackingGrid=480 trackingBlocksPerSM=20
+TRANSPORT B2=32 grid=1 N=20003 PASS free/reflection/periodic/outflow/tail/contact
+TRANSPORT B2=32 grid=3 N=20003 PASS free/reflection/periodic/outflow/tail/contact
+TRANSPORT B2=32 grid=480 N=20003 PASS free/reflection/periodic/outflow/tail/contact
+TRANSPORT B2=32 grid=504 N=20003 PASS free/reflection/periodic/outflow/tail/contact
+GEOMETRY B2=64 state=0 particleGrid=240 trackingGrid=240 trackingBlocksPerSM=10
+GEOMETRY B2=64 state=1 particleGrid=240 trackingGrid=240 trackingBlocksPerSM=10
+TRANSPORT B2=64 grid=1 N=20003 PASS free/reflection/periodic/outflow/tail/contact
+TRANSPORT B2=64 grid=3 N=20003 PASS free/reflection/periodic/outflow/tail/contact
+TRANSPORT B2=64 grid=240 N=20003 PASS free/reflection/periodic/outflow/tail/contact
+TRANSPORT B2=64 grid=264 N=20003 PASS free/reflection/periodic/outflow/tail/contact
+GEOMETRY B2=128 state=0 particleGrid=120 trackingGrid=120 trackingBlocksPerSM=5
+GEOMETRY B2=128 state=1 particleGrid=120 trackingGrid=120 trackingBlocksPerSM=5
+TRANSPORT B2=128 grid=1 N=20003 PASS free/reflection/periodic/outflow/tail/contact
+TRANSPORT B2=128 grid=3 N=20003 PASS free/reflection/periodic/outflow/tail/contact
+TRANSPORT B2=128 grid=120 N=20003 PASS free/reflection/periodic/outflow/tail/contact
+TRANSPORT B2=128 grid=144 N=20003 PASS free/reflection/periodic/outflow/tail/contact
+GEOMETRY B2=256 state=0 particleGrid=48 trackingGrid=48 trackingBlocksPerSM=2
+GEOMETRY B2=256 state=1 particleGrid=48 trackingGrid=48 trackingBlocksPerSM=2
+TRANSPORT B2=256 grid=1 N=20003 PASS free/reflection/periodic/outflow/tail/contact
+TRANSPORT B2=256 grid=3 N=20003 PASS free/reflection/periodic/outflow/tail/contact
+TRANSPORT B2=256 grid=48 N=20003 PASS free/reflection/periodic/outflow/tail/contact
+TRANSPORT B2=256 grid=72 N=20003 PASS free/reflection/periodic/outflow/tail/contact
+INDEPENDENT_TRACKING_GRID PASS
+INDEPENDENT_PARTICLE_GRID PASS
+Tracking geometry: B2=32 blocksPerSM=20 grid=480
+Launch geometry: B1cell=64 B1face=64 (ToolB1 pending) B2=32 B3=32 SM=24 hardwareMaxThreadsPerBlock=1024 hardwareMaxBlocksPerSM=24 particleBlocksPerSM=20 lightBlocksPerSM=24 heavyBlocksPerSM=0
+Tracking geometry: B2=32 blocksPerSM=20 grid=480
+Launch geometry: B1cell=64 B1face=64 (ToolB1 pending) B2=32 B3=32 SM=24 hardwareMaxThreadsPerBlock=1024 hardwareMaxBlocksPerSM=24 particleBlocksPerSM=20 lightBlocksPerSM=24 heavyBlocksPerSM=24
+Tracking geometry: B2=64 blocksPerSM=10 grid=240
+Launch geometry: B1cell=64 B1face=64 (ToolB1 pending) B2=64 B3=64 SM=24 hardwareMaxThreadsPerBlock=1024 hardwareMaxBlocksPerSM=24 particleBlocksPerSM=10 lightBlocksPerSM=19 heavyBlocksPerSM=0
+Tracking geometry: B2=64 blocksPerSM=10 grid=240
+Launch geometry: B1cell=64 B1face=64 (ToolB1 pending) B2=64 B3=64 SM=24 hardwareMaxThreadsPerBlock=1024 hardwareMaxBlocksPerSM=24 particleBlocksPerSM=10 lightBlocksPerSM=12 heavyBlocksPerSM=12
+Tracking geometry: B2=128 blocksPerSM=5 grid=120
+Launch geometry: B1cell=64 B1face=64 (ToolB1 pending) B2=128 B3=128 SM=24 hardwareMaxThreadsPerBlock=1024 hardwareMaxBlocksPerSM=24 particleBlocksPerSM=5 lightBlocksPerSM=10 heavyBlocksPerSM=0
+Tracking geometry: B2=128 blocksPerSM=5 grid=120
+Launch geometry: B1cell=64 B1face=64 (ToolB1 pending) B2=128 B3=128 SM=24 hardwareMaxThreadsPerBlock=1024 hardwareMaxBlocksPerSM=24 particleBlocksPerSM=5 lightBlocksPerSM=6 heavyBlocksPerSM=6
+Tracking geometry: B2=256 blocksPerSM=2 grid=48
+Launch geometry: B1cell=64 B1face=64 (ToolB1 pending) B2=256 B3=256 SM=24 hardwareMaxThreadsPerBlock=1024 hardwareMaxBlocksPerSM=24 particleBlocksPerSM=2 lightBlocksPerSM=5 heavyBlocksPerSM=0
+Tracking geometry: B2=256 blocksPerSM=2 grid=48
+Launch geometry: B1cell=64 B1face=64 (ToolB1 pending) B2=256 B3=256 SM=24 hardwareMaxThreadsPerBlock=1024 hardwareMaxBlocksPerSM=24 particleBlocksPerSM=2 lightBlocksPerSM=3 heavyBlocksPerSM=3

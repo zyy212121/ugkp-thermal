@@ -1,0 +1,18 @@
+HEAT block=32 enabled=0 face=0 deltaParticle=0 wallGain=0 residual=0 relative=0
+HEAT block=32 enabled=0 face=1 deltaParticle=0 wallGain=0 residual=0 relative=0
+HEAT block=32 enabled=1 face=0 deltaParticle=-0.019669762084837172 wallGain=0.019669762084836867 residual=-3.0531133177191805e-16 relative=7.760930977586041e-15
+HEAT block=32 enabled=1 face=1 deltaParticle=0.005451977131958996 wallGain=-0.0054519771319590403 residual=-4.4235448637408581e-17 relative=4.0568263188508442e-15
+HEAT block=64 enabled=0 face=0 deltaParticle=0 wallGain=0 residual=0 relative=0
+HEAT block=64 enabled=0 face=1 deltaParticle=0 wallGain=0 residual=0 relative=0
+HEAT block=64 enabled=1 face=0 deltaParticle=-0.019669762084837172 wallGain=0.019669762084836867 residual=-3.0531133177191805e-16 relative=7.760930977586041e-15
+HEAT block=64 enabled=1 face=1 deltaParticle=0.005451977131958996 wallGain=-0.0054519771319590403 residual=-4.4235448637408581e-17 relative=4.0568263188508442e-15
+HEAT block=128 enabled=0 face=0 deltaParticle=0 wallGain=0 residual=0 relative=0
+HEAT block=128 enabled=0 face=1 deltaParticle=0 wallGain=0 residual=0 relative=0
+HEAT block=128 enabled=1 face=0 deltaParticle=-0.019669762084837172 wallGain=0.01966976208483686 residual=-3.1225022567582528e-16 relative=7.9373157725311795e-15
+HEAT block=128 enabled=1 face=1 deltaParticle=0.005451977131958996 wallGain=-0.0054519771319590394 residual=-4.3368086899420177e-17 relative=3.9772807047557305e-15
+HEAT block=256 enabled=0 face=0 deltaParticle=0 wallGain=0 residual=0 relative=0
+HEAT block=256 enabled=0 face=1 deltaParticle=0 wallGain=0 residual=0 relative=0
+HEAT block=256 enabled=1 face=0 deltaParticle=-0.019669762084837172 wallGain=0.019669762084836867 residual=-3.0531133177191805e-16 relative=7.760930977586041e-15
+HEAT block=256 enabled=1 face=1 deltaParticle=0.005451977131958996 wallGain=-0.0054519771319590403 residual=-4.4235448637408581e-17 relative=4.0568263188508442e-15
+PASS finite-contact per-face particle enthalpy + wall ledger conservation
+

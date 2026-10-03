@@ -1,0 +1,7 @@
+CHT 32 PASS geometry membership and crossing plane
+PASS injection-directory atomic and warp count/scatter exact coverage
+PASS packing mobile/constraint mass and averaged momentum
+PASS injection mass residual, momentum/state and capacity saturation
+PASS diagnostic detects position, metadata and mass faults
+PASS atomic/packed radiation mobile membership and all-alive material enthalpy
+ 

@@ -1,0 +1,12 @@
+/home/lss/ugkp-operator-unification-20261004/conservation/FSH64-payload_commit/payload_commit.cu:52:9: warning: #pragma once in main file
+   52 | #pragma once
+      |         ^~~~
+/home/lss/ugkp-operator-unification-20261004/conservation/FSH64-payload_commit/payload_commit.cu:142:9: warning: #pragma once in main file
+  142 | #pragma once
+      |         ^~~~
+/home/lss/ugkp-operator-unification-20261004/conservation/FSH64-payload_commit/payload_commit.cu:52:9: warning: #pragma once in main file
+   52 | #pragma once
+      |         ^~~~
+/home/lss/ugkp-operator-unification-20261004/conservation/FSH64-payload_commit/payload_commit.cu:142:9: warning: #pragma once in main file
+  142 | #pragma once
+      |         ^~~~

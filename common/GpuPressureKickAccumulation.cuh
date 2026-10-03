@@ -1,4 +1,5 @@
 #pragma once
+#include "GpuPressureUnsortedAlgebra.cuh"
 // Shared cell face accumulation and positivity limiter; scratch is a field adapter.
 template<class Scratch>
 __device__ __forceinline__ void runPressureKickAccumulation
@@ -13,32 +14,8 @@ __device__ __forceinline__ void runPressureKickAccumulation
 
     if (initialiseMoments != 0) Scratch::initialise(s,c);
 
-    PressureReal dpx = PressureReal(0.0);
-    PressureReal dpy = PressureReal(0.0);
-    PressureReal dpz = PressureReal(0.0);
-    PressureReal de = PressureReal(0.0);
-    const int start = s.cellPlaneStart[c];
-    const int count = s.cellPlaneCount[c];
-    for (int j = 0; j < count; ++j)
-    {
-        const int plane = start + j;
-        const int f = s.cellFaceId[plane];
-        if (f < 0 || f >= s.nFaces)
-        {
-            continue;
-        }
-        const PressureReal sign = s.faceOwner[f] == c ? PressureReal(1.0) : -PressureReal(1.0);
-        dpx -= sign*s.solidPressurePhiMomX[f];
-        dpy -= sign*s.solidPressurePhiMomY[f];
-        dpz -= sign*s.solidPressurePhiMomZ[f];
-        de -= sign*s.solidPressurePhiEnergy[f];
-    }
-
-    const PressureReal factor = kickDt/clampMin(s.V[c], OfVSmall);
-    const PressureReal deltaPx = finiteOr(factor*dpx, PressureReal(0.0));
-    const PressureReal deltaPy = finiteOr(factor*dpy, PressureReal(0.0));
-    const PressureReal deltaPz = finiteOr(factor*dpz, PressureReal(0.0));
-    const PressureReal deltaE = finiteOr(factor*de, PressureReal(0.0));
+    PressureReal deltaPx, deltaPy, deltaPz, deltaE;
+    accumulatePressureFaceDelta(s,c,kickDt,deltaPx,deltaPy,deltaPz,deltaE);
     s.pressureDeltaMomX[c] = deltaPx;
     s.pressureDeltaMomY[c] = deltaPy;
     s.pressureDeltaMomZ[c] = deltaPz;

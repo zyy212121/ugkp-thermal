@@ -1,0 +1,1 @@
+PASS native moment paths: 40 cases, real-bits=64, thermal=0; S1/L2-single/L2-finalize, seven physical moments, counts, survivor filters, non-unit/clamped V, empty/rejected cells, sentinel ownership, array guards

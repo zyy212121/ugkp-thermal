@@ -1,0 +1,22 @@
+{
+  "app": "gasUGKP",
+  "bits": 64,
+  "command": [
+    "/usr/local/cuda/bin/nvcc",
+    "-std=c++17",
+    "-O3",
+    "-arch=sm_89",
+    "--fmad=true",
+    "-DUGKWP_GPU_REAL_BITS=64",
+    "-I/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/applications/gasUGKP/private_backend",
+    "-I/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/common",
+    "-I/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/applications/gasUGKP/gpu",
+    "/home/lss/ugkp-operator-unification-20261004/conservation/gasUGKP64-tracking_grid/tracking.cu",
+    "-o",
+    "/home/lss/ugkp-operator-unification-20261004/conservation/gasUGKP64-tracking_grid/tracking"
+  ],
+  "fixture_sha256": "cf94c2226fe227cb9c7f69b8a9493afbc81d69353d755fff0584f0b2ec9b8c74",
+  "build_exit": 0,
+  "binary_sha256": "a26200d07905565f5c8eb0809a9acd25ac9c2564280cfc6231b972b1067cad2a",
+  "run_exit": 0
+}

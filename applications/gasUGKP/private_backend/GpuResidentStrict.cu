@@ -1741,95 +1741,7 @@ struct GasPrimDevice
 
 #include "operators/makeGasPrimDevice.cuh"
 
-__device__ GasPrimDevice riemannFacePrimitiveForGradient
-(
-    const DeviceState& s,
-    const int c,
-    const int f
-)
-{
-    GasPrimDevice centre = makeGasPrimDevice
-    (
-        s.rho[c], s.Ux[c], s.Uy[c], s.Uz[c], s.p[c],
-        s.Rgas, s.rhoMin, s.TgasMin
-    );
-    centre.T = clampMin(finiteOr(s.Tgas[c], centre.T), s.TgasMin);
-    if (f < s.nInternalFaces || isPeriodicFace(s, f))
-    {
-        const int own = s.faceOwner[f];
-        const int nei = s.faceNeighbour[f];
-        const int other = c == own ? nei : own;
-        if (other < 0 || other >= s.nCells)
-        {
-            return centre;
-        }
-        GasPrimDevice adjacent = makeGasPrimDevice
-        (
-            s.rho[other], s.Ux[other], s.Uy[other], s.Uz[other], s.p[other],
-            s.Rgas, s.rhoMin, s.TgasMin
-        );
-        adjacent.T = clampMin
-        (
-            finiteOr(s.Tgas[other], adjacent.T),
-            s.TgasMin
-        );
-        const double ownerWeight = clampRange(s.faceWeight[f], 0.0, 1.0);
-        const double wc = c == own ? ownerWeight : 1.0 - ownerWeight;
-        GasPrimDevice face = makeGasPrimDevice
-        (
-            wc*centre.rho + (1.0 - wc)*adjacent.rho,
-            wc*centre.ux + (1.0 - wc)*adjacent.ux,
-            wc*centre.uy + (1.0 - wc)*adjacent.uy,
-            wc*centre.uz + (1.0 - wc)*adjacent.uz,
-            wc*centre.p + (1.0 - wc)*adjacent.p,
-            s.Rgas, s.rhoMin, s.TgasMin
-        );
-        face.T = wc*centre.T + (1.0 - wc)*adjacent.T;
-        return face;
-    }
-
-    const int kind = s.riemannBoundaryKind[f];
-    if (kind == 4 || kind == 3)
-    {
-        return centre;
-    }
-    if (kind == 1)
-    {
-        const double area = clampMin(s.magSf[f], OfSmall);
-        const double nx = s.Sfx[f]/area;
-        const double ny = s.Sfy[f]/area;
-        const double nz = s.Sfz[f]/area;
-        const double un = centre.ux*nx + centre.uy*ny + centre.uz*nz;
-        GasPrimDevice face = centre;
-        face.ux -= un*nx;
-        face.uy -= un*ny;
-        face.uz -= un*nz;
-        return face;
-    }
-
-    if (kind == 2)
-    {
-        GasPrimDevice wall = centre;
-        wall.ux = s.riemannBoundaryUFix[f] != 0
-          ? finiteOr(s.riemannBoundaryUx[f], 0.0) : 0.0;
-        wall.uy = s.riemannBoundaryUFix[f] != 0
-          ? finiteOr(s.riemannBoundaryUy[f], 0.0) : 0.0;
-        wall.uz = s.riemannBoundaryUFix[f] != 0
-          ? finiteOr(s.riemannBoundaryUz[f], 0.0) : 0.0;
-        if (s.riemannBoundaryTFix[f] != 0)
-        {
-            wall.T = clampMin
-            (
-                finiteOr(s.riemannBoundaryT[f], centre.T),
-                s.TgasMin
-            );
-            wall.rho = wall.p/clampMin(s.Rgas*wall.T, OfSmall);
-        }
-        return wall;
-    }
-
-    return riemannBoundaryState(s, f, centre);
-}
+#include "operators/riemannFacePrimitiveForGradient.cuh"
 
 #include "operators/computeGasPrimitiveGradientsKernel.cuh"
 
@@ -2047,30 +1959,8 @@ __device__ PressureProjectionCell preparePressureProjectionCell
     PressureProjectionCell projection{};
     double scaledDelta[4];
 
-        double dpx = 0.0;
-        double dpy = 0.0;
-        double dpz = 0.0;
-        double de = 0.0;
-        const int startFace = s.cellPlaneStart[c];
-        const int faceCount = s.cellPlaneCount[c];
-        for (int j = 0; j < faceCount; ++j)
-        {
-            const int f = s.cellFaceId[startFace + j];
-            if (f < 0 || f >= s.nFaces)
-            {
-                continue;
-            }
-            const double sign = s.faceOwner[f] == c ? 1.0 : -1.0;
-            dpx -= sign*s.solidPressurePhiMomX[f];
-            dpy -= sign*s.solidPressurePhiMomY[f];
-            dpz -= sign*s.solidPressurePhiMomZ[f];
-            de -= sign*s.solidPressurePhiEnergy[f];
-        }
-        const double factor = kickDt/clampMin(s.V[c], OfVSmall);
-        scaledDelta[0] = finiteOr(factor*dpx, 0.0);
-        scaledDelta[1] = finiteOr(factor*dpy, 0.0);
-        scaledDelta[2] = finiteOr(factor*dpz, 0.0);
-        scaledDelta[3] = finiteOr(factor*de, 0.0);
+    accumulatePressureFaceDelta(s,c,kickDt,
+        scaledDelta[0],scaledDelta[1],scaledDelta[2],scaledDelta[3]);
         s.pressureDeltaMomX[c] = scaledDelta[0];
         s.pressureDeltaMomY[c] = scaledDelta[1];
         s.pressureDeltaMomZ[c] = scaledDelta[2];
@@ -2111,19 +2001,7 @@ __device__ PressureProjectionCell preparePressureProjectionCell
     projection =
         {ux0, uy0, uz0, ux1, uy1, uz1, theta1, thermalScale, thetaScale, true, resolved};
 
-        s.momRhoUPx[c] = px1;
-        s.momRhoUPy[c] = py1;
-        s.momRhoUPz[c] = pz1;
-        s.momRhoEP[c] = e1;
-        s.rhoUsx[c] = px1;
-        s.rhoUsy[c] = py1;
-        s.rhoUsz[c] = pz1;
-        s.rhoEs[c] = e1;
-        s.Usx[c] = ux1;
-        s.Usy[c] = uy1;
-        s.Usz[c] = uz1;
-        s.theta[c] = theta1;
-
+    publishPressureCellState(s,c,rhoP,px1,py1,pz1,e1,theta1);
 
     // The atomic path historically publishes the cell update, then reads it
     // back and reconstructs the old state. Preserve its rounding and clamps:
@@ -2134,24 +2012,17 @@ __device__ PressureProjectionCell preparePressureProjectionCell
         const double ay1 = finiteOr(py1, 0.0);
         const double az1 = finiteOr(pz1, 0.0);
         const double ae1 = clampMin(finiteOr(e1, 0.0), 0.0);
-        const double ax0 = ax1 - scaledDelta[0];
-        const double ay0 = ay1 - scaledDelta[1];
-        const double az0 = az1 - scaledDelta[2];
-        const double ae0 = ae1 - scaledDelta[3];
-        const double at0 = clampMin
+        const UnsortedPressureKinematics recovered = recoverUnsortedPressureKinematics
         (
-            pressureKickInternalEnergy(rhoP, ax0, ay0, az0, ae0)/(1.5*rhoP), 0.0
+            rhoP,ax1,ay1,az1,ae1,scaledDelta[0],scaledDelta[1],
+            scaledDelta[2],scaledDelta[3],s.thetaMin
         );
-        const double at1 = clampMin
-        (
-            pressureKickInternalEnergy(rhoP, ax1, ay1, az1, ae1)/(1.5*rhoP), 0.0
-        );
-        const bool ar = at0 > 10.0*s.thetaMin;
-        const double scale = ar ? sqrt(clampMin(at1/at0, 0.0)) : 0.0;
         projection =
         {
-            ax0/rhoP, ay0/rhoP, az0/rhoP, ax1/rhoP, ay1/rhoP, az1/rhoP,
-            at1, scale, ar ? scale*scale : 0.0, true, ar
+            recovered.ux0,recovered.uy0,recovered.uz0,
+            recovered.ux1,recovered.uy1,recovered.uz1,
+            recovered.theta1,recovered.thermalScale,recovered.thetaScale,
+            true,recovered.resolved
         };
     }
     return projection;

@@ -1,0 +1,22 @@
+{
+  "app": "FSH",
+  "bits": 64,
+  "command": [
+    "/usr/local/cuda/bin/nvcc",
+    "-std=c++17",
+    "-O3",
+    "-arch=sm_89",
+    "--fmad=true",
+    "-DUGKWP_GPU_REAL_BITS=64",
+    "-I/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/applications/FSH/private_backend",
+    "-I/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/common",
+    "-I/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/applications/FSH/gpu",
+    "/home/lss/ugkp-operator-unification-20261004/conservation/FSH64-tracking_grid/tracking.cu",
+    "-o",
+    "/home/lss/ugkp-operator-unification-20261004/conservation/FSH64-tracking_grid/tracking"
+  ],
+  "fixture_sha256": "cf94c2226fe227cb9c7f69b8a9493afbc81d69353d755fff0584f0b2ec9b8c74",
+  "build_exit": 0,
+  "binary_sha256": "20f76d12fa6dd1a60210f770f72ec1261be1f4ccf0b689f2ecf6352507168d1f",
+  "run_exit": 0
+}

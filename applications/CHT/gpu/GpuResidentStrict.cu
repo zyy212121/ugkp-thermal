@@ -2135,22 +2135,7 @@ __device__ GpuReal gasWallExposedAreaFraction
 
 #include "operators/computePressureGradientKernel.cuh"
 
-__device__ GpuReal solidEpsFromMomentDevice(const DeviceState& s, const int c)
-{
-    if (c < 0 || c >= s.nCells)
-    {
-        return GPU_R(0.0);
-    }
-
-    const GpuReal rhoP = clampMin(finiteOr(s.momRhoP[c], GPU_R(0.0)), GPU_R(0.0));
-
-    return clampRange
-    (
-        rhoP/clampMin(s.rhoSolid, GPU_TINY(1.0e-300)),
-        GPU_R(0.0),
-        GPU_R(1.0)
-    );
-}
+#include "operators/solidEpsFromMomentDevice.cuh"
 
 __host__ __device__ inline bool gasDragModelActive(const int modelId)
 {
@@ -2181,52 +2166,7 @@ __device__ GpuReal uniform01Device(unsigned long long& state)
 
 #include "operators/normalDevice.cuh"
 
-__device__ GpuReal solidPressureFromMomentsDevice
-(
-    const DeviceState& s,
-    const int c
-)
-{
-    if (c < 0 || c >= s.nCells)
-    {
-        return GPU_R(0.0);
-    }
-
-    const GpuReal rhoP = clampMin(finiteOr(s.momRhoP[c], GPU_R(0.0)), GPU_R(0.0));
-    if (rhoP <= s.epsSMin*s.rhoSolid)
-    {
-        return GPU_R(0.0);
-    }
-
-    const GpuReal eps =
-        clampRange(rhoP/clampMin(s.rhoSolid, GPU_TINY(1.0e-300)), GPU_R(0.0), GPU_R(1.0));
-    const GpuReal ux = finiteOr(s.momRhoUPx[c], GPU_R(0.0))/rhoP;
-    const GpuReal uy = finiteOr(s.momRhoUPy[c], GPU_R(0.0))/rhoP;
-    const GpuReal uz = finiteOr(s.momRhoUPz[c], GPU_R(0.0))/rhoP;
-    const GpuReal kinetic = GPU_R(0.5)*rhoP*sqr3(ux, uy, uz);
-    const GpuReal theta =
-        clampMin
-        (
-            (finiteOr(s.momRhoEP[c], kinetic) - kinetic)/(GPU_R(1.5)*rhoP),
-            GPU_R(0.0)
-        );
-    GpuReal pColl = GPU_R(0.0);
-    if (s.collisionalPressureEnabled)
-    {
-        const GpuReal g0 = radialDistributionG0Device(eps);
-        pColl = ugkwp::collisionalPressure
-        (
-            s.collisionalRestitution,
-            s.rhoSolid,
-            eps,
-            g0,
-            theta
-        );
-        pColl = clampRange(finiteOr(pColl, GPU_R(0.0)), GPU_R(0.0), OfGreat);
-    }
-
-    return clampRange(finiteOr(pColl, OfGreat), GPU_R(0.0), OfGreat);
-}
+#include "operators/solidPressureFromMomentsDevice.cuh"
 
 #include "operators/computeCollisionalPressureKernel.cuh"
 
@@ -2407,55 +2347,7 @@ using GasHostPolicy = GasHostWithWallEnergy
 
 #include "../../../common/GpuMobilePackingHost.cuh"
 
-__device__ GpuReal granularCollisionTauFromCellDevice(const DeviceState& s, const int c)
-{
-    if (c < 0 || c >= s.nCells)
-    {
-        return OfGreat;
-    }
-
-    const GpuReal rhoP = clampMin(finiteOr(s.momRhoP[c], GPU_R(0.0)), GPU_R(0.0));
-    if (rhoP <= s.epsSMin*s.rhoSolid)
-    {
-        return OfGreat;
-    }
-
-    const GpuReal eps =
-        clampRange(rhoP/clampMin(s.rhoSolid, GPU_TINY(1.0e-300)), GPU_R(0.0), GPU_R(1.0));
-
-    const GpuReal usx = finiteOr(s.momRhoUPx[c], GPU_R(0.0))/rhoP;
-    const GpuReal usy = finiteOr(s.momRhoUPy[c], GPU_R(0.0))/rhoP;
-    const GpuReal usz = finiteOr(s.momRhoUPz[c], GPU_R(0.0))/rhoP;
-
-    const GpuReal e =
-        clampMin(finiteOr(s.momRhoEP[c], GPU_R(0.0)), GPU_R(0.0))/rhoP;
-
-    const GpuReal theta =
-        clampMin((e - GPU_R(0.5)*sqr3(usx, usy, usz))/GPU_R(1.5), GPU_R(0.0));
-
-    const GpuReal dPart =
-        clampMin
-        (
-            finiteOr(s.momRhoPD[c]/rhoP, s.particleDiameterFallback),
-            GPU_R(1.0e-12)
-        );
-
-    const GpuReal g0 = radialDistributionG0Device(eps);
-    const GpuReal lmfp = ugkwp::granularMeanFreePath
-    (
-        OfPi,
-        dPart,
-        eps,
-        g0,
-        OfSmall
-    );
-
-    return clampMin
-    (
-        ugkwp::granularCollisionTime(lmfp, theta, OfSmall),
-        OfSmall
-    );
-}
+#include "operators/granularCollisionTauFromCellDevice.cuh"
 
 __device__ void clearColdWallParticleState(DeviceState&, int);
 __device__ void initialiseColdWallParticleState(DeviceState&, int, GpuReal);
@@ -2469,43 +2361,7 @@ __device__ void initialiseColdWall2DParticleState(DeviceState&, int, GpuReal);
 #define GPU_GEOMETRY_ROUNDING_AWARE (UGKWP_GPU_REAL_BITS == 32)
 #include "operators/pointInsideCell.cuh"
 
-__device__ void atomicAddParticleWallEnergyByFace
-(
-    DeviceState& s,
-    GpuWallEnergy* const wallEnergyLedger,
-    const int globalFaceId,
-    const GpuReal wallEnergyJ
-)
-{
-    if (wallEnergyJ == GPU_R(0.0))
-    {
-        return;
-    }
-#if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 700
-    const unsigned int active = __activemask();
-    const int ledgerChannel =
-        wallEnergyLedger == s.particleWallDepositedEnergy ? 0 : 1;
-    const int faceChannelKey = 2*globalFaceId + ledgerChannel;
-    const unsigned int group =
-        __match_any_sync(active, faceChannelKey);
-    const int leader = __ffs(static_cast<int>(group)) - 1;
-    const int lane = static_cast<int>(threadIdx.x) & 31;
-    GpuWallEnergy groupEnergy = 0.0;
-    unsigned int remaining = group;
-    while (remaining != 0u)
-    {
-        const int sourceLane = __ffs(static_cast<int>(remaining)) - 1;
-        groupEnergy += static_cast<GpuWallEnergy>(__shfl_sync(group, wallEnergyJ, sourceLane));
-        remaining &= remaining - 1u;
-    }
-    if (lane == leader)
-    {
-        atomicAdd(&wallEnergyLedger[globalFaceId], groupEnergy);
-    }
-#else
-    atomicAdd(&wallEnergyLedger[globalFaceId], static_cast<GpuWallEnergy>(wallEnergyJ));
-#endif
-}
+#include "operators/atomicAddParticleWallEnergyByFace.cuh"
 
 #include "operators/clearColdWallParticleState.cuh"
 

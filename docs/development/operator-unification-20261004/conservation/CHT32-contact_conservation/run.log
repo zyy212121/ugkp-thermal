@@ -1,0 +1,17 @@
+HEAT block=32 enabled=0 face=0 deltaParticle=0 wallGain=0 residual=0 relative=0
+HEAT block=32 enabled=0 face=1 deltaParticle=0 wallGain=0 residual=0 relative=0
+HEAT block=32 enabled=1 face=0 deltaParticle=-0.019669793063265439 wallGain=0.019669793182401918 residual=1.1913647846029107e-10 relative=3.0284120863983947e-09
+HEAT block=32 enabled=1 face=1 deltaParticle=0.0054519949450598792 wallGain=-0.0054519949762834585 residual=-3.1223579277650515e-11 relative=2.8635003794834641e-09
+HEAT block=64 enabled=0 face=0 deltaParticle=0 wallGain=0 residual=0 relative=0
+HEAT block=64 enabled=0 face=1 deltaParticle=0 wallGain=0 residual=0 relative=0
+HEAT block=64 enabled=1 face=0 deltaParticle=-0.019669793063265439 wallGain=0.019669793182401918 residual=1.1913647846029107e-10 relative=3.0284120863983947e-09
+HEAT block=64 enabled=1 face=1 deltaParticle=0.0054519949450598792 wallGain=-0.0054519949762834585 residual=-3.1223579277650515e-11 relative=2.8635003794834641e-09
+HEAT block=128 enabled=0 face=0 deltaParticle=0 wallGain=0 residual=0 relative=0
+HEAT block=128 enabled=0 face=1 deltaParticle=0 wallGain=0 residual=0 relative=0
+HEAT block=128 enabled=1 face=0 deltaParticle=-0.019669793063265439 wallGain=0.019669793182401918 residual=1.1913647846029107e-10 relative=3.0284120863983947e-09
+HEAT block=128 enabled=1 face=1 deltaParticle=0.0054519949450598792 wallGain=-0.0054519949762834585 residual=-3.1223579277650515e-11 relative=2.8635003794834641e-09
+HEAT block=256 enabled=0 face=0 deltaParticle=0 wallGain=0 residual=0 relative=0
+HEAT block=256 enabled=0 face=1 deltaParticle=0 wallGain=0 residual=0 relative=0
+HEAT block=256 enabled=1 face=0 deltaParticle=-0.019669793063265439 wallGain=0.019669793182401918 residual=1.1913647846029107e-10 relative=3.0284120863983947e-09
+HEAT block=256 enabled=1 face=1 deltaParticle=0.0054519949450598792 wallGain=-0.0054519949762834585 residual=-3.1223579277650515e-11 relative=2.8635003794834641e-09
+PASS finite-contact per-face particle enthalpy + wall ledger conservation

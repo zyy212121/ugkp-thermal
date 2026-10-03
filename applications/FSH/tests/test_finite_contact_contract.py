@@ -149,7 +149,7 @@ class UGKPFiniteContactContract(unittest.TestCase):
         self.assertIn("particleWallMaximumCoverage*s.magSf[faceI]", text)
 
     def test_wall_energy_warp_group_collective_is_executed_by_all_group_lanes(self) -> None:
-        text = (ROOT / "private_backend/GpuResidentStrict.cu").read_text()
+        text = (ROOT.parents[1] / "common/operators/atomicAddParticleWallEnergyByFace.cuh").read_text()
         helper = self._function_body(
             text, "__device__ void atomicAddParticleWallEnergyByFace"
         )

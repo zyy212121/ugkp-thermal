@@ -2,6 +2,7 @@
 """CPU regressions for mirror protection, field closure and fixture reuse."""
 from pathlib import Path
 import argparse
+import os
 import shutil
 import subprocess
 import sys
@@ -9,7 +10,7 @@ import tempfile
 import unittest
 
 ROOT = Path(sys.argv.pop(1)).resolve()
-PAIR = ROOT.parent
+PAIR = Path(os.environ.get("UGKP_MANAGED_MIRROR_ROOT", ROOT.parent)).resolve()
 
 
 def run(script, *args):
@@ -18,6 +19,8 @@ def run(script, *args):
 
 class Contracts(unittest.TestCase):
     def test_managed_mirror_check_sync_and_unlisted_protection(self):
+        if not all((PAIR / name).is_dir() for name in ('gpu-riemann-gkp-main', 'ugkp-thermal')):
+            self.skipTest('Standalone checkout: peer sync integration unavailable')
         tool = ROOT / 'tools/managed_mirrors.py'
         baseline = run(tool, '--pair-root', PAIR)
         self.assertEqual(baseline.returncode, 0, baseline.stdout + baseline.stderr)

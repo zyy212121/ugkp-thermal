@@ -1,0 +1,56 @@
+[
+  {
+    "app": "gasUGKP64",
+    "changed_resources": []
+  },
+  {
+    "app": "FSH64",
+    "changed_resources": [
+      [
+        "_Z55applyCollisionalPressureProjectionParticlesAtomicKernelILb0EEvPNANONYMOUS_SOURCE_11DeviceStateE",
+        "REG:68 STACK:0 SHARED:0 LOCAL:0 CONSTANT[2]:8 CONSTANT[0]:360 TEXTURE:0 SURFACE:0 SAMPLER:0",
+        "REG:58 STACK:0 SHARED:0 LOCAL:0 CONSTANT[2]:8 CONSTANT[0]:360 TEXTURE:0 SURFACE:0 SAMPLER:0"
+      ],
+      [
+        "_Z55applyCollisionalPressureProjectionParticlesAtomicKernelILb1EEvPNANONYMOUS_SOURCE_11DeviceStateE",
+        "REG:68 STACK:0 SHARED:0 LOCAL:0 CONSTANT[2]:64 CONSTANT[0]:360 TEXTURE:0 SURFACE:0 SAMPLER:0",
+        "REG:58 STACK:0 SHARED:0 LOCAL:0 CONSTANT[2]:64 CONSTANT[0]:360 TEXTURE:0 SURFACE:0 SAMPLER:0"
+      ]
+    ]
+  },
+  {
+    "app": "CHT64",
+    "changed_resources": [
+      [
+        "_Z55applyCollisionalPressureProjectionParticlesAtomicKernelILb0EEvPNANONYMOUS_SOURCE_11DeviceStateE",
+        "REG:68 STACK:0 SHARED:0 LOCAL:0 CONSTANT[2]:8 CONSTANT[0]:360 TEXTURE:0 SURFACE:0 SAMPLER:0",
+        "REG:58 STACK:0 SHARED:0 LOCAL:0 CONSTANT[2]:8 CONSTANT[0]:360 TEXTURE:0 SURFACE:0 SAMPLER:0"
+      ],
+      [
+        "_Z55applyCollisionalPressureProjectionParticlesAtomicKernelILb1EEvPNANONYMOUS_SOURCE_11DeviceStateE",
+        "REG:68 STACK:0 SHARED:0 LOCAL:0 CONSTANT[2]:72 CONSTANT[0]:360 TEXTURE:0 SURFACE:0 SAMPLER:0",
+        "REG:58 STACK:0 SHARED:0 LOCAL:0 CONSTANT[2]:72 CONSTANT[0]:360 TEXTURE:0 SURFACE:0 SAMPLER:0"
+      ]
+    ]
+  },
+  {
+    "app": "CHT32",
+    "changed_resources": [
+      [
+        "_ZN13ugkwpCudaFpANONYMOUS_SOURCE_31computeGasDiffusionNumberKernelEPNS0_11DeviceStateEdf",
+        "REG:61 STACK:96 SHARED:0 LOCAL:0 CONSTANT[2]:24 CONSTANT[0]:372 TEXTURE:0 SURFACE:0 SAMPLER:0",
+        "REG:59 STACK:96 SHARED:0 LOCAL:0 CONSTANT[2]:24 CONSTANT[0]:372 TEXTURE:0 SURFACE:0 SAMPLER:0"
+      ],
+      [
+        "_ZN13ugkwpCudaFp3255applyCollisionalPressureProjectionParticlesAtomicKernelILb0EEEvPNS_ANONYMOUS_SOURCE_11DeviceStateE",
+        "REG:45 STACK:0 SHARED:0 LOCAL:0 CONSTANT[2]:8 CONSTANT[0]:360 TEXTURE:0 SURFACE:0 SAMPLER:0",
+        "REG:40 STACK:0 SHARED:0 LOCAL:0 CONSTANT[2]:8 CONSTANT[0]:360 TEXTURE:0 SURFACE:0 SAMPLER:0"
+      ],
+      [
+        "_ZN13ugkwpCudaFp3255applyCollisionalPressureProjectionParticlesAtomicKernelILb1EEEvPNS_ANONYMOUS_SOURCE_11DeviceStateE",
+        "REG:48 STACK:0 SHARED:0 LOCAL:0 CONSTANT[2]:8 CONSTANT[0]:360 TEXTURE:0 SURFACE:0 SAMPLER:0",
+        "REG:40 STACK:0 SHARED:0 LOCAL:0 CONSTANT[2]:8 CONSTANT[0]:360 TEXTURE:0 SURFACE:0 SAMPLER:0"
+      ]
+    ]
+  }
+]

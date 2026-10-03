@@ -1,0 +1,268 @@
+[
+  {
+    "test": "source_balance",
+    "app": "gasUGKP",
+    "bits": 64,
+    "exit": 0,
+    "log": "/home/lss/ugkp-operator-unification-20261004/conservation/gasUGKP64-source_balance.log"
+  },
+  {
+    "test": "collision_split_behavior",
+    "app": "gasUGKP",
+    "bits": 64,
+    "exit": 0,
+    "log": "/home/lss/ugkp-operator-unification-20261004/conservation/gasUGKP64-collision_split_behavior.log"
+  },
+  {
+    "test": "operator_contract",
+    "app": "gasUGKP",
+    "bits": 64,
+    "exit": 0,
+    "log": "/home/lss/ugkp-operator-unification-20261004/conservation/gasUGKP64-operator_contract.log"
+  },
+  {
+    "test": "extended_operators",
+    "app": "gasUGKP",
+    "bits": 64,
+    "exit": 0,
+    "log": "/home/lss/ugkp-operator-unification-20261004/conservation/gasUGKP64-extended_operators.log"
+  },
+  {
+    "test": "moment_publication",
+    "app": "gasUGKP",
+    "bits": 64,
+    "exit": 0,
+    "log": "/home/lss/ugkp-operator-unification-20261004/conservation/gasUGKP64-moment_publication.log"
+  },
+  {
+    "test": "tracking_grid",
+    "app": "gasUGKP",
+    "bits": 64,
+    "exit": 0,
+    "log": "/home/lss/ugkp-operator-unification-20261004/conservation/gasUGKP64-tracking_grid.log"
+  },
+  {
+    "test": "pressure_split",
+    "app": "gasUGKP",
+    "bits": 64,
+    "exit": 0,
+    "log": "/home/lss/ugkp-operator-unification-20261004/conservation/gasUGKP64-pressure_split.log"
+  },
+  {
+    "test": "pressure_unsorted",
+    "app": "gasUGKP",
+    "bits": 64,
+    "exit": 0,
+    "log": "/home/lss/ugkp-operator-unification-20261004/conservation/gasUGKP64-pressure_unsorted.log"
+  },
+  {
+    "test": "source_balance",
+    "app": "FSH",
+    "bits": 64,
+    "exit": 0,
+    "log": "/home/lss/ugkp-operator-unification-20261004/conservation/FSH64-source_balance.log"
+  },
+  {
+    "test": "collision_split_behavior",
+    "app": "FSH",
+    "bits": 64,
+    "exit": 0,
+    "log": "/home/lss/ugkp-operator-unification-20261004/conservation/FSH64-collision_split_behavior.log"
+  },
+  {
+    "test": "operator_contract",
+    "app": "FSH",
+    "bits": 64,
+    "exit": 0,
+    "log": "/home/lss/ugkp-operator-unification-20261004/conservation/FSH64-operator_contract.log"
+  },
+  {
+    "test": "extended_operators",
+    "app": "FSH",
+    "bits": 64,
+    "exit": 0,
+    "log": "/home/lss/ugkp-operator-unification-20261004/conservation/FSH64-extended_operators.log"
+  },
+  {
+    "test": "moment_publication",
+    "app": "FSH",
+    "bits": 64,
+    "exit": 0,
+    "log": "/home/lss/ugkp-operator-unification-20261004/conservation/FSH64-moment_publication.log"
+  },
+  {
+    "test": "tracking_grid",
+    "app": "FSH",
+    "bits": 64,
+    "exit": 0,
+    "log": "/home/lss/ugkp-operator-unification-20261004/conservation/FSH64-tracking_grid.log"
+  },
+  {
+    "test": "pressure_split",
+    "app": "FSH",
+    "bits": 64,
+    "exit": 0,
+    "log": "/home/lss/ugkp-operator-unification-20261004/conservation/FSH64-pressure_split.log"
+  },
+  {
+    "test": "payload_commit",
+    "app": "FSH",
+    "bits": 64,
+    "exit": 0,
+    "log": "/home/lss/ugkp-operator-unification-20261004/conservation/FSH64-payload_commit.log"
+  },
+  {
+    "test": "contact_conservation",
+    "app": "FSH",
+    "bits": 64,
+    "exit": 0,
+    "log": "/home/lss/ugkp-operator-unification-20261004/conservation/FSH64-contact_conservation.log"
+  },
+  {
+    "test": "contact_age_theta",
+    "app": "FSH",
+    "bits": 64,
+    "exit": 0,
+    "log": "/home/lss/ugkp-operator-unification-20261004/conservation/FSH64-contact_age_theta.log"
+  },
+  {
+    "test": "source_balance",
+    "app": "CHT",
+    "bits": 64,
+    "exit": 0,
+    "log": "/home/lss/ugkp-operator-unification-20261004/conservation/CHT64-source_balance.log"
+  },
+  {
+    "test": "collision_split_behavior",
+    "app": "CHT",
+    "bits": 64,
+    "exit": 0,
+    "log": "/home/lss/ugkp-operator-unification-20261004/conservation/CHT64-collision_split_behavior.log"
+  },
+  {
+    "test": "operator_contract",
+    "app": "CHT",
+    "bits": 64,
+    "exit": 0,
+    "log": "/home/lss/ugkp-operator-unification-20261004/conservation/CHT64-operator_contract.log"
+  },
+  {
+    "test": "extended_operators",
+    "app": "CHT",
+    "bits": 64,
+    "exit": 0,
+    "log": "/home/lss/ugkp-operator-unification-20261004/conservation/CHT64-extended_operators.log"
+  },
+  {
+    "test": "moment_publication",
+    "app": "CHT",
+    "bits": 64,
+    "exit": 0,
+    "log": "/home/lss/ugkp-operator-unification-20261004/conservation/CHT64-moment_publication.log"
+  },
+  {
+    "test": "tracking_grid",
+    "app": "CHT",
+    "bits": 64,
+    "exit": 0,
+    "log": "/home/lss/ugkp-operator-unification-20261004/conservation/CHT64-tracking_grid.log"
+  },
+  {
+    "test": "pressure_split",
+    "app": "CHT",
+    "bits": 64,
+    "exit": 0,
+    "log": "/home/lss/ugkp-operator-unification-20261004/conservation/CHT64-pressure_split.log"
+  },
+  {
+    "test": "payload_commit",
+    "app": "CHT",
+    "bits": 64,
+    "exit": 0,
+    "log": "/home/lss/ugkp-operator-unification-20261004/conservation/CHT64-payload_commit.log"
+  },
+  {
+    "test": "contact_conservation",
+    "app": "CHT",
+    "bits": 64,
+    "exit": 0,
+    "log": "/home/lss/ugkp-operator-unification-20261004/conservation/CHT64-contact_conservation.log"
+  },
+  {
+    "test": "contact_age_theta",
+    "app": "CHT",
+    "bits": 64,
+    "exit": 0,
+    "log": "/home/lss/ugkp-operator-unification-20261004/conservation/CHT64-contact_age_theta.log"
+  },
+  {
+    "test": "source_balance",
+    "app": "CHT",
+    "bits": 32,
+    "exit": 0,
+    "log": "/home/lss/ugkp-operator-unification-20261004/conservation/CHT32-source_balance.log"
+  },
+  {
+    "test": "collision_split_behavior",
+    "app": "CHT",
+    "bits": 32,
+    "exit": 0,
+    "log": "/home/lss/ugkp-operator-unification-20261004/conservation/CHT32-collision_split_behavior.log"
+  },
+  {
+    "test": "operator_contract",
+    "app": "CHT",
+    "bits": 32,
+    "exit": 0,
+    "log": "/home/lss/ugkp-operator-unification-20261004/conservation/CHT32-operator_contract.log"
+  },
+  {
+    "test": "extended_operators",
+    "app": "CHT",
+    "bits": 32,
+    "exit": 0,
+    "log": "/home/lss/ugkp-operator-unification-20261004/conservation/CHT32-extended_operators.log"
+  },
+  {
+    "test": "moment_publication",
+    "app": "CHT",
+    "bits": 32,
+    "exit": 0,
+    "log": "/home/lss/ugkp-operator-unification-20261004/conservation/CHT32-moment_publication.log"
+  },
+  {
+    "test": "tracking_grid",
+    "app": "CHT",
+    "bits": 32,
+    "exit": 0,
+    "log": "/home/lss/ugkp-operator-unification-20261004/conservation/CHT32-tracking_grid.log"
+  },
+  {
+    "test": "pressure_split",
+    "app": "CHT",
+    "bits": 32,
+    "exit": 0,
+    "log": "/home/lss/ugkp-operator-unification-20261004/conservation/CHT32-pressure_split.log"
+  },
+  {
+    "test": "payload_commit",
+    "app": "CHT",
+    "bits": 32,
+    "exit": 0,
+    "log": "/home/lss/ugkp-operator-unification-20261004/conservation/CHT32-payload_commit.log"
+  },
+  {
+    "test": "contact_conservation",
+    "app": "CHT",
+    "bits": 32,
+    "exit": 0,
+    "log": "/home/lss/ugkp-operator-unification-20261004/conservation/CHT32-contact_conservation.log"
+  },
+  {
+    "test": "contact_age_theta",
+    "app": "CHT",
+    "bits": 32,
+    "exit": 0,
+    "log": "/home/lss/ugkp-operator-unification-20261004/conservation/CHT32-contact_age_theta.log"
+  }
+]

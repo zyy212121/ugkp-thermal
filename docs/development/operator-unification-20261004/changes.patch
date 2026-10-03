@@ -1,0 +1,2410 @@
+diff --git a/applications/CHT/gpu/GpuResidentStrict.cu b/applications/CHT/gpu/GpuResidentStrict.cu
+--- a/applications/CHT/gpu/GpuResidentStrict.cu
++++ b/applications/CHT/gpu/GpuResidentStrict.cu
+@@ -2135,22 +2135,7 @@
+ 
+ #include "operators/computePressureGradientKernel.cuh"
+ 
+-__device__ GpuReal solidEpsFromMomentDevice(const DeviceState& s, const int c)
+-{
+-    if (c < 0 || c >= s.nCells)
+-    {
+-        return GPU_R(0.0);
+-    }
+-
+-    const GpuReal rhoP = clampMin(finiteOr(s.momRhoP[c], GPU_R(0.0)), GPU_R(0.0));
+-
+-    return clampRange
+-    (
+-        rhoP/clampMin(s.rhoSolid, GPU_TINY(1.0e-300)),
+-        GPU_R(0.0),
+-        GPU_R(1.0)
+-    );
+-}
++#include "operators/solidEpsFromMomentDevice.cuh"
+ 
+ __host__ __device__ inline bool gasDragModelActive(const int modelId)
+ {
+@@ -2181,52 +2166,7 @@
+ 
+ #include "operators/normalDevice.cuh"
+ 
+-__device__ GpuReal solidPressureFromMomentsDevice
+-(
+-    const DeviceState& s,
+-    const int c
+-)
+-{
+-    if (c < 0 || c >= s.nCells)
+-    {
+-        return GPU_R(0.0);
+-    }
+-
+-    const GpuReal rhoP = clampMin(finiteOr(s.momRhoP[c], GPU_R(0.0)), GPU_R(0.0));
+-    if (rhoP <= s.epsSMin*s.rhoSolid)
+-    {
+-        return GPU_R(0.0);
+-    }
+-
+-    const GpuReal eps =
+-        clampRange(rhoP/clampMin(s.rhoSolid, GPU_TINY(1.0e-300)), GPU_R(0.0), GPU_R(1.0));
+-    const GpuReal ux = finiteOr(s.momRhoUPx[c], GPU_R(0.0))/rhoP;
+-    const GpuReal uy = finiteOr(s.momRhoUPy[c], GPU_R(0.0))/rhoP;
+-    const GpuReal uz = finiteOr(s.momRhoUPz[c], GPU_R(0.0))/rhoP;
+-    const GpuReal kinetic = GPU_R(0.5)*rhoP*sqr3(ux, uy, uz);
+-    const GpuReal theta =
+-        clampMin
+-        (
+-            (finiteOr(s.momRhoEP[c], kinetic) - kinetic)/(GPU_R(1.5)*rhoP),
+-            GPU_R(0.0)
+-        );
+-    GpuReal pColl = GPU_R(0.0);
+-    if (s.collisionalPressureEnabled)
+-    {
+-        const GpuReal g0 = radialDistributionG0Device(eps);
+-        pColl = ugkwp::collisionalPressure
+-        (
+-            s.collisionalRestitution,
+-            s.rhoSolid,
+-            eps,
+-            g0,
+-            theta
+-        );
+-        pColl = clampRange(finiteOr(pColl, GPU_R(0.0)), GPU_R(0.0), OfGreat);
+-    }
+-
+-    return clampRange(finiteOr(pColl, OfGreat), GPU_R(0.0), OfGreat);
+-}
++#include "operators/solidPressureFromMomentsDevice.cuh"
+ 
+ #include "operators/computeCollisionalPressureKernel.cuh"
+ 
+@@ -2407,55 +2347,7 @@
+ 
+ #include "../../../common/GpuMobilePackingHost.cuh"
+ 
+-__device__ GpuReal granularCollisionTauFromCellDevice(const DeviceState& s, const int c)
+-{
+-    if (c < 0 || c >= s.nCells)
+-    {
+-        return OfGreat;
+-    }
+-
+-    const GpuReal rhoP = clampMin(finiteOr(s.momRhoP[c], GPU_R(0.0)), GPU_R(0.0));
+-    if (rhoP <= s.epsSMin*s.rhoSolid)
+-    {
+-        return OfGreat;
+-    }
+-
+-    const GpuReal eps =
+-        clampRange(rhoP/clampMin(s.rhoSolid, GPU_TINY(1.0e-300)), GPU_R(0.0), GPU_R(1.0));
+-
+-    const GpuReal usx = finiteOr(s.momRhoUPx[c], GPU_R(0.0))/rhoP;
+-    const GpuReal usy = finiteOr(s.momRhoUPy[c], GPU_R(0.0))/rhoP;
+-    const GpuReal usz = finiteOr(s.momRhoUPz[c], GPU_R(0.0))/rhoP;
+-
+-    const GpuReal e =
+-        clampMin(finiteOr(s.momRhoEP[c], GPU_R(0.0)), GPU_R(0.0))/rhoP;
+-
+-    const GpuReal theta =
+-        clampMin((e - GPU_R(0.5)*sqr3(usx, usy, usz))/GPU_R(1.5), GPU_R(0.0));
+-
+-    const GpuReal dPart =
+-        clampMin
+-        (
+-            finiteOr(s.momRhoPD[c]/rhoP, s.particleDiameterFallback),
+-            GPU_R(1.0e-12)
+-        );
+-
+-    const GpuReal g0 = radialDistributionG0Device(eps);
+-    const GpuReal lmfp = ugkwp::granularMeanFreePath
+-    (
+-        OfPi,
+-        dPart,
+-        eps,
+-        g0,
+-        OfSmall
+-    );
+-
+-    return clampMin
+-    (
+-        ugkwp::granularCollisionTime(lmfp, theta, OfSmall),
+-        OfSmall
+-    );
+-}
++#include "operators/granularCollisionTauFromCellDevice.cuh"
+ 
+ __device__ void clearColdWallParticleState(DeviceState&, int);
+ __device__ void initialiseColdWallParticleState(DeviceState&, int, GpuReal);
+@@ -2469,43 +2361,7 @@
+ #define GPU_GEOMETRY_ROUNDING_AWARE (UGKWP_GPU_REAL_BITS == 32)
+ #include "operators/pointInsideCell.cuh"
+ 
+-__device__ void atomicAddParticleWallEnergyByFace
+-(
+-    DeviceState& s,
+-    GpuWallEnergy* const wallEnergyLedger,
+-    const int globalFaceId,
+-    const GpuReal wallEnergyJ
+-)
+-{
+-    if (wallEnergyJ == GPU_R(0.0))
+-    {
+-        return;
+-    }
+-#if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 700
+-    const unsigned int active = __activemask();
+-    const int ledgerChannel =
+-        wallEnergyLedger == s.particleWallDepositedEnergy ? 0 : 1;
+-    const int faceChannelKey = 2*globalFaceId + ledgerChannel;
+-    const unsigned int group =
+-        __match_any_sync(active, faceChannelKey);
+-    const int leader = __ffs(static_cast<int>(group)) - 1;
+-    const int lane = static_cast<int>(threadIdx.x) & 31;
+-    GpuWallEnergy groupEnergy = 0.0;
+-    unsigned int remaining = group;
+-    while (remaining != 0u)
+-    {
+-        const int sourceLane = __ffs(static_cast<int>(remaining)) - 1;
+-        groupEnergy += static_cast<GpuWallEnergy>(__shfl_sync(group, wallEnergyJ, sourceLane));
+-        remaining &= remaining - 1u;
+-    }
+-    if (lane == leader)
+-    {
+-        atomicAdd(&wallEnergyLedger[globalFaceId], groupEnergy);
+-    }
+-#else
+-    atomicAdd(&wallEnergyLedger[globalFaceId], static_cast<GpuWallEnergy>(wallEnergyJ));
+-#endif
+-}
++#include "operators/atomicAddParticleWallEnergyByFace.cuh"
+ 
+ #include "operators/clearColdWallParticleState.cuh"
+ 
+diff --git a/applications/FSH/private_backend/GpuResidentStrict.cu b/applications/FSH/private_backend/GpuResidentStrict.cu
+--- a/applications/FSH/private_backend/GpuResidentStrict.cu
++++ b/applications/FSH/private_backend/GpuResidentStrict.cu
+@@ -1880,43 +1880,7 @@
+ 
+ #include "operators/pointInsideCell.cuh"
+ 
+-__device__ void atomicAddParticleWallEnergyByFace
+-(
+-    DeviceState& s,
+-    double* const wallEnergyLedger,
+-    const int globalFaceId,
+-    const double wallEnergyJ
+-)
+-{
+-    if (wallEnergyJ == 0.0)
+-    {
+-        return;
+-    }
+-#if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 700
+-    const unsigned int active = __activemask();
+-    const int ledgerChannel =
+-        wallEnergyLedger == s.particleWallDepositedEnergy ? 0 : 1;
+-    const int faceChannelKey = 2*globalFaceId + ledgerChannel;
+-    const unsigned int group =
+-        __match_any_sync(active, faceChannelKey);
+-    const int leader = __ffs(static_cast<int>(group)) - 1;
+-    const int lane = static_cast<int>(threadIdx.x) & 31;
+-    double groupEnergy = 0.0;
+-    unsigned int remaining = group;
+-    while (remaining != 0u)
+-    {
+-        const int sourceLane = __ffs(static_cast<int>(remaining)) - 1;
+-        groupEnergy += __shfl_sync(group, wallEnergyJ, sourceLane);
+-        remaining &= remaining - 1u;
+-    }
+-    if (lane == leader)
+-    {
+-        atomicAdd(&wallEnergyLedger[globalFaceId], groupEnergy);
+-    }
+-#else
+-    atomicAdd(&wallEnergyLedger[globalFaceId], wallEnergyJ);
+-#endif
+-}
++#include "operators/atomicAddParticleWallEnergyByFace.cuh"
+ 
+ #include "operators/clearColdWallParticleState.cuh"
+ 
+diff --git a/applications/gasUGKP/private_backend/GpuResidentStrict.cu b/applications/gasUGKP/private_backend/GpuResidentStrict.cu
+--- a/applications/gasUGKP/private_backend/GpuResidentStrict.cu
++++ b/applications/gasUGKP/private_backend/GpuResidentStrict.cu
+@@ -1741,95 +1741,7 @@
+ 
+ #include "operators/makeGasPrimDevice.cuh"
+ 
+-__device__ GasPrimDevice riemannFacePrimitiveForGradient
+-(
+-    const DeviceState& s,
+-    const int c,
+-    const int f
+-)
+-{
+-    GasPrimDevice centre = makeGasPrimDevice
+-    (
+-        s.rho[c], s.Ux[c], s.Uy[c], s.Uz[c], s.p[c],
+-        s.Rgas, s.rhoMin, s.TgasMin
+-    );
+-    centre.T = clampMin(finiteOr(s.Tgas[c], centre.T), s.TgasMin);
+-    if (f < s.nInternalFaces || isPeriodicFace(s, f))
+-    {
+-        const int own = s.faceOwner[f];
+-        const int nei = s.faceNeighbour[f];
+-        const int other = c == own ? nei : own;
+-        if (other < 0 || other >= s.nCells)
+-        {
+-            return centre;
+-        }
+-        GasPrimDevice adjacent = makeGasPrimDevice
+-        (
+-            s.rho[other], s.Ux[other], s.Uy[other], s.Uz[other], s.p[other],
+-            s.Rgas, s.rhoMin, s.TgasMin
+-        );
+-        adjacent.T = clampMin
+-        (
+-            finiteOr(s.Tgas[other], adjacent.T),
+-            s.TgasMin
+-        );
+-        const double ownerWeight = clampRange(s.faceWeight[f], 0.0, 1.0);
+-        const double wc = c == own ? ownerWeight : 1.0 - ownerWeight;
+-        GasPrimDevice face = makeGasPrimDevice
+-        (
+-            wc*centre.rho + (1.0 - wc)*adjacent.rho,
+-            wc*centre.ux + (1.0 - wc)*adjacent.ux,
+-            wc*centre.uy + (1.0 - wc)*adjacent.uy,
+-            wc*centre.uz + (1.0 - wc)*adjacent.uz,
+-            wc*centre.p + (1.0 - wc)*adjacent.p,
+-            s.Rgas, s.rhoMin, s.TgasMin
+-        );
+-        face.T = wc*centre.T + (1.0 - wc)*adjacent.T;
+-        return face;
+-    }
+-
+-    const int kind = s.riemannBoundaryKind[f];
+-    if (kind == 4 || kind == 3)
+-    {
+-        return centre;
+-    }
+-    if (kind == 1)
+-    {
+-        const double area = clampMin(s.magSf[f], OfSmall);
+-        const double nx = s.Sfx[f]/area;
+-        const double ny = s.Sfy[f]/area;
+-        const double nz = s.Sfz[f]/area;
+-        const double un = centre.ux*nx + centre.uy*ny + centre.uz*nz;
+-        GasPrimDevice face = centre;
+-        face.ux -= un*nx;
+-        face.uy -= un*ny;
+-        face.uz -= un*nz;
+-        return face;
+-    }
+-
+-    if (kind == 2)
+-    {
+-        GasPrimDevice wall = centre;
+-        wall.ux = s.riemannBoundaryUFix[f] != 0
+-          ? finiteOr(s.riemannBoundaryUx[f], 0.0) : 0.0;
+-        wall.uy = s.riemannBoundaryUFix[f] != 0
+-          ? finiteOr(s.riemannBoundaryUy[f], 0.0) : 0.0;
+-        wall.uz = s.riemannBoundaryUFix[f] != 0
+-          ? finiteOr(s.riemannBoundaryUz[f], 0.0) : 0.0;
+-        if (s.riemannBoundaryTFix[f] != 0)
+-        {
+-            wall.T = clampMin
+-            (
+-                finiteOr(s.riemannBoundaryT[f], centre.T),
+-                s.TgasMin
+-            );
+-            wall.rho = wall.p/clampMin(s.Rgas*wall.T, OfSmall);
+-        }
+-        return wall;
+-    }
+-
+-    return riemannBoundaryState(s, f, centre);
+-}
++#include "operators/riemannFacePrimitiveForGradient.cuh"
+ 
+ #include "operators/computeGasPrimitiveGradientsKernel.cuh"
+ 
+@@ -2047,30 +1959,8 @@
+     PressureProjectionCell projection{};
+     double scaledDelta[4];
+ 
+-        double dpx = 0.0;
+-        double dpy = 0.0;
+-        double dpz = 0.0;
+-        double de = 0.0;
+-        const int startFace = s.cellPlaneStart[c];
+-        const int faceCount = s.cellPlaneCount[c];
+-        for (int j = 0; j < faceCount; ++j)
+-        {
+-            const int f = s.cellFaceId[startFace + j];
+-            if (f < 0 || f >= s.nFaces)
+-            {
+-                continue;
+-            }
+-            const double sign = s.faceOwner[f] == c ? 1.0 : -1.0;
+-            dpx -= sign*s.solidPressurePhiMomX[f];
+-            dpy -= sign*s.solidPressurePhiMomY[f];
+-            dpz -= sign*s.solidPressurePhiMomZ[f];
+-            de -= sign*s.solidPressurePhiEnergy[f];
+-        }
+-        const double factor = kickDt/clampMin(s.V[c], OfVSmall);
+-        scaledDelta[0] = finiteOr(factor*dpx, 0.0);
+-        scaledDelta[1] = finiteOr(factor*dpy, 0.0);
+-        scaledDelta[2] = finiteOr(factor*dpz, 0.0);
+-        scaledDelta[3] = finiteOr(factor*de, 0.0);
++    accumulatePressureFaceDelta(s,c,kickDt,
++        scaledDelta[0],scaledDelta[1],scaledDelta[2],scaledDelta[3]);
+         s.pressureDeltaMomX[c] = scaledDelta[0];
+         s.pressureDeltaMomY[c] = scaledDelta[1];
+         s.pressureDeltaMomZ[c] = scaledDelta[2];
+@@ -2111,19 +2001,7 @@
+     projection =
+         {ux0, uy0, uz0, ux1, uy1, uz1, theta1, thermalScale, thetaScale, true, resolved};
+ 
+-        s.momRhoUPx[c] = px1;
+-        s.momRhoUPy[c] = py1;
+-        s.momRhoUPz[c] = pz1;
+-        s.momRhoEP[c] = e1;
+-        s.rhoUsx[c] = px1;
+-        s.rhoUsy[c] = py1;
+-        s.rhoUsz[c] = pz1;
+-        s.rhoEs[c] = e1;
+-        s.Usx[c] = ux1;
+-        s.Usy[c] = uy1;
+-        s.Usz[c] = uz1;
+-        s.theta[c] = theta1;
+-
++    publishPressureCellState(s,c,rhoP,px1,py1,pz1,e1,theta1);
+ 
+     // The atomic path historically publishes the cell update, then reads it
+     // back and reconstructs the old state. Preserve its rounding and clamps:
+@@ -2134,24 +2012,17 @@
+         const double ay1 = finiteOr(py1, 0.0);
+         const double az1 = finiteOr(pz1, 0.0);
+         const double ae1 = clampMin(finiteOr(e1, 0.0), 0.0);
+-        const double ax0 = ax1 - scaledDelta[0];
+-        const double ay0 = ay1 - scaledDelta[1];
+-        const double az0 = az1 - scaledDelta[2];
+-        const double ae0 = ae1 - scaledDelta[3];
+-        const double at0 = clampMin
++        const UnsortedPressureKinematics recovered = recoverUnsortedPressureKinematics
+         (
+-            pressureKickInternalEnergy(rhoP, ax0, ay0, az0, ae0)/(1.5*rhoP), 0.0
++            rhoP,ax1,ay1,az1,ae1,scaledDelta[0],scaledDelta[1],
++            scaledDelta[2],scaledDelta[3],s.thetaMin
+         );
+-        const double at1 = clampMin
+-        (
+-            pressureKickInternalEnergy(rhoP, ax1, ay1, az1, ae1)/(1.5*rhoP), 0.0
+-        );
+-        const bool ar = at0 > 10.0*s.thetaMin;
+-        const double scale = ar ? sqrt(clampMin(at1/at0, 0.0)) : 0.0;
+         projection =
+         {
+-            ax0/rhoP, ay0/rhoP, az0/rhoP, ax1/rhoP, ay1/rhoP, az1/rhoP,
+-            at1, scale, ar ? scale*scale : 0.0, true, ar
++            recovered.ux0,recovered.uy0,recovered.uz0,
++            recovered.ux1,recovered.uy1,recovered.uz1,
++            recovered.theta1,recovered.thermalScale,recovered.thetaScale,
++            true,recovered.resolved
+         };
+     }
+     return projection;
+diff --git a/common/operators/solidEpsFromMomentDevice.cuh b/common/operators/solidEpsFromMomentDevice.cuh
+--- a/common/operators/solidEpsFromMomentDevice.cuh
++++ b/common/operators/solidEpsFromMomentDevice.cuh
+@@ -4,14 +4,14 @@
+ {
+     if (c < 0 || c >= s.nCells)
+     {
+-        return 0.0;
++        return GPU_OPERATOR_R(0.0);
+     }
+ 
+-    const GPU_OPERATOR_REAL rhoP = clampMin(finiteOr(s.momRhoP[c], 0.0), 0.0);
++    const GPU_OPERATOR_REAL rhoP = clampMin(finiteOr(s.momRhoP[c], GPU_OPERATOR_R(0.0)), GPU_OPERATOR_R(0.0));
+     return clampRange
+     (
+-        rhoP/clampMin(s.rhoSolid, 1.0e-300),
+-        0.0,
+-        1.0
++        rhoP/clampMin(s.rhoSolid, GPU_OPERATOR_TINY(1.0e-300)),
++        GPU_OPERATOR_R(0.0),
++        GPU_OPERATOR_R(1.0)
+     );
+ }
+diff --git a/common/operators/solidPressureFromMomentsDevice.cuh b/common/operators/solidPressureFromMomentsDevice.cuh
+--- a/common/operators/solidPressureFromMomentsDevice.cuh
++++ b/common/operators/solidPressureFromMomentsDevice.cuh
+@@ -8,28 +8,28 @@
+ {
+     if (c < 0 || c >= s.nCells)
+     {
+-        return 0.0;
++        return GPU_OPERATOR_R(0.0);
+     }
+ 
+-    const GPU_OPERATOR_REAL rhoP = clampMin(finiteOr(s.momRhoP[c], 0.0), 0.0);
++    const GPU_OPERATOR_REAL rhoP = clampMin(finiteOr(s.momRhoP[c], GPU_OPERATOR_R(0.0)), GPU_OPERATOR_R(0.0));
+     if (rhoP <= s.epsSMin*s.rhoSolid)
+     {
+-        return 0.0;
++        return GPU_OPERATOR_R(0.0);
+     }
+ 
+     const GPU_OPERATOR_REAL eps =
+-        clampRange(rhoP/clampMin(s.rhoSolid, 1.0e-300), 0.0, 1.0);
+-    const GPU_OPERATOR_REAL ux = finiteOr(s.momRhoUPx[c], 0.0)/rhoP;
+-    const GPU_OPERATOR_REAL uy = finiteOr(s.momRhoUPy[c], 0.0)/rhoP;
+-    const GPU_OPERATOR_REAL uz = finiteOr(s.momRhoUPz[c], 0.0)/rhoP;
+-    const GPU_OPERATOR_REAL kinetic = 0.5*rhoP*sqr3(ux, uy, uz);
++        clampRange(rhoP/clampMin(s.rhoSolid, GPU_OPERATOR_TINY(1.0e-300)), GPU_OPERATOR_R(0.0), GPU_OPERATOR_R(1.0));
++    const GPU_OPERATOR_REAL ux = finiteOr(s.momRhoUPx[c], GPU_OPERATOR_R(0.0))/rhoP;
++    const GPU_OPERATOR_REAL uy = finiteOr(s.momRhoUPy[c], GPU_OPERATOR_R(0.0))/rhoP;
++    const GPU_OPERATOR_REAL uz = finiteOr(s.momRhoUPz[c], GPU_OPERATOR_R(0.0))/rhoP;
++    const GPU_OPERATOR_REAL kinetic = GPU_OPERATOR_R(0.5)*rhoP*sqr3(ux, uy, uz);
+     const GPU_OPERATOR_REAL theta =
+         clampMin
+         (
+-            (finiteOr(s.momRhoEP[c], kinetic) - kinetic)/(1.5*rhoP),
+-            0.0
++            (finiteOr(s.momRhoEP[c], kinetic) - kinetic)/(GPU_OPERATOR_R(1.5)*rhoP),
++            GPU_OPERATOR_R(0.0)
+         );
+-    GPU_OPERATOR_REAL pColl = 0.0;
++    GPU_OPERATOR_REAL pColl = GPU_OPERATOR_R(0.0);
+     if (s.collisionalPressureEnabled)
+     {
+         const GPU_OPERATOR_REAL g0 = radialDistributionG0Device(eps);
+@@ -41,8 +41,8 @@
+             g0,
+             theta
+         );
+-        pColl = clampRange(finiteOr(pColl, 0.0), 0.0, OfGreat);
++        pColl = clampRange(finiteOr(pColl, GPU_OPERATOR_R(0.0)), GPU_OPERATOR_R(0.0), OfGreat);
+     }
+ 
+-    return clampRange(finiteOr(pColl, OfGreat), 0.0, OfGreat);
++    return clampRange(finiteOr(pColl, OfGreat), GPU_OPERATOR_R(0.0), OfGreat);
+ }
+diff --git a/common/operators/granularCollisionTauFromCellDevice.cuh b/common/operators/granularCollisionTauFromCellDevice.cuh
+--- a/common/operators/granularCollisionTauFromCellDevice.cuh
++++ b/common/operators/granularCollisionTauFromCellDevice.cuh
+@@ -7,30 +7,30 @@
+         return OfGreat;
+     }
+ 
+-    const GPU_OPERATOR_REAL rhoP = clampMin(finiteOr(s.momRhoP[c], 0.0), 0.0);
++    const GPU_OPERATOR_REAL rhoP = clampMin(finiteOr(s.momRhoP[c], GPU_OPERATOR_R(0.0)), GPU_OPERATOR_R(0.0));
+     if (rhoP <= s.epsSMin*s.rhoSolid)
+     {
+         return OfGreat;
+     }
+ 
+     const GPU_OPERATOR_REAL eps =
+-        clampRange(rhoP/clampMin(s.rhoSolid, 1.0e-300), 0.0, 1.0);
++        clampRange(rhoP/clampMin(s.rhoSolid, GPU_OPERATOR_TINY(1.0e-300)), GPU_OPERATOR_R(0.0), GPU_OPERATOR_R(1.0));
+ 
+-    const GPU_OPERATOR_REAL usx = finiteOr(s.momRhoUPx[c], 0.0)/rhoP;
+-    const GPU_OPERATOR_REAL usy = finiteOr(s.momRhoUPy[c], 0.0)/rhoP;
+-    const GPU_OPERATOR_REAL usz = finiteOr(s.momRhoUPz[c], 0.0)/rhoP;
++    const GPU_OPERATOR_REAL usx = finiteOr(s.momRhoUPx[c], GPU_OPERATOR_R(0.0))/rhoP;
++    const GPU_OPERATOR_REAL usy = finiteOr(s.momRhoUPy[c], GPU_OPERATOR_R(0.0))/rhoP;
++    const GPU_OPERATOR_REAL usz = finiteOr(s.momRhoUPz[c], GPU_OPERATOR_R(0.0))/rhoP;
+ 
+     const GPU_OPERATOR_REAL e =
+-        clampMin(finiteOr(s.momRhoEP[c], 0.0), 0.0)/rhoP;
++        clampMin(finiteOr(s.momRhoEP[c], GPU_OPERATOR_R(0.0)), GPU_OPERATOR_R(0.0))/rhoP;
+ 
+     const GPU_OPERATOR_REAL theta =
+-        clampMin((e - 0.5*sqr3(usx, usy, usz))/1.5, 0.0);
++        clampMin((e - GPU_OPERATOR_R(0.5)*sqr3(usx, usy, usz))/GPU_OPERATOR_R(1.5), GPU_OPERATOR_R(0.0));
+ 
+     const GPU_OPERATOR_REAL dPart =
+         clampMin
+         (
+             finiteOr(s.momRhoPD[c]/rhoP, s.particleDiameterFallback),
+-            1.0e-12
++            GPU_OPERATOR_R(1.0e-12)
+         );
+ 
+     const GPU_OPERATOR_REAL g0 = radialDistributionG0Device(eps);
+diff --git a/common/operators/riemannFacePrimitiveForGradient.cuh b/common/operators/riemannFacePrimitiveForGradient.cuh
+--- a/common/operators/riemannFacePrimitiveForGradient.cuh
++++ b/common/operators/riemannFacePrimitiveForGradient.cuh
+@@ -1,4 +1,5 @@
+ #pragma once
++#include "GpuCellNeighbour.cuh"
+ // One operator implementation; scalar/time adapters are compile-time only.
+ __device__ GasPrimDevice riemannFacePrimitiveForGradient
+ (
+@@ -17,7 +18,7 @@
+     {
+         const int own = s.faceOwner[f];
+         const int nei = s.faceNeighbour[f];
+-        const int other = isPeriodicFace(s, f) ? nei : (c == own ? nei : own);
++        const int other = oppositeCellAcrossFace(c, own, nei);
+         if (other < 0 || other >= s.nCells)
+         {
+             return centre;
+diff --git a/common/operators/atomicAddParticleWallEnergyByFace.cuh b/common/operators/atomicAddParticleWallEnergyByFace.cuh
+new file mode 100644
+--- /dev/null
++++ b/common/operators/atomicAddParticleWallEnergyByFace.cuh
+@@ -0,0 +1,39 @@
++#pragma once
++// Shuffle in input precision; each face/channel ledger accumulates in double.
++__device__ void atomicAddParticleWallEnergyByFace
++(
++    DeviceState& s,
++    GpuWallEnergy* const wallEnergyLedger,
++    const int globalFaceId,
++    const GPU_OPERATOR_REAL wallEnergyJ
++)
++{
++    if (wallEnergyJ == GPU_OPERATOR_R(0.0))
++    {
++        return;
++    }
++#if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 700
++    const unsigned int active = __activemask();
++    const int ledgerChannel =
++        wallEnergyLedger == s.particleWallDepositedEnergy ? 0 : 1;
++    const int faceChannelKey = 2*globalFaceId + ledgerChannel;
++    const unsigned int group =
++        __match_any_sync(active, faceChannelKey);
++    const int leader = __ffs(static_cast<int>(group)) - 1;
++    const int lane = static_cast<int>(threadIdx.x) & 31;
++    GpuWallEnergy groupEnergy = 0.0;
++    unsigned int remaining = group;
++    while (remaining != 0u)
++    {
++        const int sourceLane = __ffs(static_cast<int>(remaining)) - 1;
++        groupEnergy += static_cast<GpuWallEnergy>(__shfl_sync(group, wallEnergyJ, sourceLane));
++        remaining &= remaining - 1u;
++    }
++    if (lane == leader)
++    {
++        atomicAdd(&wallEnergyLedger[globalFaceId], groupEnergy);
++    }
++#else
++    atomicAdd(&wallEnergyLedger[globalFaceId], static_cast<GpuWallEnergy>(wallEnergyJ));
++#endif
++}
+diff --git a/common/gasNumerics/GpuDragAlgebra.cuh b/common/gasNumerics/GpuDragAlgebra.cuh
+--- a/common/gasNumerics/GpuDragAlgebra.cuh
++++ b/common/gasNumerics/GpuDragAlgebra.cuh
+@@ -58,138 +58,102 @@
+     return GPU_R(0.44);
+ }
+ 
+-UGKWP_DRAG_HD GpuReal gasUgkpSchillerNaumannInverseResponseTime
++// Original gas inputs: retain caller-selected additive denominator protection.
++struct RegularizedDragInputs
++{
++    static constexpr bool bounded = false;
++    UGKWP_DRAG_HD static GpuReal density(GpuReal x) { return x; }
++    UGKWP_DRAG_HD static GpuReal speed(GpuReal x) { return x; }
++    UGKWP_DRAG_HD static GpuReal diameter(GpuReal x) { return x; }
++    UGKWP_DRAG_HD static GpuReal coefficient(GpuReal re)
++    { return gasUgkpSchillerNaumannCoefficient(re); }
++    UGKWP_DRAG_HD static GpuReal denominator
++    (GpuReal rhoS, GpuReal d, GpuReal regularization, bool squared)
++    { return squared ? rhoS*d*d + regularization : rhoS*d + regularization; }
++};
++
++// Thermal inputs: preserve positivity bounds and the zero-slip return.
++struct BoundedDragInputs
++{
++    static constexpr bool bounded = true;
++    UGKWP_DRAG_HD static GpuReal density(GpuReal x) { return fmax(x,GPU_R(0.0)); }
++    UGKWP_DRAG_HD static GpuReal speed(GpuReal x) { return fmax(x,GPU_R(0.0)); }
++    UGKWP_DRAG_HD static GpuReal diameter(GpuReal x) { return fmax(x,GPU_R(1.0e-30)); }
++    UGKWP_DRAG_HD static GpuReal coefficient(GpuReal re)
++    {
++        // Keep multiply-before-divide rounding, unlike the regularized policy.
++        return re < GPU_R(1000.0)
++          ? GPU_R(24.0)*schillerNaumannCorrection(re)/re : GPU_R(0.44);
++    }
++    UGKWP_DRAG_HD static GpuReal denominator
++    (GpuReal rhoS, GpuReal d, GpuReal, bool squared)
++    { return squared ? fmax(rhoS,GPU_R(1.0e-30))*d*d : fmax(rhoS,GPU_R(1.0e-30))*d; }
++};
++
++template<class InputPolicy>
++UGKWP_DRAG_HD GpuReal inverseSchillerNaumannTime
+ (
+-    const GpuReal gasDensity,
+-    const GpuReal gasViscosity,
+-    const GpuReal solidDensity,
+-    const GpuReal diameter,
+-    const GpuReal relativeSpeed,
+-    const GpuReal denominatorRegularization
++    GpuReal gasDensity, GpuReal gasViscosity, GpuReal solidDensity,
++    GpuReal diameter, GpuReal relativeSpeed, GpuReal denominatorRegularization
+ )
+ {
+-    const GpuReal reynolds = gasUgkpReynolds
+-    (
+-        gasDensity,
+-        diameter,
+-        relativeSpeed,
+-        gasViscosity
+-    );
+-    const GpuReal coefficient =
+-        gasUgkpSchillerNaumannCoefficient(reynolds);
+-    return
+-        GPU_R(0.75)*coefficient*gasDensity*relativeSpeed
+-       /(solidDensity*diameter + denominatorRegularization);
++    const GpuReal mu = fmax(gasViscosity,GPU_R(1.0e-30));
++    const GpuReal re = InputPolicy::density(gasDensity)
++      *InputPolicy::diameter(diameter)*InputPolicy::speed(relativeSpeed)/mu;
++    if constexpr (InputPolicy::bounded)
++    {
++        if (re <= GPU_R(1.0e-30) || relativeSpeed <= GPU_R(1.0e-30)) return GPU_R(0.0);
++    }
++    const GpuReal coefficient = InputPolicy::coefficient(re);
++    return GPU_R(0.75)*coefficient*InputPolicy::density(gasDensity)
++      *InputPolicy::speed(relativeSpeed)
++      /InputPolicy::denominator(solidDensity,InputPolicy::diameter(diameter),denominatorRegularization,false);
+ }
+ 
+-UGKWP_DRAG_HD GpuReal gasUgkpGidaspowCdRe
++template<class InputPolicy>
++UGKWP_DRAG_HD GpuReal inverseGidaspowTime
+ (
+-    const GpuReal gasDensity,
+-    const GpuReal gasViscosity,
+-    const GpuReal gasVolumeFraction,
+-    const GpuReal diameter,
+-    const GpuReal relativeSpeed,
+-    const GpuReal residualRe
++    GpuReal gasDensity, GpuReal gasViscosity, GpuReal gasVolumeFraction,
++    GpuReal solidDensity, GpuReal diameterInput, GpuReal relativeSpeed,
++    GpuReal denominatorRegularization, GpuReal residualRe
+ )
+ {
+-    const GpuReal alphaGas =
+-        fmin(fmax(gasVolumeFraction, GPU_R(1.0e-12)), GPU_R(1.0));
+-    const GpuReal reynolds = fmax
+-    (
+-        gasUgkpReynolds
+-        (
+-            gasDensity,
+-            diameter,
+-            relativeSpeed,
+-            gasViscosity
+-        ),
+-        GPU_R(0.0)
+-    );
+-    return gidaspowCdRe(alphaGas, reynolds, residualRe);
++    const GpuReal alpha = fmin(fmax(gasVolumeFraction,GPU_R(1.0e-12)),GPU_R(1.0));
++    const GpuReal mu = fmax(gasViscosity,GPU_R(1.0e-30));
++    const GpuReal diameter = fmax(diameterInput,GPU_R(1.0e-30));
++    GpuReal re = InputPolicy::density(gasDensity)*InputPolicy::diameter(diameterInput)
++      *InputPolicy::speed(relativeSpeed)/mu;
++    if constexpr (!InputPolicy::bounded) re = fmax(re,GPU_R(0.0));
++    const GpuReal cdRe = gidaspowCdRe(alpha,re,residualRe);
++    return GPU_R(0.75)*cdRe*mu
++      /InputPolicy::denominator(solidDensity,diameter,denominatorRegularization,true);
++}
++
++UGKWP_DRAG_HD GpuReal gasUgkpSchillerNaumannInverseResponseTime
++(GpuReal rho, GpuReal mu, GpuReal rhoS, GpuReal d, GpuReal slip, GpuReal regularization)
++{ return inverseSchillerNaumannTime<RegularizedDragInputs>(rho,mu,rhoS,d,slip,regularization); }
++
++UGKWP_DRAG_HD GpuReal gasUgkpGidaspowCdRe
++(GpuReal rho, GpuReal mu, GpuReal alpha, GpuReal d, GpuReal slip, GpuReal residualRe)
++{
++    return gidaspowCdRe(fmin(fmax(alpha,GPU_R(1.0e-12)),GPU_R(1.0)),
++        fmax(gasUgkpReynolds(rho,d,slip,mu),GPU_R(0.0)),residualRe);
+ }
+ 
+ UGKWP_DRAG_HD GpuReal gasUgkpGidaspowInverseResponseTime
+-(
+-    const GpuReal gasDensity,
+-    const GpuReal gasViscosity,
+-    const GpuReal gasVolumeFraction,
+-    const GpuReal solidDensity,
+-    const GpuReal diameterInput,
+-    const GpuReal relativeSpeed,
+-    const GpuReal denominatorRegularization,
+-    const GpuReal residualRe
+-)
+-{
+-    const GpuReal diameter = fmax(diameterInput, GPU_R(1.0e-30));
+-    return
+-        GPU_R(0.75)
+-       *gasUgkpGidaspowCdRe
+-        (
+-            gasDensity,
+-            gasViscosity,
+-            gasVolumeFraction,
+-            diameterInput,
+-            relativeSpeed,
+-            residualRe
+-        )
+-       *fmax(gasViscosity, GPU_R(1.0e-30))
+-       /(solidDensity*diameter*diameter + denominatorRegularization);
+-}
++(GpuReal rho, GpuReal mu, GpuReal alpha, GpuReal rhoS, GpuReal d, GpuReal slip,
++ GpuReal regularization, GpuReal residualRe)
++{ return inverseGidaspowTime<RegularizedDragInputs>(rho,mu,alpha,rhoS,d,slip,regularization,residualRe); }
+ 
+ UGKWP_DRAG_HD GpuReal fshChtSchillerNaumannInverseRelaxationTime
+-(
+-    const GpuReal gasDensityInput,
+-    const GpuReal gasViscosity,
+-    const GpuReal solidDensityInput,
+-    const GpuReal diameterInput,
+-    const GpuReal relativeSpeedInput
+-)
+-{
+-    const GpuReal mu = fmax(gasViscosity, GPU_R(1.0e-30));
+-    const GpuReal re =
+-        fmax(gasDensityInput, GPU_R(0.0))*fmax(diameterInput, GPU_R(1.0e-30))
+-       *fmax(relativeSpeedInput, GPU_R(0.0))/mu;
+-    if (re <= GPU_R(1.0e-30) || relativeSpeedInput <= GPU_R(1.0e-30))
+-    {
+-        return GPU_R(0.0);
+-    }
+-    const GpuReal coefficient =
+-        re < GPU_R(1000.0)
+-      ? GPU_R(24.0)*schillerNaumannCorrection(re)/re
+-      : GPU_R(0.44);
+-    return
+-        GPU_R(0.75)*coefficient*fmax(gasDensityInput, GPU_R(0.0))
+-       *fmax(relativeSpeedInput, GPU_R(0.0))
+-       /(fmax(solidDensityInput, GPU_R(1.0e-30))
+-        *fmax(diameterInput, GPU_R(1.0e-30)));
+-}
++(GpuReal rho, GpuReal mu, GpuReal rhoS, GpuReal d, GpuReal slip)
++{ return inverseSchillerNaumannTime<BoundedDragInputs>(rho,mu,rhoS,d,slip,GPU_R(0.0)); }
+ 
+ UGKWP_DRAG_HD GpuReal fshChtGidaspowInverseRelaxationTime
+-(
+-    const GpuReal gasDensityInput,
+-    const GpuReal gasVolumeFraction,
+-    const GpuReal gasViscosity,
+-    const GpuReal solidDensityInput,
+-    const GpuReal diameterInput,
+-    const GpuReal relativeSpeedInput,
+-    const GpuReal residualRe
+-)
+-{
+-    const GpuReal alpha =
+-        fmin(fmax(gasVolumeFraction, GPU_R(1.0e-12)), GPU_R(1.0));
+-    const GpuReal mu = fmax(gasViscosity, GPU_R(1.0e-30));
+-    const GpuReal diameter = fmax(diameterInput, GPU_R(1.0e-30));
+-    const GpuReal re =
+-        fmax(gasDensityInput, GPU_R(0.0))*diameter
+-       *fmax(relativeSpeedInput, GPU_R(0.0))/mu;
+-    const GpuReal cdRe = gidaspowCdRe(alpha, re, residualRe);
+-    return
+-        GPU_R(0.75)*cdRe*mu
+-       /(fmax(solidDensityInput, GPU_R(1.0e-30))*diameter*diameter);
+-}
++(GpuReal rho, GpuReal alpha, GpuReal mu, GpuReal rhoS, GpuReal d, GpuReal slip, GpuReal residualRe)
++{ return inverseGidaspowTime<BoundedDragInputs>(rho,mu,alpha,rhoS,d,slip,GPU_R(0.0),residualRe); }
+ 
+ }
+ 
+ #undef UGKWP_DRAG_HD
+-
+ #endif
+diff --git a/common/GpuPressureUnsortedAlgebra.cuh b/common/GpuPressureUnsortedAlgebra.cuh
+new file mode 100644
+--- /dev/null
++++ b/common/GpuPressureUnsortedAlgebra.cuh
+@@ -0,0 +1,91 @@
++#pragma once
++
++// Defined in GpuPressureLimiter.cuh; the shared recovery uses that same equation.
++__device__ PressureReal pressureKickInternalEnergy
++(PressureReal rhoP, PressureReal px, PressureReal py, PressureReal pz, PressureReal energy);
++// Face order and double-time -> physical-real conversion are retained.
++__device__ __forceinline__ void accumulatePressureFaceDelta
++(
++    const DeviceState& s, const int c, const PressureTime kickDt,
++    PressureReal& dpx, PressureReal& dpy, PressureReal& dpz, PressureReal& de
++)
++{
++    dpx = dpy = dpz = de = PressureReal(0.0);
++    const int startFace = s.cellPlaneStart[c];
++    const int faceCount = s.cellPlaneCount[c];
++    for (int j = 0; j < faceCount; ++j)
++    {
++        const int f = s.cellFaceId[startFace + j];
++        if (f < 0 || f >= s.nFaces) continue;
++        const PressureReal sign = s.faceOwner[f] == c ? PressureReal(1.0) : -PressureReal(1.0);
++        dpx -= sign*s.solidPressurePhiMomX[f];
++        dpy -= sign*s.solidPressurePhiMomY[f];
++        dpz -= sign*s.solidPressurePhiMomZ[f];
++        de -= sign*s.solidPressurePhiEnergy[f];
++    }
++    const PressureReal factor = kickDt/clampMin(s.V[c], OfVSmall);
++    dpx = finiteOr(factor*dpx, PressureReal(0.0));
++    dpy = finiteOr(factor*dpy, PressureReal(0.0));
++    dpz = finiteOr(factor*dpz, PressureReal(0.0));
++    de = finiteOr(factor*de, PressureReal(0.0));
++}
++
++__device__ __forceinline__ void publishPressureCellState
++(
++    DeviceState& s, const int c, const PressureReal rhoP,
++    const PressureReal px1, const PressureReal py1, const PressureReal pz1,
++    const PressureReal e1, const PressureReal theta1
++)
++{
++    s.momRhoUPx[c] = px1;
++    s.momRhoUPy[c] = py1;
++    s.momRhoUPz[c] = pz1;
++    s.momRhoEP[c] = e1;
++    s.rhoUsx[c] = px1;
++    s.rhoUsy[c] = py1;
++    s.rhoUsz[c] = pz1;
++    s.rhoEs[c] = e1;
++    s.Usx[c] = px1/rhoP;
++    s.Usy[c] = py1/rhoP;
++    s.Usz[c] = pz1/rhoP;
++    s.theta[c] = theta1;
++}
++
++struct UnsortedPressureKinematics
++{
++    PressureReal ux0, uy0, uz0, ux1, uy1, uz1;
++    PressureReal theta1, thermalScale, thetaScale;
++    bool resolved;
++};
++
++// Inputs are the sanitized published state. Subtract the kick AFTER publication;
++// using the original state changes rounding at the resolved-theta threshold.
++__device__ __forceinline__ UnsortedPressureKinematics recoverUnsortedPressureKinematics
++(
++    const PressureReal rhoP,
++    const PressureReal px1, const PressureReal py1, const PressureReal pz1,
++    const PressureReal e1, const PressureReal dpx, const PressureReal dpy,
++    const PressureReal dpz, const PressureReal de, const PressureReal thetaMin
++)
++{
++    const PressureReal px0 = px1 - dpx;
++    const PressureReal py0 = py1 - dpy;
++    const PressureReal pz0 = pz1 - dpz;
++    const PressureReal e0 = e1 - de;
++    const PressureReal theta0 = clampMin
++    (
++        pressureKickInternalEnergy(rhoP,px0,py0,pz0,e0)
++        /(PressureReal(1.5)*rhoP), PressureReal(0.0)
++    );
++    const PressureReal theta1 = clampMin
++    (
++        pressureKickInternalEnergy(rhoP,px1,py1,pz1,e1)
++        /(PressureReal(1.5)*rhoP), PressureReal(0.0)
++    );
++    const bool resolved = theta0 > PressureReal(10.0)*thetaMin;
++    const PressureReal thermalScale = resolved
++      ? sqrt(clampMin(theta1/theta0,PressureReal(0.0))) : PressureReal(0.0);
++    const PressureReal thetaScale = resolved ? thermalScale*thermalScale : PressureReal(0.0);
++    return {px0/rhoP,py0/rhoP,pz0/rhoP,px1/rhoP,py1/rhoP,pz1/rhoP,
++            theta1,thermalScale,thetaScale,resolved};
++}
+diff --git a/common/GpuPressureKickAccumulation.cuh b/common/GpuPressureKickAccumulation.cuh
+--- a/common/GpuPressureKickAccumulation.cuh
++++ b/common/GpuPressureKickAccumulation.cuh
+@@ -1,4 +1,5 @@
+ #pragma once
++#include "GpuPressureUnsortedAlgebra.cuh"
+ // Shared cell face accumulation and positivity limiter; scratch is a field adapter.
+ template<class Scratch>
+ __device__ __forceinline__ void runPressureKickAccumulation
+@@ -13,32 +14,8 @@
+ 
+     if (initialiseMoments != 0) Scratch::initialise(s,c);
+ 
+-    PressureReal dpx = PressureReal(0.0);
+-    PressureReal dpy = PressureReal(0.0);
+-    PressureReal dpz = PressureReal(0.0);
+-    PressureReal de = PressureReal(0.0);
+-    const int start = s.cellPlaneStart[c];
+-    const int count = s.cellPlaneCount[c];
+-    for (int j = 0; j < count; ++j)
+-    {
+-        const int plane = start + j;
+-        const int f = s.cellFaceId[plane];
+-        if (f < 0 || f >= s.nFaces)
+-        {
+-            continue;
+-        }
+-        const PressureReal sign = s.faceOwner[f] == c ? PressureReal(1.0) : -PressureReal(1.0);
+-        dpx -= sign*s.solidPressurePhiMomX[f];
+-        dpy -= sign*s.solidPressurePhiMomY[f];
+-        dpz -= sign*s.solidPressurePhiMomZ[f];
+-        de -= sign*s.solidPressurePhiEnergy[f];
+-    }
+-
+-    const PressureReal factor = kickDt/clampMin(s.V[c], OfVSmall);
+-    const PressureReal deltaPx = finiteOr(factor*dpx, PressureReal(0.0));
+-    const PressureReal deltaPy = finiteOr(factor*dpy, PressureReal(0.0));
+-    const PressureReal deltaPz = finiteOr(factor*dpz, PressureReal(0.0));
+-    const PressureReal deltaE = finiteOr(factor*de, PressureReal(0.0));
++    PressureReal deltaPx, deltaPy, deltaPz, deltaE;
++    accumulatePressureFaceDelta(s,c,kickDt,deltaPx,deltaPy,deltaPz,deltaE);
+     s.pressureDeltaMomX[c] = deltaPx;
+     s.pressureDeltaMomY[c] = deltaPy;
+     s.pressureDeltaMomZ[c] = deltaPz;
+diff --git a/common/GpuPressureUnsortedConstrained.cuh b/common/GpuPressureUnsortedConstrained.cuh
+--- a/common/GpuPressureUnsortedConstrained.cuh
++++ b/common/GpuPressureUnsortedConstrained.cuh
+@@ -13,31 +13,8 @@
+         return;
+     }
+ 
+-    PressureReal dpx = PressureReal(0.0);
+-    PressureReal dpy = PressureReal(0.0);
+-    PressureReal dpz = PressureReal(0.0);
+-    PressureReal de = PressureReal(0.0);
+-    const int startFace = s.cellPlaneStart[c];
+-    const int faceCount = s.cellPlaneCount[c];
+-    for (int j = 0; j < faceCount; ++j)
+-    {
+-        const int f = s.cellFaceId[startFace + j];
+-        if (f < 0 || f >= s.nFaces)
+-        {
+-            continue;
+-        }
+-        const PressureReal sign = s.faceOwner[f] == c ? PressureReal(1.0) : -PressureReal(1.0);
+-        dpx -= sign*s.solidPressurePhiMomX[f];
+-        dpy -= sign*s.solidPressurePhiMomY[f];
+-        dpz -= sign*s.solidPressurePhiMomZ[f];
+-        de -= sign*s.solidPressurePhiEnergy[f];
+-    }
+-
+-    const PressureReal factor = kickDt/clampMin(s.V[c], OfVSmall);
+-    dpx = finiteOr(factor*dpx, PressureReal(0.0));
+-    dpy = finiteOr(factor*dpy, PressureReal(0.0));
+-    dpz = finiteOr(factor*dpz, PressureReal(0.0));
+-    de = finiteOr(factor*de, PressureReal(0.0));
++    PressureReal dpx, dpy, dpz, de;
++    accumulatePressureFaceDelta(s,c,kickDt,dpx,dpy,dpz,de);
+     s.pressureDeltaMomX[c] = dpx;
+     s.pressureDeltaMomY[c] = dpy;
+     s.pressureDeltaMomZ[c] = dpz;
+@@ -60,18 +37,7 @@
+             PressureReal(0.0)
+         );
+ 
+-    s.momRhoUPx[c] = px1;
+-    s.momRhoUPy[c] = py1;
+-    s.momRhoUPz[c] = pz1;
+-    s.momRhoEP[c] = e1;
+-    s.rhoUsx[c] = px1;
+-    s.rhoUsy[c] = py1;
+-    s.rhoUsz[c] = pz1;
+-    s.rhoEs[c] = e1;
+-    s.Usx[c] = px1/rhoP;
+-    s.Usy[c] = py1/rhoP;
+-    s.Usz[c] = pz1/rhoP;
+-    s.theta[c] = theta1;
++    publishPressureCellState(s,c,rhoP,px1,py1,pz1,e1,theta1);
+ }
+ 
+ template<bool FullMoments>
+@@ -128,36 +94,12 @@
+         const PressureReal py1 = finiteOr(s.momRhoUPy[c], PressureReal(0.0));
+         const PressureReal pz1 = finiteOr(s.momRhoUPz[c], PressureReal(0.0));
+         const PressureReal e1 = clampMin(finiteOr(s.momRhoEP[c], PressureReal(0.0)), PressureReal(0.0));
+-        const PressureReal px0 = px1 - dpx;
+-        const PressureReal py0 = py1 - dpy;
+-        const PressureReal pz0 = pz1 - dpz;
+-        const PressureReal e0 = e1 - de;
+-        const PressureReal ux0 = px0/rhoP;
+-        const PressureReal uy0 = py0/rhoP;
+-        const PressureReal uz0 = pz0/rhoP;
+-        const PressureReal ux1 = px1/rhoP;
+-        const PressureReal uy1 = py1/rhoP;
+-        const PressureReal uz1 = pz1/rhoP;
+-        const PressureReal theta0 =
+-            clampMin
+-            (
+-                pressureKickInternalEnergy(rhoP, px0, py0, pz0, e0)
+-               /(PressureReal(1.5)*rhoP),
+-                PressureReal(0.0)
+-            );
+-        const PressureReal theta1 =
+-            clampMin
+-            (
+-                pressureKickInternalEnergy(rhoP, px1, py1, pz1, e1)
+-               /(PressureReal(1.5)*rhoP),
+-                PressureReal(0.0)
+-            );
+-        const bool resolved = theta0 > PressureReal(10.0)*s.thetaMin;
+-        const PressureReal thermalScale =
+-            resolved ? sqrt(clampMin(theta1/theta0, PressureReal(0.0))) : PressureReal(0.0);
+-        const PressureReal thetaScale = resolved ? thermalScale*thermalScale : PressureReal(0.0);
++        const UnsortedPressureKinematics projection = recoverUnsortedPressureKinematics
++            (rhoP,px1,py1,pz1,e1,dpx,dpy,dpz,de,s.thetaMin);
+         updateMobilePressureParticle<false>
+-            (s,i,ux0,uy0,uz0,ux1,uy1,uz1,theta1,thermalScale,thetaScale,resolved);
++            (s,i,projection.ux0,projection.uy0,projection.uz0,
++             projection.ux1,projection.uy1,projection.uz1,projection.theta1,
++             projection.thermalScale,projection.thetaScale,projection.resolved);
+         accumulatePressureParticleMomentsAtomicDevice<FullMoments>(s, c, i);
+     }
+ }
+diff --git a/common/wall/GpuColdWall1DDevice.cuh b/common/wall/GpuColdWall1DDevice.cuh
+--- a/common/wall/GpuColdWall1DDevice.cuh
++++ b/common/wall/GpuColdWall1DDevice.cuh
+@@ -242,283 +242,7 @@
+     bool* linearSolveFailed = nullptr
+ )
+ {
+-    const bool inputValid =
+-        s.coldWallSolidificationEnabled != 0
+-     && s.pColdNodeSpecificEnthalpy != nullptr
+-     && s.pColdRingSolidMass != nullptr
+-     && s.pColdFrozenArea != nullptr
+-     && s.pColdContactAge != nullptr
+-     && Foam::gpuThermal::validColdWallSolidificationParameters
+-        (
+-            s.coldWallSolidificationParameters
+-        )
+-     && Foam::gpuThermal::finiteColdWallValue(physicalVolumeM3)
+-     && physicalVolumeM3 > GPU_R(0.0)
+-     && Foam::gpuThermal::finiteColdWallValue(physicalMassKg)
+-     && physicalMassKg > GPU_R(0.0)
+-     && Foam::gpuThermal::finiteColdWallValue(maximumAreaM2)
+-     && maximumAreaM2 > GPU_R(0.0)
+-     && Foam::gpuThermal::finiteColdWallValue(intrinsicContactAreaM2)
+-     && intrinsicContactAreaM2 > GPU_R(0.0)
+-     && intrinsicContactAreaM2 <= maximumAreaM2
+-     && Foam::gpuThermal::finiteColdWallValue(contactDurationS)
+-     && contactDurationS > GPU_R(0.0)
+-     && Foam::gpuThermal::finiteColdWallValue(peakTimeFraction)
+-     && peakTimeFraction > GPU_R(0.0)
+-     && peakTimeFraction < GPU_R(1.0)
+-     && Foam::gpuThermal::finiteColdWallValue(deltaTSeconds)
+-     && deltaTSeconds >= GPU_R(0.0)
+-     && Foam::gpuThermal::finiteColdWallValue(wallTemperatureK)
+-     && wallTemperatureK > GPU_R(0.0)
+-     && Foam::gpuThermal::finiteColdWallValue(wallEffusivity)
+-     && wallEffusivity > GPU_R(0.0)
+-     && Foam::gpuThermal::finiteColdWallValue(thermalAreaFactor)
+-     && thermalAreaFactor > GPU_R(0.0)
+-     && thermalAreaFactor <= GPU_R(1.0)
+-     && Foam::gpuThermal::finiteColdWallValue(gasTemperatureK)
+-     && gasTemperatureK > GPU_R(0.0)
+-     && Foam::gpuThermal::finiteColdWallValue(gasConductanceWK)
+-     && gasConductanceWK >= GPU_R(0.0);
+-    if (!__all_sync(mask, inputValid))
+-    {
+-        return false;
+-    }
+-
+-    const int nodeBase =
+-        particleI*Foam::gpuThermal::coldWallAxialNodeCount;
+-    const int ringBase =
+-        particleI*Foam::gpuThermal::coldWallRadialRingCount;
+-    const GpuReal oldEnthalpy = static_cast<GpuReal>
+-    (
+-        s.pColdNodeSpecificEnthalpy[nodeBase + lane]
+-    );
+-    GpuReal candidateEnthalpy = oldEnthalpy;
+-    GpuReal guessedTemperature =
+-        Foam::gpuThermal::coldWallTemperatureFromSpecificEnthalpyK
+-        (
+-            oldEnthalpy,
+-            s.coldWallSolidificationParameters
+-        );
+-    GpuReal ringSolidMass = static_cast<GpuReal>
+-    (
+-        s.pColdRingSolidMass[ringBase + lane]
+-    );
+-    GpuTime profileContactAgeS = __shfl_sync
+-    (
+-        mask,
+-        lane == 0
+-          ? static_cast<GpuTime>(s.pColdContactAge[particleI])
+-          : GPU_R(0.0),
+-        0,
+-        8
+-    );
+-    GpuReal frozenArea = __shfl_sync
+-    (
+-        mask,
+-        lane == 0
+-          ? static_cast<GpuReal>(s.pColdFrozenArea[particleI])
+-          : GPU_R(0.0),
+-        0,
+-        8
+-    );
+-    int stateValid =
+-        Foam::gpuThermal::finiteColdWallValue(oldEnthalpy)
+-     && oldEnthalpy >= GPU_R(0.0)
+-     && Foam::gpuThermal::finiteColdWallValue(guessedTemperature)
+-     && guessedTemperature > GPU_R(0.0)
+-     && Foam::gpuThermal::finiteColdWallValue(ringSolidMass)
+-     && ringSolidMass >= GPU_R(0.0)
+-     && Foam::gpuThermal::finiteColdWallValue(profileContactAgeS)
+-     && profileContactAgeS >= GPU_R(0.0)
+-     && Foam::gpuThermal::finiteColdWallValue(frozenArea)
+-     && frozenArea >= GPU_R(0.0);
+-    if (!__all_sync(mask, stateValid))
+-    {
+-        return false;
+-    }
+-
+-    const GpuReal contactArea = Foam::gpuThermal::coldWallClamp
+-    (
+-        intrinsicContactAreaM2,
+-        GPU_REAL_MIN,
+-        maximumAreaM2
+-    );
+-    const GpuReal filmThickness = physicalVolumeM3/contactArea;
+-    const GpuReal nodeThickness = filmThickness/GPU_R(8.0);
+-    const GpuReal nodeMass = physicalMassKg/GPU_R(8.0);
+-    const GpuReal ringArea = maximumAreaM2/GPU_R(8.0);
+-    const GpuReal ringInnerArea = static_cast<GpuReal>(lane)*ringArea;
+-    const GpuReal ringWetArea = Foam::gpuThermal::coldWallClamp
+-    (
+-        contactArea - ringInnerArea,
+-        GPU_R(0.0),
+-        ringArea
+-    );
+-    const GpuReal radialFraction = (static_cast<GpuReal>(lane) + GPU_R(0.5))/GPU_R(8.0);
+-    const GpuReal spreadCoordinate = GPU_R(1.0) - ::sqrt
+-    (
+-        Foam::gpuThermal::coldWallClamp(GPU_R(1.0) - radialFraction, GPU_R(0.0), GPU_R(1.0))
+-    );
+-    const GpuTime firstWetAge =
+-        contactDurationS*peakTimeFraction*spreadCoordinate;
+-    const GpuTime profileContactAge1S = profileContactAgeS + deltaTSeconds;
+-    const GpuTime localAge0 = profileContactAgeS > firstWetAge
+-      ? profileContactAgeS - firstWetAge
+-      : GPU_R(0.0);
+-    const GpuTime localAge1 = profileContactAge1S > firstWetAge
+-      ? profileContactAge1S - firstWetAge
+-      : GPU_R(0.0);
+-    const ColdWallIntegralCache integralCache = coldWallPrepareIntegralCache
+-    (
+-        localAge0, localAge1, wallEffusivity,
+-        s.coldWallSolidificationParameters.wallTransientResistance != 0
+-    );
+-    GpuReal ringCoolingPower = GPU_R(0.0);
+-    GpuReal acceptedWallPower = GPU_R(0.0);
+-
+-    for
+-    (
+-        int iteration = 0;
+-        iteration < s.coldWallSolidificationParameters.nonlinearIterations;
+-        ++iteration
+-    )
+-    {
+-
+-        const GpuReal solidFraction = coldWall1DSolidFractionFromKnownTemperature
+-        (
+-            guessedTemperature,
+-            s.coldWallSolidificationParameters
+-        );
+-        const GpuReal conductivity =
+-            solidFraction*s.coldWallSolidificationParameters.solidThermalConductivityWmK
+-          + (GPU_R(1.0) - solidFraction)*Foam::gpuThermal::aluminaThermalConductivityWmK;
+-        const GpuReal bottomConductivity =
+-            __shfl_sync(mask, conductivity, 0, 8);
+-        const GpuReal particleResistance =
+-            GPU_R(0.5)*nodeThickness/bottomConductivity;
+-        const GpuReal ringConductanceIntegral =
+-            coldWallCachedConductanceTimeIntegral
+-            (
+-                integralCache,
+-                ringWetArea,
+-                thermalAreaFactor,
+-                localAge0,
+-                localAge1,
+-                s.coldWallSolidificationParameters.interfaceResistanceM2KW,
+-                particleResistance,
+-                wallEffusivity,
+-                s.coldWallSolidificationParameters.wallTransientResistance != 0
+-            );
+-        const GpuReal ringConductance =
+-            ringConductanceIntegral/(deltaTSeconds + GPU_REAL_MIN);
+-        if (!__all_sync(mask, ringConductanceIntegral >= GPU_R(0.0)))
+-        {
+-            return false;
+-        }
+-        const GpuReal wallConductance =
+-            coldWall1DGroupSum(ringConductance, mask);
+-        const GpuReal bottomTemperature =
+-            __shfl_sync(mask, guessedTemperature, 0, 8);
+-        ringCoolingPower =
+-            ringConductance*(bottomTemperature - wallTemperatureK);
+-
+-        const GpuReal rightConductivity =
+-            __shfl_down_sync(mask, conductivity, 1, 8);
+-        const GpuReal faceConductance = lane + 1 < 8
+-          ? GPU_R(2.0)*conductivity*rightConductivity
+-           /(conductivity + rightConductivity + GPU_REAL_MIN)
+-           *contactArea/nodeThickness
+-          : GPU_R(0.0);
+-        const GpuReal leftFaceConductance =
+-            __shfl_up_sync(mask, faceConductance, 1, 8);
+-        const GpuReal capacity = nodeMass
+-          *Foam::gpuThermal::coldWallApparentSpecificHeat
+-            (
+-                guessedTemperature,
+-                s.coldWallSolidificationParameters
+-            )/(deltaTSeconds + GPU_REAL_MIN);
+-        GpuReal lower = lane > 0 ? -leftFaceConductance : GPU_R(0.0);
+-        GpuReal diagonal = capacity
+-          + (lane > 0 ? leftFaceConductance : GPU_R(0.0))
+-          + (lane + 1 < 8 ? faceConductance : GPU_R(0.0));
+-        GpuReal upper = lane + 1 < 8 ? -faceConductance : GPU_R(0.0);
+-        GpuReal rightHandSide = capacity*guessedTemperature;
+-        if (lane == 0)
+-        {
+-            diagonal += wallConductance;
+-            rightHandSide += wallConductance*wallTemperatureK;
+-        }
+-        if (lane == 7)
+-        {
+-            diagonal += gasConductanceWK;
+-            rightHandSide += gasConductanceWK*gasTemperatureK;
+-        }
+-        const GpuReal solvedTemperature = StabilizePcr
+-          ? coldWall1DPcrSolveStable
+-        (
+-            lower,
+-            diagonal,
+-            upper,
+-            rightHandSide,
+-            capacity + (lane == 0 ? wallConductance : GPU_R(0.0))
+-              + (lane == 7 ? gasConductanceWK : GPU_R(0.0)),
+-            lane,
+-            mask
+-        )
+-          : coldWall1DPcrSolve
+-        (
+-            lower,
+-            diagonal,
+-            upper,
+-            rightHandSide,
+-            lane,
+-            mask
+-        );
+-
+-        const GpuReal rightSolvedTemperature =
+-            __shfl_down_sync(mask, solvedTemperature, 1, 8);
+-        const GpuReal internalPower = lane + 1 < 8
+-          ? faceConductance*(solvedTemperature - rightSolvedTemperature)
+-          : GPU_R(0.0);
+-        const GpuReal leftInternalPower =
+-            __shfl_up_sync(mask, internalPower, 1, 8);
+-        const GpuReal wallPower = wallConductance
+-          *(__shfl_sync(mask, solvedTemperature, 0, 8) - wallTemperatureK);
+-        const GpuReal gasPower = gasConductanceWK
+-          *(gasTemperatureK - __shfl_sync(mask, solvedTemperature, 7, 8));
+-        GpuReal power =
+-            (lane > 0 ? leftInternalPower : GPU_R(0.0))
+-          - (lane + 1 < 8 ? internalPower : GPU_R(0.0));
+-        if (lane == 0)
+-        {
+-            power -= wallPower;
+-        }
+-        if (lane == 7)
+-        {
+-            power += gasPower;
+-        }
+-        candidateEnthalpy = oldEnthalpy
+-          + deltaTSeconds*power/nodeMass;
+-        guessedTemperature =
+-            Foam::gpuThermal::coldWallTemperatureFromSpecificEnthalpyK
+-            (
+-                candidateEnthalpy,
+-                s.coldWallSolidificationParameters
+-            );
+-        acceptedWallPower = wallPower;
+-        stateValid =
+-            Foam::gpuThermal::finiteColdWallValue(candidateEnthalpy)
+-         && candidateEnthalpy >= GPU_R(0.0)
+-         && Foam::gpuThermal::finiteColdWallValue(guessedTemperature)
+-         && guessedTemperature > GPU_R(0.0);
+-        if (!__all_sync(mask, stateValid))
+-        {
+-            if (linearSolveFailed != nullptr) *linearSolveFailed = true;
+-            return false;
+-        }
+-    }
+-
+-#include "GpuColdWall1DPublish.inl"
++#include "GpuColdWall1DAdvance.inl"
+ }
+ 
+ #ifndef GPU_COLD_WALL_1D_ALGEBRA_ONLY
+@@ -779,263 +503,7 @@
+     GpuReal& wallEnergyJ
+ )
+ {
+-    const bool inputValid =
+-        s.coldWallSolidificationEnabled != 0
+-     && s.pColdNodeSpecificEnthalpy != nullptr
+-     && s.pColdRingSolidMass != nullptr
+-     && s.pColdFrozenArea != nullptr
+-     && s.pColdContactAge != nullptr
+-     && Foam::gpuThermal::validColdWallSolidificationParameters
+-        (
+-            s.coldWallSolidificationParameters
+-        )
+-     && Foam::gpuThermal::finiteColdWallValue(physicalVolumeM3)
+-     && physicalVolumeM3 > GPU_R(0.0)
+-     && Foam::gpuThermal::finiteColdWallValue(physicalMassKg)
+-     && physicalMassKg > GPU_R(0.0)
+-     && Foam::gpuThermal::finiteColdWallValue(maximumAreaM2)
+-     && maximumAreaM2 > GPU_R(0.0)
+-     && Foam::gpuThermal::finiteColdWallValue(intrinsicContactAreaM2)
+-     && intrinsicContactAreaM2 > GPU_R(0.0)
+-     && intrinsicContactAreaM2 <= maximumAreaM2
+-     && Foam::gpuThermal::finiteColdWallValue(contactDurationS)
+-     && contactDurationS > GPU_R(0.0)
+-     && Foam::gpuThermal::finiteColdWallValue(peakTimeFraction)
+-     && peakTimeFraction > GPU_R(0.0)
+-     && peakTimeFraction < GPU_R(1.0)
+-     && Foam::gpuThermal::finiteColdWallValue(deltaTSeconds)
+-     && deltaTSeconds >= GPU_R(0.0)
+-     && Foam::gpuThermal::finiteColdWallValue(wallTemperatureK)
+-     && wallTemperatureK > GPU_R(0.0)
+-     && Foam::gpuThermal::finiteColdWallValue(wallEffusivity)
+-     && wallEffusivity > GPU_R(0.0)
+-     && Foam::gpuThermal::finiteColdWallValue(thermalAreaFactor)
+-     && thermalAreaFactor > GPU_R(0.0)
+-     && thermalAreaFactor <= GPU_R(1.0)
+-     && Foam::gpuThermal::finiteColdWallValue(gasTemperatureK)
+-     && gasTemperatureK > GPU_R(0.0)
+-     && Foam::gpuThermal::finiteColdWallValue(gasConductanceWK)
+-     && gasConductanceWK >= GPU_R(0.0);
+-    if (!__all_sync(mask, inputValid))
+-    {
+-        return false;
+-    }
+-
+-    const int nodeBase =
+-        particleI*Foam::gpuThermal::coldWallAxialNodeCount;
+-    const int ringBase =
+-        particleI*Foam::gpuThermal::coldWallRadialRingCount;
+-    const GpuReal oldEnthalpy = static_cast<GpuReal>
+-    (
+-        s.pColdNodeSpecificEnthalpy[nodeBase + lane]
+-    );
+-    GpuReal candidateEnthalpy = oldEnthalpy;
+-    GpuReal guessedTemperature =
+-        Foam::gpuThermal::coldWallTemperatureFromSpecificEnthalpyK
+-        (
+-            oldEnthalpy,
+-            s.coldWallSolidificationParameters
+-        );
+-    GpuReal ringSolidMass = static_cast<GpuReal>
+-    (
+-        s.pColdRingSolidMass[ringBase + lane]
+-    );
+-    GpuTime profileContactAgeS = __shfl_sync
+-    (
+-        mask,
+-        lane == 0
+-          ? static_cast<GpuTime>(s.pColdContactAge[particleI])
+-          : GPU_R(0.0),
+-        0,
+-        8
+-    );
+-    GpuReal frozenArea = __shfl_sync
+-    (
+-        mask,
+-        lane == 0
+-          ? static_cast<GpuReal>(s.pColdFrozenArea[particleI])
+-          : GPU_R(0.0),
+-        0,
+-        8
+-    );
+-    int stateValid =
+-        Foam::gpuThermal::finiteColdWallValue(oldEnthalpy)
+-     && oldEnthalpy >= GPU_R(0.0)
+-     && Foam::gpuThermal::finiteColdWallValue(guessedTemperature)
+-     && guessedTemperature > GPU_R(0.0)
+-     && Foam::gpuThermal::finiteColdWallValue(ringSolidMass)
+-     && ringSolidMass >= GPU_R(0.0)
+-     && Foam::gpuThermal::finiteColdWallValue(profileContactAgeS)
+-     && profileContactAgeS >= GPU_R(0.0)
+-     && Foam::gpuThermal::finiteColdWallValue(frozenArea)
+-     && frozenArea >= GPU_R(0.0);
+-    if (!__all_sync(mask, stateValid))
+-    {
+-        return false;
+-    }
+-
+-    const GpuReal contactArea = Foam::gpuThermal::coldWallClamp
+-    (
+-        intrinsicContactAreaM2,
+-        GPU_REAL_MIN,
+-        maximumAreaM2
+-    );
+-    const GpuReal filmThickness = physicalVolumeM3/contactArea;
+-    const GpuReal nodeThickness = filmThickness/GPU_R(8.0);
+-    const GpuReal nodeMass = physicalMassKg/GPU_R(8.0);
+-    const GpuReal ringArea = maximumAreaM2/GPU_R(8.0);
+-    const GpuReal ringInnerArea = static_cast<GpuReal>(lane)*ringArea;
+-    const GpuReal ringWetArea = Foam::gpuThermal::coldWallClamp
+-    (
+-        contactArea - ringInnerArea,
+-        GPU_R(0.0),
+-        ringArea
+-    );
+-    const GpuReal radialFraction = (static_cast<GpuReal>(lane) + GPU_R(0.5))/GPU_R(8.0);
+-    const GpuReal spreadCoordinate = GPU_R(1.0) - ::sqrt
+-    (
+-        Foam::gpuThermal::coldWallClamp(GPU_R(1.0) - radialFraction, GPU_R(0.0), GPU_R(1.0))
+-    );
+-    const GpuTime firstWetAge =
+-        contactDurationS*peakTimeFraction*spreadCoordinate;
+-    const GpuTime profileContactAge1S = profileContactAgeS + deltaTSeconds;
+-    const GpuTime localAge0 = profileContactAgeS > firstWetAge
+-      ? profileContactAgeS - firstWetAge
+-      : GPU_R(0.0);
+-    const GpuTime localAge1 = profileContactAge1S > firstWetAge
+-      ? profileContactAge1S - firstWetAge
+-      : GPU_R(0.0);
+-    GpuReal ringCoolingPower = GPU_R(0.0);
+-    GpuReal acceptedWallPower = GPU_R(0.0);
+-
+-    for
+-    (
+-        int iteration = 0;
+-        iteration < s.coldWallSolidificationParameters.nonlinearIterations;
+-        ++iteration
+-    )
+-    {
+-
+-        const GpuReal solidFraction = coldWall1DSolidFractionFromKnownTemperature
+-        (
+-            guessedTemperature,
+-            s.coldWallSolidificationParameters
+-        );
+-        const GpuReal conductivity =
+-            solidFraction*s.coldWallSolidificationParameters.solidThermalConductivityWmK
+-          + (GPU_R(1.0) - solidFraction)*Foam::gpuThermal::aluminaThermalConductivityWmK;
+-        const GpuReal bottomConductivity =
+-            __shfl_sync(mask, conductivity, 0, 8);
+-        const GpuReal particleResistance =
+-            GPU_R(0.5)*nodeThickness/bottomConductivity;
+-        const GpuReal ringConductanceIntegral =
+-            Foam::gpuThermal::wallInterfaceConductanceTimeIntegral
+-            (
+-                ringWetArea,
+-                thermalAreaFactor,
+-                localAge0,
+-                localAge1,
+-                s.coldWallSolidificationParameters.interfaceResistanceM2KW,
+-                particleResistance,
+-                wallEffusivity,
+-                s.coldWallSolidificationParameters.wallTransientResistance != 0
+-            );
+-        const GpuReal ringConductance =
+-            ringConductanceIntegral/(deltaTSeconds + GPU_REAL_MIN);
+-        if (!__all_sync(mask, ringConductanceIntegral >= GPU_R(0.0)))
+-        {
+-            return false;
+-        }
+-        const GpuReal wallConductance =
+-            coldWall1DGroupSum(ringConductance, mask);
+-        const GpuReal bottomTemperature =
+-            __shfl_sync(mask, guessedTemperature, 0, 8);
+-        ringCoolingPower =
+-            ringConductance*(bottomTemperature - wallTemperatureK);
+-
+-        const GpuReal rightConductivity =
+-            __shfl_down_sync(mask, conductivity, 1, 8);
+-        const GpuReal faceConductance = lane + 1 < 8
+-          ? GPU_R(2.0)*conductivity*rightConductivity
+-           /(conductivity + rightConductivity + GPU_REAL_MIN)
+-           *contactArea/nodeThickness
+-          : GPU_R(0.0);
+-        const GpuReal leftFaceConductance =
+-            __shfl_up_sync(mask, faceConductance, 1, 8);
+-        const GpuReal capacity = nodeMass
+-          *Foam::gpuThermal::coldWallApparentSpecificHeat
+-            (
+-                guessedTemperature,
+-                s.coldWallSolidificationParameters
+-            )/(deltaTSeconds + GPU_REAL_MIN);
+-        GpuReal lower = lane > 0 ? -leftFaceConductance : GPU_R(0.0);
+-        GpuReal diagonal = capacity
+-          + (lane > 0 ? leftFaceConductance : GPU_R(0.0))
+-          + (lane + 1 < 8 ? faceConductance : GPU_R(0.0));
+-        GpuReal upper = lane + 1 < 8 ? -faceConductance : GPU_R(0.0);
+-        GpuReal rightHandSide = capacity*guessedTemperature;
+-        if (lane == 0)
+-        {
+-            diagonal += wallConductance;
+-            rightHandSide += wallConductance*wallTemperatureK;
+-        }
+-        if (lane == 7)
+-        {
+-            diagonal += gasConductanceWK;
+-            rightHandSide += gasConductanceWK*gasTemperatureK;
+-        }
+-        const GpuReal solvedTemperature = coldWall1DPcrSolve
+-        (
+-            lower,
+-            diagonal,
+-            upper,
+-            rightHandSide,
+-            lane,
+-            mask
+-        );
+-        const GpuReal rightSolvedTemperature =
+-            __shfl_down_sync(mask, solvedTemperature, 1, 8);
+-        const GpuReal internalPower = lane + 1 < 8
+-          ? faceConductance*(solvedTemperature - rightSolvedTemperature)
+-          : GPU_R(0.0);
+-        const GpuReal leftInternalPower =
+-            __shfl_up_sync(mask, internalPower, 1, 8);
+-        const GpuReal wallPower = wallConductance
+-          *(__shfl_sync(mask, solvedTemperature, 0, 8) - wallTemperatureK);
+-        const GpuReal gasPower = gasConductanceWK
+-          *(gasTemperatureK - __shfl_sync(mask, solvedTemperature, 7, 8));
+-        GpuReal power =
+-            (lane > 0 ? leftInternalPower : GPU_R(0.0))
+-          - (lane + 1 < 8 ? internalPower : GPU_R(0.0));
+-        if (lane == 0)
+-        {
+-            power -= wallPower;
+-        }
+-        if (lane == 7)
+-        {
+-            power += gasPower;
+-        }
+-        candidateEnthalpy = oldEnthalpy
+-          + deltaTSeconds*power/nodeMass;
+-        guessedTemperature =
+-            Foam::gpuThermal::coldWallTemperatureFromSpecificEnthalpyK
+-            (
+-                candidateEnthalpy,
+-                s.coldWallSolidificationParameters
+-            );
+-        acceptedWallPower = wallPower;
+-        stateValid =
+-            Foam::gpuThermal::finiteColdWallValue(candidateEnthalpy)
+-         && candidateEnthalpy >= GPU_R(0.0)
+-         && Foam::gpuThermal::finiteColdWallValue(guessedTemperature)
+-         && guessedTemperature > GPU_R(0.0);
+-        if (!__all_sync(mask, stateValid))
+-        {
+-            return false;
+-        }
+-    }
+-
+-#include "GpuColdWall1DPublish.inl"
++#include "GpuColdWall1DAdvance.inl"
+ }
+ 
+ #ifndef GPU_COLD_WALL_1D_ALGEBRA_ONLY
+diff --git a/common/wall/GpuColdWall1DAdvance.inl b/common/wall/GpuColdWall1DAdvance.inl
+new file mode 100644
+--- /dev/null
++++ b/common/wall/GpuColdWall1DAdvance.inl
+@@ -0,0 +1,311 @@
++// Shared assembly, nonlinear enthalpy update and publication.
++// Precision policies retain the existing cache and stable PCR path.
++
++    const bool inputValid =
++        s.coldWallSolidificationEnabled != 0
++     && s.pColdNodeSpecificEnthalpy != nullptr
++     && s.pColdRingSolidMass != nullptr
++     && s.pColdFrozenArea != nullptr
++     && s.pColdContactAge != nullptr
++     && Foam::gpuThermal::validColdWallSolidificationParameters
++        (
++            s.coldWallSolidificationParameters
++        )
++     && Foam::gpuThermal::finiteColdWallValue(physicalVolumeM3)
++     && physicalVolumeM3 > GPU_R(0.0)
++     && Foam::gpuThermal::finiteColdWallValue(physicalMassKg)
++     && physicalMassKg > GPU_R(0.0)
++     && Foam::gpuThermal::finiteColdWallValue(maximumAreaM2)
++     && maximumAreaM2 > GPU_R(0.0)
++     && Foam::gpuThermal::finiteColdWallValue(intrinsicContactAreaM2)
++     && intrinsicContactAreaM2 > GPU_R(0.0)
++     && intrinsicContactAreaM2 <= maximumAreaM2
++     && Foam::gpuThermal::finiteColdWallValue(contactDurationS)
++     && contactDurationS > GPU_R(0.0)
++     && Foam::gpuThermal::finiteColdWallValue(peakTimeFraction)
++     && peakTimeFraction > GPU_R(0.0)
++     && peakTimeFraction < GPU_R(1.0)
++     && Foam::gpuThermal::finiteColdWallValue(deltaTSeconds)
++     && deltaTSeconds >= GPU_R(0.0)
++     && Foam::gpuThermal::finiteColdWallValue(wallTemperatureK)
++     && wallTemperatureK > GPU_R(0.0)
++     && Foam::gpuThermal::finiteColdWallValue(wallEffusivity)
++     && wallEffusivity > GPU_R(0.0)
++     && Foam::gpuThermal::finiteColdWallValue(thermalAreaFactor)
++     && thermalAreaFactor > GPU_R(0.0)
++     && thermalAreaFactor <= GPU_R(1.0)
++     && Foam::gpuThermal::finiteColdWallValue(gasTemperatureK)
++     && gasTemperatureK > GPU_R(0.0)
++     && Foam::gpuThermal::finiteColdWallValue(gasConductanceWK)
++     && gasConductanceWK >= GPU_R(0.0);
++    if (!__all_sync(mask, inputValid))
++    {
++        return false;
++    }
++
++    const int nodeBase =
++        particleI*Foam::gpuThermal::coldWallAxialNodeCount;
++    const int ringBase =
++        particleI*Foam::gpuThermal::coldWallRadialRingCount;
++    const GpuReal oldEnthalpy = static_cast<GpuReal>
++    (
++        s.pColdNodeSpecificEnthalpy[nodeBase + lane]
++    );
++    GpuReal candidateEnthalpy = oldEnthalpy;
++    GpuReal guessedTemperature =
++        Foam::gpuThermal::coldWallTemperatureFromSpecificEnthalpyK
++        (
++            oldEnthalpy,
++            s.coldWallSolidificationParameters
++        );
++    GpuReal ringSolidMass = static_cast<GpuReal>
++    (
++        s.pColdRingSolidMass[ringBase + lane]
++    );
++    GpuTime profileContactAgeS = __shfl_sync
++    (
++        mask,
++        lane == 0
++          ? static_cast<GpuTime>(s.pColdContactAge[particleI])
++          : GPU_R(0.0),
++        0,
++        8
++    );
++    GpuReal frozenArea = __shfl_sync
++    (
++        mask,
++        lane == 0
++          ? static_cast<GpuReal>(s.pColdFrozenArea[particleI])
++          : GPU_R(0.0),
++        0,
++        8
++    );
++    int stateValid =
++        Foam::gpuThermal::finiteColdWallValue(oldEnthalpy)
++     && oldEnthalpy >= GPU_R(0.0)
++     && Foam::gpuThermal::finiteColdWallValue(guessedTemperature)
++     && guessedTemperature > GPU_R(0.0)
++     && Foam::gpuThermal::finiteColdWallValue(ringSolidMass)
++     && ringSolidMass >= GPU_R(0.0)
++     && Foam::gpuThermal::finiteColdWallValue(profileContactAgeS)
++     && profileContactAgeS >= GPU_R(0.0)
++     && Foam::gpuThermal::finiteColdWallValue(frozenArea)
++     && frozenArea >= GPU_R(0.0);
++    if (!__all_sync(mask, stateValid))
++    {
++        return false;
++    }
++
++    const GpuReal contactArea = Foam::gpuThermal::coldWallClamp
++    (
++        intrinsicContactAreaM2,
++        GPU_REAL_MIN,
++        maximumAreaM2
++    );
++    const GpuReal filmThickness = physicalVolumeM3/contactArea;
++    const GpuReal nodeThickness = filmThickness/GPU_R(8.0);
++    const GpuReal nodeMass = physicalMassKg/GPU_R(8.0);
++    const GpuReal ringArea = maximumAreaM2/GPU_R(8.0);
++    const GpuReal ringInnerArea = static_cast<GpuReal>(lane)*ringArea;
++    const GpuReal ringWetArea = Foam::gpuThermal::coldWallClamp
++    (
++        contactArea - ringInnerArea,
++        GPU_R(0.0),
++        ringArea
++    );
++    const GpuReal radialFraction = (static_cast<GpuReal>(lane) + GPU_R(0.5))/GPU_R(8.0);
++    const GpuReal spreadCoordinate = GPU_R(1.0) - ::sqrt
++    (
++        Foam::gpuThermal::coldWallClamp(GPU_R(1.0) - radialFraction, GPU_R(0.0), GPU_R(1.0))
++    );
++    const GpuTime firstWetAge =
++        contactDurationS*peakTimeFraction*spreadCoordinate;
++    const GpuTime profileContactAge1S = profileContactAgeS + deltaTSeconds;
++    const GpuTime localAge0 = profileContactAgeS > firstWetAge
++      ? profileContactAgeS - firstWetAge
++      : GPU_R(0.0);
++    const GpuTime localAge1 = profileContactAge1S > firstWetAge
++      ? profileContactAge1S - firstWetAge
++      : GPU_R(0.0);
++#if UGKWP_GPU_REAL_BITS == 32
++    const ColdWallIntegralCache integralCache = coldWallPrepareIntegralCache
++    (
++        localAge0, localAge1, wallEffusivity,
++        s.coldWallSolidificationParameters.wallTransientResistance != 0
++    );
++#endif
++    GpuReal ringCoolingPower = GPU_R(0.0);
++    GpuReal acceptedWallPower = GPU_R(0.0);
++
++    for
++    (
++        int iteration = 0;
++        iteration < s.coldWallSolidificationParameters.nonlinearIterations;
++        ++iteration
++    )
++    {
++
++        const GpuReal solidFraction = coldWall1DSolidFractionFromKnownTemperature
++        (
++            guessedTemperature,
++            s.coldWallSolidificationParameters
++        );
++        const GpuReal conductivity =
++            solidFraction*s.coldWallSolidificationParameters.solidThermalConductivityWmK
++          + (GPU_R(1.0) - solidFraction)*Foam::gpuThermal::aluminaThermalConductivityWmK;
++        const GpuReal bottomConductivity =
++            __shfl_sync(mask, conductivity, 0, 8);
++        const GpuReal particleResistance =
++            GPU_R(0.5)*nodeThickness/bottomConductivity;
++#if UGKWP_GPU_REAL_BITS == 32
++        const GpuReal ringConductanceIntegral =
++            coldWallCachedConductanceTimeIntegral
++            (
++                integralCache,
++                ringWetArea,
++                thermalAreaFactor,
++                localAge0,
++                localAge1,
++                s.coldWallSolidificationParameters.interfaceResistanceM2KW,
++                particleResistance,
++                wallEffusivity,
++                s.coldWallSolidificationParameters.wallTransientResistance != 0
++            );
++#else
++        const GpuReal ringConductanceIntegral =
++            Foam::gpuThermal::wallInterfaceConductanceTimeIntegral
++            (
++                ringWetArea,
++                thermalAreaFactor,
++                localAge0,
++                localAge1,
++                s.coldWallSolidificationParameters.interfaceResistanceM2KW,
++                particleResistance,
++                wallEffusivity,
++                s.coldWallSolidificationParameters.wallTransientResistance != 0
++            );
++#endif
++        const GpuReal ringConductance =
++            ringConductanceIntegral/(deltaTSeconds + GPU_REAL_MIN);
++        if (!__all_sync(mask, ringConductanceIntegral >= GPU_R(0.0)))
++        {
++            return false;
++        }
++        const GpuReal wallConductance =
++            coldWall1DGroupSum(ringConductance, mask);
++        const GpuReal bottomTemperature =
++            __shfl_sync(mask, guessedTemperature, 0, 8);
++        ringCoolingPower =
++            ringConductance*(bottomTemperature - wallTemperatureK);
++
++        const GpuReal rightConductivity =
++            __shfl_down_sync(mask, conductivity, 1, 8);
++        const GpuReal faceConductance = lane + 1 < 8
++          ? GPU_R(2.0)*conductivity*rightConductivity
++           /(conductivity + rightConductivity + GPU_REAL_MIN)
++           *contactArea/nodeThickness
++          : GPU_R(0.0);
++        const GpuReal leftFaceConductance =
++            __shfl_up_sync(mask, faceConductance, 1, 8);
++        const GpuReal capacity = nodeMass
++          *Foam::gpuThermal::coldWallApparentSpecificHeat
++            (
++                guessedTemperature,
++                s.coldWallSolidificationParameters
++            )/(deltaTSeconds + GPU_REAL_MIN);
++        GpuReal lower = lane > 0 ? -leftFaceConductance : GPU_R(0.0);
++        GpuReal diagonal = capacity
++          + (lane > 0 ? leftFaceConductance : GPU_R(0.0))
++          + (lane + 1 < 8 ? faceConductance : GPU_R(0.0));
++        GpuReal upper = lane + 1 < 8 ? -faceConductance : GPU_R(0.0);
++        GpuReal rightHandSide = capacity*guessedTemperature;
++        if (lane == 0)
++        {
++            diagonal += wallConductance;
++            rightHandSide += wallConductance*wallTemperatureK;
++        }
++        if (lane == 7)
++        {
++            diagonal += gasConductanceWK;
++            rightHandSide += gasConductanceWK*gasTemperatureK;
++        }
++#if UGKWP_GPU_REAL_BITS == 32
++        const GpuReal solvedTemperature = StabilizePcr
++          ? coldWall1DPcrSolveStable
++        (
++            lower,
++            diagonal,
++            upper,
++            rightHandSide,
++            capacity + (lane == 0 ? wallConductance : GPU_R(0.0))
++              + (lane == 7 ? gasConductanceWK : GPU_R(0.0)),
++            lane,
++            mask
++        )
++          : coldWall1DPcrSolve
++        (
++            lower,
++            diagonal,
++            upper,
++            rightHandSide,
++            lane,
++            mask
++        );
++
++#else
++        const GpuReal solvedTemperature = coldWall1DPcrSolve
++        (
++            lower,
++            diagonal,
++            upper,
++            rightHandSide,
++            lane,
++            mask
++        );
++#endif
++        const GpuReal rightSolvedTemperature =
++            __shfl_down_sync(mask, solvedTemperature, 1, 8);
++        const GpuReal internalPower = lane + 1 < 8
++          ? faceConductance*(solvedTemperature - rightSolvedTemperature)
++          : GPU_R(0.0);
++        const GpuReal leftInternalPower =
++            __shfl_up_sync(mask, internalPower, 1, 8);
++        const GpuReal wallPower = wallConductance
++          *(__shfl_sync(mask, solvedTemperature, 0, 8) - wallTemperatureK);
++        const GpuReal gasPower = gasConductanceWK
++          *(gasTemperatureK - __shfl_sync(mask, solvedTemperature, 7, 8));
++        GpuReal power =
++            (lane > 0 ? leftInternalPower : GPU_R(0.0))
++          - (lane + 1 < 8 ? internalPower : GPU_R(0.0));
++        if (lane == 0)
++        {
++            power -= wallPower;
++        }
++        if (lane == 7)
++        {
++            power += gasPower;
++        }
++        candidateEnthalpy = oldEnthalpy
++          + deltaTSeconds*power/nodeMass;
++        guessedTemperature =
++            Foam::gpuThermal::coldWallTemperatureFromSpecificEnthalpyK
++            (
++                candidateEnthalpy,
++                s.coldWallSolidificationParameters
++            );
++        acceptedWallPower = wallPower;
++        stateValid =
++            Foam::gpuThermal::finiteColdWallValue(candidateEnthalpy)
++         && candidateEnthalpy >= GPU_R(0.0)
++         && Foam::gpuThermal::finiteColdWallValue(guessedTemperature)
++         && guessedTemperature > GPU_R(0.0);
++        if (!__all_sync(mask, stateValid))
++        {
++#if UGKWP_GPU_REAL_BITS == 32
++            if (linearSolveFailed != nullptr) *linearSolveFailed = true;
++#endif
++            return false;
++        }
++    }
++
++#include "GpuColdWall1DPublish.inl"
+diff --git a/tools/managed_mirrors.json b/tools/managed_mirrors.json
+--- a/tools/managed_mirrors.json
++++ b/tools/managed_mirrors.json
+@@ -720,6 +720,11 @@
+       "downstream": "gpu-riemann-gkp-main"
+     },
+     {
++      "path": "common/GpuPressureUnsortedAlgebra.cuh",
++      "upstream": "ugkp-thermal",
++      "downstream": "gpu-riemann-gkp-main"
++    },
++    {
+       "path": "common/GpuReductionTaskCount.cuh",
+       "upstream": "ugkp-thermal",
+       "downstream": "gpu-riemann-gkp-main"
+@@ -880,6 +885,11 @@
+       "downstream": "gpu-riemann-gkp-main"
+     },
+     {
++      "path": "common/operators/atomicAddParticleWallEnergyByFace.cuh",
++      "upstream": "ugkp-thermal",
++      "downstream": "gpu-riemann-gkp-main"
++    },
++    {
+       "path": "common/operators/clampMin.cuh",
+       "upstream": "ugkp-thermal",
+       "downstream": "gpu-riemann-gkp-main"
+@@ -1121,6 +1131,11 @@
+     },
+     {
+       "path": "common/operators/validateDevelopmentProbeParticlesKernel.cuh",
++      "upstream": "ugkp-thermal",
++      "downstream": "gpu-riemann-gkp-main"
++    },
++    {
++      "path": "common/wall/GpuColdWall1DAdvance.inl",
+       "upstream": "ugkp-thermal",
+       "downstream": "gpu-riemann-gkp-main"
+     },
+diff --git a/tools/benchmark_operator_unification.py b/tools/benchmark_operator_unification.py
+new file mode 100644
+--- /dev/null
++++ b/tools/benchmark_operator_unification.py
+@@ -0,0 +1,121 @@
++#!/usr/bin/env python3
++"""Paired kernel regression measurements for operator extraction.
++
++These synthetic kernel loads do not substitute for whole-application speedups.
++Both versions use the same mesh, particles, inputs and launch geometry. No
++case-specific parameter is written to production code.
++"""
++from pathlib import Path
++import argparse,hashlib,json,os,re,resource,statistics,subprocess
++
++def build(root,out,app,bits):
++    source=root/'applications'/app/('gpu' if app=='CHT' else 'private_backend')
++    raw=(source/'GpuResidentStrict.cu').read_text();a=raw.index('struct DeviceState');b=raw.index('\n};',a)
++    fields=re.findall(r'^\s*((?:unsigned\s+)?(?:long long|char)|double|float|int|GpuReal|GpuTime|GpuWallEnergy)\*\s+(\w+)\s*=',raw[a:b],re.M)
++    fields=[(ty,n) for ty,n in fields if n not in ['diagnosticPreTransportParticleCount','sourceInjectedCount'] and (bits==32 or not n.startswith('flatPressure'))]
++    code='#include "GpuResidentStrict.cu"\n#include <cstdio>\n#include <cstdlib>\n#include <new>\n#include <cmath>\n'
++    if app=='CHT' and bits==32:code+='using namespace ugkwpCudaFp32;\n'
++    code+=r'''
++template<class T>void mem(T*&p,int n){if(cudaMallocManaged(&p,n*sizeof(T))!=cudaSuccess)abort();for(int i=0;i<n;i++)::new(static_cast<void*>(p+i)) T{};}
++void check(cudaError_t e){if(e!=cudaSuccess){printf("FAIL CUDA %s\n",cudaGetErrorString(e));exit(10);}}
++int main(int argc,char**argv){int cells=argc>1?atoi(argv[1]):512;bool graphTiming=argc>2;int particles=128*cells;int faces=cells+1;int capacity=particles+32;
++DeviceState*s;mem(s,1);ALLOC
++s->deviceState=s;s->nCells=cells;s->nFaces=faces;s->nInternalFaces=cells-1;s->nCellPlanes=2*cells;s->particleCapacity=particles;s->particleWorkGrid=(particles+127)/128;s->particleBlockThreads=128;*s->particleCountDevice=particles;
++s->rhoSolid=3000;s->epsSMin=1e-12;s->thetaMin=1e-12;s->rhoMin=1e-12;s->Rgas=1;s->TgasMin=1;s->gammaGas=1.4;s->gasMu=1e-5;s->particleDiameterFallback=1e-4;s->TpMin=1;s->TpMax=5000;s->csrCellLocalPathEnabled=0;
++for(int c=0;c<cells;c++){
++ s->rho[c]=1+.01*(c%7);s->p[c]=400*s->rho[c];s->Tgas[c]=400;s->Ux[c]=.25;s->Uy[c]=-.125;s->Uz[c]=0;s->V[c]=1;s->cellLength[c]=1;s->Cx[c]=c;
++ s->momRhoP[c]=64;s->momRhoUPx[c]=16;s->momRhoUPy[c]=-8;s->momRhoUPz[c]=0;s->momRhoEP[c]=100;s->cellPlaneStart[c]=2*c;s->cellPlaneCount[c]=2;s->cellFaceId[2*c]=c?c-1:cells-1;s->cellFaceId[2*c+1]=c+1<cells?c:cells;
++}
++for(int f=0;f<faces;f++){
++ s->faceOwner[f]=f<cells-1?f:(f==cells-1?0:cells-1);s->faceNeighbour[f]=f<cells-1?f+1:-1;s->facePeriodicPair[f]=-1;s->faceWeight[f]=.5;s->Sfx[f]=f==cells-1?-1:1;s->magSf[f]=1;s->riemannBoundaryKind[f]=3;s->faceCx[f]=f<cells-1?f+.5:(f==cells-1?-.5:cells-.5);
++ s->solidPressurePhiMomX[f]=.125;s->solidPressurePhiMomY[f]=-.0625;s->solidPressurePhiMomZ[f]=0;s->solidPressurePhiEnergy[f]=0;
++}
++for(int i=0;i<particles;i++){
++ s->pStatus[i]=1;s->pCellId[i]=i/128;s->pm[i]=.5;s->pT[i]=3500;s->pd[i]=1e-4;s->pux[i]=.25+(i%3)*.125;s->puy[i]=-.125;s->puz[i]=0;s->pTheta[i]=.25;THERMAL
++}
++const int block=128,cellGrid=(cells+block-1)/block,particleGrid=(particles+block-1)/block;
++cudaStream_t stream=nullptr;if(graphTiming)check(cudaStreamCreate(&stream));
++PRESSURE_PREPARE
++check(cudaDeviceSynchronize());
++cudaEvent_t start,stop;check(cudaEventCreate(&start));check(cudaEventCreate(&stop));
++for(int stage=0;stage<5;stage++){
++ auto launch=[&](){switch(stage){
++ case 0:computeGasPrimitiveGradientsKernel<<<cellGrid,block,0,stream>>>(s);break;
++ case 1:computeGasGradientLimiterKernel<<<cellGrid,block,0,stream>>>(s);break;
++ case 2:PRESSURE_CELL;break;
++ case 3:PRESSURE_PARTICLES;break;
++ case 4:computeGasDiffusionNumberKernel<<<cellGrid,block,0,stream>>>(s,1e-6,1.);break;
++ }};
++ for(int i=0;i<20;i++)launch();check(cudaDeviceSynchronize());
++ cudaGraph_t graph=nullptr;cudaGraphExec_t graphExec=nullptr;
++ if(graphTiming){
++  check(cudaStreamBeginCapture(stream,cudaStreamCaptureModeGlobal));for(int i=0;i<64;i++)launch();check(cudaStreamEndCapture(stream,&graph));
++  check(cudaGraphInstantiate(&graphExec,graph,nullptr,nullptr,0));
++  for(int i=0;i<3;i++)check(cudaGraphLaunch(graphExec,stream));check(cudaDeviceSynchronize());
++ }
++ check(cudaEventRecord(start,stream));if(graphTiming)check(cudaGraphLaunch(graphExec,stream));else for(int i=0;i<64;i++)launch();check(cudaEventRecord(stop,stream));check(cudaEventSynchronize(stop));float ms=0;check(cudaEventElapsedTime(&ms,start,stop));
++ const char*names[]={"gas_gradients","gas_limiter","pressure_cell","pressure_particles","gas_diffusion"};printf("TIME %s %.9g\n",names[stage],ms/64);
++ if(graphTiming){check(cudaGraphExecDestroy(graphExec));check(cudaGraphDestroy(graph));}
++}
++check(cudaEventDestroy(start));check(cudaEventDestroy(stop));if(graphTiming)check(cudaStreamDestroy(stream));return 0;}
++'''
++    alloc='\n'.join(f'mem(s->{n},capacity);' for _,n in fields)
++    if app=='gasUGKP':alloc+='\nmem(s->pressureProjectionCache,cells);'
++    code=code.replace('ALLOC',alloc).replace('THERMAL','s->pStuck[i]=(i%4==0)?Foam::gpuThermal::particleWallTransientRebound:Foam::gpuThermal::particleWallMobile;' if app!='gasUGKP' else '')
++    if app=='gasUGKP':
++        prepare='preparePressureProjectionCacheKernel<<<cellGrid,block,0,stream>>>(s,1e-6);'
++        cell='preparePressureProjectionCacheKernel<<<cellGrid,block,0,stream>>>(s,1e-6)'
++        particle='applyCachedPressureProjectionParticlesKernel<<<particleGrid,block,0,stream>>>(s)'
++    else:
++        prepare='applyCollisionalPressureProjectionCellAtomicKernel<<<cellGrid,block,0,stream>>>(s,1e-6);'
++        cell='applyCollisionalPressureProjectionCellAtomicKernel<<<cellGrid,block,0,stream>>>(s,1e-6)'
++        particle='applyCollisionalPressureProjectionParticlesAtomicKernel<true><<<particleGrid,block,0,stream>>>(s)'
++    code=code.replace('PRESSURE_PREPARE',prepare).replace('PRESSURE_CELL',cell).replace('PRESSURE_PARTICLES',particle)
++    out.mkdir(parents=True,exist_ok=True);cu=out/'probe.cu';cu.write_text(code);exe=out/'probe'
++    digest=hashlib.sha256(code.encode())
++    digest.update(raw.encode())
++    for header in sorted((root/'common').rglob('*')):
++        if header.is_file() and header.suffix in ('.H','.cuh','.inl'):digest.update(header.read_bytes())
++    signature=digest.hexdigest();stamp=out/'source.sha256'
++    if exe.is_file() and stamp.is_file() and stamp.read_text()==signature:return exe
++    cmd=['/usr/local/cuda/bin/nvcc','-std=c++17','-O3','-arch=sm_89','--fmad='+('false' if app=='CHT' else 'true'),'-DUGKWP_GPU_REAL_BITS='+str(bits),'-I'+str(source),'-I'+str(root/'common'),'-I'+str(root/'applications'/app/'gpu'),str(cu),'-o',str(exe)]
++    if app=='CHT':cmd.append(str(source/'GpuWallEnergy64.cu'))
++    with (out/'build.log').open('w') as log:q=subprocess.run(cmd,stdout=log,stderr=subprocess.STDOUT)
++    if q.returncode:raise RuntimeError((out/'build.log').read_text()[-5000:])
++    stamp.write_text(signature)
++    return exe
++
++def run(exe,cells,log,graph=False):
++    q=subprocess.run([str(exe),str(cells)]+(['graph'] if graph else []),capture_output=True,text=True,check=True)
++    log.write_text(q.stdout+q.stderr)
++    return {parts[1]:float(parts[2]) for parts in (line.split() for line in q.stdout.splitlines()) if len(parts)==3 and parts[0]=='TIME'}
++
++def main():
++    p=argparse.ArgumentParser(description=__doc__);p.add_argument('--before',required=True,type=Path);p.add_argument('--after',required=True,type=Path);p.add_argument('--output',required=True,type=Path);p.add_argument('--repeats',type=int,default=10);p.add_argument('--loads',type=int,nargs=2,default=[512,1024]);p.add_argument('--build-only',action='store_true');p.add_argument('--graph',action='store_true',help='Replay captured kernels to reduce CPU launch starvation');args=p.parse_args()
++    soft,hard=resource.getrlimit(resource.RLIMIT_STACK)
++    requested=64*1024*1024
++    resource.setrlimit(resource.RLIMIT_STACK,(requested if hard==resource.RLIM_INFINITY else min(requested,hard),hard))
++    resource.setrlimit(resource.RLIMIT_CORE,(0,0))
++    output=args.output.resolve();output.mkdir(parents=True,exist_ok=True);rows=[];summary=[]
++    for app,bits in [('gasUGKP',64),('FSH',64),('CHT',64),('CHT',32)]:
++        binaries={version:build(getattr(args,version).resolve(),output/(app+str(bits))/version,app,bits) for version in ('before','after')}
++        print('built',app,bits,flush=True)
++        if args.build_only:continue
++        for cells in args.loads:
++            for rep in range(args.repeats):
++                values={}
++                for version in (('before','after') if rep%2==0 else ('after','before')):
++                    values[version]=run(binaries[version],cells,output/(app+str(bits))/f'{cells}-{rep}-{version}.log',args.graph)
++                for name in values['before']:
++                    old,new=values['before'][name],values['after'][name]
++                    rows.append(dict(app=app,bits=bits,cells=cells,particles=128*cells,repeat=rep,kernel=name,timing='graph' if args.graph else 'launch',before_ms=old,after_ms=new,speedup=old/new))
++                (output/'samples.json').write_text(json.dumps(rows,indent=2)+'\n')
++            for name in values['before']:
++                samples=[r for r in rows if r['app']==app and r['bits']==bits and r['cells']==cells and r['kernel']==name]
++                ratios=[s['speedup'] for s in samples]
++                result=dict(app=app,bits=bits,cells=cells,particles=128*cells,kernel=name,pairs=len(samples),median_speedup=statistics.median(ratios),minimum=min(ratios),maximum=max(ratios))
++                summary.append(result);print(json.dumps(result),flush=True)
++            (output/'summary.json').write_text(json.dumps(summary,indent=2)+'\n')
++    return 0
++
++if __name__=='__main__':raise SystemExit(main())
+diff --git a/tests/test_remaining_operator_ownership.py b/tests/test_remaining_operator_ownership.py
+new file mode 100644
+--- /dev/null
++++ b/tests/test_remaining_operator_ownership.py
+@@ -0,0 +1,33 @@
++"""Architectural contracts: numerical bodies have one maintenance location.
++
++These checks complement executable conservation tests; they cannot prove
++numerical equivalence. Local launch/precision/physics adapters are allowed.
++"""
++from pathlib import Path
++import re
++import pytest
++ROOT=Path(__file__).resolve().parents[1]
++@pytest.mark.parametrize('app,name', [
++ ('CHT','solidEpsFromMomentDevice'),('CHT','solidPressureFromMomentsDevice'),
++ ('CHT','granularCollisionTauFromCellDevice'),
++ ('gasUGKP','riemannFacePrimitiveForGradient'),
++ ('FSH','atomicAddParticleWallEnergyByFace'),('CHT','atomicAddParticleWallEnergyByFace')])
++def test_numerical_body_is_owned_by_common(app,name):
++    leaf='gpu' if app=='CHT' else 'private_backend'
++    source=(ROOT/'applications'/app/leaf/'GpuResidentStrict.cu').read_text()
++    assert not re.search(r'__device__[^;{}]*?\b'+name+r'\s*\(',source), 'duplicated device computation: '+name
++    assert (ROOT/'common/operators'/(name+'.cuh')).is_file()
++def test_unsorted_face_and_reconstruction_algebra_has_one_owner():
++    shared=(ROOT/'common/GpuPressureUnsortedAlgebra.cuh')
++    assert shared.is_file(), 'missing common unsorted pressure algebra'
++    assert 'recoverUnsortedPressureKinematics' in shared.read_text()
++def test_cold_wall_advance_body_has_one_owner():
++    source=(ROOT/'common/wall/GpuColdWall1DDevice.cuh').read_text()
++    assert 'candidateEnthalpy = oldEnthalpy' not in source, 'duplicated precision branch computation'
++    assert source.count('#include "GpuColdWall1DAdvance.inl"')==2
++def test_drag_rate_body_has_explicit_compile_time_policies():
++    source=(ROOT/'common/gasNumerics/GpuDragAlgebra.cuh').read_text()
++    assert 'struct RegularizedDragInputs' in source
++    assert 'struct BoundedDragInputs' in source
++    assert 'inverseSchillerNaumannTime<' in source
++    assert 'inverseGidaspowTime<' in source
+diff --git a/tests/test_remaining_operator_equivalence_cuda.py b/tests/test_remaining_operator_equivalence_cuda.py
+new file mode 100644
+--- /dev/null
++++ b/tests/test_remaining_operator_equivalence_cuda.py
+@@ -0,0 +1,16 @@
++"""Refactoring oracle: production device computations retain numerical behavior."""
++from pathlib import Path
++import subprocess
++import sys
++import pytest
++
++ROOT=Path(__file__).resolve().parents[1]
++
++@pytest.mark.parametrize('app,bits',[('gasUGKP',64),('FSH',64),('CHT',64),('CHT',32)])
++def test_merged_operators_match_frozen_device_implementations(tmp_path,app,bits):
++    if not Path('/usr/local/cuda/bin/nvcc').is_file():
++        pytest.skip('CUDA compiler/device required for actual device equivalence')
++    command=[sys.executable,str(ROOT/'tests/fixtures/operator_unification/differential.py'),str(ROOT),str(tmp_path),app,str(bits)]
++    result=subprocess.run(command,capture_output=True,text=True,timeout=600)
++    assert result.returncode==0,result.stdout+result.stderr
++    assert 'PASS all frozen-implementation differential checks' in result.stdout
+diff --git a/tests/fixtures/operator_unification/baseline.json b/tests/fixtures/operator_unification/baseline.json
+new file mode 100644
+--- /dev/null
++++ b/tests/fixtures/operator_unification/baseline.json
+@@ -0,0 +1,22 @@
++{
++  "gasUGKP:riemannFacePrimitiveForGradient": "__device__ GasPrimDevice riemannFacePrimitiveForGradient\n(\n    const DeviceState& s,\n    const int c,\n    const int f\n)\n{\n    GasPrimDevice centre = makeGasPrimDevice\n    (\n        s.rho[c], s.Ux[c], s.Uy[c], s.Uz[c], s.p[c],\n        s.Rgas, s.rhoMin, s.TgasMin\n    );\n    centre.T = clampMin(finiteOr(s.Tgas[c], centre.T), s.TgasMin);\n    if (f < s.nInternalFaces || isPeriodicFace(s, f))\n    {\n        const int own = s.faceOwner[f];\n        const int nei = s.faceNeighbour[f];\n        const int other = c == own ? nei : own;\n        if (other < 0 || other >= s.nCells)\n        {\n            return centre;\n        }\n        GasPrimDevice adjacent = makeGasPrimDevice\n        (\n            s.rho[other], s.Ux[other], s.Uy[other], s.Uz[other], s.p[other],\n            s.Rgas, s.rhoMin, s.TgasMin\n        );\n        adjacent.T = clampMin\n        (\n            finiteOr(s.Tgas[other], adjacent.T),\n            s.TgasMin\n        );\n        const double ownerWeight = clampRange(s.faceWeight[f], 0.0, 1.0);\n        const double wc = c == own ? ownerWeight : 1.0 - ownerWeight;\n        GasPrimDevice face = makeGasPrimDevice\n        (\n            wc*centre.rho + (1.0 - wc)*adjacent.rho,\n            wc*centre.ux + (1.0 - wc)*adjacent.ux,\n            wc*centre.uy + (1.0 - wc)*adjacent.uy,\n            wc*centre.uz + (1.0 - wc)*adjacent.uz,\n            wc*centre.p + (1.0 - wc)*adjacent.p,\n            s.Rgas, s.rhoMin, s.TgasMin\n        );\n        face.T = wc*centre.T + (1.0 - wc)*adjacent.T;\n        return face;\n    }\n\n    const int kind = s.riemannBoundaryKind[f];\n    if (kind == 4 || kind == 3)\n    {\n        return centre;\n    }\n    if (kind == 1)\n    {\n        const double area = clampMin(s.magSf[f], OfSmall);\n        const double nx = s.Sfx[f]/area;\n        const double ny = s.Sfy[f]/area;\n        const double nz = s.Sfz[f]/area;\n        const double un = centre.ux*nx + centre.uy*ny + centre.uz*nz;\n        GasPrimDevice face = centre;\n        face.ux -= un*nx;\n        face.uy -= un*ny;\n        face.uz -= un*nz;\n        return face;\n    }\n\n    if (kind == 2)\n    {\n        GasPrimDevice wall = centre;\n        wall.ux = s.riemannBoundaryUFix[f] != 0\n          ? finiteOr(s.riemannBoundaryUx[f], 0.0) : 0.0;\n        wall.uy = s.riemannBoundaryUFix[f] != 0\n          ? finiteOr(s.riemannBoundaryUy[f], 0.0) : 0.0;\n        wall.uz = s.riemannBoundaryUFix[f] != 0\n          ? finiteOr(s.riemannBoundaryUz[f], 0.0) : 0.0;\n        if (s.riemannBoundaryTFix[f] != 0)\n        {\n            wall.T = clampMin\n            (\n                finiteOr(s.riemannBoundaryT[f], centre.T),\n                s.TgasMin\n            );\n            wall.rho = wall.p/clampMin(s.Rgas*wall.T, OfSmall);\n        }\n        return wall;\n    }\n\n    return riemannBoundaryState(s, f, centre);\n}",
++  "gasUGKP:preparePressureProjectionCell": "__device__ PressureProjectionCell preparePressureProjectionCell\n(DeviceState& s, const int c, const double kickDt)\n{\n    PressureProjectionCell projection{};\n    double scaledDelta[4];\n\n        double dpx = 0.0;\n        double dpy = 0.0;\n        double dpz = 0.0;\n        double de = 0.0;\n        const int startFace = s.cellPlaneStart[c];\n        const int faceCount = s.cellPlaneCount[c];\n        for (int j = 0; j < faceCount; ++j)\n        {\n            const int f = s.cellFaceId[startFace + j];\n            if (f < 0 || f >= s.nFaces)\n            {\n                continue;\n            }\n            const double sign = s.faceOwner[f] == c ? 1.0 : -1.0;\n            dpx -= sign*s.solidPressurePhiMomX[f];\n            dpy -= sign*s.solidPressurePhiMomY[f];\n            dpz -= sign*s.solidPressurePhiMomZ[f];\n            de -= sign*s.solidPressurePhiEnergy[f];\n        }\n        const double factor = kickDt/clampMin(s.V[c], OfVSmall);\n        scaledDelta[0] = finiteOr(factor*dpx, 0.0);\n        scaledDelta[1] = finiteOr(factor*dpy, 0.0);\n        scaledDelta[2] = finiteOr(factor*dpz, 0.0);\n        scaledDelta[3] = finiteOr(factor*de, 0.0);\n        s.pressureDeltaMomX[c] = scaledDelta[0];\n        s.pressureDeltaMomY[c] = scaledDelta[1];\n        s.pressureDeltaMomZ[c] = scaledDelta[2];\n        s.pressureDeltaEnergy[c] = scaledDelta[3];\n\n\n\n    projection.active = false;\n    const double rhoP = clampMin(finiteOr(s.momRhoP[c], 0.0), 0.0);\n    if (rhoP <= s.epsSMin*s.rhoSolid)\n    {\n        return projection;\n    }\n    const double px0 = finiteOr(s.momRhoUPx[c], 0.0);\n    const double py0 = finiteOr(s.momRhoUPy[c], 0.0);\n    const double pz0 = finiteOr(s.momRhoUPz[c], 0.0);\n    const double e0 = clampMin(finiteOr(s.momRhoEP[c], 0.0), 0.0);\n    const double px1 = px0 + scaledDelta[0];\n    const double py1 = py0 + scaledDelta[1];\n    const double pz1 = pz0 + scaledDelta[2];\n    const double e1 = e0 + scaledDelta[3];\n    const double ux0 = px0/rhoP;\n    const double uy0 = py0/rhoP;\n    const double uz0 = pz0/rhoP;\n    const double ux1 = px1/rhoP;\n    const double uy1 = py1/rhoP;\n    const double uz1 = pz1/rhoP;\n    const double theta0 =\n        clampMin(pressureKickInternalEnergy(rhoP, px0, py0, pz0, e0)/(1.5*rhoP), 0.0);\n    const double theta1 =\n        clampMin(pressureKickInternalEnergy(rhoP, px1, py1, pz1, e1)/(1.5*rhoP), 0.0);\n    const bool resolved = theta0 > 10.0*s.thetaMin;\n    const double thermalScale =\n        resolved ? sqrt(clampMin(theta1/theta0, 0.0)) : 0.0;\n    const double thetaScale = resolved ? thermalScale*thermalScale : 0.0;\n\n\n    projection =\n        {ux0, uy0, uz0, ux1, uy1, uz1, theta1, thermalScale, thetaScale, true, resolved};\n\n        s.momRhoUPx[c] = px1;\n        s.momRhoUPy[c] = py1;\n        s.momRhoUPz[c] = pz1;\n        s.momRhoEP[c] = e1;\n        s.rhoUsx[c] = px1;\n        s.rhoUsy[c] = py1;\n        s.rhoUsz[c] = pz1;\n        s.rhoEs[c] = e1;\n        s.Usx[c] = ux1;\n        s.Usy[c] = uy1;\n        s.Usz[c] = uz1;\n        s.theta[c] = theta1;\n\n\n    // The atomic path historically publishes the cell update, then reads it\n    // back and reconstructs the old state. Preserve its rounding and clamps:\n    // (e0 + de) - de is not equivalent to e0 near the resolved-theta threshold.\n    if (!s.csrCellLocalPathEnabled)\n    {\n        const double ax1 = finiteOr(px1, 0.0);\n        const double ay1 = finiteOr(py1, 0.0);\n        const double az1 = finiteOr(pz1, 0.0);\n        const double ae1 = clampMin(finiteOr(e1, 0.0), 0.0);\n        const double ax0 = ax1 - scaledDelta[0];\n        const double ay0 = ay1 - scaledDelta[1];\n        const double az0 = az1 - scaledDelta[2];\n        const double ae0 = ae1 - scaledDelta[3];\n        const double at0 = clampMin\n        (\n            pressureKickInternalEnergy(rhoP, ax0, ay0, az0, ae0)/(1.5*rhoP), 0.0\n        );\n        const double at1 = clampMin\n        (\n            pressureKickInternalEnergy(rhoP, ax1, ay1, az1, ae1)/(1.5*rhoP), 0.0\n        );\n        const bool ar = at0 > 10.0*s.thetaMin;\n        const double scale = ar ? sqrt(clampMin(at1/at0, 0.0)) : 0.0;\n        projection =\n        {\n            ax0/rhoP, ay0/rhoP, az0/rhoP, ax1/rhoP, ay1/rhoP, az1/rhoP,\n            at1, scale, ar ? scale*scale : 0.0, true, ar\n        };\n    }\n    return projection;\n}",
++  "FSH:riemannFacePrimitiveForGradient": "// One operator implementation; scalar/time adapters are compile-time only.\n__device__ GasPrimDevice riemannFacePrimitiveForGradient\n(\n    const DeviceState& s,\n    const int c,\n    const int f\n)\n{\n    GasPrimDevice centre = makeGasPrimDevice\n    (\n        s.rho[c], s.Ux[c], s.Uy[c], s.Uz[c], s.p[c],\n        s.Rgas, s.rhoMin, s.TgasMin\n    );\n    centre.T = clampMin(finiteOr(s.Tgas[c], centre.T), s.TgasMin);\n    if (f < s.nInternalFaces || isPeriodicFace(s, f))\n    {\n        const int own = s.faceOwner[f];\n        const int nei = s.faceNeighbour[f];\n        const int other = isPeriodicFace(s, f) ? nei : (c == own ? nei : own);\n        if (other < 0 || other >= s.nCells)\n        {\n            return centre;\n        }\n        GasPrimDevice adjacent = makeGasPrimDevice\n        (\n            s.rho[other], s.Ux[other], s.Uy[other], s.Uz[other], s.p[other],\n            s.Rgas, s.rhoMin, s.TgasMin\n        );\n        adjacent.T = clampMin\n        (\n            finiteOr(s.Tgas[other], adjacent.T),\n            s.TgasMin\n        );\n        const GPU_OPERATOR_REAL ownerWeight = clampRange(s.faceWeight[f], GPU_OPERATOR_R(0.0), GPU_OPERATOR_R(1.0));\n        const GPU_OPERATOR_REAL wc = c == own ? ownerWeight : GPU_OPERATOR_R(1.0) - ownerWeight;\n        GasPrimDevice face = makeGasPrimDevice\n        (\n            wc*centre.rho + (GPU_OPERATOR_R(1.0) - wc)*adjacent.rho,\n            wc*centre.ux + (GPU_OPERATOR_R(1.0) - wc)*adjacent.ux,\n            wc*centre.uy + (GPU_OPERATOR_R(1.0) - wc)*adjacent.uy,\n            wc*centre.uz + (GPU_OPERATOR_R(1.0) - wc)*adjacent.uz,\n            wc*centre.p + (GPU_OPERATOR_R(1.0) - wc)*adjacent.p,\n            s.Rgas, s.rhoMin, s.TgasMin\n        );\n        face.T = wc*centre.T + (GPU_OPERATOR_R(1.0) - wc)*adjacent.T;\n        return face;\n    }\n\n    const int kind = s.riemannBoundaryKind[f];\n    if (kind == 4 || kind == 3)\n    {\n        return centre;\n    }\n    if (kind == 1)\n    {\n        const GPU_OPERATOR_REAL area = clampMin(s.magSf[f], OfSmall);\n        const GPU_OPERATOR_REAL nx = s.Sfx[f]/area;\n        const GPU_OPERATOR_REAL ny = s.Sfy[f]/area;\n        const GPU_OPERATOR_REAL nz = s.Sfz[f]/area;\n        const GPU_OPERATOR_REAL un = centre.ux*nx + centre.uy*ny + centre.uz*nz;\n        GasPrimDevice face = centre;\n        face.ux -= un*nx;\n        face.uy -= un*ny;\n        face.uz -= un*nz;\n        return face;\n    }\n\n    if (kind == 2)\n    {\n        GasPrimDevice wall = centre;\n        wall.ux = s.riemannBoundaryUFix[f] != 0\n          ? finiteOr(s.riemannBoundaryUx[f], GPU_OPERATOR_R(0.0)) : GPU_OPERATOR_R(0.0);\n        wall.uy = s.riemannBoundaryUFix[f] != 0\n          ? finiteOr(s.riemannBoundaryUy[f], GPU_OPERATOR_R(0.0)) : GPU_OPERATOR_R(0.0);\n        wall.uz = s.riemannBoundaryUFix[f] != 0\n          ? finiteOr(s.riemannBoundaryUz[f], GPU_OPERATOR_R(0.0)) : GPU_OPERATOR_R(0.0);\n        if (s.riemannBoundaryTFix[f] != 0)\n        {\n            wall.T = clampMin\n            (\n                finiteOr(s.riemannBoundaryT[f], centre.T),\n                s.TgasMin\n            );\n            wall.rho = wall.p/clampMin(s.Rgas*wall.T, OfSmall);\n        }\n        return wall;\n    }\n\n    return riemannBoundaryState(s, f, centre);\n}\n",
++  "FSH:atomicAddParticleWallEnergyByFace": "__device__ void atomicAddParticleWallEnergyByFace\n(\n    DeviceState& s,\n    double* const wallEnergyLedger,\n    const int globalFaceId,\n    const double wallEnergyJ\n)\n{\n    if (wallEnergyJ == 0.0)\n    {\n        return;\n    }\n#if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 700\n    const unsigned int active = __activemask();\n    const int ledgerChannel =\n        wallEnergyLedger == s.particleWallDepositedEnergy ? 0 : 1;\n    const int faceChannelKey = 2*globalFaceId + ledgerChannel;\n    const unsigned int group =\n        __match_any_sync(active, faceChannelKey);\n    const int leader = __ffs(static_cast<int>(group)) - 1;\n    const int lane = static_cast<int>(threadIdx.x) & 31;\n    double groupEnergy = 0.0;\n    unsigned int remaining = group;\n    while (remaining != 0u)\n    {\n        const int sourceLane = __ffs(static_cast<int>(remaining)) - 1;\n        groupEnergy += __shfl_sync(group, wallEnergyJ, sourceLane);\n        remaining &= remaining - 1u;\n    }\n    if (lane == leader)\n    {\n        atomicAdd(&wallEnergyLedger[globalFaceId], groupEnergy);\n    }\n#else\n    atomicAdd(&wallEnergyLedger[globalFaceId], wallEnergyJ);\n#endif\n}",
++  "CHT:riemannFacePrimitiveForGradient": "// One operator implementation; scalar/time adapters are compile-time only.\n__device__ GasPrimDevice riemannFacePrimitiveForGradient\n(\n    const DeviceState& s,\n    const int c,\n    const int f\n)\n{\n    GasPrimDevice centre = makeGasPrimDevice\n    (\n        s.rho[c], s.Ux[c], s.Uy[c], s.Uz[c], s.p[c],\n        s.Rgas, s.rhoMin, s.TgasMin\n    );\n    centre.T = clampMin(finiteOr(s.Tgas[c], centre.T), s.TgasMin);\n    if (f < s.nInternalFaces || isPeriodicFace(s, f))\n    {\n        const int own = s.faceOwner[f];\n        const int nei = s.faceNeighbour[f];\n        const int other = isPeriodicFace(s, f) ? nei : (c == own ? nei : own);\n        if (other < 0 || other >= s.nCells)\n        {\n            return centre;\n        }\n        GasPrimDevice adjacent = makeGasPrimDevice\n        (\n            s.rho[other], s.Ux[other], s.Uy[other], s.Uz[other], s.p[other],\n            s.Rgas, s.rhoMin, s.TgasMin\n        );\n        adjacent.T = clampMin\n        (\n            finiteOr(s.Tgas[other], adjacent.T),\n            s.TgasMin\n        );\n        const GPU_OPERATOR_REAL ownerWeight = clampRange(s.faceWeight[f], GPU_OPERATOR_R(0.0), GPU_OPERATOR_R(1.0));\n        const GPU_OPERATOR_REAL wc = c == own ? ownerWeight : GPU_OPERATOR_R(1.0) - ownerWeight;\n        GasPrimDevice face = makeGasPrimDevice\n        (\n            wc*centre.rho + (GPU_OPERATOR_R(1.0) - wc)*adjacent.rho,\n            wc*centre.ux + (GPU_OPERATOR_R(1.0) - wc)*adjacent.ux,\n            wc*centre.uy + (GPU_OPERATOR_R(1.0) - wc)*adjacent.uy,\n            wc*centre.uz + (GPU_OPERATOR_R(1.0) - wc)*adjacent.uz,\n            wc*centre.p + (GPU_OPERATOR_R(1.0) - wc)*adjacent.p,\n            s.Rgas, s.rhoMin, s.TgasMin\n        );\n        face.T = wc*centre.T + (GPU_OPERATOR_R(1.0) - wc)*adjacent.T;\n        return face;\n    }\n\n    const int kind = s.riemannBoundaryKind[f];\n    if (kind == 4 || kind == 3)\n    {\n        return centre;\n    }\n    if (kind == 1)\n    {\n        const GPU_OPERATOR_REAL area = clampMin(s.magSf[f], OfSmall);\n        const GPU_OPERATOR_REAL nx = s.Sfx[f]/area;\n        const GPU_OPERATOR_REAL ny = s.Sfy[f]/area;\n        const GPU_OPERATOR_REAL nz = s.Sfz[f]/area;\n        const GPU_OPERATOR_REAL un = centre.ux*nx + centre.uy*ny + centre.uz*nz;\n        GasPrimDevice face = centre;\n        face.ux -= un*nx;\n        face.uy -= un*ny;\n        face.uz -= un*nz;\n        return face;\n    }\n\n    if (kind == 2)\n    {\n        GasPrimDevice wall = centre;\n        wall.ux = s.riemannBoundaryUFix[f] != 0\n          ? finiteOr(s.riemannBoundaryUx[f], GPU_OPERATOR_R(0.0)) : GPU_OPERATOR_R(0.0);\n        wall.uy = s.riemannBoundaryUFix[f] != 0\n          ? finiteOr(s.riemannBoundaryUy[f], GPU_OPERATOR_R(0.0)) : GPU_OPERATOR_R(0.0);\n        wall.uz = s.riemannBoundaryUFix[f] != 0\n          ? finiteOr(s.riemannBoundaryUz[f], GPU_OPERATOR_R(0.0)) : GPU_OPERATOR_R(0.0);\n        if (s.riemannBoundaryTFix[f] != 0)\n        {\n            wall.T = clampMin\n            (\n                finiteOr(s.riemannBoundaryT[f], centre.T),\n                s.TgasMin\n            );\n            wall.rho = wall.p/clampMin(s.Rgas*wall.T, OfSmall);\n        }\n        return wall;\n    }\n\n    return riemannBoundaryState(s, f, centre);\n}\n",
++  "CHT:solidEpsFromMomentDevice": "__device__ GpuReal solidEpsFromMomentDevice(const DeviceState& s, const int c)\n{\n    if (c < 0 || c >= s.nCells)\n    {\n        return GPU_R(0.0);\n    }\n\n    const GpuReal rhoP = clampMin(finiteOr(s.momRhoP[c], GPU_R(0.0)), GPU_R(0.0));\n\n    return clampRange\n    (\n        rhoP/clampMin(s.rhoSolid, GPU_TINY(1.0e-300)),\n        GPU_R(0.0),\n        GPU_R(1.0)\n    );\n}",
++  "CHT:solidPressureFromMomentsDevice": "__device__ GpuReal solidPressureFromMomentsDevice\n(\n    const DeviceState& s,\n    const int c\n)\n{\n    if (c < 0 || c >= s.nCells)\n    {\n        return GPU_R(0.0);\n    }\n\n    const GpuReal rhoP = clampMin(finiteOr(s.momRhoP[c], GPU_R(0.0)), GPU_R(0.0));\n    if (rhoP <= s.epsSMin*s.rhoSolid)\n    {\n        return GPU_R(0.0);\n    }\n\n    const GpuReal eps =\n        clampRange(rhoP/clampMin(s.rhoSolid, GPU_TINY(1.0e-300)), GPU_R(0.0), GPU_R(1.0));\n    const GpuReal ux = finiteOr(s.momRhoUPx[c], GPU_R(0.0))/rhoP;\n    const GpuReal uy = finiteOr(s.momRhoUPy[c], GPU_R(0.0))/rhoP;\n    const GpuReal uz = finiteOr(s.momRhoUPz[c], GPU_R(0.0))/rhoP;\n    const GpuReal kinetic = GPU_R(0.5)*rhoP*sqr3(ux, uy, uz);\n    const GpuReal theta =\n        clampMin\n        (\n            (finiteOr(s.momRhoEP[c], kinetic) - kinetic)/(GPU_R(1.5)*rhoP),\n            GPU_R(0.0)\n        );\n    GpuReal pColl = GPU_R(0.0);\n    if (s.collisionalPressureEnabled)\n    {\n        const GpuReal g0 = radialDistributionG0Device(eps);\n        pColl = ugkwp::collisionalPressure\n        (\n            s.collisionalRestitution,\n            s.rhoSolid,\n            eps,\n            g0,\n            theta\n        );\n        pColl = clampRange(finiteOr(pColl, GPU_R(0.0)), GPU_R(0.0), OfGreat);\n    }\n\n    return clampRange(finiteOr(pColl, OfGreat), GPU_R(0.0), OfGreat);\n}",
++  "CHT:granularCollisionTauFromCellDevice": "__device__ GpuReal granularCollisionTauFromCellDevice(const DeviceState& s, const int c)\n{\n    if (c < 0 || c >= s.nCells)\n    {\n        return OfGreat;\n    }\n\n    const GpuReal rhoP = clampMin(finiteOr(s.momRhoP[c], GPU_R(0.0)), GPU_R(0.0));\n    if (rhoP <= s.epsSMin*s.rhoSolid)\n    {\n        return OfGreat;\n    }\n\n    const GpuReal eps =\n        clampRange(rhoP/clampMin(s.rhoSolid, GPU_TINY(1.0e-300)), GPU_R(0.0), GPU_R(1.0));\n\n    const GpuReal usx = finiteOr(s.momRhoUPx[c], GPU_R(0.0))/rhoP;\n    const GpuReal usy = finiteOr(s.momRhoUPy[c], GPU_R(0.0))/rhoP;\n    const GpuReal usz = finiteOr(s.momRhoUPz[c], GPU_R(0.0))/rhoP;\n\n    const GpuReal e =\n        clampMin(finiteOr(s.momRhoEP[c], GPU_R(0.0)), GPU_R(0.0))/rhoP;\n\n    const GpuReal theta =\n        clampMin((e - GPU_R(0.5)*sqr3(usx, usy, usz))/GPU_R(1.5), GPU_R(0.0));\n\n    const GpuReal dPart =\n        clampMin\n        (\n            finiteOr(s.momRhoPD[c]/rhoP, s.particleDiameterFallback),\n            GPU_R(1.0e-12)\n        );\n\n    const GpuReal g0 = radialDistributionG0Device(eps);\n    const GpuReal lmfp = ugkwp::granularMeanFreePath\n    (\n        OfPi,\n        dPart,\n        eps,\n        g0,\n        OfSmall\n    );\n\n    return clampMin\n    (\n        ugkwp::granularCollisionTime(lmfp, theta, OfSmall),\n        OfSmall\n    );\n}",
++  "CHT:atomicAddParticleWallEnergyByFace": "__device__ void atomicAddParticleWallEnergyByFace\n(\n    DeviceState& s,\n    GpuWallEnergy* const wallEnergyLedger,\n    const int globalFaceId,\n    const GpuReal wallEnergyJ\n)\n{\n    if (wallEnergyJ == GPU_R(0.0))\n    {\n        return;\n    }\n#if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 700\n    const unsigned int active = __activemask();\n    const int ledgerChannel =\n        wallEnergyLedger == s.particleWallDepositedEnergy ? 0 : 1;\n    const int faceChannelKey = 2*globalFaceId + ledgerChannel;\n    const unsigned int group =\n        __match_any_sync(active, faceChannelKey);\n    const int leader = __ffs(static_cast<int>(group)) - 1;\n    const int lane = static_cast<int>(threadIdx.x) & 31;\n    GpuWallEnergy groupEnergy = 0.0;\n    unsigned int remaining = group;\n    while (remaining != 0u)\n    {\n        const int sourceLane = __ffs(static_cast<int>(remaining)) - 1;\n        groupEnergy += static_cast<GpuWallEnergy>(__shfl_sync(group, wallEnergyJ, sourceLane));\n        remaining &= remaining - 1u;\n    }\n    if (lane == leader)\n    {\n        atomicAdd(&wallEnergyLedger[globalFaceId], groupEnergy);\n    }\n#else\n    atomicAdd(&wallEnergyLedger[globalFaceId], static_cast<GpuWallEnergy>(wallEnergyJ));\n#endif\n}",
++  "drag": "#include \"GpuPrecisionTypes.H\"\n#ifndef UGKWP_GPU_DRAG_ALGEBRA_CUH\n#define UGKWP_GPU_DRAG_ALGEBRA_CUH\n\n#include <cmath>\n\n#if defined(__CUDACC__)\n#define UGKWP_DRAG_HD __host__ __device__ __forceinline__\n#else\n#define UGKWP_DRAG_HD inline\n#endif\n\nnamespace ugkwpGpuDragAlgebra\n{\n\nUGKWP_DRAG_HD GpuReal schillerNaumannCorrection(const GpuReal reynolds)\n{\n    return GPU_R(1.0) + GPU_R(0.15)*pow(reynolds, GPU_R(0.687));\n}\nUGKWP_DRAG_HD GpuReal gidaspowCdRe\n(const GpuReal alpha, const GpuReal reynolds, const GpuReal residualRe)\n{\n    if (alpha >= GPU_R(0.8))\n    {\n        const GpuReal alphaRe = alpha*reynolds;\n        const GpuReal cdRe = alphaRe < GPU_R(1000.0)\n            ? GPU_R(24.0)*schillerNaumannCorrection(alphaRe)\n            : GPU_R(0.44)*fmax(alphaRe, residualRe);\n        return cdRe*pow(alpha, -GPU_R(2.65));\n    }\n    return (GPU_R(4.0)/GPU_R(3.0))\n        *(GPU_R(150.0)*(GPU_R(1.0)-alpha)/alpha + GPU_R(1.75)*reynolds);\n}\n\nUGKWP_DRAG_HD GpuReal gasUgkpReynolds\n(\n    const GpuReal gasDensity,\n    const GpuReal diameter,\n    const GpuReal relativeSpeed,\n    const GpuReal gasViscosity\n)\n{\n    return\n        gasDensity*diameter*relativeSpeed\n       /fmax(gasViscosity, GPU_R(1.0e-30));\n}\n\nUGKWP_DRAG_HD GpuReal gasUgkpSchillerNaumannCoefficient\n(\n    const GpuReal reynolds\n)\n{\n    const GpuReal reSafe = fmax(reynolds, GPU_R(1.0e-12));\n    if (reSafe < GPU_R(1000.0))\n    {\n        return GPU_R(24.0)/reSafe*schillerNaumannCorrection(reSafe);\n    }\n    return GPU_R(0.44);\n}\n\nUGKWP_DRAG_HD GpuReal gasUgkpSchillerNaumannInverseResponseTime\n(\n    const GpuReal gasDensity,\n    const GpuReal gasViscosity,\n    const GpuReal solidDensity,\n    const GpuReal diameter,\n    const GpuReal relativeSpeed,\n    const GpuReal denominatorRegularization\n)\n{\n    const GpuReal reynolds = gasUgkpReynolds\n    (\n        gasDensity,\n        diameter,\n        relativeSpeed,\n        gasViscosity\n    );\n    const GpuReal coefficient =\n        gasUgkpSchillerNaumannCoefficient(reynolds);\n    return\n        GPU_R(0.75)*coefficient*gasDensity*relativeSpeed\n       /(solidDensity*diameter + denominatorRegularization);\n}\n\nUGKWP_DRAG_HD GpuReal gasUgkpGidaspowCdRe\n(\n    const GpuReal gasDensity,\n    const GpuReal gasViscosity,\n    const GpuReal gasVolumeFraction,\n    const GpuReal diameter,\n    const GpuReal relativeSpeed,\n    const GpuReal residualRe\n)\n{\n    const GpuReal alphaGas =\n        fmin(fmax(gasVolumeFraction, GPU_R(1.0e-12)), GPU_R(1.0));\n    const GpuReal reynolds = fmax\n    (\n        gasUgkpReynolds\n        (\n            gasDensity,\n            diameter,\n            relativeSpeed,\n            gasViscosity\n        ),\n        GPU_R(0.0)\n    );\n    return gidaspowCdRe(alphaGas, reynolds, residualRe);\n}\n\nUGKWP_DRAG_HD GpuReal gasUgkpGidaspowInverseResponseTime\n(\n    const GpuReal gasDensity,\n    const GpuReal gasViscosity,\n    const GpuReal gasVolumeFraction,\n    const GpuReal solidDensity,\n    const GpuReal diameterInput,\n    const GpuReal relativeSpeed,\n    const GpuReal denominatorRegularization,\n    const GpuReal residualRe\n)\n{\n    const GpuReal diameter = fmax(diameterInput, GPU_R(1.0e-30));\n    return\n        GPU_R(0.75)\n       *gasUgkpGidaspowCdRe\n        (\n            gasDensity,\n            gasViscosity,\n            gasVolumeFraction,\n            diameterInput,\n            relativeSpeed,\n            residualRe\n        )\n       *fmax(gasViscosity, GPU_R(1.0e-30))\n       /(solidDensity*diameter*diameter + denominatorRegularization);\n}\n\nUGKWP_DRAG_HD GpuReal fshChtSchillerNaumannInverseRelaxationTime\n(\n    const GpuReal gasDensityInput,\n    const GpuReal gasViscosity,\n    const GpuReal solidDensityInput,\n    const GpuReal diameterInput,\n    const GpuReal relativeSpeedInput\n)\n{\n    const GpuReal mu = fmax(gasViscosity, GPU_R(1.0e-30));\n    const GpuReal re =\n        fmax(gasDensityInput, GPU_R(0.0))*fmax(diameterInput, GPU_R(1.0e-30))\n       *fmax(relativeSpeedInput, GPU_R(0.0))/mu;\n    if (re <= GPU_R(1.0e-30) || relativeSpeedInput <= GPU_R(1.0e-30))\n    {\n        return GPU_R(0.0);\n    }\n    const GpuReal coefficient =\n        re < GPU_R(1000.0)\n      ? GPU_R(24.0)*schillerNaumannCorrection(re)/re\n      : GPU_R(0.44);\n    return\n        GPU_R(0.75)*coefficient*fmax(gasDensityInput, GPU_R(0.0))\n       *fmax(relativeSpeedInput, GPU_R(0.0))\n       /(fmax(solidDensityInput, GPU_R(1.0e-30))\n        *fmax(diameterInput, GPU_R(1.0e-30)));\n}\n\nUGKWP_DRAG_HD GpuReal fshChtGidaspowInverseRelaxationTime\n(\n    const GpuReal gasDensityInput,\n    const GpuReal gasVolumeFraction,\n    const GpuReal gasViscosity,\n    const GpuReal solidDensityInput,\n    const GpuReal diameterInput,\n    const GpuReal relativeSpeedInput,\n    const GpuReal residualRe\n)\n{\n    const GpuReal alpha =\n        fmin(fmax(gasVolumeFraction, GPU_R(1.0e-12)), GPU_R(1.0));\n    const GpuReal mu = fmax(gasViscosity, GPU_R(1.0e-30));\n    const GpuReal diameter = fmax(diameterInput, GPU_R(1.0e-30));\n    const GpuReal re =\n        fmax(gasDensityInput, GPU_R(0.0))*diameter\n       *fmax(relativeSpeedInput, GPU_R(0.0))/mu;\n    const GpuReal cdRe = gidaspowCdRe(alpha, re, residualRe);\n    return\n        GPU_R(0.75)*cdRe*mu\n       /(fmax(solidDensityInput, GPU_R(1.0e-30))*diameter*diameter);\n}\n\n}\n\n#undef UGKWP_DRAG_HD\n\n#endif\n",
++  "thermalPressureCell": "// Shared unsorted thermal projection; preserves the published-state reconstruction.\n__global__ void applyCollisionalPressureProjectionCellAtomicKernel\n(\n    DeviceState* sp,\n    const PressureTime kickDt\n)\n{\n    DeviceState& s = *sp;\n    const int c = blockIdx.x*blockDim.x + threadIdx.x;\n    if (c >= s.nCells)\n    {\n        return;\n    }\n\n    PressureReal dpx = PressureReal(0.0);\n    PressureReal dpy = PressureReal(0.0);\n    PressureReal dpz = PressureReal(0.0);\n    PressureReal de = PressureReal(0.0);\n    const int startFace = s.cellPlaneStart[c];\n    const int faceCount = s.cellPlaneCount[c];\n    for (int j = 0; j < faceCount; ++j)\n    {\n        const int f = s.cellFaceId[startFace + j];\n        if (f < 0 || f >= s.nFaces)\n        {\n            continue;\n        }\n        const PressureReal sign = s.faceOwner[f] == c ? PressureReal(1.0) : -PressureReal(1.0);\n        dpx -= sign*s.solidPressurePhiMomX[f];\n        dpy -= sign*s.solidPressurePhiMomY[f];\n        dpz -= sign*s.solidPressurePhiMomZ[f];\n        de -= sign*s.solidPressurePhiEnergy[f];\n    }\n\n    const PressureReal factor = kickDt/clampMin(s.V[c], OfVSmall);\n    dpx = finiteOr(factor*dpx, PressureReal(0.0));\n    dpy = finiteOr(factor*dpy, PressureReal(0.0));\n    dpz = finiteOr(factor*dpz, PressureReal(0.0));\n    de = finiteOr(factor*de, PressureReal(0.0));\n    s.pressureDeltaMomX[c] = dpx;\n    s.pressureDeltaMomY[c] = dpy;\n    s.pressureDeltaMomZ[c] = dpz;\n    s.pressureDeltaEnergy[c] = de;\n\n    const PressureReal rhoP = clampMin(finiteOr(s.momRhoP[c], PressureReal(0.0)), PressureReal(0.0));\n    if (rhoP <= s.epsSMin*s.rhoSolid)\n    {\n        return;\n    }\n\n    const PressureReal px1 = finiteOr(s.momRhoUPx[c], PressureReal(0.0)) + dpx;\n    const PressureReal py1 = finiteOr(s.momRhoUPy[c], PressureReal(0.0)) + dpy;\n    const PressureReal pz1 = finiteOr(s.momRhoUPz[c], PressureReal(0.0)) + dpz;\n    const PressureReal e1 = clampMin(finiteOr(s.momRhoEP[c], PressureReal(0.0)), PressureReal(0.0)) + de;\n    const PressureReal theta1 =\n        clampMin\n        (\n            pressureKickInternalEnergy(rhoP, px1, py1, pz1, e1)/(PressureReal(1.5)*rhoP),\n            PressureReal(0.0)\n        );\n\n    s.momRhoUPx[c] = px1;\n    s.momRhoUPy[c] = py1;\n    s.momRhoUPz[c] = pz1;\n    s.momRhoEP[c] = e1;\n    s.rhoUsx[c] = px1;\n    s.rhoUsy[c] = py1;\n    s.rhoUsz[c] = pz1;\n    s.rhoEs[c] = e1;\n    s.Usx[c] = px1/rhoP;\n    s.Usy[c] = py1/rhoP;\n    s.Usz[c] = pz1/rhoP;\n    s.theta[c] = theta1;\n}\n\n",
++  "cold32": "__device__ bool advanceColdWall1DThermalGroup\n(\n    DeviceState& s,\n    const int particleI,\n    const int lane,\n    const unsigned int mask,\n    const GpuReal physicalVolumeM3,\n    const GpuReal physicalMassKg,\n    const GpuReal maximumAreaM2,\n    const GpuReal intrinsicContactAreaM2,\n    const GpuTime contactDurationS,\n    const GpuReal peakTimeFraction,\n    const GpuTime deltaTSeconds,\n    const GpuReal wallTemperatureK,\n    const GpuReal wallEffusivity,\n    const GpuReal thermalAreaFactor,\n    const GpuReal gasTemperatureK,\n    const GpuReal gasConductanceWK,\n    GpuReal& meanTemperatureK,\n    GpuReal& frozenFootprintAreaM2,\n    GpuReal& wallEnergyJ,\n    bool* linearSolveFailed = nullptr\n)\n{\n    const bool inputValid =\n        s.coldWallSolidificationEnabled != 0\n     && s.pColdNodeSpecificEnthalpy != nullptr\n     && s.pColdRingSolidMass != nullptr\n     && s.pColdFrozenArea != nullptr\n     && s.pColdContactAge != nullptr\n     && Foam::gpuThermal::validColdWallSolidificationParameters\n        (\n            s.coldWallSolidificationParameters\n        )\n     && Foam::gpuThermal::finiteColdWallValue(physicalVolumeM3)\n     && physicalVolumeM3 > GPU_R(0.0)\n     && Foam::gpuThermal::finiteColdWallValue(physicalMassKg)\n     && physicalMassKg > GPU_R(0.0)\n     && Foam::gpuThermal::finiteColdWallValue(maximumAreaM2)\n     && maximumAreaM2 > GPU_R(0.0)\n     && Foam::gpuThermal::finiteColdWallValue(intrinsicContactAreaM2)\n     && intrinsicContactAreaM2 > GPU_R(0.0)\n     && intrinsicContactAreaM2 <= maximumAreaM2\n     && Foam::gpuThermal::finiteColdWallValue(contactDurationS)\n     && contactDurationS > GPU_R(0.0)\n     && Foam::gpuThermal::finiteColdWallValue(peakTimeFraction)\n     && peakTimeFraction > GPU_R(0.0)\n     && peakTimeFraction < GPU_R(1.0)\n     && Foam::gpuThermal::finiteColdWallValue(deltaTSeconds)\n     && deltaTSeconds >= GPU_R(0.0)\n     && Foam::gpuThermal::finiteColdWallValue(wallTemperatureK)\n     && wallTemperatureK > GPU_R(0.0)\n     && Foam::gpuThermal::finiteColdWallValue(wallEffusivity)\n     && wallEffusivity > GPU_R(0.0)\n     && Foam::gpuThermal::finiteColdWallValue(thermalAreaFactor)\n     && thermalAreaFactor > GPU_R(0.0)\n     && thermalAreaFactor <= GPU_R(1.0)\n     && Foam::gpuThermal::finiteColdWallValue(gasTemperatureK)\n     && gasTemperatureK > GPU_R(0.0)\n     && Foam::gpuThermal::finiteColdWallValue(gasConductanceWK)\n     && gasConductanceWK >= GPU_R(0.0);\n    if (!__all_sync(mask, inputValid))\n    {\n        return false;\n    }\n\n    const int nodeBase =\n        particleI*Foam::gpuThermal::coldWallAxialNodeCount;\n    const int ringBase =\n        particleI*Foam::gpuThermal::coldWallRadialRingCount;\n    const GpuReal oldEnthalpy = static_cast<GpuReal>\n    (\n        s.pColdNodeSpecificEnthalpy[nodeBase + lane]\n    );\n    GpuReal candidateEnthalpy = oldEnthalpy;\n    GpuReal guessedTemperature =\n        Foam::gpuThermal::coldWallTemperatureFromSpecificEnthalpyK\n        (\n            oldEnthalpy,\n            s.coldWallSolidificationParameters\n        );\n    GpuReal ringSolidMass = static_cast<GpuReal>\n    (\n        s.pColdRingSolidMass[ringBase + lane]\n    );\n    GpuTime profileContactAgeS = __shfl_sync\n    (\n        mask,\n        lane == 0\n          ? static_cast<GpuTime>(s.pColdContactAge[particleI])\n          : GPU_R(0.0),\n        0,\n        8\n    );\n    GpuReal frozenArea = __shfl_sync\n    (\n        mask,\n        lane == 0\n          ? static_cast<GpuReal>(s.pColdFrozenArea[particleI])\n          : GPU_R(0.0),\n        0,\n        8\n    );\n    int stateValid =\n        Foam::gpuThermal::finiteColdWallValue(oldEnthalpy)\n     && oldEnthalpy >= GPU_R(0.0)\n     && Foam::gpuThermal::finiteColdWallValue(guessedTemperature)\n     && guessedTemperature > GPU_R(0.0)\n     && Foam::gpuThermal::finiteColdWallValue(ringSolidMass)\n     && ringSolidMass >= GPU_R(0.0)\n     && Foam::gpuThermal::finiteColdWallValue(profileContactAgeS)\n     && profileContactAgeS >= GPU_R(0.0)\n     && Foam::gpuThermal::finiteColdWallValue(frozenArea)\n     && frozenArea >= GPU_R(0.0);\n    if (!__all_sync(mask, stateValid))\n    {\n        return false;\n    }\n\n    const GpuReal contactArea = Foam::gpuThermal::coldWallClamp\n    (\n        intrinsicContactAreaM2,\n        GPU_REAL_MIN,\n        maximumAreaM2\n    );\n    const GpuReal filmThickness = physicalVolumeM3/contactArea;\n    const GpuReal nodeThickness = filmThickness/GPU_R(8.0);\n    const GpuReal nodeMass = physicalMassKg/GPU_R(8.0);\n    const GpuReal ringArea = maximumAreaM2/GPU_R(8.0);\n    const GpuReal ringInnerArea = static_cast<GpuReal>(lane)*ringArea;\n    const GpuReal ringWetArea = Foam::gpuThermal::coldWallClamp\n    (\n        contactArea - ringInnerArea,\n        GPU_R(0.0),\n        ringArea\n    );\n    const GpuReal radialFraction = (static_cast<GpuReal>(lane) + GPU_R(0.5))/GPU_R(8.0);\n    const GpuReal spreadCoordinate = GPU_R(1.0) - ::sqrt\n    (\n        Foam::gpuThermal::coldWallClamp(GPU_R(1.0) - radialFraction, GPU_R(0.0), GPU_R(1.0))\n    );\n    const GpuTime firstWetAge =\n        contactDurationS*peakTimeFraction*spreadCoordinate;\n    const GpuTime profileContactAge1S = profileContactAgeS + deltaTSeconds;\n    const GpuTime localAge0 = profileContactAgeS > firstWetAge\n      ? profileContactAgeS - firstWetAge\n      : GPU_R(0.0);\n    const GpuTime localAge1 = profileContactAge1S > firstWetAge\n      ? profileContactAge1S - firstWetAge\n      : GPU_R(0.0);\n    const ColdWallIntegralCache integralCache = coldWallPrepareIntegralCache\n    (\n        localAge0, localAge1, wallEffusivity,\n        s.coldWallSolidificationParameters.wallTransientResistance != 0\n    );\n    GpuReal ringCoolingPower = GPU_R(0.0);\n    GpuReal acceptedWallPower = GPU_R(0.0);\n\n    for\n    (\n        int iteration = 0;\n        iteration < s.coldWallSolidificationParameters.nonlinearIterations;\n        ++iteration\n    )\n    {\n\n        const GpuReal solidFraction = coldWall1DSolidFractionFromKnownTemperature\n        (\n            guessedTemperature,\n            s.coldWallSolidificationParameters\n        );\n        const GpuReal conductivity =\n            solidFraction*s.coldWallSolidificationParameters.solidThermalConductivityWmK\n          + (GPU_R(1.0) - solidFraction)*Foam::gpuThermal::aluminaThermalConductivityWmK;\n        const GpuReal bottomConductivity =\n            __shfl_sync(mask, conductivity, 0, 8);\n        const GpuReal particleResistance =\n            GPU_R(0.5)*nodeThickness/bottomConductivity;\n        const GpuReal ringConductanceIntegral =\n            coldWallCachedConductanceTimeIntegral\n            (\n                integralCache,\n                ringWetArea,\n                thermalAreaFactor,\n                localAge0,\n                localAge1,\n                s.coldWallSolidificationParameters.interfaceResistanceM2KW,\n                particleResistance,\n                wallEffusivity,\n                s.coldWallSolidificationParameters.wallTransientResistance != 0\n            );\n        const GpuReal ringConductance =\n            ringConductanceIntegral/(deltaTSeconds + GPU_REAL_MIN);\n        if (!__all_sync(mask, ringConductanceIntegral >= GPU_R(0.0)))\n        {\n            return false;\n        }\n        const GpuReal wallConductance =\n            coldWall1DGroupSum(ringConductance, mask);\n        const GpuReal bottomTemperature =\n            __shfl_sync(mask, guessedTemperature, 0, 8);\n        ringCoolingPower =\n            ringConductance*(bottomTemperature - wallTemperatureK);\n\n        const GpuReal rightConductivity =\n            __shfl_down_sync(mask, conductivity, 1, 8);\n        const GpuReal faceConductance = lane + 1 < 8\n          ? GPU_R(2.0)*conductivity*rightConductivity\n           /(conductivity + rightConductivity + GPU_REAL_MIN)\n           *contactArea/nodeThickness\n          : GPU_R(0.0);\n        const GpuReal leftFaceConductance =\n            __shfl_up_sync(mask, faceConductance, 1, 8);\n        const GpuReal capacity = nodeMass\n          *Foam::gpuThermal::coldWallApparentSpecificHeat\n            (\n                guessedTemperature,\n                s.coldWallSolidificationParameters\n            )/(deltaTSeconds + GPU_REAL_MIN);\n        GpuReal lower = lane > 0 ? -leftFaceConductance : GPU_R(0.0);\n        GpuReal diagonal = capacity\n          + (lane > 0 ? leftFaceConductance : GPU_R(0.0))\n          + (lane + 1 < 8 ? faceConductance : GPU_R(0.0));\n        GpuReal upper = lane + 1 < 8 ? -faceConductance : GPU_R(0.0);\n        GpuReal rightHandSide = capacity*guessedTemperature;\n        if (lane == 0)\n        {\n            diagonal += wallConductance;\n            rightHandSide += wallConductance*wallTemperatureK;\n        }\n        if (lane == 7)\n        {\n            diagonal += gasConductanceWK;\n            rightHandSide += gasConductanceWK*gasTemperatureK;\n        }\n        const GpuReal solvedTemperature = StabilizePcr\n          ? coldWall1DPcrSolveStable\n        (\n            lower,\n            diagonal,\n            upper,\n            rightHandSide,\n            capacity + (lane == 0 ? wallConductance : GPU_R(0.0))\n              + (lane == 7 ? gasConductanceWK : GPU_R(0.0)),\n            lane,\n            mask\n        )\n          : coldWall1DPcrSolve\n        (\n            lower,\n            diagonal,\n            upper,\n            rightHandSide,\n            lane,\n            mask\n        );\n\n        const GpuReal rightSolvedTemperature =\n            __shfl_down_sync(mask, solvedTemperature, 1, 8);\n        const GpuReal internalPower = lane + 1 < 8\n          ? faceConductance*(solvedTemperature - rightSolvedTemperature)\n          : GPU_R(0.0);\n        const GpuReal leftInternalPower =\n            __shfl_up_sync(mask, internalPower, 1, 8);\n        const GpuReal wallPower = wallConductance\n          *(__shfl_sync(mask, solvedTemperature, 0, 8) - wallTemperatureK);\n        const GpuReal gasPower = gasConductanceWK\n          *(gasTemperatureK - __shfl_sync(mask, solvedTemperature, 7, 8));\n        GpuReal power =\n            (lane > 0 ? leftInternalPower : GPU_R(0.0))\n          - (lane + 1 < 8 ? internalPower : GPU_R(0.0));\n        if (lane == 0)\n        {\n            power -= wallPower;\n        }\n        if (lane == 7)\n        {\n            power += gasPower;\n        }\n        candidateEnthalpy = oldEnthalpy\n          + deltaTSeconds*power/nodeMass;\n        guessedTemperature =\n            Foam::gpuThermal::coldWallTemperatureFromSpecificEnthalpyK\n            (\n                candidateEnthalpy,\n                s.coldWallSolidificationParameters\n            );\n        acceptedWallPower = wallPower;\n        stateValid =\n            Foam::gpuThermal::finiteColdWallValue(candidateEnthalpy)\n         && candidateEnthalpy >= GPU_R(0.0)\n         && Foam::gpuThermal::finiteColdWallValue(guessedTemperature)\n         && guessedTemperature > GPU_R(0.0);\n        if (!__all_sync(mask, stateValid))\n        {\n            if (linearSolveFailed != nullptr) *linearSolveFailed = true;\n            return false;\n        }\n    }\n\n#include \"GpuColdWall1DPublish.inl\"\n}",
++  "cold64": "__device__ bool advanceColdWall1DThermalGroup\n(\n    DeviceState& s,\n    const int particleI,\n    const int lane,\n    const unsigned int mask,\n    const GpuReal physicalVolumeM3,\n    const GpuReal physicalMassKg,\n    const GpuReal maximumAreaM2,\n    const GpuReal intrinsicContactAreaM2,\n    const GpuTime contactDurationS,\n    const GpuReal peakTimeFraction,\n    const GpuTime deltaTSeconds,\n    const GpuReal wallTemperatureK,\n    const GpuReal wallEffusivity,\n    const GpuReal thermalAreaFactor,\n    const GpuReal gasTemperatureK,\n    const GpuReal gasConductanceWK,\n    GpuReal& meanTemperatureK,\n    GpuReal& frozenFootprintAreaM2,\n    GpuReal& wallEnergyJ\n)\n{\n    const bool inputValid =\n        s.coldWallSolidificationEnabled != 0\n     && s.pColdNodeSpecificEnthalpy != nullptr\n     && s.pColdRingSolidMass != nullptr\n     && s.pColdFrozenArea != nullptr\n     && s.pColdContactAge != nullptr\n     && Foam::gpuThermal::validColdWallSolidificationParameters\n        (\n            s.coldWallSolidificationParameters\n        )\n     && Foam::gpuThermal::finiteColdWallValue(physicalVolumeM3)\n     && physicalVolumeM3 > GPU_R(0.0)\n     && Foam::gpuThermal::finiteColdWallValue(physicalMassKg)\n     && physicalMassKg > GPU_R(0.0)\n     && Foam::gpuThermal::finiteColdWallValue(maximumAreaM2)\n     && maximumAreaM2 > GPU_R(0.0)\n     && Foam::gpuThermal::finiteColdWallValue(intrinsicContactAreaM2)\n     && intrinsicContactAreaM2 > GPU_R(0.0)\n     && intrinsicContactAreaM2 <= maximumAreaM2\n     && Foam::gpuThermal::finiteColdWallValue(contactDurationS)\n     && contactDurationS > GPU_R(0.0)\n     && Foam::gpuThermal::finiteColdWallValue(peakTimeFraction)\n     && peakTimeFraction > GPU_R(0.0)\n     && peakTimeFraction < GPU_R(1.0)\n     && Foam::gpuThermal::finiteColdWallValue(deltaTSeconds)\n     && deltaTSeconds >= GPU_R(0.0)\n     && Foam::gpuThermal::finiteColdWallValue(wallTemperatureK)\n     && wallTemperatureK > GPU_R(0.0)\n     && Foam::gpuThermal::finiteColdWallValue(wallEffusivity)\n     && wallEffusivity > GPU_R(0.0)\n     && Foam::gpuThermal::finiteColdWallValue(thermalAreaFactor)\n     && thermalAreaFactor > GPU_R(0.0)\n     && thermalAreaFactor <= GPU_R(1.0)\n     && Foam::gpuThermal::finiteColdWallValue(gasTemperatureK)\n     && gasTemperatureK > GPU_R(0.0)\n     && Foam::gpuThermal::finiteColdWallValue(gasConductanceWK)\n     && gasConductanceWK >= GPU_R(0.0);\n    if (!__all_sync(mask, inputValid))\n    {\n        return false;\n    }\n\n    const int nodeBase =\n        particleI*Foam::gpuThermal::coldWallAxialNodeCount;\n    const int ringBase =\n        particleI*Foam::gpuThermal::coldWallRadialRingCount;\n    const GpuReal oldEnthalpy = static_cast<GpuReal>\n    (\n        s.pColdNodeSpecificEnthalpy[nodeBase + lane]\n    );\n    GpuReal candidateEnthalpy = oldEnthalpy;\n    GpuReal guessedTemperature =\n        Foam::gpuThermal::coldWallTemperatureFromSpecificEnthalpyK\n        (\n            oldEnthalpy,\n            s.coldWallSolidificationParameters\n        );\n    GpuReal ringSolidMass = static_cast<GpuReal>\n    (\n        s.pColdRingSolidMass[ringBase + lane]\n    );\n    GpuTime profileContactAgeS = __shfl_sync\n    (\n        mask,\n        lane == 0\n          ? static_cast<GpuTime>(s.pColdContactAge[particleI])\n          : GPU_R(0.0),\n        0,\n        8\n    );\n    GpuReal frozenArea = __shfl_sync\n    (\n        mask,\n        lane == 0\n          ? static_cast<GpuReal>(s.pColdFrozenArea[particleI])\n          : GPU_R(0.0),\n        0,\n        8\n    );\n    int stateValid =\n        Foam::gpuThermal::finiteColdWallValue(oldEnthalpy)\n     && oldEnthalpy >= GPU_R(0.0)\n     && Foam::gpuThermal::finiteColdWallValue(guessedTemperature)\n     && guessedTemperature > GPU_R(0.0)\n     && Foam::gpuThermal::finiteColdWallValue(ringSolidMass)\n     && ringSolidMass >= GPU_R(0.0)\n     && Foam::gpuThermal::finiteColdWallValue(profileContactAgeS)\n     && profileContactAgeS >= GPU_R(0.0)\n     && Foam::gpuThermal::finiteColdWallValue(frozenArea)\n     && frozenArea >= GPU_R(0.0);\n    if (!__all_sync(mask, stateValid))\n    {\n        return false;\n    }\n\n    const GpuReal contactArea = Foam::gpuThermal::coldWallClamp\n    (\n        intrinsicContactAreaM2,\n        GPU_REAL_MIN,\n        maximumAreaM2\n    );\n    const GpuReal filmThickness = physicalVolumeM3/contactArea;\n    const GpuReal nodeThickness = filmThickness/GPU_R(8.0);\n    const GpuReal nodeMass = physicalMassKg/GPU_R(8.0);\n    const GpuReal ringArea = maximumAreaM2/GPU_R(8.0);\n    const GpuReal ringInnerArea = static_cast<GpuReal>(lane)*ringArea;\n    const GpuReal ringWetArea = Foam::gpuThermal::coldWallClamp\n    (\n        contactArea - ringInnerArea,\n        GPU_R(0.0),\n        ringArea\n    );\n    const GpuReal radialFraction = (static_cast<GpuReal>(lane) + GPU_R(0.5))/GPU_R(8.0);\n    const GpuReal spreadCoordinate = GPU_R(1.0) - ::sqrt\n    (\n        Foam::gpuThermal::coldWallClamp(GPU_R(1.0) - radialFraction, GPU_R(0.0), GPU_R(1.0))\n    );\n    const GpuTime firstWetAge =\n        contactDurationS*peakTimeFraction*spreadCoordinate;\n    const GpuTime profileContactAge1S = profileContactAgeS + deltaTSeconds;\n    const GpuTime localAge0 = profileContactAgeS > firstWetAge\n      ? profileContactAgeS - firstWetAge\n      : GPU_R(0.0);\n    const GpuTime localAge1 = profileContactAge1S > firstWetAge\n      ? profileContactAge1S - firstWetAge\n      : GPU_R(0.0);\n    GpuReal ringCoolingPower = GPU_R(0.0);\n    GpuReal acceptedWallPower = GPU_R(0.0);\n\n    for\n    (\n        int iteration = 0;\n        iteration < s.coldWallSolidificationParameters.nonlinearIterations;\n        ++iteration\n    )\n    {\n\n        const GpuReal solidFraction = coldWall1DSolidFractionFromKnownTemperature\n        (\n            guessedTemperature,\n            s.coldWallSolidificationParameters\n        );\n        const GpuReal conductivity =\n            solidFraction*s.coldWallSolidificationParameters.solidThermalConductivityWmK\n          + (GPU_R(1.0) - solidFraction)*Foam::gpuThermal::aluminaThermalConductivityWmK;\n        const GpuReal bottomConductivity =\n            __shfl_sync(mask, conductivity, 0, 8);\n        const GpuReal particleResistance =\n            GPU_R(0.5)*nodeThickness/bottomConductivity;\n        const GpuReal ringConductanceIntegral =\n            Foam::gpuThermal::wallInterfaceConductanceTimeIntegral\n            (\n                ringWetArea,\n                thermalAreaFactor,\n                localAge0,\n                localAge1,\n                s.coldWallSolidificationParameters.interfaceResistanceM2KW,\n                particleResistance,\n                wallEffusivity,\n                s.coldWallSolidificationParameters.wallTransientResistance != 0\n            );\n        const GpuReal ringConductance =\n            ringConductanceIntegral/(deltaTSeconds + GPU_REAL_MIN);\n        if (!__all_sync(mask, ringConductanceIntegral >= GPU_R(0.0)))\n        {\n            return false;\n        }\n        const GpuReal wallConductance =\n            coldWall1DGroupSum(ringConductance, mask);\n        const GpuReal bottomTemperature =\n            __shfl_sync(mask, guessedTemperature, 0, 8);\n        ringCoolingPower =\n            ringConductance*(bottomTemperature - wallTemperatureK);\n\n        const GpuReal rightConductivity =\n            __shfl_down_sync(mask, conductivity, 1, 8);\n        const GpuReal faceConductance = lane + 1 < 8\n          ? GPU_R(2.0)*conductivity*rightConductivity\n           /(conductivity + rightConductivity + GPU_REAL_MIN)\n           *contactArea/nodeThickness\n          : GPU_R(0.0);\n        const GpuReal leftFaceConductance =\n            __shfl_up_sync(mask, faceConductance, 1, 8);\n        const GpuReal capacity = nodeMass\n          *Foam::gpuThermal::coldWallApparentSpecificHeat\n            (\n                guessedTemperature,\n                s.coldWallSolidificationParameters\n            )/(deltaTSeconds + GPU_REAL_MIN);\n        GpuReal lower = lane > 0 ? -leftFaceConductance : GPU_R(0.0);\n        GpuReal diagonal = capacity\n          + (lane > 0 ? leftFaceConductance : GPU_R(0.0))\n          + (lane + 1 < 8 ? faceConductance : GPU_R(0.0));\n        GpuReal upper = lane + 1 < 8 ? -faceConductance : GPU_R(0.0);\n        GpuReal rightHandSide = capacity*guessedTemperature;\n        if (lane == 0)\n        {\n            diagonal += wallConductance;\n            rightHandSide += wallConductance*wallTemperatureK;\n        }\n        if (lane == 7)\n        {\n            diagonal += gasConductanceWK;\n            rightHandSide += gasConductanceWK*gasTemperatureK;\n        }\n        const GpuReal solvedTemperature = coldWall1DPcrSolve\n        (\n            lower,\n            diagonal,\n            upper,\n            rightHandSide,\n            lane,\n            mask\n        );\n        const GpuReal rightSolvedTemperature =\n            __shfl_down_sync(mask, solvedTemperature, 1, 8);\n        const GpuReal internalPower = lane + 1 < 8\n          ? faceConductance*(solvedTemperature - rightSolvedTemperature)\n          : GPU_R(0.0);\n        const GpuReal leftInternalPower =\n            __shfl_up_sync(mask, internalPower, 1, 8);\n        const GpuReal wallPower = wallConductance\n          *(__shfl_sync(mask, solvedTemperature, 0, 8) - wallTemperatureK);\n        const GpuReal gasPower = gasConductanceWK\n          *(gasTemperatureK - __shfl_sync(mask, solvedTemperature, 7, 8));\n        GpuReal power =\n            (lane > 0 ? leftInternalPower : GPU_R(0.0))\n          - (lane + 1 < 8 ? internalPower : GPU_R(0.0));\n        if (lane == 0)\n        {\n            power -= wallPower;\n        }\n        if (lane == 7)\n        {\n            power += gasPower;\n        }\n        candidateEnthalpy = oldEnthalpy\n          + deltaTSeconds*power/nodeMass;\n        guessedTemperature =\n            Foam::gpuThermal::coldWallTemperatureFromSpecificEnthalpyK\n            (\n                candidateEnthalpy,\n                s.coldWallSolidificationParameters\n            );\n        acceptedWallPower = wallPower;\n        stateValid =\n            Foam::gpuThermal::finiteColdWallValue(candidateEnthalpy)\n         && candidateEnthalpy >= GPU_R(0.0)\n         && Foam::gpuThermal::finiteColdWallValue(guessedTemperature)\n         && guessedTemperature > GPU_R(0.0);\n        if (!__all_sync(mask, stateValid))\n        {\n            return false;\n        }\n    }\n\n#include \"GpuColdWall1DPublish.inl\"\n}",
++  "gasUGKP:solidEpsFromMomentDevice": "// One operator implementation; scalar/time adapters are compile-time only.\n__device__ GPU_OPERATOR_REAL solidEpsFromMomentDevice(const DeviceState& s, const int c)\n{\n    if (c < 0 || c >= s.nCells)\n    {\n        return 0.0;\n    }\n\n    const GPU_OPERATOR_REAL rhoP = clampMin(finiteOr(s.momRhoP[c], 0.0), 0.0);\n    return clampRange\n    (\n        rhoP/clampMin(s.rhoSolid, 1.0e-300),\n        0.0,\n        1.0\n    );\n}\n",
++  "gasUGKP:solidPressureFromMomentsDevice": "// One operator implementation; scalar/time adapters are compile-time only.\n__device__ GPU_OPERATOR_REAL solidPressureFromMomentsDevice\n(\n    const DeviceState& s,\n    const int c\n)\n{\n    if (c < 0 || c >= s.nCells)\n    {\n        return 0.0;\n    }\n\n    const GPU_OPERATOR_REAL rhoP = clampMin(finiteOr(s.momRhoP[c], 0.0), 0.0);\n    if (rhoP <= s.epsSMin*s.rhoSolid)\n    {\n        return 0.0;\n    }\n\n    const GPU_OPERATOR_REAL eps =\n        clampRange(rhoP/clampMin(s.rhoSolid, 1.0e-300), 0.0, 1.0);\n    const GPU_OPERATOR_REAL ux = finiteOr(s.momRhoUPx[c], 0.0)/rhoP;\n    const GPU_OPERATOR_REAL uy = finiteOr(s.momRhoUPy[c], 0.0)/rhoP;\n    const GPU_OPERATOR_REAL uz = finiteOr(s.momRhoUPz[c], 0.0)/rhoP;\n    const GPU_OPERATOR_REAL kinetic = 0.5*rhoP*sqr3(ux, uy, uz);\n    const GPU_OPERATOR_REAL theta =\n        clampMin\n        (\n            (finiteOr(s.momRhoEP[c], kinetic) - kinetic)/(1.5*rhoP),\n            0.0\n        );\n    GPU_OPERATOR_REAL pColl = 0.0;\n    if (s.collisionalPressureEnabled)\n    {\n        const GPU_OPERATOR_REAL g0 = radialDistributionG0Device(eps);\n        pColl = ugkwp::collisionalPressure\n        (\n            s.collisionalRestitution,\n            s.rhoSolid,\n            eps,\n            g0,\n            theta\n        );\n        pColl = clampRange(finiteOr(pColl, 0.0), 0.0, OfGreat);\n    }\n\n    return clampRange(finiteOr(pColl, OfGreat), 0.0, OfGreat);\n}\n",
++  "gasUGKP:granularCollisionTauFromCellDevice": "// One operator implementation; scalar/time adapters are compile-time only.\n__device__ GPU_OPERATOR_REAL granularCollisionTauFromCellDevice(const DeviceState& s, const int c)\n{\n    if (c < 0 || c >= s.nCells)\n    {\n        return OfGreat;\n    }\n\n    const GPU_OPERATOR_REAL rhoP = clampMin(finiteOr(s.momRhoP[c], 0.0), 0.0);\n    if (rhoP <= s.epsSMin*s.rhoSolid)\n    {\n        return OfGreat;\n    }\n\n    const GPU_OPERATOR_REAL eps =\n        clampRange(rhoP/clampMin(s.rhoSolid, 1.0e-300), 0.0, 1.0);\n\n    const GPU_OPERATOR_REAL usx = finiteOr(s.momRhoUPx[c], 0.0)/rhoP;\n    const GPU_OPERATOR_REAL usy = finiteOr(s.momRhoUPy[c], 0.0)/rhoP;\n    const GPU_OPERATOR_REAL usz = finiteOr(s.momRhoUPz[c], 0.0)/rhoP;\n\n    const GPU_OPERATOR_REAL e =\n        clampMin(finiteOr(s.momRhoEP[c], 0.0), 0.0)/rhoP;\n\n    const GPU_OPERATOR_REAL theta =\n        clampMin((e - 0.5*sqr3(usx, usy, usz))/1.5, 0.0);\n\n    const GPU_OPERATOR_REAL dPart =\n        clampMin\n        (\n            finiteOr(s.momRhoPD[c]/rhoP, s.particleDiameterFallback),\n            1.0e-12\n        );\n\n    const GPU_OPERATOR_REAL g0 = radialDistributionG0Device(eps);\n    const GPU_OPERATOR_REAL lmfp = ugkwp::granularMeanFreePath\n    (\n        OfPi,\n        dPart,\n        eps,\n        g0,\n        OfSmall\n    );\n\n    return clampMin\n    (\n        ugkwp::granularCollisionTime(lmfp, theta, OfSmall),\n        OfSmall\n    );\n}\n",
++  "FSH:solidEpsFromMomentDevice": "// One operator implementation; scalar/time adapters are compile-time only.\n__device__ GPU_OPERATOR_REAL solidEpsFromMomentDevice(const DeviceState& s, const int c)\n{\n    if (c < 0 || c >= s.nCells)\n    {\n        return 0.0;\n    }\n\n    const GPU_OPERATOR_REAL rhoP = clampMin(finiteOr(s.momRhoP[c], 0.0), 0.0);\n    return clampRange\n    (\n        rhoP/clampMin(s.rhoSolid, 1.0e-300),\n        0.0,\n        1.0\n    );\n}\n",
++  "FSH:solidPressureFromMomentsDevice": "// One operator implementation; scalar/time adapters are compile-time only.\n__device__ GPU_OPERATOR_REAL solidPressureFromMomentsDevice\n(\n    const DeviceState& s,\n    const int c\n)\n{\n    if (c < 0 || c >= s.nCells)\n    {\n        return 0.0;\n    }\n\n    const GPU_OPERATOR_REAL rhoP = clampMin(finiteOr(s.momRhoP[c], 0.0), 0.0);\n    if (rhoP <= s.epsSMin*s.rhoSolid)\n    {\n        return 0.0;\n    }\n\n    const GPU_OPERATOR_REAL eps =\n        clampRange(rhoP/clampMin(s.rhoSolid, 1.0e-300), 0.0, 1.0);\n    const GPU_OPERATOR_REAL ux = finiteOr(s.momRhoUPx[c], 0.0)/rhoP;\n    const GPU_OPERATOR_REAL uy = finiteOr(s.momRhoUPy[c], 0.0)/rhoP;\n    const GPU_OPERATOR_REAL uz = finiteOr(s.momRhoUPz[c], 0.0)/rhoP;\n    const GPU_OPERATOR_REAL kinetic = 0.5*rhoP*sqr3(ux, uy, uz);\n    const GPU_OPERATOR_REAL theta =\n        clampMin\n        (\n            (finiteOr(s.momRhoEP[c], kinetic) - kinetic)/(1.5*rhoP),\n            0.0\n        );\n    GPU_OPERATOR_REAL pColl = 0.0;\n    if (s.collisionalPressureEnabled)\n    {\n        const GPU_OPERATOR_REAL g0 = radialDistributionG0Device(eps);\n        pColl = ugkwp::collisionalPressure\n        (\n            s.collisionalRestitution,\n            s.rhoSolid,\n            eps,\n            g0,\n            theta\n        );\n        pColl = clampRange(finiteOr(pColl, 0.0), 0.0, OfGreat);\n    }\n\n    return clampRange(finiteOr(pColl, OfGreat), 0.0, OfGreat);\n}\n",
++  "FSH:granularCollisionTauFromCellDevice": "// One operator implementation; scalar/time adapters are compile-time only.\n__device__ GPU_OPERATOR_REAL granularCollisionTauFromCellDevice(const DeviceState& s, const int c)\n{\n    if (c < 0 || c >= s.nCells)\n    {\n        return OfGreat;\n    }\n\n    const GPU_OPERATOR_REAL rhoP = clampMin(finiteOr(s.momRhoP[c], 0.0), 0.0);\n    if (rhoP <= s.epsSMin*s.rhoSolid)\n    {\n        return OfGreat;\n    }\n\n    const GPU_OPERATOR_REAL eps =\n        clampRange(rhoP/clampMin(s.rhoSolid, 1.0e-300), 0.0, 1.0);\n\n    const GPU_OPERATOR_REAL usx = finiteOr(s.momRhoUPx[c], 0.0)/rhoP;\n    const GPU_OPERATOR_REAL usy = finiteOr(s.momRhoUPy[c], 0.0)/rhoP;\n    const GPU_OPERATOR_REAL usz = finiteOr(s.momRhoUPz[c], 0.0)/rhoP;\n\n    const GPU_OPERATOR_REAL e =\n        clampMin(finiteOr(s.momRhoEP[c], 0.0), 0.0)/rhoP;\n\n    const GPU_OPERATOR_REAL theta =\n        clampMin((e - 0.5*sqr3(usx, usy, usz))/1.5, 0.0);\n\n    const GPU_OPERATOR_REAL dPart =\n        clampMin\n        (\n            finiteOr(s.momRhoPD[c]/rhoP, s.particleDiameterFallback),\n            1.0e-12\n        );\n\n    const GPU_OPERATOR_REAL g0 = radialDistributionG0Device(eps);\n    const GPU_OPERATOR_REAL lmfp = ugkwp::granularMeanFreePath\n    (\n        OfPi,\n        dPart,\n        eps,\n        g0,\n        OfSmall\n    );\n\n    return clampMin\n    (\n        ugkwp::granularCollisionTime(lmfp, theta, OfSmall),\n        OfSmall\n    );\n}\n",
++  "thermalPressureParticles": "template<bool FullMoments>\n__global__ void applyCollisionalPressureProjectionParticlesAtomicKernel\n(\n    DeviceState* sp\n)\n{\n    DeviceState& s = *sp;\n    const int nParticles =\n        clampRange(*s.particleCountDevice, 0, s.particleCapacity);\n    for\n    (\n        int i = blockIdx.x*blockDim.x + threadIdx.x;\n        i < nParticles;\n        i += blockDim.x*gridDim.x\n    )\n    {\n        if (s.pStatus[i] == 0)\n        {\n            continue;\n        }\n        const int c = s.pCellId[i];\n        if (c < 0 || c >= s.nCells)\n        {\n            continue;\n        }\n        if (s.pStuck[i] != 0)\n        {\n            s.pux[i] = PressureReal(0.0);\n            s.puy[i] = PressureReal(0.0);\n            s.puz[i] = PressureReal(0.0);\n            if (s.pStuck[i] == Foam::gpuThermal::particleWallDeposited)\n            {\n                s.puxOld[i] = PressureReal(0.0);\n                s.puyOld[i] = PressureReal(0.0);\n                s.puzOld[i] = PressureReal(0.0);\n            }\n            accumulatePressureParticleMomentsAtomicDevice<FullMoments>(s, c, i);\n            continue;\n        }\n\n        const PressureReal rhoP = clampMin(finiteOr(s.momRhoP[c], PressureReal(0.0)), PressureReal(0.0));\n        if (rhoP <= s.epsSMin*s.rhoSolid)\n        {\n            accumulatePressureParticleMomentsAtomicDevice<FullMoments>(s, c, i);\n            continue;\n        }\n        const PressureReal dpx = finiteOr(s.pressureDeltaMomX[c], PressureReal(0.0));\n        const PressureReal dpy = finiteOr(s.pressureDeltaMomY[c], PressureReal(0.0));\n        const PressureReal dpz = finiteOr(s.pressureDeltaMomZ[c], PressureReal(0.0));\n        const PressureReal de = finiteOr(s.pressureDeltaEnergy[c], PressureReal(0.0));\n        const PressureReal px1 = finiteOr(s.momRhoUPx[c], PressureReal(0.0));\n        const PressureReal py1 = finiteOr(s.momRhoUPy[c], PressureReal(0.0));\n        const PressureReal pz1 = finiteOr(s.momRhoUPz[c], PressureReal(0.0));\n        const PressureReal e1 = clampMin(finiteOr(s.momRhoEP[c], PressureReal(0.0)), PressureReal(0.0));\n        const PressureReal px0 = px1 - dpx;\n        const PressureReal py0 = py1 - dpy;\n        const PressureReal pz0 = pz1 - dpz;\n        const PressureReal e0 = e1 - de;\n        const PressureReal ux0 = px0/rhoP;\n        const PressureReal uy0 = py0/rhoP;\n        const PressureReal uz0 = pz0/rhoP;\n        const PressureReal ux1 = px1/rhoP;\n        const PressureReal uy1 = py1/rhoP;\n        const PressureReal uz1 = pz1/rhoP;\n        const PressureReal theta0 =\n            clampMin\n            (\n                pressureKickInternalEnergy(rhoP, px0, py0, pz0, e0)\n               /(PressureReal(1.5)*rhoP),\n                PressureReal(0.0)\n            );\n        const PressureReal theta1 =\n            clampMin\n            (\n                pressureKickInternalEnergy(rhoP, px1, py1, pz1, e1)\n               /(PressureReal(1.5)*rhoP),\n                PressureReal(0.0)\n            );\n        const bool resolved = theta0 > PressureReal(10.0)*s.thetaMin;\n        const PressureReal thermalScale =\n            resolved ? sqrt(clampMin(theta1/theta0, PressureReal(0.0))) : PressureReal(0.0);\n        const PressureReal thetaScale = resolved ? thermalScale*thermalScale : PressureReal(0.0);\n        updateMobilePressureParticle<false>\n            (s,i,ux0,uy0,uz0,ux1,uy1,uz1,theta1,thermalScale,thetaScale,resolved);\n        accumulatePressureParticleMomentsAtomicDevice<FullMoments>(s, c, i);\n    }\n}\n"
++}
+diff --git a/tests/fixtures/operator_unification/differential.py b/tests/fixtures/operator_unification/differential.py
+new file mode 100644
+--- /dev/null
++++ b/tests/fixtures/operator_unification/differential.py
+@@ -0,0 +1,175 @@
++"""Run actual CUDA implementations against frozen pre-extraction device bodies.
++
++No timings or throughput measurements are collected. Fixtures exercise precision
++boundaries, periodic/internal faces, sparse wall channels and cold-wall updates.
++"""
++from pathlib import Path
++import argparse, json, os, re, resource, subprocess
++
++def main():
++    parser=argparse.ArgumentParser(description=__doc__)
++    parser.add_argument('root',type=Path);parser.add_argument('output',type=Path)
++    parser.add_argument('app',choices=['gasUGKP','FSH','CHT']);parser.add_argument('bits',type=int,choices=[32,64])
++    args=parser.parse_args();root=args.root.resolve();out=args.output.resolve();out.mkdir(parents=True,exist_ok=True)
++    app,bits=args.app,args.bits
++    source=root/'applications'/app/('gpu' if app=='CHT' else 'private_backend')
++    frozen=json.loads((root/'tests/fixtures/operator_unification/baseline.json').read_text())
++    code='#include "GpuResidentStrict.cu"\n#include <cstdio>\n#include <new>\n#include <cstdlib>\n#include <cmath>\n#include <cstring>\n'
++    if app=='CHT' and bits==32:code+='using namespace ugkwpCudaFp32;\n'
++    code+='using Real=GPU_OPERATOR_REAL;\n'
++    names=['solidEpsFromMomentDevice','solidPressureFromMomentsDevice','granularCollisionTauFromCellDevice','riemannFacePrimitiveForGradient']
++    if app!='gasUGKP':names+=['atomicAddParticleWallEnergyByFace']
++    else:names+=['preparePressureProjectionCell']
++    for name in names:
++        code+=frozen[app+':'+name].replace(name,'baseline_'+name)+'\n'
++    code+=frozen['drag'].replace('UGKWP_GPU_DRAG_ALGEBRA_CUH','BASELINE_GPU_DRAG_ALGEBRA_CUH').replace('ugkwpGpuDragAlgebra','baselineDrag')+'\n'
++    if app!='gasUGKP':
++        cold=frozen['cold'+str(bits)].replace('advanceColdWall1DThermalGroup','baselineColdWall')
++        if bits==32:cold='template<bool StabilizePcr=false>\n'+cold
++        code+=cold+'\n'
++        code+=frozen['thermalPressureCell'].replace('applyCollisionalPressureProjectionCellAtomicKernel','baselinePressureCell')+'\n'
++        code+=frozen['thermalPressureParticles'].replace('applyCollisionalPressureProjectionParticlesAtomicKernel','baselinePressureParticles')+'\n'
++    raw=(source/'GpuResidentStrict.cu').read_text();a=raw.index('struct DeviceState');b=raw.index('\n};',a)
++    fields=re.findall(r'^\s*((?:unsigned\s+)?(?:long long|char)|double|float|int|GpuReal|GpuTime|GpuWallEnergy)\*\s+(\w+)\s*=',raw[a:b],re.M)
++    fields=[(ty,n) for ty,n in fields if n not in ['diagnosticPreTransportParticleCount','sourceInjectedCount'] and (bits==32 or not n.startswith('flatPressure'))]
++    code+=r'''
++template<class T>void mem(T*&p){if(cudaMallocManaged(&p,1024*sizeof(T))!=cudaSuccess)abort();for(int i=0;i<1024;i++)::new(static_cast<void*>(p+i)) T{};}
++void sync(){auto e=cudaDeviceSynchronize();if(e!=cudaSuccess){printf("FAIL CUDA %s\n",cudaGetErrorString(e));exit(10);}}
++void ck(bool x,const char*m){if(!x){printf("FAIL %s\n",m);exit(11);}}
++void equal(double a,double b,const char*m){if(std::memcmp(&a,&b,sizeof(double))){printf("FAIL bits %s %.17g != %.17g\n",m,a,b);exit(12);}}
++__global__ void primitives(DeviceState*s,double*values){int i=threadIdx.x+blockDim.x*blockIdx.x;if(i>=512)return;
++ int c=i%18-1; int f=i%40;int fc=s->faceOwner[f];if(f<s->nInternalFaces && (i&1))fc=s->faceNeighbour[f];
++ Real cur[]={solidEpsFromMomentDevice(*s,c),solidPressureFromMomentsDevice(*s,c),granularCollisionTauFromCellDevice(*s,c)};
++ Real old[]={baseline_solidEpsFromMomentDevice(*s,c),baseline_solidPressureFromMomentsDevice(*s,c),baseline_granularCollisionTauFromCellDevice(*s,c)};
++ auto face=riemannFacePrimitiveForGradient(*s,fc,f);auto bf=baseline_riemannFacePrimitiveForGradient(*s,fc,f);
++ Real faces[]={face.rho,face.ux,face.uy,face.uz,face.p,face.T},refs[]={bf.rho,bf.ux,bf.uy,bf.uz,bf.p,bf.T};
++ for(int j=0;j<3;j++){values[32*i+2*j]=cur[j];values[32*i+2*j+1]=old[j];}
++ for(int j=0;j<6;j++){values[32*i+6+2*j]=faces[j];values[32*i+7+2*j]=refs[j];}
++}
++__global__ void dragRates(double*values){int i=threadIdx.x+blockDim.x*blockIdx.x;if(i>=512)return;
++ const Real slips[]={Real(0),Real(1e-32),Real(1e-12),Real(.1),Real(999.999),Real(1000),Real(1000.001),Real(-1)};
++ const Real densities[]={Real(0),Real(1),Real(-1),Real(1e-30)};
++ const Real diameters[]={Real(1),Real(1e-4),Real(1e-31),Real(0)};
++ const Real alphas[]={Real(.799999),Real(.8),Real(.800001),Real(1)};
++ Real slip=slips[i%8],rho=densities[(i/8)%4],d=diameters[(i/32)%4],alpha=alphas[(i/128)%4],mu=Real(1),rs=Real(3000),reg=Real(1e-30),rr=Real(1e-12);
++ Real cur[]={ugkwpGpuDragAlgebra::gasUgkpSchillerNaumannInverseResponseTime(rho,mu,rs,d,slip,reg),ugkwpGpuDragAlgebra::gasUgkpGidaspowInverseResponseTime(rho,mu,alpha,rs,d,slip,reg,rr),ugkwpGpuDragAlgebra::fshChtSchillerNaumannInverseRelaxationTime(rho,mu,rs,d,slip),ugkwpGpuDragAlgebra::fshChtGidaspowInverseRelaxationTime(rho,alpha,mu,rs,d,slip,rr)};
++ Real old[]={baselineDrag::gasUgkpSchillerNaumannInverseResponseTime(rho,mu,rs,d,slip,reg),baselineDrag::gasUgkpGidaspowInverseResponseTime(rho,mu,alpha,rs,d,slip,reg,rr),baselineDrag::fshChtSchillerNaumannInverseRelaxationTime(rho,mu,rs,d,slip),baselineDrag::fshChtGidaspowInverseRelaxationTime(rho,alpha,mu,rs,d,slip,rr)};
++ for(int j=0;j<4;j++){values[8*i+2*j]=cur[j];values[8*i+2*j+1]=old[j];}
++}
++EXTRA_KERNELS
++int main(){setvbuf(stdout,nullptr,_IONBF,0);DeviceState*s,*reference;mem(s);mem(reference);
++ALLOC
++s->nCells=16;s->nFaces=40;s->nInternalFaces=8;s->rhoSolid=3000;s->epsSMin=1e-12;s->thetaMin=1e-12;s->rhoMin=1e-12;s->Rgas=1;s->TgasMin=.001;s->particleDiameterFallback=1e-4;s->collisionalPressureEnabled=1;s->collisionalRestitution=.9;
++for(int c=0;c<16;c++){
++ s->rho[c]=1+.125*c;s->Ux[c]=2+.25*c;s->Uy[c]=-.5;s->Uz[c]=.25;s->p[c]=2+.25*c;s->Tgas[c]=300+c;
++ s->momRhoP[c]=(c==0?0:100+.125*c);s->momRhoUPx[c]=.25*s->momRhoP[c];s->momRhoUPy[c]=-.125*s->momRhoP[c];s->momRhoUPz[c]=0;s->momRhoEP[c]=(c==2?1e-30:5)*s->momRhoP[c];s->momRhoPD[c]=1e-4*s->momRhoP[c];
++ s->V[c]=1+.0625*c;s->cellPlaneStart[c]=3*c;s->cellPlaneCount[c]=3;s->cellFaceId[3*c]=c%8;s->cellFaceId[3*c+1]=-1;s->cellFaceId[3*c+2]=(c+2)%8;
++}
++s->momRhoP[3]=NAN;s->momRhoPD[4]=NAN;s->momRhoEP[5]=INFINITY;
++for(int f=0;f<40;f++){
++ s->faceOwner[f]=f%16;s->faceNeighbour[f]=(f+1)%16;s->facePeriodicPair[f]=f>=8&&f<16?(f^1):-1;s->faceWeight[f]=.25*(f%5);s->riemannBoundaryKind[f]=f%5;s->riemannBoundaryUFix[f]=f%2;s->riemannBoundaryTFix[f]=f%2;
++ s->magSf[f]=1;s->Sfx[f]=1;s->riemannBoundaryUx[f]=.5;s->riemannBoundaryT[f]=500;s->solidPressurePhiMomX[f]=.125*(f-4);s->solidPressurePhiEnergy[f]=.25*(f-2);
++}
++double*values; if(cudaMallocManaged(&values,512*32*sizeof(double))!=cudaSuccess)abort();
++primitives<<<4,128>>>(s,values);sync();for(int i=0;i<512;i++)for(int j=0;j<9;j++)equal(values[32*i+2*j],values[32*i+2*j+1],"moment/face primitive");
++puts("PASS bitwise moments and face states: invalid cells, nonfinite inputs, internal faces from both sides, periodic owners and wall kinds");
++dragRates<<<4,128>>>(values);sync();for(int i=0;i<512*4;i++)equal(values[2*i],values[2*i+1],"drag policy rate");
++puts("PASS 2048 bitwise drag rates including zero slip, Re/alpha thresholds and denominator bounds");
++// Pressure publication uses a finite positive fixture; primitive tests above
++// separately cover nonfinite moment sanitization.
++for(int c=0;c<16;c++){s->momRhoP[c]=100;s->momRhoEP[c]=500;s->momRhoUPx[c]=25;s->momRhoUPy[c]=-12.5;s->momRhoUPz[c]=0;}
++PRESSURE_TEST
++WALL_TEST
++COLD_TEST
++puts("PASS all frozen-implementation differential checks");return 0;}
++'''
++    allocations='\n'.join(f'mem(s->{n});mem(reference->{n});' for _,n in fields)
++    code=code.replace('ALLOC',allocations)
++    copy='{DeviceState copy=*s;\n'+''.join(f'copy.{n}=reference->{n};std::memcpy(copy.{n},s->{n},1024*sizeof(*s->{n}));\n' for _,n in fields)+'*reference=copy;}\n'
++    common_compare='\n'.join(f'for(int c=0;c<16;c++)equal(s->{n}[c],reference->{n}[c],"pressure {n}");' for n in 'pressureDeltaMomX pressureDeltaMomY pressureDeltaMomZ pressureDeltaEnergy momRhoUPx momRhoUPy momRhoUPz momRhoEP rhoUsx rhoUsy rhoUsz rhoEs Usx Usy Usz theta'.split())
++    extra=''
++    if app=='gasUGKP':
++        extra+=r'''
++__global__ void pressurePair(DeviceState*s,DeviceState*r,double*out,double dt){int c=threadIdx.x;if(c>=16)return;auto a=preparePressureProjectionCell(*s,c,dt);auto b=baseline_preparePressureProjectionCell(*r,c,dt);
++ const double x[]={a.ux0,a.uy0,a.uz0,a.ux1,a.uy1,a.uz1,a.theta1,a.thermalScale,a.thetaScale,double(a.resolved)},y[]={b.ux0,b.uy0,b.uz0,b.ux1,b.uy1,b.uz1,b.theta1,b.thermalScale,b.thetaScale,double(b.resolved)};
++ for(int j=0;j<10;j++){out[20*c+2*j]=x[j];out[20*c+2*j+1]=y[j];}}
++'''
++        pressure=copy+'for(int mode:{0,1}){s->csrCellLocalPathEnabled=mode;reference->csrCellLocalPathEnabled=mode;pressurePair<<<1,32>>>(s,reference,values,.000100000000000003);sync();for(int i=0;i<160;i++)equal(values[2*i],values[2*i+1],"pressure kinematics");'+common_compare+'}\n'
++    else:
++        pressure=copy+'applyCollisionalPressureProjectionCellAtomicKernel<<<1,32>>>(s,.000100000000000003);baselinePressureCell<<<1,32>>>(reference,.000100000000000003);sync();'+common_compare+'\n'
++        pressure+=r'''
++s->particleCapacity=64;*s->particleCountDevice=64;
++for(int i=0;i<64;i++){
++ s->pStatus[i]=1;s->pCellId[i]=i%16;s->pm[i]=.5;s->pd[i]=1e-4;s->pT[i]=1000;s->pTheta[i]=.25;
++ s->pux[i]=.25+(i%3)*.125;s->puy[i]=-.125;s->puz[i]=0;s->puxOld[i]=2;s->puyOld[i]=-1;s->puzOld[i]=.5;
++ s->pStuck[i]=(i/16==0)?Foam::gpuThermal::particleWallMobile:(i/16==1)?Foam::gpuThermal::particleWallTransientRebound:Foam::gpuThermal::particleWallDeposited;
++}
++COPY_THERMAL
++applyCollisionalPressureProjectionParticlesAtomicKernel<true><<<2,32>>>(s);baselinePressureParticles<true><<<2,32>>>(reference);sync();
++for(int i=0;i<64;i++){
++ equal(s->pux[i],reference->pux[i],"unsorted constrained particle X");equal(s->puy[i],reference->puy[i],"unsorted constrained particle Y");equal(s->puz[i],reference->puz[i],"unsorted constrained particle Z");equal(s->pTheta[i],reference->pTheta[i],"unsorted constrained theta");
++ equal(s->puxOld[i],reference->puxOld[i],"constraint old velocity");
++ if(s->pStuck[i])ck(s->pux[i]==0&&s->puy[i]==0&&s->puz[i]==0,"wall constraint velocity");
++ if(s->pStuck[i]==Foam::gpuThermal::particleWallDeposited)ck(s->puxOld[i]==0,"deposited old velocity reset");
++}
++for(int j=0;j<7*16;j++){double a=s->pressureParticleMoments[j],b=reference->pressureParticleMoments[j];ck(std::isfinite(a)&&fabs(a-b)<=PRESSURE_TOL*fmax(1.,fabs(b)),"atomic constrained moments");}
++puts("PASS bitwise unsorted particle update with mobile, transient and deposited wall constraints");
++'''.replace('COPY_THERMAL',copy).replace('PRESSURE_TOL','2e-6' if bits==32 else '2e-12')
++    pressure+='puts("PASS bitwise pressure face deltas and published cell moments");'
++    code=code.replace('PRESSURE_TEST',pressure)
++    wall=cold=''
++    if app!='gasUGKP':
++        extra+=r'''
++__global__ void wallChannels(DeviceState*s,DeviceState*r){int i=threadIdx.x+blockDim.x*blockIdx.x;if(i>=129)return;int f=i%3;Real e=(i%7==0)?Real(0):Real((i%2?-1:1)*(1+i%5)*.125);auto a=i%2?s->particleWallReflectedEnergy:s->particleWallDepositedEnergy;auto b=i%2?r->particleWallReflectedEnergy:r->particleWallDepositedEnergy;atomicAddParticleWallEnergyByFace(*s,a,f,e);baseline_atomicAddParticleWallEnergyByFace(*r,b,f,e);}
++__global__ void coldPair(DeviceState*s,DeviceState*r,double*out,int stable,double dt,double gasConductance){int lane=threadIdx.x;Real ma=0,fa=0,ea=0,mb=0,fb=0,eb=0;bool failA=false,failB=false;
++ const Real volume=Real(1e-12),mass=Real(3.2e-9),area=Real(2.2e-8),contact=Real(1.7e-8);
++ bool a,b;
++ COLD_CALLS
++ if(lane==0){out[0]=a;out[1]=b;out[2]=ma;out[3]=mb;out[4]=fa;out[5]=fb;out[6]=ea;out[7]=eb;out[8]=failA;out[9]=failB;}}
++'''
++        callargs='volume,mass,area,contact,GpuTime(8e-6),Real(.42),GpuTime(dt),Real(300),Real(13000),Real(.1),Real(3200),Real(gasConductance)'
++        calls=f'a=advanceColdWall1DThermalGroup(*s,0,lane,0xffu,{callargs},ma,fa,ea);b=baselineColdWall(*r,0,lane,0xffu,{callargs},mb,fb,eb);'
++        if bits==32:
++            calls=f'if(stable){{a=advanceColdWall1DThermalGroup<true>(*s,0,lane,0xffu,{callargs},ma,fa,ea,&failA);b=baselineColdWall<true>(*r,0,lane,0xffu,{callargs},mb,fb,eb,&failB);}}else{{a=advanceColdWall1DThermalGroup<false>(*s,0,lane,0xffu,{callargs},ma,fa,ea,&failA);b=baselineColdWall<false>(*r,0,lane,0xffu,{callargs},mb,fb,eb,&failB);}}'
++        extra=extra.replace('COLD_CALLS',calls)
++        wall='for(int block:{32,64,128,256}){for(int f=0;f<3;f++)s->particleWallReflectedEnergy[f]=s->particleWallDepositedEnergy[f]=reference->particleWallReflectedEnergy[f]=reference->particleWallDepositedEnergy[f]=0;wallChannels<<<(129+block-1)/block,block>>>(s,reference);sync();for(int f=0;f<3;f++){equal(s->particleWallReflectedEnergy[f],reference->particleWallReflectedEnergy[f],"wall reflected");equal(s->particleWallDepositedEnergy[f],reference->particleWallDepositedEnergy[f],"wall deposited");}}puts("PASS bitwise signed wall ledger with partial warps, multiple faces/channels and block sizes");'
++        cold=r'''
++s->coldWallSolidificationEnabled=reference->coldWallSolidificationEnabled=1;
++s->coldWallSolidificationParameters=reference->coldWallSolidificationParameters={2327.,20.,1.16e6,3990.,1273.,5.9,.25,0.,1,4};
++double largestColdResidual=0,largestColdBound=0;
++for(int closed:{0,1})for(int stable=0;stable<STABLE_MODES;stable++)for(int transient:{0,1}){
++ s->coldWallSolidificationParameters.wallTransientResistance=reference->coldWallSolidificationParameters.wallTransientResistance=transient;
++ for(int i=0;i<8;i++){s->pColdNodeSpecificEnthalpy[i]=reference->pColdNodeSpecificEnthalpy[i]=float(Foam::gpuThermal::coldWallSpecificEnthalpyJkg(3500.,s->coldWallSolidificationParameters));s->pColdRingSolidMass[i]=reference->pColdRingSolidMass[i]=0;}
++ s->pColdContactAge[0]=reference->pColdContactAge[0]=0;s->pColdFrozenArea[0]=reference->pColdFrozenArea[0]=0;
++ for(int step=0;step<64;step++){
++  double before=0;for(int i=0;i<8;i++)before+=double(Real(3.2e-9)/Real(8))*s->pColdNodeSpecificEnthalpy[i];
++  coldPair<<<1,8>>>(s,reference,values,stable,7.5e-8,closed?0:2e-4);sync();for(int j=0;j<5;j++)equal(values[2*j],values[2*j+1],"cold-wall output");ck(values[0]==1,"cold-wall valid step");
++  double after=0,storageBound=0;
++  for(int i=0;i<8;i++){
++    equal(s->pColdNodeSpecificEnthalpy[i],reference->pColdNodeSpecificEnthalpy[i],"cold-wall node enthalpy");equal(s->pColdRingSolidMass[i],reference->pColdRingSolidMass[i],"cold-wall ring mass");
++    float node=s->pColdNodeSpecificEnthalpy[i];double nodeMass=double(Real(3.2e-9)/Real(8));after+=nodeMass*node;
++    storageBound+=.5*nodeMass*fabs(double(std::nextafter(node,INFINITY))-node);
++  }
++  equal(s->pColdContactAge[0],reference->pColdContactAge[0],"cold-wall time64");
++  if(closed){double residual=after-before+values[6];double bound=storageBound+64*GPU_REAL_EPSILON*(fabs(before)+fabs(after)+fabs(values[6]));largestColdResidual=fmax(largestColdResidual,fabs(residual));largestColdBound=fmax(largestColdBound,bound);ck(fabs(residual)<=bound,"closed cold-wall particle enthalpy + wall heat conservation within storage rounding");}
++ }
++ float saved=s->pColdNodeSpecificEnthalpy[0];double age=s->pColdContactAge[0];coldPair<<<1,8>>>(s,reference,values,stable,-1,0);sync();ck(values[0]==0&&values[1]==0,"invalid cold-wall step rejected");equal(s->pColdNodeSpecificEnthalpy[0],saved,"rejected enthalpy unchanged");equal(s->pColdContactAge[0],age,"rejected age unchanged");
++}
++printf("COLD_ENERGY maximum_abs_residual=%.17g maximum_rounding_bound=%.17g\n",largestColdResidual,largestColdBound);
++puts("PASS bitwise cold-wall temperature, wall heat, enthalpy and ring mass across precision policies");
++'''.replace('STABLE_MODES','2' if bits==32 else '1')
++    code=code.replace('EXTRA_KERNELS',extra).replace('WALL_TEST',wall).replace('COLD_TEST',cold)
++    code=code.replace('void sync()','void deviceSync()').replace('sync();','deviceSync();')
++    cu=out/'differential.cu';cu.write_text(code);exe=out/'differential'
++    cmd=['/usr/local/cuda/bin/nvcc','-std=c++17','-O3','-arch=sm_89','--fmad='+('false' if app=='CHT' else 'true'),'-DUGKWP_GPU_REAL_BITS='+str(bits),'-I'+str(source),'-I'+str(root/'common'),'-I'+str(root/'common/wall'),'-I'+str(root/'applications'/app/'gpu'),str(cu),'-o',str(exe)]
++    if app=='CHT':cmd.append(str(source/'GpuWallEnergy64.cu'))
++    soft,hard=resource.getrlimit(resource.RLIMIT_STACK)
++    requested=64*1024*1024
++    resource.setrlimit(resource.RLIMIT_STACK,(requested if hard==resource.RLIM_INFINITY else min(requested,hard),hard))
++    resource.setrlimit(resource.RLIMIT_CORE,(0,0))
++    with (out/'build.log').open('w') as log:result=subprocess.run(cmd,stdout=log,stderr=subprocess.STDOUT)
++    if result.returncode:print((out/'build.log').read_text()[-6000:]);return result.returncode
++    result=subprocess.run([str(exe)],capture_output=True,text=True);(out/'run.log').write_text(result.stdout+result.stderr)
++    print(app,bits,result.stdout+result.stderr,flush=True);return result.returncode
++
++if __name__=='__main__':raise SystemExit(main())
+diff --git a/tests/test_l2_goal_behavior.py b/tests/test_l2_goal_behavior.py
+--- a/tests/test_l2_goal_behavior.py
++++ b/tests/test_l2_goal_behavior.py
+@@ -29,6 +29,7 @@
+     if name == "pressure_cache":
+         common = SOURCE.parents[3] / "common"
+         closure = '\nusing PressureReal=double; using PressureTime=double;\n'
++        closure += '#include "' + str(common / 'GpuPressureUnsortedAlgebra.cuh') + '"\n'
+         closure += '#include "' + str(common / 'GpuPressureParticleUpdate.cuh') + '"\n'
+         closure += '#include "' + str(common / 'GpuPressureCellTraversal.cuh') + '"\n'
+         fixture = fixture.replace('{{applyCollisionalPressureProjectionOneParticle}}',
+diff --git a/applications/FSH/tests/test_finite_contact_contract.py b/applications/FSH/tests/test_finite_contact_contract.py
+--- a/applications/FSH/tests/test_finite_contact_contract.py
++++ b/applications/FSH/tests/test_finite_contact_contract.py
+@@ -149,7 +149,7 @@
+         self.assertIn("particleWallMaximumCoverage*s.magSf[faceI]", text)
+ 
+     def test_wall_energy_warp_group_collective_is_executed_by_all_group_lanes(self) -> None:
+-        text = (ROOT / "private_backend/GpuResidentStrict.cu").read_text()
++        text = (ROOT.parents[1] / "common/operators/atomicAddParticleWallEnergyByFace.cuh").read_text()
+         helper = self._function_body(
+             text, "__device__ void atomicAddParticleWallEnergyByFace"
+         )
+diff --git a/tests/fixtures/source_contract_regression.py b/tests/fixtures/source_contract_regression.py
+--- a/tests/fixtures/source_contract_regression.py
++++ b/tests/fixtures/source_contract_regression.py
+@@ -2,6 +2,7 @@
+ """CPU regressions for mirror protection, field closure and fixture reuse."""
+ from pathlib import Path
+ import argparse
++import os
+ import shutil
+ import subprocess
+ import sys
+@@ -9,7 +10,7 @@
+ import unittest
+ 
+ ROOT = Path(sys.argv.pop(1)).resolve()
+-PAIR = ROOT.parent
++PAIR = Path(os.environ.get("UGKP_MANAGED_MIRROR_ROOT", ROOT.parent)).resolve()
+ 
+ 
+ def run(script, *args):
+@@ -18,6 +19,8 @@
+ 
+ class Contracts(unittest.TestCase):
+     def test_managed_mirror_check_sync_and_unlisted_protection(self):
++        if not all((PAIR / name).is_dir() for name in ('gpu-riemann-gkp-main', 'ugkp-thermal')):
++            self.skipTest('Standalone checkout: peer sync integration unavailable')
+         tool = ROOT / 'tools/managed_mirrors.py'
+         baseline = run(tool, '--pair-root', PAIR)
+         self.assertEqual(baseline.returncode, 0, baseline.stdout + baseline.stderr)

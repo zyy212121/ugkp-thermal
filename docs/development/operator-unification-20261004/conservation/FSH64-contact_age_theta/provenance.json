@@ -1,0 +1,34 @@
+{
+  "scope": "Local invariant witness only; post-sampling state is constructed; neither RNG distribution nor end-to-end solver is tested.",
+  "source_root": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test",
+  "app": "FSH",
+  "bits": 64,
+  "source_sha256": {
+    "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/applications/FSH/private_backend/GpuResidentStrict.cu": "69a94779105dc3c3f00cbc428c6596329f3d26c448ee797358a3afd43f7f6ab6",
+    "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/common/GpuThermalParticleFinalization.cuh": "6175e00bd6b399532bf6118f02ecc877d86adfb029eaf2e1ca86bfef02ab10e7",
+    "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/common/GpuCollisionPoolCorrection.cuh": "fbae7f041878de889f357ebc9d5473ae121e9ed8c41361b5a13d0b1d34500a15",
+    "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/common/GpuThermalParticleRelaxation.cuh": "690a17b609ba8d3e1d86aff70fe5c4b5ace0676a18f99dc787129f67a7af59b3",
+    "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/common/operators/correctOnePoissonThermalizedParticlePath.cuh": "ad7be283ffdbcc84aaea8589aaa3c49dcc990b8f6091cd098126c87349616d63",
+    "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/common/operators/relaxMobileParticlesToResidentGasKernelStatic.cuh": "3d28c430e0d923d3d6040b69f2e8f3f5270266fb1e9890c4ba159fd650d153af",
+    "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/tests/fixtures/shared_operators/contact_age_theta.py": "a3a0b8bcdbb0bb57c3834b9ad6a4a3529ab5e9cd6953571a9c24a7a3e92956ff"
+  },
+  "generated_sha256": "8a00be550dcc21cdb1192bf69be6ab3dcc4411fb28b80fb5faf10446b25d5a8d",
+  "command": [
+    "/usr/local/cuda/bin/nvcc",
+    "-std=c++17",
+    "-O3",
+    "-arch=sm_89",
+    "--fmad=true",
+    "-DUGKP_DEVELOPMENT_PROBES=1",
+    "-DUGKWP_GPU_REAL_BITS=64",
+    "-I/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/applications/FSH/private_backend",
+    "-I/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/common",
+    "-I/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/applications/FSH/gpu",
+    "/home/lss/ugkp-operator-unification-20261004/conservation/FSH64-contact_age_theta/contact_age_theta.cu",
+    "-o",
+    "/home/lss/ugkp-operator-unification-20261004/conservation/FSH64-contact_age_theta/contact_age_theta"
+  ],
+  "execution": "finished",
+  "exit": 0,
+  "binary_sha256": "70dec3f786c46602ac995ed24db4ee111da9eafda10e87c9dbc15f1bea287b2c"
+}

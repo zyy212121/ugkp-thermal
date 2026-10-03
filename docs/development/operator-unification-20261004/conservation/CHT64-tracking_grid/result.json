@@ -1,0 +1,23 @@
+{
+  "app": "CHT",
+  "bits": 64,
+  "command": [
+    "/usr/local/cuda/bin/nvcc",
+    "-std=c++17",
+    "-O3",
+    "-arch=sm_89",
+    "--fmad=false",
+    "-DUGKWP_GPU_REAL_BITS=64",
+    "-I/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/applications/CHT/gpu",
+    "-I/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/common",
+    "-I/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/applications/CHT/gpu",
+    "/home/lss/ugkp-operator-unification-20261004/conservation/CHT64-tracking_grid/tracking.cu",
+    "-o",
+    "/home/lss/ugkp-operator-unification-20261004/conservation/CHT64-tracking_grid/tracking",
+    "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/applications/CHT/gpu/GpuWallEnergy64.cu"
+  ],
+  "fixture_sha256": "cf94c2226fe227cb9c7f69b8a9493afbc81d69353d755fff0584f0b2ec9b8c74",
+  "build_exit": 0,
+  "binary_sha256": "1a8f76d66cec3d0321ff3b6543b600c525260f35198fc0e75e5fc7d127493532",
+  "run_exit": 0
+}

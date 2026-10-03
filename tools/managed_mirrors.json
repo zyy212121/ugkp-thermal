@@ -720,6 +720,11 @@
       "downstream": "gpu-riemann-gkp-main"
     },
     {
+      "path": "common/GpuPressureUnsortedAlgebra.cuh",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
       "path": "common/GpuReductionTaskCount.cuh",
       "upstream": "ugkp-thermal",
       "downstream": "gpu-riemann-gkp-main"
@@ -876,6 +881,11 @@
     },
     {
       "path": "common/operators/applyGasVolumeFractionSourceKernel.cuh",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/operators/atomicAddParticleWallEnergyByFace.cuh",
       "upstream": "ugkp-thermal",
       "downstream": "gpu-riemann-gkp-main"
     },
@@ -1121,6 +1131,11 @@
     },
     {
       "path": "common/operators/validateDevelopmentProbeParticlesKernel.cuh",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/wall/GpuColdWall1DAdvance.inl",
       "upstream": "ugkp-thermal",
       "downstream": "gpu-riemann-gkp-main"
     },

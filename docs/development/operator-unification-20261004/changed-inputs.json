@@ -1,0 +1,117 @@
+[
+  {
+    "path": "applications/CHT/gpu/GpuResidentStrict.cu",
+    "sha256": "d0b4aa60ab546bb52c005d2fb12cc17102d7273a4b9bb8a513095a407b7f0825",
+    "baseline_sha256": "791a0a131399356a8a88a53c649a9bfb8a35d6973232bacbae72066dfd934e12"
+  },
+  {
+    "path": "applications/FSH/private_backend/GpuResidentStrict.cu",
+    "sha256": "69a94779105dc3c3f00cbc428c6596329f3d26c448ee797358a3afd43f7f6ab6",
+    "baseline_sha256": "c0af78becd9b3df036b1e76477c20e4c2c11a153a5fbfa6501fdb24671867660"
+  },
+  {
+    "path": "applications/gasUGKP/private_backend/GpuResidentStrict.cu",
+    "sha256": "395c44ba3e20c123699d71fd9bdff68d218a54b0914a122ca0eb260775cd708d",
+    "baseline_sha256": "99bb8a5b167732063141c0e1a56a8445b03e551559a0979f98915b687c5edcd0"
+  },
+  {
+    "path": "common/operators/solidEpsFromMomentDevice.cuh",
+    "sha256": "d8f72d87e660290bb0e493911a3be46a5fe5f1aba53302420a7b6887a8c2eb02",
+    "baseline_sha256": "b97cd6fe631582489728f0b76911718067b667ec297930a6e6b89e368812fb94"
+  },
+  {
+    "path": "common/operators/solidPressureFromMomentsDevice.cuh",
+    "sha256": "459b2c6890d944eda70d38b2b61f8543145533b58710b40ba424894f4e2dbaea",
+    "baseline_sha256": "7ba555397879b73771b68f3ce7ebc8a9adf4847280fac31c5ad575788b924f43"
+  },
+  {
+    "path": "common/operators/granularCollisionTauFromCellDevice.cuh",
+    "sha256": "2997773e0d22f6631c7d2539beab6aa05ca58d75662f4e4e1b82cb7c818dfb0b",
+    "baseline_sha256": "a8a00d66ebdd89a5fc158e409787192159b1b34c560e9a35e64e57ea7b8e2d9e"
+  },
+  {
+    "path": "common/operators/riemannFacePrimitiveForGradient.cuh",
+    "sha256": "cb12b77ed8d09066c38da15aaa018b4dc243c925cb9fbc209cb820957e1771db",
+    "baseline_sha256": "f2d16520db199630f2f4e08c996667206d4ca0796be410f4b13528f363cbb489"
+  },
+  {
+    "path": "common/operators/atomicAddParticleWallEnergyByFace.cuh",
+    "sha256": "390f0c168b4fcd7b3840dc90dbc8fcce4161b4d7c3ee0c31bc02fd5b60df7fcf",
+    "baseline_sha256": null
+  },
+  {
+    "path": "common/gasNumerics/GpuDragAlgebra.cuh",
+    "sha256": "960f507001b00310957f4fe309e00dd182ac84b59d9810316b8b75574a2502b5",
+    "baseline_sha256": "b64350aa15c438837f3103e616ceedea49e0a88c932b692ffa698c8384a80d8b"
+  },
+  {
+    "path": "common/GpuPressureUnsortedAlgebra.cuh",
+    "sha256": "d062fdca7f77e106bc6787964b05ac9ee1b735ec17886846c0ebf1ec7e8e7ad3",
+    "baseline_sha256": null
+  },
+  {
+    "path": "common/GpuPressureKickAccumulation.cuh",
+    "sha256": "3bebd351294fffe83e4bc9a98e6933d4ed629a775b36e260f941f8f88e5d674e",
+    "baseline_sha256": "75b7a6a170e27ca5982502fd504cb0d3fdfe5c8148107d2e8ce8fe3955387d20"
+  },
+  {
+    "path": "common/GpuPressureUnsortedConstrained.cuh",
+    "sha256": "aa2a49942d0cc285d16f9d2d3b89f22bd5b768683826ac54dde5a4e3fdbc3a4c",
+    "baseline_sha256": "4fddfcf3a447d28d303bf9c94317da797370912ad431a60a0daf80d8745eaba8"
+  },
+  {
+    "path": "common/wall/GpuColdWall1DDevice.cuh",
+    "sha256": "3476afe0184a6d152350e2e319e373c42256c9d16962d370ca725d6991c7b29f",
+    "baseline_sha256": "eac4788c136a771207b891c91005268d0d02c2a584513c505f2fdad4a86afb51"
+  },
+  {
+    "path": "common/wall/GpuColdWall1DAdvance.inl",
+    "sha256": "bc8b2037b15e817f40177dc2296225c53f3da74ae4437aafa498812a049432d7",
+    "baseline_sha256": null
+  },
+  {
+    "path": "tools/managed_mirrors.json",
+    "sha256": "9b94e32e06ed9721047ea67678f35d539e2944a972e101fa019e736596751df8",
+    "baseline_sha256": "4c20ab31c8c339b200bff4f8f90406110d2b8a4d77f06c11765b215b63ee8b41"
+  },
+  {
+    "path": "tools/benchmark_operator_unification.py",
+    "sha256": "33f99860e572d30b7cbbb198115b491578f6e889232f6f8c955970bc63dfd96f",
+    "baseline_sha256": null
+  },
+  {
+    "path": "tests/test_remaining_operator_ownership.py",
+    "sha256": "303cdadd6456cebd1f2d05ad61a920ba75d98a3e6bfe43387c2913985de3cb0b",
+    "baseline_sha256": null
+  },
+  {
+    "path": "tests/test_remaining_operator_equivalence_cuda.py",
+    "sha256": "730af59ef75093ba9fa109410342dc6b0848384a0fb0d9802e4eae3d3dc19ee3",
+    "baseline_sha256": null
+  },
+  {
+    "path": "tests/fixtures/operator_unification/baseline.json",
+    "sha256": "42e2413e6447060b4e953cd8e6edf7cf4749d2d0f3187017cb3d94a33032017e",
+    "baseline_sha256": null
+  },
+  {
+    "path": "tests/fixtures/operator_unification/differential.py",
+    "sha256": "4e595dd3b67f681c78ef4763157b65fe4e4d1f4e28dfa2f53d255b5267ba334e",
+    "baseline_sha256": null
+  },
+  {
+    "path": "tests/test_l2_goal_behavior.py",
+    "sha256": "3de5bb870038124bde287e1d17f4288b4c4cd561fc38e2ce7591a333d8c4ba4f",
+    "baseline_sha256": "6cb30e1279eb3877ddaa96494e086f13b70a93f20f55180333cb12821ff0b64f"
+  },
+  {
+    "path": "applications/FSH/tests/test_finite_contact_contract.py",
+    "sha256": "d9953a61c641e572c2a1cd211302bd94bc7bc898993dcd36f54b30e264fab89f",
+    "baseline_sha256": "f1b0d2c4610c1aadbd57015720f77a3bfc356513ec197dc33915306c0ca80d8d"
+  },
+  {
+    "path": "tests/fixtures/source_contract_regression.py",
+    "sha256": "3fa2b30758f5a52b49996d6c58f7dae6bf0d354f20788295df0bc2ddb3473309",
+    "baseline_sha256": "b422ff0f4b09a3060fbb30cdbe401931dceef5edd1d7d5c728990401a1bb14f7"
+  }
+]

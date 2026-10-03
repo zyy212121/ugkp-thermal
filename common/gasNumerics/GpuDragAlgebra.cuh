@@ -58,138 +58,102 @@ UGKWP_DRAG_HD GpuReal gasUgkpSchillerNaumannCoefficient
     return GPU_R(0.44);
 }
 
-UGKWP_DRAG_HD GpuReal gasUgkpSchillerNaumannInverseResponseTime
+// Original gas inputs: retain caller-selected additive denominator protection.
+struct RegularizedDragInputs
+{
+    static constexpr bool bounded = false;
+    UGKWP_DRAG_HD static GpuReal density(GpuReal x) { return x; }
+    UGKWP_DRAG_HD static GpuReal speed(GpuReal x) { return x; }
+    UGKWP_DRAG_HD static GpuReal diameter(GpuReal x) { return x; }
+    UGKWP_DRAG_HD static GpuReal coefficient(GpuReal re)
+    { return gasUgkpSchillerNaumannCoefficient(re); }
+    UGKWP_DRAG_HD static GpuReal denominator
+    (GpuReal rhoS, GpuReal d, GpuReal regularization, bool squared)
+    { return squared ? rhoS*d*d + regularization : rhoS*d + regularization; }
+};
+
+// Thermal inputs: preserve positivity bounds and the zero-slip return.
+struct BoundedDragInputs
+{
+    static constexpr bool bounded = true;
+    UGKWP_DRAG_HD static GpuReal density(GpuReal x) { return fmax(x,GPU_R(0.0)); }
+    UGKWP_DRAG_HD static GpuReal speed(GpuReal x) { return fmax(x,GPU_R(0.0)); }
+    UGKWP_DRAG_HD static GpuReal diameter(GpuReal x) { return fmax(x,GPU_R(1.0e-30)); }
+    UGKWP_DRAG_HD static GpuReal coefficient(GpuReal re)
+    {
+        // Keep multiply-before-divide rounding, unlike the regularized policy.
+        return re < GPU_R(1000.0)
+          ? GPU_R(24.0)*schillerNaumannCorrection(re)/re : GPU_R(0.44);
+    }
+    UGKWP_DRAG_HD static GpuReal denominator
+    (GpuReal rhoS, GpuReal d, GpuReal, bool squared)
+    { return squared ? fmax(rhoS,GPU_R(1.0e-30))*d*d : fmax(rhoS,GPU_R(1.0e-30))*d; }
+};
+
+template<class InputPolicy>
+UGKWP_DRAG_HD GpuReal inverseSchillerNaumannTime
 (
-    const GpuReal gasDensity,
-    const GpuReal gasViscosity,
-    const GpuReal solidDensity,
-    const GpuReal diameter,
-    const GpuReal relativeSpeed,
-    const GpuReal denominatorRegularization
+    GpuReal gasDensity, GpuReal gasViscosity, GpuReal solidDensity,
+    GpuReal diameter, GpuReal relativeSpeed, GpuReal denominatorRegularization
 )
 {
-    const GpuReal reynolds = gasUgkpReynolds
-    (
-        gasDensity,
-        diameter,
-        relativeSpeed,
-        gasViscosity
-    );
-    const GpuReal coefficient =
-        gasUgkpSchillerNaumannCoefficient(reynolds);
-    return
-        GPU_R(0.75)*coefficient*gasDensity*relativeSpeed
-       /(solidDensity*diameter + denominatorRegularization);
+    const GpuReal mu = fmax(gasViscosity,GPU_R(1.0e-30));
+    const GpuReal re = InputPolicy::density(gasDensity)
+      *InputPolicy::diameter(diameter)*InputPolicy::speed(relativeSpeed)/mu;
+    if constexpr (InputPolicy::bounded)
+    {
+        if (re <= GPU_R(1.0e-30) || relativeSpeed <= GPU_R(1.0e-30)) return GPU_R(0.0);
+    }
+    const GpuReal coefficient = InputPolicy::coefficient(re);
+    return GPU_R(0.75)*coefficient*InputPolicy::density(gasDensity)
+      *InputPolicy::speed(relativeSpeed)
+      /InputPolicy::denominator(solidDensity,InputPolicy::diameter(diameter),denominatorRegularization,false);
 }
 
-UGKWP_DRAG_HD GpuReal gasUgkpGidaspowCdRe
+template<class InputPolicy>
+UGKWP_DRAG_HD GpuReal inverseGidaspowTime
 (
-    const GpuReal gasDensity,
-    const GpuReal gasViscosity,
-    const GpuReal gasVolumeFraction,
-    const GpuReal diameter,
-    const GpuReal relativeSpeed,
-    const GpuReal residualRe
+    GpuReal gasDensity, GpuReal gasViscosity, GpuReal gasVolumeFraction,
+    GpuReal solidDensity, GpuReal diameterInput, GpuReal relativeSpeed,
+    GpuReal denominatorRegularization, GpuReal residualRe
 )
 {
-    const GpuReal alphaGas =
-        fmin(fmax(gasVolumeFraction, GPU_R(1.0e-12)), GPU_R(1.0));
-    const GpuReal reynolds = fmax
-    (
-        gasUgkpReynolds
-        (
-            gasDensity,
-            diameter,
-            relativeSpeed,
-            gasViscosity
-        ),
-        GPU_R(0.0)
-    );
-    return gidaspowCdRe(alphaGas, reynolds, residualRe);
+    const GpuReal alpha = fmin(fmax(gasVolumeFraction,GPU_R(1.0e-12)),GPU_R(1.0));
+    const GpuReal mu = fmax(gasViscosity,GPU_R(1.0e-30));
+    const GpuReal diameter = fmax(diameterInput,GPU_R(1.0e-30));
+    GpuReal re = InputPolicy::density(gasDensity)*InputPolicy::diameter(diameterInput)
+      *InputPolicy::speed(relativeSpeed)/mu;
+    if constexpr (!InputPolicy::bounded) re = fmax(re,GPU_R(0.0));
+    const GpuReal cdRe = gidaspowCdRe(alpha,re,residualRe);
+    return GPU_R(0.75)*cdRe*mu
+      /InputPolicy::denominator(solidDensity,diameter,denominatorRegularization,true);
+}
+
+UGKWP_DRAG_HD GpuReal gasUgkpSchillerNaumannInverseResponseTime
+(GpuReal rho, GpuReal mu, GpuReal rhoS, GpuReal d, GpuReal slip, GpuReal regularization)
+{ return inverseSchillerNaumannTime<RegularizedDragInputs>(rho,mu,rhoS,d,slip,regularization); }
+
+UGKWP_DRAG_HD GpuReal gasUgkpGidaspowCdRe
+(GpuReal rho, GpuReal mu, GpuReal alpha, GpuReal d, GpuReal slip, GpuReal residualRe)
+{
+    return gidaspowCdRe(fmin(fmax(alpha,GPU_R(1.0e-12)),GPU_R(1.0)),
+        fmax(gasUgkpReynolds(rho,d,slip,mu),GPU_R(0.0)),residualRe);
 }
 
 UGKWP_DRAG_HD GpuReal gasUgkpGidaspowInverseResponseTime
-(
-    const GpuReal gasDensity,
-    const GpuReal gasViscosity,
-    const GpuReal gasVolumeFraction,
-    const GpuReal solidDensity,
-    const GpuReal diameterInput,
-    const GpuReal relativeSpeed,
-    const GpuReal denominatorRegularization,
-    const GpuReal residualRe
-)
-{
-    const GpuReal diameter = fmax(diameterInput, GPU_R(1.0e-30));
-    return
-        GPU_R(0.75)
-       *gasUgkpGidaspowCdRe
-        (
-            gasDensity,
-            gasViscosity,
-            gasVolumeFraction,
-            diameterInput,
-            relativeSpeed,
-            residualRe
-        )
-       *fmax(gasViscosity, GPU_R(1.0e-30))
-       /(solidDensity*diameter*diameter + denominatorRegularization);
-}
+(GpuReal rho, GpuReal mu, GpuReal alpha, GpuReal rhoS, GpuReal d, GpuReal slip,
+ GpuReal regularization, GpuReal residualRe)
+{ return inverseGidaspowTime<RegularizedDragInputs>(rho,mu,alpha,rhoS,d,slip,regularization,residualRe); }
 
 UGKWP_DRAG_HD GpuReal fshChtSchillerNaumannInverseRelaxationTime
-(
-    const GpuReal gasDensityInput,
-    const GpuReal gasViscosity,
-    const GpuReal solidDensityInput,
-    const GpuReal diameterInput,
-    const GpuReal relativeSpeedInput
-)
-{
-    const GpuReal mu = fmax(gasViscosity, GPU_R(1.0e-30));
-    const GpuReal re =
-        fmax(gasDensityInput, GPU_R(0.0))*fmax(diameterInput, GPU_R(1.0e-30))
-       *fmax(relativeSpeedInput, GPU_R(0.0))/mu;
-    if (re <= GPU_R(1.0e-30) || relativeSpeedInput <= GPU_R(1.0e-30))
-    {
-        return GPU_R(0.0);
-    }
-    const GpuReal coefficient =
-        re < GPU_R(1000.0)
-      ? GPU_R(24.0)*schillerNaumannCorrection(re)/re
-      : GPU_R(0.44);
-    return
-        GPU_R(0.75)*coefficient*fmax(gasDensityInput, GPU_R(0.0))
-       *fmax(relativeSpeedInput, GPU_R(0.0))
-       /(fmax(solidDensityInput, GPU_R(1.0e-30))
-        *fmax(diameterInput, GPU_R(1.0e-30)));
-}
+(GpuReal rho, GpuReal mu, GpuReal rhoS, GpuReal d, GpuReal slip)
+{ return inverseSchillerNaumannTime<BoundedDragInputs>(rho,mu,rhoS,d,slip,GPU_R(0.0)); }
 
 UGKWP_DRAG_HD GpuReal fshChtGidaspowInverseRelaxationTime
-(
-    const GpuReal gasDensityInput,
-    const GpuReal gasVolumeFraction,
-    const GpuReal gasViscosity,
-    const GpuReal solidDensityInput,
-    const GpuReal diameterInput,
-    const GpuReal relativeSpeedInput,
-    const GpuReal residualRe
-)
-{
-    const GpuReal alpha =
-        fmin(fmax(gasVolumeFraction, GPU_R(1.0e-12)), GPU_R(1.0));
-    const GpuReal mu = fmax(gasViscosity, GPU_R(1.0e-30));
-    const GpuReal diameter = fmax(diameterInput, GPU_R(1.0e-30));
-    const GpuReal re =
-        fmax(gasDensityInput, GPU_R(0.0))*diameter
-       *fmax(relativeSpeedInput, GPU_R(0.0))/mu;
-    const GpuReal cdRe = gidaspowCdRe(alpha, re, residualRe);
-    return
-        GPU_R(0.75)*cdRe*mu
-       /(fmax(solidDensityInput, GPU_R(1.0e-30))*diameter*diameter);
-}
+(GpuReal rho, GpuReal alpha, GpuReal mu, GpuReal rhoS, GpuReal d, GpuReal slip, GpuReal residualRe)
+{ return inverseGidaspowTime<BoundedDragInputs>(rho,mu,alpha,rhoS,d,slip,GPU_R(0.0),residualRe); }
 
 }
 
 #undef UGKWP_DRAG_HD
-
 #endif
