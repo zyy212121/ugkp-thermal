@@ -1,5 +1,6 @@
 
 #pragma once
+#include "GpuPressureUnsortedAlgebra.cuh"
 // One pressure traversal; model adapters own only constraints and moment closure.
 // Directory modes describe storage, never application identity.
 enum class PressureDirectory { Full, Split, Base, Injection };
@@ -12,22 +13,10 @@ struct PressureParameters
 __device__ __forceinline__ void pressureDeltaFromLimitedFaces
 (DeviceState& s,const int c,const PressureTime dt,PressureReal (&delta)[4])
 {
-    PressureReal dpx=PressureReal(0),dpy=PressureReal(0),dpz=PressureReal(0),de=PressureReal(0);
-    const int first=s.cellPlaneStart[c],count=s.cellPlaneCount[c];
-    for(int j=0;j<count;++j)
-    {
-        const int f=s.cellFaceId[first+j];
-        if(f<0 || f>=s.nFaces)continue;
-        const PressureReal sign=s.faceOwner[f]==c?PressureReal(1):PressureReal(-1);
-        dpx-=sign*s.solidPressurePhiMomX[f]; dpy-=sign*s.solidPressurePhiMomY[f];
-        dpz-=sign*s.solidPressurePhiMomZ[f]; de-=sign*s.solidPressurePhiEnergy[f];
-    }
-    // Time remains double for FP32: preserve division and cast placement.
-    const PressureReal factor=dt/clampMin(s.V[c],OfVSmall);
-    delta[0]=finiteOr(factor*dpx,PressureReal(0));
-    delta[1]=finiteOr(factor*dpy,PressureReal(0));
-    delta[2]=finiteOr(factor*dpz,PressureReal(0));
-    delta[3]=finiteOr(factor*de,PressureReal(0));
+    // Keep accumulation local; publish the caller's array only after recovery.
+    PressureReal dpx,dpy,dpz,de;
+    accumulatePressureFaceDelta(s,c,dt,dpx,dpy,dpz,de);
+    delta[0]=dpx; delta[1]=dpy; delta[2]=dpz; delta[3]=de;
     s.pressureDeltaMomX[c]=delta[0]; s.pressureDeltaMomY[c]=delta[1];
     s.pressureDeltaMomZ[c]=delta[2]; s.pressureDeltaEnergy[c]=delta[3];
 }

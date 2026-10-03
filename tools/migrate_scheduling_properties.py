@@ -57,12 +57,10 @@ def migrate(path: Path) -> None:
     existing_schedule = schedule.read_text() if schedule.is_file() else ""
     for text in (original, existing_schedule):
         if re.search(r"(?m)^\s*gpuResearchVariant\b", text):
-            raise ValueError("thermal rejects gpuResearchVariant; select gpuCsrLevel L0/L1/L2 explicitly")
+            raise ValueError("thermal rejects gpuResearchVariant; select gpuCsrLevel L0/L1/L2/auto")
         level = scalar_value(text, "gpuCsrLevel")
-        if level is not None and level not in ("L0", "L1", "L2"):
-            raise ValueError("thermal requires gpuCsrLevel L0/L1/L2; choose a level before migration")
-        if scalar_value(text, "gpuCsrHeavyReduction") == "auto":
-            raise ValueError("thermal rejects automatic reduction; select gpuCsrLevel L0/L1/L2 explicitly")
+        if level is not None and level not in ("L0", "L1", "L2", "auto"):
+            raise ValueError("thermal requires gpuCsrLevel L0/L1/L2/auto; choose a level before migration")
     values = dict(DEFAULTS)
     for key in KEYS:
         value = scalar_value(existing_schedule, key)
@@ -72,14 +70,19 @@ def migrate(path: Path) -> None:
             values[key] = value
 
     csr_level = values.get("gpuCsrLevel")
-    if csr_level not in ("L0", "L1", "L2"):
+    if csr_level not in ("L0", "L1", "L2", "auto"):
         heavy_mode = values["gpuCsrHeavyReduction"]
-        if heavy_mode == "true":
+        if heavy_mode == "auto":
+            csr_level = "auto"
+        elif heavy_mode == "true":
             csr_level = "L2"
         elif values["gpuCsrCellLocalPath"] == "true":
             csr_level = "L1"
         else:
             csr_level = "L0"
+
+    if csr_level == "auto" and int(values["gpuCsrHeavyReductionAutoInterval"]) < 1:
+        raise ValueError("gpuCsrHeavyReductionAutoInterval must be positive in auto mode")
 
     bn = scalar_value(original, "bn")
     if bn is not None:
@@ -101,6 +104,10 @@ def migrate(path: Path) -> None:
         cleaned += "\n"
     path.write_text(cleaned)
 
+    automatic_interval_line = (
+        f"gpuCsrHeavyReductionAutoInterval {values['gpuCsrHeavyReductionAutoInterval']};\n"
+        if csr_level == "auto" else ""
+    )
     schedule.write_text(
         "FoamFile\n"
         "{\n"
@@ -118,6 +125,7 @@ def migrate(path: Path) -> None:
         f"gpuResidentCourantUpdateInterval {values['gpuResidentCourantUpdateInterval']};\n"
         f"gpuResidentMaxDeltaTGrowth      {values['gpuResidentMaxDeltaTGrowth']};\n\n"
         f"gpuCsrLevel                     {csr_level};\n"
+        f"{automatic_interval_line}"
         "\n"
         f"gpuParticleBlockThreads         {values['gpuParticleBlockThreads']};\n"
         f"gpuReductionBlockThreads        {values['gpuReductionBlockThreads']};\n"

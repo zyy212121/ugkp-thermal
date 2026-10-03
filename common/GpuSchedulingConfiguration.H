@@ -18,7 +18,8 @@ enum class GpuCsrLevel : label
 {
     L0 = 0,
     L1 = 1,
-    L2 = 2
+    L2 = 2,
+    automatic = 3
 };
 
 struct GpuSchedulingConfiguration
@@ -54,7 +55,7 @@ inline GpuCsrLevel readGpuCsrLevel
     if (!properties.found("gpuCsrLevel"))
     {
         FatalErrorInFunction
-            << "schedulingProperties requires gpuCsrLevel L0|L1|L2"
+            << "schedulingProperties requires gpuCsrLevel L0|L1|L2|auto"
             << exit(FatalError);
     }
     const word csrLevelValue(properties.lookup("gpuCsrLevel"));
@@ -70,8 +71,12 @@ inline GpuCsrLevel readGpuCsrLevel
     {
         return GpuCsrLevel::L2;
     }
+    if (csrLevelValue == "auto")
+    {
+        return GpuCsrLevel::automatic;
+    }
     FatalErrorInFunction
-        << "gpuCsrLevel must be L0, L1 or L2. Current value = "
+        << "gpuCsrLevel must be L0, L1, L2 or auto. Current value = "
         << csrLevelValue << exit(FatalError);
     return GpuCsrLevel::L0;
 }
@@ -94,8 +99,7 @@ inline GpuSchedulingConfiguration readGpuSchedulingConfiguration
         "gpuCsrHeavyReduction",
         "gpuCsrWarpAggregatedBinning",
         "gpuCsrSplitPreDirectory",
-        "gpuResearchVariant",
-        "gpuCsrHeavyReductionAutoInterval"
+        "gpuResearchVariant"
     };
     for (const word& key : forbiddenGpuSchedulingKeys)
     {
@@ -103,7 +107,7 @@ inline GpuSchedulingConfiguration readGpuSchedulingConfiguration
         {
             FatalErrorInFunction
                 << key << " has been removed from schedulingProperties. "
-                << "Use gpuCsrLevel L0|L1|L2; the solver derives the "
+                << "Use gpuCsrLevel L0|L1|L2|auto; the solver derives the "
                 << "complete scheduling bundle."
                 << exit(FatalError);
         }
@@ -121,6 +125,21 @@ inline GpuSchedulingConfiguration readGpuSchedulingConfiguration
     value.maxDeltaTGrowth =
         properties.lookupOrDefault<scalar>("gpuResidentMaxDeltaTGrowth", 1.05);
     value.csrLevel = readGpuCsrLevel(properties);
+    if (properties.found("gpuCsrHeavyReductionAutoInterval")
+     && value.csrLevel != GpuCsrLevel::automatic)
+    {
+        FatalErrorInFunction
+            << "gpuCsrHeavyReductionAutoInterval is only valid with gpuCsrLevel auto"
+            << exit(FatalError);
+    }
+    if (value.csrLevel == GpuCsrLevel::automatic)
+    {
+        value.heavyReductionAutoInterval = properties.lookupOrDefault<label>
+        (
+            "gpuCsrHeavyReductionAutoInterval", 100
+        );
+        value.heavyReductionMode = GpuHeavyReductionMode::automatic;
+    }
     value.csrCellLocalPath = value.csrLevel != GpuCsrLevel::L0;
     value.warpAggregatedBinning = value.csrLevel != GpuCsrLevel::L0;
     value.splitPreDirectory = value.csrLevel != GpuCsrLevel::L0;

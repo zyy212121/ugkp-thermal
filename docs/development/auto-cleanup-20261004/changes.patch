@@ -1,0 +1,1330 @@
+--- a/common/GpuPressureCellTraversal.cuh
++++ b/common/GpuPressureCellTraversal.cuh
+@@ -1,5 +1,6 @@
+ 
+ #pragma once
++#include "GpuPressureUnsortedAlgebra.cuh"
+ // One pressure traversal; model adapters own only constraints and moment closure.
+ // Directory modes describe storage, never application identity.
+ enum class PressureDirectory { Full, Split, Base, Injection };
+@@ -12,22 +13,10 @@
+ __device__ __forceinline__ void pressureDeltaFromLimitedFaces
+ (DeviceState& s,const int c,const PressureTime dt,PressureReal (&delta)[4])
+ {
+-    PressureReal dpx=PressureReal(0),dpy=PressureReal(0),dpz=PressureReal(0),de=PressureReal(0);
+-    const int first=s.cellPlaneStart[c],count=s.cellPlaneCount[c];
+-    for(int j=0;j<count;++j)
+-    {
+-        const int f=s.cellFaceId[first+j];
+-        if(f<0 || f>=s.nFaces)continue;
+-        const PressureReal sign=s.faceOwner[f]==c?PressureReal(1):PressureReal(-1);
+-        dpx-=sign*s.solidPressurePhiMomX[f]; dpy-=sign*s.solidPressurePhiMomY[f];
+-        dpz-=sign*s.solidPressurePhiMomZ[f]; de-=sign*s.solidPressurePhiEnergy[f];
+-    }
+-    // Time remains double for FP32: preserve division and cast placement.
+-    const PressureReal factor=dt/clampMin(s.V[c],OfVSmall);
+-    delta[0]=finiteOr(factor*dpx,PressureReal(0));
+-    delta[1]=finiteOr(factor*dpy,PressureReal(0));
+-    delta[2]=finiteOr(factor*dpz,PressureReal(0));
+-    delta[3]=finiteOr(factor*de,PressureReal(0));
++    // Keep accumulation local; publish the caller's array only after recovery.
++    PressureReal dpx,dpy,dpz,de;
++    accumulatePressureFaceDelta(s,c,dt,dpx,dpy,dpz,de);
++    delta[0]=dpx; delta[1]=dpy; delta[2]=dpz; delta[3]=de;
+     s.pressureDeltaMomX[c]=delta[0]; s.pressureDeltaMomY[c]=delta[1];
+     s.pressureDeltaMomZ[c]=delta[2]; s.pressureDeltaEnergy[c]=delta[3];
+ }
+--- a/common/wall/GpuColdWall1DDevice.cuh
++++ b/common/wall/GpuColdWall1DDevice.cuh
+@@ -287,114 +287,7 @@
+         {
+             continue;
+         }
+-        const int c = s.pCellId[i];
+-        if (c < 0 || c >= s.nCells)
+-        {
+-            asm("trap;");
+-        }
+-        const GpuReal dPart = clampMin
+-        (
+-            finiteOr(s.pd[i], s.particleDiameterFallback),
+-            GPU_R(1.0e-12)
+-        );
+-        const GpuReal tpOld = clampRange(s.pT[i], s.TpMin, s.TpMax);
+-        const Foam::gpuThermal::AluminaLiquidProperties material =
+-            Foam::gpuThermal::liquidAluminaProperties(tpOld);
+-        const GpuReal physicalVolume =
+-            (Foam::gpuThermal::finiteContactPi/GPU_R(6.0))*dPart*dPart*dPart;
+-        const GpuReal physicalMass = material.densityKgM3*physicalVolume;
+-        const GpuReal parcelMultiplicity = s.pm[i]/physicalMass;
+-        GpuReal gasConductanceWK = GPU_R(0.0);
+-        const GpuReal gasTemperatureK = clampRange
+-        (
+-            finiteOr(s.couplingTgasOld[c], s.TgasMin),
+-            s.TgasMin,
+-            GPU_R(1.0e30)
+-        );
+-        if
+-        (
+-            s.solveParticleTemperature != 0
+-         && s.particleGasHeatTransferModelId != 0
+-        )
+-        {
+-            const GpuReal rhoG = clampMin
+-            (
+-                finiteOr(s.couplingRhoOld[c], s.rhoMin),
+-                s.rhoMin
+-            );
+-            const GpuReal ugx = finiteOr(s.couplingUxOld[c], GPU_R(0.0));
+-            const GpuReal ugy = finiteOr(s.couplingUyOld[c], GPU_R(0.0));
+-            const GpuReal ugz = finiteOr(s.couplingUzOld[c], GPU_R(0.0));
+-            const GpuReal relMag = sqrt(ugx*ugx + ugy*ugy + ugz*ugz);
+-            const GpuReal re = rhoG*dPart*relMag/clampMin(s.gasMu, GPU_R(1.0e-30));
+-            const GpuReal nu = GPU_R(2.0)
+-              + GPU_R(0.6)*sqrt(clampMin(re, GPU_R(0.0)))*s.gasPrOneThird;
+-            const GpuReal particleCp = particleSpecificHeatDevice(tpOld);
+-            const GpuReal rate = GPU_R(6.0)*nu*molecularGasConductivity(s)
+-              /(s.rhoSolid*particleCp*dPart*dPart + GPU_TINY(1.0e-300));
+-            gasConductanceWK = rate*physicalMass*particleCp;
+-        }
+-        const unsigned char wallState = s.pStuck[i];
+-        const bool finiteContact =
+-            wallState == Foam::gpuThermal::particleWallTransientRebound
+-         || wallState == Foam::gpuThermal::particleWallTransientDeposit;
+-        GpuReal maximumArea = static_cast<GpuReal>(s.pContactMaximumArea[i]);
+-        GpuReal intrinsicArea = GPU_R(0.0);
+-        GpuTime duration = static_cast<GpuTime>(s.pContactDuration[i]);
+-        GpuReal peakTimeFraction =
+-            static_cast<GpuReal>(s.pContactPeakFraction[i]);
+-        GpuTime activeDt = dt;
+-        if (finiteContact)
+-        {
+-            const GpuReal damageArea =
+-                static_cast<GpuReal>(s.pDepositionArea[i]);
+-            const GpuTime age0 = clampRange
+-            (
+-                finiteOr(s.pContactAge[i], GPU_R(0.0)),
+-                GPU_R(0.0),
+-                duration
+-            );
+-            activeDt = clampRange(dt, GPU_R(0.0), duration - age0);
+-            const GpuTime ageMid = age0 + GPU_R(0.5)*activeDt;
+-            const GpuReal kinematicAreaMid = maximumArea
+-              *Foam::gpuThermal::normalizedKinematicArea
+-                (
+-                    ageMid/duration,
+-                    peakTimeFraction
+-                );
+-            intrinsicArea = clampMin
+-            (
+-                fmax
+-                (
+-                    kinematicAreaMid,
+-                    static_cast<GpuReal>(s.pColdFrozenArea[i])
+-                ) - damageArea,
+-                GPU_R(0.0)
+-            );
+-        }
+-        else
+-        {
+-            intrinsicArea = static_cast<GpuReal>(s.pDepositionArea[i]);
+-        }
+-        if (!(activeDt > GPU_R(0.0)) || !(intrinsicArea > GPU_R(0.0)))
+-        {
+-            continue;
+-        }
+-        GpuReal meanTemperature = GPU_R(0.0);
+-        GpuReal frozenArea = GPU_R(0.0);
+-        GpuReal wallEnergy = GPU_R(0.0);
+-        const GpuReal efficiency = finiteContact
+-          ? s.particleWallReflectionHeatTransferEfficiency
+-          : s.particleWallDepositionHeatTransferEfficiency;
+-        const GpuReal wallEffusivity =
+-            s.particleWallEffusivityByFace != nullptr
+-          ? s.particleWallEffusivityByFace[faceI]
+-          : sqrt
+-            (
+-                s.particleWallDensityKgM3
+-               *s.particleWallSpecificHeatJkgK
+-               *s.particleWallConductivityWmK
+-            );
++#include "GpuColdWall1DInputs.inl"
+         bool linearSolveFailed = false;
+         bool valid = advanceColdWall1DThermalGroup
+         (
+@@ -548,114 +441,7 @@
+         {
+             continue;
+         }
+-        const int c = s.pCellId[i];
+-        if (c < 0 || c >= s.nCells)
+-        {
+-            asm("trap;");
+-        }
+-        const GpuReal dPart = clampMin
+-        (
+-            finiteOr(s.pd[i], s.particleDiameterFallback),
+-            GPU_R(1.0e-12)
+-        );
+-        const GpuReal tpOld = clampRange(s.pT[i], s.TpMin, s.TpMax);
+-        const Foam::gpuThermal::AluminaLiquidProperties material =
+-            Foam::gpuThermal::liquidAluminaProperties(tpOld);
+-        const GpuReal physicalVolume =
+-            (Foam::gpuThermal::finiteContactPi/GPU_R(6.0))*dPart*dPart*dPart;
+-        const GpuReal physicalMass = material.densityKgM3*physicalVolume;
+-        const GpuReal parcelMultiplicity = s.pm[i]/physicalMass;
+-        GpuReal gasConductanceWK = GPU_R(0.0);
+-        const GpuReal gasTemperatureK = clampRange
+-        (
+-            finiteOr(s.couplingTgasOld[c], s.TgasMin),
+-            s.TgasMin,
+-            GPU_R(1.0e30)
+-        );
+-        if
+-        (
+-            s.solveParticleTemperature != 0
+-         && s.particleGasHeatTransferModelId != 0
+-        )
+-        {
+-            const GpuReal rhoG = clampMin
+-            (
+-                finiteOr(s.couplingRhoOld[c], s.rhoMin),
+-                s.rhoMin
+-            );
+-            const GpuReal ugx = finiteOr(s.couplingUxOld[c], GPU_R(0.0));
+-            const GpuReal ugy = finiteOr(s.couplingUyOld[c], GPU_R(0.0));
+-            const GpuReal ugz = finiteOr(s.couplingUzOld[c], GPU_R(0.0));
+-            const GpuReal relMag = sqrt(ugx*ugx + ugy*ugy + ugz*ugz);
+-            const GpuReal re = rhoG*dPart*relMag/clampMin(s.gasMu, GPU_R(1.0e-30));
+-            const GpuReal nu = GPU_R(2.0)
+-              + GPU_R(0.6)*sqrt(clampMin(re, GPU_R(0.0)))*s.gasPrOneThird;
+-            const GpuReal particleCp = particleSpecificHeatDevice(tpOld);
+-            const GpuReal rate = GPU_R(6.0)*nu*molecularGasConductivity(s)
+-              /(s.rhoSolid*particleCp*dPart*dPart + GPU_TINY(1.0e-300));
+-            gasConductanceWK = rate*physicalMass*particleCp;
+-        }
+-        const unsigned char wallState = s.pStuck[i];
+-        const bool finiteContact =
+-            wallState == Foam::gpuThermal::particleWallTransientRebound
+-         || wallState == Foam::gpuThermal::particleWallTransientDeposit;
+-        GpuReal maximumArea = static_cast<GpuReal>(s.pContactMaximumArea[i]);
+-        GpuReal intrinsicArea = GPU_R(0.0);
+-        GpuTime duration = static_cast<GpuTime>(s.pContactDuration[i]);
+-        GpuReal peakTimeFraction =
+-            static_cast<GpuReal>(s.pContactPeakFraction[i]);
+-        GpuTime activeDt = dt;
+-        if (finiteContact)
+-        {
+-            const GpuReal damageArea =
+-                static_cast<GpuReal>(s.pDepositionArea[i]);
+-            const GpuTime age0 = clampRange
+-            (
+-                finiteOr(s.pContactAge[i], GPU_R(0.0)),
+-                GPU_R(0.0),
+-                duration
+-            );
+-            activeDt = clampRange(dt, GPU_R(0.0), duration - age0);
+-            const GpuTime ageMid = age0 + GPU_R(0.5)*activeDt;
+-            const GpuReal kinematicAreaMid = maximumArea
+-              *Foam::gpuThermal::normalizedKinematicArea
+-                (
+-                    ageMid/duration,
+-                    peakTimeFraction
+-                );
+-            intrinsicArea = clampMin
+-            (
+-                fmax
+-                (
+-                    kinematicAreaMid,
+-                    static_cast<GpuReal>(s.pColdFrozenArea[i])
+-                ) - damageArea,
+-                GPU_R(0.0)
+-            );
+-        }
+-        else
+-        {
+-            intrinsicArea = static_cast<GpuReal>(s.pDepositionArea[i]);
+-        }
+-        if (!(activeDt > GPU_R(0.0)) || !(intrinsicArea > GPU_R(0.0)))
+-        {
+-            continue;
+-        }
+-        GpuReal meanTemperature = GPU_R(0.0);
+-        GpuReal frozenArea = GPU_R(0.0);
+-        GpuReal wallEnergy = GPU_R(0.0);
+-        const GpuReal efficiency = finiteContact
+-          ? s.particleWallReflectionHeatTransferEfficiency
+-          : s.particleWallDepositionHeatTransferEfficiency;
+-        const GpuReal wallEffusivity =
+-            s.particleWallEffusivityByFace != nullptr
+-          ? s.particleWallEffusivityByFace[faceI]
+-          : sqrt
+-            (
+-                s.particleWallDensityKgM3
+-               *s.particleWallSpecificHeatJkgK
+-               *s.particleWallConductivityWmK
+-            );
++#include "GpuColdWall1DInputs.inl"
+         const bool valid = advanceColdWall1DThermalGroup
+         (
+             s,
+--- /dev/null
++++ b/common/wall/GpuColdWall1DInputs.inl
+@@ -0,0 +1,109 @@
++// Shared input/material/contact preparation; included inside each precision wrapper.
++        const int c = s.pCellId[i];
++        if (c < 0 || c >= s.nCells)
++        {
++            asm("trap;");
++        }
++        const GpuReal dPart = clampMin
++        (
++            finiteOr(s.pd[i], s.particleDiameterFallback),
++            GPU_R(1.0e-12)
++        );
++        const GpuReal tpOld = clampRange(s.pT[i], s.TpMin, s.TpMax);
++        const Foam::gpuThermal::AluminaLiquidProperties material =
++            Foam::gpuThermal::liquidAluminaProperties(tpOld);
++        const GpuReal physicalVolume =
++            (Foam::gpuThermal::finiteContactPi/GPU_R(6.0))*dPart*dPart*dPart;
++        const GpuReal physicalMass = material.densityKgM3*physicalVolume;
++        const GpuReal parcelMultiplicity = s.pm[i]/physicalMass;
++        GpuReal gasConductanceWK = GPU_R(0.0);
++        const GpuReal gasTemperatureK = clampRange
++        (
++            finiteOr(s.couplingTgasOld[c], s.TgasMin),
++            s.TgasMin,
++            GPU_R(1.0e30)
++        );
++        if
++        (
++            s.solveParticleTemperature != 0
++         && s.particleGasHeatTransferModelId != 0
++        )
++        {
++            const GpuReal rhoG = clampMin
++            (
++                finiteOr(s.couplingRhoOld[c], s.rhoMin),
++                s.rhoMin
++            );
++            const GpuReal ugx = finiteOr(s.couplingUxOld[c], GPU_R(0.0));
++            const GpuReal ugy = finiteOr(s.couplingUyOld[c], GPU_R(0.0));
++            const GpuReal ugz = finiteOr(s.couplingUzOld[c], GPU_R(0.0));
++            const GpuReal relMag = sqrt(ugx*ugx + ugy*ugy + ugz*ugz);
++            const GpuReal re = rhoG*dPart*relMag/clampMin(s.gasMu, GPU_R(1.0e-30));
++            const GpuReal nu = GPU_R(2.0)
++              + GPU_R(0.6)*sqrt(clampMin(re, GPU_R(0.0)))*s.gasPrOneThird;
++            const GpuReal particleCp = particleSpecificHeatDevice(tpOld);
++            const GpuReal rate = GPU_R(6.0)*nu*molecularGasConductivity(s)
++              /(s.rhoSolid*particleCp*dPart*dPart + GPU_TINY(1.0e-300));
++            gasConductanceWK = rate*physicalMass*particleCp;
++        }
++        const unsigned char wallState = s.pStuck[i];
++        const bool finiteContact =
++            wallState == Foam::gpuThermal::particleWallTransientRebound
++         || wallState == Foam::gpuThermal::particleWallTransientDeposit;
++        GpuReal maximumArea = static_cast<GpuReal>(s.pContactMaximumArea[i]);
++        GpuReal intrinsicArea = GPU_R(0.0);
++        GpuTime duration = static_cast<GpuTime>(s.pContactDuration[i]);
++        GpuReal peakTimeFraction =
++            static_cast<GpuReal>(s.pContactPeakFraction[i]);
++        GpuTime activeDt = dt;
++        if (finiteContact)
++        {
++            const GpuReal damageArea =
++                static_cast<GpuReal>(s.pDepositionArea[i]);
++            const GpuTime age0 = clampRange
++            (
++                finiteOr(s.pContactAge[i], GPU_R(0.0)),
++                GPU_R(0.0),
++                duration
++            );
++            activeDt = clampRange(dt, GPU_R(0.0), duration - age0);
++            const GpuTime ageMid = age0 + GPU_R(0.5)*activeDt;
++            const GpuReal kinematicAreaMid = maximumArea
++              *Foam::gpuThermal::normalizedKinematicArea
++                (
++                    ageMid/duration,
++                    peakTimeFraction
++                );
++            intrinsicArea = clampMin
++            (
++                fmax
++                (
++                    kinematicAreaMid,
++                    static_cast<GpuReal>(s.pColdFrozenArea[i])
++                ) - damageArea,
++                GPU_R(0.0)
++            );
++        }
++        else
++        {
++            intrinsicArea = static_cast<GpuReal>(s.pDepositionArea[i]);
++        }
++        if (!(activeDt > GPU_R(0.0)) || !(intrinsicArea > GPU_R(0.0)))
++        {
++            continue;
++        }
++        GpuReal meanTemperature = GPU_R(0.0);
++        GpuReal frozenArea = GPU_R(0.0);
++        GpuReal wallEnergy = GPU_R(0.0);
++        const GpuReal efficiency = finiteContact
++          ? s.particleWallReflectionHeatTransferEfficiency
++          : s.particleWallDepositionHeatTransferEfficiency;
++        const GpuReal wallEffusivity =
++            s.particleWallEffusivityByFace != nullptr
++          ? s.particleWallEffusivityByFace[faceI]
++          : sqrt
++            (
++                s.particleWallDensityKgM3
++               *s.particleWallSpecificHeatJkgK
++               *s.particleWallConductivityWmK
++            );
+--- a/applications/gasUGKP/private_backend/GpuResidentStrict.cu
++++ b/applications/gasUGKP/private_backend/GpuResidentStrict.cu
+@@ -2067,156 +2067,9 @@
+                                                                                
+                                                                             
+                                                                     
+-__global__ void applyCollisionalPressureProjectionCellAtomicKernel
+-(
+-    DeviceState* sp,
+-    const double kickDt
+-)
+-{
+-    DeviceState& s = *sp;
+-    const int c = blockIdx.x*blockDim.x + threadIdx.x;
+-    if (c >= s.nCells)
+-    {
+-        return;
+-    }
+-
+-    double dpx = 0.0;
+-    double dpy = 0.0;
+-    double dpz = 0.0;
+-    double de = 0.0;
+-    const int startFace = s.cellPlaneStart[c];
+-    const int faceCount = s.cellPlaneCount[c];
+-    for (int j = 0; j < faceCount; ++j)
+-    {
+-        const int f = s.cellFaceId[startFace + j];
+-        if (f < 0 || f >= s.nFaces)
+-        {
+-            continue;
+-        }
+-        const double sign = s.faceOwner[f] == c ? 1.0 : -1.0;
+-        dpx -= sign*s.solidPressurePhiMomX[f];
+-        dpy -= sign*s.solidPressurePhiMomY[f];
+-        dpz -= sign*s.solidPressurePhiMomZ[f];
+-        de -= sign*s.solidPressurePhiEnergy[f];
+-    }
+-
+-    const double factor = kickDt/clampMin(s.V[c], OfVSmall);
+-    dpx = finiteOr(factor*dpx, 0.0);
+-    dpy = finiteOr(factor*dpy, 0.0);
+-    dpz = finiteOr(factor*dpz, 0.0);
+-    de = finiteOr(factor*de, 0.0);
+-    s.pressureDeltaMomX[c] = dpx;
+-    s.pressureDeltaMomY[c] = dpy;
+-    s.pressureDeltaMomZ[c] = dpz;
+-    s.pressureDeltaEnergy[c] = de;
+-
+-    const double rhoP = clampMin(finiteOr(s.momRhoP[c], 0.0), 0.0);
+-    if (rhoP <= s.epsSMin*s.rhoSolid)
+-    {
+-        return;
+-    }
+-
+-    const double px1 = finiteOr(s.momRhoUPx[c], 0.0) + dpx;
+-    const double py1 = finiteOr(s.momRhoUPy[c], 0.0) + dpy;
+-    const double pz1 = finiteOr(s.momRhoUPz[c], 0.0) + dpz;
+-    const double e1 = clampMin(finiteOr(s.momRhoEP[c], 0.0), 0.0) + de;
+-    const double theta1 =
+-        clampMin
+-        (
+-            pressureKickInternalEnergy(rhoP, px1, py1, pz1, e1)/(1.5*rhoP),
+-            0.0
+-        );
+-
+-    s.momRhoUPx[c] = px1;
+-    s.momRhoUPy[c] = py1;
+-    s.momRhoUPz[c] = pz1;
+-    s.momRhoEP[c] = e1;
+-    s.rhoUsx[c] = px1;
+-    s.rhoUsy[c] = py1;
+-    s.rhoUsz[c] = pz1;
+-    s.rhoEs[c] = e1;
+-    s.Usx[c] = px1/rhoP;
+-    s.Usy[c] = py1/rhoP;
+-    s.Usz[c] = pz1/rhoP;
+-    s.theta[c] = theta1;
+-}
+-
+-__global__ void applyCollisionalPressureProjectionParticlesAtomicKernel
+-(
+-    DeviceState* sp
+-)
+-{
+-    DeviceState& s = *sp;
+-    const int nParticles =
+-        clampRange(*s.particleCountDevice, 0, s.particleCapacity);
+-    for
+-    (
+-        int i = blockIdx.x*blockDim.x + threadIdx.x;
+-        i < nParticles;
+-        i += blockDim.x*gridDim.x
+-    )
+-    {
+-        if (s.pStatus[i] == 0)
+-        {
+-            continue;
+-        }
+-        const int c = s.pCellId[i];
+-        if (c < 0 || c >= s.nCells)
+-        {
+-            continue;
+-        }
+-        const double rhoP = clampMin(finiteOr(s.momRhoP[c], 0.0), 0.0);
+-        if (rhoP <= s.epsSMin*s.rhoSolid)
+-        {
+-            continue;
+-        }
+-        const double dpx = finiteOr(s.pressureDeltaMomX[c], 0.0);
+-        const double dpy = finiteOr(s.pressureDeltaMomY[c], 0.0);
+-        const double dpz = finiteOr(s.pressureDeltaMomZ[c], 0.0);
+-        const double de = finiteOr(s.pressureDeltaEnergy[c], 0.0);
+-        const double px1 = finiteOr(s.momRhoUPx[c], 0.0);
+-        const double py1 = finiteOr(s.momRhoUPy[c], 0.0);
+-        const double pz1 = finiteOr(s.momRhoUPz[c], 0.0);
+-        const double e1 = clampMin(finiteOr(s.momRhoEP[c], 0.0), 0.0);
+-        const double px0 = px1 - dpx;
+-        const double py0 = py1 - dpy;
+-        const double pz0 = pz1 - dpz;
+-        const double e0 = e1 - de;
+-        const double ux0 = px0/rhoP;
+-        const double uy0 = py0/rhoP;
+-        const double uz0 = pz0/rhoP;
+-        const double ux1 = px1/rhoP;
+-        const double uy1 = py1/rhoP;
+-        const double uz1 = pz1/rhoP;
+-        const double theta0 =
+-            clampMin
+-            (
+-                pressureKickInternalEnergy(rhoP, px0, py0, pz0, e0)
+-               /(1.5*rhoP),
+-                0.0
+-            );
+-        const double theta1 =
+-            clampMin
+-            (
+-                pressureKickInternalEnergy(rhoP, px1, py1, pz1, e1)
+-               /(1.5*rhoP),
+-                0.0
+-            );
+-        const bool resolved = theta0 > 10.0*s.thetaMin;
+-        const double thermalScale =
+-            resolved ? sqrt(clampMin(theta1/theta0, 0.0)) : 0.0;
+-        const double thetaScale = resolved ? thermalScale*thermalScale : 0.0;
+-        const double dux = finiteOr(s.pux[i], ux0) - ux0;
+-        const double duy = finiteOr(s.puy[i], uy0) - uy0;
+-        const double duz = finiteOr(s.puz[i], uz0) - uz0;
+-        s.pux[i] = resolved ? ux1 + thermalScale*dux : ux1;
+-        s.puy[i] = resolved ? uy1 + thermalScale*duy : uy1;
+-        s.puz[i] = resolved ? uz1 + thermalScale*duz : uz1;
+-        s.pTheta[i] = resolved
+-          ? clampMin(finiteOr(s.pTheta[i], 0.0)*thetaScale, 0.0)
+-          : theta1;
+-    }
+-}
++
++
++
+ 
+ #include "GpuPressureAnalyticLaunch.cuh"
+ #include "GpuPressurePipeline.cuh"
+--- a/common/GpuSchedulingConfiguration.H
++++ b/common/GpuSchedulingConfiguration.H
+@@ -18,7 +18,8 @@
+ {
+     L0 = 0,
+     L1 = 1,
+-    L2 = 2
++    L2 = 2,
++    automatic = 3
+ };
+ 
+ struct GpuSchedulingConfiguration
+@@ -54,7 +55,7 @@
+     if (!properties.found("gpuCsrLevel"))
+     {
+         FatalErrorInFunction
+-            << "schedulingProperties requires gpuCsrLevel L0|L1|L2"
++            << "schedulingProperties requires gpuCsrLevel L0|L1|L2|auto"
+             << exit(FatalError);
+     }
+     const word csrLevelValue(properties.lookup("gpuCsrLevel"));
+@@ -70,8 +71,12 @@
+     {
+         return GpuCsrLevel::L2;
+     }
++    if (csrLevelValue == "auto")
++    {
++        return GpuCsrLevel::automatic;
++    }
+     FatalErrorInFunction
+-        << "gpuCsrLevel must be L0, L1 or L2. Current value = "
++        << "gpuCsrLevel must be L0, L1, L2 or auto. Current value = "
+         << csrLevelValue << exit(FatalError);
+     return GpuCsrLevel::L0;
+ }
+@@ -94,8 +99,7 @@
+         "gpuCsrHeavyReduction",
+         "gpuCsrWarpAggregatedBinning",
+         "gpuCsrSplitPreDirectory",
+-        "gpuResearchVariant",
+-        "gpuCsrHeavyReductionAutoInterval"
++        "gpuResearchVariant"
+     };
+     for (const word& key : forbiddenGpuSchedulingKeys)
+     {
+@@ -103,7 +107,7 @@
+         {
+             FatalErrorInFunction
+                 << key << " has been removed from schedulingProperties. "
+-                << "Use gpuCsrLevel L0|L1|L2; the solver derives the "
++                << "Use gpuCsrLevel L0|L1|L2|auto; the solver derives the "
+                 << "complete scheduling bundle."
+                 << exit(FatalError);
+         }
+@@ -121,6 +125,21 @@
+     value.maxDeltaTGrowth =
+         properties.lookupOrDefault<scalar>("gpuResidentMaxDeltaTGrowth", 1.05);
+     value.csrLevel = readGpuCsrLevel(properties);
++    if (properties.found("gpuCsrHeavyReductionAutoInterval")
++     && value.csrLevel != GpuCsrLevel::automatic)
++    {
++        FatalErrorInFunction
++            << "gpuCsrHeavyReductionAutoInterval is only valid with gpuCsrLevel auto"
++            << exit(FatalError);
++    }
++    if (value.csrLevel == GpuCsrLevel::automatic)
++    {
++        value.heavyReductionAutoInterval = properties.lookupOrDefault<label>
++        (
++            "gpuCsrHeavyReductionAutoInterval", 100
++        );
++        value.heavyReductionMode = GpuHeavyReductionMode::automatic;
++    }
+     value.csrCellLocalPath = value.csrLevel != GpuCsrLevel::L0;
+     value.warpAggregatedBinning = value.csrLevel != GpuCsrLevel::L0;
+     value.splitPreDirectory = value.csrLevel != GpuCsrLevel::L0;
+--- a/tools/migrate_scheduling_properties.py
++++ b/tools/migrate_scheduling_properties.py
+@@ -57,12 +57,10 @@
+     existing_schedule = schedule.read_text() if schedule.is_file() else ""
+     for text in (original, existing_schedule):
+         if re.search(r"(?m)^\s*gpuResearchVariant\b", text):
+-            raise ValueError("thermal rejects gpuResearchVariant; select gpuCsrLevel L0/L1/L2 explicitly")
++            raise ValueError("thermal rejects gpuResearchVariant; select gpuCsrLevel L0/L1/L2/auto")
+         level = scalar_value(text, "gpuCsrLevel")
+-        if level is not None and level not in ("L0", "L1", "L2"):
+-            raise ValueError("thermal requires gpuCsrLevel L0/L1/L2; choose a level before migration")
+-        if scalar_value(text, "gpuCsrHeavyReduction") == "auto":
+-            raise ValueError("thermal rejects automatic reduction; select gpuCsrLevel L0/L1/L2 explicitly")
++        if level is not None and level not in ("L0", "L1", "L2", "auto"):
++            raise ValueError("thermal requires gpuCsrLevel L0/L1/L2/auto; choose a level before migration")
+     values = dict(DEFAULTS)
+     for key in KEYS:
+         value = scalar_value(existing_schedule, key)
+@@ -72,14 +70,19 @@
+             values[key] = value
+ 
+     csr_level = values.get("gpuCsrLevel")
+-    if csr_level not in ("L0", "L1", "L2"):
++    if csr_level not in ("L0", "L1", "L2", "auto"):
+         heavy_mode = values["gpuCsrHeavyReduction"]
+-        if heavy_mode == "true":
++        if heavy_mode == "auto":
++            csr_level = "auto"
++        elif heavy_mode == "true":
+             csr_level = "L2"
+         elif values["gpuCsrCellLocalPath"] == "true":
+             csr_level = "L1"
+         else:
+             csr_level = "L0"
++
++    if csr_level == "auto" and int(values["gpuCsrHeavyReductionAutoInterval"]) < 1:
++        raise ValueError("gpuCsrHeavyReductionAutoInterval must be positive in auto mode")
+ 
+     bn = scalar_value(original, "bn")
+     if bn is not None:
+@@ -101,6 +104,10 @@
+         cleaned += "\n"
+     path.write_text(cleaned)
+ 
++    automatic_interval_line = (
++        f"gpuCsrHeavyReductionAutoInterval {values['gpuCsrHeavyReductionAutoInterval']};\n"
++        if csr_level == "auto" else ""
++    )
+     schedule.write_text(
+         "FoamFile\n"
+         "{\n"
+@@ -118,6 +125,7 @@
+         f"gpuResidentCourantUpdateInterval {values['gpuResidentCourantUpdateInterval']};\n"
+         f"gpuResidentMaxDeltaTGrowth      {values['gpuResidentMaxDeltaTGrowth']};\n\n"
+         f"gpuCsrLevel                     {csr_level};\n"
++        f"{automatic_interval_line}"
+         "\n"
+         f"gpuParticleBlockThreads         {values['gpuParticleBlockThreads']};\n"
+         f"gpuReductionBlockThreads        {values['gpuReductionBlockThreads']};\n"
+--- a/tools/managed_mirrors.json
++++ b/tools/managed_mirrors.json
+@@ -1136,6 +1136,11 @@
+     },
+     {
+       "path": "common/wall/GpuColdWall1DAdvance.inl",
++      "upstream": "ugkp-thermal",
++      "downstream": "gpu-riemann-gkp-main"
++    },
++    {
++      "path": "common/wall/GpuColdWall1DInputs.inl",
+       "upstream": "ugkp-thermal",
+       "downstream": "gpu-riemann-gkp-main"
+     },
+@@ -1245,7 +1250,7 @@
+     "applications/gasUGKP/tests/test_strict_csr_level_contract.py": "Repository-specific test paths/expectations: retained as independent inputs; not production gas source.",
+     "applications/gasUGKP/tests/test_unified_scheduling_tools_contract.py": "Repository-specific test paths/expectations: retained as independent inputs; not production gas source.",
+     "applications/gasUGKP/tests/test_wall_gks_contract.py": "Repository-specific test paths/expectations: retained as independent inputs; not production gas source.",
+-    "common/GpuSchedulingConfiguration.H": "Package-specific public scheduling contract: thermal accepts only L0/L1/L2; fluid retains research variants. Never synchronize this entry header.",
++    "common/GpuSchedulingConfiguration.H": "Package-specific public scheduling contract: thermal accepts L0/L1/L2 and automatic heavy scheduling; fluid retains research variants. Never synchronize this entry header.",
+     "common/GpuResearchHierarchy.H": "Fluid-only research decoder; absent from thermal by user request on 2026-10-03.",
+     "tools/managed_mirrors.json": "Package-specific thermal formal-only interface contract; fluid unchanged.",
+     "applications/gasUGKP/tests/test_particle_cell_path_runtime_contract.py": "Package-specific thermal formal-only interface contract; fluid unchanged."
+--- a/tests/test_scheduling_configuration_behavior.py
++++ b/tests/test_scheduling_configuration_behavior.py
+@@ -1,6 +1,6 @@
+ """Exercise the real OpenFOAM dictionary parser and production scheduling header.
+ 
+-Catches reopened research/auto inputs and changes to the three formal bundles.
++Checks formal bundles, automatic heavy scheduling and rejected research inputs.
+ No CUDA device or case computation is used.
+ """
+ from pathlib import Path
+@@ -22,7 +22,7 @@
+     const auto v=Foam::readGpuSchedulingConfiguration(properties);
+     Foam::Info << "FLAGS " << int(v.csrLevel) << ' '
+       << v.csrCellLocalPath << ' ' << v.warpAggregatedBinning << ' '
+-      << v.splitPreDirectory << ' ' << int(v.heavyReductionMode) << '\n';
++      << v.splitPreDirectory << ' ' << int(v.heavyReductionMode) << ' ' << v.heavyReductionAutoInterval << '\n';
+ }
+ """)
+     foam=Path(os.environ.get('WM_PROJECT_DIR','/opt/openfoam10'))
+@@ -31,7 +31,7 @@
+     cmd=['g++','-std=c++14','-DWM_DP','-DWM_LABEL_SIZE=32','-DNoRepository','-I'+str(ROOT/'common'),
+          '-I'+str(foam/'src/OpenFOAM/lnInclude'),'-I'+str(foam/'src/finiteVolume/lnInclude'),
+          '-I'+str(foam/'src/meshTools/lnInclude'),'-I'+str(foam/'src/OSspecific/POSIX/lnInclude'),
+-         str(source),'-L'+str(lib),'-Wl,-rpath,'+str(lib),'-lfiniteVolume','-lmeshTools','-lOpenFOAM','-o',str(exe)]
++         str(source),'-L'+str(lib),'-Wl,-rpath,'+str(lib),'-lfiniteVolume','-lmeshTools','-lOpenFOAM','-L'+str(lib/'dummy'),'-Wl,-rpath,'+str(lib/'dummy'),'-lPstream','-o',str(exe)]
+     q=subprocess.run(cmd,capture_output=True,text=True)
+     assert q.returncode==0,q.stdout+q.stderr
+     return exe
+@@ -52,7 +52,7 @@
+     assert q.returncode!=0,'thermal accepted research override: '+q.stdout
+     assert 'gpuResearchVariant' in q.stdout+q.stderr
+ 
+-@pytest.mark.parametrize('level',['auto','E1','E2','T1','T2','S1','S2','bad'])
++@pytest.mark.parametrize('level',['E1','E2','T1','T2','S1','S2','bad'])
+ def test_only_three_formal_level_names_are_accepted(parser,level):
+     q=run(parser,f'gpuCsrLevel {level};')
+     assert q.returncode!=0,'thermal accepted non-formal level: '+q.stdout
+@@ -67,10 +67,40 @@
+     import importlib.util
+     spec=importlib.util.spec_from_file_location('thermal_migration',ROOT/'tools/migrate_scheduling_properties.py')
+     module=importlib.util.module_from_spec(spec);spec.loader.exec_module(module)
+-    for config in ['gpuCsrLevel auto;','gpuCsrLevel L2;\ngpuResearchVariant S2;','gpuCsrHeavyReduction auto;']:
++    for config in ['gpuCsrLevel E1;','gpuCsrLevel L2;\ngpuResearchVariant S2;','gpuCsrLevel auto;\ngpuCsrHeavyReductionAutoInterval 0;']:
+         case=tmp_path/'constant';case.mkdir(exist_ok=True)
+         particle=case/'particleProperties';particle.write_text('parcelMass 5e-9;\n')
+         schedule=case/'schedulingProperties';schedule.write_text(config+'\n')
+         before=(particle.read_bytes(),schedule.read_bytes())
+         with pytest.raises(ValueError):module.migrate(particle)
+         assert (particle.read_bytes(),schedule.read_bytes())==before
++
++@pytest.mark.parametrize('interval',[1,100,1000])
++def test_auto_retains_L1_operations_and_selects_existing_automatic_mode(parser,interval):
++    q=run(parser,f'gpuCsrLevel auto; gpuCsrHeavyReductionAutoInterval {interval};')
++    assert q.returncode==0,q.stdout+q.stderr
++    assert f'FLAGS 3 1 1 1 2 {interval}' in q.stdout,q.stdout
++
++def test_auto_uses_existing_default_interval(parser):
++    q=run(parser,'gpuCsrLevel auto;')
++    assert q.returncode==0,q.stdout+q.stderr
++    assert 'FLAGS 3 1 1 1 2 100' in q.stdout
++
++@pytest.mark.parametrize('interval',[0,-1])
++def test_auto_rejects_nonpositive_interval(parser,interval):
++    q=run(parser,f'gpuCsrLevel auto; gpuCsrHeavyReductionAutoInterval {interval};')
++    assert q.returncode!=0
++    assert 'gpuCsrHeavyReductionAutoInterval' in q.stdout+q.stderr
++
++@pytest.mark.parametrize('legacy',[False,True])
++def test_migration_preserves_auto_and_inspection_interval(tmp_path,legacy):
++    import importlib.util
++    spec=importlib.util.spec_from_file_location('thermal_auto_migration',ROOT/'tools/migrate_scheduling_properties.py')
++    module=importlib.util.module_from_spec(spec);spec.loader.exec_module(module)
++    particle=tmp_path/'particleProperties';particle.write_text('parcelMass 5e-9;\n')
++    schedule=tmp_path/'schedulingProperties'
++    schedule.write_text(('gpuCsrHeavyReduction auto;' if legacy else 'gpuCsrLevel auto;')+'\ngpuCsrHeavyReductionAutoInterval 1000;\n')
++    module.migrate(particle)
++    assert module.scalar_value(schedule.read_text(),'gpuCsrLevel')=='auto'
++    assert module.scalar_value(schedule.read_text(),'gpuCsrHeavyReductionAutoInterval')=='1000'
++    assert 'parcelMass 5e-9;' in particle.read_text()
+--- /dev/null
++++ b/tests/test_operator_cleanup_ownership.py
+@@ -0,0 +1,16 @@
++"""Remaining review items must have one maintained production body."""
++from pathlib import Path
++import pytest
++ROOT=Path(__file__).resolve().parents[1]
++def test_ordered_pressure_uses_shared_face_accumulation():
++    source=(ROOT/'common/GpuPressureCellTraversal.cuh').read_text()
++    assert 'accumulatePressureFaceDelta(' in source
++    assert 'dpx-=sign*s.solidPressurePhiMomX' not in source
++def test_cold_wall_input_preparation_has_one_owner():
++    source=(ROOT/'common/wall/GpuColdWall1DDevice.cuh').read_text()
++    assert source.count('#include "GpuColdWall1DInputs.inl"')==2
++    assert 'const GpuReal dPart = clampMin' not in source
++@pytest.mark.parametrize('name',['applyCollisionalPressureProjectionCellAtomicKernel','applyCollisionalPressureProjectionParticlesAtomicKernel'])
++def test_gas_unused_atomic_kernels_are_removed(name):
++    source=(ROOT/'applications/gasUGKP/private_backend/GpuResidentStrict.cu').read_text()
++    assert name not in source
+--- /dev/null
++++ b/tests/test_auto_cleanup_cuda.py
+@@ -0,0 +1,11 @@
++"""Actual production CUDA automatic scheduling and cleanup regressions."""
++from pathlib import Path
++import subprocess,sys
++import pytest
++ROOT=Path(__file__).resolve().parents[1]
++@pytest.mark.parametrize('app,bits',[('gasUGKP',64),('FSH',64),('CHT',64),('CHT',32)])
++def test_auto_switches_and_extracted_bodies_match_frozen_sources(tmp_path,app,bits):
++    if not Path('/usr/local/cuda/bin/nvcc').is_file():pytest.skip('CUDA compiler and GPU required')
++    q=subprocess.run([sys.executable,str(ROOT/'tests/fixtures/auto_cleanup/behavior.py'),str(ROOT),str(tmp_path),app,str(bits)],capture_output=True,text=True,timeout=600)
++    assert q.returncode==0,q.stdout+q.stderr
++    assert 'PASS actual automatic low-high-low-empty' in q.stdout
+--- /dev/null
++++ b/tests/fixtures/auto_cleanup/cleanup_baseline.json
+@@ -0,0 +1,5 @@
++{
++  "ordered_face": "__device__ __forceinline__ void pressureDeltaFromLimitedFaces\n(DeviceState& s,const int c,const PressureTime dt,PressureReal (&delta)[4])\n{\n    PressureReal dpx=PressureReal(0),dpy=PressureReal(0),dpz=PressureReal(0),de=PressureReal(0);\n    const int first=s.cellPlaneStart[c],count=s.cellPlaneCount[c];\n    for(int j=0;j<count;++j)\n    {\n        const int f=s.cellFaceId[first+j];\n        if(f<0 || f>=s.nFaces)continue;\n        const PressureReal sign=s.faceOwner[f]==c?PressureReal(1):PressureReal(-1);\n        dpx-=sign*s.solidPressurePhiMomX[f]; dpy-=sign*s.solidPressurePhiMomY[f];\n        dpz-=sign*s.solidPressurePhiMomZ[f]; de-=sign*s.solidPressurePhiEnergy[f];\n    }\n    // Time remains double for FP32: preserve division and cast placement.\n    const PressureReal factor=dt/clampMin(s.V[c],OfVSmall);\n    delta[0]=finiteOr(factor*dpx,PressureReal(0));\n    delta[1]=finiteOr(factor*dpy,PressureReal(0));\n    delta[2]=finiteOr(factor*dpz,PressureReal(0));\n    delta[3]=finiteOr(factor*de,PressureReal(0));\n    s.pressureDeltaMomX[c]=delta[0]; s.pressureDeltaMomY[c]=delta[1];\n    s.pressureDeltaMomZ[c]=delta[2]; s.pressureDeltaEnergy[c]=delta[3];\n}",
++  "cold32": "__global__ __launch_bounds__(256, 6) void relaxColdWall1DParticlesToResidentGasKernel\n(\n    DeviceState* sp,\n    const GpuTime dt\n)\n{\n    DeviceState& s = *sp;\n    if ((blockDim.x & 31) != 0)\n    {\n        asm(\"trap;\");\n    }\n    const int lane = threadIdx.x & 7;\n    const int groupsPerBlock = blockDim.x/8;\n    const int groupInBlock = threadIdx.x/8;\n    const int groupStride = gridDim.x*groupsPerBlock;\n    const unsigned int mask = 0xffu << ((threadIdx.x & 31)/8*8);\n    const int nWallBound = Foam::gpuWall::wallBoundDirectoryCount(s);\n    for\n    (\n        int entry = blockIdx.x*groupsPerBlock + groupInBlock;\n        entry < nWallBound;\n        entry += groupStride\n    )\n    {\n        const int i = Foam::gpuWall::wallBoundDirectoryParticle(s, entry);\n        int active = i >= 0 && i < s.particleCapacity;\n        active = active\n          && s.pStatus[i] != 0\n          && s.pStuck[i] != Foam::gpuThermal::particleWallMobile\n          && s.particleWallHeatTransferEnabled != 0;\n        const int faceI = active ? s.pStuckFaceId[i] : -1;\n        active = active\n          && faceI >= 0\n          && faceI < s.nFaces\n          && s.particleStuckCandidateMask[faceI]\n             == Foam::gpuThermal::particleWallSolidifyingDeposition;\n        if (!__all_sync(mask, active))\n        {\n            continue;\n        }\n        const int c = s.pCellId[i];\n        if (c < 0 || c >= s.nCells)\n        {\n            asm(\"trap;\");\n        }\n        const GpuReal dPart = clampMin\n        (\n            finiteOr(s.pd[i], s.particleDiameterFallback),\n            GPU_R(1.0e-12)\n        );\n        const GpuReal tpOld = clampRange(s.pT[i], s.TpMin, s.TpMax);\n        const Foam::gpuThermal::AluminaLiquidProperties material =\n            Foam::gpuThermal::liquidAluminaProperties(tpOld);\n        const GpuReal physicalVolume =\n            (Foam::gpuThermal::finiteContactPi/GPU_R(6.0))*dPart*dPart*dPart;\n        const GpuReal physicalMass = material.densityKgM3*physicalVolume;\n        const GpuReal parcelMultiplicity = s.pm[i]/physicalMass;\n        GpuReal gasConductanceWK = GPU_R(0.0);\n        const GpuReal gasTemperatureK = clampRange\n        (\n            finiteOr(s.couplingTgasOld[c], s.TgasMin),\n            s.TgasMin,\n            GPU_R(1.0e30)\n        );\n        if\n        (\n            s.solveParticleTemperature != 0\n         && s.particleGasHeatTransferModelId != 0\n        )\n        {\n            const GpuReal rhoG = clampMin\n            (\n                finiteOr(s.couplingRhoOld[c], s.rhoMin),\n                s.rhoMin\n            );\n            const GpuReal ugx = finiteOr(s.couplingUxOld[c], GPU_R(0.0));\n            const GpuReal ugy = finiteOr(s.couplingUyOld[c], GPU_R(0.0));\n            const GpuReal ugz = finiteOr(s.couplingUzOld[c], GPU_R(0.0));\n            const GpuReal relMag = sqrt(ugx*ugx + ugy*ugy + ugz*ugz);\n            const GpuReal re = rhoG*dPart*relMag/clampMin(s.gasMu, GPU_R(1.0e-30));\n            const GpuReal nu = GPU_R(2.0)\n              + GPU_R(0.6)*sqrt(clampMin(re, GPU_R(0.0)))*s.gasPrOneThird;\n            const GpuReal particleCp = particleSpecificHeatDevice(tpOld);\n            const GpuReal rate = GPU_R(6.0)*nu*molecularGasConductivity(s)\n              /(s.rhoSolid*particleCp*dPart*dPart + GPU_TINY(1.0e-300));\n            gasConductanceWK = rate*physicalMass*particleCp;\n        }\n        const unsigned char wallState = s.pStuck[i];\n        const bool finiteContact =\n            wallState == Foam::gpuThermal::particleWallTransientRebound\n         || wallState == Foam::gpuThermal::particleWallTransientDeposit;\n        GpuReal maximumArea = static_cast<GpuReal>(s.pContactMaximumArea[i]);\n        GpuReal intrinsicArea = GPU_R(0.0);\n        GpuTime duration = static_cast<GpuTime>(s.pContactDuration[i]);\n        GpuReal peakTimeFraction =\n            static_cast<GpuReal>(s.pContactPeakFraction[i]);\n        GpuTime activeDt = dt;\n        if (finiteContact)\n        {\n            const GpuReal damageArea =\n                static_cast<GpuReal>(s.pDepositionArea[i]);\n            const GpuTime age0 = clampRange\n            (\n                finiteOr(s.pContactAge[i], GPU_R(0.0)),\n                GPU_R(0.0),\n                duration\n            );\n            activeDt = clampRange(dt, GPU_R(0.0), duration - age0);\n            const GpuTime ageMid = age0 + GPU_R(0.5)*activeDt;\n            const GpuReal kinematicAreaMid = maximumArea\n              *Foam::gpuThermal::normalizedKinematicArea\n                (\n                    ageMid/duration,\n                    peakTimeFraction\n                );\n            intrinsicArea = clampMin\n            (\n                fmax\n                (\n                    kinematicAreaMid,\n                    static_cast<GpuReal>(s.pColdFrozenArea[i])\n                ) - damageArea,\n                GPU_R(0.0)\n            );\n        }\n        else\n        {\n            intrinsicArea = static_cast<GpuReal>(s.pDepositionArea[i]);\n        }\n        if (!(activeDt > GPU_R(0.0)) || !(intrinsicArea > GPU_R(0.0)))\n        {\n            continue;\n        }\n        GpuReal meanTemperature = GPU_R(0.0);\n        GpuReal frozenArea = GPU_R(0.0);\n        GpuReal wallEnergy = GPU_R(0.0);\n        const GpuReal efficiency = finiteContact\n          ? s.particleWallReflectionHeatTransferEfficiency\n          : s.particleWallDepositionHeatTransferEfficiency;\n        const GpuReal wallEffusivity =\n            s.particleWallEffusivityByFace != nullptr\n          ? s.particleWallEffusivityByFace[faceI]\n          : sqrt\n            (\n                s.particleWallDensityKgM3\n               *s.particleWallSpecificHeatJkgK\n               *s.particleWallConductivityWmK\n            );\n        bool linearSolveFailed = false;\n        bool valid = advanceColdWall1DThermalGroup\n        (\n            s,\n            i,\n            lane,\n            mask,\n            physicalVolume,\n            physicalMass,\n            maximumArea,\n            intrinsicArea,\n            duration,\n            peakTimeFraction,\n            activeDt,\n            s.gasBoundaryT[faceI],\n            wallEffusivity,\n            efficiency*s.particleWallContactAreaScale[faceI],\n            gasTemperatureK,\n            gasConductanceWK,\n            meanTemperature,\n            frozenArea,\n            wallEnergy,\n            &linearSolveFailed\n        );\n        if (!valid && linearSolveFailed)\n        {\n        valid = advanceColdWall1DThermalGroup<true>\n        (\n            s,\n            i,\n            lane,\n            mask,\n            physicalVolume,\n            physicalMass,\n            maximumArea,\n            intrinsicArea,\n            duration,\n            peakTimeFraction,\n            activeDt,\n            s.gasBoundaryT[faceI],\n            wallEffusivity,\n            efficiency*s.particleWallContactAreaScale[faceI],\n            gasTemperatureK,\n            gasConductanceWK,\n            meanTemperature,\n            frozenArea,\n            wallEnergy\n        );\n        }\n        if (!valid || !(parcelMultiplicity > GPU_R(0.0)) || frozenArea > maximumArea)\n        {\n            asm(\"trap;\");\n        }\n        if (lane == 0)\n        {\n            s.pT[i] = meanTemperature;\n            atomicAddParticleWallEnergyByFace\n            (\n                s,\n                finiteContact\n                  ? s.particleWallReflectedEnergy\n                  : s.particleWallDepositedEnergy,\n                faceI,\n                parcelMultiplicity*wallEnergy\n            );\n        }\n    }\n}",
++  "cold64": "__global__ void relaxColdWall1DParticlesToResidentGasKernel\n(\n    DeviceState* sp,\n    const GpuTime dt\n)\n{\n    DeviceState& s = *sp;\n    if ((blockDim.x & 31) != 0)\n    {\n        asm(\"trap;\");\n    }\n    const int lane = threadIdx.x & 7;\n    const int groupsPerBlock = blockDim.x/8;\n    const int groupInBlock = threadIdx.x/8;\n    const int groupStride = gridDim.x*groupsPerBlock;\n    const unsigned int mask = 0xffu << ((threadIdx.x & 31)/8*8);\n    const int nWallBound = Foam::gpuWall::wallBoundDirectoryCount(s);\n    for\n    (\n        int entry = blockIdx.x*groupsPerBlock + groupInBlock;\n        entry < nWallBound;\n        entry += groupStride\n    )\n    {\n        const int i = Foam::gpuWall::wallBoundDirectoryParticle(s, entry);\n        int active = i >= 0 && i < s.particleCapacity;\n        active = active\n          && s.pStatus[i] != 0\n          && s.pStuck[i] != Foam::gpuThermal::particleWallMobile\n          && s.particleWallHeatTransferEnabled != 0;\n        const int faceI = active ? s.pStuckFaceId[i] : -1;\n        active = active\n          && faceI >= 0\n          && faceI < s.nFaces\n          && s.particleStuckCandidateMask[faceI]\n             == Foam::gpuThermal::particleWallSolidifyingDeposition;\n        if (!__all_sync(mask, active))\n        {\n            continue;\n        }\n        const int c = s.pCellId[i];\n        if (c < 0 || c >= s.nCells)\n        {\n            asm(\"trap;\");\n        }\n        const GpuReal dPart = clampMin\n        (\n            finiteOr(s.pd[i], s.particleDiameterFallback),\n            GPU_R(1.0e-12)\n        );\n        const GpuReal tpOld = clampRange(s.pT[i], s.TpMin, s.TpMax);\n        const Foam::gpuThermal::AluminaLiquidProperties material =\n            Foam::gpuThermal::liquidAluminaProperties(tpOld);\n        const GpuReal physicalVolume =\n            (Foam::gpuThermal::finiteContactPi/GPU_R(6.0))*dPart*dPart*dPart;\n        const GpuReal physicalMass = material.densityKgM3*physicalVolume;\n        const GpuReal parcelMultiplicity = s.pm[i]/physicalMass;\n        GpuReal gasConductanceWK = GPU_R(0.0);\n        const GpuReal gasTemperatureK = clampRange\n        (\n            finiteOr(s.couplingTgasOld[c], s.TgasMin),\n            s.TgasMin,\n            GPU_R(1.0e30)\n        );\n        if\n        (\n            s.solveParticleTemperature != 0\n         && s.particleGasHeatTransferModelId != 0\n        )\n        {\n            const GpuReal rhoG = clampMin\n            (\n                finiteOr(s.couplingRhoOld[c], s.rhoMin),\n                s.rhoMin\n            );\n            const GpuReal ugx = finiteOr(s.couplingUxOld[c], GPU_R(0.0));\n            const GpuReal ugy = finiteOr(s.couplingUyOld[c], GPU_R(0.0));\n            const GpuReal ugz = finiteOr(s.couplingUzOld[c], GPU_R(0.0));\n            const GpuReal relMag = sqrt(ugx*ugx + ugy*ugy + ugz*ugz);\n            const GpuReal re = rhoG*dPart*relMag/clampMin(s.gasMu, GPU_R(1.0e-30));\n            const GpuReal nu = GPU_R(2.0)\n              + GPU_R(0.6)*sqrt(clampMin(re, GPU_R(0.0)))*s.gasPrOneThird;\n            const GpuReal particleCp = particleSpecificHeatDevice(tpOld);\n            const GpuReal rate = GPU_R(6.0)*nu*molecularGasConductivity(s)\n              /(s.rhoSolid*particleCp*dPart*dPart + GPU_TINY(1.0e-300));\n            gasConductanceWK = rate*physicalMass*particleCp;\n        }\n        const unsigned char wallState = s.pStuck[i];\n        const bool finiteContact =\n            wallState == Foam::gpuThermal::particleWallTransientRebound\n         || wallState == Foam::gpuThermal::particleWallTransientDeposit;\n        GpuReal maximumArea = static_cast<GpuReal>(s.pContactMaximumArea[i]);\n        GpuReal intrinsicArea = GPU_R(0.0);\n        GpuTime duration = static_cast<GpuTime>(s.pContactDuration[i]);\n        GpuReal peakTimeFraction =\n            static_cast<GpuReal>(s.pContactPeakFraction[i]);\n        GpuTime activeDt = dt;\n        if (finiteContact)\n        {\n            const GpuReal damageArea =\n                static_cast<GpuReal>(s.pDepositionArea[i]);\n            const GpuTime age0 = clampRange\n            (\n                finiteOr(s.pContactAge[i], GPU_R(0.0)),\n                GPU_R(0.0),\n                duration\n            );\n            activeDt = clampRange(dt, GPU_R(0.0), duration - age0);\n            const GpuTime ageMid = age0 + GPU_R(0.5)*activeDt;\n            const GpuReal kinematicAreaMid = maximumArea\n              *Foam::gpuThermal::normalizedKinematicArea\n                (\n                    ageMid/duration,\n                    peakTimeFraction\n                );\n            intrinsicArea = clampMin\n            (\n                fmax\n                (\n                    kinematicAreaMid,\n                    static_cast<GpuReal>(s.pColdFrozenArea[i])\n                ) - damageArea,\n                GPU_R(0.0)\n            );\n        }\n        else\n        {\n            intrinsicArea = static_cast<GpuReal>(s.pDepositionArea[i]);\n        }\n        if (!(activeDt > GPU_R(0.0)) || !(intrinsicArea > GPU_R(0.0)))\n        {\n            continue;\n        }\n        GpuReal meanTemperature = GPU_R(0.0);\n        GpuReal frozenArea = GPU_R(0.0);\n        GpuReal wallEnergy = GPU_R(0.0);\n        const GpuReal efficiency = finiteContact\n          ? s.particleWallReflectionHeatTransferEfficiency\n          : s.particleWallDepositionHeatTransferEfficiency;\n        const GpuReal wallEffusivity =\n            s.particleWallEffusivityByFace != nullptr\n          ? s.particleWallEffusivityByFace[faceI]\n          : sqrt\n            (\n                s.particleWallDensityKgM3\n               *s.particleWallSpecificHeatJkgK\n               *s.particleWallConductivityWmK\n            );\n        const bool valid = advanceColdWall1DThermalGroup\n        (\n            s,\n            i,\n            lane,\n            mask,\n            physicalVolume,\n            physicalMass,\n            maximumArea,\n            intrinsicArea,\n            duration,\n            peakTimeFraction,\n            activeDt,\n            s.gasBoundaryT[faceI],\n            wallEffusivity,\n            efficiency*s.particleWallContactAreaScale[faceI],\n            gasTemperatureK,\n            gasConductanceWK,\n            meanTemperature,\n            frozenArea,\n            wallEnergy\n        );\n        if (!valid || !(parcelMultiplicity > GPU_R(0.0)) || frozenArea > maximumArea)\n        {\n            asm(\"trap;\");\n        }\n        if (lane == 0)\n        {\n            s.pT[i] = meanTemperature;\n            atomicAddParticleWallEnergyByFace\n            (\n                s,\n                finiteContact\n                  ? s.particleWallReflectedEnergy\n                  : s.particleWallDepositedEnergy,\n                faceI,\n                parcelMultiplicity*wallEnergy\n            );\n        }\n    }\n}"
++}
+--- /dev/null
++++ b/tests/fixtures/auto_cleanup/behavior.py
+@@ -0,0 +1,99 @@
++"""Real CUDA dispatcher switches plus frozen ordered-face/cold-wrapper oracles."""
++from pathlib import Path
++import json,re,resource,subprocess,sys
++
++def main():
++    root,out,app,bits=Path(sys.argv[1]),Path(sys.argv[2]),sys.argv[3],int(sys.argv[4])
++    out.mkdir(parents=True,exist_ok=True)
++    source=root/'applications'/app/('gpu' if app=='CHT' else 'private_backend')
++    raw=(source/'GpuResidentStrict.cu').read_text();start=raw.index('struct DeviceState');end=raw.index('\n};',start)
++    fields=re.findall(r'^\s*((?:unsigned\s+)?(?:long long|char)|double|float|int|GpuReal|GpuTime|GpuWallEnergy)\*\s+(\w+)\s*=',raw[start:end],re.M)
++    fields=[(ty,name) for ty,name in fields if name not in ['diagnosticPreTransportParticleCount','sourceInjectedCount'] and (bits==32 or not name.startswith('flatPressure'))]
++    frozen=json.loads(Path(__file__).with_name('cleanup_baseline.json').read_text())
++    oldface=frozen['ordered_face'].replace('pressureDeltaFromLimitedFaces','baseline_pressureDeltaFromLimitedFaces')
++    oldcold='' if app=='gasUGKP' else frozen['cold'+str(bits)].replace('relaxColdWall1DParticlesToResidentGasKernel','baseline_relaxColdWall')
++    if app=='FSH':oldcold=oldcold.replace('s.pContactAge[','s.pTheta[')
++    code='#include "GpuResidentStrict.cu"\n#include <cstdio>\n#include <cstdlib>\n#include <cstring>\n#include <new>\n'
++    if app=='CHT' and bits==32:code+='using namespace ugkwpCudaFp32;\n'
++    code+=oldface+'\n'+oldcold+r'''
++void ck(bool x,const char*m){if(!x){printf("FAIL %s\n",m);exit(2);}}
++void check(cudaError_t e){ck(e==cudaSuccess,cudaGetErrorString(e));}
++void finish(){check(cudaDeviceSynchronize());check(cudaGetLastError());}
++template<class T> __attribute__((noinline)) void mem(T*&p,int n){check(cudaMallocManaged(&p,n*sizeof(T)));for(int i=0;i<n;i++)::new(static_cast<void*>(p+i)) T{};}
++template<class T>void equal(T a,T b,const char*m){ck(!memcmp(&a,&b,sizeof(T)),m);}
++__attribute__((noinline)) DeviceState* make(){DeviceState*s;mem(s,1);ALLOC return s;}
++__global__ void facePair(DeviceState*s,DeviceState*r){int c=threadIdx.x+blockDim.x*blockIdx.x;if(c>=s->nCells)return;PressureReal a[4],b[4];pressureDeltaFromLimitedFaces(*s,c,PressureTime(1.23456789e-6),a);baseline_pressureDeltaFromLimitedFaces(*r,c,PressureTime(1.23456789e-6),b);for(int i=0;i<4;i++)if(a[i]!=b[i])asm("trap;");}
++int main(){setvbuf(stdout,nullptr,_IONBF,0);DeviceState*s=make(),*r=make();
++for(auto v:{s,r}){v->nCells=512;v->nFaces=1024;for(int c=0;c<512;c++){v->V[c]=.125+(c%7)*.03125;v->cellPlaneStart[c]=2*c;v->cellPlaneCount[c]=2;v->cellFaceId[2*c]=2*c;v->cellFaceId[2*c+1]=(c%13==0)?-1:2*c+1;}for(int f=0;f<1024;f++){v->faceOwner[f]=(f%2)?(f/2+1):f/2;v->solidPressurePhiMomX[f]=((f%19)-9)*.03125;v->solidPressurePhiMomY[f]=((f%17)-8)*1.1234567e-5;v->solidPressurePhiMomZ[f]=(f%3)*-.0625;v->solidPressurePhiEnergy[f]=((f%23)-11)*.00390625;}}
++facePair<<<16,32>>>(s,r);finish();for(int c=0;c<512;c++){equal(s->pressureDeltaMomX[c],r->pressureDeltaMomX[c],"ordered face publication x");equal(s->pressureDeltaMomY[c],r->pressureDeltaMomY[c],"ordered face publication y");equal(s->pressureDeltaMomZ[c],r->pressureDeltaMomZ[c],"ordered face publication z");equal(s->pressureDeltaEnergy[c],r->pressureDeltaEnergy[c],"ordered face publication energy");}
++puts("PASS ordered pressure accumulation and publication bitwise against frozen body");
++
++// The host descriptor must remain ordinary host memory, as in production.
++// WSL does not permit CPU descriptor reads while managed device state is busy.
++DeviceState host=*s;s=&host;
++s->nCells=4;s->particleCapacity=1024;s->reductionBlockThreads=32;s->multiprocessorCount=2;RESIDENCY
++mem(s->csrReductionTasks,4096);s->csrHeavyTaskCapacity=4096;check(cudaFree(s->cellScanTempStorage));s->cellScanTempStorage=nullptr;check(cub::DeviceScan::ExclusiveSum(s->cellScanTempStorage,s->cellScanTempBytes,s->csrCellTaskCount,s->csrCellTaskOffset,s->nCells+1));check(cudaMalloc(&s->cellScanTempStorage,s->cellScanTempBytes));
++DIRECTORY_KIND
++s->deviceState=r;s->csrHeavyReductionMode=2;s->csrHeavyAutoInterval=3;s->schedulingAdvanceCount=0;s->csrHeavyReductionEnabled=1;SPLIT
++auto offsets=[&](bool heavy){s->cellParticleOffset[0]=0;for(int c=0;c<4;c++)s->cellParticleOffset[c+1]=s->cellParticleOffset[c]+(heavy?(c==0?33:(c==3?31:32)):32);};
++auto call=[&](){*r=*s;CALL;finish();ck(s->csrHeavyReductionEnabled==r->csrHeavyReductionEnabled,"host/device automatic decision agreement");ck(s->csrHeavyReductionActive==r->csrHeavyReductionActive,"active publication agreement");};
++offsets(false);call();ck(s->csrHeavyReductionEnabled==0,"equality at threshold uses L1");
++offsets(true);call();ck(s->csrHeavyReductionEnabled==0,"inspection interval retains prior L1 decision");
++call();ck(s->csrHeavyReductionEnabled==1,"above threshold activates L2");
++offsets(false);call();ck(s->csrHeavyReductionEnabled==1,"interval retains prior L2 decision");call();call();ck(s->csrHeavyReductionEnabled==0,"decreasing occupancy deactivates L2");
++for(int c=0;c<=4;c++)s->cellParticleOffset[c]=0;call();call();call();ck(s->csrHeavyReductionEnabled==0,"empty directory uses L1");
++s->csrHeavyAutoInterval=1;s->schedulingAdvanceCount=0;
++ENABLE_COMBINED_DIRECTORY
++s->preBaseCellOffset[0]=s->cellParticleOffset[0]=0;
++for(int c=0;c<4;c++){s->preBaseCellOffset[c+1]=s->preBaseCellOffset[c]+16;s->cellParticleOffset[c+1]=s->cellParticleOffset[c]+16;}
++*s->preBaseParticleCountDevice=64;call();ck(s->csrHeavyReductionEnabled==0,"combined base/injection equality stays L1");
++s->preBaseCellOffset[1]=17;call();ck(s->csrHeavyReductionEnabled==1,"combined base/injection above threshold enables L2");
++s->preBaseCellOffset[1]=16;call();ck(s->csrHeavyReductionEnabled==0,"combined directory decrease disables L2");
++s->csrHeavyReductionMode=1;s->csrHeavyReductionActive=1;s->csrHeavyReductionEnabled=1;auto count=s->schedulingAdvanceCount;call();ck(s->csrHeavyReductionEnabled==1&&s->schedulingAdvanceCount==count,"explicit L2 never automatically disabled");
++puts("PASS actual automatic low-high-low-empty transitions, interval, strict threshold and fixed L2");
++COLD_TEST
++return 0;}
++'''
++    code=code.replace('ALLOC','\n'.join(f'mem(s->{name},4096);' for _,name in fields))
++    code=code.replace('RESIDENCY','s->lightBlocksPerSm=2;' if app=='gasUGKP' else 's->lightResidentBlocksPerSm=2;')
++    code=code.replace('SPLIT','' if app=='gasUGKP' else 's->splitPreDirectoryActive=0;')
++    code=code.replace('DIRECTORY_KIND','auto kind=HeavyDirectoryKind::full;' if app=='gasUGKP' else '')
++    code=code.replace('ENABLE_COMBINED_DIRECTORY','kind=HeavyDirectoryKind::splitBaseAndInjection;' if app=='gasUGKP' else 's->splitPreDirectoryActive=1;')
++    code=code.replace('CALL','ck(runToolB3(s,32,kind)==0,"automatic dispatch status");' if app=='gasUGKP' else 'ck(runToolB3(s,32)==0,"automatic dispatch status");')
++    cold=''
++    if app!='gasUGKP':
++        cold=r'''
++s=make();r=make();
++for(auto v:{s,r}){
++ v->nCells=1;v->nFaces=1;v->particleCapacity=1;*v->wallBoundParticleCountDevice=1;v->wallBoundParticleIndex[0]=0;
++ v->pStatus[0]=1;v->pStuck[0]=Foam::gpuThermal::particleWallTransientDeposit;v->pStuckFaceId[0]=0;v->pCellId[0]=0;
++ v->particleWallHeatTransferEnabled=1;v->particleStuckCandidateMask[0]=Foam::gpuThermal::particleWallSolidifyingDeposition;
++ v->pd[0]=1e-4;v->pT[0]=3500;v->pm[0]=3.2e-9;v->TpMin=300;v->TpMax=5000;v->TgasMin=300;v->rhoMin=1e-12;v->rhoSolid=3990;
++ v->couplingTgasOld[0]=3200;v->couplingRhoOld[0]=1;v->couplingUxOld[0]=2;v->gasMu=1e-5;v->gasPrOneThird=.9;v->gammaGas=1.4;v->gasCp=1000;
++ v->gasBoundaryT[0]=300;v->particleWallEffusivityByFace[0]=13000;v->particleWallContactAreaScale[0]=1;
++ v->particleWallReflectionHeatTransferEfficiency=.1;v->particleWallDepositionHeatTransferEfficiency=.1;
++ v->pContactMaximumArea[0]=2.2e-8;v->pContactDuration[0]=8e-6;v->pContactPeakFraction[0]=.42;v->pDepositionArea[0]=1.7e-8;
++ v->coldWallSolidificationEnabled=1;v->coldWallSolidificationParameters={2327.,20.,1.16e6,3990.,1273.,5.9,.25,0.,1,4};
++ for(int n=0;n<8;n++)v->pColdNodeSpecificEnthalpy[n]=float(Foam::gpuThermal::coldWallSpecificEnthalpyJkg(3500.,v->coldWallSolidificationParameters));
++}
++for(int heat:{0,1})for(int state:{int(Foam::gpuThermal::particleWallTransientDeposit),int(Foam::gpuThermal::particleWallDeposited)}){
++ s->solveParticleTemperature=r->solveParticleTemperature=heat;s->particleGasHeatTransferModelId=r->particleGasHeatTransferModelId=heat;
++ s->pStuck[0]=r->pStuck[0]=state;
++ for(int step=0;step<16;step++){
++  relaxColdWall1DParticlesToResidentGasKernel<<<1,32>>>(s,GpuTime(7.5e-8));baseline_relaxColdWall<<<1,32>>>(r,GpuTime(7.5e-8));finish();
++  equal(s->pT[0],r->pT[0],"outer cold temperature");equal(s->pColdContactAge[0],r->pColdContactAge[0],"outer cold age");
++  equal(s->particleWallReflectedEnergy[0],r->particleWallReflectedEnergy[0],"outer reflected wall heat");equal(s->particleWallDepositedEnergy[0],r->particleWallDepositedEnergy[0],"outer deposited wall heat");
++  for(int n=0;n<8;n++){equal(s->pColdNodeSpecificEnthalpy[n],r->pColdNodeSpecificEnthalpy[n],"outer node enthalpy");equal(s->pColdRingSolidMass[n],r->pColdRingSolidMass[n],"outer ring mass");}
++ }
++}
++puts("PASS full cold-wall outer kernel bitwise, finite/deposited contacts, gas heat on/off");
++'''
++    code=code.replace('COLD_TEST',cold)
++    cu=out/'auto_cleanup.cu';cu.write_text(code);exe=out/'auto_cleanup'
++    soft,hard=resource.getrlimit(resource.RLIMIT_STACK);resource.setrlimit(resource.RLIMIT_STACK,(min(128*1024*1024,hard) if hard!=resource.RLIM_INFINITY else 128*1024*1024,hard));resource.setrlimit(resource.RLIMIT_CORE,(0,0))
++    cmd=['/usr/local/cuda/bin/nvcc','-std=c++17','-O3','-arch=sm_89','--fmad='+('false' if app=='CHT' else 'true'),'-DUGKWP_GPU_REAL_BITS='+str(bits),'-I'+str(source),'-I'+str(root/'common'),'-I'+str(root/'applications'/app/'gpu'),str(cu),'-o',str(exe)]
++    if app=='CHT':cmd.append(str(source/'GpuWallEnergy64.cu'))
++    with (out/'build.log').open('w') as log:q=subprocess.run(cmd,stdout=log,stderr=subprocess.STDOUT)
++    if q.returncode:print((out/'build.log').read_text()[-5000:]);return q.returncode
++    q=subprocess.run([str(exe)],capture_output=True,text=True);(out/'run.log').write_text(q.stdout+q.stderr);print(q.stdout+q.stderr);return q.returncode
++if __name__=='__main__':raise SystemExit(main())
+--- a/README.md
++++ b/README.md
+@@ -10,10 +10,90 @@
+ | --- | --- |
+ | `gasUGKP` | Compressible gas flow, UGKP particle transport, statistical particle collisions, and two-way gas-particle momentum and sensible-heat coupling |
+ | `FSH` | Extends `gasUGKP` with finite-duration particle-wall contact, spreading and retraction, rebound or deposition, particle internal heat conduction, solidification, and wall heat transfer |
+-| `CHT` | Extends the common gas-particle framework with transient solid conduction, particle radiation, and conjugate fluid-particle-solid heat transfer |
++| `CHT` | Flow and finite-contact particle-wall heat transfer with two-way solid coupling, transient solid conduction, and particle radiation |
+ 
+ The three solvers share the numerical and physical implementations under
+ `common/`.
++
++## Shared operator implementation
++
++The common device headers own collision-pool contributions, particle moment
++contributions and publication, reduction-task operations, particle copying and
++buffer commits, pressure update components, gas fluxes, and particle transport
++geometry. Scalar precision, material properties, contact constraints, and
++wall-energy exchange are compile-time capabilities.
++
++The independent source review found remaining duplication in host orchestration,
++directory construction, and some selection/pressure/drag adapters. The two
++packages maintain mirrored common files. Shared device bodies therefore do not
++establish one complete host pipeline or prove every execution strategy optimal.
++
++Full-cell collision-pool accumulation uses named scalar accumulators. The reduction array is formed after the particle traversal, preserving contribution order, reduction order, sampling, and random-number updates. Gas, FSH, and CHT instantiate this same operator through their existing field and scalar adapters.
++
++The particle field registry defines the payload copied during compaction and
++the buffers exchanged at commit. Thermal L1 and L2 use the same physical particle
++operations; L2 changes how heavy-cell reductions are divided among blocks.
++The scheduling tile is calculated from the current block size, GPU SM count,
++actual kernel residency, and directory population. Selecting L2 remains the
++user's responsibility; no case-specific occupancy coefficient is used.
++
++
++Tracking has a separate grid obtained from the compiled tracking kernel's
++occupancy, B2, SM count, and particle capacity. Changing the reduction hierarchy
++does not change this tracking grid. L1 and the single-task/multi-task L2 moment
++paths use one cell publication function while retaining their reduction order.
++Every nonempty cell has an explicit reduction task in the current L2 directory;
++heavy cells are subdivided. A static gas directory type does not mean ordinary
++cells are implicit or that the directory contains only heavy cells.
++
++The gas volume-fraction source uses the linear discrete update. For a uniform
++source without spatial gradients, the mass scaling is
++`1 + dt * cepsG`; with the existing discrete volume-fraction derivative this
++matches `epsG_old / epsG_new`. The source also applies the corresponding
++momentum and pressure-work terms.
++
++FSH and CHT retain their finite-contact and material-enthalpy capabilities.
++CHT additionally retains the exposed-wall-area correction, radiation, and
++FP64 wall-energy ledger required for bidirectional solid coupling. Cold-wall
++1D and 2D remain different physical discretizations. Shared 1D reduction,
++linear-system algebra, frozen-profile updates, and energy publication are
++maintained once; precision-specific stability strategies remain explicit.
++
++
++## Independent review and known limits (2026-10-03)
++
++See `DEVELOPMENT_LOG_20261003_ZH.md` for the source-review scope, exact timing
++protocol, and remaining maintenance work. Operator tests include tracking-grid
++invariance and the three real moment publication paths. Thermal applications
++also test contact detachment without leaking contact age into mechanical theta.
++These checks cover local contracts; they do not certify all coupled physics.
++
++The existing gas-particle heat update uses inconsistent finite/infinite bath
++exchange amounts. The original FSH/CHT constant-Cp witness has about 1.09% scaled
++closure error, and the error depends on timestep/loading. The current fixes
++leave that witness unchanged. It remains a conservation defect, outside a safe
++small patch; it is not reported as a passing physical validation. A robust fix
++needs a shared accepted heat amount, true material enthalpy, consistent limits,
++and separate gas/wall contributions for ordinary and cold-wall particles.
++
++## CUDA operator regression checks
++
++Run the operator checks against this checkout with CUDA available:
++
++```bash
++python3 tools/validate_shared_operators.py --output /tmp/ugkp-operator-checks
++```
++
++The command uses `CUDA_HOME` (default `/usr/local/cuda`) and
++`UGKWP_CUDA_ARCH` (default `sm_89`). It compiles and launches the actual
++operator implementations and
++checks discrete volume-fraction source balances, collision selection and
++pool totals, limited-pressure flux budgets, particle moments, indexing,
++geometry, and enabled thermal payload and finite-contact ledgers. Generated
++binaries and logs stay in the specified directory outside the source tree.
++Use `--app gasUGKP`, `--app FSH`, or `--app CHT` to restrict the applications
++when they are available in the checkout. These local checks complement
++full-case validation and performance measurements.
+ 
+ ## Requirements
+ 
+@@ -70,6 +150,7 @@
+     CHT/           conjugate heat-transfer and radiation solver
+ 
+ common/
++    operators/     shared device operations with compile-time field adapters
+     gasNumerics/   shared gas-phase fluxes and reconstruction methods
+     gpu/           shared GPU scheduling and coupling utilities
+     wall/          shared finite-contact and particle thermal models
+@@ -179,7 +260,7 @@
+ 
+ `MSS7_twoPhase_sparse` preserves the development-case parcel mass of
+ `1e-9 kg` and uses L0 scheduling. `MSS7_twoPhase_dense` uses a parcel mass of
+-`5e-11 kg` and L2 automatic scheduling with a 1000-step inspection interval.
++`5e-11 kg` and automatic L1/L2 scheduling with a 1000-step inspection interval.
+ 
+ ## Cleaning generated case data
+ 
+@@ -331,15 +412,52 @@
+ existing particle-capacity, block-size, and occupancy calculation. These
+ cold-wall constants are compile-time settings, not `schedulingProperties` keys.
+ 
+-`gpuCsrLevel` has four valid settings:
++`gpuCsrLevel` accepts `L0`, `L1`, `L2`, and `auto` in this thermal package:
+ 
+ - `L0`: direct atomic reduction without a CP-CST particle-cell directory;
+-- `L1`: CP-CST directory, warp aggregation, and split pre-transport
+-  directory;
+-- `L2`: L1 plus task segmentation and multi-block reduction for highly
+-  occupied cells;
+-- `auto`: retains the L1 directory and periodically determines whether L2
+-  heavy-cell segmentation should be activated.
++- `L1`: CP-CST directory, warp aggregation, and split pre-transport directory;
++- `L2`: L1 plus task segmentation and multi-block reduction for highly occupied cells;
++- `auto`: retains the L1 directory and switches heavy-cell segmentation on or off using the existing occupancy criterion.
++
++The thermal parser continues to reject `gpuResearchVariant` and research level
++names. `gpuCsrHeavyReductionAutoInterval` is accepted only with `gpuCsrLevel auto`
++and must be positive; it defaults to 100. The first particle advance is inspected,
++then every configured interval. This is not the Courant update interval.
++
++The existing threshold is `B3 * max(1, ceil(N / (B3 * SM * residentBlocksPerSM)))`,
++where N is the current directory population and residency comes from the selected
++reduction path. Automatic scheduling enables heavy segmentation only when the
++maximum cell population strictly exceeds that threshold. The formula has no
++case-fitted constants. Automatic selection does not alter physical operators.
++Explicit L2 remains enabled regardless of the criterion; its tile still adapts
++to hardware and population without changing the selected level.
++
++## Common numerical operators
++
++The applications instantiate one maintained implementation of each shared
++operation through compile-time scalar, field and physical-model adapters.
++Particle tracking, collision selection and moments, Gaussian sampling,
++weighted sampling correction, task queues, moment recovery and pressure
++projection are maintained under `common/`. FSH and CHT additionally share
++finite-contact relaxation and capillary/contact finalization.
++
++The adapters preserve native precision, contact-age storage, wall states,
++thermal closures and particle payloads. FSH and CHT retain their thermal
++application responsibilities; they do not switch into a gas application when
++an individual thermal term is inactive. Alternative reduction layouts remain
++explicit scheduling policies around the shared operation, without a runtime
++solver-name branch in the particle loop.
++
++## Layer names across packages
++
++The fixed thermal levels are `gpuCsrLevel L0/L1/L2`; `auto` selects between
++the existing L1 and L2 reduction paths. Their fixed-level operator
++bundles correspond to standalone fluid research `L0/S1/S2`, respectively.
++The fluid package retains its five research levels `L0/L1/E1/S1/S2`
++(T1 is an existing alias of E1). Research L1 is not thermal L1.
++No research name or override is accepted by any thermal application, including
++thermal gasUGKP. This package-specific configuration header is excluded from
++cross-library mirroring; numerical operators remain shared and checked.
+ 
+ ## GPU execution and retained optimizations
+ 
+@@ -350,9 +468,9 @@
+ directory is reused between steps. Worker resources are evaluated for the
+ actual persistent kernels.
+ 
+-The solvers share task scheduling and cell-local gather operations while
+-retaining their physical particle payloads. FSH and CHT also share the thermal
+-segmented collision-pool and moment workers. Gas L2 uses a compact descriptor
++The solvers share task construction, collision-pool operations, particle
++transport, moment recovery, pressure operations, and cell-local gathering
++while retaining their native physical fields and closures. Gas L2 uses a compact descriptor
+ directory: each nonempty ordinary cell has one task, and heavy cells have one
+ task per segment. Empty source cells create no consumer queue entries.
+ Workers consume these descriptors directly. Filtered heavy cells retain one
+@@ -363,17 +481,20 @@
+ | Deferred granular-temperature read | Gas collision pool | A particle rejected by Poisson sampling does not need its granular temperature; RNG updates and accepted-particle contributions are preserved. |
+ | Fused directory initialization and task publication | Gas L2 | Existing producer stages initialize counters and publish descriptor totals, removing separate setup passes. Every queue consumer still has its own reset. |
+ | Compile-time full/base/split directory selection | Gas L2 | A launch's known directory type removes repeated runtime source selection. |
+-| Pool-target and moment-recovery fusion | Gas L2 | Complete cell-local sums feed their dependent calculation immediately, avoiding separate passes and intermediate reads. Restart initialization still performs complete finalization. |
++| Pool-target fusion and shared moment recovery | Gas pool targets; Gas/FSH/CHT L2 recovery | Completed cell-local moment sums feed recovery immediately. Single-task and empty cells retain their own recovery path; restart initialization completes all partial reductions before recovery. |
+ | Reduction-tree pruning | Gas reductions | Shuffle accumulation omits nodes that cannot contribute to the final sum and unused warp-reduction levels. Supported block sizes are 32, 64, 128, and 256. |
+ | Loop-invariant thermal factors and disabled-exchange specialization | Gas particle relaxation | Cell-invariant factors are reused; particle temperature is not read for a disabled exchange term. |
+ | Bounded integer particle counts | Gas collision pool | Particle counts use the existing integer-capacity contract rather than floating-point count accumulation. |
+ | Heavy-cell collision-probability reuse | Gas L2 | A current-step probability is prepared only for multi-segment cells, after pressure preparation and state recovery, and reused by their segments. Ordinary cells compute it in their consuming worker. |
+ | All-live gather fast path | Cell-local gas/thermal gather | When the existing count proves every source particle survives, gathering skips the filtering scan while copying the full payload. |
+ | Segmented gather | Gas/FSH/CHT L2 | Independent ranges of heavily occupied all-live cells can be copied by multiple blocks. Filtered cells retain a single owner for stable compaction. |
+-| Exact-survivor post-transport directory | Gas/FSH/CHT active L2 | The post-transport directory contains exactly the particles kept by compaction, so its offsets already identify their final positions. Pre-transport and restart directories retain their original rules. |
+-| Moment/gather fusion | Gas/FSH active L2 | The moment traversal also copies each surviving particle to its final position, removing the separate gather traversal. The second pressure kick updates these compact buffers; FSH preserves all thermal/contact fields and publishes each wall-bound index once. |
+-| Moment/index fusion | CHT active L2 | The moment traversal writes final source indices, removing the separate index-gather traversal. The existing full thermal-payload copy remains after the second pressure kick, including both FP32 and FP64 paths. |
++| Exact-survivor post-transport directory | Thermal gasUGKP/FSH/CHT L1/L2 | The post-transport directory contains exactly the particles kept by compaction, so its offsets identify final positions. Pre-transport and restart directories retain their original rules. |
++| Shared moment traversal and reduction | Thermal gasUGKP/FSH/CHT L1/L2 | One common implementation performs survivor validation, eight moment sums and block reduction. Precision, enthalpy and wall-state physics use compile-time adapters. No runtime model dispatch is added. |
++| Moment/gather fusion | Thermal gasUGKP/FSH L1/L2 | The same moment traversal copies each surviving particle to its final position. Pressure updates the compact fields before commit; FSH copies every thermal/contact field and publishes each wall-bound index once. |
++| Survivor-directory reuse | CHT L1/L2 | The full thermal-payload kernel directly reads the exact source directory after pressure. No separate index-gather pass or redundant source-index writes are needed. |
++| Shared particle-field copy | Gas/FSH/CHT | Primary fields and thermal/contact extensions use a shared copy implementation. A compile-time copy-placement policy is independent of the selected layer: Gas/FSH copy during moment traversal; CHT retains a global parallel payload copy after pressure. The field-copy body is maintained once and copies every enabled field exactly once. |
+ | Shared scheduler, gather, and thermal workers | Gas/FSH/CHT | Common execution code preserves solver-specific particle and wall-contact fields. |
++| Shared pressure projection | Gas/FSH/CHT | One cell traversal and mobile-particle update use the limited face flux. Thermal adapters enforce stuck/deposited states and close moments from the constrained particle state. FP32 flat scheduling uses the same pressure-parameter equations. |
+ 
+ These transformations follow data dependencies and supported solver settings;
+ they do not select policies by case name or by a measured benchmark result.
+@@ -508,6 +629,16 @@
+ never below disposable result directories, and can be executed through each
+ case's `draw.py` after the corresponding simulation has completed.
+ 
++## Common particle-kernel interfaces
++
++`common/GpuMomentPipeline.cuh` owns the post-transport moment and recovery sequence for thermal gasUGKP/FSH/CHT L1/L2 (fluid research S1/S2). `common/GpuPressurePipeline.cuh` owns the pressure launch protocol; cell traversal, pressure parameters and mobile-particle updates are shared device implementations. Thermal adapters preserve contact state, enthalpy, and constrained moment closure. These are compile-time interfaces, with no runtime application selection.
++
++Within each thermal application, L1/L2 use the same payload placement and physical operations; L2 partitions heavy-cell reductions. Across applications, payload launch sequences need not be identical: CHT keeps its global parallel copy for wide thermal fields, while Gas/FSH fuse copying into moment traversal. Pressure receives the matching original or compact storage view.
++
++The CUDA regression suite checks limited-face local momentum balance, particle/cell moment consistency, conserved totals in a closed two-cell test, survivor indexing, and preservation of enabled thermal/contact fields.
++
++Pressure projection consumes the limited face flux consistently in full and split particle directories. Thermal closure retains constrained particle states and their physical moment accounting.
++
+ ## Reproducibility notes
+ 
+ - Use the Git commit or release tag cited in the associated manuscript.
+@@ -537,3 +668,25 @@
+ This software is distributed under the GNU General Public License, version 3
+ or any later version (`GPL-3.0-or-later`). See [LICENSE](LICENSE) and
+ [NOTICE](NOTICE).
++
++### Particle tracking at geometric boundaries
++
++Particle reflection at `wedge`, `empty`, and symmetry boundaries is non-dissipative. Physical wall restitution and finite-contact thermal laws remain controlled by the wall configuration.
++
++The maximum number of face-walk events per particle and time step is configured in `constant/schedulingProperties`:
++
++```foam
++gpuResidentMaxFaceWalkHops 512;
++```
++
++The library default is 32. Increase this limit for trajectories that cross or reflect from many faces in one time step, such as passages near a narrow wedge axis. This limit counts all face-walk events, not only physical wall impacts.
++
++
++公共算子的维护所有权、字段注册、构建检查及 CUDA 调度契约见 [双库公共算子维护](docs/OPERATOR_MAINTENANCE_ZH.md)。
++
++
++### 公共算子维护入口（2026-10-03 收口）
++
++gas、FSH、CHT 的公共算子核及主机流程由 `common/` 维护。公共文件上游为 `ugkp-thermal/common`；gas 应用入口上游为独立 gas 库。修改公共实现后运行 `python3 tools/managed_mirrors.py --sync`，按登记归属同步双库；构建前检查会拒绝镜像漂移。无需分别移植三套核心实现。各应用的能力/精度适配仍需各自验证。当前生产双库冻结期间不要运行跨库 `--sync`；后续镜像同步须单独审核，公共调度配置头不在镜像范围内。工程结论与十对 k1/k2 结果见 [本轮结果](docs/OPERATOR_CONSOLIDATION_R2_RESULTS_ZH.md)，维护契约见 [维护说明](docs/OPERATOR_MAINTENANCE_ZH.md)。
++
++本次自动调度恢复、最后三项代码清理及验证结果见 [2026-10-04 收尾验证](docs/development/auto-cleanup-20261004/README.md)。
+--- /dev/null
++++ b/docs/OPERATOR_MAINTENANCE_ZH.md
+@@ -0,0 +1,47 @@
++# 双库公共算子维护
++
++gas 负责流场；FSH 增加有限接触壁面；CHT 增加双向固体耦合。应用选择由用户承担，应用内部优化必须覆盖其合法功能，不能以“没有有限接触壁面”等特殊场景为优化前提，也不允许加入测试案例得到的经验参数。
++
++## 维护所有权与构建
++
++两库可独立构建。`tools/managed_mirrors.json` 明确公共算子以 ugkp-thermal 为上游、gas 应用以 gpu-riemann-gkp-main 为上游；清单登记共享和库内独有文件。正常检查只读，发现镜像漂移或未登记输入会失败。单独 checkout 校验本地库存；两库并排时同时比较内容。
++
++```sh
++python3 tools/managed_mirrors.py
++python3 tools/particle_field_contract.py
++python3 tools/operator_policy_contract_test.py
++```
++
++修改上游后，使用 `managed_mirrors.py --sync` 按白名单更新下游；新增 common 输入需显式 `--register common/文件名`。工具不会删除未登记文件。库存排除已知的 wmake 平台输出、CUDA build/build_logs、生成的 lnInclude 和固定后台归档路径；不按任意文件后缀全局放行，生成物不能登记为受管源码。Allwmake、直接 CUDA 构建脚本和算子验证入口均执行源码检查。
++
++## 公共协议与字段
++
++气相 Euler/RK、边界完成、图捕获流程由 `GpuGasAdvance.cuh` 维护；`GpuGasHostPolicy.cuh` 提供时间、权重精度和壁能账本能力。packing 由 `GpuMobilePackingHost.cuh` 维护；thermal 的 bin/split host 流程由 `GpuParticleDirectoryHost.cuh` 维护。ToolB1 的 launch bundle、测量、选优及事件错误处理已有共同主体。诊断初始化和阶段计时由 `GpuDevelopmentProbeInit.cuh` / `GpuDevelopmentAdvanceProbe.cuh` 维护，FSH/CHT 采样收集由 `GpuDevelopmentThermalProbeSample.cuh` 维护；精度转换和 gas 专有采样字段保留明确的编译期边界。
++
++入口宏必须满足 `GpuOperatorContract.cuh` 的必填、类型和有效组合检查。`GpuLaunchOptions.cuh` 为矩搬运/恢复提供不同类型的具名选项；历史 bool 包装只作为兼容入口。`GpuPressureFlatLayout.cuh` 命名 FP32 压力段和缓存槽，保持原布局。
++
++`ParticleFieldManifest.json` 生成 payload copy/swap 注册和 thermal schema7 wire 顺序。改字段后显式运行 `particle_field_contract.py --generate`，再执行 `--cpu --output /源码目录外/路径` 检查真实声明、分配、释放、搬运和旧格式 golden。gas 的 scratch 与持久 payload 分开建模；thermal schema7 的 golden 不代表 gas 独有磁盘格式。
++
++## CUDA 调度与验证
++
++这里的 CUDA 启动网格指 kernel 的线程块数量，与 blockMesh 物理网格无关。普通粒子和追踪 launch 由实际 kernel 占用率与容量决定，不受 L1/L2 规约选择影响。规约块 B3 仍由用户设置，任务 tile 仍按粒子总量、SM 数、规约占用率和 B3 推导。显式 L2 不会按估计盈利自动关闭；`gpuCsrLevel auto` 则复用现有占用阈值，在首步及每个 `gpuCsrHeavyReductionAutoInterval` 周期检查 L1/L2 归约选择（默认100步，必须为正）。auto不是研究层级，研究接口仍关闭。
++
++任务目录保留 count、全局 exclusive scan、materialize 的单元顺序；计数清零并入 count，总任务数发布并入 materialize。`csrHeavyTaskCount` 包含所有非空单元的任务，`csrHeavyCellCount` 只记录需要多个任务的单元。Poisson 抽样、theta 读取时机和 RNG 提交由同一公共默认策略维护；概率与非 Poisson cutoff 语义保留。
++
++```sh
++python3 tools/validate_shared_operators.py --output /源码目录外/native-validation
++python3 -m pytest -q tests/test_named_launch_options.py tests/test_tool_b1_protocol.py tests/test_source_contracts.py
++```
++
++效率评估使用同输入、同二进制身份、固定配对数量和均衡顺序；B2/B3 固定为 64 的效率测量与其它块大小的正确性测试分开。按用户最新要求，k2 配对加速比中位数接近 1 且低档收益瓶颈明确可接受，不要求最小值超过 1；不为跨线强行增加优化。性能记录必须绑定实际源码和二进制 SHA。
++
++有限接触粒子/壁面局部账本与既有气粒换热缺口分别评价；不能将“缺口未恶化”写成严格能量闭合通过。成功路径的字段闭包也不等价于穷尽全部资源耗尽或损坏 restart 输入。
++
++
++Poisson 访问策略由 GpuCollisionPoolParticle.cuh 统一，接受后的 RNG 提交延后，拒绝仍立即提交；不再设置应用/层级的 late-theta 开关。GpuCollisionPoolSplitParticle.cuh 是共同的兼容包装。运行 tests/test_uniform_pool_policy.py 可检查公共归属与读写顺序。S2/L2 的 legacy lightBlocksPerSm 字段使用所选规约路径的驻留能力，不能解释为固定 L1 核占用率。本轮最终性能范围按用户要求收敛为 k1/k2。
++
++## 当前公共接口与镜像边界
++
++thermal固定L0/L1/L2与auto选择模式由 `common/GpuSchedulingConfiguration.H` 维护，流体库研究接口保持独立。这个配置头不允许机械跨库覆盖。自动判定保留已有周期目录归约和主机回读，不能解释成零成本。生产双库冻结期间只做 standalone 库存检查；不要对生产运行 `--sync`。
++
++本文件是当前维护入口；早期性能结果是历史阶段记录。当前收尾验证见 [自动调度及清理验证](development/auto-cleanup-20261004/README.md)，前一阶段的六项合并见 [算子合并验证](development/operator-unification-20261004/README.md)。
+--- /dev/null
++++ b/docs/OPERATOR_CONSOLIDATION_R2_RESULTS_ZH.md
+@@ -0,0 +1,101 @@
++# 双库公共算子统一与低负载评估
++
++这是早期 R2 阶段的历史记录，保留当时数据和限制；不能作为后续算子合并或 auto 恢复的验收结果。后续验证见 [六项合并](development/operator-unification-20261004/README.md) 和 [本次收尾](development/auto-cleanup-20261004/README.md)。
++
++## 工程结果
++
++本轮收口了公共主机流程、宏与类型契约、已登记字段生命周期、跨库镜像归属四类维护问题。三个应用的公共算子通过同一实现维护；有限接触由 FSH/CHT 共用，CHT 独有固体和辐射功能保留自身入口。后续公共算子优化修改其共同所有者，不需要分别移植三套实现。
++
++| 范围 | 共同所有者与约束 |
++| --- | --- |
++| 气相 Euler/RK、边界和图流程 | GpuGasAdvance.cuh / GpuGasHostPolicy.cuh；保留时间、权重精度与壁能账本能力 |
++| 粒子追踪、packing 与目录 | GpuParticleTransport.cuh / GpuMobilePackingHost.cuh / GpuParticleDirectoryHost.cuh；gas 的静态目录生命周期有明确边界 |
++| 矩规约、搬运与恢复 | GpuParticleMoments.cuh / GpuSegmentedMomentWorkers.cuh / GpuMomentPipeline.cuh |
++| Poisson 粒子选择与池 | GpuCollisionPoolParticle.cuh / GpuPoolSelection.cuh；应用和层级共用访问顺序 |
++| 压力公共流程 | GpuPressurePipeline.cuh / GpuPressureConstrainedPhysics.cuh；精度与原舍入路径保留适配层 |
++| 有限接触 | common/operators/FiniteContactRelaxation.inl；if/else 控制归调用者 |
++| 字段生命周期 | ParticleFieldManifest.json；声明、分配、释放、copy/swap 与 thermal schema7 wire 检查 |
++| 类型与调度接口 | GpuOperatorContract.cuh / GpuLaunchOptions.cuh / GpuPressureFlatLayout.cuh |
++| 双库维护 | managed_mirrors.json：231 项登记镜像，明确上游、白名单同步和构建漂移检查 |
++
++公共代码的权威来源是 `ugkp-thermal/common`；gas 应用入口的权威来源是 `gpu-riemann-gkp-main/applications/gasUGKP`。两库保留独立构建所需副本，镜像工具负责机械同步。公共实现归属测试从实际入口解析包含关系，确认所测八项核心函数在各应用均指向唯一公共定义。
++
++本轮最后一项公共优化将接受粒子后的 RNG 写回、热字段读取顺序统一到共享函数，移除 `GPU_POOL_S1_LATE_THETA_AND_RNG` 应用/层级开关，并合并重复的分段粒子包装函数。它适用于合法的 Poisson 粒子选择流程，不依赖具体案例、无接触壁面特例或经验负载常数。拒绝粒子的 RNG 更新、非 Poisson 分支、每线程累加顺序和接触字段语义得到保留。
++
++## k1 / k2 效率结果
++
++按用户最新要求，本轮最终版本只评估 k1、k2；没有继续运行 k4、k8。先前四档队列停止时已有 194 次有效运行，全部保留；其中 k1/k2 的 144 次记录完整，高档未完成记录不冒充最终版本验收。
++
++当前最终候选共 288 次运行：48 次预热、240 次测量。每个应用、每个负载共十对，B1 自动、B2=B3=64、FP64，200 步/20 个采样点；采用均衡的 Williams 顺序。原始物理输入和 mesh 在同负载比较中保持一致。最初五对完整保留，用户明确要求增加至十对后，再预先冻结并执行补充五对；没有按通过与否追加样本。两个五对时间块的中位数另行报告，避免隐藏时间漂移。
++
++交付指标为十个配对进程中位耗时比的中位数。gas k2 为 **1.005183**，FSH k2 为 **0.999883**。按用户最新要求，接近 1 且低档收益瓶颈有实测依据可接受，不强迫跨过 1。最小值与置信区间下界仅报告，不作交付门槛；原始五对的严格 ≥1 判定仍保留，未事后改写。
++
++| 应用 | 负载 | 中位加速比 L1/L2 | 十对最小–最大 | 精确配对 bootstrap 95% 区间 |
++| --- | --- | ---: | ---: | ---: |
++| gas | k1 | 0.998545 | 0.986763–1.007005 | 0.992335–1.002314 |
++| gas | k2 | 1.005183 | 0.999145–1.029393 | 1.001279–1.008235 |
++| FSH | k1 | 0.999720 | 0.988203–1.015671 | 0.995056–1.005930 |
++| FSH | k2 | 0.999883 | 0.968954–1.014093 | 0.996549–1.008624 |
++| CHT | k1 | 0.998413 | 0.992600–1.001949 | 0.996052–1.000628 |
++| CHT | k2 | 0.998264 | 0.990208–1.018359 | 0.993389–1.004721 |
++
++两批测量分别统计当前统一版的层级加速比：
++
++| 应用 | 负载 | 原五对中位数 | 补充五对中位数 |
++| --- | --- | ---: | ---: |
++| gas | k1 | 0.996226 | 0.999793 |
++| gas | k2 | 1.005653 | 1.004726 |
++| FSH | k1 | 1.000361 | 0.995530 |
++| FSH | k2 | 0.999225 | 1.004474 |
++| CHT | k1 | 0.997798 | 0.998663 |
++| CHT | k2 | 1.000061 | 0.993389 |
++
++同层级新版本相对轮次基线的耗时变化如下，负数表示更快：
++
++| 应用 | 负载 | L1 耗时变化 | L2 耗时变化 |
++| --- | --- | ---: | ---: |
++| gas | k1 | +0.100% | +0.008% |
++| gas | k2 | +0.168% | +0.023% |
++| FSH | k1 | -0.165% | -0.223% |
++| FSH | k2 | +0.461% | -0.189% |
++| CHT | k1 | -1.915% | -0.185% |
++| CHT | k2 | -1.949% | -0.036% |
++
++最大同层级中位退化为 0.461%。完整十对原值、进程中位耗时、分阶段耗时、区间和额外的“中位数之比”均保存在 analysis.json / results.json，不能混淆两个估计量。
++
++## 低档位瓶颈与停止优化的依据
++
++当前 FSH k2 的 200 个实测 L2 样本中，松弛约占整步 42.01%，前后压力与追踪加上松弛合计的逐步占比中位数为 72.96%；这些主体为两层级共用。L2 并不会把整步所有粒子工作一起缩短。当前输入的 cell 占用 p99 约为 4500，远低于约 1.3 万的硬件推导 tile 量级；最大占用 14500–22500 又明确说明存在重载，不能把 k2 解释为没有触发重载。
++
++十对逐阶段差的中位数显示，L2 的后矩约省 98.0 微秒，同时目录前/后分别增加 45.5/14.8 微秒，pool 增加 25.1 微秒。它们支持“有限长尾收益与额外组织成本相抵”的判断；各阶段中位数不能相加冒充总差，整步独立计算的配对差中位数为 3.120 微秒。
++
++对同一实测二进制的 199 个周期步追踪中，GPU 核执行时间占该周期区间约 98.82%（L1）/98.87%（L2）。执行已主要受 GPU 核工作限制，不能把主机提交视为主要空转来源。L2 的四次额外 4 字节清零各自仅约 0.32 微秒 GPU 时间、3.6–4.0 微秒主机 API 中位时长；主机与 GPU 时间存在重叠，这些数字不是可直接相加的整步收益。
++
++据此确认当前低档位分段规约的实用收益瓶颈，并接受接近 1 的 FSH 结果。没有证明所有未来公共优化都无效，也没有测得硬件峰值带宽上限。继续为约 0.012% 的比值缺口引入新队列协议，当前缺少足够收益依据，因此停止该方向。
++
++瓶颈确认限定为当前 k1/k2 下分段 L2 相对 L1 的收益空间；它不是 GPU 已达到理论带宽或所有算法已全局最优的证明。分析使用正式计时样本及相同实测二进制的 Nsight Systems 追踪，追踪结果不混入效率测量。主机 API 与 GPU 执行存在重叠，不相加冒充可移除的整步开销。
++
++队列清零融合仅建立了独立试验草稿。收到“不强行优化”的要求后已隔离，未通过绿色/原生/性能验证，未合并到本交付。源码维护收口与追求微小加速分别评估，没有用未经验证的额外复杂性替代已确认的公共实现。
++
++## 正确性与来源核验
++
++- 继承已验证的主机流程、字段、任务目录与物理算子证据；新增改动另做实际原生对照。
++- gas64、FSH64、CHT64、CHT32 共 616 组修改前后状态比较：选中粒子、RNG 与接触状态哈希一致，矩结果通过独立 CPU 计算；覆盖完整/分段目录、混合注入与多种规约块大小。
++- 有限接触集成在两个层级均运行 100 步，23 个最终字段与轮次基线逐字节一致；该结果不推广为所有随机场景必须位一致。
++- 最后公共访问策略改动仅改变 9 个 Poisson 池核的 SASS：gas 6、FSH 1、CHT 两种精度各 1；其余核指令保持一致。两库独立构建的 gas 全部 135 个核一致。
++- DeviceState 声明及初始化器保持一致；源码、真实 ELF、原始 timing.csv、输入清单和构建记录均有 SHA256 绑定。
++- 编译器/控制进程中断的尝试保留在原始日志；未以降低优化等级或改变浮点选项通过验证。
++
++## 保留的数值边界与已知问题
++
++阻力的小 Re、clamp/regularization 与压力发布舍入保留原有兼容行为，公共公式和适配边界已集中；本轮没有声称这些历史差异在理论上必需，也未把代数相近当作浮点等价证明。已登记字段闭包通过不等于穷尽资源耗尽回滚和所有损坏 restart 输入。
++
++既有约 **1.09% 换热缺口仍未修复，严格能量闭合仍为 FAIL**。本轮没有修改对应热交换/relaxation 核；未将缺口未恶化或其它正确性检查写成能量闭合通过。
++
++规约 B3 仍为 64。任务 tile 使用当前所选规约路径的实际驻留能力：`B3 × max(1, ceil(N / (B3 × SM × residentBlocksPerSM)))`。S2/L2 的历史 `lightBlocksPerSm` 字段可能承载 heavy worker 的驻留值；它不是固定的实际 L1 核占用率。约一万是该硬件和粒子规模下的量级，不是新增经验参数。CUDA 启动网格表示线程块数，与 blockMesh 物理网格划分无关。
++
++## 正式双库与证据
++
++正式位置为 Ubuntu-22.04 中的 `/home/lss/OpenFOAM/lss-10/applications/solvers/gpu-riemann-gkp-main` 和同目录的 `ugkp-thermal`。正式同步、备份、复编和复核结果由独立部署收据记录，不能仅凭本报告推断已经部署。
++
++证据主目录：`/home/lss/OpenFOAM/lss-10/applications/solvers/operator-consolidation-k2-20261003/work`。关键记录：`final-low-loads-uniform-pool-ten-pairs`、`uniform-pool-bottleneck`、`uniform-pool-k2-bottleneck-trace`、`uniform-pool-native`、`uniform-pool-build-continuation`、`uniform-pool-contact-integration`、`uniform-pool-change-scope.json`、`sass-uniform-pool-changes`、`sass-uniform-pool-mirrored-gas`。历史五对、中止数据和隔离试验均保留原目录。

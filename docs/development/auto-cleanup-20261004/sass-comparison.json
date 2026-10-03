@@ -1,0 +1,61 @@
+[
+  {
+    "app": "gasUGKP64",
+    "total_before": 133,
+    "total_after": 131,
+    "identical": 128,
+    "changed": [
+      "_Z40applyCollisionalPressureProjectionKernelILb0ELb0EEvPNANONYMOUS_SOURCE_11DeviceStateEd",
+      "_Z40applyCollisionalPressureProjectionKernelILb1ELb0EEvPNANONYMOUS_SOURCE_11DeviceStateEd",
+      "_Z40applyCollisionalPressureProjectionKernelILb0ELb1EEvPNANONYMOUS_SOURCE_11DeviceStateEd"
+    ],
+    "added": [],
+    "removed": [
+      "_Z50applyCollisionalPressureProjectionCellAtomicKernelPNANONYMOUS_SOURCE_11DeviceStateEd",
+      "_Z55applyCollisionalPressureProjectionParticlesAtomicKernelPNANONYMOUS_SOURCE_11DeviceStateE"
+    ]
+  },
+  {
+    "app": "FSH64",
+    "total_before": 141,
+    "total_after": 141,
+    "identical": 135,
+    "changed": [
+      "_Z40applyCollisionalPressureProjectionKernelILb0ELb0EEvPNANONYMOUS_SOURCE_11DeviceStateEd",
+      "_Z40applyCollisionalPressureProjectionKernelILb0ELb1EEvPNANONYMOUS_SOURCE_11DeviceStateEd",
+      "_Z31applyUnifiedSplitPressureKernelILb0EEvPNANONYMOUS_SOURCE_11DeviceStateEd",
+      "_Z40applyCollisionalPressureProjectionKernelILb1ELb0EEvPNANONYMOUS_SOURCE_11DeviceStateEd",
+      "_Z40applyCollisionalPressureProjectionKernelILb1ELb1EEvPNANONYMOUS_SOURCE_11DeviceStateEd",
+      "_Z31applyUnifiedSplitPressureKernelILb1EEvPNANONYMOUS_SOURCE_11DeviceStateEd"
+    ],
+    "added": [],
+    "removed": []
+  },
+  {
+    "app": "CHT64",
+    "total_before": 155,
+    "total_after": 155,
+    "identical": 149,
+    "changed": [
+      "_Z40applyCollisionalPressureProjectionKernelILb0ELb0EEvPNANONYMOUS_SOURCE_11DeviceStateEd",
+      "_Z40applyCollisionalPressureProjectionKernelILb0ELb1EEvPNANONYMOUS_SOURCE_11DeviceStateEd",
+      "_Z31applyUnifiedSplitPressureKernelILb0EEvPNANONYMOUS_SOURCE_11DeviceStateEd",
+      "_Z40applyCollisionalPressureProjectionKernelILb1ELb0EEvPNANONYMOUS_SOURCE_11DeviceStateEd",
+      "_Z40applyCollisionalPressureProjectionKernelILb1ELb1EEvPNANONYMOUS_SOURCE_11DeviceStateEd",
+      "_Z31applyUnifiedSplitPressureKernelILb1EEvPNANONYMOUS_SOURCE_11DeviceStateEd"
+    ],
+    "added": [],
+    "removed": []
+  },
+  {
+    "app": "CHT32",
+    "total_before": 159,
+    "total_after": 159,
+    "identical": 158,
+    "changed": [
+      "_ZN13ugkwpCudaFp3229prepareFlatFullPressureKernelEPNS_ANONYMOUS_SOURCE_11DeviceStateEd"
+    ],
+    "added": [],
+    "removed": []
+  }
+]

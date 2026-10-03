@@ -1,0 +1,3 @@
+PASS ordered pressure accumulation and publication bitwise against frozen body
+PASS actual automatic low-high-low-empty transitions, interval, strict threshold and fixed L2
+PASS full cold-wall outer kernel bitwise, finite/deposited contacts, gas heat on/off

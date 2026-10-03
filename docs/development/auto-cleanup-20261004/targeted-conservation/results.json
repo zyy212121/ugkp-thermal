@@ -1,0 +1,86 @@
+[
+  {
+    "app": "gasUGKP",
+    "bits": 64,
+    "test": "pressure_split",
+    "exit": 0,
+    "log": "gasUGKP64-pressure_split.log"
+  },
+  {
+    "app": "gasUGKP",
+    "bits": 64,
+    "test": "collision_split_behavior",
+    "exit": 0,
+    "log": "gasUGKP64-collision_split_behavior.log"
+  },
+  {
+    "app": "gasUGKP",
+    "bits": 64,
+    "test": "pressure_unsorted",
+    "exit": 0,
+    "log": "gasUGKP64-pressure_unsorted.log"
+  },
+  {
+    "app": "FSH",
+    "bits": 64,
+    "test": "pressure_split",
+    "exit": 0,
+    "log": "FSH64-pressure_split.log"
+  },
+  {
+    "app": "FSH",
+    "bits": 64,
+    "test": "collision_split_behavior",
+    "exit": 0,
+    "log": "FSH64-collision_split_behavior.log"
+  },
+  {
+    "app": "FSH",
+    "bits": 64,
+    "test": "contact_conservation",
+    "exit": 0,
+    "log": "FSH64-contact_conservation.log"
+  },
+  {
+    "app": "CHT",
+    "bits": 64,
+    "test": "pressure_split",
+    "exit": 0,
+    "log": "CHT64-pressure_split.log"
+  },
+  {
+    "app": "CHT",
+    "bits": 64,
+    "test": "collision_split_behavior",
+    "exit": 0,
+    "log": "CHT64-collision_split_behavior.log"
+  },
+  {
+    "app": "CHT",
+    "bits": 64,
+    "test": "contact_conservation",
+    "exit": 0,
+    "log": "CHT64-contact_conservation.log"
+  },
+  {
+    "app": "CHT",
+    "bits": 32,
+    "test": "pressure_split",
+    "exit": 0,
+    "log": "CHT32-pressure_split.log"
+  },
+  {
+    "app": "CHT",
+    "bits": 32,
+    "test": "collision_split_behavior",
+    "exit": 0,
+    "log": "CHT32-collision_split_behavior.log"
+  },
+  {
+    "app": "CHT",
+    "bits": 32,
+    "test": "contact_conservation",
+    "exit": 0,
+    "log": "CHT32-contact_conservation.log"
+  }
+]

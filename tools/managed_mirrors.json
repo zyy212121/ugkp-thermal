@@ -1140,6 +1140,11 @@
       "downstream": "gpu-riemann-gkp-main"
     },
     {
+      "path": "common/wall/GpuColdWall1DInputs.inl",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
       "path": "tests/fixtures/shared_operators/schema7_wire_golden.json",
       "upstream": "ugkp-thermal",
       "downstream": "gpu-riemann-gkp-main"
@@ -1245,7 +1250,7 @@
     "applications/gasUGKP/tests/test_strict_csr_level_contract.py": "Repository-specific test paths/expectations: retained as independent inputs; not production gas source.",
     "applications/gasUGKP/tests/test_unified_scheduling_tools_contract.py": "Repository-specific test paths/expectations: retained as independent inputs; not production gas source.",
     "applications/gasUGKP/tests/test_wall_gks_contract.py": "Repository-specific test paths/expectations: retained as independent inputs; not production gas source.",
-    "common/GpuSchedulingConfiguration.H": "Package-specific public scheduling contract: thermal accepts only L0/L1/L2; fluid retains research variants. Never synchronize this entry header.",
+    "common/GpuSchedulingConfiguration.H": "Package-specific public scheduling contract: thermal accepts L0/L1/L2 and automatic heavy scheduling; fluid retains research variants. Never synchronize this entry header.",
     "common/GpuResearchHierarchy.H": "Fluid-only research decoder; absent from thermal by user request on 2026-10-03.",
     "tools/managed_mirrors.json": "Package-specific thermal formal-only interface contract; fluid unchanged.",
     "applications/gasUGKP/tests/test_particle_cell_path_runtime_contract.py": "Package-specific thermal formal-only interface contract; fluid unchanged."
