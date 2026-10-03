@@ -1,5 +1,6 @@
 
 #pragma once
+#include "GpuPressureFlatLayout.cuh"
 template<bool FullMoments>
 struct ConstrainedPressureLaunch
 {
@@ -23,17 +24,17 @@ struct ConstrainedPressureLaunch
             accumulateCollisionalPressureKickByCellKernel<FullMoments><<<grid,block>>>
                 (s->deviceState,dt,0,0);
             cudaError_t err=cudaGetLastError();if(err!=cudaSuccess)return err;
-            launchFlatPressure<FullMoments>(s,s->deviceState,dt,1);
+            launchFlatPressure<FullMoments>(s,s->deviceState,dt,FlatPressureSegment::base);
             err=cudaGetLastError();if(err!=cudaSuccess)return err;
             if(s->nBoundarySources>0)
             {
-                launchFlatPressure<FullMoments>(s,s->deviceState,dt,2);
+                launchFlatPressure<FullMoments>(s,s->deviceState,dt,FlatPressureSegment::injection);
                 err=cudaGetLastError();if(err!=cudaSuccess)return err;
             }
             publishPressureParticleMomentsKernel<FullMoments><<<grid,block>>>(s->deviceState);
         }
-        else if(compact)launchFlatPressure<FullMoments,true>(s,s->deviceState,dt,0);
-        else launchFlatPressure<FullMoments>(s,s->deviceState,dt,0);
+        else if(compact)launchFlatPressure<FullMoments,true>(s,s->deviceState,dt,FlatPressureSegment::full);
+        else launchFlatPressure<FullMoments>(s,s->deviceState,dt,FlatPressureSegment::full);
 #else
         const size_t shared=(FullMoments?7u:4u)*static_cast<size_t>((threads+31)/32)*sizeof(PressureReal);
         // Read the limited faces directly. Base and injection share one closure,

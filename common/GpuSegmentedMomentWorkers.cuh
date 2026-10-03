@@ -2,6 +2,7 @@
 // Shared S2 task execution and reduction. Physical accumulation/copy hooks are
 // provided by GpuParticleMoments.cuh; application identity is not a policy.
 #include "CsrPersistentQueue.cuh"
+#include "GpuLaunchOptions.cuh"
 template<bool GatherSurvivors = false>
 struct CsrMomentOperation
 {
@@ -25,19 +26,7 @@ struct CsrMomentOperation
             {
                 if (s.csrCellTaskCount[c] == 1)
                 {
-                    s.cellParticleCount[c] = static_cast<int>(sums[7]);
-                    if (c == 0)
-                    {
-                        s.cellParticleCount[s.nCells] = 0;
-                    }
-                    const GPU_PIPELINE_REAL invV = GPU_PIPELINE_REAL(1.0)/clampMin(s.V[c], s.rhoMin);
-                    s.momRhoP[c] = sums[0]*invV;
-                    s.momRhoUPx[c] = sums[1]*invV;
-                    s.momRhoUPy[c] = sums[2]*invV;
-                    s.momRhoUPz[c] = sums[3]*invV;
-                    s.momRhoEP[c] = sums[4]*invV;
-                    s.momRhoPD[c] = sums[5]*invV;
-                    s.momRhoHpP[c] = sums[6]*invV;
+                    publishParticleMomentsCell(s, c, sums);
                 }
                 else
                 {
@@ -91,19 +80,7 @@ __device__ __forceinline__ void finalizeCsrMomentCell
         blockReduceComponentSums<8>(sums, warpPartials);
         if (threadIdx.x == 0)
         {
-            s.cellParticleCount[c] = static_cast<int>(sums[7]);
-            if (c == 0)
-            {
-                s.cellParticleCount[s.nCells] = 0;
-            }
-            const GPU_PIPELINE_REAL invV = GPU_PIPELINE_REAL(1.0)/clampMin(s.V[c], s.rhoMin);
-            s.momRhoP[c] = sums[0]*invV;
-            s.momRhoUPx[c] = sums[1]*invV;
-            s.momRhoUPy[c] = sums[2]*invV;
-            s.momRhoUPz[c] = sums[3]*invV;
-            s.momRhoEP[c] = sums[4]*invV;
-            s.momRhoPD[c] = sums[5]*invV;
-            s.momRhoHpP[c] = sums[6]*invV;
+            publishParticleMomentsCell(s, c, sums);
         }
 
 }
@@ -127,8 +104,11 @@ __global__ void finalizeCsrSegmentedMomentCellsKernel(DeviceState* sp)
     runCsrPersistentQueue(s, *s.csrHeavyCellCount, operation);
 }
 
-int launchCommonSegmentedMomentReduction(DeviceState* s, const int block, const bool gatherSurvivors, const bool deferRecovery)
+int launchCommonSegmentedMomentReduction
+(DeviceState* s, const int block, const SegmentedMomentOptions options)
 {
+    const bool gatherSurvivors = options.payload == MomentPayload::gatherSurvivors;
+    const bool deferRecovery = options.recovery == MomentRecovery::deferToAdvance;
     if (s->csrHeavyReductionEnabled == 0 || s->particleCapacity <= 0)
     {
         return 0;

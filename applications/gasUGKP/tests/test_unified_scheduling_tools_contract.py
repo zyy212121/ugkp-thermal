@@ -110,7 +110,7 @@ class UnifiedSchedulingToolsContract(unittest.TestCase):
             self.assertIsNotNone(advance, name)
             self.assertIn("tuneFixedWorkBlockThreads", advance.group("body"), name)
 
-    def test_l2_auto_has_interval_and_tool_b3(self) -> None:
+    def test_l2_retains_backend_tool_b3(self) -> None:
         shared = (ROOT / "common/GpuSchedulingConfiguration.H").read_text(
             encoding="utf-8"
         )
@@ -164,7 +164,7 @@ class UnifiedSchedulingToolsContract(unittest.TestCase):
                 self.assertNotRegex(particle_text, rf"\b{key}\b", str(case))
             self.assertRegex(
                 schedule_text,
-                r"(?m)^\s*gpuCsrLevel\s+(?:L0|L1|L2|auto)\s*;",
+                r"(?m)^\s*gpuCsrLevel\s+(?:L0|L1|L2)\s*;",
                 str(case),
             )
 

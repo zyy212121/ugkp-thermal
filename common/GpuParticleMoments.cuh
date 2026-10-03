@@ -1,6 +1,29 @@
 #pragma once
+#include "GpuMaterialEnthalpyMoment.cuh"
 // The caller supplies scalar and physical-model constants, never runtime policy.
 // Preserve native S1 initialization and L2 outputs while sharing one loop body.
+// The caller owns reduction and thread selection. Preserve count/sentinel order.
+template<class MomentReal>
+__device__ __forceinline__ void publishParticleMomentsCell
+(
+    DeviceState& s, const int c, const MomentReal (&sums)[8]
+)
+{
+    s.cellParticleCount[c] = static_cast<int>(sums[7]);
+    if (c == 0)
+    {
+        s.cellParticleCount[s.nCells] = 0;
+    }
+    const MomentReal invV = MomentReal(1.0)/clampMin(s.V[c], s.rhoMin);
+    s.momRhoP[c] = sums[0]*invV;
+    s.momRhoUPx[c] = sums[1]*invV;
+    s.momRhoUPy[c] = sums[2]*invV;
+    s.momRhoUPz[c] = sums[3]*invV;
+    s.momRhoEP[c] = sums[4]*invV;
+    s.momRhoPD[c] = sums[5]*invV;
+    s.momRhoHpP[c] = sums[6]*invV;
+}
+
 template<bool HeavyReductionEnabled, bool GatherSurvivors = false>
 __global__ void accumulateParticleMomentsSegmentedKernel(DeviceState* sp)
 {
@@ -31,19 +54,7 @@ __global__ void accumulateParticleMomentsSegmentedKernel(DeviceState* sp)
     blockReduceComponentSums<8>(sums, warpPartials);
     if (threadIdx.x == 0)
     {
-        s.cellParticleCount[c] = static_cast<int>(sums[7]);
-        if (c == 0)
-        {
-            s.cellParticleCount[s.nCells] = 0;
-        }
-        const GPU_MOMENT_REAL invV = GPU_MOMENT_R(1.0)/clampMin(s.V[c], s.rhoMin);
-        s.momRhoP[c] = sums[0]*invV;
-        s.momRhoUPx[c] = sums[1]*invV;
-        s.momRhoUPy[c] = sums[2]*invV;
-        s.momRhoUPz[c] = sums[3]*invV;
-        s.momRhoEP[c] = sums[4]*invV;
-        s.momRhoPD[c] = sums[5]*invV;
-        s.momRhoHpP[c] = sums[6]*invV;
+        publishParticleMomentsCell(s, c, sums);
     }
 }
 

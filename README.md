@@ -15,6 +15,86 @@ The package contains three maintained solvers:
 The three solvers share the numerical and physical implementations under
 `common/`.
 
+## Shared operator implementation
+
+The common device headers own collision-pool contributions, particle moment
+contributions and publication, reduction-task operations, particle copying and
+buffer commits, pressure update components, gas fluxes, and particle transport
+geometry. Scalar precision, material properties, contact constraints, and
+wall-energy exchange are compile-time capabilities.
+
+The independent source review found remaining duplication in host orchestration,
+directory construction, and some selection/pressure/drag adapters. The two
+packages maintain mirrored common files. Shared device bodies therefore do not
+establish one complete host pipeline or prove every execution strategy optimal.
+
+Full-cell collision-pool accumulation uses named scalar accumulators. The reduction array is formed after the particle traversal, preserving contribution order, reduction order, sampling, and random-number updates. Gas, FSH, and CHT instantiate this same operator through their existing field and scalar adapters.
+
+The particle field registry defines the payload copied during compaction and
+the buffers exchanged at commit. Thermal L1 and L2 use the same physical particle
+operations; L2 changes how heavy-cell reductions are divided among blocks.
+The scheduling tile is calculated from the current block size, GPU SM count,
+actual kernel residency, and directory population. Selecting L2 remains the
+user's responsibility; no case-specific occupancy coefficient is used.
+
+
+Tracking has a separate grid obtained from the compiled tracking kernel's
+occupancy, B2, SM count, and particle capacity. Changing the reduction hierarchy
+does not change this tracking grid. L1 and the single-task/multi-task L2 moment
+paths use one cell publication function while retaining their reduction order.
+Every nonempty cell has an explicit reduction task in the current L2 directory;
+heavy cells are subdivided. A static gas directory type does not mean ordinary
+cells are implicit or that the directory contains only heavy cells.
+
+The gas volume-fraction source uses the linear discrete update. For a uniform
+source without spatial gradients, the mass scaling is
+`1 + dt * cepsG`; with the existing discrete volume-fraction derivative this
+matches `epsG_old / epsG_new`. The source also applies the corresponding
+momentum and pressure-work terms.
+
+FSH and CHT retain their finite-contact and material-enthalpy capabilities.
+CHT additionally retains the exposed-wall-area correction, radiation, and
+FP64 wall-energy ledger required for bidirectional solid coupling. Cold-wall
+1D and 2D remain different physical discretizations. Shared 1D reduction,
+linear-system algebra, frozen-profile updates, and energy publication are
+maintained once; precision-specific stability strategies remain explicit.
+
+
+## Independent review and known limits (2026-10-03)
+
+See `DEVELOPMENT_LOG_20261003_ZH.md` for the source-review scope, exact timing
+protocol, and remaining maintenance work. Operator tests include tracking-grid
+invariance and the three real moment publication paths. Thermal applications
+also test contact detachment without leaking contact age into mechanical theta.
+These checks cover local contracts; they do not certify all coupled physics.
+
+The existing gas-particle heat update uses inconsistent finite/infinite bath
+exchange amounts. The original FSH/CHT constant-Cp witness has about 1.09% scaled
+closure error, and the error depends on timestep/loading. The current fixes
+leave that witness unchanged. It remains a conservation defect, outside a safe
+small patch; it is not reported as a passing physical validation. A robust fix
+needs a shared accepted heat amount, true material enthalpy, consistent limits,
+and separate gas/wall contributions for ordinary and cold-wall particles.
+
+## CUDA operator regression checks
+
+Run the operator checks against this checkout with CUDA available:
+
+```bash
+python3 tools/validate_shared_operators.py --output /tmp/ugkp-operator-checks
+```
+
+The command uses `CUDA_HOME` (default `/usr/local/cuda`) and
+`UGKWP_CUDA_ARCH` (default `sm_89`). It compiles and launches the actual
+operator implementations and
+checks discrete volume-fraction source balances, collision selection and
+pool totals, limited-pressure flux budgets, particle moments, indexing,
+geometry, and enabled thermal payload and finite-contact ledgers. Generated
+binaries and logs stay in the specified directory outside the source tree.
+Use `--app gasUGKP`, `--app FSH`, or `--app CHT` to restrict the applications
+when they are available in the checkout. These local checks complement
+full-case validation and performance measurements.
+
 ## Requirements
 
 The released version has been built and tested with:
@@ -180,7 +260,7 @@ hours or longer depending on the GPU.
 
 `MSS7_twoPhase_sparse` preserves the development-case parcel mass of
 `1e-9 kg` and uses L0 scheduling. `MSS7_twoPhase_dense` uses a parcel mass of
-`5e-11 kg` and L2 automatic scheduling with a 1000-step inspection interval.
+`5e-11 kg` and explicitly selected L2 scheduling.
 
 ## Cleaning generated case data
 
@@ -332,22 +412,17 @@ When it is zero, `coldWallWorkGrid` inherits `particleWorkGrid`, using the
 existing particle-capacity, block-size, and occupancy calculation. These
 cold-wall constants are compile-time settings, not `schedulingProperties` keys.
 
-`gpuCsrLevel` has four valid settings:
+`gpuCsrLevel` accepts only `L0`, `L1`, and `L2` in this thermal package:
 
 - `L0`: direct atomic reduction without a CP-CST particle-cell directory;
-- `L1`: CP-CST directory, warp aggregation, and split pre-transport
-  directory;
-- `L2`: L1 plus task segmentation and multi-block reduction for highly
-  occupied cells;
-- `auto`: retains the L1 directory and periodically determines whether L2
-  heavy-cell segmentation should be activated.
+- `L1`: CP-CST directory, warp aggregation, and split pre-transport directory;
+- `L2`: L1 plus task segmentation and multi-block reduction for highly occupied cells.
 
-Explicit `L2` (or research `S2`) is a user-selected execution mode. The
-application does not disable it based on an estimated speedup. Once enabled,
-task segmentation uses the current reduction block size, device SM count,
-kernel occupancy, and directory population to determine its adaptive tile
-size. This scheduling tile is not a profitability criterion for selecting L2.
-`auto` remains a separate, explicitly selected mode.
+The thermal parser rejects `gpuResearchVariant`, `auto`, and the former
+`gpuCsrHeavyReductionAutoInterval` setting. Choose one formal level explicitly.
+Explicit L2 is never disabled based on estimated speedup. Its adaptive task tile
+still uses the reduction block size, device SM count, kernel occupancy and
+directory population; the tile does not select a different level.
 
 ## Common numerical operators
 
@@ -364,6 +439,16 @@ application responsibilities; they do not switch into a gas application when
 an individual thermal term is inactive. Alternative reduction layouts remain
 explicit scheduling policies around the shared operation, without a runtime
 solver-name branch in the particle loop.
+
+## Layer names across packages
+
+This thermal package exposes only `gpuCsrLevel L0/L1/L2`. Their operator
+bundles correspond to standalone fluid research `L0/S1/S2`, respectively.
+The fluid package retains its five research levels `L0/L1/E1/S1/S2`
+(T1 is an existing alias of E1). Research L1 is not thermal L1.
+No research name or override is accepted by any thermal application, including
+thermal gasUGKP. This package-specific configuration header is excluded from
+cross-library mirroring; numerical operators remain shared and checked.
 
 ## GPU execution and retained optimizations
 
@@ -394,11 +479,11 @@ owner for stable compaction.
 | Heavy-cell collision-probability reuse | Gas L2 | A current-step probability is prepared only for multi-segment cells, after pressure preparation and state recovery, and reused by their segments. Ordinary cells compute it in their consuming worker. |
 | All-live gather fast path | Cell-local gas/thermal gather | When the existing count proves every source particle survives, gathering skips the filtering scan while copying the full payload. |
 | Segmented gather | Gas/FSH/CHT L2 | Independent ranges of heavily occupied all-live cells can be copied by multiple blocks. Filtered cells retain a single owner for stable compaction. |
-| Exact-survivor post-transport directory | Gas/FSH/CHT S1 and L2 | The post-transport directory contains exactly the particles kept by compaction, so its offsets identify final positions. Pre-transport and restart directories retain their original rules. |
-| Shared moment traversal and reduction | Gas/FSH/CHT S1 and L2 | One common implementation performs survivor validation, eight moment sums and block reduction. Precision, enthalpy and wall-state physics use compile-time adapters. No runtime model dispatch is added. |
-| Moment/gather fusion | Gas/FSH S1 and L2 | The same moment traversal copies each surviving particle to its final position. Pressure updates the compact fields before commit; FSH copies every thermal/contact field and publishes each wall-bound index once. |
-| Survivor-directory reuse | CHT S1/L2 | The full thermal-payload kernel directly reads the exact source directory after pressure. No separate index-gather pass or redundant source-index writes are needed. |
-| Shared particle-field copy | Gas/FSH/CHT | Primary fields and thermal/contact extensions use a shared copy implementation. A compile-time copy-placement policy is independent of S1/L2: Gas/FSH copy during moment traversal; CHT retains a global parallel payload copy after pressure. The field-copy body is maintained once and copies every enabled field exactly once. |
+| Exact-survivor post-transport directory | Thermal gasUGKP/FSH/CHT L1/L2 | The post-transport directory contains exactly the particles kept by compaction, so its offsets identify final positions. Pre-transport and restart directories retain their original rules. |
+| Shared moment traversal and reduction | Thermal gasUGKP/FSH/CHT L1/L2 | One common implementation performs survivor validation, eight moment sums and block reduction. Precision, enthalpy and wall-state physics use compile-time adapters. No runtime model dispatch is added. |
+| Moment/gather fusion | Thermal gasUGKP/FSH L1/L2 | The same moment traversal copies each surviving particle to its final position. Pressure updates the compact fields before commit; FSH copies every thermal/contact field and publishes each wall-bound index once. |
+| Survivor-directory reuse | CHT L1/L2 | The full thermal-payload kernel directly reads the exact source directory after pressure. No separate index-gather pass or redundant source-index writes are needed. |
+| Shared particle-field copy | Gas/FSH/CHT | Primary fields and thermal/contact extensions use a shared copy implementation. A compile-time copy-placement policy is independent of the selected layer: Gas/FSH copy during moment traversal; CHT retains a global parallel payload copy after pressure. The field-copy body is maintained once and copies every enabled field exactly once. |
 | Shared scheduler, gather, and thermal workers | Gas/FSH/CHT | Common execution code preserves solver-specific particle and wall-contact fields. |
 | Shared pressure projection | Gas/FSH/CHT | One cell traversal and mobile-particle update use the limited face flux. Thermal adapters enforce stuck/deposited states and close moments from the constrained particle state. FP32 flat scheduling uses the same pressure-parameter equations. |
 
@@ -537,9 +622,9 @@ case's `draw.py` after the corresponding simulation has completed.
 
 ## Common particle-kernel interfaces
 
-`common/GpuMomentPipeline.cuh` owns the post-transport S1/L2 moment and recovery sequence. `common/GpuPressurePipeline.cuh` owns the pressure launch protocol; cell traversal, pressure parameters and mobile-particle updates are shared device implementations. Thermal adapters preserve contact state, enthalpy, and constrained moment closure. These are compile-time interfaces, with no runtime application selection.
+`common/GpuMomentPipeline.cuh` owns the post-transport moment and recovery sequence for thermal gasUGKP/FSH/CHT L1/L2 (fluid research S1/S2). `common/GpuPressurePipeline.cuh` owns the pressure launch protocol; cell traversal, pressure parameters and mobile-particle updates are shared device implementations. Thermal adapters preserve contact state, enthalpy, and constrained moment closure. These are compile-time interfaces, with no runtime application selection.
 
-Within each application, S1 and L2 use the same payload placement and physical operations; L2 partitions heavy-cell reductions. Across applications, payload launch sequences need not be identical: CHT keeps its global parallel copy for wide thermal fields, while Gas/FSH fuse copying into moment traversal. Pressure receives the matching original or compact storage view.
+Within each thermal application, L1/L2 use the same payload placement and physical operations; L2 partitions heavy-cell reductions. Across applications, payload launch sequences need not be identical: CHT keeps its global parallel copy for wide thermal fields, while Gas/FSH fuse copying into moment traversal. Pressure receives the matching original or compact storage view.
 
 The CUDA regression suite checks limited-face local momentum balance, particle/cell moment consistency, conserved totals in a closed two-cell test, survivor indexing, and preservation of enabled thermal/contact fields.
 
@@ -586,3 +671,11 @@ gpuResidentMaxFaceWalkHops 512;
 ```
 
 The library default is 32. Increase this limit for trajectories that cross or reflect from many faces in one time step, such as passages near a narrow wedge axis. This limit counts all face-walk events, not only physical wall impacts.
+
+
+公共算子的维护所有权、字段注册、构建检查及 CUDA 调度契约见 [双库公共算子维护](docs/OPERATOR_MAINTENANCE_ZH.md)。
+
+
+### 公共算子维护入口（2026-10-03 收口）
+
+gas、FSH、CHT 的公共算子核及主机流程由 `common/` 维护。公共文件上游为 `ugkp-thermal/common`；gas 应用入口上游为独立 gas 库。修改公共实现后运行 `python3 tools/managed_mirrors.py --sync`，按登记归属同步双库；构建前检查会拒绝镜像漂移。无需分别移植三套核心实现。各应用的能力/精度适配仍需各自验证。工程结论与十对 k1/k2 结果见 [本轮结果](docs/OPERATOR_CONSOLIDATION_R2_RESULTS_ZH.md)，维护契约见 [维护说明](docs/OPERATOR_MAINTENANCE_ZH.md)。

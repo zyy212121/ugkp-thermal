@@ -23,7 +23,9 @@ int launchPostTransportMomentPipeline(DeviceState* s, const int particleGrid, co
                 8u*static_cast<size_t>(warpCount)*sizeof(GPU_PIPELINE_REAL);
             if (s->csrHeavyReductionEnabled != 0)
             {
-                if (launchCommonSegmentedMomentReduction(s, block, postTransportFusePayload, true) != 0)
+                if (launchCommonSegmentedMomentReduction(s, block,
+                    {postTransportFusePayload ? MomentPayload::gatherSurvivors : MomentPayload::momentsOnly,
+                     MomentRecovery::deferToAdvance}) != 0)
                 {
                     return 1;
                 }

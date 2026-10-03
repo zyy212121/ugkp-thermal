@@ -226,8 +226,6 @@ __device__ void trackOneParticleLocalFaceWalk(DeviceState& s, const int i, const
 #endif
         else
         {
-            const GPU_OPERATOR_REAL exitMass =
-                clampMin(finiteOr(s.pm[i], GPU_PARTICLE_EXIT_MASS_FALLBACK), GPU_OPERATOR_R(0.0));
             s.pStatus[i] = 0;
             return;
         }

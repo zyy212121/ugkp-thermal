@@ -1,4 +1,5 @@
 #pragma once
+#include "GpuPoolMomentOperations.cuh"
 #include "CsrPersistentQueue.cuh"
 // Common pool queue operation, partial publication, finalization and launch protocol.
 template<bool PoissonMode
@@ -22,9 +23,7 @@ struct CsrPoolOperation
                 ? s.poissonCellCollisionProbability[current->cell]
                 : poissonCollisionProbabilityForCell(s, current->cell, dt);
 #else
-            const GPU_OPERATOR_REAL tau = granularCollisionTauFromCellDevice(s, current->cell);
-            *probability = (!(tau < GPU_OPERATOR_R(0.5)*OfGreat) || tau <= OfSmall)
-              ? GPU_OPERATOR_R(0.0) : clampRange(GPU_OPERATOR_R(1.0)-exp(-dt/tau), GPU_OPERATOR_R(0.0), GPU_OPERATOR_R(1.0));
+            *probability = poissonCollisionProbabilityForCell(s, current->cell, dt);
 #endif
         }
         else *probability = GPU_OPERATOR_R(1.0);
@@ -39,15 +38,7 @@ struct CsrPoolOperation
             {
                 if (threadIdx.x == 0 && s.csrCellTaskCount[c] > 1)
                 {
-                    #pragma unroll
-                    for (int component = 0; component < 8; ++component)
-                    {
-                        s.csrHeavyPartials
-                        [
-                            8u*static_cast<size_t>(task)
-                          + static_cast<size_t>(component)
-                        ] = GPU_OPERATOR_R(0.0);
-                    }
+                    zeroPoolPartial(s, task);
                 }
                 return;
             }
@@ -78,27 +69,12 @@ struct CsrPoolOperation
             {
                 if (s.csrCellTaskCount[c] == 1)
                 {
-                    s.poissonPoolMass[c] = sums[0];
-                    s.poissonPoolMomX[c] = sums[1];
-                    s.poissonPoolMomY[c] = sums[2];
-                    s.poissonPoolMomZ[c] = sums[3];
-                    s.poissonPoolEnergy[c] = sums[4];
-                    s.poissonPoolDiameter[c] = sums[5];
-                    s.poissonPoolDiameter2[c] = sums[6];
-                    s.poolThermalCount[c] = static_cast<int>(sums[7]);
+                    publishPoolCell<false>(s, c, sums);
                     GPU_POOL_SAMPLING_READY(s, c)
                 }
                 else
                 {
-                    #pragma unroll
-                    for (int component = 0; component < 8; ++component)
-                    {
-                        s.csrHeavyPartials
-                        [
-                            8u*static_cast<size_t>(task)
-                          + static_cast<size_t>(component)
-                        ] = sums[component];
-                    }
+                    publishPoolPartial(s, task, sums);
                 }
             }
 
@@ -152,17 +128,10 @@ struct CsrPoolFinalizeOperation
                 ];
             }
         }
-        blockReduceComponentSums<8>(sums, warpPartials);
+        reducePoolMoments<PoolReductionTopology::warpComponents>(sums, warpPartials);
         if (threadIdx.x == 0)
         {
-            s.poissonPoolMass[c] = sums[0];
-            s.poissonPoolMomX[c] = sums[1];
-            s.poissonPoolMomY[c] = sums[2];
-            s.poissonPoolMomZ[c] = sums[3];
-            s.poissonPoolEnergy[c] = sums[4];
-            s.poissonPoolDiameter[c] = sums[5];
-            s.poissonPoolDiameter2[c] = sums[6];
-            s.poolThermalCount[c] = static_cast<int>(sums[7]);
+            publishPoolCell<false>(s, c, sums);
                     GPU_POOL_SAMPLING_READY(s, c)
         }
 

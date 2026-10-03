@@ -659,6 +659,24 @@ bool handleConfigureParticleStuckModel
     return responseHeader(fd, rc, 0);
 }
 
+bool handleSavedVelocity(const int fd,const RequestHeader& request,ServerState& s,bool upload)
+{
+    CountArgs a{};
+    if (request.payloadBytes<sizeof(a) || !readObject(fd,a)) return false;
+    if (!validCount(a.count,s.particleCapacity)) return protocolError(fd,"invalid saved velocity count");
+    std::uint64_t expected=sizeof(a);
+    if (upload && !addArrays(expected,a.count,sizeof(double),3)) return false;
+    if (!validatePayload(fd,request,expected)) return false;
+    std::vector<double> x(a.count),y(a.count),z(a.count);
+    if (upload && (!readVector(fd,x,a.count) || !readVector(fd,y,a.count) || !readVector(fd,z,a.count))) return false;
+    const int rc=upload
+        ? ugkwpGpuResidentStrictUploadParticleSavedVelocity(s.backend,a.count,ptr(x),ptr(y),ptr(z))
+        : ugkwpGpuResidentStrictDownloadParticleSavedVelocity(s.backend,a.count,ptr(x),ptr(y),ptr(z));
+    if (rc!=0 || upload) return responseHeader(fd,rc,0);
+    std::uint64_t bytes=0;if (!addArrays(bytes,a.count,sizeof(double),3)) return false;
+    return responseHeader(fd,0,bytes) && writeVector(fd,x) && writeVector(fd,y) && writeVector(fd,z);
+}
+
 bool handleUploadParticles
 (
     const int fd,const RequestHeader& request,ServerState& s
@@ -865,6 +883,8 @@ bool dispatch
         case Op::advanceGasOnly:return handleGasOnly(fd,request,s);
         case Op::downloadFields:return handleDownloadFields(fd,request,s);
         case Op::downloadGasBoundaryFields:return handleDownloadGasBoundary(fd,request,s);
+        case Op::uploadParticleSavedVelocity: return handleSavedVelocity(fd,request,s,true);
+        case Op::downloadParticleSavedVelocity: return handleSavedVelocity(fd,request,s,false);
         case Op::uploadParticleRestartMirror:return handleUploadParticles(fd,request,s);
         case Op::downloadParticleRestartMirror:return handleDownloadParticles(fd,request,s);
         case Op::downloadEpsGPrev:return handleDownloadEpsGPrev(fd,request,s);

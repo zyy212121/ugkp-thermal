@@ -1,4 +1,5 @@
 #pragma once
+#include "GpuParticleGasHeatRelaxation.cuh"
 // Shared thermal relaxation; preserve native ordering of independent loads and stuck-state writes.
 template<class DragModel>
 __device__ void relaxOneParticleToResidentGas
@@ -110,11 +111,7 @@ __device__ void relaxOneParticleToResidentGas
                                                                   
     if (!finiteContact)
     {
-        const GPU_OPERATOR_REAL alphaTheta =
-            clampRange(finiteOr(s.thetaDragAlpha[c], GPU_OPERATOR_R(1.0)), GPU_OPERATOR_R(0.0), GPU_OPERATOR_R(1.0));
-        const GPU_OPERATOR_REAL unresolvedTheta =
-            clampMin(finiteOr(s.pTheta[i], GPU_OPERATOR_R(0.0)), GPU_OPERATOR_R(0.0));
-        s.pTheta[i] = unresolvedTheta*alphaTheta;
+        decayParticleUnresolvedTheta(s, i, c);
     }
     }
 #if !GPU_THERMAL_RELAX_NATIVE_ORDER
@@ -134,31 +131,12 @@ __device__ void relaxOneParticleToResidentGas
      && !coldWallContact
     )
     {
-        const GPU_OPERATOR_REAL gasConductivity = molecularGasConductivity(s);
-        const GPU_OPERATOR_REAL nu = ugkwp::ranzMarshallNuFromPrOneThird
-        (
-            clampMin(re, GPU_OPERATOR_R(0.0)),
-            s.gasPrOneThird
-        );
         const GPU_OPERATOR_REAL tpOld = clampRange(s.pT[i], s.TpMin, s.TpMax);
         const GPU_OPERATOR_REAL particleCp = particleSpecificHeatDevice(tpOld);
-        const GPU_OPERATOR_REAL rate =
-            GPU_OPERATOR_R(6.0)*nu*gasConductivity
-           /(s.rhoSolid*particleCp*dPart*dPart + GPU_OPERATOR_TINY(1.0e-300));
-        const GPU_OPERATOR_REAL decay = exp(-clampMin(rate, GPU_OPERATOR_R(0.0))*dt);
         const GPU_OPERATOR_REAL gasTemperatureK = clampRange
-        (
-            finiteOr(s.couplingTgasOld[c], s.TgasMin),
-            s.TgasMin,
-            GPU_OPERATOR_R(1.0e30)
-        );
-        const GPU_OPERATOR_REAL tpNew = clampRange
-        (
-            gasTemperatureK + (tpOld - gasTemperatureK)*decay,
-            s.TpMin,
-            s.TpMax
-        );
-        s.pT[i] = tpNew;
+            (finiteOr(s.couplingTgasOld[c], s.TgasMin), s.TgasMin, GPU_OPERATOR_R(1.0e30));
+        s.pT[i] = particleTemperatureAfterGasRelaxation
+            (s, tpOld, gasTemperatureK, re, dPart, s.rhoSolid*particleCp, dt);
     }
 
 #if GPU_THERMAL_RELAX_NATIVE_ORDER
@@ -170,7 +148,10 @@ __device__ void relaxOneParticleToResidentGas
     }
 
 #endif
+    if (finiteContact)
+    {
 #include "operators/FiniteContactRelaxation.inl"
+    }
     else if
     (
         wallStateAtStepStart == Foam::gpuThermal::particleWallDeposited

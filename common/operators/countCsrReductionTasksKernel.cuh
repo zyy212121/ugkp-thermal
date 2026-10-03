@@ -6,8 +6,3 @@
 
 #include "GpuReductionTaskMaterialize.cuh"
 
-__global__ void publishCsrReductionTaskCountKernel(DeviceState* sp)
-{
-    DeviceState& s = *sp;
-    *s.csrHeavyTaskCount = s.csrCellTaskOffset[s.nCells];
-}

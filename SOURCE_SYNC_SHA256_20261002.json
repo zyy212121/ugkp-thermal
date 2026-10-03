@@ -1,0 +1,11 @@
+{
+  "scope": "source, operators, tests, tools and scripts selected by backup_ugkp_two_libraries_20261002.py; excludes cases, results, build and Git metadata",
+  "library": "ugkp-thermal",
+  "candidate_selected_files": 542,
+  "candidate_source_manifest_sha256": "fe9bf538ce5dad6181cdcde4a2d1fd422c3dd9aa27f7101db5583a1129740101",
+  "promotion_audit_sha256": "a64f0d88c46e7bcf5eca229c528aceb9a1cfc5297f622f26049c3ae13a84f90d",
+  "prepromotion_E_backup_manifest_sha256": "e1304ffbd27926bde57ab9d8a212b4b112b31e62f0047e0e7fa3d158b7631f89",
+  "GpuCollisionPoolParticle_cuh_sha256": "2eaa2bdb20ce0f7a535c65a3c33b80c40975fbeb8a7cc8af86e86e38a1a5e6cc",
+  "GpuCollisionPoolAtomic_cuh_sha256": "2549e2e06f7967a200f043d61e9541d0edff3822a6601dd46178c16f0dbf416d",
+  "verification": "promote_source_only.py verify: add 0, remove 0, change 0"
+}

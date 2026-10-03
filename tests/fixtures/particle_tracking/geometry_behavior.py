@@ -13,11 +13,14 @@ prefix=r"""
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <cfloat>
+#define __forceinline__ inline
 #define __device__
 #include "PRECISION"
 #define GPU_OPERATOR_REAL GpuReal
 #define GPU_OPERATOR_TIME GpuTime
 #define GPU_OPERATOR_R(x) GPU_R(x)
+#define GPU_OPERATOR_TINY(x) GPU_TINY(x)
 #define GPU_OPERATOR_THERMAL 0
 #define GPU_PERIODIC_FACE_KIND 6
 #define GPU_PARTICLE_EXIT_MASS_FALLBACK s.injectionParcelMass
@@ -72,12 +75,11 @@ for app,bits in [('gas',64),('FSH',64),('CHT',64),('CHT',32)]:
  boundary_body=header[left+1:right]
  if (ROOT/'common/GpuParticleBoundaryModel.H').exists():pfx+='\n#include "'+str(ROOT/'common/GpuParticleBoundaryModel.H')+'"\nusing namespace Foam;\n'
  pfx+='\nGpuReal wedgeRestitution(){ int kind=-1; GpuReal restitution=GPU_R(-1); '+boundary_body+' return restitution; }\n'
- if app in ['gas','FSH']:geometry=(ROOT/'common/operators/pointInsideCell.cuh').read_text()
- else:
-  source=(ROOT/'applications/CHT/gpu/GpuResidentStrict.cu').read_text();geometry='\n'.join(func(source,n) for n in ['facePlaneDistance','faceClassificationTolerance','insideFaceCoordinate','pointInsideCell','mostViolatedPlane','firstSegmentIntersection'])
-  pfx+='\n#undef GPU_WALL_COORDINATE\n#define GPU_WALL_COORDINATE(hit,eps,normal) insideFaceCoordinate(hit,normal,eps)\n'
+ pfx+='\n#define GPU_GEOMETRY_ROUNDING_AWARE '+('1' if app=='CHT' and bits==32 else '0')+'\n'
+ geometry='#include "'+str(ROOT/'common/operators/pointInsideCell.cuh')+'"\n'
+ if app=='CHT':pfx+='\n#undef GPU_WALL_COORDINATE\n#define GPU_WALL_COORDINATE(hit,eps,normal) insideFaceCoordinate(hit,normal,eps)\n'
  cpp=OUT/f'{app}{bits}.cpp';exe=OUT/f'{app}{bits}';cpp.write_text(pfx+'\n'+geometry+'\n'+(ROOT/'common/GpuParticleTransport.cuh').read_text()+'\n'+main)
- q=subprocess.run(['g++','-std=c++17','-O2','-ffp-contract=off','-DUGKWP_GPU_REAL_BITS='+str(bits),str(cpp),'-o',str(exe)],capture_output=True,text=True);assert q.returncode==0,q.stderr
+ q=subprocess.run(['g++','-std=c++17','-O2','-ffp-contract=off','-DUGKWP_GPU_REAL_BITS='+str(bits),'-I'+str(ROOT/'common'),str(cpp),'-o',str(exe)],capture_output=True,text=True);assert q.returncode==0,q.stderr
  for mode in ['axis','planar','outflow']:
   q=subprocess.run([str(exe),mode],capture_output=True,text=True);r={'app':app,'bits':bits,'mode':mode,'returncode':q.returncode,'stdout':q.stdout,'stderr':q.stderr};results.append(r);print(r,flush=True)
 (OUT/'results.json').write_text(json.dumps(results,indent=2));sys.exit(int(any(x['returncode'] for x in results)))

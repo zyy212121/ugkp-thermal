@@ -1,3 +1,5 @@
+// Inputs: s, i, c, dt, invTauDrag, ugx/ugy/ugz, ux/uy/uz; arithmetic helpers and GPU_OPERATOR_* adapters.
+// Outputs: s.pux/puy/puz[i]. Nonfinite updated velocity traps. No return or enclosing control-flow fragment.
 // Exponential particle momentum integration; caller owns its physical eligibility.
 const GPU_OPERATOR_REAL xDrag = dt*clampMin(invTauDrag, GPU_OPERATOR_R(0.0));
         const GPU_OPERATOR_REAL alpha = exp(-xDrag);

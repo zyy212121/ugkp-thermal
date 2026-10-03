@@ -9,16 +9,14 @@ def test_thermal_worker_routing_and_physics_are_preserved():
         assert "particleTemperatureFromSpecificEnthalpyDevice" in source
         assert "cub::DeviceScan::ExclusiveSum" in source
 def test_thermal_workers_share_physics_and_queue_without_solver_policy():
-    pool = (ROOT / "gpu/thermal/CsrSegmentedPoolWorkers.cuh").read_text()
-    assert pool.count("void executeCsrSegmentedPoolTask") == 1
-    assert pool.count("executeCsrSegmentedPoolTask<PoissonMode>") == 1
     for stage in ("Pool", "Moment"):
-        code = (ROOT / "gpu/thermal" / ("CsrSegmented" + stage + "Workers.cuh")).read_text()
-        if stage == 'Moment':
-            assert '#include "GpuSegmentedMomentWorkers.cuh"' in code
-            code = (ROOT / 'common/GpuSegmentedMomentWorkers.cuh').read_text()
+        adapter = (ROOT / "gpu/thermal" / ("CsrSegmented" + stage + "Workers.cuh")).read_text()
+        assert '#include "GpuSegmented' + stage + 'Workers.cuh"' in adapter
+        code = (ROOT / 'common' / ('GpuSegmented' + stage + 'Workers.cuh')).read_text()
         assert '#include "CsrPersistentQueue.cuh"' in code
         assert "runCsrPersistentQueue" in code
+        assert code.count('struct Csr' + stage + 'Operation') == 1
+        assert 'directThermalPoolDispatch' not in code
     for branch, folder in [("FSH", "private_backend"), ("CHT", "gpu")]:
         source = (ROOT / "applications" / branch / folder / "GpuResidentStrict.cu").read_text()
         assert "directThermalPoolDispatch" not in source

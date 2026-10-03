@@ -36,7 +36,6 @@ class ParticleCellPathRuntimeContract(unittest.TestCase):
         cuda = source("private_backend/GpuResidentStrict.cu")
 
         self.assertIn("GpuCsrLevel::L2", shared)
-        self.assertIn("GpuCsrLevel::automatic", shared)
         for text in (client, server, cuda):
             self.assertIn("csrCellLocalPathEnabled", text)
             self.assertIn("csrHeavyReductionMode", text)

@@ -1,10 +1,14 @@
 #pragma once
+#include "GpuMaterialEnthalpyMoment.cuh"
 // One operator implementation; scalar/time adapters are compile-time only.
 __global__ void accumulateParticleMomentsAtomicKernel(DeviceState* sp)
 {
     DeviceState& s = *sp;
     const int nParticles =
         clampRange(*s.particleCountDevice, 0, s.particleCapacity);
+#if !GPU_OPERATOR_THERMAL
+    const GPU_OPERATOR_REAL heatFactor = particleHeatFactorDevice(s);
+#endif
     for
     (
         int i = blockIdx.x*blockDim.x + threadIdx.x;
@@ -21,19 +25,13 @@ __global__ void accumulateParticleMomentsAtomicKernel(DeviceState* sp)
         {
             continue;
         }
-        const GPU_OPERATOR_REAL m = clampMin(finiteOr(s.pm[i], GPU_OPERATOR_R(0.0)), GPU_OPERATOR_R(0.0));
-        const GPU_OPERATOR_REAL ux = finiteOr(s.pux[i], GPU_OPERATOR_R(0.0));
-        const GPU_OPERATOR_REAL uy = finiteOr(s.puy[i], GPU_OPERATOR_R(0.0));
-        const GPU_OPERATOR_REAL uz = finiteOr(s.puz[i], GPU_OPERATOR_R(0.0));
-        const GPU_OPERATOR_REAL theta = particleMomentThetaDevice(s, i);
-        const GPU_OPERATOR_REAL d =
-            clampMin
-            (
-                finiteOr(s.pd[i], s.particleDiameterFallback),
-                GPU_OPERATOR_R(1.0e-12)
-            );
-        const GPU_OPERATOR_REAL tp =
-            clampRange(finiteOr(s.pT[i], s.TpMin), s.TpMin, s.TpMax);
+#define GPU_MOMENT_REAL GPU_OPERATOR_REAL
+#define GPU_MOMENT_R(x) GPU_OPERATOR_R(x)
+#define GPU_MOMENT_THERMAL GPU_OPERATOR_THERMAL
+#include "GpuParticleMomentContribution.inl"
+#undef GPU_MOMENT_THERMAL
+#undef GPU_MOMENT_R
+#undef GPU_MOMENT_REAL
         atomicAdd(&s.momRhoP[c], m);
         atomicAdd(&s.momRhoUPx[c], m*ux);
         atomicAdd(&s.momRhoUPy[c], m*uy);
@@ -41,10 +39,14 @@ __global__ void accumulateParticleMomentsAtomicKernel(DeviceState* sp)
         atomicAdd
         (
             &s.momRhoEP[c],
-            m*(GPU_OPERATOR_R(0.5)*sqr3(ux, uy, uz) + GPU_OPERATOR_R(1.5)*theta)
+            particleEnergy
         );
         atomicAdd(&s.momRhoPD[c], m*d);
-        atomicAdd(&s.momRhoHpP[c], m*particleSpecificEnthalpyDevice(tp));
+#if GPU_OPERATOR_THERMAL
+        atomicAdd(&s.momRhoHpP[c], particleHeat);
+#else
+        if (heatFactor > GPU_OPERATOR_R(0.0)) atomicAdd(&s.momRhoHpP[c], particleHeat);
+#endif
         atomicAdd(&s.cellParticleCount[c], 1);
     }
 }

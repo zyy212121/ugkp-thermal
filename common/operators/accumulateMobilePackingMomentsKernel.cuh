@@ -22,11 +22,13 @@ __global__ void accumulateMobilePackingMomentsKernel(DeviceState* sp)
             continue;
         }
         const GPU_OPERATOR_REAL m = clampMin(finiteOr(s.pm[i], GPU_OPERATOR_R(0.0)), GPU_OPERATOR_R(0.0));
+#if GPU_OPERATOR_THERMAL
         if (s.pStuck[i] != 0)
         {
             atomicAdd(&s.packingStuckRho[c], m);
             continue;
         }
+#endif
         const GPU_OPERATOR_REAL ux = GPU_OPERATOR_R(0.5)*
         (
             finiteOr(s.puxOld[i], s.pux[i]) + finiteOr(s.pux[i], GPU_OPERATOR_R(0.0))

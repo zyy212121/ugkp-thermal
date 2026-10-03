@@ -1,4 +1,5 @@
 #pragma once
+#include "GpuCellNeighbour.cuh"
 // One operator implementation; scalar/time adapters are compile-time only.
 __global__ void computeGasGradientLimiterKernel(DeviceState* sp)
 {
@@ -39,7 +40,7 @@ __global__ void computeGasGradientLimiterKernel(DeviceState* sp)
         {
             const int own = s.faceOwner[f];
             const int nei = s.faceNeighbour[f];
-            const int other = isPeriodicFace(s, f) ? nei : (c == own ? nei : own);
+            const int other = oppositeCellAcrossFace(c, own, nei);
             qf = makeGasPrimDevice
             (
                 s.rho[other],

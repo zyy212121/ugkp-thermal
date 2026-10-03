@@ -39,6 +39,7 @@ __global__ void recoverPrimitivesKernel(DeviceState* sp)
     }
     dMean = clampMin(dMean, GPU_OPERATOR_R(1.0e-12));
 
+#if GPU_OPERATOR_THERMAL
     if (s.solveParticleTemperature != 0)
     {
         const GPU_OPERATOR_REAL specificEnthalpy =
@@ -58,6 +59,21 @@ __global__ void recoverPrimitivesKernel(DeviceState* sp)
         s.rhoHp[c] = GPU_OPERATOR_R(0.0);
     }
 
+#else
+    const GPU_OPERATOR_REAL heatFactor = particleHeatFactorDevice(s);
+    if (heatFactor > GPU_OPERATOR_R(0.0))
+    {
+        GPU_OPERATOR_REAL Tp = finiteOr(s.rhoHp[c]/(solidMass*heatFactor), s.TpMin);
+        Tp = clampRange(Tp, s.TpMin, s.TpMax);
+        s.Tp[c] = Tp;
+        s.rhoHp[c] = solidMass*heatFactor*Tp;
+    }
+    else
+    {
+        s.Tp[c] = s.TpMin;
+        s.rhoHp[c] = GPU_OPERATOR_R(0.0);
+    }
+#endif
     s.epsS[c] = eps;
     s.Usx[c] = usx;
     s.Usy[c] = usy;
@@ -76,7 +92,12 @@ __global__ void initialiseParticleMaterialEnthalpyKernel(DeviceState* sp)
     }
 
     const GPU_OPERATOR_REAL eps = clampMin(s.epsS[c], GPU_OPERATOR_R(0.0));
+#if !GPU_OPERATOR_THERMAL
+    const GPU_OPERATOR_REAL cap = eps*s.particleThermalRho*s.particleCp;
+    if (eps <= s.epsSMin || cap <= s.rhoMin)
+#else
     if (eps <= s.epsSMin)
+#endif
     {
         s.Tp[c] = s.TpMin;
         s.rhoHp[c] = GPU_OPERATOR_R(0.0);
@@ -84,6 +105,9 @@ __global__ void initialiseParticleMaterialEnthalpyKernel(DeviceState* sp)
     }
 
     s.Tp[c] = clampRange(s.Tp[c], s.TpMin, s.TpMax);
-    s.rhoHp[c] =
-        eps*s.rhoSolid*particleSpecificEnthalpyDevice(s.Tp[c]);
+#if GPU_OPERATOR_THERMAL
+    s.rhoHp[c] = eps*s.rhoSolid*particleSpecificEnthalpyDevice(s.Tp[c]);
+#else
+    s.rhoHp[c] = cap*s.Tp[c];
+#endif
 }

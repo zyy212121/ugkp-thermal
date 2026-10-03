@@ -13,7 +13,9 @@ def test_cold_wall_default_inherits_particle_grid(tmp_path):
     while depth:
         depth += (source[end] == '{') - (source[end] == '}')
         end += 1
-    function = source[start:end]
+    configuration = source[start:end]
+    helper = (ROOT / 'common/GpuParticleLaunchConfiguration.cuh').read_text()
+    function = helper.replace('#pragma once', '') + '\n' + configuration
     fields = sorted(set(re.findall(r's->(\w+)', function)))
     fields.remove('deviceState') if 'deviceState' in fields else None
     for override in [0, 48]:
@@ -30,6 +32,8 @@ struct DeviceState {
 """ + ''.join(' int '+name+'=0;\n' for name in fields) + r"""
 };
 template<bool GatherSurvivors> int accumulateCsrSegmentedMomentTasksPersistentKernel=0;
+int trackParticlesLocalFaceWalkKernel=0;
+template<bool SkipDead, bool Survivors> int countParticlesByCellKernel=0;
 int accumulatePoissonPoolParticlesByCellKernel=0;
 template<bool Heavy, bool Gather=false> int accumulateParticleMomentsSegmentedKernel=0;
 int completeMobilePackingProjectionCooperativeKernel=0;

@@ -1,28 +1,29 @@
 #pragma once
+#include "GpuParticleFields.cuh"
+#ifdef GPU_PARTICLE_EXTRA_FIELDS
+using ParticleFieldExtension = GPU_PARTICLE_EXTRA_FIELDS;
+#else
+struct ParticleFieldExtension
+{
+    template<class State>
+    static __host__ __device__ __forceinline__ void swap(State&) {}
+};
+#endif
 // Shared primary fields with optional compile-time thermal extension.
 __device__ __forceinline__ void copyCellLocalParticle
 (DeviceState& s, const int i, const int c, const int dst)
 {
-            s.compactPx[dst] = s.px[i];
-            s.compactPy[dst] = s.py[i];
-            s.compactPz[dst] = s.pz[i];
-            s.compactPux[dst] = s.pux[i];
-            s.compactPuy[dst] = s.puy[i];
-            s.compactPuz[dst] = s.puz[i];
-            s.compactPT[dst] = s.pT[i];
-            s.compactPTheta[dst] = s.pTheta[i];
+#define GPU_COPY_SCALAR(src, dest, value) s.dest[dst] = value;
+    GPU_PARTICLE_FIELDS_PRIMARY_BEFORE_CONTACT(GPU_COPY_SCALAR)
 #ifdef GPU_PARTICLE_EXTRA_FIELDS
     GPU_PARTICLE_EXTRA_FIELDS::copyContactAge(s, i, dst);
 #endif
-            s.compactPd[dst] = s.pd[i];
-            s.compactPm[dst] = s.pm[i];
-            s.compactPCellId[dst] = c;
-            s.compactPStatus[dst] = 1;
-        #ifdef GPU_PARTICLE_EXTRA_FIELDS
+    GPU_PARTICLE_FIELDS_PRIMARY_AFTER_CONTACT(GPU_COPY_SCALAR)
+#ifdef GPU_PARTICLE_EXTRA_FIELDS
     GPU_PARTICLE_EXTRA_FIELDS::copy(s, i, dst);
 #endif
-    s.compactPRng[dst] = s.pRng[i];
-            s.compactPOrigId[dst] = s.pOrigId[i];
+    GPU_PARTICLE_FIELDS_IDENTITY(GPU_COPY_SCALAR)
+#undef GPU_COPY_SCALAR
 #ifdef GPU_PARTICLE_EXTRA_FIELDS
     GPU_PARTICLE_EXTRA_FIELDS::publish(s, dst);
 #endif

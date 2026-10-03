@@ -1,6 +1,8 @@
 #pragma once
+#include "GpuWallEnergySink.cuh"
+
 // One operator implementation; scalar/time adapters are compile-time only.
-__global__ void computeGasFluxPositivityScaleKernel(DeviceState* sp, const GPU_OPERATOR_REAL dt)
+__global__ void computeGasFluxPositivityScaleKernel(DeviceState* sp, const GPU_OPERATOR_TIME dt)
 {
     DeviceState& s = *sp;
     const int c = blockIdx.x*blockDim.x + threadIdx.x;
@@ -9,7 +11,7 @@ __global__ void computeGasFluxPositivityScaleKernel(DeviceState* sp, const GPU_O
         return;
     }
 
-    GPU_OPERATOR_REAL outgoingMassFlux = 0.0;
+    GPU_OPERATOR_REAL outgoingMassFlux = GPU_OPERATOR_R(0.0);
     const int start = s.cellPlaneStart[c];
     const int count = s.cellPlaneCount[c];
     for (int i = 0; i < count; ++i)
@@ -20,31 +22,31 @@ __global__ void computeGasFluxPositivityScaleKernel(DeviceState* sp, const GPU_O
             continue;
         }
 
-        const GPU_OPERATOR_REAL phi = finiteOr(s.gasPhiRho[f], 0.0);
-        if (s.faceOwner[f] == c && phi > 0.0)
+        const GPU_OPERATOR_REAL phi = finiteOr(s.gasPhiRho[f], GPU_OPERATOR_R(0.0));
+        if (s.faceOwner[f] == c && phi > GPU_OPERATOR_R(0.0))
         {
             outgoingMassFlux += phi;
         }
-        else if (s.faceNeighbour[f] == c && phi < 0.0)
+        else if (s.faceNeighbour[f] == c && phi < GPU_OPERATOR_R(0.0))
         {
             outgoingMassFlux -= phi;
         }
     }
 
-    GPU_OPERATOR_REAL scale = 1.0;
-    if (outgoingMassFlux > 0.0 && dt > 0.0)
+    GPU_OPERATOR_REAL scale = GPU_OPERATOR_R(1.0);
+    if (outgoingMassFlux > GPU_OPERATOR_R(0.0) && dt > GPU_OPERATOR_R(0.0))
     {
         const GPU_OPERATOR_REAL availableMass =
-            clampMin(s.rho[c] - s.rhoMin, 0.0)*s.V[c];
+            clampMin(s.rho[c] - s.rhoMin, GPU_OPERATOR_R(0.0))*s.V[c];
         const GPU_OPERATOR_REAL requestedOutflowMass = dt*outgoingMassFlux;
         if (requestedOutflowMass > availableMass)
         {
             scale = clampRange
             (
-                0.999*availableMass
-               /(requestedOutflowMass + 1.0e-300),
-                0.0,
-                1.0
+                GPU_OPERATOR_R(0.999)*availableMass
+               /(requestedOutflowMass + GPU_OPERATOR_TINY(1.0e-300)),
+                GPU_OPERATOR_R(0.0),
+                GPU_OPERATOR_R(1.0)
             );
         }
     }
@@ -60,9 +62,9 @@ __global__ void applyGasFluxPositivityScaleKernel(DeviceState* sp)
         return;
     }
 
-    const GPU_OPERATOR_REAL phi = finiteOr(s.gasPhiRho[f], 0.0);
-    GPU_OPERATOR_REAL scale = 1.0;
-    if (phi > 0.0)
+    const GPU_OPERATOR_REAL phi = finiteOr(s.gasPhiRho[f], GPU_OPERATOR_R(0.0));
+    GPU_OPERATOR_REAL scale = GPU_OPERATOR_R(1.0);
+    if (phi > GPU_OPERATOR_R(0.0))
     {
         const int own = s.faceOwner[f];
         if (own >= 0 && own < s.nCells)
@@ -70,7 +72,7 @@ __global__ void applyGasFluxPositivityScaleKernel(DeviceState* sp)
             scale = s.gasFluxPositivityScale[own];
         }
     }
-    else if (phi < 0.0 && coupledFaceNeighbour(s, f) >= 0)
+    else if (phi < GPU_OPERATOR_R(0.0) && coupledFaceNeighbour(s, f) >= 0)
     {
         const int nei = s.faceNeighbour[f];
         if (nei >= 0 && nei < s.nCells)
@@ -79,10 +81,11 @@ __global__ void applyGasFluxPositivityScaleKernel(DeviceState* sp)
         }
     }
 
-    scale = clampRange(finiteOr(scale, 0.0), 0.0, 1.0);
+    scale = clampRange(finiteOr(scale, GPU_OPERATOR_R(0.0)), GPU_OPERATOR_R(0.0), GPU_OPERATOR_R(1.0));
     s.gasPhiRho[f] *= scale;
     s.gasPhiRhoUx[f] *= scale;
     s.gasPhiRhoUy[f] *= scale;
     s.gasPhiRhoUz[f] *= scale;
     s.gasPhiRhoE[f] *= scale;
+    publishLimitedGasWallEnergy(s, f, 0);
 }

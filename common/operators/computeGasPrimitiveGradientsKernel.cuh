@@ -1,3 +1,4 @@
+// Exports gas primitive-gradient kernels and the SST wall-distance/viscosity helper used by them.
 #pragma once
 // One operator implementation; scalar/time adapters are compile-time only.
 __global__ void computeGasPrimitiveGradientsKernel(DeviceState* sp)

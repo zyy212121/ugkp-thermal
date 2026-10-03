@@ -1,9 +1,7 @@
-#define GPU_POOL_CONSTEXPR constexpr
-#define GPU_SPLIT_POOL_SUM(k, scalar) scalar
-#define GPU_SPLIT_POOL_RESULT(k, scalar) scalar[0]
 #define GPU_POOL_THETA_AFTER_REJECTION 1
 #define GPU_POOL_PARTICLE_THETA(s, i) clampMin(finiteOr(s.pTheta[i], GPU_OPERATOR_R(0.0)), GPU_OPERATOR_R(0.0))
 #define GPU_POOL_MASS_FALLBACK GPU_OPERATOR_R(0.0)
+#define GPU_POOL_SPLIT_REDUCTION_TOPOLOGY PoolReductionTopology::sharedTree
 #define GPU_POOL_STATIC_DIRECTORY 1
 #define GPU_POOL_CACHED_PROBABILITY 1
 #define GPU_POOL_SPLIT_DIRECTORY (DirectoryKind == HeavyDirectoryKind::splitBaseAndInjection)
@@ -13,15 +11,13 @@
 #define GPU_DIRECTORY_PARAMETER_TYPE HeavyDirectoryKind
 #define GPU_DIRECTORY_ARGUMENT static_cast<int>(directoryKind)
 #define GPU_DIRECTORY_HAS_BASE_ONLY 1
-#define GPU_DIRECTORY_FUSED_PRODUCER 1
+#define GPU_DIRECTORY_OWNS_TILE_POLICY 1
 #define GPU_DIRECTORY_SELECTOR directoryKind
 #define GPU_DIRECTORY_FULL static_cast<int>(HeavyDirectoryKind::full)
-#define GPU_SPLIT_TASK_BEGIN taskBegin
 #define GPU_OPERATOR_TINY(x) x
 #define GPU_OPERATOR_THERMAL 0
 #define GPU_RECOVERY_INLINE __forceinline__
 #define GPU_PERIODIC_FACE_KIND 5
-#define GPU_PARTICLE_EXIT_MASS_FALLBACK 0.0
 #define GPU_PERIODIC_COORDINATE(hit, shift, eps, normal) hit - shift + eps*normal
 #define GPU_WALL_COORDINATE(hit, eps, normal) hit - eps*normal
 #define GPU_RESET_CONTACT_AGE(s, i)
@@ -30,6 +26,7 @@
 #define GPU_OPERATOR_REAL double
 #define GPU_OPERATOR_TIME double
 #define GPU_OPERATOR_R(x) x
+#include "../../../common/GpuOperatorContract.cuh"
 #include <cuda_runtime.h>
 
 #include "GpuBackendApi.H"
@@ -490,8 +487,10 @@ struct DeviceState
     int* csrCellTaskOffset = nullptr;
     CsrReductionTask* csrReductionTasks = nullptr;
     int* csrMultiTaskCellList = nullptr;
+    // All nonempty-cell tasks, including single-task cells.
     int* csrHeavyTaskCount = nullptr;
     int* csrHeavyTaskCursor = nullptr;
+    // Only cells requiring multiple tasks and final reduction.
     int* csrHeavyCellCount = nullptr;
     int* csrHeavyCellList = nullptr;
     int* csrHeavyTaskCell = nullptr;
@@ -546,7 +545,11 @@ struct DeviceState
     unsigned long long* compactPOrigId = nullptr;
     double* poissonCellCollisionProbability = nullptr;
     PressureProjectionCell* pressureProjectionCache = nullptr;
+    int trackingWorkGrid = 0;
+
 };
+#include "GpuContactAgeStorage.cuh"
+
 
 struct ActiveParticleIndexPredicate
 {
@@ -1692,178 +1695,11 @@ __device__ void recordDevelopmentProbeParticleFailure
     atomicCAS(&summary->firstBadParticlePlusOne, 0, particle + 1);
 }
 
-__global__ void validateDevelopmentProbeCellsKernel
-(
-    DeviceState* sp,
-    DevelopmentProbeDeviceSummary* summary,
-    const int validateSolid
-)
-{
-    DeviceState& s = *sp;
-    const int stride = blockDim.x*gridDim.x;
-    for (int c = blockIdx.x*blockDim.x + threadIdx.x; c < s.nCells; c += stride)
-    {
-        unsigned long long mask = 0;
+#include "operators/validateDevelopmentProbeCellsKernel.cuh"
 
-        if
-        (
-            !finiteDevice(s.rho[c])
-         || !finiteDevice(s.rhoUx[c])
-         || !finiteDevice(s.rhoUy[c])
-         || !finiteDevice(s.rhoUz[c])
-         || !finiteDevice(s.rhoE[c])
-        )
-        {
-            mask |= ProbeBadGasConserved;
-        }
-
-        if
-        (
-            !finiteDevice(s.Ux[c])
-         || !finiteDevice(s.Uy[c])
-         || !finiteDevice(s.Uz[c])
-         || !finiteDevice(s.p[c])
-         || !finiteDevice(s.Tgas[c])
-        )
-        {
-            mask |= ProbeBadGasPrimitive;
-        }
-
-        if
-        (
-            !(s.rho[c] > 0.0)
-         || !(s.p[c] > 0.0)
-         || !(s.Tgas[c] > 0.0)
-        )
-        {
-            mask |= ProbeBadCellRange;
-        }
-
-        if (validateSolid != 0)
-        {
-            if
-            (
-                !finiteDevice(s.epsS[c])
-             || !finiteDevice(s.rhoUsx[c])
-             || !finiteDevice(s.rhoUsy[c])
-             || !finiteDevice(s.rhoUsz[c])
-             || !finiteDevice(s.rhoEs[c])
-             || !finiteDevice(s.rhoDs[c])
-             || !finiteDevice(s.rhoHp[c])
-            )
-            {
-                mask |= ProbeBadSolidConserved;
-            }
-
-            if
-            (
-                !finiteDevice(s.Usx[c])
-             || !finiteDevice(s.Usy[c])
-             || !finiteDevice(s.Usz[c])
-             || !finiteDevice(s.theta[c])
-             || !finiteDevice(s.Tp[c])
-             || !finiteDevice(s.dMeanCell[c])
-            )
-            {
-                mask |= ProbeBadSolidPrimitive;
-            }
-
-            if
-            (
-                !finiteDevice(s.momRhoP[c])
-             || !finiteDevice(s.momRhoUPx[c])
-             || !finiteDevice(s.momRhoUPy[c])
-             || !finiteDevice(s.momRhoUPz[c])
-             || !finiteDevice(s.momRhoEP[c])
-             || !finiteDevice(s.momRhoPD[c])
-             || !finiteDevice(s.momRhoHpP[c])
-            )
-            {
-                mask |= ProbeBadSolidMoments;
-            }
-
-            if
-            (
-                s.epsS[c] < 0.0
-             || s.epsS[c] > 1.0
-             || s.theta[c] < 0.0
-             || (s.solveParticleTemperature != 0 && !(s.Tp[c] > 0.0))
-             || (s.epsS[c] > s.epsSMin && !(s.dMeanCell[c] > 0.0))
-            )
-            {
-                mask |= ProbeBadCellRange;
-            }
-        }
-
-        recordDevelopmentProbeCellFailure(summary, c, mask);
-    }
-}
-
-__global__ void validateDevelopmentProbeParticlesKernel
-(
-    DeviceState* sp,
-    DevelopmentProbeDeviceSummary* summary
-)
-{
-    DeviceState& s = *sp;
-    int nParticles = *s.particleCountDevice;
-    nParticles = nParticles < 0 ? 0 : nParticles;
-    nParticles = nParticles > s.particleCapacity ? s.particleCapacity : nParticles;
-
-    const int stride = blockDim.x*gridDim.x;
-    for
-    (
-        int i = blockIdx.x*blockDim.x + threadIdx.x;
-        i < nParticles;
-        i += stride
-    )
-    {
-        unsigned long long mask = 0;
-        if
-        (
-            !finiteDevice(s.px[i])
-         || !finiteDevice(s.py[i])
-         || !finiteDevice(s.pz[i])
-        )
-        {
-            mask |= ProbeBadParticlePosition;
-        }
-        if
-        (
-            !finiteDevice(s.pux[i])
-         || !finiteDevice(s.puy[i])
-         || !finiteDevice(s.puz[i])
-        )
-        {
-            mask |= ProbeBadParticleVelocity;
-        }
-        if
-        (
-            !finiteDevice(s.pT[i])
-         || !finiteDevice(s.pTheta[i])
-         || !finiteDevice(s.pd[i])
-         || !finiteDevice(s.pm[i])
-         || s.pTheta[i] < 0.0
-         || !(s.pd[i] > 0.0)
-         || (s.pStatus[i] != 0 && !(s.pm[i] > 0.0))
-         || (s.solveParticleTemperature != 0 && !(s.pT[i] > 0.0))
-        )
-        {
-            mask |= ProbeBadParticleThermal;
-        }
-        if
-        (
-            s.pCellId[i] < 0
-         || s.pCellId[i] >= s.nCells
-         || s.pStatus[i] != 1
-        )
-        {
-            mask |= ProbeBadParticleMetadata;
-        }
-
-        recordDevelopmentProbeParticleFailure(summary, i, mask);
-    }
-}
+#define GPU_PROBE_REQUIRE_POSITIVE_ACTIVE_MASS 1
+#include "operators/validateDevelopmentProbeParticlesKernel.cuh"
+#undef GPU_PROBE_REQUIRE_POSITIVE_ACTIVE_MASS
 
 #endif
 
@@ -1997,70 +1833,7 @@ __device__ GasPrimDevice riemannFacePrimitiveForGradient
 
 #include "operators/computeGasPrimitiveGradientsKernel.cuh"
 
-__global__ void computeSstGradientsKernel(DeviceState* sp)
-{
-    DeviceState& s = *sp;
-    const int c = blockIdx.x*blockDim.x + threadIdx.x;
-    if (c >= s.nCells || s.sstConfigured == 0)
-    {
-        return;
-    }
-
-    double gkx = 0.0, gky = 0.0, gkz = 0.0;
-    double gox = 0.0, goy = 0.0, goz = 0.0;
-    const int start = s.cellPlaneStart[c];
-    const int count = s.cellPlaneCount[c];
-    for (int i = 0; i < count; ++i)
-    {
-        const int f = s.cellFaceId[start + i];
-        if (f < 0 || f >= s.nFaces)
-        {
-            continue;
-        }
-        const double sign = s.faceOwner[f] == c ? 1.0 : -1.0;
-        double kFace = s.k[c];
-        double omegaFace = s.omega[c];
-        if (f < s.nInternalFaces || isPeriodicFace(s, f))
-        {
-            const int own = s.faceOwner[f];
-            const int nei = s.faceNeighbour[f];
-            const int other = c == own ? nei : own;
-            if (other >= 0 && other < s.nCells)
-            {
-                const double ownerWeight =
-                    clampRange(s.faceWeight[f], 0.0, 1.0);
-                const double cellWeight =
-                    c == own ? ownerWeight : 1.0 - ownerWeight;
-                kFace =
-                    cellWeight*s.k[c] + (1.0 - cellWeight)*s.k[other];
-                omegaFace =
-                    cellWeight*s.omega[c]
-                  + (1.0 - cellWeight)*s.omega[other];
-            }
-        }
-        else
-        {
-            kFace = sstBoundaryValue(s, f, c, false);
-            omegaFace = sstBoundaryValue(s, f, c, true);
-        }
-        const double sx = sign*s.Sfx[f];
-        const double sy = sign*s.Sfy[f];
-        const double sz = sign*s.Sfz[f];
-        gkx += kFace*sx;
-        gky += kFace*sy;
-        gkz += kFace*sz;
-        gox += omegaFace*sx;
-        goy += omegaFace*sy;
-        goz += omegaFace*sz;
-    }
-    const double invV = 1.0/clampMin(s.V[c], OfSmall);
-    s.gradKX[c] = gkx*invV;
-    s.gradKY[c] = gky*invV;
-    s.gradKZ[c] = gkz*invV;
-    s.gradOmegaX[c] = gox*invV;
-    s.gradOmegaY[c] = goy*invV;
-    s.gradOmegaZ[c] = goz*invV;
-}
+#include "operators/computeSstGradientsKernel.cuh"
 
 #include "operators/sstVelocityInvariants.cuh"
 
@@ -2076,181 +1849,11 @@ __global__ void computeSstGradientsKernel(DeviceState* sp)
                                                                           
                                              
    
-__global__ void computeGasHllcAdcSensorKernel(DeviceState* sp)
-{
-    DeviceState& s = *sp;
-    const int c = blockIdx.x*blockDim.x + threadIdx.x;
-    if (c >= s.nCells)
-    {
-        return;
-    }
-
-    const double centrePressure = clampMin(s.p[c], OfSmall);
-    double omega = 1.0;
-    const int start = s.cellPlaneStart[c];
-    const int count = s.cellPlaneCount[c];
-    for (int i = 0; i < count; ++i)
-    {
-        const int f = s.cellFaceId[start + i];
-        if (f < 0 || f >= s.nFaces)
-        {
-            continue;
-        }
-
-        double otherPressure = centrePressure;
-        if (f < s.nInternalFaces || isPeriodicFace(s, f))
-        {
-            const int own = s.faceOwner[f];
-            const int nei = s.faceNeighbour[f];
-            const int other = own == c ? nei : own;
-            if (other < 0 || other >= s.nCells)
-            {
-                continue;
-            }
-            otherPressure = clampMin(s.p[other], OfSmall);
-        }
-        else if (s.riemannBoundaryKind[f] == 0)
-        {
-            const GasPrimDevice centre = makeGasPrimDevice
-            (
-                s.rho[c],
-                s.Ux[c],
-                s.Uy[c],
-                s.Uz[c],
-                centrePressure,
-                s.Rgas,
-                s.rhoMin,
-                s.TgasMin
-            );
-            otherPressure = clampMin
-            (
-                riemannBoundaryState(s, f, centre).p,
-                OfSmall
-            );
-        }
-
-        const double ratio = clampRange
-        (
-            fmin
-            (
-                otherPressure/centrePressure,
-                centrePressure/otherPressure
-            ),
-            0.0,
-            1.0
-        );
-        const double faceSensor = ratio*ratio*ratio;
-        omega = fmin(omega, faceSensor);
-    }
-    s.gasHllcAdcSensor[c] = finiteDevice(omega)
-      ? clampRange(omega, 0.0, 1.0) : 0.0;
-}
+#include "operators/computeGasHllcAdcSensorKernel.cuh"
 
 #include "operators/updateBarthLimiter.cuh"
 
-__global__ void computeGasGradientLimiterKernel(DeviceState* sp)
-{
-    DeviceState& s = *sp;
-    const int c = blockIdx.x*blockDim.x + threadIdx.x;
-    if (c >= s.nCells)
-    {
-        return;
-    }
-    if (s.gasLimiter == 0)
-    {
-        s.gasGradientLimiterRho[c] = 1.0;
-        s.gasGradientLimiterUx[c] = 1.0;
-        s.gasGradientLimiterUy[c] = 1.0;
-        s.gasGradientLimiterUz[c] = 1.0;
-        s.gasGradientLimiterP[c] = 1.0;
-        s.gasGradientLimiterT[c] = 1.0;
-        return;
-    }
-    const GasPrimDevice qc = makeGasPrimDevice
-    (
-        s.rho[c], s.Ux[c], s.Uy[c], s.Uz[c], s.p[c],
-        s.Rgas, s.rhoMin, s.TgasMin
-    );
-    double rMin = qc.rho, rMax = qc.rho;
-    double uxMin = qc.ux, uxMax = qc.ux;
-    double uyMin = qc.uy, uyMax = qc.uy;
-    double uzMin = qc.uz, uzMax = qc.uz;
-    double pMin = qc.p, pMax = qc.p;
-    double tMin = qc.T, tMax = qc.T;
-    const int start = s.cellPlaneStart[c];
-    const int count = s.cellPlaneCount[c];
-    for (int i = 0; i < count; ++i)
-    {
-        const int f = s.cellFaceId[start + i];
-        GasPrimDevice qf;
-        if (f < s.nInternalFaces || isPeriodicFace(s, f))
-        {
-            const int own = s.faceOwner[f];
-            const int nei = s.faceNeighbour[f];
-            const int other = c == own ? nei : own;
-            qf = makeGasPrimDevice
-            (
-                s.rho[other],
-                s.Ux[other],
-                s.Uy[other],
-                s.Uz[other],
-                s.p[other],
-                s.Rgas,
-                s.rhoMin,
-                s.TgasMin
-            );
-            qf.T = clampMin
-            (
-                finiteOr(s.Tgas[other], qf.T),
-                s.TgasMin
-            );
-        }
-        else
-        {
-            qf = riemannFacePrimitiveForGradient(s, c, f);
-        }
-        rMin = fmin(rMin, qf.rho); rMax = fmax(rMax, qf.rho);
-        uxMin = fmin(uxMin, qf.ux); uxMax = fmax(uxMax, qf.ux);
-        uyMin = fmin(uyMin, qf.uy); uyMax = fmax(uyMax, qf.uy);
-        uzMin = fmin(uzMin, qf.uz); uzMax = fmax(uzMax, qf.uz);
-        pMin = fmin(pMin, qf.p); pMax = fmax(pMax, qf.p);
-        tMin = fmin(tMin, qf.T); tMax = fmax(tMax, qf.T);
-    }
-    rMin = fmax(rMin, s.rhoMin);
-    pMin = fmax(pMin, s.rhoMin);
-    tMin = fmax(tMin, s.TgasMin);
-    double rhoLimiter = 1.0;
-    double uxLimiter = 1.0;
-    double uyLimiter = 1.0;
-    double uzLimiter = 1.0;
-    double pLimiter = 1.0;
-    double tLimiter = 1.0;
-    for (int i = 0; i < count; ++i)
-    {
-        const int f = s.cellFaceId[start + i];
-        const double dx = s.faceCx[f] - s.Cx[c];
-        const double dy = s.faceCy[f] - s.Cy[c];
-        const double dz = s.faceCz[f] - s.Cz[c];
-        updateConfiguredGasLimiter(s.gasLimiter, qc.rho, qc.rho + s.gradRhoX[c]*dx + s.gradRhoY[c]*dy + s.gradRhoZ[c]*dz, rMin, rMax, rhoLimiter);
-        updateConfiguredGasLimiter(s.gasLimiter, qc.ux, qc.ux + s.gradUxX[c]*dx + s.gradUxY[c]*dy + s.gradUxZ[c]*dz, uxMin, uxMax, uxLimiter);
-        updateConfiguredGasLimiter(s.gasLimiter, qc.uy, qc.uy + s.gradUyX[c]*dx + s.gradUyY[c]*dy + s.gradUyZ[c]*dz, uyMin, uyMax, uyLimiter);
-        updateConfiguredGasLimiter(s.gasLimiter, qc.uz, qc.uz + s.gradUzX[c]*dx + s.gradUzY[c]*dy + s.gradUzZ[c]*dz, uzMin, uzMax, uzLimiter);
-        updateConfiguredGasLimiter(s.gasLimiter, qc.p, qc.p + s.gradPx[c]*dx + s.gradPy[c]*dy + s.gradPz[c]*dz, pMin, pMax, pLimiter);
-        updateConfiguredGasLimiter(s.gasLimiter, qc.T, qc.T + s.gradTX[c]*dx + s.gradTY[c]*dy + s.gradTZ[c]*dz, tMin, tMax, tLimiter);
-    }
-    s.gasGradientLimiterRho[c] =
-        clampRange(finiteOr(rhoLimiter, 0.0), 0.0, 1.0);
-    s.gasGradientLimiterUx[c] =
-        clampRange(finiteOr(uxLimiter, 0.0), 0.0, 1.0);
-    s.gasGradientLimiterUy[c] =
-        clampRange(finiteOr(uyLimiter, 0.0), 0.0, 1.0);
-    s.gasGradientLimiterUz[c] =
-        clampRange(finiteOr(uzLimiter, 0.0), 0.0, 1.0);
-    s.gasGradientLimiterP[c] =
-        clampRange(finiteOr(pLimiter, 0.0), 0.0, 1.0);
-    s.gasGradientLimiterT[c] =
-        clampRange(finiteOr(tLimiter, 0.0), 0.0, 1.0);
-}
+#include "operators/computeGasGradientLimiterKernel.cuh"
 
 #include "operators/computeGasEddyViscosityKernel.cuh"
 
@@ -2269,33 +1872,13 @@ __global__ void computeGasGradientLimiterKernel(DeviceState* sp)
 
 #include "operators/computeSstFaceFluxKernel.cuh"
 
+#include "GpuGravityUpdate.cuh"
 __global__ void applyGasGravitySourceKernel(DeviceState* sp, const double dt)
 {
-    DeviceState& s = *sp;
-    const int c = blockIdx.x*blockDim.x + threadIdx.x;
-    if (c >= s.nCells)
-    {
-        return;
-    }
-
-    const double rho = s.rho[c];
-    const double momX = s.rhoUx[c];
-    const double momY = s.rhoUy[c];
-    const double momZ = s.rhoUz[c];
-    const double gx = s.gravityX;
-    const double gy = s.gravityY;
-    const double gz = s.gravityZ;
-    const double gravitySquared = gx*gx + gy*gy + gz*gz;
-
-                                                                           
-                                                                         
-    s.rhoE[c] +=
-        dt*(momX*gx + momY*gy + momZ*gz)
-      + 0.5*rho*dt*dt*gravitySquared;
-    s.rhoUx[c] = momX + rho*dt*gx;
-    s.rhoUy[c] = momY + rho*dt*gy;
-    s.rhoUz[c] = momZ + rho*dt*gz;
+    const int c=blockIdx.x*blockDim.x+threadIdx.x;
+    if(c<sp->nCells) applyGasGravityCell<false>(*sp,c,dt);
 }
+
 
 int applyGasGravitySource
 (
@@ -2330,88 +1913,9 @@ int applyGasGravitySource
     return 0;
 }
 
-__global__ void recoverPrimitivesKernel(DeviceState* sp)
-{
-    DeviceState& s = *sp;
-    const int c = blockIdx.x*blockDim.x + threadIdx.x;
-    if (c >= s.nCells)
-    {
-        return;
-    }
+#include "operators/recoverPrimitivesKernel.cuh"
 
-    recoverGasPrimitiveCell(s, c);
 
-    const double eps = clampMin(finiteOr(s.epsS[c], 0.0), 0.0);
-    const double solidMass = eps*s.rhoSolid;
-    if (eps <= s.epsSMin || solidMass <= s.epsSMin*s.rhoSolid)
-    {
-        clearSolidCell(s, c);
-        return;
-    }
-
-    const double usx = finiteOr(s.rhoUsx[c]/solidMass, 0.0);
-    const double usy = finiteOr(s.rhoUsy[c]/solidMass, 0.0);
-    const double usz = finiteOr(s.rhoUsz[c]/solidMass, 0.0);
-    const double solidKinetic = 0.5*sqr3(usx, usy, usz);
-    double theta =
-        (finiteOr(s.rhoEs[c], 0.0)/solidMass - solidKinetic)/1.5;
-    if (!finiteDevice(theta) || theta < 0.0)
-    {
-        theta = 0.0;
-        s.rhoEs[c] = solidMass*(solidKinetic + 1.5*theta);
-    }
-
-    double dMean = finiteOr(s.rhoDs[c]/solidMass, s.particleDiameterFallback);
-    if (!finiteDevice(dMean) || dMean <= 0.0)
-    {
-        dMean = s.particleDiameterFallback;
-        s.rhoDs[c] = solidMass*dMean;
-    }
-    dMean = clampMin(dMean, 1.0e-12);
-
-    const double heatFactor = particleHeatFactorDevice(s);
-    if (heatFactor > 0.0)
-    {
-        double Tp = finiteOr(s.rhoHp[c]/(solidMass*heatFactor), s.TpMin);
-        Tp = clampRange(Tp, s.TpMin, s.TpMax);
-        s.Tp[c] = Tp;
-        s.rhoHp[c] = solidMass*heatFactor*Tp;
-    }
-    else
-    {
-        s.Tp[c] = s.TpMin;
-        s.rhoHp[c] = 0.0;
-    }
-
-    s.epsS[c] = eps;
-    s.Usx[c] = usx;
-    s.Usy[c] = usy;
-    s.Usz[c] = usz;
-    s.theta[c] = theta;
-    s.dMeanCell[c] = dMean;
-}
-
-__global__ void initialiseParticleMaterialEnthalpyKernel(DeviceState* sp)
-{
-    DeviceState& s = *sp;
-    const int c = blockIdx.x*blockDim.x + threadIdx.x;
-    if (c >= s.nCells)
-    {
-        return;
-    }
-
-    const double eps = clampMin(s.epsS[c], 0.0);
-    const double cap = eps*s.particleThermalRho*s.particleCp;
-    if (eps <= s.epsSMin || cap <= s.rhoMin)
-    {
-        s.Tp[c] = s.TpMin;
-        s.rhoHp[c] = 0.0;
-        return;
-    }
-
-    s.Tp[c] = clampRange(s.Tp[c], s.TpMin, s.TpMax);
-    s.rhoHp[c] = cap*s.Tp[c];
-}
 
 #include "operators/clearParticleMomentsKernel.cuh"
 
@@ -2426,6 +1930,7 @@ __host__ __device__ inline bool gasDragModelActive(const int modelId)
 
 #include "operators/applyGasVolumeFractionSourceKernel.cuh"
 
+#include "GpuCellDragRate.cuh"
 template<class DragModel>
 __global__ void applyEulerianGasSolidDragKernel
 (
@@ -2433,202 +1938,8 @@ __global__ void applyEulerianGasSolidDragKernel
     const double dt
 )
 {
-    DeviceState& s = *sp;
-    const int c = blockIdx.x*blockDim.x + threadIdx.x;
-    if (c >= s.nCells)
-    {
-        return;
-    }
-
-    s.couplingRhoOld[c] =
-        clampMin(finiteOr(s.rho[c], s.rhoMin), s.rhoMin);
-    s.couplingUxOld[c] = finiteOr(s.Ux[c], 0.0);
-    s.couplingUyOld[c] = finiteOr(s.Uy[c], 0.0);
-    s.couplingUzOld[c] = finiteOr(s.Uz[c], 0.0);
-    s.couplingTgasOld[c] =
-        clampMin(finiteOr(s.Tgas[c], s.TgasMin), s.TgasMin);
-
-    s.thetaDragAlpha[c] = 1.0;
-    const double rhoP = clampMin(finiteOr(s.momRhoP[c], 0.0), 0.0);
-
-    if (rhoP <= s.epsSMin*s.rhoSolid)
-    {
-        return;
-    }
-
-    const double eps = solidEpsFromMomentDevice(s, c);
-    const double epsG = 1.0 - eps;
-    const double epsGsafe = clampMin(epsG, OfSmall);
-    const double rhoG = s.couplingRhoOld[c];
-    const double mg = epsG*rhoG;
-    const double ugx0 = s.couplingUxOld[c];
-    const double ugy0 = s.couplingUyOld[c];
-    const double ugz0 = s.couplingUzOld[c];
-
-    const double momSX = finiteOr(s.momRhoUPx[c], 0.0);
-    const double momSY = finiteOr(s.momRhoUPy[c], 0.0);
-    const double momSZ = finiteOr(s.momRhoUPz[c], 0.0);
-    const double enerS0 = clampMin(finiteOr(s.momRhoEP[c], 0.0), 0.0);
-
-    const double ms = rhoP;
-    if (!finiteDevice(ms) || ms < s.rhoMin)
-    {
-        return;
-    }
-
-    const double usx0 = momSX/ms;
-    const double usy0 = momSY/ms;
-    const double usz0 = momSZ/ms;
-
-    const double dLocal =
-        clampMin
-        (
-            finiteOr(s.momRhoPD[c]/ms, s.particleDiameterFallback),
-            1.0e-12
-        );
-
-    const double urx = ugx0 - usx0;
-    const double ury = ugy0 - usy0;
-    const double urz = ugz0 - usz0;
-
-    const double urMag = sqrt(sqr3(urx, ury, urz));
-    const ugkwpGpuDrag::DragInput dragInput =
-    {
-        rhoG,
-        s.gasMu,
-        epsG,
-        s.rhoSolid,
-        dLocal,
-        urMag,
-        OfSmall,
-        s.dragParameter0,
-        s.dragParameter1,
-        s.dragParameter2,
-        s.dragParameter3
-    };
-    const double beta = DragModel::inverseResponseTime(dragInput);
-
-    if (!finiteDevice(beta) || beta <= OfSmall)
-    {
-        return;
-    }
-
-    const double tauDragCell = clampMin(1.0/beta, OfSmall);
-
-    const double momGX0 = epsG*s.rhoUx[c];
-    const double momGY0 = epsG*s.rhoUy[c];
-    const double momGZ0 = epsG*s.rhoUz[c];
-    const double enerG0 = epsG*s.rhoE[c];
-
-    double momGX = momGX0;
-    double momGY = momGY0;
-    double momGZ = momGZ0;
-
-                                                                              
-                                                                                
-                                                                              
-                                                                            
-    double enerG = enerG0;
-    double enerS = enerS0;
-
-    if (!finiteDevice(mg) || mg < s.rhoMin)
-    {
-        return;
-    }
-
-    const double ugx = momGX/mg;
-    const double ugy = momGY/mg;
-    const double ugz = momGZ/mg;
-
-    const double usx = momSX/ms;
-    const double usy = momSY/ms;
-    const double usz = momSZ/ms;
-
-    const double gm1 = clampMin(s.gammaGas - 1.0, OfSmall);
-    const double eMinGas = s.Rgas*s.TgasMin/gm1;
-
-    const double kgOld = 0.5*mg*sqr3(ugx, ugy, ugz);
-    const double ksOld = 0.5*ms*sqr3(usx, usy, usz);
-
-    double igOld = enerG - kgOld;
-    double isOld = enerS - ksOld;
-
-    const double igMin = mg*eMinGas;
-    const double isMin = 0.0;
-
-    if (!finiteDevice(igOld) || igOld < igMin)
-    {
-        igOld = igMin;
-    }
-
-    if (!finiteDevice(isOld) || isOld < isMin)
-    {
-        isOld = isMin;
-    }
-
-    const double invTauDragCell = 1.0/clampMin(tauDragCell, OfSmall);
-
-    const double alphaI =
-        clampRange
-        (
-            finiteOr(exp(-2.0*dt*invTauDragCell), 1.0),
-            0.0,
-            1.0
-        );
-
-                                                                   
-                                                                    
-                                                      
-    s.thetaDragAlpha[c] = alphaI;
-
-    double isAfter = isOld*alphaI;
-    if (isAfter < isMin)
-    {
-        isAfter = isMin;
-    }
-
-    const double dI = isOld - isAfter;
-    const double igAfter = igOld + dI;
-
-    const double wx = ugx - usx;
-    const double wy = ugy - usy;
-    const double wz = ugz - usz;
-
-    const double kW = dt*invTauDragCell*(1.0 + ms/(mg + OfSmall));
-    const double alphaW = exp(-kW);
-
-    const double wxNew = wx*alphaW;
-    const double wyNew = wy*alphaW;
-    const double wzNew = wz*alphaW;
-
-    const double pX = momGX + momSX;
-    const double pY = momGY + momSY;
-    const double pZ = momGZ + momSZ;
-
-    const double mTot = mg + ms;
-
-    const double usNewX = (pX - mg*wxNew)/mTot;
-    const double usNewY = (pY - mg*wyNew)/mTot;
-    const double usNewZ = (pZ - mg*wzNew)/mTot;
-
-    const double ugNewX = usNewX + wxNew;
-    const double ugNewY = usNewY + wyNew;
-    const double ugNewZ = usNewZ + wzNew;
-
-    const double kgNew = 0.5*mg*sqr3(ugNewX, ugNewY, ugNewZ);
-    const double ksNew = 0.5*ms*sqr3(usNewX, usNewY, usNewZ);
-
-    double diss = (kgOld + ksOld) - (kgNew + ksNew);
-    if (!finiteDevice(diss) || diss < 0.0)
-    {
-        diss = 0.0;
-    }
-
-    s.rho[c] = rhoG;
-    s.rhoUx[c] = rhoG*ugNewX;
-    s.rhoUy[c] = rhoG*ugNewY;
-    s.rhoUz[c] = rhoG*ugNewZ;
-    s.rhoE[c] = (kgNew + igAfter + diss)/epsGsafe;
+    const DragModel dragModel{};
+#include "GpuCellDragUpdate.inl"
 }
 }
 
@@ -2669,136 +1980,7 @@ int launchEulerianGasSolidDrag
     return 0;
 }
 
-__global__ void applyEulerianParticleMaterialHeatKernel
-(
-    DeviceState* sp,
-    const double dt
-)
-{
-    DeviceState& s = *sp;
-    const int c = blockIdx.x*blockDim.x + threadIdx.x;
-
-    if
-    (
-        c >= s.nCells
-     || s.solveParticleTemperature == 0
-     || s.particleGasHeatTransferModelId == 0
-    )
-    {
-        return;
-    }
-
-    const double heatFactor = particleHeatFactorDevice(s);
-    if (heatFactor <= 0.0)
-    {
-        return;
-    }
-
-    const double rhoP = clampMin(finiteOr(s.momRhoP[c], 0.0), 0.0);
-    if (rhoP <= s.epsSMin*s.rhoSolid)
-    {
-        return;
-    }
-    const double epsG = 1.0 - solidEpsFromMomentDevice(s, c);
-    const double epsGsafe = clampMin(epsG, OfSmall);
-
-    const double hp = clampMin(finiteOr(s.momRhoHpP[c], 0.0), 0.0);
-    if (hp <= 0.0)
-    {
-        return;
-    }
-
-    const double tpAvg =
-        clampRange
-        (
-            finiteOr(hp/(rhoP*heatFactor + OfSmall), s.TpMin),
-            s.TpMin,
-            s.TpMax
-        );
-
-    const double rhoG =
-        clampMin(finiteOr(s.couplingRhoOld[c], 0.0), s.rhoMin);
-    const double tg =
-        clampRange
-        (
-            finiteOr(s.couplingTgasOld[c], s.TgasMin),
-            s.TgasMin,
-            1.0e30
-        );
-
-    const double dLocal =
-        clampMin
-        (
-            finiteOr(s.momRhoPD[c]/rhoP, s.particleDiameterFallback),
-            1.0e-12
-        );
-
-    const double usx = finiteOr(s.momRhoUPx[c], 0.0)/(rhoP + OfSmall);
-    const double usy = finiteOr(s.momRhoUPy[c], 0.0)/(rhoP + OfSmall);
-    const double usz = finiteOr(s.momRhoUPz[c], 0.0)/(rhoP + OfSmall);
-
-    const double urx = finiteOr(s.couplingUxOld[c], 0.0) - usx;
-    const double ury = finiteOr(s.couplingUyOld[c], 0.0) - usy;
-    const double urz = finiteOr(s.couplingUzOld[c], 0.0) - usz;
-    const double urMag = sqrt(sqr3(urx, ury, urz));
-
-    const double mu = clampMin(s.gasMu, 1.0e-30);
-    const double re = rhoG*dLocal*urMag/mu;
-
-    const double pr = s.gasPrClamped;
-    const double gasConductivity = molecularGasConductivity(s);
-
-    const double nu = ugkwp::ranzMarshallNuFromPr
-    (
-        clampMin(re, 0.0),
-        clampMin(pr, 1.0e-12)
-    );
-
-    const double rate =
-        6.0*nu*gasConductivity
-       /(s.particleThermalRho*s.particleCp*dLocal*dLocal + 1.0e-300);
-
-    const double gasCv =
-        s.Rgas/clampMin(s.gammaGas - 1.0, OfSmall);
-    const double gasCapacity = epsG*rhoG*gasCv;
-    const double solidCapacity = rhoP*heatFactor;
-
-                                                                           
-                                                                             
-                                                                        
-    const double dHp =
-        gpuFiniteCapacityHeatExchange
-        (
-            gasCapacity,
-            solidCapacity,
-            tg,
-            tpAvg,
-            clampMin(rate, 0.0),
-            dt
-        );
-
-    const double rhoEold = finiteOr(s.rhoE[c], 0.0);
-    double rhoEnew = rhoEold - dHp/epsGsafe;
-
-    const double rhoGCurrent =
-        clampMin(finiteOr(s.rho[c], rhoG), s.rhoMin);
-    const double kinetic =
-        0.5
-       *sqr3
-        (
-            finiteOr(s.rhoUx[c], 0.0),
-            finiteOr(s.rhoUy[c], 0.0),
-            finiteOr(s.rhoUz[c], 0.0)
-        )
-       /rhoGCurrent;
-
-    const double eMinGas =
-        rhoGCurrent*s.Rgas*s.TgasMin
-       /clampMin(s.gammaGas - 1.0, OfSmall);
-
-    rhoEnew = clampMin(finiteOr(rhoEnew, rhoEold), kinetic + eMinGas);
-    s.rhoE[c] = rhoEnew;
-}
+#include "operators/applyEulerianParticleMaterialHeatKernel.cuh"
 
 #include "operators/snapshotParticleGasCouplingStateKernel.cuh"
 
@@ -3181,46 +2363,7 @@ constexpr double mobilePackingJacobiOmega = 0.8;
 
 #include "operators/clearMobilePackingActivityCountsKernel.cuh"
 
-__global__ void accumulateMobilePackingMomentsKernel(DeviceState* sp)
-{
-    DeviceState& s = *sp;
-    const int nParticles =
-        clampRange(*s.particleCountDevice, 0, s.particleCapacity);
-    for
-    (
-        int i = blockIdx.x*blockDim.x + threadIdx.x;
-        i < nParticles;
-        i += blockDim.x*gridDim.x
-    )
-    {
-        if (s.pStatus[i] != 1)
-        {
-            continue;
-        }
-        const int c = s.pCellId[i];
-        if (c < 0 || c >= s.nCells)
-        {
-            continue;
-        }
-        const double m = clampMin(finiteOr(s.pm[i], 0.0), 0.0);
-        const double ux = 0.5*
-        (
-            finiteOr(s.puxOld[i], s.pux[i]) + finiteOr(s.pux[i], 0.0)
-        );
-        const double uy = 0.5*
-        (
-            finiteOr(s.puyOld[i], s.puy[i]) + finiteOr(s.puy[i], 0.0)
-        );
-        const double uz = 0.5*
-        (
-            finiteOr(s.puzOld[i], s.puz[i]) + finiteOr(s.puz[i], 0.0)
-        );
-        atomicAdd(&s.mobilePackingRho[c], m);
-        atomicAdd(&s.mobilePackingMomX[c], m*ux);
-        atomicAdd(&s.mobilePackingMomY[c], m*uy);
-        atomicAdd(&s.mobilePackingMomZ[c], m*uz);
-    }
-}
+#include "operators/accumulateMobilePackingMomentsKernel.cuh"
 
 #include "operators/normalizeMobilePackingMomentsKernel.cuh"
 
@@ -3228,231 +2371,17 @@ __global__ void accumulateMobilePackingMomentsKernel(DeviceState* sp)
 
 #include "operators/prepareMobilePackingProjectionKernel.cuh"
 
-__device__ bool mobilePackingParticleEligible
-(
-    const DeviceState& s,
-    const int i
-)
-{
-    return s.pStatus[i] == 1;
-}
+#include "operators/mobilePackingParticleEligible.cuh"
 
 #include "../../../common/gasNumerics/GpuPackingProjectionCooperative.cuh"
 
-int applyMobilePackingProjection
-(
-    DeviceState* s,
-    const double dt,
-    const int block
-)
-{
-    if (!s->jammingPressureEnabled || s->particleWorkGrid <= 0)
-    {
-        return 0;
-    }
-    if (!(dt > 0.0) || !std::isfinite(dt))
-    {
-        setLastErrorText("invalid mobile packing-projection dt");
-        return 1;
-    }
-    const int cellGrid = (s->nCells + block - 1)/block;
-    cudaError_t err = cudaSuccess;
-
-#define PACKING_LAUNCH(CALL, NAME) \
-    CALL; \
-    err = cudaGetLastError(); \
-    if (err != cudaSuccess) \
-    { \
-        setLastError(NAME, err); \
-        return 1; \
-    }
-
-    PACKING_LAUNCH
-    (
-        (clearMobilePackingMomentsKernel<<<cellGrid, block>>>(s->deviceState)),
-        "clear mobile packing moments launch"
-    );
-    PACKING_LAUNCH
-    (
-        (clearMobilePackingActivityCountsKernel<<<1, 1>>>(s->deviceState)),
-        "clear mobile packing activity counts launch"
-    );
-    PACKING_LAUNCH
-    (
-        (accumulateMobilePackingMomentsKernel<<<s->particleWorkGrid, s->particleBlockThreads>>>
-        (s->deviceState)),
-        "accumulate mobile packing moments launch"
-    );
-    PACKING_LAUNCH
-    (
-        (normalizeMobilePackingMomentsKernel<<<cellGrid, block>>>(s->deviceState)),
-        "normalize mobile packing moments launch"
-    );
-    PACKING_LAUNCH
-    (
-        (prepareMobilePackingProjectionKernel<<<cellGrid, block>>>
-        (s->deviceState, dt)),
-        "prepare mobile packing projection launch"
-    );
-
-    if (s->mobilePackingCooperativeGrid <= 0)
-    {
-        setLastErrorText("mobile packing cooperative grid is unavailable");
-        return 1;
-    }
-    double kernelDt = dt;
-    void* cooperativeArguments[] = {&s->deviceState, &kernelDt};
-    err = cudaLaunchCooperativeKernel
-    (
-        reinterpret_cast<const void*>
-        (completeMobilePackingProjectionCooperativeKernel),
-        dim3(s->mobilePackingCooperativeGrid),
-        dim3(block),
-        cooperativeArguments,
-        0,
-        nullptr
-    );
-    if (err != cudaSuccess)
-    {
-        setLastError("complete mobile packing projection launch", err);
-        return 1;
-    }
-#undef PACKING_LAUNCH
-    return 0;
-}
+#include "../../../common/GpuGasHostPolicy.cuh"
+using GasHostPolicy = GasHostWithoutWallEnergy<double, double>;
+#include "../../../common/GpuMobilePackingHost.cuh"
 
 #include "operators/granularCollisionTauFromCellDevice.cuh"
 
-__global__ void injectBoundaryParticlesKernel
-(
-    DeviceState* sp,
-    const double dt,
-    const double simulationTime
-)
-{
-    DeviceState& s = *sp;
-    const int j = blockIdx.x*blockDim.x + threadIdx.x;
-    if (j >= s.nBoundarySources)
-    {
-        return;
-    }
-#ifdef UGKP_DEVELOPMENT_PROBES
-    if (s.sourceInjectedCount != nullptr)
-    {
-        s.sourceInjectedCount[j] = 0;
-    }
-#endif
-    if (s.particleCapacity <= 0 || s.injectionParcelMass <= 0.0)
-    {
-        return;
-    }
-
-    const int sourceFace = s.sourceFace[j];
-    if (sourceFace < 0 || sourceFace >= s.nFaces)
-    {
-        return;
-    }
-
-    const int sourceCell = s.sourceCell[j];
-    if (sourceCell < 0 || sourceCell >= s.nCells)
-    {
-        return;
-    }
-
-    const bool scheduledInletActive =
-        scheduledInletFaceDevice(s, sourceFace);
-    const double sourceUx = scheduledInletActive
-      ? finiteOr(s.gasBoundaryUx[sourceFace], finiteOr(s.sourceUx[j], 0.0))
-      : finiteOr(s.sourceUx[j], 0.0);
-    const double sourceUy = scheduledInletActive
-      ? finiteOr(s.gasBoundaryUy[sourceFace], finiteOr(s.sourceUy[j], 0.0))
-      : finiteOr(s.sourceUy[j], 0.0);
-    const double sourceUz = scheduledInletActive
-      ? finiteOr(s.gasBoundaryUz[sourceFace], finiteOr(s.sourceUz[j], 0.0))
-      : finiteOr(s.sourceUz[j], 0.0);
-    const double sourceTheta = scheduledInletActive
-      ? clampMin(finiteOr(s.theta[sourceCell], 0.0), 0.0)
-      : clampMin(finiteOr(s.sourceTheta[j], 0.0), 0.0);
-    const double scheduledRate =
-        scheduledSolidVolumeFractionDevice(s, simulationTime)
-       *s.rhoSolid
-       *clampMin
-        (
-           -(sourceUx*s.Sfx[sourceFace]
-           + sourceUy*s.Sfy[sourceFace]
-           + sourceUz*s.Sfz[sourceFace]),
-            0.0
-        );
-    const double rate = scheduledInletActive
-      ? scheduledRate
-      : finiteOr(s.sourceMassRate[j], 0.0);
-    if (rate <= 0.0)
-    {
-        return;
-    }
-
-    const double injectionParcelMass = s.injectionParcelMass;
-    double available =
-        clampMin(finiteOr(s.sourceResidualMass[j], 0.0), 0.0) + rate*dt;
-    if (available < injectionParcelMass)
-    {
-        s.sourceResidualMass[j] = available;
-        return;
-    }
-
-    const int nNew = static_cast<int>(floor(available/injectionParcelMass));
-    double consumed = 0.0;
-    int created = 0;
-
-    for (int k = 0; k < nNew; ++k)
-    {
-        const int slot = atomicAdd(s.particleCountDevice, 1);
-        if (slot >= s.particleCapacity)
-        {
-            atomicSub(s.particleCountDevice, 1);
-            break;
-        }
-
-        unsigned long long rng =
-            mixSeed
-            (
-                s.rngSeed
-              ^ static_cast<unsigned long long>
-                (
-                    0xd1b54a32d192ed03ULL
-                  + (static_cast<unsigned long long>(j) << 32)
-                  + static_cast<unsigned long long>(slot)
-                )
-            );
-        s.px[slot] = finiteOr(s.sourcePx[j], s.Cx[sourceCell]);
-        s.py[slot] = finiteOr(s.sourcePy[j], s.Cy[sourceCell]);
-        s.pz[slot] = finiteOr(s.sourcePz[j], s.Cz[sourceCell]);
-        s.pux[slot] = sourceUx;
-        s.puy[slot] = sourceUy;
-        s.puz[slot] = sourceUz;
-        s.pT[slot] =
-            clampRange(finiteOr(s.sourceT[j], s.TpMin), s.TpMin, s.TpMax);
-        s.pTheta[slot] = sourceTheta;
-        s.pd[slot] = sampleDiameterAroundDevice(s, finiteOr(s.sourceD[j], s.particleDiameterFallback), rng);
-        s.pm[slot] = injectionParcelMass;
-        s.pCellId[slot] = sourceCell;
-        s.pStatus[slot] = 1;
-        s.pRng[slot] = rng;
-        s.pOrigId[slot] =
-            (static_cast<unsigned long long>(j) << 40)
-          ^ static_cast<unsigned long long>(slot);
-        consumed += injectionParcelMass;
-        ++created;
-    }
-
-    s.sourceResidualMass[j] = available - consumed;
-#ifdef UGKP_DEVELOPMENT_PROBES
-    if (s.sourceInjectedCount != nullptr)
-    {
-        s.sourceInjectedCount[j] = created;
-    }
-#endif
-}
+#include "operators/injectBoundaryParticlesKernel.cuh"
 
 #include "operators/pointInsideCell.cuh"
 
@@ -3460,6 +2389,7 @@ __global__ void injectBoundaryParticlesKernel
 
 #include "operators/trackParticlesLocalFaceWalkKernel.cuh"
 
+#include "GpuParticleGasHeatRelaxation.cuh"
 template<class DragModel>
 __device__ void relaxOneParticleToResidentGas(DeviceState& s, const int i, const double dt)
 {
@@ -3525,11 +2455,7 @@ __device__ void relaxOneParticleToResidentGas(DeviceState& s, const int i, const
                                                                           
                                                                           
                                                                               
-    const double alphaTheta =
-        clampRange(finiteOr(s.thetaDragAlpha[c], 1.0), 0.0, 1.0);
-    const double unresolvedTheta =
-        clampMin(finiteOr(s.pTheta[i], 0.0), 0.0);
-    s.pTheta[i] = unresolvedTheta*alphaTheta;
+    decayParticleUnresolvedTheta(s, i, c);
     }
 
     if
@@ -3540,27 +2466,10 @@ __device__ void relaxOneParticleToResidentGas(DeviceState& s, const int i, const
      && s.particleCp > 0.0
     )
     {
-        const double gasConductivity = molecularGasConductivity(s);
-        const double nu = ugkwp::ranzMarshallNuFromPrOneThird
-        (
-            clampMin(re, 0.0),
-            s.gasPrOneThird
-        );
-        const double rate =
-            6.0*nu*gasConductivity
-           /(s.particleThermalCapacity*dPart*dPart + 1.0e-300);
-        const double decay = exp(-clampMin(rate, 0.0)*dt);
         const double tpOld = clampRange(s.pT[i], s.TpMin, s.TpMax);
-        const double tgOld =
-            clampRange
-            (
-                finiteOr(s.couplingTgasOld[c], s.TgasMin),
-                s.TgasMin,
-                1.0e30
-            );
-        const double tpNew =
-            clampRange(tgOld + (tpOld - tgOld)*decay, s.TpMin, s.TpMax);
-        s.pT[i] = tpNew;
+        const double tgOld = clampRange(finiteOr(s.couplingTgasOld[c], s.TgasMin), s.TgasMin, 1.0e30);
+        s.pT[i] = particleTemperatureAfterGasRelaxation
+            (s, tpOld, tgOld, re, dPart, s.particleThermalCapacity, dt);
     }
 }
 
@@ -3622,13 +2531,7 @@ int launchParticleDragRelaxation
     return 0;
 }
 
-__device__ __forceinline__ double poissonCollisionProbabilityForCell
-(DeviceState& s, const int c, const double dt)
-{
-    const double tauColl = granularCollisionTauFromCellDevice(s, c);
-    return (!(tauColl < 0.5*OfGreat) || tauColl <= OfSmall)
-      ? 0.0 : clampRange(1.0 - exp(-dt/tauColl), 0.0, 1.0);
-}
+#include "GpuCollisionProbability.cuh"
 
 __global__ void clearPoissonThermalPoolKernel(DeviceState* sp, const double dt)
 {
@@ -3829,202 +2732,14 @@ int launchSplitPrePoissonPoolLightReduction
 
 #include "GpuCollisionPoolRange.cuh"
 
-template<bool PoissonMode>
-__device__ __forceinline__ void accumulateCsrSplitLogicalPoolParticle
-(
-    DeviceState& s,
-    const int c,
-    const int i,
-    const double collisionProbability,
-    double& mass,
-    double& momX,
-    double& momY,
-    double& momZ,
-    double& energy,
-    double& diameter,
-    double& diameter2,
-    double& count
-)
-{
-    accumulateOnePoolParticle<PoissonMode>
-    (
-        s, c, i, collisionProbability,
-        mass, momX, momY, momZ, energy, diameter, diameter2, count
-    );
-}
+#include "GpuCollisionPoolSplitParticle.cuh"
 
 #include "operators/accumulateCsrSplitLogicalPoolTask.cuh"
 
-template
-<
-    bool PoissonMode,
-    bool DirectParticleIndex,
-    bool InjectionTasks
->
-__global__ void accumulateCsrHeavyPoolTasksPersistentKernel
-(
-    DeviceState* sp,
-    const double dt
-)
-{
-    DeviceState& s = *sp;
-    __shared__ int task;
-    __shared__ double collisionProbability;
-    extern __shared__ double warpPartials[];
 
-    for (;;)
-    {
-        if (threadIdx.x == 0)
-        {
-            task = atomicAdd(s.csrHeavyTaskCursor, 1);
-        }
-        __syncthreads();
-        const int taskCount = InjectionTasks
-          ? *s.preInjectionHeavyTaskCount
-          : *s.csrHeavyTaskCount;
-        if (task >= taskCount)
-        {
-            return;
-        }
 
-        const int c = InjectionTasks
-          ? s.preInjectionHeavyTaskCell[task]
-          : s.csrHeavyTaskCell[task];
-        if (threadIdx.x == 0)
-        {
-            if (PoissonMode)
-            {
-                collisionProbability = poissonCollisionProbabilityForCell(s, c, dt);
-            }
-            else
-            {
-                collisionProbability = 1.0;
-            }
-        }
-        __syncthreads();
 
-        double sums[8];
-        const int begin = InjectionTasks
-          ? s.preInjectionHeavyTaskBegin[task]
-          : s.csrHeavyTaskBegin[task];
-        const int end = InjectionTasks
-          ? s.preInjectionHeavyTaskEnd[task]
-          : s.csrHeavyTaskEnd[task];
-        accumulateCsrHeavyPoolTask<PoissonMode>
-        (
-            s,
-            c,
-            begin,
-            end,
-            DirectParticleIndex,
-            collisionProbability,
-            sums,
-            warpPartials
-        );
-        if (threadIdx.x == 0)
-        {
-            #pragma unroll
-            for (int component = 0; component < 8; ++component)
-            {
-                double* partials = InjectionTasks
-                  ? s.preInjectionHeavyPartials
-                  : s.csrHeavyPartials;
-                partials
-                [
-                    8u*static_cast<size_t>(task)
-                  + static_cast<size_t>(component)
-                ] = sums[component];
-            }
-        }
-        __syncthreads();
-    }
-}
 
-__global__ void finalizeSplitPreCsrHeavyPoolCellsKernel(DeviceState* sp)
-{
-    DeviceState& s = *sp;
-    __shared__ int heavyCellIndex;
-    extern __shared__ double warpPartials[];
-    for (;;)
-    {
-        if (threadIdx.x == 0)
-        {
-            heavyCellIndex = atomicAdd(s.csrHeavyTaskCursor, 1);
-        }
-        __syncthreads();
-        if (heavyCellIndex >= *s.csrHeavyCellCount)
-        {
-            return;
-        }
-
-        const int c = s.csrHeavyCellList[heavyCellIndex];
-        double sums[8] =
-        {
-            0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0
-        };
-        const int baseFirstTask = s.csrHeavyCellTaskStart[c];
-        const int baseTaskCount = s.csrHeavyCellTaskCount[c];
-        for
-        (
-            int localTask = threadIdx.x;
-            localTask < baseTaskCount;
-            localTask += blockDim.x
-        )
-        {
-            const int task = baseFirstTask + localTask;
-            #pragma unroll
-            for (int component = 0; component < 8; ++component)
-            {
-                sums[component] +=
-                    s.csrHeavyPartials
-                    [
-                        8u*static_cast<size_t>(task)
-                      + static_cast<size_t>(component)
-                    ];
-            }
-        }
-
-        const int injectionFirstTask =
-            s.preInjectionHeavyCellTaskStart[c];
-        const int injectionTaskCount =
-            s.preInjectionHeavyCellTaskCount[c];
-        for
-        (
-            int localTask = threadIdx.x;
-            localTask < injectionTaskCount;
-            localTask += blockDim.x
-        )
-        {
-            const int task = injectionFirstTask + localTask;
-            #pragma unroll
-            for (int component = 0; component < 8; ++component)
-            {
-                sums[component] +=
-                    s.preInjectionHeavyPartials
-                    [
-                        8u*static_cast<size_t>(task)
-                      + static_cast<size_t>(component)
-                    ];
-            }
-        }
-
-        blockReduceComponentSums<8>(sums, warpPartials);
-        if (threadIdx.x == 0)
-        {
-            s.poissonPoolMass[c] = sums[0];
-            s.poissonPoolMomX[c] = sums[1];
-            s.poissonPoolMomY[c] = sums[2];
-            s.poissonPoolMomZ[c] = sums[3];
-            s.poissonPoolEnergy[c] = sums[4];
-            s.poissonPoolDiameter[c] = sums[5];
-            s.poissonPoolDiameter2[c] = sums[6];
-            s.poolThermalCount[c] = static_cast<int>(sums[7]);
-        }
-        __syncthreads();
-    }
-}
-
-#include "operators/finalizeCsrHeavyPoolCellsKernel.cuh"
 
 
 
@@ -4178,191 +2893,24 @@ int launchGatherCellLocalParticles(DeviceState* s)
     return 0;
 }
 
-__global__ void gatherSelectedParticlesKernel(DeviceState* sp)
-{
-    DeviceState& s = *sp;
-    const int selectedCount =
-        clampRange(*s.compactCountDevice, 0, s.particleCapacity);
-    for
-    (
-        int dst = blockIdx.x*blockDim.x + threadIdx.x;
-        dst < selectedCount;
-        dst += blockDim.x*gridDim.x
-    )
-    {
-        const int i = s.sortedParticleIndex[dst];
-        if
-        (
-            i < 0
-         || i >= s.particleCapacity
-         || s.pStatus[i] != 1
-        )
-        {
-            asm("trap;");
-        }
-        const int c = s.pCellId[i];
-        if (c < 0 || c >= s.nCells)
-        {
-            asm("trap;");
-        }
-
-        s.compactPx[dst] = s.px[i];
-        s.compactPy[dst] = s.py[i];
-        s.compactPz[dst] = s.pz[i];
-        s.compactPux[dst] = s.pux[i];
-        s.compactPuy[dst] = s.puy[i];
-        s.compactPuz[dst] = s.puz[i];
-        s.compactPT[dst] = s.pT[i];
-        s.compactPTheta[dst] = s.pTheta[i];
-        s.compactPd[dst] = s.pd[i];
-        s.compactPm[dst] = s.pm[i];
-        s.compactPCellId[dst] = c;
-        s.compactPStatus[dst] = 1;
-        s.compactPRng[dst] = s.pRng[i];
-        s.compactPOrigId[dst] = s.pOrigId[i];
-    }
-}
+#include "operators/gatherSelectedParticlesKernel.cuh"
 
 #include "operators/swapParticlePointerDevice.cuh"
 
-__global__ void commitCellLocalParticleBuffersKernel(DeviceState* sp)
-{
-    if (blockIdx.x != 0 || threadIdx.x != 0)
-    {
-        return;
-    }
+#include "GpuParticleBufferCommit.cuh"
 
-    DeviceState& s = *sp;
-    int compactCount = s.compactCellOffset[s.nCells];
-    compactCount = compactCount < 0 ? 0 : compactCount;
-    compactCount =
-        compactCount > s.particleCapacity ? s.particleCapacity : compactCount;
-    *s.particleCountDevice = compactCount;
 
-    swapParticlePointerDevice(s.px, s.compactPx);
-    swapParticlePointerDevice(s.py, s.compactPy);
-    swapParticlePointerDevice(s.pz, s.compactPz);
-    swapParticlePointerDevice(s.pux, s.compactPux);
-    swapParticlePointerDevice(s.puy, s.compactPuy);
-    swapParticlePointerDevice(s.puz, s.compactPuz);
-    swapParticlePointerDevice(s.pT, s.compactPT);
-    swapParticlePointerDevice(s.pTheta, s.compactPTheta);
-    swapParticlePointerDevice(s.pd, s.compactPd);
-    swapParticlePointerDevice(s.pm, s.compactPm);
-    swapParticlePointerDevice(s.pCellId, s.compactPCellId);
-    swapParticlePointerDevice(s.pStatus, s.compactPStatus);
-    swapParticlePointerDevice(s.pRng, s.compactPRng);
-    swapParticlePointerDevice(s.pOrigId, s.compactPOrigId);
-}
 
-__global__ void commitSelectedParticleBuffersKernel(DeviceState* sp)
-{
-    if (blockIdx.x != 0 || threadIdx.x != 0)
-    {
-        return;
-    }
 
-    DeviceState& s = *sp;
-    const int compactCount =
-        clampRange(*s.compactCountDevice, 0, s.particleCapacity);
-    *s.particleCountDevice = compactCount;
-
-    swapParticlePointerDevice(s.px, s.compactPx);
-    swapParticlePointerDevice(s.py, s.compactPy);
-    swapParticlePointerDevice(s.pz, s.compactPz);
-    swapParticlePointerDevice(s.pux, s.compactPux);
-    swapParticlePointerDevice(s.puy, s.compactPuy);
-    swapParticlePointerDevice(s.puz, s.compactPuz);
-    swapParticlePointerDevice(s.pT, s.compactPT);
-    swapParticlePointerDevice(s.pTheta, s.compactPTheta);
-    swapParticlePointerDevice(s.pd, s.compactPd);
-    swapParticlePointerDevice(s.pm, s.compactPm);
-    swapParticlePointerDevice(s.pCellId, s.compactPCellId);
-    swapParticlePointerDevice(s.pStatus, s.compactPStatus);
-    swapParticlePointerDevice(s.pRng, s.compactPRng);
-    swapParticlePointerDevice(s.pOrigId, s.compactPOrigId);
-}
-
-template<class T>
-void swapParticlePointerHost(T*& active, T*& scratch)
-{
-    T* const oldActive = active;
-    active = scratch;
-    scratch = oldActive;
-}
 
 void swapParticleBufferPointersHost(DeviceState* s)
 {
-    swapParticlePointerHost(s->px, s->compactPx);
-    swapParticlePointerHost(s->py, s->compactPy);
-    swapParticlePointerHost(s->pz, s->compactPz);
-    swapParticlePointerHost(s->pux, s->compactPux);
-    swapParticlePointerHost(s->puy, s->compactPuy);
-    swapParticlePointerHost(s->puz, s->compactPuz);
-    swapParticlePointerHost(s->pT, s->compactPT);
-    swapParticlePointerHost(s->pTheta, s->compactPTheta);
-    swapParticlePointerHost(s->pd, s->compactPd);
-    swapParticlePointerHost(s->pm, s->compactPm);
-    swapParticlePointerHost(s->pCellId, s->compactPCellId);
-    swapParticlePointerHost(s->pStatus, s->compactPStatus);
-    swapParticlePointerHost(s->pRng, s->compactPRng);
-    swapParticlePointerHost(s->pOrigId, s->compactPOrigId);
+    swapParticleBuffersDevice(*s);
 }
 
 #include "operators/clearParticleMomentsAndCountsAtomicKernel.cuh"
 
-__global__ void accumulateParticleMomentsAtomicKernel(DeviceState* sp)
-{
-    DeviceState& s = *sp;
-    const int nParticles =
-        clampRange(*s.particleCountDevice, 0, s.particleCapacity);
-    const double heatFactor = particleHeatFactorDevice(s);
-    for
-    (
-        int i = blockIdx.x*blockDim.x + threadIdx.x;
-        i < nParticles;
-        i += blockDim.x*gridDim.x
-    )
-    {
-        if (s.pStatus[i] != 1)
-        {
-            continue;
-        }
-        const int c = s.pCellId[i];
-        if (c < 0 || c >= s.nCells)
-        {
-            continue;
-        }
-        const double m = clampMin(finiteOr(s.pm[i], 0.0), 0.0);
-        const double ux = finiteOr(s.pux[i], 0.0);
-        const double uy = finiteOr(s.puy[i], 0.0);
-        const double uz = finiteOr(s.puz[i], 0.0);
-        const double theta = clampMin(finiteOr(s.pTheta[i], 0.0), 0.0);
-        const double d =
-            clampMin
-            (
-                finiteOr(s.pd[i], s.particleDiameterFallback),
-                1.0e-12
-            );
-        atomicAdd(&s.momRhoP[c], m);
-        atomicAdd(&s.momRhoUPx[c], m*ux);
-        atomicAdd(&s.momRhoUPy[c], m*uy);
-        atomicAdd(&s.momRhoUPz[c], m*uz);
-        atomicAdd
-        (
-            &s.momRhoEP[c],
-            m*(0.5*sqr3(ux, uy, uz) + 1.5*theta)
-        );
-        atomicAdd(&s.momRhoPD[c], m*d);
-        if (heatFactor > 0.0)
-        {
-            const double tp =
-                clampRange(finiteOr(s.pT[i], s.TpMin), s.TpMin, s.TpMax);
-            atomicAdd(&s.momRhoHpP[c], m*heatFactor*tp);
-        }
-        atomicAdd(&s.cellParticleCount[c], 1);
-    }
-}
+#include "operators/accumulateParticleMomentsAtomicKernel.cuh"
 
 #include "operators/normalizeParticleMomentsAtomicKernel.cuh"
 
@@ -4374,15 +2922,17 @@ constexpr bool postTransportFusePayload = true;
 #include "GpuParticleMoments.cuh"
 
 
-#include "operators/accumulateCsrHeavyMomentTasksPersistentKernel.cuh"
 
 #define GPU_PIPELINE_REAL double
 #include "GpuSegmentedMomentWorkers.cuh"
 
+// Compatibility adapter: historical gas bool order is recovery, then payload.
 int launchCsrSegmentedMomentReduction(DeviceState* s, const int block,
     const bool deferRecovery = false, const bool gatherSurvivors = false)
 {
-    return launchCommonSegmentedMomentReduction(s, block, gatherSurvivors, deferRecovery);
+    return launchCommonSegmentedMomentReduction(s, block,
+        {gatherSurvivors ? MomentPayload::gatherSurvivors : MomentPayload::momentsOnly,
+         deferRecovery ? MomentRecovery::deferToAdvance : MomentRecovery::completeHere});
 }
 
 int launchCsrHeavyMomentReduction(DeviceState* s, const int block, const bool deferRecovery = false, const bool gatherSurvivors = false)
@@ -4399,151 +2949,9 @@ __global__ void solidRecoveryFromParticleMomentsKernel(DeviceState* sp);
 
                                                                          
                                                                            
-template<bool WarpAggregated>
-__global__ void countInjectedParticlesByCellKernel(DeviceState* sp)
-{
-    DeviceState& s = *sp;
-    const int baseCount = clampRange
-    (
-        *s.preBaseParticleCountDevice,
-        0,
-        s.particleCapacity
-    );
-    const int nParticles = clampRange
-    (
-        *s.particleCountDevice,
-        baseCount,
-        s.particleCapacity
-    );
-    for
-    (
-        int i = baseCount + blockIdx.x*blockDim.x + threadIdx.x;
-        i < nParticles;
-        i += blockDim.x*gridDim.x
-    )
-    {
-        const int c = s.pCellId[i];
-        const bool valid =
-            s.pStatus[i] != 0 && c >= 0 && c < s.nCells;
-        if (!WarpAggregated)
-        {
-            if (valid)
-            {
-                atomicAdd(&s.cellParticleCount[c], 1);
-            }
-            continue;
-        }
-#if __CUDA_ARCH__ >= 700
-        const unsigned int activeMask = __activemask();
-        const unsigned int validMask = __ballot_sync(activeMask, valid);
-        if (valid)
-        {
-            const unsigned int groupMask = __match_any_sync(validMask, c);
-            const int lane = threadIdx.x & 31;
-            const int leader = __ffs(groupMask) - 1;
-            if (lane == leader)
-            {
-                atomicAdd(&s.cellParticleCount[c], __popc(groupMask));
-            }
-        }
-#else
-        if (valid)
-        {
-            atomicAdd(&s.cellParticleCount[c], 1);
-        }
-#endif
-    }
-}
+#include "GpuInjectionDirectory.cuh"
 
-template<bool WarpAggregated>
-__global__ void scatterInjectedParticlesByCellKernel(DeviceState* sp)
-{
-    DeviceState& s = *sp;
-    const int baseCount = clampRange
-    (
-        *s.preBaseParticleCountDevice,
-        0,
-        s.particleCapacity
-    );
-    const int nParticles = clampRange
-    (
-        *s.particleCountDevice,
-        baseCount,
-        s.particleCapacity
-    );
-    for
-    (
-        int i = baseCount + blockIdx.x*blockDim.x + threadIdx.x;
-        i < nParticles;
-        i += blockDim.x*gridDim.x
-    )
-    {
-        const int c = s.pCellId[i];
-        const bool valid =
-            s.pStatus[i] != 0 && c >= 0 && c < s.nCells;
-        if (!WarpAggregated)
-        {
-            if (valid)
-            {
-                const int pos = atomicAdd(&s.cellParticleWrite[c], 1);
-                if
-                (
-                    pos >= s.cellParticleOffset[c]
-                 && pos < s.cellParticleOffset[c + 1]
-                )
-                {
-                    s.sortedParticleIndex[pos] = i;
-                }
-            }
-            continue;
-        }
-#if __CUDA_ARCH__ >= 700
-        const unsigned int activeMask = __activemask();
-        const unsigned int validMask = __ballot_sync(activeMask, valid);
-        if (valid)
-        {
-            const unsigned int groupMask = __match_any_sync(validMask, c);
-            const int lane = threadIdx.x & 31;
-            const int leader = __ffs(groupMask) - 1;
-            int groupBase = 0;
-            if (lane == leader)
-            {
-                groupBase = atomicAdd
-                (
-                    &s.cellParticleWrite[c],
-                    __popc(groupMask)
-                );
-            }
-            groupBase = __shfl_sync(groupMask, groupBase, leader);
-            const unsigned int lowerLaneMask =
-                lane == 0 ? 0u : ((1u << lane) - 1u);
-            const int laneRank = __popc(groupMask & lowerLaneMask);
-            const int pos = groupBase + laneRank;
-            if
-            (
-                pos >= s.cellParticleOffset[c]
-             && pos < s.cellParticleOffset[c + 1]
-            )
-            {
-                s.sortedParticleIndex[pos] = i;
-            }
-        }
-#else
-        if (valid)
-        {
-            const int pos = atomicAdd(&s.cellParticleWrite[c], 1);
-            if
-            (
-                pos >= s.cellParticleOffset[c]
-             && pos < s.cellParticleOffset[c + 1]
-            )
-            {
-                s.sortedParticleIndex[pos] = i;
-            }
-        }
-#endif
-    }
-}
+
 
 __global__ void captureCompactedPreBaseOffsetsKernel(DeviceState* sp)
 {
@@ -4573,6 +2981,7 @@ __global__ void captureCompactedPreBaseOffsetsKernel(DeviceState* sp)
 
 
 
+#include "GpuHardwareReductionTile.cuh"
 __device__ __forceinline__ int csrReductionTileParticles
 (
     const DeviceState& s,
@@ -4599,30 +3008,10 @@ __device__ __forceinline__ int csrReductionTileParticles
         totalParticles = s.cellParticleOffset[s.nCells];
     }
 
-    if (totalParticles < 0)
-    {
-        asm("trap;");
-    }
-    const long long denominator =
-        static_cast<long long>(s.reductionBlockThreads)
-       *static_cast<long long>(s.multiprocessorCount)
-       *static_cast<long long>(s.lightBlocksPerSm);
-    if (denominator <= 0)
-    {
-        asm("trap;");
-    }
-    long long rounds = (totalParticles + denominator - 1)/denominator;
-    if (rounds < 1)
-    {
-        rounds = 1;
-    }
-    const long long threshold =
-        static_cast<long long>(s.reductionBlockThreads)*rounds;
-    if (threshold <= 0 || threshold > 2147483647LL)
-    {
-        asm("trap;");
-    }
-    return static_cast<int>(threshold);
+    const int threshold = hardwareReductionTile(totalParticles, s.reductionBlockThreads,
+        s.multiprocessorCount, s.lightBlocksPerSm);
+    if (threshold == 0) asm("trap;");
+    return threshold;
 }
 
 __global__ void configureDynamicCsrHeavyPolicyKernel
@@ -4794,57 +3183,7 @@ int runToolB3
 
 #include "GpuReductionTaskPipeline.cuh"
 
-__global__ void buildCsrHeavyReductionTasksKernel(DeviceState* sp)
-{
-    DeviceState& s = *sp;
-    const int stride = blockDim.x*gridDim.x;
-    for (int c = blockIdx.x*blockDim.x + threadIdx.x; c < s.nCells; c += stride)
-    {
-        const int begin = s.cellParticleOffset[c];
-        const int end = s.cellParticleOffset[c + 1];
-        const int count = end - begin;
-        if (count <= s.csrHeavyCellThreshold)
-        {
-            continue;
-        }
 
-        const int nTasks =
-            1 + (count - 1)/s.csrHeavyTileParticles;
-        const int taskStart = atomicAdd(s.csrHeavyTaskCount, nTasks);
-        if
-        (
-            taskStart < 0
-         || nTasks <= 0
-         || taskStart > s.csrHeavyTaskCapacity - nTasks
-        )
-        {
-            asm("trap;");
-        }
-
-        s.csrHeavyCellTaskStart[c] = taskStart;
-        s.csrHeavyCellTaskCount[c] = nTasks;
-        const int heavyCellIndex = atomicAdd(s.csrHeavyCellCount, 1);
-        if (heavyCellIndex < 0 || heavyCellIndex >= s.nCells)
-        {
-            asm("trap;");
-        }
-        s.csrHeavyCellList[heavyCellIndex] = c;
-        for (int localTask = 0; localTask < nTasks; ++localTask)
-        {
-            const int task = taskStart + localTask;
-            const int taskBegin = begin + localTask*s.csrHeavyTileParticles;
-            const int remaining = end - taskBegin;
-            const int taskLength =
-                remaining < s.csrHeavyTileParticles
-              ? remaining
-              : s.csrHeavyTileParticles;
-            const int taskEnd = taskBegin + taskLength;
-            s.csrHeavyTaskCell[task] = c;
-            s.csrHeavyTaskBegin[task] = taskBegin;
-            s.csrHeavyTaskEnd[task] = taskEnd;
-        }
-    }
-}
 
 int prepareCsrHeavyReductionTasks(DeviceState* s, const int block)
 {
@@ -4852,90 +3191,9 @@ int prepareCsrHeavyReductionTasks(DeviceState* s, const int block)
     (
         s, block, HeavyDirectoryKind::full
     );
-#if 0
-    if (s->csrHeavyReductionEnabled == 0 || s->particleCapacity <= 0)
-    {
-        return 0;
-    }
-
-    if (configureDynamicCsrHeavyPolicy(s, HeavyDirectoryKind::full) != 0)
-    {
-        return 1;
-    }
-
-    cudaError_t err = cudaMemset(s->csrHeavyTaskCount, 0, sizeof(int));
-    if (err != cudaSuccess)
-    {
-        setLastError("clear CSR heavy task count", err);
-        return 1;
-    }
-    err = cudaMemset(s->csrHeavyCellCount, 0, sizeof(int));
-    if (err != cudaSuccess)
-    {
-        setLastError("clear CSR heavy cell count", err);
-        return 1;
-    }
-
-    const int cellGrid = (s->nCells + block - 1)/block;
-    buildCsrHeavyReductionTasksKernel<<<cellGrid, block>>>(s->deviceState);
-    err = cudaGetLastError();
-    if (err != cudaSuccess)
-    {
-        setLastError("buildCsrHeavyReductionTasksKernel launch", err);
-        return 1;
-    }
-    return 0;
-#endif
 }
 
-__global__ void buildCsrHeavyBaseReductionTasksKernel(DeviceState* sp)
-{
-    DeviceState& s = *sp;
-    const int stride = blockDim.x*gridDim.x;
-    for (int c = blockIdx.x*blockDim.x + threadIdx.x; c < s.nCells; c += stride)
-    {
-        const int begin = s.preBaseCellOffset[c];
-        const int end = s.preBaseCellOffset[c + 1];
-        const int count = end - begin;
-        if (count <= s.csrHeavyCellThreshold)
-        {
-            continue;
-        }
 
-        const int nTasks = 1 + (count - 1)/s.csrHeavyTileParticles;
-        const int taskStart = atomicAdd(s.csrHeavyTaskCount, nTasks);
-        if
-        (
-            taskStart < 0
-         || nTasks <= 0
-         || taskStart > s.csrHeavyTaskCapacity - nTasks
-        )
-        {
-            asm("trap;");
-        }
-
-        s.csrHeavyCellTaskStart[c] = taskStart;
-        s.csrHeavyCellTaskCount[c] = nTasks;
-        const int heavyCellIndex = atomicAdd(s.csrHeavyCellCount, 1);
-        if (heavyCellIndex < 0 || heavyCellIndex >= s.nCells)
-        {
-            asm("trap;");
-        }
-        s.csrHeavyCellList[heavyCellIndex] = c;
-        for (int localTask = 0; localTask < nTasks; ++localTask)
-        {
-            const int task = taskStart + localTask;
-            const int taskBegin = begin + localTask*s.csrHeavyTileParticles;
-            const int remaining = end - taskBegin;
-            const int taskLength = remaining < s.csrHeavyTileParticles
-              ? remaining
-              : s.csrHeavyTileParticles;
-            s.csrHeavyTaskCell[task] = c;
-            s.csrHeavyTaskBegin[task] = taskBegin;
-            s.csrHeavyTaskEnd[task] = taskBegin + taskLength;
-        }
-    }
-}
 
 int prepareCsrHeavyBaseReductionTasks(DeviceState* s, const int block)
 {
@@ -4943,149 +3201,9 @@ int prepareCsrHeavyBaseReductionTasks(DeviceState* s, const int block)
     (
         s, block, HeavyDirectoryKind::baseOnly
     );
-#if 0
-    if (s->csrHeavyReductionEnabled == 0 || s->particleCapacity <= 0)
-    {
-        return 0;
-    }
-
-    if (configureDynamicCsrHeavyPolicy(s, HeavyDirectoryKind::baseOnly) != 0)
-    {
-        return 1;
-    }
-
-    cudaError_t err = cudaMemset(s->csrHeavyTaskCount, 0, sizeof(int));
-    if (err == cudaSuccess)
-    {
-        err = cudaMemset(s->csrHeavyCellCount, 0, sizeof(int));
-    }
-    if (err == cudaSuccess)
-    {
-        err = cudaMemset
-        (
-            s->csrHeavyCellTaskStart,
-            0,
-            static_cast<size_t>(s->nCells)*sizeof(int)
-        );
-    }
-    if (err == cudaSuccess)
-    {
-        err = cudaMemset
-        (
-            s->csrHeavyCellTaskCount,
-            0,
-            static_cast<size_t>(s->nCells)*sizeof(int)
-        );
-    }
-    if (err != cudaSuccess)
-    {
-        setLastError("reset split-pre base heavy task metadata", err);
-        return 1;
-    }
-
-    const int cellGrid = (s->nCells + block - 1)/block;
-    buildCsrHeavyBaseReductionTasksKernel<<<cellGrid, block>>>(s->deviceState);
-    err = cudaGetLastError();
-    if (err != cudaSuccess)
-    {
-        setLastError("build split-pre base heavy tasks launch", err);
-        return 1;
-    }
-    return 0;
-#endif
 }
 
-__global__ void buildSplitPreCsrHeavyReductionTasksKernel(DeviceState* sp)
-{
-    DeviceState& s = *sp;
-    const int stride = blockDim.x*gridDim.x;
-    for (int c = blockIdx.x*blockDim.x + threadIdx.x; c < s.nCells; c += stride)
-    {
-        const int baseBegin = s.preBaseCellOffset[c];
-        const int baseEnd = s.preBaseCellOffset[c + 1];
-        const int injectionBegin = s.cellParticleOffset[c];
-        const int injectionEnd = s.cellParticleOffset[c + 1];
-        const int baseCount = baseEnd - baseBegin;
-        const int injectionCount = injectionEnd - injectionBegin;
-        if (baseCount + injectionCount <= s.csrHeavyCellThreshold)
-        {
-            continue;
-        }
 
-        const int heavyCellIndex = atomicAdd(s.csrHeavyCellCount, 1);
-        if (heavyCellIndex < 0 || heavyCellIndex >= s.nCells)
-        {
-            asm("trap;");
-        }
-        s.csrHeavyCellList[heavyCellIndex] = c;
-
-                                                                             
-                                                                         
-                                                                         
-        if (baseCount > 0 && s.csrHeavyCellTaskCount[c] == 0)
-        {
-            const int nTasks =
-                1 + (baseCount - 1)/s.csrHeavyTileParticles;
-            const int taskStart = atomicAdd(s.csrHeavyTaskCount, nTasks);
-            if
-            (
-                taskStart < 0
-             || nTasks <= 0
-             || taskStart > s.csrHeavyTaskCapacity - nTasks
-            )
-            {
-                asm("trap;");
-            }
-            s.csrHeavyCellTaskStart[c] = taskStart;
-            s.csrHeavyCellTaskCount[c] = nTasks;
-            for (int localTask = 0; localTask < nTasks; ++localTask)
-            {
-                const int task = taskStart + localTask;
-                const int taskBegin =
-                    baseBegin + localTask*s.csrHeavyTileParticles;
-                const int remaining = baseEnd - taskBegin;
-                const int taskLength = remaining < s.csrHeavyTileParticles
-                  ? remaining
-                  : s.csrHeavyTileParticles;
-                s.csrHeavyTaskCell[task] = c;
-                s.csrHeavyTaskBegin[task] = taskBegin;
-                s.csrHeavyTaskEnd[task] = taskBegin + taskLength;
-            }
-        }
-
-        if (injectionCount > 0)
-        {
-            const int nTasks =
-                1 + (injectionCount - 1)/s.csrHeavyTileParticles;
-            const int taskStart =
-                atomicAdd(s.preInjectionHeavyTaskCount, nTasks);
-            if
-            (
-                taskStart < 0
-             || nTasks <= 0
-             || taskStart > s.csrHeavyTaskCapacity - nTasks
-            )
-            {
-                asm("trap;");
-            }
-            s.preInjectionHeavyCellTaskStart[c] = taskStart;
-            s.preInjectionHeavyCellTaskCount[c] = nTasks;
-            for (int localTask = 0; localTask < nTasks; ++localTask)
-            {
-                const int task = taskStart + localTask;
-                const int taskBegin =
-                    injectionBegin + localTask*s.csrHeavyTileParticles;
-                const int remaining = injectionEnd - taskBegin;
-                const int taskLength = remaining < s.csrHeavyTileParticles
-                  ? remaining
-                  : s.csrHeavyTileParticles;
-                s.preInjectionHeavyTaskCell[task] = c;
-                s.preInjectionHeavyTaskBegin[task] = taskBegin;
-                s.preInjectionHeavyTaskEnd[task] = taskBegin + taskLength;
-            }
-        }
-    }
-}
 
 int prepareSplitPreCsrHeavyReductionTasks(DeviceState* s, const int block)
 {
@@ -5093,91 +3211,6 @@ int prepareSplitPreCsrHeavyReductionTasks(DeviceState* s, const int block)
     (
         s, block, HeavyDirectoryKind::splitBaseAndInjection
     );
-#if 0
-    if (s->csrHeavyReductionEnabled == 0 || s->particleCapacity <= 0)
-    {
-        return 0;
-    }
-
-    if
-    (
-        configureDynamicCsrHeavyPolicy
-        (
-            s,
-            HeavyDirectoryKind::splitBaseAndInjection
-        ) != 0
-    )
-    {
-        return 1;
-    }
-
-                                                                           
-                                                                         
-                                                          
-    cudaError_t err = cudaMemset(s->csrHeavyTaskCount, 0, sizeof(int));
-    if (err == cudaSuccess)
-    {
-        err = cudaMemset(s->csrHeavyCellCount, 0, sizeof(int));
-    }
-    if (err == cudaSuccess)
-    {
-        err = cudaMemset(s->preInjectionHeavyTaskCount, 0, sizeof(int));
-    }
-    if (err == cudaSuccess)
-    {
-        err = cudaMemset
-        (
-            s->csrHeavyCellTaskStart,
-            0,
-            static_cast<size_t>(s->nCells)*sizeof(int)
-        );
-    }
-    if (err == cudaSuccess)
-    {
-        err = cudaMemset
-        (
-            s->csrHeavyCellTaskCount,
-            0,
-            static_cast<size_t>(s->nCells)*sizeof(int)
-        );
-    }
-    if (err == cudaSuccess)
-    {
-        err = cudaMemset
-        (
-            s->preInjectionHeavyCellTaskStart,
-            0,
-            static_cast<size_t>(s->nCells)*sizeof(int)
-        );
-    }
-    if (err == cudaSuccess)
-    {
-        err = cudaMemset
-        (
-            s->preInjectionHeavyCellTaskCount,
-            0,
-            static_cast<size_t>(s->nCells)*sizeof(int)
-        );
-    }
-    if (err != cudaSuccess)
-    {
-        setLastError("reset split-pre combined heavy task metadata", err);
-        return 1;
-    }
-
-    const int cellGrid = (s->nCells + block - 1)/block;
-    buildSplitPreCsrHeavyReductionTasksKernel<<<cellGrid, block>>>
-    (
-        s->deviceState
-    );
-    err = cudaGetLastError();
-    if (err != cudaSuccess)
-    {
-        setLastError("build split-pre combined heavy tasks launch", err);
-        return 1;
-    }
-    return 0;
-#endif
 }
 
 int binParticlesByCell(DeviceState* s, const int block, const bool survivorsOnly = false)
@@ -5315,18 +3348,18 @@ int preparePreTransportParticleDirectory(DeviceState* s, const int block)
 
     if (s->csrWarpAggregatedBinning != 0)
     {
-        countInjectedParticlesByCellKernel<true>
+        countSplitPreInjectionParticlesKernel<true>
             <<<s->particleWorkGrid, s->particleBlockThreads>>>(s->deviceState);
     }
     else
     {
-        countInjectedParticlesByCellKernel<false>
+        countSplitPreInjectionParticlesKernel<false>
             <<<s->particleWorkGrid, s->particleBlockThreads>>>(s->deviceState);
     }
     err = cudaGetLastError();
     if (err != cudaSuccess)
     {
-        setLastError("countInjectedParticlesByCellKernel launch", err);
+        setLastError("countSplitPreInjectionParticlesKernel launch", err);
         return 1;
     }
 
@@ -5354,18 +3387,18 @@ int preparePreTransportParticleDirectory(DeviceState* s, const int block)
 
     if (s->csrWarpAggregatedBinning != 0)
     {
-        scatterInjectedParticlesByCellKernel<true>
+        scatterSplitPreInjectionParticlesKernel<true>
             <<<s->particleWorkGrid, s->particleBlockThreads>>>(s->deviceState);
     }
     else
     {
-        scatterInjectedParticlesByCellKernel<false>
+        scatterSplitPreInjectionParticlesKernel<false>
             <<<s->particleWorkGrid, s->particleBlockThreads>>>(s->deviceState);
     }
     err = cudaGetLastError();
     if (err != cudaSuccess)
     {
-        setLastError("scatterInjectedParticlesByCellKernel launch", err);
+        setLastError("scatterSplitPreInjectionParticlesKernel launch", err);
         return 1;
     }
 
@@ -5798,219 +3831,7 @@ bool developmentProbeBoolean(const char* value)
         );
 }
 
-int initialiseDevelopmentProbe(DeviceState* owner)
-{
-    if (developmentProbe.owner != nullptr)
-    {
-        setLastErrorText
-        (
-            "UGKP development probe already belongs to another backend handle"
-        );
-        return 1;
-    }
-    shutdownDevelopmentProbe();
-
-    const char* const configuredMode = std::getenv("UGKP_DEV_PROBE_MODE");
-    if
-    (
-        configuredMode == nullptr
-     || *configuredMode == '\0'
-     || std::strcmp(configuredMode, "off") == 0
-     || std::strcmp(configuredMode, "0") == 0
-    )
-    {
-        return 0;
-    }
-
-    if (std::strcmp(configuredMode, "timing") == 0)
-    {
-        developmentProbe.mode = DevelopmentProbeMode::timing;
-        developmentProbe.modeName = "timing";
-    }
-    else if
-    (
-        std::strcmp(configuredMode, "full") == 0
-     || std::strcmp(configuredMode, "1") == 0
-    )
-    {
-        developmentProbe.mode = DevelopmentProbeMode::full;
-        developmentProbe.modeName = "full";
-    }
-    else
-    {
-        std::snprintf
-        (
-            lastError,
-            sizeof(lastError),
-            "invalid UGKP_DEV_PROBE_MODE '%s' (expected off, timing, or full)",
-            configuredMode
-        );
-        return 1;
-    }
-
-    const char* const configuredLog = std::getenv("UGKP_DEV_PROBE_LOG");
-    if (configuredLog == nullptr || *configuredLog == '\0')
-    {
-        setLastErrorText
-        (
-            "UGKP_DEV_PROBE_LOG is required when UGKP_DEV_PROBE_MODE is enabled"
-        );
-        shutdownDevelopmentProbe();
-        return 1;
-    }
-    if (configuredLog[0] != '/')
-    {
-        setLastErrorText
-        (
-            "UGKP_DEV_PROBE_LOG must be an absolute path"
-        );
-        shutdownDevelopmentProbe();
-        return 1;
-    }
-
-    if (const char* configuredInterval = std::getenv("UGKP_DEV_PROBE_INTERVAL"))
-    {
-        errno = 0;
-        char* end = nullptr;
-        const unsigned long long interval =
-            std::strtoull(configuredInterval, &end, 10);
-        if
-        (
-            errno != 0
-         || end == configuredInterval
-         || *end != '\0'
-         || interval == 0
-        )
-        {
-            std::snprintf
-            (
-                lastError,
-                sizeof(lastError),
-                "invalid UGKP_DEV_PROBE_INTERVAL '%s'",
-                configuredInterval
-            );
-            shutdownDevelopmentProbe();
-            return 1;
-        }
-        developmentProbe.interval = interval;
-    }
-
-    developmentProbe.failOnNonFinite = developmentProbeBoolean
-    (
-        std::getenv("UGKP_DEV_PROBE_FAIL_ON_NONFINITE")
-    );
-    developmentProbe.pid = static_cast<int>(::getpid());
-    developmentProbe.logPath = developmentProbePathForPid(configuredLog);
-    if (const char* value = std::getenv("UGKP_DEV_PROBE_RUN_ID"))
-    {
-        developmentProbe.runId = value;
-    }
-    if (const char* value = std::getenv("UGKP_DEV_PROBE_VARIANT"))
-    {
-        developmentProbe.variant = value;
-    }
-
-    developmentProbe.log = std::fopen(developmentProbe.logPath.c_str(), "a+");
-    if (developmentProbe.log == nullptr)
-    {
-        std::snprintf
-        (
-            lastError,
-            sizeof(lastError),
-            "cannot open UGKP development probe log '%s': %s",
-            developmentProbe.logPath.c_str(),
-            std::strerror(errno)
-        );
-        shutdownDevelopmentProbe();
-        return 1;
-    }
-    std::setvbuf(developmentProbe.log, nullptr, _IOLBF, 0);
-    if (std::fseek(developmentProbe.log, 0, SEEK_END) != 0)
-    {
-        setLastErrorText("cannot seek UGKP development probe log");
-        shutdownDevelopmentProbe();
-        return 1;
-    }
-    const long logBytes = std::ftell(developmentProbe.log);
-    if (logBytes < 0)
-    {
-        setLastErrorText("cannot query UGKP development probe log length");
-        shutdownDevelopmentProbe();
-        return 1;
-    }
-    if (logBytes == 0 && writeDevelopmentProbeHeader() != 0)
-    {
-        shutdownDevelopmentProbe();
-        return 1;
-    }
-
-    cudaError_t err = cudaEventCreate(&developmentProbe.totalStartEvent);
-    if (err == cudaSuccess)
-    {
-        err = cudaEventCreate(&developmentProbe.totalStopEvent);
-    }
-    for
-    (
-        int stage = 0;
-        err == cudaSuccess && stage < ProbeStageCount;
-        ++stage
-    )
-    {
-        for
-        (
-            int occurrence = 0;
-            err == cudaSuccess && occurrence < ProbeMaxOccurrences;
-            ++occurrence
-        )
-        {
-            err = cudaEventCreate
-            (
-                &developmentProbe.stageStartEvents[stage][occurrence]
-            );
-            if (err == cudaSuccess)
-            {
-                err = cudaEventCreate
-                (
-                    &developmentProbe.stageStopEvents[stage][occurrence]
-                );
-            }
-        }
-    }
-    if (err != cudaSuccess)
-    {
-        setLastError("cudaEventCreate UGKP development probe", err);
-        shutdownDevelopmentProbe();
-        return 1;
-    }
-
-    if (developmentProbeFullValidation())
-    {
-        const cudaError_t err = cudaMalloc
-        (
-            reinterpret_cast<void**>(&developmentProbe.deviceSummary),
-            sizeof(DevelopmentProbeDeviceSummary)
-        );
-        if (err != cudaSuccess)
-        {
-            setLastError("cudaMalloc UGKP development probe summary", err);
-            shutdownDevelopmentProbe();
-            return 1;
-        }
-    }
-
-    try
-    {
-        developmentProbe.occupancy.resize(static_cast<size_t>(owner->nCells));
-    }
-    catch (...)
-    {
-        setLastErrorText("cannot allocate UGKP development probe occupancy mirror");
-        shutdownDevelopmentProbe();
-        return 1;
-    }
-    developmentProbe.owner = owner;
-    return 0;
-}
+#include "../../../common/GpuDevelopmentProbeInit.cuh"
 
 int collectDevelopmentProbeSample
 (
@@ -6392,248 +4213,8 @@ int collectDevelopmentProbeSample
     return 0;
 }
 
-class DevelopmentAdvanceProbe
-{
-    DeviceState* state_ = nullptr;
-    unsigned long long step_ = 0;
-    double simulationTime_ = 0.0;
-    double dt_ = 0.0;
-    const char* currentStage_ = "advance_begin";
-    bool enabled_ = false;
-    bool sampled_ = false;
-    bool failed_ = false;
-    bool completed_ = false;
-    bool rowWritten_ = false;
-
-public:
-    DevelopmentAdvanceProbe
-    (
-        DeviceState* state,
-        const double dt,
-        const double simulationTime
-    )
-    :
-        state_(state),
-        simulationTime_(simulationTime),
-        dt_(dt),
-        enabled_(developmentProbeEnabled())
-    {
-        if (!enabled_)
-        {
-            return;
-        }
-
-        step_ = ++developmentProbe.advanceIndex;
-        sampled_ = (step_ % developmentProbe.interval) == 0;
-        if (sampled_)
-        {
-            for (int stage = 0; stage < ProbeStageCount; ++stage)
-            {
-                developmentProbe.stageOccurrenceCount[stage] = 0;
-                for
-                (
-                    int occurrence = 0;
-                    occurrence < ProbeMaxOccurrences;
-                    ++occurrence
-                )
-                {
-                    developmentProbe.stageOccurrenceExecuted[stage][occurrence] =
-                        false;
-                }
-            }
-            const cudaError_t err = cudaEventRecord
-            (
-                developmentProbe.totalStartEvent,
-                0
-            );
-            if (err != cudaSuccess)
-            {
-                setLastError("cudaEventRecord UGKP development probe start", err);
-                failed_ = true;
-            }
-        }
-    }
-
-    ~DevelopmentAdvanceProbe()
-    {
-        if (!enabled_ || completed_ || rowWritten_)
-        {
-            return;
-        }
-
-        DevelopmentProbeSample sample;
-        sample.step = step_;
-        sample.simulationTime = simulationTime_;
-        sample.dt = dt_;
-        sample.status = "error";
-        sample.errorStage = currentStage_;
-        sample.errorMessage = lastError;
-        if (state_ != nullptr)
-        {
-            sample.nCells = state_->nCells;
-            sample.blockExponent = 0;
-            sample.blockThreads = state_->reductionBlockThreads;
-            sample.smCount = state_->multiprocessorCount;
-            sample.particleBlocksPerSm = state_->particleBlocksPerSm;
-            sample.lightBlocksPerSm = state_->lightBlocksPerSm;
-            sample.heavyBlocksPerSm = state_->heavyBlocksPerSm;
-            sample.heavyReductionEnabled =
-                state_->csrHeavyReductionEnabled;
-            sample.particlePath = state_->particlesMayBePresent ? 1 : 0;
-            sample.particleCapacity = state_->particleCapacity;
-        }
-        char preservedError[sizeof(lastError)]{};
-        std::snprintf
-        (
-            preservedError,
-            sizeof(preservedError),
-            "%s",
-            lastError
-        );
-        (void)writeDevelopmentProbeSample(sample);
-        std::snprintf(lastError, sizeof(lastError), "%s", preservedError);
-        rowWritten_ = true;
-    }
-
-    bool failed() const
-    {
-        return failed_;
-    }
-
-    void enter(const DevelopmentProbeStage stage)
-    {
-        currentStage_ = developmentProbeStageNames[stage];
-        if (!sampled_ || failed_)
-        {
-            return;
-        }
-        const int occurrence = developmentProbe.stageOccurrenceCount[stage];
-        if (occurrence < 0 || occurrence >= ProbeMaxOccurrences)
-        {
-            setLastErrorText
-            (
-                "UGKP development probe stage occurrence capacity exceeded"
-            );
-            failed_ = true;
-            return;
-        }
-        const cudaError_t err = cudaEventRecord
-        (
-            developmentProbe.stageStartEvents[stage][occurrence],
-            0
-        );
-        if (err != cudaSuccess)
-        {
-            setLastError("cudaEventRecord UGKP development probe stage start", err);
-            failed_ = true;
-        }
-    }
-
-    int leave
-    (
-        const DevelopmentProbeStage stage,
-        const bool executed = true
-    )
-    {
-        if (!sampled_)
-        {
-            return 0;
-        }
-        if (failed_)
-        {
-            return 1;
-        }
-        const int occurrence = developmentProbe.stageOccurrenceCount[stage];
-        if (occurrence < 0 || occurrence >= ProbeMaxOccurrences)
-        {
-            setLastErrorText
-            (
-                "UGKP development probe stage occurrence capacity exceeded"
-            );
-            failed_ = true;
-            return 1;
-        }
-        const cudaError_t err = cudaEventRecord
-        (
-            developmentProbe.stageStopEvents[stage][occurrence],
-            0
-        );
-        if (err != cudaSuccess)
-        {
-            setLastError("cudaEventRecord UGKP development probe stage", err);
-            failed_ = true;
-            return 1;
-        }
-        developmentProbe.stageOccurrenceExecuted[stage][occurrence] = executed;
-        developmentProbe.stageOccurrenceCount[stage] = occurrence + 1;
-        return 0;
-    }
-
-    int finish(const bool particlePath)
-    {
-        if (!enabled_ || !sampled_)
-        {
-            completed_ = true;
-            return 0;
-        }
-
-        currentStage_ = "probe_collect";
-        const cudaError_t stopError = cudaEventRecord
-        (
-            developmentProbe.totalStopEvent,
-            0
-        );
-        if (stopError != cudaSuccess)
-        {
-            setLastError
-            (
-                "cudaEventRecord UGKP development probe total stop",
-                stopError
-            );
-            return 1;
-        }
-        DevelopmentProbeSample sample;
-        sample.step = step_;
-        sample.simulationTime = simulationTime_;
-        sample.dt = dt_;
-        sample.nCells = state_->nCells;
-        sample.blockExponent = 0;
-        sample.blockThreads = state_->reductionBlockThreads;
-        sample.smCount = state_->multiprocessorCount;
-        sample.particleBlocksPerSm = state_->particleBlocksPerSm;
-        sample.lightBlocksPerSm = state_->lightBlocksPerSm;
-        sample.heavyBlocksPerSm = state_->heavyBlocksPerSm;
-        sample.heavyReductionEnabled = state_->csrHeavyReductionEnabled;
-        sample.particlePath = particlePath ? 1 : 0;
-        sample.particleCapacity = state_->particleCapacity;
-        if (collectDevelopmentProbeSample(state_, particlePath, sample) != 0)
-        {
-            return 1;
-        }
-        if (writeDevelopmentProbeSample(sample) != 0)
-        {
-            rowWritten_ = true;
-            return 1;
-        }
-        rowWritten_ = true;
-
-        if
-        (
-            developmentProbe.failOnNonFinite
-         && sample.badFieldMask != 0
-        )
-        {
-            setLastErrorText
-            (
-                "UGKP development probe found non-finite or invalid resident state"
-            );
-            return 1;
-        }
-
-        completed_ = true;
-        return 0;
-    }
-};
+constexpr bool developmentProbeIncludesScheduling = true;
+#include "../../../common/GpuDevelopmentAdvanceProbe.cuh"
 
 #endif
 
@@ -6642,436 +4223,7 @@ extern "C" const char* ugkwpGpuResidentStrictLastError()
     return lastError;
 }
 
-int advanceGasEulerSubstage(DeviceState* s, const double dt)
-{
-    const int cellBlock = s->fixedCellBlockThreads;
-    const int faceBlock = s->fixedFaceBlockThreads;
-    const int cellGrid = (s->nCells + cellBlock - 1)/cellBlock;
-    const int faceGrid = (s->nFaces + faceBlock - 1)/faceBlock;
-    cudaError_t err = cudaSuccess;
-
-    recoverGasPrimitivesKernel<<<cellGrid, cellBlock, 0, s->gasCaptureStream>>>(s->deviceState);
-    err = cudaGetLastError();
-    if (err != cudaSuccess)
-    {
-        setLastError("recoverGasPrimitivesKernel gas stage", err);
-        return 1;
-    }
-    if (s->hostTurbulenceModel == 3)
-    {
-        recoverSstPrimitivesKernel<<<cellGrid, cellBlock, 0, s->gasCaptureStream>>>(s->deviceState);
-        err = cudaGetLastError();
-        if (err != cudaSuccess)
-        {
-            setLastError("recoverSstPrimitivesKernel gas stage", err);
-            return 1;
-        }
-    }
-    if (faceGrid > 0)
-    {
-        updateRiemannBoundaryMirrorKernel<<<faceGrid, faceBlock, 0, s->gasCaptureStream>>>(s->deviceState);
-        err = cudaGetLastError();
-        if (err != cudaSuccess)
-        {
-            setLastError("updateRiemannBoundaryMirrorKernel gas stage", err);
-            return 1;
-        }
-    }
-    if (s->hostTurbulenceModel == 3)
-    {
-        applySstWallFunctionStateKernel<<<cellGrid, cellBlock, 0, s->gasCaptureStream>>>(s->deviceState);
-        err = cudaGetLastError();
-        if (err != cudaSuccess)
-        {
-            setLastError("applySstWallFunctionStateKernel gas stage", err);
-            return 1;
-        }
-    }
-    if (s->hostGasFluxScheme == 7)
-    {
-        computeGasHllcAdcSensorKernel<<<cellGrid, cellBlock, 0, s->gasCaptureStream>>>(s->deviceState);
-        err = cudaGetLastError();
-        if (err != cudaSuccess)
-        {
-            setLastError("computeGasHllcAdcSensorKernel launch", err);
-            return 1;
-        }
-    }
-    computeGasPrimitiveGradientsKernel<<<cellGrid, cellBlock, 0, s->gasCaptureStream>>>(s->deviceState);
-    err = cudaGetLastError();
-    if (err != cudaSuccess)
-    {
-        setLastError("computeGasPrimitiveGradientsKernel launch", err);
-        return 1;
-    }
-    if (s->hostTurbulenceModel == 3)
-    {
-        computeSstGradientsKernel<<<cellGrid, cellBlock, 0, s->gasCaptureStream>>>(s->deviceState);
-        err = cudaGetLastError();
-        if (err != cudaSuccess)
-        {
-            setLastError("computeSstGradientsKernel launch", err);
-            return 1;
-        }
-    }
-    computeGasGradientLimiterKernel<<<cellGrid, cellBlock, 0, s->gasCaptureStream>>>(s->deviceState);
-    err = cudaGetLastError();
-    if (err != cudaSuccess)
-    {
-        setLastError("computeGasGradientLimiterKernel launch", err);
-        return 1;
-    }
-    computeGasEddyViscosityKernel<<<cellGrid, cellBlock, 0, s->gasCaptureStream>>>(s->deviceState);
-    err = cudaGetLastError();
-    if (err != cudaSuccess)
-    {
-        setLastError("computeGasEddyViscosityKernel launch", err);
-        return 1;
-    }
-    if (faceGrid <= 0)
-    {
-        return 0;
-    }
-    if (s->hostTurbulenceModel == 0)
-    {
-        computeGasInternalFaceFluxKernel<false><<<faceGrid, faceBlock, 0, s->gasCaptureStream>>>
-        (
-            s->deviceState,
-            dt
-        );
-    }
-    else
-    {
-        computeGasInternalFaceFluxKernel<true><<<faceGrid, faceBlock, 0, s->gasCaptureStream>>>
-        (
-            s->deviceState,
-            dt
-        );
-    }
-    err = cudaGetLastError();
-    if (err != cudaSuccess)
-    {
-        setLastError("computeGasInternalFaceFluxKernel launch", err);
-        return 1;
-    }
-    if (s->hasPeriodicFaces != 0)
-    {
-        enforcePeriodicGasFluxAntisymmetryKernel<<<faceGrid, faceBlock, 0, s->gasCaptureStream>>>
-        (
-            s->deviceState
-        );
-        err = cudaGetLastError();
-        if (err != cudaSuccess)
-        {
-            setLastError
-            (
-                "enforcePeriodicGasFluxAntisymmetryKernel launch",
-                err
-            );
-            return 1;
-        }
-    }
-    computeGasFluxPositivityScaleKernel<<<cellGrid, cellBlock, 0, s->gasCaptureStream>>>(s->deviceState, dt);
-    err = cudaGetLastError();
-    if (err != cudaSuccess)
-    {
-        setLastError("computeGasFluxPositivityScaleKernel launch", err);
-        return 1;
-    }
-    applyGasFluxPositivityScaleKernel<<<faceGrid, faceBlock, 0, s->gasCaptureStream>>>(s->deviceState);
-    err = cudaGetLastError();
-    if (err != cudaSuccess)
-    {
-        setLastError("applyGasFluxPositivityScaleKernel launch", err);
-        return 1;
-    }
-    if (s->hasPeriodicFaces != 0)
-    {
-        enforcePeriodicGasFluxAntisymmetryKernel<<<faceGrid, faceBlock, 0, s->gasCaptureStream>>>
-        (
-            s->deviceState
-        );
-        err = cudaGetLastError();
-        if (err != cudaSuccess)
-        {
-            setLastError
-            (
-                "enforcePeriodicGasFluxAntisymmetryKernel post-scale launch",
-                err
-            );
-            return 1;
-        }
-    }
-    if (s->hostTurbulenceModel == 3)
-    {
-        computeSstFaceFluxKernel<<<faceGrid, faceBlock, 0, s->gasCaptureStream>>>(s->deviceState);
-        err = cudaGetLastError();
-        if (err != cudaSuccess)
-        {
-            setLastError("computeSstFaceFluxKernel launch", err);
-            return 1;
-        }
-        if (s->hasPeriodicFaces != 0)
-        {
-            enforcePeriodicSstFluxAntisymmetryKernel<<<faceGrid, faceBlock, 0, s->gasCaptureStream>>>
-            (
-                s->deviceState
-            );
-            err = cudaGetLastError();
-            if (err != cudaSuccess)
-            {
-                setLastError
-                (
-                    "enforcePeriodicSstFluxAntisymmetryKernel launch",
-                    err
-                );
-                return 1;
-            }
-        }
-        applySstFluxAndSourceKernel<<<cellGrid, cellBlock, 0, s->gasCaptureStream>>>
-        (
-            s->deviceState,
-            dt
-        );
-        err = cudaGetLastError();
-        if (err != cudaSuccess)
-        {
-            setLastError("applySstFluxAndSourceKernel launch", err);
-            return 1;
-        }
-    }
-    applyGasFluxDivergenceByCellKernel<<<cellGrid, cellBlock, 0, s->gasCaptureStream>>>(s->deviceState, dt);
-    err = cudaGetLastError();
-    if (err != cudaSuccess)
-    {
-        setLastError("applyGasFluxDivergenceByCellKernel launch", err);
-        return 1;
-    }
-    recoverGasPrimitivesKernel<<<cellGrid, cellBlock, 0, s->gasCaptureStream>>>(s->deviceState);
-    err = cudaGetLastError();
-    if (err != cudaSuccess)
-    {
-        setLastError("recoverGasPrimitivesKernel post-gas launch", err);
-        return 1;
-    }
-    if (s->hostTurbulenceModel == 3)
-    {
-        recoverSstPrimitivesKernel<<<cellGrid, cellBlock, 0, s->gasCaptureStream>>>(s->deviceState);
-        err = cudaGetLastError();
-        if (err != cudaSuccess)
-        {
-            setLastError("recoverSstPrimitivesKernel post-gas launch", err);
-            return 1;
-        }
-    }
-    return 0;
-}
-
-int blendGasRungeKuttaStage
-(
-    DeviceState* s,
-    const double initialWeight,
-    const double stageWeight
-)
-{
-    const int block = s->fixedCellBlockThreads;
-    const int cellGrid = (s->nCells + block - 1)/block;
-    blendGasConservativeStateKernel<<<cellGrid, block, 0, s->gasCaptureStream>>>
-    (
-        s->deviceState,
-        initialWeight,
-        stageWeight
-    );
-    cudaError_t err = cudaGetLastError();
-    if (err != cudaSuccess)
-    {
-        setLastError("blendGasConservativeStateKernel launch", err);
-        return 1;
-    }
-    recoverGasPrimitivesKernel<<<cellGrid, block, 0, s->gasCaptureStream>>>(s->deviceState);
-    err = cudaGetLastError();
-    if (err != cudaSuccess)
-    {
-        setLastError("recoverGasPrimitivesKernel after RK blend", err);
-        return 1;
-    }
-    if (s->hostTurbulenceModel == 3)
-    {
-        recoverSstPrimitivesKernel<<<cellGrid, block, 0, s->gasCaptureStream>>>(s->deviceState);
-        err = cudaGetLastError();
-        if (err != cudaSuccess)
-        {
-            setLastError("recoverSstPrimitivesKernel after RK blend", err);
-            return 1;
-        }
-    }
-    return 0;
-}
-
-int advanceGasFluxStage
-(
-    DeviceState* s,
-    const double dt,
-    const double simulationTime
-)
-{
-                                                                            
-                                                                        
-                                                                          
-                                                                  
-    const int preparationCellBlock = s->fixedCellBlockThreads;
-    const int preparationFaceBlock = s->fixedFaceBlockThreads;
-    const int preparationCellGrid =
-        (s->nCells + preparationCellBlock - 1)/preparationCellBlock;
-    const int preparationFaceGrid =
-        (s->nFaces + preparationFaceBlock - 1)/preparationFaceBlock;
-    recoverGasPrimitivesKernel<<<preparationCellGrid, preparationCellBlock, 0, s->gasCaptureStream>>>
-    (
-        s->deviceState
-    );
-    cudaError_t preparationError = cudaGetLastError();
-    if (preparationError != cudaSuccess)
-    {
-        setLastError
-        (
-            "recoverGasPrimitivesKernel before gas advance",
-            preparationError
-        );
-        return 1;
-    }
-    if (preparationFaceGrid > 0)
-    {
-        updateLegacyGasBoundaryMirrorKernel
-            <<<preparationFaceGrid, preparationFaceBlock, 0, s->gasCaptureStream>>>
-            (s->deviceState, simulationTime);
-        preparationError = cudaGetLastError();
-        if (preparationError != cudaSuccess)
-        {
-            setLastError
-            (
-                "updateLegacyGasBoundaryMirrorKernel before gas advance",
-                preparationError
-            );
-            return 1;
-        }
-    }
-
-    if (s->hostGasTimeIntegrator == 1)
-    {
-        return advanceGasEulerSubstage(s, dt);
-    }
-
-    const int block = s->fixedCellBlockThreads;
-    const int cellGrid = (s->nCells + block - 1)/block;
-    saveGasConservativeStateKernel<<<cellGrid, block, 0, s->gasCaptureStream>>>(s->deviceState);
-    cudaError_t err = cudaGetLastError();
-    if (err != cudaSuccess)
-    {
-        setLastError("saveGasConservativeStateKernel launch", err);
-        return 1;
-    }
-
-    if (advanceGasEulerSubstage(s, dt) != 0)
-    {
-        return 1;
-    }
-    if (advanceGasEulerSubstage(s, dt) != 0)
-    {
-        return 1;
-    }
-
-    if (s->hostGasTimeIntegrator == 2)
-    {
-                                                         
-        return blendGasRungeKuttaStage(s, 0.5, 0.5);
-    }
-    if (s->hostGasTimeIntegrator != 3)
-    {
-        setLastErrorText("invalid resident gas time-integrator selector");
-        return 1;
-    }
-
-                  
-                                        
-                                         
-    if (blendGasRungeKuttaStage(s, 0.75, 0.25) != 0)
-    {
-        return 1;
-    }
-    if (advanceGasEulerSubstage(s, dt) != 0)
-    {
-        return 1;
-    }
-    return blendGasRungeKuttaStage
-    (
-        s,
-        1.0/3.0,
-        2.0/3.0
-    );
-}
-
-int finaliseGasBoundaryStage
-(
-    DeviceState* s,
-    const double dt,
-    const double simulationTime
-)
-{
-    const int block = s->fixedFaceBlockThreads;
-    const int allFaceGrid = (s->nFaces + block - 1)/block;
-    if (allFaceGrid <= 0)
-    {
-        return 0;
-    }
-
-    updateLegacyGasBoundaryMirrorKernel<<<allFaceGrid, block, 0, s->gasCaptureStream>>>
-    (
-        s->deviceState,
-        simulationTime
-    );
-    cudaError_t err = cudaGetLastError();
-    if (err != cudaSuccess)
-    {
-        setLastError
-        (
-            "updateLegacyGasBoundaryMirrorKernel final gas boundary",
-            err
-        );
-        return 1;
-    }
-
-    updateRiemannBoundaryMirrorKernel<<<allFaceGrid, block, 0, s->gasCaptureStream>>>
-    (
-        s->deviceState
-    );
-    err = cudaGetLastError();
-    if (err != cudaSuccess)
-    {
-        setLastError
-        (
-            "updateRiemannBoundaryMirrorKernel final gas boundary",
-            err
-        );
-        return 1;
-    }
-
-    updateWaveTransmissivePressureBoundaryKernel<<<allFaceGrid, block, 0, s->gasCaptureStream>>>
-    (
-        s->deviceState,
-        dt
-    );
-    err = cudaGetLastError();
-    if (err != cudaSuccess)
-    {
-        setLastError
-        (
-            "updateWaveTransmissivePressureBoundaryKernel final gas boundary",
-            err
-        );
-        return 1;
-    }
-    return 0;
-}
+#include "../../../common/GpuGasAdvance.cuh"
 
 template<class Kernel>
 int queryKernelBlocksPerSm
@@ -7111,330 +4263,10 @@ int queryKernelBlocksPerSm
     return 0;
 }
 
-static constexpr int toolB1WarmupRuns = 1;
-static constexpr int toolB1MeasuredRuns = 5;
+#include "../../../common/GpuToolB1Launch.cuh"
 
-int launchToolB1CellBundle(DeviceState* s, const int block)
-{
-    const int grid = (s->nCells + block - 1)/block;
-    recoverGasPrimitivesKernel<<<grid, block>>>(s->deviceState);
-    if (s->hostTurbulenceModel == 3)
-    {
-        recoverSstPrimitivesKernel<<<grid, block>>>(s->deviceState);
-        applySstWallFunctionStateKernel<<<grid, block>>>(s->deviceState);
-    }
-    if (s->hostGasFluxScheme == 7)
-    {
-        computeGasHllcAdcSensorKernel<<<grid, block>>>(s->deviceState);
-    }
-    computeGasPrimitiveGradientsKernel<<<grid, block>>>(s->deviceState);
-    if (s->hostTurbulenceModel == 3)
-    {
-        computeSstGradientsKernel<<<grid, block>>>(s->deviceState);
-    }
-    computeGasGradientLimiterKernel<<<grid, block>>>(s->deviceState);
-    computeGasEddyViscosityKernel<<<grid, block>>>(s->deviceState);
-    const cudaError_t err = cudaGetLastError();
-    if (err != cudaSuccess)
-    {
-        setLastError("ToolB1 gas-cell bundle launch", err);
-        return 1;
-    }
-    return 0;
-}
+#include "../../../common/GpuToolB1.cuh"
 
-int launchToolB1FaceBundle
-(
-    DeviceState* s,
-    const int block,
-    const double dt,
-    const double simulationTime
-)
-{
-    const int grid = (s->nFaces + block - 1)/block;
-    if (grid <= 0)
-    {
-        return 0;
-    }
-    updateLegacyGasBoundaryMirrorKernel<<<grid, block>>>
-    (
-        s->deviceState,
-        simulationTime
-    );
-    updateRiemannBoundaryMirrorKernel<<<grid, block>>>(s->deviceState);
-    if (s->hostTurbulenceModel == 0)
-    {
-        computeGasInternalFaceFluxKernel<false><<<grid, block>>>
-        (
-            s->deviceState,
-            dt
-        );
-    }
-    else
-    {
-        computeGasInternalFaceFluxKernel<true><<<grid, block>>>
-        (
-            s->deviceState,
-            dt
-        );
-    }
-    if (s->hasPeriodicFaces != 0)
-    {
-        enforcePeriodicGasFluxAntisymmetryKernel<<<grid, block>>>
-        (
-            s->deviceState
-        );
-    }
-    if (s->hostTurbulenceModel == 3)
-    {
-        computeSstFaceFluxKernel<<<grid, block>>>(s->deviceState);
-        if (s->hasPeriodicFaces != 0)
-        {
-            enforcePeriodicSstFluxAntisymmetryKernel<<<grid, block>>>
-            (
-                s->deviceState
-            );
-        }
-    }
-    const cudaError_t err = cudaGetLastError();
-    if (err != cudaSuccess)
-    {
-        setLastError("ToolB1 gas-face bundle launch", err);
-        return 1;
-    }
-    return 0;
-}
-
-float toolB1Median(std::vector<float>& samples)
-{
-    const size_t middle = samples.size()/2;
-    std::nth_element
-    (
-        samples.begin(),
-        samples.begin() + middle,
-        samples.end()
-    );
-    return samples[middle];
-}
-
-int tuneFixedWorkBlockThreads
-(
-    DeviceState* s,
-    const double dt,
-    const double simulationTime
-)
-{
-    if (s->fixedWorkBlockTuned != 0)
-    {
-        return 0;
-    }
-
-    const int candidates[] = {32, 64, 96, 128, 160, 192, 224, 256};
-    cudaEvent_t start = nullptr;
-    cudaEvent_t stop = nullptr;
-    cudaError_t err = cudaEventCreate(&start);
-    if (err == cudaSuccess)
-    {
-        err = cudaEventCreate(&stop);
-    }
-    if (err != cudaSuccess)
-    {
-        if (start != nullptr)
-        {
-            cudaEventDestroy(start);
-        }
-        setLastError("ToolB1 CUDA event creation", err);
-        return 1;
-    }
-
-    int bestCellBlock = 0;
-    int bestFaceBlock = 0;
-    float bestCellMs = 0.0f;
-    float bestFaceMs = 0.0f;
-    float measuredKernelMs = 0.0f;
-    for (const int block : candidates)
-    {
-        if (block > s->hardwareMaxThreadsPerBlock)
-        {
-            continue;
-        }
-
-        int cellBlocksPerSm = 0;
-        if
-        (
-            queryKernelBlocksPerSm
-            (
-                cellBlocksPerSm,
-                "ToolB1 gas-cell occupancy query",
-                recoverGasPrimitivesKernel,
-                block,
-                0
-            ) != 0
-        )
-        {
-            cudaEventDestroy(stop);
-            cudaEventDestroy(start);
-            return 1;
-        }
-        for (int run = 0; run < toolB1WarmupRuns; ++run)
-        {
-            if (launchToolB1CellBundle(s, block) != 0)
-            {
-                cudaEventDestroy(stop);
-                cudaEventDestroy(start);
-                return 1;
-            }
-        }
-        err = cudaDeviceSynchronize();
-        if (err != cudaSuccess)
-        {
-            cudaEventDestroy(stop);
-            cudaEventDestroy(start);
-            setLastError("ToolB1 gas-cell warmup", err);
-            return 1;
-        }
-        std::vector<float> samples;
-        samples.reserve(toolB1MeasuredRuns);
-        for (int run = 0; run < toolB1MeasuredRuns; ++run)
-        {
-            cudaEventRecord(start);
-            if (launchToolB1CellBundle(s, block) != 0)
-            {
-                cudaEventDestroy(stop);
-                cudaEventDestroy(start);
-                return 1;
-            }
-            cudaEventRecord(stop);
-            err = cudaEventSynchronize(stop);
-            float elapsed = 0.0f;
-            if (err == cudaSuccess)
-            {
-                err = cudaEventElapsedTime(&elapsed, start, stop);
-            }
-            if (err != cudaSuccess)
-            {
-                cudaEventDestroy(stop);
-                cudaEventDestroy(start);
-                setLastError("ToolB1 gas-cell measurement", err);
-                return 1;
-            }
-            samples.push_back(elapsed);
-            measuredKernelMs += elapsed;
-        }
-        const float median = toolB1Median(samples);
-        if (bestCellBlock == 0 || median < bestCellMs)
-        {
-            bestCellBlock = block;
-            bestCellMs = median;
-        }
-
-        int faceBlocksPerSm = 0;
-        int occupancyStatus = 0;
-        if (s->hostTurbulenceModel == 0)
-        {
-            occupancyStatus = queryKernelBlocksPerSm
-            (
-                faceBlocksPerSm,
-                "ToolB1 laminar gas-face occupancy query",
-                computeGasInternalFaceFluxKernel<false>,
-                block,
-                0
-            );
-        }
-        else
-        {
-            occupancyStatus = queryKernelBlocksPerSm
-            (
-                faceBlocksPerSm,
-                "ToolB1 viscous gas-face occupancy query",
-                computeGasInternalFaceFluxKernel<true>,
-                block,
-                0
-            );
-        }
-        if (occupancyStatus != 0)
-        {
-            cudaEventDestroy(stop);
-            cudaEventDestroy(start);
-            return 1;
-        }
-        for (int run = 0; run < toolB1WarmupRuns; ++run)
-        {
-            if (launchToolB1FaceBundle(s, block, dt, simulationTime) != 0)
-            {
-                cudaEventDestroy(stop);
-                cudaEventDestroy(start);
-                return 1;
-            }
-        }
-        err = cudaDeviceSynchronize();
-        if (err != cudaSuccess)
-        {
-            cudaEventDestroy(stop);
-            cudaEventDestroy(start);
-            setLastError("ToolB1 gas-face warmup", err);
-            return 1;
-        }
-        samples.clear();
-        for (int run = 0; run < toolB1MeasuredRuns; ++run)
-        {
-            cudaEventRecord(start);
-            if (launchToolB1FaceBundle(s, block, dt, simulationTime) != 0)
-            {
-                cudaEventDestroy(stop);
-                cudaEventDestroy(start);
-                return 1;
-            }
-            cudaEventRecord(stop);
-            err = cudaEventSynchronize(stop);
-            float elapsed = 0.0f;
-            if (err == cudaSuccess)
-            {
-                err = cudaEventElapsedTime(&elapsed, start, stop);
-            }
-            if (err != cudaSuccess)
-            {
-                cudaEventDestroy(stop);
-                cudaEventDestroy(start);
-                setLastError("ToolB1 gas-face measurement", err);
-                return 1;
-            }
-            samples.push_back(elapsed);
-            measuredKernelMs += elapsed;
-        }
-        const float faceMedian = toolB1Median(samples);
-        if (bestFaceBlock == 0 || faceMedian < bestFaceMs)
-        {
-            bestFaceBlock = block;
-            bestFaceMs = faceMedian;
-        }
-    }
-
-    cudaEventDestroy(stop);
-    cudaEventDestroy(start);
-    if (bestCellBlock == 0 || bestFaceBlock == 0)
-    {
-        setLastErrorText("ToolB1 found no valid measured launch size");
-        return 1;
-    }
-    s->fixedCellBlockThreads = bestCellBlock;
-    s->fixedFaceBlockThreads = bestFaceBlock;
-    s->fixedWorkBlockTuned = 1;
-    std::fprintf
-    (
-        stderr,
-        "ToolB1: B1cell=%d B1face=%d cellMedianMs=%.6f "
-        "faceMedianMs=%.6f measuredKernelMs=%.6f warmup=%d repeats=%d\n",
-        bestCellBlock,
-        bestFaceBlock,
-        bestCellMs,
-        bestFaceMs,
-        measuredKernelMs,
-        toolB1WarmupRuns,
-        toolB1MeasuredRuns
-    );
-    return 0;
-}
 
 #include "GpuParticleLaunchConfiguration.cuh"
 
@@ -7630,8 +4462,9 @@ int configureParticleLaunchGeometry(DeviceState* s)
             s->multiprocessorCount*residentBlocks;
     }
 
-    if (queryParticleKernelResidency(s, s->particleBlocksPerSm) != 0) return 1;
+    if (queryParticleKernelResidency(s, countParticlesByCellKernel<true>, s->particleBlocksPerSm) != 0) return 1;
     setParticleWorkGridFromResidency(s, s->particleBlocksPerSm);
+    if (configureTrackingWorkGrid(s) != 0) return 1;
 
     std::fprintf
     (
@@ -7653,93 +4486,6 @@ int configureParticleLaunchGeometry(DeviceState* s)
         s->heavyBlocksPerSm
     );
     return syncDeviceState(s, "sync Particle launch geometry");
-}
-
-int advancePureGasGraph(DeviceState* s, const double dt, const double simulationTime)
-{
-    if (s->gasGraphExec == nullptr || s->gasGraphDt != dt)
-    {
-        cudaError_t err = cudaSuccess;
-        if (s->gasGraphExec)
-        {
-            err = cudaGraphExecDestroy(s->gasGraphExec);
-            if (err != cudaSuccess) { setLastError("gas graph destroy executable", err); return 1; }
-            s->gasGraphExec = nullptr;
-        }
-        if (s->gasGraph)
-        {
-            err = cudaGraphDestroy(s->gasGraph);
-            if (err != cudaSuccess) { setLastError("gas graph destroy", err); return 1; }
-            s->gasGraph = nullptr;
-        }
-        s->gasGraphTimeNodes.clear();
-        s->gasGraphTimeParams.clear();
-        err = cudaStreamCreate(&s->gasCaptureStream);
-        if (err != cudaSuccess) { setLastError("gas graph stream create", err); return 1; }
-        err = cudaStreamBeginCapture(s->gasCaptureStream, cudaStreamCaptureModeThreadLocal);
-        if (err != cudaSuccess)
-        {
-            cudaStreamDestroy(s->gasCaptureStream);
-            s->gasCaptureStream = nullptr;
-            setLastError("gas graph capture begin", err);
-            return 1;
-        }
-        int status = advanceGasFluxStage(s, dt, simulationTime);
-        if (status == 0) status = finaliseGasBoundaryStage(s, dt, simulationTime);
-        err = cudaStreamEndCapture(s->gasCaptureStream, &s->gasGraph);
-        const cudaError_t streamError = cudaStreamDestroy(s->gasCaptureStream);
-        s->gasCaptureStream = nullptr;
-        if (status != 0) return status;
-        if (err != cudaSuccess) { setLastError("gas graph capture end", err); return 1; }
-        if (streamError != cudaSuccess) { setLastError("gas graph stream destroy", streamError); return 1; }
-        size_t nodeCount = 0;
-        err = cudaGraphGetNodes(s->gasGraph, nullptr, &nodeCount);
-        if (err != cudaSuccess) { setLastError("gas graph node count", err); return 1; }
-        std::vector<cudaGraphNode_t> nodes(nodeCount);
-        err = cudaGraphGetNodes(s->gasGraph, nodes.data(), &nodeCount);
-        if (err != cudaSuccess) { setLastError("gas graph nodes", err); return 1; }
-        for (const auto node : nodes)
-        {
-            cudaGraphNodeType type;
-            err = cudaGraphNodeGetType(node, &type);
-            if (err != cudaSuccess) { setLastError("gas graph node type", err); return 1; }
-            if (type != cudaGraphNodeTypeKernel) continue;
-            cudaKernelNodeParams params{};
-            err = cudaGraphKernelNodeGetParams(node, &params);
-            if (err != cudaSuccess) { setLastError("gas graph kernel parameters", err); return 1; }
-            if (params.func == reinterpret_cast<void*>(updateLegacyGasBoundaryMirrorKernel))
-            {
-                s->gasGraphTimeNodes.push_back(node);
-                params.kernelParams = nullptr;
-                params.extra = nullptr;
-                s->gasGraphTimeParams.push_back(params);
-            }
-        }
-        if (s->nFaces > 0 && s->gasGraphTimeNodes.size() != 2)
-        {
-            setLastErrorText("gas graph requires both scheduled boundary time nodes");
-            return 1;
-        }
-        err = cudaGraphInstantiate(&s->gasGraphExec, s->gasGraph, nullptr, nullptr, 0);
-        if (err != cudaSuccess) { setLastError("gas graph instantiate", err); return 1; }
-        s->gasGraphDt = dt;
-    }
-    DeviceState* device = s->deviceState;
-    double currentTime = simulationTime;
-    void* args[] = {&device, &currentTime};
-    for (size_t i = 0; i < s->gasGraphTimeNodes.size(); ++i)
-    {
-        cudaKernelNodeParams params = s->gasGraphTimeParams[i];
-        params.kernelParams = args;
-        const cudaError_t err = cudaGraphExecKernelNodeSetParams
-        (
-            s->gasGraphExec, s->gasGraphTimeNodes[i], &params
-        );
-        if (err != cudaSuccess) { setLastError("gas graph time update", err); return 1; }
-    }
-    const cudaError_t err = cudaGraphLaunch(s->gasGraphExec, nullptr);
-    if (err != cudaSuccess) { setLastError("gas graph launch", err); return 1; }
-    return 0;
 }
 
 extern "C" int ugkwpGpuResidentStrictCreate
@@ -9606,7 +6352,7 @@ extern "C" int ugkwpGpuResidentStrictAdvance
     if (particleGrid > 0)
     {
         trackParticlesLocalFaceWalkKernel
-            <<<particleGrid, s->particleBlockThreads>>>(s->deviceState, dt);
+            <<<s->trackingWorkGrid, s->particleBlockThreads>>>(s->deviceState, dt);
         err = cudaGetLastError();
         if (err != cudaSuccess)
         {

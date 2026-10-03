@@ -10,7 +10,7 @@ namespace ugkwpGpuIpc
 
 static constexpr std::uint32_t magic = 0x46534842U;          
 static constexpr std::uint16_t protocolMajor = 6;
-static constexpr std::uint16_t protocolMinor = 0;
+static constexpr std::uint16_t protocolMinor = 1;
 static constexpr std::uint64_t maxPayloadBytes = 32ULL*1024ULL*1024ULL*1024ULL;
 
 enum class Op : std::uint32_t
@@ -37,7 +37,9 @@ enum class Op : std::uint32_t
     downloadAndResetParticleWallHeatLedgers = 20,
     release = 21,
     configureSst = 22,
-    downloadSst = 23
+    downloadSst = 23,
+    uploadParticleSavedVelocity = 24,
+    downloadParticleSavedVelocity = 25
 };
 
 enum class GasFluxScheme : std::int32_t

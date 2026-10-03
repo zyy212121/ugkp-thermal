@@ -17,6 +17,9 @@ Real *pz, *compactPz;
 Real *pux, *compactPux;
 Real *puy, *compactPuy;
 Real *puz, *compactPuz;
+Real *puxOld, *compactPuxOld;
+Real *puyOld, *compactPuyOld;
+Real *puzOld, *compactPuzOld;
 Real *pT, *compactPT;
 Real *pTheta, *compactPTheta;
 Real *pd, *compactPd;
@@ -84,6 +87,12 @@ alloc(s->pColdContactAge, capacity*1); alloc(s->compactPColdContactAge, capacity
 alloc(s->pCold2DNodeSpecificEnthalpy, capacity*64); alloc(s->compactPCold2DNodeSpecificEnthalpy, capacity*64); for(int j=0;j<capacity*64;++j) s->pCold2DNodeSpecificEnthalpy[j]=static_cast<float>(j%97+26);
 alloc(s->pCold2DRingContactAge, capacity*8); alloc(s->compactPCold2DRingContactAge, capacity*8); for(int j=0;j<capacity*8;++j) s->pCold2DRingContactAge[j]=static_cast<double>(j%97+27);
 alloc(s->pCold2DFrozenArea, capacity*1); alloc(s->compactPCold2DFrozenArea, capacity*1); for(int j=0;j<capacity*1;++j) s->pCold2DFrozenArea[j]=static_cast<float>(j%97+28);
+alloc(s->puxOld,capacity);alloc(s->compactPuxOld,capacity);for(int j=0;j<capacity;++j)s->puxOld[j]=static_cast<Real>(j%97+104);
+cudaMemset(s->compactPuxOld,0,capacity*sizeof(Real));
+alloc(s->puyOld,capacity);alloc(s->compactPuyOld,capacity);for(int j=0;j<capacity;++j)s->puyOld[j]=static_cast<Real>(j%97+205);
+cudaMemset(s->compactPuyOld,0,capacity*sizeof(Real));
+alloc(s->puzOld,capacity);alloc(s->compactPuzOld,capacity);for(int j=0;j<capacity;++j)s->puzOld[j]=static_cast<Real>(j%97+306);
+cudaMemset(s->compactPuzOld,0,capacity*sizeof(Real));
  alloc(s->cellParticleOffset,4);alloc(s->compactCellOffset,4);alloc(s->cellParticleCount,4);alloc(s->sortedParticleIndex,capacity);alloc(s->csrHeavyTaskCount,1);alloc(s->csrReductionTasks,capacity+4);alloc(s->published,capacity);
  std::vector<int> expected;int tasks=0;
  for(int c=0;c<3;++c) {
@@ -247,8 +256,14 @@ for(int dst=0;dst<(int)expected.size();++dst) for(int j=0;j<1;++j) {
   float want=((flags&2))?s->pCold2DFrozenArea[expected[dst]*1+j]:static_cast<float>(0);
   if (s->compactPCold2DFrozenArea[dst*1+j]!=want) {fprintf(stderr,"payload mismatch pCold2DFrozenArea dst=%d j=%d flags=%d pattern=%d block=%d n=%d\n",dst,j,flags,pattern,B,n);exit(3);}
  }
+for(int dst=0;dst<(int)expected.size();++dst){if(s->compactPuxOld[dst]!=s->puxOld[expected[dst]]){fprintf(stderr,"payload old-velocity mismatch puxOld dst=%d\n",dst);exit(3);}}
+for(int dst=0;dst<(int)expected.size();++dst){if(s->compactPuyOld[dst]!=s->puyOld[expected[dst]]){fprintf(stderr,"payload old-velocity mismatch puyOld dst=%d\n",dst);exit(3);}}
+for(int dst=0;dst<(int)expected.size();++dst){if(s->compactPuzOld[dst]!=s->puzOld[expected[dst]]){fprintf(stderr,"payload old-velocity mismatch puzOld dst=%d\n",dst);exit(3);}}
  for(int dst=0;dst<(int)expected.size();++dst)if(s->published[dst]!=(s->pStuck[expected[dst]]!=0)){fprintf(stderr,"wall publication mismatch\n");exit(4);}
  cudaFree(s->px);cudaFree(s->compactPx);
+cudaFree(s->puxOld);cudaFree(s->compactPuxOld);
+cudaFree(s->puyOld);cudaFree(s->compactPuyOld);
+cudaFree(s->puzOld);cudaFree(s->compactPuzOld);
 cudaFree(s->py);cudaFree(s->compactPy);
 cudaFree(s->pz);cudaFree(s->compactPz);
 cudaFree(s->pux);cudaFree(s->compactPux);

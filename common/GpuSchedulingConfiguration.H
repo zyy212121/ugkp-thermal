@@ -3,7 +3,6 @@
 
 #include "fvCFD.H"
 #include <cmath>
-#include "GpuResearchHierarchy.H"
 
 namespace Foam
 {
@@ -19,8 +18,7 @@ enum class GpuCsrLevel : label
 {
     L0 = 0,
     L1 = 1,
-    L2 = 2,
-    automatic = 3
+    L2 = 2
 };
 
 struct GpuSchedulingConfiguration
@@ -56,7 +54,7 @@ inline GpuCsrLevel readGpuCsrLevel
     if (!properties.found("gpuCsrLevel"))
     {
         FatalErrorInFunction
-            << "schedulingProperties requires gpuCsrLevel L0|L1|L2|auto"
+            << "schedulingProperties requires gpuCsrLevel L0|L1|L2"
             << exit(FatalError);
     }
     const word csrLevelValue(properties.lookup("gpuCsrLevel"));
@@ -72,12 +70,8 @@ inline GpuCsrLevel readGpuCsrLevel
     {
         return GpuCsrLevel::L2;
     }
-    if (csrLevelValue == "auto")
-    {
-        return GpuCsrLevel::automatic;
-    }
     FatalErrorInFunction
-        << "gpuCsrLevel must be L0, L1, L2 or auto. Current value = "
+        << "gpuCsrLevel must be L0, L1 or L2. Current value = "
         << csrLevelValue << exit(FatalError);
     return GpuCsrLevel::L0;
 }
@@ -99,7 +93,9 @@ inline GpuSchedulingConfiguration readGpuSchedulingConfiguration
         "gpuCsrCellLocalPath",
         "gpuCsrHeavyReduction",
         "gpuCsrWarpAggregatedBinning",
-        "gpuCsrSplitPreDirectory"
+        "gpuCsrSplitPreDirectory",
+        "gpuResearchVariant",
+        "gpuCsrHeavyReductionAutoInterval"
     };
     for (const word& key : forbiddenGpuSchedulingKeys)
     {
@@ -107,7 +103,7 @@ inline GpuSchedulingConfiguration readGpuSchedulingConfiguration
         {
             FatalErrorInFunction
                 << key << " has been removed from schedulingProperties. "
-                << "Use gpuCsrLevel L0|L1|L2|auto; the solver derives the "
+                << "Use gpuCsrLevel L0|L1|L2; the solver derives the "
                 << "complete scheduling bundle."
                 << exit(FatalError);
         }
@@ -131,22 +127,6 @@ inline GpuSchedulingConfiguration readGpuSchedulingConfiguration
     if (value.csrLevel == GpuCsrLevel::L2)
     {
         value.heavyReductionMode = GpuHeavyReductionMode::enabled;
-    }
-    else if (value.csrLevel == GpuCsrLevel::automatic)
-    {
-        value.heavyReductionMode = GpuHeavyReductionMode::automatic;
-        value.heavyReductionAutoInterval =
-            properties.lookupOrDefault<label>
-            (
-                "gpuCsrHeavyReductionAutoInterval",
-                100
-            );
-    }
-    else if (properties.found("gpuCsrHeavyReductionAutoInterval"))
-    {
-        FatalErrorInFunction
-            << "gpuCsrHeavyReductionAutoInterval is only valid when "
-            << "gpuCsrLevel auto" << exit(FatalError);
     }
     value.particleBlockThreads =
         properties.lookupOrDefault<label>("gpuParticleBlockThreads", 128);
@@ -205,27 +185,6 @@ inline GpuSchedulingConfiguration readGpuSchedulingConfiguration
             << "gpuCsrHeavyReductionAutoInterval must be positive in auto mode. "
             << "Current value = " << value.heavyReductionAutoInterval
             << exit(FatalError);
-    }
-    if (properties.found("gpuResearchVariant"))
-    {
-        const word variant(properties.lookup("gpuResearchVariant"));
-        gpuResearch::Flags flags{};
-        if (!gpuResearch::decode(variant.c_str(), flags)
-         || value.csrLevel == GpuCsrLevel::automatic)
-        {
-            FatalErrorInFunction
-                << "gpuResearchVariant requires L0|L1|T1|S1|T2|S2 (E1/E2 aliases) "
-                << "and cannot be combined with gpuCsrLevel auto"
-                << exit(FatalError);
-        }
-        value.csrCellLocalPath = flags.cell;
-        value.warpAggregatedBinning = flags.warp;
-        value.splitPreDirectory = flags.split;
-        value.heavyReductionMode = flags.heavy
-          ? GpuHeavyReductionMode::enabled : GpuHeavyReductionMode::disabled;
-        Info<< "Research hierarchy: " << variant
-            << " cell=" << flags.cell << " warp=" << flags.warp
-            << " split=" << flags.split << " heavy=" << flags.heavy << nl;
     }
     return value;
 }

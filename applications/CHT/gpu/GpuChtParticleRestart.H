@@ -2,6 +2,7 @@
 #define GpuFshParticleRestart_H
 
 #include <algorithm>
+#include "../../../common/GpuThermalParticleRestartCodec.H"
 #include <cmath>
 #include <cstdint>
 #include <cstring>
@@ -54,6 +55,9 @@ struct ConstView
     const float* pCold2DNodeSpecificEnthalpy;
     const double* pCold2DRingContactAge;
     const float* pCold2DFrozenArea;
+    const double* puxOld;
+    const double* puyOld;
+    const double* puzOld;
 };
 
 struct MutableView
@@ -86,6 +90,9 @@ struct MutableView
     float* pCold2DNodeSpecificEnthalpy;
     double* pCold2DRingContactAge;
     float* pCold2DFrozenArea;
+    double* puxOld;
+    double* puyOld;
+    double* puzOld;
 };
 
 static constexpr std::size_t coldWallAxialNodeCount = 8u;
@@ -1006,6 +1013,12 @@ inline void readV6Payload
         );
     }
 }
+
+static const char* const schema7FormatName = gpuThermalRestart::marker<double>();
+inline void writeV7(std::ostream& os,const ConstView& v)
+{ gpuThermalRestart::write<double>(os,v); }
+inline void readV7Payload(std::istream& is,std::uint32_t bound,const MutableView& v)
+{ gpuThermalRestart::readPayload<double>(is,bound,v); }
 
 }                           
 }                  

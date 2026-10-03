@@ -1,89 +1,15 @@
+#include "GpuPrecisionTypes.H"
+#include "GpuColdWall1DAlgebra.cuh"
 #if UGKWP_GPU_REAL_BITS == 32
 #include "GpuPrecisionTypes.H"
 #ifndef GPU_THERMAL_GPU_COLD_WALL_1D_DEVICE_CUH
 #define GPU_THERMAL_GPU_COLD_WALL_1D_DEVICE_CUH
 
-__device__ inline GpuReal coldWall1DGroupSum
-(
-    GpuReal value,
-    const unsigned int mask
-)
-{
-    value += __shfl_down_sync(mask, value, 4, 8);
-    value += __shfl_down_sync(mask, value, 2, 8);
-    value += __shfl_down_sync(mask, value, 1, 8);
-    return __shfl_sync(mask, value, 0, 8);
-}
 
-__device__ inline GpuReal coldWall1DGroupMinPrefix
-(
-    GpuReal value,
-    const int lane,
-    const unsigned int mask
-)
-{
-    for (int offset = 1; offset < 8; offset *= 2)
-    {
-        const GpuReal lower = __shfl_up_sync(mask, value, offset, 8);
-        if (lane >= offset && lower < value)
-        {
-            value = lower;
-        }
-    }
-    return value;
-}
 
-__device__ inline GpuReal coldWall1DPcrSolve
-(
-    GpuReal lower,
-    GpuReal diagonal,
-    GpuReal upper,
-    GpuReal rightHandSide,
-    const int lane,
-    const unsigned int mask
-)
-{
-    for (int stride = 1; stride < 8; stride *= 2)
-    {
-        const GpuReal lowerLower =
-            __shfl_up_sync(mask, lower, stride, 8);
-        const GpuReal lowerDiagonal =
-            __shfl_up_sync(mask, diagonal, stride, 8);
-        const GpuReal lowerUpper =
-            __shfl_up_sync(mask, upper, stride, 8);
-        const GpuReal lowerRightHandSide =
-            __shfl_up_sync(mask, rightHandSide, stride, 8);
-        const GpuReal upperLower =
-            __shfl_down_sync(mask, lower, stride, 8);
-        const GpuReal upperDiagonal =
-            __shfl_down_sync(mask, diagonal, stride, 8);
-        const GpuReal upperUpper =
-            __shfl_down_sync(mask, upper, stride, 8);
-        const GpuReal upperRightHandSide =
-            __shfl_down_sync(mask, rightHandSide, stride, 8);
-        const GpuReal alpha = lane >= stride
-          ? -lower/(lowerDiagonal + GPU_REAL_MIN)
-          : GPU_R(0.0);
-        const GpuReal beta = lane + stride < 8
-          ? -upper/(upperDiagonal + GPU_REAL_MIN)
-          : GPU_R(0.0);
-        const GpuReal nextLower = lane >= stride
-          ? alpha*lowerLower
-          : GPU_R(0.0);
-        const GpuReal nextUpper = lane + stride < 8
-          ? beta*upperUpper
-          : GPU_R(0.0);
-        const GpuReal nextDiagonal = diagonal
-          + alpha*lowerUpper + beta*upperLower;
-        const GpuReal nextRightHandSide = rightHandSide
-          + alpha*lowerRightHandSide + beta*upperRightHandSide;
-        lower = nextLower;
-        diagonal = nextDiagonal;
-        upper = nextUpper;
-        rightHandSide = nextRightHandSide;
-    }
-    return rightHandSide/(diagonal + GPU_REAL_MIN);
-}
+
+
+
 
 
 
@@ -142,18 +68,7 @@ __device__ inline GpuReal coldWall1DPcrSolveStable
     return rightHandSide/(diagonal + GPU_REAL_MIN);
 }
 
-__device__ inline GpuReal coldWall1DSolidFractionFromKnownTemperature
-(
-    const GpuReal temperatureK,
-    const Foam::gpuThermal::ColdWallSolidificationParameters& parameters
-)
-{
-    const GpuReal solidus = Foam::gpuThermal::coldWallSolidusTemperature(parameters);
-    const GpuReal liquidus = Foam::gpuThermal::coldWallLiquidusTemperature(parameters);
-    if (temperatureK <= solidus) return GPU_R(1.0);
-    if (temperatureK >= liquidus) return GPU_R(0.0);
-    return (liquidus - temperatureK)/parameters.mushyRangeK;
-}
+
 
 
 
@@ -603,121 +518,7 @@ __device__ bool advanceColdWall1DThermalGroup
         }
     }
 
-    GpuReal connectedFraction = coldWall1DSolidFractionFromKnownTemperature
-    (
-        guessedTemperature,
-        s.coldWallSolidificationParameters
-    );
-    connectedFraction = coldWall1DGroupMinPrefix
-    (
-        connectedFraction,
-        lane,
-        mask
-    );
-    const GpuReal connectedMass = coldWall1DGroupSum
-    (
-        nodeMass*connectedFraction,
-        mask
-    );
-    GpuReal assignedMass = coldWall1DGroupSum(ringSolidMass, mask);
-    if (connectedMass < assignedMass && assignedMass > GPU_R(0.0))
-    {
-        ringSolidMass *= connectedMass/assignedMass;
-        assignedMass = connectedMass;
-    }
-    GpuReal remainingMass = connectedMass - assignedMass;
-    const GpuReal ringCapacity =
-        s.coldWallSolidificationParameters.solidDensityKgM3
-       *ringWetArea*filmThickness;
-    for
-    (
-        int pass = 0;
-        pass < 8 && remainingMass > GPU_R(1.0e-18)*physicalMassKg;
-        ++pass
-    )
-    {
-        const GpuReal available = ringCapacity - ringSolidMass;
-        const GpuReal cooling = ringCoolingPower > GPU_R(0.0)
-          ? ringCoolingPower
-          : GPU_R(0.0);
-        const GpuReal weight = available > GPU_R(0.0)
-          ? (cooling > GPU_R(0.0) ? cooling : ringWetArea)
-          : GPU_R(0.0);
-        const GpuReal weightSum = coldWall1DGroupSum(weight, mask);
-        if (!(weightSum > GPU_R(0.0)))
-        {
-            break;
-        }
-        const GpuReal requested = remainingMass*weight/weightSum;
-        const GpuReal addition = available > GPU_R(0.0)
-          ? (requested < available ? requested : available)
-          : GPU_R(0.0);
-        ringSolidMass += addition;
-        const GpuReal allocated = coldWall1DGroupSum(addition, mask);
-        remainingMass -= allocated;
-        if (!(allocated > GPU_R(0.0)))
-        {
-            break;
-        }
-    }
-
-    const GpuReal localSolidFraction = ringWetArea > GPU_R(0.0)
-      ? ringSolidMass
-       /(s.coldWallSolidificationParameters.solidDensityKgM3
-        *ringWetArea*filmThickness)
-      : GPU_R(0.0);
-    const unsigned int eligibleMask = __ballot_sync
-    (
-        mask,
-        ringWetArea > GPU_R(0.0)
-     && localSolidFraction
-        >= s.coldWallSolidificationParameters.pinningThicknessFraction
-    ) >> (__ffs(mask) - 1);
-    const unsigned int lowerMask = (1u << (lane + 1)) - 1u;
-    const bool connectedRing =
-        (eligibleMask & lowerMask) == lowerMask;
-    const GpuReal candidateFrozenArea = coldWall1DGroupSum
-    (
-        connectedRing ? ringWetArea : GPU_R(0.0),
-        mask
-    );
-    if (candidateFrozenArea > frozenArea)
-    {
-        frozenArea = candidateFrozenArea;
-    }
-    profileContactAgeS += deltaTSeconds;
-
-    s.pColdNodeSpecificEnthalpy[nodeBase + lane] =
-        static_cast<float>(candidateEnthalpy);
-    s.pColdRingSolidMass[ringBase + lane] =
-        static_cast<float>(ringSolidMass);
-    if (lane == 0)
-    {
-        s.pColdContactAge[particleI] =
-            static_cast<GpuTime>(profileContactAgeS);
-        s.pColdFrozenArea[particleI] = static_cast<float>(frozenArea);
-    }
-    const GpuReal meanEnthalpy = coldWall1DGroupSum(candidateEnthalpy, mask)/GPU_R(8.0);
-    GpuReal groupMeanTemperature = GPU_R(0.0);
-    if (lane == 0)
-    {
-        groupMeanTemperature =
-            Foam::gpuThermal::coldWallTemperatureFromSpecificEnthalpyK
-            (
-                meanEnthalpy,
-                s.coldWallSolidificationParameters
-            );
-    }
-    meanTemperatureK = __shfl_sync(mask, groupMeanTemperature, 0, 8);
-    frozenFootprintAreaM2 = frozenArea;
-    wallEnergyJ = acceptedWallPower*deltaTSeconds;
-    stateValid =
-        Foam::gpuThermal::finiteColdWallValue(meanTemperatureK)
-     && meanTemperatureK > GPU_R(0.0)
-     && Foam::gpuThermal::finiteColdWallValue(frozenFootprintAreaM2)
-     && frozenFootprintAreaM2 >= GPU_R(0.0)
-     && Foam::gpuThermal::finiteColdWallValue(wallEnergyJ);
-    return __all_sync(mask, stateValid);
+#include "GpuColdWall1DPublish.inl"
 }
 
 #ifndef GPU_COLD_WALL_1D_ALGEBRA_ONLY
@@ -948,100 +749,13 @@ __global__ __launch_bounds__(256, 6) void relaxColdWall1DParticlesToResidentGasK
 #ifndef GPU_THERMAL_GPU_COLD_WALL_1D_DEVICE_CUH
 #define GPU_THERMAL_GPU_COLD_WALL_1D_DEVICE_CUH
 
-__device__ inline GpuReal coldWall1DGroupSum
-(
-    GpuReal value,
-    const unsigned int mask
-)
-{
-    value += __shfl_down_sync(mask, value, 4, 8);
-    value += __shfl_down_sync(mask, value, 2, 8);
-    value += __shfl_down_sync(mask, value, 1, 8);
-    return __shfl_sync(mask, value, 0, 8);
-}
 
-__device__ inline GpuReal coldWall1DGroupMinPrefix
-(
-    GpuReal value,
-    const int lane,
-    const unsigned int mask
-)
-{
-    for (int offset = 1; offset < 8; offset *= 2)
-    {
-        const GpuReal lower = __shfl_up_sync(mask, value, offset, 8);
-        if (lane >= offset && lower < value)
-        {
-            value = lower;
-        }
-    }
-    return value;
-}
 
-__device__ inline GpuReal coldWall1DPcrSolve
-(
-    GpuReal lower,
-    GpuReal diagonal,
-    GpuReal upper,
-    GpuReal rightHandSide,
-    const int lane,
-    const unsigned int mask
-)
-{
-    for (int stride = 1; stride < 8; stride *= 2)
-    {
-        const GpuReal lowerLower =
-            __shfl_up_sync(mask, lower, stride, 8);
-        const GpuReal lowerDiagonal =
-            __shfl_up_sync(mask, diagonal, stride, 8);
-        const GpuReal lowerUpper =
-            __shfl_up_sync(mask, upper, stride, 8);
-        const GpuReal lowerRightHandSide =
-            __shfl_up_sync(mask, rightHandSide, stride, 8);
-        const GpuReal upperLower =
-            __shfl_down_sync(mask, lower, stride, 8);
-        const GpuReal upperDiagonal =
-            __shfl_down_sync(mask, diagonal, stride, 8);
-        const GpuReal upperUpper =
-            __shfl_down_sync(mask, upper, stride, 8);
-        const GpuReal upperRightHandSide =
-            __shfl_down_sync(mask, rightHandSide, stride, 8);
-        const GpuReal alpha = lane >= stride
-          ? -lower/(lowerDiagonal + GPU_REAL_MIN)
-          : GPU_R(0.0);
-        const GpuReal beta = lane + stride < 8
-          ? -upper/(upperDiagonal + GPU_REAL_MIN)
-          : GPU_R(0.0);
-        const GpuReal nextLower = lane >= stride
-          ? alpha*lowerLower
-          : GPU_R(0.0);
-        const GpuReal nextUpper = lane + stride < 8
-          ? beta*upperUpper
-          : GPU_R(0.0);
-        const GpuReal nextDiagonal = diagonal
-          + alpha*lowerUpper + beta*upperLower;
-        const GpuReal nextRightHandSide = rightHandSide
-          + alpha*lowerRightHandSide + beta*upperRightHandSide;
-        lower = nextLower;
-        diagonal = nextDiagonal;
-        upper = nextUpper;
-        rightHandSide = nextRightHandSide;
-    }
-    return rightHandSide/(diagonal + GPU_REAL_MIN);
-}
 
-__device__ inline GpuReal coldWall1DSolidFractionFromKnownTemperature
-(
-    const GpuReal temperatureK,
-    const Foam::gpuThermal::ColdWallSolidificationParameters& parameters
-)
-{
-    const GpuReal solidus = Foam::gpuThermal::coldWallSolidusTemperature(parameters);
-    const GpuReal liquidus = Foam::gpuThermal::coldWallLiquidusTemperature(parameters);
-    if (temperatureK <= solidus) return GPU_R(1.0);
-    if (temperatureK >= liquidus) return GPU_R(0.0);
-    return (liquidus - temperatureK)/parameters.mushyRangeK;
-}
+
+
+
+
 __device__ bool advanceColdWall1DThermalGroup
 (
     DeviceState& s,
@@ -1321,121 +1035,7 @@ __device__ bool advanceColdWall1DThermalGroup
         }
     }
 
-    GpuReal connectedFraction = coldWall1DSolidFractionFromKnownTemperature
-    (
-        guessedTemperature,
-        s.coldWallSolidificationParameters
-    );
-    connectedFraction = coldWall1DGroupMinPrefix
-    (
-        connectedFraction,
-        lane,
-        mask
-    );
-    const GpuReal connectedMass = coldWall1DGroupSum
-    (
-        nodeMass*connectedFraction,
-        mask
-    );
-    GpuReal assignedMass = coldWall1DGroupSum(ringSolidMass, mask);
-    if (connectedMass < assignedMass && assignedMass > GPU_R(0.0))
-    {
-        ringSolidMass *= connectedMass/assignedMass;
-        assignedMass = connectedMass;
-    }
-    GpuReal remainingMass = connectedMass - assignedMass;
-    const GpuReal ringCapacity =
-        s.coldWallSolidificationParameters.solidDensityKgM3
-       *ringWetArea*filmThickness;
-    for
-    (
-        int pass = 0;
-        pass < 8 && remainingMass > GPU_R(1.0e-18)*physicalMassKg;
-        ++pass
-    )
-    {
-        const GpuReal available = ringCapacity - ringSolidMass;
-        const GpuReal cooling = ringCoolingPower > GPU_R(0.0)
-          ? ringCoolingPower
-          : GPU_R(0.0);
-        const GpuReal weight = available > GPU_R(0.0)
-          ? (cooling > GPU_R(0.0) ? cooling : ringWetArea)
-          : GPU_R(0.0);
-        const GpuReal weightSum = coldWall1DGroupSum(weight, mask);
-        if (!(weightSum > GPU_R(0.0)))
-        {
-            break;
-        }
-        const GpuReal requested = remainingMass*weight/weightSum;
-        const GpuReal addition = available > GPU_R(0.0)
-          ? (requested < available ? requested : available)
-          : GPU_R(0.0);
-        ringSolidMass += addition;
-        const GpuReal allocated = coldWall1DGroupSum(addition, mask);
-        remainingMass -= allocated;
-        if (!(allocated > GPU_R(0.0)))
-        {
-            break;
-        }
-    }
-
-    const GpuReal localSolidFraction = ringWetArea > GPU_R(0.0)
-      ? ringSolidMass
-       /(s.coldWallSolidificationParameters.solidDensityKgM3
-        *ringWetArea*filmThickness)
-      : GPU_R(0.0);
-    const unsigned int eligibleMask = __ballot_sync
-    (
-        mask,
-        ringWetArea > GPU_R(0.0)
-     && localSolidFraction
-        >= s.coldWallSolidificationParameters.pinningThicknessFraction
-    ) >> (__ffs(mask) - 1);
-    const unsigned int lowerMask = (1u << (lane + 1)) - 1u;
-    const bool connectedRing =
-        (eligibleMask & lowerMask) == lowerMask;
-    const GpuReal candidateFrozenArea = coldWall1DGroupSum
-    (
-        connectedRing ? ringWetArea : GPU_R(0.0),
-        mask
-    );
-    if (candidateFrozenArea > frozenArea)
-    {
-        frozenArea = candidateFrozenArea;
-    }
-    profileContactAgeS += deltaTSeconds;
-
-    s.pColdNodeSpecificEnthalpy[nodeBase + lane] =
-        static_cast<float>(candidateEnthalpy);
-    s.pColdRingSolidMass[ringBase + lane] =
-        static_cast<float>(ringSolidMass);
-    if (lane == 0)
-    {
-        s.pColdContactAge[particleI] =
-            static_cast<GpuTime>(profileContactAgeS);
-        s.pColdFrozenArea[particleI] = static_cast<float>(frozenArea);
-    }
-    const GpuReal meanEnthalpy = coldWall1DGroupSum(candidateEnthalpy, mask)/GPU_R(8.0);
-    GpuReal groupMeanTemperature = GPU_R(0.0);
-    if (lane == 0)
-    {
-        groupMeanTemperature =
-            Foam::gpuThermal::coldWallTemperatureFromSpecificEnthalpyK
-            (
-                meanEnthalpy,
-                s.coldWallSolidificationParameters
-            );
-    }
-    meanTemperatureK = __shfl_sync(mask, groupMeanTemperature, 0, 8);
-    frozenFootprintAreaM2 = frozenArea;
-    wallEnergyJ = acceptedWallPower*deltaTSeconds;
-    stateValid =
-        Foam::gpuThermal::finiteColdWallValue(meanTemperatureK)
-     && meanTemperatureK > GPU_R(0.0)
-     && Foam::gpuThermal::finiteColdWallValue(frozenFootprintAreaM2)
-     && frozenFootprintAreaM2 >= GPU_R(0.0)
-     && Foam::gpuThermal::finiteColdWallValue(wallEnergyJ);
-    return __all_sync(mask, stateValid);
+#include "GpuColdWall1DPublish.inl"
 }
 
 #ifndef GPU_COLD_WALL_1D_ALGEBRA_ONLY

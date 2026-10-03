@@ -6,6 +6,10 @@ if [ -z "${WM_PROJECT_DIR:-}" ]; then echo "OpenFOAM environment is not loaded" 
 set -euo pipefail
 cd "${solver_root}"
 
+# Direct builds enforce the same read-only source contracts as Allwmake.
+python3 "${solver_root}/../../tools/managed_mirrors.py"
+python3 "${solver_root}/../../tools/particle_field_contract.py"
+
 cuda_home="${CUDA_HOME:-/usr/local/cuda}"
 cuda_arch="${UGKWP_CUDA_ARCH:-sm_89}"
 log_phase="${UGKWP_CUDA_LOG_PHASE:-ugkp_weighted_parcel}"

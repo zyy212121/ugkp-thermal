@@ -1,11 +1,10 @@
-#define GPU_POOL_CONSTEXPR
-#define GPU_SPLIT_POOL_SUM(k, scalar) sums[k]
-#define GPU_SPLIT_POOL_RESULT(k, scalar) sums[k]
+#include "ContactCapabilityValidation.h"
 #define GPU_CONTACT_SEPARATE_AGE 0
 #define GPU_THERMAL_RELAX_NATIVE_ORDER 1
-#define GPU_POOL_THETA_AFTER_REJECTION 0
+#define GPU_POOL_THETA_AFTER_REJECTION 1
 #define GPU_POOL_PARTICLE_THETA(s, i) particleMomentThetaDevice(s, i)
 #define GPU_POOL_MASS_FALLBACK s.injectionParcelMass
+#define GPU_POOL_SPLIT_REDUCTION_TOPOLOGY PoolReductionTopology::warpComponents
 #define GPU_POOL_STATIC_DIRECTORY 0
 #define GPU_POOL_CACHED_PROBABILITY 0
 #define GPU_POOL_SPLIT_DIRECTORY (descriptor.source == static_cast<int>(CsrReductionTaskSource::splitLogical))
@@ -15,17 +14,15 @@
 #define GPU_DIRECTORY_PARAMETER_TYPE bool
 #define GPU_DIRECTORY_ARGUMENT (splitDirectory ? 1 : 0)
 #define GPU_DIRECTORY_HAS_BASE_ONLY 0
-#define GPU_DIRECTORY_FUSED_PRODUCER 0
+#define GPU_DIRECTORY_OWNS_TILE_POLICY 0
 #define GPU_DIRECTORY_SELECTOR splitDirectory
 #define GPU_DIRECTORY_FULL 0
-#define GPU_SPLIT_TASK_BEGIN begin
 #define GPU_CONTACT_AGE(s, i) s.pTheta[i]
 #define GPU_CONTACT_TIME_ZERO 0.0
 #define GPU_OPERATOR_TINY(x) x
 #define GPU_OPERATOR_THERMAL 1
 #define GPU_RECOVERY_INLINE 
 #define GPU_PERIODIC_FACE_KIND 6
-#define GPU_PARTICLE_EXIT_MASS_FALLBACK s.injectionParcelMass
 #define GPU_PERIODIC_COORDINATE(hit, shift, eps, normal) hit - shift + eps*normal
 #define GPU_WALL_COORDINATE(hit, eps, normal) hit - eps*normal
 #define GPU_RESET_CONTACT_AGE(s, i)
@@ -34,6 +31,7 @@
 #define GPU_OPERATOR_REAL double
 #define GPU_OPERATOR_TIME double
 #define GPU_OPERATOR_R(x) x
+#include "../../../common/GpuOperatorContract.cuh"
 #include <cuda_runtime.h>
 
 #include "GpuBackendApi.H"
@@ -74,6 +72,7 @@
 #include <cstdlib>
 #include <cmath>
 #include <vector>
+#include <type_traits>
 
 #ifdef UGKP_DEVELOPMENT_PROBES
 #include <cerrno>
@@ -514,8 +513,10 @@ struct DeviceState
     int* csrCellTaskOffset = nullptr;
     CsrReductionTask* csrReductionTasks = nullptr;
     int* csrMultiTaskCellList = nullptr;
+    // All nonempty-cell tasks, including single-task cells.
     int* csrHeavyTaskCount = nullptr;
     int* csrHeavyTaskCursor = nullptr;
+    // Only cells requiring multiple tasks and final reduction.
     int* csrHeavyCellCount = nullptr;
     int* csrHeavyCellList = nullptr;
     int* csrHeavyTaskCell = nullptr;
@@ -552,8 +553,11 @@ struct DeviceState
     double* compactPy = nullptr;
     double* compactPz = nullptr;
     double* compactPux = nullptr;
+    double* compactPuxOld = nullptr;
     double* compactPuy = nullptr;
+    double* compactPuyOld = nullptr;
     double* compactPuz = nullptr;
+    double* compactPuzOld = nullptr;
     double* compactPT = nullptr;
     double* compactPTheta = nullptr;
     double* compactPd = nullptr;
@@ -575,7 +579,11 @@ struct DeviceState
     float* compactPCold2DFrozenArea = nullptr;
     unsigned long long* compactPRng = nullptr;
     unsigned long long* compactPOrigId = nullptr;
+    int trackingWorkGrid = 0;
+
 };
+#include "GpuContactAgeStorage.cuh"
+
 
 struct ActiveParticleIndexPredicate
 {
@@ -1121,8 +1129,11 @@ void releaseState(DeviceState* s)
     release(s->puy);
     release(s->puz);
     release(s->puxOld);
+    release(s->compactPuxOld);
     release(s->puyOld);
+    release(s->compactPuyOld);
     release(s->puzOld);
+    release(s->compactPuzOld);
     release(s->pT);
     release(s->pTheta);
     release(s->pd);
@@ -1438,8 +1449,11 @@ int allocateFields(DeviceState* s)
     rc |= allocate(s->puy, np, "cudaMalloc strict particle uy");
     rc |= allocate(s->puz, np, "cudaMalloc strict particle uz");
     rc |= allocate(s->puxOld, np, "cudaMalloc strict particle old ux");
+    rc |= allocate(s->compactPuxOld, np, "cudaMalloc strict compact particle old ux");
     rc |= allocate(s->puyOld, np, "cudaMalloc strict particle old uy");
+    rc |= allocate(s->compactPuyOld, np, "cudaMalloc strict compact particle old uy");
     rc |= allocate(s->puzOld, np, "cudaMalloc strict particle old uz");
+    rc |= allocate(s->compactPuzOld, np, "cudaMalloc strict compact particle old uz");
     rc |= allocate(s->pT, np, "cudaMalloc strict particle T");
     rc |= allocate(s->pTheta, np, "cudaMalloc strict particle theta");
     rc |= allocate(s->pd, np, "cudaMalloc strict particle d");
@@ -1676,215 +1690,11 @@ __device__ void recordDevelopmentProbeParticleFailure
     atomicCAS(&summary->firstBadParticlePlusOne, 0, particle + 1);
 }
 
-__global__ void validateDevelopmentProbeCellsKernel
-(
-    DeviceState* sp,
-    DevelopmentProbeDeviceSummary* summary,
-    const int validateSolid
-)
-{
-    DeviceState& s = *sp;
-    const int stride = blockDim.x*gridDim.x;
-    for (int c = blockIdx.x*blockDim.x + threadIdx.x; c < s.nCells; c += stride)
-    {
-        unsigned long long mask = 0;
+#include "operators/validateDevelopmentProbeCellsKernel.cuh"
 
-        if
-        (
-            !finiteDevice(s.rho[c])
-         || !finiteDevice(s.rhoUx[c])
-         || !finiteDevice(s.rhoUy[c])
-         || !finiteDevice(s.rhoUz[c])
-         || !finiteDevice(s.rhoE[c])
-        )
-        {
-            mask |= ProbeBadGasConserved;
-        }
-
-        if
-        (
-            !finiteDevice(s.Ux[c])
-         || !finiteDevice(s.Uy[c])
-         || !finiteDevice(s.Uz[c])
-         || !finiteDevice(s.p[c])
-         || !finiteDevice(s.Tgas[c])
-        )
-        {
-            mask |= ProbeBadGasPrimitive;
-        }
-
-        if
-        (
-            !(s.rho[c] > 0.0)
-         || !(s.p[c] > 0.0)
-         || !(s.Tgas[c] > 0.0)
-        )
-        {
-            mask |= ProbeBadCellRange;
-        }
-
-        if (validateSolid != 0)
-        {
-            if
-            (
-                !finiteDevice(s.epsS[c])
-             || !finiteDevice(s.rhoUsx[c])
-             || !finiteDevice(s.rhoUsy[c])
-             || !finiteDevice(s.rhoUsz[c])
-             || !finiteDevice(s.rhoEs[c])
-             || !finiteDevice(s.rhoDs[c])
-             || !finiteDevice(s.rhoHp[c])
-            )
-            {
-                mask |= ProbeBadSolidConserved;
-            }
-
-            if
-            (
-                !finiteDevice(s.Usx[c])
-             || !finiteDevice(s.Usy[c])
-             || !finiteDevice(s.Usz[c])
-             || !finiteDevice(s.theta[c])
-             || !finiteDevice(s.Tp[c])
-             || !finiteDevice(s.dMeanCell[c])
-            )
-            {
-                mask |= ProbeBadSolidPrimitive;
-            }
-
-            if
-            (
-                !finiteDevice(s.momRhoP[c])
-             || !finiteDevice(s.momRhoUPx[c])
-             || !finiteDevice(s.momRhoUPy[c])
-             || !finiteDevice(s.momRhoUPz[c])
-              || !finiteDevice(s.momRhoEP[c])
-              || !finiteDevice(s.momRhoPD[c])
-               || !finiteDevice(s.momRhoHpP[c])
-            )
-            {
-                mask |= ProbeBadSolidMoments;
-            }
-
-            if
-            (
-                s.epsS[c] < 0.0
-             || s.epsS[c] > 1.0
-             || s.theta[c] < 0.0
-             || (s.solveParticleTemperature != 0 && !(s.Tp[c] > 0.0))
-             || (s.epsS[c] > s.epsSMin && !(s.dMeanCell[c] > 0.0))
-            )
-            {
-                mask |= ProbeBadCellRange;
-            }
-        }
-
-        recordDevelopmentProbeCellFailure(summary, c, mask);
-    }
-}
-
-__global__ void validateDevelopmentProbeParticlesKernel
-(
-    DeviceState* sp,
-    DevelopmentProbeDeviceSummary* summary
-)
-{
-    DeviceState& s = *sp;
-    int nParticles = *s.particleCountDevice;
-    nParticles = nParticles < 0 ? 0 : nParticles;
-    nParticles = nParticles > s.particleCapacity ? s.particleCapacity : nParticles;
-
-    const int stride = blockDim.x*gridDim.x;
-    for
-    (
-        int i = blockIdx.x*blockDim.x + threadIdx.x;
-        i < nParticles;
-        i += stride
-    )
-    {
-        unsigned long long mask = 0;
-        if
-        (
-            !finiteDevice(s.px[i])
-         || !finiteDevice(s.py[i])
-         || !finiteDevice(s.pz[i])
-        )
-        {
-            mask |= ProbeBadParticlePosition;
-        }
-        if
-        (
-            !finiteDevice(s.pux[i])
-         || !finiteDevice(s.puy[i])
-         || !finiteDevice(s.puz[i])
-        )
-        {
-            mask |= ProbeBadParticleVelocity;
-        }
-        if
-        (
-            !finiteDevice(s.pT[i])
-         || !finiteDevice(s.pTheta[i])
-         || !finiteDevice(s.pd[i])
-         || !finiteDevice(s.pm[i])
-         || s.pTheta[i] < 0.0
-         || !(s.pd[i] > 0.0)
-         || s.pm[i] < 0.0
-         || (s.solveParticleTemperature != 0 && !(s.pT[i] > 0.0))
-        )
-        {
-            mask |= ProbeBadParticleThermal;
-        }
-        if
-        (
-            s.pCellId[i] < 0
-         || s.pCellId[i] >= s.nCells
-         || s.pStatus[i] != 1
-         || s.pStuck[i] > Foam::gpuThermal::particleWallTransientDeposit
-         || (
-                s.pStuck[i] == Foam::gpuThermal::particleWallDeposited
-             && (
-                    !(s.pDepositionArea[i] > 0.0f)
-                 || !
-                    (
-                        (
-                            s.pContactDuration[i] == 0.0f
-                         && s.pContactMaximumArea[i] == 0.0f
-                         && s.pContactPeakFraction[i] == 0.0f
-                        )
-                     || (
-                            s.pContactDuration[i] > 0.0f
-                         && s.pContactMaximumArea[i] > 0.0f
-                         && s.pContactPeakFraction[i] > 0.0f
-                         && s.pContactPeakFraction[i] < 1.0f
-                        )
-                    )
-                )
-            )
-         || (
-                (
-                    s.pStuck[i]
-                 == Foam::gpuThermal::particleWallTransientRebound
-                 || s.pStuck[i]
-                 == Foam::gpuThermal::particleWallTransientDeposit
-                )
-             && (
-                    !(s.pContactDuration[i] > 0.0f)
-                 || !(s.pContactMaximumArea[i] > 0.0f)
-                 || !(s.pContactPeakFraction[i] > 0.0f)
-                 || !(s.pContactPeakFraction[i] < 1.0f)
-                 || s.pTheta[i] > s.pContactDuration[i]
-                 || s.pDepositionArea[i] < 0.0f
-                )
-            )
-        )
-        {
-            mask |= ProbeBadParticleMetadata;
-        }
-
-        recordDevelopmentProbeParticleFailure(summary, i, mask);
-    }
-}
+#define GPU_PROBE_REQUIRE_POSITIVE_ACTIVE_MASS 0
+#include "operators/validateDevelopmentProbeParticlesKernel.cuh"
+#undef GPU_PROBE_REQUIRE_POSITIVE_ACTIVE_MASS
 
 #endif
 
@@ -1996,144 +1806,7 @@ __host__ __device__ inline bool gasDragModelActive(const int modelId)
 #include "operators/applyEulerianGasSolidDragKernelStatic.cuh"
 }
 
-__global__ void applyEulerianParticleMaterialHeatKernel
-(
-    DeviceState* sp,
-    const double dt
-)
-{
-    DeviceState& s = *sp;
-    const int c = blockIdx.x*blockDim.x + threadIdx.x;
-
-    if
-    (
-        c >= s.nCells
-     || s.solveParticleTemperature == 0
-     || s.particleGasHeatTransferModelId == 0
-    )
-    {
-        return;
-    }
-
-    const double rhoP = clampMin(finiteOr(s.momRhoP[c], 0.0), 0.0);
-    if (rhoP <= s.epsSMin*s.rhoSolid)
-    {
-        return;
-    }
-    const double epsG = 1.0 - solidEpsFromMomentDevice(s, c);
-    const double epsGsafe = clampMin(epsG, OfSmall);
-
-    const double hp = clampMin(finiteOr(s.momRhoHpP[c], 0.0), 0.0);
-    if (hp <= 0.0)
-    {
-        return;
-    }
-
-    const double specificEnthalpy = finiteOr(hp/(rhoP + OfSmall), -1.0);
-    const double tpAvg =
-        clampRange
-        (
-            finiteOr
-            (
-                particleTemperatureFromSpecificEnthalpyDevice
-                (
-                    specificEnthalpy
-                ),
-                s.TpMin
-            ),
-            s.TpMin,
-            s.TpMax
-        );
-    const double particleCp = particleSpecificHeatDevice(tpAvg);
-    if (!(particleCp > 0.0))
-    {
-        return;
-    }
-
-    const double rhoG =
-        clampMin(finiteOr(s.couplingRhoOld[c], 0.0), s.rhoMin);
-    const double tg =
-        clampRange
-        (
-            finiteOr(s.couplingTgasOld[c], s.TgasMin),
-            s.TgasMin,
-            1.0e30
-        );
-
-    const double rhoDP = clampMin(finiteOr(s.momRhoPD[c], 0.0), 0.0);
-    const double dLocal =
-        clampMin
-        (
-            finiteOr(rhoDP/rhoP, s.particleDiameterFallback),
-            1.0e-12
-        );
-
-    const double usx = finiteOr(s.momRhoUPx[c], 0.0)/(rhoP + OfSmall);
-    const double usy = finiteOr(s.momRhoUPy[c], 0.0)/(rhoP + OfSmall);
-    const double usz = finiteOr(s.momRhoUPz[c], 0.0)/(rhoP + OfSmall);
-
-    const double urx = finiteOr(s.couplingUxOld[c], 0.0) - usx;
-    const double ury = finiteOr(s.couplingUyOld[c], 0.0) - usy;
-    const double urz = finiteOr(s.couplingUzOld[c], 0.0) - usz;
-    const double urMag = sqrt(sqr3(urx, ury, urz));
-
-    const double mu = clampMin(s.gasMu, 1.0e-30);
-    const double re = rhoG*dLocal*urMag/mu;
-
-    const double pr = s.gasPrClamped;
-    const double gasConductivity = molecularGasConductivity(s);
-
-    const double nu = ugkwp::ranzMarshallNuFromPr
-    (
-        clampMin(re, 0.0),
-        clampMin(pr, 1.0e-12)
-    );
-
-    const double rate =
-        6.0*nu*gasConductivity
-       /(s.rhoSolid*particleCp*dLocal*dLocal + 1.0e-300);
-
-    const double gasCv =
-        s.Rgas/clampMin(s.gammaGas - 1.0, OfSmall);
-    const double gasCapacity = epsG*rhoG*gasCv;
-    const double solidCapacity = rhoP*particleCp;
-
-                                                                           
-                                                                             
-                                                                        
-    const double dHp =
-        gpuFiniteCapacityHeatExchange
-        (
-            gasCapacity,
-            solidCapacity,
-            tg,
-            tpAvg,
-            clampMin(rate, 0.0),
-            dt
-        );
-
-    const double rhoEold = finiteOr(s.rhoE[c], 0.0);
-    double rhoEnew = rhoEold - dHp/epsGsafe;
-
-    const double rhoGCurrent =
-        clampMin(finiteOr(s.rho[c], rhoG), s.rhoMin);
-    const double kinetic =
-        0.5
-       *sqr3
-        (
-            finiteOr(s.rhoUx[c], 0.0),
-            finiteOr(s.rhoUy[c], 0.0),
-            finiteOr(s.rhoUz[c], 0.0)
-        )
-       /rhoGCurrent;
-
-    const double eMinGas =
-        rhoGCurrent*s.Rgas*s.TgasMin
-       /clampMin(s.gammaGas - 1.0, OfSmall);
-
-    rhoEnew = clampMin(finiteOr(rhoEnew, rhoEold), kinetic + eMinGas);
-    s.rhoE[c] = rhoEnew;
-}
+#include "operators/applyEulerianParticleMaterialHeatKernel.cuh"
 
 #include "operators/snapshotParticleGasCouplingStateKernel.cuh"
 
@@ -2192,87 +1865,9 @@ constexpr double mobilePackingJacobiOmega = 0.8;
 
 #include "../../../common/gasNumerics/GpuPackingProjectionCooperative.cuh"
 
-int applyMobilePackingProjection
-(
-    DeviceState* s,
-    const double dt,
-    const int block
-)
-{
-    if (!s->jammingPressureEnabled || s->particleWorkGrid <= 0)
-    {
-        return 0;
-    }
-    if (!(dt > 0.0) || !std::isfinite(dt))
-    {
-        setLastErrorText("invalid mobile packing-projection dt");
-        return 1;
-    }
-    const int cellGrid = (s->nCells + block - 1)/block;
-    cudaError_t err = cudaSuccess;
-
-#define PACKING_LAUNCH(CALL, NAME) \
-    CALL; \
-    err = cudaGetLastError(); \
-    if (err != cudaSuccess) \
-    { \
-        setLastError(NAME, err); \
-        return 1; \
-    }
-
-    PACKING_LAUNCH
-    (
-        (clearMobilePackingMomentsKernel<<<cellGrid, block>>>(s->deviceState)),
-        "clear mobile packing moments launch"
-    );
-    PACKING_LAUNCH
-    (
-        (clearMobilePackingActivityCountsKernel<<<1, 1>>>(s->deviceState)),
-        "clear mobile packing activity counts launch"
-    );
-    PACKING_LAUNCH
-    (
-        (accumulateMobilePackingMomentsKernel<<<s->particleWorkGrid, s->particleBlockThreads>>>
-        (s->deviceState)),
-        "accumulate mobile packing moments launch"
-    );
-    PACKING_LAUNCH
-    (
-        (normalizeMobilePackingMomentsKernel<<<cellGrid, block>>>(s->deviceState)),
-        "normalize mobile packing moments launch"
-    );
-    PACKING_LAUNCH
-    (
-        (prepareMobilePackingProjectionKernel<<<cellGrid, block>>>
-        (s->deviceState, dt)),
-        "prepare mobile packing projection launch"
-    );
-
-    if (s->mobilePackingCooperativeGrid <= 0)
-    {
-        setLastErrorText("mobile packing cooperative grid is unavailable");
-        return 1;
-    }
-    double kernelDt = dt;
-    void* cooperativeArguments[] = {&s->deviceState, &kernelDt};
-    err = cudaLaunchCooperativeKernel
-    (
-        reinterpret_cast<const void*>
-        (completeMobilePackingProjectionCooperativeKernel),
-        dim3(s->mobilePackingCooperativeGrid),
-        dim3(block),
-        cooperativeArguments,
-        0,
-        nullptr
-    );
-    if (err != cudaSuccess)
-    {
-        setLastError("complete mobile packing projection launch", err);
-        return 1;
-    }
-#undef PACKING_LAUNCH
-    return 0;
-}
+#include "../../../common/GpuGasHostPolicy.cuh"
+using GasHostPolicy = GasHostWithoutWallEnergy<double, double>;
+#include "../../../common/GpuMobilePackingHost.cuh"
 
 #include "operators/granularCollisionTauFromCellDevice.cuh"
 
@@ -2281,131 +1876,7 @@ __device__ void initialiseColdWallParticleState(DeviceState&, int, double);
 __device__ void clearColdWall2DParticleState(DeviceState&, int);
 __device__ void initialiseColdWall2DParticleState(DeviceState&, int, double);
 
-__global__ void injectBoundaryParticlesKernel
-(
-    DeviceState* sp,
-    const double dt,
-    const double simulationTime
-)
-{
-    DeviceState& s = *sp;
-    const int j = blockIdx.x*blockDim.x + threadIdx.x;
-    if
-    (
-        j >= s.nBoundarySources
-     || s.particleCapacity <= 0
-     || s.injectionParcelMass <= 0.0
-    )
-    {
-        return;
-    }
-
-    const int sourceFace = s.sourceFace[j];
-    if (sourceFace < 0 || sourceFace >= s.nFaces)
-    {
-        return;
-    }
-
-    const int sourceCell = s.sourceCell[j];
-    if (sourceCell < 0 || sourceCell >= s.nCells)
-    {
-        return;
-    }
-
-    const bool scheduledInletActive =
-        scheduledInletFaceDevice(s, sourceFace);
-    const double sourceUx = scheduledInletActive
-      ? finiteOr(s.gasBoundaryUx[sourceFace], finiteOr(s.sourceUx[j], 0.0))
-      : finiteOr(s.sourceUx[j], 0.0);
-    const double sourceUy = scheduledInletActive
-      ? finiteOr(s.gasBoundaryUy[sourceFace], finiteOr(s.sourceUy[j], 0.0))
-      : finiteOr(s.sourceUy[j], 0.0);
-    const double sourceUz = scheduledInletActive
-      ? finiteOr(s.gasBoundaryUz[sourceFace], finiteOr(s.sourceUz[j], 0.0))
-      : finiteOr(s.sourceUz[j], 0.0);
-    const double sourceTheta = scheduledInletActive
-      ? clampMin(finiteOr(s.theta[sourceCell], 0.0), 0.0)
-      : clampMin(finiteOr(s.sourceTheta[j], 0.0), 0.0);
-    const double scheduledRate =
-        scheduledSolidVolumeFractionDevice(s, simulationTime)
-       *s.rhoSolid
-       *clampMin
-        (
-           -(sourceUx*s.Sfx[sourceFace]
-           + sourceUy*s.Sfy[sourceFace]
-           + sourceUz*s.Sfz[sourceFace]),
-            0.0
-        );
-    const double rate = scheduledInletActive
-      ? scheduledRate
-      : finiteOr(s.sourceMassRate[j], 0.0);
-    if (rate <= 0.0)
-    {
-        return;
-    }
-
-    const double parcelMass = s.injectionParcelMass;
-    double available =
-        clampMin(finiteOr(s.sourceResidualMass[j], 0.0), 0.0) + rate*dt;
-    if (available < parcelMass)
-    {
-        s.sourceResidualMass[j] = available;
-        return;
-    }
-
-    const int nNew = static_cast<int>(floor(available/parcelMass));
-    double consumed = 0.0;
-
-    for (int k = 0; k < nNew; ++k)
-    {
-        const int slot = atomicAdd(s.particleCountDevice, 1);
-        if (slot >= s.particleCapacity)
-        {
-            atomicSub(s.particleCountDevice, 1);
-            break;
-        }
-
-        unsigned long long rng =
-            mixSeed
-            (
-                s.rngSeed
-              ^ static_cast<unsigned long long>
-                (
-                    0xd1b54a32d192ed03ULL
-                  + (static_cast<unsigned long long>(j) << 32)
-                  + static_cast<unsigned long long>(slot)
-                )
-            );
-        s.px[slot] = finiteOr(s.sourcePx[j], s.Cx[sourceCell]);
-        s.py[slot] = finiteOr(s.sourcePy[j], s.Cy[sourceCell]);
-        s.pz[slot] = finiteOr(s.sourcePz[j], s.Cz[sourceCell]);
-        s.pux[slot] = sourceUx;
-        s.puy[slot] = sourceUy;
-        s.puz[slot] = sourceUz;
-        s.pT[slot] =
-            clampRange(finiteOr(s.sourceT[j], s.TpMin), s.TpMin, s.TpMax);
-        s.pTheta[slot] = sourceTheta;
-        s.pd[slot] = sampleDiameterAroundDevice(s, finiteOr(s.sourceD[j], s.particleDiameterFallback), rng);
-        s.pm[slot] = parcelMass;
-        s.pCellId[slot] = sourceCell;
-        s.pStatus[slot] = 1;
-        s.pStuck[slot] = 0;
-        s.pStuckFaceId[slot] = -1;
-        s.pDepositionArea[slot] = 0.0f;
-        s.pContactDuration[slot] = 0.0f;
-        s.pContactMaximumArea[slot] = 0.0f;
-        s.pContactPeakFraction[slot] = 0.0f;
-        clearColdWallParticleState(s, slot);
-        clearColdWall2DParticleState(s, slot);
-        s.pRng[slot] = rng;
-        s.pOrigId[slot] =
-            (static_cast<unsigned long long>(j) << 40)
-          ^ static_cast<unsigned long long>(slot);
-        consumed += parcelMass;
-    }
-
-    s.sourceResidualMass[j] = available - consumed;
-}
+#include "operators/injectBoundaryParticlesKernel.cuh"
 
 #include "operators/pointInsideCell.cuh"
 
@@ -2454,130 +1925,7 @@ __device__ void atomicAddParticleWallEnergyByFace
 #include "../../../common/wall/GpuColdWall1DDevice.cuh"
 #undef pContactAge
 
-__global__ void accumulateParticleWallRepresentedContactAreaKernel
-(
-    DeviceState* sp
-)
-{
-    DeviceState& s = *sp;
-    const int nWallBound = Foam::gpuWall::wallBoundDirectoryCount(s);
-    for
-    (
-        int entry = blockIdx.x*blockDim.x + threadIdx.x;
-        entry < nWallBound;
-        entry += blockDim.x*gridDim.x
-    )
-    {
-        const int i = Foam::gpuWall::wallBoundDirectoryParticle(s, entry);
-        if (i < 0 || i >= s.particleCapacity)
-        {
-            asm("trap;");
-        }
-        if
-        (
-            s.pStatus[i] == 0
-         || s.pStuck[i] == Foam::gpuThermal::particleWallMobile
-        )
-        {
-            continue;
-        }
-        const unsigned char wallState = s.pStuck[i];
-        const int faceI = s.pStuckFaceId[i];
-        if
-        (
-            faceI < 0
-         || faceI >= s.nFaces
-         || s.particleStuckCandidateMask[faceI] == 0
-        )
-        {
-            asm("trap;");
-        }
-
-        double physicalContactArea = 0.0;
-        if (wallState == Foam::gpuThermal::particleWallDeposited)
-        {
-            physicalContactArea =
-                static_cast<double>(s.pDepositionArea[i]);
-            if (!(physicalContactArea > 0.0))
-            {
-                asm("trap;");
-            }
-        }
-        else if
-        (
-            wallState == Foam::gpuThermal::particleWallTransientRebound
-         || wallState == Foam::gpuThermal::particleWallTransientDeposit
-        )
-        {
-            const double duration =
-                static_cast<double>(s.pContactDuration[i]);
-            const double maximumArea =
-                static_cast<double>(s.pContactMaximumArea[i]);
-            const double peakTimeFraction =
-                static_cast<double>(s.pContactPeakFraction[i]);
-            const double damageArea =
-                static_cast<double>(s.pDepositionArea[i]);
-            const double age =
-                clampRange(finiteOr(s.pTheta[i], 0.0), 0.0, duration);
-            if
-            (
-                !(duration > 0.0) || !(maximumArea > 0.0)
-             || !(peakTimeFraction > 0.0) || !(peakTimeFraction < 1.0)
-             || damageArea < 0.0
-            )
-            {
-                asm("trap;");
-            }
-            const double kinematicArea =
-                maximumArea*Foam::gpuThermal::normalizedKinematicArea
-                (
-                    age/duration, peakTimeFraction
-                );
-            const unsigned char interactionType =
-                s.particleStuckCandidateMask[faceI];
-            const double frozenArea =
-                interactionType
-             == Foam::gpuThermal::particleWallSolidifyingDeposition
-              ? static_cast<double>(s.pColdFrozenArea[i])
-              : interactionType == Foam::gpuThermal::particleWallColdWall2D
-              ? static_cast<double>(s.pCold2DFrozenArea[i])
-              : 0.0;
-            physicalContactArea = clampMin
-            (
-                fmax(kinematicArea, frozenArea) - damageArea,
-                0.0
-            );
-                                                                           
-                                                                           
-            if (!(physicalContactArea > 0.0))
-            {
-                continue;
-            }
-        }
-        else
-        {
-            asm("trap;");
-        }
-
-        const double representedArea =
-            Foam::gpuThermal::representedDepositionContactArea
-            (
-                s.rhoSolid,
-                s.pd[i],
-                physicalContactArea,
-                s.pm[i]
-            );
-        if (!(representedArea > 0.0))
-        {
-            asm("trap;");
-        }
-        atomicAdd
-        (
-            &s.particleWallRepresentedContactArea[faceI],
-            representedArea
-        );
-    }
-}
+#include "operators/accumulateParticleWallRepresentedContactAreaKernel.cuh"
 
 #include "operators/rebuildWallBoundParticleDirectoryKernel.cuh"
 
@@ -2643,9 +1991,7 @@ int prepareParticleWallContactAreaScale(DeviceState* s, const int block)
 #include "operators/accumulateCsrSplitLogicalPoolTask.cuh"
 
 
-#include "operators/accumulateCsrHeavyPoolTasksPersistentKernel.cuh"
 
-#include "operators/finalizeCsrHeavyPoolCellsKernel.cuh"
 
 #include "../../../gpu/thermal/CsrSegmentedPoolWorkers.cuh"
 
@@ -2658,128 +2004,10 @@ int launchCsrHeavyPoolReduction
 )
 {
     return launchCsrSegmentedPoolReduction(s, dt, poissonMode, block);
-#if 0
-    if (s->csrHeavyReductionEnabled == 0 || s->particleCapacity <= 0)
-    {
-        return 0;
-    }
-
-    cudaError_t err = cudaMemset(s->csrHeavyTaskCursor, 0, sizeof(int));
-    if (err != cudaSuccess)
-    {
-        setLastError("reset CSR heavy pool task cursor", err);
-        return 1;
-    }
-    const int warpCount = (block + 31)/32;
-    const size_t sharedBytes =
-        8u*static_cast<size_t>(warpCount)*sizeof(double);
-    if (poissonMode)
-    {
-        accumulateCsrHeavyPoolTasksPersistentKernel<true>
-            <<<s->csrHeavyWorkerGrid, block, sharedBytes>>>(s->deviceState, dt);
-    }
-    else
-    {
-        accumulateCsrHeavyPoolTasksPersistentKernel<false>
-            <<<s->csrHeavyWorkerGrid, block, sharedBytes>>>(s->deviceState, dt);
-    }
-    err = cudaGetLastError();
-    if (err != cudaSuccess)
-    {
-        setLastError("CSR heavy pool persistent kernel launch", err);
-        return 1;
-    }
-
-    err = cudaMemset(s->csrHeavyTaskCursor, 0, sizeof(int));
-    if (err != cudaSuccess)
-    {
-        setLastError("reset CSR heavy pool finalize cursor", err);
-        return 1;
-    }
-    const int finalizeGridFromSm =
-        s->csrHeavyWorkerGrid/s->heavyResidentBlocksPerSm;
-    const int finalizeGrid =
-        finalizeGridFromSm < s->nCells ? finalizeGridFromSm : s->nCells;
-    finalizeCsrHeavyPoolCellsKernel
-        <<<finalizeGrid, block, sharedBytes>>>
-    (
-        s->deviceState
-    );
-    err = cudaGetLastError();
-    if (err != cudaSuccess)
-    {
-        setLastError("finalizeCsrHeavyPoolCellsKernel launch", err);
-        return 1;
-    }
-    return 0;
-#endif
 }
 
-#include "operators/accumulateSplitCsrHeavyPoolTasksPersistentKernel.cuh"
 
-int launchSplitCsrHeavyPoolReduction
-(
-    DeviceState* s,
-    const double dt,
-    const int block
-)
-{
-    if (s->csrHeavyReductionEnabled == 0 || s->particleCapacity <= 0)
-    {
-        return 0;
-    }
-    cudaError_t err = cudaMemset(s->csrHeavyTaskCursor, 0, sizeof(int));
-    if (err == cudaSuccess)
-    {
-        err = cudaMemset(s->csrHeavyInjectionTaskCursor, 0, sizeof(int));
-    }
-    if (err != cudaSuccess)
-    {
-        setLastError("reset split-Dpre heavy pool cursors", err);
-        return 1;
-    }
-    const int warpCount = (block + 31)/32;
-    const size_t sharedBytes =
-        8u*static_cast<size_t>(warpCount)*sizeof(double);
-    accumulateSplitCsrHeavyPoolTasksPersistentKernel<true>
-        <<<s->csrHeavyWorkerGrid, block, sharedBytes>>>(s->deviceState, dt);
-    err = cudaGetLastError();
-    if (err != cudaSuccess)
-    {
-        setLastError("split-Dpre heavy base pool launch", err);
-        return 1;
-    }
-    if (s->nBoundarySources > 0)
-    {
-        accumulateSplitCsrHeavyPoolTasksPersistentKernel<false>
-            <<<s->csrHeavyWorkerGrid, block, sharedBytes>>>(s->deviceState, dt);
-        err = cudaGetLastError();
-        if (err != cudaSuccess)
-        {
-            setLastError("split-Dpre heavy injection pool launch", err);
-            return 1;
-        }
-    }
-    err = cudaMemset(s->csrHeavyTaskCursor, 0, sizeof(int));
-    if (err != cudaSuccess)
-    {
-        setLastError("reset split-Dpre heavy finalizer cursor", err);
-        return 1;
-    }
-    const int finalizeGridFromSm =
-        s->csrHeavyWorkerGrid/s->heavyResidentBlocksPerSm;
-    const int finalizeGrid =
-        finalizeGridFromSm < s->nCells ? finalizeGridFromSm : s->nCells;
-    finalizeSplitCsrHeavyPoolCellsKernel
-        <<<finalizeGrid, block, sharedBytes>>>(s->deviceState);
-    err = cudaGetLastError();
-    if (err != cudaSuccess)
-    {
-        setLastError("split-Dpre heavy pool finalizer launch", err);
-        return 1;
-    }
-    return 0;
-}
+
 
 #include "operators/preparePoissonPoolSamplingKernel.cuh"
 
@@ -2819,337 +2047,19 @@ __device__ void finalizeOneThermalizedMobileParticle
 #include "../../../gpu/thermal/CsrSegmentedGather.cuh"
 
 
-__global__ void gatherSelectedParticlesKernel(DeviceState* sp)
-{
-    DeviceState& s = *sp;
-    const int selectedCount =
-        clampRange(*s.compactCountDevice, 0, s.particleCapacity);
-    for
-    (
-        int dst = blockIdx.x*blockDim.x + threadIdx.x;
-        dst < selectedCount;
-        dst += blockDim.x*gridDim.x
-    )
-    {
-        const int i = s.sortedParticleIndex[dst];
-        if
-        (
-            i < 0
-         || i >= s.particleCapacity
-         || s.pStatus[i] != 1
-        )
-        {
-            asm("trap;");
-        }
-        const int c = s.pCellId[i];
-        if (c < 0 || c >= s.nCells)
-        {
-            asm("trap;");
-        }
-
-        s.compactPx[dst] = s.px[i];
-        s.compactPy[dst] = s.py[i];
-        s.compactPz[dst] = s.pz[i];
-        s.compactPux[dst] = s.pux[i];
-        s.compactPuy[dst] = s.puy[i];
-        s.compactPuz[dst] = s.puz[i];
-        s.compactPT[dst] = s.pT[i];
-        s.compactPTheta[dst] = s.pTheta[i];
-        s.compactPd[dst] = s.pd[i];
-        s.compactPm[dst] = s.pm[i];
-        s.compactPCellId[dst] = c;
-        s.compactPStatus[dst] = 1;
-        s.compactPStuck[dst] = s.pStuck[i];
-        s.compactPStuckFaceId[dst] = s.pStuckFaceId[i];
-        s.compactPDepositionArea[dst] = s.pDepositionArea[i];
-        s.compactPContactDuration[dst] = s.pContactDuration[i];
-        s.compactPContactMaximumArea[dst] = s.pContactMaximumArea[i];
-        s.compactPContactPeakFraction[dst] = s.pContactPeakFraction[i];
-        if (s.coldWallSolidificationEnabled != 0)
-        {
-            for
-            (
-                int node = 0;
-                node < Foam::gpuThermal::coldWallAxialNodeCount;
-                ++node
-            )
-            {
-                s.compactPColdNodeSpecificEnthalpy
-                [
-                    dst*Foam::gpuThermal::coldWallAxialNodeCount + node
-                ] = s.pColdNodeSpecificEnthalpy
-                [
-                    i*Foam::gpuThermal::coldWallAxialNodeCount + node
-                ];
-            }
-            for
-            (
-                int ring = 0;
-                ring < Foam::gpuThermal::coldWallRadialRingCount;
-                ++ring
-            )
-            {
-                s.compactPColdRingSolidMass
-                [
-                    dst*Foam::gpuThermal::coldWallRadialRingCount + ring
-                ] = s.pColdRingSolidMass
-                [
-                    i*Foam::gpuThermal::coldWallRadialRingCount + ring
-                ];
-            }
-            s.compactPColdFrozenArea[dst] = s.pColdFrozenArea[i];
-            s.compactPColdContactAge[dst] = s.pColdContactAge[i];
-        }
-        if (s.coldWall2DEnabled != 0)
-        {
-            for
-            (
-                int node = 0;
-                node < Foam::gpuThermal::coldWall2DNodeCount;
-                ++node
-            )
-            {
-                s.compactPCold2DNodeSpecificEnthalpy
-                [dst*Foam::gpuThermal::coldWall2DNodeCount + node] =
-                    s.pCold2DNodeSpecificEnthalpy
-                    [i*Foam::gpuThermal::coldWall2DNodeCount + node];
-            }
-            for
-            (
-                int ring = 0;
-                ring < Foam::gpuThermal::coldWall2DRadialNodeCount;
-                ++ring
-            )
-            {
-                s.compactPCold2DRingContactAge
-                [dst*Foam::gpuThermal::coldWall2DRadialNodeCount + ring] =
-                    s.pCold2DRingContactAge
-                    [i*Foam::gpuThermal::coldWall2DRadialNodeCount + ring];
-            }
-            s.compactPCold2DFrozenArea[dst] = s.pCold2DFrozenArea[i];
-        }
-        s.compactPRng[dst] = s.pRng[i];
-        s.compactPOrigId[dst] = s.pOrigId[i];
-        if
-        (
-            s.compactPStuck[dst]
-         != Foam::gpuThermal::particleWallMobile
-        )
-        {
-            Foam::gpuWall::publishWallBoundParticleIndex(s, dst);
-        }
-    }
-}
+#include "operators/gatherSelectedParticlesKernel.cuh"
 
 #include "operators/swapParticlePointerDevice.cuh"
 
-__global__ void commitCellLocalParticleBuffersKernel(DeviceState* sp)
-{
-    if (blockIdx.x != 0 || threadIdx.x != 0)
-    {
-        return;
-    }
+#include "GpuParticleBufferCommit.cuh"
 
-    DeviceState& s = *sp;
-    int compactCount = s.compactCellOffset[s.nCells];
-    compactCount = compactCount < 0 ? 0 : compactCount;
-    compactCount =
-        compactCount > s.particleCapacity ? s.particleCapacity : compactCount;
-    *s.particleCountDevice = compactCount;
 
-    swapParticlePointerDevice(s.px, s.compactPx);
-    swapParticlePointerDevice(s.py, s.compactPy);
-    swapParticlePointerDevice(s.pz, s.compactPz);
-    swapParticlePointerDevice(s.pux, s.compactPux);
-    swapParticlePointerDevice(s.puy, s.compactPuy);
-    swapParticlePointerDevice(s.puz, s.compactPuz);
-    swapParticlePointerDevice(s.pT, s.compactPT);
-    swapParticlePointerDevice(s.pTheta, s.compactPTheta);
-    swapParticlePointerDevice(s.pd, s.compactPd);
-    swapParticlePointerDevice(s.pm, s.compactPm);
-    swapParticlePointerDevice(s.pCellId, s.compactPCellId);
-    swapParticlePointerDevice(s.pStatus, s.compactPStatus);
-    swapParticlePointerDevice(s.pStuck, s.compactPStuck);
-    swapParticlePointerDevice(s.pStuckFaceId, s.compactPStuckFaceId);
-    swapParticlePointerDevice(s.pDepositionArea, s.compactPDepositionArea);
-    swapParticlePointerDevice(s.pContactDuration, s.compactPContactDuration);
-    swapParticlePointerDevice(s.pContactMaximumArea, s.compactPContactMaximumArea);
-    swapParticlePointerDevice(s.pContactPeakFraction, s.compactPContactPeakFraction);
-    if (s.coldWallSolidificationEnabled != 0)
-    {
-        swapParticlePointerDevice
-        (
-            s.pColdNodeSpecificEnthalpy,
-            s.compactPColdNodeSpecificEnthalpy
-        );
-        swapParticlePointerDevice
-        (
-            s.pColdRingSolidMass,
-            s.compactPColdRingSolidMass
-        );
-        swapParticlePointerDevice(s.pColdFrozenArea, s.compactPColdFrozenArea);
-        swapParticlePointerDevice(s.pColdContactAge, s.compactPColdContactAge);
-    }
-    if (s.coldWall2DEnabled != 0)
-    {
-        swapParticlePointerDevice
-        (
-            s.pCold2DNodeSpecificEnthalpy,
-            s.compactPCold2DNodeSpecificEnthalpy
-        );
-        swapParticlePointerDevice
-        (
-            s.pCold2DRingContactAge,
-            s.compactPCold2DRingContactAge
-        );
-        swapParticlePointerDevice
-        (
-            s.pCold2DFrozenArea,
-            s.compactPCold2DFrozenArea
-        );
-    }
-    swapParticlePointerDevice(s.pRng, s.compactPRng);
-    swapParticlePointerDevice(s.pOrigId, s.compactPOrigId);
-}
 
-__global__ void commitSelectedParticleBuffersKernel(DeviceState* sp)
-{
-    if (blockIdx.x != 0 || threadIdx.x != 0)
-    {
-        return;
-    }
 
-    DeviceState& s = *sp;
-    const int compactCount =
-        clampRange(*s.compactCountDevice, 0, s.particleCapacity);
-    *s.particleCountDevice = compactCount;
-
-    swapParticlePointerDevice(s.px, s.compactPx);
-    swapParticlePointerDevice(s.py, s.compactPy);
-    swapParticlePointerDevice(s.pz, s.compactPz);
-    swapParticlePointerDevice(s.pux, s.compactPux);
-    swapParticlePointerDevice(s.puy, s.compactPuy);
-    swapParticlePointerDevice(s.puz, s.compactPuz);
-    swapParticlePointerDevice(s.pT, s.compactPT);
-    swapParticlePointerDevice(s.pTheta, s.compactPTheta);
-    swapParticlePointerDevice(s.pd, s.compactPd);
-    swapParticlePointerDevice(s.pm, s.compactPm);
-    swapParticlePointerDevice(s.pCellId, s.compactPCellId);
-    swapParticlePointerDevice(s.pStatus, s.compactPStatus);
-    swapParticlePointerDevice(s.pStuck, s.compactPStuck);
-    swapParticlePointerDevice(s.pStuckFaceId, s.compactPStuckFaceId);
-    swapParticlePointerDevice(s.pDepositionArea, s.compactPDepositionArea);
-    swapParticlePointerDevice(s.pContactDuration, s.compactPContactDuration);
-    swapParticlePointerDevice(s.pContactMaximumArea, s.compactPContactMaximumArea);
-    swapParticlePointerDevice(s.pContactPeakFraction, s.compactPContactPeakFraction);
-    if (s.coldWallSolidificationEnabled != 0)
-    {
-        swapParticlePointerDevice
-        (
-            s.pColdNodeSpecificEnthalpy,
-            s.compactPColdNodeSpecificEnthalpy
-        );
-        swapParticlePointerDevice
-        (
-            s.pColdRingSolidMass,
-            s.compactPColdRingSolidMass
-        );
-        swapParticlePointerDevice(s.pColdFrozenArea, s.compactPColdFrozenArea);
-        swapParticlePointerDevice(s.pColdContactAge, s.compactPColdContactAge);
-    }
-    if (s.coldWall2DEnabled != 0)
-    {
-        swapParticlePointerDevice
-        (
-            s.pCold2DNodeSpecificEnthalpy,
-            s.compactPCold2DNodeSpecificEnthalpy
-        );
-        swapParticlePointerDevice
-        (
-            s.pCold2DRingContactAge,
-            s.compactPCold2DRingContactAge
-        );
-        swapParticlePointerDevice
-        (
-            s.pCold2DFrozenArea,
-            s.compactPCold2DFrozenArea
-        );
-    }
-    swapParticlePointerDevice(s.pRng, s.compactPRng);
-    swapParticlePointerDevice(s.pOrigId, s.compactPOrigId);
-}
-
-template<class T>
-void swapParticlePointerHost(T*& active, T*& scratch)
-{
-    T* const oldActive = active;
-    active = scratch;
-    scratch = oldActive;
-}
 
 void swapParticleBufferPointersHost(DeviceState* s)
 {
-    swapParticlePointerHost(s->px, s->compactPx);
-    swapParticlePointerHost(s->py, s->compactPy);
-    swapParticlePointerHost(s->pz, s->compactPz);
-    swapParticlePointerHost(s->pux, s->compactPux);
-    swapParticlePointerHost(s->puy, s->compactPuy);
-    swapParticlePointerHost(s->puz, s->compactPuz);
-    swapParticlePointerHost(s->pT, s->compactPT);
-    swapParticlePointerHost(s->pTheta, s->compactPTheta);
-    swapParticlePointerHost(s->pd, s->compactPd);
-    swapParticlePointerHost(s->pm, s->compactPm);
-    swapParticlePointerHost(s->pCellId, s->compactPCellId);
-    swapParticlePointerHost(s->pStatus, s->compactPStatus);
-    swapParticlePointerHost(s->pStuck, s->compactPStuck);
-    swapParticlePointerHost(s->pStuckFaceId, s->compactPStuckFaceId);
-    swapParticlePointerHost(s->pDepositionArea, s->compactPDepositionArea);
-    swapParticlePointerHost(s->pContactDuration, s->compactPContactDuration);
-    swapParticlePointerHost(s->pContactMaximumArea, s->compactPContactMaximumArea);
-    swapParticlePointerHost(s->pContactPeakFraction, s->compactPContactPeakFraction);
-    if (s->coldWallSolidificationEnabled != 0)
-    {
-        swapParticlePointerHost
-        (
-            s->pColdNodeSpecificEnthalpy,
-            s->compactPColdNodeSpecificEnthalpy
-        );
-        swapParticlePointerHost
-        (
-            s->pColdRingSolidMass,
-            s->compactPColdRingSolidMass
-        );
-        swapParticlePointerHost
-        (
-            s->pColdFrozenArea,
-            s->compactPColdFrozenArea
-        );
-        swapParticlePointerHost
-        (
-            s->pColdContactAge,
-            s->compactPColdContactAge
-        );
-    }
-    if (s->coldWall2DEnabled != 0)
-    {
-        swapParticlePointerHost
-        (
-            s->pCold2DNodeSpecificEnthalpy,
-            s->compactPCold2DNodeSpecificEnthalpy
-        );
-        swapParticlePointerHost
-        (
-            s->pCold2DRingContactAge,
-            s->compactPCold2DRingContactAge
-        );
-        swapParticlePointerHost
-        (
-            s->pCold2DFrozenArea,
-            s->compactPCold2DFrozenArea
-        );
-    }
-    swapParticlePointerHost(s->pRng, s->compactPRng);
-    swapParticlePointerHost(s->pOrigId, s->compactPOrigId);
+    swapParticleBuffersDevice(*s);
 }
 
 #include "operators/clearParticleMomentsAndCountsAtomicKernel.cuh"
@@ -3164,60 +2074,12 @@ constexpr bool postTransportFusePayload = true;
 #define GPU_MOMENT_THERMAL 1
 #define GPU_MOMENT_GATHER 1
 #include "GpuParticleMoments.cuh"
-#include "operators/accumulateCsrHeavyMomentTasksPersistentKernel.cuh"
 
 #include "../../../gpu/thermal/CsrSegmentedMomentWorkers.cuh"
 
 int launchCsrHeavyMomentReduction(DeviceState* s, const int block, const bool gatherSurvivors = false)
 {
     return launchCsrSegmentedMomentReduction(s, block, gatherSurvivors);
-#if 0
-    if (s->csrHeavyReductionEnabled == 0 || s->particleCapacity <= 0)
-    {
-        return 0;
-    }
-
-    cudaError_t err = cudaMemset(s->csrHeavyTaskCursor, 0, sizeof(int));
-    if (err != cudaSuccess)
-    {
-        setLastError("reset CSR heavy moment task cursor", err);
-        return 1;
-    }
-    const int warpCount = (block + 31)/32;
-    const size_t sharedBytes =
-        8u*static_cast<size_t>(warpCount)*sizeof(double);
-    accumulateCsrHeavyMomentTasksPersistentKernel
-        <<<s->csrHeavyWorkerGrid, block, sharedBytes>>>(s->deviceState);
-    err = cudaGetLastError();
-    if (err != cudaSuccess)
-    {
-        setLastError("CSR heavy moment persistent kernel launch", err);
-        return 1;
-    }
-
-    err = cudaMemset(s->csrHeavyTaskCursor, 0, sizeof(int));
-    if (err != cudaSuccess)
-    {
-        setLastError("reset CSR heavy moment finalize cursor", err);
-        return 1;
-    }
-    const int finalizeGridFromSm =
-        s->csrHeavyWorkerGrid/s->heavyResidentBlocksPerSm;
-    const int finalizeGrid =
-        finalizeGridFromSm < s->nCells ? finalizeGridFromSm : s->nCells;
-    finalizeCsrHeavyMomentCellsKernel
-        <<<finalizeGrid, block, sharedBytes>>>
-    (
-        s->deviceState
-    );
-    err = cudaGetLastError();
-    if (err != cudaSuccess)
-    {
-        setLastError("finalizeCsrHeavyMomentCellsKernel launch", err);
-        return 1;
-    }
-    return 0;
-#endif
 }
 
 __global__ void solidRecoveryFromParticleMomentsKernel(DeviceState* sp);
@@ -3232,75 +2094,15 @@ __global__ void solidRecoveryFromParticleMomentsKernel(DeviceState* sp);
 
 #include "GpuReductionTaskPipeline.cuh"
 
-#include "operators/buildCsrHeavyReductionTasksKernel.cuh"
 
 int prepareSplitCsrHeavyReductionTasks(DeviceState* s, const int block)
 {
     return prepareCsrSegmentedReductionTasks(s, block, true);
-#if 0
-    if (s->csrHeavyReductionEnabled == 0 || s->particleCapacity <= 0)
-    {
-        return 0;
-    }
-    cudaError_t err = cudaMemset(s->csrHeavyTaskCount, 0, sizeof(int));
-    if (err == cudaSuccess)
-    {
-        err = cudaMemset(s->csrHeavyInjectionTaskCount, 0, sizeof(int));
-    }
-    if (err == cudaSuccess)
-    {
-        err = cudaMemset(s->csrHeavyCellCount, 0, sizeof(int));
-    }
-    if (err != cudaSuccess)
-    {
-        setLastError("clear split-Dpre heavy schedule", err);
-        return 1;
-    }
-    const int cellGrid = (s->nCells + block - 1)/block;
-    buildSplitCsrHeavyReductionTasksKernel
-        <<<cellGrid, block>>>(s->deviceState);
-    err = cudaGetLastError();
-    if (err != cudaSuccess)
-    {
-        setLastError("build split-Dpre heavy schedule launch", err);
-        return 1;
-    }
-    return 0;
-#endif
 }
 
 int prepareCsrHeavyReductionTasks(DeviceState* s, const int block)
 {
     return prepareCsrSegmentedReductionTasks(s, block, false);
-#if 0
-    if (s->csrHeavyReductionEnabled == 0 || s->particleCapacity <= 0)
-    {
-        return 0;
-    }
-
-    cudaError_t err = cudaMemset(s->csrHeavyTaskCount, 0, sizeof(int));
-    if (err != cudaSuccess)
-    {
-        setLastError("clear CSR heavy task count", err);
-        return 1;
-    }
-    err = cudaMemset(s->csrHeavyCellCount, 0, sizeof(int));
-    if (err != cudaSuccess)
-    {
-        setLastError("clear CSR heavy cell count", err);
-        return 1;
-    }
-
-    const int cellGrid = (s->nCells + block - 1)/block;
-    buildCsrHeavyReductionTasksKernel<<<cellGrid, block>>>(s->deviceState);
-    err = cudaGetLastError();
-    if (err != cudaSuccess)
-    {
-        setLastError("buildCsrHeavyReductionTasksKernel launch", err);
-        return 1;
-    }
-    return 0;
-#endif
 }
 
 #include "../../../common/GpuToolB1.cuh"
@@ -3430,7 +2232,12 @@ int configureLaunchOccupancy(DeviceState* s)
             s->multiprocessorCount*residentBlocks;
     }
 
-    setParticleWorkGridFromResidency(s, s->lightResidentBlocksPerSm);
+    int particleResidentBlocks = 0;
+    if (queryParticleKernelResidency
+        (s, countParticlesByCellKernel<true, true>, particleResidentBlocks) != 0)
+        return 1;
+    setParticleWorkGridFromResidency(s, particleResidentBlocks);
+    if (configureTrackingWorkGrid(s) != 0) return 1;
     std::fprintf
     (
         stderr,
@@ -3561,189 +2368,7 @@ int runToolB3(DeviceState* s, const int block)
     return 0;
 }
 
-int binParticlesByCell(DeviceState* s, const int block, const bool survivorsOnly = false)
-{
-    const int cellGrid = (s->nCells + 1 + block - 1)/block;
-    clearParticleCellBinsKernel<<<cellGrid, block>>>(s->deviceState);
-    cudaError_t err = cudaGetLastError();
-    if (err != cudaSuccess)
-    {
-        setLastError("clearParticleCellBinsKernel launch", err);
-        return 1;
-    }
-
-    if (s->csrWarpAggregatedBinning != 0)
-    {
-        if (survivorsOnly)
-            countParticlesByCellKernel<true, true><<<s->particleWorkGrid, s->particleBlockThreads>>>(s->deviceState);
-        else
-            countParticlesByCellKernel<true>
-            <<<s->particleWorkGrid, s->particleBlockThreads>>>(s->deviceState);
-    }
-    else
-    {
-        if (survivorsOnly)
-            countParticlesByCellKernel<false, true><<<s->particleWorkGrid, s->particleBlockThreads>>>(s->deviceState);
-        else
-            countParticlesByCellKernel<false>
-            <<<s->particleWorkGrid, s->particleBlockThreads>>>(s->deviceState);
-    }
-    err = cudaGetLastError();
-    if (err != cudaSuccess)
-    {
-        setLastError("countParticlesByCellKernel launch", err);
-        return 1;
-    }
-
-    err = cub::DeviceScan::ExclusiveSum
-    (
-        s->cellScanTempStorage,
-        s->cellScanTempBytes,
-        s->cellParticleCount,
-        s->cellParticleOffset,
-        s->nCells + 1
-    );
-    if (err != cudaSuccess)
-    {
-        setLastError("cell particle count exclusive scan", err);
-        return 1;
-    }
-
-    initialiseParticleCellWritesKernel<<<cellGrid, block>>>(s->deviceState);
-    err = cudaGetLastError();
-    if (err != cudaSuccess)
-    {
-        setLastError("initialiseParticleCellWritesKernel launch", err);
-        return 1;
-    }
-
-    if (s->csrWarpAggregatedBinning != 0)
-    {
-        if (survivorsOnly)
-            scatterParticlesByCellKernel<true, true><<<s->particleWorkGrid, s->particleBlockThreads>>>(s->deviceState);
-        else
-            scatterParticlesByCellKernel<true>
-            <<<s->particleWorkGrid, s->particleBlockThreads>>>(s->deviceState);
-    }
-    else
-    {
-        if (survivorsOnly)
-            scatterParticlesByCellKernel<false, true><<<s->particleWorkGrid, s->particleBlockThreads>>>(s->deviceState);
-        else
-            scatterParticlesByCellKernel<false>
-            <<<s->particleWorkGrid, s->particleBlockThreads>>>(s->deviceState);
-    }
-    err = cudaGetLastError();
-    if (err != cudaSuccess)
-    {
-        setLastError("scatterParticlesByCellKernel launch", err);
-        return 1;
-    }
-    if (updateDynamicHeavyPolicy(s) != 0)
-    {
-        return 1;
-    }
-    return prepareCsrHeavyReductionTasks(s, block);
-}
-
-int buildSplitPreDirectory(DeviceState* s, const int block)
-{
-    if
-    (
-        s->csrCellLocalPathEnabled == 0
-     || s->preBaseDirectoryReady == 0
-    )
-    {
-        s->splitPreDirectoryActive = 0;
-        return binParticlesByCell(s, block);
-    }
-
-    s->splitPreDirectoryActive = 1;
-
-    const int cellGrid = (s->nCells + 1 + block - 1)/block;
-    clearSplitPreInjectionBinsKernel<<<cellGrid, block>>>(s->deviceState);
-    cudaError_t err = cudaGetLastError();
-    if (err != cudaSuccess)
-    {
-        setLastError("clear split-Dpre injection bins launch", err);
-        return 1;
-    }
-
-                                                                             
-                                                                      
-    if (s->nBoundarySources == 0)
-    {
-        if (updateDynamicHeavyPolicy(s) != 0)
-        {
-            return 1;
-        }
-        return prepareSplitCsrHeavyReductionTasks(s, block);
-    }
-
-    if (s->csrWarpAggregatedBinning != 0)
-    {
-        countSplitPreInjectionParticlesKernel<true>
-            <<<s->particleWorkGrid, s->particleBlockThreads>>>(s->deviceState);
-    }
-    else
-    {
-        countSplitPreInjectionParticlesKernel<false>
-            <<<s->particleWorkGrid, s->particleBlockThreads>>>(s->deviceState);
-    }
-    err = cudaGetLastError();
-    if (err != cudaSuccess)
-    {
-        setLastError("count split-Dpre injection particles launch", err);
-        return 1;
-    }
-
-    err = cub::DeviceScan::ExclusiveSum
-    (
-        s->cellScanTempStorage,
-        s->cellScanTempBytes,
-        s->cellParticleCount,
-        s->cellParticleOffset,
-        s->nCells + 1
-    );
-    if (err != cudaSuccess)
-    {
-        setLastError("split-Dpre injection count exclusive scan", err);
-        return 1;
-    }
-
-    initialiseSplitPreInjectionWritesKernel<<<cellGrid, block>>>(s->deviceState);
-    err = cudaGetLastError();
-    if (err != cudaSuccess)
-    {
-        setLastError("initialise split-Dpre injection writes launch", err);
-        return 1;
-    }
-    if (s->csrWarpAggregatedBinning != 0)
-    {
-        scatterSplitPreInjectionParticlesKernel<true>
-            <<<s->particleWorkGrid, s->particleBlockThreads>>>(s->deviceState);
-    }
-    else
-    {
-        scatterSplitPreInjectionParticlesKernel<false>
-            <<<s->particleWorkGrid, s->particleBlockThreads>>>(s->deviceState);
-    }
-    err = cudaGetLastError();
-    if (err != cudaSuccess)
-    {
-        setLastError("scatter split-Dpre injection particles launch", err);
-        return 1;
-    }
-
-                                                                         
-                                                                             
-                                                     
-    if (updateDynamicHeavyPolicy(s) != 0)
-    {
-        return 1;
-    }
-    return prepareSplitCsrHeavyReductionTasks(s, block);
-}
+#include "../../../common/GpuParticleDirectoryHost.cuh"
 
 int buildPostTransportDirectory(DeviceState* s, const int block)
 {
@@ -4133,683 +2758,12 @@ bool developmentProbeBoolean(const char* value)
         );
 }
 
-int initialiseDevelopmentProbe(DeviceState* owner)
-{
-    if (developmentProbe.owner != nullptr)
-    {
-        setLastErrorText
-        (
-            "UGKP development probe already belongs to another backend handle"
-        );
-        return 1;
-    }
-    shutdownDevelopmentProbe();
+#include "../../../common/GpuDevelopmentProbeInit.cuh"
 
-    const char* const configuredMode = std::getenv("UGKP_DEV_PROBE_MODE");
-    if
-    (
-        configuredMode == nullptr
-     || *configuredMode == '\0'
-     || std::strcmp(configuredMode, "off") == 0
-     || std::strcmp(configuredMode, "0") == 0
-    )
-    {
-        return 0;
-    }
+#include "../../../common/GpuDevelopmentThermalProbeSample.cuh"
 
-    if (std::strcmp(configuredMode, "timing") == 0)
-    {
-        developmentProbe.mode = DevelopmentProbeMode::timing;
-        developmentProbe.modeName = "timing";
-    }
-    else if
-    (
-        std::strcmp(configuredMode, "full") == 0
-     || std::strcmp(configuredMode, "1") == 0
-    )
-    {
-        developmentProbe.mode = DevelopmentProbeMode::full;
-        developmentProbe.modeName = "full";
-    }
-    else
-    {
-        std::snprintf
-        (
-            lastError,
-            sizeof(lastError),
-            "invalid UGKP_DEV_PROBE_MODE '%s' (expected off, timing, or full)",
-            configuredMode
-        );
-        return 1;
-    }
-
-    const char* const configuredLog = std::getenv("UGKP_DEV_PROBE_LOG");
-    if (configuredLog == nullptr || *configuredLog == '\0')
-    {
-        setLastErrorText
-        (
-            "UGKP_DEV_PROBE_LOG is required when UGKP_DEV_PROBE_MODE is enabled"
-        );
-        shutdownDevelopmentProbe();
-        return 1;
-    }
-    if (configuredLog[0] != '/')
-    {
-        setLastErrorText
-        (
-            "UGKP_DEV_PROBE_LOG must be an absolute path"
-        );
-        shutdownDevelopmentProbe();
-        return 1;
-    }
-
-    if (const char* configuredInterval = std::getenv("UGKP_DEV_PROBE_INTERVAL"))
-    {
-        errno = 0;
-        char* end = nullptr;
-        const unsigned long long interval =
-            std::strtoull(configuredInterval, &end, 10);
-        if
-        (
-            errno != 0
-         || end == configuredInterval
-         || *end != '\0'
-         || interval == 0
-        )
-        {
-            std::snprintf
-            (
-                lastError,
-                sizeof(lastError),
-                "invalid UGKP_DEV_PROBE_INTERVAL '%s'",
-                configuredInterval
-            );
-            shutdownDevelopmentProbe();
-            return 1;
-        }
-        developmentProbe.interval = interval;
-    }
-
-    developmentProbe.failOnNonFinite = developmentProbeBoolean
-    (
-        std::getenv("UGKP_DEV_PROBE_FAIL_ON_NONFINITE")
-    );
-    developmentProbe.pid = static_cast<int>(::getpid());
-    developmentProbe.logPath = developmentProbePathForPid(configuredLog);
-    if (const char* value = std::getenv("UGKP_DEV_PROBE_RUN_ID"))
-    {
-        developmentProbe.runId = value;
-    }
-    if (const char* value = std::getenv("UGKP_DEV_PROBE_VARIANT"))
-    {
-        developmentProbe.variant = value;
-    }
-
-    developmentProbe.log = std::fopen(developmentProbe.logPath.c_str(), "a+");
-    if (developmentProbe.log == nullptr)
-    {
-        std::snprintf
-        (
-            lastError,
-            sizeof(lastError),
-            "cannot open UGKP development probe log '%s': %s",
-            developmentProbe.logPath.c_str(),
-            std::strerror(errno)
-        );
-        shutdownDevelopmentProbe();
-        return 1;
-    }
-    std::setvbuf(developmentProbe.log, nullptr, _IOLBF, 0);
-    if (std::fseek(developmentProbe.log, 0, SEEK_END) != 0)
-    {
-        setLastErrorText("cannot seek UGKP development probe log");
-        shutdownDevelopmentProbe();
-        return 1;
-    }
-    const long logBytes = std::ftell(developmentProbe.log);
-    if (logBytes < 0)
-    {
-        setLastErrorText("cannot query UGKP development probe log length");
-        shutdownDevelopmentProbe();
-        return 1;
-    }
-    if (logBytes == 0 && writeDevelopmentProbeHeader() != 0)
-    {
-        shutdownDevelopmentProbe();
-        return 1;
-    }
-
-    cudaError_t err = cudaEventCreate(&developmentProbe.totalStartEvent);
-    if (err == cudaSuccess)
-    {
-        err = cudaEventCreate(&developmentProbe.totalStopEvent);
-    }
-    for
-    (
-        int stage = 0;
-        err == cudaSuccess && stage < ProbeStageCount;
-        ++stage
-    )
-    {
-        for
-        (
-            int occurrence = 0;
-            err == cudaSuccess && occurrence < ProbeMaxOccurrences;
-            ++occurrence
-        )
-        {
-            err = cudaEventCreate
-            (
-                &developmentProbe.stageStartEvents[stage][occurrence]
-            );
-            if (err == cudaSuccess)
-            {
-                err = cudaEventCreate
-                (
-                    &developmentProbe.stageStopEvents[stage][occurrence]
-                );
-            }
-        }
-    }
-    if (err != cudaSuccess)
-    {
-        setLastError("cudaEventCreate UGKP development probe", err);
-        shutdownDevelopmentProbe();
-        return 1;
-    }
-
-    if (developmentProbeFullValidation())
-    {
-        const cudaError_t err = cudaMalloc
-        (
-            reinterpret_cast<void**>(&developmentProbe.deviceSummary),
-            sizeof(DevelopmentProbeDeviceSummary)
-        );
-        if (err != cudaSuccess)
-        {
-            setLastError("cudaMalloc UGKP development probe summary", err);
-            shutdownDevelopmentProbe();
-            return 1;
-        }
-    }
-
-    try
-    {
-        developmentProbe.occupancy.resize(static_cast<size_t>(owner->nCells));
-    }
-    catch (...)
-    {
-        setLastErrorText("cannot allocate UGKP development probe occupancy mirror");
-        shutdownDevelopmentProbe();
-        return 1;
-    }
-    developmentProbe.owner = owner;
-    return 0;
-}
-
-int collectDevelopmentProbeSample
-(
-    DeviceState* s,
-    const bool particlePath,
-    DevelopmentProbeSample& sample
-)
-{
-    cudaError_t err = cudaEventSynchronize(developmentProbe.totalStopEvent);
-    if (err != cudaSuccess)
-    {
-        setLastError("UGKP development probe final event synchronization", err);
-        return 1;
-    }
-
-    err = cudaEventElapsedTime
-    (
-        &sample.totalMs,
-        developmentProbe.totalStartEvent,
-        developmentProbe.totalStopEvent
-    );
-    if (err != cudaSuccess)
-    {
-        setLastError("cudaEventElapsedTime UGKP development probe total", err);
-        return 1;
-    }
-    for (int stage = 0; stage < ProbeStageCount; ++stage)
-    {
-        sample.stageMs[stage] = 0.0f;
-        for
-        (
-            int occurrence = 0;
-            occurrence < developmentProbe.stageOccurrenceCount[stage];
-            ++occurrence
-        )
-        {
-            if
-            (
-                !developmentProbe.stageOccurrenceExecuted[stage][occurrence]
-            )
-            {
-                continue;
-            }
-            float elapsedMs = 0.0f;
-            err = cudaEventElapsedTime
-            (
-                &elapsedMs,
-                developmentProbe.stageStartEvents[stage][occurrence],
-                developmentProbe.stageStopEvents[stage][occurrence]
-            );
-            if (err != cudaSuccess)
-            {
-                setLastError
-                (
-                    "cudaEventElapsedTime UGKP development probe stage",
-                    err
-                );
-                return 1;
-            }
-            sample.stageMs[stage] += elapsedMs;
-        }
-    }
-    sample.timingValid = 1;
-
-    int rawParticleCount = 0;
-    err = cudaMemcpy
-    (
-        &rawParticleCount,
-        s->particleCountDevice,
-        sizeof(rawParticleCount),
-        cudaMemcpyDeviceToHost
-    );
-    if (err != cudaSuccess)
-    {
-        setLastError("cudaMemcpy UGKP development probe particle count", err);
-        return 1;
-    }
-    sample.particleCount = rawParticleCount;
-    sample.particleUtilisation = s->particleCapacity > 0
-      ? static_cast<double>(rawParticleCount)/static_cast<double>(s->particleCapacity)
-      : 0.0;
-    if (rawParticleCount < 0 || rawParticleCount > s->particleCapacity)
-    {
-        sample.badFieldMask |= ProbeBadParticleCount;
-        ++sample.badParticles;
-    }
-
-    if (particlePath)
-    {
-        err = cudaMemcpy
-        (
-            developmentProbe.occupancy.data(),
-            s->cellParticleCount,
-            static_cast<size_t>(s->nCells)*sizeof(int),
-            cudaMemcpyDeviceToHost
-        );
-        if (err != cudaSuccess)
-        {
-            setLastError("cudaMemcpy UGKP development probe cell occupancy", err);
-            return 1;
-        }
-    }
-    else
-    {
-        std::fill
-        (
-            developmentProbe.occupancy.begin(),
-            developmentProbe.occupancy.end(),
-            0
-        );
-    }
-
-    long double sumSquares = 0.0L;
-    int occupancyMin = INT_MAX;
-    int occupancyMax = INT_MIN;
-    for (const int count : developmentProbe.occupancy)
-    {
-        sample.occupancySum += static_cast<long long>(count);
-        sumSquares += static_cast<long double>(count)*count;
-        occupancyMin = std::min(occupancyMin, count);
-        occupancyMax = std::max(occupancyMax, count);
-        sample.occupancyNonEmpty += count > 0 ? 1 : 0;
-        if (count < 0)
-        {
-            sample.badFieldMask |= ProbeBadOccupancy;
-        }
-    }
-    if (s->nCells > 0)
-    {
-        sample.occupancyMin = occupancyMin;
-        sample.occupancyMax = occupancyMax;
-        sample.occupancyMean =
-            static_cast<double>(sample.occupancySum)/static_cast<double>(s->nCells);
-        const long double mean = static_cast<long double>(sample.occupancyMean);
-        long double variance = sumSquares/static_cast<long double>(s->nCells)
-                             - mean*mean;
-        variance = variance > 0.0L ? variance : 0.0L;
-        sample.occupancyStddev = std::sqrt(static_cast<double>(variance));
-        sample.occupancyCv = sample.occupancyMean > 0.0
-          ? sample.occupancyStddev/sample.occupancyMean
-          : 0.0;
-
-        std::sort
-        (
-            developmentProbe.occupancy.begin(),
-            developmentProbe.occupancy.end()
-        );
-        const size_t last = developmentProbe.occupancy.size() - 1;
-        sample.occupancyP50 = developmentProbe.occupancy[(50u*last)/100u];
-        sample.occupancyP95 = developmentProbe.occupancy[(95u*last)/100u];
-        sample.occupancyP99 = developmentProbe.occupancy[(99u*last)/100u];
-    }
-
-    sample.occupancyMatchesCount =
-        rawParticleCount >= 0
-     && rawParticleCount <= s->particleCapacity
-     && sample.occupancySum == static_cast<long long>(rawParticleCount);
-    if (!sample.occupancyMatchesCount)
-    {
-        sample.badFieldMask |= ProbeBadOccupancy;
-    }
-
-    if (developmentProbeFullValidation())
-    {
-        err = cudaMemset
-        (
-            developmentProbe.deviceSummary,
-            0,
-            sizeof(DevelopmentProbeDeviceSummary)
-        );
-        if (err != cudaSuccess)
-        {
-            setLastError("cudaMemset UGKP development probe summary", err);
-            return 1;
-        }
-
-        const int block = s->reductionBlockThreads;
-        const int cellGrid = (s->nCells + block - 1)/block;
-        validateDevelopmentProbeCellsKernel<<<cellGrid, block>>>
-        (
-            s->deviceState,
-            developmentProbe.deviceSummary,
-            particlePath ? 1 : 0
-        );
-        err = cudaGetLastError();
-        if (err != cudaSuccess)
-        {
-            setLastError("validateDevelopmentProbeCellsKernel launch", err);
-            return 1;
-        }
-
-        if (particlePath && s->particleWorkGrid > 0)
-        {
-            validateDevelopmentProbeParticlesKernel<<<s->particleWorkGrid, s->particleBlockThreads>>>
-            (
-                s->deviceState,
-                developmentProbe.deviceSummary
-            );
-            err = cudaGetLastError();
-            if (err != cudaSuccess)
-            {
-                setLastError("validateDevelopmentProbeParticlesKernel launch", err);
-                return 1;
-            }
-        }
-
-        DevelopmentProbeDeviceSummary summary{};
-        err = cudaMemcpy
-        (
-            &summary,
-            developmentProbe.deviceSummary,
-            sizeof(summary),
-            cudaMemcpyDeviceToHost
-        );
-        if (err != cudaSuccess)
-        {
-            setLastError("cudaMemcpy UGKP development probe summary", err);
-            return 1;
-        }
-        sample.badCells += summary.badCells;
-        sample.badParticles += summary.badParticles;
-        sample.badFieldMask |= summary.badFieldMask;
-        sample.firstBadCell = summary.firstBadCellPlusOne == 0
-          ? -1
-          : summary.firstBadCellPlusOne - 1;
-        sample.firstBadParticle = summary.firstBadParticlePlusOne == 0
-          ? -1
-          : summary.firstBadParticlePlusOne - 1;
-    }
-
-    if (sample.badFieldMask != 0)
-    {
-        sample.status = "state_invalid";
-    }
-    return 0;
-}
-
-class DevelopmentAdvanceProbe
-{
-    DeviceState* state_ = nullptr;
-    unsigned long long step_ = 0;
-    double simulationTime_ = 0.0;
-    double dt_ = 0.0;
-    const char* currentStage_ = "advance_begin";
-    bool enabled_ = false;
-    bool sampled_ = false;
-    bool failed_ = false;
-    bool completed_ = false;
-    bool rowWritten_ = false;
-
-public:
-    DevelopmentAdvanceProbe
-    (
-        DeviceState* state,
-        const double dt,
-        const double simulationTime
-    )
-    :
-        state_(state),
-        simulationTime_(simulationTime),
-        dt_(dt),
-        enabled_(developmentProbeEnabled())
-    {
-        if (!enabled_)
-        {
-            return;
-        }
-
-        step_ = ++developmentProbe.advanceIndex;
-        sampled_ = (step_ % developmentProbe.interval) == 0;
-        if (sampled_)
-        {
-            for (int stage = 0; stage < ProbeStageCount; ++stage)
-            {
-                developmentProbe.stageOccurrenceCount[stage] = 0;
-                for
-                (
-                    int occurrence = 0;
-                    occurrence < ProbeMaxOccurrences;
-                    ++occurrence
-                )
-                {
-                    developmentProbe.stageOccurrenceExecuted[stage][occurrence] =
-                        false;
-                }
-            }
-            const cudaError_t err = cudaEventRecord
-            (
-                developmentProbe.totalStartEvent,
-                0
-            );
-            if (err != cudaSuccess)
-            {
-                setLastError("cudaEventRecord UGKP development probe start", err);
-                failed_ = true;
-            }
-        }
-    }
-
-    ~DevelopmentAdvanceProbe()
-    {
-        if (!enabled_ || completed_ || rowWritten_)
-        {
-            return;
-        }
-
-        DevelopmentProbeSample sample;
-        sample.step = step_;
-        sample.simulationTime = simulationTime_;
-        sample.dt = dt_;
-        sample.status = "error";
-        sample.errorStage = currentStage_;
-        sample.errorMessage = lastError;
-        if (state_ != nullptr)
-        {
-            sample.nCells = state_->nCells;
-            sample.particlePath = state_->particlesMayBePresent ? 1 : 0;
-            sample.particleCapacity = state_->particleCapacity;
-        }
-        char preservedError[sizeof(lastError)]{};
-        std::snprintf
-        (
-            preservedError,
-            sizeof(preservedError),
-            "%s",
-            lastError
-        );
-        (void)writeDevelopmentProbeSample(sample);
-        std::snprintf(lastError, sizeof(lastError), "%s", preservedError);
-        rowWritten_ = true;
-    }
-
-    bool failed() const
-    {
-        return failed_;
-    }
-
-    void enter(const DevelopmentProbeStage stage)
-    {
-        currentStage_ = developmentProbeStageNames[stage];
-        if (!sampled_ || failed_)
-        {
-            return;
-        }
-        const int occurrence = developmentProbe.stageOccurrenceCount[stage];
-        if (occurrence < 0 || occurrence >= ProbeMaxOccurrences)
-        {
-            setLastErrorText
-            (
-                "UGKP development probe stage occurrence capacity exceeded"
-            );
-            failed_ = true;
-            return;
-        }
-        const cudaError_t err = cudaEventRecord
-        (
-            developmentProbe.stageStartEvents[stage][occurrence],
-            0
-        );
-        if (err != cudaSuccess)
-        {
-            setLastError("cudaEventRecord UGKP development probe stage start", err);
-            failed_ = true;
-        }
-    }
-
-    int leave
-    (
-        const DevelopmentProbeStage stage,
-        const bool executed = true
-    )
-    {
-        if (!sampled_)
-        {
-            return 0;
-        }
-        if (failed_)
-        {
-            return 1;
-        }
-        const int occurrence = developmentProbe.stageOccurrenceCount[stage];
-        if (occurrence < 0 || occurrence >= ProbeMaxOccurrences)
-        {
-            setLastErrorText
-            (
-                "UGKP development probe stage occurrence capacity exceeded"
-            );
-            failed_ = true;
-            return 1;
-        }
-        const cudaError_t err = cudaEventRecord
-        (
-            developmentProbe.stageStopEvents[stage][occurrence],
-            0
-        );
-        if (err != cudaSuccess)
-        {
-            setLastError("cudaEventRecord UGKP development probe stage", err);
-            failed_ = true;
-            return 1;
-        }
-        developmentProbe.stageOccurrenceExecuted[stage][occurrence] = executed;
-        developmentProbe.stageOccurrenceCount[stage] = occurrence + 1;
-        return 0;
-    }
-
-    int finish(const bool particlePath)
-    {
-        if (!enabled_ || !sampled_)
-        {
-            completed_ = true;
-            return 0;
-        }
-
-        currentStage_ = "probe_collect";
-        const cudaError_t stopError = cudaEventRecord
-        (
-            developmentProbe.totalStopEvent,
-            0
-        );
-        if (stopError != cudaSuccess)
-        {
-            setLastError
-            (
-                "cudaEventRecord UGKP development probe total stop",
-                stopError
-            );
-            return 1;
-        }
-        DevelopmentProbeSample sample;
-        sample.step = step_;
-        sample.simulationTime = simulationTime_;
-        sample.dt = dt_;
-        sample.nCells = state_->nCells;
-        sample.particlePath = particlePath ? 1 : 0;
-        sample.particleCapacity = state_->particleCapacity;
-        if (collectDevelopmentProbeSample(state_, particlePath, sample) != 0)
-        {
-            return 1;
-        }
-        if (writeDevelopmentProbeSample(sample) != 0)
-        {
-            rowWritten_ = true;
-            return 1;
-        }
-        rowWritten_ = true;
-
-        if
-        (
-            developmentProbe.failOnNonFinite
-         && sample.badFieldMask != 0
-        )
-        {
-            setLastErrorText
-            (
-                "UGKP development probe found non-finite or invalid resident state"
-            );
-            return 1;
-        }
-
-        completed_ = true;
-        return 0;
-    }
-};
+constexpr bool developmentProbeIncludesScheduling = false;
+#include "../../../common/GpuDevelopmentAdvanceProbe.cuh"
 
 #endif
 
@@ -4818,504 +2772,7 @@ extern "C" const char* ugkwpGpuResidentStrictLastError()
     return lastError;
 }
 
-int advanceGasEulerSubstage(DeviceState* s, const double dt)
-{
-    const int cellBlock = s->fixedCellBlockThreads;
-    const int faceBlock = s->fixedFaceBlockThreads;
-    const int cellGrid = (s->nCells + cellBlock - 1)/cellBlock;
-    const int faceGrid = (s->nFaces + faceBlock - 1)/faceBlock;
-    cudaError_t err = cudaSuccess;
-
-    recoverGasPrimitivesKernel<<<cellGrid, cellBlock, 0, s->gasCaptureStream>>>(s->deviceState);
-    err = cudaGetLastError();
-    if (err != cudaSuccess)
-    {
-        setLastError("recoverGasPrimitivesKernel gas stage", err);
-        return 1;
-    }
-    if (s->hostTurbulenceModel == 3)
-    {
-        recoverSstPrimitivesKernel<<<cellGrid, cellBlock, 0, s->gasCaptureStream>>>(s->deviceState);
-        err = cudaGetLastError();
-        if (err != cudaSuccess)
-        {
-            setLastError("recoverSstPrimitivesKernel gas stage", err);
-            return 1;
-        }
-    }
-    if (faceGrid > 0)
-    {
-        updateRiemannBoundaryMirrorKernel<<<faceGrid, faceBlock, 0, s->gasCaptureStream>>>(s->deviceState);
-        err = cudaGetLastError();
-        if (err != cudaSuccess)
-        {
-            setLastError("updateRiemannBoundaryMirrorKernel gas stage", err);
-            return 1;
-        }
-    }
-    if (s->hostTurbulenceModel == 3)
-    {
-        applySstWallFunctionStateKernel<<<cellGrid, cellBlock, 0, s->gasCaptureStream>>>(s->deviceState);
-        err = cudaGetLastError();
-        if (err != cudaSuccess)
-        {
-            setLastError("applySstWallFunctionStateKernel gas stage", err);
-            return 1;
-        }
-    }
-    if (s->hostGasFluxScheme == 7)
-    {
-        computeGasHllcAdcSensorKernel<<<cellGrid, cellBlock, 0, s->gasCaptureStream>>>(s->deviceState);
-        err = cudaGetLastError();
-        if (err != cudaSuccess)
-        {
-            setLastError("computeGasHllcAdcSensorKernel launch", err);
-            return 1;
-        }
-    }
-    computeGasPrimitiveGradientsKernel<<<cellGrid, cellBlock, 0, s->gasCaptureStream>>>(s->deviceState);
-    err = cudaGetLastError();
-    if (err != cudaSuccess)
-    {
-        setLastError("computeGasPrimitiveGradientsKernel launch", err);
-        return 1;
-    }
-    if (s->hostTurbulenceModel == 3)
-    {
-        computeSstGradientsKernel<<<cellGrid, cellBlock, 0, s->gasCaptureStream>>>(s->deviceState);
-        err = cudaGetLastError();
-        if (err != cudaSuccess)
-        {
-            setLastError("computeSstGradientsKernel launch", err);
-            return 1;
-        }
-    }
-    computeGasGradientLimiterKernel<<<cellGrid, cellBlock, 0, s->gasCaptureStream>>>(s->deviceState);
-    err = cudaGetLastError();
-    if (err != cudaSuccess)
-    {
-        setLastError("computeGasGradientLimiterKernel launch", err);
-        return 1;
-    }
-    computeGasEddyViscosityKernel<<<cellGrid, cellBlock, 0, s->gasCaptureStream>>>(s->deviceState);
-    err = cudaGetLastError();
-    if (err != cudaSuccess)
-    {
-        setLastError("computeGasEddyViscosityKernel launch", err);
-        return 1;
-    }
-    if (faceGrid <= 0)
-    {
-        return 0;
-    }
-    if (s->hostTurbulenceModel == 0)
-    {
-        computeGasInternalFaceFluxKernel<false><<<faceGrid, faceBlock, 0, s->gasCaptureStream>>>
-        (
-            s->deviceState,
-            dt
-        );
-    }
-    else
-    {
-        computeGasInternalFaceFluxKernel<true><<<faceGrid, faceBlock, 0, s->gasCaptureStream>>>
-        (
-            s->deviceState,
-            dt
-        );
-    }
-    err = cudaGetLastError();
-    if (err != cudaSuccess)
-    {
-        setLastError("computeGasInternalFaceFluxKernel launch", err);
-        return 1;
-    }
-    if (s->hasPeriodicFaces != 0)
-    {
-        enforcePeriodicGasFluxAntisymmetryKernel<<<faceGrid, faceBlock, 0, s->gasCaptureStream>>>
-        (
-            s->deviceState
-        );
-        err = cudaGetLastError();
-        if (err != cudaSuccess)
-        {
-            setLastError("enforcePeriodicGasFluxAntisymmetryKernel launch", err);
-            return 1;
-        }
-    }
-    computeGasFluxPositivityScaleKernel<<<cellGrid, cellBlock, 0, s->gasCaptureStream>>>(s->deviceState, dt);
-    err = cudaGetLastError();
-    if (err != cudaSuccess)
-    {
-        setLastError("computeGasFluxPositivityScaleKernel launch", err);
-        return 1;
-    }
-    applyGasFluxPositivityScaleKernel<<<faceGrid, faceBlock, 0, s->gasCaptureStream>>>(s->deviceState);
-    err = cudaGetLastError();
-    if (err != cudaSuccess)
-    {
-        setLastError("applyGasFluxPositivityScaleKernel launch", err);
-        return 1;
-    }
-    if (s->hasPeriodicFaces != 0)
-    {
-        enforcePeriodicGasFluxAntisymmetryKernel<<<faceGrid, faceBlock, 0, s->gasCaptureStream>>>
-        (
-            s->deviceState
-        );
-        err = cudaGetLastError();
-        if (err != cudaSuccess)
-        {
-            setLastError
-            (
-                "enforcePeriodicGasFluxAntisymmetryKernel post-scale launch",
-                err
-            );
-            return 1;
-        }
-    }
-    if (s->hostTurbulenceModel == 3)
-    {
-        computeSstFaceFluxKernel<<<faceGrid, faceBlock, 0, s->gasCaptureStream>>>(s->deviceState);
-        err = cudaGetLastError();
-        if (err != cudaSuccess)
-        {
-            setLastError("computeSstFaceFluxKernel launch", err);
-            return 1;
-        }
-        if (s->hasPeriodicFaces != 0)
-        {
-            enforcePeriodicSstFluxAntisymmetryKernel<<<faceGrid, faceBlock, 0, s->gasCaptureStream>>>
-            (
-                s->deviceState
-            );
-            err = cudaGetLastError();
-            if (err != cudaSuccess)
-            {
-                setLastError("enforcePeriodicSstFluxAntisymmetryKernel launch", err);
-                return 1;
-            }
-        }
-        applySstFluxAndSourceKernel<<<cellGrid, cellBlock, 0, s->gasCaptureStream>>>
-        (
-            s->deviceState,
-            dt
-        );
-        err = cudaGetLastError();
-        if (err != cudaSuccess)
-        {
-            setLastError("applySstFluxAndSourceKernel launch", err);
-            return 1;
-        }
-    }
-    applyGasFluxDivergenceByCellKernel<<<cellGrid, cellBlock, 0, s->gasCaptureStream>>>(s->deviceState, dt);
-    err = cudaGetLastError();
-    if (err != cudaSuccess)
-    {
-        setLastError("applyGasFluxDivergenceByCellKernel launch", err);
-        return 1;
-    }
-    recoverGasPrimitivesKernel<<<cellGrid, cellBlock, 0, s->gasCaptureStream>>>(s->deviceState);
-    err = cudaGetLastError();
-    if (err != cudaSuccess)
-    {
-        setLastError("recoverGasPrimitivesKernel post-gas launch", err);
-        return 1;
-    }
-    if (s->hostTurbulenceModel == 3)
-    {
-        recoverSstPrimitivesKernel<<<cellGrid, cellBlock, 0, s->gasCaptureStream>>>(s->deviceState);
-        err = cudaGetLastError();
-        if (err != cudaSuccess)
-        {
-            setLastError("recoverSstPrimitivesKernel post-gas launch", err);
-            return 1;
-        }
-    }
-    return 0;
-}
-
-int blendGasRungeKuttaStage
-(
-    DeviceState* s,
-    const double initialWeight,
-    const double stageWeight
-)
-{
-    const int block = s->fixedCellBlockThreads;
-    const int cellGrid = (s->nCells + block - 1)/block;
-    blendGasConservativeStateKernel<<<cellGrid, block, 0, s->gasCaptureStream>>>
-    (
-        s->deviceState,
-        initialWeight,
-        stageWeight
-    );
-    cudaError_t err = cudaGetLastError();
-    if (err != cudaSuccess)
-    {
-        setLastError("blendGasConservativeStateKernel launch", err);
-        return 1;
-    }
-    recoverGasPrimitivesKernel<<<cellGrid, block, 0, s->gasCaptureStream>>>(s->deviceState);
-    err = cudaGetLastError();
-    if (err != cudaSuccess)
-    {
-        setLastError("recoverGasPrimitivesKernel after RK blend", err);
-        return 1;
-    }
-    if (s->hostTurbulenceModel == 3)
-    {
-        recoverSstPrimitivesKernel<<<cellGrid, block, 0, s->gasCaptureStream>>>(s->deviceState);
-        err = cudaGetLastError();
-        if (err != cudaSuccess)
-        {
-            setLastError("recoverSstPrimitivesKernel after RK blend", err);
-            return 1;
-        }
-    }
-    return 0;
-}
-
-int advanceGasFluxStage(DeviceState* s, const double dt, const double simulationTime)
-{
-                                                                            
-                                                                        
-                                                                          
-                                                                  
-    const int preparationCellBlock = s->fixedCellBlockThreads;
-    const int preparationFaceBlock = s->fixedFaceBlockThreads;
-    const int preparationCellGrid =
-        (s->nCells + preparationCellBlock - 1)/preparationCellBlock;
-    const int preparationFaceGrid =
-        (s->nFaces + preparationFaceBlock - 1)/preparationFaceBlock;
-    recoverGasPrimitivesKernel<<<preparationCellGrid, preparationCellBlock, 0, s->gasCaptureStream>>>
-    (
-        s->deviceState
-    );
-    cudaError_t preparationError = cudaGetLastError();
-    if (preparationError != cudaSuccess)
-    {
-        setLastError
-        (
-            "recoverGasPrimitivesKernel before gas advance",
-            preparationError
-        );
-        return 1;
-    }
-    if (preparationFaceGrid > 0)
-    {
-        updateLegacyGasBoundaryMirrorKernel
-            <<<preparationFaceGrid, preparationFaceBlock, 0, s->gasCaptureStream>>>(s->deviceState, simulationTime);
-        preparationError = cudaGetLastError();
-        if (preparationError != cudaSuccess)
-        {
-            setLastError
-            (
-                "updateLegacyGasBoundaryMirrorKernel before gas advance",
-                preparationError
-            );
-            return 1;
-        }
-    }
-
-    if (s->hostGasTimeIntegrator == 1)
-    {
-        return advanceGasEulerSubstage(s, dt);
-    }
-
-    const int block = s->fixedCellBlockThreads;
-    const int cellGrid = (s->nCells + block - 1)/block;
-    saveGasConservativeStateKernel<<<cellGrid, block, 0, s->gasCaptureStream>>>(s->deviceState);
-    cudaError_t err = cudaGetLastError();
-    if (err != cudaSuccess)
-    {
-        setLastError("saveGasConservativeStateKernel launch", err);
-        return 1;
-    }
-
-    if (advanceGasEulerSubstage(s, dt) != 0)
-    {
-        return 1;
-    }
-    if (advanceGasEulerSubstage(s, dt) != 0)
-    {
-        return 1;
-    }
-
-    if (s->hostGasTimeIntegrator == 2)
-    {
-                                                         
-        return blendGasRungeKuttaStage(s, 0.5, 0.5);
-    }
-    if (s->hostGasTimeIntegrator != 3)
-    {
-        setLastErrorText("invalid resident gas time-integrator selector");
-        return 1;
-    }
-
-                  
-                                        
-                                         
-    if (blendGasRungeKuttaStage(s, 0.75, 0.25) != 0)
-    {
-        return 1;
-    }
-    if (advanceGasEulerSubstage(s, dt) != 0)
-    {
-        return 1;
-    }
-    return blendGasRungeKuttaStage
-    (
-        s,
-        1.0/3.0,
-        2.0/3.0
-    );
-}
-
-int finaliseGasBoundaryStage(DeviceState* s, const double dt, const double simulationTime)
-{
-    const int block = s->fixedFaceBlockThreads;
-    const int allFaceGrid = (s->nFaces + block - 1)/block;
-    if (allFaceGrid <= 0)
-    {
-        return 0;
-    }
-
-    updateLegacyGasBoundaryMirrorKernel<<<allFaceGrid, block, 0, s->gasCaptureStream>>>
-    (
-        s->deviceState,
-        simulationTime
-    );
-    cudaError_t err = cudaGetLastError();
-    if (err != cudaSuccess)
-    {
-        setLastError
-        (
-            "updateLegacyGasBoundaryMirrorKernel final gas boundary",
-            err
-        );
-        return 1;
-    }
-
-    updateRiemannBoundaryMirrorKernel<<<allFaceGrid, block, 0, s->gasCaptureStream>>>
-    (
-        s->deviceState
-    );
-    err = cudaGetLastError();
-    if (err != cudaSuccess)
-    {
-        setLastError
-        (
-            "updateRiemannBoundaryMirrorKernel final gas boundary",
-            err
-        );
-        return 1;
-    }
-
-    updateWaveTransmissivePressureBoundaryKernel<<<allFaceGrid, block, 0, s->gasCaptureStream>>>
-    (
-        s->deviceState,
-        dt
-    );
-    err = cudaGetLastError();
-    if (err != cudaSuccess)
-    {
-        setLastError
-        (
-            "updateWaveTransmissivePressureBoundaryKernel final gas boundary",
-            err
-        );
-        return 1;
-    }
-    return 0;
-}
-
-int advancePureGasGraph(DeviceState* s, const double dt, const double simulationTime)
-{
-    if (s->gasGraphExec == nullptr || s->gasGraphDt != dt)
-    {
-        cudaError_t err = cudaSuccess;
-        if (s->gasGraphExec)
-        {
-            err = cudaGraphExecDestroy(s->gasGraphExec);
-            if (err != cudaSuccess) { setLastError("gas graph destroy executable", err); return 1; }
-            s->gasGraphExec = nullptr;
-        }
-        if (s->gasGraph)
-        {
-            err = cudaGraphDestroy(s->gasGraph);
-            if (err != cudaSuccess) { setLastError("gas graph destroy", err); return 1; }
-            s->gasGraph = nullptr;
-        }
-        s->gasGraphTimeNodes.clear();
-        s->gasGraphTimeParams.clear();
-        err = cudaStreamCreate(&s->gasCaptureStream);
-        if (err != cudaSuccess) { setLastError("gas graph stream create", err); return 1; }
-        err = cudaStreamBeginCapture(s->gasCaptureStream, cudaStreamCaptureModeThreadLocal);
-        if (err != cudaSuccess)
-        {
-            cudaStreamDestroy(s->gasCaptureStream);
-            s->gasCaptureStream = nullptr;
-            setLastError("gas graph capture begin", err);
-            return 1;
-        }
-        int status = advanceGasFluxStage(s, dt, simulationTime);
-        if (status == 0) status = finaliseGasBoundaryStage(s, dt, simulationTime);
-        err = cudaStreamEndCapture(s->gasCaptureStream, &s->gasGraph);
-        const cudaError_t streamError = cudaStreamDestroy(s->gasCaptureStream);
-        s->gasCaptureStream = nullptr;
-        if (status != 0) return status;
-        if (err != cudaSuccess) { setLastError("gas graph capture end", err); return 1; }
-        if (streamError != cudaSuccess) { setLastError("gas graph stream destroy", streamError); return 1; }
-        size_t nodeCount = 0;
-        err = cudaGraphGetNodes(s->gasGraph, nullptr, &nodeCount);
-        if (err != cudaSuccess) { setLastError("gas graph node count", err); return 1; }
-        std::vector<cudaGraphNode_t> nodes(nodeCount);
-        err = cudaGraphGetNodes(s->gasGraph, nodes.data(), &nodeCount);
-        if (err != cudaSuccess) { setLastError("gas graph nodes", err); return 1; }
-        for (const auto node : nodes)
-        {
-            cudaGraphNodeType type;
-            err = cudaGraphNodeGetType(node, &type);
-            if (err != cudaSuccess) { setLastError("gas graph node type", err); return 1; }
-            if (type != cudaGraphNodeTypeKernel) continue;
-            cudaKernelNodeParams params{};
-            err = cudaGraphKernelNodeGetParams(node, &params);
-            if (err != cudaSuccess) { setLastError("gas graph kernel parameters", err); return 1; }
-            if (params.func == reinterpret_cast<void*>(updateLegacyGasBoundaryMirrorKernel))
-            {
-                s->gasGraphTimeNodes.push_back(node);
-                params.kernelParams = nullptr;
-                params.extra = nullptr;
-                s->gasGraphTimeParams.push_back(params);
-            }
-        }
-        if (s->nFaces > 0 && s->gasGraphTimeNodes.size() != 2)
-        {
-            setLastErrorText("gas graph requires both scheduled boundary time nodes");
-            return 1;
-        }
-        err = cudaGraphInstantiate(&s->gasGraphExec, s->gasGraph, nullptr, nullptr, 0);
-        if (err != cudaSuccess) { setLastError("gas graph instantiate", err); return 1; }
-        s->gasGraphDt = dt;
-    }
-    DeviceState* device = s->deviceState;
-    double currentTime = simulationTime;
-    void* args[] = {&device, &currentTime};
-    for (size_t i = 0; i < s->gasGraphTimeNodes.size(); ++i)
-    {
-        cudaKernelNodeParams params = s->gasGraphTimeParams[i];
-        params.kernelParams = args;
-        const cudaError_t err = cudaGraphExecKernelNodeSetParams
-        (
-            s->gasGraphExec, s->gasGraphTimeNodes[i], &params
-        );
-        if (err != cudaSuccess) { setLastError("gas graph time update", err); return 1; }
-    }
-    const cudaError_t err = cudaGraphLaunch(s->gasGraphExec, nullptr);
-    if (err != cudaSuccess) { setLastError("gas graph launch", err); return 1; }
-    return 0;
-}
+#include "../../../common/GpuGasAdvance.cuh"
 
 extern "C" int ugkwpGpuResidentStrictCreate
 (
@@ -7207,7 +4664,7 @@ extern "C" int ugkwpGpuResidentStrictAdvance
     if (particleGrid > 0)
     {
         trackParticlesLocalFaceWalkKernel
-            <<<particleGrid, s->particleBlockThreads>>>(s->deviceState, dt);
+            <<<s->trackingWorkGrid, s->particleBlockThreads>>>(s->deviceState, dt);
         err = cudaGetLastError();
         if (err != cudaSuccess)
         {
@@ -7817,6 +5274,14 @@ extern "C" int ugkwpGpuResidentStrictConfigureParticleStuckModel
             == Foam::gpuThermal::particleWallColdWall2D;
     }
 
+    if (const char* error = validateContactCapabilities
+        (candidateCount, coldWall1DEnabled, coldWall2DEnabled,
+         heatTransferEnabled, maximumCoverage))
+    {
+        setLastErrorText(error);
+        return 1;
+    }
+
     if
     (
         heatTransferEnabled != 0
@@ -7873,6 +5338,8 @@ extern "C" int ugkwpGpuResidentStrictConfigureParticleStuckModel
             static_cast<size_t>(nFaces),
             "cudaMalloc particle stuck candidate mask"
         ) != 0
+     || allocate(representedArea, static_cast<size_t>(nFaces), "cudaMalloc particle wall represented contact area") != 0
+     || allocate(areaScale, static_cast<size_t>(nFaces), "cudaMalloc particle wall contact area scale") != 0
      || (
             heatTransferEnabled != 0
          && (
@@ -7887,18 +5354,6 @@ extern "C" int ugkwpGpuResidentStrictConfigureParticleStuckModel
                     reflectedWallEnergy,
                     static_cast<size_t>(nFaces),
                     "cudaMalloc reflected-particle wall energy ledger"
-                ) != 0
-             || allocate
-                (
-                    representedArea,
-                    static_cast<size_t>(nFaces),
-                    "cudaMalloc particle wall represented contact area"
-                ) != 0
-             || allocate
-                (
-                    areaScale,
-                    static_cast<size_t>(nFaces),
-                    "cudaMalloc particle wall contact area scale"
                 ) != 0
              || allocate
                 (
@@ -8032,6 +5487,8 @@ extern "C" int ugkwpGpuResidentStrictConfigureParticleStuckModel
         return 1;
     }
 
+    const std::vector<double> initialContactArea(heatTransferEnabled == 0 ? static_cast<size_t>(nFaces) : 0u, 0.0);
+    const std::vector<double> initialAreaScale(static_cast<size_t>(nFaces), 1.0);
     if
     (
         copyToDevice
@@ -8041,6 +5498,8 @@ extern "C" int ugkwpGpuResidentStrictConfigureParticleStuckModel
             static_cast<size_t>(nFaces),
             "cudaMemcpy particle stuck candidate mask"
         ) != 0
+     || (heatTransferEnabled == 0 && copyToDevice(representedArea, initialContactArea.data(), initialContactArea.size(), "cudaMemcpy initial particle wall represented area") != 0)
+     || copyToDevice(areaScale, initialAreaScale.data(), initialAreaScale.size(), "cudaMemcpy initial particle wall contact area scale") != 0
     )
     {
         release(candidateMask);
@@ -8457,6 +5916,8 @@ extern "C" int ugkwpGpuResidentStrictDownloadSst
     rc |= copyToHost(nut, s->nut, n, "cudaMemcpy SST nut result");
     return rc == 0 ? 0 : 1;
 }
+#include "../../../common/GpuParticleSavedVelocityRestart.inl"
+
 extern "C" int ugkwpGpuResidentStrictUploadParticleRestartMirror
 (
     void* handle,

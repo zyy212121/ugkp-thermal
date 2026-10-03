@@ -41,7 +41,6 @@ class ParticleCellPathRuntimeContract(unittest.TestCase):
             self.assertIn("csrHeavyReductionMode", text)
             self.assertIn("csrWarpAggregatedBinning", text)
         self.assertIn("GpuCsrLevel::L2", scheduling)
-        self.assertIn("GpuCsrLevel::automatic", scheduling)
         self.assertIn(
             "value.csrCellLocalPath = value.csrLevel != GpuCsrLevel::L0",
             scheduling,

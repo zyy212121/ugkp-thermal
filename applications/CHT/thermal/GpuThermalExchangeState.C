@@ -1,4 +1,5 @@
 #include "GpuThermalExchangeState.H"
+#include "../../../common/GpuThermalParticleRestartCodec.H"
 
 #include "IFstream.H"
 #include "IOobject.H"
@@ -818,6 +819,12 @@ label validateParticleMirror
     else if (version == "UGKP_FSH_PARTICLES_SCHEMA4_BIN") fshBinarySchema = 4;
     else if (version == "UGKP_FSH_PARTICLES_SCHEMA5_BIN") fshBinarySchema = 5;
     else if (version == "UGKP_FSH_PARTICLES_SCHEMA6_BIN") fshBinarySchema = 6;
+    const bool schema7Time32 = version == Foam::gpuThermalRestart::marker<float>();
+    const bool schema7Time64 = version == Foam::gpuThermalRestart::marker<double>();
+    const bool schema7 = schema7Time32 || schema7Time64;
+    if (schema7Time32) fshBinarySchema = 5;
+    if (schema7Time64) fshBinarySchema = 6;
+    if (schema7) Foam::gpuThermalRestart::representation();
     const bool fshBinary = fshBinarySchema != 0;
     if (!legacyText && !weightedBinary && !fshBinary)
     {
@@ -830,6 +837,10 @@ label validateParticleMirror
     )
     {
         stateError("invalid UGKP particle mirror chunk capacity in " + pathText(path));
+    }
+    if (schema7 && chunkCapacity > Foam::gpuThermalRestart::maximumChunkParticles)
+    {
+        stateError("invalid schema7 particle mirror chunk bound in " + pathText(path));
     }
     std::string headerExtra;
     if (header >> headerExtra)
@@ -1015,6 +1026,19 @@ label validateParticleMirror
                         {
                             stateError("non-finite FSH particle thermal state in " + pathText(path));
                         }
+                    }
+                }
+                if (schema7)
+                {
+                    for (int field = 0; field < 3; ++field)
+                    {
+                        stream.read(reinterpret_cast<char*>(scalarBuffer.data()),
+                            static_cast<std::streamsize>(n*sizeof(double)));
+                        if (!stream)
+                            stateError("truncated schema7 saved velocity block in " + pathText(path));
+                        for (const double value : scalarBuffer)
+                            if (!std::isfinite(value))
+                                stateError("non-finite schema7 saved velocity in " + pathText(path));
                     }
                 }
             }

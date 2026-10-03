@@ -1,27 +1,30 @@
 #pragma once
-// Directory representation and producer fusion are compile-time scheduling policies.
+// Directory representation and tile ownership are compile-time scheduling policies.
 __global__ void countCsrReductionTasksKernel(DeviceState* sp, const int GPU_DIRECTORY_SELECTOR)
 {
     DeviceState& s = *sp;
     const int c = blockIdx.x*blockDim.x + threadIdx.x;
     if (c > s.nCells) return;
-#if GPU_DIRECTORY_FUSED_PRODUCER
+#if GPU_DIRECTORY_OWNS_TILE_POLICY
     const int tile = csrReductionTileParticles(s, GPU_DIRECTORY_SELECTOR);
     if (c == 0)
     {
         s.csrHeavyCellThreshold = tile;
         s.csrHeavyTileParticles = tile;
-        *s.csrHeavyCellCount = 0;
-        *s.csrHeavyTaskCount = 0;
         s.csrReductionDirectoryKind = GPU_DIRECTORY_SELECTOR;
     }
 #endif
+    if (c == 0)
+    {
+        *s.csrHeavyCellCount = 0;
+        *s.csrHeavyTaskCount = 0;
+    }
     if (c == s.nCells)
     {
         s.csrCellTaskCount[c] = 0;
         return;
     }
-#if !GPU_DIRECTORY_FUSED_PRODUCER
+#if !GPU_DIRECTORY_OWNS_TILE_POLICY
     const int tile = s.csrHeavyTileParticles;
 #endif
     if (tile <= 0) asm("trap;");

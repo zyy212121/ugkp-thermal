@@ -5,6 +5,10 @@ if [ -z "${WM_PROJECT_DIR:-}" ]; then echo "OpenFOAM environment is not loaded" 
 set -euo pipefail
 cd "${solver_root}"
 
+# Direct builds enforce the same read-only source contracts as Allwmake.
+python3 "${solver_root}/../../tools/managed_mirrors.py"
+python3 "${solver_root}/../../tools/particle_field_contract.py"
+
 cuda_home="${CUDA_HOME:-/usr/local/cuda}"
 cuda_arch="${UGKWP_CUDA_ARCH:-sm_89}"
 log_phase="${UGKWP_CUDA_LOG_PHASE:-ugkpcht_upgrade}"
@@ -24,6 +28,10 @@ log="${log_dir}/cuda_solver_build_$(date +%Y%m%d_%H%M%S).log"
 
     rm -f "${obj_dir}"/*.o "${lib_path}"
 
+    probe_flags=()
+    if [ "${UGKP_DEVELOPMENT_PROBES:-0}" = 1 ]; then
+        probe_flags=(-DUGKP_DEVELOPMENT_PROBES=1)
+    fi
     for bits in 64 32; do
         echo "[cuda-build] physical=$bits time=64"
         namespace_flags=()
@@ -32,7 +40,7 @@ log="${log_dir}/cuda_solver_build_$(date +%Y%m%d_%H%M%S).log"
         fi
         "${cuda_home}/bin/nvcc" -std=c++17 -O3 -lineinfo --fmad=false \
             -arch="${cuda_arch}" -Xcompiler -fPIC \
-            -DUGKWP_GPU_REAL_BITS="$bits" "${namespace_flags[@]}" \
+            -DUGKWP_GPU_REAL_BITS="$bits" "${namespace_flags[@]}" "${probe_flags[@]}" \
             -include "${solver_root}/gpu/GpuBackendNames${bits}.H" \
             -I"${solver_root}/thermal" -I"${solver_root}/../../common" \
             -c "${solver_root}/gpu/GpuResidentStrict.cu" \

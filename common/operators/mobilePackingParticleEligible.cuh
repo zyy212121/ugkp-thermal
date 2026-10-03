@@ -6,5 +6,9 @@ __device__ bool mobilePackingParticleEligible
     const int i
 )
 {
-    return s.pStatus[i] == 1 && s.pStuck[i] == 0;
+    return s.pStatus[i] == 1
+#if GPU_OPERATOR_THERMAL
+        && s.pStuck[i] == 0
+#endif
+        ;
 }

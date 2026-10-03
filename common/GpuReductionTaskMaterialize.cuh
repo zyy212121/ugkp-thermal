@@ -8,10 +8,8 @@ __global__ void materializeCsrReductionTasksKernel
     DeviceState& s = *sp;
     // The scan is complete. Publish its total within the existing producer;
     // consumers launch after this kernel, so no separate publication is needed.
-#if GPU_DIRECTORY_FUSED_PRODUCER
     if (blockIdx.x == 0 && threadIdx.x == 0)
         *s.csrHeavyTaskCount = s.csrCellTaskOffset[s.nCells];
-#endif
     const int stride = blockDim.x*gridDim.x;
     for (int c = blockIdx.x*blockDim.x + threadIdx.x; c < s.nCells; c += stride)
     {
@@ -72,15 +70,15 @@ __global__ void materializeCsrReductionTasksKernel
             const int totalCount = baseCount + injectionCount;
             for
             (
-                int GPU_SPLIT_TASK_BEGIN = 0;
-                GPU_SPLIT_TASK_BEGIN < totalCount;
-                GPU_SPLIT_TASK_BEGIN += tile
+                int taskBegin = 0;
+                taskBegin < totalCount;
+                taskBegin += tile
             )
             {
                 writeCsrReductionTask
                 (
-                    s, taskStart + localTask++, c, GPU_SPLIT_TASK_BEGIN,
-                    min(totalCount, GPU_SPLIT_TASK_BEGIN + tile),
+                    s, taskStart + localTask++, c, taskBegin,
+                    min(totalCount, taskBegin + tile),
                     CsrReductionTaskSource::splitLogical
                 );
             }

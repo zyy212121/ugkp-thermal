@@ -1,3 +1,4 @@
+import os
 from pathlib import Path
 import re,subprocess,sys,json,os
 W=Path(sys.argv[2]).resolve();W.mkdir(parents=True,exist_ok=True);app,bits=sys.argv[3],int(sys.argv[4]);kind='current';r=Path(sys.argv[1]).resolve();leaf='gpu' if app=='CHT' else 'private_backend';src=r/'applications'/app/leaf/'GpuResidentStrict.cu'
@@ -6,7 +7,7 @@ for sub in ['02-tests','03-build','logs']:(W/sub).mkdir(exist_ok=True)
 t=src.read_text();a=t.index('struct DeviceState');b=t.index('\n};',a);fields=re.findall(r'^\s*((?:unsigned\s+)?(?:long long|char)|double|float|int|GpuReal|GpuTime|GpuWallEnergy)\*\s+(\w+)\s*=',t[a:b],re.M)
 needed=set('pStatus pCellId pRng pm pux puy puz pTheta pd pT pStuck pContactAge pStuckFaceId pDepositionArea pContactDuration pContactMaximumArea pContactPeakFraction compactPStatus compactCountDevice cellParticleOffset sortedParticleIndex preBaseCellOffset csrCellTaskOffset csrCellTaskCount csrHeavyPartials csrMultiTaskCellList csrHeavyTaskCount csrHeavyCellCount csrHeavyTaskCursor poissonCellCollisionProbability particleCountDevice thetaDragAlpha momRhoP momRhoUPx momRhoUPy momRhoUPz momRhoEP momRhoPD'.split())
 needed.update(n for _,n in fields if n.startswith('poissonPool') or n.startswith('poolThermal'))
-text='#include "GpuResidentStrict.cu"\n#include <cstdio>\n#include <cstdlib>\n#include <cmath>\n#include <vector>\n'
+text='#include "GpuResidentStrict.cu"\n#include <cstdio>\n#include <cstdlib>\n#include <cstring>\n#include <cmath>\n#include <vector>\n'
 if app=='CHT' and bits==32:text+='using namespace ugkwpCudaFp32;\n'
 text+='using Real='+('GpuReal' if app=='CHT' else 'double')+';\n'
 text+=r'''
@@ -19,7 +20,13 @@ __global__ void initParticles(DeviceState*sp,int contact){auto&s=*sp;for(int i=b
  }}
 __global__ void cacheProbability(DeviceState*sp,double dt){auto&s=*sp;int c=threadIdx.x;if(c<s.nCells){ CACHE_PROBABILITY }}
 __global__ void sampleOneLaunch(DeviceState*sp){for(int i=threadIdx.x;i<sp->particleCapacity;i+=blockDim.x)sampleOnePoissonPoolParticle(*sp,i,false);}
-int main(int argc,char**argv){setvbuf(stdout,nullptr,_IONBF,0);const int N=argc>1?atoi(argv[1]):129;bool bench=argc>2;
+__global__ void rejectedThetaProbe(DeviceState*sp,int level){
+ auto&s=*sp;Real mass=0,mx=0,my=0,mz=0,energy=0,d=0,d2=0,count=0;
+ const Real p=s.thetaDragAlpha[0];
+ if(level==1)accumulateOnePoolParticle<true, GPU_POOL_S1_LATE_THETA_AND_RNG>(s,0,1,p,mass,mx,my,mz,energy,d,d2,count);
+ else accumulateOnePoolParticle<true>(s,0,1,p,mass,mx,my,mz,energy,d,d2,count);
+}
+int main(int argc,char**argv){setvbuf(stdout,nullptr,_IONBF,0);const int N=argc>1&&strcmp(argv[1],"late-probe")?atoi(argv[1]):129;bool bench=argc>2;
 DeviceState*s;mem(s,1);s->deviceState=s;s->particleCapacity=N;s->nCells=2;s->rhoSolid=1000;s->epsSMin=1e-12;s->thetaMin=1e-12;s->particleDiameterFallback=.001;s->particleDiameterMin=1e-6;s->particleDiameterMax=1.;s->injectionParcelMass=1.;s->csrHeavyWorkerGrid=24;s->multiprocessorCount=24;
 '''
 text+='\n'.join('mem(s->'+n+', '+('8*(N+4)' if n=='csrHeavyPartials' else 'N+32')+');' for typ,n in fields if n in needed)
@@ -27,6 +34,20 @@ text+=r'''
 mem(s->csrReductionTasks,N+4);*s->particleCountDevice=N;s->cellParticleOffset[0]=0;s->cellParticleOffset[1]=N*3/4;s->cellParticleOffset[2]=N;
 for(int i=0;i<N;++i)s->sortedParticleIndex[i]=i;
 for(int c=0;c<2;++c){s->momRhoP[c]=20;s->momRhoEP[c]=30;s->momRhoPD[c]=.02;s->thetaDragAlpha[c]=1;}
+if(argc>1&&!strcmp(argv[1],"late-probe")){
+ initParticles<<<1,32>>>(s,0);CHECK(cudaDeviceSynchronize()==cudaSuccess);
+ s->thetaDragAlpha[0]=1e-15;
+ auto*theta=s->pTheta;s->pTheta=nullptr;
+ for(int level=1;level<=2;++level){
+  rejectedThetaProbe<<<1,1>>>(s,level);
+  CHECK(cudaDeviceSynchronize()==cudaSuccess);
+  CHECK(s->pStatus[1]==1);
+ }
+ accumulateParticlePoolAtomicKernel<true><<<1,32>>>(s,0.0);
+ CHECK(cudaDeviceSynchronize()==cudaSuccess);
+ CHECK(s->pStatus[1]==1);
+ s->pTheta=theta;puts("PASS rejected particles do not read theta in L1, L2 or atomic fallback");return 0;
+}
 const double dt=.005;const double tol=sizeof(Real)==4?2e-5:2e-12;
 for(int poisson=0;poisson<2;++poisson)for(int contact=0;contact<(bench?1:CONTACT_MODES);++contact)for(int block:{32,64,128,256})for(int heavy=0;heavy<2;++heavy){
  if(bench && (block!=64 || !poisson))continue;
@@ -75,13 +96,16 @@ text=text.replace('S1_LAUNCH','accumulatePoissonPoolParticlesByCellKernel'+('<fa
 # gas lacks the selected-stuck counter; allocating it in the source would not compile.
 if not thermal:text=text.replace('*s->compactCountDevice=0;','').replace('clearPoissonThermalPoolKernel<<<1,32>>>(s);','clearPoissonThermalPoolKernel<<<1,32>>>(s,dt);')
 f=W/'02-tests'/f'collision-{kind}-{app}-{bits}.cu';f.write_text(text);exe=W/'03-build'/f'collision-{kind}-{app}-{bits}'
-cmd=['/usr/local/cuda/bin/nvcc','-std=c++17','-O3','-arch='+os.environ.get('UGKWP_CUDA_ARCH','sm_89'),'--fmad='+('false' if app=='CHT' else 'true'),'-DUGKWP_GPU_REAL_BITS='+str(bits),'-I'+str(src.parent),'-I'+str(r/'common'),'-I'+str(r/'applications'/app/'gpu'),str(f),'-o',str(exe)]
+cmd=[str(Path(os.environ.get('CUDA_HOME','/usr/local/cuda'))/'bin/nvcc'),'-std=c++17','-O3','-arch='+os.environ.get('UGKWP_CUDA_ARCH','sm_89'),'--fmad='+('false' if app=='CHT' else 'true'),'-DUGKWP_GPU_REAL_BITS='+str(bits),'-I'+str(src.parent),'-I'+str(r/'common'),'-I'+str(r/'applications'/app/'gpu'),str(f),'-o',str(exe)]
 if app=='CHT':cmd.append(str(r/'applications/CHT/gpu/GpuWallEnergy64.cu'))
 log=W/'logs'/f'collision-{kind}-{app}-{bits}-build.log'
 with log.open('w') as o:q=subprocess.run(cmd,stdout=o,stderr=subprocess.STDOUT)
 print('BUILD',kind,app,bits,q.returncode,flush=True)
 if q.returncode:print(log.read_text()[-5000:]);raise SystemExit(q.returncode)
 q=subprocess.run([str(exe)],capture_output=True,text=True);(W/'logs'/f'collision-{kind}-{app}-{bits}-run.log').write_text(q.stdout+q.stderr);print('RUN_RETURN',q.returncode,q.stdout+q.stderr,flush=True)
+probe=subprocess.run([str(exe),'late-probe'],capture_output=True,text=True)
+print('LATE_PROBE_RETURN',probe.returncode,probe.stdout+probe.stderr,flush=True)
+if probe.returncode:raise SystemExit(probe.returncode)
 if q.returncode==0:
  groups={}
  for line in q.stdout.splitlines():

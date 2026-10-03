@@ -92,9 +92,9 @@ class SourceContracts(unittest.TestCase):
         for token in (
             "prepareCsrSegmentedReductionTasks",
             "thermalPoolLaunchOccupancy",
-            "finalizeCsrHeavyPoolCellsKernel",
+            "finalizeCsrSegmentedPoolCellsKernel",
             "accumulateCsrSegmentedMomentTasksPersistentKernel",
-            "finalizeCsrHeavyMomentCellsKernel", "__match_any_sync",
+            "finalizeCsrSegmentedMomentCellsKernel", "__match_any_sync",
         ):
             self.assertIn(token, cuda)
 

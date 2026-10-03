@@ -12,6 +12,18 @@ ROOT = Path(__file__).resolve().parents[1]
 SOURCE = ROOT / 'applications/gasUGKP/private_backend/GpuResidentStrict.cu'
 
 def function(text, name):
+    if name == "copyCellLocalParticle":
+        path = ROOT / "common/GpuCellLocalPrimary.cuh"
+        if path.exists():
+            body = path.read_text()
+            match = re.search(r'__device__\s+__forceinline__\s+void copyCellLocalParticle\s*\(', body)
+            assert match
+            start = match.start(); opening = body.index("{", start); end = opening + 1; depth = 1
+            while depth:
+                depth += (body[end] == "{") - (body[end] == "}"); end += 1
+            return '#include "' + str(ROOT / "common/GpuParticleFields.cuh") + '"\n' + body[start:end]
+    if name == "poissonCollisionProbabilityForCell" and (ROOT / "common/GpuCollisionProbability.cuh").exists():
+        text = (ROOT / "common/GpuCollisionProbability.cuh").read_text().replace("GPU_OPERATOR_REAL", "double").replace("GPU_OPERATOR_TIME", "double").replace("GPU_OPERATOR_R", "double")
     if name in {'finalizeCsrMomentCell', 'CsrMomentOperation', 'CsrMomentFinalizeOperation',
                 'accumulateCsrSegmentedMomentTasksPersistentKernel', 'finalizeCsrSegmentedMomentCellsKernel',
                 'launchCommonSegmentedMomentReduction'}:
@@ -41,6 +53,10 @@ def function(text, name):
         'finalizeCsrSegmentedMomentsAndRecoverKernel': 'CsrMomentRecoveryOperation',
         'gatherCsrSegmentedParticlesKernel': 'CsrGatherOperation',
     }
+    if name in {'CsrMomentOperation', 'finalizeCsrMomentCell'}:
+        owner = (ROOT / 'common' / 'GpuParticleMoments.cuh').read_text()
+        publisher = 'template<class MomentReal>\n' + function(owner, 'publishParticleMomentsCell')
+        result = publisher + '\n' + result
     if name in dependencies:
         queue = (ROOT / 'common/CsrPersistentQueue.cuh').read_text()
         shared = 'template<class State, class Operation>\n' + function(queue, 'runCsrPersistentQueue')
@@ -60,9 +76,53 @@ def compile_run(tmp_path, body):
     source = tmp_path / 'check.cpp'
     source.write_text(body)
     binary = tmp_path / 'check'
-    subprocess.run(['g++', '-std=c++17', '-O2', str(source), '-o', str(binary)], check=True, capture_output=True, text=True)
+    build = subprocess.run(['g++', '-std=c++17', '-O2', '-I', str(ROOT / 'common'), '-I', str(ROOT / 'common/operators'), str(source), '-o', str(binary)], capture_output=True, text=True)
+    assert build.returncode == 0, build.stderr
     run = subprocess.run([str(binary)], capture_output=True, text=True)
     assert run.returncode == 0, run.stdout + run.stderr
+
+def actual_common_function_adapter(name):
+    if name=='accumulateCsrSplitLogicalPoolParticle':
+        return _original_function((ROOT/'common/GpuCollisionPoolSplitParticle.cuh').read_text(),name)
+    owners = {
+        'accumulateOnePoolParticle':'GpuCollisionPoolParticle.cuh',
+        'countCsrReductionTasksKernel':'GpuReductionTaskCount.cuh',
+        'writeCsrReductionTask':'GpuReductionTaskWrite.cuh',
+        'materializeCsrReductionTasksKernel':'GpuReductionTaskMaterialize.cuh',
+        'preparePoissonPoolSamplingCell':'GpuCollisionPoolTarget.cuh',
+        'CsrPoolFinalizeOperation':'GpuSegmentedPoolWorkers.cuh',
+        'finalizeCsrSegmentedPoolCellsKernel':'GpuSegmentedPoolWorkers.cuh',
+    }
+    if name not in owners:return None
+    text=SOURCE.read_text()
+    selected=[]
+    for line in text.splitlines():
+        if line.startswith('#define ') and any(line.startswith('#define '+prefix) for prefix in ['GPU_OPERATOR_', 'GPU_POOL_', 'GPU_DIRECTORY_', 'GPU_SPLIT_TASK_BEGIN']):
+            if line.rstrip().endswith('\\'):raise RuntimeError('Multiline native policy macro requires explicit complete collection')
+            selected.append(line)
+    macros='\n'.join(selected)+'\n'
+    body=(ROOT/'common'/owners[name]).read_text()
+    if name=='accumulateOnePoolParticle':
+        if '#include "GpuPoolParticleContribution.inl"' in body:
+            body=body.replace('#include "GpuPoolParticleContribution.inl"',(ROOT/'common/GpuPoolParticleContribution.inl').read_text())
+        return macros+body.replace('asm("trap;");','throw std::runtime_error("trap");')
+    # Extract using the same original helper after providing actual ownership text.
+    result=_original_function(body,name)
+    if name=='finalizeCsrSegmentedPoolCellsKernel':
+        # Original dependency assembly supplies queue and finalize operation.
+        if 'reducePoolMoments<' in result or 'publishPoolCell<' in result:
+            if not (ROOT/'common/GpuPoolMomentOperations.cuh').exists():raise RuntimeError('Native pool helper owner missing')
+            result='#include "'+str(ROOT/'common/GpuPoolMomentOperations.cuh')+'"\n'+result
+    return macros+result
+
+_original_function=function
+def function(text,name):
+    actual=actual_common_function_adapter(name)
+    if actual is not None:return actual
+    body=_original_function(text,name)
+    if name=='csrReductionTileParticles' and 'hardwareReductionTile(' in body:
+        body='#include "'+str(ROOT/'common/GpuHardwareReductionTile.cuh')+'"\n'+body
+    return body
 
 PREAMBLE = r"""
 #include <algorithm>
@@ -89,7 +149,7 @@ struct Theta {double value=2;int reads=0;double operator[](int) {++reads;return 
 
 def test_shared_particle_physics_and_no_rejected_theta_load(tmp_path):
     text = SOURCE.read_text()
-    names = ['accumulateOnePoolParticle'] if 'void accumulateOnePoolParticle\n' in text else []
+    names = ['accumulateOnePoolParticle']
     names += ['accumulateOnePoissonPoolParticle', 'accumulateCsrSplitLogicalPoolParticle']
     body = PREAMBLE + r"""
 struct DeviceState {
@@ -326,5 +386,6 @@ def test_moment_fusion_is_opt_in_for_advance_not_restart():
     assert 'launchCsrSegmentedMomentReduction(s, block, deferRecovery, gatherSurvivors)' in wrapper
     advance = text[text.index('int ugkwpGpuResidentStrictAdvance'):]
     assert 'launchPostTransportMomentPipeline(s, particleGrid, block)' in advance
-    assert 'launchCommonSegmentedMomentReduction(s, block, postTransportFusePayload, true)' in pipeline
+    assert 'MomentPayload::gatherSurvivors' in pipeline
+    assert 'MomentRecovery::deferToAdvance' in pipeline
     assert 'launchCsrHeavyMomentReduction(s, block)' in text[:text.index('int ugkwpGpuResidentStrictAdvance')]

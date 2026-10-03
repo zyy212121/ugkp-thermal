@@ -15,7 +15,7 @@ def function(text,name):
 
 def test_clear_computes_probability_only_for_consuming_heavy_cells(tmp_path):
     source=(ROOT/'applications/gasUGKP/private_backend/GpuResidentStrict.cu').read_text()
-    helper=function(source,'poissonCollisionProbabilityForCell') if 'double poissonCollisionProbabilityForCell' in source else ''
+    helper=(ROOT/'common/GpuCollisionProbability.cuh').read_text() if (ROOT/'common/GpuCollisionProbability.cuh').exists() else function(source,'poissonCollisionProbabilityForCell')
     clear=function(source,'clearPoissonThermalPoolKernel')
     # Compile the actual production body, with an observable tau accessor.
     # A return to all-cell preparation makes the explicit call-count checks fail.
@@ -27,6 +27,9 @@ def test_clear_computes_probability_only_for_consuming_heavy_cells(tmp_path):
 #define __device__
 #define __global__
 #define __forceinline__ inline
+#define GPU_OPERATOR_REAL double
+#define GPU_OPERATOR_TIME double
+#define GPU_OPERATOR_R(x) (x)
 struct Dim{int x=0;} blockIdx,threadIdx,blockDim;
 template<class T>T clampRange(T x,T a,T b){return std::min(std::max(x,a),b);}
 const double OfGreat=1e30,OfSmall=1e-15;

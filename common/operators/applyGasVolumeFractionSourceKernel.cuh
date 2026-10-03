@@ -3,7 +3,7 @@
 __global__ void applyGasVolumeFractionSourceKernel
 (
     DeviceState* sp,
-    const GPU_OPERATOR_REAL dt
+    const GPU_OPERATOR_TIME dt
 )
 {
     DeviceState& s = *sp;
@@ -14,13 +14,13 @@ __global__ void applyGasVolumeFractionSourceKernel
     }
 
     const GPU_OPERATOR_REAL eps = solidEpsFromMomentDevice(s, c);
-    const GPU_OPERATOR_REAL epsG = 1.0 - eps;
+    const GPU_OPERATOR_REAL epsG = GPU_OPERATOR_R(1.0) - eps;
     const GPU_OPERATOR_REAL epsGsafe = clampMin(epsG, OfSmall);
     const GPU_OPERATOR_REAL epsGOld = finiteOr(s.epsGPrev[c], epsG);
 
-    GPU_OPERATOR_REAL gradEx = 0.0;
-    GPU_OPERATOR_REAL gradEy = 0.0;
-    GPU_OPERATOR_REAL gradEz = 0.0;
+    GPU_OPERATOR_REAL gradEx = GPU_OPERATOR_R(0.0);
+    GPU_OPERATOR_REAL gradEy = GPU_OPERATOR_R(0.0);
+    GPU_OPERATOR_REAL gradEz = GPU_OPERATOR_R(0.0);
 
     const int start = s.cellPlaneStart[c];
     const int count = s.cellPlaneCount[c];
@@ -39,31 +39,31 @@ __global__ void applyGasVolumeFractionSourceKernel
 
         const GPU_OPERATOR_REAL epsOwn =
             (own >= 0 && own < s.nCells)
-          ? 1.0 - solidEpsFromMomentDevice(s, own)
+          ? GPU_OPERATOR_R(1.0) - solidEpsFromMomentDevice(s, own)
           : epsG;
 
         const GPU_OPERATOR_REAL epsNei =
             (neiFace >= 0 && neiFace < s.nCells)
-          ? 1.0 - solidEpsFromMomentDevice(s, neiFace)
+          ? GPU_OPERATOR_R(1.0) - solidEpsFromMomentDevice(s, neiFace)
           : epsG;
 
-        const GPU_OPERATOR_REAL lambda = finiteOr(s.faceWeight[f], 0.5);
-        const GPU_OPERATOR_REAL epsFace = lambda*epsOwn + (1.0 - lambda)*epsNei;
-        const GPU_OPERATOR_REAL sign = (own == c) ? 1.0 : -1.0;
+        const GPU_OPERATOR_REAL lambda = finiteOr(s.faceWeight[f], GPU_OPERATOR_R(0.5));
+        const GPU_OPERATOR_REAL epsFace = lambda*epsOwn + (GPU_OPERATOR_R(1.0) - lambda)*epsNei;
+        const GPU_OPERATOR_REAL sign = (own == c) ? GPU_OPERATOR_R(1.0) : -GPU_OPERATOR_R(1.0);
 
         gradEx += epsFace*sign*s.Sfx[f];
         gradEy += epsFace*sign*s.Sfy[f];
         gradEz += epsFace*sign*s.Sfz[f];
     }
 
-    const GPU_OPERATOR_REAL invV = 1.0/clampMin(s.V[c], OfSmall);
+    const GPU_OPERATOR_REAL invV = GPU_OPERATOR_R(1.0)/clampMin(s.V[c], OfSmall);
     gradEx *= invV;
     gradEy *= invV;
     gradEz *= invV;
 
-    const GPU_OPERATOR_REAL ugx0 = finiteOr(s.Ux[c], 0.0);
-    const GPU_OPERATOR_REAL ugy0 = finiteOr(s.Uy[c], 0.0);
-    const GPU_OPERATOR_REAL ugz0 = finiteOr(s.Uz[c], 0.0);
+    const GPU_OPERATOR_REAL ugx0 = finiteOr(s.Ux[c], GPU_OPERATOR_R(0.0));
+    const GPU_OPERATOR_REAL ugy0 = finiteOr(s.Uy[c], GPU_OPERATOR_R(0.0));
+    const GPU_OPERATOR_REAL ugz0 = finiteOr(s.Uz[c], GPU_OPERATOR_R(0.0));
 
     const GPU_OPERATOR_REAL cepsG =
         -((epsG - epsGOld)/(dt + OfSmall)
@@ -72,22 +72,43 @@ __global__ void applyGasVolumeFractionSourceKernel
     const GPU_OPERATOR_REAL mgOld =
         clampMin(finiteOr(s.rho[c], s.rhoMin), s.rhoMin);
     const GPU_OPERATOR_REAL pressureOld =
-        clampMin(finiteOr(s.p[c], 0.0), 0.0);
-    const GPU_OPERATOR_REAL enerGOld = finiteOr(s.rhoE[c], 0.0);
-    const GPU_OPERATOR_REAL massScale = 1.0 + dt*cepsG;
+        clampMin(finiteOr(s.p[c], GPU_OPERATOR_R(0.0)), GPU_OPERATOR_R(0.0));
+    const GPU_OPERATOR_REAL enerGOld = finiteOr(s.rhoE[c], GPU_OPERATOR_R(0.0));
+    const GPU_OPERATOR_REAL massScale = GPU_OPERATOR_R(1.0) + dt*cepsG;
     const GPU_OPERATOR_REAL mgCandidate = mgOld*massScale;
     const GPU_OPERATOR_REAL momGXCandidate = s.rhoUx[c]*massScale;
     const GPU_OPERATOR_REAL momGYCandidate = s.rhoUy[c]*massScale;
     const GPU_OPERATOR_REAL momGZCandidate = s.rhoUz[c]*massScale;
     const GPU_OPERATOR_REAL enerGCandidate =
         enerGOld*massScale + dt*cepsG*pressureOld;
+    /* legacy: exponential integration of the frozen-coefficient source.
+       Retained for reference only; the active update is the phase-volume-compatible linear form.
+    const GPU_OPERATOR_REAL sourceExponent = dt*cepsG;
+    const GPU_OPERATOR_REAL massScale = exp(sourceExponent);
+    const GPU_OPERATOR_REAL kineticOld =
+        GPU_OPERATOR_R(0.5)
+       *sqr3(s.rhoUx[c], s.rhoUy[c], s.rhoUz[c])
+       /mgOld;
+    const GPU_OPERATOR_REAL internalEnergyOld = enerGOld - kineticOld;
+    const GPU_OPERATOR_REAL mgCandidate = mgOld*massScale;
+    const GPU_OPERATOR_REAL momGXCandidate = s.rhoUx[c]*massScale;
+    const GPU_OPERATOR_REAL momGYCandidate = s.rhoUy[c]*massScale;
+    const GPU_OPERATOR_REAL momGZCandidate = s.rhoUz[c]*massScale;
+    const GPU_OPERATOR_REAL enerGCandidate =
+        massScale
+       *(
+            enerGOld
+          + internalEnergyOld
+           *expm1((s.gammaGas - GPU_OPERATOR_R(1.0))*sourceExponent)
+        );
+    */
     const GPU_OPERATOR_REAL kineticCandidate =
-        0.5
+        GPU_OPERATOR_R(0.5)
        *sqr3(momGXCandidate, momGYCandidate, momGZCandidate)
        /clampMin(mgCandidate, s.rhoMin);
     const GPU_OPERATOR_REAL internalEnergyFloorCandidate =
         mgCandidate*s.Rgas*s.TgasMin
-       /clampMin(s.gammaGas - 1.0, OfSmall);
+       /clampMin(s.gammaGas - GPU_OPERATOR_R(1.0), OfSmall);
     if
     (
         !finiteDevice(cepsG)

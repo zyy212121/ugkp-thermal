@@ -655,6 +655,16 @@ extern "C" int ugkwpGpuResidentStrictDownloadSst_64(
     double* omega,
     double* nut
 );
+extern "C" int ugkwpGpuResidentStrictUploadParticleSavedVelocity_32
+(void* handle, int count, const double* x, const double* y, const double* z);
+extern "C" int ugkwpGpuResidentStrictDownloadParticleSavedVelocity_32
+(void* handle, int count, double* x, double* y, double* z);
+
+extern "C" int ugkwpGpuResidentStrictUploadParticleSavedVelocity_64
+(void* handle, int count, const double* x, const double* y, const double* z);
+extern "C" int ugkwpGpuResidentStrictDownloadParticleSavedVelocity_64
+(void* handle, int count, double* x, double* y, double* z);
+
 extern "C" int ugkwpGpuResidentStrictUploadParticleRestartMirror_32(
     void* handle,
     int nParticles,
@@ -1219,6 +1229,11 @@ extern "C" int ugkwpGpuResidentStrictDownloadSst(
 {
     return selectedPrecision == 32 ? ugkwpGpuResidentStrictDownloadSst_32(handle, k, omega, nut) : ugkwpGpuResidentStrictDownloadSst_64(handle, k, omega, nut);
 }
+
+extern "C" int ugkwpGpuResidentStrictUploadParticleSavedVelocity(void* handle,int count,const double* x,const double* y,const double* z)
+{ return selectedPrecision==32 ? ugkwpGpuResidentStrictUploadParticleSavedVelocity_32(handle,count,x,y,z) : ugkwpGpuResidentStrictUploadParticleSavedVelocity_64(handle,count,x,y,z); }
+extern "C" int ugkwpGpuResidentStrictDownloadParticleSavedVelocity(void* handle,int count,double* x,double* y,double* z)
+{ return selectedPrecision==32 ? ugkwpGpuResidentStrictDownloadParticleSavedVelocity_32(handle,count,x,y,z) : ugkwpGpuResidentStrictDownloadParticleSavedVelocity_64(handle,count,x,y,z); }
 
 extern "C" int ugkwpGpuResidentStrictUploadParticleRestartMirror(
     void* handle,

@@ -1,6 +1,7 @@
 // Finite-contact heat, reaction and state transition; native contact-age storage adapter.
-    if (finiteContact)
-    {
+// Inputs: s, i, dt, finiteContact, coldWallContact and contact-age adapter macros.
+// Outputs: particle heat/contact state, wall energy, saved velocity and age.
+// Caller supplies the finiteContact branch and owns the following deposited-state else.
         const int faceI = s.pStuckFaceId[i];
         const GPU_OPERATOR_TIME duration = static_cast<GPU_OPERATOR_TIME>(s.pContactDuration[i]);
         const GPU_OPERATOR_REAL maximumArea = static_cast<GPU_OPERATOR_REAL>(s.pContactMaximumArea[i]);
@@ -184,4 +185,3 @@
             s.puyOld[i] = GPU_OPERATOR_R(0.0);
             s.puzOld[i] = GPU_OPERATOR_R(0.0);
         }
-    }

@@ -1,0 +1,597 @@
+{
+  "schema": 1,
+  "disk_schema": 7,
+  "scope": "Resident particle payload and listed per-step scratch fields; cold-wall failure rollback is not modeled.",
+  "fields": [
+    {
+      "name": "px",
+      "compact": "compactPx",
+      "group": "PRIMARY_BEFORE_CONTACT",
+      "copy_value": "s.px[i]",
+      "width": 1,
+      "width_symbol": "1",
+      "storage": {
+        "gasUGKP": "double",
+        "FSH": "double",
+        "CHT": "GpuReal"
+      },
+      "host": {
+        "gasUGKP": "double",
+        "FSH": "double",
+        "CHT": "double"
+      },
+      "schema7": 0
+    },
+    {
+      "name": "py",
+      "compact": "compactPy",
+      "group": "PRIMARY_BEFORE_CONTACT",
+      "copy_value": "s.py[i]",
+      "width": 1,
+      "width_symbol": "1",
+      "storage": {
+        "gasUGKP": "double",
+        "FSH": "double",
+        "CHT": "GpuReal"
+      },
+      "host": {
+        "gasUGKP": "double",
+        "FSH": "double",
+        "CHT": "double"
+      },
+      "schema7": 1
+    },
+    {
+      "name": "pz",
+      "compact": "compactPz",
+      "group": "PRIMARY_BEFORE_CONTACT",
+      "copy_value": "s.pz[i]",
+      "width": 1,
+      "width_symbol": "1",
+      "storage": {
+        "gasUGKP": "double",
+        "FSH": "double",
+        "CHT": "GpuReal"
+      },
+      "host": {
+        "gasUGKP": "double",
+        "FSH": "double",
+        "CHT": "double"
+      },
+      "schema7": 2
+    },
+    {
+      "name": "pux",
+      "compact": "compactPux",
+      "group": "PRIMARY_BEFORE_CONTACT",
+      "copy_value": "s.pux[i]",
+      "width": 1,
+      "width_symbol": "1",
+      "storage": {
+        "gasUGKP": "double",
+        "FSH": "double",
+        "CHT": "GpuReal"
+      },
+      "host": {
+        "gasUGKP": "double",
+        "FSH": "double",
+        "CHT": "double"
+      },
+      "schema7": 3
+    },
+    {
+      "name": "puy",
+      "compact": "compactPuy",
+      "group": "PRIMARY_BEFORE_CONTACT",
+      "copy_value": "s.puy[i]",
+      "width": 1,
+      "width_symbol": "1",
+      "storage": {
+        "gasUGKP": "double",
+        "FSH": "double",
+        "CHT": "GpuReal"
+      },
+      "host": {
+        "gasUGKP": "double",
+        "FSH": "double",
+        "CHT": "double"
+      },
+      "schema7": 4
+    },
+    {
+      "name": "puz",
+      "compact": "compactPuz",
+      "group": "PRIMARY_BEFORE_CONTACT",
+      "copy_value": "s.puz[i]",
+      "width": 1,
+      "width_symbol": "1",
+      "storage": {
+        "gasUGKP": "double",
+        "FSH": "double",
+        "CHT": "GpuReal"
+      },
+      "host": {
+        "gasUGKP": "double",
+        "FSH": "double",
+        "CHT": "double"
+      },
+      "schema7": 5
+    },
+    {
+      "name": "pT",
+      "compact": "compactPT",
+      "group": "PRIMARY_BEFORE_CONTACT",
+      "copy_value": "s.pT[i]",
+      "width": 1,
+      "width_symbol": "1",
+      "storage": {
+        "gasUGKP": "double",
+        "FSH": "double",
+        "CHT": "GpuReal"
+      },
+      "host": {
+        "gasUGKP": "double",
+        "FSH": "double",
+        "CHT": "double"
+      },
+      "schema7": 6
+    },
+    {
+      "name": "pTheta",
+      "compact": "compactPTheta",
+      "group": "PRIMARY_BEFORE_CONTACT",
+      "copy_value": "s.pTheta[i]",
+      "width": 1,
+      "width_symbol": "1",
+      "storage": {
+        "gasUGKP": "double",
+        "FSH": "double",
+        "CHT": "GpuReal"
+      },
+      "host": {
+        "gasUGKP": "double",
+        "FSH": "double",
+        "CHT": "double"
+      },
+      "schema7": 7
+    },
+    {
+      "name": "pd",
+      "compact": "compactPd",
+      "group": "PRIMARY_AFTER_CONTACT",
+      "copy_value": "s.pd[i]",
+      "width": 1,
+      "width_symbol": "1",
+      "storage": {
+        "gasUGKP": "double",
+        "FSH": "double",
+        "CHT": "GpuReal"
+      },
+      "host": {
+        "gasUGKP": "double",
+        "FSH": "double",
+        "CHT": "double"
+      },
+      "schema7": 8
+    },
+    {
+      "name": "pm",
+      "compact": "compactPm",
+      "group": "PRIMARY_AFTER_CONTACT",
+      "copy_value": "s.pm[i]",
+      "width": 1,
+      "width_symbol": "1",
+      "storage": {
+        "gasUGKP": "double",
+        "FSH": "double",
+        "CHT": "GpuReal"
+      },
+      "host": {
+        "gasUGKP": "double",
+        "FSH": "double",
+        "CHT": "double"
+      },
+      "schema7": 9
+    },
+    {
+      "name": "pCellId",
+      "compact": "compactPCellId",
+      "group": "PRIMARY_AFTER_CONTACT",
+      "copy_value": "c",
+      "width": 1,
+      "width_symbol": "1",
+      "storage": {
+        "gasUGKP": "int",
+        "FSH": "int",
+        "CHT": "int"
+      },
+      "host": {
+        "gasUGKP": "int",
+        "FSH": "int",
+        "CHT": "int"
+      },
+      "schema7": 10
+    },
+    {
+      "name": "pStatus",
+      "compact": "compactPStatus",
+      "group": "PRIMARY_AFTER_CONTACT",
+      "copy_value": "1",
+      "width": 1,
+      "width_symbol": "1",
+      "storage": {
+        "gasUGKP": "int",
+        "FSH": "int",
+        "CHT": "int"
+      },
+      "host": {
+        "gasUGKP": "int",
+        "FSH": "int",
+        "CHT": "int"
+      },
+      "schema7": 11
+    },
+    {
+      "name": "pRng",
+      "compact": "compactPRng",
+      "group": "IDENTITY",
+      "copy_value": "s.pRng[i]",
+      "width": 1,
+      "width_symbol": "1",
+      "storage": {
+        "gasUGKP": "unsigned long long",
+        "FSH": "unsigned long long",
+        "CHT": "unsigned long long"
+      },
+      "host": {
+        "gasUGKP": "unsigned long long",
+        "FSH": "unsigned long long",
+        "CHT": "unsigned long long"
+      },
+      "schema7": 12
+    },
+    {
+      "name": "pOrigId",
+      "compact": "compactPOrigId",
+      "group": "IDENTITY",
+      "copy_value": "s.pOrigId[i]",
+      "width": 1,
+      "width_symbol": "1",
+      "storage": {
+        "gasUGKP": "unsigned long long",
+        "FSH": "unsigned long long",
+        "CHT": "unsigned long long"
+      },
+      "host": {
+        "gasUGKP": "unsigned long long",
+        "FSH": "unsigned long long",
+        "CHT": "unsigned long long"
+      },
+      "schema7": 13
+    },
+    {
+      "name": "puxOld",
+      "compact": "compactPuxOld",
+      "group": "CONTACT_SCALAR",
+      "copy_value": "s.puxOld[i]",
+      "width": 1,
+      "width_symbol": "1",
+      "storage": {
+        "FSH": "double",
+        "CHT": "GpuReal"
+      },
+      "host": {
+        "FSH": "double",
+        "CHT": "double"
+      },
+      "schema7": 27
+    },
+    {
+      "name": "puyOld",
+      "compact": "compactPuyOld",
+      "group": "CONTACT_SCALAR",
+      "copy_value": "s.puyOld[i]",
+      "width": 1,
+      "width_symbol": "1",
+      "storage": {
+        "FSH": "double",
+        "CHT": "GpuReal"
+      },
+      "host": {
+        "FSH": "double",
+        "CHT": "double"
+      },
+      "schema7": 28
+    },
+    {
+      "name": "puzOld",
+      "compact": "compactPuzOld",
+      "group": "CONTACT_SCALAR",
+      "copy_value": "s.puzOld[i]",
+      "width": 1,
+      "width_symbol": "1",
+      "storage": {
+        "FSH": "double",
+        "CHT": "GpuReal"
+      },
+      "host": {
+        "FSH": "double",
+        "CHT": "double"
+      },
+      "schema7": 29
+    },
+    {
+      "name": "pStuck",
+      "compact": "compactPStuck",
+      "group": "CONTACT_SCALAR",
+      "copy_value": "s.pStuck[i]",
+      "width": 1,
+      "width_symbol": "1",
+      "storage": {
+        "FSH": "unsigned char",
+        "CHT": "unsigned char"
+      },
+      "host": {
+        "FSH": "unsigned char",
+        "CHT": "unsigned char"
+      },
+      "schema7": 14
+    },
+    {
+      "name": "pStuckFaceId",
+      "compact": "compactPStuckFaceId",
+      "group": "CONTACT_SCALAR",
+      "copy_value": "s.pStuckFaceId[i]",
+      "width": 1,
+      "width_symbol": "1",
+      "storage": {
+        "FSH": "int",
+        "CHT": "int"
+      },
+      "host": {
+        "FSH": "int",
+        "CHT": "int"
+      },
+      "schema7": 15
+    },
+    {
+      "name": "pDepositionArea",
+      "compact": "compactPDepositionArea",
+      "group": "CONTACT_SCALAR",
+      "copy_value": "s.pDepositionArea[i]",
+      "width": 1,
+      "width_symbol": "1",
+      "storage": {
+        "FSH": "float",
+        "CHT": "float"
+      },
+      "host": {
+        "FSH": "float",
+        "CHT": "float"
+      },
+      "schema7": 16
+    },
+    {
+      "name": "pContactDuration",
+      "compact": "compactPContactDuration",
+      "group": "CONTACT_SCALAR",
+      "copy_value": "s.pContactDuration[i]",
+      "width": 1,
+      "width_symbol": "1",
+      "storage": {
+        "FSH": "float",
+        "CHT": "double"
+      },
+      "host": {
+        "FSH": "float",
+        "CHT": "double"
+      },
+      "schema7": 17
+    },
+    {
+      "name": "pContactMaximumArea",
+      "compact": "compactPContactMaximumArea",
+      "group": "CONTACT_SCALAR",
+      "copy_value": "s.pContactMaximumArea[i]",
+      "width": 1,
+      "width_symbol": "1",
+      "storage": {
+        "FSH": "float",
+        "CHT": "float"
+      },
+      "host": {
+        "FSH": "float",
+        "CHT": "float"
+      },
+      "schema7": 18
+    },
+    {
+      "name": "pContactPeakFraction",
+      "compact": "compactPContactPeakFraction",
+      "group": "CONTACT_SCALAR",
+      "copy_value": "s.pContactPeakFraction[i]",
+      "width": 1,
+      "width_symbol": "1",
+      "storage": {
+        "FSH": "float",
+        "CHT": "float"
+      },
+      "host": {
+        "FSH": "float",
+        "CHT": "float"
+      },
+      "schema7": 19
+    },
+    {
+      "name": "pColdFrozenArea",
+      "compact": "compactPColdFrozenArea",
+      "group": "COLD1D_SCALAR",
+      "copy_value": "s.pColdFrozenArea[i]",
+      "width": 1,
+      "width_symbol": "1",
+      "storage": {
+        "FSH": "float",
+        "CHT": "float"
+      },
+      "host": {
+        "FSH": "float",
+        "CHT": "float"
+      },
+      "schema7": 22
+    },
+    {
+      "name": "pColdContactAge",
+      "compact": "compactPColdContactAge",
+      "group": "COLD1D_SCALAR",
+      "copy_value": "s.pColdContactAge[i]",
+      "width": 1,
+      "width_symbol": "1",
+      "storage": {
+        "FSH": "float",
+        "CHT": "double"
+      },
+      "host": {
+        "FSH": "float",
+        "CHT": "double"
+      },
+      "schema7": 23
+    },
+    {
+      "name": "pCold2DFrozenArea",
+      "compact": "compactPCold2DFrozenArea",
+      "group": "COLD2D_SCALAR",
+      "copy_value": "s.pCold2DFrozenArea[i]",
+      "width": 1,
+      "width_symbol": "1",
+      "storage": {
+        "FSH": "float",
+        "CHT": "float"
+      },
+      "host": {
+        "FSH": "float",
+        "CHT": "float"
+      },
+      "schema7": 26
+    },
+    {
+      "name": "pColdNodeSpecificEnthalpy",
+      "compact": "compactPColdNodeSpecificEnthalpy",
+      "group": "COLD1D_ARRAY",
+      "copy_value": "Foam::gpuThermal::coldWallAxialNodeCount",
+      "width": 8,
+      "width_symbol": "Foam::gpuThermal::coldWallAxialNodeCount",
+      "storage": {
+        "FSH": "float",
+        "CHT": "float"
+      },
+      "host": {
+        "FSH": "float",
+        "CHT": "float"
+      },
+      "schema7": 20
+    },
+    {
+      "name": "pColdRingSolidMass",
+      "compact": "compactPColdRingSolidMass",
+      "group": "COLD1D_ARRAY",
+      "copy_value": "Foam::gpuThermal::coldWallRadialRingCount",
+      "width": 8,
+      "width_symbol": "Foam::gpuThermal::coldWallRadialRingCount",
+      "storage": {
+        "FSH": "float",
+        "CHT": "float"
+      },
+      "host": {
+        "FSH": "float",
+        "CHT": "float"
+      },
+      "schema7": 21
+    },
+    {
+      "name": "pCold2DNodeSpecificEnthalpy",
+      "compact": "compactPCold2DNodeSpecificEnthalpy",
+      "group": "COLD2D_ARRAY",
+      "copy_value": "Foam::gpuThermal::coldWall2DNodeCount",
+      "width": 64,
+      "width_symbol": "Foam::gpuThermal::coldWall2DNodeCount",
+      "storage": {
+        "FSH": "float",
+        "CHT": "float"
+      },
+      "host": {
+        "FSH": "float",
+        "CHT": "float"
+      },
+      "schema7": 24
+    },
+    {
+      "name": "pCold2DRingContactAge",
+      "compact": "compactPCold2DRingContactAge",
+      "group": "COLD2D_ARRAY",
+      "copy_value": "Foam::gpuThermal::coldWall2DRadialNodeCount",
+      "width": 8,
+      "width_symbol": "Foam::gpuThermal::coldWall2DRadialNodeCount",
+      "storage": {
+        "FSH": "float",
+        "CHT": "double"
+      },
+      "host": {
+        "FSH": "float",
+        "CHT": "double"
+      },
+      "schema7": 25
+    },
+    {
+      "name": "pContactAge",
+      "compact": "compactPContactAge",
+      "group": "SEPARATE_AGE",
+      "copy_value": "s.pContactAge[i]",
+      "width": 1,
+      "width_symbol": "1",
+      "storage": {
+        "CHT": "GpuTime"
+      },
+      "host": {
+        "CHT": "double"
+      },
+      "schema7": null,
+      "wire_alias": {
+        "field": "pTheta",
+        "condition": "pStuck != 0",
+        "schema": 7
+      }
+    }
+  ],
+  "scratch_fields": [
+    {
+      "name": "puxOld",
+      "compact": null,
+      "group": "SCRATCH",
+      "width": 1,
+      "storage": {
+        "gasUGKP": "double"
+      },
+      "reason": "Per-step saved pre-relaxation velocity; recomputed before use, not persistent payload or restart state."
+    },
+    {
+      "name": "puyOld",
+      "compact": null,
+      "group": "SCRATCH",
+      "width": 1,
+      "storage": {
+        "gasUGKP": "double"
+      },
+      "reason": "Per-step saved pre-relaxation velocity; recomputed before use, not persistent payload or restart state."
+    },
+    {
+      "name": "puzOld",
+      "compact": null,
+      "group": "SCRATCH",
+      "width": 1,
+      "storage": {
+        "gasUGKP": "double"
+      },
+      "reason": "Per-step saved pre-relaxation velocity; recomputed before use, not persistent payload or restart state."
+    }
+  ]
+}

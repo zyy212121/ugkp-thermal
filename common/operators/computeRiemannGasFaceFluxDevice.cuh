@@ -1,5 +1,7 @@
 #pragma once
-// One operator implementation; scalar/time adapters are compile-time only.
+#ifndef GPU_GAS_WALL_EXPOSURE
+#define GPU_GAS_WALL_EXPOSURE(s, f, neighbour, kind) GPU_OPERATOR_R(1.0)
+#endif
 template<bool IncludeTurbulence>
 __device__ bool computeRiemannGasFaceFluxDevice
 (
@@ -12,11 +14,11 @@ __device__ bool computeRiemannGasFaceFluxDevice
     GPU_OPERATOR_REAL& energyFluxArea
 )
 {
-    massFluxArea = 0.0;
-    momFluxXArea = 0.0;
-    momFluxYArea = 0.0;
-    momFluxZArea = 0.0;
-    energyFluxArea = 0.0;
+    massFluxArea = GPU_OPERATOR_R(0.0);
+    momFluxXArea = GPU_OPERATOR_R(0.0);
+    momFluxYArea = GPU_OPERATOR_R(0.0);
+    momFluxZArea = GPU_OPERATOR_R(0.0);
+    energyFluxArea = GPU_OPERATOR_R(0.0);
 
     if (f < 0 || f >= s.nFaces)
     {
@@ -29,11 +31,10 @@ __device__ bool computeRiemannGasFaceFluxDevice
     }
 
     const int nei = coupledFaceNeighbour(s, f);
-    const int boundaryKind =
-        nei >= 0 ? 0 : s.riemannBoundaryKind[f];
-    GPU_OPERATOR_REAL mappedNeiCx = 0.0;
-    GPU_OPERATOR_REAL mappedNeiCy = 0.0;
-    GPU_OPERATOR_REAL mappedNeiCz = 0.0;
+    const int boundaryKind = nei >= 0 ? 0 : s.riemannBoundaryKind[f];
+    GPU_OPERATOR_REAL mappedNeiCx = GPU_OPERATOR_R(0.0);
+    GPU_OPERATOR_REAL mappedNeiCy = GPU_OPERATOR_R(0.0);
+    GPU_OPERATOR_REAL mappedNeiCz = GPU_OPERATOR_R(0.0);
     if (nei >= 0)
     {
         periodicMappedCellCentre
@@ -53,11 +54,11 @@ __device__ bool computeRiemannGasFaceFluxDevice
     GasPrimDevice left = reconstructGasCellToFace(s, own, f);
     GasPrimDevice right = left;
 
-    GPU_OPERATOR_REAL massFlux = 0.0;
-    GPU_OPERATOR_REAL momentumFluxX = 0.0;
-    GPU_OPERATOR_REAL momentumFluxY = 0.0;
-    GPU_OPERATOR_REAL momentumFluxZ = 0.0;
-    GPU_OPERATOR_REAL energyFlux = 0.0;
+    GPU_OPERATOR_REAL massFlux = GPU_OPERATOR_R(0.0);
+    GPU_OPERATOR_REAL momentumFluxX = GPU_OPERATOR_R(0.0);
+    GPU_OPERATOR_REAL momentumFluxY = GPU_OPERATOR_R(0.0);
+    GPU_OPERATOR_REAL momentumFluxZ = GPU_OPERATOR_R(0.0);
+    GPU_OPERATOR_REAL energyFlux = GPU_OPERATOR_R(0.0);
 
     if (boundaryKind == 1)
     {
@@ -182,14 +183,14 @@ __device__ bool computeRiemannGasFaceFluxDevice
             asm("trap;");
             return false;
         }
-        GPU_OPERATOR_REAL hllcAdcOmega = 1.0;
+        GPU_OPERATOR_REAL hllcAdcOmega = GPU_OPERATOR_R(1.0);
         if (scheme == ugkpriemann::Scheme::HLLC_ADC)
         {
             hllcAdcOmega = clampRange
             (
-                finiteOr(s.gasHllcAdcSensor[own], 0.0),
-                0.0,
-                1.0
+                finiteOr(s.gasHllcAdcSensor[own], GPU_OPERATOR_R(0.0)),
+                GPU_OPERATOR_R(0.0),
+                GPU_OPERATOR_R(1.0)
             );
             if (nei >= 0)
             {
@@ -198,9 +199,9 @@ __device__ bool computeRiemannGasFaceFluxDevice
                     hllcAdcOmega,
                     clampRange
                     (
-                        finiteOr(s.gasHllcAdcSensor[nei], 0.0),
-                        0.0,
-                        1.0
+                        finiteOr(s.gasHllcAdcSensor[nei], GPU_OPERATOR_R(0.0)),
+                        GPU_OPERATOR_R(0.0),
+                        GPU_OPERATOR_R(1.0)
                     )
                 );
             }
@@ -281,9 +282,9 @@ __device__ bool computeRiemannGasFaceFluxDevice
               + s.Uz[nei]*s.Uz[nei];
             const GPU_OPERATOR_REAL ownerThermalEnthalpy = s.gasCp*s.Tgas[own];
             const GPU_OPERATOR_REAL neighbourThermalEnthalpy = s.gasCp*s.Tgas[nei];
-            const GPU_OPERATOR_REAL ownerKineticEnergy = 0.5*ownerVelocitySquared;
+            const GPU_OPERATOR_REAL ownerKineticEnergy = GPU_OPERATOR_R(0.5)*ownerVelocitySquared;
             const GPU_OPERATOR_REAL neighbourKineticEnergy =
-                0.5*neighbourVelocitySquared;
+                GPU_OPERATOR_R(0.5)*neighbourVelocitySquared;
             const ugkpinterpolation::Vector3
                 ownerThermalEnthalpyGradient
             {
@@ -330,7 +331,7 @@ __device__ bool computeRiemannGasFaceFluxDevice
                 mappedNeiCz - s.Cz[own]
             };
             const GPU_OPERATOR_REAL ownerWeight =
-                clampRange(s.faceWeight[f], 0.0, 1.0);
+                clampRange(s.faceWeight[f], GPU_OPERATOR_R(0.0), GPU_OPERATOR_R(1.0));
             const GPU_OPERATOR_REAL faceThermalEnthalpy =
                 ugkpinterpolation::limitedLinearFaceValue
                 (
@@ -341,7 +342,7 @@ __device__ bool computeRiemannGasFaceFluxDevice
                     centreToCentre,
                     ownerWeight,
                     massFlux,
-                    1.0
+                    GPU_OPERATOR_R(1.0)
                 );
             const GPU_OPERATOR_REAL faceKineticEnergy =
                 ugkpinterpolation::limitedLinearFaceValue
@@ -353,9 +354,9 @@ __device__ bool computeRiemannGasFaceFluxDevice
                     centreToCentre,
                     ownerWeight,
                     massFlux,
-                    1.0
+                    GPU_OPERATOR_R(1.0)
                 );
-            const bool ownerIsUpwind = massFlux >= 0.0;
+            const bool ownerIsUpwind = massFlux >= GPU_OPERATOR_R(0.0);
             const GPU_OPERATOR_REAL upwindSpecificEnergy =
                 (ownerIsUpwind
                   ? ownerThermalEnthalpy
@@ -408,7 +409,7 @@ __device__ bool computeRiemannGasFaceFluxDevice
         if (nei >= 0)
         {
             const GPU_OPERATOR_REAL ownerWeight =
-                clampRange(s.faceWeight[f], 0.0, 1.0);
+                clampRange(s.faceWeight[f], GPU_OPERATOR_R(0.0), GPU_OPERATOR_R(1.0));
             const ugkptransport::SnGradGeometry snGradGeometry =
                 ugkptransport::makeInternalSnGradGeometry
                 (
@@ -566,11 +567,11 @@ __device__ bool computeRiemannGasFaceFluxDevice
             const GPU_OPERATOR_REAL currentNormalGradUz =
                 gradUzX*nx + gradUzY*ny + gradUzZ*nz;
             const GPU_OPERATOR_REAL targetNormalGradUx = velocityFixed
-              ? (boundaryUx - s.Ux[own])*s.deltaCoeffs[f] : 0.0;
+              ? (boundaryUx - s.Ux[own])*s.deltaCoeffs[f] : GPU_OPERATOR_R(0.0);
             const GPU_OPERATOR_REAL targetNormalGradUy = velocityFixed
-              ? (boundaryUy - s.Uy[own])*s.deltaCoeffs[f] : 0.0;
+              ? (boundaryUy - s.Uy[own])*s.deltaCoeffs[f] : GPU_OPERATOR_R(0.0);
             const GPU_OPERATOR_REAL targetNormalGradUz = velocityFixed
-              ? (boundaryUz - s.Uz[own])*s.deltaCoeffs[f] : 0.0;
+              ? (boundaryUz - s.Uz[own])*s.deltaCoeffs[f] : GPU_OPERATOR_R(0.0);
             (void)currentNormalGradUx;
             (void)currentNormalGradUy;
             (void)currentNormalGradUz;
@@ -585,15 +586,15 @@ __device__ bool computeRiemannGasFaceFluxDevice
                 s.riemannBoundaryTFix[f] != 0
               ? (s.riemannBoundaryT[f] - s.Tgas[own])
                *s.deltaCoeffs[f]
-              : 0.0;
+              : GPU_OPERATOR_R(0.0);
             normalTemperatureGradient = targetNormalGradT;
         }
 
         const GPU_OPERATOR_REAL rhoFace =
-            0.5*(left.rho + right.rho);
-        GPU_OPERATOR_REAL muTurbulent = 0.0;
-        GPU_OPERATOR_REAL kTurbulent = 0.0;
-        GPU_OPERATOR_REAL directWallHeatFlux = 0.0;
+            GPU_OPERATOR_R(0.5)*(left.rho + right.rho);
+        GPU_OPERATOR_REAL muTurbulent = GPU_OPERATOR_R(0.0);
+        GPU_OPERATOR_REAL kTurbulent = GPU_OPERATOR_R(0.0);
+        GPU_OPERATOR_REAL directWallHeatFlux = GPU_OPERATOR_R(0.0);
         int directWallHeatFluxActive = 0;
         if constexpr (IncludeTurbulence)
         {
@@ -614,7 +615,9 @@ __device__ bool computeRiemannGasFaceFluxDevice
         const GPU_OPERATOR_REAL muEffective = s.gasMu + muTurbulent;
         const GPU_OPERATOR_REAL kEffective =
             molecularGasConductivity(s) + kTurbulent;
-        if (muEffective > 0.0 || kEffective > 0.0)
+        const GPU_OPERATOR_REAL wallThermalAreaFraction =
+            GPU_GAS_WALL_EXPOSURE(s, f, nei, boundaryKind);
+        if (muEffective > GPU_OPERATOR_R(0.0) || kEffective > GPU_OPERATOR_R(0.0))
         {
             const ugkptransport::Vector3 traction =
                 ugkptransport::openFoamNewtonianTraction
@@ -636,19 +639,19 @@ __device__ bool computeRiemannGasFaceFluxDevice
                     }
                 );
 
-            GPU_OPERATOR_REAL faceUx = 0.5*(left.ux + right.ux);
-            GPU_OPERATOR_REAL faceUy = 0.5*(left.uy + right.uy);
-            GPU_OPERATOR_REAL faceUz = 0.5*(left.uz + right.uz);
+            GPU_OPERATOR_REAL faceUx = GPU_OPERATOR_R(0.5)*(left.ux + right.ux);
+            GPU_OPERATOR_REAL faceUy = GPU_OPERATOR_R(0.5)*(left.uy + right.uy);
+            GPU_OPERATOR_REAL faceUz = GPU_OPERATOR_R(0.5)*(left.uz + right.uz);
             if (nei >= 0)
             {
                 const GPU_OPERATOR_REAL ownerWeight =
-                    clampRange(s.faceWeight[f], 0.0, 1.0);
+                    clampRange(s.faceWeight[f], GPU_OPERATOR_R(0.0), GPU_OPERATOR_R(1.0));
                 faceUx =
-                    ownerWeight*left.ux + (1.0 - ownerWeight)*right.ux;
+                    ownerWeight*left.ux + (GPU_OPERATOR_R(1.0) - ownerWeight)*right.ux;
                 faceUy =
-                    ownerWeight*left.uy + (1.0 - ownerWeight)*right.uy;
+                    ownerWeight*left.uy + (GPU_OPERATOR_R(1.0) - ownerWeight)*right.uy;
                 faceUz =
-                    ownerWeight*left.uz + (1.0 - ownerWeight)*right.uz;
+                    ownerWeight*left.uz + (GPU_OPERATOR_R(1.0) - ownerWeight)*right.uz;
             }
             if
             (
@@ -669,11 +672,14 @@ __device__ bool computeRiemannGasFaceFluxDevice
               + traction.z*faceUz;
             if (directWallHeatFluxActive != 0)
             {
-                energyFlux += directWallHeatFlux;
+                energyFlux +=
+                    wallThermalAreaFraction*directWallHeatFlux;
             }
             else
             {
-                energyFlux -= kEffective*normalTemperatureGradient;
+                energyFlux -=
+                    wallThermalAreaFraction
+                   *kEffective*normalTemperatureGradient;
             }
         }
     }

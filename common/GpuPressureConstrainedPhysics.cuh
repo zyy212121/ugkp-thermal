@@ -314,9 +314,9 @@ __device__ void applyPressureParticleStateDevice
         (CompactParticles ? s.compactPuz[i] : s.puz[i]) = PressureReal(0.0);
         if ((CompactParticles ? s.compactPStuck[i] : s.pStuck[i]) == Foam::gpuThermal::particleWallDeposited)
         {
-            s.puxOld[CompactParticles ? s.sortedParticleIndex[i] : i] = PressureReal(0.0);
-            s.puyOld[CompactParticles ? s.sortedParticleIndex[i] : i] = PressureReal(0.0);
-            s.puzOld[CompactParticles ? s.sortedParticleIndex[i] : i] = PressureReal(0.0);
+            (CompactParticles ? s.compactPuxOld[i] : s.puxOld[i]) = PressureReal(0.0);
+            (CompactParticles ? s.compactPuyOld[i] : s.puyOld[i]) = PressureReal(0.0);
+            (CompactParticles ? s.compactPuzOld[i] : s.puzOld[i]) = PressureReal(0.0);
         }
         return;
     }

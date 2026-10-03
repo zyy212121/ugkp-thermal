@@ -135,9 +135,25 @@ class RiemannWallSourceContract(unittest.TestCase):
             "momentumFluxX -= traction.x;",
             "momentumFluxY -= traction.y;",
             "momentumFluxZ -= traction.z;",
-            "energyFlux -= kEffective*normalTemperatureGradient;",
         ):
             self.assertIn(correction, self.face_flux)
+        if "wallThermalAreaFraction" not in self.face_flux:
+            self.assertIn("energyFlux -= kEffective*normalTemperatureGradient;", self.face_flux)
+            return
+        try:
+            from .source_contract_utils import _include_expansion
+        except ImportError:
+            from source_contract_utils import _include_expansion
+        expanded, trace = _include_expansion(CUDA_SOURCE)
+        definitions = re.findall(r"^\s*#define\s+GPU_GAS_WALL_EXPOSURE[^\n]*", expanded, re.M)
+        self.assertEqual(len(definitions), 1)
+        self.assertRegex(definitions[0], r"\A\s*#define\s+GPU_GAS_WALL_EXPOSURE\(s, f, neighbour, kind\)\s+GPU_OPERATOR_R\(1\.0\)\s*\Z")
+        self.assertNotRegex(self.source, re.compile(r"^\s*#define\s+GPU_GAS_WALL_EXPOSURE", re.M))
+        self.assertRegex(self.face_flux, r"wallThermalAreaFraction\s*=\s*GPU_GAS_WALL_EXPOSURE\(s, f, nei, boundaryKind\)\s*;")
+        self.assertRegex(self.face_flux, r"energyFlux\s*\+=\s*wallThermalAreaFraction\*directWallHeatFlux\s*;")
+        self.assertRegex(self.face_flux, r"energyFlux\s*-=\s*wallThermalAreaFraction\s*\*kEffective\*normalTemperatureGradient\s*;")
+        self.assertRegex(self.face_flux, r"energyFlux\s*-=\s*traction\.x\*faceUx\s*\+\s*traction\.y\*faceUy\s*\+\s*traction\.z\*faceUz\s*;")
+        self.assertEqual(self.face_flux.count("energyFluxArea = energyFlux*area;"), 1)
 
     def test_empty_and_processor_faces_are_skipped_before_flux_work(self) -> None:
         self.assertRegex(

@@ -184,6 +184,9 @@ __device__ void finalizeOneThermalizedStuckParticle
         s.puzOld[i] = releaseUz;
         s.pStuck[i] = 0;
         s.pStuckFaceId[i] = -1;
+        // Contact age must not become unresolved kinetic energy after release.
+        s.pTheta[i] = GPU_OPERATOR_R(0.0);
+        GPU_RESET_CONTACT_AGE(s, i)
         s.pDepositionArea[i] = 0.0f;
         s.pContactDuration[i] = 0.0f;
         s.pContactMaximumArea[i] = 0.0f;

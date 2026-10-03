@@ -921,6 +921,34 @@ extern "C" int ugkwpGpuResidentStrictDownloadGasBoundaryFields
     return 0;
 }
 
+extern "C" int ugkwpGpuResidentStrictUploadParticleSavedVelocity
+(void* handle, int count, const double* x, const double* y, const double* z)
+{
+    ClientState* s=static_cast<ClientState*>(handle);
+    if (!s || count<0 || count>s->particleCapacity || (count && (!x || !y || !z)))
+        return fail("invalid saved velocity upload");
+    std::uint64_t bytes=sizeof(CountArgs);
+    if (!addArrays(bytes,count,sizeof(double),3)
+        || !startRequest(s,Op::uploadParticleSavedVelocity,bytes)
+        || !sendObject(s->fd,CountArgs{count}) || !sendArray(s->fd,x,count)
+        || !sendArray(s->fd,y,count) || !sendArray(s->fd,z,count)) return -1;
+    return finishNoPayload(s);
+}
+extern "C" int ugkwpGpuResidentStrictDownloadParticleSavedVelocity
+(void* handle, int count, double* x, double* y, double* z)
+{
+    ClientState* s=static_cast<ClientState*>(handle);
+    if (!s || count<0 || count>s->particleCapacity || (count && (!x || !y || !z)))
+        return fail("invalid saved velocity download");
+    if (!startRequest(s,Op::downloadParticleSavedVelocity,sizeof(CountArgs))
+        || !sendObject(s->fd,CountArgs{count})) return -1;
+    std::uint64_t bytes=0,expected=0;addArrays(expected,count,sizeof(double),3);
+    const int status=receiveResponse(s,bytes,true,expected);
+    if (status!=0) return status;
+    return receiveArray(s->fd,x,count) && receiveArray(s->fd,y,count)
+        && receiveArray(s->fd,z,count) ? 0 : -1;
+}
+
 extern "C" int ugkwpGpuResidentStrictUploadParticleRestartMirror
 (
     void* handle, int count, const double* px, const double* py,

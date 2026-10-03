@@ -1,0 +1,1238 @@
+{
+  "schema": 1,
+  "inventory_roots": [
+    "common",
+    "applications/gasUGKP"
+  ],
+  "ownership": {
+    "common": "ugkp-thermal",
+    "applications/gasUGKP": "gpu-riemann-gkp-main"
+  },
+  "mirrors": [
+    {
+      "path": "applications/gasUGKP/.gitattributes",
+      "upstream": "gpu-riemann-gkp-main",
+      "downstream": "ugkp-thermal"
+    },
+    {
+      "path": "applications/gasUGKP/.gitignore",
+      "upstream": "gpu-riemann-gkp-main",
+      "downstream": "ugkp-thermal"
+    },
+    {
+      "path": "applications/gasUGKP/Make/files",
+      "upstream": "gpu-riemann-gkp-main",
+      "downstream": "ugkp-thermal"
+    },
+    {
+      "path": "applications/gasUGKP/Make/options",
+      "upstream": "gpu-riemann-gkp-main",
+      "downstream": "ugkp-thermal"
+    },
+    {
+      "path": "applications/gasUGKP/createFields.H",
+      "upstream": "gpu-riemann-gkp-main",
+      "downstream": "ugkp-thermal"
+    },
+    {
+      "path": "applications/gasUGKP/devtools/tests/sst_algebra_test.cpp",
+      "upstream": "gpu-riemann-gkp-main",
+      "downstream": "ugkp-thermal"
+    },
+    {
+      "path": "applications/gasUGKP/devtools/tests/test_courant_update_contract.py",
+      "upstream": "gpu-riemann-gkp-main",
+      "downstream": "ugkp-thermal"
+    },
+    {
+      "path": "applications/gasUGKP/devtools/tests/test_sst_algebra.py",
+      "upstream": "gpu-riemann-gkp-main",
+      "downstream": "ugkp-thermal"
+    },
+    {
+      "path": "applications/gasUGKP/devtools/tests/test_turbulence_port_contract.py",
+      "upstream": "gpu-riemann-gkp-main",
+      "downstream": "ugkp-thermal"
+    },
+    {
+      "path": "applications/gasUGKP/devtools/tests/test_wale_compressible_invariant_contract.py",
+      "upstream": "gpu-riemann-gkp-main",
+      "downstream": "ugkp-thermal"
+    },
+    {
+      "path": "applications/gasUGKP/diluteUgkwpFoam.C",
+      "upstream": "gpu-riemann-gkp-main",
+      "downstream": "ugkp-thermal"
+    },
+    {
+      "path": "applications/gasUGKP/gpu/GpuBackendApi.H",
+      "upstream": "gpu-riemann-gkp-main",
+      "downstream": "ugkp-thermal"
+    },
+    {
+      "path": "applications/gasUGKP/gpu/GpuBackendClient.C",
+      "upstream": "gpu-riemann-gkp-main",
+      "downstream": "ugkp-thermal"
+    },
+    {
+      "path": "applications/gasUGKP/gpu/GpuBackendProtocol.H",
+      "upstream": "gpu-riemann-gkp-main",
+      "downstream": "ugkp-thermal"
+    },
+    {
+      "path": "applications/gasUGKP/gpu/GpuBoundarySchedule.H",
+      "upstream": "gpu-riemann-gkp-main",
+      "downstream": "ugkp-thermal"
+    },
+    {
+      "path": "applications/gasUGKP/gpu/GpuCouplingMath.H",
+      "upstream": "gpu-riemann-gkp-main",
+      "downstream": "ugkp-thermal"
+    },
+    {
+      "path": "applications/gasUGKP/gpu/GpuDragModel.H",
+      "upstream": "gpu-riemann-gkp-main",
+      "downstream": "ugkp-thermal"
+    },
+    {
+      "path": "applications/gasUGKP/gpu/GpuGasBoundarySpec.H",
+      "upstream": "gpu-riemann-gkp-main",
+      "downstream": "ugkp-thermal"
+    },
+    {
+      "path": "applications/gasUGKP/gpu/GpuResidentStrict.H",
+      "upstream": "gpu-riemann-gkp-main",
+      "downstream": "ugkp-thermal"
+    },
+    {
+      "path": "applications/gasUGKP/private_backend/CharacteristicMuscl.cuh",
+      "upstream": "gpu-riemann-gkp-main",
+      "downstream": "ugkp-thermal"
+    },
+    {
+      "path": "applications/gasUGKP/private_backend/FullSecondOrderGks.cuh",
+      "upstream": "gpu-riemann-gkp-main",
+      "downstream": "ugkp-thermal"
+    },
+    {
+      "path": "applications/gasUGKP/private_backend/GpuBackendServer.C",
+      "upstream": "gpu-riemann-gkp-main",
+      "downstream": "ugkp-thermal"
+    },
+    {
+      "path": "applications/gasUGKP/private_backend/GpuDragAlgebra.cuh",
+      "upstream": "gpu-riemann-gkp-main",
+      "downstream": "ugkp-thermal"
+    },
+    {
+      "path": "applications/gasUGKP/private_backend/GpuDragModels.cuh",
+      "upstream": "gpu-riemann-gkp-main",
+      "downstream": "ugkp-thermal"
+    },
+    {
+      "path": "applications/gasUGKP/private_backend/GpuResidentStrict.cu",
+      "upstream": "gpu-riemann-gkp-main",
+      "downstream": "ugkp-thermal"
+    },
+    {
+      "path": "applications/gasUGKP/private_backend/GpuSstAlgebra.cuh",
+      "upstream": "gpu-riemann-gkp-main",
+      "downstream": "ugkp-thermal"
+    },
+    {
+      "path": "applications/gasUGKP/private_backend/OpenFoamLimitedLinear.cuh",
+      "upstream": "gpu-riemann-gkp-main",
+      "downstream": "ugkp-thermal"
+    },
+    {
+      "path": "applications/gasUGKP/private_backend/OpenFoamViscousFlux.cuh",
+      "upstream": "gpu-riemann-gkp-main",
+      "downstream": "ugkp-thermal"
+    },
+    {
+      "path": "applications/gasUGKP/private_backend/OpenFoamWallFunctions.cuh",
+      "upstream": "gpu-riemann-gkp-main",
+      "downstream": "ugkp-thermal"
+    },
+    {
+      "path": "applications/gasUGKP/private_backend/RiemannBoundaryState.cuh",
+      "upstream": "gpu-riemann-gkp-main",
+      "downstream": "ugkp-thermal"
+    },
+    {
+      "path": "applications/gasUGKP/private_backend/RiemannGasFlux.cuh",
+      "upstream": "gpu-riemann-gkp-main",
+      "downstream": "ugkp-thermal"
+    },
+    {
+      "path": "applications/gasUGKP/private_backend/build_private_backend.sh",
+      "upstream": "gpu-riemann-gkp-main",
+      "downstream": "ugkp-thermal"
+    },
+    {
+      "path": "applications/gasUGKP/private_backend/tests/characteristic_muscl_host_test.cu",
+      "upstream": "gpu-riemann-gkp-main",
+      "downstream": "ugkp-thermal"
+    },
+    {
+      "path": "applications/gasUGKP/private_backend/tests/full_second_order_gks_host_test.cu",
+      "upstream": "gpu-riemann-gkp-main",
+      "downstream": "ugkp-thermal"
+    },
+    {
+      "path": "applications/gasUGKP/private_backend/tests/openfoam_limited_linear_host_test.cu",
+      "upstream": "gpu-riemann-gkp-main",
+      "downstream": "ugkp-thermal"
+    },
+    {
+      "path": "applications/gasUGKP/private_backend/tests/openfoam_viscous_flux_host_test.cu",
+      "upstream": "gpu-riemann-gkp-main",
+      "downstream": "ugkp-thermal"
+    },
+    {
+      "path": "applications/gasUGKP/private_backend/tests/riemann_boundary_state_host_test.cu",
+      "upstream": "gpu-riemann-gkp-main",
+      "downstream": "ugkp-thermal"
+    },
+    {
+      "path": "applications/gasUGKP/private_backend/tests/riemann_gas_flux_host_test.cu",
+      "upstream": "gpu-riemann-gkp-main",
+      "downstream": "ugkp-thermal"
+    },
+    {
+      "path": "applications/gasUGKP/private_backend/tests/run_characteristic_muscl_host_test.sh",
+      "upstream": "gpu-riemann-gkp-main",
+      "downstream": "ugkp-thermal"
+    },
+    {
+      "path": "applications/gasUGKP/private_backend/tests/run_full_gks_host_test.sh",
+      "upstream": "gpu-riemann-gkp-main",
+      "downstream": "ugkp-thermal"
+    },
+    {
+      "path": "applications/gasUGKP/private_backend/tests/run_riemann_boundary_state_host_test.sh",
+      "upstream": "gpu-riemann-gkp-main",
+      "downstream": "ugkp-thermal"
+    },
+    {
+      "path": "applications/gasUGKP/private_backend/tests/run_riemann_gas_flux_host_test.sh",
+      "upstream": "gpu-riemann-gkp-main",
+      "downstream": "ugkp-thermal"
+    },
+    {
+      "path": "applications/gasUGKP/pytest.ini",
+      "upstream": "gpu-riemann-gkp-main",
+      "downstream": "ugkp-thermal"
+    },
+    {
+      "path": "applications/gasUGKP/readGpuGasConfiguration.H",
+      "upstream": "gpu-riemann-gkp-main",
+      "downstream": "ugkp-thermal"
+    },
+    {
+      "path": "applications/gasUGKP/tests/common_algebra_equivalence_test.cpp",
+      "upstream": "gpu-riemann-gkp-main",
+      "downstream": "ugkp-thermal"
+    },
+    {
+      "path": "applications/gasUGKP/tests/gks_reference.py",
+      "upstream": "gpu-riemann-gkp-main",
+      "downstream": "ugkp-thermal"
+    },
+    {
+      "path": "applications/gasUGKP/tests/test_boundary_ce_gradient_contract.py",
+      "upstream": "gpu-riemann-gkp-main",
+      "downstream": "ugkp-thermal"
+    },
+    {
+      "path": "applications/gasUGKP/tests/test_boundary_eos_contract.py",
+      "upstream": "gpu-riemann-gkp-main",
+      "downstream": "ugkp-thermal"
+    },
+    {
+      "path": "applications/gasUGKP/tests/test_collision_sampling_contract.py",
+      "upstream": "gpu-riemann-gkp-main",
+      "downstream": "ugkp-thermal"
+    },
+    {
+      "path": "applications/gasUGKP/tests/test_common_algebra_equivalence.py",
+      "upstream": "gpu-riemann-gkp-main",
+      "downstream": "ugkp-thermal"
+    },
+    {
+      "path": "applications/gasUGKP/tests/test_cpcst_compaction_dpre_contract.py",
+      "upstream": "gpu-riemann-gkp-main",
+      "downstream": "ugkp-thermal"
+    },
+    {
+      "path": "applications/gasUGKP/tests/test_cpcst_warp_reduction_contract.py",
+      "upstream": "gpu-riemann-gkp-main",
+      "downstream": "ugkp-thermal"
+    },
+    {
+      "path": "applications/gasUGKP/tests/test_development_probe_repeated_stage_contract.py",
+      "upstream": "gpu-riemann-gkp-main",
+      "downstream": "ugkp-thermal"
+    },
+    {
+      "path": "applications/gasUGKP/tests/test_dynamic_block_contract.py",
+      "upstream": "gpu-riemann-gkp-main",
+      "downstream": "ugkp-thermal"
+    },
+    {
+      "path": "applications/gasUGKP/tests/test_epsg_prev_restoration.py",
+      "upstream": "gpu-riemann-gkp-main",
+      "downstream": "ugkp-thermal"
+    },
+    {
+      "path": "applications/gasUGKP/tests/test_example_release_contract.py",
+      "upstream": "gpu-riemann-gkp-main",
+      "downstream": "ugkp-thermal"
+    },
+    {
+      "path": "applications/gasUGKP/tests/test_full_gks_math.py",
+      "upstream": "gpu-riemann-gkp-main",
+      "downstream": "ugkp-thermal"
+    },
+    {
+      "path": "applications/gasUGKP/tests/test_gas_solid_coupling_contract.py",
+      "upstream": "gpu-riemann-gkp-main",
+      "downstream": "ugkp-thermal"
+    },
+    {
+      "path": "applications/gasUGKP/tests/test_gks_les_contract.py",
+      "upstream": "gpu-riemann-gkp-main",
+      "downstream": "ugkp-thermal"
+    },
+    {
+      "path": "applications/gasUGKP/tests/test_gpu_boundary_schedule_contract.py",
+      "upstream": "gpu-riemann-gkp-main",
+      "downstream": "ugkp-thermal"
+    },
+    {
+      "path": "applications/gasUGKP/tests/test_gravity_drag_contract.py",
+      "upstream": "gpu-riemann-gkp-main",
+      "downstream": "ugkp-thermal"
+    },
+    {
+      "path": "applications/gasUGKP/tests/test_identity_contract.py",
+      "upstream": "gpu-riemann-gkp-main",
+      "downstream": "ugkp-thermal"
+    },
+    {
+      "path": "applications/gasUGKP/tests/test_identity_contract_2.py",
+      "upstream": "gpu-riemann-gkp-main",
+      "downstream": "ugkp-thermal"
+    },
+    {
+      "path": "applications/gasUGKP/tests/test_interface_contract.py",
+      "upstream": "gpu-riemann-gkp-main",
+      "downstream": "ugkp-thermal"
+    },
+    {
+      "path": "applications/gasUGKP/tests/test_no_wall_retention_contract.py",
+      "upstream": "gpu-riemann-gkp-main",
+      "downstream": "ugkp-thermal"
+    },
+    {
+      "path": "applications/gasUGKP/tests/test_numerics_config.py",
+      "upstream": "gpu-riemann-gkp-main",
+      "downstream": "ugkp-thermal"
+    },
+    {
+      "path": "applications/gasUGKP/tests/test_openfoam_boundary_configuration_contract.py",
+      "upstream": "gpu-riemann-gkp-main",
+      "downstream": "ugkp-thermal"
+    },
+    {
+      "path": "applications/gasUGKP/tests/test_openfoam_case_configuration_contract.py",
+      "upstream": "gpu-riemann-gkp-main",
+      "downstream": "ugkp-thermal"
+    },
+    {
+      "path": "applications/gasUGKP/tests/test_openfoam_energy_interpolation_contract.py",
+      "upstream": "gpu-riemann-gkp-main",
+      "downstream": "ugkp-thermal"
+    },
+    {
+      "path": "applications/gasUGKP/tests/test_openfoam_viscous_flux_contract.py",
+      "upstream": "gpu-riemann-gkp-main",
+      "downstream": "ugkp-thermal"
+    },
+    {
+      "path": "applications/gasUGKP/tests/test_particle_binary_restart_contract.py",
+      "upstream": "gpu-riemann-gkp-main",
+      "downstream": "ugkp-thermal"
+    },
+    {
+      "path": "applications/gasUGKP/tests/test_population_diagnostics_contract.py",
+      "upstream": "gpu-riemann-gkp-main",
+      "downstream": "ugkp-thermal"
+    },
+    {
+      "path": "applications/gasUGKP/tests/test_pure_gas_dispatch_contract.py",
+      "upstream": "gpu-riemann-gkp-main",
+      "downstream": "ugkp-thermal"
+    },
+    {
+      "path": "applications/gasUGKP/tests/test_refine_particle_cells.py",
+      "upstream": "gpu-riemann-gkp-main",
+      "downstream": "ugkp-thermal"
+    },
+    {
+      "path": "applications/gasUGKP/tests/test_segmented_task_queue_family_contract.py",
+      "upstream": "gpu-riemann-gkp-main",
+      "downstream": "ugkp-thermal"
+    },
+    {
+      "path": "applications/gasUGKP/tests/test_serial_translational_cyclic_contract.py",
+      "upstream": "gpu-riemann-gkp-main",
+      "downstream": "ugkp-thermal"
+    },
+    {
+      "path": "applications/gasUGKP/tests/test_split_pre_runtime_contract.py",
+      "upstream": "gpu-riemann-gkp-main",
+      "downstream": "ugkp-thermal"
+    },
+    {
+      "path": "applications/gasUGKP/tests/test_tau_wave_contract.py",
+      "upstream": "gpu-riemann-gkp-main",
+      "downstream": "ugkp-thermal"
+    },
+    {
+      "path": "applications/gasUGKP/tests/test_version_neutral_case_controls.py",
+      "upstream": "gpu-riemann-gkp-main",
+      "downstream": "ugkp-thermal"
+    },
+    {
+      "path": "applications/gasUGKP/tests/test_weighted_collision_conservation.py",
+      "upstream": "gpu-riemann-gkp-main",
+      "downstream": "ugkp-thermal"
+    },
+    {
+      "path": "applications/gasUGKP/tools/build_public_frontend.sh",
+      "upstream": "gpu-riemann-gkp-main",
+      "downstream": "ugkp-thermal"
+    },
+    {
+      "path": "applications/gasUGKP/tools/refine_particle_cells.py",
+      "upstream": "gpu-riemann-gkp-main",
+      "downstream": "ugkp-thermal"
+    },
+    {
+      "path": "applications/gasUGKP/tools/ugkp_particle_restart.py",
+      "upstream": "gpu-riemann-gkp-main",
+      "downstream": "ugkp-thermal"
+    },
+    {
+      "path": "common/CsrPersistentQueue.cuh",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/GpuCellDragRate.cuh",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/GpuCellDragUpdate.inl",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/GpuCellLocalGather.cuh",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/GpuCellLocalPrimary.cuh",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/GpuCellLocalThermalFields.cuh",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/GpuCellNeighbour.cuh",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/GpuCollisionPoolAtomic.cuh",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/GpuCollisionPoolCell.cuh",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/GpuCollisionPoolCorrection.cuh",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/GpuCollisionPoolParticle.cuh",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/GpuCollisionPoolRange.cuh",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/GpuCollisionPoolSampling.cuh",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/GpuCollisionPoolSplitCell.cuh",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/GpuCollisionPoolSplitParticle.cuh",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/GpuCollisionPoolTarget.cuh",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/GpuCollisionProbability.cuh",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/GpuContactAgeStorage.cuh",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/GpuDevelopmentAdvanceProbe.cuh",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/GpuDevelopmentProbeInit.cuh",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/GpuDevelopmentThermalProbeSample.cuh",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/GpuFaceGeometry.cuh",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/GpuGasAdvance.cuh",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/GpuGasHostPolicy.cuh",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/GpuGravityUpdate.cuh",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/GpuHardwareReductionTile.cuh",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/GpuInjectionDirectory.cuh",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/GpuLaunchOptions.cuh",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/GpuMaterialEnthalpyMoment.cuh",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/GpuMechanicalRecovery.cuh",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/GpuMobilePackingHost.cuh",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/GpuMomentPipeline.cuh",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/GpuMomentRecovery.cuh",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/GpuOperatorContract.cuh",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/GpuParticleBoundaryModel.H",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/GpuParticleBufferCommit.cuh",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/GpuParticleDirectoryHost.cuh",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/GpuParticleFields.cuh",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/GpuParticleGasHeatRelaxation.cuh",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/GpuParticleLaunchConfiguration.cuh",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/GpuParticleMomentContribution.inl",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/GpuParticleMomentRange.inl",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/GpuParticleMoments.cuh",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/GpuParticlePayload.cuh",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/GpuParticleRestartFields.inl",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/GpuParticleRestartTheta.H",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/GpuParticleTransport.cuh",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/GpuPoolMomentOperations.cuh",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/GpuPoolParticleContribution.inl",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/GpuPoolSelection.cuh",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/GpuPrecisionTypes.H",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/GpuPressureAnalyticAdapter.cuh",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/GpuPressureAnalyticLaunch.cuh",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/GpuPressureCellTraversal.cuh",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/GpuPressureFlatLayout.cuh",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/GpuPressureKickAccumulation.cuh",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/GpuPressureLimiter.cuh",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/GpuPressureParticleUpdate.cuh",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/GpuPressurePipeline.cuh",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/GpuReductionTaskCount.cuh",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/GpuReductionTaskMaterialize.cuh",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/GpuReductionTaskPipeline.cuh",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/GpuReductionTaskWrite.cuh",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/GpuSegmentedMomentWorkers.cuh",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/GpuSegmentedPoolWorkers.cuh",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/GpuToolB1.cuh",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/GpuToolB1Launch.cuh",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/GpuWallEnergySink.cuh",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/ParticleFieldManifest.json",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/gasNumerics/CharacteristicMuscl.cuh",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/gasNumerics/FullSecondOrderGks.cuh",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/gasNumerics/GpuDragAlgebra.cuh",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/gasNumerics/GpuLesAlgebra.cuh",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/gasNumerics/GpuPackingProjectionAlgebra.cuh",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/gasNumerics/GpuPackingProjectionCooperative.cuh",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/gasNumerics/GpuParticlePhysicsAlgebra.cuh",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/gasNumerics/GpuSstAlgebra.cuh",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/gasNumerics/OpenFoamLimitedLinear.cuh",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/gasNumerics/OpenFoamViscousFlux.cuh",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/gasNumerics/OpenFoamWallFunctions.cuh",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/gasNumerics/RiemannBoundaryState.cuh",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/gasNumerics/RiemannGasFlux.cuh",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/gpu/GpuBoundarySchedule.H",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/gpu/GpuCouplingMath.H",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/gpu/GpuGasBoundarySpec.H",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/operators/ParticleDragMomentum.inl",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/operators/accumulateCsrSplitLogicalPoolTask.cuh",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/operators/accumulateMobilePackingMomentsKernel.cuh",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/operators/accumulateParticleMomentsAtomicKernel.cuh",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/operators/applyEulerianParticleMaterialHeatKernel.cuh",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/operators/applyGasVolumeFractionSourceKernel.cuh",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/operators/clampMin.cuh",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/operators/clampRange.cuh",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/operators/clearMobilePackingActivityCountsKernel.cuh",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/operators/clearParticleCellBinsKernel.cuh",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/operators/clearParticleMomentsAndCountsAtomicKernel.cuh",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/operators/clearParticleMomentsKernel.cuh",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/operators/clearSolidCell.cuh",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/operators/computeCollisionalPressureKernel.cuh",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/operators/computeGasEddyViscosityKernel.cuh",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/operators/computeGasFluxPositivityScaleKernel.cuh",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/operators/computeGasGradientLimiterKernel.cuh",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/operators/computeGasHllcAdcSensorKernel.cuh",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/operators/computeGasInternalFaceFluxKernel.cuh",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/operators/computeGasPrimitiveGradientsKernel.cuh",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/operators/computePressureGradientKernel.cuh",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/operators/computeRiemannGasFaceFluxDevice.cuh",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/operators/computeSstFaceFluxKernel.cuh",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/operators/computeSstGradientsKernel.cuh",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/operators/countParticlesByCellKernel.cuh",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/operators/gasFaceSubgridTransportProperties.cuh",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/operators/gatherSelectedParticlesKernel.cuh",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/operators/granularCollisionTauFromCellDevice.cuh",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/operators/injectBoundaryParticlesKernel.cuh",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/operators/linearScheduledValueDevice.cuh",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/operators/makeGasPrimDevice.cuh",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/operators/mobilePackingParticleEligible.cuh",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/operators/normalDevice.cuh",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/operators/normalizeMobilePackingMomentsKernel.cuh",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/operators/normalizeParticleMomentsAtomicKernel.cuh",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/operators/pointInsideCell.cuh",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/operators/prepareMobilePackingProjectionKernel.cuh",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/operators/publishHeavyReductionDecisionKernel.cuh",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/operators/publishScheduledInletConfigurationKernel.cuh",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/operators/recoverPrimitivesKernel.cuh",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/operators/samplePoissonPoolParticlesKernel.cuh",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/operators/scheduledSolidVolumeFractionDevice.cuh",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/operators/snapshotParticleGasCouplingStateKernel.cuh",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/operators/solidEpsFromMomentDevice.cuh",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/operators/solidPressureFromMomentsDevice.cuh",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/operators/sstVelocityInvariants.cuh",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/operators/swapParticlePointerDevice.cuh",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/operators/trackParticlesLocalFaceWalkKernel.cuh",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/operators/uniform01Device.cuh",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/operators/updateBarthLimiter.cuh",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/operators/updateDynamicHeavyPolicyKernel.cuh",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/operators/updateLegacyGasBoundaryMirrorKernel.cuh",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/operators/updateWaveTransmissivePressureBoundaryKernel.cuh",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/operators/validateDevelopmentProbeCellsKernel.cuh",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/operators/validateDevelopmentProbeParticlesKernel.cuh",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "tests/fixtures/shared_operators/schema7_wire_golden.json",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "tools/managed_mirrors.py",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "tools/operator_policy_contract_test.py",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "tools/particle_field_contract.py",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    }
+  ],
+  "local_only": {
+    "gpu-riemann-gkp-main": [
+      "applications/gasUGKP/tests/source_contract_utils.py",
+      "applications/gasUGKP/tests/test_common_gas_numerics_source_contract.py",
+      "applications/gasUGKP/tests/test_jamming_pressure_contract.py",
+      "applications/gasUGKP/tests/test_particle_cell_path_runtime_contract.py",
+      "applications/gasUGKP/tests/test_s1_kernel_resource_contract.py",
+      "applications/gasUGKP/tests/test_source_hash_contract.py",
+      "applications/gasUGKP/tests/test_strict_csr_level_contract.py",
+      "applications/gasUGKP/tests/test_unified_scheduling_tools_contract.py",
+      "applications/gasUGKP/tests/test_wall_gks_contract.py",
+      "common/GpuResearchHierarchy.H",
+      "common/GpuSchedulingConfiguration.H",
+      "tools/managed_mirrors.json"
+    ],
+    "ugkp-thermal": [
+      "applications/gasUGKP/tests/source_contract_utils.py",
+      "applications/gasUGKP/tests/test_common_gas_numerics_source_contract.py",
+      "applications/gasUGKP/tests/test_jamming_pressure_contract.py",
+      "applications/gasUGKP/tests/test_particle_cell_path_runtime_contract.py",
+      "applications/gasUGKP/tests/test_s1_kernel_resource_contract.py",
+      "applications/gasUGKP/tests/test_source_hash_contract.py",
+      "applications/gasUGKP/tests/test_strict_csr_level_contract.py",
+      "applications/gasUGKP/tests/test_thermal_segmented_queue_contract.py",
+      "applications/gasUGKP/tests/test_unified_scheduling_tools_contract.py",
+      "applications/gasUGKP/tests/test_wall_gks_contract.py",
+      "common/ContactCapabilityValidation.h",
+      "common/GpuParticleSavedVelocityRestart.inl",
+      "common/GpuPressureConstrainedAdapter.cuh",
+      "common/GpuPressureConstrainedLaunch.cuh",
+      "common/GpuPressureConstrainedPhysics.cuh",
+      "common/GpuPressureUnsortedConstrained.cuh",
+      "common/GpuRadiationContributions.cuh",
+      "common/GpuSchedulingConfiguration.H",
+      "common/GpuThermalParticleFinalization.cuh",
+      "common/GpuThermalParticleRelaxation.cuh",
+      "common/GpuThermalParticleRestartCodec.H",
+      "common/gasNumerics/GpuDragModelsFSHCHT.cuh",
+      "common/operators/FiniteContactRelaxation.inl",
+      "common/operators/accumulateParticleWallRepresentedContactAreaKernel.cuh",
+      "common/operators/accumulatePoissonPoolParticlesByCellKernel.cuh",
+      "common/operators/applyCollisionalPressureProjectionKernel.cuh",
+      "common/operators/applyEulerianGasSolidDragKernelStatic.cuh",
+      "common/operators/applyGasGravityKernel.cuh",
+      "common/operators/clearColdWallParticleState.cuh",
+      "common/operators/clearPoissonThermalPoolKernel.cuh",
+      "common/operators/clearSplitPreInjectionBinsKernel.cuh",
+      "common/operators/correctOnePoissonThermalizedParticlePath.cuh",
+      "common/operators/countCsrReductionTasksKernel.cuh",
+      "common/operators/dragInverseTimeDevice.cuh",
+      "common/operators/finalizeOneThermalizedParticlePath.cuh",
+      "common/operators/maximumDirectoryOccupancyKernel.cuh",
+      "common/operators/particleSpecificHeatDevice.cuh",
+      "common/operators/particleTemperatureFromSpecificEnthalpyDevice.cuh",
+      "common/operators/preparePoissonPoolSamplingKernel.cuh",
+      "common/operators/rebuildWallBoundParticleDirectoryKernel.cuh",
+      "common/operators/relaxMobileParticlesToResidentGasKernelStatic.cuh",
+      "common/operators/riemannFacePrimitiveForGradient.cuh",
+      "common/operators/solidRecoveryFromParticleMomentsCell.cuh",
+      "common/thermal_particle_restart_schema7.py",
+      "common/wall/GpuAluminaProperties.H",
+      "common/wall/GpuCapillaryDetachment.H",
+      "common/wall/GpuColdWall1DAlgebra.cuh",
+      "common/wall/GpuColdWall1DDevice.cuh",
+      "common/wall/GpuColdWall1DPublish.inl",
+      "common/wall/GpuColdWall2DDevice.cuh",
+      "common/wall/GpuColdWall2DSolidification.H",
+      "common/wall/GpuColdWallSolidification.H",
+      "common/wall/GpuFiniteWallContact.H",
+      "common/wall/GpuParticleWallContactHeat.H",
+      "common/wall/GpuSommerfeldSticking.H",
+      "common/wall/GpuWallContactDirectory.cuh",
+      "common/wall/GpuWallInterfaceHeat.H",
+      "tools/managed_mirrors.json"
+    ]
+  },
+  "local_differences": {
+    "applications/gasUGKP/tests/source_contract_utils.py": "Repository-specific test paths/expectations: retained as independent inputs; not production gas source.",
+    "applications/gasUGKP/tests/test_common_gas_numerics_source_contract.py": "Repository-specific test paths/expectations: retained as independent inputs; not production gas source.",
+    "applications/gasUGKP/tests/test_jamming_pressure_contract.py": "Repository-specific test paths/expectations: retained as independent inputs; not production gas source.",
+    "applications/gasUGKP/tests/test_s1_kernel_resource_contract.py": "Repository-specific test paths/expectations: retained as independent inputs; not production gas source.",
+    "applications/gasUGKP/tests/test_source_hash_contract.py": "Repository-specific test paths/expectations: retained as independent inputs; not production gas source.",
+    "applications/gasUGKP/tests/test_strict_csr_level_contract.py": "Repository-specific test paths/expectations: retained as independent inputs; not production gas source.",
+    "applications/gasUGKP/tests/test_unified_scheduling_tools_contract.py": "Repository-specific test paths/expectations: retained as independent inputs; not production gas source.",
+    "applications/gasUGKP/tests/test_wall_gks_contract.py": "Repository-specific test paths/expectations: retained as independent inputs; not production gas source.",
+    "common/GpuSchedulingConfiguration.H": "Package-specific public scheduling contract: thermal accepts only L0/L1/L2; fluid retains research variants. Never synchronize this entry header.",
+    "common/GpuResearchHierarchy.H": "Fluid-only research decoder; absent from thermal by user request on 2026-10-03.",
+    "tools/managed_mirrors.json": "Package-specific thermal formal-only interface contract; fluid unchanged.",
+    "applications/gasUGKP/tests/test_particle_cell_path_runtime_contract.py": "Package-specific thermal formal-only interface contract; fluid unchanged."
+  }
+}

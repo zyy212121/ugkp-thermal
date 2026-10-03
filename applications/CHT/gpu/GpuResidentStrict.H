@@ -20,9 +20,11 @@
 
 #ifdef UGKWP_USE_CUDA
 #include "GpuBackendApi.H"
+extern "C" int ugkwpGpuSelectedPrecision();
 #endif
 
 #include <cmath>
+#include <cstdio>
 #include <cstdint>
 #include <fstream>
 #include <limits>
@@ -1542,6 +1544,7 @@ protected:
                 if
                 (
                     (restartHeader == gpuFshRestart::formatName || restartHeader == gpuFshRestart::schema5FormatName)
+                 || restartHeader == gpuFshRestart::schema7FormatName
                  || restartHeader == gpuFshRestart::schema4FormatName
                  || restartHeader == gpuFshRestart::schema3FormatName
                  || restartHeader == gpuFshRestart::schema2FormatName
@@ -2289,6 +2292,7 @@ public:
         scalarField px(nParticles);
         scalarField py(nParticles);
         scalarField pz(nParticles);
+        scalarField puxOld(nParticles,0.0), puyOld(nParticles,0.0), puzOld(nParticles,0.0);
         scalarField pux(nParticles);
         scalarField puy(nParticles);
         scalarField puz(nParticles);
@@ -2372,8 +2376,11 @@ public:
             );
         }
 
+        check(ugkwpGpuResidentStrictDownloadParticleSavedVelocity(handle_,nParticles,
+            puxOld.begin(),puyOld.begin(),puzOld.begin()),"download restart saved velocities");
         const fileName restartFile = particleRestartFile(runTime);
-        std::ofstream os(restartFile.c_str(), std::ios::binary);
+        const fileName stagingFile = restartFile + ".tmp";
+        std::ofstream os(stagingFile.c_str(), std::ios::binary);
         if (!os.good())
         {
             FatalErrorInFunction
@@ -2404,10 +2411,14 @@ public:
             , pCold2DNodeSpecificEnthalpy.cdata()
             , pCold2DRingContactAge.cdata()
             , pCold2DFrozenArea.cdata()
+            , puxOld.cdata(), puyOld.cdata(), puzOld.cdata()
         };
         try
         {
-            gpuFshRestart::writeV6(os, restartView);
+            gpuFshRestart::writeV7(os, restartView);
+            os.close();
+            if (!os.good() || std::rename(stagingFile.c_str(),restartFile.c_str())!=0)
+                throw std::runtime_error("failed publishing complete particle restart");
         }
         catch (const std::exception& error)
         {
@@ -2893,6 +2904,7 @@ protected:
         bool weightedFshV3 = false;
         bool weightedFshV4 = false;
         bool weightedFshV5 = false;
+        bool weightedV7 = false;
         bool version3 = false;
         bool version2 = false;
         if (!(is >> restartHeader))
@@ -2901,7 +2913,13 @@ protected:
                 << "Invalid GPU resident particle restart mirror: "
                 << restartFile << exit(FatalError);
         }
-        if ((restartHeader == gpuFshRestart::formatName || restartHeader == gpuFshRestart::schema5FormatName))
+        if (restartHeader == gpuFshRestart::schema7FormatName)
+        {
+            weightedV7=true;
+            if (!(is >> nParticles >> maximumChunk))
+                FatalErrorInFunction << "Invalid schema7 restart header" << exit(FatalError);
+        }
+        else if ((restartHeader == gpuFshRestart::formatName || restartHeader == gpuFshRestart::schema5FormatName))
         {
             weightedFshV5 = true;
             if (!(is >> nParticles >> maximumChunk))
@@ -2991,6 +3009,7 @@ protected:
         scalarField px(nParticles);
         scalarField py(nParticles);
         scalarField pz(nParticles);
+        scalarField puxOld(nParticles,0.0), puyOld(nParticles,0.0), puzOld(nParticles,0.0);
         scalarField pux(nParticles);
         scalarField puy(nParticles);
         scalarField puz(nParticles);
@@ -3036,7 +3055,7 @@ protected:
         if
         (
             weightedFshV1 || weightedFshV2 || weightedFshV3
-         || weightedFshV4 || weightedFshV5
+         || weightedFshV4 || weightedFshV5 || weightedV7
         )
         {
             const gpuFshRestart::MutableView restartView
@@ -3062,10 +3081,15 @@ protected:
                 , pCold2DNodeSpecificEnthalpy.begin()
                 , pCold2DRingContactAge.begin()
                 , pCold2DFrozenArea.begin()
+                , puxOld.begin(), puyOld.begin(), puzOld.begin()
             };
             try
             {
-                if (weightedFshV5)
+                if (weightedV7)
+                {
+                    gpuFshRestart::readV7Payload(is,static_cast<std::uint32_t>(maximumChunk),restartView);
+                }
+                else if (weightedFshV5)
                 {
                     (restartHeader == gpuFshRestart::formatName ? gpuFshRestart::readV6Payload : gpuFshRestart::readV5Payload)
                     (
@@ -3178,7 +3202,7 @@ protected:
         if
         (
             !weightedFshV1 && !weightedFshV2
-         && !weightedFshV3 && !weightedFshV4 && !weightedFshV5
+         && !weightedFshV3 && !weightedFshV4 && !weightedFshV5 && !weightedV7
         )
         {
           std::getline(is, line);
@@ -3352,6 +3376,19 @@ protected:
           }
         }
 
+        if (!weightedV7)
+        {
+            forAll(pStuck,i)
+                if (pStuck[i]==2u || pStuck[i]==3u)
+                    FatalErrorInFunction << "Legacy transient restart lacks saved impact velocity; use schema7 or fresh initial state" << exit(FatalError);
+        }
+        const double savedVelocityBound=(ugkwpGpuSelectedPrecision()==32 ? static_cast<double>(std::numeric_limits<float>::max()) : std::numeric_limits<double>::max());
+        forAll(puxOld,i)
+            if (!std::isfinite(puxOld[i]) || !std::isfinite(puyOld[i]) || !std::isfinite(puzOld[i])
+                || std::fabs(puxOld[i])>savedVelocityBound || std::fabs(puyOld[i])>savedVelocityBound
+                || std::fabs(puzOld[i])>savedVelocityBound)
+                FatalErrorInFunction << "Restart saved velocity is not representable" << exit(FatalError);
+
         check
         (
             ugkwpGpuResidentStrictUploadParticleRestartMirror
@@ -3388,6 +3425,8 @@ protected:
             ),
             "upload GPU resident particle restart mirror"
         );
+        check(ugkwpGpuResidentStrictUploadParticleSavedVelocity(handle_,nParticles,
+            puxOld.cdata(),puyOld.cdata(),puzOld.cdata()),"upload restart saved velocities");
 
     }
 

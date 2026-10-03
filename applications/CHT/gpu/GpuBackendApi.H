@@ -271,6 +271,11 @@ extern "C" int ugkwpGpuResidentStrictUploadWallEnergyLedgerRange
     const double* particleReflectedWallEnergyJ
 );
 
+extern "C" int ugkwpGpuResidentStrictUploadParticleSavedVelocity
+(void* handle, int count, const double* x, const double* y, const double* z);
+extern "C" int ugkwpGpuResidentStrictDownloadParticleSavedVelocity
+(void* handle, int count, double* x, double* y, double* z);
+
 extern "C" void ugkwpGpuResidentStrictRelease(void* handle);
 extern "C" const char* ugkwpGpuResidentStrictLastError();
 
