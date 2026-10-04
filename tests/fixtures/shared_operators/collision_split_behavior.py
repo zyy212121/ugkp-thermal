@@ -4,7 +4,7 @@ import re,subprocess,sys,json,os
 W=Path(sys.argv[2]).resolve();W.mkdir(parents=True,exist_ok=True);app,bits=sys.argv[3],int(sys.argv[4]);kind='current';r=Path(sys.argv[1]).resolve();leaf='gpu' if app=='CHT' else 'private_backend';src=r/'applications'/app/leaf/'GpuResidentStrict.cu'
 
 for sub in ['02-tests','03-build','logs']:(W/sub).mkdir(exist_ok=True)
-t=src.read_text();a=t.index('struct DeviceState');b=t.index('\n};',a);fields=re.findall(r'^\s*((?:unsigned\s+)?(?:long long|char)|double|float|int|GpuReal|GpuTime|GpuWallEnergy)\*\s+(\w+)\s*=',t[a:b],re.M)
+t=src.read_text().replace('#include "GpuAutomaticCsrScheduleFields.inl"', (r/"common/GpuAutomaticCsrScheduleFields.inl").read_text() if (r/"common/GpuAutomaticCsrScheduleFields.inl").is_file() else "");a=t.index('struct DeviceState');b=t.index('\n};',a);fields=re.findall(r'^\s*((?:unsigned\s+)?(?:long long|char)|double|float|int|GpuReal|GpuTime|GpuWallEnergy)\*\s+(\w+)\s*=',t[a:b],re.M)
 needed=set('pStatus pCellId pRng pm pux puy puz pTheta pd pT pStuck pContactAge pStuckFaceId pDepositionArea pContactDuration pContactMaximumArea pContactPeakFraction compactPStatus compactCountDevice cellParticleOffset sortedParticleIndex preBaseCellOffset csrCellTaskOffset csrCellTaskCount csrHeavyPartials csrMultiTaskCellList csrHeavyTaskCount csrHeavyCellCount csrHeavyTaskCursor poissonCellCollisionProbability particleCountDevice thetaDragAlpha momRhoP momRhoUPx momRhoUPy momRhoUPz momRhoEP momRhoPD'.split())
 needed.update(n for _,n in fields if n.startswith('poissonPool') or n.startswith('poolThermal'))
 text='#include "GpuResidentStrict.cu"\n#include <cstdio>\n#include <new>\n#include <cstdlib>\n#include <cmath>\n#include <vector>\n#include <string>\n'

@@ -430,6 +430,16 @@
       "downstream": "gpu-riemann-gkp-main"
     },
     {
+      "path": "common/GpuAutomaticCsrSchedule.cuh",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/GpuAutomaticCsrScheduleFields.inl",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
       "path": "common/GpuCellDragRate.cuh",
       "upstream": "ugkp-thermal",
       "downstream": "gpu-riemann-gkp-main"

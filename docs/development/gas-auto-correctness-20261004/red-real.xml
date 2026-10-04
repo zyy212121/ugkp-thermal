@@ -1,0 +1,289 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites><testsuite name="pytest" errors="0" failures="18" skipped="0" tests="18" time="29.677" timestamp="2026-10-04T13:40:21.828655" hostname="lss"><testcase classname="tests.test_gas_auto_pool_cuda" name="test_auto_preserves_tasks_and_executes_collision_pool[full-already-L2-32]" time="25.326"><failure message="AssertionError: STEP 1 directory=0 previous=1&#10;  TASKS count=5 multi=33 expected=5/1&#10;  FAIL auto must preserve multi-task cell count&#10;  &#10;assert 2 == 0&#10; +  where 2 = CompletedProcess(args=['/home/lss/ugkp-gas-auto-correctness-20261004/red-real/gas-auto-pool0/gas_auto_pool', '0', '1',...rectory=0 previous=1\nTASKS count=5 multi=33 expected=5/1\nFAIL auto must preserve multi-task cell count\n', stderr='').returncode">consumer = PosixPath('/home/lss/ugkp-gas-auto-correctness-20261004/red-real/gas-auto-pool0/gas_auto_pool')
+directory = 0, prebuilt = True, block = 32
+
+    @pytest.mark.parametrize('block',[32,64,128])
+    @pytest.mark.parametrize('prebuilt',[True,False],ids=['already-L2','activate-from-L1'])
+    @pytest.mark.parametrize('directory',[0,1,2],ids=['full','base','base-and-injection'])
+    def test_auto_preserves_tasks_and_executes_collision_pool(consumer,directory,prebuilt,block):
+        q=subprocess.run([str(consumer),str(directory),str(int(prebuilt)),str(block)],capture_output=True,text=True,timeout=120)
+&gt;       assert q.returncode==0,q.stdout+q.stderr
+E       AssertionError: STEP 1 directory=0 previous=1
+E         TASKS count=5 multi=33 expected=5/1
+E         FAIL auto must preserve multi-task cell count
+E         
+E       assert 2 == 0
+E        +  where 2 = CompletedProcess(args=['/home/lss/ugkp-gas-auto-correctness-20261004/red-real/gas-auto-pool0/gas_auto_pool', '0', '1',...rectory=0 previous=1\nTASKS count=5 multi=33 expected=5/1\nFAIL auto must preserve multi-task cell count\n', stderr='').returncode
+
+tests/test_gas_auto_pool_cuda.py:22: AssertionError</failure></testcase><testcase classname="tests.test_gas_auto_pool_cuda" name="test_auto_preserves_tasks_and_executes_collision_pool[full-already-L2-64]" time="0.159"><failure message="AssertionError: STEP 1 directory=0 previous=1&#10;  TASKS count=5 multi=65 expected=5/1&#10;  FAIL auto must preserve multi-task cell count&#10;  &#10;assert 2 == 0&#10; +  where 2 = CompletedProcess(args=['/home/lss/ugkp-gas-auto-correctness-20261004/red-real/gas-auto-pool0/gas_auto_pool', '0', '1',...rectory=0 previous=1\nTASKS count=5 multi=65 expected=5/1\nFAIL auto must preserve multi-task cell count\n', stderr='').returncode">consumer = PosixPath('/home/lss/ugkp-gas-auto-correctness-20261004/red-real/gas-auto-pool0/gas_auto_pool')
+directory = 0, prebuilt = True, block = 64
+
+    @pytest.mark.parametrize('block',[32,64,128])
+    @pytest.mark.parametrize('prebuilt',[True,False],ids=['already-L2','activate-from-L1'])
+    @pytest.mark.parametrize('directory',[0,1,2],ids=['full','base','base-and-injection'])
+    def test_auto_preserves_tasks_and_executes_collision_pool(consumer,directory,prebuilt,block):
+        q=subprocess.run([str(consumer),str(directory),str(int(prebuilt)),str(block)],capture_output=True,text=True,timeout=120)
+&gt;       assert q.returncode==0,q.stdout+q.stderr
+E       AssertionError: STEP 1 directory=0 previous=1
+E         TASKS count=5 multi=65 expected=5/1
+E         FAIL auto must preserve multi-task cell count
+E         
+E       assert 2 == 0
+E        +  where 2 = CompletedProcess(args=['/home/lss/ugkp-gas-auto-correctness-20261004/red-real/gas-auto-pool0/gas_auto_pool', '0', '1',...rectory=0 previous=1\nTASKS count=5 multi=65 expected=5/1\nFAIL auto must preserve multi-task cell count\n', stderr='').returncode
+
+tests/test_gas_auto_pool_cuda.py:22: AssertionError</failure></testcase><testcase classname="tests.test_gas_auto_pool_cuda" name="test_auto_preserves_tasks_and_executes_collision_pool[full-already-L2-128]" time="0.151"><failure message="AssertionError: STEP 1 directory=0 previous=1&#10;  TASKS count=5 multi=129 expected=5/1&#10;  FAIL auto must preserve multi-task cell count&#10;  &#10;assert 2 == 0&#10; +  where 2 = CompletedProcess(args=['/home/lss/ugkp-gas-auto-correctness-20261004/red-real/gas-auto-pool0/gas_auto_pool', '0', '1',...ectory=0 previous=1\nTASKS count=5 multi=129 expected=5/1\nFAIL auto must preserve multi-task cell count\n', stderr='').returncode">consumer = PosixPath('/home/lss/ugkp-gas-auto-correctness-20261004/red-real/gas-auto-pool0/gas_auto_pool')
+directory = 0, prebuilt = True, block = 128
+
+    @pytest.mark.parametrize('block',[32,64,128])
+    @pytest.mark.parametrize('prebuilt',[True,False],ids=['already-L2','activate-from-L1'])
+    @pytest.mark.parametrize('directory',[0,1,2],ids=['full','base','base-and-injection'])
+    def test_auto_preserves_tasks_and_executes_collision_pool(consumer,directory,prebuilt,block):
+        q=subprocess.run([str(consumer),str(directory),str(int(prebuilt)),str(block)],capture_output=True,text=True,timeout=120)
+&gt;       assert q.returncode==0,q.stdout+q.stderr
+E       AssertionError: STEP 1 directory=0 previous=1
+E         TASKS count=5 multi=129 expected=5/1
+E         FAIL auto must preserve multi-task cell count
+E         
+E       assert 2 == 0
+E        +  where 2 = CompletedProcess(args=['/home/lss/ugkp-gas-auto-correctness-20261004/red-real/gas-auto-pool0/gas_auto_pool', '0', '1',...ectory=0 previous=1\nTASKS count=5 multi=129 expected=5/1\nFAIL auto must preserve multi-task cell count\n', stderr='').returncode
+
+tests/test_gas_auto_pool_cuda.py:22: AssertionError</failure></testcase><testcase classname="tests.test_gas_auto_pool_cuda" name="test_auto_preserves_tasks_and_executes_collision_pool[full-activate-from-L1-32]" time="0.160"><failure message="AssertionError: STEP 1 directory=0 previous=0&#10;  TASKS count=0 multi=33 expected=5/1&#10;  FAIL auto must publish current directory task count&#10;  &#10;assert 2 == 0&#10; +  where 2 = CompletedProcess(args=['/home/lss/ugkp-gas-auto-correctness-20261004/red-real/gas-auto-pool0/gas_auto_pool', '0', '0',...y=0 previous=0\nTASKS count=0 multi=33 expected=5/1\nFAIL auto must publish current directory task count\n', stderr='').returncode">consumer = PosixPath('/home/lss/ugkp-gas-auto-correctness-20261004/red-real/gas-auto-pool0/gas_auto_pool')
+directory = 0, prebuilt = False, block = 32
+
+    @pytest.mark.parametrize('block',[32,64,128])
+    @pytest.mark.parametrize('prebuilt',[True,False],ids=['already-L2','activate-from-L1'])
+    @pytest.mark.parametrize('directory',[0,1,2],ids=['full','base','base-and-injection'])
+    def test_auto_preserves_tasks_and_executes_collision_pool(consumer,directory,prebuilt,block):
+        q=subprocess.run([str(consumer),str(directory),str(int(prebuilt)),str(block)],capture_output=True,text=True,timeout=120)
+&gt;       assert q.returncode==0,q.stdout+q.stderr
+E       AssertionError: STEP 1 directory=0 previous=0
+E         TASKS count=0 multi=33 expected=5/1
+E         FAIL auto must publish current directory task count
+E         
+E       assert 2 == 0
+E        +  where 2 = CompletedProcess(args=['/home/lss/ugkp-gas-auto-correctness-20261004/red-real/gas-auto-pool0/gas_auto_pool', '0', '0',...y=0 previous=0\nTASKS count=0 multi=33 expected=5/1\nFAIL auto must publish current directory task count\n', stderr='').returncode
+
+tests/test_gas_auto_pool_cuda.py:22: AssertionError</failure></testcase><testcase classname="tests.test_gas_auto_pool_cuda" name="test_auto_preserves_tasks_and_executes_collision_pool[full-activate-from-L1-64]" time="0.164"><failure message="AssertionError: STEP 1 directory=0 previous=0&#10;  TASKS count=0 multi=65 expected=5/1&#10;  FAIL auto must publish current directory task count&#10;  &#10;assert 2 == 0&#10; +  where 2 = CompletedProcess(args=['/home/lss/ugkp-gas-auto-correctness-20261004/red-real/gas-auto-pool0/gas_auto_pool', '0', '0',...y=0 previous=0\nTASKS count=0 multi=65 expected=5/1\nFAIL auto must publish current directory task count\n', stderr='').returncode">consumer = PosixPath('/home/lss/ugkp-gas-auto-correctness-20261004/red-real/gas-auto-pool0/gas_auto_pool')
+directory = 0, prebuilt = False, block = 64
+
+    @pytest.mark.parametrize('block',[32,64,128])
+    @pytest.mark.parametrize('prebuilt',[True,False],ids=['already-L2','activate-from-L1'])
+    @pytest.mark.parametrize('directory',[0,1,2],ids=['full','base','base-and-injection'])
+    def test_auto_preserves_tasks_and_executes_collision_pool(consumer,directory,prebuilt,block):
+        q=subprocess.run([str(consumer),str(directory),str(int(prebuilt)),str(block)],capture_output=True,text=True,timeout=120)
+&gt;       assert q.returncode==0,q.stdout+q.stderr
+E       AssertionError: STEP 1 directory=0 previous=0
+E         TASKS count=0 multi=65 expected=5/1
+E         FAIL auto must publish current directory task count
+E         
+E       assert 2 == 0
+E        +  where 2 = CompletedProcess(args=['/home/lss/ugkp-gas-auto-correctness-20261004/red-real/gas-auto-pool0/gas_auto_pool', '0', '0',...y=0 previous=0\nTASKS count=0 multi=65 expected=5/1\nFAIL auto must publish current directory task count\n', stderr='').returncode
+
+tests/test_gas_auto_pool_cuda.py:22: AssertionError</failure></testcase><testcase classname="tests.test_gas_auto_pool_cuda" name="test_auto_preserves_tasks_and_executes_collision_pool[full-activate-from-L1-128]" time="0.150"><failure message="AssertionError: STEP 1 directory=0 previous=0&#10;  TASKS count=0 multi=129 expected=5/1&#10;  FAIL auto must publish current directory task count&#10;  &#10;assert 2 == 0&#10; +  where 2 = CompletedProcess(args=['/home/lss/ugkp-gas-auto-correctness-20261004/red-real/gas-auto-pool0/gas_auto_pool', '0', '0',...=0 previous=0\nTASKS count=0 multi=129 expected=5/1\nFAIL auto must publish current directory task count\n', stderr='').returncode">consumer = PosixPath('/home/lss/ugkp-gas-auto-correctness-20261004/red-real/gas-auto-pool0/gas_auto_pool')
+directory = 0, prebuilt = False, block = 128
+
+    @pytest.mark.parametrize('block',[32,64,128])
+    @pytest.mark.parametrize('prebuilt',[True,False],ids=['already-L2','activate-from-L1'])
+    @pytest.mark.parametrize('directory',[0,1,2],ids=['full','base','base-and-injection'])
+    def test_auto_preserves_tasks_and_executes_collision_pool(consumer,directory,prebuilt,block):
+        q=subprocess.run([str(consumer),str(directory),str(int(prebuilt)),str(block)],capture_output=True,text=True,timeout=120)
+&gt;       assert q.returncode==0,q.stdout+q.stderr
+E       AssertionError: STEP 1 directory=0 previous=0
+E         TASKS count=0 multi=129 expected=5/1
+E         FAIL auto must publish current directory task count
+E         
+E       assert 2 == 0
+E        +  where 2 = CompletedProcess(args=['/home/lss/ugkp-gas-auto-correctness-20261004/red-real/gas-auto-pool0/gas_auto_pool', '0', '0',...=0 previous=0\nTASKS count=0 multi=129 expected=5/1\nFAIL auto must publish current directory task count\n', stderr='').returncode
+
+tests/test_gas_auto_pool_cuda.py:22: AssertionError</failure></testcase><testcase classname="tests.test_gas_auto_pool_cuda" name="test_auto_preserves_tasks_and_executes_collision_pool[base-already-L2-32]" time="0.150"><failure message="AssertionError: STEP 1 directory=1 previous=1&#10;  TASKS count=5 multi=33 expected=5/1&#10;  FAIL auto must preserve multi-task cell count&#10;  &#10;assert 2 == 0&#10; +  where 2 = CompletedProcess(args=['/home/lss/ugkp-gas-auto-correctness-20261004/red-real/gas-auto-pool0/gas_auto_pool', '1', '1',...rectory=1 previous=1\nTASKS count=5 multi=33 expected=5/1\nFAIL auto must preserve multi-task cell count\n', stderr='').returncode">consumer = PosixPath('/home/lss/ugkp-gas-auto-correctness-20261004/red-real/gas-auto-pool0/gas_auto_pool')
+directory = 1, prebuilt = True, block = 32
+
+    @pytest.mark.parametrize('block',[32,64,128])
+    @pytest.mark.parametrize('prebuilt',[True,False],ids=['already-L2','activate-from-L1'])
+    @pytest.mark.parametrize('directory',[0,1,2],ids=['full','base','base-and-injection'])
+    def test_auto_preserves_tasks_and_executes_collision_pool(consumer,directory,prebuilt,block):
+        q=subprocess.run([str(consumer),str(directory),str(int(prebuilt)),str(block)],capture_output=True,text=True,timeout=120)
+&gt;       assert q.returncode==0,q.stdout+q.stderr
+E       AssertionError: STEP 1 directory=1 previous=1
+E         TASKS count=5 multi=33 expected=5/1
+E         FAIL auto must preserve multi-task cell count
+E         
+E       assert 2 == 0
+E        +  where 2 = CompletedProcess(args=['/home/lss/ugkp-gas-auto-correctness-20261004/red-real/gas-auto-pool0/gas_auto_pool', '1', '1',...rectory=1 previous=1\nTASKS count=5 multi=33 expected=5/1\nFAIL auto must preserve multi-task cell count\n', stderr='').returncode
+
+tests/test_gas_auto_pool_cuda.py:22: AssertionError</failure></testcase><testcase classname="tests.test_gas_auto_pool_cuda" name="test_auto_preserves_tasks_and_executes_collision_pool[base-already-L2-64]" time="0.168"><failure message="AssertionError: STEP 1 directory=1 previous=1&#10;  TASKS count=5 multi=65 expected=5/1&#10;  FAIL auto must preserve multi-task cell count&#10;  &#10;assert 2 == 0&#10; +  where 2 = CompletedProcess(args=['/home/lss/ugkp-gas-auto-correctness-20261004/red-real/gas-auto-pool0/gas_auto_pool', '1', '1',...rectory=1 previous=1\nTASKS count=5 multi=65 expected=5/1\nFAIL auto must preserve multi-task cell count\n', stderr='').returncode">consumer = PosixPath('/home/lss/ugkp-gas-auto-correctness-20261004/red-real/gas-auto-pool0/gas_auto_pool')
+directory = 1, prebuilt = True, block = 64
+
+    @pytest.mark.parametrize('block',[32,64,128])
+    @pytest.mark.parametrize('prebuilt',[True,False],ids=['already-L2','activate-from-L1'])
+    @pytest.mark.parametrize('directory',[0,1,2],ids=['full','base','base-and-injection'])
+    def test_auto_preserves_tasks_and_executes_collision_pool(consumer,directory,prebuilt,block):
+        q=subprocess.run([str(consumer),str(directory),str(int(prebuilt)),str(block)],capture_output=True,text=True,timeout=120)
+&gt;       assert q.returncode==0,q.stdout+q.stderr
+E       AssertionError: STEP 1 directory=1 previous=1
+E         TASKS count=5 multi=65 expected=5/1
+E         FAIL auto must preserve multi-task cell count
+E         
+E       assert 2 == 0
+E        +  where 2 = CompletedProcess(args=['/home/lss/ugkp-gas-auto-correctness-20261004/red-real/gas-auto-pool0/gas_auto_pool', '1', '1',...rectory=1 previous=1\nTASKS count=5 multi=65 expected=5/1\nFAIL auto must preserve multi-task cell count\n', stderr='').returncode
+
+tests/test_gas_auto_pool_cuda.py:22: AssertionError</failure></testcase><testcase classname="tests.test_gas_auto_pool_cuda" name="test_auto_preserves_tasks_and_executes_collision_pool[base-already-L2-128]" time="0.148"><failure message="AssertionError: STEP 1 directory=1 previous=1&#10;  TASKS count=5 multi=129 expected=5/1&#10;  FAIL auto must preserve multi-task cell count&#10;  &#10;assert 2 == 0&#10; +  where 2 = CompletedProcess(args=['/home/lss/ugkp-gas-auto-correctness-20261004/red-real/gas-auto-pool0/gas_auto_pool', '1', '1',...ectory=1 previous=1\nTASKS count=5 multi=129 expected=5/1\nFAIL auto must preserve multi-task cell count\n', stderr='').returncode">consumer = PosixPath('/home/lss/ugkp-gas-auto-correctness-20261004/red-real/gas-auto-pool0/gas_auto_pool')
+directory = 1, prebuilt = True, block = 128
+
+    @pytest.mark.parametrize('block',[32,64,128])
+    @pytest.mark.parametrize('prebuilt',[True,False],ids=['already-L2','activate-from-L1'])
+    @pytest.mark.parametrize('directory',[0,1,2],ids=['full','base','base-and-injection'])
+    def test_auto_preserves_tasks_and_executes_collision_pool(consumer,directory,prebuilt,block):
+        q=subprocess.run([str(consumer),str(directory),str(int(prebuilt)),str(block)],capture_output=True,text=True,timeout=120)
+&gt;       assert q.returncode==0,q.stdout+q.stderr
+E       AssertionError: STEP 1 directory=1 previous=1
+E         TASKS count=5 multi=129 expected=5/1
+E         FAIL auto must preserve multi-task cell count
+E         
+E       assert 2 == 0
+E        +  where 2 = CompletedProcess(args=['/home/lss/ugkp-gas-auto-correctness-20261004/red-real/gas-auto-pool0/gas_auto_pool', '1', '1',...ectory=1 previous=1\nTASKS count=5 multi=129 expected=5/1\nFAIL auto must preserve multi-task cell count\n', stderr='').returncode
+
+tests/test_gas_auto_pool_cuda.py:22: AssertionError</failure></testcase><testcase classname="tests.test_gas_auto_pool_cuda" name="test_auto_preserves_tasks_and_executes_collision_pool[base-activate-from-L1-32]" time="0.180"><failure message="AssertionError: STEP 1 directory=1 previous=0&#10;  TASKS count=0 multi=33 expected=5/1&#10;  FAIL auto must publish current directory task count&#10;  &#10;assert 2 == 0&#10; +  where 2 = CompletedProcess(args=['/home/lss/ugkp-gas-auto-correctness-20261004/red-real/gas-auto-pool0/gas_auto_pool', '1', '0',...y=1 previous=0\nTASKS count=0 multi=33 expected=5/1\nFAIL auto must publish current directory task count\n', stderr='').returncode">consumer = PosixPath('/home/lss/ugkp-gas-auto-correctness-20261004/red-real/gas-auto-pool0/gas_auto_pool')
+directory = 1, prebuilt = False, block = 32
+
+    @pytest.mark.parametrize('block',[32,64,128])
+    @pytest.mark.parametrize('prebuilt',[True,False],ids=['already-L2','activate-from-L1'])
+    @pytest.mark.parametrize('directory',[0,1,2],ids=['full','base','base-and-injection'])
+    def test_auto_preserves_tasks_and_executes_collision_pool(consumer,directory,prebuilt,block):
+        q=subprocess.run([str(consumer),str(directory),str(int(prebuilt)),str(block)],capture_output=True,text=True,timeout=120)
+&gt;       assert q.returncode==0,q.stdout+q.stderr
+E       AssertionError: STEP 1 directory=1 previous=0
+E         TASKS count=0 multi=33 expected=5/1
+E         FAIL auto must publish current directory task count
+E         
+E       assert 2 == 0
+E        +  where 2 = CompletedProcess(args=['/home/lss/ugkp-gas-auto-correctness-20261004/red-real/gas-auto-pool0/gas_auto_pool', '1', '0',...y=1 previous=0\nTASKS count=0 multi=33 expected=5/1\nFAIL auto must publish current directory task count\n', stderr='').returncode
+
+tests/test_gas_auto_pool_cuda.py:22: AssertionError</failure></testcase><testcase classname="tests.test_gas_auto_pool_cuda" name="test_auto_preserves_tasks_and_executes_collision_pool[base-activate-from-L1-64]" time="0.171"><failure message="AssertionError: STEP 1 directory=1 previous=0&#10;  TASKS count=0 multi=65 expected=5/1&#10;  FAIL auto must publish current directory task count&#10;  &#10;assert 2 == 0&#10; +  where 2 = CompletedProcess(args=['/home/lss/ugkp-gas-auto-correctness-20261004/red-real/gas-auto-pool0/gas_auto_pool', '1', '0',...y=1 previous=0\nTASKS count=0 multi=65 expected=5/1\nFAIL auto must publish current directory task count\n', stderr='').returncode">consumer = PosixPath('/home/lss/ugkp-gas-auto-correctness-20261004/red-real/gas-auto-pool0/gas_auto_pool')
+directory = 1, prebuilt = False, block = 64
+
+    @pytest.mark.parametrize('block',[32,64,128])
+    @pytest.mark.parametrize('prebuilt',[True,False],ids=['already-L2','activate-from-L1'])
+    @pytest.mark.parametrize('directory',[0,1,2],ids=['full','base','base-and-injection'])
+    def test_auto_preserves_tasks_and_executes_collision_pool(consumer,directory,prebuilt,block):
+        q=subprocess.run([str(consumer),str(directory),str(int(prebuilt)),str(block)],capture_output=True,text=True,timeout=120)
+&gt;       assert q.returncode==0,q.stdout+q.stderr
+E       AssertionError: STEP 1 directory=1 previous=0
+E         TASKS count=0 multi=65 expected=5/1
+E         FAIL auto must publish current directory task count
+E         
+E       assert 2 == 0
+E        +  where 2 = CompletedProcess(args=['/home/lss/ugkp-gas-auto-correctness-20261004/red-real/gas-auto-pool0/gas_auto_pool', '1', '0',...y=1 previous=0\nTASKS count=0 multi=65 expected=5/1\nFAIL auto must publish current directory task count\n', stderr='').returncode
+
+tests/test_gas_auto_pool_cuda.py:22: AssertionError</failure></testcase><testcase classname="tests.test_gas_auto_pool_cuda" name="test_auto_preserves_tasks_and_executes_collision_pool[base-activate-from-L1-128]" time="0.144"><failure message="AssertionError: STEP 1 directory=1 previous=0&#10;  TASKS count=0 multi=129 expected=5/1&#10;  FAIL auto must publish current directory task count&#10;  &#10;assert 2 == 0&#10; +  where 2 = CompletedProcess(args=['/home/lss/ugkp-gas-auto-correctness-20261004/red-real/gas-auto-pool0/gas_auto_pool', '1', '0',...=1 previous=0\nTASKS count=0 multi=129 expected=5/1\nFAIL auto must publish current directory task count\n', stderr='').returncode">consumer = PosixPath('/home/lss/ugkp-gas-auto-correctness-20261004/red-real/gas-auto-pool0/gas_auto_pool')
+directory = 1, prebuilt = False, block = 128
+
+    @pytest.mark.parametrize('block',[32,64,128])
+    @pytest.mark.parametrize('prebuilt',[True,False],ids=['already-L2','activate-from-L1'])
+    @pytest.mark.parametrize('directory',[0,1,2],ids=['full','base','base-and-injection'])
+    def test_auto_preserves_tasks_and_executes_collision_pool(consumer,directory,prebuilt,block):
+        q=subprocess.run([str(consumer),str(directory),str(int(prebuilt)),str(block)],capture_output=True,text=True,timeout=120)
+&gt;       assert q.returncode==0,q.stdout+q.stderr
+E       AssertionError: STEP 1 directory=1 previous=0
+E         TASKS count=0 multi=129 expected=5/1
+E         FAIL auto must publish current directory task count
+E         
+E       assert 2 == 0
+E        +  where 2 = CompletedProcess(args=['/home/lss/ugkp-gas-auto-correctness-20261004/red-real/gas-auto-pool0/gas_auto_pool', '1', '0',...=1 previous=0\nTASKS count=0 multi=129 expected=5/1\nFAIL auto must publish current directory task count\n', stderr='').returncode
+
+tests/test_gas_auto_pool_cuda.py:22: AssertionError</failure></testcase><testcase classname="tests.test_gas_auto_pool_cuda" name="test_auto_preserves_tasks_and_executes_collision_pool[base-and-injection-already-L2-32]" time="0.181"><failure message="AssertionError: STEP 1 directory=2 previous=1&#10;  TASKS count=5 multi=33 expected=5/1&#10;  FAIL auto must preserve multi-task cell count&#10;  &#10;assert 2 == 0&#10; +  where 2 = CompletedProcess(args=['/home/lss/ugkp-gas-auto-correctness-20261004/red-real/gas-auto-pool0/gas_auto_pool', '2', '1',...rectory=2 previous=1\nTASKS count=5 multi=33 expected=5/1\nFAIL auto must preserve multi-task cell count\n', stderr='').returncode">consumer = PosixPath('/home/lss/ugkp-gas-auto-correctness-20261004/red-real/gas-auto-pool0/gas_auto_pool')
+directory = 2, prebuilt = True, block = 32
+
+    @pytest.mark.parametrize('block',[32,64,128])
+    @pytest.mark.parametrize('prebuilt',[True,False],ids=['already-L2','activate-from-L1'])
+    @pytest.mark.parametrize('directory',[0,1,2],ids=['full','base','base-and-injection'])
+    def test_auto_preserves_tasks_and_executes_collision_pool(consumer,directory,prebuilt,block):
+        q=subprocess.run([str(consumer),str(directory),str(int(prebuilt)),str(block)],capture_output=True,text=True,timeout=120)
+&gt;       assert q.returncode==0,q.stdout+q.stderr
+E       AssertionError: STEP 1 directory=2 previous=1
+E         TASKS count=5 multi=33 expected=5/1
+E         FAIL auto must preserve multi-task cell count
+E         
+E       assert 2 == 0
+E        +  where 2 = CompletedProcess(args=['/home/lss/ugkp-gas-auto-correctness-20261004/red-real/gas-auto-pool0/gas_auto_pool', '2', '1',...rectory=2 previous=1\nTASKS count=5 multi=33 expected=5/1\nFAIL auto must preserve multi-task cell count\n', stderr='').returncode
+
+tests/test_gas_auto_pool_cuda.py:22: AssertionError</failure></testcase><testcase classname="tests.test_gas_auto_pool_cuda" name="test_auto_preserves_tasks_and_executes_collision_pool[base-and-injection-already-L2-64]" time="0.173"><failure message="AssertionError: STEP 1 directory=2 previous=1&#10;  TASKS count=5 multi=65 expected=5/1&#10;  FAIL auto must preserve multi-task cell count&#10;  &#10;assert 2 == 0&#10; +  where 2 = CompletedProcess(args=['/home/lss/ugkp-gas-auto-correctness-20261004/red-real/gas-auto-pool0/gas_auto_pool', '2', '1',...rectory=2 previous=1\nTASKS count=5 multi=65 expected=5/1\nFAIL auto must preserve multi-task cell count\n', stderr='').returncode">consumer = PosixPath('/home/lss/ugkp-gas-auto-correctness-20261004/red-real/gas-auto-pool0/gas_auto_pool')
+directory = 2, prebuilt = True, block = 64
+
+    @pytest.mark.parametrize('block',[32,64,128])
+    @pytest.mark.parametrize('prebuilt',[True,False],ids=['already-L2','activate-from-L1'])
+    @pytest.mark.parametrize('directory',[0,1,2],ids=['full','base','base-and-injection'])
+    def test_auto_preserves_tasks_and_executes_collision_pool(consumer,directory,prebuilt,block):
+        q=subprocess.run([str(consumer),str(directory),str(int(prebuilt)),str(block)],capture_output=True,text=True,timeout=120)
+&gt;       assert q.returncode==0,q.stdout+q.stderr
+E       AssertionError: STEP 1 directory=2 previous=1
+E         TASKS count=5 multi=65 expected=5/1
+E         FAIL auto must preserve multi-task cell count
+E         
+E       assert 2 == 0
+E        +  where 2 = CompletedProcess(args=['/home/lss/ugkp-gas-auto-correctness-20261004/red-real/gas-auto-pool0/gas_auto_pool', '2', '1',...rectory=2 previous=1\nTASKS count=5 multi=65 expected=5/1\nFAIL auto must preserve multi-task cell count\n', stderr='').returncode
+
+tests/test_gas_auto_pool_cuda.py:22: AssertionError</failure></testcase><testcase classname="tests.test_gas_auto_pool_cuda" name="test_auto_preserves_tasks_and_executes_collision_pool[base-and-injection-already-L2-128]" time="0.165"><failure message="AssertionError: STEP 1 directory=2 previous=1&#10;  TASKS count=5 multi=129 expected=5/1&#10;  FAIL auto must preserve multi-task cell count&#10;  &#10;assert 2 == 0&#10; +  where 2 = CompletedProcess(args=['/home/lss/ugkp-gas-auto-correctness-20261004/red-real/gas-auto-pool0/gas_auto_pool', '2', '1',...ectory=2 previous=1\nTASKS count=5 multi=129 expected=5/1\nFAIL auto must preserve multi-task cell count\n', stderr='').returncode">consumer = PosixPath('/home/lss/ugkp-gas-auto-correctness-20261004/red-real/gas-auto-pool0/gas_auto_pool')
+directory = 2, prebuilt = True, block = 128
+
+    @pytest.mark.parametrize('block',[32,64,128])
+    @pytest.mark.parametrize('prebuilt',[True,False],ids=['already-L2','activate-from-L1'])
+    @pytest.mark.parametrize('directory',[0,1,2],ids=['full','base','base-and-injection'])
+    def test_auto_preserves_tasks_and_executes_collision_pool(consumer,directory,prebuilt,block):
+        q=subprocess.run([str(consumer),str(directory),str(int(prebuilt)),str(block)],capture_output=True,text=True,timeout=120)
+&gt;       assert q.returncode==0,q.stdout+q.stderr
+E       AssertionError: STEP 1 directory=2 previous=1
+E         TASKS count=5 multi=129 expected=5/1
+E         FAIL auto must preserve multi-task cell count
+E         
+E       assert 2 == 0
+E        +  where 2 = CompletedProcess(args=['/home/lss/ugkp-gas-auto-correctness-20261004/red-real/gas-auto-pool0/gas_auto_pool', '2', '1',...ectory=2 previous=1\nTASKS count=5 multi=129 expected=5/1\nFAIL auto must preserve multi-task cell count\n', stderr='').returncode
+
+tests/test_gas_auto_pool_cuda.py:22: AssertionError</failure></testcase><testcase classname="tests.test_gas_auto_pool_cuda" name="test_auto_preserves_tasks_and_executes_collision_pool[base-and-injection-activate-from-L1-32]" time="0.186"><failure message="AssertionError: STEP 1 directory=2 previous=0&#10;  TASKS count=0 multi=33 expected=5/1&#10;  FAIL auto must publish current directory task count&#10;  &#10;assert 2 == 0&#10; +  where 2 = CompletedProcess(args=['/home/lss/ugkp-gas-auto-correctness-20261004/red-real/gas-auto-pool0/gas_auto_pool', '2', '0',...y=2 previous=0\nTASKS count=0 multi=33 expected=5/1\nFAIL auto must publish current directory task count\n', stderr='').returncode">consumer = PosixPath('/home/lss/ugkp-gas-auto-correctness-20261004/red-real/gas-auto-pool0/gas_auto_pool')
+directory = 2, prebuilt = False, block = 32
+
+    @pytest.mark.parametrize('block',[32,64,128])
+    @pytest.mark.parametrize('prebuilt',[True,False],ids=['already-L2','activate-from-L1'])
+    @pytest.mark.parametrize('directory',[0,1,2],ids=['full','base','base-and-injection'])
+    def test_auto_preserves_tasks_and_executes_collision_pool(consumer,directory,prebuilt,block):
+        q=subprocess.run([str(consumer),str(directory),str(int(prebuilt)),str(block)],capture_output=True,text=True,timeout=120)
+&gt;       assert q.returncode==0,q.stdout+q.stderr
+E       AssertionError: STEP 1 directory=2 previous=0
+E         TASKS count=0 multi=33 expected=5/1
+E         FAIL auto must publish current directory task count
+E         
+E       assert 2 == 0
+E        +  where 2 = CompletedProcess(args=['/home/lss/ugkp-gas-auto-correctness-20261004/red-real/gas-auto-pool0/gas_auto_pool', '2', '0',...y=2 previous=0\nTASKS count=0 multi=33 expected=5/1\nFAIL auto must publish current directory task count\n', stderr='').returncode
+
+tests/test_gas_auto_pool_cuda.py:22: AssertionError</failure></testcase><testcase classname="tests.test_gas_auto_pool_cuda" name="test_auto_preserves_tasks_and_executes_collision_pool[base-and-injection-activate-from-L1-64]" time="0.170"><failure message="AssertionError: STEP 1 directory=2 previous=0&#10;  TASKS count=0 multi=65 expected=5/1&#10;  FAIL auto must publish current directory task count&#10;  &#10;assert 2 == 0&#10; +  where 2 = CompletedProcess(args=['/home/lss/ugkp-gas-auto-correctness-20261004/red-real/gas-auto-pool0/gas_auto_pool', '2', '0',...y=2 previous=0\nTASKS count=0 multi=65 expected=5/1\nFAIL auto must publish current directory task count\n', stderr='').returncode">consumer = PosixPath('/home/lss/ugkp-gas-auto-correctness-20261004/red-real/gas-auto-pool0/gas_auto_pool')
+directory = 2, prebuilt = False, block = 64
+
+    @pytest.mark.parametrize('block',[32,64,128])
+    @pytest.mark.parametrize('prebuilt',[True,False],ids=['already-L2','activate-from-L1'])
+    @pytest.mark.parametrize('directory',[0,1,2],ids=['full','base','base-and-injection'])
+    def test_auto_preserves_tasks_and_executes_collision_pool(consumer,directory,prebuilt,block):
+        q=subprocess.run([str(consumer),str(directory),str(int(prebuilt)),str(block)],capture_output=True,text=True,timeout=120)
+&gt;       assert q.returncode==0,q.stdout+q.stderr
+E       AssertionError: STEP 1 directory=2 previous=0
+E         TASKS count=0 multi=65 expected=5/1
+E         FAIL auto must publish current directory task count
+E         
+E       assert 2 == 0
+E        +  where 2 = CompletedProcess(args=['/home/lss/ugkp-gas-auto-correctness-20261004/red-real/gas-auto-pool0/gas_auto_pool', '2', '0',...y=2 previous=0\nTASKS count=0 multi=65 expected=5/1\nFAIL auto must publish current directory task count\n', stderr='').returncode
+
+tests/test_gas_auto_pool_cuda.py:22: AssertionError</failure></testcase><testcase classname="tests.test_gas_auto_pool_cuda" name="test_auto_preserves_tasks_and_executes_collision_pool[base-and-injection-activate-from-L1-128]" time="0.178"><failure message="AssertionError: STEP 1 directory=2 previous=0&#10;  TASKS count=0 multi=129 expected=5/1&#10;  FAIL auto must publish current directory task count&#10;  &#10;assert 2 == 0&#10; +  where 2 = CompletedProcess(args=['/home/lss/ugkp-gas-auto-correctness-20261004/red-real/gas-auto-pool0/gas_auto_pool', '2', '0',...=2 previous=0\nTASKS count=0 multi=129 expected=5/1\nFAIL auto must publish current directory task count\n', stderr='').returncode">consumer = PosixPath('/home/lss/ugkp-gas-auto-correctness-20261004/red-real/gas-auto-pool0/gas_auto_pool')
+directory = 2, prebuilt = False, block = 128
+
+    @pytest.mark.parametrize('block',[32,64,128])
+    @pytest.mark.parametrize('prebuilt',[True,False],ids=['already-L2','activate-from-L1'])
+    @pytest.mark.parametrize('directory',[0,1,2],ids=['full','base','base-and-injection'])
+    def test_auto_preserves_tasks_and_executes_collision_pool(consumer,directory,prebuilt,block):
+        q=subprocess.run([str(consumer),str(directory),str(int(prebuilt)),str(block)],capture_output=True,text=True,timeout=120)
+&gt;       assert q.returncode==0,q.stdout+q.stderr
+E       AssertionError: STEP 1 directory=2 previous=0
+E         TASKS count=0 multi=129 expected=5/1
+E         FAIL auto must publish current directory task count
+E         
+E       assert 2 == 0
+E        +  where 2 = CompletedProcess(args=['/home/lss/ugkp-gas-auto-correctness-20261004/red-real/gas-auto-pool0/gas_auto_pool', '2', '0',...=2 previous=0\nTASKS count=0 multi=129 expected=5/1\nFAIL auto must publish current directory task count\n', stderr='').returncode
+
+tests/test_gas_auto_pool_cuda.py:22: AssertionError</failure></testcase></testsuite></testsuites>

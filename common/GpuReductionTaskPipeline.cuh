@@ -3,6 +3,8 @@
 int prepareCsrSegmentedReductionTasks(DeviceState* s, const int block,
     const GPU_DIRECTORY_PARAMETER_TYPE GPU_DIRECTORY_SELECTOR)
 {
+    // Every producer marks new directory contents, even while L1 is active.
+    s->csrTasksReady = 0;
     if (s->csrHeavyReductionEnabled == 0 || s->particleCapacity <= 0) return 0;
 #if GPU_DIRECTORY_OWNS_TILE_POLICY
     s->csrReductionDirectoryKind = static_cast<int>(GPU_DIRECTORY_SELECTOR);
@@ -19,5 +21,7 @@ int prepareCsrSegmentedReductionTasks(DeviceState* s, const int block,
     materializeCsrReductionTasksKernel<<<cellGrid, block>>>(s->deviceState, GPU_DIRECTORY_ARGUMENT);
     err = cudaGetLastError();
     if (err != cudaSuccess) { setLastError("materializeCsrReductionTasksKernel launch", err); return 1; }
+    s->csrPreparedDirectoryKind = GPU_DIRECTORY_ARGUMENT;
+    s->csrTasksReady = 1;
     return 0;
 }

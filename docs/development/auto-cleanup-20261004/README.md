@@ -1,5 +1,7 @@
 # 2026-10-04：恢复 auto 与算子收尾清理
 
+> 后续正确性复核发现 c38d3e2 的 gas auto 占用检查会覆盖重载单元计数，并遗漏从 L1 启用后的任务准备。下述原有4组测试只验证自动标志，未覆盖切档后消费任务，不能据此判定 c38d3e2 的完整 auto 路径验收通过。算子差分与配置验证记录仍保留为历史证据；修复与实际消费者回归见 [gas auto 正确性修复](../gas-auto-correctness-20261004/README.md)。
+
 本轮只修改 WSL 测试库 `/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test`，随后按用户授权直接提交热力学 GitHub main。生产 thermal、流体库及 E 盘未修改。上传父提交 `f03e21539a1df32f05a3cd3ee25afa95ed2d9f67`；测试库不含案例，提交时保留 GitHub 所有现有案例，尤其保留 MSS7_twoPhase_dense 的 auto 配置。
 
 ## 接口与阈值

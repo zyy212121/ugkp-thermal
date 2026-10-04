@@ -1,0 +1,118 @@
+[
+  {
+    "path": "applications/gasUGKP/private_backend/GpuResidentStrict.cu",
+    "sha256": "25939e4a9d3e45daeb654d0565ea5ccc519fda4b8407b0fbac7b2d4f19642b94"
+  },
+  {
+    "path": "tests/test_gas_auto_pool_cuda.py",
+    "sha256": "7ec3778115a1421a5695f308f51561adbf52f7e27959f5a578179a06efcbfac4"
+  },
+  {
+    "path": "tests/fixtures/gas_auto/gas_auto_pool.py",
+    "sha256": "8cb77007ae19ecccebf4bb67db8c239fa81c1a6d5c867f316290e81590c76ac8"
+  },
+  {
+    "path": "tests/fixtures/gas_auto/gas_auto_pool.cu.in",
+    "sha256": "b649f89a95579e441ad35a2389de4df1efb6ca3bf812b523d83c599910e23d96"
+  },
+  {
+    "path": "README.md",
+    "sha256": "59ec511d6f3a617ebd969a250c051c3563b30d930056cf5bdf43a70592eaaafb"
+  },
+  {
+    "path": "docs/development/auto-cleanup-20261004/README.md",
+    "sha256": "92fd8f558f751e02d9ef3c35a139c4dda4517d29b0a6dcca643975fc4e62a6c2"
+  },
+  {
+    "path": "applications/FSH/private_backend/GpuResidentStrict.cu",
+    "sha256": "635e7b7fb50f3b4b75d0488576ce3ecc442381e3adfff7735c6d478a65b15059"
+  },
+  {
+    "path": "applications/CHT/gpu/GpuResidentStrict.cu",
+    "sha256": "07ba26ff5bd45f09da61c735ec96bd6caf8a98bd47105734abc29687fd9966ad"
+  },
+  {
+    "path": "common/GpuAutomaticCsrSchedule.cuh",
+    "sha256": "a95b651b10f674f9a714c6dfc8a32b02ee47f97ef87f6692c7b8ba1d99b2b09d"
+  },
+  {
+    "path": "common/GpuAutomaticCsrScheduleFields.inl",
+    "sha256": "c8fc36cdcde6e13739b1eecf1323feaad820d0edbe0c0f661811eeae2376034b"
+  },
+  {
+    "path": "common/GpuReductionTaskPipeline.cuh",
+    "sha256": "98db9c52223613cbcb55f04dfa2c98e5a3ad4e3f5e50228b07c0c16d7d50cd4d"
+  },
+  {
+    "path": "common/operators/maximumDirectoryOccupancyKernel.cuh",
+    "sha256": "869c748a1be0bbb3c9da3555a17350b70694b4d59ce5d0bf4bbb78f1ffccb5b7"
+  },
+  {
+    "path": "tools/managed_mirrors.json",
+    "sha256": "b4ee7d192644d256dd64d627977f697745805437393610f2cf049342a9bc2cff"
+  },
+  {
+    "path": "tests/test_shared_auto_schedule.py",
+    "sha256": "ce4ac8dde525e76b6ac13b3b7212b59ce6ebd504237391b72272b12148a9ec68"
+  },
+  {
+    "path": "tests/test_thermal_auto_pool_cuda.py",
+    "sha256": "391a35ac1c38c926d14d76de56040b66579e5ad1f8ba3399fcbe5eae7a774349"
+  },
+  {
+    "path": "docs/OPERATOR_MAINTENANCE_ZH.md",
+    "sha256": "6a666bdec1505c7ddaa05fd7a5cccb1a612284976cd18883023109d318e0aae3"
+  },
+  {
+    "path": "tests/fixtures/auto_cleanup/behavior.py",
+    "sha256": "3b0f2286c2581d27a8f4928df2e75007026e745e7e7402d33b3e3aa750af2316"
+  },
+  {
+    "path": "tests/fixtures/operator_unification/differential.py",
+    "sha256": "118cc31f926f70832fab5f21b97cab87643ce7bcdb3593911b1327bd3f705baf"
+  },
+  {
+    "path": "tests/fixtures/pressure/limited_flux_balance.py",
+    "sha256": "ee864840781b46aab29116433a84d4a83f7162931d424ea4796a6b697477f265"
+  },
+  {
+    "path": "tests/fixtures/shared_operators/collision_behavior.py",
+    "sha256": "809e6ed23e1180903aaf2d15b32fa87958a8f8507e62aa4505e15702f540bc48"
+  },
+  {
+    "path": "tests/fixtures/shared_operators/collision_split_behavior.py",
+    "sha256": "3f8bc5e9b4503e614d9b8ce596cff2ad1fc741da970131bb2c6a77c4b6757a08"
+  },
+  {
+    "path": "tests/fixtures/shared_operators/contact_age_theta.py",
+    "sha256": "7a1eccdb08b05e1a3d7b57bebddbe7c272a95d46481164ae903e9e83a7ce01c3"
+  },
+  {
+    "path": "tests/fixtures/shared_operators/contact_conservation.py",
+    "sha256": "c20b9611d703cd3957c23526f3483aca46abb6ca6cd73f579c0d4a9d3c9976a9"
+  },
+  {
+    "path": "tests/fixtures/shared_operators/extended_operators.py",
+    "sha256": "4fdf5fb4d04fefd2e61e74cdee49a6e6a209da6be9db6e33ed21a6d4cb783600"
+  },
+  {
+    "path": "tests/fixtures/shared_operators/tracking_grid.py",
+    "sha256": "cf6bd63a31e1130446fc7d893e8cb051586c37c143c457027619d25365bc5698"
+  },
+  {
+    "path": "tests/fixtures/thermal_workers/common_pipeline.py",
+    "sha256": "fcf4204eddc0374be6e892dc4cd1dcca2ee8d591487bb098a46888fc0f3e966e"
+  },
+  {
+    "path": "tests/fixtures/thermal_workers/s1_pipeline.py",
+    "sha256": "e23c02c465a1699cd4006937de37b8015b244f24359e96bfb7928d66d73327d4"
+  },
+  {
+    "path": "tests/test_s1_survivor_fusion_cuda.py",
+    "sha256": "79022de6d7f340ea2455dc60e2b82f398fdbdfddb892767820fc04a2dda7c753"
+  },
+  {
+    "path": "tools/benchmark_operator_unification.py",
+    "sha256": "45b9b54dc6c189e2f0391b8e79dc6bfa73018ef3168cf18313a16713eef71eca"
+  }
+]

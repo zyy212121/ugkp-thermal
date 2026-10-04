@@ -6,7 +6,7 @@ def main():
     root,out,app,bits=Path(sys.argv[1]),Path(sys.argv[2]),sys.argv[3],int(sys.argv[4])
     out.mkdir(parents=True,exist_ok=True)
     source=root/'applications'/app/('gpu' if app=='CHT' else 'private_backend')
-    raw=(source/'GpuResidentStrict.cu').read_text();start=raw.index('struct DeviceState');end=raw.index('\n};',start)
+    raw=(source/'GpuResidentStrict.cu').read_text().replace('#include "GpuAutomaticCsrScheduleFields.inl"', (root/"common/GpuAutomaticCsrScheduleFields.inl").read_text() if (root/"common/GpuAutomaticCsrScheduleFields.inl").is_file() else "");start=raw.index('struct DeviceState');end=raw.index('\n};',start)
     fields=re.findall(r'^\s*((?:unsigned\s+)?(?:long long|char)|double|float|int|GpuReal|GpuTime|GpuWallEnergy)\*\s+(\w+)\s*=',raw[start:end],re.M)
     fields=[(ty,name) for ty,name in fields if name not in ['diagnosticPreTransportParticleCount','sourceInjectedCount'] and (bits==32 or not name.startswith('flatPressure'))]
     frozen=json.loads(Path(__file__).with_name('cleanup_baseline.json').read_text())

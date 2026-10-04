@@ -27,7 +27,7 @@ def main():
         raise SystemExit('Output must be separate from the source checkout')
     out.mkdir(parents=True, exist_ok=True)
     source = root / 'applications' / app / ('gpu' if app == 'CHT' else 'private_backend') / 'GpuResidentStrict.cu'
-    text = source.read_text()
+    text = source.read_text().replace('#include "GpuAutomaticCsrScheduleFields.inl"', (root/"common/GpuAutomaticCsrScheduleFields.inl").read_text() if (root/"common/GpuAutomaticCsrScheduleFields.inl").is_file() else "")
     a = text.index('struct DeviceState')
     b = text.index('\n};', a)
     fields = re.findall(r'^\s*((?:unsigned\s+)?(?:long long|char)|double|float|int|GpuReal|GpuTime|GpuWallEnergy)\*\s+(\w+)\s*=', text[a:b], re.M)

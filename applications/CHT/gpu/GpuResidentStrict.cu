@@ -154,6 +154,7 @@ struct ParticleRadiationValidationError
 struct DeviceState
 {
     GpuWallEnergyState wallEnergy;
+#include "GpuAutomaticCsrScheduleFields.inl"
     DeviceState* deviceState = nullptr;
 
     int nCells = 0;
@@ -231,11 +232,6 @@ struct DeviceState
     GpuReal packingFraction = GPU_R(0.63);
     int packingProjectionIterations = 20;
     int csrCellLocalPathEnabled = 1;
-    int csrHeavyReductionEnabled = 0;
-    int csrHeavyReductionMode = 0;
-    int csrHeavyAutoInterval = 100;
-    int csrHeavyReductionActive = 0;
-    unsigned long long schedulingAdvanceCount = 0;
     int csrWarpAggregatedBinning = 0;
     int fixedCellBlockThreads = 128;
     int fixedFaceBlockThreads = 128;
@@ -570,11 +566,7 @@ struct DeviceState
     CsrReductionTask* csrReductionTasks = nullptr;
     int* csrMultiTaskCellList = nullptr;
     // All nonempty-cell tasks, including single-task cells.
-    int* csrHeavyTaskCount = nullptr;
-    int* csrHeavyTaskCursor = nullptr;
     // Only cells requiring multiple tasks and final reduction.
-    int* csrHeavyCellCount = nullptr;
-    int* csrMaximumOccupancy = nullptr;
     int* csrHeavyCellList = nullptr;
     int* csrHeavyTaskCell = nullptr;
     int* csrHeavyTaskBegin = nullptr;
@@ -2964,100 +2956,15 @@ int updateDynamicHeavyPolicy(DeviceState* s)
 
 #include "operators/publishHeavyReductionDecisionKernel.cuh"
 
+#define GPU_AUTO_THRESHOLD_FIELD dynamicHeavyThreshold
+#define GPU_AUTO_UPDATE_POLICY(s, kind) updateDynamicHeavyPolicy(s)
+#include "GpuAutomaticCsrSchedule.cuh"
+#undef GPU_AUTO_UPDATE_POLICY
+#undef GPU_AUTO_THRESHOLD_FIELD
+
 int runToolB3(DeviceState* s, const int block)
 {
-    if (s->csrHeavyReductionMode != 2 || s->particleCapacity <= 0)
-    {
-        return 0;
-    }
-    ++s->schedulingAdvanceCount;
-    if
-    (
-        s->schedulingAdvanceCount != 1u
-     && s->schedulingAdvanceCount
-          % static_cast<unsigned long long>(s->csrHeavyAutoInterval) != 0u
-    )
-    {
-        return 0;
-    }
-    if (updateDynamicHeavyPolicy(s) != 0)
-    {
-        return 1;
-    }
-    cudaError_t err = cudaMemset(s->csrMaximumOccupancy, 0, sizeof(int));
-    if (err != cudaSuccess)
-    {
-        setLastError("ToolB3 clear maximum occupancy", err);
-        return 1;
-    }
-    const int grid = (s->nCells + block - 1)/block;
-    maximumDirectoryOccupancyKernel<<<grid, block>>>
-    (
-        s->deviceState,
-        s->splitPreDirectoryActive,
-        s->csrMaximumOccupancy
-    );
-    err = cudaGetLastError();
-    int maximumOccupancy = 0;
-    int threshold = 0;
-    if (err == cudaSuccess)
-    {
-        err = cudaMemcpy
-        (
-            &maximumOccupancy,
-            s->csrMaximumOccupancy,
-            sizeof(int),
-            cudaMemcpyDeviceToHost
-        );
-    }
-    if (err == cudaSuccess)
-    {
-        err = cudaMemcpy
-        (
-            &threshold,
-            reinterpret_cast<const unsigned char*>(s->deviceState)
-              + offsetof(DeviceState, dynamicHeavyThreshold),
-            sizeof(int),
-            cudaMemcpyDeviceToHost
-        );
-    }
-    if (err != cudaSuccess)
-    {
-        setLastError("ToolB3 maximum occupancy", err);
-        return 1;
-    }
-    const int active = maximumOccupancy > threshold ? 1 : 0;
-    s->dynamicHeavyThreshold = threshold;
-    s->csrHeavyTileParticles = threshold;
-    s->csrHeavyReductionActive = active;
-    s->csrHeavyReductionEnabled = active;
-    publishHeavyReductionDecisionKernel<<<1, 1>>>(s->deviceState, active);
-    err = cudaGetLastError();
-    if (err != cudaSuccess)
-    {
-        setLastError("ToolB3 publish automatic L2 decision launch", err);
-        return 1;
-    }
-    if (active != 0)
-    {
-        return prepareCsrSegmentedReductionTasks
-        (
-            s,
-            block,
-            s->splitPreDirectoryActive != 0
-        );
-    }
-    err = cudaMemset(s->csrHeavyTaskCount, 0, sizeof(int));
-    if (err == cudaSuccess)
-    {
-        err = cudaMemset(s->csrHeavyCellCount, 0, sizeof(int));
-    }
-    if (err != cudaSuccess)
-    {
-        setLastError("ToolB3 clear inactive segmented schedule", err);
-        return 1;
-    }
-    return 0;
+    return runAutomaticCsrSchedule(s, block, s->splitPreDirectoryActive != 0);
 }
 
 #include "../../../common/GpuParticleDirectoryHost.cuh"

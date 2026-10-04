@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites><testsuite name="pytest" errors="0" failures="3" skipped="0" tests="3" time="0.011" timestamp="2026-10-04T14:04:14.744212" hostname="lss"><testcase classname="tests.test_shared_auto_schedule" name="test_auto_protocol_and_state_have_one_owner[gasUGKP]" time="0.000"><failure message="AssertionError: automatic schedule needs one common owner&#10;assert (False)&#10; +  where False = &lt;bound method Path.is_file of PosixPath('/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/common/GpuAutomaticCsrSchedule.cuh')&gt;()&#10; +    where &lt;bound method Path.is_file of PosixPath('/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/common/GpuAutomaticCsrSchedule.cuh')&gt; = PosixPath('/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/common/GpuAutomaticCsrSchedule.cuh').is_file">app = 'gasUGKP'
+
+    @pytest.mark.parametrize('app',['gasUGKP','FSH','CHT'])
+    def test_auto_protocol_and_state_have_one_owner(app):
+        common=ROOT/'common/GpuAutomaticCsrSchedule.cuh'
+        fields=ROOT/'common/GpuAutomaticCsrScheduleFields.inl'
+&gt;       assert common.is_file() and fields.is_file(), 'automatic schedule needs one common owner'
+E       AssertionError: automatic schedule needs one common owner
+E       assert (False)
+E        +  where False = &lt;bound method Path.is_file of PosixPath('/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/common/GpuAutomaticCsrSchedule.cuh')&gt;()
+E        +    where &lt;bound method Path.is_file of PosixPath('/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/common/GpuAutomaticCsrSchedule.cuh')&gt; = PosixPath('/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/common/GpuAutomaticCsrSchedule.cuh').is_file
+
+tests/test_shared_auto_schedule.py:10: AssertionError</failure></testcase><testcase classname="tests.test_shared_auto_schedule" name="test_auto_protocol_and_state_have_one_owner[FSH]" time="0.000"><failure message="AssertionError: automatic schedule needs one common owner&#10;assert (False)&#10; +  where False = &lt;bound method Path.is_file of PosixPath('/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/common/GpuAutomaticCsrSchedule.cuh')&gt;()&#10; +    where &lt;bound method Path.is_file of PosixPath('/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/common/GpuAutomaticCsrSchedule.cuh')&gt; = PosixPath('/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/common/GpuAutomaticCsrSchedule.cuh').is_file">app = 'FSH'
+
+    @pytest.mark.parametrize('app',['gasUGKP','FSH','CHT'])
+    def test_auto_protocol_and_state_have_one_owner(app):
+        common=ROOT/'common/GpuAutomaticCsrSchedule.cuh'
+        fields=ROOT/'common/GpuAutomaticCsrScheduleFields.inl'
+&gt;       assert common.is_file() and fields.is_file(), 'automatic schedule needs one common owner'
+E       AssertionError: automatic schedule needs one common owner
+E       assert (False)
+E        +  where False = &lt;bound method Path.is_file of PosixPath('/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/common/GpuAutomaticCsrSchedule.cuh')&gt;()
+E        +    where &lt;bound method Path.is_file of PosixPath('/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/common/GpuAutomaticCsrSchedule.cuh')&gt; = PosixPath('/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/common/GpuAutomaticCsrSchedule.cuh').is_file
+
+tests/test_shared_auto_schedule.py:10: AssertionError</failure></testcase><testcase classname="tests.test_shared_auto_schedule" name="test_auto_protocol_and_state_have_one_owner[CHT]" time="0.000"><failure message="AssertionError: automatic schedule needs one common owner&#10;assert (False)&#10; +  where False = &lt;bound method Path.is_file of PosixPath('/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/common/GpuAutomaticCsrSchedule.cuh')&gt;()&#10; +    where &lt;bound method Path.is_file of PosixPath('/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/common/GpuAutomaticCsrSchedule.cuh')&gt; = PosixPath('/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/common/GpuAutomaticCsrSchedule.cuh').is_file">app = 'CHT'
+
+    @pytest.mark.parametrize('app',['gasUGKP','FSH','CHT'])
+    def test_auto_protocol_and_state_have_one_owner(app):
+        common=ROOT/'common/GpuAutomaticCsrSchedule.cuh'
+        fields=ROOT/'common/GpuAutomaticCsrScheduleFields.inl'
+&gt;       assert common.is_file() and fields.is_file(), 'automatic schedule needs one common owner'
+E       AssertionError: automatic schedule needs one common owner
+E       assert (False)
+E        +  where False = &lt;bound method Path.is_file of PosixPath('/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/common/GpuAutomaticCsrSchedule.cuh')&gt;()
+E        +    where &lt;bound method Path.is_file of PosixPath('/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/common/GpuAutomaticCsrSchedule.cuh')&gt; = PosixPath('/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/common/GpuAutomaticCsrSchedule.cuh').is_file
+
+tests/test_shared_auto_schedule.py:10: AssertionError</failure></testcase></testsuite></testsuites>

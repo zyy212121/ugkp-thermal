@@ -5,7 +5,7 @@ from pathlib import Path
 import argparse,hashlib,json,os,re,subprocess
 p=argparse.ArgumentParser();p.add_argument('root',type=Path);p.add_argument('out',type=Path);p.add_argument('app',choices=['gasUGKP','FSH','CHT']);p.add_argument('bits',type=int);p.add_argument('--require-independent',action='store_true');p.add_argument('--require-particle-independent',action='store_true');a=p.parse_args()
 root=a.root;out=a.out;out.mkdir(parents=True,exist_ok=True)
-src=root/'applications'/a.app/('gpu' if a.app=='CHT' else 'private_backend');t=(src/'GpuResidentStrict.cu').read_text()
+src=root/'applications'/a.app/('gpu' if a.app=='CHT' else 'private_backend');t=(src/'GpuResidentStrict.cu').read_text().replace('#include "GpuAutomaticCsrScheduleFields.inl"', (root/"common/GpuAutomaticCsrScheduleFields.inl").read_text() if (root/"common/GpuAutomaticCsrScheduleFields.inl").is_file() else "")
 i=t.index('struct DeviceState');j=t.index('\n};',i)
 fields=re.findall(r'^\s*((?:unsigned\s+)?(?:long long|char)|double|float|int|GpuReal|GpuTime|GpuWallEnergy)\*\s+(\w+)\s*=',t[i:j],re.M)
 fields=[(ty,n) for ty,n in fields if not n.startswith('flatPressure') and n not in ['diagnosticPreTransportParticleCount','sourceInjectedCount']]

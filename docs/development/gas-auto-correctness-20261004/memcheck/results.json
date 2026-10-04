@@ -1,0 +1,170 @@
+[
+  {
+    "configuration": "gas-auto-pool0",
+    "directory": 0,
+    "initialL2": false,
+    "exit": 0,
+    "zeroErrors": true
+  },
+  {
+    "configuration": "gas-auto-pool0",
+    "directory": 0,
+    "initialL2": true,
+    "exit": 0,
+    "zeroErrors": true
+  },
+  {
+    "configuration": "gas-auto-pool0",
+    "directory": 1,
+    "initialL2": false,
+    "exit": 0,
+    "zeroErrors": true
+  },
+  {
+    "configuration": "gas-auto-pool0",
+    "directory": 1,
+    "initialL2": true,
+    "exit": 0,
+    "zeroErrors": true
+  },
+  {
+    "configuration": "gas-auto-pool0",
+    "directory": 2,
+    "initialL2": false,
+    "exit": 0,
+    "zeroErrors": true
+  },
+  {
+    "configuration": "gas-auto-pool0",
+    "directory": 2,
+    "initialL2": true,
+    "exit": 0,
+    "zeroErrors": true
+  },
+  {
+    "configuration": "thermal-auto-CHT-320",
+    "directory": 0,
+    "initialL2": false,
+    "exit": 0,
+    "zeroErrors": true
+  },
+  {
+    "configuration": "thermal-auto-CHT-320",
+    "directory": 0,
+    "initialL2": true,
+    "exit": 0,
+    "zeroErrors": true
+  },
+  {
+    "configuration": "thermal-auto-CHT-320",
+    "directory": 1,
+    "initialL2": false,
+    "exit": 0,
+    "zeroErrors": true
+  },
+  {
+    "configuration": "thermal-auto-CHT-320",
+    "directory": 1,
+    "initialL2": true,
+    "exit": 0,
+    "zeroErrors": true
+  },
+  {
+    "configuration": "thermal-auto-CHT-320",
+    "directory": 2,
+    "initialL2": false,
+    "exit": 0,
+    "zeroErrors": true
+  },
+  {
+    "configuration": "thermal-auto-CHT-320",
+    "directory": 2,
+    "initialL2": true,
+    "exit": 0,
+    "zeroErrors": true
+  },
+  {
+    "configuration": "thermal-auto-CHT-640",
+    "directory": 0,
+    "initialL2": false,
+    "exit": 0,
+    "zeroErrors": true
+  },
+  {
+    "configuration": "thermal-auto-CHT-640",
+    "directory": 0,
+    "initialL2": true,
+    "exit": 0,
+    "zeroErrors": true
+  },
+  {
+    "configuration": "thermal-auto-CHT-640",
+    "directory": 1,
+    "initialL2": false,
+    "exit": 0,
+    "zeroErrors": true
+  },
+  {
+    "configuration": "thermal-auto-CHT-640",
+    "directory": 1,
+    "initialL2": true,
+    "exit": 0,
+    "zeroErrors": true
+  },
+  {
+    "configuration": "thermal-auto-CHT-640",
+    "directory": 2,
+    "initialL2": false,
+    "exit": 0,
+    "zeroErrors": true
+  },
+  {
+    "configuration": "thermal-auto-CHT-640",
+    "directory": 2,
+    "initialL2": true,
+    "exit": 0,
+    "zeroErrors": true
+  },
+  {
+    "configuration": "thermal-auto-FSH-640",
+    "directory": 0,
+    "initialL2": false,
+    "exit": 0,
+    "zeroErrors": true
+  },
+  {
+    "configuration": "thermal-auto-FSH-640",
+    "directory": 0,
+    "initialL2": true,
+    "exit": 0,
+    "zeroErrors": true
+  },
+  {
+    "configuration": "thermal-auto-FSH-640",
+    "directory": 1,
+    "initialL2": false,
+    "exit": 0,
+    "zeroErrors": true
+  },
+  {
+    "configuration": "thermal-auto-FSH-640",
+    "directory": 1,
+    "initialL2": true,
+    "exit": 0,
+    "zeroErrors": true
+  },
+  {
+    "configuration": "thermal-auto-FSH-640",
+    "directory": 2,
+    "initialL2": false,
+    "exit": 0,
+    "zeroErrors": true
+  },
+  {
+    "configuration": "thermal-auto-FSH-640",
+    "directory": 2,
+    "initialL2": true,
+    "exit": 0,
+    "zeroErrors": true
+  }
+]

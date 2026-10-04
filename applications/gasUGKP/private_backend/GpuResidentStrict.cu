@@ -109,6 +109,7 @@ struct PressureProjectionCell
 
 struct DeviceState
 {
+#include "GpuAutomaticCsrScheduleFields.inl"
     DeviceState* deviceState = nullptr;
 
     int nCells = 0;
@@ -195,11 +196,6 @@ struct DeviceState
     double packingFraction = 0.63;
     int packingProjectionIterations = 20;
     int csrCellLocalPathEnabled = 1;
-    int csrHeavyReductionEnabled = 0;
-    int csrHeavyReductionMode = 0;
-    int csrHeavyAutoInterval = 100;
-    int csrHeavyReductionActive = 0;
-    unsigned long long schedulingAdvanceCount = 0;
     int fixedCellBlockThreads = 128;
     int fixedFaceBlockThreads = 128;
     int fixedWorkBlockTuned = 0;
@@ -488,10 +484,8 @@ struct DeviceState
     CsrReductionTask* csrReductionTasks = nullptr;
     int* csrMultiTaskCellList = nullptr;
     // All nonempty-cell tasks, including single-task cells.
-    int* csrHeavyTaskCount = nullptr;
-    int* csrHeavyTaskCursor = nullptr;
     // Only cells requiring multiple tasks and final reduction.
-    int* csrHeavyCellCount = nullptr;
+    // Occupancy statistics never alias task metadata consumed by finalizers.
     int* csrHeavyCellList = nullptr;
     int* csrHeavyTaskCell = nullptr;
     int* csrHeavyTaskBegin = nullptr;
@@ -1198,6 +1192,7 @@ void releaseState(DeviceState* s)
     release(s->csrHeavyTaskCount);
     release(s->csrHeavyTaskCursor);
     release(s->csrHeavyCellCount);
+    release(s->csrMaximumOccupancy);
     release(s->csrHeavyCellList);
     release(s->csrHeavyTaskCell);
     release(s->csrHeavyTaskBegin);
@@ -1515,6 +1510,7 @@ int allocateFields(DeviceState* s)
         rc |= allocate(s->csrHeavyTaskCount, 1, "cudaMalloc CSR heavy task count");
         rc |= allocate(s->csrHeavyTaskCursor, 1, "cudaMalloc CSR heavy task cursor");
         rc |= allocate(s->csrHeavyCellCount, 1, "cudaMalloc CSR heavy cell count");
+        rc |= allocate(s->csrMaximumOccupancy, 1, "cudaMalloc CSR maximum occupancy");
         rc |= allocate(s->csrHeavyPartials, 8u*segmentedTaskCapacity, "cudaMalloc CSR heavy partials");
     }
     rc |= allocate(s->compactPx, np, "cudaMalloc strict compact particle x");
@@ -2779,123 +2775,23 @@ int configureDynamicCsrHeavyPolicy
     return 0;
 }
 
-__global__ void maximumDirectoryOccupancyKernel
-(
-    DeviceState* sp,
-    const int directoryKind,
-    int* maximumOccupancy
-)
-{
-    DeviceState& s = *sp;
-    const int stride = blockDim.x*gridDim.x;
-    for (int c = blockIdx.x*blockDim.x + threadIdx.x; c < s.nCells; c += stride)
-    {
-        int count = 0;
-        if (directoryKind == static_cast<int>(HeavyDirectoryKind::baseOnly))
-        {
-            count = s.preBaseCellOffset[c + 1] - s.preBaseCellOffset[c];
-        }
-        else if
-        (
-            directoryKind
-         == static_cast<int>(HeavyDirectoryKind::splitBaseAndInjection)
-        )
-        {
-            count =
-                s.preBaseCellOffset[c + 1] - s.preBaseCellOffset[c]
-              + s.cellParticleOffset[c + 1] - s.cellParticleOffset[c];
-        }
-        else
-        {
-            count = s.cellParticleOffset[c + 1] - s.cellParticleOffset[c];
-        }
-        atomicMax(maximumOccupancy, count);
-    }
-}
+
 
 #include "operators/publishHeavyReductionDecisionKernel.cuh"
 
-int runToolB3
-(
-    DeviceState* s,
-    const int block,
-    const HeavyDirectoryKind directoryKind
-)
+
+
+#define GPU_AUTO_THRESHOLD_FIELD csrHeavyCellThreshold
+#define GPU_AUTO_UPDATE_POLICY(s, kind) configureDynamicCsrHeavyPolicy(s, kind)
+#include "GpuAutomaticCsrSchedule.cuh"
+#undef GPU_AUTO_UPDATE_POLICY
+#undef GPU_AUTO_THRESHOLD_FIELD
+
+int runToolB3(DeviceState* s, const int block, const HeavyDirectoryKind directoryKind)
 {
-    if (s->csrHeavyReductionMode != 2 || s->particleCapacity <= 0)
-    {
-        return 0;
-    }
-    ++s->schedulingAdvanceCount;
-    if
-    (
-        s->schedulingAdvanceCount != 1u
-     && s->schedulingAdvanceCount
-          % static_cast<unsigned long long>(s->csrHeavyAutoInterval) != 0u
-    )
-    {
-        return 0;
-    }
-    if (configureDynamicCsrHeavyPolicy(s, directoryKind) != 0)
-    {
-        return 1;
-    }
-    cudaError_t err = cudaMemset(s->csrHeavyCellCount, 0, sizeof(int));
-    if (err != cudaSuccess)
-    {
-        setLastError("ToolB3 clear maximum occupancy", err);
-        return 1;
-    }
-    const int grid = (s->nCells + block - 1)/block;
-    maximumDirectoryOccupancyKernel<<<grid, block>>>
-    (
-        s->deviceState,
-        static_cast<int>(directoryKind),
-        s->csrHeavyCellCount
-    );
-    err = cudaGetLastError();
-    int maximumOccupancy = 0;
-    int threshold = 0;
-    if (err == cudaSuccess)
-    {
-        err = cudaMemcpy
-        (
-            &maximumOccupancy,
-            s->csrHeavyCellCount,
-            sizeof(int),
-            cudaMemcpyDeviceToHost
-        );
-    }
-    if (err == cudaSuccess)
-    {
-        err = cudaMemcpy
-        (
-            &threshold,
-            reinterpret_cast<const unsigned char*>(s->deviceState)
-              + offsetof(DeviceState, csrHeavyCellThreshold),
-            sizeof(int),
-            cudaMemcpyDeviceToHost
-        );
-    }
-    if (err != cudaSuccess)
-    {
-        setLastError("ToolB3 occupancy decision", err);
-        return 1;
-    }
-    const int active = maximumOccupancy > threshold ? 1 : 0;
-    s->csrHeavyCellThreshold = threshold;
-    s->csrHeavyTileParticles = threshold;
-    s->csrHeavyReductionActive = active;
-    s->csrHeavyReductionEnabled = active;
-    publishHeavyReductionDecisionKernel<<<1, 1>>>(s->deviceState, active);
-    err = cudaGetLastError();
-    if (err != cudaSuccess)
-    {
-        setLastError("ToolB3 publish automatic L2 decision launch", err);
-        return 1;
-    }
-    return 0;
+    return runAutomaticCsrSchedule(s, block, directoryKind);
 }
+
 
 #include "GpuReductionTaskCount.cuh"
 

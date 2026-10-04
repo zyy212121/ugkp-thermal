@@ -690,3 +690,5 @@ The library default is 32. Increase this limit for trajectories that cross or re
 gas、FSH、CHT 的公共算子核及主机流程由 `common/` 维护。公共文件上游为 `ugkp-thermal/common`；gas 应用入口上游为独立 gas 库。修改公共实现后运行 `python3 tools/managed_mirrors.py --sync`，按登记归属同步双库；构建前检查会拒绝镜像漂移。无需分别移植三套核心实现。各应用的能力/精度适配仍需各自验证。当前生产双库冻结期间不要运行跨库 `--sync`；后续镜像同步须单独审核，公共调度配置头不在镜像范围内。工程结论与十对 k1/k2 结果见 [本轮结果](docs/OPERATOR_CONSOLIDATION_R2_RESULTS_ZH.md)，维护契约见 [维护说明](docs/OPERATOR_MAINTENANCE_ZH.md)。
 
 本次自动调度恢复、最后三项代码清理及验证结果见 [2026-10-04 收尾验证](docs/development/auto-cleanup-20261004/README.md)。
+
+`gasUGKP auto` 的任务计数与切档后任务准备已补充修复；实际碰撞池消费回归及完整测试集限制见 [gas auto 正确性修复](docs/development/gas-auto-correctness-20261004/README.md)。

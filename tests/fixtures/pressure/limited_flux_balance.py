@@ -5,7 +5,7 @@ root=Path(sys.argv[1]).resolve();p=Path(sys.argv[2]).resolve();branch=sys.argv[3
 for name in ['tests','bin','logs']:(p/name).mkdir(parents=True,exist_ok=True)
 folder='private_backend' if branch in ['gasUGKP','FSH'] else 'gpu'
 src=root/'applications'/branch/folder/'GpuResidentStrict.cu'
-raw=src.read_text();a=raw.index('struct DeviceState');b=raw.index('\n};',a);d=raw[a:b]
+raw=src.read_text().replace('#include "GpuAutomaticCsrScheduleFields.inl"', (root/"common/GpuAutomaticCsrScheduleFields.inl").read_text() if (root/"common/GpuAutomaticCsrScheduleFields.inl").is_file() else "");a=raw.index('struct DeviceState');b=raw.index('\n};',a);d=raw[a:b]
 ptr=re.findall(r'^\s*((?:unsigned\s+)?(?:long long|char)|double|float|int|GpuReal|GpuTime|GpuWallEnergy)\*\s+(\w+)\s*=',d,re.M)
 ptr=[(t,n) for t,n in ptr if n not in ['diagnosticPreTransportParticleCount','sourceInjectedCount']]
 if branch == 'gasUGKP' and mode == 'unsorted':ptr.append(('PressureProjectionCell','pressureProjectionCache'))

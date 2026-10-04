@@ -1,0 +1,12 @@
+{
+  "new_failures": [],
+  "new_errors": [],
+  "resolved_failures": [
+    "applications.gasUGKP.tests.test_s1_kernel_resource_contract.S1KernelResourceContract::test_active_pressure_cache_kernels_are_spill_free",
+    "applications.gasUGKP.tests.test_s1_kernel_resource_contract.S1KernelResourceContract::test_l0_full_collision_pool_matches_the_established_resource_budget",
+    "applications.gasUGKP.tests.test_s1_kernel_resource_contract.S1KernelResourceContract::test_split_collision_segments_are_spill_free_and_s1_is_lean",
+    "applications.gasUGKP.tests.test_s1_kernel_resource_contract.S1KernelResourceContract::test_uncached_drag_and_pool_clear_are_spill_free",
+    "applications.gasUGKP.tests.test_source_hash_contract::test_manifest_covers_effective_common_and_solver_build_inputs"
+  ],
+  "resolved_errors": []
+}

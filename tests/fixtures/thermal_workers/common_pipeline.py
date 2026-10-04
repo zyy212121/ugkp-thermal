@@ -6,7 +6,7 @@ P=Path(sys.argv[2]).resolve()
 branch,bits=sys.argv[3],int(sys.argv[4]);mode='candidate'
 for sub in ['tests','bin','logs']:(P/sub).mkdir(parents=True,exist_ok=True)
 folder='private_backend' if branch=='FSH' else 'gpu';src=root/'applications'/branch/folder/'GpuResidentStrict.cu'
-s=src.read_text();a=s.index('struct DeviceState');b=s.index('\n};',a);d=s[a:b]
+s=src.read_text().replace('#include "GpuAutomaticCsrScheduleFields.inl"', (root/"common/GpuAutomaticCsrScheduleFields.inl").read_text() if (root/"common/GpuAutomaticCsrScheduleFields.inl").is_file() else "");a=s.index('struct DeviceState');b=s.index('\n};',a);d=s[a:b]
 ptr=re.findall(r'^\s*((?:unsigned\s+)?(?:long long|char)|double|float|int|GpuReal|GpuTime|GpuWallEnergy)\*\s+(\w+)\s*=',d,re.M)
 ptr=[(t,n) for t,n in ptr if n not in ['diagnosticPreTransportParticleCount','sourceInjectedCount','flatPressureParameters','flatPressureFlags']]
 pairs=[]

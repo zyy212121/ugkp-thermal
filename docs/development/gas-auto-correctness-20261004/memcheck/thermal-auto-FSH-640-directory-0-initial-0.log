@@ -1,0 +1,35 @@
+========= COMPUTE-SANITIZER
+STEP 1 directory=0 previous=0
+TASKS count=5 multi=1 expected=5/1
+PASS actual collision pool, CPU moments and L1/RNG parity N=128 selected=71
+STEP 2 directory=0 previous=1
+TASKS count=6 multi=2 expected=6/2
+PASS actual collision pool, CPU moments and L1/RNG parity N=128 selected=71
+STEP 3 directory=0 previous=1
+TASKS count=5 multi=1 expected=5/1
+PASS actual collision pool, CPU moments and L1/RNG parity N=256 selected=148
+STEP 4 directory=0 previous=1
+TASKS count=4 multi=0 expected=4/0
+PASS actual collision pool, CPU moments and L1/RNG parity N=128 selected=71
+STEP 5 directory=0 previous=1
+TASKS count=0 multi=0 expected=0/0
+PASS actual collision pool, CPU moments and L1/RNG parity N=0 selected=0
+STEP 6 directory=0 previous=1
+PASS actual collision pool, CPU moments and L1/RNG parity N=128 selected=71
+STEP 7 directory=0 previous=0
+PASS actual collision pool, CPU moments and L1/RNG parity N=128 selected=71
+STEP 8 directory=0 previous=0
+PASS actual collision pool, CPU moments and L1/RNG parity N=128 selected=71
+STEP 9 directory=0 previous=0
+TASKS count=5 multi=1 expected=5/1
+PASS actual collision pool, CPU moments and L1/RNG parity N=128 selected=71
+TASKS count=5 multi=1 expected=5/1
+PASS actual collision pool, CPU moments and L1/RNG parity N=128 selected=71
+TASKS count=5 multi=1 expected=5/1
+PASS actual collision pool, CPU moments and L1/RNG parity N=128 selected=71
+TASKS count=5 multi=1 expected=5/1
+PASS actual collision pool, CPU moments and L1/RNG parity N=128 selected=71
+TASKS count=5 multi=1 expected=5/1
+PASS actual collision pool, CPU moments and L1/RNG parity N=128 selected=71
+PASS gas automatic scheduling followed by actual task consumers
+========= ERROR SUMMARY: 0 errors

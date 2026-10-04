@@ -29,7 +29,7 @@ def main():
         code+=cold+'\n'
         code+=frozen['thermalPressureCell'].replace('applyCollisionalPressureProjectionCellAtomicKernel','baselinePressureCell')+'\n'
         code+=frozen['thermalPressureParticles'].replace('applyCollisionalPressureProjectionParticlesAtomicKernel','baselinePressureParticles')+'\n'
-    raw=(source/'GpuResidentStrict.cu').read_text();a=raw.index('struct DeviceState');b=raw.index('\n};',a)
+    raw=(source/'GpuResidentStrict.cu').read_text().replace('#include "GpuAutomaticCsrScheduleFields.inl"', (root/"common/GpuAutomaticCsrScheduleFields.inl").read_text() if (root/"common/GpuAutomaticCsrScheduleFields.inl").is_file() else "");a=raw.index('struct DeviceState');b=raw.index('\n};',a)
     fields=re.findall(r'^\s*((?:unsigned\s+)?(?:long long|char)|double|float|int|GpuReal|GpuTime|GpuWallEnergy)\*\s+(\w+)\s*=',raw[a:b],re.M)
     fields=[(ty,n) for ty,n in fields if n not in ['diagnosticPreTransportParticleCount','sourceInjectedCount'] and (bits==32 or not n.startswith('flatPressure'))]
     code+=r'''

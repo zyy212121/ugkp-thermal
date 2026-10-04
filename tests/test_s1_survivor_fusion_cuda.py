@@ -12,7 +12,7 @@ def test_s1_survivor_fusion_addresses_payload_and_pressure(tmp_path):
     nvcc = shutil.which("nvcc") or "/usr/local/cuda/bin/nvcc"
     if not Path(nvcc).exists(): pytest.skip("CUDA compiler required")
     backend = ROOT / "applications/gasUGKP/private_backend"
-    source = (backend / "GpuResidentStrict.cu").read_text()
+    source = (backend / "GpuResidentStrict.cu").read_text().replace('#include "GpuAutomaticCsrScheduleFields.inl"', (ROOT/"common/GpuAutomaticCsrScheduleFields.inl").read_text() if (ROOT/"common/GpuAutomaticCsrScheduleFields.inl").is_file() else "")
     advance = source[source.index('    UGKP_DEV_PROBE_ENTER(ProbeBinPost);'):]
     survivor_arg = re.search(r'binParticlesByCell\(s, block, (.*?)\) != 0', advance).group(1)
     pressure_arg = re.search(r'applyCollisionalPressureKick\(s, 0.5\*dt, block, 0,\s*(.*?)\) != 0', advance, re.S).group(1)
