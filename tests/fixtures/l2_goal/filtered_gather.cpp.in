@@ -6,11 +6,13 @@
 #define __shared__
 void __syncthreads(){}
 int atomicAdd(int* p,int v){int old=*p;*p+=v;return old;}
-struct Dim{int x;};Dim threadIdx{0},blockIdx{0},blockDim{1};
+struct Dim{int x;};Dim threadIdx{0},blockIdx{0},blockDim{1},gridDim{1};
 int scans=0;
 namespace cub{template<class T,int B>struct BlockScan{struct TempStorage{};BlockScan(TempStorage&){};void ExclusiveSum(int keep,int& offset,int& count){offset=0;count=keep;++scans;}};}
 struct CsrReductionTask{int cell,begin,end;};
+template<class T>T clampRange(T x,T a,T b){return std::min(std::max(x,a),b);}
 struct DeviceState{
+ int particleCount=8;int* particleCountDevice=&particleCount;int cellParticleWrite[4]={};
  int cursor=0;int* csrHeavyTaskCursor=&cursor;
  int nCells=4,particleCapacity=8,heavyCount=5;int* csrHeavyTaskCount=&heavyCount;
  CsrReductionTask csrReductionTasks[5]={{0,0,2},{0,2,4},{1,4,5},{1,5,7},{2,7,8}};
@@ -47,19 +49,31 @@ double pOrigId[8]={0,1,2,3,4,5,6,7};
 double compactPOrigId[8]={-1,-1,-1,-1,-1,-1,-1,-1};
 };
 {{copyCellLocalParticle}}
-template<int BlockThreads>
-{{gatherCellLocalRange}}
-template<int BlockThreads>
-{{gatherCellLocalParticlesKernel}}
-template<class State, class Operation>
-{{runCsrPersistentQueue}}
-template<int BlockThreads>
-{{gatherCsrSegmentedParticlesKernel}}int main(){
-for(int path=0;path<2;++path){DeviceState s;scans=0;
- for(int block=0;block<(path?8:4);++block){blockIdx.x=block;if(path)gatherCsrSegmentedParticlesKernel<1>(&s);else gatherCellLocalParticlesKernel<1>(&s);}
- int expected[7]={3,1,2,0,6,4,7};
- for(int i=0;i<7;++i){assert(s.compactPOrigId[i]==expected[i]);assert(s.compactPStatus[i]==1);}
- assert(s.compactPOrigId[7]==-1);
- assert(scans==3);
- std::cout<<"path="<<path<<" ordered filtering and heavy coverage PASS scans="<<scans<<"\n";
+#include "operators/countParticlesByCellKernel.cuh"
+template<bool UseSurvivorDirectory = false>
+{{gatherCellLocalParticlePayloadKernel}}
+int main(){
+for(int blocks:{1,3,8}){
+ DeviceState s;
+
+ for(int c=0;c<=s.nCells;++c)s.cellParticleCount[c]=0;
+ blockDim.x=1;gridDim.x=blocks;
+ for(int b=0;b<blocks;++b){blockIdx.x=b;countParticlesByCellKernel<false,true>(&s);}
+ s.cellParticleOffset[0]=0;
+ for(int c=0;c<s.nCells;++c)s.cellParticleOffset[c+1]=s.cellParticleOffset[c]+s.cellParticleCount[c];
+ for(int b=0;b<blocks;++b){blockIdx.x=b;initialiseParticleCellWritesKernel(&s);}
+ for(int b=0;b<blocks;++b){blockIdx.x=b;scatterParticlesByCellKernel<false,true>(&s);}
+ for(int c=0;c<=s.nCells;++c)s.compactCellOffset[c]=s.cellParticleOffset[c];
+ // Validate producer coverage independently of its atomic insertion order.
+ int seen[8]={};int total=0;
+ for(int c=0;c<s.nCells;++c)for(int dst=s.cellParticleOffset[c];dst<s.cellParticleOffset[c+1];++dst){
+  int i=s.sortedParticleIndex[dst];assert(i>=0&&i<8&&s.pCellId[i]==c&&s.pStatus[i]==1);++seen[i];++total;
+ }
+ for(int i=0;i<8;++i)assert(seen[i]==(s.pStatus[i]==1&&s.pCellId[i]>=0&&s.pCellId[i]<s.nCells));
+ for(int b=0;b<blocks;++b){blockIdx.x=b;gatherCellLocalParticlePayloadKernel<true>(&s);}
+ for(int dst=0;dst<total;++dst){assert(s.compactPOrigId[dst]==s.sortedParticleIndex[dst]);assert(s.compactPStatus[dst]==1);}
+ for(int dst=total;dst<8;++dst)assert(s.compactPOrigId[dst]==-1);
+ assert(s.cellParticleCount[3]==0);
+ assert(total==7);
+ std::cout<<"current survivor producer/consumer, ordered payload and empty-cell coverage PASS\n";
 }}

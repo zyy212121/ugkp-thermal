@@ -1,0 +1,28 @@
+{
+  "base": "fa71f4777aefb6457e662c42c72db73ec3778343",
+  "gpu_calls_passed": 109,
+  "old_new_reduction_bitwise_comparisons": 600,
+  "production_chain_invocations": 96,
+  "physical_programs_passed": 7,
+  "contact_energy_balance": {
+    "FSH64": {
+      "face_balance_checks": 16,
+      "max_relative_residual": 1.9329584627552668e-14,
+      "tolerance": 1e-11
+    },
+    "CHT64": {
+      "face_balance_checks": 16,
+      "max_relative_residual": 7.93731577253118e-15,
+      "tolerance": 1e-11
+    },
+    "CHT32": {
+      "face_balance_checks": 16,
+      "max_relative_residual": 3.0284120863983947e-09,
+      "tolerance": 2e-05
+    }
+  },
+  "cpu_checks_passed": 37,
+  "unchanged_retained_gpu_functions": 544,
+  "performance_timing": false,
+  "full_historical_suite_run": false
+}

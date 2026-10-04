@@ -1,0 +1,58 @@
+[
+  {
+    "app": "gasUGKP",
+    "bits": 64,
+    "exit": 0
+  },
+  {
+    "app": "FSH",
+    "bits": 64,
+    "exit": 0
+  },
+  {
+    "app": "CHT",
+    "bits": 64,
+    "exit": 0,
+    "command": [
+      "/usr/local/cuda/bin/nvcc",
+      "-std=c++17",
+      "-O3",
+      "-arch=sm_89",
+      "--fmad=false",
+      "-Xcompiler",
+      "-fPIC",
+      "-DUGKWP_GPU_REAL_BITS=64",
+      "-I/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/common",
+      "-I/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/applications/CHT/gpu",
+      "-c",
+      "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/applications/CHT/gpu/GpuResidentStrict.cu",
+      "-o",
+      "/home/lss/ugkp-low-level-unification-20261004/validated-final/build/CHT64.o"
+    ]
+  },
+  {
+    "app": "CHT",
+    "bits": 32,
+    "exit": 0,
+    "command": [
+      "/usr/local/cuda/bin/nvcc",
+      "-std=c++17",
+      "-O3",
+      "-arch=sm_89",
+      "--fmad=false",
+      "-Xcompiler",
+      "-fPIC",
+      "-DUGKWP_GPU_REAL_BITS=32",
+      "-I/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/common",
+      "-I/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/applications/CHT/gpu",
+      "-c",
+      "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/applications/CHT/gpu/GpuResidentStrict.cu",
+      "-o",
+      "/home/lss/ugkp-low-level-unification-20261004/validated-final/build/CHT32.o",
+      "-include",
+      "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/applications/CHT/gpu/GpuBackendNames32.H",
+      "-DFoam=FoamGpuFp32",
+      "-Dugkwp=ugkwpGpuFp32"
+    ]
+  }
+]

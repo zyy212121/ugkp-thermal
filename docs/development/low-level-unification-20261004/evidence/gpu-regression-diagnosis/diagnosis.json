@@ -1,0 +1,5 @@
+{
+  "pressure_body_identical_to_baseline": true,
+  "cause": "Old assertion expected compact pressure to mutate source old velocities; the unchanged implementation writes compact old velocities until commit.",
+  "fix": "Assert source unchanged, assert compact deposited values, then assert source after explicit original reference update."
+}

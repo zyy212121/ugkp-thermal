@@ -1,0 +1,114 @@
+[
+  {
+    "test": "collision_behavior",
+    "application": "gasUGKP",
+    "bits": 64,
+    "command": [
+      "/usr/bin/python3",
+      "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/tests/fixtures/shared_operators/collision_behavior.py",
+      "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test",
+      "/home/lss/ugkp-low-level-unification-20261004/physical-correctness/collision_behavior-gasUGKP64",
+      "gasUGKP",
+      "64"
+    ],
+    "exit": 0,
+    "passed": true,
+    "performance_timing": false
+  },
+  {
+    "test": "collision_behavior",
+    "application": "FSH",
+    "bits": 64,
+    "command": [
+      "/usr/bin/python3",
+      "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/tests/fixtures/shared_operators/collision_behavior.py",
+      "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test",
+      "/home/lss/ugkp-low-level-unification-20261004/physical-correctness/collision_behavior-FSH64",
+      "FSH",
+      "64"
+    ],
+    "exit": 0,
+    "passed": true,
+    "performance_timing": false
+  },
+  {
+    "test": "collision_behavior",
+    "application": "CHT",
+    "bits": 64,
+    "command": [
+      "/usr/bin/python3",
+      "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/tests/fixtures/shared_operators/collision_behavior.py",
+      "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test",
+      "/home/lss/ugkp-low-level-unification-20261004/physical-correctness/collision_behavior-CHT64",
+      "CHT",
+      "64"
+    ],
+    "exit": 0,
+    "passed": true,
+    "performance_timing": false
+  },
+  {
+    "test": "collision_behavior",
+    "application": "CHT",
+    "bits": 32,
+    "command": [
+      "/usr/bin/python3",
+      "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/tests/fixtures/shared_operators/collision_behavior.py",
+      "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test",
+      "/home/lss/ugkp-low-level-unification-20261004/physical-correctness/collision_behavior-CHT32",
+      "CHT",
+      "32"
+    ],
+    "exit": 0,
+    "passed": true,
+    "performance_timing": false
+  },
+  {
+    "test": "contact_conservation",
+    "application": "FSH",
+    "bits": 64,
+    "command": [
+      "/usr/bin/python3",
+      "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/tests/fixtures/shared_operators/contact_conservation.py",
+      "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test",
+      "/home/lss/ugkp-low-level-unification-20261004/physical-correctness/contact_conservation-FSH64",
+      "FSH",
+      "64"
+    ],
+    "exit": 0,
+    "passed": true,
+    "performance_timing": false
+  },
+  {
+    "test": "contact_conservation",
+    "application": "CHT",
+    "bits": 64,
+    "command": [
+      "/usr/bin/python3",
+      "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/tests/fixtures/shared_operators/contact_conservation.py",
+      "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test",
+      "/home/lss/ugkp-low-level-unification-20261004/physical-correctness/contact_conservation-CHT64",
+      "CHT",
+      "64"
+    ],
+    "exit": 0,
+    "passed": true,
+    "performance_timing": false
+  },
+  {
+    "test": "contact_conservation",
+    "application": "CHT",
+    "bits": 32,
+    "command": [
+      "/usr/bin/python3",
+      "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/tests/fixtures/shared_operators/contact_conservation.py",
+      "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test",
+      "/home/lss/ugkp-low-level-unification-20261004/physical-correctness/contact_conservation-CHT32",
+      "CHT",
+      "32"
+    ],
+    "exit": 0,
+    "passed": true,
+    "performance_timing": false
+  }
+]

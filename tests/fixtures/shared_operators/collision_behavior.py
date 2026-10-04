@@ -23,7 +23,7 @@ __global__ void sampleOneLaunch(DeviceState*sp){for(int i=threadIdx.x;i<sp->part
 __global__ void rejectedThetaProbe(DeviceState*sp,int level){
  auto&s=*sp;Real mass=0,mx=0,my=0,mz=0,energy=0,d=0,d2=0,count=0;
  const Real p=s.thetaDragAlpha[0];
- if(level==1)accumulateOnePoolParticle<true, GPU_POOL_S1_LATE_THETA_AND_RNG>(s,0,1,p,mass,mx,my,mz,energy,d,d2,count);
+ if(level==1)accumulateOnePoolParticle<true>(s,0,1,p,mass,mx,my,mz,energy,d,d2,count);
  else accumulateOnePoolParticle<true>(s,0,1,p,mass,mx,my,mz,energy,d,d2,count);
 }
 int main(int argc,char**argv){setvbuf(stdout,nullptr,_IONBF,0);const int N=argc>1&&strcmp(argv[1],"late-probe")?atoi(argv[1]):129;bool bench=argc>2;

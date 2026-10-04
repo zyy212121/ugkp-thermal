@@ -55,10 +55,10 @@ class UGKPBlockConfigurationContract(unittest.TestCase):
         cuda = read("private_backend/GpuResidentStrict.cu")
         self.assertNotIn("const int block = 256;", cuda)
         self.assertNotIn("const int preparationBlock = 256;", cuda)
-        for value in (32, 64, 128, 256):
-            self.assertIn(f"gatherCellLocalParticlesKernel<{value}>", cuda)
-        self.assertIn('GpuCellLocalGather.cuh', cuda)
-        self.assertIn("cub::BlockScan<int, BlockThreads>", read("../../common/GpuCellLocalGather.cuh"))
+        self.assertNotIn("launchGatherCellLocalParticles", cuda)
+        payload = read("../../common/GpuParticlePayload.cuh")
+        self.assertIn("gatherCellLocalParticlePayloadKernel<true>", payload)
+        self.assertIn("threads", payload)
 
     def test_cuda_occupancy_is_the_launch_limit_source(self) -> None:
         cuda = read("private_backend/GpuResidentStrict.cu")

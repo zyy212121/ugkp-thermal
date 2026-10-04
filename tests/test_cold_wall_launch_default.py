@@ -7,13 +7,8 @@ ROOT = Path(__file__).resolve().parents[1]
 
 def test_cold_wall_default_inherits_particle_grid(tmp_path):
     source = (ROOT / 'applications/CHT/gpu/GpuResidentStrict.cu').read_text()
-    start = source.index('int configureLaunchOccupancy(DeviceState* s)')
-    end = source.index('{', start) + 1
-    depth = 1
-    while depth:
-        depth += (source[end] == '{') - (source[end] == '}')
-        end += 1
-    configuration = source[start:end]
+    from test_low_level_occupancy_behavior import function as extract_function
+    configuration = extract_function(source, 'configureAdditionalLaunchWorkGrids') + '\n' + (ROOT / 'common/GpuThermalLaunchOccupancy.cuh').read_text().replace('#pragma once', '')
     helper = (ROOT / 'common/GpuParticleLaunchConfiguration.cuh').read_text()
     function = helper.replace('#pragma once', '') + '\n' + configuration
     fields = sorted(set(re.findall(r's->(\w+)', function)))
@@ -25,6 +20,7 @@ def test_cold_wall_default_inherits_particle_grid(tmp_path):
 #include <cstdio>
 #include <cstddef>
 using GpuReal=double;
+#define GPU_OPERATOR_REAL GpuReal
 using cudaError_t=int;
 const int cudaSuccess=0,cudaDevAttrCooperativeLaunch=1;
 const int coldWallBlockThreads=32;

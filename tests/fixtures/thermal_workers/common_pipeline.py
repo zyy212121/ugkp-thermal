@@ -159,16 +159,8 @@ if branch=='CHT':
 level=sys.argv[5] if len(sys.argv)>5 else 'L2'
 if level=='S1':
  text=text.replace('s->csrHeavyReductionEnabled=1;', 's->csrHeavyReductionEnabled=0;')
- text=text.replace('CHECK(launchCsrSegmentedMomentReduction(&host,block)==0);','accumulateParticleMomentsSegmentedKernel<false><<<4,block,8*(block/32)*sizeof(GpuReal)>>>(s);')
- text=text.replace('CHECK(launchCsrSegmentedMomentReduction(&host,block,true)==0);','accumulateParticleMomentsSegmentedKernel<false><<<4,block,8*(block/32)*sizeof(GpuReal)>>>(s);')
- if branch=='FSH':
-  main=text.index('int main()')
-  text=text[:main]+re.sub(r'#ifdef FUSED13\s+projectBoth<<<[\s\S]*?#endif','',text[main:])
-  text=text.replace(' CHECK(*s->wallBoundParticleCountDevice==wall);',r"""
- projectOriginal<<<1,64>>>(s);CHECK(cudaDeviceSynchronize()==cudaSuccess);
- for(int c=0;c<=4;++c)s->compactCellOffset[c]=s->cellParticleOffset[c];
- gatherCellLocalParticlesKernel<128><<<4,128>>>(s);CHECK(cudaDeviceSynchronize()==cudaSuccess);
- CHECK(*s->wallBoundParticleCountDevice==wall);""")
+ text=text.replace('CHECK(launchCsrSegmentedMomentReduction(&host,block)==0);','accumulateParticleMomentsSegmentedKernel<false,postTransportFusePayload><<<4,block,8*(block/32)*sizeof(GpuReal)>>>(s);')
+ text=text.replace('CHECK(launchCsrSegmentedMomentReduction(&host,block,true)==0);','accumulateParticleMomentsSegmentedKernel<false,postTransportFusePayload><<<4,block,8*(block/32)*sizeof(GpuReal)>>>(s);')
 text=text.replace('shared moment queue',level+' shared moment kernel')
 mode=mode+'_'+level
 f=P/'tests'/f'exact13_{branch}_{bits}_{mode}.cu';f.write_text(text);exe=P/'bin'/f'exact13_{branch}_{bits}_{mode}'
@@ -179,4 +171,5 @@ log=P/'logs'/f'fixture_{branch}_{bits}_{mode}_build.log'
 with log.open('w') as out:q=subprocess.run(cmd,stdout=out,stderr=subprocess.STDOUT)
 print('BUILD',branch,bits,mode,q.returncode,flush=True)
 if q.returncode:print(log.read_text()[-5000:]);sys.exit(q.returncode)
+if __import__('os').environ.get('UGKP_CUDA_BUILD_ONLY')=='1':print('BUILD ONLY: GPU execution deferred');sys.exit(0)
 q=subprocess.run([str(exe)],capture_output=True,text=True);(P/'logs'/f'fixture_{branch}_{bits}_{mode}_run.log').write_text(q.stdout+q.stderr);print(q.stdout+q.stderr);sys.exit(q.returncode)

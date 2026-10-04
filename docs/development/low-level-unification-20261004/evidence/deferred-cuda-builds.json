@@ -1,0 +1,209 @@
+[
+  {
+    "test": "gas64-bitwise",
+    "command": [
+      "/usr/local/cuda/bin/nvcc",
+      "-std=c++17",
+      "-O3",
+      "-arch=sm_89",
+      "--fmad=true",
+      "-I/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/common",
+      "-I/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/tests/fixtures/low_level",
+      "/home/lss/ugkp-low-level-unification-20261004/deferred-cuda-final/gas64/reduction.cu",
+      "-o",
+      "/home/lss/ugkp-low-level-unification-20261004/deferred-cuda-final/gas64/reduction"
+    ],
+    "exit": 0,
+    "executable": "/home/lss/ugkp-low-level-unification-20261004/deferred-cuda-final/gas64/reduction",
+    "gpu_executed": false
+  },
+  {
+    "test": "FSH64-bitwise",
+    "command": [
+      "/usr/local/cuda/bin/nvcc",
+      "-std=c++17",
+      "-O3",
+      "-arch=sm_89",
+      "--fmad=true",
+      "-I/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/common",
+      "-I/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/tests/fixtures/low_level",
+      "/home/lss/ugkp-low-level-unification-20261004/deferred-cuda-final/FSH64/reduction.cu",
+      "-o",
+      "/home/lss/ugkp-low-level-unification-20261004/deferred-cuda-final/FSH64/reduction"
+    ],
+    "exit": 0,
+    "executable": "/home/lss/ugkp-low-level-unification-20261004/deferred-cuda-final/FSH64/reduction",
+    "gpu_executed": false
+  },
+  {
+    "test": "CHT64-bitwise",
+    "command": [
+      "/usr/local/cuda/bin/nvcc",
+      "-std=c++17",
+      "-O3",
+      "-arch=sm_89",
+      "--fmad=false",
+      "-I/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/common",
+      "-I/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/tests/fixtures/low_level",
+      "/home/lss/ugkp-low-level-unification-20261004/deferred-cuda-final/CHT64/reduction.cu",
+      "-o",
+      "/home/lss/ugkp-low-level-unification-20261004/deferred-cuda-final/CHT64/reduction"
+    ],
+    "exit": 0,
+    "executable": "/home/lss/ugkp-low-level-unification-20261004/deferred-cuda-final/CHT64/reduction",
+    "gpu_executed": false
+  },
+  {
+    "test": "CHT32-bitwise",
+    "command": [
+      "/usr/local/cuda/bin/nvcc",
+      "-std=c++17",
+      "-O3",
+      "-arch=sm_89",
+      "--fmad=false",
+      "-I/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/common",
+      "-I/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/tests/fixtures/low_level",
+      "/home/lss/ugkp-low-level-unification-20261004/deferred-cuda-final/CHT32/reduction.cu",
+      "-o",
+      "/home/lss/ugkp-low-level-unification-20261004/deferred-cuda-final/CHT32/reduction"
+    ],
+    "exit": 0,
+    "executable": "/home/lss/ugkp-low-level-unification-20261004/deferred-cuda-final/CHT32/reduction",
+    "gpu_executed": false
+  },
+  {
+    "test": "FSH64-payload",
+    "command": [
+      "/usr/local/cuda/bin/nvcc",
+      "-std=c++17",
+      "-O3",
+      "-arch=sm_89",
+      "--fmad=true",
+      "-I/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/common",
+      "/home/lss/ugkp-low-level-unification-20261004/deferred-cuda-final/FSH64/payload.cu",
+      "-o",
+      "/home/lss/ugkp-low-level-unification-20261004/deferred-cuda-final/FSH64/payload"
+    ],
+    "exit": 0,
+    "executable": "/home/lss/ugkp-low-level-unification-20261004/deferred-cuda-final/FSH64/payload",
+    "gpu_executed": false
+  },
+  {
+    "test": "FSH64-payload_commit",
+    "command": [
+      "/usr/bin/python3",
+      "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/tests/fixtures/shared_operators/payload_commit.py",
+      "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test",
+      "/home/lss/ugkp-low-level-unification-20261004/deferred-cuda-final/FSH64/payload_commit",
+      "FSH",
+      "64"
+    ],
+    "exit": 0,
+    "executable": "/home/lss/ugkp-low-level-unification-20261004/deferred-cuda-final/FSH64/payload_commit/payload_commit",
+    "gpu_executed": false
+  },
+  {
+    "test": "FSH64-s1_pipeline",
+    "command": [
+      "/usr/bin/python3",
+      "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/tests/fixtures/thermal_workers/s1_pipeline.py",
+      "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test",
+      "/home/lss/ugkp-low-level-unification-20261004/deferred-cuda-final/FSH64/s1_pipeline",
+      "FSH",
+      "64"
+    ],
+    "exit": 0,
+    "executable": "/home/lss/ugkp-low-level-unification-20261004/deferred-cuda-final/FSH64/s1_pipeline/bin/exact13_FSH_64_candidate",
+    "gpu_executed": false
+  },
+  {
+    "test": "CHT64-payload",
+    "command": [
+      "/usr/local/cuda/bin/nvcc",
+      "-std=c++17",
+      "-O3",
+      "-arch=sm_89",
+      "--fmad=false",
+      "-I/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/common",
+      "/home/lss/ugkp-low-level-unification-20261004/deferred-cuda-final/CHT64/payload.cu",
+      "-o",
+      "/home/lss/ugkp-low-level-unification-20261004/deferred-cuda-final/CHT64/payload"
+    ],
+    "exit": 0,
+    "executable": "/home/lss/ugkp-low-level-unification-20261004/deferred-cuda-final/CHT64/payload",
+    "gpu_executed": false
+  },
+  {
+    "test": "CHT64-payload_commit",
+    "command": [
+      "/usr/bin/python3",
+      "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/tests/fixtures/shared_operators/payload_commit.py",
+      "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test",
+      "/home/lss/ugkp-low-level-unification-20261004/deferred-cuda-final/CHT64/payload_commit",
+      "CHT",
+      "64"
+    ],
+    "exit": 0,
+    "executable": "/home/lss/ugkp-low-level-unification-20261004/deferred-cuda-final/CHT64/payload_commit/payload_commit",
+    "gpu_executed": false
+  },
+  {
+    "test": "CHT64-s1_pipeline",
+    "command": [
+      "/usr/bin/python3",
+      "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/tests/fixtures/thermal_workers/s1_pipeline.py",
+      "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test",
+      "/home/lss/ugkp-low-level-unification-20261004/deferred-cuda-final/CHT64/s1_pipeline",
+      "CHT",
+      "64"
+    ],
+    "exit": 0,
+    "executable": "/home/lss/ugkp-low-level-unification-20261004/deferred-cuda-final/CHT64/s1_pipeline/bin/exact13_CHT_64_candidate",
+    "gpu_executed": false
+  },
+  {
+    "test": "CHT32-payload",
+    "command": [
+      "/usr/local/cuda/bin/nvcc",
+      "-std=c++17",
+      "-O3",
+      "-arch=sm_89",
+      "--fmad=false",
+      "-I/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/common",
+      "/home/lss/ugkp-low-level-unification-20261004/deferred-cuda-final/CHT32/payload.cu",
+      "-o",
+      "/home/lss/ugkp-low-level-unification-20261004/deferred-cuda-final/CHT32/payload"
+    ],
+    "exit": 0,
+    "executable": "/home/lss/ugkp-low-level-unification-20261004/deferred-cuda-final/CHT32/payload",
+    "gpu_executed": false
+  },
+  {
+    "test": "CHT32-payload_commit",
+    "command": [
+      "/usr/bin/python3",
+      "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/tests/fixtures/shared_operators/payload_commit.py",
+      "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test",
+      "/home/lss/ugkp-low-level-unification-20261004/deferred-cuda-final/CHT32/payload_commit",
+      "CHT",
+      "32"
+    ],
+    "exit": 0,
+    "executable": "/home/lss/ugkp-low-level-unification-20261004/deferred-cuda-final/CHT32/payload_commit/payload_commit",
+    "gpu_executed": false
+  },
+  {
+    "test": "CHT32-s1_pipeline",
+    "command": [
+      "/usr/bin/python3",
+      "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/tests/fixtures/thermal_workers/s1_pipeline.py",
+      "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test",
+      "/home/lss/ugkp-low-level-unification-20261004/deferred-cuda-final/CHT32/s1_pipeline",
+      "CHT",
+      "32"
+    ],
+    "exit": 0,
+    "executable": "/home/lss/ugkp-low-level-unification-20261004/deferred-cuda-final/CHT32/s1_pipeline/bin/exact13_CHT_32_candidate",
+    "gpu_executed": false
+  }
+]

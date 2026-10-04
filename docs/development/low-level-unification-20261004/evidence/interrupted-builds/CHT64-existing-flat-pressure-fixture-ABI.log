@@ -1,0 +1,19 @@
+BUILD CHT 64 candidate 2
+/home/lss/ugkp-low-level-unification-20261004/deferred-cuda/CHT64/s1_pipeline/tests/exact13_CHT_64_candidate.cu(471): error: no instance of function template "launchFlatPressure" matches the argument list
+            argument types are: (<unnamed>::DeviceState *, <unnamed>::DeviceState *, double, int)
+    launchFlatPressure<false,false>(s,s,.01,0);
+    ^
+/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/applications/CHT/gpu/GpuResidentStrict.cu(2273): note #3326-D: function template "launchFlatPressure" does not match because argument #4 does not match parameter
+  void launchFlatPressure(DeviceState* host,DeviceState* device,GpuTime dt,FlatPressureSegment segment)
+       ^
+
+/home/lss/ugkp-low-level-unification-20261004/deferred-cuda/CHT64/s1_pipeline/tests/exact13_CHT_64_candidate.cu(475): error: no instance of function template "launchFlatPressure" matches the argument list
+            argument types are: (<unnamed>::DeviceState *, <unnamed>::DeviceState *, double, int)
+    launchFlatPressure<false,true>(s,s,.01,0);
+    ^
+/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/applications/CHT/gpu/GpuResidentStrict.cu(2273): note #3326-D: function template "launchFlatPressure" does not match because argument #4 does not match parameter
+  void launchFlatPressure(DeviceState* host,DeviceState* device,GpuTime dt,FlatPressureSegment segment)
+       ^
+
+2 errors detected in the compilation of "/home/lss/ugkp-low-level-unification-20261004/deferred-cuda/CHT64/s1_pipeline/tests/exact13_CHT_64_candidate.cu".
+

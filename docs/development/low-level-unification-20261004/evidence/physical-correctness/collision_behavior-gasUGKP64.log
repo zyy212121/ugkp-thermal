@@ -1,0 +1,21 @@
+BUILD current gasUGKP 64 0
+RUN_RETURN 0 STATE poisson=0 contact=0 block=32 heavy=0 selected=117 hash=2059186726501024493
+STATE poisson=0 contact=0 block=32 heavy=1 selected=117 hash=2059186726501024493
+STATE poisson=0 contact=0 block=64 heavy=0 selected=117 hash=2059186726501024493
+STATE poisson=0 contact=0 block=64 heavy=1 selected=117 hash=2059186726501024493
+STATE poisson=0 contact=0 block=128 heavy=0 selected=117 hash=2059186726501024493
+STATE poisson=0 contact=0 block=128 heavy=1 selected=117 hash=2059186726501024493
+STATE poisson=0 contact=0 block=256 heavy=0 selected=117 hash=2059186726501024493
+STATE poisson=0 contact=0 block=256 heavy=1 selected=117 hash=2059186726501024493
+STATE poisson=1 contact=0 block=32 heavy=0 selected=62 hash=8240124025720944765
+STATE poisson=1 contact=0 block=32 heavy=1 selected=62 hash=8240124025720944765
+STATE poisson=1 contact=0 block=64 heavy=0 selected=62 hash=8240124025720944765
+STATE poisson=1 contact=0 block=64 heavy=1 selected=62 hash=8240124025720944765
+STATE poisson=1 contact=0 block=128 heavy=0 selected=62 hash=8240124025720944765
+STATE poisson=1 contact=0 block=128 heavy=1 selected=62 hash=8240124025720944765
+STATE poisson=1 contact=0 block=256 heavy=0 selected=62 hash=8240124025720944765
+STATE poisson=1 contact=0 block=256 heavy=1 selected=62 hash=8240124025720944765
+PASS collision pool CPU moments, selected IDs/RNG and contact metadata
+
+LATE_PROBE_RETURN 0 PASS rejected particles do not read theta in L1, L2 or atomic fallback
+

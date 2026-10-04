@@ -1,0 +1,158 @@
+// Immutable fa71f477 host reference.
+int configureLaunchOccupancy(DeviceState* s)
+{
+    const int block = s->reductionBlockThreads;
+    const int warpCount = (block + 31)/32;
+    const size_t poolSharedBytes =
+        8u*static_cast<size_t>(block)*sizeof(GpuReal);
+    const size_t momentSharedBytes =
+        8u*static_cast<size_t>(warpCount)*sizeof(GpuReal);
+    cudaError_t err = cudaSuccess;
+    if (s->csrHeavyReductionEnabled != 0)
+    {
+        int segmentedPool = 0;
+        int segmentedMoment = 0;
+        err = thermalPoolLaunchOccupancy(&segmentedPool, block, momentSharedBytes);
+        if (err == cudaSuccess)
+        {
+            err = cudaOccupancyMaxActiveBlocksPerMultiprocessor
+            (
+                &segmentedMoment,
+                accumulateCsrSegmentedMomentTasksPersistentKernel<postTransportFusePayload>,
+                block,
+                momentSharedBytes
+            );
+        }
+        if (err != cudaSuccess || segmentedPool <= 0 || segmentedMoment <= 0)
+        {
+            if (err != cudaSuccess)
+            {
+                setLastError("CUDA segmented-kernel occupancy validation", err);
+            }
+            else
+            {
+                setLastErrorText("selected bn gives zero segmented-kernel occupancy");
+            }
+            return 1;
+        }
+        s->heavyResidentBlocksPerSm =
+            segmentedPool < segmentedMoment ? segmentedPool : segmentedMoment;
+        s->lightResidentBlocksPerSm = s->heavyResidentBlocksPerSm;
+        s->csrHeavyWorkerGrid =
+            s->multiprocessorCount*s->heavyResidentBlocksPerSm;
+    }
+    else
+    {
+        int lightPool = 0;
+        int lightMoment = 0;
+        err = cudaOccupancyMaxActiveBlocksPerMultiprocessor
+        (
+            &lightPool,
+            accumulatePoissonPoolParticlesByCellKernel,
+            block,
+            poolSharedBytes
+        );
+        if (err == cudaSuccess)
+        {
+            err = cudaOccupancyMaxActiveBlocksPerMultiprocessor
+            (
+                &lightMoment,
+                accumulateParticleMomentsSegmentedKernel<false, postTransportFusePayload>,
+                block,
+                momentSharedBytes
+            );
+        }
+        if (err != cudaSuccess || lightPool <= 0 || lightMoment <= 0)
+        {
+            if (err != cudaSuccess)
+            {
+                setLastError("CUDA light-kernel occupancy validation", err);
+            }
+            else
+            {
+                setLastErrorText("selected bn gives zero light-kernel occupancy");
+            }
+            return 1;
+        }
+        s->lightResidentBlocksPerSm =
+            lightPool < lightMoment ? lightPool : lightMoment;
+        s->heavyResidentBlocksPerSm = 0;
+        s->csrHeavyWorkerGrid = 0;
+    }
+
+    s->mobilePackingCooperativeGrid = 0;
+    if (s->jammingPressureEnabled != 0)
+    {
+        int device = 0;
+        int cooperativeLaunch = 0;
+        int residentBlocks = 0;
+        err = cudaGetDevice(&device);
+        if (err == cudaSuccess)
+        {
+            err = cudaDeviceGetAttribute
+            (
+                &cooperativeLaunch,
+                cudaDevAttrCooperativeLaunch,
+                device
+            );
+        }
+        if (err == cudaSuccess && cooperativeLaunch != 0)
+        {
+            err = cudaOccupancyMaxActiveBlocksPerMultiprocessor
+            (
+                &residentBlocks,
+                completeMobilePackingProjectionCooperativeKernel,
+                s->particleBlockThreads,
+                0
+            );
+        }
+        if (err != cudaSuccess || cooperativeLaunch == 0 || residentBlocks <= 0)
+        {
+            if (err != cudaSuccess)
+            {
+                setLastError("CUDA mobile-packing cooperative occupancy", err);
+            }
+            else
+            {
+                setLastErrorText("GPU does not support mobile-packing cooperative launch");
+            }
+            return 1;
+        }
+        s->mobilePackingCooperativeGrid =
+            s->multiprocessorCount*residentBlocks;
+    }
+
+    int particleResidentBlocks = 0;
+    if (queryParticleKernelResidency
+        (s, countParticlesByCellKernel<true, true>, particleResidentBlocks) != 0)
+        return 1;
+    setParticleWorkGridFromResidency(s, particleResidentBlocks);
+    if (configureTrackingWorkGrid(s) != 0) return 1;
+    if constexpr (coldWallSmBlocks > 0)
+    {
+        // Use the existing precision-specific block-count override.
+        s->coldWallWorkGrid = s->multiprocessorCount*coldWallSmBlocks;
+    }
+    else
+    {
+        // No independent block-count override: inherit the particle grid.
+        s->coldWallWorkGrid = s->particleWorkGrid;
+    }
+    std::fprintf(stderr, "Cold-wall launch geometry: threads=%d grid=%d\n",
+        coldWallBlockThreads, s->coldWallWorkGrid);
+    std::fprintf
+    (
+        stderr,
+        "Launch geometry: B1cell=%d B1face=%d (ToolB1 pending) "
+        "B2=%d B3=%d SM=%d "
+        "lightBlocksPerSM=%d heavyBlocksPerSM=%d\n",
+        s->fixedCellBlockThreads,
+        s->fixedFaceBlockThreads,
+        s->particleBlockThreads,
+        s->reductionBlockThreads,
+        s->multiprocessorCount,
+        s->lightResidentBlocksPerSm,
+        s->heavyResidentBlocksPerSm
+    );
+    return syncDeviceState(s, "sync occupancy-derived launch geometry");
+}

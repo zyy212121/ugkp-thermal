@@ -1,0 +1,80 @@
+[
+  {
+    "configuration": "CHT32",
+    "before_functions": 159,
+    "after_functions": 146,
+    "removed": [
+      "void ugkwpCudaFp32::gatherCellLocalParticlePayloadKernel<false>(ugkwpCudaFp32::(anonymous namespace)::DeviceState*)",
+      "void ugkwpCudaFp32::gatherThermalSegmentedParticlesKernel<1024, true>(ugkwpCudaFp32::(anonymous namespace)::DeviceState*)",
+      "void ugkwpCudaFp32::gatherThermalSegmentedParticlesKernel<128, true>(ugkwpCudaFp32::(anonymous namespace)::DeviceState*)",
+      "void ugkwpCudaFp32::gatherThermalSegmentedParticlesKernel<256, true>(ugkwpCudaFp32::(anonymous namespace)::DeviceState*)",
+      "void ugkwpCudaFp32::gatherThermalSegmentedParticlesKernel<32, true>(ugkwpCudaFp32::(anonymous namespace)::DeviceState*)",
+      "void ugkwpCudaFp32::gatherThermalSegmentedParticlesKernel<512, true>(ugkwpCudaFp32::(anonymous namespace)::DeviceState*)",
+      "void ugkwpCudaFp32::gatherThermalSegmentedParticlesKernel<64, true>(ugkwpCudaFp32::(anonymous namespace)::DeviceState*)",
+      "void ugkwpCudaFp32::indexCellLocalParticlesKernel<1024>(ugkwpCudaFp32::(anonymous namespace)::DeviceState*)",
+      "void ugkwpCudaFp32::indexCellLocalParticlesKernel<128>(ugkwpCudaFp32::(anonymous namespace)::DeviceState*)",
+      "void ugkwpCudaFp32::indexCellLocalParticlesKernel<256>(ugkwpCudaFp32::(anonymous namespace)::DeviceState*)",
+      "void ugkwpCudaFp32::indexCellLocalParticlesKernel<32>(ugkwpCudaFp32::(anonymous namespace)::DeviceState*)",
+      "void ugkwpCudaFp32::indexCellLocalParticlesKernel<512>(ugkwpCudaFp32::(anonymous namespace)::DeviceState*)",
+      "void ugkwpCudaFp32::indexCellLocalParticlesKernel<64>(ugkwpCudaFp32::(anonymous namespace)::DeviceState*)"
+    ],
+    "added": [],
+    "changed": []
+  },
+  {
+    "configuration": "CHT64",
+    "before_functions": 155,
+    "after_functions": 142,
+    "removed": [
+      "void gatherCellLocalParticlePayloadKernel<false>((anonymous namespace)::DeviceState*)",
+      "void gatherThermalSegmentedParticlesKernel<1024, true>((anonymous namespace)::DeviceState*)",
+      "void gatherThermalSegmentedParticlesKernel<128, true>((anonymous namespace)::DeviceState*)",
+      "void gatherThermalSegmentedParticlesKernel<256, true>((anonymous namespace)::DeviceState*)",
+      "void gatherThermalSegmentedParticlesKernel<32, true>((anonymous namespace)::DeviceState*)",
+      "void gatherThermalSegmentedParticlesKernel<512, true>((anonymous namespace)::DeviceState*)",
+      "void gatherThermalSegmentedParticlesKernel<64, true>((anonymous namespace)::DeviceState*)",
+      "void indexCellLocalParticlesKernel<1024>((anonymous namespace)::DeviceState*)",
+      "void indexCellLocalParticlesKernel<128>((anonymous namespace)::DeviceState*)",
+      "void indexCellLocalParticlesKernel<256>((anonymous namespace)::DeviceState*)",
+      "void indexCellLocalParticlesKernel<32>((anonymous namespace)::DeviceState*)",
+      "void indexCellLocalParticlesKernel<512>((anonymous namespace)::DeviceState*)",
+      "void indexCellLocalParticlesKernel<64>((anonymous namespace)::DeviceState*)"
+    ],
+    "added": [],
+    "changed": []
+  },
+  {
+    "configuration": "FSH64",
+    "before_functions": 141,
+    "after_functions": 133,
+    "removed": [
+      "void gatherCellLocalParticlesKernel<128>((anonymous namespace)::DeviceState*)",
+      "void gatherCellLocalParticlesKernel<256>((anonymous namespace)::DeviceState*)",
+      "void gatherCellLocalParticlesKernel<32>((anonymous namespace)::DeviceState*)",
+      "void gatherCellLocalParticlesKernel<64>((anonymous namespace)::DeviceState*)",
+      "void gatherThermalSegmentedParticlesKernel<128, false>((anonymous namespace)::DeviceState*)",
+      "void gatherThermalSegmentedParticlesKernel<256, false>((anonymous namespace)::DeviceState*)",
+      "void gatherThermalSegmentedParticlesKernel<32, false>((anonymous namespace)::DeviceState*)",
+      "void gatherThermalSegmentedParticlesKernel<64, false>((anonymous namespace)::DeviceState*)"
+    ],
+    "added": [],
+    "changed": []
+  },
+  {
+    "configuration": "gasUGKP64",
+    "before_functions": 131,
+    "after_functions": 123,
+    "removed": [
+      "void gatherCellLocalParticlesKernel<128>((anonymous namespace)::DeviceState*)",
+      "void gatherCellLocalParticlesKernel<256>((anonymous namespace)::DeviceState*)",
+      "void gatherCellLocalParticlesKernel<32>((anonymous namespace)::DeviceState*)",
+      "void gatherCellLocalParticlesKernel<64>((anonymous namespace)::DeviceState*)",
+      "void gatherCsrSegmentedParticlesKernel<128>((anonymous namespace)::DeviceState*)",
+      "void gatherCsrSegmentedParticlesKernel<256>((anonymous namespace)::DeviceState*)",
+      "void gatherCsrSegmentedParticlesKernel<32>((anonymous namespace)::DeviceState*)",
+      "void gatherCsrSegmentedParticlesKernel<64>((anonymous namespace)::DeviceState*)"
+    ],
+    "added": [],
+    "changed": []
+  }
+]

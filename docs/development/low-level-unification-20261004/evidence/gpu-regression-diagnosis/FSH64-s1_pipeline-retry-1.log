@@ -1,0 +1,13 @@
+BUILD FSH 64 candidate 139
+/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/applications/FSH/private_backend/GpuResidentStrict.cu(3944): warning #177-D: variable "warpCount" was declared but never referenced
+      const int warpCount = (block + 31)/32;
+                ^
+
+Remark: The warnings can be suppressed with "-diag-suppress <warning-number>"
+
+/home/lss/ugkp-low-level-unification-20261004/deferred-cuda-final/FSH64/s1_pipeline/tests/exact13_FSH_64_candidate.cu(12): warning #177-D: variable "i" was declared but never referenced
+    int i=s->sortedParticleIndex[pos];
+        ^
+
+Segmentation fault (core dumped)
+

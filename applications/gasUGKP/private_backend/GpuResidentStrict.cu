@@ -2253,122 +2253,13 @@ int launchParticleDragRelaxation
 
 #include "GpuCollisionProbability.cuh"
 
-__global__ void clearPoissonThermalPoolKernel(DeviceState* sp, const double dt)
-{
-    DeviceState& s = *sp;
-    const int c = blockIdx.x*blockDim.x + threadIdx.x;
-#ifdef UGKP_DEVELOPMENT_PROBES
-    if (c == 0 && s.diagnosticPreTransportParticleCount != nullptr)
-    {
-        *s.diagnosticPreTransportParticleCount =
-            clampRange(*s.particleCountDevice, 0, s.particleCapacity);
-    }
-#endif
-    if (c >= s.nCells)
-    {
-        return;
-    }
+#define GPU_POOL_INITIALIZATION_WITH_PROBABILITY 1
+#include "operators/clearPoissonThermalPoolKernel.cuh"
+#undef GPU_POOL_INITIALIZATION_WITH_PROBABILITY
 
-    // This producer runs after this step's pressure kick and primitive
-    // recovery. Only multi-segment consumers need cross-block reuse.
-    if (s.csrHeavyReductionEnabled != 0 && s.csrCellTaskCount[c] > 1)
-    {
-        s.poissonCellCollisionProbability[c] =
-            poissonCollisionProbabilityForCell(s, c, dt);
-    }
-    s.poolThermalCount[c] = 0;
-    s.poolThermalSumUx[c] = 0.0;
-    s.poolThermalSumUy[c] = 0.0;
-    s.poolThermalSumUz[c] = 0.0;
-    s.poolThermalSumU2[c] = 0.0;
-    s.poissonPoolSampleTargetCount[c] = 0;
-    s.poissonPoolMass[c] = 0.0;
-    s.poissonPoolMomX[c] = 0.0;
-    s.poissonPoolMomY[c] = 0.0;
-    s.poissonPoolMomZ[c] = 0.0;
-    s.poissonPoolEnergy[c] = 0.0;
-    s.poissonPoolDiameter[c] = 0.0;
-    s.poissonPoolDiameter2[c] = 0.0;
-}
-
-template<int NumComponents>
-__device__ void blockReduceComponentSums
-(
-    double (&sums)[NumComponents],
-    double* warpPartials
-)
-{
-    const int lane = threadIdx.x & 31;
-    const int warp = threadIdx.x >> 5;
-    const int warpCount = (blockDim.x + 31)/32;
-    constexpr unsigned int fullWarpMask = 0xffffffffu;
-
-                                                                             
-                                                                           
-                                                                             
-                                                          
-    if ((blockDim.x & 31) != 0)
-    {
-        asm("trap;");
-    }
-    __syncwarp(fullWarpMask);
-
-    for (int offset = 16; offset > 0; offset >>= 1)
-    {
-        #pragma unroll
-        for (int component = 0; component < NumComponents; ++component)
-        {
-            const double other =
-                __shfl_down_sync(fullWarpMask, sums[component], offset);
-            if (lane < offset)
-            {
-                sums[component] += other;
-            }
-        }
-    }
-
-    if (lane == 0)
-    {
-        #pragma unroll
-        for (int component = 0; component < NumComponents; ++component)
-        {
-            warpPartials[component*warpCount + warp] = sums[component];
-        }
-    }
-
-    __syncthreads();
-
-    if (warp == 0)
-    {
-        __syncwarp(fullWarpMask);
-
-        #pragma unroll
-        for (int component = 0; component < NumComponents; ++component)
-        {
-            double value =
-                lane < warpCount
-              ? warpPartials[component*warpCount + lane]
-              : 0.0;
-
-            int firstOffset = 16;
-            while (firstOffset >= warpCount) firstOffset >>= 1;
-            for (int offset = firstOffset; offset > 0; offset >>= 1)
-            {
-                const double other =
-                    __shfl_down_sync(fullWarpMask, value, offset);
-                if (lane < offset && lane + offset < warpCount)
-                {
-                    value += other;
-                }
-            }
-
-            if (lane == 0)
-            {
-                sums[component] = value;
-            }
-        }
-    }
-}
+#define GPU_BLOCK_REDUCTION_PRUNED_TREE 1
+#include "GpuBlockComponentReduction.cuh"
+#undef GPU_BLOCK_REDUCTION_PRUNED_TREE
 
 #include "GpuCollisionPoolParticle.cuh"
 
@@ -2484,17 +2375,7 @@ int launchCsrHeavyPoolReduction
 
 }
 
-__global__ void preparePoissonPoolSamplingKernel(DeviceState* sp)
-{
-    DeviceState& s = *sp;
-    const int c = blockIdx.x*blockDim.x + threadIdx.x;
-    if (c >= s.nCells)
-    {
-        return;
-    }
-
-    preparePoissonPoolSamplingCell(s, c);
-}
+#include "operators/preparePoissonPoolSamplingKernel.cuh"
 
 #include "../../../common/GpuCollisionPoolSampling.cuh"
 
@@ -2526,92 +2407,13 @@ __global__ void correctPoissonThermalizedParticlesKernel
 
 
 
-#include "GpuCellLocalGather.cuh"
-
-template<int BlockThreads>
-struct CsrGatherOperation
-{
-    __device__ bool prepare(DeviceState&, int) { return true; }
-    __device__ void execute(DeviceState& s, const int task)
-    {
-        const CsrReductionTask descriptor = s.csrReductionTasks[task];
-        const int c = descriptor.cell;
-        const int start = s.cellParticleOffset[c];
-        const int end = s.cellParticleOffset[c + 1];
-        if (s.cellParticleCount[c] == 0) return;
-        const bool allKept = s.cellParticleCount[c] == end - start;
-        if (allKept)
-            gatherCellLocalRange<BlockThreads>(s, c, descriptor.begin, descriptor.end,
-                s.compactCellOffset[c] + descriptor.begin - start, true);
-        else if (task == s.csrCellTaskOffset[c])
-            gatherCellLocalRange<BlockThreads>(s, c, start, end,
-                s.compactCellOffset[c], false);
-
-    }
-};
-
-template<int BlockThreads>
-__global__ void gatherCsrSegmentedParticlesKernel(DeviceState* sp)
-{
-    DeviceState& s = *sp;
-    CsrGatherOperation<BlockThreads> operation;
-    runCsrPersistentQueue(s, *s.csrHeavyTaskCount, operation);
-}
 
 
-int launchGatherCellLocalParticles(DeviceState* s)
-{
-    if (s->csrHeavyReductionEnabled != 0)
-    {
-        const cudaError_t resetError = resetCsrPersistentQueue(s);
-        if (resetError != cudaSuccess)
-        {
-            setLastError("reset CSR gather queue", resetError);
-            return 1;
-        }
-    }
-    switch (s->reductionBlockThreads)
-    {
-        case 32:
-            if (s->csrHeavyReductionEnabled != 0)
-                gatherCsrSegmentedParticlesKernel<32><<<s->csrHeavyWorkerGrid, 32>>>(s->deviceState);
-            else
-                gatherCellLocalParticlesKernel<32>
-                <<<s->nCells, 32>>>(s->deviceState);
-            break;
-        case 64:
-            if (s->csrHeavyReductionEnabled != 0)
-                gatherCsrSegmentedParticlesKernel<64><<<s->csrHeavyWorkerGrid, 64>>>(s->deviceState);
-            else
-                gatherCellLocalParticlesKernel<64>
-                <<<s->nCells, 64>>>(s->deviceState);
-            break;
-        case 128:
-            if (s->csrHeavyReductionEnabled != 0)
-                gatherCsrSegmentedParticlesKernel<128><<<s->csrHeavyWorkerGrid, 128>>>(s->deviceState);
-            else
-                gatherCellLocalParticlesKernel<128>
-                <<<s->nCells, 128>>>(s->deviceState);
-            break;
-        case 256:
-            if (s->csrHeavyReductionEnabled != 0)
-                gatherCsrSegmentedParticlesKernel<256><<<s->csrHeavyWorkerGrid, 256>>>(s->deviceState);
-            else
-                gatherCellLocalParticlesKernel<256>
-                <<<s->nCells, 256>>>(s->deviceState);
-            break;
-        default:
-            setLastErrorText("unsupported UGKP block size in cell gather");
-            return 1;
-    }
-    const cudaError_t err = cudaGetLastError();
-    if (err != cudaSuccess)
-    {
-        setLastError("gatherCellLocalParticlesKernel launch", err);
-        return 1;
-    }
-    return 0;
-}
+
+
+
+
+
 
 #include "operators/gatherSelectedParticlesKernel.cuh"
 

@@ -1,0 +1,18 @@
+{
+  "modified_production": [
+    "applications/CHT/gpu/GpuResidentStrict.cu",
+    "applications/FSH/private_backend/GpuResidentStrict.cu",
+    "applications/gasUGKP/private_backend/GpuResidentStrict.cu",
+    "common/GpuBlockComponentReduction.cuh",
+    "common/GpuThermalLaunchOccupancy.cuh",
+    "common/operators/appendSelectedStuckParticleIndex.cuh",
+    "common/operators/clearPoissonThermalPoolKernel.cuh",
+    "common/operators/preparePoissonPoolSamplingKernel.cuh"
+  ],
+  "deleted_production": [
+    "gpu/thermal/CsrSegmentedGather.cuh"
+  ],
+  "other_physics_sources_unchanged": true,
+  "production_libraries_not_modified": true,
+  "E_drive_not_modified": true
+}

@@ -1,0 +1,44 @@
+[
+  {
+    "test": "gas64-bitwise",
+    "arguments": [],
+    "exit": 0,
+    "passed": true
+  },
+  {
+    "test": "FSH64-bitwise",
+    "arguments": [],
+    "exit": 0,
+    "passed": true
+  },
+  {
+    "test": "CHT64-bitwise",
+    "arguments": [],
+    "exit": 0,
+    "passed": true
+  },
+  {
+    "test": "CHT32-bitwise",
+    "arguments": [],
+    "exit": 0,
+    "passed": true
+  },
+  {
+    "test": "FSH64-payload",
+    "arguments": [],
+    "exit": 0,
+    "passed": true
+  },
+  {
+    "test": "FSH64-payload_commit",
+    "arguments": [],
+    "exit": 0,
+    "passed": true
+  },
+  {
+    "test": "FSH64-s1_pipeline",
+    "arguments": [],
+    "exit": 1,
+    "passed": false
+  }
+]

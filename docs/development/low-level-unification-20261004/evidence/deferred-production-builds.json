@@ -1,0 +1,62 @@
+[
+  {
+    "configuration": "gasUGKP64",
+    "command": [
+      "/usr/bin/python3",
+      "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/tests/fixtures/gas_auto/gas_auto_pool.py",
+      "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test",
+      "/home/lss/ugkp-low-level-unification-20261004/deferred-production-directory/gasUGKP64",
+      "gasUGKP",
+      "64",
+      "production-directory"
+    ],
+    "exit": 0,
+    "executable": "/home/lss/ugkp-low-level-unification-20261004/deferred-production-directory/gasUGKP64/gas_auto_pool",
+    "gpu_executed": false
+  },
+  {
+    "configuration": "FSH64",
+    "command": [
+      "/usr/bin/python3",
+      "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/tests/fixtures/gas_auto/gas_auto_pool.py",
+      "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test",
+      "/home/lss/ugkp-low-level-unification-20261004/deferred-production-directory/FSH64",
+      "FSH",
+      "64",
+      "production-directory"
+    ],
+    "exit": 0,
+    "executable": "/home/lss/ugkp-low-level-unification-20261004/deferred-production-directory/FSH64/gas_auto_pool",
+    "gpu_executed": false
+  },
+  {
+    "configuration": "CHT64",
+    "command": [
+      "/usr/bin/python3",
+      "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/tests/fixtures/gas_auto/gas_auto_pool.py",
+      "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test",
+      "/home/lss/ugkp-low-level-unification-20261004/deferred-production-directory/CHT64",
+      "CHT",
+      "64",
+      "production-directory"
+    ],
+    "exit": 0,
+    "executable": "/home/lss/ugkp-low-level-unification-20261004/deferred-production-directory/CHT64/gas_auto_pool",
+    "gpu_executed": false
+  },
+  {
+    "configuration": "CHT32",
+    "command": [
+      "/usr/bin/python3",
+      "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/tests/fixtures/gas_auto/gas_auto_pool.py",
+      "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test",
+      "/home/lss/ugkp-low-level-unification-20261004/deferred-production-directory/CHT32",
+      "CHT",
+      "32",
+      "production-directory"
+    ],
+    "exit": 0,
+    "executable": "/home/lss/ugkp-low-level-unification-20261004/deferred-production-directory/CHT32/gas_auto_pool",
+    "gpu_executed": false
+  }
+]

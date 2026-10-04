@@ -1,0 +1,1135 @@
+{
+  "base_commit": "fa71f4777aefb6457e662c42c72db73ec3778343",
+  "root": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test",
+  "source_sha256": {
+    "applications/gasUGKP/readGpuGasConfiguration.H": "183360356e9406acfca2b09f60a8e5b3e451e1a7be3ea83b3d1c4d0ebda37834",
+    "applications/gasUGKP/createFields.H": "17bca0f06e09e9a364248703a105a7143fa60bdf7d837e9f397a2001f023e595",
+    "applications/gasUGKP/devtools/tests/test_wale_compressible_invariant_contract.py": "9fdd4269f121914cd514b612310721f6c541cdd37e7f66f2fdbd8e542f03f486",
+    "applications/gasUGKP/devtools/tests/test_turbulence_port_contract.py": "dab2781bc8fa2090c39290d08e4acb244acfb26ea0a8090ac3e01e7650264f58",
+    "applications/gasUGKP/devtools/tests/test_sst_algebra.py": "8e293d863970543d1b221e90984fff672c97fb1f1b58b92462565f80bf4aed6a",
+    "applications/gasUGKP/devtools/tests/test_courant_update_contract.py": "5330b80a523fe0a27229e13e0b514d0797d07b52d6c5462a8ec9c43633252338",
+    "applications/gasUGKP/tests/test_collision_sampling_contract.py": "95232532086c70e0f8a40a86a3eedb45e9a6dc4791240c355fbc7e32d7ec5c93",
+    "applications/gasUGKP/tests/test_serial_translational_cyclic_contract.py": "8f9bde7fbb1a6dad14d0ea1900941ec572556c0ce790f69a0728871b177a5265",
+    "applications/gasUGKP/tests/test_gpu_boundary_schedule_contract.py": "8e8286f061b52578f98c917bc3e5029f1d5419ae6e77dab471316a11844a7fea",
+    "applications/gasUGKP/tests/test_wall_gks_contract.py": "a421c710ff9f44964d2ec868840a752ab9c3f8ca442402235a3e93803521d9a3",
+    "applications/gasUGKP/tests/test_full_gks_math.py": "f0f91e9c4bfacbbccbb54c834d18d55371ee46849e88719e133ab2fe16d28df5",
+    "applications/gasUGKP/tests/test_openfoam_case_configuration_contract.py": "0ea475abd020098bb19d4f6b4ee608a63b9ee175a4c1ee5f406515d69bd0ae32",
+    "applications/gasUGKP/tests/test_gas_solid_coupling_contract.py": "ed471426e69cd7d7cf107b5f6ae57964687cdbfb79cbc2faa838a06bfbdaf15b",
+    "applications/gasUGKP/tests/test_thermal_segmented_queue_contract.py": "e567827d11a10e7b1ff74cf43ed3491331765325ec3472013096267ed097b59d",
+    "applications/gasUGKP/tests/test_gravity_drag_contract.py": "33cb4f2e44ca3e4036cd4eceea9141d48f2d39d6167809a09450e13efdcf3802",
+    "applications/gasUGKP/tests/test_weighted_collision_conservation.py": "32b4769e168ea9de93f61577e5f22123d89f66815c446acc008ad1b721d39203",
+    "applications/gasUGKP/tests/test_s1_kernel_resource_contract.py": "5806aa6d4552ebce1eb53e9e1922d91ed028d1dee9ef3b37f6455b09c5cb8f9d",
+    "applications/gasUGKP/tests/test_openfoam_boundary_configuration_contract.py": "0d469dbdd23c352dd468b5d08fae45d8f4f979efe08ccced4cd6bcc5c976a687",
+    "applications/gasUGKP/tests/test_openfoam_energy_interpolation_contract.py": "fd6759757fea89f2a42baca943e22ce698c768437ec03c166078a66d6fb3f345",
+    "applications/gasUGKP/tests/test_source_hash_contract.py": "48ecdf9e334a6b289bc014374ac604b11e9819baa197b4a4ab39bb73562e98b4",
+    "applications/gasUGKP/tests/test_identity_contract.py": "9f62b08543a05ba0f9d174b5c99976a2ad6c892eb73457741cc1edae5c8d2040",
+    "applications/gasUGKP/tests/test_jamming_pressure_contract.py": "4cfdf52e12c00cf8863c4a99e7f41aa6c1596305c2d2061741ce530e0ca26ca3",
+    "applications/gasUGKP/tests/test_refine_particle_cells.py": "2562e8efa00a0c6a23bde2dd4dfba54b0b8e5cbdf73ea6f8e0ff16148544bfea",
+    "applications/gasUGKP/tests/test_pure_gas_dispatch_contract.py": "74b6c1507637ffb8604a34bb6540ccb0bbd26892a62e1ff475099e5cb49d7bc9",
+    "applications/gasUGKP/tests/gks_reference.py": "ff03a839e0ea4df30aeefd198819dc4ed3df8a26b390296fabe5f6cb14d3ce4f",
+    "applications/gasUGKP/tests/test_cpcst_compaction_dpre_contract.py": "5758779eabd064b445555af4344dd22bc200fff35f48222302c79e58e936d02b",
+    "applications/gasUGKP/tests/test_gks_les_contract.py": "727ff1c18d1fc389756d05099af63b862d594d98436240f996c5f62b94fefd96",
+    "applications/gasUGKP/tests/test_particle_binary_restart_contract.py": "5f6643c054b420bb2aba32c266bb1f7601bba91544160be5a4f5f197f0ed0767",
+    "applications/gasUGKP/tests/test_population_diagnostics_contract.py": "98ef7b35c4e8aedcf21cc6fa2475d4142948b8982eb4476251b977cfd450e46a",
+    "applications/gasUGKP/tests/test_identity_contract_2.py": "f5e2f49e6fb2741aa3e083b486853a1b69f9962705a1d2059c5fa184fdb17c64",
+    "applications/gasUGKP/tests/test_numerics_config.py": "0321b27da4abeaf4425beae093cda26dba33c262dd8b3b38b745366ec0cf68f0",
+    "applications/gasUGKP/tests/test_dynamic_block_contract.py": "1bb21e463f90ac6071da41748687110cad79845caaaaa0b380b844bf3f1a2dbc",
+    "applications/gasUGKP/tests/test_interface_contract.py": "0f1a1bc7ddc8b488cc640f22141c44369f55bc401ccbb011d12cac42a7c9fb6b",
+    "applications/gasUGKP/tests/test_boundary_ce_gradient_contract.py": "eb42b8b13caff83f813d0d3ebcd3e270e6ee03c6ff289af7ee9b628a6272d31f",
+    "applications/gasUGKP/tests/test_common_gas_numerics_source_contract.py": "a038daae331586a535c2b7651d423505c5c4c4ba584bca91926f4e5a297ec943",
+    "applications/gasUGKP/tests/test_epsg_prev_restoration.py": "fb3bb6cab9e96a2b2bf3aee16635864bf4783dead155f34b6f425484a66c7ea0",
+    "applications/gasUGKP/tests/test_no_wall_retention_contract.py": "7311eb71e5deba12b1da5b3a7d29435168408a98dbacbf14d0b5ede727266245",
+    "applications/gasUGKP/tests/test_openfoam_viscous_flux_contract.py": "99eaf2453122b885a1e1b5851a19f864a4226c2192fd5e7ad4e500b4476bf35b",
+    "applications/gasUGKP/tests/test_development_probe_repeated_stage_contract.py": "6d13edc8670a27b3ac6c248074842341e954c5590373e784ce142f33d2adceb7",
+    "applications/gasUGKP/tests/test_unified_scheduling_tools_contract.py": "225a32c3713faaf2b242efc1cd61003ded352af5a18661a3f0b48f3681750df9",
+    "applications/gasUGKP/tests/test_strict_csr_level_contract.py": "8979062a67a70923400ba2a50e666719a616361b5f51091f4b5a41cde82fa53c",
+    "applications/gasUGKP/tests/test_common_algebra_equivalence.py": "2327a83017c1683ae3c2c04ce7cc291214de324d138aa12d01e0682dc2dc0e47",
+    "applications/gasUGKP/tests/test_tau_wave_contract.py": "3e10e55f74df55f2dac60c7ba80d66c15cf29fdd0e8759a3e3211181c3cd37e7",
+    "applications/gasUGKP/tests/test_boundary_eos_contract.py": "1c2a9450e0a7978811c37b45565367aae9dc0c7e9c8116c6c6f21724b5fbbd5c",
+    "applications/gasUGKP/tests/test_segmented_task_queue_family_contract.py": "8dc9d03caf43830012287be53a7f1bb02b141768796d3f7ba72f4caa664ac100",
+    "applications/gasUGKP/tests/test_version_neutral_case_controls.py": "bc8bac3703d5addba21e815c8bc28f666769e43e59ccb182c9f5a02a36d44f07",
+    "applications/gasUGKP/tests/test_particle_cell_path_runtime_contract.py": "242321f478884c7e087df7185f6678fa0c7490b8a47320a43c642908046ed599",
+    "applications/gasUGKP/tests/test_cpcst_warp_reduction_contract.py": "496b43904c5f0512dfa3f12f97f55519b5a82aa2b3415846d8e29d2d08ac65a0",
+    "applications/gasUGKP/tests/test_split_pre_runtime_contract.py": "c34c37381c270b7bffb8b16553e8acb71f1815857e5580184726c70411c96449",
+    "applications/gasUGKP/tests/test_example_release_contract.py": "ab41acde3a84be9b73728cb19dc1955dbafff4798cb681a2344e20092cf69b47",
+    "applications/gasUGKP/tests/source_contract_utils.py": "603918fefbfb3b7ac783da5f5fb058050461f4efe346305bdf7a8d9b0d0e4c90",
+    "applications/gasUGKP/private_backend/OpenFoamWallFunctions.cuh": "9f2a9cc162f00bc2c0d6c64a16ff31d1fe64218f651fd9b40102bccce12c7f62",
+    "applications/gasUGKP/private_backend/OpenFoamLimitedLinear.cuh": "0af15d247c1f15603070807d232acd709ff92298e0465ab0843d251478006e69",
+    "applications/gasUGKP/private_backend/RiemannGasFlux.cuh": "ccfb5dd4f18fca6aeee6a021834ff53615321c13bfe3daab05ab4c143ad5b47d",
+    "applications/gasUGKP/private_backend/GpuSstAlgebra.cuh": "515f9452719bff8c22fa42134ea2a57d012d450a96ddddb642034923660a7662",
+    "applications/gasUGKP/private_backend/CharacteristicMuscl.cuh": "da172a748e235e2afee4119f550f2dcff55111edc129b4d38ee80c1c10e6e2cc",
+    "applications/gasUGKP/private_backend/GpuResidentStrict.cu": "85990f0d18463eeb7f0b896640ec0dc54005c9fc2d53fb5bb73c076e24adafde",
+    "applications/gasUGKP/private_backend/FullSecondOrderGks.cuh": "c94622fcf10c8f48aa8ef8d1fe57694e8d5f7c52dc17c622f4dc799bc2d48d45",
+    "applications/gasUGKP/private_backend/RiemannBoundaryState.cuh": "080d7d7fd45cc0209f5ec353951eb0f04eaf9015d17530d5ef259915869418f2",
+    "applications/gasUGKP/private_backend/OpenFoamViscousFlux.cuh": "c095582739093cd5289cff5642513e34372dad4ca0be71350eacee8b549bc82c",
+    "applications/gasUGKP/private_backend/GpuDragAlgebra.cuh": "960f507001b00310957f4fe309e00dd182ac84b59d9810316b8b75574a2502b5",
+    "applications/gasUGKP/private_backend/GpuDragModels.cuh": "3c2539351c1d00d30390c232c06d4cbe8c0837d4add82b7730433c77375643e6",
+    "applications/gasUGKP/private_backend/tests/full_second_order_gks_host_test.cu": "22511653608ea87dc9af8d1c413a0f85d18011f8d8e29f8ab9b3d5f78b6551ae",
+    "applications/gasUGKP/private_backend/tests/characteristic_muscl_host_test.cu": "b611a8cbc75aed9e9556118775a19a425545148f37c91804d7b3e1a4aa03e194",
+    "applications/gasUGKP/private_backend/tests/openfoam_viscous_flux_host_test.cu": "ed2dbe727ca1c7706d6985901260c8d26068082caa8453b424447d1d42ffbba6",
+    "applications/gasUGKP/private_backend/tests/openfoam_limited_linear_host_test.cu": "3ebcdc088fea763258ee587a98a1a8093b3cb0382fddd38e3f80487176d8c6c5",
+    "applications/gasUGKP/private_backend/tests/riemann_boundary_state_host_test.cu": "b8c696cfe7b3ca7ed6c27befaedd49eb272e752df3cd5c8beb40e2f9898e105a",
+    "applications/gasUGKP/private_backend/tests/riemann_gas_flux_host_test.cu": "87b91d77170cd62676cbc5148c894fc534fe6c2db30efedbec1d12f3fdf7be32",
+    "applications/gasUGKP/gpu/GpuDragModel.H": "971a65eafdcc78f02e5c6edb73b0257c9fbbc712ea381e9ee3aebcdfc0c03cf5",
+    "applications/gasUGKP/gpu/GpuBoundarySchedule.H": "1f76813cd2860d06d5a73e0bdae0589bfc0365142f723dff34747753e20e14a7",
+    "applications/gasUGKP/gpu/GpuResidentStrict.H": "b865e1f62f8f019daf8a02853c6862df48dc7f798c6fdd866591880fbb15f086",
+    "applications/gasUGKP/gpu/GpuBackendProtocol.H": "b25000d42099df2d27cb8d540daadf67348d6e634f4d17e83b8247efbfb5158c",
+    "applications/gasUGKP/gpu/GpuGasBoundarySpec.H": "4feacefc87b780c4fa7ca77c88509bcd02462f4fc8ee6dd44754295b6cfc7df0",
+    "applications/gasUGKP/gpu/GpuBackendApi.H": "736208f0cfbfa642df8d9ea7b002476fb7936118d9254250261442c3e0196942",
+    "applications/gasUGKP/gpu/GpuCouplingMath.H": "62fc148535d6cc1898fa2cb07ea251601d6290b9ca7925a0aa579a1006395b88",
+    "applications/gasUGKP/tools/refine_particle_cells.py": "55cbc947d3e100d4470b4f6113c094cec951ffe909480ab046f14fee30cba462",
+    "applications/gasUGKP/tools/ugkp_particle_restart.py": "38484b2e28a5cc060edf57994631cf28fb7d1c1673308ae0fd0918d23f875690",
+    "applications/FSH/readGpuGasConfiguration.H": "9ddde9ec018bf59d2393fa23eadc3342b442fc6757f93fce3d1590a94286ff24",
+    "applications/FSH/createFields.H": "76552127b6dd426ebc1d59188fcaa052c94b3b72aecbc968f172ec8850b0493a",
+    "applications/FSH/devtools/tests/test_wale_compressible_invariant_contract.py": "ed8164160a9a1c17b0e8d178a8b526f80ec00731332b7e3c6c3da128ceb53576",
+    "applications/FSH/devtools/tests/test_turbulence_port_contract.py": "08b17a1cdc98b7689ba08a5c7fed79e6da553f4093eb15702298a0d639c7056c",
+    "applications/FSH/devtools/tests/test_sst_algebra.py": "4802f52787357943845a5fe75f94c04b7e0ece7bb5293330234b76b632542492",
+    "applications/FSH/devtools/tests/test_courant_update_contract.py": "a883c8a2a3adf1f3ce4dbd2627e10adfaa4f3cef177c68aa2aaf0af04d85f290",
+    "applications/FSH/thermal/GpuWallInterfaceHeat.H": "02f1cba33b62e273003c2a4e857d9eb019a72308826f8e0c7a44309c3c159532",
+    "applications/FSH/thermal/GpuAluminaProperties.H": "160be19a69a06bd7277d99d9f36fad83c0bbaae3449c364560ccbde4866f4ce5",
+    "applications/FSH/thermal/GpuCapillaryDetachment.H": "c1f6b57e2c93e42087789dc8ce74bdb766e863cba781d29940f2fcd87dbbc536",
+    "applications/FSH/thermal/GpuParticleWallContactHeat.H": "261366b4b40bf198f9e389d1281a6b19a79e20b5cb7d739439cef3cd1a798ae2",
+    "applications/FSH/thermal/GpuFiniteWallContact.H": "55069517be298d4b0aee7ae3522eea69a9994a0c29733699f6e4519be00d85fa",
+    "applications/FSH/thermal/GpuSommerfeldSticking.H": "f557f25a845048ab1b94398381ec0bc876297c77582a36a71d222f773a00dc7c",
+    "applications/FSH/tests/test_restart_tools.py": "0d90db787f3e1126e64c7567617e417906ccda13ed970490c7995e59787c1443",
+    "applications/FSH/tests/test_collision_sampling_contract.py": "3673a35cbaf36741dec568ca0479d46e324217120a301631e30561589525b348",
+    "applications/FSH/tests/test_gpu_boundary_schedule_contract.py": "4495c9f270a6896f2e7f04f43c61aa0bb703cbfa311ee77d5066ad5250178d9e",
+    "applications/FSH/tests/test_wall_gks_contract.py": "a421c710ff9f44964d2ec868840a752ab9c3f8ca442402235a3e93803521d9a3",
+    "applications/FSH/tests/test_full_gks_math.py": "f0f91e9c4bfacbbccbb54c834d18d55371ee46849e88719e133ab2fe16d28df5",
+    "applications/FSH/tests/test_openfoam_case_configuration_contract.py": "f9190ba67ca976e967897393a1303f9609a68bfeaf6b1bf0aed241aad4460612",
+    "applications/FSH/tests/test_gas_solid_coupling_contract.py": "ed471426e69cd7d7cf107b5f6ae57964687cdbfb79cbc2faa838a06bfbdaf15b",
+    "applications/FSH/tests/test_single_drop_case_contract.py": "c778e98362d2562be1b9f8088d65f7653e17ef2415a6b1165aa7c5b87ea666d4",
+    "applications/FSH/tests/test_stuck_configuration_contract.py": "7c99949bcbba1635b0186fe3b03bb2f6c37d437c4e39db953fbc64ae5195918d",
+    "applications/FSH/tests/test_openfoam_boundary_configuration_contract.py": "992eb7d74114da6649f74db9c305130e92820298837c2a9dbf6f34719d630021",
+    "applications/FSH/tests/test_openfoam_energy_interpolation_contract.py": "c6ddd0591ce62e14e2141f765b03d3df84a87a46a7a9a7e488f1f40ff3d9bd1b",
+    "applications/FSH/tests/test_identity_contract.py": "a408db698d9386fca6144e72f780b6ee696d1c5f158b27312ba5540dce6546f2",
+    "applications/FSH/tests/test_jamming_pressure_contract.py": "9f1fdfdd846bd9afebde1dd1d45dee0f04a0526383bb1769b82df22dfb73b390",
+    "applications/FSH/tests/test_upgrade_contract.py": "bc9423cf7461b419972cdc4e15e6e91ddb921351410eae4caec4a931607865e3",
+    "applications/FSH/tests/gks_reference.py": "ff03a839e0ea4df30aeefd198819dc4ed3df8a26b390296fabe5f6cb14d3ce4f",
+    "applications/FSH/tests/test_gks_les_contract.py": "af75000f624f393b2eabc898ddb7852775e5f6a2e3b43a0ae7ff4690535f3601",
+    "applications/FSH/tests/test_numerics_config.py": "2b65edc0fc7bb51cbe4aab16561caa3fa7edaa890d83c354fe5e14004e63bba9",
+    "applications/FSH/tests/test_interface_contract.py": "d5bd8182c22350093ec2a52a812a1548083f4fdd67fd8b7d6409e4254e34affd",
+    "applications/FSH/tests/test_boundary_ce_gradient_contract.py": "eb42b8b13caff83f813d0d3ebcd3e270e6ee03c6ff289af7ee9b628a6272d31f",
+    "applications/FSH/tests/test_epsg_prev_restoration.py": "fb3bb6cab9e96a2b2bf3aee16635864bf4783dead155f34b6f425484a66c7ea0",
+    "applications/FSH/tests/test_openfoam_viscous_flux_contract.py": "b9b7b3512cb56c1da84e7a238e91100825e18246087c45e376521a9765ea41b3",
+    "applications/FSH/tests/test_sparse_stuck_finalization_contract.py": "1688ce7cb964c11787a9050ff2e65a25369cd99ac3b8866e8d0f04b6888ba5f7",
+    "applications/FSH/tests/test_capillary_detachment_contract.py": "1d70687c3d77881d88a91b7b0932e4df30d4963713bcf0bbdfdc205721f355dc",
+    "applications/FSH/tests/test_tau_wave_contract.py": "3e10e55f74df55f2dac60c7ba80d66c15cf29fdd0e8759a3e3211181c3cd37e7",
+    "applications/FSH/tests/test_boundary_eos_contract.py": "1c2a9450e0a7978811c37b45565367aae9dc0c7e9c8116c6c6f21724b5fbbd5c",
+    "applications/FSH/tests/test_cold_wall_2d_algebra.py": "47eedc4f2ed475074b7a81c84c9d03487daf9db4c8df2c52328dea85c4415d15",
+    "applications/FSH/tests/test_particle_cell_path_runtime_contract.py": "f452ec93f7c70333526203fbc175d9c7a3f0a722f124656d3470535bfaa27de9",
+    "applications/FSH/tests/test_particle_gas_none_models_contract.py": "39072e189c96acc0e48b0af7f83d905c4eb3ec1fb111abaed22e27628ba7b453",
+    "applications/FSH/tests/source_contract_utils.py": "603918fefbfb3b7ac783da5f5fb058050461f4efe346305bdf7a8d9b0d0e4c90",
+    "applications/FSH/tests/test_single_drop_postprocess.py": "6a6aacac81e2897334e750b88a53df9c3cc5f3696b77c4b5a9cc9be6ec51a293",
+    "applications/FSH/tests/test_finite_contact_contract.py": "d9953a61c641e572c2a1cd211302bd94bc7bc898993dcd36f54b30e264fab89f",
+    "applications/FSH/private_backend/OpenFoamWallFunctions.cuh": "9f2a9cc162f00bc2c0d6c64a16ff31d1fe64218f651fd9b40102bccce12c7f62",
+    "applications/FSH/private_backend/OpenFoamLimitedLinear.cuh": "0af15d247c1f15603070807d232acd709ff92298e0465ab0843d251478006e69",
+    "applications/FSH/private_backend/RiemannGasFlux.cuh": "ccfb5dd4f18fca6aeee6a021834ff53615321c13bfe3daab05ab4c143ad5b47d",
+    "applications/FSH/private_backend/GpuSstAlgebra.cuh": "515f9452719bff8c22fa42134ea2a57d012d450a96ddddb642034923660a7662",
+    "applications/FSH/private_backend/CharacteristicMuscl.cuh": "da172a748e235e2afee4119f550f2dcff55111edc129b4d38ee80c1c10e6e2cc",
+    "applications/FSH/private_backend/GpuResidentStrict.cu": "7a4a140168134a55e757a665057ccb01df300823b44bf79cb53d39450e146d25",
+    "applications/FSH/private_backend/FullSecondOrderGks.cuh": "c94622fcf10c8f48aa8ef8d1fe57694e8d5f7c52dc17c622f4dc799bc2d48d45",
+    "applications/FSH/private_backend/RiemannBoundaryState.cuh": "080d7d7fd45cc0209f5ec353951eb0f04eaf9015d17530d5ef259915869418f2",
+    "applications/FSH/private_backend/OpenFoamViscousFlux.cuh": "c095582739093cd5289cff5642513e34372dad4ca0be71350eacee8b549bc82c",
+    "applications/FSH/private_backend/GpuDragAlgebra.cuh": "960f507001b00310957f4fe309e00dd182ac84b59d9810316b8b75574a2502b5",
+    "applications/FSH/private_backend/GpuDragModels.cuh": "24035cf5d5d001ba40295392426b24aba2dca51db0b2b3c7384af9e476d4e60d",
+    "applications/FSH/private_backend/tests/cold_wall_1d_group_test.cu": "14a92a935f60944108d07aa2a163d39df8c0e316155553b1a9a28ac90569b01a",
+    "applications/FSH/private_backend/tests/full_second_order_gks_host_test.cu": "22511653608ea87dc9af8d1c413a0f85d18011f8d8e29f8ab9b3d5f78b6551ae",
+    "applications/FSH/private_backend/tests/characteristic_muscl_host_test.cu": "b611a8cbc75aed9e9556118775a19a425545148f37c91804d7b3e1a4aa03e194",
+    "applications/FSH/private_backend/tests/finite_wall_contact_host_test.cu": "6c0bab8525b0efffdb226e9b13d15235a8aaa724bce2a8fa5078bce2804a231f",
+    "applications/FSH/private_backend/tests/openfoam_viscous_flux_host_test.cu": "ed2dbe727ca1c7706d6985901260c8d26068082caa8453b424447d1d42ffbba6",
+    "applications/FSH/private_backend/tests/capillary_detachment_host_test.cu": "5be04da0b51e8c0ffb42e593995de7e1eb09badb5306169e9ba7123ba5477e1c",
+    "applications/FSH/private_backend/tests/openfoam_limited_linear_host_test.cu": "3ebcdc088fea763258ee587a98a1a8093b3cb0382fddd38e3f80487176d8c6c5",
+    "applications/FSH/private_backend/tests/alumina_properties_host_test.cu": "6b6c36f8cb1564608b13bacea47a561e018396e4fcc3d1ffb0f9762884f523a2",
+    "applications/FSH/private_backend/tests/riemann_boundary_state_host_test.cu": "b8c696cfe7b3ca7ed6c27befaedd49eb272e752df3cd5c8beb40e2f9898e105a",
+    "applications/FSH/private_backend/tests/sommerfeld_sticking_host_test.cu": "09e2607a1aa1ed5d3eca93f73b0b20667c84393148c6f990f39718fe15e6630c",
+    "applications/FSH/private_backend/tests/particle_wall_contact_heat_host_test.cu": "1a992ede1d2407d7c07e59edad324e289e7ca9225da9e42a8503d1c7c8b89b1c",
+    "applications/FSH/private_backend/tests/riemann_gas_flux_host_test.cu": "87b91d77170cd62676cbc5148c894fc534fe6c2db30efedbec1d12f3fdf7be32",
+    "applications/FSH/gpu/GpuFshParticleRestart.H": "e3082c3d34141d94e3401186bfe9174553ff941d59beedf1f596b03705077802",
+    "applications/FSH/gpu/GpuDragModel.H": "29ec20e31bcc2f95ca624f7fe19265508814d7f19d22b5e4c285fea2a9a1474c",
+    "applications/FSH/gpu/GpuBoundarySchedule.H": "1f76813cd2860d06d5a73e0bdae0589bfc0365142f723dff34747753e20e14a7",
+    "applications/FSH/gpu/GpuResidentStrict.H": "1830a859b2220e6bb6e96bf1f167918c08138b6182f1b9e30a66d83cdfc94329",
+    "applications/FSH/gpu/GpuBackendProtocol.H": "5767642f0dd8684cf40e70e2f020b11e1df2083342d123878edf05918f15dc79",
+    "applications/FSH/gpu/GpuGasBoundarySpec.H": "4feacefc87b780c4fa7ca77c88509bcd02462f4fc8ee6dd44754295b6cfc7df0",
+    "applications/FSH/gpu/GpuBackendApi.H": "072960871c883b73317ba5840c55b59e385761f5d3cd12874844d9211df7dc87",
+    "applications/FSH/gpu/GpuCouplingMath.H": "62fc148535d6cc1898fa2cb07ea251601d6290b9ca7925a0aa579a1006395b88",
+    "applications/FSH/tools/fsh_particle_restart_schema6.py": "8e4939a8daad401da76d96cfdf22bfdde0048bf5f70c600ab40e0a9ea8486809",
+    "applications/FSH/tools/refine_fsh_particle_cells.py": "4629039d0546171ba7cf3ba87a6dd295b4f6a67bb3b048c8fb8f1dfdc93183ea",
+    "applications/FSH/tools/fsh_particle_restart.py": "15f63d7efc3493f06091175041d5704bdc5baf37494e492afbf833cde7054f6d",
+    "applications/CHT/readGpuGasConfiguration.H": "4c209167930de902fbd2a9825d642d30ca077d63e34b7f25594ab842d5c44fbf",
+    "applications/CHT/createFields.H": "ca8411a783a492b97dea903b84aa05be703915e5cee9ee7abd3cc8c7e7340cc3",
+    "applications/CHT/devtools/generate_cht_perf_particles.py": "840ffd2fe7f2b44d90cfe2c9f78570cfd6a2fae41731ec2a060d719e5e138900",
+    "applications/CHT/devtools/precision_contract.cu": "8c6334ed1b27e7ab8fa7619ea5d436dd30d34303f2ffb42ed09a433caa1c520e",
+    "applications/CHT/devtools/audit_cht_performance_manifests.py": "7f3232afd7112164479bc97525ff0d7cee1ac556373e9ba6b4bba86f5333ad72",
+    "applications/CHT/devtools/summarize_cht_performance.py": "1cd04cfd54205ab0c96bcdc7b857a644be874ffc3a4fe05f2987307dd4b724b2",
+    "applications/CHT/devtools/compare_cht_time_directories.py": "be06dbfd2232445b85fc90420a46889943369aaf1f36e83956388e0e31f3edc4",
+    "applications/CHT/devtools/compare_cht_particle_restart.py": "594ff14aa2bad7538ba6122e7bd26d0ce6de29a7e53ff9b36ec1899c1c4a5654",
+    "applications/CHT/devtools/cht_v2_contract.py": "66c8d9201537408eec137db025afddc911c28617cd72236257133dfe1a4726b1",
+    "applications/CHT/devtools/audit_cht_exchange_counts.py": "d741060e08f4de18e209a18ccac915f4b57526fcae72b7c0fee95a0f9c94debe",
+    "applications/CHT/devtools/validate_precision_restart.py": "b6d5c601b6eba196f700ba345fbf6fbfc8596ea72ea9af1a39ca0439e70f5448",
+    "applications/CHT/devtools/validate_939insidecht_acceptance.py": "56b014e8cc6e5411b249caf5c4c90c49420103f50b57024f5f3ae052bb963591",
+    "applications/CHT/devtools/audit_cht_long_run.py": "a0f9d83e5432123c093db005a14255f34fb70d52e4768c2dbc5a5df7405c730f",
+    "applications/CHT/devtools/tests/test_restart_tools.py": "97fcddae0397df9cfae212707748d7b409f855a0a66b15f693d9b3353f149ad1",
+    "applications/CHT/devtools/tests/test_collision_sampling_contract.py": "53b9a238893fc883fb3425c34c17a8136d6a2e4c223e02467129190f0c41ed94",
+    "applications/CHT/devtools/tests/test_gpu_boundary_schedule_contract.py": "4495c9f270a6896f2e7f04f43c61aa0bb703cbfa311ee77d5066ad5250178d9e",
+    "applications/CHT/devtools/tests/test_mss7_initial_temperature_contract.py": "9d0ca07bd7c5aa3f3669c6cb63e7cf19c4c01cfb1bb697f0513084b6956f1285",
+    "applications/CHT/devtools/tests/test_acceptance_gates.py": "853ff509b22dde4c1a3ff5cdec084a4ef7bc709f5de1d6eea676a9255d8e15f7",
+    "applications/CHT/devtools/tests/test_gas_solid_coupling_contract.py": "aa85d106787dbcd3110bd8312637cd84a59819cc0a5e5ec8b55dcc9b43d239e0",
+    "applications/CHT/devtools/tests/test_gas_wall_exposed_area_contract.py": "9456cd246ba7eaef52a4bee3a36b63c9971802263c330fabe7c6b11652004e7a",
+    "applications/CHT/devtools/tests/test_mss7_coupling_logging_contract.py": "0cacca0e0958d717a2e8f2a5250f37f22fe493136b270191458c74f5c7c1700a",
+    "applications/CHT/devtools/tests/test_long_run_audit.py": "0dd93ac8904570b43569015e201000f66fa663e667414b8c63271eace5c0a0c5",
+    "applications/CHT/devtools/tests/test_wale_compressible_invariant_contract.py": "204d071695a6f84d77cccbd5935bedf1f79e6c35651d9537570826196e1b666a",
+    "applications/CHT/devtools/tests/test_thermal_coupling_schedule_contract.py": "348102359c50c50c3d559df9a8cb7fae1cdd9d756409ab7b04c7a3ad91436e88",
+    "applications/CHT/devtools/tests/test_cht_v2_contract.py": "82d4c55f13849fd8ef171c721e3e7e8e5822c2c4736b73b4f774bfa1cf2e5a83",
+    "applications/CHT/devtools/tests/test_gks_les_csr_contract.py": "e50a073903f03b4fe388342ddbf0083518c32cc6ec730e02ab010b636da5c73f",
+    "applications/CHT/devtools/tests/test_jamming_pressure_contract.py": "e1831ae888c53ff45e2907e4b24ea45d6810fb7daeedf57ee7de0cf7e3cc4940",
+    "applications/CHT/devtools/tests/test_wale_wall_function_contract.py": "d3593f66267fd603ac1d37ce8d8be697121e3176c697e6ff3c0b9265e8e72b66",
+    "applications/CHT/devtools/tests/test_direct_link_abi_contract.py": "eb5a1604bfac98a8db36698a39784b9f0ff73910a491660a8d5475a602412e96",
+    "applications/CHT/devtools/tests/test_upgrade_contract.py": "4dfe4934077a4f9796f263e4de45b2039461c6b5b302b63e7c1ac7756781a60d",
+    "applications/CHT/devtools/tests/test_scheduled_inlet_temperature_contract.py": "5fc0ee0f05aee1ea59cca44782d878b75b72eb149d16f3e22317a3ecc533c5c7",
+    "applications/CHT/devtools/tests/test_radiation_packed_thermal_refresh_contract.py": "ad5a83051206114f27b1618c370cf53e1b546c817f94503c22698f073a1ddcc5",
+    "applications/CHT/devtools/tests/test_transient_contact_case_contract.py": "3acc0f2f484f54309e7412c31f3ffbef713605907fb940888ffeab5d14c59fef",
+    "applications/CHT/devtools/tests/test_generate_cht_perf_particles.py": "dbb30845af74c672c0ccef8c984a1d99a264eebf13e560502cbc82c1f813f1c4",
+    "applications/CHT/devtools/tests/test_sst_algebra.py": "da4b985a3dad8ac4538a192c5ddff350ee5a3fff6bbd4e2112aee04c3e265789",
+    "applications/CHT/devtools/tests/test_cht_write_mirror_contract.py": "e7908dce9bf2c7c6491db496ed3a37601d18acb54d4e382d46ad0f8235f4cede",
+    "applications/CHT/devtools/tests/test_no_wall_retention_contract.py": "720979b61e28f47eaf122abf34f27bab826eda4864ef0e4c668dd8cbbe07bc61",
+    "applications/CHT/devtools/tests/test_pending_wall_energy_restart_contract.py": "990d19f21c91e225177f1846ce1d67acf23f8eb770f28effbd0eef07c75264eb",
+    "applications/CHT/devtools/tests/test_bartz_initial_wall_temperature.py": "dacd8d0ea387e518a77b7f2bd57e30a2d29d64876489fb24e771e45b87970792",
+    "applications/CHT/devtools/tests/test_upgrade_contract_2.py": "b1dc77ebc8e26827a0339f6ed7eddd0f5f5567eabe158d1a0102e484f4ac44ef",
+    "applications/CHT/devtools/tests/test_fourier_wall_heat_transfer_contract.py": "5e3d95e60d5a39ff34b88920dae0a1aacdeb012a92067a22e8a4530eb6f826d0",
+    "applications/CHT/devtools/tests/test_sst_source_contract.py": "c9525f1042fcd7962fc2c9f0933d2cc1e290f11fc7ab629d77d0e88faa3035cd",
+    "applications/CHT/devtools/tests/test_pure_gas_particle_thermal_contract.py": "1a1bf3e007852df82897edf22fd127dba4adf95940beca5103d10d2653689027",
+    "applications/CHT/devtools/tests/test_courant_update_contract.py": "b698da5fa1123cb9bdb5a2b0f3f6a93b1408ce2835e69ba81425968b6b95ebff",
+    "applications/CHT/devtools/tests/test_schema6_postprocessing.py": "23a1d970d63c87d227a66d0321d4f2d32a63c96b89c5570162ab9a15bacdd969",
+    "applications/CHT/devtools/tests/test_wall_heat_flux_output_contract.py": "98b2c64dac943861adf25185daf7acfa3f5a96cdef5b21b78b1cdb1ecd9224b2",
+    "applications/CHT/devtools/tests/cpp/test_sst_thermal_device.cu": "a95122063e0e63f4c8b955c1dba95bd24f84ac4db0e53ba945ba35ffe611edc1",
+    "applications/CHT/thermal/GpuSolidThermalCoupler.H": "c318dc9b827910aefba5e9e8aebc48deec07979effef787a0ce54642a2fb2ccf",
+    "applications/CHT/thermal/GpuSolidThermalProperties.H": "61aa3a7f918c0df59899c0634d5c0ed5de3741a75259d8016941c9cfc7afd19b",
+    "applications/CHT/thermal/GpuWallInterfaceHeat.H": "02f1cba33b62e273003c2a4e857d9eb019a72308826f8e0c7a44309c3c159532",
+    "applications/CHT/thermal/MieDoRadiationMath.H": "87699f8975d81b6c82051b82028c1f83df7d5cc2fcdd881f94a13d3d01b70552",
+    "applications/CHT/thermal/MieTable.H": "6f909c1f29d7b88e41f7df8a7bd19708c79eac66923f826deb478fb3fd7479b6",
+    "applications/CHT/thermal/MieDoRadiationSolver.H": "4d1fb7ad16b7ea514b6df80379d181dc678eeb27ef5bc66ed5ed263b5e9f41ec",
+    "applications/CHT/thermal/GpuAluminaProperties.H": "160be19a69a06bd7277d99d9f36fad83c0bbaae3449c364560ccbde4866f4ce5",
+    "applications/CHT/thermal/GpuCapillaryDetachment.H": "c1f6b57e2c93e42087789dc8ce74bdb766e863cba781d29940f2fcd87dbbc536",
+    "applications/CHT/thermal/GpuParticleWallContactHeat.H": "261366b4b40bf198f9e389d1281a6b19a79e20b5cb7d739439cef3cd1a798ae2",
+    "applications/CHT/thermal/GpuFiniteWallContact.H": "55069517be298d4b0aee7ae3522eea69a9994a0c29733699f6e4519be00d85fa",
+    "applications/CHT/thermal/GpuSolidPatchMapper.H": "24efc0df46689e2a77bd193e40342c46e74f6213d285c06c9dcf30100c7e15dd",
+    "applications/CHT/thermal/ParticleRadiationImplicitMath.H": "4a312b974494cb5805d3005b6e77f9a57729c8d40a479594f5d7c5f9067ac8f8",
+    "applications/CHT/thermal/GpuParticleRadiationCoupler.H": "35a9d498ae106e43fc6c03f9f4c88d868ae1716348e7ce04d8973982912c8e10",
+    "applications/CHT/thermal/GpuThermalExchangeState.H": "2f22ebeba715c01493d5792346906b8bfd0c915c468d886d4d95920bcf7429cd",
+    "applications/CHT/thermal/ThermalCouplingSchedule.H": "81c7b440ec72725ede6eead6945d919fa5bf95bca186258b32c22e29308ad39f",
+    "applications/CHT/thermal/GpuSommerfeldSticking.H": "f557f25a845048ab1b94398381ec0bc876297c77582a36a71d222f773a00dc7c",
+    "applications/CHT/thermal/mieTables/mie_sphere.py": "1fe73d4a99f83464c0539b2051485965a25d0b3f7a70c514ab1ff2b23dd2b65e",
+    "applications/CHT/thermal/mieTables/make_alumina_mie_table.py": "4736e11e52dc1dfcabd7f405ea1434f7f44144b201b991f92cf1d197ce009e51",
+    "applications/CHT/thermal/mieTables/tabulated_optical_model.py": "0f59ad814e4741258a43912fac211f47225a1840b80382bce3e5378d71081113",
+    "applications/CHT/thermal/mieTables/alumina_optical_model.py": "086b57212b6e1d102b242c90965ec511ad93c906654bd1699ac43b035eaf47b5",
+    "applications/CHT/gpu/GpuBackendNames64.H": "7552601b3a6f6158661f5046fe8ee10b4472babe3704baf61b794e9d3aa6af4e",
+    "applications/CHT/gpu/GpuFshParticleRestart.H": "32b1d6762442e1ac9e7243b20decd64b6e89a0933f7d4009e87e5c45fe649ae4",
+    "applications/CHT/gpu/OpenFoamWallFunctions.cuh": "9f2a9cc162f00bc2c0d6c64a16ff31d1fe64218f651fd9b40102bccce12c7f62",
+    "applications/CHT/gpu/OpenFoamLimitedLinear.cuh": "0af15d247c1f15603070807d232acd709ff92298e0465ab0843d251478006e69",
+    "applications/CHT/gpu/GpuDragModel.H": "e6478168cf198482b26a3de717b0f18c2a71c47fff7a8424846f606e79b914fd",
+    "applications/CHT/gpu/GpuBoundarySchedule.H": "1f76813cd2860d06d5a73e0bdae0589bfc0365142f723dff34747753e20e14a7",
+    "applications/CHT/gpu/GpuParticleWallHeatTransferInterface.H": "723de841580e29579c66532da909a94d612d81e39051c2e823f73aac54f8ec9f",
+    "applications/CHT/gpu/GpuResidentStrict.H": "8886cb7a57b38e326647e9f0da963bdd6a6f92e5e7e713d6a50afb6f0038c67f",
+    "applications/CHT/gpu/GpuChtParticleRestart.H": "d84952599df6b1c3a51da10ee9d580f926809400759e7404a37a1544a785b63a",
+    "applications/CHT/gpu/GpuThermalLedgerMath.H": "f7cbac985b81955ef9069b607e6dfb483878a41276b0025ad7e6d0627b0e0113",
+    "applications/CHT/gpu/RiemannGasFlux.cuh": "ccfb5dd4f18fca6aeee6a021834ff53615321c13bfe3daab05ab4c143ad5b47d",
+    "applications/CHT/gpu/GpuSstAlgebra.cuh": "515f9452719bff8c22fa42134ea2a57d012d450a96ddddb642034923660a7662",
+    "applications/CHT/gpu/CharacteristicMuscl.cuh": "da172a748e235e2afee4119f550f2dcff55111edc129b4d38ee80c1c10e6e2cc",
+    "applications/CHT/gpu/GpuGasBoundarySpec.H": "4feacefc87b780c4fa7ca77c88509bcd02462f4fc8ee6dd44754295b6cfc7df0",
+    "applications/CHT/gpu/GpuWallEnergy64.cu": "ba9694fd89662d217d85658c68b47ae07bde5c1c690ec401df831eaf28589d4e",
+    "applications/CHT/gpu/GpuResidentStrict.cu": "cb32abeccb1aa3cdfc73384fd595dacc66a58f7aaaf23ee9d9dfa6b96124d839",
+    "applications/CHT/gpu/GpuParticleRadiationMath.H": "8d17a7d41ff8c8af62867966f95b744b2c5b0aadb6e1c0c6a3fc0574cd9cd75a",
+    "applications/CHT/gpu/GpuBackendNames32.H": "3d9fe572795f1b43e681ecc167c164cfdf33dd8afc8acf700ad4b1389c32a6e2",
+    "applications/CHT/gpu/GpuBackendApi.H": "30c2665c68d3ea4c9a48383dba1aa8603a9ac7743daad534c9cc5b34b116debf",
+    "applications/CHT/gpu/RiemannBoundaryState.cuh": "080d7d7fd45cc0209f5ec353951eb0f04eaf9015d17530d5ef259915869418f2",
+    "applications/CHT/gpu/GpuPrecisionApi.H": "aa6428aa77adddac240b41c71ff082af715583a38576159e264eb71548d8e489",
+    "applications/CHT/gpu/GpuCouplingMath.H": "62fc148535d6cc1898fa2cb07ea251601d6290b9ca7925a0aa579a1006395b88",
+    "applications/CHT/gpu/OpenFoamViscousFlux.cuh": "c095582739093cd5289cff5642513e34372dad4ca0be71350eacee8b549bc82c",
+    "applications/CHT/gpu/GpuDragAlgebra.cuh": "960f507001b00310957f4fe309e00dd182ac84b59d9810316b8b75574a2502b5",
+    "applications/CHT/gpu/GpuWallEnergy64.H": "18f780fb6d71cd30a36b51c918b76977b48c022d27ed2a501eaf518874962a4e",
+    "applications/CHT/gpu/GpuDragModels.cuh": "24035cf5d5d001ba40295392426b24aba2dca51db0b2b3c7384af9e476d4e60d",
+    "applications/CHT/tools/refine_particle_cells.py": "74123f942f78d893776e01282fb9c4f2d96d2b0f1061af26692b6fa70c98b359",
+    "applications/CHT/tools/ugkp_particle_restart.py": "38484b2e28a5cc060edf57994631cf28fb7d1c1673308ae0fd0918d23f875690",
+    "applications/CHT/tools/check_particle_wedge_empty_zero_normal.py": "423eb35cb4625c44f846812bf9086126dbabc347bbde6c678dac48b41aea8e4f",
+    "common/GpuGasAdvance.cuh": "ad3ce2114b8f64921a83ab99d3b5b959b9f340271306ec6397bc65787191f505",
+    "common/GpuReductionTaskWrite.cuh": "f265c9495eeaa4a2289fe1da025f2c5ffaf99b6d4edcca04c7049b6298480586",
+    "common/GpuSchedulingConfiguration.H": "d580cff6dcb3f17d6417bbbf99d98d85c3f96b0c78c7f485685b119617215102",
+    "common/GpuPressureConstrainedPhysics.cuh": "38579fe2e7afa8143ec1b1ff750dfec768b736f37739d0ca60d9dbcbc6ed13fb",
+    "common/GpuPressureCellTraversal.cuh": "7a2530e15177b75a31912ef8bb24c7bdfb9ae3bb539a993d929ab012362af2ca",
+    "common/GpuPressurePipeline.cuh": "a4bcd97cc27f9c989d3206466973d7d69af8db2ed6c9ee77c328f999dfb84cde",
+    "common/GpuParticleLaunchConfiguration.cuh": "ff017e4cdbd46b4d91974b7cb10b0f98043a31d9b6b086fc3c7d2d7a0b3e30d5",
+    "common/GpuSegmentedPoolWorkers.cuh": "b76201def6bfe696efa8400eab86afb72d48811437d6e39f2461b9457b0cf476",
+    "common/GpuHardwareReductionTile.cuh": "0a47aedb23eb5d048122465f5b87a49d6a936c395d5e13e4e2c9c58d2de23a9f",
+    "common/GpuAutomaticCsrSchedule.cuh": "a95b651b10f674f9a714c6dfc8a32b02ee47f97ef87f6692c7b8ba1d99b2b09d",
+    "common/GpuDevelopmentAdvanceProbe.cuh": "abb4d023a40c3cc1290951314801e2357214858368267edf95539dd447e16b55",
+    "common/GpuParticlePayload.cuh": "8c101246020c559c30180ad8cfd6e9d50eb0bfec7114e0491b62d2b49caeb05b",
+    "common/GpuPoolMomentOperations.cuh": "66092e9eab0e3097569bf30eb8bd206add02bcdb70fef213e201e24dc8247c92",
+    "common/GpuCellLocalGather.cuh": "1592b8be7c8145d094b710762e1ab03d123decead5460656a5cbc67b32d4b1de",
+    "common/GpuMomentRecovery.cuh": "b3bf239ccc971543a52249b644f7741875894afa340c529a63bab27081fa0fd5",
+    "common/GpuDevelopmentProbeInit.cuh": "e424e734c836d7430f88df4e4fd11eb383edf0513c42e783874723c8c0c95a81",
+    "common/GpuContactAgeStorage.cuh": "e7ab95b4c5f082ecfc483543914fb30621ce32cab3b9ff42225868bb27cd98ac",
+    "common/GpuCollisionPoolSplitCell.cuh": "b0adc9d95b0dd7524c323a374db22984eaebf9504b3cf1b86266a8bf14eac981",
+    "common/GpuPressureKickAccumulation.cuh": "3bebd351294fffe83e4bc9a98e6933d4ed629a775b36e260f941f8f88e5d674e",
+    "common/GpuCollisionPoolAtomic.cuh": "9c2223b2b4b7b78ecbc9c92239c5201606fb01b62ed078ac8e9acfc9bb2c510d",
+    "common/GpuReductionTaskCount.cuh": "56185195d63949ef35b5288022ad7dfe237d3873b6df942e6a8bbcb207d0d615",
+    "common/GpuPrecisionTypes.H": "4089e25fd59f0428092ae12b158757ea99c7f9760b06f9d93331cf2e7b81852c",
+    "common/GpuGasHostPolicy.cuh": "e7f9f667b428b62987c9372be14f9adfca570761a3d21875a081681128393a99",
+    "common/GpuDevelopmentThermalProbeSample.cuh": "f88a3775ce4e24653052cca5dd83740e0bdaa092ccad5f67bc89387a80f02e10",
+    "common/GpuPressureUnsortedConstrained.cuh": "aa2a49942d0cc285d16f9d2d3b89f22bd5b768683826ac54dde5a4e3fdbc3a4c",
+    "common/GpuPoolSelection.cuh": "40e3973e4ae1f6b37128c387508bbe44fadf51c1ea2051f42f1e7837f58a8940",
+    "common/GpuParticleGasHeatRelaxation.cuh": "e32c38f9ff35191ee523db070694490ffc365ce0c8955fb96531a2a0ab4b073f",
+    "common/GpuPressureUnsortedAlgebra.cuh": "d062fdca7f77e106bc6787964b05ac9ee1b735ec17886846c0ebf1ec7e8e7ad3",
+    "common/GpuCellNeighbour.cuh": "85ec602fd1d8f48fddfae8721c960a35c49e61cef00d4c1d18f388de1e372489",
+    "common/GpuThermalParticleRelaxation.cuh": "690a17b609ba8d3e1d86aff70fe5c4b5ace0676a18f99dc787129f67a7af59b3",
+    "common/GpuMechanicalRecovery.cuh": "d34cd4f301fb0001100764327768bc8d93eea63373fa629f4ad7c4e5ca642cb6",
+    "common/GpuMomentPipeline.cuh": "f9a2813fc6c75974150c7dc96943654fdce2642e097582e9e5de3fe33b38f3c3",
+    "common/GpuCellDragRate.cuh": "d883583d27a9b2a85721f44ac19e9fa0779076ee32d01c0205df52e904a3dee6",
+    "common/GpuInjectionDirectory.cuh": "1687d3177f803427ff56af3cc17e532d7f4f934deb8dbca501f25e0b5c4d64f1",
+    "common/GpuParticleMomentContribution.inl": "e05aefa98a03ccaae5d6436d6cae2a22ee2b439740398512fca6254ecbea4fa8",
+    "common/GpuCellLocalPrimary.cuh": "1e8bb96a30d5d1b2d1ed7c0767f829530a5bad1e595efde105bef1ef6f9fe39c",
+    "common/GpuPressureConstrainedAdapter.cuh": "094d553fb9a8e804b3f2f2bd5ca260ca52684aa74a2571d6091e1023fd253ec1",
+    "common/GpuParticleDirectoryHostPolicy.cuh": "db0a8bbf986184643da466889f6f36244bf0faea48c028db9add8f5f182c9005",
+    "common/GpuReductionTaskMaterialize.cuh": "60becd333ed6c0cc813d5c51905aad8791700a6066a36a1ad464a27c58aaf0cf",
+    "common/GpuSegmentedMomentWorkers.cuh": "53ed3f6a0ad447cbab8188990dbeacd97c024871187976a3af929f16bae32d14",
+    "common/GpuParticleRestartTheta.H": "122e0e2992578791e46e849e4d1fc883f047bb79941ce3cade385aacb45cbe00",
+    "common/GpuParticleSavedVelocityRestart.inl": "c185b296411dbe79a26df85bb658e1f71dafe5d8bac5ee1069aebdef04cc3960",
+    "common/GpuAutomaticCsrScheduleFields.inl": "c8fc36cdcde6e13739b1eecf1323feaad820d0edbe0c0f661811eeae2376034b",
+    "common/GpuReductionTaskPipeline.cuh": "98db9c52223613cbcb55f04dfa2c98e5a3ad4e3f5e50228b07c0c16d7d50cd4d",
+    "common/GpuThermalLaunchOccupancy.cuh": "602d99215cf2a44e21e576ca5f176b3c61a87f53dc2bb01f0dc26db0ea00f22d",
+    "common/GpuCollisionProbability.cuh": "cb4c684d3e4b7875e42b37fe21bf32f72018aa65da3b9a5bf805008b09798369",
+    "common/GpuFaceGeometry.cuh": "4c4c6a63029dd3a263c987e21e109217fbf03b197278bd94f763192a62893f67",
+    "common/GpuPressureParticleUpdate.cuh": "99d73bf0f746e8f9624a4ed0744520fbfe1a9727aa0f745ca920793cdb33d391",
+    "common/GpuOperatorContract.cuh": "f7c6205fa8a2b2de8b0dfa559e09b4d5cf3f9e91fa199d066a76cd7c0b0154c1",
+    "common/GpuCollisionPoolCell.cuh": "8056217427e5de946c7fbec458d2887068d7a19ade3257f3afa694d4a789b97c",
+    "common/GpuParticleFields.cuh": "a8401cf93814d44ea55a2c5007525130b19b3afe6b006579fd353b17de52570a",
+    "common/GpuPressureAnalyticLaunch.cuh": "7f80e343ed20e1a3e9cf67974f22931cbd6effa85a57350f8f1a51dbd29adc2e",
+    "common/GpuPressureLimiter.cuh": "1098753d2b8b65d68a63a30a33dab296d1be3bfbfe8c96b125e4eca1419ee30b",
+    "common/GpuCollisionPoolParticle.cuh": "8f7731e4b318271974f1604fd1498103231b5a5606cd1fd8c7bbb347748221ff",
+    "common/GpuThermalParticleFinalization.cuh": "6175e00bd6b399532bf6118f02ecc877d86adfb029eaf2e1ca86bfef02ab10e7",
+    "common/GpuBlockComponentReduction.cuh": "bc8efa3cfdf5fcf7529afa9473ff3f85dc02bc5ffb7fcf6e324e508855f83e21",
+    "common/GpuWallEnergySink.cuh": "675bc1f8348ef14a35f0546fdfc1eda5c60d0369187852537c342ccef51dd11e",
+    "common/GpuParticleRestartFields.inl": "99b35dfe35f66434aaaa879d268e814f84602ab418480e77882cf1f10baefc6d",
+    "common/GpuParticleBoundaryModel.H": "e401056aea8a10d192c1b6c604632df326a0d6813c62bcb3d30be60fd4e04dcc",
+    "common/GpuParticleBufferCommit.cuh": "bd891354dab1ec20038cd4a0d2854513e096a31e8a9949665af26fee5cd24ea3",
+    "common/GpuParticleMoments.cuh": "41f1cbcabd63a9e0e01887a66180ababe260019877cf0ba25c29022f22da350a",
+    "common/GpuToolB1Launch.cuh": "f3def625877202d5d564a9e769f8295ace728a4aaacee17c75823c57c47f5273",
+    "common/GpuCellLocalThermalFields.cuh": "41554b697e73ea2a554572c040547856073fd44b282f9245e672518450377499",
+    "common/GpuLaunchOptions.cuh": "9c3e36c386532ada6a3f54a3416bab17102a693fa67cce5e90bbae6d0774b2a7",
+    "common/GpuRadiationContributions.cuh": "172557dff04c41ed037de7cb87ffa8ae3bafac95b63c646acfb1ca2ce16f20e5",
+    "common/GpuPressureConstrainedLaunch.cuh": "7b0243ea74009ffc40885e245771b71580dbdaa312480be7232eb063ce3acc00",
+    "common/CsrPersistentQueue.cuh": "a2e3b26121898d5d23a92c0fe0f5bbd71318f2d96396356c46c654416f16b064",
+    "common/GpuGravityUpdate.cuh": "0d9c1a9367a9c7dbd800de152a3eb1497c6a4d81cb1d3140a9efd3f8cb112515",
+    "common/GpuParticleDirectoryHost.cuh": "897b320d6c6a0761bae7e8c63b7e77061048e5c293198481a4c1f1af3d72f255",
+    "common/GpuCellDragUpdate.inl": "f917ce729ef8032df6ca4acc192a66c39aa881f349cbb83883afccc3fc53dc30",
+    "common/GpuPoolParticleContribution.inl": "ac5c3ccbe6a2a8c01f8454f982e6676856279e37a3156ea631dccedb9198ef4c",
+    "common/GpuThermalParticleRestartCodec.H": "213a1a79af9825bb69b3dd2f0f84d11798336899adb648626d40d03c02de5774",
+    "common/GpuPressureFlatLayout.cuh": "4b97d5d589f48a25ea8761dd4aabdeb545dfe453f97b15c6836aabd204685291",
+    "common/thermal_particle_restart_schema7.py": "86ffa9f28b1cda2cb27c936dea1d34364f15f09ca13d551027fd0aead4f9a849",
+    "common/GpuCollisionPoolRange.cuh": "1e771b16acfb189f4e5a409d2c2e65bcebf8782778e28c8f70f3360706367600",
+    "common/GpuMaterialEnthalpyMoment.cuh": "bdf124f8861585d0bf1979db8e42941f479e24625270a97b2076c907a874acbe",
+    "common/GpuCollisionPoolTarget.cuh": "e8d701609bc7c087708e301779f6c80eabd63671e618b0f51b8db74e0666bd38",
+    "common/GpuCollisionPoolCorrection.cuh": "fbae7f041878de889f357ebc9d5473ae121e9ed8c41361b5a13d0b1d34500a15",
+    "common/GpuParticleTransport.cuh": "95b72cd91068ebd970ec107a72a3bfdb98500c7557c51b9932d9b58a57f39370",
+    "common/GpuCollisionPoolSampling.cuh": "80cea2f99f4c87bfc252191df280a12bd68bcaca346ee71ee42991d1a9e0b9da",
+    "common/GpuToolB1.cuh": "96cd3892878b8a024aa5ddb030387d9cdb373b70bae7f7fa34342d57753b4cac",
+    "common/GpuCollisionPoolSplitParticle.cuh": "2f5f429bb689ce3b754448544fd5684fe26785b145750ca731f6737f85c05912",
+    "common/GpuParticleMomentRange.inl": "ad3cd9dcf322933dc073afd04290f5b58f0eacf465069ef06766537aa7a5a1ec",
+    "common/GpuMobilePackingHost.cuh": "d7bf2005122b998e4cfbc7ce2362b926086b99c36d06b9c9a49739e0e9b8eccb",
+    "common/GpuPressureAnalyticAdapter.cuh": "229c5b10ffb7b7f46effceddeea0295dde4649b31f1eaa54ddeea9e5c8565276",
+    "common/gpu/GpuBoundarySchedule.H": "1f76813cd2860d06d5a73e0bdae0589bfc0365142f723dff34747753e20e14a7",
+    "common/gpu/GpuGasBoundarySpec.H": "4feacefc87b780c4fa7ca77c88509bcd02462f4fc8ee6dd44754295b6cfc7df0",
+    "common/gpu/GpuCouplingMath.H": "62fc148535d6cc1898fa2cb07ea251601d6290b9ca7925a0aa579a1006395b88",
+    "common/operators/uniform01Device.cuh": "47fa0c1409f6ff1e3412ad8db315edc3ddb6f84dacbafe9028a4effb81dd1416",
+    "common/operators/clampRange.cuh": "9e52f85fe12e6690248e09d841c3d4623a1d42aa28f6a7194d492e9caae59867",
+    "common/operators/makeGasPrimDevice.cuh": "cdcae4f950d5141ef1078eddaf1c2bb275c4e423bb77874f6e37d0097dbf161b",
+    "common/operators/pointInsideCell.cuh": "8ab8c720a984a29932df6625a8820c2ee8f95106247ca71d74a408aba8442162",
+    "common/operators/accumulateMobilePackingMomentsKernel.cuh": "11b170a601f92171446b31c19763553a6b0a78248aeed67906e0d8d63b778ca6",
+    "common/operators/FiniteContactRelaxation.inl": "108f6777ecb47aa715f3cb5b3811ec1da4f1a33b0fafe3e45a1dedcf6e3884f9",
+    "common/operators/clearParticleMomentsKernel.cuh": "e9ddde4eca0e0d4bce3043b7c2bcc92e6f56f4d124a9d944f8a674d71241d474",
+    "common/operators/particleTemperatureFromSpecificEnthalpyDevice.cuh": "052c499c6b77c6945a051a2e54363d90087635fc52cae276403a1453eaba3827",
+    "common/operators/rebuildWallBoundParticleDirectoryKernel.cuh": "4301d23f7b683ee45113f55a703e47b463e345f672addad45e63215cc439801a",
+    "common/operators/clearPoissonThermalPoolKernel.cuh": "59ff106d90418f486556e5046b0459d9902a4219187075f5f218cff06a6654bc",
+    "common/operators/scheduledSolidVolumeFractionDevice.cuh": "4710f11d389c91750013741c260f150ef934ed9597a619d6a604c2eaff6a7bdd",
+    "common/operators/riemannFacePrimitiveForGradient.cuh": "cb12b77ed8d09066c38da15aaa018b4dc243c925cb9fbc209cb820957e1771db",
+    "common/operators/appendSelectedStuckParticleIndex.cuh": "132a0d9309776e0e3eb2807f8e08b3f8ca9530c68c487f1785aba7e38265cb01",
+    "common/operators/clampMin.cuh": "5953238b345f81eab7747f5f37ffb7b38b71dbfb30983385122bcf20e1e23231",
+    "common/operators/computeGasHllcAdcSensorKernel.cuh": "b5a11f0054bf9e5f6fc556af3b8af74ac1aa610a4239b04268be0da0d3d35105",
+    "common/operators/clearParticleMomentsAndCountsAtomicKernel.cuh": "4e59144f06cc1899aa2905f5aa0e8231edc01f7304317e3e1d83692eb020a306",
+    "common/operators/correctOnePoissonThermalizedParticlePath.cuh": "ad7be283ffdbcc84aaea8589aaa3c49dcc990b8f6091cd098126c87349616d63",
+    "common/operators/validateDevelopmentProbeCellsKernel.cuh": "bc41cb7c7a34194eff791892202c0e89d861eb31931c6af236696e76c0544648",
+    "common/operators/clearParticleCellBinsKernel.cuh": "ec16696f37ce3868e097df02045ba3509e4974a43f2e536f3a506bd821ef8c36",
+    "common/operators/accumulatePoissonPoolParticlesByCellKernel.cuh": "41b7e589fad420d4066bd9402188f8728c90c28360108b268727095c7f09daf0",
+    "common/operators/computeGasInternalFaceFluxKernel.cuh": "ab645d1b3af46de1f1a772abd6c9308405cbe2d15876e542611d8b4b53bdbdd0",
+    "common/operators/swapParticlePointerDevice.cuh": "9eb03f5c3326f502439164dd3823a4d1b9743833f9bd4c8e8eb6777833faaab8",
+    "common/operators/computeSstFaceFluxKernel.cuh": "b9bc8c30333932df981b02a48ea4e4829149f92e8f6e6632aa416671cb15c975",
+    "common/operators/clearSplitPreInjectionBinsKernel.cuh": "99938321dcdcf681c6b4452f83d954ca0cc3e9babc19e38a2cda26f1c56cb863",
+    "common/operators/prepareMobilePackingProjectionKernel.cuh": "0e06ceef6379e7e117c54245300ff4bcec351901c2122da16d731f0074dbe068",
+    "common/operators/accumulateParticleWallRepresentedContactAreaKernel.cuh": "15cb42676035ef156c7fc2748489855d6136643e02d5028798be6303bc3bbf15",
+    "common/operators/computeGasGradientLimiterKernel.cuh": "dce3f596ee27687ec657c9a54539bbf61ac9b32e62ec5e0be72f464fa87ba188",
+    "common/operators/atomicAddParticleWallEnergyByFace.cuh": "390f0c168b4fcd7b3840dc90dbc8fcce4161b4d7c3ee0c31bc02fd5b60df7fcf",
+    "common/operators/updateDynamicHeavyPolicyKernel.cuh": "96c610b619dd80ed27f47e17509fc26d76f963adace71fe8b4e09ec7937ebaf5",
+    "common/operators/updateBarthLimiter.cuh": "31f86a87cc8da7d2f7184d42b0b13659b194c3408c80ec3e2b4ddf45a03aa163",
+    "common/operators/computeGasEddyViscosityKernel.cuh": "08f28697e7635fe725045fb97631908424b6bae492622cd6c8ded914f50f2952",
+    "common/operators/computeCollisionalPressureKernel.cuh": "176a16c22ab5e93e8766f4560eb7f921ca9def86280c96c2ae11152b66e252ef",
+    "common/operators/finalizeOneThermalizedParticlePath.cuh": "b262b64a72f950e109c60519f6c8e92ce14711d961004063f9ab11945c11f889",
+    "common/operators/maximumDirectoryOccupancyKernel.cuh": "869c748a1be0bbb3c9da3555a17350b70694b4d59ce5d0bf4bbb78f1ffccb5b7",
+    "common/operators/gasFaceSubgridTransportProperties.cuh": "a0ca9298c8f0ee65e019fca9ee1f5abdf43ea780f28108f65d10912d9c6c14da",
+    "common/operators/updateWaveTransmissivePressureBoundaryKernel.cuh": "d273cffd04ee072a9cb2165b6747554f6a2e3b3b98bb12743048a43bea0003a5",
+    "common/operators/computeGasFluxPositivityScaleKernel.cuh": "d9fea435c739011d3e529d69d3b28dbaff942925ffb795a53c700bdc4c4832f2",
+    "common/operators/updateLegacyGasBoundaryMirrorKernel.cuh": "c6642b6eabf5e1e82a5539093b104fdeec8c12c4d2c6ac0a4ff4393061cfe29d",
+    "common/operators/sstVelocityInvariants.cuh": "c64085a6aff59f15868534fd2fe4d6a539336de5a90e15ec883a44a307fb77ba",
+    "common/operators/applyEulerianParticleMaterialHeatKernel.cuh": "4e6fd01ed3aa903b13b5e5ae7dcf1ce1fc13b911e3a613814f1784f5c3334755",
+    "common/operators/mobilePackingParticleEligible.cuh": "7382294b7c57a0ab37fbb8a17d24bc0e9a4834d369ce64b00b79ca38b6493c7e",
+    "common/operators/publishScheduledInletConfigurationKernel.cuh": "bfe5f2483757443e6fbcee9900fa4c878c7328f873dbc9d942cc19ffb18cb2d9",
+    "common/operators/applyEulerianGasSolidDragKernelStatic.cuh": "11d6a0d0b0fd3e80524f8d4c36ffd80abdb7e6c688abfa8172881a014904a79d",
+    "common/operators/solidRecoveryFromParticleMomentsCell.cuh": "df1f7f2f977238772643e111b584ff6334049218651d84ceae097dd99304186f",
+    "common/operators/computeRiemannGasFaceFluxDevice.cuh": "c83e538b9c46f7f8ce19fd0ab4d5ab746b3edbf0f6a70c4444a9e3190f32b297",
+    "common/operators/injectBoundaryParticlesKernel.cuh": "0083ee35a192fc07137853d91c4cbcfc7512c86b29b54f77b88ea815bc82caa2",
+    "common/operators/computeSstGradientsKernel.cuh": "b42c33dd7defcf4e67ca2140ad39e505771f6fb962632a932e85b6ed537984da",
+    "common/operators/applyCollisionalPressureProjectionKernel.cuh": "f40b167b688e1dbef36eb4415c351f2abd9079c56486d8ceada5d449de56c9aa",
+    "common/operators/recoverPrimitivesKernel.cuh": "29dc53f96b9d49ca70e9ce5670117cd2dd03e822c6099c49c81d23eceb567301",
+    "common/operators/gatherSelectedParticlesKernel.cuh": "e99dff3dd3cfcf257598c81493b649db30c1b1849892b28e5eb0f705a8f79211",
+    "common/operators/clearMobilePackingActivityCountsKernel.cuh": "b9ab084ca1c52584f6307f5bcd9d5999b225c1df5412044f03166d7cfccc9b86",
+    "common/operators/computePressureGradientKernel.cuh": "6780984a02163f4ffa6260694cf2e16ec022029e6e95cfae51040f0f5e928537",
+    "common/operators/accumulateParticleMomentsAtomicKernel.cuh": "760673756059257701d2423c9db89ce8afc042fda040effeb95966f5a0b358b2",
+    "common/operators/snapshotParticleGasCouplingStateKernel.cuh": "1de53d424a1356b7c670bfdd15ecaa69eef502e2d56374c4f77b5b65bd1193f8",
+    "common/operators/linearScheduledValueDevice.cuh": "aa4f9369740e15919266be54c88ba709719291ba05bbe3a68361dd8f9c1feaf9",
+    "common/operators/clearSolidCell.cuh": "9a0b26ed149a92a0a0f08ac7b15d30a4acd31f75c8978a8ecede44a40b9be63c",
+    "common/operators/samplePoissonPoolParticlesKernel.cuh": "2855e172a44c3ad7a87596a53c323e3c442efc952d323a4e6a40331b0c2a871d",
+    "common/operators/relaxMobileParticlesToResidentGasKernelStatic.cuh": "3d28c430e0d923d3d6040b69f2e8f3f5270266fb1e9890c4ba159fd650d153af",
+    "common/operators/clearColdWallParticleState.cuh": "37521751d58f9571102834526281992e790ef0f4e174762748f726a408f45a16",
+    "common/operators/computeGasPrimitiveGradientsKernel.cuh": "ae216c6628154b14f5559be13c0c4e6fdc61140082685f0e32ff6d2a6bda2210",
+    "common/operators/dragInverseTimeDevice.cuh": "508a6c62b7a6683844c70e147227c577aa8a35f4c8423fbf99ace62d3a427be5",
+    "common/operators/normalizeMobilePackingMomentsKernel.cuh": "bb6f5ff2cbeefcef9c2a651bf235f8d339431238de6d2b4e26c07ce28647a018",
+    "common/operators/ParticleDragMomentum.inl": "3b673a7d506b876246e2f02b4f03a02780f148e8e13c49bc91f3542493b61035",
+    "common/operators/solidPressureFromMomentsDevice.cuh": "459b2c6890d944eda70d38b2b61f8543145533b58710b40ba424894f4e2dbaea",
+    "common/operators/trackParticlesLocalFaceWalkKernel.cuh": "60c1766060722fab846297e027b7ec8603616fb5e727fef042ecade89830fcfa",
+    "common/operators/applyGasGravityKernel.cuh": "f5b9c3ca54bc63d1c04a7e5e6db72107f789e4336ff2acb859e72b730040d808",
+    "common/operators/countParticlesByCellKernel.cuh": "9b20d5e8acd902ad9abc7ac56abd60217b8dab67ad0d3ba97f869802efb8dbc4",
+    "common/operators/particleSpecificHeatDevice.cuh": "39326ddef50286759d6010b65dc4a047152a6cf097a482415223b991ecf027aa",
+    "common/operators/granularCollisionTauFromCellDevice.cuh": "2997773e0d22f6631c7d2539beab6aa05ca58d75662f4e4e1b82cb7c818dfb0b",
+    "common/operators/publishHeavyReductionDecisionKernel.cuh": "555fffa74f9c0570104227f23d4573d00168fbadf125042f092a6d282b2664e0",
+    "common/operators/validateDevelopmentProbeParticlesKernel.cuh": "84baf2d9d0fd3d9429854d045485275ef248e889f330fb53c31533cd90897494",
+    "common/operators/solidEpsFromMomentDevice.cuh": "d8f72d87e660290bb0e493911a3be46a5fe5f1aba53302420a7b6887a8c2eb02",
+    "common/operators/countCsrReductionTasksKernel.cuh": "890617869ac0000eca7275fecc7ebc80a35647dfb98343e730630447eb8a306c",
+    "common/operators/normalDevice.cuh": "5ab4416a82abdfae53b6eb367a0c670811be685cb86f3d515614deb50cc58172",
+    "common/operators/preparePoissonPoolSamplingKernel.cuh": "b2984760e021def7f113c606206e91b7dbb782e2cb073e6228f621c71eb40c87",
+    "common/operators/applyGasVolumeFractionSourceKernel.cuh": "273699a3a1de638ff1532b7eceae3b048c79f076ac772ca59448adc8e0b9d2e9",
+    "common/operators/normalizeParticleMomentsAtomicKernel.cuh": "76c74ec8f817755957789af16db1fd0126a1b43250601ca291e3ee979d8a422f",
+    "common/operators/accumulateCsrSplitLogicalPoolTask.cuh": "0e952b40b4e78738aec1064f8b69b9fe11069c3c06070b18fca00d5f9b22e238",
+    "common/wall/GpuColdWall1DPublish.inl": "f00716695ba3db35844bb9809eba3acf96ff08e23aeaf2e84eb4b10ac54d6cf8",
+    "common/wall/GpuWallInterfaceHeat.H": "02f1cba33b62e273003c2a4e857d9eb019a72308826f8e0c7a44309c3c159532",
+    "common/wall/GpuColdWall1DInputs.inl": "1ead8a88d07ffa886afa7adc4a25e4e24d5c567ef309a7507631bf7f43f52480",
+    "common/wall/GpuColdWall2DDevice.cuh": "bad8d06aceb4fef5339cce11c80091f3891dea9cdf70a3c758bbc933c83300b2",
+    "common/wall/GpuColdWallSolidification.H": "0446920fde8617ca2476f93aba1c42534bd23f71ceb449094c8b69b56583e4ca",
+    "common/wall/GpuAluminaProperties.H": "160be19a69a06bd7277d99d9f36fad83c0bbaae3449c364560ccbde4866f4ce5",
+    "common/wall/GpuWallContactDirectory.cuh": "4fdd30b3b1dd11025d4c606145ec37828a8f541f36baf22e6a1f7d6b70ae2db3",
+    "common/wall/GpuColdWall2DSolidification.H": "ec3796199c24cbb5a28025fb6590b0356413d484cb47246a42e0f7233cd4b71e",
+    "common/wall/GpuCapillaryDetachment.H": "c1f6b57e2c93e42087789dc8ce74bdb766e863cba781d29940f2fcd87dbbc536",
+    "common/wall/GpuParticleWallContactHeat.H": "261366b4b40bf198f9e389d1281a6b19a79e20b5cb7d739439cef3cd1a798ae2",
+    "common/wall/GpuColdWall1DAdvance.inl": "bc8b2037b15e817f40177dc2296225c53f3da74ae4437aafa498812a049432d7",
+    "common/wall/GpuFiniteWallContact.H": "55069517be298d4b0aee7ae3522eea69a9994a0c29733699f6e4519be00d85fa",
+    "common/wall/GpuColdWall1DAlgebra.cuh": "c4c578c69f70725fcb60973798300bd57d753a82c3e036414bb907e08e21dda8",
+    "common/wall/GpuSommerfeldSticking.H": "f557f25a845048ab1b94398381ec0bc876297c77582a36a71d222f773a00dc7c",
+    "common/wall/GpuColdWall1DDevice.cuh": "b48ef4e9143abcf4bca7a42ff842c26ae5c37fa38a6405de734c84568e4de6ba",
+    "common/gasNumerics/OpenFoamWallFunctions.cuh": "9f2a9cc162f00bc2c0d6c64a16ff31d1fe64218f651fd9b40102bccce12c7f62",
+    "common/gasNumerics/OpenFoamLimitedLinear.cuh": "0af15d247c1f15603070807d232acd709ff92298e0465ab0843d251478006e69",
+    "common/gasNumerics/GpuDragModelsFSHCHT.cuh": "24035cf5d5d001ba40295392426b24aba2dca51db0b2b3c7384af9e476d4e60d",
+    "common/gasNumerics/RiemannGasFlux.cuh": "ccfb5dd4f18fca6aeee6a021834ff53615321c13bfe3daab05ab4c143ad5b47d",
+    "common/gasNumerics/GpuPackingProjectionAlgebra.cuh": "e014ec66dc70ff577d2a620e6ba5d26611fc130c17d091184a921418f44cf901",
+    "common/gasNumerics/GpuSstAlgebra.cuh": "515f9452719bff8c22fa42134ea2a57d012d450a96ddddb642034923660a7662",
+    "common/gasNumerics/CharacteristicMuscl.cuh": "da172a748e235e2afee4119f550f2dcff55111edc129b4d38ee80c1c10e6e2cc",
+    "common/gasNumerics/FullSecondOrderGks.cuh": "c94622fcf10c8f48aa8ef8d1fe57694e8d5f7c52dc17c622f4dc799bc2d48d45",
+    "common/gasNumerics/GpuLesAlgebra.cuh": "24b2da262a3c5413f3ae2c41e9883fece279e668da6da18a039b8f4ff3f9246d",
+    "common/gasNumerics/RiemannBoundaryState.cuh": "080d7d7fd45cc0209f5ec353951eb0f04eaf9015d17530d5ef259915869418f2",
+    "common/gasNumerics/OpenFoamViscousFlux.cuh": "c095582739093cd5289cff5642513e34372dad4ca0be71350eacee8b549bc82c",
+    "common/gasNumerics/GpuParticlePhysicsAlgebra.cuh": "b7f8d6be19b79dbdd146804f281726e8f3f4153717b850d6f5c8276a28eedb0d",
+    "common/gasNumerics/GpuDragAlgebra.cuh": "960f507001b00310957f4fe309e00dd182ac84b59d9810316b8b75574a2502b5",
+    "common/gasNumerics/GpuPackingProjectionCooperative.cuh": "ec77595a6a54336c73d962951431deebb8c53c38722186803806d03dc0e033ce",
+    "gpu/thermal/CsrSegmentedMomentWorkers.cuh": "f6ac757cde1295e4b26e628e7b79bdc2d6961c74bb667f290318222a7d54df8d",
+    "gpu/thermal/CsrSegmentedPoolWorkers.cuh": "bae43125c807077b8c980cc5d61dcdc8a6afc39478e8925bb6a738c0cebc1bbc",
+    "tests/fixtures/s1_survivor_fusion.cu.in": "a3f44d96eb7c2b1773ec9f0b079f13823a394dd7f7b950d3d8a5971206972c04",
+    "tests/fixtures/source_contract_regression.py": "3fa2b30758f5a52b49996d6c58f7dae6bf0d354f20788295df0bc2ddb3473309",
+    "tests/fixtures/shared_operators/payload_commit.py": "22b414659403c4dd9212e1861df5d9b486882004eb282f1f737488be26fd7f6c",
+    "tests/fixtures/shared_operators/collision_split_behavior.py": "3f8bc5e9b4503e614d9b8ce596cff2ad1fc741da970131bb2c6a77c4b6757a08",
+    "tests/fixtures/shared_operators/extended_operators.py": "4fdf5fb4d04fefd2e61e74cdee49a6e6a209da6be9db6e33ed21a6d4cb783600",
+    "tests/fixtures/shared_operators/contact_age_theta.py": "7a1eccdb08b05e1a3d7b57bebddbe7c272a95d46481164ae903e9e83a7ce01c3",
+    "tests/fixtures/shared_operators/contact_conservation.py": "c20b9611d703cd3957c23526f3483aca46abb6ca6cd73f579c0d4a9d3c9976a9",
+    "tests/fixtures/shared_operators/collision_behavior.py": "15678361c2e14d71017f91ccc10db2d6ba213b4eaf43f4629234268ca6db0afe",
+    "tests/fixtures/shared_operators/contract_regression.py": "bf6e2276b3e15d8600efb64f19d986d108d345507466331b2bacbe3b0ad14381",
+    "tests/fixtures/shared_operators/moment_publication_paths.cu": "77cf3f7745e3ff969c70e30c7081b78d5f4796fd81571c9727c943a121e27d1b",
+    "tests/fixtures/shared_operators/operator_contract.py": "80abf12c63ede35d90c8057dcd23368d7636ef4e1e589a10e09b0403f52d6f50",
+    "tests/fixtures/shared_operators/moment_publication.py": "0193f47e94e06ab5e40bf5e52353a7c0a787e171f8a1d1db52b669ad01699231",
+    "tests/fixtures/shared_operators/source_balance.py": "560b27bef2e762ee2896357834ab3ed78e9e3e4953bebe0c6499b28d845936a4",
+    "tests/fixtures/shared_operators/tool_b1_protocol.py": "5532805e02bf6e071b7f7143ee22de0bd662ba5de015eefe8cc6997d98c4dcae",
+    "tests/fixtures/shared_operators/tracking_grid.py": "cf6bd63a31e1130446fc7d893e8cb051586c37c143c457027619d25365bc5698",
+    "tests/fixtures/operator_unification/differential.py": "118cc31f926f70832fab5f21b97cab87643ce7bcdb3593911b1327bd3f705baf",
+    "tests/fixtures/l2_goal/prefilled_gather.cpp.in": "d47ea88c1876567bac7ea826c2f1544da67f842c043a9c23ae1ce265440d0422",
+    "tests/fixtures/l2_goal/filtered_gather.cpp.in": "61e55111e899fcbaa333e1c4bdb9b2d0415a989c5c99e3ed5da8206def0a0772",
+    "tests/fixtures/l2_goal/fused_moments.cpp.in": "1a1c22884779496bae7b3d199ac53e3eefce8c55c3f03b666f690ff781ad08d8",
+    "tests/fixtures/l2_goal/pressure_cache.cpp.in": "8fa27bda26e6fb2c2a683fef048ca99e9ce9ba5e46c1c137ff73f58b8c2e1897",
+    "tests/fixtures/l2_goal/probability_cache.cpp.in": "f8fe74c250b02413da06099c1c6432d9647f124c6c2b7349f7a0f4add367319b",
+    "tests/fixtures/pressure/limited_flux_balance.py": "ee864840781b46aab29116433a84d4a83f7162931d424ea4796a6b697477f265",
+    "tests/fixtures/thermal_workers/fused_pipeline.py": "846e8899348c5271c402c5b7cb38f3e5bac34536c09cc941957e812cb88507f6",
+    "tests/fixtures/thermal_workers/common_pipeline.py": "40db7c463969754f8e9bcd6cc868f466a674b45ec28106c0a1e3357fb11738e9",
+    "tests/fixtures/thermal_workers/direct_dispatch.cu": "606b1fdc81ce913e8f09fe6fe6060d7f9161e58f38fe0c8e5944515611bdb9f8",
+    "tests/fixtures/thermal_workers/gather_FSH.cu.in": "19bc32751ddf626f74381e046fca6a1999b52b1fd34a16711d874ed6b0280f33",
+    "tests/fixtures/thermal_workers/gather_CHT.cu.in": "e411027511ae19e64244c5c09eb6771c0d196f949ebd01437ef1e7aabd89fc67",
+    "tests/fixtures/thermal_workers/s1_pipeline.py": "2fdbbbb4d11b3dab51763c2d8f53b33dcc42e68e58831f35661503978b9bdcf1",
+    "tests/fixtures/fluid_extreme/pressure_atomic.cpp.in": "19be30555e9f6651df1fe40bd5582f88f7412443263ef4b4c7bd999c038f89f6",
+    "tests/fixtures/fluid_extreme/drag_fused.cpp.in": "bdba12b1d73840c8bdbbf38dd2d7d07b329ceb52ef5c0ae53b10222f495387a8",
+    "tests/fixtures/gas_auto/gas_auto_pool.cu.in": "b649f89a95579e441ad35a2389de4df1efb6ca3bf812b523d83c599910e23d96",
+    "tests/fixtures/gas_auto/production_directory.cu.in": "a5934add8cae721c8349a1d2b71939f9be9e26b93bfeb598dab1d7fb0c39d901",
+    "tests/fixtures/gas_auto/gas_auto_pool.py": "f49b265d09448953c75341810f9d71850e371d64d3a7437dc10b9d0f7e3eb670",
+    "tests/fixtures/auto_cleanup/behavior.py": "3b0f2286c2581d27a8f4928df2e75007026e745e7e7402d33b3e3aa750af2316",
+    "tests/fixtures/low_level/reduction.cu.in": "f6abe9b86b14d70766443565c133ec40cd0ea04460e5f523151dd453b54b6863",
+    "tests/fixtures/low_level/pool_initialization.cpp.in": "0d88e0768b297f1d877a153f83b49c686180222aa0274a8434255f8e0c7189a2",
+    "tests/fixtures/low_level/reference/gas-reduction.cuh": "d05bd03b5a3f9254bcde5aec86083b094c0a1d3eabf9e112f4050a4389076d23",
+    "tests/fixtures/low_level/reference/gas-clear.cuh": "362d46ae8e2d4a3235b2ad2a43f1eb837dd05e6f2c3ea2398291e65a7dcf128b",
+    "tests/fixtures/low_level/reference/FSH-occupancy.cpp.in": "1edf7c8768b15e55c8c5b62163e38558b8885454665470b5f983673f1710a343",
+    "tests/fixtures/low_level/reference/CHT-occupancy.cpp.in": "52e82738f6f5093ffb29d880ca2e8ca8c8db45883c82612a80742c1f77c7279b",
+    "tests/fixtures/low_level/reference/thermal-clear.cuh": "fa60ecfc5e0521d1ec3cf5175f58300866ab87e7fdc7eb14fb96418f4b90b87f",
+    "tests/fixtures/low_level/reference/prepare-sampling.cuh": "9dcd77a55e4059c5aeafb2b800993a5929ddc355c2b1f7a36f5b3575899115a9",
+    "tests/fixtures/low_level/reference/thermal-reduction.cuh": "97df79697cc40d26278bd85a0c06bc085bb47495b6eb11a15fe3323c72abb85a",
+    "tests/fixtures/persistent_queue/gas_prefix.cu.in": "cfc5b09844ffde1b54db7dce4b30dd6704772e21be23d75f25c032ff21d278a4",
+    "tests/fixtures/persistent_queue/gas_main.cu.in": "ce6b1336858dc824e28b45612f5729b930c9063e17556079df98cd7518514b61",
+    "tests/fixtures/particle_tracking/geometry_behavior.py": "d2c530208eab455063c7e5d45c8f55705e0412bfc7df829fa983170ca3f8b6b1",
+    "tools/run_prebuilt_low_level.py": "da8bc81a752a5d8ba4dc31434dce56e77b2df4fcb0b8e8c3e19d14357984bb03",
+    "tools/low_level_regression.py": "a234f6dd3d313a790c9966482134c7e234d8aa44c17ca182a14f0146741efb47"
+  },
+  "programs": [
+    {
+      "test": "gas64-bitwise",
+      "executable": "deferred-cuda-final/gas64/reduction",
+      "sha256": "1b6eab3ae5a2932d308bdc37e26091596a1e3f6f4a8645a93fc4449f082df122",
+      "arguments": [
+        []
+      ],
+      "expected_stdout": "PASS reduction:"
+    },
+    {
+      "test": "FSH64-bitwise",
+      "executable": "deferred-cuda-final/FSH64/reduction",
+      "sha256": "cac95e132eef56778611656c31b78147cb8985b98ebd4978a327194e7b0d417b",
+      "arguments": [
+        []
+      ],
+      "expected_stdout": "PASS reduction:"
+    },
+    {
+      "test": "CHT64-bitwise",
+      "executable": "deferred-cuda-final/CHT64/reduction",
+      "sha256": "95ac53a2a829ec55576dad142eadc50e71ee57f309c79b7c223f09bd665556fc",
+      "arguments": [
+        []
+      ],
+      "expected_stdout": "PASS reduction:"
+    },
+    {
+      "test": "CHT32-bitwise",
+      "executable": "deferred-cuda-final/CHT32/reduction",
+      "sha256": "70a0388b783a2f72574f411dd6da72d6f110e2df7f5490a7dd3d5e8f6973ea6b",
+      "arguments": [
+        []
+      ],
+      "expected_stdout": "PASS reduction:"
+    },
+    {
+      "test": "FSH64-payload",
+      "executable": "deferred-cuda-final/FSH64/payload",
+      "sha256": "0414936f1888cf01911a1c39d20ae2c873bb01a9c172016387a470c1a452e679",
+      "arguments": [
+        []
+      ],
+      "expected_stdout": "all payload fields, order, filtered tails and wall publication passed"
+    },
+    {
+      "test": "FSH64-payload_commit",
+      "executable": "deferred-cuda-final/FSH64/payload_commit/payload_commit",
+      "sha256": "7640c34c078c21d406f02d8e84223b8a68aa45dc2ac72dc5013d848b653f10d9",
+      "arguments": [
+        []
+      ],
+      "expected_stdout": "all payload fields, order, filtered tails and wall publication passed"
+    },
+    {
+      "test": "FSH64-s1_pipeline",
+      "executable": "deferred-cuda-final/FSH64/s1_pipeline/bin/exact13_FSH_64_candidate",
+      "sha256": "1a43591450dcba4e976b5bc6e9405bea14865efffd4bff9b094be0173e5ce848",
+      "arguments": [
+        []
+      ],
+      "expected_stdout": "PASS actual survivor bins"
+    },
+    {
+      "test": "CHT64-payload",
+      "executable": "deferred-cuda-final/CHT64/payload",
+      "sha256": "19e5ed406761021ef8400ae96aa99cf2a268c2090103ca8cb96ad2ab0c0c812c",
+      "arguments": [
+        []
+      ],
+      "expected_stdout": "all payload fields, order, filtered tails and wall publication passed"
+    },
+    {
+      "test": "CHT64-payload_commit",
+      "executable": "deferred-cuda-final/CHT64/payload_commit/payload_commit",
+      "sha256": "65e01ab1824017959697679b3ce041bd6b311fa2150e94db53cb4954b0e50a40",
+      "arguments": [
+        []
+      ],
+      "expected_stdout": "all payload fields, order, filtered tails and wall publication passed"
+    },
+    {
+      "test": "CHT64-s1_pipeline",
+      "executable": "deferred-cuda-final/CHT64/s1_pipeline/bin/exact13_CHT_64_candidate",
+      "sha256": "7a738e6241f4fbe027a3b24c727099c02ff4cf07a96d0307359133e628a2538e",
+      "arguments": [
+        []
+      ],
+      "expected_stdout": "PASS actual survivor bins"
+    },
+    {
+      "test": "CHT32-payload",
+      "executable": "deferred-cuda-final/CHT32/payload",
+      "sha256": "98bcc5bb6ea413677b15f30e5b35413addb56cfc2de56ebabe4ee81f548f196d",
+      "arguments": [
+        []
+      ],
+      "expected_stdout": "all payload fields, order, filtered tails and wall publication passed"
+    },
+    {
+      "test": "CHT32-payload_commit",
+      "executable": "deferred-cuda-final/CHT32/payload_commit/payload_commit",
+      "sha256": "7e41e5ad41410b4f6e24a3cc8b8e9a06a7079b5aacfe53c7792aa00add5f5231",
+      "arguments": [
+        []
+      ],
+      "expected_stdout": "all payload fields, order, filtered tails and wall publication passed"
+    },
+    {
+      "test": "CHT32-s1_pipeline",
+      "executable": "deferred-cuda-final/CHT32/s1_pipeline/bin/exact13_CHT_32_candidate",
+      "sha256": "1591ba08dd933ecc7d3b55d04dc59dc7b6af37703b7c8d86f2b0e91edf34d101",
+      "arguments": [
+        []
+      ],
+      "expected_stdout": "PASS actual survivor bins"
+    },
+    {
+      "test": "gasUGKP64-production-chain",
+      "executable": "deferred-production-directory/gasUGKP64/gas_auto_pool",
+      "sha256": "3dac6689a92e50ed073d6deed5ed89d10e302d3c11d29a1014b1e31420ed9b9b",
+      "arguments": [
+        [
+          "0",
+          "0",
+          "32"
+        ],
+        [
+          "0",
+          "0",
+          "128"
+        ],
+        [
+          "0",
+          "1",
+          "32"
+        ],
+        [
+          "0",
+          "1",
+          "128"
+        ],
+        [
+          "0",
+          "2",
+          "32"
+        ],
+        [
+          "0",
+          "2",
+          "128"
+        ],
+        [
+          "0",
+          "3",
+          "32"
+        ],
+        [
+          "0",
+          "3",
+          "128"
+        ],
+        [
+          "1",
+          "0",
+          "32"
+        ],
+        [
+          "1",
+          "0",
+          "128"
+        ],
+        [
+          "1",
+          "1",
+          "32"
+        ],
+        [
+          "1",
+          "1",
+          "128"
+        ],
+        [
+          "1",
+          "2",
+          "32"
+        ],
+        [
+          "1",
+          "2",
+          "128"
+        ],
+        [
+          "1",
+          "3",
+          "32"
+        ],
+        [
+          "1",
+          "3",
+          "128"
+        ],
+        [
+          "2",
+          "0",
+          "32"
+        ],
+        [
+          "2",
+          "0",
+          "128"
+        ],
+        [
+          "2",
+          "1",
+          "32"
+        ],
+        [
+          "2",
+          "1",
+          "128"
+        ],
+        [
+          "2",
+          "2",
+          "32"
+        ],
+        [
+          "2",
+          "2",
+          "128"
+        ],
+        [
+          "2",
+          "3",
+          "32"
+        ],
+        [
+          "2",
+          "3",
+          "128"
+        ]
+      ],
+      "expected_stdout": "PASS production compaction -> directory -> auto -> actual collision consumer"
+    },
+    {
+      "test": "FSH64-production-chain",
+      "executable": "deferred-production-directory/FSH64/gas_auto_pool",
+      "sha256": "2274db6f07f134be40af0b7520d0879511ea4bf3dc61bec393aa78f0fcd34940",
+      "arguments": [
+        [
+          "0",
+          "0",
+          "32"
+        ],
+        [
+          "0",
+          "0",
+          "128"
+        ],
+        [
+          "0",
+          "1",
+          "32"
+        ],
+        [
+          "0",
+          "1",
+          "128"
+        ],
+        [
+          "0",
+          "2",
+          "32"
+        ],
+        [
+          "0",
+          "2",
+          "128"
+        ],
+        [
+          "0",
+          "3",
+          "32"
+        ],
+        [
+          "0",
+          "3",
+          "128"
+        ],
+        [
+          "1",
+          "0",
+          "32"
+        ],
+        [
+          "1",
+          "0",
+          "128"
+        ],
+        [
+          "1",
+          "1",
+          "32"
+        ],
+        [
+          "1",
+          "1",
+          "128"
+        ],
+        [
+          "1",
+          "2",
+          "32"
+        ],
+        [
+          "1",
+          "2",
+          "128"
+        ],
+        [
+          "1",
+          "3",
+          "32"
+        ],
+        [
+          "1",
+          "3",
+          "128"
+        ],
+        [
+          "2",
+          "0",
+          "32"
+        ],
+        [
+          "2",
+          "0",
+          "128"
+        ],
+        [
+          "2",
+          "1",
+          "32"
+        ],
+        [
+          "2",
+          "1",
+          "128"
+        ],
+        [
+          "2",
+          "2",
+          "32"
+        ],
+        [
+          "2",
+          "2",
+          "128"
+        ],
+        [
+          "2",
+          "3",
+          "32"
+        ],
+        [
+          "2",
+          "3",
+          "128"
+        ]
+      ],
+      "expected_stdout": "PASS production compaction -> directory -> auto -> actual collision consumer"
+    },
+    {
+      "test": "CHT64-production-chain",
+      "executable": "deferred-production-directory/CHT64/gas_auto_pool",
+      "sha256": "b8f368294d58307ff9e42bd9c18ba7159e1f07ab5e406ab85bf4b56d5fe79916",
+      "arguments": [
+        [
+          "0",
+          "0",
+          "32"
+        ],
+        [
+          "0",
+          "0",
+          "128"
+        ],
+        [
+          "0",
+          "1",
+          "32"
+        ],
+        [
+          "0",
+          "1",
+          "128"
+        ],
+        [
+          "0",
+          "2",
+          "32"
+        ],
+        [
+          "0",
+          "2",
+          "128"
+        ],
+        [
+          "0",
+          "3",
+          "32"
+        ],
+        [
+          "0",
+          "3",
+          "128"
+        ],
+        [
+          "1",
+          "0",
+          "32"
+        ],
+        [
+          "1",
+          "0",
+          "128"
+        ],
+        [
+          "1",
+          "1",
+          "32"
+        ],
+        [
+          "1",
+          "1",
+          "128"
+        ],
+        [
+          "1",
+          "2",
+          "32"
+        ],
+        [
+          "1",
+          "2",
+          "128"
+        ],
+        [
+          "1",
+          "3",
+          "32"
+        ],
+        [
+          "1",
+          "3",
+          "128"
+        ],
+        [
+          "2",
+          "0",
+          "32"
+        ],
+        [
+          "2",
+          "0",
+          "128"
+        ],
+        [
+          "2",
+          "1",
+          "32"
+        ],
+        [
+          "2",
+          "1",
+          "128"
+        ],
+        [
+          "2",
+          "2",
+          "32"
+        ],
+        [
+          "2",
+          "2",
+          "128"
+        ],
+        [
+          "2",
+          "3",
+          "32"
+        ],
+        [
+          "2",
+          "3",
+          "128"
+        ]
+      ],
+      "expected_stdout": "PASS production compaction -> directory -> auto -> actual collision consumer"
+    },
+    {
+      "test": "CHT32-production-chain",
+      "executable": "deferred-production-directory/CHT32/gas_auto_pool",
+      "sha256": "082ab8efc22eb34de1e5f427b1755cf6ace2c065916081b1bec50029197ddc80",
+      "arguments": [
+        [
+          "0",
+          "0",
+          "32"
+        ],
+        [
+          "0",
+          "0",
+          "128"
+        ],
+        [
+          "0",
+          "1",
+          "32"
+        ],
+        [
+          "0",
+          "1",
+          "128"
+        ],
+        [
+          "0",
+          "2",
+          "32"
+        ],
+        [
+          "0",
+          "2",
+          "128"
+        ],
+        [
+          "0",
+          "3",
+          "32"
+        ],
+        [
+          "0",
+          "3",
+          "128"
+        ],
+        [
+          "1",
+          "0",
+          "32"
+        ],
+        [
+          "1",
+          "0",
+          "128"
+        ],
+        [
+          "1",
+          "1",
+          "32"
+        ],
+        [
+          "1",
+          "1",
+          "128"
+        ],
+        [
+          "1",
+          "2",
+          "32"
+        ],
+        [
+          "1",
+          "2",
+          "128"
+        ],
+        [
+          "1",
+          "3",
+          "32"
+        ],
+        [
+          "1",
+          "3",
+          "128"
+        ],
+        [
+          "2",
+          "0",
+          "32"
+        ],
+        [
+          "2",
+          "0",
+          "128"
+        ],
+        [
+          "2",
+          "1",
+          "32"
+        ],
+        [
+          "2",
+          "1",
+          "128"
+        ],
+        [
+          "2",
+          "2",
+          "32"
+        ],
+        [
+          "2",
+          "2",
+          "128"
+        ],
+        [
+          "2",
+          "3",
+          "32"
+        ],
+        [
+          "2",
+          "3",
+          "128"
+        ]
+      ],
+      "expected_stdout": "PASS production compaction -> directory -> auto -> actual collision consumer"
+    }
+  ],
+  "gpu_execution_status": "passed",
+  "performance_timing": "not scheduled",
+  "gpu_invocations_passed": 109
+}

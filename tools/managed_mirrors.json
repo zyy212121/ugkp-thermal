@@ -440,6 +440,11 @@
       "downstream": "gpu-riemann-gkp-main"
     },
     {
+      "path": "common/GpuBlockComponentReduction.cuh",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
       "path": "common/GpuCellDragRate.cuh",
       "upstream": "ugkp-thermal",
       "downstream": "gpu-riemann-gkp-main"
@@ -770,6 +775,11 @@
       "downstream": "gpu-riemann-gkp-main"
     },
     {
+      "path": "common/GpuThermalLaunchOccupancy.cuh",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
       "path": "common/GpuToolB1.cuh",
       "upstream": "ugkp-thermal",
       "downstream": "gpu-riemann-gkp-main"
@@ -886,6 +896,11 @@
     },
     {
       "path": "common/operators/accumulateParticleMomentsAtomicKernel.cuh",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/operators/appendSelectedStuckParticleIndex.cuh",
       "upstream": "ugkp-thermal",
       "downstream": "gpu-riemann-gkp-main"
     },

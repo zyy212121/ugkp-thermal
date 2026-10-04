@@ -104,7 +104,6 @@ namespace
 #if UGKWP_GPU_REAL_BITS == 32
 constexpr int coldWallBlockThreads = 256;
 constexpr int coldWallSmBlocks = 48;
-constexpr int particleIndexThreads = 1024;
 constexpr int particlePayloadThreads = 64;
 constexpr int particlePayloadSmBlocks = 0;
 constexpr int flatParticleThreads = 256;
@@ -112,7 +111,6 @@ constexpr int flatParticleSmBlocks = 8;
 #else
 constexpr int coldWallBlockThreads = 32;
 constexpr int coldWallSmBlocks = 0;
-constexpr int particleIndexThreads = 0;
 constexpr int particlePayloadThreads = 128;
 constexpr int particlePayloadSmBlocks = 0;
 #endif
@@ -2162,12 +2160,9 @@ __device__ GpuReal uniform01Device(unsigned long long& state)
 
 #include "operators/computeCollisionalPressureKernel.cuh"
 
-template<int NumComponents>
-__device__ void blockReduceComponentSums
-(
-    GpuReal (&sums)[NumComponents],
-    GpuReal* warpPartials
-);
+#define GPU_BLOCK_REDUCTION_PRUNED_TREE 0
+#include "GpuBlockComponentReduction.cuh"
+#undef GPU_BLOCK_REDUCTION_PRUNED_TREE
 
 using PressureReal = GpuReal;
 using PressureTime = GpuTime;
@@ -2419,7 +2414,9 @@ int prepareParticleWallContactAreaScale(DeviceState* s, const int block)
     return 0;
 }
 
+#define GPU_POOL_INITIALIZATION_WITH_PROBABILITY 0
 #include "operators/clearPoissonThermalPoolKernel.cuh"
+#undef GPU_POOL_INITIALIZATION_WITH_PROBABILITY
 
 __global__ void clearMobileParticleRadiationSumsKernel(DeviceState* sp)
 {
@@ -2659,6 +2656,7 @@ int launchCsrHeavyPoolReduction
 
 
 #include "operators/preparePoissonPoolSamplingKernel.cuh"
+#include "operators/appendSelectedStuckParticleIndex.cuh"
 
 #include "../../../common/GpuCollisionPoolSampling.cuh"
 
@@ -2691,19 +2689,7 @@ __device__ void finalizeOneThermalizedMobileParticle
 #define GPU_PARTICLE_EXTRA_FIELDS CellLocalThermalExtraFields<true, true>
 #include "GpuCellLocalPrimary.cuh"
 
-#include "GpuCellLocalGather.cuh"
-template<int BlockThreads>
-__global__ void indexCellLocalParticlesKernel(DeviceState* sp)
-{
-    DeviceState& s = *sp;
-    const int c = blockIdx.x;
-    if (c >= s.nCells || blockDim.x != BlockThreads) return;
-    const int start = s.cellParticleOffset[c];
-    const int end = s.cellParticleOffset[c + 1];
-    gatherCellLocalRangeImpl<BlockThreads, true>(s, c, start, end,
-        s.compactCellOffset[c], s.cellParticleCount[c] == end - start);
-}
-#include "../../../gpu/thermal/CsrSegmentedGather.cuh"
+
 
 
 
@@ -2772,135 +2758,8 @@ int prepareCsrHeavyReductionTasks(DeviceState* s, const int block)
 
 #include "GpuParticleLaunchConfiguration.cuh"
 
-int configureLaunchOccupancy(DeviceState* s)
+inline void configureAdditionalLaunchWorkGrids(DeviceState* s)
 {
-    const int block = s->reductionBlockThreads;
-    const int warpCount = (block + 31)/32;
-    const size_t poolSharedBytes =
-        8u*static_cast<size_t>(block)*sizeof(GpuReal);
-    const size_t momentSharedBytes =
-        8u*static_cast<size_t>(warpCount)*sizeof(GpuReal);
-    cudaError_t err = cudaSuccess;
-    if (s->csrHeavyReductionEnabled != 0)
-    {
-        int segmentedPool = 0;
-        int segmentedMoment = 0;
-        err = thermalPoolLaunchOccupancy(&segmentedPool, block, momentSharedBytes);
-        if (err == cudaSuccess)
-        {
-            err = cudaOccupancyMaxActiveBlocksPerMultiprocessor
-            (
-                &segmentedMoment,
-                accumulateCsrSegmentedMomentTasksPersistentKernel<postTransportFusePayload>,
-                block,
-                momentSharedBytes
-            );
-        }
-        if (err != cudaSuccess || segmentedPool <= 0 || segmentedMoment <= 0)
-        {
-            if (err != cudaSuccess)
-            {
-                setLastError("CUDA segmented-kernel occupancy validation", err);
-            }
-            else
-            {
-                setLastErrorText("selected bn gives zero segmented-kernel occupancy");
-            }
-            return 1;
-        }
-        s->heavyResidentBlocksPerSm =
-            segmentedPool < segmentedMoment ? segmentedPool : segmentedMoment;
-        s->lightResidentBlocksPerSm = s->heavyResidentBlocksPerSm;
-        s->csrHeavyWorkerGrid =
-            s->multiprocessorCount*s->heavyResidentBlocksPerSm;
-    }
-    else
-    {
-        int lightPool = 0;
-        int lightMoment = 0;
-        err = cudaOccupancyMaxActiveBlocksPerMultiprocessor
-        (
-            &lightPool,
-            accumulatePoissonPoolParticlesByCellKernel,
-            block,
-            poolSharedBytes
-        );
-        if (err == cudaSuccess)
-        {
-            err = cudaOccupancyMaxActiveBlocksPerMultiprocessor
-            (
-                &lightMoment,
-                accumulateParticleMomentsSegmentedKernel<false, postTransportFusePayload>,
-                block,
-                momentSharedBytes
-            );
-        }
-        if (err != cudaSuccess || lightPool <= 0 || lightMoment <= 0)
-        {
-            if (err != cudaSuccess)
-            {
-                setLastError("CUDA light-kernel occupancy validation", err);
-            }
-            else
-            {
-                setLastErrorText("selected bn gives zero light-kernel occupancy");
-            }
-            return 1;
-        }
-        s->lightResidentBlocksPerSm =
-            lightPool < lightMoment ? lightPool : lightMoment;
-        s->heavyResidentBlocksPerSm = 0;
-        s->csrHeavyWorkerGrid = 0;
-    }
-
-    s->mobilePackingCooperativeGrid = 0;
-    if (s->jammingPressureEnabled != 0)
-    {
-        int device = 0;
-        int cooperativeLaunch = 0;
-        int residentBlocks = 0;
-        err = cudaGetDevice(&device);
-        if (err == cudaSuccess)
-        {
-            err = cudaDeviceGetAttribute
-            (
-                &cooperativeLaunch,
-                cudaDevAttrCooperativeLaunch,
-                device
-            );
-        }
-        if (err == cudaSuccess && cooperativeLaunch != 0)
-        {
-            err = cudaOccupancyMaxActiveBlocksPerMultiprocessor
-            (
-                &residentBlocks,
-                completeMobilePackingProjectionCooperativeKernel,
-                s->particleBlockThreads,
-                0
-            );
-        }
-        if (err != cudaSuccess || cooperativeLaunch == 0 || residentBlocks <= 0)
-        {
-            if (err != cudaSuccess)
-            {
-                setLastError("CUDA mobile-packing cooperative occupancy", err);
-            }
-            else
-            {
-                setLastErrorText("GPU does not support mobile-packing cooperative launch");
-            }
-            return 1;
-        }
-        s->mobilePackingCooperativeGrid =
-            s->multiprocessorCount*residentBlocks;
-    }
-
-    int particleResidentBlocks = 0;
-    if (queryParticleKernelResidency
-        (s, countParticlesByCellKernel<true, true>, particleResidentBlocks) != 0)
-        return 1;
-    setParticleWorkGridFromResidency(s, particleResidentBlocks);
-    if (configureTrackingWorkGrid(s) != 0) return 1;
     if constexpr (coldWallSmBlocks > 0)
     {
         // Use the existing precision-specific block-count override.
@@ -2913,22 +2772,9 @@ int configureLaunchOccupancy(DeviceState* s)
     }
     std::fprintf(stderr, "Cold-wall launch geometry: threads=%d grid=%d\n",
         coldWallBlockThreads, s->coldWallWorkGrid);
-    std::fprintf
-    (
-        stderr,
-        "Launch geometry: B1cell=%d B1face=%d (ToolB1 pending) "
-        "B2=%d B3=%d SM=%d "
-        "lightBlocksPerSM=%d heavyBlocksPerSM=%d\n",
-        s->fixedCellBlockThreads,
-        s->fixedFaceBlockThreads,
-        s->particleBlockThreads,
-        s->reductionBlockThreads,
-        s->multiprocessorCount,
-        s->lightResidentBlocksPerSm,
-        s->heavyResidentBlocksPerSm
-    );
-    return syncDeviceState(s, "sync occupancy-derived launch geometry");
 }
+
+#include "GpuThermalLaunchOccupancy.cuh"
 
 #include "operators/updateDynamicHeavyPolicyKernel.cuh"
 
@@ -5452,76 +5298,7 @@ extern "C" int ugkwpGpuResidentStrictAdvance
             return 1;
         }
 
-        if (!exactSurvivorDirectory)
-        {
-            if (s->csrHeavyReductionEnabled != 0)
-            {
-                err = resetCsrPersistentQueue(s);
-                if (err != cudaSuccess)
-                {
-                    setLastError("reset CSR gather queue", err);
-                    return 1;
-                }
-            }
-            const int gatherTaskGrid = s->csrHeavyWorkerGrid;
-            switch (particleIndexThreads ? particleIndexThreads : s->reductionBlockThreads)
-            {
-                case 32:
-                    if (s->csrHeavyReductionEnabled != 0)
-                        gatherThermalSegmentedParticlesKernel<32, true>
-                            <<<gatherTaskGrid, 32>>>(s->deviceState);
-                    else
-                        indexCellLocalParticlesKernel<32>
-                        <<<s->nCells, 32>>>(s->deviceState);
-                    break;
-                case 64:
-                    if (s->csrHeavyReductionEnabled != 0)
-                        gatherThermalSegmentedParticlesKernel<64, true>
-                            <<<gatherTaskGrid, 64>>>(s->deviceState);
-                    else
-                        indexCellLocalParticlesKernel<64>
-                        <<<s->nCells, 64>>>(s->deviceState);
-                    break;
-                case 128:
-                    if (s->csrHeavyReductionEnabled != 0)
-                        gatherThermalSegmentedParticlesKernel<128, true>
-                            <<<gatherTaskGrid, 128>>>(s->deviceState);
-                    else
-                        indexCellLocalParticlesKernel<128>
-                        <<<s->nCells, 128>>>(s->deviceState);
-                    break;
-                case 512:
-                    if (s->csrHeavyReductionEnabled != 0)
-                        gatherThermalSegmentedParticlesKernel<512, true>
-                            <<<gatherTaskGrid, 512>>>(s->deviceState);
-                    else
-                        indexCellLocalParticlesKernel<512>
-                        <<<s->nCells, 512>>>(s->deviceState);
-                    break;
-                case 1024:
-                    if (s->csrHeavyReductionEnabled != 0)
-                        gatherThermalSegmentedParticlesKernel<1024, true>
-                            <<<gatherTaskGrid, 1024>>>(s->deviceState);
-                    else
-                        indexCellLocalParticlesKernel<1024>
-                        <<<s->nCells, 1024>>>(s->deviceState);
-                    break;
-                default:
-                    if (s->csrHeavyReductionEnabled != 0)
-                        gatherThermalSegmentedParticlesKernel<256, true>
-                            <<<gatherTaskGrid, 256>>>(s->deviceState);
-                    else
-                        indexCellLocalParticlesKernel<256>
-                        <<<s->nCells, 256>>>(s->deviceState);
-                    break;
-            }
-            err = cudaGetLastError();
-            if (err != cudaSuccess)
-            {
-                setLastError("indexCellLocalParticlesKernel launch", err);
-                return 1;
-            }
-        }
+
 
         if (exactSurvivorDirectory)
         {
@@ -5530,18 +5307,7 @@ extern "C" int ugkwpGpuResidentStrictAdvance
                     : particleGrid, particlePayloadThreads) != 0)
                 return 1;
         }
-        else
-        {
-            gatherCellLocalParticlePayloadKernel<false>
-                <<<particlePayloadSmBlocks ? s->multiprocessorCount*particlePayloadSmBlocks
-                    : (particleGrid > 0 ? particleGrid : 1), particlePayloadThreads>>>(s->deviceState);
-            err = cudaGetLastError();
-            if (err != cudaSuccess)
-            {
-                setLastError("gatherCellLocalParticlePayloadKernel launch", err);
-                return 1;
-            }
-        }
+
 
         commitCellLocalParticleBuffersKernel<<<1, 1>>>(s->deviceState);
         err = cudaGetLastError();

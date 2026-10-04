@@ -16,7 +16,7 @@ else:
   while depth:depth+=(t[i]=='{')-(t[i]=='}');i+=1
   code+='\n'+t[a:i]+'\n'
 fixture=fixture.replace('@PARTICLE_COPY_HOOK@',code).replace('@REAL_TYPE@','float' if bits==32 else 'double')
-start=fixture.index(' if(segmented) gatherThermalSegmentedParticlesKernel')
+start=fixture.index(' // CURRENT_PAYLOAD_LAUNCH_BEGIN')
 end=fixture.index(' auto e=cudaDeviceSynchronize()',start)
 fixture=fixture[:start]+" if(cudaDeviceSynchronize()!=cudaSuccess)exit(12);for(int dst=0;dst<(int)expected.size();dst++)s->sortedParticleIndex[dst]=expected[dst];*s->compactCountDevice=expected.size();gatherSelectedParticlesKernel<<<32,128>>>(s);\n"+fixture[end:]
 
@@ -41,4 +41,5 @@ fixture=fixture.replace(' cudaFree(s->px);',checks+' cudaFree(s->px);',1)
 f=out/'payload_commit.cu';f.write_text(fixture);exe=out/'payload_commit';cmd=[str(Path(os.environ.get('CUDA_HOME','/usr/local/cuda'))/'bin/nvcc'),'-std=c++17','-O3','--fmad=false','-arch='+os.environ.get('UGKWP_CUDA_ARCH','sm_89'),'-I'+str(root/'common'),'-I'+str(root/'gpu/thermal'),str(f),'-o',str(exe)]
 with (out/'build.log').open('w') as log:q=subprocess.run(cmd,stdout=log,stderr=subprocess.STDOUT)
 if q.returncode:print((out/'build.log').read_text()[-5000:]);sys.exit(q.returncode)
+if os.environ.get('UGKP_CUDA_BUILD_ONLY')=='1':print('BUILD ONLY: GPU execution deferred');sys.exit(0)
 q=subprocess.run([str(exe)],capture_output=True,text=True);(out/'run.log').write_text(q.stdout+q.stderr);print(app,bits,len(pairs),q.stdout,q.stderr);sys.exit(q.returncode)

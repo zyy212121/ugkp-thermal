@@ -7,6 +7,7 @@
 using Real=@REAL_TYPE@;
 struct CsrReductionTask { int cell, begin, end, source; };
 struct DeviceState {
+ DeviceState* deviceState;
  int nCells,particleCapacity,coldWallSolidificationEnabled,coldWall2DEnabled;
  int *csrHeavyTaskCursor;
  int *cellParticleOffset,*compactCellOffset,*cellParticleCount,*sortedParticleIndex,*csrHeavyTaskCount,*published;
@@ -49,13 +50,8 @@ namespace Foam { namespace gpuThermal {
  __device__ void publishWallBoundParticleIndex(DeviceState& s,int dst) { atomicAdd(s.published+dst,1); }
 }}
 @PARTICLE_COPY_HOOK@
-#include "GpuCellLocalGather.cuh"
-#include "CsrSegmentedGather.cuh"
-__global__ void payload(DeviceState* p) {
- for(int dst=blockIdx.x*blockDim.x+threadIdx.x;dst<p->compactCellOffset[p->nCells];dst+=blockDim.x*gridDim.x) {
-  int i=p->compactPStatus[dst];copyCellLocalParticle(*p,i,p->pCellId[i],dst);
- }
-}
+inline void setLastError(const char*,cudaError_t){std::abort();}
+#include "GpuParticlePayload.cuh"
 template<class T> void alloc(T*& p,int n) {if(cudaMallocManaged(&p,std::max(n,1)*sizeof(T))!=cudaSuccess)exit(2);}
 template<int B> void run(int n,int pattern,int flags,bool segmented) {
  const int capacity=3*n+16; DeviceState* s;alloc(s,1);alloc(s->csrHeavyTaskCursor,1);*s->csrHeavyTaskCursor=0;s->nCells=3;s->particleCapacity=capacity;s->coldWallSolidificationEnabled=flags&1;s->coldWall2DEnabled=flags&2;
@@ -136,13 +132,10 @@ cudaMemset(s->compactPCold2DNodeSpecificEnthalpy,0,capacity*64*sizeof(float));
 cudaMemset(s->compactPCold2DRingContactAge,0,capacity*8*sizeof(double));
 cudaMemset(s->compactPCold2DFrozenArea,0,capacity*1*sizeof(float));
  cudaMemset(s->published,0,capacity*sizeof(int));cudaDeviceSynchronize();
- if(segmented) gatherThermalSegmentedParticlesKernel<B,true><<<std::max(tasks+3,1),B>>>(s);
- else if constexpr(true) {
-  // Three one-cell tasks exercise the same ordered range without segmentation.
-  for(int c=0;c<3;++c)s->csrReductionTasks[c]={c,c*n,(c+1)*n,0};*s->csrHeavyTaskCount=3;
-  gatherThermalSegmentedParticlesKernel<B,true><<<3,B>>>(s);
- } else gatherCellLocalParticlesKernel<B><<<3,B>>>(s);
- if constexpr(true)payload<<<32,128>>>(s);
+ // CURRENT_PAYLOAD_LAUNCH_BEGIN
+ for(int dst=0;dst<(int)expected.size();++dst)s->sortedParticleIndex[dst]=expected[dst];
+ gatherCellLocalParticlePayloadKernel<true><<<segmented?std::max(tasks+3,1):3,B>>>(s);
+ // CURRENT_PAYLOAD_LAUNCH_END
  auto e=cudaDeviceSynchronize();if(e!=cudaSuccess){fprintf(stderr,"%s\n",cudaGetErrorString(e));exit(2);}
  for(int dst=0;dst<(int)expected.size();++dst) for(int j=0;j<1;++j) {
   Real want=(true)?s->px[expected[dst]*1+j]:static_cast<Real>(0);

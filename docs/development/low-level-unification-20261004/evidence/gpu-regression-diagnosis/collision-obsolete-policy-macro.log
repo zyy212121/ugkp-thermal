@@ -1,0 +1,7 @@
+BUILD current gasUGKP 64 2
+/home/lss/ugkp-low-level-unification-20261004/physical-correctness/collision_behavior-gasUGKP64/02-tests/collision-current-gasUGKP-64.cu(21): error: identifier "GPU_POOL_S1_LATE_THETA_AND_RNG" is undefined
+   if(level==1)accumulateOnePoolParticle<true, GPU_POOL_S1_LATE_THETA_AND_RNG>(s,0,1,p,mass,mx,my,mz,energy,d,d2,count);
+                                               ^
+
+1 error detected in the compilation of "/home/lss/ugkp-low-level-unification-20261004/physical-correctness/collision_behavior-gasUGKP64/02-tests/collision-current-gasUGKP-64.cu".
+

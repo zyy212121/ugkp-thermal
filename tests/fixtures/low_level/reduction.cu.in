@@ -1,0 +1,54 @@
+
+// Compile offline now; execute only during a GPU correctness window.
+#include <cuda_runtime.h>
+#include <cassert>
+#include <cmath>
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
+#include <limits>
+#include <vector>
+using Real=@REAL@;
+#define GPU_OPERATOR_REAL Real
+#define GPU_OPERATOR_R(x) Real(x)
+#define GPU_BLOCK_REDUCTION_PRUNED_TREE @PRUNED@
+#define blockReduceComponentSums oldReduce
+#include "reference/@LABEL@-reduction.cuh"
+#undef blockReduceComponentSums
+#include "GpuBlockComponentReduction.cuh"
+template<int C,bool Old> __global__ void reduceConsumer(const Real* input,Real* output){
+ extern __shared__ unsigned char shared[];
+ Real sums[C];
+ for(int j=0;j<C;++j)sums[j]=input[(blockIdx.x*blockDim.x+threadIdx.x)*C+j];
+ if constexpr(Old)oldReduce(sums,reinterpret_cast<Real*>(shared));
+ else blockReduceComponentSums(sums,reinterpret_cast<Real*>(shared));
+ if(threadIdx.x==0)for(int j=0;j<C;++j)output[blockIdx.x*C+j]=sums[j];
+}
+void check(cudaError_t e){if(e!=cudaSuccess){std::fprintf(stderr,"CUDA failure: %s\n",cudaGetErrorString(e));std::abort();}}
+template<int C> void compare(int threads,int pattern){
+ const int blocks=5;std::vector<Real> in(blocks*threads*C),a(blocks*C),b(blocks*C);
+ for(size_t i=0;i<in.size();++i){
+  switch(pattern){
+   case 0:in[i]=Real(int(i%37)-18)/Real(7);break;
+   case 1:in[i]= i%4==0?Real(1e20):i%4==1?Real(1):i%4==2?Real(-1e20):Real(-1);break;
+   case 2:in[i]= i%2?Real(0):Real(-0.0);break;
+   case 3:in[i]=std::ldexp(Real((i%2)?-1:1),int(i%70)-35);break;
+   default:in[i]=(i%2?-1:1)*std::numeric_limits<Real>::denorm_min()*Real(i%31);break;
+  }
+ }
+ Real *di,*da,*db;check(cudaMalloc(&di,in.size()*sizeof(Real)));check(cudaMalloc(&da,a.size()*sizeof(Real)));check(cudaMalloc(&db,b.size()*sizeof(Real)));
+ check(cudaMemcpy(di,in.data(),in.size()*sizeof(Real),cudaMemcpyHostToDevice));
+ size_t bytes=C*((threads+31)/32)*sizeof(Real);
+ reduceConsumer<C,true><<<blocks,threads,bytes>>>(di,da);check(cudaGetLastError());
+ reduceConsumer<C,false><<<blocks,threads,bytes>>>(di,db);check(cudaGetLastError());
+ check(cudaMemcpy(a.data(),da,a.size()*sizeof(Real),cudaMemcpyDeviceToHost));
+ check(cudaMemcpy(b.data(),db,b.size()*sizeof(Real),cudaMemcpyDeviceToHost));
+ assert(std::memcmp(a.data(),b.data(),a.size()*sizeof(Real))==0);
+ check(cudaFree(di));check(cudaFree(da));check(cudaFree(db));
+}
+int main(){
+ for(int threads:{32,64,128,256,512,1024})for(int pattern=0;pattern<5;++pattern){
+  compare<1>(threads,pattern);compare<3>(threads,pattern);compare<4>(threads,pattern);compare<7>(threads,pattern);compare<8>(threads,pattern);
+ }
+ puts("PASS reduction: 150 old/new bitwise comparisons for one precision and tree");
+}

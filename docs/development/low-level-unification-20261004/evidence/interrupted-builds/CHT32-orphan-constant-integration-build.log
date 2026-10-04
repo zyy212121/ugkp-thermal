@@ -1,0 +1,35 @@
+BUILD CHT 32 candidate 1
+/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/applications/CHT/gpu/GpuResidentStrict.cu(4773): warning #177-D: variable "warpCount" was declared but never referenced
+      const int warpCount = (block + 31)/32;
+                ^
+
+Remark: The warnings can be suppressed with "-diag-suppress <warning-number>"
+
+/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/applications/CHT/gpu/GpuResidentStrict.cu(5647): warning #177-D: variable "block" was declared but never referenced
+      const int block = s->particleBlockThreads;
+                ^
+
+/home/lss/ugkp-low-level-unification-20261004/deferred-cuda-final/CHT32/s1_pipeline/tests/exact13_CHT_32_candidate.cu(13): warning #177-D: variable "i" was declared but never referenced
+    int i=s->sortedParticleIndex[pos];
+        ^
+
+/usr/include/x86_64-linux-gnu/bits/mathcalls.h:279:1: internal compiler error: Segmentation fault
+  279 | __MATHCALL (scalbn,, (_Mdouble_ __x, int __n));
+      | ^~~~~~
+0xe34d9f internal_error(char const*, ...)
+	???:0
+0xf4798c _cpp_lex_direct
+	???:0
+0xf47174 _cpp_lex_token
+	???:0
+0xf66cdb c_lex_with_flags(tree_node**, unsigned int*, unsigned char*, int)
+	???:0
+0x14a52c3 c_parse_file()
+	???:0
+0x1494a7e c_common_parse_file()
+	???:0
+Please submit a full bug report,
+with preprocessed source if appropriate.
+Please include the complete backtrace with any bug report.
+See <file:///usr/share/doc/gcc-11/README.Bugs> for instructions.
+

@@ -51,7 +51,6 @@ def function(text, name):
         'finalizeCsrSegmentedPoolCellsKernel': 'CsrPoolFinalizeOperation',
         'accumulateCsrSegmentedMomentTasksPersistentKernel': 'CsrMomentOperation',
         'finalizeCsrSegmentedMomentsAndRecoverKernel': 'CsrMomentRecoveryOperation',
-        'gatherCsrSegmentedParticlesKernel': 'CsrGatherOperation',
     }
     if name in {'CsrMomentOperation', 'finalizeCsrMomentCell'}:
         owner = (ROOT / 'common' / 'GpuParticleMoments.cuh').read_text()
@@ -63,13 +62,7 @@ def function(text, name):
         op = function(text, dependencies[name])
         if name == 'finalizeCsrSegmentedMomentsAndRecoverKernel':
             op = function(text, 'finalizeCsrMomentCell') + '\n' + op
-        if name == 'gatherCsrSegmentedParticlesKernel':
-            # Its surrounding fixture supplies template<int BlockThreads>.
-            result = op + '\n' + result
-            result = result.replace('};\n__global__', '};\ntemplate<int BlockThreads>\n__global__')
-            # Shared loop is inserted by the fixture before its template.
-        else:
-            result = shared + '\n' + op + '\n' + result
+        result = shared + '\n' + op + '\n' + result
     return result
 
 def compile_run(tmp_path, body):

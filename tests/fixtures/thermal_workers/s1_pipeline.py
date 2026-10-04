@@ -42,6 +42,24 @@ int main(){
 """
 text+='\n'.join('mem(s->'+n+',129*('+width(n)+'));' for typ,n in ptr)
 text+='\nmem(s->csrReductionTasks,129);printf("allocated\\n");\n'
+text+=r"""
+ // Valid zero-capacity initialization cannot seed a split base directory.
+ // Exercise the actual CUDA launch error before auto/tasks/consumers, then
+ // retain the existing positive-grid S1/L2 production-consumer matrix.
+ for(int aggregated:{0,1}){
+  DeviceState zeroHost=*s;
+  zeroHost.particleCapacity=0;zeroHost.particleWorkGrid=0;
+  zeroHost.particleBlockThreads=128;zeroHost.csrCellLocalPathEnabled=1;
+  zeroHost.preBaseDirectoryReady=0;zeroHost.csrHeavyReductionEnabled=0;
+  zeroHost.csrHeavyReductionMode=0;zeroHost.csrWarpAggregatedBinning=aggregated;
+  zeroHost.csrTasksReady=1;*s->csrHeavyTaskCount=-123;
+  CHECK(prepareParticleDirectoryAndSchedule(&zeroHost,32)==1);
+  CHECK(zeroHost.csrTasksReady==0);
+  CHECK(cudaDeviceSynchronize()==cudaSuccess);
+  CHECK(*s->csrHeavyTaskCount==-123);
+ }
+ *s->csrHeavyTaskCount=0;
+"""
 text+='for(int block:{32,64,128,256})for(int scenario=0;scenario<5;++scenario)for(int flags=0;flags<4;++flags){\n'
 text+='s->coldWallSolidificationEnabled=flags&1;s->coldWall2DEnabled=flags&2;*s->particleCountDevice=129;*s->wallBoundParticleCountDevice=0;\n'
 for j,(typ,n,c) in enumerate(pairs):text+=f'for(int x=0;x<129*({width(n)});++x){{s->{n}[x]=static_cast<{typ}>(x%13+{j+1});s->{c}[x]=0;}}\n'
@@ -138,9 +156,14 @@ int main()""")
 text=text.replace('#ifdef FUSED13\n projectBoth<<<1,64>>>(s);CHECK(cudaDeviceSynchronize()==cudaSuccess);\n#endif\n', '')
 tail=r"""
  projectBoth<<<1,64>>>(s);CHECK(cudaDeviceSynchronize()==cudaSuccess);
+ // Compact pressure must not mutate source-indexed old velocities.
+ for(int i=0;i<129;++i){CHECK(s->puxOld[i]==1000+i);CHECK(s->puyOld[i]==2000+i);CHECK(s->puzOld[i]==3000+i);}
+ for(int pos=0;pos<s->cellParticleOffset[4];++pos){int i=s->sortedParticleIndex[pos];
+  bool deposited=s->pStuck[i]==Foam::gpuThermal::particleWallDeposited;
+  CHECK(s->compactPuxOld[pos]==(deposited?0:1000+i));CHECK(s->compactPuyOld[pos]==(deposited?0:2000+i));CHECK(s->compactPuzOld[pos]==(deposited?0:3000+i));}
+ projectOriginal<<<1,64>>>(s);CHECK(cudaDeviceSynchronize()==cudaSuccess);
  for(int i=0;i<129;++i){bool deposited=s->pStatus[i]==1 && s->pCellId[i]>=0 && s->pStuck[i]==Foam::gpuThermal::particleWallDeposited;
  CHECK(s->puxOld[i]==(deposited?0:1000+i));CHECK(s->puyOld[i]==(deposited?0:2000+i));CHECK(s->puzOld[i]==(deposited?0:3000+i));}
- projectOriginal<<<1,64>>>(s);CHECK(cudaDeviceSynchronize()==cudaSuccess);
  for(int c=0;c<=4;++c)s->compactCellOffset[c]=s->cellParticleOffset[c];
  TAIL
  CHECK(cudaDeviceSynchronize()==cudaSuccess);
@@ -170,7 +193,7 @@ if branch=='FSH':
 else:
  if bits==32:text=text.replace('mem(s->csrReductionTasks,129);', 'mem(s->flatPressureParameters,4*13);mem(s->flatPressureFlags,4*2);mem(s->csrReductionTasks,129);')
  for view,label in [('false','ORIGINAL'),('true','COMPACT')]:
-  projection=projection.replace('PRESSURE_'+label,'launchFlatPressure<false,'+view+'>(s,s,.01,0);')
+  projection=projection.replace('PRESSURE_'+label,'launchFlatPressure<false,'+view+'>(s,s,.01,FlatPressureSegment::full);')
 tail=tail.replace(' for(int c=0;c<=4;++c)',projection+'\n for(int c=0;c<=4;++c)')
 text=text.replace(' CHECK(*s->wallBoundParticleCountDevice==wall);',tail.replace('TAIL',call))
 if mode != 'baseline':
@@ -215,4 +238,5 @@ log=P/'logs'/f'fixture_{branch}_{bits}_{mode}_build.log'
 with log.open('w') as out:q=subprocess.run(cmd,stdout=out,stderr=subprocess.STDOUT)
 print('BUILD',branch,bits,mode,q.returncode,flush=True)
 if q.returncode:print(log.read_text()[-5000:]);sys.exit(q.returncode)
+if os.environ.get('UGKP_CUDA_BUILD_ONLY')=='1':print('BUILD ONLY: GPU execution deferred');sys.exit(0)
 q=subprocess.run([str(exe)],capture_output=True,text=True);(P/'logs'/f'fixture_{branch}_{bits}_{mode}_run.log').write_text(q.stdout+q.stderr);print(q.stdout+q.stderr);sys.exit(q.returncode)
