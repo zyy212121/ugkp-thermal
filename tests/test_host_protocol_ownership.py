@@ -21,8 +21,9 @@ PROTOCOLS = {
     "finaliseGasBoundaryStage": ("gas", "fsh", "cht"),
     "advancePureGasGraph": ("gas", "fsh", "cht"),
     "applyMobilePackingProjection": ("gas", "fsh", "cht"),
-    "binParticlesByCell": ("fsh", "cht"),
-    "buildSplitPreDirectory": ("fsh", "cht"),
+    "binParticlesByCell": ("gas", "fsh", "cht"),
+    "preparePreTransportParticleDirectory": ("gas", "fsh", "cht"),
+    "prepareParticleDirectoryAndSchedule": ("gas", "fsh", "cht"),
     "launchToolB1CellBundle": ("gas", "fsh", "cht"),
     "launchToolB1FaceBundle": ("gas", "fsh", "cht"),
 }

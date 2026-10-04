@@ -1,0 +1,14 @@
+/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/applications/CHT/gpu/GpuResidentStrict.cu(4927): warning #177-D: variable "warpCount" was declared but never referenced
+      const int warpCount = (block + 31)/32;
+                ^
+
+Remark: The warnings can be suppressed with "-diag-suppress <warning-number>"
+
+/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/applications/CHT/gpu/GpuResidentStrict.cu(5881): warning #177-D: variable "block" was declared but never referenced
+      const int block = s->particleBlockThreads;
+                ^
+
+/home/lss/ugkp-directory-host-unification-20261004/green/production-directory-CHT-320/gas_auto_pool.cu(471): warning #177-D: variable "particleGrid" was declared but never referenced
+      const int particleGrid = s->particleWorkGrid;
+                ^
+

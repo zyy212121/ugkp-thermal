@@ -1,0 +1,386 @@
+[
+  {
+    "configuration": "production-directory-CHT-320",
+    "path": 0,
+    "scenario": 0,
+    "block": 32,
+    "exit": 0,
+    "zeroErrors": true
+  },
+  {
+    "configuration": "production-directory-CHT-320",
+    "path": 0,
+    "scenario": 1,
+    "block": 32,
+    "exit": 0,
+    "zeroErrors": true
+  },
+  {
+    "configuration": "production-directory-CHT-320",
+    "path": 0,
+    "scenario": 2,
+    "block": 32,
+    "exit": 0,
+    "zeroErrors": true
+  },
+  {
+    "configuration": "production-directory-CHT-320",
+    "path": 0,
+    "scenario": 3,
+    "block": 32,
+    "exit": 0,
+    "zeroErrors": true
+  },
+  {
+    "configuration": "production-directory-CHT-320",
+    "path": 1,
+    "scenario": 0,
+    "block": 32,
+    "exit": 0,
+    "zeroErrors": true
+  },
+  {
+    "configuration": "production-directory-CHT-320",
+    "path": 1,
+    "scenario": 1,
+    "block": 32,
+    "exit": 0,
+    "zeroErrors": true
+  },
+  {
+    "configuration": "production-directory-CHT-320",
+    "path": 1,
+    "scenario": 2,
+    "block": 32,
+    "exit": 0,
+    "zeroErrors": true
+  },
+  {
+    "configuration": "production-directory-CHT-320",
+    "path": 1,
+    "scenario": 3,
+    "block": 32,
+    "exit": 0,
+    "zeroErrors": true
+  },
+  {
+    "configuration": "production-directory-CHT-320",
+    "path": 2,
+    "scenario": 0,
+    "block": 32,
+    "exit": 0,
+    "zeroErrors": true
+  },
+  {
+    "configuration": "production-directory-CHT-320",
+    "path": 2,
+    "scenario": 1,
+    "block": 32,
+    "exit": 0,
+    "zeroErrors": true
+  },
+  {
+    "configuration": "production-directory-CHT-320",
+    "path": 2,
+    "scenario": 2,
+    "block": 32,
+    "exit": 0,
+    "zeroErrors": true
+  },
+  {
+    "configuration": "production-directory-CHT-320",
+    "path": 2,
+    "scenario": 3,
+    "block": 32,
+    "exit": 0,
+    "zeroErrors": true
+  },
+  {
+    "configuration": "production-directory-CHT-640",
+    "path": 0,
+    "scenario": 0,
+    "block": 32,
+    "exit": 0,
+    "zeroErrors": true
+  },
+  {
+    "configuration": "production-directory-CHT-640",
+    "path": 0,
+    "scenario": 1,
+    "block": 32,
+    "exit": 0,
+    "zeroErrors": true
+  },
+  {
+    "configuration": "production-directory-CHT-640",
+    "path": 0,
+    "scenario": 2,
+    "block": 32,
+    "exit": 0,
+    "zeroErrors": true
+  },
+  {
+    "configuration": "production-directory-CHT-640",
+    "path": 0,
+    "scenario": 3,
+    "block": 32,
+    "exit": 0,
+    "zeroErrors": true
+  },
+  {
+    "configuration": "production-directory-CHT-640",
+    "path": 1,
+    "scenario": 0,
+    "block": 32,
+    "exit": 0,
+    "zeroErrors": true
+  },
+  {
+    "configuration": "production-directory-CHT-640",
+    "path": 1,
+    "scenario": 1,
+    "block": 32,
+    "exit": 0,
+    "zeroErrors": true
+  },
+  {
+    "configuration": "production-directory-CHT-640",
+    "path": 1,
+    "scenario": 2,
+    "block": 32,
+    "exit": 0,
+    "zeroErrors": true
+  },
+  {
+    "configuration": "production-directory-CHT-640",
+    "path": 1,
+    "scenario": 3,
+    "block": 32,
+    "exit": 0,
+    "zeroErrors": true
+  },
+  {
+    "configuration": "production-directory-CHT-640",
+    "path": 2,
+    "scenario": 0,
+    "block": 32,
+    "exit": 0,
+    "zeroErrors": true
+  },
+  {
+    "configuration": "production-directory-CHT-640",
+    "path": 2,
+    "scenario": 1,
+    "block": 32,
+    "exit": 0,
+    "zeroErrors": true
+  },
+  {
+    "configuration": "production-directory-CHT-640",
+    "path": 2,
+    "scenario": 2,
+    "block": 32,
+    "exit": 0,
+    "zeroErrors": true
+  },
+  {
+    "configuration": "production-directory-CHT-640",
+    "path": 2,
+    "scenario": 3,
+    "block": 32,
+    "exit": 0,
+    "zeroErrors": true
+  },
+  {
+    "configuration": "production-directory-FSH-640",
+    "path": 0,
+    "scenario": 0,
+    "block": 32,
+    "exit": 0,
+    "zeroErrors": true
+  },
+  {
+    "configuration": "production-directory-FSH-640",
+    "path": 0,
+    "scenario": 1,
+    "block": 32,
+    "exit": 0,
+    "zeroErrors": true
+  },
+  {
+    "configuration": "production-directory-FSH-640",
+    "path": 0,
+    "scenario": 2,
+    "block": 32,
+    "exit": 0,
+    "zeroErrors": true
+  },
+  {
+    "configuration": "production-directory-FSH-640",
+    "path": 0,
+    "scenario": 3,
+    "block": 32,
+    "exit": 0,
+    "zeroErrors": true
+  },
+  {
+    "configuration": "production-directory-FSH-640",
+    "path": 1,
+    "scenario": 0,
+    "block": 32,
+    "exit": 0,
+    "zeroErrors": true
+  },
+  {
+    "configuration": "production-directory-FSH-640",
+    "path": 1,
+    "scenario": 1,
+    "block": 32,
+    "exit": 0,
+    "zeroErrors": true
+  },
+  {
+    "configuration": "production-directory-FSH-640",
+    "path": 1,
+    "scenario": 2,
+    "block": 32,
+    "exit": 0,
+    "zeroErrors": true
+  },
+  {
+    "configuration": "production-directory-FSH-640",
+    "path": 1,
+    "scenario": 3,
+    "block": 32,
+    "exit": 0,
+    "zeroErrors": true
+  },
+  {
+    "configuration": "production-directory-FSH-640",
+    "path": 2,
+    "scenario": 0,
+    "block": 32,
+    "exit": 0,
+    "zeroErrors": true
+  },
+  {
+    "configuration": "production-directory-FSH-640",
+    "path": 2,
+    "scenario": 1,
+    "block": 32,
+    "exit": 0,
+    "zeroErrors": true
+  },
+  {
+    "configuration": "production-directory-FSH-640",
+    "path": 2,
+    "scenario": 2,
+    "block": 32,
+    "exit": 0,
+    "zeroErrors": true
+  },
+  {
+    "configuration": "production-directory-FSH-640",
+    "path": 2,
+    "scenario": 3,
+    "block": 32,
+    "exit": 0,
+    "zeroErrors": true
+  },
+  {
+    "configuration": "production-directory-gasUGKP-640",
+    "path": 0,
+    "scenario": 0,
+    "block": 32,
+    "exit": 0,
+    "zeroErrors": true
+  },
+  {
+    "configuration": "production-directory-gasUGKP-640",
+    "path": 0,
+    "scenario": 1,
+    "block": 32,
+    "exit": 0,
+    "zeroErrors": true
+  },
+  {
+    "configuration": "production-directory-gasUGKP-640",
+    "path": 0,
+    "scenario": 2,
+    "block": 32,
+    "exit": 0,
+    "zeroErrors": true
+  },
+  {
+    "configuration": "production-directory-gasUGKP-640",
+    "path": 0,
+    "scenario": 3,
+    "block": 32,
+    "exit": 0,
+    "zeroErrors": true
+  },
+  {
+    "configuration": "production-directory-gasUGKP-640",
+    "path": 1,
+    "scenario": 0,
+    "block": 32,
+    "exit": 0,
+    "zeroErrors": true
+  },
+  {
+    "configuration": "production-directory-gasUGKP-640",
+    "path": 1,
+    "scenario": 1,
+    "block": 32,
+    "exit": 0,
+    "zeroErrors": true
+  },
+  {
+    "configuration": "production-directory-gasUGKP-640",
+    "path": 1,
+    "scenario": 2,
+    "block": 32,
+    "exit": 0,
+    "zeroErrors": true
+  },
+  {
+    "configuration": "production-directory-gasUGKP-640",
+    "path": 1,
+    "scenario": 3,
+    "block": 32,
+    "exit": 0,
+    "zeroErrors": true
+  },
+  {
+    "configuration": "production-directory-gasUGKP-640",
+    "path": 2,
+    "scenario": 0,
+    "block": 32,
+    "exit": 0,
+    "zeroErrors": true
+  },
+  {
+    "configuration": "production-directory-gasUGKP-640",
+    "path": 2,
+    "scenario": 1,
+    "block": 32,
+    "exit": 0,
+    "zeroErrors": true
+  },
+  {
+    "configuration": "production-directory-gasUGKP-640",
+    "path": 2,
+    "scenario": 2,
+    "block": 32,
+    "exit": 0,
+    "zeroErrors": true
+  },
+  {
+    "configuration": "production-directory-gasUGKP-640",
+    "path": 2,
+    "scenario": 3,
+    "block": 32,
+    "exit": 0,
+    "zeroErrors": true
+  }
+]

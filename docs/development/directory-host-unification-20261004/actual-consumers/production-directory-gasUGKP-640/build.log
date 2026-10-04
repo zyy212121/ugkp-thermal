@@ -1,0 +1,22 @@
+/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/applications/gasUGKP/private_backend/GpuResidentStrict.cu(5568): warning #177-D: variable "runBinPre" was declared but never referenced
+      const bool runBinPre = s->csrCellLocalPathEnabled != 0;
+                 ^
+
+Remark: The warnings can be suppressed with "-diag-suppress <warning-number>"
+
+/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/applications/gasUGKP/private_backend/GpuResidentStrict.cu(5419): warning #177-D: variable "warpCount" was declared but never referenced
+      const int warpCount = (block + 31)/32;
+                ^
+
+/home/lss/ugkp-directory-host-unification-20261004/green/production-directory-gasUGKP-640/gas_auto_pool.cu(423): warning #177-D: variable "particleGrid" was declared but never referenced
+      const int particleGrid = s->particleWorkGrid;
+                ^
+
+/home/lss/ugkp-directory-host-unification-20261004/green/production-directory-gasUGKP-640/gas_auto_pool.cu(424): warning #177-D: variable "runBinPre" was declared but never referenced
+      const bool runBinPre = s->csrCellLocalPathEnabled != 0;
+                 ^
+
+/home/lss/ugkp-directory-host-unification-20261004/green/production-directory-gasUGKP-640/gas_auto_pool.cu(436): warning #177-D: variable "fusedSurvivorGather" was declared but never referenced
+      const bool fusedSurvivorGather=exactSurvivorDirectory&&postTransportFusePayload;
+                 ^
+

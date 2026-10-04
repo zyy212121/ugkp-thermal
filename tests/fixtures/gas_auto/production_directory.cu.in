@@ -1,0 +1,114 @@
+// Test-only linker tracing observes the real CUDA task-builder launches.
+// No production counters or handwritten copy of its directory selector.
+int taskCountsLaunched=0,taskWritesLaunched=0;
+extern "C" cudaError_t __real_cudaLaunchKernel(const void*,dim3,dim3,void**,size_t,cudaStream_t);
+#if CUDART_VERSION >= 13000
+extern "C" cudaError_t __real___cudaLaunchKernel(cudaKernel_t,dim3,dim3,void**,size_t,cudaStream_t);
+extern "C" cudaError_t __wrap___cudaLaunchKernel(cudaKernel_t f,dim3 g,dim3 b,void**args,size_t bytes,cudaStream_t stream){
+    cudaKernel_t counts{},writes{};
+    check(cudaGetKernel(&counts,countCsrReductionTasksKernel));
+    check(cudaGetKernel(&writes,materializeCsrReductionTasksKernel));
+    if(f==counts)++taskCountsLaunched;
+    if(f==writes)++taskWritesLaunched;
+    return __real___cudaLaunchKernel(f,g,b,args,bytes,stream);
+}
+#endif
+extern "C" cudaError_t __wrap_cudaLaunchKernel(const void*f,dim3 g,dim3 b,void**args,size_t bytes,cudaStream_t stream){
+    if(f==reinterpret_cast<const void*>(countCsrReductionTasksKernel))++taskCountsLaunched;
+    if(f==reinterpret_cast<const void*>(materializeCsrReductionTasksKernel))++taskWritesLaunched;
+    return __real_cudaLaunchKernel(f,g,b,args,bytes,stream);
+}
+#undef UGKP_DEV_PROBE_ENTER
+#undef UGKP_DEV_PROBE_LEAVE
+#undef UGKP_DEV_PROBE_LEAVE_IF
+#define UGKP_DEV_PROBE_ENTER(name) ((void)0)
+#define UGKP_DEV_PROBE_LEAVE(name) ((void)0)
+#define UGKP_DEV_PROBE_LEAVE_IF(name,flag) ((void)0)
+int productionPreStage(DeviceState*s,int block){
+PRODUCTION_PRE_STAGE
+    return 0;
+}
+int productionCompactionStage(DeviceState*s,int block){
+    cudaError_t err=cudaSuccess;
+    const int particleGrid=s->particleWorkGrid;
+    const bool exactSurvivorDirectory=true;
+    const bool fusedSurvivorGather=exactSurvivorDirectory&&postTransportFusePayload;
+PRODUCTION_COMPACTION_STAGE
+    return 0;
+}
+constexpr bool gasHasBaseOnly=GPU_DIRECTORY_HAS_BASE_ONLY!=0;
+void seedParticle(DeviceState*s,int i,int c){
+    s->pCellId[i]=c;s->pStatus[i]=1;s->pRng[i]=123456789ULL+i*333ULL;
+    s->pm[i]=1+(i%3)*.25;s->pux[i]=(i%17-8)*.125;s->puy[i]=(i%7-3)*.25;s->puz[i]=(i%5-2)*.25;
+    s->pTheta[i]=.75;s->pd[i]=.001;s->pT[i]=1000;
+}
+int main(int argc,char**argv){
+    setvbuf(stdout,nullptr,_IONBF,0);
+    require(argc==4,"path, scenario and block arguments required");
+    const int path=atoi(argv[1]),scenario=atoi(argv[2]),block=atoi(argv[3]);
+    const bool initiallyL2=scenario<2,inspect=scenario==1||scenario==2;
+    const int high[4]={block+1,block,block,block-1};
+    const int base[4]={block/2,block/2,block/2,block/2};
+    const int* initial=path==2?base:high;
+    DeviceState*s=make(block),*r=make(block);
+    populate(s,TestDirectory::full,initial);
+    s->csrHeavyReductionMode=2;s->csrHeavyAutoInterval=3;s->csrHeavyReductionEnabled=initiallyL2;
+    s->csrWarpAggregatedBinning=1;
+#if GPU_DIRECTORY_HAS_BASE_ONLY
+    s->csrSplitPreDirectoryEnabled=1;
+#endif
+    *s->deviceState=*s;
+    require(binParticlesByCell(s,block,true)==0,"actual survivor directory producer");finish();
+    if(initiallyL2)require(taskCountsLaunched==1&&taskWritesLaunched==1,"linker trace must see the actual post-task builder");
+    check(cudaMemcpy(s->compactCellOffset,s->cellParticleOffset,5*sizeof(int),cudaMemcpyDeviceToDevice));
+    if(postTransportFusePayload){gatherCellLocalParticlePayloadKernel<true><<<s->particleWorkGrid,block>>>(s->deviceState);finish();}
+    require(productionCompactionStage(s,block)==0,"actual compaction/commit/base capture");finish();
+    require(s->preBaseDirectoryReady==1,"compaction must publish base availability");
+    int baseN=0;for(int c=0;c<4;c++)baseN+=initial[c];
+    require(*s->preBaseParticleCountDevice==baseN&&s->preBaseCellOffset[4]==baseN,"compaction base/count mismatch");
+    populate(r,TestDirectory::full,initial);
+    // Real atomic binning can reorder survivors. Give the independent L1/CPU
+    // reference the committed particles, not their obsolete input ordering.
+    for(int i=0;i<baseN;i++){
+        r->pCellId[i]=s->pCellId[i];r->pStatus[i]=s->pStatus[i];r->pRng[i]=s->pRng[i];
+        r->pm[i]=s->pm[i];r->pux[i]=s->pux[i];r->puy[i]=s->puy[i];r->puz[i]=s->puz[i];
+        r->pTheta[i]=s->pTheta[i];r->pd[i]=s->pd[i];r->pT[i]=s->pT[i];
+        r->sortedParticleIndex[i]=i;
+    }
+    const TestDirectory kind=path==0?TestDirectory::full:(path==1?TestDirectory::baseOnly:TestDirectory::splitBaseAndInjection);
+    if(path==0)s->preBaseDirectoryReady=0; // Legal cold/restart cache-miss fallback.
+    if(path!=0){
+        selectDirectory(r,kind);r->preBaseCellOffset[0]=0;r->cellParticleOffset[0]=0;
+        int offset=0;
+        for(int c=0;c<4;c++){
+            r->preBaseCellOffset[c+1]=r->preBaseCellOffset[c]+initial[c];
+            const int count=path==2?high[c]-initial[c]:0;
+            for(int j=0;j<count;j++){
+                const int i=baseN+offset+j;seedParticle(s,i,c);seedParticle(r,i,c);
+                r->sortedParticleIndex[offset+j]=i;
+            }
+            offset+=count;r->cellParticleOffset[c+1]=offset;
+        }
+        *s->particleCountDevice=*r->particleCountDevice=baseN+offset;
+        *r->preBaseParticleCountDevice=baseN;
+    }
+    s->nBoundarySources=path==2?1:0;
+    s->schedulingAdvanceCount=inspect?2:1;
+    *s->deviceState=*s;*r->deviceState=*r;
+    const int beforeCounts=taskCountsLaunched,beforeWrites=taskWritesLaunched;
+    const bool reuse=gasHasBaseOnly&&path==1&&initiallyL2&&!inspect;
+    CsrReductionTask cached[128];
+    if(reuse)memcpy(cached,s->csrReductionTasks,128*sizeof(CsrReductionTask));
+    require(productionPreStage(s,block)==0,"actual pre-directory -> auto production entry");finish();
+    const int wantBuilds=(initiallyL2&&!(gasHasBaseOnly&&path==1)?1:0)+(inspect?1:0);
+    printf("PRODUCTION path=%d scenario=%d block=%d builds=%d/%d want=%d\n",path,scenario,block,taskCountsLaunched-beforeCounts,taskWritesLaunched-beforeWrites,wantBuilds);
+    require(taskCountsLaunched-beforeCounts==wantBuilds&&taskWritesLaunched-beforeWrites==wantBuilds,
+        "unexpected production task rebuild: cached gas baseOnly must be reused on non-inspection steps");
+    if(reuse)require(memcmp(cached,s->csrReductionTasks,128*sizeof(CsrReductionTask))==0,"cached baseOnly descriptors were rewritten");
+    const bool active=initiallyL2||inspect;
+    require(s->csrHeavyReductionEnabled==int(active)&&s->deviceState->csrHeavyReductionEnabled==int(active),"production auto state mismatch");
+    if(active)validateTasks(s,kind,5,1);
+    consume(s,r,kind,block);
+    puts("PASS production compaction -> directory -> auto -> actual collision consumer");
+    return 0;
+}

@@ -1,12 +1,12 @@
 #pragma once
 
-// Full and split-pre directory construction for the dynamic-heavy-policy path.
-// Requires DeviceState, bin/split kernels, CUB, error helpers and
-// updateDynamicHeavyPolicy/prepare{,Split}CsrHeavyReductionTasks.
-// The caller retains ownership of scan storage and task scheduling policy.
-// Gas's static-directory flag resets and producer protocol are a separate path.
+// One host protocol for full/split directory preparation and task readiness.
+#include "GpuParticleDirectoryHostPolicy.cuh"
+
 int binParticlesByCell(DeviceState* s, const int block, const bool survivorsOnly = false)
 {
+    selectParticleDirectory(s, false);
+    s->csrTasksReady = 0;
     const int cellGrid = (s->nCells + 1 + block - 1)/block;
     clearParticleCellBinsKernel<<<cellGrid, block>>>(s->deviceState);
     cudaError_t err = cudaGetLastError();
@@ -83,43 +83,56 @@ int binParticlesByCell(DeviceState* s, const int block, const bool survivorsOnly
         setLastError("scatterParticlesByCellKernel launch", err);
         return 1;
     }
-    if (updateDynamicHeavyPolicy(s) != 0)
-    {
-        return 1;
-    }
-    return prepareCsrHeavyReductionTasks(s, block);
+    return prepareParticleDirectoryTasks(s, block, fullParticleDirectoryKind());
 }
 
-int buildSplitPreDirectory(DeviceState* s, const int block)
+#if GPU_DIRECTORY_HAS_BASE_ONLY
+int prepareSourceFreeSplitPreDirectory(DeviceState* s)
+{
+    cudaError_t err = cudaMemset
+    (
+        s->cellParticleOffset,
+        0,
+        static_cast<size_t>(s->nCells + 1)*sizeof(int)
+    );
+    if (err != cudaSuccess)
+    {
+        setLastError("reset source-free split-Dpre injection offsets", err);
+        return 1;
+    }
+
+    s->preInjectionSegmentActive = 0;
+    s->useSplitPreDirectory = 1;
+    return 0;
+}
+#endif
+
+int preparePreTransportParticleDirectory(DeviceState* s, const int block)
 {
     if
     (
-        s->csrCellLocalPathEnabled == 0
+        !splitParticleDirectoryEnabled(s)
      || s->preBaseDirectoryReady == 0
     )
     {
-        s->splitPreDirectoryActive = 0;
         return binParticlesByCell(s, block);
     }
 
-    s->splitPreDirectoryActive = 1;
+#if GPU_DIRECTORY_HAS_BASE_ONLY
+    // Compaction already built the direct-base tasks. No injection means the
+    // next step can retain their contents and publication tag unchanged.
+    if (s->nBoundarySources == 0) return prepareSourceFreeSplitPreDirectory(s);
+#endif
+    selectParticleDirectory(s, true);
+    s->csrTasksReady = 0;
 
     const int cellGrid = (s->nCells + 1 + block - 1)/block;
-    clearSplitPreInjectionBinsKernel<<<cellGrid, block>>>(s->deviceState);
-    cudaError_t err = cudaGetLastError();
-    if (err != cudaSuccess)
-    {
-        setLastError("clear split-Dpre injection bins launch", err);
-        return 1;
-    }
+    if (clearParticleInjectionBins(s, cellGrid, block) != 0) return 1;
+    cudaError_t err = cudaSuccess;
 
     if (s->nBoundarySources == 0)
     {
-        if (updateDynamicHeavyPolicy(s) != 0)
-        {
-            return 1;
-        }
-        return prepareSplitCsrHeavyReductionTasks(s, block);
+        return prepareParticleDirectoryTasks(s, block, splitParticleDirectoryKind());
     }
 
     if (s->csrWarpAggregatedBinning != 0)
@@ -153,13 +166,7 @@ int buildSplitPreDirectory(DeviceState* s, const int block)
         return 1;
     }
 
-    initialiseSplitPreInjectionWritesKernel<<<cellGrid, block>>>(s->deviceState);
-    err = cudaGetLastError();
-    if (err != cudaSuccess)
-    {
-        setLastError("initialise split-Dpre injection writes launch", err);
-        return 1;
-    }
+    if (initialiseParticleInjectionWrites(s, cellGrid, block) != 0) return 1;
     if (s->csrWarpAggregatedBinning != 0)
     {
         scatterSplitPreInjectionParticlesKernel<true>
@@ -177,9 +184,24 @@ int buildSplitPreDirectory(DeviceState* s, const int block)
         return 1;
     }
 
-    if (updateDynamicHeavyPolicy(s) != 0)
-    {
-        return 1;
-    }
-    return prepareSplitCsrHeavyReductionTasks(s, block);
+    return prepareParticleDirectoryTasks(s, block, splitParticleDirectoryKind());
+}
+
+// Preparation, directory classification and automatic task readiness are one
+// operation, so production callers cannot pass a mismatched directory kind.
+int prepareParticleDirectoryAndSchedule(DeviceState* s, const int block)
+{
+    if (s->csrCellLocalPathEnabled == 0) return 0;
+    if (preparePreTransportParticleDirectory(s, block) != 0) return 1;
+    return runAutomaticCsrSchedule(s, block, currentPreTransportDirectoryKind(s));
+}
+
+int buildSplitPreDirectory(DeviceState* s, const int block)
+{
+    return preparePreTransportParticleDirectory(s, block);
+}
+
+int buildPostTransportDirectory(DeviceState* s, const int block)
+{
+    return binParticlesByCell(s, block, true);
 }

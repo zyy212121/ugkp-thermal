@@ -1,0 +1,838 @@
+--- a/applications/gasUGKP/private_backend/GpuResidentStrict.cu
++++ b/applications/gasUGKP/private_backend/GpuResidentStrict.cu
+@@ -2833,204 +2833,8 @@
+     );
+ }
+ 
+-int binParticlesByCell(DeviceState* s, const int block, const bool survivorsOnly = false)
+-{
+-    s->useSplitPreDirectory = 0;
+-    s->preInjectionSegmentActive = 0;
+-    const int cellGrid = (s->nCells + 1 + block - 1)/block;
+-    clearParticleCellBinsKernel<<<cellGrid, block>>>(s->deviceState);
+-    cudaError_t err = cudaGetLastError();
+-    if (err != cudaSuccess)
+-    {
+-        setLastError("clearParticleCellBinsKernel launch", err);
+-        return 1;
+-    }
+-
+-    if (s->csrWarpAggregatedBinning != 0)
+-    {
+-        if (survivorsOnly)
+-            countParticlesByCellKernel<true, true><<<s->particleWorkGrid, s->particleBlockThreads>>>(s->deviceState);
+-        else
+-            countParticlesByCellKernel<true>
+-            <<<s->particleWorkGrid, s->particleBlockThreads>>>(s->deviceState);
+-    }
+-    else
+-    {
+-        if (survivorsOnly)
+-            countParticlesByCellKernel<false, true><<<s->particleWorkGrid, s->particleBlockThreads>>>(s->deviceState);
+-        else
+-            countParticlesByCellKernel<false>
+-            <<<s->particleWorkGrid, s->particleBlockThreads>>>(s->deviceState);
+-    }
+-    err = cudaGetLastError();
+-    if (err != cudaSuccess)
+-    {
+-        setLastError("countParticlesByCellKernel launch", err);
+-        return 1;
+-    }
+-
+-    err = cub::DeviceScan::ExclusiveSum
+-    (
+-        s->cellScanTempStorage,
+-        s->cellScanTempBytes,
+-        s->cellParticleCount,
+-        s->cellParticleOffset,
+-        s->nCells + 1
+-    );
+-    if (err != cudaSuccess)
+-    {
+-        setLastError("cell particle count exclusive scan", err);
+-        return 1;
+-    }
+-
+-    initialiseParticleCellWritesKernel<<<cellGrid, block>>>(s->deviceState);
+-    err = cudaGetLastError();
+-    if (err != cudaSuccess)
+-    {
+-        setLastError("initialiseParticleCellWritesKernel launch", err);
+-        return 1;
+-    }
+-
+-    if (s->csrWarpAggregatedBinning != 0)
+-    {
+-        if (survivorsOnly)
+-            scatterParticlesByCellKernel<true, true><<<s->particleWorkGrid, s->particleBlockThreads>>>(s->deviceState);
+-        else
+-            scatterParticlesByCellKernel<true>
+-            <<<s->particleWorkGrid, s->particleBlockThreads>>>(s->deviceState);
+-    }
+-    else
+-    {
+-        if (survivorsOnly)
+-            scatterParticlesByCellKernel<false, true><<<s->particleWorkGrid, s->particleBlockThreads>>>(s->deviceState);
+-        else
+-            scatterParticlesByCellKernel<false>
+-            <<<s->particleWorkGrid, s->particleBlockThreads>>>(s->deviceState);
+-    }
+-    err = cudaGetLastError();
+-    if (err != cudaSuccess)
+-    {
+-        setLastError("scatterParticlesByCellKernel launch", err);
+-        return 1;
+-    }
+-    return prepareCsrHeavyReductionTasks(s, block);
+-}
+-
+-int prepareSourceFreeSplitPreDirectory(DeviceState* s)
+-{
+-    cudaError_t err = cudaMemset
+-    (
+-        s->cellParticleOffset,
+-        0,
+-        static_cast<size_t>(s->nCells + 1)*sizeof(int)
+-    );
+-    if (err != cudaSuccess)
+-    {
+-        setLastError("reset source-free split-Dpre injection offsets", err);
+-        return 1;
+-    }
+-
+-    s->preInjectionSegmentActive = 0;
+-    s->useSplitPreDirectory = 1;
+-    return 0;
+-}
+-
+-int preparePreTransportParticleDirectory(DeviceState* s, const int block)
+-{
+-    if (s->csrSplitPreDirectoryEnabled == 0)
+-    {
+-        return binParticlesByCell(s, block);
+-    }
+-
+-                                                                         
+-                                                                             
+-                                                                           
+-    if (s->preBaseDirectoryReady == 0)
+-    {
+-        s->useSplitPreDirectory = 0;
+-        s->preInjectionSegmentActive = 0;
+-        return binParticlesByCell(s, block);
+-    }
+-
+-    if (s->nBoundarySources == 0)
+-    {
+-        return prepareSourceFreeSplitPreDirectory(s);
+-    }
+-
+-    const int cellGrid = (s->nCells + 1 + block - 1)/block;
+-    clearParticleCellBinsKernel<<<cellGrid, block>>>(s->deviceState);
+-    cudaError_t err = cudaGetLastError();
+-    if (err != cudaSuccess)
+-    {
+-        setLastError("clear injection cell bins launch", err);
+-        return 1;
+-    }
+-
+-    if (s->csrWarpAggregatedBinning != 0)
+-    {
+-        countSplitPreInjectionParticlesKernel<true>
+-            <<<s->particleWorkGrid, s->particleBlockThreads>>>(s->deviceState);
+-    }
+-    else
+-    {
+-        countSplitPreInjectionParticlesKernel<false>
+-            <<<s->particleWorkGrid, s->particleBlockThreads>>>(s->deviceState);
+-    }
+-    err = cudaGetLastError();
+-    if (err != cudaSuccess)
+-    {
+-        setLastError("countSplitPreInjectionParticlesKernel launch", err);
+-        return 1;
+-    }
+-
+-    err = cub::DeviceScan::ExclusiveSum
+-    (
+-        s->cellScanTempStorage,
+-        s->cellScanTempBytes,
+-        s->cellParticleCount,
+-        s->cellParticleOffset,
+-        s->nCells + 1
+-    );
+-    if (err != cudaSuccess)
+-    {
+-        setLastError("injection cell particle count exclusive scan", err);
+-        return 1;
+-    }
+-
+-    initialiseParticleCellWritesKernel<<<cellGrid, block>>>(s->deviceState);
+-    err = cudaGetLastError();
+-    if (err != cudaSuccess)
+-    {
+-        setLastError("initialise injection cell writes launch", err);
+-        return 1;
+-    }
+-
+-    if (s->csrWarpAggregatedBinning != 0)
+-    {
+-        scatterSplitPreInjectionParticlesKernel<true>
+-            <<<s->particleWorkGrid, s->particleBlockThreads>>>(s->deviceState);
+-    }
+-    else
+-    {
+-        scatterSplitPreInjectionParticlesKernel<false>
+-            <<<s->particleWorkGrid, s->particleBlockThreads>>>(s->deviceState);
+-    }
+-    err = cudaGetLastError();
+-    if (err != cudaSuccess)
+-    {
+-        setLastError("scatterSplitPreInjectionParticlesKernel launch", err);
+-        return 1;
+-    }
+-
+-    if (prepareSplitPreCsrHeavyReductionTasks(s, block) != 0)
+-    {
+-        return 1;
+-    }
+-
+-    s->preInjectionSegmentActive = 1;
+-    s->useSplitPreDirectory = 1;
+-    return 0;
+-}
++#include "../../../common/GpuParticleDirectoryHost.cuh"
++
+ 
+ int rebuildResidentParticleMomentsFromParticles
+ (
+@@ -5762,25 +5566,7 @@
+     UGKP_DEV_PROBE_ENTER(ProbeBinPre);
+     const int particleGrid = s->particleWorkGrid;
+     const bool runBinPre = s->csrCellLocalPathEnabled != 0;
+-    if
+-    (
+-        runBinPre && preparePreTransportParticleDirectory(s, block) != 0
+-    )
+-    {
+-        return 1;
+-    }
+-    if
+-    (
+-        runBinPre
+-     && runToolB3
+-        (
+-            s,
+-            block,
+-            s->useSplitPreDirectory != 0
+-              ? HeavyDirectoryKind::splitBaseAndInjection
+-              : HeavyDirectoryKind::full
+-        ) != 0
+-    )
++    if (prepareParticleDirectoryAndSchedule(s, block) != 0)
+     {
+         return 1;
+     }
+--- a/applications/FSH/private_backend/GpuResidentStrict.cu
++++ b/applications/FSH/private_backend/GpuResidentStrict.cu
+@@ -2253,12 +2253,7 @@
+ 
+ #include "../../../common/GpuParticleDirectoryHost.cuh"
+ 
+-int buildPostTransportDirectory(DeviceState* s, const int block)
+-{
+-    s->splitPreDirectoryActive = 0;
+-    // Both S1 and L2 compact from an exact directory of surviving particles.
+-    return binParticlesByCell(s, block, true);
+-}
++
+ 
+ int rebuildResidentParticleMomentsFromParticles
+ (
+@@ -4270,15 +4265,7 @@
+ 
+     UGKP_DEV_PROBE_ENTER(ProbeBinPre);
+     const int particleGrid = s->particleWorkGrid;
+-    if
+-    (
+-        s->csrCellLocalPathEnabled != 0
+-     && buildSplitPreDirectory(s, block) != 0
+-    )
+-    {
+-        return 1;
+-    }
+-    if (s->csrCellLocalPathEnabled != 0 && runToolB3(s, block) != 0)
++    if (prepareParticleDirectoryAndSchedule(s, block) != 0)
+     {
+         return 1;
+     }
+--- a/applications/CHT/gpu/GpuResidentStrict.cu
++++ b/applications/CHT/gpu/GpuResidentStrict.cu
+@@ -2969,11 +2969,7 @@
+ 
+ #include "../../../common/GpuParticleDirectoryHost.cuh"
+ 
+-int buildPostTransportDirectory(DeviceState* s, const int block)
+-{
+-    s->splitPreDirectoryActive = 0;
+-    return binParticlesByCell(s, block, true);
+-}
++
+ 
+ int rebuildResidentParticleMomentsFromParticles
+ (
+@@ -5120,15 +5116,7 @@
+ 
+     UGKP_DEV_PROBE_ENTER(ProbeBinPre);
+     const int particleGrid = s->particleWorkGrid;
+-    if
+-    (
+-        s->csrCellLocalPathEnabled != 0
+-     && buildSplitPreDirectory(s, block) != 0
+-    )
+-    {
+-        return 1;
+-    }
+-    if (s->csrCellLocalPathEnabled != 0 && runToolB3(s, block) != 0)
++    if (prepareParticleDirectoryAndSchedule(s, block) != 0)
+     {
+         return 1;
+     }
+--- a/common/GpuParticleDirectoryHost.cuh
++++ b/common/GpuParticleDirectoryHost.cuh
+@@ -1,12 +1,12 @@
+ #pragma once
+ 
+-// Full and split-pre directory construction for the dynamic-heavy-policy path.
+-// Requires DeviceState, bin/split kernels, CUB, error helpers and
+-// updateDynamicHeavyPolicy/prepare{,Split}CsrHeavyReductionTasks.
+-// The caller retains ownership of scan storage and task scheduling policy.
+-// Gas's static-directory flag resets and producer protocol are a separate path.
++// One host protocol for full/split directory preparation and task readiness.
++#include "GpuParticleDirectoryHostPolicy.cuh"
++
+ int binParticlesByCell(DeviceState* s, const int block, const bool survivorsOnly = false)
+ {
++    selectParticleDirectory(s, false);
++    s->csrTasksReady = 0;
+     const int cellGrid = (s->nCells + 1 + block - 1)/block;
+     clearParticleCellBinsKernel<<<cellGrid, block>>>(s->deviceState);
+     cudaError_t err = cudaGetLastError();
+@@ -83,43 +83,56 @@
+         setLastError("scatterParticlesByCellKernel launch", err);
+         return 1;
+     }
+-    if (updateDynamicHeavyPolicy(s) != 0)
+-    {
+-        return 1;
+-    }
+-    return prepareCsrHeavyReductionTasks(s, block);
+-}
+-
+-int buildSplitPreDirectory(DeviceState* s, const int block)
++    return prepareParticleDirectoryTasks(s, block, fullParticleDirectoryKind());
++}
++
++#if GPU_DIRECTORY_HAS_BASE_ONLY
++int prepareSourceFreeSplitPreDirectory(DeviceState* s)
++{
++    cudaError_t err = cudaMemset
++    (
++        s->cellParticleOffset,
++        0,
++        static_cast<size_t>(s->nCells + 1)*sizeof(int)
++    );
++    if (err != cudaSuccess)
++    {
++        setLastError("reset source-free split-Dpre injection offsets", err);
++        return 1;
++    }
++
++    s->preInjectionSegmentActive = 0;
++    s->useSplitPreDirectory = 1;
++    return 0;
++}
++#endif
++
++int preparePreTransportParticleDirectory(DeviceState* s, const int block)
+ {
+     if
+     (
+-        s->csrCellLocalPathEnabled == 0
++        !splitParticleDirectoryEnabled(s)
+      || s->preBaseDirectoryReady == 0
+     )
+     {
+-        s->splitPreDirectoryActive = 0;
+         return binParticlesByCell(s, block);
+     }
+ 
+-    s->splitPreDirectoryActive = 1;
++#if GPU_DIRECTORY_HAS_BASE_ONLY
++    // Compaction already built the direct-base tasks. No injection means the
++    // next step can retain their contents and publication tag unchanged.
++    if (s->nBoundarySources == 0) return prepareSourceFreeSplitPreDirectory(s);
++#endif
++    selectParticleDirectory(s, true);
++    s->csrTasksReady = 0;
+ 
+     const int cellGrid = (s->nCells + 1 + block - 1)/block;
+-    clearSplitPreInjectionBinsKernel<<<cellGrid, block>>>(s->deviceState);
+-    cudaError_t err = cudaGetLastError();
+-    if (err != cudaSuccess)
+-    {
+-        setLastError("clear split-Dpre injection bins launch", err);
+-        return 1;
+-    }
++    if (clearParticleInjectionBins(s, cellGrid, block) != 0) return 1;
++    cudaError_t err = cudaSuccess;
+ 
+     if (s->nBoundarySources == 0)
+     {
+-        if (updateDynamicHeavyPolicy(s) != 0)
+-        {
+-            return 1;
+-        }
+-        return prepareSplitCsrHeavyReductionTasks(s, block);
++        return prepareParticleDirectoryTasks(s, block, splitParticleDirectoryKind());
+     }
+ 
+     if (s->csrWarpAggregatedBinning != 0)
+@@ -153,13 +166,7 @@
+         return 1;
+     }
+ 
+-    initialiseSplitPreInjectionWritesKernel<<<cellGrid, block>>>(s->deviceState);
+-    err = cudaGetLastError();
+-    if (err != cudaSuccess)
+-    {
+-        setLastError("initialise split-Dpre injection writes launch", err);
+-        return 1;
+-    }
++    if (initialiseParticleInjectionWrites(s, cellGrid, block) != 0) return 1;
+     if (s->csrWarpAggregatedBinning != 0)
+     {
+         scatterSplitPreInjectionParticlesKernel<true>
+@@ -177,9 +184,24 @@
+         return 1;
+     }
+ 
+-    if (updateDynamicHeavyPolicy(s) != 0)
+-    {
+-        return 1;
+-    }
+-    return prepareSplitCsrHeavyReductionTasks(s, block);
+-}
++    return prepareParticleDirectoryTasks(s, block, splitParticleDirectoryKind());
++}
++
++// Preparation, directory classification and automatic task readiness are one
++// operation, so production callers cannot pass a mismatched directory kind.
++int prepareParticleDirectoryAndSchedule(DeviceState* s, const int block)
++{
++    if (s->csrCellLocalPathEnabled == 0) return 0;
++    if (preparePreTransportParticleDirectory(s, block) != 0) return 1;
++    return runAutomaticCsrSchedule(s, block, currentPreTransportDirectoryKind(s));
++}
++
++int buildSplitPreDirectory(DeviceState* s, const int block)
++{
++    return preparePreTransportParticleDirectory(s, block);
++}
++
++int buildPostTransportDirectory(DeviceState* s, const int block)
++{
++    return binParticlesByCell(s, block, true);
++}
+--- /dev/null
++++ b/common/GpuParticleDirectoryHostPolicy.cuh
+@@ -0,0 +1,85 @@
++#pragma once
++
++// Compile-time directory capabilities and field/kernel adapters. All scan,
++// scatter, invalidation, task publication and automatic scheduling live in
++// GpuParticleDirectoryHost.cuh. Thermal applications expose full/split only.
++inline GPU_DIRECTORY_PARAMETER_TYPE currentPreTransportDirectoryKind(const DeviceState* s)
++{
++#if GPU_DIRECTORY_HAS_BASE_ONLY
++    if (s->useSplitPreDirectory == 0) return HeavyDirectoryKind::full;
++    return s->preInjectionSegmentActive == 0
++        ? HeavyDirectoryKind::baseOnly : HeavyDirectoryKind::splitBaseAndInjection;
++#else
++    return s->splitPreDirectoryActive != 0;
++#endif
++}
++
++inline GPU_DIRECTORY_PARAMETER_TYPE fullParticleDirectoryKind()
++{
++#if GPU_DIRECTORY_HAS_BASE_ONLY
++    return HeavyDirectoryKind::full;
++#else
++    return false;
++#endif
++}
++
++inline GPU_DIRECTORY_PARAMETER_TYPE splitParticleDirectoryKind()
++{
++#if GPU_DIRECTORY_HAS_BASE_ONLY
++    return HeavyDirectoryKind::splitBaseAndInjection;
++#else
++    return true;
++#endif
++}
++
++inline bool splitParticleDirectoryEnabled(const DeviceState* s)
++{
++#if GPU_DIRECTORY_HAS_BASE_ONLY
++    return s->csrSplitPreDirectoryEnabled != 0;
++#else
++    return s->csrCellLocalPathEnabled != 0;
++#endif
++}
++
++inline void selectParticleDirectory(DeviceState* s, const bool split)
++{
++#if GPU_DIRECTORY_HAS_BASE_ONLY
++    s->useSplitPreDirectory = split ? 1 : 0;
++    s->preInjectionSegmentActive = split ? 1 : 0;
++#else
++    s->splitPreDirectoryActive = split ? 1 : 0;
++#endif
++}
++
++inline int clearParticleInjectionBins(DeviceState* s, const int grid, const int block)
++{
++#if GPU_DIRECTORY_HAS_BASE_ONLY
++    clearParticleCellBinsKernel<<<grid, block>>>(s->deviceState);
++#else
++    clearSplitPreInjectionBinsKernel<<<grid, block>>>(s->deviceState);
++#endif
++    const cudaError_t err = cudaGetLastError();
++    if (err != cudaSuccess) { setLastError("clear split-Dpre injection bins launch", err); return 1; }
++    return 0;
++}
++
++inline int initialiseParticleInjectionWrites(DeviceState* s, const int grid, const int block)
++{
++#if GPU_DIRECTORY_HAS_BASE_ONLY
++    initialiseParticleCellWritesKernel<<<grid, block>>>(s->deviceState);
++#else
++    initialiseSplitPreInjectionWritesKernel<<<grid, block>>>(s->deviceState);
++#endif
++    const cudaError_t err = cudaGetLastError();
++    if (err != cudaSuccess) { setLastError("initialise split-Dpre injection writes launch", err); return 1; }
++    return 0;
++}
++
++inline int prepareParticleDirectoryTasks(DeviceState* s, const int block,
++    const GPU_DIRECTORY_PARAMETER_TYPE kind)
++{
++#if !GPU_DIRECTORY_OWNS_TILE_POLICY
++    if (updateDynamicHeavyPolicy(s) != 0) return 1;
++#endif
++    return prepareCsrSegmentedReductionTasks(s, block, kind);
++}
+--- a/tools/managed_mirrors.json
++++ b/tools/managed_mirrors.json
+@@ -616,6 +616,11 @@
+     },
+     {
+       "path": "common/GpuParticleDirectoryHost.cuh",
++      "upstream": "ugkp-thermal",
++      "downstream": "gpu-riemann-gkp-main"
++    },
++    {
++      "path": "common/GpuParticleDirectoryHostPolicy.cuh",
+       "upstream": "ugkp-thermal",
+       "downstream": "gpu-riemann-gkp-main"
+     },
+--- a/tests/fixtures/gas_auto/gas_auto_pool.py
++++ b/tests/fixtures/gas_auto/gas_auto_pool.py
+@@ -10,6 +10,16 @@
+ fields=[(ty,n) for ty,n in fields if n not in ['diagnosticPreTransportParticleCount','sourceInjectedCount'] and (bits==32 or not n.startswith('flatPressure'))]
+ limits={'csrMultiTaskCellList':4,'csrHeavyCellCount':1,'csrHeavyTaskCount':1,'csrHeavyTaskCursor':1,'csrMaximumOccupancy':1,'csrHeavyPartials':8*128}
+ code=Path(__file__).with_name('gas_auto_pool.cu.in').read_text().replace('ALLOCATE_FIELDS','\n'.join(f'mem(s->{n},{limits.get(n,4096)});' for _,n in fields))
++production_chain=len(sys.argv)>5 and sys.argv[5]=='production-directory'
++if production_chain:
++    code=code[:code.index('int main(')]+Path(__file__).with_name('production_directory.cu.in').read_text()
++    def stage(name):
++        begin=text.index('    UGKP_DEV_PROBE_ENTER('+name+');',text.index('    UGKP_DEV_PROBE_ENTER(ProbeBinPre);'))
++        match=re.search(r'    UGKP_DEV_PROBE_LEAVE(?:_IF)?\('+name+r'[^;]*;',text[begin:])
++        assert match,name
++        end=begin+match.end()
++        return text[begin:end]
++    code=code.replace('PRODUCTION_PRE_STAGE',stage('ProbeBinPre')).replace('PRODUCTION_COMPACTION_STAGE',stage('ProbeCompaction'))
+ prefix='using namespace ugkwpCudaFp32;\n' if app=='CHT' and bits==32 else ''
+ if app=='gasUGKP':
+     adapter='''using TestDirectory=HeavyDirectoryKind;
+@@ -40,6 +50,7 @@
+ resource.setrlimit(resource.RLIMIT_STACK,(512*1024*1024,resource.RLIM_INFINITY));resource.setrlimit(resource.RLIMIT_CORE,(0,0))
+ cmd=['/usr/local/cuda/bin/nvcc','-std=c++17','-O3','-arch='+os.environ.get('UGKWP_CUDA_ARCH','sm_89'),'--fmad='+('false' if app=='CHT' else 'true'),'-DUGKWP_GPU_REAL_BITS='+str(bits),'-I'+str(source),'-I'+str(root/'common'),'-I'+str(root/'applications'/app/'gpu'),str(cu),'-o',str(exe)]
+ if app=='CHT':cmd.append(str(source/'GpuWallEnergy64.cu'))
++if production_chain:cmd+=['-Xlinker','--wrap=cudaLaunchKernel','-Xlinker','--wrap=__cudaLaunchKernel']
+ with (out/'build.log').open('w') as f:q=subprocess.run(cmd,stdout=f,stderr=subprocess.STDOUT)
+ assert q.returncode==0,(out/'build.log').read_text()[-6000:]
+ print(exe)
+--- /dev/null
++++ b/tests/fixtures/gas_auto/production_directory.cu.in
+@@ -0,0 +1,114 @@
++// Test-only linker tracing observes the real CUDA task-builder launches.
++// No production counters or handwritten copy of its directory selector.
++int taskCountsLaunched=0,taskWritesLaunched=0;
++extern "C" cudaError_t __real_cudaLaunchKernel(const void*,dim3,dim3,void**,size_t,cudaStream_t);
++#if CUDART_VERSION >= 13000
++extern "C" cudaError_t __real___cudaLaunchKernel(cudaKernel_t,dim3,dim3,void**,size_t,cudaStream_t);
++extern "C" cudaError_t __wrap___cudaLaunchKernel(cudaKernel_t f,dim3 g,dim3 b,void**args,size_t bytes,cudaStream_t stream){
++    cudaKernel_t counts{},writes{};
++    check(cudaGetKernel(&counts,countCsrReductionTasksKernel));
++    check(cudaGetKernel(&writes,materializeCsrReductionTasksKernel));
++    if(f==counts)++taskCountsLaunched;
++    if(f==writes)++taskWritesLaunched;
++    return __real___cudaLaunchKernel(f,g,b,args,bytes,stream);
++}
++#endif
++extern "C" cudaError_t __wrap_cudaLaunchKernel(const void*f,dim3 g,dim3 b,void**args,size_t bytes,cudaStream_t stream){
++    if(f==reinterpret_cast<const void*>(countCsrReductionTasksKernel))++taskCountsLaunched;
++    if(f==reinterpret_cast<const void*>(materializeCsrReductionTasksKernel))++taskWritesLaunched;
++    return __real_cudaLaunchKernel(f,g,b,args,bytes,stream);
++}
++#undef UGKP_DEV_PROBE_ENTER
++#undef UGKP_DEV_PROBE_LEAVE
++#undef UGKP_DEV_PROBE_LEAVE_IF
++#define UGKP_DEV_PROBE_ENTER(name) ((void)0)
++#define UGKP_DEV_PROBE_LEAVE(name) ((void)0)
++#define UGKP_DEV_PROBE_LEAVE_IF(name,flag) ((void)0)
++int productionPreStage(DeviceState*s,int block){
++PRODUCTION_PRE_STAGE
++    return 0;
++}
++int productionCompactionStage(DeviceState*s,int block){
++    cudaError_t err=cudaSuccess;
++    const int particleGrid=s->particleWorkGrid;
++    const bool exactSurvivorDirectory=true;
++    const bool fusedSurvivorGather=exactSurvivorDirectory&&postTransportFusePayload;
++PRODUCTION_COMPACTION_STAGE
++    return 0;
++}
++constexpr bool gasHasBaseOnly=GPU_DIRECTORY_HAS_BASE_ONLY!=0;
++void seedParticle(DeviceState*s,int i,int c){
++    s->pCellId[i]=c;s->pStatus[i]=1;s->pRng[i]=123456789ULL+i*333ULL;
++    s->pm[i]=1+(i%3)*.25;s->pux[i]=(i%17-8)*.125;s->puy[i]=(i%7-3)*.25;s->puz[i]=(i%5-2)*.25;
++    s->pTheta[i]=.75;s->pd[i]=.001;s->pT[i]=1000;
++}
++int main(int argc,char**argv){
++    setvbuf(stdout,nullptr,_IONBF,0);
++    require(argc==4,"path, scenario and block arguments required");
++    const int path=atoi(argv[1]),scenario=atoi(argv[2]),block=atoi(argv[3]);
++    const bool initiallyL2=scenario<2,inspect=scenario==1||scenario==2;
++    const int high[4]={block+1,block,block,block-1};
++    const int base[4]={block/2,block/2,block/2,block/2};
++    const int* initial=path==2?base:high;
++    DeviceState*s=make(block),*r=make(block);
++    populate(s,TestDirectory::full,initial);
++    s->csrHeavyReductionMode=2;s->csrHeavyAutoInterval=3;s->csrHeavyReductionEnabled=initiallyL2;
++    s->csrWarpAggregatedBinning=1;
++#if GPU_DIRECTORY_HAS_BASE_ONLY
++    s->csrSplitPreDirectoryEnabled=1;
++#endif
++    *s->deviceState=*s;
++    require(binParticlesByCell(s,block,true)==0,"actual survivor directory producer");finish();
++    if(initiallyL2)require(taskCountsLaunched==1&&taskWritesLaunched==1,"linker trace must see the actual post-task builder");
++    check(cudaMemcpy(s->compactCellOffset,s->cellParticleOffset,5*sizeof(int),cudaMemcpyDeviceToDevice));
++    if(postTransportFusePayload){gatherCellLocalParticlePayloadKernel<true><<<s->particleWorkGrid,block>>>(s->deviceState);finish();}
++    require(productionCompactionStage(s,block)==0,"actual compaction/commit/base capture");finish();
++    require(s->preBaseDirectoryReady==1,"compaction must publish base availability");
++    int baseN=0;for(int c=0;c<4;c++)baseN+=initial[c];
++    require(*s->preBaseParticleCountDevice==baseN&&s->preBaseCellOffset[4]==baseN,"compaction base/count mismatch");
++    populate(r,TestDirectory::full,initial);
++    // Real atomic binning can reorder survivors. Give the independent L1/CPU
++    // reference the committed particles, not their obsolete input ordering.
++    for(int i=0;i<baseN;i++){
++        r->pCellId[i]=s->pCellId[i];r->pStatus[i]=s->pStatus[i];r->pRng[i]=s->pRng[i];
++        r->pm[i]=s->pm[i];r->pux[i]=s->pux[i];r->puy[i]=s->puy[i];r->puz[i]=s->puz[i];
++        r->pTheta[i]=s->pTheta[i];r->pd[i]=s->pd[i];r->pT[i]=s->pT[i];
++        r->sortedParticleIndex[i]=i;
++    }
++    const TestDirectory kind=path==0?TestDirectory::full:(path==1?TestDirectory::baseOnly:TestDirectory::splitBaseAndInjection);
++    if(path==0)s->preBaseDirectoryReady=0; // Legal cold/restart cache-miss fallback.
++    if(path!=0){
++        selectDirectory(r,kind);r->preBaseCellOffset[0]=0;r->cellParticleOffset[0]=0;
++        int offset=0;
++        for(int c=0;c<4;c++){
++            r->preBaseCellOffset[c+1]=r->preBaseCellOffset[c]+initial[c];
++            const int count=path==2?high[c]-initial[c]:0;
++            for(int j=0;j<count;j++){
++                const int i=baseN+offset+j;seedParticle(s,i,c);seedParticle(r,i,c);
++                r->sortedParticleIndex[offset+j]=i;
++            }
++            offset+=count;r->cellParticleOffset[c+1]=offset;
++        }
++        *s->particleCountDevice=*r->particleCountDevice=baseN+offset;
++        *r->preBaseParticleCountDevice=baseN;
++    }
++    s->nBoundarySources=path==2?1:0;
++    s->schedulingAdvanceCount=inspect?2:1;
++    *s->deviceState=*s;*r->deviceState=*r;
++    const int beforeCounts=taskCountsLaunched,beforeWrites=taskWritesLaunched;
++    const bool reuse=gasHasBaseOnly&&path==1&&initiallyL2&&!inspect;
++    CsrReductionTask cached[128];
++    if(reuse)memcpy(cached,s->csrReductionTasks,128*sizeof(CsrReductionTask));
++    require(productionPreStage(s,block)==0,"actual pre-directory -> auto production entry");finish();
++    const int wantBuilds=(initiallyL2&&!(gasHasBaseOnly&&path==1)?1:0)+(inspect?1:0);
++    printf("PRODUCTION path=%d scenario=%d block=%d builds=%d/%d want=%d\n",path,scenario,block,taskCountsLaunched-beforeCounts,taskWritesLaunched-beforeWrites,wantBuilds);
++    require(taskCountsLaunched-beforeCounts==wantBuilds&&taskWritesLaunched-beforeWrites==wantBuilds,
++        "unexpected production task rebuild: cached gas baseOnly must be reused on non-inspection steps");
++    if(reuse)require(memcmp(cached,s->csrReductionTasks,128*sizeof(CsrReductionTask))==0,"cached baseOnly descriptors were rewritten");
++    const bool active=initiallyL2||inspect;
++    require(s->csrHeavyReductionEnabled==int(active)&&s->deviceState->csrHeavyReductionEnabled==int(active),"production auto state mismatch");
++    if(active)validateTasks(s,kind,5,1);
++    consume(s,r,kind,block);
++    puts("PASS production compaction -> directory -> auto -> actual collision consumer");
++    return 0;
++}
+--- /dev/null
++++ b/tests/test_production_directory_cuda.py
+@@ -0,0 +1,24 @@
++"""Protect production entry classification, task reuse and compaction-to-consumer order.
++
++The fixture extracts the actual pre/compaction stages, executes real CUDA/CUB,
++and observes task-builder launches through a test-only linker wrapper.
++"""
++from pathlib import Path
++import subprocess,sys
++import pytest
++ROOT=Path(__file__).resolve().parents[1]
++@pytest.fixture(scope='module',params=[('gasUGKP',64),('FSH',64),('CHT',64),('CHT',32)],ids=['gas64','FSH64','CHT64','CHT32'])
++def consumer(request,tmp_path_factory):
++    if not Path('/usr/local/cuda/bin/nvcc').is_file():pytest.skip('CUDA compiler and device required')
++    app,bits=request.param;out=tmp_path_factory.mktemp(f'production-directory-{app}-{bits}')
++    q=subprocess.run([sys.executable,str(ROOT/'tests/fixtures/gas_auto/gas_auto_pool.py'),str(ROOT),str(out),app,str(bits),'production-directory'],capture_output=True,text=True,timeout=600)
++    assert q.returncode==0,q.stdout+q.stderr
++    return out/'gas_auto_pool'
++@pytest.mark.parametrize('block',[32,128])
++@pytest.mark.parametrize('scenario',[0,1,2,3],ids=['L2-skip','L2-inspect','L1-activate','L1-skip'])
++@pytest.mark.parametrize('path',[0,1,2],ids=['full-fallback','no-injection','injection'])
++def test_production_directory_then_auto_and_collision(consumer,path,scenario,block):
++    q=subprocess.run([str(consumer),str(path),str(scenario),str(block)],capture_output=True,text=True,timeout=120)
++    (consumer.parent/f'path-{path}-scenario-{scenario}-block-{block}.log').write_text(q.stdout+q.stderr)
++    assert q.returncode==0,q.stdout+q.stderr
++    assert 'PASS production compaction -> directory -> auto -> actual collision consumer' in q.stdout
+--- a/README.md
++++ b/README.md
+@@ -692,3 +692,5 @@
+ 本次自动调度恢复、最后三项代码清理及验证结果见 [2026-10-04 收尾验证](docs/development/auto-cleanup-20261004/README.md)。
+ 
+ `gasUGKP auto` 的任务计数与切档后任务准备已补充修复；实际碰撞池消费回归及完整测试集限制见 [gas auto 正确性修复](docs/development/gas-auto-correctness-20261004/README.md)。
++
++三应用的 full/split 目录准备与 auto 调用现统一为公共主机流程，gas 无注入正确选择 baseOnly 并复用任务。生产调用链、守恒矩对照和缓存复用验证见 [目录主机流程统一](docs/development/directory-host-unification-20261004/README.md)。
+--- a/docs/OPERATOR_MAINTENANCE_ZH.md
++++ b/docs/OPERATOR_MAINTENANCE_ZH.md
+@@ -16,7 +16,7 @@
+ 
+ ## 公共协议与字段
+ 
+-气相 Euler/RK、边界完成、图捕获流程由 `GpuGasAdvance.cuh` 维护；`GpuGasHostPolicy.cuh` 提供时间、权重精度和壁能账本能力。packing 由 `GpuMobilePackingHost.cuh` 维护；thermal 的 bin/split host 流程由 `GpuParticleDirectoryHost.cuh` 维护。ToolB1 的 launch bundle、测量、选优及事件错误处理已有共同主体。诊断初始化和阶段计时由 `GpuDevelopmentProbeInit.cuh` / `GpuDevelopmentAdvanceProbe.cuh` 维护，FSH/CHT 采样收集由 `GpuDevelopmentThermalProbeSample.cuh` 维护；精度转换和 gas 专有采样字段保留明确的编译期边界。
++气相 Euler/RK、边界完成、图捕获流程由 `GpuGasAdvance.cuh` 维护；`GpuGasHostPolicy.cuh` 提供时间、权重精度和壁能账本能力。packing 由 `GpuMobilePackingHost.cuh` 维护；三个应用的 full/split host 流程由 `GpuParticleDirectoryHost.cuh` 维护；`GpuParticleDirectoryHostPolicy.cuh` 只适配目录能力、字段与核入口。gas 的 baseOnly 是独立的编译期可选能力，FSH/CHT 仍仅支持 full/split。ToolB1 的 launch bundle、测量、选优及事件错误处理已有共同主体。诊断初始化和阶段计时由 `GpuDevelopmentProbeInit.cuh` / `GpuDevelopmentAdvanceProbe.cuh` 维护，FSH/CHT 采样收集由 `GpuDevelopmentThermalProbeSample.cuh` 维护；精度转换和 gas 专有采样字段保留明确的编译期边界。
+ 
+ 入口宏必须满足 `GpuOperatorContract.cuh` 的必填、类型和有效组合检查。`GpuLaunchOptions.cuh` 为矩搬运/恢复提供不同类型的具名选项；历史 bool 包装只作为兼容入口。`GpuPressureFlatLayout.cuh` 命名 FP32 压力段和缓存槽，保持原布局。
+ 
+@@ -26,9 +26,9 @@
+ 
+ 这里的 CUDA 启动网格指 kernel 的线程块数量，与 blockMesh 物理网格无关。普通粒子和追踪 launch 由实际 kernel 占用率与容量决定，不受 L1/L2 规约选择影响。规约块 B3 仍由用户设置，任务 tile 仍按粒子总量、SM 数、规约占用率和 B3 推导。显式 L2 不会按估计盈利自动关闭；`gpuCsrLevel auto` 则复用现有占用阈值，在首步及每个 `gpuCsrHeavyReductionAutoInterval` 周期检查 L1/L2 归约选择（默认100步，必须为正）。auto不是研究层级，研究接口仍关闭。
+ 
+-auto 的检查周期、占用统计、严格大于阈值的判定、决策发布和任务就绪保障由 `common/GpuAutomaticCsrSchedule.cuh` 维护。三个应用的 `runToolB3` 只适配目录和硬件策略参数。状态字段统一在 `GpuAutomaticCsrScheduleFields.inl`：`csrMaximumOccupancy` 专用于统计；任务数、重载单元数和队列游标各有独立存储，不能相互借用。CHT 的壁能账本仍位于状态首地址。
++auto 的检查周期、占用统计、严格大于阈值的判定、决策发布和任务就绪保障由 `common/GpuAutomaticCsrSchedule.cuh` 维护。三个应用的生产入口统一调用 `prepareParticleDirectoryAndSchedule`，依次准备目录、按当前目录选择类型、执行公共 auto 并保证任务就绪。`runToolB3` 保留为检查工具入口，生产不再自行拼接目录判断与 auto 调用。状态字段统一在 `GpuAutomaticCsrScheduleFields.inl`：`csrMaximumOccupancy` 专用于统计；任务数、重载单元数和队列游标各有独立存储，不能相互借用。CHT 的壁能账本仍位于状态首地址。
+ 
+-公共任务生产者每次都先使 `csrTasksReady` 失效，即使此前处于L1；成功排入当前目录的 count/scan/materialize 后才置为就绪，并记录目录类型。auto 检查更新阈值后重新准备任务；非检查步使用目录生产者刚准备好的任务，遇到未就绪或目录类型变化则补建。返回错误时调用方必须终止推进，不能继续消费任务。任务在同一CUDA流中排在消费者前面，未增加每步主机同步或重复扫描。
++full/split 目录在修改前先使 `csrTasksReady` 失效；公共任务生产者同样先使其失效，即使此前处于L1；成功排入当前目录的 count/scan/materialize 后才置为就绪，并记录目录类型。auto 检查更新阈值后重新准备任务；非检查步使用目录生产者刚准备好的任务，遇到未就绪或目录类型变化则补建。返回错误时调用方必须终止推进，不能继续消费任务。任务在同一CUDA流中排在消费者前面。gas 无注入时保留压缩完成后建立的 baseOnly 描述符和目录标签；非检查步既不改写描述符，也不重新执行 count/scan/materialize。auto 检查步仍按原流程更新阈值并重建。FSH/CHT 的无注入 split 仍使用原来的逻辑目录，不新增直接 baseOnly 路径。
+ 
+ 同一状态转换及实际碰撞池消费者夹具覆盖 gasUGKP64、FSH64、CHT64、CHT32，运行 `python3 -B -m pytest -q tests/test_shared_auto_schedule.py tests/test_gas_auto_pool_cuda.py tests/test_thermal_auto_pool_cuda.py`。统计判据仍是 `GpuHardwareReductionTile.cuh` 的硬件公式，未添加工况参数；效率评估必须计入检查周期上的任务准备成本。
+ 
+@@ -53,3 +53,5 @@
+ 本文件是当前维护入口；早期性能结果是历史阶段记录。当前收尾验证见 [自动调度及清理验证](development/auto-cleanup-20261004/README.md)，前一阶段的六项合并见 [算子合并验证](development/operator-unification-20261004/README.md)。
+ 
+ 本轮 gas auto 正确性修复及三应用公共流程验证见 [auto 正确性与公共协议](development/gas-auto-correctness-20261004/README.md)。
++
++生产压缩 → 下一步目录选择 → auto → 实际碰撞归约回归见 [目录主机流程统一验证](development/directory-host-unification-20261004/README.md)。运行 `python3 -B -m pytest -q tests/test_production_directory_cuda.py`；夹具从实际生产函数提取这两个阶段，并在测试二进制中追踪任务构建核启动次数，生产库无需计数或计时代码。
+--- a/tests/test_host_protocol_ownership.py
++++ b/tests/test_host_protocol_ownership.py
+@@ -21,8 +21,9 @@
+     "finaliseGasBoundaryStage": ("gas", "fsh", "cht"),
+     "advancePureGasGraph": ("gas", "fsh", "cht"),
+     "applyMobilePackingProjection": ("gas", "fsh", "cht"),
+-    "binParticlesByCell": ("fsh", "cht"),
+-    "buildSplitPreDirectory": ("fsh", "cht"),
++    "binParticlesByCell": ("gas", "fsh", "cht"),
++    "preparePreTransportParticleDirectory": ("gas", "fsh", "cht"),
++    "prepareParticleDirectoryAndSchedule": ("gas", "fsh", "cht"),
+     "launchToolB1CellBundle": ("gas", "fsh", "cht"),
+     "launchToolB1FaceBundle": ("gas", "fsh", "cht"),
+ }
+--- a/applications/gasUGKP/tests/test_cpcst_compaction_dpre_contract.py
++++ b/applications/gasUGKP/tests/test_cpcst_compaction_dpre_contract.py
+@@ -75,7 +75,9 @@
+         self.assertIn("prepareSourceFreeSplitPreDirectory", prepare)
+         self.assertIn("cellParticleOffset", source_free)
+         self.assertIn("preInjectionSegmentActive = 0", source_free)
+-        self.assertIn("preInjectionSegmentActive = 1", prepare)
++        select = function_block(CUDA, "selectParticleDirectory")
++        self.assertIn("selectParticleDirectory(s, true)", prepare)
++        self.assertIn("preInjectionSegmentActive = split ? 1 : 0", select)
+         self.assertIn("if (s->preInjectionSegmentActive != 0)", split_light)
+         self.assertIn("launchCsrSegmentedPoolReduction", split_heavy)
+         self.assertIn("HeavyDirectoryKind::baseOnly", CUDA)
+@@ -186,15 +188,20 @@
+         self.assertIn("preBaseCellOffset", capture)
+ 
+         advance = function_block(CUDA, "ugkwpGpuResidentStrictAdvance")
+-        self.assertIn("preparePreTransportParticleDirectory", advance)
++        self.assertIn("prepareParticleDirectoryAndSchedule", advance)
++        host = (ROOT / "../../common/GpuParticleDirectoryHost.cuh").read_text()
++        entry = function_block(host, "prepareParticleDirectoryAndSchedule")
++        self.assertLess(entry.index("preparePreTransportParticleDirectory"), entry.index("runAutomaticCsrSchedule"))
+         self.assertIn("captureCompactedPreBaseOffsetsKernel", advance)
+         post_marker = advance.index("UGKP_DEV_PROBE_ENTER(ProbeBinPost)")
+         post_region = advance[post_marker : post_marker + 600]
+         self.assertIn("binParticlesByCell", post_region)
+-        full_bin = function_block(CUDA, "binParticlesByCell")
++        full_bin = function_block(host, "binParticlesByCell")
+         self.assertIn("countParticlesByCellKernel", full_bin)
+         self.assertIn("scatterParticlesByCellKernel", full_bin)
+-        self.assertIn("prepareCsrHeavyReductionTasks", full_bin)
++        self.assertIn("prepareParticleDirectoryTasks(s, block, fullParticleDirectoryKind())", full_bin)
++        tasks = function_block(CUDA, "prepareParticleDirectoryTasks")
++        self.assertIn("prepareCsrSegmentedReductionTasks", tasks)
+ 
+     def test_probe_csv_header_matches_the_thirteen_emitted_stages(self) -> None:
+         header = function_block(CUDA, "writeDevelopmentProbeHeader")
+--- a/applications/gasUGKP/tests/test_split_pre_runtime_contract.py
++++ b/applications/gasUGKP/tests/test_split_pre_runtime_contract.py
+@@ -48,8 +48,12 @@
+     assert "a.csrSplitPreDirectoryEnabled != 0" in server
+     assert validation in cuda
+     assert "s->csrSplitPreDirectoryEnabled = csrSplitPreDirectoryEnabled;" in cuda
+-    prepare = cuda.index("int preparePreTransportParticleDirectory")
+-    full = cuda.index("return binParticlesByCell(s, block);", prepare)
+-    split_ready = cuda.index("if (s->preBaseDirectoryReady == 0)", prepare)
+-    assert "if (s->csrSplitPreDirectoryEnabled == 0)" in cuda[prepare:full]
+-    assert full < split_ready
++    common = read("../../common/GpuParticleDirectoryHost.cuh")
++    policy = read("../../common/GpuParticleDirectoryHostPolicy.cuh")
++    prepare = common.index("int preparePreTransportParticleDirectory")
++    full = common.index("return binParticlesByCell(s, block);", prepare)
++    split_work = common.index("const int cellGrid", full)
++    assert "!splitParticleDirectoryEnabled(s)" in common[prepare:full]
++    assert "s->preBaseDirectoryReady == 0" in common[prepare:full]
++    assert "return s->csrSplitPreDirectoryEnabled != 0;" in policy
++    assert full < split_work
+--- a/applications/FSH/tests/test_upgrade_contract.py
++++ b/applications/FSH/tests/test_upgrade_contract.py
+@@ -61,6 +61,7 @@
+     assert '"gpuParticleBlockThreads"' in scheduling
+     assert '"gpuReductionBlockThreads"' in scheduling
+     assert '"gpuCsrHeavyReductionAutoInterval"' in scheduling
++    cuda += source("../../common/GpuParticleDirectoryHost.cuh")
+     for token in ("preBaseCellOffset", "preBaseDirectoryReady", "buildSplitPreDirectory", "buildPostTransportDirectory", "dynamicHeavyThreshold"):
+         assert token in cuda
+     assert "occupancy" in cuda.lower()

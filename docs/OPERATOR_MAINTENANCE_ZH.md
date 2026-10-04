@@ -16,7 +16,7 @@ python3 tools/operator_policy_contract_test.py
 
 ## 公共协议与字段
 
-气相 Euler/RK、边界完成、图捕获流程由 `GpuGasAdvance.cuh` 维护；`GpuGasHostPolicy.cuh` 提供时间、权重精度和壁能账本能力。packing 由 `GpuMobilePackingHost.cuh` 维护；thermal 的 bin/split host 流程由 `GpuParticleDirectoryHost.cuh` 维护。ToolB1 的 launch bundle、测量、选优及事件错误处理已有共同主体。诊断初始化和阶段计时由 `GpuDevelopmentProbeInit.cuh` / `GpuDevelopmentAdvanceProbe.cuh` 维护，FSH/CHT 采样收集由 `GpuDevelopmentThermalProbeSample.cuh` 维护；精度转换和 gas 专有采样字段保留明确的编译期边界。
+气相 Euler/RK、边界完成、图捕获流程由 `GpuGasAdvance.cuh` 维护；`GpuGasHostPolicy.cuh` 提供时间、权重精度和壁能账本能力。packing 由 `GpuMobilePackingHost.cuh` 维护；三个应用的 full/split host 流程由 `GpuParticleDirectoryHost.cuh` 维护；`GpuParticleDirectoryHostPolicy.cuh` 只适配目录能力、字段与核入口。gas 的 baseOnly 是独立的编译期可选能力，FSH/CHT 仍仅支持 full/split。ToolB1 的 launch bundle、测量、选优及事件错误处理已有共同主体。诊断初始化和阶段计时由 `GpuDevelopmentProbeInit.cuh` / `GpuDevelopmentAdvanceProbe.cuh` 维护，FSH/CHT 采样收集由 `GpuDevelopmentThermalProbeSample.cuh` 维护；精度转换和 gas 专有采样字段保留明确的编译期边界。
 
 入口宏必须满足 `GpuOperatorContract.cuh` 的必填、类型和有效组合检查。`GpuLaunchOptions.cuh` 为矩搬运/恢复提供不同类型的具名选项；历史 bool 包装只作为兼容入口。`GpuPressureFlatLayout.cuh` 命名 FP32 压力段和缓存槽，保持原布局。
 
@@ -26,9 +26,9 @@ python3 tools/operator_policy_contract_test.py
 
 这里的 CUDA 启动网格指 kernel 的线程块数量，与 blockMesh 物理网格无关。普通粒子和追踪 launch 由实际 kernel 占用率与容量决定，不受 L1/L2 规约选择影响。规约块 B3 仍由用户设置，任务 tile 仍按粒子总量、SM 数、规约占用率和 B3 推导。显式 L2 不会按估计盈利自动关闭；`gpuCsrLevel auto` 则复用现有占用阈值，在首步及每个 `gpuCsrHeavyReductionAutoInterval` 周期检查 L1/L2 归约选择（默认100步，必须为正）。auto不是研究层级，研究接口仍关闭。
 
-auto 的检查周期、占用统计、严格大于阈值的判定、决策发布和任务就绪保障由 `common/GpuAutomaticCsrSchedule.cuh` 维护。三个应用的 `runToolB3` 只适配目录和硬件策略参数。状态字段统一在 `GpuAutomaticCsrScheduleFields.inl`：`csrMaximumOccupancy` 专用于统计；任务数、重载单元数和队列游标各有独立存储，不能相互借用。CHT 的壁能账本仍位于状态首地址。
+auto 的检查周期、占用统计、严格大于阈值的判定、决策发布和任务就绪保障由 `common/GpuAutomaticCsrSchedule.cuh` 维护。三个应用的生产入口统一调用 `prepareParticleDirectoryAndSchedule`，依次准备目录、按当前目录选择类型、执行公共 auto 并保证任务就绪。`runToolB3` 保留为检查工具入口，生产不再自行拼接目录判断与 auto 调用。状态字段统一在 `GpuAutomaticCsrScheduleFields.inl`：`csrMaximumOccupancy` 专用于统计；任务数、重载单元数和队列游标各有独立存储，不能相互借用。CHT 的壁能账本仍位于状态首地址。
 
-公共任务生产者每次都先使 `csrTasksReady` 失效，即使此前处于L1；成功排入当前目录的 count/scan/materialize 后才置为就绪，并记录目录类型。auto 检查更新阈值后重新准备任务；非检查步使用目录生产者刚准备好的任务，遇到未就绪或目录类型变化则补建。返回错误时调用方必须终止推进，不能继续消费任务。任务在同一CUDA流中排在消费者前面，未增加每步主机同步或重复扫描。
+full/split 目录在修改前先使 `csrTasksReady` 失效；公共任务生产者同样先使其失效，即使此前处于L1；成功排入当前目录的 count/scan/materialize 后才置为就绪，并记录目录类型。auto 检查更新阈值后重新准备任务；非检查步使用目录生产者刚准备好的任务，遇到未就绪或目录类型变化则补建。返回错误时调用方必须终止推进，不能继续消费任务。任务在同一CUDA流中排在消费者前面。gas 无注入时保留压缩完成后建立的 baseOnly 描述符和目录标签；非检查步既不改写描述符，也不重新执行 count/scan/materialize。auto 检查步仍按原流程更新阈值并重建。FSH/CHT 的无注入 split 仍使用原来的逻辑目录，不新增直接 baseOnly 路径。
 
 同一状态转换及实际碰撞池消费者夹具覆盖 gasUGKP64、FSH64、CHT64、CHT32，运行 `python3 -B -m pytest -q tests/test_shared_auto_schedule.py tests/test_gas_auto_pool_cuda.py tests/test_thermal_auto_pool_cuda.py`。统计判据仍是 `GpuHardwareReductionTile.cuh` 的硬件公式，未添加工况参数；效率评估必须计入检查周期上的任务准备成本。
 
@@ -53,3 +53,5 @@ thermal固定L0/L1/L2与auto选择模式由 `common/GpuSchedulingConfiguration.H
 本文件是当前维护入口；早期性能结果是历史阶段记录。当前收尾验证见 [自动调度及清理验证](development/auto-cleanup-20261004/README.md)，前一阶段的六项合并见 [算子合并验证](development/operator-unification-20261004/README.md)。
 
 本轮 gas auto 正确性修复及三应用公共流程验证见 [auto 正确性与公共协议](development/gas-auto-correctness-20261004/README.md)。
+
+生产压缩 → 下一步目录选择 → auto → 实际碰撞归约回归见 [目录主机流程统一验证](development/directory-host-unification-20261004/README.md)。运行 `python3 -B -m pytest -q tests/test_production_directory_cuda.py`；夹具从实际生产函数提取这两个阶段，并在测试二进制中追踪任务构建核启动次数，生产库无需计数或计时代码。

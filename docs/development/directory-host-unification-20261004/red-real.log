@@ -1,0 +1,659 @@
+........FFFFFF.......................................................... [ 75%]
+EEEEEEEEEEEEEEEEEEEEEEEE                                                 [100%]
+==================================== ERRORS ====================================
+_ ERROR at setup of test_production_directory_then_auto_and_collision[CHT32-full-fallback-L2-skip-32] _
+
+request = <SubRequest 'consumer' for <Function test_production_directory_then_auto_and_collision[CHT32-full-fallback-L2-skip-32]>>
+tmp_path_factory = TempPathFactory(_given_basetemp=PosixPath('/home/lss/ugkp-directory-host-unification-20261004/red-real'), _trace=<plug...racerSub object at 0x723f48b69bd0>, _basetemp=PosixPath('/home/lss/ugkp-directory-host-unification-20261004/red-real'))
+
+    @pytest.fixture(scope='module',params=[('gasUGKP',64),('FSH',64),('CHT',64),('CHT',32)],ids=['gas64','FSH64','CHT64','CHT32'])
+    def consumer(request,tmp_path_factory):
+        if not Path('/usr/local/cuda/bin/nvcc').is_file():pytest.skip('CUDA compiler and device required')
+        app,bits=request.param;out=tmp_path_factory.mktemp(f'production-directory-{app}-{bits}')
+        q=subprocess.run([sys.executable,str(ROOT/'tests/fixtures/gas_auto/gas_auto_pool.py'),str(ROOT),str(out),app,str(bits),'production-directory'],capture_output=True,text=True,timeout=600)
+>       assert q.returncode==0,q.stdout+q.stderr
+E       AssertionError: Traceback (most recent call last):
+E           File "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/tests/fixtures/gas_auto/gas_auto_pool.py", line 55, in <module>
+E             assert q.returncode==0,(out/'build.log').read_text()[-6000:]
+E         AssertionError: Segmentation fault (core dumped)
+E         
+E         
+E       assert 1 == 0
+E        +  where 1 = CompletedProcess(args=['/usr/bin/python3', '/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/tests/fix... assert q.returncode==0,(out/\'build.log\').read_text()[-6000:]\nAssertionError: Segmentation fault (core dumped)\n\n').returncode
+
+tests/test_production_directory_cuda.py:15: AssertionError
+_ ERROR at setup of test_production_directory_then_auto_and_collision[CHT32-full-fallback-L2-skip-128] _
+
+request = <SubRequest 'consumer' for <Function test_production_directory_then_auto_and_collision[CHT32-full-fallback-L2-skip-32]>>
+tmp_path_factory = TempPathFactory(_given_basetemp=PosixPath('/home/lss/ugkp-directory-host-unification-20261004/red-real'), _trace=<plug...racerSub object at 0x723f48b69bd0>, _basetemp=PosixPath('/home/lss/ugkp-directory-host-unification-20261004/red-real'))
+
+    @pytest.fixture(scope='module',params=[('gasUGKP',64),('FSH',64),('CHT',64),('CHT',32)],ids=['gas64','FSH64','CHT64','CHT32'])
+    def consumer(request,tmp_path_factory):
+        if not Path('/usr/local/cuda/bin/nvcc').is_file():pytest.skip('CUDA compiler and device required')
+        app,bits=request.param;out=tmp_path_factory.mktemp(f'production-directory-{app}-{bits}')
+        q=subprocess.run([sys.executable,str(ROOT/'tests/fixtures/gas_auto/gas_auto_pool.py'),str(ROOT),str(out),app,str(bits),'production-directory'],capture_output=True,text=True,timeout=600)
+>       assert q.returncode==0,q.stdout+q.stderr
+E       AssertionError: Traceback (most recent call last):
+E           File "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/tests/fixtures/gas_auto/gas_auto_pool.py", line 55, in <module>
+E             assert q.returncode==0,(out/'build.log').read_text()[-6000:]
+E         AssertionError: Segmentation fault (core dumped)
+E         
+E         
+E       assert 1 == 0
+E        +  where 1 = CompletedProcess(args=['/usr/bin/python3', '/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/tests/fix... assert q.returncode==0,(out/\'build.log\').read_text()[-6000:]\nAssertionError: Segmentation fault (core dumped)\n\n').returncode
+
+tests/test_production_directory_cuda.py:15: AssertionError
+_ ERROR at setup of test_production_directory_then_auto_and_collision[CHT32-full-fallback-L2-inspect-32] _
+
+request = <SubRequest 'consumer' for <Function test_production_directory_then_auto_and_collision[CHT32-full-fallback-L2-skip-32]>>
+tmp_path_factory = TempPathFactory(_given_basetemp=PosixPath('/home/lss/ugkp-directory-host-unification-20261004/red-real'), _trace=<plug...racerSub object at 0x723f48b69bd0>, _basetemp=PosixPath('/home/lss/ugkp-directory-host-unification-20261004/red-real'))
+
+    @pytest.fixture(scope='module',params=[('gasUGKP',64),('FSH',64),('CHT',64),('CHT',32)],ids=['gas64','FSH64','CHT64','CHT32'])
+    def consumer(request,tmp_path_factory):
+        if not Path('/usr/local/cuda/bin/nvcc').is_file():pytest.skip('CUDA compiler and device required')
+        app,bits=request.param;out=tmp_path_factory.mktemp(f'production-directory-{app}-{bits}')
+        q=subprocess.run([sys.executable,str(ROOT/'tests/fixtures/gas_auto/gas_auto_pool.py'),str(ROOT),str(out),app,str(bits),'production-directory'],capture_output=True,text=True,timeout=600)
+>       assert q.returncode==0,q.stdout+q.stderr
+E       AssertionError: Traceback (most recent call last):
+E           File "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/tests/fixtures/gas_auto/gas_auto_pool.py", line 55, in <module>
+E             assert q.returncode==0,(out/'build.log').read_text()[-6000:]
+E         AssertionError: Segmentation fault (core dumped)
+E         
+E         
+E       assert 1 == 0
+E        +  where 1 = CompletedProcess(args=['/usr/bin/python3', '/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/tests/fix... assert q.returncode==0,(out/\'build.log\').read_text()[-6000:]\nAssertionError: Segmentation fault (core dumped)\n\n').returncode
+
+tests/test_production_directory_cuda.py:15: AssertionError
+_ ERROR at setup of test_production_directory_then_auto_and_collision[CHT32-full-fallback-L2-inspect-128] _
+
+request = <SubRequest 'consumer' for <Function test_production_directory_then_auto_and_collision[CHT32-full-fallback-L2-skip-32]>>
+tmp_path_factory = TempPathFactory(_given_basetemp=PosixPath('/home/lss/ugkp-directory-host-unification-20261004/red-real'), _trace=<plug...racerSub object at 0x723f48b69bd0>, _basetemp=PosixPath('/home/lss/ugkp-directory-host-unification-20261004/red-real'))
+
+    @pytest.fixture(scope='module',params=[('gasUGKP',64),('FSH',64),('CHT',64),('CHT',32)],ids=['gas64','FSH64','CHT64','CHT32'])
+    def consumer(request,tmp_path_factory):
+        if not Path('/usr/local/cuda/bin/nvcc').is_file():pytest.skip('CUDA compiler and device required')
+        app,bits=request.param;out=tmp_path_factory.mktemp(f'production-directory-{app}-{bits}')
+        q=subprocess.run([sys.executable,str(ROOT/'tests/fixtures/gas_auto/gas_auto_pool.py'),str(ROOT),str(out),app,str(bits),'production-directory'],capture_output=True,text=True,timeout=600)
+>       assert q.returncode==0,q.stdout+q.stderr
+E       AssertionError: Traceback (most recent call last):
+E           File "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/tests/fixtures/gas_auto/gas_auto_pool.py", line 55, in <module>
+E             assert q.returncode==0,(out/'build.log').read_text()[-6000:]
+E         AssertionError: Segmentation fault (core dumped)
+E         
+E         
+E       assert 1 == 0
+E        +  where 1 = CompletedProcess(args=['/usr/bin/python3', '/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/tests/fix... assert q.returncode==0,(out/\'build.log\').read_text()[-6000:]\nAssertionError: Segmentation fault (core dumped)\n\n').returncode
+
+tests/test_production_directory_cuda.py:15: AssertionError
+_ ERROR at setup of test_production_directory_then_auto_and_collision[CHT32-full-fallback-L1-activate-32] _
+
+request = <SubRequest 'consumer' for <Function test_production_directory_then_auto_and_collision[CHT32-full-fallback-L2-skip-32]>>
+tmp_path_factory = TempPathFactory(_given_basetemp=PosixPath('/home/lss/ugkp-directory-host-unification-20261004/red-real'), _trace=<plug...racerSub object at 0x723f48b69bd0>, _basetemp=PosixPath('/home/lss/ugkp-directory-host-unification-20261004/red-real'))
+
+    @pytest.fixture(scope='module',params=[('gasUGKP',64),('FSH',64),('CHT',64),('CHT',32)],ids=['gas64','FSH64','CHT64','CHT32'])
+    def consumer(request,tmp_path_factory):
+        if not Path('/usr/local/cuda/bin/nvcc').is_file():pytest.skip('CUDA compiler and device required')
+        app,bits=request.param;out=tmp_path_factory.mktemp(f'production-directory-{app}-{bits}')
+        q=subprocess.run([sys.executable,str(ROOT/'tests/fixtures/gas_auto/gas_auto_pool.py'),str(ROOT),str(out),app,str(bits),'production-directory'],capture_output=True,text=True,timeout=600)
+>       assert q.returncode==0,q.stdout+q.stderr
+E       AssertionError: Traceback (most recent call last):
+E           File "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/tests/fixtures/gas_auto/gas_auto_pool.py", line 55, in <module>
+E             assert q.returncode==0,(out/'build.log').read_text()[-6000:]
+E         AssertionError: Segmentation fault (core dumped)
+E         
+E         
+E       assert 1 == 0
+E        +  where 1 = CompletedProcess(args=['/usr/bin/python3', '/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/tests/fix... assert q.returncode==0,(out/\'build.log\').read_text()[-6000:]\nAssertionError: Segmentation fault (core dumped)\n\n').returncode
+
+tests/test_production_directory_cuda.py:15: AssertionError
+_ ERROR at setup of test_production_directory_then_auto_and_collision[CHT32-full-fallback-L1-activate-128] _
+
+request = <SubRequest 'consumer' for <Function test_production_directory_then_auto_and_collision[CHT32-full-fallback-L2-skip-32]>>
+tmp_path_factory = TempPathFactory(_given_basetemp=PosixPath('/home/lss/ugkp-directory-host-unification-20261004/red-real'), _trace=<plug...racerSub object at 0x723f48b69bd0>, _basetemp=PosixPath('/home/lss/ugkp-directory-host-unification-20261004/red-real'))
+
+    @pytest.fixture(scope='module',params=[('gasUGKP',64),('FSH',64),('CHT',64),('CHT',32)],ids=['gas64','FSH64','CHT64','CHT32'])
+    def consumer(request,tmp_path_factory):
+        if not Path('/usr/local/cuda/bin/nvcc').is_file():pytest.skip('CUDA compiler and device required')
+        app,bits=request.param;out=tmp_path_factory.mktemp(f'production-directory-{app}-{bits}')
+        q=subprocess.run([sys.executable,str(ROOT/'tests/fixtures/gas_auto/gas_auto_pool.py'),str(ROOT),str(out),app,str(bits),'production-directory'],capture_output=True,text=True,timeout=600)
+>       assert q.returncode==0,q.stdout+q.stderr
+E       AssertionError: Traceback (most recent call last):
+E           File "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/tests/fixtures/gas_auto/gas_auto_pool.py", line 55, in <module>
+E             assert q.returncode==0,(out/'build.log').read_text()[-6000:]
+E         AssertionError: Segmentation fault (core dumped)
+E         
+E         
+E       assert 1 == 0
+E        +  where 1 = CompletedProcess(args=['/usr/bin/python3', '/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/tests/fix... assert q.returncode==0,(out/\'build.log\').read_text()[-6000:]\nAssertionError: Segmentation fault (core dumped)\n\n').returncode
+
+tests/test_production_directory_cuda.py:15: AssertionError
+_ ERROR at setup of test_production_directory_then_auto_and_collision[CHT32-full-fallback-L1-skip-32] _
+
+request = <SubRequest 'consumer' for <Function test_production_directory_then_auto_and_collision[CHT32-full-fallback-L2-skip-32]>>
+tmp_path_factory = TempPathFactory(_given_basetemp=PosixPath('/home/lss/ugkp-directory-host-unification-20261004/red-real'), _trace=<plug...racerSub object at 0x723f48b69bd0>, _basetemp=PosixPath('/home/lss/ugkp-directory-host-unification-20261004/red-real'))
+
+    @pytest.fixture(scope='module',params=[('gasUGKP',64),('FSH',64),('CHT',64),('CHT',32)],ids=['gas64','FSH64','CHT64','CHT32'])
+    def consumer(request,tmp_path_factory):
+        if not Path('/usr/local/cuda/bin/nvcc').is_file():pytest.skip('CUDA compiler and device required')
+        app,bits=request.param;out=tmp_path_factory.mktemp(f'production-directory-{app}-{bits}')
+        q=subprocess.run([sys.executable,str(ROOT/'tests/fixtures/gas_auto/gas_auto_pool.py'),str(ROOT),str(out),app,str(bits),'production-directory'],capture_output=True,text=True,timeout=600)
+>       assert q.returncode==0,q.stdout+q.stderr
+E       AssertionError: Traceback (most recent call last):
+E           File "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/tests/fixtures/gas_auto/gas_auto_pool.py", line 55, in <module>
+E             assert q.returncode==0,(out/'build.log').read_text()[-6000:]
+E         AssertionError: Segmentation fault (core dumped)
+E         
+E         
+E       assert 1 == 0
+E        +  where 1 = CompletedProcess(args=['/usr/bin/python3', '/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/tests/fix... assert q.returncode==0,(out/\'build.log\').read_text()[-6000:]\nAssertionError: Segmentation fault (core dumped)\n\n').returncode
+
+tests/test_production_directory_cuda.py:15: AssertionError
+_ ERROR at setup of test_production_directory_then_auto_and_collision[CHT32-full-fallback-L1-skip-128] _
+
+request = <SubRequest 'consumer' for <Function test_production_directory_then_auto_and_collision[CHT32-full-fallback-L2-skip-32]>>
+tmp_path_factory = TempPathFactory(_given_basetemp=PosixPath('/home/lss/ugkp-directory-host-unification-20261004/red-real'), _trace=<plug...racerSub object at 0x723f48b69bd0>, _basetemp=PosixPath('/home/lss/ugkp-directory-host-unification-20261004/red-real'))
+
+    @pytest.fixture(scope='module',params=[('gasUGKP',64),('FSH',64),('CHT',64),('CHT',32)],ids=['gas64','FSH64','CHT64','CHT32'])
+    def consumer(request,tmp_path_factory):
+        if not Path('/usr/local/cuda/bin/nvcc').is_file():pytest.skip('CUDA compiler and device required')
+        app,bits=request.param;out=tmp_path_factory.mktemp(f'production-directory-{app}-{bits}')
+        q=subprocess.run([sys.executable,str(ROOT/'tests/fixtures/gas_auto/gas_auto_pool.py'),str(ROOT),str(out),app,str(bits),'production-directory'],capture_output=True,text=True,timeout=600)
+>       assert q.returncode==0,q.stdout+q.stderr
+E       AssertionError: Traceback (most recent call last):
+E           File "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/tests/fixtures/gas_auto/gas_auto_pool.py", line 55, in <module>
+E             assert q.returncode==0,(out/'build.log').read_text()[-6000:]
+E         AssertionError: Segmentation fault (core dumped)
+E         
+E         
+E       assert 1 == 0
+E        +  where 1 = CompletedProcess(args=['/usr/bin/python3', '/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/tests/fix... assert q.returncode==0,(out/\'build.log\').read_text()[-6000:]\nAssertionError: Segmentation fault (core dumped)\n\n').returncode
+
+tests/test_production_directory_cuda.py:15: AssertionError
+_ ERROR at setup of test_production_directory_then_auto_and_collision[CHT32-no-injection-L2-skip-32] _
+
+request = <SubRequest 'consumer' for <Function test_production_directory_then_auto_and_collision[CHT32-full-fallback-L2-skip-32]>>
+tmp_path_factory = TempPathFactory(_given_basetemp=PosixPath('/home/lss/ugkp-directory-host-unification-20261004/red-real'), _trace=<plug...racerSub object at 0x723f48b69bd0>, _basetemp=PosixPath('/home/lss/ugkp-directory-host-unification-20261004/red-real'))
+
+    @pytest.fixture(scope='module',params=[('gasUGKP',64),('FSH',64),('CHT',64),('CHT',32)],ids=['gas64','FSH64','CHT64','CHT32'])
+    def consumer(request,tmp_path_factory):
+        if not Path('/usr/local/cuda/bin/nvcc').is_file():pytest.skip('CUDA compiler and device required')
+        app,bits=request.param;out=tmp_path_factory.mktemp(f'production-directory-{app}-{bits}')
+        q=subprocess.run([sys.executable,str(ROOT/'tests/fixtures/gas_auto/gas_auto_pool.py'),str(ROOT),str(out),app,str(bits),'production-directory'],capture_output=True,text=True,timeout=600)
+>       assert q.returncode==0,q.stdout+q.stderr
+E       AssertionError: Traceback (most recent call last):
+E           File "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/tests/fixtures/gas_auto/gas_auto_pool.py", line 55, in <module>
+E             assert q.returncode==0,(out/'build.log').read_text()[-6000:]
+E         AssertionError: Segmentation fault (core dumped)
+E         
+E         
+E       assert 1 == 0
+E        +  where 1 = CompletedProcess(args=['/usr/bin/python3', '/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/tests/fix... assert q.returncode==0,(out/\'build.log\').read_text()[-6000:]\nAssertionError: Segmentation fault (core dumped)\n\n').returncode
+
+tests/test_production_directory_cuda.py:15: AssertionError
+_ ERROR at setup of test_production_directory_then_auto_and_collision[CHT32-no-injection-L2-skip-128] _
+
+request = <SubRequest 'consumer' for <Function test_production_directory_then_auto_and_collision[CHT32-full-fallback-L2-skip-32]>>
+tmp_path_factory = TempPathFactory(_given_basetemp=PosixPath('/home/lss/ugkp-directory-host-unification-20261004/red-real'), _trace=<plug...racerSub object at 0x723f48b69bd0>, _basetemp=PosixPath('/home/lss/ugkp-directory-host-unification-20261004/red-real'))
+
+    @pytest.fixture(scope='module',params=[('gasUGKP',64),('FSH',64),('CHT',64),('CHT',32)],ids=['gas64','FSH64','CHT64','CHT32'])
+    def consumer(request,tmp_path_factory):
+        if not Path('/usr/local/cuda/bin/nvcc').is_file():pytest.skip('CUDA compiler and device required')
+        app,bits=request.param;out=tmp_path_factory.mktemp(f'production-directory-{app}-{bits}')
+        q=subprocess.run([sys.executable,str(ROOT/'tests/fixtures/gas_auto/gas_auto_pool.py'),str(ROOT),str(out),app,str(bits),'production-directory'],capture_output=True,text=True,timeout=600)
+>       assert q.returncode==0,q.stdout+q.stderr
+E       AssertionError: Traceback (most recent call last):
+E           File "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/tests/fixtures/gas_auto/gas_auto_pool.py", line 55, in <module>
+E             assert q.returncode==0,(out/'build.log').read_text()[-6000:]
+E         AssertionError: Segmentation fault (core dumped)
+E         
+E         
+E       assert 1 == 0
+E        +  where 1 = CompletedProcess(args=['/usr/bin/python3', '/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/tests/fix... assert q.returncode==0,(out/\'build.log\').read_text()[-6000:]\nAssertionError: Segmentation fault (core dumped)\n\n').returncode
+
+tests/test_production_directory_cuda.py:15: AssertionError
+_ ERROR at setup of test_production_directory_then_auto_and_collision[CHT32-no-injection-L2-inspect-32] _
+
+request = <SubRequest 'consumer' for <Function test_production_directory_then_auto_and_collision[CHT32-full-fallback-L2-skip-32]>>
+tmp_path_factory = TempPathFactory(_given_basetemp=PosixPath('/home/lss/ugkp-directory-host-unification-20261004/red-real'), _trace=<plug...racerSub object at 0x723f48b69bd0>, _basetemp=PosixPath('/home/lss/ugkp-directory-host-unification-20261004/red-real'))
+
+    @pytest.fixture(scope='module',params=[('gasUGKP',64),('FSH',64),('CHT',64),('CHT',32)],ids=['gas64','FSH64','CHT64','CHT32'])
+    def consumer(request,tmp_path_factory):
+        if not Path('/usr/local/cuda/bin/nvcc').is_file():pytest.skip('CUDA compiler and device required')
+        app,bits=request.param;out=tmp_path_factory.mktemp(f'production-directory-{app}-{bits}')
+        q=subprocess.run([sys.executable,str(ROOT/'tests/fixtures/gas_auto/gas_auto_pool.py'),str(ROOT),str(out),app,str(bits),'production-directory'],capture_output=True,text=True,timeout=600)
+>       assert q.returncode==0,q.stdout+q.stderr
+E       AssertionError: Traceback (most recent call last):
+E           File "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/tests/fixtures/gas_auto/gas_auto_pool.py", line 55, in <module>
+E             assert q.returncode==0,(out/'build.log').read_text()[-6000:]
+E         AssertionError: Segmentation fault (core dumped)
+E         
+E         
+E       assert 1 == 0
+E        +  where 1 = CompletedProcess(args=['/usr/bin/python3', '/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/tests/fix... assert q.returncode==0,(out/\'build.log\').read_text()[-6000:]\nAssertionError: Segmentation fault (core dumped)\n\n').returncode
+
+tests/test_production_directory_cuda.py:15: AssertionError
+_ ERROR at setup of test_production_directory_then_auto_and_collision[CHT32-no-injection-L2-inspect-128] _
+
+request = <SubRequest 'consumer' for <Function test_production_directory_then_auto_and_collision[CHT32-full-fallback-L2-skip-32]>>
+tmp_path_factory = TempPathFactory(_given_basetemp=PosixPath('/home/lss/ugkp-directory-host-unification-20261004/red-real'), _trace=<plug...racerSub object at 0x723f48b69bd0>, _basetemp=PosixPath('/home/lss/ugkp-directory-host-unification-20261004/red-real'))
+
+    @pytest.fixture(scope='module',params=[('gasUGKP',64),('FSH',64),('CHT',64),('CHT',32)],ids=['gas64','FSH64','CHT64','CHT32'])
+    def consumer(request,tmp_path_factory):
+        if not Path('/usr/local/cuda/bin/nvcc').is_file():pytest.skip('CUDA compiler and device required')
+        app,bits=request.param;out=tmp_path_factory.mktemp(f'production-directory-{app}-{bits}')
+        q=subprocess.run([sys.executable,str(ROOT/'tests/fixtures/gas_auto/gas_auto_pool.py'),str(ROOT),str(out),app,str(bits),'production-directory'],capture_output=True,text=True,timeout=600)
+>       assert q.returncode==0,q.stdout+q.stderr
+E       AssertionError: Traceback (most recent call last):
+E           File "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/tests/fixtures/gas_auto/gas_auto_pool.py", line 55, in <module>
+E             assert q.returncode==0,(out/'build.log').read_text()[-6000:]
+E         AssertionError: Segmentation fault (core dumped)
+E         
+E         
+E       assert 1 == 0
+E        +  where 1 = CompletedProcess(args=['/usr/bin/python3', '/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/tests/fix... assert q.returncode==0,(out/\'build.log\').read_text()[-6000:]\nAssertionError: Segmentation fault (core dumped)\n\n').returncode
+
+tests/test_production_directory_cuda.py:15: AssertionError
+_ ERROR at setup of test_production_directory_then_auto_and_collision[CHT32-no-injection-L1-activate-32] _
+
+request = <SubRequest 'consumer' for <Function test_production_directory_then_auto_and_collision[CHT32-full-fallback-L2-skip-32]>>
+tmp_path_factory = TempPathFactory(_given_basetemp=PosixPath('/home/lss/ugkp-directory-host-unification-20261004/red-real'), _trace=<plug...racerSub object at 0x723f48b69bd0>, _basetemp=PosixPath('/home/lss/ugkp-directory-host-unification-20261004/red-real'))
+
+    @pytest.fixture(scope='module',params=[('gasUGKP',64),('FSH',64),('CHT',64),('CHT',32)],ids=['gas64','FSH64','CHT64','CHT32'])
+    def consumer(request,tmp_path_factory):
+        if not Path('/usr/local/cuda/bin/nvcc').is_file():pytest.skip('CUDA compiler and device required')
+        app,bits=request.param;out=tmp_path_factory.mktemp(f'production-directory-{app}-{bits}')
+        q=subprocess.run([sys.executable,str(ROOT/'tests/fixtures/gas_auto/gas_auto_pool.py'),str(ROOT),str(out),app,str(bits),'production-directory'],capture_output=True,text=True,timeout=600)
+>       assert q.returncode==0,q.stdout+q.stderr
+E       AssertionError: Traceback (most recent call last):
+E           File "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/tests/fixtures/gas_auto/gas_auto_pool.py", line 55, in <module>
+E             assert q.returncode==0,(out/'build.log').read_text()[-6000:]
+E         AssertionError: Segmentation fault (core dumped)
+E         
+E         
+E       assert 1 == 0
+E        +  where 1 = CompletedProcess(args=['/usr/bin/python3', '/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/tests/fix... assert q.returncode==0,(out/\'build.log\').read_text()[-6000:]\nAssertionError: Segmentation fault (core dumped)\n\n').returncode
+
+tests/test_production_directory_cuda.py:15: AssertionError
+_ ERROR at setup of test_production_directory_then_auto_and_collision[CHT32-no-injection-L1-activate-128] _
+
+request = <SubRequest 'consumer' for <Function test_production_directory_then_auto_and_collision[CHT32-full-fallback-L2-skip-32]>>
+tmp_path_factory = TempPathFactory(_given_basetemp=PosixPath('/home/lss/ugkp-directory-host-unification-20261004/red-real'), _trace=<plug...racerSub object at 0x723f48b69bd0>, _basetemp=PosixPath('/home/lss/ugkp-directory-host-unification-20261004/red-real'))
+
+    @pytest.fixture(scope='module',params=[('gasUGKP',64),('FSH',64),('CHT',64),('CHT',32)],ids=['gas64','FSH64','CHT64','CHT32'])
+    def consumer(request,tmp_path_factory):
+        if not Path('/usr/local/cuda/bin/nvcc').is_file():pytest.skip('CUDA compiler and device required')
+        app,bits=request.param;out=tmp_path_factory.mktemp(f'production-directory-{app}-{bits}')
+        q=subprocess.run([sys.executable,str(ROOT/'tests/fixtures/gas_auto/gas_auto_pool.py'),str(ROOT),str(out),app,str(bits),'production-directory'],capture_output=True,text=True,timeout=600)
+>       assert q.returncode==0,q.stdout+q.stderr
+E       AssertionError: Traceback (most recent call last):
+E           File "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/tests/fixtures/gas_auto/gas_auto_pool.py", line 55, in <module>
+E             assert q.returncode==0,(out/'build.log').read_text()[-6000:]
+E         AssertionError: Segmentation fault (core dumped)
+E         
+E         
+E       assert 1 == 0
+E        +  where 1 = CompletedProcess(args=['/usr/bin/python3', '/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/tests/fix... assert q.returncode==0,(out/\'build.log\').read_text()[-6000:]\nAssertionError: Segmentation fault (core dumped)\n\n').returncode
+
+tests/test_production_directory_cuda.py:15: AssertionError
+_ ERROR at setup of test_production_directory_then_auto_and_collision[CHT32-no-injection-L1-skip-32] _
+
+request = <SubRequest 'consumer' for <Function test_production_directory_then_auto_and_collision[CHT32-full-fallback-L2-skip-32]>>
+tmp_path_factory = TempPathFactory(_given_basetemp=PosixPath('/home/lss/ugkp-directory-host-unification-20261004/red-real'), _trace=<plug...racerSub object at 0x723f48b69bd0>, _basetemp=PosixPath('/home/lss/ugkp-directory-host-unification-20261004/red-real'))
+
+    @pytest.fixture(scope='module',params=[('gasUGKP',64),('FSH',64),('CHT',64),('CHT',32)],ids=['gas64','FSH64','CHT64','CHT32'])
+    def consumer(request,tmp_path_factory):
+        if not Path('/usr/local/cuda/bin/nvcc').is_file():pytest.skip('CUDA compiler and device required')
+        app,bits=request.param;out=tmp_path_factory.mktemp(f'production-directory-{app}-{bits}')
+        q=subprocess.run([sys.executable,str(ROOT/'tests/fixtures/gas_auto/gas_auto_pool.py'),str(ROOT),str(out),app,str(bits),'production-directory'],capture_output=True,text=True,timeout=600)
+>       assert q.returncode==0,q.stdout+q.stderr
+E       AssertionError: Traceback (most recent call last):
+E           File "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/tests/fixtures/gas_auto/gas_auto_pool.py", line 55, in <module>
+E             assert q.returncode==0,(out/'build.log').read_text()[-6000:]
+E         AssertionError: Segmentation fault (core dumped)
+E         
+E         
+E       assert 1 == 0
+E        +  where 1 = CompletedProcess(args=['/usr/bin/python3', '/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/tests/fix... assert q.returncode==0,(out/\'build.log\').read_text()[-6000:]\nAssertionError: Segmentation fault (core dumped)\n\n').returncode
+
+tests/test_production_directory_cuda.py:15: AssertionError
+_ ERROR at setup of test_production_directory_then_auto_and_collision[CHT32-no-injection-L1-skip-128] _
+
+request = <SubRequest 'consumer' for <Function test_production_directory_then_auto_and_collision[CHT32-full-fallback-L2-skip-32]>>
+tmp_path_factory = TempPathFactory(_given_basetemp=PosixPath('/home/lss/ugkp-directory-host-unification-20261004/red-real'), _trace=<plug...racerSub object at 0x723f48b69bd0>, _basetemp=PosixPath('/home/lss/ugkp-directory-host-unification-20261004/red-real'))
+
+    @pytest.fixture(scope='module',params=[('gasUGKP',64),('FSH',64),('CHT',64),('CHT',32)],ids=['gas64','FSH64','CHT64','CHT32'])
+    def consumer(request,tmp_path_factory):
+        if not Path('/usr/local/cuda/bin/nvcc').is_file():pytest.skip('CUDA compiler and device required')
+        app,bits=request.param;out=tmp_path_factory.mktemp(f'production-directory-{app}-{bits}')
+        q=subprocess.run([sys.executable,str(ROOT/'tests/fixtures/gas_auto/gas_auto_pool.py'),str(ROOT),str(out),app,str(bits),'production-directory'],capture_output=True,text=True,timeout=600)
+>       assert q.returncode==0,q.stdout+q.stderr
+E       AssertionError: Traceback (most recent call last):
+E           File "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/tests/fixtures/gas_auto/gas_auto_pool.py", line 55, in <module>
+E             assert q.returncode==0,(out/'build.log').read_text()[-6000:]
+E         AssertionError: Segmentation fault (core dumped)
+E         
+E         
+E       assert 1 == 0
+E        +  where 1 = CompletedProcess(args=['/usr/bin/python3', '/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/tests/fix... assert q.returncode==0,(out/\'build.log\').read_text()[-6000:]\nAssertionError: Segmentation fault (core dumped)\n\n').returncode
+
+tests/test_production_directory_cuda.py:15: AssertionError
+_ ERROR at setup of test_production_directory_then_auto_and_collision[CHT32-injection-L2-skip-32] _
+
+request = <SubRequest 'consumer' for <Function test_production_directory_then_auto_and_collision[CHT32-full-fallback-L2-skip-32]>>
+tmp_path_factory = TempPathFactory(_given_basetemp=PosixPath('/home/lss/ugkp-directory-host-unification-20261004/red-real'), _trace=<plug...racerSub object at 0x723f48b69bd0>, _basetemp=PosixPath('/home/lss/ugkp-directory-host-unification-20261004/red-real'))
+
+    @pytest.fixture(scope='module',params=[('gasUGKP',64),('FSH',64),('CHT',64),('CHT',32)],ids=['gas64','FSH64','CHT64','CHT32'])
+    def consumer(request,tmp_path_factory):
+        if not Path('/usr/local/cuda/bin/nvcc').is_file():pytest.skip('CUDA compiler and device required')
+        app,bits=request.param;out=tmp_path_factory.mktemp(f'production-directory-{app}-{bits}')
+        q=subprocess.run([sys.executable,str(ROOT/'tests/fixtures/gas_auto/gas_auto_pool.py'),str(ROOT),str(out),app,str(bits),'production-directory'],capture_output=True,text=True,timeout=600)
+>       assert q.returncode==0,q.stdout+q.stderr
+E       AssertionError: Traceback (most recent call last):
+E           File "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/tests/fixtures/gas_auto/gas_auto_pool.py", line 55, in <module>
+E             assert q.returncode==0,(out/'build.log').read_text()[-6000:]
+E         AssertionError: Segmentation fault (core dumped)
+E         
+E         
+E       assert 1 == 0
+E        +  where 1 = CompletedProcess(args=['/usr/bin/python3', '/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/tests/fix... assert q.returncode==0,(out/\'build.log\').read_text()[-6000:]\nAssertionError: Segmentation fault (core dumped)\n\n').returncode
+
+tests/test_production_directory_cuda.py:15: AssertionError
+_ ERROR at setup of test_production_directory_then_auto_and_collision[CHT32-injection-L2-skip-128] _
+
+request = <SubRequest 'consumer' for <Function test_production_directory_then_auto_and_collision[CHT32-full-fallback-L2-skip-32]>>
+tmp_path_factory = TempPathFactory(_given_basetemp=PosixPath('/home/lss/ugkp-directory-host-unification-20261004/red-real'), _trace=<plug...racerSub object at 0x723f48b69bd0>, _basetemp=PosixPath('/home/lss/ugkp-directory-host-unification-20261004/red-real'))
+
+    @pytest.fixture(scope='module',params=[('gasUGKP',64),('FSH',64),('CHT',64),('CHT',32)],ids=['gas64','FSH64','CHT64','CHT32'])
+    def consumer(request,tmp_path_factory):
+        if not Path('/usr/local/cuda/bin/nvcc').is_file():pytest.skip('CUDA compiler and device required')
+        app,bits=request.param;out=tmp_path_factory.mktemp(f'production-directory-{app}-{bits}')
+        q=subprocess.run([sys.executable,str(ROOT/'tests/fixtures/gas_auto/gas_auto_pool.py'),str(ROOT),str(out),app,str(bits),'production-directory'],capture_output=True,text=True,timeout=600)
+>       assert q.returncode==0,q.stdout+q.stderr
+E       AssertionError: Traceback (most recent call last):
+E           File "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/tests/fixtures/gas_auto/gas_auto_pool.py", line 55, in <module>
+E             assert q.returncode==0,(out/'build.log').read_text()[-6000:]
+E         AssertionError: Segmentation fault (core dumped)
+E         
+E         
+E       assert 1 == 0
+E        +  where 1 = CompletedProcess(args=['/usr/bin/python3', '/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/tests/fix... assert q.returncode==0,(out/\'build.log\').read_text()[-6000:]\nAssertionError: Segmentation fault (core dumped)\n\n').returncode
+
+tests/test_production_directory_cuda.py:15: AssertionError
+_ ERROR at setup of test_production_directory_then_auto_and_collision[CHT32-injection-L2-inspect-32] _
+
+request = <SubRequest 'consumer' for <Function test_production_directory_then_auto_and_collision[CHT32-full-fallback-L2-skip-32]>>
+tmp_path_factory = TempPathFactory(_given_basetemp=PosixPath('/home/lss/ugkp-directory-host-unification-20261004/red-real'), _trace=<plug...racerSub object at 0x723f48b69bd0>, _basetemp=PosixPath('/home/lss/ugkp-directory-host-unification-20261004/red-real'))
+
+    @pytest.fixture(scope='module',params=[('gasUGKP',64),('FSH',64),('CHT',64),('CHT',32)],ids=['gas64','FSH64','CHT64','CHT32'])
+    def consumer(request,tmp_path_factory):
+        if not Path('/usr/local/cuda/bin/nvcc').is_file():pytest.skip('CUDA compiler and device required')
+        app,bits=request.param;out=tmp_path_factory.mktemp(f'production-directory-{app}-{bits}')
+        q=subprocess.run([sys.executable,str(ROOT/'tests/fixtures/gas_auto/gas_auto_pool.py'),str(ROOT),str(out),app,str(bits),'production-directory'],capture_output=True,text=True,timeout=600)
+>       assert q.returncode==0,q.stdout+q.stderr
+E       AssertionError: Traceback (most recent call last):
+E           File "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/tests/fixtures/gas_auto/gas_auto_pool.py", line 55, in <module>
+E             assert q.returncode==0,(out/'build.log').read_text()[-6000:]
+E         AssertionError: Segmentation fault (core dumped)
+E         
+E         
+E       assert 1 == 0
+E        +  where 1 = CompletedProcess(args=['/usr/bin/python3', '/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/tests/fix... assert q.returncode==0,(out/\'build.log\').read_text()[-6000:]\nAssertionError: Segmentation fault (core dumped)\n\n').returncode
+
+tests/test_production_directory_cuda.py:15: AssertionError
+_ ERROR at setup of test_production_directory_then_auto_and_collision[CHT32-injection-L2-inspect-128] _
+
+request = <SubRequest 'consumer' for <Function test_production_directory_then_auto_and_collision[CHT32-full-fallback-L2-skip-32]>>
+tmp_path_factory = TempPathFactory(_given_basetemp=PosixPath('/home/lss/ugkp-directory-host-unification-20261004/red-real'), _trace=<plug...racerSub object at 0x723f48b69bd0>, _basetemp=PosixPath('/home/lss/ugkp-directory-host-unification-20261004/red-real'))
+
+    @pytest.fixture(scope='module',params=[('gasUGKP',64),('FSH',64),('CHT',64),('CHT',32)],ids=['gas64','FSH64','CHT64','CHT32'])
+    def consumer(request,tmp_path_factory):
+        if not Path('/usr/local/cuda/bin/nvcc').is_file():pytest.skip('CUDA compiler and device required')
+        app,bits=request.param;out=tmp_path_factory.mktemp(f'production-directory-{app}-{bits}')
+        q=subprocess.run([sys.executable,str(ROOT/'tests/fixtures/gas_auto/gas_auto_pool.py'),str(ROOT),str(out),app,str(bits),'production-directory'],capture_output=True,text=True,timeout=600)
+>       assert q.returncode==0,q.stdout+q.stderr
+E       AssertionError: Traceback (most recent call last):
+E           File "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/tests/fixtures/gas_auto/gas_auto_pool.py", line 55, in <module>
+E             assert q.returncode==0,(out/'build.log').read_text()[-6000:]
+E         AssertionError: Segmentation fault (core dumped)
+E         
+E         
+E       assert 1 == 0
+E        +  where 1 = CompletedProcess(args=['/usr/bin/python3', '/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/tests/fix... assert q.returncode==0,(out/\'build.log\').read_text()[-6000:]\nAssertionError: Segmentation fault (core dumped)\n\n').returncode
+
+tests/test_production_directory_cuda.py:15: AssertionError
+_ ERROR at setup of test_production_directory_then_auto_and_collision[CHT32-injection-L1-activate-32] _
+
+request = <SubRequest 'consumer' for <Function test_production_directory_then_auto_and_collision[CHT32-full-fallback-L2-skip-32]>>
+tmp_path_factory = TempPathFactory(_given_basetemp=PosixPath('/home/lss/ugkp-directory-host-unification-20261004/red-real'), _trace=<plug...racerSub object at 0x723f48b69bd0>, _basetemp=PosixPath('/home/lss/ugkp-directory-host-unification-20261004/red-real'))
+
+    @pytest.fixture(scope='module',params=[('gasUGKP',64),('FSH',64),('CHT',64),('CHT',32)],ids=['gas64','FSH64','CHT64','CHT32'])
+    def consumer(request,tmp_path_factory):
+        if not Path('/usr/local/cuda/bin/nvcc').is_file():pytest.skip('CUDA compiler and device required')
+        app,bits=request.param;out=tmp_path_factory.mktemp(f'production-directory-{app}-{bits}')
+        q=subprocess.run([sys.executable,str(ROOT/'tests/fixtures/gas_auto/gas_auto_pool.py'),str(ROOT),str(out),app,str(bits),'production-directory'],capture_output=True,text=True,timeout=600)
+>       assert q.returncode==0,q.stdout+q.stderr
+E       AssertionError: Traceback (most recent call last):
+E           File "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/tests/fixtures/gas_auto/gas_auto_pool.py", line 55, in <module>
+E             assert q.returncode==0,(out/'build.log').read_text()[-6000:]
+E         AssertionError: Segmentation fault (core dumped)
+E         
+E         
+E       assert 1 == 0
+E        +  where 1 = CompletedProcess(args=['/usr/bin/python3', '/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/tests/fix... assert q.returncode==0,(out/\'build.log\').read_text()[-6000:]\nAssertionError: Segmentation fault (core dumped)\n\n').returncode
+
+tests/test_production_directory_cuda.py:15: AssertionError
+_ ERROR at setup of test_production_directory_then_auto_and_collision[CHT32-injection-L1-activate-128] _
+
+request = <SubRequest 'consumer' for <Function test_production_directory_then_auto_and_collision[CHT32-full-fallback-L2-skip-32]>>
+tmp_path_factory = TempPathFactory(_given_basetemp=PosixPath('/home/lss/ugkp-directory-host-unification-20261004/red-real'), _trace=<plug...racerSub object at 0x723f48b69bd0>, _basetemp=PosixPath('/home/lss/ugkp-directory-host-unification-20261004/red-real'))
+
+    @pytest.fixture(scope='module',params=[('gasUGKP',64),('FSH',64),('CHT',64),('CHT',32)],ids=['gas64','FSH64','CHT64','CHT32'])
+    def consumer(request,tmp_path_factory):
+        if not Path('/usr/local/cuda/bin/nvcc').is_file():pytest.skip('CUDA compiler and device required')
+        app,bits=request.param;out=tmp_path_factory.mktemp(f'production-directory-{app}-{bits}')
+        q=subprocess.run([sys.executable,str(ROOT/'tests/fixtures/gas_auto/gas_auto_pool.py'),str(ROOT),str(out),app,str(bits),'production-directory'],capture_output=True,text=True,timeout=600)
+>       assert q.returncode==0,q.stdout+q.stderr
+E       AssertionError: Traceback (most recent call last):
+E           File "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/tests/fixtures/gas_auto/gas_auto_pool.py", line 55, in <module>
+E             assert q.returncode==0,(out/'build.log').read_text()[-6000:]
+E         AssertionError: Segmentation fault (core dumped)
+E         
+E         
+E       assert 1 == 0
+E        +  where 1 = CompletedProcess(args=['/usr/bin/python3', '/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/tests/fix... assert q.returncode==0,(out/\'build.log\').read_text()[-6000:]\nAssertionError: Segmentation fault (core dumped)\n\n').returncode
+
+tests/test_production_directory_cuda.py:15: AssertionError
+_ ERROR at setup of test_production_directory_then_auto_and_collision[CHT32-injection-L1-skip-32] _
+
+request = <SubRequest 'consumer' for <Function test_production_directory_then_auto_and_collision[CHT32-full-fallback-L2-skip-32]>>
+tmp_path_factory = TempPathFactory(_given_basetemp=PosixPath('/home/lss/ugkp-directory-host-unification-20261004/red-real'), _trace=<plug...racerSub object at 0x723f48b69bd0>, _basetemp=PosixPath('/home/lss/ugkp-directory-host-unification-20261004/red-real'))
+
+    @pytest.fixture(scope='module',params=[('gasUGKP',64),('FSH',64),('CHT',64),('CHT',32)],ids=['gas64','FSH64','CHT64','CHT32'])
+    def consumer(request,tmp_path_factory):
+        if not Path('/usr/local/cuda/bin/nvcc').is_file():pytest.skip('CUDA compiler and device required')
+        app,bits=request.param;out=tmp_path_factory.mktemp(f'production-directory-{app}-{bits}')
+        q=subprocess.run([sys.executable,str(ROOT/'tests/fixtures/gas_auto/gas_auto_pool.py'),str(ROOT),str(out),app,str(bits),'production-directory'],capture_output=True,text=True,timeout=600)
+>       assert q.returncode==0,q.stdout+q.stderr
+E       AssertionError: Traceback (most recent call last):
+E           File "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/tests/fixtures/gas_auto/gas_auto_pool.py", line 55, in <module>
+E             assert q.returncode==0,(out/'build.log').read_text()[-6000:]
+E         AssertionError: Segmentation fault (core dumped)
+E         
+E         
+E       assert 1 == 0
+E        +  where 1 = CompletedProcess(args=['/usr/bin/python3', '/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/tests/fix... assert q.returncode==0,(out/\'build.log\').read_text()[-6000:]\nAssertionError: Segmentation fault (core dumped)\n\n').returncode
+
+tests/test_production_directory_cuda.py:15: AssertionError
+_ ERROR at setup of test_production_directory_then_auto_and_collision[CHT32-injection-L1-skip-128] _
+
+request = <SubRequest 'consumer' for <Function test_production_directory_then_auto_and_collision[CHT32-full-fallback-L2-skip-32]>>
+tmp_path_factory = TempPathFactory(_given_basetemp=PosixPath('/home/lss/ugkp-directory-host-unification-20261004/red-real'), _trace=<plug...racerSub object at 0x723f48b69bd0>, _basetemp=PosixPath('/home/lss/ugkp-directory-host-unification-20261004/red-real'))
+
+    @pytest.fixture(scope='module',params=[('gasUGKP',64),('FSH',64),('CHT',64),('CHT',32)],ids=['gas64','FSH64','CHT64','CHT32'])
+    def consumer(request,tmp_path_factory):
+        if not Path('/usr/local/cuda/bin/nvcc').is_file():pytest.skip('CUDA compiler and device required')
+        app,bits=request.param;out=tmp_path_factory.mktemp(f'production-directory-{app}-{bits}')
+        q=subprocess.run([sys.executable,str(ROOT/'tests/fixtures/gas_auto/gas_auto_pool.py'),str(ROOT),str(out),app,str(bits),'production-directory'],capture_output=True,text=True,timeout=600)
+>       assert q.returncode==0,q.stdout+q.stderr
+E       AssertionError: Traceback (most recent call last):
+E           File "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/tests/fixtures/gas_auto/gas_auto_pool.py", line 55, in <module>
+E             assert q.returncode==0,(out/'build.log').read_text()[-6000:]
+E         AssertionError: Segmentation fault (core dumped)
+E         
+E         
+E       assert 1 == 0
+E        +  where 1 = CompletedProcess(args=['/usr/bin/python3', '/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/tests/fix... assert q.returncode==0,(out/\'build.log\').read_text()[-6000:]\nAssertionError: Segmentation fault (core dumped)\n\n').returncode
+
+tests/test_production_directory_cuda.py:15: AssertionError
+=================================== FAILURES ===================================
+_ test_production_directory_then_auto_and_collision[gas64-no-injection-L2-skip-32] _
+
+consumer = PosixPath('/home/lss/ugkp-directory-host-unification-20261004/red-real/production-directory-gasUGKP-640/gas_auto_pool')
+path = 1, scenario = 0, block = 32
+
+    @pytest.mark.parametrize('block',[32,128])
+    @pytest.mark.parametrize('scenario',[0,1,2,3],ids=['L2-skip','L2-inspect','L1-activate','L1-skip'])
+    @pytest.mark.parametrize('path',[0,1,2],ids=['full-fallback','no-injection','injection'])
+    def test_production_directory_then_auto_and_collision(consumer,path,scenario,block):
+        q=subprocess.run([str(consumer),str(path),str(scenario),str(block)],capture_output=True,text=True,timeout=120)
+        (consumer.parent/f'path-{path}-scenario-{scenario}-block-{block}.log').write_text(q.stdout+q.stderr)
+>       assert q.returncode==0,q.stdout+q.stderr
+E       AssertionError: PRODUCTION path=1 scenario=0 block=32 builds=1/1 want=0
+E         FAIL unexpected production task rebuild: cached gas baseOnly must be reused on non-inspection steps
+E         
+E       assert 2 == 0
+E        +  where 2 = CompletedProcess(args=['/home/lss/ugkp-directory-host-unification-20261004/red-real/production-directory-gasUGKP-640/g...t=0\nFAIL unexpected production task rebuild: cached gas baseOnly must be reused on non-inspection steps\n', stderr='').returncode
+
+tests/test_production_directory_cuda.py:23: AssertionError
+_ test_production_directory_then_auto_and_collision[gas64-no-injection-L2-skip-128] _
+
+consumer = PosixPath('/home/lss/ugkp-directory-host-unification-20261004/red-real/production-directory-gasUGKP-640/gas_auto_pool')
+path = 1, scenario = 0, block = 128
+
+    @pytest.mark.parametrize('block',[32,128])
+    @pytest.mark.parametrize('scenario',[0,1,2,3],ids=['L2-skip','L2-inspect','L1-activate','L1-skip'])
+    @pytest.mark.parametrize('path',[0,1,2],ids=['full-fallback','no-injection','injection'])
+    def test_production_directory_then_auto_and_collision(consumer,path,scenario,block):
+        q=subprocess.run([str(consumer),str(path),str(scenario),str(block)],capture_output=True,text=True,timeout=120)
+        (consumer.parent/f'path-{path}-scenario-{scenario}-block-{block}.log').write_text(q.stdout+q.stderr)
+>       assert q.returncode==0,q.stdout+q.stderr
+E       AssertionError: PRODUCTION path=1 scenario=0 block=128 builds=1/1 want=0
+E         FAIL unexpected production task rebuild: cached gas baseOnly must be reused on non-inspection steps
+E         
+E       assert 2 == 0
+E        +  where 2 = CompletedProcess(args=['/home/lss/ugkp-directory-host-unification-20261004/red-real/production-directory-gasUGKP-640/g...t=0\nFAIL unexpected production task rebuild: cached gas baseOnly must be reused on non-inspection steps\n', stderr='').returncode
+
+tests/test_production_directory_cuda.py:23: AssertionError
+_ test_production_directory_then_auto_and_collision[gas64-no-injection-L2-inspect-32] _
+
+consumer = PosixPath('/home/lss/ugkp-directory-host-unification-20261004/red-real/production-directory-gasUGKP-640/gas_auto_pool')
+path = 1, scenario = 1, block = 32
+
+    @pytest.mark.parametrize('block',[32,128])
+    @pytest.mark.parametrize('scenario',[0,1,2,3],ids=['L2-skip','L2-inspect','L1-activate','L1-skip'])
+    @pytest.mark.parametrize('path',[0,1,2],ids=['full-fallback','no-injection','injection'])
+    def test_production_directory_then_auto_and_collision(consumer,path,scenario,block):
+        q=subprocess.run([str(consumer),str(path),str(scenario),str(block)],capture_output=True,text=True,timeout=120)
+        (consumer.parent/f'path-{path}-scenario-{scenario}-block-{block}.log').write_text(q.stdout+q.stderr)
+>       assert q.returncode==0,q.stdout+q.stderr
+E       AssertionError: PRODUCTION path=1 scenario=1 block=32 builds=1/1 want=1
+E         TASKS count=5 multi=1 expected=5/1
+E         FAIL task directory is not ready for consumer
+E         
+E       assert 2 == 0
+E        +  where 2 = CompletedProcess(args=['/home/lss/ugkp-directory-host-unification-20261004/red-real/production-directory-gasUGKP-640/g...=32 builds=1/1 want=1\nTASKS count=5 multi=1 expected=5/1\nFAIL task directory is not ready for consumer\n', stderr='').returncode
+
+tests/test_production_directory_cuda.py:23: AssertionError
+_ test_production_directory_then_auto_and_collision[gas64-no-injection-L2-inspect-128] _
+
+consumer = PosixPath('/home/lss/ugkp-directory-host-unification-20261004/red-real/production-directory-gasUGKP-640/gas_auto_pool')
+path = 1, scenario = 1, block = 128
+
+    @pytest.mark.parametrize('block',[32,128])
+    @pytest.mark.parametrize('scenario',[0,1,2,3],ids=['L2-skip','L2-inspect','L1-activate','L1-skip'])
+    @pytest.mark.parametrize('path',[0,1,2],ids=['full-fallback','no-injection','injection'])
+    def test_production_directory_then_auto_and_collision(consumer,path,scenario,block):
+        q=subprocess.run([str(consumer),str(path),str(scenario),str(block)],capture_output=True,text=True,timeout=120)
+        (consumer.parent/f'path-{path}-scenario-{scenario}-block-{block}.log').write_text(q.stdout+q.stderr)
+>       assert q.returncode==0,q.stdout+q.stderr
+E       AssertionError: PRODUCTION path=1 scenario=1 block=128 builds=1/1 want=1
+E         TASKS count=5 multi=1 expected=5/1
+E         FAIL task directory is not ready for consumer
+E         
+E       assert 2 == 0
+E        +  where 2 = CompletedProcess(args=['/home/lss/ugkp-directory-host-unification-20261004/red-real/production-directory-gasUGKP-640/g...128 builds=1/1 want=1\nTASKS count=5 multi=1 expected=5/1\nFAIL task directory is not ready for consumer\n', stderr='').returncode
+
+tests/test_production_directory_cuda.py:23: AssertionError
+_ test_production_directory_then_auto_and_collision[gas64-no-injection-L1-activate-32] _
+
+consumer = PosixPath('/home/lss/ugkp-directory-host-unification-20261004/red-real/production-directory-gasUGKP-640/gas_auto_pool')
+path = 1, scenario = 2, block = 32
+
+    @pytest.mark.parametrize('block',[32,128])
+    @pytest.mark.parametrize('scenario',[0,1,2,3],ids=['L2-skip','L2-inspect','L1-activate','L1-skip'])
+    @pytest.mark.parametrize('path',[0,1,2],ids=['full-fallback','no-injection','injection'])
+    def test_production_directory_then_auto_and_collision(consumer,path,scenario,block):
+        q=subprocess.run([str(consumer),str(path),str(scenario),str(block)],capture_output=True,text=True,timeout=120)
+        (consumer.parent/f'path-{path}-scenario-{scenario}-block-{block}.log').write_text(q.stdout+q.stderr)
+>       assert q.returncode==0,q.stdout+q.stderr
+E       AssertionError: PRODUCTION path=1 scenario=2 block=32 builds=1/1 want=1
+E         TASKS count=5 multi=1 expected=5/1
+E         FAIL task directory is not ready for consumer
+E         
+E       assert 2 == 0
+E        +  where 2 = CompletedProcess(args=['/home/lss/ugkp-directory-host-unification-20261004/red-real/production-directory-gasUGKP-640/g...=32 builds=1/1 want=1\nTASKS count=5 multi=1 expected=5/1\nFAIL task directory is not ready for consumer\n', stderr='').returncode
+
+tests/test_production_directory_cuda.py:23: AssertionError
+_ test_production_directory_then_auto_and_collision[gas64-no-injection-L1-activate-128] _
+
+consumer = PosixPath('/home/lss/ugkp-directory-host-unification-20261004/red-real/production-directory-gasUGKP-640/gas_auto_pool')
+path = 1, scenario = 2, block = 128
+
+    @pytest.mark.parametrize('block',[32,128])
+    @pytest.mark.parametrize('scenario',[0,1,2,3],ids=['L2-skip','L2-inspect','L1-activate','L1-skip'])
+    @pytest.mark.parametrize('path',[0,1,2],ids=['full-fallback','no-injection','injection'])
+    def test_production_directory_then_auto_and_collision(consumer,path,scenario,block):
+        q=subprocess.run([str(consumer),str(path),str(scenario),str(block)],capture_output=True,text=True,timeout=120)
+        (consumer.parent/f'path-{path}-scenario-{scenario}-block-{block}.log').write_text(q.stdout+q.stderr)
+>       assert q.returncode==0,q.stdout+q.stderr
+E       AssertionError: PRODUCTION path=1 scenario=2 block=128 builds=1/1 want=1
+E         TASKS count=5 multi=1 expected=5/1
+E         FAIL task directory is not ready for consumer
+E         
+E       assert 2 == 0
+E        +  where 2 = CompletedProcess(args=['/home/lss/ugkp-directory-host-unification-20261004/red-real/production-directory-gasUGKP-640/g...128 builds=1/1 want=1\nTASKS count=5 multi=1 expected=5/1\nFAIL task directory is not ready for consumer\n', stderr='').returncode
+
+tests/test_production_directory_cuda.py:23: AssertionError
+- generated xml file: /home/lss/ugkp-directory-host-unification-20261004/red-real.xml -
+=========================== short test summary info ============================
+FAILED tests/test_production_directory_cuda.py::test_production_directory_then_auto_and_collision[gas64-no-injection-L2-skip-32]
+FAILED tests/test_production_directory_cuda.py::test_production_directory_then_auto_and_collision[gas64-no-injection-L2-skip-128]
+FAILED tests/test_production_directory_cuda.py::test_production_directory_then_auto_and_collision[gas64-no-injection-L2-inspect-32]
+FAILED tests/test_production_directory_cuda.py::test_production_directory_then_auto_and_collision[gas64-no-injection-L2-inspect-128]
+FAILED tests/test_production_directory_cuda.py::test_production_directory_then_auto_and_collision[gas64-no-injection-L1-activate-32]
+FAILED tests/test_production_directory_cuda.py::test_production_directory_then_auto_and_collision[gas64-no-injection-L1-activate-128]
+ERROR tests/test_production_directory_cuda.py::test_production_directory_then_auto_and_collision[CHT32-full-fallback-L2-skip-32]
+ERROR tests/test_production_directory_cuda.py::test_production_directory_then_auto_and_collision[CHT32-full-fallback-L2-skip-128]
+ERROR tests/test_production_directory_cuda.py::test_production_directory_then_auto_and_collision[CHT32-full-fallback-L2-inspect-32]
+ERROR tests/test_production_directory_cuda.py::test_production_directory_then_auto_and_collision[CHT32-full-fallback-L2-inspect-128]
+ERROR tests/test_production_directory_cuda.py::test_production_directory_then_auto_and_collision[CHT32-full-fallback-L1-activate-32]
+ERROR tests/test_production_directory_cuda.py::test_production_directory_then_auto_and_collision[CHT32-full-fallback-L1-activate-128]
+ERROR tests/test_production_directory_cuda.py::test_production_directory_then_auto_and_collision[CHT32-full-fallback-L1-skip-32]
+ERROR tests/test_production_directory_cuda.py::test_production_directory_then_auto_and_collision[CHT32-full-fallback-L1-skip-128]
+ERROR tests/test_production_directory_cuda.py::test_production_directory_then_auto_and_collision[CHT32-no-injection-L2-skip-32]
+ERROR tests/test_production_directory_cuda.py::test_production_directory_then_auto_and_collision[CHT32-no-injection-L2-skip-128]
+ERROR tests/test_production_directory_cuda.py::test_production_directory_then_auto_and_collision[CHT32-no-injection-L2-inspect-32]
+ERROR tests/test_production_directory_cuda.py::test_production_directory_then_auto_and_collision[CHT32-no-injection-L2-inspect-128]
+ERROR tests/test_production_directory_cuda.py::test_production_directory_then_auto_and_collision[CHT32-no-injection-L1-activate-32]
+ERROR tests/test_production_directory_cuda.py::test_production_directory_then_auto_and_collision[CHT32-no-injection-L1-activate-128]
+ERROR tests/test_production_directory_cuda.py::test_production_directory_then_auto_and_collision[CHT32-no-injection-L1-skip-32]
+ERROR tests/test_production_directory_cuda.py::test_production_directory_then_auto_and_collision[CHT32-no-injection-L1-skip-128]
+ERROR tests/test_production_directory_cuda.py::test_production_directory_then_auto_and_collision[CHT32-injection-L2-skip-32]
+ERROR tests/test_production_directory_cuda.py::test_production_directory_then_auto_and_collision[CHT32-injection-L2-skip-128]
+ERROR tests/test_production_directory_cuda.py::test_production_directory_then_auto_and_collision[CHT32-injection-L2-inspect-32]
+ERROR tests/test_production_directory_cuda.py::test_production_directory_then_auto_and_collision[CHT32-injection-L2-inspect-128]
+ERROR tests/test_production_directory_cuda.py::test_production_directory_then_auto_and_collision[CHT32-injection-L1-activate-32]
+ERROR tests/test_production_directory_cuda.py::test_production_directory_then_auto_and_collision[CHT32-injection-L1-activate-128]
+ERROR tests/test_production_directory_cuda.py::test_production_directory_then_auto_and_collision[CHT32-injection-L1-skip-32]
+ERROR tests/test_production_directory_cuda.py::test_production_directory_then_auto_and_collision[CHT32-injection-L1-skip-128]
+6 failed, 66 passed, 24 errors in 112.09s (0:01:52)

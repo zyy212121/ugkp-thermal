@@ -61,6 +61,7 @@ def test_dynamic_heavy_and_split_dpre_replace_fixed_heavy_controls() -> None:
     assert '"gpuParticleBlockThreads"' in scheduling
     assert '"gpuReductionBlockThreads"' in scheduling
     assert '"gpuCsrHeavyReductionAutoInterval"' in scheduling
+    cuda += source("../../common/GpuParticleDirectoryHost.cuh")
     for token in ("preBaseCellOffset", "preBaseDirectoryReady", "buildSplitPreDirectory", "buildPostTransportDirectory", "dynamicHeavyThreshold"):
         assert token in cuda
     assert "occupancy" in cuda.lower()

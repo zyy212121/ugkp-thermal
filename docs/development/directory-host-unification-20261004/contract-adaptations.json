@@ -1,0 +1,6 @@
+[
+  "tests/test_host_protocol_ownership.py",
+  "applications/gasUGKP/tests/test_cpcst_compaction_dpre_contract.py",
+  "applications/gasUGKP/tests/test_split_pre_runtime_contract.py",
+  "applications/FSH/tests/test_upgrade_contract.py"
+]

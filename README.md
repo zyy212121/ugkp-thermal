@@ -692,3 +692,5 @@ gas、FSH、CHT 的公共算子核及主机流程由 `common/` 维护。公共�
 本次自动调度恢复、最后三项代码清理及验证结果见 [2026-10-04 收尾验证](docs/development/auto-cleanup-20261004/README.md)。
 
 `gasUGKP auto` 的任务计数与切档后任务准备已补充修复；实际碰撞池消费回归及完整测试集限制见 [gas auto 正确性修复](docs/development/gas-auto-correctness-20261004/README.md)。
+
+三应用的 full/split 目录准备与 auto 调用现统一为公共主机流程，gas 无注入正确选择 baseOnly 并复用任务。生产调用链、守恒矩对照和缓存复用验证见 [目录主机流程统一](docs/development/directory-host-unification-20261004/README.md)。

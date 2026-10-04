@@ -1,0 +1,6 @@
+========= COMPUTE-SANITIZER
+PRODUCTION path=1 scenario=0 block=32 builds=0/0 want=0
+TASKS count=5 multi=1 expected=5/1
+PASS actual collision pool, CPU moments and L1/RNG parity N=128 selected=71
+PASS production compaction -> directory -> auto -> actual collision consumer
+========= ERROR SUMMARY: 0 errors

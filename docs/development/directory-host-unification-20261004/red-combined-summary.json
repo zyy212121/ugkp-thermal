@@ -1,0 +1,13 @@
+{
+  "passed": 90,
+  "failed": [
+    "test_production_directory_then_auto_and_collision[gas64-no-injection-L2-skip-32]",
+    "test_production_directory_then_auto_and_collision[gas64-no-injection-L2-skip-128]",
+    "test_production_directory_then_auto_and_collision[gas64-no-injection-L2-inspect-32]",
+    "test_production_directory_then_auto_and_collision[gas64-no-injection-L2-inspect-128]",
+    "test_production_directory_then_auto_and_collision[gas64-no-injection-L1-activate-32]",
+    "test_production_directory_then_auto_and_collision[gas64-no-injection-L1-activate-128]"
+  ],
+  "errors": [],
+  "notes": "CHT32 first compiler attempt crashed; untouched-source retry passed all 24 cases. Original logs retained."
+}

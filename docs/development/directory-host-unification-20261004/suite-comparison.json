@@ -1,0 +1,12 @@
+{
+  "initial_new_failures": [
+    "tests.test_pressure_limited_flux_cuda::test_split_pressure_uses_limited_face_flux[gasUGKP-64]"
+  ],
+  "passed_on_unchanged_source_retry": [
+    "tests.test_pressure_limited_flux_cuda::test_split_pressure_uses_limited_face_flux[gasUGKP-64]"
+  ],
+  "new_failures": [],
+  "new_errors": [],
+  "resolved_failures": [],
+  "resolved_errors": []
+}

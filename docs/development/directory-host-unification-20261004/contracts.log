@@ -1,0 +1,6 @@
+PASS managed inventory (234 mirrors; standalone inputs; peer comparison unavailable)
+PASS gasUGKP64 field declaration/allocation/release/transfer closure
+PASS FSH64 field declaration/allocation/release/transfer closure
+PASS CHT32 field declaration/allocation/release/transfer closure
+PASS CHT64 field declaration/allocation/release/transfer closure
+PASS 160 entry policy compile cases

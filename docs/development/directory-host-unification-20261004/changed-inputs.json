@@ -1,0 +1,62 @@
+[
+  {
+    "path": "applications/gasUGKP/private_backend/GpuResidentStrict.cu",
+    "sha256": "ecc07483a813bc3815719818514ed0c0fcc222bc8a449995c6770f8f815d3c6c"
+  },
+  {
+    "path": "applications/FSH/private_backend/GpuResidentStrict.cu",
+    "sha256": "748153761dd55b2567b5561988837f2aaa124b983bf8ed9e669df3d7bd513437"
+  },
+  {
+    "path": "applications/CHT/gpu/GpuResidentStrict.cu",
+    "sha256": "2771d9ac64005c22b159b291a541d7ba1b031f63ee5be9b4020889a581686e3b"
+  },
+  {
+    "path": "common/GpuParticleDirectoryHost.cuh",
+    "sha256": "897b320d6c6a0761bae7e8c63b7e77061048e5c293198481a4c1f1af3d72f255"
+  },
+  {
+    "path": "common/GpuParticleDirectoryHostPolicy.cuh",
+    "sha256": "db0a8bbf986184643da466889f6f36244bf0faea48c028db9add8f5f182c9005"
+  },
+  {
+    "path": "tools/managed_mirrors.json",
+    "sha256": "fd67771e30a29a01fea848b40f5e1619280e7beb7346d4df898edb1efdd4d397"
+  },
+  {
+    "path": "tests/fixtures/gas_auto/gas_auto_pool.py",
+    "sha256": "f49b265d09448953c75341810f9d71850e371d64d3a7437dc10b9d0f7e3eb670"
+  },
+  {
+    "path": "tests/fixtures/gas_auto/production_directory.cu.in",
+    "sha256": "a5934add8cae721c8349a1d2b71939f9be9e26b93bfeb598dab1d7fb0c39d901"
+  },
+  {
+    "path": "tests/test_production_directory_cuda.py",
+    "sha256": "632590b872db03e21c4cd6ffd58e69b8bd103b3a5311def1d61e705deee54550"
+  },
+  {
+    "path": "README.md",
+    "sha256": "75ec5614512e88baa34b394433f5972511a8ae580ee2b9a408be807a4a6192dc"
+  },
+  {
+    "path": "docs/OPERATOR_MAINTENANCE_ZH.md",
+    "sha256": "c3f1471e565488a5509dc5a1644d91bbac282dfb82cd1f4956b429a05df3be21"
+  },
+  {
+    "path": "tests/test_host_protocol_ownership.py",
+    "sha256": "760e775c599c0dc883b0d1c4e2cc5c292b22011bcefa7c4b5ef47bad91ce8cb3"
+  },
+  {
+    "path": "applications/gasUGKP/tests/test_cpcst_compaction_dpre_contract.py",
+    "sha256": "5758779eabd064b445555af4344dd22bc200fff35f48222302c79e58e936d02b"
+  },
+  {
+    "path": "applications/gasUGKP/tests/test_split_pre_runtime_contract.py",
+    "sha256": "c34c37381c270b7bffb8b16553e8acb71f1815857e5580184726c70411c96449"
+  },
+  {
+    "path": "applications/FSH/tests/test_upgrade_contract.py",
+    "sha256": "bc9423cf7461b419972cdc4e15e6e91ddb921351410eae4caec4a931607865e3"
+  }
+]

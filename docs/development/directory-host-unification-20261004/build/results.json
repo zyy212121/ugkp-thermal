@@ -1,0 +1,22 @@
+[
+  {
+    "app": "gasUGKP",
+    "bits": 64,
+    "exit": 0
+  },
+  {
+    "app": "FSH",
+    "bits": 64,
+    "exit": 0
+  },
+  {
+    "app": "CHT",
+    "bits": 64,
+    "exit": 0
+  },
+  {
+    "app": "CHT",
+    "bits": 32,
+    "exit": 0
+  }
+]

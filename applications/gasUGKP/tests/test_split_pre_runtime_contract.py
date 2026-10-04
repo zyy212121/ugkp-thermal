@@ -48,8 +48,12 @@ def test_backend_validates_boolean_and_full_mode_forces_complete_dpre_rebuild():
     assert "a.csrSplitPreDirectoryEnabled != 0" in server
     assert validation in cuda
     assert "s->csrSplitPreDirectoryEnabled = csrSplitPreDirectoryEnabled;" in cuda
-    prepare = cuda.index("int preparePreTransportParticleDirectory")
-    full = cuda.index("return binParticlesByCell(s, block);", prepare)
-    split_ready = cuda.index("if (s->preBaseDirectoryReady == 0)", prepare)
-    assert "if (s->csrSplitPreDirectoryEnabled == 0)" in cuda[prepare:full]
-    assert full < split_ready
+    common = read("../../common/GpuParticleDirectoryHost.cuh")
+    policy = read("../../common/GpuParticleDirectoryHostPolicy.cuh")
+    prepare = common.index("int preparePreTransportParticleDirectory")
+    full = common.index("return binParticlesByCell(s, block);", prepare)
+    split_work = common.index("const int cellGrid", full)
+    assert "!splitParticleDirectoryEnabled(s)" in common[prepare:full]
+    assert "s->preBaseDirectoryReady == 0" in common[prepare:full]
+    assert "return s->csrSplitPreDirectoryEnabled != 0;" in policy
+    assert full < split_work

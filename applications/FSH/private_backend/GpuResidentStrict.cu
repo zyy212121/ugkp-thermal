@@ -2253,12 +2253,7 @@ int runToolB3(DeviceState* s, const int block)
 
 #include "../../../common/GpuParticleDirectoryHost.cuh"
 
-int buildPostTransportDirectory(DeviceState* s, const int block)
-{
-    s->splitPreDirectoryActive = 0;
-    // Both S1 and L2 compact from an exact directory of surviving particles.
-    return binParticlesByCell(s, block, true);
-}
+
 
 int rebuildResidentParticleMomentsFromParticles
 (
@@ -4270,15 +4265,7 @@ extern "C" int ugkwpGpuResidentStrictAdvance
 
     UGKP_DEV_PROBE_ENTER(ProbeBinPre);
     const int particleGrid = s->particleWorkGrid;
-    if
-    (
-        s->csrCellLocalPathEnabled != 0
-     && buildSplitPreDirectory(s, block) != 0
-    )
-    {
-        return 1;
-    }
-    if (s->csrCellLocalPathEnabled != 0 && runToolB3(s, block) != 0)
+    if (prepareParticleDirectoryAndSchedule(s, block) != 0)
     {
         return 1;
     }

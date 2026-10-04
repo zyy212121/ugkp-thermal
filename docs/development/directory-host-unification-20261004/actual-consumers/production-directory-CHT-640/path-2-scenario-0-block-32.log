@@ -1,0 +1,4 @@
+PRODUCTION path=2 scenario=0 block=32 builds=1/1 want=1
+TASKS count=5 multi=1 expected=5/1
+PASS actual collision pool, CPU moments and L1/RNG parity N=128 selected=71
+PASS production compaction -> directory -> auto -> actual collision consumer

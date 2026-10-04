@@ -1,0 +1,1 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites><testsuite name="pytest" errors="0" failures="0" skipped="0" tests="1" time="23.034" timestamp="2026-10-04T15:46:26.977738" hostname="lss"><testcase classname="tests.test_pressure_limited_flux_cuda" name="test_split_pressure_uses_limited_face_flux[gasUGKP-64]" time="21.001" /></testsuite></testsuites>
