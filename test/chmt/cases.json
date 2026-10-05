@@ -1,0 +1,111 @@
+{
+  "schema_version": 1,
+  "format": "CHMT verification specification, not an executable OpenFOAM dictionary",
+  "units": "Dimensionless mathematical verification except TACOT (SI)",
+  "precision": "FP64 only; FP32 needs a separately frozen tolerance budget",
+  "cases": [
+    {
+      "id": "stefan", "status": "UNVERIFIED", "adapter_status": "pendingCHMTadapter", "reference_status": "ANALYTIC_AVAILABLE",
+      "model": "1-D one-phase melting with resolved normal temperature; no flow, reactions, or film-averaged thermal approximation",
+      "domain": [0, 1], "n": [32, 64, 128], "times": [0, 0.01],
+      "parameters": {"Pe": 1, "inverse_Stefan": 1, "rho": 1, "cp": 1, "k": 1, "latent_heat": 1, "initial_front": 0.1, "T_wall": 1, "T_melt": 0},
+      "initial": "Exact similarity state at positive absolute time t0=(0.1/(2 lambda))^2; elapsed simulation time begins at 0",
+      "boundary": {"left": "T=1", "right": "T=0; front remains inside domain"},
+      "energy_zero": "solid at T_melt has h=0; liquid at T_melt has h=1",
+      "time_refinement": "dt <= 0.1*dx^2; halve dt once more to isolate temporal error",
+      "source": "https://chowland.github.io/AFiD-MuRPhFi/examples/stefan/"
+    },
+    {
+      "id": "film_profile", "status": "UNVERIFIED", "adapter_status": "pendingCHMTadapter", "reference_status": "ANALYTIC_AVAILABLE",
+      "model": "local quasi-steady lubrication profile, G=dp/dx-rho*g_t",
+      "parameters": {"delta": 0.01, "mu": 0.1, "rho": 1, "h": 3},
+      "variants": [{"id":"shear","ub":0,"tau":2,"G":0},{"id":"pressure","ub":0,"tau":0,"G":3},{"id":"combined","ub":0,"tau":2,"G":3},{"id":"moving_base","ub":0.4,"tau":2,"G":3}],
+      "z_over_delta": [0, 0.25, 0.5, 0.75, 1],
+      "boundary": "u(0)=ub; mu*du/dz(delta)=tau; material base velocity is distinct from arbitrary mesh velocity",
+      "source": "Direct integration of mu*u_zz=G with stated boundary conditions; derivation in criteria.md"
+    },
+    {
+      "id": "film_plug", "status": "UNVERIFIED", "adapter_status": "pendingCHMTadapter", "reference_status": "ANALYTIC_AVAILABLE",
+      "model": "periodic conservative surface enthalpy advection with zero shear and zero pressure gradient",
+      "domain": [0,1], "n": [32,64,128], "times": [0,1],
+      "parameters": {"delta":0.01,"rho":1,"cp":1,"mu":0.001,"ub":0.25,"tau":0,"G":0,"p":0,"T_mean":3,"T_amplitude":0.2},
+      "initial": "T(x)=3+0.2*sin(2*pi*x); H=rho*delta*cp*T",
+      "boundary": "periodic; all normal mass/heat flux, conduction, radiation, reaction and phase change disabled",
+      "time_refinement": "dt <= 0.1*dx^2; halve dt to demonstrate negligible time error relative to space error",
+      "source": "Exact solution of H_t+ub*H_x=0"
+    },
+    {
+      "id": "film_shear", "status": "UNVERIFIED", "adapter_status": "pendingCHMTadapter", "reference_status": "ANALYTIC_AVAILABLE",
+      "model": "periodic conservative surface enthalpy transport plus explicit viscous dissipation",
+      "domain": [0,1], "n": [32,64,128], "times": [0,1],
+      "parameters": {"delta":0.01,"rho":1,"cp":1,"mu":0.001,"ub":0,"tau":0.05,"G":0,"p":0,"T_mean":3,"T_amplitude":0.2},
+      "initial": "T(x)=3+0.2*sin(2*pi*x); H=rho*delta*cp*T",
+      "boundary": "periodic; no normal mass/heat flux, conduction, radiation, reactions or phase change; constant top traction",
+      "time_refinement": "dt <= 0.1*dx^2; halve dt to isolate spatial convergence",
+      "source": "Exact solution of H_t+u_mean*H_x=Phi, u_mean=tau*delta/(2*mu), Phi=delta*tau^2/mu"
+    },
+    {
+      "id": "film_pressure", "status": "UNVERIFIED", "adapter_status": "pendingCHMTadapter", "reference_status": "ANALYTIC_AVAILABLE",
+      "model": "constant-density fixed-volume pressure pulse, true thermodynamic enthalpy",
+      "parameters": {"rho":2,"delta":0.01,"cp":3,"T":4,"p_ref":0,"pressure": [0,5,10]},
+      "boundary": "uniform p, no velocity/shear/temperature gradient or heat/mass transfer",
+      "source": "h(T,p)=cp*T+(p-p_ref)/rho, e=cp*T-p_ref/rho; dH=delta*dp and dT=0"
+    },
+    {
+      "id": "film_phase_energy", "status": "UNVERIFIED", "adapter_status": "pendingCHMTadapter", "reference_status": "ANALYTIC_AVAILABLE",
+      "model": "local moving-interface energy-jump contract only; not a time-evolved evaporation benchmark",
+      "parameters": {"J":0.2,"h_liquid":3,"h_gas":8,"u_liquid": [0,0,1],"u_gas": [0,0,3],"p":2,"w_normal":0.25,"viscous_work_liquid":0,"viscous_work_gas":0,"conductive_flux_gas":0},
+      "boundary": "n points from liquid to gas; positive F_g leaves liquid; prescribe rho_l=J/(u_l,n-w_n) and rho_g=J/(u_g,n-w_n)",
+      "source": "Q_liquid=J*(h_liquid+|u_liquid|^2/2)+p*w_normal-F_g; enthalpy RHS=Q_liquid-J*h_liquid"
+    },
+    {
+      "id": "ale_free", "status": "UNVERIFIED", "adapter_status": "pendingCHMTadapter", "reference_status": "ANALYTIC_AVAILABLE",
+      "model": "periodic 2-D Euler free stream with passive fixed-composition species on moving quadrilateral mesh",
+      "domain": [[0,1],[0,1]], "n": [8,16,32], "times": [0,0.125,0.25],
+      "parameters": {"gamma":1.4,"rho_mean":1,"rho_amplitude":0,"u":1,"v":1,"p":1,"Y": [0.3,0.7],"mesh_amplitude":0.025},
+      "mesh": "x=xi+a*sin(2*pi*xi)*sin(2*pi*t), y=eta+a*sin(2*pi*eta)*sin(2*pi*t); w is analytic time derivative; min directional Jacobian=1-2*pi*a>0",
+      "boundary": "periodic all sides; no viscosity, heat transfer, chemistry, particles or phase change",
+      "time_refinement": "dt=0.00025 (1000 full steps to final time); export every RK stage's geometry ledger",
+      "source": "Inspired by free-stream/ALE verification in https://www.math.hkust.edu.hk/~makxu/PAPER/ALE-GKS.pdf ; custom mesh defined here, not a reproduction of its tables"
+    },
+    {
+      "id": "ale_wave", "status": "UNVERIFIED", "adapter_status": "pendingCHMTadapter", "reference_status": "ANALYTIC_AVAILABLE",
+      "model": "periodic 2-D Euler entropy wave with u=v=1 and fixed pressure/composition",
+      "domain": [[0,1],[0,1]], "n": [8,16,32], "times": [0,0.125,0.25],
+      "parameters": {"gamma":1.4,"rho_mean":1,"rho_amplitude":0.2,"u":1,"v":1,"p":1,"Y": [0.3,0.7],"mesh_amplitude":0.025},
+      "initial": "rho(x,y,0)=1+0.2*sin(2*pi*(x+y)); exact rho(x,y,t)=1+0.2*sin(2*pi*(x+y-2*t))",
+      "mesh": "same explicitly defined separable moving mesh as ale_free",
+      "boundary": "periodic all sides; no viscosity, heat transfer, chemistry, particles or phase change",
+      "time_refinement": "dt <= 0.05*dx^2 and halve dt to isolate space error",
+      "source": "https://www.math.hkust.edu.hk/~makxu/PAPER/ALE-GKS.pdf ; x+y-2*t follows directly from rho_t+rho_x+rho_y=0"
+    },
+    {
+      "id": "remap", "status": "UNVERIFIED", "adapter_status": "pendingCHMTadapter", "reference_status": "ANALYTIC_AVAILABLE",
+      "model": "one conservative 1-D piecewise-constant overlap rezone, no physical time advance",
+      "n": [8,16,32], "variants": ["uniform","step"],
+      "parameters": {"gamma":1.4,"u":0.3,"p":1,"Y": [0.25,0.75],"mesh_amplitude":0.03,"discontinuity_fraction":0.375},
+      "old_mesh": "x_i=i/n", "new_mesh": "x_i=i/n+0.03*sin(2*pi*i/n)",
+      "initial": "uniform: rho=1; step: rho=1 for donor i<3*n/8 else rho=2; conservative donor densities [rho,rho*u,p/(gamma-1)+rho*u^2/2,rho*Y1,rho*Y2]",
+      "boundary": "fixed endpoints, no boundary flux; first-order piecewise-constant remap only",
+      "source": "Exact interval intersections; custom mathematical conservation test"
+    },
+    {
+      "id":"freno_mms", "status":"UNVERIFIED", "adapter_status":"pendingCHMTadapter", "reference_status":"DATA_REQUIRED",
+      "source":"https://arxiv.org/pdf/2110.13818", "required":"Select and transcribe one complete manufactured solution, properties, moving surface and boundary flux from the paper; independently review signs and all coefficients; see external_data.md",
+      "acceptance":"No numeric baseline or passing threshold claimed until that complete input is frozen; observe declared space/time orders separately"
+    },
+    {
+      "id":"tacot1", "status":"UNVERIFIED", "adapter_status":"pendingCHMTadapter", "reference_status":"DATA_REQUIRED",
+      "source":"https://jeanlachaud.com/research/AblationTestCase%231.pdf",
+      "parameters":{"thickness_m":0.05,"initial_temperature_K":298,"pressure_Pa":101325,"surface_temperature_knots_s_K":[[0,298],[0.1,1644],[60,1644]]},
+      "required":"TACOT_1.5.xls, frozen initial pore-gas composition, tabulated independent reference results and provenance; see external_data.md",
+      "acceptance":"Blocked: no invented material table, successful result, or numerical tolerance"
+    },
+    {
+      "id":"tacot2", "status":"UNVERIFIED", "adapter_status":"pendingCHMTadapter", "reference_status":"DATA_REQUIRED",
+      "variants":["2.1","2.2","2.3"], "source":"https://jeanlachaud.com/research/AblationTestCase%232.pdf",
+      "required":"TACOT_2.2.xls, B-prime/wall-enthalpy tables, complete boundary histories, independent reference results with uncertainty and frozen model category; see external_data.md",
+      "acceptance":"Blocked: preliminary PDF curves are not acceptance truth"
+    }
+  ]
+}

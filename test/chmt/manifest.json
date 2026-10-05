@@ -1,0 +1,149 @@
+{
+  "schema_version": 1,
+  "created_utc": "2026-10-05",
+  "baseline_commit": "db455604156419a9e20b13f1b43694fde33be6c8",
+  "repository_destination": "test/chmt",
+  "scope": "Additive configurations, reference generation, comparison and local run orchestration only. No old applications/operators/build files changed.",
+  "solver_validation_status": "UNVERIFIED",
+  "solver_runs": 0,
+  "cuda_builds": 0,
+  "adapter_status": "pendingCHMTadapter",
+  "reference_artifact_kind": "ANALYTIC_REFERENCE",
+  "reference_rows": 58898,
+  "tool_checks": {
+    "status": "PASSED",
+    "count": 21,
+    "scope": "Python stdlib reference/comparison/prepare plumbing only; no solver run",
+    "commands": [
+      "python3 -m unittest -v test_tools.py",
+      "python3 reference.py --output /tmp/chmt-regenerated.csv",
+      "cmp references.csv /tmp/chmt-regenerated.csv",
+      "python3 -m py_compile reference.py compare.py run_case.py test_tools.py"
+    ]
+  },
+  "cases": [
+    {
+      "id": "stefan",
+      "status": "UNVERIFIED",
+      "reference_status": "ANALYTIC_AVAILABLE",
+      "adapter_status": "pendingCHMTadapter",
+      "source": "https://chowland.github.io/AFiD-MuRPhFi/examples/stefan/"
+    },
+    {
+      "id": "film_profile",
+      "status": "UNVERIFIED",
+      "reference_status": "ANALYTIC_AVAILABLE",
+      "adapter_status": "pendingCHMTadapter",
+      "source": "Direct integration of mu*u_zz=G with stated boundary conditions; derivation in criteria.md"
+    },
+    {
+      "id": "film_plug",
+      "status": "UNVERIFIED",
+      "reference_status": "ANALYTIC_AVAILABLE",
+      "adapter_status": "pendingCHMTadapter",
+      "source": "Exact solution of H_t+ub*H_x=0"
+    },
+    {
+      "id": "film_shear",
+      "status": "UNVERIFIED",
+      "reference_status": "ANALYTIC_AVAILABLE",
+      "adapter_status": "pendingCHMTadapter",
+      "source": "Exact solution of H_t+u_mean*H_x=Phi, u_mean=tau*delta/(2*mu), Phi=delta*tau^2/mu"
+    },
+    {
+      "id": "film_pressure",
+      "status": "UNVERIFIED",
+      "reference_status": "ANALYTIC_AVAILABLE",
+      "adapter_status": "pendingCHMTadapter",
+      "source": "h(T,p)=cp*T+(p-p_ref)/rho, e=cp*T-p_ref/rho; dH=delta*dp and dT=0"
+    },
+    {
+      "id": "film_phase_energy",
+      "status": "UNVERIFIED",
+      "reference_status": "ANALYTIC_AVAILABLE",
+      "adapter_status": "pendingCHMTadapter",
+      "source": "Q_liquid=J*(h_liquid+|u_liquid|^2/2)+p*w_normal-F_g; enthalpy RHS=Q_liquid-J*h_liquid"
+    },
+    {
+      "id": "ale_free",
+      "status": "UNVERIFIED",
+      "reference_status": "ANALYTIC_AVAILABLE",
+      "adapter_status": "pendingCHMTadapter",
+      "source": "Inspired by free-stream/ALE verification in https://www.math.hkust.edu.hk/~makxu/PAPER/ALE-GKS.pdf ; custom mesh defined here, not a reproduction of its tables"
+    },
+    {
+      "id": "ale_wave",
+      "status": "UNVERIFIED",
+      "reference_status": "ANALYTIC_AVAILABLE",
+      "adapter_status": "pendingCHMTadapter",
+      "source": "https://www.math.hkust.edu.hk/~makxu/PAPER/ALE-GKS.pdf ; x+y-2*t follows directly from rho_t+rho_x+rho_y=0"
+    },
+    {
+      "id": "remap",
+      "status": "UNVERIFIED",
+      "reference_status": "ANALYTIC_AVAILABLE",
+      "adapter_status": "pendingCHMTadapter",
+      "source": "Exact interval intersections; custom mathematical conservation test"
+    },
+    {
+      "id": "freno_mms",
+      "status": "UNVERIFIED",
+      "reference_status": "DATA_REQUIRED",
+      "adapter_status": "pendingCHMTadapter",
+      "source": "https://arxiv.org/pdf/2110.13818"
+    },
+    {
+      "id": "tacot1",
+      "status": "UNVERIFIED",
+      "reference_status": "DATA_REQUIRED",
+      "adapter_status": "pendingCHMTadapter",
+      "source": "https://jeanlachaud.com/research/AblationTestCase%231.pdf"
+    },
+    {
+      "id": "tacot2",
+      "status": "UNVERIFIED",
+      "reference_status": "DATA_REQUIRED",
+      "adapter_status": "pendingCHMTadapter",
+      "source": "https://jeanlachaud.com/research/AblationTestCase%232.pdf"
+    }
+  ],
+  "files": {
+    "README.md": {
+      "sha256": "a12872adf83f34c25002bc3cb1f30a582b5822d0ddfde42c9425b734a04bdbc7",
+      "bytes": 3911
+    },
+    "cases.json": {
+      "sha256": "343362db6de3670e13244ed7807e3006c7c458f36fb5b6de0e3ecad6a4d48f95",
+      "bytes": 9097
+    },
+    "compare.py": {
+      "sha256": "8b1142833798409584fa5179aa7dec881871b8003dff046f478f46b784b4c602",
+      "bytes": 10611
+    },
+    "criteria.md": {
+      "sha256": "d38a5389a6f52fd1d62347dd88743b2eefbf6340cfb7165b09bb511676321432",
+      "bytes": 11076
+    },
+    "external_data.md": {
+      "sha256": "39780d16fa468c7655139c41e0ba842625f460f2a2ecd036ac053a4a915973eb",
+      "bytes": 3601
+    },
+    "reference.py": {
+      "sha256": "6965408ab9a54673f8d4b6d72f03c6519e66347738b08667257acc98964c7fb1",
+      "bytes": 10352
+    },
+    "references.csv": {
+      "sha256": "f5a758297fcc965f8e668e0b4f62345e1fe692754a69c8baa354ad173b2c863c",
+      "bytes": 5791724
+    },
+    "run_case.py": {
+      "sha256": "d46e676c9e59ff36b6a745d96a41c60f8865909907ff534a3341964e41f41480",
+      "bytes": 7200
+    },
+    "test_tools.py": {
+      "sha256": "cdda5e5c1395b27cda2c310592d4a109293e83d0765aa501ede5c53e55ae8ede",
+      "bytes": 8122
+    }
+  },
+  "validation_policy": "Numeric checks never mutate this manifest. Independent physical solver evidence and review are required before any case can be relabelled."
+}
