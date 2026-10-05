@@ -231,10 +231,12 @@ __global__ void recoverSstPrimitivesKernel(DeviceState* sp)
         clampMin(finiteOr(s.rhoOmega[c], rhoOmegaFloor), rhoOmegaFloor);
     s.k[c] = s.rhoK[c]/rhoSafe;
     s.omega[c] = s.rhoOmega[c]/rhoSafe;
-    if (s.sstWallTreatment == 0)
+    if (s.sstWallTreatment == 0 || s.sstWallTreatment == 1)
     {
-        // Reapply the wall-cell constraint after Euler updates and RK blends,
-        // using the recovered current gas state for the wall viscosity.
+        // Project the wall-adjacent omega equation after Euler updates and RK
+        // blends. Refresh the target from recovered k and the current gas state
+        // (including wall viscosity); do not freeze k or the gas equations.
+        // This is an explicit stage constraint, not an implicit OF10 solve.
         applySstWallFunctionStateCell(s, c);
     }
 }

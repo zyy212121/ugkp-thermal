@@ -319,7 +319,8 @@ __global__ void applySstFluxAndSourceKernel
         fluxOmega += sign*s.sstPhiRhoOmega[f];
         constrainedOmega = constrainedOmega ||
         (
-            s.sstWallTreatment == 0 && f >= s.nInternalFaces
+            (s.sstWallTreatment == 0 || s.sstWallTreatment == 1)
+         && f >= s.nInternalFaces
          && s.riemannBoundaryKind[f] == 2
         );
     }
@@ -372,8 +373,9 @@ __global__ void applySstFluxAndSourceKernel
     );
     s.rhoK[c] =
         clampMin(finiteOr(s.rhoK[c] + deltaRhoK, rhoKFloor), rhoKFloor);
-    // Explicit equivalent of the low-Re wall-cell omega equation constraint.
-    // Primitive recovery refreshes the target after the gas density update.
+    // Both wall treatments constrain the adjacent-cell omega equation.
+    // Suppress its RHS, then primitive recovery projects to the refreshed
+    // target after k and gas density evolve. Other equations remain active.
     if (!constrainedOmega)
     {
         s.rhoOmega[c] = clampMin

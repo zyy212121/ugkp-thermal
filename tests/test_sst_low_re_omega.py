@@ -52,7 +52,7 @@ int main(){
  s.rho[0]=2;s.rhoOmega[0]=18;recoverSstPrimitivesKernel(&s);check("projection after stage/RK recovery",s.omega[0],270);check("updated conservative density",s.rhoOmega[0],540);
  s.cellPlaneCount[0]=1;applySstWallFunctionStateKernel(&s);check("single face wall nu",s.omega[0],360);
  s.riemannBoundaryKind[0]=0;s.rhoOmega[0]=18;recoverSstPrimitivesKernel(&s);check("interior remains evolved",s.omega[0],9);
- s=DeviceState();s.sstWallTreatment=1;R expected=(sstDynamicOmegaWallValue(s,0,0)+sstDynamicOmegaWallValue(s,1,0))/2;applySstWallFunctionStateKernel(&s);check("highRe unchanged",s.omega[0],expected);s.rhoOmega[0]=18;recoverSstPrimitivesKernel(&s);check("highRe recovery unchanged",s.omega[0],18);
+ s=DeviceState();s.sstWallTreatment=1;R expected=(sstDynamicOmegaWallValue(s,0,0)+sstDynamicOmegaWallValue(s,1,0))/2;applySstWallFunctionStateKernel(&s);check("highRe unchanged",s.omega[0],expected);s.rhoOmega[0]=18;recoverSstPrimitivesKernel(&s);check("highRe recovery constrained",s.omega[0],expected);
  s=DeviceState();s.sstConfigured=0;applySstWallFunctionStateKernel(&s);check("disabled unchanged",s.omega[0],7);
  s=DeviceState();applySstWallFunctionStateKernel(&s);R oldOmega=s.rhoOmega[0],oldK=s.rhoK[0];applySstFluxAndSourceKernel(&s,R(1e-4));check("constrained equation rejects omega flux/source",s.rhoOmega[0],oldOmega);if(s.rhoK[0]==oldK){std::cerr<<"k equation was frozen\n";++failures;}
  s.riemannBoundaryKind[0]=s.riemannBoundaryKind[1]=0;applySstFluxAndSourceKernel(&s,R(1e-4));if(s.rhoOmega[0]==oldOmega){std::cerr<<"interior omega equation was frozen\n";++failures;}
