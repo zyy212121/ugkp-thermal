@@ -16,7 +16,6 @@ gpuResidentPressureTable inletPressure.table;
 
 gpuResidentVolumeFractionTable inletVolumeFraction.table;
 
-gpuResidentInletTemperature 3200;
 rhoS            2800;
 
 particleRho     2800;
