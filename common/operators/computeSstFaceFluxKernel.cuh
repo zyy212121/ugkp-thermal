@@ -302,6 +302,7 @@ __global__ void applySstFluxAndSourceKernel
         return;
     }
 
+    bool constrainedOmega = false;
     GPU_OPERATOR_REAL fluxK = GPU_OPERATOR_R(0.0);
     GPU_OPERATOR_REAL fluxOmega = GPU_OPERATOR_R(0.0);
     const int start = s.cellPlaneStart[c];
@@ -316,6 +317,11 @@ __global__ void applySstFluxAndSourceKernel
         const GPU_OPERATOR_REAL sign = s.faceOwner[f] == c ? -GPU_OPERATOR_R(1.0) : GPU_OPERATOR_R(1.0);
         fluxK += sign*s.sstPhiRhoK[f];
         fluxOmega += sign*s.sstPhiRhoOmega[f];
+        constrainedOmega = constrainedOmega ||
+        (
+            s.sstWallTreatment == 0 && f >= s.nInternalFaces
+         && s.riemannBoundaryKind[f] == 2
+        );
     }
 
     GPU_OPERATOR_REAL divU = GPU_OPERATOR_R(0.0);
@@ -361,15 +367,21 @@ __global__ void applySstFluxAndSourceKernel
     s.sstSourceNumber[c] = fmax
     (
         fabs(dt*sourceK)/clampMin(s.rhoK[c], rhoKFloor),
-        fabs(dt*sourceOmega)/clampMin(s.rhoOmega[c], rhoOmegaFloor)
+        constrainedOmega ? GPU_OPERATOR_R(0.0)
+          : fabs(dt*sourceOmega)/clampMin(s.rhoOmega[c], rhoOmegaFloor)
     );
     s.rhoK[c] =
         clampMin(finiteOr(s.rhoK[c] + deltaRhoK, rhoKFloor), rhoKFloor);
-    s.rhoOmega[c] = clampMin
-    (
-        finiteOr(s.rhoOmega[c] + deltaRhoOmega, rhoOmegaFloor),
-        rhoOmegaFloor
-    );
+    // Explicit equivalent of the low-Re wall-cell omega equation constraint.
+    // Primitive recovery refreshes the target after the gas density update.
+    if (!constrainedOmega)
+    {
+        s.rhoOmega[c] = clampMin
+        (
+            finiteOr(s.rhoOmega[c] + deltaRhoOmega, rhoOmegaFloor),
+            rhoOmegaFloor
+        );
+    }
 }
 __global__ void computeGasCourantFieldKernel(DeviceState* sp, const GPU_OPERATOR_TIME dt)
 {

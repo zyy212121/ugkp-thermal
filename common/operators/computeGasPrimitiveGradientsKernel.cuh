@@ -56,6 +56,15 @@ __device__ GPU_OPERATOR_REAL sstDynamicOmegaWallValue
 {
     const GPU_OPERATOR_REAL rhoSafe = clampMin(riemannFacePrimitiveForGradient(s, owner, f).rho, s.rhoMin);
     const GPU_OPERATOR_REAL nu = s.gasMu/rhoSafe;
+    if (s.sstWallTreatment == 0)
+    {
+        // OF10 viscous omegaWallFunction branch: wall nu, cell wall distance.
+        // This constrains the adjacent cell, not a wall Dirichlet value.
+        return ugkwp::sstLowReWallOmega
+        (
+            nu, s.sstWallDistance[owner], s.sstCoefficients
+        );
+    }
     const GPU_OPERATOR_REAL wallUx = s.riemannBoundaryUFix[f] != 0
       ? finiteOr(s.riemannBoundaryUx[f], GPU_OPERATOR_R(0.0)) : GPU_OPERATOR_R(0.0);
     const GPU_OPERATOR_REAL wallUy = s.riemannBoundaryUFix[f] != 0
@@ -96,16 +105,7 @@ __device__ GPU_OPERATOR_REAL sstBoundaryValue
         {
             return s.sstWallTreatment == 0 ? GPU_OPERATOR_R(0.0) : centre;
         }
-        if (s.sstWallTreatment == 0)
-        {
-            const GPU_OPERATOR_REAL rhoSafe = clampMin(s.rho[owner], s.rhoMin);
-            return ugkwp::sstLowReWallOmega
-            (
-                s.gasMu/rhoSafe,
-                s.sstWallDistance[owner],
-                s.sstCoefficients
-            );
-        }
+        // Copy constrained cell omega to the wall: zero wall diffusion flux.
         return centre;
     }
     if (boundaryKind == 1 || boundaryKind == 3 || boundaryKind == 4)
@@ -132,15 +132,12 @@ __device__ GPU_OPERATOR_REAL sstBoundaryValue
     return centre;
 }
 
-__global__ void applySstWallFunctionStateKernel(DeviceState* sp)
+__device__ void applySstWallFunctionStateCell(DeviceState& s, const int c)
 {
-    DeviceState& s = *sp;
-    const int c = blockIdx.x*blockDim.x + threadIdx.x;
     if
     (
         c >= s.nCells
      || s.sstConfigured == 0
-     || s.sstWallTreatment != 1
     )
     {
         return;
@@ -175,6 +172,14 @@ __global__ void applySstWallFunctionStateKernel(DeviceState* sp)
         s.omega[c] = omegaTarget;
         s.rhoOmega[c] = rhoSafe*omegaTarget;
     }
+}
+
+__global__ void applySstWallFunctionStateKernel(DeviceState* sp)
+{
+    applySstWallFunctionStateCell
+    (
+        *sp, blockIdx.x*blockDim.x + threadIdx.x
+    );
 }
 
 __global__ void initialiseSstConservativeStateKernel(DeviceState* sp)
@@ -226,4 +231,10 @@ __global__ void recoverSstPrimitivesKernel(DeviceState* sp)
         clampMin(finiteOr(s.rhoOmega[c], rhoOmegaFloor), rhoOmegaFloor);
     s.k[c] = s.rhoK[c]/rhoSafe;
     s.omega[c] = s.rhoOmega[c]/rhoSafe;
+    if (s.sstWallTreatment == 0)
+    {
+        // Reapply the wall-cell constraint after Euler updates and RK blends,
+        // using the recovered current gas state for the wall viscosity.
+        applySstWallFunctionStateCell(s, c);
+    }
 }
