@@ -1,5 +1,35 @@
 #pragma once
 // One operator implementation; scalar/time adapters are compile-time only.
+// Interpolate the conservative cell diffusion coefficients with the same
+// owner-oriented weight used by the face flux, including coupled faces.
+__device__ void sstInternalRhoDiffusivities
+(
+    const DeviceState& s,
+    const int f,
+    const int nei,
+    GPU_OPERATOR_REAL& rhoDk,
+    GPU_OPERATOR_REAL& rhoDomega
+)
+{
+    const int own = s.faceOwner[f];
+    const GPU_OPERATOR_REAL weight = clampRange
+    (
+        s.faceWeight[f], GPU_OPERATOR_R(0.0), GPU_OPERATOR_R(1.0)
+    );
+    const GPU_OPERATOR_REAL nuOwn = s.gasMu/clampMin(s.rho[own], s.rhoMin);
+    const GPU_OPERATOR_REAL nuNei = s.gasMu/clampMin(s.rho[nei], s.rhoMin);
+    rhoDk =
+        weight*s.rho[own]
+       *(nuOwn + ugkwp::sstAlphaK(s.sstF1[own], s.sstCoefficients)*s.nut[own])
+      + (GPU_OPERATOR_R(1.0) - weight)*s.rho[nei]
+       *(nuNei + ugkwp::sstAlphaK(s.sstF1[nei], s.sstCoefficients)*s.nut[nei]);
+    rhoDomega =
+        weight*s.rho[own]
+       *(nuOwn + ugkwp::sstAlphaOmega(s.sstF1[own], s.sstCoefficients)*s.nut[own])
+      + (GPU_OPERATOR_R(1.0) - weight)*s.rho[nei]
+       *(nuNei + ugkwp::sstAlphaOmega(s.sstF1[nei], s.sstCoefficients)*s.nut[nei]);
+}
+
 __global__ void computeSstFaceFluxKernel(DeviceState* sp)
 {
     DeviceState& s = *sp;
@@ -85,6 +115,13 @@ __global__ void computeSstFaceFluxKernel(DeviceState* sp)
         nuFace
       + ugkwp::sstAlphaOmega(f1Face, s.sstCoefficients)*nutFace;
 
+    GPU_OPERATOR_REAL rhoDk = rhoFace*dk;
+    GPU_OPERATOR_REAL rhoDomega = rhoFace*domega;
+    if (nei >= 0)
+    {
+        sstInternalRhoDiffusivities(s, f, nei, rhoDk, rhoDomega);
+    }
+
     GPU_OPERATOR_REAL snGradK = GPU_OPERATOR_R(0.0);
     GPU_OPERATOR_REAL snGradOmega = GPU_OPERATOR_R(0.0);
     if (nei >= 0)
@@ -159,9 +196,9 @@ __global__ void computeSstFaceFluxKernel(DeviceState* sp)
 
     const GPU_OPERATOR_REAL area = s.magSf[f];
     s.sstPhiRhoK[f] =
-        massFlux*kUpwind - rhoFace*dk*snGradK*area;
+        massFlux*kUpwind - rhoDk*snGradK*area;
     s.sstPhiRhoOmega[f] =
-        massFlux*omegaUpwind - rhoFace*domega*snGradOmega*area;
+        massFlux*omegaUpwind - rhoDomega*snGradOmega*area;
 }
 
 __global__ void enforcePeriodicSstFluxAntisymmetryKernel(DeviceState* sp)
@@ -598,9 +635,24 @@ __global__ void computeSstStabilityNumberKernel
             nu + ugkwp::sstAlphaK(f1Face, s.sstCoefficients)*nutFace,
             nu + ugkwp::sstAlphaOmega(f1Face, s.sstCoefficients)*nutFace
         );
-        diffusionRate +=
-            (rhoFace/clampMin(s.rho[c], s.rhoMin))
-           *maximumDiffusivity*s.magSf[f]*s.deltaCoeffs[f];
+        if (other >= 0)
+        {
+            GPU_OPERATOR_REAL rhoDk;
+            GPU_OPERATOR_REAL rhoDomega;
+            sstInternalRhoDiffusivities
+            (
+                s, f, coupledFaceNeighbour(s, f), rhoDk, rhoDomega
+            );
+            diffusionRate +=
+                fmax(rhoDk, rhoDomega)/clampMin(s.rho[c], s.rhoMin)
+               *s.magSf[f]*s.deltaCoeffs[f];
+        }
+        else
+        {
+            diffusionRate +=
+                (rhoFace/clampMin(s.rho[c], s.rhoMin))
+               *maximumDiffusivity*s.magSf[f]*s.deltaCoeffs[f];
+        }
     }
     const GPU_OPERATOR_REAL diffusionNumber =
         dt*diffusionRate/clampMin(s.V[c], OfSmall);
