@@ -4023,7 +4023,6 @@ protected:
             const labelUList& faceCells = patch.faceCells();
             const label start = mesh.boundaryMesh()[patchI].start();
             const fvPatchVectorField& UPatch = U.boundaryField()[patchI];
-            const fvPatchScalarField& TpPatch = Tp.boundaryField()[patchI];
             const fvPatchScalarField& thetaPatch = theta.boundaryField()[patchI];
             const fvPatchScalarField& dPatch = dMeanCell.boundaryField()[patchI];
 
@@ -4066,14 +4065,7 @@ protected:
                     dValue = scalar(1.0e-6);
                 }
 
-                scalar Tvalue = Tp.boundaryField()[patchI].fixesValue()
-                    && TpPatch.size() == epsPatch.size()
-                    ? TpPatch[i]
-                    : injectionTp;
-                if (!finiteMirrorScalar(Tvalue) || Tvalue <= SMALL)
-                {
-                    Tvalue = injectionTp;
-                }
+                scalar Tvalue = injectionTp;
                 if (!finiteMirrorScalar(Tvalue) || Tvalue <= SMALL)
                 {
                     Tvalue = TpMin;

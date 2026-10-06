@@ -232,23 +232,6 @@ int main(int argc, char *argv[])
                     "gpuResidentVolumeFractionTable",
                     "inletVolumeFraction.table"
                 );
-            gpuResidentInletTemperature =
-                ugkwpProps.lookupOrDefault<scalar>
-                (
-                    "gpuResidentInletTemperature",
-                    scalar(3600)
-                );
-            if
-            (
-                !finiteScalar(gpuResidentInletTemperature)
-             || gpuResidentInletTemperature <= SMALL
-            )
-            {
-                FatalErrorInFunction
-                    << "gpuResidentInletTemperature must be positive and finite"
-                    << exit(FatalError);
-            }
-
             const label scheduledInletPatchId =
                 mesh.boundaryMesh().findPatchID(gpuResidentInletPatch);
             if (scheduledInletPatchId < 0)
@@ -276,6 +259,34 @@ int main(int argc, char *argv[])
                     << "Scheduled inlet requires fixed-value p, T, and "
                     << "epsilonS on patch " << gpuResidentInletPatch
                     << exit(FatalError);
+            }
+
+            const fvPatchScalarField& inletT =
+                Tgas.boundaryField()[scheduledInletPatchId];
+            gpuResidentInletTemperature = inletT[0];
+            if
+            (
+                !finiteScalar(gpuResidentInletTemperature)
+             || gpuResidentInletTemperature <= SMALL
+            )
+            {
+                FatalErrorInFunction
+                    << "Scheduled inlet T boundary must be positive and finite"
+                    << exit(FatalError);
+            }
+            forAll(inletT, faceI)
+            {
+                if
+                (
+                    !finiteScalar(inletT[faceI])
+                 || mag(inletT[faceI] - gpuResidentInletTemperature)
+                    > 1e-9*gpuResidentInletTemperature
+                )
+                {
+                    FatalErrorInFunction
+                        << "Scheduled inlet requires uniform T boundary on "
+                        << gpuResidentInletPatch << exit(FatalError);
+                }
             }
 
             scheduledInletFaceIds.setSize(scheduledInletPatch.size());
