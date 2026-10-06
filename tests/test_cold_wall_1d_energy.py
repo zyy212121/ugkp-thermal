@@ -24,7 +24,7 @@ def cold_wall_executable(request, tmp_path_factory):
 
 @pytest.mark.parametrize("mode", ["constant_cp", "nonlinear", "rollback", "gas_uniform",
                                   "gas_phase", "gas_zero", "gas_rollback", "source_limits",
-                                  "phase_refinement"])
+                                  "phase_refinement", "separate_gas_duration"])
 def test_cold_wall_enthalpy_equation(cold_wall_executable, mode):
     result = subprocess.run([str(cold_wall_executable), mode], capture_output=True, text=True)
     assert result.returncode == 0, result.stdout + result.stderr
