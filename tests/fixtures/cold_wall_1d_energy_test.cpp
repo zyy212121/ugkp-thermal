@@ -54,13 +54,13 @@ Profile uniform(const GpuReal temperature, const ColdWallSolidificationParameter
 ColdWallSolidificationStep advance(
     Profile& state, const ColdWallSolidificationParameters& p, const GpuTime dt,
     const GpuReal gasTemperature = GPU_R(1500), const GpuReal gasConductance = 0,
-    const bool gasOnly = false)
+    const bool gasOnly = false, const GpuTime gasExchangeDuration = -1.0)
 {
     return advanceColdWallProfile(
         state.enthalpy.data(), state.ring.data(), state.age, state.frozen, p,
         volume, mass, maximumArea, contactArea, gasOnly ? 1.0e6 : duration,
         peak, dt, wallTemperature, GPU_R(13000), efficiency,
-        gasTemperature, gasConductance);
+        gasTemperature, gasConductance, gasExchangeDuration);
 }
 
 long double totalEnergy(const Profile& state)
@@ -349,6 +349,53 @@ void phaseRefinement()
     std::printf("phase_refinement enthalpy_errors=%.12g,%.12g,%.12g J/kg\n", coarse, medium, fine);
 }
 
+void separateGasDuration()
+{
+    const auto p = parameters();
+    auto state = uniform(GPU_R(2000), p);
+    const auto old = state;
+    const GpuTime wallDt = 1e-6, gasDt = 4e-6;
+    const GpuReal gas = GPU_R(1500), conductance = GPU_R(3e-4);
+    const double deltaH = referenceGasIncrement(old, p, gas, conductance, gasDt);
+    auto storageTarget = old;
+    for (auto& h : storageTarget.enthalpy) h += GpuReal(deltaH);
+    const auto expected = referenceBackwardEuler(storageTarget, p, wallDt);
+    const auto step = advance(state, p, wallDt, gas, conductance, false, gasDt);
+    require(step.valid, "separate gas/contact duration must be valid");
+    for (int n = 0; n < 8; ++n)
+    {
+        const double error = coldWallTemperatureFromSpecificEnthalpyK(state.enthalpy[n], p)-expected[n];
+        require(std::fabs(error) < (UGKWP_GPU_REAL_BITS == 32 ? 0.005 : 1e-7),
+                "gas-then-contact implicit storage target differs from dense BE", error);
+    }
+    require(state.age == old.age+wallDt, "profile age must use only active contact duration");
+    const long double dz = static_cast<long double>(volume)/contactArea/8;
+    const long double wall = efficiency*contactArea/(p.interfaceResistanceM2KW
+        + dz/(2*p.solidThermalConductivityWmK));
+    const double expectedWallEnergy = double(wall*(expected[0]-wallTemperature)*wallDt);
+    require(std::fabs(step.wallEnergyJ-expectedWallEnergy)
+                < (UGKWP_GPU_REAL_BITS == 32 ? 1e-11 : 1e-18),
+            "wall energy must use active duration and the same implicit temperature");
+    const double balance = totalEnergy(state)-totalEnergy(old)+step.wallEnergyJ-mass*deltaH;
+    require(std::fabs(balance) < (UGKWP_GPU_REAL_BITS == 32 ? 2e-9 : 2e-17),
+            "separate gas/contact duration energy closure", balance);
+    auto gasOff = old, legacyGasOff = old;
+    const auto off = advance(gasOff, p, wallDt, gas, GPU_R(0), false, gasDt);
+    const auto legacy = advance(legacyGasOff, p, wallDt, gas, GPU_R(0));
+    require(off.valid && legacy.valid && gasOff.enthalpy == legacyGasOff.enthalpy
+            && off.wallEnergyJ == legacy.wallEnergyJ,
+            "gas-off independent duration changed the wall-only solution");
+    for (const GpuTime badDuration : {-2.0, std::numeric_limits<GpuTime>::quiet_NaN(),
+                                     std::numeric_limits<GpuTime>::infinity()})
+    {
+        auto rejected = old;
+        const auto bad = advance(rejected, p, wallDt, gas, conductance, false, badDuration);
+        require(!bad.valid && rejected.enthalpy == old.enthalpy && rejected.ring == old.ring
+                && rejected.age == old.age && rejected.frozen == old.frozen,
+                "invalid explicit gas duration must reject without mutation");
+    }
+}
+
 void invalidRollback()
 {
     const auto p = parameters();
@@ -385,5 +432,6 @@ int main(int argc, char** argv)
     else if (std::strcmp(argv[1], "gas_rollback") == 0) localCoolingRollback();
     else if (std::strcmp(argv[1], "source_limits") == 0) sourceLimits();
     else if (std::strcmp(argv[1], "phase_refinement") == 0) phaseRefinement();
+    else if (std::strcmp(argv[1], "separate_gas_duration") == 0) separateGasDuration();
     else require(false, "unknown test mode");
 }
