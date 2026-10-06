@@ -775,11 +775,6 @@
       "downstream": "gpu-riemann-gkp-main"
     },
     {
-      "path": "common/GpuThermalLaunchOccupancy.cuh",
-      "upstream": "ugkp-thermal",
-      "downstream": "gpu-riemann-gkp-main"
-    },
-    {
       "path": "common/GpuToolB1.cuh",
       "upstream": "ugkp-thermal",
       "downstream": "gpu-riemann-gkp-main"
@@ -900,22 +895,12 @@
       "downstream": "gpu-riemann-gkp-main"
     },
     {
-      "path": "common/operators/appendSelectedStuckParticleIndex.cuh",
-      "upstream": "ugkp-thermal",
-      "downstream": "gpu-riemann-gkp-main"
-    },
-    {
       "path": "common/operators/applyEulerianParticleMaterialHeatKernel.cuh",
       "upstream": "ugkp-thermal",
       "downstream": "gpu-riemann-gkp-main"
     },
     {
       "path": "common/operators/applyGasVolumeFractionSourceKernel.cuh",
-      "upstream": "ugkp-thermal",
-      "downstream": "gpu-riemann-gkp-main"
-    },
-    {
-      "path": "common/operators/atomicAddParticleWallEnergyByFace.cuh",
       "upstream": "ugkp-thermal",
       "downstream": "gpu-riemann-gkp-main"
     },
@@ -1219,6 +1204,7 @@
       "common/GpuPressureUnsortedConstrained.cuh",
       "common/GpuRadiationContributions.cuh",
       "common/GpuSchedulingConfiguration.H",
+      "common/GpuThermalLaunchOccupancy.cuh",
       "common/GpuThermalParticleFinalization.cuh",
       "common/GpuThermalParticleRelaxation.cuh",
       "common/GpuThermalParticleRestartCodec.H",
@@ -1226,9 +1212,11 @@
       "common/operators/FiniteContactRelaxation.inl",
       "common/operators/accumulateParticleWallRepresentedContactAreaKernel.cuh",
       "common/operators/accumulatePoissonPoolParticlesByCellKernel.cuh",
+      "common/operators/appendSelectedStuckParticleIndex.cuh",
       "common/operators/applyCollisionalPressureProjectionKernel.cuh",
       "common/operators/applyEulerianGasSolidDragKernelStatic.cuh",
       "common/operators/applyGasGravityKernel.cuh",
+      "common/operators/atomicAddParticleWallEnergyByFace.cuh",
       "common/operators/clearColdWallParticleState.cuh",
       "common/operators/clearPoissonThermalPoolKernel.cuh",
       "common/operators/clearSplitPreInjectionBinsKernel.cuh",
@@ -1278,6 +1266,9 @@
     "tools/managed_mirrors.json": "Package-specific thermal formal-only interface contract; fluid unchanged.",
     "applications/gasUGKP/tests/test_particle_cell_path_runtime_contract.py": "Package-specific thermal formal-only interface contract; fluid unchanged.",
     "common/wall/GpuColdWall1DInputs.inl": "CHT cold-wall implementation is thermal-only; fluid gasUGKP does not include this file.",
-    "common/wall/GpuColdWall1DAdvance.inl": "CHT cold-wall implementation is thermal-only; fluid gasUGKP does not include this file."
+    "common/wall/GpuColdWall1DAdvance.inl": "CHT cold-wall implementation is thermal-only; fluid gasUGKP does not include this file.",
+    "common/GpuThermalLaunchOccupancy.cuh": "FSH/CHT launch occupancy is thermal-only; fluid gasUGKP does not include this file.",
+    "common/operators/appendSelectedStuckParticleIndex.cuh": "FSH/CHT wall-bound particle indexing is thermal-only; fluid gasUGKP does not include this file.",
+    "common/operators/atomicAddParticleWallEnergyByFace.cuh": "FSH/CHT particle-wall energy accounting is thermal-only; fluid gasUGKP does not include this file."
   }
 }
