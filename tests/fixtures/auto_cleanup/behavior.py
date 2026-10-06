@@ -1,4 +1,7 @@
-"""Real CUDA dispatcher switches plus frozen ordered-face/cold-wrapper oracles."""
+"""CUDA dispatch/face oracles and positive-area, full-dt frozen cold wrappers.
+
+Use --generate-only after the precision argument for host-only source checks.
+"""
 from pathlib import Path
 import json,re,resource,subprocess,sys
 
@@ -72,24 +75,48 @@ for(auto v:{s,r}){
  v->couplingTgasOld[0]=3200;v->couplingRhoOld[0]=1;v->couplingUxOld[0]=2;v->gasMu=1e-5;v->gasPrOneThird=.9;v->gammaGas=1.4;v->gasCp=1000;
  v->gasBoundaryT[0]=300;v->particleWallEffusivityByFace[0]=13000;v->particleWallContactAreaScale[0]=1;
  v->particleWallReflectionHeatTransferEfficiency=.1;v->particleWallDepositionHeatTransferEfficiency=.1;
- v->pContactMaximumArea[0]=2.2e-8;v->pContactDuration[0]=8e-6;v->pContactPeakFraction[0]=.42;v->pDepositionArea[0]=1.7e-8;
+ v->pContactMaximumArea[0]=2.2e-8;v->pContactDuration[0]=8e-6;v->pContactPeakFraction[0]=.42;
  v->coldWallSolidificationEnabled=1;v->coldWallSolidificationParameters={2327.,20.,1.16e6,3990.,1273.,5.9,.25,0.,1,4};
  for(int n=0;n<8;n++)v->pColdNodeSpecificEnthalpy[n]=float(Foam::gpuThermal::coldWallSpecificEnthalpyJkg(3500.,v->coldWallSolidificationParameters));
 }
 for(int heat:{0,1})for(int state:{int(Foam::gpuThermal::particleWallTransientDeposit),int(Foam::gpuThermal::particleWallDeposited)}){
  s->solveParticleTemperature=r->solveParticleTemperature=heat;s->particleGasHeatTransferModelId=r->particleGasHeatTransferModelId=heat;
  s->pStuck[0]=r->pStuck[0]=state;
+ // The frozen wrapper is an oracle only where contact area is positive and
+ // activeDt equals the physical dt. Zero-area/contact-end gas and age fixes
+ // are checked independently in test_cold_wall_contact_routes.py.
+ const GpuTime coldDt = GpuTime(7.5e-8);
+ const bool finiteContact = state == int(Foam::gpuThermal::particleWallTransientDeposit);
+ for(auto v:{s,r}){
+  DeviceState& contactState = *v;
+  const GpuTime duration = static_cast<GpuTime>(v->pContactDuration[0]);
+  GPU_CONTACT_AGE(contactState, 0) = GpuTime(0.5)*duration;
+  v->pDepositionArea[0] = finiteContact ? 0.0f : 1.7e-8f;
+  const GpuTime activeDt = finiteContact
+    ? fmin(coldDt, fmax(GpuTime(0), duration - GPU_CONTACT_AGE(contactState, 0)))
+    : coldDt;
+  const GpuTime ageMid = GPU_CONTACT_AGE(contactState, 0) + GpuTime(0.5)*activeDt;
+  const GpuReal kinematicAreaMid = static_cast<GpuReal>(v->pContactMaximumArea[0])
+    *Foam::gpuThermal::normalizedKinematicArea(ageMid/duration, static_cast<GpuReal>(v->pContactPeakFraction[0]));
+  const GpuReal intrinsicArea = finiteContact
+    ? fmax(fmax(kinematicAreaMid, static_cast<GpuReal>(v->pColdFrozenArea[0]))
+        - static_cast<GpuReal>(v->pDepositionArea[0]), GPU_R(0.0))
+    : static_cast<GpuReal>(v->pDepositionArea[0]);
+  ck(activeDt == coldDt, "frozen cold oracle requires full active dt");
+  ck(intrinsicArea > GPU_R(0.0), "frozen cold oracle requires positive area");
+ }
  for(int step=0;step<16;step++){
-  relaxColdWall1DParticlesToResidentGasKernel<<<1,32>>>(s,GpuTime(7.5e-8));baseline_relaxColdWall<<<1,32>>>(r,GpuTime(7.5e-8));finish();
+  relaxColdWall1DParticlesToResidentGasKernel<<<1,32>>>(s,coldDt);baseline_relaxColdWall<<<1,32>>>(r,coldDt);finish();
   equal(s->pT[0],r->pT[0],"outer cold temperature");equal(s->pColdContactAge[0],r->pColdContactAge[0],"outer cold age");
   equal(s->particleWallReflectedEnergy[0],r->particleWallReflectedEnergy[0],"outer reflected wall heat");equal(s->particleWallDepositedEnergy[0],r->particleWallDepositedEnergy[0],"outer deposited wall heat");
   for(int n=0;n<8;n++){equal(s->pColdNodeSpecificEnthalpy[n],r->pColdNodeSpecificEnthalpy[n],"outer node enthalpy");equal(s->pColdRingSolidMass[n],r->pColdRingSolidMass[n],"outer ring mass");}
  }
 }
-puts("PASS full cold-wall outer kernel bitwise, finite/deposited contacts, gas heat on/off");
+puts("PASS positive-area full-dt cold-wall outer kernel bitwise, finite/deposited contacts, gas heat on/off");
 '''
     code=code.replace('COLD_TEST',cold)
     cu=out/'auto_cleanup.cu';cu.write_text(code);exe=out/'auto_cleanup'
+    if '--generate-only' in sys.argv[5:]:return 0
     soft,hard=resource.getrlimit(resource.RLIMIT_STACK);resource.setrlimit(resource.RLIMIT_STACK,(min(128*1024*1024,hard) if hard!=resource.RLIM_INFINITY else 128*1024*1024,hard));resource.setrlimit(resource.RLIMIT_CORE,(0,0))
     cmd=['/usr/local/cuda/bin/nvcc','-std=c++17','-O3','-arch=sm_89','--fmad='+('false' if app=='CHT' else 'true'),'-DUGKWP_GPU_REAL_BITS='+str(bits),'-I'+str(source),'-I'+str(root/'common'),'-I'+str(root/'applications'/app/'gpu'),str(cu),'-o',str(exe)]
     if app=='CHT':cmd.append(str(source/'GpuWallEnergy64.cu'))
