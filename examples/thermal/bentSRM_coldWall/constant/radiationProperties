@@ -10,7 +10,7 @@ FoamFile
 schemaVersion 1;
 
 enabled true;
-couplingFrequency 10;
+couplingFrequency 5;
 
 model
 {

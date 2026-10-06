@@ -1,0 +1,5 @@
+Source mesh: /home/lss/bentSRM_block_lowRe_20261005/wallonly_multigrade_0p0400_15p800_2_10_profile/constant/polyMesh
+Cell count: 6240. Target first-layer design: approximately 50 micrometres.
+Strict checkMesh has 58 low-quality face tets and 206 small-determinant cells; this is a user-selected diagnostic mesh, not a fully quality-passing production mesh.
+Pre-installation case snapshot: /home/lss/bentSRM_backup_before_6240_20261006
+Top-level old time directories and postProcessing were removed before rebuilding 1.5 s.

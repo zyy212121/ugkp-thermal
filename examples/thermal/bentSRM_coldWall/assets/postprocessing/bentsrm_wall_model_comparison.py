@@ -296,9 +296,8 @@ def coupled_wall_particle_temperature_records():
 
 def coupled_wall_particle_temperature_results():
     records, properties = coupled_wall_particle_temperature_records()
-    if not records:
-        raise RuntimeError("No cold-wall contact-particle temperatures are available")
-    with (DATA/f"{PREFIX}_coupled_wall_particle_temperature.csv").open("w", newline="", encoding="utf-8") as stream:
+    csv_path = DATA/f"{PREFIX}_coupled_wall_particle_temperature.csv"
+    with csv_path.open("w", newline="", encoding="utf-8") as stream:
         writer = csv.writer(stream)
         writer.writerow(("temperature_component", "time_s", "particle_count",
                          "temperature_median_K", "temperature_mean_K",
@@ -306,6 +305,17 @@ def coupled_wall_particle_temperature_results():
         for time, component, count, median, mean, p25, p75 in records:
             writer.writerow((component, f"{time:.17g}", count, f"{median:.12g}",
                              f"{mean:.12g}", f"{p25:.12g}", f"{p75:.12g}"))
+
+    figure_path = FIGURES/f"{PREFIX}_coupled_wall_particle_temperature.png"
+    if not records:
+        fig, axis = plt.subplots(figsize=(10, 8), facecolor="white")
+        axis.text(0.5, 0.5, "No wall-contact particle temperatures yet",
+                  ha="center", va="center", transform=axis.transAxes, fontsize=16)
+        axis.set_axis_off()
+        fig.savefig(figure_path, dpi=600, facecolor="white")
+        plt.close(fig)
+        print("No wall-contact particle temperatures yet; wrote empty CSV and placeholder plot.")
+        return
 
     fig, axis = plt.subplots(figsize=(10, 8), facecolor="white")
     specifications = (
@@ -332,7 +342,7 @@ def coupled_wall_particle_temperature_results():
     configure_axes(axis)
     inside_legend(axis, "center right")
     fig.tight_layout(pad=0.7)
-    fig.savefig(FIGURES/f"{PREFIX}_coupled_wall_particle_temperature.png", dpi=600, facecolor="white")
+    fig.savefig(figure_path, dpi=600, facecolor="white")
     plt.close(fig)
 
 

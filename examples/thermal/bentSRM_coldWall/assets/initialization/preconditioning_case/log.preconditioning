@@ -1,0 +1,31 @@
+/*---------------------------------------------------------------------------*\
+  =========                 |
+  \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
+   \\    /   O peration     | Website:  https://openfoam.org
+    \\  /    A nd           | Version:  10
+     \\/     M anipulation  |
+\*---------------------------------------------------------------------------*/
+Build  : 10-c4cf895ad8fa
+Exec   : gasUGKP
+Date   : Oct 07 2026
+Time   : 00:31:59
+Host   : "lss"
+PID    : 1213419
+I/O    : uncollated
+Case   : /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal/examples/thermal/bentSRM_coldWall/assets/initialization/preconditioning_case
+nProcs : 1
+sigFpe : Enabling floating point exception trapping (FOAM_SIGFPE).
+fileModificationChecking : Monitoring run-time modified files using timeStampMaster (fileModificationSkew 10)
+allowSystemOperations : Allowing user-supplied system call operations
+
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+Create time
+
+gasUGKP: weighted-parcel configurable-block dynamic-heavy separated-backend GPU solver
+Create mesh for time = 1.3999999999999999
+
+Tracking geometry: B2=256 blocksPerSM=2 grid=0
+Launch geometry: B1cell=128 B1face=128 (ToolB1 pending) B2=256 B3=256 SM=24 hardwareMaxThreadsPerBlock=1024 hardwareMaxBlocksPerSM=24 particleBlocksPerSM=2 lightBlocksPerSM=5 heavyBlocksPerSM=0
+ToolB1: B1cell=96 B1face=32 cellMedianMs=0.096992 faceMedianMs=0.180224 measuredKernelMs=12.414815 warmup=1 repeats=5
+GPU particle forces: dragModel=SchillerNaumann particleGasHeatTransferModel=RanzMarshall gravity=(0 0 0) m/s^2
+runTime = 836 simulationTime = 1.4999999884934587 particleCount = 0 CoMax = 0.49999565050278222

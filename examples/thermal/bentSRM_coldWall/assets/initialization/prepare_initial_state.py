@@ -214,14 +214,20 @@ def install_formal_state(source_time: str) -> None:
             text = re.sub(r"(focusWall\s*\{.*?value\s+uniform\s+)[-+0-9.eE]+", r"\g<1>750", text, flags=re.S)
             text = re.sub(r"(walls\s*\{.*?value\s+uniform\s+)[-+0-9.eE]+", r"\g<1>750", text, flags=re.S)
         (fluid / name).write_text(text)
-    p = values(parse_internal(source / "p", "scalar"), 5304)
+    p_parsed = parse_internal(source / "p", "scalar")
+    if p_parsed[1] is None:
+        raise RuntimeError("preconditioning p output must contain a nonuniform cell list")
+    p = p_parsed[1]
     u = values(parse_internal(source / "U", "vector"), len(p))
     t = values(parse_internal(source / "T", "scalar"), len(p))
-    rho = [pp / (287.0 * tt) for pp, tt in zip(p, t)]
+    rho = [pp / (287.00025735037417 * tt) for pp, tt in zip(p, t)]
     rhou = [(rr*vv[0], rr*vv[1], rr*vv[2]) for rr, vv in zip(rho, u)]
     rhoe = [pp/0.4 + 0.5*rr*sum(q*q for q in vv) for pp, rr, vv in zip(p, rho, u)]
-    inlet_pressure = 6238838.0
-    rho_bc = formal_scalar_boundary(f"type fixedValue; value uniform {inlet_pressure/(287.0*3200.0):.17g};", "type zeroGradient;", "type zeroGradient;", "type zeroGradient;")
+    inlet_p_match = re.search(r"inlet\s*\{[^}]*?value\s+uniform\s+([-+0-9.eE]+)\s*;", (fluid / "p").read_text(), re.S)
+    if not inlet_p_match:
+        raise RuntimeError("cannot read inlet pressure from preconditioned p field")
+    inlet_pressure = float(inlet_p_match.group(1))
+    rho_bc = formal_scalar_boundary(f"type fixedValue; value uniform {inlet_pressure/(287.00025735037417*3200.0):.17g};", "type zeroGradient;", "type zeroGradient;", "type zeroGradient;")
     energy_bc = formal_scalar_boundary(f"type fixedValue; value uniform {inlet_pressure/0.4:.17g};", "type zeroGradient;", "type zeroGradient;", "type zeroGradient;")
     vector_bc = formal_scalar_boundary("type zeroGradient;", "type zeroGradient;", "type zeroGradient;", "type zeroGradient;")
     (fluid / "rho").write_text(nonuniform_scalar("1.5/fluid", "rho", "[1 -3 0 0 0 0 0]", rho, rho_bc))
@@ -241,7 +247,7 @@ def install_formal_state(source_time: str) -> None:
     (fluid / "Tp").write_text(scalar_field("1.5/fluid", "Tp", "[0 0 0 1 0 0 0]", 3200, "type fixedValue; value uniform 3200;", "type zeroGradient;", "type zeroGradient;", "type zeroGradient;"))
     for name in ("particleStuckWallHeatFlux", "particleReflectedWallHeatFlux"):
         (fluid / name).write_text(foam_header("1.5/fluid", name, "surfaceScalarField") + "\ndimensions [1 0 -3 0 0 0 0];\ninternalField uniform 0;\nboundaryField { inlet {type calculated; value uniform 0;} outlet {type calculated; value uniform 0;} symmetry {type symmetry; value uniform 0;} focusWall {type calculated; value uniform 0;} walls {type calculated; value uniform 0;} fluid_to_graphite {type calculated; value uniform 0;} }\n")
-    shutil.copy2(CASE / "2.500000008807/graphite/T", graphite / "T")
+    shutil.copy2(CASE / "assets/initialization/formal_1p5_checkpoint/graphite/T", graphite / "T")
     text = (graphite / "T").read_text().replace('location    "2.500000008807/graphite";', 'location    "1.5/graphite";').replace("internalField   uniform 750;", "internalField   uniform 350;")
     text = text.replace("value           uniform 750;", "value           uniform 493.71;", 1)
     text = text.replace("value           uniform 750;", "value           uniform 299.187256;", 1)
@@ -257,7 +263,6 @@ def install_formal_state(source_time: str) -> None:
     residual = [f"UGKP_SOURCE_RESIDUAL_SCHEMA1 {count}"]
     residual.extend(f"{start+i} 0.00000000000000000e+00" for i in range(count))
     (target / "gpuResidentStrictSourceResidual.dat").write_text("\n".join(residual) + "\n")
-    shutil.rmtree(CASE / "2.500000008807")
     print(target)
 
 

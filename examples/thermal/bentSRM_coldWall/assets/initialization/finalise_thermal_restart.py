@@ -45,6 +45,7 @@ particleContactEnergyJ 0;
 def zero_step(control: Path, time_s: float):
     source = control.read_text()
     temporary = re.sub(r"endTime\s+[-+0-9.eE]+\s*;", f"endTime {time_s:.17g};", source, count=1)
+    temporary = re.sub(r"startFrom\s+latestTime\s*;", "startFrom startTime;", temporary, count=1)
     control.write_text(temporary)
     try:
         return subprocess.run(["CHT", "-case", str(CASE)], text=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)

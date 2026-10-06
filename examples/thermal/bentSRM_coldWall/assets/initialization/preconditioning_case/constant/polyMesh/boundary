@@ -1,61 +1,61 @@
-                                                                               
-                             
-                                                                   
-                                                            
-                                          
-                             
-                                                                               
+/*--------------------------------*- C++ -*----------------------------------*\
+  =========                 |
+  \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
+   \\    /   O peration     | Website:  https://openfoam.org
+    \\  /    A nd           | Version:  10
+     \\/     M anipulation  |
+\*---------------------------------------------------------------------------*/
 FoamFile
 {
     format      ascii;
     class       polyBoundaryMesh;
-    location    "constant/fluid/polyMesh";
+    location    "constant/polyMesh";
     object      boundary;
 }
-                                                                               
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
 6
 (
     inlet
     {
         type            patch;
-        nFaces          136;
-        startFace       15074;
+        nFaces          160;
+        startFace       17780;
     }
     outlet
     {
         type            patch;
-        nFaces          136;
-        startFace       15210;
+        nFaces          160;
+        startFace       17940;
     }
     symmetry
     {
         type            symmetry;
         inGroups        List<word> 1(symmetry);
-        nFaces          936;
-        startFace       15346;
+        nFaces          1092;
+        startFace       18100;
     }
     focusWall
     {
         type            wall;
         inGroups        List<word> 1(wall);
         nFaces          38;
-        startFace       16282;
+        startFace       19192;
     }
     walls
     {
         type            wall;
         inGroups        List<word> 1(wall);
         nFaces          428;
-        startFace       16320;
+        startFace       19230;
     }
     fluid_to_graphite
     {
         type            wall;
         inGroups        List<word> 1(wall);
         nFaces          2;
-        startFace       16748;
+        startFace       19658;
     }
 )
 
-                                                                               
+// ************************************************************************* //

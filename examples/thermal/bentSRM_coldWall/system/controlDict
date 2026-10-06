@@ -17,7 +17,7 @@ FoamFile
 
 application     CHT;
 
-startFrom       latestTime;
+startFrom       startTime;
 
 startTime       1.5;
 
@@ -47,7 +47,7 @@ runTimeModifiable true;
 
 adjustTimeStep  yes;
 
-maxCo           0.5;
+maxCo           0.7;
 
 maxDeltaT       1e-05;
 

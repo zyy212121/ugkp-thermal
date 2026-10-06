@@ -74,13 +74,24 @@ gpuResidentStuckWallPatches ( fluid_to_graphite );
 
 gpuResidentStuckModel
 {
-    sommerfeldThreshold 20;
+    wallInteractionModel coldWall1D;
+    sommerfeldThreshold 8;
     heatTransfer    true;
     maximumCoverage 0.63;
     depositionHeatTransferEfficiency 0.1;
-    reflectionHeatTransferEfficiency 0.004;
-    adhesionEnergyScale 20000;
+    reflectionHeatTransferEfficiency 0.1;
+    adhesionEnergyScale 10000;
     contactAngleDegree 145;
+    meltingTemperature 2327;
+    mushyRange 20;
+    latentHeat 1.16e6;
+    solidDensity 3990;
+    solidSpecificHeat 1273;
+    solidThermalConductivity 5.9;
+    pinningThicknessFraction 0.25;
+    interfaceThermalResistance 0;
+    wallTransientResistance true;
+    solidificationIterations 4;
     heatFluxField   particleStuckWallHeatFlux;
     reflectionHeatFluxField particleReflectedWallHeatFlux;
 }

@@ -40,7 +40,7 @@ mixture
 
 turbulence
 {
-    simulationType RAS;
+    simulationType laminar;
 
     RAS
     {
