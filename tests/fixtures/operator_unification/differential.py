@@ -1,7 +1,9 @@
-"""Run actual CUDA implementations against frozen pre-extraction device bodies.
+"""Check CUDA operators against frozen bodies and corrected cold-wall physics.
 
-No timings or throughput measurements are collected. Fixtures exercise precision
-boundaries, periodic/internal faces, sparse wall channels and cold-wall updates.
+Unchanged operators retain bitwise pre-extraction comparisons. Cold-wall physics
+uses the scalar enthalpy solver plus independent analytic/energy checks because
+the frozen cold32/cold64 bodies contain the superseded heat-source bugs.
+No timings or throughput measurements are collected.
 """
 from pathlib import Path
 import argparse, json, os, re, resource, subprocess
@@ -10,6 +12,7 @@ def main():
     parser=argparse.ArgumentParser(description=__doc__)
     parser.add_argument('root',type=Path);parser.add_argument('output',type=Path)
     parser.add_argument('app',choices=['gasUGKP','FSH','CHT']);parser.add_argument('bits',type=int,choices=[32,64])
+    parser.add_argument('--generate-only',action='store_true',help='write CUDA fixture without compiling or running it')
     args=parser.parse_args();root=args.root.resolve();out=args.output.resolve();out.mkdir(parents=True,exist_ok=True)
     app,bits=args.app,args.bits
     source=root/'applications'/app/('gpu' if app=='CHT' else 'private_backend')
@@ -24,9 +27,6 @@ def main():
         code+=frozen[app+':'+name].replace(name,'baseline_'+name)+'\n'
     code+=frozen['drag'].replace('UGKWP_GPU_DRAG_ALGEBRA_CUH','BASELINE_GPU_DRAG_ALGEBRA_CUH').replace('ugkwpGpuDragAlgebra','baselineDrag')+'\n'
     if app!='gasUGKP':
-        cold=frozen['cold'+str(bits)].replace('advanceColdWall1DThermalGroup','baselineColdWall')
-        if bits==32:cold='template<bool StabilizePcr=false>\n'+cold
-        code+=cold+'\n'
         code+=frozen['thermalPressureCell'].replace('applyCollisionalPressureProjectionCellAtomicKernel','baselinePressureCell')+'\n'
         code+=frozen['thermalPressureParticles'].replace('applyCollisionalPressureProjectionParticlesAtomicKernel','baselinePressureParticles')+'\n'
     raw=(source/'GpuResidentStrict.cu').read_text().replace('#include "GpuAutomaticCsrScheduleFields.inl"', (root/"common/GpuAutomaticCsrScheduleFields.inl").read_text() if (root/"common/GpuAutomaticCsrScheduleFields.inl").is_file() else "");a=raw.index('struct DeviceState');b=raw.index('\n};',a)
@@ -121,46 +121,106 @@ puts("PASS bitwise unsorted particle update with mobile, transient and deposited
     if app!='gasUGKP':
         extra+=r'''
 __global__ void wallChannels(DeviceState*s,DeviceState*r){int i=threadIdx.x+blockDim.x*blockIdx.x;if(i>=129)return;int f=i%3;Real e=(i%7==0)?Real(0):Real((i%2?-1:1)*(1+i%5)*.125);auto a=i%2?s->particleWallReflectedEnergy:s->particleWallDepositedEnergy;auto b=i%2?r->particleWallReflectedEnergy:r->particleWallDepositedEnergy;atomicAddParticleWallEnergyByFace(*s,a,f,e);baseline_atomicAddParticleWallEnergyByFace(*r,b,f,e);}
-__global__ void coldPair(DeviceState*s,DeviceState*r,double*out,int stable,double dt,double gasConductance){int lane=threadIdx.x;Real ma=0,fa=0,ea=0,mb=0,fb=0,eb=0;bool failA=false,failB=false;
+// The scalar Thomas solve is a separate path from the eight-lane PCR solve.
+// Start both from the same stored floats at every step; do not compare two
+// independently drifting trajectories or freeze the corrected implementation.
+__global__ void coldScalar(DeviceState*r,double*out,double dt,double gasConductance,double duration,double gasTemperature){
+ if(threadIdx.x!=0)return;
+ Real h[8],ring[8],mean=0;for(int n=0;n<8;n++){h[n]=Real(r->pColdNodeSpecificEnthalpy[n]);ring[n]=Real(r->pColdRingSolidMass[n]);mean+=h[n]/Real(8);}
+ GpuTime age=r->pColdContactAge[0];Real frozen=Real(r->pColdFrozenArea[0]),gasIncrement=0;
+ bool gasValid=Foam::gpuThermal::coldWallGasSpecificEnthalpyIncrement(mean,Real(3.2e-9),Real(gasTemperature),Real(gasConductance),GpuTime(dt),r->coldWallSolidificationParameters,gasIncrement);
+ auto b=Foam::gpuThermal::advanceColdWallProfile(h,ring,age,frozen,r->coldWallSolidificationParameters,
+  Real(1e-12),Real(3.2e-9),Real(2.2e-8),Real(1.7e-8),GpuTime(duration),Real(.42),GpuTime(dt),Real(300),Real(13000),Real(.1),Real(gasTemperature),Real(gasConductance));
+ out[1]=b.valid;out[3]=b.meanTemperatureK;out[5]=b.frozenFootprintAreaM2;out[7]=b.wallEnergyJ;out[9]=gasValid;out[10]=double(Real(3.2e-9))*gasIncrement;
+ if(b.valid){for(int n=0;n<8;n++){r->pColdNodeSpecificEnthalpy[n]=float(h[n]);r->pColdRingSolidMass[n]=float(ring[n]);}r->pColdContactAge[0]=age;r->pColdFrozenArea[0]=float(frozen);}
+}
+__global__ void coldPair(DeviceState*s,double*out,int stable,double dt,double gasConductance,double duration=8e-6,double gasTemperature=3200){int lane=threadIdx.x;Real ma=0,fa=0,ea=0;bool failA=false;
  const Real volume=Real(1e-12),mass=Real(3.2e-9),area=Real(2.2e-8),contact=Real(1.7e-8);
- bool a,b;
+ bool a;
  COLD_CALLS
- if(lane==0){out[0]=a;out[1]=b;out[2]=ma;out[3]=mb;out[4]=fa;out[5]=fb;out[6]=ea;out[7]=eb;out[8]=failA;out[9]=failB;}}
+ if(lane==0){out[0]=a;out[2]=ma;out[4]=fa;out[6]=ea;out[8]=failA;}}
+void seedColdReference(const DeviceState*s,DeviceState*r){
+ for(int n=0;n<8;n++){r->pColdNodeSpecificEnthalpy[n]=s->pColdNodeSpecificEnthalpy[n];r->pColdRingSolidMass[n]=s->pColdRingSolidMass[n];}
+ r->pColdContactAge[0]=s->pColdContactAge[0];r->pColdFrozenArea[0]=s->pColdFrozenArea[0];
+}
+double coldStorageUlp(float x){return fmax(fabs(double(std::nextafterf(x,INFINITY))-x),fabs(double(x)-std::nextafterf(x,-INFINITY)));}
+void nearCold(double actual,double expected,double bound,const char*name){
+ if(!std::isfinite(actual)||!std::isfinite(expected)||fabs(actual-expected)>bound){printf("FAIL %s actual=%.17g expected=%.17g bound=%.17g\n",name,actual,expected,bound);exit(13);}
+}
 '''
-        callargs='volume,mass,area,contact,GpuTime(8e-6),Real(.42),GpuTime(dt),Real(300),Real(13000),Real(.1),Real(3200),Real(gasConductance)'
-        calls=f'a=advanceColdWall1DThermalGroup(*s,0,lane,0xffu,{callargs},ma,fa,ea);b=baselineColdWall(*r,0,lane,0xffu,{callargs},mb,fb,eb);'
+        callargs='volume,mass,area,contact,GpuTime(duration),Real(.42),GpuTime(dt),Real(300),Real(13000),Real(.1),Real(gasTemperature),Real(gasConductance)'
+        calls=f'a=advanceColdWall1DThermalGroup(*s,0,lane,0xffu,{callargs},ma,fa,ea);'
         if bits==32:
-            calls=f'if(stable){{a=advanceColdWall1DThermalGroup<true>(*s,0,lane,0xffu,{callargs},ma,fa,ea,&failA);b=baselineColdWall<true>(*r,0,lane,0xffu,{callargs},mb,fb,eb,&failB);}}else{{a=advanceColdWall1DThermalGroup<false>(*s,0,lane,0xffu,{callargs},ma,fa,ea,&failA);b=baselineColdWall<false>(*r,0,lane,0xffu,{callargs},mb,fb,eb,&failB);}}'
+            calls=f'if(stable){{a=advanceColdWall1DThermalGroup<true>(*s,0,lane,0xffu,{callargs},ma,fa,ea,&failA);}}else{{a=advanceColdWall1DThermalGroup<false>(*s,0,lane,0xffu,{callargs},ma,fa,ea,&failA);}}'
         extra=extra.replace('COLD_CALLS',calls)
         wall='for(int block:{32,64,128,256}){for(int f=0;f<3;f++)s->particleWallReflectedEnergy[f]=s->particleWallDepositedEnergy[f]=reference->particleWallReflectedEnergy[f]=reference->particleWallDepositedEnergy[f]=0;wallChannels<<<(129+block-1)/block,block>>>(s,reference);sync();for(int f=0;f<3;f++){equal(s->particleWallReflectedEnergy[f],reference->particleWallReflectedEnergy[f],"wall reflected");equal(s->particleWallDepositedEnergy[f],reference->particleWallDepositedEnergy[f],"wall deposited");}}puts("PASS bitwise signed wall ledger with partial warps, multiple faces/channels and block sizes");'
         cold=r'''
 s->coldWallSolidificationEnabled=reference->coldWallSolidificationEnabled=1;
 s->coldWallSolidificationParameters=reference->coldWallSolidificationParameters={2327.,20.,1.16e6,3990.,1273.,5.9,.25,0.,1,4};
-double largestColdResidual=0,largestColdBound=0;
-for(int closed:{0,1})for(int stable=0;stable<STABLE_MODES;stable++)for(int transient:{0,1}){
+// PCR/Thomas arithmetic is precision dependent; storage remains float for both
+// policies. Report observed errors separately from the explicit rounding budget.
+const double coldArithmeticTolerance=128*GPU_REAL_EPSILON;
+double largestColdResidual=0,largestColdBound=0,largestColdNodeError=0,largestColdWallError=0;
+for(int closed:{0,1})for(int stable=0;stable<STABLE_MODES;stable++)for(int transient:{0,1})for(int initialTemperature:{1000,2328,3500}){
  s->coldWallSolidificationParameters.wallTransientResistance=reference->coldWallSolidificationParameters.wallTransientResistance=transient;
- for(int i=0;i<8;i++){s->pColdNodeSpecificEnthalpy[i]=reference->pColdNodeSpecificEnthalpy[i]=float(Foam::gpuThermal::coldWallSpecificEnthalpyJkg(3500.,s->coldWallSolidificationParameters));s->pColdRingSolidMass[i]=reference->pColdRingSolidMass[i]=0;}
- s->pColdContactAge[0]=reference->pColdContactAge[0]=0;s->pColdFrozenArea[0]=reference->pColdFrozenArea[0]=0;
+ for(int i=0;i<8;i++){s->pColdNodeSpecificEnthalpy[i]=float(Foam::gpuThermal::coldWallSpecificEnthalpyJkg(Real(initialTemperature),s->coldWallSolidificationParameters));s->pColdRingSolidMass[i]=0;}
+ s->pColdContactAge[0]=0;s->pColdFrozenArea[0]=0;
  for(int step=0;step<64;step++){
+  seedColdReference(s,reference);
   double before=0;for(int i=0;i<8;i++)before+=double(Real(3.2e-9)/Real(8))*s->pColdNodeSpecificEnthalpy[i];
-  coldPair<<<1,8>>>(s,reference,values,stable,7.5e-8,closed?0:2e-4);sync();for(int j=0;j<5;j++)equal(values[2*j],values[2*j+1],"cold-wall output");ck(values[0]==1,"cold-wall valid step");
+  coldScalar<<<1,1>>>(reference,values,7.5e-8,closed?0:2e-4,8e-6,3200);
+  coldPair<<<1,8>>>(s,values,stable,7.5e-8,closed?0:2e-4);sync();
+  ck(values[0]==1&&values[1]==1&&values[8]==0&&values[9]==1,"scalar/PCR cold-wall valid step");
+  nearCold(values[2],values[3],coldArithmeticTolerance*fmax(fabs(values[2]),fabs(values[3])),"cold-wall mean temperature");
+  nearCold(values[4],values[5],coldArithmeticTolerance*double(Real(2.2e-8)),"cold-wall frozen area");
+  double wallError=fabs(values[6]-values[7]);largestColdWallError=fmax(largestColdWallError,wallError);
+  nearCold(values[6],values[7],coldArithmeticTolerance*fmax(fabs(values[6]),fabs(values[7])),"cold-wall wall energy");
   double after=0,storageBound=0;
   for(int i=0;i<8;i++){
-    equal(s->pColdNodeSpecificEnthalpy[i],reference->pColdNodeSpecificEnthalpy[i],"cold-wall node enthalpy");equal(s->pColdRingSolidMass[i],reference->pColdRingSolidMass[i],"cold-wall ring mass");
-    float node=s->pColdNodeSpecificEnthalpy[i];double nodeMass=double(Real(3.2e-9)/Real(8));after+=nodeMass*node;
-    storageBound+=.5*nodeMass*fabs(double(std::nextafter(node,INFINITY))-node);
+    float node=s->pColdNodeSpecificEnthalpy[i],refNode=reference->pColdNodeSpecificEnthalpy[i];double nodeMass=double(Real(3.2e-9)/Real(8));after+=nodeMass*node;
+    double nodeError=fabs(double(node)-refNode);largestColdNodeError=fmax(largestColdNodeError,nodeError);
+    nearCold(node,refNode,coldStorageUlp(node)+coldStorageUlp(refNode)+coldArithmeticTolerance*fmax(fabs(double(node)),fabs(double(refNode))),"cold-wall node enthalpy");
+    nearCold(s->pColdRingSolidMass[i],reference->pColdRingSolidMass[i],coldStorageUlp(s->pColdRingSolidMass[i])+coldStorageUlp(reference->pColdRingSolidMass[i])+coldArithmeticTolerance*double(Real(3.2e-9)),"cold-wall ring mass");
+    storageBound+=.5*nodeMass*coldStorageUlp(node);
   }
+  nearCold(s->pColdFrozenArea[0],reference->pColdFrozenArea[0],coldStorageUlp(s->pColdFrozenArea[0])+coldStorageUlp(reference->pColdFrozenArea[0])+coldArithmeticTolerance*double(Real(2.2e-8)),"cold-wall published frozen area");
   equal(s->pColdContactAge[0],reference->pColdContactAge[0],"cold-wall time64");
-  if(closed){double residual=after-before+values[6];double bound=storageBound+64*GPU_REAL_EPSILON*(fabs(before)+fabs(after)+fabs(values[6]));largestColdResidual=fmax(largestColdResidual,fabs(residual));largestColdBound=fmax(largestColdBound,bound);ck(fabs(residual)<=bound,"closed cold-wall particle enthalpy + wall heat conservation within storage rounding");}
+  double residual=after-before+values[6]-values[10];
+  double bound=storageBound+64*GPU_REAL_EPSILON*(fabs(before)+fabs(after)+fabs(values[6])+fabs(values[10]));
+  largestColdResidual=fmax(largestColdResidual,fabs(residual));largestColdBound=fmax(largestColdBound,bound);
+  ck(fabs(residual)<=bound,"cold-wall particle enthalpy + wall heat - gas input conservation within storage rounding");
  }
- float saved=s->pColdNodeSpecificEnthalpy[0];double age=s->pColdContactAge[0];coldPair<<<1,8>>>(s,reference,values,stable,-1,0);sync();ck(values[0]==0&&values[1]==0,"invalid cold-wall step rejected");equal(s->pColdNodeSpecificEnthalpy[0],saved,"rejected enthalpy unchanged");equal(s->pColdContactAge[0],age,"rejected age unchanged");
+ float savedH[8],savedRing[8];for(int n=0;n<8;n++){savedH[n]=s->pColdNodeSpecificEnthalpy[n];savedRing[n]=s->pColdRingSolidMass[n];}
+ double age=s->pColdContactAge[0];float frozen=s->pColdFrozenArea[0];
+ for(int bad:{0,1,2,3}){
+ seedColdReference(s,reference);double badDt=bad==0?-1:7.5e-8,badGas=bad==1?NAN:(bad==3?-1:0),badTemperature=bad==2?NAN:3200;
+ coldScalar<<<1,1>>>(reference,values,badDt,badGas,8e-6,badTemperature);coldPair<<<1,8>>>(s,values,stable,badDt,badGas,8e-6,badTemperature);sync();
+ ck(values[0]==0&&values[1]==0,"invalid cold-wall step rejected");
+ for(int n=0;n<8;n++){equal(s->pColdNodeSpecificEnthalpy[n],savedH[n],"rejected enthalpy unchanged");equal(s->pColdRingSolidMass[n],savedRing[n],"rejected ring mass unchanged");equal(reference->pColdNodeSpecificEnthalpy[n],savedH[n],"rejected scalar enthalpy unchanged");equal(reference->pColdRingSolidMass[n],savedRing[n],"rejected scalar ring mass unchanged");}
+ equal(s->pColdContactAge[0],age,"rejected age unchanged");equal(s->pColdFrozenArea[0],frozen,"rejected frozen area unchanged");equal(reference->pColdContactAge[0],age,"rejected scalar age unchanged");equal(reference->pColdFrozenArea[0],frozen,"rejected scalar frozen area unchanged");
+ }
 }
-printf("COLD_ENERGY maximum_abs_residual=%.17g maximum_rounding_bound=%.17g\n",largestColdResidual,largestColdBound);
-puts("PASS bitwise cold-wall temperature, wall heat, enthalpy and ring mass across precision policies");
+// Delay wetting beyond the whole step to isolate gas relaxation. This independent
+// constant-cp exponential catches both a top-node-only source and reapplying the
+// gas step during every nonlinear iteration, even if both solvers share a bug.
+for(int stable=0;stable<STABLE_MODES;stable++)for(int iterations:{1,4,12})for(int gasTemperature:{700,1700}){
+ auto& p=s->coldWallSolidificationParameters;p.nonlinearIterations=iterations;
+ float oldH=float(p.solidSpecificHeatJkgK*Real(1000));
+ for(int n=0;n<8;n++){s->pColdNodeSpecificEnthalpy[n]=oldH;s->pColdRingSolidMass[n]=0;}
+ s->pColdContactAge[0]=0;s->pColdFrozenArea[0]=0;
+ const double dt=2e-4,conductance=double(Real(2e-4)),cp=double(p.solidSpecificHeatJkgK),mass=double(Real(3.2e-9));
+ const double expectedH=double(oldH)+(cp*gasTemperature-double(oldH))*(-std::expm1(-dt*conductance/(mass*cp)));
+ coldPair<<<1,8>>>(s,values,stable,dt,conductance,1e6,gasTemperature);sync();ck(values[0]==1&&values[8]==0,"gas-only cold-wall valid step");
+ for(int n=0;n<8;n++)nearCold(s->pColdNodeSpecificEnthalpy[n],expectedH,.5*coldStorageUlp(s->pColdNodeSpecificEnthalpy[n])+coldArithmeticTolerance*fabs(expectedH),"uniform gas-only analytic exponential");
+ nearCold(values[2],expectedH/cp,coldArithmeticTolerance*fabs(expectedH/cp),"gas-only analytic bulk temperature");equal(values[6],0,"gas-only wall heat exactly zero");
+}
+printf("COLD_ENERGY maximum_abs_residual=%.17g maximum_rounding_bound=%.17g maximum_node_error=%.17g maximum_wall_energy_error=%.17g\n",largestColdResidual,largestColdBound,largestColdNodeError,largestColdWallError);
+puts("PASS scalar/analytic cold-wall enthalpy, wall/gas energy, ring mass and rollback across precision policies");
 '''.replace('STABLE_MODES','2' if bits==32 else '1')
     code=code.replace('EXTRA_KERNELS',extra).replace('WALL_TEST',wall).replace('COLD_TEST',cold)
     code=code.replace('void sync()','void deviceSync()').replace('sync();','deviceSync();')
     cu=out/'differential.cu';cu.write_text(code);exe=out/'differential'
+    if args.generate_only:return 0
     cmd=['/usr/local/cuda/bin/nvcc','-std=c++17','-O3','-arch=sm_89','--fmad='+('false' if app=='CHT' else 'true'),'-DUGKWP_GPU_REAL_BITS='+str(bits),'-I'+str(source),'-I'+str(root/'common'),'-I'+str(root/'common/wall'),'-I'+str(root/'applications'/app/'gpu'),str(cu),'-o',str(exe)]
     if app=='CHT':cmd.append(str(source/'GpuWallEnergy64.cu'))
     soft,hard=resource.getrlimit(resource.RLIMIT_STACK)
