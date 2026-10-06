@@ -448,7 +448,8 @@ GPU_COLD_WALL_HD inline ColdWallSolidificationStep advanceColdWallProfile
     const GpuReal wallEffusivity,
     const GpuReal thermalAreaFactor,
     const GpuReal gasTemperatureK,
-    const GpuReal gasConductanceWK
+    const GpuReal gasConductanceWK,
+    const GpuTime gasExchangeDurationS = -1.0
 ) noexcept
 {
     if
@@ -483,6 +484,8 @@ GPU_COLD_WALL_HD inline ColdWallSolidificationStep advanceColdWallProfile
      || profileContactAgeS < GPU_R(0.0)
      || !finiteColdWallValue(frozenFootprintAreaM2)
      || frozenFootprintAreaM2 < GPU_R(0.0)
+     || !(gasExchangeDurationS == -1.0
+       || (gasExchangeDurationS >= 0.0 && gasExchangeDurationS <= DBL_MAX))
     )
     {
         return {false, GPU_R(0.0), GPU_R(0.0), GPU_R(0.0), GPU_R(0.0), GPU_R(0.0)};
@@ -533,10 +536,12 @@ GPU_COLD_WALL_HD inline ColdWallSolidificationStep advanceColdWallProfile
         meanOldEnthalpy += oldEnthalpy[node]/static_cast<GpuReal>(coldWallAxialNodeCount);
     }
     GpuReal gasSpecificEnthalpyIncrement = GPU_R(0.0);
+    const GpuTime gasDeltaTSeconds = gasExchangeDurationS == -1.0
+      ? deltaTSeconds : gasExchangeDurationS;
     if (!coldWallGasSpecificEnthalpyIncrement
         (
             meanOldEnthalpy, parcelMassKg, gasTemperatureK, gasConductanceWK,
-            deltaTSeconds, parameters, gasSpecificEnthalpyIncrement
+            gasDeltaTSeconds, parameters, gasSpecificEnthalpyIncrement
         ))
     {
         return {false, GPU_R(0.0), GPU_R(0.0), GPU_R(0.0), GPU_R(0.0), GPU_R(0.0)};

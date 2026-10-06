@@ -37,7 +37,9 @@
      && Foam::gpuThermal::finiteColdWallValue(gasTemperatureK)
      && gasTemperatureK > GPU_R(0.0)
      && Foam::gpuThermal::finiteColdWallValue(gasConductanceWK)
-     && gasConductanceWK >= GPU_R(0.0);
+     && gasConductanceWK >= GPU_R(0.0)
+     && (gasExchangeDurationS == -1.0
+       || (gasExchangeDurationS >= 0.0 && gasExchangeDurationS <= DBL_MAX));
     if (!__all_sync(mask, inputValid))
     {
         return false;
@@ -98,13 +100,15 @@
 
     const GpuReal meanOldEnthalpy = coldWall1DGroupSum(oldEnthalpy/GPU_R(8.0), mask);
     GpuReal gasSpecificEnthalpyIncrement = GPU_R(0.0);
+    const GpuTime gasDeltaTSeconds = gasExchangeDurationS == -1.0
+      ? deltaTSeconds : gasExchangeDurationS;
     bool gasSourceValid = true;
     if (lane == 0)
     {
         gasSourceValid = Foam::gpuThermal::coldWallGasSpecificEnthalpyIncrement
         (
             meanOldEnthalpy, physicalMassKg, gasTemperatureK, gasConductanceWK,
-            deltaTSeconds, s.coldWallSolidificationParameters,
+            gasDeltaTSeconds, s.coldWallSolidificationParameters,
             gasSpecificEnthalpyIncrement
         );
     }

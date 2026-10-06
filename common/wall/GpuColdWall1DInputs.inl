@@ -62,6 +62,20 @@
         {
             const GpuReal damageArea =
                 static_cast<GpuReal>(s.pDepositionArea[i]);
+            // Validate mechanical contact metadata before either thermal path
+            // can publish. The later finalizer must not be the first rejection
+            // after a gas-only update has already changed the particle.
+            if
+            (
+                !(duration > 0.0) || duration > DBL_MAX
+             || !(peakTimeFraction > GPU_R(0.0))
+             || !(peakTimeFraction < GPU_R(1.0))
+             || !Foam::gpuThermal::finiteColdWallValue(damageArea)
+             || damageArea < GPU_R(0.0)
+            )
+            {
+                asm("trap;");
+            }
             const GpuTime age0 = clampRange
             (
                 finiteOr(s.pContactAge[i], GPU_R(0.0)),
@@ -76,6 +90,10 @@
                     ageMid/duration,
                     peakTimeFraction
                 );
+            if (!Foam::gpuThermal::finiteColdWallValue(kinematicAreaMid))
+            {
+                asm("trap;");
+            }
             intrinsicArea = clampMin
             (
                 fmax
@@ -90,8 +108,41 @@
         {
             intrinsicArea = static_cast<GpuReal>(s.pDepositionArea[i]);
         }
+        if (!Foam::gpuThermal::finiteColdWallValue(intrinsicArea))
+        {
+            asm("trap;");
+        }
         if (!(activeDt > GPU_R(0.0)) || !(intrinsicArea > GPU_R(0.0)))
         {
+            // A finite contact may retract below its accumulated damage, or
+            // expire inside this step. Gas exchange still spans the full dt;
+            // the later generic finalizer alone performs the state transition.
+            if
+            (
+                (!finiteContact && !(intrinsicArea > GPU_R(0.0)))
+             || !(parcelMultiplicity > GPU_R(0.0))
+             || !Foam::gpuThermal::finiteColdWallValue(parcelMultiplicity)
+             || !(maximumArea > GPU_R(0.0))
+             || !Foam::gpuThermal::finiteColdWallValue(maximumArea)
+             || static_cast<GpuReal>(s.pColdFrozenArea[i]) > maximumArea
+            )
+            {
+                asm("trap;");
+            }
+            GpuReal gasOnlyMeanTemperature = GPU_R(0.0);
+            const bool gasOnlyValid = advanceColdWall1DGasOnlyGroup
+            (
+                s, i, lane, mask, physicalMass, gasTemperatureK, gasConductanceWK,
+                dt, activeDt, gasOnlyMeanTemperature
+            );
+            if (!gasOnlyValid)
+            {
+                asm("trap;");
+            }
+            if (lane == 0)
+            {
+                s.pT[i] = gasOnlyMeanTemperature;
+            }
             continue;
         }
         GpuReal meanTemperature = GPU_R(0.0);

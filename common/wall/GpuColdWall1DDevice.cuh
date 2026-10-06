@@ -1,5 +1,6 @@
 #include "GpuPrecisionTypes.H"
 #include "GpuColdWall1DAlgebra.cuh"
+#include "GpuColdWall1DGasOnly.cuh"
 #if UGKWP_GPU_REAL_BITS == 32
 #include "GpuPrecisionTypes.H"
 #ifndef GPU_THERMAL_GPU_COLD_WALL_1D_DEVICE_CUH
@@ -239,7 +240,8 @@ __device__ bool advanceColdWall1DThermalGroup
     GpuReal& meanTemperatureK,
     GpuReal& frozenFootprintAreaM2,
     GpuReal& wallEnergyJ,
-    bool* linearSolveFailed = nullptr
+    bool* linearSolveFailed = nullptr,
+    const GpuTime gasExchangeDurationS = -1.0
 )
 {
 #include "GpuColdWall1DAdvance.inl"
@@ -310,7 +312,8 @@ __global__ __launch_bounds__(256, 6) void relaxColdWall1DParticlesToResidentGasK
             meanTemperature,
             frozenArea,
             wallEnergy,
-            &linearSolveFailed
+            &linearSolveFailed,
+            dt
         );
         if (!valid && linearSolveFailed)
         {
@@ -334,7 +337,9 @@ __global__ __launch_bounds__(256, 6) void relaxColdWall1DParticlesToResidentGasK
             gasConductanceWK,
             meanTemperature,
             frozenArea,
-            wallEnergy
+            wallEnergy,
+            nullptr,
+            dt
         );
         }
         if (!valid || !(parcelMultiplicity > GPU_R(0.0)) || frozenArea > maximumArea)
@@ -393,7 +398,8 @@ __device__ bool advanceColdWall1DThermalGroup
     const GpuReal gasConductanceWK,
     GpuReal& meanTemperatureK,
     GpuReal& frozenFootprintAreaM2,
-    GpuReal& wallEnergyJ
+    GpuReal& wallEnergyJ,
+    const GpuTime gasExchangeDurationS = -1.0
 )
 {
 #include "GpuColdWall1DAdvance.inl"
@@ -462,7 +468,8 @@ __global__ void relaxColdWall1DParticlesToResidentGasKernel
             gasConductanceWK,
             meanTemperature,
             frozenArea,
-            wallEnergy
+            wallEnergy,
+            dt
         );
         if (!valid || !(parcelMultiplicity > GPU_R(0.0)) || frozenArea > maximumArea)
         {
