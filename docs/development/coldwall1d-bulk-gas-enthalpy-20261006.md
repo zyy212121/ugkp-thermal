@@ -92,6 +92,41 @@ The scalar reference now rejects the same negative/non-finite profile inputs
 as the GPU preparation path, before publication. Invalid-input and invalid
 cooling rollback are covered by regressions.
 
+## Finite-contact gas coverage
+
+Ranz–Marshall exchange now always covers the full physical step for an eligible
+coldWall1D particle, independently of its wall-contact area and remaining
+contact duration. The thermal helper accepts an optional `gasExchangeDurationS`
+(exactly `-1` preserves the former call interface's use of wall dt; otherwise it
+must be finite and nonnegative). Production supplies the physical dt; the
+wall/internal solve and its thermal contact-age increment still use `activeDt`.
+
+For positive area and positive `activeDt`, the full-step gas increment is frozen
+once from the old mean enthalpy and included in the existing implicit storage
+target `h_old + delta_h_gas`. Thus the wall responds to that full gas update
+during its active interval. This is a first-order gas-then-contact split, not an
+exact simultaneous integration of the two time histories. The shortened wall
+interval does not lose the rest of the step's gas exchange.
+
+If a transient contact has zero midpoint area or zero remaining active time, a
+transactional eight-lane gas-only path updates the nodal enthalpies and their
+bulk temperature. It does not form `volume/area`, invent a footprint, conduct
+heat to the wall, or add to a wall ledger. Thermal contact age advances only by
+`activeDt`; the existing generic finalizer remains the sole owner of mechanical
+contact age and state changes. With gas disabled, nodal enthalpies and ring/
+footprint history are unchanged. During gas heating, existing ring-solid mass
+can only be scaled down to the new wall-connected solid mass; no ring mass,
+pinning, or frozen area is added. A permanently deposited particle with zero
+area remains invalid.
+
+The cold-wall kernel still excludes mobile particles. A collision that releases
+a particle before thermal dispatch therefore receives only ordinary mobile
+gas relaxation. A contact that ends in the later wall-bound finalizer carries
+the already updated bulk temperature through profile clearing, without a
+second gas update. The next step resumes ordinary mobile relaxation. No new
+kernel, per-particle exchange ledger, launch reordering, or gas-energy-closure
+change is introduced. The separate coldWall2D route is unchanged.
+
 ## Verification
 
 `tests/test_cold_wall_1d_energy.py` builds and executes the real shared host
@@ -112,3 +147,11 @@ oracles rather than requiring equality with the obsolete frozen algorithm;
 unrelated frozen-operator checks are retained. Native GPU validation still
 requires nvcc and a compatible device. No full CFD result or performance claim
 is implied by these isolated tests.
+
+`tests/test_cold_wall_contact_routes.py` additionally executes the actual input
+preparation, cold-wall kernel, collision finalizer, mobile/wall-bound selectors,
+and generic contact finalizer with synchronized CPU lanes in FP32, stabilized
+FP32, and FP64. It covers damaged shrinking contacts, shortened or completed
+contact intervals, retained frozen deposits and melting, gas disabled, invalid
+state rollback, profile clearing, and absence of duplicate gas relaxation.
+This source-level harness does not validate CUDA code generation or performance.
