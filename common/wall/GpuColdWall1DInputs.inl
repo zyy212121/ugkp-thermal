@@ -25,7 +25,8 @@
         );
         if
         (
-            s.solveParticleTemperature != 0
+            lane == 0
+         && s.solveParticleTemperature != 0
          && s.particleGasHeatTransferModelId != 0
         )
         {
@@ -46,6 +47,7 @@
               /(s.rhoSolid*particleCp*dPart*dPart + GPU_TINY(1.0e-300));
             gasConductanceWK = rate*physicalMass*particleCp;
         }
+        gasConductanceWK = __shfl_sync(mask, gasConductanceWK, 0, 8);
         const unsigned char wallState = s.pStuck[i];
         const bool finiteContact =
             wallState == Foam::gpuThermal::particleWallTransientRebound

@@ -96,6 +96,24 @@
         return false;
     }
 
+    const GpuReal meanOldEnthalpy = coldWall1DGroupSum(oldEnthalpy/GPU_R(8.0), mask);
+    GpuReal gasSpecificEnthalpyIncrement = GPU_R(0.0);
+    bool gasSourceValid = true;
+    if (lane == 0)
+    {
+        gasSourceValid = Foam::gpuThermal::coldWallGasSpecificEnthalpyIncrement
+        (
+            meanOldEnthalpy, physicalMassKg, gasTemperatureK, gasConductanceWK,
+            deltaTSeconds, s.coldWallSolidificationParameters,
+            gasSpecificEnthalpyIncrement
+        );
+    }
+    if (!__all_sync(mask, gasSourceValid))
+    {
+        return false;
+    }
+    gasSpecificEnthalpyIncrement = __shfl_sync(mask, gasSpecificEnthalpyIncrement, 0, 8);
+
     const GpuReal contactArea = Foam::gpuThermal::coldWallClamp
     (
         intrinsicContactAreaM2,
@@ -105,6 +123,8 @@
     const GpuReal filmThickness = physicalVolumeM3/contactArea;
     const GpuReal nodeThickness = filmThickness/GPU_R(8.0);
     const GpuReal nodeMass = physicalMassKg/GPU_R(8.0);
+    const GpuReal nodeGasPower = nodeMass*gasSpecificEnthalpyIncrement
+      /(deltaTSeconds + GPU_REAL_MIN);
     const GpuReal ringArea = maximumAreaM2/GPU_R(8.0);
     const GpuReal ringInnerArea = static_cast<GpuReal>(lane)*ringArea;
     const GpuReal ringWetArea = Foam::gpuThermal::coldWallClamp
@@ -218,16 +238,15 @@
           + (lane > 0 ? leftFaceConductance : GPU_R(0.0))
           + (lane + 1 < 8 ? faceConductance : GPU_R(0.0));
         GpuReal upper = lane + 1 < 8 ? -faceConductance : GPU_R(0.0);
-        GpuReal rightHandSide = capacity*guessedTemperature;
+        // candidateEnthalpy is H_guess, not another physical time step.
+        GpuReal rightHandSide = capacity*guessedTemperature
+          + nodeMass*(oldEnthalpy - candidateEnthalpy)
+           /(deltaTSeconds + GPU_REAL_MIN)
+          + nodeGasPower;
         if (lane == 0)
         {
             diagonal += wallConductance;
             rightHandSide += wallConductance*wallTemperatureK;
-        }
-        if (lane == 7)
-        {
-            diagonal += gasConductanceWK;
-            rightHandSide += gasConductanceWK*gasTemperatureK;
         }
 #if UGKWP_GPU_REAL_BITS == 32
         const GpuReal solvedTemperature = StabilizePcr
@@ -237,8 +256,7 @@
             diagonal,
             upper,
             rightHandSide,
-            capacity + (lane == 0 ? wallConductance : GPU_R(0.0))
-              + (lane == 7 ? gasConductanceWK : GPU_R(0.0)),
+            capacity + (lane == 0 ? wallConductance : GPU_R(0.0)),
             lane,
             mask
         )
@@ -272,8 +290,6 @@
             __shfl_up_sync(mask, internalPower, 1, 8);
         const GpuReal wallPower = wallConductance
           *(__shfl_sync(mask, solvedTemperature, 0, 8) - wallTemperatureK);
-        const GpuReal gasPower = gasConductanceWK
-          *(gasTemperatureK - __shfl_sync(mask, solvedTemperature, 7, 8));
         GpuReal power =
             (lane > 0 ? leftInternalPower : GPU_R(0.0))
           - (lane + 1 < 8 ? internalPower : GPU_R(0.0));
@@ -281,11 +297,8 @@
         {
             power -= wallPower;
         }
-        if (lane == 7)
-        {
-            power += gasPower;
-        }
         candidateEnthalpy = oldEnthalpy
+          + gasSpecificEnthalpyIncrement
           + deltaTSeconds*power/nodeMass;
         guessedTemperature =
             Foam::gpuThermal::coldWallTemperatureFromSpecificEnthalpyK
