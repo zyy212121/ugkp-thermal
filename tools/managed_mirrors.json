@@ -1259,6 +1259,7 @@
       "common/wall/GpuCapillaryDetachment.H",
       "common/wall/GpuColdWall1DAlgebra.cuh",
       "common/wall/GpuColdWall1DDevice.cuh",
+      "common/wall/GpuColdWall1DGasOnly.cuh",
       "common/wall/GpuColdWall1DPublish.inl",
       "common/wall/GpuColdWall2DDevice.cuh",
       "common/wall/GpuColdWall2DSolidification.H",
