@@ -1165,16 +1165,6 @@
       "downstream": "gpu-riemann-gkp-main"
     },
     {
-      "path": "common/wall/GpuColdWall1DAdvance.inl",
-      "upstream": "ugkp-thermal",
-      "downstream": "gpu-riemann-gkp-main"
-    },
-    {
-      "path": "common/wall/GpuColdWall1DInputs.inl",
-      "upstream": "ugkp-thermal",
-      "downstream": "gpu-riemann-gkp-main"
-    },
-    {
       "path": "tests/fixtures/shared_operators/schema7_wire_golden.json",
       "upstream": "ugkp-thermal",
       "downstream": "gpu-riemann-gkp-main"
@@ -1257,9 +1247,11 @@
       "common/thermal_particle_restart_schema7.py",
       "common/wall/GpuAluminaProperties.H",
       "common/wall/GpuCapillaryDetachment.H",
+      "common/wall/GpuColdWall1DAdvance.inl",
       "common/wall/GpuColdWall1DAlgebra.cuh",
       "common/wall/GpuColdWall1DDevice.cuh",
       "common/wall/GpuColdWall1DGasOnly.cuh",
+      "common/wall/GpuColdWall1DInputs.inl",
       "common/wall/GpuColdWall1DPublish.inl",
       "common/wall/GpuColdWall2DDevice.cuh",
       "common/wall/GpuColdWall2DSolidification.H",
@@ -1284,6 +1276,8 @@
     "common/GpuSchedulingConfiguration.H": "Package-specific public scheduling contract: thermal accepts L0/L1/L2 and automatic heavy scheduling; fluid retains research variants. Never synchronize this entry header.",
     "common/GpuResearchHierarchy.H": "Fluid-only research decoder; absent from thermal by user request on 2026-10-03.",
     "tools/managed_mirrors.json": "Package-specific thermal formal-only interface contract; fluid unchanged.",
-    "applications/gasUGKP/tests/test_particle_cell_path_runtime_contract.py": "Package-specific thermal formal-only interface contract; fluid unchanged."
+    "applications/gasUGKP/tests/test_particle_cell_path_runtime_contract.py": "Package-specific thermal formal-only interface contract; fluid unchanged.",
+    "common/wall/GpuColdWall1DInputs.inl": "CHT cold-wall implementation is thermal-only; fluid gasUGKP does not include this file.",
+    "common/wall/GpuColdWall1DAdvance.inl": "CHT cold-wall implementation is thermal-only; fluid gasUGKP does not include this file."
   }
 }
