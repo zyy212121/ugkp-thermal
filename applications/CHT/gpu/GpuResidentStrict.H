@@ -4693,7 +4693,13 @@ protected:
                     (
                         !std::isfinite(expectedT)
                      || !std::isfinite(relativeEosError)
-                     || relativeEosError > scalar(1e-8)
+                     || relativeEosError > max
+                       (
+                           scalar(1e-8),
+                           ugkwpGpuSelectedPrecision() == 32
+                         ? scalar(4)*scalar(std::numeric_limits<float>::epsilon())
+                         : scalar(0)
+                       )
                     )
                     {
                         FatalErrorInFunction
