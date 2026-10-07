@@ -51,8 +51,8 @@ static_assert(compiledSpeciesHash==speciesNameHash(),"Generated species hash/nam
 #endif
 constexpr std::uint64_t compiledSpeciesHash=speciesNameHash();
 #endif
-// Schema 2 requires persisted numerical solid swept-volume remainder.
-constexpr std::uint64_t checkpointSchema=2;
+// Schema 3 persists thermal policy independently of EOS-valid boundary values.
+constexpr std::uint64_t checkpointSchema=3;
 
 CHMT_HD inline bool finite(Real x) { return x==x && x<=std::numeric_limits<Real>::max() && x>=-std::numeric_limits<Real>::max(); }
 CHMT_HD inline Real absValue(Real x) { return x<0 ? -x : x; }
@@ -130,6 +130,10 @@ struct Reaction {
     // nu kg/mol extent; order acts on condensed kg/m^3, fixing A's units.
 };
 enum class BoundaryKind { Internal,Periodic,Slip,NoSlip,Inlet,Outlet,Interface,Empty };
+enum class ThermalBoundaryKind { ZeroGradient,FixedValue };
+CHMT_HD inline bool fixedTemperature(const ThermalBoundaryKind* policy,int face) {
+    return policy && policy[face]==ThermalBoundaryKind::FixedValue;
+}
 enum class ExchangeKind { GasSolid,GasFilm,SolidFilm,PoreGas,ParticleGas,ParticleWall };
 enum class FilmThermalMode { ThicknessAveraged,ResolvedNormal };
 enum class ReconstructionMode { LimitedLinear,SmoothVerification };

@@ -10,6 +10,9 @@ struct HostMesh {
     std::vector<Real> volumes{},oldVolumes{},wallDistance{};
     std::vector<int> faceOffsets{},facePoints{},owner{},neighbour{},periodicPartner{},cellFaceOffsets{},cellFaces{},cellFaceSigns{};
     std::vector<BoundaryKind> boundaryKind{};std::vector<GasPrimitive> boundaryPrimitive{};
+    // Empty is the homogeneous zeroGradient shorthand for programmatic meshes.
+    // Imported meshes always carry one independent policy per face.
+    std::vector<ThermalBoundaryKind> thermalBoundary{};
     std::vector<SstPrimitive> boundarySst{};std::vector<std::uint64_t> faceIds{};
     std::uint64_t geometryVersion=0,topologyHash=0;
 };
