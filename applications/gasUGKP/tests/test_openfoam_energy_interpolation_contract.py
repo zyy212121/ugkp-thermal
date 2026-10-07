@@ -44,6 +44,8 @@ class OpenFoamEnergyInterpolationContract(unittest.TestCase):
         create_fields = (
             GAS_CONFIGURATION.read_text(encoding="utf-8")
             + "\n"
+            + (ROOT.parents[1] / "common/gasTransport/GasNumericsIO.H").read_text()
+            + "\n"
             + CREATE_FIELDS.read_text(encoding="utf-8")
         )
         self.assertIn("OpenFoamEnergyLimitedLinear", protocol)
@@ -58,7 +60,9 @@ class OpenFoamEnergyInterpolationContract(unittest.TestCase):
         self.assertIn("s.gasReconstruction == 2", self.face_flux)
 
     def test_energy_mode_is_available_for_every_riemann_flux(self) -> None:
-        configuration = GAS_CONFIGURATION.read_text(encoding="utf-8")
+        configuration = (GAS_CONFIGURATION.read_text(encoding="utf-8")
+            + "\n"
+            + (ROOT.parents[1] / "common/gasTransport/GasNumericsIO.H").read_text())
         self.assertNotIn(
             "gasReconstruction == 2\n && gasFluxScheme != 8",
             configuration,

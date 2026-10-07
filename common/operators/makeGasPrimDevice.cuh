@@ -1,4 +1,7 @@
 #pragma once
+#include "gasTransport/GasStateView.H"
+#include "gasTransport/GasCapabilities.H"
+#include "gasTransport/GasGeometryValidation.H"
 // One operator implementation; scalar/time adapters are compile-time only.
 __device__ GasPrimDevice makeGasPrimDevice
 (
@@ -24,9 +27,36 @@ __device__ GasPrimDevice makeGasPrimDevice
     return g;
 }
 
+template<class GasState>
+__device__ GasPrimDevice gasCellPrimitive(const GasState& s,const int c)
+{
+    if(ugkwp::mixtureGasActive(s))
+        return GasPrimDevice{s.rho[c],s.Ux[c],s.Uy[c],s.Uz[c],s.p[c],s.Tgas[c]};
+    return makeGasPrimDevice(s.rho[c],s.Ux[c],s.Uy[c],s.Uz[c],s.p[c],s.Rgas,s.rhoMin,s.TgasMin);
+}
+
+template<class GasState>
+__device__ bool gasBoundaryMeshNormalSpeed(const GasState& s,const int f,GPU_OPERATOR_REAL& normalSpeed)
+{
+    normalSpeed=GPU_OPERATOR_R(0.0);
+    if constexpr (ugkwp::GasGeometryCapability<GasState>::value)
+        if(ugkwp::gasMovingGeometry(s))
+        {
+            ugkwp::GasFaceFrame<GPU_OPERATOR_REAL> frame;
+            if(!ugkwp::gasGeometryFaceFrame(s,f,s.gasGeometry.interval,frame))
+            {
+                if(!ugkwp::gasRecordFaceFailure(s,f,ugkwp::GasTransportCode::InvalidGeometry))asm("trap;");
+                return false;
+            }
+            normalSpeed=frame.meshVolumeRate/frame.area;
+        }
+    return true;
+}
+
+template<class GasState>
 __device__ bool useRiemannBoundaryVelocity
 (
-    const DeviceState& s,
+    const GasState& s,
     const int f,
     const GasPrimDevice& ownerState
 )
@@ -43,20 +73,64 @@ __device__ bool useRiemannBoundaryVelocity
 
                                                                            
     const GPU_OPERATOR_REAL area = clampMin(s.magSf[f], OfSmall);
-    const GPU_OPERATOR_REAL outwardVelocity =
+    GPU_OPERATOR_REAL outwardVelocity =
         (ownerState.ux*s.Sfx[f]
        + ownerState.uy*s.Sfy[f]
        + ownerState.uz*s.Sfz[f])/area;
+    if(ugkwp::gasMovingGeometry(s))
+    {
+        GPU_OPERATOR_REAL meshNormal;
+        if(!gasBoundaryMeshNormalSpeed(s,f,meshNormal))return false;
+        outwardVelocity-=meshNormal;
+    }
     return outwardVelocity < GPU_OPERATOR_R(0.0);
 }
 
+template<class GasState>
 __device__ GasPrimDevice riemannBoundaryState
 (
-    const DeviceState& s,
+    const GasState& s,
     const int f,
-    const GasPrimDevice& ownerState
+    const GasPrimDevice& ownerState,
+    const GPU_OPERATOR_REAL* extrapolatedMassFraction = nullptr
 )
 {
+    if constexpr (ugkwp::GasStateTraits<GasState>::speciesCount > 0)
+    {
+        if(ugkwp::mixtureGasActive(s))
+        {
+            constexpr int Ns=ugkwp::GasStateTraits<GasState>::speciesCount;
+            GPU_OPERATOR_REAL Y[Ns];
+            const int own=s.faceOwner[f];
+            const bool fixedY=s.gasSpecies.compositionBoundaryFixed[f]!=0;
+            for(int k=0;k<Ns;++k)
+                Y[k]=fixedY?s.gasSpecies.boundaryMassFraction[k*s.nFaces+f]
+                    :(extrapolatedMassFraction?extrapolatedMassFraction[k]
+                        :s.gasSpecies.rho[k*s.nCells+own]/s.rho[own]);
+            const GPU_OPERATOR_REAL R=ugkwp::mixtureGasConstant(Y,s.gasSpecies.thermo);
+            if(s.riemannBoundaryUFix[f]==3 || s.riemannBoundaryPWave[f]!=0 || s.nScheduledInletFaces>0)
+            {s.gasSpecies.faceStatus[f]=int(ugkwp::GasTransportCode::UnsupportedConfiguration);return ownerState;}
+            GasPrimDevice out=ownerState;
+            const bool rf=s.riemannBoundaryRhoFix[f]!=0,pf=s.riemannBoundaryPFix[f]!=0,tf=s.riemannBoundaryTFix[f]!=0;
+            if(rf)out.rho=s.riemannBoundaryRho[f];
+            if(pf)out.p=s.riemannBoundaryP[f];
+            if(tf)out.T=s.riemannBoundaryT[f];
+            if(rf&&pf&&!tf)out.T=out.p/(out.rho*R);
+            else if(rf&&!pf)out.p=out.rho*R*out.T;
+            GPU_OPERATOR_REAL density=out.rho;
+            const auto status=ugkwp::mixtureDensityFromPressureTemperature
+                (out.p,out.T,Y,s.gasSpecies.thermo,density,s.gasSpecies.densityClosureTolerance);
+            if(status!=ugkwp::ThermoStatus::Success || (rf&&pf&&tf
+                && fabs(density-out.rho)>s.gasSpecies.densityClosureTolerance*density))
+            {s.gasSpecies.faceStatus[f]=int(ugkwp::GasTransportCode::InvalidThermodynamics);return ownerState;}
+            out.rho=density;
+            if(useRiemannBoundaryVelocity(s,f,ownerState))
+            {out.ux=s.riemannBoundaryUx[f];out.uy=s.riemannBoundaryUy[f];out.uz=s.riemannBoundaryUz[f];}
+            if(!ugkwp::gasFinite(out.ux)||!ugkwp::gasFinite(out.uy)||!ugkwp::gasFinite(out.uz))
+            {s.gasSpecies.faceStatus[f]=int(ugkwp::GasTransportCode::NonFiniteState);return ownerState;}
+            return out;
+        }
+    }
     if (s.riemannBoundaryUFix[f] == 3)
     {
         const GPU_OPERATOR_REAL totalTemperature = clampMin
@@ -181,7 +255,8 @@ __device__ GasPrimDevice riemannBoundaryState
     );
 }
 
-__device__ bool isPeriodicFace(const DeviceState& s, const int f)
+template<class GasState>
+__device__ bool isPeriodicFace(const GasState& s, const int f)
 {
     return
         f >= s.nInternalFaces
@@ -190,15 +265,17 @@ __device__ bool isPeriodicFace(const DeviceState& s, const int f)
      && s.facePeriodicPair[f] < s.nFaces;
 }
 
-__device__ int coupledFaceNeighbour(const DeviceState& s, const int f)
+template<class GasState>
+__device__ int coupledFaceNeighbour(const GasState& s, const int f)
 {
     return (f < s.nInternalFaces || isPeriodicFace(s, f))
       ? s.faceNeighbour[f] : -1;
 }
 
+template<class GasState>
 __device__ void periodicMappedCellCentre
 (
-    const DeviceState& s,
+    const GasState& s,
     const int f,
     const int c,
     GPU_OPERATOR_REAL& x,
@@ -217,9 +294,10 @@ __device__ void periodicMappedCellCentre
     }
 }
 
+template<class GasState>
 __device__ GasPrimDevice riemannExteriorStateForFace
 (
-    const DeviceState& s,
+    const GasState& s,
     const int f,
     const GasPrimDevice& ownerFaceState
 )

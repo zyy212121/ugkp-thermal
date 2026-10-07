@@ -2,6 +2,7 @@
 #define GpuResidentStrict_H
 
 #include "fvCFD.H"
+#include "SharedGasModelInput.H"
 #include "GpuSchedulingConfiguration.H"
 #include "GpuGasBoundarySpec.H"
 #include "cyclicPolyPatch.H"
@@ -820,7 +821,8 @@ protected:
         const vector& gravity,
         const scalar rhoMin,
         const scalar TgasMin,
-        const GpuSchedulingConfiguration& scheduling
+        const GpuSchedulingConfiguration& scheduling,
+        SharedGasModelInput* gasModel = nullptr
     )
     {
         ensureStorage();
@@ -913,6 +915,7 @@ protected:
 
         check(createRc, "create GPU resident pure-gas state");
         handle_ = raw;
+        if (gasModel) gasModel->configureResident(handle_);
 
         uploadMesh(mesh, nCellPlanes, nullptr, scalar(0));
         uploadGasBoundaryFields
@@ -923,9 +926,11 @@ protected:
             p,
             Tgas,
             RgasValue,
-            strictOpenFoamGasBoundaries
+            strictOpenFoamGasBoundaries,
+            gasModel && gasModel->active()
         );
         uploadGasOnlyFields(rho, rhoU, rhoE, U, p, Tgas);
+        if (gasModel) gasModel->uploadInitialSpecies(handle_);
     }
 
 public:
@@ -2711,7 +2716,8 @@ protected:
         const volScalarField& p,
         const volScalarField& Tgas,
         const scalar RgasValue,
-        const bool strictOpenFoamGasBoundaries
+        const bool strictOpenFoamGasBoundaries,
+        const bool mixtureThermodynamics = false
     )
     {
         const label nFaces = mesh.nFaces();
@@ -2983,7 +2989,8 @@ protected:
 
             if
             (
-                patchKind != 2
+                !mixtureThermodynamics
+             && patchKind != 2
              && rhoFixes != 0
              && pFixes != 0
              && TFixes != 0
@@ -3401,7 +3408,8 @@ public:
         const vector& gravity,
         const scalar rhoMin,
         const scalar TgasMin,
-        const GpuSchedulingConfiguration& scheduling
+        const GpuSchedulingConfiguration& scheduling,
+        SharedGasModelInput* gasModel = nullptr
     )
     {
         initialiseGasBase
@@ -3434,8 +3442,14 @@ public:
             gravity,
             rhoMin,
             TgasMin,
-            scheduling
+            scheduling,
+            gasModel
         );
+    }
+
+    void downloadSharedGasSpecies(SharedGasModelInput& model,const volScalarField& rho)
+    {
+        model.downloadSpecies(handle_,rho);
     }
 
     void downloadToHostMirror

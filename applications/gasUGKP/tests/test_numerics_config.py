@@ -183,6 +183,8 @@ class UGKPNumericsConfiguration(unittest.TestCase):
         cls.create = (
             (ROOT / "readGpuGasConfiguration.H").read_text()
             + "\n"
+            + (ROOT.parents[1] / "common/gasTransport/GasNumericsIO.H").read_text()
+            + "\n"
             + (ROOT / "createFields.H").read_text()
         )
         cls.protocol = (ROOT / "gpu/GpuBackendProtocol.H").read_text()

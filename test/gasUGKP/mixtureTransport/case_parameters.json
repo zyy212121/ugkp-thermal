@@ -1,0 +1,15 @@
+{
+  "amplitude": 0.2,
+  "cells": 64,
+  "cp": 1040.0,
+  "diffusivity": 0.02,
+  "end_time": 0.1,
+  "length": 1.0,
+  "mean": 0.5,
+  "molar_mass": 0.028,
+  "pressure": 101325.0,
+  "rho": 1.1374156616390603,
+  "rhoE": 253549.25513921762,
+  "temperature": 300.0,
+  "velocity": 1.0
+}

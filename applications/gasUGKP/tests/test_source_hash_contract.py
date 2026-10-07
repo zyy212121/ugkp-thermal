@@ -77,3 +77,22 @@ def test_hash_changes_with_common_content_and_link_target(tmp_path: Path) -> Non
     link.symlink_to("../../../common/gasNumerics/Test2.H")
     changed_target = MODULE.source_hash(tmp_path)
     assert changed_target != initial
+
+
+def test_hash_includes_gas_state_inc_and_changes_with_abi_fields(tmp_path: Path) -> None:
+    manifest = tmp_path / "common/gasTransport/GasStateFields.inc"
+    manifest.parent.mkdir(parents=True)
+    manifest.write_text("UGKWP_GAS_STATE_FIELD(int, nCells)\n", encoding="utf-8")
+    relative = manifest.relative_to(tmp_path).as_posix()
+    entries = {entry[0]: entry for entry in MODULE.source_manifest(tmp_path)}
+    assert relative in entries
+    initial = MODULE.source_hash(tmp_path)
+    manifest.write_text("UGKWP_GAS_STATE_FIELD(long, nCells)\n", encoding="utf-8")
+    assert MODULE.source_hash(tmp_path) != initial
+
+
+def test_hash_excludes_test_only_inc_files(tmp_path: Path) -> None:
+    fixture = tmp_path / "common/tests/Fixture.inc"
+    fixture.parent.mkdir(parents=True)
+    fixture.write_text("not a production ABI", encoding="utf-8")
+    assert MODULE.source_manifest(tmp_path) == ()

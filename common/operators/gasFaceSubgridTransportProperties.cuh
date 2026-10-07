@@ -1,8 +1,9 @@
 #pragma once
 // One operator implementation; scalar/time adapters are compile-time only.
+template<class GasState>
 __device__ void gasFaceSubgridTransportProperties
 (
-    const DeviceState& s,
+    const GasState& s,
     const int f,
     const int own,
     const int nei,
@@ -14,6 +15,22 @@ __device__ void gasFaceSubgridTransportProperties
     int& directWallHeatFluxActive
 )
 {
+    // Stability estimation also calls this helper for laminar walls. Never
+    // evaluate a turbulent wall law (notably nu=0 Spalding) on that path.
+    if(s.turbulenceModel==0)
+    {
+        muTurbulent=GPU_OPERATOR_R(0.0);kTurbulent=GPU_OPERATOR_R(0.0);
+        directWallHeatFlux=GPU_OPERATOR_R(0.0);directWallHeatFluxActive=0;
+        return;
+    }
+    GPU_OPERATOR_REAL turbulentCp=s.gasCp;
+    if constexpr (ugkwp::GasStateTraits<GasState>::speciesCount > 0)
+        if(ugkwp::mixtureGasActive(s))
+        {
+            const GPU_OPERATOR_REAL w=nei>=0?clampRange(s.faceWeight[f],GPU_OPERATOR_R(0.0),GPU_OPERATOR_R(1.0)):GPU_OPERATOR_R(1.0);
+            turbulentCp=w*s.gasSpecies.heatCapacity[own]
+                +(GPU_OPERATOR_R(1.0)-w)*s.gasSpecies.heatCapacity[nei>=0?nei:own];
+        }
     directWallHeatFlux = GPU_OPERATOR_R(0.0);
     directWallHeatFluxActive = 0;
     GPU_OPERATOR_REAL nutFace = nei >= 0
@@ -95,7 +112,7 @@ __device__ void gasFaceSubgridTransportProperties
             ugkpwall::wallSubgridTransport
             (
                 rhoSafe,
-                s.gasCp,
+                turbulentCp,
                 s.turbulentPrandtl,
                 wallState.nut
             );
@@ -107,5 +124,5 @@ __device__ void gasFaceSubgridTransportProperties
     const GPU_OPERATOR_REAL muT = clampMin(rhoFace, s.rhoMin)*fmax(nutFace, GPU_OPERATOR_R(0.0));
     muTurbulent = muT;
     kTurbulent =
-        s.gasCp*muT/clampMin(s.turbulentPrandtl, OfSmall);
+        turbulentCp*muT/clampMin(s.turbulentPrandtl, OfSmall);
 }

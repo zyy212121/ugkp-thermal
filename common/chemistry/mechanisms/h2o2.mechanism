@@ -1,0 +1,478 @@
+// Generated from full Cantera 3.1.0 h2o2.yaml; SI m, mol, s, J/mol.
+schemaVersion 1;
+units siMolar;
+sourceSha256 "0efc6c52862741a29e0c29b65d979c7d8cb409db5282bca83b9c5437b3d8c8d4";
+phase ohmech;
+species (H2 H O O2 OH H2O HO2 H2O2 AR N2);
+referencePressure 101325;
+speciesOrderHash 1978375541312735802;
+mechanismHash 13247918587359511140;
+independentRank 6;
+stoichiometricBasis (0 0 -1 0 0 0 0 -1 1 0 0 -1 -2 -1 -1 -1 -1 0 1 0 0 1 0 0 0 1 1 1 1 -1 0 0 0 0 0 1 0 0 0 -1 1 0 0 0 0 0 -1 0 0 0 0 0 0 0 0 0 0 0 0 0);
+reactions
+{
+    reaction0
+    {
+        // 2 O + M <=> O2 + M
+        type thirdBody;
+        reversible true;
+        duplicate false;
+        sourceIndex 0;
+        reactants (2 2);
+        products (3 1);
+        efficiencies (0 2.3999999999999999 5 15.4 8 0.82999999999999996);
+        highRate (120000 -1 0);
+        lowRate (0 0 0);
+        defaultEfficiency 1;
+        troe (0 0 0 0);
+        troeHasT2 false;
+    }
+    reaction1
+    {
+        // O + H + M <=> OH + M
+        type thirdBody;
+        reversible true;
+        duplicate false;
+        sourceIndex 1;
+        reactants (1 1 2 1);
+        products (4 1);
+        efficiencies (0 2 5 6 8 0.69999999999999996);
+        highRate (500000 -1 0);
+        lowRate (0 0 0);
+        defaultEfficiency 1;
+        troe (0 0 0 0);
+        troeHasT2 false;
+    }
+    reaction2
+    {
+        // O + H2 <=> H + OH
+        type elementary;
+        reversible true;
+        duplicate false;
+        sourceIndex 2;
+        reactants (0 1 2 1);
+        products (1 1 4 1);
+        efficiencies ();
+        highRate (0.038699999999999998 2.7000000000000002 26191.84);
+        lowRate (0 0 0);
+        defaultEfficiency 1;
+        troe (0 0 0 0);
+        troeHasT2 false;
+    }
+    reaction3
+    {
+        // O + HO2 <=> OH + O2
+        type elementary;
+        reversible true;
+        duplicate false;
+        sourceIndex 3;
+        reactants (2 1 6 1);
+        products (3 1 4 1);
+        efficiencies ();
+        highRate (20000000 0 0);
+        lowRate (0 0 0);
+        defaultEfficiency 1;
+        troe (0 0 0 0);
+        troeHasT2 false;
+    }
+    reaction4
+    {
+        // O + H2O2 <=> OH + HO2
+        type elementary;
+        reversible true;
+        duplicate false;
+        sourceIndex 4;
+        reactants (2 1 7 1);
+        products (4 1 6 1);
+        efficiencies ();
+        highRate (9.629999999999999 2 16736);
+        lowRate (0 0 0);
+        defaultEfficiency 1;
+        troe (0 0 0 0);
+        troeHasT2 false;
+    }
+    reaction5
+    {
+        // H + O2 + M <=> HO2 + M
+        type thirdBody;
+        reversible true;
+        duplicate false;
+        sourceIndex 5;
+        reactants (1 1 3 1);
+        products (6 1);
+        efficiencies (3 0 5 0 8 0 9 0);
+        highRate (2800000 -0.85999999999999999 0);
+        lowRate (0 0 0);
+        defaultEfficiency 1;
+        troe (0 0 0 0);
+        troeHasT2 false;
+    }
+    reaction6
+    {
+        // H + 2 O2 <=> HO2 + O2
+        type elementary;
+        reversible true;
+        duplicate false;
+        sourceIndex 6;
+        reactants (1 1 3 2);
+        products (3 1 6 1);
+        efficiencies ();
+        highRate (20800000 -1.24 0);
+        lowRate (0 0 0);
+        defaultEfficiency 1;
+        troe (0 0 0 0);
+        troeHasT2 false;
+    }
+    reaction7
+    {
+        // H + O2 + H2O <=> HO2 + H2O
+        type elementary;
+        reversible true;
+        duplicate false;
+        sourceIndex 7;
+        reactants (1 1 3 1 5 1);
+        products (5 1 6 1);
+        efficiencies ();
+        highRate (11260000 -0.76000000000000001 0);
+        lowRate (0 0 0);
+        defaultEfficiency 1;
+        troe (0 0 0 0);
+        troeHasT2 false;
+    }
+    reaction8
+    {
+        // H + O2 + N2 <=> HO2 + N2
+        type elementary;
+        reversible true;
+        duplicate false;
+        sourceIndex 8;
+        reactants (1 1 3 1 9 1);
+        products (6 1 9 1);
+        efficiencies ();
+        highRate (26000000 -1.24 0);
+        lowRate (0 0 0);
+        defaultEfficiency 1;
+        troe (0 0 0 0);
+        troeHasT2 false;
+    }
+    reaction9
+    {
+        // H + O2 + AR <=> HO2 + AR
+        type elementary;
+        reversible true;
+        duplicate false;
+        sourceIndex 9;
+        reactants (1 1 3 1 8 1);
+        products (6 1 8 1);
+        efficiencies ();
+        highRate (700000 -0.80000000000000004 0);
+        lowRate (0 0 0);
+        defaultEfficiency 1;
+        troe (0 0 0 0);
+        troeHasT2 false;
+    }
+    reaction10
+    {
+        // H + O2 <=> O + OH
+        type elementary;
+        reversible true;
+        duplicate false;
+        sourceIndex 10;
+        reactants (1 1 3 1);
+        products (2 1 4 1);
+        efficiencies ();
+        highRate (26500000000 -0.67069999999999996 71299.544000000009);
+        lowRate (0 0 0);
+        defaultEfficiency 1;
+        troe (0 0 0 0);
+        troeHasT2 false;
+    }
+    reaction11
+    {
+        // 2 H + M <=> H2 + M
+        type thirdBody;
+        reversible true;
+        duplicate false;
+        sourceIndex 11;
+        reactants (1 2);
+        products (0 1);
+        efficiencies (0 0 5 0 8 0.63);
+        highRate (1000000 -1 0);
+        lowRate (0 0 0);
+        defaultEfficiency 1;
+        troe (0 0 0 0);
+        troeHasT2 false;
+    }
+    reaction12
+    {
+        // 2 H + H2 <=> 2 H2
+        type elementary;
+        reversible true;
+        duplicate false;
+        sourceIndex 12;
+        reactants (0 1 1 2);
+        products (0 2);
+        efficiencies ();
+        highRate (90000 -0.59999999999999998 0);
+        lowRate (0 0 0);
+        defaultEfficiency 1;
+        troe (0 0 0 0);
+        troeHasT2 false;
+    }
+    reaction13
+    {
+        // 2 H + H2O <=> H2 + H2O
+        type elementary;
+        reversible true;
+        duplicate false;
+        sourceIndex 13;
+        reactants (1 2 5 1);
+        products (0 1 5 1);
+        efficiencies ();
+        highRate (60000000 -1.25 0);
+        lowRate (0 0 0);
+        defaultEfficiency 1;
+        troe (0 0 0 0);
+        troeHasT2 false;
+    }
+    reaction14
+    {
+        // H + OH + M <=> H2O + M
+        type thirdBody;
+        reversible true;
+        duplicate false;
+        sourceIndex 14;
+        reactants (1 1 4 1);
+        products (5 1);
+        efficiencies (0 0.72999999999999998 5 3.6499999999999999 8 0.38);
+        highRate (22000000000 -2 0);
+        lowRate (0 0 0);
+        defaultEfficiency 1;
+        troe (0 0 0 0);
+        troeHasT2 false;
+    }
+    reaction15
+    {
+        // H + HO2 <=> O + H2O
+        type elementary;
+        reversible true;
+        duplicate false;
+        sourceIndex 15;
+        reactants (1 1 6 1);
+        products (2 1 5 1);
+        efficiencies ();
+        highRate (3970000 0 2807.4639999999999);
+        lowRate (0 0 0);
+        defaultEfficiency 1;
+        troe (0 0 0 0);
+        troeHasT2 false;
+    }
+    reaction16
+    {
+        // H + HO2 <=> O2 + H2
+        type elementary;
+        reversible true;
+        duplicate false;
+        sourceIndex 16;
+        reactants (1 1 6 1);
+        products (0 1 3 1);
+        efficiencies ();
+        highRate (44800000 0 4468.5120000000006);
+        lowRate (0 0 0);
+        defaultEfficiency 1;
+        troe (0 0 0 0);
+        troeHasT2 false;
+    }
+    reaction17
+    {
+        // H + HO2 <=> 2 OH
+        type elementary;
+        reversible true;
+        duplicate false;
+        sourceIndex 17;
+        reactants (1 1 6 1);
+        products (4 2);
+        efficiencies ();
+        highRate (84000000 0 2656.8400000000001);
+        lowRate (0 0 0);
+        defaultEfficiency 1;
+        troe (0 0 0 0);
+        troeHasT2 false;
+    }
+    reaction18
+    {
+        // H + H2O2 <=> HO2 + H2
+        type elementary;
+        reversible true;
+        duplicate false;
+        sourceIndex 18;
+        reactants (1 1 7 1);
+        products (0 1 6 1);
+        efficiencies ();
+        highRate (12.1 2 21756.799999999999);
+        lowRate (0 0 0);
+        defaultEfficiency 1;
+        troe (0 0 0 0);
+        troeHasT2 false;
+    }
+    reaction19
+    {
+        // H + H2O2 <=> OH + H2O
+        type elementary;
+        reversible true;
+        duplicate false;
+        sourceIndex 19;
+        reactants (1 1 7 1);
+        products (4 1 5 1);
+        efficiencies ();
+        highRate (10000000 0 15062.400000000001);
+        lowRate (0 0 0);
+        defaultEfficiency 1;
+        troe (0 0 0 0);
+        troeHasT2 false;
+    }
+    reaction20
+    {
+        // OH + H2 <=> H + H2O
+        type elementary;
+        reversible true;
+        duplicate false;
+        sourceIndex 20;
+        reactants (0 1 4 1);
+        products (1 1 5 1);
+        efficiencies ();
+        highRate (216 1.51 14351.120000000001);
+        lowRate (0 0 0);
+        defaultEfficiency 1;
+        troe (0 0 0 0);
+        troeHasT2 false;
+    }
+    reaction21
+    {
+        // 2 OH (+M) <=> H2O2 (+M)
+        type Troe;
+        reversible true;
+        duplicate false;
+        sourceIndex 21;
+        reactants (4 2);
+        products (7 1);
+        efficiencies (0 2 5 6 8 0.69999999999999996);
+        highRate (74000000 -0.37 0);
+        lowRate (2300000 -0.90000000000000002 -7112.8000000000002);
+        defaultEfficiency 1;
+        troe (0.73460000000000003 94 1756 5182);
+        troeHasT2 true;
+    }
+    reaction22
+    {
+        // 2 OH <=> O + H2O
+        type elementary;
+        reversible true;
+        duplicate false;
+        sourceIndex 22;
+        reactants (4 2);
+        products (2 1 5 1);
+        efficiencies ();
+        highRate (0.035699999999999996 2.3999999999999999 -8828.2399999999998);
+        lowRate (0 0 0);
+        defaultEfficiency 1;
+        troe (0 0 0 0);
+        troeHasT2 false;
+    }
+    reaction23
+    {
+        // OH + HO2 <=> O2 + H2O
+        type elementary;
+        reversible true;
+        duplicate true;
+        sourceIndex 23;
+        reactants (4 1 6 1);
+        products (3 1 5 1);
+        efficiencies ();
+        highRate (14500000 0 -2092);
+        lowRate (0 0 0);
+        defaultEfficiency 1;
+        troe (0 0 0 0);
+        troeHasT2 false;
+    }
+    reaction24
+    {
+        // OH + H2O2 <=> HO2 + H2O
+        type elementary;
+        reversible true;
+        duplicate true;
+        sourceIndex 24;
+        reactants (4 1 7 1);
+        products (5 1 6 1);
+        efficiencies ();
+        highRate (2000000 0 1786.568);
+        lowRate (0 0 0);
+        defaultEfficiency 1;
+        troe (0 0 0 0);
+        troeHasT2 false;
+    }
+    reaction25
+    {
+        // OH + H2O2 <=> HO2 + H2O
+        type elementary;
+        reversible true;
+        duplicate true;
+        sourceIndex 25;
+        reactants (4 1 7 1);
+        products (5 1 6 1);
+        efficiencies ();
+        highRate (1700000000000 0 123051.44);
+        lowRate (0 0 0);
+        defaultEfficiency 1;
+        troe (0 0 0 0);
+        troeHasT2 false;
+    }
+    reaction26
+    {
+        // 2 HO2 <=> O2 + H2O2
+        type elementary;
+        reversible true;
+        duplicate true;
+        sourceIndex 26;
+        reactants (6 2);
+        products (3 1 7 1);
+        efficiencies ();
+        highRate (130000 0 -6819.9200000000001);
+        lowRate (0 0 0);
+        defaultEfficiency 1;
+        troe (0 0 0 0);
+        troeHasT2 false;
+    }
+    reaction27
+    {
+        // 2 HO2 <=> O2 + H2O2
+        type elementary;
+        reversible true;
+        duplicate true;
+        sourceIndex 27;
+        reactants (6 2);
+        products (3 1 7 1);
+        efficiencies ();
+        highRate (420000000 0 50208);
+        lowRate (0 0 0);
+        defaultEfficiency 1;
+        troe (0 0 0 0);
+        troeHasT2 false;
+    }
+    reaction28
+    {
+        // OH + HO2 <=> O2 + H2O
+        type elementary;
+        reversible true;
+        duplicate true;
+        sourceIndex 28;
+        reactants (4 1 6 1);
+        products (3 1 5 1);
+        efficiencies ();
+        highRate (5000000000 0 72508.720000000001);
+        lowRate (0 0 0);
+        defaultEfficiency 1;
+        troe (0 0 0 0);
+        troeHasT2 false;
+    }
+}

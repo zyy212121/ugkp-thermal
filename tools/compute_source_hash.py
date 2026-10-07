@@ -18,6 +18,7 @@ SOURCE_SUFFIXES = {
     ".h",
     ".hpp",
     ".inl",
+    ".inc",
 }
 
 SOURCE_ROOTS = (

@@ -1,0 +1,61 @@
+{
+  "reference_commit": "92443002c17757fd2dd78b3b73a85ce4698d47f2",
+  "method": "Compile pre-refactor production headers with serial CUDA indexing and PTX trap emulation; no CUDA execution. FNV-1a state-array hashes record existing arithmetic; host trace records existing launches and arguments.",
+  "compiler": "g++ (Debian 14.2.0-19) 14.2.0",
+  "standard": "c++17",
+  "optimization": "-O0",
+  "device_matrix": {
+    "real_bits": [
+      32,
+      64
+    ],
+    "time_bits": 64,
+    "flux_create_codes": [
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9
+    ],
+    "reconstruction_codes": [
+      0,
+      1,
+      2
+    ],
+    "limiter_codes": [
+      0,
+      1,
+      2
+    ],
+    "turbulence_codes": [
+      0,
+      1,
+      2,
+      3
+    ]
+  },
+  "source_sha256": {
+    "common/operators/makeGasPrimDevice.cuh": "cdcae4f950d5141ef1078eddaf1c2bb275c4e423bb77874f6e37d0097dbf161b",
+    "common/operators/riemannFacePrimitiveForGradient.cuh": "cb12b77ed8d09066c38da15aaa018b4dc243c925cb9fbc209cb820957e1771db",
+    "common/operators/computeGasPrimitiveGradientsKernel.cuh": "ec21a3f0b46935b856817dca1b808e824e7283b2d5dea1ea2c725b841ad5d530",
+    "common/operators/computeSstGradientsKernel.cuh": "b42c33dd7defcf4e67ca2140ad39e505771f6fb962632a932e85b6ed537984da",
+    "common/operators/sstVelocityInvariants.cuh": "c64085a6aff59f15868534fd2fe4d6a539336de5a90e15ec883a44a307fb77ba",
+    "common/operators/computeGasHllcAdcSensorKernel.cuh": "b5a11f0054bf9e5f6fc556af3b8af74ac1aa610a4239b04268be0da0d3d35105",
+    "common/operators/computeGasGradientLimiterKernel.cuh": "dce3f596ee27687ec657c9a54539bbf61ac9b32e62ec5e0be72f464fa87ba188",
+    "common/operators/computeGasEddyViscosityKernel.cuh": "08f28697e7635fe725045fb97631908424b6bae492622cd6c8ded914f50f2952",
+    "common/operators/updateWaveTransmissivePressureBoundaryKernel.cuh": "d273cffd04ee072a9cb2165b6747554f6a2e3b3b98bb12743048a43bea0003a5",
+    "common/operators/updateLegacyGasBoundaryMirrorKernel.cuh": "c6642b6eabf5e1e82a5539093b104fdeec8c12c4d2c6ac0a4ff4393061cfe29d",
+    "common/operators/gasFaceSubgridTransportProperties.cuh": "a0ca9298c8f0ee65e019fca9ee1f5abdf43ea780f28108f65d10912d9c6c14da",
+    "common/operators/computeRiemannGasFaceFluxDevice.cuh": "c83e538b9c46f7f8ce19fd0ab4d5ab746b3edbf0f6a70c4444a9e3190f32b297",
+    "common/operators/computeGasInternalFaceFluxKernel.cuh": "ab645d1b3af46de1f1a772abd6c9308405cbe2d15876e542611d8b4b53bdbdd0",
+    "common/operators/computeGasFluxPositivityScaleKernel.cuh": "d9fea435c739011d3e529d69d3b28dbaff942925ffb795a53c700bdc4c4832f2",
+    "common/operators/computeSstFaceFluxKernel.cuh": "0bbe3ce215056341ffff0dc3fbc238a9033d11ec16e884747b21d1354d433f0e",
+    "common/operators/linearScheduledValueDevice.cuh": "aa4f9369740e15919266be54c88ba709719291ba05bbe3a68361dd8f9c1feaf9",
+    "common/GpuGasAdvance.cuh": "ad3ce2114b8f64921a83ab99d3b5b959b9f340271306ec6397bc65787191f505",
+    "common/GpuGasHostPolicy.cuh": "e7f9f667b428b62987c9372be14f9adfca570761a3d21875a081681128393a99"
+  }
+}

@@ -26,9 +26,9 @@ def contact_routes_executable(request, tmp_path_factory):
         source = source.replace(needle, "bool valid = advanceColdWall1DThermalGroup<true>\n", 1)
         (build / "GpuColdWall1DDevice.cuh").write_text(source)
     conductivity_source = (ROOT / "common/operators/updateLegacyGasBoundaryMirrorKernel.cuh").read_text()
-    start = conductivity_source.index("__device__ GPU_OPERATOR_REAL molecularGasConductivity")
+    start = conductivity_source.index("template<class GasState>\n__device__ GPU_OPERATOR_REAL molecularGasConductivity")
     end = conductivity_source.index("\n}", start) + 2
-    (build / "route_conductivity.cuh").write_text(conductivity_source[start:end])
+    (build / "route_conductivity.cuh").write_text('#include "gasTransport/GasStateView.H"\n' + conductivity_source[start:end])
     executable = build / "contact_routes"
     result = subprocess.run(
         ["g++", "-std=c++20", "-O2", "-pthread", "-Wall", "-Wextra",

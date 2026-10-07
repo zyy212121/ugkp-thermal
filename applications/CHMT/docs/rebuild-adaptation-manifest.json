@@ -1,0 +1,492 @@
+{
+  "reference_commit": "e9bc511a4f1feffec9ef5fc17024bfa40a9b4610",
+  "reference_hashes_verified": true,
+  "unchanged_count": 53,
+  "adapted_count": 33,
+  "new_count": 49,
+  "unchanged": [
+    {
+      "path": "ablation/CpuSurfaceInterface.C",
+      "source_sha256": "22b9b48235e1c385d841d0e20169ef4e44762ae77a3248dfb98fe804bb098c7b",
+      "current_sha256": "22b9b48235e1c385d841d0e20169ef4e44762ae77a3248dfb98fe804bb098c7b"
+    },
+    {
+      "path": "ablation/CpuSurfaceInterface.H",
+      "source_sha256": "35939b25ad55e2b158ac73ff7999ba1d9fdbfff589a8814d5f76b0e0274e22a2",
+      "current_sha256": "35939b25ad55e2b158ac73ff7999ba1d9fdbfff589a8814d5f76b0e0274e22a2"
+    },
+    {
+      "path": "configuration/InputValues.H",
+      "source_sha256": "cbd64ffae7ad2558198cbfd1cb63b1300e8b4bf237018016989bffc0ad2e5398",
+      "current_sha256": "cbd64ffae7ad2558198cbfd1cb63b1300e8b4bf237018016989bffc0ad2e5398"
+    },
+    {
+      "path": "core/ThermalBoundary.H",
+      "source_sha256": "ad446bda04e79e170eb0408da08bf18f1cc910f9810d4d7e5014a8c76b6445e5",
+      "current_sha256": "ad446bda04e79e170eb0408da08bf18f1cc910f9810d4d7e5014a8c76b6445e5"
+    },
+    {
+      "path": "coupling/ExchangeLedger.C",
+      "source_sha256": "d92612aa389cb5edc90ea8e2130d6beef87377c34400ee6954000a5f9599f251",
+      "current_sha256": "d92612aa389cb5edc90ea8e2130d6beef87377c34400ee6954000a5f9599f251"
+    },
+    {
+      "path": "coupling/ExchangeLedger.H",
+      "source_sha256": "6b5ee54d511e44cb234e28d9c00a463cd73ecebc3b10f3d113e27dbdd2013703",
+      "current_sha256": "6b5ee54d511e44cb234e28d9c00a463cd73ecebc3b10f3d113e27dbdd2013703"
+    },
+    {
+      "path": "coupling/IntervalContracts.H",
+      "source_sha256": "a35ba39beea51886eddd95d7cc5b807c9d35ea76937305f37a356d42b3de437f",
+      "current_sha256": "a35ba39beea51886eddd95d7cc5b807c9d35ea76937305f37a356d42b3de437f"
+    },
+    {
+      "path": "devtools/check_material_film.sh",
+      "source_sha256": "985f4a201af175de78e212876966981f14e7b1dd12fabeb6d22b2d41e06ef15b",
+      "current_sha256": "985f4a201af175de78e212876966981f14e7b1dd12fabeb6d22b2d41e06ef15b"
+    },
+    {
+      "path": "devtools/multirate/check_cpu_film.sh",
+      "source_sha256": "d3e8e67fd4a25e4c47befc21e818bda6335a1a5c1cdabff2730eb5cf816181db",
+      "current_sha256": "d3e8e67fd4a25e4c47befc21e818bda6335a1a5c1cdabff2730eb5cf816181db"
+    },
+    {
+      "path": "devtools/multirate/check_cpu_geometry_state.sh",
+      "source_sha256": "0799c2f9f756a5d8e77d346ca58cfde4802e58f5a6eb22594bf05009b0b3e172",
+      "current_sha256": "0799c2f9f756a5d8e77d346ca58cfde4802e58f5a6eb22594bf05009b0b3e172"
+    },
+    {
+      "path": "devtools/multirate/check_geometry_tolerances.sh",
+      "source_sha256": "d6486eb941ddd71bad2e416389355b4e6708b02d38200c4a60110142677d7cf3",
+      "current_sha256": "d6486eb941ddd71bad2e416389355b4e6708b02d38200c4a60110142677d7cf3"
+    },
+    {
+      "path": "devtools/multirate/check_sweep_constraints.sh",
+      "source_sha256": "d28ae89c486b89ac831b0afbc809fba7df98af4653129a51eef4c32c3a37bbc5",
+      "current_sha256": "d28ae89c486b89ac831b0afbc809fba7df98af4653129a51eef4c32c3a37bbc5"
+    },
+    {
+      "path": "devtools/multirate/of_case/system/blockMeshDict",
+      "source_sha256": "ae83aa13f72638ffe1ced05d51b19220bba3f19e7c32770d28e51f9d6fd4b18f",
+      "current_sha256": "ae83aa13f72638ffe1ced05d51b19220bba3f19e7c32770d28e51f9d6fd4b18f"
+    },
+    {
+      "path": "devtools/multirate/of_case/system/controlDict",
+      "source_sha256": "5f539b4e85f52aa6588e2873564dc999c9d21e85f2dc4135217adff1e87b1b56",
+      "current_sha256": "5f539b4e85f52aa6588e2873564dc999c9d21e85f2dc4135217adff1e87b1b56"
+    },
+    {
+      "path": "devtools/multirate/of_case/system/fvSchemes",
+      "source_sha256": "2826717232710198c74063a095a5f34b85ce48799a8bca1037dd25098fe1ce30",
+      "current_sha256": "2826717232710198c74063a095a5f34b85ce48799a8bca1037dd25098fe1ce30"
+    },
+    {
+      "path": "devtools/multirate/of_case/system/fvSolution",
+      "source_sha256": "d706e2719f1b57e75845a29dd5ac92148870263d7999851b7f5cd2a294478707",
+      "current_sha256": "d706e2719f1b57e75845a29dd5ac92148870263d7999851b7f5cd2a294478707"
+    },
+    {
+      "path": "devtools/multirate/test_cpu_checkpoint.cpp",
+      "source_sha256": "cb6553c730a2717d5bb6973f206b68262d7de8744e04b91541bdbb84d1b82caa",
+      "current_sha256": "cb6553c730a2717d5bb6973f206b68262d7de8744e04b91541bdbb84d1b82caa"
+    },
+    {
+      "path": "devtools/multirate/test_cpu_film.cpp",
+      "source_sha256": "3d145e36d5bff842a1bc2cc982b0e86a1f602e36c1bbf4f9f74df812ede1d87f",
+      "current_sha256": "3d145e36d5bff842a1bc2cc982b0e86a1f602e36c1bbf4f9f74df812ede1d87f"
+    },
+    {
+      "path": "devtools/multirate/test_cpu_film_curved.cpp",
+      "source_sha256": "07f148dee62f9b301a592be0350b424c77b76eefde1f147b7bf10153cee99453",
+      "current_sha256": "07f148dee62f9b301a592be0350b424c77b76eefde1f147b7bf10153cee99453"
+    },
+    {
+      "path": "devtools/multirate/test_cpu_material.cpp",
+      "source_sha256": "d55e81fcaf54c1c6803cb9f583df547a3791d66cca9315f6dbff4eef5dfcb9a4",
+      "current_sha256": "d55e81fcaf54c1c6803cb9f583df547a3791d66cca9315f6dbff4eef5dfcb9a4"
+    },
+    {
+      "path": "devtools/multirate/test_cpu_phase_lifecycle.cpp",
+      "source_sha256": "25d05140e6edbd46d377ffc2048fe5b972250d14f68134435a07bafb85fdc7ab",
+      "current_sha256": "25d05140e6edbd46d377ffc2048fe5b972250d14f68134435a07bafb85fdc7ab"
+    },
+    {
+      "path": "devtools/multirate/test_cpu_surface.cpp",
+      "source_sha256": "bf5f2475b17c972a94e87011fef74e913bfcf61df517243cce1add8f363cec5f",
+      "current_sha256": "bf5f2475b17c972a94e87011fef74e913bfcf61df517243cce1add8f363cec5f"
+    },
+    {
+      "path": "devtools/multirate/test_cpu_wet_geometry.cpp",
+      "source_sha256": "bd71e615ab87338837430e33c5a0c772b2a7b2d9964665b6085082d239d6f8d9",
+      "current_sha256": "bd71e615ab87338837430e33c5a0c772b2a7b2d9964665b6085082d239d6f8d9"
+    },
+    {
+      "path": "devtools/multirate/test_geometry_tolerances.cpp",
+      "source_sha256": "a9a8e5a0ac8ce09ad19aa688ba118ce6d9006b59720177370b0ec30d1f15203f",
+      "current_sha256": "a9a8e5a0ac8ce09ad19aa688ba118ce6d9006b59720177370b0ec30d1f15203f"
+    },
+    {
+      "path": "devtools/multirate/test_material_darcy_3d.cpp",
+      "source_sha256": "b4559f2ec593bafe84b2f488d365bcf6900682eb993b03d01e0700d239fda0a8",
+      "current_sha256": "b4559f2ec593bafe84b2f488d365bcf6900682eb993b03d01e0700d239fda0a8"
+    },
+    {
+      "path": "devtools/multirate/test_material_drive.cpp",
+      "source_sha256": "ecdc8680f206c948ec53758b173b0b985c52f935d2c7e6a3ea17f70e30901f32",
+      "current_sha256": "ecdc8680f206c948ec53758b173b0b985c52f935d2c7e6a3ea17f70e30901f32"
+    },
+    {
+      "path": "devtools/multirate/test_material_transport.cpp",
+      "source_sha256": "260ce521b48c8d067d5090709ed2b7f99a2c70da45098a61785f09d430d1b8ed",
+      "current_sha256": "260ce521b48c8d067d5090709ed2b7f99a2c70da45098a61785f09d430d1b8ed"
+    },
+    {
+      "path": "devtools/multirate/test_reaction_accuracy.cpp",
+      "source_sha256": "7b0c375e603e4e08497fc6c48091dd9a25cfd19aa9d5af0acfa7b8f3612d56e4",
+      "current_sha256": "7b0c375e603e4e08497fc6c48091dd9a25cfd19aa9d5af0acfa7b8f3612d56e4"
+    },
+    {
+      "path": "devtools/multirate/test_sweep_constraints.cpp",
+      "source_sha256": "2ec129feb36f3a9f6b8513445ad2f6c705faeb4806f2de4da5531bf28ffd127a",
+      "current_sha256": "2ec129feb36f3a9f6b8513445ad2f6c705faeb4806f2de4da5531bf28ffd127a"
+    },
+    {
+      "path": "devtools/multirate/test_sweep_remainder.cpp",
+      "source_sha256": "6cdeccbe7ba4e46cfd3b541a91b76708c4654bb0bb2575b9e7030f6588c00ab7",
+      "current_sha256": "6cdeccbe7ba4e46cfd3b541a91b76708c4654bb0bb2575b9e7030f6588c00ab7"
+    },
+    {
+      "path": "film/CpuFilmDriver.H",
+      "source_sha256": "c563d91a61f0c93805eb2d2c517be0632d2017b11b88a9946bfd1e4edccf5b6d",
+      "current_sha256": "c563d91a61f0c93805eb2d2c517be0632d2017b11b88a9946bfd1e4edccf5b6d"
+    },
+    {
+      "path": "film/FilmContracts.H",
+      "source_sha256": "e9dc4ce189eaaf16006e3f72424e0ff7bc4ef44e3e0f01be611b9d81434bfb66",
+      "current_sha256": "e9dc4ce189eaaf16006e3f72424e0ff7bc4ef44e3e0f01be611b9d81434bfb66"
+    },
+    {
+      "path": "film/FilmMath.H",
+      "source_sha256": "9b6075b0be1593ea791385963c5cd33713c9126553ab754ae71ee55eaa152cb9",
+      "current_sha256": "9b6075b0be1593ea791385963c5cd33713c9126553ab754ae71ee55eaa152cb9"
+    },
+    {
+      "path": "film/ResolvedNormalThermal.H",
+      "source_sha256": "e5bd1b49765a9d3a081f16b2671df549200556271bc019b4d07f1c5dcc305583",
+      "current_sha256": "e5bd1b49765a9d3a081f16b2671df549200556271bc019b4d07f1c5dcc305583"
+    },
+    {
+      "path": "io/MultirateEvolution.C",
+      "source_sha256": "d2a29ee25bdc93731c2774860a4cff6b6810b4a6cffe2873d475138283e3c66f",
+      "current_sha256": "d2a29ee25bdc93731c2774860a4cff6b6810b4a6cffe2873d475138283e3c66f"
+    },
+    {
+      "path": "io/MultirateEvolution.H",
+      "source_sha256": "9a509b686fd8dfd2189f7426b521346e83a283f401ef3b4d55549e9131ec1a71",
+      "current_sha256": "9a509b686fd8dfd2189f7426b521346e83a283f401ef3b4d55549e9131ec1a71"
+    },
+    {
+      "path": "materials/.gitignore",
+      "source_sha256": "6748172bb8642214fa7dfc1b268d867d84dde487027e3c5621592df32baef201",
+      "current_sha256": "6748172bb8642214fa7dfc1b268d867d84dde487027e3c5621592df32baef201"
+    },
+    {
+      "path": "materials/CpuMaterialDriver.H",
+      "source_sha256": "48442529c714fd56ba02410c4b3a256ed205002a7762b036f4955c2c3452b93a",
+      "current_sha256": "48442529c714fd56ba02410c4b3a256ed205002a7762b036f4955c2c3452b93a"
+    },
+    {
+      "path": "materials/MaterialDrive.H",
+      "source_sha256": "db4256ef5617deec864dc32ea8d8ce5b776dd6869cb2701e7718bff5e1313ad0",
+      "current_sha256": "db4256ef5617deec864dc32ea8d8ce5b776dd6869cb2701e7718bff5e1313ad0"
+    },
+    {
+      "path": "materials/MaterialTransport.H",
+      "source_sha256": "766c958b856492d37147059957979ab25eb0d8b90a56997c269e219ba3bdb51a",
+      "current_sha256": "766c958b856492d37147059957979ab25eb0d8b90a56997c269e219ba3bdb51a"
+    },
+    {
+      "path": "mesh/Geometry.C",
+      "source_sha256": "38a28b78f87b17a4b12017cfc8904d04fd344079c3d684afccedf5a547b7a130",
+      "current_sha256": "38a28b78f87b17a4b12017cfc8904d04fd344079c3d684afccedf5a547b7a130"
+    },
+    {
+      "path": "mesh/Geometry.H",
+      "source_sha256": "ca5ac39f33f2357fd7127e495afb4b843992ee44da41c075ea9161963f7c250e",
+      "current_sha256": "ca5ac39f33f2357fd7127e495afb4b843992ee44da41c075ea9161963f7c250e"
+    },
+    {
+      "path": "mesh/Motion.H",
+      "source_sha256": "3f5f6aa1607b36a794e991f2d787311cd7672275e94806e505c23906fa3f013b",
+      "current_sha256": "3f5f6aa1607b36a794e991f2d787311cd7672275e94806e505c23906fa3f013b"
+    },
+    {
+      "path": "mesh/SweepConstraints.H",
+      "source_sha256": "02c2137e9bb6a23fbb81248dad329e78cec56bc67c2257aa68dc8bc3e70f19ff",
+      "current_sha256": "02c2137e9bb6a23fbb81248dad329e78cec56bc67c2257aa68dc8bc3e70f19ff"
+    },
+    {
+      "path": "mesh/TrajectorySurface.H",
+      "source_sha256": "943bacbbb8af1d637475bc1b7797dbf026ae7196c6e298755638156dccf2657f",
+      "current_sha256": "943bacbbb8af1d637475bc1b7797dbf026ae7196c6e298755638156dccf2657f"
+    },
+    {
+      "path": "tests/TestSupport.H",
+      "source_sha256": "a1323a6360304e4d7eb6200d0d6ae8258218e96a310153bae4e77ae8a4482b2a",
+      "current_sha256": "a1323a6360304e4d7eb6200d0d6ae8258218e96a310153bae4e77ae8a4482b2a"
+    },
+    {
+      "path": "tests/test_core.cpp",
+      "source_sha256": "f9b5dcbf0ba8aea08813a4c7161031ca59a1d86d9d1dba924e587320672aee00",
+      "current_sha256": "f9b5dcbf0ba8aea08813a4c7161031ca59a1d86d9d1dba924e587320672aee00"
+    },
+    {
+      "path": "tests/test_multirate_orchestration.cpp",
+      "source_sha256": "fece411f588897556e6c07265c78cfb29dc37e8dec91ca406ab12eeaa5421b1b",
+      "current_sha256": "fece411f588897556e6c07265c78cfb29dc37e8dec91ca406ab12eeaa5421b1b"
+    },
+    {
+      "path": "tests/test_transaction.cpp",
+      "source_sha256": "4b0da9d301089dedc42271dec54b31a4294c121a25941df31221bc84eb52cdbc",
+      "current_sha256": "4b0da9d301089dedc42271dec54b31a4294c121a25941df31221bc84eb52cdbc"
+    },
+    {
+      "path": "verification/multirate/interval_contracts.cpp",
+      "source_sha256": "0cddcb6b3598e738d241ec903aeed83331dbe060817e8bfad458de0630dde8ab",
+      "current_sha256": "0cddcb6b3598e738d241ec903aeed83331dbe060817e8bfad458de0630dde8ab"
+    },
+    {
+      "path": "gpu/GasWallMath.H",
+      "source_sha256": "0110ab9c919611c8d47900382824e167727138bb09bbf0a295b82e269136abc8",
+      "current_sha256": "0110ab9c919611c8d47900382824e167727138bb09bbf0a295b82e269136abc8"
+    },
+    {
+      "path": "gpu/GasWindowProgram.H",
+      "source_sha256": "3dfde1b8906e1ef989ff6ee5835a2d2de0038904bf0f04cd3be80d61a2d66fdf",
+      "current_sha256": "3dfde1b8906e1ef989ff6ee5835a2d2de0038904bf0f04cd3be80d61a2d66fdf"
+    },
+    {
+      "path": "gpu/ResourceTransaction.H",
+      "source_sha256": "110476e427b8d68cdbfa7fa4d536f151d3384b80594dafb2a87d2ba38decd676",
+      "current_sha256": "110476e427b8d68cdbfa7fa4d536f151d3384b80594dafb2a87d2ba38decd676"
+    }
+  ],
+  "adapted": [
+    {
+      "path": "ablation/InterfaceMath.H",
+      "source_sha256": "a0a5d88e702cdfff448016b5253cc7382376aff66c497f82730df8c1f97367e2",
+      "current_sha256": "d4318afaf7ecb03c0285e36eb1bcf316883182e1fa19361109bc62ee5bbcbd50"
+    },
+    {
+      "path": "configuration/ModelIO.H",
+      "source_sha256": "92dc68f01cecd3774959c14ab3d5b7f42adf65a2f5663a7355240e24f0c393c1",
+      "current_sha256": "41a512cb6855803e17058cb8ed1b30293ef5c8e735d6ca4c6044df616a6bba82"
+    },
+    {
+      "path": "configuration/MultirateIO.H",
+      "source_sha256": "f16ddfc73d56ec3d7217edacaa28820aec007cff3a916d321fc368c09d55b9a1",
+      "current_sha256": "b72c576fe297fc6d5772e1fecd1da795c665fceeb7b0bf99861c45759d94c2e8"
+    },
+    {
+      "path": "core/Configuration.H",
+      "source_sha256": "1210bd92e0860e247ad36304c126a49a6cdef10cf34150993f5079bc6e915f75",
+      "current_sha256": "59be15bc8bf33c2a06f552a17871bfff59b309dd111db57cc5d901e9a3ad919a"
+    },
+    {
+      "path": "core/HostState.H",
+      "source_sha256": "04a7639f84bc8d90c66602421dad5463352a00b808a540837e146d8cd26754f2",
+      "current_sha256": "2a2d7adb4529d0109878ace533c45b403a32ad7484cadc6af0d2a33c3770cc05"
+    },
+    {
+      "path": "core/Types.H",
+      "source_sha256": "0d79507b89119a294fbc70cdd8726d58827de5161abccb98ece3dff8961b7fd1",
+      "current_sha256": "a4b1ebc382669a7b88f5e00d7a28948e5571fe34a88ff41a8f188b25132a42c1"
+    },
+    {
+      "path": "coupling/Coordinator.H",
+      "source_sha256": "45716ab1acabd267173f091628b1c7403e00d278d05feb5bed611c9ba5539684",
+      "current_sha256": "22c956f38151cf5209b5174b7ba99f37cd77497ea1eb926de32cf8c06e08b087"
+    },
+    {
+      "path": "coupling/IntervalAudit.H",
+      "source_sha256": "8f6970744e4d6f3d9d4b81ec65c967cf7f1420e0fe19d09c37dd4b40e2b7e3f9",
+      "current_sha256": "8f07b5aa5a62545f87b4688985f4bbbcba7dc2d6e3a617180b90f29b68352210"
+    },
+    {
+      "path": "devtools/build_info.py",
+      "source_sha256": "10f0678ddfd247c7c37a243310d27da19575cea18db1f43457eeb1a399434773",
+      "current_sha256": "c5e45a85848e69c3b1a46eb406375b72a55c5f2c1b2aa7052a2ce23f0d514cf9"
+    },
+    {
+      "path": "devtools/multirate/check_cpu_material.sh",
+      "source_sha256": "c169538cf37216c18219bb810c99c9e48c77aa8b29c3203c1bfbe57d3d0a6a92",
+      "current_sha256": "379fb06c04c76bfa0caf96ec36c3a621df1c7acfb0b44fa6b9d164410cd5dafc"
+    },
+    {
+      "path": "devtools/multirate/check_cpu_material_of.sh",
+      "source_sha256": "3e0fba8ea2d752b6c457d92c656144cef1f9775510f7703d3267fb745e7abbaf",
+      "current_sha256": "277a5d36dc65fa8472d8efa24cbecc38d42a8e02be3813eacc0fbf2649babb99"
+    },
+    {
+      "path": "devtools/multirate/check_darcy_accuracy.sh",
+      "source_sha256": "6da0ef66b28e49790af211ede51be5ae22c7d0321175e07513f3ac108444e6de",
+      "current_sha256": "ea44ddcc8c3ef7a2e7bb9924e876fb87b9fae74a06c06f4664f7deebf4985ee6"
+    },
+    {
+      "path": "devtools/multirate/check_reaction_accuracy.sh",
+      "source_sha256": "ec77ccf6cc4f5a267729e53528c499947a0cb46b2282d06ed3c059b3b2376a6e",
+      "current_sha256": "74df12ddaaa7ea8d9905217999a9823565f79c92d0285939a084a39f8b9199ed"
+    },
+    {
+      "path": "devtools/multirate/test_cpu_material_of.C",
+      "source_sha256": "4cfc282fb34c46d8811c1cc4bfae9a3d806570f8c42b7fe85e9f8d95a2154161",
+      "current_sha256": "c1615292a368d88ad2244c4dfadcad978602a59fbd6c3c72fadda53b3ec1194d"
+    },
+    {
+      "path": "devtools/source_fingerprint.py",
+      "source_sha256": "0ec65802f41927454fcd3339b59c53b786233ca59a5c82270e0e0f420bf9b5cb",
+      "current_sha256": "f28a1263331b868c5c8a508e97c2cd93728827f7172a68f4348e3b144f96e530"
+    },
+    {
+      "path": "film/CpuFilmDriver.C",
+      "source_sha256": "2043da8a78bb1bf2a62104e3d769cda79fe83b76b3535ed92e88c88151139730",
+      "current_sha256": "79e1718d553f75d139b01674dafad3312b9e5a7a987b5dc81c5812525016b4ca"
+    },
+    {
+      "path": "gpu/DeviceViews.H",
+      "source_sha256": "59f996559429e0831d3779ed398170d59a0213675d68b441f82e2496a1a1b1cb",
+      "current_sha256": "9dc364a69fed0a5b27b93b5aa9a22676543338fff0cb1d023238dc2cbef250f2"
+    },
+    {
+      "path": "gpu/StateValidation.H",
+      "source_sha256": "31c5c5db076042c08e506af17b87f130cbe3406fe59100ab0b174521d972023b",
+      "current_sha256": "6f6abe04767d722d957b8a493ee174cb38e39ac6b2feacb39e779fa3024e0cce"
+    },
+    {
+      "path": "io/MeshIO.H",
+      "source_sha256": "c8a0bf704a00453c66fec8c9fa568554c3040b851e6a15307a370898949a56c4",
+      "current_sha256": "17448615a62a6eb783aef3e96565ac5f78e7f1fa10211fce83c2bfbfc9df87bb"
+    },
+    {
+      "path": "materials/CpuMaterialDriver.C",
+      "source_sha256": "e86eadf859c38d540361811aa8b1f6364ce05e45c9c31c3a62fb70923565b8e3",
+      "current_sha256": "6f3d7b3fea987ae9592b74ba339e3b051b8a0cf843ebac256da60f042df16e2c"
+    },
+    {
+      "path": "materials/DarcyGradient.H",
+      "source_sha256": "53d2f23fd483c161cdfa36c5ca2024e85c1bcdf1724880298b2e772645814e88",
+      "current_sha256": "3ba6c4e50b402720eb3bfb264ff12e7cd1377b259231accc263707e319111062"
+    },
+    {
+      "path": "materials/Make/files",
+      "source_sha256": "390e46fae83b4db250c3c4680ee44b2954dc891f7097c9682189a58627b34a7a",
+      "current_sha256": "6bb92e8e8bb24b1f0744150ecf91f2cde643efb7065b1f26fd3802f960e267a3"
+    },
+    {
+      "path": "materials/Make/options",
+      "source_sha256": "2ca50fc4c549ea9e46023d116048c7e48932f7946ac43fed660d8741a14f26f7",
+      "current_sha256": "fcd5602957843becd9d608890ce5869a6ae28db4d908d610aa7d788c480d5a3e"
+    },
+    {
+      "path": "materials/MaterialCaloric.H",
+      "source_sha256": "73ea0285a856f5e5151d3c7ee4587aabda630e1465fbdc7632b2dded8833989e",
+      "current_sha256": "83c4a96f300a6a904decd252c8f4be7ad46cf9be334f2c5a2478cdc686e2f33c"
+    },
+    {
+      "path": "materials/MaterialReconstruction.H",
+      "source_sha256": "b2994561b46e8082eaa967c95c7a49bd9907a5e3c07d1551f6b7d475859d1545",
+      "current_sha256": "991f4e97a43cb5b3b9a52126fea2e9370e0fdbf03e6e34c24782b36c86c8389a"
+    },
+    {
+      "path": "materials/MaterialTransport.C",
+      "source_sha256": "085dc20799b8f67a33cdad825f58a96e683174d7c8323a17df61fe7c4d764252",
+      "current_sha256": "7015ef8754862d5c26ce5bb3649826a8f72f6efc54cf7bc8e734e7e28345244b"
+    },
+    {
+      "path": "materials/Reaction.H",
+      "source_sha256": "d7db4fb40a179a13da8eff99285ace60233036602eb59dc9462f52ddfaa938bf",
+      "current_sha256": "fc7be0090ae0e3c5e46c8784c31202289b4b2c7440158feb52b7bba132900426"
+    },
+    {
+      "path": "materials/ReactionStepControl.H",
+      "source_sha256": "be561179e77c1b5ba1cc790a13349b08ec6de4eccbf29fbc4c97cb7410cc2a16",
+      "current_sha256": "e1e59396758fcb9be35013f88a13655ebb5d72df63a960d2e67c3e497c687a7c"
+    },
+    {
+      "path": "materials/Thermodynamics.H",
+      "source_sha256": "cb9f7ab978913a611b8e36798a03213997e984af6cd390b83a367f1e3c9a1e39",
+      "current_sha256": "f671cd9eeeba94250326f9e0e8b750cbdb0927b96d921c1a60436f902af7be78"
+    },
+    {
+      "path": "restart/Checkpoint.C",
+      "source_sha256": "418a385835c2d6243296ff534fb65954bae6bec1fa4f8e9f19ea09b5d94d3382",
+      "current_sha256": "11dd2c98814ab71a40e90c22e52fbd0b8d51c6b9649c6e35fdcc56cbdef59a68"
+    },
+    {
+      "path": "restart/Checkpoint.H",
+      "source_sha256": "0a67e65c05cdc50ae51236c83abcc8b2a639b0d5a058128aa4073aa52ddb8704",
+      "current_sha256": "18db8f2a9e28ce2679b68275ce2eb0afe83d3f2214258d4f1cc62e9d02f805ac"
+    },
+    {
+      "path": "tests/test_restart.cpp",
+      "source_sha256": "0310e4f20ed28c67e8a2f01dabf81bad1e5079e260168874235591a64f595fdc",
+      "current_sha256": "4b7c6f5ee871c349faca3d28e8b1ee685f027812775eeab62e741c55d09493ea"
+    },
+    {
+      "path": "verification/multirate/interval_audit.cpp",
+      "source_sha256": "4791b30f86ee197d4852335b4e6104748d63fe8e3f8c6d7d02c2f25c3bc03de0",
+      "current_sha256": "799d15e4fdff151d489e0adeb7ef417cc3bcb9743ca94328a962d541424cb706"
+    }
+  ],
+  "new": [
+    ".gitignore",
+    "Allwmake",
+    "CHMT.C",
+    "configuration/CouplingEntry.H",
+    "configuration/CouplingInput.H",
+    "configuration/InitialConditions.H",
+    "configuration/SharedGasModel.H",
+    "devtools/check_chemistry_frontend.sh",
+    "devtools/check_frontend.sh",
+    "devtools/check_host.sh",
+    "devtools/check_host_coupled_pipeline.sh",
+    "devtools/check_native_coupled.sh",
+    "devtools/check_runtime_frontend.sh",
+    "devtools/restoration_audit.py",
+    "docs/REBUILD_STATUS.md",
+    "docs/rebuild-adaptation-manifest.json",
+    "docs/restoration-source-manifest.json",
+    "gpu/Backend.H",
+    "gpu/Backend.cu",
+    "gpu/Buffer.H",
+    "gpu/CommonGasTraction.H",
+    "gpu/SharedGasAdvance.cuh",
+    "gpu/SharedGasDeviceStorage.cuh",
+    "gpu/SharedGasStorage.H",
+    "gpu/SharedMixtureStorage.H",
+    "gpu/SingleGasContract.H",
+    "io/CoupledOutput.H",
+    "materials/GasThermoAdapter.H",
+    "materials/StencilMath.H",
+    "tests/test_coupled_output.cpp",
+    "tests/test_coupled_output_writer.py",
+    "tests/test_coupled_runtime_transactions.py",
+    "tests/test_coupling_architecture.py",
+    "tests/test_coupling_entry.cpp",
+    "tests/test_interval_audit_normalization.py",
+    "tests/test_native_coupled_checker.py",
+    "tests/test_restoration_identity.py",
+    "tests/test_shared_backend_compile.py",
+    "tests/test_shared_device_storage.py",
+    "tests/test_shared_gas_bindings.cpp",
+    "tests/test_shared_gas_bindings.py",
+    "tests/test_shared_mixture_storage.cpp",
+    "tests/test_shared_thermo.cpp",
+    "tests/test_shared_thermo.py",
+    "verification/coupled_input/make_case.py",
+    "verification/coupled_runtime/ACCEPTANCE.md",
+    "verification/coupled_runtime/check_case.py",
+    "verification/coupled_runtime/cuda_probe.cu",
+    "verification/coupled_runtime/make_case.py"
+  ]
+}

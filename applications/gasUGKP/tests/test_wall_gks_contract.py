@@ -123,9 +123,10 @@ class RiemannWallSourceContract(unittest.TestCase):
         self,
     ) -> None:
         self.assertIn("const double muEffective = s.gasMu + muTurbulent;", self.face_flux)
-        self.assertIn(
-            "molecularGasConductivity(s) + kTurbulent", self.face_flux
-        )
+        self.assertIn("double kMolecular=molecularGasConductivity(s);", self.face_flux)
+        self.assertIn("const double kEffective = kMolecular + kTurbulent;", self.face_flux)
+        self.assertIn("if(ugkwp::mixtureGasActive(s) && !ugkwp::gasHasDirectConductivity(s))", self.face_flux)
+        self.assertIn("kMolecular=s.gasMu*cp/s.gasPrClamped;", self.face_flux)
         self.assertRegex(
             self.face_flux,
             r"if\s*\(\s*muEffective\s*>\s*0\.0\s*\|\|\s*"
@@ -156,12 +157,13 @@ class RiemannWallSourceContract(unittest.TestCase):
         self.assertEqual(self.face_flux.count("energyFluxArea = energyFlux*area;"), 1)
 
     def test_empty_and_processor_faces_are_skipped_before_flux_work(self) -> None:
-        self.assertRegex(
-            self.face_flux,
-            r"if\s*\(\s*boundaryKind\s*==\s*3\s*\|\|\s*"
-            r"boundaryKind\s*==\s*4\s*\)\s*\{\s*return\s+false\s*;",
-        )
-        skip_position = self.face_flux.index("boundaryKind == 3")
+        pattern = r"if\s*\(\s*boundaryKind\s*==\s*3\s*\|\|\s*boundaryKind\s*==\s*4\s*\)"
+        skipped = branch_block(self.face_flux, pattern)
+        self.assertIn("return false;", skipped)
+        self.assertIn("if(moving && meshFrame.meshVolumeRate!=0.0)", skipped)
+        self.assertIn("ugkwp::GasTransportCode::InvalidGeometry", skipped)
+        self.assertNotIn("reconstructGasCellToFace", skipped)
+        skip_position = re.search(pattern, self.face_flux).start()
         reconstruction_position = self.face_flux.index(
             "reconstructGasCellToFace"
         )

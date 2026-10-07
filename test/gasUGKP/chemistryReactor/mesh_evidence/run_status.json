@@ -1,0 +1,34 @@
+{
+  "cases": [
+    "test/gasUGKP/chemistryReactor/mesh_evidence/coarse",
+    "test/gasUGKP/chemistryReactor/mesh_evidence/fine"
+  ],
+  "commands": [
+    [
+      "blockMesh",
+      "-case",
+      "test/gasUGKP/chemistryReactor/mesh_evidence/coarse"
+    ],
+    [
+      "checkMesh",
+      "-case",
+      "test/gasUGKP/chemistryReactor/mesh_evidence/coarse"
+    ],
+    [
+      "blockMesh",
+      "-case",
+      "test/gasUGKP/chemistryReactor/mesh_evidence/fine"
+    ],
+    [
+      "checkMesh",
+      "-case",
+      "test/gasUGKP/chemistryReactor/mesh_evidence/fine"
+    ]
+  ],
+  "mesh": "PASS",
+  "native_execution": "NOT_RUN",
+  "reason": "OpenFOAM mesh checks completed; native CUDA solver was not run.",
+  "validation": "NOT_RUN",
+  "path_base": "repository root",
+  "path_note": "Recorded workspace paths normalized to repository-relative paths for portability; results unchanged."
+}

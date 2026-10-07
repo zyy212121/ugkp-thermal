@@ -4,6 +4,21 @@
                                                                            
                                                                          
 
+#include "GpuBackendProtocol.H"
+
+extern "C" int ugkwpGpuResidentStrictQueryGasModelCapabilitiesV1
+(void* handle, ugkwpGpuIpc::GasModelCapabilitiesV1* capabilities);
+extern "C" int ugkwpGpuResidentStrictConfigureGasModelV1
+(void* handle, const ugkwpGpuIpc::GasModelConfigureArgsV1* configuration,
+ const char* modelText, const char* mechanismText);
+extern "C" int ugkwpGpuResidentStrictUploadSpeciesV1
+(void* handle, const ugkwpGpuIpc::GasSpeciesIdentityV1* identity, const double* speciesDensity);
+extern "C" int ugkwpGpuResidentStrictDownloadSpeciesV1
+(void* handle, const ugkwpGpuIpc::GasSpeciesIdentityV1* identity, double* speciesDensity);
+extern "C" int ugkwpGpuResidentStrictUploadSpeciesBoundaryV1
+(void* handle, const ugkwpGpuIpc::GasSpeciesIdentityV1* identity,
+ const int* compositionFixed, const double* massFraction);
+
 extern "C" int ugkwpGpuResidentStrictCreate
 (
     int nCells, int nFaces, int nInternalFaces, int nCellPlanes,

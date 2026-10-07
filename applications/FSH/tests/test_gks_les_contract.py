@@ -511,10 +511,8 @@ class SourceContractTests(unittest.TestCase):
             "const double muEffective = s.gasMu + muTurbulent;",
             face_flux,
         )
-        self.assertIn(
-            "molecularGasConductivity(s) + kTurbulent",
-            face_flux,
-        )
+        self.assertIn("double kMolecular=molecularGasConductivity(s);", face_flux)
+        self.assertIn("const double kEffective = kMolecular + kTurbulent;", face_flux)
         self.assertIn("momentumFluxX -= traction.x;", face_flux)
         self.assertIn("momentumFluxY -= traction.y;", face_flux)
         self.assertIn("momentumFluxZ -= traction.z;", face_flux)
