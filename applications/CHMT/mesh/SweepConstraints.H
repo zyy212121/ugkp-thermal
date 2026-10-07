@@ -103,7 +103,8 @@ bool constrainFaceSweeps(const HostMesh&, const std::vector<int>& faces,
     const std::vector<unsigned char>& prescribed, const std::vector<Vec3>& correctionDirections,
     Real interval, HostMesh& output, std::vector<Real>& actualSweeps,
     SweepConstraintReport&, std::string& error,
-    const SweepConstraintControls& controls=SweepConstraintControls{});
+    const SweepConstraintControls& controls=SweepConstraintControls{},
+    const Tolerances& tolerances=Tolerances{});
 
 // Production multirate entry: solidTargetSweeps are constitutively integrated
 // consumed-volume targets, indexed by accepted.surface.solidFace. They must not
@@ -113,6 +114,7 @@ bool constrainFaceSweeps(const HostMesh&, const std::vector<int>& faces,
 bool moveCoupledMeshesConstrained(const HostState&, const std::vector<FilmAux>&,
     const std::vector<Real>& solidTargetSweeps, Real interval,
     HostMesh& gas, HostMesh& solid, SurfaceMesh&, SweepConstraintReport&,
-    std::string& error, const SweepConstraintControls& controls=SweepConstraintControls{});
+    std::string& error, const SweepConstraintControls& controls=SweepConstraintControls{},
+    const Tolerances& tolerances=Tolerances{});
 }
 #endif

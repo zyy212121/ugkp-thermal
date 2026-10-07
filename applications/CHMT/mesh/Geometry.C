@@ -400,7 +400,10 @@ namespace chmt {
         return r;
     }
     bool makeStageGeometry(const HostMesh& accepted, const std::vector<Vec3>& endpoint, double interval,
-        HostMesh& output, std::vector<double>& outputSweep, std::string& error) {
+        HostMesh& output, std::vector<double>& outputSweep, std::string& error, const Tolerances& tol) {
+        if (!finite(tol.absoluteGeometry) || tol.absoluteGeometry<0
+            || !finite(tol.relativeGeometry) || tol.relativeGeometry<0)
+            return errorAt(error, "invalid stage geometry tolerances", -1);
         if (!finite(interval) || interval <= 0)return errorAt(error, "invalid stage interval", -1);
         if (endpoint.size() != accepted.points.size())return errorAt(error,
             "topology-changing point count unsupported", -1);
@@ -446,7 +449,6 @@ namespace chmt {
         std::vector<Vec3> area;
         std::vector<Real>sweep;
         if (!stageIntegrals(old, endpoint, area, sweep, error))return false;
-        const Tolerances tol{};
         for (int c = 0; c<static_cast<int>(old.volumes.size()); ++c) {
             Real sum = 0;
             Vec3 closure{};
@@ -626,7 +628,7 @@ namespace chmt {
             const std::vector<unsigned char>& prescribed, const std::vector<Vec3>& directions,
             Real interval, HostMesh& output, std::vector<Real>& actualSweeps,
             SweepConstraintReport& report, std::string& error, const SweepConstraintControls& controls,
-            const TrajectoryCheck& extraCheck) {
+            const TrajectoryCheck& extraCheck, const Tolerances& tolerances) {
             report=SweepConstraintReport{};
             auto reject=[&](SweepConstraintStatus status,const std::string& message) {
                 report.status=status; error=message; return false;
@@ -746,7 +748,7 @@ namespace chmt {
                     if (displacement.x!=0 || displacement.y!=0 || displacement.z!=0)
                         worldPoints[p]+=displacement;
                 }
-                if (!makeStageGeometry(worldOld,worldPoints,interval,certified,measured,failure)
+                if (!makeStageGeometry(worldOld,worldPoints,interval,certified,measured,failure,tolerances)
                     || (extraCheck && !extraCheck(certified,failure))) return false;
                 if (enforceTargets) {
                     report.maximumSweepResidual=0;
@@ -863,9 +865,9 @@ namespace chmt {
         const std::vector<Real>& targets, const std::vector<Vec3>& displacement,
         const std::vector<unsigned char>& fixed, const std::vector<Vec3>& directions,
         Real interval, HostMesh& output, std::vector<Real>& sweeps, SweepConstraintReport& report,
-        std::string& error, const SweepConstraintControls& controls) {
+        std::string& error, const SweepConstraintControls& controls, const Tolerances& tolerances) {
         return constrainedMotion(old,faces,targets,displacement,fixed,directions,interval,
-            output,sweeps,report,error,controls,TrajectoryCheck{});
+            output,sweeps,report,error,controls,TrajectoryCheck{},tolerances);
     }
     namespace {
         void fixedPhysicalBoundaries(const HostMesh& mesh, std::vector<unsigned char>& fixed) {
@@ -1131,7 +1133,7 @@ namespace chmt {
     }
     bool rebuildTrajectorySurface(const HostMesh& acceptedGas,const HostMesh& acceptedSolid,
         const SurfaceMesh& reference,const HostMesh& gasEndpoint,const HostMesh& solidEndpoint,
-        Real dt,SurfaceMesh& output,std::string& error) {
+        Real dt,SurfaceMesh& output,std::string& error,const Tolerances& tolerances) {
         if (!(dt>0) || !finite(dt)) return errorAt(error,"invalid surface trajectory interval",-1);
         const int ns=static_cast<int>(reference.solidFace.size());
         if (reference.gasFace.size()!=reference.solidFace.size()
@@ -1143,8 +1145,8 @@ namespace chmt {
         if (oldSolid.topologyHash!=endSolid.topologyHash || oldGas.topologyHash!=endGas.topologyHash)
             return errorAt(error,"surface trajectory topology change unsupported",-1);
         HostMesh solid,gas; std::vector<Real> actual;
-        if (!makeStageGeometry(oldSolid,endSolid.points,dt,solid,actual,error)
-            || !makeStageGeometry(oldGas,endGas.points,dt,gas,actual,error)) return false;
+        if (!makeStageGeometry(oldSolid,endSolid.points,dt,solid,actual,error,tolerances)
+            || !makeStageGeometry(oldGas,endGas.points,dt,gas,actual,error,tolerances)) return false;
         std::set<int> usedSolid,usedGas;
         for (int i=0;i<ns;++i) {
             const int f=reference.solidFace[i],g=reference.gasFace[i];
@@ -1229,13 +1231,13 @@ namespace chmt {
         output=std::move(surface); error.clear(); return true;
     }
     bool rebuildTrajectorySurface(const HostState& base,const HostMesh& gas,const HostMesh& solid,
-        Real interval,SurfaceMesh& output,std::string& error) {
-        return rebuildTrajectorySurface(base.gasMesh,base.solidMesh,base.surface,gas,solid,interval,output,error);
+        Real interval,SurfaceMesh& output,std::string& error,const Tolerances& tolerances) {
+        return rebuildTrajectorySurface(base.gasMesh,base.solidMesh,base.surface,gas,solid,interval,output,error,tolerances);
     }
     bool moveCoupledMeshesConstrained(const HostState& accepted, const std::vector<FilmAux>& candidateFilm,
         const std::vector<Real>& solidTargets, Real dt, HostMesh& gasOut, HostMesh& solidOut,
         SurfaceMesh& surfaceOut, SweepConstraintReport& report, std::string& error,
-        const SweepConstraintControls& controls) {
+        const SweepConstraintControls& controls, const Tolerances& tolerances) {
         report=SweepConstraintReport{};
         if (!finite(dt) || dt <= 0)return errorAt(error, "invalid coupled motion interval", -1);
         const auto& reference = accepted.surface;
@@ -1252,8 +1254,8 @@ namespace chmt {
         if (!rebuildGeometry(oldSolid, error) || !rebuildGeometry(oldGas, error))return false;
         if (ns == 0) {
             std::vector<Real>s; HostMesh gas,solid;
-            if (!makeStageGeometry(oldGas, oldGas.points, dt, gas, s, error) || !makeStageGeometry(oldSolid,
-                oldSolid.points, dt, solid, s, error))return false;
+            if (!makeStageGeometry(oldGas, oldGas.points, dt, gas, s, error, tolerances) || !makeStageGeometry(oldSolid,
+                oldSolid.points, dt, solid, s, error, tolerances))return false;
             gasOut=std::move(gas); solidOut=std::move(solid); surfaceOut = reference;
             report.status=SweepConstraintStatus::Success;
             return true;
@@ -1315,7 +1317,7 @@ namespace chmt {
                 unchanged=unchanged && mag(trialSolid.points[p]-oldSolid.points[p])==0;
             for (int i=0;i<ns;++i)
                 unchanged=unchanged && candidateFilm[i].thickness==accepted.filmAux[i].thickness;
-            if (unchanged) return makeStageGeometry(oldGas,oldGas.points,dt,gas,gasSweeps,failure);
+            if (unchanged) return makeStageGeometry(oldGas,oldGas.points,dt,gas,gasSweeps,failure,tolerances);
             std::vector<Vec3> newNormal(oldSolid.points.size());
             for (int f:reference.solidFace)
                 for (int k=trialSolid.faceOffsets[f];k<trialSolid.faceOffsets[f+1];++k)
@@ -1329,7 +1331,7 @@ namespace chmt {
             }
             std::vector<Vec3> gasPoints;
             if (!harmonicPointMotion(oldGas,gasDisplacement,fixedGas,gasPoints,failure)
-                || !makeStageGeometry(oldGas,gasPoints,dt,gas,gasSweeps,failure)) return false;
+                || !makeStageGeometry(oldGas,gasPoints,dt,gas,gasSweeps,failure,tolerances)) return false;
             // Keep the existing reduced-film boundary: moving curved offset
             // interfaces with unequal areas/normals are not a liquid-volume model.
             for (int i=0;i<ns;++i) {
@@ -1372,9 +1374,9 @@ namespace chmt {
         std::vector<Real> solveTargets;
         if(!compensateMaterialSweepTargets(accepted,solidTargets,solveTargets,error))return false;
         if (!constrainedMotion(oldSolid,reference.solidFace,solveTargets,displacement,fixedSolid,directions,
-            dt,solid,solidSweeps,report,error,materialControls,buildGas)) return false;
+            dt,solid,solidSweeps,report,error,materialControls,buildGas,tolerances)) return false;
         SurfaceMesh surface;
-        if (!rebuildTrajectorySurface(oldGas,oldSolid,reference,gas,solid,dt,surface,error)) {
+        if (!rebuildTrajectorySurface(oldGas,oldSolid,reference,gas,solid,dt,surface,error,tolerances)) {
             report.status=SweepConstraintStatus::InvalidTrajectory; return false;
         }
         for (int i=0;i<ns;++i) surface.baseVelocity[i]=candidateFilm[i].baseVelocity;
@@ -1385,7 +1387,8 @@ namespace chmt {
         return true;
     }
     bool moveCoupledMeshes(const HostState& accepted, const std::vector<FilmAux>& candidateFilm, double dt,
-        HostMesh& gasOut, HostMesh& solidOut, SurfaceMesh& surfaceOut, std::string& error) {
+        HostMesh& gasOut, HostMesh& solidOut, SurfaceMesh& surfaceOut, std::string& error,
+        const Tolerances& tolerances) {
         // Compatibility with the original explicit front convention only. The
         // multirate material owner must call the explicit integrated-volume API.
         if (candidateFilm.size()!=accepted.surface.solidFace.size()
@@ -1402,7 +1405,7 @@ namespace chmt {
         }
         SweepConstraintReport report;
         return moveCoupledMeshesConstrained(accepted,candidateFilm,target,dt,gasOut,solidOut,surfaceOut,
-            report,error,SweepConstraintControls{});
+            report,error,SweepConstraintControls{},tolerances);
     }
 
 }

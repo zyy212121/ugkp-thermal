@@ -17,8 +17,10 @@ namespace chmt {
 
     // Moving stages require an analytic orientation/convex-half-space certificate.
     // Uncertifiable concave/folded motion is rejected; no sample-only acceptance.
+    // Configured tolerances bound GCL and periodic swept-volume residuals only;
+    // topology, orientation and area-closure validity remain independent.
     bool makeStageGeometry(const HostMesh&, const std::vector<Vec3>&, double, HostMesh&, std::vector<double>&,
-        std::string&);
+        std::string&, const Tolerances& tolerances=Tolerances{});
     bool makeStageAreaVectors(const HostMesh&, const std::vector<Vec3>&, std::vector<Vec3>&, std::string&);
     // Surface diagnostic is physical normal/hinge area change, NOT a source
     // correction and NOT a target that must be forced to zero. Units m^2.
