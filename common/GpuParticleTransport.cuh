@@ -128,13 +128,15 @@ __device__ void trackOneParticleLocalFaceWalk(DeviceState& s, const int i, const
             }
             const unsigned char wallInteractionType =
                 s.particleStuckCandidateMask[globalFaceId];
+            // Use the segment that reached this face, including prior reflections.
+            // Keep the existing wall-relative contact and lab-frame rebound laws.
             const GPU_OPERATOR_REAL un =
-                s.pux[i]*nx + s.puy[i]*ny + s.puz[i]*nz;
+                vxStep*nx + vyStep*ny + vzStep*nz;
             const GPU_OPERATOR_REAL normalSpeed = fabs
             (
-                (s.pux[i] - s.gasBoundaryUx[globalFaceId])*nx
-              + (s.puy[i] - s.gasBoundaryUy[globalFaceId])*ny
-              + (s.puz[i] - s.gasBoundaryUz[globalFaceId])*nz
+                (vxStep - s.gasBoundaryUx[globalFaceId])*nx
+              + (vyStep - s.gasBoundaryUy[globalFaceId])*ny
+              + (vzStep - s.gasBoundaryUz[globalFaceId])*nz
             );
             const Foam::gpuThermal::SommerfeldImpact impact =
                 Foam::gpuThermal::evaluateSommerfeldImpact
@@ -171,9 +173,9 @@ __device__ void trackOneParticleLocalFaceWalk(DeviceState& s, const int i, const
             y = GPU_WALL_COORDINATE(yHit, eps, ny);
             z = GPU_WALL_COORDINATE(zHit, eps, nz);
             const GPU_OPERATOR_REAL restitution = s.cellFaceRestitution[plane];
-            s.puxOld[i] = s.pux[i] - (GPU_OPERATOR_R(1.0) + restitution)*un*nx;
-            s.puyOld[i] = s.puy[i] - (GPU_OPERATOR_R(1.0) + restitution)*un*ny;
-            s.puzOld[i] = s.puz[i] - (GPU_OPERATOR_R(1.0) + restitution)*un*nz;
+            s.puxOld[i] = vxStep - (GPU_OPERATOR_R(1.0) + restitution)*un*nx;
+            s.puyOld[i] = vyStep - (GPU_OPERATOR_R(1.0) + restitution)*un*ny;
+            s.puzOld[i] = vzStep - (GPU_OPERATOR_R(1.0) + restitution)*un*nz;
             s.pux[i] = GPU_OPERATOR_R(0.0);
             s.puy[i] = GPU_OPERATOR_R(0.0);
             s.puz[i] = GPU_OPERATOR_R(0.0);
