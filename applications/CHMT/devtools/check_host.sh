@@ -7,6 +7,8 @@ checks=(
   devtools/check_core.sh
   devtools/check_runtime.sh
   devtools/check_gas_mesh.sh
+  devtools/check_thermal_boundary.sh
+  devtools/multirate/check_geometry_tolerances.sh
   devtools/check_material_film.sh
   devtools/multirate/check_sweep_constraints.sh
   devtools/multirate/check_cpu_geometry_state.sh
