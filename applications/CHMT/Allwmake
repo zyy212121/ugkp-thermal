@@ -1,0 +1,58 @@
+#!/usr/bin/env bash
+# Standalone CHMT build. Invoke with bash; source-file executable bits are not required.
+set -euo pipefail
+export PYTHONDONTWRITEBYTECODE=1
+app=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+if [[ "${1:-}" == --help ]]; then
+    printf '%s\n' 'Source Foundation OpenFOAM 10, then:' \
+      'CHMT_CUDA_ARCH=sm_80 CHMT_SPECIES=S0,S1 bash applications/CHMT/Allwmake' \
+      'S0,S1 are mathematical verification species, not production material data.' \
+      'The production split uses CPU implicit material and GPU gas window libraries.' \
+      'Outputs: CHMT_BUILD_DIR (default applications/CHMT/.build)/bin/{CHMT,chmt-adapter}.'
+    exit 0
+fi
+[[ ${WM_PROJECT_VERSION:-} == 10 && -f ${WM_PROJECT_DIR:-/missing}/src/finiteVolume/lnInclude/fvCFD.H ]] || { echo 'CHMT requires sourced Foundation OpenFOAM 10 headers/runtime' >&2; exit 2; }
+command -v wmake >/dev/null || { echo 'CHMT requires real wmake' >&2; exit 2; }
+nvcc=${NVCC:-nvcc}
+command -v "$nvcc" >/dev/null || { echo 'CHMT integrated build blocked: nvcc missing; no gas CPU/mock fallback exists' >&2; exit 3; }
+[[ ${CHMT_CUDA_ARCH:-} =~ ^sm_[0-9]+$ ]] || { echo 'Set CHMT_CUDA_ARCH explicitly, e.g. sm_80' >&2; exit 2; }
+[[ -n ${CHMT_SPECIES:-} ]] || { echo 'Set ordered CHMT_SPECIES explicitly; S0,S1 is mathematical-only' >&2; exit 2; }
+"$nvcc" --list-gpu-code | grep -Fxq "$CHMT_CUDA_ARCH" || { echo 'Selected architecture is not supported by this nvcc' >&2; exit 2; }
+build=$(python3 -c 'import pathlib,sys;print(pathlib.Path(sys.argv[1]).resolve())' "${CHMT_BUILD_DIR:-$app/.build}")
+repository=$(cd "$app/../.." && pwd)
+if [[ "$build/" == "$repository/"* && "$build" != "$app/.build" ]]; then
+    echo 'Custom CHMT_BUILD_DIR must be outside the checkout; only .build is allowed in-tree' >&2
+    exit 2
+fi
+mkdir -p "$build"
+export CHMT_CXX="${CXX:-g++}"
+export CHMT_BINDIR="$build/bin" CHMT_LIBDIR="$build/lib" CHMT_GENERATED="$build/generated"
+mkdir -p "$CHMT_BINDIR" "$CHMT_LIBDIR" "$CHMT_GENERATED" "$build/objects"
+python3 "$app/devtools/build_info.py" --output "$CHMT_GENERATED" --species "$CHMT_SPECIES" --arch "$CHMT_CUDA_ARCH" --nvcc "$nvcc" --cxx "${CXX:-g++}"
+cuda_root=$(cd "$(dirname "$(command -v "$nvcc")")/.." && pwd)
+export CHMT_CUDA_LIBDIR=${CHMT_CUDA_LIBDIR:-$cuda_root/lib64}
+cu_sources=(gas/GasKernels.cu gas/SstKernels.cu mesh/Remap1D.cu materials/MaterialKernels.cu film/FilmKernels.cu film/ResolvedNormalThermal.cu ablation/InterfaceKernels.cu coupling/Coordinator.cu particles/ParticleKernels.cu gpu/Backend.cu)
+host_sources=(mesh/Geometry.C coupling/ExchangeLedger.C restart/Checkpoint.C)
+objects=()
+for src in "${cu_sources[@]}"; do
+    [[ -f "$app/$src" ]] || { echo "CHMT integration source missing: $src" >&2; exit 4; }
+    obj="$build/objects/${src//\//_}.o"; objects+=("$obj")
+    "$nvcc" -ccbin "${CXX:-g++}" -std=c++14 -DUGKWP_GPU_REAL_BITS=64 -arch="$CHMT_CUDA_ARCH" -Xcompiler=-fPIC -I"$app" -I"$app/../../common" -I"$CHMT_GENERATED" '-DCHMT_SPECIES_HEADER="CHMTSpecies.H"' -c "$app/$src" -o "$obj"
+done
+for src in "${host_sources[@]}"; do
+    [[ -f "$app/$src" ]] || { echo "CHMT integration source missing: $src" >&2; exit 4; }
+    obj="$build/objects/${src//\//_}.o"; objects+=("$obj")
+    "${CXX:-g++}" -std=c++14 -DUGKWP_GPU_REAL_BITS=64 -O2 -fPIC -I"$app" -I"$app/../../common" -I"$CHMT_GENERATED" '-DCHMT_SPECIES_HEADER="CHMTSpecies.H"' -c "$app/$src" -o "$obj"
+done
+"$nvcc" -ccbin "${CXX:-g++}" -shared --cudart shared -arch="$CHMT_CUDA_ARCH" -o "$CHMT_LIBDIR/libCHMTBackend.so" "${objects[@]}"
+# OpenFOAM headers are parsed only by the host compiler in this distinct library.
+# Never append these sources or OpenFOAM include paths to cu_sources/nvcc.
+for src in materials/CpuMaterialDriver.C materials/MaterialTransport.C film/CpuFilmDriver.C ablation/CpuSurfaceInterface.C; do
+    [[ -f "$app/$src" ]] || { echo "CHMT CPU material source missing: $src" >&2; exit 4; }
+done
+(cd "$app/materials" && wmake libso)
+(cd "$app" && wmake)
+# Install a genuinely executable output without altering source-file modes.
+install -m 0755 "$app/adapter/chmt-adapter" "$CHMT_BINDIR/chmt-adapter"
+cp "$CHMT_GENERATED/build.json" "$CHMT_BINDIR/chmt-adapter.build.json"
+printf 'CHMT built: %s\nAdapter: %s\n' "$CHMT_BINDIR/CHMT" "$CHMT_BINDIR/chmt-adapter"
