@@ -1,4 +1,5 @@
 #include "coupling/Coordinator.H"
+#include "gas/BoundarySample.H"
 #include "gpu/BackendResources.H"
 #include "gas/KernelSupport.cuh"
 #include "ablation/InterfaceKernels.H"
@@ -48,9 +49,11 @@ __global__ void wallTraceKernel(GasView gas,GeometryView endpoint,GasPrimitive* 
     const auto kind=endpoint.boundaryKind[f];if(kind!=BoundaryKind::NoSlip&&kind!=BoundaryKind::Interface)return;
     if(kind==BoundaryKind::Interface){wall[f]=endpoint.boundaryPrimitive[f];return;}
     const int c=endpoint.owner[f];GasPrimitive w;if(!recoverGas(gas.q[c],endpoint.newVolume[c],p,w)){gasDeviceError(status,ErrorCode::PropertyRange,c,0,ErrorLocation::Cell);return;}
-    const auto prescribed=endpoint.boundaryPrimitive[f];if(prescribed.temperature>0)w.temperature=prescribed.temperature;
-    Real R=0,cv=0;for(int s=0;s<Ns;++s){R+=w.Y[s]*p.species[s].R;cv+=w.Y[s]*(p.species[s].cp0-p.species[s].R+p.species[s].cp1*w.temperature);}
-    w.rho=w.pressure/(R*w.temperature);w.soundSpeed=::sqrt((cv+R)/cv*R*w.temperature);w.velocity=prescribed.velocity;wall[f]=w;
+    GasPrimitive trace;
+    if(!wallThermodynamicTrace(w,endpoint.boundaryPrimitive[f],fixedTemperature(endpoint.thermalBoundary,f),p,trace)){
+        gasDeviceError(status,ErrorCode::PropertyRange,f,w.temperature,ErrorLocation::Face);return;
+    }
+    wall[f]=trace;
 }
 __device__ bool externalFace(BoundaryKind k){return k!=BoundaryKind::Internal&&k!=BoundaryKind::Periodic&&k!=BoundaryKind::Interface&&k!=BoundaryKind::Empty;}
 __global__ void auditKernel(GasView gas,const GasQ* baseGas,const GasQ* evaluationGas,
