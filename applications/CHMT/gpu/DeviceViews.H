@@ -74,6 +74,7 @@ struct GeometryView {
     // Gas primitive recovery uses evaluationVolume at the midpoint; old/new
     // remain accepted->endpoint volume/GCL/update data. Required by gas RHS.
     const BoundaryKind* boundaryKind=nullptr;const GasPrimitive* boundaryPrimitive=nullptr;
+    const ThermalBoundaryKind* thermalBoundary=nullptr; // null means zeroGradient
     const std::uint64_t* faceIds=nullptr;
     const int* cellFaceOffsets=nullptr;const int* cellFaces=nullptr;const int* cellFaceSigns=nullptr;
     const int* faceOffsets=nullptr;const int* facePoints=nullptr;

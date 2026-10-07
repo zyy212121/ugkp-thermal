@@ -1,6 +1,7 @@
 #ifndef CHMT_GPU_STATEVALIDATION_H
 #define CHMT_GPU_STATEVALIDATION_H
 #include "core/HostState.H"
+#include "core/ThermalBoundary.H"
 #include "coupling/Coordinator.H"
 #include "materials/Reaction.H"
 #include "film/ResolvedNormalThermal.H"
@@ -14,6 +15,7 @@ inline bool validateRuntimeState(const ModelConfig& model,HostState& h,std::stri
     const auto& p=model.physics;
     auto fail=[&](const std::string& message){error=message;return false;};
     if(!validateSpeciesSet(model,error))return false;
+    if(!validateThermalBoundaries(h.gasMesh,error)||!validateThermalBoundaries(h.solidMesh,error))return false;
     if(h.gas.size()>INT_MAX||h.solid.size()>INT_MAX||h.film.size()>INT_MAX||h.particles.size()>INT_MAX
         ||h.surface.area.size()>INT_MAX/3||h.gasMesh.owner.size()>INT_MAX||h.solidMesh.owner.size()>INT_MAX)return fail("state exceeds compiled index range");
     const bool normal=p.filmThermalMode==FilmThermalMode::ResolvedNormal;

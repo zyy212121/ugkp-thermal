@@ -110,9 +110,9 @@ bool windowGeometry(Backend& b,PendingGasWindow& window,const WallKnot& sample,c
     SurfaceMesh& surface,HostStageGeometry& gasStage,HostStageGeometry& solidStage,std::string& error){
     if(window.staticGeometry){surface=window.surface;return true;}
     std::vector<Real> gs,ss;std::vector<Vec3> ga,sa;
-    if(!makeStageGeometry(window.gasMesh,endpoint.gasPoints,dt,gasEnd,gs,error)
+    if(!makeStageGeometry(window.gasMesh,endpoint.gasPoints,dt,gasEnd,gs,error,b.model.physics.tolerances)
         ||!makeStageAreaVectors(window.gasMesh,endpoint.gasPoints,ga,error)
-        ||!makeStageGeometry(window.solidMesh,endpoint.solidPoints,dt,solidEnd,ss,error)
+        ||!makeStageGeometry(window.solidMesh,endpoint.solidPoints,dt,solidEnd,ss,error,b.model.physics.tolerances)
         ||!makeStageAreaVectors(window.solidMesh,endpoint.solidPoints,sa,error))return false;
     const auto& p=b.model.physics;surface=window.program.surface;
     for(std::size_t f=0;f<surface.area.size();++f){const int gf=surface.gasFace[f],sf=surface.solidFace[f];
@@ -125,8 +125,8 @@ bool windowGeometry(Backend& b,PendingGasWindow& window,const WallKnot& sample,c
     }
     SurfaceMesh evaluationSurface=window.surface;
     const Real evaluationDt=sample.time-window.time;
-    if(evaluationDt>0&&!rebuildTrajectorySurface(window.gasMesh,window.solidMesh,window.surface,evalGas,evalSolid,evaluationDt,evaluationSurface,error))return false;
-    if(!rebuildTrajectorySurface(window.gasMesh,window.solidMesh,window.surface,gasEnd,solidEnd,dt,surface,error))return false;
+    if(evaluationDt>0&&!rebuildTrajectorySurface(window.gasMesh,window.solidMesh,window.surface,evalGas,evalSolid,evaluationDt,evaluationSurface,error,b.model.physics.tolerances))return false;
+    if(!rebuildTrajectorySurface(window.gasMesh,window.solidMesh,window.surface,gasEnd,solidEnd,dt,surface,error,b.model.physics.tolerances))return false;
     setWindowStage(window.gasMesh,evalGas,gasEnd,dt,gs,ga,gasStage);setWindowStage(window.solidMesh,evalSolid,solidEnd,dt,ss,sa,solidStage);
     if(!b.gasGeometry.upload(window.gasMesh,evalGas,gasEnd,gs,ga,b.fault)
         ||!b.solidGeometry.upload(window.solidMesh,evalSolid,solidEnd,ss,sa,b.fault)

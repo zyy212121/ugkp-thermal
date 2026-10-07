@@ -88,7 +88,7 @@ __global__ void stableStepKernel(GasView gas,GeometryView geometry,SolidView sol
                     const Real gasStorage=geometry.evaluationVolume[gc]/(R*w.temperature);
                     pressureRate+=conductance*(cv+R)/(cv*gasStorage);
                 }}
-            }else if(solidGeometry.boundaryPrimitive&&solidGeometry.boundaryPrimitive[face].temperature>0){const Real distance=mag(solidGeometry.faceCentre[face]-solidGeometry.cellCentre[c]);if(capacity>0&&distance>0)thermalRate+=area*material.conductivity/(distance*capacity);}
+            }else if(fixedTemperature(solidGeometry.thermalBoundary,face)){const Real distance=mag(solidGeometry.faceCentre[face]-solidGeometry.cellCentre[c]);if(capacity>0&&distance>0)thermalRate+=area*material.conductivity/(distance*capacity);}
             advectionRate+=absValue(solidGeometry.sweptVolume[face])/interval/volume;
         }
         if(pressureRate+thermalRate+advectionRate>0)limit=minValue(limit,p.cfl/(pressureRate+thermalRate+advectionRate));
@@ -136,10 +136,10 @@ bool geometryFor(Backend& b,const HostState& base,const HostState& evaluation,co
     Real dt,HostState& endpoint,HostStageGeometry& gasStage,HostStageGeometry& solidStage,std::string& error){
     const auto& p=b.model.physics;endpoint=base;std::vector<Vec3> gasPoints=base.gasMesh.points,solidPoints=base.solidMesh.points;
     if(p.meshMotion.policy==MeshMotionPolicy::PrescribedSinusoidal){for(std::size_t i=0;i<gasPoints.size();++i)gasPoints[i]=prescribedPoint(base.gasMesh.referencePoints[i],p.meshMotion,base.time+dt);}
-    if(p.meshMotion.policy==MeshMotionPolicy::CoupledRecession){if(!moveCoupledMeshes(base,estimate,dt,endpoint.gasMesh,endpoint.solidMesh,endpoint.surface,error))return false;gasPoints=endpoint.gasMesh.points;solidPoints=endpoint.solidMesh.points;}
+    if(p.meshMotion.policy==MeshMotionPolicy::CoupledRecession){if(!moveCoupledMeshes(base,estimate,dt,endpoint.gasMesh,endpoint.solidMesh,endpoint.surface,error,p.tolerances))return false;gasPoints=endpoint.gasMesh.points;solidPoints=endpoint.solidMesh.points;}
     std::vector<Real> gasSweep,solidSweep;std::vector<Vec3> gasAreas,solidAreas;
-    if(!makeStageGeometry(base.gasMesh,gasPoints,dt,endpoint.gasMesh,gasSweep,error)||!makeStageAreaVectors(base.gasMesh,gasPoints,gasAreas,error)
-        ||!makeStageGeometry(base.solidMesh,solidPoints,dt,endpoint.solidMesh,solidSweep,error)||!makeStageAreaVectors(base.solidMesh,solidPoints,solidAreas,error))return false;
+    if(!makeStageGeometry(base.gasMesh,gasPoints,dt,endpoint.gasMesh,gasSweep,error,p.tolerances)||!makeStageAreaVectors(base.gasMesh,gasPoints,gasAreas,error)
+        ||!makeStageGeometry(base.solidMesh,solidPoints,dt,endpoint.solidMesh,solidSweep,error,p.tolerances)||!makeStageAreaVectors(base.solidMesh,solidPoints,solidAreas,error))return false;
     endpoint.gasMesh.referencePoints=base.gasMesh.referencePoints;endpoint.solidMesh.referencePoints=base.solidMesh.referencePoints;
     if(p.meshMotion.policy!=MeshMotionPolicy::CoupledRecession){endpoint.surface.oldArea=base.surface.area;endpoint.surface.sweptEdgeArea.assign(base.surface.edgeOwner.size(),0);endpoint.surface.meshVelocity.assign(base.surface.area.size(),Vec3{});}
     if(!base.normalEnthalpy.empty())for(std::size_t c=0;c<endpoint.surface.normalPressure.size();++c)endpoint.surface.normalPressure[c]=base.surface.normalPressure[c]+dt*base.surface.normalPressureRate[c];

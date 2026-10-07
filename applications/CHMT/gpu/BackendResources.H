@@ -137,6 +137,7 @@ struct GeometryBuffers {
     Buffer<Vec3> cellCentre,faceCentre,areaVector,oldPoints,newPoints,meshVelocity,endpointCellCentre,endpointFaceCentre,endpointAreaVector;
     Buffer<Real> oldVolume,newVolume,evaluationVolume,sweptVolume,wallDistance,endpointWallDistance;
     Buffer<BoundaryKind> boundaryKind;
+    Buffer<ThermalBoundaryKind> thermalBoundary;
     Buffer<GasPrimitive> gasBoundary,wallTrace;
     Buffer<std::uint64_t> faceIds;
     int nCells=0,nFaces=0,nPoints=0;std::uint64_t geometryVersion=0,topologyHash=0;
@@ -166,6 +167,7 @@ struct GeometryBuffers {
         if(!wallDistance.upload(evaluation.wallDistance,fault))return false;
         if(!endpointWallDistance.upload(endpoint.wallDistance,fault))return false;
         if(!boundaryKind.upload(endpoint.boundaryKind,fault))return false;
+        if(!thermalBoundary.upload(endpoint.thermalBoundary,fault))return false;
         if(!gasBoundary.upload(evaluation.boundaryPrimitive,fault))return false;
         if(!wallTrace.upload(endpoint.boundaryPrimitive,fault))return false;
         if(!faceIds.upload(endpoint.faceIds,fault))return false;
@@ -192,6 +194,7 @@ struct GeometryBuffers {
         v.sweptVolume=sweptVolume.data();
         v.wallDistance=wallDistance.data();
         v.boundaryKind=boundaryKind.data();
+        v.thermalBoundary=thermalBoundary.data();
         v.faceIds=faceIds.data();
         v.boundaryPrimitive=sstWallTrace?wallTrace.data():gasBoundary.data();
         if(endpoint){v.cellCentre=endpointCellCentre.data();v.faceCentre=endpointFaceCentre.data();v.areaVector=endpointAreaVector.data();v.evaluationVolume=newVolume.data();v.wallDistance=endpointWallDistance.data();}

@@ -1,6 +1,7 @@
 #ifndef CHMT_GPU_BACKEND_H
 #define CHMT_GPU_BACKEND_H
 #include "core/HostState.H"
+#include "mesh/Motion.H"
 #include "DeviceViews.H"
 #include "coupling/IntervalContracts.H"
 namespace chmt {
@@ -38,8 +39,6 @@ bool readCheckpoint(const std::string& directory,const ModelConfig&,HostState&,s
 int launchGasRhs(GasView,GeometryView,PacketView,const PhysicsConfig&,double stageDt,void* stream);
 int launchGasUpdate(const GasQ* base,GasView candidate,const GeometryView&,double dt,DeviceStatus*,void* stream);
 int launchConservativeRemap1D(const double* oldEdges,int nOld,const GasQ* oldQ,const double* newEdges,int nNew,GasQ* newQ,DeviceStatus*,void* stream);
-bool makeStageGeometry(const HostMesh& accepted,const std::vector<Vec3>& endpointPoints,double interval,HostMesh& candidate,std::vector<double>& sweptVolumes,std::string& error);
-bool moveCoupledMeshes(const HostState& accepted,const std::vector<FilmAux>& candidateFilm,double dt,HostMesh& gas,HostMesh& solid,SurfaceMesh& surface,std::string& error);
 int launchMaterialRhs(SolidView,GeometryView,PacketView,const PhysicsConfig&,double stageDt,DeviceStatus*,void* stream);
 int launchFilmRhs(FilmView,SurfaceView,PacketView,const PhysicsConfig&,double stageDt,DeviceStatus*,void* stream);
 int launchInterfacePackets(GasView,SolidView,FilmView,GeometryView,SurfaceView,PacketView,const PhysicsConfig&,double stageDt,std::uint64_t step,int stage,DeviceStatus*,void* stream);
