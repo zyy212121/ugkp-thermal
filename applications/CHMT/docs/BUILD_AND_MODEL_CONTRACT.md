@@ -222,6 +222,43 @@ reactionExtentDensity_<index>; the parser checks dimensions and converts densiti
 to genuine cell inventories with imported volumes. Independent gasInitial and
 filmInitial sections can be used for combined configurations.
 
+Thermal policy is independent of the kinematic boundary kind and of the stored
+positive gas primitive. Gas `T` accepts `fixedValue` or `zeroGradient` on Slip/
+NoSlip walls. The latter follows the current adjacent cell and has exactly zero
+conductive flux, including SST; its endpoint SST trace is recomputed from the
+current cell pressure/composition and boundary thermal policy. A fixed Slip wall
+conducts heat without no-slip viscous traction. Gas Inlet requires fixedValue T,
+Outlet requires zeroGradient T. Cyclic and empty temperature patches must match
+their mesh topology. Interface thermal exchange is owned by the coupler; its
+input temperature patch must be zeroGradient. Unsupported operators (including
+mixed, fixedGradient and time-varying variants) fail explicitly. Values imported
+from fixedValue patches are constant for this run; no time-dependent patch
+re-evaluation is claimed.
+
+The optional solid-region volume field `solidTemperature` has dimensions
+`[0 0 0 1 0 0 0]` and temperatures in kelvin. Its physical patches accept
+fixedValue or zeroGradient, with cyclic/empty topology matching as above.
+Without this file, solid physical boundaries remain zeroGradient. Its internal
+values are unused: initial solid temperature comes solely from the conserved
+solidEnergyDensity, condensed/pore composition, and formation-inclusive caloric
+model. A fixedValue is a temperature reservoir, not a specified energy density
+or composition; it is checked against the active adjacent-cell constituents'
+caloric temperature ranges. Conductivity and heat capacity still come from the
+actual evolving cell inventory. Interface patches must be zeroGradient because
+the coupler supplies their exchange. solidEnergyDensity initializes internal
+inventory only; fixedValue or other physical energy boundary operators are
+rejected with a direction to use solidTemperature. zeroGradient/calculated and
+cyclic/empty storage patches are accepted for that initial inventory field.
+
+Every imported face carries an explicit thermal policy through CPU/GPU geometry,
+wall traces, accepted-state mirrors and restart. Programmatically constructed
+meshes may leave the array empty as an all-zeroGradient shorthand; a positive
+stored primitive alone never requests fixed temperature. Checkpoint schema 3
+adds this policy; schema 1/2 files are deliberately rejected rather than guessing
+whether a stored positive boundary temperature meant insulation or heating.
+The unchanged CHMTCP2 byte magic is the container identifier, not the schema
+version. Reinitialize older cases from their original fields.
+
 Actual polyMesh points, face orientation, owner/neighbour, boundary types,
 cyclic partner addressing and persistent face IDs are imported. rebuildGeometry
 constructs physical measures and cell-face adjacency. Translation-periodic

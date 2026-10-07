@@ -80,3 +80,23 @@ Missing prerequisites must be reported as blocked, never silently skipped or
 counted as passed. Unsupported moving curved-offset wet films, nonconformal or
 topology-changing coupling and finite-duration particle contact remain outside
 the new window path; tests of explicit rejection are not support for those paths.
+
+## Review-repair thermal and geometry gates
+
+- `bash devtools/check_thermal_boundary.sh`: production host wall sample/flux/EOS
+  helpers, evolving zeroGradient versus fixedValue, SST trace and invalid policy.
+- `bash devtools/multirate/check_geometry_tolerances.sh`: actual 3-D cell and
+  periodic sweeps under strict/loose configured absolute and relative limits,
+  nested surface/coupled certificates, and unchanged invalid-geometry rejection.
+- Source an actual Foundation OpenFOAM 10 environment, then run
+  `bash devtools/multirate/check_thermal_import_of.sh`: real MeshIO gas/solid
+  field import, native sparse conduction and signed energy closure, optional
+  solidTemperature compatibility and invalid operator/dimension/range rejection.
+  Gas assertions execute shared production boundary arithmetic on the host;
+  this is not CUDA-kernel or production Multirate acceptance.
+- `check_runtime.sh` checks schema-3 explicit thermal-policy serialization and
+  rejects earlier ambiguous schemas. `check_frontend.sh` compiles the real OF10
+  frontend object only. CUDA compile/link/runtime remains a separate required gate.
+
+CHMT Real is FP64. These gates do not claim an unsupported float solver build;
+OpenFOAM scalar precision is recorded separately from CHMT's fixed double type.

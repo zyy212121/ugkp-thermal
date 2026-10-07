@@ -7,7 +7,9 @@ The production-native case generator, runner and result checker described below
 are **not implemented in this candidate**. Review this plan together with the
 solver before implementing that missing harness. Return code findings, plan
 corrections, required instrumentation and the intended commands to the owner;
-wait for approval before changing the implementation or starting native runs.
+obtain approval for the full missing production-CUDA harness before expanding
+that scope. The separately authorized F1/F2/F3 repair regressions do not require
+a second approval for each recoverable fixture, path or dictionary error.
 
 The submitted component tests and native CPU-driver test remain useful prior
 evidence. `devtools/of_coupling` runs actual OpenFOAM finite-volume equations with
@@ -16,6 +18,36 @@ production CUDA backend or `advanceCoupledWindow`. Its results must never fill
 the production-native acceptance cells below. The existing `adapter/chmt-adapter`
 supports isolated mathematical/standalone cases, not the missing coupled
 Multirate regression suite. Historical CUDA status is NOT RUN, not PASS.
+
+## Staged execution and dependencies
+
+The first production-native package is deliberately bounded. The review's V
+labels map onto the detailed N cases below:
+
+- V0a: actual build/link and prerequisite provenance; V0b: production smoke (N0).
+- V1: standalone actual-CUDA GCL (N2).
+- V2a: native fixed-geometry conduction (first part of N1).
+- V2b: coupled nonzero heat-flux accuracy (second part of N1).
+- V3: dry nonuniform recession (N3).
+- V0c: native moving-mesh quality and stage traces, run alongside V3 (and V4
+  when phase coverage is later authorized). V0c depends on those trajectories
+  and must not block V1 by pretending all of V0 is a prerequisite.
+- V4: phase coverage (N6), V5: independent refinements (N4), V6: restart/replay
+  (N5), and V7: measured cost/performance are later separately scoped work.
+
+A four-hour allowance is an initial native build/run investigation budget, not
+an estimate to develop every missing generator/checker and complete V0–V7.
+Preserve each failure. Correct recoverable input syntax, paths, missing diagnostic
+fields and fixture assembly within the approved test scope, then rerun affected
+checks. Escalate actual physical-threshold failures, model expansion, toolchain
+changes or resource-budget changes. Never loosen thresholds to hide a failure.
+After a code fix, rerun the affected gates and required shared-path regressions;
+there is no need to repeat every expensive unchanged scenario first.
+
+The CHMT-local thermal-import regression executes the actual field importer and
+native CPU matrix, with separate host gas-boundary arithmetic. It does not fill
+V0b/V1/V2b/V3 acceptance cells. Those actual CUDA production gates remain NOT RUN
+until the real executable/device evidence exists.
 
 ## Workspace and immutable inputs
 
@@ -66,7 +98,10 @@ native matrix solve, and packet ownership changes only through the actual
 production transaction. Existing `execution-mode.json`, `multirate.json`,
 `windows.csv`, raw inventories and stage-geometry outputs supply part of this
 evidence. Identify any missing observability in review; do not infer a code path
-merely from a filename. Minimal noninvasive test instrumentation may be proposed
+merely from a filename or build-info alone. Successful completion records for
+both GPU stages, checked device errors, and synchronized accepted state are
+required. Nsight is optional supplementary evidence, not a substitute for those
+records. Minimal noninvasive test instrumentation may be proposed
 for events/replays that current output cannot distinguish.
 
 ## Missing harness deliverables, after plan approval
@@ -110,15 +145,24 @@ preserve the state within accumulation-scaled floating-point tolerances. Then
 exercise a 3-D solid thermal mode on the production path with the relevant
 interface heat exchange disabled by a supported physical configuration. Compare
 against an independently derived discrete backward-Euler eigenmode for constant
-properties, using actual mesh/discrete operator and actual material substeps.
+properties, using the actual mesh/discrete operator and material macro-window H.
+Keep pure conduction free of an artificial CPU substep cap; a fixed H must give
+the same result and solve count under refinement of the gas microstep partition.
+Only when a deliberately enabled physical material process requires splitting
+should the reference use the actual accepted material substeps.
 If this configuration cannot be expressed by the existing frontend, report a
 harness/configuration gap; do not replace this case with the CPU-driver test.
 
 Next enable full two-way gas/solid heat transfer with hot gas and a transverse
 solid temperature gradient. Require evolving gas fields and wall response,
 nonzero opposite-signed heat exchange, global energy closure and refinement.
-An analytic Dirichlet solid problem validates conduction only; it does not
-certify the coupled boundary flux. For variable heat capacity, independently
+Add an independent nonzero heat-flux magnitude reference at the first static
+planar window, using declared physical properties and cell-to-interface
+distances or an independently assembled semidiscrete solution. Require both
+magnitude and sign accuracy. Opposite packets, a closed ledger and a refinement
+trend can all pass with the same incorrect coupling coefficient, so none can
+replace this reference. An analytic Dirichlet solid problem validates conduction
+only; it does not certify the coupled boundary flux. For variable heat capacity, independently
 evaluate formation-inclusive energy from the computed inventories and compare
 to an over-resolved numerical reference, without fitting the reference to the
 coarse run.
@@ -159,28 +203,39 @@ For N3, initially test gas caps `[4e-7, 2e-7, 1e-7] s` with `H=4e-6 s`; separate
 test `H=[4e-6, 2e-6, 1e-6] s` with gas cap `1e-7 s`. They are initial requested
 values, not promised stable steps: use actual accepted steps in the report.
 Do not claim independent gas refinement if CFL clips all three onto the same
-trajectory. Keep other controls, output times, reconstruction and material
-accuracy fixed; demonstrate material error is smaller with a separate tightening
+trajectory. Keep other controls, reconstruction and material accuracy fixed. Output sampling
+must not clip the proposed H and accidentally turn gas-step refinement into a
+window-refinement test. The current frontend treats outputTimes as window end
+boundaries, so use only start/end output times (aligned with all compared H)
+and the existing per-window/stage traces for intermediate diagnostics; reject
+runs with unintended output clipping. Keep the final physical time identical;
+ demonstrate material error is smaller with a separate tightening
 check. Include both full-field endpoint and peak trajectory norms at common
 physical times, not only a selected probe or recession scalar.
 
 For a resolved first-order coupling signal, target fine/coarse successive
 difference ratio near 0.5; use `<0.75` as the preliminary acceptance ceiling and
-require monotone reduction. Explain any different expected order from the actual
-scheme. Reject a false convergence claim when differences are below roundoff,
+require monotone reduction. A ratio below 0.75 shows a trend, not first-order
+accuracy by itself: report the observed order log2(d_coarse/d_fine), uncertainty
+and noise floor per observable. Explain different expected orders from the actual
+scheme without demanding identical order for every component. Reject a false convergence claim when differences are below roundoff,
 when two levels secretly share actual clocks, or when normalization changes.
 Review the threshold before running; do not loosen it after seeing results.
 
 ### N5: Native synchronized restart, replay and rejection
 
-Split N3 at an accepted macro synchronization. Restore the actual binary
+First repeat the uninterrupted same-build/hardware case to establish baseline
+determinism. Separately test checkpoint serialization/reload: every stored
+floating bit, integer, thermal policy and field must round-trip exactly. Then
+split N3 at an accepted macro synchronization. Restore the actual binary
 CHMTCP2 checkpoint into the genuine executable and compare the next window and
 final endpoint against uninterrupted progression on the same hardware/build.
 Compare gas/SST/solid/film inventories, mesh points, stage/counter state,
 commitSequence, physical budgets and signed geometric carry. There is no
 supported pending-window resume. Require exact agreement for integer/discrete
-state; target bitwise floating-point agreement where the execution is
-deterministic, otherwise predeclare a justified roundoff-level tolerance and
+state; require bitwise trajectory agreement only if the repeated baseline
+establishes deterministic execution, otherwise predeclare a justified
+roundoff-level tolerance and
 explain the source of nondeterminism. A loose field norm cannot hide ledger or
 counter differences.
 
@@ -213,6 +268,11 @@ and formation-inclusive total energy from actual inventories and exterior fluxes
 Include ALE transport, interface pressure work, outer-wall work, radiation/body
 work when enabled, and the declared reduced-film kinetic defect where applicable.
 Internal exchanges must cancel; they must not be counted as exterior supply.
+Reacting species are not individually conserved: compare each gas/pore/condensed
+species inventory change with stoichiometric sources computed independently
+from accepted reaction extents, plus boundary and phase transfers. Use total
+mass and elemental inventories as the conserved reaction checks. A zero-source
+species equation must not be imposed on a reacting species.
 
 Predeclare each normalization scale. Use actual initial/final inventory plus
 cumulative absolute exterior throughput; do not normalize a nearly cancelling
