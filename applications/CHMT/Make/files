@@ -1,4 +1,0 @@
-CHMT.C
-io/MultirateEvolution.C
-
-EXE = $(CHMT_BINDIR)/CHMT
