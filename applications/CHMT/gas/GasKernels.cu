@@ -1,6 +1,7 @@
 #include "gas/GasKernels.H"
 #include "gas/SstKernels.H"
 #include "gas/AleFlux.H"
+#include "gas/BoundarySample.H"
 #include "gas/KernelSupport.cuh"
 #include "coupling/ExchangeLedger.H"
 namespace chmt {
@@ -34,36 +35,6 @@ namespace chmt {
                     }
                 }
             }
-        }
-        __device__ GasPrimitive boundarySample(int c, int f, GasView gas, GeometryView geometry, Real dt) {
-            GasPrimitive w = gas.primitive[c];
-            auto kind = geometry.boundaryKind[f];
-            const GasPrimitive prescribed = geometry.boundaryPrimitive?geometry.boundaryPrimitive[f]:GasPrimitive{};
-            if (kind == BoundaryKind::Inlet)return prescribed;
-            if (kind == BoundaryKind::Interface) {
-                // Coupler supplies the actual blowing-wall gas state. These
-                // are mirrored samples for gradients, not a second BC flux.
-                w.rho = 2*prescribed.rho-w.rho;
-                w.velocity = prescribed.velocity*2-w.velocity;
-                w.temperature = 2*prescribed.temperature-w.temperature;
-                w.pressure = 2*prescribed.pressure-w.pressure;
-                for (int species = 0; species < Ns; ++species) {
-                    w.Y[species] = 2*prescribed.Y[species]-w.Y[species];
-                }
-                return w;
-            }
-            if (kind == BoundaryKind::Outlet) {
-                if (prescribed.pressure>0)w.pressure = prescribed.pressure;
-                return w;
-            }
-            if (kind == BoundaryKind::NoSlip || kind == BoundaryKind::Slip) {
-                const Vec3 n = normalized(geometry.areaVector[f]);
-                const Real wn = geometry.sweptVolume[f]/(dt*mag(geometry.areaVector[f]));
-                Vec3 wall = prescribed.velocity+n*(wn-dot(prescribed.velocity, n));
-                w.velocity = kind == BoundaryKind::Slip?w.velocity-n*(2*dot(w.velocity-wall, n)):wall*2-w.velocity;
-                if (prescribed.temperature>0)w.temperature = 2*prescribed.temperature-w.temperature;
-            }
-            return w;
         }
         __global__ void gradientKernel(GasView gas, GeometryView geometry, PhysicsConfig physics, Real dt) {
             int c = blockIdx.x*blockDim.x+threadIdx.x;
@@ -225,14 +196,14 @@ namespace chmt {
                 }
                 flux.momentum = A*pressure;
                 flux.energy = pressure*meshRate;
-                if (kind == BoundaryKind::NoSlip) {
+                if (kind == BoundaryKind::NoSlip || fixedTemperature(geometry.thermalBoundary,f)) {
                     right = gas.primitive[l];
                     right.velocity = wall;
-                    if (prescribed.temperature>0)right.temperature = prescribed.temperature;
+                    const bool fixed=fixedTemperature(geometry.thermalBoundary,f);
+                    if (fixed)right.temperature = prescribed.temperature;
                     GasGradient grad = faceGradient(l, -1, f, gas, geometry, right);
-                    for (int s = 0; s<Ns; ++s)grad.Y[s] = {};
-                    if (prescribed.temperature <= 0)grad.temperature = {};
-                    GasQ viscous = diffusiveFlux(right, grad, A, physics, nut, 0, physics.enableSst);
+                    GasQ viscous = impermeableWallDiffusiveFlux(gas.primitive[l],prescribed,wall,grad,A,
+                        fixed,kind==BoundaryKind::NoSlip,physics,nut);
                     flux += viscous;
                 }
             } else {
