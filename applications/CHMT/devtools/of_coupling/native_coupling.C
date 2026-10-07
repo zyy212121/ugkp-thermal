@@ -80,7 +80,7 @@ static HostState initial(const fvMesh& gas,const fvMesh& solid,const chmt::Physi
         h.surface.gasFace.push_back(gf);h.surface.solidFace.push_back(sf);h.surface.solidCell.push_back(h.solidMesh.owner[sf]);h.surface.persistentId.push_back(sf);
         h.gasMesh.boundaryKind[gf]=h.solidMesh.boundaryKind[sf]=chmt::BoundaryKind::Interface;}
     h.filmAux.resize(h.surface.gasFace.size());h.surface.baseVelocity.resize(h.filmAux.size());
-    std::string error;check(chmt::rebuildGeometry(h.gasMesh,error),error);check(chmt::rebuildGeometry(h.solidMesh,error),error);check(chmt::rebuildTrajectorySurface(h,h.gasMesh,h.solidMesh,1,h.surface,error),error);
+    std::string error;check(chmt::rebuildGeometry(h.gasMesh,error),error);check(chmt::rebuildGeometry(h.solidMesh,error),error);check(chmt::rebuildTrajectorySurface(h,h.gasMesh,h.solidMesh,1,h.surface,error,p.tolerances),error);
     for(std::size_t f=0;f<h.filmAux.size();++f){h.filmAux[f].area=h.surface.area[f];h.filmAux[f].normal=h.surface.normal[f];}
     return h;
 }
@@ -132,8 +132,8 @@ static HostState gasWindow(const fvMesh& source,Time& time,const HostState& base
         const Real dt=end-h.time;WallKnot wall,endwall;
         check(intervalSampleWall(program,.5*(h.time+end),wall,error),error);check(intervalSampleWall(program,end,endwall,error),error);
         HostState next=h;std::vector<Real> sweep,solidSweep;
-        check(makeStageGeometry(h.gasMesh,endwall.gasPoints,dt,next.gasMesh,sweep,error),error);
-        if(!h.solid.empty()){check(makeStageGeometry(h.solidMesh,endwall.solidPoints,dt,next.solidMesh,solidSweep,error),error);check(rebuildTrajectorySurface(h,next.gasMesh,next.solidMesh,dt,next.surface,error),error);}
+        check(makeStageGeometry(h.gasMesh,endwall.gasPoints,dt,next.gasMesh,sweep,error,p.tolerances),error);
+        if(!h.solid.empty()){check(makeStageGeometry(h.solidMesh,endwall.solidPoints,dt,next.solidMesh,solidSweep,error,p.tolerances),error);check(rebuildTrajectorySurface(h,next.gasMesh,next.solidMesh,dt,next.surface,error,p.tolerances),error);}
         time.setDeltaT(dt);++time;mesh.movePoints(points(next.gasMesh.points));
         stats.maxGcl=std::max(stats.maxGcl,maximumGclResidual(h.gasMesh,next.gasMesh,sweep));stats.maxRelativeGcl=std::max(stats.maxRelativeGcl,relativeGcl(h.gasMesh,next.gasMesh,sweep));
         if(!h.solid.empty()){stats.maxGcl=std::max(stats.maxGcl,maximumGclResidual(h.solidMesh,next.solidMesh,solidSweep));stats.maxRelativeGcl=std::max(stats.maxRelativeGcl,relativeGcl(h.solidMesh,next.solidMesh,solidSweep));}
