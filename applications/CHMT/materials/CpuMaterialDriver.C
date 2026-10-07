@@ -1,4 +1,5 @@
 #include "materials/CpuMaterialDriver.H"
+#include "core/ThermalBoundary.H"
 #include "materials/MaterialTransport.H"
 #include "materials/MaterialDrive.H"
 #include "ablation/CpuSurfaceInterface.H"
@@ -39,6 +40,7 @@ void accountCpuPacket(const ExchangePacket& packet,Budget& budget){const unsigne
 bool nativeConduction(Foam::fvMesh& acceptedMesh,const HostState& old,HostState& next,const PhysicsConfig& p,
     Real dt,const CpuMaterialControls& controls,CpuMaterialReport& report,std::string& error){
     const std::size_t n=next.solid.size();if(n==0)return true;
+    if(!validateThermalBoundaries(next.solidMesh,error))return false;
     if(acceptedMesh.nCells()!=static_cast<Foam::label>(n)||next.solidMesh.points.size()!=static_cast<std::size_t>(acceptedMesh.nPoints())){error="CPU material fvMesh topology mismatch";return false;}
     // A fresh unregistered full native region avoids movePoints side effects
     // (old volumes, meshPhi, moving flag and Time callbacks) on accepted state.
@@ -53,7 +55,7 @@ bool nativeConduction(Foam::fvMesh& acceptedMesh,const HostState& old,HostState&
     Foam::wordList patchTypes(mesh.boundary().size(),Foam::zeroGradientFvPatchScalarField::typeName);
     forAll(mesh.boundary(),patch){if(mesh.boundary()[patch].coupled()||mesh.boundary()[patch].type()=="empty")patchTypes[patch]=mesh.boundary()[patch].type();
         else{bool hasFixed=false,hasFree=false;forAll(mesh.boundary()[patch],f){const int face=mesh.boundary()[patch].start()+f;
-            const bool fixed=next.solidMesh.boundaryKind[face]!=BoundaryKind::Interface&&!next.solidMesh.boundaryPrimitive.empty()&&next.solidMesh.boundaryPrimitive[face].temperature>0;
+            const bool fixed=next.solidMesh.boundaryKind[face]!=BoundaryKind::Interface&&fixedTemperature(next.solidMesh.thermalBoundary.empty()?nullptr:next.solidMesh.thermalBoundary.data(),face);
             hasFixed=hasFixed||fixed;hasFree=hasFree||!fixed;}if(hasFixed&&hasFree){error="mixed per-face material thermal policy within one native patch";return false;}if(hasFixed)patchTypes[patch]=Foam::fixedValueFvPatchScalarField::typeName;}}
     Foam::volScalarField temperature(Foam::IOobject("CHMTMaterialTemperature",mesh.time().timeName(),mesh,Foam::IOobject::NO_READ,Foam::IOobject::NO_WRITE,false),mesh,
         Foam::dimensionedScalar("initial",Foam::dimTemperature,300),patchTypes);
@@ -139,7 +141,7 @@ bool CpuMaterialDriver::predictWall(const HostState& base,const CouplingInterval
     if(data_->model.physics.meshMotion.policy==MeshMotionPolicy::CoupledRecession&&!base.surface.area.empty()){auto aux=base.filmAux;std::vector<Real> targets(aux.size());const Real dt=interval.end-interval.begin;
         for(std::size_t f=0;f<aux.size();++f){aux[f].solidNormalVelocity=surface.physics[f].solidSpeed;aux[f].normalVelocity=surface.physics[f].topSpeed;aux[f].solidFront+=dt*aux[f].solidNormalVelocity;aux[f].gasFront+=dt*aux[f].normalVelocity;
             const int sf=base.surface.solidFace[f];targets[f]=sf>=0?dt*aux[f].solidNormalVelocity*mag(base.solidMesh.areaVectors[sf]):0;}
-        HostMesh gas,solid;SurfaceMesh moved;SweepConstraintReport report;if(!moveCoupledMeshesConstrained(base,aux,targets,dt,gas,solid,moved,report,error)){if(diagnostics)diagnostics->recoverable=report.status==SweepConstraintStatus::InvalidTrajectory||report.status==SweepConstraintStatus::Nonconverged;return false;}
+        HostMesh gas,solid;SurfaceMesh moved;SweepConstraintReport report;if(!moveCoupledMeshesConstrained(base,aux,targets,dt,gas,solid,moved,report,error,SweepConstraintControls{},data_->model.physics.tolerances)){if(diagnostics)diagnostics->recoverable=report.status==SweepConstraintStatus::InvalidTrajectory||report.status==SweepConstraintStatus::Nonconverged;return false;}
         last.gasPoints=gas.points;last.solidPoints=solid.points;}
     program.knots={first,last};output=std::move(program);error.clear();return true;
 }
@@ -279,7 +281,7 @@ bool CpuMaterialDriver::advanceCandidate(const HostState& base,const HostState& 
                     aux[f].solidFront=state.filmAux[f].solidFront+dt*aux[f].solidNormalVelocity;aux[f].gasFront=state.filmAux[f].gasFront+dt*aux[f].normalVelocity;}
                 if(!error.empty())break;
                 if(p.meshMotion.policy==MeshMotionPolicy::CoupledRecession&&!target.empty()){SweepConstraintReport motion;
-                    if(!moveCoupledMeshesConstrained(state,aux,target,dt,trial.gasMesh,trial.solidMesh,trial.surface,motion,error)){
+                    if(!moveCoupledMeshesConstrained(state,aux,target,dt,trial.gasMesh,trial.solidMesh,trial.surface,motion,error,SweepConstraintControls{},p.tolerances)){
                         if(motion.status==SweepConstraintStatus::Incompatible||motion.status==SweepConstraintStatus::SizeLimit||motion.status==SweepConstraintStatus::InvalidInput){report.recoverable=false;return false;}break;}
                 }else{
                     const Real fraction=(trial.time-window.begin)/interval;std::vector<Vec3> gp=base.gasMesh.points,sp=base.solidMesh.points;
@@ -287,22 +289,22 @@ bool CpuMaterialDriver::advanceCandidate(const HostState& base,const HostState& 
                     for(std::size_t i=0;i<gp.size();++i)gp[i]+=(geometryEndpoint.gasMesh.points[i]-gp[i])*fraction;
                     for(std::size_t i=0;i<sp.size();++i)sp[i]+=(geometryEndpoint.solidMesh.points[i]-sp[i])*fraction;
                     if(executedProgram){WallKnot executed;if(!intervalSampleWall(*executedProgram,trial.time,executed,error))break;gp=executed.gasPoints;sp=executed.solidPoints;}
-                    if(!makeStageGeometry(state.gasMesh,gp,dt,trial.gasMesh,gasSweep,error)||!makeStageGeometry(state.solidMesh,sp,dt,trial.solidMesh,solidSweep,error))break;
-                    if(!state.surface.area.empty()&&!rebuildTrajectorySurface(state,trial.gasMesh,trial.solidMesh,dt,trial.surface,error))break;
+                    if(!makeStageGeometry(state.gasMesh,gp,dt,trial.gasMesh,gasSweep,error,p.tolerances)||!makeStageGeometry(state.solidMesh,sp,dt,trial.solidMesh,solidSweep,error,p.tolerances))break;
+                    if(!state.surface.area.empty()&&!rebuildTrajectorySurface(state,trial.gasMesh,trial.solidMesh,dt,trial.surface,error,p.tolerances))break;
                 }
                 if(executedProgram&&p.meshMotion.policy==MeshMotionPolicy::CoupledRecession){WallKnot executed;
                     if(!intervalSampleWall(*executedProgram,trial.time,executed,error))break;
                     HostMesh constrainedGas=trial.gasMesh,constrainedSolid=trial.solidMesh;SurfaceMesh constrainedSurface=trial.surface;
                     const bool close=materialPointsClose(trial.gasMesh,executed.gasPoints,p.tolerances)&&materialPointsClose(trial.solidMesh,executed.solidPoints,p.tolerances);
-                    if(close){if(!makeStageGeometry(state.gasMesh,executed.gasPoints,dt,trial.gasMesh,gasSweep,error)||!makeStageGeometry(state.solidMesh,executed.solidPoints,dt,trial.solidMesh,solidSweep,error)
-                        ||!rebuildTrajectorySurface(state,trial.gasMesh,trial.solidMesh,dt,trial.surface,error))break;
+                    if(close){if(!makeStageGeometry(state.gasMesh,executed.gasPoints,dt,trial.gasMesh,gasSweep,error,p.tolerances)||!makeStageGeometry(state.solidMesh,executed.solidPoints,dt,trial.solidMesh,solidSweep,error,p.tolerances)
+                        ||!rebuildTrajectorySurface(state,trial.gasMesh,trial.solidMesh,dt,trial.surface,error,p.tolerances))break;
                         std::vector<Real> solveTarget;if(!compensateMaterialSweepTargets(state,target,solveTarget,error))break;
                         const bool compatible=materialSweepsCompatible(state.solidMesh,state.surface,solveTarget,solidSweep,p.tolerances);
                         if(!compatible){trial.gasMesh=std::move(constrainedGas);trial.solidMesh=std::move(constrainedSolid);trial.surface=std::move(constrainedSurface);}
                     }
                 }
-                if(!makeStageGeometry(state.solidMesh,trial.solidMesh.points,dt,trial.solidMesh,solidSweep,error)
-                    ||!makeStageGeometry(state.gasMesh,trial.gasMesh.points,dt,trial.gasMesh,gasSweep,error))break;
+                if(!makeStageGeometry(state.solidMesh,trial.solidMesh.points,dt,trial.solidMesh,solidSweep,error,p.tolerances)
+                    ||!makeStageGeometry(state.gasMesh,trial.gasMesh.points,dt,trial.gasMesh,gasSweep,error,p.tolerances))break;
                 if(p.enableFilm){HostState consistentFilm=state;consistentFilm.surface=trial.surface;std::vector<FilmQ> actualRates;std::vector<FilmRateBudget> actualBudgets;
                     if(!evaluateCpuFilmTransport(consistentFilm,p,dt,drive,actualRates,actualBudgets,error))break;
                     bool same=actualRates.size()==filmRate.size();for(std::size_t f=0;same&&f<filmRate.size();++f){same=actualRates[f].mass==filmRate[f].mass&&actualRates[f].enthalpy==filmRate[f].enthalpy;
@@ -405,7 +407,7 @@ bool CpuMaterialDriver::advanceCandidate(const HostState& base,const HostState& 
                 HostMesh path=base.solidMesh;actualSweepSum.assign(base.surface.area.size(),IntervalDonorSum{});
                 for(std::size_t k=1;k<executedProgram->knots.size();++k){HostMesh endpoint;std::vector<Real> measured;
                     const Real duration=executedProgram->knots[k].time-executedProgram->knots[k-1].time;
-                    if(!makeStageGeometry(path,executedProgram->knots[k].solidPoints,duration,endpoint,measured,error))return false;
+                    if(!makeStageGeometry(path,executedProgram->knots[k].solidPoints,duration,endpoint,measured,error,p.tolerances))return false;
                     for(std::size_t f=0;f<actualSweepSum.size();++f){const int face=base.surface.solidFace[f];if(face>=0)actualSweepSum[f].add(measured[face]);}
                     path=std::move(endpoint);
                 }
@@ -421,7 +423,7 @@ bool CpuMaterialDriver::advanceCandidate(const HostState& base,const HostState& 
         }
         state.gas=geometryEndpoint.gas;state.sst=geometryEndpoint.sst;state.particles=geometryEndpoint.particles;
         state.rejectedSteps=geometryEndpoint.rejectedSteps;state.gasVoidFraction=geometryEndpoint.gasVoidFraction;state.gasStages=geometryEndpoint.gasStages;
-        state.gasMesh.boundaryPrimitive=geometryEndpoint.gasMesh.boundaryPrimitive;state.gasMesh.boundarySst=geometryEndpoint.gasMesh.boundarySst;
+        state.gasMesh.boundaryPrimitive=geometryEndpoint.gasMesh.boundaryPrimitive;state.gasMesh.thermalBoundary=geometryEndpoint.gasMesh.thermalBoundary;state.gasMesh.boundarySst=geometryEndpoint.gasMesh.boundarySst;
         state.budget=geometryEndpoint.budget;addBudget(state.budget,accumulated.budgetDelta);state.time=window.end;program.donorPlan=accumulated.donorPlan;
         if(!program.knots.empty()){const auto& last=history.records().back();CpuSurfaceResult endpointSurface;
             std::vector<GasPrimitive> finalBulk;if(!baseTrace(state,p,finalBulk,error)){report=accumulated;return false;}

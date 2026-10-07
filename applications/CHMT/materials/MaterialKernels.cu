@@ -186,7 +186,7 @@ __global__ void materialFaceKernel(SolidView solid, GeometryView g, PhysicsConfi
         physical.energy-=area*conductance*(a.temperature-b.temperature);
         physical.energy-=area*conductance*distance*dot(gradient,normal);
         flux=addSolid(flux,physical);
-    } else if (g.boundaryPrimitive && g.boundaryPrimitive[face].temperature>0) {
+    } else if (fixedTemperature(g.thermalBoundary,face)) {
         const Real distance=dot(g.faceCentre[face]-g.cellCentre[left],normal);
         if (!(distance>0)) {
             gasDeviceError(status,ErrorCode::InvalidInput,face,distance,ErrorLocation::Face); return;
