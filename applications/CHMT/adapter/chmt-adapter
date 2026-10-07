@@ -1,0 +1,456 @@
+#!/usr/bin/env python3
+"""Translate prepared neutral CHMT specs into real OpenFOAM inputs and run CHMT.
+
+This tool never evaluates a future analytic solution. Reference files are only
+hashed for integrity. CUDA/operator/CFD validation is performed by the separate,
+unchanged test package; a successful adapter run is not a validation certificate.
+"""
+import argparse
+import csv
+from datetime import datetime, timezone
+import hashlib
+import json
+import math
+import os
+from pathlib import Path
+import re
+import shlex
+import shutil
+import subprocess
+import sys
+
+SCHEMA = 1
+# Every listed case has a corresponding explicit CHMT operation and raw export.
+SUPPORTED = ('film_profile', 'film_pressure', 'film_phase_energy', 'film_plug',
+             'film_shear', 'ale_free', 'ale_wave', 'remap', 'stefan')
+FIELDS = ('case','variant','n','time','sample','quantity','value','kind')
+PROTECTED = ('case-spec.json','reference.csv','request.json')
+
+
+def digest(path):
+    return hashlib.sha256(Path(path).read_bytes()).hexdigest()
+
+
+def canonical(value):
+    return json.dumps(value, sort_keys=True, separators=(',', ':'), allow_nan=False)
+
+
+def write_json(path, value):
+    Path(path).write_text(json.dumps(value, indent=2, sort_keys=True, allow_nan=False)+'\n')
+
+
+def foam(value):
+    if isinstance(value, bool): return 'true' if value else 'false'
+    if isinstance(value, (int,float)):
+        if not math.isfinite(value): raise ValueError('nonfinite input')
+        return format(value, '.17g') if isinstance(value,float) else str(value)
+    if isinstance(value, str): return json.dumps(value)
+    if isinstance(value, (list,tuple)): return '('+' '.join(foam(v) for v in value)+')'
+    if isinstance(value, dict): return '{\n'+''.join(f'{k} {foam(v)}'+('\n' if isinstance(v,dict) else ';\n') for k,v in value.items())+'}'
+    raise ValueError('unsupported dictionary value')
+
+
+def write_dict(path, entries):
+    path = Path(path); path.parent.mkdir(parents=True, exist_ok=True)
+    header = 'FoamFile\n{ version 2.0; format ascii; class dictionary; object '+path.name+'; }\n'
+    path.write_text(header+''.join(f'{k} {foam(v)}'+('\n' if isinstance(v,dict) else ';\n') for k,v in entries.items()))
+
+
+def mathematical_model(spec):
+    p = spec['parameters']; cid = spec['id']
+    gas = cid in ('ale_free','ale_wave','remap')
+    film = cid in ('film_plug','film_shear')
+    normal = cid == 'stefan'
+    model = {'schemaVersion':1, 'modelName':'dimensionless-mathematical-verification',
+             'materialSource':'cases.json supplied mathematical parameters; NOT production material',
+             'mechanismSource':'no chemical mechanism in this isolated mathematical case',
+             'species':['S0','S1'], 'condensedNames':['C0','C1'], 'elements':[],
+             'enableGas':gas, 'enableFilm':film or normal, 'enableReactions':False,
+             'enableSst':False, 'enableParticles':False, 'enableRadiation':False,
+             'filmThermalMode':'ResolvedNormal' if normal else 'ThicknessAveraged',
+             'reconstruction':'SmoothVerification' if cid=='ale_wave' else 'LimitedLinear',
+             'spatialOrder':2, 'minDt':1e-14, 'maxDt':1, 'cfl':.4,
+             'gasViscosity':0, 'gasConductivity':0, 'gasDiffusivity':[0,0],
+             'gravity':[0,0,0], 'meshMotion':{'policy':'Static'},
+             'modelFingerprint':hashlib.sha256(canonical(spec).encode()).hexdigest()}
+    if gas:
+        gamma = p['gamma']
+        model['speciesThermo'] = {s:{'R':1,'cp0':gamma/(gamma-1),'cp1':0,'e0':0,'Tmin':1e-8,'Tmax':1e8,'element':[]} for s in ('S0','S1')}
+    if film or normal or cid=='film_pressure':
+        model['liquid'] = {'rho':p['rho'],'cp0':p['cp'],'cp1':0,
+                           'e0':p.get('latent_heat',0),'conductivity':p.get('k',0),
+                           'Tmin':1e-8,'Tmax':1e8,'element':[]}
+        model['liquidViscosity']=p.get('mu',1)
+        model['liquidReferencePressure']=p.get('p_ref',0)
+        model['meltTemperature']=p.get('T_melt',0)
+    if normal:
+        model['condensedThermo'] = {'C0':{'rho':p['rho'],'cp0':p['cp'],'cp1':0,'e0':0,'conductivity':p['k'],'Tmin':1e-8,'Tmax':1e8,'element':[]},
+                                   'C1':{'rho':p['rho'],'cp0':p['cp'],'cp1':0,'e0':0,'conductivity':p['k'],'Tmin':1e-8,'Tmax':1e8,'element':[]}}
+        model['material']={'phaseCondensed':0,'enableMelting':True,'phaseFilmY':[1,0]}
+        model['mathematicalTemperatureOffset']=1
+        model['meltTemperature']=p['T_melt']+1
+        model['liquid']['e0']=p['latent_heat']-p['cp']
+        for material in model['condensedThermo'].values(): material['e0']=-p['cp']
+    return model
+
+
+def make_block_mesh(path, nx, ny, periodic_x=False, periodic_y=False):
+    # A unit-depth real hexahedral mesh. blockMesh owns actual cell/face ordering.
+    def patch(name, vertices, other=None, translation=None):
+        data = f'{name}\n{{\n type '+('cyclic' if other else 'patch')+';\n'
+        if other: data += f' neighbourPatch {other};\n transform translational;\n separationVector ({translation});\n'
+        return data+' faces (('+vertices+'));\n}\n'
+    text = 'FoamFile { version 2.0; format ascii; class dictionary; object blockMeshDict; }\nconvertToMeters 1;\n'
+    text += 'vertices ((0 0 0)(1 0 0)(1 1 0)(0 1 0)(0 0 1)(1 0 1)(1 1 1)(0 1 1));\n'
+    text += f'blocks (hex (0 1 2 3 4 5 6 7) ({nx} {ny} 1) simpleGrading (1 1 1));\nedges ();\nboundary\n(\n'
+    text += patch('left','0 4 7 3','right' if periodic_x else None,'-1 0 0')
+    text += patch('right','1 2 6 5','left' if periodic_x else None,'1 0 0')
+    text += patch('bottom','0 1 5 4','top' if periodic_y else None,'0 -1 0')
+    text += patch('top','3 7 6 2','bottom' if periodic_y else None,'0 1 0')
+    text += patch('front','0 3 2 1')+patch('back','4 5 6 7')+') ;\nmergePatchPairs ();\n'
+    Path(path).write_text(text)
+
+
+def jobs(spec):
+    cid=spec['id']
+    if cid=='film_profile':
+        return [(0,v['id'],v) for v in spec['variants']]
+    if cid in ('film_pressure','film_phase_energy'):
+        return [(0,'pulse' if cid=='film_pressure' else 'jump',{})]
+    variants=spec.get('variants',['moving' if cid.startswith('ale_') else 'melting' if cid=='stefan' else 'periodic'])
+    return [(int(n),variant,{}) for n in spec['n'] for variant in variants]
+
+
+def prepare_case(directory, spec, n, variant, variant_data, dt_scale=1.0):
+    p=spec['parameters']; cid=spec['id']; directory.mkdir(parents=True)
+    (directory/'constant').mkdir(); (directory/'system').mkdir(); (directory/'0').mkdir()
+    model=mathematical_model(spec)
+    model.update({'caseLabel':cid,'variantLabel':variant,'resolution':n,
+                  'outputTimes':spec.get('times',[0]), 'outputDirectory':'chmtOutput'})
+    dt=0.0; mesh=False
+    if cid=='film_profile':
+        model.update({'operation':'filmProfileContract','profile':{'delta':p['delta'],'mu':p['mu'],'rho':p['rho'],'h':p['h'],
+            'baseVelocity':[variant_data['ub'],0,0],'topShear':[variant_data['tau'],0,0],
+            'pressureBodyGradient':[variant_data['G'],0,0],'z':[z*p['delta'] for z in spec['z_over_delta']]}})
+    elif cid=='film_pressure':
+        model.update({'operation':'filmPressureContract','pressureContract':{'area':1,'delta':p['delta'],'temperature':p['T'],'pressures':p['pressure'],'Y':[1,0]}})
+    elif cid=='film_phase_energy':
+        model.update({'operation':'filmPhaseContract','phaseContract':{'massFlux':p['J'],'liquidEnthalpy':p['h_liquid'],'gasEnthalpy':p['h_gas'],
+            'pressure':p['p'],'normalSpeed':p['w_normal'],'normal':[0,0,1],'liquidVelocity':p['u_liquid'],'gasVelocity':p['u_gas'],
+            'liquidViscousWork':p['viscous_work_liquid'],'gasViscousWork':p['viscous_work_gas'],'gasConductiveFlux':p['conductive_flux_gas']}})
+    elif cid=='remap':
+        mesh=True; model['operation']='remap1D'
+        model['initial']={'kind':'DensityStep','leftDensity':1,'rightDensity':1 if variant=='uniform' else 2,
+                          'location':p['discontinuity_fraction'],'velocity':[p['u'],0,0],'pressure':p['p'],'Y':p['Y']}
+        model['remap']={'amplitude':p['mesh_amplitude'],'waveNumber':2*math.pi,'axis':0}
+        make_block_mesh(directory/'system/blockMeshDict',n,1)
+    elif cid in ('ale_free','ale_wave'):
+        mesh=True; model['operation']='evolve'; dt=(.00025 if cid=='ale_free' else .05/n**2)*dt_scale
+        model['meshMotion']={'policy':'PrescribedSinusoidal','amplitude':[p['mesh_amplitude'],p['mesh_amplitude'],0],
+                             'spatialWaveNumber':[2*math.pi,2*math.pi,0],'spatialOrigin':[0,0,0],'angularFrequency':2*math.pi,'timeOrigin':0}
+        model['initial']={'kind':'SineDensity','mean':p['rho_mean'],'amplitude':p['rho_amplitude'],
+                          'waveNumber':[2*math.pi,2*math.pi,0],'velocity':[p['u'],p['v'],0],'pressure':p['p'],'Y':p['Y']}
+        model['writeStageGeometry']=True
+        make_block_mesh(directory/'system/blockMeshDict',n,n,True,True)
+    elif cid in ('film_plug','film_shear'):
+        mesh=True; model['operation']='evolve'; dt=.1/n**2*dt_scale
+        model['surface']={'patch':'front','standalone':True,'baseVelocity':[p['ub'],0,0],
+                          'prescribedTopTraction':[p['tau'],0,0],'prescribedPressureGradient':[p['G'],0,0],
+                          'pressure':p['p'],'thickness':p['delta'],'Y':[1,0]}
+        model['initial']={'kind':'FilmSineTemperature','mean':p['T_mean'],'amplitude':p['T_amplitude'],'waveNumber':2*math.pi,'axis':0}
+        make_block_mesh(directory/'system/blockMeshDict',n,1,True,False)
+    elif cid=='stefan':
+        mesh=True; model['operation']='evolve'; dt=.1/n**2*dt_scale
+        model['normalColumn']={'axis':0,'bottomPatch':'left','topPatch':'right','bottomTemperature':p['T_wall']+1,'topTemperature':p['T_melt']+1,'pressure':0}
+        model['initial']={'kind':'StefanSimilarity','initialFront':p['initial_front'],'inverseStefan':p['inverse_Stefan'],'wallTemperature':p['T_wall'],'meltTemperature':p['T_melt']}
+        make_block_mesh(directory/'system/blockMeshDict',n,1)
+    else: raise ValueError('unsupported case')
+    if dt: model['maxDt']=dt
+    model['configurationSha256']=hashlib.sha256(canonical(model).encode()).hexdigest()
+    write_dict(directory/'constant/chmtProperties',model)
+    write_dict(directory/'system/controlDict',{'application':'CHMT','startFrom':'startTime','startTime':0,'stopAt':'endTime',
+        'endTime':max(spec.get('times',[0])),'deltaT':dt or 1,'writeControl':'timeStep','writeInterval':1,'writeFormat':'ascii','writePrecision':17,'runTimeModifiable':False})
+    write_dict(directory/'system/fvSchemes',{'ddtSchemes':{'default':'Euler'},'gradSchemes':{'default':'Gauss linear'},
+        'divSchemes':{'default':'none'},'laplacianSchemes':{'default':'Gauss linear corrected'},
+        'interpolationSchemes':{'default':'linear'},'snGradSchemes':{'default':'corrected'}})
+    write_dict(directory/'system/fvSolution',{'solvers':{}})
+    write_json(directory/'input-provenance.json',{'mathematical_nonproduction':True,'configuration':model,'time_step':dt,
+             'reconstruction':model['reconstruction'],'initial_data':'exact cell/face averages evaluated on imported geometry at initial time only'})
+    return mesh,dt
+
+
+def execute(command, cwd, log):
+    with Path(log).open('w') as stream:
+        stream.write('COMMAND: '+shlex.join(map(str,command))+'\n'); stream.flush()
+        result=subprocess.run(list(map(str,command)),cwd=cwd,stdout=stream,stderr=subprocess.STDOUT,check=False)
+    if result.returncode: raise ValueError(f'command exited {result.returncode}: {shlex.join(map(str,command))}; log={log}')
+
+
+def required_keys(spec,n,variant):
+    cid=spec['id']; keys=[]
+    def add(t,s,qs): keys.extend((cid,variant,n,float(t),str(s),q) for q in qs)
+    if cid=='film_profile':
+        add(0,'local',['u_mean','u_top','tau_bottom','phi','boundary_work','mass_flux','enthalpy_flux'])
+        for i in range(len(spec['z_over_delta'])): add(0,i,['u_z'])
+    elif cid=='film_pressure':
+        for t in range(len(spec['parameters']['pressure'])): add(t,'local',['H','T','internal_energy'])
+    elif cid=='film_phase_energy': add(0,'local',['F_gas','Q_liquid','enthalpy_rhs','rho_liquid','rho_gas'])
+    elif cid in ('film_plug','film_shear'):
+        for t in spec['times']:
+            for i in range(n): add(t,i,['H_bar'])
+            add(t,'global',['mass','boundary_work'])
+    elif cid=='stefan':
+        for t in spec['times']:
+            for i in range(n): add(t,i,['T_bar','h_bar'])
+            add(t,'global',['front','wall_heat'])
+    else:
+        qs=['mass','momentum_x','energy','species_0','species_1']
+        if cid.startswith('ale_'): qs=['volume','mass','momentum_x','momentum_y','energy','species_0','species_1']
+        for t in spec.get('times',[0]):
+            for j in range(n if cid.startswith('ale_') else 1):
+                for i in range(n): add(t,f'{i}:{j}' if cid.startswith('ale_') else i,qs)
+    return set(keys)
+
+
+def read_csv_rows(path):
+    with Path(path).open(newline='') as stream:
+        return list(csv.DictReader(stream))
+
+
+def finite_number(value, label):
+    if type(value) not in (int, float) or not math.isfinite(value):
+        raise ValueError('invalid finite numeric '+label)
+    return float(value)
+
+
+def close_time(a, b):
+    return abs(a-b) <= 64*sys.float_info.epsilon*max(1.0, abs(a), abs(b))
+
+
+def validate_build(build):
+    if not isinstance(build,dict) or type(build.get('schema_version')) is not int or build['schema_version']!=1 or build.get('artifact_kind')!='CHMT_BACKEND_BUILD':
+        raise ValueError('invalid real backend metadata provenance')
+    patterns={'solver_commit':r'[0-9a-f]{40}','upstream_base':r'[0-9a-f]{40}',
+              'build_id':r'[0-9a-f]{64}','source_fingerprint':r'[0-9a-f]{64}',
+              'cuda_arch':r'sm_[0-9]+'}
+    for key,pattern in patterns.items():
+        if not isinstance(build.get(key),str) or not re.fullmatch(pattern,build[key]):
+            raise ValueError('invalid build provenance: '+key)
+    if build.get('precision')!='FP64' or build.get('species')!=['S0','S1'] or build.get('openfoam_version')!='10':
+        raise ValueError('build precision/species/OpenFOAM provenance mismatch')
+    hardware=build.get('hardware')
+    if not isinstance(hardware,dict) or hardware.get('available') is not True:
+        raise ValueError('CUDA hardware availability provenance is not true')
+    if not isinstance(hardware.get('name'),str) or not hardware['name'].strip():
+        raise ValueError('missing CUDA device name provenance')
+    if not isinstance(hardware.get('compute_capability'),str) or not re.fullmatch(r'[0-9]+[.][0-9]+',hardware['compute_capability']):
+        raise ValueError('invalid CUDA compute capability provenance')
+    if type(hardware.get('global_memory_bytes')) is not int or hardware['global_memory_bytes']<=0:
+        raise ValueError('invalid CUDA memory provenance')
+    manifest=build.get('manifest')
+    if not isinstance(manifest,dict) or manifest.get('artifact_kind')!='CHMT_BUILD_MANIFEST':
+        raise ValueError('missing compiled build manifest provenance')
+    for key in (*patterns,'precision','species','openfoam_version'):
+        if manifest.get(key)!=build[key]: raise ValueError('compiled build manifest mismatch: '+key)
+    if manifest.get('Ns')!=2: raise ValueError('compiled species count mismatch')
+    for key in ('cuda_compiler','host_compiler'):
+        if not isinstance(manifest.get(key),str) or not manifest[key].strip():
+            raise ValueError('missing actual compiler provenance')
+    if build.get('compiler')!=manifest['cuda_compiler']+'; '+manifest['host_compiler']:
+        raise ValueError('compiler identity differs from compiled manifest')
+    payload={key:value for key,value in manifest.items() if key!='build_id'}
+    if hashlib.sha256(canonical(payload).encode()).hexdigest()!=build['build_id']:
+        raise ValueError('compiled build manifest digest mismatch')
+
+
+def validate_execution(directory, spec, state):
+    cid=spec['id']
+    expected_kind=('CUDA_OPERATOR_CONTRACT' if cid in ('film_profile','film_pressure','film_phase_energy')
+                   else 'CUDA_REMAP_OPERATOR' if cid=='remap' else 'CUDA_TIME_EVOLUTION')
+    if state.get('execution_kind')!=expected_kind:
+        raise ValueError('missing or mismatched execution kind')
+    if type(state.get('steps')) is not int or state['steps']<0:
+        raise ValueError('invalid actual step count')
+    final=finite_number(state.get('time'),'completion time')
+    maximum_dt=finite_number(state.get('time_step'),'maximum accepted dt')
+    if final<0 or maximum_dt<0: raise ValueError('negative execution time/dt')
+    requested_final=max(spec.get('times',[0])) if expected_kind=='CUDA_TIME_EVOLUTION' else 0
+    if not close_time(final,requested_final):
+        raise ValueError('completion time does not reach requested final time')
+    expected_reconstruction='SmoothVerification' if cid=='ale_wave' else 'LimitedLinear'
+    expected_offset=1 if cid=='stefan' else 0
+    if state.get('reconstruction')!=expected_reconstruction:
+        raise ValueError('recorded reconstruction differs from requested selection')
+    if finite_number(state.get('mathematical_temperature_offset'),'temperature origin')!=expected_offset:
+        raise ValueError('recorded temperature origin differs from requested selection')
+    input_path=directory/'input-provenance.json'
+    if not input_path.is_file(): raise ValueError('missing generated input provenance')
+    inputs=json.loads(input_path.read_text())
+    if not isinstance(inputs,dict) or not isinstance(inputs.get('configuration'),dict):
+        raise ValueError('invalid generated input provenance')
+    configuration=inputs['configuration']
+    if configuration.get('reconstruction')!=expected_reconstruction or finite_number(configuration.get('mathematicalTemperatureOffset',0),'generated temperature origin')!=expected_offset:
+        raise ValueError('generated input coordinate/reconstruction mismatch')
+    history=directory/'chmtOutput/steps.csv'
+    if expected_kind!='CUDA_TIME_EVOLUTION':
+        if state['steps']!=0 or maximum_dt!=0 or final!=0:
+            raise ValueError('local operator/remap must have zero evolution steps/time')
+        if history.is_file() and read_csv_rows(history):
+            raise ValueError('local operator/remap supplied an evolution history')
+        return
+    if requested_final>0 and (state['steps']==0 or maximum_dt<=0):
+        raise ValueError('positive evolution interval requires accepted steps')
+    if not history.is_file(): raise ValueError('missing actual accepted time-step history')
+    steps=read_csv_rows(history)
+    if len(steps)!=state['steps']:
+        raise ValueError('incomplete accepted time-step history')
+    requested_dt=finite_number(inputs.get('time_step'),'generated time-step bound')
+    if requested_dt<=0: raise ValueError('invalid generated time-step bound')
+    previous=0.0; observed_max=0.0; accepted_times=[0.0]
+    for index,record in enumerate(steps,1):
+        if record.get('step')!=str(index): raise ValueError('noncontiguous accepted step indices')
+        try:
+            dt=float(record['accepted_dt']); current=float(record['time'])
+        except (KeyError,TypeError,ValueError) as error:
+            raise ValueError('invalid accepted step-history record') from error
+        if not math.isfinite(dt) or dt<=0 or not math.isfinite(current) or current<=previous:
+            raise ValueError('invalid accepted step history')
+        closure_tolerance=64*sys.float_info.epsilon*max(abs(current),abs(previous),abs(dt),sys.float_info.min)
+        if abs((current-previous)-dt)>closure_tolerance:
+            raise ValueError('accepted dt does not close elapsed step time')
+        if dt>requested_dt and not close_time(dt,requested_dt):
+            raise ValueError('accepted dt exceeds generated time-step bound')
+        previous=current; observed_max=max(observed_max,dt); accepted_times.append(current)
+    if not close_time(previous,final) or not close_time(observed_max,maximum_dt):
+        raise ValueError('step history disagrees with completion time/maximum dt')
+    for target in spec.get('times',[0]):
+        if not any(close_time(actual,target) for actual in accepted_times):
+            raise ValueError('requested observation time has no accepted state in history')
+
+
+def read_run(directory,spec,n,variant):
+    output=directory/'chmtOutput'
+    paths=[output/name for name in ('build.json','run-state.json','observations.csv')]
+    if not all(p.is_file() for p in paths): raise ValueError(f'missing raw solver output in {output}')
+    build=json.loads(paths[0].read_text()); state=json.loads(paths[1].read_text())
+    validate_build(build)
+    if not isinstance(state,dict) or state.get('artifact_kind')!='CHMT_ACCEPTED_OUTPUT' or state.get('completed') is not True:
+        raise ValueError('missing accepted completion provenance')
+    if state.get('build_id')!=build['build_id']: raise ValueError('raw build identity mismatch')
+    validate_execution(directory,spec,state)
+    rows=read_csv_rows(paths[2]); found=set()
+    for row in rows:
+        if not all(k in row for k in FIELDS) or row['kind']!='SOLVER_OBSERVATION': raise ValueError('invalid raw observation provenance')
+        key=(row['case'],row['variant'],int(row['n']),float(row['time']),row['sample'],row['quantity'])
+        if key in found or not math.isfinite(float(row['value'])) or not math.isfinite(key[3]): raise ValueError('duplicate/nonfinite raw observation')
+        found.add(key)
+    if found!=required_keys(spec,n,variant): raise ValueError('raw observation keys incomplete or unexpected')
+    if spec['id'].startswith('ale_'):
+        ledger=output/'gcl.csv'
+        if not ledger.is_file(): raise ValueError('missing raw accepted-stage geometry ledger')
+        records=read_csv_rows(ledger)
+        actual={(int(r['step']),int(r['stage']),int(r['cell'])) for r in records}
+        expected={(step,stage,cell) for step in range(state['steps']) for stage in range(2) for cell in range(n*n)}
+        if len(actual)!=len(records) or actual!=expected: raise ValueError('incomplete or duplicate raw GCL stages')
+        for record in records:
+            for key in ('V_old','V_new','sweep_left','sweep_right','sweep_bottom','sweep_top'):
+                if not math.isfinite(float(record[key])): raise ValueError('nonfinite raw GCL value')
+            if float(record['V_old'])<=0 or float(record['V_new'])<=0: raise ValueError('nonpositive raw GCL volume')
+    return rows,build,state
+
+
+def adapter_identity():
+    executable=Path(__file__).resolve()
+    sidecar=Path(str(executable)+'.build.json')
+    current=digest(executable)
+    if sidecar.is_file():
+        metadata=json.loads(sidecar.read_text())
+        if metadata.get('adapter_source_sha256')!=current:
+            raise ValueError('installed adapter differs from its build provenance')
+        return metadata['solver_commit'],current
+    result=subprocess.run(['git','-C',str(executable.parent),'rev-parse','HEAD'],capture_output=True,text=True,check=False)
+    if result.returncode:
+        raise ValueError('adapter has no actual checkout revision or installed build sidecar')
+    return result.stdout.strip(),current
+
+
+def run(args):
+    spec_path=Path(args.spec); solver=Path(args.solver); output=Path(args.output)
+    if not all(p.is_absolute() for p in (spec_path,solver,output)): raise ValueError('spec, solver and output paths must be absolute')
+    if not solver.is_file() or not os.access(solver,os.X_OK): raise ValueError('solver must be an existing executable; no fallback is supplied')
+    if spec_path.resolve()!= (output/'case-spec.json').resolve(): raise ValueError('spec must be the original prepared output/case-spec.json')
+    if not all((output/n).is_file() for n in PROTECTED): raise ValueError('run prepare first; protected spec/reference/request required')
+    protected={name:(output/name).read_bytes() for name in PROTECTED}
+    request=json.loads(protected['request.json']); spec=json.loads(protected['case-spec.json'])
+    if request.get('schema_version')!=SCHEMA or spec.get('schema_version',SCHEMA)!=SCHEMA: raise ValueError('unsupported input schema')
+    if spec.get('id') not in SUPPORTED or spec.get('reference_status')!='ANALYTIC_AVAILABLE': raise ValueError('unsupported or DATA_REQUIRED case')
+    if request.get('case')!=spec['id'] or request.get('status')!='PREPARED_NOT_RUN': raise ValueError('prepared request case/status mismatch')
+    if digest(spec_path)!=request.get('spec_sha256') or digest(output/'reference.csv')!=request.get('reference_sha256'): raise ValueError('prepared input bytes changed')
+    allowed=set(PROTECTED)|{'adapter.log'}
+    if any(p.name not in allowed for p in output.iterdir()): raise ValueError('existing run artifacts; use a fresh prepared directory')
+    started=datetime.now(timezone.utc).isoformat(); commands=[]; allrows=[]; details=[]; common_build=None
+    raw=output/'raw'; raw.mkdir()
+    try:
+        for n,variant,variant_data in jobs(spec):
+            if not re.fullmatch(r'[A-Za-z0-9_.-]+',str(variant)): raise ValueError('unsafe variant label')
+            case=raw/f'n{n}-{variant}'
+            mesh,dt=prepare_case(case,spec,n,variant,variant_data,args.dt_scale)
+            if mesh:
+                block=shutil.which('blockMesh')
+                if not block: raise ValueError('real Foundation OpenFOAM blockMesh missing from PATH')
+                cmd=[block,'-case',str(case)]; commands.append(cmd); execute(cmd,case,case/'blockMesh.log')
+            cmd=[str(solver),'-case',str(case)]; commands.append(cmd)
+            write_json(case/'commands.json',{'commands':commands[-(2 if mesh else 1):]})
+            execute(cmd,case,case/'solver.log')
+            rows,build,state=read_run(case,spec,n,variant)
+            if common_build is not None and build!=common_build: raise ValueError('solver build/device changed between subruns')
+            common_build=build; allrows.extend(rows)
+            details.append({'n':n,'variant':variant,'directory':str(case.relative_to(output)),'requested_time_step':dt,
+                            'actual':state,'build':build,'command':cmd})
+        for name,data in protected.items():
+            if (output/name).read_bytes()!=data: raise ValueError('solver/adapter modified protected prepared bytes')
+        raw_manifest={str(p.relative_to(raw)):digest(p) for p in sorted(raw.rglob('*')) if p.is_file()}
+        solver_outputs={name:value for name,value in raw_manifest.items() if '/chmtOutput/' in name}
+        if not solver_outputs: raise ValueError('no raw solver outputs to hash')
+        source_hash=hashlib.sha256(canonical(solver_outputs).encode()).hexdigest()
+        write_json(output/'raw-output-manifest.json',raw_manifest)
+        with (output/'observations.csv').open('w',newline='') as stream:
+            writer=csv.DictWriter(stream,fieldnames=FIELDS,extrasaction='ignore'); writer.writeheader(); writer.writerows(allrows)
+        # The installed adapter's own bytes are identified independently of git.
+        adapter_commit,adapter_sha=adapter_identity()
+        meta={'artifact_kind':'SOLVER_OBSERVATION','schema_version':SCHEMA,
+              'solver_commit':common_build['solver_commit'],'adapter_commit':adapter_commit,
+              'adapter_source_sha256':adapter_sha,'build_id':common_build['build_id'],'input_sha256':request['spec_sha256'],
+              'precision':common_build['precision'],'hardware':common_build['hardware'],'compiler':common_build['compiler'],
+              'command':' && '.join(shlex.join(c) for c in commands),'started_utc':started,
+              'time_step':max(d['actual']['time_step'] for d in details),'steps':sum(d['actual']['steps'] for d in details),
+              'source_output_sha256':source_hash,'runs':details,'dt_scale':args.dt_scale,
+              'validation_status':'UNVERIFIED; numerical and device validation require independent review',
+              'reconstruction':'SmoothVerification' if spec['id']=='ale_wave' else 'LimitedLinear'}
+        write_json(output/'run.json',meta)
+    finally:
+        for name,data in protected.items():
+            if not (output/name).exists() or (output/name).read_bytes()!=data:
+                if (output/'run.json').exists(): (output/'run.json').unlink()
+                raise ValueError(f'protected input modified externally: {name}; no success claimed')
+
+
+def main():
+    parser=argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--describe',action='store_true',help='Print wired dispatches; does not assert numerical validation.')
+    modes=parser.add_subparsers(dest='mode'); sub=modes.add_parser('run')
+    sub.add_argument('--spec',required=True); sub.add_argument('--solver',required=True); sub.add_argument('--output',required=True)
+    sub.add_argument('--dt-scale',type=float,default=1,help='Positive preselected temporal refinement factor, e.g. 0.5; use a fresh prepare directory.')
+    args=parser.parse_args()
+    try:
+        if args.describe:
+            print(json.dumps({'schema_version':SCHEMA,'artifact_kind':'CHMT_ADAPTER','supported_cases':SUPPORTED,
+                'validation_status':'UNVERIFIED','requires':'actual CHMT CUDA executable; Foundation OpenFOAM 10 for mesh cases'})); return 0
+        if args.mode!='run': parser.error('choose --describe or run')
+        if not math.isfinite(args.dt_scale) or not 0<args.dt_scale<=1: raise ValueError('dt-scale must lie in (0,1]')
+        run(args); return 0
+    except (ValueError,KeyError,TypeError,OSError,subprocess.SubprocessError) as exc:
+        print(json.dumps({'error':str(exc),'solver_validation_status':'UNVERIFIED'}),file=sys.stderr); return 2
+
+
+if __name__=='__main__': sys.exit(main())
