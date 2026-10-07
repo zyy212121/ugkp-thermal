@@ -88,7 +88,9 @@ int main(int argc,char** argv){
         for(int c=0;c<chmt::Nc;++c){auto& t=p.condensed[c];t.rho=1000;t.cp0=1000;t.e0=-1e8;t.conductivity=1000;t.Tmin=100;t.Tmax=2000;}
         chmt::HostState base;base.solidMesh=testMesh(mesh);base.solid.resize(mesh.nCells());
         forAll(mesh.C(),c){auto& q=base.solid[c];q.condensed[0]=1000*mesh.V()[c];q.energy=q.condensed[0]*chmt::condensedE(p.condensed[0],400);}
-        forAll(mesh.boundary(),patch)forAll(mesh.boundary()[patch],f)base.solidMesh.boundaryPrimitive[mesh.boundary()[patch].start()+f].temperature=650;
+        base.solidMesh.thermalBoundary.assign(mesh.nFaces(),chmt::ThermalBoundaryKind::ZeroGradient);
+        forAll(mesh.boundary(),patch)forAll(mesh.boundary()[patch],f){const int face=mesh.boundary()[patch].start()+f;
+            base.solidMesh.boundaryPrimitive[face].temperature=650;base.solidMesh.thermalBoundary[face]=chmt::ThermalBoundaryKind::FixedValue;}
         chmt::HostState endpoint=base;endpoint.time=10000;chmt::CpuMaterialDriver driver(model,&mesh);chmt::CpuMaterialControls controls;
         chmt::HostState result;chmt::WallProgram wall;chmt::CpuMaterialReport report;std::string error;
         if(!driver.advanceCandidate(base,endpoint,history(1),controls,result,wall,report,error)){std::cerr<<error<<'\n';return 1;}
