@@ -1,7 +1,9 @@
 #ifndef CHMT_IO_MESHIO_H
 #define CHMT_IO_MESHIO_H
-#include "configuration/ModelIO.H"
+#include "configuration/InputValues.H"
 #include "mesh/Geometry.H"
+#include "core/ThermalBoundary.H"
+#include "materials/MaterialCaloric.H"
 #include "cyclicPolyPatch.H"
 #include "emptyPolyPatch.H"
 #include "wallPolyPatch.H"
@@ -71,6 +73,7 @@ namespace chmt {
             out.periodicPartner.assign(nf, -1);
             out.boundaryKind.assign(nf, BoundaryKind::Internal);
             out.boundaryPrimitive.resize(nf);
+            out.thermalBoundary.assign(nf,ThermalBoundaryKind::ZeroGradient);
             out.boundarySst.resize(nf);
             for (int f = 0; f<nf; ++f) {
                 out.owner.push_back(owners[f]);
@@ -185,6 +188,9 @@ namespace chmt {
                 const Vec3 gasNormal = normalized(state.gasMesh.areaVectors[gasFace]);
                 surface.gasDistance[face] = std::abs(dot( state.gasMesh.cellCentres[state.gasMesh.owner[gasFace]] -state.gasMesh.faceCentres[gasFace], gasNormal));
                 require(surface.gasDistance[face]>0, "nonpositive actual gas interface distance");
+                require(!fixedTemperature(state.gasMesh.thermalBoundary.empty()?nullptr:state.gasMesh.thermalBoundary.data(),gasFace)
+                    && !fixedTemperature(state.solidMesh.thermalBoundary.empty()?nullptr:state.solidMesh.thermalBoundary.data(),surface.solidFace[face]),
+                    "coupled Interface owns thermal exchange; use zeroGradient temperature input on its patches");
                 state.gasMesh.boundaryKind[gasFace] = BoundaryKind::Interface;
                 state.solidMesh.boundaryKind[surface.solidFace[face]] = BoundaryKind::Interface;
             }
@@ -301,6 +307,18 @@ namespace chmt {
             Foam::PtrList<Foam::volScalarField> Y(Ns);
             for (int s = 0; s<Ns; ++s)Y.set(s, new Foam::volScalarField(scalarField(mesh,
                 "Y_"+model.speciesNames[s], Foam::dimless)));
+            state.gasMesh.thermalBoundary.assign(mesh.nFaces(),ThermalBoundaryKind::ZeroGradient);
+            for(int patch=0;patch<mesh.boundaryMesh().size();++patch) {
+                for(int f=0;f<mesh.boundaryMesh()[patch].size();++f) {
+                    const int face=mesh.boundaryMesh()[patch].start()+f;
+                    state.gasMesh.thermalBoundary[face]=importedThermalBoundary(
+                        T.boundaryField()[patch].type(),state.gasMesh.boundaryKind[face],true);
+                }
+            }
+            // Evaluate zeroGradient from its owner before importing a valid EOS
+            // primitive. The operator itself is retained independently above.
+            rho.correctBoundaryConditions();T.correctBoundaryConditions();U.correctBoundaryConditions();
+            for(int species=0;species<Ns;++species)Y[species].correctBoundaryConditions();
             state.gas.resize(mesh.nCells());
             auto primitive = [&](int cell, int patch, int face) {
                 GasPrimitive w;
@@ -322,7 +340,13 @@ namespace chmt {
             };
             for (int c = 0; c<mesh.nCells(); ++c)state.gas[c] = conservativeGas(primitive(c, -1, -1),
                 state.gasMesh.volumes[c], model.physics);
-            for (int p = 0; p<mesh.boundaryMesh().size(); ++p)for (int f = 0; f<mesh.boundaryMesh()[p].size(); ++f)state.gasMesh.boundaryPrimitive[mesh.boundaryMesh()[p].start()+f] = primitive(-1, p, f);
+            for (int patch = 0; patch<mesh.boundaryMesh().size(); ++patch)for (int f = 0; f<mesh.boundaryMesh()[patch].size(); ++f) {
+                const int face=mesh.boundaryMesh()[patch].start()+f;
+                // Empty poly patches have geometric faces but zero field values.
+                // Their unused per-face storage gets a valid owner EOS state.
+                state.gasMesh.boundaryPrimitive[face]=state.gasMesh.boundaryKind[face]==BoundaryKind::Empty
+                    ?primitive(state.gasMesh.owner[face],-1,-1):primitive(-1,patch,f);
+            }
             if (model.physics.enableSst) {
                 auto k = scalarField(mesh, "k", Foam::sqr(Foam::dimVelocity));
                 auto omega = scalarField(mesh, "omega", Foam::dimless/Foam::dimTime);
@@ -330,9 +354,14 @@ namespace chmt {
                 for (int c = 0; c<mesh.nCells(); ++c)state.sst[c] = {state.gas[c].mass*k[c],
                     state.gas[c].mass*omega[c]};
                 for (int p = 0; p<mesh.boundaryMesh().size(); ++p)for (int f = 0; f<mesh.boundaryMesh()[p].size(); ++f) {
-                    auto& w = state.gasMesh.boundarySst[mesh.boundaryMesh()[p].start()+f];
-                    w.k = k.boundaryField()[p][f];
-                    w.omega = omega.boundaryField()[p][f];
+                    const int face=mesh.boundaryMesh()[p].start()+f;
+                    auto& w = state.gasMesh.boundarySst[face];
+                    if(state.gasMesh.boundaryKind[face]==BoundaryKind::Empty) {
+                        const int owner=state.gasMesh.owner[face];w.k=k[owner];w.omega=omega[owner];
+                    } else {
+                        w.k = k.boundaryField()[p][f];
+                        w.omega = omega.boundaryField()[p][f];
+                    }
                 }
             }
         }
@@ -383,6 +412,13 @@ namespace chmt {
             state.solid.resize(n);
             auto energy = scalarField(mesh, "solidEnergyDensity", Foam::dimEnergy/Foam::dimVolume);
             auto porosity = scalarField(mesh, "porosity", Foam::dimless);
+            // Energy density initializes cell inventory; it is not a thermal
+            // boundary prescription and must not masquerade as a temperature.
+            for(int patch=0;patch<mesh.boundaryMesh().size();++patch) {
+                const std::string type=energy.boundaryField()[patch].type();
+                require(type=="zeroGradient" || type=="calculated" || type=="cyclic" || type=="empty",
+                    "solidEnergyDensity boundary operator "+type+" is unsupported; prescribe fixed temperature with solidTemperature [K]");
+            }
             for (int c = 0; c<n; ++c) {
                 state.solid[c].energy = energy[c]*state.solidMesh.volumes[c];
                 state.solid[c].porosity = porosity[c];
@@ -403,6 +439,25 @@ namespace chmt {
             for (const auto& q:state.solid) {
                 Real T;
                 require(recoverSolid(q, model.physics, T), "inadmissible imported solid state");
+            }
+            state.solidMesh.thermalBoundary.assign(mesh.nFaces(),ThermalBoundaryKind::ZeroGradient);
+            Foam::IOobject thermalHeader("solidTemperature",mesh.time().timeName(),mesh,
+                Foam::IOobject::READ_IF_PRESENT,Foam::IOobject::NO_WRITE);
+            if(Foam::isFile(thermalHeader.objectPath(false)) || Foam::isFile(thermalHeader.objectPath(false)+".gz")) {
+                auto thermal=scalarField(mesh,"solidTemperature",Foam::dimTemperature);
+                for(int patch=0;patch<mesh.boundaryMesh().size();++patch)for(int f=0;f<mesh.boundaryMesh()[patch].size();++f) {
+                    const int face=mesh.boundaryMesh()[patch].start()+f,owner=state.solidMesh.owner[face];
+                    const auto policy=importedThermalBoundary(thermal.boundaryField()[patch].type(),state.solidMesh.boundaryKind[face],false);
+                    state.solidMesh.thermalBoundary[face]=policy;
+                    Real T=0;require(recoverSolid(state.solid[owner],model.physics,T),"solid thermal owner EOS failed");
+                    if(policy==ThermalBoundaryKind::FixedValue) {
+                        T=thermal.boundaryField()[patch][f];MaterialCaloric caloric;std::string error;
+                        require(materialCaloric(state.solid[owner],model.physics,caloric,error),error);
+                        require(finite(T) && T>=caloric.minimumTemperature && T<=caloric.maximumTemperature,
+                            "solidTemperature fixedValue outside active owner-composition caloric range");
+                    }
+                    state.solidMesh.boundaryPrimitive[face].temperature=T;
+                }
             }
         }
     }
