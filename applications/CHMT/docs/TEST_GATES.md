@@ -93,7 +93,9 @@ the new window path; tests of explicit rejection are not support for those paths
   field import, native sparse conduction and signed energy closure, optional
   solidTemperature compatibility and invalid operator/dimension/range rejection.
   Gas assertions execute shared production boundary arithmetic on the host;
-  this is not CUDA-kernel or production Multirate acceptance.
+  this is not CUDA-kernel or production Multirate acceptance. The FULLDEBUG
+  Empty-patch fixture also checks gas/SST and solid thermal imports with real
+  zero-sized field arrays; it makes no 2-D evolution claim.
 - `check_runtime.sh` checks schema-3 explicit thermal-policy serialization and
   rejects earlier ambiguous schemas. `check_frontend.sh` compiles the real OF10
   frontend object only. CUDA compile/link/runtime remains a separate required gate.
