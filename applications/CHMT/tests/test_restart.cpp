@@ -63,6 +63,9 @@ int main(){
  HostState h;h.solidMesh=twoHexahedra(0);auto& m=h.solidMesh;m.oldPoints=m.referencePoints=m.points;m.oldVolumes=m.volumes;m.boundaryPrimitive.resize(m.owner.size());m.boundarySst.resize(m.owner.size());h.solid.resize(m.volumes.size());
  for(size_t c=0;c<h.solid.size();++c){h.solid[c].condensed[0]=model.physics.condensed[0].rho*m.volumes[c];h.solid[c].energy=h.solid[c].condensed[0]*condensedE(model.physics.condensed[0],500+10*c);}
  populateSurface(h);
+ m.thermalBoundary.assign(m.owner.size(),ThermalBoundaryKind::ZeroGradient);
+ bool hasFixed=false;for(std::size_t f=0;f<m.owner.size();++f)if(m.boundaryKind[f]==BoundaryKind::Slip){m.thermalBoundary[f]=ThermalBoundaryKind::FixedValue;m.boundaryPrimitive[f].temperature=650;hasFixed=true;break;}
+ require(hasFixed,"checkpoint fixture contains a real fixed-temperature face");
  const Real epsilon=std::numeric_limits<Real>::epsilon();h.solidSweepRemainder={1.125*epsilon,-1.375*epsilon};
  h.time=.5;h.acceptedSteps=h.commitSequence=1;h.rejectedSteps=4;h.lastAcceptedDt=.5;h.nextDt=.05;
  for(int stage=0;stage<2;++stage){auto& g=h.solidStages[stage];g.interval=stage?.5:.25;g.geometryVersion=m.geometryVersion;g.topologyHash=m.topologyHash;g.oldVolume=g.newVolume=g.evaluationVolume=m.volumes;g.sweptVolume.assign(m.owner.size(),0);g.areaVector=m.areaVectors;g.cellCentre=m.cellCentres;g.faceCentre=m.faceCentres;g.oldPoints=g.newPoints=m.points;}
@@ -70,6 +73,7 @@ int main(){
  require(writeCheckpoint(directory,model,h,error),error);const auto original=bytes(file);require(!original.empty(),"checkpoint bytes exist");HostState restored;require(readCheckpoint(directory,model,restored,error),error);
  require(restored.time==h.time&&restored.rejectedSteps==4&&restored.solid[1].energy==h.solid[1].energy,"bitwise inventories and counters restored");
  require(sameBits(restored.solidSweepRemainder,h.solidSweepRemainder),"signed numerical sweep remainder bitwise roundtrip");
+ require(restored.solidMesh.thermalBoundary==m.thermalBoundary,"explicit fixed/zeroGradient policies roundtrip independently of values");
  require(writeCheckpoint(directory,model,restored,error)&&bytes(file)==original,"entire dry checkpoint bitwise reserialization");
  // Wet and phase-boundary inventory states retain the geometry carry exactly.
  auto filmModel=model;filmModel.physics.enableFilm=true;auto phase=h;phase.film.resize(h.surface.area.size());
@@ -110,8 +114,9 @@ int main(){
  require(!readCheckpoint(directory,wrong,restored,error),"different model rejects");require(restored.time==999&&sameBits(restored.solidSweepRemainder,sentinel),"identity rejection preserves output carry");
  auto corrupt=original;corrupt.back()^=1;expectReadFailure(corrupt,"checksum","payload corruption rejected");
  expectReadFailure(original.substr(0,original.size()-1),"length","truncation rejected");
- require(checkpointSchema==2&&getInteger(original,8)==2,"explicit checkpoint schema bumped for geometry carry");
- auto legacy=original;setInteger(legacy,8,1);expectReadFailure(legacy,"schema","legacy checkpoint cannot silently initialize carry");
+ require(checkpointSchema==3&&getInteger(original,8)==3,"explicit checkpoint schema bumped for thermal boundary policy");
+ auto legacy=original;setInteger(legacy,8,2);expectReadFailure(legacy,"schema","schema-2 checkpoint cannot silently initialize thermal policy");
+ setInteger(legacy,8,1);expectReadFailure(legacy,"schema","legacy checkpoint cannot silently initialize carry");
  legacy=original;legacy[6]='1';expectReadFailure(legacy,"magic","legacy checkpoint file version refused");
  auto fieldMismatch=original;fieldMismatch[40]^=1;expectReadFailure(fieldMismatch,"field schema","field-schema mismatch refused");
  // Locate the unique encoded vector, then alter payload with a correct digest:
