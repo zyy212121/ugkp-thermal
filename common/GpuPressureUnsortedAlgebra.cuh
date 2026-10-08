@@ -24,10 +24,10 @@ __device__ __forceinline__ void accumulatePressureFaceDelta
         de -= sign*s.solidPressurePhiEnergy[f];
     }
     const PressureReal factor = kickDt/clampMin(s.V[c], OfVSmall);
-    dpx = factor*dpx;
-    dpy = factor*dpy;
-    dpz = factor*dpz;
-    de = factor*de;
+    dpx = finiteOr(factor*dpx, PressureReal(0.0));
+    dpy = finiteOr(factor*dpy, PressureReal(0.0));
+    dpz = finiteOr(factor*dpz, PressureReal(0.0));
+    de = finiteOr(factor*de, PressureReal(0.0));
 }
 
 __device__ __forceinline__ void publishPressureCellState
@@ -88,18 +88,4 @@ __device__ __forceinline__ UnsortedPressureKinematics recoverUnsortedPressureKin
     const PressureReal thetaScale = resolved ? thermalScale*thermalScale : PressureReal(0.0);
     return {px0/rhoP,py0/rhoP,pz0/rhoP,px1/rhoP,py1/rhoP,pz1/rhoP,
             theta1,thermalScale,thetaScale,resolved};
-}
-
-// Cached actual increment, validated before any physical writer runs.
-__device__ __forceinline__ bool pressureDeltaIsZero(const DeviceState& s,int c)
-{
-    return s.pressureDeltaMomX[c]==PressureReal(0) && s.pressureDeltaMomY[c]==PressureReal(0)
-        && s.pressureDeltaMomZ[c]==PressureReal(0) && s.pressureDeltaEnergy[c]==PressureReal(0);
-}
-
-__device__ __forceinline__ void readValidatedPressureDelta
-(const DeviceState& s,int c,PressureReal (&delta)[4])
-{
-    delta[0]=s.pressureDeltaMomX[c];delta[1]=s.pressureDeltaMomY[c];
-    delta[2]=s.pressureDeltaMomZ[c];delta[3]=s.pressureDeltaEnergy[c];
 }

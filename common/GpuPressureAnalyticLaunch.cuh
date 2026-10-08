@@ -2,7 +2,6 @@
 #pragma once
 struct AnalyticPressureLaunch
 {
-    static constexpr bool compactBeforeSplit=true;
     static cudaError_t limit(DeviceState* s,PressureTime dt,int grid,int block)
     {
         accumulateCollisionalPressureKickByCellKernel<<<grid,block>>>(s->deviceState,dt,1);

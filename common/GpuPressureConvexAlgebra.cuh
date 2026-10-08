@@ -92,30 +92,45 @@ template<class Real> PRESSURE_CONVEX_HD Real boundedProductRatio(Real a,Real b,R
     return minimum(Real(1),power(am*bm/cm,e));
 }
 
-// Signed p/sqrt(rho*h), avoiding formation of either rho*h or its reciprocal.
-template<class Real> PRESSURE_CONVEX_HD Real normalizedMomentum(Real p,Real rho,Real h) {
-    if(p==Real(0)) return Real(0);
-    int pe=0,re=0,he=0;
-    Real pm=fraction(p,&pe),rm=fraction(rho,&re),hm=fraction(h,&he);
+// All momentum components of a face share this denominator. Keep its binary
+// scale separate: neither rho*h nor a rounded reciprocal is representable in
+// every supported state. Component divisions retain their original ordering.
+template<class Real> struct MomentumNormalization { Real denominator; int halfExponent; };
+template<class Real> PRESSURE_CONVEX_HD MomentumNormalization<Real> prepareMomentumNormalization(Real rho,Real h) {
+    int re=0,he=0;
+    const Real rm=fraction(rho,&re),hm=fraction(h,&he);
     int e=re+he;
     Real product=rm*hm;
     if(e%2!=0) { product*=Real(2); --e; }
-    return power(pm/root(product),pe-e/2);
+    return {root(product),e/2};
+}
+
+// Signed p/sqrt(rho*h), avoiding formation of either rho*h or its reciprocal.
+template<class Real> PRESSURE_CONVEX_HD Real normalizedMomentum(Real p,const MomentumNormalization<Real>& scale) {
+    if(p==Real(0)) return Real(0);
+    int pe=0;
+    const Real pm=fraction(p,&pe);
+    return power(pm/scale.denominator,pe-scale.halfExponent);
+}
+template<class Real> PRESSURE_CONVEX_HD Real normalizedMomentum(Real p,Real rho,Real h) {
+    if(p==Real(0)) return Real(0);
+    return normalizedMomentum(p,prepareMomentumNormalization(rho,h));
 }
 
 // A feasible endpoint has |delta P| <= (sqrt(2)+2)*sqrt(rho*h),
 // h=max(E,|delta E|). Four is a loose upper bound, not a new physical limit.
 // This cap makes the subsequent quadratic coefficients safely representable.
+template<class Real> PRESSURE_CONVEX_HD Real momentumRangeCap(const MomentumNormalization<Real>& scale,Real m) {
+    if(m==Real(0)) return Real(1);
+    int me=0;
+    const Real mm=fraction(m,&me);
+    const int out=scale.halfExponent-me;
+    if(out>3) return Real(1);
+    return minimum(Real(1),power(Real(4)*scale.denominator/mm,out));
+}
 template<class Real> PRESSURE_CONVEX_HD Real momentumRangeCap(Real rho,Real h,Real m) {
     if(m==Real(0)) return Real(1);
-    int re=0,he=0,me=0;
-    Real rm=fraction(rho,&re),hm=fraction(h,&he),mm=fraction(m,&me);
-    int e=re+he;
-    Real product=rm*hm;
-    if(e%2!=0) { product*=Real(2); --e; }
-    const int out=e/2-me;
-    if(out>3) return Real(1);
-    return minimum(Real(1),power(Real(4)*root(product)/mm,out));
+    return momentumRangeCap(prepareMomentumNormalization(rho,h),m);
 }
 
 template<class Real> PRESSURE_CONVEX_HD bool admissibleIncrement
@@ -138,12 +153,14 @@ template<class Real> PRESSURE_CONVEX_HD bool admissibleIncrement
     return finite(k) && e>=floor && e-k>=floor;
 }
 
-template<class Real> PRESSURE_CONVEX_HD LimitResult<Real> limitFace
+// start must come from initialState for exactly these rho/p/energy values and
+// the caller's configured floor. A cell can reuse it for every incident face;
+// changing any initial-state input requires preparing it again.
+template<class Real> PRESSURE_CONVEX_HD LimitResult<Real> limitFacePrepared
 (
-    Real rho,Real px,Real py,Real pz,Real energy,Real configuredFloor,Real maxDeltaU,
+    Real rho,Real px,Real py,Real pz,Real energy,const InitialState<Real>& start,Real maxDeltaU,
     Real dpx,Real dpy,Real dpz,Real dEnergy
 ) {
-    const InitialState<Real> start=initialState(rho,px,py,pz,energy,configuredFloor);
     if(!start.valid || !finite(maxDeltaU) || maxDeltaU<Real(0)
        || !finite(dpx) || !finite(dpy) || !finite(dpz) || !finite(dEnergy))
         return {Real(0),false};
@@ -158,16 +175,19 @@ template<class Real> PRESSURE_CONVEX_HD LimitResult<Real> limitFace
     }
     const Real h=maximum(energy,absolute(dEnergy));
     if(h==Real(0) || cap==Real(0)) return {Real(0),true};
-    cap=minimum(cap,momentumRangeCap(rho,h,m));
+    // Pure energy-only states previously needed no denominator work at all.
+    const MomentumNormalization<Real> normalization=(m>Real(0)||px!=Real(0)||py!=Real(0)||pz!=Real(0))
+        ?prepareMomentumNormalization(rho,h):MomentumNormalization<Real>{Real(1),0};
+    cap=minimum(cap,momentumRangeCap(normalization,m));
     if(dEnergy>Real(0)) cap=minimum(cap,(largest<Real>()-energy)/dEnergy);
     if(cap==Real(0)) return {Real(0),true};
 
-    const Real x=normalizedMomentum(px,rho,h);
-    const Real y=normalizedMomentum(py,rho,h);
-    const Real z=normalizedMomentum(pz,rho,h);
-    const Real dx=normalizedMomentum(cap*dpx,rho,h);
-    const Real dy=normalizedMomentum(cap*dpy,rho,h);
-    const Real dz=normalizedMomentum(cap*dpz,rho,h);
+    const Real x=normalizedMomentum(px,normalization);
+    const Real y=normalizedMomentum(py,normalization);
+    const Real z=normalizedMomentum(pz,normalization);
+    const Real dx=normalizedMomentum(cap*dpx,normalization);
+    const Real dy=normalizedMomentum(cap*dpy,normalization);
+    const Real dz=normalizedMomentum(cap*dpz,normalization);
     const Real a=Real(.5)*fused(dx,dx,fused(dy,dy,dz*dz));
     const Real b=fused(cap,dEnergy/h,-fused(x,dx,fused(y,dy,z*dz)));
     const Real c=(start.internal-start.floor)/h;
@@ -196,6 +216,16 @@ template<class Real> PRESSURE_CONVEX_HD LimitResult<Real> limitFace
     // No per-face iterative solve. An uncertifiable rounded endpoint fails
     // closed; the unchanged, previously validated initial state is feasible.
     return {Real(0),true};
+}
+
+// Validating public entry point for callers without a prepared cell state.
+template<class Real> PRESSURE_CONVEX_HD LimitResult<Real> limitFace
+(
+    Real rho,Real px,Real py,Real pz,Real energy,Real configuredFloor,Real maxDeltaU,
+    Real dpx,Real dpy,Real dpz,Real dEnergy
+) {
+    const InitialState<Real> start=initialState(rho,px,py,pz,energy,configuredFloor);
+    return limitFacePrepared(rho,px,py,pz,energy,start,maxDeltaU,dpx,dpy,dpz,dEnergy);
 }
 } // namespace pressure_convex
 #undef PRESSURE_CONVEX_HD

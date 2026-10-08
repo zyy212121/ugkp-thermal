@@ -1,6 +1,5 @@
 #pragma once
 #include "GpuPressureParticleUpdate.cuh"
-#include "GpuPressureUnsortedAlgebra.cuh"
 // Constrained particle pressure closure shared by FSH/CHT; scalar precision is an interface type.
 template<bool FullMoments, bool CompactParticles = false>
 __device__ void accumulatePressureParticleMomentsDevice
@@ -236,6 +235,11 @@ __device__ void publishPressureParticleMomentsDevice
     PressureReal totalEnergy = clampMin(finiteOr(s.momRhoEP[c], PressureReal(0.0)), PressureReal(0.0));
     const PressureReal kinetic =
         PressureReal(0.5)*sqr3(totalMomX, totalMomY, totalMomZ)/rhoP;
+    if (totalEnergy < kinetic)
+    {
+        totalEnergy = kinetic;
+        s.momRhoEP[c] = totalEnergy;
+    }
     s.epsS[c] = rhoP/s.rhoSolid;
     s.rhoUsx[c] = totalMomX;
     s.rhoUsy[c] = totalMomY;
@@ -256,7 +260,7 @@ __global__ void publishPressureParticleMomentsKernel(DeviceState* sp)
 {
     DeviceState& s = *sp;
     const int c = blockIdx.x*blockDim.x + threadIdx.x;
-    if (c >= s.nCells || s.pressureFailure[0] || pressureDeltaIsZero(s,c))
+    if (c >= s.nCells)
     {
         return;
     }
