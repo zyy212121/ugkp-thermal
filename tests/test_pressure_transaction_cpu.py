@@ -18,6 +18,7 @@ MODES = [
     "mixed_sorted", "mixed_compact", "mixed_split", "mixed_unsorted",
     "initial_mismatch", "nonfinite_initial", "nonfinite_particle", "negative_particle",
     "invalid_initial", "particle_overflow", "zero_initial_mismatch", "inactive", "empty", "global_failure",
+    "scaling_subnormals", "scaling_boundaries", "scaling_boundaries_ftz", "target_velocity_square_underflow", "actual_velocity_square_underflow", "closure_scale_product_overflow",
     "actual_floor", "actual_velocity", "actual_particle_velocity", "invalid_count_negative", "invalid_count_precision", "invalid_count_range", "derived_overflow", "tiny_relative_tolerance", "canonical", "zero_identity",
     "unsorted_recovery", "invalid_status", "invalid_directory", "limiter",
 ]
