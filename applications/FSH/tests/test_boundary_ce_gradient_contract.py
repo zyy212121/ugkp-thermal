@@ -182,8 +182,15 @@ class RiemannBoundaryGradientSourceContract(unittest.TestCase):
     def test_convective_courant_matches_rho_central_cell_sum(self) -> None:
         self.assertIn("spectralRadius*area", self.courant_kernel)
         self.assertNotIn("deltaCoeffs", self.courant_kernel)
+        # Courant keeps fresh signed mass separate from acoustic scratch.
+        self.assertIn("computeRiemannGasFaceFluxDevice<false, true>", self.courant_kernel)
+        self.assertIn("s.gasPhiRho[f] = mass;", self.courant_kernel)
         self.assertIn(
-            "sumAmaxSf += finiteOr(s.gasPhiRho[f], OfGreat);",
+            "s.gasPhiRhoE[f] = finiteDevice(amaxSf) ? amaxSf : OfGreat;",
+            self.courant_kernel,
+        )
+        self.assertIn(
+            "sumAmaxSf += finiteOr(s.gasPhiRhoE[f], OfGreat);",
             self.cell_courant_kernel,
         )
         self.assertRegex(
