@@ -446,6 +446,8 @@ struct DeviceState
     GpuReal* epsGPrev = nullptr;
     GpuReal* collisionalPressure = nullptr;
     GpuReal* pressureKickScale = nullptr;
+    unsigned int* pressureFailure = nullptr;
+    GpuReal* pressurePreviewMoments = nullptr;
     GpuReal* pressureDeltaMomX = nullptr;
     GpuReal* pressureDeltaMomY = nullptr;
     GpuReal* pressureDeltaMomZ = nullptr;
@@ -1157,6 +1159,8 @@ void releaseState(DeviceState* s)
     release(s->epsGPrev);
     release(s->collisionalPressure);
     release(s->pressureKickScale);
+    release(s->pressureFailure);
+    release(s->pressurePreviewMoments);
     release(s->pressureDeltaMomX);
     release(s->pressureDeltaMomY);
     release(s->pressureDeltaMomZ);
@@ -1489,6 +1493,8 @@ int allocateFields(DeviceState* s)
     rc |= allocate(s->epsGPrev, nc, "cudaMalloc strict epsGPrev");
     rc |= allocate(s->collisionalPressure, nc, "cudaMalloc strict collisionalPressure");
     rc |= allocate(s->pressureKickScale, nc, "cudaMalloc strict pressureKickScale");
+    rc |= allocate(s->pressureFailure, 3, "cudaMalloc pressure failure diagnostic");
+    rc |= allocate(s->pressurePreviewMoments, 10*nc, "cudaMalloc pressure preview moments");
     rc |= allocate(s->pressureDeltaMomX, nc, "cudaMalloc strict pressureDeltaMomX");
     rc |= allocate(s->pressureDeltaMomY, nc, "cudaMalloc strict pressureDeltaMomY");
     rc |= allocate(s->pressureDeltaMomZ, nc, "cudaMalloc strict pressureDeltaMomZ");
@@ -2182,7 +2188,7 @@ __global__ void prepareFlatFullPressureKernel(DeviceState* sp, const GpuTime kic
     const int c=blockIdx.x*blockDim.x+threadIdx.x;
     if(c>=s.nCells)return;
     PressureReal delta[4];
-    pressureDeltaFromLimitedFaces(s,c,kickDt,delta);
+    readValidatedPressureDelta(s,c,delta);
     PressureParameters q;
     makePressureParameters(s,c,delta,q);
     s.flatPressureFlags[FlatPressureLayout::flagStride*c+FlatPressureLayout::active]=q.active;
@@ -2221,6 +2227,7 @@ template<FlatPressureSegment Mode, bool FullMoments, bool CompactParticles = fal
 __global__ void applyFlatPressureParticlesKernel(DeviceState* sp)
 {
     DeviceState& s = *sp;
+    if(s.pressureFailure[0])return;
     const int* offsets = Mode == FlatPressureSegment::base ? s.preBaseCellOffset : s.cellParticleOffset;
     const int count = offsets[s.nCells];
     for (int pos=blockIdx.x*blockDim.x+threadIdx.x;
@@ -2240,6 +2247,7 @@ __global__ void applyFlatPressureParticlesKernel(DeviceState* sp)
         {
             continue;
         }
+        if (pressureDeltaIsZero(s,c)) continue;
         if (s.flatPressureFlags[FlatPressureLayout::flagStride*c+FlatPressureLayout::active] != 0)
         {
             const GpuReal* p=s.flatPressureParameters+FlatPressureLayout::parameterStride*c+(Mode==FlatPressureSegment::full?FlatPressureLayout::fullStateOffset:FlatPressureLayout::splitStateOffset);
@@ -2288,6 +2296,8 @@ void launchFlatPressure(DeviceState* host,DeviceState* device,GpuTime dt,FlatPre
     else applyCollisionalPressureProjectionSplitSegmentKernel<false, FullMoments><<<host->nCells,128,sharedBytes>>>(device);
 #endif
 }
+struct PressureConstraintPolicy { template<bool Compact> __device__ static bool stuck(const DeviceState& s,int i) { return (Compact?s.compactPStuck[i]:s.pStuck[i])!=0; } };
+#include "GpuPressurePreflight.cuh"
 #include "GpuPressureConstrainedLaunch.cuh"
 #include "GpuPressurePipeline.cuh"
 template<bool FullMoments>

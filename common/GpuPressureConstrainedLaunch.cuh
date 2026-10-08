@@ -4,6 +4,7 @@
 template<bool FullMoments>
 struct ConstrainedPressureLaunch
 {
+    static constexpr bool compactBeforeSplit=false;
     static cudaError_t limit(DeviceState* s,PressureTime dt,int grid,int block)
     {
 #if defined(UGKWP_GPU_REAL_BITS) && UGKWP_GPU_REAL_BITS == 32
@@ -20,12 +21,9 @@ struct ConstrainedPressureLaunch
 #if defined(UGKWP_GPU_REAL_BITS) && UGKWP_GPU_REAL_BITS == 32
         if(split)
         {
-            // Global FP32 accumulation needs cached parameters, refreshed AFTER limiting.
-            accumulateCollisionalPressureKickByCellKernel<FullMoments><<<grid,block>>>
-                (s->deviceState,dt,0,0);
-            cudaError_t err=cudaGetLastError();if(err!=cudaSuccess)return err;
+            // Preflight already cached the actual limited-face increment.
             launchFlatPressure<FullMoments>(s,s->deviceState,dt,FlatPressureSegment::base);
-            err=cudaGetLastError();if(err!=cudaSuccess)return err;
+            cudaError_t err=cudaGetLastError();if(err!=cudaSuccess)return err;
             if(s->nBoundarySources>0)
             {
                 launchFlatPressure<FullMoments>(s,s->deviceState,dt,FlatPressureSegment::injection);

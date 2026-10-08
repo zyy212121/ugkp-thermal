@@ -25,7 +25,7 @@ struct ConstrainedPressureOperation
                 scaledDelta[2] = finiteOr(s.pressureDeltaMomZ[c], PressureReal(0));
                 scaledDelta[3] = finiteOr(s.pressureDeltaEnergy[c], PressureReal(0));
             }
-            else pressureDeltaFromLimitedFaces(s, c, dt, scaledDelta);
+            else readValidatedPressureDelta(s,c,scaledDelta);
             // Bind the common formula directly to the established shared
             // parameter storage, without an intermediate parameter object.
             struct ParameterStorage
