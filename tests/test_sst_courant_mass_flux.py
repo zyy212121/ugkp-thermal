@@ -13,7 +13,8 @@ def test_mass_only_matches_full_operator(tmp_path,bits):
     courant=flux[flux.index('__global__ void computeGasCourantFieldKernel'):flux.index('__global__ void computeGasDiffusionNumberKernel')]
     primitive=(ROOT/'common/operators/computeGasPrimitiveGradientsKernel.cuh').read_text().split('__device__ GPU_OPERATOR_REAL sstDynamicOmegaWallValue')[0]
     sensor=(ROOT/'common/operators/computeGasHllcAdcSensorKernel.cuh').read_text()
-    fields_source=src+courant+primitive+sensor
+    full_flux=(ROOT/'common/operators/computeGasInternalFaceFluxKernel.cuh').read_text().split('__global__ void enforcePeriodicGasFluxAntisymmetryKernel')[0]
+    fields_source=src+courant+primitive+sensor+full_flux
     arrays=sorted(set(re.findall(r's\.(\w+)\[',fields_source))|{'faceNeighbour'})
     scalars=sorted(set(re.findall(r's\.(\w+)',fields_source))-set(arrays))
     int_arrays={'faceOwner','faceNeighbour','riemannBoundaryKind','riemannBoundaryTFix','riemannBoundaryUFix','cellPlaneStart','cellPlaneCount','cellFaceId'}
@@ -54,7 +55,7 @@ bool useRiemannBoundaryVelocity(const DeviceState&,int,const GasPrimDevice&){ret
 R molecularGasConductivity(const DeviceState&){return R(.07);}
 void gasFaceSubgridTransportProperties(const DeviceState&,int,int,int,int,R,R&mu,R&kt,R&q,int&a){mu=R(.03);kt=R(.05);q=0;a=0;}
 '''.replace('FIELDS',fields)
-    body=pre+(src+courant+sensor+primitive).replace('asm("trap;");','std::abort();')+r'''
+    body=pre+(src+courant+sensor+primitive+full_flux).replace('asm("trap;");','std::abort();')+r'''
 int main(){int fails=0,count=0;for(int scheme=1;scheme<=9;++scheme){ugkpriemann::Scheme kind;if(!ugkpriemann::schemeFromCreateCode(scheme,kind))continue;
 for(int reconstruction:{0,1,2})for(int boundary:{-1,0,1,2,3,4})for(int state=0;state<8;++state){
  DeviceState s;s.nFaces=1;s.nCells=2;s.faceOwner[0]=0;s.faceNeighbour[0]=boundary<0?1:-1;s.riemannBoundaryKind[0]=std::max(boundary,0);s.gasFluxScheme=scheme;s.gasReconstruction=reconstruction;
@@ -72,6 +73,21 @@ for(int reconstruction:{0,1,2})for(int boundary:{-1,0,1,2,3,4})for(int state=0;s
  s.cellPlaneStart[0]=0;s.cellPlaneCount[0]=1;s.cellFaceId[0]=0;s.V[0]=2;
  R wantCo=R(.5)*R(.01)*s.gasPhiRhoE[0]/s.V[0];computeGasConvectiveCourantByCellKernel(&s,R(.01));
  if(std::abs(s.gasFluxPositivityScale[0]-wantCo)>R(1e-6) || s.gasPhiRho[0]!=full){std::cerr<<"Courant scratch lifetime mismatch\n";++fails;}
+ // Laminar Courant has no mass-flux consumer: it must leave that array alone.
+ // Its acoustic scratch and the next complete flux still match the SST route.
+ {
+  DeviceState laminar=s;laminar.sstConfigured=0;
+  laminar.gasPhiRho[0]=R(12345);laminar.gasPhiRhoE[0]=R(-12345);
+  computeGasCourantFieldKernel(&laminar,R(.01));
+  if(laminar.gasPhiRho[0]!=R(12345) || laminar.gasPhiRhoE[0]!=s.gasPhiRhoE[0]){std::cerr<<"laminar Courant touched unused mass or changed acoustics\n";++fails;}
+  computeGasConvectiveCourantByCellKernel(&laminar,R(.01));
+  if(laminar.gasFluxPositivityScale[0]!=s.gasFluxPositivityScale[0]){std::cerr<<"laminar Courant changed\n";++fails;}
+  computeGasInternalFaceFluxKernel<false>(&laminar,R(.01));
+  if(laminar.gasPhiRho[0]!=full){std::cerr<<"next full flux retained stale mass\n";++fails;}
+  DeviceState invalid=s;invalid.faceOwner[0]=-1;invalid.gasPhiRho[0]=R(12345);
+  computeGasCourantFieldKernel(&invalid,R(.01));
+  if(invalid.gasPhiRho[0]!=R(0) || invalid.gasPhiRhoE[0]!=OfGreat){std::cerr<<"SST early return retained stale mass\n";++fails;}
+ }
  if(scheme==7){
   computeGasHllcAdcSensorKernel(&s);R expected=s.gasHllcAdcSensor[0];
   s.gasHllcAdcSensor[0]=R(-1);computeGasPrimitiveGradientsKernel(&s,true);
