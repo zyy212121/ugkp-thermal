@@ -8,13 +8,17 @@ __global__ void applyCollisionalPressureProjectionCellAtomicKernel
 {
     DeviceState& s = *sp;
     const int c = blockIdx.x*blockDim.x + threadIdx.x;
-    if (c >= s.nCells || s.pressureFailure[0] || pressureDeltaIsZero(s,c))
+    if (c >= s.nCells)
     {
         return;
     }
 
-    const PressureReal dpx=s.pressureDeltaMomX[c],dpy=s.pressureDeltaMomY[c];
-    const PressureReal dpz=s.pressureDeltaMomZ[c],de=s.pressureDeltaEnergy[c];
+    PressureReal dpx, dpy, dpz, de;
+    accumulatePressureFaceDelta(s,c,kickDt,dpx,dpy,dpz,de);
+    s.pressureDeltaMomX[c] = dpx;
+    s.pressureDeltaMomY[c] = dpy;
+    s.pressureDeltaMomZ[c] = dpz;
+    s.pressureDeltaEnergy[c] = de;
 
     const PressureReal rhoP = clampMin(finiteOr(s.momRhoP[c], PressureReal(0.0)), PressureReal(0.0));
     if (rhoP <= s.epsSMin*s.rhoSolid)
@@ -61,7 +65,6 @@ __global__ void applyCollisionalPressureProjectionParticlesAtomicKernel
         {
             continue;
         }
-        if (s.pressureFailure[0] || pressureDeltaIsZero(s,c)) continue;
         if (s.pStuck[i] != 0)
         {
             s.pux[i] = PressureReal(0.0);

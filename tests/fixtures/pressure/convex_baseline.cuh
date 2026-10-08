@@ -1,3 +1,5 @@
+// Frozen numerical reference from 93a7a35cc18b8b695e1e29a9332a158b9847d16c.
+// Deliberately independent of the prepared-invariant implementation under test.
 #pragma once
 // Scalar algebra shared by the CUDA limiter and executable host regressions.
 // The caller supplies one face delta divided by its positive convex weight.
@@ -10,7 +12,7 @@
 #define PRESSURE_CONVEX_HD inline
 #endif
 
-namespace pressure_convex {
+namespace pressure_convex_baseline {
 template<class Real> struct LimitResult { Real beta; bool valid; };
 template<class Real> struct InitialState { Real internal; Real floor; bool valid; };
 
@@ -92,45 +94,30 @@ template<class Real> PRESSURE_CONVEX_HD Real boundedProductRatio(Real a,Real b,R
     return minimum(Real(1),power(am*bm/cm,e));
 }
 
-// All momentum components of a face share this denominator. Keep its binary
-// scale separate: neither rho*h nor a rounded reciprocal is representable in
-// every supported state. Component divisions retain their original ordering.
-template<class Real> struct MomentumNormalization { Real denominator; int halfExponent; };
-template<class Real> PRESSURE_CONVEX_HD MomentumNormalization<Real> prepareMomentumNormalization(Real rho,Real h) {
-    int re=0,he=0;
-    const Real rm=fraction(rho,&re),hm=fraction(h,&he);
+// Signed p/sqrt(rho*h), avoiding formation of either rho*h or its reciprocal.
+template<class Real> PRESSURE_CONVEX_HD Real normalizedMomentum(Real p,Real rho,Real h) {
+    if(p==Real(0)) return Real(0);
+    int pe=0,re=0,he=0;
+    Real pm=fraction(p,&pe),rm=fraction(rho,&re),hm=fraction(h,&he);
     int e=re+he;
     Real product=rm*hm;
     if(e%2!=0) { product*=Real(2); --e; }
-    return {root(product),e/2};
-}
-
-// Signed p/sqrt(rho*h), avoiding formation of either rho*h or its reciprocal.
-template<class Real> PRESSURE_CONVEX_HD Real normalizedMomentum(Real p,const MomentumNormalization<Real>& scale) {
-    if(p==Real(0)) return Real(0);
-    int pe=0;
-    const Real pm=fraction(p,&pe);
-    return power(pm/scale.denominator,pe-scale.halfExponent);
-}
-template<class Real> PRESSURE_CONVEX_HD Real normalizedMomentum(Real p,Real rho,Real h) {
-    if(p==Real(0)) return Real(0);
-    return normalizedMomentum(p,prepareMomentumNormalization(rho,h));
+    return power(pm/root(product),pe-e/2);
 }
 
 // A feasible endpoint has |delta P| <= (sqrt(2)+2)*sqrt(rho*h),
 // h=max(E,|delta E|). Four is a loose upper bound, not a new physical limit.
 // This cap makes the subsequent quadratic coefficients safely representable.
-template<class Real> PRESSURE_CONVEX_HD Real momentumRangeCap(const MomentumNormalization<Real>& scale,Real m) {
-    if(m==Real(0)) return Real(1);
-    int me=0;
-    const Real mm=fraction(m,&me);
-    const int out=scale.halfExponent-me;
-    if(out>3) return Real(1);
-    return minimum(Real(1),power(Real(4)*scale.denominator/mm,out));
-}
 template<class Real> PRESSURE_CONVEX_HD Real momentumRangeCap(Real rho,Real h,Real m) {
     if(m==Real(0)) return Real(1);
-    return momentumRangeCap(prepareMomentumNormalization(rho,h),m);
+    int re=0,he=0,me=0;
+    Real rm=fraction(rho,&re),hm=fraction(h,&he),mm=fraction(m,&me);
+    int e=re+he;
+    Real product=rm*hm;
+    if(e%2!=0) { product*=Real(2); --e; }
+    const int out=e/2-me;
+    if(out>3) return Real(1);
+    return minimum(Real(1),power(Real(4)*root(product)/mm,out));
 }
 
 template<class Real> PRESSURE_CONVEX_HD bool admissibleIncrement
@@ -153,14 +140,12 @@ template<class Real> PRESSURE_CONVEX_HD bool admissibleIncrement
     return finite(k) && e>=floor && e-k>=floor;
 }
 
-// start must come from initialState for exactly these rho/p/energy values and
-// the caller's configured floor. A cell can reuse it for every incident face;
-// changing any initial-state input requires preparing it again.
-template<class Real> PRESSURE_CONVEX_HD LimitResult<Real> limitFacePrepared
+template<class Real> PRESSURE_CONVEX_HD LimitResult<Real> limitFace
 (
-    Real rho,Real px,Real py,Real pz,Real energy,const InitialState<Real>& start,Real maxDeltaU,
+    Real rho,Real px,Real py,Real pz,Real energy,Real configuredFloor,Real maxDeltaU,
     Real dpx,Real dpy,Real dpz,Real dEnergy
 ) {
+    const InitialState<Real> start=initialState(rho,px,py,pz,energy,configuredFloor);
     if(!start.valid || !finite(maxDeltaU) || maxDeltaU<Real(0)
        || !finite(dpx) || !finite(dpy) || !finite(dpz) || !finite(dEnergy))
         return {Real(0),false};
@@ -175,19 +160,16 @@ template<class Real> PRESSURE_CONVEX_HD LimitResult<Real> limitFacePrepared
     }
     const Real h=maximum(energy,absolute(dEnergy));
     if(h==Real(0) || cap==Real(0)) return {Real(0),true};
-    // Pure energy-only states previously needed no denominator work at all.
-    const MomentumNormalization<Real> normalization=(m>Real(0)||px!=Real(0)||py!=Real(0)||pz!=Real(0))
-        ?prepareMomentumNormalization(rho,h):MomentumNormalization<Real>{Real(1),0};
-    cap=minimum(cap,momentumRangeCap(normalization,m));
+    cap=minimum(cap,momentumRangeCap(rho,h,m));
     if(dEnergy>Real(0)) cap=minimum(cap,(largest<Real>()-energy)/dEnergy);
     if(cap==Real(0)) return {Real(0),true};
 
-    const Real x=normalizedMomentum(px,normalization);
-    const Real y=normalizedMomentum(py,normalization);
-    const Real z=normalizedMomentum(pz,normalization);
-    const Real dx=normalizedMomentum(cap*dpx,normalization);
-    const Real dy=normalizedMomentum(cap*dpy,normalization);
-    const Real dz=normalizedMomentum(cap*dpz,normalization);
+    const Real x=normalizedMomentum(px,rho,h);
+    const Real y=normalizedMomentum(py,rho,h);
+    const Real z=normalizedMomentum(pz,rho,h);
+    const Real dx=normalizedMomentum(cap*dpx,rho,h);
+    const Real dy=normalizedMomentum(cap*dpy,rho,h);
+    const Real dz=normalizedMomentum(cap*dpz,rho,h);
     const Real a=Real(.5)*fused(dx,dx,fused(dy,dy,dz*dz));
     const Real b=fused(cap,dEnergy/h,-fused(x,dx,fused(y,dy,z*dz)));
     const Real c=(start.internal-start.floor)/h;
@@ -217,15 +199,49 @@ template<class Real> PRESSURE_CONVEX_HD LimitResult<Real> limitFacePrepared
     // closed; the unchanged, previously validated initial state is feasible.
     return {Real(0),true};
 }
-
-// Validating public entry point for callers without a prepared cell state.
-template<class Real> PRESSURE_CONVEX_HD LimitResult<Real> limitFace
-(
-    Real rho,Real px,Real py,Real pz,Real energy,Real configuredFloor,Real maxDeltaU,
-    Real dpx,Real dpy,Real dpz,Real dEnergy
-) {
-    const InitialState<Real> start=initialState(rho,px,py,pz,energy,configuredFloor);
-    return limitFacePrepared(rho,px,py,pz,energy,start,maxDeltaU,dpx,dpy,dpz,dEnergy);
-}
-} // namespace pressure_convex
+} // namespace pressure_convex_baseline
 #undef PRESSURE_CONVEX_HD
+
+// Each face is one fixed-weight convex substate (weight=1/faceCount).
+// A neighbouring cell may only shorten that substate's safe segment.
+// Invalid local inputs retain the original zero-kick fallback; the existing
+// projection and closure still run their finite-value and nonnegative clamps.
+__device__ inline PressureReal baselinePressureLocalConvexScale(DeviceState& s,int c,PressureTime dt)
+{
+    const PressureReal rho=s.momRhoP[c],px=s.momRhoUPx[c],py=s.momRhoUPy[c],pz=s.momRhoUPz[c],e=s.momRhoEP[c];
+    if(!finiteDevice(rho)||rho<0||!finiteDevice(px)||!finiteDevice(py)||!finiteDevice(pz)||!finiteDevice(e)||e<0
+       ||!finiteDevice(s.V[c])||s.V[c]<=0||!finiteDevice(s.cellLength[c])||s.cellLength[c]<=0
+       ||!finiteDevice(s.thetaMin)||s.thetaMin<0||!finiteDevice(s.pressureKickFraction)||s.pressureKickFraction<0
+       ||!finiteDevice(s.epsSMin)||s.epsSMin<0||!finiteDevice(s.rhoSolid)||s.rhoSolid<=0)
+    {return 0;}
+    if(rho==0)
+    {
+        return 0;
+    }
+    const PressureReal configuredFloor=PressureReal(1.5)*rho*s.thetaMin;
+    const auto initial=pressure_convex_baseline::initialState(rho,px,py,pz,e,configuredFloor);
+    if(!initial.valid){return 0;}
+    if(rho<=s.epsSMin*s.rhoSolid)return 0;
+    const int count=s.cellPlaneCount[c],start=s.cellPlaneStart[c];
+    if(count<0||start<0){return 0;}
+    const PressureReal maxDU=s.pressureKickFraction*s.cellLength[c]/dt;
+    const PressureReal factor=dt/s.V[c];
+    if(!finiteDevice(maxDU)||!finiteDevice(factor)){return 0;}
+    PressureReal lambda=1;
+    for(int j=0;j<count;++j)
+    {
+        const int f=s.cellFaceId[start+j];
+        if(f<0||f>=s.nFaces||(s.faceOwner[f]!=c&&s.faceNeighbour[f]!=c))
+        {return 0;}
+        const PressureReal sign=s.faceOwner[f]==c?PressureReal(1):PressureReal(-1);
+        const PressureReal weightInverse=PressureReal(count);
+        const PressureReal dx=-factor*sign*s.solidPressurePhiMomX[f]*weightInverse;
+        const PressureReal dy=-factor*sign*s.solidPressurePhiMomY[f]*weightInverse;
+        const PressureReal dz=-factor*sign*s.solidPressurePhiMomZ[f]*weightInverse;
+        const PressureReal de=-factor*sign*s.solidPressurePhiEnergy[f]*weightInverse;
+        const auto face=pressure_convex_baseline::limitFace(rho,px,py,pz,e,configuredFloor,maxDU,dx,dy,dz,de);
+        if(!face.valid){return 0;}
+        lambda=fmin(lambda,face.beta);
+    }
+    return lambda;
+}

@@ -21,9 +21,6 @@ __global__ void scaleCollisionalPressureFaceFluxKernel(DeviceState* sp)
         return;
     }
     const int own = s.faceOwner[f];
-    if(!finiteDevice(s.solidPressurePhiMomX[f])||!finiteDevice(s.solidPressurePhiMomY[f])
-       ||!finiteDevice(s.solidPressurePhiMomZ[f])||!finiteDevice(s.solidPressurePhiEnergy[f]))
-        recordPressureFailure(s,pressureBadFace,own>=0?own:0);
     const int nei = s.faceNeighbour[f];
     PressureReal scale = own >= 0 && own < s.nCells ? s.pressureKickScale[own] : PressureReal(0.0);
     if (nei >= 0 && nei < s.nCells)

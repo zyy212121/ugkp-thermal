@@ -20,7 +20,6 @@ struct PressureProjectionCell
 };
 
 struct DeviceState{
- unsigned int pressureFailure[3]={};
  int compactPStatus[32]={},compactPCellId[32]={};
  double compactPux[32]={},compactPuy[32]={},compactPuz[32]={},compactPTheta[32]={};
  int csrCellLocalPathEnabled=1; int nCells=3,nFaces=6,particleCapacity=9;
@@ -91,10 +90,8 @@ int main(){for(int split=0;split<2;++split){DeviceState oldState;int count=9;old
  for(int c=0;c<3;++c){oldState.V[c]=1;oldState.cellPlaneStart[c]=2*c;oldState.cellPlaneCount[c]=2;
   oldState.momRhoP[c]=c==1?0:2;oldState.momRhoUPx[c]=2;oldState.momRhoUPy[c]=0;oldState.momRhoUPz[c]=0;oldState.momRhoEP[c]=c==2?1:10;
   for(int j=0;j<2;++j){int face=2*c+j;oldState.cellFaceId[face]=face;oldState.faceOwner[face]=c;oldState.solidPressurePhiMomX[face]=0.1;oldState.solidPressurePhiMomY[face]=0.02;oldState.solidPressurePhiMomZ[face]=-0.03;oldState.solidPressurePhiEnergy[face]=0.04;}}
- // Projection kernels now consume the validated actual-delta cache prepared
- // by the transaction preflight; seed that cache for this kernel-body comparison.
- for(int c=0;c<3;++c)accumulatePressureFaceDelta(oldState,c,0.01,
-  oldState.pressureDeltaMomX[c],oldState.pressureDeltaMomY[c],oldState.pressureDeltaMomZ[c],oldState.pressureDeltaEnergy[c]);
+ // A stale cache must be overwritten from limited faces by both routes.
+ for(int c=0;c<3;++c){oldState.pressureDeltaMomX[c]=999;oldState.pressureDeltaEnergy[c]=-999;}
  DeviceState newState=oldState;
  for(int c=0;c<3;++c){blockIdx.x=c;if(split)applyCollisionalPressureProjectionKernel<true>(&oldState,0.01);else applyCollisionalPressureProjectionKernel<false>(&oldState,0.01);}
  for(int c=0;c<3;++c){blockIdx.x=c;preparePressureProjectionCacheKernel(&newState,0.01);}

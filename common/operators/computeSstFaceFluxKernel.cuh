@@ -418,8 +418,7 @@ __global__ void computeGasCourantFieldKernel(DeviceState* sp, const GPU_OPERATOR
     // Courant-only scratch lifetime: energy-flux storage holds amaxSf until
     // computeGasConvectiveCourantByCellKernel consumes it. The next gas face
     // flux overwrites all gasPhi arrays before any gas conservative update.
-    // Keep mass separate: SST gradients/source prediction need signed phi.
-    s.gasPhiRho[f] = GPU_OPERATOR_R(0.0);
+    // Only SST consumes mass here; its helper initializes every return path.
     if (s.sstConfigured != 0)
     {
         GPU_OPERATOR_REAL mass, mx, my, mz, energy;

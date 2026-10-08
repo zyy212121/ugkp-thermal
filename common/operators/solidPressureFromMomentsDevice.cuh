@@ -41,8 +41,7 @@ __device__ GPU_OPERATOR_REAL solidPressureFromMomentsDevice
             g0,
             theta
         );
-        if (!finiteDevice(pColl)) return pColl;
-        pColl = clampRange(pColl, GPU_OPERATOR_R(0.0), OfGreat);
+        pColl = clampRange(finiteOr(pColl, GPU_OPERATOR_R(0.0)), GPU_OPERATOR_R(0.0), OfGreat);
     }
 
     return clampRange(finiteOr(pColl, OfGreat), GPU_OPERATOR_R(0.0), OfGreat);
