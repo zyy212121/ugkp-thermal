@@ -393,8 +393,6 @@ struct DeviceState
     double* epsGPrev = nullptr;
     double* collisionalPressure = nullptr;
     double* pressureKickScale = nullptr;
-    unsigned int* pressureFailure = nullptr;
-    double* pressurePreviewMoments = nullptr;
     double* pressureDeltaMomX = nullptr;
     double* pressureDeltaMomY = nullptr;
     double* pressureDeltaMomZ = nullptr;
@@ -1113,8 +1111,6 @@ void releaseState(DeviceState* s)
     release(s->epsGPrev);
     release(s->collisionalPressure);
     release(s->pressureKickScale);
-    release(s->pressureFailure);
-    release(s->pressurePreviewMoments);
     release(s->pressureDeltaMomX);
     release(s->pressureDeltaMomY);
     release(s->pressureDeltaMomZ);
@@ -1422,8 +1418,6 @@ int allocateFields(DeviceState* s)
     rc |= allocate(s->epsGPrev, nc, "cudaMalloc strict epsGPrev");
     rc |= allocate(s->collisionalPressure, nc, "cudaMalloc strict collisionalPressure");
     rc |= allocate(s->pressureKickScale, nc, "cudaMalloc strict pressureKickScale");
-    rc |= allocate(s->pressureFailure, 3, "cudaMalloc pressure failure diagnostic");
-    rc |= allocate(s->pressurePreviewMoments, 10*nc, "cudaMalloc pressure preview moments");
     rc |= allocate(s->pressureDeltaMomX, nc, "cudaMalloc strict pressureDeltaMomX");
     rc |= allocate(s->pressureDeltaMomY, nc, "cudaMalloc strict pressureDeltaMomY");
     rc |= allocate(s->pressureDeltaMomZ, nc, "cudaMalloc strict pressureDeltaMomZ");
@@ -1961,12 +1955,16 @@ __device__ PressureProjectionCell preparePressureProjectionCell
     PressureProjectionCell projection{};
     double scaledDelta[4];
 
-    readValidatedPressureDelta(s,c,scaledDelta);
+    accumulatePressureFaceDelta(s,c,kickDt,
+        scaledDelta[0],scaledDelta[1],scaledDelta[2],scaledDelta[3]);
+        s.pressureDeltaMomX[c] = scaledDelta[0];
+        s.pressureDeltaMomY[c] = scaledDelta[1];
+        s.pressureDeltaMomZ[c] = scaledDelta[2];
+        s.pressureDeltaEnergy[c] = scaledDelta[3];
 
 
 
     projection.active = false;
-    if (pressureDeltaIsZero(s,c)) return projection;
     const double rhoP = clampMin(finiteOr(s.momRhoP[c], 0.0), 0.0);
     if (rhoP <= s.epsSMin*s.rhoSolid)
     {
@@ -2039,7 +2037,6 @@ __global__ void preparePressureProjectionCacheKernel
 (DeviceState* sp, const double kickDt)
 {
     DeviceState& s = *sp;
-    if(s.pressureFailure[0])return;
     const int c = blockIdx.x*blockDim.x + threadIdx.x;
     if (c < s.nCells)
         s.pressureProjectionCache[c] = preparePressureProjectionCell(s, c, kickDt);
@@ -2048,7 +2045,6 @@ __global__ void preparePressureProjectionCacheKernel
 __global__ void applyCachedPressureProjectionParticlesKernel(DeviceState* sp)
 {
     DeviceState& s = *sp;
-    if(s.pressureFailure[0])return;
     const int nParticles = clampRange(*s.particleCountDevice, 0, s.particleCapacity);
     for (int i = blockIdx.x*blockDim.x + threadIdx.x; i < nParticles; i += blockDim.x*gridDim.x)
     {
@@ -2071,8 +2067,6 @@ __global__ void applyCachedPressureProjectionParticlesKernel(DeviceState* sp)
 
 
 
-struct PressureConstraintPolicy { template<bool Compact> __device__ static bool stuck(const DeviceState&,int) { return false; } };
-#include "GpuPressurePreflight.cuh"
 #include "GpuPressureAnalyticLaunch.cuh"
 #include "GpuPressurePipeline.cuh"
 int applyCollisionalPressureKick(DeviceState* s,const double dt,const int block,
