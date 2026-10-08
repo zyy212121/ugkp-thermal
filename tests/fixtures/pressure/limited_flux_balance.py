@@ -57,6 +57,56 @@ for(int c=0;c<2;++c){
  CHECK(fabs(m-1)<TOL);totalMass+=m;totalPx+=px;totalEnergy+=energy;
 }
 CHECK(fabs(totalMass-2)<TOL);CHECK(fabs(totalPx)<TOL);CHECK(fabs(totalEnergy-3.5)<TOL);
+
+// Preserve the original balance assertions above. These read-only transaction
+// regressions reproduce the extreme normal inputs from the independent review.
+// Deliberately inspect the failure flag rather than launching the fatal trap.
+for(int example=0;example<2;++example)for(int route=0;route<4;++route){
+ s->nCells=1;s->nFaces=1;*s->particleCountDevice=2;
+ s->faceOwner[0]=0;s->faceNeighbour[0]=-1;
+ s->cellPlaneStart[0]=0;s->cellPlaneCount[0]=1;s->cellFaceId[0]=0;
+ s->V[0]=example?(sizeof(PressureReal)==4?PressureReal(1e20):PressureReal(1e160)):PressureReal(1);
+ s->momRhoP[0]=1;s->momRhoEP[0]=example?PressureReal(1):PressureReal(1.5);
+ s->momRhoUPx[0]=s->momRhoUPy[0]=s->momRhoUPz[0]=0;
+ s->pressureKickFraction=0;
+ s->solidPressurePhiMomX[0]=s->solidPressurePhiMomY[0]=s->solidPressurePhiMomZ[0]=0;
+ s->solidPressurePhiEnergy[0]=example?PressureReal(0):PressureReal(-.2);
+ s->preBaseCellOffset[0]=0;s->preBaseCellOffset[1]=route==3?1:0;
+ s->cellParticleOffset[0]=route==3?1:0;s->cellParticleOffset[1]=2;
+ s->sortedParticleIndex[0]=0;s->sortedParticleIndex[1]=1;
+ const PressureReal speed=sizeof(PressureReal)==4?PressureReal(1e-20):PressureReal(1e-170);
+ const PressureReal eps=pressure_convex::epsilon<PressureReal>();
+ for(int i=0;i<2;++i){
+  s->pStatus[i]=s->compactPStatus[i]=1;s->pCellId[i]=s->compactPCellId[i]=0;
+  s->pm[i]=s->compactPm[i]=s->V[0]/PressureReal(2);
+  s->pux[i]=s->compactPux[i]=example?PressureReal(0):i?-speed:speed*(PressureReal(1)+PressureReal(32)*eps);
+  s->puy[i]=s->compactPuy[i]=s->puz[i]=s->compactPuz[i]=0;
+  s->pTheta[i]=s->compactPTheta[i]=example?PressureReal(2)/PressureReal(3):PressureReal(1);
+  THERMAL_RESET
+ }
+ for(int i=0;i<3;++i)s->pressureFailure[i]=0;
+ *device=*s;
+ preparePressurePreflightKernel<<<1,64>>>(device,1.);
+ if(route==0)previewPressureSortedKernel<false,false><<<1,128>>>(device);
+ else if(route==1)previewPressureUnsortedKernel<<<1,128>>>(device);
+ else if(route==2)previewPressureSortedKernel<false,true><<<1,128>>>(device);
+ else previewPressureSortedKernel<true,false><<<1,128>>>(device);
+ auditPressurePreviewKernel<<<1,64>>>(device,1.);
+ CHECK(cudaGetLastError()==cudaSuccess);CHECK(cudaDeviceSynchronize()==cudaSuccess);
+ if(example){
+  CHECK(s->pressureFailure[0]==0);
+  CHECK(s->pux[0]==0&&s->pux[1]==0);
+ }else{
+  const PressureReal change=s->pressurePreviewMoments[0]-s->pressurePreviewMoments[6];
+  CHECK(change!=0&&change*change==0);
+  CHECK((s->pressureFailure[0]&pressureUnrealizableParticles)!=0);
+  CHECK(s->pressureFailure[1]==1&&s->pressureFailure[2]!=0);
+  CHECK(s->pux[0]==speed*(PressureReal(1)+PressureReal(32)*eps)&&s->pux[1]==-speed);
+ }
+ CHECK(s->momRhoUPx[0]==0);
+ CHECK(s->momRhoEP[0]==(example?PressureReal(1):PressureReal(1.5)));
+}
+puts("PASS extreme pressure: normal dU underflow rejected and finite closure scale retained in all four preview routes");
 puts("PASS limited pressure: local face balance, particle/Eulerian moments, mass, momentum and energy");
 }
 '''
@@ -66,6 +116,7 @@ if mode == 'unsorted':
     txt=txt.replace('PHYSICS::project(s,1.,1,64,64,true,false)', 'PHYSICS::projectUnsorted(s,1.,1,64)')
 
 txt=txt.replace('THERMAL_INIT','s->pStuck[i]=0;' if branch!='gasUGKP' else '')
+txt=txt.replace('THERMAL_RESET','s->pStuck[i]=s->compactPStuck[i]=0;' if branch!='gasUGKP' else '')
 txt=txt.replace('PHYSICS','AnalyticPressureLaunch' if branch=='gasUGKP' else 'ConstrainedPressureLaunch<true>')
 txt=txt.replace('TOL','2e-6' if bits==32 else '2e-12')
 f=p/'tests'/f'pressure_balance_{branch}{bits}.cu';f.write_text(txt)

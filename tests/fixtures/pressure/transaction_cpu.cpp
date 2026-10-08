@@ -6,6 +6,9 @@
 #include <iostream>
 #include <limits>
 #include <string>
+#if defined(__SSE__)
+#include <xmmintrin.h>
+#endif
 #define __device__
 #define __global__
 #define __shared__
@@ -294,6 +297,94 @@ int main(int argc,char** argv) {
         check(s.pressurePreviewMoments[0]==0,"unresolved energy-only fixture must have zero final mean velocity");
         check(s.pressurePreviewMoments[6]>0,"fixture must retain nonzero actual initial mean velocity");
         assertFailure(s,pressureUnrealizableParticles,"zero dU cap ignored a velocity change relative to actual initial particles");
+    } else if(mode=="scaling_subnormals") {
+        // Gradual-underflow host contract only. FTZ/DAZ does not preserve
+        // subnormal inputs, so the separate FTZ test uses normal inputs.
+        const R tiny=std::numeric_limits<R>::denorm_min(),small=std::numeric_limits<R>::min();
+        volatile R values[]={tiny,tiny*R(17),small/R(2),small,R(1),std::numeric_limits<R>::max()};
+        for(int i=0;i<6;++i)for(int j=0;j<6;++j) {
+            const R mass=values[i],energy=values[j];
+            const long double expected=std::sqrt(2.L*mass*energy);
+            const R actual=pressure_convex::momentumClosureScale(mass,energy);
+            if(expected>static_cast<long double>(std::numeric_limits<R>::max()))check(!finiteDevice(actual),"subnormal matrix overflow was hidden");
+            else check(finiteDevice(actual)&&std::fabs(static_cast<long double>(actual)-expected)<=std::max(static_cast<long double>(tiny),expected*4*std::numeric_limits<R>::epsilon()),"gradual-underflow closure scale lost representable value");
+        }
+        for(int i=0;i<4;++i) {
+            const R x=values[i];
+            check(pressure_convex::norm3(x,R(0),R(0))==x,"gradual-underflow norm lost nonzero component");
+            const long double expected=std::sqrt(3.L)*x;
+            const R actual=pressure_convex::norm3(x,x,x);
+            check(std::fabs(static_cast<long double>(actual)-expected)<=std::max(static_cast<long double>(tiny),expected*4*std::numeric_limits<R>::epsilon()),"gradual-underflow diagonal norm lost precision");
+        }
+    } else if(mode=="scaling_boundaries"||mode=="scaling_boundaries_ftz") {
+#if defined(__SSE__)
+        const unsigned savedCsr=_mm_getcsr();
+        if(mode=="scaling_boundaries_ftz")_mm_setcsr(savedCsr|0x8040u);
+#endif
+        const R small=std::numeric_limits<R>::min(),big=std::numeric_limits<R>::max();
+        volatile R inputs[]={0,small,small*R(16),R(.5),R(1),R(2),big/R(2),big};
+        for(int i=0;i<8;++i)for(int j=0;j<8;++j) {
+            const R mass=inputs[i],energy=inputs[j];
+            const long double expected=std::sqrt(2.L*mass*energy);
+            const R actual=pressure_convex::momentumClosureScale(mass,energy);
+            if(expected>static_cast<long double>(big))check(!finiteDevice(actual),"truly overflowing closure scale must remain nonfinite");
+            else if(expected==0)check(actual==0,"zero closure scale must remain zero");
+            else check(finiteDevice(actual)&&std::fabs(static_cast<long double>(actual)/expected-1)<=4*std::numeric_limits<R>::epsilon(),"scaled closure differs from independent wide-exponent reference");
+        }
+        for(R value:{small,small*R(16),R(1),big/R(2),big}) {
+            volatile R input=value;const R x=input;
+            check(pressure_convex::norm3(x,R(0),R(0))==x,"single-axis norm lost a finite normal component");
+            for(int axes=2;axes<=3;++axes) {
+                const long double expected=std::sqrt(static_cast<long double>(axes))*x;
+                const R actual=pressure_convex::norm3(x,-x,axes==3?x:R(0));
+                if(expected>static_cast<long double>(big))check(!finiteDevice(actual),"truly overflowing norm must remain nonfinite");
+                else check(finiteDevice(actual)&&std::fabs(static_cast<long double>(actual)/expected-1)<=4*std::numeric_limits<R>::epsilon(),"scaled norm differs from independent wide-exponent reference");
+            }
+        }
+        check(pressure_convex::norm3(R(0),R(0),R(0))==0,"zero norm changed");
+        const R nan=std::numeric_limits<R>::quiet_NaN(),inf=std::numeric_limits<R>::infinity();
+        for(R bad:{R(-1),nan,inf,-inf})for(R other:{R(0),R(1)}) {
+            check(!finiteDevice(pressure_convex::momentumClosureScale(bad,other)),"invalid mass hidden by zero energy");
+            check(!finiteDevice(pressure_convex::momentumClosureScale(other,bad)),"invalid energy hidden by zero mass");
+        }
+        for(R bad:{nan,inf,-inf}) {
+            check(!finiteDevice(pressure_convex::norm3(bad,R(0),R(0))),"nonfinite x hidden in norm");
+            check(!finiteDevice(pressure_convex::norm3(R(0),bad,R(0))),"nonfinite y hidden in norm");
+            check(!finiteDevice(pressure_convex::norm3(R(0),R(0),bad)),"nonfinite z hidden in norm");
+        }
+#if defined(__SSE__)
+        _mm_setcsr(savedCsr);
+#endif
+    } else if(mode=="target_velocity_square_underflow") {
+        DeviceState s;s.pressureKickFraction=0;
+        const R change=sizeof(R)==4?R(1e-27):R(1e-186);
+        check(std::isnormal(change)&&change*change==0,"fixture requires normal delta with underflowing square");
+        delta(s,change,0,0,0);preparePressurePreflightKernel(&s,1);
+        assertFailure(s,pressureBadFinal,"normal target velocity change escaped the zero dU cap");
+    } else if(mode=="actual_velocity_square_underflow") {
+        for(const std::string route:{"sorted","unsorted","compact","split"}) {
+            DeviceState s;s.momRhoP[0]=1;s.momRhoEP[0]=R(1.5);
+            s.pm[0]=s.pm[1]=R(.5);s.pressureKickFraction=0;
+            const R speed=sizeof(R)==4?R(1e-20):R(1e-170);
+            s.pux[0]=speed*(R(1)+R(32)*std::numeric_limits<R>::epsilon());s.pux[1]=-speed;
+            delta(s,0,0,0,R(.2));compactCopy(s);preview(s,route);
+            const R change=s.pressurePreviewMoments[0]-s.pressurePreviewMoments[6];
+            check(std::isnormal(change),"fixture requires a nonzero normal actual velocity change");
+            check(change*change==0,"fixture must underflow the unscaled squared velocity change");
+            assertFailure(s,pressureUnrealizableParticles,"normal actual velocity change escaped the zero dU cap");
+        }
+    } else if(mode=="closure_scale_product_overflow") {
+        for(const std::string route:{"sorted","unsorted","compact","split"}) {
+            DeviceState s;s.V[0]=sizeof(R)==4?R(1e20):R(1e160);
+            s.momRhoP[0]=s.momRhoEP[0]=1;s.pm[0]=s.pm[1]=s.V[0]/R(2);
+            s.pux[0]=s.pux[1]=0;s.pTheta[0]=s.pTheta[1]=R(2)/R(3);
+            delta(s,0,0,0,0);compactCopy(s);preview(s,route);
+            check(!finiteDevice(R(2)*s.V[0]*s.V[0]),"fixture must overflow the unscaled closure product");
+            check(finiteDevice(sqrt(s.V[0])*sqrt(s.V[0])*sqrt(R(2))),"fixture requires a representable closure scale");
+            check(s.pressureFailure[0]==0,"finite consistent zero-delta state rejected by closure scale overflow");
+            const DeviceState before=s;exerciseWriterGuards(s);
+            check(std::memcmp(&s,&before,sizeof(s))==0,"extreme zero-delta identity changed physical state");
+        }
     } else if(mode.rfind("invalid_count_",0)==0) {
         const R first=mode=="invalid_count_negative"?R(-1):mode=="invalid_count_precision"?R(16777216):R(2147483648.0);
         const int trials=mode=="invalid_count_precision"?2:1;
