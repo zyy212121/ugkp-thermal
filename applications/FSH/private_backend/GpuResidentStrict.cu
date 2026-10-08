@@ -403,6 +403,8 @@ struct DeviceState
     double* epsGPrev = nullptr;
     double* collisionalPressure = nullptr;
     double* pressureKickScale = nullptr;
+    unsigned int* pressureFailure = nullptr;
+    double* pressurePreviewMoments = nullptr;
     double* pressureDeltaMomX = nullptr;
     double* pressureDeltaMomY = nullptr;
     double* pressureDeltaMomZ = nullptr;
@@ -1068,6 +1070,8 @@ void releaseState(DeviceState* s)
     release(s->epsGPrev);
     release(s->collisionalPressure);
     release(s->pressureKickScale);
+    release(s->pressureFailure);
+    release(s->pressurePreviewMoments);
     release(s->pressureDeltaMomX);
     release(s->pressureDeltaMomY);
     release(s->pressureDeltaMomZ);
@@ -1389,6 +1393,8 @@ int allocateFields(DeviceState* s)
     rc |= allocate(s->epsGPrev, nc, "cudaMalloc strict epsGPrev");
     rc |= allocate(s->collisionalPressure, nc, "cudaMalloc strict collisionalPressure");
     rc |= allocate(s->pressureKickScale, nc, "cudaMalloc strict pressureKickScale");
+    rc |= allocate(s->pressureFailure, 3, "cudaMalloc pressure failure diagnostic");
+    rc |= allocate(s->pressurePreviewMoments, 10*nc, "cudaMalloc pressure preview moments");
     rc |= allocate(s->pressureDeltaMomX, nc, "cudaMalloc strict pressureDeltaMomX");
     rc |= allocate(s->pressureDeltaMomY, nc, "cudaMalloc strict pressureDeltaMomY");
     rc |= allocate(s->pressureDeltaMomZ, nc, "cudaMalloc strict pressureDeltaMomZ");
@@ -1827,6 +1833,8 @@ using PressureTime = double;
 
 #include "GpuPressureUnsortedConstrained.cuh"
 
+struct PressureConstraintPolicy { template<bool Compact> __device__ static bool stuck(const DeviceState& s,int i) { return (Compact?s.compactPStuck[i]:s.pStuck[i])!=0; } };
+#include "GpuPressurePreflight.cuh"
 #include "GpuPressureConstrainedLaunch.cuh"
 #include "GpuPressurePipeline.cuh"
 template<bool FullMoments>

@@ -49,7 +49,7 @@ template<class Operation,PressureDirectory Directory,bool CompactParticles>
 __device__ __forceinline__ void runCellPressureProjection(DeviceState* sp,const PressureTime dt)
 {
     DeviceState& s=*sp;const int c=blockIdx.x;
-    if(c>=s.nCells)return;
+    if(c>=s.nCells || s.pressureFailure[0] || pressureDeltaIsZero(s,c))return;
     __shared__ typename Operation::Shared shared;
     PressureParameters q;
     Operation::template prepare<Directory>(s,c,dt,shared,q);
