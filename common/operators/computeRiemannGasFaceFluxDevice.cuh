@@ -2,7 +2,7 @@
 #ifndef GPU_GAS_WALL_EXPOSURE
 #define GPU_GAS_WALL_EXPOSURE(s, f, neighbour, kind) GPU_OPERATOR_R(1.0)
 #endif
-template<bool IncludeTurbulence>
+template<bool IncludeTurbulence, bool MassOnly = false>
 __device__ bool computeRiemannGasFaceFluxDevice
 (
     const DeviceState& s,
@@ -45,6 +45,16 @@ __device__ bool computeRiemannGasFaceFluxDevice
     if (boundaryKind == 3 || boundaryKind == 4)
     {
         return false;
+    }
+
+    // Courant's SST predictor needs the same current Riemann mass flux,
+    // without evaluating transport or energy terms that cannot alter mass.
+    if constexpr (MassOnly)
+    {
+        if (boundaryKind == 1 || boundaryKind == 2)
+        {
+            return true; // Impermeable boundaries have exactly zero mass flux.
+        }
     }
 
     const GPU_OPERATOR_REAL area = clampMin(s.magSf[f], OfSmall);
@@ -256,6 +266,11 @@ __device__ bool computeRiemannGasFaceFluxDevice
             return false;
         }
         massFlux = result.flux[0];
+        if constexpr (MassOnly)
+        {
+            massFluxArea = massFlux*area;
+            return true;
+        }
         momentumFluxX = result.flux[1];
         momentumFluxY = result.flux[2];
         momentumFluxZ = result.flux[3];
@@ -572,9 +587,18 @@ __device__ bool computeRiemannGasFaceFluxDevice
               ? (boundaryUy - s.Uy[own])*s.deltaCoeffs[f] : GPU_OPERATOR_R(0.0);
             const GPU_OPERATOR_REAL targetNormalGradUz = velocityFixed
               ? (boundaryUz - s.Uz[own])*s.deltaCoeffs[f] : GPU_OPERATOR_R(0.0);
-            (void)currentNormalGradUx;
-            (void)currentNormalGradUy;
-            (void)currentNormalGradUz;
+            // Component rows store grad(U_i). Replace only their normal
+            // derivative, as gaussGrad::correctBoundaryConditions does, so
+            // transpose and deviatoric traction use the same boundary snGrad.
+            gradUxX += nx*(targetNormalGradUx - currentNormalGradUx);
+            gradUxY += ny*(targetNormalGradUx - currentNormalGradUx);
+            gradUxZ += nz*(targetNormalGradUx - currentNormalGradUx);
+            gradUyX += nx*(targetNormalGradUy - currentNormalGradUy);
+            gradUyY += ny*(targetNormalGradUy - currentNormalGradUy);
+            gradUyZ += nz*(targetNormalGradUy - currentNormalGradUy);
+            gradUzX += nx*(targetNormalGradUz - currentNormalGradUz);
+            gradUzY += ny*(targetNormalGradUz - currentNormalGradUz);
+            gradUzZ += nz*(targetNormalGradUz - currentNormalGradUz);
             compactSnGradU =
                 ugkptransport::Vector3
                 {
