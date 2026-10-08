@@ -23,9 +23,10 @@ __global__ void preparePressurePreflightKernel(DeviceState* sp,PressureTime dt)
     const PressureReal i1=pressureKickInternalEnergy(rho,px+d[0],py+d[1],pz+d[2],e+d[3]);
     const PressureReal floor=fmin(i0,PressureReal(1.5)*rho*s.thetaMin);
     const PressureReal maxDU=s.pressureKickFraction*s.cellLength[c]/dt;
-    const PressureReal du=sqrt(sqr3(d[0],d[1],d[2]))/rho;
+    const PressureReal du=pressure_convex::norm3(d[0],d[1],d[2])/rho;
     if(!finiteDevice(d[0])||!finiteDevice(d[1])||!finiteDevice(d[2])||!finiteDevice(d[3])
-       ||!finiteDevice(i1)||i1<floor||!finiteDevice(du)||du>maxDU)
+       ||!finiteDevice(i1)||i1<floor||!finiteDevice(du)||du>maxDU
+       ||(maxDU==0&&(d[0]!=0||d[1]!=0||d[2]!=0)))
         recordPressureFailure(s,pressureBadFinal,c);
 }
 __device__ inline PressureParameters pressurePreviewParameters(DeviceState& s,int c,bool unsorted)
@@ -125,10 +126,12 @@ __global__ void auditPressurePreviewKernel(DeviceState* sp,PressureTime dt)
     const PressureReal i0=pressureKickInternalEnergy(s.momRhoP[c],s.momRhoUPx[c],s.momRhoUPy[c],s.momRhoUPz[c],s.momRhoEP[c]);
     const PressureReal floor=fmin(i0,PressureReal(1.5)*s.momRhoP[c]*s.thetaMin);
     const PressureReal internal=pressureKickInternalEnergy(rho,px,py,pz,e);
-    const PressureReal du=sqrt(sqr3(a[0]/a[4]-a[6]/a[4],a[1]/a[4]-a[7]/a[4],a[2]/a[4]-a[8]/a[4]));
+    const PressureReal dux=a[0]/a[4]-a[6]/a[4],duy=a[1]/a[4]-a[7]/a[4],duz=a[2]/a[4]-a[8]/a[4];
+    const PressureReal du=pressure_convex::norm3(dux,duy,duz);
     const PressureReal maxDU=s.pressureKickFraction*s.cellLength[c]/dt;
     if(!finiteDevice(rho)||rho<=0||!finiteDevice(px)||!finiteDevice(py)||!finiteDevice(pz)||!finiteDevice(e)
        ||(!pressureDeltaIsZero(s,c)&&(!finiteDevice(internal)||internal<floor||!finiteDevice(du)||du>maxDU
+          ||(maxDU==0&&(dux!=0||duy!=0||duz!=0))
           ||!finiteDevice(px/rho)||!finiteDevice(py/rho)||!finiteDevice(pz/rho)
           ||!finiteDevice(internal/(PressureReal(1.5)*rho))||!finiteDevice(rho/s.rhoSolid))))
     {recordPressureFailure(s,pressureUnrealizableParticles,c);return;}
@@ -145,10 +148,10 @@ __global__ void auditPressurePreviewKernel(DeviceState* sp,PressureTime dt)
     {recordPressureFailure(s,pressureUnrealizableParticles,c);return;}
     const PressureReal mass=s.momRhoP[c]*s.V[c];
     const PressureReal energy=target[3]*s.V[c];
-    const PressureReal momentumScale=sqrt(PressureReal(2)*mass*fmax(energy,PressureReal(0)));
+    const PressureReal momentumScale=pressure_convex::momentumClosureScale(mass,energy);
     if(!finiteDevice(momentumScale)){recordPressureFailure(s,pressureUnrealizableParticles,c);return;}
     const PressureReal initial[4]={s.momRhoUPx[c],s.momRhoUPy[c],s.momRhoUPz[c],s.momRhoEP[c]};
-    const PressureReal initialMomentumScale=sqrt(PressureReal(2)*mass*initial[3]*s.V[c]);
+    const PressureReal initialMomentumScale=pressure_convex::momentumClosureScale(mass,initial[3]*s.V[c]);
     if(!finiteDevice(initialMomentumScale)){recordPressureFailure(s,pressureUnrealizableParticles,c);return;}
     for(int k=0;k<4;++k)
     {

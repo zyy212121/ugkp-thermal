@@ -34,6 +34,29 @@ template<class Real> PRESSURE_CONVEX_HD Real maxComponent(Real x,Real y,Real z) 
     return maximum(absolute(x),maximum(absolute(y),absolute(z)));
 }
 
+// Scale before squaring: a normal nonzero component must not disappear when
+// its square underflows, and a representable norm must not overflow early.
+template<class Real> PRESSURE_CONVEX_HD Real norm3(Real x,Real y,Real z) {
+    if(!finite(x)||!finite(y)||!finite(z)) return root(Real(-1));
+    const Real m=maxComponent(x,y,z);
+    if(m==Real(0)) return Real(0);
+    x/=m;y/=m;z/=m;
+    return m*root(fused(x,x,fused(y,y,z*z)));
+}
+
+// sqrt(2*mass*energy), without forming the possibly overflowing/underflowing
+// product. Mantissas stay in [0.5,4); only the final result is rescaled.
+template<class Real> PRESSURE_CONVEX_HD Real momentumClosureScale(Real mass,Real energy) {
+    if(!finite(mass)||!finite(energy)||mass<Real(0)||energy<Real(0)) return root(Real(-1));
+    if(mass==Real(0)||energy==Real(0)) return Real(0);
+    int me=0,ee=0;
+    const Real mm=fraction(mass,&me),em=fraction(energy,&ee);
+    int e=me+ee;
+    Real product=Real(2)*mm*em;
+    if(e%2!=0) { product*=Real(2); --e; }
+    return power(root(product),e/2);
+}
+
 // Squaring the raw momentum or multiplying rho by energy may overflow even
 // when the final kinetic energy is finite. Keep their binary exponents apart.
 template<class Real> PRESSURE_CONVEX_HD Real kinetic(Real rho,Real px,Real py,Real pz) {
