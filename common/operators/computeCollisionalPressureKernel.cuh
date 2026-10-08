@@ -29,14 +29,6 @@ __global__ void computeCollisionalPressureFaceFluxKernel(DeviceState* sp)
 
     if (own >= 0 && own < s.nCells && nei >= 0 && nei < s.nCells)
     {
-        if (!finiteDevice(s.faceWeight[f]))
-        {
-            s.solidPressurePhiMomX[f]=s.faceWeight[f];
-            s.solidPressurePhiMomY[f]=s.faceWeight[f];
-            s.solidPressurePhiMomZ[f]=s.faceWeight[f];
-            s.solidPressurePhiEnergy[f]=s.faceWeight[f];
-            return;
-        }
         const GPU_OPERATOR_REAL w = clampRange(finiteOr(s.faceWeight[f], GPU_OPERATOR_R(0.5)), GPU_OPERATOR_R(0.0), GPU_OPERATOR_R(1.0));
         const GPU_OPERATOR_REAL rhoOwn =
             clampMin(finiteOr(s.momRhoP[own], GPU_OPERATOR_R(0.0)), s.epsSMin*s.rhoSolid);
@@ -72,9 +64,9 @@ __global__ void computeCollisionalPressureFaceFluxKernel(DeviceState* sp)
     const GPU_OPERATOR_REAL fx = pFace*s.Sfx[f];
     const GPU_OPERATOR_REAL fy = pFace*s.Sfy[f];
     const GPU_OPERATOR_REAL fz = pFace*s.Sfz[f];
-    s.solidPressurePhiMomX[f] = fx;
-    s.solidPressurePhiMomY[f] = fy;
-    s.solidPressurePhiMomZ[f] = fz;
+    s.solidPressurePhiMomX[f] = finiteOr(fx, GPU_OPERATOR_R(0.0));
+    s.solidPressurePhiMomY[f] = finiteOr(fy, GPU_OPERATOR_R(0.0));
+    s.solidPressurePhiMomZ[f] = finiteOr(fz, GPU_OPERATOR_R(0.0));
     s.solidPressurePhiEnergy[f] =
-        ufx*fx + ufy*fy + ufz*fz;
+        finiteOr(ufx*fx + ufy*fy + ufz*fz, GPU_OPERATOR_R(0.0));
 }
