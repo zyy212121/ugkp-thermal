@@ -109,9 +109,17 @@ __global__ void applyGasVolumeFractionSourceKernel
     const GPU_OPERATOR_REAL internalEnergyFloorCandidate =
         mgCandidate*s.Rgas*s.TgasMin
        /clampMin(s.gammaGas - GPU_OPERATOR_R(1.0), OfSmall);
+    const GPU_OPERATOR_REAL rhoKCandidate = s.sstConfigured != 0
+      ? s.rhoK[c]*massScale : GPU_OPERATOR_R(0.0);
+    const GPU_OPERATOR_REAL rhoOmegaCandidate = s.sstConfigured != 0
+      ? s.rhoOmega[c]*massScale : GPU_OPERATOR_R(0.0);
     if
     (
-        !finiteDevice(cepsG)
+        !finiteDevice(rhoKCandidate)
+     || !finiteDevice(rhoOmegaCandidate)
+     || rhoKCandidate < GPU_OPERATOR_R(0.0)
+     || rhoOmegaCandidate < GPU_OPERATOR_R(0.0)
+     || !finiteDevice(cepsG)
      || !finiteDevice(massScale)
      || !finiteDevice(mgCandidate)
      || !finiteDevice(momGXCandidate)
@@ -129,6 +137,13 @@ __global__ void applyGasVolumeFractionSourceKernel
         return;
     }
 
+    if (s.sstConfigured != 0)
+    {
+        // rho*k and rho*omega carry the same phase-volume weight as rho.
+        // This is a physical source, distinct from numerical density repair.
+        s.rhoK[c] = rhoKCandidate;
+        s.rhoOmega[c] = rhoOmegaCandidate;
+    }
     s.rho[c] = mgCandidate;
     s.rhoUx[c] = momGXCandidate;
     s.rhoUy[c] = momGYCandidate;

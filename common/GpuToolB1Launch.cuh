@@ -20,10 +20,6 @@ int launchToolB1CellBundle(DeviceState* s, const int block)
         computeGasHllcAdcSensorKernel<<<grid, block>>>(s->deviceState);
     }
     computeGasPrimitiveGradientsKernel<<<grid, block>>>(s->deviceState);
-    if (s->hostTurbulenceModel == 3)
-    {
-        computeSstGradientsKernel<<<grid, block>>>(s->deviceState);
-    }
     computeGasGradientLimiterKernel<<<grid, block>>>(s->deviceState);
     computeGasEddyViscosityKernel<<<grid, block>>>(s->deviceState);
     const cudaError_t err = cudaGetLastError();
@@ -79,6 +75,8 @@ int launchToolB1FaceBundle
     }
     if (s->hostTurbulenceModel == 3)
     {
+        const int cellGrid = (s->nCells + block - 1)/block;
+        computeSstGradientsKernel<<<cellGrid, block>>>(s->deviceState);
         computeSstFaceFluxKernel<<<grid, block>>>(s->deviceState);
         if (s->hasPeriodicFaces != 0)
         {

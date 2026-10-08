@@ -1,7 +1,11 @@
 // Exports gas primitive-gradient kernels and the SST wall-distance/viscosity helper used by them.
 #pragma once
 // One operator implementation; scalar/time adapters are compile-time only.
-__global__ void computeGasPrimitiveGradientsKernel(DeviceState* sp)
+__global__ void computeGasPrimitiveGradientsKernel
+(
+    DeviceState* sp,
+    const bool refreshSstCourantSensor = false
+)
 {
     DeviceState& s = *sp;
     const int c = blockIdx.x*blockDim.x + threadIdx.x;
@@ -16,6 +20,11 @@ __global__ void computeGasPrimitiveGradientsKernel(DeviceState* sp)
     GPU_OPERATOR_REAL guzx = GPU_OPERATOR_R(0.0), guzy = GPU_OPERATOR_R(0.0), guzz = GPU_OPERATOR_R(0.0);
     GPU_OPERATOR_REAL gpx = GPU_OPERATOR_R(0.0), gpy = GPU_OPERATOR_R(0.0), gpz = GPU_OPERATOR_R(0.0);
     GPU_OPERATOR_REAL gtx = GPU_OPERATOR_R(0.0), gty = GPU_OPERATOR_R(0.0), gtz = GPU_OPERATOR_R(0.0);
+    const bool refreshSensor = refreshSstCourantSensor
+      && s.sstConfigured != 0 && s.gasFluxScheme == 7;
+    const GPU_OPERATOR_REAL centrePressure = refreshSensor
+      ? clampMin(s.p[c], OfSmall) : GPU_OPERATOR_R(1.0);
+    GPU_OPERATOR_REAL sensor = GPU_OPERATOR_R(1.0);
     const int start = s.cellPlaneStart[c];
     const int count = s.cellPlaneCount[c];
     for (int i = 0; i < count; ++i)
@@ -24,6 +33,41 @@ __global__ void computeGasPrimitiveGradientsKernel(DeviceState* sp)
         if (f < 0 || f >= s.nFaces)
         {
             continue;
+        }
+        if (refreshSensor)
+        {
+            // Same pressure-ratio stencil as computeGasHllcAdcSensorKernel,
+            // folded into this existing traversal only during Courant checks.
+            GPU_OPERATOR_REAL otherPressure = centrePressure;
+            if (f < s.nInternalFaces || isPeriodicFace(s, f))
+            {
+                const int other = oppositeCellAcrossFace
+                (
+                    c, s.faceOwner[f], s.faceNeighbour[f]
+                );
+                if (other >= 0 && other < s.nCells)
+                {
+                    otherPressure = clampMin(s.p[other], OfSmall);
+                }
+            }
+            else if (s.riemannBoundaryKind[f] == 0)
+            {
+                const GasPrimDevice centre = makeGasPrimDevice
+                (
+                    s.rho[c], s.Ux[c], s.Uy[c], s.Uz[c], centrePressure,
+                    s.Rgas, s.rhoMin, s.TgasMin
+                );
+                otherPressure = clampMin
+                (
+                    riemannBoundaryState(s, f, centre).p, OfSmall
+                );
+            }
+            const GPU_OPERATOR_REAL ratio = clampRange
+            (
+                fmin(otherPressure/centrePressure, centrePressure/otherPressure),
+                GPU_OPERATOR_R(0.0), GPU_OPERATOR_R(1.0)
+            );
+            sensor = fmin(sensor, ratio*ratio*ratio);
         }
         const GPU_OPERATOR_REAL sign = s.faceOwner[f] == c ? GPU_OPERATOR_R(1.0) : -GPU_OPERATOR_R(1.0);
         const GPU_OPERATOR_REAL sx = sign*s.Sfx[f];
@@ -37,6 +81,12 @@ __global__ void computeGasPrimitiveGradientsKernel(DeviceState* sp)
         guzx += qf.uz*sx; guzy += qf.uz*sy; guzz += qf.uz*sz;
         gpx += qf.p*sx; gpy += qf.p*sy; gpz += qf.p*sz;
         gtx += qf.T*sx; gty += qf.T*sy; gtz += qf.T*sz;
+    }
+    if (refreshSensor)
+    {
+        s.gasHllcAdcSensor[c] = finiteDevice(sensor)
+          ? clampRange(sensor, GPU_OPERATOR_R(0.0), GPU_OPERATOR_R(1.0))
+          : GPU_OPERATOR_R(0.0);
     }
     const GPU_OPERATOR_REAL invV = GPU_OPERATOR_R(1.0)/clampMin(s.V[c], OfSmall);
     s.gradRhoX[c] = grx*invV; s.gradRhoY[c] = gry*invV; s.gradRhoZ[c] = grz*invV;
@@ -75,7 +125,7 @@ __device__ GPU_OPERATOR_REAL sstDynamicOmegaWallValue
     const GPU_OPERATOR_REAL duy = s.Uy[owner] - wallUy;
     const GPU_OPERATOR_REAL duz = s.Uz[owner] - wallUz;
     const GPU_OPERATOR_REAL y = clampMin(s.sstWallDistance[owner], OfVSmall);
-    const GPU_OPERATOR_REAL magGradU = sqrt(dux*dux + duy*duy + duz*duz)/y;
+    const GPU_OPERATOR_REAL magGradU = sqrt(dux*dux + duy*duy + duz*duz)*s.deltaCoeffs[f];
     return ugkpwall::omegaWallFunctionState
     (
         s.k[owner],
@@ -123,13 +173,39 @@ __device__ GPU_OPERATOR_REAL sstBoundaryValue
     }
     if (mode == 2)
     {
-        const GPU_OPERATOR_REAL outwardMassDirection =
-            s.Ux[owner]*s.Sfx[f]
-          + s.Uy[owner]*s.Sfy[f]
-          + s.Uz[owner]*s.Sfz[f];
-        return outwardMassDirection >= GPU_OPERATOR_R(0.0) ? centre : prescribed;
+        // inletOutlet uses the same-stage face flux, including pressure-driven
+        // inflow opposing the owner velocity. Zero flux is the outlet branch.
+        return s.gasPhiRho[f] >= GPU_OPERATOR_R(0.0) ? centre : prescribed;
     }
     return centre;
+}
+
+__device__ GPU_OPERATOR_REAL sstFaceDensity(const DeviceState& s, const int f)
+{
+    const int own = s.faceOwner[f];
+    const int nei = coupledFaceNeighbour(s, f);
+    if (nei >= 0)
+    {
+        const GPU_OPERATOR_REAL weight = clampRange
+        (
+            s.faceWeight[f], GPU_OPERATOR_R(0.0), GPU_OPERATOR_R(1.0)
+        );
+        return clampMin
+        (
+            weight*s.rho[own] + (GPU_OPERATOR_R(1.0) - weight)*s.rho[nei],
+            s.rhoMin
+        );
+    }
+    return clampMin(riemannFacePrimitiveForGradient(s, own, f).rho, s.rhoMin);
+}
+
+// Courant owns unscaled Riemann mass flux. Apply the same periodic averaging
+// algebra on read; the advance path already stores finalized antisymmetric phi.
+__device__ GPU_OPERATOR_REAL sstPredictorMassFlux(const DeviceState& s, const int f)
+{
+    return isPeriodicFace(s, f)
+      ? GPU_OPERATOR_R(0.5)*(s.gasPhiRho[f] - s.gasPhiRho[s.facePeriodicPair[f]])
+      : s.gasPhiRho[f];
 }
 
 __device__ void applySstWallFunctionStateCell(DeviceState& s, const int c)
@@ -215,10 +291,8 @@ __global__ void initialiseSstConservativeStateKernel(DeviceState* sp)
     s.nut[c] = GPU_OPERATOR_R(0.0);
 }
 
-__global__ void recoverSstPrimitivesKernel(DeviceState* sp)
+__device__ void recoverSstPrimitiveCell(DeviceState& s, const int c)
 {
-    DeviceState& s = *sp;
-    const int c = blockIdx.x*blockDim.x + threadIdx.x;
     if (c >= s.nCells || s.sstConfigured == 0)
     {
         return;
@@ -239,4 +313,9 @@ __global__ void recoverSstPrimitivesKernel(DeviceState* sp)
         // This is an explicit stage constraint, not an implicit OF10 solve.
         applySstWallFunctionStateCell(s, c);
     }
+}
+
+__global__ void recoverSstPrimitivesKernel(DeviceState* sp)
+{
+    recoverSstPrimitiveCell(*sp, blockIdx.x*blockDim.x + threadIdx.x);
 }

@@ -64,4 +64,27 @@ __global__ void computeSstGradientsKernel(DeviceState* sp)
     s.gradOmegaX[c] = gox*invV;
     s.gradOmegaY[c] = goy*invV;
     s.gradOmegaZ[c] = goz*invV;
+    // F1/CD follow these same-stage SST gradients; F2/nut remain upstream
+    // of the gas Riemann flux and depend only on the gas velocity gradient.
+    const GPU_OPERATOR_REAL nu = s.gasMu/clampMin(s.rho[c], s.rhoMin);
+        const GPU_OPERATOR_REAL gradDot =
+            s.gradKX[c]*s.gradOmegaX[c]
+          + s.gradKY[c]*s.gradOmegaY[c]
+          + s.gradKZ[c]*s.gradOmegaZ[c];
+        const GPU_OPERATOR_REAL cd = ugkwp::sstCrossDiffusion
+        (
+            s.omega[c],
+            gradDot,
+            s.sstCoefficients
+        );
+        const GPU_OPERATOR_REAL f1 = ugkwp::sstF1
+        (
+            s.k[c],
+            s.omega[c],
+            nu,
+            s.sstWallDistance[c],
+            cd,
+            s.sstCoefficients
+        );
+        s.sstF1[c] = clampRange(finiteOr(f1, GPU_OPERATOR_R(1.0)), GPU_OPERATOR_R(0.0), GPU_OPERATOR_R(1.0));
 }

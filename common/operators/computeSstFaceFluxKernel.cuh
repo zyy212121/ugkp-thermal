@@ -99,11 +99,12 @@ __global__ void computeSstFaceFluxKernel(DeviceState* sp)
             const GPU_OPERATOR_REAL dux = s.Ux[own] - wallUx;
             const GPU_OPERATOR_REAL duy = s.Uy[own] - wallUy;
             const GPU_OPERATOR_REAL duz = s.Uz[own] - wallUz;
-            nutFace = ugkpwall::spaldingWallState
+            nutFace = ugkpwall::spaldingWallStateFromNormalGradient
             (
                 sqrt(dux*dux + duy*duy + duz*duz),
                 s.sstWallDistance[own],
                 nuFace,
+                sqrt(dux*dux + duy*duy + duz*duz)*s.deltaCoeffs[f],
                 s.sstWallKappa,
                 s.sstWallE
             ).nut;
@@ -230,17 +231,12 @@ __device__ GPU_OPERATOR_REAL sstKProductionForCell
     const GPU_OPERATOR_REAL gByNu
 )
 {
-    GPU_OPERATOR_REAL production = ugkwp::sstKProduction
-    (
-        s.k[c],
-        s.omega[c],
-        s.nut[c],
-        gByNu,
-        s.sstCoefficients
-    );
+    const GPU_OPERATOR_REAL production = s.nut[c]*gByNu;
+    const GPU_OPERATOR_REAL productionLimit =
+        s.sstCoefficients.c1*s.sstCoefficients.betaStar*s.k[c]*s.omega[c];
     if (s.sstWallTreatment != 1)
     {
-        return production;
+        return fmin(production, productionLimit);
     }
 
     GPU_OPERATOR_REAL wallProductionSum = GPU_OPERATOR_R(0.0);
@@ -269,7 +265,7 @@ __device__ GPU_OPERATOR_REAL sstKProductionForCell
         const GPU_OPERATOR_REAL duy = s.Uy[c] - wallUy;
         const GPU_OPERATOR_REAL duz = s.Uz[c] - wallUz;
         const GPU_OPERATOR_REAL y = clampMin(s.sstWallDistance[c], OfVSmall);
-        const GPU_OPERATOR_REAL magGradU = sqrt(dux*dux + duy*duy + duz*duz)/y;
+        const GPU_OPERATOR_REAL magGradU = sqrt(dux*dux + duy*duy + duz*duz)*s.deltaCoeffs[f];
         wallProductionSum += ugkpwall::omegaWallFunctionState
         (
             s.k[c],
@@ -284,9 +280,60 @@ __device__ GPU_OPERATOR_REAL sstKProductionForCell
         ).production;
         ++wallCount;
     }
-    return wallCount > 0
+    const GPU_OPERATOR_REAL wallBlendedProduction = wallCount > 0
       ? wallProductionSum/GPU_OPERATOR_REAL(wallCount)
       : production;
+    // OF applies Pk after the wall function has updated/averaged G.
+    return fmin
+    (
+        wallBlendedProduction,
+        productionLimit
+    );
+}
+
+__device__ void sstSourcesForCell
+(
+    const DeviceState& s,
+    const int c,
+    const GPU_OPERATOR_REAL divU,
+    GPU_OPERATOR_REAL& sourceK,
+    GPU_OPERATOR_REAL& sourceOmega
+)
+{
+    GPU_OPERATOR_REAL traceGradU = GPU_OPERATOR_R(0.0);
+    GPU_OPERATOR_REAL s2 = GPU_OPERATOR_R(0.0);
+    GPU_OPERATOR_REAL gByNu = GPU_OPERATOR_R(0.0);
+    sstVelocityInvariants(s, c, traceGradU, s2, gByNu);
+    const GPU_OPERATOR_REAL gradDot =
+        s.gradKX[c]*s.gradOmegaX[c]
+      + s.gradKY[c]*s.gradOmegaY[c]
+      + s.gradKZ[c]*s.gradOmegaZ[c];
+    const GPU_OPERATOR_REAL cd = ugkwp::sstCrossDiffusion
+    (
+        s.omega[c],
+        gradDot,
+        s.sstCoefficients
+    );
+    const GPU_OPERATOR_REAL kProduction = sstKProductionForCell(s, c, gByNu);
+    sourceK = s.rho[c]*
+    (
+        kProduction
+      - (GPU_OPERATOR_R(2.0)/GPU_OPERATOR_R(3.0))*divU*s.k[c]
+      - s.sstCoefficients.betaStar*s.k[c]*s.omega[c]
+    );
+    sourceOmega = ugkwp::sstOmegaSource
+    (
+        s.rho[c],
+        s.k[c],
+        s.omega[c],
+        divU,
+        gByNu,
+        s2,
+        s.sstF1[c],
+        s.sstF2[c],
+        cd,
+        s.sstCoefficients
+    );
 }
 
 __global__ void applySstFluxAndSourceKernel
@@ -305,6 +352,7 @@ __global__ void applySstFluxAndSourceKernel
     bool constrainedOmega = false;
     GPU_OPERATOR_REAL fluxK = GPU_OPERATOR_R(0.0);
     GPU_OPERATOR_REAL fluxOmega = GPU_OPERATOR_R(0.0);
+    GPU_OPERATOR_REAL volumeFlux = GPU_OPERATOR_R(0.0);
     const int start = s.cellPlaneStart[c];
     const int count = s.cellPlaneCount[c];
     for (int i = 0; i < count; ++i)
@@ -317,6 +365,9 @@ __global__ void applySstFluxAndSourceKernel
         const GPU_OPERATOR_REAL sign = s.faceOwner[f] == c ? -GPU_OPERATOR_R(1.0) : GPU_OPERATOR_R(1.0);
         fluxK += sign*s.sstPhiRhoK[f];
         fluxOmega += sign*s.sstPhiRhoOmega[f];
+        // Static mesh: absolute volumetric phi = finalized mass phi / rho_f.
+        // The flux sum is outward, opposite the conservative RHS sign.
+        volumeFlux -= sign*s.gasPhiRho[f]/sstFaceDensity(s, f);
         constrainedOmega = constrainedOmega ||
         (
             (s.sstWallTreatment == 0 || s.sstWallTreatment == 1)
@@ -325,40 +376,9 @@ __global__ void applySstFluxAndSourceKernel
         );
     }
 
-    GPU_OPERATOR_REAL divU = GPU_OPERATOR_R(0.0);
-    GPU_OPERATOR_REAL s2 = GPU_OPERATOR_R(0.0);
-    GPU_OPERATOR_REAL gByNu = GPU_OPERATOR_R(0.0);
-    sstVelocityInvariants(s, c, divU, s2, gByNu);
-    const GPU_OPERATOR_REAL gradDot =
-        s.gradKX[c]*s.gradOmegaX[c]
-      + s.gradKY[c]*s.gradOmegaY[c]
-      + s.gradKZ[c]*s.gradOmegaZ[c];
-    const GPU_OPERATOR_REAL cd = ugkwp::sstCrossDiffusion
-    (
-        s.omega[c],
-        gradDot,
-        s.sstCoefficients
-    );
-    const GPU_OPERATOR_REAL kProduction = sstKProductionForCell(s, c, gByNu);
-    const GPU_OPERATOR_REAL sourceK = s.rho[c]*
-    (
-        kProduction
-      - (GPU_OPERATOR_R(2.0)/GPU_OPERATOR_R(3.0))*divU*s.k[c]
-      - s.sstCoefficients.betaStar*s.k[c]*s.omega[c]
-    );
-    const GPU_OPERATOR_REAL sourceOmega = ugkwp::sstOmegaSource
-    (
-        s.rho[c],
-        s.k[c],
-        s.omega[c],
-        divU,
-        gByNu,
-        s2,
-        s.sstF1[c],
-        s.sstF2[c],
-        cd,
-        s.sstCoefficients
-    );
+    const GPU_OPERATOR_REAL divU = volumeFlux/clampMin(s.V[c], OfSmall);
+    GPU_OPERATOR_REAL sourceK, sourceOmega;
+    sstSourcesForCell(s, c, divU, sourceK, sourceOmega);
     const GPU_OPERATOR_REAL invV = GPU_OPERATOR_R(1.0)/clampMin(s.V[c], OfSmall);
     const GPU_OPERATOR_REAL deltaRhoK = dt*(fluxK*invV + sourceK);
     const GPU_OPERATOR_REAL deltaRhoOmega = dt*(fluxOmega*invV + sourceOmega);
@@ -395,10 +415,24 @@ __global__ void computeGasCourantFieldKernel(DeviceState* sp, const GPU_OPERATOR
         return;
     }
 
+    // Courant-only scratch lifetime: energy-flux storage holds amaxSf until
+    // computeGasConvectiveCourantByCellKernel consumes it. The next gas face
+    // flux overwrites all gasPhi arrays before any gas conservative update.
+    // Keep mass separate: SST gradients/source prediction need signed phi.
+    s.gasPhiRho[f] = GPU_OPERATOR_R(0.0);
+    if (s.sstConfigured != 0)
+    {
+        GPU_OPERATOR_REAL mass, mx, my, mz, energy;
+        computeRiemannGasFaceFluxDevice<false, true>
+        (
+            s, f, mass, mx, my, mz, energy
+        );
+        s.gasPhiRho[f] = mass;
+    }
     const int own = s.faceOwner[f];
     if (own < 0 || own >= s.nCells)
     {
-        s.gasPhiRho[f] = OfGreat;
+        s.gasPhiRhoE[f] = OfGreat;
         return;
     }
     if
@@ -412,7 +446,7 @@ __global__ void computeGasCourantFieldKernel(DeviceState* sp, const GPU_OPERATOR
         )
     )
     {
-        s.gasPhiRho[f] = GPU_OPERATOR_R(0.0);
+        s.gasPhiRhoE[f] = GPU_OPERATOR_R(0.0);
         return;
     }
 
@@ -437,7 +471,7 @@ __global__ void computeGasCourantFieldKernel(DeviceState* sp, const GPU_OPERATOR
         const int nei = s.faceNeighbour[f];
         if (nei < 0 || nei >= s.nCells)
         {
-            s.gasPhiRho[f] = OfGreat;
+            s.gasPhiRhoE[f] = OfGreat;
             return;
         }
         right = makeGasPrimDevice
@@ -475,7 +509,7 @@ __global__ void computeGasCourantFieldKernel(DeviceState* sp, const GPU_OPERATOR
     );
     const GPU_OPERATOR_REAL amaxSf = spectralRadius*area;
 
-    s.gasPhiRho[f] = finiteDevice(amaxSf) ? amaxSf : OfGreat;
+    s.gasPhiRhoE[f] = finiteDevice(amaxSf) ? amaxSf : OfGreat;
 }
 
 __global__ void computeGasConvectiveCourantByCellKernel
@@ -501,7 +535,7 @@ __global__ void computeGasConvectiveCourantByCellKernel
         {
             continue;
         }
-        sumAmaxSf += finiteOr(s.gasPhiRho[f], OfGreat);
+        sumAmaxSf += finiteOr(s.gasPhiRhoE[f], OfGreat);
     }
 
                                                      
@@ -573,6 +607,12 @@ __global__ void computeGasDiffusionNumberKernel
       ? equivalentCo : OfGreat;
 }
 
+// Current-state timestep estimate: the predictor uses fresh pre-positivity
+// Riemann mass flux, while evolution uses the finalized stage flux. Summing
+// negative and positive outward volume flux separately bounds divU after any
+// face positivity factor in [0,1], without cancellation between face signs.
+// The shared source at divU=0 supplies the affine intercept. This fixed-state
+// bound does not cover changes to gradients/F1 or later RK states.
 __global__ void computeSstStabilityNumberKernel
 (
     DeviceState* sp,
@@ -588,6 +628,9 @@ __global__ void computeSstStabilityNumberKernel
     }
 
     GPU_OPERATOR_REAL diffusionRate = GPU_OPERATOR_R(0.0);
+    GPU_OPERATOR_REAL minimumVolumeFlux = GPU_OPERATOR_R(0.0);
+    GPU_OPERATOR_REAL maximumVolumeFlux = GPU_OPERATOR_R(0.0);
+    bool constrainedOmega = false;
     const int start = s.cellPlaneStart[c];
     const int count = s.cellPlaneCount[c];
     for (int i = 0; i < count; ++i)
@@ -604,6 +647,17 @@ __global__ void computeSstStabilityNumberKernel
         {
             continue;
         }
+        const GPU_OPERATOR_REAL outwardSign = s.faceOwner[f] == c
+          ? GPU_OPERATOR_R(1.0) : -GPU_OPERATOR_R(1.0);
+        const GPU_OPERATOR_REAL outwardVolumeFlux =
+            outwardSign*sstPredictorMassFlux(s, f)/sstFaceDensity(s, f);
+        minimumVolumeFlux += fmin(outwardVolumeFlux, GPU_OPERATOR_R(0.0));
+        maximumVolumeFlux += fmax(outwardVolumeFlux, GPU_OPERATOR_R(0.0));
+        constrainedOmega = constrainedOmega ||
+        (
+            (s.sstWallTreatment == 0 || s.sstWallTreatment == 1)
+         && f >= s.nInternalFaces && s.riemannBoundaryKind[f] == 2
+        );
         const int other = (f < s.nInternalFaces || isPeriodicFace(s, f))
           ? (s.faceOwner[f] == c ? s.faceNeighbour[f] : s.faceOwner[f])
           : -1;
@@ -634,11 +688,12 @@ __global__ void computeSstStabilityNumberKernel
                 const GPU_OPERATOR_REAL dux = s.Ux[c] - wallUx;
                 const GPU_OPERATOR_REAL duy = s.Uy[c] - wallUy;
                 const GPU_OPERATOR_REAL duz = s.Uz[c] - wallUz;
-                nutFace = ugkpwall::spaldingWallState
+                nutFace = ugkpwall::spaldingWallStateFromNormalGradient
                 (
                     sqrt(dux*dux + duy*duy + duz*duz),
                     s.sstWallDistance[c],
                     nu,
+                    sqrt(dux*dux + duy*duy + duz*duz)*s.deltaCoeffs[f],
                     s.sstWallKappa,
                     s.sstWallE
                 ).nut;
@@ -671,35 +726,33 @@ __global__ void computeSstStabilityNumberKernel
     const GPU_OPERATOR_REAL diffusionNumber =
         dt*diffusionRate/clampMin(s.V[c], OfSmall);
 
-    GPU_OPERATOR_REAL divU = GPU_OPERATOR_R(0.0);
-    GPU_OPERATOR_REAL s2 = GPU_OPERATOR_R(0.0);
-    GPU_OPERATOR_REAL gByNu = GPU_OPERATOR_R(0.0);
-    sstVelocityInvariants(s, c, divU, s2, gByNu);
-    const GPU_OPERATOR_REAL gradDot =
-        s.gradKX[c]*s.gradOmegaX[c]
-      + s.gradKY[c]*s.gradOmegaY[c]
-      + s.gradKZ[c]*s.gradOmegaZ[c];
-    const GPU_OPERATOR_REAL cd = ugkwp::sstCrossDiffusion
+    const GPU_OPERATOR_REAL invVolume = GPU_OPERATOR_R(1.0)/clampMin(s.V[c], OfSmall);
+    const GPU_OPERATOR_REAL minimumDivU = minimumVolumeFlux*invVolume;
+    const GPU_OPERATOR_REAL maximumDivU = maximumVolumeFlux*invVolume;
+    GPU_OPERATOR_REAL sourceKAtZeroDiv, sourceOmegaAtZeroDiv;
+    sstSourcesForCell
     (
-        s.omega[c],
-        gradDot,
-        s.sstCoefficients
+        s, c, GPU_OPERATOR_R(0.0), sourceKAtZeroDiv, sourceOmegaAtZeroDiv
     );
-    const GPU_OPERATOR_REAL sourceK = s.rho[c]*
+    const GPU_OPERATOR_REAL compressionK =
+        (GPU_OPERATOR_R(2.0)/GPU_OPERATOR_R(3.0))*s.rho[c]*s.k[c];
+    const GPU_OPERATOR_REAL compressionOmega =
+        (GPU_OPERATOR_R(2.0)/GPU_OPERATOR_R(3.0))*s.rho[c]
+       *ugkwp::sstGamma(s.sstF1[c], s.sstCoefficients)*s.omega[c];
+    const GPU_OPERATOR_REAL sourceKBound = fmax
     (
-        sstKProductionForCell(s, c, gByNu)
-      - (GPU_OPERATOR_R(2.0)/GPU_OPERATOR_R(3.0))*divU*s.k[c]
-      - s.sstCoefficients.betaStar*s.k[c]*s.omega[c]
+        fabs(sourceKAtZeroDiv - compressionK*minimumDivU),
+        fabs(sourceKAtZeroDiv - compressionK*maximumDivU)
     );
-    const GPU_OPERATOR_REAL sourceOmega = ugkwp::sstOmegaSource
+    const GPU_OPERATOR_REAL sourceOmegaBound = fmax
     (
-        s.rho[c], s.k[c], s.omega[c], divU, gByNu, s2,
-        s.sstF1[c], s.sstF2[c], cd, s.sstCoefficients
+        fabs(sourceOmegaAtZeroDiv - compressionOmega*minimumDivU),
+        fabs(sourceOmegaAtZeroDiv - compressionOmega*maximumDivU)
     );
     const GPU_OPERATOR_REAL sourceNumber = fmax
     (
-        fabs(dt*sourceK)/clampMin(s.rhoK[c], s.rho[c]*s.sstKMin),
-        fabs(dt*sourceOmega)
+        fabs(dt)*sourceKBound/clampMin(s.rhoK[c], s.rho[c]*s.sstKMin),
+        constrainedOmega ? GPU_OPERATOR_R(0.0) : fabs(dt)*sourceOmegaBound
        /clampMin(s.rhoOmega[c], s.rho[c]*s.sstOmegaMin)
     );
     const GPU_OPERATOR_REAL equivalentCo = targetMaxCo*fmax

@@ -14,8 +14,8 @@ def test_high_re_omega_stage_constraint(tmp_path):
     flux = (ROOT / 'common/operators/computeSstFaceFluxKernel.cuh').read_text()
     functions = primitive[primitive.index('__device__ GPU_OPERATOR_REAL sstDynamicOmegaWallValue'):
                           primitive.index('__global__ void initialiseSstConservativeStateKernel')]
-    recovery = primitive[primitive.index('__global__ void recoverSstPrimitivesKernel'):]
-    update = flux[flux.index('__global__ void applySstFluxAndSourceKernel'):
+    recovery = primitive[primitive.index('__device__ void recoverSstPrimitiveCell'):]
+    update = flux[flux.index('__device__ void sstSourcesForCell'):
                   flux.index('__global__ void computeGasCourantFieldKernel')]
     rk = flux[flux.index('__global__ void saveGasConservativeStateKernel'):
               flux.index('__device__ void recoverGasPrimitiveCell')]

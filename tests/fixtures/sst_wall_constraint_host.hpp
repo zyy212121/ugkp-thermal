@@ -13,8 +13,10 @@ using R=GpuReal;
 struct Index{int x=0;};Index blockIdx,threadIdx;struct Block{int x=1;}blockDim;
 const R OfVSmall=R(1e-30),OfSmall=R(1e-15);
 R clampMin(R a,R b){return std::max(a,b);}R finiteOr(R a,R b){return std::isfinite(a)?a:b;}
+R clampRange(R x,R lo,R hi){return std::max(lo,std::min(x,hi));}
 struct DeviceState{
- int faceOwner[2]={0,0};
+ int faceOwner[2]={0,0},facePeriodicPair[2]={1,0};
+ R gasPhiRho[2]={0,0},deltaCoeffs[2]={1000,1000},faceWeight[2]={.5,.5};
  R sstPhiRhoK[2]={.1,.2},sstPhiRhoOmega[2]={3,7},V[1]={1},sstSourceNumber[1]={0},sstF1[1]={1},sstF2[1]={1};
  R gradKX[1]={0},gradKY[1]={0},gradKZ[1]={0},gradOmegaX[1]={0},gradOmegaY[1]={0},gradOmegaZ[1]={0};
  int nCells=1,nFaces=2,nInternalFaces=0,sstConfigured=1,sstWallTreatment=0;
@@ -32,3 +34,4 @@ struct DeviceState{
 };
 struct Prim{R rho;};Prim riemannFacePrimitiveForGradient(const DeviceState&s,int,int f){return {s.wallRho[f]};}
 bool isPeriodicFace(const DeviceState&,int){return false;}
+int coupledFaceNeighbour(const DeviceState&,int){return -1;}
