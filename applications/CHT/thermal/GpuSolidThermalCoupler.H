@@ -56,6 +56,13 @@ scalarField coupledPatchOwnerTemperature
     label patchI
 );
 
+// Gas/contact/radiation need the accepted surface, not the owner node.
+scalarField coupledPatchSurfaceTemperature
+(
+    const volScalarField& solidTemperature,
+    label patchI
+);
+
 class GpuSolidThermalCandidate
 {
     autoPtr<volScalarField> temperature_;
@@ -81,6 +88,7 @@ class GpuSolidThermalCandidateSolver
     fvMesh& mesh_;
     const GpuSolidThermalProperties& properties_;
     labelList coupledPatchIds_;
+    labelList ownerConductivityPatchIds_;
     GpuSolidThermalControls controls_;
 
 public:
@@ -89,7 +97,8 @@ public:
         fvMesh& mesh,
         const GpuSolidThermalProperties& properties,
         const labelList& coupledPatchIds,
-        const GpuSolidThermalControls& controls
+        const GpuSolidThermalControls& controls,
+        const labelList& ownerConductivityPatchIds = labelList()
     );
 
     GpuSolidThermalCandidate solveTemporarySolidCandidate
