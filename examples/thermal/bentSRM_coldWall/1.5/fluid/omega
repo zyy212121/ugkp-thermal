@@ -1,3 +1,62 @@
-version https://git-lfs.github.com/spec/v1
-oid sha256:4f950b1332ed10ce1877e2975446eb187d5b142e2fed4f43dcf69b23d4989799
-size 1615
+/*--------------------------------*- C++ -*----------------------------------*\
+  =========                 |
+  \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
+   \\    /   O peration     | Website:  https://openfoam.org
+    \\  /    A nd           | Version:  10
+     \\/     M anipulation  |
+\*---------------------------------------------------------------------------*/
+FoamFile
+{
+    format      ascii;
+    class       volScalarField;
+    location    "1.5/fluid";
+    object      omega;
+}
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
+dimensions      [0 0 -1 0 0 0 0];
+
+internalField   uniform 247.536;
+
+boundaryField
+{
+    inlet
+    {
+        type            fixedValue;
+        value           uniform 247.536;
+    }
+    outlet
+    {
+        type            inletOutlet;
+        inletValue      uniform 247.536;
+        value           uniform 247.536;
+    }
+    symmetry
+    {
+        type            symmetry;
+    }
+    focusWall
+    {
+        beta1           0.074999999999999997;
+        blended         0;
+        type            omegaWallFunction;
+        value           uniform 247.536;
+    }
+    walls
+    {
+        beta1           0.074999999999999997;
+        blended         0;
+        type            omegaWallFunction;
+        value           uniform 247.536;
+    }
+    fluid_to_graphite
+    {
+        beta1           0.074999999999999997;
+        blended         0;
+        type            omegaWallFunction;
+        value           uniform 247.536;
+    }
+}
+
+
+// ************************************************************************* //

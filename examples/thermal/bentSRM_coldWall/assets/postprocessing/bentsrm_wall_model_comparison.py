@@ -5,6 +5,7 @@ import math
 import sys
 
 import matplotlib.pyplot as plt
+from matplotlib.font_manager import FontProperties
 import numpy as np
 
 CASE_ROOT = Path(__file__).resolve().parents[2]
@@ -24,7 +25,12 @@ PLOT_START = 1.5
 PLOT_END = 2.6
 TEMPERATURE_PLOT_START = 1.6
 TC_COLORS = ("#C44E52", "#4C72B0")
+CJK_AXIS_FONT = FontProperties(fname="/mnt/c/Windows/Fonts/simsun.ttc", size=22)
+CJK_LEGEND_FONT = FontProperties(fname="/mnt/c/Windows/Fonts/simsun.ttc", size=13)
+TC_SENSOR_DEPTHS_MM = (5.0, 10.0)
+TC1_INWARD_CELL_COUNT = 1
 FLUX_COLORS = ("#C44E52", "#4C72B0", "#55A868", "#DD8452", "#6B7A8F")
+HEAT_FLUX_MARKERS = ("o", "s", "D", "^", "v")
 
 plt.rcParams.update({
     "font.family": "serif", "font.size": 18, "axes.labelsize": 22,
@@ -39,6 +45,24 @@ def select_case():
     reader.EXPERIMENT = COLD/"assets/experimental/graphite_thermocouples.csv"
 
 
+def temperature_sample_depths_mm():
+    depth_centres, _ = reader._graphite_depth_cell_centres()
+    if depth_centres.size < 2:
+        raise RuntimeError("At least two graphite depth cells are required for the TC1 offset")
+    tc1_depth_m = TC_SENSOR_DEPTHS_MM[0]*1.0e-3
+    upper = int(np.searchsorted(depth_centres, tc1_depth_m, side="right"))
+    upper = min(max(upper, 1), depth_centres.size - 1)
+    cell_width_mm = float(depth_centres[upper] - depth_centres[upper - 1])*1.0e3
+    sample_depths = (
+        TC_SENSOR_DEPTHS_MM[0],
+        TC_SENSOR_DEPTHS_MM[0] + TC1_INWARD_CELL_COUNT*cell_width_mm,
+        TC_SENSOR_DEPTHS_MM[1],
+    )
+    if sample_depths[1] > depth_centres[-1]*1.0e3:
+        raise RuntimeError("TC1 inward offset lies outside the graphite cell-centre range")
+    return tuple(float(depth) for depth in sample_depths)
+
+
 def configure_axes(axis):
     axis.set_xlim(PLOT_START, PLOT_END)
     axis.grid(False)
@@ -46,6 +70,11 @@ def configure_axes(axis):
     for spine in axis.spines.values():
         spine.set_linewidth(1.0)
 
+
+def inside_legend_cjk(axis, location="best", columns=1):
+    return axis.legend(loc=location, ncol=columns, frameon=False, prop=CJK_LEGEND_FONT,
+                       handlelength=2.1, columnspacing=0.8, labelspacing=0.35,
+                       borderaxespad=0.5)
 
 def marker_spacing(values):
     values = np.asarray(values, dtype=float)
@@ -71,7 +100,20 @@ def inside_legend(axis, location="best", columns=1):
 
 def temperature_results():
     select_case()
-    time, temperature = reader.read_graphite_depth_interpolated_history((5.0, 10.0))
+    sample_depths_mm = temperature_sample_depths_mm()
+    time, sampled_temperature = reader.read_graphite_depth_interpolated_history(sample_depths_mm)
+    # The reader averages all transverse cells at each depth. Average the original
+    # TC1 depth and one-cell-inward depth to reduce sensitivity to a single layer.
+    if sampled_temperature.ndim != 2 or sampled_temperature.shape[1] != 3:
+        raise RuntimeError("Expected graphite temperatures at original TC1, inward TC1, and TC2 depths")
+    calculated_depths_mm = (
+        0.5*(sample_depths_mm[0] + sample_depths_mm[1]),
+        sample_depths_mm[2],
+    )
+    temperature = np.column_stack((
+        np.mean(sampled_temperature[:, :2], axis=1),
+        sampled_temperature[:, 2],
+    ))
     experiment_time, measured = reader.read_experiment()
     measured = measured[:, :2]
     with (DATA/f"{PREFIX}_temperature_comparison.csv").open("w", newline="", encoding="utf-8") as stream:
@@ -79,31 +121,37 @@ def temperature_results():
         writer.writerow(("record_type", "time_s", "TC1_temperature_K", "TC1_depth_mm",
                          "TC2_temperature_K", "TC2_depth_mm"))
         for current, values in zip(experiment_time, measured):
-            writer.writerow(("measured", f"{current:.17g}", f"{values[0]:.12g}", "5",
-                             f"{values[1]:.12g}", "10"))
+            writer.writerow(("measured", f"{current:.17g}", f"{values[0]:.12g}",
+                             f"{TC_SENSOR_DEPTHS_MM[0]:g}", f"{values[1]:.12g}",
+                             f"{TC_SENSOR_DEPTHS_MM[1]:g}"))
         for current, values in zip(time, temperature):
-            writer.writerow(("coldWall", f"{current:.17g}", f"{values[0]:.12g}", "5",
-                             f"{values[1]:.12g}", "10"))
+            writer.writerow(("coldWall", f"{current:.17g}", f"{values[0]:.12g}",
+                             f"{calculated_depths_mm[0]:g}", f"{values[1]:.12g}",
+                             f"{calculated_depths_mm[1]:g}"))
 
     fig, axis = plt.subplots(figsize=(10, 8), facecolor="white")
     measured_mask = (experiment_time >= TEMPERATURE_PLOT_START) & (experiment_time <= PLOT_END)
     mask = (time >= TEMPERATURE_PLOT_START) & (time <= PLOT_END)
     plot_time = time[mask]
     spacing = marker_spacing(plot_time)
+    calculated_labels = (
+        f"TC1 计算（{sample_depths_mm[0]:g}–{sample_depths_mm[1]:g} mm 平均）",
+        f"TC2 计算（{calculated_depths_mm[1]:g} mm）",
+    )
     for index in range(2):
         axis.plot(experiment_time[measured_mask], measured[measured_mask, index],
                   color=TC_COLORS[index], linestyle="-", linewidth=2.2,
-                  label=f"TC{index + 1} measured")
+                  label=f"TC{index + 1} 实测（{TC_SENSOR_DEPTHS_MM[index]:g} mm）")
         axis.plot(plot_time, temperature[mask, index], color=TC_COLORS[index],
                   linestyle="-.", linewidth=1.5, marker="^", markersize=5,
                   markerfacecolor="white", markeredgewidth=0.9,
                   markevery=markevery(plot_time, spacing),
-                  label=f"TC{index + 1} calculated")
-    axis.set_xlabel("Time $t$ (s)")
-    axis.set_ylabel("Temperature $T$ (K)")
+                  label=calculated_labels[index])
+    axis.set_xlabel("时间 $t$ (s)", fontproperties=CJK_AXIS_FONT)
+    axis.set_ylabel("温度 $T$ (K)", fontproperties=CJK_AXIS_FONT)
     configure_axes(axis)
     axis.set_xlim(TEMPERATURE_PLOT_START, PLOT_END)
-    inside_legend(axis, "best", 2)
+    inside_legend_cjk(axis, "best", 2)
     fig.tight_layout(pad=0.7)
     fig.savefig(FIGURES/f"{PREFIX}_temperature_comparison.png", dpi=600, facecolor="white")
     plt.close(fig)
@@ -124,16 +172,16 @@ def heat_flux_results():
     fig, axis = plt.subplots(figsize=(10, 8), facecolor="white")
     mask = (times >= PLOT_START) & (times <= PLOT_END)
     spacing = marker_spacing(times[mask])
-    labels = ("Total", "Radiation", "Reflection", "Deposition", "Convection")
+    labels = ("总热流", "辐射", "反弹/有限接触", "长期沉积", "气相对流")
     for index, label in enumerate(labels):
         axis.plot(times[mask], values[mask, index], color=FLUX_COLORS[index],
-                  linewidth=1.5, linestyle="-.", marker="^", markersize=4.8,
+                  linewidth=1.5, linestyle="-", marker=HEAT_FLUX_MARKERS[index], markersize=4.8,
                   markerfacecolor="white", markeredgewidth=0.9,
                   markevery=markevery(times[mask], spacing), label=label)
-    axis.set_xlabel("Time $t$ (s)")
-    axis.set_ylabel("Wall heat flux $q''$ (W m$^{-2}$)")
+    axis.set_xlabel("时间 $t$ (s)", fontproperties=CJK_AXIS_FONT)
+    axis.set_ylabel("壁面热流 $q''$ (W m$^{-2}$)", fontproperties=CJK_AXIS_FONT)
     configure_axes(axis)
-    inside_legend(axis, "best", 2)
+    inside_legend_cjk(axis, "best", 2)
     fig.tight_layout(pad=0.7)
     fig.savefig(FIGURES/f"{PREFIX}_wall_heat_flux.png", dpi=600, facecolor="white")
     plt.close(fig)
@@ -215,12 +263,12 @@ def radiating_area_results():
               linewidth=1.6, marker="^", markersize=5, markerfacecolor="white",
               markeredgewidth=0.9,
               markevery=markevery(data[valid, 0], marker_spacing(data[valid, 0])),
-              label="Calculated")
-    axis.set_xlabel("Time $t$ (s)")
-    axis.set_ylabel("Normalized radiating area $1-A_c/A_w$")
+              label="计算值")
+    axis.set_xlabel("时间 $t$ (s)", fontproperties=CJK_AXIS_FONT)
+    axis.set_ylabel("归一化有效辐射面积 $1-A_c/A_w$", fontproperties=CJK_AXIS_FONT)
     axis.set_ylim(0.0, 1.02)
     configure_axes(axis)
-    inside_legend(axis)
+    inside_legend_cjk(axis)
     fig.tight_layout(pad=0.7)
     fig.savefig(FIGURES/f"{PREFIX}_coupled_wall_radiating_area_fraction.png", dpi=600, facecolor="white")
     plt.close(fig)
