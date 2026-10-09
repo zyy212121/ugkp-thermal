@@ -192,7 +192,7 @@ public:
                 weight[f]=(own+other)>0?other/(own+other):.5;
             }
             const auto& w=mesh.boundaryPrimitive[f];rho[f]=w.rho;pressure[f]=w.pressure;temp[f]=w.temperature;ux[f]=w.velocity.x;uy[f]=w.velocity.y;uz[f]=w.velocity.z;
-            const bool inlet=b==BoundaryKind::Inlet;fixU[f]=inlet||b==BoundaryKind::NoSlip;fixT[f]=fixedTemperature(mesh.thermalBoundary.empty()?nullptr:mesh.thermalBoundary.data(),int(f));fixR[f]=fixP[f]=inlet;fixedY[f]=inlet;
+            const bool inlet=b==BoundaryKind::Inlet;fixU[f]=inlet||b==BoundaryKind::NoSlip;fixT[f]=fixedTemperature(mesh.thermalBoundary.empty()?nullptr:mesh.thermalBoundary.data(),int(f));fixR[f]=inlet;fixP[f]=inlet||b==BoundaryKind::Outlet;fixedY[f]=inlet;
             for(int s=0;s<Ns;++s)Y[s*nf+f]=w.Y[s];
             kMode[f]=omegaMode[f]=inlet?1:0;
             if(mesh.boundarySst.size()==nf){kBoundary[f]=mesh.boundarySst[f].k;omegaBoundary[f]=mesh.boundarySst[f].omega;}
