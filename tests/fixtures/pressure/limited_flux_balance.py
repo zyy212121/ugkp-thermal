@@ -6,7 +6,7 @@ for name in ['tests','bin','logs']:(p/name).mkdir(parents=True,exist_ok=True)
 folder='private_backend' if branch in ['gasUGKP','FSH'] else 'gpu'
 src=root/'applications'/branch/folder/'GpuResidentStrict.cu'
 raw=src.read_text().replace('#include "GpuAutomaticCsrScheduleFields.inl"', (root/"common/GpuAutomaticCsrScheduleFields.inl").read_text() if (root/"common/GpuAutomaticCsrScheduleFields.inl").is_file() else "");a=raw.index('struct DeviceState');b=raw.index('\n};',a);d=raw[a:b]
-ptr=re.findall(r'^\s*((?:unsigned\s+)?(?:long long|char)|double|float|int|GpuReal|GpuTime|GpuWallEnergy)\*\s+(\w+)\s*=',d,re.M)
+ptr=re.findall(r'^\s*((?:unsigned\s+)?(?:long long|char)|double|float|int|unsigned int|GpuReal|GpuTime|GpuWallEnergy)\*\s+(\w+)\s*=',d,re.M)
 ptr=[(t,n) for t,n in ptr if n not in ['diagnosticPreTransportParticleCount','sourceInjectedCount']]
 if branch == 'gasUGKP' and mode == 'unsorted':ptr.append(('PressureProjectionCell','pressureProjectionCache'))
 if bits!=32:ptr=[(t,n) for t,n in ptr if not n.startswith('flatPressure')]
@@ -40,6 +40,7 @@ DeviceState* device;mem(device,1);*device=*s;s->deviceState=device;
 CHECK(PHYSICS::limit(s,1.,1,64)==cudaSuccess);
 scaleCollisionalPressureFaceFluxKernel<<<1,64>>>(s->deviceState);
 CHECK(PHYSICS::project(s,1.,1,64,64,true,false)==cudaSuccess);
+CHECK(cudaGetLastError()==cudaSuccess);
 CHECK(cudaDeviceSynchronize()==cudaSuccess);
 const double phi=s->solidPressurePhiMomX[0];
 CHECK(fabs(phi-.01)<TOL);
@@ -54,11 +55,13 @@ for(int c=0;c<2;++c){
  CHECK(fabs(m-1)<TOL);totalMass+=m;totalPx+=px;totalEnergy+=energy;
 }
 CHECK(fabs(totalMass-2)<TOL);CHECK(fabs(totalPx)<TOL);CHECK(fabs(totalEnergy-3.5)<TOL);
+
 puts("PASS limited pressure: local face balance, particle/Eulerian moments, mass, momentum and energy");
 }
 '''
 if branch=='gasUGKP':txt=txt.replace('s->splitPreDirectoryActive=1;','')
 if mode == 'unsorted':
+    txt=txt.replace('s->csrCellLocalPathEnabled=1;', 's->csrCellLocalPathEnabled=0;')
     txt=txt.replace('PHYSICS::project(s,1.,1,64,64,true,false)', 'PHYSICS::projectUnsorted(s,1.,1,64)')
 
 txt=txt.replace('THERMAL_INIT','s->pStuck[i]=0;' if branch!='gasUGKP' else '')
@@ -73,6 +76,9 @@ log=p/'logs'/f'pressure_balance_{branch}{bits}_build.log'
 with log.open('w') as out:q=subprocess.run(cmd,stdout=out,stderr=subprocess.STDOUT)
 print('BUILD',branch,bits,q.returncode,flush=True)
 if q.returncode:print(log.read_text()[-3500:]);raise SystemExit(q.returncode)
+if os.environ.get("UGKP_PRESSURE_FIXTURE_COMPILE_ONLY") == "1":
+    print("COMPILE_ONLY: GPU execution intentionally omitted", flush=True)
+    raise SystemExit(0)
 q=subprocess.run([str(exe)],capture_output=True,text=True)
 (p/'logs'/f'pressure_balance_{branch}{bits}_run.log').write_text(q.stdout+q.stderr)
 print('RUN_RETURN',q.returncode,q.stdout+q.stderr);raise SystemExit(q.returncode)

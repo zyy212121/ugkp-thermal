@@ -14,8 +14,8 @@ def test_high_re_omega_stage_constraint(tmp_path):
     flux = (ROOT / 'common/operators/computeSstFaceFluxKernel.cuh').read_text()
     functions = primitive[primitive.index('template<class GasState>\n__device__ GPU_OPERATOR_REAL sstDynamicOmegaWallValue'):
                           primitive.index('template<class GasState>\n__global__ void initialiseSstConservativeStateKernel')]
-    recovery = primitive[primitive.index('template<class GasState>\n__global__ void recoverSstPrimitivesKernel'):]
-    update = flux[flux.index('template<class GasState>\n__global__ void applySstFluxAndSourceKernel'):
+    recovery = primitive[primitive.index('template<class GasState>\n__device__ void recoverSstPrimitiveCell'):]
+    update = flux[flux.index('template<class GasState>\n__device__ void sstSourcesForCell'):
                   flux.index('template<class GasState>\n__global__ void computeGasCourantFieldKernel')]
     rk = flux[flux.index('template<class GasState>\n__global__ void saveGasConservativeStateKernel'):
               flux.index('template<class GasState>\n__device__ void recoverGasPrimitiveCell')]
@@ -24,7 +24,7 @@ def test_high_re_omega_stage_constraint(tmp_path):
 void sstVelocityInvariants(const DeviceState&,int,R&d,R&s,R&g){d=s=g=0;}
 R sstKProductionForCell(const DeviceState&,int,R){return 0;}
 '''
-    body = '#include "gasTransport/GasGeometryValidation.H"\n' + pre + '\nbool finiteDevice(R value){return std::isfinite(value); }\n' + functions + recovery + controlled_invariants + update + rk + r'''
+    body = pre + functions + recovery + controlled_invariants + update + rk + r'''
 int failures=0;
 void check(const char*name,R got,R want){
  if(!std::isfinite(got)||std::abs(got-want)>(sizeof(R)==4?6e-5:2e-11)*std::max(R(1),std::abs(want))){

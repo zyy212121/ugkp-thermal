@@ -66,11 +66,12 @@ __device__ void gasFaceSubgridTransportProperties
             riemannFacePrimitiveForGradient(s, own, f).rho, s.rhoMin
         );
         const ugkpwall::SpaldingWallState wallState =
-            ugkpwall::spaldingWallState
+            ugkpwall::spaldingWallStateFromNormalGradient
             (
                 velocityDifference,
                 wallDistance,
                 s.gasMu/rhoSafe,
+                velocityDifference*clampMin(s.deltaCoeffs[f], GPU_OPERATOR_R(0.0)),
                 s.turbulenceModel == 3 ? s.sstWallKappa : GPU_OPERATOR_R(0.41),
                 s.turbulenceModel == 3 ? s.sstWallE : GPU_OPERATOR_R(9.8)
             );

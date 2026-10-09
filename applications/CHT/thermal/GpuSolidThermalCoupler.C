@@ -47,6 +47,37 @@ bool finiteScalar(const scalar value)
     return std::isfinite(static_cast<double>(value));
 }
 
+void validateCoupledSurfaceFace
+(
+    const scalar owner,
+    const scalar gradient,
+    const scalar delta,
+    const scalar surface
+)
+{
+    if
+    (
+        !finiteScalar(owner)
+     || !finiteScalar(gradient)
+     || !finiteScalar(delta) || delta <= scalar(0)
+     || !finiteScalar(surface) || surface < scalar(1)
+    )
+    {
+        solidFailure("invalid accepted coupled solid surface state");
+    }
+    const scalar reconstructed = owner + gradient/delta;
+    const scalar tolerance = scalar(64)*std::numeric_limits<scalar>::epsilon()
+       *max(max(mag(reconstructed), mag(surface)), scalar(1));
+    if
+    (
+        !finiteScalar(reconstructed)
+     || mag(surface - reconstructed) > tolerance
+    )
+    {
+        solidFailure("stale coupled solid surface disagrees with its saved gradient");
+    }
+}
+
 scalar relativeTemperatureChange
 (
     const scalarField& previous,
@@ -171,6 +202,32 @@ scalarField coupledPatchOwnerTemperature
     );
 }
 
+scalarField coupledPatchSurfaceTemperature
+(
+    const volScalarField& solidTemperature,
+    const label patchI
+)
+{
+    const scalarField owner(coupledPatchOwnerTemperature(solidTemperature, patchI));
+    const fvPatchScalarField& patch = solidTemperature.boundaryField()[patchI];
+    if (!isA<fixedGradientFvPatchScalarField>(patch))
+    {
+        solidFailure("coupled solid surface must be a fixedGradient patch");
+    }
+    const scalarField& gradient =
+        refCast<const fixedGradientFvPatchScalarField>(patch).gradient();
+    const scalarField& delta = patch.patch().deltaCoeffs();
+    scalarField surface(patch);
+    forAll(surface, faceI)
+    {
+        validateCoupledSurfaceFace
+        (
+            owner[faceI], gradient[faceI], delta[faceI], surface[faceI]
+        );
+    }
+    return surface;
+}
+
 GpuSolidThermalCandidate::GpuSolidThermalCandidate
 (
     autoPtr<volScalarField> temperature,
@@ -193,12 +250,14 @@ GpuSolidThermalCandidateSolver::GpuSolidThermalCandidateSolver
     fvMesh& mesh,
     const GpuSolidThermalProperties& properties,
     const labelList& coupledPatchIds,
-    const GpuSolidThermalControls& controls
+    const GpuSolidThermalControls& controls,
+    const labelList& ownerConductivityPatchIds
 )
 :
     mesh_(mesh),
     properties_(properties),
     coupledPatchIds_(coupledPatchIds),
+    ownerConductivityPatchIds_(ownerConductivityPatchIds),
     controls_(controls)
 {
     if
@@ -225,6 +284,13 @@ GpuSolidThermalCandidateSolver::GpuSolidThermalCandidateSolver
     )
     {
         solidFailure("invalid solid thermal controls or empty coupled patch list");
+    }
+    forAll(ownerConductivityPatchIds_, patchI)
+    {
+        if (!isCoupledPatch(coupledPatchIds_, ownerConductivityPatchIds_[patchI]))
+        {
+            solidFailure("owner-conductivity patch must be a coupled solid-solid patch");
+        }
     }
 }
 
@@ -304,10 +370,31 @@ GpuSolidThermalCandidateSolver::solveTemporarySolidCandidate
     scalar finalResidual = std::numeric_limits<scalar>::quiet_NaN();
     scalar finalTemperatureResidual =
         std::numeric_limits<scalar>::quiet_NaN();
+    scalar finalSurfaceResidual = std::numeric_limits<scalar>::quiet_NaN();
+    scalar finalSurfaceFluxResidual = std::numeric_limits<scalar>::quiet_NaN();
     scalar finalEnergyRelativeResidual =
         std::numeric_limits<scalar>::quiet_NaN();
     scalar finalRawFixedPointResidual =
         std::numeric_limits<scalar>::quiet_NaN();
+
+    // Each gas surface needs one initial snapshot. The convergence pass below
+    // updates it in place for the next iteration; owner-only patches need none.
+    List<scalarField> previousSurface(coupledPatchIds_.size());
+    forAll(coupledPatchIds_, coupledI)
+    {
+        if
+        (
+            isCoupledPatch
+            (
+                ownerConductivityPatchIds_, coupledPatchIds_[coupledI]
+            )
+        )
+        {
+            continue;
+        }
+        previousSurface[coupledI] =
+            candidate->boundaryField()[coupledPatchIds_[coupledI]];
+    }
 
     mesh_.schemes().setFluxRequired(candidate->name());
     for
@@ -344,21 +431,19 @@ GpuSolidThermalCandidateSolver::solveTemporarySolidCandidate
         }
         forAll(mesh_.boundary(), patchI)
         {
-            const bool coupledPatch = isCoupledPatch(coupledPatchIds_, patchI);
-            const scalarField patchOwnerTemperature
-            (
-                candidate->boundaryField()[patchI].patchInternalField()
-            );
+            // The solid-solid interface already includes both owner-to-face
+            // resistances. Keep its owner-property convention explicitly.
+            const bool ownerConductivity =
+                isCoupledPatch(ownerConductivityPatchIds_, patchI);
+            scalarField patchOwnerTemperature;
+            if (ownerConductivity)
+            {
+                patchOwnerTemperature =
+                    candidate->boundaryField()[patchI].patchInternalField();
+            }
             forAll(mesh_.boundary()[patchI], faceI)
             {
-                                                                          
-                                                                             
-                                                                               
-                                                                               
-                                                                            
-                                                                            
-                                                        
-                const scalar patchTemperature = coupledPatch
+                const scalar patchTemperature = ownerConductivity
                   ? patchOwnerTemperature[faceI]
                   : candidate->boundaryField()[patchI][faceI];
                 Csec.boundaryFieldRef()[patchI][faceI] =
@@ -456,9 +541,64 @@ GpuSolidThermalCandidateSolver::solveTemporarySolidCandidate
             }
             candidate->primitiveFieldRef() =
                 previous + nonlinearRelaxation*currentFixedPointResidual;
-            candidate->correctBoundaryConditions();
             previousFixedPointResidual = currentFixedPointResidual;
             havePreviousFixedPointResidual = true;
+        }
+        candidate->correctBoundaryConditions();
+        finalSurfaceResidual = scalar(0);
+        finalSurfaceFluxResidual = scalar(0);
+        forAll(coupledPatchIds_, coupledI)
+        {
+            const label patchI = coupledPatchIds_[coupledI];
+            if (isCoupledPatch(ownerConductivityPatchIds_, patchI))
+            {
+                continue;
+            }
+            const fixedGradientFvPatchScalarField& patch =
+                refCast<const fixedGradientFvPatchScalarField>
+                (
+                    candidate->boundaryField()[patchI]
+                );
+            const labelUList& faceCells = patch.patch().faceCells();
+            const scalarField& internal = candidate->primitiveField();
+            const scalarField& gradient = patch.gradient();
+            const scalarField& delta = patch.patch().deltaCoeffs();
+            const scalarField& area = mesh_.magSf().boundaryField()[patchI];
+            scalarField& previousPatchSurface = previousSurface[coupledI];
+            forAll(patch, faceI)
+            {
+                const scalar surface = patch[faceI];
+                validateCoupledSurfaceFace
+                (
+                    internal[faceCells[faceI]], gradient[faceI],
+                    delta[faceI], surface
+                );
+                const scalar previousSurfaceTemperature =
+                    previousPatchSurface[faceI];
+                finalSurfaceResidual = max
+                (
+                    finalSurfaceResidual,
+                    mag(surface - previousSurfaceTemperature)
+                   /max
+                    (
+                        max(mag(surface), mag(previousSurfaceTemperature)),
+                        scalar(1)
+                    )
+                );
+                // The completed-interval ledger remains prescribed. Iterate
+                // only its solid surface closure k(Tw)*grad(T) = E/(A*dt).
+                const scalar prescribedFlux = interfaceEnergyJ[coupledI][faceI]
+                   /(area[faceI]*deltaTExchange);
+                const scalar surfaceFlux =
+                    properties_.kappa(surface)*gradient[faceI];
+                finalSurfaceFluxResidual = max
+                (
+                    finalSurfaceFluxResidual,
+                    mag(surfaceFlux - prescribedFlux)
+                   /max(max(mag(surfaceFlux), mag(prescribedFlux)), scalar(1))
+                );
+                previousPatchSurface[faceI] = surface;
+            }
         }
         const tmp<surfaceScalarField> matrixFlux = equation.flux();
         scalar externalBoundaryEnergyIntoSolidJ = scalar(0);
@@ -520,7 +660,10 @@ GpuSolidThermalCandidateSolver::solveTemporarySolidCandidate
             mag(finalResidual)
          <= controls_.energyAbsoluteTolerance
           + controls_.energyRelativeTolerance*energyScale;
-        if (temperatureConverged && energyConverged)
+        const bool surfaceConverged =
+            max(finalSurfaceResidual, finalSurfaceFluxResidual)
+         <= controls_.nonlinearRelativeTolerance;
+        if (temperatureConverged && surfaceConverged && energyConverged)
         {
             if (minimumCandidateTemperature < scalar(1))
             {
@@ -561,6 +704,8 @@ GpuSolidThermalCandidateSolver::solveTemporarySolidCandidate
         << "; region=" << mesh_.name()
         << "; iterations=" << controls_.nonlinearMaxIterations
         << "; temperatureResidual=" << finalTemperatureResidual
+        << "; surfaceTemperatureResidual=" << finalSurfaceResidual
+        << "; surfaceFluxResidual=" << finalSurfaceFluxResidual
         << "; energyRelativeResidual=" << finalEnergyRelativeResidual
         << "; energyResidualJ=" << finalResidual
         << "; rawFixedPointResidual=" << finalRawFixedPointResidual
@@ -1354,19 +1499,21 @@ public:
             );
         }
         labelList primaryCoupledPatchIds(mapper->solidPatchIds());
+        labelList primaryOwnerConductivityPatchIds;
         if (threeRegion)
         {
             const label oldSize = primaryCoupledPatchIds.size();
             primaryCoupledPatchIds.setSize(oldSize + 1);
             primaryCoupledPatchIds[oldSize] =
                 solidInterfaceMapper->solidPatchIds()[0];
+            primaryOwnerConductivityPatchIds = solidInterfaceMapper->solidPatchIds();
         }
         solidCandidateSolver.reset
         (
             new GpuSolidThermalCandidateSolver
             (
                 solidMesh(), properties(), primaryCoupledPatchIds,
-                readSolidControls(coupling)
+                readSolidControls(coupling), primaryOwnerConductivityPatchIds
             )
         );
         if (threeRegion)
@@ -1377,7 +1524,8 @@ public:
                 (
                     auxiliarySolidMesh(), auxiliaryProperties(),
                     solidInterfaceMapper->fluidPatchIds(),
-                    readSolidControls(coupling)
+                    readSolidControls(coupling),
+                    solidInterfaceMapper->fluidPatchIds()
                 )
             );
         }
@@ -1669,6 +1817,8 @@ public:
 
     void mapSolidWallTemperatureToFluid(volScalarField& Tgas)
     {
+        List<scalarField> contactWallTemperature(particleContactPairIds.size());
+        label nextContactI = 0;
         forAll(mapper->fluidPatchIds(), pairI)
         {
             const label fluidPatchI = mapper->fluidPatchIds()[pairI];
@@ -1677,15 +1827,29 @@ public:
             {
                 solidFailure("coupled fluid T patch must be fixed-value");
             }
-            const scalarField solidWallTemperature
+            scalarField solidWallTemperature
             (
-                coupledPatchOwnerTemperature(Tsolid(), solidPatchI)
+                coupledPatchSurfaceTemperature(Tsolid(), solidPatchI)
             );
             const scalarField mapped = mapper->mapSolidScalarToFluid
             (
                 pairI, solidWallTemperature
             );
             Tgas.boundaryFieldRef()[fluidPatchI] == mapped;
+            // Contact pair ids are built in ascending mapper order. Retain
+            // only their accepted surfaces, without a second face copy/read.
+            if
+            (
+                nextContactI < particleContactPairIds.size()
+             && particleContactPairIds[nextContactI] == pairI
+            )
+            {
+                contactWallTemperature[nextContactI].transfer
+                (
+                    solidWallTemperature
+                );
+                ++nextContactI;
+            }
         }
         resident.updateSolidWallTemperatures
         (
@@ -1701,11 +1865,8 @@ public:
         {
             const label pairI = particleContactPairIds[contactI];
             const label fluidPatchI = mapper->fluidPatchIds()[pairI];
-            const label solidPatchI = mapper->solidPatchIds()[pairI];
-            const scalarField solidWallTemperature
-            (
-                coupledPatchOwnerTemperature(Tsolid(), solidPatchI)
-            );
+            const scalarField& solidWallTemperature =
+                contactWallTemperature[contactI];
             scalarField solidWallEffusivity(solidWallTemperature.size());
             forAll(solidWallEffusivity, faceI)
             {
@@ -1753,7 +1914,7 @@ public:
             const label solidPatchI = mapper->solidPatchIds()[pairI];
             const scalarField solidTemperature
             (
-                coupledPatchOwnerTemperature(Tsolid(), solidPatchI)
+                coupledPatchSurfaceTemperature(Tsolid(), solidPatchI)
             );
             scalarField solidEmissivity(solidTemperature.size());
             forAll(solidEmissivity, faceI)

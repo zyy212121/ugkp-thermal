@@ -29,25 +29,6 @@ __global__ void computeGasEddyViscosityKernel(GasState* sp)
         (void)gByNu;
         const GPU_OPERATOR_REAL rhoSafe = clampMin(s.rho[c], s.rhoMin);
         const GPU_OPERATOR_REAL nu = s.gasMu/rhoSafe;
-        const GPU_OPERATOR_REAL gradDot =
-            s.gradKX[c]*s.gradOmegaX[c]
-          + s.gradKY[c]*s.gradOmegaY[c]
-          + s.gradKZ[c]*s.gradOmegaZ[c];
-        const GPU_OPERATOR_REAL cd = ugkwp::sstCrossDiffusion
-        (
-            s.omega[c],
-            gradDot,
-            s.sstCoefficients
-        );
-        const GPU_OPERATOR_REAL f1 = ugkwp::sstF1
-        (
-            s.k[c],
-            s.omega[c],
-            nu,
-            s.sstWallDistance[c],
-            cd,
-            s.sstCoefficients
-        );
         const GPU_OPERATOR_REAL f2 = ugkwp::sstF2
         (
             s.k[c],
@@ -64,7 +45,6 @@ __global__ void computeGasEddyViscosityKernel(GasState* sp)
             f2,
             s.sstCoefficients
         );
-        s.sstF1[c] = clampRange(finiteOr(f1, GPU_OPERATOR_R(1.0)), GPU_OPERATOR_R(0.0), GPU_OPERATOR_R(1.0));
         s.sstF2[c] = clampRange(finiteOr(f2, GPU_OPERATOR_R(1.0)), GPU_OPERATOR_R(0.0), GPU_OPERATOR_R(1.0));
         s.nut[c] = finiteDevice(nuT) && nuT > GPU_OPERATOR_R(0.0) ? nuT : GPU_OPERATOR_R(0.0);
         return;

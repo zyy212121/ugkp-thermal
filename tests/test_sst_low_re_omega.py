@@ -4,16 +4,19 @@ ROOT=Path(__file__).resolve().parents[1]/'common'
 def test_low_re_omega_cell_constraint(tmp_path):
     src=(ROOT/'operators/computeGasPrimitiveGradientsKernel.cuh').read_text()
     functions=src[src.index('template<class GasState>\n__device__ GPU_OPERATOR_REAL sstDynamicOmegaWallValue'):src.index('template<class GasState>\n__global__ void initialiseSstConservativeStateKernel')]
-    recovery=src[src.index('template<class GasState>\n__global__ void recoverSstPrimitivesKernel'):]
+    recovery=src[src.index('template<class GasState>\n__device__ void recoverSstPrimitiveCell'):]
     flux_src=(ROOT/'operators/computeSstFaceFluxKernel.cuh').read_text()
-    update=flux_src[flux_src.index('template<class GasState>\n__global__ void applySstFluxAndSourceKernel'):flux_src.index('template<class GasState>\n__global__ void computeGasCourantFieldKernel')]
+    update=flux_src[flux_src.index('template<class GasState>\n__device__ void sstSourcesForCell'):flux_src.index('template<class GasState>\n__global__ void computeGasCourantFieldKernel')]
     pre=r'''
 #include <cmath>
 #include <algorithm>
 #include <iostream>
 #include "GpuSstAlgebra.cuh"
-#include "OpenFoamWallFunctions.cuh"
+#include "gasTransport/GasStateView.H"
+#include "gasTransport/GasCapabilities.H"
+#include "gasTransport/MixtureThermo.H"
 #include "gasTransport/GasGeometryValidation.H"
+#include "OpenFoamWallFunctions.cuh"
 #define __device__
 #define __global__
 #define GPU_OPERATOR_TIME GpuReal
@@ -23,9 +26,11 @@ using R=GpuReal;
 struct Index{int x=0;};Index blockIdx,threadIdx;struct Block{int x=1;}blockDim;
 const R OfVSmall=R(1e-30),OfSmall=R(1e-15);
 R clampMin(R a,R b){return std::max(a,b);}R finiteOr(R a,R b){return std::isfinite(a)?a:b;}
-bool finiteDevice(R value){return std::isfinite(value);}
+R clampRange(R x,R lo,R hi){return std::max(lo,std::min(x,hi));}
+bool finiteDevice(R x){return std::isfinite(x);}
 struct DeviceState{
- int faceOwner[2]={0,0};
+ int faceOwner[2]={0,0},facePeriodicPair[2]={1,0};
+ R gasPhiRho[2]={0,0},deltaCoeffs[2]={1000,1000},faceWeight[2]={.5,.5};
  R sstPhiRhoK[2]={.1,.2},sstPhiRhoOmega[2]={3,7},V[1]={1},sstSourceNumber[1]={0},sstF1[1]={1},sstF2[1]={1};
  R gradKX[1]={0},gradKY[1]={0},gradKZ[1]={0},gradOmegaX[1]={0},gradOmegaY[1]={0},gradOmegaZ[1]={0};
  int nCells=1,nFaces=2,nInternalFaces=0,sstConfigured=1,sstWallTreatment=0;
@@ -41,6 +46,7 @@ struct DeviceState{
 };
 struct Prim{R rho;};Prim riemannFacePrimitiveForGradient(const DeviceState&s,int,int f){return {s.wallRho[f]};}
 bool isPeriodicFace(const DeviceState&,int){return false;}
+int coupledFaceNeighbour(const DeviceState&,int){return -1;}
 '''
     stubs=r'''
 void sstVelocityInvariants(const DeviceState&,int,R&d,R&s,R&g){d=s=g=0;}

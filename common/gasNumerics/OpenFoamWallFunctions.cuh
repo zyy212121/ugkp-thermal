@@ -127,11 +127,14 @@ UGKP_WALL_HD GpuReal spaldingReynoldsRatio
     return (uPlus/reynolds)*uPlus + (uPlus/E)*remainderOverRe;
 }
 
-UGKP_WALL_HD SpaldingWallState spaldingWallState
+// The law coordinate y and the patch-normal velocity gradient are distinct
+// geometric quantities (nutUSpaldingWallFunction, OpenFOAM Foundation v14).
+UGKP_WALL_HD SpaldingWallState spaldingWallStateFromNormalGradient
 (
     const GpuReal velocityDifference,
     const GpuReal wallDistance,
     const GpuReal kinematicViscosity,
+    const GpuReal velocityNormalGradient,
     const GpuReal kappa = GPU_R(0.41),
     const GpuReal E = GPU_R(9.8)
 )
@@ -140,8 +143,10 @@ UGKP_WALL_HD SpaldingWallState spaldingWallState
     const GpuReal up = maximum(velocityDifference, GPU_R(0.0));
     const GpuReal y = maximum(wallDistance, rootVSmall);
     const GpuReal nu = maximum(kinematicViscosity, rootVSmall);
-    const GpuReal magGradU = up/y;
-    GpuReal uTau = sqrt(nu*magGradU);
+    const GpuReal magGradU = maximum(velocityNormalGradient, GPU_R(0.0));
+    // Use a law-based initial guess; the converged uTau must depend on U, y
+    // and nu, not on which patch deltaCoeffs converts it to nut.
+    GpuReal uTau = sqrt(nu*(up/y));
 
     if (uTau > rootVSmall)
     {
@@ -225,6 +230,28 @@ UGKP_WALL_HD SpaldingWallState spaldingWallState
         GPU_R(0.0)
     );
     return SpaldingWallState{uTau, y*uTau/nu, nut};
+}
+
+// Backward-compatible orthogonal specialization for callers with y=1/delta.
+UGKP_WALL_HD SpaldingWallState spaldingWallState
+(
+    const GpuReal velocityDifference,
+    const GpuReal wallDistance,
+    const GpuReal kinematicViscosity,
+    const GpuReal kappa = GPU_R(0.41),
+    const GpuReal E = GPU_R(9.8)
+)
+{
+    constexpr GpuReal rootVSmall = GPU_TINY(1.4916681462400413e-154);
+    return spaldingWallStateFromNormalGradient
+    (
+        velocityDifference,
+        wallDistance,
+        kinematicViscosity,
+        maximum(velocityDifference, GPU_R(0.0))/maximum(wallDistance, rootVSmall),
+        kappa,
+        E
+    );
 }
 
 UGKP_WALL_HD WallSubgridTransport wallSubgridTransport
@@ -314,29 +341,70 @@ UGKP_WALL_HD GpuReal jayatillekeThermalYPlus
     const GpuReal E = GPU_R(9.8)
 )
 {
-    constexpr GpuReal small = GPU_R(2.2204460492503131e-16);
-    const GpuReal ratio = maximum(Prat, small);
-    const GpuReal P = jayatillekeSmoothP(ratio);
-    GpuReal yPlus = GPU_R(11.0);
-    for (int iteration = 0; iteration < 10; ++iteration)
+    if (!(Prat > GPU_R(0.0) && kappa > GPU_R(0.0) && E > GPU_R(0.0))
+       || !std::isfinite(Prat) || !std::isfinite(kappa) || !std::isfinite(E))
     {
-        const GpuReal argument = maximum(E*yPlus, GPU_R(1.0) + small);
-        const GpuReal function =
-            yPlus - (log(argument)/maximum(kappa, small) + P)/ratio;
-        const GpuReal derivative =
-            GPU_R(1.0) - GPU_R(1.0)/(yPlus*maximum(kappa, small)*ratio);
-        const GpuReal updated = yPlus - function/maximum(derivative, small);
-        if (updated <= small)
+        return GPU_R(0.0);
+    }
+    const GpuReal P = jayatillekeSmoothP(Prat);
+    // Match Pr*y to Prt*(log(E*y)/kappa + P). This convex equation can
+    // have two roots. Select the outer intersection y >= 1/(kappa*Prat),
+    // where the outward log branch first yields conductivity >= molecular.
+    // The inner root would switch the kinetic thermal branch prematurely.
+    // x=kappa*Prat*y gives x-log(x)=A, avoiding a badly scaled y residual.
+    const GpuReal A = log(E) - log(kappa) - log(Prat) + kappa*P;
+    if (!std::isfinite(A) || A < GPU_R(1.0))
+    {
+        return GPU_R(0.0); // No positive matching root in the model domain.
+    }
+    GpuReal lower = GPU_R(1.0);
+    GpuReal upper = maximum(GPU_R(2.0), A + log(A) + GPU_R(2.0));
+    GpuReal upperResidual = upper - log(upper) - A;
+    for (int iteration = 0; upperResidual < GPU_R(0.0) && iteration < 64; ++iteration)
+    {
+        upper *= GPU_R(2.0);
+        upperResidual = upper - log(upper) - A;
+    }
+    if (!std::isfinite(upper) || !std::isfinite(upperResidual)
+       || upperResidual < GPU_R(0.0))
+    {
+        return GPU_R(0.0);
+    }
+    GpuReal x = upper;
+    for (int iteration = 0; iteration < 80; ++iteration)
+    {
+        const GpuReal residual = x - log(x) - A;
+        const GpuReal tolerance = GPU_R(8.0)*GPU_REAL_EPSILON
+          *maximum(GPU_R(1.0), maximum(A, x));
+        if (std::isfinite(residual) && fabs(residual) <= tolerance)
+        {
+            const GpuReal denominator = kappa*Prat;
+            const GpuReal yPlus = std::isfinite(denominator) && denominator > GPU_R(0.0)
+              ? x/denominator : exp(log(x) - log(kappa) - log(Prat));
+            return std::isfinite(yPlus) && yPlus > GPU_R(0.0)
+              ? yPlus : GPU_R(0.0);
+        }
+        if (!std::isfinite(residual))
         {
             return GPU_R(0.0);
         }
-        if (fabs(updated - yPlus) < GPU_R(0.01))
+        if (residual > GPU_R(0.0))
         {
-            return updated;
+            upper = x;
         }
-        yPlus = updated;
+        else
+        {
+            lower = x;
+        }
+        // Preserve the derivative sign; do not max(df, small). Newton is
+        // accepted only inside the physical bracket; otherwise bisect.
+        const GpuReal derivative = GPU_R(1.0) - GPU_R(1.0)/x;
+        const GpuReal candidate = derivative != GPU_R(0.0)
+          ? x - residual/derivative : lower;
+        x = std::isfinite(candidate) && candidate > lower && candidate < upper
+          ? candidate : lower + GPU_R(0.5)*(upper - lower);
     }
-    return maximum(yPlus, GPU_R(0.0));
+    return GPU_R(0.0); // Never return an unconverged matching point.
 }
 
 struct JayatillekeThermalTransport
@@ -368,7 +436,10 @@ UGKP_WALL_HD JayatillekeThermalTransport sstJayatillekeThermalTransport
     const GpuReal molecular = mu*cp/Pr;
     const GpuReal uStar = sqrt(sqrt(Cmu))*sqrt(maximum(turbulentK, GPU_R(0.0)));
     if (!(rhoWall > GPU_R(0.0) && cp > GPU_R(0.0) && mu > GPU_R(0.0)
-       && Pr > GPU_R(0.0) && Prt > GPU_R(0.0) && y > GPU_R(0.0))
+       && Pr > GPU_R(0.0) && Prt > GPU_R(0.0) && y > GPU_R(0.0)
+       && kappa > GPU_R(0.0) && E > GPU_R(0.0) && yPlusThermal > GPU_R(0.0))
+       || !std::isfinite(yPlusThermal) || !std::isfinite(P)
+       || !std::isfinite(molecular) || !std::isfinite(uStar)
        || !std::isfinite(temperatureNormalGradient))
     {
         return {molecular, 0};
@@ -418,7 +489,14 @@ UGKP_WALL_HD JayatillekeWallHeatState jayatillekeWallHeatFluxPrecomputed
         density > GPU_R(0.0)
      && heatCapacity > GPU_R(0.0)
      && uTau > small
-     && yPlusSafe > small;
+     && yPlusSafe > small
+     && molecularPrandtl > GPU_R(0.0)
+     && turbulentPrandtl > GPU_R(0.0)
+     && kappa > GPU_R(0.0) && E > GPU_R(0.0)
+     && thermalYPlus > GPU_R(0.0)
+     && std::isfinite(density) && std::isfinite(heatCapacity)
+     && std::isfinite(uTau) && std::isfinite(yPlus)
+     && std::isfinite(thermalYPlus) && std::isfinite(P);
     if (!valid)
     {
         return JayatillekeWallHeatState{GPU_R(0.0), GPU_R(0.0), thermalYPlus, 0};
@@ -431,15 +509,18 @@ UGKP_WALL_HD JayatillekeWallHeatState jayatillekeWallHeatFluxPrecomputed
             log(maximum(E*yPlusSafe, GPU_R(1.0) + small))/maximum(kappa, small)
           + P
         );
+    if (!(temperaturePlus > GPU_R(0.0)) || !std::isfinite(temperaturePlus))
+    {
+        return JayatillekeWallHeatState{GPU_R(0.0), temperaturePlus, thermalYPlus, 0};
+    }
     const GpuReal heatFlux =
-        density*heatCapacity*uTau*(cellTemperature - wallTemperature)
-       /maximum(temperaturePlus, small);
+        density*heatCapacity*uTau*(cellTemperature - wallTemperature)/temperaturePlus;
     return JayatillekeWallHeatState
     {
         heatFlux,
         temperaturePlus,
         thermalYPlus,
-        1
+        std::isfinite(heatFlux) ? 1 : 0
     };
 }
 

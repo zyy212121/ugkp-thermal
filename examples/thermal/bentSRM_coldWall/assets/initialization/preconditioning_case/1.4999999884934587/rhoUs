@@ -1,3 +1,55 @@
-version https://git-lfs.github.com/spec/v1
-oid sha256:9c4f79e24f10688a5c28b590060e3d5e1263991bac0f40cfd389f5d13c81c84d
-size 1343
+/*--------------------------------*- C++ -*----------------------------------*\
+  =========                 |
+  \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
+   \\    /   O peration     | Website:  https://openfoam.org
+    \\  /    A nd           | Version:  10
+     \\/     M anipulation  |
+\*---------------------------------------------------------------------------*/
+FoamFile
+{
+    format      ascii;
+    class       volVectorField;
+    location    "1.4999999884934587";
+    object      rhoUs;
+}
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
+dimensions      [1 -2 -1 0 0 0 0];
+
+internalField   uniform (0 0 0);
+
+boundaryField
+{
+    inlet
+    {
+        type            calculated;
+        value           uniform (0 0 0);
+    }
+    outlet
+    {
+        type            calculated;
+        value           uniform (0 0 0);
+    }
+    symmetry
+    {
+        type            symmetry;
+    }
+    focusWall
+    {
+        type            calculated;
+        value           uniform (0 0 0);
+    }
+    walls
+    {
+        type            calculated;
+        value           uniform (0 0 0);
+    }
+    fluid_to_graphite
+    {
+        type            calculated;
+        value           uniform (0 0 0);
+    }
+}
+
+
+// ************************************************************************* //

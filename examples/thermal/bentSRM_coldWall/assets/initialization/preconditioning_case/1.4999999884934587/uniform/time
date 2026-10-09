@@ -1,3 +1,30 @@
-version https://git-lfs.github.com/spec/v1
-oid sha256:0c22e2b23d99b402a3fde3adb7e3ac5a19b8c390b841fa5832bc1df187502b6b
-size 908
+/*--------------------------------*- C++ -*----------------------------------*\
+  =========                 |
+  \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
+   \\    /   O peration     | Website:  https://openfoam.org
+    \\  /    A nd           | Version:  10
+     \\/     M anipulation  |
+\*---------------------------------------------------------------------------*/
+FoamFile
+{
+    format      ascii;
+    class       dictionary;
+    location    "1.4999999884934587/uniform";
+    object      time;
+}
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
+beginTime       1.3999999999999999;
+
+value           1.49999998849345872;
+
+name            "1.4999999884934587";
+
+index           3873845;
+
+deltaT          2.8024700661252412e-08;
+
+deltaT0         2.8024700661252412e-08;
+
+
+// ************************************************************************* //

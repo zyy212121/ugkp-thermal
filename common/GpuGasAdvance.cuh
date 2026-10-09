@@ -73,16 +73,6 @@ int advanceGasEulerSubstage(GasHostState* s, const GasHostPolicy::Time dt, const
         setLastError("computeGasPrimitiveGradientsKernel launch", err);
         return 1;
     }
-    if (s->hostTurbulenceModel == 3)
-    {
-        computeSstGradientsKernel<<<cellGrid, cellBlock, 0, s->gasCaptureStream>>>(s->deviceState);
-        err = cudaGetLastError();
-        if (err != cudaSuccess)
-        {
-            setLastError("computeSstGradientsKernel launch", err);
-            return 1;
-        }
-    }
     computeGasGradientLimiterKernel<<<cellGrid, cellBlock, 0, s->gasCaptureStream>>>(s->deviceState);
     err = cudaGetLastError();
     if (err != cudaSuccess)
@@ -171,6 +161,16 @@ int advanceGasEulerSubstage(GasHostState* s, const GasHostPolicy::Time dt, const
                 "enforcePeriodicGasFluxAntisymmetryKernel post-scale launch",
                 err
             );
+            return 1;
+        }
+    }
+    if (s->hostTurbulenceModel == 3)
+    {
+        computeSstGradientsKernel<<<cellGrid, cellBlock, 0, s->gasCaptureStream>>>(s->deviceState);
+        err = cudaGetLastError();
+        if (err != cudaSuccess)
+        {
+            setLastError("computeSstGradientsKernel launch", err);
             return 1;
         }
     }

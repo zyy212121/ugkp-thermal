@@ -4585,22 +4585,12 @@ extern "C" int ugkwpGpuResidentStrictComputeGasCourant
         }
     }
 
-    computeGasPrimitiveGradientsKernel<<<cellGrid, cellBlock>>>(s->deviceState);
+    computeGasPrimitiveGradientsKernel<<<cellGrid, cellBlock>>>(s->deviceState, true);
     err = cudaGetLastError();
     if (err != cudaSuccess)
     {
         setLastError("computeGasPrimitiveGradientsKernel for gas Courant", err);
         return 1;
-    }
-    if (s->hostTurbulenceModel == 3)
-    {
-        computeSstGradientsKernel<<<cellGrid, cellBlock>>>(s->deviceState);
-        err = cudaGetLastError();
-        if (err != cudaSuccess)
-        {
-            setLastError("computeSstGradientsKernel for gas Courant", err);
-            return 1;
-        }
     }
     computeGasGradientLimiterKernel<<<cellGrid, cellBlock>>>(s->deviceState);
     err = cudaGetLastError();
@@ -4624,6 +4614,16 @@ extern "C" int ugkwpGpuResidentStrictComputeGasCourant
         if (err != cudaSuccess)
         {
             setLastError("computeGasCourantFieldKernel launch", err);
+            return 1;
+        }
+    }
+    if (s->hostTurbulenceModel == 3)
+    {
+        computeSstGradientsKernel<<<cellGrid, cellBlock>>>(s->deviceState);
+        err = cudaGetLastError();
+        if (err != cudaSuccess)
+        {
+            setLastError("computeSstGradientsKernel for gas Courant", err);
             return 1;
         }
     }

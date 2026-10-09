@@ -785,6 +785,11 @@
       "downstream": "gpu-riemann-gkp-main"
     },
     {
+      "path": "common/GpuPressureConvexAlgebra.cuh",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
       "path": "common/GpuPressureFlatLayout.cuh",
       "upstream": "ugkp-thermal",
       "downstream": "gpu-riemann-gkp-main"
