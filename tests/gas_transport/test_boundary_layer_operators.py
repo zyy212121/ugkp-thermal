@@ -8,7 +8,7 @@ SETUP=r'''
 void wall(State&s){s.sstWallTreatment=2;s.sstConfigured=1;s.turbulenceModel=3;s.riemannBoundaryKind[1]=2;
 auto&w=s.gasBoundaryLayer;w.enabled=true;w.count=1;w.faceSlot=new int[3]{-1,0,-1};w.ownerSlot=new int[2]{0,-1};w.status=new int[1]{};
 w.exchange=new ugkwp::GasBoundaryLayerExchange<Real>[1];w.sst=new ugkwp::GasBoundaryLayerSstClosure<Real>[1];w.speciesFlux=new Real[2]{};
-w.exchange[0].ready=true;w.exchange[0].massReady=true;w.exchange[0].mass=-.4;w.exchange[0].momentumX=-17;w.exchange[0].momentumY=3;w.exchange[0].energy=-31;w.exchange[0].k=-2;
+w.exchange[0].matchingPressure=s.p[0];w.exchange[0].ready=true;w.exchange[0].massReady=true;w.exchange[0].mass=-.4;w.exchange[0].momentumX=-17;w.exchange[0].momentumY=3;w.exchange[0].energy=-31;w.exchange[0].k=-2;
 w.sst[0]={-3,11,1};}
 '''
 
