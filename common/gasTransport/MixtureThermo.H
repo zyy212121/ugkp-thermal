@@ -72,19 +72,19 @@ struct SpeciesValues
     Real cp, cv, h, e, entropy;
 };
 
-template<class Real, int Ns>
+template<class Real, int Ns, class TableReal>
 UGKWP_GAS_HD inline ThermoStatus evaluateSpecies
 (
-    int species, Real temperature, const SpeciesThermoView<Real,Ns>& view,
+    int species, Real temperature, const SpeciesThermoView<TableReal,Ns>& view,
     SpeciesValues<Real>& output
 ) noexcept
 {
     if (!validMetadata(species,view)) return ThermoStatus::InvalidModel;
     if (!gasFinite(temperature)) return ThermoStatus::NonFiniteInput;
-    const SpeciesThermoData<Real>& data = view.species[species];
+    const SpeciesThermoData<TableReal>& data = view.species[species];
     if (temperature < data.minTemperature || temperature > data.maxTemperature)
         return ThermoStatus::TemperatureOutOfRange;
-    const Real* c = view.coefficients + data.coefficientOffset;
+    const TableReal* c = view.coefficients + data.coefficientOffset;
     const Real R = universalGasConstant<Real>()/data.molarMass;
     SpeciesValues<Real> local;
     if (data.model == SpeciesThermoModel::LinearCp)
@@ -246,9 +246,9 @@ UGKWP_GAS_HD inline ThermoStatus validateSpeciesThermoView
 }
 
 #define UGKWP_DEFINE_SPECIES_PROPERTY(Name, Member) \
-template<class Real, int Ns> \
+template<class Real, int Ns, class TableReal> \
 UGKWP_GAS_HD inline Real Name \
-(int species,Real temperature,const SpeciesThermoView<Real,Ns>& view) noexcept \
+(int species,Real temperature,const SpeciesThermoView<TableReal,Ns>& view) noexcept \
 { \
     gasThermoDetail::SpeciesValues<Real> values; \
     return gasThermoDetail::evaluateSpecies(species,temperature,view,values)==ThermoStatus::Success \
@@ -261,9 +261,9 @@ UGKWP_DEFINE_SPECIES_PROPERTY(speciesE,e)
 UGKWP_DEFINE_SPECIES_PROPERTY(speciesEntropyStandard,entropy)
 #undef UGKWP_DEFINE_SPECIES_PROPERTY
 
-template<class Real,int Ns>
+template<class Real,int Ns,class TableReal>
 UGKWP_GAS_HD inline Real speciesGibbsStandard
-(int species,Real temperature,const SpeciesThermoView<Real,Ns>& view) noexcept
+(int species,Real temperature,const SpeciesThermoView<TableReal,Ns>& view) noexcept
 {
     gasThermoDetail::SpeciesValues<Real> values;
     if(gasThermoDetail::evaluateSpecies(species,temperature,view,values)!=ThermoStatus::Success)

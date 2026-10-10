@@ -5,12 +5,12 @@ namespace ugkwp
 {
 // Inputs gradNormalArea already contain oriented face area. Output is kg/s,
 // with formation-inclusive species enthalpy transport in J/s. Failure is atomic.
-template<class Real, int Ns>
+template<class Real, int Ns, class TableReal>
 UGKWP_GAS_HD inline bool correctedSpeciesDiffusion
 (
     const Real (&massFraction)[Ns], const Real (&gradNormalArea)[Ns],
     Real density, const Real* molecularD, Real eddyViscosity, Real schmidt,
-    Real temperature, const SpeciesThermoView<Real,Ns>& thermo,
+    Real temperature, const SpeciesThermoView<TableReal,Ns>& thermo,
     Real (&flux)[Ns], Real& enthalpyFlux
 )
 {

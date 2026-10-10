@@ -38,6 +38,7 @@ UGKWP_GAS_HD inline bool publishGasBoundaryLayerOutput
         if(!gasFinite(flux) || !gasFinite(h))return false;
         mass+=flux;enthalpy+=flux*h;
     }
+    candidate.matchingPressure=input.pressure;
     candidate.mass=-area*mass;
     candidate.momentumX=-area*(mass*output.traceVelocity[0]+input.pressure*input.normal[0]-output.traction[0]);
     candidate.momentumY=-area*(mass*output.traceVelocity[1]+input.pressure*input.normal[1]-output.traction[1]);

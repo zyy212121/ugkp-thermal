@@ -13,6 +13,9 @@ template<class Real> struct GasBoundaryLayerExchange
 {
     Real mass=0, momentumX=0, momentumY=0, momentumZ=0, energy=0;
     Real k=0;
+    // Thermodynamic/BVP pressure used in the published force/work. The face
+    // operator replaces only this mechanical contribution with local pressure.
+    Real matchingPressure=0;
     bool ready=false;
     bool massReady=false; // prescribed physical Js are available before thermal solve
 };
