@@ -1,9 +1,11 @@
 #pragma once
+#include "WallPrecision.H"
 #include "WallModelTypes.H"
 namespace ugkwp { namespace gaswall {
 // Analytic frozen-composition constant-cp/transport limit, not the reacting SST model.
-template<class R,int N> UGKWP_GAS_HD inline bool evaluateConstantTransportWall(
- const WallInput<R,N>& in,const WallModelConfig<R>& c,WallOutput<R,N>& output,WallStatus& status){
+template<class R,int N,class TableReal> UGKWP_GAS_HD inline bool evaluateConstantTransportWallImpl(
+ const WallInput<R,N,TableReal>& in,const WallModelConfig<R>& c,WallOutput<R,N>& output,WallStatus& status){
+    static_assert(std::is_same<R,WallReal>::value,"wall flux arithmetic is always FP64");
     if(!detail::validateInput(in,c,status))return false;
     if(c.enableSst||in.model.mode==GasMode::MixtureChemistry)return detail::fail(status,WallCode::Unsupported);
     R m=0,cp=0;for(int j=0;j<N;++j)m+=in.massFlux[j];
@@ -34,5 +36,20 @@ template<class R,int N> UGKWP_GAS_HD inline bool evaluateConstantTransportWall(
     out.chemistryMismatchAvailable=in.coarseReactionIntegral!=nullptr;
     if(!gasFinite(out.conductiveHeatFlux))return detail::fail(status,WallCode::InadmissibleState);
     status.residual=0;output=out;return true;
+}
+// Keep the original <R,N> entry-point spelling while deducing borrowed tables.
+template<class R,int N,class TableReal=R> UGKWP_GAS_HD inline typename std::enable_if<std::is_same<R,WallReal>::value,bool>::type evaluateConstantTransportWall(
+ const WallInput<R,N,TableReal>& input,const WallModelConfig<R>& config,
+ WallOutput<R,N>& output,WallStatus& status){
+ return evaluateConstantTransportWallImpl(input,config,output,status);
+}
+template<class S,int N> UGKWP_GAS_HD inline typename std::enable_if<!std::is_same<S,WallReal>::value,bool>::type evaluateConstantTransportWall(
+ const WallInput<S,N>& input,const WallModelConfig<S>& config,
+ WallOutput<S,N>& output,WallStatus& status){
+ const auto promoted=detail::wallComputationInput(input);const auto controls=detail::wallComputationConfig(config);
+ WallOutput<WallReal,N> result;
+ if(!evaluateConstantTransportWallImpl(promoted,controls,result,status))return false;
+ if(!detail::publishWallPrecision(input,result,output))return detail::fail(status,WallCode::InadmissibleState);
+ return true;
 }
 }} // namespace

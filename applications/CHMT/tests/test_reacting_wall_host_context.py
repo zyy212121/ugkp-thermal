@@ -14,17 +14,19 @@ int main(){
  mesh.boundaryKind.assign(m.owner.size(),chmt::BoundaryKind::Slip);mesh.boundaryKind[0]=chmt::BoundaryKind::Interface;
  chmt::WallClosureHost host;std::string error;assert(host.prepareGeometry(mesh,{0},error));
  std::vector<chmt::GasPrimitive> gas(3);auto p=chmt_test::physics();for(auto&w:gas)w=chmt_test::gas(p);
- gas[0].temperature=600;gas[1].temperature=800;gas[2].temperature=1000;
+ gas[0].pressure=120000;gas[1].pressure=90000;gas[0].temperature=600;gas[1].temperature=800;gas[2].temperature=1000;
  std::vector<chmt::SstPrimitive> sst(3);sst[1].k=.4;sst[1].omega=12;
  std::vector<chmt::GasWallMatchingSample> samples;
- assert(host.sample(gas,sst,true,samples,error));assert(samples.size()==1);assert(samples[0].state.temperature==800);assert(samples[0].state.k==.4);
+ assert(host.sample(gas,sst,true,samples,error));assert(samples.size()==1);assert(samples[0].state.temperature==800);assert(samples[0].state.k==.4);assert(samples[0].pressure==90000);assert(samples[0].mechanicalPressure==120000);
  std::vector<chmt::GasWallClosureContext> contexts;
  p.wallModel.model=BoundaryLayerModel::ConstantTransport;assert(host.contexts(samples,{},p.wallModel,contexts,error));assert(!contexts[0].workspace);
  p.wallModel.model=BoundaryLayerModel::ReactingSst;p.wallModel.nodes=96;
  assert(host.contexts(samples,{},p.wallModel,contexts,error));assert(contexts[0].workspace);assert(contexts[0].workspaceCapacity==128);assert(contexts[0].matchingDistance>1);
- assert(contexts[0].quadrature.volume==1);assert(contexts[0].matching.temperature==800);
- auto* workspace=contexts[0].workspace;gas[1].temperature=850;
- assert(host.sample(gas,sst,true,samples,error));assert(host.contexts(samples,{},p.wallModel,contexts,error));assert(contexts[0].workspace==workspace);assert(contexts[0].matching.temperature==850);
+ assert(contexts[0].quadrature.volume==1);assert(contexts[0].matching.temperature==800);assert(contexts[0].matchingPressure==90000);assert(contexts[0].mechanicalPressure==120000);
+ auto* workspace=contexts[0].workspace;gas[1].temperature=850;gas[0].pressure=130000;
+ assert(host.sample(gas,sst,true,samples,error));assert(host.contexts(samples,{},p.wallModel,contexts,error));assert(contexts[0].workspace==workspace);assert(contexts[0].matching.temperature==850);assert(contexts[0].mechanicalPressure==130000);
+ samples[0].mechanicalPressure=0;assert(!host.contexts(samples,{},p.wallModel,contexts,error));
+ gas[0].pressure=0;assert(!host.sample(gas,sst,true,samples,error));gas[0].pressure=130000;
  // SST geometry weights must resolve the actual profile-node source shape.
  const auto legacy=host.descriptors()[0].distance;auto config=p.wallModel;
  config.family=WallFamily::BoundaryLayer;config.model=BoundaryLayerModel::ReactingSst;config.enableSst=true;config.nodes=24;config.stretch=2;

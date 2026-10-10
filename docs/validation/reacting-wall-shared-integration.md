@@ -134,15 +134,65 @@ six-channel budgets, fixed-Js rejection instead of partial limiter scaling,
 source-step rejection before inventory writes, cold/accepted outer estimates,
 storage failure cleanup, two-level wall/audit rollback and cache counts.
 
-Production wall precision is fixed FP64 in both adapters: native gasUGKP uses
-`GasBoundaryLayerModelState<double,...>` and CHMT's `Real` is `double`.
-Generic FP32 core/operator probes are separate precision tests, not an available
-native FP32 wall backend. There is no public wall-precision or automatic-tolerance
-selection in this ABI. Explicit requested tolerances are never relaxed.
-The conditioned core at a10fe74 uses relative temperature, tangential velocity
-and a fixed energy reference internally; physical temperature and formation
-energy retain their original definitions. Its FP32 accuracy/convergence evidence
-belongs to the core validation report, independently of production FP64 binding.
+Production adapters use double state. In the repaired common operator, the
+internal wall solve also uses FP64 independently of the outer state and global
+GpuReal selection. Float thermo/mechanism tables remain typed borrowed views;
+coefficients are promoted for evaluation rather than reinterpreted or copied
+into an unbounded device cache. Newton, transport, chemistry, SST and reaction
+integrals use double. Output conversion occurs once and the published species
+balance is recomputed from the actual stored fluxes and integrals. A failed or
+unrepresentable output is not published. Requested tolerances are not relaxed.
+This does not introduce a full native FP32 application backend. Existing double
+workspace sizes are unchanged; generic float workspace now has the double size.
+The earlier FP32-core convergence results are historical, not the repaired
+internal-arithmetic contract.
+
+## Independent GPU review repairs (2026-10-10)
+
+The independent review of PR12 040bf096 and PR13 a1b6da69 found real integration
+failures despite passing standalone operator probes. Those versions are not
+accepted. The current repair includes:
+
+- Publish only the six owned wall configuration fields, with the enabled view
+  last. Do not copy the scrubbed host DeviceState over valid device parameters.
+  Partial publication poisons the resident object; allocated resources remain
+  owned until destruction. Lifecycle tests cover audit on/off, each partial
+  copy failure, repeated configuration and idempotent release.
+- Register the twenty omitted managed files and the new precision helper.
+  Standalone inventory validation runs even without a paired checkout. Standard
+  native build gates must run; a direct compiler invocation is insufficient.
+- Enable ordinary wallFunction only for fixed impermeable mixtureFrozen gas
+  walls, using wall-temperature/composition Cp and R. Flux and diffusion-step
+  conductivity agree. Constant-Pr thermal coefficients reuse existing caches;
+  direct conductivity requires a local Pr/P/thermal-y+ calculation. Reacting or
+  moving CHMT ordinary wallFunction remains unsupported.
+- Separate BVP matching pressure from local mechanical wall pressure. The
+  selected face restores the existing reconstructed-owner pressure force and
+  the same moving-wall pressure work, without altering species mass flux,
+  formation enthalpy, blowing kinetic energy or shear work. CHMT recovers that
+  mechanical pressure from the already available same-face momentum flux after
+  removing mass-advection and normal-traction contributions; material and gas
+  packets use the same value. Matching pressure remains the thermochemical and
+  film-EOS pressure. No new wall traversal or device transfer is added.
+- Compute near-tip tetrahedral sections in local coordinates, interpolating
+  from the nearer endpoint. The actual MSS7 owner previously generated a tiny
+  spurious negative area from world-coordinate cancellation. The fix preserves
+  every positivity, geometry and moment certification threshold.
+
+The unchanged coupled FP32-output species-balance gate is strictly 1e-8;
+repaired published residuals are approximately 6.98e-10 and 1.34e-9. Independent
+long-double NASA/Troe/reversible-rate checks cover global32 and global64 builds.
+The production-operator host replay of the original N128 transient Couette
+configuration now reaches t=0.05 with MUSCL/Euler and the original adaptive-step
+settings: finite-volume-average L2=0.01635541 and Linf=0.04535357, below the
+original 0.02/0.05 gates. The old matching-pressure force fails in the paired
+replay; changing the time integrator alone did not cure it.
+
+These repaired host results are not GPU acceptance. The old GPU evidence remains
+attached to its original versions. Re-run the fixed complete cases on the GPU
+before declaring full native acceptance; compiler/link success alone cannot
+close that requirement. Test-generator, completion/output-time and backend
+provenance repairs are maintained separately in the stacked test PR.
 
 ### Optional owner-inventory budget CSV
 
@@ -337,3 +387,37 @@ all original numerical assertions remain unchanged.
 - `SUBFAILED(token='groupMask') applications/gasUGKP/tests/test_gks_les_contract.py::SourceContractTests::test_csr_heavy_and_warp_aggregation_source_contract`
 - `SUBFAILED(token='laneRank') applications/gasUGKP/tests/test_gks_les_contract.py::SourceContractTests::test_csr_heavy_and_warp_aggregation_source_contract`
 - `SUBFAILED(token='materializeCsrReductionTasksKernel') applications/gasUGKP/tests/test_gks_les_contract.py::SourceContractTests::test_csr_heavy_and_warp_aggregation_source_contract`
+
+### Repair verification checkpoint
+
+At production revision `11c107a` (common mechanical-pressure revision `2cc8105`):
+
+- `python -m pytest tests applications/CHMT/tests -q`: **907 passed,
+  198 skipped, 11 subtests passed**. Later changes through `ae28311` are
+  documentation or gas application tests only.
+- Independent focused reviews cover publication failure/lifetime, wall-function
+  mixture transport, internal FP64/float output, geometric certification, and
+  static/moving/blowing mechanical-pressure and work consistency. The complete
+  N128 host replay uses the actual production operators, not a fitted surrogate.
+- Gas application broad checks at `ae28311`: **77 failed, 317 passed,
+  11 skipped, 8 errors, 391 subtests passed**. All 85 failure/error/subfailure
+  identities exactly match the saved original baseline; none were added or
+  removed. This is not an all-green repository claim. The pass count is for the
+  application-only command and must not be compared with older combined suites.
+- Standard gasUGKP build entry, including managed-inventory and particle-field
+  gates: **Ns2 and Ns10 CUDA compilation, backend links and OpenFOAM frontend
+  links passed**. Immutable `2cc8105` source snapshots match the final 320
+  production/build inputs byte-for-byte. Compiler elapsed times were 228.09 and
+  281.69 seconds; maximum child RSS was 1,583,156 and 1,959,536 KiB. These are
+  build measurements, not solver performance.
+- CHMT **Ns2 and Ns10 CUDA compilation and full OpenFOAM application links
+  passed**. Each actual compiler dependency set (127 files) and the relevant
+  source manifest (620 files) were verified before/after. Later test/document
+  commits did not change those inputs.
+
+The four application builds used CUDA 13.0.88, GCC 14.2 and sm_89. No GPU
+runtime was available in this repair environment. Final application register,
+stack and spill counts were not measured by the unmodified standard build
+entry and are not borrowed from earlier binaries. The stacked test PR records
+its separate CPU/reference and CUDA probe results. A successful build, host
+replay or input import does not close the outstanding GPU re-review.

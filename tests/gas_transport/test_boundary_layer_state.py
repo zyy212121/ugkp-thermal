@@ -53,8 +53,8 @@ output.traceTemperature=std::numeric_limits<Real>::quiet_NaN();ck(!ugkwp::publis
 ''',bits)
 
 @pytest.mark.parametrize('bits,nodes,tolerance,success',
-    [(bits,nodes,1e-4 if bits==32 else 1e-8,True) for bits in (32,64) for nodes in (0,24,48,96)]
-    +[(32,48,1e-8,False),(32,96,1e-8,False)])
+    [(bits,nodes,1e-8,True) for bits in (32,64) for nodes in (0,24,48,96)]
+    +[(32,48,1e-20,False),(32,96,1e-20,False)])
 def test_stage_evaluation_uses_unconstrained_matching_and_preserves_inventory(tmp_path,bits,nodes,tolerance,success):
     from test_mixture_transport import fixture
     src=fixture().replace('struct State:ugkwp::GasStateView<Real,Time,ugkwp::SstCoefficients>{ugkwp::GasSpeciesState<Real,2> gasSpecies;};',
@@ -84,12 +84,13 @@ os[1]=0;ck(!ugkwp::evaluateGasBoundaryLayerSlot(s,0),"circular constrained match
         body=body.replace('m.workspace=nullptr;m.workspaceCount=0;delete[] workspace;',f'delete[] workspace;m.workspace=new ugkwp::gaswall::WallWorkspace<Real,2,{capacity}>[1];m.workspaceCount=1;m.workspaceCapacity={capacity};')
     if not success:
         # Requested precision remains authoritative: no silent relaxation or
-        # publication of a failed FP32 profile at the measured residual floor.
+        # publication of a failed fixed-FP64 profile below its attainable floor.
+        body=body.replace("m.config.relativeTolerance=Real(1e-20);", "m.config.relativeTolerance=Real(1e-20);m.config.absoluteTolerance=0;")
         start=body.index('if(!ugkwp::evaluateGasBoundaryLayerSlot(s,0))')
         end=body.index('ck(exchange[0].ready',start)
-        body=body[:start]+r'''ck(!ugkwp::evaluateGasBoundaryLayerSlot(s,0),"strict float tolerance unexpectedly accepted");
+        body=body[:start]+r'''ck(!ugkwp::evaluateGasBoundaryLayerSlot(s,0),"unattainable requested tolerance unexpectedly accepted");
 ck(status[0]==int(ugkwp::GasTransportCode::BoundaryLayerFailure)&&modelStatus[0].code==ugkwp::gaswall::WallCode::NonConvergence,"wrong terminal failure category");
-ck(modelStatus[0].residual>double(m.config.relativeTolerance)&&m.config.relativeTolerance==Real(1e-8),"requested tolerance silently relaxed");
+ck(modelStatus[0].residual>double(m.config.relativeTolerance)&&m.config.relativeTolerance==Real(1e-20),"requested tolerance silently relaxed");
 ck(!exchange[0].ready&&s.rho[0]==savedRho&&s.rhoE[0]==savedEnergy&&s.gasSpecies.rho[0]==savedSpecies,"failed profile changed inventory or readiness");return 0;
 '''+body[end:]
     compile_probe(tmp_path,src+body,bits)

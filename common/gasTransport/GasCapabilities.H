@@ -73,8 +73,9 @@ UGKWP_GAS_HD inline GasCapabilityResult validateGasCapabilities(const GasCapabil
         return {GasTransportCode::UnsupportedConfiguration, "mixture species splitting is currently verified only for Rusanov and Kurganov/HLL"};
     if (r.reconstruction != 0 && r.reconstruction != 1)
         return {GasTransportCode::UnsupportedConfiguration, "mixture reconstruction supports firstOrder or composition-aware MUSCL"};
-    if (r.turbulenceModel == 3 && r.sstWallTreatment == 1)
-        return {GasTransportCode::UnsupportedConfiguration, "mixture SST supports low-Re (lowRe) or boundaryLayer; ordinary wallFunction is not enabled"};
+    if (r.turbulenceModel == 3 && r.sstWallTreatment == 1
+        && (r.mode != GasMode::MixtureFrozen || r.movingGeometry))
+        return {GasTransportCode::UnsupportedConfiguration, "mixture ordinary wallFunction supports only fixed impermeable mixtureFrozen walls"};
     if (r.particleCoupling)
         return {GasTransportCode::UnsupportedConfiguration, "mixture particle thermal and void-fraction closure is not enabled"};
     return {GasTransportCode::Success, "mixture shared Rusanov or Kurganov/HLL with firstOrder or MUSCL"};

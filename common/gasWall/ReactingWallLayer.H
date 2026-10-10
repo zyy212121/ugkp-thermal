@@ -1,4 +1,5 @@
 #pragma once
+#include "WallPrecision.H"
 #include "WallLayerMath.H"
 #include "WallThermoMath.H"
 #include "../gasTransport/SpeciesDiffusion.H"
@@ -20,7 +21,7 @@ template<class R,int N> struct LayerPoint {
     R T=0,theta=0,normalCoefficient=0,Y[N]{},rho=0,cp=0,h[N]{},u[2]{},normalVelocity=0,k=0,z=0,omega=0;
     R nut=0,f1=0,f2=0,sourceK=0,sourceOmega=0,source[N]{};
 };
-template<class R,int N> UGKWP_GAS_HD UGKWP_WALL_DEVICE_LEAF bool pointState(const WallInput<R,N>& in,
+template<class R,int N,class TableReal> UGKWP_GAS_HD UGKWP_WALL_DEVICE_LEAF bool pointState(const WallInput<R,N,TableReal>& in,
  const WallModelConfig<R>& c,const LayerContext<R,N>& ctx,const R* state,LayerPoint<R,N>& p){
     p.theta=state[2];p.T=in.temperature+p.theta;p.u[0]=state[0];p.u[1]=state[1];p.k=state[N+2]*state[N+2];p.z=state[N+3];
     if(!gasFinite(p.T)||p.T<=0||!gasFinite(p.k)||p.k<0||!gasFinite(p.z)||p.z<0)return false;
@@ -38,7 +39,7 @@ template<class R,int N> UGKWP_GAS_HD UGKWP_WALL_DEVICE_LEAF bool pointState(cons
 // Immutable mechanism was checked once at solve entry. Reuse the common rate
 // arithmetic directly here; repeating an O(mechanism size) schema audit at
 // every Newton perturbation is unnecessary and materially more expensive.
-template<class R,int N> UGKWP_GAS_HD UGKWP_WALL_DEVICE_LEAF bool pointReaction(const WallInput<R,N>& in,LayerPoint<R,N>& p){
+template<class R,int N,class TableReal> UGKWP_GAS_HD UGKWP_WALL_DEVICE_LEAF bool pointReaction(const WallInput<R,N,TableReal>& in,LayerPoint<R,N>& p){
     if(in.model.mode!=GasMode::MixtureChemistry)return true;
     R concentration[N];for(int j=0;j<N;++j)concentration[j]=p.rho*p.Y[j]/in.model.thermo.species[j].molarMass;
     const auto& mech=in.model.mechanism;
@@ -50,7 +51,7 @@ template<class R,int N> UGKWP_GAS_HD UGKWP_WALL_DEVICE_LEAF bool pointReaction(c
     for(int j=0;j<N;++j)if(!gasFinite(p.source[j]))return false;
     return true;
 }
-template<class R,int N> UGKWP_GAS_HD inline void applySstGradients(const WallInput<R,N>& in,
+template<class R,int N,class TableReal> UGKWP_GAS_HD inline void applySstGradients(const WallInput<R,N,TableReal>& in,
  R y,R du0,R du1,R dv,R dk,R domega,LayerPoint<R,N>& p){
     const auto& a=in.model.sstCoefficients;
     const R cd=sstCrossDiffusion(p.omega,dk*domega,a);
@@ -61,7 +62,7 @@ template<class R,int N> UGKWP_GAS_HD inline void applySstGradients(const WallInp
     p.sourceK=sstKSource(p.rho,p.k,p.omega,dv,p.nut,g,a);
     p.sourceOmega=sstOmegaSource(p.rho,p.k,p.omega,dv,g,s2,p.f1,p.f2,cd,a);
 }
-template<class R,int N> UGKWP_GAS_HD UGKWP_WALL_DEVICE_LEAF void pointSst(const WallInput<R,N>& in,const WallModelConfig<R>& c,
+template<class R,int N,class TableReal> UGKWP_GAS_HD UGKWP_WALL_DEVICE_LEAF void pointSst(const WallInput<R,N,TableReal>& in,const WallModelConfig<R>& c,
  R y,const LayerPoint<R,N>& left,const LayerPoint<R,N>& right,R length,LayerPoint<R,N>& p,R leftSpacing=R(0)){
     if(!c.enableSst||p.z<=0||y<=0)return;
     const R hr=length-leftSpacing;const bool centered=leftSpacing>0&&hr>0;
@@ -86,7 +87,7 @@ template<class R,int N> UGKWP_GAS_HD inline R physicalLayerEnergyFlux(const Laye
     for(int d=0;d<2;++d)energy+=ctx.wallU[d]*(f.momentum[d]+ctx.mass*ctx.wallU[d]/R(2));
     return energy;
 }
-template<class R,int N> UGKWP_GAS_HD inline bool layerFlux(const WallInput<R,N>& in,const WallModelConfig<R>& c,
+template<class R,int N,class TableReal> UGKWP_GAS_HD inline bool layerFlux(const WallInput<R,N,TableReal>& in,const WallModelConfig<R>& c,
  const LayerContext<R,N>& ctx,const LayerPoint<R,N>& a,const LayerPoint<R,N>& b,R length,LayerFlux<R,N>& f,R ya=0,R yb=0){
     const R rho=(a.rho+b.rho)/R(2),nut=(a.nut+b.nut)/R(2),T=(a.T+b.T)/R(2);
     R Y[N],grad[N],diff[N],diffEnthalpy=0;
@@ -104,7 +105,7 @@ template<class R,int N> UGKWP_GAS_HD inline bool layerFlux(const WallInput<R,N>&
     f.omega=ctx.mass*(a.omega+b.omega)/R(2)-dw*omegaGradientFit(ya,yb)*(b.omega-a.omega)/length;
     return gasFinite(f.energy)&&gasFinite(f.k);
 }
-template<class R,int N,int M> UGKWP_GAS_HD inline bool evaluatePoint(const WallInput<R,N>& in,
+template<class R,int N,int M,class TableReal> UGKWP_GAS_HD inline bool evaluatePoint(const WallInput<R,N,TableReal>& in,
  const WallModelConfig<R>& c,const LayerContext<R,N>& ctx,const R (&x)[M][N+4],const R* y,int index,LayerPoint<R,N>& p){
     if(!pointState(in,c,ctx,x[index],p)||!pointReaction(in,p))return false;
     if(c.enableSst&&index>0){const int l=index-1,r=index+1<c.nodes?index+1:index;LayerPoint<R,N> a,b;
@@ -115,14 +116,14 @@ template<class R,int N,int M> UGKWP_GAS_HD inline bool evaluatePoint(const WallI
 // Flux values at a face depend on endpoint gradients through SST eddy viscosity.
 // Use a two-point strain/gradient consistently, preserving a three-node residual
 // stencil and block-tridiagonal Newton system.
-template<class R,int N> UGKWP_GAS_HD UGKWP_WALL_DEVICE_LEAF bool intervalFlux(const WallInput<R,N>& in,const WallModelConfig<R>& c,
+template<class R,int N,class TableReal> UGKWP_GAS_HD UGKWP_WALL_DEVICE_LEAF bool intervalFlux(const WallInput<R,N,TableReal>& in,const WallModelConfig<R>& c,
  const LayerContext<R,N>& ctx,const R* xa,const R* xb,R ya,R yb,LayerFlux<R,N>& f){
     LayerPoint<R,N> a,b;if(!pointState(in,c,ctx,xa,a)||!pointState(in,c,ctx,xb,b))return false;
     const auto originalA=a,originalB=b;
     pointSst(in,c,ya,originalA,originalB,yb-ya,a);pointSst(in,c,yb,originalA,originalB,yb-ya,b);
     return layerFlux(in,c,ctx,a,b,yb-ya,f,ya,yb);
 }
-template<class R,int N,int M> UGKWP_GAS_HD UGKWP_WALL_DEVICE_LEAF bool layerRow(const WallInput<R,N>& in,
+template<class R,int N,int M,class TableReal> UGKWP_GAS_HD UGKWP_WALL_DEVICE_LEAF bool layerRow(const WallInput<R,N,TableReal>& in,
  const WallModelConfig<R>& c,const LayerContext<R,N>& ctx,const R (&x)[M][N+4],const R* y,int i,R* row){
     constexpr int K=N+2,Z=N+3;
     for(int j=0;j<N+4;++j)row[j]=0;
@@ -159,7 +160,7 @@ template<class R,int N,int M> UGKWP_GAS_HD UGKWP_WALL_DEVICE_LEAF bool layerRow(
     for(int j=0;j<N+4;++j)if(!gasFinite(row[j]))return false;
     return true;
 }
-template<class R,int N,int M> UGKWP_GAS_HD inline bool allResidual(const WallInput<R,N>& in,
+template<class R,int N,int M,class TableReal> UGKWP_GAS_HD inline bool allResidual(const WallInput<R,N,TableReal>& in,
  const WallModelConfig<R>& c,const LayerContext<R,N>& ctx,const R (&x)[M][N+4],const R* y,R (&f)[M][N+4],R& norm){
     norm=0;for(int i=0;i<c.nodes;++i){if(!layerRow(in,c,ctx,x,y,i,f[i]))return false;
         for(int j=0;j<N+4;++j)norm=max(norm,abs(f[i][j]));}return true;
@@ -173,7 +174,7 @@ template<class R,int B> UGKWP_GAS_HD inline bool eliminateBlock(R (&a)[B][B],R (
         for(int row=0;row<B;++row)if(row!=col){const R factor=a[row][col];for(int k=0;k<B;++k){a[row][k]-=factor*a[col][k];upper[row][k]-=factor*upper[col][k];}rhs[row]-=factor*rhs[col];}}
     return true;
 }
-template<class R,int N,int M> UGKWP_GAS_HD inline bool newtonStep(const WallInput<R,N>& in,
+template<class R,int N,int M,class TableReal> UGKWP_GAS_HD inline bool newtonStep(const WallInput<R,N,TableReal>& in,
  const WallModelConfig<R>& c,const LayerContext<R,N>& ctx,WallWorkspace<R,N,M>& w){
     constexpr int B=N+4;
     for(int i=0;i<c.nodes;++i)for(int row=0;row<B;++row){w.delta[i][row]=-w.residual[i][row];for(int col=0;col<B;++col)w.lower[i][row][col]=w.diagonal[i][row][col]=w.upper[i][row][col]=0;}
@@ -230,7 +231,7 @@ template<class R,int N,int M> UGKWP_GAS_HD inline bool newtonStep(const WallInpu
 
     return true;
 }
-template<class R,int N> UGKWP_GAS_HD inline void makeContext(const WallInput<R,N>& in,const WallModelConfig<R>& c,LayerContext<R,N>& ctx){
+template<class R,int N,class TableReal> UGKWP_GAS_HD inline void makeContext(const WallInput<R,N,TableReal>& in,const WallModelConfig<R>& c,LayerContext<R,N>& ctx){
     int axis=0;if(abs(in.normal[1])<abs(in.normal[axis]))axis=1;if(abs(in.normal[2])<abs(in.normal[axis]))axis=2;
     R tangentNorm=0;for(int d=0;d<3;++d){ctx.tangent[0][d]=(d==axis?R(1):R(0))-in.normal[axis]*in.normal[d];tangentNorm+=ctx.tangent[0][d]*ctx.tangent[0][d];}
     for(int d=0;d<3;++d)ctx.tangent[0][d]/=::sqrt(tangentNorm);
@@ -242,7 +243,7 @@ template<class R,int N> UGKWP_GAS_HD inline void makeContext(const WallInput<R,N
     ctx.wallNormal=dot(in.velocity,in.normal);
     for(int j=0;j<N;++j){ctx.mass+=in.massFlux[j];if(in.matching.massFraction[j]>in.matching.massFraction[ctx.dependent])ctx.dependent=j;}
     for(int j=0,k=0;j<N;++j)if(j!=ctx.dependent)ctx.independent[k++]=j;
-    for(int j=0;j<N;++j){ctx.enthalpyJump[j]=speciesEnthalpyBranchJump(j,in.model.thermo);ctx.wallEnthalpy[j]=speciesH(j,in.temperature,in.model.thermo);ctx.energyReference+=in.matching.massFraction[j]*ctx.wallEnthalpy[j];}
+    for(int j=0;j<N;++j){ctx.enthalpyJump[j]=speciesEnthalpyBranchJumpAs<R>(j,in.model.thermo);ctx.wallEnthalpy[j]=speciesH(j,in.temperature,in.model.thermo);ctx.energyReference+=in.matching.massFraction[j]*ctx.wallEnthalpy[j];}
     R gasR=0,cp=0,maxD=0;for(int j=0;j<N;++j){gasR+=in.matching.massFraction[j]*universalGasConstant<R>()/in.model.thermo.species[j].molarMass;cp+=in.matching.massFraction[j]*speciesCp(j,in.matching.temperature,in.model.thermo);maxD=max(maxD,in.model.diffusivity[j]);}
     const R rho=in.pressure/(gasR*in.matching.temperature),L=in.matchingDistance;
     for(int d=0;d<2;++d)ctx.scale[d]=max(R(1e-12),(ctx.mass+in.model.viscosity/L)*max(R(1),abs(ctx.edgeU[d])));
@@ -271,7 +272,7 @@ template<class R,int N,int M> UGKWP_GAS_HD inline bool seedScalar(
 // Positive transport/destruction Picard iteration is only a Newton initializer.
 // Its upwind convection and first-node asymptotic profile never authorize a
 // result: the coupled conservative final residual must independently converge.
-template<class R,int N,int M> UGKWP_GAS_HD inline bool seedSstLayer(const WallInput<R,N>& in,
+template<class R,int N,int M,class TableReal> UGKWP_GAS_HD inline bool seedSstLayer(const WallInput<R,N,TableReal>& in,
  const WallModelConfig<R>& c,const LayerContext<R,N>& ctx,WallWorkspace<R,N,M>& w){
     if(!c.enableSst)return true;
     const int K=N+2,Z=N+3;const auto& coefficients=in.model.sstCoefficients;
@@ -314,7 +315,7 @@ template<class R,int N,int M> UGKWP_GAS_HD inline bool seedSstLayer(const WallIn
     return true;
 }
 
-template<class R,int N,int M> UGKWP_GAS_HD inline bool publishLayer(const WallInput<R,N>& in,const WallModelConfig<R>& c,
+template<class R,int N,int M,class TableReal> UGKWP_GAS_HD inline bool publishLayer(const WallInput<R,N,TableReal>& in,const WallModelConfig<R>& c,
  const LayerContext<R,N>& ctx,WallWorkspace<R,N,M>& w,int iterations,R norm,WallOutput<R,N>& output){
     WallOutput<R,N> out;LayerPoint<R,N> wall;if(!pointState(in,c,ctx,w.state[0],wall))return false;
     if(!trace(in,wall.Y,out))return false;
@@ -358,8 +359,8 @@ template<class R,int N,int M> UGKWP_GAS_HD inline bool publishLayer(const WallIn
                 applySstGradients(in,y,(b.u[0]-a.u[0])/dy,(b.u[1]-a.u[1])/dy,((b.normalCoefficient+a.normalCoefficient)/R(2)*(b.theta-a.theta)+(b.T+a.T)/R(2)*(b.normalCoefficient-a.normalCoefficient))/dy,dk,-R(2)*(b.z-a.z)/(dy*p.z*p.z*p.z),p);}
             else pointSst(in,c,y,a,b,w.y[l+1]-w.y[l],p);
             out.integratedKSource+=weight*p.sourceK;}
-        const R tol=R(512)*std::numeric_limits<R>::epsilon();
-        if(abs(total-q.volume)>tol*max(total,q.volume)||abs(moment-q.firstMoment)>tol*max(abs(moment),abs(q.firstMoment)))return false;
+        const R tol=R(512)*std::numeric_limits<TableReal>::epsilon();
+        if(abs(total-q.volume)>tol*max(total,R(q.volume))||abs(moment-q.firstMoment)>tol*max(abs(moment),abs(R(q.firstMoment))))return false;
         int l=0;while(l+1<c.nodes-1&&w.y[l+1]<in.ownerDistance)++l;
         const R fraction=(in.ownerDistance-w.y[l])/(w.y[l+1]-w.y[l]);const R z=w.state[l][N+3]+fraction*(w.state[l+1][N+3]-w.state[l][N+3]);
         if(!(z>0))return false;
@@ -368,14 +369,12 @@ template<class R,int N,int M> UGKWP_GAS_HD inline bool publishLayer(const WallIn
 }
 } // detail
 
-template<class R,int N,int M> UGKWP_GAS_HD inline bool evaluateReactingWallLayer(
- const WallInput<R,N>& in,const WallModelConfig<R>& c,WallWorkspace<R,N,M>& w,WallOutput<R,N>& output,WallStatus& status){
+template<class R,int N,int M,class TableReal> UGKWP_GAS_HD inline bool evaluateReactingWallLayerImpl(
+ const WallInput<R,N,TableReal>& in,const WallModelConfig<R>& c,WallWorkspace<R,N,M>& w,WallOutput<R,N>& output,WallStatus& status){
     using namespace detail;
     if(!validateInput(in,c,status))return false;
     if(c.nodes<4||c.nodes>M||c.maxIterations<1)return fail(status,WallCode::InvalidInput);
-    // Common SST algebra uses the native gas precision. Reject a mixed-R SST
-    // call explicitly instead of silently narrowing CPU-double calculations.
-    if(c.enableSst&&!std::is_same<R,GpuReal>::value)return fail(status,WallCode::Unsupported);
+    static_assert(std::is_same<R,WallReal>::value,"wall solve arithmetic is always FP64");
     if(in.model.mode!=GasMode::MixtureFrozen&&in.model.mode!=GasMode::MixtureChemistry&&in.model.mode!=GasMode::SingleLegacy)return fail(status,WallCode::Unsupported);
     if(in.model.mode==GasMode::MixtureChemistry&&!validateGasMechanismView(in.model.thermo,in.model.mechanism))return fail(status,WallCode::ChemistryFailure);
     if(c.enableSst&&(!gasFinite(in.matching.k)||in.matching.k<=0||!gasFinite(in.matching.omega)||in.matching.omega<=0))return fail(status,WallCode::InvalidInput);
@@ -399,6 +398,21 @@ template<class R,int N,int M> UGKWP_GAS_HD inline bool evaluateReactingWallLayer
         if(!accepted)return fail(status,WallCode::NonConvergence);
     }
     return fail(status,WallCode::NonConvergence);
+}
+// Keep the original <R,N,M> entry-point spelling while deducing borrowed tables.
+template<class R,int N,int M,class TableReal=R> UGKWP_GAS_HD inline typename std::enable_if<std::is_same<R,WallReal>::value,bool>::type evaluateReactingWallLayer(
+ const WallInput<R,N,TableReal>& input,const WallModelConfig<R>& config,WallWorkspace<R,N,M>& workspace,
+ WallOutput<R,N>& output,WallStatus& status){
+ return evaluateReactingWallLayerImpl(input,config,workspace,output,status);
+}
+template<class S,int N,int M> UGKWP_GAS_HD inline typename std::enable_if<!std::is_same<S,WallReal>::value,bool>::type evaluateReactingWallLayer(
+ const WallInput<S,N>& input,const WallModelConfig<S>& config,WallWorkspace<S,N,M>& workspace,
+ WallOutput<S,N>& output,WallStatus& status){
+ const auto promoted=detail::wallComputationInput(input);const auto controls=detail::wallComputationConfig(config);
+ WallOutput<WallReal,N> result;
+ if(!evaluateReactingWallLayerImpl(promoted,controls,workspace,result,status))return false;
+ if(!detail::publishWallPrecision(input,result,output))return detail::fail(status,WallCode::InadmissibleState);
+ return true;
 }
 }} // namespace
 

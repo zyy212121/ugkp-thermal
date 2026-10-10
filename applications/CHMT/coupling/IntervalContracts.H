@@ -38,7 +38,7 @@ struct MaterialReserveKnot {
 struct MaterialDonorPlan { CouplingInterval interval{}; std::vector<MaterialReserveKnot> knots{}; };
 struct WallProgram { CouplingInterval interval{}; SurfaceMesh surface{}; std::vector<WallKnot> knots{}; MaterialDonorPlan donorPlan{}; };
 struct GasWallMatchingSample {
-    Real pressure=0;
+    Real pressure=0,mechanicalPressure=0; // matching EOS p; same-stage local wall-force p.
     ugkwp::gaswall::WallMatchingState<Real,Ns> state{};
 }; // actual gas driving snapshot, never an inventory or chemical source.
 struct GasIntervalRecord {
@@ -118,7 +118,8 @@ public:
         if(!input.gasWallMatching.empty()&&input.gasWallMatching.size()!=input.gasTrace.size())
             return intervalFailure(error,"gas wall matching trace size mismatch");
         for(const auto& sample:input.gasWallMatching){
-            if(!finite(sample.pressure)||sample.pressure<=0||!finite(sample.state.temperature)||sample.state.temperature<=0)
+            if(!finite(sample.pressure)||sample.pressure<=0||!finite(sample.mechanicalPressure)||sample.mechanicalPressure<=0
+                ||!finite(sample.state.temperature)||sample.state.temperature<=0)
                 return intervalFailure(error,"invalid gas wall matching thermodynamic trace");
             Real sum=0;for(int s=0;s<Ns;++s){const auto y=sample.state.massFraction[s];if(!finite(y)||y<0)return intervalFailure(error,"invalid matching composition");sum+=y;}
             for(int d=0;d<3;++d)if(!finite(sample.state.velocity[d]))return intervalFailure(error,"invalid matching velocity");

@@ -65,6 +65,11 @@
       "downstream": "ugkp-thermal"
     },
     {
+      "path": "applications/gasUGKP/gpu/BoundaryLayerInput.H",
+      "upstream": "gpu-riemann-gkp-main",
+      "downstream": "ugkp-thermal"
+    },
+    {
       "path": "applications/gasUGKP/gpu/GpuBackendApi.H",
       "upstream": "gpu-riemann-gkp-main",
       "downstream": "ugkp-thermal"
@@ -106,6 +111,16 @@
     },
     {
       "path": "applications/gasUGKP/gpu/SharedGasModelInput.H",
+      "upstream": "gpu-riemann-gkp-main",
+      "downstream": "ugkp-thermal"
+    },
+    {
+      "path": "applications/gasUGKP/private_backend/BoundaryLayerAdapter.cuh",
+      "upstream": "gpu-riemann-gkp-main",
+      "downstream": "ugkp-thermal"
+    },
+    {
+      "path": "applications/gasUGKP/private_backend/BoundaryLayerStorage.cuh",
       "upstream": "gpu-riemann-gkp-main",
       "downstream": "ugkp-thermal"
     },
@@ -275,6 +290,21 @@
       "downstream": "ugkp-thermal"
     },
     {
+      "path": "applications/gasUGKP/tests/test_boundary_layer_lifecycle.py",
+      "upstream": "gpu-riemann-gkp-main",
+      "downstream": "ugkp-thermal"
+    },
+    {
+      "path": "applications/gasUGKP/tests/test_boundary_layer_protocol.py",
+      "upstream": "gpu-riemann-gkp-main",
+      "downstream": "ugkp-thermal"
+    },
+    {
+      "path": "applications/gasUGKP/tests/test_boundary_layer_storage.py",
+      "upstream": "gpu-riemann-gkp-main",
+      "downstream": "ugkp-thermal"
+    },
+    {
       "path": "applications/gasUGKP/tests/test_collision_sampling_contract.py",
       "upstream": "gpu-riemann-gkp-main",
       "downstream": "ugkp-thermal"
@@ -376,6 +406,11 @@
     },
     {
       "path": "applications/gasUGKP/tests/test_mixture_transport_case.py",
+      "upstream": "gpu-riemann-gkp-main",
+      "downstream": "ugkp-thermal"
+    },
+    {
+      "path": "applications/gasUGKP/tests/test_native_boundary_layer_frontend.py",
       "upstream": "gpu-riemann-gkp-main",
       "downstream": "ugkp-thermal"
     },
@@ -1035,6 +1070,31 @@
       "downstream": "gpu-riemann-gkp-main"
     },
     {
+      "path": "common/gasTransport/GasBoundaryLayerEvaluation.H",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/gasTransport/GasBoundaryLayerHost.H",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/gasTransport/GasBoundaryLayerModelState.H",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/gasTransport/GasBoundaryLayerState.H",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/gasTransport/GasBoundaryLayerWorkspace.H",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
       "path": "common/gasTransport/GasBuildConfig.H",
       "upstream": "ugkp-thermal",
       "downstream": "gpu-riemann-gkp-main"
@@ -1096,6 +1156,46 @@
     },
     {
       "path": "common/gasTransport/SpeciesDiffusion.H",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/gasWall/ConstantTransportWall.H",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/gasWall/ReactingWallLayer.H",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/gasWall/WallGeometryBuilder.H",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/gasWall/WallLayerMath.H",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/gasWall/WallModel.H",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/gasWall/WallModelTypes.H",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/gasWall/WallPrecision.H",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/gasWall/WallThermoMath.H",
       "upstream": "ugkp-thermal",
       "downstream": "gpu-riemann-gkp-main"
     },
@@ -1241,6 +1341,11 @@
     },
     {
       "path": "common/operators/countParticlesByCellKernel.cuh",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/operators/evaluateGasBoundaryLayerKernel.cuh",
       "upstream": "ugkp-thermal",
       "downstream": "gpu-riemann-gkp-main"
     },

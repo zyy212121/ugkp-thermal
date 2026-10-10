@@ -25,6 +25,7 @@ inline bool materialDriveSlabEnd(const IntervalHistory& history,Real begin,Real 
         // actual matching snapshot, which may change while the owner is steady.
         for(std::size_t f=0;f<r.gasWallMatching.size();++f){const auto& a=held->gasWallMatching[f];const auto& b=r.gasWallMatching[f];
             change=maxValue(change,materialDriveRelative(a.pressure,b.pressure,1));
+            change=maxValue(change,materialDriveRelative(a.mechanicalPressure,b.mechanicalPressure,1));
             change=maxValue(change,materialDriveRelative(a.state.temperature,b.state.temperature,1));
             const Real speedScale=f<r.gasTrace.size()?maxValue(1,maxValue(r.gasTrace[f].soundSpeed,held->gasTrace[f].soundSpeed)):1;
             Real velocityChange=0;for(int d=0;d<3;++d){const Real delta=a.state.velocity[d]-b.state.velocity[d];velocityChange+=delta*delta;}

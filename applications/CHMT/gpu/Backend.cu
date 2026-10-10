@@ -227,14 +227,27 @@ int applyCoupledFaces(Backend* b,Real dt,Real stageTime){
     for(std::size_t i=0;i<surface.area.size();++i){const int f=surface.gasFace[i],cell=b->trial.gasMesh.owner[f];const auto& w=wall.faces[i];GasWallInput input;
         input.bulk=primitive[cell];input.gradient=gradient[cell];input.temperature=w.temperature;input.gasDistance=surface.gasDistance[i];input.area=surface.area[i];input.gasArea=mag(b->trial.gasMesh.areaVectors[f]);input.dt=dt;input.normal=surface.normal[i];input.velocity=w.velocity;input.primaryKind=w.primaryKind;
         input.normalSpeed=w.normalVelocity;input.sweptVolume=-b->gasStage.sweptVolume[f];
+        Real massFlux=0;for(int s=0;s<Ns;++s){input.speciesRate[s]=w.speciesRate[s];input.poreRate[s]=w.poreRate[s];input.poreSweepRate[s]=w.poreSweepRate[s];
+            massFlux+=(w.speciesRate[s]+w.poreRate[s])*(input.area/input.gasArea);}
         if(b->gasBoundaryLayer.enabled){
-            if(!b->preparedWallReady||b->preparedWallTime!=stageTime||b->preparedWallDt!=dt||b->preparedWallLayers.size()!=surface.area.size()){
+            if(!b->preparedWallReady||b->preparedWallTime!=stageTime||b->preparedWallDt!=dt||b->preparedWallLayers.size()!=surface.area.size()||b->preparedMatching.size()!=surface.area.size()){
                 b->error="boundaryLayer stage closure is missing or stale";return 1;}
             input.normal=-b->trial.gasMesh.areaVectors[f]/input.gasArea;
             input.preparedLayer=&b->preparedWallLayers[i];input.wallContext.matchingPressure=b->preparedMatching[i].pressure;
+            // The common face operator has already reconstructed the local
+            // mechanical pressure. Recover that exact pressure from its flux,
+            // removing physical mass advection and normal viscous stress.
+            // n_out=-input.normal and Fmom/A=-m*u_trace+p*n_out+traction_in.
+            const auto& layer=*input.preparedLayer;const Vec3 outward=-input.normal;
+            const Vec3 traceVelocity={layer.traceVelocity[0],layer.traceVelocity[1],layer.traceVelocity[2]};
+            const Vec3 traction={layer.traction[0],layer.traction[1],layer.traction[2]};
+            input.wallContext.mechanicalPressure=dot(flux[f].momentum,outward)/input.gasArea
+                +massFlux*dot(traceVelocity,outward)-dot(traction,outward);
+            if(!finite(input.wallContext.mechanicalPressure)||input.wallContext.mechanicalPressure<=0){
+                b->error="boundaryLayer common mechanical pressure is invalid";return 1;}
+            b->preparedMatching[i].mechanicalPressure=input.wallContext.mechanicalPressure;
         }
         if(!b->gasGeometry.enabled&&(w.normalVelocity!=0||w.solidNormalVelocity!=0)){b->error="wall motion supplied to static gas geometry";return 1;}
-        for(int s=0;s<Ns;++s){input.speciesRate[s]=w.speciesRate[s];input.poreRate[s]=w.poreRate[s];input.poreSweepRate[s]=w.poreSweepRate[s];}
         for(int c=0;c<Nc;++c)input.condensedRate[c]=w.condensedRate[c];
         SurfacePacketIdentity identity;identity.step=b->record.microSequence;identity.geometry=b->record.gasGeometry;identity.face=surface.persistentId[i];identity.stage=1;identity.gasCell=cell;identity.solidCell=surface.solidCell[i];identity.filmFace=int(i);
         if(!evaluateGasWall(input,identity,b->model.physics,b->faceRates[i])){b->error="coupled interface trace/packet failed";return 1;}

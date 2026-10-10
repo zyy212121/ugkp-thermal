@@ -220,11 +220,20 @@ template<class R> void tetraQuadrature(const std::array<Vec<R>,4>&p,R volume,int
 // including when the complete owner's section is disconnected or concave.
 template<class R> bool tetraSection(const std::array<Vec<R>,4>&p,const std::array<R,4>&height,
  R y,const WallGeometryDescriptor<R>&d,R&area,Vec<R>&centroid){
+    // Keep tiny near-tip sections out of absolute mesh coordinates. Adding a
+    // one-ulp-sized section to its world position can collapse or reverse its
+    // triangles. Interpolate from the nearer endpoint in a local frame, then
+    // restore the world origin only for the final diagnostic centroid.
+    int anchor=0;
+    for(int i=1;i<4;++i)if(std::abs(height[i]-y)<std::abs(height[anchor]-y))anchor=i;
+    std::array<Vec<R>,4> local;
+    for(int i=0;i<4;++i)local[i]=sub(p[i],p[anchor]);
     std::array<Vec<R>,4> section;int count=0;
     for(int a=0;a<4;++a)for(int b=a+1;b<4;++b){
         if(!((height[a]<y&&y<height[b])||(height[b]<y&&y<height[a])))continue;
         if(count==4)return false;
-        section[count++]=add(p[a],mul(sub(p[b],p[a]),(y-height[a])/(height[b]-height[a])));
+        const int from=std::abs(y-height[a])<=std::abs(y-height[b])?a:b,to=from==a?b:a;
+        section[count++]=add(local[from],mul(sub(local[to],local[from]),(y-height[from])/(height[to]-height[from])));
     }
     if(count<3)return false;
     Vec<R> centre=section[0];
@@ -239,7 +248,7 @@ template<class R> bool tetraSection(const std::array<Vec<R>,4>&p,const std::arra
         area+=w;offset=add(offset,mul(add(a,b),w/R(3)));
     }
     if(!(area>0)||!gasFinite(area))return false;
-    centroid=add(centre,mul(offset,R(1)/area));return finite(centroid);
+    centroid=add(p[anchor],add(centre,mul(offset,R(1)/area)));return finite(centroid);
 }
 // The section area is quadratic between projected tetrahedron vertices.
 // Cutting again at every BVP node makes area * reconstructed source cubic,
