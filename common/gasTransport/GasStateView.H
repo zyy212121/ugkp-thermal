@@ -5,6 +5,7 @@
 #include "GasModel.H"
 #include "GasGeometryPolicy.H"
 #include "GasSstAudit.H"
+#include "GasBoundaryLayerState.H"
 #include "../chemistry/ChemistryTypes.H"
 
 namespace ugkwp
@@ -26,6 +27,7 @@ struct GasStateView
     static constexpr int speciesCount = 0;
     GasGeometryState<Real> gasGeometry;
     GasSstAuditState<Real> gasSstAudit;
+    GasBoundaryLayerState<Real> gasBoundaryLayer;
     Real gasThermalConductivity = Real(-1); // negative: legacy mu*cp/Pr; otherwise W/(m K)
 
 #define UGKWP_GAS_STATE_FIELD(Type, Name) Type Name{};
@@ -135,6 +137,7 @@ inline auto makeGasStateView(const State& state)
         view.gasThermalConductivity=state.gasThermalConductivity;
     if constexpr (GasGeometryCapability<State>::value) view.gasGeometry=state.gasGeometry;
     if constexpr (GasSstAuditCapability<State>::value) view.gasSstAudit=state.gasSstAudit;
+    if constexpr (GasBoundaryLayerCapability<State>::value) view.gasBoundaryLayer=state.gasBoundaryLayer;
     return view;
 }
 

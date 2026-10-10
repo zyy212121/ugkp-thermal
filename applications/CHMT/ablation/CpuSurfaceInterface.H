@@ -15,6 +15,7 @@ bool evaluateCpuSurface(const HostState&,const PhysicsConfig&,
     const std::vector<GasPrimitive>& bulk,const std::vector<GasGradient>& gradients,
     const std::vector<SolidQ>& materialRate,const std::vector<FilmQ>& filmRate,
     Real dt,std::uint64_t sequence,CpuSurfaceResult&,std::string&,
-    const std::vector<Vec3>* filmPressureGradient=nullptr,const std::vector<Real>* sideMeshVolumeRate=nullptr);
+    const std::vector<Vec3>* filmPressureGradient=nullptr,const std::vector<Real>* sideMeshVolumeRate=nullptr,
+    const std::vector<GasWallClosureContext>* wallContexts=nullptr);
 }
 #endif

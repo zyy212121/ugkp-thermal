@@ -16,7 +16,7 @@ def test_mass_only_matches_full_operator(tmp_path,bits):
     full_flux=(ROOT/'common/operators/computeGasInternalFaceFluxKernel.cuh').read_text().split('template<class GasState>\n__global__ void enforcePeriodicGasFluxAntisymmetryKernel')[0]
     fields_source=src+courant+primitive+sensor+full_flux
     arrays=sorted(set(re.findall(r's\.(\w+)\[',fields_source))|{'faceNeighbour'})
-    scalars=sorted(set(re.findall(r's\.(\w+)',fields_source))-set(arrays)-{'gasSpecies','gasGeometry','gasSstAudit'})
+    scalars=sorted(set(re.findall(r's\.(\w+)',fields_source))-set(arrays)-{'gasSpecies','gasGeometry','gasSstAudit','gasBoundaryLayer'})
     int_arrays={'faceOwner','faceNeighbour','riemannBoundaryKind','riemannBoundaryTFix','riemannBoundaryUFix','cellPlaneStart','cellPlaneCount','cellFaceId'}
     int_scalars={'nFaces','nCells','gasReconstruction','gasFluxScheme','nInternalFaces','sstConfigured'}
     fields='\n'.join(('int' if x in int_arrays else 'R')+' '+x+'[2]={};' for x in arrays)

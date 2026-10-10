@@ -74,5 +74,38 @@ inline bool writeAcceptedExchangeFields(std::ostream& stream,const HostState& st
     }
     if(!stream){error="exchange field output write failed";return false;}error.clear();return true;
 }
+inline bool writeAcceptedWallLayerFields(std::ostream& stream,const HostState& state,
+    const ModelConfig& model,std::string& error){
+    if(!validateAcceptedOutput(state,model,error))return false;
+    const bool available=!state.gasWallDiagnostics.empty();
+    if(available&&(state.gasWallDiagnostics.size()!=state.surface.area.size()
+        ||!finite(state.gasWallDiagnosticTime)||state.gasWallDiagnosticTime<0||state.gasWallDiagnosticTime>state.time)){
+        error="wall diagnostic snapshot is not an accepted stage";return false;}
+    for(const auto& d:state.gasWallDiagnostics){
+        if(!finite(d.traceTemperature)||!finite(d.traceDensity)||!finite(d.conductiveHeatFlux)
+            ||!finite(d.integratedKSource)||!finite(d.ownerOmega)||!finite(d.wallKFlux)||!finite(d.residual)){
+            error="nonfinite accepted wall diagnostic";return false;}
+        for(int j=0;j<3;++j)if(!finite(d.traceVelocity[j])||!finite(d.traction[j])){error="nonfinite wall diagnostic motion";return false;}
+        for(int j=0;j<Ns;++j)if(!finite(d.traceMassFraction[j])||!finite(d.wallSpeciesFlux[j])
+            ||!finite(d.matchingSpeciesFlux[j])||!finite(d.reactionIntegral[j])||!finite(d.speciesBalanceResidual[j])
+            ||(d.chemistryMismatchAvailable&&!finite(d.chemistryMismatch[j]))){error="nonfinite wall species diagnostic";return false;}
+    }
+    stream<<std::setprecision(17)<<"accepted_time,stage_time,face,status,species,wall_temperature,wall_density,wall_mass_fraction,wall_species_flux,matching_species_flux,reaction_integral,species_balance_residual,chemistry_mismatch_available,chemistry_mismatch,conductive_heat_flux,traction_x,traction_y,traction_z,wall_k_flux,owner_k_source_integral,owner_omega,iterations,residual\n";
+    for(std::size_t f=0;f<state.surface.area.size();++f)for(int j=0;j<Ns;++j){
+        stream<<state.time<<',';
+        if(available)stream<<state.gasWallDiagnosticTime;
+        stream<<','<<state.surface.persistentId[f]<<','<<(available?"AVAILABLE":"NOT_AVAILABLE")<<','<<std::quoted(model.speciesNames[j]);
+        if(!available){for(int column=0;column<18;++column)stream<<',';stream<<'\n';continue;}
+        const auto& d=state.gasWallDiagnostics[f];
+        stream<<','<<d.traceTemperature<<','<<d.traceDensity<<','<<d.traceMassFraction[j]<<','<<d.wallSpeciesFlux[j]
+            <<','<<d.matchingSpeciesFlux[j]<<','<<d.reactionIntegral[j]<<','<<d.speciesBalanceResidual[j]
+            <<','<<(d.chemistryMismatchAvailable?1:0)<<',';
+        if(d.chemistryMismatchAvailable)stream<<d.chemistryMismatch[j];
+        stream<<','<<d.conductiveHeatFlux<<','<<d.traction[0]<<','<<d.traction[1]<<','<<d.traction[2]
+            <<','<<d.wallKFlux<<','<<d.integratedKSource<<','<<d.ownerOmega<<','<<d.iterations<<','<<d.residual<<'\n';
+    }
+    if(!stream){error="wall diagnostic write failed";return false;}error.clear();return true;
+}
+
 }}
 #endif

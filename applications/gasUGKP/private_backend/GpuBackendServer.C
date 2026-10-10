@@ -465,6 +465,33 @@ bool handleAdvance(const int fd,const RequestHeader& request,ServerState& s)
     return responseHeader(fd,status,0);
 }
 
+bool handleConfigureBoundaryLayer(const int fd,const RequestHeader& request,ServerState& s)
+{
+    BoundaryLayerConfigV1 a;std::uint64_t expected=0;
+    if(request.payloadBytes<sizeof(a) || !readObject(fd,a) || !s.gasModelConfigured
+        || !boundaryLayerPayloadBytes(a,s.nFaces,s.gasSpeciesIdentity.speciesCount,expected)
+        || !validatePayload(fd,request,expected))return false;
+    std::vector<int> faces,qOffsets,mOffsets,mCells;std::vector<double> geometry,qDistance,qWeight,mWeight,species;
+    if(!readVector(fd,faces,a.wallCount) || !readVector(fd,qOffsets,a.wallCount+1ULL)
+        || !readVector(fd,mOffsets,a.wallCount+1ULL) || !readVector(fd,mCells,a.matchingCount)
+        || !readVector(fd,geometry,7ULL*a.wallCount) || !readVector(fd,qDistance,a.quadratureCount)
+        || !readVector(fd,qWeight,a.quadratureCount) || !readVector(fd,mWeight,a.matchingCount)
+        || !readVector(fd,species,std::uint64_t(a.wallCount)*a.speciesCount))return false;
+    return responseHeader(fd,ugkwpGpuResidentStrictConfigureBoundaryLayerV1(s.backend,&a,ptr(faces),ptr(qOffsets),
+        ptr(mOffsets),ptr(mCells),ptr(geometry),ptr(qDistance),ptr(qWeight),ptr(mWeight),ptr(species)),0);
+}
+bool handleDownloadBoundaryLayer(const int fd,const RequestHeader& request,ServerState& s)
+{
+    std::uint32_t dimensions[2];
+    if(!validatePayload(fd,request,sizeof(dimensions)) || !readAll(fd,dimensions,sizeof(dimensions))
+        || !dimensions[0] || dimensions[0]>std::uint32_t(s.nFaces) || !s.gasModelConfigured
+        || dimensions[1]!=s.gasSpeciesIdentity.speciesCount)return false;
+    std::vector<double> output(std::uint64_t(dimensions[0])*(boundaryLayerDiagnosticScalars+2ULL*dimensions[1]));
+    const int status=ugkwpGpuResidentStrictDownloadBoundaryLayerV1(s.backend,dimensions[0],dimensions[1],ptr(output));
+    return responseHeader(fd,status,status?0:output.size()*sizeof(double))
+        && (status || writeAll(fd,output.data(),output.size()*sizeof(double)));
+}
+
 bool handleConfigureSst
 (
     const int fd,
@@ -804,6 +831,8 @@ bool dispatch
         case Op::uploadEpsGPrev:return handleUploadEpsGPrev(fd,request,s);
         case Op::downloadNut:return handleDownloadNut(fd,request,s);
         case Op::configureSst:return handleConfigureSst(fd,request,s);
+        case Op::configureBoundaryLayerV1:return handleConfigureBoundaryLayer(fd,request,s);
+        case Op::downloadBoundaryLayerV1:return handleDownloadBoundaryLayer(fd,request,s);
         case Op::downloadSst:return handleDownloadSst(fd,request,s);
         case Op::release:
         {

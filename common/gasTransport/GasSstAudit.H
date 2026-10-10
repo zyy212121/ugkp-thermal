@@ -24,6 +24,14 @@ template<class State>UGKWP_GAS_HD inline bool gasSstAuditEnabled(const State&s)
     if constexpr(GasSstAuditCapability<State>::value)return s.gasSstAudit.enabled;
     return false;
 }
+// Host adapters may keep the enabled view only in their owned device storage.
+// In that case preserve the existing kernel's device-side enabled check.
+// Native hosts exposing the view can skip a known-disabled audit launch.
+template<class State> inline bool gasSstAuditPreparationRequired(const State& s)
+{
+    if constexpr(GasSstAuditCapability<State>::value)return s.gasSstAudit.enabled;
+    return true;
+}
 template<class State>UGKWP_GAS_HD inline bool gasSstAuditComplete(const State&s)
 {
     if constexpr(GasSstAuditCapability<State>::value)

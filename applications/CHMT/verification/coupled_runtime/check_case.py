@@ -15,8 +15,8 @@ from pathlib import Path
 import struct
 
 
-# Schema 5 includes active single species and SST integrals before the fixed tail.
-FIELD_SCHEMA_HASH = 12202687703557820755
+# Schema 6 adds wall-model controls to configuration; the state tail is unchanged.
+FIELD_SCHEMA_HASH = 15664811910203657810
 HEADER = struct.Struct('<8sQIIIIIIQQQQ')
 ENERGY_ABS = 2e-5  # J; well below the prescribed millijoule-or-larger exchange
 MASS_ABS = 1e-10  # kg
@@ -48,14 +48,14 @@ def checkpoint_clock(path, species_count):
     wire = Path(path).read_bytes()
     require(len(wire) >= HEADER.size, 'truncated checkpoint header')
     magic, schema, endian, real_size, ns, nc, nr, ne, field_hash, config_size, state_size, digest = HEADER.unpack_from(wire)
-    require((magic, schema, endian, real_size, ns, nc, nr, ne) == (b'CHMTCP2\0', 5, 0x01020304, 8, species_count, 2, 8, 8), 'checkpoint schema/precision/species mismatch')
+    require((magic, schema, endian, real_size, ns, nc, nr, ne) == (b'CHMTCP2\0', 6, 0x01020304, 8, species_count, 2, 8, 8), 'checkpoint schema/precision/species mismatch')
     require(field_hash == FIELD_SCHEMA_HASH, 'checkpoint field schema differs from the independently supported layout')
     require(config_size > 0 and state_size > 0 and HEADER.size+config_size+state_size == len(wire), 'checkpoint payload length mismatch')
     checksum = 14695981039346656037
     for byte in wire[HEADER.size:]:
         checksum = ((checksum ^ byte) * 1099511628211) & ((1 << 64)-1)
     require(checksum == digest, 'checkpoint checksum mismatch')
-    # Schema-5 fixed tail: time, three uint64 counters, then Budget. Budget
+    # Schema-6 fixed tail: time, three uint64 counters, then Budget. Budget
     # stores (45 + 5*Ns + Ne) binary64 values and a consumedPackets uint64.
     budget_size = (45+5*ns+ne)*8+8
     tail_size = 32+budget_size

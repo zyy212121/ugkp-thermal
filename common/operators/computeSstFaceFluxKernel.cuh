@@ -1,4 +1,5 @@
 #pragma once
+#include <cfloat>
 #include "gasTransport/GasStateView.H"
 #include "gasTransport/GasCapabilities.H"
 #include "gasTransport/MixtureThermo.H"
@@ -228,7 +229,7 @@ __global__ void computeSstFaceFluxKernel(GasState* sp)
         const int kMode = s.sstBoundaryKMode[f];
         const int omegaMode = s.sstBoundaryOmegaMode[f];
         const bool kFixed =
-            (boundaryKind == 2 && s.sstWallTreatment == 0)
+            (boundaryKind == 2 && s.sstWallTreatment != 1)
           || kMode == 1
           || (kMode == 2 && massFlux < GPU_OPERATOR_R(0.0));
         const bool omegaFixed = boundaryKind == 2 || omegaMode == 1
@@ -249,6 +250,17 @@ __global__ void computeSstFaceFluxKernel(GasState* sp)
         massFlux*kUpwind - rhoDk*snGradK*area;
     s.sstPhiRhoOmega[f] =
         massFlux*omegaUpwind - rhoDomega*snGradOmega*area;
+    if constexpr(ugkwp::GasBoundaryLayerCapability<GasState>::value)
+    {
+        const int slot=ugkwp::gasBoundaryLayerFaceSlot(s,f);
+        if(slot>=0)
+        {
+            if(!ugkwp::gasBoundaryLayerSlotReady(s,slot))
+            {if(!ugkwp::gasRecordFaceFailure(s,f,ugkwp::GasTransportCode::InvalidStorage))asm("trap;");return;}
+            s.sstPhiRhoK[f]=s.gasBoundaryLayer.exchange[slot].k;
+            // omega keeps the finite coarse-grid row for the constraint ledger.
+        }
+    }
 }
 
 template<class GasState>
@@ -408,7 +420,7 @@ __global__ void applySstFluxAndSourceKernel
     if(moving && !ugkwp::gasGeometryCellVolumes(s,c,dt,oldVolume,newVolume))
     { if(!ugkwp::gasRecordCellFailure(s,c,ugkwp::GasTransportCode::InvalidGeometry))asm("trap;"); return; }
     if(moving && ugkwp::gasCellFailure(s,c)!=0)return;
-    bool constrainedOmega = false;
+    bool constrainedOmega = ugkwp::gasBoundaryLayerOwnerSlot(s,c)>=0;
     GPU_OPERATOR_REAL fluxK = GPU_OPERATOR_R(0.0);
     GPU_OPERATOR_REAL fluxOmega = GPU_OPERATOR_R(0.0);
     GPU_OPERATOR_REAL volumeFlux = GPU_OPERATOR_R(0.0);
@@ -439,7 +451,7 @@ __global__ void applySstFluxAndSourceKernel
         volumeFlux -= sign*absoluteVolumeFlux;
         constrainedOmega = constrainedOmega ||
         (
-            (s.sstWallTreatment == 0 || s.sstWallTreatment == 1)
+            (s.sstWallTreatment == 0 || s.sstWallTreatment == 1 || s.sstWallTreatment == 2)
          && f >= s.nInternalFaces
          && s.riemannBoundaryKind[f] == 2
         );
@@ -448,6 +460,22 @@ __global__ void applySstFluxAndSourceKernel
     const GPU_OPERATOR_REAL divU = volumeFlux/clampMin(oldVolume, OfSmall);
     GPU_OPERATOR_REAL sourceK, sourceOmega;
     sstSourcesForCell(s, c, divU, sourceK, sourceOmega);
+    if constexpr(ugkwp::GasBoundaryLayerCapability<GasState>::value)
+    {
+        const int slot=ugkwp::gasBoundaryLayerOwnerSlot(s,c);
+        if(slot>=0)
+        {
+            if(!ugkwp::gasBoundaryLayerSlotReady(s,slot))
+            {if(!ugkwp::gasRecordCellFailure(s,c,ugkwp::GasTransportCode::InvalidStorage))asm("trap;");return;}
+            const auto& closure=s.gasBoundaryLayer.sst[slot];
+            constexpr GPU_OPERATOR_REAL wallVolumeTolerance=GPU_OPERATOR_R(256.0)
+                *(sizeof(GPU_OPERATOR_REAL)==sizeof(float)?FLT_EPSILON:DBL_EPSILON);
+            if(!finiteDevice(closure.volume) || !(closure.volume>0) || !finiteDevice(closure.integratedKSource)
+                || fabs(closure.volume-oldVolume)>wallVolumeTolerance*oldVolume)
+            {if(!ugkwp::gasRecordCellFailure(s,c,ugkwp::GasTransportCode::InvalidGeometry))asm("trap;");return;}
+            sourceK=closure.integratedKSource/oldVolume;
+        }
+    }
     const GPU_OPERATOR_REAL invV = GPU_OPERATOR_R(1.0)/clampMin(s.V[c], OfSmall);
     const GPU_OPERATOR_REAL deltaRhoK = dt*(fluxK*invV + sourceK);
     const GPU_OPERATOR_REAL deltaRhoOmega = dt*(fluxOmega*invV + sourceOmega);
@@ -460,6 +488,10 @@ __global__ void applySstFluxAndSourceKernel
         constrainedOmega ? GPU_OPERATOR_R(0.0)
           : fabs(dt*sourceOmega)/clampMin(s.rhoOmega[c], rhoOmegaFloor)
     );
+    if constexpr(ugkwp::GasBoundaryLayerCapability<GasState>::value)
+        if(ugkwp::gasBoundaryLayerOwnerSlot(s,c)>=0
+            && (!finiteDevice(s.sstSourceNumber[c]) || s.sstSourceNumber[c]>s.sstMaxSourceNumber))
+        {if(!ugkwp::gasRecordCellFailure(s,c,ugkwp::GasTransportCode::SourceStepLimit))asm("trap;");return;}
     // Explicit sources are evaluated from the old density and old inventory.
     // Faces already carry the common ALE mass flux, so add no mesh term here.
     if(moving)
@@ -741,7 +773,8 @@ __global__ void computeSstStabilityNumberKernel
 (
     GasState* sp,
     const GPU_OPERATOR_TIME dt,
-    const GPU_OPERATOR_REAL targetMaxCo
+    const GPU_OPERATOR_REAL targetMaxCo,
+    const bool requireWallProfile=true
 )
 {
     GasState& s = *sp;
@@ -763,7 +796,7 @@ __global__ void computeSstStabilityNumberKernel
     GPU_OPERATOR_REAL minimumVolumeFlux = GPU_OPERATOR_R(0.0);
     GPU_OPERATOR_REAL maximumVolumeFlux = GPU_OPERATOR_R(0.0);
     GPU_OPERATOR_REAL meshVolumeFlux = GPU_OPERATOR_R(0.0);
-    bool constrainedOmega = false;
+    bool constrainedOmega = ugkwp::gasBoundaryLayerOwnerSlot(s,c)>=0;
     const int start = s.cellPlaneStart[c];
     const int count = s.cellPlaneCount[c];
     for (int i = 0; i < count; ++i)
@@ -795,7 +828,7 @@ __global__ void computeSstStabilityNumberKernel
         maximumVolumeFlux += fmax(outwardVolumeFlux, GPU_OPERATOR_R(0.0));
         constrainedOmega = constrainedOmega ||
         (
-            (s.sstWallTreatment == 0 || s.sstWallTreatment == 1)
+            (s.sstWallTreatment == 0 || s.sstWallTreatment == 1 || s.sstWallTreatment == 2)
          && f >= s.nInternalFaces && s.riemannBoundaryKind[f] == 2
         );
         const int other = (f < s.nInternalFaces || isPeriodicFace(s, f))
@@ -879,11 +912,23 @@ __global__ void computeSstStabilityNumberKernel
     const GPU_OPERATOR_REAL compressionOmega =
         (GPU_OPERATOR_R(2.0)/GPU_OPERATOR_R(3.0))*s.rho[c]
        *ugkwp::sstGamma(s.sstF1[c], s.sstCoefficients)*s.omega[c];
-    const GPU_OPERATOR_REAL sourceKBound = fmax
+    GPU_OPERATOR_REAL sourceKBound = fmax
     (
         fabs(sourceKAtZeroDiv - compressionK*minimumDivU),
         fabs(sourceKAtZeroDiv - compressionK*maximumDivU)
     );
+    if constexpr(ugkwp::GasBoundaryLayerCapability<GasState>::value)
+    {
+        const int slot=ugkwp::gasBoundaryLayerOwnerSlot(s,c);
+        if(slot>=0)
+        {
+            if(ugkwp::gasBoundaryLayerSlotReady(s,slot))
+                sourceKBound=fabs(s.gasBoundaryLayer.sst[slot].integratedKSource/sourceVolume);
+            else if(requireWallProfile)
+            {s.sstSourceNumber[c]=OfGreat;if(!ugkwp::gasRecordCellFailure(s,c,ugkwp::GasTransportCode::InvalidStorage))asm("trap;");return;}
+            else sourceKBound=GPU_OPERATOR_R(0.0); // preliminary outer estimate only
+        }
+    }
     const GPU_OPERATOR_REAL sourceOmegaBound = fmax
     (
         fabs(sourceOmegaAtZeroDiv - compressionOmega*minimumDivU),

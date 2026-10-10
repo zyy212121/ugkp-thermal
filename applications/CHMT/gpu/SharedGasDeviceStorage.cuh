@@ -1,6 +1,9 @@
 #ifndef CHMT_GPU_SHAREDGASDEVICESTORAGE_CUH
 #define CHMT_GPU_SHAREDGASDEVICESTORAGE_CUH
 #include "gpu/Buffer.H"
+#include "ablation/WallClosureHost.H"
+#include "../../../common/gasTransport/GasBoundaryLayerModelState.H"
+#include "../../../common/gasTransport/GasBoundaryLayerWorkspace.H"
 #include "core/HostState.H"
 #include "materials/Thermodynamics.H"
 #include "../../../common/gasTransport/GasStateView.H"
@@ -13,6 +16,7 @@
 namespace chmt {
 struct SharedGasDeviceView:ugkwp::GasStateView<Real,Real,ugkwp::SstCoefficients> {
     ugkwp::GasSpeciesState<Real,Ns> gasSpecies;
+    ugkwp::GasBoundaryLayerModelState<Real,Ns> gasBoundaryLayerModel;
 };
 static_assert(std::is_trivially_copyable<SharedGasDeviceView>::value,"shared gas view is POD");
 template<class T>struct GasAllocation {bool allocate(T&,std::size_t,CudaFault&){return true;}};
@@ -43,9 +47,22 @@ class SharedGasDeviceStorage {
     Buffer<Real> geometryOld_,geometryNew_,geometrySweeps_;
     std::array<Buffer<Real>,13> sstAudit_;
     std::uint64_t identity_=0,thermoIdentity_=0,mechanismIdentity_=0;
-    std::vector<Real> volume_;
+    std::vector<Real> volume_,wallFaceArea_;
+    Real magFromGeometryFace(int face)const{return face>=0&&std::size_t(face)<wallFaceArea_.size()?wallFaceArea_[face]:0;}
     Tolerances geometryTolerances_;
     int activeSpecies_=-1;
+    std::unique_ptr<WallClosureHost> wallGeometry_;
+    std::vector<int> wallFaces_;
+    std::vector<ugkwp::gaswall::WallInput<Real,Ns>> wallHostInput_;
+    std::uint64_t wallGeometryVersion_=0;bool wallGeometryReady_=false,wallModelFailed_=false;
+    Buffer<int> wallFaceSlot_,wallOwnerSlot_,wallStatus_,wallFaceList_,wallMatchOffsets_,wallMatchCells_;
+    Buffer<Real> wallSpecies_,wallDistance_,wallWeights_,wallMatchWeights_;
+    Buffer<ugkwp::GasBoundaryLayerExchange<Real>> wallExchange_;
+    Buffer<ugkwp::GasBoundaryLayerSstClosure<Real>> wallSst_;
+    Buffer<ugkwp::gaswall::WallInput<Real,Ns>> wallInput_;
+    Buffer<ugkwp::gaswall::WallOutput<Real,Ns>> wallOutput_;
+    Buffer<ugkwp::gaswall::WallStatus> wallModelStatus_;
+    Buffer<unsigned char> wallWorkspace_;
     static std::size_t count(const char* name,std::size_t cells,std::size_t faces,std::size_t addressing){
         if(!std::strcmp(name,"cellFaceId"))return addressing;
         if(!std::strncmp(name,"pressureSchedule",16))return 0;
@@ -66,6 +83,7 @@ public:
     const SharedGasDeviceView& hostView()const{return view_;}
     SharedGasDeviceView* deviceView()const{return device_.data();}
     const std::string& error()const{return fault_.message;}
+    bool wallModelFailed()const{return wallModelFailed_;}
     bool refreshView(){return device_.uploadOne(view_,fault_);}
     bool bindStageGeometry(const HostStageGeometry& stage){
         if(stage.oldVolume.size()!=std::size_t(view_.nCells)||stage.newVolume.size()!=stage.oldVolume.size()||stage.sweptVolume.size()!=std::size_t(view_.nFaces))return false;
@@ -80,7 +98,14 @@ public:
         output=std::move(candidate);return true;
     }
     template<class T>bool write(T* pointer,const std::vector<T>& values){return upload(pointer,values);}
-    bool clearTrialStatus(){for(auto& buffer:sstAudit_)if(!buffer.zero(nullptr))return false;return cellStatus_.zero(nullptr)&&faceStatus_.zero(nullptr)&&chemistryStatus_.zero(nullptr)&&chemistryAudit_.zero(nullptr);}
+    void invalidateWallGeometry(){if(wallGeometry_)wallGeometry_->clearGeometry();wallGeometryReady_=false;}
+    const WallClosureHost* wallGeometry()const{return wallGeometry_.get();}
+    bool clearTrialStatus(){
+        wallModelFailed_=false;
+        view_.gasBoundaryLayer.preparedFirstStage=false;
+        if(view_.gasBoundaryLayer.enabled&&(!wallStatus_.zero(nullptr)||!wallExchange_.zero(nullptr)||!wallModelStatus_.zero(nullptr)))return false;
+        for(auto& buffer:sstAudit_)if(!buffer.zero(nullptr))return false;
+        return cellStatus_.zero(nullptr)&&faceStatus_.zero(nullptr)&&chemistryStatus_.zero(nullptr)&&chemistryAudit_.zero(nullptr);}
     bool checkStatus(std::string& error){
         if(!fault_.check(cudaDeviceSynchronize(),"synchronize shared gas trial")){error=fault_.message;return false;}
         std::vector<int> cells,faces;
@@ -90,12 +115,24 @@ public:
         std::vector<ugkwp::ChemistryStatus> chemical;
         if(!chemistryStatus_.download(chemical,nullptr)){error=fault_.message;return false;}
         for(std::size_t c=0;c<chemical.size();++c)if(!chemical[c]){error="shared chemistry cell "+std::to_string(c)+" status "+std::to_string(int(chemical[c].code));return false;}
+        if(view_.gasBoundaryLayer.enabled){std::vector<int> status;
+            if(!wallStatus_.download(status,nullptr)){error=fault_.message;return false;}
+            for(std::size_t f=0;f<status.size();++f)if(status[f]){error="boundaryLayer rejected wall slot "+std::to_string(f)+" code "+std::to_string(status[f]);return false;}}
         error.clear();return true;
     }
     bool configure(const ModelConfig& model,const ugkwp::GasModelConfiguration& gas,
         const ugkwp::GasMechanismConfiguration& mechanism,const HostState& state,std::string& error){
         if(identity_!=0){error="gas model configuration is immutable after allocation";return false;}
+        if(!validateWallModelConfig(model.physics,error))return false;
         geometryTolerances_=model.physics.tolerances;
+        if(model.physics.wallModel.family==ugkwp::gaswall::WallFamily::BoundaryLayer){
+            wallGeometry_.reset(new WallClosureHost);wallFaces_=state.surface.gasFace;
+            if(wallFaces_.empty()){error="boundaryLayer requires coupled physical wall faces";return false;}
+            view_.gasBoundaryLayer.enabled=true;view_.gasBoundaryLayer.count=int(wallFaces_.size());
+            auto& layer=view_.gasBoundaryLayerModel;layer.config=model.physics.wallModel;
+            layer.config.enableSst=model.physics.enableSst;layer.config.turbulentPrandtl=model.physics.sst.turbulentPrandtl;
+            layer.config.turbulentSchmidt=model.physics.sst.turbulentSchmidt;layer.useSuppliedWallState=true;
+        }
         const std::size_t nc=state.gas.size(),nf=state.gasMesh.owner.size();
         if(!nc||nc>INT_MAX||nf>INT_MAX||state.gasMesh.volumes.size()!=nc){error="invalid shared gas dimensions";return false;}
         const auto& mesh=state.gasMesh;
@@ -131,7 +168,7 @@ public:
         if(mixture){
         if(!thermoData_.upload(gas.species,fault_)||!thermoCoeff_.upload(gas.coefficients,fault_)||!elements_.upload(gas.elementComposition,fault_)){error=fault_.message;return false;}
         sp.thermo=gas.thermoView<Ns>();sp.thermo.species=thermoData_.data();sp.thermo.coefficients=thermoCoeff_.data();sp.thermo.elementComposition=elements_.data();
-        if(gas.diffusionModel==ugkwp::GasDiffusionModel::Constant){if(!diffusivity_.upload(gas.diffusionCoefficients,fault_)){error=fault_.message;return false;}sp.diffusivity=diffusivity_.data();}
+        if(gas.diffusionModel==ugkwp::GasDiffusionModel::Constant||view_.gasBoundaryLayer.enabled){if(!diffusivity_.upload(gas.diffusionCoefficients,fault_)){error=fault_.message;return false;}sp.diffusivity=diffusivity_.data();}
         if(gas.mode==ugkwp::GasMode::MixtureChemistry){
             if(!reactions_.upload(mechanism.reactions,fault_)||!reactants_.upload(mechanism.reactants,fault_)||!products_.upload(mechanism.products,fault_)
                 ||!efficiencies_.upload(mechanism.efficiencies,fault_)||!basis_.upload(mechanism.stoichiometricBasis,fault_)){error=fault_.message;return false;}
@@ -152,7 +189,7 @@ public:
         coeff.gamma1=st.gamma1;coeff.gamma2=st.gamma2;coeff.alphaK1=st.sigmaK1;coeff.alphaK2=st.sigmaK2;
         coeff.alphaOmega1=st.sigmaOmega1;coeff.alphaOmega2=st.sigmaOmega2;coeff.c1=st.productionLimit;
         view_.sstKMin=maxValue(st.minimumK,1e-12);view_.sstOmegaMin=maxValue(st.minimumOmega,1e-12);view_.sstMaxSourceNumber=.25;
-        view_.turbulenceModel=model.physics.enableSst?3:0;view_.sstConfigured=model.physics.enableSst;view_.sstWallTreatment=0;
+        view_.turbulenceModel=model.physics.enableSst?3:0;view_.sstConfigured=model.physics.enableSst;view_.sstWallTreatment=int(model.physics.wallModel.family);
         if(model.physics.enableSst){
             auto& audit=view_.gasSstAudit;audit.enabled=true;
             Real** pointers[]={&audit.transportK,&audit.transportOmega,&audit.sourceK,&audit.sourceOmega,&audit.constraintK,&audit.constraintOmega,
@@ -160,12 +197,100 @@ public:
             for(std::size_t i=0;i<sstAudit_.size();++i)if(!allocateSpecies(sstAudit_[i],*pointers[i],nc)){error=fault_.message;return false;}
         }
         view_.sstWallKappa=.41;view_.sstWallE=9.8;view_.sstWallCmu=.09;view_.lesDeltaCoeff=1;view_.waleCw=.325;view_.smagorinskyCs=.17;
-        if(!uploadGeometry(state.gasMesh)||!uploadState(state,error)||!refreshView()){if(error.empty())error=fault_.message;return false;}
+        if(!uploadGeometry(state.gasMesh)||!uploadState(state,error)||!configureWallWorkspace(model.physics,error)||!refreshView()){if(error.empty())error=fault_.message;return false;}
         error.clear();return true;
+    }
+    bool configureWallWorkspace(const PhysicsConfig& physics,std::string& error){
+        if(!view_.gasBoundaryLayer.enabled)return true;
+        auto& layer=view_.gasBoundaryLayerModel;
+        ugkwp::BoundaryLayerWorkspaceSizing sizing;
+        layer.workspaceCapacity=0;
+        if(layer.config.model!=ugkwp::gaswall::BoundaryLayerModel::ConstantTransport){
+            layer.workspaceCapacity=ugkwp::gasBoundaryLayerWorkspaceCapacity(layer.config.nodes);
+            const std::size_t bytes=ugkwp::gasBoundaryLayerWorkspaceBytes<Real,Ns>(layer.config.nodes);
+#if defined(__CUDACC__) && defined(CUDART_VERSION)
+            int device=0,multiprocessors=0;std::size_t freeBytes=0,totalBytes=0;
+            if(!fault_.check(cudaGetDevice(&device),"query wall workspace device")
+                ||!fault_.check(cudaDeviceGetAttribute(&multiprocessors,cudaDevAttrMultiProcessorCount,device),"query wall workspace multiprocessors")
+                ||!fault_.check(cudaMemGetInfo(&freeBytes,&totalBytes),"query wall workspace memory")){error=fault_.message;return false;}
+            sizing=ugkwp::resolveBoundaryLayerWorkspace(view_.gasBoundaryLayer.count,physics.wallWorkspaceSlots,multiprocessors,freeBytes,bytes);
+#else
+            // Host CUDA shims do not represent a GPU. A serial worker gives a
+            // deterministic functional test without pretending device sizing.
+            sizing=ugkwp::resolveBoundaryLayerWorkspace(view_.gasBoundaryLayer.count,1,1,bytes,bytes);
+#endif
+            if(sizing.slots==0){error="boundaryLayer workspace does not fit the selected device memory budget";return false;}
+        }
+        if(!wallWorkspace_.resize(sizing.bytes,fault_)){error=fault_.message;return false;}
+        layer.workspaceCount=sizing.slots;layer.workspace=wallWorkspace_.data();
+        std::fprintf(stderr,"CHMT boundaryLayer workspace requested=%d resolved=%d capacity=%d bytes=%zu budget=%zu\n",
+            physics.wallWorkspaceSlots,layer.workspaceCount,layer.workspaceCapacity,sizing.bytes,sizing.budget);
+        return true;
+    }
+    bool prepareWallGeometry(const HostMesh& mesh){
+        if(!wallGeometry_)return true;
+        if(wallGeometryReady_&&wallGeometryVersion_==mesh.geometryVersion
+            &&wallGeometry_->matchesGeometry(mesh.geometryVersion,wallFaces_,view_.gasBoundaryLayerModel.config))return true;
+        std::string error;if(!wallGeometry_->prepareGeometry(mesh,wallFaces_,error,view_.gasBoundaryLayerModel.config)){fault_.message=error;return false;}
+        const auto& geometry=wallGeometry_->descriptors();const int count=int(geometry.size());
+        std::vector<int> faceSlot(mesh.owner.size(),-1),ownerSlot(mesh.volumes.size(),-1),offsets(1,0),cells;
+        std::vector<Real> distances,weights,matchingWeights;std::vector<std::size_t> qStart;
+        for(int i=0;i<count;++i){const auto& d=geometry[i];
+            if(faceSlot[d.wallFace]>=0||ownerSlot[d.ownerCell]>=0){fault_.message="boundaryLayer requires unique physical wall owner";return false;}
+            faceSlot[d.wallFace]=i;ownerSlot[d.ownerCell]=i;qStart.push_back(distances.size());
+            distances.insert(distances.end(),d.distance.begin(),d.distance.end());weights.insert(weights.end(),d.volumeWeight.begin(),d.volumeWeight.end());
+            cells.insert(cells.end(),d.matchingCells.begin(),d.matchingCells.end());matchingWeights.insert(matchingWeights.end(),d.matchingWeights.begin(),d.matchingWeights.end());offsets.push_back(int(cells.size()));}
+        if(!wallFaceSlot_.upload(faceSlot,fault_)||!wallOwnerSlot_.upload(ownerSlot,fault_)||!wallFaceList_.upload(wallFaces_,fault_)
+            ||!wallMatchOffsets_.upload(offsets,fault_)||!wallMatchCells_.upload(cells,fault_)||!wallMatchWeights_.upload(matchingWeights,fault_)
+            ||!wallDistance_.upload(distances,fault_)||!wallWeights_.upload(weights,fault_))return false;
+        wallHostInput_.assign(count,{});
+        for(int i=0;i<count;++i){const auto& d=geometry[i];auto& input=wallHostInput_[i];
+            input.matchingDistance=d.matchingDistance;input.ownerDistance=d.ownerDistance;
+            for(int k=0;k<3;++k)input.normal[k]=d.normal[k];
+            input.quadrature=d.quadrature();input.quadrature.distance=wallDistance_.data()+qStart[i];input.quadrature.volumeWeight=wallWeights_.data()+qStart[i];}
+        if(!wallInput_.upload(wallHostInput_,fault_)||!wallOutput_.resize(count,fault_)||!wallModelStatus_.resize(count,fault_)
+            ||!wallExchange_.resize(count,fault_)||!wallSst_.resize(count,fault_)||!wallStatus_.resize(count,fault_)||!wallSpecies_.resize(Ns*count,fault_))return false;
+        auto& wall=view_.gasBoundaryLayer;wall.faceSlot=wallFaceSlot_.data();wall.ownerSlot=wallOwnerSlot_.data();
+        wall.exchange=wallExchange_.data();wall.sst=wallSst_.data();wall.status=wallStatus_.data();wall.speciesFlux=wallSpecies_.data();
+        auto& layer=view_.gasBoundaryLayerModel;layer.input=wallInput_.data();layer.output=wallOutput_.data();layer.status=wallModelStatus_.data();
+        layer.faces=wallFaceList_.data();layer.matchingOffsets=wallMatchOffsets_.data();layer.matchingCells=wallMatchCells_.data();layer.matchingWeights=wallMatchWeights_.data();
+        wallGeometryReady_=true;wallGeometryVersion_=mesh.geometryVersion;
+        return wallExchange_.zero(nullptr)&&wallStatus_.zero(nullptr)&&wallModelStatus_.zero(nullptr);
+    }
+    bool prepareWallBoundary(const WallKnot& knot,const SurfaceMesh& surface,std::string& error){
+        if(!view_.gasBoundaryLayer.enabled){error.clear();return true;}
+        if(knot.faces.size()!=wallHostInput_.size()||surface.area.size()!=wallHostInput_.size()){
+            error="boundaryLayer material wall layout mismatch";return false;}
+        for(std::size_t i=0;i<wallHostInput_.size();++i){auto& in=wallHostInput_[i];const auto& w=knot.faces[i];
+            const auto& d=wallGeometry_->descriptors()[i];
+            const Real area=magFromGeometryFace(d.wallFace);
+            if(!(area>0)||!(surface.area[i]>0)){error="boundaryLayer physical area invalid";return false;}
+            in.temperature=w.temperature;const Vec3 n={in.normal[0],in.normal[1],in.normal[2]};
+            const Vec3 velocity=w.velocity-n*dot(w.velocity,n)+n*w.normalVelocity;
+            in.velocity[0]=velocity.x;in.velocity[1]=velocity.y;in.velocity[2]=velocity.z;
+            const Real ratio=surface.area[i]/area;
+            for(int s=0;s<Ns;++s)in.massFlux[s]=(w.speciesRate[s]+w.poreRate[s])*ratio;
+        }
+        if(!wallInput_.upload(wallHostInput_,fault_)){error=fault_.message;return false;}
+        error.clear();return true;
+    }
+    bool downloadWallOutputs(std::vector<ugkwp::gaswall::WallOutput<Real,Ns>>& output,std::vector<GasWallMatchingSample>& matching){
+        std::vector<ugkwp::gaswall::WallInput<Real,Ns>> inputs;std::vector<int> status;
+        if(!wallStatus_.download(status,nullptr))return false;
+        for(std::size_t f=0;f<status.size();++f)if(status[f]){
+            wallModelFailed_=true;std::vector<ugkwp::gaswall::WallStatus> modelStatus;
+            if(!wallModelStatus_.download(modelStatus,nullptr))return false;
+            fault_.message="boundaryLayer rejected face "+std::to_string(wallFaces_[f])+" slot "+std::to_string(f)+" transport code "+std::to_string(status[f]);
+            if(f<modelStatus.size())fault_.message+=" wall code "+std::to_string(int(modelStatus[f].code))+" node "+std::to_string(modelStatus[f].node)+" iteration "+std::to_string(modelStatus[f].iteration)+" residual "+(std::isfinite(modelStatus[f].residual)?std::to_string(modelStatus[f].residual):"NOT_AVAILABLE");
+            return false;
+        }
+        if(!wallOutput_.download(output,nullptr)||!wallInput_.download(inputs,nullptr))return false;
+        matching.resize(inputs.size());for(std::size_t f=0;f<inputs.size();++f){matching[f].pressure=inputs[f].pressure;matching[f].mechanicalPressure=0;matching[f].state=inputs[f].matching;}return true;
     }
     bool uploadGeometry(const HostMesh& mesh){
         const std::size_t nc=mesh.volumes.size(),nf=mesh.owner.size();
         if(nc!=std::size_t(view_.nCells)||nf!=std::size_t(view_.nFaces))return false;
+        if(!prepareWallGeometry(mesh))return false;
         volume_=mesh.volumes;std::vector<Real> cx(nc),cy(nc),cz(nc),length(nc),distance(nc,1);
         std::vector<int> start(nc),counts(nc);
         for(std::size_t c=0;c<nc;++c){cx[c]=mesh.cellCentres[c].x;cy[c]=mesh.cellCentres[c].y;cz[c]=mesh.cellCentres[c].z;length[c]=std::cbrt(mesh.volumes[c]);start[c]=mesh.cellFaceOffsets[c];counts[c]=mesh.cellFaceOffsets[c+1]-start[c];if(mesh.wallDistance.size()==nc)distance[c]=mesh.wallDistance[c];}
@@ -205,6 +330,7 @@ public:
         BOUNDARY(Rho,rho);BOUNDARY(P,pressure);BOUNDARY(T,temp);BOUNDARY(Ux,ux);BOUNDARY(Uy,uy);BOUNDARY(Uz,uz);BOUNDARY(UFix,fixU);BOUNDARY(TFix,fixT);BOUNDARY(RhoFix,fixR);BOUNDARY(PFix,fixP);
 #undef BOUNDARY
 #undef PUT
+        if(view_.gasBoundaryLayer.enabled)wallFaceArea_=area;
         return view_.gasSpecies.mode==ugkwp::GasMode::SingleLegacy
             ||(upload(view_.gasSpecies.boundaryMassFraction,Y)&&upload(view_.gasSpecies.compositionBoundaryFixed,fixedY));
     }

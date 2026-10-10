@@ -33,6 +33,7 @@
 #include "GpuBackendApi.H"
 #include "gasTransport/GasBuildConfig.H"
 #include "gasTransport/GasStateView.H"
+#include "gasTransport/GasBoundaryLayerModelState.H"
 #include "gasTransport/GasCapabilities.H"
 #include "gasTransport/GasMechanismIO.H"
 #include "SharedGasTrialFields.H"
@@ -119,6 +120,13 @@ struct DeviceState
     DeviceState* deviceState = nullptr;
     ugkwp::GasSpeciesState<double,ugkwp::compiledGasSpecies> gasSpecies;
     ugkwp::GasSpeciesState<double,ugkwp::compiledGasSpecies> gasRejectedView;
+    ugkwp::GasBoundaryLayerState<double> gasBoundaryLayer;
+    ugkwp::GasBoundaryLayerModelState<double,ugkwp::compiledGasSpecies> gasBoundaryLayerModel;
+    ugkwp::GasSstAuditState<double> gasSstAudit;
+    double *gasWallQuadratureDistance=nullptr,*gasWallQuadratureWeight=nullptr;
+    double gasBoundaryLayerStageTime=0;
+    double gasThermalConductivity=-1;
+
     bool gasModelPoisoned = false;
     bool gasInitialFieldsUploaded = false;
     bool gasSpeciesUploaded = false;
@@ -958,6 +966,7 @@ void scrubHostCalculationScalars(DeviceState* s)
 }
 
 #include "SharedGasStorage.cuh"
+#include "BoundaryLayerStorage.cuh"
 
 void releaseSharedGasTrialStorage(SharedGasTrialStorage& storage);
 
@@ -969,6 +978,7 @@ void releaseState(DeviceState* s)
     }
 
     releaseSharedGasTrialStorage(s->gasTrial);
+    releaseBoundaryLayerStorage(*s);
     releaseSharedGasSpecies(s->gasSpecies);
     releaseSharedGasSpecies(s->gasRejectedView);
     if (s->gasGraphExec) cudaGraphExecDestroy(s->gasGraphExec);
@@ -1805,6 +1815,7 @@ struct GasPrimDevice
 #include "operators/computeGasFluxPositivityScaleKernel.cuh"
 
 #include "operators/computeSstFaceFluxKernel.cuh"
+#include "operators/evaluateGasBoundaryLayerKernel.cuh"
 
 #include "GpuGravityUpdate.cuh"
 __global__ void applyGasGravitySourceKernel(DeviceState* sp, const double dt)
@@ -2124,7 +2135,21 @@ constexpr double mobilePackingJacobiOmega = 0.8;
 #include "../../../common/gasNumerics/GpuPackingProjectionCooperative.cuh"
 
 #include "../../../common/GpuGasHostPolicy.cuh"
-using GasHostPolicy = GasHostWithoutWallEnergy<double, double>;
+struct GasHostPolicy:GasHostWithoutWallEnergy<double,double>
+{
+    template<class HostState> static int prepareBoundaryLayer(HostState* s,double,double stageTime)
+    {
+        if(!s->gasBoundaryLayer.enabled)return 0;
+        s->gasBoundaryLayerStageTime=stageTime;
+        const bool analytic=s->gasBoundaryLayerModel.config.model==ugkwp::gaswall::BoundaryLayerModel::ConstantTransport;
+        const int workers=analytic?s->gasBoundaryLayer.count:s->gasBoundaryLayerModel.workspaceCount,block=32;
+        if(workers<=0){setLastErrorText("boundaryLayer scratch pool is empty");return 1;}
+        evaluateGasBoundaryLayerKernel<<<(workers+block-1)/block,block,0,s->gasCaptureStream>>>(s->deviceState);
+        const auto error=cudaGetLastError();
+        if(error!=cudaSuccess){setLastError("prepare sparse boundaryLayer profiles",error);return 1;}
+        return 0;
+    }
+};
 #include "../../../common/GpuMobilePackingHost.cuh"
 
 #include "operators/granularCollisionTauFromCellDevice.cuh"
@@ -3473,6 +3498,7 @@ constexpr bool developmentProbeIncludesScheduling = true;
 #endif
 
 #include "SharedGasAdapter.cuh"
+#include "BoundaryLayerAdapter.cuh"
 
 extern "C" const char* ugkwpGpuResidentStrictLastError()
 {
@@ -4810,6 +4836,11 @@ extern "C" int ugkwpGpuResidentStrictConfigureSst
     {
         return 1;
     }
+    if (s->gasBoundaryLayer.enabled)
+    {
+        setLastErrorText("SST must be configured before boundaryLayer; create a new resident to change the wall family");
+        return 1;
+    }
     if (s->hostTurbulenceModel != 3)
     {
         setLastErrorText("SST configuration requires turbulenceModel=3");
@@ -4850,7 +4881,7 @@ extern "C" int ugkwpGpuResidentStrictConfigureSst
             return 1;
         }
     }
-    if (wallTreatment < 0 || wallTreatment > 1 || wallE <= 1.0)
+    if (wallTreatment < 0 || wallTreatment > 2 || wallE <= 1.0)
     {
         setLastErrorText("invalid SST wall-function configuration");
         return 1;
@@ -5062,7 +5093,7 @@ extern "C" int ugkwpGpuResidentStrictComputeGasCourant
 
     if (s->hostTurbulenceModel == 3)
     {
-        applySstWallFunctionStateKernel<<<cellGrid, cellBlock>>>(s->deviceState);
+        applySstWallFunctionStateKernel<<<cellGrid, cellBlock>>>(s->deviceState, true);
         err = cudaGetLastError();
         if (err != cudaSuccess)
         {
@@ -5151,7 +5182,8 @@ extern "C" int ugkwpGpuResidentStrictComputeGasCourant
         (
             s->deviceState,
             dt,
-            targetMaxCo
+            targetMaxCo,
+            false // outer estimate: reuse accepted wall source if available, no new BVP
         );
         err = cudaGetLastError();
         if (err != cudaSuccess)
