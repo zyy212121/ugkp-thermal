@@ -630,6 +630,11 @@
       "downstream": "gpu-riemann-gkp-main"
     },
     {
+      "path": "common/GpuGasOperatorDependencies.cuh",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
       "path": "common/GpuGravityUpdate.cuh",
       "upstream": "ugkp-thermal",
       "downstream": "gpu-riemann-gkp-main"
