@@ -80,13 +80,13 @@ recoverSstPrimitivesKernel
 updateRiemannBoundaryMirrorKernel
 applySstWallFunctionStateKernel
 computeGasPrimitiveGradientsKernel
-computeSstGradientsKernel
 computeGasGradientLimiterKernel
 computeGasEddyViscosityKernel
 face-flux 1 0.29999999999999999
 computeGasFluxPositivityScaleKernel 0.29999999999999999
 applyGasFluxPositivityScaleKernel
 wall-ledger 0.29999999999999999
+computeSstGradientsKernel
 computeSstFaceFluxKernel
 applySstFluxAndSourceKernel 0.29999999999999999
 applyGasFluxDivergenceByCellKernel 0.29999999999999999
@@ -104,13 +104,13 @@ updateRiemannBoundaryMirrorKernel
 applySstWallFunctionStateKernel
 computeGasHllcAdcSensorKernel
 computeGasPrimitiveGradientsKernel
-computeSstGradientsKernel
 computeGasGradientLimiterKernel
 computeGasEddyViscosityKernel
 face-flux 1 0.29999999999999999
 computeGasFluxPositivityScaleKernel 0.29999999999999999
 applyGasFluxPositivityScaleKernel
 wall-ledger 0.29999999999999999
+computeSstGradientsKernel
 computeSstFaceFluxKernel
 applySstFluxAndSourceKernel 0.29999999999999999
 applyGasFluxDivergenceByCellKernel 0.29999999999999999
@@ -127,7 +127,6 @@ recoverSstPrimitivesKernel
 updateRiemannBoundaryMirrorKernel
 applySstWallFunctionStateKernel
 computeGasPrimitiveGradientsKernel
-computeSstGradientsKernel
 computeGasGradientLimiterKernel
 computeGasEddyViscosityKernel
 face-flux 1 0.29999999999999999
@@ -136,6 +135,7 @@ computeGasFluxPositivityScaleKernel 0.29999999999999999
 applyGasFluxPositivityScaleKernel
 wall-ledger 0.29999999999999999
 enforcePeriodicGasFluxAntisymmetryKernel
+computeSstGradientsKernel
 computeSstFaceFluxKernel
 enforcePeriodicSstFluxAntisymmetryKernel
 applySstFluxAndSourceKernel 0.29999999999999999
@@ -154,7 +154,6 @@ updateRiemannBoundaryMirrorKernel
 applySstWallFunctionStateKernel
 computeGasHllcAdcSensorKernel
 computeGasPrimitiveGradientsKernel
-computeSstGradientsKernel
 computeGasGradientLimiterKernel
 computeGasEddyViscosityKernel
 face-flux 1 0.29999999999999999
@@ -163,6 +162,7 @@ computeGasFluxPositivityScaleKernel 0.29999999999999999
 applyGasFluxPositivityScaleKernel
 wall-ledger 0.29999999999999999
 enforcePeriodicGasFluxAntisymmetryKernel
+computeSstGradientsKernel
 computeSstFaceFluxKernel
 enforcePeriodicSstFluxAntisymmetryKernel
 applySstFluxAndSourceKernel 0.29999999999999999
@@ -317,13 +317,13 @@ recoverSstPrimitivesKernel
 updateRiemannBoundaryMirrorKernel
 applySstWallFunctionStateKernel
 computeGasPrimitiveGradientsKernel
-computeSstGradientsKernel
 computeGasGradientLimiterKernel
 computeGasEddyViscosityKernel
 face-flux 1 0.29999999999999999
 computeGasFluxPositivityScaleKernel 0.29999999999999999
 applyGasFluxPositivityScaleKernel
 wall-ledger 0.14999999999999999
+computeSstGradientsKernel
 computeSstFaceFluxKernel
 applySstFluxAndSourceKernel 0.29999999999999999
 applyGasFluxDivergenceByCellKernel 0.29999999999999999
@@ -334,13 +334,13 @@ recoverSstPrimitivesKernel
 updateRiemannBoundaryMirrorKernel
 applySstWallFunctionStateKernel
 computeGasPrimitiveGradientsKernel
-computeSstGradientsKernel
 computeGasGradientLimiterKernel
 computeGasEddyViscosityKernel
 face-flux 1 0.29999999999999999
 computeGasFluxPositivityScaleKernel 0.29999999999999999
 applyGasFluxPositivityScaleKernel
 wall-ledger 0.14999999999999999
+computeSstGradientsKernel
 computeSstFaceFluxKernel
 applySstFluxAndSourceKernel 0.29999999999999999
 applyGasFluxDivergenceByCellKernel 0.29999999999999999
@@ -362,13 +362,13 @@ updateRiemannBoundaryMirrorKernel
 applySstWallFunctionStateKernel
 computeGasHllcAdcSensorKernel
 computeGasPrimitiveGradientsKernel
-computeSstGradientsKernel
 computeGasGradientLimiterKernel
 computeGasEddyViscosityKernel
 face-flux 1 0.29999999999999999
 computeGasFluxPositivityScaleKernel 0.29999999999999999
 applyGasFluxPositivityScaleKernel
 wall-ledger 0.14999999999999999
+computeSstGradientsKernel
 computeSstFaceFluxKernel
 applySstFluxAndSourceKernel 0.29999999999999999
 applyGasFluxDivergenceByCellKernel 0.29999999999999999
@@ -380,13 +380,13 @@ updateRiemannBoundaryMirrorKernel
 applySstWallFunctionStateKernel
 computeGasHllcAdcSensorKernel
 computeGasPrimitiveGradientsKernel
-computeSstGradientsKernel
 computeGasGradientLimiterKernel
 computeGasEddyViscosityKernel
 face-flux 1 0.29999999999999999
 computeGasFluxPositivityScaleKernel 0.29999999999999999
 applyGasFluxPositivityScaleKernel
 wall-ledger 0.14999999999999999
+computeSstGradientsKernel
 computeSstFaceFluxKernel
 applySstFluxAndSourceKernel 0.29999999999999999
 applyGasFluxDivergenceByCellKernel 0.29999999999999999
@@ -407,7 +407,6 @@ recoverSstPrimitivesKernel
 updateRiemannBoundaryMirrorKernel
 applySstWallFunctionStateKernel
 computeGasPrimitiveGradientsKernel
-computeSstGradientsKernel
 computeGasGradientLimiterKernel
 computeGasEddyViscosityKernel
 face-flux 1 0.29999999999999999
@@ -416,6 +415,7 @@ computeGasFluxPositivityScaleKernel 0.29999999999999999
 applyGasFluxPositivityScaleKernel
 wall-ledger 0.14999999999999999
 enforcePeriodicGasFluxAntisymmetryKernel
+computeSstGradientsKernel
 computeSstFaceFluxKernel
 enforcePeriodicSstFluxAntisymmetryKernel
 applySstFluxAndSourceKernel 0.29999999999999999
@@ -427,7 +427,6 @@ recoverSstPrimitivesKernel
 updateRiemannBoundaryMirrorKernel
 applySstWallFunctionStateKernel
 computeGasPrimitiveGradientsKernel
-computeSstGradientsKernel
 computeGasGradientLimiterKernel
 computeGasEddyViscosityKernel
 face-flux 1 0.29999999999999999
@@ -436,6 +435,7 @@ computeGasFluxPositivityScaleKernel 0.29999999999999999
 applyGasFluxPositivityScaleKernel
 wall-ledger 0.14999999999999999
 enforcePeriodicGasFluxAntisymmetryKernel
+computeSstGradientsKernel
 computeSstFaceFluxKernel
 enforcePeriodicSstFluxAntisymmetryKernel
 applySstFluxAndSourceKernel 0.29999999999999999
@@ -458,7 +458,6 @@ updateRiemannBoundaryMirrorKernel
 applySstWallFunctionStateKernel
 computeGasHllcAdcSensorKernel
 computeGasPrimitiveGradientsKernel
-computeSstGradientsKernel
 computeGasGradientLimiterKernel
 computeGasEddyViscosityKernel
 face-flux 1 0.29999999999999999
@@ -467,6 +466,7 @@ computeGasFluxPositivityScaleKernel 0.29999999999999999
 applyGasFluxPositivityScaleKernel
 wall-ledger 0.14999999999999999
 enforcePeriodicGasFluxAntisymmetryKernel
+computeSstGradientsKernel
 computeSstFaceFluxKernel
 enforcePeriodicSstFluxAntisymmetryKernel
 applySstFluxAndSourceKernel 0.29999999999999999
@@ -479,7 +479,6 @@ updateRiemannBoundaryMirrorKernel
 applySstWallFunctionStateKernel
 computeGasHllcAdcSensorKernel
 computeGasPrimitiveGradientsKernel
-computeSstGradientsKernel
 computeGasGradientLimiterKernel
 computeGasEddyViscosityKernel
 face-flux 1 0.29999999999999999
@@ -488,6 +487,7 @@ computeGasFluxPositivityScaleKernel 0.29999999999999999
 applyGasFluxPositivityScaleKernel
 wall-ledger 0.14999999999999999
 enforcePeriodicGasFluxAntisymmetryKernel
+computeSstGradientsKernel
 computeSstFaceFluxKernel
 enforcePeriodicSstFluxAntisymmetryKernel
 applySstFluxAndSourceKernel 0.29999999999999999
@@ -703,13 +703,13 @@ recoverSstPrimitivesKernel
 updateRiemannBoundaryMirrorKernel
 applySstWallFunctionStateKernel
 computeGasPrimitiveGradientsKernel
-computeSstGradientsKernel
 computeGasGradientLimiterKernel
 computeGasEddyViscosityKernel
 face-flux 1 0.29999999999999999
 computeGasFluxPositivityScaleKernel 0.29999999999999999
 applyGasFluxPositivityScaleKernel
 wall-ledger 0.049999999999999996
+computeSstGradientsKernel
 computeSstFaceFluxKernel
 applySstFluxAndSourceKernel 0.29999999999999999
 applyGasFluxDivergenceByCellKernel 0.29999999999999999
@@ -720,13 +720,13 @@ recoverSstPrimitivesKernel
 updateRiemannBoundaryMirrorKernel
 applySstWallFunctionStateKernel
 computeGasPrimitiveGradientsKernel
-computeSstGradientsKernel
 computeGasGradientLimiterKernel
 computeGasEddyViscosityKernel
 face-flux 1 0.29999999999999999
 computeGasFluxPositivityScaleKernel 0.29999999999999999
 applyGasFluxPositivityScaleKernel
 wall-ledger 0.049999999999999996
+computeSstGradientsKernel
 computeSstFaceFluxKernel
 applySstFluxAndSourceKernel 0.29999999999999999
 applyGasFluxDivergenceByCellKernel 0.29999999999999999
@@ -740,13 +740,13 @@ recoverSstPrimitivesKernel
 updateRiemannBoundaryMirrorKernel
 applySstWallFunctionStateKernel
 computeGasPrimitiveGradientsKernel
-computeSstGradientsKernel
 computeGasGradientLimiterKernel
 computeGasEddyViscosityKernel
 face-flux 1 0.29999999999999999
 computeGasFluxPositivityScaleKernel 0.29999999999999999
 applyGasFluxPositivityScaleKernel
 wall-ledger 0.19999999999999998
+computeSstGradientsKernel
 computeSstFaceFluxKernel
 applySstFluxAndSourceKernel 0.29999999999999999
 applyGasFluxDivergenceByCellKernel 0.29999999999999999
@@ -768,13 +768,13 @@ updateRiemannBoundaryMirrorKernel
 applySstWallFunctionStateKernel
 computeGasHllcAdcSensorKernel
 computeGasPrimitiveGradientsKernel
-computeSstGradientsKernel
 computeGasGradientLimiterKernel
 computeGasEddyViscosityKernel
 face-flux 1 0.29999999999999999
 computeGasFluxPositivityScaleKernel 0.29999999999999999
 applyGasFluxPositivityScaleKernel
 wall-ledger 0.049999999999999996
+computeSstGradientsKernel
 computeSstFaceFluxKernel
 applySstFluxAndSourceKernel 0.29999999999999999
 applyGasFluxDivergenceByCellKernel 0.29999999999999999
@@ -786,13 +786,13 @@ updateRiemannBoundaryMirrorKernel
 applySstWallFunctionStateKernel
 computeGasHllcAdcSensorKernel
 computeGasPrimitiveGradientsKernel
-computeSstGradientsKernel
 computeGasGradientLimiterKernel
 computeGasEddyViscosityKernel
 face-flux 1 0.29999999999999999
 computeGasFluxPositivityScaleKernel 0.29999999999999999
 applyGasFluxPositivityScaleKernel
 wall-ledger 0.049999999999999996
+computeSstGradientsKernel
 computeSstFaceFluxKernel
 applySstFluxAndSourceKernel 0.29999999999999999
 applyGasFluxDivergenceByCellKernel 0.29999999999999999
@@ -807,13 +807,13 @@ updateRiemannBoundaryMirrorKernel
 applySstWallFunctionStateKernel
 computeGasHllcAdcSensorKernel
 computeGasPrimitiveGradientsKernel
-computeSstGradientsKernel
 computeGasGradientLimiterKernel
 computeGasEddyViscosityKernel
 face-flux 1 0.29999999999999999
 computeGasFluxPositivityScaleKernel 0.29999999999999999
 applyGasFluxPositivityScaleKernel
 wall-ledger 0.19999999999999998
+computeSstGradientsKernel
 computeSstFaceFluxKernel
 applySstFluxAndSourceKernel 0.29999999999999999
 applyGasFluxDivergenceByCellKernel 0.29999999999999999
@@ -834,7 +834,6 @@ recoverSstPrimitivesKernel
 updateRiemannBoundaryMirrorKernel
 applySstWallFunctionStateKernel
 computeGasPrimitiveGradientsKernel
-computeSstGradientsKernel
 computeGasGradientLimiterKernel
 computeGasEddyViscosityKernel
 face-flux 1 0.29999999999999999
@@ -843,6 +842,7 @@ computeGasFluxPositivityScaleKernel 0.29999999999999999
 applyGasFluxPositivityScaleKernel
 wall-ledger 0.049999999999999996
 enforcePeriodicGasFluxAntisymmetryKernel
+computeSstGradientsKernel
 computeSstFaceFluxKernel
 enforcePeriodicSstFluxAntisymmetryKernel
 applySstFluxAndSourceKernel 0.29999999999999999
@@ -854,7 +854,6 @@ recoverSstPrimitivesKernel
 updateRiemannBoundaryMirrorKernel
 applySstWallFunctionStateKernel
 computeGasPrimitiveGradientsKernel
-computeSstGradientsKernel
 computeGasGradientLimiterKernel
 computeGasEddyViscosityKernel
 face-flux 1 0.29999999999999999
@@ -863,6 +862,7 @@ computeGasFluxPositivityScaleKernel 0.29999999999999999
 applyGasFluxPositivityScaleKernel
 wall-ledger 0.049999999999999996
 enforcePeriodicGasFluxAntisymmetryKernel
+computeSstGradientsKernel
 computeSstFaceFluxKernel
 enforcePeriodicSstFluxAntisymmetryKernel
 applySstFluxAndSourceKernel 0.29999999999999999
@@ -877,7 +877,6 @@ recoverSstPrimitivesKernel
 updateRiemannBoundaryMirrorKernel
 applySstWallFunctionStateKernel
 computeGasPrimitiveGradientsKernel
-computeSstGradientsKernel
 computeGasGradientLimiterKernel
 computeGasEddyViscosityKernel
 face-flux 1 0.29999999999999999
@@ -886,6 +885,7 @@ computeGasFluxPositivityScaleKernel 0.29999999999999999
 applyGasFluxPositivityScaleKernel
 wall-ledger 0.19999999999999998
 enforcePeriodicGasFluxAntisymmetryKernel
+computeSstGradientsKernel
 computeSstFaceFluxKernel
 enforcePeriodicSstFluxAntisymmetryKernel
 applySstFluxAndSourceKernel 0.29999999999999999
@@ -908,7 +908,6 @@ updateRiemannBoundaryMirrorKernel
 applySstWallFunctionStateKernel
 computeGasHllcAdcSensorKernel
 computeGasPrimitiveGradientsKernel
-computeSstGradientsKernel
 computeGasGradientLimiterKernel
 computeGasEddyViscosityKernel
 face-flux 1 0.29999999999999999
@@ -917,6 +916,7 @@ computeGasFluxPositivityScaleKernel 0.29999999999999999
 applyGasFluxPositivityScaleKernel
 wall-ledger 0.049999999999999996
 enforcePeriodicGasFluxAntisymmetryKernel
+computeSstGradientsKernel
 computeSstFaceFluxKernel
 enforcePeriodicSstFluxAntisymmetryKernel
 applySstFluxAndSourceKernel 0.29999999999999999
@@ -929,7 +929,6 @@ updateRiemannBoundaryMirrorKernel
 applySstWallFunctionStateKernel
 computeGasHllcAdcSensorKernel
 computeGasPrimitiveGradientsKernel
-computeSstGradientsKernel
 computeGasGradientLimiterKernel
 computeGasEddyViscosityKernel
 face-flux 1 0.29999999999999999
@@ -938,6 +937,7 @@ computeGasFluxPositivityScaleKernel 0.29999999999999999
 applyGasFluxPositivityScaleKernel
 wall-ledger 0.049999999999999996
 enforcePeriodicGasFluxAntisymmetryKernel
+computeSstGradientsKernel
 computeSstFaceFluxKernel
 enforcePeriodicSstFluxAntisymmetryKernel
 applySstFluxAndSourceKernel 0.29999999999999999
@@ -953,7 +953,6 @@ updateRiemannBoundaryMirrorKernel
 applySstWallFunctionStateKernel
 computeGasHllcAdcSensorKernel
 computeGasPrimitiveGradientsKernel
-computeSstGradientsKernel
 computeGasGradientLimiterKernel
 computeGasEddyViscosityKernel
 face-flux 1 0.29999999999999999
@@ -962,6 +961,7 @@ computeGasFluxPositivityScaleKernel 0.29999999999999999
 applyGasFluxPositivityScaleKernel
 wall-ledger 0.19999999999999998
 enforcePeriodicGasFluxAntisymmetryKernel
+computeSstGradientsKernel
 computeSstFaceFluxKernel
 enforcePeriodicSstFluxAntisymmetryKernel
 applySstFluxAndSourceKernel 0.29999999999999999

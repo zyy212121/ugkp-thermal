@@ -71,3 +71,31 @@ for(int c=0;c<2;++c){threadIdx.x=c;applySstFluxAndSourceKernel(&s,dt);applyGasFl
 near(s.rhoE[0]*newV[0]+s.rhoE[1]*newV[1],initialE,"moving SST total gas energy");
 for(int k=0;k<2;++k)near(s.gasSpecies.rho[2*k]*newV[0]+s.gasSpecies.rho[2*k+1]*newV[1],1,"moving SST species conservation");}
 ''',bits)
+
+@pytest.mark.parametrize('bits',[32,64])
+@pytest.mark.parametrize('evaluation_volume',[1,2])
+def test_mesh_motion_is_removed_from_sst_compression_and_bound(tmp_path,bits,evaluation_volume):
+    compile_probe(tmp_path,fixture()+AUDIT+r'''
+int main(){State s;initialise(s);s.sstConfigured=1;
+Real oldV[2]={1,1},newV[2]={Real(1.1),Real(.9)},sweeps[3]={Real(.1),0,0};const Real dt=Real(.001);
+moving(s,oldV,newV,sweeps,dt);audit(s);
+s.V[0]=Real(EVALUATION_VOLUME); // Evaluation metrics need not equal stage inventories.
+// Uniform stationary fluid has zero absolute div(U), despite relative ALE flux.
+s.gasPhiRho[0]=-s.rho[0]*sweeps[0]/dt;
+s.sstPhiRhoK[0]=s.gasPhiRho[0]*s.k[0];s.sstPhiRhoOmega[0]=s.gasPhiRho[0]*s.omega[0];
+const Real sourceK=-s.rho[0]*s.sstCoefficients.betaStar*s.k[0]*s.omega[0];
+threadIdx.x=0;computeSstStabilityNumberKernel(&s,dt,Real(.5));
+const Real bound=s.sstSourceNumber[0]*s.sstMaxSourceNumber/Real(.5);
+for(Real scale:{Real(0),Real(.5),Real(1)}){
+ // Main's positivity envelope scales relative mass, not the fixed mesh rate.
+ const Real div=(Real(1)-scale)*sweeps[0]/dt/oldV[0];
+ const Real sk=s.rho[0]*(-Real(2)/3*div*s.k[0]-s.sstCoefficients.betaStar*s.k[0]*s.omega[0]);
+ const Real so=ugkwp::sstOmegaSource(s.rho[0],s.k[0],s.omega[0],div,Real(0),Real(0),s.sstF1[0],s.sstF2[0],Real(0),s.sstCoefficients);
+ const Real actual=fmax(fabs(dt*sk/s.rhoK[0]),fabs(dt*so/s.rhoOmega[0]));
+ ck(bound+Real(1e-5)>=actual,"moving SST positivity envelope missed absolute compression");
+}
+applySstFluxAndSourceKernel(&s,dt);
+near(s.gasSstAudit.sourceK[0],dt*oldV[0]*sourceK,"mesh motion spuriously compressed SST energy");
+checkBudget(s,6,8,0);
+}
+'''.replace('EVALUATION_VOLUME',str(evaluation_volume)),bits)

@@ -252,3 +252,41 @@ for(auto&x:trace)if(x.find("face-flux")==0||x=="post-audit"||x=="commit")return 
     exe=tmp_path/'chemistry';build=subprocess.run(['g++','-std=c++17','-I'+str(ROOT/'common'),str(cpp),'-o',str(exe)],capture_output=True,text=True)
     assert build.returncode==0,build.stdout+build.stderr
     assert subprocess.run([str(exe)]).returncode==0
+
+def test_shared_sst_preflight_consumes_fresh_mass_predictor(tmp_path):
+    """Execute the production preflight; SST may not consume stale face scratch."""
+    source = re.sub(r'<<<[\s\S]*?>>>', '', (ROOT/'common/GpuGasAdvance.cuh').read_text())
+    preamble = PREAMBLE.replace('SIMPLE_KERNEL(computeGasPrimitiveGradientsKernel)',
+        'template<class S>void computeGasPrimitiveGradientsKernel(S*,bool=false){trace.push_back("gas-gradients");}')
+    extras = r'''
+#include "gasTransport/GasStateView.H"
+struct SpeciesTag{static constexpr int speciesCount=2;ugkwp::GasMode mode=ugkwp::GasMode::MixtureFrozen;};
+struct MixedDevice{SpeciesTag gasSpecies;};
+struct MixedHost:IndependentHost{SpeciesTag gasSpecies;MixedDevice*deviceState;};
+template<class S,class T>void advanceGasChemistryKernel(S*,T,const double*){}
+template<class S>void computeGasCourantFieldKernel(S*,double){trace.push_back("fresh-mass");}
+template<class S>void computeGasConvectiveCourantByCellKernel(S*,double){}
+template<class S>void computeGasDiffusionNumberKernel(S*,double,double){}
+template<class S>void computeSstStabilityNumberKernel(S*,double,double){trace.push_back("sst-bound");}
+struct Policy{
+ static int validate(MixedHost*){return 0;}static int validateTimeStep(MixedHost*,double){return 0;}
+ static double targetMaxCo(MixedHost*){return .5;}static const double*stageVolumes(MixedHost*,bool){return nullptr;}
+ static int captureChemistryAudit(MixedHost*,bool){return 0;}
+};
+'''
+    main = r'''
+#include <algorithm>
+int main(){MixedHost h;MixedDevice d;h.deviceState=&d;h.hostTurbulenceModel=3;
+if(prepareGasTrialTransport<Policy>(&h,.01))return 1;
+auto position=[](const char*name){return std::find(trace.begin(),trace.end(),name)-trace.begin();};
+for(const auto& line:trace)std::puts(line.c_str());
+if(position("fresh-mass")>=position("computeSstGradientsKernel"))return 2;
+if(position("computeSstGradientsKernel")>=position("sst-bound"))return 3;
+if(position("computeGasGradientLimiterKernel")>=position("fresh-mass"))return 4;
+}
+'''
+    cpp = tmp_path/'preflight.cpp';cpp.write_text(preamble+extras+source+main)
+    exe = tmp_path/'preflight'
+    subprocess.run(['g++','-std=c++17','-I'+str(ROOT/'common'),str(cpp),'-o',str(exe)],check=True)
+    result=subprocess.run([str(exe)],capture_output=True,text=True)
+    assert result.returncode==0,result.stdout+result.stderr

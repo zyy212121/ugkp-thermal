@@ -45,6 +45,8 @@ def test_moving_sst_inventory_uses_old_and_new_volumes(tmp_path, bits):
 int main(){State a,b;initialise(a);initialise(b);a.sstConfigured=b.sstConfigured=1;
 Real oldV[2]={1,1},newV[2]={Real(1.1),Real(.9)},sweeps[3]={Real(.1),0,0};const Real dt=Real(.001);moving(b,oldV,newV,sweeps,dt);
 a.sstPhiRhoK[0]=b.sstPhiRhoK[0]=Real(-600);a.sstPhiRhoOmega[0]=b.sstPhiRhoOmega[0]=Real(-800);
+// Identical stationary fluid: the moving mesh has relative mass phi=-rho*w.A.
+b.gasPhiRho[0]=-b.rho[0]*sweeps[0]/dt;
 for(int c=0;c<2;++c){threadIdx.x=c;applySstFluxAndSourceKernel(&a,dt);applySstFluxAndSourceKernel(&b,dt);near(b.rhoK[c]*newV[c],a.rhoK[c]*oldV[c],"SST k inventory diluted incorrectly");near(b.rhoOmega[c]*newV[c],a.rhoOmega[c]*oldV[c],"SST omega inventory diluted incorrectly");near(b.sstSourceNumber[c],a.sstSourceNumber[c],"SST physical source stability changed with geometric dilution");}}
 ''', bits)
 
@@ -65,8 +67,8 @@ def test_legacy_moving_cfl_guards_missing_geometry_and_uses_smaller_volume(tmp_p
     compile_probe(tmp_path, fixture()+r'''
 int main(){State s;initialise(s);Real oldV[2]={1,1},newV[2]={Real(1.1),Real(.9)},sweeps[3]={Real(.1),0,0};const Real dt=Real(.001);moving(s,oldV,newV,sweeps,dt);
 for(int f=0;f<3;++f){threadIdx.x=f;computeGasCourantFieldKernel(&s,dt);}
-threadIdx.x=1;const Real expected=Real(.5)*dt*(s.gasPhiRho[0]+s.gasPhiRho[2])/newV[1];computeGasConvectiveCourantByCellKernel(&s,dt);near(s.gasFluxPositivityScale[1],expected,"moving Courant used evaluation volume rather than minimum stage volume");
-s.gasGeometry.faceSweptVolume=nullptr;threadIdx.x=0;computeGasCourantFieldKernel(&s,dt);ck(s.gasSpecies.faceStatus[0]==int(ugkwp::GasTransportCode::InvalidGeometry),"missing geometry was not a status failure");ck(s.gasPhiRho[0]==OfGreat,"invalid geometry did not force CFL rejection");}
+threadIdx.x=1;const Real expected=Real(.5)*dt*(s.gasPhiRhoE[0]+s.gasPhiRhoE[2])/newV[1];computeGasConvectiveCourantByCellKernel(&s,dt);near(s.gasFluxPositivityScale[1],expected,"moving Courant used evaluation volume rather than minimum stage volume");
+s.gasGeometry.faceSweptVolume=nullptr;threadIdx.x=0;computeGasCourantFieldKernel(&s,dt);ck(s.gasSpecies.faceStatus[0]==int(ugkwp::GasTransportCode::InvalidGeometry),"missing geometry was not a status failure");ck(s.gasPhiRhoE[0]==OfGreat,"invalid geometry did not force CFL rejection");}
 ''', bits)
 
 
@@ -116,5 +118,9 @@ threadIdx.x=0;enforcePeriodicGasFluxAntisymmetryKernel(&s);ck(s.gasSpecies.faceS
 def test_sst_inlet_outlet_uses_mesh_relative_direction(tmp_path,bits):
     compile_probe(tmp_path,fixture()+r'''
 int main(){State s;initialise(s);s.riemannBoundaryKind[2]=0;s.sstBoundaryKMode[2]=2;s.sstBoundaryK[2]=7;s.Ux[1]=1;
-Real oldV[2]={1,1},newV[2]={1,Real(1.002)},sweeps[3]={0,0,Real(.002)};moving(s,oldV,newV,sweeps,Real(.001));near(sstBoundaryValue(s,2,1,false),7,"SST inletOutlet used inertial outflow instead of relative inflow");}
+Real oldV[2]={1,1},newV[2]={1,Real(1.002)},sweeps[3]={0,0,Real(.002)};moving(s,oldV,newV,sweeps,Real(.001));
+// The shared SST boundary consumes the actual current ALE Riemann flux.
+threadIdx.x=2;computeGasInternalFaceFluxKernel<false>(&s,Real(.001));
+ck(s.gasPhiRho[2]<0,"moving face should have relative inflow");
+near(sstBoundaryValue(s,2,1,false),7,"SST inletOutlet used inertial outflow instead of relative inflow");}
 ''',bits)
