@@ -3,6 +3,7 @@
 #include "materials/MaterialTransport.H"
 #include "materials/MaterialDrive.H"
 #include "ablation/CpuSurfaceInterface.H"
+#include "ablation/WallClosureHost.H"
 #include "film/CpuFilmDriver.H"
 #include "mesh/Geometry.H"
 #include "mesh/SweepConstraints.H"
@@ -119,16 +120,51 @@ void gasDrive(const HostState& state,const std::vector<GasPrimitive>& bulk,const
     d.hasCoupledNormalTrace=coupled;d.bottomNormalVelocity=2*dot(a.meanVelocity,n)-dot(a.topVelocity,n);d.topNormalVelocity=dot(a.topVelocity,n);d.interfaceNormalVelocity=a.normalVelocity;d.solidNormalVelocity=a.solidNormalVelocity;}}
 bool baseTrace(const HostState& base,const PhysicsConfig& p,std::vector<GasPrimitive>& bulk,std::string& error){bulk.resize(base.surface.area.size());for(std::size_t f=0;f<bulk.size();++f){const int face=base.surface.gasFace[f];if(face<0)continue;if(static_cast<std::size_t>(face)>=base.gasMesh.owner.size()){error="wall predictor face outside gas mesh";return false;}const int c=base.gasMesh.owner[face];if(c<0||static_cast<std::size_t>(c)>=base.gas.size()||!recoverGas(base.gas[c],base.gasMesh.volumes[c],p,bulk[f])){error="wall predictor gas EOS failed";return false;}}return true;}
 } // namespace
-struct CpuMaterialDriver::Implementation {ModelConfig model;Foam::fvMesh* mesh;Implementation(const ModelConfig& m,Foam::fvMesh* region):model(m),mesh(region){}};
-CpuMaterialDriver::CpuMaterialDriver(const ModelConfig& model,Foam::fvMesh* mesh):data_(new Implementation(model,mesh)){}
+struct CpuMaterialDriver::Implementation {
+    ModelConfig model;Foam::fvMesh* mesh;
+    ugkwp::GasMechanismConfiguration mechanism;
+    std::unique_ptr<WallClosureHost> wall;bool terminalWallFailure=false;
+    Implementation(const ModelConfig& m,Foam::fvMesh* region,const ugkwp::GasMechanismConfiguration* canonical):model(m),mesh(region){
+        if(m.physics.wallModel.family==ugkwp::gaswall::WallFamily::BoundaryLayer){wall.reset(new WallClosureHost);if(canonical)mechanism=*canonical;}
+    }
+    bool evaluate(const HostState& state,const PhysicsConfig& p,const std::vector<GasPrimitive>& bulk,
+        const std::vector<GasGradient>& gradients,const std::vector<SolidQ>& materialRate,const std::vector<FilmQ>& filmRate,
+        Real dt,std::uint64_t sequence,CpuSurfaceResult& output,std::string& error,
+        const std::vector<Vec3>* pressureGradient=nullptr,const std::vector<Real>* sideVolume=nullptr,
+        const std::vector<GasWallMatchingSample>* recorded=nullptr){
+        std::vector<GasWallClosureContext> contexts;terminalWallFailure=false;
+        if(wall){
+            terminalWallFailure=true;
+            auto config=p.wallModel;config.enableSst=p.enableSst;
+            if(!wall->prepareGeometry(state.gasMesh,state.surface.gasFace,error,config))return false;
+            std::vector<GasWallMatchingSample> fresh;
+            if(!recorded){if(!wall->sample(state,p,fresh,error))return false;recorded=&fresh;}
+            ugkwp::GasMechanismView<Real,Ns> view;
+            if(p.gasMode==ugkwp::GasMode::MixtureChemistry){
+                if(mechanism.speciesNames.size()!=Ns||mechanism.mechanismHash!=p.gasMechanismFingerprint){error="CPU wall canonical mechanism identity missing";return false;}
+                view=mechanism.mechanismView<Ns>();}
+            if(!wall->contexts(*recorded,view,p.wallModel,contexts,error))return false;
+        }
+        terminalWallFailure=false;
+        const bool success=evaluateCpuSurface(state,p,bulk,gradients,materialRate,filmRate,dt,sequence,output,error,pressureGradient,sideVolume,wall?&contexts:nullptr);
+        if(!success&&wall&&wall->failureStatus().code!=ugkwp::gaswall::WallCode::Success){
+            terminalWallFailure=true;const auto& status=wall->failureStatus();
+            error+="; stationary wall profile code "+std::to_string(int(status.code))+" node "+std::to_string(status.node)+" iteration "+std::to_string(status.iteration)+" residual "+(std::isfinite(status.residual)?std::to_string(status.residual):"NOT_AVAILABLE");
+        }
+        return success;
+    }
+};
+CpuMaterialDriver::CpuMaterialDriver(const ModelConfig& model,Foam::fvMesh* mesh):CpuMaterialDriver(model,mesh,nullptr){}
+CpuMaterialDriver::CpuMaterialDriver(const ModelConfig& model,Foam::fvMesh* mesh,const ugkwp::GasMechanismConfiguration* mechanism):data_(new Implementation(model,mesh,mechanism)){}
 CpuMaterialDriver::~CpuMaterialDriver()=default;
 bool CpuMaterialDriver::predictWall(const HostState& base,const CouplingInterval& interval,WallProgram& output,std::string& error,CpuMaterialReport* diagnostics)const{
+    if(data_->wall&&data_->model.physics.meshMotion.policy!=MeshMotionPolicy::Static)data_->wall->clearGeometry();
     if(diagnostics){*diagnostics=CpuMaterialReport{};diagnostics->recoverable=false;}
     if(!validateMaterialSweepRemainder(base,error))return false;
     if(!validCouplingInterval(interval)||interval.begin!=base.time){error="wall predictor interval/base time mismatch";return false;}
     if(data_->model.physics.filmThermalMode!=FilmThermalMode::ThicknessAveraged||!base.normalEnthalpy.empty()){error="CPU material owner requires actual volume/surface state, not normal columns";return false;}
     std::vector<GasPrimitive> bulk;if(!baseTrace(base,data_->model.physics,bulk,error))return false;CpuSurfaceResult surface;
-    if(!evaluateCpuSurface(base,data_->model.physics,bulk,{},{},{},interval.end-interval.begin,interval.identity.sequence,surface,error)){if(diagnostics)diagnostics->recoverable=true;return false;}
+    if(!data_->evaluate(base,data_->model.physics,bulk,{},{},{},interval.end-interval.begin,interval.identity.sequence,surface,error)){if(diagnostics)diagnostics->recoverable=!data_->terminalWallFailure;return false;}
     WallProgram program;program.interval=interval;program.surface=base.surface;WallKnot first;first.time=interval.begin;first.faces=surface.wall;first.gasPoints=base.gasMesh.points;first.solidPoints=base.solidMesh.points;
     WallKnot last=first;last.time=interval.end;
     if(data_->model.physics.meshMotion.policy==MeshMotionPolicy::PrescribedSinusoidal){
@@ -151,6 +187,7 @@ bool CpuMaterialDriver::advanceCandidate(const HostState& base,const HostState& 
     report=CpuMaterialReport{};error.clear();
     if(!validateMaterialSweepRemainder(base,error)){report.recoverable=false;return false;}
     const auto& p=data_->model.physics;const auto& window=history.interval();
+    auto wallGeometryConfig=p.wallModel;wallGeometryConfig.enableSst=p.enableSst;
     if(!controlsValid(controls)||!history.complete()||window.begin!=base.time
         ||p.filmThermalMode!=FilmThermalMode::ThicknessAveraged||!base.normalEnthalpy.empty()
         ||(!base.solid.empty()&&!data_->mesh)||base.solidMesh.topologyHash!=geometryEndpoint.solidMesh.topologyHash
@@ -165,6 +202,9 @@ bool CpuMaterialDriver::advanceCandidate(const HostState& base,const HostState& 
         std::vector<IntervalDonorSum> physicalSweepSum(base.surface.area.size()),actualSweepSum(base.surface.area.size());
         std::vector<SolidQ> gasSolidChange(base.solid.size());std::vector<FilmQ> gasFilmChange(base.film.size());
         auto cursor=history.cursor();const Real interval=window.end-window.begin;
+        // The macro endpoint has an actual gas state. Do not substitute the
+        // representative last RK stage when converting film endpoint pV.
+        std::vector<GasWallMatchingSample> endpointMatching;bool endpointMatchingReady=false;
         while(state.time<window.end){
             if(accumulated.materialSteps>=static_cast<std::uint64_t>(controls.maxSubsteps)){error="CPU material substep limit reached";report=accumulated;return false;}
             Real dt=std::min(window.end-state.time,controls.maxSubstep>0?controls.maxSubstep:interval);
@@ -191,16 +231,35 @@ bool CpuMaterialDriver::advanceCandidate(const HostState& base,const HostState& 
             for(int retry=0;retry<=std::max(p.tolerances.maxRetries,p.tolerances.maxCouplingIterations);++retry){
                 if(!(dt>0)||state.time+dt==state.time){error="CPU material substep does not advance";break;}
                 if(dt!=filmGuessDt){filmEvaluationSurface=state.surface;filmEvaluationSurface.sweptEdgeArea.assign(state.surface.edgeOwner.size(),0);refinementDrive.clear();filmGuessDt=dt;}
+                if(data_->wall&&p.meshMotion.policy!=MeshMotionPolicy::Static&&retry>0)data_->wall->clearGeometry();
                 error.clear();trial=state;trial.time=state.time+dt;trialCursor=cursor;
                 if(!trialCursor.takeThrough(trial.time,packets,radiation,error))break;
                 ++accumulated.materialRhsEvaluations;
                 if(!evaluateMaterialTransport(state.solidMesh,state.solid,p,{},dt,controls.transportCfl,transport,error))break;
                 if(dt>transport.dtLimit){dt=transport.dtLimit;continue;}
                 gasDrive(state,bulk,traction,drive);if(!refinementDrive.empty())drive=refinementDrive;
-                std::vector<GasPrimitive> endpointBulk;std::vector<Vec3> endpointTraction;
+                std::vector<GasPrimitive> endpointBulk;std::vector<Vec3> endpointTraction;const GasIntervalRecord* endpointRecord=nullptr;
                 if(trial.time==window.end){if(!baseTrace(geometryEndpoint,p,endpointBulk,error))break;}
-                else if(!history.sampleGasDrive(trial.time,endpointBulk,endpointTraction,error))break;
+                else{
+                    if(!history.sampleGasDrive(trial.time,endpointBulk,endpointTraction,error))break;
+                    for(const auto& r:history.records())if(trial.time<r.end){endpointRecord=&r;break;}
+                    if(!endpointRecord){error="missing endpoint gas driving record";break;}
+                }
                 for(std::size_t f=0;f<drive.size();++f)if(state.surface.gasFace[f]>=0)drive[f].endpointPressure=endpointBulk[f].pressure;
+                if(data_->wall&&p.enableFilm){
+                    const auto& matching=driveRecord->gasWallMatching;
+                    if(trial.time==window.end&&!endpointMatchingReady){
+                        if(!data_->wall->prepareGeometry(geometryEndpoint.gasMesh,geometryEndpoint.surface.gasFace,error,wallGeometryConfig)
+                            ||!data_->wall->sample(geometryEndpoint,p,endpointMatching,error)){report.recoverable=false;return false;}
+                        endpointMatchingReady=true;
+                    }
+                    const auto& ending=trial.time==window.end?endpointMatching:endpointRecord->gasWallMatching;
+                    if(matching.size()!=state.surface.area.size()||ending.size()!=matching.size()){
+                        report.recoverable=false;error="film wall matching pressure history layout mismatch";return false;}
+                    for(std::size_t f=0;f<drive.size();++f)if(state.surface.gasFace[f]>=0){
+                        drive[f].pressure=matching[f].pressure;drive[f].endpointPressure=ending[f].pressure;
+                    }
+                }
                 forcing.assign(state.film.size(),CpuFilmForcing{});
                 for(const auto& packet:packets){if((requiredConsumers(packet.kind)&ConsumeFilm)&&(packet.filmFace<0||static_cast<std::size_t>(packet.filmFace)>=forcing.size())){error="CPU gas history film receiver outside mesh";break;}filmForcing(packet,forcing);}
                 if(!error.empty())break;
@@ -213,11 +272,11 @@ bool CpuMaterialDriver::advanceCandidate(const HostState& base,const HostState& 
                     evaluation.filmAux=profiles;
                     for(std::size_t f=0;f<profiles.size();++f)evaluation.film[f].enthalpy+=pressureVolumeProduct(state.filmAux[f].pressure,state.film[f].mass/p.liquid.rho,profiles[f].pressure,state.film[f].mass/p.liquid.rho);
                 }else{filmRate.clear();pressureGradient.assign(state.surface.area.size(),Vec3{});sideVolume.assign(state.surface.area.size(),0);}
-                if(!evaluateCpuSurface(evaluation,p,bulk,driveRecord->gasGradient,transport.rates,filmRate,dt,window.identity.sequence,surface,error,&pressureGradient,&sideVolume))break;
+                if(!data_->evaluate(evaluation,p,bulk,driveRecord->gasGradient,transport.rates,filmRate,dt,window.identity.sequence,surface,error,&pressureGradient,&sideVolume,&driveRecord->gasWallMatching)){if(data_->terminalWallFailure){report.recoverable=false;return false;}break;}
                 bool shortenedForSource=false;
                 for(const auto& record:history.records())if(record.begin>state.time&&record.begin<trial.time){
                     CpuSurfaceResult response;++accumulated.boundaryDriveSamples;
-                    if(!evaluateCpuSurface(evaluation,p,record.gasTrace,record.gasGradient,transport.rates,filmRate,dt,window.identity.sequence,response,error,&pressureGradient,&sideVolume)){dt=record.begin-state.time;error.clear();shortenedForSource=true;break;}
+                    if(!data_->evaluate(evaluation,p,record.gasTrace,record.gasGradient,transport.rates,filmRate,dt,window.identity.sequence,response,error,&pressureGradient,&sideVolume,&record.gasWallMatching)){if(data_->terminalWallFailure){report.recoverable=false;return false;}dt=record.begin-state.time;error.clear();shortenedForSource=true;break;}
                     Real fraction=0;
                     for(std::size_t f=0;f<surface.physics.size();++f){if(state.surface.gasFace[f]<0)continue;
                         const auto& a=surface.physics[f];const auto& b=response.physics[f];const Real scale=state.surface.area[f]*dt;
@@ -368,7 +427,8 @@ bool CpuMaterialDriver::advanceCandidate(const HostState& base,const HostState& 
                 beginning.time=state.time;beginning.faces=surface.wall;beginning.gasPoints=state.gasMesh.points;beginning.solidPoints=state.solidMesh.points;
                 if(program.knots.empty())program.knots.push_back(beginning);
                 WallKnot ending=beginning;ending.time=trial.time;ending.gasPoints=trial.gasMesh.points;ending.solidPoints=trial.solidMesh.points;
-                if(trial.time<window.end){CpuSurfaceResult endpointProposal;if(!evaluateCpuSurface(trial,p,endpointBulk,driveRecord->gasGradient,{},{},dt,window.identity.sequence,endpointProposal,error))break;
+                if(trial.time<window.end){CpuSurfaceResult endpointProposal;
+                    if(!endpointRecord){error="missing endpoint wall matching record";break;}if(!data_->evaluate(trial,p,endpointBulk,endpointRecord->gasGradient,{},{},dt,window.identity.sequence,endpointProposal,error,nullptr,nullptr,&endpointRecord->gasWallMatching)){if(data_->terminalWallFailure){report.recoverable=false;return false;}break;}
                     ending.faces=endpointProposal.wall;for(std::size_t f=0;f<ending.faces.size();++f)ending.faces[f].primaryKind=beginning.faces[f].primaryKind;}
                 for(std::size_t f=0;f<ending.faces.size();++f){ending.faces[f].solidNormalVelocity=aux[f].solidNormalVelocity;ending.faces[f].normalVelocity=aux[f].normalVelocity;}
                 program.knots.push_back(ending);
@@ -422,13 +482,15 @@ bool CpuMaterialDriver::advanceCandidate(const HostState& base,const HostState& 
             if(!validateMaterialSweepRemainder(state,error)){report=accumulated;return false;}
         }
         state.gasChemistryAudit=geometryEndpoint.gasChemistryAudit;state.gasSstAudit=geometryEndpoint.gasSstAudit;
+        state.gasWallDiagnostics=geometryEndpoint.gasWallDiagnostics;state.gasWallDiagnosticTime=geometryEndpoint.gasWallDiagnosticTime;
         state.gas=geometryEndpoint.gas;state.sst=geometryEndpoint.sst;state.particles=geometryEndpoint.particles;
         state.rejectedSteps=geometryEndpoint.rejectedSteps;state.gasVoidFraction=geometryEndpoint.gasVoidFraction;state.gasStages=geometryEndpoint.gasStages;
         state.gasMesh.boundaryPrimitive=geometryEndpoint.gasMesh.boundaryPrimitive;state.gasMesh.thermalBoundary=geometryEndpoint.gasMesh.thermalBoundary;state.gasMesh.boundarySst=geometryEndpoint.gasMesh.boundarySst;
         state.budget=geometryEndpoint.budget;addBudget(state.budget,accumulated.budgetDelta);state.time=window.end;program.donorPlan=accumulated.donorPlan;
+        if(data_->wall&&p.meshMotion.policy!=MeshMotionPolicy::Static)data_->wall->clearGeometry();
         if(!program.knots.empty()){const auto& last=history.records().back();CpuSurfaceResult endpointSurface;
             std::vector<GasPrimitive> finalBulk;if(!baseTrace(state,p,finalBulk,error)){report=accumulated;return false;}
-            if(!evaluateCpuSurface(state,p,finalBulk,last.gasGradient,{},{},interval,window.identity.sequence,endpointSurface,error)){report=accumulated;return false;}
+            if(!data_->evaluate(state,p,finalBulk,last.gasGradient,{},{},interval,window.identity.sequence,endpointSurface,error)){report=accumulated;report.recoverable=!data_->terminalWallFailure;return false;}
             program.knots.back().faces=endpointSurface.wall;
             // The executed regime owns the interval including its terminal flux.
             // An endpoint phase event changes the next window's predictor only.
