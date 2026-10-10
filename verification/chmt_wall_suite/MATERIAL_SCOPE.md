@@ -1,0 +1,56 @@
+# Material model scope and replacement contract
+
+These cases exercise **equations with parameters**, not a recognized-material name lookup. The two shipped material cards are deliberately **controlled synthetic verification definitions**, not TACOT, ZURAM, graphite, PICA, experimental fits, or design-qualified material data. Every generated CHMT case contains `material_card.json` and a hashed `chmtProperties`.
+
+## Supported present equations
+
+The authoritative implementation is `applications/CHMT/configuration/ModelIO.H`, `materials/Thermodynamics.H`, `materials/Reaction.H`, `ablation/InterfaceMath.H` and the common gas thermo/chemistry parsers. Material and gas chemistry have different concentration and stoichiometric conventions. Never paste CHEMKIN gas Arrhenius parameters into material reactions unchanged.
+
+| Input family | Current equation/data type | Units / substitution constraints |
+|---|---|---|
+| Condensed phases | `condensedNames` has exactly the compile-time `Nc=2`; each `rho,cp0,cp1,e0,conductivity,Tmin,Tmax,element` is explicit | rho kg/m³, cp0 J/(kg K), cp1 J/(kg K²), e0 J/kg, k W/(m K), T kelvin; element mol atoms/kg |
+| Condensed calorics | u(T)=e0+cp0 T+cp1 T²/2; cp(T)=cp0+cp1 T | Positive cp across declared range; no extrapolation or clipped temperature |
+| Effective conductivity | Volume-fraction sum of constant phase conductivities, plus pore-gas contribution when present | Per-phase k is constant, scalar and isotropic |
+| Gas species | `gasModelProperties`: ordered names, W, linearCp or two-branch NASA7, constant diffusion coefficients | W kg/mol; linearCp coefficients cp0,cp1,e0; common temperature overlap required; NASA7 branch/reference-pressure conventions preserved |
+| Gas kinetics | Common finite-rate SI-molar elementary, third-body, Lindemann and Troe mechanisms | Activation energy J/mol; source pre-exponential conversion depends on total reaction order; mechanism/order/thermo hashes must match |
+| Material bulk kinetics | R=A V T^b exp(-Ea/(Ru T)) product[(m_c/V)^order_c] | Rate is extent/s; condensedNu and gasNu are kg/extent; prefactor units depend on mass-density orders and b. Products become pore gas. Up to compile-time Nr=8 |
+| Surface kinetics | r=A T^b exp(-Ea/(Ru T)) product[rho_c^order_c] product[(rho_g Y_s)^gasOrder_s] | Rate extent/(m² s); same mass/extent stoichiometry, additional gas reactant orders; full mass/element conservation enforced |
+| Pore flow | Constant scalar permeability and pore viscosity; Darcy pressure/gravity flux transports species and enthalpy | permeability m²; viscosity Pa s. Porosity is derived from occupied condensed volume, not freely specified afterward |
+| Surface phases | Optional melt temperature, liquid constant density/linear cp, phase mapping and latent/formation information encoded in e0 | Separate latent-heat source must not double-count formation energy |
+| Evaporation | Optional wet-film Hertz–Knudsen: j_s=alpha_s(x_s p0_s exp(-Theta_s/T)-p_s)/sqrt(2 pi R_s T) | alpha dimensionless [0,1], p0 Pa, Theta K, output kg/(m² s); requires enabled film and consistent ordered species |
+| Radiation/contact | Gray emissivity with ambient T; gas/solid series contact resistances | emissivity dimensionless, temperature K, contact resistance m² K/W |
+| Motion | Static, PrescribedSinusoidal or CoupledRecession | Movement is driven by the coupled interface and conservative geometry; not a supplied experimental recession fit |
+
+Gas finite-rate reaction heat is already represented by formation-inclusive thermo. Material reaction energy is conserved while species inventories change, and temperature is recovered from those inventories. Never introduce an independent heat-of-reaction source merely to match a reference curve.
+
+## Two complete replacement examples
+
+Both are accessible by `generate.py chmt_reacting_receding_slab --options <JSON>` with `{"material":"controlled_v1"}` or `controlled_v2`.
+
+- controlled_v1: C0/C1 rho=1000 kg/m³; cp0=1000 J/(kg K), cp1=0, e0=0, k=1 W/(m K). Surface mass production is 0.001 kg/(m² s).
+- controlled_v2: C0 rho=1600, cp0=700, cp1=0.2, e0=-100000, k=2; C1 rho=1400, cp0=850, cp1=0.1, e0=-80000, k=1.5 in the above units. Surface mass production is 0.0005 kg/(m² s).
+
+Both declare 100–3000 K, dry initial porosity zero, permeability zero, no bulk pyrolysis, no film, no melting, no evaporation, no radiation and zero contact resistance. A disabled process is explicit, not missing material information.
+
+The gas products/carrier S0/S1 each have W=0.028 kg/mol, cp0=1040 J/(kg K), cp1=e0=0 and synthetic element X with one atom per molecule. Gas viscosity=1.8e-5 Pa s, conductivity=0.03 W/(m K), diffusion=2e-5 m²/s. Surface C0 -> S0 uses nu=(-0.028,0) and (0.028,0) kg/mol, zero orders/b/Ea and A=0.001/0.028 or 0.0005/0.028 mol/(m² s). The reactive companion adds S0 -> S1 at 2 s^-1, with identical calorics, isolating transport/chemistry/coupling without invented chemical heat. The complete source cards are generated by `materials.py`; the tiny conductive-contact case carries its separate actual k=1, zero-viscosity, no-reaction metadata.
+
+Changing the material card changes density, caloric inversion, conductivity, surface source, physical inventories and model fingerprint through the same generator and production parser. It does not choose a separate solver path by a material name. There is no fitted experimental parameter.
+
+## Explicit unsupported or unmapped properties
+
+The present condensed model cannot exactly represent arbitrary tables, cp=a+bT+c/T, orthotropic k(T), density-dependent permeability tables, a multi-component resin requiring more than two independent condensed phases, detailed pyrolysis gas distributions without a matching gas mechanism, mechanical swelling/shrinkage, or PATO B-prime equilibrium tables. A reference with any of these cannot be labeled a directly executable faithful material case.
+
+Gas NASA7 availability does not imply equivalent tabulated solid thermo. Fitting a limited linear-cp range is a separate reduced-model study that must report fit interval/errors and retain a different material name. This suite does not fit properties to temperature/recession experiments and does not silently flatten tables.
+
+`references/EXTERNAL_REFERENCE_CARDS.md` distinguishes downloaded independent reference data from native executable controlled cases.
+
+
+## Wall precision and executable validation scope
+
+The shared wall layer computes in binary64 even when global gas/material storage is binary32. Float thermo and mechanism tables are borrowed with their true storage type and promoted value by value; the wall solve does not reinterpret them as double tables or claim to recover lost coefficient precision. Wall results are converted back to the configured global type, with finite-value checks and published species-balance residuals recomputed from the converted channels. This precision policy applies to the wall operator; it does not change the condensed material equations or make the whole CHMT solver a binary64 implementation.
+
+A legacy generic-float 0.01 convergence tolerance is not the validation target for the current internal wall arithmetic. Retain strict declared convergence/physical targets and inspect actual output conversion, budgets and independent references. Host reference or production-kernel agreement remains distinct from native GPU evolution and from experimental agreement.
+
+Fixed, impermeable gasUGKP `mixtureFrozen` + SST now has the ordinary `wallFunction` capability using local mixture caloric/transport properties. The fixed flatplate/MSS7 matrix therefore retains the same mixture physics across lowRe, wallFunction and boundaryLayer variants. Reacting mixtures, ALE, particles and CHMT ordinary wallFunction are outside that capability. The legal MSS7 near-tip polyhedra are now certified using cancellation-resistant slicing without modifying their physical mesh or loosening geometric guards; all-face frontend import is still only an input/geometry check.
+
+No material card becomes an experimentally qualified material through these capability or precision repairs. The native N128 wall Couette and controlled moving/reacting cases must retain actual solver outputs, backend hashes and their original error/budget criteria. Host-only success cannot mark those GPU cases passed.
