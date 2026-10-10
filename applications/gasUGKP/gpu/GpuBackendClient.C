@@ -1045,3 +1045,39 @@ extern "C" int ugkwpGpuResidentStrictUploadSpeciesBoundaryV1
        || !sendArray(s->fd,massFraction,std::uint64_t(s->nFaces)*identity->speciesCount)) return -1;
     return finishNoPayload(s);
 }
+
+extern "C" int ugkwpGpuResidentStrictConfigureBoundaryLayerV1
+(void* handle,const ugkwpGpuIpc::BoundaryLayerConfigV1* config,const int* faces,
+ const int* quadratureOffsets,const int* matchingOffsets,const int* matchingCells,
+ const double* geometry,const double* quadratureDistance,const double* quadratureWeight,
+ const double* matchingWeight,const double* speciesFlux)
+{
+    ClientState* s=static_cast<ClientState*>(handle);std::uint64_t bytes=0;
+    if(!s || !config || !faces || !quadratureOffsets || !matchingOffsets || !matchingCells
+        || !geometry || !quadratureDistance || !quadratureWeight || !matchingWeight || !speciesFlux
+        || !s->gasModelConfigured || !boundaryLayerPayloadBytes(*config,s->nFaces,s->gasSpeciesIdentity.speciesCount,bytes))
+        return fail("invalid boundaryLayer configuration request");
+    const auto& a=*config;
+    if(!startRequest(s,Op::configureBoundaryLayerV1,bytes) || !sendObject(s->fd,a)
+        || !sendArray(s->fd,faces,a.wallCount) || !sendArray(s->fd,quadratureOffsets,a.wallCount+1ULL)
+        || !sendArray(s->fd,matchingOffsets,a.wallCount+1ULL) || !sendArray(s->fd,matchingCells,a.matchingCount)
+        || !sendArray(s->fd,geometry,7ULL*a.wallCount) || !sendArray(s->fd,quadratureDistance,a.quadratureCount)
+        || !sendArray(s->fd,quadratureWeight,a.quadratureCount) || !sendArray(s->fd,matchingWeight,a.matchingCount)
+        || !sendArray(s->fd,speciesFlux,std::uint64_t(a.wallCount)*a.speciesCount))return -1;
+    return finishNoPayload(s);
+}
+extern "C" int ugkwpGpuResidentStrictDownloadBoundaryLayerV1
+(void* handle,std::uint32_t walls,std::uint32_t species,double* diagnostics)
+{
+    ClientState* s=static_cast<ClientState*>(handle);
+    if(!s || !diagnostics || !walls || !species || !s->gasModelConfigured
+        || species!=s->gasSpeciesIdentity.speciesCount || walls>std::uint32_t(s->nFaces))
+        return fail("invalid boundaryLayer diagnostic request");
+    const std::uint32_t dimensions[2]={walls,species};
+    if(!startRequest(s,Op::downloadBoundaryLayerV1,sizeof(dimensions)) || !sendArray(s->fd,dimensions,2))return -1;
+    const std::uint64_t count=std::uint64_t(walls)*(boundaryLayerDiagnosticScalars+2ULL*species);
+    std::uint64_t got=0;const int status=receiveResponse(s,got,true,count*sizeof(double));
+    if(status)return status;
+    std::vector<double> staged(count);if(!receiveArray(s->fd,staged.data(),count))return -1;
+    std::memcpy(diagnostics,staged.data(),count*sizeof(double));return 0;
+}
