@@ -1,4 +1,6 @@
+#ifndef UGKWP_GPU_PRECISION_TYPES_H
 #include "GpuPrecisionTypes.H"
+#endif
 #ifndef UGKWP_GPU_SST_ALGEBRA_CUH
 #define UGKWP_GPU_SST_ALGEBRA_CUH
 
