@@ -1,6 +1,7 @@
 #pragma once
 #include <type_traits>
 #include "gasTransport/GasStateView.H"
+#include "gasTransport/GasBoundaryLayerHost.H"
 #include "operators/advanceGasChemistryKernel.cuh"
 
 // Shared Euler/RK, boundary-finalisation and graph-capture host protocol.
@@ -18,6 +19,7 @@ int advanceGasEulerSubstage(GasHostState* s, const GasHostPolicy::Time dt, const
     const int cellGrid = (s->nCells + cellBlock - 1)/cellBlock;
     const int faceGrid = (s->nFaces + faceBlock - 1)/faceBlock;
     cudaError_t err = cudaSuccess;
+    const bool preparedBoundaryLayer=ugkwp::gasBoundaryLayerPreparationReusable(*s,dt,stageTime);
 
     recoverGasPrimitivesKernel<<<cellGrid, cellBlock, 0, s->gasCaptureStream>>>(s->deviceState);
     err = cudaGetLastError();
@@ -36,7 +38,7 @@ int advanceGasEulerSubstage(GasHostState* s, const GasHostPolicy::Time dt, const
             return 1;
         }
     }
-    if (faceGrid > 0)
+    if (faceGrid > 0 && !preparedBoundaryLayer)
     {
         updateRiemannBoundaryMirrorKernel<<<faceGrid, faceBlock, 0, s->gasCaptureStream>>>(s->deviceState);
         err = cudaGetLastError();
@@ -46,7 +48,9 @@ int advanceGasEulerSubstage(GasHostState* s, const GasHostPolicy::Time dt, const
             return 1;
         }
     }
-    if (s->hostTurbulenceModel == 3)
+    if(ugkwp::prepareGasBoundaryLayerStage<GasHostPolicy>(s,dt,stageTime,false)!=0)
+    {setLastErrorText("boundaryLayer stage preparation failed");return 1;}
+    if (s->hostTurbulenceModel == 3 && !preparedBoundaryLayer)
     {
         applySstWallFunctionStateKernel<<<cellGrid, cellBlock, 0, s->gasCaptureStream>>>(s->deviceState);
         err = cudaGetLastError();
@@ -289,6 +293,8 @@ int advanceGasFluxStage(GasHostState* s, const GasHostPolicy::Time dt, const Gas
         (s->nFaces + preparationFaceBlock - 1)/preparationFaceBlock;
     using GasDevice=typename std::remove_pointer<decltype(s->deviceState)>::type;
     if constexpr(ugkwp::GasSstAuditCapability<GasDevice>::value)
+    if(ugkwp::gasSstAuditPreparationRequired(*s)
+        && !ugkwp::gasBoundaryLayerPreparationReusable(*s,dt,simulationTime))
     {
         prepareGasSstAuditKernel<<<preparationCellGrid,preparationCellBlock,0,s->gasCaptureStream>>>(s->deviceState);
         const auto error=cudaGetLastError();
@@ -308,7 +314,8 @@ int advanceGasFluxStage(GasHostState* s, const GasHostPolicy::Time dt, const Gas
         );
         return 1;
     }
-    if (preparationFaceGrid > 0)
+    if (preparationFaceGrid > 0
+        && !ugkwp::gasBoundaryLayerPreparationReusable(*s,dt,simulationTime))
     {
         updateLegacyGasBoundaryMirrorKernel
             <<<preparationFaceGrid, preparationFaceBlock, 0, s->gasCaptureStream>>>(s->deviceState, simulationTime);
@@ -527,7 +534,8 @@ int advancePureGasGraph(GasHostState* s, const GasHostPolicy::Time dt, const Gas
 // Shared source composition: chemistry always uses explicit stage volumes.
 // Audits are copied by the storage policy before the next half overwrites them.
 template<class TrialPolicy,class GasHostState>
-int prepareGasTrialTransport(GasHostState* s,const GasHostPolicy::Time dt)
+int prepareGasTrialTransport(GasHostState* s,const GasHostPolicy::Time dt,
+    const GasHostPolicy::Time simulationTime=GasHostPolicy::Time(0))
 {
     if constexpr (ugkwp::GasStateTraits<GasHostState>::speciesCount > 0)
     {
@@ -535,6 +543,7 @@ int prepareGasTrialTransport(GasHostState* s,const GasHostPolicy::Time dt)
             const int block=s->fixedCellBlockThreads,grid=(s->nCells+block-1)/block;
             using GasDevice=typename std::remove_pointer<decltype(s->deviceState)>::type;
             if constexpr(ugkwp::GasSstAuditCapability<GasDevice>::value)
+            if(ugkwp::gasSstAuditPreparationRequired(*s))
             {
                 prepareGasSstAuditKernel<<<grid,block,0,s->gasCaptureStream>>>(s->deviceState);
                 const auto error=cudaGetLastError();
@@ -561,12 +570,42 @@ int prepareGasTrialTransport(GasHostState* s,const GasHostPolicy::Time dt)
             recoverGasPrimitivesKernel<<<grid,block,0,s->gasCaptureStream>>>(s->deviceState);
             const auto recoveryError=cudaGetLastError();
             if(recoveryError!=cudaSuccess){setLastError("pre-transport mixture recovery",recoveryError);return 1;}
+            if(ugkwp::gasBoundaryLayerEnabled(*s))
+            {
+                // The first chemistry half-step has completed. Refresh only the
+                // selected family's current boundary input and prepare once;
+                // the first Euler stage consumes this exact state/phase cache.
+                if(s->hostTurbulenceModel==3)
+                {
+                    recoverSstPrimitivesKernel<<<grid,block,0,s->gasCaptureStream>>>(s->deviceState);
+                    const auto error=cudaGetLastError();
+                    if(error!=cudaSuccess){setLastError("wall preflight SST recovery",error);return 1;}
+                }
+                const int faceBlock=s->fixedFaceBlockThreads,faceGrid=(s->nFaces+faceBlock-1)/faceBlock;
+                if(faceGrid>0)
+                {
+                    updateLegacyGasBoundaryMirrorKernel<<<faceGrid,faceBlock,0,s->gasCaptureStream>>>(s->deviceState,simulationTime);
+                    auto error=cudaGetLastError();
+                    if(error!=cudaSuccess){setLastError("wall preflight boundary time",error);return 1;}
+                    updateRiemannBoundaryMirrorKernel<<<faceGrid,faceBlock,0,s->gasCaptureStream>>>(s->deviceState);
+                    error=cudaGetLastError();
+                    if(error!=cudaSuccess){setLastError("wall preflight boundary state",error);return 1;}
+                }
+                if(ugkwp::prepareGasBoundaryLayerStage<GasHostPolicy>(s,dt,simulationTime,true)!=0)
+                {setLastErrorText("boundaryLayer preflight preparation failed");return 1;}
+                if(s->hostTurbulenceModel==3)
+                {
+                    applySstWallFunctionStateKernel<<<grid,block,0,s->gasCaptureStream>>>(s->deviceState);
+                    const auto error=cudaGetLastError();
+                    if(error!=cudaSuccess){setLastError("wall preflight owner omega",error);return 1;}
+                }
+            }
             if(TrialPolicy::validate(s)!=0)return 1;
             if(chemistry && TrialPolicy::captureChemistryAudit(s,false)!=0)return 1;
             if constexpr(ugkwp::GasStateTraits<GasDevice>::speciesCount>0)
                 if(s->hostTurbulenceModel!=0)
                 {
-                    if(s->hostTurbulenceModel==3)
+                    if(s->hostTurbulenceModel==3 && !ugkwp::gasBoundaryLayerEnabled(*s))
                     {
                         recoverSstPrimitivesKernel<<<grid,block,0,s->gasCaptureStream>>>(s->deviceState);
                         const auto error=cudaGetLastError();
@@ -656,16 +695,17 @@ int advanceGasTrial
     const GasHostPolicy::Time simulationTime
 )
 {
+    ugkwp::invalidateGasBoundaryLayerPreparation(*s);
     if (TrialPolicy::begin(s) != 0)
-    { TrialPolicy::rollback(s); return 1; }
-    if (prepareGasTrialTransport<TrialPolicy>(s,dt) != 0
+    { ugkwp::invalidateGasBoundaryLayerPreparation(*s); TrialPolicy::rollback(s); return 1; }
+    if (prepareGasTrialTransport<TrialPolicy>(s,dt,simulationTime) != 0
         || advanceGasFluxStage(s, dt, simulationTime) != 0
         || TrialPolicy::applySources(s, dt) != 0
         || finaliseGasTrialSources<TrialPolicy>(s,dt) != 0
         || finaliseGasBoundaryStage(s, dt, simulationTime+dt) != 0
         || TrialPolicy::validate(s) != 0
         || TrialPolicy::commit(s) != 0)
-    { TrialPolicy::rollback(s); return 1; }
+    { ugkwp::invalidateGasBoundaryLayerPreparation(*s); TrialPolicy::rollback(s); return 1; }
     return 0;
 }
 
