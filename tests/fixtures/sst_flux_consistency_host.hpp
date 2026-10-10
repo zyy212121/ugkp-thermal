@@ -2,6 +2,10 @@
 #include <algorithm>
 #include <iostream>
 #include "GpuSstAlgebra.cuh"
+#include "gasTransport/GasStateView.H"
+#include "gasTransport/GasCapabilities.H"
+#include "gasTransport/MixtureThermo.H"
+#include "gasTransport/GasGeometryValidation.H"
 #include "OpenFoamWallFunctions.cuh"
 #include "OpenFoamViscousFlux.cuh"
 #define __host__
