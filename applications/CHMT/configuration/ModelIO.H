@@ -146,7 +146,22 @@ namespace chmt {
             }
             if (d.found("sst")) {
                 const auto& a = d.subDict("sst");
-                require(text(a,"wallTreatment","lowRe")=="lowRe","CHMT shared SST supports wallTreatment lowRe only");
+                const auto family=text(a,"wallTreatment","lowRe");
+                require(family=="lowRe"||family=="boundaryLayer","CHMT supports wallTreatment lowRe or boundaryLayer; ordinary wallFunction coupling is not enabled");
+                p.wallModel.family=family=="boundaryLayer"?ugkwp::gaswall::WallFamily::BoundaryLayer:ugkwp::gaswall::WallFamily::LowRe;
+                if(a.found("boundaryLayer")){
+                    require(family=="boundaryLayer","boundaryLayer controls require wallTreatment boundaryLayer");
+                    const auto& layer=a.subDict("boundaryLayer");auto& wall=p.wallModel;
+                    const auto model=text(layer,"model","reactingSst");
+                    require(model=="reactingSst"||model=="finiteRate"||model=="constantTransport","unsupported boundaryLayer model");
+                    wall.model=model=="constantTransport"?ugkwp::gaswall::BoundaryLayerModel::ConstantTransport:ugkwp::gaswall::BoundaryLayerModel::ReactingSst;
+                    p.wallWorkspaceSlots=layer.lookupOrDefault<Foam::label>("workspaceSlots",p.wallWorkspaceSlots);
+                    wall.nodes=layer.lookupOrDefault<Foam::label>("nodes",wall.nodes);
+                    wall.maxIterations=layer.lookupOrDefault<Foam::label>("maxIterations",wall.maxIterations);
+                    wall.relativeTolerance=readNumber(layer,"relativeTolerance",wall.relativeTolerance);
+                    wall.absoluteTolerance=readNumber(layer,"absoluteTolerance",wall.absoluteTolerance);
+                    wall.stretch=readNumber(layer,"stretch",wall.stretch);
+                }
                 auto& t = p.sst;
 #define CHMT_READ_SST(name) t.name=readNumber(a,#name,t.name)
                 CHMT_READ_SST(a1);
@@ -198,6 +213,9 @@ namespace chmt {
                 auto metadata=gas;metadata.mode=ugkwp::GasMode::MixtureFrozen;
                 require(bindSingleGasModel(metadata,text(d,"singleGasSpecies"),m,error),error);
             } else require(bindSharedGasModel(gas,m,error),error);
+            p.wallModel.enableSst=p.enableSst;p.wallModel.turbulentPrandtl=p.sst.turbulentPrandtl;
+            p.wallModel.turbulentSchmidt=p.sst.turbulentSchmidt;
+            require(validateWallModelConfig(p,error),error);
             return m;
         }
     }
