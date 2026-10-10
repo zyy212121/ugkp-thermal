@@ -572,24 +572,18 @@ int prepareGasTrialTransport(GasHostState* s,const GasHostPolicy::Time dt)
                         const auto error=cudaGetLastError();
                         if(error!=cudaSuccess){setLastError("pre-transport SST recovery",error);return 1;}
                     }
-                    computeGasPrimitiveGradientsKernel<<<grid,block,0,s->gasCaptureStream>>>(s->deviceState);
+                    computeGasPrimitiveGradientsKernel<<<grid,block,0,s->gasCaptureStream>>>(s->deviceState,true);
                     auto error=cudaGetLastError();
                     if(error!=cudaSuccess){setLastError("pre-transport gas gradients",error);return 1;}
                     if(s->hostTurbulenceModel==3)
                     {
-                        computeSstGradientsKernel<<<grid,block,0,s->gasCaptureStream>>>(s->deviceState);
+                        computeGasGradientLimiterKernel<<<grid,block,0,s->gasCaptureStream>>>(s->deviceState);
                         error=cudaGetLastError();
-                        if(error!=cudaSuccess){setLastError("pre-transport SST gradients",error);return 1;}
+                        if(error!=cudaSuccess){setLastError("pre-transport gas limiter",error);return 1;}
                     }
                     computeGasEddyViscosityKernel<<<grid,block,0,s->gasCaptureStream>>>(s->deviceState);
                     error=cudaGetLastError();
                     if(error!=cudaSuccess){setLastError("pre-transport eddy viscosity",error);return 1;}
-                    if(s->hostTurbulenceModel==3)
-                    {
-                        computeSstStabilityNumberKernel<<<grid,block,0,s->gasCaptureStream>>>(s->deviceState,dt,TrialPolicy::targetMaxCo(s));
-                        error=cudaGetLastError();
-                        if(error!=cudaSuccess){setLastError("pre-transport SST stability",error);return 1;}
-                    }
                 }
             const int faceBlock=s->fixedFaceBlockThreads,faceGrid=(s->nFaces+faceBlock-1)/faceBlock;
             if(faceGrid>0)
@@ -598,6 +592,18 @@ int prepareGasTrialTransport(GasHostState* s,const GasHostPolicy::Time dt)
                 const auto error=cudaGetLastError();
                 if(error!=cudaSuccess){setLastError("post-chemistry wave speed",error);return 1;}
             }
+            // SST inletOutlet gradients and compression bounds consume the
+            // fresh Riemann mass predictor, never prior-stage flux scratch.
+            if constexpr(ugkwp::GasStateTraits<GasDevice>::speciesCount>0)
+                if(s->hostTurbulenceModel==3)
+                {
+                    computeSstGradientsKernel<<<grid,block,0,s->gasCaptureStream>>>(s->deviceState);
+                    auto error=cudaGetLastError();
+                    if(error!=cudaSuccess){setLastError("pre-transport SST gradients",error);return 1;}
+                    computeSstStabilityNumberKernel<<<grid,block,0,s->gasCaptureStream>>>(s->deviceState,dt,TrialPolicy::targetMaxCo(s));
+                    error=cudaGetLastError();
+                    if(error!=cudaSuccess){setLastError("pre-transport SST stability",error);return 1;}
+                }
             computeGasConvectiveCourantByCellKernel<<<grid,block,0,s->gasCaptureStream>>>(s->deviceState,dt);
             auto error=cudaGetLastError();
             if(error!=cudaSuccess){setLastError("post-chemistry convective bound",error);return 1;}
