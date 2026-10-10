@@ -11,7 +11,7 @@ This test-only suite generates fresh real solver inputs, invokes production exec
 - `NOT_APPLICABLE` (check scope only): legacy single-gas inputs do not have shared-mixture metadata; this does not make their native solver case unsupported.
 - `REPORT_ONLY`: an actual category 2/3 native run completed; its discrepancies are reported without an agreement gate. Preparation or mesh checking cannot produce this state.
 
-`run_status.json` separates mesh, import, native execution, CPU reference evaluation and validation. It records input SHA256, source commit, binary SHA256, executed commands and per-command monotonic process wall time (including startup/I/O, not GPU kernel timing), solver build metadata where available, and CUDA availability. `metrics.json` records targets, actual values, L1/L2/Linf, conservation diagnostics and thresholds. `suite_case.json` additionally records grid parameters, time controls, species count, equation/model choices and material cards. A reference computation by itself is not a passed solver test.
+`run_status.json` separates mesh, import, native execution, CPU reference evaluation and validation. It records input SHA256, source commit, frontend SHA256, separately resolved gas-backend path and pre/post SHA256, executed commands and per-command monotonic process wall time (including startup/I/O, not GPU kernel timing), solver build metadata where available, and CUDA availability. `metrics.json` records targets, actual values, L1/L2/Linf, conservation diagnostics and thresholds. `suite_case.json` additionally records grid parameters, time controls, species count, equation/model choices and material cards. A reference computation by itself is not a passed solver test.
 
 ## Quick start
 
@@ -23,8 +23,8 @@ python -m pytest "$S/tests" -q
 python "$S/suite.py" --output /tmp/chmt-mesh --mode mesh --required
 # Real native execution. Every invocation generates fresh input directories.
 python "$S/suite.py" --output /tmp/chmt-native --mode execute --required \
-  --gas-solver2 /absolute/path/gasUGKP-Ns2 \
-  --gas-solver10 /absolute/path/gasUGKP-Ns10 --chmt-solver /absolute/path/CHMT
+  --gas-solver2 /absolute/path/Ns2/gasUGKP \
+  --gas-solver10 /absolute/path/Ns10/gasUGKP --chmt-solver /absolute/path/CHMT
 ```
 
 The full matrix selects the Ns=10 reactor binary separately from Ns=2 transport cases. The reactor can also be generated and run on its own:
@@ -33,6 +33,10 @@ The full matrix selects the Ns=10 reactor binary separately from Ns=2 transport 
 python "$S/generate.py" gas_chemistry_reactor --output /tmp/reactor10
 python "$S/run.py" /tmp/reactor10 --mode execute --required --solver /absolute/path/Ns10/gasUGKP
 ```
+
+For gasUGKP, the backend defaults to `gasUGKPCudaBackend` beside the resolved frontend executable. Keep each species build in its own directory. An explicitly set `GAS_UGKP_CUDA_BACKEND` selects that exact file; relative paths, including bare names, resolve against the generated case directory, with no PATH search and no fallback. The runner resolves and hashes the selected backend, pins its absolute path in the solver environment, and checks its hash after execution. A missing backend gives `NOT_RUN`; a changed backend fails provenance. Frontend-only hashes do not identify the CUDA implementation.
+
+Every gas case uses `writeControl adjustableRunTime` and 17-digit time/output precision. Adaptive steps therefore align with the output schedule; the ten-species reactor retains its pinned write interval and step size. Completion requires the actual subprocess return code 0, final `simulationTime` at the requested endpoint, one unambiguous exact final-time directory, and finite, correctly shaped rho/p/T/U/rhoE (including solver-created rhoE), and all declared initial species fields. Shared-mixture runs additionally require `End` and the matching species count/mode. Legacy resident gas runs do not emit `End`, so their final progress plus exit/field evidence is the explicit completion contract. Nearby pre-end outputs and an `End` marker alone cannot satisfy it.
 
 The single/legacy gas cases use their original gasUGKP entry. Mixture cases require production mixture mode and the declared species count in the actual log. CHMT requires the native build manifest. There is no automatic CPU fallback.
 
@@ -67,14 +71,16 @@ The gas metadata checker calls the production thermo/mechanism parser, but does 
 
 ## Category 1: hard numerical gates
 
-Limits are committed constants. Do not alter them to make a candidate pass. Double precision is used; a float implementation needs its own justified predeclared tolerance card.
+Limits are committed constants. Do not alter them to make a candidate pass. The production wall operator uses binary64 internally in both global binary32 and binary64 builds: nonlinear state, residual/Jacobian, thermo/rates and the wall linear solve are not downgraded with the global state type. In a binary32 build, borrowed thermo/mechanism coefficients remain the actual quantized float tables, values are promoted for arithmetic, and published wall outputs are explicitly converted back to float. Promotion cannot restore information already rounded in those tables.
+
+Old generic-float experiments with a 0.01 nonlinear tolerance are not an acceptance contract for this binary64 internal operator. Keep the declared internal convergence and physical-error gates; assess the actual converted outputs and their recomputed species/budget residuals rather than only the pre-conversion solution. The production precision tests cover default-tolerance float-state solves, finite/transactional writeback and independent long-double NASA/equilibrium/Troe references using the stored coefficient values. This suite's standard CPU wall probes are separately labelled host/double checks. Passing them or a host coupled-Couette reproduction does not establish a native GPU case pass; the N128 native Couette gate still requires its own completed GPU fields and final wall diagnostics.
 
 | Case | Independent reference | Hard targets / normalization |
 |---|---|---|
 | `small_couette` | Exact transient sine series, finite-volume averages; H=1 m, Uwall=1 m/s, nu=0.1 m2/s, t=0.05 s | U-normalized L2 <=0.01, Linf <=0.025. Not the incorrect steady linear profile. |
 | `small_sod` | Exact Euler Riemann solution; gamma=1.4, left (rho,u,p)=(1,0,100000), right=(0.125,0,10000), interface=0.5 m, t=0.0007 s | L1 rho/1, u/sqrt(140000), p/100000 each <=0.03. Conservative cell-average conversion uses 64-point quadrature; report all three norms and global balances. |
 | `small_cht_contact` | Initial dry two-region resistance: UA=2 W/K, deltaT=300 K =>600 W | First accepted material energy increment/dt within 5%; closed formation-inclusive total energy residual <=2e-10. |
-| `wall_constant_transport` | Actual native laminar frozen wall closure coupled to transient Couette | U-normalized L2 <=0.02, Linf <=0.05. Initial wall transient vs matching distance is a declared limitation, not a steady exactness claim. |
+| `wall_constant_transport` | Canonical N128, Kurganov/full MUSCL; actual native laminar frozen wall closure coupled to transient Couette | U-normalized L2 <=0.02, Linf <=0.05. Initial wall transient vs matching distance is a declared limitation, not a steady exactness claim. |
 | CPU `boundary_slip_outlet` | Slip: lambda A (600-300)/d=300 W, zero penetration/shear. Outlet: prescribed 90000 Pa survives both refreshes | Heat absolute error <=1e-9 W; mass <=1e-13 kg/s; shear <=1e-12 N; pressure <=1e-9 Pa. Flux response to changed pressure is a sensitivity check, not an independent exact Riemann-flux oracle. Both single and mixture modes. |
 | `wall_constant_limit` | Analytic conduction/Couette/Stefan blowing | tau=0.02 Pa; q=-800.1 W/m2 including viscous heating; blowing q=-m cp deltaT/expm1(m cp L/lambda). Relative Linf <=1e-10. |
 | `wall_finite_rate_bvp` | Independent SciPy collocation of first-order exothermic A->B, differential mass-corrected diffusion and formation-inclusive energy | Fixed 0.5% normalized Linf objective for wall Y, q, matching Js and profiles, hard at N96. N24/N48/N96 refinement retained; N24 default is not a universal accuracy claim. Requires production parser/capacity support through N128. Species balance <=1e-9 kg/m2/s; formation-inclusive flux constancy <=1e-7 relative. |
@@ -82,6 +88,8 @@ Limits are committed constants. Do not alter them to make a candidate pass. Doub
 | `wall_polyhedral_geometry` | Exact cube, skew-prism and tetrahedral volume/first/second moments | Absolute component errors <=1e-10 in stated SI moments. Matching is an explicitly zeroth-order containing-cell sample, not affine-exact interpolation. |
 | `wall_profile_quadrature` | Exact polynomial antiderivatives for profile-aligned source integration in cube/skew-prism/tetra at N24/48/128 | Normalized absolute error <=2e-11, scale 1+abs(exact); positive weights, volume/xyz moments and linear-in-N storage bound checked. CPU geometric preprocessing only. |
 | `wall_sst_robustness` | Declared admissible matching state U=30m/s,T=500K,k=0.5,omega=200, mass flux 0/1e-9/0.001kg/m2/s | All three must converge within N32/100 iterations. A FAIL is retained; this test alone makes no SST accuracy claim. |
+
+Shared-mixture wave, fixed flatplate and MSS7 inputs explicitly use Kurganov/full MUSCL, rather than inheriting the template's unsupported HLLC. The wall Couette gate also uses Kurganov/full MUSCL at exactly N128; its original 0.02/0.05 limits remain unchanged. First-order fallback, mesh refinement, and reference-only tests cannot replace that gate. The reactor retains its separately declared Tadmor/first-order reference fixture. Real OpenFOAM parser/capability and Time-scheduler tests cover these generated controls; these host-side checks do not demonstrate GPU evolution or accuracy.
 
 The BVP equations, boundary conditions, constants, reference residual, all actual node samples and N24/48/96 errors are emitted. No production rate or wall solver is used to calculate the independent BVP reference. For the energy diagnostic, the sampled production profile is independently reconstructed with the declared Fick and conductive constitutive laws and compared to the BVP's constant total enthalpy flux.
 
@@ -102,6 +110,8 @@ Closed cases report total mass/energy and removed condensed mass/rho versus volu
 
 `flatplate_fixed`, `mss7_fixed`: gasUGKP SST with `lowRe`, `wallFunction`, `boundaryLayer/reactingSst` variants. `flatplate_moving`, `mss7_moving`: CHMT moving material with `lowRe` and `boundaryLayer/reactingSst`; ordinary CHMT `wallFunction` has an explicit UNSUPPORTED record. `constantTransport` is a laminar analytic limit, not an SST wall-family alternative.
 
+The production fixed ordinary `wallFunction` capability now supports fixed, impermeable `mixtureFrozen` + SST, using local mixture transport and thermodynamics (constant molecular Prandtl or direct conductivity). It does not switch to legacy single-gas physics. Reacting mixtures, ALE, particle coupling, and CHMT ordinary `wallFunction` remain outside that capability. Three-way fixed-wall agreement still requires actual native runs; a passed frontend capability test is not that evidence.
+
 Here “levels” means these near-wall treatments. Pure-gas cases do not invent particle L0/L1/L2 dispatch controls and contain no particles. The inputs use the genuine gasUGKP location `constant/fluidProperties` -> `turbulence`; a standalone `momentumTransport` file is not read by this frontend. CHMT uses `chmtProperties/sst`. `finiteRate` and `reactingSst` share the finite-rate core, with the explicit SST enable flag distinguishing laminar/SST equations.
 
 The user selects meshes/y+. No single prescribed y+ is represented as achieved. Example option file for `suite.py --options options.json`:
@@ -119,14 +129,14 @@ The user selects meshes/y+. No single prescribed y+ is represented as achieved. 
 
 Those numbers are example mesh controls, not validated y+ targets. Use measured tangential traction, trace density, molecular viscosity and actual owner distance to calculate y+. The new gas CSV provides those; missing lowRe fluxes remain UNAVAILABLE. No coarse-cell gradient is substituted for a modeled wall flux. Stage time is kept distinct from write time. Without face area, q remains W/m2 rather than being mislabeled integrated W.
 
-MSS7 uses the existing physical 3D sector points/faces with lateral Slip faces. It does not implement wedge/axisymmetric equations or claim equivalence to the original experiment. The existing digitized-temperature CSV is an unresolved LFS pointer and is not usable reference data. To change near-wall resolution, supply `gas_mesh` (and conformal `solid_mesh` for CHMT) pointing to fresh ASCII polyMesh directories with the same patch identities. Their cell counts are read, hashes retained and actual meshes checked. Do not infer a y+ change from an unchanged imported mesh.
+MSS7 uses the existing physical 3D sector points/faces with lateral Slip faces. The near-tip tetrahedron slicing cancellation is repaired in a local coordinate frame with nearer-endpoint interpolation; the original geometry and certification tolerances are unchanged. The real OpenFOAM frontend can certify all 164 default physical wall faces. This is a geometry/import result, not an evolved-flow or experimental-reference result. It does not implement wedge/axisymmetric equations or claim equivalence to the original experiment. The existing digitized-temperature CSV is an unresolved LFS pointer and is not usable reference data. To change near-wall resolution, supply `gas_mesh` (and conformal `solid_mesh` for CHMT) pointing to fresh ASCII polyMesh directories with the same patch identities. Their cell counts are read, hashes retained and actual meshes checked. Do not infer a y+ change from an unchanged imported mesh.
 
 ```sh
 python "$S/compare_pair.py" /tmp/chmt-native/flatplate_fixed__lowRe \
   /tmp/chmt-native/flatplate_fixed__boundaryLayer_reactingSst --output /tmp/flat-pair.json
 ```
 
-Pair comparison requires two completed native runs of the same physics/material/end time. Identical stationary meshes compare actual cell fields. Different meshes require actual cell-centre exports (`postProcess -func writeCellCentres -time 0`) and SciPy linear interpolation; extrapolation is rejected. Current moving CHMT CSV lacks physical coordinates: only volume-averaged participant temperatures are compared and spatial profiles are explicitly UNAVAILABLE. This limitation cannot be repaired by inventing coordinates or comparing receded cell labels as identical physical points. All category 3 comparisons are diagnostic, not hard acceptance.
+Pair comparison requires two completed native runs of the same physics/material/end time. Its standalone report retains both frontend hashes and both gas-backend provenance records; old receipts without a backend record explicitly show `UNAVAILABLE`, never the frontend hash as a replacement. Identical stationary meshes compare actual cell fields. Different meshes require actual cell-centre exports (`postProcess -func writeCellCentres -time 0`) and SciPy linear interpolation; extrapolation is rejected. Current moving CHMT CSV lacks physical coordinates: only volume-averaged participant temperatures are compared and spatial profiles are explicitly UNAVAILABLE. This limitation cannot be repaired by inventing coordinates or comparing receded cell labels as identical physical points. All category 3 comparisons are diagnostic, not hard acceptance.
 
 ## Independent external references and licensing
 

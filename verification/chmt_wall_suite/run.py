@@ -5,6 +5,7 @@ import ctypes
 import ctypes.util
 import hashlib
 import json
+import math
 import os
 from pathlib import Path
 import re
@@ -12,7 +13,7 @@ import shutil
 import subprocess
 import time
 from foam import fingerprint
-from metrics import compare,final_directory,chmt_endpoints
+from metrics import compare,final_directory,chmt_endpoints,read_field
 
 def _save(case,status):
     states=[status.get(k) for k in ('mesh','input_import','native_execution','cpu_reference','validation')]
@@ -34,27 +35,52 @@ def cuda_probe():
         except (OSError,AttributeError) as e:errors.append(str(e))
     return {'status':'UNAVAILABLE','reason':'; '.join(errors) or 'CUDA runtime not found'}
 
-def validate_completion(case,spec):
+def gas_backend_identity(solver,case,environment):
+    """Resolve the exact child executable selected by GpuBackendClient::execl.
+
+    There is no PATH lookup for the override, including a bare relative name.
+    Resolving the frontend symlink matches the /proc/self/exe default route.
+    """
+    configured=environment.get('GAS_UGKP_CUDA_BACKEND','')
+    path=Path(configured) if configured else Path(solver).resolve().parent/'gasUGKPCudaBackend'
+    if not path.is_absolute():path=Path(case)/path
+    path=path.resolve()
+    result=dict(path=str(path),selection='GAS_UGKP_CUDA_BACKEND' if configured else 'frontend_sibling',configured_value=configured,status='UNAVAILABLE')
+    if path.is_file():result.update(status='AVAILABLE',sha256=hashlib.sha256(path.read_bytes()).hexdigest())
+    return result
+
+def validate_completion(case,spec,*,solver_returncode=None):
+    if solver_returncode!=0:raise ValueError('successful solver exit evidence is missing or nonzero')
     case=Path(case);log=(case/'log.solver').read_text()
     if spec['solver']=='CHMT':
         if 'CHMT accepted time=' not in log:raise ValueError('no accepted native CHMT step in solver log')
         chmt_endpoints(case,spec)
+        return dict(end_marker='CHMT accepted time',solver_returncode=solver_returncode)
     else:
-        if not re.search(r'^End\s*$',log,re.M):raise ValueError('native solver did not complete')
-        if spec['generator'] not in ('couette','sod'):
+        legacy=spec['generator'] in ('couette','sod')
+        if not legacy and not re.search(r'^End\s*$',log,re.M):raise ValueError('native solver did not complete')
+        if not legacy:
             found=re.search(r'Shared gas model:\s+api=\d+\s+Ns=(\d+)\s+mode=(\d+)',log)
             expected_mode=2 if spec['generator'] in ('reactor','reacting_wave') else 1
             if not found or int(found.group(1))!=spec['species_count'] or int(found.group(2))!=expected_mode:raise ValueError('shared mixture backend identity missing or incompatible')
-        final_directory(case,spec['end_time'])
-    return True
+        elif re.search(r'Shared gas model:',log):raise ValueError('legacy case unexpectedly used a shared mixture backend identity')
+        progress=re.findall(r'\bsimulationTime\s*=\s*(\S+)',log)
+        if not progress:raise ValueError('final simulationTime progress evidence is missing')
+        logged_time=float(progress[-1]);end=spec['end_time']
+        if not math.isfinite(logged_time) or abs(logged_time-end)>1e-10*max(abs(end),1e-8):raise ValueError('final simulationTime does not match the requested endpoint')
+        directory=final_directory(case,end)
+        required=['rho','p','T','U','rhoE']+sorted(p.name for p in (case/'0').glob('Y_*') if p.is_file())
+        if spec.get('completion_fields')!=required:raise ValueError('completion field manifest does not match the generated primitive/species fields')
+        for name in required:read_field(directory/name,spec['cells'],name=='U')
+        return dict(end_marker='legacy_final_progress' if legacy else 'End',solver_returncode=solver_returncode,logged_time=logged_time,field_time=float(directory.name),checked_fields=required)
 
 def execute(case,mode='mesh',solver=None,input_checker=None,*,allow_solver_fallback=True):
     case=Path(case).resolve();spec=json.loads((case/'suite_case.json').read_text())
     status=dict(case_id=spec['id'],source_commit=spec['source_commit'],generated_inputs_sha256=spec['inputs_sha256'],mode=mode,mesh='NOT_RUN',input_import='NOT_RUN',native_execution='NOT_RUN',cpu_reference='NOT_RUN',validation='NOT_RUN',commands=[],command_measurements=[],timing_scope='Monotonic process wall time includes startup and I/O; not isolated GPU kernel timing.',reason='Preparation only')
-    def command(args,name):
+    def command(args,name,environment=None):
         status['commands'].append(args);_save(case,status)
         start=time.monotonic()
-        with (case/name).open('w') as f:result=subprocess.run(args,cwd=case,stdout=f,stderr=subprocess.STDOUT)
+        with (case/name).open('w') as f:result=subprocess.run(args,cwd=case,stdout=f,stderr=subprocess.STDOUT,**({'env':environment} if environment is not None else {}))
         status['command_measurements'].append(dict(log=name,wall_seconds=time.monotonic()-start,returncode=result.returncode))
         _save(case,status)
         if result.returncode:raise RuntimeError('command failed, see '+name+': '+' '.join(args))
@@ -97,18 +123,33 @@ def execute(case,mode='mesh',solver=None,input_checker=None,*,allow_solver_fallb
                 _save(case,status);return status
             gpu=cuda_probe();status['cuda_probe']=gpu
             if gpu['status']!='AVAILABLE':status['reason']='Native execution NOT_RUN: '+gpu['reason'];_save(case,status);return status
-            path=Path(solver).resolve() if solver else Path(shutil.which(spec['solver']) or '/nonexistent')
+            path=Path(solver or shutil.which(spec['solver']) or '/nonexistent').resolve()
             if not path.is_file():status['reason']='Native executable unavailable: '+spec['solver'];_save(case,status);return status
             status['solver_path']=str(path);status['solver_sha256']=hashlib.sha256(path.read_bytes()).hexdigest()
+            environment=None
+            if spec['solver']=='gasUGKP':
+                environment=dict(os.environ)
+                backend=gas_backend_identity(path,case,environment);status['backend']=backend
+                if backend['status']!='AVAILABLE':
+                    status['reason']='Native backend executable unavailable: '+backend['path'];_save(case,status);return status
+                # Pin exactly the executable whose bytes were recorded. Never
+                # silently fall back from a missing configured override.
+                environment['GAS_UGKP_CUDA_BACKEND']=backend['path']
             if spec['solver']=='CHMT':
                 text=command([str(path),'-build-info'],'log.build-info');match=re.search(r'\{.*\}',text,re.S)
                 info=json.loads(match.group(0)) if match else {}
                 if info.get('artifact_kind')!='CHMT_BUILD_MANIFEST' or info.get('Ns')!=spec['species_count']:raise RuntimeError('refusing nonnative or species-incompatible CHMT executable')
                 status['build_manifest']=info
-            status['native_execution']='RUNNING';command([str(path),'-case',str(case)],'log.solver')
+            status['native_execution']='RUNNING'
+            try:command([str(path),'-case',str(case)],'log.solver',environment)
+            finally:
+                if environment is not None:
+                    backend_path=Path(status['backend']['path'])
+                    status['backend']['sha256_after']=hashlib.sha256(backend_path.read_bytes()).hexdigest() if backend_path.is_file() else None
+                    if status['backend']['sha256_after']!=status['backend']['sha256']:raise RuntimeError('native backend executable changed during the run; provenance invalid')
             # Existing reactor checker consumes its conventional actual solver log.
             if spec['generator']=='reactor':shutil.copyfile(case/'log.solver',case/'log.gasUGKP')
-            validate_completion(case,spec);status['native_execution']='COMPLETED';status['cpu_reference']='RUNNING'
+            status['completion']=validate_completion(case,spec,solver_returncode=status['command_measurements'][-1]['returncode']);status['native_execution']='COMPLETED';status['cpu_reference']='RUNNING'
             report=compare(case);(case/'metrics.json').write_text(json.dumps(report,indent=2,sort_keys=True)+'\n')
             status['cpu_reference']='COMPLETED';status['validation']=report['acceptance'];status['reason']='Metrics read actual completed native outputs; report-only cases have no physical PASS claim.'
         else:status['reason']='Actual OpenFOAM mesh passed; solver evolution NOT_RUN.'

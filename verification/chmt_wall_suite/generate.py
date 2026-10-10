@@ -31,10 +31,12 @@ def wall_config(family,laminar=False,nodes=24):
 
 def _gas_template(dest,cells=64):
     maker=module('test/gasUGKP/mixtureTransport/make_case.py');maker.create_case(dest,cells=cells)
+    replace_entry(dest/'system/fvSchemes','fluxScheme','Kurganov')
 
 def _couette(dest,opts,newwall=False):
     copy_inputs(ROOT/'examples/consistency/planarCouette',dest)
     n=int(opts.get('cells',128 if newwall else 64))
+    if newwall and n!=128:raise ValueError('canonical wall_constant_transport gate requires 128 cells; refinement is separate evidence')
     p=dest/'system/blockMeshDict';s=p.read_text().replace('(1 64 1)',f'(1 {n} 1)')
     s=s.replace('xMin { type symmetryPlane;', 'xMin { type cyclic; neighbourPatch xMax; transform translational; separationVector (-0.01 0 0);')
     s=s.replace('xMax { type symmetryPlane;', 'xMax { type cyclic; neighbourPatch xMin; transform translational; separationVector (0.01 0 0);')
@@ -54,6 +56,11 @@ def _couette(dest,opts,newwall=False):
         p=dest/'0/T';s=p.read_text();s=re.sub(r'(bottom|top)\s*\{[^{}]*\}',lambda m:m.group(1)+' { type fixedValue; value uniform 300; }',s);p.write_text(s)
         fp=dest/'constant/fluidProperties'
         fp.write_text(re.sub(r'turbulence\s*\{[^{}]*\}', 'turbulence { '+wall_config('boundaryLayer_constantTransport',True,int(opts.get('wall_nodes',24)))+' }', fp.read_text()))
+        # Shared mixtures support full MUSCL, not the legacy mixed
+        # upwind-momentum/limitedLinear-energy reconstruction.
+        schemes=dest/'system/fvSchemes'
+        replace_entry(schemes,'fluxScheme','Kurganov')
+        schemes.write_text(schemes.read_text().replace('Gauss upwind;', 'Gauss MUSCL;').replace('Gauss limitedLinear 1;', 'Gauss MUSCL;'))
     return dict(cells=n,end_time=.05,parameters=dict(height=1.,wall_velocity=1.,kinematic_viscosity=.1,velocity_scale=1.,axis=1),metric='couette',mesh_commands=[['blockMesh']],initialization=[])
 
 def _sod(dest,opts):
@@ -66,6 +73,7 @@ def _sod(dest,opts):
 def _wave(dest,opts):
     n=int(opts.get('cells',64));maker=module('test/gasUGKP/mixtureTransport/make_case.py')
     maker.create_case(dest,cells=n,diffusivity=float(opts.get('diffusivity',.02)),velocity=float(opts.get('velocity',1.)),end_time=float(opts.get('end_time',.1)))
+    replace_entry(dest/'system/fvSchemes','fluxScheme','Kurganov')
     p=json.loads((dest/'case_parameters.json').read_text())
     return dict(cells=n,end_time=p['end_time'],parameters=p,metric='wave',mesh_commands=[['blockMesh']],initialization=[])
 
@@ -260,10 +268,18 @@ def prepare(name,destination,options=None):
         elif k=='mss7':extra=_mss7(dest,options)
         elif k=='mss7_moving':extra=_mss7(dest,options,True)
         else:raise ValueError('unsupported generator')
+        if spec['solver']=='gasUGKP':
+            control=dest/'system/controlDict'
+            # The resident solver downloads fields only on writeTime(). Align
+            # adaptive steps with those writes instead of accepting a nearby
+            # final directory. Keep the reactor's pinned history spacing.
+            for key,value in [('writeControl','adjustableRunTime'),('timePrecision',17),('writePrecision',17)]:
+                replace_entry(control,key,value)
+            extra['completion_fields']=['rho','p','T','U','rhoE']+sorted(p.name for p in (dest/'0').glob('Y_*') if p.is_file())
         commit=subprocess.run(['git','rev-parse','HEAD'],cwd=ROOT,capture_output=True,text=True,check=True).stdout.strip()
         spec.update(extra,source_commit=commit,options=options,inputs_sha256=fingerprint(dest),native_execution='NOT_RUN',cpu_reference='NOT_RUN',mesh='NOT_RUN',validation='NOT_RUN')
         control=(dest/'system/controlDict').read_text()
-        spec['time_controls']={key:(re.search(r'\b'+key+r'\s+([^;]+);',control).group(1).strip() if re.search(r'\b'+key+r'\s+([^;]+);',control) else None) for key in ('deltaT','adjustTimeStep','maxCo','maxDeltaT','endTime','writeInterval')}
+        spec['time_controls']={key:(re.search(r'\b'+key+r'\s+([^;]+);',control).group(1).strip() if re.search(r'\b'+key+r'\s+([^;]+);',control) else None) for key in ('deltaT','adjustTimeStep','maxCo','maxDeltaT','endTime','writeControl','writeInterval','timePrecision','writePrecision')}
         spec['backend_entries']={'native_gpu':'run.py --mode execute --required','cpu_reference':'metrics.py compare() after actual native output; never a solver substitute','cpu_kernel_probes':'host_cases.py --backend cpu (separate explicitly scoped production-kernel tests)'}
         spec['evidence_boundary']='Input generation does not execute a solver. No GPU validation or experimental agreement has been demonstrated.'
         _json(dest/'suite_case.json',spec)

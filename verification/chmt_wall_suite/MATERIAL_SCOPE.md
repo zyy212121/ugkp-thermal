@@ -43,3 +43,14 @@ The present condensed model cannot exactly represent arbitrary tables, cp=a+bT+c
 Gas NASA7 availability does not imply equivalent tabulated solid thermo. Fitting a limited linear-cp range is a separate reduced-model study that must report fit interval/errors and retain a different material name. This suite does not fit properties to temperature/recession experiments and does not silently flatten tables.
 
 `references/EXTERNAL_REFERENCE_CARDS.md` distinguishes downloaded independent reference data from native executable controlled cases.
+
+
+## Wall precision and executable validation scope
+
+The shared wall layer computes in binary64 even when global gas/material storage is binary32. Float thermo and mechanism tables are borrowed with their true storage type and promoted value by value; the wall solve does not reinterpret them as double tables or claim to recover lost coefficient precision. Wall results are converted back to the configured global type, with finite-value checks and published species-balance residuals recomputed from the converted channels. This precision policy applies to the wall operator; it does not change the condensed material equations or make the whole CHMT solver a binary64 implementation.
+
+A legacy generic-float 0.01 convergence tolerance is not the validation target for the current internal wall arithmetic. Retain strict declared convergence/physical targets and inspect actual output conversion, budgets and independent references. Host reference or production-kernel agreement remains distinct from native GPU evolution and from experimental agreement.
+
+Fixed, impermeable gasUGKP `mixtureFrozen` + SST now has the ordinary `wallFunction` capability using local mixture caloric/transport properties. The fixed flatplate/MSS7 matrix therefore retains the same mixture physics across lowRe, wallFunction and boundaryLayer variants. Reacting mixtures, ALE, particles and CHMT ordinary wallFunction are outside that capability. The legal MSS7 near-tip polyhedra are now certified using cancellation-resistant slicing without modifying their physical mesh or loosening geometric guards; all-face frontend import is still only an input/geometry check.
+
+No material card becomes an experimentally qualified material through these capability or precision repairs. The native N128 wall Couette and controlled moving/reacting cases must retain actual solver outputs, backend hashes and their original error/budget criteria. Host-only success cannot mark those GPU cases passed.

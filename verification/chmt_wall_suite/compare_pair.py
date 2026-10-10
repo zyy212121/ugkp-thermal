@@ -61,6 +61,9 @@ def compare_pair(low,high):
         if a['parameters'].get(key)!=b['parameters'].get(key):raise ValueError('pair operating condition differs: '+key)
     if not math.isclose(a['end_time'],b['end_time'],rel_tol=1e-12):raise ValueError('pair final times differ')
     result={'acceptance':'REPORT_ONLY','reference_case':str(low),'candidate_case':str(high),'reference_solver_sha256':sa.get('solver_sha256'),'candidate_solver_sha256':sb.get('solver_sha256'),'physics':a['models'],'profiles':{},'wall_reference':wall_diagnostics(low,a),'wall_candidate':wall_diagnostics(high,b),'yplus_policy':a['yplus_policy']}
+    for side,status in [('reference',sa),('candidate',sb)]:
+        result[side+'_backend']=status.get('backend',{'status':'NOT_APPLICABLE' if a['solver']=='CHMT' else 'UNAVAILABLE',
+            'reason':'CHMT is monolithic' if a['solver']=='CHMT' else 'Run receipt did not record the selected gas backend; frontend SHA is not a substitute.'})
     if a['solver']=='CHMT':
         # Native material output currently has no physical x,y,z; do not compare
         # receding cells at fabricated common coordinates.
