@@ -147,7 +147,7 @@ __device__ GPU_OPERATOR_REAL sstDynamicOmegaWallValue
 {
     const GPU_OPERATOR_REAL rhoSafe = clampMin(riemannFacePrimitiveForGradient(s, owner, f).rho, s.rhoMin);
     const GPU_OPERATOR_REAL nu = s.gasMu/rhoSafe;
-    if (s.sstWallTreatment == 0)
+    if (s.sstWallTreatment != 1)
     {
         // OF10 viscous omegaWallFunction branch: wall nu, cell wall distance.
         // This constrains the adjacent cell, not a wall Dirichlet value.
@@ -195,7 +195,7 @@ __device__ GPU_OPERATOR_REAL sstBoundaryValue
     {
         if (!omegaField)
         {
-            return s.sstWallTreatment == 0 ? GPU_OPERATOR_R(0.0) : centre;
+            return s.sstWallTreatment != 1 ? GPU_OPERATOR_R(0.0) : centre;
         }
         // Copy constrained cell omega to the wall: zero wall diffusion flux.
         return centre;
@@ -253,7 +253,7 @@ __device__ GPU_OPERATOR_REAL sstPredictorMassFlux(const GasState& s, const int f
 }
 
 template<class GasState>
-__device__ void applySstWallFunctionStateCell(GasState& s, const int c)
+__device__ void applySstWallFunctionStateCell(GasState& s, const int c, const bool allowUnprepared=false)
 {
     if
     (
@@ -265,6 +265,22 @@ __device__ void applySstWallFunctionStateCell(GasState& s, const int c)
     }
 
     const GPU_OPERATOR_REAL beforeK=s.rhoK[c],beforeOmega=s.rhoOmega[c];
+    if constexpr(ugkwp::GasBoundaryLayerCapability<GasState>::value)
+    {
+        const int slot=ugkwp::gasBoundaryLayerOwnerSlot(s,c);
+        if(slot>=0)
+        {
+            if(!ugkwp::gasBoundaryLayerSlotReady(s,slot))
+            {if(allowUnprepared)return;if(!ugkwp::gasRecordCellFailure(s,c,ugkwp::GasTransportCode::InvalidStorage))asm("trap;");return;}
+            const GPU_OPERATOR_REAL target=s.gasBoundaryLayer.sst[slot].ownerOmega;
+            if(!finiteDevice(target) || !(target>GPU_OPERATOR_R(0.0)))
+            {if(!ugkwp::gasRecordCellFailure(s,c,ugkwp::GasTransportCode::NonFiniteState))asm("trap;");return;}
+            s.omega[c]=clampMin(target,s.sstOmegaMin);
+            s.rhoOmega[c]=clampMin(s.rho[c],s.rhoMin)*s.omega[c];
+            ugkwp::gasSstAuditConstraint(s,c,beforeK,beforeOmega);
+            return;
+        }
+    }
     GPU_OPERATOR_REAL omegaSum = GPU_OPERATOR_R(0.0);
     int wallCount = 0;
     const int start = s.cellPlaneStart[c];
@@ -298,11 +314,11 @@ __device__ void applySstWallFunctionStateCell(GasState& s, const int c)
 }
 
 template<class GasState>
-__global__ void applySstWallFunctionStateKernel(GasState* sp)
+__global__ void applySstWallFunctionStateKernel(GasState* sp, const bool allowUnprepared=false)
 {
     applySstWallFunctionStateCell
     (
-        *sp, blockIdx.x*blockDim.x + threadIdx.x
+        *sp, blockIdx.x*blockDim.x + threadIdx.x, allowUnprepared
     );
 }
 
@@ -357,7 +373,9 @@ __device__ void recoverSstPrimitiveCell(GasState& s, const int c)
     s.k[c] = s.rhoK[c]/rhoSafe;
     s.omega[c] = s.rhoOmega[c]/rhoSafe;
     ugkwp::gasSstAuditConstraint(s,c,beforeK,beforeOmega);
-    if (s.sstWallTreatment == 0 || s.sstWallTreatment == 1)
+    if (s.sstWallTreatment == 0 || s.sstWallTreatment == 1
+        || (s.sstWallTreatment == 2 && (ugkwp::gasBoundaryLayerOwnerSlot(s,c)<0
+            || ugkwp::gasBoundaryLayerSlotReady(s,ugkwp::gasBoundaryLayerOwnerSlot(s,c)))))
     {
         // Project the wall-adjacent omega equation after Euler updates and RK
         // blends. Refresh the target from recovered k and the current gas state

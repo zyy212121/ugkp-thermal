@@ -39,7 +39,7 @@ __device__ void gasFaceSubgridTransportProperties
 
     if (nei < 0 && boundaryKind == 2)
     {
-        if (s.turbulenceModel == 3 && s.sstWallTreatment == 0)
+        if (s.turbulenceModel == 3 && s.sstWallTreatment != 1)
         {
             muTurbulent = GPU_OPERATOR_R(0.0);
             kTurbulent = GPU_OPERATOR_R(0.0);

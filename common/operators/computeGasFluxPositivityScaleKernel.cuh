@@ -127,6 +127,11 @@ __global__ void applyGasFluxPositivityScaleKernel(GasState* sp)
                 if (flux!=GPU_OPERATOR_R(0.0) && donor>=0 && donor<s.nCells)
                     scale=fmin(scale,s.gasSpecies.positivityScale[k*s.nCells+donor]);
             }
+            // A prescribed physical wall exchange cannot be silently reduced:
+            // that would separate the gas update from its material/source input.
+            // Net-zero counterflow still checks each gas-side species donor.
+            if(ugkwp::gasBoundaryLayerFaceSlot(s,f)>=0 && scale<GPU_OPERATOR_R(1.0))
+            {s.gasSpecies.faceStatus[f]=int(ugkwp::GasTransportCode::NegativeInventory);return;}
             for (int k=0; k<ugkwp::GasStateTraits<GasState>::speciesCount; ++k)
                 s.gasSpecies.flux[k*s.nFaces+f]*=scale;
         }

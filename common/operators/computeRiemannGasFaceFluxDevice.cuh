@@ -49,8 +49,36 @@ __device__ bool computeRiemannGasFaceFluxDevice
             if (s.gasSpecies.cellStatus[own]!=0 || (nei>=0 && s.gasSpecies.cellStatus[nei]!=0))
             { s.gasSpecies.faceStatus[f]=int(ugkwp::GasTransportCode::InvalidThermodynamics);return false; }
             if ((s.gasFluxScheme!=1 && s.gasFluxScheme!=2) || (s.gasReconstruction!=0 && s.gasReconstruction!=1)
-                || (s.turbulenceModel==3 && s.sstWallTreatment!=0))
+                || (s.turbulenceModel==3 && s.sstWallTreatment==1))
             { s.gasSpecies.faceStatus[f]=int(ugkwp::GasTransportCode::UnsupportedConfiguration);return false; }
+        }
+    }
+    if constexpr(ugkwp::GasBoundaryLayerCapability<GasState>::value)
+    {
+        const int slot=ugkwp::gasBoundaryLayerFaceSlot(s,f);
+        if(slot>=0)
+        {
+            const auto& wall=s.gasBoundaryLayer;
+            const bool storage=slot<wall.count && wall.exchange && wall.status;
+            const bool ready=storage && (MassOnly?wall.exchange[slot].massReady:ugkwp::gasBoundaryLayerSlotReady(s,slot));
+            if(!ready || boundaryKind!=2 || !finiteDevice(wall.exchange[slot].mass))
+            {if(!ugkwp::gasRecordFaceFailure(s,f,ugkwp::GasTransportCode::InvalidStorage))asm("trap;");return false;}
+            const auto& exchange=wall.exchange[slot];
+            massFluxArea=exchange.mass;
+            if constexpr(!MassOnly)
+            {
+                momFluxXArea=exchange.momentumX;momFluxYArea=exchange.momentumY;momFluxZArea=exchange.momentumZ;
+                energyFluxArea=exchange.energy;
+                if constexpr(ugkwp::GasStateTraits<GasState>::speciesCount>0)
+                    if(ugkwp::mixtureGasActive(s))
+                    {
+                        if(!wall.speciesFlux)
+                        {s.gasSpecies.faceStatus[f]=int(ugkwp::GasTransportCode::InvalidStorage);return false;}
+                        for(int species=0;species<ugkwp::GasStateTraits<GasState>::speciesCount;++species)
+                            s.gasSpecies.flux[species*s.nFaces+f]=wall.speciesFlux[species*wall.count+slot];
+                    }
+            }
+            return true;
         }
     }
     GPU_OPERATOR_REAL mappedNeiCx = GPU_OPERATOR_R(0.0);
