@@ -105,6 +105,11 @@
       "downstream": "ugkp-thermal"
     },
     {
+      "path": "applications/gasUGKP/gpu/SharedGasModelInput.H",
+      "upstream": "gpu-riemann-gkp-main",
+      "downstream": "ugkp-thermal"
+    },
+    {
       "path": "applications/gasUGKP/private_backend/CharacteristicMuscl.cuh",
       "upstream": "gpu-riemann-gkp-main",
       "downstream": "ugkp-thermal"
@@ -161,6 +166,26 @@
     },
     {
       "path": "applications/gasUGKP/private_backend/RiemannGasFlux.cuh",
+      "upstream": "gpu-riemann-gkp-main",
+      "downstream": "ugkp-thermal"
+    },
+    {
+      "path": "applications/gasUGKP/private_backend/SharedGasAdapter.cuh",
+      "upstream": "gpu-riemann-gkp-main",
+      "downstream": "ugkp-thermal"
+    },
+    {
+      "path": "applications/gasUGKP/private_backend/SharedGasStorage.cuh",
+      "upstream": "gpu-riemann-gkp-main",
+      "downstream": "ugkp-thermal"
+    },
+    {
+      "path": "applications/gasUGKP/private_backend/SharedGasTrialFields.H",
+      "upstream": "gpu-riemann-gkp-main",
+      "downstream": "ugkp-thermal"
+    },
+    {
+      "path": "applications/gasUGKP/private_backend/SharedGasTrialPolicy.cuh",
       "upstream": "gpu-riemann-gkp-main",
       "downstream": "ugkp-thermal"
     },
@@ -295,6 +320,21 @@
       "downstream": "ugkp-thermal"
     },
     {
+      "path": "applications/gasUGKP/tests/test_gas_mechanism_io.py",
+      "upstream": "gpu-riemann-gkp-main",
+      "downstream": "ugkp-thermal"
+    },
+    {
+      "path": "applications/gasUGKP/tests/test_gas_model_io.py",
+      "upstream": "gpu-riemann-gkp-main",
+      "downstream": "ugkp-thermal"
+    },
+    {
+      "path": "applications/gasUGKP/tests/test_gas_model_protocol.py",
+      "upstream": "gpu-riemann-gkp-main",
+      "downstream": "ugkp-thermal"
+    },
+    {
       "path": "applications/gasUGKP/tests/test_gas_solid_coupling_contract.py",
       "upstream": "gpu-riemann-gkp-main",
       "downstream": "ugkp-thermal"
@@ -326,6 +366,21 @@
     },
     {
       "path": "applications/gasUGKP/tests/test_interface_contract.py",
+      "upstream": "gpu-riemann-gkp-main",
+      "downstream": "ugkp-thermal"
+    },
+    {
+      "path": "applications/gasUGKP/tests/test_mixture_initialisation_thermo.py",
+      "upstream": "gpu-riemann-gkp-main",
+      "downstream": "ugkp-thermal"
+    },
+    {
+      "path": "applications/gasUGKP/tests/test_mixture_transport_case.py",
+      "upstream": "gpu-riemann-gkp-main",
+      "downstream": "ugkp-thermal"
+    },
+    {
+      "path": "applications/gasUGKP/tests/test_native_gas_model_frontend.py",
       "upstream": "gpu-riemann-gkp-main",
       "downstream": "ugkp-thermal"
     },
@@ -386,6 +441,21 @@
     },
     {
       "path": "applications/gasUGKP/tests/test_serial_translational_cyclic_contract.py",
+      "upstream": "gpu-riemann-gkp-main",
+      "downstream": "ugkp-thermal"
+    },
+    {
+      "path": "applications/gasUGKP/tests/test_shared_gas_adapter.py",
+      "upstream": "gpu-riemann-gkp-main",
+      "downstream": "ugkp-thermal"
+    },
+    {
+      "path": "applications/gasUGKP/tests/test_shared_gas_numerics_io.py",
+      "upstream": "gpu-riemann-gkp-main",
+      "downstream": "ugkp-thermal"
+    },
+    {
+      "path": "applications/gasUGKP/tests/test_shared_gas_trial_policy.py",
       "upstream": "gpu-riemann-gkp-main",
       "downstream": "ugkp-thermal"
     },
@@ -556,6 +626,11 @@
     },
     {
       "path": "common/GpuGasHostPolicy.cuh",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/GpuGasOperatorDependencies.cuh",
       "upstream": "ugkp-thermal",
       "downstream": "gpu-riemann-gkp-main"
     },
@@ -800,6 +875,101 @@
       "downstream": "gpu-riemann-gkp-main"
     },
     {
+      "path": "common/chemistry/ChemistryTypes.H",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/chemistry/ConservativeReactor.H",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/chemistry/GasJacobian.H",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/chemistry/GasRates.H",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/chemistry/LocalStiffIntegrator.H",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/chemistry/MechanismValidation.H",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/chemistry/RateArithmetic.H",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/chemistry/mechanisms/CANTERA-LICENSE.txt",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/chemistry/mechanisms/GeneratedH2O2.H",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/chemistry/mechanisms/generate_h2o2_reactor_reference.py",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/chemistry/mechanisms/h2o2-cantera-3.1.0.yaml",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/chemistry/mechanisms/h2o2.cantera-reactor-reference.json",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/chemistry/mechanisms/h2o2.cantera-reference.json",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/chemistry/mechanisms/h2o2.gasModelProperties",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/chemistry/mechanisms/h2o2.manifest.json",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/chemistry/mechanisms/h2o2.mechanism",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/chemistry/mechanisms/import_h2o2.py",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/chemistry/mechanisms/requirements-import.txt",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/chemistry/mechanisms/requirements-reference.txt",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
       "path": "common/gasNumerics/CharacteristicMuscl.cuh",
       "upstream": "ugkp-thermal",
       "downstream": "gpu-riemann-gkp-main"
@@ -865,6 +1035,71 @@
       "downstream": "gpu-riemann-gkp-main"
     },
     {
+      "path": "common/gasTransport/GasBuildConfig.H",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/gasTransport/GasCapabilities.H",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/gasTransport/GasGeometryPolicy.H",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/gasTransport/GasGeometryValidation.H",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/gasTransport/GasMechanismIO.H",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/gasTransport/GasModel.H",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/gasTransport/GasModelIO.H",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/gasTransport/GasNumericsIO.H",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/gasTransport/GasSstAudit.H",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/gasTransport/GasStateFields.inc",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/gasTransport/GasStateView.H",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/gasTransport/MixtureThermo.H",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/gasTransport/SpeciesDiffusion.H",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
       "path": "common/gpu/GpuBoundarySchedule.H",
       "upstream": "ugkp-thermal",
       "downstream": "gpu-riemann-gkp-main"
@@ -896,6 +1131,11 @@
     },
     {
       "path": "common/operators/accumulateParticleMomentsAtomicKernel.cuh",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/operators/advanceGasChemistryKernel.cuh",
       "upstream": "ugkp-thermal",
       "downstream": "gpu-riemann-gkp-main"
     },
@@ -1075,7 +1315,17 @@
       "downstream": "gpu-riemann-gkp-main"
     },
     {
+      "path": "common/operators/reconstructGasMixtureFace.cuh",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
       "path": "common/operators/recoverPrimitivesKernel.cuh",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/operators/riemannFacePrimitiveForGradient.cuh",
       "upstream": "ugkp-thermal",
       "downstream": "gpu-riemann-gkp-main"
     },
@@ -1235,7 +1485,6 @@
       "common/operators/preparePoissonPoolSamplingKernel.cuh",
       "common/operators/rebuildWallBoundParticleDirectoryKernel.cuh",
       "common/operators/relaxMobileParticlesToResidentGasKernelStatic.cuh",
-      "common/operators/riemannFacePrimitiveForGradient.cuh",
       "common/operators/solidRecoveryFromParticleMomentsCell.cuh",
       "common/thermal_particle_restart_schema7.py",
       "common/wall/GpuAluminaProperties.H",

@@ -471,27 +471,38 @@ UGKP_RIEMANN_HD RoeAverage makeRoeAverage
     return average;
 }
 
+// The same dissipative component formula is used by bulk and species fields.
+UGKP_RIEMANN_HD GpuReal rusanovConservativeComponentFlux
+(
+    const GpuReal leftFlux, const GpuReal rightFlux,
+    const GpuReal leftConserved, const GpuReal rightConserved,
+    const GpuReal signalSpeed
+)
+{
+    return GPU_R(0.5)*(leftFlux + rightFlux)
+        - GPU_R(0.5)*signalSpeed*(rightConserved - leftConserved);
+}
+
 UGKP_RIEMANN_HD FluxResult rusanovTadmorFluxUnitNormal
 (
     const Primitive& left,
+    const Conservative& leftConserved,
+    const GpuReal leftSoundSpeed,
     const Primitive& right,
+    const Conservative& rightConserved,
+    const GpuReal rightSoundSpeed,
     const GpuReal nx,
     const GpuReal ny,
     const GpuReal nz,
-    const GpuReal gamma,
     const bool inheritedFallback
 )
 {
     FluxResult result = invalidResult(Scheme::RusanovTadmor);
-    const Conservative leftConserved = conservative(left, gamma);
-    const Conservative rightConserved = conservative(right, gamma);
     GpuReal leftFlux[5];
     GpuReal rightFlux[5];
     projectedEulerFlux(left, leftConserved, nx, ny, nz, leftFlux);
     projectedEulerFlux(right, rightConserved, nx, ny, nz, rightFlux);
 
-    const GpuReal leftSoundSpeed = ::sqrt(gamma*left.p/left.rho);
-    const GpuReal rightSoundSpeed = ::sqrt(gamma*right.p/right.rho);
     const GpuReal leftNormalVelocity = normalVelocity(left, nx, ny, nz);
     const GpuReal rightNormalVelocity = normalVelocity(right, nx, ny, nz);
     const GpuReal signalSpeed = maximum
@@ -503,9 +514,11 @@ UGKP_RIEMANN_HD FluxResult rusanovTadmorFluxUnitNormal
     for (int component = 0; component < 5; ++component)
     {
         result.flux[component] =
-            GPU_R(0.5)*(leftFlux[component] + rightFlux[component])
-          - GPU_R(0.5)*signalSpeed*
-            (rightConserved.q[component] - leftConserved.q[component]);
+            rusanovConservativeComponentFlux
+            (
+                leftFlux[component], rightFlux[component],
+                leftConserved.q[component], rightConserved.q[component], signalSpeed
+            );
     }
     result.maxSignalSpeed = signalSpeed;
     result.valid =
@@ -516,7 +529,7 @@ UGKP_RIEMANN_HD FluxResult rusanovTadmorFluxUnitNormal
     return result;
 }
 
-UGKP_RIEMANN_HD FluxResult hllKurganovFluxUnitNormal
+UGKP_RIEMANN_HD FluxResult rusanovTadmorFluxUnitNormal
 (
     const Primitive& left,
     const Primitive& right,
@@ -529,13 +542,61 @@ UGKP_RIEMANN_HD FluxResult hllKurganovFluxUnitNormal
 {
     const Conservative leftConserved = conservative(left, gamma);
     const Conservative rightConserved = conservative(right, gamma);
+    const GpuReal leftSoundSpeed = ::sqrt(gamma*left.p/left.rho);
+    const GpuReal rightSoundSpeed = ::sqrt(gamma*right.p/right.rho);
+    return rusanovTadmorFluxUnitNormal
+    (
+        left, leftConserved, leftSoundSpeed,
+        right, rightConserved, rightSoundSpeed,
+        nx, ny, nz, inheritedFallback
+    );
+}
+
+UGKP_RIEMANN_HD GpuReal hllComponentFromWaveSpeeds
+(
+    const GpuReal leftFlux,const GpuReal rightFlux,
+    const GpuReal leftConserved,const GpuReal rightConserved,
+    const GpuReal positiveSpeed,const GpuReal negativeSpeed
+)
+{
+    const GpuReal denominator=positiveSpeed-negativeSpeed;
+    const GpuReal diffusion=positiveSpeed*negativeSpeed/denominator;
+    return positiveSpeed/denominator*leftFlux-negativeSpeed/denominator*rightFlux
+        +diffusion*(rightConserved-leftConserved);
+}
+
+UGKP_RIEMANN_HD GpuReal hllConservativeComponentFlux
+(
+    const GpuReal leftFlux,const GpuReal rightFlux,
+    const GpuReal leftConserved,const GpuReal rightConserved,
+    const GpuReal leftNormalVelocity,const GpuReal rightNormalVelocity,
+    const GpuReal leftSoundSpeed,const GpuReal rightSoundSpeed
+)
+{
+    const GpuReal positiveSpeed=maximum(GPU_R(0.0),maximum(leftNormalVelocity+leftSoundSpeed,rightNormalVelocity+rightSoundSpeed));
+    const GpuReal negativeSpeed=minimum(GPU_R(0.0),minimum(leftNormalVelocity-leftSoundSpeed,rightNormalVelocity-rightSoundSpeed));
+    return hllComponentFromWaveSpeeds(leftFlux,rightFlux,leftConserved,rightConserved,positiveSpeed,negativeSpeed);
+}
+
+UGKP_RIEMANN_HD FluxResult hllKurganovFluxUnitNormal
+(
+    const Primitive& left,
+    const Conservative& leftConserved,
+    const GpuReal leftSoundSpeed,
+    const Primitive& right,
+    const Conservative& rightConserved,
+    const GpuReal rightSoundSpeed,
+    const GpuReal nx,
+    const GpuReal ny,
+    const GpuReal nz,
+    const bool inheritedFallback
+)
+{
     GpuReal leftFlux[5];
     GpuReal rightFlux[5];
     projectedEulerFlux(left, leftConserved, nx, ny, nz, leftFlux);
     projectedEulerFlux(right, rightConserved, nx, ny, nz, rightFlux);
 
-    const GpuReal leftSoundSpeed = ::sqrt(gamma*left.p/left.rho);
-    const GpuReal rightSoundSpeed = ::sqrt(gamma*right.p/right.rho);
     const GpuReal leftNormalVelocity = normalVelocity(left, nx, ny, nz);
     const GpuReal rightNormalVelocity = normalVelocity(right, nx, ny, nz);
     const GpuReal positiveSpeed = maximum
@@ -571,20 +632,16 @@ UGKP_RIEMANN_HD FluxResult hllKurganovFluxUnitNormal
     {
         return rusanovTadmorFluxUnitNormal
         (
-            left, right, nx, ny, nz, gamma, true
+            left,leftConserved,leftSoundSpeed,right,rightConserved,rightSoundSpeed,nx,ny,nz,true
         );
     }
 
     FluxResult result = invalidResult(Scheme::HllKurganov);
-    const GpuReal diffusion =
-        positiveSpeed*negativeSpeed/denominator;
     for (int component = 0; component < 5; ++component)
     {
         result.flux[component] =
-            positiveSpeed/denominator*leftFlux[component]
-          - negativeSpeed/denominator*rightFlux[component]
-          + diffusion*
-            (rightConserved.q[component] - leftConserved.q[component]);
+            hllComponentFromWaveSpeeds(leftFlux[component],rightFlux[component],
+                leftConserved.q[component],rightConserved.q[component],positiveSpeed,negativeSpeed);
     }
     result.maxSignalSpeed =
         maximum(absolute(positiveSpeed), absolute(negativeSpeed));
@@ -593,6 +650,22 @@ UGKP_RIEMANN_HD FluxResult hllKurganovFluxUnitNormal
      && finiteFive(result.flux);
     result.usedFallback = inheritedFallback;
     return result;
+}
+
+UGKP_RIEMANN_HD FluxResult hllKurganovFluxUnitNormal
+(
+    const Primitive& left,
+    const Primitive& right,
+    const GpuReal nx,
+    const GpuReal ny,
+    const GpuReal nz,
+    const GpuReal gamma,
+    const bool inheritedFallback
+)
+{
+    const Conservative leftConserved=conservative(left,gamma),rightConserved=conservative(right,gamma);
+    const GpuReal leftSoundSpeed=::sqrt(gamma*left.p/left.rho),rightSoundSpeed=::sqrt(gamma*right.p/right.rho);
+    return hllKurganovFluxUnitNormal(left,leftConserved,leftSoundSpeed,right,rightConserved,rightSoundSpeed,nx,ny,nz,inheritedFallback);
 }
 
 UGKP_RIEMANN_HD FluxResult hlleFluxUnitNormal

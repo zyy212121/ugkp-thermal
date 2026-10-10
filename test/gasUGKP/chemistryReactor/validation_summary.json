@@ -1,0 +1,38 @@
+{
+  "host_tests": {
+    "command": "python -m pytest -q test/gasUGKP/chemistryReactor/test_fixture.py",
+    "failed": 0,
+    "passed": 16
+  },
+  "manufactured_checker_inputs": "Only pytest temporary directories; never committed or reported as native solver output",
+  "mesh": {
+    "cells_each": 4,
+    "implementation": "Foundation OpenFOAM 10, build 10-c4cf895ad8fa",
+    "log_sha256": {
+      "mesh_evidence/coarse/log.blockMesh": "89974743bf2bcda0da59a47eaa4bc2389dea772cf5dc4c28d0527b7e8b380ab5",
+      "mesh_evidence/coarse/log.checkMesh": "e4e0011070f6ee573da487f96b0703fe6f4f48134530e6f36de4df1986a1c0c6",
+      "mesh_evidence/fine/log.blockMesh": "99b3d3348d65c0bb489fc6c6206b92fb1eae862538b24a44d999fccec9e700ca",
+      "mesh_evidence/fine/log.checkMesh": "542bdcbc847fbfa9d63d3af7316b6eef0687e849d117ce39ce3ee6a49d1b6b66"
+    },
+    "status": "PASS",
+    "variants": [
+      "coarse",
+      "fine"
+    ],
+    "volume_m3": 1e-06
+  },
+  "native_accuracy": "UNVALIDATED",
+  "native_cuda_execution": "NOT_RUN",
+  "native_field_comparison": "NOT_RUN",
+  "no_transported_reactor_variant": true,
+  "reference_case": "nitrogen_1200K_1atm",
+  "reference_horizon_s": 0.0001,
+  "reference_mole_ratios": {
+    "H2": 2,
+    "N2": 3.76,
+    "O2": 1
+  },
+  "reference_pressure_Pa": 101325,
+  "reference_temperature_K": 1200,
+  "scope": "Native gasUGKP fixture preparation and host validation only"
+}

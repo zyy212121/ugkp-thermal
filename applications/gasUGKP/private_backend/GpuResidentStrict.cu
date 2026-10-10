@@ -28,8 +28,14 @@
 #define GPU_OPERATOR_R(x) x
 #include "../../../common/GpuOperatorContract.cuh"
 #include <cuda_runtime.h>
+#include "GpuGasOperatorDependencies.cuh"
 
 #include "GpuBackendApi.H"
+#include "gasTransport/GasBuildConfig.H"
+#include "gasTransport/GasStateView.H"
+#include "gasTransport/GasCapabilities.H"
+#include "gasTransport/GasMechanismIO.H"
+#include "SharedGasTrialFields.H"
 #include "CharacteristicMuscl.cuh"
 #include "OpenFoamLimitedLinear.cuh"
 #include "OpenFoamViscousFlux.cuh"
@@ -111,6 +117,12 @@ struct DeviceState
 {
 #include "GpuAutomaticCsrScheduleFields.inl"
     DeviceState* deviceState = nullptr;
+    ugkwp::GasSpeciesState<double,ugkwp::compiledGasSpecies> gasSpecies;
+    ugkwp::GasSpeciesState<double,ugkwp::compiledGasSpecies> gasRejectedView;
+    bool gasModelPoisoned = false;
+    bool gasInitialFieldsUploaded = false;
+    bool gasSpeciesUploaded = false;
+    SharedGasTrialStorage gasTrial;
 
     int nCells = 0;
     int nFaces = 0;
@@ -157,6 +169,8 @@ struct DeviceState
                                                                              
                                                                              
     int hostGasFluxScheme = 2;
+    int hostGasReconstruction = 0;
+    int hostGasLimiter = 0;
     int hostGasTimeIntegrator = 1;
     int hostTurbulenceModel = 0;
     int hostDragModel = 0;
@@ -873,6 +887,11 @@ int validateState(DeviceState* s, const char* action)
         );
         return 1;
     }
+    if (s->gasModelPoisoned)
+    {
+        setLastErrorText("shared gas device view rollback failed; resident must be destroyed");
+        return 1;
+    }
     return 0;
 }
 
@@ -938,6 +957,10 @@ void scrubHostCalculationScalars(DeviceState* s)
     s->TpMax = 0.0;
 }
 
+#include "SharedGasStorage.cuh"
+
+void releaseSharedGasTrialStorage(SharedGasTrialStorage& storage);
+
 void releaseState(DeviceState* s)
 {
     if (s == nullptr)
@@ -945,6 +968,9 @@ void releaseState(DeviceState* s)
         return;
     }
 
+    releaseSharedGasTrialStorage(s->gasTrial);
+    releaseSharedGasSpecies(s->gasSpecies);
+    releaseSharedGasSpecies(s->gasRejectedView);
     if (s->gasGraphExec) cudaGraphExecDestroy(s->gasGraphExec);
     if (s->gasGraph) cudaGraphDestroy(s->gasGraph);
     if (s->gasCaptureStream) cudaStreamDestroy(s->gasCaptureStream);
@@ -1820,6 +1846,8 @@ int applyGasGravitySource
     }
     return 0;
 }
+
+#include "SharedGasTrialPolicy.cuh"
 
 #include "operators/recoverPrimitivesKernel.cuh"
 
@@ -3444,6 +3472,8 @@ constexpr bool developmentProbeIncludesScheduling = true;
 
 #endif
 
+#include "SharedGasAdapter.cuh"
+
 extern "C" const char* ugkwpGpuResidentStrictLastError()
 {
     return lastError;
@@ -3538,7 +3568,7 @@ int configureParticleLaunchGeometry(DeviceState* s)
     int gasBlocks = 0;
     if (queryKernelBlocksPerSm(gasBlocks,
         "occupancy query gas internal-face kernel",
-        computeGasInternalFaceFluxKernel<true>, s->fixedFaceBlockThreads, 0) != 0)
+        computeGasInternalFaceFluxKernel<true, DeviceState>, s->fixedFaceBlockThreads, 0) != 0)
     {
         return 1;
     }
@@ -3926,6 +3956,8 @@ extern "C" int ugkwpGpuResidentStrictCreate
     s->gasRobustFallback = gasRobustFallback;
     s->turbulenceModel = turbulenceModel;
     s->hostGasFluxScheme = gasFluxScheme;
+    s->hostGasReconstruction = gasReconstruction;
+    s->hostGasLimiter = gasLimiter;
     s->hostGasTimeIntegrator = gasTimeIntegrator;
     s->hostTurbulenceModel = turbulenceModel;
     s->hostDragModel = dragModel;
@@ -4737,6 +4769,7 @@ extern "C" int ugkwpGpuResidentStrictUploadFields
         }
     }
 
+    s->gasInitialFieldsUploaded = true;
     scrubHostCalculationScalars(s);
     return 0;
 }
@@ -4781,6 +4814,12 @@ extern "C" int ugkwpGpuResidentStrictConfigureSst
     {
         setLastErrorText("SST configuration requires turbulenceModel=3");
         return 1;
+    }
+    if (s->gasSpecies.mode != ugkwp::GasMode::SingleLegacy)
+    {
+        const auto capability=ugkwp::validateGasCapabilities
+            (sharedGasCapabilityRequest(s,s->gasSpecies.mode,wallTreatment));
+        if(!capability){setLastErrorText(capability.message);return 1;}
     }
     if
     (
@@ -4958,7 +4997,9 @@ extern "C" int ugkwpGpuResidentStrictComputeGasCourant
     }
     *maxCo = 0.0;
 
-    if (tuneFixedWorkBlockThreads(s, dt, scheduleTime) != 0)
+    s->gasTrial.targetMaxCo = targetMaxCo;
+    if (s->gasSpecies.mode == ugkwp::GasMode::SingleLegacy
+        && tuneFixedWorkBlockThreads(s, dt, scheduleTime) != 0)
     {
         return 1;
     }
@@ -5213,7 +5254,8 @@ extern "C" int ugkwpGpuResidentStrictAdvance
         const char* value = std::getenv("UGKP_GAS_GRAPH");
         s->gasGraphMode = !value || std::strcmp(value, "1") == 0;
     }
-    if (s->gasGraphMode && !s->particlesMayBePresent && !s->hostGravityActive)
+    if (s->gasSpecies.mode == ugkwp::GasMode::SingleLegacy
+        && s->gasGraphMode && !s->particlesMayBePresent && !s->hostGravityActive)
         return advancePureGasGraph(s, dt, simulationTime);
 #endif
 
@@ -5755,7 +5797,8 @@ extern "C" int ugkwpGpuResidentStrictAdvanceGasOnly
     {
         return 1;
     }
-    if (tuneFixedWorkBlockThreads(s, dt, simulationTime) != 0)
+    if (s->gasSpecies.mode == ugkwp::GasMode::SingleLegacy
+        && tuneFixedWorkBlockThreads(s, dt, simulationTime) != 0)
     {
         return 1;
     }
@@ -5772,6 +5815,16 @@ extern "C" int ugkwpGpuResidentStrictAdvanceGasOnly
 
     if (!std::isfinite(simulationTime) || simulationTime < 0.0)
         return 1;
+    if (s->gasSpecies.mode != ugkwp::GasMode::SingleLegacy)
+    {
+        if (!s->gasSpeciesUploaded)
+        {
+            setLastErrorText("mixture advance requires initialized species state");
+            return 1;
+        }
+        const GasRequestedIntervalControls<double> controls;
+        return advanceGasRequestedInterval<SharedGasTrialPolicy>(s, dt, simulationTime, controls);
+    }
 #ifndef UGKP_DEVELOPMENT_PROBES
     if (s->gasGraphMode < 0)
     {

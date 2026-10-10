@@ -109,7 +109,7 @@ int tuneFixedWorkBlockThreads
         err = cudaOccupancyMaxActiveBlocksPerMultiprocessor
         (
             &occupancy,
-            recoverGasPrimitivesKernel,
+            recoverGasPrimitivesKernel<DeviceState>,
             block,
             0
         );
@@ -152,7 +152,7 @@ int tuneFixedWorkBlockThreads
             err = cudaOccupancyMaxActiveBlocksPerMultiprocessor
             (
                 &occupancy,
-                computeGasInternalFaceFluxKernel<false>,
+                computeGasInternalFaceFluxKernel<false, DeviceState>,
                 block,
                 0
             );
@@ -162,7 +162,7 @@ int tuneFixedWorkBlockThreads
             err = cudaOccupancyMaxActiveBlocksPerMultiprocessor
             (
                 &occupancy,
-                computeGasInternalFaceFluxKernel<true>,
+                computeGasInternalFaceFluxKernel<true, DeviceState>,
                 block,
                 0
             );

@@ -1,14 +1,51 @@
 #pragma once
 #include "GpuCellNeighbour.cuh"
 // One operator implementation; scalar/time adapters are compile-time only.
-__global__ void computeGasGradientLimiterKernel(DeviceState* sp)
+template<class GasState>
+__global__ void computeGasGradientLimiterKernel(GasState* sp)
 {
-    DeviceState& s = *sp;
+    GasState& s = *sp;
     const int c = blockIdx.x*blockDim.x + threadIdx.x;
     if (c >= s.nCells)
     {
         return;
     }
+    if constexpr (ugkwp::GasStateTraits<GasState>::speciesCount > 0)
+        if(ugkwp::mixtureGasActive(s))
+        {
+            GPU_OPERATOR_REAL joint=GPU_OPERATOR_R(1.0);
+            const int start=s.cellPlaneStart[c],count=s.cellPlaneCount[c];
+            for(int k=0;k<ugkwp::GasStateTraits<GasState>::speciesCount;++k)
+            {
+                const int index=k*s.nCells+c;
+                const GPU_OPERATOR_REAL yc=s.gasSpecies.rho[index]/s.rho[c];
+                GPU_OPERATOR_REAL ymin=yc,ymax=yc;
+                for(int i=0;i<count;++i)
+                {
+                    const int f=s.cellFaceId[start+i];if(f<0||f>=s.nFaces)continue;
+                    const int nei=coupledFaceNeighbour(s,f);
+                    GPU_OPERATOR_REAL adjacent=yc;
+                    if(nei>=0)
+                    {
+                        const int other=c==s.faceOwner[f]?nei:s.faceOwner[f];
+                        adjacent=s.gasSpecies.rho[k*s.nCells+other]/s.rho[other];
+                    }
+                    else if(s.riemannBoundaryKind[f]==0 && s.gasSpecies.compositionBoundaryFixed[f])
+                        adjacent=s.gasSpecies.boundaryMassFraction[k*s.nFaces+f];
+                    ymin=fmin(ymin,adjacent);ymax=fmax(ymax,adjacent);
+                }
+                for(int i=0;i<count;++i)
+                {
+                    const int f=s.cellFaceId[start+i];if(f<0||f>=s.nFaces)continue;
+                    GPU_OPERATOR_REAL cx,cy,cz;periodicMappedCellCentre(s,f,c,cx,cy,cz);
+                    const GPU_OPERATOR_REAL predicted=yc+s.gasSpecies.gradX[index]*(s.faceCx[f]-cx)
+                        +s.gasSpecies.gradY[index]*(s.faceCy[f]-cy)+s.gasSpecies.gradZ[index]*(s.faceCz[f]-cz);
+                    if(s.gasLimiter!=0)updateConfiguredGasLimiter(s.gasLimiter,yc,predicted,ymin,ymax,joint);
+                    updateBarthLimiter(yc,predicted,GPU_OPERATOR_R(0.0),GPU_OPERATOR_R(1.0),joint);
+                }
+            }
+            s.gasSpecies.limiter[c]=clampRange(finiteOr(joint,GPU_OPERATOR_R(0.0)),GPU_OPERATOR_R(0.0),GPU_OPERATOR_R(1.0));
+        }
     if (s.gasLimiter == 0)
     {
         s.gasGradientLimiterRho[c] = GPU_OPERATOR_R(1.0);
@@ -19,11 +56,7 @@ __global__ void computeGasGradientLimiterKernel(DeviceState* sp)
         s.gasGradientLimiterT[c] = GPU_OPERATOR_R(1.0);
         return;
     }
-    const GasPrimDevice qc = makeGasPrimDevice
-    (
-        s.rho[c], s.Ux[c], s.Uy[c], s.Uz[c], s.p[c],
-        s.Rgas, s.rhoMin, s.TgasMin
-    );
+    const GasPrimDevice qc = gasCellPrimitive(s,c);
     GPU_OPERATOR_REAL rMin = qc.rho, rMax = qc.rho;
     GPU_OPERATOR_REAL uxMin = qc.ux, uxMax = qc.ux;
     GPU_OPERATOR_REAL uyMin = qc.uy, uyMax = qc.uy;
@@ -41,17 +74,7 @@ __global__ void computeGasGradientLimiterKernel(DeviceState* sp)
             const int own = s.faceOwner[f];
             const int nei = s.faceNeighbour[f];
             const int other = oppositeCellAcrossFace(c, own, nei);
-            qf = makeGasPrimDevice
-            (
-                s.rho[other],
-                s.Ux[other],
-                s.Uy[other],
-                s.Uz[other],
-                s.p[other],
-                s.Rgas,
-                s.rhoMin,
-                s.TgasMin
-            );
+            qf = gasCellPrimitive(s,other);
             qf.T = clampMin
             (
                 finiteOr(s.Tgas[other], qf.T),

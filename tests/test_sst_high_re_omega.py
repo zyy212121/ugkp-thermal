@@ -12,13 +12,13 @@ ROOT = Path(__file__).resolve().parents[1]
 def test_high_re_omega_stage_constraint(tmp_path):
     primitive = (ROOT / 'common/operators/computeGasPrimitiveGradientsKernel.cuh').read_text()
     flux = (ROOT / 'common/operators/computeSstFaceFluxKernel.cuh').read_text()
-    functions = primitive[primitive.index('__device__ GPU_OPERATOR_REAL sstDynamicOmegaWallValue'):
-                          primitive.index('__global__ void initialiseSstConservativeStateKernel')]
-    recovery = primitive[primitive.index('__device__ void recoverSstPrimitiveCell'):]
-    update = flux[flux.index('__device__ void sstSourcesForCell'):
-                  flux.index('__global__ void computeGasCourantFieldKernel')]
-    rk = flux[flux.index('__global__ void saveGasConservativeStateKernel'):
-              flux.index('__device__ void recoverGasPrimitiveCell')]
+    functions = primitive[primitive.index('template<class GasState>\n__device__ GPU_OPERATOR_REAL sstDynamicOmegaWallValue'):
+                          primitive.index('template<class GasState>\n__global__ void initialiseSstConservativeStateKernel')]
+    recovery = primitive[primitive.index('template<class GasState>\n__device__ void recoverSstPrimitiveCell'):]
+    update = flux[flux.index('template<class GasState>\n__device__ void sstSourcesForCell'):
+                  flux.index('template<class GasState>\n__global__ void computeGasCourantFieldKernel')]
+    rk = flux[flux.index('template<class GasState>\n__global__ void saveGasConservativeStateKernel'):
+              flux.index('template<class GasState>\n__device__ void recoverGasPrimitiveCell')]
     pre = (ROOT / 'tests/fixtures/sst_wall_constraint_host.hpp').read_text()
     controlled_invariants = '''
 void sstVelocityInvariants(const DeviceState&,int,R&d,R&s,R&g){d=s=g=0;}
@@ -110,7 +110,7 @@ int main(){
     failures = []
     for bits in (64, 32):
         exe = tmp_path / f'probe{bits}'
-        subprocess.run(['g++', '-std=c++14', '-O2', '-Wall', '-Wextra',
+        subprocess.run(['g++', '-std=c++17', '-O2', '-Wall', '-Wextra',
                         f'-DUGKWP_GPU_REAL_BITS={bits}', '-I'+str(ROOT/'common'),
                         '-I'+str(ROOT/'common/gasNumerics'), str(source), '-o', str(exe)], check=True)
         result = subprocess.run([str(exe)], capture_output=True, text=True)

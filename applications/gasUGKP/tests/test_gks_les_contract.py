@@ -256,6 +256,8 @@ class SourceContractTests(unittest.TestCase):
         create_fields = (
             read("readGpuGasConfiguration.H")
             + "\n"
+            + (ROOT.parents[1] / "common/gasTransport/GasNumericsIO.H").read_text()
+            + "\n"
             + read("createFields.H")
         )
         required = (

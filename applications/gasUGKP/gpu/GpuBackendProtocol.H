@@ -35,7 +35,12 @@ enum class Op : std::uint32_t
     downloadNut = 18,
     release = 19,
     configureSst = 20,
-    downloadSst = 21
+    downloadSst = 21,
+    queryGasModelCapabilitiesV1 = 22,
+    configureGasModelV1 = 23,
+    uploadSpeciesV1 = 24,
+    downloadSpeciesV1 = 25,
+    uploadSpeciesBoundaryV1 = 26
 };
 
 enum class GasFluxScheme : std::int32_t
@@ -218,6 +223,45 @@ struct SstConfigArgs
     double wallCmu;
 };
 
+// Optional extension operations leave every v7 legacy payload unchanged.
+// These wire objects contain fixed-width scalar fields only, with no padding;
+// model tables cross IPC as bounded canonical dictionary bytes, never pointers.
+static constexpr std::uint32_t gasModelApiVersion = 1;
+static constexpr std::uint64_t maxGasModelTextBytes = 8ULL*1024ULL*1024ULL;
+struct GasModelCapabilitiesV1
+{
+    std::uint32_t version;
+    std::uint32_t compiledSpecies;
+    std::uint32_t modeMask;
+    std::uint32_t reserved;
+};
+struct GasModelConfigureArgsV1
+{
+    std::uint32_t version;
+    std::uint32_t mode;
+    std::uint32_t speciesCount;
+    std::uint32_t reserved;
+    std::uint64_t speciesOrderHash;
+    std::uint64_t thermoHash;
+    std::uint64_t mechanismHash;
+    std::uint64_t modelBytes;
+    std::uint64_t mechanismBytes;
+};
+struct GasSpeciesIdentityV1
+{
+    std::uint32_t version;
+    std::uint32_t speciesCount;
+    std::uint64_t speciesOrderHash;
+    std::uint64_t thermoHash;
+    std::uint64_t mechanismHash;
+};
+inline bool sameGasSpeciesIdentity(const GasSpeciesIdentityV1& a, const GasSpeciesIdentityV1& b)
+{
+    return a.version == gasModelApiVersion && b.version == a.version
+        && a.speciesCount == b.speciesCount && a.speciesOrderHash == b.speciesOrderHash
+        && a.thermoHash == b.thermoHash && a.mechanismHash == b.mechanismHash;
+}
+
 inline bool validCount(const std::int32_t count, const std::int32_t limit)
 {
     return count >= 0 && count <= limit;
@@ -244,6 +288,32 @@ inline bool addArrayBytes(std::uint64_t& total, const std::uint64_t count)
 {
     return addBytes(total, count, sizeof(T));
 }
+
+inline bool gasModelPayloadBytes(const GasModelConfigureArgsV1& args,
+                                 std::uint32_t compiledSpecies, std::uint64_t& bytes)
+{
+    if (args.version != gasModelApiVersion || args.reserved != 0
+        || args.speciesCount == 0 || args.speciesCount != compiledSpecies
+        || (args.mode != 1 && args.mode != 2) || args.speciesOrderHash == 0 || args.thermoHash == 0
+        || args.modelBytes == 0 || args.modelBytes > maxGasModelTextBytes
+        || args.mechanismBytes > maxGasModelTextBytes
+        || (args.mode == 1 && (args.mechanismBytes != 0 || args.mechanismHash != 0))
+        || (args.mode == 2 && (args.mechanismBytes == 0 || args.mechanismHash == 0))) return false;
+    bytes = sizeof(GasModelConfigureArgsV1);
+    return addBytes(bytes, args.modelBytes, 1) && addBytes(bytes, args.mechanismBytes, 1);
+}
+inline bool gasSpeciesPayloadBytes(const GasSpeciesIdentityV1& identity,
+                                   std::uint64_t cells, std::uint64_t& bytes)
+{
+    if (identity.version != gasModelApiVersion || identity.speciesCount == 0
+        || identity.speciesOrderHash == 0 || identity.thermoHash == 0
+        || cells > maxPayloadBytes/identity.speciesCount/sizeof(double)) return false;
+    bytes = sizeof(GasSpeciesIdentityV1);
+    return addArrayBytes<double>(bytes, cells*identity.speciesCount);
+}
+static_assert(sizeof(GasModelCapabilitiesV1) == 16, "unexpected model capability wire padding");
+static_assert(sizeof(GasModelConfigureArgsV1) == 56, "unexpected model configure wire padding");
+static_assert(sizeof(GasSpeciesIdentityV1) == 32, "unexpected species identity wire padding");
 
 static_assert(sizeof(RequestHeader) == 24, "unexpected request header ABI");
 static_assert(sizeof(ResponseHeader) == 24, "unexpected response header ABI");

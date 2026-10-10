@@ -3,6 +3,10 @@
 #include <algorithm>
 #include <iostream>
 #include "GpuSstAlgebra.cuh"
+#include "gasTransport/GasStateView.H"
+#include "gasTransport/GasCapabilities.H"
+#include "gasTransport/MixtureThermo.H"
+#include "gasTransport/GasGeometryValidation.H"
 #include "OpenFoamWallFunctions.cuh"
 #define __device__
 #define __global__
@@ -14,6 +18,7 @@ struct Index{int x=0;};Index blockIdx,threadIdx;struct Block{int x=1;}blockDim;
 const R OfVSmall=R(1e-30),OfSmall=R(1e-15);
 R clampMin(R a,R b){return std::max(a,b);}R finiteOr(R a,R b){return std::isfinite(a)?a:b;}
 R clampRange(R x,R lo,R hi){return std::max(lo,std::min(x,hi));}
+bool finiteDevice(R x){return std::isfinite(x);}
 struct DeviceState{
  int faceOwner[2]={0,0},facePeriodicPair[2]={1,0};
  R gasPhiRho[2]={0,0},deltaCoeffs[2]={1000,1000},faceWeight[2]={.5,.5};

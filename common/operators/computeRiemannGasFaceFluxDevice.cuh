@@ -1,11 +1,13 @@
 #pragma once
+#include "gasTransport/SpeciesDiffusion.H"
+#include "gasTransport/GasGeometryValidation.H"
 #ifndef GPU_GAS_WALL_EXPOSURE
 #define GPU_GAS_WALL_EXPOSURE(s, f, neighbour, kind) GPU_OPERATOR_R(1.0)
 #endif
-template<bool IncludeTurbulence, bool MassOnly = false>
+template<bool IncludeTurbulence, bool MassOnly = false, class GasState>
 __device__ bool computeRiemannGasFaceFluxDevice
 (
-    const DeviceState& s,
+    const GasState& s,
     const int f,
     GPU_OPERATOR_REAL& massFluxArea,
     GPU_OPERATOR_REAL& momFluxXArea,
@@ -27,11 +29,30 @@ __device__ bool computeRiemannGasFaceFluxDevice
     const int own = s.faceOwner[f];
     if (own < 0 || own >= s.nCells)
     {
+        if(ugkwp::mixtureGasActive(s)||ugkwp::gasMovingGeometry(s))
+            if(!ugkwp::gasRecordFaceFailure(s,f,ugkwp::GasTransportCode::InvalidGeometry))asm("trap;");
         return false;
     }
 
     const int nei = coupledFaceNeighbour(s, f);
+    if(nei>=s.nCells)
+    {
+        if(!ugkwp::gasRecordFaceFailure(s,f,ugkwp::GasTransportCode::InvalidGeometry))asm("trap;");
+        return false;
+    }
     const int boundaryKind = nei >= 0 ? 0 : s.riemannBoundaryKind[f];
+    if constexpr (ugkwp::GasStateTraits<GasState>::speciesCount > 0)
+    {
+        if (ugkwp::mixtureGasActive(s))
+        {
+            if (!s.gasSpecies.faceStatus) { asm("trap;"); return false; }
+            if (s.gasSpecies.cellStatus[own]!=0 || (nei>=0 && s.gasSpecies.cellStatus[nei]!=0))
+            { s.gasSpecies.faceStatus[f]=int(ugkwp::GasTransportCode::InvalidThermodynamics);return false; }
+            if ((s.gasFluxScheme!=1 && s.gasFluxScheme!=2) || (s.gasReconstruction!=0 && s.gasReconstruction!=1)
+                || (s.turbulenceModel==3 && s.sstWallTreatment!=0))
+            { s.gasSpecies.faceStatus[f]=int(ugkwp::GasTransportCode::UnsupportedConfiguration);return false; }
+        }
+    }
     GPU_OPERATOR_REAL mappedNeiCx = GPU_OPERATOR_R(0.0);
     GPU_OPERATOR_REAL mappedNeiCy = GPU_OPERATOR_R(0.0);
     GPU_OPERATOR_REAL mappedNeiCz = GPU_OPERATOR_R(0.0);
@@ -42,25 +63,41 @@ __device__ bool computeRiemannGasFaceFluxDevice
             s, f, nei, mappedNeiCx, mappedNeiCy, mappedNeiCz
         );
     }
-    if (boundaryKind == 3 || boundaryKind == 4)
-    {
-        return false;
-    }
-
-    // Courant's SST predictor needs the same current Riemann mass flux,
-    // without evaluating transport or energy terms that cannot alter mass.
-    if constexpr (MassOnly)
-    {
-        if (boundaryKind == 1 || boundaryKind == 2)
-        {
-            return true; // Impermeable boundaries have exactly zero mass flux.
-        }
-    }
-
     const GPU_OPERATOR_REAL area = clampMin(s.magSf[f], OfSmall);
     const GPU_OPERATOR_REAL nx = s.Sfx[f]/area;
     const GPU_OPERATOR_REAL ny = s.Sfy[f]/area;
     const GPU_OPERATOR_REAL nz = s.Sfz[f]/area;
+    ugkwp::GasFaceFrame<GPU_OPERATOR_REAL> meshFrame;
+    const bool moving=ugkwp::gasMovingGeometry(s);
+    if constexpr (ugkwp::GasGeometryCapability<GasState>::value)
+        if(moving)
+        {
+            if(!ugkwp::gasGeometryFaceFrame(s,f,s.gasGeometry.interval,meshFrame))
+            {
+                if(!ugkwp::gasRecordFaceFailure(s,f,ugkwp::GasTransportCode::InvalidGeometry))asm("trap;");
+                return false;
+            }
+            if(ugkwp::gasFaceFailure(s,f)!=0 || ugkwp::gasCellFailure(s,own)!=0
+                || (nei>=0 && ugkwp::gasCellFailure(s,nei)!=0))
+            {
+                if(!ugkwp::gasRecordFaceFailure(s,f,ugkwp::GasTransportCode::InvalidThermodynamics))asm("trap;");
+                return false;
+            }
+            if(s.gasReconstruction==2)
+            {
+                if(!ugkwp::gasRecordFaceFailure(s,f,ugkwp::GasTransportCode::UnsupportedConfiguration))asm("trap;");
+                return false;
+            }
+        }
+    if(boundaryKind==3 || boundaryKind==4)
+    {
+        if(moving && meshFrame.meshVolumeRate!=GPU_OPERATOR_R(0.0))
+            if(!ugkwp::gasRecordFaceFailure(s,f,ugkwp::GasTransportCode::InvalidGeometry))asm("trap;");
+        return false;
+    }
+    // Preserve ALE validation above before the mass-only impermeable shortcut.
+    if constexpr (MassOnly)
+        if (boundaryKind == 1 || boundaryKind == 2) return true;
     GasPrimDevice left = reconstructGasCellToFace(s, own, f);
     GasPrimDevice right = left;
 
@@ -72,11 +109,13 @@ __device__ bool computeRiemannGasFaceFluxDevice
 
     if (boundaryKind == 1)
     {
+        right = riemannFacePrimitiveForGradient(s, own, f);
                                                                           
                                                                             
         momentumFluxX = left.p*nx;
         momentumFluxY = left.p*ny;
         momentumFluxZ = left.p*nz;
+        if(moving)energyFlux=left.p*(meshFrame.wx*nx+meshFrame.wy*ny+meshFrame.wz*nz);
     }
     else if (boundaryKind == 2)
     {
@@ -91,13 +130,18 @@ __device__ bool computeRiemannGasFaceFluxDevice
             momentumFluxX*wallUx
           + momentumFluxY*wallUy
           + momentumFluxZ*wallUz;
+        if(moving)energyFlux=left.p*(meshFrame.wx*nx+meshFrame.wy*ny+meshFrame.wz*nz);
     }
     else
     {
+        // The mixture MUSCL boundary is evaluated below together with its
+        // reconstructed Y. An earlier cell-Y EOS check could latch a spurious
+        // temperature-range failure before the consistent boundary exists.
         right = nei >= 0
           ? reconstructGasCellToFace(s, nei, f)
-          : riemannExteriorStateForFace(s, f, left);
-        if (s.gasReconstruction == 1 && nei >= 0)
+          : (ugkwp::mixtureGasActive(s) && s.gasReconstruction==1)
+            ? left : riemannExteriorStateForFace(s, f, left);
+        if (s.gasReconstruction == 1 && nei >= 0 && !ugkwp::mixtureGasActive(s))
         {
             const ugkpriemann::Primitive ownerCentre
             {
@@ -179,11 +223,11 @@ __device__ bool computeRiemannGasFaceFluxDevice
                 );
             }
         }
-        const ugkpriemann::Primitive leftRiemann
+        ugkpriemann::Primitive leftRiemann
         {
             left.rho, left.ux, left.uy, left.uz, left.p
         };
-        const ugkpriemann::Primitive rightRiemann
+        ugkpriemann::Primitive rightRiemann
         {
             right.rho, right.ux, right.uy, right.uz, right.p
         };
@@ -217,7 +261,122 @@ __device__ bool computeRiemannGasFaceFluxDevice
             }
         }
         ugkpriemann::FluxResult result;
-        if (scheme == ugkpriemann::Scheme::SLAU2_2)
+        bool mixtureEvaluated = false;
+        if constexpr (ugkwp::GasStateTraits<GasState>::speciesCount > 0)
+        {
+            if (ugkwp::mixtureGasActive(s))
+            {
+                // A composition contact carries formation energy through the
+                // very same Rusanov dissipation applied to partial densities.
+                ugkpriemann::Conservative leftConserved
+                {{s.rho[own],s.rhoUx[own],s.rhoUy[own],s.rhoUz[own],s.rhoE[own]}};
+                constexpr int Ns=ugkwp::GasStateTraits<GasState>::speciesCount;
+                GPU_OPERATOR_REAL leftSpecies[Ns],rightSpecies[Ns];
+                for(int k=0;k<Ns;++k)leftSpecies[k]=s.gasSpecies.rho[k*s.nCells+own];
+                GPU_OPERATOR_REAL leftSound=s.gasSpecies.soundSpeed[own];
+                GPU_OPERATOR_REAL rightSound=s.gasSpecies.soundSpeed[nei>=0?nei:own];
+                ugkpriemann::Conservative rightConserved{};
+                if(nei>=0)
+                {
+                    rightConserved=ugkpriemann::Conservative{{s.rho[nei],s.rhoUx[nei],s.rhoUy[nei],s.rhoUz[nei],s.rhoE[nei]}};
+                    for(int k=0;k<Ns;++k)rightSpecies[k]=s.gasSpecies.rho[k*s.nCells+nei];
+                }
+                else
+                {
+                    if(s.gasSpecies.faceStatus[f]!=0)return false;
+                    GPU_OPERATOR_REAL boundaryY[Ns];
+                    if(s.gasReconstruction==1)
+                    {
+                        if(!reconstructGasMixtureFace(s,own,f,left,boundaryY))
+                        {s.gasSpecies.faceStatus[f]=int(ugkwp::GasTransportCode::InvalidThermodynamics);return false;}
+                        right=riemannBoundaryState(s,f,left,boundaryY);
+                        rightRiemann={right.rho,right.ux,right.uy,right.uz,right.p};
+                    }
+                    else for(int k=0;k<Ns;++k)boundaryY[k]=s.gasSpecies.rho[k*s.nCells+own]/s.rho[own];
+                    if(s.gasSpecies.faceStatus[f]!=0)return false;
+                    for(int k=0;k<Ns;++k)rightSpecies[k]=right.rho*
+                        (s.gasSpecies.compositionBoundaryFixed[f]!=0?s.gasSpecies.boundaryMassFraction[k*s.nFaces+f]
+                            :boundaryY[k]);
+                    const GPU_OPERATOR_REAL R=ugkwp::mixtureGasConstant(rightSpecies,s.gasSpecies.thermo);
+                    const GPU_OPERATOR_REAL cv=ugkwp::mixtureHeatCapacity(rightSpecies,right.T,s.gasSpecies.thermo)/right.rho;
+                    rightSound=sqrt((cv+R)/cv*R*right.T);
+                    rightConserved=ugkpriemann::Conservative{{right.rho,right.rho*right.ux,right.rho*right.uy,right.rho*right.uz,
+                        ugkwp::mixtureEnergy(rightSpecies,right.T,s.gasSpecies.thermo)
+                        +GPU_OPERATOR_R(0.5)*right.rho*(right.ux*right.ux+right.uy*right.uy+right.uz*right.uz)}};
+                }
+                if(s.gasReconstruction==1)
+                {
+                    GPU_OPERATOR_REAL y[Ns];
+                    if(!reconstructGasMixtureFace(s,own,f,left,y))
+                    {s.gasSpecies.faceStatus[f]=int(ugkwp::GasTransportCode::InvalidThermodynamics);return false;}
+                    for(int k=0;k<Ns;++k)leftSpecies[k]=left.rho*y[k];
+                    leftConserved=ugkpriemann::Conservative{{left.rho,left.rho*left.ux,left.rho*left.uy,left.rho*left.uz,
+                        ugkwp::mixtureEnergy(leftSpecies,left.T,s.gasSpecies.thermo)
+                        +GPU_OPERATOR_R(0.5)*left.rho*(left.ux*left.ux+left.uy*left.uy+left.uz*left.uz)}};
+                    const auto R=ugkwp::mixtureGasConstant(y,s.gasSpecies.thermo);
+                    const auto cv=ugkwp::mixtureHeatCapacity(y,left.T,s.gasSpecies.thermo);
+                    leftSound=sqrt((cv+R)/cv*R*left.T);
+                    if(nei>=0)
+                    {
+                        if(!reconstructGasMixtureFace(s,nei,f,right,y))
+                        {s.gasSpecies.faceStatus[f]=int(ugkwp::GasTransportCode::InvalidThermodynamics);return false;}
+                        for(int k=0;k<Ns;++k)rightSpecies[k]=right.rho*y[k];
+                        rightConserved=ugkpriemann::Conservative{{right.rho,right.rho*right.ux,right.rho*right.uy,right.rho*right.uz,
+                            ugkwp::mixtureEnergy(rightSpecies,right.T,s.gasSpecies.thermo)
+                            +GPU_OPERATOR_R(0.5)*right.rho*(right.ux*right.ux+right.uy*right.uy+right.uz*right.uz)}};
+                        const auto Rright=ugkwp::mixtureGasConstant(y,s.gasSpecies.thermo);
+                        const auto cvright=ugkwp::mixtureHeatCapacity(y,right.T,s.gasSpecies.thermo);
+                        rightSound=sqrt((cvright+Rright)/cvright*Rright*right.T);
+                    }
+                    leftRiemann={left.rho,left.ux,left.uy,left.uz,left.p};
+                    rightRiemann={right.rho,right.ux,right.uy,right.uz,right.p};
+                }
+                if(moving)
+                {
+                    if(!ugkwp::shiftGasStateToFaceFrame(leftRiemann,leftConserved,meshFrame,leftRiemann,leftConserved)
+                        || !ugkwp::shiftGasStateToFaceFrame(rightRiemann,rightConserved,meshFrame,rightRiemann,rightConserved))
+                    {s.gasSpecies.faceStatus[f]=int(ugkwp::GasTransportCode::InvalidGeometry);return false;}
+                }
+                result = ugkpriemann::rusanovTadmorFluxUnitNormal
+                (
+                    leftRiemann,leftConserved,leftSound,
+                    rightRiemann,rightConserved,rightSound,
+                    nx,ny,nz,false
+                );
+                if(s.gasFluxScheme==2)
+                    result=ugkpriemann::hllKurganovFluxUnitNormal
+                    (leftRiemann,leftConserved,leftSound,rightRiemann,rightConserved,rightSound,nx,ny,nz,false);
+                const GPU_OPERATOR_REAL unLeft=leftRiemann.ux*nx+leftRiemann.uy*ny+leftRiemann.uz*nz;
+                const GPU_OPERATOR_REAL unRight=rightRiemann.ux*nx+rightRiemann.uy*ny+rightRiemann.uz*nz;
+                for(int k=0;k<ugkwp::GasStateTraits<GasState>::speciesCount;++k)
+                {
+                    const GPU_OPERATOR_REAL l=leftSpecies[k];
+                    const GPU_OPERATOR_REAL r=rightSpecies[k];
+                    s.gasSpecies.flux[k*s.nFaces+f]=area*(result.evaluatedScheme==ugkpriemann::Scheme::HllKurganov
+                        ?ugkpriemann::hllConservativeComponentFlux(unLeft*l,unRight*r,l,r,unLeft,unRight,leftSound,rightSound)
+                        :ugkpriemann::rusanovConservativeComponentFlux(unLeft*l,unRight*r,l,r,result.maxSignalSpeed));
+                }
+                if(moving && !ugkwp::restoreGasFluxFromFaceFrame(result,meshFrame,result))
+                {s.gasSpecies.faceStatus[f]=int(ugkwp::GasTransportCode::InvalidGeometry);return false;}
+                GPU_OPERATOR_REAL speciesSum=GPU_OPERATOR_R(0.0);
+                for(int k=0;k<Ns-1;++k)speciesSum+=s.gasSpecies.flux[k*s.nFaces+f];
+                s.gasSpecies.flux[(Ns-1)*s.nFaces+f]=area*result.flux[0]-speciesSum;
+                mixtureEvaluated=true;
+            }
+        }
+        if(moving && !mixtureEvaluated)
+        {
+            auto leftConserved=ugkpriemann::conservative(leftRiemann,s.gammaGas);
+            auto rightConserved=ugkpriemann::conservative(rightRiemann,s.gammaGas);
+            if(!ugkwp::shiftGasStateToFaceFrame(leftRiemann,leftConserved,meshFrame,leftRiemann,leftConserved)
+                || !ugkwp::shiftGasStateToFaceFrame(rightRiemann,rightConserved,meshFrame,rightRiemann,rightConserved))
+            {
+                if(!ugkwp::gasRecordFaceFailure(s,f,ugkwp::GasTransportCode::InvalidGeometry))asm("trap;");
+                return false;
+            }
+        }
+        if (mixtureEvaluated) {}
+        else if (scheme == ugkpriemann::Scheme::SLAU2_2)
         {
             const int gradientNeighbour = nei >= 0 ? nei : own;
             result = ugkpriemann::slau22FluxUnitNormal
@@ -262,7 +421,17 @@ __device__ bool computeRiemannGasFaceFluxDevice
         }
         if (!result.valid)
         {
+            if(ugkwp::mixtureGasActive(s)||moving)
+            {
+                if(!ugkwp::gasRecordFaceFailure(s,f,ugkwp::GasTransportCode::NonFiniteState))asm("trap;");
+                return false;
+            }
             asm("trap;");
+            return false;
+        }
+        if(moving && !mixtureEvaluated && !ugkwp::restoreGasFluxFromFaceFrame(result,meshFrame,result))
+        {
+            if(!ugkwp::gasRecordFaceFailure(s,f,ugkwp::GasTransportCode::InvalidGeometry))asm("trap;");
             return false;
         }
         massFlux = result.flux[0];
@@ -393,7 +562,8 @@ __device__ bool computeRiemannGasFaceFluxDevice
     }
 
                                                                        
-    if (boundaryKind != 1)
+    // A fixed-temperature slip wall conducts heat while remaining stress-free.
+    if (boundaryKind != 1 || s.riemannBoundaryTFix[f] != 0)
     {
                                                                 
                                                                           
@@ -636,9 +806,18 @@ __device__ bool computeRiemannGasFaceFluxDevice
                 directWallHeatFluxActive
             );
         }
-        const GPU_OPERATOR_REAL muEffective = s.gasMu + muTurbulent;
-        const GPU_OPERATOR_REAL kEffective =
-            molecularGasConductivity(s) + kTurbulent;
+        const GPU_OPERATOR_REAL muEffective = boundaryKind == 1
+          ? GPU_OPERATOR_R(0.0) : s.gasMu + muTurbulent;
+        GPU_OPERATOR_REAL kMolecular=molecularGasConductivity(s);
+        if constexpr (ugkwp::GasStateTraits<GasState>::speciesCount > 0)
+            if(ugkwp::mixtureGasActive(s) && !ugkwp::gasHasDirectConductivity(s))
+            {
+                const GPU_OPERATOR_REAL w=nei>=0?clampRange(s.faceWeight[f],GPU_OPERATOR_R(0.0),GPU_OPERATOR_R(1.0)):GPU_OPERATOR_R(1.0);
+                const GPU_OPERATOR_REAL cp=w*s.gasSpecies.heatCapacity[own]
+                    +(GPU_OPERATOR_R(1.0)-w)*s.gasSpecies.heatCapacity[nei>=0?nei:own];
+                kMolecular=s.gasMu*cp/s.gasPrClamped;
+            }
+        const GPU_OPERATOR_REAL kEffective = kMolecular + kTurbulent;
         const GPU_OPERATOR_REAL wallThermalAreaFraction =
             GPU_GAS_WALL_EXPOSURE(s, f, nei, boundaryKind);
         if (muEffective > GPU_OPERATOR_R(0.0) || kEffective > GPU_OPERATOR_R(0.0))
@@ -708,6 +887,54 @@ __device__ bool computeRiemannGasFaceFluxDevice
         }
     }
 
+    if constexpr (ugkwp::GasStateTraits<GasState>::speciesCount > 0)
+    {
+        if (ugkwp::mixtureGasActive(s) && (s.gasSpecies.diffusivity || (IncludeTurbulence && s.turbulenceModel!=0))
+            && (nei>=0 || (boundaryKind==0 && s.gasSpecies.compositionBoundaryFixed[f]!=0)))
+        {
+            constexpr int Ns=ugkwp::GasStateTraits<GasState>::speciesCount;
+            GPU_OPERATOR_REAL Y[Ns], gradArea[Ns], diffusion[Ns], enthalpyFlux=GPU_OPERATOR_R(0.0);
+            const GPU_OPERATOR_REAL w=clampRange(s.faceWeight[f],GPU_OPERATOR_R(0.0),GPU_OPERATOR_R(1.0));
+            for(int k=0;k<Ns;++k)
+            {
+                const int o=k*s.nCells+own;
+                const GPU_OPERATOR_REAL yo=s.gasSpecies.rho[o]/s.rho[own];
+                if(nei>=0)
+                {
+                    const int n=k*s.nCells+nei;
+                    const GPU_OPERATOR_REAL yn=s.gasSpecies.rho[n]/s.rho[nei];
+                    Y[k]=w*yo+(GPU_OPERATOR_R(1.0)-w)*yn;
+                    const auto geometry=ugkptransport::makeInternalSnGradGeometry
+                    (
+                        ugkptransport::Vector3{s.Cx[own],s.Cy[own],s.Cz[own]},
+                        ugkptransport::Vector3{mappedNeiCx,mappedNeiCy,mappedNeiCz},
+                        ugkptransport::Vector3{nx,ny,nz}
+                    );
+                    gradArea[k]=area*ugkptransport::correctedSnGrad
+                    (
+                        yo,yn,ugkptransport::Vector3{s.gasSpecies.gradX[o],s.gasSpecies.gradY[o],s.gasSpecies.gradZ[o]},
+                        ugkptransport::Vector3{s.gasSpecies.gradX[n],s.gasSpecies.gradY[n],s.gasSpecies.gradZ[n]},w,geometry
+                    );
+                }
+                else
+                {
+                    Y[k]=s.gasSpecies.boundaryMassFraction[k*s.nFaces+f];
+                    gradArea[k]=area*(Y[k]-yo)*s.deltaCoeffs[f];
+                }
+            }
+            if(!ugkwp::correctedSpeciesDiffusion
+            (
+                Y,gradArea,nei>=0?w*left.rho+(GPU_OPERATOR_R(1.0)-w)*right.rho:right.rho,
+                s.gasSpecies.diffusivity,IncludeTurbulence && s.turbulenceModel!=0
+                    ?(nei>=0?w*s.nut[own]+(GPU_OPERATOR_R(1.0)-w)*s.nut[nei]:s.nut[own]):GPU_OPERATOR_R(0.0),
+                s.gasSpecies.turbulentSchmidt,
+                nei>=0?w*left.T+(GPU_OPERATOR_R(1.0)-w)*right.T:right.T,s.gasSpecies.thermo,diffusion,enthalpyFlux
+            ))
+            {s.gasSpecies.faceStatus[f]=int(ugkwp::GasTransportCode::InvalidThermodynamics);return false;}
+            for(int k=0;k<Ns;++k)s.gasSpecies.flux[k*s.nFaces+f]+=diffusion[k];
+            energyFlux+=enthalpyFlux/area;
+        }
+    }
     massFluxArea = massFlux*area;
     momFluxXArea = momentumFluxX*area;
     momFluxYArea = momentumFluxY*area;
