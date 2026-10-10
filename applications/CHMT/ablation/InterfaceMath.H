@@ -2,6 +2,7 @@
 #define CHMT_ABLATION_INTERFACEMATH_H
 #include "film/FilmMath.H"
 #include "gpu/CommonGasTraction.H"
+#include "../../../common/gasWall/WallModel.H"
 namespace chmt {
 CHMT_HD inline Real interfacePartialPressure(Real pressure, const Real* Y,
     const PhysicsConfig& p, int species) {
@@ -150,6 +151,79 @@ CHMT_HD inline bool makeInterfacePrimitive(const Real* Y, Real T, Real pressure,
     if (!finite(state.velocity) || !finite(state.rho) || state.rho<=0) return false;
     out=state; return true;
 }
+// Borrowed stage data. The matching state and geometric quadrature are rebuilt
+// against the current stage; canonical mechanism storage remains with the caller.
+struct GasWallClosureContext {
+    ugkwp::GasMechanismView<Real,Ns> mechanism{};
+    ugkwp::gaswall::WallMatchingState<Real,Ns> matching{};
+    ugkwp::gaswall::WallOwnerQuadrature<Real> quadrature{};
+    Real matchingPressure=0,matchingDistance=0,ownerDistance=0;
+    void* workspace=nullptr;int workspaceCapacity=48;
+    ugkwp::gaswall::WallStatus* failureStatus=nullptr;
+};
+struct InterfaceGasClosure {
+    GasPrimitive trace{};Vec3 traction{};Real conductiveHeatFlux=0;
+    ugkwp::gaswall::WallOutput<Real,Ns> layer{};
+};
+CHMT_HD inline bool evaluateInterfaceGasClosure(const GasPrimitive& bulk,const GasGradient& inputGradient,
+    Real temperature,Real distance,Vec3 velocity,Vec3 normal,Real normalSpeed,
+    const Real* species,Real fluxTolerance,const PhysicsConfig& p,
+    const GasWallClosureContext& context,InterfaceGasClosure& output) {
+    InterfaceGasClosure result;
+    if(p.wallModel.family==ugkwp::gaswall::WallFamily::BoundaryLayer){
+        if(p.material.gasContactResistance!=0)return false;
+        const GasThermoAdapter<Ns> thermo(p.species);
+        ugkwp::gaswall::WallInput<Real,Ns> input;
+        input.pressure=context.matchingPressure;input.temperature=temperature;
+        input.matchingDistance=context.matchingDistance;input.ownerDistance=context.ownerDistance;
+        input.matching=context.matching;input.quadrature=context.quadrature;
+        input.model.thermo=thermo.view();input.model.thermo.speciesOrderHash=p.speciesFingerprint;
+        Real elements[Ns*Ne]{};input.model.thermo.elementCount=p.nElements;input.model.thermo.elementComposition=elements;
+        for(int s=0;s<Ns;++s)for(int e=0;e<p.nElements;++e)elements[s*p.nElements+e]=p.species[s].element[e]*thermo.data[s].molarMass;
+        input.model.mechanism=context.mechanism;input.model.mode=p.gasMode;
+        input.model.viscosity=p.gasViscosity;input.model.conductivity=p.gasConductivity;
+        auto& coefficients=input.model.sstCoefficients;const auto& sst=p.sst;
+        coefficients.a1=sst.a1;coefficients.betaStar=sst.betaStar;coefficients.beta1=sst.beta1;coefficients.beta2=sst.beta2;
+        coefficients.gamma1=sst.gamma1;coefficients.gamma2=sst.gamma2;coefficients.alphaK1=sst.sigmaK1;coefficients.alphaK2=sst.sigmaK2;
+        coefficients.alphaOmega1=sst.sigmaOmega1;coefficients.alphaOmega2=sst.sigmaOmega2;coefficients.c1=sst.productionLimit;
+        velocity=velocity-normal*dot(velocity,normal)+normal*normalSpeed;
+        input.velocity[0]=velocity.x;input.velocity[1]=velocity.y;input.velocity[2]=velocity.z;
+        input.normal[0]=normal.x;input.normal[1]=normal.y;input.normal[2]=normal.z;
+        for(int s=0;s<Ns;++s){input.massFlux[s]=species[s];input.model.diffusivity[s]=p.gasDiffusivity[s];}
+        auto config=p.wallModel;config.enableSst=p.enableSst;
+        config.turbulentPrandtl=p.sst.turbulentPrandtl;config.turbulentSchmidt=p.sst.turbulentSchmidt;
+        ugkwp::gaswall::WallStatus status;
+        bool accepted=false;
+        if(config.model==ugkwp::gaswall::BoundaryLayerModel::ConstantTransport)
+            accepted=ugkwp::gaswall::evaluateConstantTransportWall(input,config,result.layer,status);
+        else if(context.workspace){
+            if(context.workspaceCapacity==24)accepted=ugkwp::gaswall::evaluateWallModel(input,config,*static_cast<ugkwp::gaswall::WallWorkspace<Real,Ns,24>*>(context.workspace),result.layer,status);
+            else if(context.workspaceCapacity==48)accepted=ugkwp::gaswall::evaluateWallModel(input,config,*static_cast<ugkwp::gaswall::WallWorkspace<Real,Ns,48>*>(context.workspace),result.layer,status);
+            else if(context.workspaceCapacity==128)accepted=ugkwp::gaswall::evaluateWallModel(input,config,*static_cast<ugkwp::gaswall::WallWorkspace<Real,Ns,128>*>(context.workspace),result.layer,status);
+        }
+        if(!accepted){if(context.failureStatus)*context.failureStatus=status;return false;}
+        Real mass=0;for(int s=0;s<Ns;++s)mass+=species[s];
+        if(!makeInterfacePrimitive(result.layer.traceMassFraction,temperature,input.pressure,velocity,normal,
+            normalSpeed,mass,p,result.trace))return false;
+        result.traction={result.layer.traction[0],result.layer.traction[1],result.layer.traction[2]};
+        result.conductiveHeatFlux=result.layer.conductiveHeatFlux;
+    }else{
+        // The previous low-Re path stays bitwise unchanged. Ordinary wall
+        // functions have no CHMT mass-transfer extension.
+        if(p.wallModel.family!=ugkwp::gaswall::WallFamily::LowRe)return false;
+        Real Y[Ns]{},mass=0;for(int s=0;s<Ns;++s)mass+=species[s];
+        if(!interfaceComposition(species,bulk.Y,bulk.pressure,temperature,distance,p,fluxTolerance,Y)
+            ||!makeInterfacePrimitive(Y,temperature,bulk.pressure,velocity,normal,normalSpeed,mass,p,result.trace))return false;
+        GasGradient gradient=inputGradient;const Vec3 difference=bulk.velocity-result.trace.velocity;
+        gradient.velocity[0]+=normal*(difference.x/distance-dot(gradient.velocity[0],normal));
+        gradient.velocity[1]+=normal*(difference.y/distance-dot(gradient.velocity[1],normal));
+        gradient.velocity[2]+=normal*(difference.z/distance-dot(gradient.velocity[2],normal));
+        result.traction=viscousTraction(gradient,normal,p.gasViscosity,0);
+        const Real conductance=p.gasConductivity>0?1/(distance/p.gasConductivity+p.material.gasContactResistance):0;
+        result.conductiveHeatFlux=conductance*(temperature-bulk.temperature);
+    }
+    output=result;return true;
+}
 CHMT_HD inline bool hertzKnudsenFlux(const FilmQ& film, const Real* gasY, Real pressure,
     Real T, const PhysicsConfig& p, Real* flux) {
     if (film.mass<=0 || T<=0 || !finite(T)) return false;
@@ -169,6 +243,7 @@ CHMT_HD inline bool hertzKnudsenFlux(const FilmQ& film, const Real* gasY, Real p
 }
 
 struct SurfacePhysicsInput {
+    GasWallClosureContext wallContext{};
     GasPrimitive bulk{};
     GasGradient gradient{};
     GasQ gasInventory{};
@@ -225,6 +300,7 @@ CHMT_HD inline Real surfaceArrheniusRate(const Reaction& r, const Real* gasOrder
 CHMT_HD inline bool evaluateSurfaceTemperature(const SurfacePhysicsInput& in,
     const PhysicsConfig& p, const MaterialPrimitive& material, Real filmT, Real topT,
     bool birth, SurfacePhysicsResult& out) {
+    if(p.wallModel.family!=ugkwp::gaswall::WallFamily::LowRe&&p.wallModel.family!=ugkwp::gaswall::WallFamily::BoundaryLayer)return false;
     SurfacePhysicsResult result;
     const int phase=p.material.phaseCondensed;
     const Real gasRatio=in.gasArea/in.area;
@@ -249,9 +325,16 @@ CHMT_HD inline bool evaluateSurfaceTemperature(const SurfacePhysicsInput& in,
             bottomT=p.meltTemperature;
             const Real latent=liquidH(p,bottomT,in.bulk.pressure)
                 -condensedE(p.condensed[phase],bottomT)-in.bulk.pressure/p.condensed[phase].rho;
+            Real gasIncomingHeat=gasRatio*gasConductance*(in.bulk.temperature-bottomT);
+            if(birth&&p.wallModel.family==ugkwp::gaswall::WallFamily::BoundaryLayer){
+                Real zeroFlux[Ns]{};InterfaceGasClosure birthClosure;
+                if(!evaluateInterfaceGasClosure(in.bulk,in.gradient,bottomT,in.gasDistance,in.baseVelocity,
+                    in.gasNormal,0,zeroFlux,p.tolerances.absoluteMass,p,in.wallContext,birthClosure))return false;
+                gasIncomingHeat=-gasRatio*birthClosure.conductiveHeatFlux;
+            }
             const Real heat=birth
                 ? solidConductance*(material.temperature-bottomT)
-                    +(gasRatio*gasConductance*(in.bulk.temperature-bottomT)+result.radiationFlux)/solidRatio
+                    +(gasIncomingHeat+result.radiationFlux)/solidRatio
                 : solidConductance*(material.temperature-bottomT)
                     +solidProjection*liquidConductance*(filmT-bottomT);
             phaseRate=solidRatio*phaseRateFromHeat(heat,latent,1/p.liquid.rho-1/p.condensed[phase].rho);
@@ -267,6 +350,7 @@ CHMT_HD inline bool evaluateSurfaceTemperature(const SurfacePhysicsInput& in,
     Real Y[Ns]{};
     for (int s=0; s<Ns; ++s) Y[s]=in.bulk.Y[s];
     bool compositionConverged=false;
+    InterfaceGasClosure wallClosure;
     for (int iteration=0; iteration<60; ++iteration) {
         SurfacePhysicsResult trial;
         trial.wet=result.wet;
@@ -393,7 +477,15 @@ CHMT_HD inline bool evaluateSurfaceTemperature(const SurfacePhysicsInput& in,
         Real nextY[Ns]{};
         const Real fluxTolerance=in.dt>0
             ? p.tolerances.absoluteMass/(in.dt*in.gasArea) : p.tolerances.absoluteMass;
-        if (!interfaceComposition(allSpecies,in.bulk.Y,in.bulk.pressure,topT,in.gasDistance,
+        if(p.wallModel.family==ugkwp::gaswall::WallFamily::BoundaryLayer){
+            Vec3 velocity=in.baseVelocity;
+            if(result.wet){const Vec3 tangent=in.aux.topVelocity-in.normal*dot(in.aux.topVelocity,in.normal);
+                const Real normalVelocity=(trial.gasWallSpeed+filmLoss/(gasRatio*p.liquid.rho)-dot(tangent,in.gasNormal))/gasProjection;
+                velocity=tangent+in.normal*normalVelocity;}
+            if(!evaluateInterfaceGasClosure(in.bulk,in.gradient,topT,in.gasDistance,velocity,in.gasNormal,
+                trial.gasWallSpeed,allSpecies,fluxTolerance,p,in.wallContext,wallClosure))return false;
+            for(int s=0;s<Ns;++s)nextY[s]=wallClosure.trace.Y[s];
+        }else if (!interfaceComposition(allSpecies,in.bulk.Y,in.bulk.pressure,topT,in.gasDistance,
             p,fluxTolerance,nextY)) return false;
         Real change=0;
         for (int s=0; s<Ns; ++s) change=maxValue(change,absValue(nextY[s]-Y[s]));
@@ -432,7 +524,8 @@ CHMT_HD inline bool evaluateSurfaceTemperature(const SurfacePhysicsInput& in,
     gradient.velocity[1]+=in.gasNormal*(difference.y/in.gasDistance-dot(gradient.velocity[1],in.gasNormal));
     gradient.velocity[2]+=in.gasNormal*(difference.z/in.gasDistance-dot(gradient.velocity[2],in.gasNormal));
     // Physical low-Re wall: molecular stress only, no owner nut or k stress.
-    result.traction=viscousTraction(gradient,in.gasNormal,p.gasViscosity,0);
+    result.traction=p.wallModel.family==ugkwp::gaswall::WallFamily::BoundaryLayer
+        ?wallClosure.traction:viscousTraction(gradient,in.gasNormal,p.gasViscosity,0);
     result.gasShear=result.traction-in.gasNormal*dot(result.traction,in.gasNormal);
     result.shear=(result.gasShear-in.normal*dot(result.gasShear,in.normal))*gasRatio;
     Real primaryJ=0, poreJ=0, poreDonorEnergy=0, solidDonorEnergy=0;
@@ -448,7 +541,8 @@ CHMT_HD inline bool evaluateSurfaceTemperature(const SurfacePhysicsInput& in,
     const Real gasKE=0.5*dot(result.gasState.velocity,result.gasState.velocity);
     result.gasAdvective+=primaryJ*gasKE;
     result.poreEnergy+=poreJ*gasKE;
-    result.gasConductive=gasRatio*gasConductance*(topT-in.bulk.temperature);
+    result.gasConductive=gasRatio*(p.wallModel.family==ugkwp::gaswall::WallFamily::BoundaryLayer
+        ?wallClosure.conductiveHeatFlux:gasConductance*(topT-in.bulk.temperature));
     result.gasPressureWork=gasRatio*in.bulk.pressure*result.gasWallSpeed;
     result.gasViscousWork=-gasRatio*dot(result.traction,result.gasState.velocity);
     result.gasEnergy=result.gasAdvective+result.gasConductive+result.gasPressureWork+result.gasViscousWork;
