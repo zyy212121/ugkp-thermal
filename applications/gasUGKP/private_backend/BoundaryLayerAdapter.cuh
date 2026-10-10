@@ -158,8 +158,8 @@ extern "C" int ugkwpGpuResidentStrictConfigureBoundaryLayerV1
     w.enabled=true;s->gasBoundaryLayer=w;s->gasBoundaryLayerModel=model;s->gasSstAudit=candidate.gasSstAudit;
     s->gasWallQuadratureDistance=candidate.gasWallQuadratureDistance;s->gasWallQuadratureWeight=candidate.gasWallQuadratureWeight;
     s->sstWallTreatment=2;
-    if(syncDeviceState(s,"publish boundaryLayer storage"))
-    {s->gasModelPoisoned=true;setLastErrorText("boundaryLayer device publication failed; destroy resident");return 1;}
+    if(syncBoundaryLayerConfiguration(s))
+    {s->gasModelPoisoned=true;return 1;}
     std::fprintf(stderr,"boundaryLayer scratch: nodes=%u capacity=%d slots=%d bytes=%zu budget=%zu (auto=%s)\n",
         a.nodes,model.workspaceCapacity,model.workspaceCount,sizing.bytes,sizing.budget,a.workspaceSlots==0?"yes":"no");
     std::fprintf(stderr,"boundaryLayer full-cell SST budget audit: %s\n",a.budgetAudit?"enabled":"disabled");

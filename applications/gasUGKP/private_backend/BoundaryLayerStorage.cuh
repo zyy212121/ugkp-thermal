@@ -1,4 +1,5 @@
 #pragma once
+#include <cstddef>
 // Allocation ownership only; closure mathematics belongs to the shared core.
 struct BoundaryLayerAllocation
 {
@@ -27,4 +28,33 @@ template<class State> void releaseBoundaryLayerStorage(State& s)
     WALL_RELEASE(gasSstAudit.volume);
 #undef WALL_RELEASE
     s.gasBoundaryLayer={};s.gasBoundaryLayerModel={};s.gasSstAudit={};
+}
+
+// Configure-only publication. Uploading initial fields deliberately scrubs the
+// host calculation scalars, so copying the complete DeviceState here would
+// destroy valid device physics/numerics. Publish only this extension's fields.
+// No trial may exist yet. The enabled wall view is copied last; on any copy
+// failure the caller poisons the resident and retains ownership until destroy.
+inline int syncBoundaryLayerConfiguration(DeviceState* state)
+{
+    if(!state || !state->deviceState)
+    {setLastErrorText("cannot publish boundaryLayer to a null device state; destroy resident");return 1;}
+#define WALL_PUBLISH(field) \
+    do { \
+        const cudaError_t error=cudaMemcpy( \
+            reinterpret_cast<unsigned char*>(state->deviceState)+offsetof(DeviceState,field), \
+            &state->field,sizeof(state->field),cudaMemcpyHostToDevice); \
+        if(error!=cudaSuccess) { \
+            setLastError("publish boundaryLayer " #field "; destroy resident",error); \
+            return 1; \
+        } \
+    } while(false)
+    WALL_PUBLISH(gasBoundaryLayerModel);
+    WALL_PUBLISH(gasSstAudit);
+    WALL_PUBLISH(gasWallQuadratureDistance);
+    WALL_PUBLISH(gasWallQuadratureWeight);
+    WALL_PUBLISH(sstWallTreatment);
+    WALL_PUBLISH(gasBoundaryLayer);
+#undef WALL_PUBLISH
+    return 0;
 }
