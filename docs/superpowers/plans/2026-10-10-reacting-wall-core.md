@@ -13,7 +13,7 @@ Technical contract: [reacting-wall design](../specs/2026-10-10-reacting-wall-des
 - [x] Table-valid temperature constraints and explicit missing-coarse-chemistry diagnostic availability.
 - [x] SST conservative shared-face omega flux, smooth-wall asymptotic fitting, physical-omega cross diffusion and Wilcox positive-blowing boundary condition.
 - [x] Continuous near-wall k reconstruction, finite owner omega, physical wall k flux and source reconstruction consistent with BVP nodal sources.
-- [x] Actual nonlinear failure residual reporting and explicit native-precision SST requirement.
+- [x] Actual nonlinear failure residual reporting and independent FP64 wall/SST arithmetic.
 
 - [x] Wall-relative velocity, compensated temperature and formation-preserving common enthalpy reference; cached NASA branch offsets and actual-step feasible Jacobian differences.
 
@@ -27,7 +27,7 @@ Technical contract: [reacting-wall design](../specs/2026-10-10-reacting-wall-des
 - [x] Original SST k=.5/omega=200 counterexample, zero/tiny/finite blowing, physical owner volume and first moment.
 - [x] Near-wall bridge against an independent advection ODE; physical-omega cross-diffusion derivative regression.
 - [x] Owner source agrees with the converged BVP node source at exact-node quadrature points.
-- [x] Separate R=GpuReal FP32 and FP64 executables. Strict-default FP32 failures remain explicit; separately configured tolerances are reported with achieved residuals and FP64 output comparisons.
+- [x] Separate float/double state storage under global FP32 and FP64, with fixed-FP64 internal wall arithmetic; default strict convergence, actual cast-back species budgets, typed borrowed-table equivalence and atomic conversion/strict-tolerance failures.
 
 - [x] FP32/FP64 20-case SST precision comparison, Galilean shift, strong Ns10/simplex corner and simultaneous reaction/SST/blowing smoke.
 
