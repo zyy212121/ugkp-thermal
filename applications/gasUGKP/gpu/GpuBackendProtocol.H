@@ -40,7 +40,9 @@ enum class Op : std::uint32_t
     configureGasModelV1 = 23,
     uploadSpeciesV1 = 24,
     downloadSpeciesV1 = 25,
-    uploadSpeciesBoundaryV1 = 26
+    uploadSpeciesBoundaryV1 = 26,
+    configureBoundaryLayerV1 = 27,
+    downloadBoundaryLayerV1 = 28
 };
 
 enum class GasFluxScheme : std::int32_t
@@ -311,6 +313,30 @@ inline bool gasSpeciesPayloadBytes(const GasSpeciesIdentityV1& identity,
     bytes = sizeof(GasSpeciesIdentityV1);
     return addArrayBytes<double>(bytes, cells*identity.speciesCount);
 }
+// Optional wall-family extension; every pre-existing wire layout is unchanged.
+struct BoundaryLayerConfigV1
+{
+    std::uint32_t version=1,speciesCount=0,model=1,nodes=24,maxIterations=60;
+    std::uint32_t wallCount=0,quadratureCount=0,matchingCount=0,workspaceSlots=0,budgetAudit=0;
+    double relativeTolerance=1e-8,absoluteTolerance=1e-10,stretch=2;
+    double turbulentPrandtl=.9,turbulentSchmidt=.7;
+};
+static constexpr std::uint32_t boundaryLayerDiagnosticScalars=25;
+inline bool boundaryLayerPayloadBytes(const BoundaryLayerConfigV1& a,
+    std::uint32_t faces,std::uint32_t species,std::uint64_t& bytes)
+{
+    if(a.version!=1 || a.budgetAudit>1 || !a.speciesCount || a.speciesCount!=species
+        || a.model>1 || a.nodes<4 || a.nodes>128 || !a.maxIterations
+        || !a.wallCount || a.wallCount>faces || a.workspaceSlots>4096
+        || a.quadratureCount<a.wallCount || a.matchingCount<a.wallCount
+        || a.quadratureCount>std::uint32_t(std::numeric_limits<int>::max())
+        || a.matchingCount>std::uint32_t(std::numeric_limits<int>::max()))return false;
+    bytes=sizeof(a);
+    return addArrayBytes<int>(bytes,std::uint64_t(a.wallCount)+2ULL*(a.wallCount+1ULL)+a.matchingCount)
+        && addArrayBytes<double>(bytes,7ULL*a.wallCount+2ULL*a.quadratureCount+a.matchingCount
+            +std::uint64_t(a.wallCount)*a.speciesCount);
+}
+static_assert(sizeof(BoundaryLayerConfigV1)==80,"unexpected wall config ABI");
 static_assert(sizeof(GasModelCapabilitiesV1) == 16, "unexpected model capability wire padding");
 static_assert(sizeof(GasModelConfigureArgsV1) == 56, "unexpected model configure wire padding");
 static_assert(sizeof(GasSpeciesIdentityV1) == 32, "unexpected species identity wire padding");
