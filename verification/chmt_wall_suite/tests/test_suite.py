@@ -203,7 +203,7 @@ def test_reactive_case_cannot_accept_a_frozen_backend_log(tmp_path):
     p=tmp_path/'reactive';out=load('generate').prepare('gas_reacting_wave',p,{})
     (p/format(out['end_time'],'.12g')).mkdir()
     (p/'log.solver').write_text('Shared gas model: api=1 Ns=2 mode=1\nEnd\n')
-    with pytest.raises(ValueError,match='identity'):load('run').validate_completion(p,out)
+    with pytest.raises(ValueError,match='identity'):load('run').validate_completion(p,out,solver_returncode=0)
 
 def test_legacy_missing_shared_metadata_is_not_an_unsupported_case(tmp_path,monkeypatch):
     r=load('run');case=tmp_path/'legacy';load('generate').prepare('small_couette',case,{})
