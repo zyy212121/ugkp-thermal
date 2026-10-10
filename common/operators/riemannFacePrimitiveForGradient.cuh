@@ -73,6 +73,15 @@ __device__ GasPrimDevice riemannFacePrimitiveForGradient
         face.ux -= un*nx;
         face.uy -= un*ny;
         face.uz -= un*nz;
+        // Slip constrains velocity, not the independent thermal boundary.
+        if (s.riemannBoundaryTFix[f] != 0)
+        {
+            face.T = clampMin(finiteOr(s.riemannBoundaryT[f], centre.T), s.TgasMin);
+            GPU_OPERATOR_REAL R = s.Rgas;
+            if constexpr (ugkwp::GasStateTraits<GasState>::speciesCount > 0)
+                if (ugkwp::mixtureGasActive(s)) R = s.gasSpecies.gasConstant[c];
+            face.rho = face.p/clampMin(R*face.T, OfSmall);
+        }
         return face;
     }
 
