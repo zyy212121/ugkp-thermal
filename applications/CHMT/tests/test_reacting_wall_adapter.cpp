@@ -15,7 +15,7 @@ int main(){
     GasPrimitive bulk=chmt_test::gas(p);bulk.velocity={.5,10,0};
     ugkwp::gaswall::WallWorkspace<Real,Ns> workspace;
     GasWallClosureContext context;context.workspace=&workspace;context.ownerDistance=.2;context.matchingDistance=.8;
-    context.matchingPressure=bulk.pressure;context.matching.temperature=bulk.temperature;
+    context.matchingPressure=context.mechanicalPressure=bulk.pressure;context.matching.temperature=bulk.temperature;
     context.matching.velocity[0]=bulk.velocity.x;context.matching.velocity[1]=bulk.velocity.y;
     for(int s=0;s<Ns;++s)context.matching.massFraction[s]=bulk.Y[s];
     GasWallInput in;in.bulk=bulk;in.temperature=600;in.gasDistance=.2;in.area=in.gasArea=2;in.dt=.01;

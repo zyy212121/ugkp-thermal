@@ -23,6 +23,7 @@ def test_device_profile_is_prepared_once_then_split_into_material_packets(tmp_pa
  assert(chmt::prepareCoupledBoundaryLayer(b.get(),.0001,0)==0);
  assert(b->preparedMatching[0].state.temperature==900);
  const auto layer=b->preparedWallLayers[0];
+ blockIdx.x=wall;chmt::transport::computeGasInternalFaceFluxKernel<false>(b->deviceState,.0001);blockIdx.x=0;
  // A later packet assembly is prohibited from invoking the core again.
  b->model.physics.wallModel.maxIterations=0;b->model.physics.gasViscosity=0;
  assert(chmt::applyCoupledFaces(b.get(),.0001,0)==0);
