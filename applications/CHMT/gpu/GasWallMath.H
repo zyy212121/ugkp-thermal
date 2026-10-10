@@ -48,6 +48,9 @@ CHMT_HD inline bool evaluateGasWall(const GasWallInput& in,const SurfacePacketId
     }else if(!evaluateInterfaceGasClosure(in.bulk,in.gradient,in.temperature,in.gasDistance,in.velocity,in.normal,
         in.normalSpeed,species,p.tolerances.absoluteMass/(in.dt*in.gasArea),p,in.wallContext,closure))return false;
     result.trace=closure.trace;result.traction=closure.traction;result.layer=closure.layer;
+    const Real mechanicalPressure=p.wallModel.family==ugkwp::gaswall::WallFamily::BoundaryLayer
+        ?in.wallContext.mechanicalPressure:result.trace.pressure;
+    if(!finite(mechanicalPressure)||mechanicalPressure<=0)return false;
     const Real scale=in.area*in.dt,gasScale=in.gasArea*in.dt;
     result.primary=surfacePacketIdentity(in.primaryKind,identity);
     result.pore=surfacePacketIdentity(identity.solidCell>=0?ExchangeKind::PoreGas:in.primaryKind,identity);
@@ -60,10 +63,10 @@ CHMT_HD inline bool evaluateGasWall(const GasWallInput& in,const SurfacePacketId
     }
     for(int c=0;c<Nc;++c)result.primary.condensed[c]=scale*in.condensedRate[c];
     result.primary.conductive=gasScale*closure.conductiveHeatFlux;
-    result.primary.pressureWork=result.trace.pressure*in.sweptVolume;
+    result.primary.pressureWork=mechanicalPressure*in.sweptVolume;
     result.primary.viscousWork=-gasScale*dot(result.traction,result.trace.velocity);
     result.primary.energy=result.primary.advective+result.primary.conductive+result.primary.pressureWork+result.primary.viscousWork;
-    result.primary.momentum=result.trace.velocity*result.primary.mass+(in.normal*result.trace.pressure-result.traction)*gasScale;
+    result.primary.momentum=result.trace.velocity*result.primary.mass+(in.normal*mechanicalPressure-result.traction)*gasScale;
     result.pore.energy=result.pore.advective;result.pore.momentum=result.trace.velocity*result.pore.mass;
     if(in.primaryKind==ExchangeKind::GasFilm){
         Vec3 liquid=in.velocity-in.normal*dot(in.velocity,in.normal);

@@ -285,7 +285,7 @@ public:
             return false;
         }
         if(!wallOutput_.download(output,nullptr)||!wallInput_.download(inputs,nullptr))return false;
-        matching.resize(inputs.size());for(std::size_t f=0;f<inputs.size();++f){matching[f].pressure=inputs[f].pressure;matching[f].state=inputs[f].matching;}return true;
+        matching.resize(inputs.size());for(std::size_t f=0;f<inputs.size();++f){matching[f].pressure=inputs[f].pressure;matching[f].mechanicalPressure=0;matching[f].state=inputs[f].matching;}return true;
     }
     bool uploadGeometry(const HostMesh& mesh){
         const std::size_t nc=mesh.volumes.size(),nf=mesh.owner.size();
