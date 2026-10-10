@@ -54,9 +54,21 @@ int main(){
  auto model=ugkwp::parseGasModelProperties(text);
  ugkwpGpuIpc::GasModelConfigureArgsV1 args{1,1,2,0,model.speciesOrderHash,model.thermoHash,0,text.size(),0};
  state.turbulenceModel=state.hostTurbulenceModel=3;state.sstWallTreatment=1;
+ // The new fixed frozen wall family is supported. Unvalidated combinations
+ // must still fail before allocation or identity publication.
+ auto wallRequest=sharedGasCapabilityRequest(&state,model.mode,1);
+ assert(ugkwp::validateGasCapabilities(wallRequest));
+ wallRequest.movingGeometry=true;
+ assert(!ugkwp::validateGasCapabilities(wallRequest));
+ wallRequest.movingGeometry=false;wallRequest.mode=ugkwp::GasMode::MixtureChemistry;
+ assert(!ugkwp::validateGasCapabilities(wallRequest));
+ state.particleCapacity=1;
  assert(ugkwpGpuResidentStrictConfigureGasModelV1(&state,&args,text.data(),nullptr)!=0);
  assert(allocations==0 && state.gasSpecies.mode==ugkwp::GasMode::SingleLegacy);
- state.turbulenceModel=state.hostTurbulenceModel=0;state.sstWallTreatment=0;
+ assert(device.gasSpecies.mode==ugkwp::GasMode::SingleLegacy && !device.gasSpecies.rho);
+ state.particleCapacity=0;
+ // Exercise all subsequent configure/upload rollback and immutable-identity
+ // assertions with the supported SST wallFunction family still selected.
  auto bad=args;++bad.thermoHash;
  assert(ugkwpGpuResidentStrictConfigureGasModelV1(&state,&bad,text.data(),nullptr)!=0);
  assert(allocations==0 && state.gasSpecies.mode==ugkwp::GasMode::SingleLegacy);
@@ -170,6 +182,12 @@ int main(int argc,char**argv){
  ugkwpGpuIpc::GasModelCapabilitiesV1 capabilities{};
  assert(ugkwpGpuResidentStrictQueryGasModelCapabilitiesV1(&state,&capabilities)==0);
  assert(capabilities.compiledSpecies==10 && (capabilities.modeMask&4));
+ state.turbulenceModel=state.hostTurbulenceModel=3;state.sstWallTreatment=1;
+ assert(ugkwpGpuResidentStrictConfigureGasModelV1(&state,&args,text.data(),chemistry.data())!=0);
+ assert(last=="mixture ordinary wallFunction supports only fixed impermeable mixtureFrozen walls");
+ assert(allocations==0 && state.gasSpecies.mode==ugkwp::GasMode::SingleLegacy);
+ assert(device.gasSpecies.mode==ugkwp::GasMode::SingleLegacy && !device.gasSpecies.rho);
+ state.turbulenceModel=state.hostTurbulenceModel=0;state.sstWallTreatment=0;
  failAfter=20;
  assert(ugkwpGpuResidentStrictConfigureGasModelV1(&state,&args,text.data(),chemistry.data())!=0);
  assert(allocations==0 && state.gasSpecies.mode==ugkwp::GasMode::SingleLegacy);
