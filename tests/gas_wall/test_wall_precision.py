@@ -1,4 +1,4 @@
-"""Native GpuReal precision contracts, including explicitly reported noise floors."""
+"""Outer storage precision is independent of fixed-FP64 wall arithmetic."""
 import json
 import subprocess
 from test_wall_model import BASE, ROOT
@@ -43,12 +43,11 @@ int main(){
     print(json.dumps(results, sort_keys=True))
     assert results[64]['reaction_default_success'] == 1
     assert results[64]['sst_default_success'] == 1
-    # A failed strict FP32 solve remains a reported failure; no implicit floor
-    # or relaxed convergence rule is introduced into the production solver.
-    assert results[32]['reaction_default_success'] == 0
-    assert results[32]['sst_default_success'] == 0
-    assert results[32]['reaction_default_residual'] > 1e-8
-    assert results[32]['sst_default_residual'] > 1e-8
+    # Fixed FP64 arithmetic now honors the unchanged strict default for FP32 storage.
+    assert results[32]['reaction_default_success'] == 1
+    assert results[32]['sst_default_success'] == 1
+    assert results[32]['reaction_default_residual'] <= 1.01e-8
+    assert results[32]['sst_default_residual'] <= 1.01e-8
     for field in ('constant_heat', 'wall_y', 'shear', 'owner_omega'):
         assert abs(results[32][field] - results[64][field]) < 1e-3 * abs(results[64][field])
     for result in results.values():
@@ -63,7 +62,7 @@ int main(){
  static_assert(sizeof(GpuReal)*8==UGKWP_GPU_REAL_BITS,"native precision");
  Model m;m.in.temperature=m.in.matching.temperature=500;m.in.matching.velocity[0]=30;m.in.matching.k=.5;m.in.matching.omega=200;
  GpuReal distances[2]={.002,.006},weights[2]={2e-7,2e-7};m.in.quadrature={distances,weights,2,4e-7,1.6e-9};
- WallModelConfig<GpuReal> c;c.enableSst=true;c.maxIterations=100;c.relativeTolerance=sizeof(GpuReal)==4?.01:1e-8;
+ WallModelConfig<GpuReal> c;c.enableSst=true;c.maxIterations=100;c.relativeTolerance=1e-8;
  static WallWorkspace<GpuReal,2,128> w;WallOutput<GpuReal,2> o,shifted;WallStatus s;
  std::cout<<std::setprecision(17)<<"[";bool comma=false;
  for(int n:{24,48,96,128})for(double mass:{0.,1e-9,.001,.01,.1}){
@@ -115,10 +114,11 @@ int main(){
  // At a simplex corner the global dependent reactant is exhausted while
  // eight independent inert species are exactly zero. A tangent basis using
  // the local nonzero species must still yield a valid Jacobian.
- detail::LayerContext<GpuReal,10> ctx;detail::makeContext(in,c,ctx);
+ const auto computeInput=detail::wallComputationInput(in);const auto computeConfig=detail::wallComputationConfig(c);
+ detail::LayerContext<WallReal,10> ctx;detail::makeContext(computeInput,computeConfig,ctx);
  for(int i=0;i<c.nodes;++i){for(int j=0;j<9;++j)w.state[i][3+j]=0;w.state[i][11]=1;}
- GpuReal norm=0;assert(detail::allResidual(in,c,ctx,w.state,w.y,w.residual,norm));
- assert(detail::newtonStep(in,c,ctx,w));
+ WallReal norm=0;assert(detail::allResidual(computeInput,computeConfig,ctx,w.state,w.y,w.residual,norm));
+ assert(detail::newtonStep(computeInput,computeConfig,ctx,w));
  rx.highRate.preExponential=400;c.nodes=32;c.maxIterations=100;
  assert(evaluateWallModel(in,c,w,o,s));assert(o.traceMassFraction[0]<1e-5);
  for(int j=1;j<9;++j)assert(o.traceMassFraction[j]<(sizeof(GpuReal)==4?16*std::numeric_limits<GpuReal>::epsilon():1e-12));
@@ -149,10 +149,12 @@ int main(){
  assert(std::isfinite(out.conductiveHeatFlux)&&out.ownerOmega>0&&std::isfinite(out.integratedKSource));
  assert(std::abs(out.reactionIntegral[0])>1e-6);
  for(int j=0;j<2;++j){assert(out.traceMassFraction[j]>=0);assert(std::abs(out.speciesBalanceResidual[j])<1e-8);}
+ for(int j=0;j<2;++j)assert(std::abs(double(out.matchingSpeciesFlux[j])-double(out.wallSpeciesFlux[j])-double(out.reactionIntegral[j]))<1e-8);
  assert(near(out.matchingSpeciesFlux[0]+out.matchingSpeciesFlux[1],.001,sizeof(GpuReal)==4?1e-5:1e-7));
- detail::LayerContext<GpuReal,2> ctx;detail::makeContext(m.in,c,ctx);detail::LayerFlux<GpuReal,2> first,last;
- assert(detail::intervalFlux(m.in,c,ctx,w.state[0],w.state[1],w.y[0],w.y[1],first));
- assert(detail::intervalFlux(m.in,c,ctx,w.state[c.nodes-2],w.state[c.nodes-1],w.y[c.nodes-2],w.y[c.nodes-1],last));
+ const auto computeInput=detail::wallComputationInput(m.in);const auto computeConfig=detail::wallComputationConfig(c);
+ detail::LayerContext<WallReal,2> ctx;detail::makeContext(computeInput,computeConfig,ctx);detail::LayerFlux<WallReal,2> first,last;
+ assert(detail::intervalFlux(computeInput,computeConfig,ctx,w.state[0],w.state[1],w.y[0],w.y[1],first));
+ assert(detail::intervalFlux(computeInput,computeConfig,ctx,w.state[c.nodes-2],w.state[c.nodes-1],w.y[c.nodes-2],w.y[c.nodes-1],last));
  assert(std::abs(last.energy-first.energy)<(sizeof(GpuReal)==4?1e-4:1e-7)*ctx.scale[2]);
  GpuReal wallEnergy=out.conductiveHeatFlux+.001*detail::dot(out.traceVelocity,out.traceVelocity)/2-detail::dot(out.traction,out.traceVelocity);
  for(int j=0;j<2;++j)wallEnergy+=m.in.massFlux[j]*speciesH(j,m.in.temperature,m.in.model.thermo);
