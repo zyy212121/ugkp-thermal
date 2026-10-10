@@ -157,7 +157,9 @@ struct GasWallClosureContext {
     ugkwp::GasMechanismView<Real,Ns> mechanism{};
     ugkwp::gaswall::WallMatchingState<Real,Ns> matching{};
     ugkwp::gaswall::WallOwnerQuadrature<Real> quadrature{};
-    Real matchingPressure=0,matchingDistance=0,ownerDistance=0;
+    // Matching pressure closes EOS/BVP/film thermodynamics. Mechanical pressure
+    // is the local gas-face pressure used by momentum and its paired sweep work.
+    Real matchingPressure=0,mechanicalPressure=0,matchingDistance=0,ownerDistance=0;
     void* workspace=nullptr;int workspaceCapacity=48;
     ugkwp::gaswall::WallStatus* failureStatus=nullptr;
 };
@@ -301,6 +303,9 @@ CHMT_HD inline bool evaluateSurfaceTemperature(const SurfacePhysicsInput& in,
     const PhysicsConfig& p, const MaterialPrimitive& material, Real filmT, Real topT,
     bool birth, SurfacePhysicsResult& out) {
     if(p.wallModel.family!=ugkwp::gaswall::WallFamily::LowRe&&p.wallModel.family!=ugkwp::gaswall::WallFamily::BoundaryLayer)return false;
+    const Real mechanicalPressure=p.wallModel.family==ugkwp::gaswall::WallFamily::BoundaryLayer
+        ?in.wallContext.mechanicalPressure:in.bulk.pressure;
+    if(!finite(mechanicalPressure)||mechanicalPressure<=0)return false;
     SurfacePhysicsResult result;
     const int phase=p.material.phaseCondensed;
     const Real gasRatio=in.gasArea/in.area;
@@ -543,7 +548,7 @@ CHMT_HD inline bool evaluateSurfaceTemperature(const SurfacePhysicsInput& in,
     result.poreEnergy+=poreJ*gasKE;
     result.gasConductive=gasRatio*(p.wallModel.family==ugkwp::gaswall::WallFamily::BoundaryLayer
         ?wallClosure.conductiveHeatFlux:gasConductance*(topT-in.bulk.temperature));
-    result.gasPressureWork=gasRatio*in.bulk.pressure*result.gasWallSpeed;
+    result.gasPressureWork=gasRatio*mechanicalPressure*result.gasWallSpeed;
     result.gasViscousWork=-gasRatio*dot(result.traction,result.gasState.velocity);
     result.gasEnergy=result.gasAdvective+result.gasConductive+result.gasPressureWork+result.gasViscousWork;
     const Real solidHeat=solidRatio*solidConductance*(material.temperature-bottomT);
@@ -566,7 +571,7 @@ CHMT_HD inline bool evaluateSurfaceTemperature(const SurfacePhysicsInput& in,
     if (result.wet) {
         result.topKineticAdvection=0.5*primaryJ*dot(liquidTop,liquidTop);
         const Real liquidOut=gasRatio*physicalInterfaceEnergy(primaryJ/gasRatio,
-            primaryJ/gasRatio*liquidH(p,topT,in.bulk.pressure),liquidTop,in.bulk.pressure,
+            primaryJ/gasRatio*liquidH(p,topT,in.bulk.pressure),liquidTop,mechanicalPressure,
             result.gasWallSpeed,dot(result.gasShear,liquidTop),
             gasProjection*liquidConductance*(filmT-topT));
         result.thermalResidual=birth ? 0 : result.gasEnergy-liquidOut-result.radiationFlux;
@@ -721,8 +726,11 @@ CHMT_HD inline bool assembleSurfacePackets(const SurfacePhysicsInput& input,
         primary.mass+=primary.species[s];
     }
     for (int c=0; c<Nc; ++c) primary.condensed[c]=scale*result.condensed[c];
+    const Real mechanicalPressure=p.wallModel.family==ugkwp::gaswall::WallFamily::BoundaryLayer
+        ?input.wallContext.mechanicalPressure:result.gasState.pressure;
+    if(!finite(mechanicalPressure)||mechanicalPressure<=0)return false;
     primary.momentum=result.gasState.velocity*primary.mass
-        +(input.gasNormal*result.gasState.pressure-result.traction)*(input.gasArea*dt);
+        +(input.gasNormal*mechanicalPressure-result.traction)*(input.gasArea*dt);
     primary.advective=scale*result.gasAdvective;
     primary.conductive=scale*result.gasConductive;
     primary.pressureWork=scale*result.gasPressureWork;

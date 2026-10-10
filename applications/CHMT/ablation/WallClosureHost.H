@@ -56,6 +56,10 @@ public:
         if(!ready_){error="wall geometry is not prepared";return false;}
         std::vector<GasWallMatchingSample> result(cache_.descriptors.size());
         for(std::size_t f=0;f<result.size();++f){auto& sample=result[f];const auto& d=cache_.descriptors[f];
+            GasPrimitive owner;SstPrimitive ownerTurbulence;
+            if(!read(d.ownerCell,owner,ownerTurbulence)||!finite(owner.pressure)||owner.pressure<=0){
+                error="wall mechanical owner pressure is unavailable at actual stage";return false;}
+            sample.mechanicalPressure=owner.pressure;
             for(std::size_t j=0;j<d.matchingCells.size();++j){GasPrimitive gas;SstPrimitive turbulence;
                 if(!read(d.matchingCells[j],gas,turbulence)){error="wall matching state is unavailable at actual stage";return false;}
                 const Real weight=d.matchingWeights[j];sample.pressure+=weight*gas.pressure;
@@ -94,7 +98,8 @@ public:
         }
         std::vector<GasWallClosureContext> result(samples.size());
         for(std::size_t f=0;f<samples.size();++f){auto& c=result[f];const auto& d=cache_.descriptors[f];
-            c.workspace=workspace;c.workspaceCapacity=capacity;c.failureStatus=&failureStatus_;c.mechanism=mechanism;c.matching=samples[f].state;c.matchingPressure=samples[f].pressure;
+            if(!finite(samples[f].mechanicalPressure)||samples[f].mechanicalPressure<=0){error="wall mechanical pressure snapshot is invalid";return false;}
+            c.workspace=workspace;c.workspaceCapacity=capacity;c.failureStatus=&failureStatus_;c.mechanism=mechanism;c.matching=samples[f].state;c.matchingPressure=samples[f].pressure;c.mechanicalPressure=samples[f].mechanicalPressure;
             c.matchingDistance=d.matchingDistance;c.ownerDistance=d.ownerDistance;c.quadrature=d.quadrature();}
         output=std::move(result);error.clear();return true;
     }
