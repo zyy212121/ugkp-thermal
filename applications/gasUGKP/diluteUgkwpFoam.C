@@ -391,6 +391,7 @@ int main(int argc, char *argv[])
                 &sharedGasModel
             );
             configureResidentSst(resident);
+            resident.configureBoundaryLayer(boundaryLayerInput, runTime, mesh, Tgas);
 
             configureScheduledBoundary(resident);
 
@@ -462,6 +463,7 @@ int main(int argc, char *argv[])
                         Tgas
                     );
                     resident.downloadSharedGasSpecies(sharedGasModel, rho);
+                    resident.writeBoundaryLayerDiagnostics(boundaryLayerInput, runTime);
                     if (gasTurbulenceModel == 3)
                     {
                         resident.downloadSstToHostMirror
