@@ -1,0 +1,134 @@
+[
+  {
+    "bytes": 1845889,
+    "file": "ablantis_booklet.pdf",
+    "id": "ablantis_booklet.pdf",
+    "license": "CC-BY-NC-4.0",
+    "provenance": "Verified direct download 2026-10-09; only URL/checksum metadata distributed here.",
+    "redistribute": false,
+    "sha256": "8cffa16befaf592e7ef51f8f02178df0ff062b6acc2d1eda5fb76d2d1593d179",
+    "status": "downloaded",
+    "url": "https://raw.githubusercontent.com/Fratorhe/AblaNTIS-test-cases/v1.0.2/Test_case_description/AblaNTIS__Booklet_with_Numerical_Ablation_Test_Cases__D7_TN5_.pdf"
+  },
+  {
+    "bytes": 71006,
+    "file": "ablantis_material.ods",
+    "id": "ablantis_material.ods",
+    "license": "CC-BY-NC-4.0",
+    "provenance": "Verified direct download 2026-10-09; only URL/checksum metadata distributed here.",
+    "redistribute": false,
+    "sha256": "864399bd81fbcb50a50741bc5875bfeeeb8d355843b8988be0094a8a229313f6",
+    "status": "downloaded",
+    "url": "https://raw.githubusercontent.com/Fratorhe/AblaNTIS-test-cases/v1.0.2/Material_dataset/Tacot_Zuram_Calcarb_database_v4.3.1.ods"
+  },
+  {
+    "bytes": 10285,
+    "file": "tacot_constantProperties",
+    "id": "tacot_constantProperties",
+    "license": "NASA PATO source license; refer upstream",
+    "provenance": "Verified direct download 2026-10-09; only URL/checksum metadata distributed here.",
+    "redistribute": false,
+    "sha256": "d6a3234188f4fb1b6d27f802732749c2255239e6a4e8929bd046cefbf99a6475",
+    "status": "downloaded",
+    "url": "https://raw.githubusercontent.com/nasa/pato/main/data/Materials/Composites/TACOT/constantProperties"
+  },
+  {
+    "bytes": 4275,
+    "file": "tacot_virgin",
+    "id": "tacot_virgin",
+    "license": "NASA PATO source license; refer upstream",
+    "provenance": "Verified direct download 2026-10-09; only URL/checksum metadata distributed here.",
+    "redistribute": false,
+    "sha256": "e5d8d635129f87b418ce61bfc93026f03308347bd2c3a31d6a00d3155dca4453",
+    "status": "downloaded",
+    "url": "https://raw.githubusercontent.com/nasa/pato/main/data/Materials/Composites/TACOT/virgin"
+  },
+  {
+    "bytes": 2752,
+    "file": "tacot_char",
+    "id": "tacot_char",
+    "license": "NASA PATO source license; refer upstream",
+    "provenance": "Verified direct download 2026-10-09; only URL/checksum metadata distributed here.",
+    "redistribute": false,
+    "sha256": "58ed31af37da49b09d5569f1115625616e7fb404b6141b85e2efa63bcf589bbe",
+    "status": "downloaded",
+    "url": "https://raw.githubusercontent.com/nasa/pato/main/data/Materials/Composites/TACOT/char"
+  },
+  {
+    "bytes": 40020,
+    "file": "tacot_gasProperties",
+    "id": "tacot_gasProperties",
+    "license": "NASA PATO source license; refer upstream",
+    "provenance": "Verified direct download 2026-10-09; only URL/checksum metadata distributed here.",
+    "redistribute": false,
+    "sha256": "b8d73c17819479ae3e3fe0a556f8082c5a56f948e877630be592f33a5b55dbfd",
+    "status": "downloaded",
+    "url": "https://raw.githubusercontent.com/nasa/pato/main/data/Materials/Composites/TACOT/gasProperties"
+  },
+  {
+    "bytes": 6353,
+    "file": "nasa_sst_cf.dat",
+    "id": "nasa_sst_cf.dat",
+    "license": "NASA public research reference; preserve attribution",
+    "provenance": "Verified direct download 2026-10-09; only URL/checksum metadata distributed here.",
+    "redistribute": false,
+    "sha256": "d694caf86c8886ad40016f63e76f738e2c8caa982437ba2a1074d5d58efc2109",
+    "status": "downloaded",
+    "url": "https://tmbwg.github.io/turbmodels/FlatPlate_validation/sst-cf_cfl3d.dat"
+  },
+  {
+    "bytes": 13627,
+    "file": "nasa_sst_upyp.dat",
+    "id": "nasa_sst_upyp.dat",
+    "license": "NASA public research reference; preserve attribution",
+    "provenance": "Verified direct download 2026-10-09; only URL/checksum metadata distributed here.",
+    "redistribute": false,
+    "sha256": "2c9715357a45fc792b24ee45c0f2add71ee2e1f54eafd94c38ecdcf53cc34316",
+    "status": "downloaded",
+    "url": "https://tmbwg.github.io/turbmodels/FlatPlate_validation/sst-upyp_cfl3d.dat"
+  },
+  {
+    "bytes": 4224,
+    "file": "nasa_ks_cf.dat",
+    "id": "nasa_ks_cf.dat",
+    "license": "NASA public research reference; preserve attribution",
+    "provenance": "Verified direct download 2026-10-09; only URL/checksum metadata distributed here.",
+    "redistribute": false,
+    "sha256": "bafbaf7fa7969a945a5ad0935ca90c320ab72f14ba5a08474abffa61356bba2d",
+    "status": "downloaded",
+    "url": "https://tmbwg.github.io/turbmodels/FlatPlate_validation/cf_K-S.dat"
+  },
+  {
+    "bytes": 1559230,
+    "file": "ablantis_exp2_tc.dat",
+    "id": "ablantis_exp2_tc.dat",
+    "license": "CC-BY-NC-4.0",
+    "provenance": "Verified v1.0.2 direct download 2026-10-09; no source data redistributed.",
+    "redistribute": false,
+    "sha256": "2d148f3a685bdae879ae070f665159944a5efcc9d5cbea804a7e37fdab9525b7",
+    "status": "downloaded",
+    "url": "https://raw.githubusercontent.com/Fratorhe/AblaNTIS-test-cases/v1.0.2/Test_case_description/Exp-x-x-x/Exp-2-x-Z/TC_meas_data/tc_measurements.dat"
+  },
+  {
+    "bytes": 114440,
+    "file": "ablantis_exp2_recession.dat",
+    "id": "ablantis_exp2_recession.dat",
+    "license": "CC-BY-NC-4.0",
+    "provenance": "Verified v1.0.2 direct download 2026-10-09; no source data redistributed.",
+    "redistribute": false,
+    "sha256": "2dbec6d4b38f3ac14a702bca5b1e6eda38360237ebe371a0b939ee895715cffc",
+    "status": "downloaded",
+    "url": "https://raw.githubusercontent.com/Fratorhe/AblaNTIS-test-cases/v1.0.2/Test_case_description/Exp-x-x-x/Exp-2-x-Z/Exp-2-T-Z/BC_data/surface_recession.dat"
+  },
+  {
+    "bytes": 155325,
+    "file": "ablantis_exp2_temperature.dat",
+    "id": "ablantis_exp2_temperature.dat",
+    "license": "CC-BY-NC-4.0",
+    "provenance": "Verified v1.0.2 direct download 2026-10-09; no source data redistributed.",
+    "redistribute": false,
+    "sha256": "f4bd7981e8c7b47b50680da149938745b862b5613b4e1e4553c2cc298b9eeb3c",
+    "status": "downloaded",
+    "url": "https://raw.githubusercontent.com/Fratorhe/AblaNTIS-test-cases/v1.0.2/Test_case_description/Exp-x-x-x/Exp-2-x-Z/Exp-2-T-Z/BC_data/surface_temperature.dat"
+  }
+]
