@@ -1,6 +1,7 @@
 #pragma once
 #include "ConstantTransportWall.H"
 #include "ReactingWallLayer.H"
+#include "WallPrecision.H"
 namespace ugkwp { namespace gaswall {
 // Valid after a successful ReactingSst solve, for 0 <= node < config.nodes.
 // Workspace temperature is compensated relative to the prescribed wall value.
