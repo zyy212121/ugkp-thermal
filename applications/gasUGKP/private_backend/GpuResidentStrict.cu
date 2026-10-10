@@ -28,6 +28,7 @@
 #define GPU_OPERATOR_R(x) x
 #include "../../../common/GpuOperatorContract.cuh"
 #include <cuda_runtime.h>
+#include "GpuGasOperatorDependencies.cuh"
 
 #include "GpuBackendApi.H"
 #include "gasTransport/GasBuildConfig.H"
@@ -3567,7 +3568,7 @@ int configureParticleLaunchGeometry(DeviceState* s)
     int gasBlocks = 0;
     if (queryKernelBlocksPerSm(gasBlocks,
         "occupancy query gas internal-face kernel",
-        computeGasInternalFaceFluxKernel<true>, s->fixedFaceBlockThreads, 0) != 0)
+        computeGasInternalFaceFluxKernel<true, DeviceState>, s->fixedFaceBlockThreads, 0) != 0)
     {
         return 1;
     }
