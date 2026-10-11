@@ -24,7 +24,8 @@ extern "C" int ugkwpGpuResidentStrictConfigureBoundaryLayerV1(void*,const ugkwpG
  const int* faces,const int* qo,const int* mo,const int* mc,const double* g,const double* qd,
  const double* qw,const double* mw,const double* js){
  budgetAudit=c->budgetAudit;
- double v=0,m=0;for(int q=qo[0];q<qo[1];++q){v+=qw[q];m+=qw[q]*qd[q];}
+ if(c->quadratureCount!=0||qo[0]!=0||qo[1]!=0||qd||qw)return 1;
+ double v=g[5],m=g[6];
  Info<<"WALL_UPLOAD model="<<c->model<<" walls="<<c->wallCount<<" donor="<<mc[0]
  <<" volume="<<v<<" moment="<<m<<" matching="<<g[4]<<" owner="<<g[3]
  <<" quadrature="<<qo[c->wallCount]<<" flux="<<js[0]<<","<<js[c->wallCount]<<" nodes="<<c->nodes<<" slots="<<c->workspaceSlots<<nl;
@@ -97,6 +98,7 @@ def test_native_wall_configuration_geometry_upload_and_csv(native_wall_probe,tmp
     result=run_probe(native_wall_probe,tmp_path)
     assert result.returncode==0,result.stdout+result.stderr
     assert "WALL_READY family=2" in result.stdout
+    assert "quadrature=0" in result.stdout
     assert "flux=0.01,0.02 nodes=16 slots=2" in result.stdout
     rows=list(csv.DictReader((tmp_path/"0.5/uniform/gasBoundaryLayer.csv").open()))
     assert len(rows)==1
@@ -167,7 +169,7 @@ def test_native_wall_accepts_high_resolution_nodes_and_auto_scratch(native_wall_
     assert "nodes=96 slots=0" in result.stdout
 
 
-def test_native_sst_owner_quadrature_tracks_profile_resolution(native_wall_probe,tmp_path):
+def test_native_sst_has_no_unused_quadrature_at_any_profile_resolution(native_wall_probe,tmp_path):
     counts=[]
     for nodes in (16,32):
         case=tmp_path/str(nodes);case.mkdir()
@@ -175,7 +177,7 @@ def test_native_sst_owner_quadrature_tracks_profile_resolution(native_wall_probe
         result=run_probe(native_wall_probe,case)
         assert result.returncode==0,result.stdout+result.stderr
         counts.append(int(re.search(r"quadrature=(\d+)",result.stdout).group(1)))
-    assert counts[1]>counts[0], "SST source quadrature did not follow the wall profile grid"
+    assert counts==[0,0], "production created unused auxiliary owner-source points"
 
 
 def test_native_sst_budget_audit_is_explicit_and_available(native_wall_probe,tmp_path):
