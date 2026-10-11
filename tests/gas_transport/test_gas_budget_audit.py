@@ -66,3 +66,21 @@ ck(s.gasBudgetAudit.transport[2]==-dt*limitedEnergy,"energy audit read unscaled 
 ck(s.gasBudgetAudit.transport[4]==-dt*limitedSpecies,"species audit read unscaled flux");
 ck(s.gasBudgetAudit.transport[6]==dt*limitedSpecies,"counterflow species audit missing");}
 ''')
+
+
+@pytest.mark.parametrize('bits',[32,64])
+def test_budget_records_final_physical_wall_override(tmp_path,bits):
+    from test_boundary_layer_operators import SETUP
+    compile_probe(tmp_path,audited_fixture()+SETUP+r'''
+int main(){State s;initialise(s);enable(s);wall(s);const double dt=.0001;
+s.gasBoundaryLayer.speciesFlux[0]=Real(-.16);s.gasBoundaryLayer.speciesFlux[1]=Real(-.24);
+threadIdx.x=1;computeGasInternalFaceFluxKernel<false>(&s,dt);applyGasFluxPositivityScaleKernel(&s);
+ck(s.gasSpecies.faceStatus[1]==0,"physical wall flux failed");
+const double finalMass=s.gasPhiRho[1],finalEnergy=s.gasPhiRhoE[1],finalSpecies=s.gasSpecies.flux[1];
+ck(std::abs(finalMass+.4)<1e-7&&std::abs(finalEnergy+31)<1e-7,"physical wall override missing");
+threadIdx.x=0;applyGasFluxDivergenceByCellKernel(&s,dt);
+ck(s.gasSpecies.cellStatus[0]==0,"physical wall update failed");
+ck(s.gasBudgetAudit.transport[0]==-dt*finalMass,"wall mass budget read pre-override flux");
+ck(s.gasBudgetAudit.transport[2]==-dt*finalEnergy,"wall energy budget read pre-override flux");
+ck(s.gasBudgetAudit.transport[4]==-dt*finalSpecies,"wall species budget read pre-override flux");}
+''',bits)
