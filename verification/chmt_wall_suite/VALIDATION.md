@@ -183,6 +183,20 @@ The ledger is a fresh NEW_SEGMENT on every process start, including restart. `bu
 
 Requested `end_time` must be finite and positive. Canonical or pinned cases reject a different endpoint instead of silently ignoring it; flexible cases verify the generated controlDict and reference manifest agree. Existing exact final-output scheduling and native completion requirements remain unchanged.
 
-## SST candidate remains at its model gate
+## Integrated fixes and remaining runtime limits
 
-Independent inventory-moment SST research commit `a50c3f5` (`research/sst-owner-moment-20261011`, `chmt_sst_candidate_20261011`) remains separate from PR12. The complete zero-Q system converges, but the nearby nonnegative small-Q response is infeasible on that branch. Scheduling and budget diagnostics do not resolve the original `SourceStepLimit` failure. Preserve the original failing inputs, thresholds and requested endpoints; the three blowing states, variable density, ALE, rollback, restart and independent-reference comparisons remain pending until a feasible model/interface passes its prerequisite checks.
+The integrated candidate now contains three implemented repairs:
+
+- Geometry retains the original weighted, rank-checked QR while bounding live workspace and regenerating harmonic modes when the cached representation does not fit. The Jacobian remains dense; an insufficient workspace is explicitly rejected. This is a memory/time tradeoff, not an unverified sparse-solver or speedup claim. See [resource-bounded sweeps](../../docs/development/chmt-resource-bounded-sweeps.md).
+- The selected reacting SST branch uses a high-Re numerical wall function to close the actual coarse owner k equation and finite owner omega. It no longer interprets the auxiliary BVP k profile as transported owner inventory. Captured-owner host advancement, independent variable-density resolved-reference comparison, retained blowing states and finite chemistry/heat coupling are reproducible in [the SST verification package](../../research/sst_wall_function/VALIDATION.md). The measured 12–17% coarse k discrepancy remains visible; convergence and conservative budgets do not turn it into a universal physical PASS.
+- CHT uses authoritative double gas energy and bounded particle thermal carry, with actual particle publication paired to the opposite gas subtraction. Lifecycle, cold-wall, radiation, restart, caloric-floor and positivity coverage is described in [current paired-energy verification](../../docs/development/energy-fp64-20261011/current-verification.md). Historical unpaired publication failures do not describe this implemented source model.
+
+The original full gasUGKP flatplate endpoint and separate moving CHMT endpoint still require actual GPU execution. CUDA compilation and HOST sequential atomic adapters cannot establish device reduction ordering, complete coupled conservation, runtime accuracy or throughput. Integrated native compilation is a separate gate; no final native PASS or GPU run is inferred from these host checks. GPU runtime remains NOT_RUN.
+
+### Host verification checkpoint
+
+On integrated commit `d561c6ce38a288e2d7045940e4e95c376ef7c832`, the suite first passed 208 checks with 17 OpenFOAM environment skips. After sourcing the CPU OpenFOAM 10 environment, all 17 skipped dictionary/capability/scheduler checks passed (16.34 s), establishing all 225 host checks across the two runs. Separately, the research package reported successful captured-owner, budget and nonlinear/discrete checks in its serial host run (152.72 s). It retained all three resolved-reference coarse k discrepancies and all 12 blowing/chemistry/limit cases. These results belong to that source checkpoint; later source changes need their affected checks repeated. No native GPU case was run.
+
+### Superseded inventory-moment candidate
+
+Research commit `a50c3f5` (`research/sst-owner-moment-20261011`) remains archived as a failed alternative: its complete zero-Q system converged, while the nearby nonnegative small-Q response was infeasible. That observation and the original `SourceStepLimit` inputs are retained as historical evidence. The later numerical wall-function implementation supersedes the owner-moment reconstruction premise; scheduling and budget diagnostics alone were not its repair. The host verification package states the fixed-donor and zero-blowing resolved-reference limits explicitly, and retains the original full GPU inputs and endpoints for the outstanding runtime checks.
