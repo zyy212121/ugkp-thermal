@@ -100,6 +100,13 @@ __global__ void computeGasPrimitiveGradientsKernel
     if constexpr (ugkwp::GasStateTraits<GasState>::speciesCount > 0)
     {
         if (ugkwp::mixtureGasActive(s))
+        {
+            int dependent=ugkwp::GasStateTraits<GasState>::speciesCount-1;
+            // Keep populated-last arithmetic; an absent species must retain
+            // its physical stencil gradient rather than a closure residual.
+            if(s.gasSpecies.rho[dependent*s.nCells+c]==GPU_OPERATOR_R(0.0))
+                for(int k=0;k<ugkwp::GasStateTraits<GasState>::speciesCount;++k)
+                    if(s.gasSpecies.rho[k*s.nCells+c]>s.gasSpecies.rho[dependent*s.nCells+c])dependent=k;
             for(int k=0;k<ugkwp::GasStateTraits<GasState>::speciesCount;++k)
             {
                 GPU_OPERATOR_REAL gx=GPU_OPERATOR_R(0.0),gy=GPU_OPERATOR_R(0.0),gz=GPU_OPERATOR_R(0.0);
@@ -124,16 +131,14 @@ __global__ void computeGasPrimitiveGradientsKernel
                 s.gasSpecies.gradX[k*s.nCells+c]=gx*invV;
                 s.gasSpecies.gradY[k*s.nCells+c]=gy*invV;
                 s.gasSpecies.gradZ[k*s.nCells+c]=gz*invV;
-                if(k==ugkwp::GasStateTraits<GasState>::speciesCount-1)
-                {
-                    GPU_OPERATOR_REAL sumX=GPU_OPERATOR_R(0.0),sumY=GPU_OPERATOR_R(0.0),sumZ=GPU_OPERATOR_R(0.0);
-                    for(int j=0;j<k;++j)
-                    {sumX+=s.gasSpecies.gradX[j*s.nCells+c];sumY+=s.gasSpecies.gradY[j*s.nCells+c];sumZ+=s.gasSpecies.gradZ[j*s.nCells+c];}
-                    s.gasSpecies.gradX[k*s.nCells+c]=-sumX;
-                    s.gasSpecies.gradY[k*s.nCells+c]=-sumY;
-                    s.gasSpecies.gradZ[k*s.nCells+c]=-sumZ;
-                }
             }
+            GPU_OPERATOR_REAL sumX=GPU_OPERATOR_R(0.0),sumY=GPU_OPERATOR_R(0.0),sumZ=GPU_OPERATOR_R(0.0);
+            for(int k=0;k<ugkwp::GasStateTraits<GasState>::speciesCount;++k)if(k!=dependent)
+            {sumX+=s.gasSpecies.gradX[k*s.nCells+c];sumY+=s.gasSpecies.gradY[k*s.nCells+c];sumZ+=s.gasSpecies.gradZ[k*s.nCells+c];}
+            s.gasSpecies.gradX[dependent*s.nCells+c]=-sumX;
+            s.gasSpecies.gradY[dependent*s.nCells+c]=-sumY;
+            s.gasSpecies.gradZ[dependent*s.nCells+c]=-sumZ;
+        }
     }
 }
 

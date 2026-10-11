@@ -358,9 +358,15 @@ __device__ bool computeRiemannGasFaceFluxDevice
                 }
                 if(moving && !ugkwp::restoreGasFluxFromFaceFrame(result,meshFrame,result))
                 {s.gasSpecies.faceStatus[f]=int(ugkwp::GasTransportCode::InvalidGeometry);return false;}
+                int massCarrier=Ns-1;
+                // Redirect closure only when the last species is absent on
+                // both sides. One-sided inventory can carry physical inflow.
+                if(leftSpecies[massCarrier]==GPU_OPERATOR_R(0.0) && rightSpecies[massCarrier]==GPU_OPERATOR_R(0.0))
+                    for(int k=0;k<Ns;++k)
+                        if(leftSpecies[k]+rightSpecies[k]>leftSpecies[massCarrier]+rightSpecies[massCarrier])massCarrier=k;
                 GPU_OPERATOR_REAL speciesSum=GPU_OPERATOR_R(0.0);
-                for(int k=0;k<Ns-1;++k)speciesSum+=s.gasSpecies.flux[k*s.nFaces+f];
-                s.gasSpecies.flux[(Ns-1)*s.nFaces+f]=area*result.flux[0]-speciesSum;
+                for(int k=0;k<Ns;++k)if(k!=massCarrier)speciesSum+=s.gasSpecies.flux[k*s.nFaces+f];
+                s.gasSpecies.flux[massCarrier*s.nFaces+f]=area*result.flux[0]-speciesSum;
                 mixtureEvaluated=true;
             }
         }
