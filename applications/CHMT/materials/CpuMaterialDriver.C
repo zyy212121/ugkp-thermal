@@ -2,6 +2,7 @@
 #include "core/ThermalBoundary.H"
 #include "materials/MaterialTransport.H"
 #include "materials/MaterialDrive.H"
+#include "materials/SurfacePacketAddressing.H"
 #include "ablation/CpuSurfaceInterface.H"
 #include "film/CpuFilmDriver.H"
 #include "mesh/Geometry.H"
@@ -157,6 +158,8 @@ bool CpuMaterialDriver::advanceCandidate(const HostState& base,const HostState& 
         ||base.gasMesh.topologyHash!=geometryEndpoint.gasMesh.topologyHash){
         report.recoverable=false;error="unsupported or inconsistent CPU material interval/configuration/topology";return false;}
     try {
+        SurfacePacketAddressing packetAddressing;
+        if(!packetAddressing.build(base,geometryEndpoint,error)){report.recoverable=false;return false;}
         HostState state=base;state.ledger.clear();state.filmStorage.clear();
         WallProgram program;program.interval=window;program.surface=base.surface;
         CpuMaterialReport accumulated;accumulated.donorPlan.interval=window;
@@ -264,9 +267,20 @@ bool CpuMaterialDriver::advanceCandidate(const HostState& base,const HostState& 
                 if(p.enableFilm){Real filmDt=dt;if(!estimateCpuFilmStep(evaluation,p,forcing,drive,dt,dt,filmDt,error))break;
                     if(filmDt<dt*(1-32*std::numeric_limits<Real>::epsilon())){dt=filmDt;continue;}}
                 std::vector<Real> target(state.surface.area.size(),0);
-                for(const auto& packet:packets)if(packet.kind==ExchangeKind::GasSolid){for(std::size_t f=0;f<target.size();++f)if(state.surface.gasFace[f]>=0&&state.gasMesh.faceIds[state.surface.gasFace[f]]==packet.face){
-                    MaterialPrimitive material;if(!recoverMaterial(state.solid[packet.solidCell],state.solidMesh.volumes[packet.solidCell],p,material)){error="surface donor EOS failed";break;}
-                    for(int c=0;c<Nc;++c)if(packet.condensed[c]!=0)target[f]-=packet.condensed[c]/p.condensed[c].rho/(1-material.porosity);}}
+                for(const auto& packet:packets)if(packet.kind==ExchangeKind::GasSolid){
+                    std::size_t match=0;
+                    if(!packetAddressing.gasSolidIndex(state,packet,match,error))break;
+                    const int donor=packet.solidCell;
+                    MaterialPrimitive material;
+                    if(!recoverMaterial(state.solid[donor],state.solidMesh.volumes[donor],p,material)){
+                        error="surface donor EOS failed";break;}
+                    for(int c=0;c<Nc;++c)if(packet.condensed[c]!=0){
+                        if(!finite(packet.condensed[c])||!finite(p.condensed[c].rho)||!(p.condensed[c].rho>0)){
+                            error="invalid surface recession constituent";break;}
+                        target[match]-=packet.condensed[c]/p.condensed[c].rho/(1-material.porosity);
+                    }
+                    if(!error.empty())break;
+                }
                 for(const auto& phase:surface.phasePackets){MaterialPrimitive material;const int c=phase.solidCell;if(!recoverMaterial(state.solid[c],state.solidMesh.volumes[c],p,material)){error="phase donor EOS failed";break;}
                     target[phase.filmFace]-=phase.mass/p.condensed[p.material.phaseCondensed].rho/(1-material.porosity);}
                 if(!error.empty())break;
