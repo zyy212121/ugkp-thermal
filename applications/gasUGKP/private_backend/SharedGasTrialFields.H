@@ -9,6 +9,9 @@ struct SharedGasTrialSnapshot
     int* faceStatus=nullptr;
     ugkwp::ChemistryStatus* chemistryStatus=nullptr;
     ugkwp::ChemistryAudit<double,ugkwp::compiledGasSpecies>* chemistryAudits=nullptr;
+    unsigned char* wallRecords=nullptr;
+    std::size_t wallRecordBytes=0;
+    double wallStageTime=0,wallAuditStart=0,wallAuditInterval=0;
     bool valid=false;
 };
 struct SharedGasTrialStorage

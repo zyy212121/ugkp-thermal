@@ -3,6 +3,7 @@
 #include "core/HostState.H"
 #include "coupling/IntervalContracts.H"
 #include <memory>
+#include "../../../common/gasTransport/GasMechanismIO.H"
 namespace Foam {class fvMesh;}
 namespace chmt {
 struct CpuMaterialControls {
@@ -26,6 +27,7 @@ class CpuMaterialDriver {
     struct Implementation;std::unique_ptr<Implementation> data_;
 public:
     CpuMaterialDriver(const ModelConfig&,Foam::fvMesh* actualSolidMesh);
+    CpuMaterialDriver(const ModelConfig&,Foam::fvMesh* actualSolidMesh,const ugkwp::GasMechanismConfiguration* mechanism);
     ~CpuMaterialDriver();
     CpuMaterialDriver(const CpuMaterialDriver&)=delete;
     CpuMaterialDriver& operator=(const CpuMaterialDriver&)=delete;

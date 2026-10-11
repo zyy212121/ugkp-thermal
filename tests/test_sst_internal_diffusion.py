@@ -27,6 +27,9 @@ def test_sst_internal_diffusion_and_stability(tmp_path):
     #include <iomanip>
     #include <algorithm>
     #include "GpuSstAlgebra.cuh"
+    #include "gasTransport/GasCapabilities.H"
+    #include "gasTransport/GasBoundaryLayerState.H"
+    #include "gasTransport/GasGeometryValidation.H"
     #include "OpenFoamWallFunctions.cuh"
     #define GPU_OPERATOR_REAL GpuReal
     #define GPU_OPERATOR_R GPU_R
@@ -47,7 +50,7 @@ def test_sst_internal_diffusion_and_stability(tmp_path):
     int coupledFaceNeighbour(const DeviceState&s,int f){return (f<s.nInternalFaces||s.periodic)?s.faceNeighbour[f]:-1;}
     struct Prim{R rho;}; Prim riemannFacePrimitiveForGradient(const DeviceState&s,int,int){return {s.boundaryRho};}
     '''
-    body=preamble+helpers+'\nvoid flux(DeviceState&s){int f=0,own=0,nei=coupledFaceNeighbour(s,f),boundaryKind=nei>=0?0:s.riemannBoundaryKind[f];R ownerWeight=clampRange(s.faceWeight[f],R(0),R(1));\n'+flux+'R massFlux=0,kUpwind=0,omegaUpwind=0,snGradK=-1,snGradOmega=-1;\n'+tail+'\n}\nR stability(DeviceState&s,int c){int f=0;R diffusionRate=0;\n'+st+'return diffusionRate;}\n'
+    body=preamble+helpers+'\ntemplate<class GasState>void flux(GasState&s){int f=0,own=0,nei=coupledFaceNeighbour(s,f),boundaryKind=nei>=0?0:s.riemannBoundaryKind[f];R ownerWeight=clampRange(s.faceWeight[f],R(0),R(1));\n'+flux+'R massFlux=0,kUpwind=0,omegaUpwind=0,snGradK=-1,snGradOmega=-1;\n'+tail+'\n}\nR stability(DeviceState&s,int c){int f=0;R diffusionRate=0;\n'+st+'return diffusionRate;}\n'
     body+=r'''
     int failures=0; void check(const char*n,double got,double want){double tol=sizeof(R)==4?3e-6:2e-13;if(std::abs(got-want)>tol*std::max(1.,std::abs(want))){std::cerr<<n<<" got "<<got<<" want "<<want<<std::endl;++failures;}}
     int main(int argc,char**argv){

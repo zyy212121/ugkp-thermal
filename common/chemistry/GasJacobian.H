@@ -5,8 +5,8 @@ namespace ugkwp {
 // Fixed-temperature concentration Jacobian, row-major [species*Ns+variable],
 // and independent temperature derivative. The conservative reactor combines
 // these with the exact fixed-U thermal feedback derivative.
-template<class R,int N> UGKWP_GAS_HD inline bool evaluateGasRateDerivatives
-(R T,const R* c,const SpeciesThermoView<R,N>& t,const GasMechanismView<R,N>& m,R* jacobian,R* thermal,ChemistryStatus& status) noexcept {
+template<class R,int N,class TableReal> UGKWP_GAS_HD inline bool evaluateGasRateDerivatives
+(R T,const R* c,const SpeciesThermoView<TableReal,N>& t,const GasMechanismView<TableReal,N>& m,R* jacobian,R* thermal,ChemistryStatus& status) noexcept {
  status=gasChemistryDetail::rateInputStatus(T,c,t,m);if(!status)return false;
  if(!jacobian || !thermal){status.code=ChemistryCode::InvalidComposition;return false;}
  using X=gasChemistryDetail::RateDual<R,N+1>;X concentration[N],temperature(T),production[N];

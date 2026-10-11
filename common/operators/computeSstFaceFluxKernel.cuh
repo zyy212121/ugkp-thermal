@@ -1,4 +1,5 @@
 #pragma once
+#include <cfloat>
 #include "gasTransport/GasStateView.H"
 #include "gasTransport/GasCapabilities.H"
 #include "gasTransport/MixtureThermo.H"
@@ -229,7 +230,7 @@ __global__ void computeSstFaceFluxKernel(GasState* sp)
         const int kMode = s.sstBoundaryKMode[f];
         const int omegaMode = s.sstBoundaryOmegaMode[f];
         const bool kFixed =
-            (boundaryKind == 2 && s.sstWallTreatment == 0)
+            (boundaryKind == 2 && s.sstWallTreatment != 1)
           || kMode == 1
           || (kMode == 2 && massFlux < GPU_OPERATOR_R(0.0));
         const bool omegaFixed = boundaryKind == 2 || omegaMode == 1
@@ -250,6 +251,19 @@ __global__ void computeSstFaceFluxKernel(GasState* sp)
         massFlux*kUpwind - rhoDk*snGradK*area;
     s.sstPhiRhoOmega[f] =
         massFlux*omegaUpwind - rhoDomega*snGradOmega*area;
+    if constexpr(ugkwp::GasBoundaryLayerCapability<GasState>::value)
+    {
+        const int slot=ugkwp::gasBoundaryLayerFaceSlot(s,f);
+        if(slot>=0)
+        {
+            if(!ugkwp::gasBoundaryLayerSlotReady(s,slot))
+            {if(!ugkwp::gasRecordFaceFailure(s,f,ugkwp::GasTransportCode::InvalidStorage))asm("trap;");return;}
+            s.sstPhiRhoK[f]=s.gasBoundaryLayer.exchange[slot].k;
+            // The selected omega row is algebraic. No independent physical
+            // wall omega injection or diffusion is imposed on top of it.
+            s.sstPhiRhoOmega[f]=GPU_OPERATOR_R(0.0);
+        }
+    }
 }
 
 template<class GasState>
@@ -286,6 +300,21 @@ __device__ GPU_OPERATOR_REAL sstKProductionForCell
     const GPU_OPERATOR_REAL production = s.nut[c]*gByNu;
     const GPU_OPERATOR_REAL productionLimit =
         s.sstCoefficients.c1*s.sstCoefficients.betaStar*s.k[c]*s.omega[c];
+    if constexpr(ugkwp::GasBoundaryLayerCapability<GasState>::value)
+    {
+        const int slot=ugkwp::gasBoundaryLayerOwnerSlot(s,c);
+        if(slot>=0 && ugkwp::gasBoundaryLayerSlotReady(s,slot))
+        {
+            const auto& wall=s.gasBoundaryLayer.sst[slot];
+            // OpenCFD omegaWallFunction: G=(nu+nut)*|dU/dn|*Cmu^1/4
+            // *sqrt(k)/(kappa*y). Numerical traction supplies rho*(nu+nut)
+            // *|dU/dn|; only the actual coarse k enters the inventory source.
+            const GPU_OPERATOR_REAL wallProduction=wall.wallShearStress/s.rho[c]
+                *sqrt(sqrt(s.sstWallCmu))*sqrt(s.k[c])
+                /(s.sstWallKappa*wall.ownerDistance);
+            return fmin(wallProduction,productionLimit);
+        }
+    }
     if (s.sstWallTreatment != 1)
     {
         return fmin(production, productionLimit);
@@ -389,6 +418,37 @@ __device__ void sstSourcesForCell
     );
 }
 
+// Selected numerical walls use a gross source activity, so production and
+// destruction cannot hide stiffness by cancellation. No new constitutive pass
+// is needed: P+D = (P-D-C)+C+2D, with C=(2/3)*rho*k*div(U).
+template<class GasState>
+__device__ GPU_OPERATOR_REAL sstKSourceActivity
+(
+    const GasState& s,const int c,const GPU_OPERATOR_REAL netSource,
+    const GPU_OPERATOR_REAL divU
+)
+{
+    if(ugkwp::gasBoundaryLayerOwnerSlot(s,c)<0)return fabs(netSource);
+    const GPU_OPERATOR_REAL compression=GPU_OPERATOR_R(2.0)/GPU_OPERATOR_R(3.0)
+        *s.rho[c]*s.k[c]*divU;
+    const GPU_OPERATOR_REAL destruction=s.sstCoefficients.betaStar*s.rho[c]
+        *s.k[c]*s.omega[c];
+    return netSource+compression+GPU_OPERATOR_R(2.0)*destruction+fabs(compression);
+}
+template<class GasState>
+__device__ GPU_OPERATOR_REAL sstKSourceNumber
+(
+    const GasState& s,const int c,const GPU_OPERATOR_REAL activity,
+    const GPU_OPERATOR_TIME dt
+)
+{
+    const GPU_OPERATOR_REAL inventory=ugkwp::gasBoundaryLayerOwnerSlot(s,c)>=0
+        ?s.rhoK[c]:clampMin(s.rhoK[c],s.rho[c]*s.sstKMin);
+    if(inventory==GPU_OPERATOR_R(0.0))return activity==GPU_OPERATOR_R(0.0)
+        ?GPU_OPERATOR_R(0.0):OfGreat;
+    return fabs(dt)*activity/inventory;
+}
+
 template<class GasState>
 __global__ void applySstFluxAndSourceKernel
 (
@@ -409,7 +469,7 @@ __global__ void applySstFluxAndSourceKernel
     if(moving && !ugkwp::gasGeometryCellVolumes(s,c,dt,oldVolume,newVolume))
     { if(!ugkwp::gasRecordCellFailure(s,c,ugkwp::GasTransportCode::InvalidGeometry))asm("trap;"); return; }
     if(moving && ugkwp::gasCellFailure(s,c)!=0)return;
-    bool constrainedOmega = false;
+    bool constrainedOmega = ugkwp::gasBoundaryLayerOwnerSlot(s,c)>=0;
     GPU_OPERATOR_REAL fluxK = GPU_OPERATOR_R(0.0);
     GPU_OPERATOR_REAL fluxOmega = GPU_OPERATOR_R(0.0);
     GPU_OPERATOR_REAL volumeFlux = GPU_OPERATOR_R(0.0);
@@ -440,7 +500,7 @@ __global__ void applySstFluxAndSourceKernel
         volumeFlux -= sign*absoluteVolumeFlux;
         constrainedOmega = constrainedOmega ||
         (
-            (s.sstWallTreatment == 0 || s.sstWallTreatment == 1)
+            (s.sstWallTreatment == 0 || s.sstWallTreatment == 1 || s.sstWallTreatment == 2)
          && f >= s.nInternalFaces
          && s.riemannBoundaryKind[f] == 2
         );
@@ -449,18 +509,44 @@ __global__ void applySstFluxAndSourceKernel
     const GPU_OPERATOR_REAL divU = volumeFlux/clampMin(oldVolume, OfSmall);
     GPU_OPERATOR_REAL sourceK, sourceOmega;
     sstSourcesForCell(s, c, divU, sourceK, sourceOmega);
+    if constexpr(ugkwp::GasBoundaryLayerCapability<GasState>::value)
+    {
+        const int slot=ugkwp::gasBoundaryLayerOwnerSlot(s,c);
+        if(slot>=0)
+        {
+            if(!ugkwp::gasBoundaryLayerSlotReady(s,slot))
+            {if(!ugkwp::gasRecordCellFailure(s,c,ugkwp::GasTransportCode::InvalidStorage))asm("trap;");return;}
+            const auto& closure=s.gasBoundaryLayer.sst[slot];
+            constexpr GPU_OPERATOR_REAL wallVolumeTolerance=GPU_OPERATOR_R(256.0)
+                *(sizeof(GPU_OPERATOR_REAL)==sizeof(float)?FLT_EPSILON:DBL_EPSILON);
+            if(!finiteDevice(closure.volume) || !(closure.volume>0)
+                || !finiteDevice(closure.wallShearStress) || closure.wallShearStress<0
+                || !finiteDevice(closure.ownerDistance) || !(closure.ownerDistance>0)
+                || !(s.sstWallCmu>0) || !(s.sstWallKappa>0)
+                || fabs(closure.volume-oldVolume)>wallVolumeTolerance*oldVolume)
+            {if(!ugkwp::gasRecordCellFailure(s,c,ugkwp::GasTransportCode::InvalidGeometry))asm("trap;");return;}
+            // Source remains the inventory-based SST wall-function source.
+            // Never substitute the donor-matched auxiliary profile integral.
+        }
+    }
     const GPU_OPERATOR_REAL invV = GPU_OPERATOR_R(1.0)/clampMin(s.V[c], OfSmall);
     const GPU_OPERATOR_REAL deltaRhoK = dt*(fluxK*invV + sourceK);
     const GPU_OPERATOR_REAL deltaRhoOmega = dt*(fluxOmega*invV + sourceOmega);
     const GPU_OPERATOR_REAL rhoSafe = clampMin(s.rho[c], s.rhoMin);
     const GPU_OPERATOR_REAL rhoKFloor = rhoSafe*s.sstKMin;
     const GPU_OPERATOR_REAL rhoOmegaFloor = rhoSafe*s.sstOmegaMin;
+    // Compare in the source-time type: a float/double fmax otherwise selects
+    // a host-only overload in CUDA. Keep dt products wide until final storage.
     s.sstSourceNumber[c] = fmax
     (
-        fabs(dt*sourceK)/clampMin(s.rhoK[c], rhoKFloor),
+        GPU_OPERATOR_TIME(sstKSourceNumber(s,c,sstKSourceActivity(s,c,sourceK,divU),dt)),
         constrainedOmega ? GPU_OPERATOR_R(0.0)
           : fabs(dt*sourceOmega)/clampMin(s.rhoOmega[c], rhoOmegaFloor)
     );
+    if constexpr(ugkwp::GasBoundaryLayerCapability<GasState>::value)
+        if(ugkwp::gasBoundaryLayerOwnerSlot(s,c)>=0
+            && (!finiteDevice(s.sstSourceNumber[c]) || s.sstSourceNumber[c]>s.sstMaxSourceNumber))
+        {if(!ugkwp::gasRecordCellFailure(s,c,ugkwp::GasTransportCode::SourceStepLimit))asm("trap;");return;}
     // Explicit sources are evaluated from the old density and old inventory.
     // Faces already carry the common ALE mass flux, so add no mesh term here.
     if(moving)
@@ -694,10 +780,13 @@ __global__ void computeGasDiffusionNumberKernel
         int directWallHeatFluxActive = 0;
         const int boundaryKind = (f < s.nInternalFaces || isPeriodicFace(s, f))
           ? 0 : s.riemannBoundaryKind[f];
-        // Match the channels evaluated by computeRiemannGasFaceFluxDevice.
-        // Pressure traction/ALE pressure work are not diffusive transport.
+        // Match the ordinary face-flux channels. A selected wall returns its
+        // independent physical exchange before those ordinary boundary flags;
+        // retain its existing coefficient bounds even for a cold profile.
+        const bool wallExchange=ugkwp::gasBoundaryLayerFaceSlot(s,f)>=0;
         if(boundaryKind==3||boundaryKind==4
             ||(boundaryKind==1&&s.riemannBoundaryTFix[f]==0))continue;
+
         gasFaceSubgridTransportProperties
         (
             s, f, c, other, boundaryKind, rhoFace,
@@ -721,7 +810,7 @@ __global__ void computeGasDiffusionNumberKernel
                 const GPU_OPERATOR_REAL R=GPU_OPERATOR_R(0.5)*(s.gasSpecies.gasConstant[c]+s.gasSpecies.gasConstant[n]);
                 heatCapacity=cp-R;
                 if(!ugkwp::gasHasDirectConductivity(s))kEffective=s.gasMu*cp/s.gasPrClamped+kTurbulent;
-                const bool speciesChannel=other>=0
+                const bool speciesChannel=wallExchange||other>=0
                     ||(boundaryKind==0&&s.gasSpecies.compositionBoundaryFixed[f]!=0);
                 if(speciesChannel){
                     if(s.gasSpecies.diffusivity)
@@ -730,7 +819,7 @@ __global__ void computeGasDiffusionNumberKernel
                     speciesDiffusivity+=GPU_OPERATOR_R(2.0)*muTurbulent/(rhoSafe*s.gasSpecies.turbulentSchmidt);
                 }
             }
-        const bool thermalChannel=other>=0||s.riemannBoundaryTFix[f]!=0;
+        const bool thermalChannel=wallExchange||other>=0||s.riemannBoundaryTFix[f]!=0;
         const GPU_OPERATOR_REAL thermalAlpha = thermalChannel
           ? kEffective/(rhoSafe*heatCapacity + OfSmall) : GPU_OPERATOR_R(0.0);
         sum += fmax(fmax(nu, thermalAlpha),speciesDiffusivity)*s.magSf[f]*s.deltaCoeffs[f];
@@ -753,7 +842,8 @@ __global__ void computeSstStabilityNumberKernel
 (
     GasState* sp,
     const GPU_OPERATOR_TIME dt,
-    const GPU_OPERATOR_REAL targetMaxCo
+    const GPU_OPERATOR_REAL targetMaxCo,
+    const bool requireWallProfile=true
 )
 {
     GasState& s = *sp;
@@ -775,7 +865,7 @@ __global__ void computeSstStabilityNumberKernel
     GPU_OPERATOR_REAL minimumVolumeFlux = GPU_OPERATOR_R(0.0);
     GPU_OPERATOR_REAL maximumVolumeFlux = GPU_OPERATOR_R(0.0);
     GPU_OPERATOR_REAL meshVolumeFlux = GPU_OPERATOR_R(0.0);
-    bool constrainedOmega = false;
+    bool constrainedOmega = ugkwp::gasBoundaryLayerOwnerSlot(s,c)>=0;
     const int start = s.cellPlaneStart[c];
     const int count = s.cellPlaneCount[c];
     for (int i = 0; i < count; ++i)
@@ -807,7 +897,7 @@ __global__ void computeSstStabilityNumberKernel
         maximumVolumeFlux += fmax(outwardVolumeFlux, GPU_OPERATOR_R(0.0));
         constrainedOmega = constrainedOmega ||
         (
-            (s.sstWallTreatment == 0 || s.sstWallTreatment == 1)
+            (s.sstWallTreatment == 0 || s.sstWallTreatment == 1 || s.sstWallTreatment == 2)
          && f >= s.nInternalFaces && s.riemannBoundaryKind[f] == 2
         );
         const int other = (f < s.nInternalFaces || isPeriodicFace(s, f))
@@ -868,8 +958,10 @@ __global__ void computeSstStabilityNumberKernel
                 fmax(rhoDk, rhoDomega)/clampMin(s.rho[c], s.rhoMin)
                *s.magSf[f]*s.deltaCoeffs[f];
         }
-        else
+        else if(ugkwp::gasBoundaryLayerFaceSlot(s,f)<0)
         {
+            // Selected high-Re wall relations impose neither k nor omega
+            // diffusion at the physical wall; internal-face diffusion remains.
             diffusionRate +=
                 (rhoFace/clampMin(s.rho[c], s.rhoMin))
                *maximumDiffusivity*s.magSf[f]*s.deltaCoeffs[f];
@@ -891,11 +983,25 @@ __global__ void computeSstStabilityNumberKernel
     const GPU_OPERATOR_REAL compressionOmega =
         (GPU_OPERATOR_R(2.0)/GPU_OPERATOR_R(3.0))*s.rho[c]
        *ugkwp::sstGamma(s.sstF1[c], s.sstCoefficients)*s.omega[c];
-    const GPU_OPERATOR_REAL sourceKBound = fmax
+    GPU_OPERATOR_REAL sourceKBound = fmax
     (
         fabs(sourceKAtZeroDiv - compressionK*minimumDivU),
         fabs(sourceKAtZeroDiv - compressionK*maximumDivU)
     );
+    if constexpr(ugkwp::GasBoundaryLayerCapability<GasState>::value)
+    {
+        const int slot=ugkwp::gasBoundaryLayerOwnerSlot(s,c);
+        if(slot>=0)
+        {
+            if(!ugkwp::gasBoundaryLayerSlotReady(s,slot) && requireWallProfile)
+            {s.sstSourceNumber[c]=OfGreat;if(!ugkwp::gasRecordCellFailure(s,c,ugkwp::GasTransportCode::InvalidStorage))asm("trap;");return;}
+            // Cold outer estimates use coarse SST until the authoritative
+            // preflight publishes current wall stress and owner omega.
+            sourceKBound=fmax(
+                sstKSourceActivity(s,c,sourceKAtZeroDiv-compressionK*minimumDivU,minimumDivU),
+                sstKSourceActivity(s,c,sourceKAtZeroDiv-compressionK*maximumDivU,maximumDivU));
+        }
+    }
     const GPU_OPERATOR_REAL sourceOmegaBound = fmax
     (
         fabs(sourceOmegaAtZeroDiv - compressionOmega*minimumDivU),
@@ -903,7 +1009,7 @@ __global__ void computeSstStabilityNumberKernel
     );
     const GPU_OPERATOR_REAL sourceNumber = fmax
     (
-        fabs(dt)*sourceKBound/clampMin(s.rhoK[c], s.rho[c]*s.sstKMin),
+        GPU_OPERATOR_TIME(sstKSourceNumber(s,c,sourceKBound,dt)),
         constrainedOmega ? GPU_OPERATOR_R(0.0) : fabs(dt)*sourceOmegaBound
        /clampMin(s.rhoOmega[c], s.rho[c]*s.sstOmegaMin)
     );
@@ -930,7 +1036,8 @@ __global__ void applyGasFluxDivergenceByCellKernel(GasState* sp, const GPU_OPERA
     GPU_OPERATOR_REAL dRhoUx = GPU_OPERATOR_R(0.0);
     GPU_OPERATOR_REAL dRhoUy = GPU_OPERATOR_R(0.0);
     GPU_OPERATOR_REAL dRhoUz = GPU_OPERATOR_R(0.0);
-    GPU_OPERATOR_REAL dRhoE = GPU_OPERATOR_R(0.0);
+    using Energy = ugkwp::GasEnergyScalar<GasState>;
+    Energy dRhoE = Energy(0);
     constexpr int Ns=ugkwp::GasStateTraits<GasState>::speciesCount;
     // Reuse the publication scratch for face sums. Each species retains the
     // original face accumulation order; no extra face/domain pass is added.
@@ -993,7 +1100,7 @@ __global__ void applyGasFluxDivergenceByCellKernel(GasState* sp, const GPU_OPERA
         dRhoUx += sign*s.gasPhiRhoUx[faceI];
         dRhoUy += sign*s.gasPhiRhoUy[faceI];
         dRhoUz += sign*s.gasPhiRhoUz[faceI];
-        dRhoE += sign*s.gasPhiRhoE[faceI];
+        dRhoE += Energy(sign)*Energy(s.gasPhiRhoE[faceI]);
         if(ugkwp::gasBudgetEnabled(s) && ugkwp::gasBudgetExternalFace(s,faceI))
         {
             ugkwp::gasBudgetFlux(s,c,0,dt,sign*s.gasPhiRho[faceI]);
@@ -1009,6 +1116,10 @@ __global__ void applyGasFluxDivergenceByCellKernel(GasState* sp, const GPU_OPERA
             {s.gasSpecies.cellStatus[c]=int(ugkwp::GasTransportCode::InvalidGeometry);return;}
             scale=dt/s.V[c];
         }
+    Energy energyScale = Energy(dt)/Energy(clampMin(s.V[c], s.rhoMin));
+    if (ugkwp::mixtureGasActive(s)) energyScale=Energy(dt)/Energy(s.V[c]);
+    if constexpr (std::is_same<Energy,GPU_OPERATOR_REAL>::value) energyScale=scale;
+    Energy energyAfter = s.rhoE[c] + energyScale*dRhoE;
     GPU_OPERATOR_REAL densityRatio=GPU_OPERATOR_R(1.0);
     if(ugkwp::gasMovingGeometry(s))
     {
@@ -1023,11 +1134,14 @@ __global__ void applyGasFluxDivergenceByCellKernel(GasState* sp, const GPU_OPERA
             {if(!ugkwp::gasRecordCellFailure(s,c,static_cast<ugkwp::GasTransportCode>(ugkwp::gasFaceFailure(s,f))))asm("trap;");return;}
         }
         densityRatio=oldVolume/newVolume;scale=dt/newVolume;
-        if(!finiteDevice(dRho)||!finiteDevice(dRhoUx)||!finiteDevice(dRhoUy)||!finiteDevice(dRhoUz)||!finiteDevice(dRhoE)
+        if constexpr (std::is_same<Energy,GPU_OPERATOR_REAL>::value)
+            energyAfter=s.rhoE[c]*densityRatio+scale*dRhoE;
+        else energyAfter=(s.rhoE[c]*Energy(oldVolume)+Energy(dt)*dRhoE)/Energy(newVolume);
+        if(!finiteDevice(dRho)||!finiteDevice(dRhoUx)||!finiteDevice(dRhoUy)||!finiteDevice(dRhoUz)||!ugkwp::gasEnergyFinite(dRhoE)
             || !finiteDevice(s.rhoUx[c]*densityRatio+scale*dRhoUx)
             || !finiteDevice(s.rhoUy[c]*densityRatio+scale*dRhoUy)
             || !finiteDevice(s.rhoUz[c]*densityRatio+scale*dRhoUz)
-            || !finiteDevice(s.rhoE[c]*densityRatio+scale*dRhoE))
+            || !ugkwp::gasEnergyFinite(energyAfter))
         {if(!ugkwp::gasRecordCellFailure(s,c,ugkwp::GasTransportCode::NonFiniteState))asm("trap;");return;}
     }
     const GPU_OPERATOR_REAL rhoBefore = s.rho[c];
@@ -1112,7 +1226,7 @@ __global__ void applyGasFluxDivergenceByCellKernel(GasState* sp, const GPU_OPERA
     {
         s.rho[c]=rhoAfter;s.rhoUx[c]=s.rhoUx[c]*densityRatio+scale*dRhoUx;
         s.rhoUy[c]=s.rhoUy[c]*densityRatio+scale*dRhoUy;s.rhoUz[c]=s.rhoUz[c]*densityRatio+scale*dRhoUz;
-        s.rhoE[c]=s.rhoE[c]*densityRatio+scale*dRhoE;
+        s.rhoE[c]=energyAfter;
     }
     else
     {
@@ -1120,7 +1234,7 @@ __global__ void applyGasFluxDivergenceByCellKernel(GasState* sp, const GPU_OPERA
     s.rhoUx[c] += scale*dRhoUx;
     s.rhoUy[c] += scale*dRhoUy;
     s.rhoUz[c] += scale*dRhoUz;
-    s.rhoE[c] += scale*dRhoE;
+    s.rhoE[c] = energyAfter;
     }
 }
 
@@ -1155,8 +1269,8 @@ template<class GasState>
 __global__ void blendGasConservativeStateKernel
 (
     GasState* sp,
-    const GPU_OPERATOR_REAL initialWeight,
-    const GPU_OPERATOR_REAL stageWeight
+    const double energyInitialWeight,
+    const double energyStageWeight
 )
 {
     GasState& s = *sp;
@@ -1165,23 +1279,80 @@ __global__ void blendGasConservativeStateKernel
     {
         return;
     }
-    s.rho[c] =
-        initialWeight*s.rhoNext[c] + stageWeight*s.rho[c];
+    const GPU_OPERATOR_REAL initialWeight=GPU_OPERATOR_REAL(energyInitialWeight);
+    const GPU_OPERATOR_REAL stageWeight=GPU_OPERATOR_REAL(energyStageWeight);
+    using Energy = ugkwp::GasEnergyScalar<GasState>;
+    const GPU_OPERATOR_REAL blendedDensity=initialWeight*s.rhoNext[c]+stageWeight*s.rho[c];
+    constexpr int reviewNs=ugkwp::GasStateTraits<GasState>::speciesCount;
+    GPU_OPERATOR_REAL blendedSpecies[reviewNs>0?reviewNs:1]{};
+    if constexpr(reviewNs>0) if(ugkwp::mixtureGasActive(s))
+    {
+        if(s.gasSpecies.cellStatus[c]!=0)return;
+        GPU_OPERATOR_REAL sumInitial=GPU_OPERATOR_R(0),sumStage=GPU_OPERATOR_R(0),sumBlend=GPU_OPERATOR_R(0);
+        int dependent=reviewNs-1;
+        for(int k=0;k<reviewNs;++k)
+        {
+            const int i=k*s.nCells+c;
+            const GPU_OPERATOR_REAL a=s.gasSpecies.initial[i],b=s.gasSpecies.rho[i];
+            if(!finiteDevice(a)||!finiteDevice(b)||a<GPU_OPERATOR_R(0)||b<GPU_OPERATOR_R(0))
+            {s.gasSpecies.cellStatus[c]=int(ugkwp::GasTransportCode::InvalidComposition);return;}
+            sumInitial+=a;sumStage+=b;blendedSpecies[k]=initialWeight*a+stageWeight*b;sumBlend+=blendedSpecies[k];
+        }
+        const GPU_OPERATOR_REAL tol=s.gasSpecies.densityClosureTolerance;
+        if(!finiteDevice(tol)||tol<GPU_OPERATOR_R(0)||!finiteDevice(blendedDensity)||!(blendedDensity>GPU_OPERATOR_R(0))
+            ||!finiteDevice(s.rhoNext[c])||!(s.rhoNext[c]>GPU_OPERATOR_R(0))||!finiteDevice(s.rho[c])||!(s.rho[c]>GPU_OPERATOR_R(0))
+            ||fabs(sumInitial-s.rhoNext[c])>tol*s.rhoNext[c]||fabs(sumStage-s.rho[c])>tol*s.rho[c])
+        {s.gasSpecies.cellStatus[c]=int(ugkwp::GasTransportCode::InvalidComposition);return;}
+        // Preserve the convexly transported input defects; repair only newly
+        // introduced rounding in this RK publication, not physical imbalance.
+        const GPU_OPERATOR_REAL target=blendedDensity+initialWeight*(sumInitial-s.rhoNext[c])+stageWeight*(sumStage-s.rho[c]);
+        constexpr GPU_OPERATOR_REAL eps=sizeof(GPU_OPERATOR_REAL)==sizeof(float)?GPU_OPERATOR_REAL(0x1p-23):GPU_OPERATOR_REAL(0x1p-52);
+        const GPU_OPERATOR_REAL bound=GPU_OPERATOR_R(8*reviewNs)*eps*(fabs(initialWeight*s.rhoNext[c])+fabs(stageWeight*s.rho[c]));
+        if(!finiteDevice(target)||!finiteDevice(sumBlend)||fabs(sumBlend-target)>bound)
+        {s.gasSpecies.cellStatus[c]=int(ugkwp::GasTransportCode::InvalidComposition);return;}
+        if(sumBlend!=target)
+        {
+            if(!(blendedSpecies[dependent]>GPU_OPERATOR_R(0)))
+                for(int k=0;k<reviewNs;++k)if(blendedSpecies[k]>blendedSpecies[dependent])dependent=k;
+            GPU_OPERATOR_REAL independent=GPU_OPERATOR_R(0);for(int k=0;k<reviewNs;++k)if(k!=dependent)independent+=blendedSpecies[k];
+            GPU_OPERATOR_REAL replacement=target-independent;
+            if(replacement<GPU_OPERATOR_R(0))
+            {for(int k=0;k<reviewNs;++k)if(blendedSpecies[k]>blendedSpecies[dependent])dependent=k;independent=GPU_OPERATOR_R(0);for(int k=0;k<reviewNs;++k)if(k!=dependent)independent+=blendedSpecies[k];replacement=target-independent;}
+            if(!finiteDevice(replacement)||replacement<GPU_OPERATOR_R(0)||fabs(replacement-blendedSpecies[dependent])>bound)
+            {s.gasSpecies.cellStatus[c]=int(ugkwp::GasTransportCode::InvalidComposition);return;}
+            blendedSpecies[dependent]=replacement;
+        }
+        GPU_OPERATOR_REAL published=GPU_OPERATOR_R(0);for(int k=0;k<reviewNs;++k)published+=blendedSpecies[k];
+        if(!finiteDevice(published)||fabs(published-blendedDensity)>tol*blendedDensity)
+        {s.gasSpecies.cellStatus[c]=int(ugkwp::GasTransportCode::InvalidComposition);return;}
+    }
+    s.rho[c]=blendedDensity;
     s.rhoUx[c] =
         initialWeight*s.rhoUxNext[c] + stageWeight*s.rhoUx[c];
     s.rhoUy[c] =
         initialWeight*s.rhoUyNext[c] + stageWeight*s.rhoUy[c];
     s.rhoUz[c] =
         initialWeight*s.rhoUzNext[c] + stageWeight*s.rhoUz[c];
-    s.rhoE[c] =
-        initialWeight*s.rhoENext[c] + stageWeight*s.rhoE[c];
-    ugkwp::blendGasBudgetAudit(s,c,initialWeight,stageWeight);
+    if constexpr (std::is_same<Energy,GPU_OPERATOR_REAL>::value)
+    {
+        if (!(std::is_same<Energy,double>::value && s.rhoENext[c]==s.rhoE[c]
+            && initialWeight+stageWeight==GPU_OPERATOR_R(1)))
+            s.rhoE[c]=initialWeight*s.rhoENext[c]+stageWeight*s.rhoE[c];
+    }
+    else
+        s.rhoE[c]=Energy(energyInitialWeight+energyStageWeight)*s.rhoENext[c]
+            +Energy(energyStageWeight)*(s.rhoE[c]-s.rhoENext[c]);
+    if constexpr (std::is_same<Energy,GPU_OPERATOR_REAL>::value)
+        ugkwp::blendGasBudgetAudit(s,c,initialWeight,stageWeight);
+    else
+        ugkwp::blendGasBudgetAudit(s,c,initialWeight,stageWeight,
+            energyInitialWeight,energyStageWeight);
     if constexpr (ugkwp::GasStateTraits<GasState>::speciesCount > 0)
         if (ugkwp::mixtureGasActive(s))
             for (int k=0;k<ugkwp::GasStateTraits<GasState>::speciesCount;++k)
             {
                 const int i=k*s.nCells+c;
-                s.gasSpecies.rho[i]=initialWeight*s.gasSpecies.initial[i]+stageWeight*s.gasSpecies.rho[i];
+                s.gasSpecies.rho[i]=blendedSpecies[k];
             }
     if (s.sstConfigured != 0)
     {
@@ -1212,62 +1383,82 @@ __device__ void recoverGasPrimitiveCell(GasState& s, const int c)
                 species.cellStatus[c] = int(ugkwp::GasTransportCode::InvalidStorage);
                 return;
             }
+            using Energy = ugkwp::GasEnergyScalar<GasState>;
             constexpr int Ns = ugkwp::GasStateTraits<GasState>::speciesCount;
-            GPU_OPERATOR_REAL partialDensity[Ns];
-            GPU_OPERATOR_REAL densitySum = GPU_OPERATOR_R(0.0);
-            GPU_OPERATOR_REAL gasConstantDensity = GPU_OPERATOR_R(0.0);
-            const GPU_OPERATOR_REAL density = s.rho[c];
+            Energy partialDensity[Ns];
+            Energy densitySum = Energy(0.0);
+            Energy gasConstantDensity = Energy(0.0);
+            const Energy density = s.rho[c];
             for (int k = 0; k < Ns; ++k)
             {
                 partialDensity[k] = species.rho[k*s.nCells+c];
-                if (!ugkwp::gasFinite(partialDensity[k]) || partialDensity[k] < GPU_OPERATOR_R(0.0))
+                if (!ugkwp::gasFinite(partialDensity[k]) || partialDensity[k] < Energy(0.0))
                 {
                     species.cellStatus[c] = int(ugkwp::GasTransportCode::InvalidComposition);
                     return;
                 }
                 densitySum += partialDensity[k];
             }
-            if (!ugkwp::gasFinite(density) || !(density > GPU_OPERATOR_R(0.0))
+            if (!ugkwp::gasFinite(density) || !(density > Energy(0.0))
                 || !ugkwp::gasFinite(species.densityClosureTolerance)
-                || species.densityClosureTolerance < GPU_OPERATOR_R(0.0)
+                || species.densityClosureTolerance < Energy(0.0)
                 || fabs(densitySum-density) > species.densityClosureTolerance*density)
             {
                 species.cellStatus[c] = int(ugkwp::GasTransportCode::InvalidComposition);
                 return;
             }
-            const GPU_OPERATOR_REAL ux = s.rhoUx[c]/density;
-            const GPU_OPERATOR_REAL uy = s.rhoUy[c]/density;
-            const GPU_OPERATOR_REAL uz = s.rhoUz[c]/density;
-            const GPU_OPERATOR_REAL internalEnergy = s.rhoE[c]
-                - GPU_OPERATOR_R(0.5)*density*(ux*ux+uy*uy+uz*uz);
-            GPU_OPERATOR_REAL temperature = s.Tgas[c];
+            const Energy ux = Energy(s.rhoUx[c])/density;
+            const Energy uy = Energy(s.rhoUy[c])/density;
+            const Energy uz = Energy(s.rhoUz[c])/density;
+            const Energy internalEnergy = s.rhoE[c]
+                - Energy(0.5)*density*(ux*ux+uy*uy+uz*uz);
+            Energy temperature = s.Tgas[c];
             const auto status = ugkwp::invertMixtureEnergy
             (
                 partialDensity, internalEnergy, species.thermo,
-                species.thermoControls, temperature
+                ugkwp::castThermoControls<Energy>(species.thermoControls), temperature
             );
             if (status != ugkwp::ThermoStatus::Success)
             {
                 species.cellStatus[c] = int(ugkwp::GasTransportCode::InvalidThermodynamics);
                 return;
             }
-            GPU_OPERATOR_REAL cpDensity = GPU_OPERATOR_R(0.0);
+            Energy cpDensity = Energy(0.0);
             for (int k = 0; k < Ns; ++k)
             {
-                gasConstantDensity += partialDensity[k]*ugkwp::universalGasConstant<GPU_OPERATOR_REAL>()
+                gasConstantDensity += partialDensity[k]*ugkwp::universalGasConstant<Energy>()
                     /species.thermo.species[k].molarMass;
                 cpDensity += partialDensity[k]*ugkwp::speciesCp(k, temperature, species.thermo);
             }
-            const GPU_OPERATOR_REAL R = gasConstantDensity/density;
-            const GPU_OPERATOR_REAL cp = cpDensity/density;
-            const GPU_OPERATOR_REAL pressure = gasConstantDensity*temperature;
-            const GPU_OPERATOR_REAL a2 = cp/(cp-R)*R*temperature;
+            const Energy R = gasConstantDensity/density;
+            const Energy cp = cpDensity/density;
+            const Energy pressure = gasConstantDensity*temperature;
+            const Energy a2 = cp/(cp-R)*R*temperature;
             if (!ugkwp::gasFinite(ux) || !ugkwp::gasFinite(uy) || !ugkwp::gasFinite(uz)
-                || !ugkwp::gasFinite(pressure) || !(pressure > GPU_OPERATOR_R(0.0))
-                || !ugkwp::gasFinite(a2) || !(a2 > GPU_OPERATOR_R(0.0)))
+                || !ugkwp::gasFinite(pressure) || !(pressure > Energy(0.0))
+                || !ugkwp::gasFinite(a2) || !(a2 > Energy(0.0)))
             {
                 species.cellStatus[c] = int(ugkwp::GasTransportCode::InvalidThermodynamics);
                 return;
+            }
+            if constexpr (!std::is_same<Energy,GPU_OPERATOR_REAL>::value)
+            {
+                // Derived caches retain Real storage. Reject conversion overflow
+                // or loss of positive pressure/sound speed before any publication.
+                const GPU_OPERATOR_REAL storedPressure=GPU_OPERATOR_REAL(pressure);
+                const GPU_OPERATOR_REAL storedSound=GPU_OPERATOR_REAL(sqrt(a2));
+                if (!ugkwp::gasFinite(GPU_OPERATOR_REAL(ux))
+                    || !ugkwp::gasFinite(GPU_OPERATOR_REAL(uy))
+                    || !ugkwp::gasFinite(GPU_OPERATOR_REAL(uz))
+                    || !ugkwp::gasFinite(GPU_OPERATOR_REAL(temperature))
+                    || !ugkwp::gasFinite(GPU_OPERATOR_REAL(cp))
+                    || !ugkwp::gasFinite(GPU_OPERATOR_REAL(R))
+                    || !ugkwp::gasFinite(storedPressure) || !(storedPressure>GPU_OPERATOR_R(0))
+                    || !ugkwp::gasFinite(storedSound) || !(storedSound>GPU_OPERATOR_R(0)))
+                {
+                    species.cellStatus[c]=int(ugkwp::GasTransportCode::InvalidThermodynamics);
+                    return;
+                }
             }
             s.Ux[c] = ux; s.Uy[c] = uy; s.Uz[c] = uz;
             s.p[c] = pressure; s.Tgas[c] = temperature;
@@ -1276,6 +1467,10 @@ __device__ void recoverGasPrimitiveCell(GasState& s, const int c)
             return;
         }
     }
+    using Energy = ugkwp::GasEnergyScalar<GasState>;
+    if constexpr (std::is_same<Energy,GPU_OPERATOR_REAL>::value)
+    {
+        // Preserve the established homogeneous legacy numerical path.
     if(ugkwp::gasMovingGeometry(s))
     {
         if(ugkwp::gasCellFailure(s,c)!=0)return;
@@ -1295,12 +1490,16 @@ __device__ void recoverGasPrimitiveCell(GasState& s, const int c)
     const GPU_OPERATOR_REAL ux = finiteOr(s.rhoUx[c]/rhoSafe, GPU_OPERATOR_R(0.0));
     const GPU_OPERATOR_REAL uy = finiteOr(s.rhoUy[c]/rhoSafe, GPU_OPERATOR_R(0.0));
     const GPU_OPERATOR_REAL uz = finiteOr(s.rhoUz[c]/rhoSafe, GPU_OPERATOR_R(0.0));
-    const GPU_OPERATOR_REAL kinetic = GPU_OPERATOR_R(0.5)*rhoSafe*(ux*ux + uy*uy + uz*uz);
+    const GPU_OPERATOR_REAL kinetic = ugkwp::gasLegacyKineticEnergy(rhoSafe, ux, uy, uz);
+    // Retain legacy fmax handling of non-finite operands in this branch.
     const GPU_OPERATOR_REAL minimumInternalEnergy = fmax
     (
         s.rhoMin,
-        rhoSafe*s.Rgas*s.TgasMin
-       /clampMin(s.gammaGas - GPU_OPERATOR_R(1.0), OfSmall)
+        ugkwp::gasLegacyThermalMinimumInternalEnergy
+        (
+            rhoSafe, GPU_OPERATOR_REAL(s.Rgas), GPU_OPERATOR_REAL(s.TgasMin),
+            GPU_OPERATOR_REAL(s.gammaGas), GPU_OPERATOR_REAL(OfSmall)
+        )
     );
     const GPU_OPERATOR_REAL internalE = clampMin
     (
@@ -1310,16 +1509,108 @@ __device__ void recoverGasPrimitiveCell(GasState& s, const int c)
     const GPU_OPERATOR_REAL p = (s.gammaGas - GPU_OPERATOR_R(1.0))*internalE;
     const GPU_OPERATOR_REAL T = p/(rhoSafe*s.Rgas);
 
+    const bool repairDensity=!finiteDevice(s.rho[c]) || s.rho[c]<s.rhoMin;
     s.rho[c] = rhoSafe;
-    s.rhoUx[c] = rhoSafe*ux;
-    s.rhoUy[c] = rhoSafe*uy;
-    s.rhoUz[c] = rhoSafe*uz;
-    s.rhoE[c] = kinetic + internalE;
+    if constexpr (std::is_same<GPU_OPERATOR_REAL,double>::value)
+    {
+        // Valid conserved momenta are inputs, not rounded primitive caches.
+        if (repairDensity || !finiteDevice(s.rhoUx[c]/rhoSafe)) s.rhoUx[c]=rhoSafe*ux;
+        if (repairDensity || !finiteDevice(s.rhoUy[c]/rhoSafe)) s.rhoUy[c]=rhoSafe*uy;
+        if (repairDensity || !finiteDevice(s.rhoUz[c]/rhoSafe)) s.rhoUz[c]=rhoSafe*uz;
+    }
+    else
+    {
+        s.rhoUx[c] = rhoSafe*ux;
+        s.rhoUy[c] = rhoSafe*uy;
+        s.rhoUz[c] = rhoSafe*uz;
+    }
+    // A valid double inventory is authoritative; subtract/add can lose one ULP.
+    // Keep the legacy float path and every existing invalid/floor repair.
+    if constexpr (std::is_same<GPU_OPERATOR_REAL,double>::value)
+    {
+        if (!finiteDevice(s.rhoE[c]-kinetic)
+            || s.rhoE[c]-kinetic < minimumInternalEnergy)
+            s.rhoE[c] = kinetic + internalE;
+    }
+    else s.rhoE[c] = kinetic + internalE;
     s.Ux[c] = ux;
     s.Uy[c] = uy;
     s.Uz[c] = uz;
     s.p[c] = p;
     s.Tgas[c] = T;
+    }
+    else
+    {
+    if(ugkwp::gasMovingGeometry(s))
+    {
+        if(ugkwp::gasCellFailure(s,c)!=0)return;
+        const GPU_OPERATOR_REAL density=s.rho[c];
+        const GPU_OPERATOR_REAL ux=s.rhoUx[c]/density,uy=s.rhoUy[c]/density,uz=s.rhoUz[c]/density;
+        const Energy ex=Energy(s.rhoUx[c])/Energy(density), ey=Energy(s.rhoUy[c])/Energy(density), ez=Energy(s.rhoUz[c])/Energy(density);
+        const Energy internal=s.rhoE[c]-Energy(0.5)*Energy(density)*(ex*ex+ey*ey+ez*ez);
+        const Energy pressure=(Energy(s.gammaGas)-Energy(1))*internal;
+        const Energy temperature=pressure/(Energy(density)*Energy(s.Rgas));
+        const GPU_OPERATOR_REAL storedPressure=GPU_OPERATOR_REAL(pressure),storedTemperature=GPU_OPERATOR_REAL(temperature);
+        if(!finiteDevice(density)||density<s.rhoMin||!finiteDevice(ux)||!finiteDevice(uy)||!finiteDevice(uz)
+            ||!finiteDevice(storedPressure)||!(storedPressure>GPU_OPERATOR_R(0.0))
+            ||!finiteDevice(storedTemperature)||storedTemperature<s.TgasMin)
+        {if(!ugkwp::gasRecordCellFailure(s,c,ugkwp::GasTransportCode::InvalidThermodynamics))asm("trap;");return;}
+        s.Ux[c]=ux;s.Uy[c]=uy;s.Uz[c]=uz;s.p[c]=pressure;s.Tgas[c]=temperature;
+        return;
+    }
+    const GPU_OPERATOR_REAL rhoSafe =
+        clampMin(finiteOr(s.rho[c], s.rhoMin), s.rhoMin);
+    const GPU_OPERATOR_REAL ux = finiteOr(s.rhoUx[c]/rhoSafe, GPU_OPERATOR_R(0.0));
+    const GPU_OPERATOR_REAL uy = finiteOr(s.rhoUy[c]/rhoSafe, GPU_OPERATOR_R(0.0));
+    const GPU_OPERATOR_REAL uz = finiteOr(s.rhoUz[c]/rhoSafe, GPU_OPERATOR_R(0.0));
+    const bool repairDensity=!finiteDevice(s.rho[c]) || s.rho[c]<s.rhoMin;
+    const GPU_OPERATOR_REAL mxCandidate=repairDensity||!finiteDevice(s.rhoUx[c]/rhoSafe)?rhoSafe*ux:s.rhoUx[c],
+        myCandidate=repairDensity||!finiteDevice(s.rhoUy[c]/rhoSafe)?rhoSafe*uy:s.rhoUy[c],
+        mzCandidate=repairDensity||!finiteDevice(s.rhoUz[c]/rhoSafe)?rhoSafe*uz:s.rhoUz[c];
+    // Derive energy from the actual conserved candidate, never from rounded U.
+    const Energy ex=Energy(mxCandidate)/Energy(rhoSafe),
+        ey=Energy(myCandidate)/Energy(rhoSafe),ez=Energy(mzCandidate)/Energy(rhoSafe);
+    const Energy kinetic = ugkwp::gasLegacyKineticEnergy
+    (
+        Energy(rhoSafe), ugkwp::gasEnergyFiniteOr(ex,Energy(0)),
+        ugkwp::gasEnergyFiniteOr(ey,Energy(0)), ugkwp::gasEnergyFiniteOr(ez,Energy(0))
+    );
+    const Energy minimumInternalEnergy = ugkwp::gasLegacyMinimumInternalEnergy
+    (
+        Energy(s.rhoMin), Energy(rhoSafe), Energy(s.Rgas), Energy(s.TgasMin),
+        Energy(s.gammaGas), Energy(OfSmall)
+    );
+    const Energy rawInternal = s.rhoE[c]-kinetic;
+    const Energy internalE = ugkwp::gasEnergyClampMin
+    (
+        ugkwp::gasEnergyFiniteOr(rawInternal, minimumInternalEnergy),
+        minimumInternalEnergy
+    );
+    const Energy p = (Energy(s.gammaGas)-Energy(1))*internalE;
+    const Energy T = p/(Energy(rhoSafe)*Energy(s.Rgas));
+    const GPU_OPERATOR_REAL storedPressure=GPU_OPERATOR_REAL(p),storedTemperature=GPU_OPERATOR_REAL(T);
+    if (!finiteDevice(storedPressure) || !(storedPressure>GPU_OPERATOR_R(0))
+        || !finiteDevice(storedTemperature) || storedTemperature<s.TgasMin)
+    {
+        // Finite authority whose derived cache cannot be represented must not
+        // be silently replaced by a lower-energy float repair.
+        if(!ugkwp::gasRecordCellFailure(s,c,ugkwp::GasTransportCode::InvalidThermodynamics))asm("trap;");
+        return;
+    }
+
+    s.rho[c] = rhoSafe;
+    s.rhoUx[c] = mxCandidate;
+    s.rhoUy[c] = myCandidate;
+    s.rhoUz[c] = mzCandidate;
+    // Preserve valid authoritative bits; only the existing invalid/floor repair writes.
+    if (!ugkwp::gasEnergyFinite(rawInternal) || rawInternal < minimumInternalEnergy)
+        s.rhoE[c] = kinetic + internalE;
+    s.Ux[c] = ux;
+    s.Uy[c] = uy;
+    s.Uz[c] = uz;
+    s.p[c] = p;
+    s.Tgas[c] = T;
+    }
 }
 
 template<class GasState>

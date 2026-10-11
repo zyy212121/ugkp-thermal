@@ -226,4 +226,13 @@ extern "C" int ugkwpGpuResidentStrictDownloadNut
 extern "C" void ugkwpGpuResidentStrictRelease(void* handle);
 extern "C" const char* ugkwpGpuResidentStrictLastError();
 
+// Geometry rows: inward normal xyz, ownerDistance, matchingDistance, volume, firstMoment.
+extern "C" int ugkwpGpuResidentStrictConfigureBoundaryLayerV1
+(void* handle,const ugkwpGpuIpc::BoundaryLayerConfigV1* config,const int* faces,
+ const int* quadratureOffsets,const int* matchingOffsets,const int* matchingCells,
+ const double* geometry,const double* quadratureDistance,const double* quadratureWeight,
+ const double* matchingWeight,const double* speciesFlux);
+extern "C" int ugkwpGpuResidentStrictDownloadBoundaryLayerV1
+(void* handle,std::uint32_t wallCount,std::uint32_t speciesCount,double* diagnostics);
+
 #endif

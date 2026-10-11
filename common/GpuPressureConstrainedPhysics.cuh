@@ -1,5 +1,6 @@
 #pragma once
 #include "GpuPressureParticleUpdate.cuh"
+#include "GpuMaterialEnthalpyMoment.cuh"
 // Constrained particle pressure closure shared by FSH/CHT; scalar precision is an interface type.
 template<bool FullMoments, bool CompactParticles = false>
 __device__ void accumulatePressureParticleMomentsDevice
@@ -40,7 +41,7 @@ __device__ void accumulatePressureParticleMomentsDevice
         );
         moments[4] += m;
         moments[5] += m*diameter;
-        moments[6] += m*particleSpecificEnthalpyDevice(temperature);
+        moments[6] += materialEnthalpyMomentFromParticle<CompactParticles>(s, i, m, temperature, 0);
     }
     ++count;
 }

@@ -72,14 +72,11 @@
                     s.coldWallSolidificationParameters
                      .wallTransientResistance != 0
                 );
-            const Foam::gpuThermal::ParticleWallContactResult result =
-                Foam::gpuThermal::lumpedParticleWallInterfaceContact
+            const ParticleFiniteContactThermalCandidate result =
+                particleFiniteContactThermalCandidateDevice
                 (
-                    s.pT[i],
-                    s.gasBoundaryT[faceI],
-                    physicalMass,
-                    s.pm[i],
-                    conductanceTimeIntegral
+                    s, i, s.gasBoundaryT[faceI], physicalMass, s.pm[i],
+                    conductanceTimeIntegral, 0
                 );
             if
             (
@@ -90,7 +87,7 @@
             {
                 asm("trap;");
             }
-            s.pT[i] = result.particleTemperatureK;
+            commitParticleFiniteContactThermalCandidateDevice(s, i, result, 0);
             atomicAddParticleWallEnergyByFace
             (
                 s,

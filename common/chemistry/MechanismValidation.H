@@ -29,8 +29,8 @@ template<class R,int N> UGKWP_GAS_HD inline bool matchingChannels(const GasReact
    if(ae>R(0) && be>R(0))return true;
  }return false;
 }
-template<class R,int N> UGKWP_GAS_HD inline bool orthogonalBasis
-(const GasMechanismView<R,N>& m,R* q) noexcept {
+template<class R,int N,class TableReal> UGKWP_GAS_HD inline bool orthogonalBasis
+(const GasMechanismView<TableReal,N>& m,R* q) noexcept {
     const int rank=m.independentRank;
     if(rank<0 || rank>N || (rank && !m.stoichiometricBasis)) return false;
     const R tol=R(64)*std::numeric_limits<R>::epsilon();

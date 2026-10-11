@@ -37,13 +37,19 @@ struct MaterialReserveKnot {
 }; // signed cumulative INTERNAL component increments; never gas-facing packets.
 struct MaterialDonorPlan { CouplingInterval interval{}; std::vector<MaterialReserveKnot> knots{}; };
 struct WallProgram { CouplingInterval interval{}; SurfaceMesh surface{}; std::vector<WallKnot> knots{}; MaterialDonorPlan donorPlan{}; };
+struct GasWallMatchingSample {
+    Real pressure=0,mechanicalPressure=0; // matching EOS p; same-stage local wall-force p.
+    ugkwp::gaswall::WallMatchingState<Real,Ns> state{};
+}; // actual gas driving snapshot, never an inventory or chemical source.
 struct GasIntervalRecord {
     std::uint64_t microSequence=0; Real begin=0,end=0;
+    Real gasTraceTime=-1; // one coherent representative gas stage; -1 for isolated legacy fixtures.
     std::uint64_t gasGeometry=0,solidGeometry=0;
     std::vector<ExchangePacket> packets{};
-    std::vector<GasPrimitive> gasTrace{}; // OWNER bulk state, not wall trace.
+    std::vector<GasPrimitive> gasTrace{}; // OWNER bulk at gasTraceTime, paired with gradient/traction/matching.
     std::vector<GasGradient> gasGradient{};
     std::vector<Vec3> gasTraction{};
+    std::vector<GasWallMatchingSample> gasWallMatching{}; // populated only for boundaryLayer.
     std::vector<Real> radiationEnergy{};
     std::vector<unsigned> radiationReceiver{};
 }; // trace/traction/radiation have stable SurfaceMesh face order.
@@ -105,13 +111,27 @@ public:
         if(!records_.empty()&&(records_.back().microSequence==std::numeric_limits<std::uint64_t>::max()
             ||input.microSequence!=records_.back().microSequence+1))
             return intervalFailure(error,"duplicate or noncontiguous gas micro sequence");
+        if(!finite(input.gasTraceTime)||(input.gasTraceTime!=-1&&(input.gasTraceTime<input.begin||input.gasTraceTime>input.end)))
+            return intervalFailure(error,"gas driving stage time outside accepted interval");
         if(input.gasTraction.size()&&!input.gasTrace.empty()&&input.gasTraction.size()!=input.gasTrace.size())
             return intervalFailure(error,"gas driving trace size mismatch");
+        if(!input.gasWallMatching.empty()&&input.gasWallMatching.size()!=input.gasTrace.size())
+            return intervalFailure(error,"gas wall matching trace size mismatch");
+        for(const auto& sample:input.gasWallMatching){
+            if(!finite(sample.pressure)||sample.pressure<=0||!finite(sample.mechanicalPressure)||sample.mechanicalPressure<=0
+                ||!finite(sample.state.temperature)||sample.state.temperature<=0)
+                return intervalFailure(error,"invalid gas wall matching thermodynamic trace");
+            Real sum=0;for(int s=0;s<Ns;++s){const auto y=sample.state.massFraction[s];if(!finite(y)||y<0)return intervalFailure(error,"invalid matching composition");sum+=y;}
+            for(int d=0;d<3;++d)if(!finite(sample.state.velocity[d]))return intervalFailure(error,"invalid matching velocity");
+            if(absValue(sum-1)>2e-12||!finite(sample.state.k)||sample.state.k<0||!finite(sample.state.omega)||sample.state.omega<0)
+                return intervalFailure(error,"invalid gas wall matching turbulence/composition");
+        }
         if(input.radiationEnergy.size()!=input.radiationReceiver.size())
             return intervalFailure(error,"radiation receiver identity missing");
         if(!records_.empty()&&(input.gasTrace.size()!=records_.front().gasTrace.size()
             ||input.gasGradient.size()!=records_.front().gasGradient.size()
             ||input.gasTraction.size()!=records_.front().gasTraction.size()
+            ||input.gasWallMatching.size()!=records_.front().gasWallMatching.size()
             ||input.radiationEnergy.size()!=records_.front().radiationEnergy.size()))
             return intervalFailure(error,"surface trace layout changed inside window");
         if(!records_.empty()&&input.radiationReceiver!=records_.front().radiationReceiver)

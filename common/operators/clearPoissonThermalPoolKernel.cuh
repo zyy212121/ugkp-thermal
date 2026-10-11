@@ -30,6 +30,11 @@ __global__ void clearPoissonThermalPoolKernel(DeviceState* sp)
             poissonCollisionProbabilityForCell(s, c, dt);
     }
 #endif
+#ifdef GPU_PAIRED_PARTICLE_HEAT
+    // Gas RK is complete; rhoENext is now dead scratch. This existing launch
+    // supplies the global clear-before-correction/heat-atomics boundary.
+    clearPairedParticleHeatCell(s, c);
+#endif
     s.poolThermalCount[c] = 0;
     s.poolThermalSumUx[c] = GPU_OPERATOR_R(0.0);
     s.poolThermalSumUy[c] = GPU_OPERATOR_R(0.0);

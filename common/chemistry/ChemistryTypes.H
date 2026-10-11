@@ -46,6 +46,48 @@ template<class Real,int Ns> struct ChemistryAudit {
     int rejectedSteps = 0;
     int nonlinearIterations = 0;
 };
+// Local scratch may use energy precision while immutable tables and published
+// species/audits retain their independently declared storage precision.
+template<class To,class From>
+UGKWP_GAS_HD inline ChemistryControls<To> castChemistryControls
+(const ChemistryControls<From>& input) noexcept
+{
+    ChemistryControls<To> out;
+    out.relativeTolerance=input.relativeTolerance;
+    out.absoluteMassFractionTolerance=input.absoluteMassFractionTolerance;
+    out.absoluteTemperatureTolerance=input.absoluteTemperatureTolerance;
+    out.initialStep=input.initialStep;
+    out.minimumStep=input.minimumStep;
+    out.maximumStep=input.maximumStep;
+    out.newtonTolerance=input.newtonTolerance;
+    out.maximumSteps=input.maximumSteps;
+    out.maximumRejectedSteps=input.maximumRejectedSteps;
+    out.maximumNewtonIterations=input.maximumNewtonIterations;
+    out.maximumLineSearchIterations=input.maximumLineSearchIterations;
+    out.absoluteMassTolerance=input.absoluteMassTolerance;
+    out.relativeConservationTolerance=input.relativeConservationTolerance;
+    out.absoluteElementTolerance=input.absoluteElementTolerance;
+    out.thermo=castThermoControls<To>(input.thermo);
+    return out;
+}
+
+template<class To,class From,int Ns>
+UGKWP_GAS_HD inline ChemistryAudit<To,Ns> castChemistryAudit
+(const ChemistryAudit<From,Ns>& input) noexcept
+{
+    ChemistryAudit<To,Ns> out;
+    for(int s=0;s<Ns;++s)out.speciesMassChange[s]=To(input.speciesMassChange[s]);
+    out.massResidual=input.massResidual;
+    out.maximumElementResidual=input.maximumElementResidual;
+    out.energyResidual=input.energyResidual;
+    out.maximumLocalError=input.maximumLocalError;
+    out.integratedTime=input.integratedTime;
+    out.acceptedSteps=input.acceptedSteps;
+    out.rejectedSteps=input.rejectedSteps;
+    out.nonlinearIterations=input.nonlinearIterations;
+    return out;
+}
+
 template<class R> UGKWP_GAS_HD inline bool validateChemistryControls(const ChemistryControls<R>& c) noexcept {
  return gasFinite(c.relativeTolerance) && c.relativeTolerance>R(0)
  && gasFinite(c.absoluteMassFractionTolerance) && c.absoluteMassFractionTolerance>R(0)

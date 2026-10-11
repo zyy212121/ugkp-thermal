@@ -2,15 +2,15 @@
 #define UGKWP_LOCAL_STIFF_INTEGRATOR_H
 #include "ConservativeReactor.H"
 namespace ugkwp { namespace gasChemistryDetail {
-template<class R,int N> UGKWP_GAS_HD inline R coordinateNorm(const ReactorContext<R,N>& context,const R* residual,const R* mass) noexcept {
+template<class R,int N,class TableReal> UGKWP_GAS_HD inline R coordinateNorm(const ReactorContext<R,N,TableReal>& context,const R* residual,const R* mass) noexcept {
  R norm=0;int rank=context.mechanism.independentRank;
  for(int s=0;s<N;++s){R value=0;for(int j=0;j<rank;++j)value+=context.mechanism.stoichiometricBasis[s*rank+j]*residual[j];value*=context.thermo.species[s].molarMass*context.base.volume;
  R denominator=context.controls.absoluteMassFractionTolerance*context.base.totalMass+context.controls.relativeTolerance*gasThermoDetail::maxValue(mass[s],context.base.speciesMass[s]);
  norm=gasThermoDetail::maxValue(norm,gasThermoDetail::absValue(value)/denominator);}
  return norm;
 }
-template<class R,int N> UGKWP_GAS_HD inline ChemistryStatus implicitStage
-(const ReactorContext<R,N>& context,const R* rhs,R hgamma,R* z,R& temperature) noexcept {
+template<class R,int N,class TableReal> UGKWP_GAS_HD inline ChemistryStatus implicitStage
+(const ReactorContext<R,N,TableReal>& context,const R* rhs,R hgamma,R* z,R& temperature) noexcept {
  ChemistryStatus status;int rank=context.mechanism.independentRank;
  for(int iteration=0;iteration<context.controls.maximumNewtonIterations;++iteration){
    R f[N]={},jac[N*N]={},residual[N]={},masses[N];
@@ -38,9 +38,9 @@ template<class R,int N> UGKWP_GAS_HD inline ChemistryStatus implicitStage
  }
  status.code=ChemistryCode::NewtonFailure;return status;
 }
-template<class R,int N> UGKWP_GAS_HD inline ChemistryStatus sdirkStep
-(const ClosedReactorInput<R,N>& base,R interval,const SpeciesThermoView<R,N>& t,const GasMechanismView<R,N>& m,const ChemistryControls<R>& controls,ClosedReactorResult<R,N>& result,R initialTemperature) noexcept {
- ReactorContext<R,N> context(base,t,m,controls);ChemistryStatus st;
+template<class R,int N,class TableReal> UGKWP_GAS_HD inline ChemistryStatus sdirkStep
+(const ClosedReactorInput<R,N>& base,R interval,const SpeciesThermoView<TableReal,N>& t,const GasMechanismView<TableReal,N>& m,const ChemistryControls<R>& controls,ClosedReactorResult<R,N>& result,R initialTemperature) noexcept {
+ ReactorContext<R,N,TableReal> context(base,t,m,controls);ChemistryStatus st;
  if(!context.prepare()){st.code=ChemistryCode::InvalidModel;return st;}
  const R gamma=R(1)-R(1)/::sqrt(R(2));R z[N]={},rhs[N]={},f[N]={},temperature=initialTemperature;
  st=implicitStage(context,rhs,gamma*interval,z,temperature);if(!st)return st;
@@ -58,8 +58,8 @@ template<class R,int N> UGKWP_GAS_HD inline R stepError
 }
 }}
 namespace ugkwp {
-template<class R,int N> UGKWP_GAS_HD inline ChemistryStatus advanceClosedReactor
-(const ClosedReactorInput<R,N>& base,R interval,const SpeciesThermoView<R,N>& t,const GasMechanismView<R,N>& m,const ChemistryControls<R>& controls,ClosedReactorResult<R,N>& result,ChemistryAudit<R,N>& audit) noexcept {
+template<class R,int N,class TableReal> UGKWP_GAS_HD inline ChemistryStatus advanceClosedReactor
+(const ClosedReactorInput<R,N>& base,R interval,const SpeciesThermoView<TableReal,N>& t,const GasMechanismView<TableReal,N>& m,const ChemistryControls<R>& controls,ClosedReactorResult<R,N>& result,ChemistryAudit<R,N>& audit) noexcept {
  using namespace gasChemistryDetail;using gasThermoDetail::absValue;using gasThermoDetail::maxValue;using gasThermoDetail::minValue;
  ChemistryStatus status=validateGasMechanismView(t,m);if(!status)return status;
  if(!validateChemistryControls(controls)){status.code=ChemistryCode::InvalidControls;return status;}
@@ -93,7 +93,7 @@ template<class R,int N> UGKWP_GAS_HD inline ChemistryStatus advanceClosedReactor
  sum=0;for(int s=0;s<N;++s){sum+=accepted.speciesMass[s];localAudit.speciesMassChange[s]=accepted.speciesMass[s]-base.speciesMass[s];}
  localAudit.massResidual=sum-base.totalMass;
  if(absValue(localAudit.massResidual)>controls.absoluteMassTolerance+controls.relativeConservationTolerance*base.totalMass){status.code=ChemistryCode::ConservationFailure;return status;}
- for(int e=0;e<t.elementCount;++e){R before=0,after=0;for(int s=0;s<N;++s){R atoms=t.elementComposition[s*t.elementCount+e]/t.species[s].molarMass;before+=base.speciesMass[s]*atoms;after+=accepted.speciesMass[s]*atoms;}
+ for(int e=0;e<t.elementCount;++e){R before=0,after=0;for(int s=0;s<N;++s){R atoms=R(t.elementComposition[s*t.elementCount+e])/R(t.species[s].molarMass);before+=base.speciesMass[s]*atoms;after+=accepted.speciesMass[s]*atoms;}
    R residual=absValue(after-before);localAudit.maximumElementResidual=maxValue(localAudit.maximumElementResidual,residual);
    if(residual>controls.absoluteElementTolerance+controls.relativeConservationTolerance*absValue(before)){status.code=ChemistryCode::ConservationFailure;return status;}}
  localAudit.energyResidual=mixtureEnergy(accepted.speciesMass,accepted.temperature,t)-base.internalEnergy;

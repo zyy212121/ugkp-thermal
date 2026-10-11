@@ -1,4 +1,5 @@
 #pragma once
+#include "gasTransport/GasEnergy.H"
 __global__ void applyEulerianParticleMaterialHeatKernel
 (
     DeviceState* sp,
@@ -6,6 +7,7 @@ __global__ void applyEulerianParticleMaterialHeatKernel
 )
 {
     DeviceState& s = *sp;
+    using Energy = ugkwp::GasEnergyScalar<DeviceState>;
     const int c = blockIdx.x*blockDim.x + threadIdx.x;
 
     if
@@ -134,25 +136,17 @@ __global__ void applyEulerianParticleMaterialHeatKernel
             dt
         );
 
-    const GPU_OPERATOR_REAL rhoEold = finiteOr(s.rhoE[c], GPU_OPERATOR_R(0.0));
-    GPU_OPERATOR_REAL rhoEnew = rhoEold - dHp/epsGsafe;
+    const Energy rhoEold = ugkwp::gasEnergyFiniteOr(s.rhoE[c], Energy(0));
+    Energy rhoEnew = rhoEold - Energy(dHp)/Energy(epsGsafe);
 
     const GPU_OPERATOR_REAL rhoGCurrent =
         clampMin(finiteOr(s.rho[c], rhoG), s.rhoMin);
-    const GPU_OPERATOR_REAL kinetic =
-        GPU_OPERATOR_R(0.5)
-       *sqr3
-        (
-            finiteOr(s.rhoUx[c], GPU_OPERATOR_R(0.0)),
-            finiteOr(s.rhoUy[c], GPU_OPERATOR_R(0.0)),
-            finiteOr(s.rhoUz[c], GPU_OPERATOR_R(0.0))
-        )
-       /rhoGCurrent;
-
-    const GPU_OPERATOR_REAL eMinGas =
-        rhoGCurrent*s.Rgas*s.TgasMin
-       /clampMin(s.gammaGas - GPU_OPERATOR_R(1.0), OfSmall);
-
-    rhoEnew = clampMin(finiteOr(rhoEnew, rhoEold), kinetic + eMinGas);
+    const Energy mx=Energy(finiteOr(s.rhoUx[c],GPU_OPERATOR_R(0))),
+        my=Energy(finiteOr(s.rhoUy[c],GPU_OPERATOR_R(0))),
+        mz=Energy(finiteOr(s.rhoUz[c],GPU_OPERATOR_R(0)));
+    const Energy kinetic=Energy(0.5)*(mx*mx+my*my+mz*mz)/Energy(rhoGCurrent);
+    const Energy eMinGas=Energy(rhoGCurrent)*Energy(s.Rgas)*Energy(s.TgasMin)
+        /ugkwp::gasEnergyClampMin(Energy(s.gammaGas)-Energy(1),Energy(OfSmall));
+    rhoEnew=ugkwp::gasEnergyClampMin(ugkwp::gasEnergyFiniteOr(rhoEnew,rhoEold),kinetic+eMinGas);
     s.rhoE[c] = rhoEnew;
 }

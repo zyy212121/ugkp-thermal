@@ -3,6 +3,11 @@
 
     const bool inputValid =
         s.coldWallSolidificationEnabled != 0
+#ifdef GPU_PAIRED_PARTICLE_HEAT
+     && s.pThermalEnthalpyResidual != nullptr
+     && s.pm[particleI] > GPU_R(0.0)
+     && Foam::gpuThermal::finiteColdWallValue(s.pm[particleI])
+#endif
      && s.pColdNodeSpecificEnthalpy != nullptr
      && s.pColdRingSolidMass != nullptr
      && s.pColdFrozenArea != nullptr
@@ -49,18 +54,24 @@
         particleI*Foam::gpuThermal::coldWallAxialNodeCount;
     const int ringBase =
         particleI*Foam::gpuThermal::coldWallRadialRingCount;
-    const GpuReal oldEnthalpy = static_cast<GpuReal>
+    const ColdWallThermalReal storedOldEnthalpy = static_cast<ColdWallThermalReal>
     (
         s.pColdNodeSpecificEnthalpy[nodeBase + lane]
     );
-    GpuReal candidateEnthalpy = oldEnthalpy;
-    GpuReal guessedTemperature =
-        Foam::gpuThermal::coldWallTemperatureFromSpecificEnthalpyK
+#ifdef GPU_PAIRED_PARTICLE_HEAT
+    const double oldCarry = s.pThermalEnthalpyResidual[particleI];
+    const double oldEnthalpy = storedOldEnthalpy + oldCarry;
+#else
+    const GpuReal oldEnthalpy = storedOldEnthalpy;
+#endif
+    ColdWallThermalReal candidateEnthalpy = oldEnthalpy;
+    ColdWallThermalReal guessedTemperature =
+        coldWallCarryTemperature
         (
             oldEnthalpy,
             s.coldWallSolidificationParameters
         );
-    GpuReal ringSolidMass = static_cast<GpuReal>
+    ColdWallThermalReal ringSolidMass = static_cast<ColdWallThermalReal>
     (
         s.pColdRingSolidMass[ringBase + lane]
     );
@@ -73,11 +84,11 @@
         0,
         8
     );
-    GpuReal frozenArea = __shfl_sync
+    ColdWallThermalReal frozenArea = __shfl_sync
     (
         mask,
         lane == 0
-          ? static_cast<GpuReal>(s.pColdFrozenArea[particleI])
+          ? static_cast<ColdWallThermalReal>(s.pColdFrozenArea[particleI])
           : GPU_R(0.0),
         0,
         8
@@ -98,11 +109,12 @@
         return false;
     }
 
-    const GpuReal meanOldEnthalpy = coldWall1DGroupSum(oldEnthalpy/GPU_R(8.0), mask);
-    GpuReal gasSpecificEnthalpyIncrement = GPU_R(0.0);
-    const GpuTime gasDeltaTSeconds = gasExchangeDurationS == -1.0
+    [[maybe_unused]] const ColdWallThermalReal meanOldEnthalpy = coldWall1DGroupSum(oldEnthalpy/GPU_R(8.0), mask);
+    ColdWallThermalReal gasSpecificEnthalpyIncrement = GPU_R(0.0);
+    [[maybe_unused]] const GpuTime gasDeltaTSeconds = gasExchangeDurationS == -1.0
       ? deltaTSeconds : gasExchangeDurationS;
     bool gasSourceValid = true;
+#ifndef GPU_PAIRED_PARTICLE_HEAT
     if (lane == 0)
     {
         gasSourceValid = Foam::gpuThermal::coldWallGasSpecificEnthalpyIncrement
@@ -112,33 +124,41 @@
             gasSpecificEnthalpyIncrement
         );
     }
+#endif
     if (!__all_sync(mask, gasSourceValid))
     {
         return false;
     }
     gasSpecificEnthalpyIncrement = __shfl_sync(mask, gasSpecificEnthalpyIncrement, 0, 8);
 
-    const GpuReal contactArea = Foam::gpuThermal::coldWallClamp
+#ifdef GPU_PAIRED_PARTICLE_HEAT
+    if (deltaTSeconds == 0.0) {
+        meanTemperatureK = static_cast<GpuReal>(coldWallCarryTemperature(meanOldEnthalpy,s.coldWallSolidificationParameters));
+        frozenFootprintAreaM2 = frozenArea; wallEnergyJ = GPU_R(0.0);
+        return true;
+    }
+#endif
+    const ColdWallThermalReal contactArea = Foam::gpuThermal::coldWallClamp
     (
         intrinsicContactAreaM2,
         GPU_REAL_MIN,
         maximumAreaM2
     );
-    const GpuReal filmThickness = physicalVolumeM3/contactArea;
-    const GpuReal nodeThickness = filmThickness/GPU_R(8.0);
-    const GpuReal nodeMass = physicalMassKg/GPU_R(8.0);
-    const GpuReal nodeGasPower = nodeMass*gasSpecificEnthalpyIncrement
+    const ColdWallThermalReal filmThickness = physicalVolumeM3/contactArea;
+    const ColdWallThermalReal nodeThickness = filmThickness/GPU_R(8.0);
+    const ColdWallThermalReal nodeMass = physicalMassKg/GPU_R(8.0);
+    const ColdWallThermalReal nodeGasPower = nodeMass*gasSpecificEnthalpyIncrement
       /(deltaTSeconds + GPU_REAL_MIN);
-    const GpuReal ringArea = maximumAreaM2/GPU_R(8.0);
-    const GpuReal ringInnerArea = static_cast<GpuReal>(lane)*ringArea;
-    const GpuReal ringWetArea = Foam::gpuThermal::coldWallClamp
+    const ColdWallThermalReal ringArea = maximumAreaM2/GPU_R(8.0);
+    const ColdWallThermalReal ringInnerArea = static_cast<ColdWallThermalReal>(lane)*ringArea;
+    const ColdWallThermalReal ringWetArea = Foam::gpuThermal::coldWallClamp
     (
         contactArea - ringInnerArea,
         GPU_R(0.0),
         ringArea
     );
-    const GpuReal radialFraction = (static_cast<GpuReal>(lane) + GPU_R(0.5))/GPU_R(8.0);
-    const GpuReal spreadCoordinate = GPU_R(1.0) - ::sqrt
+    const ColdWallThermalReal radialFraction = (static_cast<ColdWallThermalReal>(lane) + GPU_R(0.5))/GPU_R(8.0);
+    const ColdWallThermalReal spreadCoordinate = GPU_R(1.0) - ::sqrt
     (
         Foam::gpuThermal::coldWallClamp(GPU_R(1.0) - radialFraction, GPU_R(0.0), GPU_R(1.0))
     );
@@ -158,8 +178,8 @@
         s.coldWallSolidificationParameters.wallTransientResistance != 0
     );
 #endif
-    GpuReal ringCoolingPower = GPU_R(0.0);
-    GpuReal acceptedWallPower = GPU_R(0.0);
+    ColdWallThermalReal ringCoolingPower = GPU_R(0.0);
+    ColdWallThermalReal acceptedWallPower = GPU_R(0.0);
 
     for
     (
@@ -169,20 +189,20 @@
     )
     {
 
-        const GpuReal solidFraction = coldWall1DSolidFractionFromKnownTemperature
+        const ColdWallThermalReal solidFraction = coldWall1DSolidFractionFromKnownTemperature
         (
             guessedTemperature,
             s.coldWallSolidificationParameters
         );
-        const GpuReal conductivity =
+        const ColdWallThermalReal conductivity =
             solidFraction*s.coldWallSolidificationParameters.solidThermalConductivityWmK
           + (GPU_R(1.0) - solidFraction)*Foam::gpuThermal::aluminaThermalConductivityWmK;
-        const GpuReal bottomConductivity =
+        const ColdWallThermalReal bottomConductivity =
             __shfl_sync(mask, conductivity, 0, 8);
-        const GpuReal particleResistance =
+        const ColdWallThermalReal particleResistance =
             GPU_R(0.5)*nodeThickness/bottomConductivity;
 #if UGKWP_GPU_REAL_BITS == 32
-        const GpuReal ringConductanceIntegral =
+        const ColdWallThermalReal ringConductanceIntegral =
             coldWallCachedConductanceTimeIntegral
             (
                 integralCache,
@@ -196,7 +216,7 @@
                 s.coldWallSolidificationParameters.wallTransientResistance != 0
             );
 #else
-        const GpuReal ringConductanceIntegral =
+        const ColdWallThermalReal ringConductanceIntegral =
             Foam::gpuThermal::wallInterfaceConductanceTimeIntegral
             (
                 ringWetArea,
@@ -209,41 +229,41 @@
                 s.coldWallSolidificationParameters.wallTransientResistance != 0
             );
 #endif
-        const GpuReal ringConductance =
+        const ColdWallThermalReal ringConductance =
             ringConductanceIntegral/(deltaTSeconds + GPU_REAL_MIN);
         if (!__all_sync(mask, ringConductanceIntegral >= GPU_R(0.0)))
         {
             return false;
         }
-        const GpuReal wallConductance =
+        const ColdWallThermalReal wallConductance =
             coldWall1DGroupSum(ringConductance, mask);
-        const GpuReal bottomTemperature =
+        const ColdWallThermalReal bottomTemperature =
             __shfl_sync(mask, guessedTemperature, 0, 8);
         ringCoolingPower =
             ringConductance*(bottomTemperature - wallTemperatureK);
 
-        const GpuReal rightConductivity =
+        const ColdWallThermalReal rightConductivity =
             __shfl_down_sync(mask, conductivity, 1, 8);
-        const GpuReal faceConductance = lane + 1 < 8
+        const ColdWallThermalReal faceConductance = lane + 1 < 8
           ? GPU_R(2.0)*conductivity*rightConductivity
            /(conductivity + rightConductivity + GPU_REAL_MIN)
            *contactArea/nodeThickness
           : GPU_R(0.0);
-        const GpuReal leftFaceConductance =
+        const ColdWallThermalReal leftFaceConductance =
             __shfl_up_sync(mask, faceConductance, 1, 8);
-        const GpuReal capacity = nodeMass
-          *Foam::gpuThermal::coldWallApparentSpecificHeat
+        const ColdWallThermalReal capacity = nodeMass
+          *coldWallCarrySpecificHeat
             (
                 guessedTemperature,
                 s.coldWallSolidificationParameters
             )/(deltaTSeconds + GPU_REAL_MIN);
-        GpuReal lower = lane > 0 ? -leftFaceConductance : GPU_R(0.0);
-        GpuReal diagonal = capacity
+        ColdWallThermalReal lower = lane > 0 ? -leftFaceConductance : GPU_R(0.0);
+        ColdWallThermalReal diagonal = capacity
           + (lane > 0 ? leftFaceConductance : GPU_R(0.0))
           + (lane + 1 < 8 ? faceConductance : GPU_R(0.0));
-        GpuReal upper = lane + 1 < 8 ? -faceConductance : GPU_R(0.0);
+        ColdWallThermalReal upper = lane + 1 < 8 ? -faceConductance : GPU_R(0.0);
         // candidateEnthalpy is H_guess, not another physical time step.
-        GpuReal rightHandSide = capacity*guessedTemperature
+        ColdWallThermalReal rightHandSide = capacity*guessedTemperature
           + nodeMass*(oldEnthalpy - candidateEnthalpy)
            /(deltaTSeconds + GPU_REAL_MIN)
           + nodeGasPower;
@@ -253,7 +273,7 @@
             rightHandSide += wallConductance*wallTemperatureK;
         }
 #if UGKWP_GPU_REAL_BITS == 32
-        const GpuReal solvedTemperature = StabilizePcr
+        const ColdWallThermalReal solvedTemperature = StabilizePcr
           ? coldWall1DPcrSolveStable
         (
             lower,
@@ -275,7 +295,7 @@
         );
 
 #else
-        const GpuReal solvedTemperature = coldWall1DPcrSolve
+        const ColdWallThermalReal solvedTemperature = coldWall1DPcrSolve
         (
             lower,
             diagonal,
@@ -285,16 +305,16 @@
             mask
         );
 #endif
-        const GpuReal rightSolvedTemperature =
+        const ColdWallThermalReal rightSolvedTemperature =
             __shfl_down_sync(mask, solvedTemperature, 1, 8);
-        const GpuReal internalPower = lane + 1 < 8
+        const ColdWallThermalReal internalPower = lane + 1 < 8
           ? faceConductance*(solvedTemperature - rightSolvedTemperature)
           : GPU_R(0.0);
-        const GpuReal leftInternalPower =
+        const ColdWallThermalReal leftInternalPower =
             __shfl_up_sync(mask, internalPower, 1, 8);
-        const GpuReal wallPower = wallConductance
+        const ColdWallThermalReal wallPower = wallConductance
           *(__shfl_sync(mask, solvedTemperature, 0, 8) - wallTemperatureK);
-        GpuReal power =
+        ColdWallThermalReal power =
             (lane > 0 ? leftInternalPower : GPU_R(0.0))
           - (lane + 1 < 8 ? internalPower : GPU_R(0.0));
         if (lane == 0)
@@ -305,7 +325,7 @@
           + gasSpecificEnthalpyIncrement
           + deltaTSeconds*power/nodeMass;
         guessedTemperature =
-            Foam::gpuThermal::coldWallTemperatureFromSpecificEnthalpyK
+            coldWallCarryTemperature
             (
                 candidateEnthalpy,
                 s.coldWallSolidificationParameters

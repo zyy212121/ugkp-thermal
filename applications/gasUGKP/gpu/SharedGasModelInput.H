@@ -126,13 +126,14 @@ public:
     }
     bool active() const {return model_.mode!=ugkwp::GasMode::SingleLegacy;}
     const ugkwp::GasModelConfiguration& model() const {return model_;}
-    void validateNumerics(label flux,label reconstruction,label limiter,label integrator,label turbulence,bool particles,label wallTreatment=0) const
+    void validateNumerics(label flux,label reconstruction,label limiter,label integrator,label turbulence,bool particles,label wallTreatment=0,label boundaryLayerModel=1) const
     {
-        if(!active()) return;
+        if(!active() && wallTreatment!=2) return;
         ugkwp::GasCapabilityRequest request;
         request.mode=model_.mode;request.fluxScheme=flux;request.reconstruction=reconstruction;
         request.limiter=limiter;request.timeIntegrator=integrator;request.turbulenceModel=turbulence;
         request.sstWallTreatment=wallTreatment;
+        request.boundaryLayerModel=boundaryLayerModel;
         request.particleCoupling=particles;
         const auto result=ugkwp::validateGasCapabilities(request);
         if(!result) FatalErrorInFunction<<"Unsupported shared gas model: "<<result.message<<exit(FatalError);

@@ -3,8 +3,10 @@
 #include <limits>
 #include <utility>
 #include "GasModel.H"
+#include "GasEnergy.H"
 #include "GasGeometryPolicy.H"
 #include "GasSstAudit.H"
+#include "GasBoundaryLayerState.H"
 #include "../chemistry/ChemistryTypes.H"
 
 namespace ugkwp
@@ -17,15 +19,18 @@ namespace ugkwp
 // The SST fields are optional at runtime when sstConfigured is zero; they do
 // not introduce particle, scheduler, host container or CUDA runtime ownership.
 // Wall exposure and accepted wall energy remain separate caller capabilities.
-template<class Real, class Time, class SstCoefficients>
+template<class Real, class Time, class SstCoefficients, class Energy = Real>
 struct GasStateView
 {
     using RealType = Real;
+    using EnergyType = Energy;
+    static_assert(std::is_floating_point<Energy>::value, "gas energy must be floating point");
     using TimeType = Time;
     using SstCoefficientsType = SstCoefficients;
     static constexpr int speciesCount = 0;
     GasGeometryState<Real> gasGeometry;
     GasSstAuditState<Real> gasSstAudit;
+    GasBoundaryLayerState<Real> gasBoundaryLayer;
     Real gasThermalConductivity = Real(-1); // negative: legacy mu*cp/Pr; otherwise W/(m K)
 
 #define UGKWP_GAS_STATE_FIELD(Type, Name) Type Name{};
@@ -121,13 +126,17 @@ inline auto makeGasStateView(const State& state)
     <
         typename std::remove_pointer<decltype(state.rho)>::type,
         typename std::remove_pointer<decltype(state.pressureScheduleTimes)>::type,
-        decltype(state.sstCoefficients)
+        decltype(state.sstCoefficients),
+        typename std::remove_pointer<decltype(state.rhoE)>::type
     >
 {
     using Real = typename std::remove_pointer<decltype(state.rho)>::type;
     using Time = typename std::remove_pointer<decltype(state.pressureScheduleTimes)>::type;
     using SstCoefficients = decltype(state.sstCoefficients);
-    GasStateView<Real, Time, SstCoefficients> view{};
+    using Energy = typename std::remove_pointer<decltype(state.rhoE)>::type;
+    static_assert(std::is_same<decltype(state.rhoE), decltype(state.rhoENext)>::value,
+        "live and RK gas energy must have identical storage types");
+    GasStateView<Real, Time, SstCoefficients, Energy> view{};
 #define UGKWP_GAS_STATE_FIELD(Type, Name) view.Name = state.Name;
 #include "GasStateFields.inc"
 #undef UGKWP_GAS_STATE_FIELD
@@ -135,6 +144,7 @@ inline auto makeGasStateView(const State& state)
         view.gasThermalConductivity=state.gasThermalConductivity;
     if constexpr (GasGeometryCapability<State>::value) view.gasGeometry=state.gasGeometry;
     if constexpr (GasSstAuditCapability<State>::value) view.gasSstAudit=state.gasSstAudit;
+    if constexpr (GasBoundaryLayerCapability<State>::value) view.gasBoundaryLayer=state.gasBoundaryLayer;
     return view;
 }
 

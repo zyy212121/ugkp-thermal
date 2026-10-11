@@ -3,6 +3,7 @@
 
 #include <algorithm>
 #include "../../../common/GpuThermalParticleRestartCodec.H"
+#include "../../../common/GpuParticleCaloric.H"
 #include <cmath>
 #include <cstdint>
 #include <cstring>
@@ -58,6 +59,7 @@ struct ConstView
     const double* puxOld;
     const double* puyOld;
     const double* puzOld;
+    const double* pThermalEnthalpyResidual = nullptr;
 };
 
 struct MutableView
@@ -93,6 +95,7 @@ struct MutableView
     double* puxOld;
     double* puyOld;
     double* puzOld;
+    double* pThermalEnthalpyResidual = nullptr;
 };
 
 static constexpr std::size_t coldWallAxialNodeCount = 8u;
@@ -1018,7 +1021,117 @@ static const char* const schema7FormatName = gpuThermalRestart::marker<double>()
 inline void writeV7(std::ostream& os,const ConstView& v)
 { gpuThermalRestart::write<double>(os,v); }
 inline void readV7Payload(std::istream& is,std::uint32_t bound,const MutableView& v)
-{ gpuThermalRestart::readPayload<double>(is,bound,v); }
+{
+    gpuThermalRestart::readPayload<double>(is,bound,v);
+    if (v.pThermalEnthalpyResidual != nullptr)
+        std::fill(v.pThermalEnthalpyResidual, v.pThermalEnthalpyResidual + v.count, 0.0);
+}
+
+// Schema 8 retains all schema 7 fields and appends one binary64 carry per
+// particle to each chunk. No old field type, order or caloric meaning changes.
+static const char* const schema8FormatName = "UGKP_CHT_PARTICLES_SCHEMA8_THERMAL_CARRY_BIN";
+template<class View, class Fn>
+inline void fieldsV8(const View& v, std::size_t begin, std::size_t count, Fn fn)
+{
+    gpuThermalRestart::fields(v, begin, count, fn);
+    fn(v.pThermalEnthalpyResidual, begin, count);
+}
+template<class View>
+inline void validateThermalCarryV8(const View& v)
+{
+    gpuThermalRestart::validate(v);
+    if (v.count && v.pThermalEnthalpyResidual == nullptr)
+        throw std::runtime_error("missing schema8 thermal enthalpy residual");
+    for (std::size_t i = 0; i < v.count; ++i)
+        if (!std::isfinite(v.pThermalEnthalpyResidual[i]))
+            throw std::runtime_error("nonfinite schema8 thermal enthalpy residual");
+}
+// Schema8 carries represented thermal authority across a backend precision
+// change. Canonicalize the host mirror to target pT storage before upload and
+// keep the lost ordinary H(T) bits in its double residual. Active cold profiles
+// already store wire-float node enthalpies; their pT is only a derived cache.
+// Call only for schema8. Older schemas intentionally migrate with carry zero.
+inline void prepareSchema8ThermalAuthorityForPrecision
+(
+    const MutableView& v,
+    const int targetPrecision,
+    const unsigned char* wallInteractionByFace,
+    const std::size_t nFaces
+)
+{
+    if (targetPrecision != 32 && targetPrecision != 64)
+        throw std::runtime_error("invalid schema8 target precision");
+    if (targetPrecision == 64) return;
+    if (v.count && (!v.pT || !v.pThermalEnthalpyResidual || !v.pStuck || !v.pStuckFaceId))
+        throw std::runtime_error("missing schema8 thermal state");
+    const ugkwp::ParticleCaloric ordinaryCaloric;
+    for (std::size_t i = 0; i < v.count; ++i)
+    {
+        const double wireTemperature = v.pT[i];
+        const double storedTemperature = static_cast<double>(static_cast<float>(wireTemperature));
+        const int face = v.pStuckFaceId[i];
+        const unsigned char interaction = wallInteractionByFace && face >= 0
+            && static_cast<std::size_t>(face) < nFaces ? wallInteractionByFace[face] : 0;
+        // Codes match the existing configured coldWall1D/2D face-mask ABI.
+        const bool activeColdProfile = v.pStuck[i] != 0 && (interaction == 3 || interaction == 4);
+        const double rebasedResidual = activeColdProfile ? v.pThermalEnthalpyResidual[i]
+            : v.pThermalEnthalpyResidual[i]
+                + (ordinaryCaloric.enthalpy(wireTemperature) - ordinaryCaloric.enthalpy(storedTemperature));
+        if (!std::isfinite(storedTemperature) || !std::isfinite(rebasedResidual))
+            throw std::runtime_error("schema8 thermal state is not representable");
+        v.pT[i] = storedTemperature;
+        v.pThermalEnthalpyResidual[i] = rebasedResidual;
+    }
+}
+
+inline void writeV8(std::ostream& os, const ConstView& v)
+{
+    gpuThermalRestart::representation();
+    gpuThermalRestart::timeType<double>(v);
+    validateThermalCarryV8(v);
+    os << schema8FormatName << ' ' << v.count << ' ' << maximumChunkParticles << '\n';
+    for (std::size_t begin = 0; begin < v.count;)
+    {
+        const std::uint32_t chunk = std::min<std::size_t>(maximumChunkParticles, v.count - begin);
+        os.write(reinterpret_cast<const char*>(&chunk), sizeof(chunk));
+        fieldsV8(v, begin, chunk, [&](const auto* values, std::size_t first, std::size_t n)
+        {
+            os.write(reinterpret_cast<const char*>(values + first), n*sizeof(*values));
+            if (!os.good()) throw std::runtime_error("failed writing schema8 chunk");
+        });
+        begin += chunk;
+    }
+    if (!os.good()) throw std::runtime_error("failed writing schema8 header");
+}
+inline void readV8Payload(std::istream& is, std::uint32_t bound, const MutableView& v)
+{
+    gpuThermalRestart::representation();
+    gpuThermalRestart::timeType<double>(v);
+    if (!bound || bound > maximumChunkParticles)
+        throw std::runtime_error("invalid schema8 chunk bound");
+    char separator = 0;
+    is.get(separator);
+    if (separator == '\r') is.get(separator);
+    if (separator != '\n') throw std::runtime_error("invalid schema8 header terminator");
+    fieldsV8(v, 0u, v.count, [](auto* values, std::size_t, std::size_t n)
+    { if (n && !values) throw std::runtime_error("missing schema8 destination"); });
+    for (std::size_t begin = 0; begin < v.count;)
+    {
+        std::uint32_t chunk = 0;
+        is.read(reinterpret_cast<char*>(&chunk), sizeof(chunk));
+        if (!is.good() || !chunk || chunk > bound || chunk > v.count - begin)
+            throw std::runtime_error("invalid schema8 chunk size");
+        fieldsV8(v, begin, chunk, [&](auto* values, std::size_t first, std::size_t n)
+        {
+            is.read(reinterpret_cast<char*>(values + first), n*sizeof(*values));
+            if (!is.good()) throw std::runtime_error("truncated schema8 chunk");
+        });
+        begin += chunk;
+    }
+    if (is.peek() != std::char_traits<char>::eof())
+        throw std::runtime_error("trailing schema8 data");
+    validateThermalCarryV8(v);
+}
 
 }                           
 }                  

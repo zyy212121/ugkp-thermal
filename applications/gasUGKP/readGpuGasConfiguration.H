@@ -278,6 +278,7 @@ if (!momentumTransportProperties.empty())
     if (simulationType == "laminar")
     {
         gasTurbulenceModelName = "laminar";
+        sstWallTreatmentName = momentumTransportProperties.lookupOrDefault<word>("wallTreatment", "lowRe");
     }
     else if (simulationType == "LES")
     {
@@ -367,6 +368,9 @@ label gasTurbulenceModel = -1;
 if (gasTurbulenceModelName == "laminar")
 {
     gasTurbulenceModel = 0;
+    if (sstWallTreatmentName == "boundaryLayer") sstWallTreatment = 2;
+    else if (sstWallTreatmentName != "lowRe")
+        FatalErrorInFunction << "Laminar wallTreatment supports lowRe or boundaryLayer" << exit(FatalError);
 }
 else if (gasTurbulenceModelName == "WALE")
 {
@@ -387,12 +391,16 @@ else if (gasTurbulenceModelName == "kOmegaSST")
     {
         sstWallTreatment = 1;
     }
+    else if (sstWallTreatmentName == "boundaryLayer")
+    {
+        sstWallTreatment = 2;
+    }
     else
     {
         FatalErrorInFunction
             << "Unsupported kOmegaSST wallTreatment '"
             << sstWallTreatmentName
-            << "'. Valid values are lowRe and wallFunction."
+            << "'. Valid values are lowRe, wallFunction and boundaryLayer."
             << exit(FatalError);
     }
 }
@@ -463,10 +471,24 @@ if
         << "finite and positive." << exit(FatalError);
 }
 
+BoundaryLayerInput boundaryLayerInput
+(
+    momentumTransportProperties, sharedGasModel.model(), gasTurbulenceModel,
+    gpuScheduling.pureGasOnly, turbulentPrandtl
+);
+if (boundaryLayerInput.active())
+{
+    sstWallTreatment = 2;
+    sstWallTreatmentName = "boundaryLayer";
+    if (muG.value() <= 0)
+        FatalErrorInFunction << "boundaryLayer requires positive molecular viscosity" << exit(FatalError);
+}
+
 sharedGasModel.validateNumerics
 (
     gasFluxScheme, gasReconstruction, gasLimiter, gasTimeIntegrator,
-    gasTurbulenceModel, !gpuScheduling.pureGasOnly, sstWallTreatment
+    gasTurbulenceModel, !gpuScheduling.pureGasOnly, sstWallTreatment,
+    boundaryLayerInput.model()
 );
 
 #endif

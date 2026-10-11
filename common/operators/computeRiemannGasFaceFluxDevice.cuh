@@ -49,8 +49,57 @@ __device__ bool computeRiemannGasFaceFluxDevice
             if (s.gasSpecies.cellStatus[own]!=0 || (nei>=0 && s.gasSpecies.cellStatus[nei]!=0))
             { s.gasSpecies.faceStatus[f]=int(ugkwp::GasTransportCode::InvalidThermodynamics);return false; }
             if ((s.gasFluxScheme!=1 && s.gasFluxScheme!=2) || (s.gasReconstruction!=0 && s.gasReconstruction!=1)
-                || (s.turbulenceModel==3 && s.sstWallTreatment!=0))
+                || (s.turbulenceModel==3 && s.sstWallTreatment==1
+                    && (s.gasSpecies.mode!=ugkwp::GasMode::MixtureFrozen || ugkwp::gasMovingGeometry(s))))
             { s.gasSpecies.faceStatus[f]=int(ugkwp::GasTransportCode::UnsupportedConfiguration);return false; }
+        }
+    }
+    if constexpr(ugkwp::GasBoundaryLayerCapability<GasState>::value)
+    {
+        const int slot=ugkwp::gasBoundaryLayerFaceSlot(s,f);
+        if(slot>=0)
+        {
+            const auto& wall=s.gasBoundaryLayer;
+            const bool storage=slot<wall.count && wall.exchange && wall.status;
+            const bool ready=storage && (MassOnly?wall.exchange[slot].massReady:ugkwp::gasBoundaryLayerSlotReady(s,slot));
+            if(!ready || boundaryKind!=2 || !finiteDevice(wall.exchange[slot].mass))
+            {if(!ugkwp::gasRecordFaceFailure(s,f,ugkwp::GasTransportCode::InvalidStorage))asm("trap;");return false;}
+            const auto& exchange=wall.exchange[slot];
+            massFluxArea=exchange.mass;
+            if constexpr(!MassOnly)
+            {
+                momFluxXArea=exchange.momentumX;momFluxYArea=exchange.momentumY;momFluxZArea=exchange.momentumZ;
+                energyFluxArea=exchange.energy;
+                // Keep the ordinary wall's local reconstructed pressure force.
+                // Matching pressure belongs to BVP thermodynamics; imposing it
+                // as a nonlocal acoustic boundary destabilizes the bulk row.
+                // Correct only p*n and p*w_n: species enthalpy, blowing kinetic
+                // energy, heat and traction work retain the evaluated wall state.
+                const GasPrimDevice local=reconstructGasCellToFace(s,own,f);
+                GPU_OPERATOR_REAL meshNormal=GPU_OPERATOR_R(0.0);
+                if(!finiteDevice(exchange.matchingPressure) || !(exchange.matchingPressure>GPU_OPERATOR_R(0.0))
+                    || !finiteDevice(local.p) || !(local.p>GPU_OPERATOR_R(0.0))
+                    || ugkwp::gasFaceFailure(s,f)!=0)
+                {if(!ugkwp::gasRecordFaceFailure(s,f,ugkwp::GasTransportCode::InvalidThermodynamics))asm("trap;");return false;}
+                if(!gasBoundaryMeshNormalSpeed(s,f,meshNormal))return false;
+                const GPU_OPERATOR_REAL pressureCorrection=local.p-exchange.matchingPressure;
+                momFluxXArea+=pressureCorrection*s.Sfx[f];
+                momFluxYArea+=pressureCorrection*s.Sfy[f];
+                momFluxZArea+=pressureCorrection*s.Sfz[f];
+                energyFluxArea+=pressureCorrection*s.magSf[f]*meshNormal;
+                if(!finiteDevice(momFluxXArea) || !finiteDevice(momFluxYArea)
+                    || !finiteDevice(momFluxZArea) || !finiteDevice(energyFluxArea))
+                {if(!ugkwp::gasRecordFaceFailure(s,f,ugkwp::GasTransportCode::NonFiniteState))asm("trap;");return false;}
+                if constexpr(ugkwp::GasStateTraits<GasState>::speciesCount>0)
+                    if(ugkwp::mixtureGasActive(s))
+                    {
+                        if(!wall.speciesFlux)
+                        {s.gasSpecies.faceStatus[f]=int(ugkwp::GasTransportCode::InvalidStorage);return false;}
+                        for(int species=0;species<ugkwp::GasStateTraits<GasState>::speciesCount;++species)
+                            s.gasSpecies.flux[species*s.nFaces+f]=wall.speciesFlux[species*wall.count+slot];
+                    }
+            }
+            return true;
         }
     }
     GPU_OPERATOR_REAL mappedNeiCx = GPU_OPERATOR_R(0.0);
@@ -268,8 +317,9 @@ __device__ bool computeRiemannGasFaceFluxDevice
             {
                 // A composition contact carries formation energy through the
                 // very same Rusanov dissipation applied to partial densities.
+                // Derived Real flux input only: never feeds back into rhoE storage.
                 ugkpriemann::Conservative leftConserved
-                {{s.rho[own],s.rhoUx[own],s.rhoUy[own],s.rhoUz[own],s.rhoE[own]}};
+                {{s.rho[own],s.rhoUx[own],s.rhoUy[own],s.rhoUz[own],GPU_OPERATOR_REAL(s.rhoE[own])}};
                 constexpr int Ns=ugkwp::GasStateTraits<GasState>::speciesCount;
                 GPU_OPERATOR_REAL leftSpecies[Ns],rightSpecies[Ns];
                 for(int k=0;k<Ns;++k)leftSpecies[k]=s.gasSpecies.rho[k*s.nCells+own];
@@ -278,7 +328,7 @@ __device__ bool computeRiemannGasFaceFluxDevice
                 ugkpriemann::Conservative rightConserved{};
                 if(nei>=0)
                 {
-                    rightConserved=ugkpriemann::Conservative{{s.rho[nei],s.rhoUx[nei],s.rhoUy[nei],s.rhoUz[nei],s.rhoE[nei]}};
+                    rightConserved=ugkpriemann::Conservative{{s.rho[nei],s.rhoUx[nei],s.rhoUy[nei],s.rhoUz[nei],GPU_OPERATOR_REAL(s.rhoE[nei])}};
                     for(int k=0;k<Ns;++k)rightSpecies[k]=s.gasSpecies.rho[k*s.nCells+nei];
                 }
                 else
@@ -811,6 +861,7 @@ __device__ bool computeRiemannGasFaceFluxDevice
                 directWallHeatFlux,
                 directWallHeatFluxActive
             );
+            if(ugkwp::mixtureGasActive(s) && ugkwp::gasFaceFailure(s,f)!=0)return false;
         }
         const GPU_OPERATOR_REAL muEffective = boundaryKind == 1
           ? GPU_OPERATOR_R(0.0) : s.gasMu + muTurbulent;

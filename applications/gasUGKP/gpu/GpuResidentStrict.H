@@ -3,6 +3,7 @@
 
 #include "fvCFD.H"
 #include "SharedGasModelInput.H"
+#include "BoundaryLayerInput.H"
 #include "GpuSchedulingConfiguration.H"
 #include "GpuGasBoundarySpec.H"
 #include "cyclicPolyPatch.H"
@@ -1078,6 +1079,22 @@ public:
             ),
             "configure GPU resident explicit SST"
         );
+    }
+
+    void configureBoundaryLayer(BoundaryLayerInput& input,const Time& time,
+        const fvMesh& mesh,const volScalarField& temperature)
+    {
+        requireInitialised("configure boundaryLayer");
+        if(residentMesh_!=&mesh)
+            FatalErrorInFunction<<"boundaryLayer must use the resident mesh"<<exit(FatalError);
+        input.prepare(time,mesh,temperature);
+        input.configureResident(handle_);
+    }
+
+    void writeBoundaryLayerDiagnostics(const BoundaryLayerInput& input,const Time& time)
+    {
+        requireInitialised("write boundaryLayer diagnostics");
+        input.writeDiagnostics(time,handle_);
     }
 
     void downloadSstToHostMirror

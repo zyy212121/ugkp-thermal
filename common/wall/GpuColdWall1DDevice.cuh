@@ -1,4 +1,5 @@
 #include "GpuPrecisionTypes.H"
+#include "GpuColdWallThermalCarry.cuh"
 #include "GpuColdWall1DAlgebra.cuh"
 #include "GpuColdWall1DGasOnly.cuh"
 #if UGKWP_GPU_REAL_BITS == 32
@@ -17,48 +18,48 @@
 
 
 
-__device__ inline GpuReal coldWall1DPcrSolveStable
+__device__ inline ColdWallThermalReal coldWall1DPcrSolveStable
 (
-    GpuReal lower,
-    GpuReal diagonal,
-    GpuReal upper,
-    GpuReal rightHandSide,
-    GpuReal rowSum,
+    ColdWallThermalReal lower,
+    ColdWallThermalReal diagonal,
+    ColdWallThermalReal upper,
+    ColdWallThermalReal rightHandSide,
+    ColdWallThermalReal rowSum,
     const int lane,
     const unsigned int mask
 )
 {
     for (int stride = 1; stride < 8; stride *= 2)
     {
-        const GpuReal lowerLower =
+        const ColdWallThermalReal lowerLower =
             __shfl_up_sync(mask, lower, stride, 8);
-        const GpuReal lowerDiagonal =
+        const ColdWallThermalReal lowerDiagonal =
             __shfl_up_sync(mask, diagonal, stride, 8);
-        const GpuReal lowerRightHandSide =
+        const ColdWallThermalReal lowerRightHandSide =
             __shfl_up_sync(mask, rightHandSide, stride, 8);
-        const GpuReal upperDiagonal =
+        const ColdWallThermalReal upperDiagonal =
             __shfl_down_sync(mask, diagonal, stride, 8);
-        const GpuReal upperUpper =
+        const ColdWallThermalReal upperUpper =
             __shfl_down_sync(mask, upper, stride, 8);
-        const GpuReal upperRightHandSide =
+        const ColdWallThermalReal upperRightHandSide =
             __shfl_down_sync(mask, rightHandSide, stride, 8);
-        const GpuReal lowerRowSum = __shfl_up_sync(mask, rowSum, stride, 8);
-        const GpuReal upperRowSum = __shfl_down_sync(mask, rowSum, stride, 8);
-        const GpuReal alpha = lane >= stride
+        const ColdWallThermalReal lowerRowSum = __shfl_up_sync(mask, rowSum, stride, 8);
+        const ColdWallThermalReal upperRowSum = __shfl_down_sync(mask, rowSum, stride, 8);
+        const ColdWallThermalReal alpha = lane >= stride
           ? -lower/(lowerDiagonal + GPU_REAL_MIN)
           : GPU_R(0.0);
-        const GpuReal beta = lane + stride < 8
+        const ColdWallThermalReal beta = lane + stride < 8
           ? -upper/(upperDiagonal + GPU_REAL_MIN)
           : GPU_R(0.0);
-        const GpuReal nextLower = lane >= stride
+        const ColdWallThermalReal nextLower = lane >= stride
           ? alpha*lowerLower
           : GPU_R(0.0);
-        const GpuReal nextUpper = lane + stride < 8
+        const ColdWallThermalReal nextUpper = lane + stride < 8
           ? beta*upperUpper
           : GPU_R(0.0);
-        const GpuReal nextRowSum = rowSum + alpha*lowerRowSum + beta*upperRowSum;
-        const GpuReal nextDiagonal = nextRowSum - nextLower - nextUpper;
-        const GpuReal nextRightHandSide = rightHandSide
+        const ColdWallThermalReal nextRowSum = rowSum + alpha*lowerRowSum + beta*upperRowSum;
+        const ColdWallThermalReal nextDiagonal = nextRowSum - nextLower - nextUpper;
+        const ColdWallThermalReal nextRightHandSide = rightHandSide
           + alpha*lowerRightHandSide + beta*upperRightHandSide;
         lower = nextLower;
         diagonal = nextDiagonal;

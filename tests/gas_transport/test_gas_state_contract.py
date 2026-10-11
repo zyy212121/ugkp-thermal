@@ -23,7 +23,7 @@ def test_manifest_covers_actual_state_dependencies_and_excludes_particle_resourc
         assert not re.search(r"\bDeviceState\b", source), header
     manifest = (ROOT / "common/gasTransport/GasStateFields.inc").read_text()
     fields = set(re.findall(r"UGKWP_GAS_STATE_FIELD\([^,]+,\s*(\w+)\)", manifest))
-    assert fields | {"gasSpecies", "gasThermalConductivity", "gasGeometry", "gasSstAudit"} == actual
+    assert fields | {"gasSpecies", "gasThermalConductivity", "gasGeometry", "gasSstAudit", "gasBoundaryLayer"} == actual
     assert not any(re.search(r"particle|pool|packing|csr|cuda|Stream|Graph", f, re.I) for f in fields)
 
 def test_all_three_legacy_consumers_reach_the_same_operator_owners():

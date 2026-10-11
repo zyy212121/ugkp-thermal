@@ -165,7 +165,7 @@ class RiemannWallSourceContract(unittest.TestCase):
         self.assertNotIn("reconstructGasCellToFace", skipped)
         skip_position = re.search(pattern, self.face_flux).start()
         reconstruction_position = self.face_flux.index(
-            "reconstructGasCellToFace"
+            "GasPrimDevice left = reconstructGasCellToFace"
         )
         self.assertLess(skip_position, reconstruction_position)
 
@@ -206,3 +206,28 @@ class RiemannWallAlgebraRegression(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+def test_empty_and_processor_faces_do_not_reconstruct_cell_state(tmp_path,monkeypatch):
+    """Execute production flux with inaccessible primitive fields to prove the skip.
+
+    Covers the ordinary legacy route and an invalid selected-wall map, whose
+    boundary-kind guard must reject before the new local-pressure reconstruction.
+    """
+    monkeypatch.syspath_prepend(str(ROOT.parents[1]/"tests/gas_transport"))
+    from test_mixture_state import compile_probe
+    from test_legacy_ale_transport import fixture
+    from test_boundary_layer_operators import SETUP
+    for bits in (32,64):
+        path=tmp_path/str(bits);path.mkdir()
+        compile_probe(path,fixture()+SETUP+r'''
+int main(){for(int selected=0;selected<2;++selected)for(int kind:{3,4}){
+ State s;initialise(s);if(selected)wall(s);s.riemannBoundaryKind[1]=kind;s.gasReconstruction=1;
+ // Any actual reconstruction dereferences these. Valid face topology and area
+ // remain available for the intended empty/processor skip and map validation.
+ s.rho=s.p=s.Tgas=s.Ux=s.Uy=s.Uz=nullptr;Real m=9,x=9,y=9,z=9,e=9;
+ ck(!computeRiemannGasFaceFluxDevice<false>(s,1,m,x,y,z,e),"nonphysical face produced a flux");
+ ck(m==0&&x==0&&y==0&&z==0&&e==0,"skipped face produced nonzero transport");
+ ck(s.gasSpecies.faceStatus[1]==(selected?int(ugkwp::GasTransportCode::InvalidStorage):0),"unexpected skip status");
+}}
+''',bits)

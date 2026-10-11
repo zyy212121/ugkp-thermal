@@ -4,7 +4,8 @@ bool evaluateCpuSurface(const HostState& h,const PhysicsConfig& p,
     const std::vector<GasPrimitive>& bulk,const std::vector<GasGradient>& gradients,
     const std::vector<SolidQ>& materialRate,const std::vector<FilmQ>& filmRate,
     Real dt,std::uint64_t sequence,CpuSurfaceResult& output,std::string& error,
-    const std::vector<Vec3>* filmPressureGradient,const std::vector<Real>* sideMeshVolumeRate){
+    const std::vector<Vec3>* filmPressureGradient,const std::vector<Real>* sideMeshVolumeRate,
+    const std::vector<GasWallClosureContext>* wallContexts){
     const auto& surface=h.surface;const std::size_t nf=surface.area.size();
     if(!finite(dt)||dt<=0||bulk.size()!=nf||(!gradients.empty()&&gradients.size()!=nf)
         ||surface.gasFace.size()!=nf||surface.normal.size()!=nf||surface.gasDistance.size()!=nf
@@ -14,6 +15,8 @@ bool evaluateCpuSurface(const HostState& h,const PhysicsConfig& p,
         ||(!filmRate.empty()&&filmRate.size()!=h.film.size())){error="CPU surface input layout/interval mismatch";return false;}
     if(!surface.gasMapOffsets.empty()||!surface.gasMapFaces.empty()||!surface.gasMapWeights.empty()){
         error="CPU surface requires the supported conformal interface map";return false;}
+    if(p.wallModel.family==ugkwp::gaswall::WallFamily::BoundaryLayer&&(!wallContexts||wallContexts->size()!=nf)){
+        error="CPU boundaryLayer requires current matching snapshot and certified stage geometry";return false;}
     CpuSurfaceResult result;result.physics.resize(nf);result.wall.resize(nf);
     for(std::size_t f=0;f<nf;++f){const int gf=surface.gasFace[f];
         if(gf<0)continue;
@@ -21,9 +24,10 @@ bool evaluateCpuSurface(const HostState& h,const PhysicsConfig& p,
             ||static_cast<std::size_t>(gf)>=h.gasMesh.faceIds.size()){error="CPU surface gas face outside real mesh";return false;}
         const int gc=h.gasMesh.owner[gf];if(gc<0||static_cast<std::size_t>(gc)>=h.gasMesh.volumes.size()){error="CPU surface gas owner outside real mesh";return false;}
         SurfacePhysicsInput input;input.bulk=bulk[f];if(!gradients.empty())input.gradient=gradients[f];
-        input.gasInventory=conservativeGas(bulk[f],h.gasMesh.volumes[gc],p);input.area=surface.area[f];input.normal=surface.normal[f];
+        input.gasInventory=conservativeGas(bulk[f],h.gasMesh.volumes[gc],p);
+        if(wallContexts){input.wallContext=(*wallContexts)[f];input.bulk.pressure=input.wallContext.matchingPressure;}input.area=surface.area[f];input.normal=surface.normal[f];
         input.gasArea=mag(h.gasMesh.areaVectors[gf]);input.gasNormal=-h.gasMesh.areaVectors[gf]/input.gasArea;
-        input.gasDistance=surface.gasDistance[f];input.dt=dt;input.aux=h.filmAux[f];input.aux.pressure=bulk[f].pressure;
+        input.gasDistance=surface.gasDistance[f];input.dt=dt;input.aux=h.filmAux[f];input.aux.pressure=input.bulk.pressure;
         input.baseVelocity=surface.baseVelocity.empty()?Vec3{}:surface.baseVelocity[f];
         const int sc=surface.solidCell.empty()?-1:surface.solidCell[f];input.hasSolid=sc>=0;
         if(input.hasSolid){if(static_cast<std::size_t>(sc)>=h.solid.size()||static_cast<std::size_t>(sc)>=h.solidMesh.volumes.size()

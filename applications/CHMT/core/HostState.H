@@ -62,6 +62,11 @@ struct HostState {
     // Trial boundary heat rates are Backend-owned candidate scratch, not state;
     // fractions/accepted heat are rolled back and checkpointed with normal H.
     std::vector<ExchangePacket> ledger{};std::vector<FilmPressureVolumeUpdate> filmStorage{};
+    // Reconstructible diagnostic snapshot, not physical state. Deliberately
+    // absent from checkpoints; restart output marks it NOT_AVAILABLE until a
+    // new accepted gas stage supplies it. Rollback still copies it atomically.
+    std::vector<ugkwp::gaswall::WallOutput<Real,Ns>> gasWallDiagnostics{};
+    Real gasWallDiagnosticTime=-1;
     GasSstIntegralAudit gasSstAudit{};
     Real time=0;std::uint64_t acceptedSteps=0,rejectedSteps=0,commitSequence=0;Budget budget{};
 };

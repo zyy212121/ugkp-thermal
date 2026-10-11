@@ -19,6 +19,33 @@ void stage(State&s,double dt,double rate){
 '''
 
 
+@pytest.mark.parametrize('bits', [32, 64])
+def test_mixed_energy_budget_uses_actual_energy_stage_weights(tmp_path, bits):
+    source = audited_fixture().replace(
+        'GasStateView<Real,Time,ugkwp::SstCoefficients>',
+        'GasStateView<Real,Time,ugkwp::SstCoefficients,double>',
+    ).replace('s.rhoE=new Real[8]{};', 's.rhoE=new double[8]{};').replace(
+        's.rhoENext=new Real[8]{};', 's.rhoENext=new double[8]{};'
+    )
+    compile_probe(tmp_path, source + r'''
+int main(){
+ State s;initialise(s);enable(s);threadIdx.x=0;
+ for(int k=0;k<4;++k){s.gasBudgetAudit.initialTransport[2*k]=1.;s.gasBudgetAudit.transport[2*k]=3.;}
+ s.rhoENext[0]=1000.;s.rhoE[0]=1030.;
+ blendGasConservativeStateKernel(&s,1./3.,2./3.);
+ const double energyExpected=1./3.+(2./3.)*3.;
+ const double otherExpected=double(Real(1./3.))+double(Real(2./3.))*3.;
+ ck(s.rhoE[0]==1020.,"physical mixed energy stage mismatch");
+ ck(std::abs(s.gasBudgetAudit.transport[2]-energyExpected)<1e-15,"energy audit used rounded mass weights");
+ for(int k:{0,2,3})ck(s.gasBudgetAudit.transport[2*k]==otherExpected,"mass/species audit changed its actual weights");
+ s.gasBudgetAudit.enabled=false;
+ const double saved=s.gasBudgetAudit.transport[2];
+ blendGasConservativeStateKernel(&s,.25,.75);
+ ck(s.gasBudgetAudit.transport[2]==saved,"disabled audit changed storage");
+}
+''', bits)
+
+
 @pytest.mark.parametrize('bits',[32,64])
 @pytest.mark.parametrize('rk',[1,2,3])
 def test_actual_rk_weights_propagate_final_boundary_flux_budget(tmp_path,bits,rk):
@@ -66,3 +93,21 @@ ck(s.gasBudgetAudit.transport[2]==-dt*limitedEnergy,"energy audit read unscaled 
 ck(s.gasBudgetAudit.transport[4]==-dt*limitedSpecies,"species audit read unscaled flux");
 ck(s.gasBudgetAudit.transport[6]==dt*limitedSpecies,"counterflow species audit missing");}
 ''')
+
+
+@pytest.mark.parametrize('bits',[32,64])
+def test_budget_records_final_physical_wall_override(tmp_path,bits):
+    from test_boundary_layer_operators import SETUP
+    compile_probe(tmp_path,audited_fixture()+SETUP+r'''
+int main(){State s;initialise(s);enable(s);wall(s);const double dt=.0001;
+s.gasBoundaryLayer.speciesFlux[0]=Real(-.16);s.gasBoundaryLayer.speciesFlux[1]=Real(-.24);
+threadIdx.x=1;computeGasInternalFaceFluxKernel<false>(&s,dt);applyGasFluxPositivityScaleKernel(&s);
+ck(s.gasSpecies.faceStatus[1]==0,"physical wall flux failed");
+const double finalMass=s.gasPhiRho[1],finalEnergy=s.gasPhiRhoE[1],finalSpecies=s.gasSpecies.flux[1];
+ck(std::abs(finalMass+.4)<1e-7&&std::abs(finalEnergy+31)<1e-7,"physical wall override missing");
+threadIdx.x=0;applyGasFluxDivergenceByCellKernel(&s,dt);
+ck(s.gasSpecies.cellStatus[0]==0,"physical wall update failed");
+ck(s.gasBudgetAudit.transport[0]==-dt*finalMass,"wall mass budget read pre-override flux");
+ck(s.gasBudgetAudit.transport[2]==-dt*finalEnergy,"wall energy budget read pre-override flux");
+ck(s.gasBudgetAudit.transport[4]==-dt*finalSpecies,"wall species budget read pre-override flux");}
+''',bits)

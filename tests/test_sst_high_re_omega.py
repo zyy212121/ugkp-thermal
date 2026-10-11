@@ -24,7 +24,7 @@ def test_high_re_omega_stage_constraint(tmp_path):
 void sstVelocityInvariants(const DeviceState&,int,R&d,R&s,R&g){d=s=g=0;}
 R sstKProductionForCell(const DeviceState&,int,R){return 0;}
 '''
-    body = pre + functions + recovery + controlled_invariants + update + rk + r'''
+    body = pre + '\n#include "gasTransport/GasBudgetAudit.H"\nconst R OfGreat=R(1.0)/OfSmall;\n' + functions + recovery + controlled_invariants + update + rk + r'''
 int failures=0;
 void check(const char*name,R got,R want){
  if(!std::isfinite(got)||std::abs(got-want)>(sizeof(R)==4?6e-5:2e-11)*std::max(R(1),std::abs(want))){

@@ -33,13 +33,23 @@ template<class State>UGKWP_GAS_HD inline void saveGasBudgetAudit(const State&s,i
         if(s.gasBudgetAudit.enabled)for(int k=0;k<s.gasBudgetAudit.speciesCount+2;++k)
             s.gasBudgetAudit.initialTransport[k*s.nCells+cell]=s.gasBudgetAudit.transport[k*s.nCells+cell];
 }
-template<class State,class Weight>UGKWP_GAS_HD inline void blendGasBudgetAudit
-(const State&s,int cell,Weight initialWeight,Weight stageWeight)
+template<class State,class Weight,class EnergyWeight>UGKWP_GAS_HD inline void blendGasBudgetAudit
+(const State&s,int cell,Weight initialWeight,Weight stageWeight,
+ EnergyWeight energyInitialWeight,EnergyWeight energyStageWeight)
 {
     if constexpr(GasBudgetAuditCapability<State>::value)
         if(s.gasBudgetAudit.enabled)for(int k=0;k<s.gasBudgetAudit.speciesCount+2;++k)
-        {const int i=k*s.nCells+cell;s.gasBudgetAudit.transport[i]=double(initialWeight)*s.gasBudgetAudit.initialTransport[i]+double(stageWeight)*s.gasBudgetAudit.transport[i];}
+        {
+            const int i=k*s.nCells+cell;
+            const double wi=k==1?double(energyInitialWeight):double(initialWeight);
+            const double ws=k==1?double(energyStageWeight):double(stageWeight);
+            s.gasBudgetAudit.transport[i]=wi*s.gasBudgetAudit.initialTransport[i]
+                +ws*s.gasBudgetAudit.transport[i];
+        }
 }
+template<class State,class Weight>UGKWP_GAS_HD inline void blendGasBudgetAudit
+(const State&s,int cell,Weight initialWeight,Weight stageWeight)
+{blendGasBudgetAudit(s,cell,initialWeight,stageWeight,initialWeight,stageWeight);}
 template<class State,class Real,int Ns>UGKWP_GAS_HD inline void gasBudgetChemistry
 (const State&s,int cell,const Real(&publishedDensity)[Ns],Real volume)
 {

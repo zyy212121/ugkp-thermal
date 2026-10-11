@@ -23,7 +23,17 @@ int main(int argc,char**argv){
  volVectorField rhoU(IOobject("rhoU",runTime.timeName(),mesh,IOobject::READ_IF_PRESENT,IOobject::AUTO_WRITE),rho*U);
  volScalarField rhoE(IOobject("rhoE",runTime.timeName(),mesh,IOobject::READ_IF_PRESENT,IOobject::AUTO_WRITE),p);
  const char* selectedWall=std::getenv("GAS_MODEL_TEST_WALL");
+ const bool moving=std::getenv("GAS_MODEL_TEST_MOVING")!=nullptr;
  model.validateNumerics(1,1,0,2,selectedWall?3:0,false,selectedWall?std::atoi(selectedWall):0);
+ // Native gas frontend has no moving-mesh argument. Exercise the shared ALE
+ // capability directly, with Euler so wall-family scope causes the rejection.
+ if(moving){
+  ugkwp::GasCapabilityRequest request;request.mode=model.model().mode;
+  request.fluxScheme=1;request.reconstruction=1;request.timeIntegrator=1;
+  request.turbulenceModel=3;request.sstWallTreatment=std::atoi(selectedWall);request.movingGeometry=true;
+  const auto result=ugkwp::validateGasCapabilities(request);
+  if(!result)FatalErrorInFunction<<result.message<<exit(FatalError);
+ }
  model.initialiseFields(runTime,mesh,rho,rhoU,rhoE,U,p,T);
  if(std::getenv("GAS_MODEL_WRITE_RESTART")){runTime.setTime(1.,1);runTime.writeNow();}
  Info<<"MODEL_INITIALIZED "<<model.model().speciesNames.size()<<" "<<rho[0]<<" "<<rhoE[0]<<" mode="<<static_cast<int>(model.model().mode)<<nl;
@@ -138,15 +148,31 @@ def test_native_legacy_needs_no_mixture_fields_or_identity(native_probe,tmp_path
     assert not (tmp_path/"0/gasModelIdentity").exists()
 
 
-@pytest.mark.parametrize("wall,accepted", [("0",True),("1",False)])
-def test_native_mixture_sst_gate_uses_configured_wall_treatment(native_probe,tmp_path,wall,accepted):
-    binary,build=native_probe
+@pytest.mark.parametrize("mode,wall,moving,accepted", [
+    ("frozen","0",False,True),
+    ("frozen","1",False,True),
+    ("frozen","1",True,False),
+    ("chemistry","0",False,True),
+    ("chemistry","1",False,False),
+])
+def test_native_mixture_sst_gate_uses_configured_wall_treatment(request,tmp_path,mode,wall,moving,accepted):
+    binary,build=request.getfixturevalue("native_reacting_probe" if mode=="chemistry" else "native_probe")
     assert build.returncode==0,build.stdout+build.stderr
-    make_case(tmp_path)
-    result=subprocess.run([str(binary),"-case",str(tmp_path)],env=dict(os.environ,GAS_MODEL_TEST_WALL=wall),capture_output=True,text=True)
+    if mode=="chemistry":
+        spec=importlib.util.spec_from_file_location("native_wall_reactor_case",ROOT/"test/gasUGKP/chemistryReactor/make_case.py")
+        module=importlib.util.module_from_spec(spec);spec.loader.exec_module(module)
+        module.create_case(tmp_path)
+        mesh=subprocess.run(["blockMesh","-case",str(tmp_path)],capture_output=True,text=True)
+        assert mesh.returncode==0,mesh.stdout+mesh.stderr
+    else:
+        make_case(tmp_path)
+    env=dict(os.environ,GAS_MODEL_TEST_WALL=wall)
+    if moving:env["GAS_MODEL_TEST_MOVING"]="1"
+    else:env.pop("GAS_MODEL_TEST_MOVING",None)
+    result=subprocess.run([str(binary),"-case",str(tmp_path)],env=env,capture_output=True,text=True)
     assert (result.returncode==0)==accepted,result.stdout+result.stderr
     if not accepted:
-        assert "low-Re" in result.stdout+result.stderr
+        assert "wallFunction supports only fixed impermeable mixtureFrozen" in result.stdout+result.stderr
 
 
 def test_native_same_ns10_binary_accepts_reacting_frozen_and_legacy_modes(native_reacting_probe,tmp_path):

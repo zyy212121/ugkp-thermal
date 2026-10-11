@@ -37,7 +37,7 @@ def checkpoint(path, time, step):
     digest = 14695981039346656037
     for byte in body:
         digest = ((digest ^ byte) * 1099511628211) & ((1 << 64) - 1)
-    path.write_bytes(struct.pack('<8sQIIIIIIQQQQ', b'CHMTCP2\0', 5, 0x01020304, 8, 2, 2, 8, 8, 12202687703557820755, len(model), len(state), digest) + body)
+    path.write_bytes(struct.pack('<8sQIIIIIIQQQQ', b'CHMTCP2\0', 6, 0x01020304, 8, 2, 2, 8, 8, 15664811910203657810, len(model), len(state), digest) + body)
 
 
 def synthetic_case(tmp_path, intervals=2):

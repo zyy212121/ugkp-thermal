@@ -177,7 +177,7 @@ class RiemannBoundaryGradientSourceContract(unittest.TestCase):
         for name in active_gas_functions:
             with self.subTest(function=name):
                 body = code_only(function_block(self.source, name))
-                self.assertNotRegex(body, r"\bs\.gasBoundary[A-Z]")
+                self.assertNotRegex(body, r"\bs\.gasBoundary(?!Layer\b)[A-Z]")
 
     def test_convective_courant_matches_rho_central_cell_sum(self) -> None:
         self.assertIn("spectralRadius*area", self.courant_kernel)

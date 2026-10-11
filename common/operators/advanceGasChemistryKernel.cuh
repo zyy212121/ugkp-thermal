@@ -61,7 +61,8 @@ UGKWP_GAS_HD inline ChemistryStatus advanceGasChemistryCell
     }
     else
     {
-        using Real = GasChemistryStateReal<GasState>;
+        using StorageReal = GasChemistryStateReal<GasState>;
+        using Real = GasEnergyScalar<GasState>;
         constexpr int Ns = GasStateTraits<GasState>::speciesCount;
         auto& species = state.gasSpecies;
         if (species.mode == GasMode::SingleLegacy
@@ -136,9 +137,9 @@ UGKWP_GAS_HD inline ChemistryStatus advanceGasChemistryCell
             return gasChemistryAdapterDetail::recordFailure(species, cell, status);
         }
 
-        const Real ux = state.rhoUx[cell]/density;
-        const Real uy = state.rhoUy[cell]/density;
-        const Real uz = state.rhoUz[cell]/density;
+        const Real ux = Real(state.rhoUx[cell])/density;
+        const Real uy = Real(state.rhoUy[cell])/density;
+        const Real uz = Real(state.rhoUz[cell])/density;
         const Real kineticDensity = Real(0.5)*density*(ux*ux + uy*uy + uz*uz);
         input.internalEnergy = (state.rhoE[cell] - kineticDensity)*stageVolume;
         // Negative formation-inclusive U is valid; the common caloric inversion
@@ -155,14 +156,14 @@ UGKWP_GAS_HD inline ChemistryStatus advanceGasChemistryCell
         status = advanceClosedReactor
         (
             input, interval, species.thermo, species.mechanism,
-            species.chemistryControls, result, localAudit
+            castChemistryControls<Real>(species.chemistryControls), result, localAudit
         );
         if (!status)
             return gasChemistryAdapterDetail::recordFailure(species, cell, status);
 
         // Validate the actual publication before the first write. A zero-time
         // call retains the original density bits, not their volume round trip.
-        Real candidateDensity[Ns];
+        StorageReal candidateDensity[Ns];
         densitySum = Real(0);
         for (int s = 0; s < Ns; ++s)
         {
@@ -184,7 +185,7 @@ UGKWP_GAS_HD inline ChemistryStatus advanceGasChemistryCell
                 > species.densityClosureTolerance*density
             && gasThermoDetail::absValue(densitySum - density)
                 <= gasThermoDetail::absValue(inputDensityDefect)
-                    + Real(8*Ns)*std::numeric_limits<Real>::epsilon()*density)
+                    + Real(8*Ns)*std::numeric_limits<StorageReal>::epsilon()*density)
         {
             int dependent = 0;
             for (int s = 1; s < Ns; ++s)
@@ -210,7 +211,7 @@ UGKWP_GAS_HD inline ChemistryStatus advanceGasChemistryCell
         Real publishedMass[Ns], massSum = Real(0);
         for (int s = 0; s < Ns; ++s)
         {
-            publishedMass[s] = candidateDensity[s]*stageVolume;
+            publishedMass[s] = Real(candidateDensity[s])*Real(stageVolume);
             if (!gasFinite(candidateDensity[s]) || candidateDensity[s] < Real(0)
                 || !gasFinite(publishedMass[s]))
             {
@@ -266,7 +267,7 @@ UGKWP_GAS_HD inline ChemistryStatus advanceGasChemistryCell
                 species.rho[s*state.nCells + cell] = candidateDensity[s];
         }
         if (species.chemistryAudit)
-            species.chemistryAudit[cell] = localAudit;
+            species.chemistryAudit[cell] = castChemistryAudit<StorageReal>(localAudit);
         species.chemistryStatus[cell] = status;
         return status;
     }

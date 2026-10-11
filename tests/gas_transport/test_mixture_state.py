@@ -58,7 +58,7 @@ r.fluxScheme=4;if(ugkwp::validateGasCapabilities(r))return 3;r.fluxScheme=1;
 r.reconstruction=2;if(ugkwp::validateGasCapabilities(r))return 4;r.reconstruction=0;
 r.movingGeometry=true;r.timeIntegrator=2;if(ugkwp::validateGasCapabilities(r))return 5;r.timeIntegrator=1;if(!ugkwp::validateGasCapabilities(r))return 9;r.movingGeometry=false;
 r.particleCoupling=true;if(ugkwp::validateGasCapabilities(r))return 6;r.particleCoupling=false;
-r.turbulenceModel=3;r.sstWallTreatment=1;if(ugkwp::validateGasCapabilities(r))return 7;r.turbulenceModel=0;r.sstWallTreatment=0;
+r.turbulenceModel=3;r.sstWallTreatment=1;if(!ugkwp::validateGasCapabilities(r))return 7;r.turbulenceModel=0;r.sstWallTreatment=0;
 r.mode=ugkwp::GasMode::MixtureChemistry;if(!ugkwp::validateGasCapabilities(r))return 8;}
 ''')
 

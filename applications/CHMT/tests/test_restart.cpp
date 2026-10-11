@@ -132,8 +132,9 @@ int main(){
  require(!readCheckpoint(directory,wrong,restored,error),"different model rejects");require(restored.time==999&&sameBits(restored.solidSweepRemainder,sentinel),"identity rejection preserves output carry");
  auto corrupt=original;corrupt.back()^=1;expectReadFailure(corrupt,"checksum","payload corruption rejected");
  expectReadFailure(original.substr(0,original.size()-1),"length","truncation rejected");
- require(checkpointSchema==5&&getInteger(original,8)==5,"explicit checkpoint schema bumped for shared gas thermo and active-species identity");
- auto legacy=original;setInteger(legacy,8,4);expectReadFailure(legacy,"schema","schema-4 lacks active-species and SST audit identity");
+ require(checkpointSchema==6&&getInteger(original,8)==6,"explicit checkpoint schema includes shared wall-family identity");
+ auto legacy=original;setInteger(legacy,8,5);expectReadFailure(legacy,"schema","schema-5 lacks shared wall-family controls");
+ setInteger(legacy,8,4);expectReadFailure(legacy,"schema","schema-4 lacks active-species and SST audit identity");
  setInteger(legacy,8,3);expectReadFailure(legacy,"schema","schema-3 checkpoint cannot silently initialize shared gas thermo identity");
  setInteger(legacy,8,2);expectReadFailure(legacy,"schema","schema-2 checkpoint cannot silently initialize thermal policy");
  setInteger(legacy,8,1);expectReadFailure(legacy,"schema","legacy checkpoint cannot silently initialize carry");

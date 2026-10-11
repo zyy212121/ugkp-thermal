@@ -38,7 +38,7 @@ int main(int argc,char** argv) {
         std::unique_ptr<chmt::Backend,void(*)(chmt::Backend*)> backend(
             chmt::createBackend(input.model,input.gasModel,input.gasMechanism,options,input.state,error),chmt::destroyBackend);
         chmt::io::require(bool(backend),error);
-        chmt::CpuMaterialDriver material(input.model,input.solidMesh.get());
+        chmt::CpuMaterialDriver material(input.model,input.solidMesh.get(),&input.gasMechanism);
         const chmt::Real end=time.controlDict().lookup<Foam::scalar>("endTime");
         chmt::io::require(chmt::finite(end)&&end>=input.state.time,"invalid requested final time");
         const Foam::fileName directory=time.path()/chmt::io::text(properties,"outputDirectory","chmtOutput");
@@ -54,6 +54,10 @@ int main(int argc,char** argv) {
             chmt::io::require(chmt::io::writeAcceptedMaterialFields(solid,input.state,input.model,error),error);
             std::ofstream exchange((directory/Foam::fileName("exchange-"+suffix+".csv")).c_str());
             chmt::io::require(chmt::io::writeAcceptedExchangeFields(exchange,input.state,input.model,error),error);
+            if(input.model.physics.wallModel.family==ugkwp::gaswall::WallFamily::BoundaryLayer){
+                std::ofstream wall((directory/Foam::fileName("wall-layer-"+suffix+".csv")).c_str());
+                chmt::io::require(chmt::io::writeAcceptedWallLayerFields(wall,input.state,input.model,error),error);
+            }
             chmt::io::require(chmt::writeCheckpoint(directory/Foam::fileName("checkpoint-"+suffix),input.model,input.state,error),error);
         };
         publish();

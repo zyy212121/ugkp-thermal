@@ -35,7 +35,7 @@ constexpr std::uint64_t defaultSpeciesNameHash() {
 constexpr std::uint64_t defaultSpeciesHash=defaultSpeciesNameHash();
 // Schema 4 adds immutable tagged gas thermo, NASA7 coefficients and entropy references.
 // Borrowed shared-thermo views are rebuilt and never serialized.
-constexpr std::uint64_t checkpointSchema=5;
+constexpr std::uint64_t checkpointSchema=6;
 
 CHMT_HD inline bool finite(Real x) { return x==x && x<=std::numeric_limits<Real>::max() && x>=-std::numeric_limits<Real>::max(); }
 CHMT_HD inline Real absValue(Real x) { return x<0 ? -x : x; }
