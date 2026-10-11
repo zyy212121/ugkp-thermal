@@ -23,13 +23,28 @@ UGKWP_GAS_HD inline bool publishGasBoundaryLayerOutput
         || !gasFinite(output.traceTemperature) || !(output.traceTemperature>0)
         || !gasFinite(input.pressure) || !(input.pressure>0))return false;
     GasBoundaryLayerExchange<Real> candidate;
-    Real mass=0,enthalpy=0,speed2=0,viscousWork=0;
+    Real mass=0,enthalpy=0,speed2=0,viscousWork=0,tractionScale=0;
     for(int d=0;d<3;++d)
     {
         if(!gasFinite(output.traceVelocity[d]) || !gasFinite(output.traction[d])
             || !gasFinite(input.normal[d]))return false;
         speed2+=output.traceVelocity[d]*output.traceVelocity[d];
+        tractionScale=gaswall::detail::max(tractionScale,gaswall::detail::abs(output.traction[d]));
         viscousWork+=output.traction[d]*output.traceVelocity[d];
+    }
+    // Project before taking a max-scaled norm: normal pressure/roundoff must
+    // not produce turbulent shear, and squaring tiny/large traction is unsafe.
+    Real shear=0;
+    if(tractionScale>0)
+    {
+        Real normalTraction=0,tangential2=0;
+        for(int d=0;d<3;++d)normalTraction+=(output.traction[d]/tractionScale)*input.normal[d];
+        for(int d=0;d<3;++d)
+        {
+            const Real tangential=output.traction[d]/tractionScale-normalTraction*input.normal[d];
+            tangential2+=tangential*tangential;
+        }
+        shear=tractionScale*::sqrt(tangential2);
     }
     for(int species=0;species<Ns;++species)
     {
@@ -45,14 +60,18 @@ UGKWP_GAS_HD inline bool publishGasBoundaryLayerOutput
     candidate.momentumZ=-area*(mass*output.traceVelocity[2]+input.pressure*input.normal[2]-output.traction[2]);
     candidate.energy=-area*(enthalpy+Real(.5)*mass*speed2+output.conductiveHeatFlux
         +input.pressure*normalSweepRate-viscousWork);
-    candidate.k=-area*output.wallKFlux;
+    // High-Re kqR-type condition: no normal diffusive TKE exchange. The
+    // material model injects zero TKE with its prescribed nonnegative blowing.
+    // The auxiliary low-Re profile is not the coarse owner inventory.
+    candidate.k=Real(0);
     if(!gasFinite(candidate.mass) || !gasFinite(candidate.momentumX) || !gasFinite(candidate.momentumY)
         || !gasFinite(candidate.momentumZ) || !gasFinite(candidate.energy) || !gasFinite(candidate.k)
-        || !gasFinite(output.integratedKSource) || !gasFinite(output.ownerOmega)
+        || !gasFinite(shear) || !gasFinite(output.ownerOmega)
+        || !gasFinite(input.ownerDistance) || !(input.ownerDistance>0)
         || !gasFinite(input.quadrature.volume) || !(input.quadrature.volume>0))return false;
     for(int species=0;species<Ns;++species)
         wall.speciesFlux[species*wall.count+slot]=-area*output.wallSpeciesFlux[species];
-    wall.sst[slot]={output.integratedKSource,output.ownerOmega,input.quadrature.volume};
+    wall.sst[slot]={shear,output.ownerOmega,input.quadrature.volume,input.ownerDistance};
     candidate.ready=true;
     candidate.massReady=true;
     wall.exchange[slot]=candidate;

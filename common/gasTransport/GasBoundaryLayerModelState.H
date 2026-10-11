@@ -70,6 +70,9 @@ template<class State> UGKWP_GAS_HD inline bool evaluateGasBoundaryLayerSlot(Stat
     if(!mixtureGasActive(state) || (!model.useSuppliedWallState && !state.riemannBoundaryTFix[face]) || !state.gasSpecies.diffusivity)
         return fail(GasTransportCode::UnsupportedConfiguration);
     auto& in=model.input[slot];
+    // Coarse SST audit does not consume the auxiliary profile integral.
+    // Direct BVP research calls can opt in, but production never requests it.
+    in.integrateOwnerKSource=false;
     if(!model.useSuppliedWallState)
     {
     in.temperature=state.riemannBoundaryT[face];

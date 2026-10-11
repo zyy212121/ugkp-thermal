@@ -274,10 +274,10 @@ UGKWP_GAS_HD inline Real speciesGibbsStandard
 
 // The arrays contain masses [kg], not mass fractions or molar concentrations.
 // Supplying mass fractions is valid only when intentionally evaluating one kg.
-template<class Real,int Ns>
+template<class Real,int Ns,class TableReal>
 UGKWP_GAS_HD inline ThermoStatus evaluateMixtureEnergy
 (
-    const Real* speciesMass,Real temperature,const SpeciesThermoView<Real,Ns>& view,
+    const Real* speciesMass,Real temperature,const SpeciesThermoView<TableReal,Ns>& view,
     Real& energy,Real& heatCapacity
 ) noexcept
 {
@@ -302,18 +302,18 @@ UGKWP_GAS_HD inline ThermoStatus evaluateMixtureEnergy
     return ThermoStatus::Success;
 }
 
-template<class Real,int Ns>
+template<class Real,int Ns,class TableReal>
 UGKWP_GAS_HD inline Real mixtureEnergy
-(const Real* speciesMass,Real temperature,const SpeciesThermoView<Real,Ns>& view) noexcept
+(const Real* speciesMass,Real temperature,const SpeciesThermoView<TableReal,Ns>& view) noexcept
 {
     Real energy,capacity;
     return evaluateMixtureEnergy(speciesMass,temperature,view,energy,capacity)==ThermoStatus::Success
         ? energy : gasThermoDetail::invalidValue<Real>();
 }
 
-template<class Real,int Ns>
+template<class Real,int Ns,class TableReal>
 UGKWP_GAS_HD inline Real mixtureHeatCapacity
-(const Real* speciesMass,Real temperature,const SpeciesThermoView<Real,Ns>& view) noexcept
+(const Real* speciesMass,Real temperature,const SpeciesThermoView<TableReal,Ns>& view) noexcept
 {
     Real energy,capacity;
     return evaluateMixtureEnergy(speciesMass,temperature,view,energy,capacity)==ThermoStatus::Success
@@ -322,9 +322,9 @@ UGKWP_GAS_HD inline Real mixtureHeatCapacity
 
 // Mass-specific mixture R. Input may contain masses or mass fractions; total
 // mass is explicitly divided out. Invalid/zero mass has no meaningful R.
-template<class Real,int Ns>
+template<class Real,int Ns,class TableReal>
 UGKWP_GAS_HD inline Real mixtureGasConstant
-(const Real* speciesMass,const SpeciesThermoView<Real,Ns>& view) noexcept
+(const Real* speciesMass,const SpeciesThermoView<TableReal,Ns>& view) noexcept
 {
     if(!speciesMass || validateSpeciesThermoView(view)!=ThermoStatus::Success)
         return gasThermoDetail::invalidValue<Real>();
@@ -345,11 +345,11 @@ UGKWP_GAS_HD inline Real mixtureGasConstant
 // p/T/Y initialization has one common EOS owner. Y must already be admissible;
 // this routine never repairs species or silently accepts arbitrary mass units.
 // All species (including zero-mass products) must share the supplied T range.
-template<class Real,int Ns>
+template<class Real,int Ns,class TableReal>
 UGKWP_GAS_HD inline ThermoStatus mixtureDensityFromPressureTemperature
 (
     Real pressure,Real temperature,const Real* massFractions,
-    const SpeciesThermoView<Real,Ns>& view,Real& density,
+    const SpeciesThermoView<TableReal,Ns>& view,Real& density,
     Real compositionTolerance=Real(64)*std::numeric_limits<Real>::epsilon()
 ) noexcept
 {
@@ -453,19 +453,19 @@ UGKWP_GAS_HD inline ThermoStatus invertCaloricEnergy
     return ThermoStatus::IterationLimit;
 }
 
-template<class Real,int Ns>
+template<class Real,int Ns,class TableReal=Real>
 struct MixtureEnergyEvaluator
 {
     const Real* speciesMass;
-    SpeciesThermoView<Real,Ns> thermo;
+    SpeciesThermoView<TableReal,Ns> thermo;
     UGKWP_GAS_HD ThermoStatus operator()(Real T,Real& energy,Real& capacity) const noexcept
     { return evaluateMixtureEnergy(speciesMass,T,thermo,energy,capacity); }
 };
 
-template<class Real,int Ns>
+template<class Real,int Ns,class TableReal>
 UGKWP_GAS_HD inline ThermoStatus invertMixtureEnergy
 (
-    const Real* speciesMass,Real internalEnergy,const SpeciesThermoView<Real,Ns>& view,
+    const Real* speciesMass,Real internalEnergy,const SpeciesThermoView<TableReal,Ns>& view,
     const ThermoInversionControls<Real>& controls,Real& temperature
 ) noexcept
 {
@@ -477,10 +477,10 @@ UGKWP_GAS_HD inline ThermoStatus invertMixtureEnergy
     Real lo=Real(0),hi=(std::numeric_limits<Real>::max)();
     for(int s=0;s<Ns;++s)
     {
-        lo=maxValue(lo,view.species[s].minTemperature);
-        hi=minValue(hi,view.species[s].maxTemperature);
+        lo=maxValue(lo,Real(view.species[s].minTemperature));
+        hi=minValue(hi,Real(view.species[s].maxTemperature));
     }
-    const MixtureEnergyEvaluator<Real,Ns> evaluator{speciesMass,view};
+    const MixtureEnergyEvaluator<Real,Ns,TableReal> evaluator{speciesMass,view};
     return invertCaloricEnergy(evaluator,internalEnergy,lo,hi,controls,temperature);
 }
 
