@@ -50,3 +50,6 @@
 
 #define GPU_PARTICLE_FIELDS_SEPARATE_AGE(X) \
     X(pContactAge, compactPContactAge, s.pContactAge[i])
+
+#define GPU_PARTICLE_FIELDS_THERMAL_CARRY(X) \
+    X(pThermalEnthalpyResidual, compactPThermalEnthalpyResidual, s.pThermalEnthalpyResidual[i])

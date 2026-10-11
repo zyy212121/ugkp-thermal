@@ -12,7 +12,7 @@ const GPU_MOMENT_REAL particleEnergy = m*(GPU_MOMENT_R(0.5)*sqr3(ux, uy, uz) + G
 GPU_MOMENT_REAL particleHeat = GPU_MOMENT_R(0.0);
 #if GPU_MOMENT_THERMAL
 const GPU_MOMENT_REAL tp = clampRange(finiteOr(s.pT[i], s.TpMin), s.TpMin, s.TpMax);
-particleHeat = materialEnthalpyMoment(m, tp);
+particleHeat = materialEnthalpyMomentFromParticle(s, i, m, tp, 0);
 #else
 if (heatFactor > GPU_MOMENT_R(0.0))
     particleHeat = m*heatFactor*clampRange(finiteOr(s.pT[i], s.TpMin), s.TpMin, s.TpMax);

@@ -1,10 +1,12 @@
 #pragma once
 #include "GpuParticleFields.cuh"
+#include "GpuParticleThermalCarryStorage.cuh"
 #include "operators/swapParticlePointerDevice.cuh"
 __host__ __device__ __forceinline__ void swapParticleBuffersDevice(DeviceState& s)
 {
 #define GPU_SWAP_FIELD(src, dest, unused) swapParticlePointerDevice(s.src, s.dest);
     GPU_PARTICLE_FIELDS_PRIMARY_BEFORE_CONTACT(GPU_SWAP_FIELD)
+    swapParticleThermalEnthalpyResidual(s, 0);
     GPU_PARTICLE_FIELDS_PRIMARY_AFTER_CONTACT(GPU_SWAP_FIELD)
     ParticleFieldExtension::swap(s);
     GPU_PARTICLE_FIELDS_IDENTITY(GPU_SWAP_FIELD)

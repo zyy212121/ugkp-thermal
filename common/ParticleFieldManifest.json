@@ -560,6 +560,26 @@
         "condition": "pStuck != 0",
         "schema": 7
       }
+    },
+    {
+      "name": "pThermalEnthalpyResidual",
+      "compact": "compactPThermalEnthalpyResidual",
+      "group": "THERMAL_CARRY",
+      "copy_value": "s.pThermalEnthalpyResidual[i]",
+      "width": 1,
+      "width_symbol": "1",
+      "storage": {
+        "CHT": "double"
+      },
+      "host": {
+        "CHT": "double"
+      },
+      "schema7": null,
+      "wire_extension": {
+        "schema": 8,
+        "ordinal": 30,
+        "legacy_default": 0.0
+      }
     }
   ],
   "scratch_fields": [

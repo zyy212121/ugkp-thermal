@@ -1,5 +1,6 @@
 #pragma once
 #include "GpuParticleFields.cuh"
+#include "GpuParticleThermalCarryStorage.cuh"
 #ifdef GPU_PARTICLE_EXTRA_FIELDS
 using ParticleFieldExtension = GPU_PARTICLE_EXTRA_FIELDS;
 #else
@@ -15,6 +16,7 @@ __device__ __forceinline__ void copyCellLocalParticle
 {
 #define GPU_COPY_SCALAR(src, dest, value) s.dest[dst] = value;
     GPU_PARTICLE_FIELDS_PRIMARY_BEFORE_CONTACT(GPU_COPY_SCALAR)
+    copyParticleThermalEnthalpyResidual(s, i, dst, 0);
 #ifdef GPU_PARTICLE_EXTRA_FIELDS
     GPU_PARTICLE_EXTRA_FIELDS::copyContactAge(s, i, dst);
 #endif
