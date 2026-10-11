@@ -328,7 +328,7 @@ inline bool boundaryLayerPayloadBytes(const BoundaryLayerConfigV1& a,
     if(a.version!=1 || a.budgetAudit>1 || !a.speciesCount || a.speciesCount!=species
         || a.model>1 || a.nodes<4 || a.nodes>128 || !a.maxIterations
         || !a.wallCount || a.wallCount>faces || a.workspaceSlots>4096
-        || a.quadratureCount<a.wallCount || a.matchingCount<a.wallCount
+        || (a.quadratureCount!=0&&a.quadratureCount<a.wallCount) || a.matchingCount<a.wallCount
         || a.quadratureCount>std::uint32_t(std::numeric_limits<int>::max())
         || a.matchingCount>std::uint32_t(std::numeric_limits<int>::max()))return false;
     bytes=sizeof(a);
