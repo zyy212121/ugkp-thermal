@@ -44,6 +44,9 @@ template<class R,int N,class TableReal=R> struct WallInput {
     WallMatchingState<R,N> matching;
     WallGasModel<R,N,TableReal> model;
     WallOwnerQuadrature<TableReal> quadrature;
+    // Optional auxiliary diagnostic; never a coarse SST source. No point
+    // access or owner-volume quadrature traversal when disabled.
+    bool integrateOwnerKSource=false;
     // Optional coarse chemistry integrated per wall area over the same domain.
     // Absence sets chemistryMismatchAvailable=false and mismatch values to NaN.
     const TableReal* coarseReactionIntegral=nullptr;

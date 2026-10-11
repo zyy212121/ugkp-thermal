@@ -327,8 +327,13 @@ template<class R,int N,int M,class TableReal> UGKWP_GAS_HD inline bool publishLa
     out.conductiveHeatFlux=first.energy-wallEnergy;
     // The matching endpoint also has a half control volume. Its source is
     // included consistently in both the diagnostic integral and edge flux.
-    for(int i=0;i<c.nodes;++i){LayerPoint<R,N> p;if(!evaluatePoint(in,c,ctx,w.state,w.y,i,p))return false;
-        w.seed[i][0]=p.sourceK; // Same full nodal source as the converged BVP.
+    for(int i=0;i<c.nodes;++i){LayerPoint<R,N> p;
+        // Chemistry publication needs only this node's state and reaction.
+        // Neighbor reconstruction/SST sources serve the optional diagnostic.
+        if(in.integrateOwnerKSource){
+            if(!evaluatePoint(in,c,ctx,w.state,w.y,i,p))return false;
+        }else if(!pointState(in,c,ctx,w.state[i],p)||!pointReaction(in,p))return false;
+        if(in.integrateOwnerKSource)w.seed[i][0]=p.sourceK; // Diagnostic only.
         const R width=i==0?w.y[1]/R(2):(i==c.nodes-1?(w.y[i]-w.y[i-1])/R(2):(w.y[i+1]-w.y[i-1])/R(2));
         for(int j=0;j<N;++j)out.reactionIntegral[j]+=width*p.source[j];
         if(i==c.nodes-1)for(int j=0;j<N;++j)out.matchingSpeciesFlux[j]=last.species[j]+width*p.source[j];}
@@ -342,6 +347,7 @@ template<class R,int N,int M,class TableReal> UGKWP_GAS_HD inline bool publishLa
         const R power=(R(1)+::sqrt(R(1)+R(24)*in.model.sstCoefficients.betaStar/in.model.sstCoefficients.beta1))/R(2);
         const R advection=ctx.mass/(R(2)*in.model.viscosity),firstK=w.state[1][N+2]*w.state[1][N+2];
         out.wallKFlux=-in.model.viscosity*firstK*nearWallKDerivativeAtWall(w.y[1],ell,power,advection);
+        if(in.integrateOwnerKSource){
         if(q.count<=0||!q.distance||!q.volumeWeight||!gasFinite(q.volume)||q.volume<=0||!gasFinite(q.firstMoment))return false;
         for(int qi=0;qi<q.count;++qi){const R y=q.distance[qi],weight=q.volumeWeight[qi];
             if(!gasFinite(y)||!(y>0&&y<in.matchingDistance)||!gasFinite(weight)||weight<=0)return false;
@@ -361,6 +367,7 @@ template<class R,int N,int M,class TableReal> UGKWP_GAS_HD inline bool publishLa
             out.integratedKSource+=weight*p.sourceK;}
         const R tol=R(512)*std::numeric_limits<TableReal>::epsilon();
         if(abs(total-q.volume)>tol*max(total,R(q.volume))||abs(moment-q.firstMoment)>tol*max(abs(moment),abs(R(q.firstMoment))))return false;
+        }else out.integratedKSource=std::numeric_limits<R>::quiet_NaN();
         int l=0;while(l+1<c.nodes-1&&w.y[l+1]<in.ownerDistance)++l;
         const R fraction=(in.ownerDistance-w.y[l])/(w.y[l+1]-w.y[l]);const R z=w.state[l][N+3]+fraction*(w.state[l+1][N+3]-w.state[l][N+3]);
         if(!(z>0))return false;

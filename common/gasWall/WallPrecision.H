@@ -13,6 +13,7 @@ template<class S,int N> UGKWP_GAS_HD inline WallInput<WallReal,N,S> wallComputat
     dst.model.thermo=src.model.thermo;dst.model.mechanism=src.model.mechanism;dst.model.mode=src.model.mode;
     dst.model.viscosity=src.model.viscosity;dst.model.conductivity=src.model.conductivity;dst.model.molecularPrandtl=src.model.molecularPrandtl;
     dst.model.sstCoefficients=src.model.sstCoefficients;dst.quadrature=src.quadrature;dst.coarseReactionIntegral=src.coarseReactionIntegral;
+    dst.integrateOwnerKSource=src.integrateOwnerKSource;
     return dst;
 }
 template<class S> UGKWP_GAS_HD inline WallModelConfig<WallReal> wallComputationConfig(const WallModelConfig<S>& src){
@@ -31,7 +32,7 @@ template<class S,int N> UGKWP_GAS_HD inline bool publishWallPrecision(const Wall
     dst.integratedKSource=S(src.integratedKSource);dst.ownerOmega=S(src.ownerOmega);dst.wallKFlux=S(src.wallKFlux);
     dst.chemistryMismatchAvailable=src.chemistryMismatchAvailable;dst.iterations=src.iterations;dst.residual=S(src.residual);
     if(!gasFinite(dst.traceTemperature)||!gasFinite(dst.traceDensity)||!gasFinite(dst.conductiveHeatFlux)
-        ||!gasFinite(dst.integratedKSource)||!gasFinite(dst.ownerOmega)||!gasFinite(dst.wallKFlux)||!gasFinite(dst.residual))return false;
+        ||(in.integrateOwnerKSource&&!gasFinite(dst.integratedKSource))||!gasFinite(dst.ownerOmega)||!gasFinite(dst.wallKFlux)||!gasFinite(dst.residual))return false;
     for(int d=0;d<3;++d)if(!gasFinite(dst.traceVelocity[d])||!gasFinite(dst.traction[d]))return false;
     for(int j=0;j<N;++j)if(!gasFinite(dst.traceMassFraction[j])||!gasFinite(dst.wallSpeciesFlux[j])
         ||!gasFinite(dst.matchingSpeciesFlux[j])||!gasFinite(dst.reactionIntegral[j])||!gasFinite(dst.speciesBalanceResidual[j])
