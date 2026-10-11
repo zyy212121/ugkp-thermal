@@ -2,6 +2,7 @@
 
 #include "../gasTransport/GasStateView.H"
 #include "../gasTransport/GasCapabilities.H"
+#include "../gasTransport/GasBudgetAudit.H"
 #include "../chemistry/LocalStiffIntegrator.H"
 
 namespace ugkwp
@@ -126,6 +127,7 @@ UGKWP_GAS_HD inline ChemistryStatus advanceGasChemistryCell
             densitySum += partialDensity;
             input.speciesMass[s] = partialDensity*stageVolume;
         }
+        const Real inputDensityDefect = densitySum - density;
         if (!gasFinite(densitySum)
             || gasThermoDetail::absValue(densitySum - density)
                 > species.densityClosureTolerance*density)
@@ -158,19 +160,42 @@ UGKWP_GAS_HD inline ChemistryStatus advanceGasChemistryCell
         if (!status)
             return gasChemistryAdapterDetail::recordFailure(species, cell, status);
 
-        // Validate all converted outputs before the first write. Independent
-        // normalization/clipping would violate the conservative reactor contract.
+        // Validate the actual publication before the first write. A zero-time
+        // call retains the original density bits, not their volume round trip.
         Real candidateDensity[Ns];
         densitySum = Real(0);
         for (int s = 0; s < Ns; ++s)
         {
-            candidateDensity[s] = result.speciesMass[s]/stageVolume;
+            candidateDensity[s] = interval == Real(0)
+                ? species.rho[s*state.nCells + cell]
+                : result.speciesMass[s]/stageVolume;
             if (!gasFinite(candidateDensity[s]) || candidateDensity[s] < Real(0))
             {
                 status.code = ChemistryCode::NonFiniteInput;
                 return gasChemistryAdapterDetail::recordFailure(species, cell, status);
             }
             densitySum += candidateDensity[s];
+        }
+        // Recover one populated dependent coordinate only when conversion
+        // roundoff pushes an admissible input beyond the unchanged closure gate.
+        // Do not normalize/clamp species or hide a larger integration defect.
+        if (interval != Real(0) && gasFinite(densitySum)
+            && gasThermoDetail::absValue(densitySum - density)
+                > species.densityClosureTolerance*density
+            && gasThermoDetail::absValue(densitySum - density)
+                <= gasThermoDetail::absValue(inputDensityDefect)
+                    + Real(8*Ns)*std::numeric_limits<Real>::epsilon()*density)
+        {
+            int dependent = 0;
+            for (int s = 1; s < Ns; ++s)
+                if (candidateDensity[s] > candidateDensity[dependent])
+                    dependent = s;
+            Real independent = Real(0);
+            for (int s = 0; s < Ns; ++s)
+                if (s != dependent) independent += candidateDensity[s];
+            candidateDensity[dependent] = density - independent;
+            densitySum = Real(0);
+            for (int s = 0; s < Ns; ++s) densitySum += candidateDensity[s];
         }
         if (!gasFinite(densitySum)
             || gasThermoDetail::absValue(densitySum - density)
@@ -180,11 +205,66 @@ UGKWP_GAS_HD inline ChemistryStatus advanceGasChemistryCell
             return gasChemistryAdapterDetail::recordFailure(species, cell, status);
         }
 
+        // The reactor audit precedes conversion. Recheck its same mass, element
+        // and formation-inclusive energy gates on the rounded published masses.
+        Real publishedMass[Ns], massSum = Real(0);
+        for (int s = 0; s < Ns; ++s)
+        {
+            publishedMass[s] = candidateDensity[s]*stageVolume;
+            if (!gasFinite(candidateDensity[s]) || candidateDensity[s] < Real(0)
+                || !gasFinite(publishedMass[s]))
+            {
+                status.code = ChemistryCode::ConservationFailure;
+                return gasChemistryAdapterDetail::recordFailure(species, cell, status);
+            }
+            massSum += publishedMass[s];
+            localAudit.speciesMassChange[s] = publishedMass[s] - input.speciesMass[s];
+        }
+        const auto& controls = species.chemistryControls;
+        localAudit.massResidual = massSum - input.totalMass;
+        bool conserved = gasFinite(localAudit.massResidual)
+            && gasThermoDetail::absValue(localAudit.massResidual)
+                <= controls.absoluteMassTolerance
+                    + controls.relativeConservationTolerance*input.totalMass;
+        localAudit.maximumElementResidual = Real(0);
+        for (int e = 0; e < species.thermo.elementCount; ++e)
+        {
+            Real before = Real(0), after = Real(0);
+            for (int s = 0; s < Ns; ++s)
+            {
+                const Real atoms = species.thermo.elementComposition
+                    [s*species.thermo.elementCount + e]/species.thermo.species[s].molarMass;
+                before += input.speciesMass[s]*atoms;
+                after += publishedMass[s]*atoms;
+            }
+            const Real residual = gasThermoDetail::absValue(after - before);
+            localAudit.maximumElementResidual = gasThermoDetail::maxValue
+                (localAudit.maximumElementResidual, residual);
+            conserved = conserved && gasFinite(residual)
+                && residual <= controls.absoluteElementTolerance
+                    + controls.relativeConservationTolerance*gasThermoDetail::absValue(before);
+        }
+        localAudit.energyResidual = mixtureEnergy
+            (publishedMass, result.temperature, species.thermo) - input.internalEnergy;
+        conserved = conserved && gasFinite(localAudit.energyResidual)
+            && gasThermoDetail::absValue(localAudit.energyResidual)
+                <= controls.thermo.absoluteEnergyTolerance
+                    + controls.thermo.relativeEnergyTolerance
+                        *gasThermoDetail::absValue(input.internalEnergy);
+        if (!conserved)
+        {
+            status.code = ChemistryCode::ConservationFailure;
+            return gasChemistryAdapterDetail::recordFailure(species, cell, status);
+        }
+
         // A zero interval must not change density bits through a round trip with
         // an arbitrary volume. All validation and diagnostics still take place.
         if (interval != Real(0))
+        {
+            gasBudgetChemistry(state,cell,candidateDensity,stageVolume);
             for (int s = 0; s < Ns; ++s)
                 species.rho[s*state.nCells + cell] = candidateDensity[s];
+        }
         if (species.chemistryAudit)
             species.chemistryAudit[cell] = localAudit;
         species.chemistryStatus[cell] = status;

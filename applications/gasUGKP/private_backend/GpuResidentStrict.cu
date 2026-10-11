@@ -36,6 +36,13 @@
 #include "gasTransport/GasBoundaryLayerModelState.H"
 #include "gasTransport/GasCapabilities.H"
 #include "gasTransport/GasMechanismIO.H"
+#include "gasTransport/GasBudgetAudit.H"
+#include <chrono>
+#include <iomanip>
+#include <limits>
+#include <sstream>
+#include <stdexcept>
+#include <unistd.h>
 #include "SharedGasTrialFields.H"
 #include "CharacteristicMuscl.cuh"
 #include "OpenFoamLimitedLinear.cuh"
@@ -114,6 +121,7 @@ struct PressureProjectionCell
     bool active, resolved;
 };
 
+struct GasBudgetHostLedger;
 struct DeviceState
 {
 #include "GpuAutomaticCsrScheduleFields.inl"
@@ -131,6 +139,8 @@ struct DeviceState
     bool gasInitialFieldsUploaded = false;
     bool gasSpeciesUploaded = false;
     SharedGasTrialStorage gasTrial;
+    ugkwp::GasBudgetAuditState gasBudgetAudit;
+    GasBudgetHostLedger* gasBudgetHost=nullptr;
 
     int nCells = 0;
     int nFaces = 0;
@@ -967,6 +977,7 @@ void scrubHostCalculationScalars(DeviceState* s)
 
 #include "SharedGasStorage.cuh"
 #include "BoundaryLayerStorage.cuh"
+#include "GasBudgetRuntime.cuh"
 
 void releaseSharedGasTrialStorage(SharedGasTrialStorage& storage);
 
@@ -979,6 +990,7 @@ void releaseState(DeviceState* s)
 
     releaseSharedGasTrialStorage(s->gasTrial);
     releaseBoundaryLayerStorage(*s);
+    releaseGasBudget(s);
     releaseSharedGasSpecies(s->gasSpecies);
     releaseSharedGasSpecies(s->gasRejectedView);
     if (s->gasGraphExec) cudaGraphExecDestroy(s->gasGraphExec);
@@ -4087,6 +4099,7 @@ extern "C" int ugkwpGpuResidentStrictUploadMesh
     {
         return 1;
     }
+    if(checkGasBudgetMeshUpload(s))return 1;
 
     int rc = 0;
     const size_t nc = static_cast<size_t>(s->nCells);
@@ -5275,6 +5288,7 @@ extern "C" int ugkwpGpuResidentStrictAdvance
     {
         return 1;
     }
+    if(checkGasBudgetAdvanceScope(s,false))return 1;
     if (tuneFixedWorkBlockThreads(s, dt, simulationTime) != 0)
     {
         return 1;
@@ -5829,6 +5843,7 @@ extern "C" int ugkwpGpuResidentStrictAdvanceGasOnly
     {
         return 1;
     }
+    if(checkGasBudgetAdvanceScope(s,true))return 1;
     if (s->gasSpecies.mode == ugkwp::GasMode::SingleLegacy
         && tuneFixedWorkBlockThreads(s, dt, simulationTime) != 0)
     {
@@ -5855,6 +5870,7 @@ extern "C" int ugkwpGpuResidentStrictAdvanceGasOnly
             return 1;
         }
         const GasRequestedIntervalControls<double> controls;
+        if(prepareGasBudgetRequest(s,dt,simulationTime))return 1;
         return advanceGasRequestedInterval<SharedGasTrialPolicy>(s, dt, simulationTime, controls);
     }
 #ifndef UGKP_DEVELOPMENT_PROBES

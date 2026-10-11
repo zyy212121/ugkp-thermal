@@ -135,6 +135,11 @@
       "downstream": "ugkp-thermal"
     },
     {
+      "path": "applications/gasUGKP/private_backend/GasBudgetRuntime.cuh",
+      "upstream": "gpu-riemann-gkp-main",
+      "downstream": "ugkp-thermal"
+    },
+    {
       "path": "applications/gasUGKP/private_backend/GpuBackendServer.C",
       "upstream": "gpu-riemann-gkp-main",
       "downstream": "ugkp-thermal"
@@ -346,6 +351,11 @@
     },
     {
       "path": "applications/gasUGKP/tests/test_full_gks_math.py",
+      "upstream": "gpu-riemann-gkp-main",
+      "downstream": "ugkp-thermal"
+    },
+    {
+      "path": "applications/gasUGKP/tests/test_gas_budget_runtime.py",
       "upstream": "gpu-riemann-gkp-main",
       "downstream": "ugkp-thermal"
     },
@@ -1091,6 +1101,11 @@
     },
     {
       "path": "common/gasTransport/GasBoundaryLayerWorkspace.H",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/gasTransport/GasBudgetAudit.H",
       "upstream": "ugkp-thermal",
       "downstream": "gpu-riemann-gkp-main"
     },

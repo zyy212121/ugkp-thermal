@@ -2,6 +2,7 @@
 #include "mesh/Motion.H"
 #include "mesh/SweepConstraints.H"
 #include "mesh/TrajectorySurface.H"
+#include "mesh/EmptyExtrusion.H"
 #include <functional>
 #include <algorithm>
 #include <map>
@@ -81,7 +82,8 @@ namespace chmt {
             }
             return true;
         }
-        bool geometryInPlace(HostMesh& m, std::string& error) {
+        bool geometryInPlace(HostMesh& m, std::string& error,empty_detail::Extrusion* extrusion=nullptr) {
+            if(extrusion)*extrusion=empty_detail::Extrusion{};
             const int nf = static_cast<int>(m.owner.size()), np = static_cast<int>(m.points.size());
             if (nf == 0 && np == 0) {
                 m.volumes.clear();
@@ -213,15 +215,22 @@ namespace chmt {
             }
             if (!periodicGeometry(m, error))return false;
             m.wallDistance.assign(nc, 0);
-            bool hasWall = false;
-            for (auto kind:m.boundaryKind)hasWall = hasWall || kind == BoundaryKind::NoSlip
-                || kind == BoundaryKind::Slip || kind == BoundaryKind::Interface;
-            if (hasWall)for (int c = 0; c<nc; ++c) {
+            std::vector<int> wallFaces;
+            bool hasEmpty=false;
+            for (int f = 0; f<nf; ++f) {
+                const auto kind = m.boundaryKind[f];
+                hasEmpty=hasEmpty || kind==BoundaryKind::Empty;
+                if (kind == BoundaryKind::NoSlip || kind == BoundaryKind::Slip
+                    || kind == BoundaryKind::Interface)wallFaces.push_back(f);
+            }
+            if(hasEmpty) {
+                empty_detail::Extrusion representation;
+                if(!empty_detail::build(m,representation,error))return false;
+                if(extrusion)*extrusion=std::move(representation);
+            }
+            if (!wallFaces.empty())for (int c = 0; c<nc; ++c) {
                 Real distance = std::numeric_limits<Real>::max();
-                for (int f = 0; f<nf; ++f) {
-                    auto kind = m.boundaryKind[f];
-                    if (kind != BoundaryKind::NoSlip && kind != BoundaryKind::Slip
-                        && kind != BoundaryKind::Interface)continue;
+                for (int f:wallFaces) {
                     int begin = m.faceOffsets[f], end = m.faceOffsets[f+1];
                     for (int j = begin+1; j+1<end; ++j)distance = std::min(distance,
                         triangleDistance(m.cellCentres[c], m.points[m.facePoints[begin]],
@@ -345,7 +354,7 @@ namespace chmt {
             return true;
         }
         bool stageIntegrals(const HostMesh& m, const std::vector<Vec3>& endpoint, std::vector<Vec3>& area,
-            std::vector<Real>& sweep, std::string& error) {
+            std::vector<Real>& sweep, std::string& error,const empty_detail::Extrusion* representation=nullptr) {
             if (endpoint.size() != m.points.size())return errorAt(error,
                 "topology-changing point count unsupported", -1);
             for (int p = 0; p < static_cast<int>(endpoint.size()); ++p) {
@@ -353,7 +362,14 @@ namespace chmt {
             }
             area.assign(m.owner.size(), {});
             sweep.assign(m.owner.size(), 0);
+            bool emptyChecked=representation!=nullptr;
+            if(representation && !empty_detail::trajectory(m,*representation,endpoint,error))return false;
             for (int f = 0; f<static_cast<int>(m.owner.size()); ++f) {
+                if(!emptyChecked && m.boundaryKind[f]==BoundaryKind::Empty) {
+                    empty_detail::Extrusion extrusion;
+                    if(!empty_detail::build(m,extrusion,error) || !empty_detail::trajectory(m,extrusion,endpoint,error))return false;
+                    emptyChecked=true;
+                }
                 int begin = m.faceOffsets[f], end = m.faceOffsets[f+1], ia = m.facePoints[begin];
                 for (int j = begin+1; j+1<end; ++j) {
                     int ib = m.facePoints[j], ic = m.facePoints[j+1];
@@ -378,10 +394,11 @@ namespace chmt {
     bool makeStageAreaVectors(const HostMesh& accepted, const std::vector<Vec3>& endpoint,
         std::vector<Vec3>& output, std::string& error) {
         HostMesh old = accepted;
-        if (!geometryInPlace(old, error))return false;
+        empty_detail::Extrusion extrusion;
+        if (!geometryInPlace(old, error,&extrusion))return false;
         std::vector<Vec3> a;
         std::vector<Real>s;
-        if (!stageIntegrals(old, endpoint, a, s, error))return false;
+        if (!stageIntegrals(old, endpoint, a, s, error,extrusion.axis>=0?&extrusion:nullptr))return false;
         output = std::move(a);
         error.clear();
         return true;
@@ -408,7 +425,8 @@ namespace chmt {
         if (endpoint.size() != accepted.points.size())return errorAt(error,
             "topology-changing point count unsupported", -1);
         HostMesh old = accepted;
-        if (!geometryInPlace(old, error))return false;
+        empty_detail::Extrusion extrusion;
+        if (!geometryInPlace(old, error,&extrusion) || !empty_detail::trajectory(old,extrusion,endpoint,error))return false;
         HostMesh candidate = old;
         candidate.points = endpoint;
         if (!geometryInPlace(candidate, error))return false;
@@ -416,15 +434,18 @@ namespace chmt {
         if (!certifyLinearTrajectory(old, endpoint, error))return false;
         // Reject a crossed/inverted path even if endpoint orientation recovered.
         HostMesh mid = old;
-        for (std::size_t p = 0; p<endpoint.size(); ++p)mid.points[p] = (old.points[p]+endpoint[p])*.5;
+        for (std::size_t p = 0; p<endpoint.size(); ++p)mid.points[p] = extrusion.axis<0?
+            (old.points[p]+endpoint[p])*.5:old.points[p]+(endpoint[p]-old.points[p])*.5;
         if (!geometryInPlace(mid, error))return false;
         // Cell volume is a cubic polynomial along linear vertex trajectories.
         // Check its interior extrema as well as endpoints, so two inversions
         // between sampling times cannot escape an endpoint/midpoint-only test.
         HostMesh oneThird = old, twoThird = old;
         for (std::size_t p = 0; p<endpoint.size(); ++p) {
-            oneThird.points[p] = old.points[p]*(2.0/3)+endpoint[p]/3;
-            twoThird.points[p] = old.points[p]/3+endpoint[p]*(2.0/3);
+            oneThird.points[p] = extrusion.axis<0?old.points[p]*(2.0/3)+endpoint[p]/3:
+                old.points[p]+(endpoint[p]-old.points[p])/3;
+            twoThird.points[p] = extrusion.axis<0?old.points[p]/3+endpoint[p]*(2.0/3):
+                old.points[p]+(endpoint[p]-old.points[p])*(2.0/3);
         }
         if (!geometryInPlace(oneThird, error) || !geometryInPlace(twoThird, error))return false;
         for (int c = 0; c<static_cast<int>(old.volumes.size()); ++c) {
@@ -448,7 +469,7 @@ namespace chmt {
         }
         std::vector<Vec3> area;
         std::vector<Real>sweep;
-        if (!stageIntegrals(old, endpoint, area, sweep, error))return false;
+        if (!stageIntegrals(old, endpoint, area, sweep, error,extrusion.axis>=0?&extrusion:nullptr))return false;
         for (int c = 0; c<static_cast<int>(old.volumes.size()); ++c) {
             Real sum = 0;
             Vec3 closure{};
@@ -482,20 +503,32 @@ namespace chmt {
         error.clear();
         return true;
     }
-    bool harmonicPointMotion(const HostMesh& mesh, const std::vector<Vec3>& prescribedDisplacement,
-        const std::vector<unsigned char>& prescribed, std::vector<Vec3>& output, std::string& error) {
+    namespace {
+    bool harmonicPointMotionRepresented(const HostMesh& mesh, const std::vector<Vec3>& prescribedDisplacement,
+        const std::vector<unsigned char>& prescribed, std::vector<Vec3>& output, std::string& error,
+        const empty_detail::Extrusion* knownExtrusion) {
         const int np = static_cast<int>(mesh.points.size());
         if (prescribed.size() != mesh.points.size()
             || prescribedDisplacement.size() != mesh.points.size())return errorAt(error,
             "point-motion array size", -1);
         std::vector<std::set<int>> adjacency(np);
+        bool hasEmpty=false;
         for (std::size_t f = 0; f<mesh.owner.size(); ++f) {
+            hasEmpty=hasEmpty || (f<mesh.boundaryKind.size() && mesh.boundaryKind[f]==BoundaryKind::Empty);
             int begin = mesh.faceOffsets[f], end = mesh.faceOffsets[f+1];
             for (int k = begin; k<end; ++k) {
                 int a = mesh.facePoints[k], b = mesh.facePoints[k+1 == end?begin:k+1];
                 adjacency[a].insert(b);
                 adjacency[b].insert(a);
             }
+        }
+        if(hasEmpty) {
+            empty_detail::Extrusion local;
+            if(!knownExtrusion) {
+                if(!empty_detail::build(mesh,local,error))return false;
+                knownExtrusion=&local;
+            }
+            if(!empty_detail::prescribedMotion(*knownExtrusion,prescribedDisplacement,prescribed,error))return false;
         }
         std::vector<Vec3> displacement(np), next(np);
         bool any = false;
@@ -537,6 +570,11 @@ namespace chmt {
         for (int p = 0; p<np; ++p)output[p] += displacement[p];
         error.clear();
         return true;
+    }
+    }
+    bool harmonicPointMotion(const HostMesh& mesh, const std::vector<Vec3>& prescribedDisplacement,
+        const std::vector<unsigned char>& prescribed, std::vector<Vec3>& output, std::string& error) {
+        return harmonicPointMotionRepresented(mesh,prescribedDisplacement,prescribed,output,error,nullptr);
     }
     namespace {
         using TrajectoryCheck = std::function<bool(const HostMesh&, std::string&)>;
@@ -679,8 +717,15 @@ namespace chmt {
                 return controls.faceVolumeTolerance.empty()?tolerance:minValue(tolerance,controls.faceVolumeTolerance[i]);
             };
             std::vector<unsigned char> boundaryPoint(np,0);
-            for (std::size_t f=0;f<old.owner.size();++f) if (old.neighbour[f]<0)
-                for (int k=old.faceOffsets[f];k<old.faceOffsets[f+1];++k) boundaryPoint[old.facePoints[k]]=1;
+            bool hasEmpty=false;
+            for (std::size_t f=0;f<old.owner.size();++f) {
+                hasEmpty=hasEmpty || old.boundaryKind[f]==BoundaryKind::Empty;
+                if (old.neighbour[f]<0)
+                    for (int k=old.faceOffsets[f];k<old.faceOffsets[f+1];++k) boundaryPoint[old.facePoints[k]]=1;
+            }
+            empty_detail::Extrusion extrusion;
+            if(hasEmpty && (!empty_detail::build(old,extrusion,error)
+                || !empty_detail::motionData(extrusion,prescribedDisplacement,prescribed,directions,error)))return false;
             std::vector<int> movable;
             for (std::size_t p=0;p<np;++p) {
                 if (!finite(directions[p]) || !finite(prescribedDisplacement[p]))
@@ -690,6 +735,11 @@ namespace chmt {
                         "swept-volume correction DOF must be a prescribed boundary vertex");
                     movable.push_back(static_cast<int>(p));
                 }
+            }
+            std::vector<int> metricMovable;
+            if(hasEmpty) {
+                metricMovable=movable;movable.clear();
+                for(int p:metricMovable)if(p<extrusion.mate[p])movable.push_back(p);
             }
             report.degreesOfFreedom=static_cast<int>(movable.size());
             std::vector<PlanarTriangleConstraint> planar;
@@ -717,11 +767,12 @@ namespace chmt {
             }
             report.constraints=static_cast<int>(faces.size()+3*planar.size());
             std::vector<Vec3> start;
-            if (!harmonicPointMotion(old,prescribedDisplacement,prescribed,start,error)) return false;
+            if (!harmonicPointMotionRepresented(old,prescribedDisplacement,prescribed,start,error,
+                hasEmpty?&extrusion:nullptr)) return false;
             auto evaluate=[&](const std::vector<Vec3>& points,std::vector<Real>& residual,
                 std::vector<Real>& sweeps, Real& metric) {
                 std::vector<Vec3> area;
-                if (!stageIntegrals(old,points,area,sweeps,error)) return false;
+                if (!stageIntegrals(old,points,area,sweeps,error,hasEmpty?&extrusion:nullptr)) return false;
                 residual.clear(); metric=0;
                 report.maximumSweepResidual=0; report.maximumPlanarityResidual=0;
                 for (std::size_t i=0;i<faces.size();++i) {
@@ -788,14 +839,20 @@ namespace chmt {
                 for (int k=old.faceOffsets[f];k<old.faceOffsets[f+1];++k) pointWeight[old.facePoints[k]]+=share;
             }
             Real meanWeight=0; int weighted=0;
-            for (int p:movable) if (pointWeight[p]>0) { meanWeight+=pointWeight[p]; ++weighted; }
+            for (int p:hasEmpty?metricMovable:movable) if (pointWeight[p]>0) { meanWeight+=pointWeight[p]; ++weighted; }
             meanWeight=weighted?meanWeight/weighted:1;
             std::vector<std::vector<Vec3>> modes;
             for (int p:movable) {
                 std::vector<Vec3> boundary(np),end;
                 const Real weight=pointWeight[p]>0?pointWeight[p]:meanWeight;
                 boundary[p]=normalized(directions[p])*(length*::sqrt(meanWeight/weight));
-                if (!harmonicPointMotion(old,boundary,prescribed,end,error)) return false;
+                if(hasEmpty) {
+                    const int q=extrusion.mate[p];const Real other=pointWeight[q]>0?pointWeight[q]:meanWeight;
+                    const Real scale=empty_detail::pairedScale(length*::sqrt(meanWeight/weight),length*::sqrt(meanWeight/other));
+                    boundary[p]=normalized(directions[p])*scale;boundary[q]=boundary[p];
+                }
+                if (!harmonicPointMotionRepresented(old,boundary,prescribed,end,error,
+                    hasEmpty?&extrusion:nullptr)) return false;
                 for (std::size_t v=0;v<np;++v) end[v]-=old.points[v];
                 // Avoid even roundoff changes to other Dirichlet coordinates.
                 for (std::size_t v=0;v<np;++v) if (prescribed[v]) end[v]=boundary[v];
@@ -944,25 +1001,28 @@ namespace chmt {
             edges = std::move(kept);
             return true;
         }
-        Vec3 faceAreaAt(const HostMesh& mesh, int f, const std::vector<Vec3>& endpoint, Real t) {
+        Vec3 trajectoryPoint(const HostMesh& mesh,const std::vector<Vec3>& endpoint,int p,Real t,bool empty) {
+            return empty?mesh.points[p]+(endpoint[p]-mesh.points[p])*t:mesh.points[p]*(1-t)+endpoint[p]*t;
+        }
+        Vec3 faceAreaAt(const HostMesh& mesh, int f, const std::vector<Vec3>& endpoint, Real t,bool empty) {
             Vec3 result{};
             int begin = mesh.faceOffsets[f], end = mesh.faceOffsets[f+1];
             auto point = [&](int k) {
                 int p = mesh.facePoints[k];
-                return mesh.points[p]*(1-t)+endpoint[p]*t;
+                return trajectoryPoint(mesh,endpoint,p,t,empty);
             };
             Vec3 a = point(begin);
             for (int k = begin+1; k+1<end; ++k)result += triangleArea(a, point(k), point(k+1));
             return result;
         }
         Real edgeSweepIntegrand(const HostMesh& mesh, const std::vector<Vec3>& endpoint,
-            const SurfaceMesh& surface, const SurfaceEdge& edge, Real t) {
-            Vec3 a = mesh.points[edge.a]*(1-t)+endpoint[edge.a]*t,
-                b = mesh.points[edge.b]*(1-t)+endpoint[edge.b]*t;
-            Vec3 normal = normalized(faceAreaAt(mesh, surface.solidFace[edge.owner], endpoint, t));
+            const SurfaceMesh& surface, const SurfaceEdge& edge, Real t,bool empty) {
+            Vec3 a = trajectoryPoint(mesh,endpoint,edge.a,t,empty),
+                b = trajectoryPoint(mesh,endpoint,edge.b,t,empty);
+            Vec3 normal = normalized(faceAreaAt(mesh, surface.solidFace[edge.owner], endpoint, t,empty));
             if (mag(normal) == 0)return undefinedValue();
             if (edge.neighbour >= 0) {
-                Vec3 other = normalized(faceAreaAt(mesh, surface.solidFace[edge.neighbour], endpoint, t));
+                Vec3 other = normalized(faceAreaAt(mesh, surface.solidFace[edge.neighbour], endpoint, t,empty));
                 if (mag(other) == 0)return undefinedValue();
                 normal = normalized(normal+other);
             }
@@ -971,7 +1031,7 @@ namespace chmt {
             return dot(displacement, cross(b-a, normal));
         }
         Real edgeSweepQuadrature(const HostMesh& mesh, const std::vector<Vec3>& endpoint,
-            const SurfaceMesh& surface, const SurfaceEdge& edge, int segments) {
+            const SurfaceMesh& surface, const SurfaceEdge& edge, int segments,bool empty) {
             // Composite Gauss-Legendre integration of instantaneous normal/conormal.
             // A single conservative co-normal is used at a curved internal edge;
             // physical normal area change is NOT fabricated as an edge sweep.
@@ -980,8 +1040,8 @@ namespace chmt {
             for (int segment = 0; segment<segments; ++segment) {
                 Real a = Real(segment)/segments, b = Real(segment+1)/segments, c = .5*(a+b), h = .5*(b-a);
                 sum += h*((5.0/9)*edgeSweepIntegrand(mesh, endpoint, surface, edge,
-                    c-h*x)+(8.0/9)*edgeSweepIntegrand(mesh, endpoint, surface, edge,
-                    c)+(5.0/9)*edgeSweepIntegrand(mesh, endpoint, surface, edge, c+h*x));
+                    c-h*x,empty)+(8.0/9)*edgeSweepIntegrand(mesh, endpoint, surface, edge,
+                    c,empty)+(5.0/9)*edgeSweepIntegrand(mesh, endpoint, surface, edge, c+h*x,empty));
             }
             return sum;
         }
@@ -998,7 +1058,12 @@ namespace chmt {
         s.solidFace = {faceOwner};
         if (faceNeighbour >= 0)s.solidFace.push_back(faceNeighbour);
         SurfaceEdge edge{pointA, pointB, 0, faceNeighbour >= 0?1:-1, -1, -1};
-        const Real value = edgeSweepQuadrature(mesh, endpoint, s, edge, segments);
+        empty_detail::Extrusion extrusion;
+        for(auto kind:mesh.boundaryKind)if(kind==BoundaryKind::Empty) {
+            if(!empty_detail::build(mesh,extrusion,error) || !empty_detail::trajectory(mesh,extrusion,endpoint,error))return false;
+            break;
+        }
+        const Real value = edgeSweepQuadrature(mesh, endpoint, s, edge, segments,extrusion.axis>=0);
         if (!finite(value))return errorAt(error, "degenerate moving surface hinge/edge", faceOwner);
         output = value;
         error.clear();
@@ -1184,6 +1249,8 @@ namespace chmt {
         }
         std::vector<SurfaceEdge> edges;
         if (!surfaceEdges(oldSolid, reference, edges, error))return false;
+        bool emptySolid=false;
+        for(auto kind:oldSolid.boundaryKind)emptySolid=emptySolid || kind==BoundaryKind::Empty;
         surface.edgeOwner.clear();
         surface.edgeNeighbour.clear();
         surface.edgeLength.clear();
@@ -1208,11 +1275,11 @@ namespace chmt {
             surface.edgeNeighbour.push_back(edge.neighbour);
             surface.edgeLength.push_back(mag(tangent));
             surface.edgeConormal.push_back(conormal);
-            Real sweep = edgeSweepQuadrature(oldSolid, solid.points, reference, edge, 8);
+            Real sweep = edgeSweepQuadrature(oldSolid, solid.points, reference, edge, 8,emptySolid);
             bool converged = false;
             const Real scale = meshScale(oldSolid.points)*meshScale(oldSolid.points);
             for (int segments = 16; segments <= 1024; segments *= 2) {
-                Real refined = edgeSweepQuadrature(oldSolid, solid.points, reference, edge, segments);
+                Real refined = edgeSweepQuadrature(oldSolid, solid.points, reference, edge, segments,emptySolid);
                 if (!finite(refined) || !finite(sweep))return errorAt(error, "degenerate moving surface hinge",
                     edge.owner);
                 const Real tolerance = 256*std::numeric_limits<Real>::epsilon()*scale
