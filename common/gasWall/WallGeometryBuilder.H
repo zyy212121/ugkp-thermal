@@ -21,8 +21,9 @@ template<class R> struct WallGeometryMesh {
 template<class R> struct WallGeometryOptions {
     R relativeTolerance=R(1e-9);
     int maxRayCells=32,quadratureRefinement=1;
-    // Zero retains the purely geometric rule. Reacting SST adapters supply
-    // the actual BVP node count/stretch to integrate its source reconstruction.
+    bool constructQuadrature=true; // Optional direct diagnostics; production adapters disable.
+    // When requested, zero uses a purely geometric rule. Direct SST research
+    // supplies BVP nodes/stretch to integrate its source reconstruction.
     int profileNodes=0,firstSegmentGaussOrder=8;
     R profileStretch=R(2);
 };
@@ -154,7 +155,7 @@ template<class R> bool prepare(const WallGeometryMesh<R>&m,Context<R>&ctx,WallSt
         ||nc==0||nf==0||m.volumes.size()!=nc||m.neighbour.size()!=nf||m.physicalWall.size()!=nf
         ||m.faceOffsets.size()!=nf+1||m.faceOffsets.front()!=0||m.faceOffsets.back()!=static_cast<int>(m.facePoints.size())
         ||(!m.omegaConstrained.empty()&&m.omegaConstrained.size()!=nc)||(!m.gasCell.empty()&&m.gasCell.size()!=nc))return invalid(s);
-    if(opt.profileNodes&& !gaussRule(opt.firstSegmentGaussOrder,ctx.firstGaussPoint,ctx.firstGaussWeight))return invalid(s);
+    if(opt.constructQuadrature&&opt.profileNodes&& !gaussRule(opt.firstSegmentGaussOrder,ctx.firstGaussPoint,ctx.firstGaussWeight))return invalid(s);
     for(const auto&p:m.points)if(!finite(p))return invalid(s);
     for(std::size_t c=0;c<nc;++c)if(!finite(m.cellCentres[c])||!gasFinite(m.volumes[c])||!(m.volumes[c]>0))return invalid(s);
     ctx.faces.resize(nf);ctx.cellFaces.resize(nc);ctx.constrained=m.omegaConstrained;
@@ -379,7 +380,7 @@ template<class R> bool build(const WallGeometryMesh<R>&m,const Context<R>&ctx,in
     Vec<R> coordinate{};coordinate[axis]=1;d.tangent1=cross(d.normal,coordinate);d.tangent1=mul(d.tangent1,R(1)/norm(d.tangent1));d.tangent2=cross(d.normal,d.tangent1);
     if(!matching(m,ctx,d,s,opt,scale))return false;
     std::vector<R> profile;
-    if(opt.profileNodes){
+    if(opt.constructQuadrature&&opt.profileNodes){
         profile.resize(opt.profileNodes);
         for(int i=0;i<opt.profileNodes;++i){profile[i]=d.matchingDistance*std::pow(R(i)/R(opt.profileNodes-1),opt.profileStretch);
             if(!gasFinite(profile[i])||(i>0&&!(profile[i]>profile[i-1])))return invalid(s,wallFace);}
@@ -393,11 +394,20 @@ template<class R> bool build(const WallGeometryMesh<R>&m,const Context<R>&ctx,in
         if(!gasFinite(v)||!(v>0))return invalid(s,f);
         const Vec<R> centre=mul(add(add(seed,a),add(b,c)),R(.25));
         volume+=v;moment=add(moment,mul(sub(centre,m.cellCentres[d.ownerCell]),v));
+        if(!opt.constructQuadrature)continue;
         if(opt.profileNodes)tetra.push_back({{seed,a,b,c}});
         else tetraQuadrature<R>({{seed,a,b,c}},v,opt.quadratureRefinement,d);
     }
     d.geometryVolume=volume;d.volume=m.volumes[d.ownerCell];
-    if(!(volume>0)||std::abs(volume-d.volume)>opt.relativeTolerance*d.volume||norm(moment)>opt.relativeTolerance*d.volume*scale)return invalid(s,wallFace);
+    if(!(volume>0)||!finite(moment)||std::abs(volume-d.volume)>opt.relativeTolerance*d.volume||norm(moment)>opt.relativeTolerance*d.volume*scale)return invalid(s,wallFace);
+    if(!opt.constructQuadrature){
+        // The positive-tetra certificate above remains authoritative. Retain
+        // exact geometric moments without constructing any diagnostic nodes.
+        const Vec<R> centroid=add(m.cellCentres[d.ownerCell],mul(moment,R(1)/volume));
+        d.firstMoment=d.volume*(d.ownerDistance+dot(moment,d.normal)/volume);
+        d.firstMomentVector=mul(centroid,d.volume);
+        out=std::move(d);return true;
+    }
     if(opt.profileNodes&&!profileOwnerQuadrature(tetra,profile,ctx,d))return invalid(s,wallFace);
     // Only roundoff-level certified geometry differences are normalized to the
     // exact stage volume; wrong mesh volumes and first moments are rejected.
@@ -430,6 +440,7 @@ public:
         status=WallStatus{};
         if(ready_&&version_==mesh.geometryVersion&&wallFaces_==wallFaces&&options_.relativeTolerance==options.relativeTolerance
             &&options_.maxRayCells==options.maxRayCells&&options_.quadratureRefinement==options.quadratureRefinement
+            &&options_.constructQuadrature==options.constructQuadrature
             &&options_.profileNodes==options.profileNodes&&options_.profileStretch==options.profileStretch
             &&options_.firstSegmentGaussOrder==options.firstSegmentGaussOrder)return true;
         std::vector<int> uniqueFaces=wallFaces;

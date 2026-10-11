@@ -2,7 +2,7 @@
 #define CHMT_MESH_SWEEP_CONSTRAINTS_H
 #include "mesh/Motion.H"
 namespace chmt {
-// Bounded dense fixed-topology solve. A limit/rank/trajectory failure is a
+// Resource-bounded fixed-topology solve. A limit/rank/trajectory failure is a
 // rejection, never permission to rescale physical transfers or prescribe GCL.
 struct SweepConstraintControls {
     Real absoluteVolumeTolerance=1e-14, relativeVolumeTolerance=1e-10;
@@ -11,8 +11,11 @@ struct SweepConstraintControls {
     std::vector<Real> faceVolumeTolerance{};
     Real rankTolerance=1e-11;
     int maximumIterations=24, maximumLineSearch=24;
-    int maximumDegreesOfFreedom=512, maximumConstraints=4096;
-    std::size_t maximumModeEntries=2000000;
+    // Zero selects the workspace-based policy. Explicit positive legacy limits
+    // remain hard limits, including the logical point x mode count.
+    int maximumDegreesOfFreedom=0, maximumConstraints=0;
+    std::size_t maximumModeEntries=0;
+    std::size_t maximumWorkspaceBytes=256ull*1024*1024;
 };
 // Allocate a local interface-volume error budget across each cell's constrained
 // faces. Eight epsilon leaves room under the unchanged 32-epsilon material EOS
@@ -89,6 +92,8 @@ struct SweepConstraintReport {
     int iterations=0, rank=0, constraints=0, degreesOfFreedom=0, lineSearchTrials=0;
     Real maximumSweepResidual=0; // m^3, measured from actual vertex sweeps.
     Real maximumPlanarityResidual=0; // dimensionless path-polynomial residual.
+    bool streamedModes=false;
+    std::size_t peakWorkspaceBytes=0,modeSolves=0;
 };
 // targetSweeps are actual signed volumes [m^3], outward from mesh.owner.
 // prescribedDisplacement is only the initial guess. Each nonzero correction

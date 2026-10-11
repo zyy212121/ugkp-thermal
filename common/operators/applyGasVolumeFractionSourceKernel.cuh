@@ -1,4 +1,5 @@
 #pragma once
+#include "gasTransport/GasEnergy.H"
 // One operator implementation; scalar/time adapters are compile-time only.
 __global__ void applyGasVolumeFractionSourceKernel
 (
@@ -7,6 +8,7 @@ __global__ void applyGasVolumeFractionSourceKernel
 )
 {
     DeviceState& s = *sp;
+    using Energy = ugkwp::GasEnergyScalar<DeviceState>;
     const int c = blockIdx.x*blockDim.x + threadIdx.x;
     if (c >= s.nCells)
     {
@@ -73,42 +75,21 @@ __global__ void applyGasVolumeFractionSourceKernel
         clampMin(finiteOr(s.rho[c], s.rhoMin), s.rhoMin);
     const GPU_OPERATOR_REAL pressureOld =
         clampMin(finiteOr(s.p[c], GPU_OPERATOR_R(0.0)), GPU_OPERATOR_R(0.0));
-    const GPU_OPERATOR_REAL enerGOld = finiteOr(s.rhoE[c], GPU_OPERATOR_R(0.0));
+    const Energy enerGOld = ugkwp::gasEnergyFiniteOr(s.rhoE[c], Energy(0));
     const GPU_OPERATOR_REAL massScale = GPU_OPERATOR_R(1.0) + dt*cepsG;
     const GPU_OPERATOR_REAL mgCandidate = mgOld*massScale;
     const GPU_OPERATOR_REAL momGXCandidate = s.rhoUx[c]*massScale;
     const GPU_OPERATOR_REAL momGYCandidate = s.rhoUy[c]*massScale;
     const GPU_OPERATOR_REAL momGZCandidate = s.rhoUz[c]*massScale;
-    const GPU_OPERATOR_REAL enerGCandidate =
-        enerGOld*massScale + dt*cepsG*pressureOld;
-    /* legacy: exponential integration of the frozen-coefficient source.
-       Retained for reference only; the active update is the phase-volume-compatible linear form.
-    const GPU_OPERATOR_REAL sourceExponent = dt*cepsG;
-    const GPU_OPERATOR_REAL massScale = exp(sourceExponent);
-    const GPU_OPERATOR_REAL kineticOld =
-        GPU_OPERATOR_R(0.5)
-       *sqr3(s.rhoUx[c], s.rhoUy[c], s.rhoUz[c])
-       /mgOld;
-    const GPU_OPERATOR_REAL internalEnergyOld = enerGOld - kineticOld;
-    const GPU_OPERATOR_REAL mgCandidate = mgOld*massScale;
-    const GPU_OPERATOR_REAL momGXCandidate = s.rhoUx[c]*massScale;
-    const GPU_OPERATOR_REAL momGYCandidate = s.rhoUy[c]*massScale;
-    const GPU_OPERATOR_REAL momGZCandidate = s.rhoUz[c]*massScale;
-    const GPU_OPERATOR_REAL enerGCandidate =
-        massScale
-       *(
-            enerGOld
-          + internalEnergyOld
-           *expm1((s.gammaGas - GPU_OPERATOR_R(1.0))*sourceExponent)
-        );
-    */
-    const GPU_OPERATOR_REAL kineticCandidate =
-        GPU_OPERATOR_R(0.5)
-       *sqr3(momGXCandidate, momGYCandidate, momGZCandidate)
-       /clampMin(mgCandidate, s.rhoMin);
-    const GPU_OPERATOR_REAL internalEnergyFloorCandidate =
-        mgCandidate*s.Rgas*s.TgasMin
-       /clampMin(s.gammaGas - GPU_OPERATOR_R(1.0), OfSmall);
+    const Energy enerGCandidate = std::is_same<Energy,GPU_OPERATOR_REAL>::value
+        ? enerGOld*massScale+dt*cepsG*pressureOld
+        : enerGOld+Energy(dt)*Energy(cepsG)*(enerGOld+Energy(pressureOld));
+    const Energy kineticCandidate = Energy(0.5)
+       *(Energy(momGXCandidate)*Energy(momGXCandidate)+Energy(momGYCandidate)*Energy(momGYCandidate)+Energy(momGZCandidate)*Energy(momGZCandidate))
+       /Energy(clampMin(mgCandidate, s.rhoMin));
+    const Energy internalEnergyFloorCandidate =
+        Energy(mgCandidate)*Energy(s.Rgas)*Energy(s.TgasMin)
+       /ugkwp::gasEnergyClampMin(Energy(s.gammaGas)-Energy(1),Energy(OfSmall));
     const GPU_OPERATOR_REAL rhoKCandidate = s.sstConfigured != 0
       ? s.rhoK[c]*massScale : GPU_OPERATOR_R(0.0);
     const GPU_OPERATOR_REAL rhoOmegaCandidate = s.sstConfigured != 0
@@ -126,9 +107,9 @@ __global__ void applyGasVolumeFractionSourceKernel
      || !finiteDevice(momGYCandidate)
      || !finiteDevice(momGZCandidate)
      || !finiteDevice(pressureOld)
-     || !finiteDevice(enerGCandidate)
-     || !finiteDevice(kineticCandidate)
-     || !finiteDevice(internalEnergyFloorCandidate)
+     || !ugkwp::gasEnergyFinite(enerGCandidate)
+     || !ugkwp::gasEnergyFinite(kineticCandidate)
+     || !ugkwp::gasEnergyFinite(internalEnergyFloorCandidate)
      || mgCandidate < s.rhoMin
      || enerGCandidate < kineticCandidate + internalEnergyFloorCandidate
     )

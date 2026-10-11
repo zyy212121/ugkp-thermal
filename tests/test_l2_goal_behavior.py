@@ -13,6 +13,9 @@ def test_production_behavior(tmp_path, name):
     fixture = (FIXTURES / (name + ".cpp.in")).read_text()
     if name in ("filtered_gather", "prefilled_gather"):
         source += "\n" + (SOURCE.parents[3] / "common/GpuParticlePayload.cuh").read_text()
+        fixture = fixture.replace("{{copyCellLocalParticle}}",
+            '#define __host__\n#include "GpuParticleThermalCarryStorage.cuh"\n'
+            "{{copyCellLocalParticle}}")
     if name == "fused_moments":
         macros = "\n#define __forceinline__ inline\n#define GPU_OPERATOR_REAL double\n#define GPU_OPERATOR_R(x) (x)\n#define GPU_OPERATOR_THERMAL 0\n"
         atomic = '#include "' + str(SOURCE.parents[3] / "common/operators/accumulateParticleMomentsAtomicKernel.cuh") + '"\n'

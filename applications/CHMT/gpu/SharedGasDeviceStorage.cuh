@@ -29,7 +29,7 @@ template<class T>struct GasAllocation<T*> {
 };
 // Allocation and marshaling only. No numerical gas, chemistry or RK formula.
 class SharedGasDeviceStorage {
-    using Time=Real;using SstCoefficients=ugkwp::SstCoefficients;
+    using Time=Real;using Energy=Real;using SstCoefficients=ugkwp::SstCoefficients;
     CudaFault fault_;
     SharedGasDeviceView view_{};
     Buffer<SharedGasDeviceView> device_;
@@ -247,7 +247,7 @@ public:
         for(int i=0;i<count;++i){const auto& d=geometry[i];auto& input=wallHostInput_[i];
             input.matchingDistance=d.matchingDistance;input.ownerDistance=d.ownerDistance;
             for(int k=0;k<3;++k)input.normal[k]=d.normal[k];
-            input.quadrature=d.quadrature();input.quadrature.distance=wallDistance_.data()+qStart[i];input.quadrature.volumeWeight=wallWeights_.data()+qStart[i];}
+            input.quadrature=d.quadrature();input.quadrature.distance=d.distance.empty()?nullptr:wallDistance_.data()+qStart[i];input.quadrature.volumeWeight=d.volumeWeight.empty()?nullptr:wallWeights_.data()+qStart[i];}
         if(!wallInput_.upload(wallHostInput_,fault_)||!wallOutput_.resize(count,fault_)||!wallModelStatus_.resize(count,fault_)
             ||!wallExchange_.resize(count,fault_)||!wallSst_.resize(count,fault_)||!wallStatus_.resize(count,fault_)||!wallSpecies_.resize(Ns*count,fault_))return false;
         auto& wall=view_.gasBoundaryLayer;wall.faceSlot=wallFaceSlot_.data();wall.ownerSlot=wallOwnerSlot_.data();

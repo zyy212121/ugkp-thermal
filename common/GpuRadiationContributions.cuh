@@ -17,5 +17,5 @@ __device__ __forceinline__ GPU_OPERATOR_REAL particleMaterialEnthalpyContributio
 {
     const GPU_OPERATOR_REAL mass=clampMin(finiteOr(s.pm[i],GPU_OPERATOR_R(0.0)),GPU_OPERATOR_R(0.0));
     const GPU_OPERATOR_REAL temperature=clampRange(finiteOr(s.pT[i],s.TpMin),s.TpMin,s.TpMax);
-    return materialEnthalpyMoment(mass, temperature);
+    return materialEnthalpyMomentFromParticle(s, i, mass, temperature, 0);
 }

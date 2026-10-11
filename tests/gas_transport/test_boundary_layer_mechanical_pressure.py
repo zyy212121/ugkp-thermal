@@ -22,7 +22,7 @@ const Real area=2;s.magSf[1]=area;s.Sfx[1]=-area;
 const auto local=reconstructGasCellToFace(s,0,1);ck(local.p!=s.p[0],"fixture must exercise reconstructed rather than cell pressure");
 auto&w=s.gasBoundaryLayer;w.enabled=true;w.count=1;int fs[3]={-1,0,-1},os[2]={0,-1},status[1]={0};w.faceSlot=fs;w.ownerSlot=os;w.status=status;
 ugkwp::GasBoundaryLayerExchange<Real> exchange[1];ugkwp::GasBoundaryLayerSstClosure<Real> closure[1];Real speciesFlux[2];w.exchange=exchange;w.sst=closure;w.speciesFlux=speciesFlux;
-ugkwp::gaswall::WallInput<Real,2> input;input.pressure=Real(.7)*s.p[0];input.normal[0]=1;input.model.thermo=s.gasSpecies.thermo;input.quadrature.volume=1;
+ugkwp::gaswall::WallInput<Real,2> input;input.pressure=Real(.7)*s.p[0];input.normal[0]=1;input.model.thermo=s.gasSpecies.thermo;input.quadrature.volume=1;input.ownerDistance=Real(.5);
 ugkwp::gaswall::WallOutput<Real,2> output;output.traceTemperature=700;output.traceVelocity[0]=Real(2.5);output.traceVelocity[1]=3;output.traceVelocity[2]=-1;
 output.wallSpeciesFlux[0]=BLOWING?Real(.4):Real(0);output.wallSpeciesFlux[1]=BLOWING?Real(-.1):Real(0);
 output.conductiveHeatFlux=50;output.traction[0]=4;output.traction[1]=5;output.traction[2]=-2;

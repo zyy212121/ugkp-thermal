@@ -694,7 +694,8 @@ extern "C" int ugkwpGpuResidentStrictUploadParticleRestartMirror_32(
     const double* pCold2DRingContactAge,
     const float* pCold2DFrozenArea,
     const unsigned long long* pRng,
-    const unsigned long long* pOrigId
+    const unsigned long long* pOrigId,
+    const double* pThermalEnthalpyResidual
 );
 extern "C" int ugkwpGpuResidentStrictUploadParticleRestartMirror_64(
     void* handle,
@@ -725,7 +726,8 @@ extern "C" int ugkwpGpuResidentStrictUploadParticleRestartMirror_64(
     const double* pCold2DRingContactAge,
     const float* pCold2DFrozenArea,
     const unsigned long long* pRng,
-    const unsigned long long* pOrigId
+    const unsigned long long* pOrigId,
+    const double* pThermalEnthalpyResidual
 );
 extern "C" int ugkwpGpuResidentStrictDownloadParticleRestartMirror_32(
     void* handle,
@@ -757,7 +759,8 @@ extern "C" int ugkwpGpuResidentStrictDownloadParticleRestartMirror_32(
     double* pCold2DRingContactAge,
     float* pCold2DFrozenArea,
     unsigned long long* pRng,
-    unsigned long long* pOrigId
+    unsigned long long* pOrigId,
+    double* pThermalEnthalpyResidual
 );
 extern "C" int ugkwpGpuResidentStrictDownloadParticleRestartMirror_64(
     void* handle,
@@ -789,7 +792,8 @@ extern "C" int ugkwpGpuResidentStrictDownloadParticleRestartMirror_64(
     double* pCold2DRingContactAge,
     float* pCold2DFrozenArea,
     unsigned long long* pRng,
-    unsigned long long* pOrigId
+    unsigned long long* pOrigId,
+    double* pThermalEnthalpyResidual
 );
 extern "C" void ugkwpGpuResidentStrictRelease_32(void* handle);
 extern "C" void ugkwpGpuResidentStrictRelease_64(void* handle);
@@ -1264,10 +1268,11 @@ extern "C" int ugkwpGpuResidentStrictUploadParticleRestartMirror(
     const double* pCold2DRingContactAge,
     const float* pCold2DFrozenArea,
     const unsigned long long* pRng,
-    const unsigned long long* pOrigId
+    const unsigned long long* pOrigId,
+    const double* pThermalEnthalpyResidual
 )
 {
-    return selectedPrecision == 32 ? ugkwpGpuResidentStrictUploadParticleRestartMirror_32(handle, nParticles, px, py, pz, pux, puy, puz, pT, pTheta, pd, pm, pCellId, pStatus, pStuck, pStuckFaceId, pDepositionArea, pContactDuration, pContactMaximumArea, pContactPeakFraction, pColdNodeSpecificEnthalpy, pColdRingSolidMass, pColdFrozenArea, pColdContactAge, pCold2DNodeSpecificEnthalpy, pCold2DRingContactAge, pCold2DFrozenArea, pRng, pOrigId) : ugkwpGpuResidentStrictUploadParticleRestartMirror_64(handle, nParticles, px, py, pz, pux, puy, puz, pT, pTheta, pd, pm, pCellId, pStatus, pStuck, pStuckFaceId, pDepositionArea, pContactDuration, pContactMaximumArea, pContactPeakFraction, pColdNodeSpecificEnthalpy, pColdRingSolidMass, pColdFrozenArea, pColdContactAge, pCold2DNodeSpecificEnthalpy, pCold2DRingContactAge, pCold2DFrozenArea, pRng, pOrigId);
+    return selectedPrecision == 32 ? ugkwpGpuResidentStrictUploadParticleRestartMirror_32(handle, nParticles, px, py, pz, pux, puy, puz, pT, pTheta, pd, pm, pCellId, pStatus, pStuck, pStuckFaceId, pDepositionArea, pContactDuration, pContactMaximumArea, pContactPeakFraction, pColdNodeSpecificEnthalpy, pColdRingSolidMass, pColdFrozenArea, pColdContactAge, pCold2DNodeSpecificEnthalpy, pCold2DRingContactAge, pCold2DFrozenArea, pRng, pOrigId, pThermalEnthalpyResidual) : ugkwpGpuResidentStrictUploadParticleRestartMirror_64(handle, nParticles, px, py, pz, pux, puy, puz, pT, pTheta, pd, pm, pCellId, pStatus, pStuck, pStuckFaceId, pDepositionArea, pContactDuration, pContactMaximumArea, pContactPeakFraction, pColdNodeSpecificEnthalpy, pColdRingSolidMass, pColdFrozenArea, pColdContactAge, pCold2DNodeSpecificEnthalpy, pCold2DRingContactAge, pCold2DFrozenArea, pRng, pOrigId, pThermalEnthalpyResidual);
 }
 
 extern "C" int ugkwpGpuResidentStrictDownloadParticleRestartMirror(
@@ -1300,10 +1305,11 @@ extern "C" int ugkwpGpuResidentStrictDownloadParticleRestartMirror(
     double* pCold2DRingContactAge,
     float* pCold2DFrozenArea,
     unsigned long long* pRng,
-    unsigned long long* pOrigId
+    unsigned long long* pOrigId,
+    double* pThermalEnthalpyResidual
 )
 {
-    return selectedPrecision == 32 ? ugkwpGpuResidentStrictDownloadParticleRestartMirror_32(handle, nParticles, maxParticles, px, py, pz, pux, puy, puz, pT, pTheta, pd, pm, pCellId, pStatus, pStuck, pStuckFaceId, pDepositionArea, pContactDuration, pContactMaximumArea, pContactPeakFraction, pColdNodeSpecificEnthalpy, pColdRingSolidMass, pColdFrozenArea, pColdContactAge, pCold2DNodeSpecificEnthalpy, pCold2DRingContactAge, pCold2DFrozenArea, pRng, pOrigId) : ugkwpGpuResidentStrictDownloadParticleRestartMirror_64(handle, nParticles, maxParticles, px, py, pz, pux, puy, puz, pT, pTheta, pd, pm, pCellId, pStatus, pStuck, pStuckFaceId, pDepositionArea, pContactDuration, pContactMaximumArea, pContactPeakFraction, pColdNodeSpecificEnthalpy, pColdRingSolidMass, pColdFrozenArea, pColdContactAge, pCold2DNodeSpecificEnthalpy, pCold2DRingContactAge, pCold2DFrozenArea, pRng, pOrigId);
+    return selectedPrecision == 32 ? ugkwpGpuResidentStrictDownloadParticleRestartMirror_32(handle, nParticles, maxParticles, px, py, pz, pux, puy, puz, pT, pTheta, pd, pm, pCellId, pStatus, pStuck, pStuckFaceId, pDepositionArea, pContactDuration, pContactMaximumArea, pContactPeakFraction, pColdNodeSpecificEnthalpy, pColdRingSolidMass, pColdFrozenArea, pColdContactAge, pCold2DNodeSpecificEnthalpy, pCold2DRingContactAge, pCold2DFrozenArea, pRng, pOrigId, pThermalEnthalpyResidual) : ugkwpGpuResidentStrictDownloadParticleRestartMirror_64(handle, nParticles, maxParticles, px, py, pz, pux, puy, puz, pT, pTheta, pd, pm, pCellId, pStatus, pStuck, pStuckFaceId, pDepositionArea, pContactDuration, pContactMaximumArea, pContactPeakFraction, pColdNodeSpecificEnthalpy, pColdRingSolidMass, pColdFrozenArea, pColdContactAge, pCold2DNodeSpecificEnthalpy, pCold2DRingContactAge, pCold2DFrozenArea, pRng, pOrigId, pThermalEnthalpyResidual);
 }
 
 extern "C" void ugkwpGpuResidentStrictRelease(void* handle)

@@ -65,13 +65,13 @@ UGKWP_GAS_HD inline bool solveDense(int n, R* a, R* b) noexcept
     }
     return true;
 }
-template<class R,int N> struct ReactorContext {
+template<class R,int N,class TableReal=R> struct ReactorContext {
  const ClosedReactorInput<R,N>& base;
- const SpeciesThermoView<R,N>& thermo;
- const GasMechanismView<R,N>& mechanism;
+ const SpeciesThermoView<TableReal,N>& thermo;
+ const GasMechanismView<TableReal,N>& mechanism;
  const ChemistryControls<R>& controls;
  R leftInverse[N*N]; // [coordinate*Ns+species]
- UGKWP_GAS_HD ReactorContext(const ClosedReactorInput<R,N>& b,const SpeciesThermoView<R,N>& t,const GasMechanismView<R,N>& m,const ChemistryControls<R>& c) noexcept:base(b),thermo(t),mechanism(m),controls(c),leftInverse{} {}
+ UGKWP_GAS_HD ReactorContext(const ClosedReactorInput<R,N>& b,const SpeciesThermoView<TableReal,N>& t,const GasMechanismView<TableReal,N>& m,const ChemistryControls<R>& c) noexcept:base(b),thermo(t),mechanism(m),controls(c),leftInverse{} {}
  UGKWP_GAS_HD bool prepare() noexcept {
    R q[N*N]={};if(!orthogonalBasis(mechanism,q))return false;
    int rank=mechanism.independentRank;R upper[N*N]={};
@@ -102,14 +102,14 @@ template<class R,int N> struct ReactorContext {
 namespace ugkwp {
 // Coordinates z are mol/m^3 increments in the validated dimensionless MOLAR
 // basis; masses=baseMass+W*volume*B*z. The fixed formation-inclusive U closes T.
-template<class R,int N> UGKWP_GAS_HD inline ChemistryStatus evaluateConservativeReactor
-(const ClosedReactorInput<R,N>& base,const R* z,const SpeciesThermoView<R,N>& t,const GasMechanismView<R,N>& m,const ChemistryControls<R>& controls,R* f,R& temperature,R* jacobian) noexcept {
+template<class R,int N,class TableReal> UGKWP_GAS_HD inline ChemistryStatus evaluateConservativeReactor
+(const ClosedReactorInput<R,N>& base,const R* z,const SpeciesThermoView<TableReal,N>& t,const GasMechanismView<TableReal,N>& m,const ChemistryControls<R>& controls,R* f,R& temperature,R* jacobian) noexcept {
  ChemistryStatus st=validateGasMechanismView(t,m);if(!st)return st;
- gasChemistryDetail::ReactorContext<R,N> context(base,t,m,controls);
+ gasChemistryDetail::ReactorContext<R,N,TableReal> context(base,t,m,controls);
  if(!context.prepare()){st.code=ChemistryCode::InvalidModel;return st;}
  return context.evaluate(z,f,temperature,jacobian);
 }
-template<class R,int N> UGKWP_GAS_HD inline ChemistryStatus evaluateConservativeReactor
-(const ClosedReactorInput<R,N>& base,const R* z,const SpeciesThermoView<R,N>& t,const GasMechanismView<R,N>& m,const ChemistryControls<R>& controls,R* f,R& temperature,std::nullptr_t) noexcept {return evaluateConservativeReactor(base,z,t,m,controls,f,temperature,static_cast<R*>(nullptr));}
+template<class R,int N,class TableReal> UGKWP_GAS_HD inline ChemistryStatus evaluateConservativeReactor
+(const ClosedReactorInput<R,N>& base,const R* z,const SpeciesThermoView<TableReal,N>& t,const GasMechanismView<TableReal,N>& m,const ChemistryControls<R>& controls,R* f,R& temperature,std::nullptr_t) noexcept {return evaluateConservativeReactor(base,z,t,m,controls,f,temperature,static_cast<R*>(nullptr));}
 }
 #endif

@@ -387,7 +387,8 @@ extern "C" int ugkwpGpuResidentStrictUploadParticleRestartMirror
     const double* pCold2DRingContactAge,
     const float* pCold2DFrozenArea,
     const unsigned long long* pRng,
-    const unsigned long long* pOrigId
+    const unsigned long long* pOrigId,
+    const double* pThermalEnthalpyResidual
 );
 
 extern "C" int ugkwpGpuResidentStrictDownloadParticleRestartMirror
@@ -421,7 +422,8 @@ extern "C" int ugkwpGpuResidentStrictDownloadParticleRestartMirror
     double* pCold2DRingContactAge,
     float* pCold2DFrozenArea,
     unsigned long long* pRng,
-    unsigned long long* pOrigId
+    unsigned long long* pOrigId,
+    double* pThermalEnthalpyResidual
 );
 
 extern "C" int ugkwpGpuResidentStrictDownloadEpsGPrev
@@ -1058,7 +1060,8 @@ public:
                 nullptr, nullptr, nullptr, nullptr,
                 nullptr, nullptr, nullptr, nullptr,
                 nullptr, nullptr, nullptr,
-                nullptr, nullptr
+                nullptr, nullptr,
+                nullptr
             ),
             "query GPU resident particle count"
         );
@@ -1545,6 +1548,7 @@ protected:
                 (
                     (restartHeader == gpuFshRestart::formatName || restartHeader == gpuFshRestart::schema5FormatName)
                  || restartHeader == gpuFshRestart::schema7FormatName
+                 || restartHeader == gpuFshRestart::schema8FormatName
                  || restartHeader == gpuFshRestart::schema4FormatName
                  || restartHeader == gpuFshRestart::schema3FormatName
                  || restartHeader == gpuFshRestart::schema2FormatName
@@ -2284,6 +2288,7 @@ public:
                 nullptr,
                 nullptr,
                 nullptr,
+                nullptr,
                 nullptr
             ),
             "query GPU resident particle restart mirror count"
@@ -2297,6 +2302,7 @@ public:
         scalarField puy(nParticles);
         scalarField puz(nParticles);
         scalarField pT(nParticles);
+        List<double> pThermalEnthalpyResidual(nParticles, 0.0);
         scalarField pTheta(nParticles);
         scalarField pd(nParticles);
         scalarField pm(nParticles);
@@ -2370,7 +2376,8 @@ public:
                     pCold2DRingContactAge.begin(),
                     pCold2DFrozenArea.begin(),
                     pRng.begin(),
-                    pOrigId.begin()
+                    pOrigId.begin(),
+                    pThermalEnthalpyResidual.begin()
                 ),
                 "download GPU resident particle restart mirror"
             );
@@ -2412,10 +2419,11 @@ public:
             , pCold2DRingContactAge.cdata()
             , pCold2DFrozenArea.cdata()
             , puxOld.cdata(), puyOld.cdata(), puzOld.cdata()
+            , pThermalEnthalpyResidual.cdata()
         };
         try
         {
-            gpuFshRestart::writeV7(os, restartView);
+            gpuFshRestart::writeV8(os, restartView);
             os.close();
             if (!os.good() || std::rename(stagingFile.c_str(),restartFile.c_str())!=0)
                 throw std::runtime_error("failed publishing complete particle restart");
@@ -2905,6 +2913,7 @@ protected:
         bool weightedFshV4 = false;
         bool weightedFshV5 = false;
         bool weightedV7 = false;
+        bool weightedV8 = false;
         bool version3 = false;
         bool version2 = false;
         if (!(is >> restartHeader))
@@ -2913,7 +2922,13 @@ protected:
                 << "Invalid GPU resident particle restart mirror: "
                 << restartFile << exit(FatalError);
         }
-        if (restartHeader == gpuFshRestart::schema7FormatName)
+        if (restartHeader == gpuFshRestart::schema8FormatName)
+        {
+            weightedV8 = true;
+            if (!(is >> nParticles >> maximumChunk))
+                FatalErrorInFunction << "Invalid schema8 restart header" << exit(FatalError);
+        }
+        else if (restartHeader == gpuFshRestart::schema7FormatName)
         {
             weightedV7=true;
             if (!(is >> nParticles >> maximumChunk))
@@ -3014,6 +3029,7 @@ protected:
         scalarField puy(nParticles);
         scalarField puz(nParticles);
         scalarField pT(nParticles);
+        List<double> pThermalEnthalpyResidual(nParticles, 0.0);
         scalarField pTheta(nParticles, scalar(0));
         scalarField pd(nParticles);
         scalarField pm(nParticles);
@@ -3055,7 +3071,7 @@ protected:
         if
         (
             weightedFshV1 || weightedFshV2 || weightedFshV3
-         || weightedFshV4 || weightedFshV5 || weightedV7
+         || weightedFshV4 || weightedFshV5 || weightedV7 || weightedV8
         )
         {
             const gpuFshRestart::MutableView restartView
@@ -3082,10 +3098,21 @@ protected:
                 , pCold2DRingContactAge.begin()
                 , pCold2DFrozenArea.begin()
                 , puxOld.begin(), puyOld.begin(), puzOld.begin()
+                , pThermalEnthalpyResidual.begin()
             };
             try
             {
-                if (weightedV7)
+                if (weightedV8)
+                {
+                    gpuFshRestart::readV8Payload(is,static_cast<std::uint32_t>(maximumChunk),restartView);
+                    gpuFshRestart::prepareSchema8ThermalAuthorityForPrecision
+                    (
+                        restartView, ugkwpGpuSelectedPrecision(),
+                        particleStuckCandidateFaceMask_.cdata(),
+                        static_cast<std::size_t>(particleStuckCandidateFaceMask_.size())
+                    );
+                }
+                else if (weightedV7)
                 {
                     gpuFshRestart::readV7Payload(is,static_cast<std::uint32_t>(maximumChunk),restartView);
                 }
@@ -3376,7 +3403,7 @@ protected:
           }
         }
 
-        if (!weightedV7)
+        if (!weightedV7 && !weightedV8)
         {
             forAll(pStuck,i)
                 if (pStuck[i]==2u || pStuck[i]==3u)
@@ -3421,7 +3448,8 @@ protected:
                 pCold2DRingContactAge.begin(),
                 pCold2DFrozenArea.begin(),
                 pRng.begin(),
-                pOrigId.begin()
+                pOrigId.begin(),
+                pThermalEnthalpyResidual.begin()
             ),
             "upload GPU resident particle restart mirror"
         );

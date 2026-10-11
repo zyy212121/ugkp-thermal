@@ -59,6 +59,14 @@ a.budgetAudit=0;assert(configure()==0);state.gasBoundaryLayer.exchange[0].ready=
 assert(ugkwpGpuResidentStrictDownloadBoundaryLayerV1(&state,1,2,diagnostics)==0);
 assert(diagnostics[16]==0);for(int j=17;j<25;++j)assert(std::isnan(diagnostics[j]));
 releaseBoundaryLayerStorage(state);assert(allocations==0);
+// Production requests no auxiliary source points, even when coarse audit is enabled.
+a.quadratureCount=0;int emptyQ[]={0,0};
+assert(ugkwpGpuResidentStrictConfigureBoundaryLayerV1(&state,&a,faces,emptyQ,offset,match,geometry,nullptr,nullptr,mw,flux)==0);
+assert(!state.gasWallQuadratureDistance&&!state.gasWallQuadratureWeight);
+const auto& input=state.gasBoundaryLayerModel.input[0];assert(!input.quadrature.distance&&!input.quadrature.volumeWeight&&input.quadrature.count==0&&input.quadrature.volume==1&&input.quadrature.firstMoment==.5);
+assert(allocations==unauditedAllocations-2);releaseBoundaryLayerStorage(state);assert(allocations==0);
+a.budgetAudit=1;assert(ugkwpGpuResidentStrictConfigureBoundaryLayerV1(&state,&a,faces,emptyQ,offset,match,geometry,nullptr,nullptr,mw,flux)==0);
+assert(state.gasSstAudit.enabled&&!state.gasWallQuadratureDistance&&!state.gasWallQuadratureWeight);releaseBoundaryLayerStorage(state);assert(allocations==0);
 }
 '''
     source=tmp_path/'probe.cpp';exe=tmp_path/'probe';source.write_text(body)

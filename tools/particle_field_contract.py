@@ -264,7 +264,7 @@ def main():
     if sorted(ordinals) != list(range(30)):
         raise ValueError('schema7 must contain each of its 30 wire ordinals exactly once')
     for field in meta['fields']:
-        if field['schema7'] is None and 'wire_alias' not in field:
+        if field['schema7'] is None and 'wire_alias' not in field and 'wire_extension' not in field:
             raise ValueError('persistent field lacks an explicit restart mapping: ' + field['name'])
     generated = {'GpuParticleFields.cuh': registry(meta), 'GpuParticleRestartFields.inl': restart_fields(meta)}
     for name, data in generated.items():

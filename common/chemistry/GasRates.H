@@ -70,8 +70,8 @@ template<class X,class R,int N> UGKWP_GAS_HD inline bool progressRate
  }
  return rateFinite(q);
 }
-template<class R,int N> UGKWP_GAS_HD inline ChemistryStatus rateInputStatus
-(R T,const R* c,const SpeciesThermoView<R,N>& t,const GasMechanismView<R,N>& m) noexcept {
+template<class R,int N,class TableReal> UGKWP_GAS_HD inline ChemistryStatus rateInputStatus
+(R T,const R* c,const SpeciesThermoView<TableReal,N>& t,const GasMechanismView<TableReal,N>& m) noexcept {
  ChemistryStatus st=validateGasMechanismView(t,m);if(!st)return st;
  if(!c || !gasFinite(T)){st.code=ChemistryCode::NonFiniteInput;return st;}
  for(int s=0;s<N;++s){if(!gasFinite(c[s]) || c[s]<R(0)){st.code=ChemistryCode::InvalidComposition;return st;}
@@ -81,8 +81,8 @@ template<class R,int N> UGKWP_GAS_HD inline ChemistryStatus rateInputStatus
 }
 // Production [mol/(m^3 s)] and optional net progress [mol/(m^3 s)]. All caller
 // outputs are transactional, including optional progress arrays with runtime Nr.
-template<class R,int N> UGKWP_GAS_HD inline bool evaluateGasRates
-(R T,const R* c,const SpeciesThermoView<R,N>& t,const GasMechanismView<R,N>& m,R* production,R* progress,ChemistryStatus& status) noexcept {
+template<class R,int N,class TableReal> UGKWP_GAS_HD inline bool evaluateGasRates
+(R T,const R* c,const SpeciesThermoView<TableReal,N>& t,const GasMechanismView<TableReal,N>& m,R* production,R* progress,ChemistryStatus& status) noexcept {
  status=gasChemistryDetail::rateInputStatus(T,c,t,m);if(!status)return false;
  if(!production){status.code=ChemistryCode::InvalidComposition;return false;}
  R local[N]={};
@@ -97,7 +97,7 @@ template<class R,int N> UGKWP_GAS_HD inline bool evaluateGasRates
  for(int s=0;s<N;++s)production[s]=local[s];
  return true;
 }
-template<class R,int N> UGKWP_GAS_HD inline bool evaluateGasRates
-(R T,const R* c,const SpeciesThermoView<R,N>& t,const GasMechanismView<R,N>& m,R* production,std::nullptr_t,ChemistryStatus& status) noexcept {return evaluateGasRates(T,c,t,m,production,static_cast<R*>(nullptr),status);}
+template<class R,int N,class TableReal> UGKWP_GAS_HD inline bool evaluateGasRates
+(R T,const R* c,const SpeciesThermoView<TableReal,N>& t,const GasMechanismView<TableReal,N>& m,R* production,std::nullptr_t,ChemistryStatus& status) noexcept {return evaluateGasRates(T,c,t,m,production,static_cast<R*>(nullptr),status);}
 }
 #endif

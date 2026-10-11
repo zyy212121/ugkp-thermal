@@ -21,9 +21,12 @@ template<class Real> struct GasBoundaryLayerExchange
 };
 template<class Real> struct GasBoundaryLayerSstClosure
 {
-    Real integratedKSource=0; // complete net k source, over actual owner volume
+    Real wallShearStress=0;  // magnitude of numerical-wall traction, Pa
     Real ownerOmega=0;       // finite owner-distance algebraic constraint
-    Real volume=0;           // geometry volume used for the source quadrature
+    Real volume=0;           // stage owner volume, m^3
+    Real ownerDistance=0;    // physical wall to owner centre, m
+    // This is a high-Re numerical wall-function relation, not a second k
+    // inventory. Auxiliary BVP k flux/source remain model diagnostics only.
 };
 template<class Real> struct GasBoundaryLayerState
 {

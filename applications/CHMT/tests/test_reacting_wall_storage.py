@@ -29,6 +29,7 @@ int main(){
  m.boundaryPrimitive.resize(m.owner.size());h.surface.gasFace={wall};h.surface.area={1};
  for(int c=0;c<3;++c){chmt::GasPrimitive w;w.rho=1;w.temperature=700;w.Y[0]=1;w.velocity={5,0,0};h.gas.push_back(chmt::conservativeGas(w,1,p));}
  chmt::SharedGasDeviceStorage storage;assert(storage.configure(model,canonical,{},h,error));auto&v=storage.hostView();
+ assert(v.gasBoundaryLayerModel.input[0].quadrature.count==0&&!v.gasBoundaryLayerModel.input[0].quadrature.distance&&!v.gasBoundaryLayerModel.input[0].quadrature.volumeWeight);
  assert(v.gasBoundaryLayer.enabled&&v.gasBoundaryLayer.count==1);assert(v.gasBoundaryLayerModel.workspaceCount==0);assert(!v.gasBoundaryLayerModel.workspace);
  assert(v.gasBoundaryLayer.faceSlot[wall]==0&&v.gasBoundaryLayer.ownerSlot[0]==0&&v.gasBoundaryLayer.ownerSlot[1]==-1);
  chmt::WallKnot knot;knot.faces.resize(1);knot.faces[0].temperature=600;knot.faces[0].speciesRate[0]=.01;
@@ -39,6 +40,10 @@ int main(){
  assert(v.gasBoundaryLayerModel.input[0].temperature==600);assert(v.gasBoundaryLayerModel.input[0].matching.temperature==900);
  assert(v.gasBoundaryLayer.speciesFlux[0]==-.01);assert(v.gasBoundaryLayer.exchange[0].mass==-.01);
  assert(v.gasBoundaryLayerModel.output[0].reactionIntegral[0]==0);
+ // A moving-geometry rebuild retains certified volume but no point allocation/upload.
+ ++m.geometryVersion;for(auto& point:m.points)point.z*=1.01;for(auto& centre:m.cellCentres)centre.z*=1.01;for(auto& volume:m.volumes)volume*=1.01;
+ assert(storage.prepareWallGeometry(m));const auto& q=v.gasBoundaryLayerModel.input[0].quadrature;
+ assert(q.count==0&&!q.distance&&!q.volumeWeight&&near(q.volume,1.01)&&near(q.firstMoment,.51005));
  assert(storage.clearTrialStatus());assert(!v.gasBoundaryLayer.exchange[0].ready);
 }
 '''

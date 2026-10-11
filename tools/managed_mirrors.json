@@ -730,12 +730,32 @@
       "downstream": "gpu-riemann-gkp-main"
     },
     {
+      "path": "common/GpuPairedParticleHeat.H",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/GpuPairedParticleHeat.cuh",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
       "path": "common/GpuParticleBoundaryModel.H",
       "upstream": "ugkp-thermal",
       "downstream": "gpu-riemann-gkp-main"
     },
     {
       "path": "common/GpuParticleBufferCommit.cuh",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/GpuParticleCaloric.H",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/GpuParticleCaloricDevice.cuh",
       "upstream": "ugkp-thermal",
       "downstream": "gpu-riemann-gkp-main"
     },
@@ -791,6 +811,26 @@
     },
     {
       "path": "common/GpuParticleRestartTheta.H",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/GpuParticleThermalCarry.H",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/GpuParticleThermalCarryStorage.cuh",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/GpuParticleThermalConsumerDevice.cuh",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/GpuParticleThermalConsumers.H",
       "upstream": "ugkp-thermal",
       "downstream": "gpu-riemann-gkp-main"
     },
@@ -1116,6 +1156,11 @@
     },
     {
       "path": "common/gasTransport/GasCapabilities.H",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/gasTransport/GasEnergy.H",
       "upstream": "ugkp-thermal",
       "downstream": "gpu-riemann-gkp-main"
     },
@@ -1521,6 +1566,11 @@
     },
     {
       "path": "common/operators/validateDevelopmentProbeParticlesKernel.cuh",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/wall/GpuColdWallThermalCarry.cuh",
       "upstream": "ugkp-thermal",
       "downstream": "gpu-riemann-gkp-main"
     },

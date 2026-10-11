@@ -9,18 +9,18 @@ void wall(State&s){s.sstWallTreatment=2;s.sstConfigured=1;s.turbulenceModel=3;s.
 auto&w=s.gasBoundaryLayer;w.enabled=true;w.count=1;w.faceSlot=new int[3]{-1,0,-1};w.ownerSlot=new int[2]{0,-1};w.status=new int[1]{};
 w.exchange=new ugkwp::GasBoundaryLayerExchange<Real>[1];w.sst=new ugkwp::GasBoundaryLayerSstClosure<Real>[1];w.speciesFlux=new Real[2]{};
 w.exchange[0].matchingPressure=s.p[0];w.exchange[0].ready=true;w.exchange[0].massReady=true;w.exchange[0].mass=-.4;w.exchange[0].momentumX=-17;w.exchange[0].momentumY=3;w.exchange[0].energy=-31;w.exchange[0].k=-2;
-w.sst[0]={-3,11,1};}
+s.sstWallCmu=.09;s.sstWallKappa=.41;s.sstWallE=9.8;w.exchange[0].k=0;w.sst[0]={4,11,1,.5};}
 '''
 
 @pytest.mark.parametrize('bits',[32,64])
-def test_selected_wall_replaces_k_once_and_keeps_six_channel_budget(tmp_path,bits):
+def test_selected_wall_uses_actual_k_once_and_keeps_six_channel_budget(tmp_path,bits):
     compile_probe(tmp_path,fixture()+AUDIT+SETUP+r'''
 int main(){State s;initialise(s);wall(s);audit(s);
 threadIdx.x=0;applySstWallFunctionStateKernel(&s);near(s.omega[0],11,"new owner omega not applied");near(s.rhoK[0],6,"k was projected");
-threadIdx.x=1;computeSstFaceFluxKernel(&s);near(s.sstPhiRhoK[1],-2,"physical wall k flux not used");
+threadIdx.x=1;computeSstFaceFluxKernel(&s);near(s.sstPhiRhoK[1],0,"modeled wall k flux not used");
 s.sstPhiRhoK[0]=.5;s.sstPhiRhoOmega[0]=.7;
-threadIdx.x=0;applySstFluxAndSourceKernel(&s,.1);near(s.rhoK[0],Real(5.85),"complete k source was not replaced exactly once");recoverSstPrimitivesKernel(&s);
-near(s.rhoOmega[0],22,"finite owner constraint not retained");near(s.gasSstAudit.sourceK[0],Real(-.3),"physical volume source audit wrong");
+threadIdx.x=0;Real source,unused;sstSourcesForCell(s,0,Real(0),source,unused);applySstFluxAndSourceKernel(&s,.01);near(s.rhoK[0],Real(6)+Real(.01)*(source-Real(.5)),"wall source was not applied exactly once");recoverSstPrimitivesKernel(&s);
+near(s.rhoOmega[0],22,"finite owner constraint not retained");near(s.gasSstAudit.sourceK[0],Real(.01)*source,"physical volume source audit wrong");
 checkBudget(s,6,8,0);ck(s.gasSstAudit.transportOmega[0]!=0,"replaced omega transport row omitted");ck(s.gasSstAudit.sourceOmega[0]!=0,"replaced omega source row omitted");
 Real saved=s.rhoOmega[0];recoverSstPrimitivesKernel(&s);near(s.rhoOmega[0],saved,"omega projection not idempotent");checkBudget(s,6,8,0);
 }
@@ -45,10 +45,10 @@ threadIdx.x=0;applySstFluxAndSourceKernel(&s,.01);ck(s.gasSpecies.cellStatus[0]!
 ''',bits)
 
 @pytest.mark.parametrize('bits',[32,64])
-def test_new_profile_source_exceeding_explicit_limit_rejects_before_update(tmp_path,bits):
+def test_wall_source_activity_exceeding_explicit_limit_rejects_before_update(tmp_path,bits):
     compile_probe(tmp_path,fixture()+SETUP+r'''
-int main(){State s;initialise(s);wall(s);s.gasBoundaryLayer.sst[0].integratedKSource=-100;
-threadIdx.x=0;applySstFluxAndSourceKernel(&s,.1);ck(s.gasSpecies.cellStatus[0]!=0,"new profile source timestep limit ignored");near(s.rhoK[0],6,"failed source limit wrote k");}
+int main(){State s;initialise(s);wall(s);s.k[0]=0.001;s.rhoK[0]=.002;s.omega[0]=1000;
+threadIdx.x=0;applySstFluxAndSourceKernel(&s,.1);ck(s.gasSpecies.cellStatus[0]!=0,"new profile source timestep limit ignored");near(s.rhoK[0],Real(.002),"failed source limit wrote k");}
 ''',bits)
 
 @pytest.mark.parametrize('bits',[32,64])
@@ -68,15 +68,17 @@ def test_outer_source_estimate_reuses_accepted_closure_but_trial_requires_curren
 int main(){State s;initialise(s);wall(s);threadIdx.x=0;
 s.gasBoundaryLayer.exchange[0].ready=false;
 computeSstStabilityNumberKernel(&s,Real(.1),Real(.5),false);
-ck(s.gasSpecies.cellStatus[0]==0&&s.sstSourceNumber[0]==0,"cold outer estimate demanded an extra BVP");
+ck(s.gasSpecies.cellStatus[0]==0&&s.sstSourceNumber[0]>0,"cold outer estimate demanded an extra BVP");
 computeSstStabilityNumberKernel(&s,Real(.1),Real(.5),true);
 ck(s.gasSpecies.cellStatus[0]==int(ugkwp::GasTransportCode::InvalidStorage),"authoritative trial accepted missing profile");
 s.gasSpecies.cellStatus[0]=0;s.gasBoundaryLayer.exchange[0].ready=true;
-s.gasBoundaryLayer.sst[0].integratedKSource=-12;
+s.omega[0]=11;
+const Real production=Real(4)/s.rho[0]*std::sqrt(std::sqrt(s.sstWallCmu))*std::sqrt(s.k[0])/(s.sstWallKappa*Real(.5));
+const Real bound=Real(.5)/s.sstMaxSourceNumber*Real(.1)*(production+s.sstCoefficients.betaStar*s.k[0]*s.omega[0])/s.k[0];
 computeSstStabilityNumberKernel(&s,Real(.1),Real(.5),false);
-near(s.sstSourceNumber[0],Real(.4),"outer estimate ignored accepted source in equivalent-Courant units");
+near(s.sstSourceNumber[0],bound,"outer estimate ignored current wall-function source in equivalent-Courant units");
 computeSstStabilityNumberKernel(&s,Real(.1),Real(.5),true);
-near(s.sstSourceNumber[0],Real(.4),"trial source bound differs from published integral in equivalent-Courant units");}
+near(s.sstSourceNumber[0],bound,"trial source activity differs from the actual source closure");}
 ''',bits)
 
 
@@ -85,8 +87,8 @@ def test_optional_full_budget_audit_does_not_change_physical_wall_update(tmp_pat
     compile_probe(tmp_path,fixture()+AUDIT+SETUP+r'''
 int main(){Real accepted[2][2]{};for(int enabled=0;enabled<2;++enabled){State s;initialise(s);wall(s);audit(s);s.gasSstAudit.enabled=enabled;
 threadIdx.x=0;applySstWallFunctionStateKernel(&s);threadIdx.x=1;computeSstFaceFluxKernel(&s);
-s.sstPhiRhoK[0]=.5;s.sstPhiRhoOmega[0]=.7;threadIdx.x=0;applySstFluxAndSourceKernel(&s,.1);recoverSstPrimitivesKernel(&s);
-near(s.rhoK[0],Real(5.85),"physical wall k source changed with audit");near(s.rhoOmega[0],22,"owner omega changed with audit");
+s.sstPhiRhoK[0]=.5;s.sstPhiRhoOmega[0]=.7;threadIdx.x=0;Real source,unused;sstSourcesForCell(s,0,Real(0),source,unused);applySstFluxAndSourceKernel(&s,.01);recoverSstPrimitivesKernel(&s);
+near(s.rhoK[0],Real(6)+Real(.01)*(source-Real(.5)),"physical wall k source changed with audit");near(s.rhoOmega[0],22,"owner omega changed with audit");
 accepted[enabled][0]=s.rhoK[0];accepted[enabled][1]=s.rhoOmega[0];if(enabled)checkBudget(s,6,8,0);
 }ck(accepted[0][0]==accepted[1][0]&&accepted[0][1]==accepted[1][1],"diagnostic audit changed physical result");}
 ''',bits)

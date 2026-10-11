@@ -176,6 +176,21 @@ struct ThermoInversionControls
     int maximumIterations = 100;
 };
 
+// Preserve user controls exactly while changing only local arithmetic precision.
+template<class To,class From>
+UGKWP_GAS_HD inline ThermoInversionControls<To> castThermoControls
+(const ThermoInversionControls<From>& input) noexcept
+{
+    ThermoInversionControls<To> out;
+    out.minTemperature=To(input.minTemperature);out.maxTemperature=To(input.maxTemperature);
+    out.absoluteEnergyTolerance=To(input.absoluteEnergyTolerance);
+    out.relativeEnergyTolerance=To(input.relativeEnergyTolerance);
+    out.absoluteTemperatureTolerance=To(input.absoluteTemperatureTolerance);
+    out.relativeTemperatureTolerance=To(input.relativeTemperatureTolerance);
+    out.maximumIterations=input.maximumIterations;
+    return out;
+}
+
 // One cell's immutable closed-reactor input. No momentum, density layout, mesh,
 // application type or borrowed state pointer. The interval is a separate argument
 // to advanceClosedReactor; do not put a transport time step into the model view.

@@ -31,8 +31,10 @@ GPU_PARTICLE_RADIATION_HD inline GpuReal invalidRadiationMathValue() noexcept
 
 struct RadiationAffineTemperatureUpdate
 {
-    GpuReal scale;
-    GpuReal offset;
+    // Host wire and device payload keep the same binary64 coefficients even
+    // when particle temperature is a float cache with an enthalpy carry.
+    double scale;
+    double offset;
 };
 
 GPU_PARTICLE_RADIATION_HD inline RadiationAffineTemperatureUpdate

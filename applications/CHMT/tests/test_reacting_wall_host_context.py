@@ -22,22 +22,20 @@ int main(){
  p.wallModel.model=BoundaryLayerModel::ConstantTransport;assert(host.contexts(samples,{},p.wallModel,contexts,error));assert(!contexts[0].workspace);
  p.wallModel.model=BoundaryLayerModel::ReactingSst;p.wallModel.nodes=96;
  assert(host.contexts(samples,{},p.wallModel,contexts,error));assert(contexts[0].workspace);assert(contexts[0].workspaceCapacity==128);assert(contexts[0].matchingDistance>1);
- assert(contexts[0].quadrature.volume==1);assert(contexts[0].matching.temperature==800);assert(contexts[0].matchingPressure==90000);assert(contexts[0].mechanicalPressure==120000);
+ assert(contexts[0].quadrature.volume==1&&contexts[0].quadrature.count==0);assert(contexts[0].matching.temperature==800);assert(contexts[0].matchingPressure==90000);assert(contexts[0].mechanicalPressure==120000);
  auto* workspace=contexts[0].workspace;gas[1].temperature=850;gas[0].pressure=130000;
  assert(host.sample(gas,sst,true,samples,error));assert(host.contexts(samples,{},p.wallModel,contexts,error));assert(contexts[0].workspace==workspace);assert(contexts[0].matching.temperature==850);assert(contexts[0].mechanicalPressure==130000);
  samples[0].mechanicalPressure=0;assert(!host.contexts(samples,{},p.wallModel,contexts,error));
  gas[0].pressure=0;assert(!host.sample(gas,sst,true,samples,error));gas[0].pressure=130000;
- // SST geometry weights must resolve the actual profile-node source shape.
- const auto legacy=host.descriptors()[0].distance;auto config=p.wallModel;
+ // BVP node changes cannot create or invalidate unused diagnostic geometry.
+ assert(host.descriptors()[0].distance.empty());auto config=p.wallModel;
  config.family=WallFamily::BoundaryLayer;config.model=BoundaryLayerModel::ReactingSst;config.enableSst=true;config.nodes=24;config.stretch=2;
- assert(host.prepareGeometry(mesh,{0},error,config));assert(host.descriptors()[0].distance!=legacy);
- const auto first=host.descriptors()[0].distance;
- auto invalid=mesh;invalid.boundaryKind.clear();assert(host.prepareGeometry(invalid,{0},error,config)); // unchanged version/options: no geometry traversal
- config.nodes=48;assert(!host.prepareGeometry(invalid,{0},error,config)); // options invalidate outer cache
- assert(host.prepareGeometry(mesh,{0},error,config));assert(host.descriptors()[0].distance!=first);
- const auto second=host.descriptors()[0].distance;config.stretch=3;
- assert(host.prepareGeometry(mesh,{0},error,config));assert(host.descriptors()[0].distance!=second);
- config.enableSst=false;assert(host.prepareGeometry(mesh,{0},error,config));assert(host.descriptors()[0].distance==legacy);
+ assert(host.prepareGeometry(mesh,{0},error,config));assert(host.descriptors()[0].distance.empty());
+ auto invalid=mesh;invalid.boundaryKind.clear();assert(host.prepareGeometry(invalid,{0},error,config)); // unchanged version: cached
+ config.nodes=48;config.stretch=3;assert(host.prepareGeometry(invalid,{0},error,config)); // profile controls do not change physical geometry
+ ++invalid.geometryVersion;assert(!host.prepareGeometry(invalid,{0},error,config)); // real geometry change still validates
+ ++mesh.geometryVersion;for(auto& point:mesh.points)point.z*=1.01;for(auto& centre:mesh.cellCentres)centre.z*=1.01;for(auto& volume:mesh.volumes)volume*=1.01;
+ assert(host.prepareGeometry(mesh,{0},error,config));assert(host.descriptors()[0].distance.empty());assert(near(host.descriptors()[0].volume,1.01));
  samples.clear();assert(!host.contexts(samples,{},p.wallModel,contexts,error));
 }
 '''

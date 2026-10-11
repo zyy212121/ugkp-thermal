@@ -243,8 +243,8 @@ template<class GasHostState>
 int blendGasRungeKuttaStage
 (
     GasHostState* s,
-    const GasHostPolicy::Weight initialWeight,
-    const GasHostPolicy::Weight stageWeight
+    const double initialWeight,
+    const double stageWeight
 )
 {
     const int block = s->fixedCellBlockThreads;
@@ -359,7 +359,7 @@ int advanceGasFluxStage(GasHostState* s, const GasHostPolicy::Time dt, const Gas
     if (s->hostGasTimeIntegrator == 2)
     {
 
-        return blendGasRungeKuttaStage(s, static_cast<GasHostPolicy::Weight>(0.5), static_cast<GasHostPolicy::Weight>(0.5));
+        return blendGasRungeKuttaStage(s, static_cast<double>(0.5), static_cast<double>(0.5));
     }
     if (s->hostGasTimeIntegrator != 3)
     {
@@ -367,7 +367,7 @@ int advanceGasFluxStage(GasHostState* s, const GasHostPolicy::Time dt, const Gas
         return 1;
     }
 
-    if (blendGasRungeKuttaStage(s, static_cast<GasHostPolicy::Weight>(0.75), static_cast<GasHostPolicy::Weight>(0.25)) != 0)
+    if (blendGasRungeKuttaStage(s, static_cast<double>(0.75), static_cast<double>(0.25)) != 0)
     {
         return 1;
     }
@@ -378,8 +378,8 @@ int advanceGasFluxStage(GasHostState* s, const GasHostPolicy::Time dt, const Gas
     return blendGasRungeKuttaStage
     (
         s,
-        static_cast<GasHostPolicy::Weight>(1.0)/static_cast<GasHostPolicy::Weight>(3.0),
-        static_cast<GasHostPolicy::Weight>(2.0)/static_cast<GasHostPolicy::Weight>(3.0)
+        static_cast<double>(1.0)/static_cast<double>(3.0),
+        static_cast<double>(2.0)/static_cast<double>(3.0)
     );
 }
 

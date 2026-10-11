@@ -66,7 +66,7 @@ int main(){for(int turbulent:{0,1}){
  const Real expected=std::max(nu,std::max(alpha,species))*weight;
  ck(expected>nu*weight,"test must make the wall-only thermal/species channel dominant");
  ugkwp::gaswall::WallInput<Real,2> input;input.pressure=s.p[0];input.normal[0]=-1;
- input.model.thermo=s.gasSpecies.thermo;input.quadrature.volume=s.V[0];
+ input.model.thermo=s.gasSpecies.thermo;input.quadrature.volume=s.V[0];input.ownerDistance=Real(.5);
  ugkwp::gaswall::WallOutput<Real,2> output;output.traceTemperature=700;output.ownerOmega=1;
  output.conductiveHeatFlux=THERMAL?Real(50):Real(0);
  output.wallSpeciesFlux[0]=THERMAL?Real(0):Real(.02);output.wallSpeciesFlux[1]=-output.wallSpeciesFlux[0];

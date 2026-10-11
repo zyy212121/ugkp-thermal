@@ -1,5 +1,6 @@
 #pragma once
 #include "GpuParticleGasHeatRelaxation.cuh"
+#include "GpuParticleThermalConsumerDevice.cuh"
 // Shared thermal relaxation; preserve native ordering of independent loads and stuck-state writes.
 template<class DragModel>
 __device__ void relaxOneParticleToResidentGas
@@ -22,6 +23,10 @@ __device__ void relaxOneParticleToResidentGas
         return;
     }
 
+#if defined(GPU_PAIRED_PARTICLE_HEAT)
+    if (particleColdProfileNodeCountDevice(s,i) != 8)
+        publishPairedParticleGasHeat(s,i,dt);
+#endif
     const GPU_OPERATOR_REAL rhoG =
         clampMin(finiteOr(s.couplingRhoOld[c], s.rhoMin), s.rhoMin);
     const GPU_OPERATOR_REAL ugx = finiteOr(s.couplingUxOld[c], GPU_OPERATOR_R(0.0));
@@ -124,6 +129,7 @@ __device__ void relaxOneParticleToResidentGas
 
 #endif
 
+#if !defined(GPU_PAIRED_PARTICLE_HEAT)
     if
     (
         s.solveParticleTemperature != 0
@@ -138,6 +144,8 @@ __device__ void relaxOneParticleToResidentGas
         s.pT[i] = particleTemperatureAfterGasRelaxation
             (s, tpOld, gasTemperatureK, re, dPart, s.rhoSolid*particleCp, dt);
     }
+
+#endif
 
 #if GPU_THERMAL_RELAX_NATIVE_ORDER
     if (s.dragModelId == 0 && stuck)
