@@ -14,7 +14,10 @@ ROOT = Path(__file__).resolve().parents[1] / 'common'
 def test_sst_internal_diffusion_and_stability(tmp_path):
     W = tmp_path
     src = (ROOT / 'operators/computeSstFaceFluxKernel.cuh').read_text()
-    helpers=src[:src.index('__global__ void computeSstFaceFluxKernel')].replace('#pragma once','')
+    # Extract the production diffusion helper itself, not unrelated preflight
+    # kernels which now precede it in the same shared operator header.
+    helpers=src[src.index('template<class GasState>\n__device__ void sstInternalRhoDiffusivities'):
+                src.index('template<class GasState>\n__global__ void computeSstFaceFluxKernel')]
     flux=src[src.index('    const GPU_OPERATOR_REAL rhoFace'):src.index('    GPU_OPERATOR_REAL snGradK')]
     tail=src[src.index('    const GPU_OPERATOR_REAL area = s.magSf'):src.index('\n}\n',src.index('    const GPU_OPERATOR_REAL area = s.magSf'))]
     st=src[src.index('        const int other =',src.index('__global__ void computeSstStabilityNumberKernel')):src.index('    const GPU_OPERATOR_REAL diffusionNumber')].rsplit('    }',1)[0]
@@ -70,7 +73,7 @@ def test_sst_internal_diffusion_and_stability(tmp_path):
     results=[]
     for bits in (64,32):
      exe=W/f'probe{bits}'
-     subprocess.run(['g++','-std=c++14','-O2',f'-DUGKWP_GPU_REAL_BITS={bits}', '-I'+str(ROOT),'-I'+str(ROOT/'gasNumerics'),str(W/'probe.cpp'),'-o',str(exe)],check=True)
+     subprocess.run(['g++','-std=c++17','-O2',f'-DUGKWP_GPU_REAL_BITS={bits}', '-I'+str(ROOT),'-I'+str(ROOT/'gasNumerics'),str(W/'probe.cpp'),'-o',str(exe)],check=True)
      p=subprocess.run([str(exe)],capture_output=True,text=True)
      results.append({'bits':bits,'exit':p.returncode,'stdout':p.stdout,'stderr':p.stderr})
     assert all(r['exit'] == 0 for r in results), json.dumps(results, indent=2)

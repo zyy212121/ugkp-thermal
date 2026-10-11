@@ -1,8 +1,9 @@
 #pragma once
 // One operator implementation; scalar/time adapters are compile-time only.
-__global__ void computeGasEddyViscosityKernel(DeviceState* sp)
+template<class GasState>
+__global__ void computeGasEddyViscosityKernel(GasState* sp)
 {
-    DeviceState& s = *sp;
+    GasState& s = *sp;
     const int c = blockIdx.x*blockDim.x + threadIdx.x;
     if (c >= s.nCells)
     {

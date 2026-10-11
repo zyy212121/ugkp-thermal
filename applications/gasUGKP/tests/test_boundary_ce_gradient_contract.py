@@ -196,8 +196,11 @@ class RiemannBoundaryGradientSourceContract(unittest.TestCase):
         self.assertRegex(
             self.cell_courant_kernel,
             r"0\.5\s*\*\s*dt\s*\*\s*sumAmaxSf\s*/\s*"
-            r"clampMin\(s\.V\[c\],\s*OfSmall\)",
+            r"clampMin\(stabilityVolume,\s*OfSmall\)",
         )
+        self.assertIn("double stabilityVolume=s.V[c];", self.cell_courant_kernel)
+        self.assertIn("if(ugkwp::gasMovingGeometry(s))", self.cell_courant_kernel)
+        self.assertIn("stabilityVolume=fmin(oldVolume,newVolume);", self.cell_courant_kernel)
 
     def test_boundary_state_has_one_ideal_gas_closure_for_flux_and_gradient(
         self,
@@ -229,7 +232,8 @@ class RiemannBoundaryGradientSourceContract(unittest.TestCase):
         self.assertRegex(
             active,
             r"f\s*>=\s*s\.nInternalFaces\s*&&\s*\(\s*"
-            r"s\.riemannBoundaryKind\[f\]\s*==\s*1\s*\|\|\s*"
+            r"\(\s*s\.riemannBoundaryKind\[f\]\s*==\s*1\s*&&\s*"
+            r"!ugkwp::gasMovingGeometry\(s\)\s*\)\s*\|\|\s*"
             r"s\.riemannBoundaryKind\[f\]\s*==\s*3\s*\|\|\s*"
             r"s\.riemannBoundaryKind\[f\]\s*==\s*4\s*\)",
         )

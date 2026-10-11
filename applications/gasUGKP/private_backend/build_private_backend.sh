@@ -4,6 +4,11 @@ private_root="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 solver_root="$(cd "${private_root}/.." && pwd)"
 if [ -z "${WM_PROJECT_DIR:-}" ]; then echo "OpenFOAM environment is not loaded" >&2; exit 1; fi
 set -euo pipefail
+gas_species="${UGKWP_GAS_SPECIES-2}"
+if [[ ! "${gas_species}" =~ ^[1-9][0-9]*$ ]]; then
+    echo "ERROR: UGKWP_GAS_SPECIES must be a positive integer" >&2
+    exit 2
+fi
 cd "${solver_root}"
 
 # Direct builds enforce the same read-only source contracts as Allwmake.
@@ -60,12 +65,14 @@ log="${log_dir}/separated_build_$(date +%Y%m%d_%H%M%S).log"
     echo "[separated-build] cuda_arch=${cuda_arch}"
     echo "[separated-build] development_probes=${development_probes}"
     echo "[separated-build] fmad=${fmad_mode}"
+    echo "[separated-build] compiledGasSpecies=${gas_species}"
     echo "[separated-build] WM_OPTIONS=${WM_OPTIONS}"
 
     rm -f "${obj_dir}"/*.o "${backend_lib}"
 
     "${cuda_home}/bin/nvcc" \
         -std=c++17 \
+        "-DUGKWP_GAS_SPECIES=${gas_species}" \
         -O3 \
         "${probe_nvcc_flags[@]}" \
         "${fmad_flag}" \
@@ -90,7 +97,7 @@ log="${log_dir}/separated_build_$(date +%Y%m%d_%H%M%S).log"
         "${solver_root}/Make/${WM_OPTIONS}/diluteUgkwpFoam.C.dep" \
         "${solver_root}/Make/${WM_OPTIONS}/gpu/GpuBackendClient.C.dep"
 
-    UGKWP_CUDA_EXE_INC="-DUGKWP_USE_CUDA" wmake
+    UGKWP_CUDA_EXE_INC="-DUGKWP_USE_CUDA -DUGKWP_GAS_SPECIES=${gas_species}" wmake
 
     test -x "${backend_bin}"
     test -x "${frontend_bin}"

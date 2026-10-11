@@ -1,0 +1,62 @@
+{
+  "reference_commit": "231fe3fdc5c91eace476e49a613efec1bc75db37",
+  "method": "Compile the independently checked-out origin/main production headers at reference_commit with the unchanged LegacyGasFixture and serial CUDA indexing/PTX trap emulation. No CUDA execution. Replaces the pre-SST-fix reference because the accepted main SST flux/divergence and Courant scratch behavior deliberately changed. Candidate legacy output was byte-compared with this independent main reference before storing it.",
+  "compiler": "g++ (Debian 14.2.0-19) 14.2.0",
+  "standard": "c++17",
+  "optimization": "-O0",
+  "device_matrix": {
+    "real_bits": [
+      32,
+      64
+    ],
+    "time_bits": 64,
+    "flux_create_codes": [
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9
+    ],
+    "reconstruction_codes": [
+      0,
+      1,
+      2
+    ],
+    "limiter_codes": [
+      0,
+      1,
+      2
+    ],
+    "turbulence_codes": [
+      0,
+      1,
+      2,
+      3
+    ]
+  },
+  "source_sha256": {
+    "common/operators/makeGasPrimDevice.cuh": "cdcae4f950d5141ef1078eddaf1c2bb275c4e423bb77874f6e37d0097dbf161b",
+    "common/operators/riemannFacePrimitiveForGradient.cuh": "cb12b77ed8d09066c38da15aaa018b4dc243c925cb9fbc209cb820957e1771db",
+    "common/operators/computeGasPrimitiveGradientsKernel.cuh": "506bf5ccc5fb54ae12904edcea1c61b9a6a20434c9674645ee8345a3b7038e06",
+    "common/operators/computeSstGradientsKernel.cuh": "afbb7a1724e72d1a45c83c84f6c1882fbcc51568a6c9724551214e5b94e5e134",
+    "common/operators/sstVelocityInvariants.cuh": "c64085a6aff59f15868534fd2fe4d6a539336de5a90e15ec883a44a307fb77ba",
+    "common/operators/computeGasHllcAdcSensorKernel.cuh": "b5a11f0054bf9e5f6fc556af3b8af74ac1aa610a4239b04268be0da0d3d35105",
+    "common/operators/computeGasGradientLimiterKernel.cuh": "dce3f596ee27687ec657c9a54539bbf61ac9b32e62ec5e0be72f464fa87ba188",
+    "common/operators/computeGasEddyViscosityKernel.cuh": "c082423654c5843de67b209831ce19c55491f2642795c3a572f6316ad3d80f0d",
+    "common/operators/updateWaveTransmissivePressureBoundaryKernel.cuh": "d273cffd04ee072a9cb2165b6747554f6a2e3b3b98bb12743048a43bea0003a5",
+    "common/operators/updateLegacyGasBoundaryMirrorKernel.cuh": "c6642b6eabf5e1e82a5539093b104fdeec8c12c4d2c6ac0a4ff4393061cfe29d",
+    "common/operators/gasFaceSubgridTransportProperties.cuh": "64d5764bc57156405ba4b277edd93c8db816a157ed0747db2c849c7ff1cd8f67",
+    "common/operators/computeRiemannGasFaceFluxDevice.cuh": "e33041cf6b4872f2d8e923b11113fc1dcb44592240a73a9981221e15016eacfe",
+    "common/operators/computeGasInternalFaceFluxKernel.cuh": "ab645d1b3af46de1f1a772abd6c9308405cbe2d15876e542611d8b4b53bdbdd0",
+    "common/operators/computeGasFluxPositivityScaleKernel.cuh": "d9fea435c739011d3e529d69d3b28dbaff942925ffb795a53c700bdc4c4832f2",
+    "common/operators/computeSstFaceFluxKernel.cuh": "5fb2a0e92af235e3d8f0d216ce73f5822d0d76b0d20f93e87054b01cc72f198d",
+    "common/operators/linearScheduledValueDevice.cuh": "aa4f9369740e15919266be54c88ba709719291ba05bbe3a68361dd8f9c1feaf9",
+    "common/GpuGasAdvance.cuh": "d646ab2f9f7575cd02ed2bd4ec92460945966372690b26c90c7a49875edf297b",
+    "common/GpuGasHostPolicy.cuh": "e7f9f667b428b62987c9372be14f9adfca570761a3d21875a081681128393a99"
+  },
+  "previous_reference_commit": "92443002c17757fd2dd78b3b73a85ce4698d47f2"
+}

@@ -15,6 +15,8 @@ class OpenFoamCaseConfigurationContract(unittest.TestCase):
         cls.create = (
             (ROOT / "readGpuGasConfiguration.H").read_text(encoding="utf-8")
             + "\n"
+            + (ROOT.parents[1] / "common/gasTransport/GasNumericsIO.H").read_text()
+            + "\n"
             + (ROOT / "createFields.H").read_text(encoding="utf-8")
         )
         cls.solver = (ROOT / "diluteUgkwpFoam.C").read_text(encoding="utf-8")

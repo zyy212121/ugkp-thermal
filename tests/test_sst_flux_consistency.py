@@ -7,10 +7,10 @@ ROOT=Path(__file__).resolve().parents[1]
 def operators():
     p=(ROOT/'common/operators/computeGasPrimitiveGradientsKernel.cuh').read_text()
     s=(ROOT/'common/operators/computeSstFaceFluxKernel.cuh').read_text()
-    return ('\n'+p[p.index('__device__ GPU_OPERATOR_REAL sstDynamicOmegaWallValue'):p.index('__global__ void initialiseSstConservativeStateKernel')]
+    return ('\n'+p[p.index('template<class GasState>\n__device__ GPU_OPERATOR_REAL sstDynamicOmegaWallValue'):p.index('template<class GasState>\n__global__ void initialiseSstConservativeStateKernel')]
         +'\n'+(ROOT/'common/operators/sstVelocityInvariants.cuh').read_text()
-        +'\n'+s[:s.index('__global__ void computeGasCourantFieldKernel')]
-        +'\n'+s[s.index('__global__ void computeSstStabilityNumberKernel'):s.index('__global__ void applyGasFluxDivergenceByCellKernel')]
+        +'\n'+s[:s.index('template<class GasState>\n__global__ void computeGasCourantFieldKernel')]
+        +'\n'+s[s.index('template<class GasState>\n__global__ void computeSstStabilityNumberKernel'):s.index('template<class GasState>\n__global__ void applyGasFluxDivergenceByCellKernel')]
         +'\n'+(ROOT/'common/operators/computeSstGradientsKernel.cuh').read_text()
         +'\n'+(ROOT/'common/operators/applyGasVolumeFractionSourceKernel.cuh').read_text().replace('asm("trap;");','std::abort();'))
 
@@ -81,7 +81,7 @@ int main(){
 }
 '''
     src=tmp_path/'probe.cpp';src.write_text(body.replace('#pragma once',''));exe=tmp_path/f'probe{bits}'
-    subprocess.run(['g++','-std=c++14','-O2',f'-DUGKWP_GPU_REAL_BITS={bits}','-I'+str(ROOT/'common'),'-I'+str(ROOT/'common/gasNumerics'),str(src),'-o',str(exe)],check=True)
+    subprocess.run(['g++','-std=c++17','-O2',f'-DUGKWP_GPU_REAL_BITS={bits}','-I'+str(ROOT/'common'),'-I'+str(ROOT/'common/gasNumerics'),str(src),'-o',str(exe)],check=True)
     p=subprocess.run([str(exe)],capture_output=True,text=True)
     assert p.returncode==0,p.stderr
 
@@ -100,8 +100,8 @@ def test_all_sst_gradient_consumers_have_same_stage_mass_flux():
 
 def test_courant_scratch_no_longer_overwrites_sst_mass():
     source=(ROOT/'common/operators/computeSstFaceFluxKernel.cuh').read_text()
-    face=source.split('__global__ void computeGasCourantFieldKernel')[1].split('__global__ void computeGasConvectiveCourantByCellKernel')[0]
-    cell=source.split('__global__ void computeGasConvectiveCourantByCellKernel')[1].split('__global__ void computeGasDiffusionNumberKernel')[0]
+    face=source.split('template<class GasState>\n__global__ void computeGasCourantFieldKernel')[1].split('__global__ void computeGasConvectiveCourantByCellKernel')[0]
+    cell=source.split('__global__ void computeGasConvectiveCourantByCellKernel')[1].split('template<class GasState>\n__global__ void computeGasDiffusionNumberKernel')[0]
     assert 'computeRiemannGasFaceFluxDevice<false, true>' in face
     assert 's.gasPhiRhoE[f] = finiteDevice(amaxSf)' in face
     assert 'sumAmaxSf += finiteOr(s.gasPhiRhoE[f]' in cell
@@ -126,6 +126,6 @@ int main(){
 }
 '''
     path=tmp_path/'volume.cpp';path.write_text(body.replace('#pragma once',''));exe=tmp_path/'volume'
-    subprocess.run(['g++','-std=c++14','-O2',f'-DUGKWP_GPU_REAL_BITS={bits}','-I'+str(ROOT/'common'),'-I'+str(ROOT/'common/gasNumerics'),str(path),'-o',str(exe)],check=True)
+    subprocess.run(['g++','-std=c++17','-O2',f'-DUGKWP_GPU_REAL_BITS={bits}','-I'+str(ROOT/'common'),'-I'+str(ROOT/'common/gasNumerics'),str(path),'-o',str(exe)],check=True)
     result=subprocess.run([str(exe)],capture_output=True,text=True)
     assert result.returncode==0,result.stdout+result.stderr

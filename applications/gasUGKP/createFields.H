@@ -369,6 +369,8 @@ volScalarField rhoE
     p/(gammaG - 1.0) + rho*(0.5*magSqr(U))
 );
 
+sharedGasModel.initialiseFields(runTime, mesh, rho, rhoU, rhoE, U, p, Tgas);
+
 volVectorField rhoUs
 (
     IOobject("rhoUs", runTime.timeName(), mesh, IOobject::READ_IF_PRESENT, IOobject::AUTO_WRITE),

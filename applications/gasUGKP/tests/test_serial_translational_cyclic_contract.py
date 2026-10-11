@@ -34,6 +34,9 @@ def test_mesh_payload_crosses_the_separated_boundary():
 
 def test_backend_maps_periodic_gas_and_particle_transport():
     source = read("private_backend/GpuResidentStrict.cu")
+    # The gradient helper moved out of the resident; inspect the included owner.
+    assert '#include "operators/riemannFacePrimitiveForGradient.cuh"' in source
+    source += "\n" + read("../../common/operators/riemannFacePrimitiveForGradient.cuh")
     assert "isPeriodicFace" in source
     assert "periodicMappedCellCentre" in source
     assert "enforcePeriodicGasFluxAntisymmetryKernel" in source

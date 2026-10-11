@@ -3,6 +3,7 @@
 #include "zeroGradientFvPatchFields.H"
 #include "wallDist.H"
 #include "uniformDimensionedFields.H"
+#include "gasTransport/GasNumericsIO.H"
 
 #ifndef UGKWP_USE_CUDA
 #error gasUGKP must be built with UGKWP_USE_CUDA; use private_backend/build_private_backend.sh
@@ -386,7 +387,8 @@ int main(int argc, char *argv[])
                 g.value(),
                 rhoMinStrict,
                 TgasMinStrict,
-                gpuScheduling
+                gpuScheduling,
+                &sharedGasModel
             );
             configureResidentSst(resident);
 
@@ -430,13 +432,22 @@ int main(int argc, char *argv[])
                     );
                 }
 
-                runTime++;
-
-                resident.advanceOneStep
-                (
-                    runTime.deltaTValue(),
-                    runTime.value()
-                );
+                if (sharedGasModel.active())
+                {
+                    // A requested mixture interval must commit completely before
+                    // the physical clock advances or any write can be published.
+                    resident.advanceOneStep(runTime.deltaTValue(), runTime.value());
+                    runTime++;
+                }
+                else
+                {
+                    runTime++;
+                    resident.advanceOneStep
+                    (
+                        runTime.deltaTValue(),
+                        runTime.value()
+                    );
+                }
 
                 if (runTime.writeTime())
                 {
@@ -450,6 +461,7 @@ int main(int argc, char *argv[])
                         p,
                         Tgas
                     );
+                    resident.downloadSharedGasSpecies(sharedGasModel, rho);
                     if (gasTurbulenceModel == 3)
                     {
                         resident.downloadSstToHostMirror
@@ -473,6 +485,7 @@ int main(int argc, char *argv[])
                 }
             }
 
+            if (sharedGasModel.active()) Info<< "End" << nl;
             return 0;
         }
 

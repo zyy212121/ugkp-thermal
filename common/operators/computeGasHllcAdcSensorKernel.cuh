@@ -1,9 +1,10 @@
 #pragma once
 #include "GpuCellNeighbour.cuh"
 // One operator implementation; scalar/time adapters are compile-time only.
-__global__ void computeGasHllcAdcSensorKernel(DeviceState* sp)
+template<class GasState>
+__global__ void computeGasHllcAdcSensorKernel(GasState* sp)
 {
-    DeviceState& s = *sp;
+    GasState& s = *sp;
     const int c = blockIdx.x*blockDim.x + threadIdx.x;
     if (c >= s.nCells)
     {

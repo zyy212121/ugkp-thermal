@@ -6,7 +6,7 @@ python3 tools/managed_mirrors.py || exit 1
 python3 tools/particle_field_contract.py || exit 1
 
 echo "=== ugkp-thermal Allwmake ==="
-echo "Building three GPU solvers: gasUGKP, FSH, CHT"
+echo "Building four GPU solvers: gasUGKP, FSH, CHT, CHMT"
 echo ""
 
 
@@ -68,11 +68,12 @@ echo "Solver source hash: $SOURCE_HASH"
 echo ""
 
 
-SOLVERS=(gasUGKP FSH CHT)
+SOLVERS=(gasUGKP FSH CHT CHMT)
 BUILD_SCRIPTS=(
     applications/gasUGKP/private_backend/build_private_backend.sh
     applications/FSH/private_backend/build_private_backend.sh
     applications/CHT/tools/build_cuda_solver.sh
+    applications/CHMT/Allwmake
 )
 FAILED=()
 

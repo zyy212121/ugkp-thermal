@@ -1,0 +1,16 @@
+#!/usr/bin/env bash
+set -euo pipefail
+cd "$(dirname "$0")"
+: "${WM_PROJECT_DIR:?Source the OpenFOAM environment first}"
+command -v blockMesh >/dev/null
+if [[ "${1:-}" == "--build" ]]; then
+    shift
+    repo="$(cd ../../.. && pwd)"
+    UGKWP_GAS_SPECIES=2 "${repo}/applications/gasUGKP/private_backend/build_private_backend.sh"
+fi
+command -v gasUGKP >/dev/null
+python3 make_case.py "$@"
+blockMesh > log.blockMesh 2>&1
+gasUGKP > log.gasUGKP 2>&1
+python3 reference.py > comparison.json
+cat comparison.json

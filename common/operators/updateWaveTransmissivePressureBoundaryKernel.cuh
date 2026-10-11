@@ -1,11 +1,12 @@
 #pragma once
+template<class GasState>
 __global__ void updateWaveTransmissivePressureBoundaryKernel
 (
-    DeviceState* sp,
+    GasState* sp,
     const GPU_OPERATOR_TIME dt
 )
 {
-    DeviceState& s = *sp;
+    GasState& s = *sp;
     const int f = blockIdx.x*blockDim.x + threadIdx.x;
     if (f < s.nInternalFaces || f >= s.nFaces || s.gasBoundaryPWave[f] == 0)
     {

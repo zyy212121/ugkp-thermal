@@ -1,0 +1,146 @@
+{
+  "acceptance": {
+    "conservation_basis": "Closed periodic uniform cell; fixed rho and rhoE, zero momentum, element moles conserved. Energy reconstructed from full NASA7 formation-inclusive e(T,Y).",
+    "conservation_relative": 2e-09,
+    "energy_closure_relative": 2e-08,
+    "fine_max_normalized_history_error": 1e-05,
+    "fine_to_coarse_error_ratio": 0.15,
+    "history_metric": "max over output times and cells of abs(T-Tref)/3000 K and all abs(Y-Yref)",
+    "nonnegative_mass_fraction_absolute": 1e-14,
+    "provenance": "tests/chemistry/test_h2o2_reactor.py:test_chemical_tolerance_refinement_reduces_history_error; native path remains unvalidated until executed",
+    "reference_uncertainty_floor": 3.2526865349306414e-11,
+    "species_sum_absolute": 2e-10,
+    "temperature_scale_K": 3000,
+    "zero_velocity_absolute_m_per_s": 1e-10
+  },
+  "application": "gasUGKP",
+  "build_command": "UGKWP_GAS_SPECIES=10 applications/gasUGKP/private_backend/build_private_backend.sh",
+  "cell_volume": 2.5e-07,
+  "cells": 4,
+  "check_times": [
+    0.0,
+    1.0000000000000002e-06,
+    3e-06,
+    1e-05,
+    2e-05,
+    4e-05,
+    6e-05,
+    8e-05,
+    0.0001
+  ],
+  "chemistry_controls": {
+    "absoluteMassFractionTolerance": 1e-14,
+    "absoluteTemperatureTolerance": 1e-06,
+    "maximumRejectedSteps": 1000,
+    "maximumSteps": 100000,
+    "relativeTolerance": 0.0001
+  },
+  "delta_t": 1e-06,
+  "end_time": 0.0001,
+  "initial_inventories": {
+    "density": 0.21236802713789663,
+    "elementMoles": [
+      3.004584905005971e-06,
+      6.009169810011941e-06,
+      0.0,
+      1.129723924282245e-05
+    ],
+    "internalEnergy": 0.18275587568472781,
+    "mass": 2.1236802713789662e-07,
+    "massFractions": [
+      0.028522387527567396,
+      0.0,
+      0.0,
+      0.22635400697100733,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.7451236055014252
+    ],
+    "pressure": 101325.00000000001,
+    "speciesMass": [
+      6.057243168492037e-09,
+      0.0,
+      0.0,
+      4.8070353895190525e-08,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      1.5824043007421405e-07
+    ],
+    "specificInternalEnergy": 860562.1013094368,
+    "temperature": 1200.0,
+    "time": 0.0,
+    "volume": 1e-06
+  },
+  "initial_mole_ratios": {
+    "H2": 2,
+    "N2": 3.76,
+    "O2": 1
+  },
+  "initial_pressure": 101325,
+  "initial_temperature": 1200,
+  "native_command": [
+    "gasUGKP",
+    "-case",
+    "CASE_DIRECTORY"
+  ],
+  "native_execution": "NOT_RUN",
+  "numerics": {
+    "fluxScheme": "Tadmor",
+    "reconstruction": "firstOrder",
+    "sourceComposition": "C(dt/2) -> transport(dt) -> C(dt/2)",
+    "timeIntegrator": "Euler"
+  },
+  "phase": "ohmech",
+  "reaction_count": 29,
+  "reference_case": "nitrogen_1200K_1atm",
+  "reference_path": "common/chemistry/mechanisms/h2o2.cantera-reactor-reference.json",
+  "reference_sha256": "e2a640c6396dd0694aadf741e1f6aef21a819dd550d6e9a8a0743f0d347886b6",
+  "required_build": {
+    "UGKWP_GAS_SPECIES": 10,
+    "api": 1,
+    "mechanismHash": "13247918587359511140",
+    "mode": 2,
+    "speciesOrderHash": "1978375541312735802",
+    "thermoHash": "7781950836044481086"
+  },
+  "required_fields": [
+    "rho",
+    "rhoU",
+    "rhoE",
+    "U",
+    "p",
+    "T",
+    "Y_H2",
+    "Y_H",
+    "Y_O",
+    "Y_O2",
+    "Y_OH",
+    "Y_H2O",
+    "Y_HO2",
+    "Y_H2O2",
+    "Y_AR",
+    "Y_N2"
+  ],
+  "schema_version": 1,
+  "species": [
+    "H2",
+    "H",
+    "O",
+    "O2",
+    "OH",
+    "H2O",
+    "HO2",
+    "H2O2",
+    "AR",
+    "N2"
+  ],
+  "variant": "coarse",
+  "volume": 1e-06,
+  "write_interval": 1e-06
+}

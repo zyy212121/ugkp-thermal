@@ -10,6 +10,7 @@
 #include <cstring>
 #include <limits.h>
 #include <string>
+#include <vector>
 #include <sys/socket.h>
 #include <sys/types.h>
 #include <sys/wait.h>
@@ -29,6 +30,8 @@ struct ClientState
     int nInternalFaces = 0;
     int nCellPlanes = 0;
     int particleCapacity = 0;
+    bool gasModelConfigured = false;
+    GasSpeciesIdentityV1 gasSpeciesIdentity{};
 };
 
 thread_local std::string lastError = "no GPU backend client error";
@@ -952,4 +955,93 @@ extern "C" void ugkwpGpuResidentStrictRelease(void* handle)
         s->childPid = -1;
     }
     delete s;
+}
+
+extern "C" int ugkwpGpuResidentStrictQueryGasModelCapabilitiesV1
+(void* handle, ugkwpGpuIpc::GasModelCapabilitiesV1* capabilities)
+{
+    ClientState* s=static_cast<ClientState*>(handle);
+    if (!capabilities) return fail("null gas model capabilities output");
+    if (!startRequest(s,Op::queryGasModelCapabilitiesV1,0)) return -1;
+    std::uint64_t bytes=0;
+    const int status=receiveResponse(s,bytes,true,sizeof(*capabilities));
+    if(status!=0) return status;
+    GasModelCapabilitiesV1 result{};
+    if(!readAll(s->fd,&result,sizeof(result))) return -1;
+    if(result.version!=gasModelApiVersion || result.reserved!=0 || result.compiledSpecies==0)
+        return fail("incompatible gas model capability version");
+    *capabilities=result;
+    return 0;
+}
+extern "C" int ugkwpGpuResidentStrictConfigureGasModelV1
+(void* handle,const ugkwpGpuIpc::GasModelConfigureArgsV1* configuration,
+ const char* modelText,const char* mechanismText)
+{
+    ClientState* s=static_cast<ClientState*>(handle);
+    if(!s || !configuration || !modelText || (configuration->mechanismBytes && !mechanismText))
+        return fail("invalid gas model configuration input");
+    if(s->gasModelConfigured) return fail("gas model identity is immutable after configuration");
+    std::uint64_t bytes=0;
+    if(!gasModelPayloadBytes(*configuration,configuration->speciesCount,bytes))
+        return fail("invalid gas model payload size or identity");
+    if(!startRequest(s,Op::configureGasModelV1,bytes) || !sendObject(s->fd,*configuration)
+       || !sendArray(s->fd,modelText,configuration->modelBytes)
+       || !sendArray(s->fd,mechanismText,configuration->mechanismBytes)) return -1;
+    const int status=finishNoPayload(s);
+    if(status==0)
+    {
+        s->gasModelConfigured=true;
+        s->gasSpeciesIdentity={configuration->version,configuration->speciesCount,
+            configuration->speciesOrderHash,configuration->thermoHash,configuration->mechanismHash};
+    }
+    return status;
+}
+extern "C" int ugkwpGpuResidentStrictUploadSpeciesV1
+(void* handle,const ugkwpGpuIpc::GasSpeciesIdentityV1* identity,const double* speciesDensity)
+{
+    ClientState* s=static_cast<ClientState*>(handle);
+    std::uint64_t bytes=0;
+    if(!s || !identity || !speciesDensity || !s->gasModelConfigured
+       || !sameGasSpeciesIdentity(*identity,s->gasSpeciesIdentity)
+       || !gasSpeciesPayloadBytes(*identity,s->nCells,bytes)) return fail("species upload identity mismatch");
+    if(!startRequest(s,Op::uploadSpeciesV1,bytes) || !sendObject(s->fd,*identity)
+       || !sendArray(s->fd,speciesDensity,std::uint64_t(s->nCells)*identity->speciesCount)) return -1;
+    return finishNoPayload(s);
+}
+extern "C" int ugkwpGpuResidentStrictDownloadSpeciesV1
+(void* handle,const ugkwpGpuIpc::GasSpeciesIdentityV1* identity,double* speciesDensity)
+{
+    ClientState* s=static_cast<ClientState*>(handle);
+    std::uint64_t bytes=0;
+    if(!s || !identity || !speciesDensity || !s->gasModelConfigured
+       || !sameGasSpeciesIdentity(*identity,s->gasSpeciesIdentity)
+       || !gasSpeciesPayloadBytes(*identity,s->nCells,bytes)) return fail("species download identity mismatch");
+    if(!startRequest(s,Op::downloadSpeciesV1,sizeof(*identity)) || !sendObject(s->fd,*identity)) return -1;
+    std::uint64_t got=0;
+    const int status=receiveResponse(s,got,true,bytes);
+    if(status!=0) return status;
+    GasSpeciesIdentityV1 returned{};
+    if(!readAll(s->fd,&returned,sizeof(returned))) return -1;
+    if(!sameGasSpeciesIdentity(*identity,returned)) return fail("backend returned mismatched species identity");
+    // Do not expose an interrupted wire payload as accepted species output.
+    const std::size_t count=std::uint64_t(s->nCells)*identity->speciesCount;
+    std::vector<double> staged(count);
+    if(!receiveArray(s->fd,staged.data(),count)) return -1;
+    std::memcpy(speciesDensity,staged.data(),count*sizeof(double));
+    return 0;
+}
+extern "C" int ugkwpGpuResidentStrictUploadSpeciesBoundaryV1
+(void* handle,const ugkwpGpuIpc::GasSpeciesIdentityV1* identity,
+ const int* compositionFixed,const double* massFraction)
+{
+    ClientState* s=static_cast<ClientState*>(handle);
+    std::uint64_t bytes=0;
+    if(!s || !identity || !compositionFixed || !massFraction || !s->gasModelConfigured
+       || !sameGasSpeciesIdentity(*identity,s->gasSpeciesIdentity)
+       || !gasSpeciesPayloadBytes(*identity,s->nFaces,bytes)
+       || !addArrayBytes<int>(bytes,s->nFaces)) return fail("species boundary upload identity mismatch");
+    if(!startRequest(s,Op::uploadSpeciesBoundaryV1,bytes) || !sendObject(s->fd,*identity)
+       || !sendArray(s->fd,compositionFixed,s->nFaces)
+       || !sendArray(s->fd,massFraction,std::uint64_t(s->nFaces)*identity->speciesCount)) return -1;
+    return finishNoPayload(s);
 }

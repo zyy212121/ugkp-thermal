@@ -1,9 +1,10 @@
 #pragma once
 #include "GpuCellNeighbour.cuh"
 // One operator implementation; scalar/time adapters are compile-time only.
-__global__ void computeSstGradientsKernel(DeviceState* sp)
+template<class GasState>
+__global__ void computeSstGradientsKernel(GasState* sp)
 {
-    DeviceState& s = *sp;
+    GasState& s = *sp;
     const int c = blockIdx.x*blockDim.x + threadIdx.x;
     if (c >= s.nCells || s.sstConfigured == 0)
     {

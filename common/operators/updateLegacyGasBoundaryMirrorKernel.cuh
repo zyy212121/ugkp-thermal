@@ -1,12 +1,13 @@
 #pragma once
 // One operator implementation; scalar/time adapters are compile-time only.
+template<class GasState>
 __global__ void updateLegacyGasBoundaryMirrorKernel
 (
-    DeviceState* sp,
+    GasState* sp,
     const GPU_OPERATOR_TIME simulationTime
 )
 {
-    DeviceState& s = *sp;
+    GasState& s = *sp;
     const int f = blockIdx.x*blockDim.x + threadIdx.x;
     if (f < s.nInternalFaces || f >= s.nFaces)
     {
@@ -68,9 +69,10 @@ __global__ void updateLegacyGasBoundaryMirrorKernel
     }
 }
 
-__global__ void updateRiemannBoundaryMirrorKernel(DeviceState* sp)
+template<class GasState>
+__global__ void updateRiemannBoundaryMirrorKernel(GasState* sp)
 {
-    DeviceState& s = *sp;
+    GasState& s = *sp;
     const int f = blockIdx.x*blockDim.x + threadIdx.x;
     if (f < s.nInternalFaces || f >= s.nFaces)
     {
@@ -114,13 +116,25 @@ __global__ void updateRiemannBoundaryMirrorKernel(DeviceState* sp)
     }
 }
 
+#include "reconstructGasMixtureFace.cuh"
+
+template<class GasState>
 __device__ GasPrimDevice reconstructGasCellToFace
 (
-    const DeviceState& s,
+    const GasState& s,
     const int c,
     const int f
 )
 {
+    if constexpr (ugkwp::GasStateTraits<GasState>::speciesCount > 0)
+        if (ugkwp::mixtureGasActive(s))
+        {
+            GasPrimDevice face=gasCellPrimitive(s,c);
+            GPU_OPERATOR_REAL y[ugkwp::GasStateTraits<GasState>::speciesCount];
+            if(!reconstructGasMixtureFace(s,c,f,face,y))
+                s.gasSpecies.faceStatus[f]=int(ugkwp::GasTransportCode::InvalidThermodynamics);
+            return face;
+        }
     if (s.gasReconstruction != 1)
     {
         return makeGasPrimDevice
@@ -169,7 +183,10 @@ __device__ GasPrimDevice reconstructGasCellToFace
     );
 }
 
-__device__ GPU_OPERATOR_REAL molecularGasConductivity(const DeviceState& s)
+template<class GasState>
+__device__ GPU_OPERATOR_REAL molecularGasConductivity(const GasState& s)
 {
+    if constexpr (ugkwp::GasDirectConductivity<GasState>::value)
+        if (ugkwp::gasHasDirectConductivity(s)) return s.gasThermalConductivity;
     return s.gasMu*s.gasCp/s.gasPrClamped;
 }

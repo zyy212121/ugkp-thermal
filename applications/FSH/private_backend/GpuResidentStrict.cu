@@ -33,6 +33,7 @@
 #define GPU_OPERATOR_R(x) x
 #include "../../../common/GpuOperatorContract.cuh"
 #include <cuda_runtime.h>
+#include "GpuGasOperatorDependencies.cuh"
 
 #include "GpuBackendApi.H"
 #include "CharacteristicMuscl.cuh"

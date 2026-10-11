@@ -16,8 +16,8 @@ using cudaEvent_t=int*;
 struct DeviceState {int fixedWorkBlockTuned=0,fixedCellBlockThreads=0,fixedFaceBlockThreads=0,hostTurbulenceModel=0;};
 int failure=0,created=0,alive=0,recorded=0,launched=0,currentBlock=0,queries=0;
 constexpr int toolB1WarmupRuns=1,toolB1MeasuredRuns=3;
-int recoverGasPrimitivesKernel=1;
-template<bool Turbulent> int computeGasInternalFaceFluxKernel=2;
+template<class State> int recoverGasPrimitivesKernel=1;
+template<bool Turbulent,class State> int computeGasInternalFaceFluxKernel=2;
 void setLastError(const char*,int){}
 void setLastErrorText(const char*){}
 int cudaEventCreate(cudaEvent_t* p){if(failure==1 && created==1)return 7;*p=new int(++created);++alive;return 0;}

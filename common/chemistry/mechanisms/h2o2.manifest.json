@@ -1,0 +1,84 @@
+{
+  "basis_reaction_indices_zero_based": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    14
+  ],
+  "check": "python common/chemistry/mechanisms/import_h2o2.py --check",
+  "conversion": {
+    "activation_energy": "Ea_cal_per_mol * 4.184",
+    "explicit_colliders": "retained on both reaction sides",
+    "nasa7_order": "low seven followed by high seven",
+    "pre_exponential": "A_source * (1e-6)^(total_forward_order-1); third-body order includes M; low-pressure order includes M"
+  },
+  "development_dependencies": [
+    "PyYAML==6.0.3"
+  ],
+  "elements": [
+    "O",
+    "H",
+    "Ar",
+    "N"
+  ],
+  "generated_sha256": {
+    "GeneratedH2O2.H": "fa7e8441890d6df85933947cc8357cde6acbe6361f2d5b46f3ba0f6bd286c73f",
+    "h2o2.gasModelProperties": "3c30d52a531cbed416cc43981335dbb8721639fc458384f05cc552fa2f179d60",
+    "h2o2.mechanism": "9fc40f2511e5780b9da16fefb91f84eecc0dfed5ce5a3111a60a045bf3034386"
+  },
+  "importer_sha256": "962687b7a32c2e61cc976162e8e6db73d93c49a9eb31f4fe6e1fa8e1e1c1ba46",
+  "independent_rank": 6,
+  "independent_reference": {
+    "dependencies": [
+      "Cantera==3.1.0",
+      "numpy==2.5.3",
+      "ruamel.yaml==0.19.1"
+    ],
+    "file": "h2o2.cantera-reference.json",
+    "gibbs_reference_pressure_pa": 101325,
+    "regenerate": "python common/chemistry/mechanisms/import_h2o2.py --reference-json common/chemistry/mechanisms/h2o2.cantera-reference.json",
+    "sample_count": 63,
+    "sha256": "508f50970314753b8cd9f1510594e30ec99bfe25bb0253e7bbf73d2bc796bd7e"
+  },
+  "license": {
+    "file": "CANTERA-LICENSE.txt",
+    "sha256": "469fa95f76e0c652b4f204c2e5d3ffd184dbbb85b2a7fbc75355bee3a16e48e2",
+    "url": "https://raw.githubusercontent.com/Cantera/cantera/v3.1.0/License.txt"
+  },
+  "mechanism_hash": "13247918587359511140",
+  "reaction_count": 29,
+  "reference": {
+    "phase": "ohmech",
+    "project": "Cantera",
+    "sha256": "0efc6c52862741a29e0c29b65d979c7d8cb409db5282bca83b9c5437b3d8c8d4",
+    "source": "h2o2-cantera-3.1.0.yaml",
+    "url": "https://raw.githubusercontent.com/Cantera/cantera/v3.1.0/data/h2o2.yaml",
+    "version": "3.1.0"
+  },
+  "regenerate": "python common/chemistry/mechanisms/import_h2o2.py",
+  "species": [
+    "H2",
+    "H",
+    "O",
+    "O2",
+    "OH",
+    "H2O",
+    "HO2",
+    "H2O2",
+    "AR",
+    "N2"
+  ],
+  "species_count": 10,
+  "species_order_hash": "1978375541312735802",
+  "thermo_hash": "7781950836044481086",
+  "units": {
+    "activation_energy": "J/mol",
+    "basis": "dimensionless molar stoichiometry",
+    "concentration": "mol/m^3",
+    "molar_mass": "kg/mol",
+    "pressure": "Pa",
+    "time": "s"
+  }
+}

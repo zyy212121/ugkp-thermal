@@ -10,13 +10,13 @@ def test_mass_only_matches_full_operator(tmp_path,bits):
     src=(ROOT/'common/operators/computeRiemannGasFaceFluxDevice.cuh').read_text()
     assert 'bool MassOnly' in src, 'Courant needs a mass-only production specialization'
     flux=(ROOT/'common/operators/computeSstFaceFluxKernel.cuh').read_text()
-    courant=flux[flux.index('__global__ void computeGasCourantFieldKernel'):flux.index('__global__ void computeGasDiffusionNumberKernel')]
-    primitive=(ROOT/'common/operators/computeGasPrimitiveGradientsKernel.cuh').read_text().split('__device__ GPU_OPERATOR_REAL sstDynamicOmegaWallValue')[0]
+    courant=flux[flux.index('template<class GasState>\n__global__ void computeGasCourantFieldKernel'):flux.index('template<class GasState>\n__global__ void computeGasDiffusionNumberKernel')]
+    primitive=(ROOT/'common/operators/computeGasPrimitiveGradientsKernel.cuh').read_text().split('template<class GasState>\n__device__ GPU_OPERATOR_REAL sstDynamicOmegaWallValue')[0]
     sensor=(ROOT/'common/operators/computeGasHllcAdcSensorKernel.cuh').read_text()
-    full_flux=(ROOT/'common/operators/computeGasInternalFaceFluxKernel.cuh').read_text().split('__global__ void enforcePeriodicGasFluxAntisymmetryKernel')[0]
+    full_flux=(ROOT/'common/operators/computeGasInternalFaceFluxKernel.cuh').read_text().split('template<class GasState>\n__global__ void enforcePeriodicGasFluxAntisymmetryKernel')[0]
     fields_source=src+courant+primitive+sensor+full_flux
     arrays=sorted(set(re.findall(r's\.(\w+)\[',fields_source))|{'faceNeighbour'})
-    scalars=sorted(set(re.findall(r's\.(\w+)',fields_source))-set(arrays))
+    scalars=sorted(set(re.findall(r's\.(\w+)',fields_source))-set(arrays)-{'gasSpecies','gasGeometry','gasSstAudit'})
     int_arrays={'faceOwner','faceNeighbour','riemannBoundaryKind','riemannBoundaryTFix','riemannBoundaryUFix','cellPlaneStart','cellPlaneCount','cellFaceId'}
     int_scalars={'nFaces','nCells','gasReconstruction','gasFluxScheme','nInternalFaces','sstConfigured'}
     fields='\n'.join(('int' if x in int_arrays else 'R')+' '+x+'[2]={};' for x in arrays)
@@ -45,6 +45,7 @@ struct DeviceState {FIELDS};
 bool isPeriodicFace(const DeviceState&,int){return false;}
 struct GasPrimDevice{R rho,ux,uy,uz,p,T;};
 GasPrimDevice makeGasPrimDevice(R rho,R ux,R uy,R uz,R p,R gas,R rmin,R tmin){rho=clampMin(rho,rmin);p=clampMin(p,rho*gas*tmin);return{rho,ux,uy,uz,p,p/(rho*gas)};}
+GasPrimDevice gasCellPrimitive(const DeviceState&s,int c){return makeGasPrimDevice(s.rho[c],s.Ux[c],s.Uy[c],s.Uz[c],s.p[c],s.Rgas,s.rhoMin,s.TgasMin);}
 GasPrimDevice reconstructGasCellToFace(const DeviceState&s,int c,int){return makeGasPrimDevice(s.rho[c],s.Ux[c],s.Uy[c],s.Uz[c],s.p[c],s.Rgas,s.rhoMin,s.TgasMin);}
 GasPrimDevice riemannFacePrimitiveForGradient(const DeviceState&s,int c,int){return reconstructGasCellToFace(s,c,0);}
 GasPrimDevice riemannExteriorStateForFace(const DeviceState&s,int,const GasPrimDevice&){return reconstructGasCellToFace(s,1,0);}

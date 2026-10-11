@@ -1,0 +1,7 @@
+CpuMaterialDriver.C
+MaterialTransport.C
+../film/CpuFilmDriver.C
+../ablation/CpuSurfaceInterface.C
+../mesh/Geometry.C
+
+LIB = $(CHMT_LIBDIR)/libCHMTCpuMaterial

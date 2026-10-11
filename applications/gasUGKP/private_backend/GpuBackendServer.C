@@ -24,6 +24,9 @@ struct ServerState
     int nInternalFaces = 0;
     int nCellPlanes = 0;
     int particleCapacity = 0;
+    bool gasFieldsUploaded = false;
+    bool gasModelConfigured = false;
+    GasSpeciesIdentityV1 gasSpeciesIdentity{};
 };
 
 bool writeAll(const int fd, const void* data, std::uint64_t bytes)
@@ -450,6 +453,7 @@ bool handleUploadFields
     const int status=ugkwpGpuResidentStrictUploadFields
     (s.backend,ptr(f[0]),ptr(f[1]),ptr(f[2]),ptr(f[3]),ptr(f[4]),ptr(f[5]),
      ptr(f[6]),ptr(f[7]),ptr(f[8]),ptr(f[9]));
+    if(status==0) s.gasFieldsUploaded=true;
     return responseHeader(fd,status,0);
 }
 
@@ -691,6 +695,80 @@ bool handleDownloadNut
     return responseHeader(fd,0,values.size()*sizeof(double))&&writeVector(fd,values);
 }
 
+bool handleGasModelCapabilities(const int fd,const RequestHeader& request,ServerState& s)
+{
+    if(!validatePayload(fd,request,0)) return false;
+    GasModelCapabilitiesV1 capabilities{};
+    const int rc=ugkwpGpuResidentStrictQueryGasModelCapabilitiesV1(s.backend,&capabilities);
+    return rc!=0?responseHeader(fd,rc,0):
+        responseHeader(fd,0,sizeof(capabilities))&&writeAll(fd,&capabilities,sizeof(capabilities));
+}
+bool handleGasModelConfiguration(const int fd,const RequestHeader& request,ServerState& s)
+{
+    if(s.gasFieldsUploaded || s.gasModelConfigured)
+        return protocolError(fd,"gas model must be configured exactly once before initial field upload");
+    GasModelConfigureArgsV1 args{};
+    if(request.payloadBytes<sizeof(args) || !readObject(fd,args)) return false;
+    GasModelCapabilitiesV1 capabilities{};
+    const int query=ugkwpGpuResidentStrictQueryGasModelCapabilitiesV1(s.backend,&capabilities);
+    if(query!=0) return protocolError(fd,"cannot query gas model capabilities");
+    std::uint64_t bytes=0;
+    if(!gasModelPayloadBytes(args,capabilities.compiledSpecies,bytes)
+       || !(capabilities.modeMask & (1U<<args.mode)))
+        return protocolError(fd,"unsupported gas model mode, count, or payload bounds");
+    if(!validatePayload(fd,request,bytes)) return false;
+    std::vector<char> model,mechanism;
+    if(!readVector(fd,model,args.modelBytes) || !readVector(fd,mechanism,args.mechanismBytes)) return false;
+    const int rc=ugkwpGpuResidentStrictConfigureGasModelV1(s.backend,&args,ptr(model),ptr(mechanism));
+    if(rc==0)
+    {
+        s.gasModelConfigured=true;
+        s.gasSpeciesIdentity={args.version,args.speciesCount,args.speciesOrderHash,args.thermoHash,args.mechanismHash};
+    }
+    return responseHeader(fd,rc,0);
+}
+bool readSpeciesIdentity(const int fd,const RequestHeader& request,ServerState& s,GasSpeciesIdentityV1& identity)
+{
+    if(request.payloadBytes<sizeof(identity) || !readObject(fd,identity)) return false;
+    return (s.gasModelConfigured && sameGasSpeciesIdentity(identity,s.gasSpeciesIdentity))
+        || protocolError(fd,"species transfer identity mismatch");
+}
+bool handleUploadSpecies(const int fd,const RequestHeader& request,ServerState& s)
+{
+    GasSpeciesIdentityV1 identity{};
+    if(!readSpeciesIdentity(fd,request,s,identity)) return false;
+    std::uint64_t bytes=0;
+    if(!gasSpeciesPayloadBytes(identity,s.nCells,bytes) || !validatePayload(fd,request,bytes)) return false;
+    std::vector<double> values;
+    if(!readVector(fd,values,std::uint64_t(s.nCells)*identity.speciesCount)) return false;
+    const int rc=ugkwpGpuResidentStrictUploadSpeciesV1(s.backend,&identity,ptr(values));
+    return responseHeader(fd,rc,0);
+}
+bool handleDownloadSpecies(const int fd,const RequestHeader& request,ServerState& s)
+{
+    GasSpeciesIdentityV1 identity{};
+    if(!readSpeciesIdentity(fd,request,s,identity) || !validatePayload(fd,request,sizeof(identity))) return false;
+    std::uint64_t bytes=0;
+    if(!gasSpeciesPayloadBytes(identity,s.nCells,bytes)) return protocolError(fd,"species output length overflow");
+    std::vector<double> values(std::uint64_t(s.nCells)*identity.speciesCount);
+    const int rc=ugkwpGpuResidentStrictDownloadSpeciesV1(s.backend,&identity,ptr(values));
+    return rc!=0?responseHeader(fd,rc,0):responseHeader(fd,0,bytes)
+        &&writeAll(fd,&identity,sizeof(identity))&&writeVector(fd,values);
+}
+bool handleUploadSpeciesBoundary(const int fd,const RequestHeader& request,ServerState& s)
+{
+    GasSpeciesIdentityV1 identity{};
+    if(!readSpeciesIdentity(fd,request,s,identity)) return false;
+    std::uint64_t bytes=0;
+    if(!gasSpeciesPayloadBytes(identity,s.nFaces,bytes) || !addArrayBytes<int>(bytes,s.nFaces)
+       || !validatePayload(fd,request,bytes)) return false;
+    std::vector<int> fixed;
+    std::vector<double> values;
+    if(!readVector(fd,fixed,s.nFaces) || !readVector(fd,values,std::uint64_t(s.nFaces)*identity.speciesCount)) return false;
+    const int rc=ugkwpGpuResidentStrictUploadSpeciesBoundaryV1(s.backend,&identity,ptr(fixed),ptr(values));
+    return responseHeader(fd,rc,0);
+}
+
 bool dispatch
 (
     const int fd,const RequestHeader& request,ServerState& s,bool& done
@@ -702,6 +780,11 @@ bool dispatch
     switch(op)
     {
         case Op::create:return handleCreate(fd,request,s);
+        case Op::queryGasModelCapabilitiesV1:return handleGasModelCapabilities(fd,request,s);
+        case Op::configureGasModelV1:return handleGasModelConfiguration(fd,request,s);
+        case Op::uploadSpeciesV1:return handleUploadSpecies(fd,request,s);
+        case Op::downloadSpeciesV1:return handleDownloadSpecies(fd,request,s);
+        case Op::uploadSpeciesBoundaryV1:return handleUploadSpeciesBoundary(fd,request,s);
         case Op::uploadMesh:return handleMesh(fd,request,s);
         case Op::uploadBoundarySources:return handleBoundarySources(fd,request,s);
         case Op::configureScheduledInlet:

@@ -6,6 +6,7 @@
 #include <string>
 #include "OpenFoamWallFunctions.cuh"
 #include "OpenFoamViscousFlux.cuh"
+#include "gasTransport/GasStateView.H"
 #define __device__
 #define GPU_OPERATOR_REAL GpuReal
 #define GPU_OPERATOR_R GPU_R

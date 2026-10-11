@@ -45,9 +45,10 @@ __device__ GPU_OPERATOR_REAL linearScheduledValueDevice
     return values[low] + fraction*(values[high] - values[low]);
 }
 
+template<class GasState>
 __device__ bool scheduledInletFaceDevice
 (
-    const DeviceState& s,
+    const GasState& s,
     const int face
 )
 {
@@ -59,9 +60,10 @@ __device__ bool scheduledInletFaceDevice
      && s.scheduledInletFaceMask[face] != 0;
 }
 
+template<class GasState>
 __device__ GPU_OPERATOR_REAL scheduledPressureDevice
 (
-    const DeviceState& s,
+    const GasState& s,
     const GPU_OPERATOR_TIME simulationTime
 )
 {

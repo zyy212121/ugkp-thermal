@@ -38,6 +38,7 @@
 #include "../../../common/GpuOperatorContract.cuh"
 #include "GpuPressureFlatLayout.cuh"
 #include <cuda_runtime.h>
+#include "GpuGasOperatorDependencies.cuh"
 #if UGKWP_GPU_REAL_BITS == 32
 #include <cooperative_groups.h>
 #endif
