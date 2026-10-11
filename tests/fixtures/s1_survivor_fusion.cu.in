@@ -7,6 +7,17 @@ template<class T> void mem(T*& p,int n){if(cudaMallocManaged(&p,sizeof(T)*n)!=cu
 #define CHECK(x) do{if(!(x)){printf("FAIL line=%d block=%d scenario=%d warp=%d: %s\n",__LINE__,block,scenario,warp,#x);return 1;}}while(0)
 int main(){
  setvbuf(stdout,nullptr,_IONBF,0);
+ int deviceCount=0;
+ const cudaError_t deviceStatus=cudaGetDeviceCount(&deviceCount);
+ if(deviceStatus==cudaErrorNoDevice || deviceStatus==cudaErrorInsufficientDriver ||
+    (deviceStatus==cudaSuccess && deviceCount==0)){
+  printf("NOT_RUN: CUDA GPU unavailable: %s (count=%d)\n",cudaGetErrorString(deviceStatus),deviceCount);
+  return 77;
+ }
+ if(deviceStatus!=cudaSuccess){
+  printf("FAIL: cudaGetDeviceCount: %s\n",cudaGetErrorString(deviceStatus));
+  return 2;
+ }
  constexpr int N=513;DeviceState* d;mem(d,1);d->deviceState=d;d->nCells=5;d->particleCapacity=N;d->particleWorkGrid=5;d->csrCellLocalPathEnabled=1;d->csrHeavyReductionEnabled=0;
  @ALLOCATE@
  d->cellScanTempStorage=nullptr;d->cellScanTempBytes=0;
