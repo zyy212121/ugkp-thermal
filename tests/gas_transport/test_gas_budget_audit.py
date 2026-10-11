@@ -19,6 +19,33 @@ void stage(State&s,double dt,double rate){
 '''
 
 
+@pytest.mark.parametrize('bits', [32, 64])
+def test_mixed_energy_budget_uses_actual_energy_stage_weights(tmp_path, bits):
+    source = audited_fixture().replace(
+        'GasStateView<Real,Time,ugkwp::SstCoefficients>',
+        'GasStateView<Real,Time,ugkwp::SstCoefficients,double>',
+    ).replace('s.rhoE=new Real[8]{};', 's.rhoE=new double[8]{};').replace(
+        's.rhoENext=new Real[8]{};', 's.rhoENext=new double[8]{};'
+    )
+    compile_probe(tmp_path, source + r'''
+int main(){
+ State s;initialise(s);enable(s);threadIdx.x=0;
+ for(int k=0;k<4;++k){s.gasBudgetAudit.initialTransport[2*k]=1.;s.gasBudgetAudit.transport[2*k]=3.;}
+ s.rhoENext[0]=1000.;s.rhoE[0]=1030.;
+ blendGasConservativeStateKernel(&s,1./3.,2./3.);
+ const double energyExpected=1./3.+(2./3.)*3.;
+ const double otherExpected=double(Real(1./3.))+double(Real(2./3.))*3.;
+ ck(s.rhoE[0]==1020.,"physical mixed energy stage mismatch");
+ ck(std::abs(s.gasBudgetAudit.transport[2]-energyExpected)<1e-15,"energy audit used rounded mass weights");
+ for(int k:{0,2,3})ck(s.gasBudgetAudit.transport[2*k]==otherExpected,"mass/species audit changed its actual weights");
+ s.gasBudgetAudit.enabled=false;
+ const double saved=s.gasBudgetAudit.transport[2];
+ blendGasConservativeStateKernel(&s,.25,.75);
+ ck(s.gasBudgetAudit.transport[2]==saved,"disabled audit changed storage");
+}
+''', bits)
+
+
 @pytest.mark.parametrize('bits',[32,64])
 @pytest.mark.parametrize('rk',[1,2,3])
 def test_actual_rk_weights_propagate_final_boundary_flux_budget(tmp_path,bits,rk):
