@@ -1054,7 +1054,7 @@ extern "C" int ugkwpGpuResidentStrictConfigureBoundaryLayerV1
 {
     ClientState* s=static_cast<ClientState*>(handle);std::uint64_t bytes=0;
     if(!s || !config || !faces || !quadratureOffsets || !matchingOffsets || !matchingCells
-        || !geometry || !quadratureDistance || !quadratureWeight || !matchingWeight || !speciesFlux
+        || !geometry || (config->quadratureCount&&(!quadratureDistance||!quadratureWeight)) || !matchingWeight || !speciesFlux
         || !s->gasModelConfigured || !boundaryLayerPayloadBytes(*config,s->nFaces,s->gasSpeciesIdentity.speciesCount,bytes))
         return fail("invalid boundaryLayer configuration request");
     const auto& a=*config;
