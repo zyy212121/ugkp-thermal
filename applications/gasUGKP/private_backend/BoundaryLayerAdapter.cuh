@@ -7,7 +7,7 @@ extern "C" int ugkwpGpuResidentStrictConfigureBoundaryLayerV1
 {
     DeviceState* s=asState(handle);std::uint64_t bytes=0;
     if(validateState(s,"configure boundaryLayer") || !config || !faces || !qOffsets || !mOffsets || !mCells
-        || !geometry || !qDistance || !qWeight || !mWeight || !speciesFlux
+        || !geometry || (config->quadratureCount&&(!qDistance||!qWeight)) || !mWeight || !speciesFlux
         || !ugkwpGpuIpc::boundaryLayerPayloadBytes(*config,s->nFaces,ugkwp::compiledGasSpecies,bytes)
         || s->gasBoundaryLayer.enabled || !s->gasSpeciesUploaded || !s->gasSpecies.diffusivity)
     {setLastErrorText("invalid or repeated boundaryLayer configuration");return 1;}
@@ -41,7 +41,8 @@ extern "C" int ugkwpGpuResidentStrictConfigureBoundaryLayerV1
         const int f=faces[slot];
         if(f<0 || f>=s->nFaces || owners[f]<0 || owners[f]>=s->nCells || neighbours[f]>=0
             || kinds[f]!=2 || faceSlot[f]>=0 || ownerSlot[owners[f]]>=0
-            || qOffsets[slot]<0 || qOffsets[slot+1]<=qOffsets[slot] || qOffsets[slot+1]>int(a.quadratureCount)
+            || qOffsets[slot]<0 || qOffsets[slot+1]<qOffsets[slot]
+            || (a.quadratureCount&&qOffsets[slot+1]==qOffsets[slot]) || qOffsets[slot+1]>int(a.quadratureCount)
             || mOffsets[slot]<0 || mOffsets[slot+1]<=mOffsets[slot] || mOffsets[slot+1]>int(a.matchingCount)
             || mOffsets[slot+1]-mOffsets[slot]>32)
         {setLastErrorText("invalid boundaryLayer wall map or CSR range");return 1;}
@@ -61,7 +62,7 @@ extern "C" int ugkwpGpuResidentStrictConfigureBoundaryLayerV1
             {setLastErrorText("invalid positive owner quadrature");return 1;}
             sum+=qWeight[q];moment+=qWeight[q]*qDistance[q];
         }
-        if(std::abs(sum-g[5])>1e-9*g[5] || std::abs(moment-g[6])>1e-9*g[6])
+        if(a.quadratureCount&&(std::abs(sum-g[5])>1e-9*g[5] || std::abs(moment-g[6])>1e-9*g[6]))
         {setLastErrorText("owner quadrature does not close its volume/moment");return 1;}
         double mass=0;
         for(int species=0;species<ugkwp::compiledGasSpecies;++species)
@@ -112,7 +113,7 @@ extern "C" int ugkwpGpuResidentStrictConfigureBoundaryLayerV1
     unsigned char* scratch=nullptr;
     rc|=allocate(scratch,sizing.bytes,"allocate bounded wall scratch");
     model.workspace=scratch;
-    WALL_ALLOC(gasWallQuadratureDistance,a.quadratureCount);WALL_ALLOC(gasWallQuadratureWeight,a.quadratureCount);
+    if(a.quadratureCount){WALL_ALLOC(gasWallQuadratureDistance,a.quadratureCount);WALL_ALLOC(gasWallQuadratureWeight,a.quadratureCount);}
     if(a.budgetAudit)
     {
         WALL_ALLOC(gasSstAudit.transportK,s->nCells);WALL_ALLOC(gasSstAudit.transportOmega,s->nCells);
@@ -132,8 +133,10 @@ extern "C" int ugkwpGpuResidentStrictConfigureBoundaryLayerV1
     rc|=uploadSharedGasTable(model.matchingCells,mCells,a.matchingCount);
     rc|=uploadSharedGasTable(model.matchingWeights,mWeight,a.matchingCount);
     if(rc){releaseBoundaryLayerStorage(candidate);return 1;}
-    rc|=copyToDevice(candidate.gasWallQuadratureDistance,qDistance,a.quadratureCount,"upload wall quadrature distances");
-    rc|=copyToDevice(candidate.gasWallQuadratureWeight,qWeight,a.quadratureCount,"upload wall quadrature weights");
+    if(a.quadratureCount){
+        rc|=copyToDevice(candidate.gasWallQuadratureDistance,qDistance,a.quadratureCount,"upload wall quadrature distances");
+        rc|=copyToDevice(candidate.gasWallQuadratureWeight,qWeight,a.quadratureCount,"upload wall quadrature weights");
+    }
     std::vector<ugkwp::gaswall::WallInput<double,ugkwp::compiledGasSpecies>> inputs(a.wallCount);
     std::vector<ugkwp::GasBoundaryLayerExchange<double>> exchanges(a.wallCount);
     for(unsigned slot=0;slot<a.wallCount;++slot)
@@ -141,7 +144,8 @@ extern "C" int ugkwpGpuResidentStrictConfigureBoundaryLayerV1
         auto& in=inputs[slot];const double*g=geometry+7*slot;
         for(int d=0;d<3;++d)in.normal[d]=g[d];
         in.ownerDistance=g[3];in.matchingDistance=g[4];
-        in.quadrature={candidate.gasWallQuadratureDistance+qOffsets[slot],candidate.gasWallQuadratureWeight+qOffsets[slot],
+        in.quadrature={a.quadratureCount?candidate.gasWallQuadratureDistance+qOffsets[slot]:nullptr,
+            a.quadratureCount?candidate.gasWallQuadratureWeight+qOffsets[slot]:nullptr,
             qOffsets[slot+1]-qOffsets[slot],g[5],g[6]};
         for(int species=0;species<ugkwp::compiledGasSpecies;++species)
         {in.massFlux[species]=speciesFlux[species*a.wallCount+slot];exchanges[slot].mass-=areas[faces[slot]]*in.massFlux[species];}
