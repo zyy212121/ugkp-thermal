@@ -726,10 +726,13 @@ __global__ void computeGasDiffusionNumberKernel
         int directWallHeatFluxActive = 0;
         const int boundaryKind = (f < s.nInternalFaces || isPeriodicFace(s, f))
           ? 0 : s.riemannBoundaryKind[f];
-        // Match the channels evaluated by computeRiemannGasFaceFluxDevice.
-        // Pressure traction/ALE pressure work are not diffusive transport.
+        // Match the ordinary face-flux channels. A selected wall returns its
+        // independent physical exchange before those ordinary boundary flags;
+        // retain its existing coefficient bounds even for a cold profile.
+        const bool wallExchange=ugkwp::gasBoundaryLayerFaceSlot(s,f)>=0;
         if(boundaryKind==3||boundaryKind==4
             ||(boundaryKind==1&&s.riemannBoundaryTFix[f]==0))continue;
+
         gasFaceSubgridTransportProperties
         (
             s, f, c, other, boundaryKind, rhoFace,
@@ -753,7 +756,7 @@ __global__ void computeGasDiffusionNumberKernel
                 const GPU_OPERATOR_REAL R=GPU_OPERATOR_R(0.5)*(s.gasSpecies.gasConstant[c]+s.gasSpecies.gasConstant[n]);
                 heatCapacity=cp-R;
                 if(!ugkwp::gasHasDirectConductivity(s))kEffective=s.gasMu*cp/s.gasPrClamped+kTurbulent;
-                const bool speciesChannel=other>=0
+                const bool speciesChannel=wallExchange||other>=0
                     ||(boundaryKind==0&&s.gasSpecies.compositionBoundaryFixed[f]!=0);
                 if(speciesChannel){
                     if(s.gasSpecies.diffusivity)
@@ -762,7 +765,7 @@ __global__ void computeGasDiffusionNumberKernel
                     speciesDiffusivity+=GPU_OPERATOR_R(2.0)*muTurbulent/(rhoSafe*s.gasSpecies.turbulentSchmidt);
                 }
             }
-        const bool thermalChannel=other>=0||s.riemannBoundaryTFix[f]!=0;
+        const bool thermalChannel=wallExchange||other>=0||s.riemannBoundaryTFix[f]!=0;
         const GPU_OPERATOR_REAL thermalAlpha = thermalChannel
           ? kEffective/(rhoSafe*heatCapacity + OfSmall) : GPU_OPERATOR_R(0.0);
         sum += fmax(fmax(nu, thermalAlpha),speciesDiffusivity)*s.magSf[f]*s.deltaCoeffs[f];
