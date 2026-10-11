@@ -1,0 +1,54 @@
+{
+  "scope": "High-Re numerical wall-function verification, not a full CHMT or CUDA runtime pass",
+  "owner32": {
+    "endpoint_s": 0.2,
+    "source_limit": 0.25,
+    "max_steps": 1000000,
+    "require_no_floor_activation": true,
+    "budget_relative_to_largest_impulse": 1e-11,
+    "outer_max_delta_t_s": 1e-05,
+    "prediction_target_courant": 0.3
+  },
+  "resolved_reference": {
+    "minimum_nodes": 8192,
+    "relative_iteration_update": 2e-10,
+    "grid_sequence": [
+      512,
+      1024,
+      2048,
+      4096,
+      8192
+    ],
+    "accuracy_status": "Measured grid differences are reported; not a universal accuracy certificate.",
+    "normalized_discrete_residual": 1e-08
+  },
+  "couette_comparison": {
+    "owner_distances_m": [
+      0.00075,
+      0.0015,
+      0.00225
+    ],
+    "steady_normalized_residual": 1e-09,
+    "accuracy_status": "Report full shear, heat, omega, and cell-average k errors. No post-hoc physics pass threshold."
+  },
+  "blowing": {
+    "nodes": [
+      32,
+      100
+    ],
+    "mass_flux_kg_m2_s": [
+      0,
+      1e-09,
+      0.001
+    ],
+    "endpoint_s": 0.005,
+    "max_steps": 100000,
+    "source_limit": 0.25,
+    "k_budget_relative_to_largest_impulse": 1e-11,
+    "require_no_floor_activation": true,
+    "max_wall_energy_residual_W": 1e-12,
+    "max_aux_species_balance_kg_m2_s": 1e-08,
+    "zero_blow_limit_relative": 1e-06,
+    "scope": "Three retained isothermal frozen states plus one finite heat/reaction/blowing state, fixed bulk and donor, actual nonlinear wall solves and coarse SST owner updates."
+  }
+}
