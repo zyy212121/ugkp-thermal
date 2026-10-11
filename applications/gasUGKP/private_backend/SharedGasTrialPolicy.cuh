@@ -1,18 +1,33 @@
 #pragma once
+#include "GasBudgetRuntime.cuh"
 // Thin transaction/storage policy consumed by common GpuGasAdvance.cuh.
 // All reconstruction, flux, RK, thermo, chemistry and CFL kernels remain common.
 namespace sharedGasTrialDetail
 {
 struct Field {double* pointer;std::size_t count;};
+template<class State>void appendBudgetFields(State*s,std::vector<Field>&fields)
+{
+    if constexpr(ugkwp::GasBudgetAuditCapability<State>::value)if(s->gasBudgetAudit.enabled)
+    {auto&a=s->gasBudgetAudit;const std::size_t n=s->nCells;fields.insert(fields.end(),
+        {{a.transport,n*std::size_t(a.speciesCount+2)},{a.initialTransport,n*std::size_t(a.speciesCount+2)},
+         {a.chemistrySpecies,n*std::size_t(a.speciesCount)}});}
+}
+template<class State>std::size_t auditSnapshotScalars(State*s)
+{
+    if constexpr(ugkwp::GasBudgetAuditCapability<State>::value)if(s->gasBudgetAudit.enabled)
+        return std::size_t(s->nCells)*(3*s->gasBudgetAudit.speciesCount+4);
+    return 0;
+}
 inline std::vector<Field> cellFields(DeviceState* s)
 {
     const std::size_t n=s->nCells;
-    return {{s->rho,n},{s->rhoUx,n},{s->rhoUy,n},{s->rhoUz,n},{s->rhoE,n},
+    std::vector<Field> fields={{s->rho,n},{s->rhoUx,n},{s->rhoUy,n},{s->rhoUz,n},{s->rhoE,n},
         {s->Ux,n},{s->Uy,n},{s->Uz,n},{s->p,n},{s->Tgas,n},
         {s->gasSpecies.rho,n*ugkwp::compiledGasSpecies},
         {s->gasSpecies.soundSpeed,n},{s->gasSpecies.heatCapacity,n},{s->gasSpecies.gasConstant,n},
         {s->gasFluxPositivityScale,n},{s->gasDiffusionNumber,n},{s->sstSourceNumber,n},
         {s->rhoK,n},{s->rhoOmega,n},{s->k,n},{s->omega,n},{s->nut,n}};
+    appendBudgetFields(s,fields);return fields;
 }
 inline std::vector<Field> faceFields(DeviceState* s)
 {
@@ -49,7 +64,8 @@ inline void releaseSnapshot(SharedGasTrialSnapshot& snapshot)
 inline int ensureSnapshot(DeviceState* s,SharedGasTrialSnapshot& snapshot)
 {
     if(snapshot.cells) return 0;
-    int rc=allocateSharedGasZero(snapshot.cells,std::size_t(s->nCells)*(21+ugkwp::compiledGasSpecies));
+    const std::size_t count=std::size_t(s->nCells)*(21+ugkwp::compiledGasSpecies)+auditSnapshotScalars(s);
+    int rc=allocateSharedGasZero(snapshot.cells,count);
     rc|=allocateSharedGasZero(snapshot.faces,std::size_t(s->nFaces)*6);
     rc|=allocateSharedGasZero(snapshot.cellStatus,s->nCells);
     rc|=allocateSharedGasZero(snapshot.faceStatus,s->nFaces);
@@ -141,7 +157,8 @@ struct SharedGasTrialPolicy
         s->gasTrial.retryableFailure=false;
         const auto error=cudaDeviceSynchronize();
         if(error!=cudaSuccess){setLastError("begin shared gas interval",error);return 1;}
-        return sharedGasTrialDetail::snapshot(s,s->gasTrial.interval,false);
+        if(sharedGasTrialDetail::snapshot(s,s->gasTrial.interval,false))return 1;
+        return beginGasBudgetInterval(s);
     }
     static int begin(DeviceState* s)
     {
@@ -172,7 +189,7 @@ struct SharedGasTrialPolicy
         return transport || chemistry;
     }
     static int commit(DeviceState* s){return s->gasModelPoisoned?1:0;}
-    static int commitInterval(DeviceState* s){return s->gasModelPoisoned?1:0;}
+    static int commitInterval(DeviceState* s){return s->gasModelPoisoned?1:commitGasBudgetInterval(s);}
     static void rollback(DeviceState* s)
     {
         if(sharedGasTrialDetail::snapshot(s,s->gasTrial.trial,true))
@@ -183,6 +200,7 @@ struct SharedGasTrialPolicy
     }
     static void rollbackInterval(DeviceState* s)
     {
+        cancelGasBudgetInterval(s);
         if(sharedGasTrialDetail::snapshot(s,s->gasTrial.interval,true))
         {
             s->gasTrial.retryableFailure=false;s->gasModelPoisoned=true;
