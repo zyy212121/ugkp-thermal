@@ -24,7 +24,7 @@ def test_low_re_omega_cell_constraint(tmp_path):
 #define GPU_OPERATOR_R GPU_R
 using R=GpuReal;
 struct Index{int x=0;};Index blockIdx,threadIdx;struct Block{int x=1;}blockDim;
-const R OfVSmall=R(1e-30),OfSmall=R(1e-15);
+const R OfVSmall=R(1e-30),OfSmall=R(1e-15),OfGreat=R(1e15);
 R clampMin(R a,R b){return std::max(a,b);}R finiteOr(R a,R b){return std::isfinite(a)?a:b;}
 R clampRange(R x,R lo,R hi){return std::max(lo,std::min(x,hi));}
 bool finiteDevice(R x){return std::isfinite(x);}

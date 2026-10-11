@@ -31,4 +31,7 @@ def test_s1_survivor_fusion_addresses_payload_and_pressure(tmp_path):
     q=subprocess.run([nvcc,'-std=c++17','-O3','--fmad=true','-arch='+os.environ.get('UGKWP_CUDA_ARCH','sm_89'),'-I'+str(backend),'-I'+str(ROOT/'common'),'-I'+str(backend.parent/'gpu'),str(cpp),'-o',str(exe)],capture_output=True,text=True)
     assert q.returncode==0,q.stdout+q.stderr
     q=subprocess.run([str(exe)],capture_output=True,text=True,timeout=120)
+    if q.returncode==77:
+        assert 'NOT_RUN: CUDA GPU unavailable:' in q.stdout, q.stdout+q.stderr
+        pytest.skip(q.stdout.strip())
     assert q.returncode==0,q.stdout+q.stderr
