@@ -1,4 +1,23 @@
-    GpuReal connectedFraction = coldWall1DSolidFractionFromKnownTemperature
+#ifdef GPU_PAIRED_PARTICLE_HEAT
+    // Close against the exact value the existing wall-ledger call publishes.
+    wallEnergyJ = static_cast<GpuReal>(acceptedWallPower*deltaTSeconds);
+    const GpuReal multiplicity = s.pm[particleI]/physicalMassKg;
+    const GpuReal representedWallEnergy = multiplicity*wallEnergyJ;
+    const double meanIncrement = gasSpecificEnthalpyIncrement
+      - double(representedWallEnergy)/double(s.pm[particleI]);
+    const double candidateMean = coldWall1DGroupSum(candidateEnthalpy/8.0,mask);
+    const double meanCorrection = (meanOldEnthalpy-candidateMean)+meanIncrement;
+    candidateEnthalpy += meanCorrection;
+    const float publishedEnthalpy = ugkwp::coldWallStoredEnthalpyFloor(candidateEnthalpy);
+    const double storageChange = coldWall1DGroupSum
+      ((double(publishedEnthalpy)-storedOldEnthalpy)/8.0,mask);
+    const double nextCarry = (oldCarry-storageChange)+meanIncrement;
+    guessedTemperature = coldWallCarryTemperature(double(publishedEnthalpy)+nextCarry,
+      s.coldWallSolidificationParameters);
+    if (!__all_sync(mask, publishedEnthalpy>0.0f && ::fabs(nextCarry)<=DBL_MAX
+        && guessedTemperature>0.0 && guessedTemperature<=DBL_MAX)) return false;
+#endif
+    ColdWallThermalReal connectedFraction = coldWall1DSolidFractionFromKnownTemperature
     (
         guessedTemperature,
         s.coldWallSolidificationParameters
@@ -9,19 +28,19 @@
         lane,
         mask
     );
-    const GpuReal connectedMass = coldWall1DGroupSum
+    const ColdWallThermalReal connectedMass = coldWall1DGroupSum
     (
         nodeMass*connectedFraction,
         mask
     );
-    GpuReal assignedMass = coldWall1DGroupSum(ringSolidMass, mask);
+    ColdWallThermalReal assignedMass = coldWall1DGroupSum(ringSolidMass, mask);
     if (connectedMass < assignedMass && assignedMass > GPU_R(0.0))
     {
         ringSolidMass *= connectedMass/assignedMass;
         assignedMass = connectedMass;
     }
-    GpuReal remainingMass = connectedMass - assignedMass;
-    const GpuReal ringCapacity =
+    ColdWallThermalReal remainingMass = connectedMass - assignedMass;
+    const ColdWallThermalReal ringCapacity =
         s.coldWallSolidificationParameters.solidDensityKgM3
        *ringWetArea*filmThickness;
     for
@@ -31,24 +50,24 @@
         ++pass
     )
     {
-        const GpuReal available = ringCapacity - ringSolidMass;
-        const GpuReal cooling = ringCoolingPower > GPU_R(0.0)
+        const ColdWallThermalReal available = ringCapacity - ringSolidMass;
+        const ColdWallThermalReal cooling = ringCoolingPower > GPU_R(0.0)
           ? ringCoolingPower
           : GPU_R(0.0);
-        const GpuReal weight = available > GPU_R(0.0)
+        const ColdWallThermalReal weight = available > GPU_R(0.0)
           ? (cooling > GPU_R(0.0) ? cooling : ringWetArea)
           : GPU_R(0.0);
-        const GpuReal weightSum = coldWall1DGroupSum(weight, mask);
+        const ColdWallThermalReal weightSum = coldWall1DGroupSum(weight, mask);
         if (!(weightSum > GPU_R(0.0)))
         {
             break;
         }
-        const GpuReal requested = remainingMass*weight/weightSum;
-        const GpuReal addition = available > GPU_R(0.0)
+        const ColdWallThermalReal requested = remainingMass*weight/weightSum;
+        const ColdWallThermalReal addition = available > GPU_R(0.0)
           ? (requested < available ? requested : available)
           : GPU_R(0.0);
         ringSolidMass += addition;
-        const GpuReal allocated = coldWall1DGroupSum(addition, mask);
+        const ColdWallThermalReal allocated = coldWall1DGroupSum(addition, mask);
         remainingMass -= allocated;
         if (!(allocated > GPU_R(0.0)))
         {
@@ -56,7 +75,7 @@
         }
     }
 
-    const GpuReal localSolidFraction = ringWetArea > GPU_R(0.0)
+    const ColdWallThermalReal localSolidFraction = ringWetArea > GPU_R(0.0)
       ? ringSolidMass
        /(s.coldWallSolidificationParameters.solidDensityKgM3
         *ringWetArea*filmThickness)
@@ -71,7 +90,7 @@
     const unsigned int lowerMask = (1u << (lane + 1)) - 1u;
     const bool connectedRing =
         (eligibleMask & lowerMask) == lowerMask;
-    const GpuReal candidateFrozenArea = coldWall1DGroupSum
+    const ColdWallThermalReal candidateFrozenArea = coldWall1DGroupSum
     (
         connectedRing ? ringWetArea : GPU_R(0.0),
         mask
@@ -83,7 +102,11 @@
     profileContactAgeS += deltaTSeconds;
 
     s.pColdNodeSpecificEnthalpy[nodeBase + lane] =
+#ifdef GPU_PAIRED_PARTICLE_HEAT
+        publishedEnthalpy;
+#else
         static_cast<float>(candidateEnthalpy);
+#endif
     s.pColdRingSolidMass[ringBase + lane] =
         static_cast<float>(ringSolidMass);
     if (lane == 0)
@@ -92,12 +115,17 @@
             static_cast<GpuTime>(profileContactAgeS);
         s.pColdFrozenArea[particleI] = static_cast<float>(frozenArea);
     }
+#ifdef GPU_PAIRED_PARTICLE_HEAT
+    if (lane == 0) s.pThermalEnthalpyResidual[particleI] = nextCarry;
+    const double meanEnthalpy = coldWall1DGroupSum(double(publishedEnthalpy)/8.0,mask)+nextCarry;
+#else
     const GpuReal meanEnthalpy = coldWall1DGroupSum(candidateEnthalpy, mask)/GPU_R(8.0);
-    GpuReal groupMeanTemperature = GPU_R(0.0);
+#endif
+    ColdWallThermalReal groupMeanTemperature = GPU_R(0.0);
     if (lane == 0)
     {
         groupMeanTemperature =
-            Foam::gpuThermal::coldWallTemperatureFromSpecificEnthalpyK
+            coldWallCarryTemperature
             (
                 meanEnthalpy,
                 s.coldWallSolidificationParameters

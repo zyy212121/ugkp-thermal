@@ -1,7 +1,8 @@
 #pragma once
-__device__ inline GpuReal coldWall1DGroupSum
+template<class Scalar>
+__device__ inline Scalar coldWall1DGroupSum
 (
-    GpuReal value,
+    Scalar value,
     const unsigned int mask
 )
 {
@@ -11,16 +12,17 @@ __device__ inline GpuReal coldWall1DGroupSum
     return __shfl_sync(mask, value, 0, 8);
 }
 
-__device__ inline GpuReal coldWall1DGroupMinPrefix
+template<class Scalar>
+__device__ inline Scalar coldWall1DGroupMinPrefix
 (
-    GpuReal value,
+    Scalar value,
     const int lane,
     const unsigned int mask
 )
 {
     for (int offset = 1; offset < 8; offset *= 2)
     {
-        const GpuReal lower = __shfl_up_sync(mask, value, offset, 8);
+        const Scalar lower = __shfl_up_sync(mask, value, offset, 8);
         if (lane >= offset && lower < value)
         {
             value = lower;
@@ -29,49 +31,49 @@ __device__ inline GpuReal coldWall1DGroupMinPrefix
     return value;
 }
 
-__device__ inline GpuReal coldWall1DPcrSolve
+__device__ inline ColdWallThermalReal coldWall1DPcrSolve
 (
-    GpuReal lower,
-    GpuReal diagonal,
-    GpuReal upper,
-    GpuReal rightHandSide,
+    ColdWallThermalReal lower,
+    ColdWallThermalReal diagonal,
+    ColdWallThermalReal upper,
+    ColdWallThermalReal rightHandSide,
     const int lane,
     const unsigned int mask
 )
 {
     for (int stride = 1; stride < 8; stride *= 2)
     {
-        const GpuReal lowerLower =
+        const ColdWallThermalReal lowerLower =
             __shfl_up_sync(mask, lower, stride, 8);
-        const GpuReal lowerDiagonal =
+        const ColdWallThermalReal lowerDiagonal =
             __shfl_up_sync(mask, diagonal, stride, 8);
-        const GpuReal lowerUpper =
+        const ColdWallThermalReal lowerUpper =
             __shfl_up_sync(mask, upper, stride, 8);
-        const GpuReal lowerRightHandSide =
+        const ColdWallThermalReal lowerRightHandSide =
             __shfl_up_sync(mask, rightHandSide, stride, 8);
-        const GpuReal upperLower =
+        const ColdWallThermalReal upperLower =
             __shfl_down_sync(mask, lower, stride, 8);
-        const GpuReal upperDiagonal =
+        const ColdWallThermalReal upperDiagonal =
             __shfl_down_sync(mask, diagonal, stride, 8);
-        const GpuReal upperUpper =
+        const ColdWallThermalReal upperUpper =
             __shfl_down_sync(mask, upper, stride, 8);
-        const GpuReal upperRightHandSide =
+        const ColdWallThermalReal upperRightHandSide =
             __shfl_down_sync(mask, rightHandSide, stride, 8);
-        const GpuReal alpha = lane >= stride
+        const ColdWallThermalReal alpha = lane >= stride
           ? -lower/(lowerDiagonal + GPU_REAL_MIN)
           : GPU_R(0.0);
-        const GpuReal beta = lane + stride < 8
+        const ColdWallThermalReal beta = lane + stride < 8
           ? -upper/(upperDiagonal + GPU_REAL_MIN)
           : GPU_R(0.0);
-        const GpuReal nextLower = lane >= stride
+        const ColdWallThermalReal nextLower = lane >= stride
           ? alpha*lowerLower
           : GPU_R(0.0);
-        const GpuReal nextUpper = lane + stride < 8
+        const ColdWallThermalReal nextUpper = lane + stride < 8
           ? beta*upperUpper
           : GPU_R(0.0);
-        const GpuReal nextDiagonal = diagonal
+        const ColdWallThermalReal nextDiagonal = diagonal
           + alpha*lowerUpper + beta*upperLower;
-        const GpuReal nextRightHandSide = rightHandSide
+        const ColdWallThermalReal nextRightHandSide = rightHandSide
           + alpha*lowerRightHandSide + beta*upperRightHandSide;
         lower = nextLower;
         diagonal = nextDiagonal;
@@ -81,15 +83,6 @@ __device__ inline GpuReal coldWall1DPcrSolve
     return rightHandSide/(diagonal + GPU_REAL_MIN);
 }
 
-__device__ inline GpuReal coldWall1DSolidFractionFromKnownTemperature
-(
-    const GpuReal temperatureK,
-    const Foam::gpuThermal::ColdWallSolidificationParameters& parameters
-)
-{
-    const GpuReal solidus = Foam::gpuThermal::coldWallSolidusTemperature(parameters);
-    const GpuReal liquidus = Foam::gpuThermal::coldWallLiquidusTemperature(parameters);
-    if (temperatureK <= solidus) return GPU_R(1.0);
-    if (temperatureK >= liquidus) return GPU_R(0.0);
-    return (liquidus - temperatureK)/parameters.mushyRangeK;
-}
+__device__ inline ColdWallThermalReal coldWall1DSolidFractionFromKnownTemperature
+(ColdWallThermalReal temperatureK,const Foam::gpuThermal::ColdWallSolidificationParameters& parameters)
+{ return coldWallCarryFraction(temperatureK,parameters); }
