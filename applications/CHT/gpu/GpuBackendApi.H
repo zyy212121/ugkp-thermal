@@ -214,7 +214,8 @@ extern "C" int ugkwpGpuResidentStrictUploadParticleRestartMirror
     const float* pCold2DNodeSpecificEnthalpy,
     const double* pCold2DRingContactAge,
     const float* pCold2DFrozenArea,
-    const unsigned long long* pRng, const unsigned long long* pOrigId
+    const unsigned long long* pRng, const unsigned long long* pOrigId,
+    const double* pThermalEnthalpyResidual
 );
 
 extern "C" int ugkwpGpuResidentStrictDownloadParticleRestartMirror
@@ -233,7 +234,8 @@ extern "C" int ugkwpGpuResidentStrictDownloadParticleRestartMirror
     double* pCold2DRingContactAge,
     float* pCold2DFrozenArea,
     unsigned long long* pRng,
-    unsigned long long* pOrigId
+    unsigned long long* pOrigId,
+    double* pThermalEnthalpyResidual
 );
 
 extern "C" int ugkwpGpuResidentStrictDownloadEpsGPrev
