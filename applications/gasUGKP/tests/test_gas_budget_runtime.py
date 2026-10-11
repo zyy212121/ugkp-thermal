@@ -7,7 +7,7 @@ import pytest
 ROOT=Path(__file__).resolve().parents[3]
 
 
-def build(tmp_path, precision=False):
+def build(tmp_path, precision=False, wall_audit=False):
     original=(Path(__file__).with_name('test_shared_gas_trial_policy.py')).read_text()
     code=re.search("code=r'''(.*?)'''",original,re.S).group(1).split('int main(){')[0]
     scalar_fields='rho rhoUx rhoUy rhoUz rhoE Ux Uy Uz p Tgas gasFluxPositivityScale gasDiffusionNumber sstSourceNumber rhoK rhoOmega k omega nut gasBoundaryRho gasBoundaryUx gasBoundaryUy gasBoundaryUz gasBoundaryP gasBoundaryT V'.split()
@@ -73,6 +73,15 @@ state.rho[0]=999;state.gasBudgetAudit.transport[0]=999;SharedGasTrialPolicy::rol
 assert(state.rho[0]==1.1);releaseSharedGasTrialStorage(state.gasTrial);releaseGasBudget(&state);assert(allocations==0);
 }
 '''.replace('__ASSIGNMENTS__','\n'.join(f'double {name}[2]={{1,1}};state.{name}={name};' for name in scalar_fields))
+    if wall_audit:
+        wall_setup=original.split(' double audit[13][2]{};',1)[1].split(' assert(SharedGasTrialPolicy::beginInterval',1)[0]
+        code=code.replace('const double origin=', 'double audit[13][2]{};'+wall_setup+'\nconst double origin=')
+        code=code.replace('state.rho[0]+=.1;', 'state.gasSstAudit.sourceK[0]=5;wallOutput[0].conductiveHeatFlux=6;state.rho[0]+=.1;')
+        code=code.replace('state.rho[0]=99;', 'state.gasSstAudit.sourceK[0]=99;wallOutput[0].conductiveHeatFlux=99;state.rho[0]=99;')
+        code=code.replace('SharedGasTrialPolicy::rollback(&state);', 'SharedGasTrialPolicy::rollback(&state);assert(state.gasSstAudit.sourceK[0]==5&&wallOutput[0].conductiveHeatFlux==6);')
+        code=code.replace('assert(state.rho[0]==1&&!state.gasBudgetHost', 'assert(state.gasSstAudit.sourceK[0]==0&&wallOutput[0].conductiveHeatFlux==0);assert(state.rho[0]==1&&!state.gasBudgetHost')
+        code=code.replace('state.rho[0]=999;', 'state.gasSstAudit.sourceK[0]=999;wallOutput[0].conductiveHeatFlux=999;state.rho[0]=999;')
+        code=code.replace('assert(state.rho[0]==1.1);', 'assert(state.gasSstAudit.sourceK[0]==5&&wallOutput[0].conductiveHeatFlux==6);assert(state.rho[0]==1.1);')
     if precision:
         code=code.replace('setenv("UGKP_GAS_BUDGET_OUTPUT",argv[2],1);', 'state.rho[0]=1e16;state.rho[1]=1;setenv("UGKP_GAS_BUDGET_OUTPUT",argv[2],1);')
         code=code.replace('state.rho[0]+=.1;', 'state.rho[1]+=1;').replace('state.gasBudgetAudit.transport[0]=.1;', 'state.gasBudgetAudit.transport[1]=1;')
@@ -155,3 +164,13 @@ def test_owner_allocation_failure_does_not_escape_or_leave_dangling_storage(tmp_
     run=subprocess.run([str(binary),'owner_failure',str(path)],capture_output=True,text=True)
     assert run.returncode==0,run.stderr
     assert not path.exists()
+
+
+@pytest.mark.parametrize('mode',['normal','read_failure'])
+def test_wall_sst_and_bulk_budget_share_trial_and_interval_rollback(tmp_path,mode):
+    binary=build(tmp_path,wall_audit=True);path=tmp_path/'wall-budget.jsonl'
+    run=subprocess.run([str(binary),mode,str(path)],capture_output=True,text=True)
+    assert run.returncode==0,run.stderr
+    rows=[json.loads(line) for line in path.read_text().splitlines()]
+    assert len(rows)==(2 if mode=='normal' else 1)
+    if mode=='normal':assert rows[-1]['cumulative_boundary_transport'][0]==pytest.approx(.1)
