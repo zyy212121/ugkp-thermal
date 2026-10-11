@@ -81,9 +81,11 @@ inline bool writeAcceptedWallLayerFields(std::ostream& stream,const HostState& s
     if(available&&(state.gasWallDiagnostics.size()!=state.surface.area.size()
         ||!finite(state.gasWallDiagnosticTime)||state.gasWallDiagnosticTime<0||state.gasWallDiagnosticTime>state.time)){
         error="wall diagnostic snapshot is not an accepted stage";return false;}
+    // NaN marks an unrequested auxiliary owner-source diagnostic only.
+    // Infinite integrals and nonfinite physical channels remain invalid.
     for(const auto& d:state.gasWallDiagnostics){
         if(!finite(d.traceTemperature)||!finite(d.traceDensity)||!finite(d.conductiveHeatFlux)
-            ||!finite(d.integratedKSource)||!finite(d.ownerOmega)||!finite(d.wallKFlux)||!finite(d.residual)){
+            ||(!finite(d.integratedKSource)&&!std::isnan(d.integratedKSource))||!finite(d.ownerOmega)||!finite(d.wallKFlux)||!finite(d.residual)){
             error="nonfinite accepted wall diagnostic";return false;}
         for(int j=0;j<3;++j)if(!finite(d.traceVelocity[j])||!finite(d.traction[j])){error="nonfinite wall diagnostic motion";return false;}
         for(int j=0;j<Ns;++j)if(!finite(d.traceMassFraction[j])||!finite(d.wallSpeciesFlux[j])
