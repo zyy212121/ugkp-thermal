@@ -303,22 +303,22 @@ namespace chmt {
             bool moving = false;
             for (std::size_t p = 0; p<endpoint.size(); ++p)moving = moving || mag(endpoint[p]-mesh.points[p])>0;
             if (!moving)return true;
-            // This is a conservative embedding certificate, not a sampled quality
-            // check: every triangle retains orientation and each moving cell remains
-            // in all of its oriented boundary half-spaces for the complete interval.
-            // Uncertifiable concave/strongly warped motion is rejected explicitly.
+            // Check the full polynomial trajectory, not just sampled mesh quality.
+            // Every boundary triangle retains orientation and the fixed oriented
+            // tetrahedral fan about each cell centre stays positive throughout.
             for (int cell = 0; cell<static_cast<int>(mesh.volumes.size()); ++cell) {
                 std::set<int> vertices;
                 for (int k = mesh.cellFaceOffsets[cell]; k<mesh.cellFaceOffsets[cell+1]; ++k) {
                     int f = mesh.cellFaces[k];
                     for (int j = mesh.faceOffsets[f]; j<mesh.faceOffsets[f+1]; ++j)vertices.insert(mesh.facePoints[j]);
                 }
-                Real length = 0;
-                for (int v:vertices)for (int w:vertices) {
-                    length = maxValue(length, maxValue(mag(mesh.points[v]-mesh.points[w]),
-                        mag(endpoint[v]-endpoint[w])));
-                }
-                const Real volumeTolerance = 512*std::numeric_limits<Real>::epsilon()*length*length*length;
+                // The vertex-average centre follows the same linear path.
+                // A positive oriented tetrahedral fan certifies a star-shaped
+                // cell without demanding that every polygon be exactly planar.
+                Vec3 centre{},centreDelta{};
+                for(int v:vertices){centre+=mesh.points[v];centreDelta+=endpoint[v]-mesh.points[v];}
+                centre=centre/Real(vertices.size());centreDelta=centreDelta/Real(vertices.size());
+                long double solidAngle=0;int fanTriangles=0;
                 for (int k = mesh.cellFaceOffsets[cell]; k<mesh.cellFaceOffsets[cell+1]; ++k) {
                     int face = mesh.cellFaces[k], sign = mesh.cellFaceSigns[k];
                     int begin = mesh.faceOffsets[face], end = mesh.faceOffsets[face+1];
@@ -338,19 +338,43 @@ namespace chmt {
                             return errorAt(error,
                                 "moving face triangle collapses or cannot retain certified orientation", face);
                         }
-                        for (int vertex:vertices) {
-                            if (vertex == ia || vertex == ib || vertex == ic)continue;
-                            Vec3 r = mesh.points[vertex]-a, dr = endpoint[vertex]-mesh.points[vertex]-da;
-                            Real side[4] = {
-                                sign*dot(r, area0), sign*(dot(dr, area0)+dot(r, area1)), sign*(dot(dr,
-                                    area1)+dot(r, area2)), sign*dot(dr, area2)
-                            };
-                            polynomialBounds(side, lower, upper);
-                            if (!finite(upper) || upper>volumeTolerance) return errorAt(error,
-                                "moving cell cannot be certified convex and non-self-intersecting", cell);
+                        const Vec3 r=a-centre,u=b-centre,v=c-centre;
+                        const Vec3 dr=da-centreDelta,du=db-centreDelta,dv=dc-centreDelta;
+                        // Positive tetrahedra alone could cover the same volume
+                        // twice (for example a self-intersecting star bipyramid).
+                        // A closed, oriented fan must cover the unit sphere once.
+                        // Positivity over the full path preserves this degree.
+                        long double unit[3][3]={{r.x,r.y,r.z},{u.x,u.y,u.z},{v.x,v.y,v.z}};
+                        for(auto& w:unit){
+                            const long double norm=std::sqrt(w[0]*w[0]+w[1]*w[1]+w[2]*w[2]);
+                            if(!(norm>0))return errorAt(error,"zero-radius cell fan",cell);
+                            for(auto& x:w)x/=norm;
                         }
+                        const auto& a0=unit[0];const auto& b0=unit[1];const auto& c0=unit[2];
+                        const long double determinant=a0[0]*(b0[1]*c0[2]-b0[2]*c0[1])
+                            +a0[1]*(b0[2]*c0[0]-b0[0]*c0[2])+a0[2]*(b0[0]*c0[1]-b0[1]*c0[0]);
+                        long double denominator=1;
+                        for(int component=0;component<3;++component)
+                            denominator+=a0[component]*b0[component]+b0[component]*c0[component]+c0[component]*a0[component];
+                        solidAngle+=sign*2*std::atan2(determinant,denominator);++fanTriangles;
+
+                        Real tetra[4]={
+                            sign*dot(r,cross(u,v)),
+                            sign*(dot(dr,cross(u,v))+dot(r,cross(du,v))+dot(r,cross(u,dv))),
+                            sign*(dot(dr,cross(du,v))+dot(dr,cross(u,dv))+dot(r,cross(du,dv))),
+                            sign*dot(dr,cross(du,dv))
+                        };
+                        polynomialBounds(tetra,lower,upper);
+                        if(!finite(lower)||!(tetra[0]>0)
+                            ||lower<=128*std::numeric_limits<Real>::epsilon()*tetra[0])
+                            return errorAt(error,
+                                "moving cell tetrahedral fan collapses or inverts",cell);
+
                     }
                 }
+                const long double angleTolerance=1024*std::numeric_limits<Real>::epsilon()*fanTriangles;
+                if(!std::isfinite(solidAngle)||std::abs(solidAngle-4*std::acos(-1.L))>angleTolerance)
+                    return errorAt(error,"cell fan is not a single star-shaped volume",cell);
             }
             return true;
         }
@@ -908,10 +932,21 @@ namespace chmt {
                         jacobian[row++][j]=sweepDerivative(old,points,mode.data(),faces[i])/sweepScale[i];
                     for (const auto& p:planar) {
                         Real derivative[3]; planarPolynomial(old,points,p,derivative,mode.data());
-                        for (Real value:derivative) jacobian[row++][j]=value/p.scale;
+                        for (Real value:derivative) {
+                            // Keep tangent equations even when the current plane
+                            // is within roundoff: the next correction must not
+                            // create an unconstrained internal volume transfer.
+                            jacobian[row][j]=value/p.scale;
+                            ++row;
+                        }
                     }
                 }
                 Reals rhs(residual.begin(),residual.end(),Allocator<Real>(workspace));
+                std::size_t planarRow=faces.size();
+                for(const auto& p:planar)for(int coefficient=0;coefficient<3;++coefficient){
+                    if(absValue(rhs[planarRow])<=p.tolerance)rhs[planarRow]=0;
+                    ++planarRow;
+                }
                 Reals delta(columns,0,Allocator<Real>(workspace));
                 Real maxResidual=0;
                 for (Real& r:rhs) { maxResidual=maxValue(maxResidual,absValue(r)); r=-r; }
@@ -1398,7 +1433,7 @@ namespace chmt {
         std::vector<unsigned char> fixedSolid, fixedGas;
         fixedPhysicalBoundaries(oldSolid, fixedSolid);
         fixedPhysicalBoundaries(oldGas, fixedGas);
-        std::vector<Vec3> displacement(oldSolid.points.size()),directions(oldSolid.points.size());
+        std::vector<Vec3> displacement(oldSolid.points.size()),directions(oldSolid.points.size()),support(oldSolid.points.size());
         std::vector<Real> weight(oldSolid.points.size(), 0), newThickness(weight);
         for (int i = 0; i<ns; ++i) {
             int f = reference.solidFace[i], g = reference.gasFace[i];
@@ -1419,6 +1454,7 @@ namespace chmt {
             for (int k = oldSolid.faceOffsets[f]; k<oldSolid.faceOffsets[f+1]; ++k) {
                 int v = oldSolid.facePoints[k];
                 displacement[v] += delta*area;
+                support[v] += now.baseVelocity*(dt*area);
                 directions[v] += oldSolid.areaVectors[f];
                 weight[v] += area;
                 newThickness[v] += now.thickness*area;
@@ -1427,7 +1463,31 @@ namespace chmt {
         }
         for (std::size_t v = 0; v<weight.size(); ++v)if (weight[v]>0) {
             displacement[v] = displacement[v]/weight[v];
+            support[v] = support[v]/weight[v];
             newThickness[v] /= weight[v];
+        }
+        // Material inventories are attached to cells; there is no condensed-
+        // material remap here. Keep recession vertices on adjacent non-interface
+        // face planes. In a wedge this selects radial, rather than averaged
+        // surface-normal, motion. Prescribed support velocity is not projected.
+        // The full trajectory/planarity checks remain authoritative.
+        std::vector<std::vector<Vec3>> sideNormals(oldSolid.points.size());
+        for (std::size_t f=0;f<oldSolid.owner.size();++f)if(oldSolid.boundaryKind[f]!=BoundaryKind::Interface){
+            const Vec3 normal=normalized(oldSolid.areaVectors[f]);
+            for(int k=oldSolid.faceOffsets[f];k<oldSolid.faceOffsets[f+1];++k){
+                const int p=oldSolid.facePoints[k];if(weight[p]<=0)continue;
+                Vec3 q=normal;for(const auto& n:sideNormals[p])q-=n*dot(q,n);
+                if(mag(q)>1e-10)sideNormals[p].push_back(normalized(q));
+            }
+        }
+        for(std::size_t p=0;p<directions.size();++p){
+            Vec3 recession=displacement[p]-support[p];
+            for(const auto& n:sideNormals[p]){
+                recession-=n*dot(recession,n);
+                directions[p]-=n*dot(directions[p],n);
+            }
+            if(sideNormals[p].size()==3){recession={};directions[p]={};}
+            displacement[p]=recession+support[p];
         }
         for (auto& direction:directions) direction=normalized(direction);
         HostMesh gas,solid;
@@ -1497,8 +1557,33 @@ namespace chmt {
         // the previously unrepresented signed volume into this target.
         std::vector<Real> solveTargets;
         if(!compensateMaterialSweepTargets(accepted,solidTargets,solveTargets,error))return false;
+        // Directed representable rounding leaves a dense material cell enough
+        // geometric volume. This is an auxiliary geometry target only: the
+        // physical transfer is immutable, and updateMaterialSweepRemainder
+        // carries physical-minus-measured volume into the next accepted step.
+        // The original requested accuracy and explicit face ceilings still cap
+        // the total difference from the unshifted physical target.
+        const auto physicalSolveTargets=solveTargets;
+        auto physicalLimits=materialControls.faceVolumeTolerance;
+        if(!accepted.solid.empty())for(std::size_t f=0;f<solveTargets.size();++f){
+            const Real requested=controls.absoluteVolumeTolerance+controls.relativeVolumeTolerance*absValue(solveTargets[f]);
+            const Real floor=32*std::numeric_limits<Real>::epsilon()*mag(oldSolid.areaVectors[reference.solidFace[f]])*meshScale(oldSolid.points);
+            physicalLimits[f]=minValue(physicalLimits[f],maxValue(requested,floor));
+            if(solveTargets[f]!=0){
+                solveTargets[f]+=physicalLimits[f]*.5;
+                materialControls.faceVolumeTolerance[f]=physicalLimits[f]*.5;
+            }else materialControls.faceVolumeTolerance[f]=physicalLimits[f];
+        }
         if (!constrainedMotion(oldSolid,reference.solidFace,solveTargets,displacement,fixedSolid,directions,
             dt,solid,solidSweeps,report,error,materialControls,buildGas,tolerances)) return false;
+        if(!accepted.solid.empty()){
+            report.maximumSweepResidual=0;
+            for(std::size_t f=0;f<physicalLimits.size();++f){
+                const Real residual=solidSweeps[reference.solidFace[f]]-physicalSolveTargets[f];
+                if(absValue(residual)>physicalLimits[f])return errorAt(error,"material geometry exceeds its representable volume bound",f);
+                report.maximumSweepResidual=maxValue(report.maximumSweepResidual,absValue(residual));
+            }
+        }
         SurfaceMesh surface;
         if (!rebuildTrajectorySurface(oldGas,oldSolid,reference,gas,solid,dt,surface,error,tolerances)) {
             report.status=SweepConstraintStatus::InvalidTrajectory; return false;

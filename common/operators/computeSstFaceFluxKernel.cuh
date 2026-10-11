@@ -1282,8 +1282,51 @@ __global__ void blendGasConservativeStateKernel
     const GPU_OPERATOR_REAL initialWeight=GPU_OPERATOR_REAL(energyInitialWeight);
     const GPU_OPERATOR_REAL stageWeight=GPU_OPERATOR_REAL(energyStageWeight);
     using Energy = ugkwp::GasEnergyScalar<GasState>;
-    s.rho[c] =
-        initialWeight*s.rhoNext[c] + stageWeight*s.rho[c];
+    const GPU_OPERATOR_REAL blendedDensity=initialWeight*s.rhoNext[c]+stageWeight*s.rho[c];
+    constexpr int reviewNs=ugkwp::GasStateTraits<GasState>::speciesCount;
+    GPU_OPERATOR_REAL blendedSpecies[reviewNs>0?reviewNs:1]{};
+    if constexpr(reviewNs>0) if(ugkwp::mixtureGasActive(s))
+    {
+        if(s.gasSpecies.cellStatus[c]!=0)return;
+        GPU_OPERATOR_REAL sumInitial=GPU_OPERATOR_R(0),sumStage=GPU_OPERATOR_R(0),sumBlend=GPU_OPERATOR_R(0);
+        int dependent=reviewNs-1;
+        for(int k=0;k<reviewNs;++k)
+        {
+            const int i=k*s.nCells+c;
+            const GPU_OPERATOR_REAL a=s.gasSpecies.initial[i],b=s.gasSpecies.rho[i];
+            if(!finiteDevice(a)||!finiteDevice(b)||a<GPU_OPERATOR_R(0)||b<GPU_OPERATOR_R(0))
+            {s.gasSpecies.cellStatus[c]=int(ugkwp::GasTransportCode::InvalidComposition);return;}
+            sumInitial+=a;sumStage+=b;blendedSpecies[k]=initialWeight*a+stageWeight*b;sumBlend+=blendedSpecies[k];
+        }
+        const GPU_OPERATOR_REAL tol=s.gasSpecies.densityClosureTolerance;
+        if(!finiteDevice(tol)||tol<GPU_OPERATOR_R(0)||!finiteDevice(blendedDensity)||!(blendedDensity>GPU_OPERATOR_R(0))
+            ||!finiteDevice(s.rhoNext[c])||!(s.rhoNext[c]>GPU_OPERATOR_R(0))||!finiteDevice(s.rho[c])||!(s.rho[c]>GPU_OPERATOR_R(0))
+            ||fabs(sumInitial-s.rhoNext[c])>tol*s.rhoNext[c]||fabs(sumStage-s.rho[c])>tol*s.rho[c])
+        {s.gasSpecies.cellStatus[c]=int(ugkwp::GasTransportCode::InvalidComposition);return;}
+        // Preserve the convexly transported input defects; repair only newly
+        // introduced rounding in this RK publication, not physical imbalance.
+        const GPU_OPERATOR_REAL target=blendedDensity+initialWeight*(sumInitial-s.rhoNext[c])+stageWeight*(sumStage-s.rho[c]);
+        constexpr GPU_OPERATOR_REAL eps=sizeof(GPU_OPERATOR_REAL)==sizeof(float)?GPU_OPERATOR_REAL(0x1p-23):GPU_OPERATOR_REAL(0x1p-52);
+        const GPU_OPERATOR_REAL bound=GPU_OPERATOR_R(8*reviewNs)*eps*(fabs(initialWeight*s.rhoNext[c])+fabs(stageWeight*s.rho[c]));
+        if(!finiteDevice(target)||!finiteDevice(sumBlend)||fabs(sumBlend-target)>bound)
+        {s.gasSpecies.cellStatus[c]=int(ugkwp::GasTransportCode::InvalidComposition);return;}
+        if(sumBlend!=target)
+        {
+            if(!(blendedSpecies[dependent]>GPU_OPERATOR_R(0)))
+                for(int k=0;k<reviewNs;++k)if(blendedSpecies[k]>blendedSpecies[dependent])dependent=k;
+            GPU_OPERATOR_REAL independent=GPU_OPERATOR_R(0);for(int k=0;k<reviewNs;++k)if(k!=dependent)independent+=blendedSpecies[k];
+            GPU_OPERATOR_REAL replacement=target-independent;
+            if(replacement<GPU_OPERATOR_R(0))
+            {for(int k=0;k<reviewNs;++k)if(blendedSpecies[k]>blendedSpecies[dependent])dependent=k;independent=GPU_OPERATOR_R(0);for(int k=0;k<reviewNs;++k)if(k!=dependent)independent+=blendedSpecies[k];replacement=target-independent;}
+            if(!finiteDevice(replacement)||replacement<GPU_OPERATOR_R(0)||fabs(replacement-blendedSpecies[dependent])>bound)
+            {s.gasSpecies.cellStatus[c]=int(ugkwp::GasTransportCode::InvalidComposition);return;}
+            blendedSpecies[dependent]=replacement;
+        }
+        GPU_OPERATOR_REAL published=GPU_OPERATOR_R(0);for(int k=0;k<reviewNs;++k)published+=blendedSpecies[k];
+        if(!finiteDevice(published)||fabs(published-blendedDensity)>tol*blendedDensity)
+        {s.gasSpecies.cellStatus[c]=int(ugkwp::GasTransportCode::InvalidComposition);return;}
+    }
+    s.rho[c]=blendedDensity;
     s.rhoUx[c] =
         initialWeight*s.rhoUxNext[c] + stageWeight*s.rhoUx[c];
     s.rhoUy[c] =
@@ -1309,7 +1352,7 @@ __global__ void blendGasConservativeStateKernel
             for (int k=0;k<ugkwp::GasStateTraits<GasState>::speciesCount;++k)
             {
                 const int i=k*s.nCells+c;
-                s.gasSpecies.rho[i]=initialWeight*s.gasSpecies.initial[i]+stageWeight*s.gasSpecies.rho[i];
+                s.gasSpecies.rho[i]=blendedSpecies[k];
             }
     if (s.sstConfigured != 0)
     {

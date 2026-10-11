@@ -17,9 +17,11 @@ struct SweepConstraintControls {
     std::size_t maximumModeEntries=0;
     std::size_t maximumWorkspaceBytes=256ull*1024*1024;
 };
-// Allocate a local interface-volume error budget across each cell's constrained
-// faces. Eight epsilon leaves room under the unchanged 32-epsilon material EOS
-// check; it is a design budget, not a replacement for final EOS/GCL validation.
+// Bound both cell-inventory arithmetic and endpoint coordinate quantization.
+// A thin cell far from the coordinate origin cannot resolve eight epsilon of
+// its volume in world-coordinate vertices. Its actual face-area-weighted ULP
+// bound is retained in the signed remainder, not discarded or charged to mass.
+// Requested accuracy, explicit face ceilings, EOS and GCL are checked separately.
 inline bool materialSweepResidualLimits(const HostMesh& mesh,const std::vector<int>& faces,
     std::vector<Real>& output) {
     std::vector<int> count(mesh.volumes.size());std::vector<unsigned char> seen(mesh.owner.size());
@@ -35,7 +37,21 @@ inline bool materialSweepResidualLimits(const HostMesh& mesh,const std::vector<i
     std::vector<Real> limits(faces.size(),0);
     for (std::size_t i=0;i<faces.size();++i)if(faces[i]>=0) {
         const int cell=mesh.owner[faces[i]];
-        limits[i]=8*std::numeric_limits<Real>::epsilon()*mesh.volumes[cell]/count[cell];
+        
+        // Inventory arithmetic and endpoint representation are independent
+        // error sources. Bound the latter from this face's actual coordinate
+        // spacing, rather than treating a global coordinate as cell-local.
+        const int f=faces[i],begin=mesh.faceOffsets[f],end=mesh.faceOffsets[f+1];
+        Real representation=0;
+        auto ulp=[](Real x){return maxValue(absValue(std::nextafter(x,std::numeric_limits<Real>::infinity())-x),
+            absValue(std::nextafter(x,-std::numeric_limits<Real>::infinity())-x));};
+        for(int k=begin+1;k+1<end;++k){
+            const Vec3 a=mesh.points[mesh.facePoints[begin]],b=mesh.points[mesh.facePoints[k]],c=mesh.points[mesh.facePoints[k+1]];
+            const Vec3 area=cross(b-a,c-a)*.5;
+            for(Vec3 v:{a,b,c})representation+=(absValue(area.x)*ulp(v.x)+absValue(area.y)*ulp(v.y)+absValue(area.z)*ulp(v.z))/3;
+        }
+        limits[i]=8*std::numeric_limits<Real>::epsilon()*mesh.volumes[cell]/count[cell]+2*representation;
+
         if (!(limits[i]>0)||!finite(limits[i]))return false;
     }
     output=std::move(limits);return true;
