@@ -116,6 +116,7 @@ public:
                 <<"and workspaceSlots 0(auto)..4096"<<exit(FatalError);
         config_.nodes=nodes;config_.maxIterations=iterations;config_.workspaceSlots=slots;
         config_.budgetAudit=d.lookupOrDefault<Switch>("budgetAudit",false)?1:0;
+        geometryOptions_.constructQuadrature=false;
         if(config_.budgetAudit && turbulenceModel!=3)
             FatalErrorInFunction<<"boundaryLayer budgetAudit requires SST"<<exit(FatalError);
         config_.relativeTolerance=coefficient(d,"relativeTolerance","rtol",1e-8);
@@ -132,13 +133,8 @@ public:
         geometryOptions_.relativeTolerance=d.lookupOrDefault<scalar>("geometryTolerance",1e-9);
         geometryOptions_.maxRayCells=d.lookupOrDefault<label>("maxRayCells",32);
         geometryOptions_.quadratureRefinement=d.lookupOrDefault<label>("quadratureRefinement",1);
-        // Owner SST source quadrature follows the actual auxiliary profile grid.
-        // Frozen/finite-rate laminar walls have no SST volume source to sample.
-        if(turbulenceModel==3)
-        {
-            geometryOptions_.profileNodes=config_.nodes;
-            geometryOptions_.profileStretch=config_.stretch;
-        }
+        // Production consumes physical wall response, never the auxiliary
+        // owner-k integral; profile controls do not create geometry points.
     }
     bool active() const {return active_;}
     label model() const {return config_.model;}
