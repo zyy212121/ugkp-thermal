@@ -126,11 +126,12 @@ def chmt_endpoints(case,spec):
         return gas,solid
     return items,inventory(items[0][0]),inventory(items[-1][0])
 
-def surface_rate_history(times,observed,*,area,mass_flux,density,rate=0.):
+def surface_rate_history(times,observed,*,area,mass_flux,density,rate=0.,porosity=0.):
     """Closed planar slab: constant surface injection and optional first-order S0 -> S1."""
     if len(times)<2 or any(b<=a for a,b in zip(times,times[1:])):
         raise ValueError('invalid surface-rate history times')
-    if area<=0 or mass_flux<=0 or density<=0 or rate<0:
+    if (not all(math.isfinite(x) for x in (area,mass_flux,density,rate,porosity))
+            or area<=0 or mass_flux<=0 or density<=0 or rate<0 or not 0<=porosity<1):
         raise ValueError('invalid independent surface-rate reference parameters')
     for values in observed.values():
         if len(values)!=len(times) or any(not math.isfinite(x) for x in values):
@@ -143,7 +144,7 @@ def surface_rate_history(times,observed,*,area,mass_flux,density,rate=0.):
         survival=math.exp(-rate*elapsed)
         gas0=initial0*survival+(-injection*math.expm1(-rate*elapsed)/rate if rate else added)
         expected['removed_mass_kg'].append(added)
-        expected['volume_loss_m3'].append(added/density)
+        expected['volume_loss_m3'].append(added/density/(1-porosity))
         expected['gas_S0_mass_kg'].append(gas0)
         expected['gas_S1_mass_kg'].append(initial0+initial1+added-gas0)
     metrics={};samples={'time_s':times}
@@ -156,6 +157,48 @@ def surface_rate_history(times,observed,*,area,mass_flux,density,rate=0.):
         samples[key]={'actual':actual,'reference':reference,'norm_scale':scale}
     return metrics,samples
 
+def material_volume_budget(initial,final,card):
+    """Endpoint mass/density/porosity consistency, not an applied-packet ledger."""
+    names=card.get('condensed_names',[]);components=card.get('condensed',[])
+    if not names or len(names)!=len(components) or len(set(names))!=len(names):
+        raise ValueError('invalid condensed component metadata')
+    try:densities=[float(component['rho']) for component in components]
+    except (KeyError,TypeError,ValueError):raise ValueError('missing condensed density') from None
+    if any(not math.isfinite(rho) or rho<=0 for rho in densities):
+        raise ValueError('invalid condensed density')
+    def indexed(rows):
+        result={}
+        for row in rows:
+            declared={'mass_'+name for name in names}
+            found={key for key in row if key.startswith('mass_') and not key.startswith('mass_pore_')}
+            if found!=declared:raise ValueError('material inventory components differ from density metadata')
+            try:
+                cell=float(row['cell']);phi=float(row['porosity']);volume=float(row['volume'])
+                masses=[float(row['mass_'+name]) for name in names]
+            except (KeyError,TypeError,ValueError):raise ValueError('incomplete material volume inventory') from None
+            if (not math.isfinite(cell) or cell<0 or cell!=int(cell) or cell in result
+                    or not math.isfinite(phi) or not 0<=phi<1 or not math.isfinite(volume) or volume<=0
+                    or any(not math.isfinite(mass) or mass<0 for mass in masses)):
+                raise ValueError('invalid material volume inventory')
+            occupied=math.fsum(mass/rho for mass,rho in zip(masses,densities))
+            result[cell]=(masses,phi,volume,occupied)
+        return result
+    before=indexed(initial);after=indexed(final)
+    if not before or before.keys()!=after.keys():raise ValueError('material cell identity changed')
+    removed=math.fsum(m0-m1 for cell in before for m0,m1 in zip(before[cell][0],after[cell][0]))
+    predicted=math.fsum(before[cell][3]/(1-before[cell][1])-after[cell][3]/(1-after[cell][1]) for cell in before)
+    measured=math.fsum(before[cell][2]-after[cell][2] for cell in before)
+    error=abs(predicted-measured)
+    metrics={'solid_removed_mass_kg':removed,'mass_predicted_volume_loss_m3':predicted,
+        'recession_volume_absolute_error_m3':error,'recession_volume_relative_error':error/max(abs(predicted),1e-20)}
+    evidence={'reference_kind':'MASS_DENSITY_POROSITY_CONSISTENCY',
+        'definition':'sum_cells(sum_components(mass_initial/rho)/(1-porosity_initial) - sum_components(mass_final/rho)/(1-porosity_final))',
+        'porosity_changed':any(before[cell][1]!=after[cell][1] for cell in before),
+        'condensed_components':dict(zip(names,densities)),
+        'accepted_surface_packet_ledger':'UNAVAILABLE',
+        'scope':'Endpoint EOS consistency; porosity may itself be recovered from volume. This is not an independent surface-recession or accepted-flux conservation proof.'}
+    return metrics,evidence
+
 def _chmt_metrics(case,spec,samples=None):
     items,initial,final=chmt_endpoints(case,spec)
     def mass(pair):return sum(float(r['mass']) for r in pair[0])+sum(sum(float(v) for k,v in r.items() if k.startswith('mass_')) for r in pair[1])
@@ -163,11 +206,9 @@ def _chmt_metrics(case,spec,samples=None):
     m0=mass(initial);e0=energy(initial)
     metrics={'mass_relative_residual':abs(mass(final)-m0)/max(m0,1e-30),'energy_relative_residual':abs(energy(final)-e0)/max(abs(e0),1e-30),'minimum_material_temperature_K':min(float(r['temperature']) for r in final[1]),'maximum_material_temperature_K':max(float(r['temperature']) for r in final[1]),'material_volume_change_m3':sum(float(r['volume']) for r in final[1])-sum(float(r['volume']) for r in initial[1]),'gas_mass_change_kg':sum(float(r['mass']) for r in final[0])-sum(float(r['mass']) for r in initial[0])}
     if spec.get('material_card') and spec['metric']!='contact':
-        rho_c=spec['material_card']['condensed'][0]['rho'];removed=sum(float(r['mass_C0']) for r in initial[1])-sum(float(r['mass_C0']) for r in final[1])
-        predicted_volume_loss=removed/rho_c;measured_volume_loss=-metrics['material_volume_change_m3']
-        metrics['solid_removed_mass_kg']=removed;metrics['mass_predicted_volume_loss_m3']=predicted_volume_loss
-        metrics['recession_volume_absolute_error_m3']=abs(measured_volume_loss-predicted_volume_loss)
-        metrics['recession_volume_relative_error']=abs(measured_volume_loss-predicted_volume_loss)/max(abs(predicted_volume_loss),1e-20)
+        volume_metrics,volume_evidence=material_volume_budget(initial[1],final[1],spec['material_card'])
+        metrics.update(volume_metrics)
+        if samples is not None:samples['material_volume_budget']=volume_evidence
     parameters=spec.get('parameters',{})
     if parameters.get('closed') and 'surface_mass_flux_kg_m2_s' in parameters:
         observed={key:[] for key in ('removed_mass_kg','volume_loss_m3','gas_S0_mass_kg','gas_S1_mass_kg')}
@@ -182,7 +223,8 @@ def _chmt_metrics(case,spec,samples=None):
             for species in ('S0','S1'):observed['gas_'+species+'_mass_kg'].append(sum(float(row['mass_'+species]) for row in gas))
         rate_metrics,rate_samples=surface_rate_history([time for step,time in items],observed,
             area=parameters['surface_area_m2'],mass_flux=parameters['surface_mass_flux_kg_m2_s'],
-            density=spec['material_card']['condensed'][0]['rho'],rate=parameters.get('reaction_rate_per_s',0.))
+            density=spec['material_card']['condensed'][0]['rho'],rate=parameters.get('reaction_rate_per_s',0.),
+            porosity=spec['material_card'].get('initial_porosity',0.))
         metrics.update(rate_metrics)
         if samples is not None:samples['surface_rate_history']=rate_samples
     # Open-flow sums are changes, not conservation residuals without boundary fluxes.
@@ -194,6 +236,19 @@ def _chmt_metrics(case,spec,samples=None):
         metrics['initial_heat_rate_W']=dE/(items[1][1]-items[0][1]);metrics['target_initial_heat_rate_W']=600.
         metrics['initial_heat_rate_relative_error']=abs(metrics['initial_heat_rate_W']-600)/600
     return metrics
+
+def accepted_cumulative_budget_evidence(case=None,spec=None):
+    if spec and spec.get('budget_audit_requested'):
+        from budget import read_segments
+        path=Path(case)/'gasAcceptedBudget.jsonl'
+        if not path.is_file():raise ValueError('requested accepted cumulative budget file is missing')
+        report=read_segments([path],expected_end=spec['end_time'])
+        if len(report['identity']['species'])!=spec['species_count']:
+            raise ValueError('accepted budget species count differs from case')
+        return report
+    return {'status':'UNAVAILABLE','mass_elements_physical_energy_acceptance':'NOT_ESTABLISHED',
+        'reason':'No accepted cumulative ledger is decoded by this suite. Neither instantaneous wall CSV nor last-microstep owner increments substitute for accepted flux/source integrals with RK weights, discard and restart semantics. CHMT checkpoint ledgers require their own independent reader.',
+        'required_channels':['mass','species','elements','formation_inclusive_physical_energy','mechanical_work','GCL']}
 
 def compare(case):
     samples={}
@@ -219,7 +274,8 @@ def compare(case):
         for key in numerical_metrics:
             if key not in result or not isinstance(result[key],(int,float)) or not math.isfinite(result[key]):
                 raise ValueError('reactor evidence metric missing/nonfinite: '+key)
-        return {'acceptance':'REPORT_ONLY','reference':'Pinned independent Cantera','raw_metrics':result,'limits_are_objectives':True}
+        return {'acceptance':'REPORT_ONLY','reference':'Pinned independent Cantera','raw_metrics':result,'limits_are_objectives':True,
+                'accepted_cumulative_budget':accepted_cumulative_budget_evidence(case,spec)}
     else:
         d=final_directory(case,t)
         if kind=='couette':
@@ -267,10 +323,44 @@ def compare(case):
     out['samples']=samples;out['time']=t;out['cells']=n;out['time_controls']=spec.get('time_controls',{})
     out['norm_definition']='L1=mean(abs(error)), L2=sqrt(mean(error^2)), Linf=max(abs(error)), divided by the stated physical scale; no NaN omission.'
     out['wall_flux_diagnostics']=wall_diagnostics(case,spec)
+    out['accepted_cumulative_budget']=accepted_cumulative_budget_evidence(case,spec)
     if spec.get('id')=='wall_constant_transport':
         require_couette_wall_evidence(out['wall_flux_diagnostics'],spec)
-    if spec['category']==3:out['paired_comparison']='Use compare_pair.py with the actual lowRe and highRe cases; single-run inventory statistics do not validate wall model accuracy.'
+    if spec['category']==3:
+        out['paired_comparison']='Use compare_pair.py with the actual lowRe and highRe cases; single-run inventory statistics do not validate wall model accuracy.'
+        if spec.get('wall_family')=='lowRe':out['reference_eligibility']=lowre_reference_eligibility(out['wall_flux_diagnostics'],spec)
     return out
+
+def lowre_reference_eligibility(diagnostic,spec):
+    """Qualify measured final-window y+, without claiming physical accuracy."""
+    result={'status':'UNAVAILABLE','target':spec.get('resolved_lowre_target'),
+        'physical_accuracy_acceptance':'NOT_ESTABLISHED',
+        'scope':'Exported final-snapshot wall faces and their accepted stage samples only; no mesh adjustment or full-trajectory accuracy claim.'}
+    target=result['target']
+    if not target:
+        result['reason']='Resolved-lowRe target was not declared before the run.';return result
+    try:maximum=float(target['maximum_yplus']);fraction=float(target['final_window_fraction'])
+    except (KeyError,TypeError,ValueError):raise ValueError('invalid resolved-lowRe target') from None
+    if not math.isfinite(maximum) or not 0<maximum<=1 or not math.isfinite(fraction) or not 0<fraction<=.1:
+        raise ValueError('resolved-lowRe target cannot loosen maximum y+ 1 or final 10% observation window')
+    yplus=diagnostic.get('yplus')
+    if diagnostic.get('status')!='AVAILABLE' or not isinstance(yplus,dict) or yplus.get('status')!='COMPUTED':
+        result['reason']='Actual y+ needs tangential traction, density, viscosity and owner distance.';return result
+    end=spec['end_time'];output_time=diagnostic.get('directory_time',diagnostic.get('accepted_time'))
+    stage=diagnostic.get('statistics',{}).get('stageTime')
+    if stage is None and 'stage_time' in diagnostic:stage={'min':diagnostic['stage_time'],'max':diagnostic['stage_time']}
+    tolerance=1e-10*max(abs(end),1e-8)
+    if (output_time is None or not math.isfinite(output_time) or abs(output_time-end)>tolerance
+            or not stage or stage['min']<end*(1-fraction)-tolerance or stage['max']>end+tolerance):
+        result['reason']='Measured y+ is not from the requested final output and declared final accepted-stage window.';return result
+    values=[yplus.get(key) for key in ('min','max')]
+    if any(not isinstance(value,(int,float)) or not math.isfinite(value) or value<0 for value in values) or values[0]>values[1]:
+        raise ValueError('invalid measured y+ range')
+    result.update(status='ELIGIBLE_BY_MEASURED_YPLUS' if values[1]<=maximum else 'INELIGIBLE',
+        measured_yplus={'min':values[0],'max':values[1]},accepted_output_time=output_time,
+        stage_window={'min':stage['min'],'max':stage['max']})
+    result['reason']='All exported measurements meet the declared y+ target; independent model accuracy is separate.' if values[1]<=maximum else 'Measured y+ exceeds the declared resolved-lowRe target; keep this run diagnostic.'
+    return result
 
 def require_couette_wall_evidence(diagnostic,spec):
     """A bulk Couette fit alone cannot establish execution of the new wall model."""

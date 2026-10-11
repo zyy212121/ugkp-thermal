@@ -238,7 +238,17 @@ def _mss7(dest,opts,moving=False):
 def prepare(name,destination,options=None):
     options=dict(options or {});dest=Path(destination)
     if dest.exists():raise FileExistsError('Refusing to overwrite existing case '+str(dest))
+    if 'end_time' in options:
+        try:requested_end=float(options['end_time'])
+        except (TypeError,ValueError):raise ValueError('end_time must be finite and positive') from None
+        if not math.isfinite(requested_end) or requested_end<=0 or isinstance(options['end_time'],bool):
+            raise ValueError('end_time must be finite and positive')
     spec=cases()[name]
+    requested_budget=options.get('budget_audit',False)
+    if type(requested_budget) is not bool:raise ValueError('budget_audit must be boolean')
+    if requested_budget and (spec['solver']!='gasUGKP' or spec['generator'] in ('couette','sod')):
+        raise ValueError('accepted budget instrumentation supports fixed pure mixture gas only')
+    spec['budget_audit_requested']=requested_budget
     if 'wall' in options and spec['wall_variants'] and options['wall'] not in spec['wall_variants']:raise ValueError('unsupported wall family for '+name)
     dest.parent.mkdir(parents=True,exist_ok=True)
     try:
@@ -268,6 +278,8 @@ def prepare(name,destination,options=None):
         elif k=='mss7':extra=_mss7(dest,options)
         elif k=='mss7_moving':extra=_mss7(dest,options,True)
         else:raise ValueError('unsupported generator')
+        if 'end_time' in options and not math.isclose(extra['end_time'],requested_end,rel_tol=1e-12,abs_tol=0):
+            raise ValueError('requested endpoint differs from the canonical or pinned reference endpoint')
         if spec['solver']=='gasUGKP':
             control=dest/'system/controlDict'
             # The resident solver downloads fields only on writeTime(). Align
@@ -280,6 +292,9 @@ def prepare(name,destination,options=None):
         spec.update(extra,source_commit=commit,options=options,inputs_sha256=fingerprint(dest),native_execution='NOT_RUN',cpu_reference='NOT_RUN',mesh='NOT_RUN',validation='NOT_RUN')
         control=(dest/'system/controlDict').read_text()
         spec['time_controls']={key:(re.search(r'\b'+key+r'\s+([^;]+);',control).group(1).strip() if re.search(r'\b'+key+r'\s+([^;]+);',control) else None) for key in ('deltaT','adjustTimeStep','maxCo','maxDeltaT','endTime','writeControl','writeInterval','timePrecision','writePrecision')}
+        configured_end=float(spec['time_controls']['endTime'])
+        if not math.isfinite(configured_end) or configured_end<=0 or not math.isclose(configured_end,spec['end_time'],rel_tol=1e-12,abs_tol=0):
+            raise ValueError('generated controlDict endpoint differs from the reference manifest')
         spec['backend_entries']={'native_gpu':'run.py --mode execute --required','cpu_reference':'metrics.py compare() after actual native output; never a solver substitute','cpu_kernel_probes':'host_cases.py --backend cpu (separate explicitly scoped production-kernel tests)'}
         spec['evidence_boundary']='Input generation does not execute a solver. No GPU validation or experimental agreement has been demonstrated.'
         _json(dest/'suite_case.json',spec)

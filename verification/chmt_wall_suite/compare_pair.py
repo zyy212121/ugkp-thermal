@@ -7,7 +7,7 @@ import hashlib
 import json
 import math
 from pathlib import Path
-from metrics import read_field,final_directory,chmt_endpoints,wall_diagnostics
+from metrics import read_field,final_directory,chmt_endpoints,wall_diagnostics,lowre_reference_eligibility
 
 def linear(x,y,q):
     if len(x)!=len(y) or len(x)<2 or any(b<=a for a,b in zip(x,x[1:])):raise ValueError('invalid interpolation coordinates')
@@ -61,6 +61,7 @@ def compare_pair(low,high):
         if a['parameters'].get(key)!=b['parameters'].get(key):raise ValueError('pair operating condition differs: '+key)
     if not math.isclose(a['end_time'],b['end_time'],rel_tol=1e-12):raise ValueError('pair final times differ')
     result={'acceptance':'REPORT_ONLY','reference_case':str(low),'candidate_case':str(high),'reference_solver_sha256':sa.get('solver_sha256'),'candidate_solver_sha256':sb.get('solver_sha256'),'physics':a['models'],'profiles':{},'wall_reference':wall_diagnostics(low,a),'wall_candidate':wall_diagnostics(high,b),'yplus_policy':a['yplus_policy']}
+    result['reference_eligibility']=lowre_reference_eligibility(result['wall_reference'],a)
     for side,status in [('reference',sa),('candidate',sb)]:
         result[side+'_backend']=status.get('backend',{'status':'NOT_APPLICABLE' if a['solver']=='CHMT' else 'UNAVAILABLE',
             'reason':'CHMT is monolithic' if a['solver']=='CHMT' else 'Run receipt did not record the selected gas backend; frontend SHA is not a substitute.'})

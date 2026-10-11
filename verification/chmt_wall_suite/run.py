@@ -129,6 +129,11 @@ def execute(case,mode='mesh',solver=None,input_checker=None,*,allow_solver_fallb
             environment=None
             if spec['solver']=='gasUGKP':
                 environment=dict(os.environ)
+                if spec.get('budget_audit_requested'):
+                    budget_path=case/'gasAcceptedBudget.jsonl'
+                    if budget_path.exists():raise RuntimeError('refusing an existing accepted budget ledger')
+                    environment['UGKP_GAS_BUDGET_OUTPUT']=str(budget_path)
+                    status['accepted_budget_output']=str(budget_path)
                 backend=gas_backend_identity(path,case,environment);status['backend']=backend
                 if backend['status']!='AVAILABLE':
                     status['reason']='Native backend executable unavailable: '+backend['path'];_save(case,status);return status

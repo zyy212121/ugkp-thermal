@@ -32,4 +32,6 @@ def cases():
         item['id']=key;item['species_count']=10 if item['generator']=='reactor' else 2
         item['wall_variants']=list(item.get('wall_variants',[]))
         item['yplus_policy']='User selects mesh height/grading; report measured y+ only. No automatic y+ tuning or assumed success.'
+        if item['category']==3:
+            item['resolved_lowre_target']={'maximum_yplus':1.,'final_window_fraction':.1}
     return copy.deepcopy(c)
