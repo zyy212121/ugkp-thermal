@@ -109,10 +109,32 @@ def chmt_endpoints(case,spec):
         rows=_csv(p)
         if len(rows)!=1:raise ValueError('invalid accepted summary')
         row=rows[0];n=int(row['accepted_steps']);t=float(row['time'])
+        if not math.isfinite(t) or t<0 or n<0:raise ValueError('invalid accepted clock')
         if int(row['commit_sequence'])!=n:raise ValueError('noncommitted CHMT output')
         items.append((n,t))
     items.sort()
-    if len(items)<2 or items[0][0]!=0:raise ValueError('no completed native CHMT history')
+    if len(items)<2:raise ValueError('no completed native CHMT history')
+    # A restart starts at its serialized synchronized clock, not at step zero.
+    # Read only an explicit top-level restartDirectory from the actual input.
+    properties=Path(case)/'constant/chmtProperties'
+    text=properties.read_text() if properties.is_file() else ''
+    text=re.sub(r'//[^\n]*|/\*.*?\*/','',text,flags=re.S)
+    restart=[]
+    for match in re.finditer(r'\brestartDirectory\s+("[^"\n]+"|[^;\s]+)\s*;',text):
+        prefix=re.sub(r'"[^"\n]*"','',text[:match.start()])
+        if prefix.count('{')==prefix.count('}'):restart.append(match.group(1).strip('"'))
+    if len(restart)>1:raise ValueError('duplicate restartDirectory')
+    if restart:
+        from foam import module
+        checkpoint=Path(restart[0])
+        if not checkpoint.is_absolute():checkpoint=Path(case)/checkpoint
+        checkpoint=checkpoint/'state.chmt'
+        clock=module('applications/CHMT/verification/coupled_runtime/check_case.py').checkpoint_clock(checkpoint,spec['species_count'])
+        if items[0][0]!=clock['accepted_steps'] or not math.isclose(items[0][1],clock['time'],rel_tol=1e-13,abs_tol=1e-15):
+            raise ValueError('restart initial synchronized state differs from checkpoint')
+        if (directory/f'checkpoint-{items[0][0]}/state.chmt').read_bytes()!=checkpoint.read_bytes():
+            raise ValueError('restart initial checkpoint is not an identical reserialization')
+    elif items[0]!=(0,0.):raise ValueError('no completed native CHMT history')
     if any(b[0]!=a[0]+1 or b[1]<=a[1] for a,b in zip(items,items[1:])):raise ValueError('CHMT missing/nonmonotone accepted history')
     if not math.isclose(items[-1][1],spec['end_time'],rel_tol=1e-10,abs_tol=1e-14):raise ValueError('CHMT final time differs from request')
     def inventory(n):

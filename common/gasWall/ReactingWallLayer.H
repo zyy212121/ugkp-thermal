@@ -392,6 +392,19 @@ template<class R,int N,int M,class TableReal> UGKWP_GAS_HD inline bool evaluateR
         for(int j=0;j<N-1;++j)w.state[i][3+j]=in.matching.massFraction[ctx.independent[j]];
         w.state[i][N+2]=c.enableSst?::sqrt(in.matching.k)*f:R(0);w.state[i][N+3]=c.enableSst?f/::sqrt(in.matching.omega):R(1);}
     if(!seedSstLayer(in,c,ctx,w))return fail(status,WallCode::InadmissibleState);
+    if(c.enableSst){
+        // Initialize the auxiliary nonlinear profile at a shear-based scale.
+        // This changes neither matching/owner k nor any physical equation.
+        // A near-zero sqrt(k) seed can make Newton cross its zero derivative
+        // and stagnate on alternating signed roots before reaching the BVP root.
+        LayerPoint<R,N> edge;
+        if(!pointState(in,c,ctx,w.state[c.nodes-1],edge))return fail(status,WallCode::InadmissibleState);
+        const R speed=::sqrt(ctx.edgeU[0]*ctx.edgeU[0]+ctx.edgeU[1]*ctx.edgeU[1]);
+        const R kScale=in.model.viscosity*speed/(in.matchingDistance*edge.rho*::sqrt(in.model.sstCoefficients.betaStar));
+        if(!gasFinite(kScale)||kScale<0)return fail(status,WallCode::InadmissibleState);
+        for(int i=1;i<c.nodes-1;++i){const R eta=w.y[i]/in.matchingDistance;
+            w.state[i][N+2]=::sqrt(w.state[i][N+2]*w.state[i][N+2]+R(4)*eta*(R(1)-eta)*kScale);}
+    }
     R norm=0;if(!allResidual(in,c,ctx,w.state,w.y,w.residual,norm))return fail(status,WallCode::InadmissibleState);
     const R tolerance=c.absoluteTolerance+c.relativeTolerance;
     for(int iteration=0;iteration<=c.maxIterations;++iteration){status.iteration=iteration;status.residual=double(norm);

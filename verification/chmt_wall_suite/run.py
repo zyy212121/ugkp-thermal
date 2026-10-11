@@ -93,6 +93,9 @@ def execute(case,mode='mesh',solver=None,input_checker=None,*,allow_solver_fallb
             status['reason']='Unavailable OpenFOAM commands: '+', '.join(missing);_save(case,status);return status
         status['mesh']='RUNNING'
         for i,args in enumerate(spec['mesh_commands']):command([args[0],'-case',str(case)]+args[1:],f'log.mesh.{i}')
+        if spec['generator']=='flatplate_moving' and spec['mesh_commands']:
+            from generated_extrusion import canonicalize
+            status['generated_extrusion']=canonicalize(case,spec)
         for region in ['', 'solid'] if spec['solver']=='CHMT' else ['']:
             text=command(['checkMesh','-case',str(case)]+(['-region',region] if region else []),'log.checkMesh'+('.'+region if region else ''))
             if 'Mesh OK.' not in text:raise RuntimeError('checkMesh did not report Mesh OK')

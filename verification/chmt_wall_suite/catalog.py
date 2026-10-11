@@ -24,7 +24,12 @@ def cases():
     c['chmt_laminar_reacting_wall']=copy.deepcopy(c['chmt_reacting_receding_slab'])
     c['chmt_laminar_reacting_wall'].update(generator='laminar_reacting_wall')
     c['chmt_laminar_reacting_wall']['models']['wall']='boundaryLayer/finiteRate, SST disabled'
-    for key in ('chmt_receding_slab','chmt_reacting_receding_slab','chmt_laminar_reacting_wall'):
+    c['chmt_laminar_reacting_wall']['known_limitation']='wall_corner_geometry: closed-box wall owners and donors are unsupported by the one-wall boundary-layer geometry; retained as the original failure case.'
+    c['chmt_laminar_reacting_plate']=copy.deepcopy(c['chmt_laminar_reacting_wall'])
+    c['chmt_laminar_reacting_plate'].pop('known_limitation')
+    c['chmt_laminar_reacting_plate'].update(generator='laminar_reacting_plate',reference='Additional controlled planar slab with lateral slip symmetry, normal confinement, material/gas reactions and recession; not a repair or PASS of the original closed box.')
+    c['chmt_laminar_reacting_plate']['models']['geometry']='normal confinement, lateral slip symmetry, CoupledRecession'
+    for key in ('chmt_receding_slab','chmt_reacting_receding_slab','chmt_laminar_reacting_wall','chmt_laminar_reacting_plate'):
         if key in c:
             for quantity in ('removed_mass_kg','volume_loss_m3','gas_S0_mass_kg','gas_S1_mass_kg'):
                 c[key]['limits']['surface_rate_'+quantity+'_linf']=.01

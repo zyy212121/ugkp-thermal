@@ -29,7 +29,7 @@ def test_mixed_energy_budget_uses_actual_energy_stage_weights(tmp_path, bits):
     )
     compile_probe(tmp_path, source + r'''
 int main(){
- State s;initialise(s);enable(s);threadIdx.x=0;
+ State s;initialise(s);enable(s);threadIdx.x=0;saveGasConservativeStateKernel(&s);
  for(int k=0;k<4;++k){s.gasBudgetAudit.initialTransport[2*k]=1.;s.gasBudgetAudit.transport[2*k]=3.;}
  s.rhoENext[0]=1000.;s.rhoE[0]=1030.;
  blendGasConservativeStateKernel(&s,1./3.,2./3.);

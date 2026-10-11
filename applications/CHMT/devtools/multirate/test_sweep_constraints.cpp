@@ -430,8 +430,10 @@ void hardSweepCeilingsValidateAndRejectUnrepresentableMotion() {
     std::string error;require(rebuildGeometry(base.solidMesh,error),error);require(rebuildGeometry(base.gasMesh,error),error);
     HostMesh gas=base.gasMesh,solid=base.solidMesh;gas.geometryVersion=77;solid.geometryVersion=88;
     SurfaceMesh surface;SweepConstraintReport report;
-    require(!moveCoupledMeshesConstrained(base,base.filmAux,{-.04,-.1},1,gas,solid,surface,report,error),
-        "world-coordinate quantization may not override the material inventory ceiling");
+    SweepConstraintControls explicitCeiling;
+    for(int f:base.surface.solidFace)explicitCeiling.faceVolumeTolerance.push_back(8*std::numeric_limits<Real>::epsilon()*base.solidMesh.volumes[base.solidMesh.owner[f]]);
+    require(!moveCoupledMeshesConstrained(base,base.filmAux,{-.04,-.1},1,gas,solid,surface,report,error,explicitCeiling),
+        "world-coordinate quantization may not override an explicit material inventory ceiling");
     require(report.status==SweepConstraintStatus::InvalidTrajectory||report.status==SweepConstraintStatus::Nonconverged,
         "unrepresentable inventory accuracy has a typed rejection");
     require(gas.geometryVersion==77&&solid.geometryVersion==88,"unrepresentable material motion preserves outputs");

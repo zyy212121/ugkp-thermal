@@ -138,12 +138,18 @@ def _flat_gas(dest,opts,patches=None):
     if nx<2 or ny<3 or height<=0 or grading<=0:raise ValueError('flat plate requires nx>=2, ny>=3, positive height/grading')
     _gas_template(dest,max(4,nx*ny))
     L=2.;T=300.;p=101325.;W=.028;U=float(opts.get('velocity',70.));R=8.31446261815324/W;rho=p/(R*T)
-    (dest/'system/blockMeshDict').write_text(block_mesh(0,L,0,height,.01,nx,ny,grading=grading))
-    patch_types={'inlet':'type fixedValue; value uniform VALUE;','outlet':'type zeroGradient;','wall':'type zeroGradient;','top':'type zeroGradient;','sides':'type empty;'}
+    # OF10's wall-distance constructor reads this scheme for SST.
+    schemes=dest/'system/fvSchemes'
+    schemes.write_text(schemes.read_text()+'\nwallDist { method meshWave; }\n')
+    # A symmetry-plane patch preserves slip/no-penetration semantics in the
+    # native frontend, which does not import a generic patch's U=slip field.
+    mesh=block_mesh(0,L,0,height,.01,nx,ny,grading=grading)
+    (dest/'system/blockMeshDict').write_text(mesh.replace('top { type patch;', 'top { type symmetryPlane;'))
+    patch_types={'inlet':'type fixedValue; value uniform VALUE;','outlet':'type zeroGradient;','wall':'type zeroGradient;','top':'type symmetryPlane;','sides':'type empty;'}
     fields=[('rho','1 -3 0 0 0 0 0',rho,False),('p','1 -1 -2 0 0 0 0',p,False),('T','0 0 0 1 0 0 0',T,False),('U','0 1 -1 0 0 0 0',f'({U} 0 0)',True),('Y_A','0 0 0 0 0 0 0',.5,False),('Y_B','0 0 0 0 0 0 0',.5,False),('epsilonS','0 0 0 0 0 0 0',0,False),('Us','0 1 -1 0 0 0 0','(0 0 0)',True),('theta','0 2 -2 0 0 0 0',0,False),('rhoE','1 -1 -2 0 0 0 0',rho*((1040-R)*T+.5*U**2),False),('k','0 2 -2 0 0 0 0',1e-4,False),('omega','0 0 -1 0 0 0 0',1.,False)]
     for name,dims,v,vector in fields:
         ps={k:x.replace('VALUE',str(v)) for k,x in patch_types.items()}
-        if name=='U':ps['wall']='type fixedValue; value uniform (0 0 0);';ps['top']='type slip;'
+        if name=='U':ps['wall']='type fixedValue; value uniform (0 0 0);'
         if name=='T':ps['wall']='type fixedValue; value uniform 300;'
         if name=='k':ps['wall']='type fixedValue; value uniform 0;'
         write_field(dest,'',name,dims,v,ps,vector)
@@ -207,7 +213,7 @@ def _mss7(dest,opts,moving=False):
     for region,target in [('fluid',dest/'constant/polyMesh')]+([('graphite',dest/'constant/solid/polyMesh')] if moving else []):
         source=Path(opts.get('gas_mesh' if region=='fluid' else 'solid_mesh',src/region/'polyMesh')).resolve()
         shutil.copytree(source,target)
-        boundary=target/'boundary';s=boundary.read_text().replace('type            wedge;','type            patch;');boundary.write_text(s)
+        boundary=target/'boundary';s=re.sub(r'type\s+wedge\s*;', 'type '+('patch' if moving else 'symmetryPlane')+';', boundary.read_text());boundary.write_text(s)
     gas_patches=_mesh_patch_names(dest/'constant/polyMesh/boundary');solid_patches=_mesh_patch_names(dest/'constant/solid/polyMesh/boundary') if moving else []
     if not gas_patches:raise ValueError('MSS7 patch parser failed')
     for region,ps in [('',gas_patches)]+([('solid',solid_patches)] if moving else []):
@@ -217,12 +223,14 @@ def _mss7(dest,opts,moving=False):
             if not val:raise ValueError('MSS7 adapted input requires uniform initial fields')
             dims=re.search(r'dimensions\s+\[([^]]+)\]',text).group(1);v=val.group(1);types={p:'type zeroGradient;' for p in ps}
             if 'defaultFaces' in types:types['defaultFaces']='type empty;'
+            if not moving:
+                for patch in ('wedgeBack','wedgeFront'):
+                    if patch in types:types[patch]='type symmetryPlane;'
             if region=='':
                 if 'inlet' in types:types['inlet']='type fixedValue; value uniform '+v+';'
                 if f.name=='U':
                     types['fluid_to_graphite']='type fixedValue; value uniform (0 0 0);'
-                    if not moving:
-                        types['wedgeBack']='type slip;';types['wedgeFront']='type slip;'
+
                 if f.name=='T' and not moving:types['fluid_to_graphite']='type fixedValue; value uniform 300;'
                 if f.name=='k' and not moving:types['fluid_to_graphite']='type fixedValue; value uniform 0;'
             write_field(dest,region,f.name,dims,v,types,f.name in ('U','Us'))
@@ -262,17 +270,27 @@ def prepare(name,destination,options=None):
                 enable(dest,['A','B']);extra['parameters']['reaction_rate_per_s']=2.;extra['metric']='reacting_wave'
         elif k=='reactor':extra=_reactor(dest,options)
         elif k=='contact':extra=_chmt_base(dest,options,True)
-        elif k in ('receding','reacting_receding','laminar_reacting_wall'):
+        elif k in ('receding','reacting_receding','laminar_reacting_wall','laminar_reacting_plate'):
             extra=_chmt_base(dest,options)
-            if k in ('reacting_receding','laminar_reacting_wall'):
+            if k in ('reacting_receding','laminar_reacting_wall','laminar_reacting_plate'):
                 from synthetic_chemistry import enable
                 source=enable(dest,['S0','S1']);extra['parameters']['reaction_rate_per_s']=2.;extra['material_card']['gas_phase_reactions']=[source]
-            if k=='laminar_reacting_wall':
+            if k in ('laminar_reacting_wall','laminar_reacting_plate'):
                 p=dest/'constant/chmtProperties';text=p.read_text();text=re.sub(r'modelFingerprint\s+"[^"]+";','',text)
-                inner=wall_config('boundaryLayer_finiteRate',True,int(options.get('wall_nodes',24))).replace('simulationType laminar;','')
+                default_nodes=48 if k=='laminar_reacting_plate' else 24
+                inner=wall_config('boundaryLayer_finiteRate',True,int(options.get('wall_nodes',default_nodes))).replace('simulationType laminar;','')
                 text+='enableSst false;\nsst { '+inner+' }\n'
                 text+='modelFingerprint "'+hashlib.sha256((text+(dest/'constant/gasModelProperties').read_text()).encode()).hexdigest()+'";\n';p.write_text(text)
                 extra['wall_family']='boundaryLayer_finiteRate'
+                if k=='laminar_reacting_plate':
+                    mesh=dest/'system/blockMeshDict'
+                    mesh.write_text(mesh.read_text().replace('(2 2 2)', '(4 2 2)'))
+                    text=re.sub(r'modelFingerprint\s+"[^"]+";','',p.read_text())
+                    text+='boundaries { sides { kind Slip; } }\n'
+                    text+='modelFingerprint "'+hashlib.sha256((text+(dest/'constant/gasModelProperties').read_text()).encode()).hexdigest()+'";\n'
+                    p.write_text(text);extra['cells']=16
+                    extra['parameters']['boundary_adaptation']='Additional planar case: no normal lateral mass/heat flux or shear; original closed-box case retained separately.'
+
         elif k=='flatplate':extra=_flat_gas(dest,options)
         elif k=='flatplate_moving':extra=_flat_chmt(dest,options)
         elif k=='mss7':extra=_mss7(dest,options)

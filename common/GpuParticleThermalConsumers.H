@@ -85,13 +85,14 @@ UGKWP_THERMAL_CONSUMER_HD inline ParticleThermalPublication publishAffineRadiati
     if (scale == 1.0 && offset == 0.0)
         return publishParticleThermalHeat(state, 0.0, minimumTemperature, maximumTemperature, caloric);
     const double oldTemperature = effectiveParticleTemperature(state, caloric);
-    const double proposedTemperature = oldTemperature + ::fma(scale - 1.0, oldTemperature, offset);
+    const double temperatureIncrement = ::fma(scale - 1.0, oldTemperature, offset);
+    const double proposedTemperature = oldTemperature + temperatureIncrement;
     if (!finiteThermalCarry(oldTemperature) || !finiteThermalCarry(proposedTemperature)
         || proposedTemperature < double(minimumTemperature)
         || proposedTemperature > double(maximumTemperature))
         return {false, false, 0.0};
-    const double proposedSpecificHeat = caloric.enthalpy(proposedTemperature)
-        - caloric.enthalpy(oldTemperature);
+    // Integrate the small interval before adding it to the large thermal state.
+    const double proposedSpecificHeat = caloric.enthalpyIncrement(oldTemperature, temperatureIncrement);
     return publishParticleThermalHeat
         (state, proposedSpecificHeat, minimumTemperature, maximumTemperature, caloric);
 }
