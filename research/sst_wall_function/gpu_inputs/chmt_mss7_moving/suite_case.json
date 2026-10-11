@@ -1,0 +1,172 @@
+{
+  "backend_entries": {
+    "cpu_kernel_probes": "host_cases.py --backend cpu (separate explicitly scoped production-kernel tests)",
+    "cpu_reference": "metrics.py compare() after actual native output; never a solver substitute",
+    "native_gpu": "run.py --mode execute --required"
+  },
+  "category": 3,
+  "cells": 4592,
+  "cpu_reference": "NOT_RUN",
+  "end_time": 0.01,
+  "evidence_boundary": "Input generation does not execute a solver. No GPU validation or experimental agreement has been demonstrated.",
+  "gate": "report_only",
+  "generator": "mss7_moving",
+  "id": "mss7_moving",
+  "initialization": [],
+  "inputs_sha256": "beacef9cd1268d6e2180c7c2e2d42ff9f97b24d3cecc555d5fb3441f47d4345f",
+  "limits": {},
+  "material_card": {
+    "ambient_temperature_K": 300.0,
+    "applicability": "100\u20133000 K synthetic constant-density / linear-cp model, finite-rate surface conversion, dry interface; not a physical ablator.",
+    "bulk_reactions": [],
+    "classification": "controlled_synthetic",
+    "condensed": [
+      {
+        "Tmax": 3000.0,
+        "Tmin": 100.0,
+        "conductivity": 1.0,
+        "cp0": 1000.0,
+        "cp1": 0.0,
+        "e0": 0.0,
+        "rho": 1000.0
+      },
+      {
+        "Tmax": 3000.0,
+        "Tmin": 100.0,
+        "conductivity": 1.0,
+        "cp0": 1000.0,
+        "cp1": 0.0,
+        "e0": 0.0,
+        "rho": 1000.0
+      }
+    ],
+    "condensed_names": [
+      "C0",
+      "C1"
+    ],
+    "contact_resistances_m2K_W": [
+      0.0,
+      0.0
+    ],
+    "element_basis": "Synthetic element X with atom mass 0.028 kg/mol; each gas molecule contains one X and each condensed kg contains 1/0.028 mol X. Mass and this synthetic element are conserved; no real chemical species implied.",
+    "emissivity": 0.0,
+    "energy_equation": "u_c=e0+cp0*T+0.5*cp1*T^2; e_g=e0+(cp0-Ru/W)*T+0.5*cp1*T^2. No additional latent heat source is added.",
+    "evaporation": "Disabled",
+    "film": "disabled",
+    "gas_conductivity_W_m_K": 0.03,
+    "gas_diffusivity_m2_s": 2e-05,
+    "gas_phase_reactions": [],
+    "gas_species": [
+      {
+        "Tmax": 3000.0,
+        "Tmin": 100.0,
+        "cp0": 1040.0,
+        "cp1": 0.0,
+        "e0": 0.0,
+        "molar_mass": 0.028,
+        "name": "S0"
+      },
+      {
+        "Tmax": 3000.0,
+        "Tmin": 100.0,
+        "cp0": 1040.0,
+        "cp1": 0.0,
+        "e0": 0.0,
+        "molar_mass": 0.028,
+        "name": "S1"
+      }
+    ],
+    "gas_viscosity_Pa_s": 1.8e-05,
+    "initial_porosity": 0.0,
+    "melting": false,
+    "permeability_m2": 0.0,
+    "pore_viscosity_Pa_s": 1.8e-05,
+    "pyrolysis_products": "S0: synthetic product (100% of surface-converted mass); S1: synthetic carrier. Equal elemental mass composition; no real chemistry implied.",
+    "source": "Verification definition in this file; not measured material data.",
+    "surface_reactions": [
+      {
+        "A": 0.03571428571428571,
+        "activationEnergy": 0.0,
+        "condensedNu": [
+          -0.028,
+          0.0
+        ],
+        "gasNu": [
+          0.028,
+          0.0
+        ],
+        "gasOrder": [
+          0.0,
+          0.0
+        ],
+        "order": [
+          0.0,
+          0.0
+        ],
+        "temperaturePower": 0.0
+      }
+    ],
+    "units": {
+      "activationEnergy": "J/mol",
+      "conductivity": "W/(m K)",
+      "cp0": "J/(kg K)",
+      "cp1": "J/(kg K2)",
+      "e0": "J/kg",
+      "gas_molar_mass": "kg/mol",
+      "permeability": "m2",
+      "poreViscosity": "Pa s",
+      "rho": "kg/m3",
+      "surface_A": "mol/(m2 s) for zero-order, zero temperature-power law; condensedNu/gasNu in kg/mol"
+    }
+  },
+  "mesh": "NOT_RUN",
+  "mesh_commands": [],
+  "metric": "chmt_profiles",
+  "models": {
+    "gas": "frozen mixture; material finite-rate surface reaction",
+    "geometry": "MSS7 3D sector with CoupledRecession and slip lateral faces",
+    "turbulence": "SST"
+  },
+  "native_execution": "NOT_RUN",
+  "options": {
+    "grading": 8.0,
+    "nx": 96,
+    "ny": 48,
+    "solid_ny": 24,
+    "wall": "boundaryLayer_reactingSst",
+    "wall_nodes": 24
+  },
+  "parameters": {
+    "closed": false,
+    "gas_mesh_override": "none",
+    "geometry_adaptation": "Imported 3D sector with wedge patch types replaced by explicit slip-sided patches. Optional user mesh overrides are recorded separately. Not an axisymmetric equation validation.",
+    "geometry_source": "examples/thermal/MSS7_laminar/constant",
+    "pressure": 101325.0,
+    "rho": 0.48746385498816874,
+    "solid_mesh_override": "none",
+    "temperature": 700.0,
+    "velocity": 30.0
+  },
+  "reference": "Geometry-adapted controlled lowRe/highRe comparison; not original MSS7 experiment.",
+  "solver": "CHMT",
+  "source_commit": "085e31ff9a3fdc684e17cae8838d2837dfec3976",
+  "species_count": 2,
+  "time_controls": {
+    "adjustTimeStep": null,
+    "deltaT": "0.00001",
+    "endTime": "0.01",
+    "maxCo": null,
+    "maxDeltaT": null,
+    "timePrecision": null,
+    "writeControl": "timeStep",
+    "writeInterval": "100",
+    "writePrecision": "17"
+  },
+  "validation": "NOT_RUN",
+  "wall_family": "boundaryLayer_reactingSst",
+  "wall_variants": [
+    "lowRe",
+    "boundaryLayer_reactingSst"
+  ],
+  "yplus_policy": "User selects mesh height/grading; report measured y+ only. No automatic y+ tuning or assumed success."
+}
