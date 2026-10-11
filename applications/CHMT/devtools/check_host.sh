@@ -17,7 +17,7 @@ done
 "$build/orchestration"
 "${CXX:-g++}" "${flags[@]}" "$app/tests/test_restart.cpp" "$app/restart/Checkpoint.C" "$app/mesh/Geometry.C" -Wl,--wrap=fsync -o "$build/restart"
 "$build/restart"
-for check in check_cpu_material check_cpu_film check_geometry_tolerances check_sweep_constraints check_cpu_geometry_state check_darcy_accuracy check_reaction_accuracy; do
+for check in check_cpu_material check_cpu_film check_geometry_tolerances check_sweep_constraints check_empty_extrusion check_cpu_geometry_state check_darcy_accuracy check_reaction_accuracy; do
   bash "$app/devtools/multirate/$check.sh"
 done
 python3 -m pytest -q "$app/tests/test_coupling_architecture.py" "$app/tests/test_shared_gas_bindings.py" "$app/tests/test_shared_thermo.py" "$app/tests/test_shared_device_storage.py" "$app/tests/test_shared_backend_compile.py" "$app/tests/test_coupled_runtime_transactions.py" "$app/tests/test_restoration_identity.py"

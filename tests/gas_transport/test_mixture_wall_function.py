@@ -51,8 +51,8 @@ def test_wall_thermo_flux_and_diffusion_use_same_mixture_properties(tmp_path,bit
  const Real cv=s.gasSpecies.heatCapacity[0]-s.gasSpecies.gasConstant[0];
  const Real alpha=expected.conductivity/(s.rho[0]*cv);
  const Real nu=(s.gasMu+mu)/s.rho[0];
- const Real species=2*mu/(s.rho[0]*s.gasSpecies.turbulentSchmidt);
- const Real expectedDiffusion=Real(.5/.25*1e-6*2)*std::max(std::max(nu,alpha),species);
+ // This ordinary impermeable wall has heat/traction but no species channel.
+ const Real expectedDiffusion=Real(.5/.25*1e-6*2)*std::max(nu,alpha);
  ck(std::abs(s.gasDiffusionNumber[0]-expectedDiffusion)<Real(3e-5)*std::abs(expectedDiffusion),"wall timestep conductivity mismatch");
  // Direct physical wall flux carries heat and work once; species/mass remain zero.
  Real mass,mx,my,mz,energy;

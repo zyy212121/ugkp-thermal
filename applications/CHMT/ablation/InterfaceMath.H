@@ -356,6 +356,11 @@ CHMT_HD inline bool evaluateSurfaceTemperature(const SurfacePhysicsInput& in,
     for (int s=0; s<Ns; ++s) Y[s]=in.bulk.Y[s];
     bool compositionConverged=false;
     InterfaceGasClosure wallClosure;
+    // This cache lives only inside this fixed-temperature evaluation. The bulk,
+    // model, geometry and matching state cannot change during this loop.
+    bool wallClosureReady=false;
+    Real wallClosureSpecies[Ns]{},wallClosureSpeed=0;
+    Vec3 wallClosureVelocity{};
     for (int iteration=0; iteration<60; ++iteration) {
         SurfacePhysicsResult trial;
         trial.wet=result.wet;
@@ -487,8 +492,16 @@ CHMT_HD inline bool evaluateSurfaceTemperature(const SurfacePhysicsInput& in,
             if(result.wet){const Vec3 tangent=in.aux.topVelocity-in.normal*dot(in.aux.topVelocity,in.normal);
                 const Real normalVelocity=(trial.gasWallSpeed+filmLoss/(gasRatio*p.liquid.rho)-dot(tangent,in.gasNormal))/gasProjection;
                 velocity=tangent+in.normal*normalVelocity;}
-            if(!evaluateInterfaceGasClosure(in.bulk,in.gradient,topT,in.gasDistance,velocity,in.gasNormal,
-                trial.gasWallSpeed,allSpecies,fluxTolerance,p,in.wallContext,wallClosure))return false;
+            bool sameClosure=wallClosureReady && trial.gasWallSpeed==wallClosureSpeed
+                && velocity.x==wallClosureVelocity.x && velocity.y==wallClosureVelocity.y
+                && velocity.z==wallClosureVelocity.z;
+            for(int s=0;s<Ns;++s) sameClosure=sameClosure && allSpecies[s]==wallClosureSpecies[s];
+            if(!sameClosure){
+                if(!evaluateInterfaceGasClosure(in.bulk,in.gradient,topT,in.gasDistance,velocity,in.gasNormal,
+                    trial.gasWallSpeed,allSpecies,fluxTolerance,p,in.wallContext,wallClosure))return false;
+                wallClosureReady=true;wallClosureSpeed=trial.gasWallSpeed;wallClosureVelocity=velocity;
+                for(int s=0;s<Ns;++s)wallClosureSpecies[s]=allSpecies[s];
+            }
             for(int s=0;s<Ns;++s)nextY[s]=wallClosure.trace.Y[s];
         }else if (!interfaceComposition(allSpecies,in.bulk.Y,in.bulk.pressure,topT,in.gasDistance,
             p,fluxTolerance,nextY)) return false;

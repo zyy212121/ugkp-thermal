@@ -15,12 +15,15 @@ HERE=Path(__file__).resolve().parent
     'applications/gasUGKP/private_backend/GpuResidentStrict.cu',
     'applications/FSH/private_backend/GpuResidentStrict.cu',
     'applications/CHT/gpu/GpuResidentStrict.cu',
+    'applications/CHMT/gpu/Backend.cu',
 ])
 def test_shared_headers_are_global_before_legacy_operator_namespace(tmp_path,consumer):
     app=(ROOT/consumer).read_text().split('\nnamespace',1)[0]
     # Read the exact global shared-gas dependency includes from each entry TU.
-    dependencies='\n'.join(line for line in app.splitlines() if re.match(
-        r'#include "(?:gasTransport/|GpuGasOperatorDependencies\.cuh)',line))
+    dependencies='\n'.join('#include "'+match.group(1)+'"'
+        for line in app.splitlines()
+        if (match:=re.match(
+            r'#include "(?:\.\./\.\./\.\./common/)?((?:gasTransport/|GpuGasOperatorDependencies\.cuh)[^"]*)"',line)))
     probe=(HERE/'gas_state_probe.cpp').read_text()
     begin=probe.index('#include "operators/clampMin.cuh"')
     end=probe.index('\n#ifdef LEGACY_OPTIONAL_SPECIES')

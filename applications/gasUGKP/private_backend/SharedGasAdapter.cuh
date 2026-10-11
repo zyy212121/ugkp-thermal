@@ -1,4 +1,5 @@
 #pragma once
+#include "GasBudgetRuntime.cuh"
 // Host adapter for the native resident backend. No transport/thermo/chemistry
 // formula is implemented here: model parsing and capability gates are common.
 inline ugkwp::GasCapabilityRequest sharedGasCapabilityRequest
@@ -123,6 +124,7 @@ extern "C" int ugkwpGpuResidentStrictConfigureGasModelV1
             else releaseSharedGasSpecies(candidate);
             return 1;
         }
+        if(configureGasBudget(state,model))return 1;
         return 0;
     }
     catch(const std::exception& error)

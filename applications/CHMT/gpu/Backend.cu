@@ -6,10 +6,7 @@
 #include "configuration/CouplingEntry.H"
 #include "coupling/IntervalAudit.H"
 #include "mesh/TrajectorySurface.H"
-#include "../../../common/gasTransport/GasCapabilities.H"
-#include "../../../common/gasTransport/GasBoundaryLayerHost.H"
-#include "../../../common/gasTransport/GasGeometryValidation.H"
-#include "../../../common/gasTransport/SpeciesDiffusion.H"
+#include "../../../common/GpuGasOperatorDependencies.cuh"
 #include "../../../common/GpuPrecisionTypes.H"
 #include "../../../common/gasNumerics/CharacteristicMuscl.cuh"
 #include "../../../common/gasNumerics/OpenFoamLimitedLinear.cuh"
@@ -78,8 +75,6 @@ struct GasPrimDevice {double rho,ux,uy,uz,p,T;};
 #include "../../../common/operators/evaluateGasBoundaryLayerKernel.cuh"
 } // transport
 } // chmt
-// Chemistry header declares its own ugkwp namespace and shared kernel.
-#include "../../../common/operators/advanceGasChemistryKernel.cuh"
 #include "../../../common/GpuGasHostPolicy.cuh"
 namespace chmt { namespace transport {
 thread_local std::string lastError;
@@ -372,7 +367,7 @@ bool advanceGasMicrostep(Backend& b,Real cap,GasMicroReport& report,std::string&
     const std::size_t bytesPerRecord=(b.gasBoundaryLayer.enabled?b.trial.surface.area.size()*sizeof(GasWallMatchingSample):0)+sizeof(GasIntervalRecord)+b.trial.surface.area.size()*(2*sizeof(ExchangePacket)+sizeof(GasPrimitive)+sizeof(GasGradient)+sizeof(Vec3)+sizeof(Real)+sizeof(unsigned));
     if(bytesPerRecord>b.limits.maximumHistoryBytes||b.history.records().size()>=b.limits.maximumHistoryBytes/bytesPerRecord){error="coupled interval history byte bound reached";return false;}
     if(b.history.records().size()>=b.limits.maximumRecords){error="coupled interval history record bound reached";return false;}
-    b.microTime=b.trial.time;Real dt=minValue(cap,minValue(b.model.physics.maxDt,nextGasWallKnot(b.program,b.microTime)-b.microTime));
+    b.microTime=b.trial.time;Real dt=boundedGasMicrostep(b.microTime,nextGasWallKnot(b.program,b.microTime),cap,b.model.physics.maxDt,b.model.physics.minDt);
     for(int retry=0;retry<=b.model.physics.tolerances.maxRetries;++retry){
         if(dt<b.model.physics.minDt||b.microTime+dt<=b.microTime){error="gas microstep minimum dt exhausted";return false;}
         b.microDt=dt;b.error.clear();transport::lastError.clear();
