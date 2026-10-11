@@ -19,7 +19,9 @@ Enabled diagnostics add persistent arrays and both rollback copies. They current
 Verification order: host-shim actual operator RK/limited-flux tests; actual transaction policy accept/reject/interval rollback and disabled-resource tests; real chemistry publication/zero-time/failure tests; CUDA native backend compilation/link; then native GPU small controlled cases when hardware exists. Do not substitute these checks for complete application physical acceptance.
 
 
-## Bounded cost evidence (CUDA 13.1, sm_89, Ns=2 build)
+## Bounded cost evidence (PR7 budget commit 4f260be, CUDA 13.1, sm_89, Ns=2)
+
+These absolute layout/resource measurements precede integration with the PR12 wall branch. Existing wall/SST storage is separate; its full integrated resource counts require a fresh build.
 
 A native sizeof probe using the production DeviceState definition and the same definition with only the new fields removed reports 4368 -> 4408 bytes, alignment 8. The audit view is 32 bytes and host-owner pointer is 8 bytes. Thus even when disabled, each existing host/device state allocation and full-state copy grows by 40 bytes. There is no additional allocation/copy *operation*. The enabled-only host ledger object is 232 bytes on this ABI, plus its vectors, strings, file buffers and temporary read/reduction vectors.
 
