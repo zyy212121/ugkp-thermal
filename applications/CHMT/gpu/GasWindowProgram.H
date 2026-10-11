@@ -61,5 +61,14 @@ inline Real nextGasWallKnot(const WallProgram& program,Real time){
     for(const auto& knot:program.knots)if(knot.time>time)return knot.time;
     return program.interval.end;
 }
+inline Real boundedGasMicrostep(Real time,Real knot,Real cap,Real maximum,Real minimum){
+    const Real remaining=knot-time;
+    Real dt=minValue(cap,minValue(maximum,remaining));
+    // Integrate both pieces; never snap the clock, enlarge a stability cap,
+    // or waive the caller's minimum-step/positive-time-advance checks.
+    if(dt>=minimum&&remaining>dt&&remaining-dt<minimum)dt=.5*remaining;
+    return dt;
+}
+
 }
 #endif
