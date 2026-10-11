@@ -407,3 +407,24 @@ def test_mss7_face_9063_owner_profile_preserves_positive_measure(tmp_path):
   assert(std::sqrt(dot(offsetMoment,offsetMoment))<1e-12*b.m.volumes[0]*.006);
  }
  ''')
+
+
+def test_no_source_quadrature_preserves_geometry_and_invalidates_cache(tmp_path):
+    compile_run(tmp_path, r'''
+for(double skew:{0.,.35}){
+ auto m=cubes(3,skew);WallStatus s;WallGeometryDescriptor<double> full,bare;
+ WallGeometryOptions<double> o;o.profileNodes=24;o.constructQuadrature=true;
+ assert(buildWallGeometry(m,0,full,s,o));assert(!full.distance.empty());
+ o.constructQuadrature=false;assert(buildWallGeometry(m,0,bare,s,o));
+ assert(bare.distance.empty()&&bare.volumeWeight.empty()&&bare.quadraturePoints.empty());
+ assert(bare.volume==full.volume&&bare.ownerDistance==full.ownerDistance&&bare.matchingDistance==full.matchingDistance&&bare.matchingCells==full.matchingCells&&bare.matchingWeights==full.matchingWeights);
+ assert(near(bare.firstMoment,full.firstMoment));for(int j=0;j<3;++j)assert(near(bare.firstMomentVector[j],full.firstMomentVector[j]));
+ WallGeometryCache<double> cache;assert(cache.rebuild(m,{0},s,o));assert(cache.descriptors[0].distance.empty());
+ o.constructQuadrature=true;assert(cache.rebuild(m,{0},s,o));assert(!cache.descriptors[0].distance.empty());
+ o.constructQuadrature=false;++m.geometryVersion;
+ for(auto&p:m.points)p[2]*=1.01;for(auto&p:m.cellCentres)p[2]*=1.01;for(auto&v:m.volumes)v*=1.01;
+ assert(cache.rebuild(m,{0},s,o));assert(cache.descriptors[0].distance.empty());assert(near(cache.descriptors[0].volume,1.01));
+ m.volumes[0]*=2;assert(!buildWallGeometry(m,0,bare,s,o));m.volumes[0]/=2;
+ m.cellCentres[0][0]+=.1;assert(!buildWallGeometry(m,0,bare,s,o));
+}
+''')
