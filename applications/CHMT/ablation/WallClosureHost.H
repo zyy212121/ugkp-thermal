@@ -14,12 +14,8 @@ class WallClosureHost {
     std::unique_ptr<ugkwp::gaswall::WallWorkspace<Real,Ns,128>> largeWorkspace_;
     ugkwp::gaswall::WallStatus failureStatus_;
     ugkwp::gaswall::WallGeometryOptions<Real> geometryOptions_;
-    static ugkwp::gaswall::WallGeometryOptions<Real> geometryOptions(const ugkwp::gaswall::WallModelConfig<Real>& config){
-        ugkwp::gaswall::WallGeometryOptions<Real> options;
-        if(config.family==ugkwp::gaswall::WallFamily::BoundaryLayer
-            &&config.model==ugkwp::gaswall::BoundaryLayerModel::ReactingSst&&config.enableSst){
-            options.profileNodes=config.nodes;options.profileStretch=config.stretch;
-        }
+    static ugkwp::gaswall::WallGeometryOptions<Real> geometryOptions(const ugkwp::gaswall::WallModelConfig<Real>&){
+        ugkwp::gaswall::WallGeometryOptions<Real> options;options.constructQuadrature=false;
         return options;
     }
     std::vector<int> faces_;
@@ -32,6 +28,7 @@ public:
         const auto options=geometryOptions(config);
         return ready_&&version_==version&&faces_==faces
             &&geometryOptions_.relativeTolerance==options.relativeTolerance&&geometryOptions_.maxRayCells==options.maxRayCells
+            &&geometryOptions_.constructQuadrature==options.constructQuadrature
             &&geometryOptions_.quadratureRefinement==options.quadratureRefinement&&geometryOptions_.profileNodes==options.profileNodes
             &&geometryOptions_.profileStretch==options.profileStretch&&geometryOptions_.firstSegmentGaussOrder==options.firstSegmentGaussOrder;
     }
