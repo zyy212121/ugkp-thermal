@@ -114,9 +114,11 @@ public:
         }
         if(!converged)return false;
         output.resize(mesh_.points.size());
-        for(std::size_t p=0;p<output.size();++p)output[p]=mesh_.points[p]+displacement_[p];
-        for(std::size_t p=0;p<output.size();++p)output[p]-=mesh_.points[p];
-        for(std::size_t p=0;p<output.size();++p)if(fixed_[p])output[p]=boundary[p];
+        for(std::size_t p=0;p<output.size();++p) {
+            output[p]=mesh_.points[p]+displacement_[p];
+            output[p]-=mesh_.points[p];
+            if(fixed_[p])output[p]=boundary[p];
+        }
         return true;
     }
 };

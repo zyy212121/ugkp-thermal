@@ -4,6 +4,7 @@
 #include "test_sweep_constraints.cpp"
 #undef main
 #include "mesh/SweepWorkspace.H"
+#include <cstring>
 
 namespace {
 struct LargeFixture {
@@ -338,6 +339,56 @@ void checkOriginalTrajectoryPolynomials() {
     checkRejectedOutputs(x,result);
 }
 
+bool samePointBits(const Vec3& a,const Vec3& b) {
+    return std::memcmp(&a.x,&b.x,sizeof(Real))==0
+        && std::memcmp(&a.y,&b.y,sizeof(Real))==0
+        && std::memcmp(&a.z,&b.z,sizeof(Real))==0;
+}
+
+void checkHarmonicOutputRounding() {
+    HostMesh mesh=tetrahedralBulk();
+    // Preserve the existing graph, but make sub-ULP motion disappear in the
+    // required (old + displacement) - old arithmetic at the interior point.
+    const Real offset=std::ldexp(Real(1),40);
+    for (Vec3& point:mesh.points) point+=Vec3{offset,-offset,offset};
+    std::vector<unsigned char> fixed(mesh.points.size(),1); fixed[4]=0;
+    std::size_t peak=0; sweep_detail::Budget budget(1024*1024,peak);
+    sweep_detail::HarmonicModes modes(mesh,fixed,budget,1e-12);
+    sweep_detail::Points boundary(mesh.points.size(),Vec3{},sweep_detail::Allocator<Vec3>(budget));
+    sweep_detail::Points actual{ sweep_detail::Allocator<Vec3>(budget) };
+    for (Real amplitude:{1e-7,.03}) {
+        std::vector<Vec3> prescribed(mesh.points.size());
+        for (int p=0;p<4;++p)
+            prescribed[p]=boundary[p]=Vec3{.7,-.3,.2}*(amplitude*(p+1));
+        prescribed[0].x=boundary[0].x=-Real(0);
+        prescribed[1].z=boundary[1].z=-Real(0);
+        std::vector<Vec3> expected; std::string error;
+        require(harmonicPointMotion(mesh,prescribed,fixed,expected,error),error);
+        // Keep the previous separate subtraction and fixed-overwrite passes
+        // as the independent reference for the effective output mode.
+        for (std::size_t p=0;p<expected.size();++p) expected[p]-=mesh.points[p];
+        for (std::size_t p=0;p<expected.size();++p) if(fixed[p]) expected[p]=prescribed[p];
+        require(modes.solve(boundary,actual),"rounding-sensitive harmonic graph converges");
+        require(actual.size()==expected.size(),"rounding-sensitive output contains every point");
+        for (std::size_t p=0;p<expected.size();++p) {
+            require(samePointBits(actual[p],expected[p]),"effective output is bitwise equal to the old arithmetic");
+            if(fixed[p]) require(samePointBits(actual[p],boundary[p]),"fixed overwrite preserves boundary bits, including negative zero");
+        }
+        Vec3 weighted{}; Real total=0;
+        for (int p=0;p<4;++p) {
+            const Real weight=1/mag(mesh.points[4]-mesh.points[p]);
+            weighted+=boundary[p]*weight; total+=weight;
+        }
+        const Vec3 directDisplacement=weighted/total;
+        require(samePointBits(actual[4],(mesh.points[4]+directDisplacement)-mesh.points[4]),
+            "free point retains ordered add-then-subtract rounding");
+        require(!samePointBits(actual[4],directDisplacement),"fixture detects replacing output by direct displacement");
+        if(amplitude==1e-7) require(mag(actual[4])==0 && mag(directDisplacement)>0,
+            "sub-ULP interior displacement cancels only through the old arithmetic");
+    }
+    std::cout << "PASS: harmonic output bitwise old arithmetic, cancellation and fixed signed zeros\n";
+}
+
 void checkHarmonicModes() {
     HostMesh mesh=tetrahedralBulk();
     for (Vec3& point:mesh.points) point={1.7*point.x+.13*point.y,.63*point.y+.21*point.z,1.2*point.z};
@@ -367,7 +418,7 @@ void checkHarmonicModes() {
             require(modes.solve(boundary,actual),"cached harmonic graph converges");
             require(actual.size()==expected.size(),"cached harmonic mode contains every point");
             for (std::size_t p=0;p<expected.size();++p)
-                require(actual[p].x==expected[p].x && actual[p].y==expected[p].y && actual[p].z==expected[p].z,
+                require(samePointBits(actual[p],expected[p]),
                     "sorted cached graph preserves the full public harmonic mode at every tested amplitude");
         }
         require(budget.live>0 && peak<=budget.limit,"harmonic cache and scratch are budget-accounted");
@@ -419,7 +470,7 @@ int main(int argc,char** argv) {
     else if (name=="nonlinear") checkNonlinear();
     else if (name=="controls") checkControls();
     else if (name=="trajectory") checkOriginalTrajectoryPolynomials();
-    else if (name=="harmonic") checkHarmonicModes();
+    else if (name=="harmonic") { checkHarmonicModes(); checkHarmonicOutputRounding(); }
     else if (name=="allocator") checkWorkspaceAllocator();
     else {
         require(name=="hex130" || name=="tet130" || name=="tet880" || name=="tet4500","unknown large fixture");

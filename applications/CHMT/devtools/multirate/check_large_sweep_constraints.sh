@@ -13,6 +13,7 @@ trap 'rm -f "$bin"' EXIT
   "$tests/test_large_sweep_constraints.cpp" \
   "$root/applications/CHMT/mesh/Geometry.C" -o "$bin"
 status=0
+python3 "$tests/test_harmonic_output_traversal.py" || status=1
 # Separate processes make every former default-cap regression visible in RED.
 for fixture in hex130 tet130 tet880 near-rank nonlinear controls trajectory harmonic allocator; do
   "$bin" "$fixture" || status=1
