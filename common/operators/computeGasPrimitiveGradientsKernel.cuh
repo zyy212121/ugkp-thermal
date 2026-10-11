@@ -200,7 +200,10 @@ __device__ GPU_OPERATOR_REAL sstBoundaryValue
     {
         if (!omegaField)
         {
-            return s.sstWallTreatment != 1 ? GPU_OPERATOR_R(0.0) : centre;
+            // Selected numerical wall functions use zero normal k gradient;
+            // their material inflow TKE is separately prescribed as zero.
+            return s.sstWallTreatment != 1 && ugkwp::gasBoundaryLayerFaceSlot(s,f)<0
+              ? GPU_OPERATOR_R(0.0) : centre;
         }
         // Copy constrained cell omega to the wall: zero wall diffusion flux.
         return centre;

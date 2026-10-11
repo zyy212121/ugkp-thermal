@@ -317,8 +317,9 @@ __device__ bool computeRiemannGasFaceFluxDevice
             {
                 // A composition contact carries formation energy through the
                 // very same Rusanov dissipation applied to partial densities.
+                // Derived Real flux input only: never feeds back into rhoE storage.
                 ugkpriemann::Conservative leftConserved
-                {{s.rho[own],s.rhoUx[own],s.rhoUy[own],s.rhoUz[own],s.rhoE[own]}};
+                {{s.rho[own],s.rhoUx[own],s.rhoUy[own],s.rhoUz[own],GPU_OPERATOR_REAL(s.rhoE[own])}};
                 constexpr int Ns=ugkwp::GasStateTraits<GasState>::speciesCount;
                 GPU_OPERATOR_REAL leftSpecies[Ns],rightSpecies[Ns];
                 for(int k=0;k<Ns;++k)leftSpecies[k]=s.gasSpecies.rho[k*s.nCells+own];
@@ -327,7 +328,7 @@ __device__ bool computeRiemannGasFaceFluxDevice
                 ugkpriemann::Conservative rightConserved{};
                 if(nei>=0)
                 {
-                    rightConserved=ugkpriemann::Conservative{{s.rho[nei],s.rhoUx[nei],s.rhoUy[nei],s.rhoUz[nei],s.rhoE[nei]}};
+                    rightConserved=ugkpriemann::Conservative{{s.rho[nei],s.rhoUx[nei],s.rhoUy[nei],s.rhoUz[nei],GPU_OPERATOR_REAL(s.rhoE[nei])}};
                     for(int k=0;k<Ns;++k)rightSpecies[k]=s.gasSpecies.rho[k*s.nCells+nei];
                 }
                 else

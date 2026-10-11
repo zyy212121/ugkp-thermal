@@ -1,4 +1,5 @@
 #pragma once
+#include "GpuParticleThermalCarryStorage.cuh"
 __global__ void injectBoundaryParticlesKernel
 (
     DeviceState* sp,
@@ -108,6 +109,7 @@ __global__ void injectBoundaryParticlesKernel
         s.puz[slot] = sourceUz;
         s.pT[slot] =
             clampRange(finiteOr(s.sourceT[j], s.TpMin), s.TpMin, s.TpMax);
+        resetParticleThermalEnthalpyResidual(s, slot, 0);
         s.pTheta[slot] = sourceTheta;
         resetSeparateContactAge(s, slot, 0);
         s.pd[slot] = sampleDiameterAroundDevice(s, finiteOr(s.sourceD[j], s.particleDiameterFallback), rng);
