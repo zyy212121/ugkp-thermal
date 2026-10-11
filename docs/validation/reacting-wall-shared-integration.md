@@ -13,23 +13,45 @@ the core validation results and an actual GPU run.
 Physical total species flux, conductive heat and traction are published as one
 complete conservative wall exchange. Formation enthalpy is included once via
 shared species enthalpy. Matching-plane species flux and reaction integrals are
-diagnostics only. The entire selected owner's k source is replaced once by the
-actual-volume integral. Omega transport/source channels retain the replaced
-coarse discrete row; a finite owner constraint supplies the sixth-channel
-closure, without integrating a singular physical wall omega flux.
+diagnostics only. Selected reactingSst now uses an inventory-based high-Re
+numerical wall-function coupling: actual coarse k production uses numerical
+wall traction and coarse k, destruction uses coarse rho*k*omega, and compression
+uses the finalized gas mass flux. The former unconditioned profile-source
+replacement and subsequent A-prime moment proposal are superseded model
+recommendations, not user requirements. Auxiliary k source/flux do not update
+the coarse inventory. The physical wall has zero k diffusion and zero injected
+TKE for the existing material blowing assumption. Ordinary lowRe/wallFunction
+branches are unchanged. A finite owner omega relation replaces that transport
+row; its constraint ledger remains explicit and there is no independent wall
+omega injection/diffusion.
+
+The exact selected production relation comes from OpenCFD omegaWallFunction,
+not the different Foundation 10 logarithmic-production variant. See
+`docs/REACTING_SST_WALL_FUNCTION_COUPLING.md` for equations and primary sources.
+The stage record grows by one Real per selected face, without additional
+kernels, passes, transfers, Newton solves or persistent subgrid inventories.
+Legacy CSV columns `owner_k_source_integral`/`integratedKSource` and
+`wall_k_flux`/`wallKFlux` remain auxiliary profile diagnostics; they must not be
+labeled applied source or physical coarse wall exchange. Actual applied k
+source/transport impulses are the existing SST audit channels.
+The auxiliary owner-source quadrature is opt-in only for direct BVP research;
+production skips construction/integration/upload and marks that column NaN.
 
 ## Stage lifecycle and necessary work
 
-1. Geometry: CPU mesh extraction and descriptor building occur at configuration
-   or geometry-version rebuild, not each stage. Maps, positive quadrature and
-   matching stencils upload once. Selected wall owners cannot be matching donors.
-   SST owners use profile-node/stretch-aligned positive section quadrature by
-   default; laminar walls retain ordinary geometry quadrature. Its CPU work is
-   initialization/rebuild work, and its device distance/weight storage costs
-   `2*sizeof(Real)*sum(ownerQuadratureCounts)` in addition to face records.
+1. Geometry: CPU mesh extraction and physical descriptor certification occur
+   at configuration or geometry-version rebuild, not each stage. Matching maps
+   upload once per version; selected owners cannot be matching donors. Positive
+   tetrahedra still certify volume and first moments. Production constructs no
+   auxiliary owner-source quadrature, so its point searches, arrays and uploads
+   are absent even with coarse SST budget auditing enabled. Direct research APIs
+   can explicitly request profile-aligned quadrature. BVP nodes/stretch no longer
+   invalidate production geometry for a discarded diagnostic integral.
 2. Outer step proposal: prescribed Js/ALE mass can be evaluated without a BVP.
-   A previously accepted profile source contributes to the preliminary SST bound;
-   only the cold-start missing owner source is omitted from this estimate.
+   Available numerical wall stress and current coarse k/omega contribute to the
+   preliminary SST bound. Cold start uses the coarse SST estimate. Authoritative
+   preflight requires the current wall relation. Advance and prediction use the
+   same source closure and bound P+D+|compression| without cancellation.
 3. Trial: snapshot, first chemistry half-step, recovery, current material boundary
    input, one sparse profile kernel, then authoritative existing stability checks.
    Boundary mirrors and owner projection are moved into this preparation and
@@ -421,3 +443,26 @@ stack and spill counts were not measured by the unmodified standard build
 entry and are not borrowed from earlier binaries. The stacked test PR records
 its separate CPU/reference and CUDA probe results. A successful build, host
 replay or input import does not close the outstanding GPU re-review.
+
+## Inventory-coupling verification (2026-10-11)
+
+The original owner32 SourceStepLimit capture was a native gasUGKP
+`flatplate_fixed` run ending before its requested 0.2 s, not a CHMT runtime.
+Its solver/backend hashes and exact six-face input are retained in
+`research/sst_wall_function/owner32_capture.json`. The new host replay executes
+actual common SST operators to 0.2 s with fixed surrounding gas/donor boundary
+data. This is a control-volume test, not a full 4608-cell gas or CHMT run.
+
+`research/sst_wall_function/run_checks.sh` reproduces that endpoint, conservative
+budget and an independent resolved 1-D U/T/k/omega Couette reference. Numerical
+convergence gates are distinct from reported physical model discrepancies.
+The high-Re coarse k difference is approximately 12–17%; this is not hidden by
+a post-hoc physics acceptance threshold. Shear/heat/omega errors, y+, matching
+distance and reference grid differences are reported alongside it.
+
+The retained original gas flatplate GPU case remains at endTime 0.2. The separate
+retained CHMT MSS7 moving/reacting case remains at its original endTime 0.01.
+`research/sst_wall_function/run_gpu_cases.py` creates clean copies, verifies
+input hashes, records exact binary identity and checks actual terminal output;
+preparation is explicitly NOT_RUN. No full-case GPU runtime result or throughput
+is claimed for the current GPU-free environment.

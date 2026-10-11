@@ -1,0 +1,11 @@
+FoamFile { version 2.0; format ascii; class volVectorField; object U; }
+dimensions [0 1 -1 0 0 0 0];
+internalField uniform (30.0 0 0);
+boundaryField {
+ inlet { type fixedValue; value uniform (30.0 0 0); }
+ outlet { type zeroGradient; }
+ fluid_to_graphite { type fixedValue; value uniform (0 0 0); }
+ wedgeBack { type zeroGradient; }
+ wedgeFront { type zeroGradient; }
+ defaultFaces { type empty; }
+}

@@ -1,0 +1,11 @@
+FoamFile { version 2.0; format ascii; class volScalarField; object T; }
+dimensions [0 0 0 1 0 0 0];
+internalField uniform 700.0;
+boundaryField {
+ inlet { type fixedValue; value uniform 700.0; }
+ outlet { type zeroGradient; }
+ fluid_to_graphite { type zeroGradient; }
+ wedgeBack { type zeroGradient; }
+ wedgeFront { type zeroGradient; }
+ defaultFaces { type empty; }
+}

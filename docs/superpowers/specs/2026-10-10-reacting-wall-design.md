@@ -1,5 +1,15 @@
 # Reacting boundary-layer implementation contract
 
+> SST coupling update, 2026-10-11: the historical owner-source-integral
+> replacement described below is superseded. It was a model recommendation,
+> not a user requirement. Production now uses the actual-inventory high-Re
+> numerical wall function documented in
+> [REACTING_SST_WALL_FUNCTION_COUPLING.md](../../REACTING_SST_WALL_FUNCTION_COUPLING.md).
+> Auxiliary owner quadrature/source remains an explicit direct-research option;
+> production does not construct, transfer, or integrate those diagnostic points.
+> The resolved auxiliary BVP equations and chemistry ownership below remain
+> relevant; their old coarse k coupling must not be reinstated.
+
 ## Scope
 Implement a shared auxiliary reacting-wall family in gasUGKP and CHMT, retaining the existing low-Re and ordinary wall-function families. This document defines the technical interface, inventory ownership, numerical scheme and verification requirements.
 

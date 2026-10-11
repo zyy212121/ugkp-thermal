@@ -1,0 +1,83 @@
+{
+  "backend_entries": {
+    "cpu_kernel_probes": "host_cases.py --backend cpu (separate explicitly scoped production-kernel tests)",
+    "cpu_reference": "metrics.py compare() after actual native output; never a solver substitute",
+    "native_gpu": "run.py --mode execute --required"
+  },
+  "category": 3,
+  "cells": 4608,
+  "completion_fields": [
+    "rho",
+    "p",
+    "T",
+    "U",
+    "rhoE",
+    "Y_A",
+    "Y_B"
+  ],
+  "cpu_reference": "NOT_RUN",
+  "end_time": 0.2,
+  "evidence_boundary": "Input generation does not execute a solver. No GPU validation or experimental agreement has been demonstrated.",
+  "gate": "report_only",
+  "generator": "flatplate",
+  "id": "flatplate_fixed",
+  "initialization": [],
+  "inputs_sha256": "83d2ddaec256f8891f1bca63db326d69104fcdaf41069d63645f4503acb2b80f",
+  "limits": {},
+  "mesh": "NOT_RUN",
+  "mesh_commands": [
+    [
+      "blockMesh"
+    ]
+  ],
+  "metric": "profiles",
+  "models": {
+    "gas": "frozen equal-thermo mixture",
+    "geometry": "fixed",
+    "turbulence": "SST"
+  },
+  "native_execution": "NOT_RUN",
+  "options": {
+    "grading": 8.0,
+    "nx": 96,
+    "ny": 48,
+    "solid_ny": 24,
+    "wall": "boundaryLayer_reactingSst",
+    "wall_nodes": 24
+  },
+  "parameters": {
+    "grading": 8.0,
+    "height": 0.2,
+    "length": 2.0,
+    "nx": 96,
+    "ny": 48,
+    "pressure": 101325.0,
+    "rho": 1.1374156616390603,
+    "temperature": 300.0,
+    "velocity": 70.0,
+    "width": 0.01
+  },
+  "reference": "Same-physics wall-resolved lowRe companion; optional NASA TMR correlation/SST reference with matching operating conditions.",
+  "solver": "gasUGKP",
+  "source_commit": "085e31ff9a3fdc684e17cae8838d2837dfec3976",
+  "species_count": 2,
+  "time_controls": {
+    "adjustTimeStep": "true",
+    "deltaT": "0.00001",
+    "endTime": "0.2",
+    "maxCo": "0.3",
+    "maxDeltaT": "0.00001",
+    "timePrecision": "17",
+    "writeControl": "adjustableRunTime",
+    "writeInterval": "0.02",
+    "writePrecision": "17"
+  },
+  "validation": "NOT_RUN",
+  "wall_family": "boundaryLayer_reactingSst",
+  "wall_variants": [
+    "lowRe",
+    "wallFunction",
+    "boundaryLayer_reactingSst"
+  ],
+  "yplus_policy": "User selects mesh height/grading; report measured y+ only. No automatic y+ tuning or assumed success."
+}

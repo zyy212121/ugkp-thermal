@@ -1,0 +1,11 @@
+FoamFile { version 2.0; format ascii; class volScalarField; object solidEnergyDensity; }
+dimensions [1 -1 -2 0 0 0 0];
+internalField uniform 700000000.0;
+boundaryField {
+ graphite_to_fluid { type zeroGradient; }
+ outerWall { type zeroGradient; }
+ graphiteInlet { type zeroGradient; }
+ graphiteOutlet { type zeroGradient; }
+ wedgeBack { type zeroGradient; }
+ wedgeFront { type zeroGradient; }
+}
