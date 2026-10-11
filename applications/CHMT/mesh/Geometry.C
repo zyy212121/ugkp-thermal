@@ -3,6 +3,7 @@
 #include "mesh/SweepConstraints.H"
 #include "mesh/TrajectorySurface.H"
 #include "mesh/EmptyExtrusion.H"
+#include "mesh/SweepWorkspace.H"
 #include <functional>
 #include <algorithm>
 #include <map>
@@ -586,7 +587,7 @@ namespace chmt {
         // Exact derivatives of the same Simpson-integrated triangle polynomial
         // used by stageIntegrals. No finite-difference rank decision is involved.
         Real sweepDerivative(const HostMesh& old, const std::vector<Vec3>& end,
-            const std::vector<Vec3>& mode, int f) {
+            const Vec3* mode, int f) {
             Real result=0;
             const int begin=old.faceOffsets[f], stop=old.faceOffsets[f+1], ia=old.facePoints[begin];
             for (int k=begin+1;k+1<stop;++k) {
@@ -603,7 +604,7 @@ namespace chmt {
             return result;
         }
         void planarPolynomial(const HostMesh& old, const std::vector<Vec3>& end,
-            const PlanarTriangleConstraint& p, Real out[3], const std::vector<Vec3>* mode=nullptr) {
+            const PlanarTriangleConstraint& p, Real out[3], const Vec3* mode=nullptr) {
             const Vec3 u=old.points[p.b]-old.points[p.a],v=old.points[p.c]-old.points[p.a],
                 w=old.points[p.d]-old.points[p.a];
             const Vec3 da=end[p.a]-old.points[p.a],du=end[p.b]-old.points[p.b]-da,
@@ -613,8 +614,8 @@ namespace chmt {
                 out[1]=triple(du,dv,w)+triple(du,v,dw)+triple(u,dv,dw);
                 out[2]=triple(du,dv,dw);
             } else {
-                const Vec3 eu=(*mode)[p.b]-(*mode)[p.a],ev=(*mode)[p.c]-(*mode)[p.a],
-                    ew=(*mode)[p.d]-(*mode)[p.a];
+                const Vec3 eu=mode[p.b]-mode[p.a],ev=mode[p.c]-mode[p.a],
+                    ew=mode[p.d]-mode[p.a];
                 out[0]=triple(eu,v,w)+triple(u,ev,w)+triple(u,v,ew);
                 out[1]=tripleDerivative(du,dv,w,eu,ev,{})
                     +tripleDerivative(du,v,dw,eu,{},ew)+tripleDerivative(u,dv,dw,{},ev,ew);
@@ -624,10 +625,10 @@ namespace chmt {
         // Row-pivoted, twice-reorthogonalized QR of J^T avoids normal equations.
         // The resulting correction is minimum Euclidean norm in boundary DOFs.
         // Dependent equations are checked for compatibility, never least-squared.
-        bool minimumNormCorrection(std::vector<std::vector<Real>> rows, std::vector<Real> rhs,
-            Real rankTolerance, Real consistencyTolerance, std::vector<Real>& delta, int& rank) {
+        bool minimumNormCorrection(sweep_detail::Rows rows, sweep_detail::Reals rhs,
+            Real rankTolerance, Real consistencyTolerance, sweep_detail::Reals& delta, int& rank) {
             const int nr=static_cast<int>(rows.size()),nc=static_cast<int>(delta.size());
-            std::vector<Real> norm(nr);
+            sweep_detail::Reals norm(nr,0,delta.get_allocator());
             Real largest=0;
             for (int i=0;i<nr;++i) {
                 for (Real x:rows[i]) norm[i]+=x*x;
@@ -661,7 +662,7 @@ namespace chmt {
             for (Real x:delta) if (!finite(x)) return false;
             return true;
         }
-        bool constrainedMotion(const HostMesh& input, const std::vector<int>& faces,
+        bool constrainedMotionImpl(const HostMesh& input, const std::vector<int>& faces,
             const std::vector<Real>& targets, const std::vector<Vec3>& prescribedDisplacement,
             const std::vector<unsigned char>& prescribed, const std::vector<Vec3>& directions,
             Real interval, HostMesh& output, std::vector<Real>& actualSweeps,
@@ -679,8 +680,13 @@ namespace chmt {
                 || (!controls.faceVolumeTolerance.empty()&&controls.faceVolumeTolerance.size()!=faces.size())
                 || !finite(controls.rankTolerance) || controls.rankTolerance<=0 || controls.rankTolerance>=1
                 || controls.maximumIterations<1 || controls.maximumLineSearch<1
-                || controls.maximumDegreesOfFreedom<1 || controls.maximumConstraints<1)
+                || controls.maximumDegreesOfFreedom<0 || controls.maximumConstraints<0
+                || !controls.maximumWorkspaceBytes)
                 return reject(SweepConstraintStatus::InvalidInput,"invalid swept-volume constraint inputs/controls");
+            if(np>static_cast<std::size_t>(std::numeric_limits<int>::max())
+                || input.owner.size()>static_cast<std::size_t>(std::numeric_limits<int>::max())
+                || input.facePoints.size()>static_cast<std::size_t>(std::numeric_limits<int>::max()))
+                return reject(SweepConstraintStatus::SizeLimit,"swept-volume mesh exceeds index representation");
             for (Real tolerance:controls.faceVolumeTolerance)if(!finite(tolerance)||tolerance<=0)
                 return reject(SweepConstraintStatus::InvalidInput,"invalid per-face swept-volume error ceiling");
             HostMesh worldOld=input;
@@ -765,7 +771,10 @@ namespace chmt {
                                 +8*coordinateUncertainty*faceLength*faceLength/scale});
                 }
             }
-            report.constraints=static_cast<int>(faces.size()+3*planar.size());
+            const std::size_t constraintCount=sweep_detail::sum(faces.size(),sweep_detail::product(3,planar.size()));
+            if(constraintCount>static_cast<std::size_t>(std::numeric_limits<int>::max()))
+                return reject(SweepConstraintStatus::SizeLimit,"swept-volume constraints exceed index representation");
+            report.constraints=static_cast<int>(constraintCount);
             std::vector<Vec3> start;
             if (!harmonicPointMotionRepresented(old,prescribedDisplacement,prescribed,start,error,
                 hasEmpty?&extrusion:nullptr)) return false;
@@ -825,15 +834,20 @@ namespace chmt {
                 output=std::move(certified); actualSweeps=std::move(measured);
                 report.status=SweepConstraintStatus::Success; error.clear(); return true;
             }
-            if (report.degreesOfFreedom>controls.maximumDegreesOfFreedom
-                || (np && movable.size()>controls.maximumModeEntries/np))
-                return reject(SweepConstraintStatus::SizeLimit,"swept-volume correction exceeds bounded dense DOF/mode limit");
-            if (report.constraints>controls.maximumConstraints)
-                return reject(SweepConstraintStatus::SizeLimit,"swept-volume correction exceeds bounded dense constraint limit");
+            if ((controls.maximumDegreesOfFreedom && report.degreesOfFreedom>controls.maximumDegreesOfFreedom)
+                || (controls.maximumModeEntries && np && movable.size()>controls.maximumModeEntries/np))
+                return reject(SweepConstraintStatus::SizeLimit,"swept-volume correction exceeds explicit DOF/mode limit");
+            if (controls.maximumConstraints && report.constraints>controls.maximumConstraints)
+                return reject(SweepConstraintStatus::SizeLimit,"swept-volume correction exceeds explicit constraint limit");
             // Lumped reference-surface area is the distortion metric. Shared
             // vertices must carry all incident faces; otherwise minimum Euclidean
             // motion bends a uniformly receding planar multi-face surface.
-            std::vector<Real> pointWeight(np,0);
+            using namespace sweep_detail;
+            sweep_detail::Budget workspace(controls.maximumWorkspaceBytes,report.peakWorkspaceBytes);
+            Reals pointWeight(np,0,Allocator<Real>(workspace));
+            HarmonicModes harmonic(old,prescribed,workspace,1e-12*length);
+            Points boundary(np,Vec3{},Allocator<Vec3>(workspace));
+            Points correction(np,Vec3{},Allocator<Vec3>(workspace));
             for (int f:faces) {
                 const Real share=mag(old.areaVectors[f])/(old.faceOffsets[f+1]-old.faceOffsets[f]);
                 for (int k=old.faceOffsets[f];k<old.faceOffsets[f+1];++k) pointWeight[old.facePoints[k]]+=share;
@@ -841,9 +855,20 @@ namespace chmt {
             Real meanWeight=0; int weighted=0;
             for (int p:hasEmpty?metricMovable:movable) if (pointWeight[p]>0) { meanWeight+=pointWeight[p]; ++weighted; }
             meanWeight=weighted?meanWeight/weighted:1;
-            std::vector<std::vector<Vec3>> modes;
-            for (int p:movable) {
-                std::vector<Vec3> boundary(np),end;
+            const std::size_t columns=movable.size(),rows=residual.size();
+            const std::size_t rowBytes=sum(product(rows,sizeof(Reals)),product(product(rows,columns),sizeof(Real)));
+            const std::size_t qrBytes=sum(rowBytes,product(sum(product(2,rows),columns),sizeof(Real)));
+            const std::size_t modeBytes=product(np,sizeof(Vec3));
+            const std::size_t oneCachedMode=sum(sizeof(Points),modeBytes);
+            const bool cache=workspace.fits(qrBytes)
+                && columns<=(workspace.limit-workspace.live-qrBytes)/oneCachedMode;
+            if(!cache)workspace.check(sum(qrBytes,modeBytes));
+            report.streamedModes=!cache;
+            Vector<Points> modes{Allocator<Points>(workspace)};
+            Points streamedMode{Allocator<Vec3>(workspace)};
+            if(cache)modes.reserve(columns);else streamedMode.resize(np);
+            auto generateMode=[&](int p,Points& end) {
+                std::fill(boundary.begin(),boundary.end(),Vec3{});
                 const Real weight=pointWeight[p]>0?pointWeight[p]:meanWeight;
                 boundary[p]=normalized(directions[p])*(length*::sqrt(meanWeight/weight));
                 if(hasEmpty) {
@@ -851,11 +876,14 @@ namespace chmt {
                     const Real scale=empty_detail::pairedScale(length*::sqrt(meanWeight/weight),length*::sqrt(meanWeight/other));
                     boundary[p]=normalized(directions[p])*scale;boundary[q]=boundary[p];
                 }
-                if (!harmonicPointMotionRepresented(old,boundary,prescribed,end,error,
-                    hasEmpty?&extrusion:nullptr)) return false;
-                for (std::size_t v=0;v<np;++v) end[v]-=old.points[v];
-                // Avoid even roundoff changes to other Dirichlet coordinates.
-                for (std::size_t v=0;v<np;++v) if (prescribed[v]) end[v]=boundary[v];
+                if(!finite(boundary[p]))return errorAt(error,"nonfinite correction boundary mode",p);
+                ++report.modeSolves;
+                if(!harmonic.solve(boundary,end))return errorAt(error,"harmonic point motion did not converge",-1);
+                return true;
+            };
+            if(cache)for(int p:movable) {
+                Points end{Allocator<Vec3>(workspace)};
+                if(!generateMode(p,end))return false;
                 modes.push_back(std::move(end));
             }
             for (int iteration=0;iteration<=controls.maximumIterations;++iteration) {
@@ -869,17 +897,22 @@ namespace chmt {
                     report.status=SweepConstraintStatus::Success; error.clear(); return true;
                 }
                 if (iteration==controls.maximumIterations) break;
-                std::vector<std::vector<Real>> jacobian(residual.size(),std::vector<Real>(modes.size()));
-                for (std::size_t j=0;j<modes.size();++j) {
+                Rows jacobian{Allocator<Reals>(workspace)};
+                jacobian.reserve(rows);
+                for(std::size_t i=0;i<rows;++i)jacobian.emplace_back(columns,0,Allocator<Real>(workspace));
+                for (std::size_t j=0;j<columns;++j) {
+                    if(!cache && !generateMode(movable[j],streamedMode))return false;
+                    const auto& mode=cache?modes[j]:streamedMode;
                     std::size_t row=0;
                     for (std::size_t i=0;i<faces.size();++i)
-                        jacobian[row++][j]=sweepDerivative(old,points,modes[j],faces[i])/sweepScale[i];
+                        jacobian[row++][j]=sweepDerivative(old,points,mode.data(),faces[i])/sweepScale[i];
                     for (const auto& p:planar) {
-                        Real derivative[3]; planarPolynomial(old,points,p,derivative,&modes[j]);
+                        Real derivative[3]; planarPolynomial(old,points,p,derivative,mode.data());
                         for (Real value:derivative) jacobian[row++][j]=value/p.scale;
                     }
                 }
-                std::vector<Real> rhs=residual,delta(modes.size());
+                Reals rhs(residual.begin(),residual.end(),Allocator<Real>(workspace));
+                Reals delta(columns,0,Allocator<Real>(workspace));
                 Real maxResidual=0;
                 for (Real& r:rhs) { maxResidual=maxValue(maxResidual,absValue(r)); r=-r; }
                 if (!minimumNormCorrection(std::move(jacobian),std::move(rhs),controls.rankTolerance,
@@ -888,9 +921,12 @@ namespace chmt {
                         << report.rank << " of " << report.constraints << ", boundary DOFs " << report.degreesOfFreedom;
                     return reject(SweepConstraintStatus::Incompatible,detail.str());
                 }
-                std::vector<Vec3> correction(np);
-                for (std::size_t j=0;j<modes.size();++j)
-                    for (std::size_t p=0;p<np;++p) correction[p]+=modes[j][p]*delta[j];
+                std::fill(correction.begin(),correction.end(),Vec3{});
+                for (std::size_t j=0;j<columns;++j) {
+                    if(!cache && !generateMode(movable[j],streamedMode))return false;
+                    const auto& mode=cache?modes[j]:streamedMode;
+                    for (std::size_t p=0;p<np;++p) correction[p]+=mode[p]*delta[j];
+                }
                 bool accepted=false;
                 std::string lastInvalid;
                 for (int backtrack=0;backtrack<controls.maximumLineSearch;++backtrack) {
@@ -916,6 +952,27 @@ namespace chmt {
                 }
             }
             return reject(SweepConstraintStatus::Nonconverged,"swept-volume constraint iteration limit; residual not accepted");
+        }
+        bool constrainedMotion(const HostMesh& input,const std::vector<int>& faces,
+            const std::vector<Real>& targets,const std::vector<Vec3>& displacement,
+            const std::vector<unsigned char>& fixed,const std::vector<Vec3>& directions,
+            Real interval,HostMesh& output,std::vector<Real>& sweeps,SweepConstraintReport& report,
+            std::string& error,const SweepConstraintControls& controls,
+            const TrajectoryCheck& extraCheck,const Tolerances& tolerances) {
+            try {
+                return constrainedMotionImpl(input,faces,targets,displacement,fixed,directions,interval,
+                    output,sweeps,report,error,controls,extraCheck,tolerances);
+            } catch(const sweep_detail::WorkspaceLimit&) {
+                report.status=SweepConstraintStatus::SizeLimit;
+                error="swept-volume correction workspace budget exceeded";
+            } catch(const std::bad_alloc&) {
+                report.status=SweepConstraintStatus::SizeLimit;
+                error="swept-volume geometry allocation failed";
+            } catch(const std::length_error&) {
+                report.status=SweepConstraintStatus::SizeLimit;
+                error="swept-volume geometry allocation size overflow";
+            }
+            return false;
         }
     }
     bool constrainFaceSweeps(const HostMesh& old, const std::vector<int>& faces,
