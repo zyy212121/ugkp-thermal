@@ -22,7 +22,3 @@ gpuCsrHeavyReductionAutoInterval 1000;
 
 gpuParticleBlockThreads         32;
 gpuReductionBlockThreads        32;
-
-
-
-gpuPrecision 32;
