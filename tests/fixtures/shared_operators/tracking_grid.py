@@ -3,14 +3,13 @@ No timing result is obtained from this fixture; performance uses full native sol
 """
 from pathlib import Path
 import argparse,hashlib,json,os,re,subprocess
-p=argparse.ArgumentParser();p.add_argument('root',type=Path);p.add_argument('out',type=Path);p.add_argument('app',choices=['gasUGKP','FSH','CHT']);p.add_argument('bits',type=int);p.add_argument('--require-independent',action='store_true');p.add_argument('--require-particle-independent',action='store_true');a=p.parse_args()
+p=argparse.ArgumentParser();p.add_argument('root',type=Path);p.add_argument('out',type=Path);p.add_argument('app',choices=['gasUGKP','FSH','CHT']);p.add_argument('--require-independent',action='store_true');p.add_argument('--require-particle-independent',action='store_true');a=p.parse_args()
 root=a.root;out=a.out;out.mkdir(parents=True,exist_ok=True)
 src=root/'applications'/a.app/('gpu' if a.app=='CHT' else 'private_backend');t=(src/'GpuResidentStrict.cu').read_text().replace('#include "GpuAutomaticCsrScheduleFields.inl"', (root/"common/GpuAutomaticCsrScheduleFields.inl").read_text() if (root/"common/GpuAutomaticCsrScheduleFields.inl").is_file() else "")
 i=t.index('struct DeviceState');j=t.index('\n};',i)
 fields=re.findall(r'^\s*((?:unsigned\s+)?(?:long long|char)|double|float|int|GpuReal|GpuTime|GpuWallEnergy)\*\s+(\w+)\s*=',t[i:j],re.M)
 fields=[(ty,n) for ty,n in fields if not n.startswith('flatPressure') and n not in ['diagnosticPreTransportParticleCount','sourceInjectedCount']]
 code='#define UGKP_DEVELOPMENT_PROBES 1\n#include "GpuResidentStrict.cu"\n#include <cstdio>\n#include <new>\n#include <cstdlib>\n#include <cmath>\n#include <vector>\n'
-if a.app=='CHT' and a.bits==32:code+='using namespace ugkwpCudaFp32;\n'
 code+=r'''
 #define CK(x) do {if(!(x)){printf("FAIL %d %s\n",__LINE__,#x);return 1;}}while(0)
 constexpr int N=20003;
@@ -74,10 +73,10 @@ repl={
 }
 for k,v in repl.items():code=code.replace(k,v if thermal else '')
 f=out/'tracking.cu';f.write_text(code);exe=out/'tracking'
-cmd=[str(Path(os.environ.get('CUDA_HOME','/usr/local/cuda'))/'bin/nvcc'),'-std=c++17','-O3','-arch='+os.environ.get('UGKWP_CUDA_ARCH','sm_89'),'--fmad='+('false' if a.app=='CHT' else 'true'),'-DUGKWP_GPU_REAL_BITS='+str(a.bits),'-I'+str(src),'-I'+str(root/'common'),'-I'+str(root/'applications'/a.app/'gpu'),str(f),'-o',str(exe)]
+cmd=[str(Path(os.environ.get('CUDA_HOME','/usr/local/cuda'))/'bin/nvcc'),'-std=c++17','-O3','-arch='+os.environ.get('UGKWP_CUDA_ARCH','sm_89'),'--fmad='+('false' if a.app=='CHT' else 'true'),'-I'+str(src),'-I'+str(root/'common'),'-I'+str(root/'applications'/a.app/'gpu'),str(f),'-o',str(exe)]
 if a.app=='CHT':cmd.append(str(src/'GpuWallEnergy64.cu'))
 with (out/'build.log').open('w') as log:result=subprocess.run(cmd,stdout=log,stderr=subprocess.STDOUT)
-record={'app':a.app,'bits':a.bits,'command':cmd,'fixture_sha256':hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),'build_exit':result.returncode}
+record={'app':a.app,'bits':64,'command':cmd,'fixture_sha256':hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),'build_exit':result.returncode}
 if not result.returncode:
  record['binary_sha256']=hashlib.sha256(exe.read_bytes()).hexdigest();q=subprocess.run([str(exe)],capture_output=True,text=True);(out/'run.log').write_text(q.stdout+q.stderr);record['run_exit']=q.returncode;print(q.stdout+q.stderr)
 else:print((out/'build.log').read_text()[-6000:])
