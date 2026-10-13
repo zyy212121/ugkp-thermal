@@ -16,9 +16,6 @@
 #ifndef MH04_CHT
 #error "Define MH04_CHT=1 for CHT or 0 otherwise"
 #endif
-#if MH04_CHT && UGKWP_GPU_REAL_BITS == 32
-using namespace ugkwpCudaFp32;
-#endif
 
 namespace mh04_fixture
 {
@@ -30,7 +27,7 @@ constexpr int countPoison = -777;
 constexpr int countGuard = 654321;
 constexpr Real valuePoison = Real(-123.0);
 constexpr Real valueGuard = Real(987654.0);
-constexpr long double tolerance = sizeof(Real) == 4 ? 6e-6L : 3e-12L;
+constexpr long double tolerance = 3e-12L;
 const char* activePath = "initialization";
 int activeBlock = 0;
 int activeVolumeCase = 0;
