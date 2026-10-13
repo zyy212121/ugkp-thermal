@@ -15,10 +15,8 @@ namespace Foam
 {
 namespace gpuThermal
 {
-
 namespace
 {
-
 [[noreturn]] void propertiesFailure
 (
     const word& propertyName,
@@ -36,51 +34,15 @@ bool finiteScalar(const scalar value)
     return std::isfinite(static_cast<double>(value));
 }
 
-void validatePropertyValue
-(
-    const word& propertyName,
-    const scalar value,
-    const label nodeI
-)
-{
-    std::ostringstream context;
-    context.precision(17);
-    if (nodeI >= 0)
-    {
-        context << "table value at node " << nodeI;
-    }
-    else
-    {
-        context << "constant value";
-    }
-
-    if (!finiteScalar(value))
-    {
-        propertiesFailure
-        (
-            propertyName,
-            context.str() + " must be finite"
-        );
-    }
-
-}
-
 scalar checkedProduct
 (
     const scalar first,
     const scalar second,
-    const std::string& context
+    const char* context
 )
 {
     const scalar product = first*second;
-    if (!finiteScalar(product))
-    {
-        propertiesFailure
-        (
-            "rho/Cp",
-            context + " product is nonfinite"
-        );
-    }
+
     return product;
 }
 
@@ -123,7 +85,6 @@ GpuSolidThermalProperties::readProperty
         property.constant = true;
         property.constantValue =
             propertyDictionary.lookup<scalar>("value", false, false);
-        validatePropertyValue(propertyName, property.constantValue, -1);
         return property;
     }
 
@@ -198,15 +159,7 @@ GpuSolidThermalProperties::readProperty
     {
         const scalar temperature = nodes[nodeI].first();
         const scalar value = nodes[nodeI].second();
-        if (!finiteScalar(temperature))
-        {
-            propertiesFailure
-            (
-                propertyName,
-                "table temperature axis must be finite"
-            );
-        }
-        validatePropertyValue(propertyName, value, nodeI);
+
         property.temperatures[nodeI] = temperature;
         property.values[nodeI] = value;
     }
@@ -240,10 +193,6 @@ scalar GpuSolidThermalProperties::evaluate
     const scalar temperature
 )
 {
-    if (!finiteScalar(temperature))
-    {
-        propertiesFailure(property.name, "query temperature must be finite");
-    }
     if (property.constant)
     {
         return property.constantValue;
@@ -261,7 +210,6 @@ scalar GpuSolidThermalProperties::evaluate
               ? property.values.first()
               : property.values.last();
         }
-
     }
 
     if (temperature == property.temperatures.last())
@@ -291,7 +239,7 @@ scalar GpuSolidThermalProperties::evaluate
       ? 0
       : temperature > property.temperatures.last()
       ? property.temperatures.size() - 2
-      : first - 1;
+      : std::max(label(0), std::min(first - 1, property.temperatures.size() - 2));
     const scalar x0 = property.temperatures[lowerI];
     const scalar x1 = property.temperatures[lowerI + 1];
     if (temperature == x0)
@@ -307,15 +255,10 @@ scalar GpuSolidThermalProperties::evaluate
     scalar fraction = scalar(0);
     if (finiteScalar(directWidth))
     {
-        if (directWidth == scalar(0))
-        {
-            propertiesFailure(property.name, "selected interpolation interval has zero width");
-        }
         fraction = (temperature - x0)/directWidth;
     }
     else
     {
-
         const scalar scale = std::max(std::abs(x0), std::abs(x1));
         const scalar scaledX0 = x0/scale;
         const scalar scaledX1 = x1/scale;
@@ -323,23 +266,13 @@ scalar GpuSolidThermalProperties::evaluate
         fraction =
             (scaledTemperature - scaledX0)/(scaledX1 - scaledX0);
     }
-    if
-    (
-        !finiteScalar(fraction)
-    )
-    {
-        propertiesFailure(property.name, "invalid interpolation fraction");
-    }
 
     const scalar lowerValue = property.values[lowerI];
     const scalar upperValue = property.values[lowerI + 1];
     const scalar result = fraction <= scalar(0.5)
       ? lowerValue + fraction*(upperValue - lowerValue)
       : upperValue + (scalar(1) - fraction)*(lowerValue - upperValue);
-    if (!finiteScalar(result))
-    {
-        propertiesFailure(property.name, "interpolated value is nonfinite");
-    }
+
     return result;
 }
 
@@ -369,7 +302,12 @@ scalarField GpuSolidThermalProperties::buildRhoCpKnotUnion
         Cp.temperatures.begin(),
         Cp.temperatures.end()
     );
-    std::sort(knots.begin(), knots.end());
+    // Keep the finite ordering, with unordered IEEE knots after ordered ones.
+    // This supplies a strict weak ordering without rejecting supplied values.
+    std::sort(knots.begin(), knots.end(), [](scalar a, scalar b)
+    {
+        return std::isnan(b) ? !std::isnan(a) : (!std::isnan(a) && a < b);
+    });
     knots.erase(std::unique(knots.begin(), knots.end()), knots.end());
 
     scalarField result(static_cast<label>(knots.size()));
@@ -392,14 +330,7 @@ scalar GpuSolidThermalProperties::selectReferenceTemperature
     }
 
     const scalar reference = std::max(lowerBound(rho), lowerBound(Cp));
-    if (!finiteScalar(reference))
-    {
-        propertiesFailure
-        (
-            "rho/Cp",
-            "tables have no common finite reference temperature"
-        );
-    }
+
     return reference;
 }
 
@@ -443,11 +374,6 @@ scalar GpuSolidThermalProperties::integrateRhoCp
     const scalar upperTemperature
 ) const
 {
-    if (!finiteScalar(lowerTemperature) || !finiteScalar(upperTemperature))
-    {
-        propertiesFailure("rho/Cp", "enthalpy temperatures must be finite");
-    }
-
     if (lowerTemperature == upperTemperature)
     {
         return scalar(0);
@@ -462,10 +388,6 @@ scalar GpuSolidThermalProperties::integrateRhoCp
     [&](const scalar a, const scalar b)
     {
         const scalar width = b - a;
-        if (!finiteScalar(width))
-        {
-            propertiesFailure("rho/Cp", "invalid enthalpy integration interval");
-        }
 
         const scalar rho0 = evaluate(rho_, a);
         const scalar rho1 = evaluate(rho_, b);
@@ -500,38 +422,12 @@ scalar GpuSolidThermalProperties::integrateRhoCp
           + rho0Cp1
           + rho1Cp0
           + scalar(2)*rho1Cp1;
-        if
-        (
-            !finiteScalar(weightedEndpointProducts)
-        )
-        {
-            propertiesFailure
-            (
-                "rho/Cp",
-                "weighted endpoint products are nonfinite"
-            );
-        }
 
         const scalar segmentIntegral =
             (width/scalar(6))*weightedEndpointProducts;
-        if (!finiteScalar(segmentIntegral))
-        {
-            propertiesFailure
-            (
-                "rho/Cp",
-                "forward enthalpy segment is nonfinite"
-            );
-        }
 
         const scalar accumulated = integral + segmentIntegral;
-        if (!finiteScalar(accumulated))
-        {
-            propertiesFailure
-            (
-                "rho/Cp",
-                "forward enthalpy integral is nonfinite"
-            );
-        }
+
         integral = accumulated;
     };
 
@@ -546,15 +442,6 @@ scalar GpuSolidThermalProperties::integrateRhoCp
         }
     }
     integrateSegment(segmentLower, upperTemperature);
-
-    if (!finiteScalar(integral))
-    {
-        propertiesFailure
-        (
-            "rho/Cp",
-            "forward enthalpy integral is nonfinite"
-        );
-    }
 
     return integral;
 }
@@ -579,7 +466,6 @@ scalar GpuSolidThermalProperties::Csec
     const scalar oldTemperature
 ) const
 {
-
     if (trialTemperature == oldTemperature)
     {
         return checkedProduct
@@ -590,20 +476,10 @@ scalar GpuSolidThermalProperties::Csec
     }
 
     const scalar deltaTemperature = trialTemperature - oldTemperature;
-    if (!finiteScalar(deltaTemperature) || deltaTemperature == scalar(0))
-    {
-        propertiesFailure
-        (
-            "rho/Cp",
-            "nonzero secant temperature difference is invalid"
-        );
-    }
+
     const scalar secant =
         deltaHv(trialTemperature, oldTemperature)/deltaTemperature;
-    if (!finiteScalar(secant))
-    {
-        propertiesFailure("rho/Cp", "secant heat capacity is nonfinite");
-    }
+
     return secant;
 }
 
