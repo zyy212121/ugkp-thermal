@@ -86,7 +86,9 @@ int main(){
  check(materialDriveSlabEnd(history,0,1,.05,1,end,count,error),"mechanical drive slab");near(end,.5,"mechanical pressure changes limit material lag");
  for(Real invalid:{Real(0),Real(-1),std::numeric_limits<Real>::quiet_NaN()}){
   IntervalHistory bad;check(bad.begin(interval,error),"invalid history begin");setMechanical(a.gasWallMatching[0],invalid);
-  check(!bad.appendAccepted(a,error),"missing or invalid mechanical pressure is rejected");
+  check(bad.appendAccepted(a,error),"actual numerical mechanical pressure retained");
+  const auto actual=bad.records()[0].gasWallMatching[0].mechanicalPressure;
+  check(actual==invalid||(std::isnan(actual)&&std::isnan(invalid)),"matching history field changed");
  }
 }
 '''

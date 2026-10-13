@@ -71,6 +71,14 @@ int main(int argc,char** argv){
     if(!detail::ConductionContinuation::predict(terminal,inconsistent,interval,program,error,&report)){std::cerr<<error<<'\n';return 4;}
     assert(program.knots.size()==2&&program.knots.back().time==dt&&program.knots.back().faces.size()==4);
     for(const auto& face:program.knots.back().faces)assert(face.temperature==3000);
+    // No recorded matching snapshot: consume the supplied gas through the
+    // actual host sampling, closure contexts and CPU surface continuation.
+    HostState supplied=base;for(auto& q:supplied.gas)q.energy=NAN;
+    GasPrimitive absent;assert(!recoverGas(supplied.gas[0],supplied.gasMesh.volumes[0],p,absent));
+    if(!detail::ConductionContinuation::predict(normal,supplied,interval,program,error,&report)){std::cerr<<error<<'\n';return 6;}
+    assert(program.knots.size()==2&&program.knots.back().time==dt&&program.knots.back().faces.size()==4);
+    for(const auto& face:program.knots.back().faces)assert(face.temperature!=0);
+    supplied.gas.clear();assert(!detail::ConductionContinuation::predict(normal,supplied,interval,program,error,&report));
     ModelConfig moving=model;moving.physics.meshMotion.policy=MeshMotionPolicy::CoupledRecession;
     CpuMaterialDriver movingDriver(moving,&mesh);HostState movedBase=base;movedBase.solidSweepRemainder.assign(4,.01);
     assert(!movingDriver.predictWall(movedBase,interval,program,error,&report));

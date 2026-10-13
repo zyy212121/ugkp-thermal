@@ -65,13 +65,19 @@ def test_single_active_species_uses_legacy_fields_without_species_allocation(tmp
 
 def test_single_species_binding_keeps_math_and_admits_program_metadata(tmp_path):
     run_probe(tmp_path,r'''
- Fixture f;auto bad=f.gas;bad.coefficients[2]=1;
- assert(!bindSingleGasModel(bad,"A",f.model,f.error));
+ Fixture f;auto supplied=f.gas;supplied.coefficients[2]=1;
+ assert(bindSingleGasModel(supplied,"A",f.model,f.error));
+ assert(f.model.physics.species[0].e0==1&&f.model.physics.species[0].cp0==1040);
  assert(bindSingleGasModel(f.gas,"A",f.model,f.error));
+ assert(f.model.physics.species[0].e0==0&&f.model.physics.species[0].cp0==1040);
  f.gas.mode=ugkwp::GasMode::SingleLegacy;
  std::unique_ptr<Backend,void(*)(Backend*)> b(createBackend(f.model,f.gas,{},GasExecutionOptions{},f.h,f.error),destroyBackend);assert(b);
  f.program.knots.back().faces[0].speciesRate[1]=1;
- assert(beginGasWindow(*b,f.program,f.error));assert(b->pending);
+ assert(beginGasWindow(*b,f.program,f.error));
+ assert(b->program.knots.back().faces[0].speciesRate[1]==1);
+ assert(b->history.interval().begin==f.program.interval.begin&&b->history.interval().end==f.program.interval.end);
+ assert(b->history.records().empty()&&b->elapsed==WindowTime{});
+ assert(b->trial.time==b->accepted.time&&b->trial.gas[0].energy==b->accepted.gas[0].energy);
  ''')
 
 def test_nonzero_gas_gravity_is_explicitly_rejected(tmp_path):
@@ -175,7 +181,7 @@ HostMesh box(double low,double high){
  std::string error;assert(rebuildGeometry(m,error));return m;
 }
 int main(){
- for(bool single:{false,true})for(bool sst:{false,true}){
+ for(bool single:{false,true})for(bool sst:{false,true})for(int integrator:{1,2,3})for(bool diagnosed:{false,true}){
  Fixture f;f.h.gasMesh=box(0,1);f.h.solidMesh=box(-1,0);f.h.gasMesh.boundaryKind[0]=BoundaryKind::Interface;
  f.h.solidMesh.boundaryKind[1]=BoundaryKind::Interface;
  f.h.surface.gasFace={0};f.h.surface.solidFace={1};f.h.surface.normal={{0,0,1}};
@@ -183,6 +189,7 @@ int main(){
  f.h.surface.oldArea=f.h.surface.area;f.h.surface.gasDistance={.5};f.h.surface.solidDistance={.5};
  f.h.gas[0].energy=(f.model.physics.species[0].cp0-f.model.physics.species[0].R)*600;
  f.model.physics.meshMotion.policy=MeshMotionPolicy::CoupledRecession;f.model.physics.enableSst=sst;
+ if(diagnosed)f.model.physics.tolerances.absoluteGeometry=-1;
  if(sst){f.h.sst={{1,10}};f.model.physics.gasViscosity=1e-5;}
  f.program.surface=f.h.surface;f.program.interval.end=1e-5;
  for(auto& knot:f.program.knots){knot.gasPoints=f.h.gasMesh.points;knot.solidPoints=f.h.solidMesh.points;
@@ -191,7 +198,7 @@ int main(){
  for(auto& p:end.gasPoints)if(p.z==0)p.z-=1e-8;
  for(auto& p:end.solidPoints)if(p.z==0)p.z-=1e-8;
  if(single){assert(bindSingleGasModel(f.gas,"A",f.model,f.error));f.gas.mode=ugkwp::GasMode::SingleLegacy;}
- GasExecutionOptions options;options.turbulenceModel=sst?3:0;
+ GasExecutionOptions options;options.turbulenceModel=sst?3:0;options.timeIntegrator=integrator;
  std::unique_ptr<Backend,void(*)(Backend*)> b(createBackend(f.model,f.gas,{},options,f.h,f.error),destroyBackend);
  if(!b){std::cerr<<f.error<<'\n';return 1;}
  assert(beginGasWindow(*b,f.program,f.error));GasMicroReport report;
@@ -204,6 +211,8 @@ int main(){
  assert(std::abs(b->trial.sst[0].rhoK-f.h.sst[0].rhoK-a.transportK-a.sourceK-a.constraintK)<1e-10);}
  assert(rollbackGasWindow(*b,f.error));assert(b->trial.gasMesh.volumes==f.h.gasMesh.volumes);
  assert(b->storage.hostView().gasGeometry.enabled==false);assert(b->trial.gas[0].energy==f.h.gas[0].energy);
+ if(!single&&!sst&&integrator==1){assert(beginGasWindow(*b,f.program,f.error));for(auto& knot:b->program.knots)knot.gasPoints.clear();
+  assert(!advanceGasMicrostep(*b,1e-5,report,f.error));assert(!b->poisoned);}
  }
 }
 ''')

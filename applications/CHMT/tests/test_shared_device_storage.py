@@ -45,7 +45,7 @@ int main(){
  assert(storage.bindStageGeometry(stage));assert(v.gasGeometry.absoluteGeometryTolerance==1e-7&&v.gasGeometry.relativeGeometryTolerance==2e-6);
  assert(v.gasGeometry.oldVolume!=stage.oldVolume.data());assert(storage.refreshView());assert(storage.deviceView()->gasGeometry.relativeGeometryTolerance==2e-6);
  assert(storage.clearGeometry());
- assert(storage.checkStatus(error));v.gasSpecies.faceStatus[1]=7;assert(!storage.checkStatus(error));
+ assert(storage.checkStatus(error));v.gasSpecies.faceStatus[1]=7;assert(storage.checkStatus(error));v.gasSpecies.faceStatus[1]=int(ugkwp::GasTransportCode::InvalidStorage);assert(!storage.checkStatus(error));
  assert(storage.clearTrialStatus());assert(storage.checkStatus(error));
 }
 '''

@@ -26,7 +26,7 @@ int main(){
  auto* workspace=contexts[0].workspace;gas[1].temperature=850;gas[0].pressure=130000;
  assert(host.sample(gas,sst,true,samples,error));assert(host.contexts(samples,{},p.wallModel,contexts,error));assert(contexts[0].workspace==workspace);assert(contexts[0].matching.temperature==850);assert(contexts[0].mechanicalPressure==130000);
  samples[0].mechanicalPressure=0;assert(!host.contexts(samples,{},p.wallModel,contexts,error));
- gas[0].pressure=0;assert(!host.sample(gas,sst,true,samples,error));gas[0].pressure=130000;
+ gas[0].pressure=0;assert(host.sample(gas,sst,true,samples,error));assert(samples[0].mechanicalPressure==0);gas[0].pressure=130000;
  // BVP node changes cannot create or invalidate unused diagnostic geometry.
  assert(host.descriptors()[0].distance.empty());auto config=p.wallModel;
  config.family=WallFamily::BoundaryLayer;config.model=BoundaryLayerModel::ReactingSst;config.enableSst=true;config.nodes=24;config.stretch=2;

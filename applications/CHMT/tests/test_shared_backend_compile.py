@@ -35,6 +35,9 @@ inline int cudaGraphLaunch(void*,void*){return 0;}
     thrust=tmp_path/'thrust';(thrust/'system/cuda').mkdir(parents=True)
     (thrust/'device_ptr.h').write_text('#pragma once\nnamespace thrust {template<class T> T* device_pointer_cast(T* p){return p;}}\n')
     (thrust/'reduce.h').write_text('#pragma once\nnamespace thrust {template<class P,class I,class T,class F>T reduce(P,I first,I last,T value,F combine){for(;first!=last;++first)value=combine(value,*first);return value;}}\n')
+    (thrust/'iterator').mkdir()
+    (thrust/'iterator/counting_iterator.h').write_text('#pragma once\nnamespace thrust {struct Counting {int x;int operator*()const{return x;}Counting&operator++(){++x;return *this;}Counting operator+(int n)const{return {x+n};}bool operator!=(Counting b)const{return x!=b.x;}};inline Counting make_counting_iterator(int x){return {x};}}\n')
+    (thrust/'transform_reduce.h').write_text('#pragma once\nnamespace thrust {template<class P,class I,class Map,class T,class F>T transform_reduce(P,I first,I last,Map map,T value,F combine){for(;first!=last;++first)value=combine(value,map(*first));return value;}}\n')
     (thrust/'system/cuda/execution_policy.h').write_text('#pragma once\nnamespace thrust {namespace cuda {struct Policy {Policy on(void*)const{return {};}};inline Policy par;}}\n')
     tree=tmp_path/'tree';(tree/'applications/CHMT/gpu').mkdir(parents=True);(tree/'common').mkdir()
     for p in (ROOT/'common').iterdir():

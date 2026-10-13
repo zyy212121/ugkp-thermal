@@ -60,11 +60,13 @@ int main(){
     in.preparedLayer=&prepared;in.wallContext.workspace=nullptr;
     GasWallResult reused;check(evaluateGasWall(in,id,p,reused),"prepared device closure reused without duplicate solve");
     near(reused.primary.energy,gas.primary.energy,"auxiliary chemistry cannot enter exchange packet");
-    prepared.traceTemperature+=1;check(!evaluateGasWall(in,id,p,reused),"stale material Tw in prepared output rejected");
+    prepared.traceTemperature+=1;check(evaluateGasWall(in,id,p,reused),"stale prepared Tw selects actual closure");
+    near(reused.layer.traceTemperature,in.temperature,"fresh prescribed Tw recomputed");
+    near(reused.primary.energy,gas.primary.energy,"fresh closure matches original input");
     prepared.traceTemperature-=1;
     auto invalid=p;invalid.material.gasContactResistance=.1;
-    GasWallResult sentinel=gas;check(!evaluateGasWall(in,id,invalid,sentinel),"temperature jump rejected for boundaryLayer");
-    check(std::memcmp(&sentinel,&gas,sizeof(gas))==0,"failed closure does not publish packet");
+    GasWallResult sentinel=gas;check(evaluateGasWall(in,id,invalid,sentinel),"complete prescribed-temperature closure published");
+    near(sentinel.primary.energy,gas.primary.energy,"prescribed-temperature equations retained");
     invalid=p;invalid.wallModel.family=ugkwp::gaswall::WallFamily::WallFunction;
     in.speciesRate[0]=.02;in.poreRate[0]=-.02;in.speciesRate[1]=in.poreRate[1]=0;
     check(!evaluateGasWall(in,id,invalid,sentinel),"ordinary wallFunction rejects canceling physical channels");

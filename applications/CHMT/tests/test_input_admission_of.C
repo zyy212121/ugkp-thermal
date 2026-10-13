@@ -15,7 +15,12 @@ int main(int argc,char**argv){const std::string mode=argc>1?argv[1]:"normal";
  if(mode=="short"){auto d=parseDictionary("x (1 2);");(void)chmt::io::readVector(d,"x");return 99;}
  if(mode=="normal"){for(bool single:{false,true}){auto d=parseDictionary(modelText(false));auto gas=inputGas();if(single){gas.mode=ugkwp::GasMode::SingleLegacy;for(auto& v:gas.diffusionCoefficients)v=0;gas.coefficients[1]=gas.coefficients[2]=gas.coefficients[4]=gas.coefficients[5]=0;}output(chmt::io::readModel(d,gas));}return 0;}
  assert(mode=="admitted");auto d=parseDictionary("x 3.5; v (1 2 3); a (4 5); element (6);");
- double a[3]={91,92,93};chmt::io::array(d,"a",a);assert(a[0]==4&&a[1]==5&&a[2]==93);double e[2]={94,95};chmt::io::elements(d,e,2);assert(e[0]==6&&e[1]==95);
+ // These consumers need every assigned source value; surplus input is unused.
+ double a[2]={91,92};chmt::io::array(d,"a",a);assert(a[0]==4&&a[1]==5);
+ double narrow[1]={93};chmt::io::array(d,"a",narrow);assert(narrow[0]==4);
+ double e[2]={94,95};chmt::io::elements(d,e,1);assert(e[0]==6&&e[1]==95);
+ bool missing=false;try{double absent[3]{};chmt::io::array(d,"a",absent);}catch(const std::out_of_range&){missing=true;}assert(missing);
+ missing=false;try{chmt::io::elements(d,e,2);}catch(const std::out_of_range&){missing=true;}assert(missing);
  const double nan=std::numeric_limits<double>::quiet_NaN(),inf=std::numeric_limits<double>::infinity();
  // Supply complete typed OpenFOAM tokens, without relying on textual nan spelling.
  d.lookup("x")[0]=Foam::token(nan);assert(std::isnan(chmt::io::readNumber(d,"x")));
@@ -26,5 +31,5 @@ int main(int argc,char**argv){const std::string mode=argc>1?argv[1]:"normal";
  assert(m.physics.material.evaporation==chmt::EvaporationLaw::Disabled&&m.physics.wallModel.family==ugkwp::gaswall::WallFamily::LowRe&&m.physics.wallModel.model==ugkwp::gaswall::BoundaryLayerModel::ReactingSst);
  assert(m.physics.meshMotion.policy==chmt::MeshMotionPolicy::PrescribedSinusoidal&&m.physics.particle.contact==chmt::ParticleContactMode::ElasticRebound);
  auto badThermo=parseDictionary("rho -1; cp0 -2; cp1 0; e0 9; conductivity -1; Tmin 1000; Tmax 100; element (1);");auto t=chmt::io::condensed(badThermo,1);assert(t.rho==-1&&t.cp0==-2&&t.Tmin==1000&&t.Tmax==100);
- std::cout<<"ADMITTED typed nonfinite, supplied short arrays, foreign labels, actual invalid thermo\n";
+ std::cout<<"ADMITTED typed nonfinite, exact consumed arrays and surplus, foreign labels, actual invalid thermo\n";
 }
