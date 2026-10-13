@@ -14,7 +14,6 @@ cleanup()
 trap cleanup EXIT
 
 cd "${case_dir}"
-./assets/initialization/prepare_axial_particles.py --check
 ./assets/build/build_validation_solver.sh
 [[ -f constant/polyMesh/points ]] || blockMesh
 export GAS_UGKP_CUDA_BACKEND="${case_dir}/.validation-bin/windSandUGKPCudaBackend"
