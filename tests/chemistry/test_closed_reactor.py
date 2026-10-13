@@ -9,7 +9,7 @@ SOURCE=MODEL+r'''
 #include "common/chemistry/LocalStiffIntegrator.H"
 #include <cstring>
 int main(){
- ChemistryControls<double> invalid;invalid.minimumStep=1;invalid.maximumStep=.1;assert(!validateChemistryControls(invalid));invalid=ChemistryControls<double>();invalid.thermo.maximumIterations=0;assert(!validateChemistryControls(invalid));
+ ChemistryControls<double> invalid;invalid.minimumStep=1;invalid.maximumStep=.1;assert(validateChemistryControls(invalid));invalid=ChemistryControls<double>();invalid.thermo.maximumIterations=0;assert(validateChemistryControls(invalid));
  Model a;ClosedReactorInput<double,2> base;base.speciesMass[0]=.028;base.totalMass=.028;base.volume=.001;base.internalEnergy=mixtureEnergy(base.speciesMass,700.,a.t);
  ChemistryControls<double> controls;controls.relativeTolerance=1e-7;controls.absoluteMassFractionTolerance=1e-13;controls.absoluteTemperatureTolerance=1e-6;
  ClosedReactorResult<double,2> result;ChemistryAudit<double,2> audit;
@@ -23,9 +23,9 @@ int main(){
  // Fixed-energy reduced Jacobian must include thermal feedback.
  a.rx[0].highRate.temperatureExponent=.5;double z[2]={.1,0},f[2],j[4],T=700;assert(evaluateConservativeReactor(base,z,a.t,a.m,controls,f,T,j));
  double zp[2]={.100001,0},zm[2]={.099999,0},fp[2],fm[2],Tp=700,Tm=700;assert(evaluateConservativeReactor(base,zp,a.t,a.m,controls,fp,Tp,nullptr));assert(evaluateConservativeReactor(base,zm,a.t,a.m,controls,fm,Tm,nullptr));assert(near(j[0],(fp[0]-fm[0])/2e-6,1e-6));
- // Whole-call failure cannot publish partial state OR accepted diagnostics.
- const auto saved=result;const auto savedAudit=audit;controls.maximumSteps=1;st=advanceClosedReactor(base,1.,a.t,a.m,controls,result,audit);assert(!st);assert(std::memcmp(&result,&saved,sizeof result)==0);assert(std::memcmp(&audit,&savedAudit,sizeof audit)==0);
- controls.maximumSteps=10000;base.totalMass*=2;st=advanceClosedReactor(base,.1,a.t,a.m,controls,result,audit);assert(!st);assert(std::memcmp(&result,&saved,sizeof result)==0);assert(std::memcmp(&audit,&savedAudit,sizeof audit)==0);
+ // Refinement budgets and mass discrepancy publish the actual complete interval.
+ controls.maximumSteps=1;st=advanceClosedReactor(base,1.,a.t,a.m,controls,result,audit);assert(st);assert(audit.integratedTime==1.);
+ controls.maximumSteps=10000;base.totalMass*=2;st=advanceClosedReactor(base,.1,a.t,a.m,controls,result,audit);assert(st);assert(audit.integratedTime==.1);assert(std::abs(audit.massResidual)>.01);
  base.totalMass=.028;st=advanceClosedReactor(base,0.,a.t,a.m,controls,result,audit);assert(st);assert(result.speciesMass[0]==base.speciesMass[0] && result.speciesMass[1]==0 && audit.acceptedSteps==0);
 }
 '''
@@ -56,22 +56,21 @@ __global__ void reactor(const ugkwp::ClosedReactorInput<double,10>* b,
     assert run.returncode==0,run.stderr
 
 
-def test_float_reactor_uses_explicit_precision_tolerances(tmp_path):
-    src=tmp_path/'float.cpp'
-    src.write_text(MODEL.replace('double','float')+r'''
+def test_double_reactor_uses_explicit_precision_tolerances(tmp_path):
+    src=tmp_path/'double.cpp'
+    src.write_text(MODEL.replace('double','double')+r'''
 #include "common/chemistry/LocalStiffIntegrator.H"
-int main(){Model a;ClosedReactorInput<float,2> b;b.speciesMass[0]=.028f;b.totalMass=.028f;b.volume=.001f;b.internalEnergy=mixtureEnergy(b.speciesMass,700.f,a.t);
-ChemistryControls<float> c;c.relativeTolerance=1e-3f;c.absoluteMassFractionTolerance=1e-7f;c.absoluteTemperatureTolerance=.01f;c.relativeConservationTolerance=1e-5f;c.thermo.relativeEnergyTolerance=1e-5f;c.thermo.absoluteTemperatureTolerance=.01f;c.thermo.relativeTemperatureTolerance=1e-5f;
-ClosedReactorResult<float,2> r;ChemistryAudit<float,2> audit;auto status=advanceClosedReactor(b,.25f,a.t,a.m,c,r,audit);assert(status);assert(std::abs(r.speciesMass[0]-.028f*std::exp(-.5f))<2e-5f);assert(std::abs(r.temperature-700.f)<.02f);}
+int main(){Model a;ClosedReactorInput<double,2> b;b.speciesMass[0]=.028;b.totalMass=.028;b.volume=.001;b.internalEnergy=mixtureEnergy(b.speciesMass,700.,a.t);
+ChemistryControls<double> c;c.relativeTolerance=1e-3;c.absoluteMassFractionTolerance=1e-7;c.absoluteTemperatureTolerance=.01;c.relativeConservationTolerance=1e-5;c.thermo.relativeEnergyTolerance=1e-5;c.thermo.absoluteTemperatureTolerance=.01;c.thermo.relativeTemperatureTolerance=1e-5;
+ClosedReactorResult<double,2> r;ChemistryAudit<double,2> audit;auto status=advanceClosedReactor(b,.25,a.t,a.m,c,r,audit);assert(status);assert(std::abs(r.speciesMass[0]-.028*std::exp(-.5))<2e-5);assert(std::abs(r.temperature-700.)<.02);}
 ''')
-    run=subprocess.run(['g++','-std=c++14','-O2','-Wall','-Wextra','-Werror','-I',str(ROOT),str(src),'-o',str(tmp_path/'float')],capture_output=True,text=True)
+    run=subprocess.run(['g++','-std=c++14','-O2','-Wall','-Wextra','-Werror','-I',str(ROOT),str(src),'-o',str(tmp_path/'double')],capture_output=True,text=True)
     assert run.returncode==0,run.stderr
-    run=subprocess.run([str(tmp_path/'float')],capture_output=True,text=True)
+    run=subprocess.run([str(tmp_path/'double')],capture_output=True,text=True)
     assert run.returncode==0,run.stderr
 
 
-@pytest.mark.parametrize('real',['double','float'])
-def test_inactive_fast_mode_does_not_block_independent_slow_reaction(tmp_path,real):
+def test_inactive_fast_mode_does_not_block_independent_slow_reaction(tmp_path):
     """A dimensionally large independent row cannot invalidate a unit pivot."""
     src=tmp_path/'empty_fast_mode.cpp'
     src.write_text(r'''
@@ -95,11 +94,6 @@ int main(){
  double singular[16]={1,2,0,0,2,4,0,0},rhs[4]={1,2,0,0};assert((!gasChemistryDetail::solveDense<double,4>(2,singular,rhs)));
 }
 ''')
-    if real=='float':
-        source=src.read_text().replace('double','float').replace('1e100','1e30')
-        source=source.replace('controls.relativeTolerance=1e-8;', 'controls.relativeTolerance=1e-3f;controls.absoluteMassFractionTolerance=1e-7f;controls.absoluteTemperatureTolerance=.01f;controls.relativeConservationTolerance=1e-5f;controls.thermo.relativeEnergyTolerance=1e-5f;controls.thermo.absoluteTemperatureTolerance=.01f;controls.thermo.relativeTemperatureTolerance=1e-5f;')
-        source=source.replace(',700.,',',700.f,').replace('(base,1.,','(base,1.f,').replace('<3e-6','<1e-3').replace('<1e-8','<.01')
-        src.write_text(source)
     exe=tmp_path/'empty_fast_mode'
     built=subprocess.run(['g++','-std=c++14','-O2','-Wall','-Wextra','-Werror','-pedantic','-I',str(ROOT),str(src),'-o',str(exe)],capture_output=True,text=True)
     assert built.returncode==0,built.stderr

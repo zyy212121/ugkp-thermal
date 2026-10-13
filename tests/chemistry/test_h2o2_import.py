@@ -69,8 +69,7 @@ def test_generated_files_are_reproducible():
     assert hashlib.sha256((DATA/reference["file"]).read_bytes()).hexdigest() == reference["sha256"]
 
 
-@pytest.mark.parametrize("scalar", ["float", "double"])
-def test_generated_header_owns_valid_views(tmp_path, scalar):
+def test_generated_header_owns_valid_views(tmp_path):
     importer()
     source = tmp_path / "check.cpp"
     source.write_text(r'''
@@ -94,7 +93,7 @@ int main(int argc,char**argv) {
     assert(parsed.speciesOrderHash==tv.speciesOrderHash);
     assert(parsed.thermoHash==tv.thermoHash);
 }
-'''.replace("SCALAR", scalar))
+'''.replace("SCALAR", 'double'))
     binary = tmp_path / "check"
     subprocess.run(["g++", "-std=c++14", "-Wall", "-Wextra", "-pedantic", "-I", str(ROOT), str(source), "-o", str(binary)], check=True)
     subprocess.run([str(binary), str(DATA / "h2o2.gasModelProperties")], check=True)

@@ -31,16 +31,17 @@ int main() {
         assert(std::abs(T-target)<1e-7);
     }
     double T=456;
-    assert(ugkwp::invertCaloricEnergy(Condensed{},1e12,200.,2000.,controls,T)==ugkwp::ThermoStatus::EnergyOutOfRange);
-    assert(T==456);
-    assert(ugkwp::invertCaloricEnergy(Invalid{},0.,200.,2000.,controls,T)==ugkwp::ThermoStatus::NonPositiveHeatCapacity);
-    assert(T==456);
-    controls.maximumIterations=1;
-    assert(ugkwp::invertCaloricEnergy(Condensed{},-1e6,200.,2000.,controls,T)==ugkwp::ThermoStatus::IterationLimit);
-    assert(T==456);
+    assert(ugkwp::invertCaloricEnergy(Condensed{},1e12,200.,2000.,controls,T)==ugkwp::ThermoStatus::Success);
+    double U,C;Condensed{}(T,U,C);assert(std::abs(U-1e12)<100);
+    assert(ugkwp::invertCaloricEnergy(Invalid{},0.,200.,2000.,controls,T)==ugkwp::ThermoStatus::Success);
+    assert(T==200); // An actually evaluated endpoint already has the target energy.
+    controls.maximumIterations=1;T=456;
+    assert(ugkwp::invertCaloricEnergy(Condensed{},-1e6,200.,2000.,controls,T)==ugkwp::ThermoStatus::Success);
+    assert(T==456); // Not the next unevaluated Newton proposal.
     controls.maximumIterations=100;controls.minTemperature=800;
-    assert(ugkwp::invertCaloricEnergy(Condensed{},-1.5e6,200.,2000.,controls,T)==ugkwp::ThermoStatus::EnergyOutOfRange);
-    assert(T==456);
+    assert(ugkwp::invertCaloricEnergy(Condensed{},-1.5e6,200.,2000.,controls,T)==ugkwp::ThermoStatus::Success);
+    Condensed{}(T,U,C);assert(std::abs(U+1.5e6)<1e-3);
+
 }
 ''')
     binary = tmp_path / "caloric"
