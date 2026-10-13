@@ -31,26 +31,25 @@ def main():
     fixture = root / 'tests' / 'fixtures'
     rows = []
     for app in apps:
-        for bits in ([64, 32] if app == 'CHT' else [64]):
-            tests = [(name, fixture / 'shared_operators' / (name + '.py'), []) for name in ['source_balance', 'collision_split_behavior', 'operator_contract', 'extended_operators', 'moment_publication']]
-            tests.append(('tracking_grid', fixture / 'shared_operators' / 'tracking_grid.py', ['--require-independent', '--require-particle-independent']))
-            tests.append(('pressure_split', fixture / 'pressure' / 'limited_flux_balance.py', []))
-            if app == 'gasUGKP':
-                tests.append(('pressure_unsorted', fixture / 'pressure' / 'limited_flux_balance.py', ['unsorted']))
-            else:
-                tests.extend((name, fixture / 'shared_operators' / (name + '.py'), []) for name in ['payload_commit', 'contact_conservation', 'contact_age_theta'])
-            for name, script, extra in tests:
-                label = f'{app}{bits}-{name}'
-                log = output / (label + '.log')
-                command = [sys.executable, str(script), str(root), str(output / label), app, str(bits), *extra]
-                with log.open('w') as stream:
-                    result = subprocess.run(command, stdout=stream, stderr=subprocess.STDOUT)
-                rows.append(dict(test=name, app=app, bits=bits, exit=result.returncode, log=str(log)))
-                (output / 'results.json').write_text(json.dumps(rows, indent=2))
-                print(label, 'PASS' if result.returncode == 0 else f'FAIL ({result.returncode})', flush=True)
-                if result.returncode:
-                    print(log.read_text()[-4000:])
-                    return 1
+        tests = [(name, fixture / 'shared_operators' / (name + '.py'), []) for name in ['source_balance', 'collision_split_behavior', 'operator_contract', 'extended_operators', 'moment_publication']]
+        tests.append(('tracking_grid', fixture / 'shared_operators' / 'tracking_grid.py', ['--require-independent', '--require-particle-independent']))
+        tests.append(('pressure_split', fixture / 'pressure' / 'limited_flux_balance.py', []))
+        if app == 'gasUGKP':
+            tests.append(('pressure_unsorted', fixture / 'pressure' / 'limited_flux_balance.py', ['unsorted']))
+        else:
+            tests.extend((name, fixture / 'shared_operators' / (name + '.py'), []) for name in ['payload_commit', 'contact_conservation', 'contact_age_theta'])
+        for name, script, extra in tests:
+            label = f'{app}{64}-{name}'
+            log = output / (label + '.log')
+            command = [sys.executable, str(script), str(root), str(output / label), app, *extra]
+            with log.open('w') as stream:
+                result = subprocess.run(command, stdout=stream, stderr=subprocess.STDOUT)
+            rows.append(dict(test=name, app=app, bits=64, exit=result.returncode, log=str(log)))
+            (output / 'results.json').write_text(json.dumps(rows, indent=2))
+            print(label, 'PASS' if result.returncode == 0 else f'FAIL ({result.returncode})', flush=True)
+            if result.returncode:
+                print(log.read_text()[-4000:])
+                return 1
     return 0
 
 

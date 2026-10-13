@@ -75,7 +75,7 @@ def calls(text, name):
                     break
 
 
-def build_probe(root, meta, app, bits):
+def build_probe(root, meta, app):
     source = root / 'applications' / app / ('gpu' if app == 'CHT' else 'private_backend') / 'GpuResidentStrict.cu'
     text = source.read_text()
     state = text[text.index('struct DeviceState'):]
@@ -136,12 +136,18 @@ def build_probe(root, meta, app, bits):
             download_calls += down
     if len(upload_calls) != len(fields) or len(download_calls) != len(fields):
         raise ValueError(f'{app}: transfer closure mismatch: {len(fields)} fields, {len(upload_calls)} uploads, {len(download_calls)} downloads')
+    memset_calls = []
+    for call in calls(text, 'cudaMemset'):
+        target = re.match(r'cudaMemset\s*\(\s*(?:s->)?(\w+)\s*,', call)
+        if target and target.group(1) in (names | set(aliases.values())):
+            memset_calls.append(call)
     code = r'''
 #include <algorithm>
 #include <cassert>
 #include <cstddef>
 #include <cstdint>
 #include <cstdlib>
+#include <cstring>
 #include <fstream>
 #include <iostream>
 #include <map>
@@ -163,6 +169,10 @@ std::map<void*,size_t> live;
 template<class T> int allocate(T*& p,size_t n,const char*) {
  if(p) throw std::runtime_error("duplicate allocation"); p=new T[n]{};live[p]=n;return 0;
 }
+template<class T> int cudaMemset(T* p,int value,std::size_t bytes) {
+ if(!p || live.at(p)*sizeof(T)!=bytes) throw std::runtime_error("memset byte closure");
+ std::memset(p,value,bytes);return 0;
+}
 template<class T> void release(T*& p) {
  if(!p || !live.erase(p)) throw std::runtime_error("invalid release"); delete[] p;p=nullptr;
 }
@@ -175,19 +185,20 @@ template<class T,class U> int copyToHost(T* d,const U* s,size_t n,const char*) {
  std::copy(s,s+n,d);return 0;
 }
 '''
-    code += f'using GpuReal={"float" if bits==32 else "double"};using GpuTime=double;\n'
-    code += 'struct DeviceState { int coldWallSolidificationEnabled=1,coldWall2DEnabled=1;\n'
+    code += f'using GpuReal={"double"};using GpuTime=double;\n'
+    code += 'struct DeviceState { int coldWallSolidificationEnabled=1,coldWall2DEnabled=1,particleCapacity=3;\n'
     code += ''.join(f'{pointers[n]}* {n}=nullptr;\n' for n in sorted(names)) + '};\n'
     if app != 'gasUGKP':
         code += '#include "GpuCellLocalThermalFields.cuh"\n'
-        code += f'using ProbeExtra=CellLocalThermalExtraFields<{"true" if app=="CHT" else "false"}, {"true" if app=="FSH" else "false"}>;\n#define GPU_PARTICLE_EXTRA_FIELDS ProbeExtra\n'
+        adapter = re.search(r'#define GPU_PARTICLE_EXTRA_FIELDS (CellLocalThermalExtraFields<[^>]+>)', text).group(1)
+        code += f'using ProbeExtra={adapter};\n#define GPU_PARTICLE_EXTRA_FIELDS ProbeExtra\n'
     code += '#include "GpuCellLocalPrimary.cuh"\n#include "operators/swapParticlePointerDevice.cuh"\n'
     commit = (root / 'common/GpuParticleBufferCommit.cuh').read_text()
     code += 'void swapParticleBuffersDevice(DeviceState& s) {' + function_body(commit, 'swapParticleBuffersDevice') + '}\n'
     code += '#include "GpuParticleRestartTheta.H"\n' if app == 'CHT' else ''
     if app != 'gasUGKP':
         code += '#include "GpuThermalParticleRestartCodec.H"\nstruct View {size_t count=3;\n'
-        code += ''.join(f'{f["host"][app]}* {f["name"]};\n' for f in fields if f['schema7'] is not None) + '};\n'
+        code += ''.join(f'{f["host"][app]}* {f["name"]};\n' for f in fields if (f['schema7'] is not None or f['name']=='pThermalEnthalpyResidual')) + '};\n'
     code += 'int main(int argc,char**argv){try{DeviceState state;auto*s=&state;const size_t np=3,n=3,particleCapacity=3,count=3;\n'
     for constant in ('coldNodeStorage', 'coldRingStorage', 'cold2DNodeStorage', 'cold2DRingStorage'):
         match = re.search(r'const size_t '+constant+r'\s*=[^;]+;', text)
@@ -197,6 +208,7 @@ template<class T,class U> int copyToHost(T* d,const U* s,size_t n,const char*) {
         code += f'{pointers[name]}* {alias}=nullptr;\n'
     code += ''.join(call + ';\n' for call in alloc_calls)
     code += ''.join(f's->{name}={alias};\n' for name, alias in aliases.items())
+    code += ''.join(call + ';\n' for call in memset_calls)
     for f in storage_fields:
         for name in (f['name'], f['compact']):
             if not name:
@@ -235,12 +247,13 @@ template<class T,class U> int copyToHost(T* d,const U* s,size_t n,const char*) {
             continue
         code += f'for(size_t j=0;j<n*{f["width"]};++j) if({name}[j]!=static_cast<{f["host"][app]}>({index+1}*7+j)) throw std::runtime_error("roundtrip: {name}");\n'
     if app != 'gasUGKP':
-        code += 'View v;\n' + ''.join(f'v.{f["name"]}={f["name"]};\n' for f in fields if f['schema7'] is not None)
-        disk_time = 'float' if app == 'FSH' else 'double'
-        code += f'std::ostringstream wire(std::ios::binary);Foam::gpuThermalRestart::write<{disk_time}>(wire,v);\n'
+        code += 'View v;\n' + ''.join(f'v.{f["name"]}={f["name"]};\n' for f in fields if (f['schema7'] is not None or f['name']=='pThermalEnthalpyResidual'))
+        has_carry = 'true' if app == 'CHT' else 'false'
+        marker = 'currentChtMarker' if app == 'CHT' else 'currentFshMarker'
+        code += f'std::ostringstream wire(std::ios::binary);Foam::gpuThermalRestart::writeCurrent<{has_carry}>(wire,Foam::gpuThermalRestart::{marker},v);\n'
         code += 'std::ofstream out(argv[1],std::ios::binary);out<<wire.str();out.close();\n'
         code += 'std::istringstream input(wire.str(),std::ios::binary);std::string marker;size_t total;std::uint32_t bound;input>>marker>>total>>bound;\n'
-        code += f'Foam::gpuThermalRestart::readPayload<{disk_time}>(input,bound,v);\n'
+        code += f'Foam::gpuThermalRestart::readCurrentPayload<{has_carry}>(input,bound,v);\n'
     code += ''.join(f'auto* old_{f["name"]}=s->{f["name"]};auto* next_{f["name"]}=s->{f["compact"]};\n' for f in fields)
     code += 'swapParticleBuffersDevice(*s);\n'
     code += ''.join(f'if(s->{f["name"]}!=next_{f["name"]} || s->{f["compact"]}!=old_{f["name"]}) throw std::runtime_error("swap closure: {f["name"]}");\n' for f in fields)
@@ -275,25 +288,24 @@ def main():
             raise ValueError('generated field registry drift: ' + name)
     if args.cpu and (not args.output or root == args.output.resolve() or root in args.output.resolve().parents):
         ap.error('--cpu needs --output outside the checkout')
-    golden_path = root / 'tests/fixtures/shared_operators/schema7_wire_golden.json'
+    golden_path = root / 'tests/fixtures/shared_operators/current_particle_wire_golden.json'
     golden = json.loads(golden_path.read_text()) if golden_path.is_file() else {}
     for app in ('gasUGKP', 'FSH', 'CHT'):
         if not (root / 'applications' / app).is_dir():
             continue
-        for bits in ((32, 64) if app == 'CHT' else (64,)):
-            code = build_probe(root, meta, app, bits)
-            if args.cpu:
-                args.output.mkdir(parents=True, exist_ok=True)
-                label = app + str(bits)
-                cpp, exe, wire = (args.output / (label + ext) for ext in ('.cpp', '.probe', '.wire'))
-                cpp.write_text(code)
-                subprocess.run(['g++', '-std=c++17', '-O0', '-I'+str(root/'common'), str(cpp), '-o', str(exe)], check=True)
-                subprocess.run([str(exe), str(wire)], check=True)
-                if app != 'gasUGKP':
-                    digest = hashlib.sha256(wire.read_bytes()).hexdigest()
-                    if golden.get(label) != digest:
-                        raise ValueError(f'{label}: schema7 binary golden mismatch ({digest})')
-            print(f'PASS {app}{bits} field declaration/allocation/release/transfer closure')
+        code = build_probe(root, meta, app)
+        if args.cpu:
+            args.output.mkdir(parents=True, exist_ok=True)
+            label = app + str(64)
+            cpp, exe, wire = (args.output / (label + ext) for ext in ('.cpp', '.probe', '.wire'))
+            cpp.write_text(code)
+            subprocess.run(['g++', '-std=c++17', '-O0', '-I'+str(root/'common'), str(cpp), '-o', str(exe)], check=True)
+            subprocess.run([str(exe), str(wire)], check=True)
+            if app != 'gasUGKP':
+                digest = hashlib.sha256(wire.read_bytes()).hexdigest()
+                if golden.get(label) != digest:
+                    raise ValueError(f'{label}: current particle binary golden mismatch ({digest})')
+        print(f'PASS {app}{64} field declaration/allocation/release/transfer closure')
     return 0
 
 

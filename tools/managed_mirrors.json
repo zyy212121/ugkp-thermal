@@ -670,6 +670,11 @@
       "downstream": "gpu-riemann-gkp-main"
     },
     {
+      "path": "common/GpuGasCourant.cuh",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
       "path": "common/GpuGasHostPolicy.cuh",
       "upstream": "ugkp-thermal",
       "downstream": "gpu-riemann-gkp-main"
@@ -876,11 +881,6 @@
     },
     {
       "path": "common/GpuPressureConvexAlgebra.cuh",
-      "upstream": "ugkp-thermal",
-      "downstream": "gpu-riemann-gkp-main"
-    },
-    {
-      "path": "common/GpuPressureFlatLayout.cuh",
       "upstream": "ugkp-thermal",
       "downstream": "gpu-riemann-gkp-main"
     },
@@ -1612,15 +1612,24 @@
     ],
     "ugkp-thermal": [
       "applications/gasUGKP/tests/source_contract_utils.py",
+      "applications/gasUGKP/tests/test_budget_reconfiguration_continuation.py",
       "applications/gasUGKP/tests/test_common_gas_numerics_source_contract.py",
+      "applications/gasUGKP/tests/test_gas_frontend_selection_continuation.py",
+      "applications/gasUGKP/tests/test_gas_species_mapping.py",
       "applications/gasUGKP/tests/test_jamming_pressure_contract.py",
+      "applications/gasUGKP/tests/test_native_configuration_continuation.py",
+      "applications/gasUGKP/tests/test_native_gas_input_continuation.py",
+      "applications/gasUGKP/tests/test_native_residual_precision.py",
+      "applications/gasUGKP/tests/test_native_wire_continuation.py",
       "applications/gasUGKP/tests/test_particle_cell_path_runtime_contract.py",
       "applications/gasUGKP/tests/test_s1_kernel_resource_contract.py",
       "applications/gasUGKP/tests/test_source_hash_contract.py",
       "applications/gasUGKP/tests/test_strict_csr_level_contract.py",
       "applications/gasUGKP/tests/test_thermal_segmented_queue_contract.py",
       "applications/gasUGKP/tests/test_unified_scheduling_tools_contract.py",
+      "applications/gasUGKP/tests/test_wall_adapter_continuation.py",
       "applications/gasUGKP/tests/test_wall_gks_contract.py",
+      "applications/gasUGKP/tests/test_wall_preparation_continuation.py",
       "common/ContactCapabilityValidation.h",
       "common/GpuParticleSavedVelocityRestart.inl",
       "common/GpuPressureConstrainedAdapter.cuh",
@@ -1656,6 +1665,7 @@
       "common/operators/rebuildWallBoundParticleDirectoryKernel.cuh",
       "common/operators/relaxMobileParticlesToResidentGasKernelStatic.cuh",
       "common/operators/solidRecoveryFromParticleMomentsCell.cuh",
+      "common/thermal_particle_restart_current.py",
       "common/thermal_particle_restart_schema7.py",
       "common/wall/GpuAluminaProperties.H",
       "common/wall/GpuCapillaryDetachment.H",
