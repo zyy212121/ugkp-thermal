@@ -117,14 +117,18 @@ template<class Species,class Model>void modelMetadata(const Species&species,cons
 
 }
 
-template<class State>void releaseGasBudget(State*s)
+template<class State>int releaseGasBudget(State*s)
 {
     if constexpr(GasBudgetHostCapability<State>::value)
     {
-        releaseSharedGasPointer(s->gasBudgetAudit.transport);releaseSharedGasPointer(s->gasBudgetAudit.initialTransport);
-        releaseSharedGasPointer(s->gasBudgetAudit.chemistrySpecies);s->gasBudgetAudit={};
+        int result=releaseSharedGasPointer(s->gasBudgetAudit.transport);
+        result|=releaseSharedGasPointer(s->gasBudgetAudit.initialTransport);
+        result|=releaseSharedGasPointer(s->gasBudgetAudit.chemistrySpecies);
+        if(!result)s->gasBudgetAudit={};
         delete s->gasBudgetHost;s->gasBudgetHost=nullptr;
+        return result;
     }
+    return 0;
 }
 // Stage only real optional output resources before the native model publishes.
 // A failed allocation leaves both the previous physical view and ledger owned.
@@ -193,7 +197,7 @@ template<class State,class Model>int configureGasBudget
             if(cudaMemcpy(reinterpret_cast<char*>(s->deviceState)+offsetof(State,gasBudgetAudit),&a,sizeof(a),cudaMemcpyHostToDevice)!=cudaSuccess)
                 throw std::runtime_error("gas budget device view upload failed");
         }
-        catch(const std::exception&e){setLastErrorText(e.what());if(s->gasBudgetAudit.enabled)s->gasModelPoisoned=true;releaseGasBudget(s);return 1;}
+        catch(const std::exception&e){setLastErrorText(e.what());if(s->gasBudgetAudit.enabled)s->gasModelPoisoned=true;if(releaseGasBudget(s))s->gasModelPoisoned=true;return 1;}
     }
     return 0;
 }

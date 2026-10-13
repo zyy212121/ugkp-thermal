@@ -1,16 +1,10 @@
 #pragma once
 #include <cstddef>
 // Allocation ownership only; closure mathematics belongs to the shared core.
-struct BoundaryLayerAllocation
+template<class State> int releaseBoundaryLayerStorage(State& s)
 {
-    ugkwp::GasBoundaryLayerState<double> gasBoundaryLayer;
-    ugkwp::GasBoundaryLayerModelState<double,ugkwp::compiledGasSpecies> gasBoundaryLayerModel;
-    ugkwp::GasSstAuditState<double> gasSstAudit;
-    double *gasWallQuadratureDistance=nullptr,*gasWallQuadratureWeight=nullptr;
-};
-template<class State> void releaseBoundaryLayerStorage(State& s)
-{
-#define WALL_RELEASE(field) releaseSharedGasPointer(s.field)
+    int result=0;
+#define WALL_RELEASE(field) result|=releaseSharedGasPointer(s.field)
     WALL_RELEASE(gasBoundaryLayer.faceSlot);WALL_RELEASE(gasBoundaryLayer.ownerSlot);
     WALL_RELEASE(gasBoundaryLayer.status);WALL_RELEASE(gasBoundaryLayer.exchange);
     WALL_RELEASE(gasBoundaryLayer.sst);WALL_RELEASE(gasBoundaryLayer.speciesFlux);
@@ -27,7 +21,24 @@ template<class State> void releaseBoundaryLayerStorage(State& s)
     WALL_RELEASE(gasSstAudit.initialConstraintK);WALL_RELEASE(gasSstAudit.initialConstraintOmega);
     WALL_RELEASE(gasSstAudit.volume);
 #undef WALL_RELEASE
-    s.gasBoundaryLayer={};s.gasBoundaryLayerModel={};s.gasSstAudit={};
+    if(!result){s.gasBoundaryLayer={};s.gasBoundaryLayerModel={};s.gasSstAudit={};}
+    return result;
+}
+
+// Rejected candidates contain only allocations whose actual free failed. The
+// resident is poisoned before returning, so this owner cannot be overwritten by
+// another configuration; teardown may retry release without losing addresses.
+inline int releaseBoundaryLayerStorage(DeviceState& s)
+{
+    const int resident=releaseBoundaryLayerStorage<DeviceState>(s);
+    return releaseBoundaryLayerStorage(s.gasTrial.rejectedWall)|resident;
+}
+inline void discardBoundaryLayerCandidate(DeviceState* s,BoundaryLayerAllocation& candidate)
+{
+    if(releaseBoundaryLayerStorage(candidate))
+    {
+        s->gasTrial.rejectedWall=candidate;candidate={};s->gasModelPoisoned=true;
+    }
 }
 
 // Configure-only publication. Uploading initial fields deliberately scrubs the

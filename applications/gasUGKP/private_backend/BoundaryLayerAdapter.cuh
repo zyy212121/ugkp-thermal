@@ -13,20 +13,20 @@ try
     const auto& a=*config;
     if(!a.wallCount)
     {
-        releaseSharedGasTrialStorage(s->gasTrial);
-        releaseBoundaryLayerStorage(*s);s->sstWallTreatment=2;
+        if(releaseSharedGasTrialStorage(s->gasTrial))return 1;
+        auto audit=s->gasSstAudit;s->gasSstAudit={};audit.enabled=false;
+        const int released=releaseBoundaryLayerStorage(*s);s->gasSstAudit=audit;
+        if(released){s->gasModelPoisoned=true;return 1;}
+        s->sstWallTreatment=2;
+        invalidateSharedGasConfiguration(s);
         if(syncBoundaryLayerConfiguration(s)){s->gasModelPoisoned=true;return 1;}
         return 0;
     }
     if(!faces || !qOffsets || !mOffsets || !mCells || !geometry || !mWeight || !speciesFlux
         || (a.quadratureCount&&(!qDistance||!qWeight)) || !s->faceOwner || !s->magSf
-        || !s->gasSpecies.diffusivity || a.speciesCount<ugkwp::compiledGasSpecies)
+        || !s->gasSpecies.diffusivity)
     {setLastErrorText("missing consumed boundaryLayer arrays or species values");return 1;}
     if(a.model>1){setLastErrorText("missing selected boundaryLayer model");return 1;}
-    if(a.wallCount>unsigned(std::numeric_limits<int>::max())
-        || a.quadratureCount>unsigned(std::numeric_limits<int>::max())
-        || a.matchingCount>unsigned(std::numeric_limits<int>::max()))
-    {setLastErrorText("boundaryLayer count exceeds actual compact index storage");return 1;}
     std::vector<int> owners(s->nFaces);
     std::vector<double> areas(s->nFaces);
     if(copyToHost(owners.data(),s->faceOwner,owners.size(),"read wall owners")
@@ -35,20 +35,13 @@ try
     for(unsigned slot=0;slot<a.wallCount;++slot)
     {
         const int f=faces[slot];
-        if(f<0 || f>=s->nFaces || owners[f]<0 || owners[f]>=s->nCells
-            || qOffsets[slot]<0 || qOffsets[slot+1]<qOffsets[slot] || qOffsets[slot+1]>int(a.quadratureCount)
-            || mOffsets[slot]<0 || mOffsets[slot+1]<=mOffsets[slot] || mOffsets[slot+1]>int(a.matchingCount))
-        {setLastErrorText("missing boundaryLayer face, owner, quadrature or matching range");return 1;}
         faceSlot[f]=slot;ownerSlot[owners[f]]=slot;
-        for(int m=mOffsets[slot];m<mOffsets[slot+1];++m)
-            if(mCells[m]<0 || mCells[m]>=s->nCells)
-            {setLastErrorText("missing boundaryLayer matching cell");return 1;}
     }
     ugkwp::BoundaryLayerWorkspaceSizing sizing;
     if(a.model!=0)
     {
         const auto workspaceBytes=ugkwp::gasBoundaryLayerWorkspaceBytes<double,ugkwp::compiledGasSpecies>(a.nodes);
-        if(a.nodes<2 || !workspaceBytes)
+        if(!workspaceBytes)
         {setLastErrorText("boundaryLayer nodes have no compiled workspace/equation storage");return 1;}
         int device=0,multiprocessors=0;std::size_t freeBytes=0,totalBytes=0;
         if(cudaGetDevice(&device)!=cudaSuccess
@@ -76,7 +69,8 @@ try
     rc|=allocate(scratch,sizing.bytes,"allocate bounded wall scratch");
     model.workspace=scratch;
     if(a.quadratureCount){WALL_ALLOC(gasWallQuadratureDistance,a.quadratureCount);WALL_ALLOC(gasWallQuadratureWeight,a.quadratureCount);}
-    if(a.budgetAudit)
+    const bool retainAudit=s->gasSstAudit.transportK!=nullptr;
+    if(a.budgetAudit&&!retainAudit)
     {
         WALL_ALLOC(gasSstAudit.transportK,s->nCells);WALL_ALLOC(gasSstAudit.transportOmega,s->nCells);
         WALL_ALLOC(gasSstAudit.sourceK,s->nCells);WALL_ALLOC(gasSstAudit.sourceOmega,s->nCells);
@@ -94,7 +88,7 @@ try
     rc|=uploadSharedGasTable(model.matchingOffsets,mOffsets,a.wallCount+1);
     rc|=uploadSharedGasTable(model.matchingCells,mCells,a.matchingCount);
     rc|=uploadSharedGasTable(model.matchingWeights,mWeight,a.matchingCount);
-    if(rc){releaseBoundaryLayerStorage(candidate);return 1;}
+    if(rc){discardBoundaryLayerCandidate(s,candidate);return 1;}
     if(a.quadratureCount){
         rc|=copyToDevice(candidate.gasWallQuadratureDistance,qDistance,a.quadratureCount,"upload wall quadrature distances");
         rc|=copyToDevice(candidate.gasWallQuadratureWeight,qWeight,a.quadratureCount,"upload wall quadrature weights");
@@ -110,15 +104,13 @@ try
         for(int species=0;species<ugkwp::compiledGasSpecies;++species)
         {
             in.massFlux[species]=speciesFlux[std::size_t(species)*a.wallCount+slot];
-            if(!std::isfinite(in.massFlux[species]))
-            {setLastErrorText("nonfinite physical species wall flux");releaseBoundaryLayerStorage(candidate);return 1;}
             exchanges[slot].mass-=areas[faces[slot]]*in.massFlux[species];
         }
         exchanges[slot].massReady=true;
     }
     rc|=copyToDevice(model.input,inputs.data(),inputs.size(),"upload wall input descriptors");
     rc|=copyToDevice(w.exchange,exchanges.data(),exchanges.size(),"upload known wall mass flux");
-    if(rc){releaseBoundaryLayerStorage(candidate);return 1;}
+    if(rc){discardBoundaryLayerCandidate(s,candidate);return 1;}
     model.config.model=static_cast<ugkwp::gaswall::BoundaryLayerModel>(a.model);
     model.config.nodes=a.nodes;model.config.maxIterations=a.maxIterations;
     model.config.relativeTolerance=a.relativeTolerance;model.config.absoluteTolerance=a.absoluteTolerance;
@@ -126,11 +118,17 @@ try
     model.config.turbulentSchmidt=a.turbulentSchmidt;model.config.enableSst=s->hostTurbulenceModel==3;
     // All real allocations and uploads succeeded. Replace old ownership and
     // discard snapshots of the previous wall/audit layout before publication.
-    releaseSharedGasTrialStorage(s->gasTrial);
-    releaseBoundaryLayerStorage(*s);
+    if(releaseSharedGasTrialStorage(s->gasTrial)){discardBoundaryLayerCandidate(s,candidate);return 1;}
+    if(retainAudit){candidate.gasSstAudit=s->gasSstAudit;s->gasSstAudit={};}
+    candidate.gasSstAudit.enabled=bool(a.budgetAudit);
+    if(releaseBoundaryLayerStorage(*s)){
+        if(retainAudit){s->gasSstAudit=candidate.gasSstAudit;candidate.gasSstAudit={};}
+        discardBoundaryLayerCandidate(s,candidate);s->gasModelPoisoned=true;return 1;
+    }
     w.enabled=true;s->gasBoundaryLayer=w;s->gasBoundaryLayerModel=model;s->gasSstAudit=candidate.gasSstAudit;
     s->gasWallQuadratureDistance=candidate.gasWallQuadratureDistance;s->gasWallQuadratureWeight=candidate.gasWallQuadratureWeight;
     s->sstWallTreatment=2;
+    invalidateSharedGasConfiguration(s);
     if(syncBoundaryLayerConfiguration(s))
     {s->gasModelPoisoned=true;return 1;}
     std::fprintf(stderr,"boundaryLayer scratch: nodes=%u capacity=%d slots=%d bytes=%zu budget=%zu (auto=%s)\n",
@@ -148,8 +146,7 @@ extern "C" int ugkwpGpuResidentStrictDownloadBoundaryLayerV1
     DeviceState* s=asState(handle);
     if(validateState(s,"download boundaryLayer"))return 1;
     if(!walls&&!s->gasBoundaryLayer.count)return 0;
-    if(!diagnostics || !s->gasBoundaryLayer.enabled
-        || walls>unsigned(s->gasBoundaryLayer.count) || species>ugkwp::compiledGasSpecies)
+    if(!diagnostics || !s->gasBoundaryLayer.exchange || !s->gasBoundaryLayerModel.input || !s->gasBoundaryLayerModel.output)
     {setLastErrorText("invalid boundaryLayer diagnostic dimensions");return 1;}
     std::vector<ugkwp::gaswall::WallInput<double,ugkwp::compiledGasSpecies>> input(walls);
     std::vector<ugkwp::gaswall::WallOutput<double,ugkwp::compiledGasSpecies>> output(walls);

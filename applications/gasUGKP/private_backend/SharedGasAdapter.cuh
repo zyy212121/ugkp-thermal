@@ -23,6 +23,19 @@ inline bool sharedGasViewRollbackFailed(DeviceState* state)
     setLastErrorText("shared gas device view rollback failed; resident must be destroyed");
     return true;
 }
+inline int discardSharedGasSpecies(DeviceState* state,
+    ugkwp::GasSpeciesState<double,ugkwp::compiledGasSpecies>& owner)
+{
+    if(!releaseSharedGasSpecies(owner))return 0;
+    // A real free failure leaves that allocation owned until resident teardown.
+    state->gasRejectedView=owner;owner={};state->gasModelPoisoned=true;
+    return 1;
+}
+template<class T>inline int discardSharedGasField(DeviceState* state,T*& owner,T*& rejected)
+{
+    if(!releaseSharedGasPointer(owner))return 0;
+    rejected=owner;owner=nullptr;state->gasModelPoisoned=true;return 1;
+}
 extern "C" int ugkwpGpuResidentStrictQueryGasModelCapabilitiesV1
 (void* handle,ugkwpGpuIpc::GasModelCapabilitiesV1* capabilities)
 {
@@ -47,7 +60,7 @@ extern "C" int ugkwpGpuResidentStrictConfigureGasModelV1
        || (args->mechanismBytes && !mechanismText))
     {setLastErrorText("invalid shared gas model payload");return 1;}
     auto accepted=state->gasSpecies;
-    const bool replacing=accepted.mode!=ugkwp::GasMode::SingleLegacy;
+    const bool replacing=accepted.rho!=nullptr;
     ugkwp::GasSpeciesState<double,ugkwp::compiledGasSpecies> candidate;
     try
     {
@@ -56,6 +69,10 @@ extern "C" int ugkwpGpuResidentStrictConfigureGasModelV1
         const auto request=sharedGasCapabilityRequest(state,model.mode,state->sstWallTreatment);
         const auto capability=ugkwp::validateGasCapabilities(request);
         if(!capability) throw std::runtime_error(capability.message);
+        if(model.mode!=ugkwp::GasMode::SingleLegacy
+            && ((request.fluxScheme!=1&&request.fluxScheme!=2)||(request.reconstruction!=0&&request.reconstruction!=1)))
+            std::fprintf(stderr,"shared mixture requested flux=%d reconstruction=%d; effective flux=%d reconstruction=%d (existing fallback)\n",
+                request.fluxScheme,request.reconstruction,request.fluxScheme==2?2:1,request.reconstruction==1?1:0);
         ugkwp::GasMechanismConfiguration mechanism;
         if(model.mode==ugkwp::GasMode::MixtureChemistry)
         {
@@ -101,7 +118,7 @@ extern "C" int ugkwpGpuResidentStrictConfigureGasModelV1
             rc|=uploadSharedGasTable(candidate.mechanism.efficiencies,mechanism.efficiencies.data(),mechanism.efficiencies.size());
             rc|=uploadSharedGasTable(candidate.mechanism.stoichiometricBasis,mechanism.stoichiometricBasis.data(),mechanism.stoichiometricBasis.size());
         }
-        if(rc) {releaseSharedGasSpecies(candidate);return 1;}
+        if(rc) {discardSharedGasSpecies(state,candidate);return 1;}
         candidate.mode=model.mode;
         auto budgetMetadata=prepareGasBudgetMetadata(state,candidate,model);
         const bool keepChemistry=accepted.chemistryStatus!=nullptr;
@@ -113,7 +130,7 @@ extern "C" int ugkwpGpuResidentStrictConfigureGasModelV1
             KEEP_SHARED(limiter); KEEP_SHARED(boundaryMassFraction);
             KEEP_SHARED(compositionBoundaryFixed); KEEP_SHARED(positivityScale);
             KEEP_SHARED(soundSpeed); KEEP_SHARED(heatCapacity); KEEP_SHARED(gasConstant);
-            KEEP_SHARED(cellStatus); KEEP_SHARED(faceStatus);
+            KEEP_SHARED(cellStatus); KEEP_SHARED(faceStatus); KEEP_SHARED(chemistryAudit);
             if (keepChemistry)
             { KEEP_SHARED(chemistryStatus); }
 #undef KEEP_SHARED
@@ -125,16 +142,17 @@ extern "C" int ugkwpGpuResidentStrictConfigureGasModelV1
             if (replacing) exchangePending();
             state->gasSpecies=accepted;
             if(sharedGasViewRollbackFailed(state)) state->gasRejectedView=candidate;
-            else releaseSharedGasSpecies(candidate);
+            else discardSharedGasSpecies(state,candidate);
             return 1;
         }
+        invalidateSharedGasConfiguration(state);
         candidate={}; // state owns the published allocations, including on diagnostic failure.
-        releaseSharedGasSpecies(accepted);
+        if(discardSharedGasSpecies(state,accepted))return 1;
         if(configureGasBudget(state,model,std::move(budgetMetadata)))return 1;
         return 0;
     }
     catch(const std::exception& error)
-    {releaseSharedGasSpecies(candidate);setLastErrorText(error.what());return 1;}
+    {discardSharedGasSpecies(state,candidate);setLastErrorText(error.what());return 1;}
 }
 extern "C" int ugkwpGpuResidentStrictUploadSpeciesV1
 (void* handle,const ugkwpGpuIpc::GasSpeciesIdentityV1* identity,const double* values)
@@ -149,17 +167,19 @@ extern "C" int ugkwpGpuResidentStrictUploadSpeciesV1
     const std::size_t count=std::size_t(state->nCells)*ugkwp::compiledGasSpecies;
     if(allocateSharedGasZero(staged,count)
        ||copyToDevice(staged,values,count,"upload initial species density"))
-    {releaseSharedGasPointer(staged);return 1;}
+    {discardSharedGasField(state,staged,state->gasRejectedView.rho);return 1;}
     double* accepted=state->gasSpecies.rho;
     state->gasSpecies.rho=staged;
     if(syncSharedGasSpecies(state))
     {
         state->gasSpecies.rho=accepted;
         if(sharedGasViewRollbackFailed(state)) state->gasRejectedView.rho=staged;
-        else releaseSharedGasPointer(staged);
+        else discardSharedGasField(state,staged,state->gasRejectedView.rho);
         return 1;
     }
-    releaseSharedGasPointer(accepted);
+    if(releaseSharedGasPointer(accepted)){
+        state->gasRejectedView.rho=accepted;state->gasModelPoisoned=true;return 1;}
+    invalidateSharedGasConfiguration(state,false);
     state->gasSpeciesUploaded=true;
     return 0;
 }
@@ -191,7 +211,7 @@ extern "C" int ugkwpGpuResidentStrictUploadSpeciesBoundaryV1
        ||copyToDevice(stagedFixed,fixed,state->nFaces,"upload species boundary operators")
        ||copyToDevice(stagedValues,values,count,"upload species boundary composition"))
     {
-        releaseSharedGasPointer(stagedFixed);releaseSharedGasPointer(stagedValues);
+        discardSharedGasField(state,stagedFixed,state->gasRejectedView.compositionBoundaryFixed);discardSharedGasField(state,stagedValues,state->gasRejectedView.boundaryMassFraction);
         return 1;
     }
     int* acceptedFixed=state->gasSpecies.compositionBoundaryFixed;
@@ -208,9 +228,12 @@ extern "C" int ugkwpGpuResidentStrictUploadSpeciesBoundaryV1
             state->gasRejectedView.boundaryMassFraction=stagedValues;
         }
         else
-        {releaseSharedGasPointer(stagedFixed);releaseSharedGasPointer(stagedValues);}
+        {discardSharedGasField(state,stagedFixed,state->gasRejectedView.compositionBoundaryFixed);discardSharedGasField(state,stagedValues,state->gasRejectedView.boundaryMassFraction);}
         return 1;
     }
-    releaseSharedGasPointer(acceptedFixed);releaseSharedGasPointer(acceptedValues);
+    invalidateSharedGasConfiguration(state,false);
+    const int releasedFixed=releaseSharedGasPointer(acceptedFixed),releasedValues=releaseSharedGasPointer(acceptedValues);
+    if(releasedFixed||releasedValues){state->gasRejectedView.compositionBoundaryFixed=acceptedFixed;
+        state->gasRejectedView.boundaryMassFraction=acceptedValues;state->gasModelPoisoned=true;return 1;}
     return 0;
 }

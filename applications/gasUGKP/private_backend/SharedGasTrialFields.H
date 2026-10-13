@@ -1,6 +1,13 @@
 #pragma once
 // Device allocation ownership for genuine failed-operation restoration. No host pointers
 // to STL containers are placed in the gas state or checkpoint.
+struct BoundaryLayerAllocation
+{
+    ugkwp::GasBoundaryLayerState<double> gasBoundaryLayer;
+    ugkwp::GasBoundaryLayerModelState<double,ugkwp::compiledGasSpecies> gasBoundaryLayerModel;
+    ugkwp::GasSstAuditState<double> gasSstAudit;
+    double *gasWallQuadratureDistance=nullptr,*gasWallQuadratureWeight=nullptr;
+};
 struct SharedGasTrialSnapshot
 {
     double* cells=nullptr;
@@ -19,6 +26,8 @@ struct SharedGasTrialStorage
 {
     SharedGasTrialSnapshot trial;
     SharedGasTrialSnapshot interval;
+    BoundaryLayerAllocation rejectedWall;
     double targetMaxCo=.5;
     bool retryableFailure=false;
+    bool terminalContinuation=false;
 };

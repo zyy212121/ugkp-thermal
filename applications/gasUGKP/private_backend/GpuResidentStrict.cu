@@ -867,12 +867,13 @@ int syncDeviceState(DeviceState* s, const char* name)
     return 0;
 }
 
-int syncSstConfiguration(DeviceState* s, const char* name)
+int syncSstConfiguration(DeviceState* s, const char* name, bool retainConstants=false)
 {
     const size_t first = offsetof(DeviceState, sstConfigured);
-    const size_t last =
-        offsetof(DeviceState, sstThermalYPlus)
-      + sizeof(s->sstThermalYPlus);
+    // The trailing constants are computed from device-only Pr/Prt. Repeated
+    // configuration must not replace them with the scrubbed host mirror.
+    const size_t last = retainConstants ? offsetof(DeviceState, sstJayatillekeP)
+        : offsetof(DeviceState, sstThermalYPlus) + sizeof(s->sstThermalYPlus);
     const cudaError_t err = cudaMemcpy
     (
         reinterpret_cast<unsigned char*>(s->deviceState) + first,
@@ -960,8 +961,8 @@ void scrubHostCalculationScalars(DeviceState* s)
     s->sstOmegaMin = 0.0;
     s->sstMaxSourceNumber = 0.0;
     s->sstWallTreatment = 0;
-    s->sstWallKappa = 0.0;
-    s->sstWallE = 0.0;
+    // Keep the two already-published thermal parameters as configuration
+    // metadata; unchanged reconfiguration needs no device work for constants.
     s->sstWallCmu = 0.0;
     s->particleDiameterFallback = 0.0;
     s->particleDiameterMin = 0.0;
@@ -980,7 +981,7 @@ void scrubHostCalculationScalars(DeviceState* s)
 #include "BoundaryLayerStorage.cuh"
 #include "GasBudgetRuntime.cuh"
 
-void releaseSharedGasTrialStorage(SharedGasTrialStorage& storage);
+int releaseSharedGasTrialStorage(SharedGasTrialStorage& storage);
 
 void releaseState(DeviceState* s)
 {
@@ -3858,24 +3859,7 @@ extern "C" int ugkwpGpuResidentStrictCreate
     }
     *handle = nullptr;
 
-    if
-    (
-        nCells <= 0 || nFaces < 0 || nInternalFaces < 0
-        || nInternalFaces > nFaces || nCellPlanes < 0 || particleCapacity < 0
-        || gasFluxScheme < 1 || gasFluxScheme > 9
-        || gasReconstruction < 0 || gasReconstruction > 2
-        || gasLimiter < 0 || gasLimiter > 2
-        || gasTimeIntegrator < 1 || gasTimeIntegrator > 3
-        || turbulenceModel < 0 || turbulenceModel > 3
-        || csrHeavyReductionMode < 0 || csrHeavyReductionMode > 2
-        || particleBlockThreads <= 0 || reductionBlockThreads <= 0
-        || dragModel < 0 || dragModel > 2
-        || particleGasHeatTransferModelId < 0 || particleGasHeatTransferModelId > 1
-    )
-    {
-        setLastErrorText("unavailable resident storage extent or selected operator");
-        return 1;
-    }
+
 
     cudaError_t err = cudaFree(nullptr);
     if (err != cudaSuccess)
@@ -4128,11 +4112,7 @@ extern "C" int ugkwpGpuResidentStrictUploadBoundarySources
         return 1;
     }
 
-    if (nBoundarySources < 0)
-    {
-        setLastErrorText("negative GPU resident boundary source count");
-        return 1;
-    }
+
 
     release(s->sourceCell);
     release(s->sourceFace);
@@ -4467,8 +4447,7 @@ extern "C" int ugkwpGpuResidentStrictUploadSourceResidualMass
     }
     if
     (
-        nSources < 0 || nSources > s->nBoundarySources
-     || (nSources > 0 && residualMass == nullptr)
+        nSources != 0 && residualMass == nullptr
     )
     {
         setLastErrorText("source residual restart count/buffer mismatch");
@@ -4749,6 +4728,17 @@ extern "C" int ugkwpGpuResidentStrictConfigureSst
         }
     }
 
+    const int previousConfigured=s->sstConfigured;
+    const double previousKappa=s->sstWallKappa,previousE=s->sstWallE;
+    const bool retainInventory=s->gasSpecies.mode!=ugkwp::GasMode::SingleLegacy&&previousConfigured;
+    const bool updateConstants=previousKappa!=wallKappa||previousE!=wallE;
+    const auto configurationFailed=[&](){
+        // These host fields describe the last completed configuration, so an
+        // actual copy/launch/sync failure remains retryable without a snapshot.
+        s->sstConfigured=previousConfigured;
+        s->sstWallKappa=previousKappa;s->sstWallE=previousE;
+        return 1;
+    };
     s->sstCoefficients = ugkwp::SstCoefficients
     {
         alphaK1,
@@ -4776,8 +4766,10 @@ extern "C" int ugkwpGpuResidentStrictConfigureSst
     int rc = 0;
     const size_t nc = static_cast<size_t>(s->nCells);
     const size_t nf = static_cast<size_t>(s->nFaces);
-    rc |= copyToDevice(s->k, k, nc, "cudaMemcpy SST k");
-    rc |= copyToDevice(s->omega, omega, nc, "cudaMemcpy SST omega");
+    if(!retainInventory){
+        rc |= copyToDevice(s->k, k, nc, "cudaMemcpy SST k");
+        rc |= copyToDevice(s->omega, omega, nc, "cudaMemcpy SST omega");
+    }
     rc |= copyToDevice
     (
         s->sstWallDistance,
@@ -4807,14 +4799,16 @@ extern "C" int ugkwpGpuResidentStrictConfigureSst
         nf,
         "cudaMemcpy SST boundaryOmega"
     );
-    if (rc != 0 || syncSstConfiguration(s, "cudaMemcpy SST configuration") != 0)
+    if (rc != 0 || syncSstConfiguration(s, "cudaMemcpy SST configuration", retainInventory) != 0)
     {
-        return 1;
+        return configurationFailed();
     }
 
-    const int block = s->fixedCellBlockThreads;
-    const int grid = (s->nCells + block - 1)/block;
-    initialiseSstConservativeStateKernel<<<grid, block>>>(s->deviceState);
+    invalidateSharedGasConfiguration(s);
+    if(retainInventory&&!updateConstants)return 0;
+    const int block = retainInventory ? 1 : s->fixedCellBlockThreads;
+    const int grid = retainInventory ? 1 : (s->nCells + block - 1)/block;
+    initialiseSstConservativeStateKernel<<<grid, block>>>(s->deviceState, !retainInventory);
     cudaError_t err = cudaGetLastError();
     if (err == cudaSuccess)
     {
@@ -4823,7 +4817,7 @@ extern "C" int ugkwpGpuResidentStrictConfigureSst
     if (err != cudaSuccess)
     {
         setLastError("initialiseSstConservativeStateKernel", err);
-        return 1;
+        return configurationFailed();
     }
     return 0;
 }
@@ -5717,11 +5711,7 @@ extern "C" int ugkwpGpuResidentStrictUploadParticleRestartMirror
     {
         return 1;
     }
-    if (nParticles < 0 || nParticles > s->particleCapacity)
-    {
-        setLastErrorText("particle restart mirror count exceeds resident capacity");
-        return 1;
-    }
+
 
     cudaError_t err =
         cudaMemset(s->pStatus, 0, static_cast<size_t>(s->particleCapacity)*sizeof(int));
@@ -5822,11 +5812,7 @@ extern "C" int ugkwpGpuResidentStrictDownloadParticleRestartMirror
     {
         return 1;
     }
-    if (count < 0 || count > s->particleCapacity)
-    {
-        setLastErrorText("resident particle count is outside capacity");
-        return 1;
-    }
+
     *nParticles = count;
 
     if (maxParticles == 0)

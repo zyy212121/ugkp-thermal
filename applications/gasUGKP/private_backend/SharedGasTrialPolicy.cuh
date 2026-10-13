@@ -72,13 +72,18 @@ inline int copyFields(const std::vector<Field>& fields,double* saved,bool restor
     }
     return 0;
 }
-inline void releaseSnapshot(SharedGasTrialSnapshot& snapshot)
+inline int releaseSnapshot(SharedGasTrialSnapshot& snapshot)
 {
-    releaseSharedGasPointer(snapshot.cells);releaseSharedGasPointer(snapshot.faces);
-    releaseSharedGasPointer(snapshot.cellStatus);releaseSharedGasPointer(snapshot.faceStatus);
-    releaseSharedGasPointer(snapshot.chemistryStatus);releaseSharedGasPointer(snapshot.chemistryAudit);
-    releaseSharedGasPointer(snapshot.wallRecords);snapshot.wallRecordBytes=0;
+    int result=0;
+    result|=releaseSharedGasPointer(snapshot.cells);result|=releaseSharedGasPointer(snapshot.faces);
+    result|=releaseSharedGasPointer(snapshot.cellStatus);result|=releaseSharedGasPointer(snapshot.faceStatus);
+    result|=releaseSharedGasPointer(snapshot.chemistryStatus);result|=releaseSharedGasPointer(snapshot.chemistryAudit);
+    result|=releaseSharedGasPointer(snapshot.wallRecords);
+    if(!snapshot.wallRecords)snapshot.wallRecordBytes=0;
+    // Any partial release invalidates the snapshot. A retained pointer must be
+    // released successfully before ensureSnapshot can replace its allocation.
     snapshot.cellScalars=snapshot.faceScalars=0;snapshot.valid=false;
+    return result;
 }
 inline int ensureSnapshot(DeviceState* s,SharedGasTrialSnapshot& snapshot)
 {
@@ -90,7 +95,7 @@ inline int ensureSnapshot(DeviceState* s,SharedGasTrialSnapshot& snapshot)
     if(snapshot.cells && snapshot.cellScalars==count && snapshot.faceScalars==faceCount
         && (!s->gasSpecies.chemistryStatus || snapshot.chemistryStatus)
         && (!s->gasSpecies.chemistryAudit || snapshot.chemistryAudit))return 0;
-    releaseSnapshot(snapshot);
+    if(releaseSnapshot(snapshot))return 1;
     snapshot.cellScalars=count;snapshot.faceScalars=faceCount;
     int rc=allocateSharedGasZero(snapshot.cells,count);
     rc|=allocateSharedGasZero(snapshot.faces,std::size_t(s->nFaces)*6);
@@ -113,7 +118,7 @@ template<class State> int snapshotWallRecords(State* s,SharedGasTrialSnapshot& s
             {m.input,n*sizeof(*m.input)},{m.output,n*sizeof(*m.output)},{m.status,n*sizeof(*m.status)}};
         std::size_t total=0;for(const auto& f:fields)total+=f.count;
         if(!restore && saved.wallRecordBytes!=total)
-        {releaseSharedGasPointer(saved.wallRecords);saved.wallRecordBytes=0;}
+        {if(releaseSharedGasPointer(saved.wallRecords)){saved.valid=false;return 1;}saved.wallRecordBytes=0;}
         if(!saved.wallRecords)
         {
             if(restore || allocateSharedGasZero(saved.wallRecords,total))return 1;
@@ -173,20 +178,21 @@ inline bool retryableTransport(int value)
 }
 // Only entered after the existing status check fails. No successful-stage
 // transfer or additional all-face scan is introduced for error reporting.
-template<class State> bool reportBoundaryLayerFailure(State* s)
+// -1 is an actual diagnostic-copy error, 1 is a reported numerical failure.
+template<class State> int reportBoundaryLayerFailure(State* s)
 {
     if constexpr(ugkwp::GasBoundaryLayerCapability<State>::value)
     {
         const auto&w=s->gasBoundaryLayer;const auto&m=s->gasBoundaryLayerModel;
         if(!w.enabled || !w.status || !m.faces || !m.status)return false;
         std::vector<int> codes(w.count);
-        if(copyToHost(codes.data(),w.status,codes.size(),"read failed wall statuses"))return true;
+        if(copyToHost(codes.data(),w.status,codes.size(),"read failed wall statuses"))return -1;
         for(int slot=0;slot<w.count;++slot)if(codes[slot])
         {
             int face=-1;
             typename std::remove_pointer<decltype(m.status)>::type detail;
             if(copyToHost(&face,m.faces+slot,1,"read failed wall face")
-                || copyToHost(&detail,m.status+slot,1,"read failed wall closure status"))return true;
+                || copyToHost(&detail,m.status+slot,1,"read failed wall closure status"))return -1;
             char message[256];
             std::snprintf(message,sizeof(message),"boundaryLayer closure failed: face=%d transport=%d wallCode=%d node=%d iteration=%d residual=%.17g",
                 face,codes[slot],int(detail.code),detail.node,detail.iteration,detail.residual);
@@ -197,21 +203,26 @@ template<class State> bool reportBoundaryLayerFailure(State* s)
 }
 inline int transportStatus(DeviceState* s,bool nativeRefinement=false)
 {
-    s->gasTrial.retryableFailure=false;
+    s->gasTrial.retryableFailure=false;s->gasTrial.terminalContinuation=false;
     std::vector<int> cells(s->nCells),faces(s->nFaces);
     if(copyToHost(cells.data(),s->gasSpecies.cellStatus,cells.size(),"read mixture cell diagnostics")
        ||copyToHost(faces.data(),s->gasSpecies.faceStatus,faces.size(),"read mixture face diagnostics"))return 1;
-    bool failed=false,retry=true;
+    bool failed=false,retry=true,unavailable=false;
     for(const auto* values:{&cells,&faces})for(int value:*values)
-    if(value && (nativeRefinement || (value!=int(ugkwp::GasTransportCode::NegativeInventory)
-        && value!=int(ugkwp::GasTransportCode::SourceStepLimit))))
-    {failed=true;retry=retry&&retryableTransport(value);}
-    if(failed){s->gasTrial.retryableFailure=retry;if(!reportBoundaryLayerFailure(s))setLastErrorText("shared gas trial rejected by physical cell/face validation");return 1;}
+    if(value && (nativeRefinement || value==int(ugkwp::GasTransportCode::InvalidStorage)))
+    {failed=true;unavailable=unavailable||value==int(ugkwp::GasTransportCode::InvalidStorage);retry=retry&&retryableTransport(value);}
+    s->gasTrial.terminalContinuation=failed&&!unavailable;
+    if(failed){
+        s->gasTrial.retryableFailure=retry;const int report=reportBoundaryLayerFailure(s);
+        if(report<0){s->gasTrial.retryableFailure=false;s->gasTrial.terminalContinuation=false;}
+        else if(!report)setLastErrorText("shared gas trial rejected by physical cell/face validation");
+        return 1;
+    }
     return 0;
 }
 inline int chemistryStatus(DeviceState* s)
 {
-    s->gasTrial.retryableFailure=false;
+    s->gasTrial.retryableFailure=false;s->gasTrial.terminalContinuation=false;
     if(!s->gasSpecies.chemistryStatus)return 0;
     std::vector<ugkwp::ChemistryStatus> values(s->nCells);
     if(copyToHost(values.data(),s->gasSpecies.chemistryStatus,values.size(),"read mixture chemistry diagnostics"))return 1;
@@ -223,23 +234,24 @@ inline int chemistryStatus(DeviceState* s)
             &&value.code!=ugkwp::ChemistryCode::InvalidControls
             &&value.code!=ugkwp::ChemistryCode::InvalidComposition;
     }
+    s->gasTrial.terminalContinuation=failed;
     if(failed)
     {s->gasTrial.retryableFailure=retry;setLastErrorText("shared gas chemical trial rejected");return 1;}
     return 0;
 }
 } // namespace sharedGasTrialDetail
 
-inline void releaseSharedGasTrialStorage(SharedGasTrialStorage& storage)
+inline int releaseSharedGasTrialStorage(SharedGasTrialStorage& storage)
 {
-    sharedGasTrialDetail::releaseSnapshot(storage.trial);
-    sharedGasTrialDetail::releaseSnapshot(storage.interval);
+    const int trial=sharedGasTrialDetail::releaseSnapshot(storage.trial);
+    return sharedGasTrialDetail::releaseSnapshot(storage.interval)|trial;
 }
 struct SharedGasTrialPolicy
 {
     static int beginInterval(DeviceState* s)
     {
         if(s->gasModelPoisoned)return 1;
-        s->gasTrial.retryableFailure=false;
+        s->gasTrial.retryableFailure=false;s->gasTrial.terminalContinuation=false;
         const auto error=cudaDeviceSynchronize();
         if(error!=cudaSuccess){setLastError("begin shared gas interval",error);return 1;}
         if(sharedGasTrialDetail::snapshot(s,s->gasTrial.interval,false))return 1;
@@ -248,7 +260,7 @@ struct SharedGasTrialPolicy
     static int begin(DeviceState* s)
     {
         if(s->gasModelPoisoned)return 1;
-        s->gasTrial.retryableFailure=false;
+        s->gasTrial.retryableFailure=false;s->gasTrial.terminalContinuation=false;
         if(sharedGasTrialDetail::snapshot(s,s->gasTrial.trial,false))return 1;
         return resetErrors(s);
     }
@@ -268,13 +280,20 @@ struct SharedGasTrialPolicy
     }
     static int validate(DeviceState* s,bool nativeRefinement=false)
     {
+        s->gasTrial.terminalContinuation=false;
         if(s->gasModelPoisoned)return 1;
         const auto error=cudaDeviceSynchronize();
         if(error!=cudaSuccess){setLastError("validate shared gas trial",error);return 1;}
         const int transport=sharedGasTrialDetail::transportStatus(s,nativeRefinement);
         const bool transportRetry=s->gasTrial.retryableFailure;
-        const int chemistry=sharedGasTrialDetail::chemistryStatus(s);
+        const bool terminal=s->gasTrial.terminalContinuation;
+        const int chemistry=nativeRefinement?sharedGasTrialDetail::chemistryStatus(s):0;
         const bool chemistryRetry=s->gasTrial.retryableFailure;
+        // Unavailable chemistry is already in the sticky transport channel.
+        // A failed diagnostic copy is an actual operation error, never a
+        // reason to execute another physical interval.
+        s->gasTrial.terminalContinuation=nativeRefinement && (transport||chemistry)
+            && (!transport||terminal) && (!chemistry||chemistryRetry||s->gasTrial.terminalContinuation);
         s->gasTrial.retryableFailure=(transport || chemistry) && (!transport || transportRetry) && (!chemistry || chemistryRetry);
         return transport || chemistry;
     }
@@ -284,7 +303,7 @@ struct SharedGasTrialPolicy
     {
         if(sharedGasTrialDetail::snapshot(s,s->gasTrial.trial,true))
         {
-            s->gasTrial.retryableFailure=false;s->gasModelPoisoned=true;
+            s->gasTrial.retryableFailure=false;s->gasTrial.terminalContinuation=false;s->gasModelPoisoned=true;
             setLastErrorText("shared gas trial rollback failed; resident must be destroyed");
         }
     }
@@ -293,11 +312,12 @@ struct SharedGasTrialPolicy
         cancelGasBudgetInterval(s);
         if(sharedGasTrialDetail::snapshot(s,s->gasTrial.interval,true))
         {
-            s->gasTrial.retryableFailure=false;s->gasModelPoisoned=true;
+            s->gasTrial.retryableFailure=false;s->gasTrial.terminalContinuation=false;s->gasModelPoisoned=true;
             setLastErrorText("shared gas interval rollback failed; resident must be destroyed");
         }
     }
     static bool retryable(DeviceState* s){return s->gasTrial.retryableFailure;}
+    static bool continueTerminal(DeviceState* s){return s->gasTrial.terminalContinuation&&!s->gasModelPoisoned;}
     static const double* stageVolumes(DeviceState* s,bool){return s->V;}
     static double targetMaxCo(DeviceState* s){return s->gasTrial.targetMaxCo;}
     static int validateTimeStep(DeviceState* s,double)
