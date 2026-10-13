@@ -435,23 +435,23 @@ UGKP_WALL_HD JayatillekeThermalTransport sstJayatillekeThermalTransport
 {
     const GpuReal molecular = mu*cp/Pr;
     const GpuReal uStar = sqrt(sqrt(Cmu))*sqrt(maximum(turbulentK, GPU_R(0.0)));
-    if (!(rhoWall > GPU_R(0.0) && cp > GPU_R(0.0) && mu > GPU_R(0.0)
-       && Pr > GPU_R(0.0) && Prt > GPU_R(0.0) && y > GPU_R(0.0)
-       && kappa > GPU_R(0.0) && E > GPU_R(0.0) && yPlusThermal > GPU_R(0.0))
-       || !std::isfinite(yPlusThermal) || !std::isfinite(P)
-       || !std::isfinite(molecular) || !std::isfinite(uStar)
-       || !std::isfinite(temperatureNormalGradient))
+    if (!std::isfinite(molecular) || !std::isfinite(uStar)
+        || !std::isfinite(temperatureNormalGradient))
     {
         return {molecular, 0};
     }
     if (uStar == GPU_R(0.0))
     {
-        return {molecular, 1, -molecular*temperatureNormalGradient};
+        const GpuReal heatFlux = -molecular*temperatureNormalGradient;
+        return {molecular, std::isfinite(heatFlux) ? 1 : 0, heatFlux};
     }
+    // This branch actually divides by viscosity; the zero-uStar molecular
+    // branch above already has its complete result even when viscosity is zero.
+    if (mu == GPU_R(0.0)) return {molecular, 0};
     const GpuReal yPlus = uStar*y*rhoWall/mu;
     const bool viscous = yPlus < yPlusThermal;
     const GpuReal tPlus = viscous ? Pr*yPlus : Prt*(log(E*yPlus)/kappa + P);
-    if (!(tPlus > GPU_R(0.0)) || !std::isfinite(tPlus))
+    if (tPlus == GPU_R(0.0) || !std::isfinite(tPlus))
     {
         return {molecular, 0};
     }

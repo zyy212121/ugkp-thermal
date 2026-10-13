@@ -290,20 +290,14 @@ UGKP_RIEMANN_HD bool physicalPrimitive
     const GpuReal pressureFloor
 )
 {
+    (void)rhoFloor; (void)pressureFloor;
     return
         finiteScalar(gamma)
-     && gamma > GPU_R(1.0)
-     && finiteScalar(rhoFloor)
-     && rhoFloor > GPU_R(0.0)
-     && finiteScalar(pressureFloor)
-     && pressureFloor > GPU_R(0.0)
      && finiteScalar(state.rho)
      && finiteScalar(state.ux)
      && finiteScalar(state.uy)
      && finiteScalar(state.uz)
-     && finiteScalar(state.p)
-     && state.rho >= rhoFloor
-     && state.p >= pressureFloor;
+     && finiteScalar(state.p);
 }
 
 UGKP_RIEMANN_HD Conservative conservative

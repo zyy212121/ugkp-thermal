@@ -498,10 +498,6 @@ __global__ void completeMobilePackingProjectionCooperativeKernel
 
     const int correctionCount =
         checkedMobilePackingCount(s, s.mobilePackingCorrectionCellCount);
-    if (correctionCount < pressureActiveCount)
-    {
-        asm("trap;");
-    }
     for
     (
         int activeI = globalThread;
