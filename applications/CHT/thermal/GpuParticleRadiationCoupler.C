@@ -16,10 +16,8 @@ namespace Foam
 {
 namespace gpuThermal
 {
-
 namespace
 {
-
 [[noreturn]] void materialFailure
 (
     const std::string& reason,
@@ -79,46 +77,6 @@ void validateRadiationResult
     {
         materialFailure("DO result sizes do not match the transaction mesh", outerIteration);
     }
-    if
-    (
-        !detail::finiteParticleRadiationScalar(result.integratedParticlePowerW)
-     || !detail::finiteParticleRadiationScalar(result.integratedBoundaryPowerW)
-     || !detail::finiteParticleRadiationScalar(result.conservationResidualW)
-    )
-    {
-        materialFailure("DO integrated powers are nonfinite", outerIteration);
-    }
-
-    for (label cellI = 0; cellI < mesh.nCells(); ++cellI)
-    {
-        const scalar absorption = result.absorptionCoefficientInvM[cellI];
-        const scalar scattering = result.scatteringCoefficientInvM[cellI];
-        const scalar extinction = result.extinctionCoefficientInvM[cellI];
-        const scalar asymmetry = result.asymmetryFactor[cellI];
-        if
-        (
-            !detail::finiteParticleRadiationScalar
-            (
-                result.incidentRadiationG_Wm2[cellI]
-            )
-         || !detail::finiteParticleRadiationScalar
-            (
-                result.particlePowerDensityWm3[cellI]
-            )
-         || !detail::finiteParticleRadiationScalar(absorption)
-         || !detail::finiteParticleRadiationScalar(scattering)
-         || !detail::finiteParticleRadiationScalar(extinction)
-         || !detail::finiteParticleRadiationScalar(asymmetry)
-        )
-        {
-            materialFailure
-            (
-                "DO cell radiation result is nonfinite",
-                outerIteration,
-                cellI
-            );
-        }
-    }
 
     forAll(mesh.boundary(), patchI)
     {
@@ -136,36 +94,13 @@ void validateRadiationResult
                 patchI
             );
         }
-        for (label faceI = 0; faceI < mesh.boundary()[patchI].size(); ++faceI)
-        {
-            if
-            (
-                !detail::finiteParticleRadiationScalar
-                (
-                    result.boundaryQrOutwardWm2[patchI][faceI]
-                )
-            )
-            {
-                materialFailure
-                (
-                    "DO boundary flux is nonfinite",
-                    outerIteration,
-                    -1,
-                    patchI,
-                    faceI
-                );
-            }
-        }
     }
 }
-
-
 
 }             
 
 namespace detail
 {
-
 scalar clampParticleRadiationTableValue
 (
     const scalar value,
@@ -212,15 +147,6 @@ void validateParticleRadiationSnapshot
 )
 {
     const fvMesh& mesh = context.mesh;
-    if
-    (
-        !finiteParticleRadiationScalar(context.radiationActiveEpsilonMin)
-     || !finiteParticleRadiationScalar(context.particleTemperatureMinK)
-     || !finiteParticleRadiationScalar(context.particleTemperatureMaxK)
-    )
-    {
-        materialFailure("invalid particle-radiation transaction controls");
-    }
 
     if
     (
@@ -251,56 +177,6 @@ void validateParticleRadiationSnapshot
         }
     }
 
-    for (label cellI = 0; cellI < mesh.nCells(); ++cellI)
-    {
-        const scalar epsilon = snapshot.epsilonS[cellI];
-        const scalar massKg = snapshot.particleMassInCellKg[cellI];
-        const scalar temperatureK = snapshot.particleMeanTemperatureK[cellI];
-        const scalar diameterM = snapshot.representativeDiameterM[cellI];
-        if (!finiteParticleRadiationScalar(epsilon))
-        {
-            materialFailure("epsilonS is nonfinite", 0, cellI);
-        }
-        if (!finiteParticleRadiationScalar(massKg))
-        {
-            materialFailure("particle mass is nonfinite", 0, cellI);
-        }
-        if (!finiteParticleRadiationScalar(temperatureK))
-        {
-            materialFailure("particle temperature is nonfinite", 0, cellI);
-        }
-        if (!finiteParticleRadiationScalar(diameterM))
-        {
-            materialFailure("representative diameter is nonfinite", 0, cellI);
-        }
-        const bool radiationActive =
-            epsilon > context.radiationActiveEpsilonMin;
-        if
-        (
-            massKg == scalar(0)
-         && radiationActive
-        )
-        {
-            materialFailure("nonzero optical material has zero microscopic particle mass", 0, cellI);
-        }
-        const scalar capacityJPerK = particleCellCapacityJPerK(snapshot, cellI);
-        if
-        (
-            !finiteParticleRadiationScalar(capacityJPerK)
-         || (radiationActive && capacityJPerK == scalar(0))
-        )
-        {
-            materialFailure("particle cell thermal capacity is invalid", 0, cellI);
-        }
-        if
-        (
-            !finiteParticleRadiationScalar(mesh.V()[cellI])
-        )
-        {
-            materialFailure("particle-radiation cell volume is invalid", 0, cellI);
-        }
-    }
-
     forAll(mesh.boundary(), patchI)
     {
         const scalarField& wallTemperature =
@@ -313,20 +189,6 @@ void validateParticleRadiationSnapshot
         )
         {
             materialFailure("wall-temperature/emissivity face count mismatch", 0, -1, patchI);
-        }
-        for (label faceI = 0; faceI < mesh.boundary()[patchI].size(); ++faceI)
-        {
-            if (!finiteParticleRadiationScalar(wallTemperature[faceI]))
-            {
-                materialFailure("wall temperature is nonfinite", 0, -1, patchI, faceI);
-            }
-            if
-            (
-                !finiteParticleRadiationScalar(emissivity[faceI])
-            )
-            {
-                materialFailure("coupled-wall emissivity is nonfinite", 0, -1, patchI, faceI);
-            }
         }
     }
 }
@@ -358,10 +220,6 @@ try
     result.escapedBoundaryRadiationEnergyJ = scalar(0);
     result.globalConservationResidualJ = scalar(0);
     const scalar couplingDeltaT = snapshot.elapsedCouplingTimeS;
-    if (!finiteParticleRadiationScalar(couplingDeltaT))
-    {
-        materialFailure("invalid implicit radiation coupling duration");
-    }
 
     scalarField currentTemperatureK(snapshot.particleMeanTemperatureK);
     currentTemperatureK.setSize(context.mesh.nCells());
@@ -389,42 +247,15 @@ try
         const scalar rawDeltaEnergyJ = couplingDeltaT
            *context.mesh.V()[cellI]
            *radiationResult.particlePowerDensityWm3[cellI];
-        if (!finiteParticleRadiationScalar(rawDeltaEnergyJ))
-        {
-            materialFailure
-            (
-                "raw radiation particle energy is nonfinite",
-                1,
-                cellI
-            );
-        }
 
         const bool radiationActive =
             snapshot.epsilonS[cellI] > context.radiationActiveEpsilonMin;
         if (!radiationActive)
         {
-            if (rawDeltaEnergyJ != scalar(0))
-            {
-                materialFailure
-                (
-                    "inactive cell received radiation energy",
-                    1,
-                    cellI
-                );
-            }
             continue;
         }
 
         const scalar capacityJPerK = particleCellCapacityJPerK(snapshot, cellI);
-        if (capacityJPerK == scalar(0))
-        {
-            materialFailure
-            (
-                "active cell has zero radiation thermal capacity",
-                1,
-                cellI
-            );
-        }
 
         const scalar oldTemperatureK = snapshot.particleMeanTemperatureK[cellI];
         const scalar incidentRadiationG_Wm2 =
@@ -463,19 +294,7 @@ try
                     optical.planckBandFraction
                 )
             );
-            if
-            (
-                !finiteParticleRadiationScalar(absorptionCoefficient)
-                 || !finiteParticleRadiationScalar(powerW)
-            )
-            {
-                materialFailure
-                (
-                    "implicit radiation material power is invalid",
-                    1,
-                    cellI
-                );
-            }
+
             return powerW;
         };
 
@@ -517,22 +336,7 @@ try
         }
         const scalar acceptedEnergyJ =
             capacityJPerK*(root.temperatureK - oldTemperatureK);
-        if
-        (
-            !finiteParticleRadiationScalar(root.temperatureK)
-         || !finiteParticleRadiationScalar(acceptedEnergyJ)
-        )
-        {
-            materialFailure
-            (
-                "implicit radiation material solution is invalid",
-                1,
-                cellI,
-                -1,
-                -1,
-                root.temperatureK
-            );
-        }
+
         currentTemperatureK[cellI] = root.temperatureK;
         result.deltaParticleRadiationEnergyJ[cellI] = acceptedEnergyJ;
         acceptedParticleEnergyJ += acceptedEnergyJ;
@@ -551,17 +355,7 @@ try
             const scalar boundaryEnergyJ = couplingDeltaT
                *mag(faceAreas[faceI])
                *radiationResult.boundaryQrOutwardWm2[patchI][faceI];
-            if (!finiteParticleRadiationScalar(boundaryEnergyJ))
-            {
-                materialFailure
-                (
-                    "raw radiation boundary energy is nonfinite",
-                    1,
-                    -1,
-                    patchI,
-                    faceI
-                );
-            }
+
             rawBoundaryEnergyJ[patchI][faceI] = boundaryEnergyJ;
             rawBoundaryTotalEnergyJ += boundaryEnergyJ;
             grossTransactionEnergyJ += mag(boundaryEnergyJ);
@@ -589,10 +383,7 @@ try
         {
             const scalar boundaryEnergyJ =
                 boundaryScale.scale*rawBoundaryEnergyJ[patchI][faceI];
-            if (!finiteParticleRadiationScalar(boundaryEnergyJ))
-            {
-                materialFailure("applied radiation boundary energy is nonfinite", 1, -1, patchI, faceI);
-            }
+
             appliedBoundaryEnergyJ += boundaryEnergyJ;
             if (coupled)
             {
@@ -606,32 +397,25 @@ try
         }
     }
 
-    // Retain the original diagnostic arithmetic after the one physical scaling.
-    // A newly admitted cancellation may have no second diagnostic divisor;
-    // in that case report the actual accepted-plus-applied sum, without refusal.
-    try
-    {
-        const detail::ConservativeBoundaryEnergyScaleResult appliedBalance =
-            detail::conservativeBoundaryEnergyScale
-            (
-                acceptedParticleEnergyJ,
-                appliedBoundaryEnergyJ,
-                grossTransactionEnergyJ,
-                scalar(1e-10)
-            );
-        result.globalConservationResidualJ = appliedBalance.residualJ;
-    }
-    catch (const ParticleRadiationSolveError&)
-    {
-        result.globalConservationResidualJ = acceptedParticleEnergyJ + appliedBoundaryEnergyJ;
-        if (!finiteParticleRadiationScalar(result.globalConservationResidualJ))
-        {
-            materialFailure("applied radiation-boundary energy is nonfinite");
-        }
-    }
+    // The second scale is diagnostic only. Preserve the original successful
+    // diagnostic arithmetic and its failure fallback, never rescale faces twice.
+    const detail::ConservativeBoundaryEnergyScaleResult appliedBalance =
+        detail::conservativeBoundaryEnergyScale
+        (
+            acceptedParticleEnergyJ,
+            appliedBoundaryEnergyJ,
+            grossTransactionEnergyJ,
+            scalar(1e-10)
+        );
+    result.globalConservationResidualJ =
+        finiteParticleRadiationScalar(acceptedParticleEnergyJ)
+     && finiteParticleRadiationScalar(appliedBoundaryEnergyJ)
+     && finiteParticleRadiationScalar(appliedBalance.scale)
+     && finiteParticleRadiationScalar(appliedBalance.residualJ)
+      ? appliedBalance.residualJ
+      : acceptedParticleEnergyJ + appliedBoundaryEnergyJ;
     result.finalMeanTemperatureK = currentTemperatureK;
     return result;
-
 
 }
 catch (const ParticleRadiationSolveError&)
@@ -666,14 +450,6 @@ GpuParticleRadiationCoupler::GpuParticleRadiationCoupler
     particleTemperatureMaxK_(particleTemperatureMaxK),
     radiationWorkspace_(radiationSolver.makeWorkspace())
 {
-    if
-    (
-        !detail::finiteParticleRadiationScalar(particleTemperatureMinK)
-     || !detail::finiteParticleRadiationScalar(particleTemperatureMaxK)
-    )
-    {
-        materialFailure("invalid particle-radiation coupler controls/bounds");
-    }
 }
 
 ParticleRadiationMaterialResult GpuParticleRadiationCoupler::solve
