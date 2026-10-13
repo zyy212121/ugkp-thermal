@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """Build/run the native correction-path contact-age invariant witness.
 
-Usage: python3 contact_age_theta.py SOURCE OUT FSH 64 [--prepare-only]
-       python3 contact_age_theta.py SOURCE OUT CHT 32|64 [--prepare-only]
+Usage: python3 contact_age_theta.py SOURCE OUT FSH [--prepare-only]
+       python3 contact_age_theta.py SOURCE OUT CHT [--prepare-only]
 OUT must be outside SOURCE and may be reused. Generated files are replaced.
 Exit 2 means mobile theta or detached stored contact age was not reset.
 This tests local native kernels, not end-to-end solver acceptance.
@@ -17,12 +17,12 @@ import sys
 
 
 def main():
-    if len(sys.argv) < 5:
+    if len(sys.argv) < 4:
         raise SystemExit(__doc__)
     root, out = map(lambda x: Path(x).resolve(), sys.argv[1:3])
-    app, bits = sys.argv[3], int(sys.argv[4])
-    if app not in ('FSH', 'CHT') or bits not in (32, 64) or (app == 'FSH' and bits != 64):
-        raise SystemExit('Supported states: FSH64, CHT64, CHT32')
+    app=sys.argv[3]
+    if app not in ('FSH', 'CHT'):
+        raise SystemExit('Supported applications: FSH, CHT')
     if out == root or root in out.parents:
         raise SystemExit('Output must be separate from the source checkout')
     out.mkdir(parents=True, exist_ok=True)
@@ -31,10 +31,8 @@ def main():
     a = text.index('struct DeviceState')
     b = text.index('\n};', a)
     fields = re.findall(r'^\s*((?:unsigned\s+)?(?:long long|char)|double|float|int|GpuReal|GpuTime|GpuWallEnergy)\*\s+(\w+)\s*=', text[a:b], re.M)
-    fields = [(t, n) for t, n in fields if n not in ('diagnosticPreTransportParticleCount', 'sourceInjectedCount') and (bits == 32 or not n.startswith('flatPressure'))]
+    fields = [(t, n) for t, n in fields if n not in ('diagnosticPreTransportParticleCount', 'sourceInjectedCount') and not n.startswith('flatPressure')]
     code = '#include "GpuResidentStrict.cu"\n#include <cstdio>\n#include <cstdlib>\n#include <new>\n#include <cmath>\n'
-    if app == 'CHT' and bits == 32:
-        code += 'using namespace ugkwpCudaFp32;\n'
     code += r'''
 template<class T> void alloc(T*& p,int n) {
     if(cudaMallocManaged(&p,n*sizeof(T))!=cudaSuccess) std::abort();
@@ -141,12 +139,12 @@ int main() {
     cu = out / 'contact_age_theta.cu'
     cu.write_text(code)
     exe = out / 'contact_age_theta'
-    cmd = [str(Path(os.environ.get('CUDA_HOME','/usr/local/cuda'))/'bin/nvcc'), '-std=c++17', '-O3', '-arch='+os.environ.get('UGKWP_CUDA_ARCH','sm_89'), '--fmad='+('false' if app=='CHT' else 'true'), '-DUGKP_DEVELOPMENT_PROBES=1', '-DUGKWP_GPU_REAL_BITS='+str(bits), '-I'+str(source.parent), '-I'+str(root/'common'), '-I'+str(root/'applications'/app/'gpu'), str(cu)]
+    cmd = [str(Path(os.environ.get('CUDA_HOME','/usr/local/cuda'))/'bin/nvcc'), '-std=c++17', '-O3', '-arch='+os.environ.get('UGKWP_CUDA_ARCH','sm_89'), '--fmad='+('false' if app=='CHT' else 'true'), '-DUGKP_DEVELOPMENT_PROBES=1', '-I'+str(source.parent), '-I'+str(root/'common'), '-I'+str(root/'applications'/app/'gpu'), str(cu)]
     if app == 'CHT':
         cmd.append(str(root/'applications/CHT/gpu/GpuWallEnergy64.cu'))
     cmd += ['-o',str(exe)]
     paths=[source,root/'common/GpuThermalParticleFinalization.cuh',root/'common/GpuCollisionPoolCorrection.cuh',root/'common/GpuThermalParticleRelaxation.cuh',root/'common/operators/correctOnePoissonThermalizedParticlePath.cuh',root/'common/operators/relaxMobileParticlesToResidentGasKernelStatic.cuh',Path(__file__).resolve()]
-    provenance={'scope':'Local invariant witness only; post-sampling state is constructed; neither RNG distribution nor end-to-end solver is tested.', 'source_root':str(root),'app':app,'bits':bits,'source_sha256':{str(p):hashlib.sha256(p.read_bytes()).hexdigest() for p in paths},'generated_sha256':hashlib.sha256(cu.read_bytes()).hexdigest(),'command':cmd,'execution':'not-run'}
+    provenance={'scope':'Local invariant witness only; post-sampling state is constructed; neither RNG distribution nor end-to-end solver is tested.', 'source_root':str(root),'app':app,'bits':64,'source_sha256':{str(p):hashlib.sha256(p.read_bytes()).hexdigest() for p in paths},'generated_sha256':hashlib.sha256(cu.read_bytes()).hexdigest(),'command':cmd,'execution':'not-run'}
     (out/'provenance.json').write_text(json.dumps(provenance,indent=2))
     if '--prepare-only' in sys.argv:
         print(json.dumps(provenance,indent=2));return 0
