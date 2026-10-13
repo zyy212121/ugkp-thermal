@@ -40,13 +40,13 @@ def table(path,*,version='1',checksum=True,qext=1,phi=1,band=1):
     return path
 
 def run(probe,mode,path=None,case=None):
-    env=os.environ.copy();env['T13_MODE']=mode
+    env=os.environ.copy();env.pop('FOAM_SIGFPE',None);env['T13_MODE']=mode
     if path:env['T13_TABLE']=str(path)
     args=[str(probe)]
     if case:args+=['-case',str(case)]
     return subprocess.run(args,env=env,capture_output=True,text=True)
 
-@pytest.mark.parametrize('mode',['root_ordinary','phase_ordinary','phase_negative_weights','phase_signed','root_one','root_zero','root_same_sign','root_equilibrium','root_signed','root_errors','scale_two','scale_negative','scale_tiny','scale_errors','phase_one','phase_zero','phase_asymmetric','phase_errors'])
+@pytest.mark.parametrize('mode',['root_nonfinite_tolerance','phase_nonfinite_tolerance','root_ordinary','phase_ordinary','phase_negative_weights','phase_signed','root_one','root_zero','root_same_sign','root_equilibrium','root_signed','root_errors','scale_two','scale_negative','scale_tiny','scale_errors','phase_one','phase_zero','phase_asymmetric','phase_errors'])
 def test_actual_math(radiation_probe,mode):
     r=run(radiation_probe,mode);assert r.returncode==0,r.stdout+r.stderr
 
@@ -77,7 +77,7 @@ def case(tmp_path):
     r=subprocess.run(['blockMesh','-case',str(p)],capture_output=True,text=True);assert r.returncode==0,r.stdout+r.stderr
     return p
 
-@pytest.mark.parametrize('mode',['do_one','do_zero','do_negative','do_roundoff','do_phase_one','do_relaxation','do_warm','do_identity','do_signed','transaction','ordinary','boundary_tiny','boundary_negative','boundary_cancellation'])
+@pytest.mark.parametrize('mode',['do_nonfinite','do_zero_divisor','do_inactive_nan','transaction_inactive_nan','boundary_overflow','do_one','do_zero','do_negative','do_roundoff','do_phase_one','do_relaxation','do_warm','do_identity','do_signed','transaction','ordinary','boundary_tiny','boundary_negative','boundary_cancellation'])
 def test_actual_openfoam_radiation(radiation_probe,tmp_path,case,mode):
     r=run(radiation_probe,mode,table(tmp_path/'table'),case);assert r.returncode==0,r.stdout+r.stderr
 
@@ -195,7 +195,7 @@ def test_actual_first_sweep_independent_values(radiation_probe,tmp_path,case,sig
     assert list(map(int,stats[4:]))==[1,1]
 
 
-@pytest.mark.parametrize('mode',['do_nonfinite','do_missing','do_zero_divisor','do_unknown'])
+@pytest.mark.parametrize('mode',['do_missing','do_unknown'])
 def test_real_do_required_errors(radiation_probe,tmp_path,case,mode):
     r=run(radiation_probe,mode,table(tmp_path/'table'),case)
     assert r.returncode!=0 and 'FAIL ' in r.stderr,r.stdout+r.stderr
@@ -308,9 +308,13 @@ def test_mie_actual_endpoint_and_selected_interval_without_order_certificate(rad
 
 
 @pytest.mark.parametrize('fault',['missing_axis_node','nonfinite_query'])
-def test_mie_true_selected_lookup_error(radiation_probe,tmp_path,fault):
+def test_mie_selected_lookup_backing(radiation_probe,tmp_path,fault):
     p=table(tmp_path/'table');s=p.read_text()
     if fault=='missing_axis_node':s=s.replace('Tvals 300 4000','Tvals 300')
     p.write_text(s);r=run(radiation_probe,'table_nonfinite' if fault=='nonfinite_query' else 'table',p)
-    assert r.returncode!=0
-    assert ('requires at least two values' if fault=='missing_axis_node' else 'no accessible bracket') in r.stderr
+    if fault=='missing_axis_node':
+        assert r.returncode!=0 and 'requires at least two values' in r.stderr
+    else:
+        assert r.returncode==0,r.stdout+r.stderr
+        values=next(x.split()[1:] for x in r.stdout.splitlines() if x.startswith('TABLE '))
+        assert all(math.isnan(float(value)) for value in values)

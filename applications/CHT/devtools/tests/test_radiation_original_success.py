@@ -53,7 +53,8 @@ def table(path,change='ordinary'):
  begin=s.index('Tvals ');end=s.index('END_MIE_TABLE\n')+len('END_MIE_TABLE\n');s=s[:end]+'payloadSha1 '+hashlib.sha1(s[begin:end].encode()).hexdigest()+'\n';path.write_text(s);return path
 
 def run(probe,mode,tmp_path,path=None,mesh=None,t='4100',mu='0',d='0.00015',extra=None):
- env=dict(os.environ,C04_MODE=mode,C04_T=t,C04_D=d,C04_MU=mu,FOAM_SIGFPE='false')
+ env=dict(os.environ,C04_MODE=mode,C04_T=t,C04_D=d,C04_MU=mu)
+ env.pop('FOAM_SIGFPE',None)
  if extra:env.update(extra)
  if path:env['C04_TABLE']=str(path)
  args=[str(probe)]
@@ -86,10 +87,16 @@ def test_original_public_table_query_success(probes,tmp_path,change,t,mu):
  equal_success(probes,'query',tmp_path,path=table(tmp_path/'table',change),t=t,mu=mu)
 
 @pytest.mark.parametrize('change',['zero_diameter','negative_diameter','equal_logarithms'])
-def test_original_downstream_do_still_refuses_nonfinite_table(probes,tmp_path,case,change):
- for probe in probes:
-  r=run(probe,'do',tmp_path,path=table(tmp_path/'table',change),mesh=case)
-  assert r.returncode!=0 and 'FAIL ' in r.stderr
+def test_original_downstream_do_ieee_continuation(probes,tmp_path,case,change):
+ old=run(probes[0],'do',tmp_path,path=table(tmp_path/'table',change),mesh=case)
+ assert old.returncode!=0 and 'FAIL ' in old.stderr
+ current=run(probes[1],'do',tmp_path,path=table(tmp_path/'table',change),mesh=case)
+ assert current.returncode==0,current.stdout+current.stderr
+ assert sum(line.startswith('DATA incident ') for line in current.stdout.splitlines())==2
+ assert sum(line.startswith('DATA source ') for line in current.stdout.splitlines())==2
+ import struct,math
+ incident=[struct.unpack('!d',int(line.split()[-1],16).to_bytes(8,'big'))[0] for line in current.stdout.splitlines() if line.startswith('DATA incident ')]
+ assert all(math.isnan(v) for v in incident), 'nonfinite initial residual must perform a real native sweep, not publish cached intensity'
 
 def generator(root,name):
  s=importlib.util.spec_from_file_location(name,root/'applications/CHT/thermal/mieTables/make_alumina_mie_table.py');m=importlib.util.module_from_spec(s);s.loader.exec_module(m);return m
