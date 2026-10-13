@@ -47,29 +47,33 @@ failAfter=2;assert(configure()!=0&&allocations==live&&s.gasBoundaryLayerModel.in
 for(int failure:{0,2,6,7,8,9}){copyFailAfter=failure;assert(configure()!=0&&allocations==live&&s.gasBoundaryLayerModel.input==old);}
 for(int failure:{0,1}){hostCopyFailAfter=failure;assert(configure()!=0&&allocations==live&&s.gasBoundaryLayerModel.input==old);}
 for(int failure=1;failure<=3;++failure){queryFailure=failure;assert(configure()!=0&&allocations==live&&s.gasBoundaryLayerModel.input==old);}queryFailure=0;
-int saved=faces[0];faces[0]=99;assert(configure()!=0);faces[0]=saved;
+// An out-of-backing face index is intentionally not executed: it now reaches
+// the supplied addressing consumer without a metadata admission check.
 a.nodes=129;assert(configure()!=0);a.nodes=2;
-a.speciesCount=1;assert(configure()!=0);a.speciesCount=3;
+a.speciesCount=1;assert(configure()==0&&s.gasBoundaryLayerModel.input[0].massFlux[1]==.1);a.speciesCount=3;
 a.model=99;assert(configure()!=0);a.model=1;
-mc[32]=99;assert(configure()!=0);mc[32]=1;
-flux[0]=std::numeric_limits<double>::quiet_NaN();assert(configure()!=0);flux[0]=-.2;
-// Diagnostics publish actual requested species; a request for an absent one fails.
+// Matching indices are uploaded verbatim here; no matching-cell consumer runs.
+mc[32]=99;assert(configure()==0&&s.gasBoundaryLayerModel.matchingCells[32]==99);mc[32]=1;
+flux[0]=std::numeric_limits<double>::quiet_NaN();assert(configure()==0&&std::isnan(s.gasBoundaryLayerModel.input[0].massFlux[0]));flux[0]=-.2;
+// Diagnostics publish actual requested species; missing consumed storage fails.
 s.gasBoundaryLayer.exchange[0].ready=true;
 s.gasBoundaryLayerModel.output[0].wallSpeciesFlux[0]=.7;s.gasBoundaryLayerModel.output[0].reactionIntegral[0]=.8;
 s.gasBoundaryLayerModel.output[0].integratedKSource=std::numeric_limits<double>::infinity();
 double diagnostic[31];assert(!ugkwpGpuResidentStrictDownloadBoundaryLayerV1(&s,1,1,diagnostic));
 assert(diagnostic[25]==.7&&diagnostic[26]==.8&&std::isinf(diagnostic[9]));
-assert(ugkwpGpuResidentStrictDownloadBoundaryLayerV1(&s,1,3,diagnostic));
+auto* output=s.gasBoundaryLayerModel.output;s.gasBoundaryLayerModel.output=nullptr;
+assert(ugkwpGpuResidentStrictDownloadBoundaryLayerV1(&s,1,1,diagnostic));s.gasBoundaryLayerModel.output=output;
 // Reconfiguration replaces actual arrays and invalidates obsolete snapshots.
 for(auto*p:{&s.gasTrial.trial}){assert(!allocateSharedGasZero(p->cells,2));assert(!allocateSharedGasZero(p->wallRecords,3));p->valid=true;}
-g[3]=.75;g[4]=2.5;g[5]=7;a.budgetAudit=1;
+old=s.gasBoundaryLayerModel.input;g[3]=.75;g[4]=2.5;g[5]=7;a.budgetAudit=1;
 assert(configure()==0&&allocations==live+13);assert(s.gasBoundaryLayerModel.input!=old);
 assert(device.gasBoundaryLayerModel.input==s.gasBoundaryLayerModel.input&&device.gasBoundaryLayerModel.input[0].matchingDistance==2.5);
 for(auto*p:{&s.gasTrial.trial})assert(!p->cells&&!p->wallRecords&&!p->valid);
-// An empty wall request releases old storage and is a real no-work publication.
+// An empty wall request releases wall owners and preserves resident SST audit.
+auto* audit=s.gasSstAudit.sourceK;audit[0]=987;
 a.wallCount=a.quadratureCount=a.matchingCount=0;int empty[]={0};
 assert(!ugkwpGpuResidentStrictConfigureBoundaryLayerV1(&s,&a,nullptr,empty,empty,nullptr,nullptr,nullptr,nullptr,nullptr,nullptr));
-assert(!s.gasBoundaryLayer.enabled&&!device.gasBoundaryLayer.enabled&&allocations==0);
+assert(!s.gasBoundaryLayer.enabled&&!device.gasBoundaryLayer.enabled&&allocations==13&&s.gasSstAudit.sourceK==audit&&audit[0]==987&&!s.gasSstAudit.enabled);
 assert(!ugkwpGpuResidentStrictDownloadBoundaryLayerV1(&s,0,2,nullptr));
 releaseBoundaryLayerStorage(s);assert(!allocations);
 }

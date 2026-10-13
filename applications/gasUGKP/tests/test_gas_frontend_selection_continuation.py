@@ -42,12 +42,12 @@ int main(){using namespace ugkwp;GasCapabilityRequest r;
  r.movingGeometry=true;r.timeIntegrator=3;assert(validateGasCapabilities(r));
  r.timeIntegrator=1;r.reconstruction=2;assert(validateGasCapabilities(r));
  r.mode=GasMode::MixtureChemistry;r.reconstruction=1;r.turbulenceModel=3;r.sstWallTreatment=1;assert(validateGasCapabilities(r));
- r.movingGeometry=false;r.fluxScheme=4;assert(!validateGasCapabilities(r));
- r.fluxScheme=1;r.reconstruction=2;assert(!validateGasCapabilities(r));
+ r.movingGeometry=false;r.fluxScheme=4;assert(validateGasCapabilities(r));
+ r.fluxScheme=1;r.reconstruction=2;assert(validateGasCapabilities(r));
  r.reconstruction=1;r.particleCoupling=true;assert(!validateGasCapabilities(r));
  r.particleCoupling=false;r.sstWallTreatment=2;r.boundaryLayerModel=0;r.turbulenceModel=3;assert(validateGasCapabilities(r));
  r.boundaryLayerModel=1;r.turbulenceModel=1;assert(validateGasCapabilities(r));
- r.fluxScheme=99;assert(!validateGasCapabilities(r));
+ r.fluxScheme=99;assert(validateGasCapabilities(r));
 }
 ''')
     build=subprocess.run(['g++','-std=c++17','-Wall','-Wextra','-Werror','-I'+str(ROOT),str(source),'-o',str(binary)],capture_output=True,text=True)

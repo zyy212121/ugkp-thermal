@@ -7,8 +7,8 @@ from test_shared_gas_adapter import ADAPTER_PROBE, ROOT
 def snapshot_release_probe():
     """Use the existing production snapshot ownership functions, not a mock."""
     text=(ROOT/'applications/gasUGKP/private_backend/SharedGasTrialPolicy.cuh').read_text()
-    release=text[text.index('inline void releaseSnapshot('):text.index('inline int ensureSnapshot(')]
-    storage=text[text.index('inline void releaseSharedGasTrialStorage('):text.index('struct SharedGasTrialPolicy')]
+    release=text[text.index('inline int releaseSnapshot('):text.index('inline int ensureSnapshot(')]
+    storage=text[text.index('inline int releaseSharedGasTrialStorage('):text.index('struct SharedGasTrialPolicy')]
     return 'namespace sharedGasTrialDetail {\n'+release+'}\n'+storage
 
 

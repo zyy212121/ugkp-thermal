@@ -21,7 +21,7 @@ def test_trial_and_requested_interval_rollback_restore_accepted_state(tmp_path):
 #include <cmath>
 using cudaError_t=int;
 const int cudaSuccess=0,cudaMemcpyHostToDevice=1,cudaMemcpyDeviceToDevice=2;
-int allocations=0,deviceCopyFailures=0;
+int allocations=0,deviceCopyFailures=0,hostCopyFailAfter=-1;
 int cudaFree(void*p){if(p){--allocations;std::free(p);}return 0;}
 int cudaMemcpy(void*d,const void*s,std::size_t n,int kind){if(kind==cudaMemcpyDeviceToDevice && deviceCopyFailures>0){--deviceCopyFailures;return 1;}if(n)std::memcpy(d,s,n);return 0;}
 int cudaMemset(void*d,int v,std::size_t n){if(n)std::memset(d,v,n);return 0;}
@@ -30,7 +30,7 @@ std::string lastError;void setLastErrorText(const char*p){lastError=p;}
 void setLastError(const char*,int){}
 template<class T>int allocate(T*&p,std::size_t n,const char*){p=n?static_cast<T*>(std::malloc(n*sizeof(T))):nullptr;if(p)++allocations;return 0;}
 template<class T>int copyToDevice(T*d,const T*s,std::size_t n,const char*){if(n)std::memcpy(d,s,n*sizeof(T));return 0;}
-template<class T>int copyToHost(T*d,const T*s,std::size_t n,const char*){if(n)std::memcpy(d,s,n*sizeof(T));return 0;}
+template<class T>int copyToHost(T*d,const T*s,std::size_t n,const char*){if(hostCopyFailAfter==0){hostCopyFailAfter=-1;return 1;}if(hostCopyFailAfter>0)--hostCopyFailAfter;if(n)std::memcpy(d,s,n*sizeof(T));return 0;}
 #include "applications/gasUGKP/private_backend/SharedGasTrialFields.H"
 struct DeviceState{
  ugkwp::GasSpeciesState<double,2> gasSpecies;
@@ -97,12 +97,18 @@ int main(){
  assert(SharedGasTrialPolicy::validateTimeStep(&state,.1)!=0);
  assert(SharedGasTrialPolicy::retryable(&state));
  cellStatus[0]=int(ugkwp::GasTransportCode::ChemistryFailure);
+ assert(SharedGasTrialPolicy::validate(&state)==0);
+ cellStatus[0]=int(ugkwp::GasTransportCode::InvalidStorage);
  assert(SharedGasTrialPolicy::validate(&state)!=0);
  assert(SharedGasTrialPolicy::begin(&state)==0);
  faceStatus[0]=wallStatus[0]=int(ugkwp::GasTransportCode::BoundaryLayerFailure);
  coreStatus[0].code=ugkwp::gaswall::WallCode::NonConvergence;coreStatus[0].iteration=17;coreStatus[0].residual=.125;
- assert(sharedGasTrialDetail::transportStatus(&state)!=0&&!SharedGasTrialPolicy::retryable(&state));
+ assert(sharedGasTrialDetail::transportStatus(&state,true)!=0&&!SharedGasTrialPolicy::retryable(&state));
  assert(lastError.find("boundaryLayer")!=std::string::npos&&lastError.find("face=1")!=std::string::npos);
+ assert(SharedGasTrialPolicy::continueTerminal(&state));
+ for(int failedRead=0;failedRead<5;++failedRead){hostCopyFailAfter=failedRead;
+  assert(SharedGasTrialPolicy::validate(&state,true)!=0&&!SharedGasTrialPolicy::continueTerminal(&state));}
+ hostCopyFailAfter=-1;assert(SharedGasTrialPolicy::validate(&state,true)!=0&&SharedGasTrialPolicy::continueTerminal(&state));
  wallStatus[0]=0;faceStatus[0]=0;
  // Reconfigure optional chemistry storage between same-sized intervals.
  ugkwp::ChemistryStatus chemicalStatus[2];ugkwp::ChemistryAudit<double,2> chemicalAudit[2];
