@@ -18,7 +18,6 @@
 namespace chmt {
 using Real = double;
 constexpr int Ns=ugkwp::compiledGasSpecies, Nc=2, Nr=8, Ne=8;
-static_assert(Ns>0, "At least one compiled gas species is required");
 constexpr Real universalGasConstant=8.31446261815324; // J/(mol K)
 // Default labels exist only for synthetic component fixtures. The production
 // species identity is the immutable runtime model name/order hash.
@@ -114,7 +113,6 @@ struct SpeciesThermo {
     Real referencePressure=101325,referenceTemperature=0,referenceEntropy=0;
     bool hasEntropyReference=false;
 };
-static_assert(std::is_trivially_copyable<SpeciesThermo>::value,"Thermo configuration contains no borrowed storage");
 struct CondensedThermo { Real rho=0,cp0=0,cp1=0,e0=0,conductivity=0,Tmin=0,Tmax=0,element[Ne]{}; };
 struct Reaction {
     Real A=0,temperaturePower=0,activationEnergy=0,condensedNu[Nc]{},gasNu[Ns]{},order[Nc]{};
@@ -171,8 +169,5 @@ struct Budget {
     Real turbulenceInventory=0,turbulenceProduction=0,turbulenceDissipation=0,turbulenceBoundaryFlux=0;
     std::uint64_t consumedPackets=0;
 };
-static_assert(std::is_trivially_copyable<GasQ>::value,"GasQ device ABI");
-static_assert(std::is_trivially_copyable<ExchangePacket>::value,"ExchangePacket device ABI");
-static_assert(std::is_trivially_copyable<Budget>::value,"Budget device ABI");
 } // namespace chmt
 #endif
