@@ -61,17 +61,7 @@ inline GpuDragModelSelection selectGpuDragModel(const dictionary& dict)
             dict.subDict("GidaspowErgunWenYuCoeffs");
         const scalar residualRe =
             coeffs.lookupOrDefault<scalar>("residualRe", 1.0e-3);
-        if
-        (
-            !std::isfinite(static_cast<double>(residualRe))
-         || residualRe <= SMALL
-        )
-        {
-            FatalErrorInFunction
-                << "GidaspowErgunWenYuCoeffs/residualRe must be finite "
-                << "and positive. Current value = " << residualRe
-                << exit(FatalError);
-        }
+
         return
         {
             GpuDragModelId::GidaspowErgunWenYu,
