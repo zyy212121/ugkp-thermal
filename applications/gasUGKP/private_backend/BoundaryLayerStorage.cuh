@@ -33,7 +33,8 @@ template<class State> void releaseBoundaryLayerStorage(State& s)
 // Configure-only publication. Uploading initial fields deliberately scrubs the
 // host calculation scalars, so copying the complete DeviceState here would
 // destroy valid device physics/numerics. Publish only this extension's fields.
-// No trial may exist yet. The enabled wall view is copied last; on any copy
+// Reconfiguration has released obsolete snapshots. The enabled wall view is
+// copied last; on any copy
 // failure the caller poisons the resident and retains ownership until destroy.
 inline int syncBoundaryLayerConfiguration(DeviceState* state)
 {

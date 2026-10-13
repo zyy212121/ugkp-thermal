@@ -13,27 +13,26 @@ template<class State> void appendSstAuditFields(State* s,std::vector<Field>& fie
         {
             auto&a=s->gasSstAudit;const std::size_t n=s->nCells;
             fields.insert(fields.end(),{{a.transportK,n},{a.transportOmega,n},{a.sourceK,n},{a.sourceOmega,n},
-                {a.constraintK,n},{a.constraintOmega,n},{a.initialTransportK,n},{a.initialTransportOmega,n},
-                {a.initialSourceK,n},{a.initialSourceOmega,n},{a.initialConstraintK,n},{a.initialConstraintOmega,n},{a.volume,n}});
+                {a.constraintK,n},{a.constraintOmega,n},{a.volume,n}});
         }
 }
 template<class State>std::size_t sstAuditSnapshotScalars(State*s)
 {
     if constexpr(ugkwp::GasSstAuditCapability<State>::value)if(s->gasSstAudit.enabled)
-        return std::size_t(s->nCells)*13;
+        return std::size_t(s->nCells)*7;
     return 0;
 }
 template<class State>void appendBudgetFields(State*s,std::vector<Field>&fields)
 {
     if constexpr(ugkwp::GasBudgetAuditCapability<State>::value)if(s->gasBudgetAudit.enabled)
     {auto&a=s->gasBudgetAudit;const std::size_t n=s->nCells;fields.insert(fields.end(),
-        {{a.transport,n*std::size_t(a.speciesCount+2)},{a.initialTransport,n*std::size_t(a.speciesCount+2)},
+        {{a.transport,n*std::size_t(a.speciesCount+2)},
          {a.chemistrySpecies,n*std::size_t(a.speciesCount)}});}
 }
 template<class State>std::size_t auditSnapshotScalars(State*s)
 {
     if constexpr(ugkwp::GasBudgetAuditCapability<State>::value)if(s->gasBudgetAudit.enabled)
-        return std::size_t(s->nCells)*(3*s->gasBudgetAudit.speciesCount+4);
+        return std::size_t(s->nCells)*(2*s->gasBudgetAudit.speciesCount+2);
     return 0;
 }
 inline std::vector<Field> cellFields(DeviceState* s)
@@ -44,6 +43,7 @@ inline std::vector<Field> cellFields(DeviceState* s)
         {s->gasSpecies.rho,n*ugkwp::compiledGasSpecies},
         {s->gasSpecies.soundSpeed,n},{s->gasSpecies.heatCapacity,n},{s->gasSpecies.gasConstant,n},
         {s->gasFluxPositivityScale,n},{s->gasDiffusionNumber,n},{s->sstSourceNumber,n},
+
         {s->rhoK,n},{s->rhoOmega,n},{s->k,n},{s->omega,n},{s->nut,n}};
     appendSstAuditFields(s,fields);appendBudgetFields(s,fields);return fields;
 }
@@ -76,28 +76,28 @@ inline void releaseSnapshot(SharedGasTrialSnapshot& snapshot)
 {
     releaseSharedGasPointer(snapshot.cells);releaseSharedGasPointer(snapshot.faces);
     releaseSharedGasPointer(snapshot.cellStatus);releaseSharedGasPointer(snapshot.faceStatus);
-    releaseSharedGasPointer(snapshot.chemistryStatus);releaseSharedGasPointer(snapshot.chemistryAudits);
+    releaseSharedGasPointer(snapshot.chemistryStatus);releaseSharedGasPointer(snapshot.chemistryAudit);
     releaseSharedGasPointer(snapshot.wallRecords);snapshot.wallRecordBytes=0;
-    snapshot.valid=false;
+    snapshot.cellScalars=snapshot.faceScalars=0;snapshot.valid=false;
 }
 inline int ensureSnapshot(DeviceState* s,SharedGasTrialSnapshot& snapshot)
 {
-    if(snapshot.cells) return 0;
     const std::size_t count=std::size_t(s->nCells)*(21+ugkwp::compiledGasSpecies)
         +sstAuditSnapshotScalars(s)+auditSnapshotScalars(s);
+    const std::size_t faceCount=std::size_t(s->nFaces)*6;
+    // Same-sized model reconfiguration may attach chemistry buffers later.
+    // Reuse only storage covering the currently present optional channels.
+    if(snapshot.cells && snapshot.cellScalars==count && snapshot.faceScalars==faceCount
+        && (!s->gasSpecies.chemistryStatus || snapshot.chemistryStatus)
+        && (!s->gasSpecies.chemistryAudit || snapshot.chemistryAudit))return 0;
+    releaseSnapshot(snapshot);
+    snapshot.cellScalars=count;snapshot.faceScalars=faceCount;
     int rc=allocateSharedGasZero(snapshot.cells,count);
     rc|=allocateSharedGasZero(snapshot.faces,std::size_t(s->nFaces)*6);
     rc|=allocateSharedGasZero(snapshot.cellStatus,s->nCells);
     rc|=allocateSharedGasZero(snapshot.faceStatus,s->nFaces);
-    if(s->gasSpecies.mode==ugkwp::GasMode::MixtureChemistry)
-    {
-        rc|=allocateSharedGasZero(snapshot.chemistryStatus,s->nCells);
-        rc|=allocateSharedGasZero(snapshot.chemistryAudits,std::size_t(s->nCells)*3);
-        if(!s->gasTrial.chemistryBefore)
-            rc|=allocateSharedGasZero(s->gasTrial.chemistryBefore,s->nCells);
-        if(!s->gasTrial.chemistryAfter)
-            rc|=allocateSharedGasZero(s->gasTrial.chemistryAfter,s->nCells);
-    }
+    if(s->gasSpecies.chemistryStatus)rc|=allocateSharedGasZero(snapshot.chemistryStatus,s->nCells);
+    if(s->gasSpecies.chemistryAudit)rc|=allocateSharedGasZero(snapshot.chemistryAudit,s->nCells);
     if(rc)releaseSnapshot(snapshot);
     return rc;
 }
@@ -112,12 +112,13 @@ template<class State> int snapshotWallRecords(State* s,SharedGasTrialSnapshot& s
             {w.status,n*sizeof(*w.status)},{w.speciesFlux,n*ugkwp::compiledGasSpecies*sizeof(double)},
             {m.input,n*sizeof(*m.input)},{m.output,n*sizeof(*m.output)},{m.status,n*sizeof(*m.status)}};
         std::size_t total=0;for(const auto& f:fields)total+=f.count;
+        if(!restore && saved.wallRecordBytes!=total)
+        {releaseSharedGasPointer(saved.wallRecords);saved.wallRecordBytes=0;}
         if(!saved.wallRecords)
         {
             if(restore || allocateSharedGasZero(saved.wallRecords,total))return 1;
             saved.wallRecordBytes=total;
         }
-        if(saved.wallRecordBytes!=total)return 1;
         std::size_t offset=0;
         for(const auto& f:fields)
         {
@@ -152,14 +153,11 @@ inline int snapshot(DeviceState* s,SharedGasTrialSnapshot& saved,bool restore)
     rc|=deviceCopy(restore?s->gasSpecies.faceStatus:saved.faceStatus,
         restore?saved.faceStatus:s->gasSpecies.faceStatus,s->nFaces);
     if(s->gasSpecies.chemistryStatus)
-    {
         rc|=deviceCopy(restore?s->gasSpecies.chemistryStatus:saved.chemistryStatus,
             restore?saved.chemistryStatus:s->gasSpecies.chemistryStatus,s->nCells);
-        ugkwp::ChemistryAudit<double,ugkwp::compiledGasSpecies>* arrays[]={s->gasSpecies.chemistryAudit,s->gasTrial.chemistryBefore,s->gasTrial.chemistryAfter};
-        for(int part=0;part<3;++part)
-            rc|=deviceCopy(restore?arrays[part]:saved.chemistryAudits+part*s->nCells,
-                restore?saved.chemistryAudits+part*s->nCells:arrays[part],s->nCells);
-    }
+    if(s->gasSpecies.chemistryAudit)
+        rc|=deviceCopy(restore?s->gasSpecies.chemistryAudit:saved.chemistryAudit,
+            restore?saved.chemistryAudit:s->gasSpecies.chemistryAudit,s->nCells);
     rc|=snapshotWallRecords(s,saved,restore);
     if(!restore && !rc)saved.valid=true;
     return rc;
@@ -197,14 +195,16 @@ template<class State> bool reportBoundaryLayerFailure(State* s)
     }
     return false;
 }
-inline int transportStatus(DeviceState* s)
+inline int transportStatus(DeviceState* s,bool nativeRefinement=false)
 {
     s->gasTrial.retryableFailure=false;
     std::vector<int> cells(s->nCells),faces(s->nFaces);
     if(copyToHost(cells.data(),s->gasSpecies.cellStatus,cells.size(),"read mixture cell diagnostics")
        ||copyToHost(faces.data(),s->gasSpecies.faceStatus,faces.size(),"read mixture face diagnostics"))return 1;
     bool failed=false,retry=true;
-    for(const auto& values:{cells,faces})for(int value:values)if(value)
+    for(const auto* values:{&cells,&faces})for(int value:*values)
+    if(value && (nativeRefinement || (value!=int(ugkwp::GasTransportCode::NegativeInventory)
+        && value!=int(ugkwp::GasTransportCode::SourceStepLimit))))
     {failed=true;retry=retry&&retryableTransport(value);}
     if(failed){s->gasTrial.retryableFailure=retry;if(!reportBoundaryLayerFailure(s))setLastErrorText("shared gas trial rejected by physical cell/face validation");return 1;}
     return 0;
@@ -233,7 +233,6 @@ inline void releaseSharedGasTrialStorage(SharedGasTrialStorage& storage)
 {
     sharedGasTrialDetail::releaseSnapshot(storage.trial);
     sharedGasTrialDetail::releaseSnapshot(storage.interval);
-    releaseSharedGasPointer(storage.chemistryBefore);releaseSharedGasPointer(storage.chemistryAfter);
 }
 struct SharedGasTrialPolicy
 {
@@ -251,23 +250,28 @@ struct SharedGasTrialPolicy
         if(s->gasModelPoisoned)return 1;
         s->gasTrial.retryableFailure=false;
         if(sharedGasTrialDetail::snapshot(s,s->gasTrial.trial,false))return 1;
-        if(cudaMemset(s->gasSpecies.cellStatus,0,std::size_t(s->nCells)*sizeof(int))!=cudaSuccess
-           ||cudaMemset(s->gasSpecies.faceStatus,0,std::size_t(s->nFaces)*sizeof(int))!=cudaSuccess)return 1;
+        return resetErrors(s);
+    }
+    static int resetErrors(DeviceState* s)
+    {
+        auto error=cudaMemset(s->gasSpecies.cellStatus,0,std::size_t(s->nCells)*sizeof(int));
+        if(error==cudaSuccess)error=cudaMemset(s->gasSpecies.faceStatus,0,std::size_t(s->nFaces)*sizeof(int));
+        if(error!=cudaSuccess){setLastError("reset shared gas operation errors",error);return 1;}
         if(s->gasSpecies.chemistryStatus && cudaMemset(s->gasSpecies.chemistryStatus,0,
             std::size_t(s->nCells)*sizeof(ugkwp::ChemistryStatus))!=cudaSuccess)return 1;
         return 0;
     }
-    static int applySources(DeviceState* s,double dt)
+    static int applySources(DeviceState* s,double dt,bool nativeRefinement=false)
     {
         const int block=s->fixedCellBlockThreads;
-        return applyGasGravitySource(s,(s->nCells+block-1)/block,block,dt);
+        return applyGasGravitySource(s,(s->nCells+block-1)/block,block,dt,nativeRefinement);
     }
-    static int validate(DeviceState* s)
+    static int validate(DeviceState* s,bool nativeRefinement=false)
     {
         if(s->gasModelPoisoned)return 1;
         const auto error=cudaDeviceSynchronize();
         if(error!=cudaSuccess){setLastError("validate shared gas trial",error);return 1;}
-        const int transport=sharedGasTrialDetail::transportStatus(s);
+        const int transport=sharedGasTrialDetail::transportStatus(s,nativeRefinement);
         const bool transportRetry=s->gasTrial.retryableFailure;
         const int chemistry=sharedGasTrialDetail::chemistryStatus(s);
         const bool chemistryRetry=s->gasTrial.retryableFailure;
@@ -298,7 +302,7 @@ struct SharedGasTrialPolicy
     static double targetMaxCo(DeviceState* s){return s->gasTrial.targetMaxCo;}
     static int validateTimeStep(DeviceState* s,double)
     {
-        if(validate(s))return 1;
+        if(validate(s,true))return 1;
         std::vector<double> co(s->nCells),diffusion(s->nCells),sst;
         if(copyToHost(co.data(),s->gasFluxPositivityScale,co.size(),"read trial Courant diagnostics")
             ||copyToHost(diffusion.data(),s->gasDiffusionNumber,diffusion.size(),"read trial diffusion diagnostics"))return 1;
@@ -314,10 +318,5 @@ struct SharedGasTrialPolicy
             {s->gasTrial.retryableFailure=true;setLastErrorText("shared gas post-source timestep bound exceeded");return 1;}
         return 0;
     }
-    static int captureChemistryAudit(DeviceState* s,bool afterTransport)
-    {
-        if(sharedGasTrialDetail::chemistryStatus(s))return 1;
-        return sharedGasTrialDetail::deviceCopy(afterTransport?s->gasTrial.chemistryAfter:s->gasTrial.chemistryBefore,
-            s->gasSpecies.chemistryAudit,s->nCells);
-    }
+    static int captureChemistryAudit(DeviceState*,bool){return 0;}
 };

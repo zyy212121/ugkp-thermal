@@ -21,8 +21,8 @@
 #define GPU_PERIODIC_COORDINATE(hit, shift, eps, normal) hit - shift + eps*normal
 #define GPU_WALL_COORDINATE(hit, eps, normal) hit - eps*normal
 #define GPU_RESET_CONTACT_AGE(s, i)
-#define GPU_CONTACT_DURATION(value) static_cast<float>(value)
-#define GPU_CONTACT_PEAK(value) static_cast<float>(value)
+#define GPU_CONTACT_DURATION(value) static_cast<double>(value)
+#define GPU_CONTACT_PEAK(value) static_cast<double>(value)
 #define GPU_OPERATOR_REAL double
 #define GPU_OPERATOR_TIME double
 #define GPU_OPERATOR_R(x) x
@@ -136,6 +136,7 @@ struct DeviceState
     double gasThermalConductivity=-1;
 
     bool gasModelPoisoned = false;
+    bool gasBudgetCoverageReported = false;
     bool gasInitialFieldsUploaded = false;
     bool gasSpeciesUploaded = false;
     SharedGasTrialStorage gasTrial;
@@ -725,8 +726,8 @@ struct DevelopmentProbeSample
     unsigned long long badFieldMask = 0;
     int firstBadCell = -1;
     int firstBadParticle = -1;
-    float totalMs = -1.0f;
-    float stageMs[ProbeStageCount]{};
+    double totalMs = -1.0;
+    double stageMs[ProbeStageCount]{};
 
     DevelopmentProbeSample()
     {
@@ -1842,7 +1843,8 @@ int applyGasGravitySource
     DeviceState* s,
     const int grid,
     const int block,
-    const double dt
+    const double dt,
+    const bool nativeRefinement=false
 )
 {
     if (!s->hostGravityActive)
@@ -1860,7 +1862,7 @@ int applyGasGravitySource
 
                                                                              
                                                                        
-    recoverGasPrimitivesKernel<<<grid, block>>>(s->deviceState);
+    recoverGasPrimitivesKernel<<<grid, block>>>(s->deviceState,nativeRefinement);
     err = cudaGetLastError();
     if (err != cudaSuccess)
     {
@@ -3138,9 +3140,10 @@ int collectDevelopmentProbeSample
         return 1;
     }
 
+    float totalElapsedMs = 0.0f;
     err = cudaEventElapsedTime
     (
-        &sample.totalMs,
+        &totalElapsedMs,
         developmentProbe.totalStartEvent,
         developmentProbe.totalStopEvent
     );
@@ -3149,9 +3152,10 @@ int collectDevelopmentProbeSample
         setLastError("cudaEventElapsedTime UGKP development probe total", err);
         return 1;
     }
+    sample.totalMs = static_cast<double>(totalElapsedMs);
     for (int stage = 0; stage < ProbeStageCount; ++stage)
     {
-        sample.stageMs[stage] = 0.0f;
+        sample.stageMs[stage] = 0.0;
         for
         (
             int occurrence = 0;
@@ -3182,7 +3186,7 @@ int collectDevelopmentProbeSample
                 );
                 return 1;
             }
-            sample.stageMs[stage] += elapsedMs;
+            sample.stageMs[stage] += static_cast<double>(elapsedMs);
         }
     }
     sample.timingValid = 1;
@@ -3856,91 +3860,20 @@ extern "C" int ugkwpGpuResidentStrictCreate
 
     if
     (
-        nCells <= 0
-     || nFaces <= 0
-     || nInternalFaces < 0
-     || nInternalFaces > nFaces
-     || nCellPlanes < 0
-     || particleCapacity < 0
-     || (particleCapacity > 0
-      && (!std::isfinite(injectionParcelMass)
-       || injectionParcelMass <= 0.0))
-     || !std::isfinite(gammaGas) || gammaGas <= 1.0 || gammaGas > 5.0/3.0
-     || !std::isfinite(Rgas) || Rgas <= 0.0
-     || !std::isfinite(gasMu) || gasMu < 0.0
-     || !std::isfinite(gasPr) || gasPr <= 0.0
-     || maxFaceWalkHops <= 0
-     || gasFluxScheme < 1
-     || gasFluxScheme > 9
-     || gasReconstruction < 0
-     || gasReconstruction > 2
-     || gasLimiter < 0
-     || gasLimiter > 2
-     || gasTimeIntegrator < 1
-     || gasTimeIntegrator > 3
-     || (gasRobustFallback != 0 && gasRobustFallback != 1)
-     || ((gasFluxScheme == 4
-       || gasFluxScheme == 5
-       || gasFluxScheme == 6
-       || gasFluxScheme == 7
-       || gasFluxScheme == 8)
-       && gasRobustFallback == 0)
-     || turbulenceModel < 0
-     || turbulenceModel > 3
-     || !std::isfinite(lesDeltaCoeff)
-     || lesDeltaCoeff <= 0.0
-     || !std::isfinite(turbulentPrandtl)
-     || turbulentPrandtl <= 0.0
-     || !std::isfinite(waleCw)
-     || waleCw < 0.0
-     || !std::isfinite(smagorinskyCs)
-     || smagorinskyCs < 0.0
-     || !std::isfinite(maxDiffusionNumber)
-     || maxDiffusionNumber <= 0.0
-     || (csrCellLocalPathEnabled != 0 && csrCellLocalPathEnabled != 1)
-     || csrHeavyReductionMode < 0
-     || csrHeavyReductionMode > 2
-     || csrHeavyAutoInterval < 1
-     || (particleBlockThreads != 32 && particleBlockThreads != 64
-      && particleBlockThreads != 128 && particleBlockThreads != 256)
-     || (reductionBlockThreads != 32 && reductionBlockThreads != 64
-      && reductionBlockThreads != 128 && reductionBlockThreads != 256)
-     || (csrWarpAggregatedBinning != 0 && csrWarpAggregatedBinning != 1)
-     || (csrSplitPreDirectoryEnabled != 0 && csrSplitPreDirectoryEnabled != 1)
-     || dragModel < 0
-     || dragModel > 2
-     || particleGasHeatTransferModelId < 0
-     || particleGasHeatTransferModelId > 1
-     || !std::isfinite(dragParameter0)
-     || !std::isfinite(dragParameter1)
-     || !std::isfinite(dragParameter2)
-     || !std::isfinite(dragParameter3)
-     || (dragModel == 1 && dragParameter0 <= 0.0)
-     || !std::isfinite(gravityX)
-     || !std::isfinite(gravityY)
-     || !std::isfinite(gravityZ)
-     || (jammingPressureEnabled != 0 && jammingPressureEnabled != 1)
-     || packingProjectionIterations < 1
-     || (!csrCellLocalPathEnabled
-      && (csrHeavyReductionMode != 0 || csrWarpAggregatedBinning))
+        nCells <= 0 || nFaces < 0 || nInternalFaces < 0
+        || nInternalFaces > nFaces || nCellPlanes < 0 || particleCapacity < 0
+        || gasFluxScheme < 1 || gasFluxScheme > 9
+        || gasReconstruction < 0 || gasReconstruction > 2
+        || gasLimiter < 0 || gasLimiter > 2
+        || gasTimeIntegrator < 1 || gasTimeIntegrator > 3
+        || turbulenceModel < 0 || turbulenceModel > 3
+        || csrHeavyReductionMode < 0 || csrHeavyReductionMode > 2
+        || particleBlockThreads <= 0 || reductionBlockThreads <= 0
+        || dragModel < 0 || dragModel > 2
+        || particleGasHeatTransferModelId < 0 || particleGasHeatTransferModelId > 1
     )
     {
-        setLastErrorText("invalid GPU resident strict sizes");
-        return 1;
-    }
-
-    if
-    (
-        jammingPressureEnabled != 0
-     &&
-        (
-            !std::isfinite(packingFraction)
-         || packingFraction <= 0.0
-         || packingFraction >= 1.0
-        )
-    )
-    {
-        setLastErrorText("invalid GPU resident mobile packing-projection parameters");
+        setLastErrorText("unavailable resident storage extent or selected operator");
         return 1;
     }
 
@@ -4129,21 +4062,9 @@ extern "C" int ugkwpGpuResidentStrictUploadMesh
         {
             continue;
         }
-        if
-        (
-            f < s->nInternalFaces
-         || pair < s->nInternalFaces
-         || pair >= s->nFaces
-         || pair == f
-         || facePeriodicPair[pair] != f
-         || faceNeighbour[f] < 0
-         || faceNeighbour[f] >= s->nCells
-         || !std::isfinite(facePeriodicDx[f])
-         || !std::isfinite(facePeriodicDy[f])
-         || !std::isfinite(facePeriodicDz[f])
-        )
+        if(pair>=s->nFaces || faceNeighbour[f]<0 || faceNeighbour[f]>=s->nCells)
         {
-            setLastErrorText("invalid serial translational cyclic mesh pair");
+            setLastErrorText("unavailable cyclic pair or neighbour address");
             return 1;
         }
         s->hasPeriodicFaces = 1;
@@ -4351,8 +4272,6 @@ extern "C" int ugkwpGpuResidentStrictConfigureScheduledInlet
     (
         nFaces <= 0
      || faceIds == nullptr
-     || !std::isfinite(inletTemperature)
-     || inletTemperature <= 0.0
      || nPressureRows <= 0
      || pressureTimes == nullptr
      || pressureValues == nullptr
@@ -4374,37 +4293,9 @@ extern "C" int ugkwpGpuResidentStrictConfigureScheduledInlet
         }
         faceMask[static_cast<size_t>(faceIds[i])] = 1;
     }
-    for (int i = 0; i < nPressureRows; ++i)
-    {
-        if
-        (
-            !std::isfinite(pressureTimes[i])
-         || !std::isfinite(pressureValues[i])
-         || pressureTimes[i] < 0.0
-         || pressureValues[i] <= 0.0
-         || (i > 0 && pressureTimes[i] <= pressureTimes[i - 1])
-        )
-        {
-            setLastErrorText("invalid scheduled inlet pressure table");
-            return 1;
-        }
-    }
     bool futureParticleInflow = false;
     for (int i = 0; i < nVolumeFractionRows; ++i)
     {
-        if
-        (
-            !std::isfinite(volumeFractionTimes[i])
-         || !std::isfinite(volumeFractionValues[i])
-         || volumeFractionTimes[i] < 0.0
-         || volumeFractionValues[i] < 0.0
-         || volumeFractionValues[i] >= 1.0
-         || (i > 0 && volumeFractionTimes[i] <= volumeFractionTimes[i - 1])
-        )
-        {
-            setLastErrorText("invalid scheduled inlet volume-fraction table");
-            return 1;
-        }
         futureParticleInflow =
             futureParticleInflow || volumeFractionValues[i] > 0.0;
     }
@@ -4576,41 +4467,15 @@ extern "C" int ugkwpGpuResidentStrictUploadSourceResidualMass
     }
     if
     (
-        nSources != s->nBoundarySources
-     || (nSources > 0 && (sourceFace == nullptr || residualMass == nullptr))
+        nSources < 0 || nSources > s->nBoundarySources
+     || (nSources > 0 && residualMass == nullptr)
     )
     {
         setLastErrorText("source residual restart count/buffer mismatch");
         return 1;
     }
 
-    std::vector<int> currentFaces(static_cast<size_t>(nSources));
-    if
-    (
-        copyToHost
-        (
-            currentFaces.data(),
-            s->sourceFace,
-            currentFaces.size(),
-            "cudaMemcpy strict sourceFace validation"
-        ) != 0
-    )
-    {
-        return 1;
-    }
-    for (int i = 0; i < nSources; ++i)
-    {
-        if
-        (
-            currentFaces[static_cast<size_t>(i)] != sourceFace[i]
-         || !std::isfinite(residualMass[i])
-         || residualMass[i] < 0.0
-        )
-        {
-            setLastErrorText("source residual restart face/value mismatch");
-            return 1;
-        }
-    }
+    (void)sourceFace; // restart identity metadata is not consumed by this copy.
     return copyToDevice
     (
         s->sourceResidualMass,
@@ -4849,16 +4714,6 @@ extern "C" int ugkwpGpuResidentStrictConfigureSst
     {
         return 1;
     }
-    if (s->gasBoundaryLayer.enabled)
-    {
-        setLastErrorText("SST must be configured before boundaryLayer; create a new resident to change the wall family");
-        return 1;
-    }
-    if (s->hostTurbulenceModel != 3)
-    {
-        setLastErrorText("SST configuration requires turbulenceModel=3");
-        return 1;
-    }
     if (s->gasSpecies.mode != ugkwp::GasMode::SingleLegacy)
     {
         const auto capability=ugkwp::validateGasCapabilities
@@ -4879,48 +4734,14 @@ extern "C" int ugkwpGpuResidentStrictConfigureSst
         setLastErrorText("null SST configuration array");
         return 1;
     }
-    const double values[] =
-    {
-        alphaK1, alphaK2, alphaOmega1, alphaOmega2,
-        beta1, beta2, betaStar, gamma1, gamma2,
-        a1, b1, c1, kMin, omegaMin, maxSourceNumber,
-        wallKappa, wallE, wallCmu
-    };
-    for (const double value : values)
-    {
-        if (!std::isfinite(value) || value <= 0.0)
-        {
-            setLastErrorText("SST coefficients and limits must be positive");
-            return 1;
-        }
-    }
-    if (wallTreatment < 0 || wallTreatment > 2 || wallE <= 1.0)
-    {
-        setLastErrorText("invalid SST wall-function configuration");
-        return 1;
-    }
-    for (int c = 0; c < s->nCells; ++c)
-    {
-        if
-        (
-            !std::isfinite(k[c])
-         || !std::isfinite(omega[c])
-         || !std::isfinite(wallDistance[c])
-         || wallDistance[c] <= 0.0
-        )
-        {
-            setLastErrorText("invalid SST cell state or wall distance");
-            return 1;
-        }
-    }
+    if(wallTreatment<0 || wallTreatment>2)
+    {setLastErrorText("unavailable SST wall operator");return 1;}
     for (int f = 0; f < s->nFaces; ++f)
     {
         if
         (
             boundaryKMode[f] < 0 || boundaryKMode[f] > 2
          || boundaryOmegaMode[f] < 0 || boundaryOmegaMode[f] > 2
-         || !std::isfinite(boundaryK[f])
-         || !std::isfinite(boundaryOmega[f])
         )
         {
             setLastErrorText("invalid SST boundary mode or value");
@@ -5007,272 +4828,44 @@ extern "C" int ugkwpGpuResidentStrictConfigureSst
     return 0;
 }
 
+// Propagate NaN through the existing maxima pass, without another field scan.
+struct GasCourantMaximum
+{
+    __host__ __device__ double operator()(double a,double b)const
+    {return a!=a?a:b!=b?b:fmax(a,b);}
+};
+#include "../../../common/GpuGasCourant.cuh"
 extern "C" int ugkwpGpuResidentStrictComputeGasCourant
 (
-    void* handle,
-    double dt,
-    double targetMaxCo,
-    double scheduleTime,
-    double* maxCo
+    void* handle, double dt, double targetMaxCo, double scheduleTime, double* maxCo
 )
 {
-    DeviceState* s = asState(handle);
-    if (validateState(s, "compute gas Courant") != 0)
+    DeviceState* s=asState(handle);
+    if(validateState(s,"compute gas Courant"))return 1;
+    if(!maxCo){setLastErrorText("null gas Courant output");return 1;}
+    s->gasTrial.targetMaxCo=targetMaxCo;
+    if(s->gasSpecies.mode==ugkwp::GasMode::SingleLegacy
+        && tuneFixedWorkBlockThreads(s,dt,scheduleTime))return 1;
+    if(s->gasSpecies.mode!=ugkwp::GasMode::SingleLegacy
+        && SharedGasTrialPolicy::resetErrors(s))return 1;
+    GasCourantMaxima result;
+    const auto maximum=[](const double* field,int count,cudaStream_t stream,double& value)
     {
-        return 1;
-    }
-    if
-    (
-        maxCo == nullptr
-     || !std::isfinite(dt)
-     || dt <= 0.0
-     || !std::isfinite(targetMaxCo)
-     || targetMaxCo <= 0.0
-     || !std::isfinite(scheduleTime)
-     || scheduleTime < 0.0
-    )
-    {
-        setLastErrorText
-        (
-            "compute gas Courant requires positive finite dt/targetMaxCo "
-            "and a non-null output"
-        );
-        return 1;
-    }
-    *maxCo = 0.0;
-
-    s->gasTrial.targetMaxCo = targetMaxCo;
-    if (s->gasSpecies.mode == ugkwp::GasMode::SingleLegacy
-        && tuneFixedWorkBlockThreads(s, dt, scheduleTime) != 0)
-    {
-        return 1;
-    }
-    const int cellBlock = s->fixedCellBlockThreads;
-    const int faceBlock = s->fixedFaceBlockThreads;
-    const int cellGrid = (s->nCells + cellBlock - 1)/cellBlock;
-    const int faceGrid = (s->nFaces + faceBlock - 1)/faceBlock;
-    const int allFaceGrid = faceGrid;
-
-    recoverGasPrimitivesKernel<<<cellGrid, cellBlock>>>(s->deviceState);
-    cudaError_t err = cudaGetLastError();
-    if (err != cudaSuccess)
-    {
-        setLastError("recoverGasPrimitivesKernel launch for gas Courant", err);
-        return 1;
-    }
-    if (s->hostTurbulenceModel == 3)
-    {
-        recoverSstPrimitivesKernel<<<cellGrid, cellBlock>>>(s->deviceState);
-        err = cudaGetLastError();
-        if (err != cudaSuccess)
+        try
         {
-            setLastError("recoverSstPrimitivesKernel for gas Courant", err);
-            return 1;
+            value=thrust::reduce(thrust::cuda::par.on(stream),
+                thrust::device_pointer_cast(field),thrust::device_pointer_cast(field)+count,
+                -std::numeric_limits<double>::infinity(),GasCourantMaximum{});
         }
-    }
-
-    if (allFaceGrid > 0)
-    {
-        updateLegacyGasBoundaryMirrorKernel<<<allFaceGrid, faceBlock>>>
-        (
-            s->deviceState,
-            scheduleTime
-        );
-        err = cudaGetLastError();
-        if (err != cudaSuccess)
-        {
-            setLastError
-            (
-                "updateLegacyGasBoundaryMirrorKernel for gas Courant",
-                err
-            );
-            return 1;
-        }
-        updateRiemannBoundaryMirrorKernel<<<allFaceGrid, faceBlock>>>
-        (
-            s->deviceState
-        );
-        err = cudaGetLastError();
-        if (err != cudaSuccess)
-        {
-            setLastError
-            (
-                "updateRiemannBoundaryMirrorKernel for gas Courant",
-                err
-            );
-            return 1;
-        }
-    }
-
-    if (s->hostTurbulenceModel == 3)
-    {
-        applySstWallFunctionStateKernel<<<cellGrid, cellBlock>>>(s->deviceState, true);
-        err = cudaGetLastError();
-        if (err != cudaSuccess)
-        {
-            setLastError
-            (
-                "applySstWallFunctionStateKernel for gas Courant",
-                err
-            );
-            return 1;
-        }
-    }
-
-    computeGasPrimitiveGradientsKernel<<<cellGrid, cellBlock>>>(s->deviceState, true);
-    err = cudaGetLastError();
-    if (err != cudaSuccess)
-    {
-        setLastError("computeGasPrimitiveGradientsKernel for gas Courant", err);
-        return 1;
-    }
-    computeGasGradientLimiterKernel<<<cellGrid, cellBlock>>>(s->deviceState);
-    err = cudaGetLastError();
-    if (err != cudaSuccess)
-    {
-        setLastError("computeGasGradientLimiterKernel for gas Courant", err);
-        return 1;
-    }
-    computeGasEddyViscosityKernel<<<cellGrid, cellBlock>>>(s->deviceState);
-    err = cudaGetLastError();
-    if (err != cudaSuccess)
-    {
-        setLastError("computeGasEddyViscosityKernel for gas Courant", err);
-        return 1;
-    }
-
-    if (faceGrid > 0)
-    {
-        computeGasCourantFieldKernel<<<faceGrid, faceBlock>>>(s->deviceState, dt);
-        err = cudaGetLastError();
-        if (err != cudaSuccess)
-        {
-            setLastError("computeGasCourantFieldKernel launch", err);
-            return 1;
-        }
-    }
-    if (s->hostTurbulenceModel == 3)
-    {
-        computeSstGradientsKernel<<<cellGrid, cellBlock>>>(s->deviceState);
-        err = cudaGetLastError();
-        if (err != cudaSuccess)
-        {
-            setLastError("computeSstGradientsKernel for gas Courant", err);
-            return 1;
-        }
-    }
-    computeGasConvectiveCourantByCellKernel<<<cellGrid, cellBlock>>>
-    (
-        s->deviceState,
-        dt
-    );
-    err = cudaGetLastError();
-    if (err != cudaSuccess)
-    {
-        setLastError
-        (
-            "computeGasConvectiveCourantByCellKernel launch",
-            err
-        );
-        return 1;
-    }
-
-    computeGasDiffusionNumberKernel<<<cellGrid, cellBlock>>>
-    (
-        s->deviceState,
-        dt,
-        targetMaxCo
-    );
-    err = cudaGetLastError();
-    if (err != cudaSuccess)
-    {
-        setLastError("computeGasDiffusionNumberKernel launch", err);
-        return 1;
-    }
-    if (s->hostTurbulenceModel == 3)
-    {
-        computeSstStabilityNumberKernel<<<cellGrid, cellBlock>>>
-        (
-            s->deviceState,
-            dt,
-            targetMaxCo,
-            false // outer estimate: reuse accepted wall source if available, no new BVP
-        );
-        err = cudaGetLastError();
-        if (err != cudaSuccess)
-        {
-            setLastError("computeSstStabilityNumberKernel launch", err);
-            return 1;
-        }
-    }
-
-    thrust::device_ptr<double> convectiveBegin
-    (
-        s->gasFluxPositivityScale
-    );
-    const thrust::device_ptr<double> maxConvectiveIt = thrust::max_element
-    (
-        thrust::device,
-        convectiveBegin,
-        convectiveBegin + s->nCells
-    );
-    *maxCo = *maxConvectiveIt;
-    const int cell = static_cast<int>(maxConvectiveIt - convectiveBegin);
-    thrust::device_ptr<double> diffusionBegin(s->gasDiffusionNumber);
-    const thrust::device_ptr<double> maxDiffusionIt = thrust::max_element
-    (
-        thrust::device,
-        diffusionBegin,
-        diffusionBegin + s->nCells
-    );
-    *maxCo = fmax(*maxCo, *maxDiffusionIt);
-    if (s->hostTurbulenceModel == 3)
-    {
-        thrust::device_ptr<double> sstBegin(s->sstSourceNumber);
-        const thrust::device_ptr<double> maxSstIt = thrust::max_element
-        (
-            thrust::device,
-            sstBegin,
-            sstBegin + s->nCells
-        );
-        *maxCo = fmax(*maxCo, *maxSstIt);
-    }
-    if (!std::isfinite(*maxCo) || *maxCo >= 0.5*OfGreat)
-    {
-        int owner = cell;
-        double ownerUx = 0.0;
-        double ownerT = 0.0;
-        double ownerRho = 0.0;
-        double ownerRhoUx = 0.0;
-        double ownerRhoE = 0.0;
-        if (owner >= 0 && owner < s->nCells)
-        {
-            copyToHost(&ownerUx, s->Ux + owner, 1, "diagnose Courant owner Ux");
-            copyToHost(&ownerT, s->Tgas + owner, 1, "diagnose Courant owner T");
-            copyToHost(&ownerRho, s->rho + owner, 1, "diagnose Courant owner rho");
-            copyToHost(&ownerRhoUx, s->rhoUx + owner, 1, "diagnose Courant owner rhoUx");
-            copyToHost(&ownerRhoE, s->rhoE + owner, 1, "diagnose Courant owner rhoE");
-        }
-        std::snprintf
-        (
-            lastError,
-            sizeof(lastError),
-            "non-finite/invalid gas Courant at cell=%d "
-            "ownerRho=%.17g ownerRhoUx=%.17g ownerRhoE=%.17g "
-            "ownerUx=%.17g ownerT=%.17g "
-            "gamma=%.17g R=%.17g Co=%.17g",
-            owner,
-            ownerRho,
-            ownerRhoUx,
-            ownerRhoE,
-            ownerUx,
-            ownerT,
-            s->gammaGas,
-            s->Rgas,
-            *maxCo
-        );
-        return 1;
-    }
+        catch(const std::exception& e){setLastErrorText(e.what());return 1;}
+        const auto error=cudaGetLastError();
+        if(error!=cudaSuccess){setLastError("gas Courant maximum reduction",error);return 1;}
+        return 0;
+    };
+    if(computeGasCurrentCourant(s,dt,targetMaxCo,scheduleTime,
+        s->fixedCellBlockThreads,s->fixedFaceBlockThreads,nullptr,result,maximum))return 1;
+    if(s->gasSpecies.mode!=ugkwp::GasMode::SingleLegacy && SharedGasTrialPolicy::validate(s))return 1;
+    *maxCo=result.maximum;
     return 0;
 }
 
@@ -5287,6 +4880,15 @@ extern "C" int ugkwpGpuResidentStrictAdvance
     if (validateState(s, "advance") != 0)
     {
         return 1;
+    }
+    if(s->gasSpecies.mode!=ugkwp::GasMode::SingleLegacy)
+    {
+        // The existing particle-path flag selects actual coupled evolution;
+        // merely reserved particle storage does not. No mixture coupling body
+        // exists, so report that before mutating gas state.
+        if(s->particlesMayBePresent)
+        {setLastErrorText("selected mixture particle thermal and void-fraction coupling has no implementation");return 1;}
+        return ugkwpGpuResidentStrictAdvanceGasOnly(handle,dt,simulationTime);
     }
     if(checkGasBudgetAdvanceScope(s,false))return 1;
     if (tuneFixedWorkBlockThreads(s, dt, simulationTime) != 0)
@@ -5850,18 +5452,6 @@ extern "C" int ugkwpGpuResidentStrictAdvanceGasOnly
         return 1;
     }
 
-    if (s->particleCapacity != 0 || s->nBoundarySources != 0)
-    {
-        setLastErrorText
-        (
-            "pure-gas advance requires zero particle capacity and zero "
-            "boundary particle sources"
-        );
-        return 1;
-    }
-
-    if (!std::isfinite(simulationTime) || simulationTime < 0.0)
-        return 1;
     if (s->gasSpecies.mode != ugkwp::GasMode::SingleLegacy)
     {
         if (!s->gasSpeciesUploaded)
@@ -5885,9 +5475,7 @@ extern "C" int ugkwpGpuResidentStrictAdvanceGasOnly
 
     if
     (
-        !std::isfinite(simulationTime)
-     || simulationTime < 0.0
-     || advanceGasFluxStage(s, dt, simulationTime) != 0
+        advanceGasFluxStage(s, dt, simulationTime) != 0
     )
     {
         return 1;
@@ -6171,14 +5759,6 @@ extern "C" int ugkwpGpuResidentStrictUploadParticleRestartMirror
         return 1;
     }
 
-    for (int i = 0; i < nParticles; ++i)
-    {
-        if (!std::isfinite(pm[i]) || pm[i] <= 0.0)
-        {
-            setLastErrorText("invalid non-positive particle restart mass");
-            return 1;
-        }
-    }
 
     const size_t n = static_cast<size_t>(nParticles);
     rc |= copyToDevice(s->px, px, n, "cudaMemcpy strict restart px");

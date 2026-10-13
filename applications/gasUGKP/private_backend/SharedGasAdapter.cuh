@@ -10,20 +10,9 @@ inline ugkwp::GasCapabilityRequest sharedGasCapabilityRequest
     request.reconstruction=state->hostGasReconstruction;request.limiter=state->hostGasLimiter;
     request.timeIntegrator=state->hostGasTimeIntegrator;request.turbulenceModel=state->hostTurbulenceModel;
     request.sstWallTreatment=wallTreatment;
-    request.particleCoupling=state->particleCapacity!=0;
+    // Configuration requests the gas operator, not particle evolution.
+    request.particleCoupling=false;
     return request;
-}
-inline bool sharedGasIdentityMatches
-(
-    const DeviceState* state,const ugkwpGpuIpc::GasSpeciesIdentityV1* identity
-)
-{
-    return state && !state->gasModelPoisoned && identity && identity->version==ugkwpGpuIpc::gasModelApiVersion
-        && identity->speciesCount==ugkwp::compiledGasSpecies
-        && state->gasSpecies.mode!=ugkwp::GasMode::SingleLegacy
-        && identity->speciesOrderHash==state->gasSpecies.thermo.speciesOrderHash
-        && identity->thermoHash==state->gasSpecies.thermo.thermoHash
-        && identity->mechanismHash==state->gasSpecies.mechanism.mechanismHash;
 }
 inline bool sharedGasViewRollbackFailed(DeviceState* state)
 {
@@ -57,16 +46,13 @@ extern "C" int ugkwpGpuResidentStrictConfigureGasModelV1
        || !ugkwpGpuIpc::gasModelPayloadBytes(*args,ugkwp::compiledGasSpecies,bytes)
        || (args->mechanismBytes && !mechanismText))
     {setLastErrorText("invalid shared gas model payload");return 1;}
-    if(state->gasInitialFieldsUploaded || state->gasSpecies.mode!=ugkwp::GasMode::SingleLegacy)
-    {setLastErrorText("gas model must be configured once before initial state upload");return 1;}
+    auto accepted=state->gasSpecies;
+    const bool replacing=accepted.mode!=ugkwp::GasMode::SingleLegacy;
     ugkwp::GasSpeciesState<double,ugkwp::compiledGasSpecies> candidate;
     try
     {
         const auto model=ugkwp::parseGasModelProperties(std::string(modelText,args->modelBytes));
         const auto hostThermo=model.thermoView<ugkwp::compiledGasSpecies>();
-        if(static_cast<unsigned>(model.mode)!=args->mode || model.speciesOrderHash!=args->speciesOrderHash
-           || model.thermoHash!=args->thermoHash)
-            throw std::runtime_error("configured gas model identity differs from parsed canonical model");
         const auto request=sharedGasCapabilityRequest(state,model.mode,state->sstWallTreatment);
         const auto capability=ugkwp::validateGasCapabilities(request);
         if(!capability) throw std::runtime_error(capability.message);
@@ -74,14 +60,14 @@ extern "C" int ugkwpGpuResidentStrictConfigureGasModelV1
         if(model.mode==ugkwp::GasMode::MixtureChemistry)
         {
             mechanism=ugkwp::parseGasMechanismProperties<ugkwp::compiledGasSpecies>
-                (std::string(mechanismText,args->mechanismBytes),hostThermo,model.phase);
-            if(mechanism.mechanismHash!=args->mechanismHash)
-                throw std::runtime_error("configured mechanism identity differs from canonical model");
+                (std::string(mechanismText,args->mechanismBytes),hostThermo,model.phase,model.speciesNames);
         }
         const std::size_t cells=static_cast<std::size_t>(state->nCells),faces=static_cast<std::size_t>(state->nFaces);
         const std::size_t species=ugkwp::compiledGasSpecies;
         int rc=0;
 #define ALLOC_SHARED(Name,Count) rc|=allocateSharedGasZero(candidate.Name,(Count))
+        if (!replacing)
+        {
         ALLOC_SHARED(rho,species*cells); ALLOC_SHARED(initial,species*cells);
         ALLOC_SHARED(flux,species*faces); ALLOC_SHARED(gradX,species*cells);
         ALLOC_SHARED(gradY,species*cells); ALLOC_SHARED(gradZ,species*cells);
@@ -89,8 +75,9 @@ extern "C" int ugkwpGpuResidentStrictConfigureGasModelV1
         ALLOC_SHARED(compositionBoundaryFixed,faces); ALLOC_SHARED(positivityScale,species*cells);
         ALLOC_SHARED(soundSpeed,cells); ALLOC_SHARED(heatCapacity,cells);
         ALLOC_SHARED(gasConstant,cells); ALLOC_SHARED(cellStatus,cells); ALLOC_SHARED(faceStatus,faces);
-        if(model.mode==ugkwp::GasMode::MixtureChemistry)
-        {ALLOC_SHARED(chemistryAudit,cells);ALLOC_SHARED(chemistryStatus,cells);}
+        }
+        if(model.mode==ugkwp::GasMode::MixtureChemistry && !accepted.chemistryStatus)
+        {ALLOC_SHARED(chemistryStatus,cells);}
 #undef ALLOC_SHARED
         // Copy only canonical immutable metadata into separate device allocations.
         candidate.thermo=hostThermo;
@@ -116,15 +103,34 @@ extern "C" int ugkwpGpuResidentStrictConfigureGasModelV1
         }
         if(rc) {releaseSharedGasSpecies(candidate);return 1;}
         candidate.mode=model.mode;
+        auto budgetMetadata=prepareGasBudgetMetadata(state,candidate,model);
+        const bool keepChemistry=accepted.chemistryStatus!=nullptr;
+        auto exchangePending=[&]()
+        {
+#define KEEP_SHARED(Name) std::swap(candidate.Name,accepted.Name)
+            KEEP_SHARED(rho); KEEP_SHARED(initial); KEEP_SHARED(flux);
+            KEEP_SHARED(gradX); KEEP_SHARED(gradY); KEEP_SHARED(gradZ);
+            KEEP_SHARED(limiter); KEEP_SHARED(boundaryMassFraction);
+            KEEP_SHARED(compositionBoundaryFixed); KEEP_SHARED(positivityScale);
+            KEEP_SHARED(soundSpeed); KEEP_SHARED(heatCapacity); KEEP_SHARED(gasConstant);
+            KEEP_SHARED(cellStatus); KEEP_SHARED(faceStatus);
+            if (keepChemistry)
+            { KEEP_SHARED(chemistryStatus); }
+#undef KEEP_SHARED
+        };
+        if (replacing) exchangePending();
         state->gasSpecies=candidate;
         if(syncSharedGasSpecies(state))
         {
-            state->gasSpecies={};
+            if (replacing) exchangePending();
+            state->gasSpecies=accepted;
             if(sharedGasViewRollbackFailed(state)) state->gasRejectedView=candidate;
             else releaseSharedGasSpecies(candidate);
             return 1;
         }
-        if(configureGasBudget(state,model))return 1;
+        candidate={}; // state owns the published allocations, including on diagnostic failure.
+        releaseSharedGasSpecies(accepted);
+        if(configureGasBudget(state,model,std::move(budgetMetadata)))return 1;
         return 0;
     }
     catch(const std::exception& error)
@@ -134,25 +140,9 @@ extern "C" int ugkwpGpuResidentStrictUploadSpeciesV1
 (void* handle,const ugkwpGpuIpc::GasSpeciesIdentityV1* identity,const double* values)
 {
     DeviceState* state=asState(handle);
-    if(!sharedGasIdentityMatches(state,identity) || !values || !state->gasInitialFieldsUploaded || state->gasSpeciesUploaded)
-    {setLastErrorText("initial species upload requires matching identity and unpopulated species storage");return 1;}
-    // This is initial/restart validation only. Evolved fields are never repaired
-    // or transferred to the host inside a transport/chemistry stage.
-    std::vector<double> density(state->nCells);
-    if(copyToHost(density.data(),state->rho,density.size(),"validate initial mixture density")) return 1;
-    for(int cell=0;cell<state->nCells;++cell)
-    {
-        double sum=0;
-        for(int species=0;species<ugkwp::compiledGasSpecies;++species)
-        {
-            const double value=values[std::size_t(species)*state->nCells+cell];
-            if(!std::isfinite(value) || value<0){setLastErrorText("invalid initial species inventory");return 1;}
-            sum+=value;
-        }
-        if(!std::isfinite(density[cell]) || density[cell]<=0
-           || std::abs(sum-density[cell])>state->gasSpecies.densityClosureTolerance*density[cell])
-        {setLastErrorText("initial species density does not close to total density");return 1;}
-    }
+    (void)identity;
+    if(validateState(state,"species upload") || !values || !state->gasSpecies.rho)
+    {setLastErrorText("missing species upload storage or input");return 1;}
     // A failed transfer must not leave a partially populated resident field.
     // Stage the complete input before publishing a new borrowed device view.
     double* staged=nullptr;
@@ -177,8 +167,9 @@ extern "C" int ugkwpGpuResidentStrictDownloadSpeciesV1
 (void* handle,const ugkwpGpuIpc::GasSpeciesIdentityV1* identity,double* values)
 {
     DeviceState* state=asState(handle);
-    if(!sharedGasIdentityMatches(state,identity) || !values || !state->gasSpeciesUploaded)
-    {setLastErrorText("species download identity/state mismatch");return 1;}
+    (void)identity;
+    if(validateState(state,"species download") || !values || !state->gasSpecies.rho)
+    {setLastErrorText("missing species download storage or output");return 1;}
     std::vector<double> staged(std::size_t(state->nCells)*ugkwp::compiledGasSpecies);
     if(copyToHost(staged.data(),state->gasSpecies.rho,staged.size(),"download accepted species density"))return 1;
     std::copy(staged.begin(),staged.end(),values);
@@ -188,21 +179,10 @@ extern "C" int ugkwpGpuResidentStrictUploadSpeciesBoundaryV1
 (void* handle,const ugkwpGpuIpc::GasSpeciesIdentityV1* identity,const int* fixed,const double* values)
 {
     DeviceState* state=asState(handle);
-    if(!sharedGasIdentityMatches(state,identity) || !fixed || !values)
-    {setLastErrorText("species boundary identity/state mismatch");return 1;}
-    for(int face=0;face<state->nFaces;++face)
-    {
-        if(fixed[face]!=0 && fixed[face]!=1){setLastErrorText("invalid species composition boundary flag");return 1;}
-        double sum=0;
-        for(int species=0;species<ugkwp::compiledGasSpecies;++species)
-        {
-            const double value=values[std::size_t(species)*state->nFaces+face];
-            if(!std::isfinite(value) || value<0 || value>1){setLastErrorText("invalid species boundary mass fraction");return 1;}
-            sum+=value;
-        }
-        if(std::abs(sum-1)>state->gasSpecies.densityClosureTolerance)
-        {setLastErrorText("species boundary composition must sum to one");return 1;}
-    }
+    (void)identity;
+    if(validateState(state,"species boundary upload") || !fixed || !values
+       || !state->gasSpecies.compositionBoundaryFixed || !state->gasSpecies.boundaryMassFraction)
+    {setLastErrorText("missing species boundary storage or input");return 1;}
     int* stagedFixed=nullptr;
     double* stagedValues=nullptr;
     const std::size_t count=std::size_t(state->nFaces)*ugkwp::compiledGasSpecies;

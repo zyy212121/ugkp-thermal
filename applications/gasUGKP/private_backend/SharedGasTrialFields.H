@@ -1,5 +1,5 @@
 #pragma once
-// Device allocation ownership for the two transaction levels. No host pointers
+// Device allocation ownership for genuine failed-operation restoration. No host pointers
 // to STL containers are placed in the gas state or checkpoint.
 struct SharedGasTrialSnapshot
 {
@@ -8,7 +8,8 @@ struct SharedGasTrialSnapshot
     int* cellStatus=nullptr;
     int* faceStatus=nullptr;
     ugkwp::ChemistryStatus* chemistryStatus=nullptr;
-    ugkwp::ChemistryAudit<double,ugkwp::compiledGasSpecies>* chemistryAudits=nullptr;
+    ugkwp::ChemistryAudit<double,ugkwp::compiledGasSpecies>* chemistryAudit=nullptr;
+    std::size_t cellScalars=0,faceScalars=0;
     unsigned char* wallRecords=nullptr;
     std::size_t wallRecordBytes=0;
     double wallStageTime=0,wallAuditStart=0,wallAuditInterval=0;
@@ -18,8 +19,6 @@ struct SharedGasTrialStorage
 {
     SharedGasTrialSnapshot trial;
     SharedGasTrialSnapshot interval;
-    ugkwp::ChemistryAudit<double,ugkwp::compiledGasSpecies>* chemistryBefore=nullptr;
-    ugkwp::ChemistryAudit<double,ugkwp::compiledGasSpecies>* chemistryAfter=nullptr;
-    double targetMaxCo=0.5;
+    double targetMaxCo=.5;
     bool retryableFailure=false;
 };

@@ -7,6 +7,7 @@
 #include <cstdlib>
 #include <iomanip>
 #include <limits>
+#include <memory>
 #include <sstream>
 #include <stdexcept>
 #include <string>
@@ -19,10 +20,10 @@ struct GasBudgetHostLedger
 {
     FILE* output=nullptr;
     bool initialized=false,requestActive=false;
-    double originTime=0,acceptedTime=0,requestedEnd=0;
+    double originTime=0,acceptedTime=0,requestedEnd=0,requestedDt=0;
     std::size_t sequence=0,deviceBytes=0,hostReadBytes=0;
     double hostSeconds=0;
-    std::string identity;
+    std::string identity,path;
     std::vector<double> volumes,elementMassFactors;
     std::vector<long double> origin;
     std::vector<long double> cumulativeBoundary,cumulativeChemistry;
@@ -42,8 +43,13 @@ inline std::string quoted(const std::string& value)
 template<class T>std::string array(const std::vector<T>& values)
 {
     std::ostringstream out;out<<std::setprecision(std::numeric_limits<long double>::max_digits10)<<'[';
-    for(std::size_t i=0;i<values.size();++i){if(i)out<<',';const long double value=static_cast<long double>(values[i]);if(!std::isfinite(value))throw std::runtime_error("nonfinite gas budget value");out<<value;}
+    for(std::size_t i=0;i<values.size();++i){if(i)out<<',';const long double value=static_cast<long double>(values[i]);if(std::isfinite(value))out<<value;else out<<quoted(std::isnan(value)?"NaN":value<0?"-Infinity":"Infinity");}
     out<<']';return out.str();
+}
+inline std::string scalar(double value)
+{
+    if(!std::isfinite(value))return quoted(std::isnan(value)?"NaN":value<0?"-Infinity":"Infinity");
+    std::ostringstream out;out<<std::setprecision(17)<<value;return out.str();
 }
 inline std::string names(const std::vector<std::string>& values)
 {std::string out="[";for(std::size_t i=0;i<values.size();++i){if(i)out+=',';out+=quoted(values[i]);}return out+"]";}
@@ -69,7 +75,6 @@ template<class State>std::vector<double> read(State*s,const double* pointer,std:
     std::vector<double> data(count);
     if(copyToHost(data.data(),pointer,count,"read opt-in gas budget"))throw std::runtime_error("gas budget device read failed");
     s->gasBudgetHost->hostReadBytes+=count*sizeof(double);
-    for(double value:data)if(!std::isfinite(value))throw std::runtime_error("nonfinite accepted gas budget state");
     return data;
 }
 inline long double sum(const std::vector<double>& data,std::size_t offset,std::size_t count,const std::vector<double>* volumes=nullptr)
@@ -81,6 +86,7 @@ inline long double sum(const std::vector<double>& data,std::size_t offset,std::s
 template<class State>std::vector<long double> inventory(State*s)
 {
     auto& h=*s->gasBudgetHost;const std::size_t n=s->nCells;
+    h.volumes=read(s,s->V,n);
     const auto mass=read(s,s->rho,n),energy=read(s,s->rhoE,n),species=read(s,s->gasSpecies.rho,n*h.speciesCount);
     std::vector<long double> result(h.speciesCount+2);result[0]=sum(mass,0,n,&h.volumes);result[1]=sum(energy,0,n,&h.volumes);
     for(int k=0;k<h.speciesCount;++k)result[k+2]=sum(species,k*n,n,&h.volumes);
@@ -92,6 +98,23 @@ inline std::vector<long double> elements(const GasBudgetHostLedger&h,const std::
     for(int e=0;e<h.elementCount;++e)for(int k=0;k<h.speciesCount;++k)result[e]+=species[k]*h.elementMassFactors[k*h.elementCount+e];
     return result;
 }
+template<class Species,class Model>void modelMetadata(const Species&species,const Model&model,GasBudgetHostLedger&h)
+{
+    h.speciesCount=Species::speciesCount;h.elementCount=int(model.elementNames.size());
+    h.cumulativeBoundary.assign(h.speciesCount+2,0);h.cumulativeChemistry.assign(h.speciesCount,0);
+    h.elementMassFactors.assign(model.elementComposition.begin(),
+        model.elementComposition.begin()+std::size_t(h.speciesCount)*h.elementCount);
+    const std::vector<std::string> selectedNames(model.speciesNames.begin(),
+        model.speciesNames.begin()+h.speciesCount);
+    for(int k=0;k<h.speciesCount;++k)for(int e=0;e<h.elementCount;++e)h.elementMassFactors[k*h.elementCount+e]/=model.species[k].molarMass;
+    std::ostringstream id;id<<"\"species\":"<<gasBudgetDetail::names(selectedNames)<<",\"elements\":"<<gasBudgetDetail::names(model.elementNames)
+        <<",\"species_order_hash\":"<<gasBudgetDetail::quoted(std::to_string(species.thermo.speciesOrderHash))
+        <<",\"thermo_hash\":"<<gasBudgetDetail::quoted(std::to_string(species.thermo.thermoHash))
+        <<",\"mechanism_hash\":"<<gasBudgetDetail::quoted(std::to_string(species.mechanism.mechanismHash))
+        <<",\"element_mass_factors_mol_per_kg\":"<<gasBudgetDetail::array(h.elementMassFactors);h.identity=id.str();
+
+}
+
 }
 
 template<class State>void releaseGasBudget(State*s)
@@ -103,27 +126,66 @@ template<class State>void releaseGasBudget(State*s)
         delete s->gasBudgetHost;s->gasBudgetHost=nullptr;
     }
 }
-template<class State,class Model>int configureGasBudget(State*s,const Model&model)
+// Stage only real optional output resources before the native model publishes.
+// A failed allocation leaves both the previous physical view and ledger owned.
+template<class State,class Species,class Model>
+std::unique_ptr<GasBudgetHostLedger> prepareGasBudgetMetadata
+(State*,const Species&species,const Model&model)
 {
     if constexpr(GasBudgetHostCapability<State>::value)
     {
-        const char* path=std::getenv("UGKP_GAS_BUDGET_OUTPUT");if(!path||!*path)return 0;
-        if(path[0]!='/' || s->hostGravityActive || s->particleCapacity || s->nBoundarySources
-            || s->gasSpecies.mode==ugkwp::GasMode::SingleLegacy || s->gasBudgetHost)
-        {setLastErrorText("gas budget requires a fresh absolute path and fixed pure mixture gas without gravity/particles");return 1;}
+        const char* path=std::getenv("UGKP_GAS_BUDGET_OUTPUT");
+        if(path&&*path)
+        {
+            auto next=std::make_unique<GasBudgetHostLedger>();
+            next->path=path;
+            gasBudgetDetail::modelMetadata(species,model,*next);
+            return next;
+        }
+    }
+    return {};
+}
+template<class State,class Model>int configureGasBudget
+(State*s,const Model&model,std::unique_ptr<GasBudgetHostLedger> next={})
+{
+    if constexpr(GasBudgetHostCapability<State>::value)
+    {
         try
         {
-            auto* h=new GasBudgetHostLedger;s->gasBudgetHost=h;
-            h->output=std::fopen(path,"wx");if(!h->output)throw std::runtime_error("gas budget output must be a new writable file");
-            h->speciesCount=int(model.speciesNames.size());h->elementCount=int(model.elementNames.size());
-            h->cumulativeBoundary.resize(h->speciesCount+2);h->cumulativeChemistry.resize(h->speciesCount);
-            h->elementMassFactors=model.elementComposition;
-            for(int k=0;k<h->speciesCount;++k)for(int e=0;e<h->elementCount;++e)h->elementMassFactors[k*h->elementCount+e]/=model.species[k].molarMass;
-            std::ostringstream id;id<<"\"species\":"<<gasBudgetDetail::names(model.speciesNames)<<",\"elements\":"<<gasBudgetDetail::names(model.elementNames)
-                <<",\"species_order_hash\":"<<gasBudgetDetail::quoted(std::to_string(s->gasSpecies.thermo.speciesOrderHash))
-                <<",\"thermo_hash\":"<<gasBudgetDetail::quoted(std::to_string(s->gasSpecies.thermo.thermoHash))
-                <<",\"mechanism_hash\":"<<gasBudgetDetail::quoted(std::to_string(s->gasSpecies.mechanism.mechanismHash))
-                <<",\"element_mass_factors_mol_per_kg\":"<<gasBudgetDetail::array(h->elementMassFactors);h->identity=id.str();
+            if(!next)next=prepareGasBudgetMetadata(s,s->gasSpecies,model);
+        }
+        catch(const std::exception&e){setLastErrorText(e.what());return 1;}
+        if(!next)return 0;
+        if(s->gasBudgetHost && s->gasBudgetAudit.enabled)
+        {
+            auto* previous=s->gasBudgetHost;
+            next->sequence=previous->sequence;next->deviceBytes=previous->deviceBytes;
+            next->hostReadBytes=previous->hostReadBytes;next->hostSeconds=previous->hostSeconds;
+            bool openFailed=false;
+            if(previous->path!=next->path)
+            {
+                next->output=std::fopen(next->path.c_str(),"wx");
+                openFailed=!next->output;
+            }
+            if(!next->output)
+            {
+                // The physical model is already committed. On a real requested-
+                // path failure, keep the actual open file with current metadata.
+                next->path.swap(previous->path);
+                next->output=previous->output;previous->output=nullptr;
+            }
+            s->gasBudgetHost=next.release();
+            const int closed=previous->output?std::fclose(previous->output):0;
+            previous->output=nullptr;delete previous;
+            if(closed){setLastErrorText("gas budget output close failed");return 1;}
+            if(openFailed){setLastErrorText("gas budget requested output open failed; current metadata retained on previous output path");return 1;}
+            return 0;
+        }
+        try
+        {
+            next->output=std::fopen(next->path.c_str(),"wx");
+            if(!next->output)throw std::runtime_error("gas budget output must be a new writable file");
+            auto* h=next.release();s->gasBudgetHost=h;
             auto&a=s->gasBudgetAudit;const std::size_t n=s->nCells,channels=h->speciesCount+2;
             if(allocateSharedGasZero(a.transport,n*channels)||allocateSharedGasZero(a.initialTransport,n*channels)
                 ||allocateSharedGasZero(a.chemistrySpecies,n*h->speciesCount))throw std::runtime_error("gas budget allocation failed");
@@ -135,24 +197,25 @@ template<class State,class Model>int configureGasBudget(State*s,const Model&mode
     }
     return 0;
 }
-// API guards reject unsupported opted-in paths before any state mutation.
-// When disabled they perform no allocations, transfers, launches or validation.
-template<class State>int checkGasBudgetAdvanceScope(State*s,bool pureGasOnly)
+// Opt-in audit coverage never vetoes an otherwise executable solver path.
+template<class State,class=void>struct GasBudgetCoverageNotice:std::false_type{};
+template<class State>struct GasBudgetCoverageNotice<State,std::void_t<decltype(std::declval<State>().gasBudgetCoverageReported)>>:std::true_type{};
+template<class State>int checkGasBudgetAdvanceScope(State*s,bool)
 {
-    if constexpr(GasBudgetHostCapability<State>::value)
-    {
-        const char* path=std::getenv("UGKP_GAS_BUDGET_OUTPUT");
-        if(!s->gasBudgetAudit.enabled&&(!path||!*path))return 0;
-        if(!pureGasOnly||s->gasSpecies.mode==ugkwp::GasMode::SingleLegacy||!s->gasBudgetAudit.enabled)
-        {setLastErrorText("gas budget requires configured pure mixture gas requested-interval advance");return 1;}
-    }
+    if constexpr(GasBudgetCoverageNotice<State>::value)
+        if(!s->gasBudgetCoverageReported)
+        {
+            s->gasBudgetCoverageReported=true;
+            const char* path=std::getenv("UGKP_GAS_BUDGET_OUTPUT");
+            if(path&&*path&&s->gasSpecies.mode==ugkwp::GasMode::SingleLegacy&&!s->gasBudgetHost)
+                std::fprintf(stderr,"Gas budget: legacy ledger unavailable; no audit owner is configured. Physical gas advance continues.\n");
+        }
     return 0;
 }
 template<class State>int checkGasBudgetMeshUpload(State*s)
 {
     if constexpr(GasBudgetHostCapability<State>::value)
-        if(s->gasBudgetAudit.enabled&&s->gasBudgetHost->initialized)
-        {setLastErrorText("fixed-grid gas budget segment forbids subsequent mesh upload");return 1;}
+        if(s->gasBudgetHost)s->gasBudgetHost->initialized=false;
     return 0;
 }
 template<class State>int prepareGasBudgetRequest(State*s,double dt,double time)
@@ -162,22 +225,18 @@ template<class State>int prepareGasBudgetRequest(State*s,double dt,double time)
         auto&h=*s->gasBudgetHost;const auto start=std::chrono::steady_clock::now();
         try
         {
-            if(h.requestActive||!std::isfinite(time)||!std::isfinite(dt)||time<0||dt<=0||!std::isfinite(time+dt)||time+dt==time)
-                throw std::runtime_error("invalid gas budget requested interval");
-            if(s->hostGravityActive||s->particleCapacity||s->nBoundarySources)
-                throw std::runtime_error("gas budget source scope changed after configuration");
-            if(!h.initialized)
+            if(!h.initialized || h.requestActive || time!=h.acceptedTime)
             {
-                h.volumes=gasBudgetDetail::read(s,s->V,s->nCells);
-                for(double volume:h.volumes)if(volume<=0)throw std::runtime_error("nonpositive gas budget volume");
-                h.origin=gasBudgetDetail::inventory(s);h.originTime=h.acceptedTime=time;
-                std::ostringstream out;out<<std::setprecision(17)<<"{\"schema\":1,\"record\":\"NEW_SEGMENT\",\"continuity\":\"UNVERIFIED_NEW_SEGMENT\",\"accepted_initial_time\":"<<time
-                    <<",\"initial_inventory\":"<<gasBudgetDetail::array(h.origin)<<','<<h.identity
-                    <<",\"channels\":\"mass_kg,formation_inclusive_total_energy_J,species_mass_kg\",\"source_scope\":\"fixed_grid_no_gravity_no_particles; chemistry changes species only; boundary mechanical work included in total-energy flux; no separate body-work source; GCL=0\"}";
-                gasBudgetDetail::append(h,out.str());h.initialized=true;
+                auto origin=gasBudgetDetail::inventory(s);
+                std::vector<long double> boundary(h.speciesCount+2),chemistry(h.speciesCount);
+                std::ostringstream out;out<<std::setprecision(17)<<"{\"schema\":1,\"record\":\"NEW_SEGMENT\",\"continuity\":\"UNVERIFIED_NEW_SEGMENT\",\"accepted_initial_time\":"<<gasBudgetDetail::scalar(time)
+                    <<",\"output_path\":"<<gasBudgetDetail::quoted(h.path)<<",\"initial_inventory\":"<<gasBudgetDetail::array(origin)<<','<<h.identity
+                    <<",\"channels\":\"mass_kg,formation_inclusive_total_energy_J,species_mass_kg\",\"source_scope\":\"boundary transport and chemistry species are measured; other body, particle, moving-volume and external-source contributions are unavailable and remain in residual\"}";
+                gasBudgetDetail::append(h,out.str());
+                h.origin=std::move(origin);h.cumulativeBoundary=std::move(boundary);h.cumulativeChemistry=std::move(chemistry);
+                h.originTime=h.acceptedTime=time;h.initialized=true;
             }
-            if(time!=h.acceptedTime)throw std::runtime_error("gas budget time does not follow last accepted interval");
-            h.requestedEnd=time+dt;h.requestActive=true;
+            h.requestedDt=dt;h.requestedEnd=time+dt;h.requestActive=true;
         }
         catch(const std::exception&e){setLastErrorText(e.what());return 1;}
         h.hostSeconds+=std::chrono::duration<double>(std::chrono::steady_clock::now()-start).count();
@@ -188,11 +247,14 @@ template<class State>int beginGasBudgetInterval(State*s)
 {
     if constexpr(GasBudgetHostCapability<State>::value)if(s->gasBudgetAudit.enabled)
     {
-        if(!s->gasBudgetHost->requestActive){setLastErrorText("gas budget interval not prepared");return 1;}
+        if(!s->gasBudgetHost->requestActive)
+            if(prepareGasBudgetRequest(s,std::numeric_limits<double>::quiet_NaN(),
+                std::numeric_limits<double>::quiet_NaN()))return 1;
         auto&a=s->gasBudgetAudit;const std::size_t n=s->nCells,channels=a.speciesCount+2;
-        if(cudaMemset(a.transport,0,n*channels*sizeof(double))!=cudaSuccess
-            ||cudaMemset(a.initialTransport,0,n*channels*sizeof(double))!=cudaSuccess
-            ||cudaMemset(a.chemistrySpecies,0,n*a.speciesCount*sizeof(double))!=cudaSuccess)return 1;
+        auto error=cudaMemset(a.transport,0,n*channels*sizeof(double));
+        if(error==cudaSuccess)error=cudaMemset(a.initialTransport,0,n*channels*sizeof(double));
+        if(error==cudaSuccess)error=cudaMemset(a.chemistrySpecies,0,n*a.speciesCount*sizeof(double));
+        if(error!=cudaSuccess){setLastError("reset gas budget accumulation",error);return 1;}
     }
     return 0;
 }
@@ -202,10 +264,12 @@ template<class State>int commitGasBudgetInterval(State*s)
 {
     if constexpr(GasBudgetHostCapability<State>::value)if(s->gasBudgetAudit.enabled)
     {
+        if(!s->gasBudgetHost->requestActive)
+            if(prepareGasBudgetRequest(s,std::numeric_limits<double>::quiet_NaN(),
+                std::numeric_limits<double>::quiet_NaN()))return 1;
         auto&h=*s->gasBudgetHost;const auto start=std::chrono::steady_clock::now();
         try
         {
-            if(!h.requestActive)throw std::runtime_error("gas budget interval was not pending");
             const auto current=gasBudgetDetail::inventory(s);
             const auto transport=gasBudgetDetail::read(s,s->gasBudgetAudit.transport,std::size_t(s->nCells)*(h.speciesCount+2));
             const auto chemistry=gasBudgetDetail::read(s,s->gasBudgetAudit.chemistrySpecies,std::size_t(s->nCells)*h.speciesCount);
@@ -217,13 +281,13 @@ template<class State>int commitGasBudgetInterval(State*s)
             for(int k=0;k<h.speciesCount;++k)elementSpecies[k]=static_cast<long double>(current[k+2])-h.origin[k+2]-boundary[k+2];
             const auto elementResidual=gasBudgetDetail::elements(h,elementSpecies),chemicalElements=gasBudgetDetail::elements(h,chemical);
             h.hostSeconds+=std::chrono::duration<double>(std::chrono::steady_clock::now()-start).count();
-            std::ostringstream out;out<<std::setprecision(17)<<"{\"schema\":1,\"record\":\"ACCEPTED_INTERVAL\",\"sequence\":"<<h.sequence+1<<",\"interval_start\":"<<h.acceptedTime
-                <<",\"accepted_time\":"<<h.requestedEnd<<",\"inventory\":"<<gasBudgetDetail::array(current)
+            std::ostringstream out;out<<std::setprecision(17)<<"{\"schema\":1,\"record\":"<<gasBudgetDetail::quoted(std::isfinite(h.requestedDt)?"ACCEPTED_INTERVAL":"OBSERVED_STATE")<<",\"sequence\":"<<h.sequence+1<<",\"interval_start\":"<<gasBudgetDetail::scalar(h.acceptedTime)
+                <<",\"accepted_time\":"<<gasBudgetDetail::scalar(h.requestedEnd)<<",\"completed_duration\":"<<gasBudgetDetail::scalar(h.requestedDt)<<",\"inventory\":"<<gasBudgetDetail::array(current)
                 <<",\"cumulative_boundary_transport\":"<<gasBudgetDetail::array(boundary)<<",\"cumulative_chemistry_species\":"<<gasBudgetDetail::array(chemical)
                 <<",\"constraint_or_roundoff_residual\":"<<gasBudgetDetail::array(residual)<<",\"element_conservation_residual_mol\":"<<gasBudgetDetail::array(elementResidual)
                 <<",\"chemistry_element_drift_mol\":"<<gasBudgetDetail::array(chemicalElements)<<",\"element_status\":\""<<(h.elementCount?"DECLARED":"UNAVAILABLE_NO_ELEMENT_BASIS")
-                <<"\",\"audit_device_bytes\":"<<3*h.deviceBytes<<",\"audit_host_read_bytes\":"<<h.hostReadBytes<<",\"audit_extra_kernel_launches\":0,\"audit_host_seconds\":"<<h.hostSeconds
-                <<",\"cost_scope\":\"host boundary inventory reads/reductions; device bytes include both rollback snapshots; allocation/reset/snapshot/fused-kernel/file-IO time excluded; not complete overhead\"}";
+                <<"\",\"audit_device_bytes\":"<<(h.deviceBytes+sizeof(double)*std::size_t(s->nCells)*(2*h.speciesCount+2))<<",\"audit_host_read_bytes\":"<<h.hostReadBytes<<",\"audit_extra_kernel_launches\":0,\"audit_host_seconds\":"<<h.hostSeconds
+                <<",\"cost_scope\":\"host boundary inventory reads/reductions; device bytes include the actual-error trial snapshot; allocation/reset/snapshot/fused-kernel/file-IO time excluded; not complete overhead\"}";
             gasBudgetDetail::append(h,out.str());h.cumulativeBoundary=std::move(boundary);h.cumulativeChemistry=std::move(chemical);
             h.acceptedTime=h.requestedEnd;++h.sequence;h.requestActive=false;
         }
