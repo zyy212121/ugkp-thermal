@@ -31,11 +31,12 @@ class NoWallRetentionContract(unittest.TestCase):
             with self.subTest(token=token):
                 self.assertNotIn(token, active)
 
-    def test_restart_schema_contains_only_mobile_particle_state(self) -> None:
+    def test_restart_output_contains_mobile_particle_fields(self) -> None:
         frontend = (ROOT / "gpu" / "GpuResidentStrict.H").read_text()
-        self.assertIn("UGKP_PARTICLES_SCHEMA4", frontend)
-        self.assertNotIn("UGKP_PARTICLES_SCHEMA2", frontend)
-        self.assertNotIn("UGKP_PARTICLES_SCHEMA3", frontend)
+        # Exact canonical bytes and legacy/current/future reads have real-code tests.
+        self.assertIn("UGKP_PARTICLES_SCHEMA1_BIN", frontend)
+        for field in ("pCellId", "pStatus", "pRng", "pOrigId"):
+            self.assertIn(field, frontend)
 
     def test_existing_reflection_coefficients_remain(self) -> None:
         frontend = (ROOT / "gpu" / "GpuResidentStrict.H").read_text()

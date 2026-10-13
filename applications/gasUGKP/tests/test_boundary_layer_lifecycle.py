@@ -108,7 +108,8 @@ int cudaMemcpy(void* dst,const void* src,std::size_t n,int){
  std::memcpy(dst,src,n);return cudaSuccess;
 }
 ''')
-    return pre+sync+'\n'+scrub+r'''
+    from test_boundary_layer_storage import snapshot_release_probe
+    return pre+sync+'\n'+scrub+snapshot_release_probe()+r'''
 const int cudaDevAttrMultiProcessorCount=1;
 int cudaGetDevice(int*p){*p=0;return 0;}
 int cudaDeviceGetAttribute(int*p,int,int){*p=80;return 0;}
@@ -164,7 +165,7 @@ int main(int argc,char**argv){assert(argc==4);const int model=std::atoi(argv[1])
   if(model)assert(device.gasBoundaryLayerModel.output[0].reactionIntegral[0]<-1e-8);
   assert(state.gasMu==0&&state.gasPrClamped==0&&state.gasFluxScheme==0);
   const int calls=publicationAttempts,live=allocations;
-  assert(configure()!=0&&publicationAttempts==calls&&allocations==live);
+  assert(configure()==0&&publicationAttempts==calls+6&&allocations==live);
  }
  releaseBoundaryLayerStorage(state);assert(allocations==0);
  assert(!state.gasBoundaryLayer.enabled&&!state.gasBoundaryLayerModel.input&&!state.gasSstAudit.enabled);

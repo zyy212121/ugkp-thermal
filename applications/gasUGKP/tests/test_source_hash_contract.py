@@ -1,3 +1,4 @@
+"""Explicit offline source audits; normal builds do not require these hashes."""
 from __future__ import annotations
 
 import importlib.util

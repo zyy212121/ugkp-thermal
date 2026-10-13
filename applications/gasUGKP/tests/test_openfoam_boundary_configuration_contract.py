@@ -41,8 +41,10 @@ class OpenFoamBoundaryConfigurationContract(unittest.TestCase):
         self.assertIn("ugkpboundary::velocityOperator", self.wrapper)
         self.assertIn("Unsupported OpenFOAM gas boundary field", self.wrapper)
 
-    def test_native_wall_velocity_must_be_dirichlet(self) -> None:
-        self.assertIn("wall patch requires noSlip or fixedValue U", self.wrapper)
+    def test_native_wall_uses_existing_velocity_operator(self) -> None:
+        # Wall/patch value+flag precedence is executed in test_native_gas_input_continuation.
+        self.assertNotIn("wall patch requires noSlip or fixedValue U", self.wrapper)
+        self.assertIn("ugkpboundary::velocityOperator", self.wrapper)
 
 
 if __name__ == "__main__":

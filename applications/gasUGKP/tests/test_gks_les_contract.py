@@ -297,15 +297,13 @@ class SourceContractTests(unittest.TestCase):
             "Unsupported gas reconstruction",
             "Unsupported gas limiter",
             "Unsupported ddtSchemes/default",
-            "robustFallback must remain true",
             "Valid values are laminar, WALE, Smagorinsky and kOmegaSST",
-            "LES deltaCoeff must be finite and positive",
-            "Turbulent Prandtl number must be finite and positive",
-            "maxDiffusionNumber must be positive",
         )
         for text in rejection_contracts:
             with self.subTest(rejection=text):
                 self.assertIn(text, create_fields)
+        # Real false-fallback, defaults and signed input values are covered by
+        # test_shared_gas_numerics_io and test_native_gas_input_continuation.
         self.assertNotIn('"entropyFixCoefficient"', create_fields)
         self.assertNotIn("gasEntropyFixCoefficient", create_fields)
 

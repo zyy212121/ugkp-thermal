@@ -92,7 +92,7 @@ class UGKPInterfaceContract(unittest.TestCase):
         self.assertIn("molecularGasConductivity(s)", cuda)
         self.assertIn("s.gasPrOneThird", cuda)
 
-    def test_thermodynamic_inputs_are_validated_at_each_entry_layer(self) -> None:
+    def test_frontend_forwards_thermodynamics_while_downstream_layers_remain_owned(self) -> None:
         fields = (
             source("readGpuGasConfiguration.H")
             + "\n"
@@ -102,7 +102,8 @@ class UGKPInterfaceContract(unittest.TestCase):
         server = source("private_backend/GpuBackendServer.C")
         cuda = source("private_backend/GpuResidentStrict.cu")
 
-        self.assertIn("gammaG.value() > scalar(5.0/3.0)", fields)
+        # Real supplied values and required-error controls are in test_native_gas_input_continuation.
+        self.assertNotIn("gammaG.value() > scalar(5.0/3.0)", fields)
         for text, prefix in ((client, ""), (server, "a."), (cuda, "")):
             with self.subTest(layer=prefix or "C ABI"):
                 self.assertRegex(text, rf"{re.escape(prefix)}gammaGas\s*>\s*5\.0/3\.0")

@@ -14,7 +14,7 @@ def build(tmp_path, precision=False, wall_audit=False):
     code=code.replace('__DECLARATIONS__','\n'.join('double* '+name+'=nullptr;' for name in scalar_fields))
     code=code.replace('#include "applications/gasUGKP/private_backend/SharedGasTrialFields.H"',
         '#include "common/gasTransport/GasBudgetAudit.H"\nstruct GasBudgetHostLedger;\n#include "applications/gasUGKP/private_backend/SharedGasTrialFields.H"')
-    code=code.replace('SharedGasTrialStorage gasTrial;', 'SharedGasTrialStorage gasTrial;ugkwp::GasBudgetAuditState gasBudgetAudit;GasBudgetHostLedger* gasBudgetHost=nullptr;bool hostGravityActive=false;int particleCapacity=0,nBoundarySources=0;')
+    code=code.replace('SharedGasTrialStorage gasTrial;', 'SharedGasTrialStorage gasTrial;ugkwp::GasBudgetAuditState gasBudgetAudit;GasBudgetHostLedger* gasBudgetHost=nullptr;bool gasBudgetCoverageReported=false;bool hostGravityActive=false;int particleCapacity=0,nBoundarySources=0;')
     code=code.replace('#include <cassert>', '#include <cassert>\n#include <cstdlib>\n#include <new>\nstd::size_t hostAllocations=0;int hostAllocationFailures=0;\nvoid* operator new(std::size_t n){++hostAllocations;if(hostAllocationFailures>0){--hostAllocationFailures;throw std::bad_alloc();}if(void*p=std::malloc(n))return p;throw std::bad_alloc();}\nvoid operator delete(void*p)noexcept{std::free(p);}\nvoid operator delete(void*p,std::size_t)noexcept{std::free(p);}')
     code=code.replace('int allocations=0,deviceCopyFailures=0;', 'int allocations=0,deviceCopyFailures=0;int hostCopies=0,hostCopyFailures=0;')
     code=code.replace('int copyToHost(T*d,const T*s,std::size_t n,const char*){', 'int copyToHost(T*d,const T*s,std::size_t n,const char*){++hostCopies;if(hostCopyFailures>0){--hostCopyFailures;return 1;}')
@@ -24,7 +24,7 @@ def build(tmp_path, precision=False, wall_audit=False):
         return body.split(stop,1)[0]
     code+='\nDeviceState* asState(void*p){return static_cast<DeviceState*>(p);}\nint validateState(DeviceState*,const char*){return 0;}\n'
     for name,entry,stop in [('probePure','ugkwpGpuResidentStrictAdvanceGasOnly','    if (s->gasSpecies.mode =='),
-                            ('probeCombined','ugkwpGpuResidentStrictAdvance','    if (tuneFixedWorkBlockThreads'),
+                            ('probeCombined','ugkwpGpuResidentStrictAdvance','    if(s->gasSpecies.mode'),
                             ('probeMesh','ugkwpGpuResidentStrictUploadMesh','    int rc = 0;')]:
         code+='int '+name+'(void*handle){'+entry_prefix(entry,stop)+'return 0;}\n'
     code+=r'''
@@ -43,15 +43,26 @@ if(std::string(argv[1])=="off"){
  assert(prepareGasBudgetRequest(&state,.1,0)==0);assert(beginGasBudgetInterval(&state)==0);assert(commitGasBudgetInterval(&state)==0);
  assert(allocations==0&&hostCopies==0&&!state.gasBudgetHost&&!state.gasBudgetAudit.enabled);
  const auto before=hostAllocations;assert(SharedGasTrialPolicy::beginInterval(&state)==0);assert(SharedGasTrialPolicy::begin(&state)==0);
- // Baseline policy allocates exactly one cell/face vector per snapshot. No audit-count vector.
+ // Original policy allocates one cell/face vector per snapshot level. No audit-count vector.
  assert(hostAllocations-before==4);assert(hostCopies==0);releaseSharedGasTrialStorage(state.gasTrial);assert(allocations==0);return 0;}
 setenv("UGKP_GAS_BUDGET_OUTPUT",argv[2],1);
-if(std::string(argv[1])=="scope_legacy"){state.gasSpecies.mode=ugkwp::GasMode::SingleLegacy;assert(probePure(&state)!=0);return 0;}
-if(std::string(argv[1])=="scope_combined"){assert(probeCombined(&state)!=0);return 0;}
+if(std::string(argv[1])=="scope_legacy"){state.gasSpecies.mode=ugkwp::GasMode::SingleLegacy;assert(probePure(&state)==0);assert(probePure(&state)==0);return 0;}
+if(std::string(argv[1])=="scope_combined"){assert(probeCombined(&state)==0);return 0;}
 if(std::string(argv[1])=="owner_failure"){hostAllocationFailures=1;assert(configureGasBudget(&state,model)!=0);assert(!state.gasBudgetHost&&!state.gasBudgetAudit.enabled&&allocations==0);return 0;}
 assert(configureGasBudget(&state,model)==0);
-if(std::string(argv[1])=="scope_mesh"){assert(probeMesh(&state)==0);assert(prepareGasBudgetRequest(&state,.1,0)==0);assert(probeMesh(&state)!=0);releaseGasBudget(&state);return 0;}
+if(std::string(argv[1])=="scope_mesh"){assert(probeMesh(&state)==0);assert(prepareGasBudgetRequest(&state,.1,0)==0);assert(probeMesh(&state)==0);releaseGasBudget(&state);return 0;}
 if(std::string(argv[1])=="reuse"){releaseGasBudget(&state);return 0;}
+
+if(std::string(argv[1])=="diagnostic_nonfinite"){
+ assert(prepareGasBudgetRequest(&state,.1,0)==0);assert(beginGasBudgetInterval(&state)==0);
+ state.gasBudgetAudit.transport[0]=INFINITY;state.gasBudgetAudit.chemistrySpecies[0]=NAN;
+ assert(commitGasBudgetInterval(&state)==0&&state.rho[0]==1);
+ releaseGasBudget(&state);return 0;}
+if(std::string(argv[1])=="lifecycle"){
+ assert(beginGasBudgetInterval(&state)==0);assert(commitGasBudgetInterval(&state)==0);
+ assert(prepareGasBudgetRequest(&state,.1,-2)==0);assert(beginGasBudgetInterval(&state)==0);assert(commitGasBudgetInterval(&state)==0);
+ assert(prepareGasBudgetRequest(&state,1.,1e20)==0);assert(beginGasBudgetInterval(&state)==0);assert(commitGasBudgetInterval(&state)==0);
+ releaseGasBudget(&state);return 0;}
 const double origin=std::string(argv[1])=="restart"?.1:0;
 assert(prepareGasBudgetRequest(&state,.1,origin)==0);assert(SharedGasTrialPolicy::beginInterval(&state)==0);
 assert(SharedGasTrialPolicy::begin(&state)==0);
@@ -59,17 +70,15 @@ state.rho[0]+=.1;partial[0]+=.04;partial[2]+=.06;state.rhoE[0]+=2;
 state.gasBudgetAudit.transport[0]=.1;state.gasBudgetAudit.transport[2]=2;
 state.gasBudgetAudit.transport[4]=.04;state.gasBudgetAudit.transport[6]=.06;
 assert(SharedGasTrialPolicy::commit(&state)==0);
-assert(SharedGasTrialPolicy::begin(&state)==0);state.rho[0]=99;state.gasBudgetAudit.transport[0]=99;
-SharedGasTrialPolicy::rollback(&state);assert(state.rho[0]==1.1&&state.gasBudgetAudit.transport[0]==.1);
 if(std::string(argv[1])=="read_failure"){
- hostCopyFailures=1;assert(SharedGasTrialPolicy::commitInterval(&state)!=0);SharedGasTrialPolicy::rollbackInterval(&state);
+ hostCopyFailures=1;assert(SharedGasTrialPolicy::commitInterval(&state)!=0);SharedGasTrialPolicy::rollback(&state);SharedGasTrialPolicy::rollbackInterval(&state);
  assert(state.rho[0]==1&&!state.gasBudgetHost->requestActive&&state.gasBudgetHost->sequence==0);
  releaseSharedGasTrialStorage(state.gasTrial);releaseGasBudget(&state);assert(allocations==0);return 0;
 }
 if(std::string(argv[1])=="energy_residual")state.rhoE[0]+=1;
 assert(SharedGasTrialPolicy::commitInterval(&state)==0);
-assert(prepareGasBudgetRequest(&state,.1,origin+.1)==0);assert(SharedGasTrialPolicy::beginInterval(&state)==0);
-state.rho[0]=999;state.gasBudgetAudit.transport[0]=999;SharedGasTrialPolicy::rollbackInterval(&state);
+assert(prepareGasBudgetRequest(&state,.1,origin+.1)==0);assert(SharedGasTrialPolicy::beginInterval(&state)==0);assert(SharedGasTrialPolicy::begin(&state)==0);
+state.rho[0]=999;state.gasBudgetAudit.transport[0]=999;SharedGasTrialPolicy::rollback(&state);SharedGasTrialPolicy::rollbackInterval(&state);
 assert(state.rho[0]==1.1);releaseSharedGasTrialStorage(state.gasTrial);releaseGasBudget(&state);assert(allocations==0);
 }
 '''.replace('__ASSIGNMENTS__','\n'.join(f'double {name}[2]={{1,1}};state.{name}={name};' for name in scalar_fields))
@@ -78,7 +87,7 @@ assert(state.rho[0]==1.1);releaseSharedGasTrialStorage(state.gasTrial);releaseGa
         code=code.replace('const double origin=', 'double audit[13][2]{};'+wall_setup+'\nconst double origin=')
         code=code.replace('state.rho[0]+=.1;', 'state.gasSstAudit.sourceK[0]=5;wallOutput[0].conductiveHeatFlux=6;state.rho[0]+=.1;')
         code=code.replace('state.rho[0]=99;', 'state.gasSstAudit.sourceK[0]=99;wallOutput[0].conductiveHeatFlux=99;state.rho[0]=99;')
-        code=code.replace('SharedGasTrialPolicy::rollback(&state);', 'SharedGasTrialPolicy::rollback(&state);assert(state.gasSstAudit.sourceK[0]==5&&wallOutput[0].conductiveHeatFlux==6);')
+        code=code.replace('state.rho[0]=999;', 'assert(state.gasSstAudit.sourceK[0]==5&&wallOutput[0].conductiveHeatFlux==6);state.rho[0]=999;')
         code=code.replace('assert(state.rho[0]==1&&!state.gasBudgetHost', 'assert(state.gasSstAudit.sourceK[0]==0&&wallOutput[0].conductiveHeatFlux==0);assert(state.rho[0]==1&&!state.gasBudgetHost')
         code=code.replace('state.rho[0]=999;', 'state.gasSstAudit.sourceK[0]=999;wallOutput[0].conductiveHeatFlux=999;state.rho[0]=999;')
         code=code.replace('assert(state.rho[0]==1.1);', 'assert(state.gasSstAudit.sourceK[0]==5&&wallOutput[0].conductiveHeatFlux==6);assert(state.rho[0]==1.1);')
@@ -140,6 +149,7 @@ def test_real_api_entry_guards_reject_unsupported_budget_paths(tmp_path,mode):
     binary=build(tmp_path);path=tmp_path/'scope.jsonl'
     run=subprocess.run([str(binary),mode,str(path)],capture_output=True,text=True)
     assert run.returncode==0,run.stderr
+    if mode=="scope_legacy":assert run.stderr.count("legacy ledger unavailable")==1
 
 
 def test_failed_commit_read_rolls_back_without_accepted_output(tmp_path):
@@ -174,3 +184,59 @@ def test_wall_sst_and_bulk_budget_share_trial_and_interval_rollback(tmp_path,mod
     rows=[json.loads(line) for line in path.read_text().splitlines()]
     assert len(rows)==(2 if mode=='normal' else 1)
     if mode=='normal':assert rows[-1]['cumulative_boundary_transport'][0]==pytest.approx(.1)
+
+
+@pytest.mark.parametrize('mode',['diagnostic_nonfinite','lifecycle'])
+def test_optional_diagnostic_overflow_and_unprepared_lifecycle_are_honest(tmp_path,mode):
+    binary=build(tmp_path);path=tmp_path/'diagnostics.jsonl'
+    run=subprocess.run([str(binary),mode,str(path)],capture_output=True,text=True)
+    assert run.returncode==0,run.stderr
+    rows=[json.loads(x) for x in path.read_text().splitlines()]
+    if mode=='diagnostic_nonfinite':
+        assert rows[-1]['cumulative_boundary_transport'][0]=='Infinity'
+        assert rows[-1]['cumulative_chemistry_species'][0]=='NaN'
+        assert rows[-1]['inventory'][0]==2
+    else:
+        assert rows[1]['record']=='OBSERVED_STATE' and rows[1]['completed_duration']=='NaN'
+        assert rows[-1]['accepted_time']==1e20 and rows[-1]['completed_duration']==1
+        assert rows[-3]['accepted_time']==pytest.approx(-1.9)
+
+
+def test_relative_path_keeps_no_clobber_semantics(tmp_path):
+    binary=build(tmp_path)
+    run=subprocess.run([str(binary),'normal','relative.jsonl'],cwd=tmp_path,capture_output=True,text=True)
+    assert run.returncode==0,run.stderr
+    assert (tmp_path/'relative.jsonl').exists()
+
+@pytest.mark.parametrize('truncate_failure',[False,True])
+def test_partial_real_output_write_reports_error_and_restores_trial(tmp_path,truncate_failure):
+    binary=build(tmp_path)
+    source=tmp_path/'runtime.cpp';code=source.read_text()
+    overrides=r'''
+#include <sys/syscall.h>
+int writeFailure=0,truncateFailure=0;
+extern "C" ssize_t write(int fd,const void*data,size_t bytes){
+ if(writeFailure==1){writeFailure=2;return syscall(SYS_write,fd,data,bytes>3?3:bytes);}
+ if(writeFailure==2){writeFailure=0;return -1;}return syscall(SYS_write,fd,data,bytes);}
+extern "C" int ftruncate(int fd,off_t length){if(truncateFailure)return -1;return syscall(SYS_ftruncate,fd,length);}
+'''
+    code=code.replace('int main(int argc,char**argv)',overrides+'\nint main(int argc,char**argv)')
+    needle='const double origin=std::string(argv[1])=="restart"?.1:0;'
+    main=r'''
+assert(prepareGasBudgetRequest(&state,.1,0)==0);assert(beginGasBudgetInterval(&state)==0);assert(SharedGasTrialPolicy::begin(&state)==0);
+state.rho[0]=1.25;state.gasBudgetAudit.transport[0]=.25;
+const auto offset=lseek(fileno(state.gasBudgetHost->output),0,SEEK_CUR);writeFailure=1;truncateFailure=TRUNCATE;
+assert(SharedGasTrialPolicy::commitInterval(&state)!=0&&state.gasBudgetHost->sequence==0);
+if(TRUNCATE)assert(lastError.find("output rollback failed")!=std::string::npos);
+else assert(lastError.find("record write failed")!=std::string::npos&&lseek(fileno(state.gasBudgetHost->output),0,SEEK_CUR)==offset);
+SharedGasTrialPolicy::rollback(&state);SharedGasTrialPolicy::rollbackInterval(&state);
+assert(state.rho[0]==1&&!state.gasBudgetHost->requestActive);
+releaseSharedGasTrialStorage(state.gasTrial);releaseGasBudget(&state);assert(allocations==0);return 0;
+'''.replace('TRUNCATE','1'if truncate_failure else'0')
+    code=code.replace(needle,main+needle);source.write_text(code)
+    b=subprocess.run(['g++','-std=c++17','-O0','-I',str(ROOT),str(source),'-o',str(binary)],capture_output=True,text=True);assert b.returncode==0,b.stderr
+    path=tmp_path/'write-error.jsonl';r=subprocess.run([str(binary),'normal',str(path)],capture_output=True,text=True);assert r.returncode==0,r.stderr
+    content=path.read_text();rows=content.splitlines()
+    assert json.loads(rows[0])['record']=='NEW_SEGMENT'
+    assert len(rows)==(2 if truncate_failure else 1)
+    if truncate_failure:assert rows[1]=='{"s'

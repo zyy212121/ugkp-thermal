@@ -195,7 +195,7 @@ class UGKPNumericsConfiguration(unittest.TestCase):
         cls.cuda = (ROOT / "private_backend/GpuResidentStrict.cu").read_text()
 
     def test_runtime_dictionary_and_supported_names(self) -> None:
-        self.assertIn('fvSchemesDict.found("fluxScheme")', self.create)
+        self.assertIn('fvSchemesDict.readIfPresent("fluxScheme", gasFluxSchemeName)' , self.create)
         self.assertNotIn('subDict("gasNumerics")', self.create)
         for name in (
             "rusanovTadmor",
@@ -347,12 +347,12 @@ class UGKPNumericsConfiguration(unittest.TestCase):
         wrapper_call_marker = "const int createRc = ugkwpGpuResidentStrictCreate"
         search_from = 0
         expected = (
-            "int(gasFluxScheme)",
-            "int(gasReconstruction)",
-            "int(gasLimiter)",
-            "int(gasTimeIntegrator)",
+            "gpuHostValue<int>(gasFluxScheme)",
+            "gpuHostValue<int>(gasReconstruction)",
+            "gpuHostValue<int>(gasLimiter)",
+            "gpuHostValue<int>(gasTimeIntegrator)",
             "gasRobustFallback ? 1 : 0",
-            "int(gasTurbulenceModel)",
+            "gpuHostValue<int>(gasTurbulenceModel)",
         )
         for call_number in (1, 2):
             arguments, search_from = _delimited_after(

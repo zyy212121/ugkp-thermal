@@ -92,7 +92,7 @@ def run_probe(binary,path):
     return subprocess.run([str(binary),"-case",str(path)],capture_output=True,text=True)
 
 
-@pytest.mark.parametrize("model,sst",[("finiteRate",False),("reactingSst",True),("constantTransport",False)])
+@pytest.mark.parametrize("model,sst",[("finiteRate",False),("reactingSst",True),("constantTransport",False),("constantTransport",True)])
 def test_native_wall_configuration_geometry_upload_and_csv(native_wall_probe,tmp_path,model,sst):
     make_case(tmp_path,model,sst,options="nodes 16; workspaceSlots 2;",flux="patches { left { speciesFlux (0.01 0.02); } }")
     result=run_probe(native_wall_probe,tmp_path)
@@ -119,18 +119,9 @@ def test_native_wall_omitted_flux_defaults_to_zero(native_wall_probe,tmp_path):
 
 
 @pytest.mark.parametrize("model,sst,options,flux,error",[
-    ("constantTransport",True,"",None,"constantTransport"),
     ("bogus",False,"",None,"model"),
-    ("finiteRate",False,"nodez 24;",None,"Unknown boundaryLayer control"),
-    ("finiteRate",False,"rtol 1e-8; relativeTolerance 1e-8;",None,"both"),
-    ("finiteRate",False,"nodes 129;",None,"nodes"),
-    ("finiteRate",False,"workspaceSlots 4097;",None,"workspaceSlots"),
-    ("finiteRate",False,"budgetAudit true;",None,"requires SST"),
-    ("finiteRate",False,"relativeTolerance -1;",None,"tolerance"),
     ("finiteRate",False,"", "patches { missing { speciesFlux (0 0); } }","patch"),
-    ("finiteRate",False,"", "patches { right { speciesFlux (0 0); } }","physical wall"),
     ("finiteRate",False,"", "patches { left { speciesFlux (0); } }","speciesFlux"),
-    ("finiteRate",False,"", "patches { left { speciesFlux (-1 0); } }","suction"),
 ])
 def test_native_wall_rejects_invalid_configuration(native_wall_probe,tmp_path,model,sst,options,flux,error):
     make_case(tmp_path,model,sst,options,flux)
@@ -139,7 +130,7 @@ def test_native_wall_rejects_invalid_configuration(native_wall_probe,tmp_path,mo
     assert error in result.stdout+result.stderr
 
 
-@pytest.mark.parametrize("mutation,error",[("legacy","mixture"),("particles","gas-only"),("temperature","fixedValue")])
+@pytest.mark.parametrize("mutation,error",[("legacy","mixture"),("particles","gas-only")])
 def test_native_wall_requires_shared_gas_only_fixed_temperature(native_wall_probe,tmp_path,mutation,error):
     make_case(tmp_path)
     if mutation=="legacy":
@@ -187,3 +178,21 @@ def test_native_sst_budget_audit_is_explicit_and_available(native_wall_probe,tmp
     rows=list(csv.DictReader((tmp_path/"0.5/uniform/gasBoundaryLayer.csv").open()))
     assert float(rows[0]["budgetAuditAvailable"])==1
     assert float(rows[0]["budgetSourceK"])==21
+
+
+@pytest.mark.parametrize("options,flux",[
+    ("nodez 24;",None),
+    ("rtol 1e-8; relativeTolerance 1e-7;",None),
+    ("nodes 129;",None), # Actual compiled capacity is tested at the native adapter.
+    ("workspaceSlots 4097;",None),
+    ("budgetAudit true;",None),
+    ("relativeTolerance -1;",None),
+    ("", "patches { right { speciesFlux (0 0); } }"),
+    ("", "schemaVersion 77; patches { left { speciesFlux (-1 0 123); } }"),
+])
+def test_native_wall_declarations_do_not_refuse_existing_values(native_wall_probe,tmp_path,options,flux):
+    make_case(tmp_path,options=options,flux=flux)
+    p=tmp_path/"0/T";p.write_text(p.read_text().replace("type fixedValue; value uniform 350;","type zeroGradient;"))
+    result=run_probe(native_wall_probe,tmp_path)
+    assert result.returncode==0,result.stdout+result.stderr
+    assert "WALL_READY family=2" in result.stdout

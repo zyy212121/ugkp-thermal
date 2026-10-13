@@ -44,7 +44,7 @@ struct DeviceState{
  bool gasModelPoisoned=false;
  __DECLARATIONS__
 };
-int applyGasGravitySource(DeviceState*,int,int,double){return 0;}
+int applyGasGravitySource(DeviceState*,int,int,double,bool=false){return 0;}
 #include "applications/gasUGKP/private_backend/SharedGasStorage.cuh"
 #include "applications/gasUGKP/private_backend/SharedGasTrialPolicy.cuh"
 int main(){
@@ -72,66 +72,50 @@ int main(){
  assert(SharedGasTrialPolicy::beginInterval(&state)==0);
  assert(SharedGasTrialPolicy::begin(&state)==0);
  state.rho[0]=1.1;partial[0]=.5;state.gasBoundaryP[0]=2;
+ cellStatus[0]=int(ugkwp::GasTransportCode::NegativeInventory);
+ faceStatus[0]=int(ugkwp::GasTransportCode::SourceStepLimit);
  assert(SharedGasTrialPolicy::validate(&state)==0);
- assert(!SharedGasTrialPolicy::retryable(&state));
  assert(SharedGasTrialPolicy::commit(&state)==0);
  assert(SharedGasTrialPolicy::begin(&state)==0);
  state.rho[0]=9;partial[0]=-1;state.gasBoundaryP[0]=8;
  wallOutput[0].conductiveHeatFlux=123;wallInput[0].temperature=555;wallExchange[0].ready=true;state.gasBoundaryLayerStageTime=9;state.gasBoundaryLayer.preparedTime=9;state.gasBoundaryLayer.preparedInterval=.01;
  state.gasSstAudit.sourceK[0]=19;state.gasSstAudit.constraintOmega[0]=23;
- cellStatus[0]=int(ugkwp::GasTransportCode::NegativeInventory);
+ cellStatus[0]=int(ugkwp::GasTransportCode::InvalidStorage);
  assert(SharedGasTrialPolicy::validate(&state)!=0);
- assert(SharedGasTrialPolicy::retryable(&state));
+ assert(!SharedGasTrialPolicy::retryable(&state));
  SharedGasTrialPolicy::rollback(&state);
- assert(state.rho[0]==1.1 && partial[0]==.5 && state.gasBoundaryP[0]==2 && cellStatus[0]==0);
+ assert(state.rho[0]==1.1 && partial[0]==.5 && state.gasBoundaryP[0]==2);
  assert(wallOutput[0].conductiveHeatFlux==0&&wallInput[0].temperature==0&&!wallExchange[0].ready&&state.gasBoundaryLayerStageTime==0);
  assert(!state.gasBoundaryLayer.preparedFirstStage);
  assert(state.gasBoundaryLayer.preparedTime==2&&state.gasBoundaryLayer.preparedInterval==.25);
  assert(state.gasSstAudit.sourceK[0]==0 && state.gasSstAudit.constraintOmega[0]==0);
  SharedGasTrialPolicy::rollbackInterval(&state);
  assert(state.rho[0]==1 && partial[0]==.4 && state.gasBoundaryP[0]==1);
+ assert(cellStatus[0]==0 && faceStatus[0]==0);
  assert(SharedGasTrialPolicy::begin(&state)==0);
- state.gasFluxPositivityScale[0]=2;
+ state.gasFluxPositivityScale[0]=2;state.gasDiffusionNumber[0]=1e300;state.sstSourceNumber[0]=NAN;
  assert(SharedGasTrialPolicy::validateTimeStep(&state,.1)!=0);
  assert(SharedGasTrialPolicy::retryable(&state));
- SharedGasTrialPolicy::rollback(&state);
- ugkwp::ChemistryStatus chemistry[2];
- chemistry[0].code=ugkwp::ChemistryCode::NewtonFailure;
- chemistry[1].code=ugkwp::ChemistryCode::InvalidModel;
- state.gasSpecies.chemistryStatus=chemistry;
- assert(sharedGasTrialDetail::chemistryStatus(&state)!=0);
- assert(!SharedGasTrialPolicy::retryable(&state));
- state.gasSpecies.chemistryStatus=nullptr;
+ cellStatus[0]=int(ugkwp::GasTransportCode::ChemistryFailure);
+ assert(SharedGasTrialPolicy::validate(&state)!=0);
+ assert(SharedGasTrialPolicy::begin(&state)==0);
  faceStatus[0]=wallStatus[0]=int(ugkwp::GasTransportCode::BoundaryLayerFailure);
  coreStatus[0].code=ugkwp::gaswall::WallCode::NonConvergence;coreStatus[0].iteration=17;coreStatus[0].residual=.125;
  assert(sharedGasTrialDetail::transportStatus(&state)!=0&&!SharedGasTrialPolicy::retryable(&state));
- assert(lastError.find("boundaryLayer")!=std::string::npos&&lastError.find("face=1")!=std::string::npos&&lastError.find("iteration=17")!=std::string::npos&&lastError.find("residual=0.125")!=std::string::npos);
- wallStatus[0]=0;
- faceStatus[0]=int(ugkwp::GasTransportCode::SourceStepLimit);
- assert(sharedGasTrialDetail::transportStatus(&state)!=0&&SharedGasTrialPolicy::retryable(&state));
- faceStatus[0]=0;
- state.hostTurbulenceModel=3;
- for(int i=0;i<2;++i){state.gasFluxPositivityScale[i]=.1;state.gasDiffusionNumber[i]=.1;state.sstSourceNumber[i]=.1;}
+ assert(lastError.find("boundaryLayer")!=std::string::npos&&lastError.find("face=1")!=std::string::npos);
+ wallStatus[0]=0;faceStatus[0]=0;
+ // Reconfigure optional chemistry storage between same-sized intervals.
+ ugkwp::ChemistryStatus chemicalStatus[2];ugkwp::ChemistryAudit<double,2> chemicalAudit[2];
+ state.gasSpecies.chemistryStatus=chemicalStatus;state.gasSpecies.chemistryAudit=chemicalAudit;
  assert(SharedGasTrialPolicy::begin(&state)==0);
- state.sstSourceNumber[0]=2;
- assert(SharedGasTrialPolicy::validateTimeStep(&state,.1)!=0);
- assert(SharedGasTrialPolicy::retryable(&state));
+ assert(state.gasTrial.trial.chemistryStatus&&state.gasTrial.trial.chemistryAudit);
+ state.gasSpecies.chemistryStatus=nullptr;state.gasSpecies.chemistryAudit=nullptr;
+ assert(SharedGasTrialPolicy::begin(&state)==0);
+ state.rho[0]=99;deviceCopyFailures=1;
  SharedGasTrialPolicy::rollback(&state);
- assert(state.sstSourceNumber[0]==.1);
- assert(SharedGasTrialPolicy::validateTimeStep(&state,.1)==0);
- for(int interval=0;interval<2;++interval){
-  // Reset only to construct the independent failure scenario in this fixture.
-  state.gasModelPoisoned=false;state.rho[0]=1;
-  assert(SharedGasTrialPolicy::beginInterval(&state)==0);
-  assert(SharedGasTrialPolicy::begin(&state)==0);
-  state.rho[0]=1.1;
-  deviceCopyFailures=1;
-  if(interval)SharedGasTrialPolicy::rollbackInterval(&state);
-  else SharedGasTrialPolicy::rollback(&state);
-  assert(state.gasModelPoisoned && !SharedGasTrialPolicy::retryable(&state));
-  assert(SharedGasTrialPolicy::beginInterval(&state)!=0);
-  assert(SharedGasTrialPolicy::begin(&state)!=0);
- }
+ assert(state.gasModelPoisoned && !SharedGasTrialPolicy::retryable(&state));
+ assert(SharedGasTrialPolicy::beginInterval(&state)!=0);
+ assert(SharedGasTrialPolicy::begin(&state)!=0);
  releaseSharedGasTrialStorage(state.gasTrial);
  assert(allocations==0);
 }
@@ -150,3 +134,48 @@ def test_native_mixture_calls_common_requested_interval_and_commits_clock_afterw
     mixture=front[front.index('if (sharedGasModel.active())'):]
     assert mixture.index('resident.advanceOneStep') < mixture.index('runTime++;')
     assert 'resident.advanceOneStep(runTime.deltaTValue(), runTime.value());' in mixture
+
+
+def test_real_server_error_response_keeps_restored_handle_downloadable(tmp_path):
+    import re
+    own=Path(__file__).read_text()
+    pre=re.search("code=r'''(.*?)'''",own,re.S).group(1).split('int main(){')[0]
+    gas='rho rhoUx rhoUy rhoUz rhoE Ux Uy Uz p Tgas'.split()
+    solids='epsS rhoUsx rhoUsy rhoUsz rhoEs rhoDs rhoHp Usx Usy Usz theta Tp dMeanCell'.split()
+    other='gasFluxPositivityScale gasDiffusionNumber sstSourceNumber rhoK rhoOmega k omega nut gasBoundaryRho gasBoundaryUx gasBoundaryUy gasBoundaryUz gasBoundaryP gasBoundaryT V'.split()
+    fields=gas+solids+other
+    pre=pre.replace('__DECLARATIONS__','\n'.join('double* '+x+'=nullptr;' for x in fields))
+    pre+='\nDeviceState*asState(void*p){return static_cast<DeviceState*>(p);}\nint validateState(DeviceState*s,const char*){return s->gasModelPoisoned?1:0;}\n'
+    native=(ROOT/'applications/gasUGKP/private_backend/GpuResidentStrict.cu').read_text()
+    download=native[native.index('extern "C" int ugkwpGpuResidentStrictDownloadFields\n'):native.index('extern "C" int ugkwpGpuResidentStrictDownloadEpsGPrev\n')]
+    server=(ROOT/'applications/gasUGKP/private_backend/GpuBackendServer.C').read_text()
+    handlers=server[server.index('bool handleGasOnly('):server.index('bool handleDownloadGasBoundary\n')]
+    code=pre+download+r'''
+struct AdvanceArgs{double dt=.1,simulationTime=0;};struct RequestHeader{};struct ServerState{void*backend;int nCells=2;};
+int responseStatus=0;std::vector<std::vector<double>>published;
+int wireBytes(const AdvanceArgs&){return 16;}bool validatePayload(int,const RequestHeader&,std::size_t){return true;}
+bool readObject(int,AdvanceArgs&){return true;}bool responseHeader(int,int status,std::uint64_t){responseStatus=status;return true;}
+double*ptr(std::vector<double>&v){return v.data();}bool writeVector(int,const std::vector<double>&v){published.push_back(v);return true;}
+int ugkwpGpuResidentStrictAdvanceGasOnly(void*handle,double,double){auto*s=asState(handle);
+ if(SharedGasTrialPolicy::begin(s))return 1;
+ for(auto field:sharedGasTrialDetail::cellFields(s))if(field.pointer)for(std::size_t i=0;i<field.count;++i)field.pointer[i]=-777;
+ s->gasSpecies.cellStatus[0]=int(ugkwp::GasTransportCode::InvalidStorage);
+ const int error=SharedGasTrialPolicy::validate(s);assert(error);SharedGasTrialPolicy::rollback(s);return error;
+}
+'''+handlers+'\nint main(){DeviceState state;state.deviceState=&state;\n'
+    for i,name in enumerate(fields):code+=f'double {name}[2]={{{i+1},{i+2}}};state.{name}={name};\n'
+    code+=r'''
+ double species[4]={.4,.5,.6,.5},sound[2]={300,301},cp[2]={1000,1001},R[2]={287,288};int cells[2]{},faces[2]{};
+ state.gasSpecies.mode=ugkwp::GasMode::MixtureFrozen;state.gasSpecies.rho=species;state.gasSpecies.soundSpeed=sound;state.gasSpecies.heatCapacity=cp;state.gasSpecies.gasConstant=R;state.gasSpecies.cellStatus=cells;state.gasSpecies.faceStatus=faces;
+ ServerState server{&state};RequestHeader request;
+ assert(handleGasOnly(0,request,server)&&responseStatus!=0&&server.backend==&state&&!state.gasModelPoisoned);
+ assert(handleDownloadFields(0,request,server)&&responseStatus==0&&published.size()==23);
+ for(int field=0;field<23;++field)for(int c=0;c<2;++c)assert(published[field][c]==field+1+c);
+ assert(species[0]==.4&&species[1]==.5&&species[2]==.6&&species[3]==.5&&sound[0]==300&&cp[1]==1001&&R[1]==288);
+ assert(SharedGasTrialPolicy::begin(&state)==0&&SharedGasTrialPolicy::validate(&state)==0);
+ releaseSharedGasTrialStorage(state.gasTrial);assert(allocations==0);
+}
+'''
+    source=tmp_path/'error-download.cpp';source.write_text(code);binary=tmp_path/'error-download'
+    b=subprocess.run(['g++','-std=c++17','-I'+str(ROOT),str(source),'-o',str(binary)],capture_output=True,text=True);assert b.returncode==0,b.stderr
+    r=subprocess.run([str(binary)],capture_output=True,text=True);assert r.returncode==0,r.stderr

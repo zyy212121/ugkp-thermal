@@ -71,14 +71,15 @@ def test_host_factory_has_base_and_default_schiller_naumann() -> None:
     assert "Unknown GPU dragModel" in host
 
 
-def test_host_factory_has_explicit_gidaspow_model_and_validated_coeffs() -> None:
+def test_host_factory_keeps_explicit_gidaspow_model_and_supplied_coeffs() -> None:
     host = read("gpu/GpuDragModel.H")
     assert "class GpuGidaspowErgunWenYuDragModel final" in host
     assert 'modelName_("GidaspowErgunWenYu")' in host
     assert 'subDict("GidaspowErgunWenYuCoeffs")' in host
     assert 'lookup("residualRe")' in host
-    assert "std::isfinite(residualRe)" in host
-    assert "residualRe <= 0" in host
+    # Signed-value construction and actual parameter parity are executable in
+    # test_gas_frontend_selection_continuation (all three headers).
+    assert "parameters_[0] = residualRe;" in host
     assert "return 1;" in host
     assert 'selected == "GidaspowErgunWenYu"' in host
     assert '<< "GidaspowErgunWenYu"' in host

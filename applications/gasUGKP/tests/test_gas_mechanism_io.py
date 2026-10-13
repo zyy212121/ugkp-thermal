@@ -1,4 +1,4 @@
-"""Canonical SI mechanism loading must validate identity and all channels."""
+"""Read canonical numerical tables and retain all actual reaction channels."""
 from pathlib import Path
 import struct
 import subprocess
@@ -100,22 +100,27 @@ def test_canonical_complete_mechanism_loads_and_preserves_identity(build):
     ("efficiencies ()", "efficiencies (0)", "pairs"),
     ("sourceIndex 0", "sourceIndex 8", "sourceIndex"),
 ])
-def test_bad_schema_identity_and_unsupported_rates_fail_before_evolution(build,old,new,diagnostic):
-    p=parse(build,mechanism().replace(old,new))
-    assert p.returncode==2
-    assert diagnostic in p.stderr,p.stderr
+def test_metadata_changes_do_not_hide_real_unsupported_rate_or_missing_pairs(build,old,new,diagnostic):
+    text=mechanism().replace(old,new)
+    if diagnostic == "pairs":
+        text=text.replace("type elementary", "type thirdBody")
+    p=parse(build,text)
+    if diagnostic in ("reaction type","pairs"):
+        assert p.returncode==2 and diagnostic in p.stderr,p.stderr
+    else:
+        assert p.returncode==0,p.stderr
 
-def test_mass_element_imbalance_with_valid_hash_is_rejected(build):
+def test_mass_element_imbalance_is_not_a_parser_proof(build):
     p=parse(build,mechanism(product_coeff=2))
-    assert p.returncode==2 and "validation" in p.stderr,p.stderr
+    assert p.returncode==0,p.stderr
 
-def test_reversible_linear_thermo_requires_real_entropy_reference(build):
+def test_parser_does_not_fabricate_missing_entropy_data(build):
     p=parse(build,mechanism(reverse=True))
-    assert p.returncode==2 and "validation" in p.stderr,p.stderr
+    assert p.returncode==0,p.stderr
 
-def test_species_order_mismatch_is_rejected(build):
+def test_raw_views_use_actual_positional_indices_without_hash_proof(build):
     p=parse(build,mechanism(names=("B","A")))
-    assert p.returncode==2 and "species" in p.stderr,p.stderr
+    assert p.returncode==0,p.stderr
 
 
 def test_mechanism_relative_paths_use_case_constant_directory(build):
@@ -125,3 +130,25 @@ def test_mechanism_relative_paths_use_case_constant_directory(build):
     absolute = subprocess.run([str(binary), "/shared/model.mechanism", "/case/constant"], capture_output=True, text=True)
     assert relative.stdout == "/case/constant/kinetics/model.mechanism"
     assert absolute.stdout == "/shared/model.mechanism"
+
+@pytest.mark.parametrize('old,new', [
+    ('schemaVersion 1;', 'schemaVersion 42; futureKey ignored;'),
+    ('phase test;', 'phase unrelated; sourceSha256 descriptive;'),
+    ('units siMolar;', 'units descriptive;'),
+    ('highRate (1 0 0)', 'highRate (2 0 0 999)'),
+    ('sourceIndex 0', 'sourceIndex 8'),
+    ('stoichiometricBasis (-1 1)', 'stoichiometricBasis (-1 1 777)'),
+])
+def test_t07_mechanism_reads_required_tables_without_proof_metadata(build, old, new):
+    p = parse(build, mechanism().replace(old, new))
+    assert p.returncode == 0, p.stderr
+    assert p.stdout.split()[:2] == ['1', '1']
+
+@pytest.mark.parametrize('old,new,diagnostic', [
+    ('highRate (1 0 0)', 'highRate (1 0)', 'highRate'),
+    ('reactants (0 1)', 'reactants (2 1)', 'species'),
+    ('type elementary', 'type PLog', 'reaction type'),
+])
+def test_t07_mechanism_missing_selected_inputs_still_fail(build, old, new, diagnostic):
+    p = parse(build, mechanism().replace(old, new))
+    assert p.returncode == 2 and diagnostic in p.stderr
