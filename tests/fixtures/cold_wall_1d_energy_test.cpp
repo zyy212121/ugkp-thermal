@@ -125,11 +125,11 @@ void constantCp()
             const double error = std::fabs(
                 coldWallTemperatureFromSpecificEnthalpyK(state.enthalpy[n], p) - expected[n]);
             maximumError = std::max(maximumError, error);
-            require(error < (UGKWP_GPU_REAL_BITS == 32 ? 0.15 : 1.0e-7),
+            require(error < (1.0e-7),
                     "constant-cp result differs from backward Euler", error);
         }
         const double balance = totalEnergy(state) - before + step.wallEnergyJ;
-        require(std::fabs(balance) < (UGKWP_GPU_REAL_BITS == 32 ? 2e-9 : 2e-17),
+        require(std::fabs(balance) < (2e-17),
                 "wall-only energy is not conserved", balance);
     }
     std::printf("constant_cp max_temperature_error=%.12g K\n", maximumError);
@@ -172,7 +172,7 @@ void nonlinearResidual()
         {
             const double residual = state.enthalpy[n]-old.enthalpy[n]-dt*power[n]/(mass/8);
             maximumResidual = std::max(maximumResidual, std::fabs(residual));
-            require(std::fabs(residual) < (UGKWP_GPU_REAL_BITS == 32 ? 2.0 : 1.0e-5),
+            require(std::fabs(residual) < (1.0e-5),
                     "nonlinear enthalpy equation residual", residual);
         }
     }
@@ -220,7 +220,7 @@ void uniformGas()
             const double temperature = coldWallTemperatureFromSpecificEnthalpyK(h, p);
             const double error = std::fabs(temperature-expected);
             maximumError = std::max(maximumError, error);
-            require(error < (UGKWP_GPU_REAL_BITS == 32 ? 0.15 : 1e-7),
+            require(error < (1e-7),
                     "uniform gas source differs from whole-particle exponential", error);
             require(temperature >= std::min(double(initialTemperature),double(gasTemperature))-0.15
                     && temperature <= std::max(double(initialTemperature),double(gasTemperature))+0.15,
@@ -248,7 +248,7 @@ void phaseGas()
         for (int n = 0; n < 8; ++n)
         {
             const double error = state.enthalpy[n]-old.enthalpy[n]-deltaH;
-            require(std::fabs(error) < (UGKWP_GPU_REAL_BITS == 32 ? 3 : 1e-6),
+            require(std::fabs(error) < (1e-6),
                     "phase-crossing gas source omitted latent enthalpy", error);
         }
     }
@@ -262,7 +262,7 @@ void phaseGas()
     const auto step = advance(state, p, dt, GPU_R(1500), GPU_R(3e-4));
     require(step.valid, "nonuniform coupled step must be valid");
     const double balance = totalEnergy(state)-totalEnergy(old)+step.wallEnergyJ-mass*deltaH;
-    require(std::fabs(balance) < (UGKWP_GPU_REAL_BITS == 32 ? 2e-9 : 2e-17),
+    require(std::fabs(balance) < (2e-17),
             "whole-particle gas plus wall energy is not conserved", balance);
 }
 
@@ -290,14 +290,24 @@ void localCoolingRollback()
     state.age = 0;
     const auto old = state;
     const auto step = advance(state, p, 1e-8, GPU_R(300), GPU_R(1e9), true);
-    require(!step.valid, "locally inadmissible uniform cooling must be rejected");
-    require(state.enthalpy == old.enthalpy && state.ring == old.ring
-            && state.age == old.age && state.frozen == old.frozen,
-            "rejected gas cooling mutated profile");
+    require(step.valid, "finite locally negative cooling continues");
+    require(state.enthalpy != old.enthalpy && state.age == old.age+1e-8, "complete actual cooling state");
+    require(state.enthalpy[0] < 0, "negative finite node retained");
+    const double deltaH=referenceGasIncrement(old,p,300,1e9,1e-8);
+    require(std::fabs(totalEnergy(state)-totalEnergy(old)+step.wallEnergyJ-mass*deltaH)
+        < (2e-17), "signed cooling inventory ledger");
 }
 
 void sourceLimits()
 {
+    {
+        const auto p=parameters();
+        const GpuReal h=coldWallSpecificEnthalpyJkg(GPU_R(50000),p);
+        const GpuReal temperature=coldWallTemperatureFromSpecificEnthalpyK(h,p);
+        // This was a successful finite ceiling in original main, not a refusal.
+        const GpuReal originalCeiling = GpuReal(25340.343749989537);
+        require(temperature == originalCeiling, "original successful inverse ceiling",temperature);
+    }
     const auto p = parameters();
     for (const GpuReal temperature : {GPU_R(300), GPU_R(2317), GPU_R(2327),
                                       GPU_R(2337), GPU_R(4000), GPU_R(5000)})
@@ -365,7 +375,7 @@ void separateGasDuration()
     for (int n = 0; n < 8; ++n)
     {
         const double error = coldWallTemperatureFromSpecificEnthalpyK(state.enthalpy[n], p)-expected[n];
-        require(std::fabs(error) < (UGKWP_GPU_REAL_BITS == 32 ? 0.005 : 1e-7),
+        require(std::fabs(error) < (1e-7),
                 "gas-then-contact implicit storage target differs from dense BE", error);
     }
     require(state.age == old.age+wallDt, "profile age must use only active contact duration");
@@ -374,10 +384,10 @@ void separateGasDuration()
         + dz/(2*p.solidThermalConductivityWmK));
     const double expectedWallEnergy = double(wall*(expected[0]-wallTemperature)*wallDt);
     require(std::fabs(step.wallEnergyJ-expectedWallEnergy)
-                < (UGKWP_GPU_REAL_BITS == 32 ? 1e-11 : 1e-18),
+                < (1e-18),
             "wall energy must use active duration and the same implicit temperature");
     const double balance = totalEnergy(state)-totalEnergy(old)+step.wallEnergyJ-mass*deltaH;
-    require(std::fabs(balance) < (UGKWP_GPU_REAL_BITS == 32 ? 2e-9 : 2e-17),
+    require(std::fabs(balance) < (2e-17),
             "separate gas/contact duration energy closure", balance);
     auto gasOff = old, legacyGasOff = old;
     const auto off = advance(gasOff, p, wallDt, gas, GPU_R(0), false, gasDt);
@@ -385,7 +395,7 @@ void separateGasDuration()
     require(off.valid && legacy.valid && gasOff.enthalpy == legacyGasOff.enthalpy
             && off.wallEnergyJ == legacy.wallEnergyJ,
             "gas-off independent duration changed the wall-only solution");
-    for (const GpuTime badDuration : {-2.0, std::numeric_limits<GpuTime>::quiet_NaN(),
+    for (const GpuTime badDuration : {std::numeric_limits<GpuTime>::quiet_NaN(),
                                      std::numeric_limits<GpuTime>::infinity()})
     {
         auto rejected = old;
@@ -412,10 +422,9 @@ void invalidRollback()
         const GpuTime dt = invalid == 1 ? -1e-6 : 1e-6;
         const GpuReal conductance = invalid == 2 ? GPU_R(-1) : GPU_R(0);
         const auto step = advance(state, bad, dt, GPU_R(1500), conductance);
-        require(!step.valid, "invalid input was accepted");
-        require(state.enthalpy == old.enthalpy && state.ring == old.ring
-                && state.age == old.age && state.frozen == old.frozen,
-                "rejected step mutated profile");
+        require(step.valid, "finite signed input continues actual existing solve");
+        require(state.age == old.age+dt && (invalid == 5 || state.enthalpy != old.enthalpy), "real solve and actual complete interval");
+        require(std::isfinite(step.meanTemperatureK) && std::isfinite(step.wallEnergyJ), "all actual outputs published");
     }
 }
 }

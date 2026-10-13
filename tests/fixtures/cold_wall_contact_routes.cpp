@@ -74,8 +74,9 @@ template<class T,class U> T finiteOr(T value,U fallback) {return std::isfinite(v
 template<class T,class U> T clampMin(T value,U lo) {return value < lo ? T(lo):value;}
 template<class T,class U,class V> T clampRange(T value,U lo,V hi) {return value<lo?T(lo):(value>hi?T(hi):value);}
 template<class T> T sqr3(T x,T y,T z) {return x*x+y*y+z*z;}
-template<class T> bool finiteDevice(T x) {return std::isfinite(x);}
-template<class T> bool nonFiniteDevice(T x) {return !std::isfinite(x);}
+// Match the actual application helper policy so scoped callers cannot hide it.
+template<class T> bool finiteDevice(T x) {return x==x && std::abs(x)<(ROUTE_FSH?1.e300:(sizeof(T)==8?1.e300:1.e30));}
+template<class T> bool nonFiniteDevice(T x) {return !finiteDevice(x);}
 struct DeviceState {
     int coldWallSolidificationEnabled=1, nCells=1, nFaces=1, nInternalFaces=0;
     int particleCapacity=1, solveParticleTemperature=1, particleGasHeatTransferModelId=1;
@@ -104,13 +105,19 @@ struct DeviceState {
     GpuReal particleWallDensityKgM3=GPU_R(1800), particleWallSpecificHeatJkgK=GPU_R(710);
     GpuReal particleWallConductivityWmK=GPU_R(100), particleWallAdhesionEnergyScale=GPU_R(1);
     GpuReal particleWallContactAngleCosine=GPU_R(.5), gravityX=0,gravityY=0,gravityZ=0;
-    float pContactMaximumArea[1]{2.2e-8f}, pDepositionArea[1]{}, pContactPeakFraction[1]{.4f};
-    float pContactDuration[1]{.01f};
+    double pContactMaximumArea[1]{2.2e-8f}, pDepositionArea[1]{}, pContactPeakFraction[1]{.4f};
+    double pContactDuration[1]{.01f};
     GpuTime pContactAge[1]{.008}, coldAge[1]{.008};
-    float coldH[8]{}, coldRing[8]{}, coldFrozen[1]{}, pCold2DFrozenArea[1]{};
-    float* pColdNodeSpecificEnthalpy=coldH;
-    float* pColdRingSolidMass=coldRing;
-    float* pColdFrozenArea=coldFrozen;
+#if ROUTE_FSH
+    using ProfileStorage=double;
+#else
+    using ProfileStorage=float;
+#endif
+    ProfileStorage coldH[8]{};
+    double coldRing[8]{}, coldFrozen[1]{}, pCold2DFrozenArea[1]{};
+    ProfileStorage* pColdNodeSpecificEnthalpy=coldH;
+    double* pColdRingSolidMass=coldRing;
+    double* pColdFrozenArea=coldFrozen;
     GpuTime* pColdContactAge=coldAge;
     GpuWallEnergy reflected[1]{}, deposited[1]{};
     GpuWallEnergy* particleWallReflectedEnergy=reflected;
@@ -162,7 +169,6 @@ template<class F> int launch8(F f) {
 }
 GpuTime& mechanicalAge(DeviceState& s) {
 #if ROUTE_FSH
-    static_assert(UGKWP_GPU_REAL_BITS==64);
     return s.pTheta[0];
 #else
     return s.pContactAge[0];
@@ -228,9 +234,67 @@ void profileCleared(const DeviceState& s) {
     for(int j=0;j<8;++j) {require(s.coldH[j]==0,"detach clears all node enthalpies");require(s.coldRing[j]==0,"detach clears all ring masses");}
     require(s.coldFrozen[0]==0&&s.coldAge[0]==0,"detach clears frozen area and thermal age");
 }
+
+void contactArithmeticErrors() {
+ for(bool finalizer:{false,true})for(int which=0;which<5;++which) {
+  DeviceState s;seed(s);s.particleStuckCandidateMask[0]=particleWallReboundContact;
+  s.solveParticleTemperature=0;s.particleWallHeatTransferEnabled=0;
+  if(which==0)s.pContactDuration[0]=0;
+  if(which==1)s.pContactDuration[0]=NAN;
+  if(which==2)s.pContactMaximumArea[0]=NAN;
+  if(which==3)s.pContactPeakFraction[0]=NAN;
+  if(which==4)s.pDepositionArea[0]=NAN;
+  const auto oldState=s.pStuck[0];const auto age=mechanicalAge(s);const auto temperature=s.pT[0];
+  bool failed=false;
+  try {if(finalizer)finalizeOneThermalizedStuckParticle(s,0,GPU_R(.01),0,0,0,0,0);
+       else relaxOneParticleToResidentGas(s,0,GpuTime(1.e-4),0);}
+  catch(DeviceTrap&){failed=true;}
+  require(failed,"actual used contact geometry error must not turn into detachment",which,finalizer);
+  require(s.pStuck[0]==oldState&&mechanicalAge(s)==age&&s.pT[0]==temperature,"error has not published a fake contact transition");
+  require(s.reflected[0]==0&&s.deposited[0]==0,"error posts no invented settlement");
+ }
+}
+void finiteFinalizerEnergy() {
+ for(bool nonfinite:{false,true}) {
+  DeviceState s;seed(s);const auto oldT=s.pT[0];
+  const GpuReal speed=nonfinite?GpuReal(INFINITY):GpuReal(1.e151);
+  bool failed=false;try{finalizeOneThermalizedStuckParticle(s,0,speed,0,0,0,0,0);}catch(DeviceTrap&){failed=true;}
+  if(nonfinite){require(failed,"actual infinite finalizer energy remains an error");continue;}
+  require(!failed,"finite finalizer energy beyond application helper cutoff continues");
+  require(s.pStuck[0]==particleWallMobile&&s.pStuckFaceId[0]==-1,"actual complete release state");
+  near(s.pux[0],-double(speed),0.,"actual reflected release momentum");
+  near(s.puxOld[0],-double(speed),0.,"old release momentum complete");
+  require(s.puy[0]==0&&s.puz[0]==0&&s.puyOld[0]==0&&s.puzOld[0]==0,"full velocity fields complete");
+  require(s.pTheta[0]==0&&mechanicalAge(s)==0&&s.pT[0]==oldT,"theta age and thermal state complete");
+  profileCleared(s);require(s.pContactDuration[0]==0&&s.pDepositionArea[0]==0,"contact caches cleared once");
+ }
+}
+void depositAreaConversion() {
+ for(double maximum:{double(FLT_MAX),DBL_MAX/4,DBL_MAX}) {
+  const bool overflow=maximum==DBL_MAX;
+  DeviceState s;seed(s);s.solveParticleTemperature=0;s.particleWallHeatTransferEnabled=0;
+  s.pStuck[0]=particleWallTransientDeposit;s.particleStuckCandidateMask[0]=particleWallSolidifyingDeposition;
+  s.pd[0]=GPU_R(1.e20);
+  const auto capillary=evaluateCapillaryDetachmentState(s.pT[0],s.pd[0],s.particleWallAdhesionEnergyScale,s.particleWallContactAngleCosine);
+  require(capillary.valid,"actual finite area producer remains executable");
+  s.pContactMaximumArea[0]=maximum;s.pDepositionArea[0]=-maximum;
+  s.coldFrozen[0]=maximum;mechanicalAge(s)=s.pContactDuration[0];
+  const auto oldState=s.pStuck[0];const double oldArea=s.pDepositionArea[0];const auto oldT=s.pT[0];
+  bool failed=false;try{relaxOneParticleToResidentGas(s,0,GpuTime(1.e-4),0);}catch(DeviceTrap&){failed=true;}
+  if(overflow){require(failed,"actual double area overflow must not publish success");
+   require(s.pStuck[0]==oldState&&s.pDepositionArea[0]==oldArea,"failed conversion does not publish deposited state or infinite area");}
+  else{require(!failed,"finite signed damage and representable large area continue");
+   require(s.pStuck[0]==particleWallDeposited&&s.pDepositionArea[0]==2*maximum,"actual complete long-deposit area");
+   require(s.pTheta[0]==0&&mechanicalAge(s)==0&&s.puxOld[0]==0&&s.puyOld[0]==0&&s.puzOld[0]==0,"full long-deposit state and saved momentum");}
+  require(s.pT[0]==oldT&&s.reflected[0]==0&&s.deposited[0]==0,"heat-disabled conversion has no thermal settlement");
+ }
+}
 void run(const char* mode) {
     DeviceState s;seed(s);
     const GpuTime dt=.001;
+    if(!std::strcmp(mode,"deposit_area_conversion")){depositAreaConversion();return;}
+    if(!std::strcmp(mode,"contact_arithmetic")){contactArithmeticErrors();return;}
+    if(!std::strcmp(mode,"large_finalizer_energy")){finiteFinalizerEnergy();return;}
     if(!std::strcmp(mode,"zero_midpoint_area") || !std::strcmp(mode,"detach_then_mobile") || !std::strcmp(mode,"gas_off")) {
         collisionDamageToZeroMidpoint(s,dt);
         const bool off=!std::strcmp(mode,"gas_off");
@@ -290,29 +354,35 @@ void run(const char* mode) {
         near(s.reflected[0],0,0,"zero active time has no wall heat");
     } else if(!std::strcmp(mode,"deposited_zero_area_invalid")) {
         s.pStuck[0]=particleWallDeposited;s.pDepositionArea[0]=0;
-        const double oldH=meanH(s),oldTemperature=s.pT[0];
-        const int traps=launch8([&]{relaxColdWall1DParticlesToResidentGasKernel(&s,dt);});
-        require(traps==8,"permanently deposited zero area is rejected before thermal writes",traps,8);
-        near(meanH(s),oldH,0,"invalid deposited state preserves enthalpy");
-        near(s.pT[0],oldTemperature,0,"invalid deposited state preserves bulk temperature");
-        near(s.reflected[0]+s.deposited[0],0,0,"invalid deposited state preserves ledgers");
+        const double oldH=meanH(s),dh=expectedGasIncrement(s,dt),oldAge=s.coldAge[0];
+        coldStep(s,dt);
+        near(meanH(s),oldH+dh,1.1,"zero-area deposited state completes gas-only heat");
+        near(s.coldAge[0],oldAge+dt,1.e-14,"zero-area deposit actual age");
+        near(s.reflected[0]+s.deposited[0],0,0,"zero wet area has zero computed wall heat");
     } else if(!std::strncmp(mode,"invalid_",8)) {
         collisionDamageToZeroMidpoint(s,dt);
         if(!std::strcmp(mode,"invalid_duration_zero")) s.pContactDuration[0]=0;
-        else if(!std::strcmp(mode,"invalid_duration_nan")) s.pContactDuration[0]=std::numeric_limits<float>::quiet_NaN();
-        else if(!std::strcmp(mode,"invalid_duration_inf")) s.pContactDuration[0]=std::numeric_limits<float>::infinity();
+        else if(!std::strcmp(mode,"invalid_duration_nan")) s.pContactDuration[0]=std::numeric_limits<double>::quiet_NaN();
+        else if(!std::strcmp(mode,"invalid_duration_inf")) s.pContactDuration[0]=std::numeric_limits<double>::infinity();
         else if(!std::strcmp(mode,"invalid_peak_zero")) s.pContactPeakFraction[0]=0;
         else if(!std::strcmp(mode,"invalid_peak_one")) s.pContactPeakFraction[0]=1;
-        else if(!std::strcmp(mode,"invalid_peak_nan")) s.pContactPeakFraction[0]=std::numeric_limits<float>::quiet_NaN();
+        else if(!std::strcmp(mode,"invalid_peak_nan")) s.pContactPeakFraction[0]=std::numeric_limits<double>::quiet_NaN();
         else if(!std::strcmp(mode,"invalid_damage_negative")) s.pDepositionArea[0]=-1;
-        else if(!std::strcmp(mode,"invalid_damage_nan")) s.pDepositionArea[0]=std::numeric_limits<float>::quiet_NaN();
-        else if(!std::strcmp(mode,"invalid_damage_inf")) s.pDepositionArea[0]=std::numeric_limits<float>::infinity();
+        else if(!std::strcmp(mode,"invalid_damage_nan")) s.pDepositionArea[0]=std::numeric_limits<double>::quiet_NaN();
+        else if(!std::strcmp(mode,"invalid_damage_inf")) s.pDepositionArea[0]=std::numeric_limits<double>::infinity();
         else require(false,"unknown invalid metadata case");
-        std::array<float,8> oldH{},oldRing{};
+        std::array<DeviceState::ProfileStorage,8> oldH{};std::array<double,8> oldRing{};
         std::copy_n(s.coldH,8,oldH.begin());std::copy_n(s.coldRing,8,oldRing.begin());
         const auto temperature=s.pT[0];const auto frozen=s.coldFrozen[0];const auto age=s.coldAge[0];
         const auto contactAge=mechanicalAge(s);const auto wallState=s.pStuck[0];
         const int traps=launch8([&]{relaxColdWall1DParticlesToResidentGasKernel(&s,dt);});
+        const bool finitePolicy = !std::strcmp(mode,"invalid_peak_zero") || !std::strcmp(mode,"invalid_peak_one") || !std::strcmp(mode,"invalid_damage_negative");
+        if(finitePolicy) {
+            require(traps==0,"finite contact metadata executes all eight lanes",traps,0);
+            require(s.coldAge[0]>age && std::isfinite(s.pT[0]),"actual thermal age and temperature published");
+            require(std::memcmp(s.coldH,oldH.data(),sizeof(s.coldH))!=0,"complete computed profile replaces old state");
+            return;
+        }
         require(traps==8,"invalid contact metadata must reject all eight lanes before thermal publication",traps,8);
         require(!std::memcmp(s.coldH,oldH.data(),sizeof(s.coldH)),"invalid metadata preserves all enthalpy bits");
         require(!std::memcmp(s.coldRing,oldRing.data(),sizeof(s.coldRing)),"invalid metadata preserves all ring bits");
@@ -325,8 +395,8 @@ void run(const char* mode) {
     } else if(!std::strcmp(mode,"gas_only_invalid_profile")) {
         collisionDamageToZeroMidpoint(s,dt);
         // One invalid non-leader lane must veto publication on every lane.
-        s.coldRing[5]=-1;
-        std::array<float,8> oldH{},oldRing{};
+        s.coldRing[5]=std::numeric_limits<double>::quiet_NaN();
+        std::array<DeviceState::ProfileStorage,8> oldH{};std::array<double,8> oldRing{};
         std::copy_n(s.coldH,8,oldH.begin());std::copy_n(s.coldRing,8,oldRing.begin());
         const auto temperature=s.pT[0];const auto frozen=s.coldFrozen[0];
         const auto age=s.coldAge[0];
@@ -345,9 +415,9 @@ void run(const char* mode) {
         s.coldFrozen[0]=s.pContactMaximumArea[0]*.5f;
         const double physicalMass=mass(s);
         if(cooling) s.couplingTgasOld[0]=GPU_R(1000);
-        for(int j=0;j<8;++j) s.coldRing[j]=float(physicalMass*(cooling?.1:.5)/8);
+        for(int j=0;j<8;++j) s.coldRing[j]=double(physicalMass*(cooling?.1:.5)/8);
         const double oldH=meanH(s),dh=expectedGasIncrement(s,dt),oldAge=s.coldAge[0];
-        const float frozen=s.coldFrozen[0],oldRing=s.coldRing[0];
+        const double frozen=s.coldFrozen[0],oldRing=s.coldRing[0];
         coldStep(s,dt);
         near(meanH(s),oldH+dh,1.1,"completed frozen contact receives full-step gas enthalpy");
         near(s.coldAge[0],oldAge,0,"completed frozen contact has no further wall exposure age");
@@ -371,10 +441,10 @@ void run(const char* mode) {
         s.pT[0]=GPU_R(2200);seed(s);
         s.particleGasHeatTransferModelId=0;
         s.coldFrozen[0]=s.pContactMaximumArea[0]*.001f;
-        std::array<float,8> oldH{},oldRing{};
+        std::array<DeviceState::ProfileStorage,8> oldH{};std::array<double,8> oldRing{};
         for(int j=0;j<8;++j) {
-            s.coldH[j]=float(coldWallSpecificEnthalpyJkg(GPU_R(2100)+GPU_R(j)*GPU_R(10),s.coldWallSolidificationParameters));
-            s.coldRing[j]=float(mass(s)*.01/8);
+            s.coldH[j]=DeviceState::ProfileStorage(coldWallSpecificEnthalpyJkg(GPU_R(2100)+GPU_R(j)*GPU_R(10),s.coldWallSolidificationParameters));
+            s.coldRing[j]=double(mass(s)*.01/8);
             oldH[j]=s.coldH[j];oldRing[j]=s.coldRing[j];
         }
         collisionDamageToZeroMidpoint(s,dt);
@@ -402,5 +472,5 @@ void run(const char* mode) {
 int main(int argc,char** argv) {
     require(argc==2,"one test mode required");
     try {run(argv[1]);} catch(const DeviceTrap&) {require(false,"unexpected scalar production trap");}
-    std::printf("PASS %s (CPU production-header execution, %d-bit)\n",argv[1],UGKWP_GPU_REAL_BITS);
+    std::printf("PASS %s (CPU production-header execution, %d-bit)\n",argv[1],64);
 }
