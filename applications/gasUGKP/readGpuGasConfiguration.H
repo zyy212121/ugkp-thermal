@@ -46,25 +46,6 @@ IOdictionary schedulingPropertiesFile
     )
 );
 
-const label fluidSchemaVersion =
-    fluidPropertiesFile.lookupOrDefault<label>("schemaVersion", -1);
-const label particleSchemaVersion =
-    particlePropertiesFile.lookupOrDefault<label>("schemaVersion", -1);
-const label schedulingSchemaVersion =
-    schedulingPropertiesFile.lookupOrDefault<label>("schemaVersion", -1);
-if
-(
-    fluidSchemaVersion != 1
- || particleSchemaVersion != 1
- || schedulingSchemaVersion != 1
-)
-{
-    FatalErrorInFunction
-        << "UGKP unified cases require schemaVersion 1 in "
-        << "constant/fluidProperties, constant/particleProperties and "
-        << "constant/schedulingProperties."
-        << exit(FatalError);
-}
 if (!fluidPropertiesFile.found("turbulence"))
 {
     FatalErrorInFunction
@@ -128,19 +109,7 @@ if (!sharedGasModel.active())
     const scalar gasCv = gasCp - specificGasConstantValue;
     gammaGasValue = gasCp/gasCv;
 
-    if
-    (
-        !finiteScalar(molWeight)
-     || molWeight <= SMALL
-     || !finiteScalar(gasCp)
-     || gasCv <= SMALL
-    )
-    {
-        FatalErrorInFunction
-            << "physicalProperties requires positive molWeight and Cp > R. "
-            << "molWeight=" << molWeight << ", Cp=" << gasCp
-            << ", R=" << specificGasConstantValue << exit(FatalError);
-    }
+
 }
 else
 {
@@ -184,48 +153,6 @@ dimensionedScalar rhoMinG
     rhoMinValue
 );
 dimensionedScalar TgasMinG("TMin", dimTemperature, gasTMinValue);
-
-if
-(
-    !finiteScalar(gammaG.value())
- || gammaG.value() <= scalar(1) + SMALL
- || gammaG.value() > scalar(5.0/3.0)
-)
-{
-    FatalErrorInFunction
-        << "Gas gamma must be in (1, 5/3]. Current gamma = "
-        << gammaG.value() << exit(FatalError);
-}
-if (!finiteScalar(Rgas.value()) || Rgas.value() <= SMALL)
-{
-    FatalErrorInFunction
-        << "Gas R must be positive. Current R = "
-        << Rgas.value() << exit(FatalError);
-}
-if (!finiteScalar(rhoMinG.value()) || rhoMinG.value() <= SMALL)
-{
-    FatalErrorInFunction
-        << "fvSolution/UGKP rhoMin must be positive. Current rhoMin = "
-        << rhoMinG.value() << exit(FatalError);
-}
-if (!finiteScalar(TgasMinG.value()) || TgasMinG.value() <= scalar(0))
-{
-    FatalErrorInFunction
-        << "fvSolution/UGKP TMin must be positive. Current TMin = "
-        << TgasMinG.value() << exit(FatalError);
-}
-if (!finiteScalar(muG.value()) || muG.value() < scalar(0))
-{
-    FatalErrorInFunction
-        << "physicalProperties mu must be non-negative. Current mu = "
-        << muG.value() << exit(FatalError);
-}
-if (!finiteScalar(PrG.value()) || PrG.value() <= SMALL)
-{
-    FatalErrorInFunction
-        << "physicalProperties Pr must be positive. Current Pr = "
-        << PrG.value() << exit(FatalError);
-}
 
 const GasNumericsConfiguration gasNumerics =
     readGasNumericsConfiguration(fvSchemesDict, gpuSolutionControls);
@@ -413,64 +340,6 @@ else
         << exit(FatalError);
 }
 
-if (!finiteScalar(lesDeltaCoeff) || lesDeltaCoeff <= SMALL)
-{
-    FatalErrorInFunction
-        << "LES deltaCoeff must be finite and positive."
-        << exit(FatalError);
-}
-if (!finiteScalar(turbulentPrandtl) || turbulentPrandtl <= SMALL)
-{
-    FatalErrorInFunction
-        << "Turbulent Prandtl number must be finite and positive."
-        << exit(FatalError);
-}
-if (!finiteScalar(waleCw) || waleCw < scalar(0))
-{
-    FatalErrorInFunction
-        << "WALE Cw must be finite and non-negative."
-        << exit(FatalError);
-}
-if (!finiteScalar(smagorinskyCs) || smagorinskyCs < scalar(0))
-{
-    FatalErrorInFunction
-        << "Smagorinsky Cs must be finite and non-negative."
-        << exit(FatalError);
-}
-if (!finiteScalar(maxDiffusionNumber) || maxDiffusionNumber <= SMALL)
-{
-    FatalErrorInFunction
-        << "fvSolution/UGKP maxDiffusionNumber must be positive."
-        << exit(FatalError);
-}
-if
-(
-    !finiteScalar(sstAlphaK1) || sstAlphaK1 <= SMALL
- || !finiteScalar(sstAlphaK2) || sstAlphaK2 <= SMALL
- || !finiteScalar(sstAlphaOmega1) || sstAlphaOmega1 <= SMALL
- || !finiteScalar(sstAlphaOmega2) || sstAlphaOmega2 <= SMALL
- || !finiteScalar(sstBeta1) || sstBeta1 <= SMALL
- || !finiteScalar(sstBeta2) || sstBeta2 <= SMALL
- || !finiteScalar(sstBetaStar) || sstBetaStar <= SMALL
- || !finiteScalar(sstGamma1) || sstGamma1 <= SMALL
- || !finiteScalar(sstGamma2) || sstGamma2 <= SMALL
- || !finiteScalar(sstA1) || sstA1 <= SMALL
- || !finiteScalar(sstB1) || sstB1 <= SMALL
- || !finiteScalar(sstC1) || sstC1 <= SMALL
- || !finiteScalar(sstKMin) || sstKMin <= scalar(0)
- || !finiteScalar(sstOmegaMin) || sstOmegaMin <= scalar(0)
- || !finiteScalar(sstMaxSourceNumber) || sstMaxSourceNumber <= SMALL
- || !finiteScalar(sstWallKappa) || sstWallKappa <= SMALL
- || !finiteScalar(sstWallE) || sstWallE <= scalar(1)
- || !finiteScalar(sstWallCmu) || sstWallCmu <= SMALL
-)
-{
-    FatalErrorInFunction
-        << "kOmegaSST coefficients, wall constants, floors and "
-        << "maxSourceNumber must be "
-        << "finite and positive." << exit(FatalError);
-}
-
 BoundaryLayerInput boundaryLayerInput
 (
     momentumTransportProperties, sharedGasModel.model(), gasTurbulenceModel,
@@ -480,8 +349,6 @@ if (boundaryLayerInput.active())
 {
     sstWallTreatment = 2;
     sstWallTreatmentName = "boundaryLayer";
-    if (muG.value() <= 0)
-        FatalErrorInFunction << "boundaryLayer requires positive molecular viscosity" << exit(FatalError);
 }
 
 sharedGasModel.validateNumerics
