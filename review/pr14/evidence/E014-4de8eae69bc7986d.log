@@ -1,0 +1,22 @@
+/*---------------------------------------------------------------------------*\
+  =========                 |
+  \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
+   \\    /   O peration     | Website:  https://openfoam.org
+    \\  /    A nd           | Version:  10
+     \\/     M anipulation  |
+\*---------------------------------------------------------------------------*/
+Build  : 10-c4cf895ad8fa
+Exec   : /workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/implementation/b7/material/baseline -case /workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/implementation/b7/material/case
+Date   : Oct 13 2026
+Time   : 22:06:22
+Host   : "6cb26ee38a74"
+PID    : 217
+I/O    : uncollated
+Case   : /workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/implementation/b7/material/case
+nProcs : 1
+sigFpe : Enabling floating point exception trapping (FOAM_SIGFPE).
+fileModificationChecking : Monitoring run-time modified files using timeStampMaster (fileModificationSkew 10)
+allowSystemOperations : Allowing user-supplied system call operations
+
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+wall mechanical owner pressure is unavailable at actual stage

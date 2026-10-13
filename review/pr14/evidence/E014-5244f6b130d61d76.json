@@ -1,0 +1,29 @@
+{
+  "v1": {
+    "command": [
+      "g++",
+      "-std=c++17",
+      "-O1",
+      "-I/workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/implementation/b6/v2/v1-source",
+      "-I/workspace/scratch/98b6339ec81b/chmt_remaining_work_20261013",
+      "-I/workspace/scratch/98b6339ec81b/chmt_remaining_work_20261013/common",
+      "/workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/implementation/b6/v2/tmp/cost-v1/probe.cpp",
+      "-o",
+      "/workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/implementation/b6/v2/tmp/cost-v1/probe"
+    ],
+    "stdout": "turn 0 alloc 29 free 0 zero 22/1084 H2D 16/1012 D2H 2/24 views 6 hostAlloc 6\nturn 1 alloc 16 free 16 zero 9/876 H2D 16/1012 D2H 2/24 views 6 hostAlloc 6\nturn 2 alloc 0 free 16 zero 0/0 H2D 6/380 D2H 0/0 views 6 hostAlloc 0\nowner_metadata_bytes 376 DeviceState_fixture_bytes 2376\n"
+  },
+  "v2": {
+    "command": [
+      "g++",
+      "-std=c++17",
+      "-O1",
+      "-I/workspace/scratch/98b6339ec81b/chmt_remaining_work_20261013",
+      "-I/workspace/scratch/98b6339ec81b/chmt_remaining_work_20261013/common",
+      "/workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/implementation/b6/v2/tmp/cost-v2/probe.cpp",
+      "-o",
+      "/workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/implementation/b6/v2/tmp/cost-v2/probe"
+    ],
+    "stdout": "turn 0 alloc 29 free 0 zero 22/1084 H2D 16/1012 D2H 2/24 views 6 hostAlloc 6\nturn 1 alloc 16 free 16 zero 9/876 H2D 16/1012 D2H 2/24 views 6 hostAlloc 6\nturn 2 alloc 0 free 16 zero 0/0 H2D 6/380 D2H 0/0 views 6 hostAlloc 0\nowner_metadata_bytes 376 DeviceState_fixture_bytes 2752\n"
+  }
+}

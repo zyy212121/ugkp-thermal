@@ -1,0 +1,1 @@
+PASS: first initialization exact resident bytes, integral roundtrip, allocation/zero/copy costs in both modes

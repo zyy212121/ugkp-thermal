@@ -1,0 +1,29 @@
+{
+  "compiler": "nvcc13.1.115",
+  "arch": "sm80",
+  "precision": "Real double static_assert",
+  "gpu_execution": false,
+  "source_sha256": "94f9176f544d9ffc03417f0cb4b92c2fae0d9949ca7c4c0090ead3367a3f38a0",
+  "object_sha256": "62c2a57b4d6c0ab7f111c3bbe7d2211c8e16cd76c93420fcf9199e0756702e83",
+  "command": [
+    "/workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/toolchains/cuda/bin/nvcc",
+    "-std=c++17",
+    "-arch=sm_80",
+    "-I/workspace/scratch/98b6339ec81b/chmt_remaining_work_20261013/tests/gas_transport",
+    "-I/workspace/scratch/98b6339ec81b/chmt_remaining_work_20261013/common",
+    "-I/workspace/scratch/98b6339ec81b/chmt_remaining_work_20261013/common/gasNumerics",
+    "-c",
+    "/workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/implementation/b3/v2/cuda/divergence.cu",
+    "-o",
+    "/workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/implementation/b3/v2/cuda/divergence.o"
+  ],
+  "owners": {
+    "common/GpuGasAdvance.cuh": "a43e9b05f080703d135d0d3a4f17de16de5be0d5d3c0a77e3a59ef714ae06da3",
+    "common/operators/computeGasPrimitiveGradientsKernel.cuh": "52fa7c49cb212a12985fc4904e63008a70eaee32c7f7a7606a18e1a502a7d5d1",
+    "common/operators/computeSstFaceFluxKernel.cuh": "1ae72ecfafcbb92782d8819c6ac3f46dc3f2f2738ec8d5fe8e41e043c27d8cae"
+  },
+  "started_utc": "2026-10-13T09:13:08.147762+00:00",
+  "elapsed_seconds": 1.6282857380010682,
+  "exit": 0,
+  "scope": "Only changed actual Ns2/Ns10/plain-legacy divergence body, runtime strict+terminal selectors. V1 remaining unchanged SST/RK/Co kernels reuse their successful compiler receipt."
+}

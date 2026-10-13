@@ -1,0 +1,73 @@
+[
+  {
+    "path": "/workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/final-native-build/remaining/bin/FSH",
+    "sha256": "9d4a1ee5e6662351cdf52b27baaa92de05066ad3cd5ffa9af91409d2fb7ba423",
+    "size": 699376,
+    "readelf_exit": 0,
+    "has_cuda_fatbin": false,
+    "needed": [
+      "libfiniteVolume.so",
+      "libmeshTools.so",
+      "libmomentumTransportModels.so",
+      "libOpenFOAM.so",
+      "libstdc++.so.6",
+      "libm.so.6",
+      "libgcc_s.so.1",
+      "libc.so.6",
+      "ld-linux-x86-64.so.2",
+      "libPstream.so"
+    ],
+    "nm_exit": 0
+  },
+  {
+    "path": "/workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/final-native-build/remaining/bin/FSHCudaBackend",
+    "sha256": "74984b122c54b9e56db955620dd1f515af7080fc36eff06fc004ebd9d177aa51",
+    "size": 6798984,
+    "readelf_exit": 0,
+    "has_cuda_fatbin": true,
+    "needed": [
+      "libcudart.so.13",
+      "libstdc++.so.6",
+      "libm.so.6",
+      "libgcc_s.so.1",
+      "libc.so.6"
+    ],
+    "nm_exit": 0
+  },
+  {
+    "path": "/workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/final-native-build/remaining/source/applications/FSH/Make/linux64GccDPInt32Opt/diluteUgkwpFoam.o",
+    "sha256": "1c827b76cb9d843797112a41b8d928622cebbd95858ed2c382d4f6512771eb58",
+    "size": 1132456,
+    "readelf_exit": 0,
+    "has_cuda_fatbin": false,
+    "needed": [],
+    "nm_exit": 0
+  },
+  {
+    "path": "/workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/final-native-build/remaining/source/applications/FSH/Make/linux64GccDPInt32Opt/gpu/GpuBackendClient.o",
+    "sha256": "7844dc127608e48b0128169e81e6704e256487e627fd80c6f0183a1b7680db13",
+    "size": 75520,
+    "readelf_exit": 0,
+    "has_cuda_fatbin": false,
+    "needed": [],
+    "nm_exit": 0
+  },
+  {
+    "path": "/workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/final-native-build/remaining/source/applications/FSH/private_backend/build/linux64GccDPInt32Opt/GpuResidentStrict.o",
+    "sha256": "3f618ec3babcc4802e0813b42c317a3baba6e900e395d1011afa2fe5b59b7c41",
+    "size": 6992296,
+    "readelf_exit": 0,
+    "has_cuda_fatbin": true,
+    "needed": [],
+    "nm_exit": 0
+  },
+  {
+    "path": "/workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/final-native-build/remaining/source/applications/FSH/private_backend/libugkwp_cuda_backend.a",
+    "sha256": "75969363b93825a6f41c784a6701c635dcccee34afa9ca17c9943e795eb3f781",
+    "size": 7030936,
+    "readelf_exit": 0,
+    "has_cuda_fatbin": true,
+    "needed": [],
+    "nm_exit": 0
+  }
+]
