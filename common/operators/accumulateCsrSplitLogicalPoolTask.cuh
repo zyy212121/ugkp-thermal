@@ -25,13 +25,10 @@ __device__ void accumulateCsrSplitLogicalPoolTask
     const int baseCount = s.preBaseCellOffset[c + 1] - baseBegin;
     const int injectionBegin = s.cellParticleOffset[c];
     const int baseLogicalEnd = min(logicalEnd, baseCount);
-    for
-    (
-        int logical = logicalBegin + threadIdx.x;
-        logical < baseLogicalEnd;
-        logical += blockDim.x
-    )
+    for (unsigned int cursor = static_cast<unsigned int>(logicalBegin) + threadIdx.x;
+         cursor < static_cast<unsigned int>(baseLogicalEnd); cursor += blockDim.x)
     {
+        const int logical = static_cast<int>(cursor);
         accumulateCsrSplitLogicalPoolParticle<PoissonMode>
         (
             s, c, baseBegin + logical, collisionProbability,
@@ -40,15 +37,12 @@ __device__ void accumulateCsrSplitLogicalPoolTask
     }
 
     const int injectionLogicalBegin = max(logicalBegin, baseCount);
-    for
-    (
-        int logical = injectionLogicalBegin + threadIdx.x;
-        logical < logicalEnd;
-        logical += blockDim.x
-    )
+    for (unsigned int cursor = static_cast<unsigned int>(injectionLogicalBegin) + threadIdx.x;
+         cursor < static_cast<unsigned int>(logicalEnd); cursor += blockDim.x)
     {
+        const int logical = static_cast<int>(cursor);
         const int injectionPosition =
-            injectionBegin + logical - baseCount;
+            injectionBegin + (logical - baseCount);
         accumulateCsrSplitLogicalPoolParticle<PoissonMode>
         (
             s, c, s.sortedParticleIndex[injectionPosition],

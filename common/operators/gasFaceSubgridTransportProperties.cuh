@@ -14,7 +14,8 @@ __device__ void gasFaceSubgridTransportProperties
     GPU_OPERATOR_REAL& muTurbulent,
     GPU_OPERATOR_REAL& kTurbulent,
     GPU_OPERATOR_REAL& directWallHeatFlux,
-    int& directWallHeatFluxActive
+    int& directWallHeatFluxActive,
+    const bool nativeRefinement=false
 )
 {
     // Stability estimation also calls this helper for laminar walls. Never
@@ -51,9 +52,10 @@ __device__ void gasFaceSubgridTransportProperties
         if(ugkwp::mixtureGasActive(s) && s.turbulenceModel==3)
         {
             const GPU_OPERATOR_REAL temperature=s.riemannBoundaryTFix[f]!=0?s.riemannBoundaryT[f]:s.Tgas[own];
-            if(!(temperature>GPU_OPERATOR_R(0.0)) || !ugkwp::gasFinite(temperature)
-                || !(s.rho[own]>GPU_OPERATOR_R(0.0)) || !ugkwp::gasFinite(s.rho[own])
-                || !(s.gasMu>GPU_OPERATOR_R(0.0)) || !ugkwp::gasFinite(s.gasMu))
+            if((nativeRefinement && (!(temperature>GPU_OPERATOR_R(0)) || !(s.rho[own]>GPU_OPERATOR_R(0)) || !(s.gasMu>GPU_OPERATOR_R(0))))
+                || temperature==GPU_OPERATOR_R(0.0) || !ugkwp::gasFinite(temperature)
+                || s.rho[own]==GPU_OPERATOR_R(0.0) || !ugkwp::gasFinite(s.rho[own])
+                || s.gasMu==GPU_OPERATOR_R(0.0) || !ugkwp::gasFinite(s.gasMu))
             {
                 ugkwp::gasRecordFaceFailure(s,f,ugkwp::GasTransportCode::InvalidThermodynamics);
                 muTurbulent=kTurbulent=GPU_OPERATOR_R(0.0);
@@ -108,24 +110,34 @@ __device__ void gasFaceSubgridTransportProperties
                     // No legacy bootstrap Cp/R participates in the shared
                     // mixture closure.
                     constexpr int Ns=ugkwp::GasStateTraits<GasState>::speciesCount;
-                    GPU_OPERATOR_REAL Y[Ns], sum=GPU_OPERATOR_R(0.0);
+                    GPU_OPERATOR_REAL Y[Ns],sum=GPU_OPERATOR_R(0);
                     wallCp=GPU_OPERATOR_R(0.0);
                     for(int species=0;species<Ns;++species)
                     {
                         Y[species]=s.gasSpecies.rho[species*s.nCells+own]/s.rho[own];
-                        sum+=Y[species];
-                        wallCp+=Y[species]*ugkwp::speciesCp(species,wallTemperature,s.gasSpecies.thermo);
+                        if(nativeRefinement)sum+=Y[species];
+                        // The original property evaluation computed all caloric values once.
+                        ugkwp::gasThermoDetail::SpeciesValues<GPU_OPERATOR_REAL> values;
+                        const auto property=ugkwp::gasThermoDetail::evaluateSpecies(species,wallTemperature,s.gasSpecies.thermo,values);
+                        GPU_OPERATOR_REAL cp=property==ugkwp::ThermoStatus::Success
+                            ?values.cp:ugkwp::gasThermoDetail::invalidValue<GPU_OPERATOR_REAL>();
+                        if(nativeRefinement && property==ugkwp::ThermoStatus::Success && (wallTemperature<s.gasSpecies.thermo.species[species].minTemperature
+                            ||wallTemperature>s.gasSpecies.thermo.species[species].maxTemperature
+                            ||!ugkwp::gasFinite(values.cp)||!ugkwp::gasFinite(values.cv)
+                            ||!ugkwp::gasFinite(values.h)||!ugkwp::gasFinite(values.e)||!(values.cv>GPU_OPERATOR_R(0))))
+                            cp=ugkwp::gasThermoDetail::invalidValue<GPU_OPERATOR_REAL>();
+                        wallCp+=Y[species]*cp;
                     }
                     const GPU_OPERATOR_REAL R=ugkwp::mixtureGasConstant(Y,s.gasSpecies.thermo);
                     wallRho=s.p[own]/(R*wallTemperature);
                     GPU_OPERATOR_REAL molecular=s.gasMu*wallCp/wallPr;
                     if constexpr(ugkwp::GasDirectConductivity<GasState>::value)
                         if(ugkwp::gasHasDirectConductivity(s))molecular=s.gasThermalConductivity;
-                    if(!(sum>GPU_OPERATOR_R(0.0)) || !ugkwp::gasFinite(sum)
-                        || fabs(sum-GPU_OPERATOR_R(1.0))>s.gasSpecies.densityClosureTolerance
-                        || !(wallCp>R) || !ugkwp::gasFinite(wallCp)
-                        || !(wallRho>GPU_OPERATOR_R(0.0)) || !ugkwp::gasFinite(wallRho)
-                        || !(molecular>GPU_OPERATOR_R(0.0)) || !ugkwp::gasFinite(molecular))
+                    if((nativeRefinement && (!(sum>GPU_OPERATOR_R(0)) || !ugkwp::gasFinite(sum)
+                        || fabs(sum-GPU_OPERATOR_R(1))>s.gasSpecies.densityClosureTolerance
+                        || !(wallCp>R) || !(wallRho>GPU_OPERATOR_R(0)) || !(molecular>GPU_OPERATOR_R(0))))
+                        || !ugkwp::gasFinite(wallCp)||!ugkwp::gasFinite(wallRho)
+                        ||!ugkwp::gasFinite(molecular))
                     {
                         ugkwp::gasRecordFaceFailure(s,f,ugkwp::GasTransportCode::InvalidThermodynamics);
                         muTurbulent=kTurbulent=GPU_OPERATOR_R(0.0);

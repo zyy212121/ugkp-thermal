@@ -2,7 +2,7 @@
 #include "GpuCellNeighbour.cuh"
 // One operator implementation; scalar/time adapters are compile-time only.
 template<class GasState>
-__global__ void computeGasGradientLimiterKernel(GasState* sp)
+__global__ void computeGasGradientLimiterKernel(GasState* sp, const bool nativeRefinement=false)
 {
     GasState& s = *sp;
     const int c = blockIdx.x*blockDim.x + threadIdx.x;
@@ -83,7 +83,7 @@ __global__ void computeGasGradientLimiterKernel(GasState* sp)
         }
         else
         {
-            qf = riemannFacePrimitiveForGradient(s, c, f);
+            qf = riemannFacePrimitiveForGradient(s, c, f,nativeRefinement);
         }
         rMin = fmin(rMin, qf.rho); rMax = fmax(rMax, qf.rho);
         uxMin = fmin(uxMin, qf.ux); uxMax = fmax(uxMax, qf.ux);

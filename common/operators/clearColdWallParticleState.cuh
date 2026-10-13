@@ -1,4 +1,5 @@
 #pragma once
+#include <type_traits>
 // One operator implementation; scalar/time adapters are compile-time only.
 __device__ void clearColdWallParticleState
 (
@@ -14,14 +15,14 @@ __device__ void clearColdWallParticleState
     const int ringBase = particleI*Foam::gpuThermal::coldWallRadialRingCount;
     for (int node = 0; node < Foam::gpuThermal::coldWallAxialNodeCount; ++node)
     {
-        s.pColdNodeSpecificEnthalpy[nodeBase + node] = 0.0f;
+        s.pColdNodeSpecificEnthalpy[nodeBase + node] = 0.0;
     }
     for (int ring = 0; ring < Foam::gpuThermal::coldWallRadialRingCount; ++ring)
     {
-        s.pColdRingSolidMass[ringBase + ring] = 0.0f;
+        s.pColdRingSolidMass[ringBase + ring] = 0.0;
     }
-    s.pColdFrozenArea[particleI] = 0.0f;
-    s.pColdContactAge[particleI] = 0.0f;
+    s.pColdFrozenArea[particleI] = 0.0;
+    s.pColdContactAge[particleI] = 0.0;
 }
 
 __device__ void initialiseColdWallParticleState
@@ -33,8 +34,7 @@ __device__ void initialiseColdWallParticleState
 {
     if
     (
-        s.coldWallSolidificationEnabled == 0
-     || s.pColdNodeSpecificEnthalpy == nullptr
+        s.pColdNodeSpecificEnthalpy == nullptr
      || s.pColdRingSolidMass == nullptr
      || s.pColdFrozenArea == nullptr
      || s.pColdContactAge == nullptr
@@ -56,12 +56,12 @@ __device__ void initialiseColdWallParticleState
     for (int node = 0; node < Foam::gpuThermal::coldWallAxialNodeCount; ++node)
     {
         s.pColdNodeSpecificEnthalpy[nodeBase + node] =
-            static_cast<float>(nodeEnthalpy[node]);
+            static_cast<typename std::remove_reference<decltype(s.pColdNodeSpecificEnthalpy[0])>::type>(nodeEnthalpy[node]);
     }
     for (int ring = 0; ring < Foam::gpuThermal::coldWallRadialRingCount; ++ring)
     {
-        s.pColdRingSolidMass[ringBase + ring] = 0.0f;
+        s.pColdRingSolidMass[ringBase + ring] = 0.0;
     }
-    s.pColdFrozenArea[particleI] = 0.0f;
-    s.pColdContactAge[particleI] = 0.0f;
+    s.pColdFrozenArea[particleI] = 0.0;
+    s.pColdContactAge[particleI] = 0.0;
 }

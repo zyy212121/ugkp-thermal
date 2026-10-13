@@ -6,7 +6,8 @@ __device__ GasPrimDevice riemannFacePrimitiveForGradient
 (
     const GasState& s,
     const int c,
-    const int f
+    const int f,
+    const bool nativeRefinement=false
 )
 {
     GasPrimDevice centre = gasCellPrimitive(s,c);
@@ -117,5 +118,5 @@ __device__ GasPrimDevice riemannFacePrimitiveForGradient
         return wall;
     }
 
-    return riemannBoundaryState(s, f, centre);
+    return riemannBoundaryState(s, f, centre,nullptr,nativeRefinement);
 }

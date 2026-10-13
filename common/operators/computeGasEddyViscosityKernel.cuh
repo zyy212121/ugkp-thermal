@@ -16,7 +16,7 @@ __global__ void computeGasEddyViscosityKernel(GasState* sp)
     }
     if (s.turbulenceModel == 3)
     {
-        if (s.sstConfigured == 0)
+        if (!s.k || !s.omega || !s.sstWallDistance || !s.sstF2)
         {
             asm("trap;");
             return;

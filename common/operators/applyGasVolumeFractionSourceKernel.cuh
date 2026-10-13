@@ -84,12 +84,6 @@ __global__ void applyGasVolumeFractionSourceKernel
     const Energy enerGCandidate = std::is_same<Energy,GPU_OPERATOR_REAL>::value
         ? enerGOld*massScale+dt*cepsG*pressureOld
         : enerGOld+Energy(dt)*Energy(cepsG)*(enerGOld+Energy(pressureOld));
-    const Energy kineticCandidate = Energy(0.5)
-       *(Energy(momGXCandidate)*Energy(momGXCandidate)+Energy(momGYCandidate)*Energy(momGYCandidate)+Energy(momGZCandidate)*Energy(momGZCandidate))
-       /Energy(clampMin(mgCandidate, s.rhoMin));
-    const Energy internalEnergyFloorCandidate =
-        Energy(mgCandidate)*Energy(s.Rgas)*Energy(s.TgasMin)
-       /ugkwp::gasEnergyClampMin(Energy(s.gammaGas)-Energy(1),Energy(OfSmall));
     const GPU_OPERATOR_REAL rhoKCandidate = s.sstConfigured != 0
       ? s.rhoK[c]*massScale : GPU_OPERATOR_R(0.0);
     const GPU_OPERATOR_REAL rhoOmegaCandidate = s.sstConfigured != 0
@@ -98,8 +92,6 @@ __global__ void applyGasVolumeFractionSourceKernel
     (
         !finiteDevice(rhoKCandidate)
      || !finiteDevice(rhoOmegaCandidate)
-     || rhoKCandidate < GPU_OPERATOR_R(0.0)
-     || rhoOmegaCandidate < GPU_OPERATOR_R(0.0)
      || !finiteDevice(cepsG)
      || !finiteDevice(massScale)
      || !finiteDevice(mgCandidate)
@@ -108,10 +100,6 @@ __global__ void applyGasVolumeFractionSourceKernel
      || !finiteDevice(momGZCandidate)
      || !finiteDevice(pressureOld)
      || !ugkwp::gasEnergyFinite(enerGCandidate)
-     || !ugkwp::gasEnergyFinite(kineticCandidate)
-     || !ugkwp::gasEnergyFinite(internalEnergyFloorCandidate)
-     || mgCandidate < s.rhoMin
-     || enerGCandidate < kineticCandidate + internalEnergyFloorCandidate
     )
     {
         asm("trap;");

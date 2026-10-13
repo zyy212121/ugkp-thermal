@@ -92,7 +92,8 @@ __device__ GasPrimDevice riemannBoundaryState
     const GasState& s,
     const int f,
     const GasPrimDevice& ownerState,
-    const GPU_OPERATOR_REAL* extrapolatedMassFraction = nullptr
+    const GPU_OPERATOR_REAL* extrapolatedMassFraction = nullptr,
+    const bool nativeRefinement=false
 )
 {
     if constexpr (ugkwp::GasStateTraits<GasState>::speciesCount > 0)
@@ -118,9 +119,10 @@ __device__ GasPrimDevice riemannBoundaryState
             if(rf&&pf&&!tf)out.T=out.p/(out.rho*R);
             else if(rf&&!pf)out.p=out.rho*R*out.T;
             GPU_OPERATOR_REAL density=out.rho;
-            const auto status=ugkwp::mixtureDensityFromPressureTemperature
-                (out.p,out.T,Y,s.gasSpecies.thermo,density,s.gasSpecies.densityClosureTolerance);
-            if(status!=ugkwp::ThermoStatus::Success || (rf&&pf&&tf
+            const auto status=nativeRefinement
+                ? ugkwp::mixtureDensityFromPressureTemperatureImpl<true>(out.p,out.T,Y,s.gasSpecies.thermo,density,s.gasSpecies.densityClosureTolerance)
+                : ugkwp::mixtureDensityFromPressureTemperature(out.p,out.T,Y,s.gasSpecies.thermo,density,s.gasSpecies.densityClosureTolerance);
+            if(status!=ugkwp::ThermoStatus::Success || (nativeRefinement && rf&&pf&&tf
                 && fabs(density-out.rho)>s.gasSpecies.densityClosureTolerance*density))
             {s.gasSpecies.faceStatus[f]=int(ugkwp::GasTransportCode::InvalidThermodynamics);return ownerState;}
             out.rho=density;
@@ -299,7 +301,8 @@ __device__ GasPrimDevice riemannExteriorStateForFace
 (
     const GasState& s,
     const int f,
-    const GasPrimDevice& ownerFaceState
+    const GasPrimDevice& ownerFaceState,
+    const bool nativeRefinement=false
 )
 {
     if (f < s.nInternalFaces || isPeriodicFace(s, f))
@@ -317,5 +320,5 @@ __device__ GasPrimDevice riemannExteriorStateForFace
             s.TgasMin
         );
     }
-    return riemannBoundaryState(s, f, ownerFaceState);
+    return riemannBoundaryState(s, f, ownerFaceState,nullptr,nativeRefinement);
 }

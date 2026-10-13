@@ -19,12 +19,12 @@ const GPU_OPERATOR_REAL xDrag = dt*clampMin(invTauDrag, GPU_OPERATOR_R(0.0));
     const GPU_OPERATOR_REAL uNewZ = ugz + (uz - ugz)*alpha + az*impulse;
     if
     (
-        nonFiniteDevice(uNewX) || nonFiniteDevice(uNewY)
-     || nonFiniteDevice(uNewZ)
+        !std::isfinite(uNewX) || !std::isfinite(uNewY)
+     || !std::isfinite(uNewZ)
     )
     {
         asm("trap;");
     }
-        s.pux[i] = finiteOr(uNewX, ux);
-        s.puy[i] = finiteOr(uNewY, uy);
-        s.puz[i] = finiteOr(uNewZ, uz);
+        s.pux[i] = uNewX;
+        s.puy[i] = uNewY;
+        s.puz[i] = uNewZ;

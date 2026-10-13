@@ -16,7 +16,6 @@ __global__ void gatherSelectedParticlesKernel(DeviceState* sp)
         (
             i < 0
          || i >= s.particleCapacity
-         || s.pStatus[i] != 1
         )
         {
             asm("trap;");

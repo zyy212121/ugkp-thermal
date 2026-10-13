@@ -12,7 +12,7 @@ template<class GasState>
 __device__ bool reconstructGasMixtureFace
 (
     const GasState& s, const int c, const int f,
-    GasPrimDevice& output, GPU_OPERATOR_REAL* massFractions
+    GasPrimDevice& output, GPU_OPERATOR_REAL* massFractions, const bool nativeRefinement=false
 )
 {
     constexpr int Ns=ugkwp::GasStateTraits<GasState>::speciesCount;
@@ -54,33 +54,56 @@ __device__ bool reconstructGasMixtureFace
             *(s.gasSpecies.gradX[i]*dx+s.gasSpecies.gradY[i]*ddy+s.gasSpecies.gradZ[i]*dz);
     }
     GPU_OPERATOR_REAL alpha=GPU_OPERATOR_R(1.0);
+    bool haveCompleteCandidate=false;
     for(int attempt=0;attempt<=64;++attempt)
     {
         GasPrimDevice candidate{centre.rho+alpha*increment.rho,centre.ux+alpha*increment.ux,
             centre.uy+alpha*increment.uy,centre.uz+alpha*increment.uz,centre.p+alpha*increment.p,centre.T};
         GPU_OPERATOR_REAL y[Ns],sum=GPU_OPERATOR_R(0.0);
-        bool valid=ugkwp::gasFinite(candidate.rho)&&candidate.rho>=s.rhoMin
-            && ugkwp::gasFinite(candidate.p)&&candidate.p>GPU_OPERATOR_R(0.0)
-            && ugkwp::gasFinite(candidate.ux)&&ugkwp::gasFinite(candidate.uy)&&ugkwp::gasFinite(candidate.uz);
+        bool complete=ugkwp::gasFinite(candidate.rho)&&ugkwp::gasFinite(candidate.p)
+            &&ugkwp::gasFinite(candidate.ux)&&ugkwp::gasFinite(candidate.uy)&&ugkwp::gasFinite(candidate.uz);
+        bool valid=complete&&candidate.rho>=s.rhoMin&&candidate.p>GPU_OPERATOR_R(0.0);
         for(int k=0;k<Ns;++k)
         {
             y[k]=k+1==Ns?GPU_OPERATOR_R(1.0)-sum:yc[k]+alpha*dy[k];
-            sum+=y[k];valid=valid&&ugkwp::gasFinite(y[k])&&y[k]>=GPU_OPERATOR_R(0.0)&&y[k]<=GPU_OPERATOR_R(1.0);
+            sum+=y[k];complete=complete&&ugkwp::gasFinite(y[k]);
+            valid=valid&&ugkwp::gasFinite(y[k])&&y[k]>=GPU_OPERATOR_R(0.0)&&y[k]<=GPU_OPERATOR_R(1.0);
         }
-        if(valid)
+        if(complete && (!nativeRefinement || valid))
         {
             const auto R=ugkwp::mixtureGasConstant(y,s.gasSpecies.thermo);
             candidate.T=candidate.p/(candidate.rho*R);
+            complete=ugkwp::gasFinite(candidate.T);
+        }
+        // Keep the evaluated candidate in the existing disposable outputs.
+        // If the final centre EOS is undefined, the last complete slope state
+        // remains available; no untouched centre seed is reported as computed.
+        if(complete && !nativeRefinement)
+        {output=candidate;for(int k=0;k<Ns;++k)massFractions[k]=y[k];haveCompleteCandidate=true;}
+        if(valid)
+        {
             valid=ugkwp::gasFinite(candidate.T)&&candidate.T>=s.TgasMin;
             for(int k=0;k<Ns;++k)
                 valid=valid&&candidate.T>=s.gasSpecies.thermo.species[k].minTemperature
                     &&candidate.T<=s.gasSpecies.thermo.species[k].maxTemperature;
-            const auto cv=ugkwp::mixtureHeatCapacity(y,candidate.T,s.gasSpecies.thermo);
+            GPU_OPERATOR_REAL cv;
+            if(nativeRefinement)
+            {
+                GPU_OPERATOR_REAL energy;
+                const auto caloric=ugkwp::evaluateMixtureEnergy<true>(y,candidate.T,s.gasSpecies.thermo,energy,cv);
+                valid=valid&&caloric==ugkwp::ThermoStatus::Success;
+                if(caloric!=ugkwp::ThermoStatus::Success)cv=ugkwp::gasThermoDetail::invalidValue<GPU_OPERATOR_REAL>();
+            }
+            else cv=ugkwp::mixtureHeatCapacity(y,candidate.T,s.gasSpecies.thermo);
             valid=valid&&ugkwp::gasFinite(cv)&&cv>GPU_OPERATOR_R(0.0);
         }
         if(valid)
-        {output=candidate;for(int k=0;k<Ns;++k)massFractions[k]=y[k];return true;}
+        {
+            if(nativeRefinement)
+            {output=candidate;for(int k=0;k<Ns;++k)massFractions[k]=y[k];}
+            return true;
+        }
         alpha=attempt==63?GPU_OPERATOR_R(0.0):GPU_OPERATOR_R(0.5)*alpha;
     }
-    return false;
+    return !nativeRefinement && haveCompleteCandidate;
 }

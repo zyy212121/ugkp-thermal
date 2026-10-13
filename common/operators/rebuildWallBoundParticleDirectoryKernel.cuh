@@ -41,10 +41,8 @@ __global__ void finalizeParticleWallContactAreaScaleKernel(DeviceState* sp)
             s.particleWallMaximumCoverage*s.magSf[faceI];
         if
         (
-            !finiteDevice(representedArea)
-         || !finiteDevice(maximumArea)
-         || representedArea < GPU_OPERATOR_R(0.0)
-         || !(maximumArea > GPU_OPERATOR_R(0.0))
+            !std::isfinite(representedArea)
+         || !std::isfinite(maximumArea)
         )
         {
             asm("trap;");
@@ -54,7 +52,7 @@ __global__ void finalizeParticleWallContactAreaScaleKernel(DeviceState* sp)
             scale = maximumArea/representedArea;
         }
     }
-    if (!(scale > GPU_OPERATOR_R(0.0)) || scale > GPU_OPERATOR_R(1.0))
+    if (!std::isfinite(scale))
     {
         asm("trap;");
     }

@@ -6,7 +6,8 @@ template<class GasState>
 __global__ void computeGasPrimitiveGradientsKernel
 (
     GasState* sp,
-    const bool refreshSstCourantSensor = false
+    const bool refreshSstCourantSensor = false,
+    const bool nativeRefinement=false
 )
 {
     GasState& s = *sp;
@@ -61,7 +62,7 @@ __global__ void computeGasPrimitiveGradientsKernel
                 );
                 otherPressure = clampMin
                 (
-                    riemannBoundaryState(s, f, centre).p, OfSmall
+                    riemannBoundaryState(s, f, centre,nullptr,nativeRefinement).p, OfSmall
                 );
             }
             const GPU_OPERATOR_REAL ratio = clampRange
@@ -76,7 +77,7 @@ __global__ void computeGasPrimitiveGradientsKernel
         const GPU_OPERATOR_REAL sy = sign*s.Sfy[f];
         const GPU_OPERATOR_REAL sz = sign*s.Sfz[f];
         const GasPrimDevice qf =
-            riemannFacePrimitiveForGradient(s, c, f);
+            riemannFacePrimitiveForGradient(s, c, f,nativeRefinement);
         grx += qf.rho*sx; gry += qf.rho*sy; grz += qf.rho*sz;
         guxx += qf.ux*sx; guxy += qf.ux*sy; guxz += qf.ux*sz;
         guyx += qf.uy*sx; guyy += qf.uy*sy; guyz += qf.uy*sz;
@@ -261,7 +262,7 @@ __device__ GPU_OPERATOR_REAL sstPredictorMassFlux(const GasState& s, const int f
 }
 
 template<class GasState>
-__device__ void applySstWallFunctionStateCell(GasState& s, const int c, const bool allowUnprepared=false)
+__device__ void applySstWallFunctionStateCell(GasState& s, const int c, const bool allowUnprepared=false, const bool nativeRefinement=false)
 {
     if
     (
@@ -281,7 +282,7 @@ __device__ void applySstWallFunctionStateCell(GasState& s, const int c, const bo
             if(!ugkwp::gasBoundaryLayerSlotReady(s,slot))
             {if(allowUnprepared)return;if(!ugkwp::gasRecordCellFailure(s,c,ugkwp::GasTransportCode::InvalidStorage))asm("trap;");return;}
             const GPU_OPERATOR_REAL target=s.gasBoundaryLayer.sst[slot].ownerOmega;
-            if(!finiteDevice(target) || !(target>GPU_OPERATOR_R(0.0)))
+            if(!finiteDevice(target) || (nativeRefinement && !(target>GPU_OPERATOR_R(0))))
             {if(!ugkwp::gasRecordCellFailure(s,c,ugkwp::GasTransportCode::NonFiniteState))asm("trap;");return;}
             s.omega[c]=clampMin(target,s.sstOmegaMin);
             s.rhoOmega[c]=clampMin(s.rho[c],s.rhoMin)*s.omega[c];
@@ -322,11 +323,11 @@ __device__ void applySstWallFunctionStateCell(GasState& s, const int c, const bo
 }
 
 template<class GasState>
-__global__ void applySstWallFunctionStateKernel(GasState* sp, const bool allowUnprepared=false)
+__global__ void applySstWallFunctionStateKernel(GasState* sp, const bool allowUnprepared=false, const bool nativeRefinement=false)
 {
     applySstWallFunctionStateCell
     (
-        *sp, blockIdx.x*blockDim.x + threadIdx.x, allowUnprepared
+        *sp, blockIdx.x*blockDim.x + threadIdx.x, allowUnprepared,nativeRefinement
     );
 }
 
@@ -365,7 +366,7 @@ __global__ void initialiseSstConservativeStateKernel(GasState* sp)
 }
 
 template<class GasState>
-__device__ void recoverSstPrimitiveCell(GasState& s, const int c)
+__device__ void recoverSstPrimitiveCell(GasState& s, const int c, const bool nativeRefinement=false)
 {
     if (c >= s.nCells || s.sstConfigured == 0)
     {
@@ -389,12 +390,12 @@ __device__ void recoverSstPrimitiveCell(GasState& s, const int c)
         // blends. Refresh the target from recovered k and the current gas state
         // (including wall viscosity); do not freeze k or the gas equations.
         // This is an explicit stage constraint, not an implicit OF10 solve.
-        applySstWallFunctionStateCell(s, c);
+        applySstWallFunctionStateCell(s, c,false,nativeRefinement);
     }
 }
 
 template<class GasState>
-__global__ void recoverSstPrimitivesKernel(GasState* sp)
+__global__ void recoverSstPrimitivesKernel(GasState* sp, const bool nativeRefinement=false)
 {
-    recoverSstPrimitiveCell(*sp, blockIdx.x*blockDim.x + threadIdx.x);
+    recoverSstPrimitiveCell(*sp, blockIdx.x*blockDim.x + threadIdx.x,nativeRefinement);
 }
