@@ -2,7 +2,7 @@
 
 PR14_REVIEW_ONLY · Current interaction: **FAST**.
 
-This folder is the primary review record, including review requests for already completed first-round, B1–B7, and tool changes. Developer source/compile evidence is distinct from pending real-GPU acceptance. **Production source is frozen; no global all-pass, final remote publication, or merge approval is asserted.**
+This folder is the primary review record, including review requests for already completed first-round, B1–B7, and tool changes. Developer source/compile evidence is distinct from pending real-GPU acceptance. **Production source is frozen and its preclosure delivery tree is remotely verified. Later closure metadata publication, real-GPU acceptance and any merge remain separate.**
 
 ## Start here
 
@@ -11,14 +11,14 @@ This folder is the primary review record, including review requests for already 
 3. Use [source-index.json](source-index.json) to find every changed path, base/head blob and current SHA256. Production file/function sidecars are under [files](files). Their function/scope locators are supplementary to immutable blob/hash identity.
 4. For each topic under [topics](topics), read developer evidence and the request, then fill the same ID under [responses](responses). Results, developer replies and rechecks append there; do not overwrite earlier failed attempts.
 5. Inspect [pending-findings.json](pending-findings.json) and both whole-PR review snapshots linked from the manifest. A historical local approval does not close later dependencies or global findings.
-6. Check [object-hashes.json](object-hashes.json) and shared [evidence](evidence): actual compile commands/logs/receipts and immutable report snapshots. Object hashes identify artifacts; actual binaries are not embedded. Byte-exact raw evidence is PR14_REVIEW_ONLY by path and manifest.
+6. Check [object-hashes.json](object-hashes.json) and shared [evidence](evidence): actual compile commands/logs/receipts and immutable report snapshots. Full solver binaries are identified by hashes; historical fixture binaries may be retained as scoped immutable evidence. Byte-exact raw evidence is PR14_REVIEW_ONLY by path and manifest.
 
 ## Scope and honest limits
 
 - All requests are FAST: real GPU operator/small-case, valid-case conservation, actual calls/interactions/coupling, restart and relevant concurrency checks. Explicit input/version/criteria/budget comes before execution. No default long production run.
 - Developer responsibilities are source review and actual compilation. No further developer CPU-shim/application numerical/parity runs. Old CPU/OF numerical results remain historical; newer unexecuted standalone fixtures are not current validation.
 - Reviewer supplies objective GPU evidence; developer makes formal fixes under the same ID; reviewer rechecks. Reviewer diagnostic patches stay isolated as evidence. See protocol for exact result fields.
-- Production source is frozen at `a73b9635510fb09d7baa5339e14d1aa609f0ff87` with tree `e343cb9f477dcd86556f7b6595189fa2c9c1c099`. Final production source identity and scoped/global source-review outcomes are recorded in [publication.json](publication.json); record-containing commit, remote comparison, CI and GPU acceptance remain pending. Historical logs may refer to earlier snapshots; their applicability must be checked, not presumed.
+- Production source is frozen at `a73b9635510fb09d7baa5339e14d1aa609f0ff87` with tree `e343cb9f477dcd86556f7b6595189fa2c9c1c099`. Final production source identity and scoped/global source-review outcomes are recorded in [publication.json](publication.json); the exact preclosure delivery is remotely verified, with explicit CI observations below; the later closure-containing commit and GPU acceptance remain pending. Historical logs may refer to earlier snapshots; their applicability must be checked, not presumed.
 - Allowed physical float: CHT cold1D[8]/cold2D[64] profiles and actual copies/publication arithmetic only. Other physical state, including thermal enthalpy residual, stays double. Timing API float and old-format decoding are separate categories.
 - Original-success FP64 expression/order/clamp/fallback/inner-retry preservation is separate from formerly rejected input completion and explicitly approved physical corrections. Never add a new computational gate to make a test pass.
 
@@ -67,7 +67,7 @@ Do not clean up now. [CLEANUP.md](CLEANUP.md) describes the archive-first, expli
 
 ## Final source and ongoing build
 
-Production source: `a73b9635510fb09d7baa5339e14d1aa609f0ff87`; tree `e343cb9f477dcd86556f7b6595189fa2c9c1c099`. Record-containing commit and remote publication remain pending. See [publication.json](publication.json), [full-build-status.json](full-build-status.json), and [pending-findings.json](pending-findings.json) for separate source-only closure versus GPU acceptance. CHMT/CHT/FSH native build/link receipts are recorded at a164; gasUGKP stages/artifacts completed with wrapper 2 and child exit unrecorded. Final codec C++14 host rebuild/link and 848-record independent qualification are recorded at 970. All GPU execution remains pending.
+Production source: `a73b9635510fb09d7baa5339e14d1aa609f0ff87`; tree `e343cb9f477dcd86556f7b6595189fa2c9c1c099`. The preclosure delivery is remotely verified; publication of the later closure metadata is pending. See [publication.json](publication.json), [full-build-status.json](full-build-status.json), and [pending-findings.json](pending-findings.json) for separate source-only closure versus GPU acceptance. CHMT/CHT/FSH native build/link receipts are recorded at a164; gasUGKP stages/artifacts completed with wrapper 2 and child exit unrecorded. Final codec C++14 host rebuild/link and 848-record independent qualification are recorded at 970. All GPU execution remains pending.
 
 Final review lineage: a164 category-level global review plus the independently approved 970 codec and a73 mapper deltas. Historical receipts retain their original source identities and caveats. No runtime test or cleanup has been run.
 
@@ -75,4 +75,18 @@ Final review lineage: a164 category-level global review plus the independently a
 
 Final source is `a73b9635510fb09d7baa5339e14d1aa609f0ff87`. Review lineage is a164 category-level review, then the separately approved 970 codec delta and a73 mapper consumed-access delta. Exact mapper SHA256 `947decef7e1a2aa552c6d201401674617fdb8be22a331d98c430fe115ee63074`; see [R014-020](topics/R014-020.md), [R014-022](topics/R014-022.md), and [R014-024](topics/R014-024.md). Only the mapper host object and CHT executable were rebuilt for this final delta; native CUDA archive was reused byte-identically. Earlier full builds and codec receipts retain their original identities and caveats, including gasUGKP wrapper 2/child exit unrecorded. Real-GPU acceptance remains pending.
 
-The continuation bundle now embeds source `a73b9635510fb09d7baa5339e14d1aa609f0ff87`, SHA256 `bf69f1b9f4a4c96d27af04bd885296264305393f941ea1db3a81cb4ea4eac5e8`. Its successful isolated import/verification is administrative only. Refreshed bundle/review record commit, remote source/tree comparison and CI remain pending; the eventual administrative containing commit is not its own embedded source.
+The continuation bundle now embeds source `a73b9635510fb09d7baa5339e14d1aa609f0ff87`, SHA256 `bf69f1b9f4a4c96d27af04bd885296264305393f941ea1db3a81cb4ea4eac5e8`. Its successful isolated import/verification is administrative only. The refreshed bundle/review delivery f207 has been remotely tree-verified with explicit CI observations; publication of the later closure metadata remains pending; the eventual administrative containing commit is not its own embedded source.
+
+<!-- PR14_VERIFIED_PRECLOSURE_PUBLICATION -->
+## Verified preclosure publication
+
+- Production source: `a73b9635510fb09d7baa5339e14d1aa609f0ff87`; source tree `e343cb9f477dcd86556f7b6595189fa2c9c1c099`.
+- Frozen local delivery: `f207912ac1ad8d3c6dcc8368831a6cc0ea2748d4`; exact tree `76ffd38cf7470879347423a4f8467cf47547aae6`.
+- Verified preclosure remote head: `a747db386160a7f3737fa67b25207e34f5c118d9`; tree `76ffd38cf7470879347423a4f8467cf47547aae6`.
+- Every path/object/mode matched the frozen delivery, including all 919 review files; base/main remained unchanged and README differences were zero.
+- CI observed at `2026-10-13T17:53:14Z` for that exact preclosure head: 0 checks and 0 status contexts. Counts are observations, not an overall CI-pass claim.
+- Evidence: [E014-ceba3ce114bee654](evidence/E014-ceba3ce114bee654.json); [publication identity and CI snapshot](publication.json).
+- The later commit containing this closure metadata is not self-referenced. Its full remote head/tree comparison and fresh CI observation are delivered directly to the user with fixed-version links. Formal records remain in the authorized PR files; no final PR Conversation comment is requested.
+- Real-GPU acceptance remains pending. PR remains draft and unmerged; no merge authorization.
+- All review requests, evidence, results, developer replies and rechecks remain in these authorized review files. Do not write PR Conversation descriptions, notes, progress updates or comments, including a minimal entry or final publication comment.
+- All earlier evidence, review results and response history are retained. This update contains administrative records only, with no compile, test, runtime or cleanup execution.

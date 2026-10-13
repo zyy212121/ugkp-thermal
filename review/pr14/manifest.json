@@ -2,16 +2,16 @@
   "schema": 1,
   "identity": "PR14_REVIEW_ONLY",
   "interaction_class": "FAST",
-  "captured_utc": "2026-10-13T17:04:48.115739+00:00",
+  "captured_utc": "2026-10-13T17:53:04.518048+00:00",
   "base_commit": "d6110c02745a8ad726208a426c4bb3a28233c1fd",
   "first_published_head": "82f9c016704c9822b16b87cdeeb11f5bbd44d06f",
   "observed_source_head": "a73b9635510fb09d7baa5339e14d1aa609f0ff87",
   "final_source_commit": "a73b9635510fb09d7baa5339e14d1aa609f0ff87",
   "final_source_tree": "e343cb9f477dcd86556f7b6595189fa2c9c1c099",
-  "remote_head": null,
-  "remote_tree": null,
+  "remote_head": "a747db386160a7f3737fa67b25207e34f5c118d9",
+  "remote_tree": "76ffd38cf7470879347423a4f8467cf47547aae6",
   "publication_record": "publication.json",
-  "final_pin_status": "FINAL_SOURCE_FROZEN_REMOTE_PENDING",
+  "final_pin_status": "PRECLOSURE_DELIVERY_TREE_VERIFIED_CLOSURE_METADATA_PUBLICATION_PENDING",
   "reviewer_gpu_acceptance": "NOT_RUN_PENDING",
   "developer_validation_scope": "source review and actual compilation only; old CPU execution historical",
   "global_review_status": "A164_CATEGORY_REVIEW_PLUS_970_CODEC_AND_A73_MAPPER_DELTAS_APPROVED_WITH_DOCUMENTED_LIMITS_GPU_PENDING",
@@ -26,10 +26,13 @@
         "E014-6bc184af0f3c9667",
         "E014-9ca093aa997e6207",
         "E014-bb2c33c22166e8b9",
-        "E014-2dffdbd8f218e58a"
+        "E014-2dffdbd8f218e58a",
+        "E014-ceba3ce114bee654"
       ],
       "file_ids": [],
-      "status": "REVIEWER_FAST_PENDING"
+      "status": "REVIEWER_FAST_PENDING",
+      "developer_publication_status": "PRECLOSURE_TREE_VERIFIED_CLOSURE_METADATA_PUBLICATION_PENDING",
+      "publication_evidence_id": "E014-ceba3ce114bee654"
     },
     {
       "id": "R014-002",
@@ -7030,6 +7033,16 @@
       "bytes": 50334,
       "classification": "historical_scoped_evidence",
       "limits": "Read original receipt scope. Compilation is not GPU execution. CPU numerical results are historical only; any old runtime instructions are superseded by PROTOCOL.md."
+    },
+    {
+      "id": "E014-ceba3ce114bee654",
+      "identity": "PR14_REVIEW_ONLY",
+      "path": "evidence/E014-ceba3ce114bee654.json",
+      "source_audit_path": "publication/unified/publication-closure-receipt.json",
+      "sha256": "ceba3ce114bee654b73a3974cf6d15a45bfb65f91de26ef40d61264d32cbaed8",
+      "bytes": 4738,
+      "classification": "verified_preclosure_full_tree_publication_and_explicit_ci_observation",
+      "limits": "No compilation, application/numerical/GPU execution or cleanup. CI is an observation supplied by the publisher, not an inferred pass. This receipt does not verify the later commit that contains this receipt."
     }
   ],
   "latest_evidence_by_audit_path": {
@@ -7980,7 +7993,8 @@
     "implementation/mapper-access-final/objects-before.json": "E014-7de3f0a43abe6653",
     "implementation/mapper-access-final/report.md": "E014-8770ec9b19866b98",
     "implementation/mapper-access-final/source-export-hashes.json": "E014-0d75329724dd8d04",
-    "implementation/mapper-access-final/toolchain.txt": "E014-b36cd7683949d4e7"
+    "implementation/mapper-access-final/toolchain.txt": "E014-b36cd7683949d4e7",
+    "publication/unified/publication-closure-receipt.json": "E014-ceba3ce114bee654"
   },
   "missing_requested_evidence": [],
   "source_markers": [],
@@ -8385,6 +8399,7 @@
     "review/pr14/evidence/E014-cce759ca975de686.json",
     "review/pr14/evidence/E014-cd18936e505957bf.txt",
     "review/pr14/evidence/E014-ce5d766f64b18a69.json",
+    "review/pr14/evidence/E014-ceba3ce114bee654.json",
     "review/pr14/evidence/E014-cf3314b1b2fe04ad.md",
     "review/pr14/evidence/E014-cf51ac39fccc204e.json",
     "review/pr14/evidence/E014-cfea859cfbcfad9f.json",
@@ -8907,7 +8922,7 @@
   ],
   "cleanup_status": "NOT_RUN; final user/reviewer approval and archive required; production source unchanged by record system",
   "current_source_followup": "MAPPER_CONSUMED_ACCESS_SOURCE_AND_CHT_HOST_COMPILE_APPROVED",
-  "history_administrative_commit": null,
+  "history_administrative_commit": "f207912ac1ad8d3c6dcc8368831a6cc0ea2748d4",
   "source_identity_history": [
     {
       "source_commit": "970d9fedcc061dfa08fc88d427a1a47b3c22f65f",
@@ -8916,5 +8931,9 @@
     }
   ],
   "history_embedded_source_commit": "a73b9635510fb09d7baa5339e14d1aa609f0ff87",
-  "history_bundle_sha256": "bf69f1b9f4a4c96d27af04bd885296264305393f941ea1db3a81cb4ea4eac5e8"
+  "history_bundle_sha256": "bf69f1b9f4a4c96d27af04bd885296264305393f941ea1db3a81cb4ea4eac5e8",
+  "verified_delivery_commit": "f207912ac1ad8d3c6dcc8368831a6cc0ea2748d4",
+  "verified_delivery_tree": "76ffd38cf7470879347423a4f8467cf47547aae6",
+  "publication_evidence_id": "E014-ceba3ce114bee654",
+  "remote_identity_scope": "Exact preclosure delivery; later closure commit is separately verified and delivered directly to the user with fixed-version links"
 }
