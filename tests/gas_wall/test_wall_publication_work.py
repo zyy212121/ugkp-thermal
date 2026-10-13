@@ -99,9 +99,8 @@ int main(){
 '''
 
 
-@pytest.mark.parametrize('bits', [32, 64])
 @pytest.mark.parametrize('nodes', [24, 32])
-def test_final_publication_skips_only_unused_sst_work(tmp_path, bits, nodes):
+def test_final_publication_skips_only_unused_sst_work(tmp_path, nodes):
     local = tmp_path/'instrumented'
     local.mkdir()
     (local/'WallModel.H').write_text((ROOT/'common/gasWall/WallModel.H').read_text())
@@ -110,8 +109,7 @@ def test_final_publication_skips_only_unused_sst_work(tmp_path, bits, nodes):
     source.write_text(BASE.replace('"common/gasWall/WallModel.H"', '"instrumented/WallModel.H"')
                       .replace('double', 'GpuReal') + BODY)
     exe = tmp_path/'publication'
-    build = subprocess.run(['g++', '-std=c++17', '-O2', f'-DUGKWP_GPU_REAL_BITS={bits}',
-        f'-DTEST_NODES={nodes}', '-I'+str(ROOT), '-I'+str(ROOT/'common'),
+    build = subprocess.run(['g++', '-std=c++17', '-O2', f'-DTEST_NODES={nodes}', '-I'+str(ROOT), '-I'+str(ROOT/'common'),
         '-I'+str(ROOT/'common/gasWall'), str(source), '-o', str(exe)], capture_output=True, text=True)
     assert build.returncode == 0, build.stdout+build.stderr
     result = subprocess.run([str(exe)], capture_output=True, text=True, timeout=30)

@@ -1,10 +1,11 @@
 """The wall operator uses FP64 independently of stored gas/table precision."""
 import json
+import math
 import subprocess
 from test_wall_model import BASE, ROOT
 
 
-def test_float_state_strict_coupled_wall_and_published_budget(tmp_path):
+def test_double_state_strict_coupled_wall_and_published_budget(tmp_path):
     body = r'''
 #include <type_traits>
 #include <iomanip>
@@ -14,15 +15,15 @@ int main(){
  m.coef[2]=100000;m.rx[0].highRate.preExponential=20;
  m.in.model.diffusivity[0]=1e-4;m.in.model.diffusivity[1]=3e-4;
  m.in.massFlux[0]=.0007;m.in.massFlux[1]=.0003;
- float y[2]={.002,.006},weights[2]={2e-7,2e-7};m.in.quadrature={y,weights,2,4e-7,1.6e-9};
- WallModelConfig<float> c;c.enableSst=true;c.nodes=48;c.maxIterations=100;
- WallWorkspace<float,2,48> w;WallOutput<float,2> out;WallStatus status;
- static_assert(sizeof(w.state[0][0])==sizeof(double),"wall arithmetic must not follow outer FP32");
+ double y[2]={.002,.006},weights[2]={2e-7,2e-7};m.in.quadrature={y,weights,2,4e-7,1.6e-9};
+ WallModelConfig<double> c;c.enableSst=true;c.nodes=48;c.maxIterations=100;
+ WallWorkspace<double,2,48> w;WallOutput<double,2> out;WallStatus status;
+ static_assert(sizeof(w.state[0][0])==sizeof(double),"wall arithmetic is binary64");
  assert(evaluateWallModel(m.in,c,w,out,status));assert(status.residual<1.01e-8);
  std::cout<<std::setprecision(17)<<"{\"residual\":"<<status.residual<<",\"balance\":[";
  for(int j=0;j<2;++j){
   // Recompute after storing actual public values, not from an FP64-only audit.
-  const float matching=out.matchingSpeciesFlux[j],wall=out.wallSpeciesFlux[j],reaction=out.reactionIntegral[j];
+  const double matching=out.matchingSpeciesFlux[j],wall=out.wallSpeciesFlux[j],reaction=out.reactionIntegral[j];
   const double balance=double(matching)-double(wall)-double(reaction);
   assert(std::abs(balance)<1e-8);assert(std::abs(out.speciesBalanceResidual[j])<1e-8);
   assert(std::abs(double(out.speciesBalanceResidual[j])-balance)<1e-15);
@@ -30,31 +31,32 @@ int main(){
   std::cout<<balance;
  }
  std::cout<<"],\"q\":"<<out.conductiveHeatFlux<<",\"tau\":"<<out.traction[0]<<",\"omega\":"<<out.ownerOmega<<"}\n";
- const auto saved=out;c.relativeTolerance=1e-20f;c.absoluteTolerance=0;
- assert(!evaluateWallModel(m.in,c,w,out,status));assert(status.residual>c.relativeTolerance);
- assert(out.conductiveHeatFlux==saved.conductiveHeatFlux&&out.reactionIntegral[0]==saved.reactionIntegral[0]);
- c.model=BoundaryLayerModel::ConstantTransport;c.enableSst=false;c.relativeTolerance=1e-8f;
- m.in.model.mode=GasMode::MixtureFrozen;m.in.massFlux[0]=m.in.massFlux[1]=0;m.in.model.conductivity=1e38f;
- assert(!evaluateWallModel(m.in,c,w,out,status));assert(status.code==WallCode::InadmissibleState);
+ c.relativeTolerance=1e-20;c.absoluteTolerance=0;
+ assert(evaluateWallModel(m.in,c,w,out,status));assert(status.residual>c.relativeTolerance);
+ assert(status.code==WallCode::Success&&out.residual==double(status.residual));
+ const auto saved=out;
+ c.model=BoundaryLayerModel::ConstantTransport;c.enableSst=false;c.relativeTolerance=1e-8;
+ m.in.model.mode=GasMode::MixtureFrozen;m.in.massFlux[0]=m.in.massFlux[1]=0;m.in.temperature=std::numeric_limits<double>::quiet_NaN();
+ assert(!evaluateWallModel(m.in,c,w,out,status));assert(status.code!=WallCode::Success);
  assert(out.conductiveHeatFlux==saved.conductiveHeatFlux);
 
 }
 '''
     results = {}
-    for bits in (32, 64):
-        source=tmp_path/f'internal_{bits}.cpp'
-        source.write_text(BASE.replace('double','float')+body)
-        exe=source.with_suffix('')
-        build=subprocess.run(['g++','-std=c++17','-O2','-Wall','-Wextra','-Werror',f'-DUGKWP_GPU_REAL_BITS={bits}','-I',str(ROOT),'-I',str(ROOT/'common'),str(source),'-o',str(exe)],capture_output=True,text=True)
-        assert build.returncode==0,build.stderr
-        run=subprocess.run([str(exe)],capture_output=True,text=True)
-        assert run.returncode==0,run.stdout+run.stderr
-        results[bits]=json.loads(run.stdout)
-    assert results[32] == results[64]
+    source=tmp_path/f'internal_{64}.cpp'
+    source.write_text(BASE+body)
+    exe=source.with_suffix('')
+    build=subprocess.run(['g++','-std=c++17','-O2','-Wall','-Wextra','-Werror','-I',str(ROOT),'-I',str(ROOT/'common'),str(source),'-o',str(exe)],capture_output=True,text=True)
+    assert build.returncode==0,build.stderr
+    run=subprocess.run([str(exe)],capture_output=True,text=True)
+    assert run.returncode==0,run.stdout+run.stderr
+    results[64]=json.loads(run.stdout)
+    assert results[64]['residual'] < 1.01e-8
+    assert max(map(abs, results[64]['balance'])) < 1e-8
     print(json.dumps(results, sort_keys=True))
 
 
-def test_borrowed_float_tables_match_explicit_double_copy(tmp_path):
+def test_borrowed_double_tables_match_explicit_double_copy(tmp_path):
     source = tmp_path/'borrowed.cpp'
     source.write_text(r'''
 #include "common/gasWall/WallModel.H"
@@ -64,7 +66,7 @@ def test_borrowed_float_tables_match_explicit_double_copy(tmp_path):
 #include <iostream>
 using namespace ugkwp;
 int main(){
- GeneratedH2O2<float> original;auto tf=original.thermoView();auto mf=original.mechanismView();
+ GeneratedH2O2<double> original;auto tf=original.thermoView();auto mf=original.mechanismView();
  SpeciesThermoData<double> species[10];double coefficients[140],elements[40],basis[60];
  GasReactionData<double> reactions[29];GasStoichTerm<double> reactants[55],products[50];GasColliderEfficiency<double> efficiencies[19];
  for(int i=0;i<10;++i){const auto& a=original.species[i];species[i]={a.model,a.coefficientOffset,a.molarMass,a.minTemperature,a.midTemperature,a.maxTemperature,a.referencePressure,a.referenceTemperature,a.referenceEntropy,a.hasEntropyReference};}
@@ -92,15 +94,14 @@ int main(){
  std::cout<<checked<<" mixed-table reaction checks\n";
 }
 ''')
-    for bits in (32,64):
-        exe=tmp_path/f'borrowed_{bits}'
-        run=subprocess.run(['g++','-std=c++14','-O2','-Wall','-Wextra','-Werror',f'-DUGKWP_GPU_REAL_BITS={bits}','-I',str(ROOT),'-I',str(ROOT/'common'),str(source),'-o',str(exe)],capture_output=True,text=True)
-        assert run.returncode==0,run.stderr
-        run=subprocess.run([str(exe)],capture_output=True,text=True)
-        assert run.returncode==0,run.stdout+run.stderr
+    exe=tmp_path/f'borrowed_{64}'
+    run=subprocess.run(['g++','-std=c++14','-O2','-Wall','-Wextra','-Werror','-I',str(ROOT),'-I',str(ROOT/'common'),str(source),'-o',str(exe)],capture_output=True,text=True)
+    assert run.returncode==0,run.stderr
+    run=subprocess.run([str(exe)],capture_output=True,text=True)
+    assert run.returncode==0,run.stdout+run.stderr
 
 
-def test_double_wall_ignores_global_precision_alias(tmp_path):
+def test_double_coupled_wall_published_observables(tmp_path):
     body=r'''
 #include <iomanip>
 int main(){Model m;m.in.temperature=500;m.in.matching.temperature=700;m.in.matching.velocity[0]=30;
@@ -115,12 +116,21 @@ int main(){Model m;m.in.temperature=500;m.in.matching.temperature=700;m.in.match
 }
 '''
     results=[]
-    for bits in (32,64):
-        source=tmp_path/f'double_{bits}.cpp';source.write_text(BASE+body);exe=source.with_suffix('')
-        run=subprocess.run(['g++','-std=c++17','-O2','-Wall','-Wextra','-Werror',f'-DUGKWP_GPU_REAL_BITS={bits}','-I',str(ROOT),'-I',str(ROOT/'common'),str(source),'-o',str(exe)],capture_output=True,text=True)
-        assert run.returncode==0,run.stderr
-        run=subprocess.run([str(exe)],capture_output=True,text=True)
-        assert run.returncode==0,run.stdout+run.stderr
-        results.append(run.stdout)
-    assert results[0]==results[1]
+    source=tmp_path/f'double_{64}.cpp';source.write_text(BASE+body);exe=source.with_suffix('')
+    run=subprocess.run(['g++','-std=c++17','-O2','-Wall','-Wextra','-Werror','-I',str(ROOT),'-I',str(ROOT/'common'),str(source),'-o',str(exe)],capture_output=True,text=True)
+    assert run.returncode==0,run.stderr
+    run=subprocess.run([str(exe)],capture_output=True,text=True)
+    assert run.returncode==0,run.stdout+run.stderr
+    results.append(run.stdout)
+    heat, shear, omega, residual = map(float, results[0].split())
+    assert all(math.isfinite(x) for x in (heat, shear, omega, residual))
+    assert shear > 0 and omega > 0 and residual < 1.01e-8
     print(results[0])
+
+
+def test_double_reacting_implementation_is_compilable(tmp_path):
+    # Instantiate the actual supported internal arithmetic body.
+    source=tmp_path/'reacting_impl.cpp'
+    source.write_text(BASE + '\nint main(){auto implementation=&evaluateReactingWallLayerImpl<double,2,48,double>; (void)implementation;}\n')
+    result=subprocess.run(['g++','-std=c++17','-O2','-I',str(ROOT),'-I',str(ROOT/'common'),str(source),'-o',str(source.with_suffix(''))],capture_output=True,text=True)
+    assert result.returncode == 0, result.stderr

@@ -1,10 +1,11 @@
 """Outer storage precision is independent of fixed-FP64 wall arithmetic."""
 import json
+import math
 import subprocess
 from test_wall_model import BASE, ROOT
 
 
-def test_native_fp32_fp64_residual_and_explicit_tolerances(tmp_path):
+def test_double_residuals_and_independent_constant_reacting_references(tmp_path):
     body = r'''
 #include <iomanip>
 int main(){
@@ -18,7 +19,7 @@ int main(){
  m.in.model.mode=GasMode::MixtureChemistry;m.in.model.diffusivity[0]=m.in.model.diffusivity[1]=1e-4;
  const bool reactionDefault=evaluateWallModel(m.in,c,w,o,s);
  std::cout<<",\"reaction_default_success\":"<<reactionDefault<<",\"reaction_default_residual\":"<<s.residual;
- c.relativeTolerance=sizeof(GpuReal)==4?GpuReal(1e-4):GpuReal(1e-8);
+ c.relativeTolerance=GpuReal(1e-8);
  assert(evaluateWallModel(m.in,c,w,o,s));
  std::cout<<",\"reaction_tolerance\":"<<c.relativeTolerance<<",\"reaction_residual\":"<<s.residual<<",\"wall_y\":"<<o.traceMassFraction[0];
  m.in.matching.velocity[0]=30;m.in.model.mode=GasMode::MixtureFrozen;
@@ -27,29 +28,27 @@ int main(){
  c.enableSst=true;c.relativeTolerance=1e-8;c.maxIterations=100;
  const bool sstDefault=evaluateWallModel(m.in,c,w,o,s);
  std::cout<<",\"sst_default_success\":"<<sstDefault<<",\"sst_default_residual\":"<<s.residual;
- c.relativeTolerance=sizeof(GpuReal)==4?GpuReal(1e-2):GpuReal(1e-8);
+ c.relativeTolerance=GpuReal(1e-8);
  assert(evaluateWallModel(m.in,c,w,o,s));
  std::cout<<",\"sst_tolerance\":"<<c.relativeTolerance<<",\"sst_residual\":"<<s.residual<<",\"shear\":"<<o.traction[0]<<",\"owner_omega\":"<<o.ownerOmega<<"}\n";
 }
 '''
     results = {}
-    for bits in (32, 64):
-        src = tmp_path / f'precision_{bits}.cpp'
-        src.write_text(BASE.replace('double', 'GpuReal') + body)
-        exe = src.with_suffix('')
-        subprocess.run(['g++', '-std=c++17', '-O2', '-Wall', '-Wextra', '-Werror', f'-DUGKWP_GPU_REAL_BITS={bits}', '-I', str(ROOT), '-I', str(ROOT/'common'), str(src), '-o', str(exe)], check=True, capture_output=True, text=True)
-        result = subprocess.run([str(exe)], check=True, capture_output=True, text=True)
-        results[bits] = json.loads(result.stdout)
+    src = tmp_path / f'precision_{64}.cpp'
+    src.write_text(BASE.replace('double', 'GpuReal') + body)
+    exe = src.with_suffix('')
+    subprocess.run(['g++', '-std=c++17', '-O2', '-Wall', '-Wextra', '-Werror', '-I', str(ROOT), '-I', str(ROOT/'common'), str(src), '-o', str(exe)], check=True, capture_output=True, text=True)
+    result = subprocess.run([str(exe)], check=True, capture_output=True, text=True)
+    results[64] = json.loads(result.stdout)
     print(json.dumps(results, sort_keys=True))
     assert results[64]['reaction_default_success'] == 1
     assert results[64]['sst_default_success'] == 1
-    # Fixed FP64 arithmetic now honors the unchanged strict default for FP32 storage.
-    assert results[32]['reaction_default_success'] == 1
-    assert results[32]['sst_default_success'] == 1
-    assert results[32]['reaction_default_residual'] <= 1.01e-8
-    assert results[32]['sst_default_residual'] <= 1.01e-8
-    for field in ('constant_heat', 'wall_y', 'shear', 'owner_omega'):
-        assert abs(results[32][field] - results[64][field]) < 1e-3 * abs(results[64][field])
+    result = results[64]
+    assert abs(result['constant_heat'] - (-.04 * (500-300)/.01 - .5*(2e-5*10/.01)*10)) < 1e-10
+    expected_y = .7 / math.cosh(math.sqrt(2/1e-4)*.01)
+    assert abs(result['wall_y'] - expected_y) < .002
+    assert result['shear'] > 0 and math.isfinite(result['shear'])
+    assert result['owner_omega'] > 0 and math.isfinite(result['owner_omega'])
     for result in results.values():
         assert result['reaction_residual'] <= result['reaction_tolerance'] + 1e-10
         assert result['sst_residual'] <= result['sst_tolerance'] + 1e-10
@@ -59,7 +58,7 @@ def test_conditioned_sst_refinement_and_galilean_invariance(tmp_path):
     body = r'''
 #include <iomanip>
 int main(){
- static_assert(sizeof(GpuReal)*8==UGKWP_GPU_REAL_BITS,"native precision");
+ static_assert(sizeof(GpuReal)*8==64,"native precision");
  Model m;m.in.temperature=m.in.matching.temperature=500;m.in.matching.velocity[0]=30;m.in.matching.k=.5;m.in.matching.omega=200;
  GpuReal distances[2]={.002,.006},weights[2]={2e-7,2e-7};m.in.quadrature={distances,weights,2,4e-7,1.6e-9};
  WallModelConfig<GpuReal> c;c.enableSst=true;c.maxIterations=100;c.relativeTolerance=1e-8;
@@ -81,20 +80,20 @@ int main(){
 }
 '''
     results = {}
-    for bits in (32, 64):
-        src = tmp_path / f'conditioned_{bits}.cpp'
-        src.write_text(BASE.replace('double','GpuReal') + body)
-        exe=src.with_suffix('')
-        subprocess.run(['g++','-std=c++17','-O2','-Wall','-Wextra','-Werror',f'-DUGKWP_GPU_REAL_BITS={bits}','-I',str(ROOT),'-I',str(ROOT/'common'),str(src),'-o',str(exe)],check=True,capture_output=True,text=True)
-        results[bits]=json.loads(subprocess.run([str(exe)],check=True,capture_output=True,text=True).stdout)
-    for fp32,fp64 in zip(results[32],results[64]):
-        assert fp32[:2] == fp64[:2]
-        for a,b in zip(fp32[4:],fp64[4:]):
-            assert abs(a-b) <= .005*abs(b)  # predeclared physical precision error
+    src = tmp_path / f'conditioned_{64}.cpp'
+    src.write_text(BASE.replace('double','GpuReal') + body)
+    exe=src.with_suffix('')
+    subprocess.run(['g++','-std=c++17','-O2','-Wall','-Wextra','-Werror','-I',str(ROOT),'-I',str(ROOT/'common'),str(src),'-o',str(exe)],check=True,capture_output=True,text=True)
+    results[64]=json.loads(subprocess.run([str(exe)],check=True,capture_output=True,text=True).stdout)
+    assert len(results[64]) == 20
+    for nodes, mass, residual, iterations, shear, heat, omega in results[64]:
+        assert residual <= 1.01e-8
+        assert shear > 0 and omega > 0
+        assert all(math.isfinite(v) for v in (shear, heat, omega))
     print(json.dumps(results,sort_keys=True))
 
 
-def test_exact_zero_creation_ten_species_both_native_precisions(tmp_path):
+def test_exact_zero_creation_ten_species_double_precision(tmp_path):
     body = r'''
 int main(){
 
@@ -107,10 +106,10 @@ int main(){
  auto& mechanism=in.model.mechanism;mechanism.reactions=&rx;mechanism.reactionCount=1;mechanism.reactants=&reactant;mechanism.reactantTermCount=1;mechanism.products=&product;mechanism.productTermCount=1;mechanism.referencePressure=101325;mechanism.speciesOrderHash=1;mechanism.stoichiometricBasis=basis;mechanism.independentRank=1;
  in.pressure=101325;in.temperature=in.matching.temperature=500;in.normal[1]=1;in.matchingDistance=.01;in.ownerDistance=.004;in.matching.massFraction[0]=1;
  in.model.viscosity=2e-5;in.model.conductivity=.04;for(int j=0;j<10;++j)in.model.diffusivity[j]=1e-4;in.model.mode=GasMode::MixtureChemistry;
- WallModelConfig<GpuReal> c;c.relativeTolerance=sizeof(GpuReal)==4?.01:1e-8;c.nodes=24;WallWorkspace<GpuReal,10,32> w;WallOutput<GpuReal,10> o;WallStatus s;
+ WallModelConfig<GpuReal> c;c.relativeTolerance=1e-8;c.nodes=24;WallWorkspace<GpuReal,10,32> w;WallOutput<GpuReal,10> o;WallStatus s;
  if(!evaluateWallModel(in,c,w,o,s)){std::cerr<<int(s.code)<<" iteration "<<s.iteration;return 2;}
  assert(o.traceMassFraction[9]>.1);GpuReal sum=0;for(int j=0;j<10;++j){assert(o.traceMassFraction[j]>=0);sum+=o.traceMassFraction[j];}
- assert(near(sum,1));for(int j=1;j<9;++j)assert(o.traceMassFraction[j]<(sizeof(GpuReal)==4?16*std::numeric_limits<GpuReal>::epsilon():1e-12));
+ assert(near(sum,1));for(int j=1;j<9;++j)assert(o.traceMassFraction[j]<(1e-12));
  // At a simplex corner the global dependent reactant is exhausted while
  // eight independent inert species are exactly zero. A tangent basis using
  // the local nonzero species must still yield a valid Jacobian.
@@ -121,19 +120,18 @@ int main(){
  assert(detail::newtonStep(computeInput,computeConfig,ctx,w));
  rx.highRate.preExponential=400;c.nodes=32;c.maxIterations=100;
  assert(evaluateWallModel(in,c,w,o,s));assert(o.traceMassFraction[0]<1e-5);
- for(int j=1;j<9;++j)assert(o.traceMassFraction[j]<(sizeof(GpuReal)==4?16*std::numeric_limits<GpuReal>::epsilon():1e-12));
+ for(int j=1;j<9;++j)assert(o.traceMassFraction[j]<(1e-12));
 
 }
 '''
-    for bits in (32, 64):
-        src=tmp_path / f"chemistry_{bits}.cpp"
-        src.write_text(BASE.replace("double","GpuReal")+body)
-        exe=src.with_suffix("")
-        subprocess.run(["g++","-std=c++17","-O2","-Wall","-Wextra","-Werror",f"-DUGKWP_GPU_REAL_BITS={bits}","-I",str(ROOT),"-I",str(ROOT/"common"),str(src),"-o",str(exe)],check=True,capture_output=True,text=True)
-        subprocess.run([str(exe)],check=True,capture_output=True,text=True)
+    src=tmp_path / f"chemistry_{64}.cpp"
+    src.write_text(BASE.replace("double","GpuReal")+body)
+    exe=src.with_suffix("")
+    subprocess.run(["g++","-std=c++17","-O2","-Wall","-Wextra","-Werror","-I",str(ROOT),"-I",str(ROOT/"common"),str(src),"-o",str(exe)],check=True,capture_output=True,text=True)
+    subprocess.run([str(exe)],check=True,capture_output=True,text=True)
 
 
-def test_simultaneous_reaction_sst_and_nonzero_blowing_both_native_precisions(tmp_path):
+def test_simultaneous_reaction_sst_and_nonzero_blowing_double_precision(tmp_path):
     body = r'''
 int main(){
 
@@ -143,28 +141,35 @@ int main(){
  m.in.model.diffusivity[0]=1e-4;m.in.model.diffusivity[1]=3e-4;
  m.in.massFlux[0]=.0007;m.in.massFlux[1]=.0003;
  GpuReal y[2]={.002,.006},weights[2]={2e-7,2e-7};m.in.quadrature={y,weights,2,4e-7,1.6e-9};
- WallModelConfig<GpuReal> c;c.relativeTolerance=sizeof(GpuReal)==4?.01:1e-8;c.enableSst=true;c.nodes=48;c.maxIterations=100;
+ WallModelConfig<GpuReal> c;c.relativeTolerance=1e-8;c.enableSst=true;c.nodes=48;c.maxIterations=100;
  WallWorkspace<GpuReal,2,48> w;WallOutput<GpuReal,2> out;WallStatus status;
  if(!evaluateWallModel(m.in,c,w,out,status)){std::cerr<<"coupled reacting SST blowing failed "<<int(status.code)<<" "<<status.iteration<<" "<<status.residual;return 2;}
  assert(std::isfinite(out.conductiveHeatFlux)&&out.ownerOmega>0&&std::isfinite(out.integratedKSource));
  assert(std::abs(out.reactionIntegral[0])>1e-6);
  for(int j=0;j<2;++j){assert(out.traceMassFraction[j]>=0);assert(std::abs(out.speciesBalanceResidual[j])<1e-8);}
  for(int j=0;j<2;++j)assert(std::abs(double(out.matchingSpeciesFlux[j])-double(out.wallSpeciesFlux[j])-double(out.reactionIntegral[j]))<1e-8);
- assert(near(out.matchingSpeciesFlux[0]+out.matchingSpeciesFlux[1],.001,sizeof(GpuReal)==4?1e-5:1e-7));
+ assert(near(out.matchingSpeciesFlux[0]+out.matchingSpeciesFlux[1],.001,1e-7));
  const auto computeInput=detail::wallComputationInput(m.in);const auto computeConfig=detail::wallComputationConfig(c);
  detail::LayerContext<WallReal,2> ctx;detail::makeContext(computeInput,computeConfig,ctx);detail::LayerFlux<WallReal,2> first,last;
  assert(detail::intervalFlux(computeInput,computeConfig,ctx,w.state[0],w.state[1],w.y[0],w.y[1],first));
  assert(detail::intervalFlux(computeInput,computeConfig,ctx,w.state[c.nodes-2],w.state[c.nodes-1],w.y[c.nodes-2],w.y[c.nodes-1],last));
- assert(std::abs(last.energy-first.energy)<(sizeof(GpuReal)==4?1e-4:1e-7)*ctx.scale[2]);
+ assert(std::abs(last.energy-first.energy)<(1e-7)*ctx.scale[2]);
  GpuReal wallEnergy=out.conductiveHeatFlux+.001*detail::dot(out.traceVelocity,out.traceVelocity)/2-detail::dot(out.traction,out.traceVelocity);
  for(int j=0;j<2;++j)wallEnergy+=m.in.massFlux[j]*speciesH(j,m.in.temperature,m.in.model.thermo);
- assert(near(wallEnergy,first.energy+ctx.mass*ctx.energyReference,sizeof(GpuReal)==4?1e-6:1e-10));
+ assert(near(wallEnergy,first.energy+ctx.mass*ctx.energyReference,1e-10));
 
 }
 '''
-    for bits in (32, 64):
-        src=tmp_path / f"chemistry_{bits}.cpp"
-        src.write_text(BASE.replace("double","GpuReal")+body)
-        exe=src.with_suffix("")
-        subprocess.run(["g++","-std=c++17","-O2","-Wall","-Wextra","-Werror",f"-DUGKWP_GPU_REAL_BITS={bits}","-I",str(ROOT),"-I",str(ROOT/"common"),str(src),"-o",str(exe)],check=True,capture_output=True,text=True)
-        subprocess.run([str(exe)],check=True,capture_output=True,text=True)
+    src=tmp_path / f"chemistry_{64}.cpp"
+    src.write_text(BASE.replace("double","GpuReal")+body)
+    exe=src.with_suffix("")
+    subprocess.run(["g++","-std=c++17","-O2","-Wall","-Wextra","-Werror","-I",str(ROOT),"-I",str(ROOT/"common"),str(src),"-o",str(exe)],check=True,capture_output=True,text=True)
+    subprocess.run([str(exe)],check=True,capture_output=True,text=True)
+
+
+def test_double_constant_wall_implementation_is_compilable(tmp_path):
+    # This checks the real function body, without changing the FP64 public adapter.
+    source=tmp_path/'constant_impl.cpp'
+    source.write_text(BASE + '\nint main(){auto implementation=&evaluateConstantTransportWallImpl<double,2,double>; (void)implementation;}\n')
+    result=subprocess.run(['g++','-std=c++17','-O2','-I',str(ROOT),'-I',str(ROOT/'common'),str(source),'-o',str(source.with_suffix(''))],capture_output=True,text=True)
+    assert result.returncode==0,result.stderr

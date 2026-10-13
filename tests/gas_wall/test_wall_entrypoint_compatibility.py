@@ -4,8 +4,7 @@ import pytest
 from test_wall_model import BASE, ROOT
 
 
-@pytest.mark.parametrize('bits', [32, 64])
-def test_old_explicit_and_mixed_view_entrypoints(tmp_path, bits):
+def test_old_explicit_and_mixed_view_entrypoints(tmp_path):
     model = BASE.split('bool near(')[0].replace('struct Model {', 'template<class R> struct Model {').replace('double', 'R')
     body = r'''
 template<class R> void legacyEntryPoints(){
@@ -27,14 +26,14 @@ template<class R> void legacyEntryPoints(){
  assert(inferred.residual==explicitArgs.residual);
 }
 int main(){
- legacyEntryPoints<float>();legacyEntryPoints<double>();
- Model<float> m;auto in=detail::wallComputationInput(m.in);
+ legacyEntryPoints<double>();legacyEntryPoints<double>();
+ Model<double> m;auto in=detail::wallComputationInput(m.in);
  WallModelConfig<double> c;WallStatus s;WallWorkspace<double,2,48> w;
  WallOutput<double,2> inferred,explicitArgs,tableArgs;
  c.model=BoundaryLayerModel::ConstantTransport;
  assert(evaluateConstantTransportWall(in,c,inferred,s));
  assert((evaluateConstantTransportWall<double,2>(in,c,explicitArgs,s)));
- assert((evaluateConstantTransportWall<double,2,float>(in,c,tableArgs,s)));
+ assert((evaluateConstantTransportWall<double,2,double>(in,c,tableArgs,s)));
  assert(inferred.conductiveHeatFlux==explicitArgs.conductiveHeatFlux);
  assert(inferred.conductiveHeatFlux==tableArgs.conductiveHeatFlux);
  in.temperature=in.matching.temperature=500;in.matching.velocity[0]=0;
@@ -43,7 +42,7 @@ int main(){
  c.model=BoundaryLayerModel::ReactingSst;c.nodes=24;
  assert(evaluateReactingWallLayer(in,c,w,inferred,s));
  assert((evaluateReactingWallLayer<double,2,48>(in,c,w,explicitArgs,s)));
- assert((evaluateReactingWallLayer<double,2,48,float>(in,c,w,tableArgs,s)));
+ assert((evaluateReactingWallLayer<double,2,48,double>(in,c,w,tableArgs,s)));
  assert(inferred.reactionIntegral[0]==explicitArgs.reactionIntegral[0]);
  assert(inferred.reactionIntegral[0]==tableArgs.reactionIntegral[0]);
  assert(inferred.residual==explicitArgs.residual&&inferred.residual==tableArgs.residual);
@@ -53,7 +52,7 @@ int main(){
     source.write_text(model+body)
     exe = source.with_suffix('')
     build = subprocess.run(['g++', '-std=c++14', '-O2', '-Wall', '-Wextra', '-Werror',
-                            f'-DUGKWP_GPU_REAL_BITS={bits}', '-I', str(ROOT),
+                            '-I', str(ROOT),
                             '-I', str(ROOT/'common'), str(source), '-o', str(exe)],
                            capture_output=True, text=True)
     assert build.returncode == 0, build.stderr

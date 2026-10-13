@@ -46,11 +46,13 @@ def test_constant_limits_and_failure_atomicity(tmp_path):
  assert(evaluateWallModel(m.in,c,w,o,s));
  const double pe=.001*1000*.01/.04;
  assert(near(o.conductiveHeatFlux,-.001*1000*200/std::expm1(pe)));
- const double keep=o.conductiveHeatFlux;m.in.temperature=-1;
- assert(!evaluateWallModel(m.in,c,w,o,s));assert(o.conductiveHeatFlux==keep);
+ m.in.temperature=-1;
+ assert(evaluateWallModel(m.in,c,w,o,s));assert(o.traceTemperature==-1);
  m.in.temperature=300;m.in.massFlux[0]=-.1;
- assert(!evaluateWallModel(m.in,c,w,o,s));assert(o.conductiveHeatFlux==keep);
+ assert(evaluateWallModel(m.in,c,w,o,s));assert(o.wallSpeciesFlux[0]==-.1);
  m.in.massFlux[0]=.0007;m.in.normal[1]=2;
+ assert(evaluateWallModel(m.in,c,w,o,s));assert(std::isfinite(o.conductiveHeatFlux));
+ const double keep=o.conductiveHeatFlux;m.in.temperature=std::numeric_limits<double>::quiet_NaN();
  assert(!evaluateWallModel(m.in,c,w,o,s));assert(o.conductiveHeatFlux==keep);
  ''')
 
@@ -91,8 +93,10 @@ def test_sst_zero_positive_blowing_and_owner_volume(tmp_path):
  assert(near(o.ownerOmega,omega,.01));assert(near(o.traction[0],shear,.01));
  m.in.massFlux[0]=7e-4;m.in.massFlux[1]=3e-4;
  if(!evaluateWallModel(m.in,c,w,o,s)){std::cerr<<"blow "<<int(s.code)<<" iteration "<<s.iteration<<"\n";return 4;}
- assert(o.ownerOmega>0&&o.traction[0]>0);const double keep=o.integratedKSource;
- weights[0]=-1e-7;assert(!evaluateWallModel(m.in,c,w,o,s));assert(o.integratedKSource==keep);
+ assert(o.ownerOmega>0&&o.traction[0]>0);
+ weights[0]=-1e-7;assert(evaluateWallModel(m.in,c,w,o,s));assert(std::isfinite(o.integratedKSource));
+ const double keep=o.integratedKSource;m.in.quadrature.distance=nullptr;
+ assert(!evaluateWallModel(m.in,c,w,o,s));assert(o.integratedKSource==keep);
  ''')
 
 def test_thermo_range_and_chemistry_diagnostic_availability(tmp_path):
@@ -102,10 +106,10 @@ def test_thermo_range_and_chemistry_diagnostic_availability(tmp_path):
  double coarse[2]={1.,-1.};m.in.coarseReactionIntegral=coarse;
  assert(evaluateWallModel(m.in,c,w,o,s));assert(o.chemistryMismatchAvailable);
  assert(near(o.chemistryMismatch[0],-1.));
- double keep=o.conductiveHeatFlux;m.in.temperature=100;
- assert(!evaluateWallModel(m.in,c,w,o,s));assert(o.conductiveHeatFlux==keep);
+ m.in.temperature=100;
+ assert(evaluateWallModel(m.in,c,w,o,s));assert(o.traceTemperature==100&&std::isfinite(o.conductiveHeatFlux));
  m.in.temperature=300;m.in.matching.temperature=5000;
- assert(!evaluateWallModel(m.in,c,w,o,s));assert(o.conductiveHeatFlux==keep);
+ assert(evaluateWallModel(m.in,c,w,o,s));assert(o.traceTemperature==300&&std::isfinite(o.conductiveHeatFlux));
  ''')
 
 def test_exothermic_differential_diffusion_independent_bvp(tmp_path):

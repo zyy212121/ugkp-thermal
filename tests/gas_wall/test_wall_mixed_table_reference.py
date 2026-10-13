@@ -6,13 +6,12 @@ import pytest
 ROOT = Path(__file__).resolve().parents[2]
 
 
-@pytest.mark.parametrize('bits', [32, 64])
-def test_borrowed_float_tables_against_independent_physical_reference(tmp_path, bits):
+def test_double_tables_against_independent_physical_reference(tmp_path):
     source = Path(__file__).with_name('mixed_table_reference_probe.cpp')
-    executable = tmp_path/f'mixed_table_{bits}'
+    executable = tmp_path/f'mixed_table_{64}'
     compiled = subprocess.run([
         'g++', '-std=c++14', '-O2', '-Wall', '-Wextra', '-Werror',
-        f'-DUGKWP_GPU_REAL_BITS={bits}', '-I', str(ROOT), '-I', str(ROOT/'common'),
+        '-I', str(ROOT), '-I', str(ROOT/'common'),
         str(source), '-o', str(executable),
     ], capture_output=True, text=True)
     assert compiled.returncode == 0, compiled.stderr

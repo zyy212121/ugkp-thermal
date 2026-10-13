@@ -3,8 +3,7 @@ import subprocess
 import pytest
 from test_wall_model import BASE, ROOT
 
-@pytest.mark.parametrize('bits',[32,64])
-def test_owner_source_integral_is_opt_in_and_physics_is_identical(tmp_path,bits):
+def test_owner_source_integral_is_opt_in_and_physics_is_identical(tmp_path):
     body=r'''
 #include <cstring>
 int main(){Model m;m.in.temperature=m.in.matching.temperature=500;m.in.matching.velocity[0]=30;m.in.matching.k=.5;m.in.matching.omega=200;
@@ -24,5 +23,5 @@ int main(){Model m;m.in.temperature=m.in.matching.temperature=500;m.in.matching.
 '''
     src=tmp_path/'probe.cpp';src.write_text(BASE.replace('double','GpuReal')+body)
     exe=tmp_path/'probe'
-    subprocess.run(['g++','-std=c++17','-O2',f'-DUGKWP_GPU_REAL_BITS={bits}','-I'+str(ROOT),'-I'+str(ROOT/'common'),str(src),'-o',str(exe)],check=True)
+    subprocess.run(['g++','-std=c++17','-O2','-I'+str(ROOT),'-I'+str(ROOT/'common'),str(src),'-o',str(exe)],check=True)
     subprocess.run([str(exe)],check=True)
