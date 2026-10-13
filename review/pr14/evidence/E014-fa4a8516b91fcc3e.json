@@ -1,0 +1,28 @@
+{
+  "base": "52e331374e19fe5a7d6887b303c58385525b4d4e",
+  "paths": [
+    "applications/CHMT/materials/CpuMaterialDriver.C",
+    "applications/CHMT/materials/CpuMaterialDriver.H",
+    "applications/CHMT/tests/test_multirate_orchestration.cpp",
+    "applications/CHMT/tests/test_owner_endpoint_of.C",
+    "applications/CHMT/tests/test_owner_terminal_of.C",
+    "tests/fixtures/owner_terminal/program.hpp"
+  ],
+  "source_sha256": {
+    "applications/CHMT/materials/CpuMaterialDriver.C": "7bb24ae326cc5bb01403c2770cf73623d293956a4ae643bffeaa9e5b0812b9b0",
+    "applications/CHMT/materials/CpuMaterialDriver.H": "89ac4fc595b063deb226ff9248abd31f1c41c1b55d15fcb0d4a18d06afd8c506",
+    "applications/CHMT/tests/test_multirate_orchestration.cpp": "da53e60dd55c132951328b04556fcb94527baa48dddc16696042f5e658fb790c",
+    "applications/CHMT/tests/test_owner_endpoint_of.C": "fc5acbb187c9939cd4af3357e445441342df24bca8deea41a5e31e31ce0f990d",
+    "applications/CHMT/tests/test_owner_terminal_of.C": "378a19cf77481cb521ae709fe3070773915875f86dda131045e522cb5fd53b65",
+    "tests/fixtures/owner_terminal/program.hpp": "94ca4ac892e291fe8d06b594db3a85e33a5169649deab188e1059bfa18a76c3d"
+  },
+  "patch_sha256": "5e9dd37c3f777bedf218b3b57bd4abfd8aabdbdc2e514b5f23849b244cc70a81",
+  "receipt_sha256": "03a31e3d3aeba2a7dabdac1ab41763ecf0b24c326fd831228a1412d6bfcb9f47",
+  "report_sha256": "d6a4b1d4d618c85566357093344327b8ab23eebaaa297338d676dd2e600f91bd",
+  "scripts_sha256": {
+    "baseline-build.sh": "2a6de513ccea0513db173da4982ace058815141c883619ba3233af3c18fe4804",
+    "red-build.sh": "a0e8246e287ba153103f1ceabea22554935e2f9a251286b58293c4f0b41e9dc5",
+    "endpoint-build.sh": "606eefb042d41a10bfe2f58ed22cd8a19990649b3417c47132129ea49ccb912a",
+    "native-build.sh": "b79fbe4e06b909f698073b2ab2807eeb0d6e869b58fd62831f7c58f332f4da8d"
+  }
+}

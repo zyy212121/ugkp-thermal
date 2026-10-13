@@ -1,0 +1,332 @@
+[
+  {
+    "path": "source-manifest.json",
+    "sha256": "2515a569cff98b1bc5694504265a75c2fbe27439c4d33327c260471534f61935",
+    "bytes": 6114
+  },
+  {
+    "path": "particle-terminal.patch",
+    "sha256": "44e56b97eebd2ea692dedc326e7a88c7bed35d208a567f8b250dc736839a4470",
+    "bytes": 51499
+  },
+  {
+    "path": "report.md",
+    "sha256": "652d3d8db17ca5c8cce1000cb9765a0d5f254420628b86c5c1ef7ecd9432d80d",
+    "bytes": 9169
+  },
+  {
+    "path": "gpu-acceptance.md",
+    "sha256": "2c23bd0bc9a386312fcea7cd3a8c35e317b367c64e215d0e9dc4537b362e9e8b",
+    "bytes": 4188
+  },
+  {
+    "path": "freeze.py",
+    "sha256": "dbe879807691736849d3253b0d008c45c71047ae372332527f90b9c49f2f121d",
+    "bytes": 2481
+  },
+  {
+    "path": "reference-test-particle-terminal.py",
+    "sha256": "5d2030d3e8912336ad468432a1e8b0f237f1ab951a642bfdc312ff037a72b053",
+    "bytes": 10236
+  },
+  {
+    "path": "helper-red.log",
+    "sha256": "2b5f7dfb002736651cedbcd7d99fc825e2c93a744c84b1733552c93c170d4ac7",
+    "bytes": 15369
+  },
+  {
+    "path": "owned-paths.txt",
+    "sha256": "db37560d9ea839b902f0dad580f5f6edc75ab5f6d9faf00ebb4fc5ce77e34ac8",
+    "bytes": 952
+  },
+  {
+    "path": "red.log",
+    "sha256": "9448c0685bf497e1101131d948b7a0eb81558b936e244daf8e7d600b66a6537f",
+    "bytes": 38382
+  },
+  {
+    "path": "cuda/collision0.log",
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "bytes": 0
+  },
+  {
+    "path": "cuda/transport0.o",
+    "sha256": "951b37b8bb5ed8374608c2d2924ab9d67f7ba0ddc3457551f1fbdf2729617026",
+    "bytes": 61176
+  },
+  {
+    "path": "cuda/source-closure.json",
+    "sha256": "45b7f9733a0557700ae14aa3e352a6126b1c9400e557c129f42d22e1e9dd2b63",
+    "bytes": 9943
+  },
+  {
+    "path": "cuda/collision.cu",
+    "sha256": "e4e9f3ab07c0527c38de0b1fbe0bbd54d6051e3653ea8feeb071e3791346f9ba",
+    "bytes": 3292
+  },
+  {
+    "path": "cuda/helpers.log",
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "bytes": 0
+  },
+  {
+    "path": "cuda/payload.o",
+    "sha256": "cd309da07df68368e963921429780b5f797af0aa41ec7260dbf481cc9dce7958",
+    "bytes": 24224
+  },
+  {
+    "path": "cuda/tasks.cu",
+    "sha256": "1d379daadf39ec5410111e188ffad04bd4369f5496faabfd85414de090478262",
+    "bytes": 861
+  },
+  {
+    "path": "cuda/prepare.py",
+    "sha256": "2bdfdffd0a7fcbd9d48168e386288e5659c237a795f081d34d9380800ae03c31",
+    "bytes": 8485
+  },
+  {
+    "path": "cuda/transport1.log",
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "bytes": 0
+  },
+  {
+    "path": "cuda/tasks.o",
+    "sha256": "03364486638748cee3282a285045b01ef18e56b1098192e222c621be0bf0e9a5",
+    "bytes": 15824
+  },
+  {
+    "path": "cuda/commands.json",
+    "sha256": "f2597452f032a77512f967d22a479655dd2121c6503e5541a10e8a08e1618bce",
+    "bytes": 6999
+  },
+  {
+    "path": "cuda/payload.log",
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "bytes": 0
+  },
+  {
+    "path": "cuda/finalizer.cu",
+    "sha256": "fbc01f65394881be2bfaa34095aca6ac4367bb714d6e69ff3a0371ba20281e4f",
+    "bytes": 1672
+  },
+  {
+    "path": "cuda/pressure.cu",
+    "sha256": "f33486234076348b900b33793c159d012e11787cb0afc105cb9745efa747be6e",
+    "bytes": 1526
+  },
+  {
+    "path": "cuda/collision1.o",
+    "sha256": "bd77d35dc866aa96b5452b73e21eada7568009ec379900552ab958cb164bca45",
+    "bytes": 43152
+  },
+  {
+    "path": "cuda/toolchain-version.txt",
+    "sha256": "d51da6fa301a0c63b030c6a9e45b942c5fe2228e63c0ec276a445943cf0bc6f6",
+    "bytes": 212
+  },
+  {
+    "path": "cuda/payload.cu",
+    "sha256": "c42cfb57bf03e9ee2ac7f852786130ef29c4ee04bbfc4d9fa73825472443cfe3",
+    "bytes": 1263
+  },
+  {
+    "path": "cuda/pressure.o",
+    "sha256": "4769b6ddf6d37918f118db9da5fb06a27208e6d2a16b3d058820be77e55b08f1",
+    "bytes": 11688
+  },
+  {
+    "path": "cuda/pressure.log",
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "bytes": 0
+  },
+  {
+    "path": "cuda/collision0.o",
+    "sha256": "74be83741058b74c0b50aa3b2236c141141ec1135a518581a99fd7a6eed6da57",
+    "bytes": 43280
+  },
+  {
+    "path": "cuda/tasks.log",
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "bytes": 0
+  },
+  {
+    "path": "cuda/transport1.o",
+    "sha256": "6627fd4165949754645b793c9ccb09185debdce9cb48528952d224bc44944d5c",
+    "bytes": 61168
+  },
+  {
+    "path": "cuda/helpers.cu",
+    "sha256": "ac408a2caeb26385be85e7e884c63a5b6c442f7a708ae09caaffe6c9363cdb93",
+    "bytes": 1238
+  },
+  {
+    "path": "cuda/transport.cu",
+    "sha256": "59d058736a6a4fe6dc916870ecb0efb5a7329c471cdc348b2c89eed4a5dd56d7",
+    "bytes": 4392
+  },
+  {
+    "path": "cuda/compile.py",
+    "sha256": "ed6c8479ed2e25ffe8a6304e417e671ad55b7606f3b703fe8c6acf12d4f02e20",
+    "bytes": 1133
+  },
+  {
+    "path": "cuda/finite-contact.log",
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "bytes": 0
+  },
+  {
+    "path": "cuda/finalizer.o",
+    "sha256": "279206a7c844c51647db76be9e96dff896c6173ba628eb132ab5e8f98e5d70a9",
+    "bytes": 34960
+  },
+  {
+    "path": "cuda/helpers.o",
+    "sha256": "2a8b41b473d02d90477bf43acb0783f744a554df78ebc5ed785b7221378374c2",
+    "bytes": 53640
+  },
+  {
+    "path": "cuda/collision1.log",
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "bytes": 0
+  },
+  {
+    "path": "cuda/finite-contact.cu",
+    "sha256": "634f751152ff1161c55ed7ad45386bc95300a8cb307d9c6b5219fac7b1fd24ac",
+    "bytes": 2249
+  },
+  {
+    "path": "cuda/transport0.log",
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "bytes": 0
+  },
+  {
+    "path": "cuda/finalizer.log",
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "bytes": 0
+  },
+  {
+    "path": "cuda/finite-contact.o",
+    "sha256": "587b020efe1fceda186ff7802a20d8810ad7364d28d474196a54cbccf830bdb7",
+    "bytes": 51384
+  },
+  {
+    "path": "source/common/GpuReductionTaskWrite.cuh",
+    "sha256": "dc0b3883af8001fc770a0066e2246c9d2a252a7aa7b4e8afa021724520379231",
+    "bytes": 332
+  },
+  {
+    "path": "source/common/GpuReductionTaskMaterialize.cuh",
+    "sha256": "3b32c3345c65e2b554cee54a7b0feff36887685c8bfab785fcf4b5d5779d13b0",
+    "bytes": 3877
+  },
+  {
+    "path": "source/common/GpuAutomaticCsrSchedule.cuh",
+    "sha256": "251a0d102e19204caf0c0c1eacdaadf9c1c8e3c1ade28d0faf4221f543694d5e",
+    "bytes": 3421
+  },
+  {
+    "path": "source/common/GpuParticleThermalConsumers.H",
+    "sha256": "74e0a7a79953b37795da97d468efa5ec1ab292ddc708974ca5fa9a8302bf0601",
+    "bytes": 4394
+  },
+  {
+    "path": "source/common/GpuCollisionPoolSampling.cuh",
+    "sha256": "6556e4a3fd222dc0821398c6619b8d8148de78c229bfaf42c6676b88fd218e5b",
+    "bytes": 4278
+  },
+  {
+    "path": "source/common/GpuParticlePayload.cuh",
+    "sha256": "5d6fdb397c32ebc2ea95bac6c6aedd33ad3489409533aaae8a858890c350fad8",
+    "bytes": 1231
+  },
+  {
+    "path": "source/common/GpuParticleThermalCarry.H",
+    "sha256": "e523149602479b05e4f956473c762f3b8de2bd837f33ee231219db593dd09cd8",
+    "bytes": 5080
+  },
+  {
+    "path": "source/common/GpuMobilePackingHost.cuh",
+    "sha256": "605bb800ae377c1a0a695b73405f101e283b739b41dbf9e64eb418cf16170de8",
+    "bytes": 2425
+  },
+  {
+    "path": "source/common/GpuCollisionPoolCorrection.cuh",
+    "sha256": "7987245f4de8e7d806bddd0ad13243d2357dc9551645c273820c567639c85939",
+    "bytes": 5068
+  },
+  {
+    "path": "source/common/GpuParticleTransport.cuh",
+    "sha256": "de207693a9f39cdbc11e3ffbb9b19d75349f2731211f900507a27506b20be96a",
+    "bytes": 9154
+  },
+  {
+    "path": "source/common/GpuThermalParticleFinalization.cuh",
+    "sha256": "c8cc6fe9fb4ce543e48edf904150c5529618700aa3f5bb6bc190185ce99fabc7",
+    "bytes": 7435
+  },
+  {
+    "path": "source/common/GpuPressurePipeline.cuh",
+    "sha256": "d5ee38a8d685abdb3bb5a858109ee79fcd6ce88f01d2190f3aef6d8fdb1748c6",
+    "bytes": 1491
+  },
+  {
+    "path": "source/tests/test_particle_routing_continuation.py",
+    "sha256": "8a42c3aa02cbbb521ce65e826c0a387e07608f8fb92da23e81cf4c98e95fbd9c",
+    "bytes": 37414
+  },
+  {
+    "path": "source/common/wall/GpuWallInterfaceHeat.H",
+    "sha256": "9e612807137a2e6ebcd9f47ebe74550a19e14848e5f12b001084c59d3ba6a546",
+    "bytes": 3125
+  },
+  {
+    "path": "source/common/wall/GpuSommerfeldSticking.H",
+    "sha256": "e84844bc7bfc6822af7d27a0352f23ec0bdfb769bfb8f1a92a18a7b13fb95ff0",
+    "bytes": 1600
+  },
+  {
+    "path": "source/common/wall/GpuCapillaryDetachment.H",
+    "sha256": "6dcc663a9a7f8939dcbcdeb13b9ab772656785ce399d8e3ba374fb40db286808",
+    "bytes": 3908
+  },
+  {
+    "path": "source/common/wall/GpuFiniteWallContact.H",
+    "sha256": "f8e1501c614d0c74201652a53eb1593c8d560ec1bd0b00e143f5b733775ef076",
+    "bytes": 18373
+  },
+  {
+    "path": "source/common/wall/GpuParticleWallContactHeat.H",
+    "sha256": "38f9aa14532f81a6b8951afedd5746eeb4a0f38ac17422f8c90a99d30c408902",
+    "bytes": 4551
+  },
+  {
+    "path": "source/common/wall/GpuAluminaProperties.H",
+    "sha256": "4a262c79c86aef23509f1f421b3e7edb35db06aad0d6c8bf766a78544d268178",
+    "bytes": 5445
+  },
+  {
+    "path": "source/common/operators/gatherSelectedParticlesKernel.cuh",
+    "sha256": "75ca7c2fb870476925506fa758343623275ff22b7d3fa3e4e72344cfc086b0df",
+    "bytes": 663
+  },
+  {
+    "path": "source/common/operators/rebuildWallBoundParticleDirectoryKernel.cuh",
+    "sha256": "e84c701fce87d6dd53540ed4c14a9dcebe9acdf245908f514ec54948cae52bf4",
+    "bytes": 1359
+  },
+  {
+    "path": "source/common/operators/FiniteContactRelaxation.inl",
+    "sha256": "959a5547aed9ee449f3091be3ebbf70739ed4fbac86c69ff8146504546f97127",
+    "bytes": 6887
+  },
+  {
+    "path": "source/common/operators/accumulateParticleWallRepresentedContactAreaKernel.cuh",
+    "sha256": "56bfdad5bfe51010fa092f506c8fd6a446c51f4fe0c1fcb6d06f23f2c97b4c67",
+    "bytes": 3487
+  },
+  {
+    "path": "source/common/operators/ParticleDragMomentum.inl",
+    "sha256": "d2e2283f64d5dfdb8c74d57553800a4f81ae8e9af0c4ae5b4e1ea66e6804cf53",
+    "bytes": 1370
+  }
+]

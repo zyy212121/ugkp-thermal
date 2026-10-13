@@ -1,0 +1,32 @@
+Making dependency list for source file GpuSolidPatchMapper.C
+g++ -std=c++14 -m64 -Dlinux64 -DWM_ARCH_OPTION=64 -DWM_DP -DWM_LABEL_SIZE=32 -Wall -Wextra -Wold-style-cast -Wnon-virtual-dtor -Wno-unused-parameter -Wno-invalid-offsetof -Wno-attributes -O3  -DNoRepository -ftemplate-depth-100 -fopenmp -I/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/finiteVolume/lnInclude -I/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/meshTools/lnInclude -I/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude -I. -I../../common -Igpu -Ithermal -DUGKWP_USE_CUDA -IlnInclude -I. -I/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude -I/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OSspecific/POSIX/lnInclude   -fPIC -c thermal/GpuSolidPatchMapper.C -o Make/linux64GccDPInt32Opt/thermal/GpuSolidPatchMapper.o
+In file included from /workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/scalarMatrices.H:46,
+                 from /workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/dimensionSets.H:39,
+                 from /workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/dimensionSet.H:444,
+                 from /workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/dimensionedType.H:40,
+                 from /workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/DimensionedField.H:43,
+                 from /workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/finiteVolume/lnInclude/fvMesh.H:58,
+                 from thermal/GpuSolidPatchMapper.H:5,
+                 from thermal/GpuSolidPatchMapper.C:1:
+/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/DiagonalMatrix.H:64:29: warning: template-id not allowed for constructor in C++20 [-Wtemplate-id-cdtor]
+   64 |         DiagonalMatrix<Type>();
+      |                             ^
+/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/DiagonalMatrix.H:64:29: note: remove the ‘< >’
+/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/DiagonalMatrix.H:68:29: warning: template-id not allowed for constructor in C++20 [-Wtemplate-id-cdtor]
+   68 |         DiagonalMatrix<Type>(const Matrix<Form, Type>&);
+      |                             ^
+/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/DiagonalMatrix.H:68:29: note: remove the ‘< >’
+/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/DiagonalMatrix.H:71:29: warning: template-id not allowed for constructor in C++20 [-Wtemplate-id-cdtor]
+   71 |         DiagonalMatrix<Type>(const label size);
+      |                             ^
+/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/DiagonalMatrix.H:71:29: note: remove the ‘< >’
+/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/DiagonalMatrix.H:74:29: warning: template-id not allowed for constructor in C++20 [-Wtemplate-id-cdtor]
+   74 |         DiagonalMatrix<Type>(const label, const Type&);
+      |                             ^
+/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/DiagonalMatrix.H:74:29: note: remove the ‘< >’
+g++ -std=c++14 -m64 -Dlinux64 -DWM_ARCH_OPTION=64 -DWM_DP -DWM_LABEL_SIZE=32 -Wall -Wextra -Wold-style-cast -Wnon-virtual-dtor -Wno-unused-parameter -Wno-invalid-offsetof -Wno-attributes -O3  -DNoRepository -ftemplate-depth-100 -fopenmp -I/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/finiteVolume/lnInclude -I/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/meshTools/lnInclude -I/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude -I. -I../../common -Igpu -Ithermal -DUGKWP_USE_CUDA -IlnInclude -I. -I/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude -I/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OSspecific/POSIX/lnInclude   -fPIC -fuse-ld=bfd -Xlinker --add-needed -Xlinker --no-as-needed Make/linux64GccDPInt32Opt/diluteUgkwpFoam.o Make/linux64GccDPInt32Opt/thermal/MieTable.o Make/linux64GccDPInt32Opt/thermal/MieDoRadiationSolver.o Make/linux64GccDPInt32Opt/thermal/GpuParticleRadiationCoupler.o Make/linux64GccDPInt32Opt/thermal/GpuSolidThermalProperties.o Make/linux64GccDPInt32Opt/thermal/GpuSolidPatchMapper.o Make/linux64GccDPInt32Opt/thermal/GpuThermalExchangeState.o Make/linux64GccDPInt32Opt/thermal/GpuSolidThermalCoupler.o -L/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/platforms/linux64GccDPInt32Opt/lib \
+    -fopenmp -lfiniteVolume -lmeshTools -lmomentumTransportModels -lOpenFOAM /workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/implementation/mapper-access-final/source/applications/CHT/gpu/libugkpcht_cuda_internal.a -L/workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/toolchains/cuda/lib64 -lcudart -lOpenFOAM -ldl  \
+     -lm -o /workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/implementation/mapper-access-final/bin/CHT
+real 1.87
+user 1.56
+sys 0.20

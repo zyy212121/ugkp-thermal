@@ -1,0 +1,33 @@
+# Remaining error candidate classification, working snapshot
+
+This inventory records semantic classifications after candidate discovery, not approval by grep. New source freezes require reconciliation.
+
+## Newly established omissions sent to root
+
+- GpuPoolParticleContribution.inl: actual overflowed specificEnergy (finite ux=1e200) traps before atomic/segmented pool publication. Both actual includers consume the result; no strict retry owner.
+- applyGasVolumeFractionSourceKernel.cuh: computed mass/momentum/energy/SST candidates trap before all writes. CHT and gasUGKP actual native source launchers consume this operator.
+- GpuSchedulingConfiguration.H: particleCapacity<0 remains a frontend metadata gate; its neighboring automatic interval0 error is an actual modulo requirement.
+- CHMT InitialConditions.H FilmIntegralFields: exact array equality refuses unused surplus, while native consumer reads only n faces.
+- CHMT ThermalBoundary.H: inlet/outlet temperature policy forbids available fixedValue/zeroGradient combinations; actual GPU geometry upload derives fixT independently, and MeshIO evaluates the selected boundary field before import.
+- gasUGKP native Create/restart/source count gates remain in a different mirror from approved CHT/FSH. A dedicated implementation-availability classification is needed; no blanket removal request.
+
+## Remaining common trap distinctions
+
+- BlockComponentReduction requires actual complete warps for full-mask shuffle; cold1D wrapper requires complete 8-lane groups. These are unavailable execution shapes. ReductionTaskCount tile and updateDynamicHeavyPolicy threshold have actual integer division/modulo consumers.
+- ThermalParticleRelaxation, finalization, selected/stuck/area directory, gather, payload and WallContactDirectory traps address consumed particle/face/slot backing or an unknown implemented wall-kind branch. Existing native empty/inactive skips and clamps remain. Supplied labels are not asserted to prove actual allocation backing; user accepts bad addressing.
+- Cold1D/2D wrapper traps consume helper false for genuinely absent backing after terminal edits. They do not independently classify numerical output. Separate cold-wall review identified CW-1 bracket nonprogress; final repair review pending.
+- Gas makePrim, Riemann, gradients, SST transport/source/Co and periodic operators distinguish nativeRefinement strict retry from evaluated terminal result. Missing status/fields/geometry remain errors. Terminal numerical statuses are recorded and actual result fields written; B7 owners distinguish InvalidStorage from numerical status. Relevant predicate bodies and capability/status writers were inspected, with detailed earlier B7 review reused.
+- GasModelIO tokenizer/word/list/integer/schema/formula exceptions classify actual syntax, missing consumed coefficients, names needed for field lookup or unsupported selected formula. GasMechanismIO mapped source-species and basis-row requirements are actual consumed rows. GasNumericsIO unknown selectors and fixed limitedLinear1 parser match the actual available implementation/plumbing, rather than an arbitrary finite coefficient bound.
+- Restart codec errors cover actual source/destination pointers, stream truncation, header terminators and chunk progress/remaining capacity. Historical readConverted overflow guard has no active current physical narrowing: current widths are double, old float widens.
+
+## Owner/free/rollback and inactive paths
+
+CHMT SharedGasDeviceStorage uses generated GasStateFields.inc owners. Replacement swaps ownership and preserves stable device-view address; rollback rebinds owners and restores the published view, retaining rejected candidate on failed view rollback. releaseOwners attempts every owner (release call precedes accumulated ok), and errors propagate. It retains real model/table transfers and state commit download; those are not classified as wasted certificate work. Backend restoreGasSnapshot resets trial preparation, uploads actual geometry/state and poisons on failed actual runtime restore. Native resident allocation failure paths call releaseState.
+
+CHMT Buffer::release historically clears its pointer after reporting cudaFree error. This behavior predates the patch except added runtimeFailure recording; no claim of retryable free ownership was inferred. The independent B6 native rejectedWall repair is separate and must retain its own failed-free pointers.
+
+SharedGasDensityStorage and SharedMixtureStorage strict staging classes have no production instantiation/reference outside their own definitions (docs/tests excluded). Their numerical predicates are not active terminal admissions. ResourceTransaction is a resource-publication helper, not a numerical producer. validateThermalBoundaries is used only in !Terminal CpuMaterialDriver strict mode; completed material path bypasses it. Unused thermal checksum/restart validator helpers likewise have no current production caller.
+
+## Limits
+
+The report does not certify every return false in all production files. Source lineage and current scoped batch reviews must be integrated at final freeze. No compiler/test/runtime was invoked by this reviewer. GPU behavior and source-proven exceptional metadata failures remain user acceptance work.
