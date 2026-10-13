@@ -1,0 +1,29 @@
+{
+  "source_commit": "970d9fedcc061dfa08fc88d427a1a47b3c22f65f",
+  "captured_utc": "2026-10-13T16:16:26.746523+00:00",
+  "status": "FROZEN_FOR_FINAL_DELTA_NO_FURTHER_WORKER_EDITS",
+  "files": [
+    {
+      "path": "tests/fixtures/continuation_history/history.gitbundle",
+      "bytes": 504968,
+      "sha256": "f964a9fec2d5f0a2132165fe16b6023f4270bc95e6e6943c0a456284fae8a450",
+      "git_blob": "dd2588a72cecc8315c4ac1fb76ef136b01ff20b0"
+    },
+    {
+      "path": "tests/fixtures/continuation_history/prepare.py",
+      "bytes": 577,
+      "sha256": "1b54096716021483c07d948344799374136cbc08f83ff368a8aca51c393b3f0a",
+      "git_blob": "37c3f4c3096a23133526f5225b0c85184e938638"
+    },
+    {
+      "path": "tests/fixtures/continuation_history/USAGE.md",
+      "bytes": 4142,
+      "sha256": "58099bf674acad8faa569d7f41003028557f805564cbde0eb4b7a1e4fe4403d3",
+      "git_blob": "a20631458ec1f0491127e872a58084113ca5d31b"
+    }
+  ],
+  "checks": "Administrative bundle verify, two imports, isolated bare fsck, unchanged HEAD, no index/FETCH_HEAD/alternates",
+  "runtime_tests": "NOT_RUN",
+  "compilation": "NOT_RUN",
+  "committed_by_worker": false
+}
