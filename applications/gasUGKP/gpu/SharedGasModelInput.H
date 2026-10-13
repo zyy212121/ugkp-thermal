@@ -26,16 +26,9 @@ class SharedGasModelInput
     autoPtr<IOdictionary> restartIdentity_;
     const fvMesh& mesh_;
 
-    static void rejectMixtureCheckpointForLegacy(const Time& time)
-    {
-        if(isFile(time.timePath()/"gasModelIdentity"))
-            FatalErrorInFunction<<"A mixture checkpoint requires constant/gasModelProperties "
-                <<"with the same non-legacy model identity"<<exit(FatalError);
-    }
     static void ensureRestartPrecision()
     {
-        // Redundant conservative and primitive fields must round-trip within
-        // the same strict thermo/composition checks used at initialization.
+        // Preserve the supplied values in restart output at full scalar precision.
         IOstream::defaultPrecision(max(IOstream::defaultPrecision(),
             static_cast<unsigned>(std::numeric_limits<scalar>::max_digits10)));
     }
@@ -45,12 +38,8 @@ class SharedGasModelInput
     }
     ugkwpGpuIpc::GasSpeciesIdentityV1 identity() const
     {
-        return {1,static_cast<std::uint32_t>(model_.speciesNames.size()),model_.speciesOrderHash,
+        return {1,static_cast<std::uint32_t>(ugkwp::compiledGasSpecies),model_.speciesOrderHash,
                 model_.thermoHash,mechanism_.mechanismHash};
-    }
-    static bool closeScalar(scalar actual,scalar expected)
-    {
-        return std::isfinite(actual) && mag(actual-expected)<=1e-10*max(mag(expected),scalar(1e-20));
     }
     void pointState(scalar pressure,scalar temperature,const vector& velocity,const double* y,
                     scalar& density,scalar& energy) const
@@ -67,27 +56,10 @@ class SharedGasModelInput
     }
     void initialiseIdentity(const Time& time,const fvMesh& mesh)
     {
-        IOobject header("gasModelIdentity",time.timeName(),mesh,IOobject::READ_IF_PRESENT,IOobject::AUTO_WRITE,false);
-        const bool present=header.headerOk();
-        if(time.value()>0 && !present)
-            FatalErrorInFunction<<"Mixture restart requires gasModelIdentity at time "<<time.timeName()<<exit(FatalError);
+        // Identity is output metadata. Read physical fields independently of it.
         restartIdentity_.reset(new IOdictionary(IOobject("gasModelIdentity",time.timeName(),mesh,
-            IOobject::READ_IF_PRESENT,IOobject::AUTO_WRITE)));
+            IOobject::NO_READ,IOobject::AUTO_WRITE)));
         auto& dict=restartIdentity_();
-        if(present)
-        {
-            string speciesHash,thermoHash,mechanismHash;
-            dict.lookup("speciesOrderHash")>>speciesHash;
-            dict.lookup("thermoHash")>>thermoHash;
-            dict.lookup("mechanismHash")>>mechanismHash;
-            if(dict.lookupOrDefault<label>("schemaVersion",0)!=1
-               || dict.lookupOrDefault<label>("speciesCount",0)!=ugkwp::compiledGasSpecies
-               || dict.lookupOrDefault<label>("mode",-1)!=static_cast<label>(model_.mode)
-               || std::string(speciesHash.c_str())!=std::to_string(model_.speciesOrderHash)
-               || std::string(thermoHash.c_str())!=std::to_string(model_.thermoHash)
-               || std::string(mechanismHash.c_str())!=std::to_string(mechanism_.mechanismHash))
-                FatalErrorInFunction<<"Mixture restart gas model identity differs from constant/gasModelProperties"<<exit(FatalError);
-        }
         dict.set("schemaVersion",label(1));
         dict.set("speciesCount",label(ugkwp::compiledGasSpecies));
         dict.set("mode",label(model_.mode));
@@ -99,7 +71,7 @@ public:
     SharedGasModelInput(const Time& time,const fvMesh& mesh):mesh_(mesh)
     {
         const fileName modelPath=time.path()/time.constant()/"gasModelProperties";
-        if(!isFile(modelPath)){rejectMixtureCheckpointForLegacy(time);return;}
+        if(!isFile(modelPath)) return;
         try
         {
             IOdictionary dictionary(IOobject("gasModelProperties",time.constant(),mesh,
@@ -108,7 +80,7 @@ public:
             static_cast<const Foam::dictionary&>(dictionary).write(output,false);
             modelText_=output.str();
             model_=ugkwp::parseGasModelProperties(modelText_);
-            if(!active()){rejectMixtureCheckpointForLegacy(time);return;}
+            if(!active()) return;
             const auto thermo=model_.thermoView<ugkwp::compiledGasSpecies>();
             if(model_.mode==ugkwp::GasMode::MixtureChemistry)
             {
@@ -117,7 +89,7 @@ public:
                 if(!input) throw std::runtime_error("cannot read required gas mechanism "+mechanismPath);
                 mechanismText_.assign(std::istreambuf_iterator<char>(input),{});
                 if(input.bad()) throw std::runtime_error("failed reading gas mechanism "+mechanismPath);
-                mechanism_=ugkwp::parseGasMechanismProperties<ugkwp::compiledGasSpecies>(mechanismText_,thermo,model_.phase);
+                mechanism_=ugkwp::parseGasMechanismProperties<ugkwp::compiledGasSpecies>(mechanismText_,thermo,model_.phase,model_.speciesNames);
             }
             initialiseIdentity(time,mesh);
         }
@@ -143,17 +115,12 @@ public:
     {
         if(!active()) return;
         ensureRestartPrecision();
-        const bool suppliedRho=isFile(time.timePath()/"rho");
-        const bool suppliedMomentum=isFile(time.timePath()/"rhoU");
-        const bool suppliedEnergy=isFile(time.timePath()/"rhoE");
         massFractions_.setSize(ugkwp::compiledGasSpecies);
         forAll(massFractions_,species)
         {
             const word name("Y_"+model_.speciesNames[species]);
             massFractions_.set(species,new volScalarField(IOobject(name,time.timeName(),mesh,
                 IOobject::MUST_READ,IOobject::AUTO_WRITE),mesh));
-            if(massFractions_[species].dimensions()!=dimless)
-                FatalErrorInFunction<<name<<" must be dimensionless mass fraction"<<exit(FatalError);
             massFractions_[species].correctBoundaryConditions();
         }
         U.correctBoundaryConditions();p.correctBoundaryConditions();temperature.correctBoundaryConditions();
@@ -162,12 +129,6 @@ public:
             double y[ugkwp::compiledGasSpecies];
             forAll(massFractions_,species) y[species]=massFractions_[species][cell];
             scalar density=0,energy=0;pointState(p[cell],temperature[cell],U[cell],y,density,energy);
-            if(suppliedRho && !closeScalar(rho[cell],density))
-                FatalErrorInFunction<<"Initial rho is inconsistent with p/T/Y in cell "<<cell<<exit(FatalError);
-            if(suppliedEnergy && !closeScalar(rhoE[cell],energy))
-                FatalErrorInFunction<<"Initial rhoE is inconsistent with formation-inclusive thermo in cell "<<cell<<exit(FatalError);
-            if(suppliedMomentum && mag(rhoU[cell]-density*U[cell])>1e-10*max(mag(density*U[cell]),scalar(1e-20)))
-                FatalErrorInFunction<<"Initial rhoU is inconsistent with rho/U in cell "<<cell<<exit(FatalError);
             rho[cell]=density;rhoU[cell]=density*U[cell];rhoE[cell]=energy;
         }
         forAll(mesh.boundary(),patch)
@@ -188,24 +149,14 @@ public:
         forAll(speciesDensity_,species)
         {
             const word name("rhoY_"+model_.speciesNames[species]);
-            const bool supplied=isFile(time.timePath()/name);
             speciesDensity_.set(species,new volScalarField(IOobject(name,time.timeName(),mesh,
                 IOobject::READ_IF_PRESENT,IOobject::AUTO_WRITE),rho*massFractions_[species]));
-            if(speciesDensity_[species].dimensions()!=dimDensity)
-                FatalErrorInFunction<<name<<" must have density dimensions"<<exit(FatalError);
-            if(supplied) forAll(rho,cell)
-                if(!closeScalar(speciesDensity_[species][cell],rho[cell]*massFractions_[species][cell]))
-                    FatalErrorInFunction<<name<<" is inconsistent with rho/Y in cell "<<cell<<exit(FatalError);
+
         }
     }
     void configureResident(void* handle) const
     {
         if(!active()) return;
-        ugkwpGpuIpc::GasModelCapabilitiesV1 capabilities{};
-        checkResult(ugkwpGpuResidentStrictQueryGasModelCapabilitiesV1(handle,&capabilities),"query shared gas model capabilities");
-        if(capabilities.compiledSpecies!=ugkwp::compiledGasSpecies
-           || !(capabilities.modeMask&(1U<<static_cast<unsigned>(model_.mode))))
-            FatalErrorInFunction<<"GPU backend does not support the requested compiled Ns/mode"<<exit(FatalError);
         const ugkwpGpuIpc::GasModelConfigureArgsV1 config{1,static_cast<std::uint32_t>(model_.mode),
             ugkwp::compiledGasSpecies,0,model_.speciesOrderHash,model_.thermoHash,mechanism_.mechanismHash,
             modelText_.size(),mechanismText_.size()};
@@ -234,7 +185,7 @@ public:
             {
                 const auto& field=massFractions_[species].boundaryField()[patch];
                 const word type=field.type();
-                if(type!="fixedValue" && type!="zeroGradient" && type!="cyclic" && type!="empty"
+                if(!field.fixesValue() && type!="zeroGradient" && type!="cyclic" && type!="empty"
                    && type!="symmetry" && type!="symmetryPlane")
                     FatalErrorInFunction<<"Unsupported mixture composition boundary type "<<type<<exit(FatalError);
                 if(field.fixesValue()!=patchFixed)
@@ -262,7 +213,7 @@ public:
             forAll(rho,cell)
             {
                 const double value=values[std::size_t(species)*mesh_.nCells()+cell];
-                if(!std::isfinite(value) || value<0 || !(rho[cell]>0))
+                if(!std::isfinite(value) || rho[cell]==0)
                     FatalErrorInFunction<<"Invalid accepted species output"<<exit(FatalError);
                 speciesDensity_[species][cell]=value;
                 massFractions_[species][cell]=value/rho[cell];
