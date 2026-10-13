@@ -101,12 +101,12 @@ ParticleRadiationMaterialResult solveParticleRadiationTransaction
         context.mieTable.maxTemperatureK()
     );
     const bool canonicalCellArraysHaveMeshSize =
-        snapshot.epsilonS.size() == context.mesh.nCells()
-     && canonicalTemperatureK.size() == context.mesh.nCells()
-     && canonicalDiameterM.size() == context.mesh.nCells();
+        snapshot.epsilonS.size() >= context.mesh.nCells()
+     && canonicalTemperatureK.size() >= context.mesh.nCells()
+     && canonicalDiameterM.size() >= context.mesh.nCells();
     if (canonicalCellArraysHaveMeshSize)
     {
-        forAll(canonicalTemperatureK, cellI)
+        for (label cellI = 0; cellI < context.mesh.nCells(); ++cellI)
         {
             if (snapshot.epsilonS[cellI] > context.radiationActiveEpsilonMin)
             {
