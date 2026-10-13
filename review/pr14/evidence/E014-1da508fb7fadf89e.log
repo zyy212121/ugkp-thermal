@@ -1,0 +1,16 @@
+{
+  "compiler": "nvcc 13.1.115",
+  "arch": "sm_80",
+  "precision": "static_assert Real=double",
+  "gpu_execution": false,
+  "started_utc": "2026-10-13T08:12:57.021457+00:00",
+  "elapsed_seconds": 88.52433120100068,
+  "exit_code": 0,
+  "source_sha256": "8c2863a7d89b1587efa71892536d686fb878738cf8bc1d9af860bbd4737b8ba5",
+  "object_sha256": "a2ed9e88e2b1f048488385f9609991fa4e818cf9d4e37d2529666a373616caa9",
+  "coverage": [
+    "Ns2 full direct and full strict IncludeTurbulence=true",
+    "Ns10 full direct and full strict IncludeTurbulence=true"
+  ],
+  "source_lines": 65
+}

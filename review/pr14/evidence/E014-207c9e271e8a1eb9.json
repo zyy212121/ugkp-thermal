@@ -1,0 +1,119 @@
+{
+  "scope": "independent B6 lifecycle review only",
+  "decision": "request_changes",
+  "base": "bb1057e40856f9562ff60ce31cae51e35f1f3d8b",
+  "patch_sha256": "01bfdfd5e9c1f2ad180dad54c79f3951e961a05a888f45f7ff38c7b98ede59cd",
+  "reviewed_source_files": 13,
+  "source_hashes_match": true,
+  "receipt_hashes_verified": 10,
+  "relevant_indexed_artifacts_verified": 16,
+  "all_1003_artifacts_reexecuted": false,
+  "new_probes": 2,
+  "gpu_execution": false,
+  "openfoam_execution": false,
+  "repository_source_edits": false,
+  "commit_push_merge": false,
+  "findings": [
+    {
+      "id": "B6-R1",
+      "priority": "P2",
+      "title": "Failed rejected wall candidate free loses its only owner",
+      "locations": [
+        "applications/gasUGKP/private_backend/BoundaryLayerAdapter.cuh:91",
+        "applications/gasUGKP/private_backend/BoundaryLayerAdapter.cuh:113",
+        "applications/gasUGKP/private_backend/BoundaryLayerAdapter.cuh:124-126"
+      ],
+      "evidence": "independent-probes/wall-candidate-secondary-free.run.log",
+      "observed": {
+        "returncode": 1,
+        "unreachable_allocations_after_resident_teardown": 1,
+        "resident_poisoned": false
+      },
+      "kind": "unclosed required actual-failure lifecycle tail; antecedent issue exists at base"
+    },
+    {
+      "id": "B6-R2",
+      "priority": "P2",
+      "title": "Wall configuration reports success after actual snapshot free failure",
+      "locations": [
+        "applications/gasUGKP/private_backend/BoundaryLayerAdapter.cuh:16",
+        "applications/gasUGKP/private_backend/BoundaryLayerAdapter.cuh:121",
+        "applications/gasUGKP/private_backend/SharedGasTrialPolicy.cuh:75-81",
+        "applications/gasUGKP/private_backend/SharedGasTrialPolicy.cuh:232-236"
+      ],
+      "evidence": "independent-probes/wall-trial-primary-free.run.log",
+      "observed": {
+        "returncode": 0,
+        "extra_retained_snapshot_allocations": 1,
+        "resident_poisoned": false,
+        "eventual_teardown_success": true
+      },
+      "kind": "fallible release primitive not propagated through existing void caller"
+    }
+  ],
+  "reused_final_results": {
+    "storage": 16,
+    "affected_wall_and_storage": 28,
+    "sst": 26,
+    "backend": 5,
+    "sum_executions": 75,
+    "overlapping_chmt_cases": 15,
+    "distinct_selected_cases": 60,
+    "older_mixed_receipt": {
+      "passed": 89,
+      "failed": 1,
+      "failure": "obsolete faces[0]=99 fixture actual out-of-backing access; retained as failure"
+    }
+  },
+  "remaining_gaps": [
+    "R1/R2 closure and narrow rereview",
+    "B7/global thermoView size veto, stage producer/dependent face refresh, HostState terminal material sampling, status/retry/commit closure",
+    "No GPU runtime/asynchronous lifetime stress",
+    "No OpenFOAM integration/performance",
+    "Paired mirror unavailable",
+    "No whole-PR14 approval or main merge"
+  ],
+  "artifacts": [
+    {
+      "path": "independent-probes/wall-candidate-secondary-free",
+      "bytes": 154304,
+      "sha256": "4d189061923154867b0eabdae0be4ab0223d9769832f7155ff861054a7f8ad09"
+    },
+    {
+      "path": "independent-probes/wall-candidate-secondary-free.build.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "independent-probes/wall-candidate-secondary-free.cpp",
+      "bytes": 12874,
+      "sha256": "e8ed9362b7a7eab35bb8dba38fe8bf41d1ee8751b046a20e77de776ae389b83c"
+    },
+    {
+      "path": "independent-probes/wall-candidate-secondary-free.run.log",
+      "bytes": 120,
+      "sha256": "16e038374a1111a35585ea232145115bd864e673f4e30fd870b8c68d2f4221aa"
+    },
+    {
+      "path": "independent-probes/wall-trial-primary-free",
+      "bytes": 158360,
+      "sha256": "1a615ecfbbf43a38bca74e2cf59c676bc1da16ce175a198835da3d8cbe6e7baa"
+    },
+    {
+      "path": "independent-probes/wall-trial-primary-free.build.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "independent-probes/wall-trial-primary-free.cpp",
+      "bytes": 13064,
+      "sha256": "bd6ee1bb6c0975b4bbbeeb2319ff08fc2efdb65b3e59a57b1b150387c5b861ba"
+    },
+    {
+      "path": "independent-probes/wall-trial-primary-free.run.log",
+      "bytes": 403,
+      "sha256": "736071e0ce5a10a0204df86d6a582dee1adfa04cfdd1db5d12354450cf09d8d5"
+    }
+  ],
+  "review_markdown_sha256": "7feb6f3a36f005e5891a1a7e65891e092c4c6a65364b2d0cf771a673ee5a9f3b"
+}

@@ -1,0 +1,164 @@
+{
+  "schema": 1,
+  "batch": "B4",
+  "created_utc": "2026-10-13T10:08:37.471852+00:00",
+  "base": "cf49400267b0df39017d6ce348ce72cbcab6b513",
+  "head": "cf49400267b0df39017d6ce348ce72cbcab6b513",
+  "branch": "perf/shared-producer-continuation-20261013",
+  "files": [
+    {
+      "path": "common/chemistry/ConservativeReactor.H",
+      "sha256": "0de4a10b3adcef21cd8195018d82b7d556e0eba2daf53810d7e4179f22386e00",
+      "base_sha256": "541f984170eab9ac6a2d2d311e75f2fdfc7686f4b74ad0ffe17f7a4c64089764"
+    },
+    {
+      "path": "common/chemistry/GasJacobian.H",
+      "sha256": "5ffe23536fe352d5392c95ca972e19f32c93f057b7ad20682bf6a1cf932e4c2e",
+      "base_sha256": "3403d2c275011c23cba2cc36b0b03df879ca1aa06ea8519c11be83f38482a8e8"
+    },
+    {
+      "path": "common/chemistry/GasRates.H",
+      "sha256": "e2bd6559f954b841489563cf4367b43228c2a707322139452d9f3125f1c426c2",
+      "base_sha256": "3dfdc1966fe73fb522b758df231f41e3e23ac754f9cd7ff27624891688a3b0a4"
+    },
+    {
+      "path": "common/chemistry/LocalStiffIntegrator.H",
+      "sha256": "214889a06e4313ea86b40fdc9ef95d4e57ccbd36701f99327f5f2add1ee907de",
+      "base_sha256": "13a14ea8ca14895ddbcd7ddb67e1db29696378fd12e099841fce050c7acd46e2"
+    },
+    {
+      "path": "common/chemistry/MechanismValidation.H",
+      "sha256": "2bd733a76ff4ccddf4b725bda39625d538db1687b3d119dc1c0d953eb07f7aad",
+      "base_sha256": "f17fb1a6438b7dbf2a1258c5bb378a9c52883554c5126b1a369f37836e12147a"
+    },
+    {
+      "path": "common/chemistry/RateArithmetic.H",
+      "sha256": "97dbf771b5a90cb5c476504cb853b8ddf06b0aedc93482a8950ee47651b8cf43",
+      "base_sha256": "d6f47ccc04d88d104f682a2003b5cec41ff395640b7ac65bb96364f9f1a6becc"
+    },
+    {
+      "path": "common/gasTransport/MixtureThermo.H",
+      "sha256": "6bd6783e7c88feaaf1e4f887df1e3560d7be083e9fe6332fe50d0cb253b916bf",
+      "base_sha256": "03a00c1f76c82bcda7d2db106be576cf3c4f6dbbd3ec858cd3a9862df2185245"
+    },
+    {
+      "path": "common/operators/advanceGasChemistryKernel.cuh",
+      "sha256": "ae1c4fbb7bd7e272eb50db59baba183903858a65ea9a16ab0f321421bcc39ee8",
+      "base_sha256": "0ec3b4b5caf80d5e5151b43719be7b542666ba177fd7b0dfc82671e2aa32432e"
+    },
+    {
+      "path": "tests/chemistry/test_gas_budget_publication.py",
+      "sha256": "1d5158d3f3aae4178aaac9304ebd8a54e20445804727f1b1506bcd81e7010b1c",
+      "base_sha256": "566785ae80a8615b00003b4a299595290564d1b8e0ea505fa0d1ba6fd8949884"
+    },
+    {
+      "path": "tests/chemistry/test_gas_chemistry_adapter.py",
+      "sha256": "64694abeb99035ece9c3119bdcbb190b94c0a25ebd418f4fdaea512af52d9d44",
+      "base_sha256": "f8306e6c25d633f4791e88fbf91cee5e684dae61f53ab6d6f4f43245f304e6b4"
+    },
+    {
+      "path": "tests/chemistry/test_gas_finite_continuation.py",
+      "sha256": "9e2bf08155b402da605756fd2ecc21f8c5276d818ab2d4e16ed7bcc7d5fcf969",
+      "base_sha256": "129fa1ca6135bbfe2633471cc57a4ccc354a177f18564a708f33cd7df98d6463"
+    },
+    {
+      "path": "tests/chemistry/test_gas_rates.py",
+      "sha256": "56d27709d834f944a623debe18a6d2e3790bae0354a6333436c98c57196aa0bf",
+      "base_sha256": "b5d8e2f783c1614941b24a51722e9a7e46c7dd440435588f17b681891cfc6b16"
+    },
+    {
+      "path": "tests/chemistry/test_gas_review_regressions.py",
+      "sha256": "f952b63f0a7d8d95711cba9b4db4154cc4552aa7dd19babedf4aa4f4cffa712f",
+      "base_sha256": "cab2b3acc065c1189eda7aaa5a1e1a253de34244ef6f0c4594ae2d0a14b543e0"
+    },
+    {
+      "path": "tests/chemistry/test_gas_terminal_completion.py",
+      "sha256": "c905530dda7d9dbbc3e24da4f1a1605df9cee100b1aec08196bcf37d2d7002f2",
+      "base_sha256": null
+    }
+  ],
+  "patch_sha256": "04d148899e948309edfbc75683c1b294fd4b3ef23038f23249168d51cdd11b25",
+  "report_sha256": "2a0de18a6932dfca20ebdb7ddae452f0b678610a042f773483b0c46d18280e06",
+  "evidence_index_sha256": "6a7c1fa1337c39978da95ae33cec412b0388d0e8e11107217cd28427c93ca90d",
+  "field_consumer_cost_sha256": "9d6dd5b64062735a79a7d6e933638b6e958363242c44c2c2324442f6954635f4",
+  "coverage_gap_reuse_sha256": "fccb46e7d7e32ea32e519bbd85b3f1d7306bb18abb0bef53c1acc73d827fe28f",
+  "inherited_independent_evidence": [
+    {
+      "path": "/workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/implementation/b1/v2/report.md",
+      "sha256": "ef6d1255098cddbc57750e5687b496e29ba38ba7293636b5f591570e620d23dc"
+    },
+    {
+      "path": "/workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/implementation/b1/v2/freeze.json",
+      "sha256": "273bf239722e7e47d8bc924898ca57a5c910d51a0f7d9dc5c06de3ae30b017c1"
+    },
+    {
+      "path": "/workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/implementation/b1/v2/independent-review.md",
+      "sha256": "9aaa5efed49f335975b0aa51ec5972be3521b3245444a6dc7814266abc326fec"
+    },
+    {
+      "path": "/workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/implementation/b1/v2/independent-review.json",
+      "sha256": "5f074f4324efd82a44192c641bcf9975749fe313543f59248164bc0450dc0401"
+    },
+    {
+      "path": "/workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/implementation/b2/v3/report.md",
+      "sha256": "44dc34361124fb6f6f98c14942bd52f6faefd001f61ec12b024d69406d5ab8e7"
+    },
+    {
+      "path": "/workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/implementation/b2/v3/freeze.json",
+      "sha256": "8a46a76f8472302084765a9d7c6dcfdc10d5147a0b9b318908c141acf8ceee9b"
+    },
+    {
+      "path": "/workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/implementation/b2/v3/independent-review.md",
+      "sha256": "eb60a977affd1ec2d62e0f6572e7f5d381b3e240de21e78219b944e9f6b5c80b"
+    },
+    {
+      "path": "/workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/implementation/b2/v3/independent-review.json",
+      "sha256": "5bd92a5b0b15f40353e4df362c75d42893c670f21aa67b0991d40ed40b757536"
+    },
+    {
+      "path": "/workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/implementation/b3/v2/report.md",
+      "sha256": "0fda478bc52b927e7398bc23a05e4f78d4ac6ab8fb0bc3435e294cfcb2b95cc9"
+    },
+    {
+      "path": "/workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/implementation/b3/v2/freeze.json",
+      "sha256": "e04df5b32a2038d80e557f2b43e10b02f8665592f19fd2b8ac73e2343f078882"
+    },
+    {
+      "path": "/workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/implementation/b3/v2/independent-review.md",
+      "sha256": "91069965de2ee4193ec7b2daf8672343afffde1177041916289987bceedd8529"
+    },
+    {
+      "path": "/workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/implementation/b3/v2/independent-review.json",
+      "sha256": "0d4acb83434e80451f3c602a7ebf2f094f631a5213c570f9c34a64902b844f6e"
+    }
+  ],
+  "original_lineage_commit": "d6110c02745a8ad726208a426c4bb3a28233c1fd",
+  "accuracy_receipt": "logs/accuracy.log",
+  "focused_receipt": "final-run.json",
+  "final_delta_receipt": "final-delta-run.json",
+  "final_troe_receipt": "logs/troe-final.log",
+  "final_cuda": {
+    "source": "cuda/chemistry.cu",
+    "object": "cuda/chemistry-final.o",
+    "log": "logs/cuda-final.log",
+    "command": [
+      "/workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/toolchains/cuda/bin/nvcc",
+      "-std=c++17",
+      "-arch=sm_80",
+      "--expt-relaxed-constexpr",
+      "-I.",
+      "-c",
+      "/workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/implementation/b4/cuda/chemistry.cu",
+      "-o",
+      "/workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/implementation/b4/cuda/chemistry-final.o"
+    ],
+    "exit_code": 0,
+    "gpu_execution": "NOT_RUN"
+  },
+  "notes": [
+    "No new common paths; all eight owners already registered.",
+    "No README, commit, push, merge, or B5\u20137 broad production edits.",
+    "Exact historical twelve receipts unavailable; explicit available twelve executed, no historical mapping invented.",
+    "B7 actual GPU/outer status/half-capture consumers remain pending."
+  ]
+}

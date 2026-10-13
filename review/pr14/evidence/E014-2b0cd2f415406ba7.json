@@ -1,0 +1,1970 @@
+{
+  "/workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/implementation/mapper-access-final/source/applications/CHT/thermal/GpuSolidPatchMapper.C": {
+    "sha256": "947decef7e1a2aa552c6d201401674617fdb8be22a331d98c430fe115ee63074",
+    "resolved": "/workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/implementation/mapper-access-final/source/applications/CHT/thermal/GpuSolidPatchMapper.C"
+  },
+  "/workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/implementation/mapper-access-final/source/applications/CHT/thermal/GpuSolidPatchMapper.H": {
+    "sha256": "24efc0df46689e2a77bd193e40342c46e74f6213d285c06c9dcf30100c7e15dd",
+    "resolved": "/workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/implementation/mapper-access-final/source/applications/CHT/thermal/GpuSolidPatchMapper.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/Pstream.H": {
+    "sha256": "7e554197b96558e430d41f6f623853f4ea0e91545c1a14ce249fcebc95b2e010",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/db/IOstreams/Pstreams/Pstream.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/meshTools/lnInclude/cyclicAMIPolyPatch.H": {
+    "sha256": "15560efc6884fb7b42f82af8fa85ab60925a8092ad7cffccfddd06f89a8e923f",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/meshTools/AMIInterpolation/patches/cyclicAMI/cyclicAMIPolyPatch/cyclicAMIPolyPatch.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/cyclicPolyPatch.H": {
+    "sha256": "9ea53cabffb4f78cc2c8b32b2c15f30c561b371b69c038596c4bc06763a47eb4",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/meshes/polyMesh/polyPatches/constraint/cyclic/cyclicPolyPatch.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/meshTools/lnInclude/mappedWallPolyPatch.H": {
+    "sha256": "d9c32cb0d69d1615c2d8c695bd42ccf01564571cba44d471965fc97573b0a342",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/meshTools/mappedPatches/mappedPolyPatch/mappedWallPolyPatch.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/wallPolyPatch.H": {
+    "sha256": "7bc54c6fcab26b19c45e9560d631a50853dba3d43d0c756acb2c6558ef0bb32a",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/meshes/polyMesh/polyPatches/derived/wall/wallPolyPatch.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/List.H": {
+    "sha256": "768257d92df55cd2f261fe0161ac77e1dbb63bc1bc7f1dbe47175d47fa57fd2d",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/containers/Lists/List/List.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/finiteVolume/lnInclude/fvMesh.H": {
+    "sha256": "34243816dc50468c50312ad0333c216b6d6b86c00718ab098572aacd9b5d94b2",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/finiteVolume/fvMesh/fvMesh.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/labelList.H": {
+    "sha256": "653bc79887baccd2ba4fbda8557dc4ce3a845699fc09a2be6edf2e2ca1ee0a59",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/primitives/ints/lists/labelList.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/scalarField.H": {
+    "sha256": "b60a4444851ce41a1997a48ed0741bc2d12a8bd2c9a4c9f72e62b496ebd1363e",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/fields/Fields/scalarField/scalarField.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/word.H": {
+    "sha256": "bbd3ac4f061d50e897f6f001a1989e578ab3577b97c81f721b13882006c97f75",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/primitives/strings/word/word.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/UPstream.H": {
+    "sha256": "4b165a0aaa86de6e5182e00de2db4ecec58317adc39ae4091b59a497b15a9bdf",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/db/IOstreams/Pstreams/UPstream.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/DynamicList.H": {
+    "sha256": "5013b62bfe74fba3b50852809256990c420ac5885e3cebc8dcb4f2021bab0fe5",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/containers/Lists/DynamicList/DynamicList.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/gatherScatter.C": {
+    "sha256": "27f70e99f940219ca68b0302689f37f4f6b5f36fedb2ab5d361afa515477b79c",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/db/IOstreams/Pstreams/gatherScatter.C"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/combineGatherScatter.C": {
+    "sha256": "0060b7d51e1d45c156a16f23c260763718d665020895ebd46ccc91aa20d0ea5c",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/db/IOstreams/Pstreams/combineGatherScatter.C"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/gatherScatterList.C": {
+    "sha256": "2f1881579bb0ca3f52d0d417efa1f19d76363f26a894d09aab27fbfa282e40a7",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/db/IOstreams/Pstreams/gatherScatterList.C"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/exchange.C": {
+    "sha256": "533716db02b04404156029145a15dfbb2a6f863c654343a4a869515d4571f642",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/db/IOstreams/Pstreams/exchange.C"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/coupledPolyPatch.H": {
+    "sha256": "df6b08692319aad7e9b574d420b19ef0c17c08e0235b11668ec6ddb38bfb2542",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/meshes/polyMesh/polyPatches/basic/coupled/coupledPolyPatch.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/cyclicTransform.H": {
+    "sha256": "7b9470b8045fbef6b70404b97391fd6161741583cf3afb37aaf8ab9dbb07f12f",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/meshes/polyMesh/polyPatches/constraint/cyclic/cyclicTransform.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/meshTools/lnInclude/AMIInterpolation.H": {
+    "sha256": "09129813498c98687dfa95a76bc002d82f1b3ba3682c5090402ec2621a7c6a14",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/meshTools/AMIInterpolation/AMIInterpolation/AMIInterpolation.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/meshTools/lnInclude/faceAreaWeightAMI.H": {
+    "sha256": "29d3fd73a705723a8c2d6388a9e8560f001778bf0c441220b3da80a279691325",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/meshTools/AMIInterpolation/AMIInterpolation/AMIMethod/faceAreaWeightAMI/faceAreaWeightAMI.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/polyBoundaryMesh.H": {
+    "sha256": "cd256d0f3a01af0a26423834f6d600623fcb8eb35843c3150b52268b4413e16a",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/meshes/polyMesh/polyBoundaryMesh/polyBoundaryMesh.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/coupleGroupIdentifier.H": {
+    "sha256": "0a278f15ad2c9eced5ea73e204f6ee59b404ac4854318c17ff656a9e803c31cb",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/meshes/Identifiers/patch/coupleGroupIdentifier.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/meshTools/lnInclude/cyclicAMIPolyPatchI.H": {
+    "sha256": "6c5af9fa492691414cd0aaf50a386c011230c2a34d1dc16fde0e941e4a73ea7f",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/meshTools/AMIInterpolation/patches/cyclicAMI/cyclicAMIPolyPatch/cyclicAMIPolyPatchI.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/meshTools/lnInclude/cyclicAMIPolyPatchTemplates.C": {
+    "sha256": "3effe9b8199e7e49c943b179a95a2cfe9f295e556ed20e308d7db55c001dc6f8",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/meshTools/AMIInterpolation/patches/cyclicAMI/cyclicAMIPolyPatch/cyclicAMIPolyPatchTemplates.C"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/edgeList.H": {
+    "sha256": "aadb933c051eda5be512d5b2e5539e27751def049ab3c8f0d6a6a8f08925f736",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/meshes/meshShapes/edge/edgeList.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/diagTensorField.H": {
+    "sha256": "7f25cdc0fa0def397bce1d95878a6a6f8aa11a1d33bc4ea6fad2dac68864d627",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/fields/Fields/diagTensorField/diagTensorField.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/meshTools/lnInclude/mappedPatchBase.H": {
+    "sha256": "63c6ae9e021a0dd5ec90aed7826ca494afa99f614042dfe6f68ae84b4026171d",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/meshTools/mappedPatches/mappedPolyPatch/mappedPatchBase.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/polyPatch.H": {
+    "sha256": "6559e2bd44c580d41620059bf64076dc185b663abc8b5fba78cf8869660e7d2c",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/meshes/polyMesh/polyPatches/polyPatch/polyPatch.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/UList.H": {
+    "sha256": "4297c1562681527af1b0fd6aab5004d4127156354c9d653aa2db4998db05e464",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/containers/Lists/UList/UList.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/autoPtr.H": {
+    "sha256": "0a7a3c014c684a67fca9d29b505ec49391f5d0c59299300798212ba2e802c0fc",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/memory/autoPtr/autoPtr.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/ListI.H": {
+    "sha256": "bf61aa88c388959cec33ec99e7d2c72b7582ed2fd84424f7f508ff0988240e3e",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/containers/Lists/List/ListI.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/List.C": {
+    "sha256": "d1bcb3b4c309667039188d96c7beb5be8ae23aff954b80acd1dfaeaafdffa00f",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/containers/Lists/List/List.C"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/polyMesh.H": {
+    "sha256": "bd4e0c6db6fb081e1ce993a97bbcf02e9fccb0a2aab3a0ebfb3c4d041679f311",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/meshes/polyMesh/polyMesh.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/lduMesh.H": {
+    "sha256": "4db197225be64da363b9eff62a5448e5047b1ba21583e4d25e276bc9dd0047bf",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/meshes/lduMesh/lduMesh.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/primitiveMesh.H": {
+    "sha256": "77a160dbb20733ad1aa5fe023cd482236a97be0a834ceea2146a91c80087cabe",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/meshes/primitiveMesh/primitiveMesh.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/finiteVolume/lnInclude/fvBoundaryMesh.H": {
+    "sha256": "2dbfdd29a7983ed8d6cf41b00f33714a96e5a19c1df0b3a931d3019d8b464b70",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/finiteVolume/fvMesh/fvBoundaryMesh/fvBoundaryMesh.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/finiteVolume/lnInclude/surfaceInterpolation.H": {
+    "sha256": "c28f08b09c49fd9a0cbebc84935f915ed256eeff55ef22d6bdc0dbf16717a127",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/finiteVolume/interpolation/surfaceInterpolation/surfaceInterpolation/surfaceInterpolation.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/finiteVolume/lnInclude/fvSchemes.H": {
+    "sha256": "d42c3289c6517a12015f836d3ff9a16d20541aae5a3e6af7578509f2f09dfde2",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/finiteVolume/finiteVolume/fvSchemes/fvSchemes.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/finiteVolume/lnInclude/fvSolution.H": {
+    "sha256": "4a3593629137a42f868b9ef0ce14c7b6cc72f7009c11c1a7afa8ad1339fa08b3",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/finiteVolume/finiteVolume/fvSolution/fvSolution.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/data.H": {
+    "sha256": "ddb385ad52e916d6d7c93c3c4d0f5e4448a8adc77cc531391a18c7d34142f15b",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/meshes/data/data.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/DimensionedField.H": {
+    "sha256": "9d1628a51c831091309bc2047e67383917e9ccfc86e98bd4cf55335018973209",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/fields/DimensionedFields/DimensionedField/DimensionedField.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/SlicedDimensionedField.H": {
+    "sha256": "c1889ebdd80093548a296488a13dca3d98982ca240390b89dad3fbbbe371f5f8",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/fields/DimensionedFields/SlicedDimensionedField/SlicedDimensionedField.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/finiteVolume/lnInclude/volFieldsFwd.H": {
+    "sha256": "91b904871fda0ad13e6b41cb75c934888f0e8efe3564afc62d60f60ea8f75520",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/finiteVolume/fields/volFields/volFieldsFwd.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/finiteVolume/lnInclude/surfaceFieldsFwd.H": {
+    "sha256": "9862170ae75c735a7f834e68b207eaf9d56490ef2a6df782ca6dcfdab0fbdb9e",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/finiteVolume/fields/surfaceFields/surfaceFieldsFwd.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/pointFieldsFwd.H": {
+    "sha256": "aa44cb54376750d8b4481802b1547d259bdb86d4266c228cb101f52957accd47",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/fields/GeometricFields/pointFields/pointFieldsFwd.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/finiteVolume/lnInclude/slicedVolFieldsFwd.H": {
+    "sha256": "8d38936331910a0d1807e2276da6184c252fc3849061687a6049f9baef9872d6",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/finiteVolume/fields/volFields/slicedVolFieldsFwd.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/finiteVolume/lnInclude/slicedSurfaceFieldsFwd.H": {
+    "sha256": "62ebe145d0160236639a09fa1de118c897b1f4963e990a41f21f51e7bb434d3e",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/finiteVolume/fields/surfaceFields/slicedSurfaceFieldsFwd.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/className.H": {
+    "sha256": "e0f9eac28164451f9052c4495714fddc247df7273eee9c7fb70c04a3199c77b9",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/db/typeInfo/className.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/finiteVolume/lnInclude/fvMeshTemplates.C": {
+    "sha256": "fb820b05e504a9722cad16cce3ab566ec83f2b8520f5b7269bfba56f90aeeadf",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/finiteVolume/fvMesh/fvMeshTemplates.C"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/label.H": {
+    "sha256": "034c9c7eb76b8d996527bf8f5884c548f55331aa2ccc6dce11c73e792a2d2ef1",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/primitives/ints/label/label.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/Field.H": {
+    "sha256": "3193e792625f272394950fb23a0ab76f872149182198aca9a53c77e9657a463a",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/fields/Fields/Field/Field.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/scalar.H": {
+    "sha256": "fa91bb194538be0cfe124482c8a9dbe103872fa3fcfc45e64c998549c66f0d24",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/primitives/Scalar/scalar/scalar.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/FieldFunctionsM.H": {
+    "sha256": "65bbf35fef1cc6bea9e1ee45e75816748a418dc69b7d737ac9f229f97cd4ff26",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/fields/Fields/Field/FieldFunctionsM.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/undefFieldFunctionsM.H": {
+    "sha256": "bf2cc163fe8747b50e94fb527c9b939fd090cd253b56e5154c25df7531d78bc0",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/fields/Fields/Field/undefFieldFunctionsM.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/string.H": {
+    "sha256": "def7c921950b6e08848422d62958b3b8ed9d78dff4b42045f74db8b310358647",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/primitives/strings/string/string.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/wordI.H": {
+    "sha256": "4b167616eee5c2b292957f11882acbae152055e15640b6d3bea97179fdb18b69",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/primitives/strings/word/wordI.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/HashTable.H": {
+    "sha256": "13b53861d910377026c1c1f21af09ff1a61ce495f9abfe29e500b2fedcd33f52",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/containers/HashTables/HashTable/HashTable.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/NamedEnum.H": {
+    "sha256": "3bb023111ffe718513b78454edb360cdd4113bcd6420b573fcdf915bd38252f4",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/containers/NamedEnum/NamedEnum.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/ListOps.H": {
+    "sha256": "f8eeb7e8c66175f87c4d6dd3205a2e75a28c943c59827e2b85b289f208e1a1d2",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/containers/Lists/ListOps/ListOps.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/LIFOStack.H": {
+    "sha256": "d4ff9947885adbb90216ab83a6e2d903fb8849793f9da521b8a3eca57edba859",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/containers/LinkedLists/user/LIFOStack.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/DynamicListI.H": {
+    "sha256": "77ae3eb74faaea45f5c2ccff3a670fbd2b192aa444ef5aaa79ace793ab0b779b",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/containers/Lists/DynamicList/DynamicListI.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/DynamicList.C": {
+    "sha256": "7fe1fc4987c75cea9147620217261e39ea26efe9f1e507d75cae63709b067efd",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/containers/Lists/DynamicList/DynamicList.C"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/UOPstream.H": {
+    "sha256": "7979541f0f89ad8846318c757a0265b65e47ea51aedf55b36838ff834ac257c9",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/db/IOstreams/Pstreams/UOPstream.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/OPstream.H": {
+    "sha256": "567f7d5e2727bd203d7c70bf1d574cd00c6d779e6bd2061946ddd29e5c68a70d",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/db/IOstreams/Pstreams/OPstream.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/UIPstream.H": {
+    "sha256": "0703e2c6a65006cffb144f2c8a5ea83ede43a994f37d0dc564f7f435be8f3c64",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/db/IOstreams/Pstreams/UIPstream.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/IPstream.H": {
+    "sha256": "40805651c054bacd62496f3af83422ed5b19d95bd807dfe1e34461de36d66afd",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/db/IOstreams/Pstreams/IPstream.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/contiguous.H": {
+    "sha256": "7ab247fc16ff29042257f7e83c5194ce131ff23c6a58a8f628fdae7e9dd8c8c5",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/primitives/contiguous/contiguous.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/IOstreams.H": {
+    "sha256": "c3f5f8c8eb4932e917125da532601139c142a28ccc91c79c6545d91a363fa746",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/db/IOstreams/IOstreams.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/PstreamCombineReduceOps.H": {
+    "sha256": "d0070bfebec5516df24cd6afa56c160edcfdb790acff2e6e551bea7621c81d10",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/db/IOstreams/Pstreams/PstreamCombineReduceOps.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/transformer.H": {
+    "sha256": "784925fc3e183c76457f6a6e7a5055f5c0e4758e8636c68b1baf381331880095",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/primitives/transform/transformer/transformer.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/dictionary.H": {
+    "sha256": "b83d3d2f450c1a0b8e2414bf082161a669217c741474d4319b6ec5362992316f",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/db/dictionary/dictionary.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/meshTools/lnInclude/searchableSurface.H": {
+    "sha256": "1579a36802e34e3108bab9355b93410503eae04e402763538b4b8a437d8164ad",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/meshTools/searchableSurfaces/searchableSurface/searchableSurface.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/treeBoundBoxList.H": {
+    "sha256": "768f1cb3efb5bb1d4cdb1a9ee29a7b4cad001a208b2499422610a90d8c612636",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/meshes/treeBoundBox/treeBoundBoxList.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/boolList.H": {
+    "sha256": "27bd8e2301fc63a91d371bd8e365f0740ba61b77d6655edc5cd0f57a9c702a2d",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/primitives/bools/lists/boolList.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/primitivePatch.H": {
+    "sha256": "96c7ee469d2f4523f07a0e2c75f218f307e42533d928b15f6bdffa4f9729790a",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/meshes/primitiveMesh/primitivePatch/primitivePatch.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/meshTools/lnInclude/faceAreaIntersect.H": {
+    "sha256": "e85a37c2aac0842b02df672a6061f34f01eec9f10b560503d0458dff2a7c19ec",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/meshTools/AMIInterpolation/faceAreaIntersect/faceAreaIntersect.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/globalIndex.H": {
+    "sha256": "35ba6414340556078acfbfde25f9ea0b38ddc98f25751e5e8e523b90ecfaf870",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/meshes/polyMesh/globalMeshData/globalIndex.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/ops.H": {
+    "sha256": "8e11f480adf5472ad92e15c416b9499cfb5dae3dab5b8c99cc8be025281cbbfb",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/primitives/ops/ops.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/meshTools/lnInclude/AMIInterpolationI.H": {
+    "sha256": "03c2da3d8677e5edd2addb5018afabfd48cde09aaee8c69d9a31670b8a790049",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/meshTools/AMIInterpolation/AMIInterpolation/AMIInterpolationI.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/meshTools/lnInclude/AMIInterpolationTemplates.C": {
+    "sha256": "f0b08f71ee127b1d467902099a7167cb7d55614e2a1a3fc9254b89a5a36157c3",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/meshTools/AMIInterpolation/AMIInterpolation/AMIInterpolationTemplates.C"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/meshTools/lnInclude/AMIMethod.H": {
+    "sha256": "5ee25023deb930989d820ef2c6505ac1127f497994e942de1e7c83c5884436b8",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/meshTools/AMIInterpolation/AMIInterpolation/AMIMethod/AMIMethod/AMIMethod.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/polyPatchList.H": {
+    "sha256": "d7646c90cde28a033934da070e4a1f080ab63d72fd3cb2368fde132e6eb9fa54",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/meshes/polyMesh/polyPatches/polyPatch/polyPatchList.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/regIOobject.H": {
+    "sha256": "726e06050becddb7e08092cf130074e9ed557f7a36e2bf7d0d86d8cdce981fe1",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/db/regIOobject/regIOobject.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/labelPair.H": {
+    "sha256": "7d7f8fa8f16fc0acb76f7e60c1efe560d1a3e7a3192f33e1c019e5ecc9e31ed7",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/primitives/Pair/labelPair.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/HashSet.H": {
+    "sha256": "536187ac3bdd9036330a10e5d0c839493fa776a61d82414aaac809087bf4171f",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/containers/HashTables/HashSet/HashSet.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/polyBoundaryMeshTemplates.C": {
+    "sha256": "c5243c942503109c4fdf0eaa2f3793a134ed74c9267253cf726f438886b762a0",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/meshes/polyMesh/polyBoundaryMesh/polyBoundaryMeshTemplates.C"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/coupleGroupIdentifierI.H": {
+    "sha256": "a6080035422bfdff1e64284c58742a7d92886305931b68870a4b346cbee2abb1",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/meshes/Identifiers/patch/coupleGroupIdentifierI.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/edge.H": {
+    "sha256": "2fb746e8433443c8adebe223dccf8cac226d0e4c64ad527c99dacf3a3471e813",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/meshes/meshShapes/edge/edge.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/tensorField.H": {
+    "sha256": "b6ab8eed3f2736de4f9bae381615645f935cae60f387e313a006529ee5a47b80",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/fields/Fields/tensorField/tensorField.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/diagTensor.H": {
+    "sha256": "b989e07d74427b5951515a5abf53f84710a87c1a951dff2133e8e31fc7f82ed4",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/primitives/DiagTensor/diagTensor/diagTensor.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/pointField.H": {
+    "sha256": "a8eb8a52b01bf75362a7ad27ac3ff00302c83e987e5bbf62f81639dcbbbc36ec",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/meshes/primitiveShapes/point/pointField.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/Tuple2.H": {
+    "sha256": "ca9226fe75fd3c022b1dd17f2e90b5762a572f332e1b3a228110ff8e91336b18",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/primitives/Tuple2/Tuple2.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/pointIndexHit.H": {
+    "sha256": "f7371d44afd48da68e8818d19bb5f542e0666656a53d3e0b682f896d4bd37a14",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/meshes/primitiveShapes/objectHit/pointIndexHit.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/meshTools/lnInclude/mappedPatchBaseI.H": {
+    "sha256": "a0d0065344da7414ab887080d0a6bb78928cd199b5b23ff03e482d688a7ebf1a",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/meshTools/mappedPatches/mappedPolyPatch/mappedPatchBaseI.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/meshTools/lnInclude/mappedPatchBaseTemplates.C": {
+    "sha256": "b31362289ac336aa5fb849da1e66d56772a165aee4b57fe9b9e182901c6feaae",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/meshTools/mappedPatches/mappedPolyPatch/mappedPatchBaseTemplates.C"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/patchIdentifier.H": {
+    "sha256": "a4b5e62c6cedbcbda40a24d0311559cedb94edb8ac8b75cba2dbd8338a829817",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/meshes/Identifiers/patch/patchIdentifier.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/typeInfo.H": {
+    "sha256": "ff2e537c1d36cb4b613136db9dc5d2df23988b396dc005c0d7a3185d5d27ee60",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/db/typeInfo/typeInfo.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/runTimeSelectionTables.H": {
+    "sha256": "ff97b0a821e7040786a572ee5f91a3db9278711020028ef164958d90931f8736",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/db/runTimeSelection/construction/runTimeSelectionTables.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/bool.H": {
+    "sha256": "a2c5aff771481babcc0b3fb9f89a3c55a7e141ff169165a6f012d2a4926f6b8e",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/primitives/bools/bool/bool.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/uLabel.H": {
+    "sha256": "0d72364e59834b2f80f09c5869bbe59276035021612279c0c4e1583c4c4de0d3",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/primitives/ints/uLabel/uLabel.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/nullObject.H": {
+    "sha256": "d69cf3dcc65f586aaa64d3a0743f9e62cae182e35a99740541dad9a86ce353d2",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/primitives/nullObject/nullObject.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/zero.H": {
+    "sha256": "4464eee2e778adb73c53397952078772f53654c898f6cb5ff03cbc47a748a3c4",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/primitives/zero/zero.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/UListI.H": {
+    "sha256": "142ae6acf0827e5412e21b6a9947bdf0f30f142d05826fee4a2f81157559055e",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/containers/Lists/UList/UListI.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/UList.C": {
+    "sha256": "f545fbe2392c8719e3e74e000276c51bcb70780ac5befea38b2166f41aa21f2c",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/containers/Lists/UList/UList.C"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/autoPtrI.H": {
+    "sha256": "0fd518581e2d8f4b6a13e48fa6dbcec2a618fa40e005320cd9f25506653e4d59",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/memory/autoPtr/autoPtrI.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/ListLoopM.H": {
+    "sha256": "3f0a162844554b7f88f52d4e60b0c1deb6ffe152f67a3b2924e8730af62d380d",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/containers/Lists/List/ListLoopM.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/FixedList.H": {
+    "sha256": "76c7790508ea11186c5f56f27594c6be8fbbcd4d6b41b86ecddb5997b8000e1a",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/containers/Lists/FixedList/FixedList.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/PtrList.H": {
+    "sha256": "2978045f1f7eea98429efb9a8112118c248f6d4481dc4006008e0580f6e11419",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/containers/Lists/PtrList/PtrList.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/SLList.H": {
+    "sha256": "b11b2047916a3b27162dc099c5bdc92864f88a6843cf2248d8890027537dc927",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/containers/LinkedLists/user/SLList.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/IndirectList.H": {
+    "sha256": "8079ed4ceabb073aced2170ef5e2a24945373e506c44ae8d23d258c4baf468fb",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/containers/Lists/IndirectList/IndirectList.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/UIndirectList.H": {
+    "sha256": "e929ca19afee768625dd2f0af11202dd4f11fc5d2115a5893921eb7086f1bd7e",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/containers/Lists/UIndirectList/UIndirectList.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/BiIndirectList.H": {
+    "sha256": "4db76c6425cc15781f13a5fdf834062eaeb51845b9c2b63801cd3b7dc621c413",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/containers/Lists/BiIndirectList/BiIndirectList.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/ListIO.C": {
+    "sha256": "1e5be943ff11055aee39540c0c600da394feaa94968c2bbdeb869a28b90b0374",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/containers/Lists/List/ListIO.C"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/objectRegistry.H": {
+    "sha256": "3c0ad2c3c06dbf955e1676adb8523dc06e5c6996f6d13128bd01904971c0a34f",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/db/objectRegistry/objectRegistry.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/faceList.H": {
+    "sha256": "2240bcfc81801c48cc8401b8a37a77f97fb00f2230d589711ad98bfeefe40001",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/meshes/meshShapes/face/faceList.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/cellList.H": {
+    "sha256": "4bcd5e05223809212aa52e4ec32bd6be0e7552861e2a722b0ee5bdac3d7613b5",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/meshes/meshShapes/cell/cellList.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/cellShapeList.H": {
+    "sha256": "60c58a52d1d4f423eb1ecd3249174f22ff1c3cbf401349c61e7241f475ea04d4",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/meshes/meshShapes/cellShape/cellShapeList.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/pointIOField.H": {
+    "sha256": "f61f6a1a254f1f74622b38b9bb11c28a3f14b43f57cf05c2995e6b59c511bcc0",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/meshes/primitiveShapes/point/pointIOField.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/faceIOList.H": {
+    "sha256": "f87fce7bb25ec72d07a14155e9c4529079e614739f8e92001239faed2dcc6bb0",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/meshes/meshShapes/face/faceIOList.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/labelIOList.H": {
+    "sha256": "0e96e85b1db7a1a9050d697b55c6f1909b04db18112d84a7381014fdd75a9fed",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/primitives/ints/lists/labelIOList.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/boundBox.H": {
+    "sha256": "c54a19eac348c0a965d74d3f150463553768faa041c6adf64bc8fdd97de01827",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/meshes/boundBox/boundBox.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/meshPointZones.H": {
+    "sha256": "1dad3d3b2db0f3f004d196e44786e3d0f5368f110ca1b8331a1299bdf56a7e06",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/meshes/polyMesh/zones/MeshZones/meshPointZones.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/meshFaceZones.H": {
+    "sha256": "63df0c397e29576a3722a9f1bc2407f214718074a0e1f1948779b72960587eb4",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/meshes/polyMesh/zones/MeshZones/meshFaceZones.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/meshCellZones.H": {
+    "sha256": "cf04de3cc22c4b2b22d324400d9afe40b6966758063fbd5eec45eccbc8f92735",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/meshes/polyMesh/zones/MeshZones/meshCellZones.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/lduAddressing.H": {
+    "sha256": "a4a999dc511119ee3ef04f7b559c5a70a9af961f094e362cebaef7ca8d18c2e6",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/matrices/lduMatrix/lduAddressing/lduAddressing.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/lduInterfacePtrsList.H": {
+    "sha256": "20c1f42a08e975bff47ac328df8ab55308340aa090be850b7e33512eb35d8b32",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/matrices/lduMatrix/lduAddressing/lduInterface/lduInterfacePtrsList.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/InfoProxy.H": {
+    "sha256": "3df9412b17c0eb6245a13fc8d2e55c4af80e97ffcc565950d1172ee007c18be0",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/db/IOstreams/IOstreams/InfoProxy.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/lduMeshTemplates.C": {
+    "sha256": "27e0cef940df953318a4dbf426c6836bac78bca13b2b27c06b287e283da77d71",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/meshes/lduMesh/lduMeshTemplates.C"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/Map.H": {
+    "sha256": "045f117f7e80645223b4aa6938e36ef097feb05933cbeb31cb48b2064b7bfb8c",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/containers/HashTables/Map/Map.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/primitiveMeshI.H": {
+    "sha256": "fa8ba2c6a7384073ae0e159ba5b9ffb897090c3e2cea37598e705120d4d8aab6",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/meshes/primitiveMesh/primitiveMeshI.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/finiteVolume/lnInclude/fvPatchList.H": {
+    "sha256": "b76412afeae663b406d62d9e5c5c40fd0843823c9cee0b94320c97c8e8b51898",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/finiteVolume/fvMesh/fvPatches/fvPatch/fvPatchList.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/tmp.H": {
+    "sha256": "7641b515236baf101eb9dca07c07a1aad8ea5dbec32d6b0fdafc6f5b31b54871",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/memory/tmp/tmp.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/IOdictionary.H": {
+    "sha256": "1902d5071a6a21c4e4b4ad172d35f86135f07021b237394258573b5e4ed52a8c",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/db/IOobjects/IOdictionary/IOdictionary.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/solution.H": {
+    "sha256": "583bd2ecc632b450ae39926a8770a3d86465a976398a291a5966db4b476338fb",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/matrices/solution/solution.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/dimensionedType.H": {
+    "sha256": "3ed85469c30166f29c8c42a73718cdd177d101b80271743e07d9a14ebbcb7df7",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/dimensionedTypes/dimensionedType/dimensionedType.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/DimensionedFieldI.H": {
+    "sha256": "882b842af2e02458c42b1ab6b9d71376e2d76a06f829e61fe9ef9ce78543c808",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/fields/DimensionedFields/DimensionedField/DimensionedFieldI.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/DimensionedFieldFunctions.H": {
+    "sha256": "0c50ef7e8d994ada19c38aad416db156aed818eb4dc4f27b3e8d8bd1e4862635",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/fields/DimensionedFields/DimensionedField/DimensionedFieldFunctions.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/DimensionedField.C": {
+    "sha256": "a0a19acaedfa7d44577a2dd5bf40d3fdbf7c31d51c1565c43eb213f872485115",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/fields/DimensionedFields/DimensionedField/DimensionedField.C"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/SlicedDimensionedField.C": {
+    "sha256": "2f90e3797ad967d6bed0a142d961662efe6c0a1d772becff389bd54706d385fd",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/fields/DimensionedFields/SlicedDimensionedField/SlicedDimensionedField.C"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/fieldTypes.H": {
+    "sha256": "3a90e4dab09c3b0a19693cdf6b3de830c6f8c8e3944ddb99c27b16faeee725c4",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/fields/Fields/fieldTypes.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/defineDebugSwitch.H": {
+    "sha256": "6879e4a272a18c8f51a88c90d660285e61e6b46695be9b555e5fd69e9cafef56",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/global/debug/defineDebugSwitch.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/int.H": {
+    "sha256": "665a8bce2b976a0ae62ab9c31b46f8a5e1ee6f00c4dec82a089184ce9c773c0a",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/primitives/ints/int/int.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/labelSpecific.H": {
+    "sha256": "7a0662d719ad98e95d2fb2b428962627deaf997c2c3c86465b7812da0e783adc",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/primitives/ints/label/labelSpecific.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/direction.H": {
+    "sha256": "ac42f1fb9b68ef8ecbc2a921254bbc66479fbf2365f743be74fa5b03b9ee950b",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/primitives/direction/direction.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/VectorSpace.H": {
+    "sha256": "771ce779d62e640597b07abc9ebd8a1ea2e684f972afec6e93e58373f53bc52d",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/primitives/VectorSpace/VectorSpace.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/scalarList.H": {
+    "sha256": "09d8143575b4751797ed2186746f748809ee2a31e3986fc525eba32225c199f7",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/primitives/Scalar/lists/scalarList.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/FieldFunctions.H": {
+    "sha256": "1e35b1577c0d69946b164218c8a36ca4f20dbd6e1e11f2433fd1856502af8da2",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/fields/Fields/Field/FieldFunctions.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/Field.C": {
+    "sha256": "782708e8e76ba63ba667e836eab4c2fec3d35e81b94d6f98ea3de677be570488",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/fields/Fields/Field/Field.C"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/floatScalar.H": {
+    "sha256": "c72e10864e7d9be8d968313b4ac4fb2d9092e910e5391735c96dc33cc4d3a70d",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/primitives/Scalar/floatScalar/floatScalar.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/doubleScalar.H": {
+    "sha256": "f8ac5787b08b15d2eb8924495c00c2175ce126cdf52d483482e29aff59e88e6d",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/primitives/Scalar/doubleScalar/doubleScalar.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/longDoubleScalar.H": {
+    "sha256": "5e5d6f229a57fa62b842e948f94219a655693b66bf9d72189459c396364a58b0",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/primitives/Scalar/longDoubleScalar/longDoubleScalar.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/char.H": {
+    "sha256": "2cf69edb0358e9f975696f59bdac9c6a79500bc473649544074462fbf19b5174",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/primitives/chars/char/char.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/Hasher.H": {
+    "sha256": "89395ffecd8b0a86c906d2b9e7d61927ff71882720c0e51f82085429fce607e4",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/primitives/hashes/Hasher/Hasher.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/stringI.H": {
+    "sha256": "21bb1470fd90c183396fffa1bf5eb67cffdd760b8efc54a76ce8a9060ea99f27",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/primitives/strings/string/stringI.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/HashTableI.H": {
+    "sha256": "af7baf76c1a9bca0d340b0660187475eafe1c37673e7345080a77824c84d02d8",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/containers/HashTables/HashTable/HashTableI.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/HashTable.C": {
+    "sha256": "421b680d676f02bd13fed4a2a89a93a68d70ac97e2af349584576bec37eb8cf1",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/containers/HashTables/HashTable/HashTable.C"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/stringList.H": {
+    "sha256": "cc58d8b2e8a8ab3ac21fd8688f832573b0ac6ec564cf4241d5c90b1f86370bbd",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/primitives/strings/lists/stringList.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/wordList.H": {
+    "sha256": "223724f1d8645a840728f1d322a9b2b45af0377e6ecc8457cfbd3622d815bf5d",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/primitives/strings/lists/wordList.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/NamedEnum.C": {
+    "sha256": "61f3a40ed29a965c6a76e630d0608d76e6146d89cb318b52810a2fc541c05685",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/containers/NamedEnum/NamedEnum.C"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/ListOpsTemplates.C": {
+    "sha256": "e813be5a17761d41f664c496d7187c5f7f865032af17a391aad1e6fe5cb5d82b",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/containers/Lists/ListOps/ListOpsTemplates.C"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/Ostream.H": {
+    "sha256": "6aa50fe78d6d0a9a61885edda21c1761832fc332b4ff9e11053021897bc9c68c",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/db/IOstreams/IOstreams/Ostream.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/PstreamBuffers.H": {
+    "sha256": "1dfa04289d45ec9027a8ba2f09bd9f9ead3520cbf7eba261858f66256ef459f9",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/db/IOstreams/Pstreams/PstreamBuffers.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/Istream.H": {
+    "sha256": "910a5ba39aacdf9b0dc53e1788191d18a243a842d12896a27e8454ce2c17f74b",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/db/IOstreams/IOstreams/Istream.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/ISstream.H": {
+    "sha256": "29d9fca5573293b66f6683d1e174777fb7bf7d945914fe3ea5093cf0aea465b5",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/db/IOstreams/Sstreams/ISstream.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/prefixOSstream.H": {
+    "sha256": "39c08ac8ceef4e45f4482b86de12ad979dee342fe5e8f1899a4726092ae8d76d",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/db/IOstreams/Sstreams/prefixOSstream.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/token.H": {
+    "sha256": "041d32fdbff833981fffc758c0c299e7f969a9701f7d303c5f3286c930f1a3bb",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/db/IOstreams/token/token.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/uint.H": {
+    "sha256": "b3d88887bfc7bc61dc6a65d1b939b341101d5400a9fc1c3e2fc1869e5770b183",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/primitives/ints/uint/uint.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/tensor.H": {
+    "sha256": "5351c16c182c1be10b417655b22c8d13248fb1da4e19d08d11d7cfa87af5365a",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/primitives/Tensor/tensor/tensor.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/transformField.H": {
+    "sha256": "a38fcf9f0bc7cc353fb801b52b5b98e303f555d60aa3f85905a28293e5148612",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/fields/Fields/transformField/transformField.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/transformerI.H": {
+    "sha256": "39f9e98282725bfdc90cb533db5d6e94887c666607b9784a4a69a3663ba4d2e7",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/primitives/transform/transformer/transformerI.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/transformerTemplates.C": {
+    "sha256": "6299dfadbf16d1c77424044f2972d51278424b6e33f107bdcd79c1e1b36bebc1",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/primitives/transform/transformer/transformerTemplates.C"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/entry.H": {
+    "sha256": "94b496850fb196a5328d945043395cac8756ff84ba06e9373774aa171db8dfa0",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/db/dictionary/entry/entry.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/IDLList.H": {
+    "sha256": "7807b3b6d32a592a22ef1f049bdfd12682697b87405f40c073f258fb053149d5",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/containers/LinkedLists/user/IDLList.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/DLList.H": {
+    "sha256": "61787a3b9acec9fb31fb6518520d82e398633d94030ae99d847a01bdd83cda2e",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/containers/LinkedLists/user/DLList.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/ITstream.H": {
+    "sha256": "6c4d8a7b5e0bfb7ebc79acf3a51bd7c347edd8ff76f8c977a0c89d09c98a5149",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/db/IOstreams/Tstreams/ITstream.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/wordReList.H": {
+    "sha256": "31c19b5527404767abc7e374e2d1258abf2ab37179ff96ce79ff4e59288b2593",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/primitives/strings/lists/wordReList.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/Pair.H": {
+    "sha256": "ef602e9d2cb7e85d6c29525a01945e306a1cacbad237663ea04d5a700f90f45c",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/primitives/Pair/Pair.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/dictionaryTemplates.C": {
+    "sha256": "738a49e1ce839df116a12dcc2a648ed3876a90c4a8996cf8fb3abd8646791851",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/db/dictionary/dictionaryTemplates.C"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/linePointRef.H": {
+    "sha256": "56202d597d57a8b0e044cc622d9d0c90644cc369b9d60862f77fb0f79602bf9b",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/meshes/primitiveShapes/line/linePointRef.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/volumeType.H": {
+    "sha256": "c3939f1af4e18cab4064cba90387663c7cbe88e56d35093b6b4adf7753ea4f56",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/algorithms/indexedOctree/volumeType.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/treeBoundBox.H": {
+    "sha256": "8a6d8a6fb08569d80b3882d0fb9d2db887135263f346a5f24a37edd8d5755b02",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/meshes/treeBoundBox/treeBoundBox.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/PrimitivePatch.H": {
+    "sha256": "42e7d3c7e2d7bab0ea92a3076e86daee9bce7763cfd44f49d8f1f071dc6a407f",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/meshes/primitiveMesh/PrimitivePatch/PrimitivePatch.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/face.H": {
+    "sha256": "31a9f82117d28098079f7b442e3d6f04a7a903b051fb978b3d30b1fb7c78895e",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/meshes/meshShapes/face/face.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/SubList.H": {
+    "sha256": "b2fb0530ffe24a9b914cd53735fffa83de340677ed37ebcbf01efd44b29e9e5b",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/containers/Lists/SubList/SubList.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/plane.H": {
+    "sha256": "ec581e7fca5a753a498d097a0a8806c01c90ffcb7f55722fb6f46a7a3d16f4ee",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/meshes/primitiveShapes/plane/plane.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/triFaceList.H": {
+    "sha256": "91781f8e87f2d4dde4574657a600f2e624e21ae1160f1b14e9bee7781b8e9455",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/meshes/meshShapes/triFace/triFaceList.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/meshTools/lnInclude/faceAreaIntersectI.H": {
+    "sha256": "4326359325af19ad6ba2ff2c5632e57e27e93ee24500f65925030eac9c1ced29",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/meshTools/AMIInterpolation/faceAreaIntersect/faceAreaIntersectI.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/globalIndexTemplates.C": {
+    "sha256": "018f2e92e82f2e08eb38f067efdf245595871b72c9671c887f63aa32f2b01b47",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/meshes/polyMesh/globalMeshData/globalIndexTemplates.C"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/globalIndexI.H": {
+    "sha256": "755668d297a76b9c589cee42043858962a4d5a99e15ddb749fedd46fb9c606ca",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/meshes/polyMesh/globalMeshData/globalIndexI.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/meshTools/lnInclude/meshTools.H": {
+    "sha256": "5d61272e2c08657156f42614238c3177b81b5bfbd15e417d9cda9caeab9c5469",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/meshTools/meshTools/meshTools.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/distributionMap.H": {
+    "sha256": "caecb0651fd12b394494c28fafc64de660c198ea08d197c4c817fb36680bb0aa",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/meshes/polyMesh/polyDistributionMap/distributionMap.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/flipOp.H": {
+    "sha256": "8b647548aacd50f49f3b9289bd74ce6c1ec61d37f7ccabc0216ba763ad847b6d",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/primitives/ops/flipOp.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/indexedOctree.H": {
+    "sha256": "6586d90753c200502532a3b624230439c412e01866ee86be60783626731b4b56",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/algorithms/indexedOctree/indexedOctree.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/meshTools/lnInclude/treeDataPrimitivePatch.H": {
+    "sha256": "6e11a62dad24c423952453ba82b66d80c97f1b3662e9a98c04d6bf39c0264b97",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/meshTools/indexedOctree/treeDataPrimitivePatch.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/meshTools/lnInclude/AMIMethodI.H": {
+    "sha256": "2c1f9845c05a919a7e4e989f9f8b96c8f22e4a273d157cd00d6e0ae4c71e3bc1",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/meshTools/AMIInterpolation/AMIInterpolation/AMIMethod/AMIMethod/AMIMethodI.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/IOobject.H": {
+    "sha256": "8c6298c3bc4650509a0836b5d1e2907f9a31332c84e3c6f90bbf41681d01a66f",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/db/IOobject/IOobject.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/regIOobjectI.H": {
+    "sha256": "b472e25ad020133a89b574a92765755b1c49b38fc1bfdf570669fd0d5faf51ce",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/db/regIOobject/regIOobjectI.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/nil.H": {
+    "sha256": "67b915183c0dd2c5a8a6ff22714f7c39add3b8940d3c3438c0fb56bd404b6129",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/primitives/nil/nil.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/HashSet.C": {
+    "sha256": "e10308bd97e52fd4959317fe5b58a8e48a7e07e392930fb6cf9eaf45cfae0325",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/containers/HashTables/HashSet/HashSet.C"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/edgeI.H": {
+    "sha256": "d76bbb8e17ea6f28b1cc071bbf7fa5524645abc55ca6b3d169831733dbf0ccf1",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/meshes/meshShapes/edge/edgeI.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/vectorField.H": {
+    "sha256": "121f5596cbc2f28cf8710267952aa63b2b59698dc402a8e97b350925bc05e8de",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/fields/Fields/vectorField/vectorField.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/sphericalTensorField.H": {
+    "sha256": "50416a4c899a50ea32f38dbb1f2a72355540503e815f09fc15d52d4eba3969f0",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/fields/Fields/sphericalTensorField/sphericalTensorField.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/symmTensorField.H": {
+    "sha256": "a47abb34625fbe8d37a06199de90432698a0f9976ffe2e29d400e224cf82b7b4",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/fields/Fields/symmTensorField/symmTensorField.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/DiagTensor.H": {
+    "sha256": "58394c63aae23496404a483ed2c34ffdab99793094b4c7d0db425b30f3e3249a",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/primitives/DiagTensor/DiagTensor.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/point.H": {
+    "sha256": "f7f31137d0dbac036d8457520ed8ecf9343a2c33ae63dd676a5dfe2676adbada",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/meshes/primitiveShapes/point/point.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/primitiveFields.H": {
+    "sha256": "6e85150f8b84fa753aad284f2bad5f4bb820b70b1580d422f9ef207d434d4809",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/fields/Fields/primitiveFields.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/pointFieldFwd.H": {
+    "sha256": "f77126f5112e0d2f98ec71a96f5a8c3a121ca6e91778e94ce7ce7cf84eed0360",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/meshes/primitiveShapes/point/pointFieldFwd.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/Hash.H": {
+    "sha256": "92f432610b9a186edf531e2c26a125d96f38fb72ce74a75b9e57371d6e169989",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/primitives/hashes/Hash/Hash.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/PointIndexHit.H": {
+    "sha256": "02ab8bf0708d302e9a2af273c14bfc81858ec0fc9575668252bb4c818e3d6a2a",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/meshes/primitiveShapes/objectHit/PointIndexHit.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/error.H": {
+    "sha256": "e958a70e2bb45bc8169149a95a7c822c12a540557c76b49f30e8bbdd0a428edb",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/db/error/error.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/pTraits.H": {
+    "sha256": "dbee3a5369b654a2e27f4888f30c83b8a7e6d740c2fa9bb542c7d29aa3b06d84",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/primitives/pTraits/pTraits.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/nullObjectI.H": {
+    "sha256": "7ed2eb1d0e105f1cbcc227a5996601cdac0048bc31ed2a07d8d6d3d98e55d09d",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/primitives/nullObject/nullObjectI.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/zeroI.H": {
+    "sha256": "e487063636ebc5e98cc7e9ad236dae608d2a16977ee87f4f288fe2bac90dfcaf",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/primitives/zero/zeroI.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/Swap.H": {
+    "sha256": "ed6ae366435d311b1cbdd3d8ef24cb1b0bf0f39e2d6d08d44e4fee255e80a70e",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/primitives/Swap/Swap.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/UListIO.C": {
+    "sha256": "906645ad31468ba271563f3e088cbf707240e64538a47a6ded1e690739330819",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/containers/Lists/UList/UListIO.C"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/FixedListI.H": {
+    "sha256": "ba594e12184754c452258e4795639fc8e018991948a8884c65ecae7f9294579d",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/containers/Lists/FixedList/FixedListI.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/FixedList.C": {
+    "sha256": "e5c19bfcbe31238303c3cfbfc5465fdc3aacc429e708f8600551d7e0a19eea61",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/containers/Lists/FixedList/FixedList.C"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/UPtrList.H": {
+    "sha256": "721a1e695155d64edf539fb719956ba4bfd3eaf565f28cc21d7ef34ebcefc7d0",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/containers/Lists/UPtrList/UPtrList.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/PtrListI.H": {
+    "sha256": "3f90f92b7a1f047237a3fc3b6a93a7337f526c0d8f8850100da9c1f358471159",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/containers/Lists/PtrList/PtrListI.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/PtrList.C": {
+    "sha256": "8069609636bc0157f541ad54482d7d49de2a2917986202da847f5b74af16c9bb",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/containers/Lists/PtrList/PtrList.C"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/LList.H": {
+    "sha256": "d019c4845912e23de806c07926ad9f251ccc9fbb9e2c7eb4884f3bd468526c61",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/containers/LinkedLists/accessTypes/LList/LList.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/SLListBase.H": {
+    "sha256": "5af8e48c4a36725bd5584e4c62012b6349bf3bacd2b91dd9fbbf21cbdc5e365f",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/containers/LinkedLists/linkTypes/SLListBase/SLListBase.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/IndirectListI.H": {
+    "sha256": "9c16aec7abd7c7a96294de770df8a9dd50d29ba229d8129859f877169f83fa00",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/containers/Lists/IndirectList/IndirectListI.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/UIndirectListI.H": {
+    "sha256": "3243a7a2e9d2da426cafd4b7684e6cd529cd8bfe19c70c1e645dc5853f7f7efc",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/containers/Lists/UIndirectList/UIndirectListI.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/UIndirectListIO.C": {
+    "sha256": "e77491b42b6e203264f0253e278ac2b975309dfe758edd9645cce925892e047f",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/containers/Lists/UIndirectList/UIndirectListIO.C"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/BiIndirectListI.H": {
+    "sha256": "87264f69e54c30375468cc419ff565e6a1279035f3650626a5e80ac774e5c56f",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/containers/Lists/BiIndirectList/BiIndirectListI.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/objectRegistryTemplates.C": {
+    "sha256": "691e92eff70db3c802128da4ec2363affe5e01bc6ccfd3bd708862910ece0b37",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/db/objectRegistry/objectRegistryTemplates.C"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/faceListFwd.H": {
+    "sha256": "9d0e32032f4220cff521ea203ee60299b5107f6b2ad96c4f6dc93592496dd984",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/meshes/meshShapes/face/faceListFwd.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/cell.H": {
+    "sha256": "848f344864259964b95c8b5e535887eedb9a598f3fca48db9215d9302d44ffa3",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/meshes/meshShapes/cell/cell.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/cellShape.H": {
+    "sha256": "c251a82af930f399bc8ff72785151c554c29d2c9314682de1a6e1905440dc9a3",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/meshes/meshShapes/cellShape/cellShape.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/vectorIOField.H": {
+    "sha256": "a5929b54113977d1b33a0e287299a7b659ca8033c234272e949cbcf405ea1290",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/fields/Fields/vectorField/vectorIOField.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/IOList.H": {
+    "sha256": "d8f243c63687c43a5b442b1c7641bd98d095642df5e2916fdb82119075b4f179",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/db/IOobjects/IOList/IOList.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/CompactIOList.H": {
+    "sha256": "d0d6a4066cdf004180ecd7a6e5eb0c2754aff53a640e0c10075879d31641d584",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/db/IOobjects/CompactIOList/CompactIOList.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/boundBoxI.H": {
+    "sha256": "8f70afdb5ea1dcf9876b04f8233634f13ae34a81b3a1e03851e13e4abfa1efc7",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/meshes/boundBox/boundBoxI.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/boundBoxTemplates.C": {
+    "sha256": "2c67e5a61e60f9516535bc08f92c1b3da7e097185bce1688ae208c098c226ed5",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/meshes/boundBox/boundBoxTemplates.C"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/MeshZones.H": {
+    "sha256": "5c7def5742f416e8d35a8eb9f5d11d8c24071dfc2e808e333924a439f6fc3dac",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/meshes/polyMesh/zones/MeshZones/MeshZones.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/pointZone.H": {
+    "sha256": "35d99a7e96a148ada0b4c83d5fc77cd3d1449c2f978cc5ce71b6ce9e5331e036",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/meshes/polyMesh/zones/pointZone/pointZone.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/meshPointZonesFwd.H": {
+    "sha256": "ec18a7a0b23e1100f1cda2b740405c6262a97886a43a596e4401083a6646c0c8",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/meshes/polyMesh/zones/MeshZones/meshPointZonesFwd.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/faceZone.H": {
+    "sha256": "e6a0cd838bff88eb78eef158e62dbecfdcc2060da2ef9532d0e7f347634f70f0",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/meshes/polyMesh/zones/faceZone/faceZone.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/meshFaceZonesFwd.H": {
+    "sha256": "565a40fa2c7ca6b478739b39d51e240e7d18548e2d2b089ad2e94b4c90b24437",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/meshes/polyMesh/zones/MeshZones/meshFaceZonesFwd.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/cellZone.H": {
+    "sha256": "774a5555ba7db4a693cde04109f1f1268c97d575086a62725994bc9d5276f214",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/meshes/polyMesh/zones/cellZone/cellZone.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/meshCellZonesFwd.H": {
+    "sha256": "0ac0b2e69c0bc7828edf2da6bdeee25296c5f7c283489917bc7e30cadc1269e5",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/meshes/polyMesh/zones/MeshZones/meshCellZonesFwd.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/lduSchedule.H": {
+    "sha256": "3da5782e5f28a8de53a6044217db25838a5dfe0963d4700d8fcd346066a86314",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/matrices/lduMatrix/lduAddressing/lduSchedule/lduSchedule.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/lduInterface.H": {
+    "sha256": "f5cae8dbe040b10d878d63e463d82a8671a9efe56b07942b2dec8eb685d52e36",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/matrices/lduMatrix/lduAddressing/lduInterface/lduInterface.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/finiteVolume/lnInclude/fvPatch.H": {
+    "sha256": "04a7e0aae3cb12a9370e3971a7b837a63c24b1bc9a460b8145bdf2fa8a5450cf",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/finiteVolume/fvMesh/fvPatches/fvPatch/fvPatch.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/refCount.H": {
+    "sha256": "322f2bd340a2fa46b60ee46ec40fa1273656f7f7f3fe72af4be8365de7ebcacb",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/memory/refCount/refCount.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/tmpI.H": {
+    "sha256": "6a38d4c9b2b220490a3b944d12127d7a9083aaffaf4156d1e9f7c986b5d3a4cb",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/memory/tmp/tmpI.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/solutionTemplates.C": {
+    "sha256": "bdfd6e1d6077095aeab85ba85abcf64ad774135042f3456726ef1eeb782640f0",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/matrices/solution/solutionTemplates.C"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/dimensionSet.H": {
+    "sha256": "5051271e672b82ea9cff4af8c4dc51cdbef71c517392c55f54622f01ea897540",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/dimensionSet/dimensionSet.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/dimensionedType.C": {
+    "sha256": "2b92ad944e61ea82c8752ef1aa43eff286d7e0847d6b2bdd00d2e1915f75cddb",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/dimensionedTypes/dimensionedType/dimensionedType.C"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/DimensionedScalarField.H": {
+    "sha256": "5eaa6ccadefb74da466eede39e291e0d6564ecb816e9097f828f4af21d89b10c",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/fields/DimensionedFields/DimensionedScalarField/DimensionedScalarField.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/DimensionedFieldFunctionsM.H": {
+    "sha256": "7356abb6367dc0e8768a2837894dde40f4474bc8556c6f69b8e4264629a5fd50",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/fields/DimensionedFields/DimensionedField/DimensionedFieldFunctionsM.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/Time.H": {
+    "sha256": "d7c1f2212c83b678bb2df40b0142ed4527e3d6224bdf95bf124238fc4c7f5c31",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/db/Time/Time.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/DimensionedFieldIO.C": {
+    "sha256": "29814069edf5ec73ae8fc884b82683baf0546028fc1070b5000a30ffe713b9a7",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/fields/DimensionedFields/DimensionedField/DimensionedFieldIO.C"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/DimensionedFieldFunctions.C": {
+    "sha256": "7daee9deeff60a5fbf5946c3fdfff42f4204054c13e64f5b4f0730079c66d51f",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/fields/DimensionedFields/DimensionedField/DimensionedFieldFunctions.C"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/vector.H": {
+    "sha256": "bcb460dff337f875fd5011ee3b8de2340fef0b1f28fa7a2b2be833bb301424d4",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/primitives/Vector/vector/vector.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/sphericalTensor.H": {
+    "sha256": "d282bdcbbffd1858c030d87896d4b2a116dcafc4bc062708208c1f55927ba853",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/primitives/SphericalTensor/sphericalTensor/sphericalTensor.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/symmTensor.H": {
+    "sha256": "75a6c18d478aff6e34d0179fdea4718b8b2850dee3f4d975d86737c885523eb4",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/primitives/SymmTensor/symmTensor/symmTensor.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/triad.H": {
+    "sha256": "a985c0ae1c0fb3a1ea3a1691ae551a6c0e22f04af7b63b6d8320d4d28f078f55",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/primitives/triad/triad.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/macros.H": {
+    "sha256": "7e85e72273588e419aa591be88678fc318f84372ce1b87a42170f355cbbd02e3",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/include/macros.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/debug.H": {
+    "sha256": "bc57e9f6acb1b498803d16d72bef052dbd1f6147542f8223b596d22fc3e2f970",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/global/debug/debug.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/int32.H": {
+    "sha256": "3aa13d282958216adf48de10404f8f02c02e492b26101a187958b94070a7deae",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/primitives/ints/int32/int32.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/int64.H": {
+    "sha256": "9aa7a46fc4b2312f34c93117b223172a3afbc5fa8b97c4e16b903516913c2506",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/primitives/ints/int64/int64.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/VectorSpaceI.H": {
+    "sha256": "6a9d084ff2f0d747b1ac130ed600051eaaa5dbd98bc348e11d0fe3fd67abc311",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/primitives/VectorSpace/VectorSpaceI.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/VectorSpace.C": {
+    "sha256": "a95f2eea1f330ac16a95e8811229b9db6829ed5af4263e8ad5629e67543b9d85",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/primitives/VectorSpace/VectorSpace.C"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/FieldM.H": {
+    "sha256": "9106805df38c2792cdb95a1bdff97784cba50162699cdf8473ea0f7e41fc69de",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/fields/Fields/Field/FieldM.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/FieldFunctions.C": {
+    "sha256": "9d30efd9cb05f5ef15fdc2b1a15141c77ea1c7a18db02e8ad39020311937d04c",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/fields/Fields/Field/FieldFunctions.C"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/doubleFloat.H": {
+    "sha256": "d298f454551d57cbca69bc745b39eeef5e9592a6907e9b9b973f9aaaac258c66",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/primitives/Scalar/doubleFloat.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/Scalar.H": {
+    "sha256": "84ded8082914678d9f38bdb008ede30227c6c90e66df4996305e9ad5f07d8ba1",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/primitives/Scalar/Scalar.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/HashTableIO.C": {
+    "sha256": "18fa0627988ad48881a33111c5ddfa97d5852300cb89e3d0dd9e332baa27fceb",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/containers/HashTables/HashTable/HashTableIO.C"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/IOstream.H": {
+    "sha256": "9af393a3f8f46963ceb15ead8200af9af4b97bb7c57689fd11842fbcd2495a14",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/db/IOstreams/IOstreams/IOstream.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/verbatimString.H": {
+    "sha256": "f784ba06cf4904b1b941e9f4881bed73dc1fd5df0d7f2d19c6c92bf7a9e79e28",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/primitives/strings/verbatimString/verbatimString.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/keyType.H": {
+    "sha256": "d052f04bf868a962960dadd432f222fffdd5fe01bb2935c493f648457f4e3dcd",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/db/dictionary/keyType/keyType.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/fileName.H": {
+    "sha256": "24b3f9ebaf3b900d23bd66e3972980770fb929ce348cc42fa7eb491a6e450b9f",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/primitives/strings/fileName/fileName.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/ISstreamI.H": {
+    "sha256": "f56258633d6793db3ef6efc608e85eaa8df228a39186fdf70983aaac9d13ee09",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/db/IOstreams/Sstreams/ISstreamI.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/OSstream.H": {
+    "sha256": "e6291c6176513f89dd79cb2e5a0eb9a212b4ff73aaf22959e4ea738c6d986daa",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/db/IOstreams/Sstreams/OSstream.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/functionName.H": {
+    "sha256": "22154afbe35f1fd2a6d6aab375fd8a49692d21f23232520ac36601eefec482b9",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/primitives/strings/functionName/functionName.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/variable.H": {
+    "sha256": "558a34bf0d7313925461768fcd3a3bfe534632719e65541f962bbfb4137315b7",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/primitives/strings/variable/variable.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/tokenI.H": {
+    "sha256": "4bf794398ee1bd48af45139ece2c954f59d82a657191f996368f932daea0c6db",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/db/IOstreams/token/tokenI.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/uint32.H": {
+    "sha256": "a7171652cae232ae61f32cb28c14b480dfab1bc74f552b0585a8ad65f2fa6ebb",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/primitives/ints/uint32/uint32.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/uint64.H": {
+    "sha256": "4ec36a21aaacce88bfd5c3555022793d58b46e4cdd23c8184a59946eb1f862dc",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/primitives/ints/uint64/uint64.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/Tensor.H": {
+    "sha256": "bcf05b91c57a16d31cb25c6f6e884e58f4720c92a641bb29a6be67b811bc90ae",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/primitives/Tensor/Tensor.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/transform.H": {
+    "sha256": "8940a43317d382207885fb2786f571960d2c2c5c54f9ee7378cbaf31276eae74",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/primitives/transform/transform.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/spatialTransform.H": {
+    "sha256": "9d0a6144717a8d2023025223386c6b24da63b8b586925887997d50e04e762a43",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/primitives/spatialVectorAlgebra/spatialTransform/spatialTransform.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/quaternion.H": {
+    "sha256": "51283226e16d1feeaa168a32c80664e92263c3def0173cf7a8a806b8d5b2b6b4",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/primitives/quaternion/quaternion.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/septernion.H": {
+    "sha256": "eb23dab652f6524bc546aa457ab6dbc1265a034a83d50cade46983fa83542490",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/primitives/septernion/septernion.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/transformFieldTemplates.C": {
+    "sha256": "067870e615fbae6403b5448427d74e86c8cacebb453f4ed9b85a26af3c5cdaea",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/fields/Fields/transformField/transformFieldTemplates.C"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/ILList.H": {
+    "sha256": "7bd8ae63811130f71e6c2aaafaf602eff8e2c2701937d1d125fbfaa907e49c75",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/containers/LinkedLists/accessTypes/ILList/ILList.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/DLListBase.H": {
+    "sha256": "d8470ce7242745ebc5ddd00a9e07e0d40b9080389d35c0e0b5b2a6f977ec301a",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/containers/LinkedLists/linkTypes/DLListBase/DLListBase.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/tokenList.H": {
+    "sha256": "4a45bca16c2fa7820fc9f1f67353aa470de29e60ac733b99c3c2fd8c8bcacca4",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/db/IOstreams/token/tokenList.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/wordRe.H": {
+    "sha256": "64946b59c072cdca9fa962febb06326d5ec6eae0674d784a0d0b8c37f0e56def",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/primitives/strings/wordRe/wordRe.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/primitiveEntry.H": {
+    "sha256": "dac445f593d297b7275af8b8436f4206a55fa822f7af718f9aaa1f59be0c3e0e",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/db/dictionary/primitiveEntry/primitiveEntry.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/line.H": {
+    "sha256": "72c5d7f6efbe26baa2a2b676635f463a3a4ba6ba503ab321402e59e96907a0d1",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/meshes/primitiveShapes/line/line.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/treeBoundBoxI.H": {
+    "sha256": "f846097c9c02e81ad523487c9e30092db74bbc5893ec039952b3cb22a2025c19",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/meshes/treeBoundBox/treeBoundBoxI.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/treeBoundBoxTemplates.C": {
+    "sha256": "4d380785d12718d939f5d07b59f54fa13f80ebc208e4f9a4d2b7b54a16e19105",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/meshes/treeBoundBox/treeBoundBoxTemplates.C"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/intersection.H": {
+    "sha256": "021ce2d4908e77ac14cf14d2c6fc5b71cb8a6da15d83a76cedc67d9981d1c37e",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/meshes/primitiveShapes/triangle/intersection.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/objectHit.H": {
+    "sha256": "fa93db11bc634ddf67e93d1bb8b531e1b20d19cf1ccfec7c83c66d990e8171fe",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/meshes/primitiveShapes/objectHit/objectHit.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/PrimitivePatch.C": {
+    "sha256": "dd82a1e2692034a318470b69570510dc55536316b19ba0ee903258bfe98d898e",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/meshes/primitiveMesh/PrimitivePatch/PrimitivePatch.C"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/pointHit.H": {
+    "sha256": "d219d77d136319b10aad938b89a8aa4f321e53ccd2e766f8f0b1e8962c605435",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/meshes/primitiveShapes/objectHit/pointHit.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/ListListOps.H": {
+    "sha256": "4902dca4e7a2cd771587d837b58f5fb19f3cbafc5e1ba98c0066a1c1bef7d7ae",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/containers/Lists/ListListOps/ListListOps.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/faceI.H": {
+    "sha256": "d00e50644ee44e1e120f6ad4a213291e9164e8aaef0b1d0aefdea0f3ea2dd7cf",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/meshes/meshShapes/face/faceI.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/faceTemplates.C": {
+    "sha256": "3fbd382a6c5b9ebebae5ba91a011f2d550cf0bfd848de96b0f77685025880b00",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/meshes/meshShapes/face/faceTemplates.C"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/SubListI.H": {
+    "sha256": "b40f782dbdd3cc8e3c1869f0501b15d916b3fd9caea54dab5288ba3a1a64501a",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/containers/Lists/SubList/SubListI.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/triFace.H": {
+    "sha256": "8d6f7347ec12171a86afe75735a2be3c74a479670ae5fb00073970b7975be920",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/meshes/meshShapes/triFace/triFace.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/meshTools/lnInclude/meshToolsTemplates.C": {
+    "sha256": "10a79c204f81c7cf6726727260be3648379236afb268bcd550016eb6652a2a22",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/meshTools/meshTools/meshToolsTemplates.C"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/distributionMapBase.H": {
+    "sha256": "adefcad49c3db99c294133d239a9e635fd7b92fb09487daccb4ba8c553e71338",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/meshes/polyMesh/polyDistributionMap/distributionMapBase.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/EdgeMap.H": {
+    "sha256": "eb789f532b23a35e977d465da64cc977570222cf9749fc7596f07cfeb5a7d7a6",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/meshes/meshShapes/edge/EdgeMap.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/distributionMapTemplates.C": {
+    "sha256": "e86194459a019c8e2b735bd54a230abf536bda7db5cbc33f540bb7cd13ddf8a0",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/meshes/polyMesh/polyDistributionMap/distributionMapTemplates.C"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/labelBits.H": {
+    "sha256": "c7c8b19aff086765216c2a91b69b89838c793a9289f77418b9af142334e121bd",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/algorithms/indexedOctree/labelBits.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/PackedList.H": {
+    "sha256": "29fec5329369f0dd681898a99a03ce21f22ff7a162dab4392d7865744df62a42",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/containers/Lists/PackedList/PackedList.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/indexedOctree.C": {
+    "sha256": "b276e611d1d77c242fc9b0f6ed1dd30857d10f03bd482c00473ff87b50dd3284",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/algorithms/indexedOctree/indexedOctree.C"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/meshTools/lnInclude/treeDataPrimitivePatch.C": {
+    "sha256": "b9a131d6c78b2c88e48c8b1962d65c01e4437a6298c04cf89e6de4e1687f200b",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/meshTools/indexedOctree/treeDataPrimitivePatch.C"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/IOobjectI.H": {
+    "sha256": "46decafc4a3c91482f7b250e061d637926e8c5f49993fbef1488190c77e07d90",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/db/IOobject/IOobjectI.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/IOobjectTemplates.C": {
+    "sha256": "06eb989307212eac74ed4a27e86e5a2acb74ccf0aa0807ab57db21bafbcef742",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/db/IOobject/IOobjectTemplates.C"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/DiagTensorI.H": {
+    "sha256": "3729324a55f8b0010a0734295bfb291a358672c25ea639df9bb1141ff33de229",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/primitives/DiagTensor/DiagTensorI.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/labelField.H": {
+    "sha256": "bad053c1b951cf0030dadd6dbc90c95ce01d1b452da414f69f081e02ec883128",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/fields/Fields/labelField/labelField.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/primitiveFieldsFwd.H": {
+    "sha256": "9c90fb563bf80545a860c04c8190d4529dc45df993fcc844a1d390c755a2174d",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/fields/Fields/primitiveFieldsFwd.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/OStringStream.H": {
+    "sha256": "7630c3af25f4dbfe02818fb659651671d4cba25713acd19799f2337e6b008dd7",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/db/IOstreams/StringStreams/OStringStream.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/messageStream.H": {
+    "sha256": "98972a54ef0d554e62767de6436589146036c23619d0d70c1aaee5f6bee8c12f",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/db/error/messageStream.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/errorManip.H": {
+    "sha256": "623bb8c595e5305e11f62bc0a10140cfa3760d9b34ccdbb01cca03546fbcda2c",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/db/error/errorManip.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/FixedListIO.C": {
+    "sha256": "06550a2f2eb45390bd1096022051f987798ab035587769163433cff926638f96",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/containers/Lists/FixedList/FixedListIO.C"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/UPtrListI.H": {
+    "sha256": "a738d3d574992dc492479172043d6de71790479a4db990fa51d04ddfd8a9090b",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/containers/Lists/UPtrList/UPtrListI.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/UPtrList.C": {
+    "sha256": "8c110ef769228fb2e92d59a38818d371a7f2a382beef23bbe0ad581f9e3bc549",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/containers/Lists/UPtrList/UPtrList.C"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/SLPtrList.H": {
+    "sha256": "081b4c0d521eb757cac4f61c29a3698b6b4b8ec32dc7cadf0882381add06fadb",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/containers/LinkedLists/user/SLPtrList.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/PtrListIO.C": {
+    "sha256": "33fbb68adfa31afa70740fed975bbf693be5486706635d1144ebab0054cd4b7a",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/containers/Lists/PtrList/PtrListIO.C"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/LList.C": {
+    "sha256": "9d7f1c6803eb9b55d5b97b99ef7faad0d15ea73f589cdde703708db12ca15f96",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/containers/LinkedLists/accessTypes/LList/LList.C"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/SLListBaseI.H": {
+    "sha256": "01b1c4446dc164da35b650aa0fbe84cd78972be73de5509182a71525ce5131b5",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/containers/LinkedLists/linkTypes/SLListBase/SLListBaseI.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/stringListOps.H": {
+    "sha256": "ca82f3bfa931e3b1929e7e85556a965335e1ed2f2867562ca44468eb5a4c694a",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/primitives/strings/lists/stringListOps.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/oppositeFace.H": {
+    "sha256": "3ac124b869e8458679abf4378be1b38430cd89abcae84f13f3cde51a61149ff2",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/meshes/meshShapes/face/oppositeFace.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/cellI.H": {
+    "sha256": "fa7c37eab11d0b9ae159b7295553c509d18f32414281791a03412fbe6adc2daf",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/meshes/meshShapes/cell/cellI.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/cellModel.H": {
+    "sha256": "1ddb8c48cfe89297b86e1a0f9e975a1414f22c7a5a70093d4e03782d70bada2d",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/meshes/meshShapes/cellModel/cellModel.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/cellShapeI.H": {
+    "sha256": "c2086a3c828a4cc673f2ad437f9dab83f062abeeb9a66cd2569df2aab3d576f1",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/meshes/meshShapes/cellShape/cellShapeI.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/IOField.H": {
+    "sha256": "38e0bb0f0da5374475439531c4c80f33d515b6d7547d94a4190c3721d175a22e",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/db/IOobjects/IOField/IOField.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/IOList.C": {
+    "sha256": "6986d381b7fcf7d6d29b0523aeda2a26df4b4e55df3996ae412245271530cbbd",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/db/IOobjects/IOList/IOList.C"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/ListCompactIO.H": {
+    "sha256": "da34ac7b290de93463a980d329fa2b1276add0156037d221cc66736566ca824a",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/db/IOobjects/CompactIOList/ListCompactIO.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/CompactIOList.C": {
+    "sha256": "b0d3147b7129de6113a2e2071e7ac2795f5c06cc20658bdd3dff2d70f3d15b98",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/db/IOobjects/CompactIOList/CompactIOList.C"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/PstreamReduceOps.H": {
+    "sha256": "9cdd021169f14d24c059ee33a6527b2eb4db81e5f07948a7558efab6f3054998",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/db/IOstreams/Pstreams/PstreamReduceOps.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/PackedBoolList.H": {
+    "sha256": "020bf308cad3de49d24ae06f66a39f469f6113a4ccbcf9e254a7a379c9fad1c9",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/containers/Lists/PackedList/PackedBoolList.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/MeshZones.C": {
+    "sha256": "a1dadd2b83bfe83c8ab98fc5180c1d17d70de9b594765dd356416fc745df6854",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/meshes/polyMesh/zones/MeshZones/MeshZones.C"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/zone.H": {
+    "sha256": "28904f8f53107dc33e84193bcc9442e02cb1eb34597e1af3217d0a0beaf1f241",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/meshes/polyMesh/zones/zone/zone.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/primitiveFacePatch.H": {
+    "sha256": "6f29923eaa62a78f2d947c5a7017bdb886031a4cd4f24b7788b8da6efb5ae167",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/meshes/primitiveMesh/primitivePatch/primitiveFacePatch.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/tmpNrc.H": {
+    "sha256": "508684963da3df83950c5eb0f5b3dc98d9e1d622f2f4be13cac1a07a9c762cb8",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/memory/tmpNrc/tmpNrc.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/SubField.H": {
+    "sha256": "496ff27aa6dc61e01f7895d997e49dfd422172c7ca6b7612f620887b1f2a2664",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/fields/Fields/Field/SubField.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/finiteVolume/lnInclude/fvPatchFieldsFwd.H": {
+    "sha256": "6879c7f4533343f7ef74d98525295190408e59a1a158699e5e1c1ea208e9d7e4",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/finiteVolume/fields/fvPatchFields/fvPatchField/fvPatchFieldsFwd.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/finiteVolume/lnInclude/fvPatchTemplates.C": {
+    "sha256": "943755881363442225cadcd983db41f37011a3dd017c67f727a31cf23e60b2bd",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/finiteVolume/fvMesh/fvPatches/fvPatch/fvPatchTemplates.C"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/dimensionedScalarFwd.H": {
+    "sha256": "9c874deb379d62229351d490057f4d2a0b839e4ab97a8b7cc982f9d72d318674",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/dimensionedTypes/dimensionedScalar/dimensionedScalarFwd.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/dimensionSets.H": {
+    "sha256": "0eb287c958d8f9810cdc2e2b72a32321f243b4acd4c54611a6b656468f1a00aa",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/dimensionSet/dimensionSets.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/DimensionedScalarField.C": {
+    "sha256": "5727df1dd3fa257afb35b8d468865e25c11aae3cbf44198be73931b7e82d7d28",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/fields/DimensionedFields/DimensionedScalarField/DimensionedScalarField.C"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/TimePaths.H": {
+    "sha256": "1f200e9892c612936244518efe636f868bd973b1e21d81e0d2989a1c88d8d2b8",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/db/Time/TimePaths.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/FIFOStack.H": {
+    "sha256": "3bff46da2bfa8bbc13d1348e1ee290efaca3fd23fa425cf57198638cc12c1cd9",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/containers/LinkedLists/user/FIFOStack.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/clock.H": {
+    "sha256": "47812a7d06a36c27f26f73c9608cd65107611cfb524d8e273f0292aaa7ac13ed",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/global/clock/clock.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OSspecific/POSIX/lnInclude/cpuTime.H": {
+    "sha256": "afdb5cf29f1bc8c9b5b0006d29caae0bfa9cb6c9b31a84d48f91fd2579cde43f",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OSspecific/POSIX/cpuTime/cpuTime.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/TimeState.H": {
+    "sha256": "bfb0f1c5a9a2025a91b38b24e2f189fe422209d26fd3df78d6336572d5ed6ee4",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/db/Time/TimeState.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/userTime.H": {
+    "sha256": "93d2da202f91af10c0ad5baa63a43500f87a23302a59a5304a170c80dcf89029",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/db/Time/userTime/userTime/userTime.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/Switch.H": {
+    "sha256": "7a385ce0aad0a3c4714dfcd62772fa9db491980888f75fa2a54733074c948267",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/primitives/bools/Switch/Switch.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/instantList.H": {
+    "sha256": "2b918a95ad767639d71e0084a6ac2bb12f6ebb6851bcd2db6caf8691ec5e67d6",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/db/Time/instant/instantList.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/dlLibraryTable.H": {
+    "sha256": "f66e8948c48aa412ab56f65861bc0ad52873bafa48b236af83bea71d573770ba",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/db/dynamicLibrary/dlLibraryTable/dlLibraryTable.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/functionObjectList.H": {
+    "sha256": "8c5753f06a1d7740078cd32a2d3cfcc07bf98633db7aa66e9a3249784e8f7d56",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/db/functionObjects/functionObjectList/functionObjectList.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OSspecific/POSIX/lnInclude/sigWriteNow.H": {
+    "sha256": "31b55457293238483185707eb5d70b192f1ce6d707bee5f434d26e5753d04c05",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OSspecific/POSIX/signals/sigWriteNow.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OSspecific/POSIX/lnInclude/sigStopAtWriteNow.H": {
+    "sha256": "3dc8478777299a0b2a67bbc0e91401ff25e2207e44ad6c51f9a950dd5f77ba1f",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OSspecific/POSIX/signals/sigStopAtWriteNow.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/DimensionedFieldReuseFunctions.H": {
+    "sha256": "6395cc6edf3838a1b8342a452df2786b367861cc23a67f1e1677808a04a8b6d6",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/fields/DimensionedFields/DimensionedField/DimensionedFieldReuseFunctions.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/DimensionedFieldFunctionsM.C": {
+    "sha256": "27050f2835cfea98435bd3487c82ee6b6cd89c16fb3de7a5aaa9105cc3bcaadd",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/fields/DimensionedFields/DimensionedField/DimensionedFieldFunctionsM.C"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/Vector.H": {
+    "sha256": "9a61410886384a4520b5c2100c4812a91229790a786d301351e0ee9578258903",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/primitives/Vector/Vector.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/SphericalTensor.H": {
+    "sha256": "601f8c9b46feb829bbbde3f01feb9bd9f6a990d1ac0e7b6b8943a909cf91b4c5",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/primitives/SphericalTensor/SphericalTensor.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/Identity.H": {
+    "sha256": "957da6d8a0cc6d29926928be46397e2741c47a77d804d0270bc4ea35df5ff962",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/primitives/SphericalTensor/Identity.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/SymmTensor.H": {
+    "sha256": "0a12d218616302ddbbe7d5938529b3fe9b6ffe7916c5b0c3637136821362c694",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/primitives/SymmTensor/SymmTensor.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/triadI.H": {
+    "sha256": "c43469c3aa386142f8db55c1091ab15af02061a887541f31297f2f54e23f3040",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/primitives/triad/triadI.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/products.H": {
+    "sha256": "f0aa6ad417f2bcd4a28378054143e630b911356f7bcf66ce6044d051d309ffc9",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/primitives/VectorSpace/products.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/VectorSpaceOps.H": {
+    "sha256": "789b8d7c3b2d4cdc09e8231a3cd67cb5e8f351d69e8cf6f1e158d8f35a99ac2a",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/primitives/VectorSpace/VectorSpaceOps.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/FieldReuseFunctions.H": {
+    "sha256": "031b8a324fda889075aada366caee4616786d81fc5d1721a794f4d577c7d5c62",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/fields/Fields/Field/FieldReuseFunctions.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/FieldFunctionsM.C": {
+    "sha256": "de08ca71cea15636f5bae3960ee25e6dba87ea24fb0a99f03730df65eb028f84",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/fields/Fields/Field/FieldFunctionsM.C"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/verbatimStringI.H": {
+    "sha256": "41c465dbf7251868e41b2ee6590400803f4c9cf037bab68462dbc95811474082",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/primitives/strings/verbatimString/verbatimStringI.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/keyTypeI.H": {
+    "sha256": "c6c1a10e6a40bbeaa5322dd0bb5289a15f4e2e235dfd7724aa3e68661418e0d9",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/db/dictionary/keyType/keyTypeI.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/fileNameI.H": {
+    "sha256": "1a7b38e092bb2be6bd39a6a0eea2d7128e5c69988c6db9cc18476e0ccb05f445",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/primitives/strings/fileName/fileNameI.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/OSstreamI.H": {
+    "sha256": "b07472444ef0141f20cc79ac5f8650fdcf439bf02b306c682eb4de855d3ca923",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/db/IOstreams/Sstreams/OSstreamI.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/functionNameI.H": {
+    "sha256": "374195a37c52d21af1c67d98651b2a05e81cf3b748dc1e72caa4d6ccee78d878",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/primitives/strings/functionName/functionNameI.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/variableI.H": {
+    "sha256": "cd30ed54800bef3428e78658ac0708143a6c207289eee04f26a06339f1f8aa8e",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/primitives/strings/variable/variableI.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/MatrixSpace.H": {
+    "sha256": "51d990f53f5d458b15377ccd8cc2f9eda5a9a8d48f0e0e1f0243f0137ea22a5f",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/primitives/MatrixSpace/MatrixSpace.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/TensorI.H": {
+    "sha256": "689d7ab3c086d28284155d3173b7ae986ac823414af3f23b7e5bc363f3fdd30d",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/primitives/Tensor/TensorI.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/mathematicalConstants.H": {
+    "sha256": "3f1373dae755d282b67b0ac288eff289f7f87df8daa3aaf1eae98fc1eff12fd3",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/global/constants/mathematical/mathematicalConstants.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/spatialVector.H": {
+    "sha256": "7df011d293fa12ba7b3f62c366e577eb8a79a0a697252de5ebb5c992d2913a9f",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/primitives/spatialVectorAlgebra/SpatialVector/spatialVector/spatialVector.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/spatialTensor.H": {
+    "sha256": "c5e830be32ca67d0397f328234e005ab3761ae96d0fcc074fb16b1358836185e",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/primitives/spatialVectorAlgebra/SpatialTensor/spatialTensor/spatialTensor.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/spatialTransformI.H": {
+    "sha256": "3e7c753794a357de587e9ca5cc4cf62fc227d357038dd5422af21fb9576db50f",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/primitives/spatialVectorAlgebra/spatialTransform/spatialTransformI.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/quaternionI.H": {
+    "sha256": "f86a5612f64ae6d8a28abd9d64b1c19904cc31fdac9147e9d65a8d948bacdf88",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/primitives/quaternion/quaternionI.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/septernionI.H": {
+    "sha256": "3ec83ec2ee5429611130b1194a75620abd4c4206806db3c1c80e11fe8b1a9b4e",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/primitives/septernion/septernionI.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/UILList.H": {
+    "sha256": "cb2052ed6296f38cad99416d79f15d96abb3befd34bb2e7b45dcce74157fa077",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/containers/LinkedLists/accessTypes/UILList/UILList.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/ILList.C": {
+    "sha256": "90bf5af96c77f6fd81839e5cf0d41df8401b6b1b816cd0a605b260c712ddbe40",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/containers/LinkedLists/accessTypes/ILList/ILList.C"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/DLListBaseI.H": {
+    "sha256": "1df0447dbd973de0448e37f58a8a6aef68a2ed90556492167f5091c6cd01c070",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/containers/LinkedLists/linkTypes/DLListBase/DLListBaseI.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OSspecific/POSIX/lnInclude/regExp.H": {
+    "sha256": "1ec4481250eda974a36f97e657a87cdefcf67d9da8da67c52c8e9b455559fe8f",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OSspecific/POSIX/regExp.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/wordReI.H": {
+    "sha256": "dd7bd54cc398b931420f718e7af60d18e880e0d93055a4980909c2f519a4ae48",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/primitives/strings/wordRe/wordReI.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/primitiveEntryTemplates.C": {
+    "sha256": "7055fce20689c6f25591c5d00fc09bcd7a87773fea4489b430659ee757dc4831",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/db/dictionary/primitiveEntry/primitiveEntryTemplates.C"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/PointHit.H": {
+    "sha256": "1d1d866df70c174368cc96d33a6b0d0a0767a62aa98e3464dc2ec93a5735c31c",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/meshes/primitiveShapes/objectHit/PointHit.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/point2D.H": {
+    "sha256": "adaa8c89491b3f887c833d3260c44976eb9bf892a53ffaae99f19cf9f25d4263",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/meshes/primitiveShapes/point2D/point2D.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/lineI.H": {
+    "sha256": "5c87f2f55c8d0414d528c5528009b34838c739165336c25f2113f19d22b13cd2",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/meshes/primitiveShapes/line/lineI.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/Random.H": {
+    "sha256": "ab352790c54fb694119b569ed2a843edc1c66ef143f15b32136707051f6edad9",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/primitives/Random/Random.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/PrimitivePatchAddressing.C": {
+    "sha256": "eafe3fb359366b05b998ec32ce7798ba297745765d9849fd6377d485528f2c78",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/meshes/primitiveMesh/PrimitivePatch/PrimitivePatchAddressing.C"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/PrimitivePatchEdgeLoops.C": {
+    "sha256": "ad2d27f9c661ec33316c754e694d829bc3e871c0ee5f918a7c557c63e25ee9c0",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/meshes/primitiveMesh/PrimitivePatch/PrimitivePatchEdgeLoops.C"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/PrimitivePatchClear.C": {
+    "sha256": "b02816a8c998245152ffbe84fd4b86ad11e3f0cd2df2775979d04ed2bc46b994",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/meshes/primitiveMesh/PrimitivePatch/PrimitivePatchClear.C"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/PrimitivePatchBdryPoints.C": {
+    "sha256": "4526446eee14fd4ea96f6661d24ab3585b642ba018a93798599bf1f4e4d53c60",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/meshes/primitiveMesh/PrimitivePatch/PrimitivePatchBdryPoints.C"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/PrimitivePatchLocalPointOrder.C": {
+    "sha256": "683cfec730697409eca3249ee8042a56652e1143ecf63259ebad5a293a67f62b",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/meshes/primitiveMesh/PrimitivePatch/PrimitivePatchLocalPointOrder.C"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/PrimitivePatchMeshData.C": {
+    "sha256": "797ef595f350306860076d35019b324fe50dc2778b04b317c20f2877a435eb7b",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/meshes/primitiveMesh/PrimitivePatch/PrimitivePatchMeshData.C"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/PrimitivePatchMeshEdges.C": {
+    "sha256": "82a51ef81258a9d20ceb866f2568c7b36c739955b08765746620ec2e4c3bf7a7",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/meshes/primitiveMesh/PrimitivePatch/PrimitivePatchMeshEdges.C"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/PrimitivePatchPointAddressing.C": {
+    "sha256": "744cebc6da298d8d3cb5374441c70f1990358b7ea671bf1db5cde725e73e0cdb",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/meshes/primitiveMesh/PrimitivePatch/PrimitivePatchPointAddressing.C"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/PrimitivePatchProjectPoints.C": {
+    "sha256": "2e470f1d5400a4b0163704d24d731d9b6d1ecbe837b204f6f3b40b5589933024",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/meshes/primitiveMesh/PrimitivePatch/PrimitivePatchProjectPoints.C"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/PrimitivePatchCheck.C": {
+    "sha256": "5e335dcb8b706fab4b612ad3cb0516868d3c6caaed4f8af96f74442fd22792d0",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/meshes/primitiveMesh/PrimitivePatch/PrimitivePatchCheck.C"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/ListListOps.C": {
+    "sha256": "08b38d506699841283004c088b8087a4d5d045a6f468efe81691881ba96155c3",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/containers/Lists/ListListOps/ListListOps.C"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/triPointRef.H": {
+    "sha256": "1e228ceb3e227dc78d5e56e0ad72309b6a9d64286c14dc1688689fffeebda297",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/meshes/primitiveShapes/triangle/triPointRef.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/triFaceI.H": {
+    "sha256": "872a10a9008adb636078876e7e3a0852b81efe18fe1b003e942d117499dba56c",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/meshes/meshShapes/triFace/triFaceI.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/triFaceTemplates.C": {
+    "sha256": "3e222e9b7aa144c2675448d38596a9d435c19d25c986ce281d6e785ab015c73e",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/meshes/meshShapes/triFace/triFaceTemplates.C"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/distributionMapBaseTemplates.C": {
+    "sha256": "73daea820c9649341605efa9fc7802058099a53bb1b79bed0e81474befb99549",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/meshes/polyMesh/polyDistributionMap/distributionMapBaseTemplates.C"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/globalIndexAndTransform.H": {
+    "sha256": "a95c65754a32b649e2fa690dabedda89e5ca5674757730886ae4f5f831facb3a",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/primitives/globalIndexAndTransform/globalIndexAndTransform.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/PackedListI.H": {
+    "sha256": "512a40687bac19f815f24817dc6a1aa3d03feca60d69f04276f02f77573b1945",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/containers/Lists/PackedList/PackedListI.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/PackedList.C": {
+    "sha256": "a3734e368ef565ab79bc9b6d15f465138805ac6871d28c8b5240c9993960d31c",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/containers/Lists/PackedList/PackedList.C"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/OFstream.H": {
+    "sha256": "3f38ad89ca6b409c62488d73c061ea4a19819b4622dd6917db4074c24e76e14d",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/db/IOstreams/Fstreams/OFstream.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OSspecific/POSIX/lnInclude/memInfo.H": {
+    "sha256": "4ab6298be2f8427a09b714de35e093aac2cf35d79cb13068e229ac614e8d872e",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OSspecific/POSIX/memInfo/memInfo.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/meshTools/lnInclude/triangleFuncs.H": {
+    "sha256": "8087354ceffad84a34ebcc8cf7e5faabff37574e1f1a097caddc43a1e03b6e1b",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/meshTools/triSurface/triangleFuncs/triangleFuncs.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/meshTools/lnInclude/triSurfaceTools.H": {
+    "sha256": "cfbd08a11bf591541737c99523494efbc61b7bb5bf0036d3aee485b1410de865",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/meshTools/triSurface/triSurfaceTools/triSurfaceTools.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/foamVersion.H": {
+    "sha256": "7211abba25c4028f9b19644279a09a6e8dc487ec20229cea0204f3719372db9c",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/global/foamVersion.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/fileOperation.H": {
+    "sha256": "3710f33e6b9136c7302fb36bc18a530e98ffc2fc26de1c57f07600ffd81046c0",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/global/fileOperations/fileOperation/fileOperation.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/UPtrListIO.C": {
+    "sha256": "8785b37f03457dafbc2b569ed5f8637094bcc0fabcf744cb5b71775b0b8b6811",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/containers/Lists/UPtrList/UPtrListIO.C"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/LPtrList.H": {
+    "sha256": "8b0ea3f8d2533aaba40d8276e710256df5d9308848d9e7c4069bf5a42d6a2753",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/containers/LinkedLists/accessTypes/LPtrList/LPtrList.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/INew.H": {
+    "sha256": "4a1a8527a40be2719e58227823158101e2468e6a14bffbd8384f1a09ff78fb12",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/db/IOstreams/IOstreams/INew.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/LListIO.C": {
+    "sha256": "2d65f5bcdcb2e654708a37fccdd70ceeab4a9e7e6d1c77dca8f3f43194478c70",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/containers/LinkedLists/accessTypes/LList/LListIO.C"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/wordReListMatcher.H": {
+    "sha256": "04f57880e69451ebaa82a41eb4d7b4cdf9215cb1af4ce230875bdac41670c8c9",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/primitives/strings/lists/wordReListMatcher.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/stringListOpsTemplates.C": {
+    "sha256": "0bef0e2cd6c37496215ad110925453b7222b7c31307e5e98985486d89a693ce9",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/primitives/strings/lists/stringListOpsTemplates.C"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/cellModelI.H": {
+    "sha256": "feae121e30359cfa7ce246557f16db4fc50c92eaac9e19528212f94162ad92a4",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/meshes/meshShapes/cellModel/cellModelI.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/cellModeller.H": {
+    "sha256": "7e43493bc71cf6ba49f94a5aaee253a439f7180dae9e80d2eb0a347dc714018e",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/meshes/meshShapes/cellModeller/cellModeller.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/IOField.C": {
+    "sha256": "7d6be0d0c91683bc306574aee866c64d7b5e580a1708ee7415f1551d6692d659",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/db/IOobjects/IOField/IOField.C"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/ListCompactIO.C": {
+    "sha256": "fe7adfa9f206ae8f7ef965af8e29f3512451afd5d0668daf7386b9f9b0c75eec",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/db/IOobjects/CompactIOList/ListCompactIO.C"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/vector2D.H": {
+    "sha256": "6eedf009a7a3d803437c4a6c264a92fb48a3454e403d82c3e51ecb7d32eae12b",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/primitives/Vector2D/vector2D/vector2D.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/PackedBoolListI.H": {
+    "sha256": "be2d3983cd8dcecd81b74bbaf07049023505c020445660cab4002e14aff4a9d9",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/containers/Lists/PackedList/PackedBoolListI.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/demandDrivenData.H": {
+    "sha256": "ad5746619a402a29a32ed0b65ae326c0841574ae94bd38ebcd607ff4c49a9a1c",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/include/demandDrivenData.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/tmpNrcI.H": {
+    "sha256": "d9c908cbe674212346a2355cd6e49a66ed6dc9b38867cee48c5dfdc0c880f926",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/memory/tmpNrc/tmpNrcI.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/SubFieldI.H": {
+    "sha256": "e106c3db698b9fd745353d8d05406ec04c3ef22f955ecce4dd641982658bf83d",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/fields/Fields/Field/SubFieldI.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/scalarMatrices.H": {
+    "sha256": "aace982a0b5cbaf5f34d68663eb4bf288b27fb2a9824def08dadb018b383249c",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/matrices/scalarMatrices/scalarMatrices.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/dimensionedScalar.H": {
+    "sha256": "46671310e10dc2f0b6468f2a4548955cac66545701f29ef231a0f7ea29b02a0e",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/dimensionedTypes/dimensionedScalar/dimensionedScalar.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/TimeStateI.H": {
+    "sha256": "2eec8a3f52191db86e87e6c947f32d49c4c05b1e99e2f8ce4092ec7dc41c6391",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/db/Time/TimeStateI.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/instant.H": {
+    "sha256": "e99fa161a1317cebb957fd69078f19a0589e7ee187b68f39e274a57ecf6bc55b",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/db/Time/instant/instant.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/fileNameList.H": {
+    "sha256": "39b868687f5087ef2353d3ca1067fbe5223ce56098aa828f70b8b516c886d5f0",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/primitives/strings/lists/fileNameList.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/dlLibraryTableTemplates.C": {
+    "sha256": "39a63d9f5107095d2bda0e05e64ee203d9a47712f2c19afd24c650e1daf79285",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/db/dynamicLibrary/dlLibraryTable/dlLibraryTableTemplates.C"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/functionObject.H": {
+    "sha256": "9d27aa41dc840a0bfbdbfba32675504e365ddd356a835e7f69f65bf85985c80d",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/db/functionObjects/functionObject/functionObject.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/SHA1Digest.H": {
+    "sha256": "a61a901085bc1f76222198a1007a178a320a5b86716e79bdfbb2fbf16c21d306",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/primitives/hashes/SHA1/SHA1Digest.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/VectorI.H": {
+    "sha256": "bc907100364ee9110b7f30c976cd0fff053fed4d37482725de19cb5d8e7da1c2",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/primitives/Vector/VectorI.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/SphericalTensorI.H": {
+    "sha256": "c6b0f83f819e4b564f74449b6dba0c409ae356438ea6c4d8270ce26f7a2ae0aa",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/primitives/SphericalTensor/SphericalTensorI.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/SymmTensorI.H": {
+    "sha256": "2a168c86aca2229e9ae557a53cdb6a7e51329a2afc9563214d488dfabd0a2a44",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/primitives/SymmTensor/SymmTensorI.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/MatrixSpaceI.H": {
+    "sha256": "95f9639eeefb077db215ee7dc203e356a19424b9e6ea1620a07b3e7310b5eeb0",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/primitives/MatrixSpace/MatrixSpaceI.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/SpatialVector.H": {
+    "sha256": "2c86e92218c013444996e3ff666c04a100f2f8777539aa6468d294470ee780d9",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/primitives/spatialVectorAlgebra/SpatialVector/SpatialVector.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/SpatialTensor.H": {
+    "sha256": "4ac74aa20d555ce4e1d077bc5a404937e0f72963f5335a14f8ab21b1f54d17ec",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/primitives/spatialVectorAlgebra/SpatialTensor/SpatialTensor.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/UILList.C": {
+    "sha256": "29a989de478a9c5b1e682e0ba7c993da13dad5a6828497a7cde8bf7a1b99e042",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/containers/LinkedLists/accessTypes/UILList/UILList.C"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/ILListIO.C": {
+    "sha256": "b29c13c0e1489c27f6c150abf8fb40b43ccacb4ba2ecd22d23016076bdbab1e6",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/containers/LinkedLists/accessTypes/ILList/ILListIO.C"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/IStringStream.H": {
+    "sha256": "9273436d9099b752baad5c855d54acab9ea2ae2bab8da9ac49da2dffe6028b28",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/db/IOstreams/StringStreams/IStringStream.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/RandomI.H": {
+    "sha256": "d6d48c1c2b7dd231a1f70d9a7961954c0186d912e2828767e6fe62a526650b48",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/primitives/Random/RandomI.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/bandCompression.H": {
+    "sha256": "23bc0dee760938e00e9ea264a188dcb1c1655a1074e44e19ed4a85654cabcea6",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/meshes/bandCompression/bandCompression.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/triangle.H": {
+    "sha256": "bd00f19aa695343efd4e971babee829db8a1234f79cf5a66b3d19b319f8a9ebc",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/meshes/primitiveShapes/triangle/triangle.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/globalIndexAndTransformI.H": {
+    "sha256": "03018d79d244852e860d4c452916725b0eb7d3491b14e97a7baf6713339c2ef4",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/primitives/globalIndexAndTransform/globalIndexAndTransformI.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/OSspecific.H": {
+    "sha256": "dc1ac9b823bc563b91f1d84045dbde2cc3a80aedf0ef318ffaca6316843da1fc",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/include/OSspecific.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OSspecific/POSIX/lnInclude/POSIX.H": {
+    "sha256": "ede15fa37473675c29a3737c642827777848aa5194be834fadd9a97c29c0a54c",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OSspecific/POSIX/POSIX.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/IFstream.H": {
+    "sha256": "b6d67327ff3eaa2ec0f0a2b3d697b71de2b5ff9b2f3e98926a86eaeb8677b9e2",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/db/IOstreams/Fstreams/IFstream.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/meshTools/lnInclude/surfaceLocation.H": {
+    "sha256": "878e9157d3582d5954900b2697cf96acf6c77bee26a2c92458016608117bed9e",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/meshTools/triSurface/surfaceLocation/surfaceLocation.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OSspecific/POSIX/lnInclude/fileMonitor.H": {
+    "sha256": "af79b24c2574c6c2bb87ff20567de8213e9ca147601595f3684cff6d669baa79",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OSspecific/POSIX/fileMonitor.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/LPtrList.C": {
+    "sha256": "068955295d365415aafcbe4a4838afcee78bf8c8cfb98ca7e5c05be70492f23f",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/containers/LinkedLists/accessTypes/LPtrList/LPtrList.C"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/wordReListMatcherI.H": {
+    "sha256": "53c3167f1930c594331e654d0a5284bc255c57e75e830d865c054c96b334ae57",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/primitives/strings/lists/wordReListMatcherI.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/Vector2D.H": {
+    "sha256": "904a8604a9a7eaa1b84e9651298f8000c56bbe118fd5260d308ccf7690c8b376",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/primitives/Vector2D/Vector2D.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/RectangularMatrix.H": {
+    "sha256": "a63bea620dbbf5620804c0fc7cbff00c2b259ad6580cf007f74e9a22f5dc81aa",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/matrices/RectangularMatrix/RectangularMatrix.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/SquareMatrix.H": {
+    "sha256": "0ff08a1b96c1e5eb0a67317712ad3857d859b0874f719920aefa0bb4584d261d",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/matrices/SquareMatrix/SquareMatrix.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/SymmetricSquareMatrix.H": {
+    "sha256": "a952a8ac8c5e622f6d36c8b255522fd94c136d349ffb8a5b49081a94fcf6a45e",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/matrices/SymmetricSquareMatrix/SymmetricSquareMatrix.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/DiagonalMatrix.H": {
+    "sha256": "63c4beb6216ca0a875e1131d224f06e3140ac5ae6a73e55c555774b08ac9fb42",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/matrices/DiagonalMatrix/DiagonalMatrix.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/scalarMatricesTemplates.C": {
+    "sha256": "59f8555f23aa100fd82bd2a1cb9be772f91e68bbd046171de69a4b5ec08625d0",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/matrices/scalarMatrices/scalarMatricesTemplates.C"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/SpatialVectorI.H": {
+    "sha256": "296e8ca3b755580d5439a7e3fb58905f8c072a48d190f9769c7983bb4046f3a3",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/primitives/spatialVectorAlgebra/SpatialVector/SpatialVectorI.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/SpatialTensorI.H": {
+    "sha256": "aace26669d633f9b2e905e53d3bf85bb5d4cd972dd31085512b08a670298c73c",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/primitives/spatialVectorAlgebra/SpatialTensor/SpatialTensorI.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/UILListIO.C": {
+    "sha256": "8d1e678c2995335c68b605f97bdab8550eb92fd4f0f2c9b8348fb8299ac57db5",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/containers/LinkedLists/accessTypes/UILList/UILListIO.C"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/barycentric2D.H": {
+    "sha256": "7c6d7bfc0c9831d68c1194e9fb9f79b58ad1406068d84f9c11de9cd1c051b76b",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/primitives/Barycentric2D/barycentric2D/barycentric2D.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/triangleI.H": {
+    "sha256": "4b5ca99171183456a0ca482835894c01bb6c8930fddc623352311b7f7b16c890",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/meshes/primitiveShapes/triangle/triangleI.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/LPtrListIO.C": {
+    "sha256": "90100f87ae4b2dfded293980e85fc3c89116c7457392654438a2b78393d36b5f",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/containers/LinkedLists/accessTypes/LPtrList/LPtrListIO.C"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/Vector2DI.H": {
+    "sha256": "e897d07979bfbc423f2d34776c5b8856827175eddd82b05cea471abb04faf91a",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/primitives/Vector2D/Vector2DI.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/Matrix.H": {
+    "sha256": "636c8afe135fad117b4c7188781cbac1fc0075465c489134574089701420c7fc",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/matrices/Matrix/Matrix.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/RectangularMatrixI.H": {
+    "sha256": "1dd6e18b30741367c92535db697a6746b26c65b8fb186222bd57de87a6ef3828",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/matrices/RectangularMatrix/RectangularMatrixI.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/SquareMatrixI.H": {
+    "sha256": "d9c84ae39111ac0e6c9564df2f90775270c2812f262999447a2ef83361b9e1ac",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/matrices/SquareMatrix/SquareMatrixI.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/SquareMatrix.C": {
+    "sha256": "a4d67e0793f77440dd2028b68249c30825a7152efa55f5b163477a4f41bc3992",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/matrices/SquareMatrix/SquareMatrix.C"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/SymmetricSquareMatrixI.H": {
+    "sha256": "0a2cdd53c9083bc4e34c02ad24b8fbb26189f97dc9953d5caf7ad559d17337ae",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/matrices/SymmetricSquareMatrix/SymmetricSquareMatrixI.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/SymmetricSquareMatrix.C": {
+    "sha256": "ce652d498d4885a15f38180dead3d9b102dd8085d6c6d853a6bd0498ef11a9b0",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/matrices/SymmetricSquareMatrix/SymmetricSquareMatrix.C"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/DiagonalMatrix.C": {
+    "sha256": "8d297107a6801355b0aad0bba82f0156d70a25d03126fd0d9146f5c150bd4e2a",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/matrices/DiagonalMatrix/DiagonalMatrix.C"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/Barycentric2D.H": {
+    "sha256": "ed06d3f69bc7588d4c51d1f3486e1e13812f8414dc0ecbf30d5fd89958e2f7da",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/primitives/Barycentric2D/Barycentric2D.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/MatrixI.H": {
+    "sha256": "6e745d6299a62534a17bd3e58ca893d53a34497306f0ff2b352282e16447dda8",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/matrices/Matrix/MatrixI.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/Matrix.C": {
+    "sha256": "9ef1fd6dc7e5c7f164dcbc2471cbed4955e18da4e1b8166ee3763851a11fc6ad",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/matrices/Matrix/Matrix.C"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/Barycentric2DI.H": {
+    "sha256": "e29be21b216ff3544c931e5538d54b23942038e07e8cf7a641d6a38ac39600e6",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/primitives/Barycentric2D/Barycentric2DI.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/MatrixBlock.H": {
+    "sha256": "8a23327adf09d9d338781f83269deb35a0f32cdc3f28f29af4119ac48682b0aa",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/matrices/MatrixBlock/MatrixBlock.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/MatrixIO.C": {
+    "sha256": "dd87b2d456a282bcbbf353865c49a7f14698b27dd0aa5f5d3393f45d82862516",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/matrices/Matrix/MatrixIO.C"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/MatrixBlockI.H": {
+    "sha256": "3e855072de70cd67cc3f0e38b62b9cd98ce5fb177897c24b8188001302022b49",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/matrices/MatrixBlock/MatrixBlockI.H"
+  },
+  "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/MatrixBlock.C": {
+    "sha256": "753a8fab815010d25e69fa6bf41a0ec6612aa9165bb6425ebb758a8da713229f",
+    "resolved": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/matrices/MatrixBlock/MatrixBlock.C"
+  }
+}

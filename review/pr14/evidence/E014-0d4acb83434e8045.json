@@ -1,0 +1,56 @@
+{
+  "batch": "B3",
+  "revision": "v2",
+  "reviewed_at_utc": "2026-10-13T09:22:27.733548+00:00",
+  "decision": "APPROVED_SCOPED",
+  "scoped_approval": true,
+  "approval_scope": "Frozen B3 source, valid CPU evidence and actual CUDA compilation; excludes B5/B7, whole-PR completion, GPU runtime/performance and main merge",
+  "base_commit": "1aaee9eb905562ea04bafefcb05e40c88bb94508",
+  "patch_sha256": "fa663866f0fde47957d326f1e24a4a3c286976dfcb74b718a82a37bd9a7329d5",
+  "repair_patch_sha256": "a423eb9cc39ef1fed9bb86347dae0286586d611bac1c580147ed5cd9a3c4ecd7",
+  "findings": [],
+  "closed_findings": [
+    {
+      "id": "B3-R1",
+      "status": "RESOLVED",
+      "basis": "Backing checks occur after legitimate skips and original strict early returns, directly before consumed face/inventory reads. 33 passing controls and exact 30-case immutable baseline output match verified."
+    },
+    {
+      "id": "B3-R2",
+      "status": "RESOLVED",
+      "basis": "Affected stubs match actual new launch signatures; original assertions retained, executed strict owner/profile assertions added. Five-case consumer log and generated artifacts verified."
+    }
+  ],
+  "verification": {
+    "created_utc": "2026-10-13T09:20:53.358581+00:00",
+    "final_files_and_snapshots_verified": 8,
+    "frozen_deliverables_verified": 7,
+    "v2_artifact_hashes_verified": 170,
+    "v2_command_log_hashes_verified": 3,
+    "v1_freeze_and_evidence_index_preserved": true,
+    "v1_artifact_reuse": "Prior independent verification of 705 artifacts retained; no redundant execution. Unchanged index and V1 source snapshots verified now.",
+    "all_text_outside_divergence_unchanged": true,
+    "r1_exact_baseline_output_match": true,
+    "new_cuda_receipt_verified": true,
+    "complete_patch_sha256": "fa663866f0fde47957d326f1e24a4a3c286976dfcb74b718a82a37bd9a7329d5",
+    "git_diff_check": 0,
+    "new_runtime_or_compile_probe_runs": 0,
+    "issues": []
+  },
+  "remaining": [
+    "B5 real selected wall BVP/profile/exchange/traction integration",
+    "B7 final host/status convergence",
+    "GPU execution and asynchronous faults NOT_RUN",
+    "Ns10 runtime NOT_RUN",
+    "Full supported application build/link/runtime NOT_RUN",
+    "Measured GPU cost NOT_RUN"
+  ],
+  "production_modified": false,
+  "tests_modified": false,
+  "readme_modified": false,
+  "commit_push_merge": false,
+  "compiler_lane_released": true,
+  "report_sha256": "91069965de2ee4193ec7b2daf8672343afffde1177041916289987bceedd8529",
+  "verification_script_sha256": "bc6342565f98d3c6709b37b4c230baf17106571d53af2ce5463f09c9108b1bca",
+  "verification_receipt_sha256": "4a23f2b91d24f82b9d03318300e791816099d8ddecb837661c6ed7c37347965a"
+}

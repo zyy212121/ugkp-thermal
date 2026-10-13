@@ -1,0 +1,23 @@
+{
+  "base_commit": "1aaee9eb905562ea04bafefcb05e40c88bb94508",
+  "baseline_reused": "../independent-probes/skipped-storage-base.log",
+  "baseline_sha256": "13afbf08629f3ada373a49776cd38032410aeba55ab6f0a9b25389496463f988",
+  "current_sha256": "13afbf08629f3ada373a49776cd38032410aeba55ab6f0a9b25389496463f988",
+  "source_sha256": "1938e859369fd029677e887096bf9e93b8dfb3fe24ecc4cac16318d3ed2787ac",
+  "binary_sha256": "6de53b7b02725ab5d61e936696ce89eb66c07141b89afb3cc03f15cc64952987",
+  "command": [
+    "g++",
+    "-std=c++17",
+    "-O0",
+    "-I/workspace/scratch/98b6339ec81b/chmt_remaining_work_20261013/common",
+    "-I/workspace/scratch/98b6339ec81b/chmt_remaining_work_20261013/common/gasNumerics",
+    "-I/workspace/scratch/98b6339ec81b/chmt_remaining_work_20261013/tests/gas_transport",
+    "/workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/implementation/b3/v2/skipped-storage.cpp",
+    "-o",
+    "/workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/implementation/b3/v2/skipped-storage-current"
+  ],
+  "cases": 30,
+  "build_exit": 0,
+  "run_exit": 0,
+  "scope": "same reviewer actual 30-case strict/direct, unused flux/status/both, empty/negative-count/invalid-skipped/unowned-skipped/empty-moving 5+Ns publication; immutable baseline compile reused"
+}

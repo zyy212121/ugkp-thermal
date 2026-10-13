@@ -1,0 +1,58 @@
+{
+  "head": "fe254252b643589d26af0572b67cdf95ab2cbbad",
+  "freeze_sha256": "b43af01d1ba729d5ccb9d27d87e1fde3d5dde971ec512978810c58164b7b6833",
+  "full_patch_sha256": "d902708ab0f65abf266a479910df64cae88bad18b46dbbc6ad5d669e00f14794",
+  "checks": {
+    "b5.patch frozen digest": true,
+    "repair.patch frozen digest": true,
+    "report.md frozen digest": true,
+    "source-index.json frozen digest": true,
+    "dependency-index.json frozen digest": true,
+    "evidence-index.json frozen digest": true,
+    "source-index.json": {
+      "count": 32,
+      "mismatches": []
+    },
+    "dependency-index.json": {
+      "count": 637,
+      "mismatches": []
+    },
+    "evidence-index.json": {
+      "count": 79,
+      "mismatches": []
+    },
+    "v1-evidence-index.json": {
+      "count": 4474,
+      "mismatches": []
+    }
+  },
+  "source_changes_from_v1": [
+    "applications/CHMT/gpu/GasWallMath.H",
+    "applications/CHMT/tests/test_wall_terminal_packet_completion.py"
+  ],
+  "dependency_changes_from_v1": [
+    "applications/CHMT/gpu/GasWallMath.H"
+  ],
+  "diff_check": 0,
+  "full_reverse_patch_check": 0,
+  "repair_reverse_patch_check": 0,
+  "final_case_logs": {
+    "run-0.log": "variant=0 fresh_calls=1 expected=1",
+    "run-1.log": "variant=1 fresh_calls=1 expected=1",
+    "run-10.log": "variant=10 fresh_calls=0 expected=0",
+    "run-11.log": "",
+    "run-12.log": "variant=12 fresh_calls=0 expected=0",
+    "run-13.log": "variant=13 fresh_calls=1 expected=1",
+    "run-14.log": "variant=14 fresh_calls=0 expected=0",
+    "run-15.log": "variant=15 fresh_calls=1 expected=1",
+    "run-2.log": "variant=2 fresh_calls=1 expected=1",
+    "run-3.log": "variant=3 fresh_calls=1 expected=1",
+    "run-4.log": "variant=4 fresh_calls=0 expected=0",
+    "run-5.log": "variant=5 fresh_calls=1 expected=1",
+    "run-6.log": "variant=6 fresh_calls=0 expected=0",
+    "run-7.log": "variant=7 fresh_calls=0 expected=0",
+    "run-8.log": "variant=8 fresh_calls=0 expected=0",
+    "run-9.log": "variant=9 fresh_calls=0 expected=0"
+  },
+  "new_review_compilation_or_test_execution": false
+}

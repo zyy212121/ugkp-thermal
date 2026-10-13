@@ -1,0 +1,27 @@
+hint: Using 'master' as the name for the initial branch. This default branch name
+hint: will change to "main" in Git 3.0. To configure the initial branch name
+hint: to use in all of your new repositories, which will suppress this warning,
+hint: call:
+hint:
+hint: 	git config --global init.defaultBranch <name>
+hint:
+hint: Names commonly chosen instead of 'master' are 'main', 'trunk' and
+hint: 'development'. The just-created branch can be renamed via this command:
+hint:
+hint: 	git branch -m <name>
+hint:
+hint: Disable this message with "git config set advice.defaultBranchName false"
+Initialized empty Git repository in /workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/delivery/continuation-history/verification.git/
+From /workspace/scratch/98b6339ec81b/chmt_remaining_work_20261013
+ * [new ref]         82f9c016704c9822b16b87cdeeb11f5bbd44d06f -> refs/audit/published-base
+/workspace/scratch/98b6339ec81b/chmt_remaining_work_20261013/tests/fixtures/continuation_history/history.gitbundle is okay
+The bundle contains this ref:
+9ac74fc16d19bf809f58fbe565903b5d9e13ca77 refs/audit/continuation-original-history
+The bundle requires this ref:
+82f9c016704c9822b16b87cdeeb11f5bbd44d06f 
+The bundle uses this hash algorithm: sha1
+From /workspace/scratch/98b6339ec81b/chmt_remaining_work_20261013/tests/fixtures/first_round_history/history.gitbundle
+ * [new branch]      perf/chmt-efficiency-refresh-20261011 -> refs/audit/first-round-original-history
+From /workspace/scratch/98b6339ec81b/chmt_remaining_work_20261013/tests/fixtures/continuation_history/history.gitbundle
+ * [new ref]         refs/audit/continuation-original-history -> refs/audit/continuation-original-history
+notice: HEAD points to an unborn branch (master)

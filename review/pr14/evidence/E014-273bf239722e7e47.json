@@ -1,0 +1,128 @@
+{
+  "schema": 1,
+  "batch": "B1",
+  "revision": "v2",
+  "created_utc": "2026-10-13T06:51:45.951131+00:00",
+  "branch": "perf/shared-producer-continuation-20261013",
+  "head": "82f9c016704c9822b16b87cdeeb11f5bbd44d06f",
+  "base": "82f9c016704c9822b16b87cdeeb11f5bbd44d06f",
+  "files": [
+    {
+      "path": "common/gasTransport/MixtureThermo.H",
+      "sha256": "b122da34fea1e93f2e0dccd760feadd8f933579e159a36d11def1a012b9ae486",
+      "base_sha256": "de62c4fbe4d14f8b7addf94fada7bdc6986510a73786e11bee7ac096d6f38009",
+      "v1_sha256": "dace42f2a64f1f14bb3cde01afb0383747314ecb2f62976bfc5080d9b1f99656",
+      "change": "modified"
+    },
+    {
+      "path": "common/operators/computeSstFaceFluxKernel.cuh",
+      "sha256": "f83fde08eaa13cfffdba0ecbf582554621a5aa8c225923d99a04706084f23b07",
+      "base_sha256": "62aa712b200f27f39367365d170d64859f84925ff439f0231284e4cfaffad182",
+      "v1_sha256": "16dc8e96680ab765154de8c6918e6d7bc8f70231f045f1692aaeeb6cf8303b9b",
+      "change": "modified"
+    },
+    {
+      "path": "tests/gas_transport/test_eos_primitive_completion.py",
+      "sha256": "d51e49ceaeea7b494fb14a1f8c08da2cba915dae309545dc34b1527606118660",
+      "base_sha256": null,
+      "v1_sha256": "c252c49d2e304ee0b1248f6fbc11bc207057833e3e3a06bdefe38ef4a92e7a91",
+      "change": "added"
+    },
+    {
+      "path": "tests/gas_transport/test_eos_review_regressions.py",
+      "sha256": "d656615ddca5b5fa994020195fd735f0e72c0f33e8a929bd3076c9a68c8af023",
+      "base_sha256": null,
+      "v1_sha256": null,
+      "change": "added"
+    },
+    {
+      "path": "tests/gas_transport/test_mixture_state.py",
+      "sha256": "5d1668987bac1faf7b6c89db0bb48199300d3642a3f23870dbd4d107a3b8e4e5",
+      "base_sha256": "28a7103bb27be02d44bc12c7e95186fd43499ee3b7eb846d35ce6fe17ec22003",
+      "v1_sha256": "5d1668987bac1faf7b6c89db0bb48199300d3642a3f23870dbd4d107a3b8e4e5",
+      "change": "modified"
+    }
+  ],
+  "patch": {
+    "path": "b1.patch",
+    "sha256": "60a51601fec3e6779f45d125876c2c31bad219a29c39591a22ce0bd5dc5aa160"
+  },
+  "preserved_v1": {
+    "freeze": "../freeze.json",
+    "freeze_sha256": "2f4913521f7147982b44ccd38401f8465bd05fb5cf85a3d5fd25c1a798d8673a",
+    "patch": "../b1.patch",
+    "patch_sha256": "3ddee9345067595cbc4b82858a3ff8ed5ad4a91a4fb0a2fc958870a1f30f4e23",
+    "review": "../independent-review.md",
+    "review_sha256": "f2d90114bf8f89325036dd549497d964ead254dbec7bb6d4b380f52262dc6ebb",
+    "review_json": "../independent-review.json",
+    "review_json_sha256": "2de33db71318e201df64b9dae967d24560e53d133aa66703e53bbee298285def"
+  },
+  "resolved_findings": [
+    {
+      "id": "B1-R1",
+      "result": "generic nonfinite target retains original zero-call/zero-bounding refusal; known-mixture overload alone completes",
+      "evidence": [
+        "logs/red.log",
+        "logs/r1-green.log",
+        "receipts/chmt-base-success.log",
+        "receipts/chmt-current-success.log",
+        "logs/freeze.log"
+      ]
+    },
+    {
+      "id": "B1-R2",
+      "result": "fully backed count/index/offset/NASA-segment metadata refusals publish actual bundle, status retained; actual availability propagates to eight-field recovery",
+      "evidence": [
+        "logs/red.log",
+        "logs/r2-red.log",
+        "logs/freeze.log"
+      ]
+    }
+  ],
+  "verification": {
+    "red": "6 expected failures: new 5 review cases + unmodified old CHMT terminal test",
+    "r2_red": "5 expected metadata/end-to-end assertion failures, 18 deselected",
+    "r1_green": "2 passed",
+    "intermediate_green": "23 passed, 1 skipped before explicit NVCC override",
+    "final": "24 passed (includes real small CUDA compilation)",
+    "affected_dependency": "7 passed: old thermo/property/segment/inversion, original native requested interval, strict recovery negative/closure",
+    "gpu_execution": "NOT_RUN: no GPU/driver",
+    "unchanged_whole_FP64_suite": "NOT_RUN: user requested incremental and necessary affected dependencies only"
+  },
+  "success_bits": {
+    "gas_sha256": "f44d11ab2d54b1ad91f3c1fd964fba9a8fa3fac1980669d8cf7c1f8d2898fbfe",
+    "gas_matches_base": true,
+    "gas_matches_v1_receipt": true,
+    "chmt_sha256": "ba157aedb4555a8f6eb31cb1e4fb1b77e2b5061a1da32fb8c8d4594d27dd7c8b",
+    "chmt_matches_base": true
+  },
+  "cuda": {
+    "compiler": "nvcc 13.1.115",
+    "flags": "-std=c++17 -arch=sm_80",
+    "source": "freeze-temp/test_cuda_real_primitive_complcurrent/completion.cu",
+    "source_sha256": "692110f43281f9452ba71fddd1a1578ecfc7eceb22d9a7f03a0348ad90fdb45c",
+    "object": "freeze-temp/test_cuda_real_primitive_complcurrent/completion.o",
+    "object_sha256": "294a308bfb1bcb64af14c4e1ea69038252697e48dadade608c4c335ec7ff0e10",
+    "object_bytes": 321632,
+    "execution": "compile only; no GPU numerical evidence"
+  },
+  "managed_mirrors": {
+    "common/gasTransport/MixtureThermo.H": {
+      "path": "common/gasTransport/MixtureThermo.H",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    "common/operators/computeSstFaceFluxKernel.cuh": {
+      "path": "common/operators/computeSstFaceFluxKernel.cuh",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    }
+  },
+  "new_common_or_gasUGKP_paths": [],
+  "scope_limits": [
+    "No commit/push/merge/README change. Root handles final requested PR14 update after reviews.",
+    "Original status signals retained; later B7 consumer cleanup remains outside B1.",
+    "Caller supplies actual backing; declared metadata is not used as allocation proof on completed routes. No actual OOB input is executed.",
+    "Original successful scalar property availability/NaN and strict retry routes remain unchanged."
+  ]
+}

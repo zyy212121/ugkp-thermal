@@ -1,0 +1,53 @@
+{
+  "kind": "full_native_application_build_and_link",
+  "source_commit": "a164be44fd28b3d05a1cb430e4e98675b1397bd4",
+  "source_tree": "fa2f9b1f8add293caeab04cbf3df5752f17a8977",
+  "application": "CHMT",
+  "exit_code": 0,
+  "wall_seconds": 244.21,
+  "command": "bash applications/CHMT/Allwmake",
+  "environment": {
+    "CHMT_CUDA_ARCH": "sm_80",
+    "UGKWP_GAS_SPECIES": "2",
+    "FOAM_USER_APPBIN": "unset: no installation",
+    "CUDA_HOME": "official isolated CUDA13.1.2 toolkit",
+    "OpenFOAM": "Foundation10 relocated official package",
+    "optimization": "standard -O2 host and device",
+    "precision": "FP64"
+  },
+  "source_paths_checked": 448,
+  "source_drift": [],
+  "artifacts": {
+    "build/Backend.o": {
+      "bytes": 12602576,
+      "sha256": "8da042c84fcec54c26263b4b7c853d2fc7526e533c6132def0d810cc62901f5c"
+    },
+    "build/CHMT": {
+      "bytes": 13887848,
+      "sha256": "61e6fb6fafeaeca45e110826d57d1dd583275fc6418689d299d68be2eb482e28"
+    },
+    "build/generated/build.json": {
+      "bytes": 950,
+      "sha256": "0c758eb636e6852790abd994bfe03a152e2ece32332ca10ac3a4c463d7efe9ef"
+    },
+    "build.log": {
+      "bytes": 82442,
+      "sha256": "6a48ca7225c7f3707babaff8ace72819f280aefdb2f11c5cfb39a7ba27aeda70"
+    },
+    "run.sh": {
+      "bytes": 965,
+      "sha256": "7c71ceeec0496cf573da7ed253612e14d4ae9a40a0079b343c8dca03bc097740"
+    }
+  },
+  "warnings": "nvcc constexpr host-function warnings retained verbatim in build.log",
+  "prior_setup_failure": "/usr/bin/time absent, exit127 before compiler; setup-missing-time.log preserved; wrapper replaced with bash time builtin, code unchanged",
+  "gpu_executions": 0,
+  "cpu_numerical_executions": 0,
+  "installed": false,
+  "completed_utc": "2026-10-13T15:58:41.188010+00:00",
+  "remaining": [
+    "actual GPU numerical, concurrent and performance acceptance",
+    "other species counts/architectures",
+    "other application builds separately recorded"
+  ]
+}

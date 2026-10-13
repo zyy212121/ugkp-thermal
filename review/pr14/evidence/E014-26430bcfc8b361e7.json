@@ -1,0 +1,206 @@
+{
+  "batch": "B3",
+  "reviewed_at_utc": "2026-10-13T09:05:14.094863+00:00",
+  "decision": "CHANGES_REQUESTED",
+  "scoped_approval": false,
+  "base_commit": "1aaee9eb905562ea04bafefcb05e40c88bb94508",
+  "patch_sha256": "aa2e8b002e6147cdc9ef01ec22cd30b1822d539dec0f025e5e35d68930786d0f",
+  "findings": [
+    {
+      "id": "B3-R1",
+      "severity": "P2 / Important",
+      "blocking_for_b3": true,
+      "title": "Divergence rejects unconsumed face storage before legitimate skips",
+      "path": "common/operators/computeSstFaceFluxKernel.cuh",
+      "lines": [
+        1079,
+        1080
+      ],
+      "observed": "30 immutable-base cases complete with status 0; frozen cases return InvalidStorage. Six empty moving-volume cases lose actual density/energy/species volume scaling. Strict and terminal modes both affected.",
+      "cause": "Unconditional species flux/faceStatus availability check precedes incidence zero-trip, invalid-face and ownership skips.",
+      "needed": "Check actual face backing only at existing consuming point after legitimate skips; preserve required inventory backing and true consumed-storage failures. No prescan/new admission gate. Add targeted original-success regression.",
+      "evidence": [
+        "independent-probes/check_skipped_storage.py",
+        "independent-probes/skipped-storage.cpp",
+        "independent-probes/skipped-storage-base.log",
+        "independent-probes/skipped-storage-frozen.log",
+        "independent-probes/skipped-storage-receipt.json"
+      ]
+    },
+    {
+      "id": "B3-R2",
+      "severity": "P2 / Important",
+      "blocking_for_b3": true,
+      "title": "New launch signatures break two unchanged direct-consumer tests",
+      "path": "common/GpuGasAdvance.cuh",
+      "lines": [
+        657,
+        661
+      ],
+      "affected_path": "tests/gas_transport/test_gas_advance_view.py",
+      "affected_lines": [
+        202,
+        242,
+        244
+      ],
+      "observed": "Two focused pytest cases fail compilation on frozen source with no matching convective/SST stub. The same unchanged test functions both pass with immutable-base headers.",
+      "needed": "Update affected stubs for actual new route parameters while preserving existing order/no-dead-predictor assertions; check forwarded owner mode on executed routes. Run only affected tests.",
+      "evidence": [
+        "independent-probes/consumer-tests.log",
+        "independent-probes/check_baseline_consumers.py",
+        "independent-probes/baseline-consumer-receipt.json",
+        "independent-probes/baseline-consumers.log"
+      ]
+    }
+  ],
+  "integrity": {
+    "freeze_files_verified": 6,
+    "artifact_hashes_verified": 705,
+    "pytest_logs_verified": 13,
+    "issues": [],
+    "git_diff_check": 0
+  },
+  "new_probe_scope": [
+    "One 30-variant actual-kernel baseline/current skipped-storage comparison, two C++ builds/runs",
+    "Two affected direct-consumer tests on frozen source; unchanged baseline counterparts pass"
+  ],
+  "reused_evidence": [
+    "32-case full-field original success comparison",
+    "Terminal bulk/RK/SST/budget/audit fields",
+    "Strict native later-success fields/attempt counts and enabled ledgers",
+    "Actual currentCo helper and CHMT copy/error lifecycle",
+    "Final-source real nvcc FP64 Ns2/Ns10/plain-legacy kernel compilation"
+  ],
+  "limitations": [
+    "B5 real selected wall integration remains pending",
+    "B7 final host/status convergence remains pending",
+    "No GPU runtime/async fault witness",
+    "No Ns10 runtime witness",
+    "No full supported application build/link/runtime witness",
+    "No measured GPU cost",
+    "No deliberate metadata OOB execution"
+  ],
+  "production_modified": false,
+  "tests_modified": false,
+  "readme_modified": false,
+  "commit_push_merge": false,
+  "compiler_lane_released": true,
+  "new_artifacts": [
+    {
+      "path": "independent-probes/base-test_chemistry_composition_preserves_order_without_post_half_quality_gate/chemistry",
+      "sha256": "3274024ec07a3334ce45c3b8d01378cc376f9e9cb84dfc7b13defeb2f7f6a47d",
+      "bytes": 76616
+    },
+    {
+      "path": "independent-probes/base-test_chemistry_composition_preserves_order_without_post_half_quality_gate/chemistry.cpp",
+      "sha256": "6e6b5ef5a94a66c467a4c4faf8310e1082dbccc807e51d374e60be41db45a1c1",
+      "bytes": 8108
+    },
+    {
+      "path": "independent-probes/base-test_chemistry_composition_preserves_order_without_post_half_quality_gate/protocol.hpp",
+      "sha256": "eea1b611daea1c02b1f7b2e518a88a5a65441917eb2d4e5b0a1ed3002ca804f4",
+      "bytes": 30939
+    },
+    {
+      "path": "independent-probes/base-test_shared_preparation_does_not_compute_dead_sst_admission_predictor/preflight",
+      "sha256": "fbbb30ff81c8cc6a7f4af3b585ae5796c10af425737ce9f5835f72238861ca43",
+      "bytes": 62864
+    },
+    {
+      "path": "independent-probes/base-test_shared_preparation_does_not_compute_dead_sst_admission_predictor/preflight.cpp",
+      "sha256": "3069eaffbd69ee90455536372a237773d90323cea8261e14954465949d04674e",
+      "bytes": 38701
+    },
+    {
+      "path": "independent-probes/baseline-consumer-receipt.json",
+      "sha256": "151c530356be0aaa2722d6c36ca947ce89c99667a659c051340728bb9bab4905",
+      "bytes": 237
+    },
+    {
+      "path": "independent-probes/baseline-consumers.log",
+      "sha256": "ac17b7b84e61031abc3bc3d146d4a07e70ef5b90c91637aedb81799c09bab6dc",
+      "bytes": 509
+    },
+    {
+      "path": "independent-probes/check_baseline_consumers.py",
+      "sha256": "a8653db59adb323e6b567e7337d446a6305f2937a5d2b4f5a7f0d2c07cedccdf",
+      "bytes": 1210
+    },
+    {
+      "path": "independent-probes/check_skipped_storage.py",
+      "sha256": "555d491c6008f31ebcd27e8233bdfeedd9b4d2cdea7bc216740ddbfb5f2eb9e5",
+      "bytes": 2718
+    },
+    {
+      "path": "independent-probes/consumer-tests/test_chemistry_composition_pre0/chemistry.cpp",
+      "sha256": "6e6b5ef5a94a66c467a4c4faf8310e1082dbccc807e51d374e60be41db45a1c1",
+      "bytes": 8108
+    },
+    {
+      "path": "independent-probes/consumer-tests/test_chemistry_composition_pre0/protocol.hpp",
+      "sha256": "dc0a4f146aafdba61297b0115762284932ecfcb32d29d025312b13959c4ac8a0",
+      "bytes": 30978
+    },
+    {
+      "path": "independent-probes/consumer-tests/test_shared_preparation_does_n0/preflight.cpp",
+      "sha256": "9e171ea09998373bd34b04b26a278484aca77adc1c5372e9cf191c8fdb25abc2",
+      "bytes": 38740
+    },
+    {
+      "path": "independent-probes/consumer-tests.log",
+      "sha256": "97462337b5fa7ecbd24f27f148e3474355ded02565b667a02b66df516dbf07d8",
+      "bytes": 17968
+    },
+    {
+      "path": "independent-probes/evidence-verification.json",
+      "sha256": "be8046d5570200e2b3b617253a13e6a007d8904b615a7077ee0070f04290c236",
+      "bytes": 137
+    },
+    {
+      "path": "independent-probes/skipped-storage-base",
+      "sha256": "aa3c7e008e7dc96b08188ef6117ea61f5ff027de767e59ca6a5aee8bb941796a",
+      "bytes": 184088
+    },
+    {
+      "path": "independent-probes/skipped-storage-base-build.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "independent-probes/skipped-storage-base.log",
+      "sha256": "13afbf08629f3ada373a49776cd38032410aeba55ab6f0a9b25389496463f988",
+      "bytes": 3750
+    },
+    {
+      "path": "independent-probes/skipped-storage-frozen",
+      "sha256": "e6ebe21d1bbaaa48ac3fc3c15a4f9fb72e1aaab985f18d2623482e207ce09d6c",
+      "bytes": 184088
+    },
+    {
+      "path": "independent-probes/skipped-storage-frozen-build.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "independent-probes/skipped-storage-frozen.log",
+      "sha256": "f44662c4549876de18a91db2ffc5bd0336bd05b4d685bf27d1d8fdf28f30b35f",
+      "bytes": 3750
+    },
+    {
+      "path": "independent-probes/skipped-storage-receipt.json",
+      "sha256": "9cd3492dc1dca20aeb30e33df7fab8e55e0f454fc87c0efa4a4463fb88fbbeca",
+      "bytes": 9193
+    },
+    {
+      "path": "independent-probes/skipped-storage.cpp",
+      "sha256": "1938e859369fd029677e887096bf9e93b8dfb3fe24ecc4cac16318d3ed2787ac",
+      "bytes": 9573
+    },
+    {
+      "path": "independent-probes/verify_evidence.py",
+      "sha256": "5a259a998661553303cb9b31bc62e4f727a0630608eff3d27e615b0448d0199c",
+      "bytes": 1516
+    }
+  ],
+  "report_sha256": "4efe353a41770726e73a64e406164b18670dc576ce4be9f1a10f16770f9630bb"
+}

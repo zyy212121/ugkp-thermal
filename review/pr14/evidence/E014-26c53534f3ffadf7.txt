@@ -1,0 +1,1100 @@
+00000000000947a0 V DW.ref._ZTISt8bad_cast
+00000000000947a8 V DW.ref._ZTISt9exception
+00000000000947b0 V DW.ref.__gxx_personality_v0
+0000000000093960 d _DYNAMIC
+0000000000093fe8 d _GLOBAL_OFFSET_TABLE_
+000000000001b000 t _GLOBAL__sub_I_diluteUgkwpFoam.C
+0000000000078000 R _IO_stdin_used
+                 w _ITM_deregisterTMCloneTable
+                 w _ITM_registerTMCloneTable
+                 U _Unwind_Resume@GCC_3.0
+00000000000705c0 t (anonymous namespace)::discardResponse((anonymous namespace)::ClientState*)
+0000000000070630 t (anonymous namespace)::receiveResponse((anonymous namespace)::ClientState*, unsigned long&, bool, unsigned long) [clone .constprop.0]
+000000000001ad91 t (anonymous namespace)::receiveResponse((anonymous namespace)::ClientState*, unsigned long&, bool, unsigned long) [clone .constprop.0] [clone .cold]
+000000000006ec00 t (anonymous namespace)::readAll(int, void*, unsigned long, (anonymous namespace)::ClientState*)
+000000000001ac95 t (anonymous namespace)::readAll(int, void*, unsigned long, (anonymous namespace)::ClientState*) [clone .cold]
+000000000006e820 t (anonymous namespace)::writeAll(int, void const*, unsigned long)
+000000000001ac76 t (anonymous namespace)::writeAll(int, void const*, unsigned long) [clone .cold]
+0000000000000010 b (anonymous namespace)::lastError
+                 U Foam::DLListBase::endConstIter_
+                 U Foam::DLListBase::endConstRevIter_
+                 U Foam::FatalError
+0000000000045390 W Foam::MeshObject<Foam::fvMesh, Foam::UpdateableMeshObject, Foam::wallDist>::New(Foam::fvMesh&)
+                 U Foam::SLListBase::removeHead()
+                 U Foam::SLListBase::endConstIter_
+                 U Foam::SLListBase::append(Foam::SLListBase::link*)
+                 U Foam::dictionary::writeOptionalEntries
+                 U Foam::dictionary::subDict(Foam::word const&)
+                 U Foam::dictionary::dictionary(Foam::Istream&, bool)
+                 U Foam::dictionary::~dictionary()
+                 U Foam::dimDensity
+                 U Foam::meshObject::debug
+                 U Foam::readScalar(Foam::Istream&)
+                 U Foam::writeEntry(Foam::Ostream&, Foam::dimensionSet const&)
+                 U Foam::writeEntry(Foam::Ostream&, Foam::word const&)
+0000000000060450 W void Foam::writeEntry<Foam::dimensionSet>(Foam::Ostream&, Foam::word const&, Foam::dimensionSet const&)
+000000000005f180 W void Foam::writeEntry<Foam::word>(Foam::Ostream&, Foam::word const&, Foam::word const&)
+0000000000061510 W void Foam::writeEntry<Foam::Field<double> >(Foam::Ostream&, Foam::word const&, Foam::Field<double> const&)
+0000000000062300 W void Foam::writeEntry<Foam::Vector<double> >(Foam::Ostream&, Foam::Field<Foam::Vector<double> > const&)
+                 U Foam::VectorSpace<Foam::Vector<double>, double, (unsigned char)3>::zero
+                 U Foam::VectorSpace<Foam::Vector<double>, double, (unsigned char)3>::typeName
+0000000000030aa0 W Foam::dimensioned<double>::dimensioned(Foam::word const&, Foam::dimensionSet const&, double const&)
+0000000000030aa0 W Foam::dimensioned<double>::dimensioned(Foam::word const&, Foam::dimensionSet const&, double const&)
+                 U Foam::fileHandler()
+                 U Foam::regIOobject::readStream(Foam::word const&, bool)
+                 U Foam::regIOobject::setUpToDate()
+                 U Foam::regIOobject::readIfModified()
+                 U Foam::regIOobject::read()
+                 U Foam::regIOobject::close()
+                 U Foam::regIOobject::rename(Foam::word const&)
+                 U Foam::regIOobject::checkIn()
+                 U Foam::regIOobject::checkOut()
+                 U Foam::regIOobject::headerOk()
+                 U Foam::regIOobject::readData(Foam::Istream&)
+                 U Foam::regIOobject::regIOobject(Foam::regIOobject const&&)
+                 U Foam::regIOobject::regIOobject(Foam::word const&, Foam::regIOobject const&, bool)
+                 U Foam::regIOobject::regIOobject(Foam::IOobject const&, Foam::regIOobject const&)
+                 U Foam::regIOobject::regIOobject(Foam::IOobject const&, bool)
+                 U Foam::regIOobject::~regIOobject()
+                 U Foam::FatalIOError
+                 U Foam::IOdictionary::readData(Foam::Istream&)
+                 U Foam::IOdictionary::typeName
+                 U Foam::IOdictionary::IOdictionary(Foam::IOobject const&)
+                 U Foam::IOdictionary::~IOdictionary()
+                 U Foam::IOdictionary::~IOdictionary()
+                 U Foam::dimensionSet::read(Foam::Istream&, double&)
+                 U Foam::dimensionSet::reset(Foam::dimensionSet const&)
+                 U Foam::dimensionSet::dimensionSet(Foam::dimensionSet const&)
+                 U Foam::dimensionSet::dimensionSet(Foam::Istream&)
+                 U Foam::dimensionSet::dimensionSet(double, double, double, double, double, double, double)
+000000000002ae80 W Foam::fvPatchField<Foam::Vector<double> >::initEvaluate(Foam::UPstream::commsTypes)
+000000000002ae60 W Foam::fvPatchField<Foam::Vector<double> >::updateCoeffs()
+000000000002ae90 W Foam::fvPatchField<Foam::Vector<double> >::manipulateMatrix(Foam::fvMatrix<Foam::Vector<double> >&)
+                 U Foam::fvPatchField<Foam::Vector<double> >::patchConstructorTablePtr_
+                 U Foam::fvPatchField<Foam::Vector<double> >::disallowGenericFvPatchField
+                 U Foam::fvPatchField<Foam::Vector<double> >::dictionaryConstructorTablePtr_
+000000000005a400 W Foam::fvPatchField<Foam::Vector<double> >::New(Foam::word const&, Foam::word const&, Foam::fvPatch const&, Foam::DimensionedField<Foam::Vector<double>, Foam::volMesh> const&)
+0000000000059d90 W Foam::fvPatchField<Foam::Vector<double> >::New(Foam::fvPatch const&, Foam::DimensionedField<Foam::Vector<double>, Foam::volMesh> const&, Foam::dictionary const&)
+000000000002f340 W Foam::fvPatchField<Foam::Vector<double> >::rmap(Foam::fvPatchField<Foam::Vector<double> > const&, Foam::List<int> const&)
+                 U Foam::fvPatchField<Foam::Vector<double> >::debug
+000000000002e0c0 W Foam::fvPatchField<Foam::Vector<double> >::reset(Foam::fvPatchField<Foam::Vector<double> > const&)
+000000000002ae40 W Foam::fvPatchField<Foam::Vector<double> >::autoMap(Foam::fvPatchFieldMapper const&)
+000000000002d7c0 W Foam::fvPatchField<Foam::Vector<double> >::evaluate(Foam::UPstream::commsTypes)
+                 U Foam::fvPatchField<Foam::Vector<double> >::typeName
+000000000002c400 W Foam::fvPatchField<Foam::Vector<double> >::~fvPatchField()
+000000000002c3d0 W Foam::fvPatchField<Foam::Vector<double> >::~fvPatchField()
+000000000002c3d0 W Foam::fvPatchField<Foam::Vector<double> >::~fvPatchField()
+000000000002dca0 W Foam::fvPatchField<Foam::Vector<double> >::operator=(Foam::UList<Foam::Vector<double> > const&)
+000000000002b140 W Foam::fvPatchField<Foam::Vector<double> >::operator=(Foam::Vector<double> const&)
+0000000000045910 W Foam::fvPatchField<Foam::Vector<double> >::operator=(Foam::fvPatchField<Foam::Vector<double> > const&)
+000000000002cf80 W Foam::fvPatchField<Foam::Vector<double> >::operator/=(Foam::fvPatchField<double> const&)
+000000000002b000 W Foam::fvPatchField<Foam::Vector<double> >::operator/=(Foam::Field<double> const&)
+000000000002b540 W Foam::fvPatchField<Foam::Vector<double> >::operator/=(double)
+000000000002e600 W Foam::fvPatchField<Foam::Vector<double> >::operator==(Foam::Field<Foam::Vector<double> > const&)
+000000000002b5e0 W Foam::fvPatchField<Foam::Vector<double> >::operator==(Foam::Vector<double> const&)
+000000000002e740 W Foam::fvPatchField<Foam::Vector<double> >::operator==(Foam::fvPatchField<Foam::Vector<double> > const&)
+000000000002d9c0 W Foam::fvPatchField<Foam::Vector<double> >::operator-=(Foam::Field<Foam::Vector<double> > const&)
+000000000002b300 W Foam::fvPatchField<Foam::Vector<double> >::operator-=(Foam::Vector<double> const&)
+000000000002d580 W Foam::fvPatchField<Foam::Vector<double> >::operator-=(Foam::fvPatchField<Foam::Vector<double> > const&)
+000000000002d100 W Foam::fvPatchField<Foam::Vector<double> >::operator*=(Foam::fvPatchField<double> const&)
+000000000002aec0 W Foam::fvPatchField<Foam::Vector<double> >::operator*=(Foam::Field<double> const&)
+000000000002b480 W Foam::fvPatchField<Foam::Vector<double> >::operator*=(double)
+000000000002d880 W Foam::fvPatchField<Foam::Vector<double> >::operator+=(Foam::Field<Foam::Vector<double> > const&)
+000000000002b180 W Foam::fvPatchField<Foam::Vector<double> >::operator+=(Foam::Vector<double> const&)
+000000000002df40 W Foam::fvPatchField<Foam::Vector<double> >::operator+=(Foam::fvPatchField<Foam::Vector<double> > const&)
+000000000002abc0 W Foam::fvPatchField<double>::initEvaluate(Foam::UPstream::commsTypes)
+000000000002ada0 W Foam::fvPatchField<double>::updateCoeffs()
+000000000002bc40 W Foam::fvPatchField<double>::manipulateMatrix(Foam::fvMatrix<double>&)
+                 U Foam::fvPatchField<double>::patchConstructorTablePtr_
+                 U Foam::fvPatchField<double>::disallowGenericFvPatchField
+                 U Foam::fvPatchField<double>::dictionaryConstructorTablePtr_
+000000000005c840 W Foam::fvPatchField<double>::New(Foam::word const&, Foam::word const&, Foam::fvPatch const&, Foam::DimensionedField<double, Foam::volMesh> const&)
+000000000005c1d0 W Foam::fvPatchField<double>::New(Foam::fvPatch const&, Foam::DimensionedField<double, Foam::volMesh> const&, Foam::dictionary const&)
+000000000005f720 W Foam::fvPatchField<double>::rmap(Foam::fvPatchField<double> const&, Foam::List<int> const&)
+                 U Foam::fvPatchField<double>::debug
+000000000002e3c0 W Foam::fvPatchField<double>::reset(Foam::fvPatchField<double> const&)
+000000000002bc10 W Foam::fvPatchField<double>::autoMap(Foam::fvPatchFieldMapper const&)
+000000000002abd0 W Foam::fvPatchField<double>::evaluate(Foam::UPstream::commsTypes)
+                 U Foam::fvPatchField<double>::typeName
+000000000002c460 W Foam::fvPatchField<double>::~fvPatchField()
+000000000002c430 W Foam::fvPatchField<double>::~fvPatchField()
+000000000002c430 W Foam::fvPatchField<double>::~fvPatchField()
+000000000002e200 W Foam::fvPatchField<double>::operator=(Foam::UList<double> const&)
+00000000000347c0 W Foam::fvPatchField<double>::operator=(Foam::fvPatchField<double> const&)
+000000000002bf60 W Foam::fvPatchField<double>::operator=(double const&)
+000000000002bea0 W Foam::fvPatchField<double>::operator/=(Foam::Field<double> const&)
+000000000002cd60 W Foam::fvPatchField<double>::operator/=(Foam::fvPatchField<double> const&)
+000000000002c220 W Foam::fvPatchField<double>::operator/=(double)
+00000000000333a0 W Foam::fvPatchField<double>::operator==(Foam::Field<double> const&)
+00000000000333b0 W Foam::fvPatchField<double>::operator==(Foam::fvPatchField<double> const&)
+000000000002ac20 W Foam::fvPatchField<double>::operator==(double const&)
+000000000002bd20 W Foam::fvPatchField<double>::operator-=(Foam::Field<double> const&)
+000000000002de40 W Foam::fvPatchField<double>::operator-=(Foam::fvPatchField<double> const&)
+000000000002c0e0 W Foam::fvPatchField<double>::operator-=(double const&)
+000000000002bde0 W Foam::fvPatchField<double>::operator*=(Foam::Field<double> const&)
+000000000002cb60 W Foam::fvPatchField<double>::operator*=(Foam::fvPatchField<double> const&)
+000000000002c1a0 W Foam::fvPatchField<double>::operator*=(double)
+000000000002bc60 W Foam::fvPatchField<double>::operator+=(Foam::Field<double> const&)
+000000000002d460 W Foam::fvPatchField<double>::operator+=(Foam::fvPatchField<double> const&)
+000000000002c020 W Foam::fvPatchField<double>::operator+=(double const&)
+000000000002c350 W Foam::typeIOobject<Foam::GeometricField<Foam::Vector<double>, Foam::fvPatchField, Foam::volMesh> >::~typeIOobject()
+000000000002c330 W Foam::typeIOobject<Foam::GeometricField<Foam::Vector<double>, Foam::fvPatchField, Foam::volMesh> >::~typeIOobject()
+000000000002c330 W Foam::typeIOobject<Foam::GeometricField<Foam::Vector<double>, Foam::fvPatchField, Foam::volMesh> >::~typeIOobject()
+000000000002c300 W Foam::typeIOobject<Foam::GeometricField<double, Foam::fvPatchField, Foam::volMesh> >::~typeIOobject()
+000000000002c2e0 W Foam::typeIOobject<Foam::GeometricField<double, Foam::fvPatchField, Foam::volMesh> >::~typeIOobject()
+000000000002c2e0 W Foam::typeIOobject<Foam::GeometricField<double, Foam::fvPatchField, Foam::volMesh> >::~typeIOobject()
+000000000002c3a0 W Foam::typeIOobject<Foam::GeometricField<double, Foam::fvsPatchField, Foam::surfaceMesh> >::~typeIOobject()
+000000000002c380 W Foam::typeIOobject<Foam::GeometricField<double, Foam::fvsPatchField, Foam::surfaceMesh> >::~typeIOobject()
+000000000002c380 W Foam::typeIOobject<Foam::GeometricField<double, Foam::fvsPatchField, Foam::surfaceMesh> >::~typeIOobject()
+000000000002c2b0 W Foam::typeIOobject<Foam::UniformDimensionedField<Foam::Vector<double> > >::~typeIOobject()
+000000000002c290 W Foam::typeIOobject<Foam::UniformDimensionedField<Foam::Vector<double> > >::~typeIOobject()
+000000000002c290 W Foam::typeIOobject<Foam::UniformDimensionedField<Foam::Vector<double> > >::~typeIOobject()
+                 U Foam::writeKeyword(Foam::Ostream&, Foam::keyType const&)
+                 U Foam::HashTableCore::maxTableSize
+                 U Foam::HashTableCore::canonicalSize(int)
+                 U Foam::fvsPatchField<double>::patchConstructorTablePtr_
+                 U Foam::fvsPatchField<double>::disallowGenericFvsPatchField
+                 U Foam::fvsPatchField<double>::dictionaryConstructorTablePtr_
+0000000000058010 W Foam::fvsPatchField<double>::New(Foam::word const&, Foam::word const&, Foam::fvPatch const&, Foam::DimensionedField<double, Foam::surfaceMesh> const&)
+00000000000579a0 W Foam::fvsPatchField<double>::New(Foam::fvPatch const&, Foam::DimensionedField<double, Foam::surfaceMesh> const&, Foam::dictionary const&)
+000000000005f730 W Foam::fvsPatchField<double>::rmap(Foam::fvsPatchField<double> const&, Foam::List<int> const&)
+                 U Foam::fvsPatchField<double>::debug
+000000000002db00 W Foam::fvsPatchField<double>::reset(Foam::fvsPatchField<double> const&)
+000000000002b660 W Foam::fvsPatchField<double>::autoMap(Foam::fvPatchFieldMapper const&)
+                 U Foam::fvsPatchField<double>::typeName
+000000000002c4c0 W Foam::fvsPatchField<double>::~fvsPatchField()
+000000000002c490 W Foam::fvsPatchField<double>::~fvsPatchField()
+000000000002c490 W Foam::fvsPatchField<double>::~fvsPatchField()
+000000000002e2e0 W Foam::fvsPatchField<double>::operator=(Foam::UList<double> const&)
+0000000000034760 W Foam::fvsPatchField<double>::operator=(Foam::fvsPatchField<double> const&)
+000000000002ab00 W Foam::fvsPatchField<double>::operator=(double const&)
+000000000002b8c0 W Foam::fvsPatchField<double>::operator/=(Foam::Field<double> const&)
+000000000002ce60 W Foam::fvsPatchField<double>::operator/=(Foam::fvsPatchField<double> const&)
+000000000002bb80 W Foam::fvsPatchField<double>::operator/=(double)
+00000000000333c0 W Foam::fvsPatchField<double>::operator==(Foam::Field<double> const&)
+00000000000333d0 W Foam::fvsPatchField<double>::operator==(Foam::fvsPatchField<double> const&)
+000000000002ace0 W Foam::fvsPatchField<double>::operator==(double const&)
+000000000002b740 W Foam::fvsPatchField<double>::operator-=(Foam::Field<double> const&)
+000000000002d360 W Foam::fvsPatchField<double>::operator-=(Foam::fvsPatchField<double> const&)
+000000000002ba40 W Foam::fvsPatchField<double>::operator-=(double const&)
+000000000002b800 W Foam::fvsPatchField<double>::operator*=(Foam::Field<double> const&)
+000000000002cc60 W Foam::fvsPatchField<double>::operator*=(Foam::fvsPatchField<double> const&)
+000000000002bb00 W Foam::fvsPatchField<double>::operator*=(double)
+000000000002b680 W Foam::fvsPatchField<double>::operator+=(Foam::Field<double> const&)
+000000000002dd40 W Foam::fvsPatchField<double>::operator+=(Foam::fvsPatchField<double> const&)
+000000000002b980 W Foam::fvsPatchField<double>::operator+=(double const&)
+0000000000038470 t Foam::gpuFshRestart::readV2Payload(std::istream&, unsigned int, Foam::gpuFshRestart::MutableView const&) [clone .isra.0]
+00000000000378b0 t Foam::gpuFshRestart::readV3Payload(std::istream&, unsigned int, Foam::gpuFshRestart::MutableView const&) [clone .isra.0]
+00000000000367c0 t Foam::gpuFshRestart::readV4Payload(std::istream&, unsigned int, Foam::gpuFshRestart::MutableView const&) [clone .isra.0]
+0000000000035810 t Foam::gpuFshRestart::readV5Payload(std::istream&, unsigned int, Foam::gpuFshRestart::MutableView const&) [clone .isra.0]
+00000000000947c0 b Foam::gpuFshRestart::schema7FormatName
+                 U Foam::messageStream::operator()(char const*, char const*, int)
+                 U Foam::messageStream::operator()(char const*, char const*, int, Foam::dictionary const&)
+                 U Foam::messageStream::operator()(int)
+                 U Foam::nullObjectPtr
+000000000005bb40 W Foam::GeometricField<Foam::Vector<double>, Foam::fvPatchField, Foam::volMesh>::readFields(Foam::dictionary const&)
+00000000000629d0 W Foam::GeometricField<Foam::Vector<double>, Foam::fvPatchField, Foam::volMesh>::readFields()
+0000000000063800 W Foam::GeometricField<Foam::Vector<double>, Foam::fvPatchField, Foam::volMesh>::readIfPresent()
+0000000000063250 W Foam::GeometricField<Foam::Vector<double>, Foam::fvPatchField, Foam::volMesh>::readOldTimeIfPresent()
+0000000000064650 W Foam::GeometricField<Foam::Vector<double>, Foam::fvPatchField, Foam::volMesh>::New(Foam::word const&, Foam::fvMesh const&, Foam::dimensionSet const&, Foam::word const&)
+                 U Foam::GeometricField<Foam::Vector<double>, Foam::fvPatchField, Foam::volMesh>::debug
+                 U Foam::GeometricField<Foam::Vector<double>, Foam::fvPatchField, Foam::volMesh>::typeName
+0000000000063960 W Foam::GeometricField<Foam::Vector<double>, Foam::fvPatchField, Foam::volMesh>::GeometricField(Foam::word const&, Foam::GeometricField<Foam::Vector<double>, Foam::fvPatchField, Foam::volMesh> const&)
+00000000000640a0 W Foam::GeometricField<Foam::Vector<double>, Foam::fvPatchField, Foam::volMesh>::GeometricField(Foam::IOobject const&, Foam::tmp<Foam::GeometricField<Foam::Vector<double>, Foam::fvPatchField, Foam::volMesh> > const&)
+0000000000063050 W Foam::GeometricField<Foam::Vector<double>, Foam::fvPatchField, Foam::volMesh>::GeometricField(Foam::IOobject const&, Foam::fvMesh const&)
+0000000000064520 W Foam::GeometricField<Foam::Vector<double>, Foam::fvPatchField, Foam::volMesh>::GeometricField(Foam::IOobject const&, Foam::fvMesh const&, Foam::dimensionSet const&, Foam::word const&)
+0000000000063d20 W Foam::GeometricField<Foam::Vector<double>, Foam::fvPatchField, Foam::volMesh>::GeometricField(Foam::IOobject const&, Foam::GeometricField<Foam::Vector<double>, Foam::fvPatchField, Foam::volMesh> const&)
+0000000000063960 W Foam::GeometricField<Foam::Vector<double>, Foam::fvPatchField, Foam::volMesh>::GeometricField(Foam::word const&, Foam::GeometricField<Foam::Vector<double>, Foam::fvPatchField, Foam::volMesh> const&)
+00000000000640a0 W Foam::GeometricField<Foam::Vector<double>, Foam::fvPatchField, Foam::volMesh>::GeometricField(Foam::IOobject const&, Foam::tmp<Foam::GeometricField<Foam::Vector<double>, Foam::fvPatchField, Foam::volMesh> > const&)
+0000000000063050 W Foam::GeometricField<Foam::Vector<double>, Foam::fvPatchField, Foam::volMesh>::GeometricField(Foam::IOobject const&, Foam::fvMesh const&)
+0000000000064520 W Foam::GeometricField<Foam::Vector<double>, Foam::fvPatchField, Foam::volMesh>::GeometricField(Foam::IOobject const&, Foam::fvMesh const&, Foam::dimensionSet const&, Foam::word const&)
+0000000000063d20 W Foam::GeometricField<Foam::Vector<double>, Foam::fvPatchField, Foam::volMesh>::GeometricField(Foam::IOobject const&, Foam::GeometricField<Foam::Vector<double>, Foam::fvPatchField, Foam::volMesh> const&)
+0000000000049950 W Foam::GeometricField<Foam::Vector<double>, Foam::fvPatchField, Foam::volMesh>::~GeometricField()
+0000000000049580 W Foam::GeometricField<Foam::Vector<double>, Foam::fvPatchField, Foam::volMesh>::~GeometricField()
+0000000000049580 W Foam::GeometricField<Foam::Vector<double>, Foam::fvPatchField, Foam::volMesh>::~GeometricField()
+000000000005df60 W Foam::GeometricField<double, Foam::fvPatchField, Foam::volMesh>::readFields(Foam::dictionary const&)
+00000000000628d0 W Foam::GeometricField<double, Foam::fvPatchField, Foam::volMesh>::readFields()
+0000000000066350 W Foam::GeometricField<double, Foam::fvPatchField, Foam::volMesh>::readIfPresent()
+0000000000065da0 W Foam::GeometricField<double, Foam::fvPatchField, Foam::volMesh>::readOldTimeIfPresent()
+000000000002a6c0 t Foam::GeometricField<double, Foam::fvPatchField, Foam::volMesh>::New(Foam::word const&, Foam::fvMesh const&, Foam::dimensionSet const&, Foam::word const&) [clone .constprop.0]
+0000000000019862 t Foam::GeometricField<double, Foam::fvPatchField, Foam::volMesh>::New(Foam::word const&, Foam::fvMesh const&, Foam::dimensionSet const&, Foam::word const&) [clone .constprop.0] [clone .cold]
+                 U Foam::GeometricField<double, Foam::fvPatchField, Foam::volMesh>::debug
+                 U Foam::GeometricField<double, Foam::fvPatchField, Foam::volMesh>::typeName
+00000000000664c0 W Foam::GeometricField<double, Foam::fvPatchField, Foam::volMesh>::GeometricField(Foam::word const&, Foam::GeometricField<double, Foam::fvPatchField, Foam::volMesh> const&)
+0000000000066c80 W Foam::GeometricField<double, Foam::fvPatchField, Foam::volMesh>::GeometricField(Foam::IOobject const&, Foam::tmp<Foam::GeometricField<double, Foam::fvPatchField, Foam::volMesh> > const&)
+0000000000065ba0 W Foam::GeometricField<double, Foam::fvPatchField, Foam::volMesh>::GeometricField(Foam::IOobject const&, Foam::fvMesh const&)
+0000000000067060 W Foam::GeometricField<double, Foam::fvPatchField, Foam::volMesh>::GeometricField(Foam::IOobject const&, Foam::fvMesh const&, Foam::dimensioned<double> const&, Foam::word const&)
+00000000000673d0 W Foam::GeometricField<double, Foam::fvPatchField, Foam::volMesh>::GeometricField(Foam::IOobject const&, Foam::fvMesh const&, Foam::dimensionSet const&, Foam::word const&)
+00000000000668c0 W Foam::GeometricField<double, Foam::fvPatchField, Foam::volMesh>::GeometricField(Foam::IOobject const&, Foam::GeometricField<double, Foam::fvPatchField, Foam::volMesh> const&)
+00000000000664c0 W Foam::GeometricField<double, Foam::fvPatchField, Foam::volMesh>::GeometricField(Foam::word const&, Foam::GeometricField<double, Foam::fvPatchField, Foam::volMesh> const&)
+0000000000066c80 W Foam::GeometricField<double, Foam::fvPatchField, Foam::volMesh>::GeometricField(Foam::IOobject const&, Foam::tmp<Foam::GeometricField<double, Foam::fvPatchField, Foam::volMesh> > const&)
+0000000000065ba0 W Foam::GeometricField<double, Foam::fvPatchField, Foam::volMesh>::GeometricField(Foam::IOobject const&, Foam::fvMesh const&)
+0000000000067060 W Foam::GeometricField<double, Foam::fvPatchField, Foam::volMesh>::GeometricField(Foam::IOobject const&, Foam::fvMesh const&, Foam::dimensioned<double> const&, Foam::word const&)
+00000000000673d0 W Foam::GeometricField<double, Foam::fvPatchField, Foam::volMesh>::GeometricField(Foam::IOobject const&, Foam::fvMesh const&, Foam::dimensionSet const&, Foam::word const&)
+00000000000668c0 W Foam::GeometricField<double, Foam::fvPatchField, Foam::volMesh>::GeometricField(Foam::IOobject const&, Foam::GeometricField<double, Foam::fvPatchField, Foam::volMesh> const&)
+000000000004b540 W Foam::GeometricField<double, Foam::fvPatchField, Foam::volMesh>::~GeometricField()
+000000000004b170 W Foam::GeometricField<double, Foam::fvPatchField, Foam::volMesh>::~GeometricField()
+000000000004b170 W Foam::GeometricField<double, Foam::fvPatchField, Foam::volMesh>::~GeometricField()
+000000000004b800 W Foam::GeometricField<double, Foam::fvPatchField, Foam::volMesh>::operator==(Foam::tmp<Foam::GeometricField<double, Foam::fvPatchField, Foam::volMesh> > const&)
+0000000000059960 W Foam::GeometricField<double, Foam::fvsPatchField, Foam::surfaceMesh>::readFields(Foam::dictionary const&)
+0000000000062ad0 W Foam::GeometricField<double, Foam::fvsPatchField, Foam::surfaceMesh>::readFields()
+000000000006d150 W Foam::GeometricField<double, Foam::fvsPatchField, Foam::surfaceMesh>::readIfPresent()
+000000000006cba0 W Foam::GeometricField<double, Foam::fvsPatchField, Foam::surfaceMesh>::readOldTimeIfPresent()
+                 U Foam::GeometricField<double, Foam::fvsPatchField, Foam::surfaceMesh>::debug
+                 U Foam::GeometricField<double, Foam::fvsPatchField, Foam::surfaceMesh>::typeName
+000000000006d640 W Foam::GeometricField<double, Foam::fvsPatchField, Foam::surfaceMesh>::GeometricField(Foam::word const&, Foam::GeometricField<double, Foam::fvsPatchField, Foam::surfaceMesh> const&)
+000000000006c940 W Foam::GeometricField<double, Foam::fvsPatchField, Foam::surfaceMesh>::GeometricField(Foam::IOobject const&, Foam::fvMesh const&)
+000000000006d2c0 W Foam::GeometricField<double, Foam::fvsPatchField, Foam::surfaceMesh>::GeometricField(Foam::IOobject const&, Foam::fvMesh const&, Foam::dimensioned<double> const&, Foam::word const&)
+000000000006da40 W Foam::GeometricField<double, Foam::fvsPatchField, Foam::surfaceMesh>::GeometricField(Foam::IOobject const&, Foam::GeometricField<double, Foam::fvsPatchField, Foam::surfaceMesh> const&)
+000000000006d640 W Foam::GeometricField<double, Foam::fvsPatchField, Foam::surfaceMesh>::GeometricField(Foam::word const&, Foam::GeometricField<double, Foam::fvsPatchField, Foam::surfaceMesh> const&)
+000000000006c940 W Foam::GeometricField<double, Foam::fvsPatchField, Foam::surfaceMesh>::GeometricField(Foam::IOobject const&, Foam::fvMesh const&)
+000000000006d2c0 W Foam::GeometricField<double, Foam::fvsPatchField, Foam::surfaceMesh>::GeometricField(Foam::IOobject const&, Foam::fvMesh const&, Foam::dimensioned<double> const&, Foam::word const&)
+000000000006da40 W Foam::GeometricField<double, Foam::fvsPatchField, Foam::surfaceMesh>::GeometricField(Foam::IOobject const&, Foam::GeometricField<double, Foam::fvsPatchField, Foam::surfaceMesh> const&)
+000000000004ff70 W Foam::GeometricField<double, Foam::fvsPatchField, Foam::surfaceMesh>::~GeometricField()
+000000000004fb20 W Foam::GeometricField<double, Foam::fvsPatchField, Foam::surfaceMesh>::~GeometricField()
+000000000004fb20 W Foam::GeometricField<double, Foam::fvsPatchField, Foam::surfaceMesh>::~GeometricField()
+                 U Foam::dimTemperature
+                 U Foam::emptyPolyPatch::typeName
+                 U Foam::objectRegistry::debug
+0000000000061c70 W void Foam::writeListEntry<Foam::UList<Foam::Vector<double> > >(Foam::Ostream&, Foam::UList<Foam::Vector<double> > const&)
+0000000000060c10 W void Foam::writeListEntry<Foam::UList<double> >(Foam::Ostream&, Foam::UList<double> const&)
+                 U Foam::cyclicPolyPatch::typeName
+                 U Foam::dimAcceleration
+                 U Foam::DimensionedField<Foam::Vector<double>, Foam::volMesh>::typeName
+0000000000056f10 W Foam::DimensionedField<Foam::Vector<double>, Foam::volMesh>::readField(Foam::dictionary const&, Foam::word const&)
+0000000000062e40 W Foam::DimensionedField<Foam::Vector<double>, Foam::volMesh>::DimensionedField(Foam::IOobject const&, Foam::fvMesh const&, Foam::dimensionSet const&, bool)
+0000000000062e40 W Foam::DimensionedField<Foam::Vector<double>, Foam::volMesh>::DimensionedField(Foam::IOobject const&, Foam::fvMesh const&, Foam::dimensionSet const&, bool)
+0000000000049560 W Foam::DimensionedField<Foam::Vector<double>, Foam::volMesh>::~DimensionedField()
+00000000000492d0 W Foam::DimensionedField<Foam::Vector<double>, Foam::volMesh>::~DimensionedField()
+00000000000492d0 W Foam::DimensionedField<Foam::Vector<double>, Foam::volMesh>::~DimensionedField()
+0000000000045800 W Foam::DimensionedField<Foam::Vector<double>, Foam::volMesh>::operator=(Foam::DimensionedField<Foam::Vector<double>, Foam::volMesh> const&)
+                 U Foam::DimensionedField<double, Foam::surfaceMesh>::typeName
+0000000000046af0 W Foam::DimensionedField<double, Foam::surfaceMesh>::readField(Foam::dictionary const&, Foam::word const&)
+000000000004e4f0 W Foam::DimensionedField<double, Foam::surfaceMesh>::~DimensionedField()
+000000000004e260 W Foam::DimensionedField<double, Foam::surfaceMesh>::~DimensionedField()
+000000000004e260 W Foam::DimensionedField<double, Foam::surfaceMesh>::~DimensionedField()
+00000000000473c0 W Foam::DimensionedField<double, Foam::surfaceMesh>::operator=(Foam::DimensionedField<double, Foam::surfaceMesh> const&)
+                 U Foam::DimensionedField<double, Foam::volMesh>::typeName
+00000000000469e0 W Foam::DimensionedField<double, Foam::volMesh>::readField(Foam::dictionary const&, Foam::word const&)
+0000000000065a40 W Foam::DimensionedField<double, Foam::volMesh>::DimensionedField(Foam::IOobject const&, Foam::fvMesh const&, Foam::dimensionSet const&, bool)
+0000000000065a40 W Foam::DimensionedField<double, Foam::volMesh>::DimensionedField(Foam::IOobject const&, Foam::fvMesh const&, Foam::dimensionSet const&, bool)
+000000000004a500 W Foam::DimensionedField<double, Foam::volMesh>::~DimensionedField()
+000000000004a270 W Foam::DimensionedField<double, Foam::volMesh>::~DimensionedField()
+000000000004a270 W Foam::DimensionedField<double, Foam::volMesh>::~DimensionedField()
+0000000000044bb0 W Foam::DimensionedField<double, Foam::volMesh>::operator=(Foam::DimensionedField<double, Foam::volMesh> const&)
+00000000000417a0 W void Foam::gpuThermalRestart::writeArray<double>(std::ostream&, double const*, unsigned long, unsigned long)
+0000000000031d70 W void Foam::gpuThermalRestart::readConverted<float, double>(std::istream&, double*, unsigned long, unsigned long)
+00000000000354d0 W void Foam::gpuThermalRestart::readArray<double>(std::istream&, double*, unsigned long, unsigned long)
+0000000000035740 W void Foam::gpuThermalRestart::readArray<unsigned char>(std::istream&, unsigned char*, unsigned long, unsigned long)
+00000000000355a0 W void Foam::gpuThermalRestart::readArray<int>(std::istream&, int*, unsigned long, unsigned long)
+0000000000035670 W void Foam::gpuThermalRestart::readArray<unsigned long>(std::istream&, unsigned long*, unsigned long, unsigned long)
+                 U Foam::localIOdictionary::localIOdictionary(Foam::IOobject const&, Foam::word const&)
+000000000002d2d0 W Foam::localIOdictionary::~localIOdictionary()
+000000000002d280 W Foam::localIOdictionary::~localIOdictionary()
+000000000002d280 W Foam::localIOdictionary::~localIOdictionary()
+0000000000034a40 W Foam::selectGpuDragModel(Foam::dictionary const&)
+00000000000284f0 t Foam::GpuGasResidentSolver::downloadToHostMirror(Foam::Time const&, Foam::GeometricField<double, Foam::fvPatchField, Foam::volMesh>&, Foam::GeometricField<Foam::Vector<double>, Foam::fvPatchField, Foam::volMesh>&, Foam::GeometricField<double, Foam::fvPatchField, Foam::volMesh>&, Foam::GeometricField<Foam::Vector<double>, Foam::fvPatchField, Foam::volMesh>&, Foam::GeometricField<double, Foam::fvPatchField, Foam::volMesh>&, Foam::GeometricField<double, Foam::fvPatchField, Foam::volMesh>&) [clone .isra.0]
+0000000000019556 t Foam::GpuGasResidentSolver::downloadToHostMirror(Foam::Time const&, Foam::GeometricField<double, Foam::fvPatchField, Foam::volMesh>&, Foam::GeometricField<Foam::Vector<double>, Foam::fvPatchField, Foam::volMesh>&, Foam::GeometricField<double, Foam::fvPatchField, Foam::volMesh>&, Foam::GeometricField<Foam::Vector<double>, Foam::fvPatchField, Foam::volMesh>&, Foam::GeometricField<double, Foam::fvPatchField, Foam::volMesh>&, Foam::GeometricField<double, Foam::fvPatchField, Foam::volMesh>&) [clone .isra.0] [clone .cold]
+0000000000051080 W Foam::GpuResidentStrictBase::uploadMesh(Foam::fvMesh const&, int, Foam::dictionary const*)
+0000000000032580 W Foam::GpuResidentStrictBase::configureSst(Foam::fvMesh const&, Foam::GeometricField<double, Foam::fvPatchField, Foam::volMesh> const&, Foam::GeometricField<double, Foam::fvPatchField, Foam::volMesh> const&, Foam::GeometricField<double, Foam::fvPatchField, Foam::volMesh> const&, double, double, double, double, double, double, double, double, double, double, double, double, double, double, double, int, double, double, double)
+0000000000033dc0 W Foam::GpuResidentStrictBase::uploadFields(Foam::GeometricField<double, Foam::fvPatchField, Foam::volMesh> const&, Foam::GeometricField<Foam::Vector<double>, Foam::fvPatchField, Foam::volMesh> const&, Foam::GeometricField<double, Foam::fvPatchField, Foam::volMesh> const&, Foam::GeometricField<Foam::Vector<double>, Foam::fvPatchField, Foam::volMesh> const&, Foam::GeometricField<double, Foam::fvPatchField, Foam::volMesh> const&, Foam::GeometricField<double, Foam::fvPatchField, Foam::volMesh> const&)
+0000000000053480 W Foam::GpuResidentStrictBase::initialiseBase(Foam::Time const&, Foam::fvMesh const&, Foam::GeometricField<double, Foam::fvPatchField, Foam::volMesh> const&, Foam::GeometricField<Foam::Vector<double>, Foam::fvPatchField, Foam::volMesh> const&, Foam::GeometricField<double, Foam::fvPatchField, Foam::volMesh> const&, Foam::GeometricField<Foam::Vector<double>, Foam::fvPatchField, Foam::volMesh> const&, Foam::GeometricField<double, Foam::fvPatchField, Foam::volMesh> const&, Foam::GeometricField<double, Foam::fvPatchField, Foam::volMesh> const&, Foam::GeometricField<double, Foam::fvPatchField, Foam::volMesh> const&, Foam::GeometricField<Foam::Vector<double>, Foam::fvPatchField, Foam::volMesh> const&, Foam::GeometricField<double, Foam::fvPatchField, Foam::volMesh> const&, Foam::GeometricField<double, Foam::fvPatchField, Foam::volMesh> const&, Foam::GeometricField<double, Foam::fvPatchField, Foam::volMesh> const&, Foam::GeometricField<Foam::Vector<double>, Foam::fvPatchField, Foam::volMesh> const&, Foam::GeometricField<double, Foam::fvPatchField, Foam::volMesh> const&, Foam::GeometricField<double, Foam::fvPatchField, Foam::volMesh> const&, Foam::GeometricField<double, Foam::fvPatchField, Foam::volMesh> const&, double, double, int, int, unsigned long long, double, double, bool, double, bool, int, double, double, int, double, double, double, double, int, int, int, int, bool, int, double, double, double, double, double, double, double, double, double, double, double, double, double, double, double, double, double, bool, Foam::GpuSchedulingConfiguration const&, Foam::dictionary const*)
+00000000000242a0 t Foam::GpuResidentStrictBase::ensureInternalSize(Foam::fvMesh const&, Foam::GeometricField<Foam::Vector<double>, Foam::fvPatchField, Foam::volMesh> const&, char const*) [clone .part.0]
+00000000000241f0 t Foam::GpuResidentStrictBase::ensureInternalSize(Foam::fvMesh const&, Foam::GeometricField<double, Foam::fvPatchField, Foam::volMesh> const&, char const*) [clone .part.0]
+0000000000030440 W Foam::GpuResidentStrictBase::particleRestartFile(Foam::Time const&)
+0000000000033400 W Foam::GpuResidentStrictBase::uploadGasOnlyFields(Foam::GeometricField<double, Foam::fvPatchField, Foam::volMesh> const&, Foam::GeometricField<Foam::Vector<double>, Foam::fvPatchField, Foam::volMesh> const&, Foam::GeometricField<double, Foam::fvPatchField, Foam::volMesh> const&, Foam::GeometricField<Foam::Vector<double>, Foam::fvPatchField, Foam::volMesh> const&, Foam::GeometricField<double, Foam::fvPatchField, Foam::volMesh> const&, Foam::GeometricField<double, Foam::fvPatchField, Foam::volMesh> const&)
+0000000000028d70 t Foam::GpuResidentStrictBase::downloadToHostMirror(Foam::Time const&, Foam::GeometricField<double, Foam::fvPatchField, Foam::volMesh>&, Foam::GeometricField<Foam::Vector<double>, Foam::fvPatchField, Foam::volMesh>&, Foam::GeometricField<double, Foam::fvPatchField, Foam::volMesh>&, Foam::GeometricField<Foam::Vector<double>, Foam::fvPatchField, Foam::volMesh>&, Foam::GeometricField<double, Foam::fvPatchField, Foam::volMesh>&, Foam::GeometricField<double, Foam::fvPatchField, Foam::volMesh>&, Foam::GeometricField<double, Foam::fvPatchField, Foam::volMesh>&, Foam::GeometricField<Foam::Vector<double>, Foam::fvPatchField, Foam::volMesh>&, Foam::GeometricField<double, Foam::fvPatchField, Foam::volMesh>&, Foam::GeometricField<double, Foam::fvPatchField, Foam::volMesh>&, Foam::GeometricField<double, Foam::fvPatchField, Foam::volMesh>&, Foam::GeometricField<Foam::Vector<double>, Foam::fvPatchField, Foam::volMesh>&, Foam::GeometricField<double, Foam::fvPatchField, Foam::volMesh>&, Foam::GeometricField<double, Foam::fvPatchField, Foam::volMesh>&, Foam::GeometricField<double, Foam::fvPatchField, Foam::volMesh>&) [clone .isra.0]
+000000000001962c t Foam::GpuResidentStrictBase::downloadToHostMirror(Foam::Time const&, Foam::GeometricField<double, Foam::fvPatchField, Foam::volMesh>&, Foam::GeometricField<Foam::Vector<double>, Foam::fvPatchField, Foam::volMesh>&, Foam::GeometricField<double, Foam::fvPatchField, Foam::volMesh>&, Foam::GeometricField<Foam::Vector<double>, Foam::fvPatchField, Foam::volMesh>&, Foam::GeometricField<double, Foam::fvPatchField, Foam::volMesh>&, Foam::GeometricField<double, Foam::fvPatchField, Foam::volMesh>&, Foam::GeometricField<double, Foam::fvPatchField, Foam::volMesh>&, Foam::GeometricField<Foam::Vector<double>, Foam::fvPatchField, Foam::volMesh>&, Foam::GeometricField<double, Foam::fvPatchField, Foam::volMesh>&, Foam::GeometricField<double, Foam::fvPatchField, Foam::volMesh>&, Foam::GeometricField<double, Foam::fvPatchField, Foam::volMesh>&, Foam::GeometricField<Foam::Vector<double>, Foam::fvPatchField, Foam::volMesh>&, Foam::GeometricField<double, Foam::fvPatchField, Foam::volMesh>&, Foam::GeometricField<double, Foam::fvPatchField, Foam::volMesh>&, Foam::GeometricField<double, Foam::fvPatchField, Foam::volMesh>&) [clone .isra.0] [clone .cold]
+000000000003d9b0 t Foam::GpuResidentStrictBase::uploadBoundarySources(Foam::fvMesh const&, Foam::GeometricField<double, Foam::fvPatchField, Foam::volMesh> const&, Foam::GeometricField<Foam::Vector<double>, Foam::fvPatchField, Foam::volMesh> const&, Foam::GeometricField<double, Foam::fvPatchField, Foam::volMesh> const&, Foam::GeometricField<double, Foam::fvPatchField, Foam::volMesh> const&, Foam::GeometricField<double, Foam::fvPatchField, Foam::volMesh> const&, double, double, double, double, double, double) [clone .isra.0]
+0000000000028210 t Foam::GpuResidentStrictBase::downloadNutToHostMirror(Foam::Time const&, Foam::GeometricField<double, Foam::fvPatchField, Foam::volMesh>&) [clone .isra.0]
+000000000001950c t Foam::GpuResidentStrictBase::downloadNutToHostMirror(Foam::Time const&, Foam::GeometricField<double, Foam::fvPatchField, Foam::volMesh>&) [clone .isra.0] [clone .cold]
+0000000000028340 t Foam::GpuResidentStrictBase::downloadSstToHostMirror(Foam::Time const&, Foam::GeometricField<double, Foam::fvPatchField, Foam::volMesh>&, Foam::GeometricField<double, Foam::fvPatchField, Foam::volMesh>&, Foam::GeometricField<double, Foam::fvPatchField, Foam::volMesh>&) [clone .isra.0]
+0000000000019522 t Foam::GpuResidentStrictBase::downloadSstToHostMirror(Foam::Time const&, Foam::GeometricField<double, Foam::fvPatchField, Foam::volMesh>&, Foam::GeometricField<double, Foam::fvPatchField, Foam::volMesh>&, Foam::GeometricField<double, Foam::fvPatchField, Foam::volMesh>&) [clone .isra.0] [clone .cold]
+0000000000026890 t Foam::GpuResidentStrictBase::uploadGasBoundaryFields(Foam::fvMesh const&, Foam::GeometricField<double, Foam::fvPatchField, Foam::volMesh> const&, Foam::GeometricField<Foam::Vector<double>, Foam::fvPatchField, Foam::volMesh> const&, Foam::GeometricField<double, Foam::fvPatchField, Foam::volMesh> const&, Foam::GeometricField<double, Foam::fvPatchField, Foam::volMesh> const&, double, bool) [clone .isra.0]
+00000000000191f2 t Foam::GpuResidentStrictBase::uploadGasBoundaryFields(Foam::fvMesh const&, Foam::GeometricField<double, Foam::fvPatchField, Foam::volMesh> const&, Foam::GeometricField<Foam::Vector<double>, Foam::fvPatchField, Foam::volMesh> const&, Foam::GeometricField<double, Foam::fvPatchField, Foam::volMesh> const&, Foam::GeometricField<double, Foam::fvPatchField, Foam::volMesh> const&, double, bool) [clone .isra.0] [clone .cold]
+000000000003a120 W Foam::GpuResidentStrictBase::readParticleRestartMirrorIfPresent(Foam::Time const&)
+0000000000024040 t Foam::GpuResidentStrictBase::check(int, char const*) [clone .part.0]
+00000000000301b0 W Foam::GpuResidentStrictBase::GpuResidentStrictBase()
+00000000000301b0 W Foam::GpuResidentStrictBase::GpuResidentStrictBase()
+00000000000302f0 W Foam::GpuResidentStrictBase::~GpuResidentStrictBase()
+00000000000302f0 W Foam::GpuResidentStrictBase::~GpuResidentStrictBase()
+000000000005b1c0 W Foam::GeometricBoundaryField<Foam::Vector<double>, Foam::fvPatchField, Foam::volMesh>::readField(Foam::DimensionedField<Foam::Vector<double>, Foam::volMesh> const&, Foam::dictionary const&)
+000000000005a6c0 W Foam::GeometricBoundaryField<Foam::Vector<double>, Foam::fvPatchField, Foam::volMesh>::GeometricBoundaryField(Foam::fvBoundaryMesh const&, Foam::DimensionedField<Foam::Vector<double>, Foam::volMesh> const&, Foam::word const&)
+0000000000047e40 W Foam::GeometricBoundaryField<Foam::Vector<double>, Foam::fvPatchField, Foam::volMesh>::GeometricBoundaryField(Foam::DimensionedField<Foam::Vector<double>, Foam::volMesh> const&, Foam::GeometricBoundaryField<Foam::Vector<double>, Foam::fvPatchField, Foam::volMesh> const&)
+000000000005a6c0 W Foam::GeometricBoundaryField<Foam::Vector<double>, Foam::fvPatchField, Foam::volMesh>::GeometricBoundaryField(Foam::fvBoundaryMesh const&, Foam::DimensionedField<Foam::Vector<double>, Foam::volMesh> const&, Foam::word const&)
+0000000000047e40 W Foam::GeometricBoundaryField<Foam::Vector<double>, Foam::fvPatchField, Foam::volMesh>::GeometricBoundaryField(Foam::DimensionedField<Foam::Vector<double>, Foam::volMesh> const&, Foam::GeometricBoundaryField<Foam::Vector<double>, Foam::fvPatchField, Foam::volMesh> const&)
+0000000000040370 W Foam::GeometricBoundaryField<double, Foam::fvPatchField, Foam::volMesh>::evaluate()
+000000000005d600 W Foam::GeometricBoundaryField<double, Foam::fvPatchField, Foam::volMesh>::readField(Foam::DimensionedField<double, Foam::volMesh> const&, Foam::dictionary const&)
+000000000005cb00 W Foam::GeometricBoundaryField<double, Foam::fvPatchField, Foam::volMesh>::GeometricBoundaryField(Foam::fvBoundaryMesh const&, Foam::DimensionedField<double, Foam::volMesh> const&, Foam::word const&)
+000000000004a670 W Foam::GeometricBoundaryField<double, Foam::fvPatchField, Foam::volMesh>::GeometricBoundaryField(Foam::DimensionedField<double, Foam::volMesh> const&, Foam::GeometricBoundaryField<double, Foam::fvPatchField, Foam::volMesh> const&)
+000000000005cb00 W Foam::GeometricBoundaryField<double, Foam::fvPatchField, Foam::volMesh>::GeometricBoundaryField(Foam::fvBoundaryMesh const&, Foam::DimensionedField<double, Foam::volMesh> const&, Foam::word const&)
+000000000004a670 W Foam::GeometricBoundaryField<double, Foam::fvPatchField, Foam::volMesh>::GeometricBoundaryField(Foam::DimensionedField<double, Foam::volMesh> const&, Foam::GeometricBoundaryField<double, Foam::fvPatchField, Foam::volMesh> const&)
+0000000000059000 W Foam::GeometricBoundaryField<double, Foam::fvsPatchField, Foam::surfaceMesh>::readField(Foam::DimensionedField<double, Foam::surfaceMesh> const&, Foam::dictionary const&)
+00000000000582e0 W Foam::GeometricBoundaryField<double, Foam::fvsPatchField, Foam::surfaceMesh>::GeometricBoundaryField(Foam::fvBoundaryMesh const&, Foam::DimensionedField<double, Foam::surfaceMesh> const&, Foam::word const&)
+000000000004e660 W Foam::GeometricBoundaryField<double, Foam::fvsPatchField, Foam::surfaceMesh>::GeometricBoundaryField(Foam::DimensionedField<double, Foam::surfaceMesh> const&, Foam::GeometricBoundaryField<double, Foam::fvsPatchField, Foam::surfaceMesh> const&)
+00000000000582e0 W Foam::GeometricBoundaryField<double, Foam::fvsPatchField, Foam::surfaceMesh>::GeometricBoundaryField(Foam::fvBoundaryMesh const&, Foam::DimensionedField<double, Foam::surfaceMesh> const&, Foam::word const&)
+000000000004e660 W Foam::GeometricBoundaryField<double, Foam::fvsPatchField, Foam::surfaceMesh>::GeometricBoundaryField(Foam::DimensionedField<double, Foam::surfaceMesh> const&, Foam::GeometricBoundaryField<double, Foam::fvsPatchField, Foam::surfaceMesh> const&)
+                 U Foam::calculatedFvPatchField<Foam::Vector<double> >::typeName
+                 U Foam::calculatedFvPatchField<double>::typeName
+0000000000067500 W Foam::reuseTmpGeometricField<double, double, Foam::fvPatchField, Foam::volMesh>::New(Foam::tmp<Foam::GeometricField<double, Foam::fvPatchField, Foam::volMesh> > const&, Foam::word const&, Foam::dimensionSet const&)
+                 U Foam::UniformDimensionedField<Foam::Vector<double> >::typeName
+0000000000062bd0 W Foam::UniformDimensionedField<Foam::Vector<double> >::UniformDimensionedField(Foam::IOobject const&)
+0000000000062bd0 W Foam::UniformDimensionedField<Foam::Vector<double> >::UniformDimensionedField(Foam::IOobject const&)
+000000000002e5a0 W Foam::UniformDimensionedField<Foam::Vector<double> >::~UniformDimensionedField()
+000000000002e560 W Foam::UniformDimensionedField<Foam::Vector<double> >::~UniformDimensionedField()
+000000000002e560 W Foam::UniformDimensionedField<Foam::Vector<double> >::~UniformDimensionedField()
+                 U Foam::calculatedFvsPatchField<double>::typeName
+                 U Foam::inletOutletFvPatchField<Foam::Vector<double> >::typeName
+000000000006de00 W Foam::GpuBoundaryScheduleTable::GpuBoundaryScheduleTable(Foam::fileName const&)
+000000000006de00 W Foam::GpuBoundaryScheduleTable::GpuBoundaryScheduleTable(Foam::fileName const&)
+                 U Foam::zeroGradientFvPatchField<double>::typeName
+                 U Foam::waveTransmissiveFvPatchField<double>::typeName
+00000000000317e0 W Foam::readGpuSchedulingConfiguration(Foam::dictionary const&)
+                 U Foam::add(Foam::Field<double>&, Foam::UList<double> const&, double const&)
+000000000004c640 W void Foam::add<double, double, Foam::fvPatchField, Foam::volMesh>(Foam::GeometricField<Foam::typeOfSum<double, double>::type, Foam::fvPatchField, Foam::volMesh>&, Foam::GeometricField<double, Foam::fvPatchField, Foam::volMesh> const&, Foam::GeometricField<double, Foam::fvPatchField, Foam::volMesh> const&)
+                 U Foam::max(Foam::dimensionSet const&, Foam::dimensionSet const&)
+000000000006adc0 W Foam::tmp<Foam::GeometricField<double, Foam::fvPatchField, Foam::volMesh> > Foam::max<double, Foam::fvPatchField, Foam::volMesh>(Foam::GeometricField<double, Foam::fvPatchField, Foam::volMesh> const&, Foam::dimensioned<double> const&)
+000000000004bb00 W void Foam::max<double, Foam::fvPatchField, Foam::volMesh>(Foam::GeometricField<double, Foam::fvPatchField, Foam::volMesh>&, Foam::GeometricField<double, Foam::fvPatchField, Foam::volMesh> const&, Foam::dimensioned<double> const&)
+                 U Foam::sqr(Foam::dimensionSet const&)
+0000000000041270 W Foam::tmp<Foam::GeometricField<double, Foam::fvPatchField, Foam::volMesh> >::tmp(Foam::tmp<Foam::GeometricField<double, Foam::fvPatchField, Foam::volMesh> > const&)
+0000000000041270 W Foam::tmp<Foam::GeometricField<double, Foam::fvPatchField, Foam::volMesh> >::tmp(Foam::tmp<Foam::GeometricField<double, Foam::fvPatchField, Foam::volMesh> > const&)
+                 U Foam::Info
+0000000000044cc0 W Foam::List<Foam::word>::setSize(int)
+0000000000040e40 W Foam::List<Foam::word>::List(int)
+0000000000040e40 W Foam::List<Foam::word>::List(int)
+0000000000030e40 W Foam::List<Foam::word>::~List()
+0000000000030e40 W Foam::List<Foam::word>::~List()
+0000000000030610 W Foam::List<Foam::token>::~List()
+0000000000030610 W Foam::List<Foam::token>::~List()
+0000000000040800 W Foam::List<Foam::Tuple2<double, double> >::setSize(int)
+0000000000047620 W Foam::List<Foam::Vector<double> >::setSize(int)
+0000000000035440 W Foam::List<Foam::Vector<double> >::List(int)
+0000000000035440 W Foam::List<Foam::Vector<double> >::List(int)
+0000000000056380 W Foam::List<Foam::Vector<double> >::operator=(Foam::LList<Foam::SLListBase, Foam::Vector<double> > const&)
+0000000000048b40 W Foam::List<Foam::fvPatchField<Foam::Vector<double> >*>::setSize(int)
+0000000000047cf0 W Foam::List<Foam::fvPatchField<Foam::Vector<double> >*>::List(int, Foam::fvPatchField<Foam::Vector<double> >* const&)
+0000000000047cf0 W Foam::List<Foam::fvPatchField<Foam::Vector<double> >*>::List(int, Foam::fvPatchField<Foam::Vector<double> >* const&)
+000000000004d840 W Foam::List<Foam::fvPatchField<double>*>::setSize(int)
+000000000004a520 W Foam::List<Foam::fvPatchField<double>*>::List(int, Foam::fvPatchField<double>* const&)
+000000000004a520 W Foam::List<Foam::fvPatchField<double>*>::List(int, Foam::fvPatchField<double>* const&)
+00000000000572c0 W Foam::List<Foam::fvsPatchField<double>*>::setSize(int)
+000000000004e510 W Foam::List<Foam::fvsPatchField<double>*>::List(int, Foam::fvsPatchField<double>* const&)
+000000000004e510 W Foam::List<Foam::fvsPatchField<double>*>::List(int, Foam::fvsPatchField<double>* const&)
+0000000000031f80 W Foam::List<double>::setSize(int)
+0000000000044720 W Foam::List<double>::List(Foam::List<double> const&)
+0000000000039990 W Foam::List<double>::List(int)
+0000000000032420 W Foam::List<double>::List(int, double const&)
+0000000000044720 W Foam::List<double>::List(Foam::List<double> const&)
+0000000000039990 W Foam::List<double>::List(int)
+0000000000032420 W Foam::List<double>::List(int, double const&)
+0000000000030c80 W Foam::List<int>::setSize(int)
+0000000000031430 W Foam::List<int>::List(int)
+0000000000030b00 W Foam::List<int>::List(int, int const&)
+0000000000031430 W Foam::List<int>::List(int)
+0000000000030b00 W Foam::List<int>::List(int, int const&)
+0000000000033170 W Foam::List<unsigned long long>::List(int)
+0000000000033170 W Foam::List<unsigned long long>::List(int)
+                 U Foam::Pout
+                 U Foam::Time::controlDictName
+                 U Foam::Time::setDeltaT(double)
+                 U Foam::Time::Time(Foam::word const&, Foam::argList const&, Foam::word const&, Foam::word const&)
+                 U Foam::Time::~Time()
+                 U Foam::Time::operator++(int)
+000000000002fe20 W Foam::endl(Foam::Ostream&)
+                 U Foam::name(double)
+000000000002e880 W Foam::word::stripInvalid()
+00000000000248c0 t Foam::word::stripInvalid() [clone .part.0]
+0000000000018fb0 t Foam::word::stripInvalid() [clone .part.0] [clone .cold]
+                 U Foam::word::null
+                 U Foam::word::debug
+                 U Foam::word::typeName
+                 U Foam::word::word(Foam::Istream&)
+00000000000251e0 t Foam::word::word(char const*, bool) [clone .constprop.0]
+0000000000019004 t Foam::word::word(char const*, bool) [clone .constprop.0] [clone .cold]
+0000000000024fa0 t Foam::word::word(std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const&, bool) [clone .constprop.0]
+0000000000018fec t Foam::word::word(std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const&, bool) [clone .constprop.0] [clone .cold]
+                 U Foam::word::word(Foam::Istream&)
+000000000002fa50 W Foam::word::operator=(char const*)
+0000000000056440 W Foam::Field<Foam::Vector<double> >::Field(Foam::word const&, Foam::dictionary const&, int)
+0000000000056440 W Foam::Field<Foam::Vector<double> >::Field(Foam::word const&, Foam::dictionary const&, int)
+00000000000456c0 W Foam::Field<Foam::Vector<double> >::operator=(Foam::Field<Foam::Vector<double> > const&)
+000000000005f540 W Foam::Field<double>::rmap(Foam::UList<double> const&, Foam::UList<int> const&)
+0000000000045e20 W Foam::Field<double>::Field(Foam::word const&, Foam::dictionary const&, int)
+0000000000045e20 W Foam::Field<double>::Field(Foam::word const&, Foam::dictionary const&, int)
+0000000000033200 W Foam::Field<double>::operator=(Foam::Field<double> const&)
+00000000000474d0 W Foam::LList<Foam::SLListBase, Foam::word>::clear()
+00000000000503f0 W Foam::LList<Foam::SLListBase, Foam::word>::append(Foam::word const&)
+                 U Foam::error::exit(int)
+                 U Foam::error::abort()
+                 U Foam::error::operator()(char const*, char const*, int)
+                 U Foam::token::transferCompoundToken(Foam::Istream const&)
+000000000002fe60 W Foam::token::clear()
+                 U Foam::token::compound::isCompound(Foam::word const&)
+                 U Foam::token::token(Foam::Istream&)
+                 U Foam::Hasher(void const*, unsigned long, unsigned int)
+                 U Foam::Switch::Switch(Foam::Istream&)
+                 U Foam::divide(Foam::Field<double>&, Foam::UList<double> const&, Foam::UList<double> const&)
+                 U Foam::fvMesh::typeName
+                 U Foam::fvMesh::fvMesh(Foam::IOobject const&, bool, Foam::fvMesh::stitchType)
+                 U Foam::fvMesh::~fvMesh()
+                 U Foam::isFile(Foam::fileName const&, bool, bool)
+0000000000069d00 W Foam::tmp<Foam::GeometricField<double, Foam::fvPatchField, Foam::volMesh> > Foam::magSqr<Foam::Vector<double>, Foam::fvPatchField, Foam::volMesh>(Foam::GeometricField<Foam::Vector<double>, Foam::fvPatchField, Foam::volMesh> const&)
+000000000004c200 W void Foam::magSqr<Foam::Vector<double>, Foam::fvPatchField, Foam::volMesh>(Foam::GeometricField<double, Foam::fvPatchField, Foam::volMesh>&, Foam::GeometricField<Foam::Vector<double>, Foam::fvPatchField, Foam::volMesh> const&)
+                 U Foam::reduce(double&, Foam::sumOp<double> const&, int, int)
+                 U Foam::regExp::regExp()
+                 U Foam::regExp::~regExp()
+                 U Foam::regExp::operator=(std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const&)
+                 U Foam::string::removeRepeated(char)
+                 U Foam::string::removeTrailing(char)
+                 U Foam::IOerror::exit(int)
+                 U Foam::IOerror::operator()(char const*, char const*, int, Foam::dictionary const&)
+                 U Foam::IOerror::operator()(char const*, char const*, int, Foam::IOstream const&)
+                 U Foam::Istream::readEndList(char const*)
+                 U Foam::Istream::readBeginList(char const*)
+                 U Foam::Istream::putBack(Foam::token const&)
+                 U Foam::Istream::readEnd(char const*)
+                 U Foam::Istream::readBegin(char const*)
+                 U Foam::Ostream::decrIndent()
+0000000000048ce0 W Foam::PtrList<Foam::fvPatchField<Foam::Vector<double> > >::setSize(int)
+0000000000040a60 W Foam::PtrList<Foam::fvPatchField<Foam::Vector<double> > >::~PtrList()
+0000000000040a60 W Foam::PtrList<Foam::fvPatchField<Foam::Vector<double> > >::~PtrList()
+000000000004d9e0 W Foam::PtrList<Foam::fvPatchField<double> >::setSize(int)
+0000000000040b00 W Foam::PtrList<Foam::fvPatchField<double> >::~PtrList()
+0000000000040b00 W Foam::PtrList<Foam::fvPatchField<double> >::~PtrList()
+0000000000057460 W Foam::PtrList<Foam::fvsPatchField<double> >::setSize(int)
+0000000000040d90 W Foam::PtrList<Foam::fvsPatchField<double> >::~PtrList()
+0000000000040d90 W Foam::PtrList<Foam::fvsPatchField<double> >::~PtrList()
+                 U Foam::Warning
+                 U Foam::argList::argList(int&, char**&, bool, bool, bool)
+                 U Foam::argList::~argList()
+0000000000035310 W Foam::autoPtr<Foam::GeometricField<double, Foam::fvsPatchField, Foam::surfaceMesh> >::operator()()
+0000000000035250 W Foam::autoPtr<Foam::GpuBoundaryScheduleTable>::reset(Foam::GpuBoundaryScheduleTable*)
+0000000000035290 W Foam::autoPtr<Foam::GpuBoundaryScheduleTable>::operator->()
+                 U Foam::dimTime
+                 U Foam::dimless
+                 U Foam::pTraits<bool>::pTraits(Foam::Istream&)
+                 U Foam::pTraits<double>::typeName
+                 U Foam::pTraits<double>::pTraits(Foam::Istream&)
+                 U Foam::pTraits<int>::pTraits(Foam::Istream&)
+                 U Foam::IFstream::IFstream(Foam::fileName const&, Foam::IOstream::streamFormat, Foam::IOstream::versionNumber)
+                 U Foam::IFstream::~IFstream()
+0000000000043cd0 W bool Foam::IOobject::typeHeaderOk<Foam::GeometricField<Foam::Vector<double>, Foam::fvPatchField, Foam::volMesh> >(bool)
+00000000000441e0 W bool Foam::IOobject::typeHeaderOk<Foam::GeometricField<double, Foam::fvPatchField, Foam::volMesh> >(bool)
+0000000000047260 W bool Foam::IOobject::typeHeaderOk<Foam::GeometricField<double, Foam::fvsPatchField, Foam::surfaceMesh> >(bool)
+0000000000040900 W bool Foam::IOobject::typeHeaderOk<Foam::UniformDimensionedField<Foam::Vector<double> > >(bool)
+000000000002d350 W Foam::IOobject::rename(Foam::word const&)
+                 U Foam::IOobject::headerOk()
+                 U Foam::IOobject::typeName
+                 U Foam::IOobject::IOobject(Foam::word const&, Foam::fileName const&, Foam::objectRegistry const&, Foam::IOobject::readOption, Foam::IOobject::writeOption, bool)
+                 U Foam::IOobject::IOobject(Foam::word const&, Foam::fileName const&, Foam::fileName const&, Foam::objectRegistry const&, Foam::IOobject::readOption, Foam::IOobject::writeOption, bool)
+                 U Foam::IOobject::IOobject(Foam::word const&, Foam::fileName const&, Foam::objectRegistry const&, Foam::IOobject::readOption, Foam::IOobject::writeOption, bool)
+                 U Foam::IOobject::~IOobject()
+                 U Foam::IOobject::~IOobject()
+                 U Foam::IOstream::currentVersion
+000000000002a9d0 W Foam::IOstream::name()
+                 U Foam::IOstream::name_
+0000000000030740 W Foam::ITstream::ITstream(Foam::ITstream const&)
+0000000000030740 W Foam::ITstream::ITstream(Foam::ITstream const&)
+0000000000030050 W Foam::ITstream::~ITstream()
+000000000002ff00 W Foam::ITstream::~ITstream()
+000000000002ff00 W Foam::ITstream::~ITstream()
+                 U Foam::UPstream::waitRequests(int)
+                 U Foam::UPstream::defaultCommsType
+                 U Foam::UPstream::parRun_
+                 U Foam::UPstream::msgType_
+                 U Foam::UPstream::nRequests()
+                 U Foam::UPstream::worldComm
+0000000000034820 W Foam::UPtrList<Foam::fvPatchField<double> >::operator[](int)
+0000000000035390 W Foam::UPtrList<Foam::fvsPatchField<double> >::operator[](int)
+                 U Foam::constant::physicoChemical::RR
+                 U Foam::fileName::debug
+                 U Foam::multiply(Foam::Field<double>&, Foam::UList<double> const&, Foam::UList<double> const&)
+0000000000041400 W void Foam::multiply<Foam::fvPatchField, Foam::Vector<double> >(Foam::FieldField<Foam::fvPatchField, Foam::Vector<double> >&, Foam::FieldField<Foam::fvPatchField, double> const&, Foam::FieldField<Foam::fvPatchField, Foam::Vector<double> > const&)
+000000000004be80 W void Foam::multiply<double, Foam::fvPatchField, Foam::volMesh>(Foam::GeometricField<double, Foam::fvPatchField, Foam::volMesh>&, Foam::dimensioned<double> const&, Foam::GeometricField<double, Foam::fvPatchField, Foam::volMesh> const&)
+000000000004ca20 W void Foam::multiply<double, Foam::fvPatchField, Foam::volMesh>(Foam::GeometricField<double, Foam::fvPatchField, Foam::volMesh>&, Foam::GeometricField<double, Foam::fvPatchField, Foam::volMesh> const&, Foam::dimensioned<double> const&)
+                 U Foam::polyMesh::defaultRegion
+0000000000041000 W bool Foam::reusable<double, Foam::fvPatchField, Foam::volMesh>(Foam::tmp<Foam::GeometricField<double, Foam::fvPatchField, Foam::volMesh> > const&)
+                 U Foam::variable::debug
+                 U Foam::wallDist::typeName
+                 U Foam::wallDist::wallDist(Foam::fvMesh const&, Foam::word const&)
+0000000000027f00 t Foam::HashTable<Foam::nil, Foam::word, Foam::string::hash>::set(Foam::word const&, Foam::nil const&, bool) [clone .isra.0]
+00000000000194e2 t Foam::HashTable<Foam::nil, Foam::word, Foam::string::hash>::set(Foam::word const&, Foam::nil const&, bool) [clone .isra.0] [clone .cold]
+0000000000048fe0 W Foam::HashTable<Foam::nil, Foam::word, Foam::string::hash>::resize(int)
+0000000000040f20 W Foam::HashTable<Foam::Pair<bool>, Foam::word, Foam::string::hash>::find(Foam::word const&)
+0000000000057100 W Foam::HashTable<Foam::tmp<Foam::fvPatchField<Foam::Vector<double> > > (*)(Foam::fvPatch const&, Foam::DimensionedField<Foam::Vector<double>, Foam::volMesh> const&), Foam::word, Foam::string::hash>::find(Foam::word const&)
+0000000000048f00 W Foam::HashTable<Foam::tmp<Foam::fvPatchField<Foam::Vector<double> > > (*)(Foam::fvPatch const&, Foam::DimensionedField<Foam::Vector<double>, Foam::volMesh> const&, Foam::dictionary const&), Foam::word, Foam::string::hash>::find(Foam::word const&)
+00000000000470a0 W Foam::HashTable<Foam::tmp<Foam::fvPatchField<double> > (*)(Foam::fvPatch const&, Foam::DimensionedField<double, Foam::volMesh> const&), Foam::word, Foam::string::hash>::find(Foam::word const&)
+000000000004dc00 W Foam::HashTable<Foam::tmp<Foam::fvPatchField<double> > (*)(Foam::fvPatch const&, Foam::DimensionedField<double, Foam::volMesh> const&, Foam::dictionary const&), Foam::word, Foam::string::hash>::find(Foam::word const&)
+0000000000047180 W Foam::HashTable<Foam::tmp<Foam::fvsPatchField<double> > (*)(Foam::fvPatch const&, Foam::DimensionedField<double, Foam::surfaceMesh> const&), Foam::word, Foam::string::hash>::find(Foam::word const&)
+0000000000057680 W Foam::HashTable<Foam::tmp<Foam::fvsPatchField<double> > (*)(Foam::fvPatch const&, Foam::DimensionedField<double, Foam::surfaceMesh> const&, Foam::dictionary const&), Foam::word, Foam::string::hash>::find(Foam::word const&)
+                 U Foam::NamedEnum<Foam::UPstream::commsTypes, 3u>::names
+000000000002a9f0 W Foam::UOPstream::endl()
+000000000002a9e0 W Foam::UOPstream::indent()
+                 U Foam::polyPatch::constraintType(Foam::word const&)
+0000000000084548 r Foam::SMALL
+0000000000084550 r Foam::great
+                 U Foam::operator/(Foam::dimensionSet const&, Foam::dimensionSet const&)
+                 U Foam::operator/(Foam::string const&, Foam::string const&)
+0000000000068600 W Foam::tmp<Foam::GeometricField<double, Foam::fvPatchField, Foam::volMesh> > Foam::operator/<Foam::fvPatchField, Foam::volMesh>(Foam::GeometricField<double, Foam::fvPatchField, Foam::volMesh> const&, Foam::tmp<Foam::GeometricField<double, Foam::fvPatchField, Foam::volMesh> > const&)
+000000000006a520 W Foam::tmp<Foam::GeometricField<double, Foam::fvPatchField, Foam::volMesh> > Foam::operator/<double, Foam::fvPatchField, Foam::volMesh>(Foam::GeometricField<double, Foam::fvPatchField, Foam::volMesh> const&, Foam::dimensioned<double> const&)
+                 U Foam::operator<<(Foam::Ostream&, char const*)
+                 U Foam::operator<<(Foam::Ostream&, Foam::dictionary const&)
+                 U Foam::operator<<(Foam::Ostream&, Foam::dimensionSet const&)
+                 U Foam::operator<<(Foam::Ostream&, Foam::word const&)
+                 U Foam::operator<<(Foam::Ostream&, Foam::token::punctuationToken const&)
+                 U Foam::operator<<(Foam::Ostream&, Foam::Switch const&)
+                 U Foam::operator<<(Foam::Ostream&, Foam::fileName const&)
+                 U Foam::operator<<(Foam::Ostream&, bool)
+                 U Foam::operator<<(Foam::Ostream&, char)
+                 U Foam::operator<<(Foam::Ostream&, double)
+                 U Foam::operator<<(Foam::Ostream&, int)
+                 U Foam::operator<<(Foam::Ostream&, unsigned int)
+                 U Foam::operator<<(Foam::Ostream&, long)
+0000000000024520 t Foam::Ostream& Foam::operator<< <Foam::nil, Foam::word, Foam::string::hash>(Foam::Ostream&, Foam::HashTable<Foam::nil, Foam::word, Foam::string::hash> const&) [clone .isra.0]
+0000000000034f30 W Foam::Ostream& Foam::operator<< <Foam::word>(Foam::Ostream&, Foam::UList<Foam::word> const&)
+                 U Foam::Ostream& Foam::operator<< <Foam::token>(Foam::Ostream&, Foam::InfoProxy<Foam::token> const&)
+0000000000030eb0 W Foam::Ostream& Foam::operator<< <Foam::Vector<double>, double, (unsigned char)3>(Foam::Ostream&, Foam::VectorSpace<Foam::Vector<double>, double, (unsigned char)3> const&)
+                 U Foam::Ostream& Foam::operator<< <Foam::IOobject>(Foam::Ostream&, Foam::InfoProxy<Foam::IOobject> const&)
+                 U Foam::operator-(Foam::dimensioned<double> const&, double)
+000000000005e3c0 W Foam::tmp<Foam::Field<Foam::typeOfSum<Foam::Vector<double>, Foam::Vector<double> >::type> > Foam::operator-<Foam::Vector<double>, Foam::Vector<double> >(Foam::UList<Foam::Vector<double> > const&, Foam::tmp<Foam::Field<Foam::Vector<double> > > const&)
+000000000005f740 W Foam::tmp<Foam::Field<Foam::typeOfSum<double, double>::type> > Foam::operator-<double, double>(Foam::UList<double> const&, Foam::tmp<Foam::Field<double> > const&)
+                 U Foam::operator*(Foam::dimensionSet const&, Foam::dimensionSet const&)
+                 U Foam::operator*(Foam::UList<double> const&, Foam::tmp<Foam::Field<double> > const&)
+0000000000067710 W Foam::tmp<Foam::GeometricField<double, Foam::fvPatchField, Foam::volMesh> > Foam::operator*<Foam::fvPatchField, Foam::volMesh>(Foam::GeometricField<double, Foam::fvPatchField, Foam::volMesh> const&, Foam::tmp<Foam::GeometricField<double, Foam::fvPatchField, Foam::volMesh> > const&)
+0000000000069320 W Foam::tmp<Foam::GeometricField<double, Foam::fvPatchField, Foam::volMesh> > Foam::operator*<Foam::fvPatchField, Foam::volMesh>(Foam::tmp<Foam::GeometricField<double, Foam::fvPatchField, Foam::volMesh> > const&, Foam::tmp<Foam::GeometricField<double, Foam::fvPatchField, Foam::volMesh> > const&)
+000000000005e880 W Foam::tmp<Foam::Field<Foam::Vector<double> > > Foam::operator*<Foam::Vector<double> >(Foam::UList<double> const&, Foam::tmp<Foam::Field<Foam::Vector<double> > > const&)
+0000000000065200 W Foam::tmp<Foam::GeometricField<Foam::Vector<double>, Foam::fvPatchField, Foam::volMesh> > Foam::operator*<Foam::Vector<double>, Foam::fvPatchField, Foam::volMesh>(Foam::tmp<Foam::GeometricField<double, Foam::fvPatchField, Foam::volMesh> > const&, Foam::GeometricField<Foam::Vector<double>, Foam::fvPatchField, Foam::volMesh> const&)
+00000000000649c0 W Foam::tmp<Foam::GeometricField<Foam::Vector<double>, Foam::fvPatchField, Foam::volMesh> > Foam::operator*<Foam::Vector<double>, Foam::fvPatchField, Foam::volMesh>(Foam::GeometricField<double, Foam::fvPatchField, Foam::volMesh> const&, Foam::GeometricField<Foam::Vector<double>, Foam::fvPatchField, Foam::volMesh> const&)
+0000000000069fc0 W Foam::tmp<Foam::GeometricField<double, Foam::fvPatchField, Foam::volMesh> > Foam::operator*<double, Foam::fvPatchField, Foam::volMesh>(Foam::dimensioned<double> const&, Foam::GeometricField<double, Foam::fvPatchField, Foam::volMesh> const&)
+000000000006bae0 W Foam::tmp<Foam::GeometricField<double, Foam::fvPatchField, Foam::volMesh> > Foam::operator*<double, Foam::fvPatchField, Foam::volMesh>(Foam::dimensioned<double> const&, Foam::tmp<Foam::GeometricField<double, Foam::fvPatchField, Foam::volMesh> > const&)
+0000000000068dd0 W Foam::tmp<Foam::GeometricField<double, Foam::fvPatchField, Foam::volMesh> > Foam::operator*<double, Foam::fvPatchField, Foam::volMesh>(Foam::GeometricField<double, Foam::fvPatchField, Foam::volMesh> const&, Foam::dimensioned<double> const&)
+000000000006c260 W Foam::tmp<Foam::GeometricField<double, Foam::fvPatchField, Foam::volMesh> > Foam::operator*<double, Foam::fvPatchField, Foam::volMesh>(Foam::tmp<Foam::GeometricField<double, Foam::fvPatchField, Foam::volMesh> > const&, Foam::dimensioned<double> const&)
+000000000006c1d0 W Foam::tmp<Foam::GeometricField<double, Foam::fvPatchField, Foam::volMesh> > Foam::operator*<double, Foam::fvPatchField, Foam::volMesh>(double const&, Foam::tmp<Foam::GeometricField<double, Foam::fvPatchField, Foam::volMesh> > const&)
+                 U Foam::operator+(Foam::dimensionSet const&, Foam::dimensionSet const&)
+                 U Foam::operator+(Foam::UList<double> const&, double const&)
+0000000000067ee0 W Foam::tmp<Foam::GeometricField<double, Foam::fvPatchField, Foam::volMesh> > Foam::operator+<Foam::fvPatchField, Foam::volMesh>(Foam::tmp<Foam::GeometricField<double, Foam::fvPatchField, Foam::volMesh> > const&, Foam::dimensioned<double> const&)
+000000000006b320 W Foam::tmp<Foam::GeometricField<Foam::typeOfSum<double, double>::type, Foam::fvPatchField, Foam::volMesh> > Foam::operator+<double, double, Foam::fvPatchField, Foam::volMesh>(Foam::tmp<Foam::GeometricField<double, Foam::fvPatchField, Foam::volMesh> > const&, Foam::tmp<Foam::GeometricField<double, Foam::fvPatchField, Foam::volMesh> > const&)
+                 U Foam::operator>>(Foam::Istream&, Foam::word&)
+                 U Foam::operator>>(Foam::Istream&, Foam::token&)
+                 U Foam::operator>>(Foam::Istream&, double&)
+000000000002d760 t Foam::Istream& Foam::operator>><Foam::Vector<double>, double, (unsigned char)3>(Foam::Istream&, Foam::VectorSpace<Foam::Vector<double>, double, (unsigned char)3>&) [clone .isra.0]
+000000000002d700 t Foam::Istream& Foam::operator>><double, double>(Foam::Istream&, Foam::Tuple2<double, double>&) [clone .isra.0]
+                 U Foam::dictionary::lookupEntryPtr(Foam::word const&, bool, bool) const
+                 U Foam::dictionary::subOrEmptyDict(Foam::word const&, bool) const
+00000000000504c0 W Foam::List<Foam::word> Foam::dictionary::lookupOrDefault<Foam::List<Foam::word> >(Foam::word const&, Foam::List<Foam::word> const&, bool, bool) const
+00000000000348d0 W Foam::word Foam::dictionary::lookupOrDefault<Foam::word>(Foam::word const&, Foam::word const&, bool, bool) const
+0000000000035140 W Foam::Switch Foam::dictionary::lookupOrDefault<Foam::Switch>(Foam::word const&, Foam::Switch const&, bool, bool) const
+00000000000315c0 W bool Foam::dictionary::lookupOrDefault<bool>(Foam::word const&, bool const&, bool, bool) const
+0000000000024970 t double Foam::dictionary::lookupOrDefault<double>(Foam::word const&, double const&, bool, bool) const [clone .constprop.0]
+00000000000316d0 W int Foam::dictionary::lookupOrDefault<int>(Foam::word const&, int const&, bool, bool) const
+                 U Foam::dictionary::found(Foam::word const&, bool, bool) const
+                 U Foam::dictionary::lookup(Foam::word const&, bool, bool) const
+0000000000034e10 W Foam::word Foam::dictionary::lookup<Foam::word>(Foam::word const&, bool, bool) const
+                 U Foam::dictionary::subDict(Foam::word const&) const
+                 U Foam::regIOobject::globalFile() const
+                 U Foam::regIOobject::writeObject(Foam::IOstream::streamFormat, Foam::IOstream::versionNumber, Foam::IOstream::compressionType, bool) const
+                 U Foam::regIOobject::write(bool) const
+                 U Foam::regIOobject::global() const
+                 U Foam::regIOobject::modified() const
+000000000002aa20 W Foam::IOdictionary::type() const
+                 U Foam::IOdictionary::writeData(Foam::Ostream&) const
+                 U Foam::dimensionSet::write(Foam::Ostream&, double&) const
+                 U Foam::dimensionSet::operator=(Foam::dimensionSet const&) const
+                 U Foam::dimensionSet::operator!=(Foam::dimensionSet const&) const
+000000000002ae20 W Foam::fvPatchField<Foam::Vector<double> >::assignable() const
+000000000002aad0 W Foam::fvPatchField<Foam::Vector<double> >::fixesValue() const
+0000000000047780 W Foam::fvPatchField<Foam::Vector<double> >::patchInternalField(Foam::Field<Foam::Vector<double> >&) const
+000000000005efe0 W Foam::fvPatchField<Foam::Vector<double> >::patchInternalField() const
+000000000002c730 W Foam::fvPatchField<Foam::Vector<double> >::patchNeighbourField(Foam::UPstream::commsTypes) const
+000000000002c670 W Foam::fvPatchField<Foam::Vector<double> >::valueBoundaryCoeffs(Foam::tmp<Foam::Field<double> > const&) const
+000000000002c6d0 W Foam::fvPatchField<Foam::Vector<double> >::valueInternalCoeffs(Foam::tmp<Foam::Field<double> > const&) const
+000000000002c4f0 W Foam::fvPatchField<Foam::Vector<double> >::gradientBoundaryCoeffs(Foam::Field<double> const&) const
+000000000002c550 W Foam::fvPatchField<Foam::Vector<double> >::gradientBoundaryCoeffs() const
+000000000002c5b0 W Foam::fvPatchField<Foam::Vector<double> >::gradientInternalCoeffs(Foam::Field<double> const&) const
+000000000002c610 W Foam::fvPatchField<Foam::Vector<double> >::gradientInternalCoeffs() const
+000000000002ae70 W Foam::fvPatchField<Foam::Vector<double> >::initPatchNeighbourField(Foam::UPstream::commsTypes) const
+000000000002aac0 W Foam::fvPatchField<Foam::Vector<double> >::type() const
+000000000002ef40 W Foam::fvPatchField<Foam::Vector<double> >::clone(Foam::DimensionedField<Foam::Vector<double>, Foam::volMesh> const&) const
+000000000002f140 W Foam::fvPatchField<Foam::Vector<double> >::clone(Foam::fvPatch const&, Foam::DimensionedField<Foam::Vector<double>, Foam::volMesh> const&) const
+000000000005f240 W Foam::fvPatchField<Foam::Vector<double> >::write(Foam::Ostream&) const
+000000000002c790 W Foam::fvPatchField<Foam::Vector<double> >::snGrad(Foam::Field<double> const&) const
+000000000005f000 W Foam::fvPatchField<Foam::Vector<double> >::snGrad() const
+000000000002ae30 W Foam::fvPatchField<Foam::Vector<double> >::coupled() const
+000000000002bbf0 W Foam::fvPatchField<double>::assignable() const
+000000000002aaa0 W Foam::fvPatchField<double>::fixesValue() const
+00000000000322c0 W Foam::fvPatchField<double>::patchInternalField(Foam::Field<double>&) const
+000000000005ff50 W Foam::fvPatchField<double>::patchInternalField() const
+000000000002ca30 W Foam::fvPatchField<double>::patchNeighbourField(Foam::UPstream::commsTypes) const
+000000000002c970 W Foam::fvPatchField<double>::valueBoundaryCoeffs(Foam::tmp<Foam::Field<double> > const&) const
+000000000002c9d0 W Foam::fvPatchField<double>::valueInternalCoeffs(Foam::tmp<Foam::Field<double> > const&) const
+000000000002c7f0 W Foam::fvPatchField<double>::gradientBoundaryCoeffs(Foam::Field<double> const&) const
+000000000002c850 W Foam::fvPatchField<double>::gradientBoundaryCoeffs() const
+000000000002c8b0 W Foam::fvPatchField<double>::gradientInternalCoeffs(Foam::Field<double> const&) const
+000000000002c910 W Foam::fvPatchField<double>::gradientInternalCoeffs() const
+000000000002bc30 W Foam::fvPatchField<double>::initPatchNeighbourField(Foam::UPstream::commsTypes) const
+000000000002aab0 W Foam::fvPatchField<double>::type() const
+000000000002f5e0 W Foam::fvPatchField<double>::clone(Foam::DimensionedField<double, Foam::volMesh> const&) const
+000000000002f820 W Foam::fvPatchField<double>::clone(Foam::fvPatch const&, Foam::DimensionedField<double, Foam::volMesh> const&) const
+000000000005f3e0 W Foam::fvPatchField<double>::write(Foam::Ostream&) const
+000000000002ca90 W Foam::fvPatchField<double>::snGrad(Foam::Field<double> const&) const
+000000000005ff70 W Foam::fvPatchField<double>::snGrad() const
+000000000002bc00 W Foam::fvPatchField<double>::coupled() const
+000000000002b630 W Foam::fvsPatchField<double>::fixesValue() const
+000000000002caf0 W Foam::fvsPatchField<double>::patchNeighbourField(Foam::UPstream::commsTypes) const
+000000000002b650 W Foam::fvsPatchField<double>::initPatchNeighbourField(Foam::UPstream::commsTypes) const
+000000000002b620 W Foam::fvsPatchField<double>::type() const
+000000000002ed00 W Foam::fvsPatchField<double>::clone(Foam::DimensionedField<double, Foam::surfaceMesh> const&) const
+000000000002eac0 W Foam::fvsPatchField<double>::clone(Foam::fvPatch const&, Foam::DimensionedField<double, Foam::surfaceMesh> const&) const
+0000000000061250 W Foam::fvsPatchField<double>::write(Foam::Ostream&) const
+000000000002b640 W Foam::fvsPatchField<double>::coupled() const
+                 U Foam::primitiveMesh::faceCentres() const
+                 U Foam::primitiveMesh::magFaceAreas() const
+                 U Foam::primitiveMesh::cells() const
+                 U Foam::primitiveMesh::faceAreas() const
+0000000000049970 W Foam::GeometricField<Foam::Vector<double>, Foam::fvPatchField, Foam::volMesh>::storeOldTime() const
+0000000000049cd0 W Foam::GeometricField<Foam::Vector<double>, Foam::fvPatchField, Foam::volMesh>::storeOldTimes() const
+000000000002abf0 W Foam::GeometricField<Foam::Vector<double>, Foam::fvPatchField, Foam::volMesh>::type() const
+0000000000062580 W Foam::GeometricField<Foam::Vector<double>, Foam::fvPatchField, Foam::volMesh>::writeData(Foam::Ostream&) const
+000000000004b560 W Foam::GeometricField<double, Foam::fvPatchField, Foam::volMesh>::storeOldTime() const
+000000000004b700 W Foam::GeometricField<double, Foam::fvPatchField, Foam::volMesh>::storeOldTimes() const
+000000000002ac00 W Foam::GeometricField<double, Foam::fvPatchField, Foam::volMesh>::type() const
+0000000000061630 W Foam::GeometricField<double, Foam::fvPatchField, Foam::volMesh>::writeData(Foam::Ostream&) const
+000000000004ff90 W Foam::GeometricField<double, Foam::fvsPatchField, Foam::surfaceMesh>::storeOldTime() const
+00000000000502f0 W Foam::GeometricField<double, Foam::fvsPatchField, Foam::surfaceMesh>::storeOldTimes() const
+000000000002ade0 W Foam::GeometricField<double, Foam::fvsPatchField, Foam::surfaceMesh>::type() const
+0000000000061820 W Foam::GeometricField<double, Foam::fvsPatchField, Foam::surfaceMesh>::writeData(Foam::Ostream&) const
+                 U Foam::fvBoundaryMesh::findIndices(Foam::wordRe const&, bool) const
+                 U Foam::fvBoundaryMesh::findPatchID(Foam::word const&) const
+0000000000043fa0 W bool Foam::objectRegistry::foundObject<Foam::GeometricField<Foam::Vector<double>, Foam::fvPatchField, Foam::volMesh> >(Foam::word const&) const
+0000000000043f10 W bool Foam::objectRegistry::foundObject<Foam::GeometricField<double, Foam::fvPatchField, Foam::volMesh> >(Foam::word const&) const
+0000000000044b20 W bool Foam::objectRegistry::foundObject<Foam::GeometricField<double, Foam::fvsPatchField, Foam::surfaceMesh> >(Foam::word const&) const
+0000000000044030 W bool Foam::objectRegistry::foundObject<Foam::DimensionedField<Foam::Vector<double>, Foam::volMesh> >(Foam::word const&) const
+0000000000044800 W bool Foam::objectRegistry::foundObject<Foam::DimensionedField<double, Foam::surfaceMesh> >(Foam::word const&) const
+0000000000044150 W bool Foam::objectRegistry::foundObject<Foam::DimensionedField<double, Foam::volMesh> >(Foam::word const&) const
+00000000000440c0 W bool Foam::objectRegistry::foundObject<Foam::wallDist>(Foam::word const&) const
+0000000000045ac0 W Foam::GeometricField<Foam::Vector<double>, Foam::fvPatchField, Foam::volMesh> const& Foam::objectRegistry::lookupObject<Foam::GeometricField<Foam::Vector<double>, Foam::fvPatchField, Foam::volMesh> >(Foam::word const&) const
+0000000000046d50 W Foam::GeometricField<double, Foam::fvPatchField, Foam::volMesh> const& Foam::objectRegistry::lookupObject<Foam::GeometricField<double, Foam::fvPatchField, Foam::volMesh> >(Foam::word const&) const
+000000000004f7d0 W Foam::GeometricField<double, Foam::fvsPatchField, Foam::surfaceMesh> const& Foam::objectRegistry::lookupObject<Foam::GeometricField<double, Foam::fvsPatchField, Foam::surfaceMesh> >(Foam::word const&) const
+00000000000479a0 W Foam::DimensionedField<Foam::Vector<double>, Foam::volMesh> const& Foam::objectRegistry::lookupObject<Foam::DimensionedField<Foam::Vector<double>, Foam::volMesh> >(Foam::word const&) const
+000000000004df10 W Foam::DimensionedField<double, Foam::surfaceMesh> const& Foam::objectRegistry::lookupObject<Foam::DimensionedField<double, Foam::surfaceMesh> >(Foam::word const&) const
+0000000000049f20 W Foam::DimensionedField<double, Foam::volMesh> const& Foam::objectRegistry::lookupObject<Foam::DimensionedField<double, Foam::volMesh> >(Foam::word const&) const
+0000000000045040 W Foam::wallDist const& Foam::objectRegistry::lookupObject<Foam::wallDist>(Foam::word const&) const
+                 U Foam::objectRegistry::parentNotTime() const
+                 U Foam::objectRegistry::deleteCachedObject(Foam::regIOobject&) const
+                 U Foam::objectRegistry::cacheTemporaryObject(Foam::word const&) const
+                 U Foam::objectRegistry::readCacheTemporaryObjects() const
+0000000000045970 W Foam::List<Foam::word> Foam::objectRegistry::names<Foam::GeometricField<Foam::Vector<double>, Foam::fvPatchField, Foam::volMesh> >() const
+0000000000046c00 W Foam::List<Foam::word> Foam::objectRegistry::names<Foam::GeometricField<double, Foam::fvPatchField, Foam::volMesh> >() const
+000000000004f680 W Foam::List<Foam::word> Foam::objectRegistry::names<Foam::GeometricField<double, Foam::fvsPatchField, Foam::surfaceMesh> >() const
+0000000000047850 W Foam::List<Foam::word> Foam::objectRegistry::names<Foam::DimensionedField<Foam::Vector<double>, Foam::volMesh> >() const
+000000000004ddc0 W Foam::List<Foam::word> Foam::objectRegistry::names<Foam::DimensionedField<double, Foam::surfaceMesh> >() const
+0000000000049dd0 W Foam::List<Foam::word> Foam::objectRegistry::names<Foam::DimensionedField<double, Foam::volMesh> >() const
+0000000000044ef0 W Foam::List<Foam::word> Foam::objectRegistry::names<Foam::wallDist>() const
+000000000002d800 W Foam::cyclicPolyPatch::transform() const
+000000000002adb0 W Foam::DimensionedField<Foam::Vector<double>, Foam::volMesh>::type() const
+0000000000062510 W Foam::DimensionedField<Foam::Vector<double>, Foam::volMesh>::writeData(Foam::Ostream&) const
+00000000000623d0 W Foam::DimensionedField<Foam::Vector<double>, Foam::volMesh>::writeData(Foam::Ostream&, Foam::word const&) const
+000000000002add0 W Foam::DimensionedField<double, Foam::surfaceMesh>::type() const
+0000000000061b40 W Foam::DimensionedField<double, Foam::surfaceMesh>::writeData(Foam::Ostream&) const
+000000000002adc0 W Foam::DimensionedField<double, Foam::volMesh>::type() const
+0000000000061a10 W Foam::DimensionedField<double, Foam::volMesh>::writeData(Foam::Ostream&) const
+                 U Foam::polyBoundaryMesh::whichPatch(int) const
+                 U Foam::polyBoundaryMesh::findPatchID(Foam::word const&) const
+000000000002aa70 W Foam::localIOdictionary::global() const
+000000000002aae0 W Foam::mixedFvPatchField<Foam::Vector<double> >::refValue() const
+000000000002aa90 W Foam::mixedFvPatchField<double>::refValue() const
+                 U Foam::surfaceInterpolation::deltaCoeffs() const
+                 U Foam::surfaceInterpolation::weights() const
+0000000000030360 W Foam::GpuResidentStrictBase::computeGasCourant(double, double, double) const
+00000000000240c0 t Foam::GpuResidentStrictBase::requireInitialised(char const*) const [clone .part.0]
+0000000000039360 W Foam::GpuResidentStrictBase::writeEpsGPrevRestartMirror(Foam::Time const&) const
+0000000000041870 W Foam::GpuResidentStrictBase::writeParticleRestartMirror(Foam::Time const&) const
+000000000004cd80 W Foam::GpuResidentStrictBase::downloadGasBoundaryToHostMirror(Foam::GeometricField<double, Foam::fvPatchField, Foam::volMesh>&, Foam::GeometricField<Foam::Vector<double>, Foam::fvPatchField, Foam::volMesh>&, Foam::GeometricField<double, Foam::fvPatchField, Foam::volMesh>&, Foam::GeometricField<double, Foam::fvPatchField, Foam::volMesh>&) const
+0000000000039a20 W Foam::GpuResidentStrictBase::writeSourceResidualRestartMirror(Foam::Time const&) const
+00000000000600d0 W Foam::GeometricBoundaryField<Foam::Vector<double>, Foam::fvPatchField, Foam::volMesh>::writeEntry(Foam::word const&, Foam::Ostream&) const
+0000000000060890 W Foam::GeometricBoundaryField<double, Foam::fvPatchField, Foam::volMesh>::writeEntry(Foam::word const&, Foam::Ostream&) const
+0000000000060510 W Foam::GeometricBoundaryField<double, Foam::fvsPatchField, Foam::surfaceMesh>::writeEntry(Foam::word const&, Foam::Ostream&) const
+000000000002ae10 W Foam::UniformDimensionedField<Foam::Vector<double> >::name() const
+000000000002adf0 W Foam::UniformDimensionedField<Foam::Vector<double> >::type() const
+000000000002ae00 W Foam::UniformDimensionedField<Foam::Vector<double> >::global() const
+0000000000030f50 W Foam::UniformDimensionedField<Foam::Vector<double> >::writeData(Foam::Ostream&) const
+0000000000032140 W Foam::GpuBoundaryScheduleTable::copyColumns(Foam::Field<double>&, Foam::Field<double>&) const
+0000000000044530 W Foam::tmp<Foam::fvPatchField<Foam::Vector<double> > >::ptr() const
+0000000000024700 t Foam::tmp<Foam::fvPatchField<Foam::Vector<double> > >::clear() const [clone .part.0]
+0000000000025840 t Foam::tmp<Foam::fvPatchField<Foam::Vector<double> > >::typeName() const [clone .isra.0]
+000000000001909c t Foam::tmp<Foam::fvPatchField<Foam::Vector<double> > >::typeName() const [clone .isra.0] [clone .cold]
+0000000000044340 W Foam::tmp<Foam::fvPatchField<double> >::ptr() const
+0000000000024790 t Foam::tmp<Foam::fvPatchField<double> >::clear() const [clone .part.0]
+00000000000263f0 t Foam::tmp<Foam::fvPatchField<double> >::typeName() const [clone .isra.0]
+0000000000019194 t Foam::tmp<Foam::fvPatchField<double> >::typeName() const [clone .isra.0] [clone .cold]
+0000000000044890 W Foam::tmp<Foam::fvsPatchField<double> >::ptr() const
+0000000000024670 t Foam::tmp<Foam::fvsPatchField<double> >::clear() const [clone .part.0]
+0000000000025560 t Foam::tmp<Foam::fvsPatchField<double> >::typeName() const [clone .isra.0]
+000000000001905e t Foam::tmp<Foam::fvsPatchField<double> >::typeName() const [clone .isra.0] [clone .cold]
+0000000000028130 t Foam::tmp<Foam::GeometricField<Foam::Vector<double>, Foam::fvPatchField, Foam::volMesh> >::clear() const [clone .part.0]
+0000000000025b20 t Foam::tmp<Foam::GeometricField<Foam::Vector<double>, Foam::fvPatchField, Foam::volMesh> >::typeName() const [clone .isra.0]
+00000000000190da t Foam::tmp<Foam::GeometricField<Foam::Vector<double>, Foam::fvPatchField, Foam::volMesh> >::typeName() const [clone .isra.0] [clone .cold]
+0000000000040ba0 W Foam::tmp<Foam::GeometricField<double, Foam::fvPatchField, Foam::volMesh> >::ref() const
+0000000000028190 t Foam::tmp<Foam::GeometricField<double, Foam::fvPatchField, Foam::volMesh> >::clear() const [clone .part.0]
+0000000000025e20 t Foam::tmp<Foam::GeometricField<double, Foam::fvPatchField, Foam::volMesh> >::typeName() const [clone .isra.0]
+0000000000019118 t Foam::tmp<Foam::GeometricField<double, Foam::fvPatchField, Foam::volMesh> >::typeName() const [clone .isra.0] [clone .cold]
+0000000000040cd0 W Foam::tmp<Foam::GeometricField<double, Foam::fvPatchField, Foam::volMesh> >::operator()() const
+0000000000045590 W Foam::tmp<Foam::Field<Foam::Vector<double> > >::ref() const
+0000000000024350 t Foam::tmp<Foam::Field<Foam::Vector<double> > >::clear() const [clone .part.0]
+0000000000026110 t Foam::tmp<Foam::Field<Foam::Vector<double> > >::typeName() const [clone .isra.0]
+0000000000019156 t Foam::tmp<Foam::Field<Foam::Vector<double> > >::typeName() const [clone .isra.0] [clone .cold]
+00000000000243b0 t Foam::tmp<Foam::Field<double> >::clear() const [clone .part.0]
+0000000000025290 t Foam::tmp<Foam::Field<double> >::typeName() const [clone .isra.0]
+0000000000019020 t Foam::tmp<Foam::Field<double> >::typeName() const [clone .isra.0] [clone .cold]
+                 U Foam::Time::run() const
+                 U Foam::Time::timeName() const
+                 U Foam::clock::elapsedClockTime() const
+000000000002aa10 W Foam::entry::isDict() const
+                 U Foam::token::parseError(char const*) const
+                 U Foam::fvMesh::C() const
+                 U Foam::fvMesh::V() const
+000000000002aa50 W Foam::fvMesh::thisDb() const
+                 U Foam::fvMesh::schemes() const
+                 U Foam::fvMesh::boundary() const
+                 U Foam::fvMesh::solution() const
+                 U Foam::fvMesh::operator!=(Foam::fvMesh const&) const
+                 U Foam::argList::checkRootCase() const
+                 U Foam::fvPatch::deltaCoeffs() const
+000000000005ed80 W Foam::tmp<Foam::Field<Foam::Vector<double> > > Foam::fvPatch::patchInternalField<Foam::Vector<double> >(Foam::UList<Foam::Vector<double> > const&) const
+000000000005fca0 W Foam::tmp<Foam::Field<double> > Foam::fvPatch::patchInternalField<double>(Foam::UList<double> const&) const
+000000000002aa30 W Foam::fvPatch::name() const
+000000000002aa40 W Foam::fvPatch::size() const
+                 U Foam::IOobject::db() const
+                 U Foam::IOobject::time() const
+000000000002aa00 W Foam::IOobject::type() const
+                 U Foam::IOobject::filePath(Foam::word const&, bool) const
+                 U Foam::IOobject::instance() const
+                 U Foam::IOstream::fatalCheck(char const*) const
+000000000002a9c0 W Foam::IOstream::name() const
+                 U Foam::IOstream::check(char const*) const
+                 U Foam::IOstream::print(Foam::Ostream&) const
+0000000000035090 W Foam::UPtrList<Foam::fvPatchField<Foam::Vector<double> > >::operator[](int) const
+0000000000032360 W Foam::UPtrList<Foam::fvPatchField<double> >::operator[](int) const
+00000000000314c0 W Foam::UPtrList<Foam::fvPatch>::operator[](int) const
+0000000000031380 W Foam::UPtrList<Foam::polyPatch>::operator[](int) const
+                 U Foam::polyMesh::globalData() const
+                 U Foam::solution::dict() const
+0000000000057760 W Foam::HashTable<Foam::tmp<Foam::fvPatchField<Foam::Vector<double> > > (*)(Foam::fvPatch const&, Foam::DimensionedField<Foam::Vector<double>, Foam::volMesh> const&), Foam::word, Foam::string::hash>::toc() const
+0000000000057020 W Foam::HashTable<Foam::tmp<Foam::fvPatchField<Foam::Vector<double> > > (*)(Foam::fvPatch const&, Foam::DimensionedField<Foam::Vector<double>, Foam::volMesh> const&, Foam::dictionary const&), Foam::word, Foam::string::hash>::toc() const
+000000000004dce0 W Foam::HashTable<Foam::tmp<Foam::fvPatchField<double> > (*)(Foam::fvPatch const&, Foam::DimensionedField<double, Foam::volMesh> const&), Foam::word, Foam::string::hash>::toc() const
+00000000000571e0 W Foam::HashTable<Foam::tmp<Foam::fvPatchField<double> > (*)(Foam::fvPatch const&, Foam::DimensionedField<double, Foam::volMesh> const&, Foam::dictionary const&), Foam::word, Foam::string::hash>::toc() const
+000000000004f5a0 W Foam::HashTable<Foam::tmp<Foam::fvsPatchField<double> > (*)(Foam::fvPatch const&, Foam::DimensionedField<double, Foam::surfaceMesh> const&), Foam::word, Foam::string::hash>::toc() const
+0000000000057840 W Foam::HashTable<Foam::tmp<Foam::fvsPatchField<double> > (*)(Foam::fvPatch const&, Foam::DimensionedField<double, Foam::surfaceMesh> const&, Foam::dictionary const&), Foam::word, Foam::string::hash>::toc() const
+0000000000043e30 W Foam::HashTable<Foam::regIOobject*, Foam::word, Foam::string::hash>::find(Foam::word const&) const
+                 U Foam::fvSchemes::dict() const
+                 U Foam::polyPatch::boundaryMesh() const
+                 U std::ctype<char>::_M_widen_init() const@GLIBCXX_3.4.11
+000000000002a9b0 W std::ctype<char>::do_widen(char) const
+                 U std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >::rfind(char, unsigned long) const@GLIBCXX_3.4.21
+                 U std::istream& std::istream::_M_extract<double>(double&)@GLIBCXX_3.4.9
+                 U std::istream& std::istream::_M_extract<unsigned long long>(unsigned long long&)@GLIBCXX_3.4.9
+                 U std::istream::get(char&)@GLIBCXX_3.4
+                 U std::istream::read(char*, long)@GLIBCXX_3.4
+                 U std::istream::operator>>(int&)@GLIBCXX_3.4
+                 U std::ostream::put(char)@GLIBCXX_3.4
+                 U std::ostream::flush()@GLIBCXX_3.4
+                 U std::ostream::write(char const*, long)@GLIBCXX_3.4
+                 U std::ostream& std::ostream::_M_insert<double>(double)@GLIBCXX_3.4.9
+                 U std::ostream& std::ostream::_M_insert<unsigned long>(unsigned long)@GLIBCXX_3.4.9
+                 U std::ostream::operator<<(int)@GLIBCXX_3.4
+                 U std::__basic_file<char>::~__basic_file()@GLIBCXX_3.4
+                 U std::basic_filebuf<char, std::char_traits<char> >::open(char const*, std::_Ios_Openmode)@GLIBCXX_3.4
+                 U std::basic_filebuf<char, std::char_traits<char> >::close()@GLIBCXX_3.4
+                 U std::basic_filebuf<char, std::char_traits<char> >::basic_filebuf()@GLIBCXX_3.4
+                 U std::basic_filebuf<char, std::char_traits<char> >::~basic_filebuf()@GLIBCXX_3.4
+                 U std::runtime_error::runtime_error(char const*)@GLIBCXX_3.4.21
+                 U std::runtime_error::~runtime_error()@GLIBCXX_3.4
+                 U std::basic_ifstream<char, std::char_traits<char> >::basic_ifstream(char const*, std::_Ios_Openmode)@GLIBCXX_3.4
+                 U std::basic_ifstream<char, std::char_traits<char> >::~basic_ifstream()@GLIBCXX_3.4
+                 U std::basic_ofstream<char, std::char_traits<char> >::~basic_ofstream()@GLIBCXX_3.4
+                 U std::locale::~locale()@GLIBCXX_3.4
+                 U std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >::_M_dispose()@GLIBCXX_3.4.21
+                 U std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >::_M_replace(unsigned long, unsigned long, char const*, unsigned long)@GLIBCXX_3.4.21
+                 U std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >::_M_construct(unsigned long, char)@GLIBCXX_3.4.21
+0000000000024480 t void std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >::_M_construct<char*>(char*, char*, std::forward_iterator_tag) [clone .isra.0]
+                 U std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >::_M_replace_aux(unsigned long, unsigned long, unsigned long, char)@GLIBCXX_3.4.21
+                 U std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >::resize(unsigned long, char)@GLIBCXX_3.4.21
+                 U std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >::reserve(unsigned long)@GLIBCXX_3.4.21
+                 U std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >::_M_append(char const*, unsigned long)@GLIBCXX_3.4.21
+                 U std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >::_M_assign(std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const&)@GLIBCXX_3.4.21
+                 U std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >::_M_create(unsigned long&, unsigned long)@GLIBCXX_3.4.21
+                 U std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >::basic_string(std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >&&)@GLIBCXX_3.4.21
+                 U std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >::~basic_string()@GLIBCXX_3.4.21
+                 U std::__cxx11::basic_istringstream<char, std::char_traits<char>, std::allocator<char> >::basic_istringstream(std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const&, std::_Ios_Openmode)@GLIBCXX_3.4.21
+                 U std::__cxx11::basic_istringstream<char, std::char_traits<char>, std::allocator<char> >::~basic_istringstream()@GLIBCXX_3.4.21
+                 U std::ios_base::ios_base()@GLIBCXX_3.4
+                 U std::ios_base::~ios_base()@GLIBCXX_3.4
+                 U std::basic_ios<char, std::char_traits<char> >::init(std::basic_streambuf<char, std::char_traits<char> >*)@GLIBCXX_3.4
+                 U std::basic_ios<char, std::char_traits<char> >::clear(std::_Ios_Iostate)@GLIBCXX_3.4
+0000000000024a80 t void std::__adjust_heap<Foam::word*, long, Foam::word, __gnu_cxx::__ops::_Iter_less_iter>(Foam::word*, long, long, Foam::word, __gnu_cxx::__ops::_Iter_less_iter) [clone .isra.0]
+0000000000018fb5 t void std::__adjust_heap<Foam::word*, long, Foam::word, __gnu_cxx::__ops::_Iter_less_iter>(Foam::word*, long, long, Foam::word, __gnu_cxx::__ops::_Iter_less_iter) [clone .isra.0] [clone .cold]
+0000000000024d10 t void std::__insertion_sort<Foam::word*, __gnu_cxx::__ops::_Iter_less_iter>(Foam::word*, Foam::word*, __gnu_cxx::__ops::_Iter_less_iter) [clone .isra.0]
+0000000000018fc7 t void std::__insertion_sort<Foam::word*, __gnu_cxx::__ops::_Iter_less_iter>(Foam::word*, Foam::word*, __gnu_cxx::__ops::_Iter_less_iter) [clone .isra.0] [clone .cold]
+0000000000029f50 t void std::__introsort_loop<Foam::word*, long, __gnu_cxx::__ops::_Iter_less_iter>(Foam::word*, Foam::word*, long, __gnu_cxx::__ops::_Iter_less_iter) [clone .isra.0]
+000000000001980a t void std::__introsort_loop<Foam::word*, long, __gnu_cxx::__ops::_Iter_less_iter>(Foam::word*, Foam::word*, long, __gnu_cxx::__ops::_Iter_less_iter) [clone .isra.0] [clone .cold]
+                 U std::basic_ostream<char, std::char_traits<char> >& std::__ostream_insert<char, std::char_traits<char> >(std::basic_ostream<char, std::char_traits<char> >&, char const*, long)@GLIBCXX_3.4.9
+                 U std::__throw_bad_cast()@GLIBCXX_3.4
+                 U std::__throw_logic_error(char const*)@GLIBCXX_3.4
+                 U std::__throw_length_error(char const*)@GLIBCXX_3.4
+                 U std::ios_base_library_init()@GLIBCXX_3.4.32
+                 U std::cerr@GLIBCXX_3.4
+0000000000024410 t std::basic_ostream<char, std::char_traits<char> >& std::endl<char, std::char_traits<char> >(std::basic_ostream<char, std::char_traits<char> >&) [clone .isra.0]
+0000000000018f80 t std::basic_ostream<char, std::char_traits<char> >& std::endl<char, std::char_traits<char> >(std::basic_ostream<char, std::char_traits<char> >&) [clone .isra.0] [clone .cold]
+0000000000057920 W std::enable_if<std::__and_<std::__not_<std::__is_tuple_like<Foam::word> >, std::is_move_constructible<Foam::word>, std::is_move_assignable<Foam::word> >::value, void>::type std::swap<Foam::word>(Foam::word&, Foam::word&)
+000000000002a4a0 t void std::__sort<Foam::word*, __gnu_cxx::__ops::_Iter_less_iter>(Foam::word*, Foam::word*, __gnu_cxx::__ops::_Iter_less_iter) [clone .isra.0]
+0000000000019850 t void std::__sort<Foam::word*, __gnu_cxx::__ops::_Iter_less_iter>(Foam::word*, Foam::word*, __gnu_cxx::__ops::_Iter_less_iter) [clone .isra.0] [clone .cold]
+                 U std::basic_istream<char, std::char_traits<char> >& std::getline<char, std::char_traits<char>, std::allocator<char> >(std::basic_istream<char, std::char_traits<char> >&, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >&, char)@GLIBCXX_3.4.21
+0000000000031570 W bool std::operator==<char, std::char_traits<char>, std::allocator<char> >(std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const&, char const*)
+00000000000305d0 W bool std::operator==<char, std::char_traits<char>, std::allocator<char> >(std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const&, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const&)
+0000000000024820 t std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > std::operator+<char, std::char_traits<char>, std::allocator<char> >(std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const&, char const*) [clone .isra.0]
+0000000000018f85 t std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > std::operator+<char, std::char_traits<char>, std::allocator<char> >(std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const&, char const*) [clone .isra.0] [clone .cold]
+                 U std::basic_istream<char, std::char_traits<char> >& std::operator>><char, std::char_traits<char>, std::allocator<char> >(std::basic_istream<char, std::char_traits<char> >&, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >&)@GLIBCXX_3.4.21
+0000000000092b88 V typeinfo for Foam::dimensioned<Foam::Vector<double> >
+                 U typeinfo for Foam::regIOobject
+                 U typeinfo for Foam::IOdictionary
+0000000000092d38 V typeinfo for Foam::fvPatchField<Foam::Vector<double> >
+0000000000092be0 V typeinfo for Foam::fvPatchField<double>
+0000000000092ee0 V typeinfo for Foam::typeIOobject<Foam::GeometricField<Foam::Vector<double>, Foam::fvPatchField, Foam::volMesh> >
+0000000000092ef8 V typeinfo for Foam::typeIOobject<Foam::GeometricField<double, Foam::fvPatchField, Foam::volMesh> >
+0000000000092f48 V typeinfo for Foam::typeIOobject<Foam::GeometricField<double, Foam::fvsPatchField, Foam::surfaceMesh> >
+0000000000092e20 V typeinfo for Foam::typeIOobject<Foam::UniformDimensionedField<Foam::Vector<double> > >
+0000000000092c58 V typeinfo for Foam::fvsPatchField<double>
+0000000000092d78 V typeinfo for Foam::wallPolyPatch
+0000000000092d20 V typeinfo for Foam::GeometricField<Foam::Vector<double>, Foam::fvPatchField, Foam::volMesh>
+0000000000092c40 V typeinfo for Foam::GeometricField<double, Foam::fvPatchField, Foam::volMesh>
+0000000000092cb8 V typeinfo for Foam::GeometricField<double, Foam::fvsPatchField, Foam::surfaceMesh>
+0000000000092bb0 V typeinfo for Foam::emptyPolyPatch
+                 U typeinfo for Foam::wedgePolyPatch
+                 U typeinfo for Foam::cyclicPolyPatch
+0000000000092ce8 V typeinfo for Foam::DimensionedField<Foam::Vector<double>, Foam::volMesh>
+0000000000092c80 V typeinfo for Foam::DimensionedField<double, Foam::surfaceMesh>
+0000000000092c08 V typeinfo for Foam::DimensionedField<double, Foam::volMesh>
+0000000000092bc8 V typeinfo for Foam::localIOdictionary
+0000000000092dc0 V typeinfo for Foam::mixedFvPatchField<Foam::Vector<double> >
+0000000000092d90 V typeinfo for Foam::mixedFvPatchField<double>
+0000000000092d60 V typeinfo for Foam::symmetryPolyPatch
+                 U typeinfo for Foam::processorPolyPatch
+0000000000092df0 V typeinfo for Foam::advectiveFvPatchField<double>
+0000000000092cd0 V typeinfo for Foam::calculatedFvPatchField<double>
+                 U typeinfo for Foam::symmetryPlanePolyPatch
+0000000000092e38 V typeinfo for Foam::UniformDimensionedField<Foam::Vector<double> >
+0000000000092dd8 V typeinfo for Foam::inletOutletFvPatchField<Foam::Vector<double> >
+0000000000092da8 V typeinfo for Foam::inletOutletFvPatchField<double>
+0000000000092e08 V typeinfo for Foam::waveTransmissiveFvPatchField<double>
+0000000000092b58 V typeinfo for Foam::List<Foam::word>
+0000000000092b28 V typeinfo for Foam::List<Foam::Tuple2<double, double> >
+0000000000092b70 V typeinfo for Foam::List<Foam::Vector<double> >
+0000000000092b40 V typeinfo for Foam::List<double>
+0000000000092f10 V typeinfo for Foam::Field<Foam::Vector<double> >
+0000000000092e70 V typeinfo for Foam::Field<double>
+0000000000092af8 V typeinfo for Foam::UList<Foam::word>
+0000000000092ad8 V typeinfo for Foam::UList<Foam::Tuple2<double, double> >
+0000000000092b08 V typeinfo for Foam::UList<Foam::Vector<double> >
+0000000000092ae8 V typeinfo for Foam::UList<double>
+0000000000092f60 V typeinfo for Foam::token::Compound<Foam::List<Foam::word> >
+0000000000092ea8 V typeinfo for Foam::token::Compound<Foam::List<Foam::Tuple2<double, double> > >
+0000000000092f98 V typeinfo for Foam::token::Compound<Foam::List<Foam::Vector<double> > >
+0000000000092fd0 V typeinfo for Foam::token::Compound<Foam::List<double> >
+                 U typeinfo for Foam::token::compound
+0000000000092b98 V typeinfo for Foam::Istream
+                 U typeinfo for Foam::IOobject
+                 U typeinfo for Foam::IOstream
+0000000000092b18 V typeinfo for Foam::refCount
+                 U typeinfo for Foam::wallDist
+                 U typeinfo for Foam::polyPatch
+                 U typeinfo for std::runtime_error@GLIBCXX_3.4
+                 U typeinfo for std::bad_cast@GLIBCXX_3.4
+                 U typeinfo for std::exception@GLIBCXX_3.4
+0000000000083da0 V typeinfo name for Foam::dimensioned<Foam::Vector<double> >
+0000000000084040 V typeinfo name for Foam::fvPatchField<Foam::Vector<double> >
+0000000000083e20 V typeinfo name for Foam::fvPatchField<double>
+0000000000084360 V typeinfo name for Foam::typeIOobject<Foam::GeometricField<Foam::Vector<double>, Foam::fvPatchField, Foam::volMesh> >
+00000000000843c0 V typeinfo name for Foam::typeIOobject<Foam::GeometricField<double, Foam::fvPatchField, Foam::volMesh> >
+0000000000084440 V typeinfo name for Foam::typeIOobject<Foam::GeometricField<double, Foam::fvsPatchField, Foam::surfaceMesh> >
+0000000000084220 V typeinfo name for Foam::typeIOobject<Foam::UniformDimensionedField<Foam::Vector<double> > >
+0000000000083ec0 V typeinfo name for Foam::fvsPatchField<double>
+0000000000084090 V typeinfo name for Foam::wallPolyPatch
+0000000000083fe0 V typeinfo name for Foam::GeometricField<Foam::Vector<double>, Foam::fvPatchField, Foam::volMesh>
+0000000000083e80 V typeinfo name for Foam::GeometricField<double, Foam::fvPatchField, Foam::volMesh>
+0000000000083f20 V typeinfo name for Foam::GeometricField<double, Foam::fvsPatchField, Foam::surfaceMesh>
+0000000000083de0 V typeinfo name for Foam::emptyPolyPatch
+0000000000083fa0 V typeinfo name for Foam::DimensionedField<Foam::Vector<double>, Foam::volMesh>
+0000000000083ee0 V typeinfo name for Foam::DimensionedField<double, Foam::surfaceMesh>
+0000000000083e40 V typeinfo name for Foam::DimensionedField<double, Foam::volMesh>
+0000000000083e00 V typeinfo name for Foam::localIOdictionary
+0000000000084120 V typeinfo name for Foam::mixedFvPatchField<Foam::Vector<double> >
+00000000000840b0 V typeinfo name for Foam::mixedFvPatchField<double>
+0000000000084070 V typeinfo name for Foam::symmetryPolyPatch
+00000000000841a0 V typeinfo name for Foam::advectiveFvPatchField<double>
+0000000000083f60 V typeinfo name for Foam::calculatedFvPatchField<double>
+0000000000084280 V typeinfo name for Foam::UniformDimensionedField<Foam::Vector<double> >
+0000000000084160 V typeinfo name for Foam::inletOutletFvPatchField<Foam::Vector<double> >
+00000000000840e0 V typeinfo name for Foam::inletOutletFvPatchField<double>
+0000000000084320 V typeinfo name for Foam::GpuBoundaryScheduleTable
+00000000000841e0 V typeinfo name for Foam::waveTransmissiveFvPatchField<double>
+0000000000083d60 V typeinfo name for Foam::List<Foam::word>
+0000000000083d30 V typeinfo name for Foam::List<Foam::Tuple2<double, double> >
+0000000000083d80 V typeinfo name for Foam::List<Foam::Vector<double> >
+0000000000083d50 V typeinfo name for Foam::List<double>
+0000000000084410 V typeinfo name for Foam::Field<Foam::Vector<double> >
+00000000000842c0 V typeinfo name for Foam::Field<double>
+0000000000083cd0 V typeinfo name for Foam::UList<Foam::word>
+0000000000083c90 V typeinfo name for Foam::UList<Foam::Tuple2<double, double> >
+0000000000083cf0 V typeinfo name for Foam::UList<Foam::Vector<double> >
+0000000000083cb0 V typeinfo name for Foam::UList<double>
+00000000000844a0 V typeinfo name for Foam::token::Compound<Foam::List<Foam::word> >
+00000000000842e0 V typeinfo name for Foam::token::Compound<Foam::List<Foam::Tuple2<double, double> > >
+00000000000844e0 V typeinfo name for Foam::token::Compound<Foam::List<Foam::Vector<double> > >
+0000000000084520 V typeinfo name for Foam::token::Compound<Foam::List<double> >
+0000000000083dd0 V typeinfo name for Foam::Istream
+0000000000083d10 V typeinfo name for Foam::refCount
+                 U VTT for std::basic_ifstream<char, std::char_traits<char> >@GLIBCXX_3.4
+                 U VTT for std::basic_ofstream<char, std::char_traits<char> >@GLIBCXX_3.4
+                 U vtable for __cxxabiv1::__class_type_info@CXXABI_1.3
+                 U vtable for __cxxabiv1::__si_class_type_info@CXXABI_1.3
+                 U vtable for __cxxabiv1::__vmi_class_type_info@CXXABI_1.3
+00000000000936a0 V vtable for Foam::fvPatchField<Foam::Vector<double> >
+0000000000093148 V vtable for Foam::fvPatchField<double>
+00000000000938d0 V vtable for Foam::typeIOobject<Foam::GeometricField<Foam::Vector<double>, Foam::fvPatchField, Foam::volMesh> >
+0000000000093900 V vtable for Foam::typeIOobject<Foam::GeometricField<double, Foam::fvPatchField, Foam::volMesh> >
+0000000000093930 V vtable for Foam::typeIOobject<Foam::GeometricField<double, Foam::fvsPatchField, Foam::surfaceMesh> >
+0000000000093820 V vtable for Foam::typeIOobject<Foam::UniformDimensionedField<Foam::Vector<double> > >
+00000000000933b8 V vtable for Foam::fvsPatchField<double>
+0000000000093628 V vtable for Foam::GeometricField<Foam::Vector<double>, Foam::fvPatchField, Foam::volMesh>
+0000000000093340 V vtable for Foam::GeometricField<double, Foam::fvPatchField, Foam::volMesh>
+0000000000093538 V vtable for Foam::GeometricField<double, Foam::fvsPatchField, Foam::surfaceMesh>
+00000000000935b0 V vtable for Foam::DimensionedField<Foam::Vector<double>, Foam::volMesh>
+00000000000934c0 V vtable for Foam::DimensionedField<double, Foam::surfaceMesh>
+00000000000932c8 V vtable for Foam::DimensionedField<double, Foam::volMesh>
+00000000000930a8 V vtable for Foam::localIOdictionary
+0000000000093850 V vtable for Foam::UniformDimensionedField<Foam::Vector<double> >
+0000000000093008 V vtable for Foam::Istream
+                 U vtable for Foam::ITstream
+                 U vtable for std::basic_filebuf<char, std::char_traits<char> >@GLIBCXX_3.4
+                 U vtable for std::basic_ifstream<char, std::char_traits<char> >@GLIBCXX_3.4
+                 U vtable for std::basic_ofstream<char, std::char_traits<char> >@GLIBCXX_3.4
+                 U vtable for std::basic_streambuf<char, std::char_traits<char> >@GLIBCXX_3.4
+                 U vtable for std::basic_ios<char, std::char_traits<char> >@GLIBCXX_3.4
+000000000002d310 W non-virtual thunk to Foam::localIOdictionary::~localIOdictionary()
+000000000002d2a0 W non-virtual thunk to Foam::localIOdictionary::~localIOdictionary()
+000000000002aa80 W non-virtual thunk to Foam::localIOdictionary::global() const
+000000000002aa60 W non-virtual thunk to Foam::fvMesh::thisDb() const
+00000000000266d0 t main::{lambda(Foam::word const&, double&)#1}::operator()(Foam::word const&, double&) const [clone .isra.0]
+00000000000191d2 t main::{lambda(Foam::word const&, double&)#1}::operator()(Foam::word const&, double&) const [clone .isra.0] [clone .cold]
+0000000000024130 t auto main::{lambda(auto:1&)#1}::operator()<Foam::GpuGasResidentSolver>(Foam::GpuGasResidentSolver&) const
+0000000000024130 t auto main::{lambda(auto:1&)#1}::operator()<Foam::GpuParticleResidentSolver>(Foam::GpuParticleResidentSolver&) const
+                 U operator delete[](void*)@GLIBCXX_3.4
+                 U operator delete[](void*, unsigned long)@CXXABI_1.3.9
+                 U operator delete(void*, unsigned long)@CXXABI_1.3.9
+                 U operator new[](unsigned long)@GLIBCXX_3.4
+                 U operator new(unsigned long)@GLIBCXX_3.4
+000000000008d8e4 r __FRAME_END__
+0000000000084c20 r __GNU_EH_FRAME_HDR
+00000000000947b8 D __TMC_END__
+0000000000091d00 r __abi_tag
+00000000000947b8 B __bss_start
+                 U __cxa_allocate_exception@CXXABI_1.3
+                 U __cxa_bad_cast@CXXABI_1.3
+                 U __cxa_begin_catch@CXXABI_1.3
+                 U __cxa_call_terminate@CXXABI_1.3.15
+                 U __cxa_end_catch@CXXABI_1.3
+                 w __cxa_finalize@GLIBC_2.2.5
+                 U __cxa_free_exception@CXXABI_1.3
+                 w __cxa_pure_virtual@CXXABI_1.3
+                 U __cxa_thread_atexit@CXXABI_1.3.7
+                 U __cxa_throw@CXXABI_1.3
+                 U __cxa_throw_bad_array_new_length@CXXABI_1.3.8
+0000000000094790 D __data_start
+0000000000023fc0 t __do_global_dtors_aux
+0000000000092ad0 d __do_global_dtors_aux_fini_array_entry
+0000000000094798 D __dso_handle
+                 U __dynamic_cast@CXXABI_1.3
+                 U __errno_location@GLIBC_2.2.5
+0000000000092ac0 d __frame_dummy_init_array_entry
+                 w __gmon_start__
+                 U __gxx_personality_v0@CXXABI_1.3
+                 U __libc_start_main@GLIBC_2.34
+                 U __tls_get_addr@GLIBC_2.3
+0000000000000000 b __tls_guard
+000000000006e760 t __tls_init
+00000000000947b8 D _edata
+00000000000947c8 B _end
+                 U _exit@GLIBC_2.2.5
+0000000000077518 T _fini
+0000000000018000 T _init
+0000000000023f20 T _start
+                 U abort@GLIBC_2.2.5
+                 U close@GLIBC_2.2.5
+00000000000947b8 b completed.0
+0000000000094790 W data_start
+0000000000023f50 t deregister_tm_clones
+                 U execl@GLIBC_2.2.5
+                 U fork@GLIBC_2.2.5
+                 U fprintf@GLIBC_2.2.5
+0000000000024000 t frame_dummy
+                 U getenv@GLIBC_2.2.5
+000000000001b010 T main
+00000000000198d0 t main.cold
+                 U memcmp@GLIBC_2.2.5
+                 U memcpy@GLIBC_2.14
+                 U memset@GLIBC_2.2.5
+                 U pow@GLIBC_2.29
+                 U read@GLIBC_2.2.5
+                 U readlink@GLIBC_2.2.5
+0000000000023f80 t register_tm_clones
+                 U rename@GLIBC_2.2.5
+                 U send@GLIBC_2.2.5
+                 U snprintf@GLIBC_2.2.5
+                 U socketpair@GLIBC_2.2.5
+                 U stderr@GLIBC_2.2.5
+                 U strerror@GLIBC_2.2.5
+                 U strlen@GLIBC_2.2.5
+0000000000073610 T ugkwpGpuResidentStrictAdvance
+0000000000073f00 T ugkwpGpuResidentStrictAdvanceGasOnly
+0000000000073d30 T ugkwpGpuResidentStrictComputeGasCourant
+000000000001aed4 t ugkwpGpuResidentStrictComputeGasCourant.cold
+00000000000722d0 T ugkwpGpuResidentStrictConfigureParticleStuckModel
+000000000001ae3e t ugkwpGpuResidentStrictConfigureParticleStuckModel.cold
+00000000000725b0 T ugkwpGpuResidentStrictConfigureScheduledInlet
+000000000001ae4e t ugkwpGpuResidentStrictConfigureScheduledInlet.cold
+0000000000073710 T ugkwpGpuResidentStrictConfigureSst
+000000000001aeb4 t ugkwpGpuResidentStrictConfigureSst.cold
+0000000000075ec0 T ugkwpGpuResidentStrictCreate
+000000000001af44 t ugkwpGpuResidentStrictCreate.cold
+0000000000075b90 T ugkwpGpuResidentStrictDownloadAndResetParticleWallHeatLedgers
+000000000001af34 t ugkwpGpuResidentStrictDownloadAndResetParticleWallHeatLedgers.cold
+00000000000757b0 T ugkwpGpuResidentStrictDownloadEpsGPrev
+0000000000074000 T ugkwpGpuResidentStrictDownloadFields
+00000000000742e0 T ugkwpGpuResidentStrictDownloadGasBoundaryFields
+0000000000075a40 T ugkwpGpuResidentStrictDownloadNut
+0000000000074fc0 T ugkwpGpuResidentStrictDownloadParticleRestartMirror
+000000000001af14 t ugkwpGpuResidentStrictDownloadParticleRestartMirror.cold
+0000000000074740 T ugkwpGpuResidentStrictDownloadParticleSavedVelocity
+000000000001aef4 t ugkwpGpuResidentStrictDownloadParticleSavedVelocity.cold
+00000000000728d0 T ugkwpGpuResidentStrictDownloadSourceResidualMass
+000000000001ae60 t ugkwpGpuResidentStrictDownloadSourceResidualMass.cold
+0000000000073af0 T ugkwpGpuResidentStrictDownloadSst
+000000000001aec4 t ugkwpGpuResidentStrictDownloadSst.cold
+0000000000071510 T ugkwpGpuResidentStrictLastError
+0000000000075dc0 T ugkwpGpuResidentStrictRelease
+0000000000071ec0 T ugkwpGpuResidentStrictUploadBoundarySources
+000000000001ae2c t ugkwpGpuResidentStrictUploadBoundarySources.cold
+0000000000075900 T ugkwpGpuResidentStrictUploadEpsGPrev
+0000000000073370 T ugkwpGpuResidentStrictUploadFields
+000000000001aea4 t ugkwpGpuResidentStrictUploadFields.cold
+0000000000072e70 T ugkwpGpuResidentStrictUploadGasBoundaryFields
+000000000001ae94 t ugkwpGpuResidentStrictUploadGasBoundaryFields.cold
+00000000000715e0 T ugkwpGpuResidentStrictUploadMesh
+000000000001ae1c t ugkwpGpuResidentStrictUploadMesh.cold
+00000000000749e0 T ugkwpGpuResidentStrictUploadParticleRestartMirror
+000000000001af04 t ugkwpGpuResidentStrictUploadParticleRestartMirror.cold
+00000000000744b0 T ugkwpGpuResidentStrictUploadParticleSavedVelocity
+000000000001aee4 t ugkwpGpuResidentStrictUploadParticleSavedVelocity.cold
+0000000000072c30 T ugkwpGpuResidentStrictUploadSourceResidualMass
+000000000001ae84 t ugkwpGpuResidentStrictUploadSourceResidualMass.cold
+                 U waitpid@GLIBC_2.2.5

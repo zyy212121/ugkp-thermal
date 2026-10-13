@@ -1,0 +1,49 @@
+diff --git a/applications/CHT/thermal/GpuSolidPatchMapper.C b/applications/CHT/thermal/GpuSolidPatchMapper.C
+index c9dc000..107e6cf 100755
+--- a/applications/CHT/thermal/GpuSolidPatchMapper.C
++++ b/applications/CHT/thermal/GpuSolidPatchMapper.C
+@@ -91,16 +91,6 @@ OneToOneConformalSolidPatchMapper::OneToOneConformalSolidPatchMapper
+     fluidPatchIds_(patchPairs.size(), -1),
+     solidPatchIds_(patchPairs.size(), -1)
+ {
+-    const SolidPatchPair emptyDiagnosticPair;
+-    if (patchPairs_.empty())
+-    {
+-        mappingFailure
+-        (
+-            emptyDiagnosticPair,
+-            -1,
+-            "at least one fluid-solid patch pair is required"
+-        );
+-    }
+     (void)allowMappedWall;
+     forAll(patchPairs_, pairI)
+     {
+@@ -229,11 +219,6 @@ ConservativeNearestSolidPatchMapper::ConservativeNearestSolidPatchMapper
+     solidPatchIds_(patchPairs.size(), -1),
+     nearestSolidFaceForFluidFace_(patchPairs.size())
+ {
+-    const SolidPatchPair emptyPair;
+-    if (patchPairs_.empty())
+-    {
+-        mappingFailure(emptyPair, -1, "at least one nonconformal pair is required");
+-    }
+     forAll(patchPairs_, pairI)
+     {
+         const SolidPatchPair& pair = patchPairs_[pairI];
+@@ -385,14 +370,7 @@ scalarField ConservativeNearestSolidPatchMapper::mapSolidScalarToFluid
+     const scalarField& solidFaceValues
+ ) const
+ {
+-    const SolidPatchPair& pair = checkedPair(pairI);
+-    validateSourceSize
+-    (
+-        solidFaceValues,
+-        solidMesh_.boundary()[solidPatchIds_[pairI]].size(),
+-        pair,
+-        "nonconformal solid-to-fluid scalar"
+-    );
++    checkedPair(pairI);
+     scalarField result(nearestSolidFaceForFluidFace_[pairI].size());
+     forAll(result, fluidFaceI)
+     {

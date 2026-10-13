@@ -1,0 +1,14 @@
+[
+  {
+    "label": "original",
+    "exit_code": 0,
+    "stdout": "success=1 status=0 0x1p+0 0x1.95fbc860ca87bp+17 0x0p+0 0x0p+0 -0x1.3721a1fa56d75p+29\n",
+    "stderr": ""
+  },
+  {
+    "label": "current",
+    "exit_code": 0,
+    "stdout": "success=1 status=0 0x1p+0 nan nan nan nan\n",
+    "stderr": ""
+  }
+]

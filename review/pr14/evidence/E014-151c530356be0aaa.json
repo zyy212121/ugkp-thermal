@@ -1,0 +1,10 @@
+[
+  {
+    "name": "test_chemistry_composition_preserves_order_without_post_half_quality_gate",
+    "result": "pass"
+  },
+  {
+    "name": "test_shared_preparation_does_not_compute_dead_sst_admission_predictor",
+    "result": "pass"
+  }
+]

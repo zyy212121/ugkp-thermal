@@ -1,0 +1,50 @@
+/workspace/scratch/98b6339ec81b/chmt_remaining_work_20261013/applications/CHMT/core/Types.H(39): warning #20013-D: calling a constexpr __host__ function("max") from a __host__ __device__ function("finite") is not allowed. The experimental flag '--expt-relaxed-constexpr' can be used to allow this.
+  __attribute__((host)) __attribute__((device)) inline bool finite(Real x) { return x==x && x<=std::numeric_limits<Real>::max() && x>=-std::numeric_limits<Real>::max(); }
+                                                                                               ^
+
+Remark: The warnings can be suppressed with "-diag-suppress <warning-number>"
+
+/workspace/scratch/98b6339ec81b/chmt_remaining_work_20261013/applications/CHMT/core/Types.H(39): warning #20013-D: calling a constexpr __host__ function("max") from a __host__ __device__ function("finite") is not allowed. The experimental flag '--expt-relaxed-constexpr' can be used to allow this.
+  __attribute__((host)) __attribute__((device)) inline bool finite(Real x) { return x==x && x<=std::numeric_limits<Real>::max() && x>=-std::numeric_limits<Real>::max(); }
+                                                                                                                                       ^
+
+/workspace/scratch/98b6339ec81b/chmt_remaining_work_20261013/applications/CHMT/core/Types.H(43): warning #20013-D: calling a constexpr __host__ function("quiet_NaN") from a __host__ __device__ function("undefinedValue") is not allowed. The experimental flag '--expt-relaxed-constexpr' can be used to allow this.
+  __attribute__((host)) __attribute__((device)) inline Real undefinedValue() { return std::numeric_limits<Real>::quiet_NaN(); }
+                                                                                      ^
+
+/workspace/scratch/98b6339ec81b/chmt_remaining_work_20261013/applications/CHMT/materials/Thermodynamics.H(114): warning #20013-D: calling a constexpr __host__ function("max") from a __host__ __device__ function("recoverGas") is not allowed. The experimental flag '--expt-relaxed-constexpr' can be used to allow this.
+      Real sum=0,formation=0,R=0,lo=0,hi=std::numeric_limits<Real>::max();bool legacy=true;
+                                         ^
+
+/workspace/scratch/98b6339ec81b/chmt_remaining_work_20261013/applications/CHMT/materials/GasThermoAdapter.H(20): warning #20013-D: calling a constexpr __host__ function("max") from a __host__ __device__ function("GasThermoAdapter") is not allowed. The experimental flag '--expt-relaxed-constexpr' can be used to allow this.
+              const Real minimumR=Ru/std::numeric_limits<Real>::max();
+                                     ^
+
+/workspace/scratch/98b6339ec81b/chmt_remaining_work_20261013/applications/CHMT/core/../../../common/chemistry/../gasTransport/MixtureThermo.H(16): warning #20013-D: calling a constexpr __host__ function("max") from a __host__ __device__ function("gasFinite") is not allowed. The experimental flag '--expt-relaxed-constexpr' can be used to allow this.
+      return x == x && x <= (std::numeric_limits<Real>::max)()
+                            ^
+          detected during:
+            instantiation of "__nv_bool ugkwp::gasFinite(Real) noexcept [with Real=chmt::Real]" at line 66
+            instantiation of "ugkwp::ThermoStatus ugkwp::gasThermoDetail::evaluateSpecies(int, Real, const ugkwp::SpeciesThermoView<TableReal, Ns> &, ugkwp::gasThermoDetail::SpeciesValues<Real> &, __nv_bool *) noexcept [with Real=chmt::Real, Ns=1, TableReal=chmt::Real, Complete=false, CompleteEnthalpy=false, CompleteEntropy=false]" at line 145
+            instantiation of "Real ugkwp::speciesCp(int, Real, const ugkwp::SpeciesThermoView<TableReal, Ns> &) noexcept [with Real=chmt::Real, Ns=1, TableReal=chmt::Real]" at line 71 of /workspace/scratch/98b6339ec81b/chmt_remaining_work_20261013/applications/CHMT/materials/GasThermoAdapter.H
+
+/workspace/scratch/98b6339ec81b/chmt_remaining_work_20261013/applications/CHMT/core/../../../common/chemistry/../gasTransport/MixtureThermo.H(17): warning #20013-D: calling a constexpr __host__ function("max") from a __host__ __device__ function("gasFinite") is not allowed. The experimental flag '--expt-relaxed-constexpr' can be used to allow this.
+          && x >= -(std::numeric_limits<Real>::max)();
+                   ^
+          detected during:
+            instantiation of "__nv_bool ugkwp::gasFinite(Real) noexcept [with Real=chmt::Real]" at line 66
+            instantiation of "ugkwp::ThermoStatus ugkwp::gasThermoDetail::evaluateSpecies(int, Real, const ugkwp::SpeciesThermoView<TableReal, Ns> &, ugkwp::gasThermoDetail::SpeciesValues<Real> &, __nv_bool *) noexcept [with Real=chmt::Real, Ns=1, TableReal=chmt::Real, Complete=false, CompleteEnthalpy=false, CompleteEntropy=false]" at line 145
+            instantiation of "Real ugkwp::speciesCp(int, Real, const ugkwp::SpeciesThermoView<TableReal, Ns> &) noexcept [with Real=chmt::Real, Ns=1, TableReal=chmt::Real]" at line 71 of /workspace/scratch/98b6339ec81b/chmt_remaining_work_20261013/applications/CHMT/materials/GasThermoAdapter.H
+
+/workspace/scratch/98b6339ec81b/chmt_remaining_work_20261013/applications/CHMT/core/../../../common/chemistry/../gasTransport/MixtureThermo.H(29): warning #20013-D: calling a constexpr __host__ function("quiet_NaN") from a __host__ __device__ function("invalidValue") is not allowed. The experimental flag '--expt-relaxed-constexpr' can be used to allow this.
+  { return std::numeric_limits<Real>::quiet_NaN(); }
+           ^
+          detected during:
+            instantiation of "Real ugkwp::gasThermoDetail::invalidValue<Real>() noexcept [with Real=chmt::Real]" at line 88
+            instantiation of "ugkwp::ThermoStatus ugkwp::gasThermoDetail::evaluateSpecies(int, Real, const ugkwp::SpeciesThermoView<TableReal, Ns> &, ugkwp::gasThermoDetail::SpeciesValues<Real> &, __nv_bool *) noexcept [with Real=chmt::Real, Ns=1, TableReal=chmt::Real, Complete=false, CompleteEnthalpy=false, CompleteEntropy=false]" at line 145
+            instantiation of "Real ugkwp::speciesCp(int, Real, const ugkwp::SpeciesThermoView<TableReal, Ns> &) noexcept [with Real=chmt::Real, Ns=1, TableReal=chmt::Real]" at line 71 of /workspace/scratch/98b6339ec81b/chmt_remaining_work_20261013/applications/CHMT/materials/GasThermoAdapter.H
+
+/workspace/scratch/98b6339ec81b/chmt_remaining_work_20261013/applications/CHMT/materials/Thermodynamics.H(165): warning #20013-D: calling a constexpr __host__ function("max") from a __host__ __device__ function("recoverSolid") is not allowed. The experimental flag '--expt-relaxed-constexpr' can be used to allow this.
+      Real mass=0,a0=0,a1=0,a2=0,lo=0,hi=std::numeric_limits<Real>::max();
+                                         ^
+
