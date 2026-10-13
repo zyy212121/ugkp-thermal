@@ -1,0 +1,54 @@
+[
+  {
+    "tag": "base-5f",
+    "command": [
+      "g++",
+      "-std=c++17",
+      "-Werror=return-type",
+      "-Wno-unused-variable",
+      "-Wno-unused-function",
+      "-I/workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/implementation/b7/tmp/cold-pinned-v2-base-5f",
+      "-I/workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/implementation/b7/baseline/applications/CHMT",
+      "-I/workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/implementation/b7/baseline/common",
+      "-I/workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/implementation/b7/baseline/common/gasNumerics",
+      "-I/workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/implementation/b7/baseline",
+      "-DEXPECTED_MASS=0",
+      "/workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/implementation/b7/tmp/cold-pinned-v2-base-5f/tree/applications/CHMT/gpu/Backend.cpp",
+      "/workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/implementation/b7/baseline/applications/CHMT/mesh/Geometry.C",
+      "-o",
+      "/workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/implementation/b7/tmp/cold-pinned-v2-base-5f/probe"
+    ],
+    "run": [
+      "/workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/implementation/b7/tmp/cold-pinned-v2-base-5f/probe"
+    ],
+    "output": "ok=1 mass=0 prescribed=-0.012999999999999999 convective=0.053937810532527913 diffusion=8.9142857142857161e-05 sst=0.0003920000000000001 max=0.053937810532527913 status=1\n",
+    "source_sha256": "e2ef00e367bd3b181a41aafc14047345f8aedc75b21b764ea0b0029a527d83c0",
+    "base": "5f1a39ac96e2e7ff9a0640a4db344d9cccd34245"
+  },
+  {
+    "tag": "working",
+    "command": [
+      "g++",
+      "-std=c++17",
+      "-Werror=return-type",
+      "-Wno-unused-variable",
+      "-Wno-unused-function",
+      "-I/workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/implementation/b7/tmp/cold-pinned-v2-working",
+      "-I/workspace/scratch/98b6339ec81b/chmt_remaining_work_20261013/applications/CHMT",
+      "-I/workspace/scratch/98b6339ec81b/chmt_remaining_work_20261013/common",
+      "-I/workspace/scratch/98b6339ec81b/chmt_remaining_work_20261013/common/gasNumerics",
+      "-I/workspace/scratch/98b6339ec81b/chmt_remaining_work_20261013",
+      "-DEXPECTED_MASS=-0.013",
+      "/workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/implementation/b7/tmp/cold-pinned-v2-working/tree/applications/CHMT/gpu/Backend.cpp",
+      "/workspace/scratch/98b6339ec81b/chmt_remaining_work_20261013/applications/CHMT/mesh/Geometry.C",
+      "-o",
+      "/workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/implementation/b7/tmp/cold-pinned-v2-working/probe"
+    ],
+    "run": [
+      "/workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/implementation/b7/tmp/cold-pinned-v2-working/probe"
+    ],
+    "output": "ok=1 mass=-0.012999999999999999 prescribed=-0.012999999999999999 convective=0.053937810532527913 diffusion=8.9142857142857161e-05 sst=0.00039338666666666677 max=0.053937810532527913 status=0\n",
+    "source_sha256": "1ba62cd07a757c6a2d597cb6789b838593dbf05ba4d61dbfadff6a9af6240c9c",
+    "base": "working"
+  }
+]
