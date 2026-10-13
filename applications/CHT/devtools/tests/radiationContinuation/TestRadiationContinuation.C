@@ -47,13 +47,17 @@ int main(int argc,char**argv) try {
  } else if(mode=="root_signed"){
   auto r=detail::solveImplicitMaterialTemperature(-300,1000,200,2000,-1,-1,1,-1,-1,[](double t){return 1e6-t*t;});
   check(r.temperatureK==350 && r.residualJ==876850 && r.iterations==1,"defined signed root arithmetic");
+ } else if(mode=="root_nonfinite_tolerance"){
+  auto power=[](double t){return 1e6-t*t;};
+  auto r=detail::solveImplicitMaterialTemperature(300,1000,200,2000,1,1,1,std::numeric_limits<double>::quiet_NaN(),1e-10,power);
+  check(r.temperatureK==650 && r.residualJ==-577150 && r.iterations==1,"nonfinite tolerance changed evaluated candidate");
  } else if(mode=="root_errors"){
-  fails([]{detail::solveImplicitMaterialTemperature(300,1000,200,2000,1,1,1,1e-10,1e-10,[](double){return std::numeric_limits<double>::quiet_NaN();});});
-  fails([]{detail::solveImplicitMaterialTemperature(300,1000,200,2000,1e308,1,1,1e-10,1e-10,[](double){return 1.;});});
+  auto nanRoot=detail::solveImplicitMaterialTemperature(300,1000,200,2000,1,1,1,1e-10,1e-10,[](double){return std::numeric_limits<double>::quiet_NaN();});check(nanRoot.temperatureK==1000 && std::isnan(nanRoot.residualJ),"actual nonfinite endpoint residual");
+  auto overflowRoot=detail::solveImplicitMaterialTemperature(300,1000,200,2000,1e308,1,1,1e-10,1e-10,[](double){return 1.;});check(overflowRoot.temperatureK==650 && std::isinf(overflowRoot.residualJ),"actual overflowing midpoint residual");
  } else if(mode.find("scale_")==0){
   if(mode=="scale_errors"){
-   fails([]{detail::conservativeBoundaryEnergyScale(1,0,1,1e-10);});
-   fails([]{detail::conservativeBoundaryEnergyScale(1,1e-320,1,1e-10);});
+   auto zero=detail::conservativeBoundaryEnergyScale(1,0,1,1e-10);check(std::isinf(zero.scale) && std::isnan(zero.residualJ),"actual zero-divisor scale");
+   auto overflow=detail::conservativeBoundaryEnergyScale(1,1e-320,1,1e-10);check(std::isinf(overflow.scale) && std::isinf(overflow.residualJ),"actual overflowing scale");
    auto z=detail::conservativeBoundaryEnergyScale(0,0,0,1e-10);check(z.scale==1 && z.residualJ==0,"zero identity");
   }else{
    double a=mode=="scale_negative"?2:mode=="scale_tiny"?1e-20:-2;
@@ -89,10 +93,14 @@ int main(int argc,char**argv) try {
    auto m=balanceSymmetricPhaseKernelInPlace(k,w,1e-12,200,s,n,p);
    std::cout<<"PHASE "<<p[0][0]<<' '<<p[0][1]<<' '<<p[1][0]<<' '<<p[1][1]<<' '<<m.maxRowError<<' '<<m.maxWeightedColumnRelativeError<<' '<<m.maxRelativeScalingCorrection<<' '<<m.iterations<<'\n';
   }else if(mode=="phase_errors"){
-   k[0][0]=std::numeric_limits<double>::quiet_NaN();fails([&]{balanceSymmetricPhaseKernelInPlace(k,w,1e-30,1,s,n,p);});
-   k[0][0]=0;k[0][1]=0;fails([&]{balanceSymmetricPhaseKernelInPlace(k,w,1e-30,1,s,n,p);});
-   k[0][0]=4;k[0][1]=1;w[0]=0;fails([&]{balanceSymmetricPhaseKernelInPlace(k,w,1e-30,1,s,n,p);});
-   w[0]=std::numeric_limits<double>::quiet_NaN();fails([&]{balanceSymmetricPhaseKernelInPlace(k,w,1e-30,1,s,n,p);});
+   k[0][0]=std::numeric_limits<double>::quiet_NaN();balanceSymmetricPhaseKernelInPlace(k,w,1e-30,1,s,n,p);check(std::isnan(p[0][0]),"actual NaN phase probability");
+   k[0][0]=0;k[0][1]=0;balanceSymmetricPhaseKernelInPlace(k,w,1e-30,1,s,n,p);check(std::isnan(p[0][0]),"actual zero-row probability");
+   k[0][0]=4;k[0][1]=1;w[0]=0;balanceSymmetricPhaseKernelInPlace(k,w,1e-30,1,s,n,p);check(p[0][0]==0,"actual zero-weight probability");
+   w[0]=std::numeric_limits<double>::quiet_NaN();balanceSymmetricPhaseKernelInPlace(k,w,1e-30,1,s,n,p);check(std::isnan(p[0][0]),"actual NaN-weight probability");
+   k[0].setSize(1);fails([&]{balanceSymmetricPhaseKernelInPlace(k,w,1e-30,1,s,n,p);});
+  }else if(mode=="phase_nonfinite_tolerance"){
+   auto m=balanceSymmetricPhaseKernelInPlace(k,w,std::numeric_limits<double>::quiet_NaN(),1,s,n,p);
+   check(m.iterations==1 && near(p[0][0],.8),"nonfinite tolerance withheld actual phase sweep");
   }else{
    auto m=balanceSymmetricPhaseKernelInPlace(k,w,1e-30,mode=="phase_zero"?0:1,s,n,p);
    auto measured=measurePhaseBalance(p,w);
@@ -125,20 +133,22 @@ int main(int argc,char**argv) try {
   if(mode=="do_signed"){diam=-1e-4;forAll(emissivity,p)emissivity[p]=2.;}
   if(mode=="do_parallel_ordinary")controls.angleParallelThreads=2;
   if(mode=="do_parallel"){controls.angleParallelThreads=2;controls.maxSourceIterations=1;config.set("linearSolverMaxIterations",label(1));config.set("linearSolverTolerance",scalar(1e-30));}
+  if(mode=="do_inactive_nan"){eps=0;diam=std::numeric_limits<double>::quiet_NaN();}
   if(mode=="do_nonfinite")temp[0]=std::numeric_limits<double>::quiet_NaN();
   if(mode=="do_missing")diam.setSize(1);
   if(mode=="do_zero_divisor")diam=0;
   if(mode=="do_unknown")config.set("IBoundaryCondition",word("missingSelectedOperator"));
   if(mode=="do_phase_one"){controls.maxPhaseBalanceIterations=1;controls.phaseBalanceTolerance=1e-30;controls.maxPhaseScalingCorrection=0;}
   if(mode=="do_relaxation"){config.add("sourceRelaxation",scalar(1.2));controls.sourceRelativeTolerance=-1;controls.maxSourceIterations=1;}
-  if(mode=="transaction" || mode=="ordinary" || mode=="transaction_padded" || mode=="transaction_exact_diameter" || mode=="transaction_missing" || mode.find("boundary_")==0){
+  if(mode=="transaction_inactive_nan" || mode=="transaction" || mode=="ordinary" || mode=="transaction_padded" || mode=="transaction_exact_diameter" || mode=="transaction_missing" || mode.find("boundary_")==0){
    ugkwp::ParticleCaloric law;ugkwp::ParticleThermalCarry<GpuReal> carried{GpuReal(4000),law.enthalpy(4100)-law.enthalpy(4000)};
-   const bool inRange=mode=="ordinary" || mode.find("boundary_")==0;
+   const bool inRange=mode=="transaction_inactive_nan" || mode=="ordinary" || mode.find("boundary_")==0;
    const double old=inRange?3000.:ugkwp::effectiveParticleTemperature(carried,law);
    if(inRange){carried.temperature=3000;carried.specificEnthalpyResidual=0;}
    temp=old;
    const double cp=law.specificHeat(old),massValue=.01,dt=.01;
    scalarField mass(mesh.nCells(),massValue);
+   if(mode=="transaction_inactive_nan"){eps=0;diam=std::numeric_limits<double>::quiet_NaN();}
    if(mode=="transaction_exact_diameter")diam=3e-4;
    if(mode=="transaction_missing")mass.setSize(mesh.nCells()-1);
    if(mode=="transaction_padded"){
@@ -161,7 +171,7 @@ int main(int argc,char**argv) try {
      // retaining the real DO/material solve. This is not an analytic RTE case.
      int index=0;const double energy[]={1e16,-1e16+2,1};
      forAll(actual.boundaryQrOutwardWm2,p)forAll(actual.boundaryQrOutwardWm2[p],f){
-      double e=mode=="boundary_tiny"?(index==0?1e-20:0):mode=="boundary_negative"?(index==0?-1e-6:0):(index<3?energy[index]:0);
+      double e=mode=="boundary_overflow"?(index==0?1e-320:0):mode=="boundary_tiny"?(index==0?1e-20:0):mode=="boundary_negative"?(index==0?-1e-6:0):(index<3?energy[index]:0);
       actual.boundaryQrOutwardWm2[p][f]=e/(dt*mag(mesh.Sf().boundaryField()[p][f]));
       suppliedBoundarySum+=dt*mag(mesh.Sf().boundaryField()[p][f])*actual.boundaryQrOutwardWm2[p][f];++index;
      }
@@ -192,7 +202,10 @@ int main(int argc,char**argv) try {
     std::cout<<"CELL "<<i<<' '<<observed<<' '<<result.finalMeanTemperatureK[i]<<' '<<energy<<' '<<state.temperature<<' '<<state.specificEnthalpyResidual<<'\n';
    }
    forAll(result.solidWallRadiationEnergyJ,p)forAll(result.solidWallRadiationEnergyJ[p],f)boundary+=result.solidWallRadiationEnergyJ[p][f];
-   if(mode.find("boundary_")==0){
+   if(mode=="boundary_overflow"){
+    check(std::isinf(result.solidWallRadiationEnergyJ[patches[0]][0]),"overflow scale never reached physical face publication");
+    check(std::isnan(result.escapedBoundaryRadiationEnergyJ),"zero faces must retain actual infinite-scale IEEE product");
+   }else if(mode.find("boundary_")==0){
     const double scale=mode=="boundary_cancellation"?1.:-accepted/suppliedBoundarySum;double applied=0,escaped=0;
     forAll(suppliedBoundary,p)forAll(suppliedBoundary[p],f){
      const double e=scale*(dt*mag(mesh.Sf().boundaryField()[p][f])*suppliedBoundary[p][f]);
@@ -218,6 +231,13 @@ int main(int argc,char**argv) try {
    if(mode=="do_parallel")check(result.angleThreadsUsed==2 && result.sourceIterations==1,"actual parallel initial sweep");
    if(firstSweep || mode=="do_zero")check(result.sourceIterations==1,"one completed source sweep");
    check(result.incidentRadiationG_Wm2.size()==mesh.nCells() && result.absorptionCoefficientInvM.size()==mesh.nCells() && result.scatteringCoefficientInvM.size()==mesh.nCells() && result.extinctionCoefficientInvM.size()==mesh.nCells() && result.asymmetryFactor.size()==mesh.nCells(),"complete DO fields");
+   if(mode=="do_zero_divisor" || mode=="do_nonfinite"){
+    if(mode=="do_zero_divisor")check(std::isinf(result.absorptionCoefficientInvM[0]),"actual zero-diameter absorption missing");
+    check(std::isnan(result.incidentRadiationG_Wm2[0]),"nonfinite residual skipped native RHS/diagonal sweep and published cached intensity");
+    check(!std::isfinite(result.particlePowerDensityWm3[0]),"actual IEEE particle power missing");
+    check(result.boundaryQrOutwardWm2[0].size()==mesh.boundary()[0].size(),"IEEE boundary publication missing");
+    std::cout<<"PASS "<<mode<<'\n';return 0;
+   }
    double power=0,boundary=0;
    forAll(temp,i){
     const double g=result.incidentRadiationG_Wm2[i];
