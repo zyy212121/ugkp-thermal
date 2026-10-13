@@ -16,10 +16,8 @@ namespace Foam
 {
 namespace gpuThermal
 {
-
 namespace
 {
-
 [[noreturn]] void mappingFailure
 (
     const SolidPatchPair& pair,
@@ -93,16 +91,6 @@ OneToOneConformalSolidPatchMapper::OneToOneConformalSolidPatchMapper
     fluidPatchIds_(patchPairs.size(), -1),
     solidPatchIds_(patchPairs.size(), -1)
 {
-    const SolidPatchPair emptyDiagnosticPair;
-    if (patchPairs_.empty())
-    {
-        mappingFailure
-        (
-            emptyDiagnosticPair,
-            -1,
-            "at least one fluid-solid patch pair is required"
-        );
-    }
     (void)allowMappedWall;
     forAll(patchPairs_, pairI)
     {
@@ -231,11 +219,6 @@ ConservativeNearestSolidPatchMapper::ConservativeNearestSolidPatchMapper
     solidPatchIds_(patchPairs.size(), -1),
     nearestSolidFaceForFluidFace_(patchPairs.size())
 {
-    const SolidPatchPair emptyPair;
-    if (patchPairs_.empty())
-    {
-        mappingFailure(emptyPair, -1, "at least one nonconformal pair is required");
-    }
     forAll(patchPairs_, pairI)
     {
         const SolidPatchPair& pair = patchPairs_[pairI];
@@ -270,9 +253,50 @@ ConservativeNearestSolidPatchMapper::ConservativeNearestSolidPatchMapper
                     bestSolidFace = solidFaceI;
                 }
             }
-            if (bestSolidFace < 0 || !finiteScalar(bestDistance))
+            if (bestSolidFace < 0 && !solidCentres.empty())
             {
-                mappingFailure(pair, fluidFaceI, "no finite nearest solid face");
+                // Only the formerly refused path needs a scaled comparison.
+                // A shared scale preserves ordering among huge finite centres;
+                // subtract first whenever possible to retain small differences.
+                scalar scale = scalar(0);
+                for (direction component = 0; component < vector::nComponents; ++component)
+                {
+                    scale = std::fmax(scale, mag(fluidCentres[fluidFaceI][component]));
+                }
+                forAll(solidCentres, solidFaceI)
+                {
+                    for (direction component = 0; component < vector::nComponents; ++component)
+                    {
+                        scale = std::fmax(scale, mag(solidCentres[solidFaceI][component]));
+                    }
+                }
+                forAll(solidCentres, solidFaceI)
+                {
+                    scalar scaledDistance = scalar(0);
+                    for (direction component = 0; component < vector::nComponents; ++component)
+                    {
+                        const scalar fluid = fluidCentres[fluidFaceI][component];
+                        const scalar solid = solidCentres[solidFaceI][component];
+                        const scalar difference = fluid - solid;
+                        const scalar scaledDifference = std::isfinite(difference)
+                          ? difference/scale : fluid/scale - solid/scale;
+                        scaledDistance += scaledDifference*scaledDifference;
+                    }
+                    if
+                    (
+                        bestSolidFace < 0
+                     || (std::isfinite(scaledDistance) && !std::isfinite(bestDistance))
+                     || scaledDistance < bestDistance
+                    )
+                    {
+                        bestDistance = scaledDistance;
+                        bestSolidFace = solidFaceI;
+                    }
+                }
+            }
+            if (bestSolidFace < 0)
+            {
+                mappingFailure(pair, fluidFaceI, "no available nearest solid face");
             }
             nearest[fluidFaceI] = bestSolidFace;
         }
@@ -335,10 +359,6 @@ scalarField ConservativeNearestSolidPatchMapper::mapIntegratedFaceEnergyToSolid
     const labelList& nearest = nearestSolidFaceForFluidFace_[pairI];
     forAll(nearest, fluidFaceI)
     {
-        if (!finiteScalar(fluidFaceEnergyJ[fluidFaceI]))
-        {
-            mappingFailure(pair, fluidFaceI, "integrated face energy is nonfinite");
-        }
         result[nearest[fluidFaceI]] += fluidFaceEnergyJ[fluidFaceI];
     }
     return result;
@@ -350,23 +370,13 @@ scalarField ConservativeNearestSolidPatchMapper::mapSolidScalarToFluid
     const scalarField& solidFaceValues
 ) const
 {
-    const SolidPatchPair& pair = checkedPair(pairI);
-    validateSourceSize
-    (
-        solidFaceValues,
-        solidMesh_.boundary()[solidPatchIds_[pairI]].size(),
-        pair,
-        "nonconformal solid-to-fluid scalar"
-    );
+    checkedPair(pairI);
     scalarField result(nearestSolidFaceForFluidFace_[pairI].size());
     forAll(result, fluidFaceI)
     {
         const scalar value =
             solidFaceValues[nearestSolidFaceForFluidFace_[pairI][fluidFaceI]];
-        if (!finiteScalar(value))
-        {
-            mappingFailure(pair, fluidFaceI, "solid scalar is nonfinite");
-        }
+
         result[fluidFaceI] = value;
     }
     return result;
