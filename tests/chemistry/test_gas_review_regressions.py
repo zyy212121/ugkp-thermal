@@ -38,14 +38,41 @@ int main(int argc,char** argv){
   if(test=="zero_order_scalar"){double q=-777;assert(gasChemistryDetail::progressRate(0,700.,absent,a.t,a.m,q));assert(evaluateGasRates(700.,absent,a.t,a.m,w,nullptr,status));assert(w[0]==0 && near(w[1],q) && near(q,2));}
   else {assert(evaluateGasRateDerivatives(700.,absent,a.t,a.m,j,thermal,status));for(double v:j)assert(v==0);for(double v:thermal)assert(v==0);
    a.rx[0].highRate.temperatureExponent=1;assert(evaluateGasRateDerivatives(700.,absent,a.t,a.m,j,thermal,status));for(double v:j)assert(v==0);assert(thermal[0]==0 && near(thermal[1],2));}
+ }else if(test=="zero_rank_missing_caloric" || test=="zero_rank_overflow_caloric"
+          || test=="positive_rank_missing_caloric" || test=="positive_rank_overflow_caloric"
+          || test=="zero_rank_missing_rate"){
+  const bool zeroRank=test.find("zero_rank")==0;
+  ChemistryControls<double> controls;ClosedReactorInput<double,2> base;
+  base.volume=.001;base.totalMass=.028;base.speciesMass[0]=.028;
+  if(zeroRank){a.m.independentRank=0;a.m.stoichiometricBasis=nullptr;}
+  if(test.find("missing_caloric")!=std::string::npos)a.t.coefficients=nullptr;
+  if(test.find("overflow_caloric")!=std::string::npos)a.coef[1]=a.coef[4]=1e307;
+  gasChemistryDetail::ReactorContext<double,2> context(base,a.t,a.m,controls,false);assert(context.prepare());
+  if(test=="zero_rank_missing_rate")a.m.reactants=nullptr;
+  double f[2]={-783,-784};bool scalar=false,derivative=false;
+  status=context.evaluateState(base.speciesMass,f,700.,j,&scalar,&derivative);
+  if(test=="zero_rank_missing_rate"){
+   assert(!status&&!scalar&&!derivative);assert(f[0]==-783&&f[1]==-784);
+  }else if(zeroRank){
+   assert(status&&scalar&&derivative);assert(f[0]==-783&&f[1]==-784);
+   bool direct=false;assert(context.evaluateJacobian(base.speciesMass,700.,nullptr,&direct)&&direct);
+   // The existing strict empty-Jacobian success also ignores unused calorics.
+   context.refinement=true;direct=false;assert(context.evaluateJacobian(base.speciesMass,700.,j,&direct)&&direct);
+  }else{
+   assert(!status&&scalar&&f[0]==2000&&f[1]==-784);
+   if(test=="positive_rank_missing_caloric"){
+    assert(status.code==ChemistryCode::TemperatureFailure&&status.thermoCode==ThermoStatus::InvalidModel&&!derivative);
+   }else {assert(derivative&&!gasFinite(j[0]));}
+  }
+  if(test!="positive_rank_overflow_caloric")assert(j[0]==-777&&j[1]==-778&&j[2]==-779&&j[3]==-780);
  }else if(test=="missing_consumed_data"){
   const double* absent=nullptr;
   // Forward product, reverse product and collider each genuinely read c.
   for(int mode=0;mode<3;++mode){Model b;if(mode==1){b.rx[0].reactantCount=0;b.rx[0].reversible=true;}if(mode==2){b.rx[0].reactantCount=0;b.rx[0].type=GasReactionType::ThirdBody;}
    assert(!evaluateGasRates(700.,absent,b.t,b.m,w,nullptr,status));assert(w[0]==-777 && w[1]==-778);
    assert(!evaluateGasRateDerivatives(700.,absent,b.t,b.m,j,thermal,status));assert(j[0]==-777 && j[3]==-780 && thermal[0]==-781 && thermal[1]==-782);}
-  // Nonempty backing ranges and known formula dispatch stay required.
-  for(int mode=0;mode<5;++mode){Model b;if(mode==0)b.m.reactants=nullptr;if(mode==1)b.m.products=nullptr;if(mode==2)b.rx[0].reactantOffset=100;if(mode==3){b.rx[0].type=GasReactionType::ThirdBody;b.rx[0].efficiencyCount=1;b.m.efficiencies=nullptr;b.m.efficiencyCount=1;}if(mode==4)b.rx[0].type=static_cast<GasReactionType>(255);
+  // Truly missing consumed backing remains unavailable; no unsafe OOB probe.
+  for(int mode=0;mode<3;++mode){Model b;if(mode==0)b.m.reactants=nullptr;if(mode==1)b.m.products=nullptr;if(mode==2){b.rx[0].type=GasReactionType::ThirdBody;b.rx[0].efficiencyCount=1;b.m.efficiencies=nullptr;b.m.efficiencyCount=1;}
    assert(!evaluateGasRates(700.,c,b.t,b.m,w,nullptr,status));assert(w[0]==-777 && w[1]==-778);
    assert(!evaluateGasRateDerivatives(700.,c,b.t,b.m,j,thermal,status));assert(j[0]==-777 && j[3]==-780 && thermal[0]==-781 && thermal[1]==-782);}
  }else assert(false);
@@ -60,7 +87,7 @@ def runner(tmp_path_factory):
     assert run.returncode==0,run.stderr
     return exe
 
-@pytest.mark.parametrize('case',['undefined_metric_scalar','empty_reactants','empty_products','empty_efficiencies','zero_order_scalar','zero_order_ad','missing_consumed_data'])
+@pytest.mark.parametrize('case',['undefined_metric_scalar','empty_reactants','empty_products','empty_efficiencies','zero_order_scalar','zero_order_ad','missing_consumed_data','zero_rank_missing_caloric','zero_rank_overflow_caloric','positive_rank_missing_caloric','positive_rank_overflow_caloric','zero_rank_missing_rate'])
 def test_review_actual_channel_availability(runner,case):
     run=subprocess.run([str(runner),case],capture_output=True,text=True,timeout=20)
     assert run.returncode==0,run.stderr

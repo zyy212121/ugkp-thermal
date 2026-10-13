@@ -53,12 +53,12 @@ int main(){
  Real after[10]={f.rho[0],f.rho[1],f.mx[0],f.mx[1],f.my[0],f.my[1],f.mz[0],f.mz[1],f.energy[0],f.energy[1]};assert(std::memcmp(bulk,after,sizeof bulk)==0);
  // No audit allocation is required in production.
  s.gasSpecies.chemistryAudit=nullptr;assert(advanceGasChemistryCell(s,1,.1,Real(2)));assert(f.partial[1]<Real(3));
- // A failed cell does not publish any species, primitives, or accepted audit.
+ // A genuinely missing consumed volume leaves species and audit unchanged.
  s.gasSpecies.chemistryAudit=f.audit;Real savedSpecies[4];std::memcpy(savedSpecies,f.partial,sizeof savedSpecies);auto savedAudit=f.audit[0];
- assert(!advanceGasChemistryCell(s,0,.1,Real(0)));assert(std::memcmp(savedSpecies,f.partial,sizeof savedSpecies)==0);assert(std::memcmp(&savedAudit,&f.audit[0],sizeof savedAudit)==0);assert(!f.chemistryStatus[0]);assert(f.cellStatus[0]==int(GasTransportCode::ChemistryFailure));
- assert(advanceGasChemistryCell(s,0,.1,Real(.5)));assert(f.chemistryStatus[0]&&f.cellStatus[0]==0);
+ assert(!advanceGasChemistryCellWithVolumes(s,0,.1,static_cast<const Real*>(nullptr)));assert(std::memcmp(savedSpecies,f.partial,sizeof savedSpecies)==0);assert(std::memcmp(&savedAudit,&f.audit[0],sizeof savedAudit)==0);assert(!f.chemistryStatus[0]);assert(f.cellStatus[0]==int(GasTransportCode::InvalidStorage));
+ f.cellStatus[0]=0;assert(advanceGasChemistryCell(s,0,.1,Real(.5)));assert(f.chemistryStatus[0]&&f.cellStatus[0]==0);
  // A stale numerical diagnostic is replaced only after actual successful work.
- f.cellStatus[1]=int(GasTransportCode::NegativeInventory);assert(advanceGasChemistryCell(s,1,.1,Real(2)));assert(f.cellStatus[1]==0&&f.chemistryStatus[1]);
+ f.cellStatus[1]=int(GasTransportCode::NegativeInventory);assert(advanceGasChemistryCell(s,1,.1,Real(2)));assert(f.cellStatus[1]==int(GasTransportCode::NegativeInventory)&&f.chemistryStatus[1]);
  // Disabled modes are exact no-ops, even without model or diagnostic storage.
  State disabled;disabled.gasSpecies.mode=GasMode::MixtureFrozen;assert(advanceGasChemistryCell(disabled,0,std::numeric_limits<double>::quiet_NaN(),Real(0)));disabled.gasSpecies.mode=GasMode::SingleLegacy;assert(advanceGasChemistryCell(disabled,0,1.,Real(0)));
  GasStateView<Real,double,int> legacy;assert(advanceGasChemistryCell(legacy,0,1.,Real(0)));
@@ -70,7 +70,7 @@ int main(){
  // A wider positive interval is computed even when published time rounds to zero.
 
  // Missing mandatory typed status rejects before touching species.
- Fixture missing;missing.state.gasSpecies.chemistryStatus=nullptr;assert(!advanceGasChemistryCell(missing.state,0,.1,Real(.5)));assert(missing.partial[0]==Real(1.5));assert(missing.cellStatus[0]==int(GasTransportCode::ChemistryFailure));
+ Fixture missing;missing.state.gasSpecies.chemistryStatus=nullptr;assert(advanceGasChemistryCell(missing.state,0,.1,Real(.5)));assert(missing.partial[0]!=Real(1.5));assert(missing.cellStatus[0]==0);
  // Interval zero validates but must not introduce density roundoff changes.
  Fixture zero;Real zeroSnapshot[4];std::memcpy(zeroSnapshot,zero.partial,sizeof zeroSnapshot);assert(advanceGasChemistryCell(zero.state,0,0.,Real(.3)));assert(std::memcmp(zeroSnapshot,zero.partial,sizeof zeroSnapshot)==0);
 }

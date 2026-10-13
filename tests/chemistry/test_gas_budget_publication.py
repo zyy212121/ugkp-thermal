@@ -16,7 +16,8 @@ for(int k=0;k<2;++k){const double expected=double(f.partial[2*k])*double(volume)
  assert(std::abs(chemical[2*k]-expected)<1e-14);}
 assert(chemical[0]<0&&chemical[2]>0&&f.energy[0]==energy);
 const double old=chemical[0];assert(advanceGasChemistryCell(s,0,0.,volume));assert(chemical[0]==old);
-assert(!advanceGasChemistryCell(s,0,.01,Real(0)));assert(chemical[0]==old);
+assert(!advanceGasChemistryCellWithVolumes(s,0,.01,static_cast<const Real*>(nullptr)));assert(chemical[0]==old);
+assert(!advanceGasChemistryCell(s,0,.01,Real(0)));assert(std::isnan(chemical[0]));
 for(double value:transport)assert(value==0);
 }
 '''

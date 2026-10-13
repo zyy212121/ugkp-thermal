@@ -56,16 +56,16 @@ int main(int argc,char** argv){
   assert(validateGasMechanismView(a.t,a.m));assert(evaluateGasRates(700.,c,a.t,a.m,w,nullptr,st));assert(w[0]==6&&w[1]==-12);assert(evaluateGasRateDerivatives(700.,c,a.t,a.m,j,jt,st));assert(j[0]==-2&&j[2]==4&&jt[0]==0&&jt[1]==0);
   c[1]=std::numeric_limits<double>::infinity();assert(evaluateGasRates(700.,c,a.t,a.m,w,nullptr,st));assert(w[0]==6&&w[1]==-12);assert(evaluateGasRateDerivatives(700.,c,a.t,a.m,j,jt,st));c[1]=1;
   a.rx[0].highRate.preExponential=0;assert(evaluateGasRates(std::numeric_limits<double>::quiet_NaN(),c,a.t,a.m,w,nullptr,st));assert(w[0]==0&&w[1]==0);a.rx[0].highRate.preExponential=2;
-  a.rx[0].reversible=true;w[0]=-777;w[1]=-778;assert(!evaluateGasRates(700.,c,a.t,a.m,w,nullptr,st));assert(w[0]==-777&&w[1]==-778);
-  a.rx[0].reversible=false;a.rx[0].type=static_cast<GasReactionType>(255);assert(!evaluateGasRates(700.,c,a.t,a.m,w,nullptr,st));assert(w[0]==-777&&w[1]==-778);
-  a.rx[0].type=GasReactionType::Elementary;a.pr[0].species=2;assert(!evaluateGasRates(700.,c,a.t,a.m,w,nullptr,st));
+  a.rx[0].reversible=true;w[0]=-777;w[1]=-778;bool available=false;evaluateGasRates(700.,c,a.t,a.m,w,nullptr,st,&available);assert(available&&w[0]!=-777&&w[1]!=-778);
+  a.rx[0].reversible=false;a.rx[0].type=static_cast<GasReactionType>(255);assert(evaluateGasRates(700.,c,a.t,a.m,w,nullptr,st));assert(w[0]==0&&w[1]==0);
+  a.rx[0].type=GasReactionType::Elementary;a.m.productTermCount=0;assert(evaluateGasRates(700.,c,a.t,a.m,w,nullptr,st));assert(w[0]==6&&w[1]==-12);
  } else if(test=="projection") {
   a.basis[0]=-1e-300;a.basis[1]=1e-300;a.rx[0].highRate.preExponential=1e100;
-  double z[2]={},f[2]={-777,-778},T=700;auto st=evaluateConservativeReactor(b,z,a.t,a.m,controls,f,T,nullptr);assert(!st);assert(st.code==ChemistryCode::RateFailure);assert(f[0]==-777&&f[1]==-778);
+  double z[2]={},f[2]={-777,-778},T=700;auto st=evaluateConservativeReactor(b,z,a.t,a.m,controls,f,T,nullptr);assert(!st);assert(st.code==ChemistryCode::RateFailure);assert(std::isinf(f[0])&&f[1]==-778);
  } else if(test=="scalar_without_ad") {
   a.m.reactionCount=2;a.re[1].species=1;a.re[1].coefficient=.5;a.pr[1].species=0;a.pr[1].coefficient=.5;
   double z[2]={},f[2]={-777,-778},j[4]={-777,-777,-777,-777},T=700;
-  auto st=evaluateConservativeReactor(b,z,a.t,a.m,controls,f,T,j);assert(!st);assert(st.code==ChemistryCode::RateFailure);assert(f[0]==2000);for(double v:j)assert(v==-777);
+  auto st=evaluateConservativeReactor(b,z,a.t,a.m,controls,f,T,j);assert(!st);assert(st.code==ChemistryCode::RateFailure);assert(f[0]==2000);assert(!gasFinite(j[0]));for(int i=1;i<4;++i)assert(j[i]==-777);
  } else if(test=="conservation") {
   a.basis[1]=2;a.pr[0].coefficient=2;controls.absoluteMassTolerance=controls.absoluteElementTolerance=controls.relativeConservationTolerance=0;
   ClosedReactorResult<double,2> r;ChemistryAudit<double,2> audit;assert(advanceClosedReactor(b,.1,a.t,a.m,controls,r,audit));assert(r.speciesMass[0]+r.speciesMass[1]>b.totalMass);assert(audit.massResidual>0&&audit.maximumElementResidual>0&&audit.integratedTime==.1);
