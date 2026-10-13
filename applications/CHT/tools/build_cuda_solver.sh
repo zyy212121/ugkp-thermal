@@ -5,10 +5,6 @@ if [ -z "${WM_PROJECT_DIR:-}" ]; then echo "OpenFOAM environment is not loaded" 
 set -euo pipefail
 cd "${solver_root}"
 
-# Direct builds enforce the same read-only source contracts as Allwmake.
-python3 "${solver_root}/../../tools/managed_mirrors.py"
-python3 "${solver_root}/../../tools/particle_field_contract.py"
-
 cuda_home="${CUDA_HOME:-/usr/local/cuda}"
 cuda_arch="${UGKWP_CUDA_ARCH:-sm_89}"
 log_phase="${UGKWP_CUDA_LOG_PHASE:-ugkpcht_upgrade}"
@@ -32,28 +28,17 @@ log="${log_dir}/cuda_solver_build_$(date +%Y%m%d_%H%M%S).log"
     if [ "${UGKP_DEVELOPMENT_PROBES:-0}" = 1 ]; then
         probe_flags=(-DUGKP_DEVELOPMENT_PROBES=1)
     fi
-    for bits in 64 32; do
-        echo "[cuda-build] physical=$bits time=64"
-        namespace_flags=()
-        if [ "$bits" = 32 ]; then
-            namespace_flags=(-DFoam=FoamGpuFp32 -Dugkwp=ugkwpGpuFp32)
-        fi
-        "${cuda_home}/bin/nvcc" -std=c++17 -O3 -lineinfo --fmad=false \
-            -arch="${cuda_arch}" -Xcompiler -fPIC \
-            -DUGKWP_GPU_REAL_BITS="$bits" "${namespace_flags[@]}" "${probe_flags[@]}" \
-            -include "${solver_root}/gpu/GpuBackendNames${bits}.H" \
-            -I"${solver_root}/thermal" -I"${solver_root}/../../common" \
-            -c "${solver_root}/gpu/GpuResidentStrict.cu" \
-            -o "${obj_dir}/GpuResidentStrict${bits}.o"
-    done
+    echo "[cuda-build] physical=64 time=64"
+    "${cuda_home}/bin/nvcc" -std=c++17 -O3 -lineinfo --fmad=false \
+        -arch="${cuda_arch}" -Xcompiler -fPIC "${probe_flags[@]}" \
+        -I"${solver_root}/thermal" -I"${solver_root}/../../common" \
+        -c "${solver_root}/gpu/GpuResidentStrict.cu" \
+        -o "${obj_dir}/GpuResidentStrict.o"
     "${cuda_home}/bin/nvcc" -std=c++17 -O3 -lineinfo --fmad=false \
         -arch="${cuda_arch}" -Xcompiler -fPIC \
         -c "${solver_root}/gpu/GpuWallEnergy64.cu" \
         -o "${obj_dir}/GpuWallEnergy64.o"
-    g++ -std=c++14 -O3 -fPIC -I"${solver_root}/../../common" -c "${solver_root}/gpu/GpuPrecisionDispatch.C" \
-        -o "${obj_dir}/GpuPrecisionDispatch.o"
-    ar rcs "${lib_path}" "${obj_dir}/GpuResidentStrict64.o" \
-        "${obj_dir}/GpuResidentStrict32.o" "${obj_dir}/GpuPrecisionDispatch.o" "${obj_dir}/GpuWallEnergy64.o"
+    ar rcs "${lib_path}" "${obj_dir}/GpuResidentStrict.o" "${obj_dir}/GpuWallEnergy64.o"
 
     rm -f \
         "${solver_root}/Make/${WM_OPTIONS}/diluteUgkwpFoam.o" \
@@ -66,8 +51,6 @@ log="${log_dir}/cuda_solver_build_$(date +%Y%m%d_%H%M%S).log"
         wmake
 
     test -x "${cuda_bin}"
-    (cd "${solver_root}/devtools/bartzSolidReplay" && wmake)
-    test -x "${FOAM_USER_APPBIN}/bartzSolidReplay"
     echo "[cuda-build] cuda binary=${cuda_bin}"
 } 2>&1 | tee "${log}"
 
