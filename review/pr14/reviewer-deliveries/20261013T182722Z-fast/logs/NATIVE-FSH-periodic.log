@@ -1,0 +1,41 @@
+/*---------------------------------------------------------------------------*\
+  =========                 |
+  \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
+   \\    /   O peration     | Website:  https://openfoam.org
+    \\  /    A nd           | Version:  10
+     \\/     M anipulation  |
+\*---------------------------------------------------------------------------*/
+Build  : 10-c4cf895ad8fa
+Exec   : /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261013T182722Z-fast/work/install/ns2/bin/FSH -case /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261013T182722Z-fast/work/cases/resident/FSH-periodic
+Date   : Oct 14 2026
+Time   : 02:52:18
+Host   : "lss"
+PID    : 51665
+I/O    : uncollated
+Case   : /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261013T182722Z-fast/work/cases/resident/FSH-periodic
+nProcs : 1
+sigFpe : Enabling floating point exception trapping (FOAM_SIGFPE).
+fileModificationChecking : Monitoring run-time modified files using timeStampMaster (fileModificationSkew 10)
+allowSystemOperations : Allowing user-supplied system call operations
+
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+Create time
+
+FSH: weighted-parcel separated-backend GPU-Riemann-GKP/FSH solver
+Create mesh for time = 0
+
+Particle force configuration: dragModel=SchillerNaumann particleGasHeatTransferModel=RanzMarshall g=(0 0 0)
+Particle cell path: csrCellLocalPath=1 heavyReductionMode=0 warpAggregatedBinning=1 B2=128 B3=128 heavyAutoInterval=100
+Tracking geometry: B2=128 blocksPerSM=5 grid=1
+Launch geometry: B1cell=128 B1face=128 (ToolB1 pending) B2=128 B3=128 SM=24 lightBlocksPerSM=4 heavyBlocksPerSM=0
+Particle stuck model: candidatePatches=0() SommerfeldThreshold=20 heatTransfer=0 aluminaWallProperties=temperatureDependent depositionHeatTransferEfficiency=1 reflectionHeatTransferEfficiency=1 adhesionEnergyScale=1 contactAngleDegree=145 defaultWallInteractionModel=coldWall1D coldWall=0 wallDensity=1800 wallSpecificHeat=710 wallThermalConductivity=100
+
+
+--> FOAM FATAL ERROR: 
+Invalid legacy GPU resident particle restart count: "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261013T182722Z-fast/work/cases/resident/FSH-periodic/0/gpuResidentStrictParticles.dat"
+
+    From function void Foam::GpuResidentStrictBase::initialiseBase(const Foam::Time&, const Foam::fvMesh&, const volScalarField&, const volVectorField&, const volScalarField&, const volVectorField&, const volScalarField&, const volScalarField&, const volScalarField&, const volVectorField&, const volScalarField&, const volScalarField&, const volScalarField&, const volVectorField&, const volScalarField&, const volScalarField&, const volScalarField&, Foam::scalar, Foam::scalar, Foam::label, Foam::label, long long unsigned int, Foam::scalar, Foam::scalar, bool, Foam::scalar, bool, Foam::label, Foam::scalar, Foam::scalar, Foam::label, Foam::scalar, Foam::scalar, Foam::scalar, Foam::scalar, Foam::label, Foam::label, Foam::label, Foam::label, bool, Foam::label, Foam::scalar, Foam::scalar, Foam::scalar, Foam::scalar, Foam::scalar, Foam::scalar, Foam::scalar, Foam::scalar, Foam::scalar, Foam::scalar, Foam::scalar, Foam::scalar, Foam::scalar, Foam::scalar, Foam::scalar, Foam::scalar, Foam::scalar, bool, const Foam::GpuSchedulingConfiguration&, const Foam::dictionary*)
+    in file gpu/GpuResidentStrict.H at line 793.
+
+FOAM exiting
+

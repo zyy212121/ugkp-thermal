@@ -116,5 +116,678 @@
   "source_review_final": true,
   "gpu_acceptance_final": false,
   "limits": "Source findings closed only to cited scoped evidence; final pass2 source review is complete with documented coverage limits. All real-GPU acceptance remains pending.",
-  "source_review_lineage": "a164 category-level review plus independently reviewed 970 codec and a73 mapper deltas; no all-files re-review or runtime acceptance"
+  "source_review_lineage": "a164 category-level review plus independently reviewed 970 codec and a73 mapper deltas; no all-files re-review or runtime acceptance",
+  "independent_reviewer_delivery_history": [
+    {
+      "recorded_utc": "2026-10-13T21:08:47.584795+00:00",
+      "delivery_path": "reviewer-deliveries/20261013T182722Z-fast",
+      "findings": [
+        {
+          "id": "GPU-F001",
+          "priority": "P1",
+          "status": "OPEN",
+          "topics": [
+            10,
+            12,
+            14,
+            26
+          ],
+          "path": "common/operators/advanceGasChemistryKernel.cuh",
+          "functions": [
+            "advanceGasChemistryCell",
+            "advanceGasChemistryKernel"
+          ],
+          "title": "nativeRefinement ignored by reactor selection",
+          "red": "logs/CHECK-CHEM-RETRY-RED.log",
+          "patches": [
+            "P002"
+          ],
+          "green": "logs/CHECK-CHEM-RETRY-P002.log",
+          "limit": "Full native requested-interval retry and unavailable-model classification still require formal repair/recheck.",
+          "source_commit": "802a11e7dfe986488a8bf8305e86424dcc94c9e1",
+          "formal_fix_commit": null,
+          "merge_authorized": false,
+          "source_locators": [
+            {
+              "file_id": "F014-405af05f5909",
+              "path": "common/operators/advanceGasChemistryKernel.cuh",
+              "head_blob": "79db0a10ba4a12c93973aad036f2e7c642931658",
+              "sha256": "0b54549cdbcd52d2799cafa6c7484cde74cf7f256dad859ffa5b852463918a7a",
+              "function_locators": [
+                {
+                  "id": "FN014-477ee9937ec4",
+                  "symbol": "advanceGasChemistryCell",
+                  "locator_kind": "function_symbol",
+                  "git_hunk_context": "UGKWP_GAS_HD inline ChemistryStatus advanceGasChemistryCell",
+                  "supplementary_line": 50,
+                  "source_sha256": "0b54549cdbcd52d2799cafa6c7484cde74cf7f256dad859ffa5b852463918a7a",
+                  "requests": [
+                    "R014-010",
+                    "R014-013",
+                    "R014-014",
+                    "R014-015",
+                    "R014-016"
+                  ],
+                  "review_status": "GPU_REVIEW_PENDING"
+                },
+                {
+                  "id": "FN014-377608d78fc9",
+                  "symbol": "recordFailure",
+                  "locator_kind": "function_symbol",
+                  "git_hunk_context": "UGKWP_GAS_HD inline ChemistryStatus recordFailure",
+                  "supplementary_line": 21,
+                  "source_sha256": "0b54549cdbcd52d2799cafa6c7484cde74cf7f256dad859ffa5b852463918a7a",
+                  "requests": [
+                    "R014-010",
+                    "R014-013",
+                    "R014-014",
+                    "R014-015",
+                    "R014-016"
+                  ],
+                  "review_status": "GPU_REVIEW_PENDING"
+                },
+                {
+                  "id": "FN014-3f7171a55125",
+                  "symbol": "advanceGasChemistryKernel",
+                  "locator_kind": "function_symbol",
+                  "git_hunk_context": "__global__ void advanceGasChemistryKernel",
+                  "supplementary_line": 271,
+                  "source_sha256": "0b54549cdbcd52d2799cafa6c7484cde74cf7f256dad859ffa5b852463918a7a",
+                  "requests": [
+                    "R014-010",
+                    "R014-013",
+                    "R014-014",
+                    "R014-015",
+                    "R014-016"
+                  ],
+                  "review_status": "GPU_REVIEW_PENDING"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "GPU-F002",
+          "priority": "P1",
+          "status": "OPEN",
+          "topics": [
+            12,
+            18,
+            20,
+            26,
+            33
+          ],
+          "path": "common/wall/GpuColdWall2DDevice.cuh",
+          "functions": [
+            "advanceColdWall2DThermalGroup",
+            "relaxColdWall2DParticlesToResidentGasKernel"
+          ],
+          "title": "Allocated zero per-face effusivity hides available scalar fallback, NaN actual cold output",
+          "red": "logs/CHT-COLD2D-P006.log",
+          "patches": [
+            "P007",
+            "P010"
+          ],
+          "green": "logs/FIELDS3-CHT-coldWall2D-P010.log",
+          "limit": "Preexisting producer gap, not proven old successful-path regression; actual dictionary retired scalar values not consumed; mixed coupled/uncoupled formal owner recheck pending.",
+          "source_commit": "802a11e7dfe986488a8bf8305e86424dcc94c9e1",
+          "formal_fix_commit": null,
+          "merge_authorized": false,
+          "source_locators": [
+            {
+              "file_id": "F014-25f5122cd935",
+              "path": "common/wall/GpuColdWall2DDevice.cuh",
+              "head_blob": "ea30a71ab14982a8f5420177145487ead42134ec",
+              "sha256": "903b5b615caa4f7aa432126c04a07c054335f04038bf941362a3078e10fe0a61",
+              "function_locators": [
+                {
+                  "id": "FN014-58a69b7aed98",
+                  "symbol": "advanceColdWall2DThermalGroup",
+                  "locator_kind": "function_symbol",
+                  "git_hunk_context": "__device__ bool advanceColdWall2DThermalGroup",
+                  "supplementary_line": 108,
+                  "source_sha256": "903b5b615caa4f7aa432126c04a07c054335f04038bf941362a3078e10fe0a61",
+                  "requests": [
+                    "R014-033"
+                  ],
+                  "review_status": "GPU_REVIEW_PENDING"
+                },
+                {
+                  "id": "FN014-d1bed3a4d1a4",
+                  "symbol": "clearColdWall2DParticleState",
+                  "locator_kind": "function_symbol",
+                  "git_hunk_context": "__device__ void clearColdWall2DParticleState",
+                  "supplementary_line": 35,
+                  "source_sha256": "903b5b615caa4f7aa432126c04a07c054335f04038bf941362a3078e10fe0a61",
+                  "requests": [
+                    "R014-033"
+                  ],
+                  "review_status": "GPU_REVIEW_PENDING"
+                },
+                {
+                  "id": "FN014-b1795ec0e7a7",
+                  "symbol": "initialiseColdWall2DParticleState",
+                  "locator_kind": "function_symbol",
+                  "git_hunk_context": "__device__ void initialiseColdWall2DParticleState",
+                  "supplementary_line": 65,
+                  "source_sha256": "903b5b615caa4f7aa432126c04a07c054335f04038bf941362a3078e10fe0a61",
+                  "requests": [
+                    "R014-033"
+                  ],
+                  "review_status": "GPU_REVIEW_PENDING"
+                },
+                {
+                  "id": "FN014-7b909e35de34",
+                  "symbol": "relaxColdWall2DParticlesToResidentGasKernel",
+                  "locator_kind": "function_symbol",
+                  "git_hunk_context": "__global__ void relaxColdWall2DParticlesToResidentGasKernel",
+                  "supplementary_line": 683,
+                  "source_sha256": "903b5b615caa4f7aa432126c04a07c054335f04038bf941362a3078e10fe0a61",
+                  "requests": [
+                    "R014-033"
+                  ],
+                  "review_status": "GPU_REVIEW_PENDING"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "GPU-F003",
+          "priority": "P2-QUALIFICATION",
+          "status": "NEEDS_EXPLANATION",
+          "topics": [
+            14,
+            15,
+            21,
+            22,
+            26,
+            27
+          ],
+          "path": "applications/CHMT/core/WindowTime.H",
+          "functions": [
+            "windowFraction",
+            "advanceGasMicrostep"
+          ],
+          "title": "Tiny original-success FP64 crossversion dt/stamp/packet/momentum difference",
+          "red": "artifacts/performance/native/preflight-comparison.json",
+          "patches": [],
+          "green": null,
+          "limit": "First per-step differing bit not located, original physical thresholds pass; do not label large accuracy failure or semantically approved change.",
+          "source_commit": "802a11e7dfe986488a8bf8305e86424dcc94c9e1",
+          "formal_fix_commit": null,
+          "merge_authorized": false,
+          "source_locators": []
+        },
+        {
+          "id": "GPU-F004",
+          "priority": "P2",
+          "status": "OPEN",
+          "topics": [
+            23,
+            26,
+            29,
+            33
+          ],
+          "path": "common/operators/clearColdWallParticleState.cuh",
+          "additional_path": "common/wall/GpuColdWall2DDevice.cuh",
+          "functions": [
+            "initialiseColdWallParticleState",
+            "initialiseColdWall2DParticleState"
+          ],
+          "title": "Initial float profile cast loses double enthalpy remainder",
+          "red": "logs/FIELDS2-RED-CHT-coldWall1D-INPUT2.log",
+          "patches": [
+            "P010"
+          ],
+          "green": "logs/FIELDS3-CHT-coldWall1D-P010.log",
+          "limit": "P007 jointly needed for2D; FSH shared template and full wall/gas ledger budget not rechecked.",
+          "source_commit": "802a11e7dfe986488a8bf8305e86424dcc94c9e1",
+          "formal_fix_commit": null,
+          "merge_authorized": false,
+          "source_locators": [
+            {
+              "file_id": "F014-6e60a7e18472",
+              "path": "common/operators/clearColdWallParticleState.cuh",
+              "head_blob": "b52573f5e1453a6bed5c039e6e5128d36b24f444",
+              "sha256": "7eed4fea22bb3db4e6363cb7db7c80ac477903aa666bdff69248c588b2216b4d",
+              "function_locators": [
+                {
+                  "id": "FN014-cbbf1c979ed4",
+                  "symbol": "clearColdWallParticleState",
+                  "locator_kind": "function_symbol",
+                  "git_hunk_context": "__device__ void clearColdWallParticleState",
+                  "supplementary_line": 4,
+                  "source_sha256": "7eed4fea22bb3db4e6363cb7db7c80ac477903aa666bdff69248c588b2216b4d",
+                  "requests": [
+                    "R014-023"
+                  ],
+                  "review_status": "GPU_REVIEW_PENDING"
+                },
+                {
+                  "id": "FN014-db0960dc5918",
+                  "symbol": "initialiseColdWallParticleState",
+                  "locator_kind": "function_symbol",
+                  "git_hunk_context": "__device__ void initialiseColdWallParticleState",
+                  "supplementary_line": 28,
+                  "source_sha256": "7eed4fea22bb3db4e6363cb7db7c80ac477903aa666bdff69248c588b2216b4d",
+                  "requests": [
+                    "R014-023"
+                  ],
+                  "review_status": "GPU_REVIEW_PENDING"
+                }
+              ]
+            },
+            {
+              "file_id": "F014-25f5122cd935",
+              "path": "common/wall/GpuColdWall2DDevice.cuh",
+              "head_blob": "ea30a71ab14982a8f5420177145487ead42134ec",
+              "sha256": "903b5b615caa4f7aa432126c04a07c054335f04038bf941362a3078e10fe0a61",
+              "function_locators": [
+                {
+                  "id": "FN014-58a69b7aed98",
+                  "symbol": "advanceColdWall2DThermalGroup",
+                  "locator_kind": "function_symbol",
+                  "git_hunk_context": "__device__ bool advanceColdWall2DThermalGroup",
+                  "supplementary_line": 108,
+                  "source_sha256": "903b5b615caa4f7aa432126c04a07c054335f04038bf941362a3078e10fe0a61",
+                  "requests": [
+                    "R014-033"
+                  ],
+                  "review_status": "GPU_REVIEW_PENDING"
+                },
+                {
+                  "id": "FN014-d1bed3a4d1a4",
+                  "symbol": "clearColdWall2DParticleState",
+                  "locator_kind": "function_symbol",
+                  "git_hunk_context": "__device__ void clearColdWall2DParticleState",
+                  "supplementary_line": 35,
+                  "source_sha256": "903b5b615caa4f7aa432126c04a07c054335f04038bf941362a3078e10fe0a61",
+                  "requests": [
+                    "R014-033"
+                  ],
+                  "review_status": "GPU_REVIEW_PENDING"
+                },
+                {
+                  "id": "FN014-b1795ec0e7a7",
+                  "symbol": "initialiseColdWall2DParticleState",
+                  "locator_kind": "function_symbol",
+                  "git_hunk_context": "__device__ void initialiseColdWall2DParticleState",
+                  "supplementary_line": 65,
+                  "source_sha256": "903b5b615caa4f7aa432126c04a07c054335f04038bf941362a3078e10fe0a61",
+                  "requests": [
+                    "R014-033"
+                  ],
+                  "review_status": "GPU_REVIEW_PENDING"
+                },
+                {
+                  "id": "FN014-7b909e35de34",
+                  "symbol": "relaxColdWall2DParticlesToResidentGasKernel",
+                  "locator_kind": "function_symbol",
+                  "git_hunk_context": "__global__ void relaxColdWall2DParticlesToResidentGasKernel",
+                  "supplementary_line": 683,
+                  "source_sha256": "903b5b615caa4f7aa432126c04a07c054335f04038bf941362a3078e10fe0a61",
+                  "requests": [
+                    "R014-033"
+                  ],
+                  "review_status": "GPU_REVIEW_PENDING"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "GPU-F005",
+          "priority": "P2",
+          "status": "OPEN",
+          "topics": [
+            9,
+            12,
+            14,
+            15,
+            26,
+            28
+          ],
+          "path": "applications/CHMT/gpu/Backend.cu",
+          "functions": [
+            "currentGasCourant",
+            "CoupledCourantValue"
+          ],
+          "title": "Thrust16byte reduction result transfers seven uninitialized tail bytes",
+          "red": "logs/SAN-FINAL-CHMT-thermal-initcheck.log",
+          "patches": [
+            "P011-v2"
+          ],
+          "green": "logs/CO-P011-initcheck.log",
+          "limit": "Unconsumed padding; not evidence Co/Js numerical fields uninitialized. Same all output bytes; formal Ns10/config recheck pending.",
+          "source_commit": "802a11e7dfe986488a8bf8305e86424dcc94c9e1",
+          "formal_fix_commit": null,
+          "merge_authorized": false,
+          "source_locators": [
+            {
+              "file_id": "F014-3d8a885ad5e7",
+              "path": "applications/CHMT/gpu/Backend.cu",
+              "head_blob": "e6eecc3233f74253b469a753ea8c460fda9aa00c",
+              "sha256": "fdec130622e33e1ed3aaea7b7d434e327fe2c17ab363e042214f7b6bf3183bfe",
+              "function_locators": [
+                {
+                  "id": "FN014-79ccda8103f9",
+                  "symbol": "createBackend",
+                  "locator_kind": "function_symbol",
+                  "git_hunk_context": "Backend* createBackend(const ModelConfig& model,const ugkwp::GasModelConfigurati",
+                  "supplementary_line": 341,
+                  "source_sha256": "fdec130622e33e1ed3aaea7b7d434e327fe2c17ab363e042214f7b6bf3183bfe",
+                  "requests": [
+                    "R014-011",
+                    "R014-012",
+                    "R014-013",
+                    "R014-014",
+                    "R014-015",
+                    "R014-016"
+                  ],
+                  "review_status": "GPU_REVIEW_PENDING"
+                },
+                {
+                  "id": "FN014-d2cb8f63be7e",
+                  "symbol": "advanceGasMicrostep",
+                  "locator_kind": "function_symbol",
+                  "git_hunk_context": "bool advanceGasMicrostep(Backend& b,Real cap,GasMicroReport& report,std::string&",
+                  "supplementary_line": 420,
+                  "source_sha256": "fdec130622e33e1ed3aaea7b7d434e327fe2c17ab363e042214f7b6bf3183bfe",
+                  "requests": [
+                    "R014-011",
+                    "R014-012",
+                    "R014-013",
+                    "R014-014",
+                    "R014-015",
+                    "R014-016"
+                  ],
+                  "review_status": "GPU_REVIEW_PENDING"
+                },
+                {
+                  "id": "FN014-17f4ed26be49",
+                  "symbol": "beginGasWindow",
+                  "locator_kind": "function_symbol",
+                  "git_hunk_context": "bool beginGasWindow(Backend& b,const WallProgram& program,std::string& error,con",
+                  "supplementary_line": null,
+                  "source_sha256": "fdec130622e33e1ed3aaea7b7d434e327fe2c17ab363e042214f7b6bf3183bfe",
+                  "requests": [
+                    "R014-011",
+                    "R014-012",
+                    "R014-013",
+                    "R014-014",
+                    "R014-015",
+                    "R014-016"
+                  ],
+                  "review_status": "GPU_REVIEW_PENDING"
+                },
+                {
+                  "id": "FN014-60d38cb207cf",
+                  "symbol": "commitGasWindow",
+                  "locator_kind": "function_symbol",
+                  "git_hunk_context": "bool commitGasWindow(Backend& b,const HostState& candidate,std::string& error){i",
+                  "supplementary_line": null,
+                  "source_sha256": "fdec130622e33e1ed3aaea7b7d434e327fe2c17ab363e042214f7b6bf3183bfe",
+                  "requests": [
+                    "R014-011",
+                    "R014-012",
+                    "R014-013",
+                    "R014-014",
+                    "R014-015",
+                    "R014-016"
+                  ],
+                  "review_status": "GPU_REVIEW_PENDING"
+                },
+                {
+                  "id": "FN014-0314a0493a2c",
+                  "symbol": "gasWindowStageGeometry",
+                  "locator_kind": "function_symbol",
+                  "git_hunk_context": "bool gasWindowStageGeometry(const Backend& b,std::array<HostStageGeometry,2>& ga",
+                  "supplementary_line": 461,
+                  "source_sha256": "fdec130622e33e1ed3aaea7b7d434e327fe2c17ab363e042214f7b6bf3183bfe",
+                  "requests": [
+                    "R014-011",
+                    "R014-012",
+                    "R014-013",
+                    "R014-014",
+                    "R014-015",
+                    "R014-016"
+                  ],
+                  "review_status": "GPU_REVIEW_PENDING"
+                },
+                {
+                  "id": "FN014-51eb2569a16a",
+                  "symbol": "restoreGasSnapshot",
+                  "locator_kind": "function_symbol",
+                  "git_hunk_context": "bool restoreGasSnapshot(Backend& b,const HostState& snapshot,std::string& error)",
+                  "supplementary_line": 330,
+                  "source_sha256": "fdec130622e33e1ed3aaea7b7d434e327fe2c17ab363e042214f7b6bf3183bfe",
+                  "requests": [
+                    "R014-011",
+                    "R014-012",
+                    "R014-013",
+                    "R014-014",
+                    "R014-015",
+                    "R014-016"
+                  ],
+                  "review_status": "GPU_REVIEW_PENDING"
+                },
+                {
+                  "id": "FN014-f421dd83d3b1",
+                  "symbol": "rollbackGasWindow",
+                  "locator_kind": "function_symbol",
+                  "git_hunk_context": "bool rollbackGasWindow(Backend& b,std::string& error){",
+                  "supplementary_line": 463,
+                  "source_sha256": "fdec130622e33e1ed3aaea7b7d434e327fe2c17ab363e042214f7b6bf3183bfe",
+                  "requests": [
+                    "R014-011",
+                    "R014-012",
+                    "R014-013",
+                    "R014-014",
+                    "R014-015",
+                    "R014-016"
+                  ],
+                  "review_status": "GPU_REVIEW_PENDING"
+                },
+                {
+                  "id": "FN014-43e2db63e8d1",
+                  "symbol": "acceptSstAudit",
+                  "locator_kind": "function_symbol",
+                  "git_hunk_context": "int acceptSstAudit(Backend* b){",
+                  "supplementary_line": 308,
+                  "source_sha256": "fdec130622e33e1ed3aaea7b7d434e327fe2c17ab363e042214f7b6bf3183bfe",
+                  "requests": [
+                    "R014-011",
+                    "R014-012",
+                    "R014-013",
+                    "R014-014",
+                    "R014-015",
+                    "R014-016"
+                  ],
+                  "review_status": "GPU_REVIEW_PENDING"
+                },
+                {
+                  "id": "FN014-865c83f1d05e",
+                  "symbol": "accountCoupledFaces",
+                  "locator_kind": "function_symbol",
+                  "git_hunk_context": "int accountCoupledFaces(Backend* b,Real ledgerDt){",
+                  "supplementary_line": 288,
+                  "source_sha256": "fdec130622e33e1ed3aaea7b7d434e327fe2c17ab363e042214f7b6bf3183bfe",
+                  "requests": [
+                    "R014-011",
+                    "R014-012",
+                    "R014-013",
+                    "R014-014",
+                    "R014-015",
+                    "R014-016"
+                  ],
+                  "review_status": "GPU_REVIEW_PENDING"
+                },
+                {
+                  "id": "FN014-bb57f525107e",
+                  "symbol": "applyCoupledFaces",
+                  "locator_kind": "function_symbol",
+                  "git_hunk_context": "int applyCoupledFaces(Backend* b,Real dt,Real stageTime){",
+                  "supplementary_line": 242,
+                  "source_sha256": "fdec130622e33e1ed3aaea7b7d434e327fe2c17ab363e042214f7b6bf3183bfe",
+                  "requests": [
+                    "R014-011",
+                    "R014-012",
+                    "R014-013",
+                    "R014-014",
+                    "R014-015",
+                    "R014-016"
+                  ],
+                  "review_status": "GPU_REVIEW_PENDING"
+                },
+                {
+                  "id": "FN014-a836fb0fbb66",
+                  "symbol": "finishCoupledGeometry",
+                  "locator_kind": "function_symbol",
+                  "git_hunk_context": "int finishCoupledGeometry(Backend* b){",
+                  "supplementary_line": 221,
+                  "source_sha256": "fdec130622e33e1ed3aaea7b7d434e327fe2c17ab363e042214f7b6bf3183bfe",
+                  "requests": [
+                    "R014-011",
+                    "R014-012",
+                    "R014-013",
+                    "R014-014",
+                    "R014-015",
+                    "R014-016"
+                  ],
+                  "review_status": "GPU_REVIEW_PENDING"
+                },
+                {
+                  "id": "FN014-08f263ca2adb",
+                  "symbol": "prepareCoupledBoundaryLayer",
+                  "locator_kind": "function_symbol",
+                  "git_hunk_context": "int prepareCoupledBoundaryLayer(Backend* b,Real dt,Real stageTime){",
+                  "supplementary_line": 227,
+                  "source_sha256": "fdec130622e33e1ed3aaea7b7d434e327fe2c17ab363e042214f7b6bf3183bfe",
+                  "requests": [
+                    "R014-011",
+                    "R014-012",
+                    "R014-013",
+                    "R014-014",
+                    "R014-015",
+                    "R014-016"
+                  ],
+                  "review_status": "GPU_REVIEW_PENDING"
+                },
+                {
+                  "id": "FN014-87bdc6da0327",
+                  "symbol": "prepareCoupledGeometry",
+                  "locator_kind": "function_symbol",
+                  "git_hunk_context": "int prepareCoupledGeometry(Backend* b){",
+                  "supplementary_line": 193,
+                  "source_sha256": "fdec130622e33e1ed3aaea7b7d434e327fe2c17ab363e042214f7b6bf3183bfe",
+                  "requests": [
+                    "R014-011",
+                    "R014-012",
+                    "R014-013",
+                    "R014-014",
+                    "R014-015",
+                    "R014-016"
+                  ],
+                  "review_status": "GPU_REVIEW_PENDING"
+                },
+                {
+                  "id": "FN014-183c7eb0a741",
+                  "symbol": "struct Backend {",
+                  "locator_kind": "git_hunk_scope",
+                  "git_hunk_context": "struct Backend {",
+                  "supplementary_line": 28,
+                  "source_sha256": "fdec130622e33e1ed3aaea7b7d434e327fe2c17ab363e042214f7b6bf3183bfe",
+                  "requests": [
+                    "R014-011",
+                    "R014-012",
+                    "R014-013",
+                    "R014-014",
+                    "R014-015",
+                    "R014-016"
+                  ],
+                  "review_status": "GPU_REVIEW_PENDING"
+                },
+                {
+                  "id": "FN014-46806823219a",
+                  "symbol": "struct CoupledTrialPolicy {",
+                  "locator_kind": "git_hunk_scope",
+                  "git_hunk_context": "struct CoupledTrialPolicy {",
+                  "supplementary_line": 112,
+                  "source_sha256": "fdec130622e33e1ed3aaea7b7d434e327fe2c17ab363e042214f7b6bf3183bfe",
+                  "requests": [
+                    "R014-011",
+                    "R014-012",
+                    "R014-013",
+                    "R014-014",
+                    "R014-015",
+                    "R014-016"
+                  ],
+                  "review_status": "GPU_REVIEW_PENDING"
+                },
+                {
+                  "id": "FN014-30bd6ff491c0",
+                  "symbol": "struct GasHostPolicy:GasHostWithWallEnergy<Real,Real,&accountCoupledFaces> {",
+                  "locator_kind": "git_hunk_scope",
+                  "git_hunk_context": "struct GasHostPolicy:GasHostWithWallEnergy<Real,Real,&accountCoupledFaces> {",
+                  "supplementary_line": 106,
+                  "source_sha256": "fdec130622e33e1ed3aaea7b7d434e327fe2c17ab363e042214f7b6bf3183bfe",
+                  "requests": [
+                    "R014-011",
+                    "R014-012",
+                    "R014-013",
+                    "R014-014",
+                    "R014-015",
+                    "R014-016"
+                  ],
+                  "review_status": "GPU_REVIEW_PENDING"
+                },
+                {
+                  "id": "FN014-b9d6608d257c",
+                  "symbol": "struct GasPrimDevice {double rho,ux,uy,uz,p,T;};",
+                  "locator_kind": "git_hunk_scope",
+                  "git_hunk_context": "struct GasPrimDevice {double rho,ux,uy,uz,p,T;};",
+                  "supplementary_line": 68,
+                  "source_sha256": "fdec130622e33e1ed3aaea7b7d434e327fe2c17ab363e042214f7b6bf3183bfe",
+                  "requests": [
+                    "R014-011",
+                    "R014-012",
+                    "R014-013",
+                    "R014-014",
+                    "R014-015",
+                    "R014-016"
+                  ],
+                  "review_status": "GPU_REVIEW_PENDING"
+                },
+                {
+                  "id": "FN014-96cc95cd9bb1",
+                  "symbol": "destroyBackend",
+                  "locator_kind": "function_symbol",
+                  "git_hunk_context": "void destroyBackend(Backend* backend)noexcept{delete backend;}",
+                  "supplementary_line": 362,
+                  "source_sha256": "fdec130622e33e1ed3aaea7b7d434e327fe2c17ab363e042214f7b6bf3183bfe",
+                  "requests": [
+                    "R014-011",
+                    "R014-012",
+                    "R014-013",
+                    "R014-014",
+                    "R014-015",
+                    "R014-016"
+                  ],
+                  "review_status": "GPU_REVIEW_PENDING"
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "evidence_ids": [
+        "E014-133de94002878c4b",
+        "E014-11b4568b94b16bea"
+      ],
+      "source_commit": "802a11e7dfe986488a8bf8305e86424dcc94c9e1",
+      "formal_fix_commits": [],
+      "merge_authorized": false
+    }
+  ]
 }

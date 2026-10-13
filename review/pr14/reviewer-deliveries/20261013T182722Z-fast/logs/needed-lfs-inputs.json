@@ -1,0 +1,51 @@
+[
+  {
+    "path": "examples/thermal/singleAluminaDrop/coldWall/0/T",
+    "expected": "cd6a2398abf79a434ef9f353d67b42f6d6b73c70f74a8d31fea558735c3c219b",
+    "actual": "cd6a2398abf79a434ef9f353d67b42f6d6b73c70f74a8d31fea558735c3c219b",
+    "exit_code": 0,
+    "stderr": "Downloading examples/thermal/singleAluminaDrop/coldWall/0/T (413 B)\n"
+  },
+  {
+    "path": "examples/thermal/singleAluminaDrop/coldWall/0/Tp",
+    "expected": "d766962f6e70f79464c50bd446e2e8855e8f6f6b4905b217485fb21fa7401dae",
+    "actual": "d766962f6e70f79464c50bd446e2e8855e8f6f6b4905b217485fb21fa7401dae",
+    "exit_code": 0,
+    "stderr": "Downloading examples/thermal/singleAluminaDrop/coldWall/0/Tp (439 B)\n"
+  },
+  {
+    "path": "examples/thermal/singleAluminaDrop/coldWall/0/U",
+    "expected": "1545eea7ce026cab0aa9612d863834cac2d1b6eb8d007e19bcfb7d7aeed8c653",
+    "actual": "1545eea7ce026cab0aa9612d863834cac2d1b6eb8d007e19bcfb7d7aeed8c653",
+    "exit_code": 0,
+    "stderr": "Downloading examples/thermal/singleAluminaDrop/coldWall/0/U (427 B)\n"
+  },
+  {
+    "path": "examples/thermal/singleAluminaDrop/coldWall/0/Us",
+    "expected": "8850af80866ea50b27d1891f48c8832a241e23bbde6a4ee9782011b321178ca8",
+    "actual": "8850af80866ea50b27d1891f48c8832a241e23bbde6a4ee9782011b321178ca8",
+    "exit_code": 0,
+    "stderr": "Downloading examples/thermal/singleAluminaDrop/coldWall/0/Us (478 B)\n"
+  },
+  {
+    "path": "examples/thermal/singleAluminaDrop/coldWall/0/epsilonS",
+    "expected": "50149ca681c328b49111388a4e034ecf15d0ef432d05f412fdc5a37b4399a06f",
+    "actual": "50149ca681c328b49111388a4e034ecf15d0ef432d05f412fdc5a37b4399a06f",
+    "exit_code": 0,
+    "stderr": "Downloading examples/thermal/singleAluminaDrop/coldWall/0/epsilonS (438 B)\n"
+  },
+  {
+    "path": "examples/thermal/singleAluminaDrop/coldWall/0/p",
+    "expected": "59d4a84b8cadfe422699895238591c0c03cb8e199b762b191c5c7e16581e103f",
+    "actual": "59d4a84b8cadfe422699895238591c0c03cb8e199b762b191c5c7e16581e103f",
+    "exit_code": 0,
+    "stderr": "Downloading examples/thermal/singleAluminaDrop/coldWall/0/p (340 B)\n"
+  },
+  {
+    "path": "examples/thermal/singleAluminaDrop/coldWall/0/theta",
+    "expected": "f57aa03abe38cddf7e7a537fb3673b1ac75bbaaf9ce2510b56b576ca14d68d14",
+    "actual": "f57aa03abe38cddf7e7a537fb3673b1ac75bbaaf9ce2510b56b576ca14d68d14",
+    "exit_code": 0,
+    "stderr": "Downloading examples/thermal/singleAluminaDrop/coldWall/0/theta (338 B)\n"
+  }
+]

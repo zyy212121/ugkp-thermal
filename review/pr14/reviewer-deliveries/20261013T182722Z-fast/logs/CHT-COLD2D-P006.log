@@ -1,0 +1,60 @@
+/*---------------------------------------------------------------------------*\
+  =========                 |
+  \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
+   \\    /   O peration     | Website:  https://openfoam.org
+    \\  /    A nd           | Version:  10
+     \\/     M anipulation  |
+\*---------------------------------------------------------------------------*/
+Build  : 10-c4cf895ad8fa
+Exec   : /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261013T182722Z-fast/work/install/P006/bin/CHT -case /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261013T182722Z-fast/work/cases/resident/CHT-coldWall2D-P006
+Date   : Oct 14 2026
+Time   : 03:28:13
+Host   : "lss"
+PID    : 19319
+I/O    : uncollated
+Case   : /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261013T182722Z-fast/work/cases/resident/CHT-coldWall2D-P006
+nProcs : 1
+sigFpe : Enabling floating point exception trapping (FOAM_SIGFPE).
+fileModificationChecking : Monitoring run-time modified files using timeStampMaster (fileModificationSkew 10)
+allowSystemOperations : Allowing user-supplied system call operations
+
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+Create time
+
+CHT: weighted-parcel directly linked GPU-Riemann-GKP/CHT solver
+GPU particle forces: dragModel=SchillerNaumann particleGasHeatTransferModel=RanzMarshall gravity=(0 0 0) m/s^2
+GPU precision physical=64 time=64 wallEnergyAccumulation=64
+Particle cell path: csrCellLocalPath=0 heavyReductionMode=0 warpAggregatedBinning=0 B2=128 B3=128 heavyAutoInterval=100
+Tracking geometry: B2=128 blocksPerSM=5 grid=1
+Cold-wall launch geometry: threads=32 grid=1
+Launch geometry: B1cell=128 B1face=128 (ToolB1 pending) B2=128 B3=128 SM=24 lightBlocksPerSM=10 heavyBlocksPerSM=0
+Particle stuck model: candidatePatches=1(impactWall) SommerfeldThreshold=20 heatTransfer=1 aluminaWallProperties=temperatureDependent depositionHeatTransferEfficiency=1 reflectionHeatTransferEfficiency=1 adhesionEnergyScale=1 contactAngleDegree=70 defaultWallInteractionModel=coldWall2D coldWall=1 wallProperties=solidRegionProperties(rho,Cp,kappa)
+ToolB1: B1cell=256 B1face=96 cellMedianMs=0.043008 faceMedianMs=0.035840 measuredKernelMs=3.587488 warmup=1 repeats=5
+runTime = 2 simulationTime = 1e-06 particleCount = 1 CoMax = 0
+PR14_DIAG face=9 effArray=0 effScalar=11304.866208850062 rho=1800 Cp=710 k=100
+PR14_DIAG age=0 eff=0 wallG=-nan wetArea=1.4463267383218867e-07 wallT=473.14999999999998 gasG=0.00069338576716127974 oldCarry=1.4863618669203049e-10
+runTime = 2 simulationTime = 2e-06 particleCount = 1 CoMax = 0
+PR14_DIAG face=9 effArray=0 effScalar=11304.866208850062 rho=1800 Cp=710 k=100
+PR14_DIAG age=9.9999999999999995e-07 eff=0 wallG=-nan wetArea=4.3378021177754743e-07 wallT=473.14999999999998 gasG=0 oldCarry=-nan
+runTime = 2 simulationTime = 3e-06 particleCount = 1 CoMax = 0
+PR14_DIAG face=9 effArray=0 effScalar=11304.866208850062 rho=1800 Cp=710 k=100
+PR14_DIAG age=1.9999999999999999e-06 eff=0 wallG=-nan wetArea=7.227706700975477e-07 wallT=473.14999999999998 gasG=0 oldCarry=-nan
+runTime = 2 simulationTime = 4e-06 particleCount = 1 CoMax = 0
+PR14_DIAG face=9 effArray=0 effScalar=11304.866208850062 rho=1800 Cp=710 k=100
+PR14_DIAG age=3.0000000000000001e-06 eff=0 wallG=-nan wetArea=1.0116040487921902e-06 wallT=473.14999999999998 gasG=0 oldCarry=-nan
+runTime = 2 simulationTime = 5e-06 particleCount = 1 CoMax = 0
+PR14_DIAG face=9 effArray=0 effScalar=11304.866208850062 rho=1800 Cp=710 k=100
+PR14_DIAG age=3.9999999999999998e-06 eff=0 wallG=-nan wetArea=1.3002803478614738e-06 wallT=473.14999999999998 gasG=0 oldCarry=-nan
+runTime = 2 simulationTime = 6e-06 particleCount = 1 CoMax = 0
+PR14_DIAG face=9 effArray=0 effScalar=11304.866208850062 rho=1800 Cp=710 k=100
+PR14_DIAG age=4.9999999999999996e-06 eff=0 wallG=-nan wetArea=1.5887995673053996e-06 wallT=473.14999999999998 gasG=0 oldCarry=-nan
+runTime = 2 simulationTime = 7e-06 particleCount = 1 CoMax = 0
+PR14_DIAG face=9 effArray=0 effScalar=11304.866208850062 rho=1800 Cp=710 k=100
+PR14_DIAG age=5.9999999999999993e-06 eff=0 wallG=-nan wetArea=1.8771617071239668e-06 wallT=473.14999999999998 gasG=0 oldCarry=-nan
+runTime = 2 simulationTime = 8e-06 particleCount = 1 CoMax = 0
+PR14_DIAG face=9 effArray=0 effScalar=11304.866208850062 rho=1800 Cp=710 k=100
+PR14_DIAG age=6.999999999999999e-06 eff=0 wallG=-nan wetArea=2.165366767317176e-06 wallT=473.14999999999998 gasG=0 oldCarry=-nan
+runTime = 2 simulationTime = 9e-06 particleCount = 1 CoMax = 0
+PR14_DIAG face=9 effArray=0 effScalar=11304.866208850062 rho=1800 Cp=710 k=100
+PR14_DIAG age=7.9999999999999996e-06 eff=0 wallG=-nan wetArea=2.4534147478850269e-06 wallT=473.14999999999998 gasG=0 oldCarry=-nan
+runTime = 2 simulationTime = 1e-05 particleCount = 1 CoMax = 0

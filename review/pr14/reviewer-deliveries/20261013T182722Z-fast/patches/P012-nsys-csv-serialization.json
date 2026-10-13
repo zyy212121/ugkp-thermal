@@ -1,0 +1,8 @@
+{
+  "classification": "test support serializer/resume only",
+  "production_modified": false,
+  "reason": "CSV writer failed on exported StringIds with default escaping. Explicit QUOTE_ALL and escapechar preserve exported values; existing baseline raw trace reused, no GPU repetition.",
+  "original_failure": "logs/NSYS-analysis-v0-failure.log",
+  "original_partial": "logs/NSYS-StringIds-v0-partial.csv",
+  "raw_SQLite_and_trace_hashes": "artifacts/performance/nsys/*-summary.json"
+}

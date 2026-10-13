@@ -1,0 +1,14 @@
+FoamFile { version 2.0; format ascii; class dictionary; object chmtProperties; }
+schemaVersion 1; executionMode Multirate; modelName coupledNativeAcceptance;
+materialSource syntheticConstantSolid; mechanismSource noMaterialReaction;
+condensedNames (C0 C1); elements (O H Ar N);
+minDt 1e-12; maxDt 0.001; cfl 0.4;
+gasConductivity 1; gasViscosity 0;
+condensedThermo {
+ C0 { rho 1000; cp0 1000; cp1 0; e0 0; conductivity 1; Tmin 100; Tmax 3000; element (0 0 0 0); }
+ C1 { rho 1000; cp0 1000; cp1 0; e0 0; conductivity 1; Tmin 100; Tmax 3000; element (0 0 0 0); }
+}
+solidRegion solid;
+surface { patch right; gasPatch left; }
+multirate { couplingInterval 1.0000000000000001e-05; gasMaxDt 9.9999999999999995e-07; }
+modelFingerprint "c552648c936118445a0a6fd2fdb43ed427aba6efe96be23ced7c51cb0987f144";

@@ -16,7 +16,39 @@
     "scope": "small real-GPU operator/interaction/coupling/restart cases; no production long run",
     "budget_note": "Proposed per-case process budget; reviewer records actual plan before execution. Timeout is external observation, never production admission. Larger or production scope needs separate plan."
   },
-  "reviewer_results": [],
+  "reviewer_results": [
+    {
+      "id": "R014-001-REVIEWER-20261013T182722Z-fast",
+      "recorded_utc": "2026-10-13T21:08:47.571295+00:00",
+      "interaction_class": "FAST",
+      "source_commit": "802a11e7dfe986488a8bf8305e86424dcc94c9e1",
+      "source_tree": "db2863158139842f6c8221c0da11ba640f381336",
+      "baseline_commit": "d6110c02745a8ad726208a426c4bb3a28233c1fd",
+      "delivery_path": "reviewer-deliveries/20261013T182722Z-fast",
+      "report": "reviewer-deliveries/20261013T182722Z-fast/REPORT.md",
+      "plan": "reviewer-deliveries/20261013T182722Z-fast/TEST_PLAN.md",
+      "coverage": "reviewer-deliveries/20261013T182722Z-fast/coverage.json",
+      "results": "reviewer-deliveries/20261013T182722Z-fast/results.json",
+      "versions": "reviewer-deliveries/20261013T182722Z-fast/versions.json",
+      "evidence_ids": [
+        "E014-11b4568b94b16bea",
+        "E014-d5a1deab5290da06",
+        "E014-bfd9073a489603b0",
+        "E014-21a449490bd85eb5",
+        "E014-4f161f27965d55e1",
+        "E014-0ebbf6961c911ce4",
+        "E014-133de94002878c4b"
+      ],
+      "verdict": "PASS_ADMINISTRATIVE_SCOPE",
+      "acceptance_unit_ids": [],
+      "executed_test_ids": [],
+      "remaining_gaps": [],
+      "findings": [],
+      "diagnostic_PASS_does_not_close_original": true,
+      "developer_formal_recheck": "NOT_RUN_NO_FORMAL_FIX_COMMIT",
+      "merge_authorized": false
+    }
+  ],
   "developer_replies": [
     {
       "id": "R014-001-A001",
@@ -52,5 +84,23 @@
   ],
   "publication_observation_evidence_ids": [
     "E014-ceba3ce114bee654"
+  ],
+  "reviewer_delivery_decision_history": [
+    {
+      "recorded_utc": "2026-10-13T21:08:47.571295+00:00",
+      "source_commit": "802a11e7dfe986488a8bf8305e86424dcc94c9e1",
+      "delivery_path": "reviewer-deliveries/20261013T182722Z-fast",
+      "status": "NOT_MERGE_READY_INDEPENDENT_GPU_FAST",
+      "evidence_ids": [
+        "E014-11b4568b94b16bea",
+        "E014-d5a1deab5290da06",
+        "E014-bfd9073a489603b0",
+        "E014-21a449490bd85eb5",
+        "E014-4f161f27965d55e1",
+        "E014-0ebbf6961c911ce4",
+        "E014-133de94002878c4b"
+      ],
+      "merge_authorized": false
+    }
   ]
 }

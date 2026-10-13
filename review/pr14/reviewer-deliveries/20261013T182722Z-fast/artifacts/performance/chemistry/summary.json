@@ -1,0 +1,222 @@
+{
+  "baseline-1": {
+    "metrics": {
+      "kernel_ms": {
+        "median": 2.7310080528259277,
+        "min": 2.7310080528259277,
+        "max": 2.747391939163208,
+        "stdev": 0.006057425379115751
+      },
+      "reset_h2d_us": {
+        "median": 4.593,
+        "min": 3.265,
+        "max": 5.627,
+        "stdev": 0.8865108438087355
+      },
+      "prepare_memsets_us": {
+        "median": 8.559,
+        "min": 6.421,
+        "max": 14.357,
+        "stdev": 2.8638751053507234
+      },
+      "host_launch_us": {
+        "median": 5.923,
+        "min": 2.844,
+        "max": 9.67,
+        "stdev": 2.8415446922572305
+      },
+      "host_wait_us": {
+        "median": 2535.19,
+        "min": 2501.313,
+        "max": 2587.686,
+        "stdev": 33.46003339024318
+      },
+      "full_publication_d2h_us": {
+        "median": 260.162,
+        "min": 195.699,
+        "max": 430.446,
+        "stdev": 94.80063574932498
+      },
+      "whole_pipeline_us": {
+        "median": 2816.022,
+        "min": 2752.695,
+        "max": 3002.71,
+        "stdev": 104.06342384883777
+      }
+    },
+    "publication_hash": "432fcb3f5591e816",
+    "malloc_count": 19,
+    "device_allocated_delta_bytes": 2097152
+  },
+  "baseline-32768": {
+    "metrics": {
+      "kernel_ms": {
+        "median": 34.725887298583984,
+        "min": 28.173311233520508,
+        "max": 37.22137451171875,
+        "stdev": 4.50251925079517
+      },
+      "reset_h2d_us": {
+        "median": 77.003,
+        "min": 56.462,
+        "max": 229.418,
+        "stdev": 61.4348697557402
+      },
+      "prepare_memsets_us": {
+        "median": 37.313,
+        "min": 28.791,
+        "max": 60.582,
+        "stdev": 10.111017776474853
+      },
+      "host_launch_us": {
+        "median": 10.176,
+        "min": 8.292,
+        "max": 11.935,
+        "stdev": 1.2513347159847248
+      },
+      "host_wait_us": {
+        "median": 32052.304,
+        "min": 26009.741,
+        "max": 35679.758,
+        "stdev": 4423.804067971872
+      },
+      "full_publication_d2h_us": {
+        "median": 1306.412,
+        "min": 1074.444,
+        "max": 1751.167,
+        "stdev": 205.7825822770699
+      },
+      "whole_pipeline_us": {
+        "median": 33623.753,
+        "min": 27446.913,
+        "max": 37729.9,
+        "stdev": 4528.32820035963
+      }
+    },
+    "publication_hash": "c095df2df61b2325",
+    "malloc_count": 19,
+    "device_allocated_delta_bytes": 8388608
+  },
+  "original-1": {
+    "metrics": {
+      "kernel_ms": {
+        "median": 0.8325120210647583,
+        "min": 0.8314560055732727,
+        "max": 0.8447999954223633,
+        "stdev": 0.004800719323275097
+      },
+      "reset_h2d_us": {
+        "median": 3.61,
+        "min": 3.122,
+        "max": 5.302,
+        "stdev": 0.8965148127743398
+      },
+      "prepare_memsets_us": {
+        "median": 7.969,
+        "min": 7.644,
+        "max": 13.382,
+        "stdev": 2.3885750583818397
+      },
+      "host_launch_us": {
+        "median": 4.437,
+        "min": 3.624,
+        "max": 10.713,
+        "stdev": 2.9635935072459705
+      },
+      "host_wait_us": {
+        "median": 759.216,
+        "min": 749.863,
+        "max": 769.14,
+        "stdev": 7.213354235952438
+      },
+      "full_publication_d2h_us": {
+        "median": 183.928,
+        "min": 141.1,
+        "max": 203.381,
+        "stdev": 22.306938656796795
+      },
+      "whole_pipeline_us": {
+        "median": 974.842,
+        "min": 919.896,
+        "max": 985.907,
+        "stdev": 21.796352553100444
+      }
+    },
+    "publication_hash": "432fcb3f5591e816",
+    "malloc_count": 19,
+    "device_allocated_delta_bytes": 2097152
+  },
+  "original-32768": {
+    "metrics": {
+      "kernel_ms": {
+        "median": 11.289600372314453,
+        "min": 11.26195240020752,
+        "max": 11.311103820800781,
+        "stdev": 0.017862282597461036
+      },
+      "reset_h2d_us": {
+        "median": 72.979,
+        "min": 47.381,
+        "max": 106.857,
+        "stdev": 23.208958549499393
+      },
+      "prepare_memsets_us": {
+        "median": 28.868,
+        "min": 25.288,
+        "max": 34.192,
+        "stdev": 3.197176403075212
+      },
+      "host_launch_us": {
+        "median": 8.534,
+        "min": 6.317,
+        "max": 18.153,
+        "stdev": 3.9215956239897087
+      },
+      "host_wait_us": {
+        "median": 10306.505,
+        "min": 10261.107,
+        "max": 10326.823,
+        "stdev": 20.938147099310957
+      },
+      "full_publication_d2h_us": {
+        "median": 1248.88,
+        "min": 1005.347,
+        "max": 1834.322,
+        "stdev": 291.78960006533083
+      },
+      "whole_pipeline_us": {
+        "median": 11658.251,
+        "min": 11399.422,
+        "max": 12232.552,
+        "stdev": 280.5787851505729
+      }
+    },
+    "publication_hash": "c095df2df61b2325",
+    "malloc_count": 19,
+    "device_allocated_delta_bytes": 8388608
+  },
+  "comparison-1": {
+    "all_fields_bit_hash_equal": true,
+    "ratios_PR_over_base": {
+      "kernel_ms": 0.3048368972047927,
+      "reset_h2d_us": 0.7859786631831047,
+      "prepare_memsets_us": 0.9310667134010984,
+      "host_launch_us": 0.7491136248522708,
+      "host_wait_us": 0.29947104556266,
+      "full_publication_d2h_us": 0.7069748848794213,
+      "whole_pipeline_us": 0.34617698299232036
+    }
+  },
+  "comparison-32768": {
+    "all_fields_bit_hash_equal": true,
+    "ratios_PR_over_base": {
+      "kernel_ms": 0.3251061744007563,
+      "reset_h2d_us": 0.9477422957547108,
+      "prepare_memsets_us": 0.7736713745879451,
+      "host_launch_us": 0.8386399371069183,
+      "host_wait_us": 0.321552703356364,
+      "full_publication_d2h_us": 0.9559618252128732,
+      "whole_pipeline_us": 0.34672664291817756
+    }
+  }
+}

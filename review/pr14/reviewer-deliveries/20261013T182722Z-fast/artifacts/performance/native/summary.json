@@ -1,0 +1,37 @@
+{
+  "baseline": {
+    "samples_seconds": [
+      2.269977518997621,
+      2.1201434489921667,
+      1.7685521580278873,
+      1.7170982389943674,
+      1.8174824260058813,
+      1.8680439979652874,
+      2.0189709949772805
+    ],
+    "median_seconds": 1.8680439979652874,
+    "minimum_seconds": 1.7170982389943674,
+    "maximum_seconds": 2.269977518997621,
+    "stdev_seconds": 0.20283039414256213
+  },
+  "original": {
+    "samples_seconds": [
+      2.4711933110374957,
+      1.16650472197216,
+      1.5678244809969328,
+      1.7172743779956363,
+      1.6188361170352437,
+      1.868824033997953,
+      1.5686718529905193
+    ],
+    "median_seconds": 1.6188361170352437,
+    "minimum_seconds": 1.16650472197216,
+    "maximum_seconds": 2.4711933110374957,
+    "stdev_seconds": 0.3976109564231888
+  },
+  "ratio_PR_over_base": 0.8665942123410979,
+  "percent_change": -13.34057876589021,
+  "all_csv_equal": false,
+  "physical_acceptance": "Both unchanged native checker tolerances PASS. Same rows and microsteps. Tiny original-success FP64 differences preserved in preflight-comparison.json.",
+  "scope": "Process wall time, two native windows incl CUDA context startup and output. No solver-wide or production speedup extrapolation."
+}

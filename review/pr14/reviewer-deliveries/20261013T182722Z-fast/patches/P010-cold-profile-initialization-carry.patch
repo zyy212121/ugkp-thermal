@@ -1,0 +1,28 @@
+--- a/common/operators/clearColdWallParticleState.cuh
++++ b/common/operators/clearColdWallParticleState.cuh
+@@ -58,6 +58,11 @@
+         s.pColdNodeSpecificEnthalpy[nodeBase + node] =
+             static_cast<typename std::remove_reference<decltype(s.pColdNodeSpecificEnthalpy[0])>::type>(nodeEnthalpy[node]);
+     }
++#ifdef GPU_PAIRED_PARTICLE_HEAT
++    // Preserve the preexisting physical enthalpy through the profile cache cast.
++    s.pThermalEnthalpyResidual[particleI] += double(nodeEnthalpy[0])
++      - double(s.pColdNodeSpecificEnthalpy[nodeBase]);
++#endif
+     for (int ring = 0; ring < Foam::gpuThermal::coldWallRadialRingCount; ++ring)
+     {
+         s.pColdRingSolidMass[ringBase + ring] = 0.0;
+--- a/common/wall/GpuColdWall2DDevice.cuh
++++ b/common/wall/GpuColdWall2DDevice.cuh
+@@ -102,6 +102,11 @@
+     {
+         s.pCold2DRingContactAge[ringBase + ring] = 0.0;
+     }
++#ifdef GPU_PAIRED_PARTICLE_HEAT
++    // Preserve the preexisting physical enthalpy through the profile cache cast.
++    s.pThermalEnthalpyResidual[particleI] += double(initialEnthalpy)
++      - double(s.pCold2DNodeSpecificEnthalpy[nodeBase]);
++#endif
+     s.pCold2DFrozenArea[particleI] = 0.0;
+ }
+ 

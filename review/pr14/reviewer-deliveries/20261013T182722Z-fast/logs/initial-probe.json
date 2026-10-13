@@ -1,0 +1,102 @@
+{
+  "utc": "2026-10-13T18:26:24.214313+00:00",
+  "repo": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test",
+  "status": {
+    "command": [
+      "git",
+      "-C",
+      "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test",
+      "status",
+      "--porcelain=v1",
+      "-uall"
+    ],
+    "returncode": 0,
+    "stderr": "",
+    "counts": {
+      "modified": 48,
+      "deleted": 4658,
+      "untracked": 102200
+    },
+    "full_local_recoverable_copy": {
+      "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/preserved-before-pr14-20261013T182722Z-fast/initial-probe-full.json",
+      "sha256": "e341d4bb5e0f970f80a2878a74958ea02789d528922693a9e54945dbf494ae8c",
+      "bytes": 10071871
+    },
+    "note": "Unrelated existing path inventory omitted from publication; complete unstaged/staged patches and non-review untracked archive preserved locally. No prior test source/results removed."
+  },
+  "branches": {
+    "command": [
+      "git",
+      "-C",
+      "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test",
+      "branch",
+      "-avv"
+    ],
+    "returncode": 0,
+    "stdout": "  archive/pre-upload-20261004         226ba1a Remove stale formal release section from README\n  fix/sst-internal-diffusion-20261005 4d702ba Fix SST internal-face conservative diffusion interpolation\n* main                                efc2ef7 [origin/main: ahead 1, behind 6] Fix SST internal-face conservative diffusion interpolation\n  remotes/origin/HEAD                 226ba1a Remove stale formal release section from README\n  remotes/origin/main                 4d702ba Fix SST internal-face conservative diffusion interpolation\n  remotes/origin/pr-1                 d76b336 Share host fixture for SST wall constraint kernel regressions\n  remotes/origin/pr-2                 5cdf33a Add CHMT unverified configurations, analytic references and comparison tools\n",
+    "stderr": ""
+  },
+  "head": {
+    "command": [
+      "git",
+      "-C",
+      "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test",
+      "rev-parse",
+      "HEAD"
+    ],
+    "returncode": 0,
+    "stdout": "efc2ef7afd1c1170e38eff37aed084ca171ddc51\n",
+    "stderr": ""
+  },
+  "disk": {
+    "command": [
+      "df",
+      "-h",
+      "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test"
+    ],
+    "returncode": 0,
+    "stdout": "Filesystem      Size  Used Avail Use% Mounted on\n/dev/sdd       1007G  132G  825G  14% /\n",
+    "stderr": ""
+  },
+  "toolchain": {
+    "command": [
+      "bash",
+      "-lc",
+      "command -v git; command -v g++; command -v cmake; command -v compute-sanitizer; g++ --version; nvcc --version"
+    ],
+    "returncode": 0,
+    "stdout": "/usr/bin/git\n/usr/bin/g++\n/usr/local/cuda/bin/compute-sanitizer\ng++ (Ubuntu 11.4.0-1ubuntu1~22.04.3) 11.4.0\nCopyright (C) 2021 Free Software Foundation, Inc.\nThis is free software; see the source for copying conditions.  There is NO\nwarranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.\n\nnvcc: NVIDIA (R) Cuda compiler driver\nCopyright (c) 2005-2025 NVIDIA Corporation\nBuilt on Tue_Dec_16_07:23:41_PM_PST_2025\nCuda compilation tools, release 13.1, V13.1.115\nBuild cuda_13.1.r13.1/compiler.37061995_0\n",
+    "stderr": ""
+  },
+  "gpu": {
+    "command": [
+      "nvidia-smi",
+      "--query-gpu=name,uuid,driver_version,memory.total,compute_cap,power.limit",
+      "--format=csv"
+    ],
+    "returncode": 0,
+    "stdout": "name, uuid, driver_version, memory.total [MiB], compute_cap, power.limit [W]\nNVIDIA GeForce RTX 4060 Laptop GPU, GPU-dd14b1e3-b568-4f96-a0e9-b982a4e8388d, 592.00, 8188 MiB, 8.9, [N/A]\n",
+    "stderr": ""
+  },
+  "pr": {
+    "number": 14,
+    "state": "open",
+    "html_url": "https://github.com/zyy212121/ugkp-thermal/pull/14",
+    "updated_at": "2026-10-13T17:56:21Z",
+    "mergeable": true,
+    "draft": true,
+    "head": {
+      "ref": "perf/chmt-first-round-20261013",
+      "sha": "802a11e7dfe986488a8bf8305e86424dcc94c9e1",
+      "repo": "zyy212121/ugkp-thermal",
+      "clone_url": "https://github.com/zyy212121/ugkp-thermal.git"
+    },
+    "base": {
+      "ref": "main",
+      "sha": "d6110c02745a8ad726208a426c4bb3a28233c1fd",
+      "repo": "zyy212121/ugkp-thermal",
+      "clone_url": "https://github.com/zyy212121/ugkp-thermal.git"
+    }
+  },
+  "agents": []
+}

@@ -1,0 +1,20 @@
+--- a/applications/CHT/gpu/GpuResidentStrict.cu
++++ b/applications/CHT/gpu/GpuResidentStrict.cu
+@@ -3866,8 +3866,15 @@
+ cudaError_t initialiseParticleWallEffusivity(DeviceState* s, const size_t nFaces)
+ {
+     if ((s->particleStuckInitialisationPending & 4) == 0) return cudaSuccess;
+-    const cudaError_t error = cudaMemset
+-    (s->particleWallEffusivityByFace, 0, nFaces*sizeof(GpuReal));
++    // Seed the existing uncoupled-wall scalar material fallback. The host
++    // coupler subsequently overwrites its actual selected wall patch faces.
++    const GpuReal fallbackEffusivity = ::sqrt
++    (s->particleWallDensityKgM3*s->particleWallSpecificHeatJkgK
++     *s->particleWallConductivityWmK);
++    const std::vector<GpuReal> initialEffusivity(nFaces, fallbackEffusivity);
++    const cudaError_t error = cudaMemcpy
++    (s->particleWallEffusivityByFace, initialEffusivity.data(),
++     nFaces*sizeof(GpuReal), cudaMemcpyHostToDevice);
+     if (error == cudaSuccess)
+         s->particleStuckInitialisationPending &= static_cast<unsigned short>(~4);
+     return error;

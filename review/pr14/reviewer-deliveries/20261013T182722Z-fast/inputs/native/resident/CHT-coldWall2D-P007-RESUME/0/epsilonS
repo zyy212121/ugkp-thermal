@@ -1,0 +1,40 @@
+FoamFile
+{
+    version 2.0;
+    format ascii;
+    class volScalarField;
+    location "0";
+    object epsilonS;
+}
+
+dimensions [0 0 0 0 0 0 0];
+internalField nonuniform List<scalar>
+10
+(
+    0.0409061543436171
+    0
+    0
+    0
+    0
+    0
+    0
+    0
+    0
+    0
+);
+
+boundaryField
+{
+    impactWall
+    {
+        type zeroGradient;
+    }
+    top
+    {
+        type zeroGradient;
+    }
+    sideWalls
+    {
+        type zeroGradient;
+    }
+}

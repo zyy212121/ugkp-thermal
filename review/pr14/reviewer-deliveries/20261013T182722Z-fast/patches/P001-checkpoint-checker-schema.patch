@@ -1,0 +1,11 @@
+--- a/applications/CHMT/verification/coupled_runtime/check_case.py
++++ b/applications/CHMT/verification/coupled_runtime/check_case.py
+@@ -16,7 +16,7 @@
+ 
+ 
+ # Schema 6 adds wall-model controls to configuration; the state tail is unchanged.
+-FIELD_SCHEMA_HASH = 15664811910203657810
++FIELD_SCHEMA_HASH = 11438850135072464462
+ HEADER = struct.Struct('<8sQIIIIIIQQQQ')
+ ENERGY_ABS = 2e-5  # J; well below the prescribed millijoule-or-larger exchange
+ MASS_ABS = 1e-10  # kg

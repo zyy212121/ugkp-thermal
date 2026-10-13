@@ -1,0 +1,858 @@
+{
+  "source_variant": "baseline",
+  "raw_trace": {
+    "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261013T182722Z-fast/work/nsys-native/trace-baseline.nsys-rep",
+    "sha256": "2bab6bd7f932cec39e44fd290501d8785ecb995333789e88d04a92dbfce63d79",
+    "bytes": 993701
+  },
+  "sqlite": {
+    "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261013T182722Z-fast/work/nsys-native/trace-baseline.sqlite",
+    "sha256": "462cb4ce47050151f18b1276efd7875e7a57d66b9b4ad440d4581d833aed8bfc",
+    "bytes": 2871296
+  },
+  "schema": {
+    "StringIds": [
+      "id",
+      "value"
+    ],
+    "ANALYSIS_FILE": [
+      "id",
+      "filename",
+      "contentId",
+      "globalPid"
+    ],
+    "ProcessStreams": [
+      "globalPid",
+      "filenameId",
+      "contentId"
+    ],
+    "TARGET_INFO_SYSTEM_ENV": [
+      "globalVid",
+      "devStateName",
+      "name",
+      "nameEnum",
+      "value"
+    ],
+    "TARGET_INFO_SESSION_START_TIME": [
+      "utcEpochNs",
+      "utcTime",
+      "localTime"
+    ],
+    "ANALYSIS_DETAILS": [
+      "globalVid",
+      "duration",
+      "startTime",
+      "stopTime"
+    ],
+    "DIAGNOSTIC_EVENT": [
+      "timestamp",
+      "timestampType",
+      "source",
+      "severity",
+      "text",
+      "globalPid"
+    ],
+    "PROFILER_OVERHEAD": [
+      "start",
+      "end",
+      "globalTid",
+      "nameId",
+      "overheadType"
+    ],
+    "CUPTI_ACTIVITY_KIND_RUNTIME": [
+      "start",
+      "end",
+      "eventClass",
+      "globalTid",
+      "correlationId",
+      "nameId",
+      "returnValue",
+      "callchainId"
+    ],
+    "CUPTI_ACTIVITY_KIND_MEMSET": [
+      "start",
+      "end",
+      "deviceId",
+      "contextId",
+      "greenContextId",
+      "streamId",
+      "correlationId",
+      "globalPid",
+      "value",
+      "bytes",
+      "graphNodeId",
+      "memKind"
+    ],
+    "CUPTI_ACTIVITY_KIND_MEMCPY": [
+      "start",
+      "end",
+      "deviceId",
+      "contextId",
+      "greenContextId",
+      "streamId",
+      "correlationId",
+      "globalPid",
+      "bytes",
+      "copyKind",
+      "deprecatedSrcId",
+      "srcKind",
+      "dstKind",
+      "srcDeviceId",
+      "srcContextId",
+      "dstDeviceId",
+      "dstContextId",
+      "migrationCause",
+      "graphNodeId",
+      "virtualAddress",
+      "copyCount"
+    ],
+    "CUPTI_ACTIVITY_KIND_OVERHEAD": [
+      "start",
+      "end",
+      "eventClass",
+      "globalTid",
+      "correlationId",
+      "nameId",
+      "overheadType"
+    ],
+    "CUPTI_ACTIVITY_KIND_KERNEL": [
+      "start",
+      "end",
+      "deviceId",
+      "contextId",
+      "greenContextId",
+      "streamId",
+      "correlationId",
+      "globalPid",
+      "demangledName",
+      "shortName",
+      "mangledName",
+      "launchType",
+      "cacheConfig",
+      "registersPerThread",
+      "gridX",
+      "gridY",
+      "gridZ",
+      "blockX",
+      "blockY",
+      "blockZ",
+      "staticSharedMemory",
+      "dynamicSharedMemory",
+      "localMemoryPerThread",
+      "localMemoryTotal",
+      "gridId",
+      "sharedMemoryExecuted",
+      "graphNodeId",
+      "sharedMemoryLimitConfig",
+      "qmdBulkReleaseDone",
+      "qmdPreexitDone",
+      "qmdLastCtaDone",
+      "graphId",
+      "clusterX",
+      "clusterY",
+      "clusterZ",
+      "clusterSchedulingPolicy",
+      "maxPotentialClusterSize",
+      "maxActiveClusters"
+    ],
+    "CUPTI_ACTIVITY_KIND_SYNCHRONIZATION": [
+      "start",
+      "end",
+      "deviceId",
+      "contextId",
+      "greenContextId",
+      "streamId",
+      "correlationId",
+      "globalPid",
+      "deprecatedSyncType",
+      "syncType",
+      "eventId",
+      "eventSyncId"
+    ],
+    "PROCESSES": [
+      "globalPid",
+      "pid",
+      "name"
+    ],
+    "CUDA_GPU_MEMORY_USAGE_EVENTS": [
+      "start",
+      "globalPid",
+      "deviceId",
+      "contextId",
+      "address",
+      "pc",
+      "bytes",
+      "memKind",
+      "memoryOperationType",
+      "name",
+      "correlationId",
+      "streamId",
+      "localMemoryPoolAddress",
+      "localMemoryPoolReleaseThreshold",
+      "localMemoryPoolSize",
+      "localMemoryPoolUtilizedSize",
+      "importedMemoryPoolAddress",
+      "importedMemoryPoolProcessId"
+    ],
+    "OSRT_API": [
+      "start",
+      "end",
+      "eventClass",
+      "globalTid",
+      "nameId",
+      "returnValue",
+      "nestingLevel",
+      "callchainId",
+      "argumentsId"
+    ],
+    "OSRT_CALLCHAINS": [
+      "id",
+      "symbol",
+      "module",
+      "kernelMode",
+      "thumbCode",
+      "unresolved",
+      "specialEntry",
+      "originalIP",
+      "unwindMethod",
+      "stackDepth"
+    ],
+    "OSRT_FILE_ACCESS_EVENTS": [
+      "fileAccessId",
+      "threadId",
+      "startedAt",
+      "endedAt",
+      "eventType",
+      "apiCallId",
+      "bytesProcessed"
+    ],
+    "ThreadNames": [
+      "nameId",
+      "priority",
+      "globalTid"
+    ],
+    "TARGET_INFO_GPU": [
+      "vmId",
+      "id",
+      "name",
+      "busLocation",
+      "isDiscrete",
+      "l2CacheSize",
+      "totalMemory",
+      "memoryBandwidth",
+      "clockRate",
+      "smCount",
+      "pwGpuId",
+      "uuid",
+      "luid",
+      "chipName",
+      "cuDevice",
+      "ctxswDevPath",
+      "ctrlDevPath",
+      "revision",
+      "nodeMask",
+      "constantMemory",
+      "maxIPC",
+      "maxRegistersPerBlock",
+      "maxShmemPerBlock",
+      "maxShmemPerBlockOptin",
+      "maxShmemPerSm",
+      "maxRegistersPerSm",
+      "threadsPerWarp",
+      "asyncEngines",
+      "maxWarpsPerSm",
+      "maxBlocksPerSm",
+      "maxThreadsPerBlock",
+      "maxBlockDimX",
+      "maxBlockDimY",
+      "maxBlockDimZ",
+      "maxGridDimX",
+      "maxGridDimY",
+      "maxGridDimZ",
+      "computeMajor",
+      "computeMinor",
+      "smMajor",
+      "smMinor"
+    ],
+    "TARGET_INFO_CUDA_DEVICE": [
+      "gpuId",
+      "cudaId",
+      "pid"
+    ],
+    "TARGET_INFO_CUDA_CONTEXT_INFO": [
+      "nullStreamId",
+      "hwId",
+      "vmId",
+      "processId",
+      "deviceId",
+      "contextId",
+      "parentContextId",
+      "isGreenContext"
+    ],
+    "TARGET_INFO_CUDA_STREAM": [
+      "streamId",
+      "hwId",
+      "vmId",
+      "processId",
+      "contextId",
+      "priority",
+      "flag"
+    ],
+    "ENUM_NSYS_EVENT_TYPE": [
+      "id",
+      "name",
+      "label"
+    ],
+    "ENUM_NSYS_EVENT_CLASS": [
+      "id",
+      "name",
+      "label"
+    ],
+    "ENUM_NSYS_GENERIC_EVENT_SOURCE": [
+      "id",
+      "name",
+      "label"
+    ],
+    "ENUM_NSYS_GENERIC_EVENT_GROUP": [
+      "id",
+      "name",
+      "label"
+    ],
+    "ENUM_NSYS_GENERIC_EVENT_FIELD_TYPE": [
+      "id",
+      "name",
+      "label"
+    ],
+    "ENUM_NSYS_GENERIC_EVENT_FIELD_ETW_PROPERTY": [
+      "id",
+      "name",
+      "label"
+    ],
+    "ENUM_NSYS_GENERIC_EVENT_FIELD_ETW_TYPE": [
+      "id",
+      "name",
+      "label"
+    ],
+    "ENUM_NSYS_GENERIC_EVENT_FIELD_ETW_FLAGS": [
+      "id",
+      "name",
+      "label"
+    ],
+    "ENUM_CUDA_MEMCPY_OPER": [
+      "id",
+      "name",
+      "label"
+    ],
+    "ENUM_CUDA_MEM_KIND": [
+      "id",
+      "name",
+      "label"
+    ],
+    "ENUM_CUDA_MEMPOOL_TYPE": [
+      "id",
+      "name",
+      "label"
+    ],
+    "ENUM_CUDA_MEMPOOL_OPER": [
+      "id",
+      "name",
+      "label"
+    ],
+    "ENUM_CUDA_DEV_MEM_EVENT_OPER": [
+      "id",
+      "name",
+      "label"
+    ],
+    "ENUM_CUDA_KERNEL_LAUNCH_TYPE": [
+      "id",
+      "name",
+      "label"
+    ],
+    "ENUM_CUDA_SHARED_MEM_LIMIT_CONFIG": [
+      "id",
+      "name",
+      "label"
+    ],
+    "ENUM_CUDA_UNIF_MEM_MIGRATION": [
+      "id",
+      "name",
+      "label"
+    ],
+    "ENUM_CUDA_UNIF_MEM_ACCESS_TYPE": [
+      "id",
+      "name",
+      "label"
+    ],
+    "ENUM_CUDA_FUNC_CACHE_CONFIG": [
+      "id",
+      "name",
+      "label"
+    ],
+    "ENUM_CUPTI_STREAM_TYPE": [
+      "id",
+      "name",
+      "label"
+    ],
+    "ENUM_CUPTI_SYNC_TYPE": [
+      "id",
+      "name",
+      "label"
+    ],
+    "ENUM_CUPTI_OVERHEAD_TYPE": [
+      "id",
+      "name",
+      "label"
+    ],
+    "ENUM_STACK_UNWIND_METHOD": [
+      "id",
+      "name",
+      "label"
+    ],
+    "ENUM_SAMPLING_THREAD_STATE": [
+      "id",
+      "name",
+      "label"
+    ],
+    "ENUM_SCHEDULING_THREAD_BLOCK": [
+      "id",
+      "name",
+      "label"
+    ],
+    "ENUM_DIAGNOSTIC_SEVERITY_LEVEL": [
+      "id",
+      "name",
+      "label"
+    ],
+    "ENUM_DIAGNOSTIC_SOURCE_TYPE": [
+      "id",
+      "name",
+      "label"
+    ],
+    "ENUM_DIAGNOSTIC_TIMESTAMP_SOURCE": [
+      "id",
+      "name",
+      "label"
+    ],
+    "ENUM_OSRT_FILE_ACCESS_EVENT_TYPE": [
+      "id",
+      "name",
+      "label"
+    ],
+    "META_DATA_CAPTURE": [
+      "name",
+      "value"
+    ],
+    "META_DATA_EXPORT": [
+      "name",
+      "value"
+    ],
+    "OSRT_FILE_ACCESS_DESCRIPTORS": [
+      "fileAccessId",
+      "processId",
+      "openedAt",
+      "closedAt",
+      "filePath"
+    ]
+  },
+  "exported_tables": {
+    "StringIds": {
+      "columns": [
+        "id",
+        "value"
+      ],
+      "row_count": 381,
+      "csv": "artifacts/performance/nsys/baseline-StringIds.csv",
+      "sha256": "b4b114e5dc0b8da8ecec9826c13b0368ba398b94db39fb7a9777ee7860faa225"
+    },
+    "CUPTI_ACTIVITY_KIND_RUNTIME": {
+      "columns": [
+        "start",
+        "end",
+        "eventClass",
+        "globalTid",
+        "correlationId",
+        "nameId",
+        "returnValue",
+        "callchainId"
+      ],
+      "row_count": 19943,
+      "csv": "artifacts/performance/nsys/baseline-CUPTI_ACTIVITY_KIND_RUNTIME.csv",
+      "sha256": "f8d16047e1a468c2bd14dc708ba0f15a295f334c10dde0f0440edbf97d9243f3"
+    },
+    "CUPTI_ACTIVITY_KIND_MEMSET": {
+      "columns": [
+        "start",
+        "end",
+        "deviceId",
+        "contextId",
+        "greenContextId",
+        "streamId",
+        "correlationId",
+        "globalPid",
+        "value",
+        "bytes",
+        "graphNodeId",
+        "memKind"
+      ],
+      "row_count": 346,
+      "csv": "artifacts/performance/nsys/baseline-CUPTI_ACTIVITY_KIND_MEMSET.csv",
+      "sha256": "3e27865dc4e7edc8e85c6dbf77cb3616dc4a0f4c2a2584d1455a165d1993d67d"
+    },
+    "CUPTI_ACTIVITY_KIND_MEMCPY": {
+      "columns": [
+        "start",
+        "end",
+        "deviceId",
+        "contextId",
+        "greenContextId",
+        "streamId",
+        "correlationId",
+        "globalPid",
+        "bytes",
+        "copyKind",
+        "deprecatedSrcId",
+        "srcKind",
+        "dstKind",
+        "srcDeviceId",
+        "srcContextId",
+        "dstDeviceId",
+        "dstContextId",
+        "migrationCause",
+        "graphNodeId",
+        "virtualAddress",
+        "copyCount"
+      ],
+      "row_count": 13702,
+      "csv": "artifacts/performance/nsys/baseline-CUPTI_ACTIVITY_KIND_MEMCPY.csv",
+      "sha256": "42719dfe2ff9997df7e75ae20b08ed55732f539c31be5f36e943a5c0092891e5"
+    },
+    "CUPTI_ACTIVITY_KIND_OVERHEAD": {
+      "columns": [
+        "start",
+        "end",
+        "eventClass",
+        "globalTid",
+        "correlationId",
+        "nameId",
+        "overheadType"
+      ],
+      "row_count": 15,
+      "csv": "artifacts/performance/nsys/baseline-CUPTI_ACTIVITY_KIND_OVERHEAD.csv",
+      "sha256": "4c1fed66dde20c2a9270a61e86adea5552737c11792ebda0f83b380128844ff9"
+    },
+    "CUPTI_ACTIVITY_KIND_KERNEL": {
+      "columns": [
+        "start",
+        "end",
+        "deviceId",
+        "contextId",
+        "greenContextId",
+        "streamId",
+        "correlationId",
+        "globalPid",
+        "demangledName",
+        "shortName",
+        "mangledName",
+        "launchType",
+        "cacheConfig",
+        "registersPerThread",
+        "gridX",
+        "gridY",
+        "gridZ",
+        "blockX",
+        "blockY",
+        "blockZ",
+        "staticSharedMemory",
+        "dynamicSharedMemory",
+        "localMemoryPerThread",
+        "localMemoryTotal",
+        "gridId",
+        "sharedMemoryExecuted",
+        "graphNodeId",
+        "sharedMemoryLimitConfig",
+        "qmdBulkReleaseDone",
+        "qmdPreexitDone",
+        "qmdLastCtaDone",
+        "graphId",
+        "clusterX",
+        "clusterY",
+        "clusterZ",
+        "clusterSchedulingPolicy",
+        "maxPotentialClusterSize",
+        "maxActiveClusters"
+      ],
+      "row_count": 2200,
+      "csv": "artifacts/performance/nsys/baseline-CUPTI_ACTIVITY_KIND_KERNEL.csv",
+      "sha256": "d7ee6e27e141f27c3ab27134b65f2502949974926671b100bc428edc4384af1b"
+    },
+    "CUPTI_ACTIVITY_KIND_SYNCHRONIZATION": {
+      "columns": [
+        "start",
+        "end",
+        "deviceId",
+        "contextId",
+        "greenContextId",
+        "streamId",
+        "correlationId",
+        "globalPid",
+        "deprecatedSyncType",
+        "syncType",
+        "eventId",
+        "eventSyncId"
+      ],
+      "row_count": 1200,
+      "csv": "artifacts/performance/nsys/baseline-CUPTI_ACTIVITY_KIND_SYNCHRONIZATION.csv",
+      "sha256": "2ae30ad872650a62e3a392a3edeb5e75afa97c64144df1e25982bc431869995c"
+    },
+    "CUDA_GPU_MEMORY_USAGE_EVENTS": {
+      "columns": [
+        "start",
+        "globalPid",
+        "deviceId",
+        "contextId",
+        "address",
+        "pc",
+        "bytes",
+        "memKind",
+        "memoryOperationType",
+        "name",
+        "correlationId",
+        "streamId",
+        "localMemoryPoolAddress",
+        "localMemoryPoolReleaseThreshold",
+        "localMemoryPoolSize",
+        "localMemoryPoolUtilizedSize",
+        "importedMemoryPoolAddress",
+        "importedMemoryPoolProcessId"
+      ],
+      "row_count": 282,
+      "csv": "artifacts/performance/nsys/baseline-CUDA_GPU_MEMORY_USAGE_EVENTS.csv",
+      "sha256": "b1e625d12f97ab7624e10454a40c5a695b2596ce96e4ba572749ad843384a1c8"
+    },
+    "OSRT_API": {
+      "columns": [
+        "start",
+        "end",
+        "eventClass",
+        "globalTid",
+        "nameId",
+        "returnValue",
+        "nestingLevel",
+        "callchainId",
+        "argumentsId"
+      ],
+      "row_count": 17153,
+      "csv": "artifacts/performance/nsys/baseline-OSRT_API.csv",
+      "sha256": "ad2e0d904ca7738825ebb83e8f73078e11d5c5cda03d4f5814592887428ff07e"
+    }
+  },
+  "cuda_runtime_API": [
+    {
+      "name": "cuModuleGetLoadingMode",
+      "count": 1,
+      "total_ns": 5083,
+      "min_ns": 5083,
+      "max_ns": 5083
+    },
+    {
+      "name": "cudaMalloc_v3020",
+      "count": 139,
+      "total_ns": 484348699,
+      "min_ns": 1975,
+      "max_ns": 483870790
+    },
+    {
+      "name": "cudaMemsetAsync_v3020",
+      "count": 346,
+      "total_ns": 11270975,
+      "min_ns": 2452,
+      "max_ns": 9435954
+    },
+    {
+      "name": "cudaMemcpy_v3020",
+      "count": 12902,
+      "total_ns": 230443578,
+      "min_ns": 4336,
+      "max_ns": 469612
+    },
+    {
+      "name": "cuLibraryLoadData",
+      "count": 1,
+      "total_ns": 17684754,
+      "min_ns": 17684754,
+      "max_ns": 17684754
+    },
+    {
+      "name": "cuLibraryGetKernel",
+      "count": 15,
+      "total_ns": 7572,
+      "min_ns": 314,
+      "max_ns": 860
+    },
+    {
+      "name": "cuKernelGetName",
+      "count": 2200,
+      "total_ns": 211508,
+      "min_ns": 46,
+      "max_ns": 5916
+    },
+    {
+      "name": "cudaLaunchKernel_v7000",
+      "count": 2200,
+      "total_ns": 28494577,
+      "min_ns": 2299,
+      "max_ns": 11827550
+    },
+    {
+      "name": "cudaDeviceSynchronize_v3020",
+      "count": 400,
+      "total_ns": 13982727,
+      "min_ns": 2429,
+      "max_ns": 632534
+    },
+    {
+      "name": "cudaMemcpyAsync_v3020",
+      "count": 800,
+      "total_ns": 15427940,
+      "min_ns": 11808,
+      "max_ns": 602564
+    },
+    {
+      "name": "cudaStreamSynchronize_v3020",
+      "count": 800,
+      "total_ns": 639468,
+      "min_ns": 524,
+      "max_ns": 25699
+    },
+    {
+      "name": "cudaFree_v3020",
+      "count": 139,
+      "total_ns": 593673,
+      "min_ns": 1102,
+      "max_ns": 365639
+    }
+  ],
+  "kernels": [
+    {
+      "name": "void chmt::transport::prepareGasSstAuditKernel<chmt::SharedGasDeviceView>(T1 *)",
+      "count": 200,
+      "total_ns": 243262,
+      "min_ns": 1206,
+      "max_ns": 1529
+    },
+    {
+      "name": "void chmt::transport::recoverGasPrimitivesKernel<chmt::SharedGasDeviceView>(T1 *)",
+      "count": 500,
+      "total_ns": 18161420,
+      "min_ns": 34801,
+      "max_ns": 41009
+    },
+    {
+      "name": "void chmt::transport::computeGasCourantFieldKernel<chmt::SharedGasDeviceView>(T1 *, double)",
+      "count": 100,
+      "total_ns": 828000,
+      "min_ns": 8001,
+      "max_ns": 8296
+    },
+    {
+      "name": "void chmt::transport::computeGasConvectiveCourantByCellKernel<chmt::SharedGasDeviceView>(T1 *, double)",
+      "count": 100,
+      "total_ns": 371959,
+      "min_ns": 3706,
+      "max_ns": 3854
+    },
+    {
+      "name": "void chmt::transport::computeGasDiffusionNumberKernel<chmt::SharedGasDeviceView>(T1 *, double, double)",
+      "count": 100,
+      "total_ns": 1752026,
+      "min_ns": 17181,
+      "max_ns": 17562
+    },
+    {
+      "name": "void chmt::transport::updateLegacyGasBoundaryMirrorKernel<chmt::SharedGasDeviceView>(T1 *, double)",
+      "count": 200,
+      "total_ns": 764005,
+      "min_ns": 3794,
+      "max_ns": 3854
+    },
+    {
+      "name": "void chmt::transport::updateRiemannBoundaryMirrorKernel<chmt::SharedGasDeviceView>(T1 *)",
+      "count": 200,
+      "total_ns": 735062,
+      "min_ns": 3647,
+      "max_ns": 3707
+    },
+    {
+      "name": "void chmt::transport::computeGasPrimitiveGradientsKernel<chmt::SharedGasDeviceView>(T1 *, bool)",
+      "count": 100,
+      "total_ns": 2516990,
+      "min_ns": 24976,
+      "max_ns": 25182
+    },
+    {
+      "name": "void chmt::transport::computeGasGradientLimiterKernel<chmt::SharedGasDeviceView>(T1 *)",
+      "count": 100,
+      "total_ns": 1624328,
+      "min_ns": 16003,
+      "max_ns": 16269
+    },
+    {
+      "name": "void chmt::transport::computeGasEddyViscosityKernel<chmt::SharedGasDeviceView>(T1 *)",
+      "count": 100,
+      "total_ns": 138241,
+      "min_ns": 1353,
+      "max_ns": 1412
+    },
+    {
+      "name": "void chmt::transport::computeGasInternalFaceFluxKernel<(bool)0, chmt::SharedGasDeviceView>(T2 *, double)",
+      "count": 100,
+      "total_ns": 1670178,
+      "min_ns": 16445,
+      "max_ns": 16739
+    },
+    {
+      "name": "void chmt::transport::computeGasFluxPositivityScaleKernel<chmt::SharedGasDeviceView>(T1 *, double)",
+      "count": 100,
+      "total_ns": 1097184,
+      "min_ns": 10885,
+      "max_ns": 11003
+    },
+    {
+      "name": "void chmt::transport::applyGasFluxPositivityScaleKernel<chmt::SharedGasDeviceView>(T1 *)",
+      "count": 100,
+      "total_ns": 436774,
+      "min_ns": 3971,
+      "max_ns": 4384
+    },
+    {
+      "name": "void chmt::transport::applyGasFluxDivergenceByCellKernel<chmt::SharedGasDeviceView>(T1 *, double)",
+      "count": 100,
+      "total_ns": 1467262,
+      "min_ns": 14650,
+      "max_ns": 14798
+    },
+    {
+      "name": "void chmt::transport::updateWaveTransmissivePressureBoundaryKernel<chmt::SharedGasDeviceView>(T1 *, double)",
+      "count": 100,
+      "total_ns": 135941,
+      "min_ns": 1353,
+      "max_ns": 1383
+    }
+  ],
+  "device_transfers": [
+    {
+      "copy_kind": 1,
+      "count": 6202,
+      "total_bytes": 1800352,
+      "total_ns": 2391674
+    },
+    {
+      "copy_kind": 2,
+      "count": 7500,
+      "total_bytes": 876800,
+      "total_ns": 6568455
+    }
+  ],
+  "native_CSV_equal_to_unprofiled_same_variant": true,
+  "interpretation": "CUDA API host durations overlap device activity. Do not sum host/kernel/wait into wall time; no measured-speed ratio from instrumented trace. NVTX window ranges may be absent; no inferred internal window CPU time."
+}

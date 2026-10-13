@@ -1,0 +1,20 @@
+--- a/constant/particleProperties
++++ b/constant/particleProperties
+@@ -48,9 +48,6 @@
+     reflectionHeatTransferEfficiency 1;
+     adhesionEnergyScale 1;
+     contactAngleDegree 70;
+-    wallDensity 7900;
+-    wallSpecificHeat 500;
+-    wallThermalConductivity 15;
+     meltingTemperature 2327;
+     mushyRange 20;
+     latentHeat 1.16e6;
+--- a/constant/schedulingProperties
++++ b/constant/schedulingProperties
+@@ -17,3 +17,5 @@
+ gpuCsrLevel L0;
+ gpuParticleBlockThreads 128;
+ gpuReductionBlockThreads 128;
++
++gpuPrecision 64;

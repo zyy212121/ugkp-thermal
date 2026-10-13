@@ -1,0 +1,74 @@
+{
+  "id": "PERF-NATIVE-baseline-measured-6",
+  "interaction_class": "FAST",
+  "kind": "PERFORMANCE",
+  "variant": "baseline",
+  "source_commit": "802a11e7dfe986488a8bf8305e86424dcc94c9e1",
+  "source_tree": "db2863158139842f6c8221c0da11ba640f381336",
+  "baseline_commit": "d6110c02745a8ad726208a426c4bb3a28233c1fd",
+  "topics": [
+    "R014-002",
+    "R014-024",
+    "R014-027"
+  ],
+  "source_targets": [
+    {
+      "file_id": "F014-e97a40d30c3f",
+      "path": "tests/fixtures/continuation_history/USAGE.md",
+      "blob": "a20631458ec1f0491127e872a58084113ca5d31b",
+      "sha256": "9bf62789333fe5c3ef73cc5774826d50412988a7011cd872698b12a205baaf8b",
+      "function_ids": []
+    },
+    {
+      "file_id": "F014-9a4e70f041e3",
+      "path": "tests/fixtures/continuation_history/history.gitbundle",
+      "blob": "dd2588a72cecc8315c4ac1fb76ef136b01ff20b0",
+      "sha256": "bf69f1b9f4a4c96d27af04bd885296264305393f941ea1db3a81cb4ea4eac5e8",
+      "function_ids": []
+    },
+    {
+      "file_id": "F014-5373bc6efa7d",
+      "path": "tests/fixtures/continuation_history/prepare.py",
+      "blob": "37c3f4c3096a23133526f5225b0c85184e938638",
+      "sha256": "1b54096716021483c07d948344799374136cbc08f83ff368a8aca51c393b3f0a",
+      "function_ids": []
+    }
+  ],
+  "argv": [
+    "bash",
+    "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261013T182722Z-fast/review/pr14/reviewer-deliveries/20261013T182722Z-fast/inputs/env.sh",
+    "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261013T182722Z-fast/work/install/base/bin/CHMT",
+    "-case",
+    "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261013T182722Z-fast/work/perf-native/baseline-measured-6"
+  ],
+  "working_directory": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261013T182722Z-fast",
+  "budget_seconds": 300,
+  "expected": "Matched native 8+8 cell two-window thermal workload; finite actual CSV fields and same work count, warmup3/repeats7.",
+  "input_hashes": {
+    "review/pr14/reviewer-deliveries/20261013T182722Z-fast/inputs/native/chmt/thermal-full/verification.json": "25d14fcf5c2e4002b3a9869b6e716e0d38dc85cbf13bf2c36d581101d3b06120",
+    "review/pr14/reviewer-deliveries/20261013T182722Z-fast/inputs/native/chmt/thermal-full/system/blockMeshDict": "74a9c8669f70e11784995d57eceec79042e568a1910f6f3b18fe0dd3171b6b88",
+    "review/pr14/reviewer-deliveries/20261013T182722Z-fast/inputs/native/chmt/thermal-full/system/controlDict": "99c72aa0a0089f3719653304a1e8a4fa2cefe68296547a57b0682c6d0f1c46a9",
+    "review/pr14/reviewer-deliveries/20261013T182722Z-fast/inputs/native/chmt/thermal-full/system/fvSolution": "d706e2719f1b57e75845a29dd5ac92148870263d7999851b7f5cd2a294478707",
+    "review/pr14/reviewer-deliveries/20261013T182722Z-fast/inputs/native/chmt/thermal-full/system/blockMeshSolidDict": "d1d77c8f439798e8818d4dff29846e9d95b820fb647ac0a2d502811dce64b3e8",
+    "review/pr14/reviewer-deliveries/20261013T182722Z-fast/inputs/native/chmt/thermal-full/system/fvSchemes": "984daf4b14a1163a48fcb4dd5ddebc881354ceb55cbc9c3384730f35a7864dd4",
+    "review/pr14/reviewer-deliveries/20261013T182722Z-fast/inputs/native/chmt/thermal-full/system/solid/fvSolution": "d706e2719f1b57e75845a29dd5ac92148870263d7999851b7f5cd2a294478707",
+    "review/pr14/reviewer-deliveries/20261013T182722Z-fast/inputs/native/chmt/thermal-full/system/solid/fvSchemes": "984daf4b14a1163a48fcb4dd5ddebc881354ceb55cbc9c3384730f35a7864dd4",
+    "review/pr14/reviewer-deliveries/20261013T182722Z-fast/inputs/native/chmt/thermal-full/constant/gasModelProperties": "5c2ebae303b9c8d8fa6fe95f4cd62da8aee33d7d1488ed297774754aecbbbaa0",
+    "review/pr14/reviewer-deliveries/20261013T182722Z-fast/inputs/native/chmt/thermal-full/constant/chmtProperties": "6fd89d0225bc733760a6d3d0c2dd7f71f72ccb43d7a8c21f331be7e79aafaeb2",
+    "review/pr14/reviewer-deliveries/20261013T182722Z-fast/inputs/native/chmt/thermal-full/0/Y_S1": "afc467f053982bd49962c4e993191cdab92c4c01f299c05c253c1abc96393872",
+    "review/pr14/reviewer-deliveries/20261013T182722Z-fast/inputs/native/chmt/thermal-full/0/Y_S0": "5cd5d4ca405a360c83b49a83cff0d5233a6955333de48172e9b5e22814acffd6",
+    "review/pr14/reviewer-deliveries/20261013T182722Z-fast/inputs/native/chmt/thermal-full/0/rho": "681f28cdbda801cfd441d2ce0b4ecd3edcef2dae8af6351e584c6f3206cb773b",
+    "review/pr14/reviewer-deliveries/20261013T182722Z-fast/inputs/native/chmt/thermal-full/0/T": "f3ba2a22282d534d75f47711183d52beee775fa58c81ad9d8d3388d6b31c3990",
+    "review/pr14/reviewer-deliveries/20261013T182722Z-fast/inputs/native/chmt/thermal-full/0/U": "36f8843a873bc3d67517bc0d9a2762aff43b1f5d3d812b403af7dc020b0db40a",
+    "review/pr14/reviewer-deliveries/20261013T182722Z-fast/inputs/native/chmt/thermal-full/0/solid/rho_C1": "d94a4ac4a29250150d12f181f423a3d94eea92d0f89a043c7ee6382d232099a1",
+    "review/pr14/reviewer-deliveries/20261013T182722Z-fast/inputs/native/chmt/thermal-full/0/solid/rho_C0": "3458757d4115d602179bff9ffe6ace837049f75003409d7439a3a86b66dd8166",
+    "review/pr14/reviewer-deliveries/20261013T182722Z-fast/inputs/native/chmt/thermal-full/0/solid/rhoPore_S0": "6874d45d5af445986ab8b5d4f4252e77e0b84dbce993896e230414fb39ec4638",
+    "review/pr14/reviewer-deliveries/20261013T182722Z-fast/inputs/native/chmt/thermal-full/0/solid/rhoPore_S1": "a12e1e1d8f432306c1a28586d26865236d737005edaa4c2bac8b8fc97147da4a",
+    "review/pr14/reviewer-deliveries/20261013T182722Z-fast/inputs/native/chmt/thermal-full/0/solid/solidEnergyDensity": "b03dc8c1cc3375f58670badbdbda1ea5d2626f7b95843cfea25676b27ccd357c",
+    "review/pr14/reviewer-deliveries/20261013T182722Z-fast/inputs/native/chmt/thermal-full/0/solid/porosity": "832b05a8b6c7d4e05fdc68a80344e348b9c59e5b13ea2f4b7562578c4ca96640"
+  },
+  "binary": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261013T182722Z-fast/work/install/base/bin/CHMT",
+  "binary_sha256": "3246dff1c1f34b4cb46763d750e19444c05e4f0091c6d42a5b5f90b858a5e93a",
+  "environment_script_sha256": "2e9ba1655533bb17676f60b83f3628c2409d36978b703cfa8f9251a788e31c83",
+  "started_utc": "2026-10-13T19:26:12.906752+00:00"
+}

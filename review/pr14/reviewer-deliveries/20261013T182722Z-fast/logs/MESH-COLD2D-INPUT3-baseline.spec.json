@@ -1,0 +1,137 @@
+{
+  "id": "MESH-COLD2D-INPUT3-baseline",
+  "interaction_class": "FAST",
+  "kind": "SETUP",
+  "variant": "baseline",
+  "source_commit": "802a11e7dfe986488a8bf8305e86424dcc94c9e1",
+  "source_tree": "db2863158139842f6c8221c0da11ba640f381336",
+  "baseline_commit": "d6110c02745a8ad726208a426c4bb3a28233c1fd",
+  "topics": [
+    "R014-033"
+  ],
+  "source_targets": [
+    {
+      "file_id": "F014-716fc701a35c",
+      "path": "common/wall/GpuColdWall1DAdvance.inl",
+      "blob": "584b4c35f9d6f49ca772ca7887b7fad7379831f1",
+      "sha256": "c7077477911ee04114979f82175d0081038e3fe77cae77912a0eaaf921738df5",
+      "function_ids": []
+    },
+    {
+      "file_id": "F014-771ba55c90cf",
+      "path": "common/wall/GpuColdWall1DGasOnly.cuh",
+      "blob": "785d39d52ec1535db2e0062c9edd0be81d52c2b9",
+      "sha256": "4aa0c64e7b574af769e6f48d7cfa3852d5068b2840a3ff3f6c247308f1925e57",
+      "function_ids": [
+        "FN014-c02460c42c2f"
+      ]
+    },
+    {
+      "file_id": "F014-2e2a131a2fb5",
+      "path": "common/wall/GpuColdWall1DInputs.inl",
+      "blob": "c5acf3326545a466fc9dd34ee21bfc4001bedade",
+      "sha256": "e10b5e2fca129308ba2c9eab8677c7b7ab1cb3501b20b95ba80644dd83a98638",
+      "function_ids": []
+    },
+    {
+      "file_id": "F014-63da1ded76a7",
+      "path": "common/wall/GpuColdWall1DPublish.inl",
+      "blob": "9de6c2a4cd5082baea041293db0488b5f92d1302",
+      "sha256": "6706de8636011095e3c014541e5db141d767aa610f1cef3aade665d27b6a62f3",
+      "function_ids": []
+    },
+    {
+      "file_id": "F014-25f5122cd935",
+      "path": "common/wall/GpuColdWall2DDevice.cuh",
+      "blob": "ea30a71ab14982a8f5420177145487ead42134ec",
+      "sha256": "903b5b615caa4f7aa432126c04a07c054335f04038bf941362a3078e10fe0a61",
+      "function_ids": [
+        "FN014-58a69b7aed98",
+        "FN014-d1bed3a4d1a4",
+        "FN014-b1795ec0e7a7",
+        "FN014-7b909e35de34"
+      ]
+    },
+    {
+      "file_id": "F014-81721696a164",
+      "path": "common/wall/GpuColdWall2DSolidification.H",
+      "blob": "412aad519d7f235e58112060885bb572fd4941db",
+      "sha256": "52acee5803ecde4e3d2f072b2f89b95e002b3ef198755b9145882407250f7a0e",
+      "function_ids": [
+        "FN014-b8c87e826224",
+        "FN014-b6ecc54ab22a"
+      ]
+    },
+    {
+      "file_id": "F014-432610a6ea28",
+      "path": "common/wall/GpuColdWallSolidification.H",
+      "blob": "d3721586744006cebe3a1811a4a045a0212e1ef1",
+      "sha256": "391cbfc0507a3b1b2af027139a6166f798013fd4cbdc38ae3d258e536215da5b",
+      "function_ids": [
+        "FN014-470ecda05233",
+        "FN014-f3300d4e6601",
+        "FN014-574b0c27db34",
+        "FN014-df81e9c74e02",
+        "FN014-6eb59b1c5fde",
+        "FN014-5f63e73a7cdc",
+        "FN014-4e10c3d1043d",
+        "FN014-7ac67f0c5c3f"
+      ]
+    },
+    {
+      "file_id": "F014-4a5cdad2c212",
+      "path": "tests/fixtures/cold_wall_1d_energy_test.cpp",
+      "blob": "cbf40883020061b1ccb74dcd071bf58a31c85ef5",
+      "sha256": "2ebb99b76df94804043944ac34199fc5dc28f650ead68053b3f206118c95cda8",
+      "function_ids": []
+    },
+    {
+      "file_id": "F014-d71f15e68284",
+      "path": "tests/fixtures/cold_wall_contact_routes.cpp",
+      "blob": "8501988bd9ef9430edd3b616afdb5315ddd52246",
+      "sha256": "1317b79f16e7af23f250b47821fd918d14449205ca25f8548b4d77c75c9123a8",
+      "function_ids": []
+    },
+    {
+      "file_id": "F014-a15a02bc42d5",
+      "path": "tests/test_cold_wall_1d_energy.py",
+      "blob": "77737cf626896c83a3700c49a9769f8725cc51c7",
+      "sha256": "250f9630b68f61be2be886caa6cde1b4301aea880f701cc25647efaf29d7d575",
+      "function_ids": []
+    }
+  ],
+  "argv": [
+    "bash",
+    "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261013T182722Z-fast/review/pr14/reviewer-deliveries/20261013T182722Z-fast/inputs/env.sh",
+    "blockMesh",
+    "-case",
+    "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261013T182722Z-fast/work/cold2D-INPUT3-baseline"
+  ],
+  "working_directory": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261013T182722Z-fast",
+  "budget_seconds": 300,
+  "expected": "Same adapted input for old/new numerical refusal boundary.",
+  "input_hashes": {
+    "review/pr14/reviewer-deliveries/20261013T182722Z-fast/inputs/native/resident/CHT-coldWall2D-INPUT3-BASE64/system/blockMeshDict": "252f21b8126c965f13ad281721f090e5030373a7dad886977f6eac32f4907e4d",
+    "review/pr14/reviewer-deliveries/20261013T182722Z-fast/inputs/native/resident/CHT-coldWall2D-INPUT3-BASE64/system/controlDict": "21b30a721f1c0f19ba6e355df970450b3d50e7926f559962afe74fe97ee25b32",
+    "review/pr14/reviewer-deliveries/20261013T182722Z-fast/inputs/native/resident/CHT-coldWall2D-INPUT3-BASE64/system/fvSolution": "be3a4e1592d66a0d66787caaabc7d47cf7ab0f5077a2d2326cd6965fd93db45e",
+    "review/pr14/reviewer-deliveries/20261013T182722Z-fast/inputs/native/resident/CHT-coldWall2D-INPUT3-BASE64/system/fvSchemes": "b00a974c6bf5dde17c1efac1eed45c5ae27b2320de3c911133ec0dc9486eda57",
+    "review/pr14/reviewer-deliveries/20261013T182722Z-fast/inputs/native/resident/CHT-coldWall2D-INPUT3-BASE64/constant/radiationProperties": "5cacaaab8b2ce22457c1021f0c4a7a8442b1de3e0b2daeba13a9576fce65ced6",
+    "review/pr14/reviewer-deliveries/20261013T182722Z-fast/inputs/native/resident/CHT-coldWall2D-INPUT3-BASE64/constant/schedulingProperties": "99f578746160fdb662a1a36a6de4106bcbcf6442c0deeb78bda7822e0e46ade6",
+    "review/pr14/reviewer-deliveries/20261013T182722Z-fast/inputs/native/resident/CHT-coldWall2D-INPUT3-BASE64/constant/g": "6a73b3c533c8eb57672b6b5128a890d54cbaf98e5a4486ed6747ab62af4bed6e",
+    "review/pr14/reviewer-deliveries/20261013T182722Z-fast/inputs/native/resident/CHT-coldWall2D-INPUT3-BASE64/constant/fluidProperties": "cc0e7d4f094e2b84539559a3c2f710a288f5616d300b8213e570fa82eb3a2ee9",
+    "review/pr14/reviewer-deliveries/20261013T182722Z-fast/inputs/native/resident/CHT-coldWall2D-INPUT3-BASE64/constant/solidRegionProperties": "d5a049297351189a1f8ef45474d4a8e411ad8f5cae1dfe5069c4914e45a37586",
+    "review/pr14/reviewer-deliveries/20261013T182722Z-fast/inputs/native/resident/CHT-coldWall2D-INPUT3-BASE64/constant/particleProperties": "bb9f3ef7dfa12f87849400e0d9e3ce5a7ef21f706453975eeb7c432ecd457b14",
+    "review/pr14/reviewer-deliveries/20261013T182722Z-fast/inputs/native/resident/CHT-coldWall2D-INPUT3-BASE64/0/epsilonS": "50149ca681c328b49111388a4e034ecf15d0ef432d05f412fdc5a37b4399a06f",
+    "review/pr14/reviewer-deliveries/20261013T182722Z-fast/inputs/native/resident/CHT-coldWall2D-INPUT3-BASE64/0/gpuResidentStrictParticles.dat": "ac1f28c2576f17ba57bd7fbe68a8f903fb01362cad5c9f2b07b489274f549cf8",
+    "review/pr14/reviewer-deliveries/20261013T182722Z-fast/inputs/native/resident/CHT-coldWall2D-INPUT3-BASE64/0/theta": "f57aa03abe38cddf7e7a537fb3673b1ac75bbaaf9ce2510b56b576ca14d68d14",
+    "review/pr14/reviewer-deliveries/20261013T182722Z-fast/inputs/native/resident/CHT-coldWall2D-INPUT3-BASE64/0/T": "cd6a2398abf79a434ef9f353d67b42f6d6b73c70f74a8d31fea558735c3c219b",
+    "review/pr14/reviewer-deliveries/20261013T182722Z-fast/inputs/native/resident/CHT-coldWall2D-INPUT3-BASE64/0/Us": "8850af80866ea50b27d1891f48c8832a241e23bbde6a4ee9782011b321178ca8",
+    "review/pr14/reviewer-deliveries/20261013T182722Z-fast/inputs/native/resident/CHT-coldWall2D-INPUT3-BASE64/0/U": "1545eea7ce026cab0aa9612d863834cac2d1b6eb8d007e19bcfb7d7aeed8c653",
+    "review/pr14/reviewer-deliveries/20261013T182722Z-fast/inputs/native/resident/CHT-coldWall2D-INPUT3-BASE64/0/p": "59d4a84b8cadfe422699895238591c0c03cb8e199b762b191c5c7e16581e103f",
+    "review/pr14/reviewer-deliveries/20261013T182722Z-fast/inputs/native/resident/CHT-coldWall2D-INPUT3-BASE64/0/Tp": "d766962f6e70f79464c50bd446e2e8855e8f6f6b4905b217485fb21fa7401dae"
+  },
+  "binary": null,
+  "binary_sha256": null,
+  "environment_script_sha256": "2e9ba1655533bb17676f60b83f3628c2409d36978b703cfa8f9251a788e31c83",
+  "started_utc": "2026-10-13T19:48:13.263450+00:00"
+}

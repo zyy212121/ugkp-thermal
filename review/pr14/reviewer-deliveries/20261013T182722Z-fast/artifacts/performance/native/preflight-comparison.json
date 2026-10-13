@@ -1,0 +1,38 @@
+{
+  "all_csv_numeric_equal": false,
+  "differences": [
+    {
+      "file": "exchange-1.csv",
+      "numeric_count": 6800,
+      "finite": true,
+      "maximum_abs": 8.933825901280557e-17,
+      "maximum_rel": 5.95591198318411e-14,
+      "exact_numeric_equal": false
+    },
+    {
+      "file": "exchange-2.csv",
+      "numeric_count": 6800,
+      "finite": true,
+      "maximum_abs": 1.8691645453650096e-16,
+      "maximum_rel": 1.246117401830398e-13,
+      "exact_numeric_equal": false
+    },
+    {
+      "file": "gas-1.csv",
+      "numeric_count": 88,
+      "finite": true,
+      "maximum_abs": 1.3552527156068805e-20,
+      "maximum_rel": 2.1924605950263444e-15,
+      "exact_numeric_equal": false
+    },
+    {
+      "file": "gas-2.csv",
+      "numeric_count": 88,
+      "finite": true,
+      "maximum_abs": 5.421010862427522e-20,
+      "maximum_rel": 2.6611393107604105e-15,
+      "exact_numeric_equal": false
+    }
+  ],
+  "scope": "All initial/final/intermediate gas/material/packet/accepted CSV fields; checkpoint binary schema intentionally different."
+}

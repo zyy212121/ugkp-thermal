@@ -1,0 +1,22 @@
+{
+  "accepted_windows": 2,
+  "diffusion": {
+    "diffusive_variance": 0.012085137688816167,
+    "zero_diffusion_variance": 0.012089044580535295
+  },
+  "energy_tolerance": 6.0089166588779345e-05,
+  "evidence": "independent-output-checks-only",
+  "final_time": 0.001,
+  "gas_energy_change": -0.5999979617190547,
+  "material_energy_change": 0.5999979376792908,
+  "maximum_total_energy_residual": 2.403976395726204e-08,
+  "refinement": {
+    "coarse_heat": 0.5999979376792908,
+    "expectation": "H/2 and dt/2: heat agrees within 0.5% plus roundoff; no convergence-order claim",
+    "heat_difference": 2.980232238769531e-07,
+    "heat_difference_allowance": 0.003119991178512573,
+    "refined_heat": 0.5999982357025146
+  },
+  "scenario": "diffusion",
+  "signed_exchange_energy": -0.599997961448977
+}

@@ -1,0 +1,33 @@
+--- a/common/operators/advanceGasChemistryKernel.cuh
++++ b/common/operators/advanceGasChemistryKernel.cuh
+@@ -137,13 +137,24 @@
+         ChemistryAudit<Real, Ns> localAudit;
+         const ChemistryStatus inputDiagnostic=status;
+         bool reactorAvailable=false;
+-        status = advanceClosedReactor
+-        (
+-            input, interval, species.thermo, species.mechanism,
+-            castChemistryControls<Real>(species.chemistryControls), result, localAudit, &reactorAvailable
+-        );
++        if (nativeRefinement)
++            status = advanceClosedReactorTrial
++            (
++                input, interval, species.thermo, species.mechanism,
++                castChemistryControls<Real>(species.chemistryControls), result, localAudit, &reactorAvailable
++            );
++        else
++            status = advanceClosedReactor
++            (
++                input, interval, species.thermo, species.mechanism,
++                castChemistryControls<Real>(species.chemistryControls), result, localAudit, &reactorAvailable
++            );
+         if (!reactorAvailable)
+-            return gasChemistryAdapterDetail::recordFailure(species, cell, status);
++            return gasChemistryAdapterDetail::recordFailure
++            (
++                species, cell, status,
++                !nativeRefinement || status.code == ChemistryCode::InvalidModel
++            );
+         gasChemistryDetail::retainDiagnostic(status,inputDiagnostic);
+ 
+         // Convert the actual publication before the first write. A zero-time

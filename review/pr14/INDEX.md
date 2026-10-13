@@ -90,3 +90,14 @@ The continuation bundle now embeds source `a73b9635510fb09d7baa5339e14d1aa609f0f
 - Real-GPU acceptance remains pending. PR remains draft and unmerged; no merge authorization.
 - All review requests, evidence, results, developer replies and rechecks remain in these authorized review files. Do not write PR Conversation descriptions, notes, progress updates or comments, including a minimal entry or final publication comment.
 - All earlier evidence, review results and response history are retained. This update contains administrative records only, with no compile, test, runtime or cleanup execution.
+
+## 独立实机GPU FAST交付 20261013T182722Z-fast
+
+固定原版802a11e7，RTX4060/sm89真实执行。当前不建议合并；4个生产/传输发现、FP64微差待解释及14项未测范围保留。补丁仅隔离文件，不是正式修复。
+
+- [中文报告](reviewer-deliveries/20261013T182722Z-fast/REPORT.md)
+- [先行计划](reviewer-deliveries/20261013T182722Z-fast/TEST_PLAN.md)
+- [33项覆盖矩阵](reviewer-deliveries/20261013T182722Z-fast/coverage.json)
+- [原始结果和计数](reviewer-deliveries/20261013T182722Z-fast/results.json)
+- [版本/patch/bin](reviewer-deliveries/20261013T182722Z-fast/versions.json)
+- [复现](reviewer-deliveries/20261013T182722Z-fast/REPRODUCE.md)

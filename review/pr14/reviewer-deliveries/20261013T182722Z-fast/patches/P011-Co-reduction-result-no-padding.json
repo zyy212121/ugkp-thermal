@@ -1,0 +1,13 @@
+{
+  "classification": "isolated metadata result representation correction/diagnostic",
+  "finding": "GPU-F005",
+  "reason": "Original initcheck reports100 host16byte D2H uninitialized errors, one per Co transform_reduce. double+bool has seven uninitialized padding bytes. Use explicit8byte 0/1 slot; same physical double/max/OR traversal/order and same16byte ABI result size. No Co/Js numeric poisoning established.",
+  "before_sha256": "fdec130622e33e1ed3aaea7b7d434e327fe2c17ab363e042214f7b6bf3183bfe",
+  "after_sha256": "9386ac82355bd0d95e562b2f7af885a7dcce92093024cd10efaac0f23a9a818d",
+  "patch_sha256": "e2e08d7f52b55c226fae4e451e2ef648acbf6d18ad7fe5fa5ec0d2a16fdc6a9b",
+  "formal_fix": false,
+  "production_checkout_modified": false,
+  "scope": "Native Ns2 thermal, all CSV/checkpoint bytes equality plus initcheck0; Ns10/other configurations need formal recheck.",
+  "representation": "v2: unchanged double+bool members/offsets, seven formerly padding bytes are explicitly initialized unsigned-char members; sizeof remains16. aggregate initializer value/bool/{} writes all storage.",
+  "diagnostic_v1_build_failure": "logs/BUILD-CHMT2-P011.log: CUDA13.1 sm_80_rt.h expected unqualified-id with uint64_t flag slot; kept separately as P011v1. No original source modification."
+}

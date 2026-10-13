@@ -1,0 +1,101 @@
+/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261013T182722Z-fast/applications/CHT/gpu/../thermal/GpuFiniteWallContact.H(111): warning #20013-D: calling a constexpr __host__ function("quiet_NaN") from a __host__ __device__ function("correctedMaximumSpreadFactor") is not allowed. The experimental flag '--expt-relaxed-constexpr' can be used to allow this.
+          return std::numeric_limits<GpuReal>::quiet_NaN();
+                 ^
+
+Remark: The warnings can be suppressed with "-diag-suppress <warning-number>"
+
+/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261013T182722Z-fast/applications/CHT/gpu/../thermal/GpuFiniteWallContact.H(119): warning #20013-D: calling a constexpr __host__ function("quiet_NaN") from a __host__ __device__ function("correctedMaximumSpreadFactor") is not allowed. The experimental flag '--expt-relaxed-constexpr' can be used to allow this.
+          return std::numeric_limits<GpuReal>::quiet_NaN();
+                 ^
+
+/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261013T182722Z-fast/applications/CHT/gpu/../thermal/GpuFiniteWallContact.H(148): warning #20013-D: calling a constexpr __host__ function("quiet_NaN") from a __host__ __device__ function("correctedMaximumSpreadFactor") is not allowed. The experimental flag '--expt-relaxed-constexpr' can be used to allow this.
+          return std::numeric_limits<GpuReal>::quiet_NaN();
+                 ^
+
+/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261013T182722Z-fast/applications/CHT/gpu/../thermal/GpuFiniteWallContact.H(163): warning #20013-D: calling a constexpr __host__ function("quiet_NaN") from a __host__ __device__ function("correctedMaximumSpreadFactor") is not allowed. The experimental flag '--expt-relaxed-constexpr' can be used to allow this.
+              return std::numeric_limits<GpuReal>::quiet_NaN();
+                     ^
+
+/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261013T182722Z-fast/applications/CHT/gpu/../thermal/GpuFiniteWallContact.H(171): warning #20013-D: calling a constexpr __host__ function("quiet_NaN") from a __host__ __device__ function("correctedMaximumSpreadFactor") is not allowed. The experimental flag '--expt-relaxed-constexpr' can be used to allow this.
+              return std::numeric_limits<GpuReal>::quiet_NaN();
+                     ^
+
+/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261013T182722Z-fast/applications/CHT/gpu/../thermal/GpuFiniteWallContact.H(189): warning #20013-D: calling a constexpr __host__ function("quiet_NaN") from a __host__ __device__ function("correctedMaximumSpreadFactor") is not allowed. The experimental flag '--expt-relaxed-constexpr' can be used to allow this.
+              return std::numeric_limits<GpuReal>::quiet_NaN();
+                     ^
+
+/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261013T182722Z-fast/applications/CHT/gpu/GpuResidentStrict.cu(4423): warning #177-D: variable "warpCount" was declared but never referenced
+      const int warpCount = (block + 31)/32;
+                ^
+
+/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261013T182722Z-fast/applications/CHT/gpu/GpuParticleRadiationMath.H(24): warning #20013-D: calling a constexpr __host__ function("max") from a __host__ __device__ function("finiteRadiationMathValue") is not allowed. The experimental flag '--expt-relaxed-constexpr' can be used to allow this.
+      const Real maximum = std::numeric_limits<Real>::max();
+                           ^
+          detected during instantiation of "__nv_bool Foam::gpuThermal::finiteRadiationMathValue(Real) noexcept [with Real=GpuReal]" at line 55
+
+/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261013T182722Z-fast/applications/CHT/gpu/../thermal/GpuAluminaProperties.H(40): warning #20013-D: calling a constexpr __host__ function("max") from a __host__ __device__ function("finiteAluminaValue") is not allowed. The experimental flag '--expt-relaxed-constexpr' can be used to allow this.
+      return value == value && value >= -std::numeric_limits<Real>::max()
+                                         ^
+          detected during instantiation of "__nv_bool Foam::gpuThermal::finiteAluminaValue(Real) noexcept [with Real=GpuReal]" at line 167
+
+/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261013T182722Z-fast/applications/CHT/gpu/../thermal/GpuAluminaProperties.H(41): warning #20013-D: calling a constexpr __host__ function("max") from a __host__ __device__ function("finiteAluminaValue") is not allowed. The experimental flag '--expt-relaxed-constexpr' can be used to allow this.
+          && value <= std::numeric_limits<Real>::max();
+                      ^
+          detected during instantiation of "__nv_bool Foam::gpuThermal::finiteAluminaValue(Real) noexcept [with Real=GpuReal]" at line 167
+
+/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261013T182722Z-fast/applications/CHT/gpu/../thermal/GpuParticleWallContactHeat.H(46): warning #20013-D: calling a constexpr __host__ function("max") from a __host__ __device__ function("finiteParticleWallContactValue") is not allowed. The experimental flag '--expt-relaxed-constexpr' can be used to allow this.
+      return value == value && value >= -std::numeric_limits<Real>::max()
+                                         ^
+          detected during instantiation of "__nv_bool Foam::gpuThermal::finiteParticleWallContactValue(Real) noexcept [with Real=GpuReal]" at line 127
+
+/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261013T182722Z-fast/applications/CHT/gpu/../thermal/GpuParticleWallContactHeat.H(47): warning #20013-D: calling a constexpr __host__ function("max") from a __host__ __device__ function("finiteParticleWallContactValue") is not allowed. The experimental flag '--expt-relaxed-constexpr' can be used to allow this.
+          && value <= std::numeric_limits<Real>::max();
+                      ^
+          detected during instantiation of "__nv_bool Foam::gpuThermal::finiteParticleWallContactValue(Real) noexcept [with Real=GpuReal]" at line 127
+
+/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261013T182722Z-fast/applications/CHT/gpu/../thermal/GpuFiniteWallContact.H(58): warning #20013-D: calling a constexpr __host__ function("max") from a __host__ __device__ function("finiteContactValue") is not allowed. The experimental flag '--expt-relaxed-constexpr' can be used to allow this.
+      return x == x && x >= -std::numeric_limits<Real>::max()
+                             ^
+          detected during instantiation of "__nv_bool Foam::gpuThermal::finiteContactValue(Real) noexcept [with Real=GpuReal]" at line 108
+
+/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261013T182722Z-fast/applications/CHT/gpu/../thermal/GpuFiniteWallContact.H(59): warning #20013-D: calling a constexpr __host__ function("max") from a __host__ __device__ function("finiteContactValue") is not allowed. The experimental flag '--expt-relaxed-constexpr' can be used to allow this.
+          && x <= std::numeric_limits<Real>::max();
+                  ^
+          detected during instantiation of "__nv_bool Foam::gpuThermal::finiteContactValue(Real) noexcept [with Real=GpuReal]" at line 108
+
+/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261013T182722Z-fast/applications/CHT/gpu/../../../common/wall/GpuColdWallSolidification.H(64): warning #20013-D: calling a constexpr __host__ function("max") from a __host__ __device__ function("finiteColdWallValue") is not allowed. The experimental flag '--expt-relaxed-constexpr' can be used to allow this.
+      return value == value && value >= -std::numeric_limits<Real>::max()
+                                         ^
+          detected during instantiation of "__nv_bool Foam::gpuThermal::finiteColdWallValue(Real) noexcept [with Real=GpuReal]" at line 282
+
+/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261013T182722Z-fast/applications/CHT/gpu/../../../common/wall/GpuColdWallSolidification.H(65): warning #20013-D: calling a constexpr __host__ function("max") from a __host__ __device__ function("finiteColdWallValue") is not allowed. The experimental flag '--expt-relaxed-constexpr' can be used to allow this.
+          && value <= std::numeric_limits<Real>::max();
+                      ^
+          detected during instantiation of "__nv_bool Foam::gpuThermal::finiteColdWallValue(Real) noexcept [with Real=GpuReal]" at line 282
+
+/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261013T182722Z-fast/common/gasTransport/../chemistry/../gasTransport/MixtureThermo.H(16): warning #20013-D: calling a constexpr __host__ function("max") from a __host__ __device__ function("gasFinite") is not allowed. The experimental flag '--expt-relaxed-constexpr' can be used to allow this.
+      return x == x && x <= (std::numeric_limits<Real>::max)()
+                            ^
+          detected during:
+            instantiation of "__nv_bool ugkwp::gasFinite(Real) noexcept [with Real=GpuReal]" at line 63 of /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261013T182722Z-fast/common/operators/computeGasInternalFaceFluxKernel.cuh
+            instantiation of "void <unnamed>::enforcePeriodicGasFluxAntisymmetryKernel(GasState *, __nv_bool) [with GasState=<unnamed>::DeviceState]" at line 71 of /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261013T182722Z-fast/applications/CHT/gpu/../../../common/GpuToolB1Launch.cuh
+
+/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261013T182722Z-fast/common/gasTransport/../chemistry/../gasTransport/MixtureThermo.H(17): warning #20013-D: calling a constexpr __host__ function("max") from a __host__ __device__ function("gasFinite") is not allowed. The experimental flag '--expt-relaxed-constexpr' can be used to allow this.
+          && x >= -(std::numeric_limits<Real>::max)();
+                   ^
+          detected during:
+            instantiation of "__nv_bool ugkwp::gasFinite(Real) noexcept [with Real=GpuReal]" at line 63 of /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261013T182722Z-fast/common/operators/computeGasInternalFaceFluxKernel.cuh
+            instantiation of "void <unnamed>::enforcePeriodicGasFluxAntisymmetryKernel(GasState *, __nv_bool) [with GasState=<unnamed>::DeviceState]" at line 71 of /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261013T182722Z-fast/applications/CHT/gpu/../../../common/GpuToolB1Launch.cuh
+
+/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261013T182722Z-fast/common/gasTransport/../chemistry/../gasTransport/MixtureThermo.H(29): warning #20013-D: calling a constexpr __host__ function("quiet_NaN") from a __host__ __device__ function("invalidValue") is not allowed. The experimental flag '--expt-relaxed-constexpr' can be used to allow this.
+  { return std::numeric_limits<Real>::quiet_NaN(); }
+           ^
+          detected during:
+            instantiation of "Real ugkwp::gasThermoDetail::invalidValue<Real>() noexcept [with Real=GpuReal]" at line 592 of /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261013T182722Z-fast/common/operators/computeSstFaceFluxKernel.cuh
+            instantiation of "void <unnamed>::computeGasCourantFieldKernel(GasState *, GpuTime, __nv_bool) [with GasState=<unnamed>::DeviceState]" at line 4298 of /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261013T182722Z-fast/applications/CHT/gpu/GpuResidentStrict.cu
+
+/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261013T182722Z-fast/applications/CHT/gpu/../../../common/GpuThermalParticleRelaxation.cuh(87): warning #177-D: variable "re" was declared but never referenced
+      const GpuReal re = rhoG*dPart*relMag/mu;
+                    ^
+          detected during instantiation of "void relaxMobileParticlesToResidentGasKernelStatic(<unnamed>::DeviceState *, GpuTime, DragModel) [with DragModel=ugkwpGpuDrag::GidaspowErgunWenYuDrag]" at line 4789 of /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261013T182722Z-fast/applications/CHT/gpu/GpuResidentStrict.cu
+

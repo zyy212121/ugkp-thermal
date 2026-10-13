@@ -1,0 +1,622 @@
+{
+  "id": "COLD2D-INPUT3-baseline",
+  "interaction_class": "FAST",
+  "kind": "GPU",
+  "variant": "baseline",
+  "source_commit": "802a11e7dfe986488a8bf8305e86424dcc94c9e1",
+  "source_tree": "db2863158139842f6c8221c0da11ba640f381336",
+  "baseline_commit": "d6110c02745a8ad726208a426c4bb3a28233c1fd",
+  "topics": [
+    "R014-012",
+    "R014-018",
+    "R014-026",
+    "R014-033"
+  ],
+  "source_targets": [
+    {
+      "file_id": "F014-3d8a885ad5e7",
+      "path": "applications/CHMT/gpu/Backend.cu",
+      "blob": "e6eecc3233f74253b469a753ea8c460fda9aa00c",
+      "sha256": "fdec130622e33e1ed3aaea7b7d434e327fe2c17ab363e042214f7b6bf3183bfe",
+      "function_ids": [
+        "FN014-79ccda8103f9",
+        "FN014-d2cb8f63be7e",
+        "FN014-17f4ed26be49",
+        "FN014-60d38cb207cf",
+        "FN014-0314a0493a2c",
+        "FN014-51eb2569a16a",
+        "FN014-f421dd83d3b1",
+        "FN014-43e2db63e8d1",
+        "FN014-865c83f1d05e",
+        "FN014-bb57f525107e",
+        "FN014-a836fb0fbb66",
+        "FN014-08f263ca2adb",
+        "FN014-87bdc6da0327",
+        "FN014-183c7eb0a741",
+        "FN014-46806823219a",
+        "FN014-30bd6ff491c0",
+        "FN014-b9d6608d257c",
+        "FN014-96cc95cd9bb1"
+      ]
+    },
+    {
+      "file_id": "F014-a904f75fbc54",
+      "path": "applications/CHMT/gpu/SharedGasDeviceStorage.cuh",
+      "blob": "c9719a3454be89b658082a3e91fa4194cb355223",
+      "sha256": "9cb232b7e2d69d850f35b34c941a425bf5e2dee3e58c3850e55948fc3c01a95e",
+      "function_ids": [
+        "FN014-9819465b5d15",
+        "FN014-438a6bad45be",
+        "FN014-6b7cf9046886",
+        "FN014-b8cc9fc1c7f9"
+      ]
+    },
+    {
+      "file_id": "F014-87b381768bae",
+      "path": "applications/CHMT/tests/test_shared_reconfiguration.py",
+      "blob": "30074e98c226c7b71eb7a6863e9cc3251889bda0",
+      "sha256": "f3281518bda3a1cc090ee374956c7865bea6bc4159cdaf7b5c5a27fa896d9803",
+      "function_ids": [
+        "FN014-ab2333e9d9ea"
+      ]
+    },
+    {
+      "file_id": "F014-0a961a187c9e",
+      "path": "applications/CHT/createFields.H",
+      "blob": "a5002d951ebdcea5be53293e77b544bb43243968",
+      "sha256": "3ce265469a01b4bb7e99088f2ea4b1c3e6b8c6c096089c2c7aef658da14b1764",
+      "function_ids": [
+        "FN014-4ce59e1fac6c",
+        "FN014-83d624fd0e61"
+      ]
+    },
+    {
+      "file_id": "F014-6feb423fb675",
+      "path": "applications/CHT/diluteUgkwpFoam.C",
+      "blob": "b62facd9fae9c041a6d93d92228621c6f8bc1aad",
+      "sha256": "e1a51a2bba5f467280d5d059b9052de2cdb2e505171a372a143ceec94e7bf179",
+      "function_ids": [
+        "FN014-a5a1f78616e8",
+        "FN014-d83d1bd8f53d",
+        "FN014-48aef8a21f76"
+      ]
+    },
+    {
+      "file_id": "F014-86a783f56731",
+      "path": "applications/CHT/gpu/GpuDragModel.H",
+      "blob": "9183759ce9296503cd53d98156d015c5af3e57b5",
+      "sha256": "5bb65946442a7f395b0751f9c329e4ac01e23dd55048227d89405f85d395592e",
+      "function_ids": [
+        "FN014-ffc8fed40464"
+      ]
+    },
+    {
+      "file_id": "F014-56ba1674acc9",
+      "path": "applications/CHT/gpu/GpuResidentStrict.H",
+      "blob": "36e524559a41e614089400948a3d041d9efb5eeb",
+      "sha256": "c218e95281f67b0087d210ddde752b18cd2783bf4bb501d9f4258ce0f66d15fa",
+      "function_ids": [
+        "FN014-ce5e52fbd2f4",
+        "FN014-f6bb4285e89d",
+        "FN014-0ceec4d19c96",
+        "FN014-e2e6141c1f57",
+        "FN014-8007b7d7ed92",
+        "FN014-3f84bf6c5e01"
+      ]
+    },
+    {
+      "file_id": "F014-c12ec9790669",
+      "path": "applications/CHT/gpu/GpuResidentStrict.cu",
+      "blob": "5c1492045f9971f1a6a7bc5adeee371d7347f8f5",
+      "sha256": "3131e68bb2220f415f3ef83133f358c58cb6741f7cfcd3eeebaf5054b8c65284",
+      "function_ids": [
+        "FN014-3a5d24b54883",
+        "FN014-d90b58be6018",
+        "FN014-e36c8f11bcfd",
+        "FN014-80181e59e7a9",
+        "FN014-5a4d895b783c",
+        "FN014-da66677fc51f",
+        "FN014-b0e9590eb54c",
+        "FN014-fa30b81d9b7e",
+        "FN014-59fd45cd0dcd",
+        "FN014-361a356b0dc9",
+        "FN014-c19d2295ce4d",
+        "FN014-bf367cd6ac49",
+        "FN014-e0c0b1663548",
+        "FN014-cc6b5b32f125",
+        "FN014-9b037c1411c3",
+        "FN014-7fa7b2983581",
+        "FN014-116327341ddb",
+        "FN014-9f7dac7ae099",
+        "FN014-ed6555daeead",
+        "FN014-9d801fa4de0b",
+        "FN014-04adb9aaa067",
+        "FN014-81384d4939a5",
+        "FN014-2782a596596b",
+        "FN014-39722441f9b2",
+        "FN014-2b180bedd98f",
+        "FN014-58fca0391af4",
+        "FN014-e10448545a9e",
+        "FN014-538910e3b754",
+        "FN014-e03416eba9ba",
+        "FN014-3adbed3c650b",
+        "FN014-4d774c11dbd0",
+        "FN014-c3fdb72e9a30",
+        "FN014-e8892ad5c285",
+        "FN014-e4835075cc7c",
+        "FN014-ed31e9d5390a"
+      ]
+    },
+    {
+      "file_id": "F014-bd103375b6cb",
+      "path": "applications/CHT/readGpuGasConfiguration.H",
+      "blob": "d13aba0c696812ef4bcb2c19e976cf1c3c61aaab",
+      "sha256": "90c7ef8159d36224cf03509b2f8bc114726657eeb5eab789d9c751cd31d75d96",
+      "function_ids": [
+        "FN014-ce5f8883c7b7",
+        "FN014-312e07b5b3f7",
+        "FN014-a6581af4eaa3",
+        "FN014-4ecf48458141"
+      ]
+    },
+    {
+      "file_id": "F014-22d15864abd6",
+      "path": "applications/FSH/createFields.H",
+      "blob": "810b587e8933c893ee2171c3113ca998e850c641",
+      "sha256": "218652d62ebc8761e4ddd0a15189068b3cc53c3e336be97aba09c8c56e6760c4",
+      "function_ids": [
+        "FN014-9ef37d866c03",
+        "FN014-8b258368f191"
+      ]
+    },
+    {
+      "file_id": "F014-eebf69a09074",
+      "path": "applications/FSH/diluteUgkwpFoam.C",
+      "blob": "b3a4acf2a8c7bbebfd2c06451fed6171d6e52e63",
+      "sha256": "42682ac23701941b30cc98e0c8c0ba4b50f75efad66145b3a66bbec79562cb9d",
+      "function_ids": [
+        "FN014-ba776cd0ffaa",
+        "FN014-032c8044540c"
+      ]
+    },
+    {
+      "file_id": "F014-0a9616818fd6",
+      "path": "applications/FSH/gpu/GpuDragModel.H",
+      "blob": "d4a66cf57a9718d2a6fcc59e9343cb4eed592218",
+      "sha256": "4b67bca3059a76bf8105d6c8343a35f1617ac1721c1d0d7aca74438d0de4ac4c",
+      "function_ids": [
+        "FN014-63f004715f0d"
+      ]
+    },
+    {
+      "file_id": "F014-200b8bdb6346",
+      "path": "applications/FSH/gpu/GpuResidentStrict.H",
+      "blob": "0e4547916c55a8fd9d91b5812c57aeb69d20016f",
+      "sha256": "edaeb08385909345bdff4e6955bbe3f25886ce2562ab324ea188449a7b65b3ff",
+      "function_ids": [
+        "FN014-537eaa2d4442",
+        "FN014-8ee53ed24063",
+        "FN014-9eec016bd398",
+        "FN014-30e45d04c9a5"
+      ]
+    },
+    {
+      "file_id": "F014-954babfbf186",
+      "path": "applications/FSH/private_backend/GpuResidentStrict.cu",
+      "blob": "dda420c9c1172f7ce407200474a3c402b70fff52",
+      "sha256": "e0fdbc4faa2f680c8adb840cd323db339d318f65fe9abd36e3afd3c093e1471f",
+      "function_ids": [
+        "FN014-623f711e2927",
+        "FN014-43b063b0624f",
+        "FN014-73c52955065e",
+        "FN014-512dc5e4951f",
+        "FN014-9a601e3afa0a",
+        "FN014-2feb088e0f56",
+        "FN014-a4fd6c8d8ace",
+        "FN014-75f9c69dfb85",
+        "FN014-2b4f55efc819",
+        "FN014-15773a39a13c",
+        "FN014-6135ab9485c8",
+        "FN014-912c3be4a799",
+        "FN014-f9dc22783bc3",
+        "FN014-f071b11bb1e5",
+        "FN014-06b9997756de",
+        "FN014-19793819b916",
+        "FN014-c2be45ace825"
+      ]
+    },
+    {
+      "file_id": "F014-e4b94ab0a602",
+      "path": "applications/FSH/readGpuGasConfiguration.H",
+      "blob": "da62eb1ea434cb45e328e1f66315e748242d05af",
+      "sha256": "c5bcf605d33e6d8be0cfa516c46261e18b054f24c2a52232bb505514b9f0ab16",
+      "function_ids": [
+        "FN014-f99d38c0895f",
+        "FN014-8788f0aee4df",
+        "FN014-56fa6454e088",
+        "FN014-78dd0bf9073d"
+      ]
+    },
+    {
+      "file_id": "F014-c85fc9115e74",
+      "path": "applications/gasUGKP/gpu/GpuResidentStrict.H",
+      "blob": "c282c1e478b679141bd49058147fdb6643031b9b",
+      "sha256": "06dd55db572c25ec5b8b6f82cf41bad92fdb80e82c69937bfba9638874b18a0a",
+      "function_ids": [
+        "FN014-244443d8fbba",
+        "FN014-30e68a7adf55",
+        "FN014-d3681529973d"
+      ]
+    },
+    {
+      "file_id": "F014-66a34d92108c",
+      "path": "applications/gasUGKP/private_backend/BoundaryLayerAdapter.cuh",
+      "blob": "d6c9c2076260724765aad85d4f456410fd9928d9",
+      "sha256": "7079676c5721779129687ff90ec14ca4ce831c64b2d6d44867360a477740dd06",
+      "function_ids": [
+        "FN014-ebdd6227804b",
+        "FN014-32d11c5c0615"
+      ]
+    },
+    {
+      "file_id": "F014-6d2437fc328b",
+      "path": "applications/gasUGKP/private_backend/BoundaryLayerStorage.cuh",
+      "blob": "7183d3d26f11e5254e917ba8b39e39ef3618abb0",
+      "sha256": "5b5bd0ee4e586d32c20cdc04987193642c5f585f9d36b28e2a09f751a30b1b7a",
+      "function_ids": [
+        "FN014-d9d8bf2403a8",
+        "FN014-a76a296bfc18"
+      ]
+    },
+    {
+      "file_id": "F014-060de83ab8d0",
+      "path": "applications/gasUGKP/private_backend/GasBudgetRuntime.cuh",
+      "blob": "4c725486b9d1dfc016130db98203c803b1f98725",
+      "sha256": "e3c0b33a236eb2c5bfc3a73d23fc883e0ea23684c9661109ffcace09ad729e76",
+      "function_ids": [
+        "FN014-79b304f90b16",
+        "FN014-551068aea603",
+        "FN014-80fbce8cc7f0",
+        "FN014-91e96e3dabcb",
+        "FN014-85a814d95ff7",
+        "FN014-fd7503a63552",
+        "FN014-284b12daafea",
+        "FN014-8a13adeeaf75",
+        "FN014-265ae93b6950",
+        "FN014-a853d753bb3c",
+        "FN014-d8fd926d061e",
+        "FN014-6f91c85d4da3"
+      ]
+    },
+    {
+      "file_id": "F014-577aa4d38c4b",
+      "path": "applications/gasUGKP/private_backend/GpuResidentStrict.cu",
+      "blob": "e915c5c345d663ab0ba7a2c270cd2542db9f73e6",
+      "sha256": "7a4f66f75efb1a477d24b00f8ed259d7a1a952ec6e4c4de428a04bb69f3bb20e",
+      "function_ids": [
+        "FN014-35d3f295f634",
+        "FN014-b248f8e308a1",
+        "FN014-80e9c0e98985",
+        "FN014-eecec71cd339",
+        "FN014-0f9a0fc1a23c",
+        "FN014-ed261997c647",
+        "FN014-c6ad6231ce50",
+        "FN014-66475af260d5",
+        "FN014-75bc5476db47",
+        "FN014-a1edf8ca4c4c",
+        "FN014-f347b63bae83",
+        "FN014-2595ee73c02e",
+        "FN014-0bae9dc56cd5",
+        "FN014-9a710c72af5e",
+        "FN014-a5f1a28cec5a",
+        "FN014-b3938a1f7ef1",
+        "FN014-c69b635c0ab4",
+        "FN014-9e45df4cd147"
+      ]
+    },
+    {
+      "file_id": "F014-07cd923d5021",
+      "path": "applications/gasUGKP/private_backend/SharedGasAdapter.cuh",
+      "blob": "5568ee78b3ab869cf71a1a7f6d84aab756926f8f",
+      "sha256": "4889368dec1b792220fd98f0c1e4a10d78c6c11db678e5274f4fee43fe6b617d",
+      "function_ids": [
+        "FN014-6b55bd555eb5",
+        "FN014-4ccf10f257f5",
+        "FN014-76a8779a951f",
+        "FN014-b3fc77f03537",
+        "FN014-5a0e07dc5fa2",
+        "FN014-cafc8483ef0e"
+      ]
+    },
+    {
+      "file_id": "F014-e4a78f6cf6ed",
+      "path": "applications/gasUGKP/private_backend/SharedGasStorage.cuh",
+      "blob": "721b5ace0b0f5425df0dc7f53b8491d259b82ff0",
+      "sha256": "2747c1ee8aaeaa0997ba939059dc95d925d7bc5686db0f055c22b580a8428f7f",
+      "function_ids": [
+        "FN014-bbec2946c6ad",
+        "FN014-58104356e416"
+      ]
+    },
+    {
+      "file_id": "F014-12a588829353",
+      "path": "applications/gasUGKP/private_backend/SharedGasTrialFields.H",
+      "blob": "bfc8749ae19ccee5977907de02541a8bcfd56d6c",
+      "sha256": "46e0c08d822f74b6bb1a074c19568770e468e0f0bd88fd45449eeb3cd158a8dd",
+      "function_ids": [
+        "FN014-1016567f5843",
+        "FN014-83da62861491"
+      ]
+    },
+    {
+      "file_id": "F014-0230b261acf2",
+      "path": "applications/gasUGKP/private_backend/SharedGasTrialPolicy.cuh",
+      "blob": "7107f9f51de016a0885f81984074655adf760d0c",
+      "sha256": "530c9daa8322fdb5382d88d0741c39a4ecf1925daeb8d8191b20335c6fe4afa4",
+      "function_ids": [
+        "FN014-c94d6e9ce580",
+        "FN014-76e1e0f59a81",
+        "FN014-24ef8a061822",
+        "FN014-a540ec4f6b24",
+        "FN014-1fa58c240717",
+        "FN014-0872492bf52f",
+        "FN014-373b6aa12416",
+        "FN014-bef343a33525",
+        "FN014-0472e82a5230",
+        "FN014-546a7c78ed96",
+        "FN014-f9d3ffa2e76b",
+        "FN014-7aae9a73f739",
+        "FN014-29b154c8afc2",
+        "FN014-0518e244ed95",
+        "FN014-a9aaab53d129",
+        "FN014-e3f47e6997e0"
+      ]
+    },
+    {
+      "file_id": "F014-ad98a1ffe412",
+      "path": "applications/gasUGKP/tests/test_boundary_layer_lifecycle.py",
+      "blob": "2c529d35ca47ab7efae6d5967a98699bfeb4a377",
+      "sha256": "1263e500d75156cdd14deec03878cb18efd04c13bb02bf47b70577a2397bdfdf",
+      "function_ids": [
+        "FN014-7b31aa1bee3f",
+        "FN014-91da91154dae",
+        "FN014-72732d65ca8f",
+        "FN014-7eb18093608d",
+        "FN014-1ff6e17b8196",
+        "FN014-9613e2124ab8"
+      ]
+    },
+    {
+      "file_id": "F014-ebb4a3c2a61f",
+      "path": "applications/gasUGKP/tests/test_boundary_layer_storage.py",
+      "blob": "11366b1bfebd966f1eca4a6d5c11b50352631045",
+      "sha256": "23f94b9c738e931036688cdc6b4bee63a927053dd552774a9c9c45ea7fea20bf",
+      "function_ids": [
+        "FN014-a706fcef5738",
+        "FN014-acb440806a3a",
+        "FN014-f763db489767",
+        "FN014-7f1cf898d421"
+      ]
+    },
+    {
+      "file_id": "F014-cc86af906b9a",
+      "path": "applications/gasUGKP/tests/test_shared_reconfiguration_lifecycle.py",
+      "blob": "703bb308410a84978a395cb4b46279c02ac293f9",
+      "sha256": "1ecb19f0523999b36542ce38b01042b6669e0987e2b10dfbfb7cafd83520a3c9",
+      "function_ids": [
+        "FN014-554a7ffb3c44"
+      ]
+    },
+    {
+      "file_id": "F014-fe67e627252c",
+      "path": "applications/gasUGKP/tests/test_wall_adapter_continuation.py",
+      "blob": "3101fab49b8050ed88dd241c6582bb8f21fd2947",
+      "sha256": "55c7a2b1b5a0b3966bdaca81d8a0397e3bd5f5dc7e5ca4aec29283096cc91534",
+      "function_ids": [
+        "FN014-4a3b0b7fa7e3"
+      ]
+    },
+    {
+      "file_id": "F014-3f0900372808",
+      "path": "common/GpuParticleSavedVelocityRestart.inl",
+      "blob": "5e78fbb8cff8bca171d95e03a24307396985ba98",
+      "sha256": "92e42df306b91cfcf2a1acfa2d72cc7851792bf8725afe897d5411e749a53b1a",
+      "function_ids": []
+    },
+    {
+      "file_id": "F014-d5b3226d8c44",
+      "path": "common/GpuSchedulingConfiguration.H",
+      "blob": "27fa7f5c7cdfd8e6d6b1db81e2d1fcfff9b21b1e",
+      "sha256": "399d8dd20d956195385df5265b46c8e4e14d2b5b603a48426a0dd296ddf85767",
+      "function_ids": [
+        "FN014-3056536b1eaa",
+        "FN014-702b9c00b62d",
+        "FN014-e3553d7ad15c"
+      ]
+    },
+    {
+      "file_id": "F014-2197dabe0f01",
+      "path": "common/gpu/GpuBoundarySchedule.H",
+      "blob": "d7f2fd0fb05afa9784684aed330c661d48b726f2",
+      "sha256": "d23e00c51bd49efc751c9a6a0ff05e6110c5d3b02e3e2c8d609c35b85fa53837",
+      "function_ids": [
+        "FN014-11c1a7427f0c",
+        "FN014-4f9ade174505"
+      ]
+    },
+    {
+      "file_id": "F014-cb812ef55a85",
+      "path": "common/operators/applyGasVolumeFractionSourceKernel.cuh",
+      "blob": "e35719bc1197c36fa338166109713035f0bf566d",
+      "sha256": "107e20e5517dfbef57c1aea9fccd0fc54d3cded9db380d26e54c485e1f27bce2",
+      "function_ids": [
+        "FN014-7b80c4cfea67"
+      ]
+    },
+    {
+      "file_id": "F014-ec61842af463",
+      "path": "common/operators/computeGasPrimitiveGradientsKernel.cuh",
+      "blob": "8cbe13952a4487ba3b1cca0c80ae5030927af880",
+      "sha256": "b95a3687f28ea0153d10b39ac2f06874f911749e91a9e15d5172b3d689ed745b",
+      "function_ids": [
+        "FN014-bc7f136a8bcb",
+        "FN014-fd6fd201fca1",
+        "FN014-b62072be6a6a",
+        "FN014-f3aab52ed540",
+        "FN014-621ff47896fa",
+        "FN014-9c643d20f7b4"
+      ]
+    },
+    {
+      "file_id": "F014-716fc701a35c",
+      "path": "common/wall/GpuColdWall1DAdvance.inl",
+      "blob": "584b4c35f9d6f49ca772ca7887b7fad7379831f1",
+      "sha256": "c7077477911ee04114979f82175d0081038e3fe77cae77912a0eaaf921738df5",
+      "function_ids": []
+    },
+    {
+      "file_id": "F014-771ba55c90cf",
+      "path": "common/wall/GpuColdWall1DGasOnly.cuh",
+      "blob": "785d39d52ec1535db2e0062c9edd0be81d52c2b9",
+      "sha256": "4aa0c64e7b574af769e6f48d7cfa3852d5068b2840a3ff3f6c247308f1925e57",
+      "function_ids": [
+        "FN014-c02460c42c2f"
+      ]
+    },
+    {
+      "file_id": "F014-2e2a131a2fb5",
+      "path": "common/wall/GpuColdWall1DInputs.inl",
+      "blob": "c5acf3326545a466fc9dd34ee21bfc4001bedade",
+      "sha256": "e10b5e2fca129308ba2c9eab8677c7b7ab1cb3501b20b95ba80644dd83a98638",
+      "function_ids": []
+    },
+    {
+      "file_id": "F014-63da1ded76a7",
+      "path": "common/wall/GpuColdWall1DPublish.inl",
+      "blob": "9de6c2a4cd5082baea041293db0488b5f92d1302",
+      "sha256": "6706de8636011095e3c014541e5db141d767aa610f1cef3aade665d27b6a62f3",
+      "function_ids": []
+    },
+    {
+      "file_id": "F014-25f5122cd935",
+      "path": "common/wall/GpuColdWall2DDevice.cuh",
+      "blob": "ea30a71ab14982a8f5420177145487ead42134ec",
+      "sha256": "903b5b615caa4f7aa432126c04a07c054335f04038bf941362a3078e10fe0a61",
+      "function_ids": [
+        "FN014-58a69b7aed98",
+        "FN014-d1bed3a4d1a4",
+        "FN014-b1795ec0e7a7",
+        "FN014-7b909e35de34"
+      ]
+    },
+    {
+      "file_id": "F014-81721696a164",
+      "path": "common/wall/GpuColdWall2DSolidification.H",
+      "blob": "412aad519d7f235e58112060885bb572fd4941db",
+      "sha256": "52acee5803ecde4e3d2f072b2f89b95e002b3ef198755b9145882407250f7a0e",
+      "function_ids": [
+        "FN014-b8c87e826224",
+        "FN014-b6ecc54ab22a"
+      ]
+    },
+    {
+      "file_id": "F014-432610a6ea28",
+      "path": "common/wall/GpuColdWallSolidification.H",
+      "blob": "d3721586744006cebe3a1811a4a045a0212e1ef1",
+      "sha256": "391cbfc0507a3b1b2af027139a6166f798013fd4cbdc38ae3d258e536215da5b",
+      "function_ids": [
+        "FN014-470ecda05233",
+        "FN014-f3300d4e6601",
+        "FN014-574b0c27db34",
+        "FN014-df81e9c74e02",
+        "FN014-6eb59b1c5fde",
+        "FN014-5f63e73a7cdc",
+        "FN014-4e10c3d1043d",
+        "FN014-7ac67f0c5c3f"
+      ]
+    },
+    {
+      "file_id": "F014-4a5cdad2c212",
+      "path": "tests/fixtures/cold_wall_1d_energy_test.cpp",
+      "blob": "cbf40883020061b1ccb74dcd071bf58a31c85ef5",
+      "sha256": "2ebb99b76df94804043944ac34199fc5dc28f650ead68053b3f206118c95cda8",
+      "function_ids": []
+    },
+    {
+      "file_id": "F014-d71f15e68284",
+      "path": "tests/fixtures/cold_wall_contact_routes.cpp",
+      "blob": "8501988bd9ef9430edd3b616afdb5315ddd52246",
+      "sha256": "1317b79f16e7af23f250b47821fd918d14449205ca25f8548b4d77c75c9123a8",
+      "function_ids": []
+    },
+    {
+      "file_id": "F014-a15a02bc42d5",
+      "path": "tests/test_cold_wall_1d_energy.py",
+      "blob": "77737cf626896c83a3700c49a9769f8725cc51c7",
+      "sha256": "250f9630b68f61be2be886caa6cde1b4301aea880f701cc25647efaf29d7d575",
+      "function_ids": []
+    },
+    {
+      "file_id": "F014-69244c105434",
+      "path": "tests/test_resident_terminal_courant.py",
+      "blob": "767413b35f7859eec5230653dea4fc408a9597fd",
+      "sha256": "3359c55012fe1291fe3d347748109d3ef184fbf1e808e3bacd17e48787fcc8ca",
+      "function_ids": []
+    },
+    {
+      "file_id": "F014-be52f7b8a3ea",
+      "path": "tests/test_resident_terminal_storage.py",
+      "blob": "0283750510a9b727d60131380f274496198d476c",
+      "sha256": "b5f40982870110cb40f480851129ace594742b54f2152789a87506547e75fd70",
+      "function_ids": []
+    },
+    {
+      "file_id": "F014-41b9b9b8798a",
+      "path": "tests/test_resident_terminal_wrappers.py",
+      "blob": "d0022a536c5a819b53a3545a6df1d70ce61f5044",
+      "sha256": "5d518ba14f95c89febaeec5a90f4f835f9c6a8aad1a8645ab74b9215e8087dbc",
+      "function_ids": []
+    },
+    {
+      "file_id": "F014-1dca85b4feeb",
+      "path": "tools/managed_mirrors.json",
+      "blob": "c3e6de04891e1201db751200f9d2005988607fb2",
+      "sha256": "8e4475241c91f2823162b7fb1651ba73c6f8ca942552fea535d9a31d1d94ffa1",
+      "function_ids": []
+    }
+  ],
+  "argv": [
+    "bash",
+    "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261013T182722Z-fast/review/pr14/reviewer-deliveries/20261013T182722Z-fast/inputs/env.sh",
+    "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261013T182722Z-fast/work/install/base/bin/CHT",
+    "-case",
+    "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261013T182722Z-fast/work/cold2D-INPUT3-baseline"
+  ],
+  "working_directory": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261013T182722Z-fast",
+  "budget_seconds": 300,
+  "expected": "Historical FP64 old rejection boundary and current actual NaN publication; no added gate or forbidden array indices.",
+  "input_hashes": {
+    "review/pr14/reviewer-deliveries/20261013T182722Z-fast/inputs/native/resident/CHT-coldWall2D-INPUT3-BASE64/system/blockMeshDict": "252f21b8126c965f13ad281721f090e5030373a7dad886977f6eac32f4907e4d",
+    "review/pr14/reviewer-deliveries/20261013T182722Z-fast/inputs/native/resident/CHT-coldWall2D-INPUT3-BASE64/system/controlDict": "21b30a721f1c0f19ba6e355df970450b3d50e7926f559962afe74fe97ee25b32",
+    "review/pr14/reviewer-deliveries/20261013T182722Z-fast/inputs/native/resident/CHT-coldWall2D-INPUT3-BASE64/system/fvSolution": "be3a4e1592d66a0d66787caaabc7d47cf7ab0f5077a2d2326cd6965fd93db45e",
+    "review/pr14/reviewer-deliveries/20261013T182722Z-fast/inputs/native/resident/CHT-coldWall2D-INPUT3-BASE64/system/fvSchemes": "b00a974c6bf5dde17c1efac1eed45c5ae27b2320de3c911133ec0dc9486eda57",
+    "review/pr14/reviewer-deliveries/20261013T182722Z-fast/inputs/native/resident/CHT-coldWall2D-INPUT3-BASE64/constant/radiationProperties": "5cacaaab8b2ce22457c1021f0c4a7a8442b1de3e0b2daeba13a9576fce65ced6",
+    "review/pr14/reviewer-deliveries/20261013T182722Z-fast/inputs/native/resident/CHT-coldWall2D-INPUT3-BASE64/constant/schedulingProperties": "99f578746160fdb662a1a36a6de4106bcbcf6442c0deeb78bda7822e0e46ade6",
+    "review/pr14/reviewer-deliveries/20261013T182722Z-fast/inputs/native/resident/CHT-coldWall2D-INPUT3-BASE64/constant/g": "6a73b3c533c8eb57672b6b5128a890d54cbaf98e5a4486ed6747ab62af4bed6e",
+    "review/pr14/reviewer-deliveries/20261013T182722Z-fast/inputs/native/resident/CHT-coldWall2D-INPUT3-BASE64/constant/fluidProperties": "cc0e7d4f094e2b84539559a3c2f710a288f5616d300b8213e570fa82eb3a2ee9",
+    "review/pr14/reviewer-deliveries/20261013T182722Z-fast/inputs/native/resident/CHT-coldWall2D-INPUT3-BASE64/constant/solidRegionProperties": "d5a049297351189a1f8ef45474d4a8e411ad8f5cae1dfe5069c4914e45a37586",
+    "review/pr14/reviewer-deliveries/20261013T182722Z-fast/inputs/native/resident/CHT-coldWall2D-INPUT3-BASE64/constant/particleProperties": "bb9f3ef7dfa12f87849400e0d9e3ce5a7ef21f706453975eeb7c432ecd457b14",
+    "review/pr14/reviewer-deliveries/20261013T182722Z-fast/inputs/native/resident/CHT-coldWall2D-INPUT3-BASE64/0/epsilonS": "50149ca681c328b49111388a4e034ecf15d0ef432d05f412fdc5a37b4399a06f",
+    "review/pr14/reviewer-deliveries/20261013T182722Z-fast/inputs/native/resident/CHT-coldWall2D-INPUT3-BASE64/0/gpuResidentStrictParticles.dat": "ac1f28c2576f17ba57bd7fbe68a8f903fb01362cad5c9f2b07b489274f549cf8",
+    "review/pr14/reviewer-deliveries/20261013T182722Z-fast/inputs/native/resident/CHT-coldWall2D-INPUT3-BASE64/0/theta": "f57aa03abe38cddf7e7a537fb3673b1ac75bbaaf9ce2510b56b576ca14d68d14",
+    "review/pr14/reviewer-deliveries/20261013T182722Z-fast/inputs/native/resident/CHT-coldWall2D-INPUT3-BASE64/0/T": "cd6a2398abf79a434ef9f353d67b42f6d6b73c70f74a8d31fea558735c3c219b",
+    "review/pr14/reviewer-deliveries/20261013T182722Z-fast/inputs/native/resident/CHT-coldWall2D-INPUT3-BASE64/0/Us": "8850af80866ea50b27d1891f48c8832a241e23bbde6a4ee9782011b321178ca8",
+    "review/pr14/reviewer-deliveries/20261013T182722Z-fast/inputs/native/resident/CHT-coldWall2D-INPUT3-BASE64/0/U": "1545eea7ce026cab0aa9612d863834cac2d1b6eb8d007e19bcfb7d7aeed8c653",
+    "review/pr14/reviewer-deliveries/20261013T182722Z-fast/inputs/native/resident/CHT-coldWall2D-INPUT3-BASE64/0/p": "59d4a84b8cadfe422699895238591c0c03cb8e199b762b191c5c7e16581e103f",
+    "review/pr14/reviewer-deliveries/20261013T182722Z-fast/inputs/native/resident/CHT-coldWall2D-INPUT3-BASE64/0/Tp": "d766962f6e70f79464c50bd446e2e8855e8f6f6b4905b217485fb21fa7401dae"
+  },
+  "binary": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261013T182722Z-fast/work/install/base/bin/CHT",
+  "binary_sha256": "05179af86d761d02b5edbaa887548ca1613afd370cbfd0715c772b96b41eb6ab",
+  "environment_script_sha256": "2e9ba1655533bb17676f60b83f3628c2409d36978b703cfa8f9251a788e31c83",
+  "started_utc": "2026-10-13T19:48:16.856480+00:00"
+}

@@ -1,0 +1,1822 @@
+{
+  "original_pr_commit": "802a11e7dfe986488a8bf8305e86424dcc94c9e1",
+  "original_pr_tree": "db2863158139842f6c8221c0da11ba640f381336",
+  "production_source_commit": "a73b9635510fb09d7baa5339e14d1aa609f0ff87",
+  "production_source_tree": "e343cb9f477dcd86556f7b6595189fa2c9c1c099",
+  "baseline_commit": "d6110c02745a8ad726208a426c4bb3a28233c1fd",
+  "actual_pr_branch": "perf/chmt-first-round-20261013",
+  "diagnostic_patches": [
+    {
+      "id": "P001",
+      "path": "patches/P001-checkpoint-checker-schema.json",
+      "sha256": "4178966cb3e9c38d275d952caf9cc37d7a5529fe3142fcf407c5d8a888c53f14",
+      "description": {
+        "classification": "test-support-only",
+        "production_source_modified": false,
+        "root_cause": "Pinned checker literal fingerprint was not updated after removing fingerprint members from PhysicsConfig/ModelConfig. Pending-state tail removal was an earlier unconfirmed hypothesis; actual payload/tail assertions remain unchanged.",
+        "old_hash": 15664811910203657810,
+        "expected_current_hash": 11438850135072464462,
+        "derivation": "Independent Python FNV-1a over frozen source FieldSchema literal; expected value not copied from output checkpoint.",
+        "schema_literal": "GasSstIntegralAudit:transportK transportOmega sourceK sourceOmega constraintK constraintOmega;ChemistryAudit:speciesMassChange massResidual maximumElementResidual energyResidual maximumLocalError integratedTime acceptedSteps rejectedSteps nonlinearIterations;ThermoInversionControls:minTemperature maxTemperature absoluteEnergyTolerance relativeEnergyTolerance absoluteTemperatureTolerance relativeTemperatureTolerance maximumIterations;ChemistryControls:relativeTolerance absoluteMassFractionTolerance absoluteTemperatureTolerance initialStep minimumStep maximumStep newtonTolerance maximumSteps maximumRejectedSteps maximumNewtonIterations maximumLineSearchIterations absoluteMassTolerance relativeConservationTolerance absoluteElementTolerance thermo;Vec3:x y z;GasQ:mass momentum energy species;GasPrimitive:rho velocity temperature pressure soundSpeed Y;SolidQ:condensed progress pore energy porosity;FilmQ:mass enthalpy species;FilmAux:pressure thickness temperature baseVelocity meanVelocity topVelocity normal area kineticEnergy normalVelocity solidNormalVelocity solidFront gasFront;ParticleQ:contactRelativeVelocity contactMechanicalEnergy id cell face state position velocity mass energy diameter contactAge contactDuration contactArea rng;SstQ:rhoK rhoOmega;SstPrimitive:k omega eddyViscosity blend1 blend2;SpeciesThermo:R cp0 cp1 e0 Tmin Tmax element model Tmid nasa7 referencePressure referenceTemperature referenceEntropy hasEntropyReference;CondensedThermo:rho cp0 cp1 e0 conductivity Tmin Tmax element;Reaction:A temperaturePower activationEnergy condensedNu gasNu order;ExchangePacket:step geometry face stage kind gasCell solidCell filmFace particleIndex mass species condensed pore poreSweep momentum energy conductive advective pressureWork viscousWork radiation liquidKineticAdvection consumerMask;FilmPressureVolumeUpdate:step geometry face stage filmFace oldPV newPV consumed;Tolerances:absoluteMass relativeMass absoluteEnergy relativeEnergy absoluteTemperature relativeTemperature absoluteGeometry relativeGeometry maxCouplingIterations maxRetries;Budget:boundaryMass boundarySpecies boundaryElements boundaryEnergy boundaryMomentum supportImpulse supportWork bodyWork radiation gclResidual exchangeMass exchangeSpecies exchangeEnergy exchangeMomentum filmPressureVolume filmKineticAdvection filmKineticStorage filmReducedResidual filmKineticDefect thinLayerGeometryDefect thinLayerStressDefect numericalEnergyResidual turbulenceOmegaConstraint turbulenceInventory turbulenceProduction turbulenceDissipation turbulenceBoundaryFlux consumedPackets;SstConfig:a1 betaStar beta1 beta2 gamma1 gamma2 sigmaK1 sigmaK2 sigmaOmega1 sigmaOmega2 turbulentPrandtl turbulentSchmidt productionLimit minimumK minimumOmega;MaterialPolicyConfig:minimumPorosity maximumPorosity phaseCondensed enableMelting enableSurfaceReactions enablePoreOutflow phaseFilmY nSurfaceReactions surfaceReactions surfaceGasOrder evaporation evaporationAccommodation saturationPressureScale saturationTemperature gasContactResistance solidContactResistance;ParticlePolicyConfig:condensedIndex maxFaceCrossings heatTransferCoefficient contactHeatTransferCoefficient contactDuration emissivity contact;MeshMotionConfig:policy amplitude spatialWaveNumber spatialOrigin angularFrequency timeOrigin;WallModelConfig:family model nodes maxIterations relativeTolerance absoluteTolerance stretch turbulentPrandtl turbulentSchmidt enableSst;PhysicsConfig:wallModel wallWorkspaceSlots enableGas gasMode singleGasSpecies gasThermoFingerprint gasMechanismFingerprint gasChemistryControls meshMotion particle material species condensed reactions nReactions nElements liquid liquidViscosity liquidReferencePressure meltTemperature permeability poreViscosity gasViscosity gasConductivity gasDiffusivity emissivity ambientTemperature gravity enableFilm enableReactions enableParticles enableSst enableRadiation filmThermalMode reconstruction sst tolerances minDt maxDt cfl spatialOrder;ModelConfig:physics speciesNames condensedNames elementNames modelName materialSource mechanismSource gasMechanismSource gasMechanismSourceSha256 gasPhase sourceFingerprint baseCommit;HostMesh:referencePoints points oldPoints cellCentres faceCentres areaVectors meshVelocity volumes oldVolumes wallDistance faceOffsets facePoints owner neighbour periodicPartner cellFaceOffsets cellFaces cellFaceSigns boundaryKind boundaryPrimitive thermalBoundary boundarySst faceIds geometryVersion topologyHash;SurfaceMesh:prescribedTopTraction prescribedPressureGradient edgeOwnerOffset edgeNeighbourOffset gasDistance solidDistance gasFace solidFace solidCell edgeOwner edgeNeighbour persistentId edgeLength area oldArea sweptEdgeArea edgeConormal centre normal meshVelocity baseVelocity gasMapOffsets gasMapFaces gasMapWeights normalOffsets normalCoordinates normalLayerMass normalLayerVolume oldNormalLayerVolume normalThickness normalPressure normalPressureRate bottomTemperature topTemperature bottomHeatFlux topHeatFlux;HostStageGeometry:interval geometryVersion topologyHash oldVolume newVolume evaluationVolume sweptVolume areaVector cellCentre faceCentre oldPoints newPoints;HostState:gasStages solidStages nextDt lastAcceptedDt gasMesh solidMesh surface gas gasChemistryAudit solid film filmAux particles sst solidSweepRemainder gasVoidFraction normalEnthalpy normalLiquidFraction normalAcceptedWallHeat ledger filmStorage gasSstAudit time acceptedSteps rejectedSteps commitSequence budget",
+        "Checkpoint_C_sha256": "6b67d22c84acfe6af68cca538d966d91ed0ec0fe49e05edaa8c3745e9e698739",
+        "original_checker_sha256": "3436135ce584b6165d45a6febeda20afcf922fcbb097ebab1f3b25146364a930",
+        "adapted_checker_sha256": "dcc53695d9cc205286ef894101478f37c6a0c6a56f29a01c5b0d0e69e5051f09",
+        "wire_budget_tail_verified": "45+5*Ns+Ne binary64 scalars and one uint64 consumedPackets; time+dQQQ preceding tail unchanged.",
+        "original_hypothesis_not_confirmed": "Pinned checker fingerprint predates removal of HostState pending-state fields; current production FieldSchema changed. No acceptance threshold or payload assertion deleted.",
+        "literal_changes_from_base": [
+          {
+            "op": "delete",
+            "old": " modelFingerprint speciesFingerprint schemaFingerprint",
+            "new": ""
+          },
+          {
+            "op": "delete",
+            "old": "t modelFingerprint speciesFingerprint schemaFingerprin",
+            "new": ""
+          }
+        ]
+      }
+    },
+    {
+      "id": "P002",
+      "path": "patches/P002-native-chemistry-trial-routing.json",
+      "sha256": "960faaf88e75cceb2022badcca26a6b28ff2547eb14d4cc6eb9865ce65c73a5e",
+      "description": {
+        "identity": "PR14_REVIEW_ONLY",
+        "purpose": "Isolated diagnosis: route preexisting nativeRefinement to preexisting retry Trial API; distinguish StepLimit trial failure from missing backing so native owner can use its original retry policy. Public false remains terminal.",
+        "finding": "GPU-F001",
+        "source_commit": "802a11e7dfe986488a8bf8305e86424dcc94c9e1",
+        "path": "common/operators/advanceGasChemistryKernel.cuh",
+        "before_sha256": "0b54549cdbcd52d2799cafa6c7484cde74cf7f256dad859ffa5b852463918a7a",
+        "after_sha256": "2bf1c0399643fe0af50a08ca8d812470c41974427efea6765f9fb8df9a4dc438",
+        "patch_sha256": "e538f361f0ecb09f865f4c340e3ab44e8ee48b7cd3f68c2a10c7887f1d267772",
+        "scope_limit": "StepLimit plus original-success/public controls. Developer must formally audit actual unavailable thermo/model classifications and native full requested-interval retries before closure.",
+        "production_checkout_modified": false
+      }
+    },
+    {
+      "id": "P003",
+      "path": "patches/P003-resident-input-adaptation.json",
+      "sha256": "b8df7a611712019862641edccb5806b687f32e2190019ef0a08eb3a602923622",
+      "description": {
+        "classification": "test-input-only",
+        "production_source_modified": false,
+        "changes": [
+          "Thermal frontends need schema3 with original 3 stuck columns, instead of gas-only schema4.",
+          "CHT particleRho=1000 exactly matches rhoS; Tp field=300 exactly matches original particle initial T.",
+          "cold1D/2D exact pinned LFS small fields downloaded/verified; position/velocity selects first-step impact as preplanned."
+        ],
+        "failed_inputs": "Original and INPUT1 copies and logs retained; no physical threshold/solver behavior modified.",
+        "input_hashes": {
+          "inputs/native/resident/FSH-periodic-INPUT1/case-spec.json": "3440a2fff313a6f0ae685ac5c60f1206629e3e2fd317cd59508879fc8a37a894",
+          "inputs/native/resident/FSH-periodic-INPUT1/system/blockMeshDict": "d9d69dded344fd671796a34d5d29ac6e962ead1fdaa148e0d3cc6a0de0da16d8",
+          "inputs/native/resident/FSH-periodic-INPUT1/system/controlDict": "6c56f4624ed90d610f83b8deec348490a2d7c49be3e222c0ed520fcc940818c9",
+          "inputs/native/resident/FSH-periodic-INPUT1/system/fvSolution": "c6fa3d61f7b2f7c3a011948daf635942780f28c3d797db288ebbe5af00c681cd",
+          "inputs/native/resident/FSH-periodic-INPUT1/system/fvSchemes": "d0574f47c81c91a66bbec6d3425d56a16ae47a61e99d8f1e0f079d0e99440700",
+          "inputs/native/resident/FSH-periodic-INPUT1/constant/radiationProperties": "34faff92476c127f7b6ea2d0a9dfa19573df3b37b660ecb6957e9afb60f014a6",
+          "inputs/native/resident/FSH-periodic-INPUT1/constant/schedulingProperties": "d7e78cd32b5906eea09dcf05d7726806b34020d6f33c70ef386a86a38ea016e2",
+          "inputs/native/resident/FSH-periodic-INPUT1/constant/fluidProperties": "857669595e23cf558332444cb0acb276e8a2ce4f3c65deb77e292e4faa54cd46",
+          "inputs/native/resident/FSH-periodic-INPUT1/constant/solidRegionProperties": "b73c29197d4a04b9190f87dcb82628c104bc3aeb32044915a601faaaabc3f07a",
+          "inputs/native/resident/FSH-periodic-INPUT1/constant/particleProperties": "9cdf07cdf6784eb95be749bf60e22e199c5eaf0dd4bfa22aee8acdd080e59f48",
+          "inputs/native/resident/FSH-periodic-INPUT1/0/epsilonS": "5c0bfd7bc197c47fc08ff34e31af10a1b069875c1b1127421d839cf62c9615e0",
+          "inputs/native/resident/FSH-periodic-INPUT1/0/rho": "37f92a5b9c3f99678a68e4dbbf266584dee895f9266011c2782fbbbd8ae16f37",
+          "inputs/native/resident/FSH-periodic-INPUT1/0/gpuResidentStrictParticles.dat": "58c7c8193844083c2b85cbc063e881af1f9b087cf47b7aff5411f7caf39310ef",
+          "inputs/native/resident/FSH-periodic-INPUT1/0/theta": "8e399e99375ecf2ad61578a6f336678a4f9f5dbb8c2d76897cc37a5bf3356c8b",
+          "inputs/native/resident/FSH-periodic-INPUT1/0/T": "cb162d0d20d6109824b37cc768b1910c1a1df4a5d54cca45cd89665f95f9bfa4",
+          "inputs/native/resident/FSH-periodic-INPUT1/0/Us": "4d77e5935fc67bb7bd2d5caab71b35248eef5c804f8e5bcbee789ac3edcbb541",
+          "inputs/native/resident/FSH-periodic-INPUT1/0/U": "d275a381972db527c45b19cd9330d837e3d8a7622ca3084c38fc684f85590cf6",
+          "inputs/native/resident/FSH-periodic-INPUT1/0/p": "4ceedd46661989def6eda589ef5fc76e944ade0b33acf0dfc150c0cd092c8df9",
+          "inputs/native/resident/CHT-coldWall1D-INPUT1/case-spec.json": "b2e3c7d9f44423d39fb3a5c6737e3180bf22a037fa2e2567f6be835fc17c9c4d",
+          "inputs/native/resident/CHT-coldWall1D-INPUT1/system/blockMeshDict": "252f21b8126c965f13ad281721f090e5030373a7dad886977f6eac32f4907e4d",
+          "inputs/native/resident/CHT-coldWall1D-INPUT1/system/controlDict": "21b30a721f1c0f19ba6e355df970450b3d50e7926f559962afe74fe97ee25b32",
+          "inputs/native/resident/CHT-coldWall1D-INPUT1/system/fvSolution": "be3a4e1592d66a0d66787caaabc7d47cf7ab0f5077a2d2326cd6965fd93db45e",
+          "inputs/native/resident/CHT-coldWall1D-INPUT1/system/fvSchemes": "b00a974c6bf5dde17c1efac1eed45c5ae27b2320de3c911133ec0dc9486eda57",
+          "inputs/native/resident/CHT-coldWall1D-INPUT1/constant/radiationProperties": "5cacaaab8b2ce22457c1021f0c4a7a8442b1de3e0b2daeba13a9576fce65ced6",
+          "inputs/native/resident/CHT-coldWall1D-INPUT1/constant/schedulingProperties": "3c460e1948060852aaea15cb9e6980d2635fa9cc875a2e1d1e934c0c691fc98b",
+          "inputs/native/resident/CHT-coldWall1D-INPUT1/constant/g": "6a73b3c533c8eb57672b6b5128a890d54cbaf98e5a4486ed6747ab62af4bed6e",
+          "inputs/native/resident/CHT-coldWall1D-INPUT1/constant/fluidProperties": "cc0e7d4f094e2b84539559a3c2f710a288f5616d300b8213e570fa82eb3a2ee9",
+          "inputs/native/resident/CHT-coldWall1D-INPUT1/constant/solidRegionProperties": "d5a049297351189a1f8ef45474d4a8e411ad8f5cae1dfe5069c4914e45a37586",
+          "inputs/native/resident/CHT-coldWall1D-INPUT1/constant/particleProperties": "934afe6298128b857a0866421f14fbd91ae314b0dab1c6693a33096d2f4c9360",
+          "inputs/native/resident/CHT-coldWall1D-INPUT1/0/epsilonS": "9b5843a11ffc3898ded18fe8fc8b4b5edb6eefec6574de23c78d8a57bffaed0f",
+          "inputs/native/resident/CHT-coldWall1D-INPUT1/0/gpuResidentStrictParticles.dat": "ac1f28c2576f17ba57bd7fbe68a8f903fb01362cad5c9f2b07b489274f549cf8",
+          "inputs/native/resident/CHT-coldWall1D-INPUT1/0/theta": "546b476d4d13d270177194193f2e18599ac68f09f22626bc32ba67bb21761930",
+          "inputs/native/resident/CHT-coldWall1D-INPUT1/0/T": "b651cf69fdd2df190c2bfec25a91acfd86416a7cf8469fc1da80904ed3efe3e1",
+          "inputs/native/resident/CHT-coldWall1D-INPUT1/0/Us": "01ea3b79da2f24a13075f15f5c178946e88b9feea42d57eb12b1185fea0f604b",
+          "inputs/native/resident/CHT-coldWall1D-INPUT1/0/U": "2bae05615f749c204b0b2f1f6832ed1af9c7997d2480d4648ea217c041d126a0",
+          "inputs/native/resident/CHT-coldWall1D-INPUT1/0/p": "6a4180d43424d1c95a817adc65be53d6ea6543c61473e56285d3a7974c03a012",
+          "inputs/native/resident/CHT-coldWall1D-INPUT1/0/Tp": "4fcd5ea63fad10519e5ca0bea9cb0bea182faef04c9fa00cf991764ae318afd3",
+          "inputs/native/resident/CHT-coldWall2D-INPUT2/system/blockMeshDict": "252f21b8126c965f13ad281721f090e5030373a7dad886977f6eac32f4907e4d",
+          "inputs/native/resident/CHT-coldWall2D-INPUT2/system/controlDict": "21b30a721f1c0f19ba6e355df970450b3d50e7926f559962afe74fe97ee25b32",
+          "inputs/native/resident/CHT-coldWall2D-INPUT2/system/fvSolution": "be3a4e1592d66a0d66787caaabc7d47cf7ab0f5077a2d2326cd6965fd93db45e",
+          "inputs/native/resident/CHT-coldWall2D-INPUT2/system/fvSchemes": "b00a974c6bf5dde17c1efac1eed45c5ae27b2320de3c911133ec0dc9486eda57",
+          "inputs/native/resident/CHT-coldWall2D-INPUT2/constant/radiationProperties": "5cacaaab8b2ce22457c1021f0c4a7a8442b1de3e0b2daeba13a9576fce65ced6",
+          "inputs/native/resident/CHT-coldWall2D-INPUT2/constant/schedulingProperties": "3c460e1948060852aaea15cb9e6980d2635fa9cc875a2e1d1e934c0c691fc98b",
+          "inputs/native/resident/CHT-coldWall2D-INPUT2/constant/g": "6a73b3c533c8eb57672b6b5128a890d54cbaf98e5a4486ed6747ab62af4bed6e",
+          "inputs/native/resident/CHT-coldWall2D-INPUT2/constant/fluidProperties": "cc0e7d4f094e2b84539559a3c2f710a288f5616d300b8213e570fa82eb3a2ee9",
+          "inputs/native/resident/CHT-coldWall2D-INPUT2/constant/solidRegionProperties": "d5a049297351189a1f8ef45474d4a8e411ad8f5cae1dfe5069c4914e45a37586",
+          "inputs/native/resident/CHT-coldWall2D-INPUT2/constant/particleProperties": "740590f7265b51670409340d97d73cb103c2e2d9a37234f41d9fb32ee412d956",
+          "inputs/native/resident/CHT-coldWall2D-INPUT2/0/epsilonS": "50149ca681c328b49111388a4e034ecf15d0ef432d05f412fdc5a37b4399a06f",
+          "inputs/native/resident/CHT-coldWall2D-INPUT2/0/gpuResidentStrictParticles.dat": "ac1f28c2576f17ba57bd7fbe68a8f903fb01362cad5c9f2b07b489274f549cf8",
+          "inputs/native/resident/CHT-coldWall2D-INPUT2/0/theta": "f57aa03abe38cddf7e7a537fb3673b1ac75bbaaf9ce2510b56b576ca14d68d14",
+          "inputs/native/resident/CHT-coldWall2D-INPUT2/0/T": "cd6a2398abf79a434ef9f353d67b42f6d6b73c70f74a8d31fea558735c3c219b",
+          "inputs/native/resident/CHT-coldWall2D-INPUT2/0/Us": "8850af80866ea50b27d1891f48c8832a241e23bbde6a4ee9782011b321178ca8",
+          "inputs/native/resident/CHT-coldWall2D-INPUT2/0/U": "1545eea7ce026cab0aa9612d863834cac2d1b6eb8d007e19bcfb7d7aeed8c653",
+          "inputs/native/resident/CHT-coldWall2D-INPUT2/0/p": "59d4a84b8cadfe422699895238591c0c03cb8e199b762b191c5c7e16581e103f",
+          "inputs/native/resident/CHT-coldWall2D-INPUT2/0/Tp": "d766962f6e70f79464c50bd446e2e8855e8f6f6b4905b217485fb21fa7401dae",
+          "inputs/native/resident/CHT-periodic-INPUT1/case-spec.json": "b3a11e9995d71a60e33b4591ba0e4330929841a4f0795f2a5c6e9fe7c5c31670",
+          "inputs/native/resident/CHT-periodic-INPUT1/system/blockMeshDict": "d9d69dded344fd671796a34d5d29ac6e962ead1fdaa148e0d3cc6a0de0da16d8",
+          "inputs/native/resident/CHT-periodic-INPUT1/system/controlDict": "d6a32f676cb2c78b83fc699538eb1647947bb5e8671d2b6e5111c6478fd22666",
+          "inputs/native/resident/CHT-periodic-INPUT1/system/fvSolution": "c6fa3d61f7b2f7c3a011948daf635942780f28c3d797db288ebbe5af00c681cd",
+          "inputs/native/resident/CHT-periodic-INPUT1/system/fvSchemes": "d0574f47c81c91a66bbec6d3425d56a16ae47a61e99d8f1e0f079d0e99440700",
+          "inputs/native/resident/CHT-periodic-INPUT1/constant/radiationProperties": "34faff92476c127f7b6ea2d0a9dfa19573df3b37b660ecb6957e9afb60f014a6",
+          "inputs/native/resident/CHT-periodic-INPUT1/constant/schedulingProperties": "d7e78cd32b5906eea09dcf05d7726806b34020d6f33c70ef386a86a38ea016e2",
+          "inputs/native/resident/CHT-periodic-INPUT1/constant/fluidProperties": "857669595e23cf558332444cb0acb276e8a2ce4f3c65deb77e292e4faa54cd46",
+          "inputs/native/resident/CHT-periodic-INPUT1/constant/solidRegionProperties": "b73c29197d4a04b9190f87dcb82628c104bc3aeb32044915a601faaaabc3f07a",
+          "inputs/native/resident/CHT-periodic-INPUT1/constant/particleProperties": "8069b18cd1441b56a0376e48eff9233d455354416c84eac02f0e5c9c130b3704",
+          "inputs/native/resident/CHT-periodic-INPUT1/0/epsilonS": "5c0bfd7bc197c47fc08ff34e31af10a1b069875c1b1127421d839cf62c9615e0",
+          "inputs/native/resident/CHT-periodic-INPUT1/0/rho": "37f92a5b9c3f99678a68e4dbbf266584dee895f9266011c2782fbbbd8ae16f37",
+          "inputs/native/resident/CHT-periodic-INPUT1/0/gpuResidentStrictParticles.dat": "58c7c8193844083c2b85cbc063e881af1f9b087cf47b7aff5411f7caf39310ef",
+          "inputs/native/resident/CHT-periodic-INPUT1/0/theta": "8e399e99375ecf2ad61578a6f336678a4f9f5dbb8c2d76897cc37a5bf3356c8b",
+          "inputs/native/resident/CHT-periodic-INPUT1/0/T": "cb162d0d20d6109824b37cc768b1910c1a1df4a5d54cca45cd89665f95f9bfa4",
+          "inputs/native/resident/CHT-periodic-INPUT1/0/Us": "4d77e5935fc67bb7bd2d5caab71b35248eef5c804f8e5bcbee789ac3edcbb541",
+          "inputs/native/resident/CHT-periodic-INPUT1/0/U": "d275a381972db527c45b19cd9330d837e3d8a7622ca3084c38fc684f85590cf6",
+          "inputs/native/resident/CHT-periodic-INPUT1/0/p": "4ceedd46661989def6eda589ef5fc76e944ade0b33acf0dfc150c0cd092c8df9",
+          "inputs/native/resident/CHT-periodic-INPUT2/case-spec.json": "b3a11e9995d71a60e33b4591ba0e4330929841a4f0795f2a5c6e9fe7c5c31670",
+          "inputs/native/resident/CHT-periodic-INPUT2/system/blockMeshDict": "d9d69dded344fd671796a34d5d29ac6e962ead1fdaa148e0d3cc6a0de0da16d8",
+          "inputs/native/resident/CHT-periodic-INPUT2/system/controlDict": "d6a32f676cb2c78b83fc699538eb1647947bb5e8671d2b6e5111c6478fd22666",
+          "inputs/native/resident/CHT-periodic-INPUT2/system/fvSolution": "c6fa3d61f7b2f7c3a011948daf635942780f28c3d797db288ebbe5af00c681cd",
+          "inputs/native/resident/CHT-periodic-INPUT2/system/fvSchemes": "d0574f47c81c91a66bbec6d3425d56a16ae47a61e99d8f1e0f079d0e99440700",
+          "inputs/native/resident/CHT-periodic-INPUT2/constant/radiationProperties": "34faff92476c127f7b6ea2d0a9dfa19573df3b37b660ecb6957e9afb60f014a6",
+          "inputs/native/resident/CHT-periodic-INPUT2/constant/schedulingProperties": "d7e78cd32b5906eea09dcf05d7726806b34020d6f33c70ef386a86a38ea016e2",
+          "inputs/native/resident/CHT-periodic-INPUT2/constant/fluidProperties": "857669595e23cf558332444cb0acb276e8a2ce4f3c65deb77e292e4faa54cd46",
+          "inputs/native/resident/CHT-periodic-INPUT2/constant/solidRegionProperties": "b73c29197d4a04b9190f87dcb82628c104bc3aeb32044915a601faaaabc3f07a",
+          "inputs/native/resident/CHT-periodic-INPUT2/constant/particleProperties": "8069b18cd1441b56a0376e48eff9233d455354416c84eac02f0e5c9c130b3704",
+          "inputs/native/resident/CHT-periodic-INPUT2/0/epsilonS": "5c0bfd7bc197c47fc08ff34e31af10a1b069875c1b1127421d839cf62c9615e0",
+          "inputs/native/resident/CHT-periodic-INPUT2/0/rho": "37f92a5b9c3f99678a68e4dbbf266584dee895f9266011c2782fbbbd8ae16f37",
+          "inputs/native/resident/CHT-periodic-INPUT2/0/gpuResidentStrictParticles.dat": "58c7c8193844083c2b85cbc063e881af1f9b087cf47b7aff5411f7caf39310ef",
+          "inputs/native/resident/CHT-periodic-INPUT2/0/theta": "8e399e99375ecf2ad61578a6f336678a4f9f5dbb8c2d76897cc37a5bf3356c8b",
+          "inputs/native/resident/CHT-periodic-INPUT2/0/T": "cb162d0d20d6109824b37cc768b1910c1a1df4a5d54cca45cd89665f95f9bfa4",
+          "inputs/native/resident/CHT-periodic-INPUT2/0/Us": "4d77e5935fc67bb7bd2d5caab71b35248eef5c804f8e5bcbee789ac3edcbb541",
+          "inputs/native/resident/CHT-periodic-INPUT2/0/U": "d275a381972db527c45b19cd9330d837e3d8a7622ca3084c38fc684f85590cf6",
+          "inputs/native/resident/CHT-periodic-INPUT2/0/p": "4ceedd46661989def6eda589ef5fc76e944ade0b33acf0dfc150c0cd092c8df9",
+          "inputs/native/resident/CHT-periodic-INPUT2/0/Tp": "5c11ed2cddcdb99db83ac04219a1b9ec71af53b841b4b9fc5c92cf1bac60e10f",
+          "inputs/native/resident/CHT-coldWall1D-INPUT2/system/blockMeshDict": "252f21b8126c965f13ad281721f090e5030373a7dad886977f6eac32f4907e4d",
+          "inputs/native/resident/CHT-coldWall1D-INPUT2/system/controlDict": "21b30a721f1c0f19ba6e355df970450b3d50e7926f559962afe74fe97ee25b32",
+          "inputs/native/resident/CHT-coldWall1D-INPUT2/system/fvSolution": "be3a4e1592d66a0d66787caaabc7d47cf7ab0f5077a2d2326cd6965fd93db45e",
+          "inputs/native/resident/CHT-coldWall1D-INPUT2/system/fvSchemes": "b00a974c6bf5dde17c1efac1eed45c5ae27b2320de3c911133ec0dc9486eda57",
+          "inputs/native/resident/CHT-coldWall1D-INPUT2/constant/radiationProperties": "5cacaaab8b2ce22457c1021f0c4a7a8442b1de3e0b2daeba13a9576fce65ced6",
+          "inputs/native/resident/CHT-coldWall1D-INPUT2/constant/schedulingProperties": "3c460e1948060852aaea15cb9e6980d2635fa9cc875a2e1d1e934c0c691fc98b",
+          "inputs/native/resident/CHT-coldWall1D-INPUT2/constant/g": "6a73b3c533c8eb57672b6b5128a890d54cbaf98e5a4486ed6747ab62af4bed6e",
+          "inputs/native/resident/CHT-coldWall1D-INPUT2/constant/fluidProperties": "cc0e7d4f094e2b84539559a3c2f710a288f5616d300b8213e570fa82eb3a2ee9",
+          "inputs/native/resident/CHT-coldWall1D-INPUT2/constant/solidRegionProperties": "d5a049297351189a1f8ef45474d4a8e411ad8f5cae1dfe5069c4914e45a37586",
+          "inputs/native/resident/CHT-coldWall1D-INPUT2/constant/particleProperties": "934afe6298128b857a0866421f14fbd91ae314b0dab1c6693a33096d2f4c9360",
+          "inputs/native/resident/CHT-coldWall1D-INPUT2/0/epsilonS": "50149ca681c328b49111388a4e034ecf15d0ef432d05f412fdc5a37b4399a06f",
+          "inputs/native/resident/CHT-coldWall1D-INPUT2/0/gpuResidentStrictParticles.dat": "ac1f28c2576f17ba57bd7fbe68a8f903fb01362cad5c9f2b07b489274f549cf8",
+          "inputs/native/resident/CHT-coldWall1D-INPUT2/0/theta": "f57aa03abe38cddf7e7a537fb3673b1ac75bbaaf9ce2510b56b576ca14d68d14",
+          "inputs/native/resident/CHT-coldWall1D-INPUT2/0/T": "cd6a2398abf79a434ef9f353d67b42f6d6b73c70f74a8d31fea558735c3c219b",
+          "inputs/native/resident/CHT-coldWall1D-INPUT2/0/Us": "8850af80866ea50b27d1891f48c8832a241e23bbde6a4ee9782011b321178ca8",
+          "inputs/native/resident/CHT-coldWall1D-INPUT2/0/U": "1545eea7ce026cab0aa9612d863834cac2d1b6eb8d007e19bcfb7d7aeed8c653",
+          "inputs/native/resident/CHT-coldWall1D-INPUT2/0/p": "59d4a84b8cadfe422699895238591c0c03cb8e199b762b191c5c7e16581e103f",
+          "inputs/native/resident/CHT-coldWall1D-INPUT2/0/Tp": "d766962f6e70f79464c50bd446e2e8855e8f6f6b4905b217485fb21fa7401dae"
+        }
+      }
+    },
+    {
+      "id": "P005",
+      "path": "patches/P005-frozen-slip-wall-oracle.json",
+      "sha256": "f25da8c467760205353cf811711dfb8fb12b889c87180a378520d76b9bd23985",
+      "description": {
+        "classification": "test oracle correction/explicit scope",
+        "production_source_modified": false,
+        "reason": "Frozen f03e215 snapshot predates base d611 slip-wall independent thermal BC fix c73591f. Exact source expression already present in baseline and PR.",
+        "expected_regression": "f21=3.25/500=0.0065, old frozen returns1.625.",
+        "changes": [
+          {
+            "key": "gasUGKP:riemannFacePrimitiveForGradient",
+            "diff": "--- \n+++ \n@@ -61,6 +61,11 @@\n         face.ux -= un*nx;\n         face.uy -= un*ny;\n         face.uz -= un*nz;\n+        if (s.riemannBoundaryTFix[f] != 0)\n+        {\n+            face.T = clampMin(finiteOr(s.riemannBoundaryT[f], centre.T), s.TgasMin);\n+            face.rho = face.p/clampMin(s.Rgas*face.T, OfSmall);\n+        }\n         return face;\n     }\n \n"
+          },
+          {
+            "key": "FSH:riemannFacePrimitiveForGradient",
+            "diff": "--- \n+++ \n@@ -62,6 +62,11 @@\n         face.ux -= un*nx;\n         face.uy -= un*ny;\n         face.uz -= un*nz;\n+        if (s.riemannBoundaryTFix[f] != 0)\n+        {\n+            face.T = clampMin(finiteOr(s.riemannBoundaryT[f], centre.T), s.TgasMin);\n+            face.rho = face.p/clampMin(s.Rgas*face.T, OfSmall);\n+        }\n         return face;\n     }\n \n"
+          },
+          {
+            "key": "CHT:riemannFacePrimitiveForGradient",
+            "diff": "--- \n+++ \n@@ -62,6 +62,11 @@\n         face.ux -= un*nx;\n         face.uy -= un*ny;\n         face.uz -= un*nz;\n+        if (s.riemannBoundaryTFix[f] != 0)\n+        {\n+            face.T = clampMin(finiteOr(s.riemannBoundaryT[f], centre.T), s.TgasMin);\n+            face.rho = face.p/clampMin(s.Rgas*face.T, OfSmall);\n+        }\n         return face;\n     }\n \n"
+          }
+        ],
+        "original_baseline_sha256": "42e2413e6447060b4e953cd8e6edf7cf4749d2d0f3187017cb3d94a33032017e",
+        "original_full_assertions_preserved": true,
+        "core_scope": "All original moment/face/drag/pressure/wall atomic memcmp assertions remain; old cold block still in generated source but explicitly NOT_RUN for this core test. Original full fixture failure preserved. Native CHT cold full app evidence is separate."
+      }
+    },
+    {
+      "id": "P006",
+      "path": "patches/P006-cold2D-printf-diagnostic.json",
+      "sha256": "25aa2fbdb5dc793efdae787830f4e7454fa39a72e1d73702b7817bb409b06f3b",
+      "description": {
+        "classification": "isolated diagnostic only",
+        "production_before_sha256": "903b5b615caa4f7aa432126c04a07c054335f04038bf941362a3078e10fe0a61",
+        "production_after_sha256": "b7b11c4adc8ae16beb5c56ff812eb64361dacda756de3fc68163ccd0e9494819",
+        "physical_equations_modified": false,
+        "hypothesis": "nonempty per-face effusivity backing remains zero on uncoupled candidate wall, first age0 gives sqrt(0)/0 and poisons paired mean correction",
+        "source_checkout_untouched": true
+      }
+    },
+    {
+      "id": "P007",
+      "path": "patches/P007-cold-wall-fallback-producer.json",
+      "sha256": "639f551cc3c850fbffb34200304fabb0e10827125680d2eb8987f9f998ac1aac",
+      "description": {
+        "classification": "isolated minimal source correction, diagnostic only",
+        "source_before_sha256": "3131e68bb2220f415f3ef83133f358c58cb6741f7cfcd3eeebaf5054b8c65284",
+        "source_after_sha256": "0ef0585884b0490380ed66456568e70b739ca1047d6113a0f9ed74af0df39604",
+        "patch_sha256": "35983e87accf7a2bf6b5cb4baf7c9adc097579d916d03c689aac6e5af29f3dda",
+        "reason": "P006 observes allocated per-face effusivity zero, scalar fallback11304.866..., age0 wallG NaN. Existing producer zero-init hid scalar fallback on uncoupled candidate faces.",
+        "scope": "Seed from existing DeviceState scalar fallback, retain coupled patch override and pending flags. No finite/positive check, clamp, rejection or new solver gate.",
+        "limitations": [
+          "Default device material1800/710/100; user example dictionary7900/500/15 has no host consumer, not claimed fixed.",
+          "Reconfiguration/scalar changing and coupled patches require developer formal audit/recheck."
+        ],
+        "formal_fix": false,
+        "production_checkout_untouched": true
+      }
+    },
+    {
+      "id": "P008",
+      "path": "patches/P008-baseline-configuration-only.json",
+      "sha256": "c2408c4a026a8d4ed385e198c09ff63ed6594775dda091f526b6a8afb2c90769",
+      "description": {
+        "classification": "input admission compatibility only",
+        "reason": "Original baseline rejects three obsolete scalar wall dictionary tokens before native cold calculation and defaults GPU physics32. Remove only these tokens that PR has no consumer for; explicitly select existing baseline FP64 route. Run BOTH baseline and PR with same adapted input.",
+        "physical_inputs_modified": false,
+        "actual_consumed_defaults_retained": "wall device1800/710/100, wallT473.15, droplet/model unchanged. Does not pretend original dictionary7900/500/15 consumed.",
+        "original_failure_preserved": "logs/BASE-COLD2D.log",
+        "not_original_success_evidence": true
+      }
+    },
+    {
+      "id": "P009",
+      "path": "patches/P009-checker-mean-double.json",
+      "sha256": "fbe205ba8f36bf0e8e1423ad722d419e541b352beea0ad4e241021586c43e81c",
+      "description": {
+        "classification": "test support only",
+        "production_modified": false,
+        "reason": "Numpy mean of float profile default float32 accumulator introduced checker error; independent physical mean must promote stored nodes to double. No tolerance/assertion removed; old failed results retained.",
+        "old_checker_sha256": "9325be4d12a16d129da3f79d82c7dd9df8f85d6e91ecbcbc5f2a4ff3c0ecffe1",
+        "corrected_checker_sha256": "8c4d12003e26bb5a44682a0c10ffd7bc730b449596273cb210f4938a83ca600a"
+      }
+    },
+    {
+      "id": "P010",
+      "path": "patches/P010-cold-profile-initialization-carry.json",
+      "sha256": "cd3d98bb53fa6b2d3755e9bec1473cf9992396aa5cff34abcdf61cd9c0d277cf",
+      "description": {
+        "classification": "isolated source correction/diagnostic only",
+        "finding": "GPU-F004",
+        "requires": "P007 for uncoupled effusivity producer",
+        "sources": [
+          {
+            "path": "common/operators/clearColdWallParticleState.cuh",
+            "before_sha256": "7eed4fea22bb3db4e6363cb7db7c80ac477903aa666bdff69248c588b2216b4d",
+            "after_sha256": "1b08a0ebc5684242caa0d9082a16eedf75671c9037e884d7e68ce4edba5c1caf"
+          },
+          {
+            "path": "common/wall/GpuColdWall2DDevice.cuh",
+            "before_sha256": "903b5b615caa4f7aa432126c04a07c054335f04038bf941362a3078e10fe0a61",
+            "after_sha256": "9c875268315ea0354cee4d8abee4af63b711269c632a7ff8a2ab343033ce3d0f"
+          }
+        ],
+        "reason": "At first wall contact, double enthalpy cast into uniform float nodes discarded quantization remainder; double carry still only holds precontact ordinary heat remainder. Corrected independent check first mismatch7.47809e-5K, before NaN.",
+        "scope": "Retain unchanged profile cast/formula and add exactly its quantization loss to existing double carry at the original producer. No numeric rejection/clamp/gate.",
+        "formal_fix": false,
+        "limits": [
+          "CHT two models only; FSH shared template needs developer formal build/real GPU recheck.",
+          "Full wall/gas ledger balance and mixed coupled faces not claimed."
+        ],
+        "source_checkout_untouched": true
+      }
+    },
+    {
+      "id": "P011",
+      "path": "patches/P011-Co-reduction-result-no-padding.json",
+      "sha256": "a43eb3e57814b2b0bf965f9c02e70d794dc146f031c8ea5f24ce62de27e909d0",
+      "description": {
+        "classification": "isolated metadata result representation correction/diagnostic",
+        "finding": "GPU-F005",
+        "reason": "Original initcheck reports100 host16byte D2H uninitialized errors, one per Co transform_reduce. double+bool has seven uninitialized padding bytes. Use explicit8byte 0/1 slot; same physical double/max/OR traversal/order and same16byte ABI result size. No Co/Js numeric poisoning established.",
+        "before_sha256": "fdec130622e33e1ed3aaea7b7d434e327fe2c17ab363e042214f7b6bf3183bfe",
+        "after_sha256": "9386ac82355bd0d95e562b2f7af885a7dcce92093024cd10efaac0f23a9a818d",
+        "patch_sha256": "e2e08d7f52b55c226fae4e451e2ef648acbf6d18ad7fe5fa5ec0d2a16fdc6a9b",
+        "formal_fix": false,
+        "production_checkout_modified": false,
+        "scope": "Native Ns2 thermal, all CSV/checkpoint bytes equality plus initcheck0; Ns10/other configurations need formal recheck.",
+        "representation": "v2: unchanged double+bool members/offsets, seven formerly padding bytes are explicitly initialized unsigned-char members; sizeof remains16. aggregate initializer value/bool/{} writes all storage.",
+        "diagnostic_v1_build_failure": "logs/BUILD-CHMT2-P011.log: CUDA13.1 sm_80_rt.h expected unqualified-id with uint64_t flag slot; kept separately as P011v1. No original source modification."
+      }
+    },
+    {
+      "id": "P011v1",
+      "path": "patches/P011v1-u64-diagnostic-build-failure.json",
+      "sha256": "c3c5c14f542bacb05f4d858b9e7c99c62c45881a453c110632359da5ffc5799a",
+      "description": {
+        "classification": "isolated metadata result representation correction/diagnostic",
+        "finding": "GPU-F005",
+        "reason": "Original initcheck reports100 host16byte D2H uninitialized errors, one per Co transform_reduce. double+bool has seven uninitialized padding bytes. Use explicit8byte 0/1 slot; same physical double/max/OR traversal/order and same16byte ABI result size. No Co/Js numeric poisoning established.",
+        "before_sha256": "fdec130622e33e1ed3aaea7b7d434e327fe2c17ab363e042214f7b6bf3183bfe",
+        "after_sha256": "d8eec26c562b5aac9bdf7bf5e0a901cef57a81569f26caee48d14d07a55d9a54",
+        "patch_sha256": "c7e71b108c325ea8d149bca82b402349deba988f52f6c54719d051bfa9993309",
+        "formal_fix": false,
+        "production_checkout_modified": false,
+        "scope": "Native Ns2 thermal, all CSV/checkpoint bytes equality plus initcheck0; Ns10/other configurations need formal recheck."
+      }
+    },
+    {
+      "id": "P012",
+      "path": "patches/P012-nsys-csv-serialization.json",
+      "sha256": "0fb33b146ea04629689418e62e9952b549421d6e824d3f13dc75dda85e2382f8",
+      "description": {
+        "classification": "test support serializer/resume only",
+        "production_modified": false,
+        "reason": "CSV writer failed on exported StringIds with default escaping. Explicit QUOTE_ALL and escapechar preserve exported values; existing baseline raw trace reused, no GPU repetition.",
+        "original_failure": "logs/NSYS-analysis-v0-failure.log",
+        "original_partial": "logs/NSYS-StringIds-v0-partial.csv",
+        "raw_SQLite_and_trace_hashes": "artifacts/performance/nsys/*-summary.json"
+      }
+    }
+  ],
+  "developer_formal_rechecks": [],
+  "binaries": [
+    {
+      "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261013T182722Z-fast/work/install/ns2/bin/CHMT",
+      "sha256": "7124cf69b1cd51da033c1360d67129748803a5c66767489f2864c169b85c845d",
+      "bytes": 13910824,
+      "build_area": "ns2",
+      "source_commit": "802a11e7dfe986488a8bf8305e86424dcc94c9e1",
+      "ldd_log": "logs/ldd-ns2-CHMT.log",
+      "dynamic_libraries": [
+        {
+          "path": "/opt/openfoam10/platforms/linux64GccDPInt32Opt/lib/libfiniteVolume.so",
+          "sha256": "1608d5c8dd28778f5083b6203a240fae681962258aa77f2d8802db7a62e3b7b5",
+          "bytes": 33472288
+        },
+        {
+          "path": "/opt/openfoam10/platforms/linux64GccDPInt32Opt/lib/libOpenFOAM.so",
+          "sha256": "7a0fee21aa844df866b0874f927ff9f93c09cab61116a455e735257a86f4acf7",
+          "bytes": 11993184
+        },
+        {
+          "path": "/opt/openfoam10/platforms/linux64GccDPInt32Opt/lib/openmpi-system/libPstream.so",
+          "sha256": "5ba46bd53cad47cf77aa8ec823523e3eaa31d8df5af0ef85aead2b301393a34f",
+          "bytes": 71552
+        },
+        {
+          "path": "/usr/local/cuda/lib64/libcudart.so.13",
+          "sha256": "9955aa41ec390676be408b6c615f3d94f067f64cb756ef3cdf2b656ac2a81900",
+          "bytes": 757536
+        },
+        {
+          "path": "/lib/x86_64-linux-gnu/libstdc++.so.6",
+          "sha256": "ff0825e113603c3866680d5d52216bc6d8eedf3a59f52a0aef67ff01994db128",
+          "bytes": 2260296
+        },
+        {
+          "path": "/lib/x86_64-linux-gnu/libm.so.6",
+          "sha256": "3dd5511ae94785c9f921429b0f2b2f7aabb461b6f0e6de6dfdbef15f24bdfee6",
+          "bytes": 940560
+        },
+        {
+          "path": "/lib/x86_64-linux-gnu/libgcc_s.so.1",
+          "sha256": "fc9d43b2f6c20e53b009238f767c5b949d202389e20de9e202ea684b4ba3729a",
+          "bytes": 125488
+        },
+        {
+          "path": "/lib/x86_64-linux-gnu/libc.so.6",
+          "sha256": "b2cf6c33b74d2f22543b7a469a75b538911e690f769d0b238843a49465b83793",
+          "bytes": 2220400
+        },
+        {
+          "path": "/opt/openfoam10/platforms/linux64GccDPInt32Opt/lib/libtriSurface.so",
+          "sha256": "4db4205f55035a3af10b7405abbec257d1623e2b6943eea531e27a54cae1e04e",
+          "bytes": 716280
+        },
+        {
+          "path": "/opt/openfoam10/platforms/linux64GccDPInt32Opt/lib/libmeshTools.so",
+          "sha256": "ef2dfd47a575153fea28e5ad61cd890501d7c0c5577d32f842b698c6393269ad",
+          "bytes": 5687072
+        },
+        {
+          "path": "/lib/x86_64-linux-gnu/libz.so.1",
+          "sha256": "64c206f0146cc58bbddc4f22054436f4ff278f5a554aa3ce6921ddf7e9133370",
+          "bytes": 108936
+        },
+        {
+          "path": "/lib/x86_64-linux-gnu/libmpi.so.40",
+          "sha256": "27d2d690a5d1f971cf90e28e54e945519df7c1528a954ae4bfc8a436bfbb1982",
+          "bytes": 1198600
+        },
+        {
+          "path": "/lib/x86_64-linux-gnu/libdl.so.2",
+          "sha256": "3eaaa4aefd9c28f3867c96a427c3cbec9191cb61c4c9d0a2cb4a765d66064499",
+          "bytes": 14432
+        },
+        {
+          "path": "/lib/x86_64-linux-gnu/libpthread.so.0",
+          "sha256": "fbed9505adacada2abb37c6b43be2df6de81e742712c6025694ba48de62c7e78",
+          "bytes": 21448
+        },
+        {
+          "path": "/lib/x86_64-linux-gnu/librt.so.1",
+          "sha256": "5f20d34fb3bb4d84b4edeb6ca11fa5b48c705207253741619acab7cc758185fb",
+          "bytes": 14664
+        },
+        {
+          "path": "/lib64/ld-linux-x86-64.so.2",
+          "sha256": "41daf7836f7fce21a40ca63a00c5caf21b05a35a76ccc075d86f1716212cdf01",
+          "bytes": 240936
+        },
+        {
+          "path": "/opt/openfoam10/platforms/linux64GccDPInt32Opt/lib/libfileFormats.so",
+          "sha256": "6d0114d75af641ec06feaf5efd542b5e218d3c39d08fbb2252560d79d824855f",
+          "bytes": 217032
+        },
+        {
+          "path": "/opt/openfoam10/platforms/linux64GccDPInt32Opt/lib/libsurfMesh.so",
+          "sha256": "96151ca79312b98aa9b30f4e01289459f4ea687c7094a2c4a6c61f99a33b765f",
+          "bytes": 1236984
+        },
+        {
+          "path": "/lib/x86_64-linux-gnu/libopen-rte.so.40",
+          "sha256": "69b31a92a4fb7e2f494a027a7d4dddff4e516aab5158827165e12730d7c0ff57",
+          "bytes": 761608
+        },
+        {
+          "path": "/lib/x86_64-linux-gnu/libopen-pal.so.40",
+          "sha256": "2a03b97563b724c6e42f853b90e2dc0619de3486628a7b065b74f7b30e5c35a1",
+          "bytes": 700256
+        },
+        {
+          "path": "/lib/x86_64-linux-gnu/libhwloc.so.15",
+          "sha256": "2efe6e32d0d3454b2bce0d3b8cd437f48691475717be4b431f96bcc2d4d9bc54",
+          "bytes": 372064
+        },
+        {
+          "path": "/lib/x86_64-linux-gnu/libevent_core-2.1.so.7",
+          "sha256": "2d04f8e4a4cd0cf3dfe214f655298b6819cf7b1ce5677c461b904830bcdb2f8f",
+          "bytes": 211136
+        },
+        {
+          "path": "/lib/x86_64-linux-gnu/libevent_pthreads-2.1.so.7",
+          "sha256": "2c12e1fbd54ac804e4de1badcb318217ada877ae18cab8b3ce89cf3626635537",
+          "bytes": 14256
+        },
+        {
+          "path": "/lib/x86_64-linux-gnu/libudev.so.1",
+          "sha256": "1f47ab3bd9929605e30935503e339b6f5dcceb71595f0716377be1318962561d",
+          "bytes": 166240
+        }
+      ]
+    },
+    {
+      "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261013T182722Z-fast/work/install/ns2/bin/CHT",
+      "sha256": "dcaa6da459bb4fc43380d49a6536b8e9170f634e8bfb0e0701b9e795f09e9911",
+      "bytes": 5855432,
+      "build_area": "ns2",
+      "source_commit": "802a11e7dfe986488a8bf8305e86424dcc94c9e1",
+      "ldd_log": "logs/ldd-ns2-CHT.log",
+      "dynamic_libraries": [
+        {
+          "path": "/opt/openfoam10/platforms/linux64GccDPInt32Opt/lib/libfiniteVolume.so",
+          "sha256": "1608d5c8dd28778f5083b6203a240fae681962258aa77f2d8802db7a62e3b7b5",
+          "bytes": 33472288
+        },
+        {
+          "path": "/opt/openfoam10/platforms/linux64GccDPInt32Opt/lib/libmeshTools.so",
+          "sha256": "ef2dfd47a575153fea28e5ad61cd890501d7c0c5577d32f842b698c6393269ad",
+          "bytes": 5687072
+        },
+        {
+          "path": "/opt/openfoam10/platforms/linux64GccDPInt32Opt/lib/libmomentumTransportModels.so",
+          "sha256": "61486665e657bf0b416051c3e6cb9c55bee31ec94e4a6e48de888625f4e8b3ad",
+          "bytes": 3131920
+        },
+        {
+          "path": "/opt/openfoam10/platforms/linux64GccDPInt32Opt/lib/libOpenFOAM.so",
+          "sha256": "7a0fee21aa844df866b0874f927ff9f93c09cab61116a455e735257a86f4acf7",
+          "bytes": 11993184
+        },
+        {
+          "path": "/usr/local/cuda/lib64/libcudart.so.13",
+          "sha256": "9955aa41ec390676be408b6c615f3d94f067f64cb756ef3cdf2b656ac2a81900",
+          "bytes": 757536
+        },
+        {
+          "path": "/lib/x86_64-linux-gnu/libstdc++.so.6",
+          "sha256": "ff0825e113603c3866680d5d52216bc6d8eedf3a59f52a0aef67ff01994db128",
+          "bytes": 2260296
+        },
+        {
+          "path": "/lib/x86_64-linux-gnu/libm.so.6",
+          "sha256": "3dd5511ae94785c9f921429b0f2b2f7aabb461b6f0e6de6dfdbef15f24bdfee6",
+          "bytes": 940560
+        },
+        {
+          "path": "/lib/x86_64-linux-gnu/libgomp.so.1",
+          "sha256": "d46f9225c1883039e8a6853e6d96ca1af11d034ce186a090952e4a7c8a7c2fdc",
+          "bytes": 298776
+        },
+        {
+          "path": "/lib/x86_64-linux-gnu/libgcc_s.so.1",
+          "sha256": "fc9d43b2f6c20e53b009238f767c5b949d202389e20de9e202ea684b4ba3729a",
+          "bytes": 125488
+        },
+        {
+          "path": "/lib/x86_64-linux-gnu/libc.so.6",
+          "sha256": "b2cf6c33b74d2f22543b7a469a75b538911e690f769d0b238843a49465b83793",
+          "bytes": 2220400
+        },
+        {
+          "path": "/opt/openfoam10/platforms/linux64GccDPInt32Opt/lib/openmpi-system/libPstream.so",
+          "sha256": "5ba46bd53cad47cf77aa8ec823523e3eaa31d8df5af0ef85aead2b301393a34f",
+          "bytes": 71552
+        },
+        {
+          "path": "/opt/openfoam10/platforms/linux64GccDPInt32Opt/lib/libtriSurface.so",
+          "sha256": "4db4205f55035a3af10b7405abbec257d1623e2b6943eea531e27a54cae1e04e",
+          "bytes": 716280
+        },
+        {
+          "path": "/opt/openfoam10/platforms/linux64GccDPInt32Opt/lib/libsurfMesh.so",
+          "sha256": "96151ca79312b98aa9b30f4e01289459f4ea687c7094a2c4a6c61f99a33b765f",
+          "bytes": 1236984
+        },
+        {
+          "path": "/opt/openfoam10/platforms/linux64GccDPInt32Opt/lib/libfileFormats.so",
+          "sha256": "6d0114d75af641ec06feaf5efd542b5e218d3c39d08fbb2252560d79d824855f",
+          "bytes": 217032
+        },
+        {
+          "path": "/lib/x86_64-linux-gnu/libz.so.1",
+          "sha256": "64c206f0146cc58bbddc4f22054436f4ff278f5a554aa3ce6921ddf7e9133370",
+          "bytes": 108936
+        },
+        {
+          "path": "/lib/x86_64-linux-gnu/libdl.so.2",
+          "sha256": "3eaaa4aefd9c28f3867c96a427c3cbec9191cb61c4c9d0a2cb4a765d66064499",
+          "bytes": 14432
+        },
+        {
+          "path": "/lib/x86_64-linux-gnu/libpthread.so.0",
+          "sha256": "fbed9505adacada2abb37c6b43be2df6de81e742712c6025694ba48de62c7e78",
+          "bytes": 21448
+        },
+        {
+          "path": "/lib/x86_64-linux-gnu/librt.so.1",
+          "sha256": "5f20d34fb3bb4d84b4edeb6ca11fa5b48c705207253741619acab7cc758185fb",
+          "bytes": 14664
+        },
+        {
+          "path": "/lib64/ld-linux-x86-64.so.2",
+          "sha256": "41daf7836f7fce21a40ca63a00c5caf21b05a35a76ccc075d86f1716212cdf01",
+          "bytes": 240936
+        },
+        {
+          "path": "/lib/x86_64-linux-gnu/libmpi.so.40",
+          "sha256": "27d2d690a5d1f971cf90e28e54e945519df7c1528a954ae4bfc8a436bfbb1982",
+          "bytes": 1198600
+        },
+        {
+          "path": "/lib/x86_64-linux-gnu/libopen-rte.so.40",
+          "sha256": "69b31a92a4fb7e2f494a027a7d4dddff4e516aab5158827165e12730d7c0ff57",
+          "bytes": 761608
+        },
+        {
+          "path": "/lib/x86_64-linux-gnu/libopen-pal.so.40",
+          "sha256": "2a03b97563b724c6e42f853b90e2dc0619de3486628a7b065b74f7b30e5c35a1",
+          "bytes": 700256
+        },
+        {
+          "path": "/lib/x86_64-linux-gnu/libhwloc.so.15",
+          "sha256": "2efe6e32d0d3454b2bce0d3b8cd437f48691475717be4b431f96bcc2d4d9bc54",
+          "bytes": 372064
+        },
+        {
+          "path": "/lib/x86_64-linux-gnu/libevent_core-2.1.so.7",
+          "sha256": "2d04f8e4a4cd0cf3dfe214f655298b6819cf7b1ce5677c461b904830bcdb2f8f",
+          "bytes": 211136
+        },
+        {
+          "path": "/lib/x86_64-linux-gnu/libevent_pthreads-2.1.so.7",
+          "sha256": "2c12e1fbd54ac804e4de1badcb318217ada877ae18cab8b3ce89cf3626635537",
+          "bytes": 14256
+        },
+        {
+          "path": "/lib/x86_64-linux-gnu/libudev.so.1",
+          "sha256": "1f47ab3bd9929605e30935503e339b6f5dcceb71595f0716377be1318962561d",
+          "bytes": 166240
+        }
+      ]
+    },
+    {
+      "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261013T182722Z-fast/work/install/ns2/bin/FSH",
+      "sha256": "db07bcfbb0939df936f9edf8b42cde0607c93bedc986125af520c19843074ed3",
+      "bytes": 722168,
+      "build_area": "ns2",
+      "source_commit": "802a11e7dfe986488a8bf8305e86424dcc94c9e1",
+      "ldd_log": "logs/ldd-ns2-FSH.log",
+      "dynamic_libraries": [
+        {
+          "path": "/opt/openfoam10/platforms/linux64GccDPInt32Opt/lib/libfiniteVolume.so",
+          "sha256": "1608d5c8dd28778f5083b6203a240fae681962258aa77f2d8802db7a62e3b7b5",
+          "bytes": 33472288
+        },
+        {
+          "path": "/opt/openfoam10/platforms/linux64GccDPInt32Opt/lib/libmeshTools.so",
+          "sha256": "ef2dfd47a575153fea28e5ad61cd890501d7c0c5577d32f842b698c6393269ad",
+          "bytes": 5687072
+        },
+        {
+          "path": "/opt/openfoam10/platforms/linux64GccDPInt32Opt/lib/libmomentumTransportModels.so",
+          "sha256": "61486665e657bf0b416051c3e6cb9c55bee31ec94e4a6e48de888625f4e8b3ad",
+          "bytes": 3131920
+        },
+        {
+          "path": "/opt/openfoam10/platforms/linux64GccDPInt32Opt/lib/libOpenFOAM.so",
+          "sha256": "7a0fee21aa844df866b0874f927ff9f93c09cab61116a455e735257a86f4acf7",
+          "bytes": 11993184
+        },
+        {
+          "path": "/lib/x86_64-linux-gnu/libstdc++.so.6",
+          "sha256": "ff0825e113603c3866680d5d52216bc6d8eedf3a59f52a0aef67ff01994db128",
+          "bytes": 2260296
+        },
+        {
+          "path": "/lib/x86_64-linux-gnu/libm.so.6",
+          "sha256": "3dd5511ae94785c9f921429b0f2b2f7aabb461b6f0e6de6dfdbef15f24bdfee6",
+          "bytes": 940560
+        },
+        {
+          "path": "/lib/x86_64-linux-gnu/libgcc_s.so.1",
+          "sha256": "fc9d43b2f6c20e53b009238f767c5b949d202389e20de9e202ea684b4ba3729a",
+          "bytes": 125488
+        },
+        {
+          "path": "/lib/x86_64-linux-gnu/libc.so.6",
+          "sha256": "b2cf6c33b74d2f22543b7a469a75b538911e690f769d0b238843a49465b83793",
+          "bytes": 2220400
+        },
+        {
+          "path": "/lib64/ld-linux-x86-64.so.2",
+          "sha256": "41daf7836f7fce21a40ca63a00c5caf21b05a35a76ccc075d86f1716212cdf01",
+          "bytes": 240936
+        },
+        {
+          "path": "/opt/openfoam10/platforms/linux64GccDPInt32Opt/lib/openmpi-system/libPstream.so",
+          "sha256": "5ba46bd53cad47cf77aa8ec823523e3eaa31d8df5af0ef85aead2b301393a34f",
+          "bytes": 71552
+        },
+        {
+          "path": "/opt/openfoam10/platforms/linux64GccDPInt32Opt/lib/libtriSurface.so",
+          "sha256": "4db4205f55035a3af10b7405abbec257d1623e2b6943eea531e27a54cae1e04e",
+          "bytes": 716280
+        },
+        {
+          "path": "/opt/openfoam10/platforms/linux64GccDPInt32Opt/lib/libsurfMesh.so",
+          "sha256": "96151ca79312b98aa9b30f4e01289459f4ea687c7094a2c4a6c61f99a33b765f",
+          "bytes": 1236984
+        },
+        {
+          "path": "/opt/openfoam10/platforms/linux64GccDPInt32Opt/lib/libfileFormats.so",
+          "sha256": "6d0114d75af641ec06feaf5efd542b5e218d3c39d08fbb2252560d79d824855f",
+          "bytes": 217032
+        },
+        {
+          "path": "/lib/x86_64-linux-gnu/libz.so.1",
+          "sha256": "64c206f0146cc58bbddc4f22054436f4ff278f5a554aa3ce6921ddf7e9133370",
+          "bytes": 108936
+        },
+        {
+          "path": "/lib/x86_64-linux-gnu/libmpi.so.40",
+          "sha256": "27d2d690a5d1f971cf90e28e54e945519df7c1528a954ae4bfc8a436bfbb1982",
+          "bytes": 1198600
+        },
+        {
+          "path": "/lib/x86_64-linux-gnu/libopen-rte.so.40",
+          "sha256": "69b31a92a4fb7e2f494a027a7d4dddff4e516aab5158827165e12730d7c0ff57",
+          "bytes": 761608
+        },
+        {
+          "path": "/lib/x86_64-linux-gnu/libopen-pal.so.40",
+          "sha256": "2a03b97563b724c6e42f853b90e2dc0619de3486628a7b065b74f7b30e5c35a1",
+          "bytes": 700256
+        },
+        {
+          "path": "/lib/x86_64-linux-gnu/libhwloc.so.15",
+          "sha256": "2efe6e32d0d3454b2bce0d3b8cd437f48691475717be4b431f96bcc2d4d9bc54",
+          "bytes": 372064
+        },
+        {
+          "path": "/lib/x86_64-linux-gnu/libevent_core-2.1.so.7",
+          "sha256": "2d04f8e4a4cd0cf3dfe214f655298b6819cf7b1ce5677c461b904830bcdb2f8f",
+          "bytes": 211136
+        },
+        {
+          "path": "/lib/x86_64-linux-gnu/libevent_pthreads-2.1.so.7",
+          "sha256": "2c12e1fbd54ac804e4de1badcb318217ada877ae18cab8b3ce89cf3626635537",
+          "bytes": 14256
+        },
+        {
+          "path": "/lib/x86_64-linux-gnu/libudev.so.1",
+          "sha256": "1f47ab3bd9929605e30935503e339b6f5dcceb71595f0716377be1318962561d",
+          "bytes": 166240
+        }
+      ]
+    },
+    {
+      "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261013T182722Z-fast/work/install/ns2/bin/FSHCudaBackend",
+      "sha256": "45cf6a1e0b222325be4da6bf08c7f80571ea0b11bf4c3cbdd7db77d363f2e313",
+      "bytes": 6716976,
+      "build_area": "ns2",
+      "source_commit": "802a11e7dfe986488a8bf8305e86424dcc94c9e1",
+      "ldd_log": "logs/ldd-ns2-FSHCudaBackend.log",
+      "dynamic_libraries": [
+        {
+          "path": "/usr/local/cuda/lib64/libcudart.so.13",
+          "sha256": "9955aa41ec390676be408b6c615f3d94f067f64cb756ef3cdf2b656ac2a81900",
+          "bytes": 757536
+        },
+        {
+          "path": "/lib/x86_64-linux-gnu/libstdc++.so.6",
+          "sha256": "ff0825e113603c3866680d5d52216bc6d8eedf3a59f52a0aef67ff01994db128",
+          "bytes": 2260296
+        },
+        {
+          "path": "/lib/x86_64-linux-gnu/libm.so.6",
+          "sha256": "3dd5511ae94785c9f921429b0f2b2f7aabb461b6f0e6de6dfdbef15f24bdfee6",
+          "bytes": 940560
+        },
+        {
+          "path": "/lib/x86_64-linux-gnu/libgcc_s.so.1",
+          "sha256": "fc9d43b2f6c20e53b009238f767c5b949d202389e20de9e202ea684b4ba3729a",
+          "bytes": 125488
+        },
+        {
+          "path": "/lib/x86_64-linux-gnu/libc.so.6",
+          "sha256": "b2cf6c33b74d2f22543b7a469a75b538911e690f769d0b238843a49465b83793",
+          "bytes": 2220400
+        },
+        {
+          "path": "/lib/x86_64-linux-gnu/libdl.so.2",
+          "sha256": "3eaaa4aefd9c28f3867c96a427c3cbec9191cb61c4c9d0a2cb4a765d66064499",
+          "bytes": 14432
+        },
+        {
+          "path": "/lib/x86_64-linux-gnu/libpthread.so.0",
+          "sha256": "fbed9505adacada2abb37c6b43be2df6de81e742712c6025694ba48de62c7e78",
+          "bytes": 21448
+        },
+        {
+          "path": "/lib/x86_64-linux-gnu/librt.so.1",
+          "sha256": "5f20d34fb3bb4d84b4edeb6ca11fa5b48c705207253741619acab7cc758185fb",
+          "bytes": 14664
+        },
+        {
+          "path": "/lib64/ld-linux-x86-64.so.2",
+          "sha256": "41daf7836f7fce21a40ca63a00c5caf21b05a35a76ccc075d86f1716212cdf01",
+          "bytes": 240936
+        }
+      ]
+    },
+    {
+      "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261013T182722Z-fast/work/install/ns2/bin/gasUGKP",
+      "sha256": "3539f2589eb5fb20e93e36f6b232ee78c7f59a5ebcdd35b35cabbbdb76910cff",
+      "bytes": 820312,
+      "build_area": "ns2",
+      "source_commit": "802a11e7dfe986488a8bf8305e86424dcc94c9e1",
+      "ldd_log": "logs/ldd-ns2-gasUGKP.log",
+      "dynamic_libraries": [
+        {
+          "path": "/opt/openfoam10/platforms/linux64GccDPInt32Opt/lib/libfiniteVolume.so",
+          "sha256": "1608d5c8dd28778f5083b6203a240fae681962258aa77f2d8802db7a62e3b7b5",
+          "bytes": 33472288
+        },
+        {
+          "path": "/opt/openfoam10/platforms/linux64GccDPInt32Opt/lib/libmeshTools.so",
+          "sha256": "ef2dfd47a575153fea28e5ad61cd890501d7c0c5577d32f842b698c6393269ad",
+          "bytes": 5687072
+        },
+        {
+          "path": "/opt/openfoam10/platforms/linux64GccDPInt32Opt/lib/libmomentumTransportModels.so",
+          "sha256": "61486665e657bf0b416051c3e6cb9c55bee31ec94e4a6e48de888625f4e8b3ad",
+          "bytes": 3131920
+        },
+        {
+          "path": "/opt/openfoam10/platforms/linux64GccDPInt32Opt/lib/libOpenFOAM.so",
+          "sha256": "7a0fee21aa844df866b0874f927ff9f93c09cab61116a455e735257a86f4acf7",
+          "bytes": 11993184
+        },
+        {
+          "path": "/lib/x86_64-linux-gnu/libstdc++.so.6",
+          "sha256": "ff0825e113603c3866680d5d52216bc6d8eedf3a59f52a0aef67ff01994db128",
+          "bytes": 2260296
+        },
+        {
+          "path": "/lib/x86_64-linux-gnu/libm.so.6",
+          "sha256": "3dd5511ae94785c9f921429b0f2b2f7aabb461b6f0e6de6dfdbef15f24bdfee6",
+          "bytes": 940560
+        },
+        {
+          "path": "/lib/x86_64-linux-gnu/libgcc_s.so.1",
+          "sha256": "fc9d43b2f6c20e53b009238f767c5b949d202389e20de9e202ea684b4ba3729a",
+          "bytes": 125488
+        },
+        {
+          "path": "/lib/x86_64-linux-gnu/libc.so.6",
+          "sha256": "b2cf6c33b74d2f22543b7a469a75b538911e690f769d0b238843a49465b83793",
+          "bytes": 2220400
+        },
+        {
+          "path": "/lib64/ld-linux-x86-64.so.2",
+          "sha256": "41daf7836f7fce21a40ca63a00c5caf21b05a35a76ccc075d86f1716212cdf01",
+          "bytes": 240936
+        },
+        {
+          "path": "/opt/openfoam10/platforms/linux64GccDPInt32Opt/lib/openmpi-system/libPstream.so",
+          "sha256": "5ba46bd53cad47cf77aa8ec823523e3eaa31d8df5af0ef85aead2b301393a34f",
+          "bytes": 71552
+        },
+        {
+          "path": "/opt/openfoam10/platforms/linux64GccDPInt32Opt/lib/libtriSurface.so",
+          "sha256": "4db4205f55035a3af10b7405abbec257d1623e2b6943eea531e27a54cae1e04e",
+          "bytes": 716280
+        },
+        {
+          "path": "/opt/openfoam10/platforms/linux64GccDPInt32Opt/lib/libsurfMesh.so",
+          "sha256": "96151ca79312b98aa9b30f4e01289459f4ea687c7094a2c4a6c61f99a33b765f",
+          "bytes": 1236984
+        },
+        {
+          "path": "/opt/openfoam10/platforms/linux64GccDPInt32Opt/lib/libfileFormats.so",
+          "sha256": "6d0114d75af641ec06feaf5efd542b5e218d3c39d08fbb2252560d79d824855f",
+          "bytes": 217032
+        },
+        {
+          "path": "/lib/x86_64-linux-gnu/libz.so.1",
+          "sha256": "64c206f0146cc58bbddc4f22054436f4ff278f5a554aa3ce6921ddf7e9133370",
+          "bytes": 108936
+        },
+        {
+          "path": "/lib/x86_64-linux-gnu/libmpi.so.40",
+          "sha256": "27d2d690a5d1f971cf90e28e54e945519df7c1528a954ae4bfc8a436bfbb1982",
+          "bytes": 1198600
+        },
+        {
+          "path": "/lib/x86_64-linux-gnu/libopen-rte.so.40",
+          "sha256": "69b31a92a4fb7e2f494a027a7d4dddff4e516aab5158827165e12730d7c0ff57",
+          "bytes": 761608
+        },
+        {
+          "path": "/lib/x86_64-linux-gnu/libopen-pal.so.40",
+          "sha256": "2a03b97563b724c6e42f853b90e2dc0619de3486628a7b065b74f7b30e5c35a1",
+          "bytes": 700256
+        },
+        {
+          "path": "/lib/x86_64-linux-gnu/libhwloc.so.15",
+          "sha256": "2efe6e32d0d3454b2bce0d3b8cd437f48691475717be4b431f96bcc2d4d9bc54",
+          "bytes": 372064
+        },
+        {
+          "path": "/lib/x86_64-linux-gnu/libevent_core-2.1.so.7",
+          "sha256": "2d04f8e4a4cd0cf3dfe214f655298b6819cf7b1ce5677c461b904830bcdb2f8f",
+          "bytes": 211136
+        },
+        {
+          "path": "/lib/x86_64-linux-gnu/libevent_pthreads-2.1.so.7",
+          "sha256": "2c12e1fbd54ac804e4de1badcb318217ada877ae18cab8b3ce89cf3626635537",
+          "bytes": 14256
+        },
+        {
+          "path": "/lib/x86_64-linux-gnu/libudev.so.1",
+          "sha256": "1f47ab3bd9929605e30935503e339b6f5dcceb71595f0716377be1318962561d",
+          "bytes": 166240
+        }
+      ]
+    },
+    {
+      "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261013T182722Z-fast/work/install/ns2/bin/gasUGKPCudaBackend",
+      "sha256": "d0fd06a4d24d8ea222853ce52d88291f847fb1be369ea2ee3d34144170fbd920",
+      "bytes": 11970480,
+      "build_area": "ns2",
+      "source_commit": "802a11e7dfe986488a8bf8305e86424dcc94c9e1",
+      "ldd_log": "logs/ldd-ns2-gasUGKPCudaBackend.log",
+      "dynamic_libraries": [
+        {
+          "path": "/usr/local/cuda/lib64/libcudart.so.13",
+          "sha256": "9955aa41ec390676be408b6c615f3d94f067f64cb756ef3cdf2b656ac2a81900",
+          "bytes": 757536
+        },
+        {
+          "path": "/lib/x86_64-linux-gnu/libstdc++.so.6",
+          "sha256": "ff0825e113603c3866680d5d52216bc6d8eedf3a59f52a0aef67ff01994db128",
+          "bytes": 2260296
+        },
+        {
+          "path": "/lib/x86_64-linux-gnu/libm.so.6",
+          "sha256": "3dd5511ae94785c9f921429b0f2b2f7aabb461b6f0e6de6dfdbef15f24bdfee6",
+          "bytes": 940560
+        },
+        {
+          "path": "/lib/x86_64-linux-gnu/libgcc_s.so.1",
+          "sha256": "fc9d43b2f6c20e53b009238f767c5b949d202389e20de9e202ea684b4ba3729a",
+          "bytes": 125488
+        },
+        {
+          "path": "/lib/x86_64-linux-gnu/libc.so.6",
+          "sha256": "b2cf6c33b74d2f22543b7a469a75b538911e690f769d0b238843a49465b83793",
+          "bytes": 2220400
+        },
+        {
+          "path": "/lib/x86_64-linux-gnu/libdl.so.2",
+          "sha256": "3eaaa4aefd9c28f3867c96a427c3cbec9191cb61c4c9d0a2cb4a765d66064499",
+          "bytes": 14432
+        },
+        {
+          "path": "/lib/x86_64-linux-gnu/libpthread.so.0",
+          "sha256": "fbed9505adacada2abb37c6b43be2df6de81e742712c6025694ba48de62c7e78",
+          "bytes": 21448
+        },
+        {
+          "path": "/lib/x86_64-linux-gnu/librt.so.1",
+          "sha256": "5f20d34fb3bb4d84b4edeb6ca11fa5b48c705207253741619acab7cc758185fb",
+          "bytes": 14664
+        },
+        {
+          "path": "/lib64/ld-linux-x86-64.so.2",
+          "sha256": "41daf7836f7fce21a40ca63a00c5caf21b05a35a76ccc075d86f1716212cdf01",
+          "bytes": 240936
+        }
+      ]
+    },
+    {
+      "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261013T182722Z-fast/work/install/ns10/bin/CHMT",
+      "sha256": "98771ae50224f99d52ab608f5dfba8f349e63dab32885242ce13bba1ce1213d6",
+      "bytes": 7312336,
+      "build_area": "ns10",
+      "source_commit": "802a11e7dfe986488a8bf8305e86424dcc94c9e1",
+      "ldd_log": "logs/ldd-ns10-CHMT.log",
+      "dynamic_libraries": [
+        {
+          "path": "/opt/openfoam10/platforms/linux64GccDPInt32Opt/lib/libfiniteVolume.so",
+          "sha256": "1608d5c8dd28778f5083b6203a240fae681962258aa77f2d8802db7a62e3b7b5",
+          "bytes": 33472288
+        },
+        {
+          "path": "/opt/openfoam10/platforms/linux64GccDPInt32Opt/lib/libOpenFOAM.so",
+          "sha256": "7a0fee21aa844df866b0874f927ff9f93c09cab61116a455e735257a86f4acf7",
+          "bytes": 11993184
+        },
+        {
+          "path": "/opt/openfoam10/platforms/linux64GccDPInt32Opt/lib/openmpi-system/libPstream.so",
+          "sha256": "5ba46bd53cad47cf77aa8ec823523e3eaa31d8df5af0ef85aead2b301393a34f",
+          "bytes": 71552
+        },
+        {
+          "path": "/usr/local/cuda/lib64/libcudart.so.13",
+          "sha256": "9955aa41ec390676be408b6c615f3d94f067f64cb756ef3cdf2b656ac2a81900",
+          "bytes": 757536
+        },
+        {
+          "path": "/lib/x86_64-linux-gnu/libstdc++.so.6",
+          "sha256": "ff0825e113603c3866680d5d52216bc6d8eedf3a59f52a0aef67ff01994db128",
+          "bytes": 2260296
+        },
+        {
+          "path": "/lib/x86_64-linux-gnu/libm.so.6",
+          "sha256": "3dd5511ae94785c9f921429b0f2b2f7aabb461b6f0e6de6dfdbef15f24bdfee6",
+          "bytes": 940560
+        },
+        {
+          "path": "/lib/x86_64-linux-gnu/libgcc_s.so.1",
+          "sha256": "fc9d43b2f6c20e53b009238f767c5b949d202389e20de9e202ea684b4ba3729a",
+          "bytes": 125488
+        },
+        {
+          "path": "/lib/x86_64-linux-gnu/libc.so.6",
+          "sha256": "b2cf6c33b74d2f22543b7a469a75b538911e690f769d0b238843a49465b83793",
+          "bytes": 2220400
+        },
+        {
+          "path": "/opt/openfoam10/platforms/linux64GccDPInt32Opt/lib/libtriSurface.so",
+          "sha256": "4db4205f55035a3af10b7405abbec257d1623e2b6943eea531e27a54cae1e04e",
+          "bytes": 716280
+        },
+        {
+          "path": "/opt/openfoam10/platforms/linux64GccDPInt32Opt/lib/libmeshTools.so",
+          "sha256": "ef2dfd47a575153fea28e5ad61cd890501d7c0c5577d32f842b698c6393269ad",
+          "bytes": 5687072
+        },
+        {
+          "path": "/lib/x86_64-linux-gnu/libz.so.1",
+          "sha256": "64c206f0146cc58bbddc4f22054436f4ff278f5a554aa3ce6921ddf7e9133370",
+          "bytes": 108936
+        },
+        {
+          "path": "/lib/x86_64-linux-gnu/libmpi.so.40",
+          "sha256": "27d2d690a5d1f971cf90e28e54e945519df7c1528a954ae4bfc8a436bfbb1982",
+          "bytes": 1198600
+        },
+        {
+          "path": "/lib/x86_64-linux-gnu/libdl.so.2",
+          "sha256": "3eaaa4aefd9c28f3867c96a427c3cbec9191cb61c4c9d0a2cb4a765d66064499",
+          "bytes": 14432
+        },
+        {
+          "path": "/lib/x86_64-linux-gnu/libpthread.so.0",
+          "sha256": "fbed9505adacada2abb37c6b43be2df6de81e742712c6025694ba48de62c7e78",
+          "bytes": 21448
+        },
+        {
+          "path": "/lib/x86_64-linux-gnu/librt.so.1",
+          "sha256": "5f20d34fb3bb4d84b4edeb6ca11fa5b48c705207253741619acab7cc758185fb",
+          "bytes": 14664
+        },
+        {
+          "path": "/lib64/ld-linux-x86-64.so.2",
+          "sha256": "41daf7836f7fce21a40ca63a00c5caf21b05a35a76ccc075d86f1716212cdf01",
+          "bytes": 240936
+        },
+        {
+          "path": "/opt/openfoam10/platforms/linux64GccDPInt32Opt/lib/libfileFormats.so",
+          "sha256": "6d0114d75af641ec06feaf5efd542b5e218d3c39d08fbb2252560d79d824855f",
+          "bytes": 217032
+        },
+        {
+          "path": "/opt/openfoam10/platforms/linux64GccDPInt32Opt/lib/libsurfMesh.so",
+          "sha256": "96151ca79312b98aa9b30f4e01289459f4ea687c7094a2c4a6c61f99a33b765f",
+          "bytes": 1236984
+        },
+        {
+          "path": "/lib/x86_64-linux-gnu/libopen-rte.so.40",
+          "sha256": "69b31a92a4fb7e2f494a027a7d4dddff4e516aab5158827165e12730d7c0ff57",
+          "bytes": 761608
+        },
+        {
+          "path": "/lib/x86_64-linux-gnu/libopen-pal.so.40",
+          "sha256": "2a03b97563b724c6e42f853b90e2dc0619de3486628a7b065b74f7b30e5c35a1",
+          "bytes": 700256
+        },
+        {
+          "path": "/lib/x86_64-linux-gnu/libhwloc.so.15",
+          "sha256": "2efe6e32d0d3454b2bce0d3b8cd437f48691475717be4b431f96bcc2d4d9bc54",
+          "bytes": 372064
+        },
+        {
+          "path": "/lib/x86_64-linux-gnu/libevent_core-2.1.so.7",
+          "sha256": "2d04f8e4a4cd0cf3dfe214f655298b6819cf7b1ce5677c461b904830bcdb2f8f",
+          "bytes": 211136
+        },
+        {
+          "path": "/lib/x86_64-linux-gnu/libevent_pthreads-2.1.so.7",
+          "sha256": "2c12e1fbd54ac804e4de1badcb318217ada877ae18cab8b3ce89cf3626635537",
+          "bytes": 14256
+        },
+        {
+          "path": "/lib/x86_64-linux-gnu/libudev.so.1",
+          "sha256": "1f47ab3bd9929605e30935503e339b6f5dcceb71595f0716377be1318962561d",
+          "bytes": 166240
+        }
+      ]
+    },
+    {
+      "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261013T182722Z-fast/work/install/base/bin/CHMT",
+      "sha256": "3246dff1c1f34b4cb46763d750e19444c05e4f0091c6d42a5b5f90b858a5e93a",
+      "bytes": 8460784,
+      "build_area": "base",
+      "source_commit": "d6110c02745a8ad726208a426c4bb3a28233c1fd",
+      "ldd_log": "logs/ldd-base-CHMT.log",
+      "dynamic_libraries": [
+        {
+          "path": "/opt/openfoam10/platforms/linux64GccDPInt32Opt/lib/libfiniteVolume.so",
+          "sha256": "1608d5c8dd28778f5083b6203a240fae681962258aa77f2d8802db7a62e3b7b5",
+          "bytes": 33472288
+        },
+        {
+          "path": "/opt/openfoam10/platforms/linux64GccDPInt32Opt/lib/libOpenFOAM.so",
+          "sha256": "7a0fee21aa844df866b0874f927ff9f93c09cab61116a455e735257a86f4acf7",
+          "bytes": 11993184
+        },
+        {
+          "path": "/opt/openfoam10/platforms/linux64GccDPInt32Opt/lib/openmpi-system/libPstream.so",
+          "sha256": "5ba46bd53cad47cf77aa8ec823523e3eaa31d8df5af0ef85aead2b301393a34f",
+          "bytes": 71552
+        },
+        {
+          "path": "/usr/local/cuda/lib64/libcudart.so.13",
+          "sha256": "9955aa41ec390676be408b6c615f3d94f067f64cb756ef3cdf2b656ac2a81900",
+          "bytes": 757536
+        },
+        {
+          "path": "/lib/x86_64-linux-gnu/libstdc++.so.6",
+          "sha256": "ff0825e113603c3866680d5d52216bc6d8eedf3a59f52a0aef67ff01994db128",
+          "bytes": 2260296
+        },
+        {
+          "path": "/lib/x86_64-linux-gnu/libm.so.6",
+          "sha256": "3dd5511ae94785c9f921429b0f2b2f7aabb461b6f0e6de6dfdbef15f24bdfee6",
+          "bytes": 940560
+        },
+        {
+          "path": "/lib/x86_64-linux-gnu/libgcc_s.so.1",
+          "sha256": "fc9d43b2f6c20e53b009238f767c5b949d202389e20de9e202ea684b4ba3729a",
+          "bytes": 125488
+        },
+        {
+          "path": "/lib/x86_64-linux-gnu/libc.so.6",
+          "sha256": "b2cf6c33b74d2f22543b7a469a75b538911e690f769d0b238843a49465b83793",
+          "bytes": 2220400
+        },
+        {
+          "path": "/opt/openfoam10/platforms/linux64GccDPInt32Opt/lib/libtriSurface.so",
+          "sha256": "4db4205f55035a3af10b7405abbec257d1623e2b6943eea531e27a54cae1e04e",
+          "bytes": 716280
+        },
+        {
+          "path": "/opt/openfoam10/platforms/linux64GccDPInt32Opt/lib/libmeshTools.so",
+          "sha256": "ef2dfd47a575153fea28e5ad61cd890501d7c0c5577d32f842b698c6393269ad",
+          "bytes": 5687072
+        },
+        {
+          "path": "/lib/x86_64-linux-gnu/libz.so.1",
+          "sha256": "64c206f0146cc58bbddc4f22054436f4ff278f5a554aa3ce6921ddf7e9133370",
+          "bytes": 108936
+        },
+        {
+          "path": "/lib/x86_64-linux-gnu/libmpi.so.40",
+          "sha256": "27d2d690a5d1f971cf90e28e54e945519df7c1528a954ae4bfc8a436bfbb1982",
+          "bytes": 1198600
+        },
+        {
+          "path": "/lib/x86_64-linux-gnu/libdl.so.2",
+          "sha256": "3eaaa4aefd9c28f3867c96a427c3cbec9191cb61c4c9d0a2cb4a765d66064499",
+          "bytes": 14432
+        },
+        {
+          "path": "/lib/x86_64-linux-gnu/libpthread.so.0",
+          "sha256": "fbed9505adacada2abb37c6b43be2df6de81e742712c6025694ba48de62c7e78",
+          "bytes": 21448
+        },
+        {
+          "path": "/lib/x86_64-linux-gnu/librt.so.1",
+          "sha256": "5f20d34fb3bb4d84b4edeb6ca11fa5b48c705207253741619acab7cc758185fb",
+          "bytes": 14664
+        },
+        {
+          "path": "/lib64/ld-linux-x86-64.so.2",
+          "sha256": "41daf7836f7fce21a40ca63a00c5caf21b05a35a76ccc075d86f1716212cdf01",
+          "bytes": 240936
+        },
+        {
+          "path": "/opt/openfoam10/platforms/linux64GccDPInt32Opt/lib/libfileFormats.so",
+          "sha256": "6d0114d75af641ec06feaf5efd542b5e218d3c39d08fbb2252560d79d824855f",
+          "bytes": 217032
+        },
+        {
+          "path": "/opt/openfoam10/platforms/linux64GccDPInt32Opt/lib/libsurfMesh.so",
+          "sha256": "96151ca79312b98aa9b30f4e01289459f4ea687c7094a2c4a6c61f99a33b765f",
+          "bytes": 1236984
+        },
+        {
+          "path": "/lib/x86_64-linux-gnu/libopen-rte.so.40",
+          "sha256": "69b31a92a4fb7e2f494a027a7d4dddff4e516aab5158827165e12730d7c0ff57",
+          "bytes": 761608
+        },
+        {
+          "path": "/lib/x86_64-linux-gnu/libopen-pal.so.40",
+          "sha256": "2a03b97563b724c6e42f853b90e2dc0619de3486628a7b065b74f7b30e5c35a1",
+          "bytes": 700256
+        },
+        {
+          "path": "/lib/x86_64-linux-gnu/libhwloc.so.15",
+          "sha256": "2efe6e32d0d3454b2bce0d3b8cd437f48691475717be4b431f96bcc2d4d9bc54",
+          "bytes": 372064
+        },
+        {
+          "path": "/lib/x86_64-linux-gnu/libevent_core-2.1.so.7",
+          "sha256": "2d04f8e4a4cd0cf3dfe214f655298b6819cf7b1ce5677c461b904830bcdb2f8f",
+          "bytes": 211136
+        },
+        {
+          "path": "/lib/x86_64-linux-gnu/libevent_pthreads-2.1.so.7",
+          "sha256": "2c12e1fbd54ac804e4de1badcb318217ada877ae18cab8b3ce89cf3626635537",
+          "bytes": 14256
+        },
+        {
+          "path": "/lib/x86_64-linux-gnu/libudev.so.1",
+          "sha256": "1f47ab3bd9929605e30935503e339b6f5dcceb71595f0716377be1318962561d",
+          "bytes": 166240
+        }
+      ]
+    },
+    {
+      "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261013T182722Z-fast/work/install/base/bin/CHT",
+      "sha256": "05179af86d761d02b5edbaa887548ca1613afd370cbfd0715c772b96b41eb6ab",
+      "bytes": 10921624,
+      "build_area": "base",
+      "source_commit": "d6110c02745a8ad726208a426c4bb3a28233c1fd",
+      "ldd_log": "logs/ldd-base-CHT.log",
+      "dynamic_libraries": [
+        {
+          "path": "/opt/openfoam10/platforms/linux64GccDPInt32Opt/lib/libfiniteVolume.so",
+          "sha256": "1608d5c8dd28778f5083b6203a240fae681962258aa77f2d8802db7a62e3b7b5",
+          "bytes": 33472288
+        },
+        {
+          "path": "/opt/openfoam10/platforms/linux64GccDPInt32Opt/lib/libmeshTools.so",
+          "sha256": "ef2dfd47a575153fea28e5ad61cd890501d7c0c5577d32f842b698c6393269ad",
+          "bytes": 5687072
+        },
+        {
+          "path": "/opt/openfoam10/platforms/linux64GccDPInt32Opt/lib/libmomentumTransportModels.so",
+          "sha256": "61486665e657bf0b416051c3e6cb9c55bee31ec94e4a6e48de888625f4e8b3ad",
+          "bytes": 3131920
+        },
+        {
+          "path": "/opt/openfoam10/platforms/linux64GccDPInt32Opt/lib/libOpenFOAM.so",
+          "sha256": "7a0fee21aa844df866b0874f927ff9f93c09cab61116a455e735257a86f4acf7",
+          "bytes": 11993184
+        },
+        {
+          "path": "/usr/local/cuda/lib64/libcudart.so.13",
+          "sha256": "9955aa41ec390676be408b6c615f3d94f067f64cb756ef3cdf2b656ac2a81900",
+          "bytes": 757536
+        },
+        {
+          "path": "/lib/x86_64-linux-gnu/libstdc++.so.6",
+          "sha256": "ff0825e113603c3866680d5d52216bc6d8eedf3a59f52a0aef67ff01994db128",
+          "bytes": 2260296
+        },
+        {
+          "path": "/lib/x86_64-linux-gnu/libm.so.6",
+          "sha256": "3dd5511ae94785c9f921429b0f2b2f7aabb461b6f0e6de6dfdbef15f24bdfee6",
+          "bytes": 940560
+        },
+        {
+          "path": "/lib/x86_64-linux-gnu/libgomp.so.1",
+          "sha256": "d46f9225c1883039e8a6853e6d96ca1af11d034ce186a090952e4a7c8a7c2fdc",
+          "bytes": 298776
+        },
+        {
+          "path": "/lib/x86_64-linux-gnu/libgcc_s.so.1",
+          "sha256": "fc9d43b2f6c20e53b009238f767c5b949d202389e20de9e202ea684b4ba3729a",
+          "bytes": 125488
+        },
+        {
+          "path": "/lib/x86_64-linux-gnu/libc.so.6",
+          "sha256": "b2cf6c33b74d2f22543b7a469a75b538911e690f769d0b238843a49465b83793",
+          "bytes": 2220400
+        },
+        {
+          "path": "/opt/openfoam10/platforms/linux64GccDPInt32Opt/lib/openmpi-system/libPstream.so",
+          "sha256": "5ba46bd53cad47cf77aa8ec823523e3eaa31d8df5af0ef85aead2b301393a34f",
+          "bytes": 71552
+        },
+        {
+          "path": "/opt/openfoam10/platforms/linux64GccDPInt32Opt/lib/libtriSurface.so",
+          "sha256": "4db4205f55035a3af10b7405abbec257d1623e2b6943eea531e27a54cae1e04e",
+          "bytes": 716280
+        },
+        {
+          "path": "/opt/openfoam10/platforms/linux64GccDPInt32Opt/lib/libsurfMesh.so",
+          "sha256": "96151ca79312b98aa9b30f4e01289459f4ea687c7094a2c4a6c61f99a33b765f",
+          "bytes": 1236984
+        },
+        {
+          "path": "/opt/openfoam10/platforms/linux64GccDPInt32Opt/lib/libfileFormats.so",
+          "sha256": "6d0114d75af641ec06feaf5efd542b5e218d3c39d08fbb2252560d79d824855f",
+          "bytes": 217032
+        },
+        {
+          "path": "/lib/x86_64-linux-gnu/libz.so.1",
+          "sha256": "64c206f0146cc58bbddc4f22054436f4ff278f5a554aa3ce6921ddf7e9133370",
+          "bytes": 108936
+        },
+        {
+          "path": "/lib/x86_64-linux-gnu/libdl.so.2",
+          "sha256": "3eaaa4aefd9c28f3867c96a427c3cbec9191cb61c4c9d0a2cb4a765d66064499",
+          "bytes": 14432
+        },
+        {
+          "path": "/lib/x86_64-linux-gnu/libpthread.so.0",
+          "sha256": "fbed9505adacada2abb37c6b43be2df6de81e742712c6025694ba48de62c7e78",
+          "bytes": 21448
+        },
+        {
+          "path": "/lib/x86_64-linux-gnu/librt.so.1",
+          "sha256": "5f20d34fb3bb4d84b4edeb6ca11fa5b48c705207253741619acab7cc758185fb",
+          "bytes": 14664
+        },
+        {
+          "path": "/lib64/ld-linux-x86-64.so.2",
+          "sha256": "41daf7836f7fce21a40ca63a00c5caf21b05a35a76ccc075d86f1716212cdf01",
+          "bytes": 240936
+        },
+        {
+          "path": "/lib/x86_64-linux-gnu/libmpi.so.40",
+          "sha256": "27d2d690a5d1f971cf90e28e54e945519df7c1528a954ae4bfc8a436bfbb1982",
+          "bytes": 1198600
+        },
+        {
+          "path": "/lib/x86_64-linux-gnu/libopen-rte.so.40",
+          "sha256": "69b31a92a4fb7e2f494a027a7d4dddff4e516aab5158827165e12730d7c0ff57",
+          "bytes": 761608
+        },
+        {
+          "path": "/lib/x86_64-linux-gnu/libopen-pal.so.40",
+          "sha256": "2a03b97563b724c6e42f853b90e2dc0619de3486628a7b065b74f7b30e5c35a1",
+          "bytes": 700256
+        },
+        {
+          "path": "/lib/x86_64-linux-gnu/libhwloc.so.15",
+          "sha256": "2efe6e32d0d3454b2bce0d3b8cd437f48691475717be4b431f96bcc2d4d9bc54",
+          "bytes": 372064
+        },
+        {
+          "path": "/lib/x86_64-linux-gnu/libevent_core-2.1.so.7",
+          "sha256": "2d04f8e4a4cd0cf3dfe214f655298b6819cf7b1ce5677c461b904830bcdb2f8f",
+          "bytes": 211136
+        },
+        {
+          "path": "/lib/x86_64-linux-gnu/libevent_pthreads-2.1.so.7",
+          "sha256": "2c12e1fbd54ac804e4de1badcb318217ada877ae18cab8b3ce89cf3626635537",
+          "bytes": 14256
+        },
+        {
+          "path": "/lib/x86_64-linux-gnu/libudev.so.1",
+          "sha256": "1f47ab3bd9929605e30935503e339b6f5dcceb71595f0716377be1318962561d",
+          "bytes": 166240
+        }
+      ]
+    },
+    {
+      "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261013T182722Z-fast/work/install/base/bin/bartzSolidReplay",
+      "sha256": "547519bab8a52bb1cd0231bd3f9f19df5033cb67ac0e0432b64bb18c6b2e9b21",
+      "bytes": 487008,
+      "build_area": "base",
+      "source_commit": "d6110c02745a8ad726208a426c4bb3a28233c1fd",
+      "ldd_log": "logs/ldd-base-bartzSolidReplay.log",
+      "dynamic_libraries": [
+        {
+          "path": "/opt/openfoam10/platforms/linux64GccDPInt32Opt/lib/libfiniteVolume.so",
+          "sha256": "1608d5c8dd28778f5083b6203a240fae681962258aa77f2d8802db7a62e3b7b5",
+          "bytes": 33472288
+        },
+        {
+          "path": "/opt/openfoam10/platforms/linux64GccDPInt32Opt/lib/libmeshTools.so",
+          "sha256": "ef2dfd47a575153fea28e5ad61cd890501d7c0c5577d32f842b698c6393269ad",
+          "bytes": 5687072
+        },
+        {
+          "path": "/opt/openfoam10/platforms/linux64GccDPInt32Opt/lib/libOpenFOAM.so",
+          "sha256": "7a0fee21aa844df866b0874f927ff9f93c09cab61116a455e735257a86f4acf7",
+          "bytes": 11993184
+        },
+        {
+          "path": "/lib/x86_64-linux-gnu/libstdc++.so.6",
+          "sha256": "ff0825e113603c3866680d5d52216bc6d8eedf3a59f52a0aef67ff01994db128",
+          "bytes": 2260296
+        },
+        {
+          "path": "/lib/x86_64-linux-gnu/libm.so.6",
+          "sha256": "3dd5511ae94785c9f921429b0f2b2f7aabb461b6f0e6de6dfdbef15f24bdfee6",
+          "bytes": 940560
+        },
+        {
+          "path": "/lib/x86_64-linux-gnu/libgcc_s.so.1",
+          "sha256": "fc9d43b2f6c20e53b009238f767c5b949d202389e20de9e202ea684b4ba3729a",
+          "bytes": 125488
+        },
+        {
+          "path": "/lib/x86_64-linux-gnu/libc.so.6",
+          "sha256": "b2cf6c33b74d2f22543b7a469a75b538911e690f769d0b238843a49465b83793",
+          "bytes": 2220400
+        },
+        {
+          "path": "/opt/openfoam10/platforms/linux64GccDPInt32Opt/lib/openmpi-system/libPstream.so",
+          "sha256": "5ba46bd53cad47cf77aa8ec823523e3eaa31d8df5af0ef85aead2b301393a34f",
+          "bytes": 71552
+        },
+        {
+          "path": "/opt/openfoam10/platforms/linux64GccDPInt32Opt/lib/libtriSurface.so",
+          "sha256": "4db4205f55035a3af10b7405abbec257d1623e2b6943eea531e27a54cae1e04e",
+          "bytes": 716280
+        },
+        {
+          "path": "/opt/openfoam10/platforms/linux64GccDPInt32Opt/lib/libsurfMesh.so",
+          "sha256": "96151ca79312b98aa9b30f4e01289459f4ea687c7094a2c4a6c61f99a33b765f",
+          "bytes": 1236984
+        },
+        {
+          "path": "/opt/openfoam10/platforms/linux64GccDPInt32Opt/lib/libfileFormats.so",
+          "sha256": "6d0114d75af641ec06feaf5efd542b5e218d3c39d08fbb2252560d79d824855f",
+          "bytes": 217032
+        },
+        {
+          "path": "/lib/x86_64-linux-gnu/libz.so.1",
+          "sha256": "64c206f0146cc58bbddc4f22054436f4ff278f5a554aa3ce6921ddf7e9133370",
+          "bytes": 108936
+        },
+        {
+          "path": "/lib64/ld-linux-x86-64.so.2",
+          "sha256": "41daf7836f7fce21a40ca63a00c5caf21b05a35a76ccc075d86f1716212cdf01",
+          "bytes": 240936
+        },
+        {
+          "path": "/lib/x86_64-linux-gnu/libmpi.so.40",
+          "sha256": "27d2d690a5d1f971cf90e28e54e945519df7c1528a954ae4bfc8a436bfbb1982",
+          "bytes": 1198600
+        },
+        {
+          "path": "/lib/x86_64-linux-gnu/libopen-rte.so.40",
+          "sha256": "69b31a92a4fb7e2f494a027a7d4dddff4e516aab5158827165e12730d7c0ff57",
+          "bytes": 761608
+        },
+        {
+          "path": "/lib/x86_64-linux-gnu/libopen-pal.so.40",
+          "sha256": "2a03b97563b724c6e42f853b90e2dc0619de3486628a7b065b74f7b30e5c35a1",
+          "bytes": 700256
+        },
+        {
+          "path": "/lib/x86_64-linux-gnu/libhwloc.so.15",
+          "sha256": "2efe6e32d0d3454b2bce0d3b8cd437f48691475717be4b431f96bcc2d4d9bc54",
+          "bytes": 372064
+        },
+        {
+          "path": "/lib/x86_64-linux-gnu/libevent_core-2.1.so.7",
+          "sha256": "2d04f8e4a4cd0cf3dfe214f655298b6819cf7b1ce5677c461b904830bcdb2f8f",
+          "bytes": 211136
+        },
+        {
+          "path": "/lib/x86_64-linux-gnu/libevent_pthreads-2.1.so.7",
+          "sha256": "2c12e1fbd54ac804e4de1badcb318217ada877ae18cab8b3ce89cf3626635537",
+          "bytes": 14256
+        },
+        {
+          "path": "/lib/x86_64-linux-gnu/libudev.so.1",
+          "sha256": "1f47ab3bd9929605e30935503e339b6f5dcceb71595f0716377be1318962561d",
+          "bytes": 166240
+        }
+      ]
+    },
+    {
+      "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261013T182722Z-fast/work/install/P006/bin/CHT",
+      "sha256": "5b2246b8f518121ea5af43d814e651261a8f231954392812df08cdd5717b1724",
+      "bytes": 5859528,
+      "build_area": "P006",
+      "source_commit": "802a11e7dfe986488a8bf8305e86424dcc94c9e1",
+      "diagnostic_patch": "P006",
+      "ldd_log": "logs/ldd-P006-CHT.log",
+      "dynamic_libraries": [
+        {
+          "path": "/opt/openfoam10/platforms/linux64GccDPInt32Opt/lib/libfiniteVolume.so",
+          "sha256": "1608d5c8dd28778f5083b6203a240fae681962258aa77f2d8802db7a62e3b7b5",
+          "bytes": 33472288
+        },
+        {
+          "path": "/opt/openfoam10/platforms/linux64GccDPInt32Opt/lib/libmeshTools.so",
+          "sha256": "ef2dfd47a575153fea28e5ad61cd890501d7c0c5577d32f842b698c6393269ad",
+          "bytes": 5687072
+        },
+        {
+          "path": "/opt/openfoam10/platforms/linux64GccDPInt32Opt/lib/libmomentumTransportModels.so",
+          "sha256": "61486665e657bf0b416051c3e6cb9c55bee31ec94e4a6e48de888625f4e8b3ad",
+          "bytes": 3131920
+        },
+        {
+          "path": "/opt/openfoam10/platforms/linux64GccDPInt32Opt/lib/libOpenFOAM.so",
+          "sha256": "7a0fee21aa844df866b0874f927ff9f93c09cab61116a455e735257a86f4acf7",
+          "bytes": 11993184
+        },
+        {
+          "path": "/usr/local/cuda/lib64/libcudart.so.13",
+          "sha256": "9955aa41ec390676be408b6c615f3d94f067f64cb756ef3cdf2b656ac2a81900",
+          "bytes": 757536
+        },
+        {
+          "path": "/lib/x86_64-linux-gnu/libstdc++.so.6",
+          "sha256": "ff0825e113603c3866680d5d52216bc6d8eedf3a59f52a0aef67ff01994db128",
+          "bytes": 2260296
+        },
+        {
+          "path": "/lib/x86_64-linux-gnu/libm.so.6",
+          "sha256": "3dd5511ae94785c9f921429b0f2b2f7aabb461b6f0e6de6dfdbef15f24bdfee6",
+          "bytes": 940560
+        },
+        {
+          "path": "/lib/x86_64-linux-gnu/libgomp.so.1",
+          "sha256": "d46f9225c1883039e8a6853e6d96ca1af11d034ce186a090952e4a7c8a7c2fdc",
+          "bytes": 298776
+        },
+        {
+          "path": "/lib/x86_64-linux-gnu/libgcc_s.so.1",
+          "sha256": "fc9d43b2f6c20e53b009238f767c5b949d202389e20de9e202ea684b4ba3729a",
+          "bytes": 125488
+        },
+        {
+          "path": "/lib/x86_64-linux-gnu/libc.so.6",
+          "sha256": "b2cf6c33b74d2f22543b7a469a75b538911e690f769d0b238843a49465b83793",
+          "bytes": 2220400
+        },
+        {
+          "path": "/opt/openfoam10/platforms/linux64GccDPInt32Opt/lib/openmpi-system/libPstream.so",
+          "sha256": "5ba46bd53cad47cf77aa8ec823523e3eaa31d8df5af0ef85aead2b301393a34f",
+          "bytes": 71552
+        },
+        {
+          "path": "/opt/openfoam10/platforms/linux64GccDPInt32Opt/lib/libtriSurface.so",
+          "sha256": "4db4205f55035a3af10b7405abbec257d1623e2b6943eea531e27a54cae1e04e",
+          "bytes": 716280
+        },
+        {
+          "path": "/opt/openfoam10/platforms/linux64GccDPInt32Opt/lib/libsurfMesh.so",
+          "sha256": "96151ca79312b98aa9b30f4e01289459f4ea687c7094a2c4a6c61f99a33b765f",
+          "bytes": 1236984
+        },
+        {
+          "path": "/opt/openfoam10/platforms/linux64GccDPInt32Opt/lib/libfileFormats.so",
+          "sha256": "6d0114d75af641ec06feaf5efd542b5e218d3c39d08fbb2252560d79d824855f",
+          "bytes": 217032
+        },
+        {
+          "path": "/lib/x86_64-linux-gnu/libz.so.1",
+          "sha256": "64c206f0146cc58bbddc4f22054436f4ff278f5a554aa3ce6921ddf7e9133370",
+          "bytes": 108936
+        },
+        {
+          "path": "/lib/x86_64-linux-gnu/libdl.so.2",
+          "sha256": "3eaaa4aefd9c28f3867c96a427c3cbec9191cb61c4c9d0a2cb4a765d66064499",
+          "bytes": 14432
+        },
+        {
+          "path": "/lib/x86_64-linux-gnu/libpthread.so.0",
+          "sha256": "fbed9505adacada2abb37c6b43be2df6de81e742712c6025694ba48de62c7e78",
+          "bytes": 21448
+        },
+        {
+          "path": "/lib/x86_64-linux-gnu/librt.so.1",
+          "sha256": "5f20d34fb3bb4d84b4edeb6ca11fa5b48c705207253741619acab7cc758185fb",
+          "bytes": 14664
+        },
+        {
+          "path": "/lib64/ld-linux-x86-64.so.2",
+          "sha256": "41daf7836f7fce21a40ca63a00c5caf21b05a35a76ccc075d86f1716212cdf01",
+          "bytes": 240936
+        },
+        {
+          "path": "/lib/x86_64-linux-gnu/libmpi.so.40",
+          "sha256": "27d2d690a5d1f971cf90e28e54e945519df7c1528a954ae4bfc8a436bfbb1982",
+          "bytes": 1198600
+        },
+        {
+          "path": "/lib/x86_64-linux-gnu/libopen-rte.so.40",
+          "sha256": "69b31a92a4fb7e2f494a027a7d4dddff4e516aab5158827165e12730d7c0ff57",
+          "bytes": 761608
+        },
+        {
+          "path": "/lib/x86_64-linux-gnu/libopen-pal.so.40",
+          "sha256": "2a03b97563b724c6e42f853b90e2dc0619de3486628a7b065b74f7b30e5c35a1",
+          "bytes": 700256
+        },
+        {
+          "path": "/lib/x86_64-linux-gnu/libhwloc.so.15",
+          "sha256": "2efe6e32d0d3454b2bce0d3b8cd437f48691475717be4b431f96bcc2d4d9bc54",
+          "bytes": 372064
+        },
+        {
+          "path": "/lib/x86_64-linux-gnu/libevent_core-2.1.so.7",
+          "sha256": "2d04f8e4a4cd0cf3dfe214f655298b6819cf7b1ce5677c461b904830bcdb2f8f",
+          "bytes": 211136
+        },
+        {
+          "path": "/lib/x86_64-linux-gnu/libevent_pthreads-2.1.so.7",
+          "sha256": "2c12e1fbd54ac804e4de1badcb318217ada877ae18cab8b3ce89cf3626635537",
+          "bytes": 14256
+        },
+        {
+          "path": "/lib/x86_64-linux-gnu/libudev.so.1",
+          "sha256": "1f47ab3bd9929605e30935503e339b6f5dcceb71595f0716377be1318962561d",
+          "bytes": 166240
+        }
+      ]
+    },
+    {
+      "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261013T182722Z-fast/work/install/P007/bin/CHT",
+      "sha256": "b47ce2f389ea5f7890ebf635a30483cf5f93f42b2a43f7ce7370e08d43978555",
+      "bytes": 5855568,
+      "build_area": "P007",
+      "source_commit": "802a11e7dfe986488a8bf8305e86424dcc94c9e1",
+      "diagnostic_patch": "P007",
+      "ldd_log": "logs/ldd-P007-CHT.log",
+      "dynamic_libraries": [
+        {
+          "path": "/opt/openfoam10/platforms/linux64GccDPInt32Opt/lib/libfiniteVolume.so",
+          "sha256": "1608d5c8dd28778f5083b6203a240fae681962258aa77f2d8802db7a62e3b7b5",
+          "bytes": 33472288
+        },
+        {
+          "path": "/opt/openfoam10/platforms/linux64GccDPInt32Opt/lib/libmeshTools.so",
+          "sha256": "ef2dfd47a575153fea28e5ad61cd890501d7c0c5577d32f842b698c6393269ad",
+          "bytes": 5687072
+        },
+        {
+          "path": "/opt/openfoam10/platforms/linux64GccDPInt32Opt/lib/libmomentumTransportModels.so",
+          "sha256": "61486665e657bf0b416051c3e6cb9c55bee31ec94e4a6e48de888625f4e8b3ad",
+          "bytes": 3131920
+        },
+        {
+          "path": "/opt/openfoam10/platforms/linux64GccDPInt32Opt/lib/libOpenFOAM.so",
+          "sha256": "7a0fee21aa844df866b0874f927ff9f93c09cab61116a455e735257a86f4acf7",
+          "bytes": 11993184
+        },
+        {
+          "path": "/usr/local/cuda/lib64/libcudart.so.13",
+          "sha256": "9955aa41ec390676be408b6c615f3d94f067f64cb756ef3cdf2b656ac2a81900",
+          "bytes": 757536
+        },
+        {
+          "path": "/lib/x86_64-linux-gnu/libstdc++.so.6",
+          "sha256": "ff0825e113603c3866680d5d52216bc6d8eedf3a59f52a0aef67ff01994db128",
+          "bytes": 2260296
+        },
+        {
+          "path": "/lib/x86_64-linux-gnu/libm.so.6",
+          "sha256": "3dd5511ae94785c9f921429b0f2b2f7aabb461b6f0e6de6dfdbef15f24bdfee6",
+          "bytes": 940560
+        },
+        {
+          "path": "/lib/x86_64-linux-gnu/libgomp.so.1",
+          "sha256": "d46f9225c1883039e8a6853e6d96ca1af11d034ce186a090952e4a7c8a7c2fdc",
+          "bytes": 298776
+        },
+        {
+          "path": "/lib/x86_64-linux-gnu/libgcc_s.so.1",
+          "sha256": "fc9d43b2f6c20e53b009238f767c5b949d202389e20de9e202ea684b4ba3729a",
+          "bytes": 125488
+        },
+        {
+          "path": "/lib/x86_64-linux-gnu/libc.so.6",
+          "sha256": "b2cf6c33b74d2f22543b7a469a75b538911e690f769d0b238843a49465b83793",
+          "bytes": 2220400
+        },
+        {
+          "path": "/opt/openfoam10/platforms/linux64GccDPInt32Opt/lib/openmpi-system/libPstream.so",
+          "sha256": "5ba46bd53cad47cf77aa8ec823523e3eaa31d8df5af0ef85aead2b301393a34f",
+          "bytes": 71552
+        },
+        {
+          "path": "/opt/openfoam10/platforms/linux64GccDPInt32Opt/lib/libtriSurface.so",
+          "sha256": "4db4205f55035a3af10b7405abbec257d1623e2b6943eea531e27a54cae1e04e",
+          "bytes": 716280
+        },
+        {
+          "path": "/opt/openfoam10/platforms/linux64GccDPInt32Opt/lib/libsurfMesh.so",
+          "sha256": "96151ca79312b98aa9b30f4e01289459f4ea687c7094a2c4a6c61f99a33b765f",
+          "bytes": 1236984
+        },
+        {
+          "path": "/opt/openfoam10/platforms/linux64GccDPInt32Opt/lib/libfileFormats.so",
+          "sha256": "6d0114d75af641ec06feaf5efd542b5e218d3c39d08fbb2252560d79d824855f",
+          "bytes": 217032
+        },
+        {
+          "path": "/lib/x86_64-linux-gnu/libz.so.1",
+          "sha256": "64c206f0146cc58bbddc4f22054436f4ff278f5a554aa3ce6921ddf7e9133370",
+          "bytes": 108936
+        },
+        {
+          "path": "/lib/x86_64-linux-gnu/libdl.so.2",
+          "sha256": "3eaaa4aefd9c28f3867c96a427c3cbec9191cb61c4c9d0a2cb4a765d66064499",
+          "bytes": 14432
+        },
+        {
+          "path": "/lib/x86_64-linux-gnu/libpthread.so.0",
+          "sha256": "fbed9505adacada2abb37c6b43be2df6de81e742712c6025694ba48de62c7e78",
+          "bytes": 21448
+        },
+        {
+          "path": "/lib/x86_64-linux-gnu/librt.so.1",
+          "sha256": "5f20d34fb3bb4d84b4edeb6ca11fa5b48c705207253741619acab7cc758185fb",
+          "bytes": 14664
+        },
+        {
+          "path": "/lib64/ld-linux-x86-64.so.2",
+          "sha256": "41daf7836f7fce21a40ca63a00c5caf21b05a35a76ccc075d86f1716212cdf01",
+          "bytes": 240936
+        },
+        {
+          "path": "/lib/x86_64-linux-gnu/libmpi.so.40",
+          "sha256": "27d2d690a5d1f971cf90e28e54e945519df7c1528a954ae4bfc8a436bfbb1982",
+          "bytes": 1198600
+        },
+        {
+          "path": "/lib/x86_64-linux-gnu/libopen-rte.so.40",
+          "sha256": "69b31a92a4fb7e2f494a027a7d4dddff4e516aab5158827165e12730d7c0ff57",
+          "bytes": 761608
+        },
+        {
+          "path": "/lib/x86_64-linux-gnu/libopen-pal.so.40",
+          "sha256": "2a03b97563b724c6e42f853b90e2dc0619de3486628a7b065b74f7b30e5c35a1",
+          "bytes": 700256
+        },
+        {
+          "path": "/lib/x86_64-linux-gnu/libhwloc.so.15",
+          "sha256": "2efe6e32d0d3454b2bce0d3b8cd437f48691475717be4b431f96bcc2d4d9bc54",
+          "bytes": 372064
+        },
+        {
+          "path": "/lib/x86_64-linux-gnu/libevent_core-2.1.so.7",
+          "sha256": "2d04f8e4a4cd0cf3dfe214f655298b6819cf7b1ce5677c461b904830bcdb2f8f",
+          "bytes": 211136
+        },
+        {
+          "path": "/lib/x86_64-linux-gnu/libevent_pthreads-2.1.so.7",
+          "sha256": "2c12e1fbd54ac804e4de1badcb318217ada877ae18cab8b3ce89cf3626635537",
+          "bytes": 14256
+        },
+        {
+          "path": "/lib/x86_64-linux-gnu/libudev.so.1",
+          "sha256": "1f47ab3bd9929605e30935503e339b6f5dcceb71595f0716377be1318962561d",
+          "bytes": 166240
+        }
+      ]
+    },
+    {
+      "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261013T182722Z-fast/work/perf-chem-baseline",
+      "sha256": "4b650039090a6433e2049a7ceddbcc97cff0b72e0f3552c122482e43b7da5fba",
+      "bytes": 7734200,
+      "source_commit": "d6110c02745a8ad726208a426c4bb3a28233c1fd",
+      "diagnostic_patch": null
+    },
+    {
+      "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261013T182722Z-fast/work/perf-chem-original",
+      "sha256": "4bd28c58f5bf3c135fbbd0e943ac56cebcff3bea3d26e1b82c2c2ac4e531ca3f",
+      "bytes": 7418832,
+      "source_commit": "802a11e7dfe986488a8bf8305e86424dcc94c9e1",
+      "diagnostic_patch": null
+    },
+    {
+      "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261013T182722Z-fast/work/chemistry-retry-base",
+      "sha256": "5aed57c1145b2f44e481d8c594574859509ac9660440621a5c86e9a5e377f079",
+      "bytes": 7728576,
+      "source_commit": "d6110c02745a8ad726208a426c4bb3a28233c1fd",
+      "diagnostic_patch": null
+    },
+    {
+      "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261013T182722Z-fast/work/chemistry-retry-pr",
+      "sha256": "e23a08bdc10daf8bf3b1f98081d71595d3ff3c09a8c86ea90f724d19ee32c1c4",
+      "bytes": 7409112,
+      "source_commit": "802a11e7dfe986488a8bf8305e86424dcc94c9e1",
+      "diagnostic_patch": null
+    },
+    {
+      "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261013T182722Z-fast/work/install/P010/bin/CHT",
+      "sha256": "7a22ec6cc5373ccf1ba3f8b3b789ff525e4bdca68fd295d8cfd991947de1c01b",
+      "bytes": 5855568,
+      "build_area": "P010",
+      "source_commit": "802a11e7dfe986488a8bf8305e86424dcc94c9e1",
+      "source_overlay_patches": [
+        "P007",
+        "P010"
+      ]
+    },
+    {
+      "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261013T182722Z-fast/work/install/P011/bin/CHMT",
+      "sha256": "8fbe3cb3a88917044ab0d1aee9322b4f86bc8cb5077c375f4a9e2f25f45c5545",
+      "bytes": 13910824,
+      "build_area": "P011",
+      "source_commit": "802a11e7dfe986488a8bf8305e86424dcc94c9e1",
+      "source_overlay_patches": [
+        "P011-v2"
+      ]
+    },
+    {
+      "path": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261013T182722Z-fast/work/chemistry-retry-patch",
+      "sha256": "9b0140d0be45430d968fe42469ccb701dedb2c2e6f9a4ae0a9681ddc8c93d46b",
+      "bytes": 8474072,
+      "source_commit": "802a11e7dfe986488a8bf8305e86424dcc94c9e1",
+      "source_overlay_patches": [
+        "P002"
+      ]
+    }
+  ],
+  "baseline_tree": "54d677b88d2250a781bc0a9767d4881fd5831464",
+  "identity_note": "No developer formal repair/recheck occurred. Source hashes are fixed production source plus separately identified diagnostic overlay; administrative delivery commit is never called a numerical source change.",
+  "capture_corrections": "See per-command capture_identity_correction and original immutable *.spec.json. BASELINE actual d611, diagnostics original802a+identified patch, never administrative delivery source.",
+  "input_history_aliases": [
+    {
+      "original_path": "patches/P011-Co-reduction-result-no-padding.patch",
+      "original_sha256": "c7e71b108c325ea8d149bca82b402349deba988f52f6c54719d051bfa9993309",
+      "retained_path": "patches/P011v1-u64-diagnostic-build-failure.patch",
+      "note": "v1 failed build spec retains original hash; current P011 is explicit-tail v2."
+    }
+  ],
+  "patches_not_in_production_tree": true
+}

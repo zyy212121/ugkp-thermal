@@ -1,0 +1,190 @@
+{
+  "id": "BUILD-PERF-CHEM-baseline",
+  "interaction_class": "FAST",
+  "kind": "BUILD",
+  "variant": "baseline",
+  "source_commit": "802a11e7dfe986488a8bf8305e86424dcc94c9e1",
+  "source_tree": "db2863158139842f6c8221c0da11ba640f381336",
+  "baseline_commit": "d6110c02745a8ad726208a426c4bb3a28233c1fd",
+  "topics": [
+    "R014-010",
+    "R014-024",
+    "R014-027"
+  ],
+  "source_targets": [
+    {
+      "file_id": "F014-a67c870da5fa",
+      "path": "common/chemistry/ConservativeReactor.H",
+      "blob": "678852cbc26bd3f7ef98206bfc8b852a02c74441",
+      "sha256": "262778cb6a7c17159190a56396770546ffc1ef79cd588bd57e3277fe89381673",
+      "function_ids": [
+        "FN014-2ab36dc61e8d",
+        "FN014-4d2ed2af6839",
+        "FN014-2da2b2c98926",
+        "FN014-460964ac355a",
+        "FN014-4807e856acc9"
+      ]
+    },
+    {
+      "file_id": "F014-6fef80019403",
+      "path": "common/chemistry/GasJacobian.H",
+      "blob": "f8903d9d94620059d30c26cb350745f867e35ad8",
+      "sha256": "5ffe23536fe352d5392c95ca972e19f32c93f057b7ad20682bf6a1cf932e4c2e",
+      "function_ids": [
+        "FN014-cbd11e990c26",
+        "FN014-981f501c26d0"
+      ]
+    },
+    {
+      "file_id": "F014-2824ef06f0f0",
+      "path": "common/chemistry/GasRates.H",
+      "blob": "d08393d306fcf58e09964b2a21152b6473ab8d23",
+      "sha256": "563ffdd982d64d110457aa4f0f646c0bca7e4955d39aa7840fa5975bc5ab64fb",
+      "function_ids": [
+        "FN014-8992cefd5ed7",
+        "FN014-1e0995803b2a",
+        "FN014-efc9bdbf3ff7",
+        "FN014-ebf2974fa370"
+      ]
+    },
+    {
+      "file_id": "F014-dc6f70aee8a8",
+      "path": "common/chemistry/LocalStiffIntegrator.H",
+      "blob": "bd4f887a9e4325b3bef188e54be55422ad71f370",
+      "sha256": "214889a06e4313ea86b40fdc9ef95d4e57ccbd36701f99327f5f2add1ee907de",
+      "function_ids": [
+        "FN014-7ab0aeb56aa9",
+        "FN014-94dfe8642244",
+        "FN014-2484deacfbb7",
+        "FN014-007570c73bef",
+        "FN014-f120141b94a0",
+        "FN014-dab7cc43728f"
+      ]
+    },
+    {
+      "file_id": "F014-6114c0aa47db",
+      "path": "common/chemistry/MechanismValidation.H",
+      "blob": "ddbffa96dda43f599a62ce382b1edb2f27dff7f6",
+      "sha256": "2bd733a76ff4ccddf4b725bda39625d538db1687b3d119dc1c0d953eb07f7aad",
+      "function_ids": [
+        "FN014-e105d7fcf2ab",
+        "FN014-d2e23c3c484f",
+        "FN014-929dee20603d",
+        "FN014-4d9bc15be9ac",
+        "FN014-3e4fbc4eea82"
+      ]
+    },
+    {
+      "file_id": "F014-726262aa5370",
+      "path": "common/chemistry/RateArithmetic.H",
+      "blob": "be1a84df3baaabccfeeefa88066e431b545fbd3c",
+      "sha256": "97dbf771b5a90cb5c476504cb853b8ddf06b0aedc93482a8950ee47651b8cf43",
+      "function_ids": [
+        "FN014-73bff2541635"
+      ]
+    },
+    {
+      "file_id": "F014-dc29202fccba",
+      "path": "common/gasTransport/MixtureThermo.H",
+      "blob": "92c5d08baecd46800609b1a5c74697a7f59f0878",
+      "sha256": "6bd6783e7c88feaaf1e4f887df1e3560d7be083e9fe6332fe50d0cb253b916bf",
+      "function_ids": [
+        "FN014-46b91d42554f",
+        "FN014-562aff4ced03",
+        "FN014-5ba13e655160",
+        "FN014-a19925ff5eb5",
+        "FN014-dc78a1289032",
+        "FN014-01f75c44b701",
+        "FN014-917f10e02436",
+        "FN014-4bebb76b9eb5",
+        "FN014-41117b9e83c5",
+        "FN014-c494c4419f58",
+        "FN014-9d5caf096e19",
+        "FN014-00687c64df09",
+        "FN014-480b767f9757",
+        "FN014-891a87ca3308",
+        "FN014-6e9aaf2fa118",
+        "FN014-c386d82bef20",
+        "FN014-b740f3146dd4"
+      ]
+    },
+    {
+      "file_id": "F014-405af05f5909",
+      "path": "common/operators/advanceGasChemistryKernel.cuh",
+      "blob": "79db0a10ba4a12c93973aad036f2e7c642931658",
+      "sha256": "0b54549cdbcd52d2799cafa6c7484cde74cf7f256dad859ffa5b852463918a7a",
+      "function_ids": [
+        "FN014-477ee9937ec4",
+        "FN014-377608d78fc9",
+        "FN014-3f7171a55125"
+      ]
+    },
+    {
+      "file_id": "F014-e747c2a5231c",
+      "path": "tests/chemistry/test_gas_budget_publication.py",
+      "blob": "294e10807eabd498cab0898bd7c20799bd12a04a",
+      "sha256": "1d5158d3f3aae4178aaac9304ebd8a54e20445804727f1b1506bcd81e7010b1c",
+      "function_ids": []
+    },
+    {
+      "file_id": "F014-500dbb3110b5",
+      "path": "tests/chemistry/test_gas_chemistry_adapter.py",
+      "blob": "2ff5ad6d52fe24a3c7cd31256a42ff687862e645",
+      "sha256": "f065a141665bd217861f0316a5943a65028e3077c966b983247138086660d2e9",
+      "function_ids": []
+    },
+    {
+      "file_id": "F014-c9eb14f6d254",
+      "path": "tests/chemistry/test_gas_finite_continuation.py",
+      "blob": "184f8685e376669d9415711e02fc5ef5e719861f",
+      "sha256": "9e2bf08155b402da605756fd2ecc21f8c5276d818ab2d4e16ed7bcc7d5fcf969",
+      "function_ids": []
+    },
+    {
+      "file_id": "F014-0e143536765f",
+      "path": "tests/chemistry/test_gas_rates.py",
+      "blob": "1990ec6adea651fa0e3ab7c9397e1424de5ad8d9",
+      "sha256": "56d27709d834f944a623debe18a6d2e3790bae0354a6333436c98c57196aa0bf",
+      "function_ids": []
+    },
+    {
+      "file_id": "F014-bf0f28f0519c",
+      "path": "tests/chemistry/test_gas_review_regressions.py",
+      "blob": "0d60fc89d2ab0ee69224d723e3d84fd06999656c",
+      "sha256": "b924ec21ca5d6cb5eda365f5c77a5bab9bf286d7bdca4b010ca2366e32ae046d",
+      "function_ids": []
+    },
+    {
+      "file_id": "F014-6611416df928",
+      "path": "tests/chemistry/test_gas_terminal_completion.py",
+      "blob": "0a761b812b9208af6a8e432e18936b2bff9dae04",
+      "sha256": "c905530dda7d9dbbc3e24da4f1a1605df9cee100b1aec08196bcf37d2d7002f2",
+      "function_ids": []
+    }
+  ],
+  "argv": [
+    "bash",
+    "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261013T182722Z-fast/review/pr14/reviewer-deliveries/20261013T182722Z-fast/inputs/env.sh",
+    "nvcc",
+    "-std=c++17",
+    "-O2",
+    "-arch=sm_89",
+    "-lineinfo",
+    "--fmad=false",
+    "-I/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261013T182722Z-fast/work/baseline-common",
+    "-DBASELINE",
+    "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261013T182722Z-fast/review/pr14/reviewer-deliveries/20261013T182722Z-fast/inputs/perf_chemistry.cu",
+    "-o",
+    "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261013T182722Z-fast/work/perf-chem-baseline"
+  ],
+  "working_directory": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261013T182722Z-fast",
+  "budget_seconds": 900,
+  "expected": "Matched actual kernel timing fixture; FP64 physical fields.",
+  "input_hashes": {
+    "review/pr14/reviewer-deliveries/20261013T182722Z-fast/inputs/perf_chemistry.cu": "8cbf371dce8a87204385f57cbce4f889b58f1081126054a325cec1da97bbd678"
+  },
+  "binary": null,
+  "binary_sha256": null,
+  "environment_script_sha256": "2e9ba1655533bb17676f60b83f3628c2409d36978b703cfa8f9251a788e31c83",
+  "started_utc": "2026-10-13T19:32:49.958137+00:00"
+}

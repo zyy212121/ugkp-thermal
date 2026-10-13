@@ -1,0 +1,18 @@
+--- a/common/wall/GpuColdWall2DDevice.cuh
++++ b/common/wall/GpuColdWall2DDevice.cuh
+@@ -258,6 +258,7 @@
+               + GPU_REAL_MIN
+             )
+           : GPU_R(0.0);
++        if(particleI==0 && radialNode==0 && substep==0) printf("PR14_DIAG age=%.17g eff=%.17g wallG=%.17g wetArea=%.17g wallT=%.17g gasG=%.17g oldCarry=%.17g\n",double(localAge),double(wallEffusivity),double(wallConductanceWK),double(wetAreaM2),double(wallTemperatureK),double(gasConductanceWK),double(oldCarry));
+         const ColdWallThermalReal localGasConductanceWK =
+             gasConductanceWK
+            /static_cast<ColdWallThermalReal>(Foam::gpuThermal::coldWall2DRadialNodeCount);
+@@ -854,6 +855,7 @@
+                    *s.particleWallSpecificHeatJkgK
+                    *s.particleWallConductivityWmK
+                 );
++            if(particleI==0) printf("PR14_DIAG face=%d effArray=%.17g effScalar=%.17g rho=%.17g Cp=%.17g k=%.17g\n",wallFaceI,double(wallEffusivity),sqrt(double(s.particleWallDensityKgM3)*s.particleWallSpecificHeatJkgK*s.particleWallConductivityWmK),double(s.particleWallDensityKgM3),double(s.particleWallSpecificHeatJkgK),double(s.particleWallConductivityWmK));
+             maximumAreaM2 = static_cast<GpuReal>
+             (
+                 s.pContactMaximumArea[particleI]

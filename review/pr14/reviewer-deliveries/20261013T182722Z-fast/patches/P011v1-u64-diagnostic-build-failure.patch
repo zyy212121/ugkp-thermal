@@ -1,0 +1,11 @@
+--- a/applications/CHMT/gpu/Backend.cu
++++ b/applications/CHMT/gpu/Backend.cu
+@@ -371,7 +371,7 @@
+ struct CoupledCourantMaximum {
+     __host__ __device__ double operator()(double a,double b)const{return a!=a?a:b!=b?b:fmax(a,b);}
+ };
+-struct CoupledCourantValue {double value;bool unavailable;};
++struct CoupledCourantValue {double value;std::uint64_t unavailable;};
+ struct CoupledCourantRead {
+     const double* field;const int* status;
+     __host__ __device__ CoupledCourantValue operator()(int cell)const{

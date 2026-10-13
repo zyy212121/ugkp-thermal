@@ -1,0 +1,6 @@
+NSYS-NATIVE-baseline exit0; NSYS-EXPORT-baseline exit0. Original analysis then raised:
+Traceback (most recent call last):
+  File "profile_native.py", line20, in <module>
+    with p.open("w") as h:w=csv.writer(h);w.writerow(cols);w.writerows(rows)
+_csv.Error: need to escape, but no escapechar set
+No production or numerical failure. Existing nsys-rep/sqlite reused for next analysis.

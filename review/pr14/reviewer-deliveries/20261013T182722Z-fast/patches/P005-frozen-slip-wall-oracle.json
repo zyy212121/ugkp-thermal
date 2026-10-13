@@ -1,0 +1,23 @@
+{
+  "classification": "test oracle correction/explicit scope",
+  "production_source_modified": false,
+  "reason": "Frozen f03e215 snapshot predates base d611 slip-wall independent thermal BC fix c73591f. Exact source expression already present in baseline and PR.",
+  "expected_regression": "f21=3.25/500=0.0065, old frozen returns1.625.",
+  "changes": [
+    {
+      "key": "gasUGKP:riemannFacePrimitiveForGradient",
+      "diff": "--- \n+++ \n@@ -61,6 +61,11 @@\n         face.ux -= un*nx;\n         face.uy -= un*ny;\n         face.uz -= un*nz;\n+        if (s.riemannBoundaryTFix[f] != 0)\n+        {\n+            face.T = clampMin(finiteOr(s.riemannBoundaryT[f], centre.T), s.TgasMin);\n+            face.rho = face.p/clampMin(s.Rgas*face.T, OfSmall);\n+        }\n         return face;\n     }\n \n"
+    },
+    {
+      "key": "FSH:riemannFacePrimitiveForGradient",
+      "diff": "--- \n+++ \n@@ -62,6 +62,11 @@\n         face.ux -= un*nx;\n         face.uy -= un*ny;\n         face.uz -= un*nz;\n+        if (s.riemannBoundaryTFix[f] != 0)\n+        {\n+            face.T = clampMin(finiteOr(s.riemannBoundaryT[f], centre.T), s.TgasMin);\n+            face.rho = face.p/clampMin(s.Rgas*face.T, OfSmall);\n+        }\n         return face;\n     }\n \n"
+    },
+    {
+      "key": "CHT:riemannFacePrimitiveForGradient",
+      "diff": "--- \n+++ \n@@ -62,6 +62,11 @@\n         face.ux -= un*nx;\n         face.uy -= un*ny;\n         face.uz -= un*nz;\n+        if (s.riemannBoundaryTFix[f] != 0)\n+        {\n+            face.T = clampMin(finiteOr(s.riemannBoundaryT[f], centre.T), s.TgasMin);\n+            face.rho = face.p/clampMin(s.Rgas*face.T, OfSmall);\n+        }\n         return face;\n     }\n \n"
+    }
+  ],
+  "original_baseline_sha256": "42e2413e6447060b4e953cd8e6edf7cf4749d2d0f3187017cb3d94a33032017e",
+  "original_full_assertions_preserved": true,
+  "core_scope": "All original moment/face/drag/pressure/wall atomic memcmp assertions remain; old cold block still in generated source but explicitly NOT_RUN for this core test. Original full fixture failure preserved. Native CHT cold full app evidence is separate."
+}

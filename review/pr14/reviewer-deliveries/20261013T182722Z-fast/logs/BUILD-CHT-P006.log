@@ -1,0 +1,127 @@
+[cuda-build] solver_root=/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261013T182722Z-fast/work/diagnostic-P006/applications/CHT
+[cuda-build] cuda_home=/usr/local/cuda
+[cuda-build] cuda_arch=sm_89
+[cuda-build] WM_OPTIONS=linux64GccDPInt32Opt
+[cuda-build] physical=64 time=64
+/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261013T182722Z-fast/work/diagnostic-P006/applications/CHT/gpu/../thermal/GpuFiniteWallContact.H(111): warning #20013-D: calling a constexpr __host__ function("quiet_NaN") from a __host__ __device__ function("correctedMaximumSpreadFactor") is not allowed. The experimental flag '--expt-relaxed-constexpr' can be used to allow this.
+          return std::numeric_limits<GpuReal>::quiet_NaN();
+                 ^
+
+Remark: The warnings can be suppressed with "-diag-suppress <warning-number>"
+
+/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261013T182722Z-fast/work/diagnostic-P006/applications/CHT/gpu/../thermal/GpuFiniteWallContact.H(119): warning #20013-D: calling a constexpr __host__ function("quiet_NaN") from a __host__ __device__ function("correctedMaximumSpreadFactor") is not allowed. The experimental flag '--expt-relaxed-constexpr' can be used to allow this.
+          return std::numeric_limits<GpuReal>::quiet_NaN();
+                 ^
+
+/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261013T182722Z-fast/work/diagnostic-P006/applications/CHT/gpu/../thermal/GpuFiniteWallContact.H(148): warning #20013-D: calling a constexpr __host__ function("quiet_NaN") from a __host__ __device__ function("correctedMaximumSpreadFactor") is not allowed. The experimental flag '--expt-relaxed-constexpr' can be used to allow this.
+          return std::numeric_limits<GpuReal>::quiet_NaN();
+                 ^
+
+/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261013T182722Z-fast/work/diagnostic-P006/applications/CHT/gpu/../thermal/GpuFiniteWallContact.H(163): warning #20013-D: calling a constexpr __host__ function("quiet_NaN") from a __host__ __device__ function("correctedMaximumSpreadFactor") is not allowed. The experimental flag '--expt-relaxed-constexpr' can be used to allow this.
+              return std::numeric_limits<GpuReal>::quiet_NaN();
+                     ^
+
+/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261013T182722Z-fast/work/diagnostic-P006/applications/CHT/gpu/../thermal/GpuFiniteWallContact.H(171): warning #20013-D: calling a constexpr __host__ function("quiet_NaN") from a __host__ __device__ function("correctedMaximumSpreadFactor") is not allowed. The experimental flag '--expt-relaxed-constexpr' can be used to allow this.
+              return std::numeric_limits<GpuReal>::quiet_NaN();
+                     ^
+
+/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261013T182722Z-fast/work/diagnostic-P006/applications/CHT/gpu/../thermal/GpuFiniteWallContact.H(189): warning #20013-D: calling a constexpr __host__ function("quiet_NaN") from a __host__ __device__ function("correctedMaximumSpreadFactor") is not allowed. The experimental flag '--expt-relaxed-constexpr' can be used to allow this.
+              return std::numeric_limits<GpuReal>::quiet_NaN();
+                     ^
+
+/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261013T182722Z-fast/work/diagnostic-P006/applications/CHT/gpu/GpuResidentStrict.cu(4423): warning #177-D: variable "warpCount" was declared but never referenced
+      const int warpCount = (block + 31)/32;
+                ^
+
+/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261013T182722Z-fast/work/diagnostic-P006/applications/CHT/gpu/GpuParticleRadiationMath.H(24): warning #20013-D: calling a constexpr __host__ function("max") from a __host__ __device__ function("finiteRadiationMathValue") is not allowed. The experimental flag '--expt-relaxed-constexpr' can be used to allow this.
+      const Real maximum = std::numeric_limits<Real>::max();
+                           ^
+          detected during instantiation of "__nv_bool Foam::gpuThermal::finiteRadiationMathValue(Real) noexcept [with Real=GpuReal]" at line 55
+
+/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261013T182722Z-fast/work/diagnostic-P006/applications/CHT/gpu/../thermal/GpuAluminaProperties.H(40): warning #20013-D: calling a constexpr __host__ function("max") from a __host__ __device__ function("finiteAluminaValue") is not allowed. The experimental flag '--expt-relaxed-constexpr' can be used to allow this.
+      return value == value && value >= -std::numeric_limits<Real>::max()
+                                         ^
+          detected during instantiation of "__nv_bool Foam::gpuThermal::finiteAluminaValue(Real) noexcept [with Real=GpuReal]" at line 167
+
+/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261013T182722Z-fast/work/diagnostic-P006/applications/CHT/gpu/../thermal/GpuAluminaProperties.H(41): warning #20013-D: calling a constexpr __host__ function("max") from a __host__ __device__ function("finiteAluminaValue") is not allowed. The experimental flag '--expt-relaxed-constexpr' can be used to allow this.
+          && value <= std::numeric_limits<Real>::max();
+                      ^
+          detected during instantiation of "__nv_bool Foam::gpuThermal::finiteAluminaValue(Real) noexcept [with Real=GpuReal]" at line 167
+
+/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261013T182722Z-fast/work/diagnostic-P006/applications/CHT/gpu/../thermal/GpuParticleWallContactHeat.H(46): warning #20013-D: calling a constexpr __host__ function("max") from a __host__ __device__ function("finiteParticleWallContactValue") is not allowed. The experimental flag '--expt-relaxed-constexpr' can be used to allow this.
+      return value == value && value >= -std::numeric_limits<Real>::max()
+                                         ^
+          detected during instantiation of "__nv_bool Foam::gpuThermal::finiteParticleWallContactValue(Real) noexcept [with Real=GpuReal]" at line 127
+
+/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261013T182722Z-fast/work/diagnostic-P006/applications/CHT/gpu/../thermal/GpuParticleWallContactHeat.H(47): warning #20013-D: calling a constexpr __host__ function("max") from a __host__ __device__ function("finiteParticleWallContactValue") is not allowed. The experimental flag '--expt-relaxed-constexpr' can be used to allow this.
+          && value <= std::numeric_limits<Real>::max();
+                      ^
+          detected during instantiation of "__nv_bool Foam::gpuThermal::finiteParticleWallContactValue(Real) noexcept [with Real=GpuReal]" at line 127
+
+/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261013T182722Z-fast/work/diagnostic-P006/applications/CHT/gpu/../thermal/GpuFiniteWallContact.H(58): warning #20013-D: calling a constexpr __host__ function("max") from a __host__ __device__ function("finiteContactValue") is not allowed. The experimental flag '--expt-relaxed-constexpr' can be used to allow this.
+      return x == x && x >= -std::numeric_limits<Real>::max()
+                             ^
+          detected during instantiation of "__nv_bool Foam::gpuThermal::finiteContactValue(Real) noexcept [with Real=GpuReal]" at line 108
+
+/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261013T182722Z-fast/work/diagnostic-P006/applications/CHT/gpu/../thermal/GpuFiniteWallContact.H(59): warning #20013-D: calling a constexpr __host__ function("max") from a __host__ __device__ function("finiteContactValue") is not allowed. The experimental flag '--expt-relaxed-constexpr' can be used to allow this.
+          && x <= std::numeric_limits<Real>::max();
+                  ^
+          detected during instantiation of "__nv_bool Foam::gpuThermal::finiteContactValue(Real) noexcept [with Real=GpuReal]" at line 108
+
+/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261013T182722Z-fast/work/diagnostic-P006/applications/CHT/gpu/../../../common/wall/GpuColdWallSolidification.H(64): warning #20013-D: calling a constexpr __host__ function("max") from a __host__ __device__ function("finiteColdWallValue") is not allowed. The experimental flag '--expt-relaxed-constexpr' can be used to allow this.
+      return value == value && value >= -std::numeric_limits<Real>::max()
+                                         ^
+          detected during instantiation of "__nv_bool Foam::gpuThermal::finiteColdWallValue(Real) noexcept [with Real=GpuReal]" at line 282
+
+/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261013T182722Z-fast/work/diagnostic-P006/applications/CHT/gpu/../../../common/wall/GpuColdWallSolidification.H(65): warning #20013-D: calling a constexpr __host__ function("max") from a __host__ __device__ function("finiteColdWallValue") is not allowed. The experimental flag '--expt-relaxed-constexpr' can be used to allow this.
+          && value <= std::numeric_limits<Real>::max();
+                      ^
+          detected during instantiation of "__nv_bool Foam::gpuThermal::finiteColdWallValue(Real) noexcept [with Real=GpuReal]" at line 282
+
+/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261013T182722Z-fast/work/diagnostic-P006/applications/CHT/../../common/gasTransport/../chemistry/../gasTransport/MixtureThermo.H(16): warning #20013-D: calling a constexpr __host__ function("max") from a __host__ __device__ function("gasFinite") is not allowed. The experimental flag '--expt-relaxed-constexpr' can be used to allow this.
+      return x == x && x <= (std::numeric_limits<Real>::max)()
+                            ^
+          detected during:
+            instantiation of "__nv_bool ugkwp::gasFinite(Real) noexcept [with Real=GpuReal]" at line 63 of /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261013T182722Z-fast/work/diagnostic-P006/applications/CHT/../../common/operators/computeGasInternalFaceFluxKernel.cuh
+            instantiation of "void <unnamed>::enforcePeriodicGasFluxAntisymmetryKernel(GasState *, __nv_bool) [with GasState=<unnamed>::DeviceState]" at line 71 of /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261013T182722Z-fast/work/diagnostic-P006/applications/CHT/gpu/../../../common/GpuToolB1Launch.cuh
+
+/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261013T182722Z-fast/work/diagnostic-P006/applications/CHT/../../common/gasTransport/../chemistry/../gasTransport/MixtureThermo.H(17): warning #20013-D: calling a constexpr __host__ function("max") from a __host__ __device__ function("gasFinite") is not allowed. The experimental flag '--expt-relaxed-constexpr' can be used to allow this.
+          && x >= -(std::numeric_limits<Real>::max)();
+                   ^
+          detected during:
+            instantiation of "__nv_bool ugkwp::gasFinite(Real) noexcept [with Real=GpuReal]" at line 63 of /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261013T182722Z-fast/work/diagnostic-P006/applications/CHT/../../common/operators/computeGasInternalFaceFluxKernel.cuh
+            instantiation of "void <unnamed>::enforcePeriodicGasFluxAntisymmetryKernel(GasState *, __nv_bool) [with GasState=<unnamed>::DeviceState]" at line 71 of /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261013T182722Z-fast/work/diagnostic-P006/applications/CHT/gpu/../../../common/GpuToolB1Launch.cuh
+
+/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261013T182722Z-fast/work/diagnostic-P006/applications/CHT/../../common/gasTransport/../chemistry/../gasTransport/MixtureThermo.H(29): warning #20013-D: calling a constexpr __host__ function("quiet_NaN") from a __host__ __device__ function("invalidValue") is not allowed. The experimental flag '--expt-relaxed-constexpr' can be used to allow this.
+  { return std::numeric_limits<Real>::quiet_NaN(); }
+           ^
+          detected during:
+            instantiation of "Real ugkwp::gasThermoDetail::invalidValue<Real>() noexcept [with Real=GpuReal]" at line 592 of /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261013T182722Z-fast/work/diagnostic-P006/applications/CHT/../../common/operators/computeSstFaceFluxKernel.cuh
+            instantiation of "void <unnamed>::computeGasCourantFieldKernel(GasState *, GpuTime, __nv_bool) [with GasState=<unnamed>::DeviceState]" at line 4298 of /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261013T182722Z-fast/work/diagnostic-P006/applications/CHT/gpu/GpuResidentStrict.cu
+
+/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261013T182722Z-fast/work/diagnostic-P006/applications/CHT/gpu/../../../common/GpuThermalParticleRelaxation.cuh(87): warning #177-D: variable "re" was declared but never referenced
+      const GpuReal re = rhoG*dPart*relMag/mu;
+                    ^
+          detected during instantiation of "void relaxMobileParticlesToResidentGasKernelStatic(<unnamed>::DeviceState *, GpuTime, DragModel) [with DragModel=ugkwpGpuDrag::GidaspowErgunWenYuDrag]" at line 4789 of /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261013T182722Z-fast/work/diagnostic-P006/applications/CHT/gpu/GpuResidentStrict.cu
+
+Making dependency list for source file GpuSolidThermalCoupler.C
+Making dependency list for source file GpuThermalExchangeState.C
+Making dependency list for source file GpuSolidPatchMapper.C
+Making dependency list for source file GpuSolidThermalProperties.C
+Making dependency list for source file GpuParticleRadiationCoupler.C
+Making dependency list for source file MieDoRadiationSolver.C
+Making dependency list for source file MieTable.C
+Making dependency list for source file diluteUgkwpFoam.C
+g++ -std=c++14 -m64 -Dlinux64 -DWM_ARCH_OPTION=64 -DWM_DP -DWM_LABEL_SIZE=32 -Wall -Wextra -Wold-style-cast -Wnon-virtual-dtor -Wno-unused-parameter -Wno-invalid-offsetof -Wno-attributes -O3  -DNoRepository -ftemplate-depth-100 -fopenmp -I/opt/openfoam10/src/finiteVolume/lnInclude -I/opt/openfoam10/src/meshTools/lnInclude -I/opt/openfoam10/src/OpenFOAM/lnInclude -I. -I../../common -Igpu -Ithermal -DUGKWP_USE_CUDA -IlnInclude -I. -I/opt/openfoam10/src/OpenFOAM/lnInclude -I/opt/openfoam10/src/OSspecific/POSIX/lnInclude   -fPIC -c diluteUgkwpFoam.C -o Make/linux64GccDPInt32Opt/diluteUgkwpFoam.o
+g++ -std=c++14 -m64 -Dlinux64 -DWM_ARCH_OPTION=64 -DWM_DP -DWM_LABEL_SIZE=32 -Wall -Wextra -Wold-style-cast -Wnon-virtual-dtor -Wno-unused-parameter -Wno-invalid-offsetof -Wno-attributes -O3  -DNoRepository -ftemplate-depth-100 -fopenmp -I/opt/openfoam10/src/finiteVolume/lnInclude -I/opt/openfoam10/src/meshTools/lnInclude -I/opt/openfoam10/src/OpenFOAM/lnInclude -I. -I../../common -Igpu -Ithermal -DUGKWP_USE_CUDA -IlnInclude -I. -I/opt/openfoam10/src/OpenFOAM/lnInclude -I/opt/openfoam10/src/OSspecific/POSIX/lnInclude   -fPIC -c thermal/MieTable.C -o Make/linux64GccDPInt32Opt/thermal/MieTable.o
+g++ -std=c++14 -m64 -Dlinux64 -DWM_ARCH_OPTION=64 -DWM_DP -DWM_LABEL_SIZE=32 -Wall -Wextra -Wold-style-cast -Wnon-virtual-dtor -Wno-unused-parameter -Wno-invalid-offsetof -Wno-attributes -O3  -DNoRepository -ftemplate-depth-100 -fopenmp -I/opt/openfoam10/src/finiteVolume/lnInclude -I/opt/openfoam10/src/meshTools/lnInclude -I/opt/openfoam10/src/OpenFOAM/lnInclude -I. -I../../common -Igpu -Ithermal -DUGKWP_USE_CUDA -IlnInclude -I. -I/opt/openfoam10/src/OpenFOAM/lnInclude -I/opt/openfoam10/src/OSspecific/POSIX/lnInclude   -fPIC -c thermal/MieDoRadiationSolver.C -o Make/linux64GccDPInt32Opt/thermal/MieDoRadiationSolver.o
+g++ -std=c++14 -m64 -Dlinux64 -DWM_ARCH_OPTION=64 -DWM_DP -DWM_LABEL_SIZE=32 -Wall -Wextra -Wold-style-cast -Wnon-virtual-dtor -Wno-unused-parameter -Wno-invalid-offsetof -Wno-attributes -O3  -DNoRepository -ftemplate-depth-100 -fopenmp -I/opt/openfoam10/src/finiteVolume/lnInclude -I/opt/openfoam10/src/meshTools/lnInclude -I/opt/openfoam10/src/OpenFOAM/lnInclude -I. -I../../common -Igpu -Ithermal -DUGKWP_USE_CUDA -IlnInclude -I. -I/opt/openfoam10/src/OpenFOAM/lnInclude -I/opt/openfoam10/src/OSspecific/POSIX/lnInclude   -fPIC -c thermal/GpuParticleRadiationCoupler.C -o Make/linux64GccDPInt32Opt/thermal/GpuParticleRadiationCoupler.o
+g++ -std=c++14 -m64 -Dlinux64 -DWM_ARCH_OPTION=64 -DWM_DP -DWM_LABEL_SIZE=32 -Wall -Wextra -Wold-style-cast -Wnon-virtual-dtor -Wno-unused-parameter -Wno-invalid-offsetof -Wno-attributes -O3  -DNoRepository -ftemplate-depth-100 -fopenmp -I/opt/openfoam10/src/finiteVolume/lnInclude -I/opt/openfoam10/src/meshTools/lnInclude -I/opt/openfoam10/src/OpenFOAM/lnInclude -I. -I../../common -Igpu -Ithermal -DUGKWP_USE_CUDA -IlnInclude -I. -I/opt/openfoam10/src/OpenFOAM/lnInclude -I/opt/openfoam10/src/OSspecific/POSIX/lnInclude   -fPIC -c thermal/GpuSolidThermalProperties.C -o Make/linux64GccDPInt32Opt/thermal/GpuSolidThermalProperties.o
+g++ -std=c++14 -m64 -Dlinux64 -DWM_ARCH_OPTION=64 -DWM_DP -DWM_LABEL_SIZE=32 -Wall -Wextra -Wold-style-cast -Wnon-virtual-dtor -Wno-unused-parameter -Wno-invalid-offsetof -Wno-attributes -O3  -DNoRepository -ftemplate-depth-100 -fopenmp -I/opt/openfoam10/src/finiteVolume/lnInclude -I/opt/openfoam10/src/meshTools/lnInclude -I/opt/openfoam10/src/OpenFOAM/lnInclude -I. -I../../common -Igpu -Ithermal -DUGKWP_USE_CUDA -IlnInclude -I. -I/opt/openfoam10/src/OpenFOAM/lnInclude -I/opt/openfoam10/src/OSspecific/POSIX/lnInclude   -fPIC -c thermal/GpuSolidPatchMapper.C -o Make/linux64GccDPInt32Opt/thermal/GpuSolidPatchMapper.o
+g++ -std=c++14 -m64 -Dlinux64 -DWM_ARCH_OPTION=64 -DWM_DP -DWM_LABEL_SIZE=32 -Wall -Wextra -Wold-style-cast -Wnon-virtual-dtor -Wno-unused-parameter -Wno-invalid-offsetof -Wno-attributes -O3  -DNoRepository -ftemplate-depth-100 -fopenmp -I/opt/openfoam10/src/finiteVolume/lnInclude -I/opt/openfoam10/src/meshTools/lnInclude -I/opt/openfoam10/src/OpenFOAM/lnInclude -I. -I../../common -Igpu -Ithermal -DUGKWP_USE_CUDA -IlnInclude -I. -I/opt/openfoam10/src/OpenFOAM/lnInclude -I/opt/openfoam10/src/OSspecific/POSIX/lnInclude   -fPIC -c thermal/GpuThermalExchangeState.C -o Make/linux64GccDPInt32Opt/thermal/GpuThermalExchangeState.o
+g++ -std=c++14 -m64 -Dlinux64 -DWM_ARCH_OPTION=64 -DWM_DP -DWM_LABEL_SIZE=32 -Wall -Wextra -Wold-style-cast -Wnon-virtual-dtor -Wno-unused-parameter -Wno-invalid-offsetof -Wno-attributes -O3  -DNoRepository -ftemplate-depth-100 -fopenmp -I/opt/openfoam10/src/finiteVolume/lnInclude -I/opt/openfoam10/src/meshTools/lnInclude -I/opt/openfoam10/src/OpenFOAM/lnInclude -I. -I../../common -Igpu -Ithermal -DUGKWP_USE_CUDA -IlnInclude -I. -I/opt/openfoam10/src/OpenFOAM/lnInclude -I/opt/openfoam10/src/OSspecific/POSIX/lnInclude   -fPIC -c thermal/GpuSolidThermalCoupler.C -o Make/linux64GccDPInt32Opt/thermal/GpuSolidThermalCoupler.o
+g++ -std=c++14 -m64 -Dlinux64 -DWM_ARCH_OPTION=64 -DWM_DP -DWM_LABEL_SIZE=32 -Wall -Wextra -Wold-style-cast -Wnon-virtual-dtor -Wno-unused-parameter -Wno-invalid-offsetof -Wno-attributes -O3  -DNoRepository -ftemplate-depth-100 -fopenmp -I/opt/openfoam10/src/finiteVolume/lnInclude -I/opt/openfoam10/src/meshTools/lnInclude -I/opt/openfoam10/src/OpenFOAM/lnInclude -I. -I../../common -Igpu -Ithermal -DUGKWP_USE_CUDA -IlnInclude -I. -I/opt/openfoam10/src/OpenFOAM/lnInclude -I/opt/openfoam10/src/OSspecific/POSIX/lnInclude   -fPIC -fuse-ld=bfd -Xlinker --add-needed -Xlinker --no-as-needed Make/linux64GccDPInt32Opt/diluteUgkwpFoam.o Make/linux64GccDPInt32Opt/thermal/MieTable.o Make/linux64GccDPInt32Opt/thermal/MieDoRadiationSolver.o Make/linux64GccDPInt32Opt/thermal/GpuParticleRadiationCoupler.o Make/linux64GccDPInt32Opt/thermal/GpuSolidThermalProperties.o Make/linux64GccDPInt32Opt/thermal/GpuSolidPatchMapper.o Make/linux64GccDPInt32Opt/thermal/GpuThermalExchangeState.o Make/linux64GccDPInt32Opt/thermal/GpuSolidThermalCoupler.o -L/opt/openfoam10/platforms/linux64GccDPInt32Opt/lib \
+    -fopenmp -lfiniteVolume -lmeshTools -lmomentumTransportModels -lOpenFOAM /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261013T182722Z-fast/work/diagnostic-P006/applications/CHT/gpu/libugkpcht_cuda_internal.a -L/usr/local/cuda/lib64 -lcudart -lOpenFOAM -ldl  \
+     -lm -o /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261013T182722Z-fast/work/install/P006/bin/CHT
+[cuda-build] cuda binary=/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261013T182722Z-fast/work/install/P006/bin/CHT
+/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261013T182722Z-fast/work/diagnostic-P006/applications/CHT/docs/build_logs/pr14_reviewer_fast/cuda_solver_build_20261014_032722.log
