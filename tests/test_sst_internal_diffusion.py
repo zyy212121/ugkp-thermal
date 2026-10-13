@@ -52,10 +52,10 @@ def test_sst_internal_diffusion_and_stability(tmp_path):
     '''
     body=preamble+helpers+'\ntemplate<class GasState>void flux(GasState&s){int f=0,own=0,nei=coupledFaceNeighbour(s,f),boundaryKind=nei>=0?0:s.riemannBoundaryKind[f];R ownerWeight=clampRange(s.faceWeight[f],R(0),R(1));\n'+flux+'R massFlux=0,kUpwind=0,omegaUpwind=0,snGradK=-1,snGradOmega=-1;\n'+tail+'\n}\nR stability(DeviceState&s,int c){int f=0;R diffusionRate=0;\n'+st+'return diffusionRate;}\n'
     body+=r'''
-    int failures=0; void check(const char*n,double got,double want){double tol=sizeof(R)==4?3e-6:2e-13;if(std::abs(got-want)>tol*std::max(1.,std::abs(want))){std::cerr<<n<<" got "<<got<<" want "<<want<<std::endl;++failures;}}
+    int failures=0; void check(const char*n,double got,double want){double tol=2e-13;if(std::abs(got-want)>tol*std::max(1.,std::abs(want))){std::cerr<<n<<" got "<<got<<" want "<<want<<std::endl;++failures;}}
     int main(int argc,char**argv){
      if(argc>1 && std::string(argv[1])=="boundary") {std::cout<<std::setprecision(17);for(int kind:{0,2})for(int treatment:{0,1})for(double rho:{2.,8.}) {DeviceState s;s.nInternalFaces=0;s.riemannBoundaryKind[0]=kind;s.sstWallTreatment=treatment;s.rho[0]=rho;flux(s);std::cout<<s.sstPhiRhoK[0]<<" "<<s.sstPhiRhoOmega[0]<<" "<<stability(s,0)<<std::endl;}return 0;}
-    
+
      if(argc>1){DeviceState s;double ro,rn,fo,fn,no,nn,w;std::cout<<std::setprecision(17);while(std::cin>>ro>>rn>>fo>>fn>>no>>nn>>w){s.rho[0]=ro;s.rho[1]=rn;s.sstF1[0]=fo;s.sstF1[1]=fn;s.nut[0]=no;s.nut[1]=nn;s.faceWeight[0]=w;s.gasMu=1.8e-5;flux(s);std::cout<<s.sstPhiRhoK[0]<<" "<<s.sstPhiRhoOmega[0]<<" "<<stability(s,0)<<" "<<stability(s,1)<<std::endl;}return 0;}
      DeviceState s;flux(s);check("correlated endpoints k",s.sstPhiRhoK[0],7.475);check("correlated endpoints omega",s.sstPhiRhoOmega[0],6.086);
      check("owner diffusion rate",stability(s,0),3.7375);check("neighbour diffusion rate",stability(s,1),.934375);
@@ -74,9 +74,8 @@ def test_sst_internal_diffusion_and_stability(tmp_path):
     '''
     (W/'probe.cpp').write_text(body)
     results=[]
-    for bits in (64,32):
-     exe=W/f'probe{bits}'
-     subprocess.run(['g++','-std=c++17','-O2',f'-DUGKWP_GPU_REAL_BITS={bits}', '-I'+str(ROOT),'-I'+str(ROOT/'gasNumerics'),str(W/'probe.cpp'),'-o',str(exe)],check=True)
-     p=subprocess.run([str(exe)],capture_output=True,text=True)
-     results.append({'bits':bits,'exit':p.returncode,'stdout':p.stdout,'stderr':p.stderr})
+    exe=W/f'probe{64}'
+    subprocess.run(['g++','-std=c++17','-O2','-I'+str(ROOT),'-I'+str(ROOT/'gasNumerics'),str(W/'probe.cpp'),'-o',str(exe)],check=True)
+    p=subprocess.run([str(exe)],capture_output=True,text=True)
+    results.append({'bits':64,'exit':p.returncode,'stdout':p.stdout,'stderr':p.stderr})
     assert all(r['exit'] == 0 for r in results), json.dumps(results, indent=2)

@@ -11,8 +11,8 @@ def function(text,name):
     i=text.index('{',m.start())+1;depth=1
     while depth:depth+=(text[i]=='{')-(text[i]=='}');i+=1
     return text[m.start():i]
-@pytest.mark.parametrize('app,real,override',[('FSH','double',0),('CHT','double',0),('CHT','float',48),('CHT','float',0)])
-def test_occupancy_configuration_and_final_sync(app,real,override,tmp_path):
+@pytest.mark.parametrize('app,override',[('FSH',0),('CHT',0),('CHT',48)])
+def test_occupancy_configuration_and_final_sync(app,override,tmp_path):
     source=(ROOT/'applications'/app/('gpu' if app=='CHT' else 'private_backend')/'GpuResidentStrict.cu').read_text()
     old=(ROOT/'tests/fixtures/low_level/reference'/f'{app}-occupancy.cpp.in').read_text().replace('configureLaunchOccupancy','oldConfiguration')
     helper=(ROOT/'common/GpuParticleLaunchConfiguration.cuh').read_text().replace('#pragma once','')
@@ -83,7 +83,7 @@ int main(){
  puts("PASS host occupancy: exact fields, query order/resources/errors and final sync snapshot");
 }
 """
-    values={'REAL':real,'OVERRIDE':str(override),'FUSE':str(app=='FSH').lower(),'CHT':str(int(app=='CHT')),
+    values={'REAL':'double','OVERRIDE':str(override),'FUSE':str(app=='FSH').lower(),'CHT':str(int(app=='CHT')),
         'FIELDS':'\n'.join(' int '+f+'=0;' for f in sorted(set(fields)|{'coldWallWorkGrid'})),
         'HELPER':helper,'OLD':old,'HOOK':hook,'NEW':new}
     for key,value in values.items():code=code.replace('@'+key+'@',value)

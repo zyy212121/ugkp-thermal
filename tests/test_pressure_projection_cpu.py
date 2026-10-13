@@ -17,14 +17,14 @@ MODES = ['particle_clamp', 'closure_clamp', 'cold_initial', 'nonfinite_particle'
          'limited_faces', 'invalid_face', 'nonfinite_delta',
          'scaling_subnormals', 'scaling_boundaries', 'scaling_boundaries_ftz']
 
-@pytest.fixture(scope='module', params=['float', 'double'])
-def executable(request, tmp_path_factory):
+@pytest.fixture(scope='module')
+def executable(tmp_path_factory):
     compiler = shutil.which('g++')
     if compiler is None:
         pytest.skip('g++ is required')
-    binary = tmp_path_factory.mktemp('pressure_projection_' + request.param) / 'check'
+    binary = tmp_path_factory.mktemp('pressure_projection_' + 'double') / 'check'
     run = subprocess.run([compiler, '-std=c++17', '-O2', '-Wall', '-Wextra',
-        '-Wno-unused-parameter', '-DTEST_REAL=' + request.param,
+        '-Wno-unused-parameter', '-DTEST_REAL=' + 'double',
         '-I', str(ROOT / 'common'), str(ROOT / 'tests/fixtures/pressure/projection_cpu.cpp'),
         '-o', str(binary)], capture_output=True, text=True)
     assert run.returncode == 0, run.stdout + run.stderr

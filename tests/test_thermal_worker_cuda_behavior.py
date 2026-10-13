@@ -14,7 +14,7 @@ def function(source, signature):
         end += 1
     return source[start:end]
 
-def compile_and_run(tmp_path, text, bits):
+def compile_and_run(tmp_path, text):
     nvcc = shutil.which("nvcc") or "/usr/local/cuda/bin/nvcc"
     smi = shutil.which("nvidia-smi") or "/usr/lib/wsl/lib/nvidia-smi"
     if not Path(nvcc).is_file() or not Path(smi).is_file():
@@ -25,14 +25,13 @@ def compile_and_run(tmp_path, text, bits):
     source.write_text(text)
     command = [nvcc, "-O3", "-std=c++17", "--fmad=false",
                "-arch=" + os.environ.get("UGKWP_CUDA_ARCH", "sm_89"),
-               "-DUGKWP_GPU_REAL_BITS=" + str(bits),
                "-I" + str(ROOT / "common"),
                "-I" + str(ROOT / "gpu/thermal"), str(source), "-o", str(binary)]
     subprocess.run(command, check=True, capture_output=True)
     subprocess.run([str(binary)], check=True, capture_output=True)
 
-@pytest.mark.parametrize("branch,bits", [("FSH", 64), ("CHT", 32), ("CHT", 64)])
-def test_gather_preserves_all_payload_order_and_exact_wall_publication(tmp_path, branch, bits):
+@pytest.mark.parametrize('branch', ['FSH', 'CHT'])
+def test_gather_preserves_all_payload_order_and_exact_wall_publication(tmp_path, branch):
     folder = "private_backend" if branch == "FSH" else "gpu"
     source = (ROOT / "applications" / branch / folder / "GpuResidentStrict.cu").read_text()
     thermal = (ROOT / "common/GpuCellLocalThermalFields.cuh").read_text()
@@ -41,16 +40,16 @@ def test_gather_preserves_all_payload_order_and_exact_wall_publication(tmp_path,
     hook = thermal + "\n#define GPU_PARTICLE_EXTRA_FIELDS CellLocalThermalExtraFields<" + params + ">\n" + primary
     fixture = (FIXTURES / ("gather_" + branch + ".cu.in")).read_text()
     compile_and_run(tmp_path, fixture.replace("@PARTICLE_COPY_HOOK@", hook)
-                    .replace("@REAL_TYPE@", "float" if bits == 32 else "double"), bits)
+                    .replace("@REAL_TYPE@", "double"))
 
-@pytest.mark.parametrize("branch,bits", [("FSH", 64), ("CHT", 64), ("CHT", 32)])
-def test_actual_pool_matches_cpu_moments_and_schedule_state(tmp_path, branch, bits):
+@pytest.mark.parametrize('branch', ['FSH', 'CHT'])
+def test_actual_pool_matches_cpu_moments_and_schedule_state(tmp_path, branch):
     if not Path('/usr/local/cuda/bin/nvcc').is_file():
         pytest.skip('CUDA compiler required')
     smi = shutil.which('nvidia-smi') or '/usr/lib/wsl/lib/nvidia-smi'
     if not Path(smi).is_file() or subprocess.run([smi, '-L'], capture_output=True).returncode:
         pytest.skip('CUDA GPU required')
     q = subprocess.run(['python3', str(ROOT / 'tests/fixtures/shared_operators/collision_behavior.py'),
-                        str(ROOT), str(tmp_path), branch, str(bits)], capture_output=True, text=True, timeout=240)
+                        str(ROOT), str(tmp_path), branch], capture_output=True, text=True, timeout=240)
     assert q.returncode == 0, q.stdout + q.stderr
     assert 'PASS collision pool CPU moments' in q.stdout

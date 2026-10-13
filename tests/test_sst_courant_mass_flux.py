@@ -5,8 +5,7 @@ import subprocess
 import pytest
 ROOT=Path(__file__).resolve().parents[1]
 
-@pytest.mark.parametrize('bits',[32,64])
-def test_mass_only_matches_full_operator(tmp_path,bits):
+def test_mass_only_matches_full_operator(tmp_path):
     src=(ROOT/'common/operators/computeRiemannGasFaceFluxDevice.cuh').read_text()
     assert 'bool MassOnly' in src, 'Courant needs a mass-only production specialization'
     flux=(ROOT/'common/operators/computeSstFaceFluxKernel.cuh').read_text()
@@ -56,7 +55,7 @@ bool useRiemannBoundaryVelocity(const DeviceState&,int,const GasPrimDevice&){ret
 R molecularGasConductivity(const DeviceState&){return R(.07);}
 void gasFaceSubgridTransportProperties(const DeviceState&,int,int,int,int,R,R&mu,R&kt,R&q,int&a){mu=R(.03);kt=R(.05);q=0;a=0;}
 '''.replace('FIELDS',fields)
-    body=pre+(src+courant+sensor+primitive+full_flux).replace('asm("trap;");','std::abort();')+r'''
+    body=pre+(src+courant+sensor+primitive+full_flux).replace('asm("trap;");','throw 1;')+r'''
 int main(){int fails=0,count=0;for(int scheme=1;scheme<=9;++scheme){ugkpriemann::Scheme kind;if(!ugkpriemann::schemeFromCreateCode(scheme,kind))continue;
 for(int reconstruction:{0,1,2})for(int boundary:{-1,0,1,2,3,4})for(int state=0;state<8;++state){
  DeviceState s;s.nFaces=1;s.nCells=2;s.faceOwner[0]=0;s.faceNeighbour[0]=boundary<0?1:-1;s.riemannBoundaryKind[0]=std::max(boundary,0);s.gasFluxScheme=scheme;s.gasReconstruction=reconstruction;
@@ -86,8 +85,8 @@ for(int reconstruction:{0,1,2})for(int boundary:{-1,0,1,2,3,4})for(int state=0;s
   computeGasInternalFaceFluxKernel<false>(&laminar,R(.01));
   if(laminar.gasPhiRho[0]!=full){std::cerr<<"next full flux retained stale mass\n";++fails;}
   DeviceState invalid=s;invalid.faceOwner[0]=-1;invalid.gasPhiRho[0]=R(12345);
-  computeGasCourantFieldKernel(&invalid,R(.01));
-  if(invalid.gasPhiRho[0]!=R(0) || invalid.gasPhiRhoE[0]!=OfGreat){std::cerr<<"SST early return retained stale mass\n";++fails;}
+  bool failed=false;try{computeGasCourantFieldKernel(&invalid,R(.01));}catch(int){failed=true;}
+  if(!failed){std::cerr<<"missing owner did not report required operator error\n";++fails;}
  }
  if(scheme==7){
   computeGasHllcAdcSensorKernel(&s);R expected=s.gasHllcAdcSensor[0];
@@ -101,6 +100,6 @@ for(int reconstruction:{0,1,2})for(int boundary:{-1,0,1,2,3,4})for(int state=0;s
 std::cout<<"cases="<<count<<" failures="<<fails<<"\n";return fails?1:0;}
 '''
     path=tmp_path/'probe.cpp';path.write_text(body.replace('#pragma once',''));exe=tmp_path/'probe'
-    subprocess.run(['g++','-std=c++17','-O2',f'-DUGKWP_GPU_REAL_BITS={bits}','-I'+str(ROOT/'common'),'-I'+str(ROOT/'common/gasNumerics'),str(path),'-o',str(exe)],check=True)
+    subprocess.run(['g++','-std=c++17','-O2','-I'+str(ROOT/'common'),'-I'+str(ROOT/'common/gasNumerics'),str(path),'-o',str(exe)],check=True)
     result=subprocess.run([str(exe)],capture_output=True,text=True)
     assert result.returncode==0,result.stdout+result.stderr

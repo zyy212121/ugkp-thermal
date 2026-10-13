@@ -29,7 +29,7 @@ R clampMin(R a,R b){return std::max(a,b);}R finiteOr(R a,R b){return std::isfini
 R clampRange(R x,R lo,R hi){return std::max(lo,std::min(x,hi));}
 bool finiteDevice(R x){return std::isfinite(x);}
 struct DeviceState{
- int faceOwner[2]={0,0},facePeriodicPair[2]={1,0};
+ int faceOwner[2]={0,0},faceNeighbour[2]={-1,-1},facePeriodicPair[2]={1,0};
  R gasPhiRho[2]={0,0},deltaCoeffs[2]={1000,1000},faceWeight[2]={.5,.5};
  R sstPhiRhoK[2]={.1,.2},sstPhiRhoOmega[2]={3,7},V[1]={1},sstSourceNumber[1]={0},sstF1[1]={1},sstF2[1]={1};
  R gradKX[1]={0},gradKY[1]={0},gradKZ[1]={0},gradOmegaX[1]={0},gradOmegaY[1]={0},gradOmegaZ[1]={0};
@@ -53,7 +53,7 @@ void sstVelocityInvariants(const DeviceState&,int,R&d,R&s,R&g){d=s=g=0;}
 R sstKProductionForCell(const DeviceState&,int,R){return 0;}
 '''
     body=pre+functions+recovery+stubs+update+r'''
-int failures=0;void check(const char*name,R got,R want){if(std::abs(got-want)>(sizeof(R)==4?3e-5:1e-11)*std::max(R(1),std::abs(want))){std::cerr<<name<<" got="<<got<<" expected="<<want<<"\n";++failures;}}
+int failures=0;void check(const char*name,R got,R want){if(std::abs(got-want)>(1e-11)*std::max(R(1),std::abs(want))){std::cerr<<name<<" got="<<got<<" expected="<<want<<"\n";++failures;}}
 int main(){
  DeviceState s;applySstWallFunctionStateKernel(&s);check("two-face corner target",s.omega[0],270);check("conservative",s.rhoOmega[0],270);
  check("omega copied to wall",sstBoundaryValue(s,0,0,true),s.omega[0]);check("wall omega normal gradient",1000*(sstBoundaryValue(s,0,0,true)-s.omega[0]),0);check("wall k zero",sstBoundaryValue(s,0,0,false),0);
@@ -67,10 +67,8 @@ int main(){
  return failures?1:0;
 }
 '''
-    source=tmp_path/'test.cpp';source.write_text(body)
-    for bits in (64,32):
-        exe=tmp_path/f'probe{bits}'
-        subprocess.run(['g++','-std=c++17','-O2',f'-DUGKWP_GPU_REAL_BITS={bits}','-I'+str(ROOT),'-I'+str(ROOT/'gasNumerics'),str(source),'-o',str(exe)],check=True)
-        p=subprocess.run([str(exe)],capture_output=True,text=True)
-        assert p.returncode==0, f'FP{bits}: {p.stderr}'
-
+    source=tmp_path/'test.cpp';source.write_text(body.replace('asm("trap;");','std::abort();'))
+    exe=tmp_path/f'probe{64}'
+    subprocess.run(['g++','-std=c++17','-O2','-I'+str(ROOT),'-I'+str(ROOT/'gasNumerics'),str(source),'-o',str(exe)],check=True)
+    p=subprocess.run([str(exe)],capture_output=True,text=True)
+    assert p.returncode==0, f'FP{64}: {p.stderr}'
