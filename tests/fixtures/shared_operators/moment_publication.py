@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Native moment-path fixture runner: SOURCE OUT APP BITS.
+"""Native moment-path fixture runner: SOURCE OUT APP.
 
 SOURCE is one solver library root. Requires a CUDA compiler and device.
 """
@@ -16,19 +16,14 @@ def sha256(path):
 
 
 def main():
-    if len(sys.argv) != 5:
-        print('usage: moment_publication.py SOURCE OUT APP BITS', file=sys.stderr)
+    if len(sys.argv) != 4:
+        print('usage: moment_publication.py SOURCE OUT APP', file=sys.stderr)
         return 2
     root = Path(sys.argv[1]).resolve()
     out = Path(sys.argv[2]).resolve()
     app = sys.argv[3]
-    try:
-        bits = int(sys.argv[4])
-    except ValueError:
-        print('BITS must be 32 or 64', file=sys.stderr)
-        return 2
-    if (app, bits) not in {('gasUGKP', 64), ('FSH', 64), ('CHT', 64), ('CHT', 32)}:
-        print('supported configurations: gasUGKP64, FSH64, CHT64, CHT32', file=sys.stderr)
+    if app not in {'gasUGKP', 'FSH', 'CHT'}:
+        print('supported applications: gasUGKP, FSH, CHT', file=sys.stderr)
         return 2
     native = root / 'applications' / app / ('gpu' if app == 'CHT' else 'private_backend')
     fixture = Path(__file__).resolve().with_name('moment_publication_paths.cu')
@@ -49,8 +44,7 @@ def main():
         str(Path(os.environ.get('CUDA_HOME', '/usr/local/cuda')) / 'bin' / 'nvcc'),
         '-std=c++17', '-O3', '-arch=' + os.environ.get('UGKWP_CUDA_ARCH', 'sm_89'),
         '--fmad=' + ('false' if app == 'CHT' else 'true'),
-        '-DUGKP_DEVELOPMENT_PROBES=1', f'-DUGKWP_GPU_REAL_BITS={bits}',
-        f'-DMH04_THERMAL={int(app != "gasUGKP")}', f'-DMH04_CHT={int(app == "CHT")}',
+        '-DUGKP_DEVELOPMENT_PROBES=1', f'-DMH04_THERMAL={int(app != "gasUGKP")}', f'-DMH04_CHT={int(app == "CHT")}',
         '-I' + str(native), '-I' + str(root / 'common'),
         '-I' + str(root / 'applications' / app / 'gpu'),
         str(generated), '-o', str(executable),
@@ -60,7 +54,7 @@ def main():
         command.append(str(wall_source))
         source_files.append(wall_source)
     manifest = {
-        'app': app, 'bits': bits, 'source_root': str(root),
+        'app': app, 'bits': 64, 'source_root': str(root),
         'source_files': [{'path': str(path), 'sha256': sha256(path)} for path in source_files],
         'compile_command': command, 'run_command': [str(executable)],
         'compile_returncode': None, 'run_returncode': None,
@@ -83,7 +77,7 @@ def main():
         (out / 'run.log').write_text(ran.stdout + ran.stderr, encoding='utf-8')
         manifest['run_returncode'] = ran.returncode
         save_manifest()
-        print(app, bits, ran.stdout, ran.stderr)
+        print(app, 64, ran.stdout, ran.stderr)
         return ran.returncode
     except OSError as error:
         manifest['error'] = str(error)

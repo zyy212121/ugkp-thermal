@@ -1,14 +1,13 @@
 import os
 from pathlib import Path
 import re,subprocess,sys,json,os
-W=Path(sys.argv[2]).resolve();W.mkdir(parents=True,exist_ok=True);app,bits=sys.argv[3],int(sys.argv[4]);kind='current';r=Path(sys.argv[1]).resolve();leaf='gpu' if app=='CHT' else 'private_backend';src=r/'applications'/app/leaf/'GpuResidentStrict.cu'
+W=Path(sys.argv[2]).resolve();W.mkdir(parents=True,exist_ok=True);app=sys.argv[3];kind='current';r=Path(sys.argv[1]).resolve();leaf='gpu' if app=='CHT' else 'private_backend';src=r/'applications'/app/leaf/'GpuResidentStrict.cu'
 
 for sub in ['02-tests','03-build','logs']:(W/sub).mkdir(exist_ok=True)
 t=src.read_text().replace('#include "GpuAutomaticCsrScheduleFields.inl"', (r/"common/GpuAutomaticCsrScheduleFields.inl").read_text() if (r/"common/GpuAutomaticCsrScheduleFields.inl").is_file() else "");a=t.index('struct DeviceState');b=t.index('\n};',a);fields=re.findall(r'^\s*((?:unsigned\s+)?(?:long long|char)|double|float|int|GpuReal|GpuTime|GpuWallEnergy)\*\s+(\w+)\s*=',t[a:b],re.M)
 needed=set('pStatus pCellId pRng pm pux puy puz pTheta pd pT pStuck pContactAge pStuckFaceId pDepositionArea pContactDuration pContactMaximumArea pContactPeakFraction compactPStatus compactCountDevice cellParticleOffset sortedParticleIndex preBaseCellOffset csrCellTaskOffset csrCellTaskCount csrHeavyPartials csrMultiTaskCellList csrHeavyTaskCount csrHeavyCellCount csrHeavyTaskCursor poissonCellCollisionProbability particleCountDevice thetaDragAlpha momRhoP momRhoUPx momRhoUPy momRhoUPz momRhoEP momRhoPD'.split())
 needed.update(n for _,n in fields if n.startswith('poissonPool') or n.startswith('poolThermal'))
 text='#include "GpuResidentStrict.cu"\n#include <cstdio>\n#include <new>\n#include <cstdlib>\n#include <cmath>\n#include <vector>\n#include <string>\n'
-if app=='CHT' and bits==32:text+='using namespace ugkwpCudaFp32;\n'
 text+='using Real='+('GpuReal' if app=='CHT' else 'double')+';\n'
 text+=r'''
 #define CHECK(x) do{if(!(x)){printf("FAIL %d %s\n",__LINE__,#x);return 1;}}while(0)
@@ -28,7 +27,7 @@ text+=r'''
 mem(s->csrReductionTasks,N+4);*s->particleCountDevice=N;s->cellParticleOffset[0]=0;s->cellParticleOffset[1]=N*3/4;s->cellParticleOffset[2]=N;
 for(int i=0;i<N;++i)s->sortedParticleIndex[i]=i;
 for(int c=0;c<2;++c){s->momRhoP[c]=20;s->momRhoEP[c]=30;s->momRhoPD[c]=.02;s->thetaDragAlpha[c]=1;}
-const double dt=(argc>2&&std::string(argv[2])=="zero")?0.:.005;const double tol=sizeof(Real)==4?2e-5:2e-12;
+const double dt=(argc>2&&std::string(argv[2])=="zero")?0.:.005;const double tol=2e-12;
 for(int layout=0;layout<5;++layout)for(int poisson=0;poisson<2;++poisson)for(int contact=0;contact<(bench?1:CONTACT_MODES);++contact)for(int block:{32,64,128,256})for(int heavy=0;heavy<2;++heavy){
  if(layout && !poisson)continue;
  if(layout==4 && heavy)continue;
@@ -86,16 +85,16 @@ flags=', false' if not thermal else ''
 text=text.replace('SPLIT_LAUNCH',split_name+'<true, false'+flags+'><<<2,block,8*block*sizeof(Real)>>>(s,dt);'+split_name+'<false, true'+flags+'><<<2,block,8*block*sizeof(Real)>>>(s,dt);')
 # gas lacks the selected-stuck counter; allocating it in the source would not compile.
 if not thermal:text=text.replace('*s->compactCountDevice=0;','').replace('clearPoissonThermalPoolKernel<<<1,32>>>(s);','clearPoissonThermalPoolKernel<<<1,32>>>(s,dt);')
-f=W/'02-tests'/f'collision-{kind}-{app}-{bits}.cu';f.write_text(text);exe=W/'03-build'/f'collision-{kind}-{app}-{bits}'
-cmd=[str(Path(os.environ.get('CUDA_HOME','/usr/local/cuda'))/'bin/nvcc'),'-std=c++17','-O3','-arch='+os.environ.get('UGKWP_CUDA_ARCH','sm_89'),'--fmad='+('false' if app=='CHT' else 'true'),'-DUGKWP_GPU_REAL_BITS='+str(bits),'-I'+str(src.parent),'-I'+str(r/'common'),'-I'+str(r/'applications'/app/'gpu'),str(f),'-o',str(exe)]
+f=W/'02-tests'/f'collision-{kind}-{app}-{64}.cu';f.write_text(text);exe=W/'03-build'/f'collision-{kind}-{app}-{64}'
+cmd=[str(Path(os.environ.get('CUDA_HOME','/usr/local/cuda'))/'bin/nvcc'),'-std=c++17','-O3','-arch='+os.environ.get('UGKWP_CUDA_ARCH','sm_89'),'--fmad='+('false' if app=='CHT' else 'true'),'-I'+str(src.parent),'-I'+str(r/'common'),'-I'+str(r/'applications'/app/'gpu'),str(f),'-o',str(exe)]
 if app=='CHT':cmd.append(str(r/'applications/CHT/gpu/GpuWallEnergy64.cu'))
-log=W/'logs'/f'collision-{kind}-{app}-{bits}-build.log'
+log=W/'logs'/f'collision-{kind}-{app}-{64}-build.log'
 with log.open('w') as o:q=subprocess.run(cmd,stdout=o,stderr=subprocess.STDOUT)
-print('BUILD',kind,app,bits,q.returncode,flush=True)
+print('BUILD',kind,app,64,q.returncode,flush=True)
 if q.returncode:print(log.read_text()[-5000:]);raise SystemExit(q.returncode)
 for arguments, suffix in [([], 'normal'), (['129', 'zero'], 'zero')]:
  q=subprocess.run([str(exe), *arguments],capture_output=True,text=True)
- (W/'logs'/f'collision-{kind}-{app}-{bits}-{suffix}-run.log').write_text(q.stdout+q.stderr)
+ (W/'logs'/f'collision-{kind}-{app}-{64}-{suffix}-run.log').write_text(q.stdout+q.stderr)
  print('RUN_RETURN',suffix,q.returncode,q.stdout+q.stderr,flush=True)
  if q.returncode:raise SystemExit(q.returncode)
  groups={}
