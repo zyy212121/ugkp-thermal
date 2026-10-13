@@ -125,7 +125,7 @@ CHMT_HD inline bool recoverGas(const GasQ& q,Real volume,const PhysicsConfig& p,
         return failStatus(status,ErrorCode::Composition,index,sum-q.mass,ErrorLocation::Cell);
     const Vec3 velocity=q.momentum/q.mass;const Real kinetic=0.5*q.mass*dot(velocity,velocity);
     const GasThermoAdapter<Ns> thermo(p.species);
-    const MaterialEnergyEvaluator energy{thermo.view(),q.species,0,0,0};
+    const MaterialEnergyEvaluator energy{thermo.view(),q.species,0,0,0,p.species};
     Real T=0;if(!invertMaterialEnergy(energy,q.energy-kinetic,lo,hi,p.tolerances,T))
         return failStatus(status,ErrorCode::PropertyRange,index,q.energy-kinetic,ErrorLocation::Cell);
     if(legacy&&!(q.energy-kinetic-formation>0))return failStatus(status,ErrorCode::Inventory,index,q.energy-kinetic-formation,ErrorLocation::Cell);
@@ -139,6 +139,22 @@ CHMT_HD inline bool recoverGas(const GasQ& q,Real volume,const PhysicsConfig& p,
     out=candidate;return true;
 }
 CHMT_HD inline bool recoverGas(const GasQ& q,Real volume,const PhysicsConfig& p,GasPrimitive& out) { return recoverGas(q,volume,p,out,nullptr,-1); }
+// Complete only after ordinary recovery fails; retain its original successful path.
+CHMT_HD inline bool completePredictorGas(const GasQ& q,Real volume,const PhysicsConfig& p,GasPrimitive& out){
+    Real R=0,lo=0,hi=std::numeric_limits<Real>::max();
+    for(int species=0;species<Ns;++species){const Real mass=q.species[species];if(mass==0)continue;
+        const auto& t=p.species[species];R+=mass*t.R;lo=maxValue(lo,t.Tmin);hi=minValue(hi,t.Tmax);}
+    const Vec3 velocity=q.momentum/q.mass;const Real kinetic=.5*q.mass*dot(velocity,velocity);
+    const GasThermoAdapter<Ns> thermo(p.species);
+    const MaterialEnergyEvaluator energy{thermo.view(),q.species,0,0,0,p.species};
+    Real temperature=0;if(!invertMaterialEnergy<true>(energy,q.energy-kinetic,lo,hi,p.tolerances,temperature))return false;
+    Real internal,capacity;if(energy.evaluate<true>(temperature,internal,capacity)!=ugkwp::ThermoStatus::Success)return false;
+    GasPrimitive candidate{};candidate.rho=q.mass/volume;candidate.velocity=velocity;candidate.temperature=temperature;
+    const Real Rmix=R/q.mass,cv=capacity/q.mass;
+    candidate.pressure=candidate.rho*Rmix*temperature;candidate.soundSpeed=::sqrt((1+Rmix/cv)*Rmix*temperature);
+    for(int species=0;species<Ns;++species)candidate.Y[species]=q.species[species]/q.mass;
+    out=candidate;return true;
+}
 CHMT_HD inline GasQ invalidGas() {
     GasQ q{};q.mass=q.energy=undefinedValue();q.momentum={undefinedValue(),undefinedValue(),undefinedValue()};
     for(int s=0;s<Ns;++s)q.species[s]=undefinedValue();
@@ -157,6 +173,22 @@ CHMT_HD inline GasQ conservativeGas(const GasPrimitive& w,Real volume,const Phys
     }
     if(!closeEnough(sum,1,p.tolerances.relativeMass,p.tolerances.relativeMass)||!finite(q.mass)||!finite(q.energy))return invalidGas();
     return q;
+}
+// Complete supplied primitive algebra after the strict conversion failed.
+// Unsupported thermo formulas remain unavailable; no invalidGas placeholder is
+// used as input to the terminal inverse.
+CHMT_HD inline bool completeConservativeGas(const GasPrimitive& w,Real volume,
+    const PhysicsConfig& p,GasQ& out) {
+    GasQ q{};q.mass=w.rho*volume;q.momentum=q.mass*w.velocity;
+    q.energy=0.5*q.mass*dot(w.velocity,w.velocity);
+    for(int s=0;s<Ns;++s){
+        q.species[s]=q.mass*w.Y[s];if(w.Y[s]==0)continue;
+        const GasThermoAdapter<1> thermo(&p.species[s]);Real energy,capacity;
+        if(terminalSpeciesCaloric(0,w.temperature,thermo.view(),energy,capacity,&p.species[s])
+            !=ugkwp::ThermoStatus::Success)return false;
+        q.energy+=q.species[s]*energy;
+    }
+    out=q;return true;
 }
 template<bool Terminal=false>
 CHMT_HD inline bool recoverSolid(const SolidQ& q,const PhysicsConfig& p,Real& out,DeviceStatus* status,int index,bool* numericalFailure=nullptr) {
@@ -177,7 +209,7 @@ CHMT_HD inline bool recoverSolid(const SolidQ& q,const PhysicsConfig& p,Real& ou
         const auto& t=p.species[s];mass+=m;lo=maxValue(lo,t.Tmin);hi=minValue(hi,t.Tmax);
     }
     const GasThermoAdapter<Ns> thermo(p.species);
-    const MaterialEnergyEvaluator energy{thermo.view(),q.pore,a0,a1,a2};
+    const MaterialEnergyEvaluator energy{thermo.view(),q.pore,a0,a1,a2,p.species};
     Real T=0;if((!Terminal&&mass<=0)||!invertMaterialEnergy<Terminal>(energy,q.energy,lo,hi,p.tolerances,T)){
         if(Terminal&&numericalFailure)*numericalFailure=false; // No selected caloric formula was available.
         return failStatus(status,ErrorCode::PropertyRange,index,q.energy,ErrorLocation::Cell);

@@ -170,8 +170,8 @@ CHMT_HD inline bool darcyConductionFluxWithGradient(const SolidQ& left, const So
         if(flux.pore[s]!=0){
             Real enthalpy=speciesH(p.species[s],state.temperature);
             if(Terminal&&!finite(enthalpy)){const GasThermoAdapter<1> thermo(&p.species[s]);Real energy,capacity;
-                if(terminalSpeciesCaloric(0,state.temperature,thermo.view(),energy,capacity)!=ugkwp::ThermoStatus::Success)return false;
-                enthalpy=energy+(ugkwp::universalGasConstant<Real>()/thermo.view().species[0].molarMass)*state.temperature;}
+                if(terminalSpeciesCaloric(0,state.temperature,thermo.view(),energy,capacity,&p.species[s])!=ugkwp::ThermoStatus::Success)return false;
+                enthalpy=energy+terminalGasConstant(p.species[s])*state.temperature;}
             flux.energy+=flux.pore[s]*enthalpy;
         }
     }

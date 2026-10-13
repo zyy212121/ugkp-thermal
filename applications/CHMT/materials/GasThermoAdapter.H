@@ -9,7 +9,7 @@ template<int Count>
 struct GasThermoAdapter {
     ugkwp::SpeciesThermoData<Real> data[Count]{};
     Real coefficients[14*Count]{};
-    CHMT_HD explicit GasThermoAdapter(const SpeciesThermo* input) {
+    CHMT_HD explicit GasThermoAdapter(const SpeciesThermo* input,bool terminal=false) {
         for(int i=0;i<Count;++i) {
             const SpeciesThermo& s=input[i];auto& d=data[i];
             d.model=s.model;d.coefficientOffset=14*i;
@@ -18,7 +18,10 @@ struct GasThermoAdapter {
             // traps; common validation still rejects it when it is active.
             const Real Ru=ugkwp::universalGasConstant<Real>();
             const Real minimumR=Ru/std::numeric_limits<Real>::max();
-            d.molarMass=finite(s.R)&&s.R>minimumR ? Ru/s.R : Real(0);
+            // Completed common wall consumers require the native molar-mass
+            // quotient. Their EOS already consumes every species, even Y=0.
+            // Default strict/inactive material construction remains trap-safe.
+            d.molarMass=finite(s.R)&&s.R>minimumR ? Ru/s.R : (terminal?Ru/s.R:Real(0));
             d.minTemperature=s.Tmin;d.midTemperature=s.Tmid;d.maxTemperature=s.Tmax;
             d.referencePressure=s.referencePressure;d.referenceTemperature=s.referenceTemperature;
             d.referenceEntropy=s.referenceEntropy;d.hasEntropyReference=s.hasEntropyReference;
@@ -38,10 +41,15 @@ struct GasThermoAdapter {
 // comes from the same supplied view; no missing coefficient is manufactured.
 template<int Count>
 CHMT_HD inline ugkwp::ThermoStatus terminalSpeciesCaloric(int species,Real T,
-    const ugkwp::SpeciesThermoView<Real,Count>& view,Real& energy,Real& capacity) {
+    const ugkwp::SpeciesThermoView<Real,Count>& view,Real& energy,Real& capacity,
+    const SpeciesThermo* supplied=nullptr) {
     if(!ugkwp::gasThermoDetail::validMetadata(species,view))return ugkwp::ThermoStatus::InvalidModel;
     const auto& data=view.species[species];const Real* c=view.coefficients+data.coefficientOffset;
-    const Real R=ugkwp::universalGasConstant<Real>()/data.molarMass;
+    // Strict adapter metadata protects inactive tables from floating traps.
+    // A terminal owner still has the supplied constant when that metadata
+    // could not represent it; ordinary positive-R arithmetic stays unchanged.
+    const Real R=supplied&&data.molarMass==0 ? supplied[species].R
+        : ugkwp::universalGasConstant<Real>()/data.molarMass;
     const int available=view.coefficientCount-data.coefficientOffset;
     Real cp,h;
     if(data.model==ugkwp::SpeciesThermoModel::LinearCp){
@@ -58,11 +66,16 @@ CHMT_HD inline ugkwp::ThermoStatus terminalSpeciesCaloric(int species,Real T,
 }
 CHMT_HD inline Real terminalSpeciesE(const SpeciesThermo& s,Real T){
     const GasThermoAdapter<1> thermo(&s);Real energy=undefinedValue(),capacity;
-    terminalSpeciesCaloric(0,T,thermo.view(),energy,capacity);return energy;
+    terminalSpeciesCaloric(0,T,thermo.view(),energy,capacity,&s);return energy;
 }
 CHMT_HD inline Real terminalSpeciesCv(const SpeciesThermo& s,Real T){
     const GasThermoAdapter<1> thermo(&s);Real energy,capacity=undefinedValue();
-    terminalSpeciesCaloric(0,T,thermo.view(),energy,capacity);return capacity;
+    terminalSpeciesCaloric(0,T,thermo.view(),energy,capacity,&s);return capacity;
+}
+CHMT_HD inline Real terminalGasConstant(const SpeciesThermo& s){
+    const Real Ru=ugkwp::universalGasConstant<Real>();
+    const Real minimumR=Ru/std::numeric_limits<Real>::max();
+    return finite(s.R)&&s.R>minimumR ? Ru/(Ru/s.R) : s.R;
 }
 #define CHMT_SHARED_SPECIES_PROPERTY(Name) \
 CHMT_HD inline Real Name(const SpeciesThermo& s,Real T) { \
@@ -81,6 +94,7 @@ struct MaterialEnergyEvaluator {
     ugkwp::SpeciesThermoView<Real,Ns> thermo;
     const Real* gasMass;
     Real a0,a1,a2;
+    const SpeciesThermo* supplied=nullptr;
     template<bool Terminal=false>
     CHMT_HD ugkwp::ThermoStatus evaluate(Real T,Real& energy,Real& capacity) const {
         Real value=a0+T*(a1+Real(.5)*a2*T),derivative=a1+a2*T;
@@ -88,7 +102,7 @@ struct MaterialEnergyEvaluator {
             if(!Terminal&&(!finite(gasMass[s])||gasMass[s]<0))return ugkwp::ThermoStatus::InvalidComposition;
             if(gasMass[s]==0)continue;
             Real e,cv;
-            if(Terminal){const auto status=terminalSpeciesCaloric(s,T,thermo,e,cv);if(status!=ugkwp::ThermoStatus::Success)return status;}
+            if(Terminal){const auto status=terminalSpeciesCaloric(s,T,thermo,e,cv,supplied);if(status!=ugkwp::ThermoStatus::Success)return status;}
             else {e=ugkwp::speciesE(s,T,thermo);cv=ugkwp::speciesCv(s,T,thermo);
                 if(!finite(e)||!finite(cv))return ugkwp::ThermoStatus::InvalidModel;}
             value+=gasMass[s]*e;derivative+=gasMass[s]*cv;
@@ -134,7 +148,7 @@ CHMT_HD inline Real speciesEnergySecant(const SpeciesThermo& s,Real a,Real b) {
         GasThermoAdapter<1> upper(&s);
         for(int j=0;j<7;++j)upper.coefficients[j]=s.nasa7[j+7];
         Real upperEnergy,capacity;
-        if(Terminal){if(terminalSpeciesCaloric(0,s.Tmid,upper.view(),upperEnergy,capacity)!=ugkwp::ThermoStatus::Success)return undefinedValue();}
+        if(Terminal){if(terminalSpeciesCaloric(0,s.Tmid,upper.view(),upperEnergy,capacity,&s)!=ugkwp::ThermoStatus::Success)return undefinedValue();}
         else upperEnergy=ugkwp::speciesE(0,s.Tmid,upper.view());
         const Real jump=upperEnergy-(Terminal?terminalSpeciesE(s,s.Tmid):speciesE(s,s.Tmid));
         return ((s.Tmid-a)*gasCapacitySecantBranch<Terminal>(s,a,s.Tmid)

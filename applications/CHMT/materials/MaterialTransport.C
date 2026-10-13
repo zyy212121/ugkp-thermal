@@ -207,8 +207,8 @@ bool evaluateMaterialTransportImpl(const HostMesh& m,const std::vector<SolidQ>& 
                 if(!reconstruct<Terminal>(m,q,p,volumeRate>=0?left:right,f,reconstructed)||!recoverMaterial<Terminal>(reconstructed,1,p,recovered)){error="material Darcy reconstruction failed";return false;}
                 physical.energy=0;for(int s=0;s<Ns;++s){physical.pore[s]=recovered.porosity>0?volumeRate*reconstructed.pore[s]/recovered.porosity:0;Real enthalpy=speciesH(p.species[s],recovered.temperature);
                     if(Terminal&&!finite(enthalpy)){const GasThermoAdapter<1> thermo(&p.species[s]);Real energy,capacity;
-                        if(terminalSpeciesCaloric(0,recovered.temperature,thermo.view(),energy,capacity)!=ugkwp::ThermoStatus::Success){error="material Darcy caloric expression unavailable";return false;}
-                        enthalpy=energy+(ugkwp::universalGasConstant<Real>()/thermo.view().species[0].molarMass)*recovered.temperature;}
+                        if(terminalSpeciesCaloric(0,recovered.temperature,thermo.view(),energy,capacity,&p.species[s])!=ugkwp::ThermoStatus::Success){error="material Darcy caloric expression unavailable";return false;}
+                        enthalpy=energy+terminalGasConstant(p.species[s])*recovered.temperature;}
                     physical.energy+=physical.pore[s]*enthalpy;}}
             flux=addSolid(flux,physical);
         }

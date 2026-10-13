@@ -123,22 +123,6 @@ void filmForcing(const ExchangePacket& packet,std::vector<CpuFilmForcing>& forci
 void gasDrive(const HostState& state,const std::vector<GasPrimitive>& bulk,const std::vector<Vec3>& traction,std::vector<CpuFilmDrive>& drive){drive.resize(state.film.size());for(std::size_t f=0;f<drive.size();++f){const auto& a=state.filmAux[f];auto& d=drive[f];const Vec3 n=state.surface.normal[f];const bool coupled=state.surface.gasFace[f]>=0;
     d.pressure=coupled?bulk[f].pressure:a.pressure;d.endpointPressure=d.pressure;d.shear=coupled?(traction[f]-n*dot(traction[f],n))*(mag(state.gasMesh.areaVectors[state.surface.gasFace[f]])/state.surface.area[f]):(state.surface.prescribedTopTraction.empty()?Vec3{}:state.surface.prescribedTopTraction[f]);
     d.hasCoupledNormalTrace=coupled;d.bottomNormalVelocity=2*dot(a.meanVelocity,n)-dot(a.topVelocity,n);d.topNormalVelocity=dot(a.topVelocity,n);d.interfaceNormalVelocity=a.normalVelocity;d.solidNormalVelocity=a.solidNormalVelocity;}}
-// Host predictor-only completion; ordinary gas recovery remains unchanged.
-bool completePredictorGas(const GasQ& q,Real volume,const PhysicsConfig& p,GasPrimitive& out){
-    Real R=0,lo=0,hi=std::numeric_limits<Real>::max();
-    for(int species=0;species<Ns;++species){const Real mass=q.species[species];if(mass==0)continue;
-        const auto& t=p.species[species];R+=mass*t.R;lo=maxValue(lo,t.Tmin);hi=minValue(hi,t.Tmax);}
-    const Vec3 velocity=q.momentum/q.mass;const Real kinetic=.5*q.mass*dot(velocity,velocity);
-    const GasThermoAdapter<Ns> thermo(p.species);
-    const MaterialEnergyEvaluator energy{thermo.view(),q.species,0,0,0};
-    Real temperature=0;if(!invertMaterialEnergy<true>(energy,q.energy-kinetic,lo,hi,p.tolerances,temperature))return false;
-    Real internal,capacity;if(energy.evaluate<true>(temperature,internal,capacity)!=ugkwp::ThermoStatus::Success)return false;
-    GasPrimitive candidate{};candidate.rho=q.mass/volume;candidate.velocity=velocity;candidate.temperature=temperature;
-    const Real Rmix=R/q.mass,cv=capacity/q.mass;
-    candidate.pressure=candidate.rho*Rmix*temperature;candidate.soundSpeed=::sqrt((1+Rmix/cv)*Rmix*temperature);
-    for(int species=0;species<Ns;++species)candidate.Y[species]=q.species[species]/q.mass;
-    out=candidate;return true;
-}
 template<bool Terminal=false>
 bool baseTrace(const HostState& base,const PhysicsConfig& p,std::vector<GasPrimitive>& bulk,std::string& error,bool* numerical=nullptr){
     if(numerical)*numerical=false;
