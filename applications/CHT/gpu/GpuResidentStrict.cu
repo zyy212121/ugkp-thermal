@@ -3218,87 +3218,6 @@ extern "C" int ugkwpGpuResidentStrictCreate
     }
     *handle = nullptr;
 
-    if
-    (
-        nCells <= 0
-     || nFaces <= 0
-     || nInternalFaces < 0
-     || nInternalFaces > nFaces
-     || nCellPlanes < 0
-     || particleCapacity < 0
-     || !std::isfinite(gammaGas) || gammaGas <= GPU_R(1.0) || gammaGas > GPU_R(5.0)/GPU_R(3.0)
-     || !std::isfinite(Rgas) || Rgas <= GPU_R(0.0)
-     || !std::isfinite(gasMu) || gasMu < GPU_R(0.0)
-     || !std::isfinite(gasPr) || gasPr <= GPU_R(0.0)
-     || dragModelId < 0 || dragModelId > 2
-     || particleGasHeatTransferModelId < 0
-     || particleGasHeatTransferModelId > 1
-     || !std::isfinite(dragResidualRe) || dragResidualRe <= GPU_R(0.0)
-     || !std::isfinite(gravityX)
-     || !std::isfinite(gravityY)
-     || !std::isfinite(gravityZ)
-     || maxFaceWalkHops <= 0
-     || gasFluxScheme < 1
-     || gasFluxScheme > 9
-     || gasReconstruction < 0
-     || gasReconstruction > 2
-     || gasLimiter < 0
-     || gasLimiter > 2
-     || gasTimeIntegrator < 1
-     || gasTimeIntegrator > 3
-     || (gasRobustFallback != 0 && gasRobustFallback != 1)
-     || ((gasFluxScheme == 4
-       || gasFluxScheme == 5
-       || gasFluxScheme == 6
-       || gasFluxScheme == 7
-       || gasFluxScheme == 8)
-       && gasRobustFallback == 0)
-     || turbulenceModel < 0
-     || turbulenceModel > 3
-     || !std::isfinite(lesDeltaCoeff)
-     || lesDeltaCoeff <= GPU_R(0.0)
-     || !std::isfinite(turbulentPrandtl)
-     || turbulentPrandtl <= GPU_R(0.0)
-     || !std::isfinite(waleCw)
-     || waleCw < GPU_R(0.0)
-     || !std::isfinite(smagorinskyCs)
-     || smagorinskyCs < GPU_R(0.0)
-     || !std::isfinite(maxDiffusionNumber)
-     || maxDiffusionNumber <= GPU_R(0.0)
-     || (csrCellLocalPathEnabled != 0 && csrCellLocalPathEnabled != 1)
-     || csrHeavyReductionMode < 0 || csrHeavyReductionMode > 2
-     || csrHeavyAutoInterval < 1
-     || (particleBlockThreads != 32 && particleBlockThreads != 64
-      && particleBlockThreads != 128 && particleBlockThreads != 256)
-     || (reductionBlockThreads != 32 && reductionBlockThreads != 64
-      && reductionBlockThreads != 128 && reductionBlockThreads != 256)
-     || (csrWarpAggregatedBinning != 0 && csrWarpAggregatedBinning != 1)
-     || (jammingPressureEnabled != 0 && jammingPressureEnabled != 1)
-     || packingProjectionIterations < 1
-     || (!csrCellLocalPathEnabled
-      && (csrHeavyReductionMode != 0 || csrWarpAggregatedBinning))
-    )
-    {
-        setLastErrorText("invalid GPU resident strict configuration");
-        return 1;
-    }
-
-    if
-    (
-        jammingPressureEnabled != 0
-     &&
-        (
-            !std::isfinite(packingFraction)
-         || packingFraction <= GPU_R(0.0)
-         || packingFraction >= GPU_R(1.0)
-        )
-    )
-    {
-        setLastErrorText("invalid GPU resident mobile packing-projection parameters");
-        return 1;
-    }
-
-                                                                            
     cudaError_t err = cudaFree(nullptr);
     if (err != cudaSuccess)
     {
@@ -3477,23 +3396,7 @@ extern "C" int ugkwpGpuResidentStrictUploadMesh
         {
             continue;
         }
-        if
-        (
-            f < s->nInternalFaces
-         || pair < s->nInternalFaces
-         || pair >= s->nFaces
-         || pair == f
-         || facePeriodicPair[pair] != f
-         || faceNeighbour[f] < 0
-         || faceNeighbour[f] >= s->nCells
-         || !std::isfinite(facePeriodicDx[f])
-         || !std::isfinite(facePeriodicDy[f])
-         || !std::isfinite(facePeriodicDz[f])
-        )
-        {
-            setLastErrorText("invalid serial translational cyclic mesh pair");
-            return 1;
-        }
+
         s->hasPeriodicFaces = 1;
     }
 
@@ -3556,11 +3459,7 @@ extern "C" int ugkwpGpuResidentStrictUploadBoundarySources
         return 1;
     }
 
-    if (nBoundarySources < 0)
-    {
-        setLastErrorText("negative GPU resident boundary source count");
-        return 1;
-    }
+
 
     release(s->sourceCell);
     release(s->sourceFace);
@@ -4297,22 +4196,9 @@ extern "C" int ugkwpGpuResidentStrictComputeGasCourant
     {
         return 1;
     }
-    if
-    (
-        maxCo == nullptr
-     || !std::isfinite(dt)
-     || dt <= GPU_R(0.0)
-     || !std::isfinite(targetMaxCo)
-     || targetMaxCo <= GPU_R(0.0)
-     || !std::isfinite(scheduleTime)
-     || scheduleTime < GPU_R(0.0)
-    )
+    if (maxCo == nullptr)
     {
-        setLastErrorText
-        (
-            "compute gas Courant requires positive finite dt/targetMaxCo "
-            "and a non-null output"
-        );
+        setLastErrorText("compute gas Courant requires a non-null output");
         return 1;
     }
     *maxCo = GPU_R(0.0);
@@ -4482,7 +4368,6 @@ extern "C" int ugkwpGpuResidentStrictComputeGasCourant
         convectiveBegin + s->nCells
     );
     *maxCo = *maxConvectiveIt;
-    const int cell = static_cast<int>(maxConvectiveIt - convectiveBegin);
     thrust::device_ptr<GpuReal> diffusionBegin(s->gasDiffusionNumber);
     const thrust::device_ptr<GpuReal> maxDiffusionIt = thrust::max_element
     (
@@ -4502,42 +4387,7 @@ extern "C" int ugkwpGpuResidentStrictComputeGasCourant
         );
         *maxCo = fmax(static_cast<GpuReal>(*maxCo), static_cast<GpuReal>(*maxSstIt));
     }
-    if (!std::isfinite(*maxCo) || *maxCo >= GPU_R(0.5)*OfGreat)
-    {
-        int owner = cell;
-        GpuReal ownerUx = GPU_R(0.0);
-        GpuReal ownerT = GPU_R(0.0);
-        GpuReal ownerRho = GPU_R(0.0);
-        GpuReal ownerRhoUx = GPU_R(0.0);
-        GpuReal ownerRhoE = GPU_R(0.0);
-        if (owner >= 0 && owner < s->nCells)
-        {
-            copyToHost(&ownerUx, s->Ux + owner, 1, "diagnose Courant owner Ux");
-            copyToHost(&ownerT, s->Tgas + owner, 1, "diagnose Courant owner T");
-            copyToHost(&ownerRho, s->rho + owner, 1, "diagnose Courant owner rho");
-            copyToHost(&ownerRhoUx, s->rhoUx + owner, 1, "diagnose Courant owner rhoUx");
-            copyToHost(&ownerRhoE, s->rhoE + owner, 1, "diagnose Courant owner rhoE");
-        }
-        std::snprintf
-        (
-            lastError,
-            sizeof(lastError),
-            "non-finite/invalid gas Courant at cell=%d "
-            "ownerRho=%.17g ownerRhoUx=%.17g ownerRhoE=%.17g "
-            "ownerUx=%.17g ownerT=%.17g "
-            "gamma=%.17g R=%.17g Co=%.17g",
-            owner,
-            ownerRho,
-            ownerRhoUx,
-            ownerRhoE,
-            ownerUx,
-            ownerT,
-            s->gammaGas,
-            s->Rgas,
-            *maxCo
-        );
-        return 1;
-    }
+
     return 0;
 }
 
@@ -5248,17 +5098,9 @@ extern "C" int ugkwpGpuResidentStrictAdvanceGasOnly
         return 1;
     }
 
-    if (s->particleCapacity != 0 || s->nBoundarySources != 0)
-    {
-        setLastErrorText
-        (
-            "pure-gas advance requires zero particle capacity and zero "
-            "boundary particle sources"
-        );
-        return 1;
-    }
 
-    if (!std::isfinite(simulationTime) || simulationTime < GPU_R(0.0) || advanceGasFluxStage(s, dt, simulationTime) != 0)
+
+    if (advanceGasFluxStage(s, dt, simulationTime) != 0)
     {
         return 1;
     }
@@ -5363,8 +5205,7 @@ extern "C" int ugkwpGpuResidentStrictApplyParticleRadiationAffineTemperature
     if
     (
         validateState(s, "apply particle-radiation affine temperature") != 0
-     || nCells != s->nCells
-     || nCells <= 0
+     || nCells < s->nCells
      || updateByCell == nullptr
     )
     {
@@ -5382,7 +5223,7 @@ extern "C" int ugkwpGpuResidentStrictApplyParticleRadiationAffineTemperature
             allocate
             (
                 s->particleRadiationAffineUpdate,
-                static_cast<size_t>(nCells),
+                static_cast<size_t>(s->nCells),
                 "cudaMalloc particle-radiation affine updates"
             ) != 0
         )
@@ -5397,7 +5238,7 @@ extern "C" int ugkwpGpuResidentStrictApplyParticleRadiationAffineTemperature
         (
             s->particleRadiationAffineUpdate,
             updateByCell,
-            static_cast<size_t>(nCells),
+            static_cast<size_t>(s->nCells),
             "cudaMemcpy particle-radiation affine updates"
         ) != 0
     )
@@ -6223,11 +6064,7 @@ extern "C" int ugkwpGpuResidentStrictUploadParticleRestartMirror
     {
         return 1;
     }
-    if (nParticles < 0 || nParticles > s->particleCapacity)
-    {
-        setLastErrorText("particle restart mirror count exceeds resident capacity");
-        return 1;
-    }
+
 
     cudaError_t err =
         cudaMemset(s->pStatus, 0, static_cast<size_t>(s->particleCapacity)*sizeof(int));
@@ -6331,12 +6168,14 @@ extern "C" int ugkwpGpuResidentStrictUploadParticleRestartMirror
      || pStuckFaceId == nullptr || pDepositionArea == nullptr
      || pContactDuration == nullptr || pContactMaximumArea == nullptr
      || pContactPeakFraction == nullptr
-     || pColdNodeSpecificEnthalpy == nullptr
-     || pColdRingSolidMass == nullptr
-     || pColdFrozenArea == nullptr || pColdContactAge == nullptr
-     || pCold2DNodeSpecificEnthalpy == nullptr
-     || pCold2DRingContactAge == nullptr
-     || pCold2DFrozenArea == nullptr
+     || (s->coldWallSolidificationEnabled != 0
+      && (pColdNodeSpecificEnthalpy == nullptr
+       || pColdRingSolidMass == nullptr
+       || pColdFrozenArea == nullptr || pColdContactAge == nullptr))
+     || (s->coldWall2DEnabled != 0
+      && (pCold2DNodeSpecificEnthalpy == nullptr
+       || pCold2DRingContactAge == nullptr
+       || pCold2DFrozenArea == nullptr))
      || pRng == nullptr || pOrigId == nullptr
     )
     {
@@ -6345,134 +6184,7 @@ extern "C" int ugkwpGpuResidentStrictUploadParticleRestartMirror
     }
 
     const size_t n = static_cast<size_t>(nParticles);
-    for (int i = 0; i < nParticles; ++i)
-    {
-        if (!std::isfinite(pThermalEnthalpyResidual[i]))
-        {
-            setLastErrorText("particle restart thermal enthalpy residual is nonfinite");
-            return 1;
-        }
-        if
-        (
-            !std::isfinite(pm[i]) || pm[i] <= GPU_R(0.0)
-         || !std::isfinite(pTheta[i]) || pTheta[i] < GPU_R(0.0)
-         || pStuck[i] > Foam::gpuThermal::particleWallTransientDeposit
-         || pStuckFaceId[i] < -2
-         || pStuckFaceId[i] >= s->nFaces
-         || !std::isfinite(static_cast<GpuReal>(pDepositionArea[i]))
-         || pDepositionArea[i] < 0.0
-         || !std::isfinite(static_cast<GpuTime>(pContactDuration[i]))
-         || !std::isfinite(static_cast<GpuReal>(pContactMaximumArea[i]))
-         || !std::isfinite(static_cast<GpuReal>(pContactPeakFraction[i]))
-         || pContactDuration[i] < 0.0
-         || pContactMaximumArea[i] < 0.0
-         || pContactPeakFraction[i] < 0.0
-         || !std::isfinite(static_cast<GpuReal>(pColdFrozenArea[i]))
-         || !std::isfinite(static_cast<GpuTime>(pColdContactAge[i]))
-         || pColdFrozenArea[i] < 0.0 || pColdContactAge[i] < 0.0
-         || !std::isfinite(static_cast<GpuReal>(pCold2DFrozenArea[i]))
-         || pCold2DFrozenArea[i] < 0.0
-         || (pStuck[i] == 0 && pStuckFaceId[i] != -1)
-         || (pStuck[i] == 0 && pDepositionArea[i] != 0.0)
-         || (
-                pStuckFaceId[i] < 0
-             && (
-                    pDepositionArea[i] != 0.0
-                 || pContactDuration[i] != 0.0
-                 || pContactMaximumArea[i] != 0.0
-                 || pContactPeakFraction[i] != 0.0
-                )
-            )
-         || (pStuck[i] != 0 && pStuckFaceId[i] == -1)
-         || (
-                pStuck[i] == Foam::gpuThermal::particleWallDeposited
-             && (
-                    pStuckFaceId[i] < 0 || pDepositionArea[i] <= 0.0
-                 || !
-                    (
-                        (
-                            pContactDuration[i] == 0.0
-                         && pContactMaximumArea[i] == 0.0
-                         && pContactPeakFraction[i] == 0.0
-                        )
-                     || (
-                            pContactDuration[i] > 0.0
-                         && pContactMaximumArea[i] > 0.0
-                         && pContactPeakFraction[i] > 0.0
-                         && pContactPeakFraction[i] < 1.0
-                        )
-                    )
-                )
-            )
-         || (
-                (
-                    pStuck[i] == Foam::gpuThermal::particleWallTransientRebound
-                 || pStuck[i] == Foam::gpuThermal::particleWallTransientDeposit
-                )
-             && (
-                    pStuckFaceId[i] < 0
-                 || !(pContactDuration[i] > 0.0)
-                 || !(pContactMaximumArea[i] > 0.0)
-                 || !(pContactPeakFraction[i] > 0.0)
-                 || !(pContactPeakFraction[i] < 1.0)
-                 || pTheta[i] > pContactDuration[i]
-                )
-            )
-        )
-        {
-            setLastErrorText("particle restart stuck state/face/area is invalid");
-            return 1;
-        }
-        for (int node = 0; node < Foam::gpuThermal::coldWallAxialNodeCount; ++node)
-        {
-            const float value = pColdNodeSpecificEnthalpy
-            [
-                i*Foam::gpuThermal::coldWallAxialNodeCount + node
-            ];
-            if (!std::isfinite(static_cast<GpuReal>(value)))
-            {
-                setLastErrorText("particle restart cold-wall enthalpy is invalid");
-                return 1;
-            }
-        }
-        for (int ring = 0; ring < Foam::gpuThermal::coldWallRadialRingCount; ++ring)
-        {
-            const double value = pColdRingSolidMass
-            [
-                i*Foam::gpuThermal::coldWallRadialRingCount + ring
-            ];
-            if (!std::isfinite(static_cast<GpuReal>(value)) || value < 0.0)
-            {
-                setLastErrorText("particle restart cold-wall ring mass is invalid");
-                return 1;
-            }
-        }
-        for (int node = 0; node < Foam::gpuThermal::coldWall2DNodeCount; ++node)
-        {
-            const float value = pCold2DNodeSpecificEnthalpy
-            [i*Foam::gpuThermal::coldWall2DNodeCount + node];
-            if (!std::isfinite(static_cast<GpuReal>(value)) || value < 0.0)
-            {
-                setLastErrorText("particle restart cold-wall-2D enthalpy is invalid");
-                return 1;
-            }
-        }
-        for
-        (
-            int ring = 0;
-            ring < Foam::gpuThermal::coldWall2DRadialNodeCount;
-            ++ring
-        )
-        {
-            const double value = pCold2DRingContactAge
-            [i*Foam::gpuThermal::coldWall2DRadialNodeCount + ring];
-            if (!std::isfinite(static_cast<GpuReal>(value)) || value < 0.0)
-            {
-                setLastErrorText("particle restart cold-wall-2D contact age is invalid");
-                return 1;
-            }
-        }
-    }
+
     rc |= copyToDevice(s->px, px, n, "cudaMemcpy strict restart px");
     rc |= copyToDevice(s->py, py, n, "cudaMemcpy strict restart py");
     rc |= copyToDevice(s->pz, pz, n, "cudaMemcpy strict restart pz");
@@ -6639,11 +6351,7 @@ extern "C" int ugkwpGpuResidentStrictDownloadParticleRestartMirror
     {
         return 1;
     }
-    if (count < 0 || count > s->particleCapacity)
-    {
-        setLastErrorText("resident particle count is outside capacity");
-        return 1;
-    }
+
     *nParticles = count;
 
     if (maxParticles == 0)

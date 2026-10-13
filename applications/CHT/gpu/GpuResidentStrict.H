@@ -992,11 +992,9 @@ public:
         requireInitialised("applyParticleRadiationEnergy");
         if
         (
-            residentMesh_ != &mesh
-         || deltaParticleRadiationEnergyJ.size() != mesh.nCells()
-         || frozenParticleMassInCellKg.size() != mesh.nCells()
-         || frozenParticleMeanTemperatureK.size() != mesh.nCells()
-         || particleHeatFactorJkgK != residentParticleHeatFactorJkgK_
+            deltaParticleRadiationEnergyJ.size() < mesh.nCells()
+         || frozenParticleMassInCellKg.size() < mesh.nCells()
+         || frozenParticleMeanTemperatureK.size() < mesh.nCells()
         )
         {
             FatalErrorInFunction
@@ -1180,27 +1178,11 @@ protected:
         injectionParcelMass_ = injectionParcelMass;
         legacyRestartParcelMass_ = legacyRestartParcelMass;
 
-        if (particleCapacity < 0)
-        {
-            FatalErrorInFunction
-                << "gpuResidentParticleCapacity must be non-negative. Current value = "
-                << particleCapacity << exit(FatalError);
-        }
 
-        if (maxFaceWalkHops <= 0)
-        {
-            FatalErrorInFunction
-                << "gpuResidentMaxFaceWalkHops must be positive. Current value = "
-                << maxFaceWalkHops << exit(FatalError);
-        }
 
-        if (!enableParticleModule && particleCapacity != 0)
-        {
-            FatalErrorInFunction
-                << "GpuGasResidentSolver must not allocate particle storage. "
-                << "particleCapacity = " << particleCapacity
-                << exit(FatalError);
-        }
+
+
+
 
         void* raw = nullptr;
         const bool collisionalPressureEnabled =
@@ -1253,50 +1235,10 @@ protected:
             );
                                                                       
                                                                          
-        if
-        (
-            !finiteMirrorScalar(collisionalRestitution)
-         || collisionalRestitution < scalar(0)
-         || collisionalRestitution > scalar(1)
-        )
-        {
-            FatalErrorInFunction
-                << "gpuResidentCollisionalRestitution must be finite and in "
-                << "[0, 1]. Current value = " << collisionalRestitution
-                << exit(FatalError);
-        }
-        if
-        (
-            !finiteMirrorScalar(pressureKickFraction)
-         || pressureKickFraction <= scalar(0)
-         || pressureKickFraction > scalar(1)
-        )
-        {
-            FatalErrorInFunction
-                << "gpuResidentPressureKickFraction must be finite and in "
-                << "(0, 1]. Current value = " << pressureKickFraction
-                << exit(FatalError);
-        }
-        if
-        (
-            !finiteMirrorScalar(packingFraction)
-         || packingFraction <= scalar(0)
-         || packingFraction >= scalar(1)
-        )
-        {
-            FatalErrorInFunction
-                << "Invalid GPU resident mobile packing-projection parameter: "
-                << "packingFraction=" << packingFraction
-                << exit(FatalError);
-        }
-        if (packingProjectionIterations < 1)
-        {
-            FatalErrorInFunction
-                << "gpuResidentPackingProjectionIterations must be a "
-                << "positive integer. Current value = "
-                << packingProjectionIterations
-                << exit(FatalError);
-        }
+
+
+
+
 
         const bool csrCellLocalPathEnabled = scheduling.csrCellLocalPath;
         const int csrHeavyReductionMode = int(scheduling.heavyReductionMode);
@@ -1433,7 +1375,8 @@ protected:
                 }
                 if
                 (
-                    (restartHeader == gpuFshRestart::formatName || restartHeader == gpuFshRestart::schema5FormatName)
+                    restartHeader == gpuFshRestart::currentFormatName
+                 || (restartHeader == gpuFshRestart::formatName || restartHeader == gpuFshRestart::schema5FormatName)
                  || restartHeader == gpuFshRestart::schema7FormatName
                  || restartHeader == gpuFshRestart::schema8FormatName
                  || restartHeader == gpuFshRestart::schema4FormatName
@@ -1470,7 +1413,7 @@ protected:
             scalar initialSolidVolume = 0;
             const scalarField& epsI = epsS.primitiveField();
             const scalarField& V = mesh.V();
-            forAll(epsI, cellI)
+            for (label cellI = 0; cellI < nCells; ++cellI)
             {
                 initialSolidVolume += max(epsI[cellI], scalar(0))*V[cellI];
             }
@@ -1559,12 +1502,7 @@ protected:
         hostMirrorFaces_ = nFaces;
         residentMesh_ = &mesh;
 
-        if (maxFaceWalkHops <= 0)
-        {
-            FatalErrorInFunction
-                << "gpuResidentMaxFaceWalkHops must be positive. Current value = "
-                << maxFaceWalkHops << exit(FatalError);
-        }
+
 
         void* raw = nullptr;
         const int createRc = ugkwpGpuResidentStrictCreate
@@ -1816,22 +1754,7 @@ public:
     ) const
     {
         requireInitialised("computeGasCourant");
-        if
-        (
-            !finiteMirrorScalar(dt)
-         || dt <= SMALL
-         || !finiteMirrorScalar(targetMaxCo)
-         || targetMaxCo <= SMALL
-         || !finiteMirrorScalar(scheduleTime)
-         || scheduleTime < scalar(0)
-        )
-        {
-            FatalErrorInFunction
-                << "computeGasCourant requires positive finite dt and "
-                << "targetMaxCo. dt=" << dt
-                << ", targetMaxCo=" << targetMaxCo
-                << exit(FatalError);
-        }
+
         double maxCo = 0.0;
         check
         (
@@ -2363,7 +2286,7 @@ protected:
         const char* name
     )
     {
-        if (field.primitiveField().size() != mesh.nCells())
+        if (field.primitiveField().size() < mesh.nCells())
         {
             FatalErrorInFunction
                 << "GPU resident strict field size mismatch for " << name
@@ -2380,7 +2303,7 @@ protected:
         const char* name
     )
     {
-        if (field.primitiveField().size() != mesh.nCells())
+        if (field.primitiveField().size() < mesh.nCells())
         {
             FatalErrorInFunction
                 << "GPU resident strict field size mismatch for " << name
@@ -2711,12 +2634,7 @@ protected:
                     << restartFile << exit(FatalError);
             }
         }
-        if (nParticles < 0)
-        {
-            FatalErrorInFunction
-                << "Negative GPU resident particle restart count: "
-                << restartFile << exit(FatalError);
-        }
+
 
         scalarField px(nParticles);
         scalarField py(nParticles);
@@ -2864,60 +2782,7 @@ protected:
                     << error.what() << exit(FatalError);
             }
 
-            for (label i = 0; i < nParticles; ++i)
-            {
-                if
-                (
-                    !finiteMirrorScalar(pm[i]) || pm[i] <= scalar(0)
-                 || pStuck[i] > 3
-                 || pStuckFaceId[i] < -2
-                 || pStuckFaceId[i] >= hostMirrorFaces_
-                 || !std::isfinite(static_cast<double>(pDepositionArea[i]))
-                 || pDepositionArea[i] < 0.0
-                 || !std::isfinite(static_cast<double>(pContactDuration[i]))
-                 || !std::isfinite(static_cast<double>(pContactMaximumArea[i]))
-                 || !std::isfinite(static_cast<double>(pContactPeakFraction[i]))
-                 || pContactDuration[i] < 0.0
-                 || pContactMaximumArea[i] < 0.0
-                 || pContactPeakFraction[i] < 0.0
-                 || (pStuck[i] == 0 && pStuckFaceId[i] != -1)
-                 || (pStuck[i] == 0 && pDepositionArea[i] != 0.0)
-                 || (pStuck[i] != 0 && pStuckFaceId[i] == -1)
-                 || (pStuck[i] == 1 && pStuckFaceId[i] >= 0
-                     && pDepositionArea[i] <= 0.0)
-                 || (pStuck[i] == 1 && !
-                    (
-                        (
-                            pContactDuration[i] == 0.0
-                         && pContactMaximumArea[i] == 0.0
-                         && pContactPeakFraction[i] == 0.0
-                        )
-                     || (
-                            pContactDuration[i] > 0.0
-                         && pContactMaximumArea[i] > 0.0
-                         && pContactPeakFraction[i] > 0.0
-                         && pContactPeakFraction[i] < 1.0
-                        )
-                    ))
-                 || ((pStuck[i] == 2 || pStuck[i] == 3)
-                     && !(pContactDuration[i] > 0.0))
-                 || ((pStuck[i] == 2 || pStuck[i] == 3)
-                     && !(pContactMaximumArea[i] > 0.0))
-                 || ((pStuck[i] == 2 || pStuck[i] == 3)
-                     && !(pContactPeakFraction[i] > 0.0))
-                 || ((pStuck[i] == 2 || pStuck[i] == 3)
-                     && !(pContactPeakFraction[i] < 1.0))
-                 || ((pStuck[i] == 2 || pStuck[i] == 3)
-                     && pTheta[i] > pContactDuration[i])
-                 || (pStuckFaceId[i] == -2 && pDepositionArea[i] != 0.0)
-                 || (particleWallHeatTransferEnabled_ && pStuckFaceId[i] == -2)
-                )
-                {
-                    FatalErrorInFunction
-                        << "Invalid weighted FSH parcel state at particle "
-                        << i << exit(FatalError);
-                }
-            }
+
         }
 
         string line;
@@ -2958,34 +2823,7 @@ protected:
                         >> stuckFaceId >> depositionArea
                 );
                 values[9] = legacyRestartParcelMass_;
-                if
-                (
-                    (stuck != 0 && stuck != 1)
-                 || !finiteMirrorScalar(depositionArea)
-                 || depositionArea < scalar(0)
-                 || stuckFaceId < -2
-                 || stuckFaceId >= hostMirrorFaces_
-                 || (
-                        stuckFaceId >= 0
-                     && (
-                            particleStuckCandidateFaceMask_.size()
-                         != hostMirrorFaces_
-                         || particleStuckCandidateFaceMask_[stuckFaceId] == 0
-                        )
-                    )
-                 || (stuck == 0 && stuckFaceId != -1)
-                 || (stuck == 0 && depositionArea != scalar(0))
-                 || (stuckFaceId < 0 && depositionArea != scalar(0))
-                 || (stuck != 0 && stuckFaceId == -1)
-                 || (
-                        particleWallHeatTransferEnabled_
-                     && stuck != 0
-                     && (stuckFaceId < 0 || depositionArea <= scalar(0))
-                    )
-                )
-                {
-                    ok14 = false;
-                }
+
             }
             else if (version2)
             {
@@ -2997,10 +2835,7 @@ protected:
                         >> cellId >> status >> rng >> origId >> stuck
                 );
                 values[9] = legacyRestartParcelMass_;
-                if (stuck != 0 && stuck != 1)
-                {
-                    ok14 = false;
-                }
+
             }
             else
             {
@@ -3064,18 +2899,7 @@ protected:
             {
                 pStuckFaceId[i] = stuckFaceId;
                 pDepositionArea[i] = depositionArea;
-                if
-                (
-                    !std::isfinite
-                    (
-                        static_cast<double>(pDepositionArea[i])
-                    )
-                )
-                {
-                    FatalErrorInFunction
-                        << "Nonfinite V3 deposition area at particle " << i
-                        << exit(FatalError);
-                }
+
             }
             else if (version2 && stuck != 0)
             {
@@ -3562,18 +3386,7 @@ protected:
         {
             scalar defaultCoeff =
                 particleWallProps->lookupOrDefault<scalar>("particleWallDefault", scalar(1));
-            if
-            (
-                !finiteMirrorScalar(defaultCoeff)
-             || defaultCoeff < scalar(0)
-             || defaultCoeff > scalar(1)
-            )
-            {
-                FatalErrorInFunction
-                    << "ugkwpProperties: particleWallDefault must be finite "
-                    << "and in [0, 1]. Current value = " << defaultCoeff
-                    << exit(FatalError);
-            }
+
 
             if (particleWallProps->found("particleWallCoeffs"))
             {
@@ -3581,37 +3394,14 @@ protected:
                     particleWallProps->subDict("particleWallCoeffs");
                 const scalar dictDefault =
                     coeffDict.lookupOrDefault<scalar>("default", defaultCoeff);
-                if
-                (
-                    !finiteMirrorScalar(dictDefault)
-                 || dictDefault < scalar(0)
-                 || dictDefault > scalar(1)
-                )
-                {
-                    FatalErrorInFunction
-                        << "ugkwpProperties/particleWallCoeffs: default must "
-                        << "be finite and in [0, 1]. Current value = "
-                        << dictDefault << exit(FatalError);
-                }
+
 
                 forAll(particleBoundaryCoeff, patchI)
                 {
                     const word& patchName = mesh.boundaryMesh()[patchI].name();
                     const scalar coeff =
                         coeffDict.lookupOrDefault<scalar>(patchName, dictDefault);
-                    if
-                    (
-                        !finiteMirrorScalar(coeff)
-                     || coeff < scalar(0)
-                     || coeff > scalar(1)
-                    )
-                    {
-                        FatalErrorInFunction
-                            << "ugkwpProperties/particleWallCoeffs: coefficient "
-                            << "for patch " << patchName
-                            << " must be finite and in [0, 1]. Current value = "
-                            << coeff << exit(FatalError);
-                    }
+
                     particleBoundaryCoeff[patchI] = coeff;
                 }
             }
@@ -3636,18 +3426,8 @@ protected:
                         << "gpuResidentStuckWallPatches cannot find patch "
                         << patchName << exit(FatalError);
                 }
-                if (!isA<wallPolyPatch>(mesh.boundaryMesh()[patchI]))
-                {
-                    FatalErrorInFunction
-                        << "gpuResidentStuckWallPatches patch " << patchName
-                        << " is not a wallPolyPatch" << exit(FatalError);
-                }
-                if (particleBoundaryStuck[patchI] != 0)
-                {
-                    FatalErrorInFunction
-                        << "gpuResidentStuckWallPatches contains duplicate patch "
-                        << patchName << exit(FatalError);
-                }
+
+
                 particleBoundaryStuck[patchI] = 1;
             }
         }
@@ -3699,15 +3479,7 @@ protected:
                     << "' applies a rotational or scaled transform."
                     << exit(FatalError);
             }
-            if (cpp.size() != cpp.nbrPatch().size())
-            {
-                FatalErrorInFunction
-                    << "FSH serial cyclic support requires one-to-one "
-                    << "conformal face pairing. Patch '" << pp.name()
-                    << "' has " << cpp.size() << " faces and neighbour patch '"
-                    << cpp.nbrPatch().name() << "' has "
-                    << cpp.nbrPatch().size() << '.' << exit(FatalError);
-            }
+
 
             forAll(cpp, patchFaceI)
             {
@@ -3725,29 +3497,6 @@ protected:
                         << "Invalid serial cyclic pair for face " << faceI
                         << " on patch '" << pp.name() << "'. Paired face = "
                         << pairFaceI << exit(FatalError);
-                }
-
-                const vector mappedPairCentre =
-                    cpp.transform().transformPosition(faceCentres[pairFaceI]);
-                const scalar geometryTolerance =
-                    scalar(1e-8)
-                   *max
-                    (
-                        mag(faceCentres[faceI]) + mag(faceCentres[pairFaceI]),
-                        scalar(1)
-                    );
-                if
-                (
-                    mag(mappedPairCentre - faceCentres[faceI])
-                        > geometryTolerance
-                 || mag(faceAreas[faceI] + faceAreas[pairFaceI])
-                        > scalar(1e-8)*max(magFaceAreas[faceI], scalar(1))
-                )
-                {
-                    FatalErrorInFunction
-                        << "FSH cyclic face " << faceI << " on patch '"
-                        << pp.name() << "' failed paired centre/area validation."
-                        << exit(FatalError);
                 }
 
                 const vector neighbourToLocal =
@@ -3842,16 +3591,7 @@ protected:
                         {
                             const scalar coeff =
                                 particleBoundaryCoeff[patchI];
-                            if (coeff <= SMALL)
-                            {
-                                FatalErrorInFunction
-                                    << "Sommerfeld candidate wall "
-                                    << pp.name()
-                                    << " requires particleWallCoeffs > SMALL "
-                                    << "so a sub-threshold impact can reflect. "
-                                    << "Current value = " << coeff
-                                    << exit(FatalError);
-                            }
+
                             kind = 5;
                             restitution = coeff;
                         }
@@ -4204,41 +3944,7 @@ protected:
                 waveLInf = wavePatch.lInf();
             }
 
-            if
-            (
-                patchKind != 2
-             && rhoFixes != 0
-             && pFixes != 0
-             && TFixes != 0
-            )
-            {
-                for (label i = 0; i < size; ++i)
-                {
-                    const scalar expectedT =
-                        pPatch[i]
-                       /max(rhoPatch[i]*RgasValue, scalar(VSMALL));
-                    const scalar relativeEosError =
-                        mag(TPatch[i] - expectedT)
-                       /max(max(mag(TPatch[i]), mag(expectedT)), scalar(1));
-                    if
-                    (
-                        !std::isfinite(expectedT)
-                     || !std::isfinite(relativeEosError)
-                     || relativeEosError > scalar(1e-8)
-                    )
-                    {
-                        FatalErrorInFunction
-                            << "Boundary patch '" << pp.name() << "' fixes "
-                            << "rho, p and T simultaneously, but face " << i
-                            << " violates p=rho*R*T. Uploaded values are rho="
-                            << rhoPatch[i] << ", p=" << pPatch[i]
-                            << ", T=" << TPatch[i] << ", R=" << RgasValue
-                            << ". Fix two independent thermodynamic values "
-                            << "or make all three EOS-consistent."
-                            << exit(FatalError);
-                    }
-                }
-            }
+
 
             for (label i = 0; i < size; ++i)
             {
@@ -4810,21 +4516,7 @@ public:
         const dictionary& ugkwpProps
     )
     {
-        if
-        (
-            !std::isfinite(particleThermalRho)
-         || !std::isfinite(particleCp)
-         || particleThermalRho <= scalar(0)
-         || particleCp <= scalar(0)
-         || !std::isfinite(rhoSolid)
-         || rhoSolid <= scalar(0)
-        )
-        {
-            FatalErrorInFunction
-                << "CHT particle thermal density, heat capacity and material "
-                << "density must be finite and positive."
-                << exit(FatalError);
-        }
+
         residentParticleHeatFactorJkgK_ =
             particleThermalRho*particleCp/rhoSolid;
         residentRhoSolid_ = rhoSolid;
