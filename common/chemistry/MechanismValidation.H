@@ -7,12 +7,14 @@ namespace gasChemistryDetail {
 UGKWP_GAS_HD inline bool validRange(int offset,int count,int total) noexcept {
     return count==0 || (offset>=0 && count>0 && count<=total && offset<=total-count);
 }
-template<class R,int N,class TableReal> UGKWP_GAS_HD inline bool orthogonalBasis
-(const GasMechanismView<TableReal,N>& m,R* q) noexcept {
+template<class R,int N,class TableReal,bool Complete=true> UGKWP_GAS_HD inline bool orthogonalBasis
+(const GasMechanismView<TableReal,N>& m,R* q,bool* evaluated=nullptr) noexcept {
+    if(evaluated)*evaluated=false;
+    bool finite=true;
     const int rank=m.independentRank;
-    if(rank<0 || rank>N || (rank && !m.stoichiometricBasis)) return false;
+    if((rank>0 && (!q || !m.stoichiometricBasis)) || (!Complete && (rank<0 || rank>N))) return false;
     for(int j=0;j<rank;++j) {
-        for(int s=0;s<N;++s) { R v=m.stoichiometricBasis[s*rank+j]; if(!gasFinite(v))return false;q[s*N+j]=v; }
+        for(int s=0;s<N;++s) { R v=m.stoichiometricBasis[s*rank+j]; if(!gasFinite(v)){finite=false;if(!Complete)return false;}q[s*N+j]=v; }
         for(int pass=0;pass<2;++pass) for(int k=0;k<j;++k) {
             R dot=0;for(int s=0;s<N;++s)dot+=q[s*N+j]*q[s*N+k];
             for(int s=0;s<N;++s)q[s*N+j]-=dot*q[s*N+k];
@@ -20,22 +22,26 @@ template<class R,int N,class TableReal> UGKWP_GAS_HD inline bool orthogonalBasis
         R norm=0;for(int s=0;s<N;++s)norm+=q[s*N+j]*q[s*N+j];
         if(!gasFinite(norm) || norm==R(0)) {
             R scale=0;for(int s=0;s<N;++s)scale=gasThermoDetail::maxValue(scale,gasThermoDetail::absValue(q[s*N+j]));
-            if(!gasFinite(scale) || scale==R(0))return false;
+            if(!gasFinite(scale) || scale==R(0)){finite=false;if(!Complete)return false;}
             norm=0;for(int s=0;s<N;++s){const R value=q[s*N+j]/scale;norm+=value*value;}
             norm=::sqrt(norm);
             for(int s=0;s<N;++s)q[s*N+j]=(q[s*N+j]/scale)/norm;
         } else {norm=::sqrt(norm);for(int s=0;s<N;++s)q[s*N+j]/=norm;}
     }
-    return true;
+    if(evaluated)*evaluated=true;
+    return finite;
 }
 }
 namespace gasChemistryDetail {
 // The checks accompany the reaction being consumed, rather than rescanning a
 // whole mechanism before each scalar/AD evaluation.
-template<class R,int N> UGKWP_GAS_HD inline bool reactionInputAvailable
+template<class R,int N,bool Complete=true> UGKWP_GAS_HD inline bool reactionInputAvailable
 (const GasMechanismView<R,N>& m,int r) noexcept {
-    if(r<0 || r>=m.reactionCount || !m.reactions)return false;
+    if(!m.reactions || (!Complete && (r<0 || r>=m.reactionCount)))return false;
     const auto& a=m.reactions[r];
+    if(Complete)return (a.reactantCount<=0 || m.reactants)
+        && (a.productCount<=0 || m.products)
+        && (a.type==GasReactionType::Elementary || a.efficiencyCount<=0 || m.efficiencies);
     if(!validRange(a.reactantOffset,a.reactantCount,m.reactantTermCount)
       || !validRange(a.productOffset,a.productCount,m.productTermCount)
       || (a.reactantCount && !m.reactants) || (a.productCount && !m.products)
@@ -58,7 +64,7 @@ template<class R,int N> UGKWP_GAS_HD inline ChemistryStatus validateGasMechanism
 (const SpeciesThermoView<R,N>& t,const GasMechanismView<R,N>& m) noexcept {
     (void)t;ChemistryStatus st;
     if(m.reactionCount<0 || (m.reactionCount && !m.reactions)) {st.code=ChemistryCode::InvalidModel;return st;}
-    for(int r=0;r<m.reactionCount;++r)if(!gasChemistryDetail::reactionInputAvailable(m,r)) {
+    for(int r=0;r<m.reactionCount;++r)if(!gasChemistryDetail::reactionInputAvailable<R,N,false>(m,r)) {
         st.code=ChemistryCode::InvalidModel;st.reaction=r;return st;
     }
     return st;

@@ -45,7 +45,7 @@ template<class R> UGKWP_GAS_HD inline bool rateFinite(R a) noexcept{return gasFi
 template<class R,int D> UGKWP_GAS_HD inline bool rateFinite(const RateDual<R,D>& a) noexcept {if(!gasFinite(a.value))return false;for(int i=0;i<D;++i)if(!gasFinite(a.derivative[i]))return false;return true;}
 template<class R> UGKWP_GAS_HD inline R gibbsNumber(R value,R) noexcept{return value;}
 template<class R,int D> UGKWP_GAS_HD inline RateDual<R,D> gibbsNumber(R value,R thermalDerivative) noexcept {RateDual<R,D> out(value);out.derivative[D-1]=thermalDerivative;return out;}
-template<class Number,class R> struct GibbsNumber {UGKWP_GAS_HD static Number make(R v,R) noexcept{return Number(v);}};
-template<class R,int D> struct GibbsNumber<RateDual<R,D>,R> {UGKWP_GAS_HD static RateDual<R,D> make(R v,R dt) noexcept {RateDual<R,D> out(v);out.derivative[D-1]=dt;return out;}};
+template<class Number,class R> struct GibbsNumber {static constexpr bool thermal=false;UGKWP_GAS_HD static Number make(R v,R) noexcept{return Number(v);}};
+template<class R,int D> struct GibbsNumber<RateDual<R,D>,R> {static constexpr bool thermal=true;UGKWP_GAS_HD static RateDual<R,D> make(R v,R dt) noexcept {RateDual<R,D> out(v);out.derivative[D-1]=dt;return out;}};
 }}
 #endif
