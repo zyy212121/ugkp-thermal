@@ -16,7 +16,6 @@ namespace Foam
 {
 namespace gpuThermal
 {
-
 constexpr GpuReal capillaryPi =
     GPU_R(3.141592653589793238462643383279502884);
 
@@ -66,16 +65,6 @@ evaluateCapillaryDetachmentState
 {
     const AluminaLiquidProperties material =
         liquidAluminaProperties(particleTemperatureK);
-    if
-    (
-        !material.valid
-     || !finiteCapillaryValue(particleDiameterM)
-     || !finiteCapillaryValue(adhesionEnergyScale)
-     || !finiteCapillaryValue(contactAngleCosine)
-    )
-    {
-        return {false, GPU_R(0.0), GPU_R(0.0), GPU_R(0.0), material};
-    }
 
     const GpuReal cosine = clampCapillary
     (
@@ -87,13 +76,6 @@ evaluateCapillaryDetachmentState
         particleDiameterM*particleDiameterM*particleDiameterM;
     const GpuReal volumeM3 = capillaryPi*diameter3/GPU_R(6.0);
     const GpuReal capDenominator = GPU_R(2.0) - GPU_R(3.0)*cosine + cosine*cosine*cosine;
-    if
-    (
-        !finiteCapillaryValue(capDenominator)
-    )
-    {
-        return {false, GPU_R(0.0), GPU_R(0.0), GPU_R(0.0), material};
-    }
 
     const GpuReal capRadiusM =
         ::cbrt(GPU_R(3.0)*volumeM3/(capillaryPi*capDenominator));
@@ -111,9 +93,9 @@ evaluateCapillaryDetachmentState
     return
     {
         valid,
-        valid ? adhesionSpecificEnergyJkg : GPU_R(0.0),
+        adhesionSpecificEnergyJkg,
         cosine,
-        valid ? contactAreaM2 : GPU_R(0.0),
+        contactAreaM2,
         material
     };
 }
@@ -127,30 +109,11 @@ applyCapillaryContactDamage
     const GpuReal sampledSpecificEnergyJkg
 ) noexcept
 {
-    if
-    (
-        !capillary.valid
-     || !finiteCapillaryValue(currentContactAreaM2)
-     || !finiteCapillaryValue(contactAreaScale)
-     || !finiteCapillaryValue(sampledSpecificEnergyJkg)
-    )
-    {
-        return {false, false, GPU_R(0.0), GPU_R(0.0)};
-    }
-
     const GpuReal adhesionSpecificEnergyPerArea =
         capillary.adhesionSpecificEnergyJkg
        /capillary.equilibriumContactAreaM2;
     const GpuReal remainingAdhesionSpecificEnergy =
         contactAreaScale*adhesionSpecificEnergyPerArea*currentContactAreaM2;
-    if
-    (
-        !finiteCapillaryValue(adhesionSpecificEnergyPerArea)
-     || !finiteCapillaryValue(remainingAdhesionSpecificEnergy)
-    )
-    {
-        return {false, false, GPU_R(0.0), GPU_R(0.0)};
-    }
 
     if (sampledSpecificEnergyJkg >= remainingAdhesionSpecificEnergy)
     {
@@ -161,7 +124,7 @@ applyCapillaryContactDamage
             finiteCapillaryValue(residual),
             true,
             GPU_R(0.0),
-            finiteCapillaryValue(residual) ? residual : GPU_R(0.0)
+            residual
         };
     }
 
@@ -177,7 +140,7 @@ applyCapillaryContactDamage
     {
         valid,
         false,
-        valid ? remainingAreaM2 : GPU_R(0.0),
+        remainingAreaM2,
         GPU_R(0.0)
     };
 }

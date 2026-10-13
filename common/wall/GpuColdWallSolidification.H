@@ -139,10 +139,6 @@ GPU_COLD_WALL_HD inline GpuReal coldWallSpecificEnthalpyJkg
     const ColdWallSolidificationParameters& parameters
 ) noexcept
 {
-    if (!finiteColdWallValue(temperatureK))
-    {
-        return std::numeric_limits<GpuReal>::quiet_NaN();
-    }
     const GpuReal solidus = coldWallSolidusTemperature(parameters);
     const GpuReal liquidus = coldWallLiquidusTemperature(parameters);
     const GpuReal hSolidus = parameters.solidSpecificHeatJkgK*solidus;
@@ -167,10 +163,6 @@ GPU_COLD_WALL_HD inline GpuReal coldWallTemperatureFromSpecificEnthalpyK
     const ColdWallSolidificationParameters& parameters
 ) noexcept
 {
-    if (!finiteColdWallValue(specificEnthalpyJkg))
-    {
-        return std::numeric_limits<GpuReal>::quiet_NaN();
-    }
     const GpuReal solidus = coldWallSolidusTemperature(parameters);
     const GpuReal liquidus = coldWallLiquidusTemperature(parameters);
     const GpuReal hSolidus = parameters.solidSpecificHeatJkgK*solidus;
@@ -194,7 +186,14 @@ GPU_COLD_WALL_HD inline GpuReal coldWallTemperatureFromSpecificEnthalpyK
      && upper < GPU_R(20000.0)
     )
     {
+        const GpuReal previousUpper = upper;
         upper *= GPU_R(1.5);
+        // A stationary bound (including -infinity) cannot extend the bracket.
+        // Continue through the same bounded inverse arithmetic below.
+        if (upper == previousUpper)
+        {
+            break;
+        }
     }
     for (int iteration = 0; iteration < 40; ++iteration)
     {
@@ -342,6 +341,8 @@ GPU_COLD_WALL_HD inline void solveColdWallTridiagonal
 // Integrate one whole-particle Ranz--Marshall exchange with a frozen secant
 // heat capacity. Exact for constant cp; first-order across nonlinear/phase
 // regions. The result is a specific-enthalpy increment shared by all nodes.
+// Always calculate that increment. The boolean reports its finiteness; terminal
+// profile owners publish the native arithmetic even when that diagnostic is false.
 GPU_COLD_WALL_HD inline bool coldWallGasSpecificEnthalpyIncrement
 (
     const GpuReal meanOldSpecificEnthalpyJkg,
@@ -354,17 +355,7 @@ GPU_COLD_WALL_HD inline bool coldWallGasSpecificEnthalpyIncrement
 ) noexcept
 {
     specificEnthalpyIncrementJkg = GPU_R(0.0);
-    if
-    (
-        !finiteColdWallValue(meanOldSpecificEnthalpyJkg)
-     || !finiteColdWallValue(physicalMassKg)
-     || !finiteColdWallValue(gasTemperatureK)
-     || !finiteColdWallValue(gasConductanceWK)
-     || !finiteColdWallValue(deltaTSeconds)
-    )
-    {
-        return false;
-    }
+
     if (gasConductanceWK == GPU_R(0.0) || deltaTSeconds == 0.0)
     {
         return true;
@@ -396,16 +387,7 @@ GPU_COLD_WALL_HD inline bool coldWallGasSpecificEnthalpyIncrement
         ::fabs(temperatureDifference) <= inverseRelativeTolerance*temperatureScale
       ? coldWallApparentSpecificHeat(bulkTemperatureK, parameters)
       : enthalpyDifference/temperatureDifference;
-    if
-    (
-        !finiteColdWallValue(bulkTemperatureK)
-     || !finiteColdWallValue(equilibriumEnthalpy)
-     || !finiteColdWallValue(enthalpyDifference)
-     || !finiteColdWallValue(secantSpecificHeat)
-    )
-    {
-        return false;
-    }
+
     const GpuTime relaxation = deltaTSeconds
       *static_cast<GpuTime>(gasConductanceWK)/physicalMassKg/secantSpecificHeat;
     specificEnthalpyIncrementJkg = enthalpyDifference
@@ -439,18 +421,6 @@ GPU_COLD_WALL_HD inline ColdWallSolidificationStep advanceColdWallProfile
     (
         nodeSpecificEnthalpyJkg == nullptr
      || ringSolidMassKg == nullptr
-     || !validColdWallSolidificationParameters(parameters)
-     || !finiteColdWallValue(particleVolumeM3)
-     || !finiteColdWallValue(parcelMassKg)
-     || !finiteColdWallValue(maximumAreaM2)
-     || !finiteColdWallValue(intrinsicContactAreaM2)
-     || !finiteColdWallValue(contactDurationS)
-     || !finiteColdWallValue(deltaTSeconds)
-     || !finiteColdWallValue(wallTemperatureK)
-     || !finiteColdWallValue(wallEffusivity)
-     || !finiteColdWallValue(profileContactAgeS)
-     || !finiteColdWallValue(frozenFootprintAreaM2)
-     || !finiteColdWallValue(gasExchangeDurationS)
     )
     {
         return {false, GPU_R(0.0), GPU_R(0.0), GPU_R(0.0), GPU_R(0.0), GPU_R(0.0)};
@@ -486,28 +456,17 @@ GPU_COLD_WALL_HD inline ColdWallSolidificationStep advanceColdWallProfile
             parameters
         );
         candidateEnthalpy[node] = oldEnthalpy[node];
-        if
-        (
-            !finiteColdWallValue(oldEnthalpy[node])
-         || !finiteColdWallValue(guessedTemperature[node])
-         || !finiteColdWallValue(ringSolidMassKg[node])
-        )
-        {
-            return {false, GPU_R(0.0), GPU_R(0.0), GPU_R(0.0), GPU_R(0.0), GPU_R(0.0)};
-        }
+
         meanOldEnthalpy += oldEnthalpy[node]/static_cast<GpuReal>(coldWallAxialNodeCount);
     }
     GpuReal gasSpecificEnthalpyIncrement = GPU_R(0.0);
     const GpuTime gasDeltaTSeconds = gasExchangeDurationS == -1.0
       ? deltaTSeconds : gasExchangeDurationS;
-    if (!coldWallGasSpecificEnthalpyIncrement
-        (
-            meanOldEnthalpy, parcelMassKg, gasTemperatureK, gasConductanceWK,
-            gasDeltaTSeconds, parameters, gasSpecificEnthalpyIncrement
-        ))
-    {
-        return {false, GPU_R(0.0), GPU_R(0.0), GPU_R(0.0), GPU_R(0.0), GPU_R(0.0)};
-    }
+    coldWallGasSpecificEnthalpyIncrement
+    (
+        meanOldEnthalpy, parcelMassKg, gasTemperatureK, gasConductanceWK,
+        gasDeltaTSeconds, parameters, gasSpecificEnthalpyIncrement
+    );
     const GpuReal nodeGasPower = nodeMass*gasSpecificEnthalpyIncrement
       /(deltaTSeconds + GPU_REAL_MIN);
 
@@ -565,10 +524,7 @@ GPU_COLD_WALL_HD inline ColdWallSolidificationStep advanceColdWallProfile
                 );
             const GpuReal conductance =
                 conductanceIntegral/(deltaTSeconds + GPU_REAL_MIN);
-            if (!finiteColdWallValue(conductanceIntegral))
-            {
-                return {false, GPU_R(0.0), GPU_R(0.0), GPU_R(0.0), GPU_R(0.0), GPU_R(0.0)};
-            }
+
             wallConductance += conductance;
             ringCoolingPower[ring] = conductance*
                 (guessedTemperature[0] - wallTemperatureK);
@@ -661,13 +617,7 @@ GPU_COLD_WALL_HD inline ColdWallSolidificationStep advanceColdWallProfile
             candidateEnthalpy[node] = oldEnthalpy[node]
               + gasSpecificEnthalpyIncrement
               + deltaTSeconds*power/nodeMass;
-            if
-            (
-                !finiteColdWallValue(candidateEnthalpy[node])
-            )
-            {
-                return {false, GPU_R(0.0), GPU_R(0.0), GPU_R(0.0), GPU_R(0.0), GPU_R(0.0)};
-            }
+
             guessedTemperature[node] = coldWallTemperatureFromSpecificEnthalpyK
             (
                 candidateEnthalpy[node],
@@ -790,20 +740,14 @@ GPU_COLD_WALL_HD inline ColdWallSolidificationStep advanceColdWallProfile
         parameters
     );
     const GpuReal wallEnergy = acceptedWallPower*deltaTSeconds;
-    const bool valid =
-        finiteColdWallValue(meanTemperature)
-     && finiteColdWallValue(surfaceTemperature)
-     && finiteColdWallValue(wallEnergy)
-     && finiteColdWallValue(connectedMass)
-     && finiteColdWallValue(frozenFootprintAreaM2);
     return
     {
-        valid,
-        valid ? meanTemperature : GPU_R(0.0),
-        valid ? surfaceTemperature : GPU_R(0.0),
-        valid ? wallEnergy : GPU_R(0.0),
-        valid ? connectedMass : GPU_R(0.0),
-        valid ? frozenFootprintAreaM2 : GPU_R(0.0)
+        true,
+        meanTemperature,
+        surfaceTemperature,
+        wallEnergy,
+        connectedMass,
+        frozenFootprintAreaM2
     };
 }
 

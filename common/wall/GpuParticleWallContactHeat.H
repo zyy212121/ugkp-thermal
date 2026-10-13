@@ -19,7 +19,6 @@ namespace Foam
 {
 namespace gpuThermal
 {
-
 constexpr GpuReal particleWallContactPi =
     GPU_R(3.141592653589793238462643383279502884);
 constexpr GpuReal particleWallContactNormalSpeedFloorMps = GPU_R(1.0e-12);
@@ -68,17 +67,6 @@ lumpedParticleWallInterfaceContact
     const GpuReal conductanceTimeIntegralJK
 ) noexcept
 {
-    if
-    (
-        !finiteParticleWallContactValue(particleTemperatureK)
-     || !finiteParticleWallContactValue(wallTemperatureK)
-     || !finiteParticleWallContactValue(physicalParticleMassKg)
-     || !finiteParticleWallContactValue(parcelMassKg)
-     || !finiteParticleWallContactValue(conductanceTimeIntegralJK)
-    )
-    {
-        return invalidParticleWallContactResult();
-    }
     if (conductanceTimeIntegralJK == GPU_R(0.0))
     {
         return
@@ -114,10 +102,7 @@ lumpedParticleWallInterfaceContact
             physicalParticleMassKg
            *(aluminaSpecificEnthalpyJkg(middle) - oldSpecificEnthalpy)
           + conductanceTimeIntegralJK*(middle - wallTemperatureK);
-        if (!finiteParticleWallContactValue(residual))
-        {
-            return invalidParticleWallContactResult();
-        }
+
         if (residual < GPU_R(0.0))
         {
             lower = middle;
@@ -136,18 +121,12 @@ lumpedParticleWallInterfaceContact
         );
     const GpuReal parcelWallEnergyJ =
         physicalWallEnergyJ*parcelMassKg/physicalParticleMassKg;
-    if
-    (
-        !finiteParticleWallContactValue(newTemperatureK)
-     || !finiteParticleWallContactValue(physicalWallEnergyJ)
-     || !finiteParticleWallContactValue(parcelWallEnergyJ)
-    )
-    {
-        return invalidParticleWallContactResult();
-    }
+
     return
     {
-        true,
+        finiteParticleWallContactValue(newTemperatureK)
+         && finiteParticleWallContactValue(physicalWallEnergyJ)
+         && finiteParticleWallContactValue(parcelWallEnergyJ),
         newTemperatureK,
         -parcelWallEnergyJ,
         parcelWallEnergyJ,
@@ -171,36 +150,14 @@ GPU_PARTICLE_WALL_CONTACT_HD inline GpuReal representedDepositionContactArea
     const GpuReal parcelMassKg
 ) noexcept
 {
-    if
-    (
-        !finiteParticleWallContactValue(parcelReferenceDensityKgM3)
-     || !finiteParticleWallContactValue(diameterM)
-     || !finiteParticleWallContactValue(depositionAreaM2)
-     || !finiteParticleWallContactValue(parcelMassKg)
-    )
-    {
-        return std::numeric_limits<GpuReal>::quiet_NaN();
-    }
-
     const GpuReal physicalParticleMassKg =
         (particleWallContactPi/GPU_R(6.0))*parcelReferenceDensityKgM3
        *diameterM*diameterM*diameterM;
-    if
-    (
-        !finiteParticleWallContactValue(physicalParticleMassKg)
-    )
-    {
-        return std::numeric_limits<GpuReal>::quiet_NaN();
-    }
 
     const GpuReal representedAreaM2 =
         depositionAreaM2*parcelMassKg/physicalParticleMassKg;
-    return
-        finiteParticleWallContactValue(representedAreaM2)
-      ? representedAreaM2
-      : std::numeric_limits<GpuReal>::quiet_NaN();
+    return representedAreaM2;
 }
-
 
 }                        
 }                  

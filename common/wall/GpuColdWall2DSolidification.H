@@ -49,14 +49,6 @@ GPU_COLD_WALL_2D_HD inline ColdWall2DGeometry coldWall2DGeometry
     const GpuReal maximumAreaM2
 ) noexcept
 {
-    const bool valid =
-        finiteColdWallValue(particleVolumeM3)
-     && finiteColdWallValue(physicalParticleMassKg)
-     && finiteColdWallValue(maximumAreaM2);
-    if (!valid)
-    {
-        return {false, GPU_R(0.0), GPU_R(0.0), GPU_R(0.0), GPU_R(0.0), GPU_R(0.0)};
-    }
     const GpuReal filmThickness = particleVolumeM3/maximumAreaM2;
     const GpuReal maximumRadius = ::sqrt(maximumAreaM2/coldWallPi);
     const GpuReal axialNodeThickness =

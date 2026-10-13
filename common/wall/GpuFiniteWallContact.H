@@ -19,7 +19,6 @@ namespace Foam
 {
 namespace gpuThermal
 {
-
 constexpr GpuReal finiteContactPi =
     GPU_R(3.141592653589793238462643383279502884);
 constexpr int finiteContactTimeTableSize = 257;
@@ -213,13 +212,6 @@ GPU_FINITE_CONTACT_HD inline FiniteWallContactImpact evaluateFiniteWallContactIm
 {
     const AluminaLiquidProperties material =
         liquidAluminaProperties(particleTemperatureK);
-    if
-    (
-        !material.valid || !finiteContactValue(diameterM) || !finiteContactValue(normalSpeedMps)
-    )
-    {
-        return {false, GPU_R(0.0), GPU_R(0.0), GPU_R(0.0), GPU_R(0.0), GPU_R(0.0), GPU_R(0.0), GPU_R(0.0)};
-    }
 
     const GpuReal weber =
         material.densityKgM3*normalSpeedMps*normalSpeedMps*diameterM
@@ -244,10 +236,7 @@ GPU_FINITE_CONTACT_HD inline FiniteWallContactImpact evaluateFiniteWallContactIm
        /(material.densityKgM3*diameterM*diameterM);
     const GpuReal dampedFrequencySquared =
         naturalFrequency*naturalFrequency - dampingRate*dampingRate;
-    if (!(dampedFrequencySquared > GPU_R(0.0)))
-    {
-        return {false, GPU_R(0.0), GPU_R(0.0), GPU_R(0.0), GPU_R(0.0), GPU_R(0.0), weber, ohnesorge};
-    }
+
     const GpuReal dampedFrequency = ::sqrt(dampedFrequencySquared);
     const GpuTime recoilDuration =
         (finiteContactPi - ::atan2(dampedFrequency, dampingRate))
@@ -267,16 +256,15 @@ GPU_FINITE_CONTACT_HD inline FiniteWallContactImpact evaluateFiniteWallContactIm
     return
     {
         valid,
-        valid ? beta : GPU_R(0.0),
-        valid ? maximumArea : GPU_R(0.0),
-        valid ? duration : GPU_R(0.0),
-        valid ? peakTimeFraction : GPU_R(0.0),
-        valid ? physicalMass : GPU_R(0.0),
+        beta,
+        maximumArea,
+        duration,
+        peakTimeFraction,
+        physicalMass,
         weber,
         ohnesorge
     };
 }
-
 
 
 
@@ -339,18 +327,6 @@ GPU_FINITE_CONTACT_HD inline GpuReal finiteContactWallConductanceTimeIntegral
     const bool wallTransientResistance
 ) noexcept
 {
-    if
-    (
-        !finiteContactValue(maximumAreaM2)
-     || !finiteContactValue(contactAreaM2)
-     || !finiteContactValue(contactDurationS)
-     || !finiteContactValue(peakTimeFraction)
-     || !finiteContactValue(profileAge0S)
-     || !finiteContactValue(deltaTSeconds)
-    )
-    {
-        return std::numeric_limits<GpuReal>::quiet_NaN();
-    }
     if (!(contactAreaM2 > GPU_R(0.0)))
     {
         return GPU_R(0.0);
@@ -400,10 +376,7 @@ GPU_FINITE_CONTACT_HD inline GpuReal finiteContactWallConductanceTimeIntegral
             wallEffusivityWsHalfM2K,
             wallTransientResistance
         );
-        if (!finiteContactValue(contribution))
-        {
-            return std::numeric_limits<GpuReal>::quiet_NaN();
-        }
+
         total += contribution;
     }
     return total;

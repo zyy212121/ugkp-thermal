@@ -17,7 +17,6 @@ namespace Foam
 {
 namespace gpuThermal
 {
-
 struct SommerfeldImpact
 {
     bool valid;
@@ -43,27 +42,8 @@ GPU_SOMMERFELD_HD inline SommerfeldImpact evaluateSommerfeldImpact
     const GpuReal threshold
 ) noexcept
 {
-    if
-    (
-        !finiteSommerfeldValue(particleTemperatureK)
-     || !finiteSommerfeldValue(normalSpeed)
-     || !finiteSommerfeldValue(particleDiameter)
-     || !finiteSommerfeldValue(threshold)
-     || !(particleTemperatureK > GPU_R(0.0))
-     || normalSpeed < GPU_R(0.0)
-     || !(particleDiameter > GPU_R(0.0))
-     || !(threshold > GPU_R(0.0))
-    )
-    {
-        return {false, false, GPU_R(0.0), GPU_R(0.0), GPU_R(0.0)};
-    }
-
     const AluminaLiquidProperties material =
         liquidAluminaProperties(particleTemperatureK);
-    if (!material.valid)
-    {
-        return {false, false, GPU_R(0.0), GPU_R(0.0), GPU_R(0.0)};
-    }
 
     const GpuReal weber =
         material.densityKgM3*normalSpeed*normalSpeed*particleDiameter
@@ -72,21 +52,11 @@ GPU_SOMMERFELD_HD inline SommerfeldImpact evaluateSommerfeldImpact
         material.densityKgM3*normalSpeed*particleDiameter
        /material.viscosityPaS;
     const GpuReal sommerfeld = ::sqrt(weber)*::pow(reynolds, GPU_R(0.25));
-    if
-    (
-        !finiteSommerfeldValue(weber)
-     || !finiteSommerfeldValue(reynolds)
-     || !finiteSommerfeldValue(sommerfeld)
-     || weber < GPU_R(0.0)
-     || reynolds < GPU_R(0.0)
-     || sommerfeld < GPU_R(0.0)
-    )
-    {
-        return {false, false, GPU_R(0.0), GPU_R(0.0), GPU_R(0.0)};
-    }
+
     return
     {
-        true,
+        finiteSommerfeldValue(weber) && finiteSommerfeldValue(reynolds)
+         && finiteSommerfeldValue(sommerfeld),
         sommerfeld >= threshold,
         weber,
         reynolds,

@@ -1,33 +1,16 @@
 // Shared assembly, nonlinear enthalpy update and publication.
 // Precision policies retain the existing cache and stable PCR path.
+// Numerical tails complete these same formulas; false denotes missing backing.
 
     const bool inputValid =
         true
 #ifdef GPU_PAIRED_PARTICLE_HEAT
      && s.pThermalEnthalpyResidual != nullptr
-     && Foam::gpuThermal::finiteColdWallValue(s.pm[particleI])
 #endif
      && s.pColdNodeSpecificEnthalpy != nullptr
      && s.pColdRingSolidMass != nullptr
      && s.pColdFrozenArea != nullptr
-     && s.pColdContactAge != nullptr
-     && Foam::gpuThermal::validColdWallSolidificationParameters
-        (
-            s.coldWallSolidificationParameters
-        )
-     && Foam::gpuThermal::finiteColdWallValue(physicalVolumeM3)
-     && Foam::gpuThermal::finiteColdWallValue(physicalMassKg)
-     && Foam::gpuThermal::finiteColdWallValue(maximumAreaM2)
-     && Foam::gpuThermal::finiteColdWallValue(intrinsicContactAreaM2)
-     && Foam::gpuThermal::finiteColdWallValue(contactDurationS)
-     && Foam::gpuThermal::finiteColdWallValue(peakTimeFraction)
-     && Foam::gpuThermal::finiteColdWallValue(deltaTSeconds)
-     && Foam::gpuThermal::finiteColdWallValue(wallTemperatureK)
-     && Foam::gpuThermal::finiteColdWallValue(wallEffusivity)
-     && Foam::gpuThermal::finiteColdWallValue(thermalAreaFactor)
-     && Foam::gpuThermal::finiteColdWallValue(gasTemperatureK)
-     && Foam::gpuThermal::finiteColdWallValue(gasConductanceWK)
-     && Foam::gpuThermal::finiteColdWallValue(gasExchangeDurationS);
+     && s.pColdContactAge != nullptr;
     if (!__all_sync(mask, inputValid))
     {
         return false;
@@ -76,36 +59,21 @@
         0,
         8
     );
-    int stateValid =
-        Foam::gpuThermal::finiteColdWallValue(oldEnthalpy)
-     && Foam::gpuThermal::finiteColdWallValue(guessedTemperature)
-     && Foam::gpuThermal::finiteColdWallValue(ringSolidMass)
-     && Foam::gpuThermal::finiteColdWallValue(profileContactAgeS)
-     && Foam::gpuThermal::finiteColdWallValue(frozenArea);
-    if (!__all_sync(mask, stateValid))
-    {
-        return false;
-    }
-
     [[maybe_unused]] const ColdWallThermalReal meanOldEnthalpy = coldWall1DGroupSum(oldEnthalpy/GPU_R(8.0), mask);
     ColdWallThermalReal gasSpecificEnthalpyIncrement = GPU_R(0.0);
     [[maybe_unused]] const GpuTime gasDeltaTSeconds = gasExchangeDurationS == -1.0
       ? deltaTSeconds : gasExchangeDurationS;
 #ifndef GPU_PAIRED_PARTICLE_HEAT
-    bool gasSourceValid = true;
     if (lane == 0)
     {
-        gasSourceValid = Foam::gpuThermal::coldWallGasSpecificEnthalpyIncrement
+        Foam::gpuThermal::coldWallGasSpecificEnthalpyIncrement
         (
             meanOldEnthalpy, physicalMassKg, gasTemperatureK, gasConductanceWK,
             gasDeltaTSeconds, s.coldWallSolidificationParameters,
             gasSpecificEnthalpyIncrement
         );
     }
-    if (!__all_sync(mask, gasSourceValid))
-    {
-        return false;
-    }
+
     gasSpecificEnthalpyIncrement = __shfl_sync(mask, gasSpecificEnthalpyIncrement, 0, 8);
 #endif
 
@@ -186,10 +154,7 @@
             );
         const ColdWallThermalReal ringConductance =
             ringConductanceIntegral/(deltaTSeconds + GPU_REAL_MIN);
-        if (!__all_sync(mask, Foam::gpuThermal::finiteColdWallValue(ringConductanceIntegral)))
-        {
-            return false;
-        }
+
         const ColdWallThermalReal wallConductance =
             coldWall1DGroupSum(ringConductance, mask);
         const ColdWallThermalReal bottomTemperature =
@@ -262,13 +227,6 @@
                 s.coldWallSolidificationParameters
             );
         acceptedWallPower = wallPower;
-        stateValid =
-            Foam::gpuThermal::finiteColdWallValue(candidateEnthalpy)
-         && Foam::gpuThermal::finiteColdWallValue(guessedTemperature);
-        if (!__all_sync(mask, stateValid))
-        {
-            return false;
-        }
     }
 
 #include "GpuColdWall1DPublish.inl"

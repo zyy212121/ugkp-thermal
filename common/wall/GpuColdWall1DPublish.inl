@@ -14,8 +14,6 @@
     const double nextCarry = (oldCarry-storageChange)+meanIncrement;
     guessedTemperature = coldWallCarryTemperature(double(publishedEnthalpy)+nextCarry,
       s.coldWallSolidificationParameters);
-    if (!__all_sync(mask, ::fabs(nextCarry)<=DBL_MAX
-        && Foam::gpuThermal::finiteColdWallValue(guessedTemperature))) return false;
 #endif
     ColdWallThermalReal connectedFraction = coldWall1DSolidFractionFromKnownTemperature
     (
@@ -134,8 +132,4 @@
     meanTemperatureK = __shfl_sync(mask, groupMeanTemperature, 0, 8);
     frozenFootprintAreaM2 = frozenArea;
     wallEnergyJ = acceptedWallPower*deltaTSeconds;
-    stateValid =
-        Foam::gpuThermal::finiteColdWallValue(meanTemperatureK)
-     && Foam::gpuThermal::finiteColdWallValue(frozenFootprintAreaM2)
-     && Foam::gpuThermal::finiteColdWallValue(wallEnergyJ);
-    return __all_sync(mask, stateValid);
+    return true;

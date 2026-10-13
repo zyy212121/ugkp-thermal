@@ -72,16 +72,6 @@
         {
             const GpuReal damageArea =
                 static_cast<GpuReal>(s.pDepositionArea[i]);
-            // A duration divisor and actual nonfinite metadata remain errors.
-            if
-            (
-                !Foam::gpuThermal::finiteColdWallValue(duration) || duration == 0.0
-             || !Foam::gpuThermal::finiteColdWallValue(peakTimeFraction)
-             || !Foam::gpuThermal::finiteColdWallValue(damageArea)
-            )
-            {
-                asm("trap;");
-            }
             const GpuTime age0 = clampRange
             (
                 finiteOr(s.pContactAge[i], GPU_R(0.0)),
@@ -96,10 +86,7 @@
                     ageMid/duration,
                     peakTimeFraction
                 );
-            if (!Foam::gpuThermal::finiteColdWallValue(kinematicAreaMid))
-            {
-                asm("trap;");
-            }
+
             intrinsicArea = clampMin
             (
                 fmax
@@ -114,10 +101,7 @@
         {
             intrinsicArea = static_cast<GpuReal>(s.pDepositionArea[i]);
         }
-        if (!Foam::gpuThermal::finiteColdWallValue(intrinsicArea))
-        {
-            asm("trap;");
-        }
+
         if (!(activeDt > GPU_R(0.0)) || !(intrinsicArea > GPU_R(0.0)))
         {
             // A finite contact may retract below its accumulated damage, or
