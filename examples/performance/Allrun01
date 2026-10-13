@@ -24,11 +24,6 @@ for requested in "${REQUESTED_CASES[@]}"; do
     }
 done
 
-if nvidia-smi --query-compute-apps=pid --format=csv,noheader,nounits 2>/dev/null | grep -q '[0-9]'; then
-    echo "GPU has an active compute process; refusing to overlap." >&2
-    exit 3
-fi
-
 mkdir -p "$LOG_ROOT"
 printf 'case\tstatus\tlog\n' > "$SUMMARY"
 overall=0
