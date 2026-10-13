@@ -11,7 +11,7 @@ UGKWP_GAS_HD inline bool gasRecordCellFailure(const State& s,int c,GasTransportC
 {
     if constexpr (GasStateTraits<State>::speciesCount > 0)
         if(s.gasSpecies.cellStatus && c>=0 && c<s.nCells)
-        { s.gasSpecies.cellStatus[c]=int(code); return true; }
+        { if(s.gasSpecies.cellStatus[c]!=int(GasTransportCode::InvalidStorage))s.gasSpecies.cellStatus[c]=int(code); return true; }
     return false;
 }
 template<class State>
@@ -19,7 +19,7 @@ UGKWP_GAS_HD inline bool gasRecordFaceFailure(const State& s,int f,GasTransportC
 {
     if constexpr (GasStateTraits<State>::speciesCount > 0)
         if(s.gasSpecies.faceStatus && f>=0 && f<s.nFaces)
-        { s.gasSpecies.faceStatus[f]=int(code); return true; }
+        { if(s.gasSpecies.faceStatus[f]!=int(GasTransportCode::InvalidStorage))s.gasSpecies.faceStatus[f]=int(code); return true; }
     return false;
 }
 template<class State>
@@ -37,28 +37,33 @@ UGKWP_GAS_HD inline int gasFaceFailure(const State& s,int f)
     return 0;
 }
 template<class State,class Time,class Real>
-UGKWP_GAS_HD inline bool gasGeometryFaceFrame(const State& s,int f,Time dt,GasFaceFrame<Real>& frame)
+UGKWP_GAS_HD inline bool gasGeometryFaceFrame(const State& s,int f,Time dt,GasFaceFrame<Real>& frame,bool* evaluated=nullptr)
 {
+    if(evaluated)*evaluated=false;
     if constexpr (GasGeometryCapability<State>::value)
     {
         (void)dt;
-        if(f<0 || f>=s.nFaces || !s.gasGeometry.faceSweptVolume
-            || !makeGasFaceFrame(s.Sfx[f],s.Sfy[f],s.Sfz[f],s.gasGeometry.faceSweptVolume[f],s.gasGeometry.interval,frame))return false;
-        return true;
+        if(!s.gasGeometry.faceSweptVolume || !s.Sfx || !s.Sfy || !s.Sfz)return false;
+        const bool valid=makeGasFaceFrame(s.Sfx[f],s.Sfy[f],s.Sfz[f],
+            s.gasGeometry.faceSweptVolume[f],s.gasGeometry.interval,frame);
+        if(evaluated)*evaluated=true;
+        return valid;
     }
     return false;
 }
 template<class State,class Time,class Real>
-UGKWP_GAS_HD inline bool gasGeometryCellVolumes(const State& s,int c,Time dt,Real& oldVolume,Real& newVolume)
+UGKWP_GAS_HD inline bool gasGeometryCellVolumes(const State& s,int c,Time dt,Real& oldVolume,Real& newVolume,bool* evaluated=nullptr)
 {
+    if(evaluated)*evaluated=false;
     if constexpr (GasGeometryCapability<State>::value)
     {
         (void)dt;
         const auto& g=s.gasGeometry;
-        if(c<0 || c>=s.nCells || !g.oldVolume || !g.newVolume)return false;
+        if(!g.oldVolume || !g.newVolume)return false;
         const Real oldValue=g.oldVolume[c],newValue=g.newVolume[c];
-        if(!gasGeometryDetail::finite(oldValue) || !gasGeometryDetail::finite(newValue))return false;
-        oldVolume=oldValue;newVolume=newValue;return true;
+        oldVolume=oldValue;newVolume=newValue;
+        if(evaluated)*evaluated=true;
+        return gasGeometryDetail::finite(oldValue) && gasGeometryDetail::finite(newValue);
     }
     return false;
 }

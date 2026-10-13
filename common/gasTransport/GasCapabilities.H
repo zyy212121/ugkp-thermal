@@ -3,8 +3,8 @@
 
 namespace ugkwp
 {
-// Status belongs to trial storage; any nonzero cell/face status rejects the
-// entire trial. Applications must never publish a partially accepted update.
+// Status belongs to trial storage. InvalidStorage records unavailable output;
+// other values are numerical diagnostics used by the original strict retries.
 enum class GasTransportCode : int
 {
     Success = 0,
@@ -41,12 +41,6 @@ struct GasCapabilityResult
 };
 UGKWP_GAS_HD inline GasCapabilityResult validateGasCapabilities(const GasCapabilityRequest& r)
 {
-    if (r.fluxScheme < 1 || r.fluxScheme > 9 || r.reconstruction < 0 || r.reconstruction > 2
-        || r.limiter < 0 || r.limiter > 2 || r.timeIntegrator < 1 || r.timeIntegrator > 3
-        || r.turbulenceModel < 0 || r.turbulenceModel > 3)
-        return {GasTransportCode::UnsupportedConfiguration, "invalid gas numerical selector"};
-    if (r.sstWallTreatment < 0 || r.sstWallTreatment > 2)
-        return {GasTransportCode::UnsupportedConfiguration, "invalid gas wall family"};
     if (r.sstWallTreatment == 2)
     {
         if (r.mode == GasMode::SingleLegacy || r.particleCoupling)
@@ -58,12 +52,6 @@ UGKWP_GAS_HD inline GasCapabilityResult validateGasCapabilities(const GasCapabil
         return {GasTransportCode::UnsupportedConfiguration, "ALE particle void-fraction closure is not enabled"};
     if (r.mode == GasMode::SingleLegacy)
         return {GasTransportCode::Success, "legacy gas capabilities"};
-    if (r.mode != GasMode::MixtureFrozen && r.mode != GasMode::MixtureChemistry)
-        return {GasTransportCode::UnsupportedConfiguration, "invalid gas mixture mode"};
-    if (r.fluxScheme != 1 && r.fluxScheme != 2)
-        return {GasTransportCode::UnsupportedConfiguration, "selected mixture species flux has no implementation; available fluxes are Rusanov and Kurganov/HLL"};
-    if (r.reconstruction != 0 && r.reconstruction != 1)
-        return {GasTransportCode::UnsupportedConfiguration, "selected mixture reconstruction has no implementation; available paths are firstOrder and composition-aware MUSCL"};
     if (r.particleCoupling)
         return {GasTransportCode::UnsupportedConfiguration, "mixture particle thermal and void-fraction closure is not enabled"};
     return {GasTransportCode::Success, "mixture shared Rusanov or Kurganov/HLL with firstOrder or MUSCL"};

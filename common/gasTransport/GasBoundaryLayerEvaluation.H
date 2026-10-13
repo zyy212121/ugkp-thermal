@@ -1,6 +1,7 @@
 #pragma once
 #include "GasBoundaryLayerState.H"
 #include "GasStateView.H"
+#include "GasCapabilities.H"
 #include "../gasWall/WallModelTypes.H"
 
 namespace ugkwp
@@ -19,15 +20,14 @@ UGKWP_GAS_HD inline bool publishGasBoundaryLayerOutput
     if(!wall.enabled || slot<0 || slot>=wall.count || !wall.exchange || !wall.sst
         || !wall.status || !wall.speciesFlux)return false;
     wall.exchange[slot].ready=false;
-    if(!gasFinite(area) || !gasFinite(normalSweepRate)
-        || !gasFinite(output.traceTemperature)
-        || !gasFinite(input.pressure))return false;
+    bool numerical=gasFinite(area)&&gasFinite(normalSweepRate)
+        &&gasFinite(output.traceTemperature)&&gasFinite(input.pressure);
     GasBoundaryLayerExchange<Real> candidate;
     Real mass=0,enthalpy=0,speed2=0,viscousWork=0,tractionScale=0,scaledSpecies[Ns];
     for(int d=0;d<3;++d)
     {
-        if(!gasFinite(output.traceVelocity[d]) || !gasFinite(output.traction[d])
-            || !gasFinite(input.normal[d]))return false;
+        numerical=gasFinite(output.traceVelocity[d])&&gasFinite(output.traction[d])
+            &&gasFinite(input.normal[d])&&numerical;
         speed2+=output.traceVelocity[d]*output.traceVelocity[d];
         tractionScale=gaswall::detail::max(tractionScale,gaswall::detail::abs(output.traction[d]));
         viscousWork+=output.traction[d]*output.traceVelocity[d];
@@ -49,9 +49,13 @@ UGKWP_GAS_HD inline bool publishGasBoundaryLayerOutput
     for(int species=0;species<Ns;++species)
     {
         const Real flux=output.wallSpeciesFlux[species];
-        const Real h=speciesH(species,output.traceTemperature,input.model.thermo);
+        gasThermoDetail::SpeciesValues<Real> values;bool available=false;
+        gasThermoDetail::evaluateSpecies<Real,Ns,Real,true,true>
+            (species,output.traceTemperature,input.model.thermo,values,&available);
+        if(!available)return false;
+        const Real h=values.h;
         scaledSpecies[species]=-area*flux;
-        if(!gasFinite(flux) || !gasFinite(h))return false;
+        numerical=gasFinite(flux)&&gasFinite(h)&&numerical;
         mass+=flux;enthalpy+=flux*h;
     }
     candidate.matchingPressure=input.pressure;
@@ -69,14 +73,14 @@ UGKWP_GAS_HD inline bool publishGasBoundaryLayerOutput
         || !gasFinite(candidate.momentumZ) || !gasFinite(candidate.energy) || !gasFinite(candidate.k)
         || !gasFinite(shear) || !gasFinite(output.ownerOmega)
         || !gasFinite(input.ownerDistance)
-        || !gasFinite(input.quadrature.volume))return false;
+        || !gasFinite(input.quadrature.volume))numerical=false;
     for(int species=0;species<Ns;++species)
         wall.speciesFlux[species*wall.count+slot]=scaledSpecies[species];
     wall.sst[slot]={shear,output.ownerOmega,input.quadrature.volume,input.ownerDistance};
     candidate.ready=true;
     candidate.massReady=true;
     wall.exchange[slot]=candidate;
-    wall.status[slot]=0;
+    wall.status[slot]=numerical?0:int(GasTransportCode::NonFiniteState);
     return true;
 }
 }

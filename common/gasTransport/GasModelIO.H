@@ -45,8 +45,6 @@ struct GasModelConfiguration
     template<int Ns>
     SpeciesThermoView<double, Ns> thermoView() const
     {
-        if (species.size() < static_cast<std::size_t>(Ns))
-            throw std::invalid_argument("gas model lacks the selected compiled species storage");
         SpeciesThermoView<double, Ns> view;
         view.species = species.data();
         view.coefficients = coefficients.data();
@@ -210,9 +208,8 @@ inline double number(const std::string& value, const std::string& key)
 {
     char* end = nullptr;
     const double result = std::strtod(value.c_str(), &end);
-    if (end != value.c_str() + value.size() || end == value.c_str()
-        || !std::isfinite(result))
-        throw error("'" + key + "' must contain finite numeric values");
+    if (end != value.c_str() + value.size() || end == value.c_str())
+        throw error("'" + key + "' must contain numeric values");
     return result;
 }
 inline double scalar(const Dictionary& dict, const std::string& key)

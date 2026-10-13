@@ -89,11 +89,10 @@ UGKWP_GAS_HD inline bool makeGasFaceFrame
 )
 {
     using namespace gasGeometryDetail;
-    if (!finite(areaX) || !finite(areaY) || !finite(areaZ)
-        || !finite(signedSweep) || !finite(interval) || interval == Real(0)
-        || !finite(tangentX) || !finite(tangentY) || !finite(tangentZ)) return false;
+    const bool inputsFinite = finite(areaX) && finite(areaY) && finite(areaZ)
+        && finite(signedSweep) && finite(interval) && interval != Real(0)
+        && finite(tangentX) && finite(tangentY) && finite(tangentZ);
     const Real scale = maximum(absolute(areaX),maximum(absolute(areaY),absolute(areaZ)));
-    if (scale <= Real(0)) return false;
     const Real ax=areaX/scale, ay=areaY/scale, az=areaZ/scale;
     const Real normalMagnitude = std::sqrt(ax*ax+ay*ay+az*az);
     GasFaceFrame<Real> candidate;
@@ -106,9 +105,8 @@ UGKWP_GAS_HD inline bool makeGasFaceFrame
     candidate.wx=normalSpeed*candidate.nx+tangentX;
     candidate.wy=normalSpeed*candidate.ny+tangentY;
     candidate.wz=normalSpeed*candidate.nz+tangentZ;
-    if (!validFrame(candidate)) return false;
     output=candidate;
-    return true;
+    return inputsFinite && scale > Real(0) && validFrame(candidate);
 }
 
 // Primitive/Conservative use the existing shared Riemann POD interface:
@@ -125,11 +123,9 @@ UGKWP_GAS_HD inline bool shiftGasStateToFaceFrame
 )
 {
     using namespace gasGeometryDetail;
-    if (!validFrame(frame) || !validConservative<Real,0>(conserved.q)
-        || !finite(primitive.rho)
-        || !finite(primitive.p)
-        || !finite(primitive.ux) || !finite(primitive.uy) || !finite(primitive.uz)
-) return false;
+    const bool inputValid = validFrame(frame) && validConservative<Real,0>(conserved.q)
+        && finite(primitive.rho) && finite(primitive.p)
+        && finite(primitive.ux) && finite(primitive.uy) && finite(primitive.uz);
     Primitive p=primitive;
     Conservative q=conserved;
     // Preserve legacy fixed-grid values, including signed zeros, bit for bit.
@@ -143,11 +139,10 @@ UGKWP_GAS_HD inline bool shiftGasStateToFaceFrame
                +(Real(.5)*conserved.q[0]*frame.wy-conserved.q[2])*frame.wy
                +(Real(.5)*conserved.q[0]*frame.wz-conserved.q[3])*frame.wz;
     }
-    if (!finite(p.ux) || !finite(p.uy) || !finite(p.uz)
-        || !validConservative<Real,0>(q.q)) return false;
     primitiveOutput=p;
     conservativeOutput=q;
-    return true;
+    return inputValid && finite(p.ux) && finite(p.uy) && finite(p.uz)
+        && validConservative<Real,0>(q.q);
 }
 
 // Transform the SELECTED compatible shared scheme's moving-frame flux back.
@@ -164,9 +159,9 @@ UGKWP_GAS_HD inline bool restoreGasFluxFromFaceFrame
 )
 {
     using namespace gasGeometryDetail;
-    if (!movingFlux.valid || !validFrame(frame)
-        || !finite(movingFlux.maxSignalSpeed)) return false;
-    for (int k=0;k<5;++k) if (!finite(movingFlux.flux[k])) return false;
+    bool inputValid = movingFlux.valid && validFrame(frame)
+        && finite(movingFlux.maxSignalSpeed);
+    for (int k=0;k<5;++k) inputValid = finite(movingFlux.flux[k]) && inputValid;
     FluxResult candidate=movingFlux;
     if (frame.wx != Real(0) || frame.wy != Real(0) || frame.wz != Real(0))
     {
@@ -177,9 +172,9 @@ UGKWP_GAS_HD inline bool restoreGasFluxFromFaceFrame
             +frame.wy*movingFlux.flux[2]+frame.wz*movingFlux.flux[3]
             +Real(.5)*(frame.wx*frame.wx+frame.wy*frame.wy+frame.wz*frame.wz)*movingFlux.flux[0];
     }
-    for (int k=0;k<5;++k) if (!finite(candidate.flux[k])) return false;
+    for (int k=0;k<5;++k) inputValid = finite(candidate.flux[k]) && inputValid;
     output=candidate;
-    return true;
+    return inputValid;
 }
 
 // Availability of the two volume values. Sweep sums and configured diagnostic

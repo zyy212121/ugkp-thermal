@@ -38,7 +38,7 @@ template<class Real> struct GasBoundaryLayerState
     double preparedTime=0,preparedInterval=0;
     const int* faceSlot=nullptr;  // nFaces; -1 means not a selected wall
     const int* ownerSlot=nullptr; // nCells; -1 means unconstrained; unique owner
-    int* status=nullptr;         // count; zero success, nonzero rejects trial
+    int* status=nullptr;         // count; diagnostic, separate from completed exchange.ready
     GasBoundaryLayerExchange<Real>* exchange=nullptr;
     GasBoundaryLayerSstClosure<Real>* sst=nullptr;
     Real* speciesFlux=nullptr;
@@ -50,6 +50,10 @@ template<class Real> struct GasBoundaryLayerState
 template<class State,class=void> struct GasBoundaryLayerCapability:std::false_type{};
 template<class State> struct GasBoundaryLayerCapability<State,
     std::void_t<decltype(std::declval<State>().gasBoundaryLayer)>>:std::true_type{};
+template<class State,class=void> struct GasSuppliedWallInputCapability:std::false_type{};
+template<class State> struct GasSuppliedWallInputCapability<State,
+    std::void_t<decltype(std::declval<State>().gasBoundaryLayerModel.useSuppliedWallState),
+        decltype(std::declval<State>().gasBoundaryLayerModel.input)>>:std::true_type{};
 template<class State> UGKWP_GAS_HD inline bool gasBoundaryLayerEnabled(const State& s)
 {
     if constexpr(GasBoundaryLayerCapability<State>::value)return s.gasBoundaryLayer.enabled;
@@ -75,7 +79,7 @@ template<class State> UGKWP_GAS_HD inline bool gasBoundaryLayerSlotReady(const S
     {
         const auto&w=s.gasBoundaryLayer;
         return w.enabled && slot>=0 && slot<w.count && w.status && w.exchange && w.sst
-            && w.status[slot]==0 && w.exchange[slot].ready;
+            && w.exchange[slot].ready;
     }
     return false;
 }

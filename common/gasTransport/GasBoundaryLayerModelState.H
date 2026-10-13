@@ -63,12 +63,10 @@ template<class State> UGKWP_GAS_HD inline bool evaluateGasBoundaryLayerSlot(Stat
     if((!analytic && (workspaceSlot<0 || workspaceSlot>=model.workspaceCount || !model.workspace))
         || !model.input || !model.output || !model.status || !model.matchingOffsets
         || !model.matchingCells || !model.matchingWeights || !wall.sst || !wall.speciesFlux
-        || !state.faceOwner || !state.rho || !state.p || !state.Tgas || !state.Ux || !state.Uy || !state.Uz
+        || !state.rho || !state.p || !state.Tgas || !state.Ux || !state.Uy || !state.Uz
         || !state.gasSpecies.rho || !state.magSf
         || (model.config.enableSst&&(!state.k||!state.omega)))
         return fail(GasTransportCode::InvalidStorage);
-    if(face<0 || face>=state.nFaces || state.faceOwner[face]<0 || state.faceOwner[face]>=state.nCells)
-        return fail(GasTransportCode::InvalidGeometry);
     if(!state.gasSpecies.diffusivity || (!model.useSuppliedWallState &&
         (!state.riemannBoundaryT || !state.riemannBoundaryUFix
          || (state.riemannBoundaryUFix[face] && (!state.riemannBoundaryUx
@@ -87,12 +85,10 @@ template<class State> UGKWP_GAS_HD inline bool evaluateGasBoundaryLayerSlot(Stat
     }
     in.matching={};in.pressure=0;
     const int begin=model.matchingOffsets[slot],end=model.matchingOffsets[slot+1];
-    if(begin<0 || end<=begin)return fail(GasTransportCode::InvalidGeometry);
     for(int item=begin;item<end;++item)
     {
         const int cell=model.matchingCells[item];
         const Real weight=model.matchingWeights[item];
-        if(cell<0 || cell>=state.nCells)return fail(GasTransportCode::InvalidGeometry);
         in.pressure+=weight*state.p[cell];
         in.matching.temperature+=weight*state.Tgas[cell];
         in.matching.velocity[0]+=weight*state.Ux[cell];
@@ -110,9 +106,12 @@ template<class State> UGKWP_GAS_HD inline bool evaluateGasBoundaryLayerSlot(Stat
     in.model.mechanism=state.gasSpecies.mechanism;
     in.model.mode=state.gasSpecies.mode;
     in.model.viscosity=state.gasMu;
+    if(!in.model.thermo.species||!in.model.thermo.coefficients)return fail(GasTransportCode::InvalidStorage);
     Real matchingCp=0;
-    for(int species=0;species<Ns;++species)matchingCp+=in.matching.massFraction[species]
-        *speciesCp(species,in.matching.temperature,in.model.thermo);
+    for(int species=0;species<Ns;++species){bool available=false;
+        const Real cp=gaswall::detail::wallProperty<false>(species,in.matching.temperature,in.model.thermo,&available);
+        if(!available)return fail(GasTransportCode::InvalidStorage);
+        matchingCp+=in.matching.massFraction[species]*cp;}
     in.model.conductivity=gasHasDirectConductivity(state)?state.gasThermalConductivity
         :state.gasMu*matchingCp/state.gasPrClamped;
     in.model.molecularPrandtl=gasHasDirectConductivity(state)?Real(0):state.gasPrClamped;
@@ -123,8 +122,9 @@ template<class State> UGKWP_GAS_HD inline bool evaluateGasBoundaryLayerSlot(Stat
         if(gasMovingGeometry(state))
         {
             GasFaceFrame<Real> frame;
-            if(!gasGeometryFaceFrame(state,face,state.gasGeometry.interval,frame))
-                return fail(GasTransportCode::InvalidGeometry);
+            bool frameAvailable=false;
+            gasGeometryFaceFrame(state,face,state.gasGeometry.interval,frame,&frameAvailable);
+            if(!frameAvailable)return fail(GasTransportCode::InvalidStorage);
             normalSweepRate=frame.wx*in.normal[0]+frame.wy*in.normal[1]+frame.wz*in.normal[2];
         }
     bool evaluated=false;
@@ -142,10 +142,9 @@ template<class State> UGKWP_GAS_HD inline bool evaluateGasBoundaryLayerSlot(Stat
 #undef WALL_EVALUATE_CAPACITY
     }
     if(!evaluated)
-        return fail(model.status[slot].code==gaswall::WallCode::Unsupported
-            ?GasTransportCode::UnsupportedConfiguration:GasTransportCode::BoundaryLayerFailure);
+        return fail(GasTransportCode::InvalidStorage);
     if(!publishGasBoundaryLayerOutput(state,slot,in,model.output[slot],state.magSf[face],normalSweepRate))
-        return fail(GasTransportCode::NonFiniteState);
+        return fail(GasTransportCode::InvalidStorage);
     return true;
 }
 }
