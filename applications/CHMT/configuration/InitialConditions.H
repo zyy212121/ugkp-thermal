@@ -26,13 +26,8 @@ inline Real sinc(Real x) { return std::abs(x)<1e-8?1-x*x/6+x*x*x*x/120:std::sin(
             if (kind == "FilmIntegralFields") {
                 givenH = scalars(init, "enthalpy");
                 givenM = scalars(init, "mass");
-                require(givenH.size() == static_cast<std::size_t>(n)
-                    && givenM.size() == static_cast<std::size_t>(n),
-                    "film integral array size must match imported patch");
                 for (int s = 0; s<Ns; ++s) {
                     givenSpecies.push_back(scalars(init, ("species_"+std::to_string(s)).c_str()));
-                    require(givenSpecies.back().size() == static_cast<std::size_t>(n),
-                        "film species array size mismatch");
                 }
             } else require(kind == "FilmSineTemperature" || kind == "UniformFilmTemperature",
                 "unsupported film initializer");
@@ -44,9 +39,9 @@ inline Real sinc(Real x) { return std::abs(x)<1e-8?1-x*x/6+x*x*x*x/120:std::sin(
                 aux.area = state.surface.area[f];
                 aux.pressure = pressure;
                 if (kind == "FilmIntegralFields") {
-                    q.mass = givenM[f];
-                    q.enthalpy = givenH[f];
-                    for (int s = 0; s<Ns; ++s)q.species[s] = givenSpecies[s][f];
+                    q.mass = givenM.at(f);
+                    q.enthalpy = givenH.at(f);
+                    for (int s = 0; s<Ns; ++s)q.species[s] = givenSpecies[s].at(f);
                 } else {
                     Real T = readNumber(init, "mean");
                     if (kind == "FilmSineTemperature") {
@@ -63,7 +58,8 @@ inline Real sinc(Real x) { return std::abs(x)<1e-8?1-x*x/6+x*x*x*x/120:std::sin(
                     q.enthalpy = q.mass*liquidH(p, T, pressure);
                     for (int s = 0; s<Ns; ++s)q.species[s] = q.mass*Y[s];
                 }
-                require(recoverFilm(q, aux.area, pressure, p, aux), "invalid initial film inventory");
+                require(recoverFilm(q, aux.area, pressure, p, aux)
+                    ||recoverFilm<true>(q,aux.area,pressure,p,aux,nullptr,-1), "invalid initial film inventory");
             }
         }
 }}

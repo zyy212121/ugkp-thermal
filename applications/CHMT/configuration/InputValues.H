@@ -45,11 +45,11 @@ namespace chmt { namespace io {
                 return;
             }
             const auto values = scalars(d, key);
-            std::copy(values.begin(), values.end(), out);
+            for(int i=0;i<N;++i)out[i]=values.at(i);
         }
-        inline void elements(const Foam::dictionary& d, Real* out, int /* count */) {
+        template<int N> inline void elements(const Foam::dictionary& d, Real (&out)[N], int count) {
             const auto values = scalars(d, "element");
-            std::copy(values.begin(), values.end(), out);
+            for(int i=0;i<N&&i<count;++i)out[i]=values.at(i);
         }
 }}
 #endif

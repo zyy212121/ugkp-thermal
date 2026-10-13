@@ -48,7 +48,7 @@ namespace chmt {
             const Foam::wordList elementNames(d.lookup("elements"));
 
             p.nElements = elementNames.size();
-            for (int e = 0; e<p.nElements; ++e)m.elementNames[e] = elementNames[e];
+            for (int e = 0; e<Ne&&e<p.nElements; ++e)m.elementNames[e] = elementNames[e];
             p.enableGas = flag(d, "enableGas", true);
             p.enableFilm = flag(d, "enableFilm");
             p.enableReactions = flag(d, "enableReactions");
