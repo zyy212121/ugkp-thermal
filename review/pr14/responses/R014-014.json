@@ -1,0 +1,37 @@
+{
+  "identity": "PR14_REVIEW_ONLY",
+  "topic_id": "R014-014",
+  "interaction_class": "FAST",
+  "review_request_status": "OPEN",
+  "reviewer_plan": {
+    "source_commit": "a73b9635510fb09d7baa5339e14d1aa609f0ff87",
+    "source_tree": "e343cb9f477dcd86556f7b6595189fa2c9c1c099",
+    "input_ids_and_sha256": [],
+    "build_flags": [],
+    "toolchain_gpu_driver_versions": null,
+    "exact_commands": [],
+    "acceptance_criteria": "window/state真实观察代替旧pending；两half在覆写前capture，真正失败rollback，真实恢复失败poison。",
+    "numerical_tolerances_and_rationale": null,
+    "external_wall_time_budget_seconds": 300,
+    "scope": "small real-GPU operator/interaction/coupling/restart cases; no production long run",
+    "budget_note": "Proposed per-case process budget; reviewer records actual plan before execution. Timeout is external observation, never production admission. Larger or production scope needs separate plan."
+  },
+  "reviewer_results": [],
+  "developer_replies": [],
+  "recheck_results": [],
+  "final_decision": {
+    "status": "PENDING",
+    "reviewer": null,
+    "source_commit": null,
+    "evidence_ids": [],
+    "merge_authorized": false
+  },
+  "reviewer_plan_source_history": [
+    {
+      "source_commit": "970d9fedcc061dfa08fc88d427a1a47b3c22f65f",
+      "source_tree": "6078c4274f1c7315c7c86d7bbd4ed802b805edc7",
+      "superseded_for_future_execution_by": "a73b9635510fb09d7baa5339e14d1aa609f0ff87",
+      "recorded_utc": "2026-10-13T17:04:48.115739+00:00"
+    }
+  ]
+}

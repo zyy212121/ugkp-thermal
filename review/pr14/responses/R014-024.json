@@ -1,0 +1,409 @@
+{
+  "identity": "PR14_REVIEW_ONLY",
+  "topic_id": "R014-024",
+  "interaction_class": "FAST",
+  "review_request_status": "OPEN",
+  "reviewer_plan": {
+    "source_commit": "a73b9635510fb09d7baa5339e14d1aa609f0ff87",
+    "source_tree": "e343cb9f477dcd86556f7b6595189fa2c9c1c099",
+    "input_ids_and_sha256": [],
+    "build_flags": [],
+    "toolchain_gpu_driver_versions": null,
+    "exact_commands": [],
+    "acceptance_criteria": "完整退出码/日志/binary hash/链接与加载成功，残余符号有分类；未完成留阻断。",
+    "numerical_tolerances_and_rationale": null,
+    "external_wall_time_budget_seconds": 300,
+    "scope": "small real-GPU operator/interaction/coupling/restart cases; no production long run",
+    "budget_note": "Proposed per-case process budget; reviewer records actual plan before execution. Timeout is external observation, never production admission. Larger or production scope needs separate plan."
+  },
+  "reviewer_results": [],
+  "developer_replies": [],
+  "recheck_results": [],
+  "final_decision": {
+    "status": "PENDING",
+    "reviewer": null,
+    "source_commit": null,
+    "evidence_ids": [],
+    "merge_authorized": false
+  },
+  "developer_compile_results": [
+    {
+      "id": "R014-024-COMPILE001",
+      "interaction_class": "FAST",
+      "source_commit": "a164be44fd28b3d05a1cb430e4e98675b1397bd4",
+      "source_tree": "fa2f9b1f8add293caeab04cbf3df5752f17a8977",
+      "kind": "full_native_application_build_and_link",
+      "application": "CHMT",
+      "species": 2,
+      "architecture": "sm_80",
+      "optimization": "O2",
+      "command": "bash applications/CHMT/Allwmake",
+      "exit_code": 0,
+      "elapsed_seconds": 244.21,
+      "evidence_id": "E014-21d5564aa441d581",
+      "status": "CHMT_SPECIFIED_CONFIGURATION_PASSED",
+      "gpu_execution": "NOT_RUN",
+      "other_application_builds": "PENDING_SEPARATE_RECEIPTS"
+    },
+    {
+      "id": "R014-024-COMPILE-A164-gasUGKP",
+      "interaction_class": "FAST",
+      "source_commit": "a164be44fd28b3d05a1cb430e4e98675b1397bd4",
+      "application": "gasUGKP",
+      "script": "applications/gasUGKP/private_backend/build_private_backend.sh",
+      "elapsed_seconds": 184.21,
+      "wrapper_exit": 2,
+      "build_script_exit": null,
+      "all_compile_link_stages_completed": true,
+      "artifact_receipt_evidence_id": "E014-9bd75000c4edd46b",
+      "native_artifacts": [
+        {
+          "path": "/workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/final-native-build/remaining/bin/gasUGKP",
+          "sha256": "209d67a687ac811eab0425a309fdad5c276dca171deba60a6c913e64f5044a23",
+          "size": 791992,
+          "readelf_exit": 0,
+          "has_cuda_fatbin": false,
+          "needed": [
+            "libfiniteVolume.so",
+            "libmeshTools.so",
+            "libmomentumTransportModels.so",
+            "libOpenFOAM.so",
+            "libstdc++.so.6",
+            "libm.so.6",
+            "libgcc_s.so.1",
+            "libc.so.6",
+            "ld-linux-x86-64.so.2",
+            "libPstream.so"
+          ],
+          "nm_exit": 0
+        },
+        {
+          "path": "/workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/final-native-build/remaining/bin/gasUGKPCudaBackend",
+          "sha256": "f223f0543d41f9160bea421db3b5817c66519e7938c1227bbb58359718de7d64",
+          "size": 11976904,
+          "readelf_exit": 0,
+          "has_cuda_fatbin": true,
+          "needed": [
+            "libcudart.so.13",
+            "libstdc++.so.6",
+            "libm.so.6",
+            "libgcc_s.so.1",
+            "libc.so.6"
+          ],
+          "nm_exit": 0
+        },
+        {
+          "path": "/workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/final-native-build/remaining/source/applications/gasUGKP/Make/linux64GccDPInt32Opt/diluteUgkwpFoam.o",
+          "sha256": "6ebf742b1aa9178bff31d45e1855251ee6e14c736b651e02f84bb1b02e078ded",
+          "size": 1264416,
+          "readelf_exit": 0,
+          "has_cuda_fatbin": false,
+          "needed": [],
+          "nm_exit": 0
+        },
+        {
+          "path": "/workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/final-native-build/remaining/source/applications/gasUGKP/Make/linux64GccDPInt32Opt/gpu/GpuBackendClient.o",
+          "sha256": "4208273ff329c8ab5088ab168a01f75b8aa14c22969b1e7be1831af95c3d56b2",
+          "size": 83008,
+          "readelf_exit": 0,
+          "has_cuda_fatbin": false,
+          "needed": [],
+          "nm_exit": 0
+        },
+        {
+          "path": "/workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/final-native-build/remaining/source/applications/gasUGKP/private_backend/build/linux64GccDPInt32Opt/GpuResidentStrict.o",
+          "sha256": "49c65f63eff4867bbfb799fbfd0968088872994380f7744585d7a1d5ea228cac",
+          "size": 12279680,
+          "readelf_exit": 0,
+          "has_cuda_fatbin": true,
+          "needed": [],
+          "nm_exit": 0
+        },
+        {
+          "path": "/workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/final-native-build/remaining/source/applications/gasUGKP/private_backend/libugkwp_cuda_backend.a",
+          "sha256": "35d9a6ada784c89e12aa0a31c043c11547c52c53837a9ad38ebb8a71c3592b55",
+          "size": 12322220,
+          "readelf_exit": 0,
+          "has_cuda_fatbin": true,
+          "needed": [],
+          "nm_exit": 0
+        }
+      ],
+      "exit_caveat": "Child returned to wrapper after its final echo and both test -x checks; wrapper parse failed after live metadata-capture edit. Child exit not independently recorded. Preserved first-pass wrapper exit 2. No meaningless full rebuild.",
+      "gpu_or_application_execution": "NOT_RUN",
+      "status": "STAGES_AND_ARTIFACTS_COMPLETE_CHILD_EXIT_UNRECORDED_WRAPPER2",
+      "later_source_validity": "Pending narrow codec C++14 compile-hygiene followup. Reuse unaffected operator evidence; affected codec/host includes require separately pinned recompilation/review."
+    },
+    {
+      "id": "R014-024-COMPILE-A164-CHT",
+      "interaction_class": "FAST",
+      "source_commit": "a164be44fd28b3d05a1cb430e4e98675b1397bd4",
+      "application": "CHT",
+      "script": "applications/CHT/tools/build_cuda_solver.sh",
+      "elapsed_seconds": 87.68,
+      "wrapper_exit": 0,
+      "build_script_exit": 0,
+      "all_compile_link_stages_completed": true,
+      "artifact_receipt_evidence_id": "E014-9bd75000c4edd46b",
+      "native_artifacts": [
+        {
+          "path": "/workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/final-native-build/remaining/bin/CHT",
+          "sha256": "566fe768de73723a2651b5df97534d7555e83a3a206e6bee7cbeb3c61f14e32d",
+          "size": 5787688,
+          "readelf_exit": 0,
+          "has_cuda_fatbin": true,
+          "needed": [
+            "libfiniteVolume.so",
+            "libmeshTools.so",
+            "libmomentumTransportModels.so",
+            "libOpenFOAM.so",
+            "libcudart.so.13",
+            "libstdc++.so.6",
+            "libm.so.6",
+            "libgomp.so.1",
+            "libgcc_s.so.1",
+            "libc.so.6",
+            "libPstream.so"
+          ],
+          "nm_exit": 0
+        },
+        {
+          "path": "/workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/final-native-build/remaining/source/applications/CHT/Make/linux64GccDPInt32Opt/diluteUgkwpFoam.o",
+          "sha256": "195bf918de41c7661ffe23c8d2294f69a70299476bf223c2ad3d6e0d54db8957",
+          "size": 1068496,
+          "readelf_exit": 0,
+          "has_cuda_fatbin": false,
+          "needed": [],
+          "nm_exit": 0
+        },
+        {
+          "path": "/workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/final-native-build/remaining/source/applications/CHT/Make/linux64GccDPInt32Opt/gpu/GpuResidentStrict.o",
+          "sha256": "64dc49169417279a6e49e5e474f0fa170a7cc53d706f450947ea68c82bad5490",
+          "size": 4893520,
+          "readelf_exit": 0,
+          "has_cuda_fatbin": true,
+          "needed": [],
+          "nm_exit": 0
+        },
+        {
+          "path": "/workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/final-native-build/remaining/source/applications/CHT/Make/linux64GccDPInt32Opt/gpu/GpuWallEnergy64.o",
+          "sha256": "c3d989b7b4b0bbb2d7e4db1ff8add11ddfc8a65b769b257e2f5a660f02d04f6b",
+          "size": 36296,
+          "readelf_exit": 0,
+          "has_cuda_fatbin": true,
+          "needed": [],
+          "nm_exit": 0
+        },
+        {
+          "path": "/workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/final-native-build/remaining/source/applications/CHT/Make/linux64GccDPInt32Opt/thermal/GpuParticleRadiationCoupler.o",
+          "sha256": "8ca091cb8306bed86fa77b58d9afd0e3e750d21ba9131b5167675ffef2c74609",
+          "size": 46952,
+          "readelf_exit": 0,
+          "has_cuda_fatbin": false,
+          "needed": [],
+          "nm_exit": 0
+        },
+        {
+          "path": "/workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/final-native-build/remaining/source/applications/CHT/Make/linux64GccDPInt32Opt/thermal/GpuSolidPatchMapper.o",
+          "sha256": "b315fd125e9f077c19a00ac2d176c0331bc85cf9abc489712d232e15d998ab4a",
+          "size": 50656,
+          "readelf_exit": 0,
+          "has_cuda_fatbin": false,
+          "needed": [],
+          "nm_exit": 0
+        },
+        {
+          "path": "/workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/final-native-build/remaining/source/applications/CHT/Make/linux64GccDPInt32Opt/thermal/GpuSolidThermalCoupler.o",
+          "sha256": "d6d9203d207cb3dd5bec668d9e1f37471b665d41b3a34105b3d4c7e6f61177bc",
+          "size": 1010536,
+          "readelf_exit": 0,
+          "has_cuda_fatbin": false,
+          "needed": [],
+          "nm_exit": 0
+        },
+        {
+          "path": "/workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/final-native-build/remaining/source/applications/CHT/Make/linux64GccDPInt32Opt/thermal/GpuSolidThermalProperties.o",
+          "sha256": "dd690cace1e674315453ea45daa711b7713c30b41fa83ab0bd4a65c4f4c09cfe",
+          "size": 54840,
+          "readelf_exit": 0,
+          "has_cuda_fatbin": false,
+          "needed": [],
+          "nm_exit": 0
+        },
+        {
+          "path": "/workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/final-native-build/remaining/source/applications/CHT/Make/linux64GccDPInt32Opt/thermal/GpuThermalExchangeState.o",
+          "sha256": "751c4a54cdc1b15a57005a08a6700ff1ff65b63d5ce1f5dd1a78b20e59089483",
+          "size": 545984,
+          "readelf_exit": 0,
+          "has_cuda_fatbin": false,
+          "needed": [],
+          "nm_exit": 0
+        },
+        {
+          "path": "/workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/final-native-build/remaining/source/applications/CHT/Make/linux64GccDPInt32Opt/thermal/MieDoRadiationSolver.o",
+          "sha256": "dd58363644835c50d453926f61fe73221b86aa3d1f5b83ed0022759a06f96c47",
+          "size": 120128,
+          "readelf_exit": 0,
+          "has_cuda_fatbin": false,
+          "needed": [],
+          "nm_exit": 0
+        },
+        {
+          "path": "/workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/final-native-build/remaining/source/applications/CHT/Make/linux64GccDPInt32Opt/thermal/MieTable.o",
+          "sha256": "dec235864983716d3fa25dbd41affe763db72f663771c780ce7e7ad0a2c927fb",
+          "size": 60096,
+          "readelf_exit": 0,
+          "has_cuda_fatbin": false,
+          "needed": [],
+          "nm_exit": 0
+        },
+        {
+          "path": "/workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/final-native-build/remaining/source/applications/CHT/gpu/libugkpcht_cuda_internal.a",
+          "sha256": "50e3728f55ad331d09a99346facb1d4bf837a27fa947afb17b47f38521e78728",
+          "size": 4973590,
+          "readelf_exit": 0,
+          "has_cuda_fatbin": true,
+          "needed": [],
+          "nm_exit": 0
+        }
+      ],
+      "exit_caveat": null,
+      "gpu_or_application_execution": "NOT_RUN",
+      "status": "BUILD_LINK_EXIT0",
+      "later_source_validity": "Pending narrow codec C++14 compile-hygiene followup. Reuse unaffected operator evidence; affected codec/host includes require separately pinned recompilation/review."
+    },
+    {
+      "id": "R014-024-COMPILE-A164-FSH",
+      "interaction_class": "FAST",
+      "source_commit": "a164be44fd28b3d05a1cb430e4e98675b1397bd4",
+      "application": "FSH",
+      "script": "applications/FSH/private_backend/build_private_backend.sh",
+      "elapsed_seconds": 64.23,
+      "wrapper_exit": 0,
+      "build_script_exit": 0,
+      "all_compile_link_stages_completed": true,
+      "artifact_receipt_evidence_id": "E014-9bd75000c4edd46b",
+      "native_artifacts": [
+        {
+          "path": "/workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/final-native-build/remaining/bin/FSH",
+          "sha256": "9d4a1ee5e6662351cdf52b27baaa92de05066ad3cd5ffa9af91409d2fb7ba423",
+          "size": 699376,
+          "readelf_exit": 0,
+          "has_cuda_fatbin": false,
+          "needed": [
+            "libfiniteVolume.so",
+            "libmeshTools.so",
+            "libmomentumTransportModels.so",
+            "libOpenFOAM.so",
+            "libstdc++.so.6",
+            "libm.so.6",
+            "libgcc_s.so.1",
+            "libc.so.6",
+            "ld-linux-x86-64.so.2",
+            "libPstream.so"
+          ],
+          "nm_exit": 0
+        },
+        {
+          "path": "/workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/final-native-build/remaining/bin/FSHCudaBackend",
+          "sha256": "74984b122c54b9e56db955620dd1f515af7080fc36eff06fc004ebd9d177aa51",
+          "size": 6798984,
+          "readelf_exit": 0,
+          "has_cuda_fatbin": true,
+          "needed": [
+            "libcudart.so.13",
+            "libstdc++.so.6",
+            "libm.so.6",
+            "libgcc_s.so.1",
+            "libc.so.6"
+          ],
+          "nm_exit": 0
+        },
+        {
+          "path": "/workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/final-native-build/remaining/source/applications/FSH/Make/linux64GccDPInt32Opt/diluteUgkwpFoam.o",
+          "sha256": "1c827b76cb9d843797112a41b8d928622cebbd95858ed2c382d4f6512771eb58",
+          "size": 1132456,
+          "readelf_exit": 0,
+          "has_cuda_fatbin": false,
+          "needed": [],
+          "nm_exit": 0
+        },
+        {
+          "path": "/workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/final-native-build/remaining/source/applications/FSH/Make/linux64GccDPInt32Opt/gpu/GpuBackendClient.o",
+          "sha256": "7844dc127608e48b0128169e81e6704e256487e627fd80c6f0183a1b7680db13",
+          "size": 75520,
+          "readelf_exit": 0,
+          "has_cuda_fatbin": false,
+          "needed": [],
+          "nm_exit": 0
+        },
+        {
+          "path": "/workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/final-native-build/remaining/source/applications/FSH/private_backend/build/linux64GccDPInt32Opt/GpuResidentStrict.o",
+          "sha256": "3f618ec3babcc4802e0813b42c317a3baba6e900e395d1011afa2fe5b59b7c41",
+          "size": 6992296,
+          "readelf_exit": 0,
+          "has_cuda_fatbin": true,
+          "needed": [],
+          "nm_exit": 0
+        },
+        {
+          "path": "/workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/final-native-build/remaining/source/applications/FSH/private_backend/libugkwp_cuda_backend.a",
+          "sha256": "75969363b93825a6f41c784a6701c635dcccee34afa9ca17c9943e795eb3f781",
+          "size": 7030936,
+          "readelf_exit": 0,
+          "has_cuda_fatbin": true,
+          "needed": [],
+          "nm_exit": 0
+        }
+      ],
+      "exit_caveat": null,
+      "gpu_or_application_execution": "NOT_RUN",
+      "status": "BUILD_LINK_EXIT0",
+      "later_source_validity": "Pending narrow codec C++14 compile-hygiene followup. Reuse unaffected operator evidence; affected codec/host includes require separately pinned recompilation/review."
+    }
+  ],
+  "source_qualification_history": [
+    {
+      "id": "R014-024-CODEC-SOURCE-QUALIFIED-001",
+      "interaction_class": "FAST",
+      "source_commit": "970d9fedcc061dfa08fc88d427a1a47b3c22f65f",
+      "source_tree": "6078c4274f1c7315c7c86d7bbd4ed802b805edc7",
+      "changed_path": "common/GpuThermalParticleRestartCodec.H",
+      "source_sha256": "bc71b8841f2adef1fb05a74602d140c449be817cc5fd7b90129f53bcb90cac46",
+      "review_evidence_id": "E014-e99a5a8c7d6fa711",
+      "independently_verified_records": 848,
+      "verdict": "SCOPED_SOURCE_AND_HOST_COMPILE_APPROVED",
+      "runtime_acceptance": false,
+      "scope": "Equivalent C++14 tag dispatch; CHT/FSH actual affected host objects recompiled and applications relinked, unchanged native CUDA archives reused. No GPU/runtime run."
+    },
+    {
+      "interaction_class": "FAST",
+      "evidence_type": "independent_source_review_and_recorded_native_compile_integrity_not_GPU_execution",
+      "source_commit": "a73b9635510fb09d7baa5339e14d1aa609f0ff87",
+      "source_tree": "e343cb9f477dcd86556f7b6595189fa2c9c1c099",
+      "previous_source_commit": "970d9fedcc061dfa08fc88d427a1a47b3c22f65f",
+      "changed_path": "applications/CHT/thermal/GpuSolidPatchMapper.C",
+      "source_sha256": "947decef7e1a2aa552c6d201401674617fdb8be22a331d98c430fe115ee63074",
+      "review_evidence_id": "E014-df24bc6578459988",
+      "compile_evidence_id": "E014-d8f59830c32c3719",
+      "independently_verified": {
+        "mapper_dependencies": 492,
+        "repository_export_source_pairs": 385,
+        "object_archive_records": 11,
+        "mismatches": 0
+      },
+      "verdict": "SCOPED_SOURCE_AND_CHT_HOST_COMPILE_APPROVED",
+      "runtime_acceptance": false,
+      "limits": "Only mapper.o rebuilt and CHT relinked; unchanged host objects/native CUDA archive reused. Four existing OpenFOAM DiagonalMatrix warnings. No numerical or GPU run; prior category-level coverage limits remain.",
+      "id": "R014-024-MAPPER-SOURCE-QUALIFIED-001"
+    }
+  ],
+  "reviewer_plan_source_history": [
+    {
+      "source_commit": "970d9fedcc061dfa08fc88d427a1a47b3c22f65f",
+      "source_tree": "6078c4274f1c7315c7c86d7bbd4ed802b805edc7",
+      "superseded_for_future_execution_by": "a73b9635510fb09d7baa5339e14d1aa609f0ff87",
+      "recorded_utc": "2026-10-13T17:04:48.115739+00:00"
+    }
+  ]
+}

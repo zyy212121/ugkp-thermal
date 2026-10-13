@@ -1,0 +1,86 @@
+{
+  "identity": "PR14_REVIEW_ONLY",
+  "topic_id": "R014-022",
+  "interaction_class": "FAST",
+  "review_request_status": "OPEN",
+  "reviewer_plan": {
+    "source_commit": "a73b9635510fb09d7baa5339e14d1aa609f0ff87",
+    "source_tree": "e343cb9f477dcd86556f7b6595189fa2c9c1c099",
+    "input_ids_and_sha256": [],
+    "build_flags": [],
+    "toolchain_gpu_driver_versions": null,
+    "exact_commands": [],
+    "acceptance_criteria": "两轮明确独立且适用最终源，所有问题和误报均有证据解释。",
+    "numerical_tolerances_and_rationale": null,
+    "external_wall_time_budget_seconds": 300,
+    "scope": "small real-GPU operator/interaction/coupling/restart cases; no production long run",
+    "budget_note": "Proposed per-case process budget; reviewer records actual plan before execution. Timeout is external observation, never production admission. Larger or production scope needs separate plan."
+  },
+  "reviewer_results": [],
+  "developer_replies": [],
+  "recheck_results": [],
+  "final_decision": {
+    "status": "PENDING",
+    "reviewer": null,
+    "source_commit": null,
+    "evidence_ids": [],
+    "merge_authorized": false
+  },
+  "source_qualification_history": [
+    {
+      "id": "R014-022-SOURCE-REVIEW001",
+      "interaction_class": "FAST",
+      "source_commit": "a164be44fd28b3d05a1cb430e4e98675b1397bd4",
+      "source_tree": "fa2f9b1f8add293caeab04cbf3df5752f17a8977",
+      "kind": "independent_global_source_review",
+      "evidence_id": "E014-c0eb1b4b9d88b077",
+      "status": "NO_BLOCKER_IDENTIFIED_WITHIN_DOCUMENTED_COVERAGE",
+      "semantic_or_scoped_files": 185,
+      "lexical_inventory_files": 241,
+      "gpu_execution": "NOT_RUN",
+      "line_by_line_all_source_claim": false
+    },
+    {
+      "id": "R014-022-CODEC-SOURCE-QUALIFIED-001",
+      "interaction_class": "FAST",
+      "source_commit": "970d9fedcc061dfa08fc88d427a1a47b3c22f65f",
+      "source_tree": "6078c4274f1c7315c7c86d7bbd4ed802b805edc7",
+      "changed_path": "common/GpuThermalParticleRestartCodec.H",
+      "source_sha256": "bc71b8841f2adef1fb05a74602d140c449be817cc5fd7b90129f53bcb90cac46",
+      "review_evidence_id": "E014-e99a5a8c7d6fa711",
+      "independently_verified_records": 848,
+      "verdict": "SCOPED_SOURCE_AND_HOST_COMPILE_APPROVED",
+      "runtime_acceptance": false,
+      "scope": "Equivalent C++14 tag dispatch; CHT/FSH actual affected host objects recompiled and applications relinked, unchanged native CUDA archives reused. No GPU/runtime run."
+    },
+    {
+      "interaction_class": "FAST",
+      "evidence_type": "independent_source_review_and_recorded_native_compile_integrity_not_GPU_execution",
+      "source_commit": "a73b9635510fb09d7baa5339e14d1aa609f0ff87",
+      "source_tree": "e343cb9f477dcd86556f7b6595189fa2c9c1c099",
+      "previous_source_commit": "970d9fedcc061dfa08fc88d427a1a47b3c22f65f",
+      "changed_path": "applications/CHT/thermal/GpuSolidPatchMapper.C",
+      "source_sha256": "947decef7e1a2aa552c6d201401674617fdb8be22a331d98c430fe115ee63074",
+      "review_evidence_id": "E014-df24bc6578459988",
+      "compile_evidence_id": "E014-d8f59830c32c3719",
+      "independently_verified": {
+        "mapper_dependencies": 492,
+        "repository_export_source_pairs": 385,
+        "object_archive_records": 11,
+        "mismatches": 0
+      },
+      "verdict": "SCOPED_SOURCE_AND_CHT_HOST_COMPILE_APPROVED",
+      "runtime_acceptance": false,
+      "limits": "Only mapper.o rebuilt and CHT relinked; unchanged host objects/native CUDA archive reused. Four existing OpenFOAM DiagonalMatrix warnings. No numerical or GPU run; prior category-level coverage limits remain.",
+      "id": "R014-022-MAPPER-SOURCE-QUALIFIED-001"
+    }
+  ],
+  "reviewer_plan_source_history": [
+    {
+      "source_commit": "970d9fedcc061dfa08fc88d427a1a47b3c22f65f",
+      "source_tree": "6078c4274f1c7315c7c86d7bbd4ed802b805edc7",
+      "superseded_for_future_execution_by": "a73b9635510fb09d7baa5339e14d1aa609f0ff87",
+      "recorded_utc": "2026-10-13T17:04:48.115739+00:00"
+    }
+  ]
+}
