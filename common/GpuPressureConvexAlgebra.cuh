@@ -14,21 +14,16 @@ namespace pressure_convex {
 template<class Real> struct LimitResult { Real beta; bool valid; };
 template<class Real> struct InitialState { Real internal; Real floor; bool valid; };
 
-PRESSURE_CONVEX_HD float root(float x) { return ::sqrtf(x); }
 PRESSURE_CONVEX_HD double root(double x) { return ::sqrt(x); }
-PRESSURE_CONVEX_HD float fraction(float x,int* e) { return ::frexpf(x,e); }
 PRESSURE_CONVEX_HD double fraction(double x,int* e) { return ::frexp(x,e); }
-PRESSURE_CONVEX_HD float power(float x,int e) { return ::ldexpf(x,e); }
 PRESSURE_CONVEX_HD double power(double x,int e) { return ::ldexp(x,e); }
-PRESSURE_CONVEX_HD float fused(float x,float y,float z) { return ::fmaf(x,y,z); }
 PRESSURE_CONVEX_HD double fused(double x,double y,double z) { return ::fma(x,y,z); }
-PRESSURE_CONVEX_HD float inward(float x) { return ::nextafterf(x,0.0f); }
 PRESSURE_CONVEX_HD double inward(double x) { return ::nextafter(x,0.0); }
 template<class Real> PRESSURE_CONVEX_HD Real maximum(Real a,Real b) { return a>b?a:b; }
 template<class Real> PRESSURE_CONVEX_HD Real minimum(Real a,Real b) { return a<b?a:b; }
 template<class Real> PRESSURE_CONVEX_HD Real absolute(Real a) { return a<Real(0)?-a:a; }
-template<class Real> PRESSURE_CONVEX_HD Real largest() { return sizeof(Real)==sizeof(float)?Real(FLT_MAX):Real(DBL_MAX); }
-template<class Real> PRESSURE_CONVEX_HD Real epsilon() { return sizeof(Real)==sizeof(float)?Real(FLT_EPSILON):Real(DBL_EPSILON); }
+template<class Real> PRESSURE_CONVEX_HD Real largest() { return Real(DBL_MAX); }
+template<class Real> PRESSURE_CONVEX_HD Real epsilon() { return Real(DBL_EPSILON); }
 template<class Real> PRESSURE_CONVEX_HD bool finite(Real a) { return a==a && a<=largest<Real>() && a>=-largest<Real>(); }
 template<class Real> PRESSURE_CONVEX_HD Real maxComponent(Real x,Real y,Real z) {
     return maximum(absolute(x),maximum(absolute(y),absolute(z)));

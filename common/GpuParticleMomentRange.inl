@@ -11,8 +11,10 @@
     #if !GPU_MOMENT_THERMAL
     const GPU_MOMENT_REAL heatFactor = particleHeatFactorDevice(s);
 #endif
-    for (int pos = GPU_MOMENT_BEGIN + threadIdx.x; pos < end; pos += blockDim.x)
+    for (unsigned int cursor = static_cast<unsigned int>(GPU_MOMENT_BEGIN) + threadIdx.x;
+         cursor < static_cast<unsigned int>(end); cursor += blockDim.x)
     {
+        const int pos = static_cast<int>(cursor);
         const int i = s.sortedParticleIndex[pos];
         if
         (

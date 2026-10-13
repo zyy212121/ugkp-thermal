@@ -14,9 +14,10 @@ int collectDevelopmentProbeSample
         return 1;
     }
 
+    float totalElapsedMs = 0.0f;
     err = cudaEventElapsedTime
     (
-        &sample.totalMs,
+        &totalElapsedMs,
         developmentProbe.totalStartEvent,
         developmentProbe.totalStopEvent
     );
@@ -25,9 +26,10 @@ int collectDevelopmentProbeSample
         setLastError("cudaEventElapsedTime UGKP development probe total", err);
         return 1;
     }
+    sample.totalMs = static_cast<double>(totalElapsedMs);
     for (int stage = 0; stage < ProbeStageCount; ++stage)
     {
-        sample.stageMs[stage] = 0.0f;
+        sample.stageMs[stage] = 0.0;
         for
         (
             int occurrence = 0;
@@ -58,7 +60,7 @@ int collectDevelopmentProbeSample
                 );
                 return 1;
             }
-            sample.stageMs[stage] += elapsedMs;
+            sample.stageMs[stage] += static_cast<double>(elapsedMs);
         }
     }
     sample.timingValid = 1;

@@ -24,7 +24,6 @@ enum class GpuCsrLevel : label
 
 struct GpuSchedulingConfiguration
 {
-    label precision = 32;
     bool pureGasOnly = false;
     bool dynamicInlet = false;
     label particleCapacity = 1000000;
@@ -54,9 +53,7 @@ inline GpuCsrLevel readGpuCsrLevel
 {
     if (!properties.found("gpuCsrLevel"))
     {
-        FatalErrorInFunction
-            << "schedulingProperties requires gpuCsrLevel L0|L1|L2|auto"
-            << exit(FatalError);
+        return GpuCsrLevel::L0;
     }
     const word csrLevelValue(properties.lookup("gpuCsrLevel"));
     if (csrLevelValue == "L0")
@@ -75,9 +72,6 @@ inline GpuCsrLevel readGpuCsrLevel
     {
         return GpuCsrLevel::automatic;
     }
-    FatalErrorInFunction
-        << "gpuCsrLevel must be L0, L1, L2 or auto. Current value = "
-        << csrLevelValue << exit(FatalError);
     return GpuCsrLevel::L0;
 }
 
@@ -87,31 +81,6 @@ inline GpuSchedulingConfiguration readGpuSchedulingConfiguration
 )
 {
     GpuSchedulingConfiguration value;
-    value.precision = properties.lookupOrDefault<label>("gpuPrecision", 32);
-    if (value.precision != 32 && value.precision != 64)
-    {
-        FatalErrorInFunction << "gpuPrecision must be 32 or 64" << exit(FatalError);
-    }
-    const word forbiddenGpuSchedulingKeys[] =
-    {
-        "gpuResidentStrict",
-        "gpuCsrCellLocalPath",
-        "gpuCsrHeavyReduction",
-        "gpuCsrWarpAggregatedBinning",
-        "gpuCsrSplitPreDirectory",
-        "gpuResearchVariant"
-    };
-    for (const word& key : forbiddenGpuSchedulingKeys)
-    {
-        if (properties.found(key))
-        {
-            FatalErrorInFunction
-                << key << " has been removed from schedulingProperties. "
-                << "Use gpuCsrLevel L0|L1|L2|auto; the solver derives the "
-                << "complete scheduling bundle."
-                << exit(FatalError);
-        }
-    }
     value.pureGasOnly =
         properties.lookupOrDefault<bool>("gpuResidentPureGasOnly", false);
     value.dynamicInlet =
@@ -125,13 +94,6 @@ inline GpuSchedulingConfiguration readGpuSchedulingConfiguration
     value.maxDeltaTGrowth =
         properties.lookupOrDefault<scalar>("gpuResidentMaxDeltaTGrowth", 1.05);
     value.csrLevel = readGpuCsrLevel(properties);
-    if (properties.found("gpuCsrHeavyReductionAutoInterval")
-     && value.csrLevel != GpuCsrLevel::automatic)
-    {
-        FatalErrorInFunction
-            << "gpuCsrHeavyReductionAutoInterval is only valid with gpuCsrLevel auto"
-            << exit(FatalError);
-    }
     if (value.csrLevel == GpuCsrLevel::automatic)
     {
         value.heavyReductionAutoInterval = properties.lookupOrDefault<label>
@@ -158,50 +120,14 @@ inline GpuSchedulingConfiguration readGpuSchedulingConfiguration
             << "gpuResidentParticleCapacity must be non-negative. Current value = "
             << value.particleCapacity << exit(FatalError);
     }
-    if (value.maxFaceWalkHops < 1)
-    {
-        FatalErrorInFunction
-            << "gpuResidentMaxFaceWalkHops must be positive. Current value = "
-            << value.maxFaceWalkHops << exit(FatalError);
-    }
-    if (value.courantUpdateInterval < 1)
-    {
-        FatalErrorInFunction
-            << "gpuResidentCourantUpdateInterval must be positive. Current value = "
-            << value.courantUpdateInterval << exit(FatalError);
-    }
-    if
-    (
-        !std::isfinite(value.maxDeltaTGrowth)
-     || value.maxDeltaTGrowth < scalar(1)
-    )
-    {
-        FatalErrorInFunction
-            << "gpuResidentMaxDeltaTGrowth must be finite and at least one. "
-            << "Current value = " << value.maxDeltaTGrowth << exit(FatalError);
-    }
-    if (!validGpuBlockThreads(value.particleBlockThreads))
-    {
-        FatalErrorInFunction
-            << "gpuParticleBlockThreads must be 32, 64, 128 or 256. "
-            << "Current value = " << value.particleBlockThreads
-            << exit(FatalError);
-    }
-    if (!validGpuBlockThreads(value.reductionBlockThreads))
-    {
-        FatalErrorInFunction
-            << "gpuReductionBlockThreads must be 32, 64, 128 or 256. "
-            << "Current value = " << value.reductionBlockThreads
-            << exit(FatalError);
-    }
     if
     (
         value.heavyReductionMode == GpuHeavyReductionMode::automatic
-     && value.heavyReductionAutoInterval < 1
+     && value.heavyReductionAutoInterval == 0
     )
     {
         FatalErrorInFunction
-            << "gpuCsrHeavyReductionAutoInterval must be positive in auto mode. "
+            << "gpuCsrHeavyReductionAutoInterval is a zero modulo divisor in auto mode. "
             << "Current value = " << value.heavyReductionAutoInterval
             << exit(FatalError);
     }

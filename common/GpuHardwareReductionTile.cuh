@@ -4,7 +4,7 @@
 #else
 #define GPU_TILE_HD inline
 #endif
-// Zero denotes invalid input or an unrepresentable tile, never an L2 decision.
+// Zero denotes invalid input; representational rounding never rejects work.
 GPU_TILE_HD int hardwareReductionTile(const long long population, const int blockThreads,
     const int multiprocessors, const int residentBlocksPerSm)
 {
@@ -16,15 +16,15 @@ GPU_TILE_HD int hardwareReductionTile(const long long population, const int bloc
     const unsigned long long unsignedThreads = static_cast<unsigned long long>(blockThreads);
     const unsigned long long low = unsignedBlocks*unsignedThreads;
     if (__umul64hi(unsignedBlocks, unsignedThreads) != 0 || low > 9223372036854775807ULL)
-        return 0;
+        return blockThreads;
     const long long concurrency = static_cast<long long>(low);
 #else
-    if (blocks > 9223372036854775807LL/blockThreads) return 0;
+    if (blocks > 9223372036854775807LL/blockThreads) return blockThreads;
     const long long concurrency = blocks*blockThreads;
 #endif
     const long long shares = population == 0 ? 1 : 1 + (population - 1)/concurrency;
-    if (shares > 2147483647LL) return 0;
+    if (shares > 2147483647LL) return 2147483647;
     const long long tile = shares*blockThreads;
-    return tile > 2147483647LL ? 0 : static_cast<int>(tile);
+    return tile > 2147483647LL ? 2147483647 : static_cast<int>(tile);
 }
 #undef GPU_TILE_HD

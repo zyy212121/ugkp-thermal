@@ -59,8 +59,10 @@ __global__ void accumulatePoissonPoolParticlesByCellKernel
     GPU_OPERATOR_REAL diameter2 = GPU_OPERATOR_R(0.0);
     GPU_OPERATOR_REAL count = GPU_OPERATOR_R(0.0);
 
-    for (int pos = start + threadIdx.x; pos < end; pos += blockDim.x)
+    for (unsigned int cursor = static_cast<unsigned int>(start) + threadIdx.x;
+         cursor < static_cast<unsigned int>(end); cursor += blockDim.x)
     {
+        const int pos = static_cast<int>(cursor);
         const int i = s.sortedParticleIndex[pos];
 
         accumulateOnePoolParticle<true>

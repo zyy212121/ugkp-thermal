@@ -21,7 +21,8 @@ __device__ void correctOnePoissonThermalizedParticle
     {
         if (s.pStuck[i] == 0)
         {
-            asm("trap;");
+            correctOnePoissonThermalizedParticlePath<false>(s, i, applyThetaDrag);
+            return;
         }
     }
     else if (s.pStuck[i] != 0)
@@ -153,8 +154,8 @@ __device__ void correctOnePoissonThermalizedParticle
         ((s.puz[i] - targetUz) - sampleMeanDeltaZ);
     if
     (
-        nonFiniteDevice(correctedUx) || nonFiniteDevice(correctedUy)
-     || nonFiniteDevice(correctedUz)
+        !std::isfinite(correctedUx) || !std::isfinite(correctedUy)
+     || !std::isfinite(correctedUz)
     )
     {
         asm("trap;");

@@ -10,9 +10,9 @@
 // pointer may name a gas-only view; no particle storage is required here.
 // GasHostPolicy owns only time/weight types and the optional wall-energy ledger;
 // launches, streams, error checks and their ordering are owned here.
-// RK fractions are converted before division to preserve FP32 weight semantics.
+// RK fractions are formed in the fixed double scalar type before division.
 template<class GasHostState>
-int advanceGasEulerSubstage(GasHostState* s, const GasHostPolicy::Time dt, const GasHostPolicy::Time ledgerDt, const GasHostPolicy::Time stageTime)
+int advanceGasEulerSubstage(GasHostState* s, const GasHostPolicy::Time dt, const GasHostPolicy::Time ledgerDt, const GasHostPolicy::Time stageTime, const bool nativeRefinement=false)
 {
     const int cellBlock = s->fixedCellBlockThreads;
     const int faceBlock = s->fixedFaceBlockThreads;
@@ -21,7 +21,7 @@ int advanceGasEulerSubstage(GasHostState* s, const GasHostPolicy::Time dt, const
     cudaError_t err = cudaSuccess;
     const bool preparedBoundaryLayer=ugkwp::gasBoundaryLayerPreparationReusable(*s,dt,stageTime);
 
-    recoverGasPrimitivesKernel<<<cellGrid, cellBlock, 0, s->gasCaptureStream>>>(s->deviceState);
+    recoverGasPrimitivesKernel<<<cellGrid, cellBlock, 0, s->gasCaptureStream>>>(s->deviceState,nativeRefinement);
     err = cudaGetLastError();
     if (err != cudaSuccess)
     {
@@ -30,7 +30,7 @@ int advanceGasEulerSubstage(GasHostState* s, const GasHostPolicy::Time dt, const
     }
     if (s->hostTurbulenceModel == 3)
     {
-        recoverSstPrimitivesKernel<<<cellGrid, cellBlock, 0, s->gasCaptureStream>>>(s->deviceState);
+        recoverSstPrimitivesKernel<<<cellGrid, cellBlock, 0, s->gasCaptureStream>>>(s->deviceState,nativeRefinement);
         err = cudaGetLastError();
         if (err != cudaSuccess)
         {
@@ -52,7 +52,7 @@ int advanceGasEulerSubstage(GasHostState* s, const GasHostPolicy::Time dt, const
     {setLastErrorText("boundaryLayer stage preparation failed");return 1;}
     if (s->hostTurbulenceModel == 3 && !preparedBoundaryLayer)
     {
-        applySstWallFunctionStateKernel<<<cellGrid, cellBlock, 0, s->gasCaptureStream>>>(s->deviceState);
+        applySstWallFunctionStateKernel<<<cellGrid, cellBlock, 0, s->gasCaptureStream>>>(s->deviceState,false,nativeRefinement);
         err = cudaGetLastError();
         if (err != cudaSuccess)
         {
@@ -70,14 +70,14 @@ int advanceGasEulerSubstage(GasHostState* s, const GasHostPolicy::Time dt, const
             return 1;
         }
     }
-    computeGasPrimitiveGradientsKernel<<<cellGrid, cellBlock, 0, s->gasCaptureStream>>>(s->deviceState);
+    computeGasPrimitiveGradientsKernel<<<cellGrid, cellBlock, 0, s->gasCaptureStream>>>(s->deviceState,false,nativeRefinement);
     err = cudaGetLastError();
     if (err != cudaSuccess)
     {
         setLastError("computeGasPrimitiveGradientsKernel launch", err);
         return 1;
     }
-    computeGasGradientLimiterKernel<<<cellGrid, cellBlock, 0, s->gasCaptureStream>>>(s->deviceState);
+    computeGasGradientLimiterKernel<<<cellGrid, cellBlock, 0, s->gasCaptureStream>>>(s->deviceState,nativeRefinement);
     err = cudaGetLastError();
     if (err != cudaSuccess)
     {
@@ -100,16 +100,14 @@ int advanceGasEulerSubstage(GasHostState* s, const GasHostPolicy::Time dt, const
         computeGasInternalFaceFluxKernel<false><<<faceGrid, faceBlock, 0, s->gasCaptureStream>>>
         (
             s->deviceState,
-            dt
-        );
+            dt,nativeRefinement);
     }
     else
     {
         computeGasInternalFaceFluxKernel<true><<<faceGrid, faceBlock, 0, s->gasCaptureStream>>>
         (
             s->deviceState,
-            dt
-        );
+            dt,nativeRefinement);
     }
     err = cudaGetLastError();
     if (err != cudaSuccess)
@@ -121,8 +119,7 @@ int advanceGasEulerSubstage(GasHostState* s, const GasHostPolicy::Time dt, const
     {
         enforcePeriodicGasFluxAntisymmetryKernel<<<faceGrid, faceBlock, 0, s->gasCaptureStream>>>
         (
-            s->deviceState
-        );
+            s->deviceState,nativeRefinement);
         err = cudaGetLastError();
         if (err != cudaSuccess)
         {
@@ -142,8 +139,7 @@ int advanceGasEulerSubstage(GasHostState* s, const GasHostPolicy::Time dt, const
     }
     applyGasFluxPositivityScaleKernel<<<faceGrid, faceBlock, 0, s->gasCaptureStream>>>
     (
-        s->deviceState
-    );
+        s->deviceState,nativeRefinement);
     err = cudaGetLastError();
     if (err != cudaSuccess)
     {
@@ -155,8 +151,7 @@ int advanceGasEulerSubstage(GasHostState* s, const GasHostPolicy::Time dt, const
     {
         enforcePeriodicGasFluxAntisymmetryKernel<<<faceGrid, faceBlock, 0, s->gasCaptureStream>>>
         (
-            s->deviceState
-        );
+            s->deviceState,nativeRefinement);
         err = cudaGetLastError();
         if (err != cudaSuccess)
         {
@@ -203,8 +198,7 @@ int advanceGasEulerSubstage(GasHostState* s, const GasHostPolicy::Time dt, const
         applySstFluxAndSourceKernel<<<cellGrid, cellBlock, 0, s->gasCaptureStream>>>
         (
             s->deviceState,
-            dt
-        );
+            dt,nativeRefinement);
         err = cudaGetLastError();
         if (err != cudaSuccess)
         {
@@ -212,14 +206,14 @@ int advanceGasEulerSubstage(GasHostState* s, const GasHostPolicy::Time dt, const
             return 1;
         }
     }
-    applyGasFluxDivergenceByCellKernel<<<cellGrid, cellBlock, 0, s->gasCaptureStream>>>(s->deviceState, dt);
+    applyGasFluxDivergenceByCellKernel<<<cellGrid, cellBlock, 0, s->gasCaptureStream>>>(s->deviceState, dt, nativeRefinement);
     err = cudaGetLastError();
     if (err != cudaSuccess)
     {
         setLastError("applyGasFluxDivergenceByCellKernel launch", err);
         return 1;
     }
-    recoverGasPrimitivesKernel<<<cellGrid, cellBlock, 0, s->gasCaptureStream>>>(s->deviceState);
+    recoverGasPrimitivesKernel<<<cellGrid, cellBlock, 0, s->gasCaptureStream>>>(s->deviceState,nativeRefinement);
     err = cudaGetLastError();
     if (err != cudaSuccess)
     {
@@ -228,7 +222,7 @@ int advanceGasEulerSubstage(GasHostState* s, const GasHostPolicy::Time dt, const
     }
     if (s->hostTurbulenceModel == 3)
     {
-        recoverSstPrimitivesKernel<<<cellGrid, cellBlock, 0, s->gasCaptureStream>>>(s->deviceState);
+        recoverSstPrimitivesKernel<<<cellGrid, cellBlock, 0, s->gasCaptureStream>>>(s->deviceState,nativeRefinement);
         err = cudaGetLastError();
         if (err != cudaSuccess)
         {
@@ -244,7 +238,8 @@ int blendGasRungeKuttaStage
 (
     GasHostState* s,
     const double initialWeight,
-    const double stageWeight
+    const double stageWeight,
+    const bool nativeRefinement=false
 )
 {
     const int block = s->fixedCellBlockThreads;
@@ -253,7 +248,7 @@ int blendGasRungeKuttaStage
     (
         s->deviceState,
         initialWeight,
-        stageWeight
+        stageWeight, nativeRefinement
     );
     cudaError_t err = cudaGetLastError();
     if (err != cudaSuccess)
@@ -261,7 +256,7 @@ int blendGasRungeKuttaStage
         setLastError("blendGasConservativeStateKernel launch", err);
         return 1;
     }
-    recoverGasPrimitivesKernel<<<cellGrid, block, 0, s->gasCaptureStream>>>(s->deviceState);
+    recoverGasPrimitivesKernel<<<cellGrid, block, 0, s->gasCaptureStream>>>(s->deviceState,nativeRefinement);
     err = cudaGetLastError();
     if (err != cudaSuccess)
     {
@@ -270,7 +265,7 @@ int blendGasRungeKuttaStage
     }
     if (s->hostTurbulenceModel == 3)
     {
-        recoverSstPrimitivesKernel<<<cellGrid, block, 0, s->gasCaptureStream>>>(s->deviceState);
+        recoverSstPrimitivesKernel<<<cellGrid, block, 0, s->gasCaptureStream>>>(s->deviceState,nativeRefinement);
         err = cudaGetLastError();
         if (err != cudaSuccess)
         {
@@ -282,7 +277,7 @@ int blendGasRungeKuttaStage
 }
 
 template<class GasHostState>
-int advanceGasFluxStage(GasHostState* s, const GasHostPolicy::Time dt, const GasHostPolicy::Time simulationTime)
+int advanceGasFluxStage(GasHostState* s, const GasHostPolicy::Time dt, const GasHostPolicy::Time simulationTime, const bool nativeRefinement=false)
 {
 
     const int preparationCellBlock = s->fixedCellBlockThreads;
@@ -302,8 +297,7 @@ int advanceGasFluxStage(GasHostState* s, const GasHostPolicy::Time dt, const Gas
     }
     recoverGasPrimitivesKernel<<<preparationCellGrid, preparationCellBlock, 0, s->gasCaptureStream>>>
     (
-        s->deviceState
-    );
+        s->deviceState,nativeRefinement);
     cudaError_t preparationError = cudaGetLastError();
     if (preparationError != cudaSuccess)
     {
@@ -333,7 +327,7 @@ int advanceGasFluxStage(GasHostState* s, const GasHostPolicy::Time dt, const Gas
 
     if (s->hostGasTimeIntegrator == 1)
     {
-        return advanceGasEulerSubstage(s, dt, dt, simulationTime);
+        return advanceGasEulerSubstage(s, dt, dt, simulationTime, nativeRefinement);
     }
 
     const int block = s->fixedCellBlockThreads;
@@ -347,11 +341,11 @@ int advanceGasFluxStage(GasHostState* s, const GasHostPolicy::Time dt, const Gas
     }
 
     const GasHostPolicy::Time firstLedgerDt = GasHostPolicy::firstLedgerDt(s, dt);
-    if (advanceGasEulerSubstage(s, dt, firstLedgerDt, simulationTime) != 0)
+    if (advanceGasEulerSubstage(s, dt, firstLedgerDt, simulationTime, nativeRefinement) != 0)
     {
         return 1;
     }
-    if (advanceGasEulerSubstage(s, dt, firstLedgerDt, simulationTime+dt) != 0)
+    if (advanceGasEulerSubstage(s, dt, firstLedgerDt, simulationTime+dt, nativeRefinement) != 0)
     {
         return 1;
     }
@@ -359,7 +353,7 @@ int advanceGasFluxStage(GasHostState* s, const GasHostPolicy::Time dt, const Gas
     if (s->hostGasTimeIntegrator == 2)
     {
 
-        return blendGasRungeKuttaStage(s, static_cast<double>(0.5), static_cast<double>(0.5));
+        return blendGasRungeKuttaStage(s, static_cast<double>(0.5), static_cast<double>(0.5), nativeRefinement);
     }
     if (s->hostGasTimeIntegrator != 3)
     {
@@ -367,11 +361,11 @@ int advanceGasFluxStage(GasHostState* s, const GasHostPolicy::Time dt, const Gas
         return 1;
     }
 
-    if (blendGasRungeKuttaStage(s, static_cast<double>(0.75), static_cast<double>(0.25)) != 0)
+    if (blendGasRungeKuttaStage(s, static_cast<double>(0.75), static_cast<double>(0.25), nativeRefinement) != 0)
     {
         return 1;
     }
-    if (advanceGasEulerSubstage(s, dt, GasHostPolicy::finalLedgerDt(dt), simulationTime+dt*GasHostPolicy::Time(0.5)) != 0)
+    if (advanceGasEulerSubstage(s, dt, GasHostPolicy::finalLedgerDt(dt), simulationTime+dt*GasHostPolicy::Time(0.5), nativeRefinement) != 0)
     {
         return 1;
     }
@@ -379,7 +373,8 @@ int advanceGasFluxStage(GasHostState* s, const GasHostPolicy::Time dt, const Gas
     (
         s,
         static_cast<double>(1.0)/static_cast<double>(3.0),
-        static_cast<double>(2.0)/static_cast<double>(3.0)
+        static_cast<double>(2.0)/static_cast<double>(3.0),
+        nativeRefinement
     );
 }
 
@@ -531,11 +526,38 @@ int advancePureGasGraph(GasHostState* s, const GasHostPolicy::Time dt, const Gas
     return 0;
 }
 
+// Only native policies with an explicit overload consume refinement mode.
+// Existing coupled policies retain their original source-compatible callback.
+template<class Policy,class State>
+auto validateGasTrialState(State* s,bool nativeRefinement,int)
+    -> decltype(Policy::validate(s,nativeRefinement))
+{return Policy::validate(s,nativeRefinement);}
+template<class Policy,class State>
+int validateGasTrialState(State* s,bool,long)
+{return Policy::validate(s);}
+
+template<class Policy,class State,class Time>
+auto applyGasTrialSources(State* s,Time dt,bool nativeRefinement,int)
+    -> decltype(Policy::applySources(s,dt,nativeRefinement))
+{return Policy::applySources(s,dt,nativeRefinement);}
+template<class Policy,class State,class Time>
+int applyGasTrialSources(State* s,Time dt,bool,long)
+{return Policy::applySources(s,dt);}
+
+// Public-only policies need not expose the native retry estimator interface.
+template<class Policy,class State,class=void>
+struct GasNativeTrialBoundsCapability:std::false_type{};
+template<class Policy,class State>
+struct GasNativeTrialBoundsCapability<Policy,State,std::void_t<
+    decltype(Policy::targetMaxCo(std::declval<State*>())),
+    decltype(Policy::validateTimeStep(std::declval<State*>(),GasHostPolicy::Time{}))>>:std::true_type{};
+
 // Shared source composition: chemistry always uses explicit stage volumes.
 // Audits are copied by the storage policy before the next half overwrites them.
 template<class TrialPolicy,class GasHostState>
 int prepareGasTrialTransport(GasHostState* s,const GasHostPolicy::Time dt,
-    const GasHostPolicy::Time simulationTime=GasHostPolicy::Time(0))
+    const GasHostPolicy::Time simulationTime=GasHostPolicy::Time(0),
+    const bool nativeRefinement=false)
 {
     if constexpr (ugkwp::GasStateTraits<GasHostState>::speciesCount > 0)
     {
@@ -550,24 +572,14 @@ int prepareGasTrialTransport(GasHostState* s,const GasHostPolicy::Time dt,
                 if(error!=cudaSuccess){setLastError("prepare SST inventory audit",error);return 1;}
             }
             const bool chemistry=s->gasSpecies.mode==ugkwp::GasMode::MixtureChemistry;
-            if constexpr(ugkwp::GasGeometryCapability<GasHostState>::value)
-                if(ugkwp::gasMovingGeometry(*s))
-                {
-                    if(!ugkwp::validateGasGeometryTimeIntegrator(true,s->hostGasTimeIntegrator))
-                    {setLastErrorText("moving gas geometry requires certified Euler stages");return 1;}
-                    validateGasStageGeometryKernel<<<grid,block,0,s->gasCaptureStream>>>(s->deviceState,dt);
-                    const auto error=cudaGetLastError();
-                    if(error!=cudaSuccess){setLastError("gas stage geometry preflight",error);return 1;}
-                    if(TrialPolicy::validate(s)!=0)return 1;
-                }
             if(chemistry)
             {
                 advanceGasChemistryKernel<<<grid,block,0,s->gasCaptureStream>>>
-                    (s->deviceState,dt*GasHostPolicy::Time(0.5),TrialPolicy::stageVolumes(s,false));
+                    (s->deviceState,dt*GasHostPolicy::Time(0.5),TrialPolicy::stageVolumes(s,false),nativeRefinement);
                 const auto error=cudaGetLastError();
                 if(error!=cudaSuccess){setLastError("pre-transport gas chemistry",error);return 1;}
             }
-            recoverGasPrimitivesKernel<<<grid,block,0,s->gasCaptureStream>>>(s->deviceState);
+            recoverGasPrimitivesKernel<<<grid,block,0,s->gasCaptureStream>>>(s->deviceState,nativeRefinement);
             const auto recoveryError=cudaGetLastError();
             if(recoveryError!=cudaSuccess){setLastError("pre-transport mixture recovery",recoveryError);return 1;}
             if(ugkwp::gasBoundaryLayerEnabled(*s))
@@ -577,7 +589,7 @@ int prepareGasTrialTransport(GasHostState* s,const GasHostPolicy::Time dt,
                 // the first Euler stage consumes this exact state/phase cache.
                 if(s->hostTurbulenceModel==3)
                 {
-                    recoverSstPrimitivesKernel<<<grid,block,0,s->gasCaptureStream>>>(s->deviceState);
+                    recoverSstPrimitivesKernel<<<grid,block,0,s->gasCaptureStream>>>(s->deviceState,nativeRefinement);
                     const auto error=cudaGetLastError();
                     if(error!=cudaSuccess){setLastError("wall preflight SST recovery",error);return 1;}
                 }
@@ -595,69 +607,75 @@ int prepareGasTrialTransport(GasHostState* s,const GasHostPolicy::Time dt,
                 {setLastErrorText("boundaryLayer preflight preparation failed");return 1;}
                 if(s->hostTurbulenceModel==3)
                 {
-                    applySstWallFunctionStateKernel<<<grid,block,0,s->gasCaptureStream>>>(s->deviceState);
+                    applySstWallFunctionStateKernel<<<grid,block,0,s->gasCaptureStream>>>(s->deviceState,false,nativeRefinement);
                     const auto error=cudaGetLastError();
                     if(error!=cudaSuccess){setLastError("wall preflight owner omega",error);return 1;}
                 }
             }
-            if(TrialPolicy::validate(s)!=0)return 1;
+            if(validateGasTrialState<TrialPolicy>(s,nativeRefinement,0)!=0)return 1;
             if(chemistry && TrialPolicy::captureChemistryAudit(s,false)!=0)return 1;
-            if constexpr(ugkwp::GasStateTraits<GasDevice>::speciesCount>0)
-                if(s->hostTurbulenceModel!=0)
-                {
-                    if(s->hostTurbulenceModel==3 && !ugkwp::gasBoundaryLayerEnabled(*s))
+            if constexpr(GasNativeTrialBoundsCapability<TrialPolicy,GasHostState>::value)
+            if(nativeRefinement)
+            {
+                if constexpr(ugkwp::GasStateTraits<GasDevice>::speciesCount>0)
+                    if(s->hostTurbulenceModel!=0)
                     {
-                        recoverSstPrimitivesKernel<<<grid,block,0,s->gasCaptureStream>>>(s->deviceState);
-                        const auto error=cudaGetLastError();
-                        if(error!=cudaSuccess){setLastError("pre-transport SST recovery",error);return 1;}
+                        if(s->hostTurbulenceModel==3 && !ugkwp::gasBoundaryLayerEnabled(*s))
+                        {
+                            recoverSstPrimitivesKernel<<<grid,block,0,s->gasCaptureStream>>>(s->deviceState,nativeRefinement);
+                            const auto error=cudaGetLastError();
+                            if(error!=cudaSuccess){setLastError("pre-transport SST recovery",error);return 1;}
+                        }
+                        computeGasPrimitiveGradientsKernel<<<grid,block,0,s->gasCaptureStream>>>(s->deviceState,true,nativeRefinement);
+                        auto error=cudaGetLastError();
+                        if(error!=cudaSuccess){setLastError("pre-transport gas gradients",error);return 1;}
+                        if(s->hostTurbulenceModel==3)
+                        {
+                            computeGasGradientLimiterKernel<<<grid,block,0,s->gasCaptureStream>>>(s->deviceState,nativeRefinement);
+                            error=cudaGetLastError();
+                            if(error!=cudaSuccess){setLastError("pre-transport gas limiter",error);return 1;}
+                        }
+                        computeGasEddyViscosityKernel<<<grid,block,0,s->gasCaptureStream>>>(s->deviceState);
+                        error=cudaGetLastError();
+                        if(error!=cudaSuccess){setLastError("pre-transport eddy viscosity",error);return 1;}
                     }
-                    computeGasPrimitiveGradientsKernel<<<grid,block,0,s->gasCaptureStream>>>(s->deviceState,true);
-                    auto error=cudaGetLastError();
-                    if(error!=cudaSuccess){setLastError("pre-transport gas gradients",error);return 1;}
+                const int faceBlock=s->fixedFaceBlockThreads,faceGrid=(s->nFaces+faceBlock-1)/faceBlock;
+                if(faceGrid>0)
+                {
+                    computeGasCourantFieldKernel<<<faceGrid,faceBlock,0,s->gasCaptureStream>>>(s->deviceState,dt,nativeRefinement);
+                    const auto error=cudaGetLastError();
+                    if(error!=cudaSuccess){setLastError("post-chemistry wave speed",error);return 1;}
+                }
+                // SST inletOutlet gradients and compression bounds consume the
+                // fresh Riemann mass predictor, never prior-stage flux scratch.
+                if constexpr(ugkwp::GasStateTraits<GasDevice>::speciesCount>0)
                     if(s->hostTurbulenceModel==3)
                     {
-                        computeGasGradientLimiterKernel<<<grid,block,0,s->gasCaptureStream>>>(s->deviceState);
+                        computeSstGradientsKernel<<<grid,block,0,s->gasCaptureStream>>>(s->deviceState);
+                        auto error=cudaGetLastError();
+                        if(error!=cudaSuccess){setLastError("pre-transport SST gradients",error);return 1;}
+                        computeSstStabilityNumberKernel<<<grid,block,0,s->gasCaptureStream>>>(s->deviceState,dt,TrialPolicy::targetMaxCo(s));
                         error=cudaGetLastError();
-                        if(error!=cudaSuccess){setLastError("pre-transport gas limiter",error);return 1;}
+                        if(error!=cudaSuccess){setLastError("pre-transport SST stability",error);return 1;}
                     }
-                    computeGasEddyViscosityKernel<<<grid,block,0,s->gasCaptureStream>>>(s->deviceState);
-                    error=cudaGetLastError();
-                    if(error!=cudaSuccess){setLastError("pre-transport eddy viscosity",error);return 1;}
-                }
-            const int faceBlock=s->fixedFaceBlockThreads,faceGrid=(s->nFaces+faceBlock-1)/faceBlock;
-            if(faceGrid>0)
-            {
-                computeGasCourantFieldKernel<<<faceGrid,faceBlock,0,s->gasCaptureStream>>>(s->deviceState,dt);
-                const auto error=cudaGetLastError();
-                if(error!=cudaSuccess){setLastError("post-chemistry wave speed",error);return 1;}
+                computeGasConvectiveCourantByCellKernel<<<grid,block,0,s->gasCaptureStream>>>(s->deviceState,dt);
+                auto error=cudaGetLastError();
+                if(error!=cudaSuccess){setLastError("post-chemistry convective bound",error);return 1;}
+                computeGasDiffusionNumberKernel<<<grid,block,0,s->gasCaptureStream>>>
+                    (s->deviceState,dt,TrialPolicy::targetMaxCo(s),nativeRefinement);
+                error=cudaGetLastError();
+                if(error!=cudaSuccess){setLastError("post-chemistry diffusion bound",error);return 1;}
+                if(validateGasTrialState<TrialPolicy>(s,nativeRefinement,0)!=0 || TrialPolicy::validateTimeStep(s,dt)!=0)return 1;
             }
-            // SST inletOutlet gradients and compression bounds consume the
-            // fresh Riemann mass predictor, never prior-stage flux scratch.
-            if constexpr(ugkwp::GasStateTraits<GasDevice>::speciesCount>0)
-                if(s->hostTurbulenceModel==3)
-                {
-                    computeSstGradientsKernel<<<grid,block,0,s->gasCaptureStream>>>(s->deviceState);
-                    auto error=cudaGetLastError();
-                    if(error!=cudaSuccess){setLastError("pre-transport SST gradients",error);return 1;}
-                    computeSstStabilityNumberKernel<<<grid,block,0,s->gasCaptureStream>>>(s->deviceState,dt,TrialPolicy::targetMaxCo(s));
-                    error=cudaGetLastError();
-                    if(error!=cudaSuccess){setLastError("pre-transport SST stability",error);return 1;}
-                }
-            computeGasConvectiveCourantByCellKernel<<<grid,block,0,s->gasCaptureStream>>>(s->deviceState,dt);
-            auto error=cudaGetLastError();
-            if(error!=cudaSuccess){setLastError("post-chemistry convective bound",error);return 1;}
-            computeGasDiffusionNumberKernel<<<grid,block,0,s->gasCaptureStream>>>
-                (s->deviceState,dt,TrialPolicy::targetMaxCo(s));
-            error=cudaGetLastError();
-            if(error!=cudaSuccess){setLastError("post-chemistry diffusion bound",error);return 1;}
-            if(TrialPolicy::validate(s)!=0 || TrialPolicy::validateTimeStep(s,dt)!=0)return 1;
+
         }
     }
     return 0;
 }
 
 template<class TrialPolicy,class GasHostState>
-int finaliseGasTrialSources(GasHostState* s,const GasHostPolicy::Time dt)
+int finaliseGasTrialSources(GasHostState* s,const GasHostPolicy::Time dt,
+    const bool nativeRefinement=false)
 {
     if constexpr (ugkwp::GasStateTraits<GasHostState>::speciesCount > 0)
     {
@@ -668,42 +686,42 @@ int finaliseGasTrialSources(GasHostState* s,const GasHostPolicy::Time dt)
             if(chemistry)
             {
                 advanceGasChemistryKernel<<<grid,block,0,s->gasCaptureStream>>>
-                    (s->deviceState,dt*GasHostPolicy::Time(0.5),TrialPolicy::stageVolumes(s,true));
+                    (s->deviceState,dt*GasHostPolicy::Time(0.5),TrialPolicy::stageVolumes(s,true),nativeRefinement);
                 const auto error=cudaGetLastError();
                 if(error!=cudaSuccess){setLastError("post-transport gas chemistry",error);return 1;}
             }
-            recoverGasPrimitivesKernel<<<grid,block,0,s->gasCaptureStream>>>(s->deviceState);
+            recoverGasPrimitivesKernel<<<grid,block,0,s->gasCaptureStream>>>(s->deviceState,nativeRefinement);
             const auto error=cudaGetLastError();
             if(error!=cudaSuccess){setLastError("post-source mixture recovery",error);return 1;}
-            if(TrialPolicy::validate(s)!=0)return 1;
+            if(validateGasTrialState<TrialPolicy>(s,nativeRefinement,0)!=0)return 1;
             if(chemistry && TrialPolicy::captureChemistryAudit(s,true)!=0)return 1;
         }
     }
     return 0;
 }
 
-// TrialPolicy owns storage/publication only. Both production applications use
-// this exact sequence; a failed cell/face rejects and restores the whole trial.
-// begin must snapshot conserved/species state, boundary history and ledgers,
-// then clear trial statuses. validate must synchronize and inspect all statuses.
-// rollback restores accepted state and diagnostics; commit publishes once.
+// The requested-interval owner opts into the established native trial method.
+// Direct callers retain public terminal behavior; both paths use one solve and
+// restore genuinely failed trials through the existing transaction policy.
 template<class TrialPolicy, class GasHostState>
 int advanceGasTrial
 (
     GasHostState* s,
     const GasHostPolicy::Time dt,
-    const GasHostPolicy::Time simulationTime
+    const GasHostPolicy::Time simulationTime,
+    const bool nativeRefinement=false
 )
 {
     ugkwp::invalidateGasBoundaryLayerPreparation(*s);
     if (TrialPolicy::begin(s) != 0)
     { ugkwp::invalidateGasBoundaryLayerPreparation(*s); TrialPolicy::rollback(s); return 1; }
-    if (prepareGasTrialTransport<TrialPolicy>(s,dt,simulationTime) != 0
-        || advanceGasFluxStage(s, dt, simulationTime) != 0
-        || TrialPolicy::applySources(s, dt) != 0
-        || finaliseGasTrialSources<TrialPolicy>(s,dt) != 0
+    if (prepareGasTrialTransport<TrialPolicy>(s,dt,simulationTime,nativeRefinement) != 0
+        || advanceGasFluxStage(s, dt, simulationTime,nativeRefinement) != 0
+        || (!nativeRefinement && validateGasTrialState<TrialPolicy>(s,nativeRefinement,0) != 0)
+        || applyGasTrialSources<TrialPolicy>(s,dt,nativeRefinement,0) != 0
+        || finaliseGasTrialSources<TrialPolicy>(s,dt,nativeRefinement) != 0
         || finaliseGasBoundaryStage(s, dt, simulationTime+dt) != 0
-        || TrialPolicy::validate(s) != 0
+        || validateGasTrialState<TrialPolicy>(s,nativeRefinement,0) != 0
         || TrialPolicy::commit(s) != 0)
     { ugkwp::invalidateGasBoundaryLayerPreparation(*s); TrialPolicy::rollback(s); return 1; }
     return 0;
@@ -716,9 +734,9 @@ struct GasRequestedIntervalControls
     int maximumAttempts = 10000;
 };
 
-// Covers the entire requested interval or restores its initial accepted state.
-// The application clock is never advanced here. Policy snapshots must include
-// source budgets and diagnostics at BOTH the trial and requested-interval levels.
+// The native requested-interval owner retains its established accepted partition.
+// Original effort/minimum-step exhaustion selects the public terminal path;
+// it is not a new admission/refusal boundary. CHMT calls the public stage directly.
 template<class TrialPolicy, class GasHostState>
 int advanceGasRequestedInterval
 (
@@ -729,33 +747,41 @@ int advanceGasRequestedInterval
 )
 {
     using Time = GasHostPolicy::Time;
-    if (!(requestedDt > Time(0)) || !(controls.minimumSubstep > Time(0))
-        || controls.maximumAttempts <= 0 || simulationTime+requestedDt==simulationTime)
-        return 1;
     if (TrialPolicy::beginInterval(s) != 0)
     { TrialPolicy::rollbackInterval(s); return 1; }
-    Time elapsed = Time(0), substep = requestedDt;
-    int attempts = 0;
-    while (elapsed < requestedDt)
+    Time elapsed=Time(0),substep=requestedDt;
+    int attempts=0;
+    bool refining=requestedDt>Time(0) && controls.minimumSubstep>Time(0)
+        && controls.maximumAttempts>0 && simulationTime+requestedDt!=simulationTime;
+    if(!refining)
     {
-        const Time remaining = requestedDt-elapsed;
-        if (substep > remaining) substep=remaining;
-        if (++attempts > controls.maximumAttempts || elapsed+substep==elapsed
-            || !(substep > Time(0)))
-        { TrialPolicy::rollbackInterval(s); return 1; }
-        if (advanceGasTrial<TrialPolicy>(s,substep,simulationTime+elapsed)==0)
+        if(advanceGasTrial<TrialPolicy>(s,requestedDt,simulationTime,false)!=0)
+        {TrialPolicy::rollbackInterval(s);return 1;}
+    }
+    else while(elapsed<requestedDt)
+    {
+        const Time remaining=requestedDt-elapsed;
+        if(substep>remaining)substep=remaining;
+        if(refining && (++attempts>controls.maximumAttempts || elapsed+substep==elapsed
+            || !(substep>Time(0))))
+        {refining=false;substep=remaining;}
+        if(advanceGasTrial<TrialPolicy>(s,substep,simulationTime+elapsed,refining)==0)
         {
-            elapsed += substep;
-            if (elapsed < requestedDt) substep*=Time(2);
+            elapsed+=substep;
+            if(elapsed<requestedDt)substep*=Time(2);
         }
         else
         {
-            substep*=Time(0.5);
-            if (!TrialPolicy::retryable(s) || substep < controls.minimumSubstep)
-            { TrialPolicy::rollbackInterval(s); return 1; }
+            if(!TrialPolicy::retryable(s))
+            {TrialPolicy::rollbackInterval(s);return 1;}
+            if(!refining)
+            {TrialPolicy::rollbackInterval(s);return 1;}
+            substep*=Time(.5);
+            if(substep<controls.minimumSubstep)
+            {refining=false;substep=remaining;}
         }
     }
-    if (TrialPolicy::commitInterval(s)!=0)
-    { TrialPolicy::rollbackInterval(s); return 1; }
+    if(TrialPolicy::commitInterval(s)!=0)
+    {TrialPolicy::rollbackInterval(s);return 1;}
     return 0;
 }

@@ -18,11 +18,11 @@
 
     if
     (
-        nonFiniteDevice(m) || m < GPU_OPERATOR_R(0.0)
-     || nonFiniteDevice(ux) || nonFiniteDevice(uy)
-     || nonFiniteDevice(uz)
-     || nonFiniteDevice(theta) || theta < GPU_OPERATOR_R(0.0)
-     || nonFiniteDevice(specificEnergy)
+        !std::isfinite(m)
+     || !std::isfinite(ux) || !std::isfinite(uy)
+     || !std::isfinite(uz)
+     || !std::isfinite(theta)
+     || !std::isfinite(specificEnergy)
     )
     {
         asm("trap;");

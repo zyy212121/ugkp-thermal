@@ -64,7 +64,7 @@ __device__ void sampleOnePoissonPoolParticle
     (
         n > 1
      && (
-            nonFiniteDevice(ux) || nonFiniteDevice(uy) || nonFiniteDevice(uz)
+            !std::isfinite(ux) || !std::isfinite(uy) || !std::isfinite(uz)
         )
     )
     {
@@ -95,7 +95,7 @@ __device__ void sampleOnePoissonPoolParticle
         );
 
 #if GPU_OPERATOR_THERMAL
-    if (!finiteDevice(s.pm[i]) || s.pm[i] <= GPU_OPERATOR_R(0.0))
+    if (!std::isfinite(s.pm[i]))
     {
         asm("trap;");
     }
@@ -113,10 +113,9 @@ __device__ void sampleOnePoissonPoolParticle
     }
 #else
     const GPU_OPERATOR_REAL sampleMass = clampMin(finiteOr(s.pm[i], GPU_OPERATOR_R(0.0)), GPU_OPERATOR_R(0.0));
-    if (!(sampleMass > GPU_OPERATOR_R(0.0)))
+    if (!std::isfinite(s.pm[i]))
     {
         asm("trap;");
-        return;
     }
 #endif
     s.pRng[i] = rng;

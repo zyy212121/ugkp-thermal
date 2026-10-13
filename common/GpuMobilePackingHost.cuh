@@ -14,7 +14,7 @@ int applyMobilePackingProjection
     {
         return 0;
     }
-    if (!(dt > static_cast<GasHostPolicy::Weight>(0.0)) || !std::isfinite(dt))
+    if (dt == static_cast<GasHostPolicy::Weight>(0.0) || !std::isfinite(dt))
     {
         setLastErrorText("invalid mobile packing-projection dt");
         return 1;

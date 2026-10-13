@@ -124,7 +124,7 @@
     const GPU_OPERATOR_REAL igMin = mg*eMinGas;
     const GPU_OPERATOR_REAL isMin = GPU_OPERATOR_R(0.0);
 
-    const bool repairGasInternal=!ugkwp::gasEnergyFinite(igOld) || igOld<igMin;
+    const bool repairGasInternal=!ugkwp::gasEnergyFallbackFinite(igOld) || igOld<igMin;
     if (repairGasInternal)
     {
         igOld = igMin;
@@ -193,7 +193,7 @@
     const GPU_OPERATOR_REAL ksNew = GPU_OPERATOR_R(0.5)*ms*sqr3(usNewX, usNewY, usNewZ);
 
     Energy diss = (kgOld + ksOld) - (kgNew + ksNew);
-    if (!ugkwp::gasEnergyFinite(diss) || diss < GPU_OPERATOR_R(0.0))
+    if (!ugkwp::gasEnergyFallbackFinite(diss) || diss < GPU_OPERATOR_R(0.0))
     {
         diss = GPU_OPERATOR_R(0.0);
     }

@@ -12,17 +12,11 @@ __device__ void finalizeOneThermalizedStuckParticle
     const GPU_OPERATOR_REAL poolMeanUz
 )
 {
-    if (s.pStuck[i] == 0)
-    {
-        asm("trap;");
-    }
-
     const int faceI = s.pStuckFaceId[i];
     if
     (
         faceI < s.nInternalFaces
      || faceI >= s.nFaces
-     || s.particleStuckCandidateMask[faceI] == 0
     )
     {
         asm("trap;");
@@ -47,10 +41,6 @@ __device__ void finalizeOneThermalizedStuckParticle
         GPU_OPERATOR_R(0.5)*sqr3(fluctuationUx, fluctuationUy, fluctuationUz);
     const GPU_OPERATOR_REAL contactAreaScale =
         s.particleWallContactAreaScale[faceI];
-    if (!(contactAreaScale > GPU_OPERATOR_R(0.0)) || contactAreaScale > GPU_OPERATOR_R(1.0))
-    {
-        asm("trap;");
-    }
     const bool finiteContact =
         s.pStuck[i] == Foam::gpuThermal::particleWallTransientRebound
      || s.pStuck[i] == Foam::gpuThermal::particleWallTransientDeposit;
@@ -64,6 +54,16 @@ __device__ void finalizeOneThermalizedStuckParticle
         const GPU_OPERATOR_REAL peakTimeFraction =
             static_cast<GPU_OPERATOR_REAL>(s.pContactPeakFraction[i]);
         const GPU_OPERATOR_REAL oldDamage = static_cast<GPU_OPERATOR_REAL>(s.pDepositionArea[i]);
+        if
+        (
+            !Foam::gpuThermal::finiteContactValue(duration) || duration == 0.0
+         || !Foam::gpuThermal::finiteCapillaryValue(maximumArea)
+         || !Foam::gpuThermal::finiteCapillaryValue(peakTimeFraction)
+         || !Foam::gpuThermal::finiteCapillaryValue(oldDamage)
+        )
+        {
+            asm("trap;");
+        }
         const GPU_OPERATOR_REAL kinematicArea =
             maximumArea*Foam::gpuThermal::normalizedKinematicArea
             (
@@ -86,19 +86,14 @@ __device__ void finalizeOneThermalizedStuckParticle
         const GPU_OPERATOR_REAL requiredEnergy =
             contactAreaScale*adhesionSpecificEnergyPerArea
            *clampMin(remainingArea, GPU_OPERATOR_R(0.0));
-        if
-        (
-            !(duration > GPU_OPERATOR_R(0.0)) || !(maximumArea > GPU_OPERATOR_R(0.0))
-         || !(peakTimeFraction > GPU_OPERATOR_R(0.0)) || !(peakTimeFraction < GPU_OPERATOR_R(1.0))
-         || oldDamage < GPU_OPERATOR_R(0.0) || !(adhesionSpecificEnergyPerArea > GPU_OPERATOR_R(0.0))
-        )
+        if (!capillary.valid)
         {
             asm("trap;");
         }
         if (sampledSpecificEnergy >= requiredEnergy)
         {
             const GPU_OPERATOR_REAL residual = sampledSpecificEnergy - requiredEnergy;
-            damage = {finiteDevice(residual), true, GPU_OPERATOR_R(0.0), residual};
+            damage = {Foam::gpuThermal::finiteCapillaryValue(residual), true, GPU_OPERATOR_R(0.0), residual};
         }
         else
         {
@@ -108,7 +103,7 @@ __device__ void finalizeOneThermalizedStuckParticle
             accumulatedDamageArea = oldDamage + consumedArea;
             damage =
             {
-                finiteDevice(accumulatedDamageArea),
+                Foam::gpuThermal::finiteCapillaryValue(accumulatedDamageArea),
                 false,
                 remainingArea - consumedArea,
                 GPU_OPERATOR_R(0.0)
@@ -130,8 +125,7 @@ __device__ void finalizeOneThermalizedStuckParticle
     if
     (
         !damage.valid
-     || nonFiniteDevice(sampledSpecificEnergy)
-     || sampledSpecificEnergy < GPU_OPERATOR_R(0.0)
+     || !Foam::gpuThermal::finiteCapillaryValue(sampledSpecificEnergy)
     )
     {
         asm("trap;");
@@ -144,7 +138,7 @@ __device__ void finalizeOneThermalizedStuckParticle
     if (damage.detached)
     {
         const GPU_OPERATOR_REAL area = s.magSf[faceI];
-        if (!(area > GPU_OPERATOR_R(0.0)) || nonFiniteDevice(area))
+        if (area == GPU_OPERATOR_R(0.0) || !Foam::gpuThermal::finiteCapillaryValue(area))
         {
             asm("trap;");
         }
@@ -196,21 +190,13 @@ __device__ void finalizeOneThermalizedStuckParticle
     }
     else
     {
-        if
-        (
-            !(damage.remainingContactAreaM2 > GPU_OPERATOR_R(0.0))
-         || damage.remainingContactAreaM2 > static_cast<GPU_OPERATOR_REAL>(FLT_MAX)
-        )
-        {
-            asm("trap;");
-        }
         s.pux[i] = GPU_OPERATOR_R(0.0);
         s.puy[i] = GPU_OPERATOR_R(0.0);
         s.puz[i] = GPU_OPERATOR_R(0.0);
         if (finiteContact)
         {
             s.pDepositionArea[i] =
-                static_cast<float>(accumulatedDamageArea);
+                accumulatedDamageArea;
         }
         else
         {
@@ -218,7 +204,7 @@ __device__ void finalizeOneThermalizedStuckParticle
             s.puyOld[i] = GPU_OPERATOR_R(0.0);
             s.puzOld[i] = GPU_OPERATOR_R(0.0);
             s.pDepositionArea[i] =
-                static_cast<float>(damage.remainingContactAreaM2);
+                damage.remainingContactAreaM2;
         }
     }
     s.pStatus[i] = 1;

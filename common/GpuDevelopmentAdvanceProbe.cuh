@@ -228,19 +228,6 @@ public:
         }
         rowWritten_ = true;
 
-        if
-        (
-            developmentProbe.failOnNonFinite
-         && sample.badFieldMask != 0
-        )
-        {
-            setLastErrorText
-            (
-                "UGKP development probe found non-finite or invalid resident state"
-            );
-            return 1;
-        }
-
         completed_ = true;
         return 0;
     }

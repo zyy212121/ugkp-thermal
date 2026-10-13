@@ -58,10 +58,8 @@ __global__ void accumulateCsrSegmentedMomentTasksPersistentKernel(DeviceState* s
 __device__ __forceinline__ void finalizeCsrMomentCell
 (DeviceState& s,const int c,GPU_PIPELINE_REAL* warpPartials)
 {
-        if (!(s.csrCellTaskCount[c] > 1))
-        {
-            asm("trap;");
-        }
+    // The one-task producer has already published the complete cell directly.
+    if (s.csrCellTaskCount[c] == 1) return;
         GPU_PIPELINE_REAL sums[8] = {GPU_PIPELINE_REAL(0.0), GPU_PIPELINE_REAL(0.0), GPU_PIPELINE_REAL(0.0), GPU_PIPELINE_REAL(0.0), GPU_PIPELINE_REAL(0.0), GPU_PIPELINE_REAL(0.0), GPU_PIPELINE_REAL(0.0), GPU_PIPELINE_REAL(0.0)};
         const int firstTask = s.csrCellTaskOffset[c];
         const int endTask = firstTask + s.csrCellTaskCount[c];

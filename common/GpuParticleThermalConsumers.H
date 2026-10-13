@@ -34,9 +34,7 @@ UGKWP_THERMAL_CONSUMER_HD inline ParticleWallThermalPublication publishFiniteWal
     const double oldTemperature = caloric.temperature(oldEnthalpy);
     if (!finiteThermalCarry(oldEnthalpy) || !finiteThermalCarry(oldTemperature)
         || !finiteThermalCarry(wallTemperature) || !finiteThermalCarry(physicalMass)
-        || !finiteThermalCarry(parcelMass) || !finiteThermalCarry(conductanceIntegral)
-        || !(oldTemperature > 0.0) || !(wallTemperature > 0.0)
-        || !(physicalMass > 0.0) || !(parcelMass > 0.0) || conductanceIntegral < 0.0)
+        || !finiteThermalCarry(parcelMass) || !finiteThermalCarry(conductanceIntegral))
         return {false, 0.0};
     if (conductanceIntegral == 0.0 || wallTemperature == oldTemperature)
     {
@@ -54,6 +52,7 @@ UGKWP_THERMAL_CONSUMER_HD inline ParticleWallThermalPublication publishFiniteWal
         if (!finiteThermalCarry(residual)) return {false, 0.0};
         if (residual < 0.0) lower = middle;
         else upper = middle;
+        if (lower + 0.5*(upper - lower) == middle) break;
     }
     const double solvedTemperature = lower + 0.5*(upper - lower);
     // The small flux stays small; subtracting two large absolute h values here
@@ -80,20 +79,25 @@ UGKWP_THERMAL_CONSUMER_HD inline ParticleThermalPublication publishAffineRadiati
     const Caloric& caloric
 )
 {
-    if (!finiteThermalCarry(scale) || !finiteThermalCarry(offset) || scale < 0.0 || scale > 1.0)
+    if (!finiteThermalCarry(scale) || !finiteThermalCarry(offset))
         return {false, false, 0.0};
     if (scale == 1.0 && offset == 0.0)
         return publishParticleThermalHeat(state, 0.0, minimumTemperature, maximumTemperature, caloric);
     const double oldTemperature = effectiveParticleTemperature(state, caloric);
     const double temperatureIncrement = ::fma(scale - 1.0, oldTemperature, offset);
     const double proposedTemperature = oldTemperature + temperatureIncrement;
-    if (!finiteThermalCarry(oldTemperature) || !finiteThermalCarry(proposedTemperature)
-        || proposedTemperature < double(minimumTemperature)
-        || proposedTemperature > double(maximumTemperature))
+    if (!finiteThermalCarry(oldTemperature) || !finiteThermalCarry(proposedTemperature))
         return {false, false, 0.0};
     // Integrate the small interval before adding it to the large thermal state.
     const double proposedSpecificHeat = caloric.enthalpyIncrement(oldTemperature, temperatureIncrement);
-    return publishParticleThermalHeat
+    // The old accepted affine transaction used the ordinary heat limiter,
+    // including endpoint roundoff. Only old-refused transforms are unlimited.
+    if (scale >= 0.0 && scale <= 1.0
+        && proposedTemperature >= double(minimumTemperature)
+        && proposedTemperature <= double(maximumTemperature))
+        return publishParticleThermalHeat
+            (state, proposedSpecificHeat, minimumTemperature, maximumTemperature, caloric);
+    return publishParticleThermalHeatImpl<false>
         (state, proposedSpecificHeat, minimumTemperature, maximumTemperature, caloric);
 }
 }
