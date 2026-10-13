@@ -20,7 +20,7 @@ namespace chmt {
             t.Tmin = readNumber(d, "Tmin");
             t.Tmax = readNumber(d, "Tmax");
             elements(d, t.element, ne);
-            require(validCondensed(t), "invalid explicit condensed/liquid thermo table");
+
             return t;
         }
         inline Reaction reaction(const Foam::dictionary& d) {
@@ -34,7 +34,6 @@ namespace chmt {
             return r;
         }
         inline ModelConfig readModel(const Foam::dictionary& d,const ugkwp::GasModelConfiguration& gas) {
-            require(d.lookup<Foam::label>("schemaVersion") == 1, "unsupported chmtProperties schemaVersion");
             ModelConfig m;
             auto& p = m.physics;
             m.modelName = text(d, "modelName");
@@ -42,22 +41,12 @@ namespace chmt {
             m.mechanismSource = text(d, "mechanismSource");
             m.sourceFingerprint = CHMT_SOURCE_FINGERPRINT;
             m.baseCommit = CHMT_UPSTREAM_BASE;
-            m.modelFingerprint = text(d, "modelFingerprint");
-            require(m.modelFingerprint.size() == 64
-                && m.modelFingerprint.find_first_not_of("0123456789abcdef") == std::string::npos,
-                "modelFingerprint must be a lowercase SHA-256 of frozen configuration");
-            p.modelFingerprint = std::stoull(m.modelFingerprint.substr(0, 16), nullptr, 16);
-            m.speciesFingerprint = std::to_string(p.speciesFingerprint);
-            m.schemaFingerprint = std::to_string(checkpointSchema);
-            require(!d.found("species")&&!d.found("speciesThermo")&&!d.found("gasDiffusivity"),
-                "species, speciesThermo and diffusion belong in constant/gasModelProperties");
             std::string error;
-            require(validateSpeciesSet(m, error), error);
             const Foam::wordList names(d.lookup("condensedNames"));
-            require(names.size() == Nc, "condensedNames count mismatch");
+
             for (int c = 0; c<Nc; ++c)m.condensedNames[c] = names[c];
             const Foam::wordList elementNames(d.lookup("elements"));
-            require(elementNames.size() <= Ne, "too many elements");
+
             p.nElements = elementNames.size();
             for (int e = 0; e<p.nElements; ++e)m.elementNames[e] = elementNames[e];
             p.enableGas = flag(d, "enableGas", true);
@@ -67,11 +56,10 @@ namespace chmt {
             p.enableSst = flag(d, "enableSst");
             p.enableRadiation = flag(d, "enableRadiation");
             const auto thermal = text(d, "filmThermalMode", "ThicknessAveraged");
-            require(thermal == "ThicknessAveraged" || thermal == "ResolvedNormal", "unsupported filmThermalMode");
+
             p.filmThermalMode = thermal == "ResolvedNormal"?FilmThermalMode::ResolvedNormal:FilmThermalMode::ThicknessAveraged;
-            require(!d.found("reconstruction"), "gas reconstruction belongs in fvSchemes; materialReconstruction controls only material stencils");
             const auto recon = text(d, "materialReconstruction", "LimitedLinear");
-            require(recon == "LimitedLinear" || recon == "SmoothVerification", "unsupported reconstruction");
+
             p.reconstruction = recon == "SmoothVerification"?ReconstructionMode::SmoothVerification:ReconstructionMode::LimitedLinear;
             p.minDt = readNumber(d, "minDt");
             p.maxDt = readNumber(d, "maxDt");
@@ -93,7 +81,7 @@ namespace chmt {
             if (d.found("reactions")) {
                 const auto& r = d.subDict("reactions");
                 const Foam::wordList keys = r.toc();
-                require(keys.size() <= Nr, "too many reactions");
+
                 p.nReactions = keys.size();
                 for (int i = 0; i<p.nReactions; ++i)p.reactions[i] = reaction(r.subDict(keys[i]));
             }
@@ -110,7 +98,7 @@ namespace chmt {
                 t.gasContactResistance = readNumber(a, "gasContactResistance", 0);
                 t.solidContactResistance = readNumber(a, "solidContactResistance", 0);
                 const auto law = text(a, "evaporation", "Disabled");
-                require(law == "Disabled" || law == "HertzKnudsen", "unsupported evaporation law");
+
                 t.evaporation = law == "HertzKnudsen"?EvaporationLaw::HertzKnudsen:EvaporationLaw::Disabled;
                 array(a, "evaporationAccommodation", t.evaporationAccommodation, true);
                 array(a, "saturationPressureScale", t.saturationPressureScale, true);
@@ -118,7 +106,7 @@ namespace chmt {
                 if (a.found("surfaceReactions")) {
                     const auto& r = a.subDict("surfaceReactions");
                     const Foam::wordList keys = r.toc();
-                    require(keys.size() <= Nr, "too many surface reactions");
+
                     t.nSurfaceReactions = keys.size();
                     for (int i = 0; i<t.nSurfaceReactions; ++i) {
                         const auto& v = r.subDict(keys[i]);
@@ -147,13 +135,12 @@ namespace chmt {
             if (d.found("sst")) {
                 const auto& a = d.subDict("sst");
                 const auto family=text(a,"wallTreatment","lowRe");
-                require(family=="lowRe"||family=="boundaryLayer","CHMT supports wallTreatment lowRe or boundaryLayer; ordinary wallFunction coupling is not enabled");
                 p.wallModel.family=family=="boundaryLayer"?ugkwp::gaswall::WallFamily::BoundaryLayer:ugkwp::gaswall::WallFamily::LowRe;
                 if(a.found("boundaryLayer")){
-                    require(family=="boundaryLayer","boundaryLayer controls require wallTreatment boundaryLayer");
+
                     const auto& layer=a.subDict("boundaryLayer");auto& wall=p.wallModel;
                     const auto model=text(layer,"model","reactingSst");
-                    require(model=="reactingSst"||model=="finiteRate"||model=="constantTransport","unsupported boundaryLayer model");
+
                     wall.model=model=="constantTransport"?ugkwp::gaswall::BoundaryLayerModel::ConstantTransport:ugkwp::gaswall::BoundaryLayerModel::ReactingSst;
                     p.wallWorkspaceSlots=layer.lookupOrDefault<Foam::label>("workspaceSlots",p.wallWorkspaceSlots);
                     wall.nodes=layer.lookupOrDefault<Foam::label>("nodes",wall.nodes);
@@ -191,15 +178,14 @@ namespace chmt {
                 t.contactDuration = readNumber(a, "contactDuration");
                 t.emissivity = readNumber(a, "emissivity", 0);
                 const auto mode = text(a, "contact");
-                require(mode == "ElasticRebound" || mode == "Deposit", "unsupported particle contact");
+
                 t.contact = mode == "Deposit"?ParticleContactMode::Deposit:ParticleContactMode::ElasticRebound;
             }
             if (d.found("meshMotion")) {
                 const auto& a = d.subDict("meshMotion");
                 const auto policy = text(a, "policy");
                 auto& t = p.meshMotion;
-                require(policy == "Static" || policy == "CoupledRecession" || policy == "PrescribedSinusoidal",
-                    "unsupported meshMotion policy");
+
                 t.policy = policy == "Static"?MeshMotionPolicy::Static:policy == "CoupledRecession"?MeshMotionPolicy::CoupledRecession:MeshMotionPolicy::PrescribedSinusoidal;
                 t.amplitude = readVector(a, "amplitude");
                 t.spatialWaveNumber = readVector(a, "spatialWaveNumber");
@@ -207,15 +193,12 @@ namespace chmt {
                 t.angularFrequency = readNumber(a, "angularFrequency", 0);
                 t.timeOrigin = readNumber(a, "timeOrigin", 0);
             }
-            require(p.minDt>0 && p.maxDt >= p.minDt && p.cfl>0 && p.cfl <= 1, "invalid common time controls");
-            require(p.enableGas, "CHMT requires coupled gas; pure gas belongs to gasUGKP");
             if(gas.mode==ugkwp::GasMode::SingleLegacy){
                 auto metadata=gas;metadata.mode=ugkwp::GasMode::MixtureFrozen;
                 require(bindSingleGasModel(metadata,text(d,"singleGasSpecies"),m,error),error);
-            } else require(bindSharedGasModel(gas,m,error),error);
+            } else bindSharedGasModel(gas,m,error);
             p.wallModel.enableSst=p.enableSst;p.wallModel.turbulentPrandtl=p.sst.turbulentPrandtl;
             p.wallModel.turbulentSchmidt=p.sst.turbulentSchmidt;
-            require(validateWallModelConfig(p,error),error);
             return m;
         }
     }

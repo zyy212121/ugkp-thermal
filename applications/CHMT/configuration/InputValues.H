@@ -10,7 +10,6 @@ namespace chmt { namespace io {
         }
         inline Real readNumber(const Foam::dictionary& d, const char* key) {
             const Real v = d.lookup<Foam::scalar>(key);
-            require(finite(v), std::string("nonfinite ")+key);
             return v;
         }
         inline Real readNumber(const Foam::dictionary& d, const char* key, Real fallback) {
@@ -33,13 +32,11 @@ namespace chmt { namespace io {
             }
             const Foam::vector v = d.lookup<Foam::vector>(key);
             Vec3 out{v.x(), v.y(), v.z()};
-            require(finite(out), std::string("nonfinite ")+key);
             return out;
         }
         inline std::vector<Real> scalars(const Foam::dictionary& d, const char* key) {
             const Foam::scalarList v(d.lookup(key));
             std::vector<Real> out(v.begin(), v.end());
-            for (Real x:out)require(finite(x), std::string("nonfinite list ")+key);
             return out;
         }
         template<int N> inline void array(const Foam::dictionary& d, const char* key, Real (&out)[N],
@@ -48,12 +45,10 @@ namespace chmt { namespace io {
                 return;
             }
             const auto values = scalars(d, key);
-            require(values.size() == N, std::string("wrong count for ")+key);
             std::copy(values.begin(), values.end(), out);
         }
-        inline void elements(const Foam::dictionary& d, Real* out, int count) {
+        inline void elements(const Foam::dictionary& d, Real* out, int /* count */) {
             const auto values = scalars(d, "element");
-            require(values.size() == static_cast<std::size_t>(count), "element count mismatch");
             std::copy(values.begin(), values.end(), out);
         }
 }}

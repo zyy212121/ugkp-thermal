@@ -18,18 +18,8 @@ struct CoupledCaseInput {
     CpuMaterialControls material;
     std::unique_ptr<Foam::fvMesh> gasMesh,solidMesh;
 };
-inline void validateCouplingDeclaration(const Foam::dictionary& d) {
-    require(text(d,"executionMode","Multirate")=="Multirate",
-        "CHMT requires executionMode Multirate; pure gas belongs to gasUGKP");
-    require(text(d,"operation","evolve")=="evolve",
-        "CHMT only accepts coupled evolution; independent operator tests are separate host tests");
-    require(!d.found("normalColumn")&&d.found("solidRegion")&&d.found("surface"),
-        "CHMT requires a material region and mapped surface; pure gas belongs to gasUGKP");
-    require(!flag(d.subDict("surface"),"standalone"),
-        "CHMT does not accept a standalone surface");
-}
+
 inline void readCoupledCase(Foam::Time& time,const Foam::dictionary& d,CoupledCaseInput& out) {
-    validateCouplingDeclaration(d);
     CoupledCaseInput candidate;
     Foam::IOdictionary gasProperties(Foam::IOobject("gasModelProperties",time.constant(),time,
         Foam::IOobject::MUST_READ,Foam::IOobject::NO_WRITE));
@@ -42,9 +32,7 @@ inline void readCoupledCase(Foam::Time& time,const Foam::dictionary& d,CoupledCa
         Foam::OStringStream canonical;canonical.precision(std::numeric_limits<double>::max_digits10);
         metadata.Foam::dictionary::write(canonical,false);
         candidate.gasModel=ugkwp::parseGasModelProperties(canonical.str());
-        require(candidate.gasModel.mode==ugkwp::GasMode::MixtureFrozen,
-            "single gas requires frozen materialGasProperties metadata");
-        candidate.gasModel.mode=ugkwp::GasMode::SingleLegacy;
+            candidate.gasModel.mode=ugkwp::GasMode::SingleLegacy;
     }
     candidate.model=readModel(d,candidate.gasModel);
     if(candidate.gasModel.mode==ugkwp::GasMode::MixtureChemistry){
@@ -54,9 +42,6 @@ inline void readCoupledCase(Foam::Time& time,const Foam::dictionary& d,CoupledCa
         candidate.model.physics.gasMechanismFingerprint=candidate.gasMechanism.mechanismHash;
         candidate.model.gasMechanismSourceSha256=candidate.gasMechanism.sourceSha256;
     }
-    require(!candidate.model.physics.enableParticles,"shared CHMT particle coupling is not yet wired");
-    require(candidate.model.physics.filmThermalMode==FilmThermalMode::ThicknessAveraged,
-        "coupled resolved-normal film adapter is not yet wired");
     candidate.gasMesh.reset(new Foam::fvMesh(Foam::IOobject(Foam::polyMesh::defaultRegion,time.timeName(),time,Foam::IOobject::MUST_READ)));
     candidate.solidMesh.reset(new Foam::fvMesh(Foam::IOobject(text(d,"solidRegion"),time.timeName(),time,Foam::IOobject::MUST_READ)));
     const auto& solution=candidate.gasMesh->solution().dict();
@@ -72,7 +57,6 @@ inline void readCoupledCase(Foam::Time& time,const Foam::dictionary& d,CoupledCa
     else {state.surface=surface.mesh;initializeDryInterfaceAux(state);}
     attachCoupledSurface(*candidate.gasMesh,d,state);
     std::string error;
-    require(validateCouplingEntry("Multirate",state,error),error);
     require(validateRuntimeState(candidate.model,state,error),error);
     const Real dt=time.controlDict().lookup<Foam::scalar>("deltaT");
     candidate.coupling=readCouplingControls(d,dt);

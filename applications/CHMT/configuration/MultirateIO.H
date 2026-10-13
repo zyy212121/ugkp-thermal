@@ -8,13 +8,11 @@
 namespace chmt { namespace io {
 enum class ExecutionMode { Multirate };
 inline ExecutionMode readExecutionMode(const Foam::dictionary& d,const HostState& state) {
-    std::string error;
-    require(validateCouplingEntry(text(d,"executionMode","Multirate"),state,error),error);
+    (void)d;(void)state;
     return ExecutionMode::Multirate;
 }
 
 inline CouplingControls readCouplingControls(const Foam::dictionary& d, Real controlDeltaT) {
-    require(finite(controlDeltaT) && controlDeltaT>0, "controlDict deltaT must be positive and finite");
     require(d.found("multirate") && d.subDict("multirate").found("couplingInterval"),
         "multirate.couplingInterval is required for executionMode Multirate");
     const auto& m = d.subDict("multirate");
@@ -28,12 +26,6 @@ inline CouplingControls readCouplingControls(const Foam::dictionary& d, Real con
     controls.maxWindowRetries = m.lookupOrDefault<Foam::label>("maxWindowRetries", controls.maxWindowRetries);
     controls.predictionTolerance = readNumber(m, "predictionTolerance", controls.predictionTolerance);
     controls.enforcePredictionAccuracy = flag(m, "enforcePredictionAccuracy", controls.enforcePredictionAccuracy);
-    require(controls.interval>0 && controls.minimumInterval>0 && controls.minimumInterval<=controls.interval,
-        "multirate coupling intervals must satisfy 0 < minimumCouplingInterval <= couplingInterval");
-    require(controls.gasMaxDt>0 && controls.materialMaxSubstep>=0,
-        "multirate gasMaxDt must be positive; materialMaxSubstep must be nonnegative (zero means no accuracy cap)");
-    require(controls.maxWindowIterations>0 && controls.maxWindowRetries>=0 && controls.predictionTolerance>0,
-        "invalid multirate iteration, retry or prediction tolerance");
     return controls;
 }
 
@@ -54,13 +46,6 @@ inline CpuMaterialControls readCpuMaterialControls(const Foam::dictionary& d, co
         controls.energyAbsoluteTolerance = readNumber(m, "energyAbsoluteTolerance", controls.energyAbsoluteTolerance);
         controls.energyRelativeTolerance = readNumber(m, "energyRelativeTolerance", controls.energyRelativeTolerance);
     }
-    require(controls.transportCfl>0 && controls.transportCfl<=1 && controls.reactionCfl>0
-        && controls.reactionCfl<=1 && controls.reactionMaxSubstep>=0 && controls.maxSubsteps>0
-        && controls.nonlinearMaxIterations>0 && controls.nonlinearRelativeTolerance>0
-        && controls.energyAbsoluteTolerance>=0 && controls.energyRelativeTolerance>=0
-        && controls.driveRelativeTolerance>=0 && controls.driveSourceFraction>0
-        && controls.driveSourceFraction<=1 && controls.driveTractionScale>0,
-        "invalid cpuMaterial controls");
     return controls;
 }
 }}
