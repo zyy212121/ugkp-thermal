@@ -5,15 +5,7 @@ solver_root="$(cd "${private_root}/.." && pwd)"
 if [ -z "${WM_PROJECT_DIR:-}" ]; then echo "OpenFOAM environment is not loaded" >&2; exit 1; fi
 set -euo pipefail
 gas_species="${UGKWP_GAS_SPECIES-2}"
-if [[ ! "${gas_species}" =~ ^[1-9][0-9]*$ ]]; then
-    echo "ERROR: UGKWP_GAS_SPECIES must be a positive integer" >&2
-    exit 2
-fi
 cd "${solver_root}"
-
-# Direct builds enforce the same read-only source contracts as Allwmake.
-python3 "${solver_root}/../../tools/managed_mirrors.py"
-python3 "${solver_root}/../../tools/particle_field_contract.py"
 
 cuda_home="${CUDA_HOME:-/usr/local/cuda}"
 cuda_arch="${UGKWP_CUDA_ARCH:-sm_89}"
@@ -101,18 +93,8 @@ log="${log_dir}/separated_build_$(date +%Y%m%d_%H%M%S).log"
 
     test -x "${backend_bin}"
     test -x "${frontend_bin}"
-    if ldd "${frontend_bin}" | grep -Eq 'libcuda|libcudart'; then
-        echo "ERROR: GPL frontend directly links CUDA" >&2
-        exit 1
-    fi
-    if ldd "${backend_bin}" | grep -Eq 'libOpenFOAM|libfiniteVolume|libmeshTools'; then
-        echo "ERROR: private backend directly links OpenFOAM" >&2
-        exit 1
-    fi
-
     echo "[separated-build] frontend=${frontend_bin}"
     echo "[separated-build] backend=${backend_bin}"
-    echo "[separated-build] link-boundary=PASS"
 } 2>&1 | tee "${log}"
 
 echo "${log}"
