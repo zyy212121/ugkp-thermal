@@ -35,7 +35,7 @@ int main(int argc,char** argv){
     const Foam::label timeIndex=time.timeIndex();const Foam::scalar timeValue=time.value();
     forAll(mesh.C(),c){assert(std::abs(mesh.V()[c]-.125)<1e-12);for(int j=0;j<3;++j)assert(std::abs(mesh.C()[c][j]-.25)<1e-12||std::abs(mesh.C()[c][j]-.75)<1e-12);}
     for(int nonlinear=0;nonlinear<2;++nonlinear){
-        chmt::ModelConfig model;auto& p=model.physics;p.enableGas=false;p.spatialOrder=1;p.minDt=1e-9;p.maxDt=10000;p.cfl=.4;p.modelFingerprint=1;
+        chmt::ModelConfig model;auto& p=model.physics;p.enableGas=false;p.spatialOrder=1;p.minDt=1e-9;p.maxDt=10000;p.cfl=.4;
         for(int c=0;c<chmt::Nc;++c){auto& t=p.condensed[c];t.rho=1000;t.cp0=1000;t.cp1=nonlinear?.2:0;t.e0=-1e8;t.conductivity=1000;t.Tmin=100;t.Tmax=2000;}
         chmt::HostState base;base.solidMesh=testMesh(mesh);base.solid.resize(mesh.nCells());long double before=0;
         forAll(mesh.C(),c){const auto x=mesh.C()[c];const chmt::Real T=400+100*x.x()+30*x.y()+80*x.z();auto& q=base.solid[c];q.condensed[0]=1000*mesh.V()[c];q.energy=q.condensed[0]*chmt::condensedE(p.condensed[0],T);before+=q.energy;}
@@ -87,7 +87,7 @@ int main(int argc,char** argv){
         // Native coupled calorics component test: stationary condensed matter
         // and positive NASA7 pore gas share the actual nonlinear sparse solve.
         // This is not a pure-flow CHMT application entry or a physical mechanism.
-        chmt::ModelConfig model;auto& p=model.physics;p.enableGas=false;p.spatialOrder=1;p.minDt=1e-9;p.maxDt=10000;p.cfl=.4;p.modelFingerprint=1;
+        chmt::ModelConfig model;auto& p=model.physics;p.enableGas=false;p.spatialOrder=1;p.minDt=1e-9;p.maxDt=10000;p.cfl=.4;
         p.gasConductivity=10;p.permeability=0;
         for(int c=0;c<chmt::Nc;++c){auto& t=p.condensed[c];t.rho=1000;t.cp0=1000;t.cp1=.2;t.e0=-1e8;t.conductivity=1000;t.Tmin=200;t.Tmax=2000;}
         auto& gas=p.species[0];gas.model=ugkwp::SpeciesThermoModel::NASA7;gas.R=300;gas.Tmin=200;gas.Tmid=1000;gas.Tmax=3000;
@@ -137,7 +137,7 @@ int main(int argc,char** argv){
             <<report.linearSolves<<", energy residual="<<static_cast<double>(after-before)<<", max local residual="<<static_cast<double>(maximumResidual)<<'\n';
     }
     {
-        chmt::ModelConfig model;auto& p=model.physics;p.enableGas=false;p.spatialOrder=1;p.minDt=1e-9;p.maxDt=10000;p.cfl=.4;p.modelFingerprint=1;
+        chmt::ModelConfig model;auto& p=model.physics;p.enableGas=false;p.spatialOrder=1;p.minDt=1e-9;p.maxDt=10000;p.cfl=.4;
         for(int c=0;c<chmt::Nc;++c){auto& t=p.condensed[c];t.rho=1000;t.cp0=1000;t.e0=-1e8;t.conductivity=1000;t.Tmin=100;t.Tmax=2000;}
         chmt::HostState base;base.solidMesh=testMesh(mesh);base.solid.resize(mesh.nCells());
         forAll(mesh.C(),c){auto& q=base.solid[c];q.condensed[0]=1000*mesh.V()[c];q.energy=q.condensed[0]*chmt::condensedE(p.condensed[0],400);}
@@ -173,7 +173,7 @@ int main(int argc,char** argv){
                 std::move(points),Foam::faceList(mesh.faces()),Foam::labelList(mesh.faceOwner()),Foam::labelList(mesh.faceNeighbour()));
             Foam::List<Foam::polyPatch*> patches(mesh.boundaryMesh().size());
             forAll(patches,patch)patches[patch]=mesh.boundaryMesh()[patch].clone(probe.boundaryMesh()).ptr();probe.addFvPatches(patches);
-            chmt::ModelConfig model;auto& p=model.physics;p.enableGas=false;p.spatialOrder=1;p.minDt=1e-9;p.maxDt=10000;p.cfl=.4;p.modelFingerprint=1;
+            chmt::ModelConfig model;auto& p=model.physics;p.enableGas=false;p.spatialOrder=1;p.minDt=1e-9;p.maxDt=10000;p.cfl=.4;
             for(int c=0;c<chmt::Nc;++c){auto& t=p.condensed[c];t.rho=10;t.cp0=1000;t.conductivity=0;t.Tmin=100;t.Tmax=2000;}
             chmt::HostState base;base.solidMesh=testMesh(probe);base.solid.resize(probe.nCells());
             forAll(probe.C(),c){auto& q=base.solid[c];q.condensed[0]=10*base.solidMesh.volumes[c];q.energy=q.condensed[0]*chmt::condensedE(p.condensed[0],600);}
@@ -202,4 +202,29 @@ int main(int argc,char** argv){
         assert(exercised);
         std::cout<<"NATIVE_OF10 canonical material-volume ownership and unchanged dense inventory passed\n";
     }
+    // Exercise the actual material loop when paid steps cannot advance the
+    // projected absolute double clock. The macro endpoint is representable.
+    {
+        chmt::ModelConfig model;model.physics.enableGas=false;
+        chmt::HostState base;base.time=1099511627776.0;
+        const double dt=1.0/1048576.0;
+        chmt::CouplingInterval interval;interval.begin=base.time;interval.end=base.time+256*dt;
+        chmt::IntervalHistory history;std::string error;assert(history.begin(interval,error));
+        for(int i=0;i<256;++i){chmt::GasIntervalRecord r;r.microSequence=i+1;r.actualDt=dt;
+            r.localBegin=history.localEnd();r.localEnd=r.localBegin+dt;
+            r.begin=chmt::windowAbsolute(base.time,r.localBegin);r.end=chmt::windowAbsolute(base.time,r.localEnd);
+            assert(history.appendAccepted(r,error));}
+        chmt::HostState endpoint=base;endpoint.time=interval.end;
+        chmt::CpuMaterialDriver driver(model,nullptr);chmt::CpuMaterialControls controls;controls.maxSubstep=dt;
+        chmt::HostState result;chmt::WallProgram wall;chmt::CpuMaterialReport report;
+        if(!driver.advanceCandidate(base,endpoint,history,controls,result,wall,report,error)){std::cerr<<"local duration: "<<error<<'\n';return 1;}
+        assert(report.materialSteps==256&&wall.knots.size()==257&&report.donorPlan.knots.size()==257);
+        assert(wall.knots[0].time==wall.knots[1].time);
+        assert(wall.knots[0].localTime<wall.knots[1].localTime);
+        assert(result.time==interval.end&&chmt::knotOffset(interval,wall.knots.back())==chmt::intervalDuration(interval));
+        chmt::MaterialDonorReserve reserve;assert(reserve.reset({}, {},base.time,error));
+        assert(reserve.setPlan(report.donorPlan,error));for(const auto& record:history.records())assert(reserve.apply(record,error));
+        std::cout<<"NATIVE_OF10 actual material loop preserved 256 paid sub-ULP absolute-time steps and replay donor knots\n";
+    }
+
 }

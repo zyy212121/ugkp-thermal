@@ -4,7 +4,7 @@
 #include "restart/Checkpoint.H"
 #include "materials/Reaction.H"
 #include <unistd.h>
-int main(){ModelConfig model;auto& p=model.physics;p.enableGas=false;p.minDt=1e-9;p.maxDt=1;p.cfl=.4;p.modelFingerprint=1;
+int main(){ModelConfig model;auto& p=model.physics;p.enableGas=false;p.minDt=1e-9;p.maxDt=1;p.cfl=.4;
  for(int c=0;c<Nc;++c){auto& t=p.condensed[c];t.rho=1000;t.cp0=1000;t.conductivity=2;t.Tmin=100;t.Tmax=2000;}
  HostState h;h.solidMesh=twoHexahedra(0);auto& m=h.solidMesh;m.oldPoints=m.points;m.referencePoints=m.points;m.oldVolumes=m.volumes;m.boundaryPrimitive.resize(m.owner.size());m.boundarySst.resize(m.owner.size());
  h.solid.resize(m.volumes.size());for(std::size_t c=0;c<h.solid.size();++c){h.solid[c].condensed[0]=1000*m.volumes[c];h.solid[c].energy=h.solid[c].condensed[0]*condensedE(p.condensed[0],500+10*c);}
