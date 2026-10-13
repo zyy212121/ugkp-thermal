@@ -492,12 +492,7 @@ protected:
         residentMesh_ = &mesh;
         legacyRestartParcelMass_ = legacyRestartParcelMass;
 
-        if (particleCapacity < 0)
-        {
-            FatalErrorInFunction
-                << "gpuResidentParticleCapacity must be non-negative. Current value = "
-                << particleCapacity << exit(FatalError);
-        }
+
 
 
 
@@ -1784,7 +1779,7 @@ protected:
         );
         string restartHeader;
         label nParticles = 0;
-        if (!(is >> restartHeader >> nParticles) || nParticles < 0)
+        if (!(is >> restartHeader >> nParticles))
         {
             FatalErrorInFunction
                 << "Unsupported or invalid GPU resident particle restart "
@@ -1995,7 +1990,6 @@ protected:
         if
         (
             !(is >> version >> nSources)
-         || nSources < 0
         )
         {
             FatalErrorInFunction
@@ -2010,7 +2004,6 @@ protected:
             if
             (
                 !(is >> sourceFace[i] >> residualMass[i])
-             || !std::isfinite(residualMass[i])
             )
             {
                 FatalErrorInFunction
@@ -2161,16 +2154,7 @@ protected:
                     << "not accept a rotational or scaled transform. Patch '"
                     << pp.name() << "'." << exit(FatalError);
             }
-            if (cpp.size() != cpp.nbrPatch().size())
-            {
-                FatalErrorInFunction
-                    << "UGKP serial pure-translation cyclic support "
-                    << "requires one-to-one conformal face pairing. Patch '"
-                    << pp.name() << "' has " << cpp.size()
-                    << " faces and neighbour patch '" << cpp.nbrPatch().name()
-                    << "' has " << cpp.nbrPatch().size() << '.'
-                    << exit(FatalError);
-            }
+
 
             forAll(cpp, patchFaceI)
             {
