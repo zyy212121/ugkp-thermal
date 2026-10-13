@@ -1,0 +1,112 @@
+{
+  "fixed_base": "5f1a39ac96e2e7ff9a0640a4db344d9cccd34245",
+  "original_main": "d6110c02745a8ad726208a426c4bb3a28233c1fd",
+  "first_published_pr14": "82f9c016704c9822b16b87cdeeb11f5bbd44d06f",
+  "files": [
+    {
+      "path": "applications/CHT/gpu/GpuResidentStrict.H",
+      "sha256": "c218e95281f67b0087d210ddde752b18cd2783bf4bb501d9f4258ce0f66d15fa",
+      "fixed_base_sha256": "fe07ef5d289eb739f1372e80bb73e88e9aa64ec1bfcb5f78149f0183071bfc4e"
+    },
+    {
+      "path": "applications/CHT/gpu/GpuResidentStrict.cu",
+      "sha256": "52246c21634d56d6804bc1b37c8f6aa2c723d876b482ad518e024380e26c062b",
+      "fixed_base_sha256": "6122d23f8b00d8534c8e271509d1a676af31068fdcc1640f2acd74675b2e663f"
+    },
+    {
+      "path": "applications/FSH/gpu/GpuResidentStrict.H",
+      "sha256": "edaeb08385909345bdff4e6955bbe3f25886ce2562ab324ea188449a7b65b3ff",
+      "fixed_base_sha256": "2adc099574e60e14cab62b5a1addd98ccbf867480282d6278ad38ba9e40ad99c"
+    },
+    {
+      "path": "applications/FSH/private_backend/GpuResidentStrict.cu",
+      "sha256": "0aeef323cb6d3ac6f27c688413597978cf8e711226cb08be696b32c210a70108",
+      "fixed_base_sha256": "05223dd1978468c4a011f4bc521d3154f241a45955cbb1959117884f43de4b41"
+    },
+    {
+      "path": "tests/test_resident_terminal_courant.py",
+      "sha256": "3359c55012fe1291fe3d347748109d3ef184fbf1e808e3bacd17e48787fcc8ca"
+    },
+    {
+      "path": "tests/test_resident_terminal_storage.py",
+      "sha256": "b5f40982870110cb40f480851129ace594742b54f2152789a87506547e75fd70"
+    },
+    {
+      "path": "tests/test_resident_terminal_wrappers.py",
+      "sha256": "5d518ba14f95c89febaeec5a90f4f835f9c6a8aad1a8645ab74b9215e8087dbc"
+    }
+  ],
+  "dependencies": [
+    {
+      "path": "applications/CHT/gpu/GpuChtParticleRestart.H",
+      "sha256": "2a349e49ce0a56d52c873ecf6fce5f8baccf65b49ea109e7296141b3867f9c8a"
+    },
+    {
+      "path": "applications/CHT/gpu/GpuFshParticleRestart.H",
+      "sha256": "32b1d6762442e1ac9e7243b20decd64b6e89a0933f7d4009e87e5c45fe649ae4"
+    },
+    {
+      "path": "applications/CHT/gpu/GpuParticleRadiationMath.H",
+      "sha256": "c968ebd79fcc8fdc02bde1460db25c04c22822050ff3c9d85d77450f5cff7d16"
+    },
+    {
+      "path": "applications/FSH/gpu/GpuFshParticleRestart.H",
+      "sha256": "67054fe2b66d539202cd793e28dafd77a0e32d814b08727612cbdff70dc86068"
+    },
+    {
+      "path": "common/GpuAutomaticCsrScheduleFields.inl",
+      "sha256": "c8fc36cdcde6e13739b1eecf1323feaad820d0edbe0c0f661811eeae2376034b"
+    },
+    {
+      "path": "common/GpuParticleCaloric.H",
+      "sha256": "47f4b6fafe6e7f41d8a6071e586e10f277dce13560fb1f311f3c412ed30c1b33"
+    },
+    {
+      "path": "common/GpuParticleRestartFields.inl",
+      "sha256": "99b35dfe35f66434aaaa879d268e814f84602ab418480e77882cf1f10baefc6d"
+    },
+    {
+      "path": "common/GpuParticleRestartTheta.H",
+      "sha256": "122e0e2992578791e46e849e4d1fc883f047bb79941ce3cade385aacb45cbe00"
+    },
+    {
+      "path": "common/GpuParticleThermalCarry.H",
+      "sha256": "e523149602479b05e4f956473c762f3b8de2bd837f33ee231219db593dd09cd8"
+    },
+    {
+      "path": "common/GpuParticleThermalConsumers.H",
+      "sha256": "74e0a7a79953b37795da97d468efa5ec1ab292ddc708974ca5fa9a8302bf0601"
+    },
+    {
+      "path": "common/GpuPrecisionTypes.H",
+      "sha256": "4c4ed3559280f49deab7ac865a81e7fb3b0285378d745e123c6f3718db2556fe"
+    },
+    {
+      "path": "common/GpuThermalParticleRestartCodec.H",
+      "sha256": "c3d60bddcae603d03ef183fa11e691082613faba17a2979087d7e07881b0a847"
+    },
+    {
+      "path": "tests/test_gas_wall_ledger_lifecycle.py",
+      "sha256": "4aca1c3f9722ea43279590a94211488d5dcebba0f7a01b5231830dc0f11e0745"
+    },
+    {
+      "path": "tests/test_native_cleanup.py",
+      "sha256": "6a1264273a3587b0ab72f982fb0611bdd41b7fbecb3acd364d1328b40adbcfcc"
+    },
+    {
+      "path": "tests/test_native_consumer_admission.py",
+      "sha256": "7667ee89d0db1d7a7d76924d8421a1a68613de92ff4bbe81cd62933693807b7f"
+    }
+  ],
+  "patch_sha256": "085127cee8556dfe096ecbf739f84d2e5654ebbb066459ca25783aca9a4a885a",
+  "verification": {
+    "green2": "144 passed (includes132 Courant +4 storage +8 initial wrappers)",
+    "green3": "26 passed (latest9 storage +17 wrappers)",
+    "courant_red": "68 intended failures against fixed5f body",
+    "storage_red3": "4 intended continuation failures after old successful parity",
+    "roundtrip_red": "2 intended constructor marker failures against fixed5f header",
+    "affine_red": "1 intended surplus-count rejection"
+  },
+  "compiler": "g++ (Debian 14.2.0-19) 14.2.0",
+  "cuda_gpu": "Not compiled or executed; host ABI orchestration/copy/typed-array fixtures only."
+}

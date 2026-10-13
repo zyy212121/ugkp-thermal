@@ -1,0 +1,102 @@
+{
+  "per_variant": {
+    "nvcc/command-0.d": [
+      "common/GpuParticleCaloric.H",
+      "common/GpuPrecisionTypes.H",
+      "common/wall/GpuAluminaProperties.H",
+      "common/wall/GpuColdWall1DAdvance.inl",
+      "common/wall/GpuColdWall1DAlgebra.cuh",
+      "common/wall/GpuColdWall1DDevice.cuh",
+      "common/wall/GpuColdWall1DGasOnly.cuh",
+      "common/wall/GpuColdWall1DPublish.inl",
+      "common/wall/GpuColdWall2DSolidification.H",
+      "common/wall/GpuColdWallSolidification.H",
+      "common/wall/GpuColdWallThermalCarry.cuh",
+      "common/wall/GpuWallInterfaceHeat.H"
+    ],
+    "nvcc/command-1.d": [
+      "common/GpuParticleCaloric.H",
+      "common/GpuPrecisionTypes.H",
+      "common/wall/GpuAluminaProperties.H",
+      "common/wall/GpuColdWall1DAdvance.inl",
+      "common/wall/GpuColdWall1DAlgebra.cuh",
+      "common/wall/GpuColdWall1DDevice.cuh",
+      "common/wall/GpuColdWall1DGasOnly.cuh",
+      "common/wall/GpuColdWall1DPublish.inl",
+      "common/wall/GpuColdWall2DSolidification.H",
+      "common/wall/GpuColdWallSolidification.H",
+      "common/wall/GpuColdWallThermalCarry.cuh",
+      "common/wall/GpuWallInterfaceHeat.H"
+    ],
+    "nvcc-wrappers/command-0.d": [
+      "common/GpuParticleCaloric.H",
+      "common/GpuPrecisionTypes.H",
+      "common/operators/atomicAddParticleWallEnergyByFace.cuh",
+      "common/operators/particleSpecificHeatDevice.cuh",
+      "common/wall/GpuAluminaProperties.H",
+      "common/wall/GpuCapillaryDetachment.H",
+      "common/wall/GpuColdWall1DAdvance.inl",
+      "common/wall/GpuColdWall1DAlgebra.cuh",
+      "common/wall/GpuColdWall1DDevice.cuh",
+      "common/wall/GpuColdWall1DGasOnly.cuh",
+      "common/wall/GpuColdWall1DInputs.inl",
+      "common/wall/GpuColdWall1DPublish.inl",
+      "common/wall/GpuColdWall2DDevice.cuh",
+      "common/wall/GpuColdWall2DSolidification.H",
+      "common/wall/GpuColdWallSolidification.H",
+      "common/wall/GpuColdWallThermalCarry.cuh",
+      "common/wall/GpuFiniteWallContact.H",
+      "common/wall/GpuWallContactDirectory.cuh",
+      "common/wall/GpuWallInterfaceHeat.H"
+    ],
+    "nvcc-wrappers/command-1.d": [
+      "common/GpuParticleCaloric.H",
+      "common/GpuPrecisionTypes.H",
+      "common/operators/atomicAddParticleWallEnergyByFace.cuh",
+      "common/operators/particleSpecificHeatDevice.cuh",
+      "common/wall/GpuAluminaProperties.H",
+      "common/wall/GpuCapillaryDetachment.H",
+      "common/wall/GpuColdWall1DAdvance.inl",
+      "common/wall/GpuColdWall1DAlgebra.cuh",
+      "common/wall/GpuColdWall1DDevice.cuh",
+      "common/wall/GpuColdWall1DGasOnly.cuh",
+      "common/wall/GpuColdWall1DInputs.inl",
+      "common/wall/GpuColdWall1DPublish.inl",
+      "common/wall/GpuColdWall2DDevice.cuh",
+      "common/wall/GpuColdWall2DSolidification.H",
+      "common/wall/GpuColdWallSolidification.H",
+      "common/wall/GpuColdWallThermalCarry.cuh",
+      "common/wall/GpuFiniteWallContact.H",
+      "common/wall/GpuWallContactDirectory.cuh",
+      "common/wall/GpuWallInterfaceHeat.H"
+    ]
+  },
+  "sha256": {
+    "common/GpuParticleCaloric.H": "47f4b6fafe6e7f41d8a6071e586e10f277dce13560fb1f311f3c412ed30c1b33",
+    "common/GpuPrecisionTypes.H": "4c4ed3559280f49deab7ac865a81e7fb3b0285378d745e123c6f3718db2556fe",
+    "common/operators/atomicAddParticleWallEnergyByFace.cuh": "390f0c168b4fcd7b3840dc90dbc8fcce4161b4d7c3ee0c31bc02fd5b60df7fcf",
+    "common/operators/particleSpecificHeatDevice.cuh": "27e728103d4096d4f495be5a1ae5cf538204b989055b46d1870187a3873a3fe3",
+    "common/wall/GpuAluminaProperties.H": "4a262c79c86aef23509f1f421b3e7edb35db06aad0d6c8bf766a78544d268178",
+    "common/wall/GpuCapillaryDetachment.H": "6dcc663a9a7f8939dcbcdeb13b9ab772656785ce399d8e3ba374fb40db286808",
+    "common/wall/GpuColdWall1DAdvance.inl": "c7077477911ee04114979f82175d0081038e3fe77cae77912a0eaaf921738df5",
+    "common/wall/GpuColdWall1DAlgebra.cuh": "c9029c9db89ad53c0410ef9de2e010395f282b2924298ad555d727ec6994a4e5",
+    "common/wall/GpuColdWall1DDevice.cuh": "91a6dea0df3f53de85410adc841348184d365b94752c11366195661acd0fb0a9",
+    "common/wall/GpuColdWall1DGasOnly.cuh": "4aa0c64e7b574af769e6f48d7cfa3852d5068b2840a3ff3f6c247308f1925e57",
+    "common/wall/GpuColdWall1DInputs.inl": "e10b5e2fca129308ba2c9eab8677c7b7ab1cb3501b20b95ba80644dd83a98638",
+    "common/wall/GpuColdWall1DPublish.inl": "6706de8636011095e3c014541e5db141d767aa610f1cef3aade665d27b6a62f3",
+    "common/wall/GpuColdWall2DDevice.cuh": "903b5b615caa4f7aa432126c04a07c054335f04038bf941362a3078e10fe0a61",
+    "common/wall/GpuColdWall2DSolidification.H": "52acee5803ecde4e3d2f072b2f89b95e002b3ef198755b9145882407250f7a0e",
+    "common/wall/GpuColdWallSolidification.H": "391cbfc0507a3b1b2af027139a6166f798013fd4cbdc38ae3d258e536215da5b",
+    "common/wall/GpuColdWallThermalCarry.cuh": "0fd102d8929a508b1aec7c4ef26d4e2f7a2155243bf2613626505ab4bf9ec98a",
+    "common/wall/GpuFiniteWallContact.H": "f8e1501c614d0c74201652a53eb1593c8d560ec1bd0b00e143f5b733775ef076",
+    "common/wall/GpuWallContactDirectory.cuh": "4fdd30b3b1dd11025d4c606145ec37828a8f541f36baf22e6a1f7d6b70ae2db3",
+    "common/wall/GpuWallInterfaceHeat.H": "9e612807137a2e6ebcd9f47ebe74550a19e14848e5f12b001084c59d3ba6a546"
+  },
+  "changed_from_v1": [
+    {
+      "path": "common/wall/GpuColdWallSolidification.H",
+      "v1_sha256": "fbd74acbde2fc6685369c9da4f816ac9c4a637b52eca3caf8fafc03410a91480",
+      "v2_sha256": "391cbfc0507a3b1b2af027139a6166f798013fd4cbdc38ae3d258e536215da5b"
+    }
+  ]
+}

@@ -1,0 +1,142 @@
+[
+  {
+    "path": "/workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/implementation/particle-terminal/v2/cuda/finite-contact-fsh.cu",
+    "sha256": "7d54f99557e9614ee70294983ecd5349ce119c8d34f5af6911534dbdf802ec80"
+  },
+  {
+    "path": "/workspace/scratch/98b6339ec81b/chmt_remaining_work_20261013/common/operators/FiniteContactRelaxation.inl",
+    "sha256": "959a5547aed9ee449f3091be3ebbf70739ed4fbac86c69ff8146504546f97127"
+  },
+  {
+    "path": "/workspace/scratch/98b6339ec81b/chmt_remaining_work_20261013/common/GpuParticleThermalConsumerDevice.cuh",
+    "sha256": "223d3f03c866989237273e9abb97c67f4c44ce0e8100a854a160f5f9966d7416"
+  },
+  {
+    "path": "/workspace/scratch/98b6339ec81b/chmt_remaining_work_20261013/common/GpuParticleThermalConsumers.H",
+    "sha256": "74e0a7a79953b37795da97d468efa5ec1ab292ddc708974ca5fa9a8302bf0601"
+  },
+  {
+    "path": "/workspace/scratch/98b6339ec81b/chmt_remaining_work_20261013/common/GpuParticleThermalCarry.H",
+    "sha256": "e523149602479b05e4f956473c762f3b8de2bd837f33ee231219db593dd09cd8"
+  },
+  {
+    "path": "/workspace/scratch/98b6339ec81b/chmt_remaining_work_20261013/common/GpuParticleCaloric.H",
+    "sha256": "47f4b6fafe6e7f41d8a6071e586e10f277dce13560fb1f311f3c412ed30c1b33"
+  },
+  {
+    "path": "/workspace/scratch/98b6339ec81b/chmt_remaining_work_20261013/common/wall/GpuColdWallSolidification.H",
+    "sha256": "391cbfc0507a3b1b2af027139a6166f798013fd4cbdc38ae3d258e536215da5b"
+  },
+  {
+    "path": "/workspace/scratch/98b6339ec81b/chmt_remaining_work_20261013/common/wall/GpuWallInterfaceHeat.H",
+    "sha256": "9e612807137a2e6ebcd9f47ebe74550a19e14848e5f12b001084c59d3ba6a546"
+  },
+  {
+    "path": "/workspace/scratch/98b6339ec81b/chmt_remaining_work_20261013/common/GpuPrecisionTypes.H",
+    "sha256": "4c4ed3559280f49deab7ac865a81e7fb3b0285378d745e123c6f3718db2556fe"
+  },
+  {
+    "path": "/workspace/scratch/98b6339ec81b/chmt_remaining_work_20261013/common/wall/GpuAluminaProperties.H",
+    "sha256": "4a262c79c86aef23509f1f421b3e7edb35db06aad0d6c8bf766a78544d268178"
+  },
+  {
+    "path": "/workspace/scratch/98b6339ec81b/chmt_remaining_work_20261013/common/wall/GpuParticleWallContactHeat.H",
+    "sha256": "38f9aa14532f81a6b8951afedd5746eeb4a0f38ac17422f8c90a99d30c408902"
+  },
+  {
+    "path": "/workspace/scratch/98b6339ec81b/chmt_remaining_work_20261013/common/wall/GpuCapillaryDetachment.H",
+    "sha256": "6dcc663a9a7f8939dcbcdeb13b9ab772656785ce399d8e3ba374fb40db286808"
+  },
+  {
+    "path": "/workspace/scratch/98b6339ec81b/chmt_remaining_work_20261013/common/wall/GpuFiniteWallContact.H",
+    "sha256": "f8e1501c614d0c74201652a53eb1593c8d560ec1bd0b00e143f5b733775ef076"
+  },
+  {
+    "path": "/workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/implementation/particle-terminal/v2/cuda/tasks-base-only.cu",
+    "sha256": "4793a4a7ee3bfe04b54c7a8c722e4676f4cdbfda839ff75b205ab8d323b0659f"
+  },
+  {
+    "path": "/workspace/scratch/98b6339ec81b/chmt_remaining_work_20261013/common/GpuReductionTaskMaterialize.cuh",
+    "sha256": "3b32c3345c65e2b554cee54a7b0feff36887685c8bfab785fcf4b5d5779d13b0"
+  },
+  {
+    "path": "/workspace/scratch/98b6339ec81b/chmt_remaining_work_20261013/common/GpuReductionTaskWrite.cuh",
+    "sha256": "dc0b3883af8001fc770a0066e2246c9d2a252a7aa7b4e8afa021724520379231"
+  },
+  {
+    "path": "/workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/implementation/particle-terminal/v2/cuda/finite-contact.cu",
+    "sha256": "634f751152ff1161c55ed7ad45386bc95300a8cb307d9c6b5219fac7b1fd24ac"
+  },
+  {
+    "path": "/workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/implementation/particle-terminal/v2/cuda/transport.cu",
+    "sha256": "59d058736a6a4fe6dc916870ecb0efb5a7329c471cdc348b2c89eed4a5dd56d7"
+  },
+  {
+    "path": "/workspace/scratch/98b6339ec81b/chmt_remaining_work_20261013/common/operators/dragInverseTimeDevice.cuh",
+    "sha256": "508a6c62b7a6683844c70e147227c577aa8a35f4c8423fbf99ace62d3a427be5"
+  },
+  {
+    "path": "/workspace/scratch/98b6339ec81b/chmt_remaining_work_20261013/common/GpuParticleTransport.cuh",
+    "sha256": "de207693a9f39cdbc11e3ffbb9b19d75349f2731211f900507a27506b20be96a"
+  },
+  {
+    "path": "/workspace/scratch/98b6339ec81b/chmt_remaining_work_20261013/common/operators/pointInsideCell.cuh",
+    "sha256": "affdecf2834307dfbffa951283457720a294664caed4a597cc856aeb84272e9d"
+  },
+  {
+    "path": "/workspace/scratch/98b6339ec81b/chmt_remaining_work_20261013/common/GpuFaceGeometry.cuh",
+    "sha256": "16bba68daea9c4fc285fbd17c54cd5b06d28da4c3ae08454b415458930883f14"
+  },
+  {
+    "path": "/workspace/scratch/98b6339ec81b/chmt_remaining_work_20261013/common/gasNumerics/GpuDragModelsFSHCHT.cuh",
+    "sha256": "24035cf5d5d001ba40295392426b24aba2dca51db0b2b3c7384af9e476d4e60d"
+  },
+  {
+    "path": "/workspace/scratch/98b6339ec81b/chmt_remaining_work_20261013/common/gasNumerics/GpuDragAlgebra.cuh",
+    "sha256": "960f507001b00310957f4fe309e00dd182ac84b59d9810316b8b75574a2502b5"
+  },
+  {
+    "path": "/workspace/scratch/98b6339ec81b/chmt_remaining_work_20261013/common/wall/GpuSommerfeldSticking.H",
+    "sha256": "e84844bc7bfc6822af7d27a0352f23ec0bdfb769bfb8f1a92a18a7b13fb95ff0"
+  },
+  {
+    "path": "/workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/implementation/particle-terminal/v2/cuda/finalizer.cu",
+    "sha256": "fbc01f65394881be2bfaa34095aca6ac4367bb714d6e69ff3a0371ba20281e4f"
+  },
+  {
+    "path": "/workspace/scratch/98b6339ec81b/chmt_remaining_work_20261013/common/GpuThermalParticleFinalization.cuh",
+    "sha256": "c8cc6fe9fb4ce543e48edf904150c5529618700aa3f5bb6bc190185ce99fabc7"
+  },
+  {
+    "path": "/workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/implementation/particle-terminal/v2/cuda/contact-area.cu",
+    "sha256": "e36302b76fc0b9c2edef299ab64c7da7da1e454076558613658254b3ec7f193b"
+  },
+  {
+    "path": "/workspace/scratch/98b6339ec81b/chmt_remaining_work_20261013/common/operators/rebuildWallBoundParticleDirectoryKernel.cuh",
+    "sha256": "e84c701fce87d6dd53540ed4c14a9dcebe9acdf245908f514ec54948cae52bf4"
+  },
+  {
+    "path": "/workspace/scratch/98b6339ec81b/chmt_remaining_work_20261013/common/operators/accumulateParticleWallRepresentedContactAreaKernel.cuh",
+    "sha256": "56bfdad5bfe51010fa092f506c8fd6a446c51f4fe0c1fcb6d06f23f2c97b4c67"
+  },
+  {
+    "path": "/workspace/scratch/98b6339ec81b/chmt_remaining_work_20261013/common/wall/GpuWallContactDirectory.cuh",
+    "sha256": "4fdd30b3b1dd11025d4c606145ec37828a8f541f36baf22e6a1f7d6b70ae2db3"
+  },
+  {
+    "path": "/workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/implementation/particle-terminal/v2/cuda/automatic-csr.cu",
+    "sha256": "dd47c4e8f9bf112639c59e080055c86a2f866946a28d85d672de62fd795c7e5c"
+  },
+  {
+    "path": "/workspace/scratch/98b6339ec81b/chmt_remaining_work_20261013/common/GpuAutomaticCsrSchedule.cuh",
+    "sha256": "251a0d102e19204caf0c0c1eacdaadf9c1c8e3c1ade28d0faf4221f543694d5e"
+  },
+  {
+    "path": "/workspace/scratch/98b6339ec81b/chmt_remaining_work_20261013/common/operators/publishHeavyReductionDecisionKernel.cuh",
+    "sha256": "555fffa74f9c0570104227f23d4573d00168fbadf125042f092a6d282b2664e0"
+  },
+  {
+    "path": "/workspace/scratch/98b6339ec81b/chmt_remaining_work_20261013/common/operators/maximumDirectoryOccupancyKernel.cuh",
+    "sha256": "869c748a1be0bbb3c9da3555a17350b70694b4d59ce5d0bf4bbb78f1ffccb5b7"
+  }
+]

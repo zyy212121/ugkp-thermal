@@ -1,0 +1,632 @@
+[
+  {
+    "path": "applications/CHT/gpu/GpuBackendApi.H",
+    "line": 210,
+    "text": "    const float* pColdNodeSpecificEnthalpy,"
+  },
+  {
+    "path": "applications/CHT/gpu/GpuBackendApi.H",
+    "line": 214,
+    "text": "    const float* pCold2DNodeSpecificEnthalpy,"
+  },
+  {
+    "path": "applications/CHT/gpu/GpuBackendApi.H",
+    "line": 229,
+    "text": "    float* pColdNodeSpecificEnthalpy,"
+  },
+  {
+    "path": "applications/CHT/gpu/GpuBackendApi.H",
+    "line": 233,
+    "text": "    float* pCold2DNodeSpecificEnthalpy,"
+  },
+  {
+    "path": "applications/CHT/gpu/GpuChtParticleRestart.H",
+    "line": 52,
+    "text": "    const float* pColdNodeSpecificEnthalpy;"
+  },
+  {
+    "path": "applications/CHT/gpu/GpuChtParticleRestart.H",
+    "line": 56,
+    "text": "    const float* pCold2DNodeSpecificEnthalpy;"
+  },
+  {
+    "path": "applications/CHT/gpu/GpuChtParticleRestart.H",
+    "line": 88,
+    "text": "    float* pColdNodeSpecificEnthalpy;"
+  },
+  {
+    "path": "applications/CHT/gpu/GpuChtParticleRestart.H",
+    "line": 92,
+    "text": "    float* pCold2DNodeSpecificEnthalpy;"
+  },
+  {
+    "path": "applications/CHT/gpu/GpuChtParticleRestart.H",
+    "line": 209,
+    "text": "        gpuThermalRestart::readConverted<float>(is, v.pDepositionArea, begin, chunk);"
+  },
+  {
+    "path": "applications/CHT/gpu/GpuChtParticleRestart.H",
+    "line": 304,
+    "text": "        gpuThermalRestart::readConverted<float>(is, v.pDepositionArea, begin, chunk);"
+  },
+  {
+    "path": "applications/CHT/gpu/GpuChtParticleRestart.H",
+    "line": 305,
+    "text": "        readConvertedArray<float>(is, v.pContactDuration, begin, chunk);"
+  },
+  {
+    "path": "applications/CHT/gpu/GpuChtParticleRestart.H",
+    "line": 306,
+    "text": "        gpuThermalRestart::readConverted<float>(is, v.pContactMaximumArea, begin, chunk);"
+  },
+  {
+    "path": "applications/CHT/gpu/GpuChtParticleRestart.H",
+    "line": 387,
+    "text": "        gpuThermalRestart::readConverted<float>(is, v.pDepositionArea, begin, chunk);"
+  },
+  {
+    "path": "applications/CHT/gpu/GpuChtParticleRestart.H",
+    "line": 388,
+    "text": "        readConvertedArray<float>(is, v.pContactDuration, begin, chunk);"
+  },
+  {
+    "path": "applications/CHT/gpu/GpuChtParticleRestart.H",
+    "line": 389,
+    "text": "        gpuThermalRestart::readConverted<float>(is, v.pContactMaximumArea, begin, chunk);"
+  },
+  {
+    "path": "applications/CHT/gpu/GpuChtParticleRestart.H",
+    "line": 390,
+    "text": "        gpuThermalRestart::readConverted<float>(is, v.pContactPeakFraction, begin, chunk);"
+  },
+  {
+    "path": "applications/CHT/gpu/GpuChtParticleRestart.H",
+    "line": 466,
+    "text": "        gpuThermalRestart::readConverted<float>(is, v.pDepositionArea, begin, chunk);"
+  },
+  {
+    "path": "applications/CHT/gpu/GpuChtParticleRestart.H",
+    "line": 467,
+    "text": "        readConvertedArray<float>(is, v.pContactDuration, begin, chunk);"
+  },
+  {
+    "path": "applications/CHT/gpu/GpuChtParticleRestart.H",
+    "line": 468,
+    "text": "        gpuThermalRestart::readConverted<float>(is, v.pContactMaximumArea, begin, chunk);"
+  },
+  {
+    "path": "applications/CHT/gpu/GpuChtParticleRestart.H",
+    "line": 469,
+    "text": "        gpuThermalRestart::readConverted<float>(is, v.pContactPeakFraction, begin, chunk);"
+  },
+  {
+    "path": "applications/CHT/gpu/GpuChtParticleRestart.H",
+    "line": 470,
+    "text": "        gpuThermalRestart::readConverted<float>"
+  },
+  {
+    "path": "applications/CHT/gpu/GpuChtParticleRestart.H",
+    "line": 477,
+    "text": "        gpuThermalRestart::readConverted<float>"
+  },
+  {
+    "path": "applications/CHT/gpu/GpuChtParticleRestart.H",
+    "line": 484,
+    "text": "        gpuThermalRestart::readConverted<float>(is, v.pColdFrozenArea, begin, chunk);"
+  },
+  {
+    "path": "applications/CHT/gpu/GpuChtParticleRestart.H",
+    "line": 485,
+    "text": "        readConvertedArray<float>(is, v.pColdContactAge, begin, chunk);"
+  },
+  {
+    "path": "applications/CHT/gpu/GpuChtParticleRestart.H",
+    "line": 541,
+    "text": "        gpuThermalRestart::readConverted<float>(is, v.pDepositionArea, begin, chunk);"
+  },
+  {
+    "path": "applications/CHT/gpu/GpuChtParticleRestart.H",
+    "line": 542,
+    "text": "        readConvertedArray<float>(is, v.pContactDuration, begin, chunk);"
+  },
+  {
+    "path": "applications/CHT/gpu/GpuChtParticleRestart.H",
+    "line": 543,
+    "text": "        gpuThermalRestart::readConverted<float>(is, v.pContactMaximumArea, begin, chunk);"
+  },
+  {
+    "path": "applications/CHT/gpu/GpuChtParticleRestart.H",
+    "line": 544,
+    "text": "        gpuThermalRestart::readConverted<float>(is, v.pContactPeakFraction, begin, chunk);"
+  },
+  {
+    "path": "applications/CHT/gpu/GpuChtParticleRestart.H",
+    "line": 545,
+    "text": "        gpuThermalRestart::readConverted<float>"
+  },
+  {
+    "path": "applications/CHT/gpu/GpuChtParticleRestart.H",
+    "line": 552,
+    "text": "        gpuThermalRestart::readConverted<float>"
+  },
+  {
+    "path": "applications/CHT/gpu/GpuChtParticleRestart.H",
+    "line": 559,
+    "text": "        gpuThermalRestart::readConverted<float>(is, v.pColdFrozenArea, begin, chunk);"
+  },
+  {
+    "path": "applications/CHT/gpu/GpuChtParticleRestart.H",
+    "line": 560,
+    "text": "        readConvertedArray<float>(is, v.pColdContactAge, begin, chunk);"
+  },
+  {
+    "path": "applications/CHT/gpu/GpuChtParticleRestart.H",
+    "line": 561,
+    "text": "        gpuThermalRestart::readConverted<float>"
+  },
+  {
+    "path": "applications/CHT/gpu/GpuChtParticleRestart.H",
+    "line": 568,
+    "text": "        readConvertedArray<float>"
+  },
+  {
+    "path": "applications/CHT/gpu/GpuChtParticleRestart.H",
+    "line": 575,
+    "text": "        gpuThermalRestart::readConverted<float>(is, v.pCold2DFrozenArea, begin, chunk);"
+  },
+  {
+    "path": "applications/CHT/gpu/GpuChtParticleRestart.H",
+    "line": 630,
+    "text": "        gpuThermalRestart::readConverted<float>(is, v.pDepositionArea, begin, chunk);"
+  },
+  {
+    "path": "applications/CHT/gpu/GpuChtParticleRestart.H",
+    "line": 632,
+    "text": "        gpuThermalRestart::readConverted<float>(is, v.pContactMaximumArea, begin, chunk);"
+  },
+  {
+    "path": "applications/CHT/gpu/GpuChtParticleRestart.H",
+    "line": 633,
+    "text": "        gpuThermalRestart::readConverted<float>(is, v.pContactPeakFraction, begin, chunk);"
+  },
+  {
+    "path": "applications/CHT/gpu/GpuChtParticleRestart.H",
+    "line": 634,
+    "text": "        gpuThermalRestart::readConverted<float>"
+  },
+  {
+    "path": "applications/CHT/gpu/GpuChtParticleRestart.H",
+    "line": 641,
+    "text": "        gpuThermalRestart::readConverted<float>"
+  },
+  {
+    "path": "applications/CHT/gpu/GpuChtParticleRestart.H",
+    "line": 648,
+    "text": "        gpuThermalRestart::readConverted<float>(is, v.pColdFrozenArea, begin, chunk);"
+  },
+  {
+    "path": "applications/CHT/gpu/GpuChtParticleRestart.H",
+    "line": 650,
+    "text": "        gpuThermalRestart::readConverted<float>"
+  },
+  {
+    "path": "applications/CHT/gpu/GpuChtParticleRestart.H",
+    "line": 664,
+    "text": "        gpuThermalRestart::readConverted<float>(is, v.pCold2DFrozenArea, begin, chunk);"
+  },
+  {
+    "path": "applications/CHT/gpu/GpuChtParticleRestart.H",
+    "line": 704,
+    "text": "// Current writer: mixed float cold profiles, double remaining physical fields and carry."
+  },
+  {
+    "path": "applications/CHT/gpu/GpuResidentStrict.H",
+    "line": 380,
+    "text": "    const float* pColdNodeSpecificEnthalpy,"
+  },
+  {
+    "path": "applications/CHT/gpu/GpuResidentStrict.H",
+    "line": 384,
+    "text": "    const float* pCold2DNodeSpecificEnthalpy,"
+  },
+  {
+    "path": "applications/CHT/gpu/GpuResidentStrict.H",
+    "line": 415,
+    "text": "    float* pColdNodeSpecificEnthalpy,"
+  },
+  {
+    "path": "applications/CHT/gpu/GpuResidentStrict.H",
+    "line": 419,
+    "text": "    float* pCold2DNodeSpecificEnthalpy,"
+  },
+  {
+    "path": "applications/CHT/gpu/GpuResidentStrict.H",
+    "line": 2023,
+    "text": "        List<float> pColdNodeSpecificEnthalpy"
+  },
+  {
+    "path": "applications/CHT/gpu/GpuResidentStrict.H",
+    "line": 2035,
+    "text": "        List<float> pCold2DNodeSpecificEnthalpy"
+  },
+  {
+    "path": "applications/CHT/gpu/GpuResidentStrict.H",
+    "line": 2660,
+    "text": "        List<float> pColdNodeSpecificEnthalpy"
+  },
+  {
+    "path": "applications/CHT/gpu/GpuResidentStrict.H",
+    "line": 2672,
+    "text": "        List<float> pCold2DNodeSpecificEnthalpy"
+  },
+  {
+    "path": "applications/CHT/gpu/GpuResidentStrict.cu",
+    "line": 513,
+    "text": "    float* pColdNodeSpecificEnthalpy = nullptr;"
+  },
+  {
+    "path": "applications/CHT/gpu/GpuResidentStrict.cu",
+    "line": 517,
+    "text": "    float* pCold2DNodeSpecificEnthalpy = nullptr;"
+  },
+  {
+    "path": "applications/CHT/gpu/GpuResidentStrict.cu",
+    "line": 602,
+    "text": "    float* compactPColdNodeSpecificEnthalpy = nullptr;"
+  },
+  {
+    "path": "applications/CHT/gpu/GpuResidentStrict.cu",
+    "line": 606,
+    "text": "    float* compactPCold2DNodeSpecificEnthalpy = nullptr;"
+  },
+  {
+    "path": "applications/CHT/gpu/GpuResidentStrict.cu",
+    "line": 5757,
+    "text": "    float*& coldNodeSpecificEnthalpy = s->pColdNodeSpecificEnthalpy;"
+  },
+  {
+    "path": "applications/CHT/gpu/GpuResidentStrict.cu",
+    "line": 5761,
+    "text": "    float*& compactColdNodeSpecificEnthalpy = s->compactPColdNodeSpecificEnthalpy;"
+  },
+  {
+    "path": "applications/CHT/gpu/GpuResidentStrict.cu",
+    "line": 5765,
+    "text": "    float*& cold2DNodeSpecificEnthalpy = s->pCold2DNodeSpecificEnthalpy;"
+  },
+  {
+    "path": "applications/CHT/gpu/GpuResidentStrict.cu",
+    "line": 5768,
+    "text": "    float*& compactCold2DNodeSpecificEnthalpy = s->compactPCold2DNodeSpecificEnthalpy;"
+  },
+  {
+    "path": "applications/CHT/gpu/GpuResidentStrict.cu",
+    "line": 5857,
+    "text": "        const cudaError_t e0 = initialise(coldNodeSpecificEnthalpy, coldNodeStorage*sizeof(float), coldNodeSpecificEnthalpyInit);"
+  },
+  {
+    "path": "applications/CHT/gpu/GpuResidentStrict.cu",
+    "line": 5869,
+    "text": "        const cudaError_t e0 = initialise(cold2DNodeSpecificEnthalpy, cold2DNodeStorage*sizeof(float), cold2DNodeSpecificEnthalpyInit);"
+  },
+  {
+    "path": "applications/CHT/gpu/GpuResidentStrict.cu",
+    "line": 6053,
+    "text": "    const float* pColdNodeSpecificEnthalpy,"
+  },
+  {
+    "path": "applications/CHT/gpu/GpuResidentStrict.cu",
+    "line": 6057,
+    "text": "    const float* pCold2DNodeSpecificEnthalpy,"
+  },
+  {
+    "path": "applications/CHT/gpu/GpuResidentStrict.cu",
+    "line": 6328,
+    "text": "    float* pColdNodeSpecificEnthalpy,"
+  },
+  {
+    "path": "applications/CHT/gpu/GpuResidentStrict.cu",
+    "line": 6332,
+    "text": "    float* pCold2DNodeSpecificEnthalpy,"
+  },
+  {
+    "path": "applications/CHT/gpu/GpuParticleRadiationMath.H",
+    "line": 36,
+    "text": "    // when particle temperature is a float cache with an enthalpy carry."
+  },
+  {
+    "path": "applications/gasUGKP/private_backend/GpuResidentStrict.cu",
+    "line": 3144,
+    "text": "    float totalElapsedMs = 0.0f;"
+  },
+  {
+    "path": "applications/gasUGKP/private_backend/GpuResidentStrict.cu",
+    "line": 3174,
+    "text": "            float elapsedMs = 0.0f;"
+  },
+  {
+    "path": "applications/FSH/gpu/GpuFshParticleRestart.H",
+    "line": 197,
+    "text": "        gpuThermalRestart::readConverted<float>(is, v.pDepositionArea, begin, chunk);"
+  },
+  {
+    "path": "applications/FSH/gpu/GpuFshParticleRestart.H",
+    "line": 292,
+    "text": "        gpuThermalRestart::readConverted<float>(is, v.pDepositionArea, begin, chunk);"
+  },
+  {
+    "path": "applications/FSH/gpu/GpuFshParticleRestart.H",
+    "line": 293,
+    "text": "        gpuThermalRestart::readConverted<float>(is, v.pContactDuration, begin, chunk);"
+  },
+  {
+    "path": "applications/FSH/gpu/GpuFshParticleRestart.H",
+    "line": 294,
+    "text": "        gpuThermalRestart::readConverted<float>(is, v.pContactMaximumArea, begin, chunk);"
+  },
+  {
+    "path": "applications/FSH/gpu/GpuFshParticleRestart.H",
+    "line": 375,
+    "text": "        gpuThermalRestart::readConverted<float>(is, v.pDepositionArea, begin, chunk);"
+  },
+  {
+    "path": "applications/FSH/gpu/GpuFshParticleRestart.H",
+    "line": 376,
+    "text": "        gpuThermalRestart::readConverted<float>(is, v.pContactDuration, begin, chunk);"
+  },
+  {
+    "path": "applications/FSH/gpu/GpuFshParticleRestart.H",
+    "line": 377,
+    "text": "        gpuThermalRestart::readConverted<float>(is, v.pContactMaximumArea, begin, chunk);"
+  },
+  {
+    "path": "applications/FSH/gpu/GpuFshParticleRestart.H",
+    "line": 378,
+    "text": "        gpuThermalRestart::readConverted<float>(is, v.pContactPeakFraction, begin, chunk);"
+  },
+  {
+    "path": "applications/FSH/gpu/GpuFshParticleRestart.H",
+    "line": 454,
+    "text": "        gpuThermalRestart::readConverted<float>(is, v.pDepositionArea, begin, chunk);"
+  },
+  {
+    "path": "applications/FSH/gpu/GpuFshParticleRestart.H",
+    "line": 455,
+    "text": "        gpuThermalRestart::readConverted<float>(is, v.pContactDuration, begin, chunk);"
+  },
+  {
+    "path": "applications/FSH/gpu/GpuFshParticleRestart.H",
+    "line": 456,
+    "text": "        gpuThermalRestart::readConverted<float>(is, v.pContactMaximumArea, begin, chunk);"
+  },
+  {
+    "path": "applications/FSH/gpu/GpuFshParticleRestart.H",
+    "line": 457,
+    "text": "        gpuThermalRestart::readConverted<float>(is, v.pContactPeakFraction, begin, chunk);"
+  },
+  {
+    "path": "applications/FSH/gpu/GpuFshParticleRestart.H",
+    "line": 458,
+    "text": "        gpuThermalRestart::readConverted<float>"
+  },
+  {
+    "path": "applications/FSH/gpu/GpuFshParticleRestart.H",
+    "line": 465,
+    "text": "        gpuThermalRestart::readConverted<float>"
+  },
+  {
+    "path": "applications/FSH/gpu/GpuFshParticleRestart.H",
+    "line": 472,
+    "text": "        gpuThermalRestart::readConverted<float>(is, v.pColdFrozenArea, begin, chunk);"
+  },
+  {
+    "path": "applications/FSH/gpu/GpuFshParticleRestart.H",
+    "line": 473,
+    "text": "        gpuThermalRestart::readConverted<float>(is, v.pColdContactAge, begin, chunk);"
+  },
+  {
+    "path": "applications/FSH/gpu/GpuFshParticleRestart.H",
+    "line": 529,
+    "text": "        gpuThermalRestart::readConverted<float>(is, v.pDepositionArea, begin, chunk);"
+  },
+  {
+    "path": "applications/FSH/gpu/GpuFshParticleRestart.H",
+    "line": 530,
+    "text": "        gpuThermalRestart::readConverted<float>(is, v.pContactDuration, begin, chunk);"
+  },
+  {
+    "path": "applications/FSH/gpu/GpuFshParticleRestart.H",
+    "line": 531,
+    "text": "        gpuThermalRestart::readConverted<float>(is, v.pContactMaximumArea, begin, chunk);"
+  },
+  {
+    "path": "applications/FSH/gpu/GpuFshParticleRestart.H",
+    "line": 532,
+    "text": "        gpuThermalRestart::readConverted<float>(is, v.pContactPeakFraction, begin, chunk);"
+  },
+  {
+    "path": "applications/FSH/gpu/GpuFshParticleRestart.H",
+    "line": 533,
+    "text": "        gpuThermalRestart::readConverted<float>"
+  },
+  {
+    "path": "applications/FSH/gpu/GpuFshParticleRestart.H",
+    "line": 540,
+    "text": "        gpuThermalRestart::readConverted<float>"
+  },
+  {
+    "path": "applications/FSH/gpu/GpuFshParticleRestart.H",
+    "line": 547,
+    "text": "        gpuThermalRestart::readConverted<float>(is, v.pColdFrozenArea, begin, chunk);"
+  },
+  {
+    "path": "applications/FSH/gpu/GpuFshParticleRestart.H",
+    "line": 548,
+    "text": "        gpuThermalRestart::readConverted<float>(is, v.pColdContactAge, begin, chunk);"
+  },
+  {
+    "path": "applications/FSH/gpu/GpuFshParticleRestart.H",
+    "line": 549,
+    "text": "        gpuThermalRestart::readConverted<float>"
+  },
+  {
+    "path": "applications/FSH/gpu/GpuFshParticleRestart.H",
+    "line": 556,
+    "text": "        gpuThermalRestart::readConverted<float>"
+  },
+  {
+    "path": "applications/FSH/gpu/GpuFshParticleRestart.H",
+    "line": 563,
+    "text": "        gpuThermalRestart::readConverted<float>(is, v.pCold2DFrozenArea, begin, chunk);"
+  },
+  {
+    "path": "applications/FSH/gpu/GpuFshParticleRestart.H",
+    "line": 568,
+    "text": "static const char* const schema7FormatName = gpuThermalRestart::marker<float>();"
+  },
+  {
+    "path": "applications/FSH/gpu/GpuFshParticleRestart.H",
+    "line": 570,
+    "text": "{ gpuThermalRestart::readPayload<float>(is,bound,v); }"
+  },
+  {
+    "path": "common/GpuThermalParticleRestartCodec.H",
+    "line": 17,
+    "text": "template<> inline const char* marker<float>() { return \"UGKP_THERMAL_PARTICLES_SCHEMA7_T32_BIN\"; }"
+  },
+  {
+    "path": "common/GpuThermalParticleRestartCodec.H",
+    "line": 96,
+    "text": "    fn(v.pDepositionArea, begin*1u, count*1u, float{});"
+  },
+  {
+    "path": "common/GpuThermalParticleRestartCodec.H",
+    "line": 98,
+    "text": "    fn(v.pContactMaximumArea, begin*1u, count*1u, float{});"
+  },
+  {
+    "path": "common/GpuThermalParticleRestartCodec.H",
+    "line": 99,
+    "text": "    fn(v.pContactPeakFraction, begin*1u, count*1u, float{});"
+  },
+  {
+    "path": "common/GpuThermalParticleRestartCodec.H",
+    "line": 100,
+    "text": "    fn(v.pColdNodeSpecificEnthalpy, begin*8u, count*8u, float{});"
+  },
+  {
+    "path": "common/GpuThermalParticleRestartCodec.H",
+    "line": 101,
+    "text": "    fn(v.pColdRingSolidMass, begin*8u, count*8u, float{});"
+  },
+  {
+    "path": "common/GpuThermalParticleRestartCodec.H",
+    "line": 102,
+    "text": "    fn(v.pColdFrozenArea, begin*1u, count*1u, float{});"
+  },
+  {
+    "path": "common/GpuThermalParticleRestartCodec.H",
+    "line": 104,
+    "text": "    fn(v.pCold2DNodeSpecificEnthalpy, begin*64u, count*64u, float{});"
+  },
+  {
+    "path": "common/GpuThermalParticleRestartCodec.H",
+    "line": 106,
+    "text": "    fn(v.pCold2DFrozenArea, begin*1u, count*1u, float{});"
+  },
+  {
+    "path": "common/GpuParticleCaloricDevice.cuh",
+    "line": 31,
+    "text": " const float* h=count==8?(CompactParticles?s.compactPColdNodeSpecificEnthalpy:s.pColdNodeSpecificEnthalpy):(CompactParticles?s.compactPCold2DNodeSpecificEnthalpy:s.pCold2DNodeSpecificEnthalpy);"
+  },
+  {
+    "path": "common/GpuCellLocalThermalFields.cuh",
+    "line": 35,
+    "text": "        if constexpr (Packed && Width % 4 == 0 && std::is_same<Scalar, float>::value)"
+  },
+  {
+    "path": "common/GpuCellLocalThermalFields.cuh",
+    "line": 39,
+    "text": "                reinterpret_cast<float4*>(dest)[dst*(Width/4)+j] ="
+  },
+  {
+    "path": "common/GpuCellLocalThermalFields.cuh",
+    "line": 40,
+    "text": "                    reinterpret_cast<const float4*>(src)[i*(Width/4)+j];"
+  },
+  {
+    "path": "common/GpuToolB1.cuh",
+    "line": 48,
+    "text": "        float elapsed = 0.0f;"
+  },
+  {
+    "path": "common/GpuPairedParticleHeat.cuh",
+    "line": 123,
+    "text": "  float* nodes=(count==8?s.pColdNodeSpecificEnthalpy:s.pCold2DNodeSpecificEnthalpy)+i*count;"
+  },
+  {
+    "path": "common/GpuDevelopmentThermalProbeSample.cuh",
+    "line": 17,
+    "text": "    float totalElapsedMs = 0.0f;"
+  },
+  {
+    "path": "common/GpuDevelopmentThermalProbeSample.cuh",
+    "line": 47,
+    "text": "            float elapsedMs = 0.0f;"
+  },
+  {
+    "path": "common/wall/GpuColdWallThermalCarry.cuh",
+    "line": 15,
+    "text": "UGKWP_COLD_CARRY_HD inline float coldWallStoredEnthalpyFloor(double target) {"
+  },
+  {
+    "path": "common/wall/GpuColdWallThermalCarry.cuh",
+    "line": 16,
+    "text": " // The FP64 residual carries values outside the float cache interval."
+  },
+  {
+    "path": "common/wall/GpuColdWallThermalCarry.cuh",
+    "line": 19,
+    "text": " float stored=static_cast<float>(target);"
+  },
+  {
+    "path": "common/wall/GpuColdWallThermalCarry.cuh",
+    "line": 26,
+    "text": "(const float* nodes,int count,double residual) {"
+  },
+  {
+    "path": "common/wall/GpuColdWallThermalCarry.cuh",
+    "line": 36,
+    "text": "(float* nodes, int count, double& residual, double specificHeat) {"
+  },
+  {
+    "path": "common/wall/GpuColdWallThermalCarry.cuh",
+    "line": 52,
+    "text": "  const float stored=coldWallStoredEnthalpyFloor(target);"
+  },
+  {
+    "path": "common/wall/GpuColdWall1DPublish.inl",
+    "line": 11,
+    "text": "    const float publishedEnthalpy = ugkwp::coldWallStoredEnthalpyFloor(candidateEnthalpy);"
+  },
+  {
+    "path": "common/wall/GpuColdWall2DDevice.cuh",
+    "line": 546,
+    "text": "        const float stored=ugkwp::coldWallStoredEnthalpyFloor(enthalpy[node]);"
+  },
+  {
+    "path": "common/wall/GpuColdWall2DDevice.cuh",
+    "line": 553,
+    "text": "    // Phase and output caches use exactly the published float profile + carry."
+  },
+  {
+    "path": "common/wall/GpuColdWall2DDevice.cuh",
+    "line": 555,
+    "text": "        const float stored=ugkwp::coldWallStoredEnthalpyFloor(enthalpy[node]);"
+  },
+  {
+    "path": "common/operators/computeSstFaceFluxKernel.cuh",
+    "line": 528,
+    "text": "    // Compare in the source-time type: a float/double fmax otherwise selects"
+  }
+]

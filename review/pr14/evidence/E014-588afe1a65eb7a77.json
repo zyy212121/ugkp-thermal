@@ -1,0 +1,72 @@
+{
+  "batch": "B5",
+  "decision": "request_changes",
+  "scope": "frozen B5 actual wall producer and directly affected consumers only",
+  "head": "fe254252b643589d26af0572b67cdf95ab2cbbad",
+  "patch_sha256": "7bab2f22e32658bed99bdbbfb3f3a1a750a200e6ef31ccba99b72af532ce0948",
+  "freeze_sha256": "1975c4e718a3ac27716a62ec58ff31e3c1478aa314ef18b8f1a677428ce1bb13",
+  "findings": [
+    {
+      "id": "B5-R1",
+      "priority": "P1",
+      "title": "Unordered velocity comparison selects stale prepared wall fluxes for changed terminal input",
+      "file": "applications/CHMT/gpu/GasWallMath.H",
+      "line_start": 54,
+      "line_end": 61,
+      "primary_line": 58,
+      "trigger": "Finite prepared profile followed by NaN/Inf wall velocity, NaN normal, or NaN normalSpeed with all backing present",
+      "observed": "Prepared and fresh calls both return true, but prepared returns old finite traction and old heat while fresh executes changed arithmetic. Unchanged and finite changed-velocity controls match.",
+      "required_outcome": "Reuse only matching terminal components; choose existing fresh actual closure for mismatches, retaining ordinary finite reuse behavior and no new refusal gate.",
+      "evidence": [
+        "independent-review-probes/reuse-probe.py",
+        "independent-review-probes/reuse-probe.cpp",
+        "independent-review-probes/command.txt",
+        "independent-review-probes/build.log",
+        "independent-review-probes/run.log"
+      ]
+    }
+  ],
+  "verified_counts": {
+    "source_index": 32,
+    "dependency_index": 637,
+    "evidence_index": 4474,
+    "mismatches": 0
+  },
+  "verified_original_byte_comparisons": [
+    11,
+    29,
+    150,
+    "analytic-intermediate-overflow"
+  ],
+  "new_execution": {
+    "scope": "One isolated new-risk C++ reuse probe with unchanged and finite-change controls; no production modifications",
+    "build_returncode": 0,
+    "run_returncode": 0,
+    "acceptance_pass": false,
+    "result": "Four terminal mutations reproduce stale publication"
+  },
+  "reused_cuda_receipts": 2,
+  "native_gpu_executed": false,
+  "native_openfoam_executed": false,
+  "deferred": [
+    "B6 lifecycle/ownership/reconfiguration/version/readiness",
+    "B7 stale-stage actual producer plus dependent face scheduling",
+    "B7 HostState terminal material sampling",
+    "B7 global status/retry/commit consumers",
+    "Native GPU/OF execution and performance",
+    "Unified PR14 final acceptance; no merge"
+  ],
+  "no_production_changes": true,
+  "no_commit_push_merge": true,
+  "evidence": {
+    "independent-review-probes/build.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "independent-review-probes/command.txt": "68a2f63064b8379ee475ca527e821d62d557662f3180fee7e6f28019b0c1efe6",
+    "independent-review-probes/evidence-verification.json": "5cd55e5232b625c5f8536130fc9285f23b3afb0780e364e698f733afd7ebf94e",
+    "independent-review-probes/reuse-probe": "aa0cd9f17e1afa0d1896acd7a9114958e254ad6398cb81507c522914c4fadbd3",
+    "independent-review-probes/reuse-probe.cpp": "c8b21dfa684d54c11c71b65dec6f4fe5fc5f92e36aca29e95de0e2f94dfd2d42",
+    "independent-review-probes/reuse-probe.py": "69d4f37c70858ccc307debf95bfce971ae0c8daf906243dad3d5bc3df7613924",
+    "independent-review-probes/run.log": "be305959a1de1a0196b090a36c357e112b0c7a1d42248934a43b8e48afd778f3",
+    "independent-review-probes/verify-evidence.py": "f810833d6af737d77a60ef60a8b10c24586318864050f198fdda92f1630bf72e"
+  },
+  "report_sha256": "cf3314b1b2fe04ad2da441eacf6742f5119987d80f95d5499c3cbb3216fb1f47"
+}

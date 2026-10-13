@@ -1,0 +1,14 @@
+[
+  {
+    "case": "legacy_periodic",
+    "exit_code": -6,
+    "stdout": "",
+    "stderr": ""
+  },
+  {
+    "case": "legacy_positivity",
+    "exit_code": -6,
+    "stdout": "",
+    "stderr": ""
+  }
+]

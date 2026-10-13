@@ -1,0 +1,160 @@
+{
+  "cwd": "/workspace/scratch/98b6339ec81b/chmt_remaining_work_20261013",
+  "commands": [
+    {
+      "name": "original-cli-red",
+      "argv": [
+        "python",
+        "tools/particle_field_contract.py"
+      ],
+      "exit": 1,
+      "log": "red/original-cli.log"
+    },
+    {
+      "name": "original-probe-regression-red",
+      "argv": [
+        "python",
+        "-m",
+        "pytest",
+        "-q",
+        "tests/test_particle_field_contract_tooling.py"
+      ],
+      "environment": {
+        "PYTHONPATH": "/workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/python_deps"
+      },
+      "exit": 1,
+      "result": "3 failed, 4 passed",
+      "log": "red/focused-pytest.log"
+    },
+    {
+      "name": "migration-regression-red",
+      "argv": [
+        "python",
+        "-m",
+        "pytest",
+        "-q",
+        "tests/test_particle_field_contract_tooling.py",
+        "-k",
+        "migration"
+      ],
+      "environment": {
+        "PYTHONPATH": "/workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/python_deps"
+      },
+      "exit": 1,
+      "result": "7 failed, 4 passed, 7 deselected",
+      "log": "red/migration-pytest.log"
+    },
+    {
+      "name": "existing-migration-stale-expectation",
+      "argv": [
+        "python",
+        "-m",
+        "pytest",
+        "-q",
+        "tests/test_scheduling_configuration_behavior.py",
+        "-k",
+        "migration"
+      ],
+      "environment": {
+        "PYTHONPATH": "/workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/python_deps"
+      },
+      "exit": 1,
+      "result": "1 failed, 2 passed, 41 deselected",
+      "log": "red/existing-migration-pytest.log"
+    },
+    {
+      "name": "final-focused-python",
+      "argv": [
+        "python",
+        "-m",
+        "pytest",
+        "-q",
+        "tests/test_particle_field_contract_tooling.py",
+        "tests/test_scheduling_configuration_behavior.py::test_migration_keeps_successful_current_input_fallback",
+        "tests/test_scheduling_configuration_behavior.py::test_migration_reports_actual_zero_divisor_before_writing",
+        "tests/test_scheduling_configuration_behavior.py::test_migration_preserves_auto_and_inspection_interval"
+      ],
+      "environment": {
+        "PYTHONPATH": "/workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/python_deps"
+      },
+      "exit": 0,
+      "result": "23 passed",
+      "log": "green/focused-final.log"
+    },
+    {
+      "name": "idempotency-python",
+      "argv": [
+        "python",
+        "-m",
+        "pytest",
+        "-q",
+        "applications/gasUGKP/tests/test_unified_scheduling_tools_contract.py::UnifiedSchedulingToolsContract::test_migration_maps_old_l2_and_is_idempotent"
+      ],
+      "environment": {
+        "PYTHONPATH": "/workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/python_deps"
+      },
+      "exit": 0,
+      "result": "1 passed",
+      "log": "green/idempotent-migration.log"
+    },
+    {
+      "name": "cpu-probes",
+      "argv": [
+        "python",
+        "tools/particle_field_contract.py",
+        "--cpu",
+        "--output",
+        "/workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/implementation/tools/cpu-final"
+      ],
+      "exit": 0,
+      "result": "3 host lifecycle probes; 2 original current-wire golden hashes matched",
+      "log": "green/cpu-final.log"
+    },
+    {
+      "name": "overbroad-selection-unintended-parser-setup",
+      "argv": [
+        "python",
+        "-m",
+        "pytest",
+        "-q",
+        "tests/test_particle_field_contract_tooling.py",
+        "tests/test_scheduling_configuration_behavior.py",
+        "-k",
+        "not parser and (migration or particle or registry or helper or acquisition)"
+      ],
+      "environment": {
+        "PYTHONPATH": "/workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/python_deps"
+      },
+      "exit": 1,
+      "result": "23 passed, 39 deselected, 2 errors; unintended shared parser fixture g++ failed immediately on missing fvCFD.H in default /opt/openfoam10",
+      "log": "red/overbroad-selection-openfoam-path.log"
+    },
+    {
+      "name": "python-compile",
+      "argv": [
+        "python",
+        "-m",
+        "py_compile",
+        "tools/particle_field_contract.py",
+        "tools/migrate_scheduling_properties.py",
+        "tests/test_particle_field_contract_tooling.py",
+        "tests/test_scheduling_configuration_behavior.py"
+      ],
+      "exit": 0
+    },
+    {
+      "name": "diff-check",
+      "argv": [
+        "git",
+        "diff",
+        "--check",
+        "--",
+        "tools/particle_field_contract.py",
+        "tools/migrate_scheduling_properties.py",
+        "tests/test_particle_field_contract_tooling.py",
+        "tests/test_scheduling_configuration_behavior.py"
+      ],
+      "exit": 0
+    }
+  ]
+}

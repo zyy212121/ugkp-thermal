@@ -1,0 +1,183 @@
+{
+  "schema": 1,
+  "review": "B7 independent A common/native",
+  "verdict": "changes_required",
+  "base": "5f1a39ac96e2e7ff9a0640a4db344d9cccd34245",
+  "patch_sha256": "bcd1cd134acf42fb8d6e84e807791b743b37f304ee19352bc5730e0064dbe61d",
+  "frozen_source_files_verified": 42,
+  "frozen_source_mismatches": [],
+  "reviewed_production_files": [
+    {
+      "path": "applications/gasUGKP/private_backend/SharedGasAdapter.cuh",
+      "base_blob": "2ded4cdd6466809e62d0aee53883f02ecc192b60",
+      "sha256": "4889368dec1b792220fd98f0c1e4a10d78c6c11db678e5274f4fee43fe6b617d",
+      "bytes": 13506
+    },
+    {
+      "path": "applications/gasUGKP/private_backend/SharedGasTrialFields.H",
+      "base_blob": "68b0ccc18bf3dbd606269facab5c841378106fcf",
+      "sha256": "46e0c08d822f74b6bb1a074c19568770e468e0f0bd88fd45449eeb3cd158a8dd",
+      "bytes": 1222
+    },
+    {
+      "path": "applications/gasUGKP/private_backend/SharedGasTrialPolicy.cuh",
+      "base_blob": "8d34d36f08c3c94ccf83eb80f0972a6a54c3c1d2",
+      "sha256": "530c9daa8322fdb5382d88d0741c39a4ecf1925daeb8d8191b20335c6fe4afa4",
+      "bytes": 17516
+    },
+    {
+      "path": "common/GpuGasAdvance.cuh",
+      "base_blob": "85de21ab4830ab481d6447a383e51998b6cb06d8",
+      "sha256": "4710414e5c9d4ad05690ad0f2ea3954189c1986327a74554890e388cfe6e2055",
+      "bytes": 33718
+    },
+    {
+      "path": "common/gasTransport/GasBoundaryLayerModelState.H",
+      "base_blob": "ffacc064f3dca667b41df56bd379b3b91a31cf7e",
+      "sha256": "adaa9fdf3513c57e1c2af9f8efcb832382685c96dcc12c1d151ab183915fa297",
+      "bytes": 7667
+    },
+    {
+      "path": "common/gasTransport/GasBoundaryLayerState.H",
+      "base_blob": "f45d3078a04cf1f151083ad74ec502c3bfb8ab1d",
+      "sha256": "5154895c2fb4d2404e447fdaa6e85cf5c44910f7fa9e29593ca1085b676d659b",
+      "bytes": 4133
+    },
+    {
+      "path": "common/gasTransport/GasCapabilities.H",
+      "base_blob": "0101f0ee5769b9c3df2f4c7856f7cd5ec0488b17",
+      "sha256": "1b59271f2622ef457ed621a17f83812d54cbc59225e11800c814084b1de6478c",
+      "bytes": 2329
+    },
+    {
+      "path": "common/gasTransport/GasGeometryValidation.H",
+      "base_blob": "307154234b8899aa1db0f9b631f01bde9d39c468",
+      "sha256": "4704cca232071c112ce0181d3a12814ae77be26f3e531837b2ce5a810132e3e6",
+      "bytes": 2737
+    },
+    {
+      "path": "common/gasTransport/GasModelIO.H",
+      "base_blob": "47b1571677de844a1ce1165eb0c2fdca396f8233",
+      "sha256": "beafeeaf47504f10f9752fb1e38fdfaec84315a012ce733841090121d0113e92",
+      "bytes": 17778
+    },
+    {
+      "path": "common/operators/advanceGasChemistryKernel.cuh",
+      "base_blob": "4b6806b8e8fa9d26c782af775cf3694fef7c2f53",
+      "sha256": "0b54549cdbcd52d2799cafa6c7484cde74cf7f256dad859ffa5b852463918a7a",
+      "bytes": 12889
+    },
+    {
+      "path": "common/operators/computeGasFluxPositivityScaleKernel.cuh",
+      "base_blob": "737fd5663a5a9abf7fda1e8dd7dd8a451d20a2c0",
+      "sha256": "984adf4d754122fa26c26cd1d50b11d0dd4cd7156ec6af35519e632a1fd00ae3",
+      "bytes": 7583
+    },
+    {
+      "path": "common/operators/computeGasPrimitiveGradientsKernel.cuh",
+      "base_blob": "2abe9cf6528227b288a53bf3c9bbc54b36f056fd",
+      "sha256": "b95a3687f28ea0153d10b39ac2f06874f911749e91a9e15d5172b3d689ed745b",
+      "bytes": 16658
+    },
+    {
+      "path": "common/operators/computeRiemannGasFaceFluxDevice.cuh",
+      "base_blob": "7170f62fe6a94478dcc461c6e94941ef2bb478b5",
+      "sha256": "01ab554966de170d43fc3651242d52ee89338c7da8123982b67a7421b0688b4b",
+      "bytes": 52318
+    },
+    {
+      "path": "common/operators/computeSstFaceFluxKernel.cuh",
+      "base_blob": "059166a2e266e69544131890bbef80a4d9306297",
+      "sha256": "ecb810f6473ed07511a9ce546fbd44a66a5edfeb88eeacdf6d9861173a7e59da",
+      "bytes": 79944
+    },
+    {
+      "path": "common/operators/gasFaceSubgridTransportProperties.cuh",
+      "base_blob": "6fa14e50c2a9942c8fd72d3ca57135a7c0425d78",
+      "sha256": "80cc5beebc2c70e3985ae47eb840d51d34d80d1a0005e144a119d991d579686c",
+      "bytes": 12543
+    },
+    {
+      "path": "common/operators/makeGasPrimDevice.cuh",
+      "base_blob": "49ba37f5f1e86b7cb4b23297a44f648784a3ec8c",
+      "sha256": "44650881c7201d40ac1c20ea08eb8e20f0913e81da18c30b01e1225fbca30ddd",
+      "bytes": 12036
+    },
+    {
+      "path": "common/operators/updateLegacyGasBoundaryMirrorKernel.cuh",
+      "base_blob": "1e17e913a55861cada0d83f094f14679b3efcb53",
+      "sha256": "702aefb8b159fe64c4d228c61b05fe5073ff51483155fb1d4c7ae15baa3dc6e4",
+      "bytes": 6282
+    }
+  ],
+  "findings": [
+    {
+      "id": "A1",
+      "priority": "P1",
+      "title": "Ready numerical wall exchange is misclassified as unavailable and native interval stops",
+      "location": {
+        "path": "common/operators/computeRiemannGasFaceFluxDevice.cuh",
+        "lines": [
+          76,
+          79
+        ]
+      },
+      "consumers": [
+        "applications/gasUGKP/private_backend/SharedGasTrialPolicy.cuh:204-220,281-298",
+        "common/GpuGasAdvance.cuh:781-785"
+      ],
+      "evidence": "review-common/wall_numeric_native-run.log",
+      "required_fix": "Separate real missing/unready exchange from strict numeric/metadata diagnosis at the existing face consumer; retain true missing/runtime errors and real remaining-interval execution."
+    },
+    {
+      "id": "A2",
+      "priority": "P2",
+      "title": "Wall producer rejects unused faceOwner backing after its only read was removed",
+      "location": {
+        "path": "common/gasTransport/GasBoundaryLayerModelState.H",
+        "lines": [
+          63,
+          69
+        ]
+      },
+      "evidence": "review-common/wall_numeric_native-run.log",
+      "required_fix": "Remove the stale local !state.faceOwner veto; do not substitute an owner for final consumers."
+    }
+  ],
+  "reused_exact_comparisons": [
+    {
+      "directory": "tmp/native-green/test_native_requested_interval0",
+      "identical": true,
+      "sha256": "1fa14d51d9803621171df3f35b093ce138dea2a6f2789b16398e2eb6ad3c9669",
+      "bytes": 25110
+    },
+    {
+      "directory": "tmp/native-green/test_native_sst_interval_match0",
+      "identical": true,
+      "sha256": "1a6627e600289d482b135be1c05e1ce6c7c1521c0db72a68196049f5a546f359",
+      "bytes": 27862
+    },
+    {
+      "directory": "tmp/final-targeted-v2/test_native_courant_wrapper_re0",
+      "identical": true,
+      "sha256": "c03e17ae022c85d385126c04513f8d51cb5161eb6b4b81a9d5a05f73bfb302c5",
+      "bytes": 122216
+    }
+  ],
+  "new_compilation_count": 1,
+  "new_probe_receipt": "review-common/probe-receipt.json",
+  "reuse_verified": {
+    "prior_report_hashes": 9,
+    "original_cuda_source_receipts": 5,
+    "final_cuda_object_receipts": 3,
+    "all_freeze_artifact_hashes": true
+  },
+  "limits": [
+    "Review B required for CHMT scheduler/material/storage/lifecycle",
+    "No GPU execution/asynchronous behavior/performance evidence",
+    "No whole native CUDA TU compilation",
+    "No broad reruns; no unsafe/OOB probes",
+    "Parent integration and global audits remain"
+  ],
+  "report_sha256": "303c146a980aa229048ee2561c03162de647f10da80010a7db516cfcfeb3571d"
+}

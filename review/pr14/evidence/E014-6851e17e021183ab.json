@@ -1,0 +1,92 @@
+{
+  "native_cuda_compile_count": 4,
+  "native_cuda_compile_exits": [
+    0,
+    0,
+    0,
+    0
+  ],
+  "native_cuda_compile_seconds": 16.92116718000034,
+  "native_cuda_commands": [
+    {
+      "command": [
+        "/workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/toolchains/cuda/bin/nvcc",
+        "-std=c++17",
+        "-arch=sm_80",
+        "-c",
+        "-DPAIRED=0",
+        "-I/workspace/scratch/98b6339ec81b/chmt_remaining_work_20261013/common",
+        "-I/workspace/scratch/98b6339ec81b/chmt_remaining_work_20261013/common/wall",
+        "/workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/implementation/coldwall-terminal/nvcc/probe.cu",
+        "-o",
+        "/workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/implementation/coldwall-terminal/nvcc/probe-0.o"
+      ],
+      "seconds": 2.4483772050007246,
+      "exit": 0
+    },
+    {
+      "command": [
+        "/workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/toolchains/cuda/bin/nvcc",
+        "-std=c++17",
+        "-arch=sm_80",
+        "-c",
+        "-DPAIRED=1",
+        "-I/workspace/scratch/98b6339ec81b/chmt_remaining_work_20261013/common",
+        "-I/workspace/scratch/98b6339ec81b/chmt_remaining_work_20261013/common/wall",
+        "/workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/implementation/coldwall-terminal/nvcc/probe.cu",
+        "-o",
+        "/workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/implementation/coldwall-terminal/nvcc/probe-1.o"
+      ],
+      "seconds": 3.3877315900026588,
+      "exit": 0
+    },
+    {
+      "command": [
+        "/workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/toolchains/cuda/bin/nvcc",
+        "-std=c++17",
+        "-arch=sm_80",
+        "-dc",
+        "-DROUTE_FSH=0",
+        "-I/workspace/scratch/98b6339ec81b/chmt_remaining_work_20261013/common",
+        "-I/workspace/scratch/98b6339ec81b/chmt_remaining_work_20261013/common/wall",
+        "/workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/implementation/coldwall-terminal/nvcc-wrappers/probe.cu",
+        "-o",
+        "/workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/implementation/coldwall-terminal/nvcc-wrappers/probe-0.o"
+      ],
+      "seconds": 6.135799069001223,
+      "exit": 0
+    },
+    {
+      "command": [
+        "/workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/toolchains/cuda/bin/nvcc",
+        "-std=c++17",
+        "-arch=sm_80",
+        "-dc",
+        "-DROUTE_FSH=1",
+        "-I/workspace/scratch/98b6339ec81b/chmt_remaining_work_20261013/common",
+        "-I/workspace/scratch/98b6339ec81b/chmt_remaining_work_20261013/common/wall",
+        "/workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/implementation/coldwall-terminal/nvcc-wrappers/probe.cu",
+        "-o",
+        "/workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/implementation/coldwall-terminal/nvcc-wrappers/probe-1.o"
+      ],
+      "seconds": 4.949259315995732,
+      "exit": 0
+    }
+  ],
+  "historical_cpu_red": {
+    "failed": 26,
+    "passed": 2,
+    "seconds": 4.15
+  },
+  "after_user_scope_change": {
+    "cpu_numerical_executions": 0,
+    "gpu_runtime_executions": 0
+  },
+  "warnings": "nvcc #20013-D host constexpr numeric_limits max/quiet_NaN calls from host-device helpers; no compilation errors",
+  "gaps": [
+    "No full application link",
+    "No real GPU runtime or compute-sanitizer",
+    "No post-change numerical or bitwise-success run; user owns acceptance",
+    "CUDA probe storage declarations model touched fields; complete wrappers compiled with external gas-helper declarations in relocatable device objects"
+  ]
+}

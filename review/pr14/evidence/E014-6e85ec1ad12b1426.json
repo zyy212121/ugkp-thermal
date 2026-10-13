@@ -1,0 +1,169 @@
+{
+  "schema": 1,
+  "reviewer": "review_chmt_terminal_scheduler",
+  "scope": "Independent B7 review B: CHMT host scheduler, currentCo, wall freshness, material sampling, actual half captures, commit/rollback and storage interfaces; common/native producers assigned to independent reviewer A.",
+  "base": "5f1a39ac96e2e7ff9a0640a4db344d9cccd34245",
+  "patch_sha256": "bcd1cd134acf42fb8d6e84e807791b743b37f304ee19352bc5730e0064dbe61d",
+  "reviewed_utc": "2026-10-13T14:49:22.825859+00:00",
+  "decision": "changes_requested_test_only",
+  "production_assessment": "No blocking production defect found in this scoped review. This is not whole-B7 approval, whole-PR approval, or GPU acceptance.",
+  "integrity": {
+    "all_42_frozen_source_hashes_match": true,
+    "patch_hash_matches": true,
+    "available_fixed_baseline_CHMT_common_files_match_base_blobs": true,
+    "git_diff_check_scoped_exit_code": 0
+  },
+  "findings": [
+    {
+      "id": "B7-CHMT-R1",
+      "priority": "P2",
+      "status": "open",
+      "category": "test-regression",
+      "file": "applications/CHMT/tests/test_coupled_runtime_transactions.py",
+      "line_start": 74,
+      "line_end": 74,
+      "title": "Remove the test reference to the deleted pending member",
+      "description": "test_single_species_binding_keeps_math_and_admits_program_metadata still generates assert(b->pending), while this patch removes Backend::pending. The fixture includes the actual Backend implementation, so the existing test is ill-formed against this source. The targeted receipts did not select this test. This is caused by B7 and is separate from the disclosed unrelated periodic-index exclusion.",
+      "evidence": [
+        "applications/CHMT/gpu/Backend.cu:28-45",
+        "applications/CHMT/tests/test_coupled_runtime_transactions.py:66-75",
+        "applications/CHMT/tests/test_coupled_runtime_transactions.py:30-40",
+        "implementation/b7/commands.md"
+      ],
+      "requested_change": "Retain the successful program-metadata exercise, replace the obsolete member assertion with a real begin/window-state observation if needed, and run this one test. Do not restore a pending certificate or admission gate.",
+      "validation": "Source-confirmed. Parent instructed not to compile code known to reference the deleted member; targeted repair verification remains required."
+    }
+  ],
+  "verified_chains": [
+    {
+      "id": "co_cold_and_lagged",
+      "evidence": [
+        "Backend.cu:386-418",
+        "SharedGasDeviceStorage.cuh:297-305,480-545",
+        "cold-pinned-comparison.json",
+        "tmp/config-wall-green/test_cold_wall_courant_uses_cu0",
+        "planning/cold-co-js-origin.md"
+      ],
+      "assessment": "MassOnly is prepared only while the actual prior-exchange fact is absent. A successful existing sparse exchange read establishes the fact; exchange clear and geometry replacement clear it; same-wall owner migration swaps it. The valid-history route skips program resampling, H2D and BVP. Fixed 5f and current both return success in the pinned cold fixture; mass changes 0 to -0.013 and SST Co changes, while maximum Co is unchanged in that fixture."
+    },
+    {
+      "id": "current_co_cost_and_errors",
+      "evidence": [
+        "Backend.cu:371-418",
+        "common/GpuGasCourant.cuh:22-184",
+        "test_coupled_runtime_transactions.py:test_comax_estimate_restores_sst_and_preserves_fixed_step_outputs",
+        "cuda/courant-reduction.cu",
+        "cuda/receipts.json"
+      ],
+      "assessment": "Original four SST D2D backup/restore copies remain. Actual missing input is propagated through the first existing maximum traversal; no additional reduction, full snapshot or availability array is introduced. All maximum/reduction and copy error returns remain connected to caller restore."
+    },
+    {
+      "id": "wall_freshness",
+      "evidence": [
+        "Backend.cu:47-51,227-286",
+        "common/operators/computeRiemannGasFaceFluxDevice.cuh:55-122",
+        "test_reacting_wall_stage_backend.py",
+        "tmp/config-wall-green/test_device_profile_is_prepare0"
+      ],
+      "assessment": "A stale/unprepared callback invokes the real producer, then refreshes selected actual bulk and species fluxes through the common face body. Mechanical pressure is recovered from refreshed momentum; actual packet/ledger is then formed. The normal prepared-stage control records zero extra profile calls; changed stage records one. Static supplied wall velocity retains actual zero sweep/pressure-work channels."
+    },
+    {
+      "id": "material_sampling",
+      "evidence": [
+        "WallClosureHost.H:77-84",
+        "materials/Thermodynamics.H:142-157",
+        "materials/CpuMaterialDriver.C",
+        "run_material.sh",
+        "material/baseline-run.log",
+        "material/working-run.log"
+      ],
+      "assessment": "Existing strict recovery is first; the existing real completePredictorGas body is shared unchanged. Actual OpenFOAM 10 CpuMaterialDriver inclusion and surface/geometry code are linked in the saved native CPU test; fixed 5f fails owner sampling and current completes four faces/two knots. Missing supplied gas remains an error."
+    },
+    {
+      "id": "actual_halves_and_commit",
+      "evidence": [
+        "Backend.cu:113-162",
+        "common/GpuGasAdvance.cuh:574-616,685-727",
+        "test_final_gas_consumers.py:chemistry_executable",
+        "tmp/final-targeted-v2/final-chemical-consumers0",
+        "tmp/config-wall-green/final-chemical-consumers0"
+      ],
+      "assessment": "Real old/new-volume half kernels are each captured before overwrite. Commit adds both distinct audit records to previous cumulative state, including actual integrated time and all residual/error fields. Int overflow uses defined same-width wrap rather than rejecting physical completion. Download occurs once at commit, with true copy failure restoring microBase. Existing targeted probes cover distinct volumes, terminal audit publication, second-capture failure and commit-copy failure."
+    },
+    {
+      "id": "cap_window_sst_poison",
+      "evidence": [
+        "Backend.cu:330-368,420-473",
+        "test_final_gas_consumers.py",
+        "test_coupled_runtime_transactions.py:test_coupled_moving_geometry_uses_common_volume_audit_and_rollback",
+        "tmp/lifecycle-final",
+        "restore-pinned-red.json"
+      ],
+      "assessment": "Normal finite Co/cap expressions remain. Invalid/exhausted subdivision uses actual remaining/reference duration and only advances after real commit. Paid/zero windows are true no-ops. Existing host geometry completion paths handle numerical strict failures and common RK2/3 paths are used. Execution options select actual SST import; missing supplied SST does not invent inventory. Restore poison depends on actual CudaFault failure; corrected host missing-data retry and actual copy poison are separately evidenced."
+    },
+    {
+      "id": "missing_input_retry_status_lifecycle",
+      "evidence": [
+        "Backend.cu:435-436",
+        "Backend.cu:330-339",
+        "SharedGasDeviceStorage.cuh:605-613",
+        "SharedGasDeviceStorage.cuh:300-305"
+      ],
+      "assessment": "A public currentCo failure restores the physical snapshot, whose uploadState clears cell/face status before the next public attempt. Sticky InvalidStorage is not carried into a normal corrected public retry. If the restore itself lacks host backing, caller can supply it and retry rollback/begin; actual CUDA restore failure remains poisoned."
+    }
+  ],
+  "costs": {
+    "fixture": "one cell, two faces, Ns2 chemistry, no wall/SST; host CUDA instrumentation, not GPU timing",
+    "device_allocations_before_after": [
+      142,
+      141
+    ],
+    "resident_bytes_before_after": [
+      4024,
+      4004
+    ],
+    "trial_clear_calls_before_after": [
+      4,
+      3
+    ],
+    "trial_clear_bytes_before_after": [
+      104,
+      84
+    ],
+    "check_status_D2H_bytes_before_after": [
+      32,
+      12
+    ],
+    "check_status_sync_calls_before_after": [
+      4,
+      1
+    ],
+    "host_owner_bytes_before_after": [
+      7056,
+      7040
+    ],
+    "current_co": "4*Ncell extra status bytes read in the existing traversal; reduction payload grows from 8 to 16 bytes; no GPU temporary-storage/timing measurement",
+    "wall": "cold Ns2 input is 512 bytes; unchanged first-stage upload is skipped; valid historical mass adds no resample/H2D/D2H/BVP",
+    "bulk": "per removed validate, five bulk plus optional species and two SST fields are no longer downloaded; one real commit download remains"
+  },
+  "validation_policy": {
+    "new_compiles": 0,
+    "new_tests": 0,
+    "reason": "Reused unchanged focused receipts and inspected generated source. Parent instructed source-only proof of the deleted-member regression; no new compilation or tests were run.",
+    "production_edits": false,
+    "readme_edits": false,
+    "commit_push_merge": false
+  },
+  "limitations": [
+    "Independent reviewer A owns common/native producer classification and strict-continuation review.",
+    "No actual CUDA GPU execution, asynchronous fault stress, or device performance measured. Small nvcc objects demonstrate compilation only.",
+    "The pending-member test must be repaired and verified before scoped test approval.",
+    "Whole-PR residual efficiency/gate/precision audits and unrelated tools cleanup remain with parent."
+  ],
+  "reused_source_verification": "review-chmt/reused-source-verification.json",
+  "evidence_reuse_notes": [
+    "The final config-wall wall, cold-mass, chemical-halves and missing-restore-input probes, plus final lifecycle moving probe, contain an exact frozen Backend host translation and exact transformed common launch owners.",
+    "The pinned cold comparison current wrapper predates later scheduler/geometry/SST-selection/poison changes, but its exact Courant reduction/currentGasCourant section matches frozen source; the fixture is static and has consistent SST options. Fixed baseline CHMT/common blobs were verified.",
+    "No receipt was relabelled as a full GPU run; no overlapping counts were added."
+  ]
+}

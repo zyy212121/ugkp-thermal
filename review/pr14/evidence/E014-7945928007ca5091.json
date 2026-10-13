@@ -1,0 +1,338 @@
+{
+  "reason": "live edits after initial read; this is a needs-review set, not assertions of defects in newest bytes",
+  "paths": [
+    {
+      "path": "applications/CHMT/tests/test_coupled_runtime_transactions.py",
+      "kind": "test",
+      "exists": true,
+      "sha256": "f686764541a6b7be102a9b8e993246622c57cfb1b0ea1086bed4f8122be71214",
+      "initial_sha256": "54aa99b5eb4e80f1226fa0e00d68bf17f9c27c3bf35544b645a3ac2c788e203a",
+      "changed_since_initial": true,
+      "review_depth": "inventory_and_global_scan; see report for semantically traced subsets and reuse"
+    },
+    {
+      "path": "applications/CHT/devtools/tests/radiationContinuation/TestRadiationContinuation.C",
+      "kind": "test",
+      "exists": true,
+      "sha256": "d44fa83d181ed900dd0d56c553177af44763b680fdd9f220203516612db74b19",
+      "initial_sha256": "0639dc596f3f39cb08f1f62716e0d6934e5b861fdad862b1750f4b8bec452daf",
+      "changed_since_initial": true,
+      "review_depth": "inventory_and_global_scan; see report for semantically traced subsets and reuse"
+    },
+    {
+      "path": "applications/CHT/devtools/tests/test_radiation_continuation.py",
+      "kind": "test",
+      "exists": true,
+      "sha256": "6e5b564315eb6216ab1f6310b84533d946293484578a45844d83e266867224c6",
+      "initial_sha256": "0de0f662ab65cd9d32ca8ea2696be3d6f568706f8c297c43390bbdd13de4a430",
+      "changed_since_initial": true,
+      "review_depth": "inventory_and_global_scan; see report for semantically traced subsets and reuse"
+    },
+    {
+      "path": "applications/CHT/gpu/GpuResidentStrict.H",
+      "kind": "production",
+      "exists": true,
+      "sha256": "c218e95281f67b0087d210ddde752b18cd2783bf4bb501d9f4258ce0f66d15fa",
+      "initial_sha256": "fe07ef5d289eb739f1372e80bb73e88e9aa64ec1bfcb5f78149f0183071bfc4e",
+      "changed_since_initial": true,
+      "review_depth": "inventory_and_global_scan; see report for semantically traced subsets and reuse"
+    },
+    {
+      "path": "applications/CHT/gpu/GpuResidentStrict.cu",
+      "kind": "production",
+      "exists": true,
+      "sha256": "48ee102522ee63c89f225c1137716520eb2d14c936d9dc002818969f8cfd41a6",
+      "initial_sha256": "6122d23f8b00d8534c8e271509d1a676af31068fdcc1640f2acd74675b2e663f",
+      "changed_since_initial": true,
+      "review_depth": "inventory_and_global_scan; see report for semantically traced subsets and reuse"
+    },
+    {
+      "path": "applications/CHT/thermal/GpuParticleRadiationCoupler.C",
+      "kind": "production",
+      "exists": true,
+      "sha256": "374ca83aff6628368c3d7333069cc0abc5a0f4f9471fd6af9d98cd933b4dcbdb",
+      "initial_sha256": "091241a04e4bc3207800857fc652119deb3cf9b1dfdba50dbbb14e571bb67d6b",
+      "changed_since_initial": true,
+      "review_depth": "inventory_and_global_scan; see report for semantically traced subsets and reuse"
+    },
+    {
+      "path": "applications/CHT/thermal/GpuSolidPatchMapper.C",
+      "kind": "production",
+      "exists": true,
+      "sha256": "6c2790b60b6b5a6d0d1fcfa6d34c267d26637f5e43e09b7f74f61fbf874234e9",
+      "initial_sha256": "d0051e4954acb99cf37ce0c02aab14498f682e2bad378abb122f27ddb2fa0cf3",
+      "changed_since_initial": true,
+      "review_depth": "inventory_and_global_scan; see report for semantically traced subsets and reuse"
+    },
+    {
+      "path": "applications/CHT/thermal/GpuSolidThermalCoupler.C",
+      "kind": "production",
+      "exists": true,
+      "sha256": "3bd0cca52a528868f7232108f7073a38ed2c4e051db74c7aa5e5a0304b964510",
+      "initial_sha256": "4683ef0c621b4f4950730cc1f9e77455bf2a1cb03b700bcda7b4d9e956b0cafe",
+      "changed_since_initial": true,
+      "review_depth": "inventory_and_global_scan; see report for semantically traced subsets and reuse"
+    },
+    {
+      "path": "applications/CHT/thermal/GpuSolidThermalProperties.C",
+      "kind": "production",
+      "exists": true,
+      "sha256": "7b328c2e6e314f50376e874f92a5ec86fd96fc19f8d91928bbd42100c88fee72",
+      "initial_sha256": "1d1a61809da566ddb22dc13e97cfccec527c0ba25ee10e0c129f94ac98623421",
+      "changed_since_initial": true,
+      "review_depth": "inventory_and_global_scan; see report for semantically traced subsets and reuse"
+    },
+    {
+      "path": "applications/CHT/thermal/MieDoRadiationMath.H",
+      "kind": "production",
+      "exists": true,
+      "sha256": "2c4274ca04315a2d9eefb08c774e1544c1712bdc24b628131809b38a89cee6d2",
+      "initial_sha256": "1288d745559b9c7c2b3450d66422b25b71de0047dc456d4e7c5bb5dd6b7f043f",
+      "changed_since_initial": true,
+      "review_depth": "inventory_and_global_scan; see report for semantically traced subsets and reuse"
+    },
+    {
+      "path": "applications/CHT/thermal/MieDoRadiationSolver.C",
+      "kind": "production",
+      "exists": true,
+      "sha256": "21ff5eace79fa6677fabd96b198bffacca891e31d833ed445c2e1ebbdf36e7ed",
+      "initial_sha256": "37b9aad0b3fe537d7175a31fa88a83298358a4c18b7359eb560bc56645c1bdeb",
+      "changed_since_initial": true,
+      "review_depth": "inventory_and_global_scan; see report for semantically traced subsets and reuse"
+    },
+    {
+      "path": "applications/CHT/thermal/ParticleRadiationImplicitMath.H",
+      "kind": "production",
+      "exists": true,
+      "sha256": "a7c6e82006fcb29d1c302680b5d5674e7d6a3f77193f2b056ade42acb4377bdd",
+      "initial_sha256": "4aa4f883eddf2bd6fb7a9a9032dbebead9286fec19ca82e9ad96f90562605cfb",
+      "changed_since_initial": true,
+      "review_depth": "inventory_and_global_scan; see report for semantically traced subsets and reuse"
+    },
+    {
+      "path": "applications/FSH/gpu/GpuResidentStrict.H",
+      "kind": "production",
+      "exists": true,
+      "sha256": "edaeb08385909345bdff4e6955bbe3f25886ce2562ab324ea188449a7b65b3ff",
+      "initial_sha256": "2adc099574e60e14cab62b5a1addd98ccbf867480282d6278ad38ba9e40ad99c",
+      "changed_since_initial": true,
+      "review_depth": "inventory_and_global_scan; see report for semantically traced subsets and reuse"
+    },
+    {
+      "path": "applications/FSH/private_backend/GpuResidentStrict.cu",
+      "kind": "production",
+      "exists": true,
+      "sha256": "0aeef323cb6d3ac6f27c688413597978cf8e711226cb08be696b32c210a70108",
+      "initial_sha256": "05223dd1978468c4a011f4bc521d3154f241a45955cbb1959117884f43de4b41",
+      "changed_since_initial": true,
+      "review_depth": "inventory_and_global_scan; see report for semantically traced subsets and reuse"
+    },
+    {
+      "path": "common/GpuCollisionPoolCorrection.cuh",
+      "kind": "production",
+      "exists": true,
+      "sha256": "7987245f4de8e7d806bddd0ad13243d2357dc9551645c273820c567639c85939",
+      "initial_sha256": "f7aedf4f99fe9163e342e3a8bda3d9b7a4c1e154fc6bbc7a9ef67d7ba424d9f4",
+      "changed_since_initial": true,
+      "review_depth": "inventory_and_global_scan; see report for semantically traced subsets and reuse"
+    },
+    {
+      "path": "common/GpuCollisionPoolSampling.cuh",
+      "kind": "production",
+      "exists": true,
+      "sha256": "3a54a5a6e99527dbd02757ceb7fd2cb59966af087dc9cf7cb03e21a9923bd7f4",
+      "initial_sha256": "a5e28fb14e5cc3134171c6d9b1bd1789e60656ff30c45a8b6f26264e67fae3b1",
+      "changed_since_initial": true,
+      "review_depth": "inventory_and_global_scan; see report for semantically traced subsets and reuse"
+    },
+    {
+      "path": "common/GpuMobilePackingHost.cuh",
+      "kind": "production",
+      "exists": true,
+      "sha256": "605bb800ae377c1a0a695b73405f101e283b739b41dbf9e64eb418cf16170de8",
+      "initial_sha256": "fe2b893d12096b70792067edb277878fb2253f0e844c5e5e0f83ad6327a24088",
+      "changed_since_initial": true,
+      "review_depth": "inventory_and_global_scan; see report for semantically traced subsets and reuse"
+    },
+    {
+      "path": "common/GpuParticlePayload.cuh",
+      "kind": "production",
+      "exists": true,
+      "sha256": "5d6fdb397c32ebc2ea95bac6c6aedd33ad3489409533aaae8a858890c350fad8",
+      "initial_sha256": "2555af9ded5dd61d9d8e8f349f5d91d486e2275b8bf04fe586533e4d80702e73",
+      "changed_since_initial": true,
+      "review_depth": "inventory_and_global_scan; see report for semantically traced subsets and reuse"
+    },
+    {
+      "path": "common/GpuParticleTransport.cuh",
+      "kind": "production",
+      "exists": true,
+      "sha256": "de207693a9f39cdbc11e3ffbb9b19d75349f2731211f900507a27506b20be96a",
+      "initial_sha256": "b5d5760ea280c5815de6f7fcc8748aa69f60b9d8f154a6dec24a4cfdfcc6c59a",
+      "changed_since_initial": true,
+      "review_depth": "inventory_and_global_scan; see report for semantically traced subsets and reuse"
+    },
+    {
+      "path": "common/GpuPressurePipeline.cuh",
+      "kind": "production",
+      "exists": true,
+      "sha256": "d5ee38a8d685abdb3bb5a858109ee79fcd6ce88f01d2190f3aef6d8fdb1748c6",
+      "initial_sha256": "347bd8cfb317dc5c21739b306da76ba71d0e50403d4b46e73d1890ed08152ae8",
+      "changed_since_initial": true,
+      "review_depth": "inventory_and_global_scan; see report for semantically traced subsets and reuse"
+    },
+    {
+      "path": "common/GpuReductionTaskMaterialize.cuh",
+      "kind": "production",
+      "exists": true,
+      "sha256": "3b32c3345c65e2b554cee54a7b0feff36887685c8bfab785fcf4b5d5779d13b0",
+      "initial_sha256": "4410565a9f89ea2d147574828c3b9bcb803d4aaca4428c3048e4ac6d53880c3a",
+      "changed_since_initial": true,
+      "review_depth": "inventory_and_global_scan; see report for semantically traced subsets and reuse"
+    },
+    {
+      "path": "common/GpuReductionTaskWrite.cuh",
+      "kind": "production",
+      "exists": true,
+      "sha256": "ea236ac7b294136be1942fe167830f991f05783eeb09a2c785a693da4f298cb7",
+      "initial_sha256": null,
+      "changed_since_initial": true,
+      "review_depth": "inventory_and_global_scan; see report for semantically traced subsets and reuse"
+    },
+    {
+      "path": "common/GpuThermalParticleFinalization.cuh",
+      "kind": "production",
+      "exists": true,
+      "sha256": "766e711746cedd238e86d8c08745493bfa7322d12bce0cd74e5b17875afbcc5c",
+      "initial_sha256": "5539d0dfc0108c0cb37f773fe646063e874e607d6c245674b9250d41315d93b2",
+      "changed_since_initial": true,
+      "review_depth": "inventory_and_global_scan; see report for semantically traced subsets and reuse"
+    },
+    {
+      "path": "common/operators/ParticleDragMomentum.inl",
+      "kind": "production",
+      "exists": true,
+      "sha256": "d2e2283f64d5dfdb8c74d57553800a4f81ae8e9af0c4ae5b4e1ea66e6804cf53",
+      "initial_sha256": "98f82b6e6485366d170db4ae3d5e54b518ec0012dd2b1971d5a03c1d94d0b0d7",
+      "changed_since_initial": true,
+      "review_depth": "inventory_and_global_scan; see report for semantically traced subsets and reuse"
+    },
+    {
+      "path": "common/operators/accumulateParticleWallRepresentedContactAreaKernel.cuh",
+      "kind": "production",
+      "exists": true,
+      "sha256": "1825ae1ff70766581cae2914e2fde4c21d60f2d5ad5817e53fcd14ab7d50fe12",
+      "initial_sha256": "39d5bc1f37bf93aa3624142630b1f2d08a6d4748a29b9d3d51c73601590a6fc3",
+      "changed_since_initial": true,
+      "review_depth": "inventory_and_global_scan; see report for semantically traced subsets and reuse"
+    },
+    {
+      "path": "common/operators/gatherSelectedParticlesKernel.cuh",
+      "kind": "production",
+      "exists": true,
+      "sha256": "75ca7c2fb870476925506fa758343623275ff22b7d3fa3e4e72344cfc086b0df",
+      "initial_sha256": "2eda8407e686af2d05e62aad842c6699093bd6480acfe7f68ff6eaffa3c96eb3",
+      "changed_since_initial": true,
+      "review_depth": "inventory_and_global_scan; see report for semantically traced subsets and reuse"
+    },
+    {
+      "path": "common/operators/rebuildWallBoundParticleDirectoryKernel.cuh",
+      "kind": "production",
+      "exists": true,
+      "sha256": "e84c701fce87d6dd53540ed4c14a9dcebe9acdf245908f514ec54948cae52bf4",
+      "initial_sha256": "f786f003cd12089ee8fd3e2cf723534f68ee979b872823531594e410c188b223",
+      "changed_since_initial": true,
+      "review_depth": "inventory_and_global_scan; see report for semantically traced subsets and reuse"
+    },
+    {
+      "path": "tests/fixtures/cht_thermal/exchange.C",
+      "kind": "test",
+      "exists": true,
+      "sha256": "0ce525786594f0e141362162d0732c36f69f9d4cc30dc0085500506e218063b0",
+      "initial_sha256": "681034c25ead6e9ae659083facb167c2e94ddb74fec40e26d03ebcfeb85d55f1",
+      "changed_since_initial": true,
+      "review_depth": "inventory_and_global_scan; see report for semantically traced subsets and reuse"
+    },
+    {
+      "path": "tests/fixtures/cht_thermal/probe.C",
+      "kind": "test",
+      "exists": true,
+      "sha256": "3ba02d03b787839e11fc9219ffe0b05772efd8c4bb33e8cfe0a6c7767ed9909c",
+      "initial_sha256": "6b14f61f34cd28c14b7aea516af99c6e930353a75eade893dbc55e630f385577",
+      "changed_since_initial": true,
+      "review_depth": "inventory_and_global_scan; see report for semantically traced subsets and reuse"
+    },
+    {
+      "path": "tests/gas_transport/test_final_native_consumers.py",
+      "kind": "test",
+      "exists": true,
+      "sha256": "2064618df3d4e2515b724b136980e944b8fc3b07d4377761fb7bdc1ad57ee777",
+      "initial_sha256": "567131ce9156b73de19378e2a01c7eef17088abf3ef49771062461c944fd2f98",
+      "changed_since_initial": true,
+      "review_depth": "inventory_and_global_scan; see report for semantically traced subsets and reuse"
+    },
+    {
+      "path": "tests/test_cht_full_exchange.py",
+      "kind": "test",
+      "exists": true,
+      "sha256": "376063957fa0cfa87d4eda0d04cf9741a5ea32d4878db73790963e37673b2532",
+      "initial_sha256": "76fb2496493ab6831763a354aa04efbf4a3a44f008fced96153052f05136ab12",
+      "changed_since_initial": true,
+      "review_depth": "inventory_and_global_scan; see report for semantically traced subsets and reuse"
+    },
+    {
+      "path": "tests/test_cht_solid_continuation.py",
+      "kind": "test",
+      "exists": true,
+      "sha256": "0db07ec58379187fdf6a40af9288422200c0400da6b749a08c121396a8664928",
+      "initial_sha256": "97d65325100fd15d05fc47f6246416bc98dc12aa45d18f89931dca546dd92a87",
+      "changed_since_initial": true,
+      "review_depth": "inventory_and_global_scan; see report for semantically traced subsets and reuse"
+    },
+    {
+      "path": "tests/test_particle_routing_continuation.py",
+      "kind": "test",
+      "exists": true,
+      "sha256": "ad7ea4170417e49c4c73428807de282986ab9cf085be0bea32a5cd32a20e3744",
+      "initial_sha256": "965d3bbbd71b571137404cbc16f6993f1c09122c3302159e23b33b13964fa9d4",
+      "changed_since_initial": true,
+      "review_depth": "inventory_and_global_scan; see report for semantically traced subsets and reuse"
+    },
+    {
+      "path": "tests/test_particle_terminal_continuation.py",
+      "kind": "test",
+      "exists": true,
+      "sha256": "e5875572c4e3b284a82f379857c42b7dd5493fd528d99fe634823e192edba995",
+      "initial_sha256": null,
+      "changed_since_initial": true,
+      "review_depth": "inventory_and_global_scan; see report for semantically traced subsets and reuse"
+    },
+    {
+      "path": "tests/test_resident_terminal_courant.py",
+      "kind": "test",
+      "exists": true,
+      "sha256": "f95db4171c285ada2d949aa8c82bee180c38f634181c9b04585da4fd2c317a34",
+      "initial_sha256": null,
+      "changed_since_initial": true,
+      "review_depth": "inventory_and_global_scan; see report for semantically traced subsets and reuse"
+    },
+    {
+      "path": "tests/test_resident_terminal_storage.py",
+      "kind": "test",
+      "exists": true,
+      "sha256": "92e30900fe5b3654223ae8dbfb7c57e59fcb7c9e35222ef360d83ce11ae02ce6",
+      "initial_sha256": null,
+      "changed_since_initial": true,
+      "review_depth": "inventory_and_global_scan; see report for semantically traced subsets and reuse"
+    },
+    {
+      "path": "tests/test_resident_terminal_wrappers.py",
+      "kind": "test",
+      "exists": true,
+      "sha256": "74ffc9822b6e923576870dd167574e17161a0233624e29342470aaabb77d9f85",
+      "initial_sha256": null,
+      "changed_since_initial": true,
+      "review_depth": "inventory_and_global_scan; see report for semantically traced subsets and reuse"
+    }
+  ]
+}

@@ -1,0 +1,66 @@
+diff --git a/common/GpuThermalParticleRestartCodec.H b/common/GpuThermalParticleRestartCodec.H
+index b1e654d..7ce86e3 100644
+--- a/common/GpuThermalParticleRestartCodec.H
++++ b/common/GpuThermalParticleRestartCodec.H
+@@ -57,22 +57,28 @@ template<class View> inline void validate(const View& v)
+ }
+ inline void representation() {} // Kept for existing callers; endian conversion is at IO.
+ template<class DiskTime, class View> inline void timeType(const View&) {}
+-template<class Disk,class Memory> inline void readConverted(std::istream& is,Memory* p,std::size_t b,std::size_t n)
++template<class Disk,class Memory>
++inline void readConvertedImpl(std::istream& is,Memory* p,std::size_t b,std::size_t n,std::true_type)
++{
++    readArray(is,p,b,n);
++}
++template<class Disk,class Memory>
++inline void readConvertedImpl(std::istream& is,Memory* p,std::size_t b,std::size_t n,std::false_type)
+ {
+-    if constexpr (std::is_same<Disk,Memory>::value) readArray(is,p,b,n);
+-    else
++    if (n && !p) throw std::runtime_error("missing restart destination field");
++    std::vector<Disk> values(n); readArray(is,values.data(),0,n);
++    for (std::size_t i=0;i<n;++i)
+     {
+-        if (n && !p) throw std::runtime_error("missing restart destination field");
+-        std::vector<Disk> values(n); readArray(is,values.data(),0,n);
+-        for (std::size_t i=0;i<n;++i)
+-        {
+-            const Memory value=static_cast<Memory>(values[i]);
+-            if (std::isfinite(values[i]) && !std::isfinite(value))
+-                throw std::runtime_error("restart time conversion overflow");
+-            p[b+i]=value;
+-        }
++        const Memory value=static_cast<Memory>(values[i]);
++        if (std::isfinite(values[i]) && !std::isfinite(value))
++            throw std::runtime_error("restart time conversion overflow");
++        p[b+i]=value;
+     }
+ }
++template<class Disk,class Memory> inline void readConverted(std::istream& is,Memory* p,std::size_t b,std::size_t n)
++{
++    readConvertedImpl<Disk>(is,p,b,n,std::is_same<Disk,Memory>{});
++}
+ // Historical schema7 disk widths are independent of current memory storage.
+ template<class DiskTime,class View,class Fn>
+ inline void wireFields(const View& v,std::size_t begin,std::size_t count,Fn fn)
+@@ -129,11 +135,19 @@ inline void readPayload(std::istream& is,std::uint32_t bound,const View& v)
+ }
+ // Current layouts keep the established field order, with explicit owner markers.
+ // Only CHT's two cold-profile fields remain binary32; its carry is binary64.
++template<class View, class Fn>
++inline void appendCurrentCarry(const View& v,std::size_t begin,std::size_t count,Fn& fn,std::true_type)
++{
++    fn(v.pThermalEnthalpyResidual,begin,count);
++}
++template<class View, class Fn>
++inline void appendCurrentCarry(const View&,std::size_t,std::size_t,Fn&,std::false_type)
++{}
+ template<bool HasCarry, class View, class Fn>
+ inline void currentFields(const View& v,std::size_t begin,std::size_t count,Fn fn)
+ {
+     fields(v,begin,count,fn);
+-    if constexpr (HasCarry) fn(v.pThermalEnthalpyResidual,begin,count);
++    appendCurrentCarry(v,begin,count,fn,std::integral_constant<bool,HasCarry>{});
+ }
+ template<bool HasCarry, class View>
+ inline void writeCurrent(std::ostream& os,const char* name,const View& v)

@@ -1,0 +1,74 @@
+[
+  {
+    "id": "RES-FU-001",
+    "files": [
+      "applications/gasUGKP/private_backend/GpuResidentStrict.cu"
+    ],
+    "functions": [
+      "ugkwpGpuResidentStrictCreate"
+    ],
+    "change": "Remove extent/launch/selector admission. Preserve actual assignments, clamps, allocation and operation failures. Existing selected drag/time-integrator dispatch errors stay; no unavailable formula synthesized.",
+    "compile": "Full native owner TU not compiled in this worker batch; real main/API/header and focused CUDA include compilations only.",
+    "gpu_request": "Compare accepted baseline complete state. Backed supplied metadata/selectors should follow existing fallback or fail at actual unavailable selected dispatcher, not early Create certification. User accepts zero-block/division and wrong-metadata risk; do not run intentional OOB cases."
+  },
+  {
+    "id": "RES-FU-002",
+    "files": [
+      "applications/CHT/gpu/GpuResidentStrict.cu",
+      "applications/FSH/private_backend/GpuResidentStrict.cu",
+      "applications/gasUGKP/private_backend/GpuResidentStrict.cu"
+    ],
+    "functions": [
+      "ugkwpGpuResidentStrictUploadBoundarySources",
+      "ugkwpGpuResidentStrictDownloadParticleRestartMirror",
+      "gasUGKP::ugkwpGpuResidentStrictUploadParticleRestartMirror",
+      "gasUGKP::ugkwpGpuResidentStrictUploadSourceResidualMass"
+    ],
+    "change": "Remove count/resident-capacity certification while preserving real allocation/copy/null errors and output maxParticles<count consumed extent on requested copies. Query mode publishes actual returned count.",
+    "cost": "Fixed predicates removed; original accepted transfer/memset/publication order unchanged.",
+    "gpu_request": "Verify accepted bytes and count-only query; use fully backed mismatched resident metadata for copies. Genuine short destination prefix, missing input and CUDA failures must remain errors."
+  },
+  {
+    "id": "RES-FU-003",
+    "files": [
+      "common/GpuParticleSavedVelocityRestart.inl"
+    ],
+    "functions": [
+      "ugkwpGpuResidentStrictUploadParticleSavedVelocity",
+      "ugkwpGpuResidentStrictDownloadParticleSavedVelocity"
+    ],
+    "change": "Remove count/capacity certificates, retain consumed pointers and same three double copies.",
+    "compile": "Real include compiled by nvcc with typed field projection and declaration-only host boundaries; no fake implementation or execution.",
+    "gpu_request": "Fully backed saved-velocity count differing from metadata must retain exact bytes; null/copy failures remain errors; old-success transfer count stays3."
+  },
+  {
+    "id": "RES-FU-004",
+    "files": [
+      "common/GpuSchedulingConfiguration.H",
+      "applications/gasUGKP/gpu/GpuResidentStrict.H"
+    ],
+    "functions": [
+      "readGpuSchedulingConfiguration",
+      "initialiseBase",
+      "readParticleRestartMirrorIfPresent",
+      "readSourceResidualRestartMirrorIfPresent",
+      "uploadMesh"
+    ],
+    "change": "Remove capacity/count/finite-residual/periodic-size certificates. Preserve actual parse failures, automatic zero-modulo distinction, epsGPrev fallback and real geometry addressing.",
+    "compile": "Actual gasUGKP main compiled with real OF10/UGKWP_USE_CUDA/species2, no stubs/link/run.",
+    "gpu_request": "Baseline setup/restore must match. Alternate backed metadata and finite residual values pass to actual native producers; malformed/short streams and unsupported transforms remain errors."
+  },
+  {
+    "id": "RES-FU-005",
+    "files": [
+      "common/operators/applyGasVolumeFractionSourceKernel.cuh"
+    ],
+    "functions": [
+      "applyGasVolumeFractionSourceKernel"
+    ],
+    "change": "Delete only final numerical candidate trap; publish actual computed candidates with unchanged finiteOr/clamp choices and accumulation/order.",
+    "cost": "Remove10 final candidate finite predicates and conditional trap per active cell; no arithmetic/copy added.",
+    "compile": "Actual kernel plus real helper includes compiled by nvcc with typed owner-field projection; no runtime/full-backend claim.",
+    "gpu_request": "Old successful density/momentum/energy/SST/epsGPrev outputs must match. Fully backed inputs yielding unusual candidates must publish those same candidates rather than numerical trap; preserve genuine missing-storage failures."
+  }
+]

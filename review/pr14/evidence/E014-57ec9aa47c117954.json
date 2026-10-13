@@ -1,0 +1,11 @@
+{
+  "owner": "applications/CHMT/gpu/GasWallMath.H",
+  "fields": "prepared vs current velocity components; actual terminal closure.trace.velocity; downstream primary/pore momentum and energy; layer traction/heat/species reused only when matching",
+  "ordinary_finite": "Original mag(delta)>1e-11*max(1,mag(current)) expression unchanged. Only constant finite classifications added; zero extra layer calls.",
+  "changed_terminal": "Mismatch follows existing real closure once; no numeric refusal.",
+  "matching_terminal": "Same component equality or both NaN; zero layer calls; finish the two existing fresh velocity projections using already evaluated mass/rho, no second property pass.",
+  "true_missing": "Fresh closure with no actual required workspace returns false; matching prepared-only still succeeds without workspace.",
+  "precision": "unchanged double",
+  "runtime_storage_and_work": "No allocation, transfer, persistent snapshot, availability array, cache, whole-species scan, global traversal or synchronization.",
+  "gate_review": "No new reject branch. Numerical classifications choose reuse vs actual work only. Existing real unavailable fresh closure return retained."
+}

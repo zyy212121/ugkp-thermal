@@ -1,0 +1,47 @@
+{
+  "baseline_head": "9ac74fc16d19bf809f58fbe565903b5d9e13ca77",
+  "files": [
+    {
+      "path": "applications/gasUGKP/private_backend/GpuResidentStrict.cu",
+      "sha256": "5edaf48833be7d229d1560712f3d9964ad62fc59e44fcd570643d96e74739925",
+      "current_sha256": "7a4f66f75efb1a477d24b00f8ed259d7a1a952ec6e4c4de428a04bb69f3bb20e"
+    },
+    {
+      "path": "applications/CHT/gpu/GpuResidentStrict.cu",
+      "sha256": "52246c21634d56d6804bc1b37c8f6aa2c723d876b482ad518e024380e26c062b",
+      "current_sha256": "3131e68bb2220f415f3ef83133f358c58cb6741f7cfcd3eeebaf5054b8c65284"
+    },
+    {
+      "path": "applications/FSH/private_backend/GpuResidentStrict.cu",
+      "sha256": "0aeef323cb6d3ac6f27c688413597978cf8e711226cb08be696b32c210a70108",
+      "current_sha256": "e0fdbc4faa2f680c8adb840cd323db339d318f65fe9abd36e3afd3c093e1471f"
+    },
+    {
+      "path": "applications/gasUGKP/gpu/GpuResidentStrict.H",
+      "sha256": "13aad0b19ff0751ff6c2c3a4be563c987f98841118351e7922713164db1f84d9",
+      "current_sha256": "06dd55db572c25ec5b8b6f82cf41bad92fdb80e82c69937bfba9638874b18a0a"
+    },
+    {
+      "path": "common/GpuSchedulingConfiguration.H",
+      "sha256": "712a1fd92f6ae2e686bf90cc71d1a4f2b586ec93715fc67677d2be5ed348b6e8",
+      "current_sha256": "399d8dd20d956195385df5265b46c8e4e14d2b5b603a48426a0dd296ddf85767"
+    },
+    {
+      "path": "common/GpuParticleSavedVelocityRestart.inl",
+      "sha256": "6b64df7d024f2bc2d069389753f1635aba0be07cf960d5ba8737225f1c9d28d5",
+      "current_sha256": "92e42df306b91cfcf2a1acfa2d72cc7851792bf8725afe897d5411e749a53b1a"
+    },
+    {
+      "path": "common/operators/applyGasVolumeFractionSourceKernel.cuh",
+      "sha256": "78373f66d708d503c7233067c1ff792f8e128d4f65c604d0613d12be76a5a0b4",
+      "current_sha256": "107e20e5517dfbef57c1aea9fccd0fc54d3cded9db380d26e54c485e1f27bce2"
+    }
+  ],
+  "patch_sha256": "fd81a3ab72e6e07e52f13c3bcc19504dc4c81c1bc15135f1ed48d7bc13505e12",
+  "compile_receipt_sha256": "a75dd41fab55f246383517013af8a63e25e6015031995701b9abd9466a909116",
+  "validation": "source review + compile only; no runtime, no new repository tests; full native owner TU/link remains separate gap",
+  "preserved_prior_freezes": [
+    "implementation/resident-terminal/freeze.json",
+    "implementation/resident-terminal/v2/combined-freeze.json"
+  ]
+}

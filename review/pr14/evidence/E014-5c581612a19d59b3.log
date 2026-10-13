@@ -1,0 +1,17 @@
+base
+command=g++ -std=c++14 -O2 -ffp-contract=off -Wall -Wextra -Werror -pedantic -I/workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/implementation/b1/independent/base/applications/CHMT -I/workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/implementation/b1/independent/base/common /workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/implementation/b1/independent/review-probe.cpp -o /workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/implementation/b1/independent/review-base
+recoverSolid<true> ok=1 T=0x1.9p+6
+invertMaterialEnergy<true> ok=1 T=0x1.9p+6
+underdeclared_count status=1 cp=-0x1.6p+3 cv=-0x1.8p+3 h=-0x1.ap+3 e=-0x1.cp+3 entropy=-0x1.ep+3
+underdeclared_species_count status=1 cp=-0x1.6p+3 cv=-0x1.8p+3 h=-0x1.ap+3 e=-0x1.cp+3 entropy=-0x1.ep+3
+negative_addressable_offset status=1 cp=-0x1.6p+3 cv=-0x1.8p+3 h=-0x1.ap+3 e=-0x1.cp+3 entropy=-0x1.ep+3
+underdeclared_nasa_high_count status=1 cp=-0x1.6p+3 cv=-0x1.8p+3 h=-0x1.ap+3 e=-0x1.cp+3 entropy=-0x1.ep+3
+
+current
+command=g++ -std=c++14 -O2 -ffp-contract=off -Wall -Wextra -Werror -pedantic -I/workspace/scratch/98b6339ec81b/chmt_remaining_work_20261013/applications/CHMT -I/workspace/scratch/98b6339ec81b/chmt_remaining_work_20261013/common /workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/implementation/b1/independent/review-probe.cpp -o /workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/implementation/b1/independent/review-current
+recoverSolid<true> ok=1 T=0x0p+0
+invertMaterialEnergy<true> ok=1 T=0x1.8cp+6
+underdeclared_count status=1 cp=-0x1.6p+3 cv=-0x1.8p+3 h=-0x1.ap+3 e=-0x1.cp+3 entropy=-0x1.ep+3
+underdeclared_species_count status=1 cp=-0x1.6p+3 cv=-0x1.8p+3 h=-0x1.ap+3 e=-0x1.cp+3 entropy=-0x1.ep+3
+negative_addressable_offset status=1 cp=-0x1.6p+3 cv=-0x1.8p+3 h=-0x1.ap+3 e=-0x1.cp+3 entropy=-0x1.ep+3
+underdeclared_nasa_high_count status=1 cp=-0x1.6p+3 cv=-0x1.8p+3 h=-0x1.ap+3 e=-0x1.cp+3 entropy=-0x1.ep+3

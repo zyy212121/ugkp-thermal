@@ -1,0 +1,211 @@
++++ dirname applications/FSH/private_backend/build_private_backend.sh
+++ cd applications/FSH/private_backend
+++ pwd
++ private_root=/workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/final-native-build/remaining/source/applications/FSH/private_backend
+++ cd /workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/final-native-build/remaining/source/applications/FSH/private_backend/..
+++ pwd
++ solver_root=/workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/final-native-build/remaining/source/applications/FSH
++ '[' -z /workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10 ']'
++ set -euo pipefail
++ cd /workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/final-native-build/remaining/source/applications/FSH
++ cuda_home=/workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/toolchains/cuda
++ cuda_arch=sm_80
++ log_phase=fsh_finite_contact
++ development_probes=0
++ fmad_mode=1
++ log_dir=/workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/final-native-build/remaining/source/applications/FSH/private_backend/build_logs/fsh_finite_contact
++ obj_dir=/workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/final-native-build/remaining/source/applications/FSH/private_backend/build/linux64GccDPInt32Opt
++ backend_lib=/workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/final-native-build/remaining/source/applications/FSH/private_backend/libugkwp_cuda_backend.a
++ backend_bin=/workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/final-native-build/remaining/bin/FSHCudaBackend
++ frontend_bin=/workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/final-native-build/remaining/bin/FSH
++ probe_nvcc_flags=()
++ case "${development_probes}" in
++ development_probes=0
++ case "${fmad_mode}" in
++ fmad_mode=1
++ fmad_flag=--fmad=true
++ mkdir -p /workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/final-native-build/remaining/source/applications/FSH/private_backend/build_logs/fsh_finite_contact /workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/final-native-build/remaining/source/applications/FSH/private_backend/build/linux64GccDPInt32Opt
+++ date +%Y%m%d_%H%M%S
++ log=/workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/final-native-build/remaining/source/applications/FSH/private_backend/build_logs/fsh_finite_contact/separated_build_20261014_000420.log
++ tee /workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/final-native-build/remaining/source/applications/FSH/private_backend/build_logs/fsh_finite_contact/separated_build_20261014_000420.log
++ echo '[separated-build] solver_root=/workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/final-native-build/remaining/source/applications/FSH'
+[separated-build] solver_root=/workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/final-native-build/remaining/source/applications/FSH
++ echo '[separated-build] cuda_home=/workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/toolchains/cuda'
+[separated-build] cuda_home=/workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/toolchains/cuda
++ echo '[separated-build] cuda_arch=sm_80'
+[separated-build] cuda_arch=sm_80
++ echo '[separated-build] development_probes=0'
+[separated-build] development_probes=0
++ echo '[separated-build] fmad=1'
+[separated-build] fmad=1
++ echo '[separated-build] WM_OPTIONS=linux64GccDPInt32Opt'
+[separated-build] WM_OPTIONS=linux64GccDPInt32Opt
++ rm -f '/workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/final-native-build/remaining/source/applications/FSH/private_backend/build/linux64GccDPInt32Opt/*.o' /workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/final-native-build/remaining/source/applications/FSH/private_backend/libugkwp_cuda_backend.a
++ /workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/toolchains/cuda/bin/nvcc -std=c++17 -O3 --fmad=true -arch=sm_80 -Xcompiler -fPIC -I/workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/final-native-build/remaining/source/applications/FSH/gpu -I/workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/final-native-build/remaining/source/applications/FSH/../../common -c /workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/final-native-build/remaining/source/applications/FSH/private_backend/GpuResidentStrict.cu -o /workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/final-native-build/remaining/source/applications/FSH/private_backend/build/linux64GccDPInt32Opt/GpuResidentStrict.o
+/workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/final-native-build/remaining/source/applications/FSH/private_backend/../thermal/GpuFiniteWallContact.H(111): warning #20013-D: calling a constexpr __host__ function("quiet_NaN") from a __host__ __device__ function("correctedMaximumSpreadFactor") is not allowed. The experimental flag '--expt-relaxed-constexpr' can be used to allow this.
+          return std::numeric_limits<GpuReal>::quiet_NaN();
+                 ^
+
+Remark: The warnings can be suppressed with "-diag-suppress <warning-number>"
+
+/workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/final-native-build/remaining/source/applications/FSH/private_backend/../thermal/GpuFiniteWallContact.H(119): warning #20013-D: calling a constexpr __host__ function("quiet_NaN") from a __host__ __device__ function("correctedMaximumSpreadFactor") is not allowed. The experimental flag '--expt-relaxed-constexpr' can be used to allow this.
+          return std::numeric_limits<GpuReal>::quiet_NaN();
+                 ^
+
+/workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/final-native-build/remaining/source/applications/FSH/private_backend/../thermal/GpuFiniteWallContact.H(148): warning #20013-D: calling a constexpr __host__ function("quiet_NaN") from a __host__ __device__ function("correctedMaximumSpreadFactor") is not allowed. The experimental flag '--expt-relaxed-constexpr' can be used to allow this.
+          return std::numeric_limits<GpuReal>::quiet_NaN();
+                 ^
+
+/workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/final-native-build/remaining/source/applications/FSH/private_backend/../thermal/GpuFiniteWallContact.H(163): warning #20013-D: calling a constexpr __host__ function("quiet_NaN") from a __host__ __device__ function("correctedMaximumSpreadFactor") is not allowed. The experimental flag '--expt-relaxed-constexpr' can be used to allow this.
+              return std::numeric_limits<GpuReal>::quiet_NaN();
+                     ^
+
+/workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/final-native-build/remaining/source/applications/FSH/private_backend/../thermal/GpuFiniteWallContact.H(171): warning #20013-D: calling a constexpr __host__ function("quiet_NaN") from a __host__ __device__ function("correctedMaximumSpreadFactor") is not allowed. The experimental flag '--expt-relaxed-constexpr' can be used to allow this.
+              return std::numeric_limits<GpuReal>::quiet_NaN();
+                     ^
+
+/workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/final-native-build/remaining/source/applications/FSH/private_backend/../thermal/GpuFiniteWallContact.H(189): warning #20013-D: calling a constexpr __host__ function("quiet_NaN") from a __host__ __device__ function("correctedMaximumSpreadFactor") is not allowed. The experimental flag '--expt-relaxed-constexpr' can be used to allow this.
+              return std::numeric_limits<GpuReal>::quiet_NaN();
+                     ^
+
+/workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/final-native-build/remaining/source/applications/FSH/private_backend/GpuResidentStrict.cu(3733): warning #177-D: variable "warpCount" was declared but never referenced
+      const int warpCount = (block + 31)/32;
+                ^
+
+/workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/final-native-build/remaining/source/applications/FSH/private_backend/../thermal/GpuAluminaProperties.H(40): warning #20013-D: calling a constexpr __host__ function("max") from a __host__ __device__ function("finiteAluminaValue") is not allowed. The experimental flag '--expt-relaxed-constexpr' can be used to allow this.
+      return value == value && value >= -std::numeric_limits<Real>::max()
+                                         ^
+          detected during instantiation of "__nv_bool Foam::gpuThermal::finiteAluminaValue(Real) noexcept [with Real=GpuReal]" at line 167
+
+/workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/final-native-build/remaining/source/applications/FSH/private_backend/../thermal/GpuAluminaProperties.H(41): warning #20013-D: calling a constexpr __host__ function("max") from a __host__ __device__ function("finiteAluminaValue") is not allowed. The experimental flag '--expt-relaxed-constexpr' can be used to allow this.
+          && value <= std::numeric_limits<Real>::max();
+                      ^
+          detected during instantiation of "__nv_bool Foam::gpuThermal::finiteAluminaValue(Real) noexcept [with Real=GpuReal]" at line 167
+
+/workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/final-native-build/remaining/source/applications/FSH/private_backend/../thermal/GpuParticleWallContactHeat.H(46): warning #20013-D: calling a constexpr __host__ function("max") from a __host__ __device__ function("finiteParticleWallContactValue") is not allowed. The experimental flag '--expt-relaxed-constexpr' can be used to allow this.
+      return value == value && value >= -std::numeric_limits<Real>::max()
+                                         ^
+          detected during instantiation of "__nv_bool Foam::gpuThermal::finiteParticleWallContactValue(Real) noexcept [with Real=GpuReal]" at line 127
+
+/workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/final-native-build/remaining/source/applications/FSH/private_backend/../thermal/GpuParticleWallContactHeat.H(47): warning #20013-D: calling a constexpr __host__ function("max") from a __host__ __device__ function("finiteParticleWallContactValue") is not allowed. The experimental flag '--expt-relaxed-constexpr' can be used to allow this.
+          && value <= std::numeric_limits<Real>::max();
+                      ^
+          detected during instantiation of "__nv_bool Foam::gpuThermal::finiteParticleWallContactValue(Real) noexcept [with Real=GpuReal]" at line 127
+
+/workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/final-native-build/remaining/source/applications/FSH/private_backend/../thermal/GpuFiniteWallContact.H(58): warning #20013-D: calling a constexpr __host__ function("max") from a __host__ __device__ function("finiteContactValue") is not allowed. The experimental flag '--expt-relaxed-constexpr' can be used to allow this.
+      return x == x && x >= -std::numeric_limits<Real>::max()
+                             ^
+          detected during instantiation of "__nv_bool Foam::gpuThermal::finiteContactValue(Real) noexcept [with Real=GpuReal]" at line 108
+
+/workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/final-native-build/remaining/source/applications/FSH/private_backend/../thermal/GpuFiniteWallContact.H(59): warning #20013-D: calling a constexpr __host__ function("max") from a __host__ __device__ function("finiteContactValue") is not allowed. The experimental flag '--expt-relaxed-constexpr' can be used to allow this.
+          && x <= std::numeric_limits<Real>::max();
+                  ^
+          detected during instantiation of "__nv_bool Foam::gpuThermal::finiteContactValue(Real) noexcept [with Real=GpuReal]" at line 108
+
+/workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/final-native-build/remaining/source/applications/FSH/private_backend/../../../common/wall/GpuColdWallSolidification.H(64): warning #20013-D: calling a constexpr __host__ function("max") from a __host__ __device__ function("finiteColdWallValue") is not allowed. The experimental flag '--expt-relaxed-constexpr' can be used to allow this.
+      return value == value && value >= -std::numeric_limits<Real>::max()
+                                         ^
+          detected during instantiation of "__nv_bool Foam::gpuThermal::finiteColdWallValue(Real) noexcept [with Real=GpuReal]" at line 282
+
+/workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/final-native-build/remaining/source/applications/FSH/private_backend/../../../common/wall/GpuColdWallSolidification.H(65): warning #20013-D: calling a constexpr __host__ function("max") from a __host__ __device__ function("finiteColdWallValue") is not allowed. The experimental flag '--expt-relaxed-constexpr' can be used to allow this.
+          && value <= std::numeric_limits<Real>::max();
+                      ^
+          detected during instantiation of "__nv_bool Foam::gpuThermal::finiteColdWallValue(Real) noexcept [with Real=GpuReal]" at line 282
+
+/workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/final-native-build/remaining/source/applications/FSH/../../common/gasTransport/../chemistry/../gasTransport/MixtureThermo.H(16): warning #20013-D: calling a constexpr __host__ function("max") from a __host__ __device__ function("gasFinite") is not allowed. The experimental flag '--expt-relaxed-constexpr' can be used to allow this.
+      return x == x && x <= (std::numeric_limits<Real>::max)()
+                            ^
+          detected during:
+            instantiation of "__nv_bool ugkwp::gasFinite(Real) noexcept [with Real=double]" at line 63 of /workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/final-native-build/remaining/source/applications/FSH/../../common/operators/computeGasInternalFaceFluxKernel.cuh
+            instantiation of "void <unnamed>::enforcePeriodicGasFluxAntisymmetryKernel(GasState *, __nv_bool) [with GasState=<unnamed>::DeviceState]" at line 71 of /workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/final-native-build/remaining/source/applications/FSH/private_backend/../../../common/GpuToolB1Launch.cuh
+
+/workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/final-native-build/remaining/source/applications/FSH/../../common/gasTransport/../chemistry/../gasTransport/MixtureThermo.H(17): warning #20013-D: calling a constexpr __host__ function("max") from a __host__ __device__ function("gasFinite") is not allowed. The experimental flag '--expt-relaxed-constexpr' can be used to allow this.
+          && x >= -(std::numeric_limits<Real>::max)();
+                   ^
+          detected during:
+            instantiation of "__nv_bool ugkwp::gasFinite(Real) noexcept [with Real=double]" at line 63 of /workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/final-native-build/remaining/source/applications/FSH/../../common/operators/computeGasInternalFaceFluxKernel.cuh
+            instantiation of "void <unnamed>::enforcePeriodicGasFluxAntisymmetryKernel(GasState *, __nv_bool) [with GasState=<unnamed>::DeviceState]" at line 71 of /workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/final-native-build/remaining/source/applications/FSH/private_backend/../../../common/GpuToolB1Launch.cuh
+
+/workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/final-native-build/remaining/source/applications/FSH/../../common/gasTransport/../chemistry/../gasTransport/MixtureThermo.H(29): warning #20013-D: calling a constexpr __host__ function("quiet_NaN") from a __host__ __device__ function("invalidValue") is not allowed. The experimental flag '--expt-relaxed-constexpr' can be used to allow this.
+  { return std::numeric_limits<Real>::quiet_NaN(); }
+           ^
+          detected during:
+            instantiation of "Real ugkwp::gasThermoDetail::invalidValue<Real>() noexcept [with Real=double]" at line 592 of /workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/final-native-build/remaining/source/applications/FSH/../../common/operators/computeSstFaceFluxKernel.cuh
+            instantiation of "void <unnamed>::computeGasCourantFieldKernel(GasState *, double, __nv_bool) [with GasState=<unnamed>::DeviceState]" at line 3609 of /workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/final-native-build/remaining/source/applications/FSH/private_backend/GpuResidentStrict.cu
+
++ ar rcs /workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/final-native-build/remaining/source/applications/FSH/private_backend/libugkwp_cuda_backend.a /workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/final-native-build/remaining/source/applications/FSH/private_backend/build/linux64GccDPInt32Opt/GpuResidentStrict.o
++ c++ -std=c++17 -O3 -I/workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/final-native-build/remaining/source/applications/FSH/gpu -I/workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/final-native-build/remaining/source/applications/FSH/../../common /workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/final-native-build/remaining/source/applications/FSH/private_backend/GpuBackendServer.C /workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/final-native-build/remaining/source/applications/FSH/private_backend/libugkwp_cuda_backend.a -L/workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/toolchains/cuda/lib64 -Wl,-rpath,/workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/toolchains/cuda/lib64 -lcudart -o /workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/final-native-build/remaining/bin/FSHCudaBackend
++ rm -f /workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/final-native-build/remaining/source/applications/FSH/Make/linux64GccDPInt32Opt/diluteUgkwpFoam.o /workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/final-native-build/remaining/source/applications/FSH/Make/linux64GccDPInt32Opt/gpu/GpuBackendClient.o /workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/final-native-build/remaining/source/applications/FSH/Make/linux64GccDPInt32Opt/diluteUgkwpFoam.C.dep /workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/final-native-build/remaining/source/applications/FSH/Make/linux64GccDPInt32Opt/gpu/GpuBackendClient.C.dep
++ UGKWP_CUDA_EXE_INC=-DUGKWP_USE_CUDA
++ wmake
+Making dependency list for source file diluteUgkwpFoam.C
+Making dependency list for source file GpuBackendClient.C
+g++ -std=c++14 -m64 -Dlinux64 -DWM_ARCH_OPTION=64 -DWM_DP -DWM_LABEL_SIZE=32 -Wall -Wextra -Wold-style-cast -Wnon-virtual-dtor -Wno-unused-parameter -Wno-invalid-offsetof -Wno-attributes -O3  -DNoRepository -ftemplate-depth-100 -I/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/finiteVolume/lnInclude -I/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/meshTools/lnInclude -I/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude -I. -I../../common -Igpu -DUGKWP_USE_CUDA -IlnInclude -I. -I/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude -I/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OSspecific/POSIX/lnInclude   -fPIC -c diluteUgkwpFoam.C -o Make/linux64GccDPInt32Opt/diluteUgkwpFoam.o
+In file included from /workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/scalarMatrices.H:46,
+                 from /workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/dimensionSets.H:39,
+                 from /workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/dimensionSet.H:444,
+                 from /workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/dimensionedType.H:40,
+                 from /workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/dimensionedScalar.H:38,
+                 from /workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/TimeState.H:38,
+                 from /workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/Time.H:47,
+                 from /workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/finiteVolume/lnInclude/fvCFD.H:6,
+                 from diluteUgkwpFoam.C:1:
+/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/DiagonalMatrix.H:64:29: warning: template-id not allowed for constructor in C++20 [-Wtemplate-id-cdtor]
+   64 |         DiagonalMatrix<Type>();
+      |                             ^
+/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/DiagonalMatrix.H:64:29: note: remove the ‘< >’
+/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/DiagonalMatrix.H:68:29: warning: template-id not allowed for constructor in C++20 [-Wtemplate-id-cdtor]
+   68 |         DiagonalMatrix<Type>(const Matrix<Form, Type>&);
+      |                             ^
+/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/DiagonalMatrix.H:68:29: note: remove the ‘< >’
+/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/DiagonalMatrix.H:71:29: warning: template-id not allowed for constructor in C++20 [-Wtemplate-id-cdtor]
+   71 |         DiagonalMatrix<Type>(const label size);
+      |                             ^
+/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/DiagonalMatrix.H:71:29: note: remove the ‘< >’
+/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/DiagonalMatrix.H:74:29: warning: template-id not allowed for constructor in C++20 [-Wtemplate-id-cdtor]
+   74 |         DiagonalMatrix<Type>(const label, const Type&);
+      |                             ^
+/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/DiagonalMatrix.H:74:29: note: remove the ‘< >’
+In file included from /workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/finiteVolume/lnInclude/volFields.H:40,
+                 from /workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/finiteVolume/lnInclude/surfaceInterpolationScheme.C:27,
+                 from /workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/finiteVolume/lnInclude/surfaceInterpolationScheme.H:308,
+                 from /workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/finiteVolume/lnInclude/surfaceInterpolate.H:41,
+                 from /workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/finiteVolume/lnInclude/fvc.H:39,
+                 from /workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/finiteVolume/lnInclude/fvCFD.H:8:
+/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/finiteVolume/lnInclude/fvPatchField.H:297:13: warning: template-id not allowed for destructor in C++20 [-Wtemplate-id-cdtor]
+  297 |     virtual ~fvPatchField<Type>()
+      |             ^
+/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/finiteVolume/lnInclude/fvPatchField.H:297:13: note: remove the ‘< >’
+In file included from /workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/finiteVolume/lnInclude/fvsPatchFields.H:34,
+                 from /workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/finiteVolume/lnInclude/surfaceFields.H:41,
+                 from /workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/finiteVolume/lnInclude/surfaceInterpolationScheme.C:28:
+/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/finiteVolume/lnInclude/fvsPatchField.H:293:13: warning: template-id not allowed for destructor in C++20 [-Wtemplate-id-cdtor]
+  293 |     virtual ~fvsPatchField<Type>()
+      |             ^
+/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/finiteVolume/lnInclude/fvsPatchField.H:293:13: note: remove the ‘< >’
+In file included from gpu/GpuFshParticleRestart.H:5,
+                 from gpu/GpuResidentStrict.H:6,
+                 from diluteUgkwpFoam.C:11:
+gpu/../../../common/GpuThermalParticleRestartCodec.H: In function ‘void Foam::gpuThermalRestart::readConverted(std::istream&, Memory*, std::size_t, std::size_t)’:
+gpu/../../../common/GpuThermalParticleRestartCodec.H:62:8: warning: ‘if constexpr’ only available with ‘-std=c++17’ or ‘-std=gnu++17’ [-Wc++17-extensions]
+   62 |     if constexpr (std::is_same<Disk,Memory>::value) readArray(is,p,b,n);
+      |        ^~~~~~~~~
+gpu/../../../common/GpuThermalParticleRestartCodec.H: In function ‘void Foam::gpuThermalRestart::currentFields(const View&, std::size_t, std::size_t, Fn)’:
+gpu/../../../common/GpuThermalParticleRestartCodec.H:136:8: warning: ‘if constexpr’ only available with ‘-std=c++17’ or ‘-std=gnu++17’ [-Wc++17-extensions]
+  136 |     if constexpr (HasCarry) fn(v.pThermalEnthalpyResidual,begin,count);
+      |        ^~~~~~~~~
+g++ -std=c++14 -m64 -Dlinux64 -DWM_ARCH_OPTION=64 -DWM_DP -DWM_LABEL_SIZE=32 -Wall -Wextra -Wold-style-cast -Wnon-virtual-dtor -Wno-unused-parameter -Wno-invalid-offsetof -Wno-attributes -O3  -DNoRepository -ftemplate-depth-100 -I/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/finiteVolume/lnInclude -I/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/meshTools/lnInclude -I/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude -I. -I../../common -Igpu -DUGKWP_USE_CUDA -IlnInclude -I. -I/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude -I/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OSspecific/POSIX/lnInclude   -fPIC -c gpu/GpuBackendClient.C -o Make/linux64GccDPInt32Opt/gpu/GpuBackendClient.o
+g++ -std=c++14 -m64 -Dlinux64 -DWM_ARCH_OPTION=64 -DWM_DP -DWM_LABEL_SIZE=32 -Wall -Wextra -Wold-style-cast -Wnon-virtual-dtor -Wno-unused-parameter -Wno-invalid-offsetof -Wno-attributes -O3  -DNoRepository -ftemplate-depth-100 -I/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/finiteVolume/lnInclude -I/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/meshTools/lnInclude -I/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude -I. -I../../common -Igpu -DUGKWP_USE_CUDA -IlnInclude -I. -I/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude -I/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OSspecific/POSIX/lnInclude   -fPIC -fuse-ld=bfd -Xlinker --add-needed -Xlinker --no-as-needed Make/linux64GccDPInt32Opt/diluteUgkwpFoam.o Make/linux64GccDPInt32Opt/gpu/GpuBackendClient.o -L/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/platforms/linux64GccDPInt32Opt/lib \
+    -lfiniteVolume -lmeshTools -lmomentumTransportModels -lOpenFOAM -lOpenFOAM -ldl  \
+     -lm -o /workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/final-native-build/remaining/bin/FSH
++ test -x /workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/final-native-build/remaining/bin/FSHCudaBackend
++ test -x /workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/final-native-build/remaining/bin/FSH
++ echo '[separated-build] frontend=/workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/final-native-build/remaining/bin/FSH'
+[separated-build] frontend=/workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/final-native-build/remaining/bin/FSH
++ echo '[separated-build] backend=/workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/final-native-build/remaining/bin/FSHCudaBackend'
+[separated-build] backend=/workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/final-native-build/remaining/bin/FSHCudaBackend
++ echo /workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/final-native-build/remaining/source/applications/FSH/private_backend/build_logs/fsh_finite_contact/separated_build_20261014_000420.log
+/workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/final-native-build/remaining/source/applications/FSH/private_backend/build_logs/fsh_finite_contact/separated_build_20261014_000420.log
+real 64.23
+user 62.23
+sys 1.98

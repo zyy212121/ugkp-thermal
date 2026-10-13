@@ -1,0 +1,547 @@
+{
+  "schema": 1,
+  "batch": "B7",
+  "base": "5f1a39ac96e2e7ff9a0640a4db344d9cccd34245",
+  "branch": "perf/shared-producer-continuation-20261013",
+  "utc": "2026-10-13T14:42:54.287151+00:00",
+  "status": "frozen source for independent review; no commit/push/merge",
+  "owned_paths_only": true,
+  "excludes": [
+    "tools/**",
+    "tools/managed_mirrors.json",
+    "unrelated tool worker tests"
+  ],
+  "files": [
+    {
+      "path": "applications/CHMT/ablation/WallClosureHost.H",
+      "base_blob": "a6052ce98341e421ea475d8746c0d4d63d77d3c8",
+      "sha256": "c27aee68ba36671634f8c3e553b24d0c926fa45705fa391ce64a262003531359",
+      "bytes": 8555
+    },
+    {
+      "path": "applications/CHMT/gpu/Backend.cu",
+      "base_blob": "bfc116ab00e255f22c22f47c9a887ffdc4f6ace3",
+      "sha256": "fdec130622e33e1ed3aaea7b7d434e327fe2c17ab363e042214f7b6bf3183bfe",
+      "bytes": 37365
+    },
+    {
+      "path": "applications/CHMT/gpu/Buffer.H",
+      "base_blob": "8728fbe358bcbc31c59dc58189fc2a1ecbde20c1",
+      "sha256": "8f52e65cc7636cfe1915179122f768a5046d3651c98082c622357b29b861fc7f",
+      "bytes": 4336
+    },
+    {
+      "path": "applications/CHMT/gpu/GasWallMath.H",
+      "base_blob": "05b04d27b536930d69dc3cd0869c251c5e86d63c",
+      "sha256": "7926c9f5b69f583254f4745dc14b97c8a0e42e7ffd837325e0f564c17e93e611",
+      "bytes": 8249
+    },
+    {
+      "path": "applications/CHMT/gpu/SharedGasDeviceStorage.cuh",
+      "base_blob": "98e5a312976431aabc854423c8417163393287e8",
+      "sha256": "9cb232b7e2d69d850f35b34c941a425bf5e2dee3e58c3850e55948fc3c01a95e",
+      "bytes": 46416
+    },
+    {
+      "path": "applications/CHMT/materials/CpuMaterialDriver.C",
+      "base_blob": "e464af8cb92f1623ac1b3e6df9be316cc6e05103",
+      "sha256": "170ae1974fe71d14b093d3f39d93276cfb083cfe430149bbb9c1074a2757b79c",
+      "bytes": 81371
+    },
+    {
+      "path": "applications/CHMT/materials/Thermodynamics.H",
+      "base_blob": "ab8ffb1682a8ca17e8b336b919bd8f1cb7515f18",
+      "sha256": "deb2a31e15fda6c28d135ab349b61ebbae7ec12680c1107142c21e647c3ad67c",
+      "bytes": 27759
+    },
+    {
+      "path": "applications/CHMT/tests/test_coupled_runtime_transactions.py",
+      "base_blob": "c99f773e8f7c3c54631e940cd1743529bb169dc8",
+      "sha256": "e717543e26e7e94599f4e73a28b9080780d07bb613dcedfcebc168f4737d572a",
+      "bytes": 25048
+    },
+    {
+      "path": "applications/CHMT/tests/test_final_gas_consumers.py",
+      "base_blob": null,
+      "sha256": "665ed5ca90ac993909806b70135651278ac8d076412ee111a9821c507a0b817f",
+      "bytes": 21357
+    },
+    {
+      "path": "applications/CHMT/tests/test_predictor_terminal_of.C",
+      "base_blob": "3a52e986916cbab4f9265cd2e6da5cc1a72eea4f",
+      "sha256": "996e4cfcdc445d50e486128ddca8ee90b9f97068d95678e89e989e3008ab0207",
+      "bytes": 7932
+    },
+    {
+      "path": "applications/CHMT/tests/test_reacting_wall_stage_backend.py",
+      "base_blob": "51402146b2add92c60cb17d5cd5751f3fc7b841c",
+      "sha256": "dbbc056f0aa1b4f25289229754c1c8e766a145835df889f6566a66746f899dd5",
+      "bytes": 6115
+    },
+    {
+      "path": "applications/CHMT/tests/test_shared_backend_compile.py",
+      "base_blob": "3123775acf914dfb5a846b2fd5be84820257730d",
+      "sha256": "b756a6df474755ae51cc4bae227e7f34574ff3044a17c6fbcf9f9044452fd8ab",
+      "bytes": 6883
+    },
+    {
+      "path": "applications/CHMT/tests/test_shared_device_storage.py",
+      "base_blob": "3ab09b52da9cd06807fa9f47face6020e2c2c9b1",
+      "sha256": "79902106855a68e91dd0763a34058a58448c4f27161b5cc90a961aa5b2b90561",
+      "bytes": 6546
+    },
+    {
+      "path": "applications/CHMT/tests/test_shared_reconfiguration.py",
+      "base_blob": "17c0f1a507cd9e84845cb46b57a6001a170346fc",
+      "sha256": "f3281518bda3a1cc090ee374956c7865bea6bc4159cdaf7b5c5a27fa896d9803",
+      "bytes": 18417
+    },
+    {
+      "path": "applications/gasUGKP/private_backend/SharedGasAdapter.cuh",
+      "base_blob": "2ded4cdd6466809e62d0aee53883f02ecc192b60",
+      "sha256": "4889368dec1b792220fd98f0c1e4a10d78c6c11db678e5274f4fee43fe6b617d",
+      "bytes": 13506
+    },
+    {
+      "path": "applications/gasUGKP/private_backend/SharedGasTrialFields.H",
+      "base_blob": "68b0ccc18bf3dbd606269facab5c841378106fcf",
+      "sha256": "46e0c08d822f74b6bb1a074c19568770e468e0f0bd88fd45449eeb3cd158a8dd",
+      "bytes": 1222
+    },
+    {
+      "path": "applications/gasUGKP/private_backend/SharedGasTrialPolicy.cuh",
+      "base_blob": "8d34d36f08c3c94ccf83eb80f0972a6a54c3c1d2",
+      "sha256": "530c9daa8322fdb5382d88d0741c39a4ecf1925daeb8d8191b20335c6fe4afa4",
+      "bytes": 17516
+    },
+    {
+      "path": "applications/gasUGKP/tests/test_gas_frontend_selection_continuation.py",
+      "base_blob": "c6df0e486ac2842c6087f6b59791a624a1930f53",
+      "sha256": "87ccae193845dbd28c2e24ea1371b60d4711daa555b39a2cc9751bd7290260cf",
+      "bytes": 3720
+    },
+    {
+      "path": "applications/gasUGKP/tests/test_shared_gas_trial_policy.py",
+      "base_blob": "9e3de753b41dd8ce15bc072df73b8b5763940b32",
+      "sha256": "706214ab0811b1f52006af0b1ab975adcf7c2b13ddfbc36959bd7dbf6a74a2fd",
+      "bytes": 13509
+    },
+    {
+      "path": "common/GpuGasAdvance.cuh",
+      "base_blob": "85de21ab4830ab481d6447a383e51998b6cb06d8",
+      "sha256": "4710414e5c9d4ad05690ad0f2ea3954189c1986327a74554890e388cfe6e2055",
+      "bytes": 33718
+    },
+    {
+      "path": "common/gasTransport/GasBoundaryLayerModelState.H",
+      "base_blob": "ffacc064f3dca667b41df56bd379b3b91a31cf7e",
+      "sha256": "adaa9fdf3513c57e1c2af9f8efcb832382685c96dcc12c1d151ab183915fa297",
+      "bytes": 7667
+    },
+    {
+      "path": "common/gasTransport/GasBoundaryLayerState.H",
+      "base_blob": "f45d3078a04cf1f151083ad74ec502c3bfb8ab1d",
+      "sha256": "5154895c2fb4d2404e447fdaa6e85cf5c44910f7fa9e29593ca1085b676d659b",
+      "bytes": 4133
+    },
+    {
+      "path": "common/gasTransport/GasCapabilities.H",
+      "base_blob": "0101f0ee5769b9c3df2f4c7856f7cd5ec0488b17",
+      "sha256": "1b59271f2622ef457ed621a17f83812d54cbc59225e11800c814084b1de6478c",
+      "bytes": 2329
+    },
+    {
+      "path": "common/gasTransport/GasGeometryValidation.H",
+      "base_blob": "307154234b8899aa1db0f9b631f01bde9d39c468",
+      "sha256": "4704cca232071c112ce0181d3a12814ae77be26f3e531837b2ce5a810132e3e6",
+      "bytes": 2737
+    },
+    {
+      "path": "common/gasTransport/GasModelIO.H",
+      "base_blob": "47b1571677de844a1ce1165eb0c2fdca396f8233",
+      "sha256": "beafeeaf47504f10f9752fb1e38fdfaec84315a012ce733841090121d0113e92",
+      "bytes": 17778
+    },
+    {
+      "path": "common/operators/advanceGasChemistryKernel.cuh",
+      "base_blob": "4b6806b8e8fa9d26c782af775cf3694fef7c2f53",
+      "sha256": "0b54549cdbcd52d2799cafa6c7484cde74cf7f256dad859ffa5b852463918a7a",
+      "bytes": 12889
+    },
+    {
+      "path": "common/operators/computeGasFluxPositivityScaleKernel.cuh",
+      "base_blob": "737fd5663a5a9abf7fda1e8dd7dd8a451d20a2c0",
+      "sha256": "984adf4d754122fa26c26cd1d50b11d0dd4cd7156ec6af35519e632a1fd00ae3",
+      "bytes": 7583
+    },
+    {
+      "path": "common/operators/computeGasPrimitiveGradientsKernel.cuh",
+      "base_blob": "2abe9cf6528227b288a53bf3c9bbc54b36f056fd",
+      "sha256": "b95a3687f28ea0153d10b39ac2f06874f911749e91a9e15d5172b3d689ed745b",
+      "bytes": 16658
+    },
+    {
+      "path": "common/operators/computeRiemannGasFaceFluxDevice.cuh",
+      "base_blob": "7170f62fe6a94478dcc461c6e94941ef2bb478b5",
+      "sha256": "01ab554966de170d43fc3651242d52ee89338c7da8123982b67a7421b0688b4b",
+      "bytes": 52318
+    },
+    {
+      "path": "common/operators/computeSstFaceFluxKernel.cuh",
+      "base_blob": "059166a2e266e69544131890bbef80a4d9306297",
+      "sha256": "ecb810f6473ed07511a9ce546fbd44a66a5edfeb88eeacdf6d9861173a7e59da",
+      "bytes": 79944
+    },
+    {
+      "path": "common/operators/gasFaceSubgridTransportProperties.cuh",
+      "base_blob": "6fa14e50c2a9942c8fd72d3ca57135a7c0425d78",
+      "sha256": "80cc5beebc2c70e3985ae47eb840d51d34d80d1a0005e144a119d991d579686c",
+      "bytes": 12543
+    },
+    {
+      "path": "common/operators/makeGasPrimDevice.cuh",
+      "base_blob": "49ba37f5f1e86b7cb4b23297a44f648784a3ec8c",
+      "sha256": "44650881c7201d40ac1c20ea08eb8e20f0913e81da18c30b01e1225fbca30ddd",
+      "bytes": 12036
+    },
+    {
+      "path": "common/operators/updateLegacyGasBoundaryMirrorKernel.cuh",
+      "base_blob": "1e17e913a55861cada0d83f094f14679b3efcb53",
+      "sha256": "702aefb8b159fe64c4d228c61b05fe5073ff51483155fb1d4c7ae15baa3dc6e4",
+      "bytes": 6282
+    },
+    {
+      "path": "tests/chemistry/test_gas_chemistry_adapter.py",
+      "base_blob": "863277740ac47304c60cd46a4064eaa1767a0538",
+      "sha256": "f065a141665bd217861f0316a5943a65028e3077c966b983247138086660d2e9",
+      "bytes": 8183
+    },
+    {
+      "path": "tests/gas_transport/test_boundary_layer_state.py",
+      "base_blob": "51484b92a8b320b2c60f37dbf41b0898652d67ce",
+      "sha256": "a5043e1cc6b8e06b29b8f967bfc780ebe49ea7ac8f7dcbb687e505fd26079ecf",
+      "bytes": 9272
+    },
+    {
+      "path": "tests/gas_transport/test_final_courant_fields.py",
+      "base_blob": null,
+      "sha256": "a34f2522fe80af1a4d0e21adaa9f2e79c18aaed4eff242e5c3706be9682e54a8",
+      "bytes": 1053
+    },
+    {
+      "path": "tests/gas_transport/test_final_native_consumers.py",
+      "base_blob": null,
+      "sha256": "93acd24fc2e74d023d7d38aa77a0316ff9e675ae4e699507a8057fe498f09d3f",
+      "bytes": 2526
+    },
+    {
+      "path": "tests/gas_transport/test_mixture_selector_fallback.py",
+      "base_blob": null,
+      "sha256": "9a62bd985fdd7aa4f63ff6e4b47ae32705cf0bb147a5a35ab96cfdeee635e305",
+      "bytes": 2623
+    },
+    {
+      "path": "tests/gas_transport/test_mixture_state.py",
+      "base_blob": "ea276b8dacb517685151fb9c6926d6beb7762e9a",
+      "sha256": "5f40491c9529b2c1641a728b08d167698a404065fca46ea128f6622c8f36baa6",
+      "bytes": 5850
+    },
+    {
+      "path": "tests/gas_transport/test_mixture_wall_function.py",
+      "base_blob": "1dfcb5bd5af8aee29ef1870e6359a68e8b902b11",
+      "sha256": "5ed8feadb728cf24035257b687d7b418c5e44eaa175980081c24ac3a4398f71d",
+      "bytes": 6749
+    },
+    {
+      "path": "tests/gas_transport/test_native_interval_continuation.py",
+      "base_blob": "53555f58f19f580635a08a14126a1e686a47784a",
+      "sha256": "78258392dfe43de2db7c59bdf201c856d7373eed9adabf63f2c92240d5db0f32",
+      "bytes": 10514
+    },
+    {
+      "path": "tests/gas_transport/test_native_mixture_courant_integration.py",
+      "base_blob": "320b5ebca8a57e1e05c5e5c3dd73568963fe6ce1",
+      "sha256": "cc95990f679be2a2b8d4447bdd322156da6fa9551e959ef61917b67d9cae7a2d",
+      "bytes": 6780
+    }
+  ],
+  "patch_sha256": "bcd1cd134acf42fb8d6e84e807791b743b37f304ee19352bc5730e0064dbe61d",
+  "artifacts": [
+    {
+      "path": "cold-pinned-comparison.json",
+      "sha256": "e65c9e565ddde9d9e07c05ad1804a448515e109cde771c7da8228c339ae9e191",
+      "bytes": 3176
+    },
+    {
+      "path": "coverage-reuse-gaps.json",
+      "sha256": "a11a12936cb5cd4ce978ff65df0821bacbb534315aab645e8cc762484a25a912",
+      "bytes": 9520
+    },
+    {
+      "path": "cuda/final-receipts.json",
+      "sha256": "75925565fc740adfc4ee18f30cd2f6f3c60755147b462cc6b1964debe2402e0c",
+      "bytes": 3150
+    },
+    {
+      "path": "cuda/receipts.json",
+      "sha256": "b8211c2679d6a1dd9afd843529558c5bb91393b2e768f2a17489be33693f1a37",
+      "bytes": 5222
+    },
+    {
+      "path": "field-status-copy-cost.md",
+      "sha256": "e9e638e80297263fe8afc26b8ed74fb5828d651d8527d35fa1fd6eae38b107ee",
+      "bytes": 7170
+    },
+    {
+      "path": "logs/affected-storage.log",
+      "sha256": "f5d2e690fe3207b9b0bb6a8d900a111b187515f66ffec54369481253296c6e57",
+      "bytes": 4738
+    },
+    {
+      "path": "logs/all-final-consumers.log",
+      "sha256": "58a2662ab1a2ff0c0d46f40fae5c2649b9170fda6b5b6e7002f7236cf95e3347",
+      "bytes": 1747
+    },
+    {
+      "path": "logs/cap-policy-final.log",
+      "sha256": "983bd961e799f525c0b2ca57eb0398698fac1f5c118dfd65bc46850da2b5fe74",
+      "bytes": 98
+    },
+    {
+      "path": "logs/co-red.log",
+      "sha256": "93cd965852e11dc5a84da3705b3575ab69c56394820220e4faebbc73b6395efd",
+      "bytes": 8790
+    },
+    {
+      "path": "logs/cold-pinned-v2.log",
+      "sha256": "0e85f27c1f64891946f364943b764553ad0da3d0103a4781375cd70da7ff456b",
+      "bytes": 541
+    },
+    {
+      "path": "logs/cold-pinned.log",
+      "sha256": "74ebcf728a7b0697fe3c12031c765444382f51c1408c81f4eb38aaf1d19233fc",
+      "bytes": 1059
+    },
+    {
+      "path": "logs/cold-wall-red.log",
+      "sha256": "021533bead2e809b654422d6d2338a7ebf10a1c1e50e6196c730324de8676f9f",
+      "bytes": 4087
+    },
+    {
+      "path": "logs/comax-red.log",
+      "sha256": "41a9cc93c61c314c29b543e505bf41941fac3f050e6af1dc89304cae2f1801fa",
+      "bytes": 3190
+    },
+    {
+      "path": "logs/config-corrected.log",
+      "sha256": "7ac88d8e15b7142778d9633140cd2483a7c98024f11833b4108d83fad077361c",
+      "bytes": 113
+    },
+    {
+      "path": "logs/config-wall-green.log",
+      "sha256": "db71e0bc0b0d5fee17d7f307d7a039621c94b5ee3518c337eff798ed69aa4f40",
+      "bytes": 10740
+    },
+    {
+      "path": "logs/config-wall-red.log",
+      "sha256": "5b9698d450d0b78963f77b2a1864afc310bf709ed2f0f3ccc64d88f7bd81ce24",
+      "bytes": 5106
+    },
+    {
+      "path": "logs/costs-final.log",
+      "sha256": "ef13d456c22e162edfde75ac05a5cc0320ea7b2f5693ebf9b55d0907372aef13",
+      "bytes": 166
+    },
+    {
+      "path": "logs/costs-v2.log",
+      "sha256": "77a34c871f81e76566af09fc657cb77821679ded161b1e9c2e6e92c808ccaa01",
+      "bytes": 333
+    },
+    {
+      "path": "logs/costs.log",
+      "sha256": "1fae381dada9ec1dbd1fbc3e7e6cef6746879413e78451925b91ebd5c151a9a9",
+      "bytes": 1152
+    },
+    {
+      "path": "logs/cuda-final.log",
+      "sha256": "e71bd4c32ecd8c2b8c5ec480e9643313166ea4ce5b533404936ea5c1fa4412f3",
+      "bytes": 47
+    },
+    {
+      "path": "logs/cuda.log",
+      "sha256": "89f625db0f25baf9f414db7cfcf01b06d0a1cb3b79d2ae8a7ad1912d62bc5828",
+      "bytes": 79
+    },
+    {
+      "path": "logs/diagnostic-copy-red.log",
+      "sha256": "c0a39ad5fb0e6bd7b8ab88c6340f2b6309732341f683565f4d3238b2a8a206bb",
+      "bytes": 10709
+    },
+    {
+      "path": "logs/diff-check.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "logs/final-green-2.log",
+      "sha256": "0f708778557ba0fc3568ac6ab5dfad871753ffdfa88ce567ea2df5d9223277c0",
+      "bytes": 100
+    },
+    {
+      "path": "logs/final-targeted-v2.log",
+      "sha256": "c37d8c29b81eccf0ab7318e470ceb2719b14ab40b7bf6d088ea1bd6bcd906716",
+      "bytes": 114
+    },
+    {
+      "path": "logs/final-targeted.log",
+      "sha256": "25b4e6700efbd0aa48023b75fc2246df687b2a882182f9548aaf03ffbd119bf2",
+      "bytes": 273
+    },
+    {
+      "path": "logs/gap-green-4.log",
+      "sha256": "18c579c688b965f39196a0f49eb0db9bdbe95847f9b433aed3a38f47232e631d",
+      "bytes": 99
+    },
+    {
+      "path": "logs/gap-green-5.log",
+      "sha256": "b0fefbd4a701fb54673efa43a18288a0fc4db68c0a7ef2bcd7f99de58c111248",
+      "bytes": 114
+    },
+    {
+      "path": "logs/green1.log",
+      "sha256": "29f1f434762849160166629c51c9e327b9d3f59d1b146769a9c1dd1a80265c07",
+      "bytes": 1720
+    },
+    {
+      "path": "logs/green2.log",
+      "sha256": "c54ca638f99eaefa27f455077f8547e25c78f1f0c83116814f9d5738298d5851",
+      "bytes": 99
+    },
+    {
+      "path": "logs/green3.log",
+      "sha256": "f7207a1fbea5a4c7333808cd7886f3c5328b710d6aeb4fbafdafd3a4c67ad618",
+      "bytes": 99
+    },
+    {
+      "path": "logs/halves.log",
+      "sha256": "9dda040ca4c9b185a991ad31abf9474c969163e4c61ae6b5d8a28cc26c37661f",
+      "bytes": 1599
+    },
+    {
+      "path": "logs/lifecycle-final.log",
+      "sha256": "fefd7849e2da55700ef385f98b51ed5a4f3ed93dccff38e215e3fb74fb7b9f6c",
+      "bytes": 110
+    },
+    {
+      "path": "logs/manifest.log",
+      "sha256": "c2cdaafe60d27c0252ab28ff116273047ed8c652098ca1db2812ff4277be9b0d",
+      "bytes": 85
+    },
+    {
+      "path": "logs/material-v2.log",
+      "sha256": "7156e4b13ab91d808620d2a74c2bd9728495515501abc54b31308804b259ecbc",
+      "bytes": 4181
+    },
+    {
+      "path": "logs/material.log",
+      "sha256": "e1f507e37427bb43e35ea2d155048ddf164ab131cbedcbe1e3a827876cb2938f",
+      "bytes": 86
+    },
+    {
+      "path": "logs/moving-rk-red.log",
+      "sha256": "1b356aacb80f64d4964d49b435aac77b11b5510e388b510bb9aa20eedb9a078b",
+      "bytes": 8502
+    },
+    {
+      "path": "logs/native-geometry-red.log",
+      "sha256": "46f9b8aa2ce204885e2c4c35dc620ca1f4e0b702a232fdb29d1cf3cc2b23b826",
+      "bytes": 4123
+    },
+    {
+      "path": "logs/native-green.log",
+      "sha256": "a2575b98e80adbc457ee08a8d81b29d2b0dff2b734004c1238fbadff387edd76",
+      "bytes": 113
+    },
+    {
+      "path": "logs/native-red.log",
+      "sha256": "dc299b7b72314b2725c1c927f4b6f60e312be48d8a306cfd9fc136ad7dd5ec99",
+      "bytes": 1355
+    },
+    {
+      "path": "logs/native-red2.log",
+      "sha256": "875b53c567fd5b91b7ca59ed235fa2fa5f8bf9b08dfb50aebcbdb3c8c66c6370",
+      "bytes": 3941
+    },
+    {
+      "path": "logs/red-corrected.log",
+      "sha256": "d9ece20ba62e10bc708b31847e9014bb31b33bd8bc27a986f2fb95f4f45614d4",
+      "bytes": 6391
+    },
+    {
+      "path": "logs/red.log",
+      "sha256": "dc8b6c83f68ccb425dedd6ef7822ceec1ed3e366054d506b04efe7902d6ee9fd",
+      "bytes": 2986
+    },
+    {
+      "path": "logs/red2.log",
+      "sha256": "a75e0408c2bbfb37384fa9e6c65512809e12d1c1629ee1abc049ec50b613ccba",
+      "bytes": 5846
+    },
+    {
+      "path": "logs/restore-pinned-red.log",
+      "sha256": "162633b2499f2207d7a38be26c44028a69b7cfb7090d6f136b78fa81613c0c62",
+      "bytes": 200
+    },
+    {
+      "path": "logs/sample-red.log",
+      "sha256": "9cb2c994e2b0c2fa3c23bc0fc767f5db3e7f2954347e5094a8b09fc1731e0f3c",
+      "bytes": 2780
+    },
+    {
+      "path": "logs/sample-red2.log",
+      "sha256": "dfd3fee26367382013b937db8058a8d7861b299895c3ad80878335e701bbe81d",
+      "bytes": 2765
+    },
+    {
+      "path": "logs/selector-red.log",
+      "sha256": "14f36cc2761fa7bf501da51bbbe9cafc827809223dfbe9f55feb0f6ab8604501",
+      "bytes": 4492
+    },
+    {
+      "path": "logs/sensor-red.log",
+      "sha256": "0b4ae7fcfc0ec9d91aedf1ba58eb167cba69a7f91ea4b829f43e6491f7c4c1ca",
+      "bytes": 4796
+    },
+    {
+      "path": "logs/wall-red.log",
+      "sha256": "94d77721cd31dcaa0b0e6a18823ff9578b4a91efbeb603004f4af818f4b051b0",
+      "bytes": 12493
+    },
+    {
+      "path": "logs/window-moving-green.log",
+      "sha256": "8d2d8d7acdd96fe7981f3c77944bfc993cfd961d2d977c51cb587c1827b0f58d",
+      "bytes": 100
+    },
+    {
+      "path": "logs/window-red.log",
+      "sha256": "fc68d11ee0a9398595676a9e1933d36fda1362b71115daf5025f248598109f17",
+      "bytes": 11227
+    },
+    {
+      "path": "measured-costs.json",
+      "sha256": "8e72f8a5639ca11e74de73bbf60cb4b85bc283b484e0bb73f52e4ce6b25ac5c2",
+      "bytes": 2020
+    },
+    {
+      "path": "report.md",
+      "sha256": "b1ef4e87fa13d53b187a0cad09ce3a5e8abef9bd8f572d0a647ba841e01dfe3b",
+      "bytes": 12902
+    }
+  ],
+  "limitations": [
+    "No GPU runtime; serial host launches are host evidence only",
+    "No giant CUDA TU compilation",
+    "Whole PR global audits/tools cleanup remain",
+    "No main merge authorization"
+  ]
+}
