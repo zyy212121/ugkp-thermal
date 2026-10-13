@@ -82,7 +82,7 @@ int main(){
     chemical.wallContext.matching.temperature=500;for(int d=0;d<3;++d)chemical.wallContext.matching.velocity[d]=0;
     auto& mechanism=chemical.wallContext.mechanism;mechanism.reactions=&reaction;mechanism.reactionCount=1;
     mechanism.reactants=&reactant;mechanism.reactantTermCount=1;mechanism.products=&product;mechanism.productTermCount=1;
-    mechanism.referencePressure=101325;mechanism.speciesOrderHash=reacting.speciesFingerprint;
+    mechanism.referencePressure=101325;
     mechanism.stoichiometricBasis=basis;mechanism.independentRank=1;
     GasWallResult reactive;check(evaluateGasWall(chemical,id,reacting,reactive),"CHMT finite-rate canonical mechanism and thermo agree");
     near(reactive.trace.Y[0],bulk.Y[0]/std::cosh(std::sqrt(2/1e-4)*.01),"independent finite-rate diffusion wall composition",.002);

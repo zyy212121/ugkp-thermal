@@ -30,9 +30,15 @@ inline int cudaGraphExecKernelNodeSetParams(void*,void*,cudaKernelNodeParams*){r
 inline int cudaGraphLaunch(void*,void*){return 0;}
 '''
     (tmp_path/'cuda_runtime.h').write_text(stub)
+    # Host-only stand-in for Thrust's reduction interface. Native CUDA compile
+    # separately instantiates the actual library and device execution policy.
+    thrust=tmp_path/'thrust';(thrust/'system/cuda').mkdir(parents=True)
+    (thrust/'device_ptr.h').write_text('#pragma once\nnamespace thrust {template<class T> T* device_pointer_cast(T* p){return p;}}\n')
+    (thrust/'reduce.h').write_text('#pragma once\nnamespace thrust {template<class P,class I,class T,class F>T reduce(P,I first,I last,T value,F combine){for(;first!=last;++first)value=combine(value,*first);return value;}}\n')
+    (thrust/'system/cuda/execution_policy.h').write_text('#pragma once\nnamespace thrust {namespace cuda {struct Policy {Policy on(void*)const{return {};}};inline Policy par;}}\n')
     tree=tmp_path/'tree';(tree/'applications/CHMT/gpu').mkdir(parents=True);(tree/'common').mkdir()
     for p in (ROOT/'common').iterdir():
-        if p.name=='GpuGasAdvance.cuh':
+        if p.name in ('GpuGasAdvance.cuh','GpuGasCourant.cuh'):
             (tree/'common'/p.name).write_text(re.sub(r'<<<[\s\S]*?>>>','',p.read_text()))
         else:(tree/'common'/p.name).symlink_to(p,target_is_directory=p.is_dir())
     source=tree/'applications/CHMT/gpu/Backend.cpp'

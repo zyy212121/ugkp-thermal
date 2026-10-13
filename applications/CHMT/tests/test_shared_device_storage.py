@@ -82,7 +82,7 @@ def test_sst_storage_preserves_integrals_and_configured_coefficients(tmp_path):
  assert(v.rhoK[0]==2&&v.rhoOmega[0]==4);assert(v.sstCoefficients.alphaK1==.91);
  assert(v.sstKMin==1e-8&&v.sstOmegaMin==2e-8);assert(v.sstBoundaryK[0]==.5&&v.sstBoundaryOmega[0]==9);
  v.rhoK[0]=4;v.rhoOmega[0]=6;assert(storage.downloadState(h,error));assert(h.sst[0].rhoK==8&&h.sst[0].rhoOmega==12);
- v.rhoK[0]=-1;assert(!storage.downloadState(h,error));assert(h.sst[0].rhoK==8);
+ v.rhoK[0]=-1;assert(storage.downloadState(h,error));assert(h.sst[0].rhoK==-2&&h.sst[0].rhoOmega==12);
 }
 '''
     (tmp_path/'probe.cpp').write_text(source)

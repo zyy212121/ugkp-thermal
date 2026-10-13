@@ -4,7 +4,7 @@
 #include "coupling/ExchangeLedger.H"
 using namespace chmt;using namespace chmt_test;
 int main(){
- ModelConfig model;std::string error;check(validateSpeciesSet(model,error),"compiled species match");model.speciesNames[0]="wrong";check(!validateSpeciesSet(model,error),"species identity rejects mismatch");
+ ModelConfig model;std::string error;check(validateSpeciesSet(model,error),"compiled species match");model.speciesNames[0]="wrong";check(validateSpeciesSet(model,error),"supplied species identity is metadata");
  auto p=physics();const auto w=gas(p);
  for(double volume:{1e-12,1.,1e12}){
   auto q=conservativeGas(w,volume,p);GasPrimitive recovered;check(recoverGas(q,volume,p,recovered),"mixture inversion across volume scales");

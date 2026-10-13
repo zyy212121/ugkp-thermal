@@ -1,4 +1,4 @@
-// Actual checkpoint serialization, bounded geometry carry and fsync failures.
+// Actual checkpoint serialization, permissive metadata and real IO failures.
 #define main existing_restart_geometry_fixture_main
 #include "../devtools/multirate/test_sweep_constraints.cpp"
 #undef main
@@ -7,6 +7,7 @@
 #include "gpu/StateValidation.H"
 #include <cerrno>
 #include <cstring>
+#include <cstdlib>
 #include <fstream>
 #include <iterator>
 #include <limits>
@@ -59,7 +60,7 @@ void populateSurface(HostState& h) {
 extern "C" int __real_fsync(int);
 extern "C" int __wrap_fsync(int fd){++syncCalls;if(failSync&&syncCalls==failSync){errno=EIO;return -1;}return __real_fsync(fd);}
 int main(){
- ModelConfig model;model.physics=chmt_test::physics();model.physics.enableGas=false;model.physics.modelFingerprint=17;
+ ModelConfig model;model.physics=chmt_test::physics();model.physics.enableGas=false;
  HostState h;h.solidMesh=twoHexahedra(0);auto& m=h.solidMesh;m.oldPoints=m.referencePoints=m.points;m.oldVolumes=m.volumes;m.boundaryPrimitive.resize(m.owner.size());m.boundarySst.resize(m.owner.size());h.solid.resize(m.volumes.size());
  for(size_t c=0;c<h.solid.size();++c){h.solid[c].condensed[0]=model.physics.condensed[0].rho*m.volumes[c];h.solid[c].energy=h.solid[c].condensed[0]*condensedE(model.physics.condensed[0],500+10*c);}
  populateSurface(h);
@@ -70,7 +71,8 @@ int main(){
  h.gasSstAudit.sourceK=2.5;h.gasSstAudit.constraintOmega=-1.25;
  h.time=.5;h.acceptedSteps=h.commitSequence=1;h.rejectedSteps=4;h.lastAcceptedDt=.5;h.nextDt=.05;
  for(int stage=0;stage<2;++stage){auto& g=h.solidStages[stage];g.interval=stage?.5:.25;g.geometryVersion=m.geometryVersion;g.topologyHash=m.topologyHash;g.oldVolume=g.newVolume=g.evaluationVolume=m.volumes;g.sweptVolume.assign(m.owner.size(),0);g.areaVector=m.areaVectors;g.cellCentre=m.cellCentres;g.faceCentre=m.faceCentres;g.oldPoints=g.newPoints=m.points;}
- char root[]="/tmp/chmt-restart-regression.XXXXXX";require(mkdtemp(root)!=nullptr,"temporary directory");const std::string directory=std::string(root)+"/checkpoint",file=directory+"/state.chmt";std::string error;
+ const char* scratch=std::getenv("TMPDIR");const std::string rootPattern=std::string(scratch?scratch:"/tmp")+"/chmt-restart-regression.XXXXXX";
+ std::vector<char> rootBuffer(rootPattern.begin(),rootPattern.end());rootBuffer.push_back(0);char* root=rootBuffer.data();require(mkdtemp(root)!=nullptr,"temporary directory");const std::string directory=std::string(root)+"/checkpoint",file=directory+"/state.chmt";std::string error;
  require(writeCheckpoint(directory,model,h,error),error);const auto original=bytes(file);require(!original.empty(),"checkpoint bytes exist");HostState restored;require(readCheckpoint(directory,model,restored,error),error);
  require(restored.gasSstAudit.sourceK==2.5&&restored.gasSstAudit.constraintOmega==-1.25,"SST signed diagnostics roundtrip");
  require(restored.time==h.time&&restored.rejectedSteps==4&&restored.solid[1].energy==h.solid[1].energy,"bitwise inventories and counters restored");
@@ -89,8 +91,8 @@ int main(){
   if(change==7)wrong.physics.gasChemistryControls.relativeTolerance*=2;
   if(change==8)wrong.physics.singleGasSpecies=0;
   HostState untouched;untouched.time=987;
-  require(!readCheckpoint(directory,wrong,untouched,error),"changed canonical gas metadata rejects restart");
-  require(untouched.time==987,"mismatched gas metadata preserves output transaction");
+  require(readCheckpoint(directory,wrong,untouched,error),"changed metadata retains positional state decoding");
+  require(untouched.time==h.time&&sameBits(untouched.solidSweepRemainder,h.solidSweepRemainder),"metadata changes do not replace state values");
  }
 
  // Wet and phase-boundary inventory states retain the geometry carry exactly.
@@ -128,49 +130,72 @@ int main(){
   require(restored.time==999&&sameBits(restored.solidSweepRemainder,sentinel),label+" output unchanged");
   require(writeCheckpoint(survivorDirectory,model,restored,error)&&bytes(survivorFile)==survivorBytes,label+" entire output is bitwise unchanged");
  };
- auto wrong=model;wrong.physics.modelFingerprint++;
- require(!readCheckpoint(directory,wrong,restored,error),"different model rejects");require(restored.time==999&&sameBits(restored.solidSweepRemainder,sentinel),"identity rejection preserves output carry");
- auto corrupt=original;corrupt.back()^=1;expectReadFailure(corrupt,"checksum","payload corruption rejected");
- expectReadFailure(original.substr(0,original.size()-1),"length","truncation rejected");
- require(checkpointSchema==6&&getInteger(original,8)==6,"explicit checkpoint schema includes shared wall-family identity");
- auto legacy=original;setInteger(legacy,8,5);expectReadFailure(legacy,"schema","schema-5 lacks shared wall-family controls");
- setInteger(legacy,8,4);expectReadFailure(legacy,"schema","schema-4 lacks active-species and SST audit identity");
- setInteger(legacy,8,3);expectReadFailure(legacy,"schema","schema-3 checkpoint cannot silently initialize shared gas thermo identity");
- setInteger(legacy,8,2);expectReadFailure(legacy,"schema","schema-2 checkpoint cannot silently initialize thermal policy");
- setInteger(legacy,8,1);expectReadFailure(legacy,"schema","legacy checkpoint cannot silently initialize carry");
- legacy=original;legacy[6]='1';expectReadFailure(legacy,"magic","legacy checkpoint file version refused");
- auto fieldMismatch=original;fieldMismatch[40]^=1;expectReadFailure(fieldMismatch,"field schema","field-schema mismatch refused");
+ auto expectReadSuccess=[&](const std::string& data,const std::string& label) {
+  writeBytes(file,data);HostState admitted;require(readCheckpoint(directory,model,admitted,error),label+": "+error);
+  require(admitted.time==h.time&&sameBits(admitted.solidSweepRemainder,h.solidSweepRemainder),label+" actual payload retained");
+ };
+ auto wrong=model;
+ require(readCheckpoint(directory,wrong,restored,error),"different expected fingerprints admitted");
+ // Every fixed header slot is still consumed, regardless of its label.
+ for(std::size_t offset:{0,8,16,20,24,28,32,36,40,64}) {
+  auto tagged=original;tagged[offset]^=0x31;expectReadSuccess(tagged,"changed header label/digest");
+ }
+ for(unsigned schema:{1,2,3,4,5,999}){auto tagged=original;setInteger(tagged,8,schema);expectReadSuccess(tagged,"same-layout older/newer tag");}
+ auto configChanged=original;configChanged[72]^=0x55;expectReadSuccess(configChanged,"saved config is skipped without identity certification");
+ auto surplus=original;surplus+="uninterpreted extension";expectReadSuccess(surplus,"surplus bytes admitted");
+ auto corrupt=original;corrupt.back()^=1;expectReadSuccess(corrupt,"stale digest does not refuse supplied payload");
+ // Actual missing mandatory payload bytes remain errors and preserve all output.
+ restored=changed;restored.time=999;
+ expectReadFailure(original.substr(0,original.size()-1),"length","declared payload missing bytes");
+ auto shortPayload=original.substr(0,original.size()-8);setInteger(shortPayload,56,getInteger(shortPayload,56)-8);
+ expectReadFailure(shortPayload,"truncated","required final field has no bytes");
+ auto shortHeader=original.substr(0,39);expectReadFailure(shortHeader,"truncated","required header bytes absent");
+ auto badConfigSize=original;setInteger(badConfigSize,48,std::numeric_limits<std::uint64_t>::max());
+ expectReadFailure(badConfigSize,"length","config span unavailable");
  // Locate the unique encoded vector, then alter payload with a correct digest:
- // these tests exercise semantic validation instead of checksum-only rejection.
+ // checkpoint IO preserves supplied values; live runtime checks are separate.
  std::string encoded(24,0);setInteger(encoded,0,2);setReal(encoded,8,h.solidSweepRemainder[0]);setReal(encoded,16,h.solidSweepRemainder[1]);
  const auto carryOffset=original.find(encoded,72+getInteger(original,48));
  require(carryOffset!=std::string::npos&&original.find(encoded,carryOffset+1)==std::string::npos,"unique serialized remainder vector");
  for(Real invalid:{std::numeric_limits<Real>::quiet_NaN(),std::numeric_limits<Real>::infinity(),64*epsilon,-64*epsilon}) {
-  auto bad=original;setReal(bad,carryOffset+8,invalid);refreshDigest(bad);expectReadFailure(bad,"remainder","checksummed invalid carry rejected");
+  auto bad=original;setReal(bad,carryOffset+8,invalid);refreshDigest(bad);writeBytes(file,bad);HostState admitted;require(readCheckpoint(directory,model,admitted,error),error);
+  require(std::memcmp(&admitted.solidSweepRemainder[0],&invalid,sizeof(Real))==0,"numeric carry admitted bitwise without discarded certification");
  }
  auto shortCarry=original;setInteger(shortCarry,carryOffset,1);shortCarry.erase(carryOffset+16,8);setInteger(shortCarry,56,getInteger(shortCarry,56)-8);refreshDigest(shortCarry);
- expectReadFailure(shortCarry,"remainder","checksummed mapped-size mismatch rejected");
+ writeBytes(file,shortCarry);HostState admittedShort;require(readCheckpoint(directory,model,admittedShort,error)&&admittedShort.solidSweepRemainder.size()==1,"supplied short carry vector admitted without padding");
  auto hugeCount=original;setInteger(hugeCount,carryOffset,std::numeric_limits<std::uint64_t>::max());refreshDigest(hugeCount);
  expectReadFailure(hugeCount,"vector count","oversized encoded carry count rejected before allocation");
  writeBytes(file,original);
  auto expectInvalidState=[&](HostState invalid,const std::string& label) {
   const auto before=invalid.solidSweepRemainder;
-  require(!writeCheckpoint(directory,model,invalid,error),label+" checkpoint rejects");require(bytes(file)==original,label+" preserves prior checkpoint");
-  require(!validateRuntimeState(model,invalid,error),label+" runtime rejects");
-  require(error.find("remainder")!=std::string::npos,label+" reports carry: "+error);
+  require(writeCheckpoint(directory,model,invalid,error),label+" checkpoint writes supplied values");
+  HostState admitted;require(readCheckpoint(directory,model,admitted,error),label+" checkpoint reads supplied values");require(sameBits(before,admitted.solidSweepRemainder),label+" checkpoint does not repair input carry");
+  require(validateRuntimeState(model,invalid,error),label+" startup retains supplied values");
   require(sameBits(before,invalid.solidSweepRemainder),label+" does not repair input carry");
  };
  auto invalid=h;invalid.solidSweepRemainder.pop_back();expectInvalidState(invalid,"wrong remainder count");
  invalid=h;invalid.solidSweepRemainder.push_back(0);expectInvalidState(invalid,"oversized remainder count");
  invalid=h;invalid.solidSweepRemainder[0]=std::numeric_limits<Real>::quiet_NaN();expectInvalidState(invalid,"nonfinite remainder");
  invalid=h;invalid.solidSweepRemainder[0]=64*epsilon;expectInvalidState(invalid,"out-of-budget remainder");
- invalid=h;invalid.solidSweepRemainder[0]=std::nextafter(32*epsilon,std::numeric_limits<Real>::infinity());expectInvalidState(invalid,"one ulp beyond retained budget");
+ std::vector<Real> currentLimits;require(materialSweepResidualLimits(h.solidMesh,h.surface.solidFace,currentLimits),"current geometric carry limits");
+ invalid=h;invalid.solidSweepRemainder[0]=std::nextafter(4*currentLimits[0],std::numeric_limits<Real>::infinity());expectInvalidState(invalid,"one ulp beyond retained budget");
  invalid=h;invalid.surface.solidFace[0]=-1;expectInvalidState(invalid,"unmapped nonzero remainder");
  invalid=h;invalid.surface.solidFace[0]=static_cast<int>(h.solidMesh.owner.size());expectInvalidState(invalid,"out-of-range remainder mapping");
  auto unmapped=h;unmapped.surface.solidFace[0]=-1;unmapped.solidSweepRemainder[0]=0;
  require(writeCheckpoint(directory,model,unmapped,error),error);require(readCheckpoint(directory,model,restored,error)&&sameBits(restored.solidSweepRemainder,unmapped.solidSweepRemainder),"unmapped zero remainder accepted without mutation");
  require(writeCheckpoint(directory,model,h,error),error);
- auto missing=h;missing.solidStages={};require(!writeCheckpoint(directory,model,missing,error),"missing accepted stage trace rejects");require(bytes(file)==original,"invalid state never replaces checkpoint");
+ auto missing=h;missing.solidStages={};require(writeCheckpoint(directory,model,missing,error),"empty supplied stage arrays are serialized");
+ require(readCheckpoint(directory,model,restored,error)&&restored.solidStages[0].newVolume.empty(),"empty stage arrays are retained without invention");
+ auto pending=h;FilmPressureVolumeUpdate storage;storage.consumed=false;storage.oldPV=3;storage.newPV=4;pending.filmStorage.push_back(storage);
+ ExchangePacket packet;packet.consumerMask=0;pending.ledger.push_back(packet);
+ require(writeCheckpoint(directory,model,pending,error),error);auto pendingBytes=bytes(file);
+ require(readCheckpoint(directory,model,restored,error)&&restored.ledger.size()==1&&!restored.filmStorage[0].consumed,"pending fields persist without resume claims");
+ // consumed is the last field in the only FilmPressureVolumeUpdate record.
+ std::string pair(17,0);setReal(pair,0,3);setReal(pair,8,4);
+ const auto boolOffset=pendingBytes.find(pair,72+getInteger(pendingBytes,48));
+ require(boolOffset!=std::string::npos&&pendingBytes.find(pair,boolOffset+1)==std::string::npos,"unique storage boolean location");
+ pendingBytes[boolOffset+16]=2;writeBytes(file,pendingBytes);
+ require(readCheckpoint(directory,model,restored,error)&&restored.filmStorage[0].consumed,"nonzero boolean retains existing interpretation");
  unlink(file.c_str());rmdir(directory.c_str());unlink(survivorFile.c_str());rmdir(survivorDirectory.c_str());rmdir(root);
- std::cout<<"restart regressions: real 3-D dry/wet state, bounded signed carry, schema/corruption/identity checks, atomicity and fsync failures passed\n";
+ std::cout<<"restart regressions: real 3-D dry/wet state, bounded signed carry, metadata admission, actual truncation, atomicity and fsync failures passed\n";
 }

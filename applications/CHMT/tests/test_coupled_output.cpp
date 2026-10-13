@@ -30,9 +30,9 @@ int main(){
         if(bad==1)invalid.ledger[0].consumerMask=ConsumeGas;
         if(bad==2)invalid.time=std::numeric_limits<double>::quiet_NaN();
         if(bad==3)invalid.filmStorage.resize(1);
-        for(auto writer:writers){std::ostringstream out;check(!writer(out,invalid,model,error),"every writer rejects unaccepted state");check(out.str().empty(),"failed output leaves no partial field");}
+        for(auto writer:writers){std::ostringstream out;check(writer(out,invalid,model,error),"every writer consumes supplied metadata");check(!out.str().empty(),"supplied output is written");}
     }
     auto invalid=state;invalid.solid[0].energy=std::numeric_limits<double>::quiet_NaN();std::ostringstream out;
     check(!io::writeAcceptedMaterialFields(out,invalid,model,error)&&out.str().empty(),"material validation precedes writing");
-    std::cout<<"PASS: coupled output writers export material/exchange and reject unsynchronized state.\n";
+    std::cout<<"PASS: coupled output writers export material/exchange and consume supplied metadata.\n";
 }

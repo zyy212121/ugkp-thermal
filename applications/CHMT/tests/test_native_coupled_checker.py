@@ -204,7 +204,7 @@ def test_independent_clock_reads_production_checkpoint(tmp_path):
 #include <iostream>
 int main(int argc,char** argv){
     if(argc!=2)return 2;
-    chmt::ModelConfig model;model.physics=chmt_test::physics();model.physics.enableGas=false;model.physics.modelFingerprint=17;
+    chmt::ModelConfig model;model.physics=chmt_test::physics();model.physics.enableGas=false;
     chmt::HostState h;h.solidMesh=twoHexahedra(0);auto& m=h.solidMesh;
     m.oldPoints=m.referencePoints=m.points;m.oldVolumes=m.volumes;
     m.boundaryPrimitive.resize(m.owner.size());m.boundarySst.resize(m.owner.size());

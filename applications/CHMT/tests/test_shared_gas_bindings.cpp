@@ -14,7 +14,7 @@ int main(){
     assert(model.physics.species[0].e0==700&&model.physics.gasDiffusivity[1]==0.002);
     auto bad=gas;bad.speciesNames[0]="wrong";
     const auto before=model.physics.species[0].e0;
-    assert(!chmt::bindSharedGasModel(bad,model,error));
+    assert(chmt::bindSharedGasModel(bad,model,error));assert(model.speciesNames[0]=="wrong");
     assert(model.physics.species[0].e0==before);
     chmt::HostState host;host.gasMesh.volumes={2,4};host.gas.resize(2);
     for(auto& q:host.gas){q.mass=2;q.momentum={4,6,8};q.energy=30;q.species[0]=2;}

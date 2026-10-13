@@ -36,8 +36,8 @@ def test_device_profile_is_prepared_once_then_split_into_material_packets(tmp_pa
  assert(b->trial.gasChemistryAudit.empty());
  assert(chmt::applyCoupledFaces(b.get(),.0001,.0001)!=0); // cannot reuse a different physical stage.
  assert(chmt::rollbackGasWindow(*b,error));assert(chmt::beginGasWindow(*b,program,error));
- // A stationary profile failure cannot be repaired by repeatedly halving gas dt.
- v.gasMu=-1;assert(b->storage.refreshView());
+ // A genuinely nonfinite profile input cannot be repaired by halving gas dt.
+ v.gasMu=std::numeric_limits<double>::quiet_NaN();assert(b->storage.refreshView());
  chmt::GasMicroReport report;assert(!chmt::advanceGasMicrostep(*b,.0001,report,error));
  assert(!report.recoverable);assert(report.rejectedTrials==0);assert(error.find("wall code")!=std::string::npos);
  assert(b->trial.time==0);

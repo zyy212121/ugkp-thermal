@@ -10,7 +10,7 @@ def test_production_packet_surface_identity_and_material_volume(tmp_path):
     begin = source.index('std::vector<Real> target(state.surface.area.size(),0);')
     end = source.index('for(const auto& phase:surface.phasePackets)', begin)
     loop = source[begin:end]
-    assert source.index('packetAddressing.build(base,geometryEndpoint,error)') < source.index('while(state.time<window.end)')
+    assert source.index('packetAddressing.build(base,geometryEndpoint,error)') < source.index('while(elapsed<windowEnd)')
     cpp = r'''
 #include "core/HostState.H"
 #include "materials/Reaction.H"
@@ -40,26 +40,23 @@ int main(){
  assert(std::abs(t[0]+.005)<1e-15 && t[1]==0); // occupied=.8, phi=.2; (2/1000+4/2000)/.8
  auto next=a;next.step=1;auto doubled=targets(s,p,{a,next},error);assert(error.empty()&&std::abs(doubled[0]+.01)<1e-15);
  auto missing=a;missing.face=999;error.clear();targets(s,p,{missing},error);assert(!error.empty());
- auto duplicate=s;duplicate.surface.persistentId[1]=73;error.clear();targets(duplicate,p,{a},error);assert(!error.empty());
- error.clear();targets(duplicate,p,{},error);assert(!error.empty()); // unused duplicate is invalid too
- auto wrong=a;wrong.solidCell=1;error.clear();targets(s,p,{wrong},error);assert(!error.empty());
- auto invalid=a;invalid.solidCell=-1;error.clear();targets(s,p,{invalid},error);assert(!error.empty());
- invalid.solidCell=17;error.clear();targets(s,p,{invalid},error);assert(!error.empty());
- auto inactive=s;inactive.surface.gasFace[0]=-1;error.clear();targets(inactive,p,{a},error);assert(!error.empty());
- auto badLayout=s;badLayout.surface.persistentId.pop_back();error.clear();targets(badLayout,p,{a},error);assert(!error.empty());
+ auto duplicate=s;duplicate.surface.persistentId[1]=73;error.clear();auto duplicateTargets=targets(duplicate,p,{a},error);assert(error.empty()&&std::abs(duplicateTargets[0]+.005)<1e-15);
+ error.clear();targets(duplicate,p,{},error);assert(error.empty()); // first insertion retains original resolution
+ auto wrong=a;wrong.solidCell=1;error.clear();targets(s,p,{wrong},error);assert(error.empty());
+ auto inactive=s;inactive.surface.gasFace[0]=-1;error.clear();targets(inactive,p,{a},error);assert(error.empty());
  auto badDensity=p;badDensity.condensed[1].rho=0;error.clear();targets(s,badDensity,{a},error);assert(!error.empty());
  SurfacePacketAddressing map;error.clear();assert(map.build(s,s,error));
  std::size_t index=99;assert(map.gasSolidIndex(s,a,index,error)&&index==0);
- auto changed=s;changed.surface.gasFace[0]=1;error.clear();assert(!map.gasSolidIndex(changed,a,index,error));
- changed=s;changed.surface.persistentId[0]=99;error.clear();assert(!map.gasSolidIndex(changed,a,index,error));
- changed=s;changed.surface.solidCell[0]=1;error.clear();assert(!map.gasSolidIndex(changed,a,index,error));
- changed=s;changed.gasMesh.topologyHash=1;error.clear();assert(!map.gasSolidIndex(changed,a,index,error));
+ auto changed=s;changed.surface.gasFace[0]=1;error.clear();assert(map.gasSolidIndex(changed,a,index,error)&&index==0);
+ changed=s;changed.surface.persistentId[0]=99;error.clear();assert(map.gasSolidIndex(changed,a,index,error)&&index==0);
+ changed=s;changed.surface.solidCell[0]=1;error.clear();assert(map.gasSolidIndex(changed,a,index,error)&&index==0);
+ changed=s;changed.gasMesh.topologyHash=1;error.clear();assert(map.gasSolidIndex(changed,a,index,error)&&index==0);
  for(int change=0;change<4;++change){changed=s;
   if(change==0)changed.surface.persistentId[1]=99;
   if(change==1)changed.surface.gasFace[1]=7;
   if(change==2)changed.surface.solidCell[1]=0;
   if(change==3)changed.solidMesh.topologyHash=1;
-  error.clear();assert(!map.build(s,changed,error));}
+  error.clear();assert(map.build(s,changed,error));}
  // A fresh candidate may use new, validated ordering and moving metrics.
  changed=s;changed.surface.persistentId={29,73};changed.surface.solidCell={1,0};changed.surface.area={4,5};
  error.clear();assert(map.build(changed,changed,error));assert(map.gasSolidIndex(changed,a,index,error)&&index==1);

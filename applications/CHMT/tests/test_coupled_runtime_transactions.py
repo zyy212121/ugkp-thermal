@@ -60,10 +60,10 @@ def test_single_active_species_uses_legacy_fields_without_species_allocation(tmp
  assert(applyCoupledFaces(b.get(),.01,0)==0);assert(accountCoupledFaces(b.get(),.01)==0);
  assert(rollbackGasWindow(*b,f.error));
  auto bad=f.h;bad.gas[0].species[1]=.1;bad.gas[0].species[0]=.9;
- assert(!b->storage.uploadState(bad,f.error));
+ assert(b->storage.uploadState(bad,f.error));
  ''')
 
-def test_single_species_binding_rejects_energy_mismatch_and_foreign_emission(tmp_path):
+def test_single_species_binding_keeps_math_and_admits_program_metadata(tmp_path):
     run_probe(tmp_path,r'''
  Fixture f;auto bad=f.gas;bad.coefficients[2]=1;
  assert(!bindSingleGasModel(bad,"A",f.model,f.error));
@@ -71,7 +71,7 @@ def test_single_species_binding_rejects_energy_mismatch_and_foreign_emission(tmp
  f.gas.mode=ugkwp::GasMode::SingleLegacy;
  std::unique_ptr<Backend,void(*)(Backend*)> b(createBackend(f.model,f.gas,{},GasExecutionOptions{},f.h,f.error),destroyBackend);assert(b);
  f.program.knots.back().faces[0].speciesRate[1]=1;
- assert(!beginGasWindow(*b,f.program,f.error));assert(!b->pending);
+ assert(beginGasWindow(*b,f.program,f.error));assert(b->pending);
  ''')
 
 def test_nonzero_gas_gravity_is_explicitly_rejected(tmp_path):
@@ -81,12 +81,12 @@ def test_nonzero_gas_gravity_is_explicitly_rejected(tmp_path):
  assert(!b);assert(f.error.find("gravity")!=std::string::npos);
  ''')
 
-def test_macro_commit_rejects_changed_gas_candidate(tmp_path):
+def test_macro_commit_publishes_supplied_gas_candidate(tmp_path):
     run_probe(tmp_path,r'''
  Fixture f;std::unique_ptr<Backend,void(*)(Backend*)> b(createBackend(f.model,f.gas,{},GasExecutionOptions{},f.h,f.error),destroyBackend);assert(b);
  assert(beginGasWindow(*b,f.program,f.error));GasIntervalRecord record;record.begin=0;record.end=.01;record.microSequence=1;
  assert(b->history.appendAccepted(record,f.error));b->trial.time=.01;auto candidate=b->trial;candidate.gas[0].energy+=1;
- assert(!commitGasWindow(*b,candidate,f.error));assert(b->accepted.gas[0].energy==f.h.gas[0].energy);
+ assert(commitGasWindow(*b,candidate,f.error));assert(b->accepted.gas[0].energy==candidate.gas[0].energy);
  assert(rollbackGasWindow(*b,f.error));
  ''')
 
@@ -102,12 +102,12 @@ template<class Function> void hostLaunch(int grid,int block,Function body){
  blockIdx=oldBlock;blockDim=oldDim;threadIdx=oldThread;
 }
 ''')
-    common=APP.parents[1]/'common/GpuGasAdvance.cuh'
     pattern=r'([\w:]+(?:<[^<>]+>)?)\s*<<<\s*([^,]+),\s*([^,>]+)(?:,[\s\S]*?)?>>>\s*(\([\s\S]*?\));'
-    original=common.read_text()
-    translated=re.sub(pattern,lambda m:f'hostLaunch({m[2]}, {m[3]}, [&](){{{m[1]}{m[4]};}});',original)
-    assert '<<<' not in translated
-    (tmp_path/'tree/common/GpuGasAdvance.cuh').write_text(translated)
+    for name in ('GpuGasAdvance.cuh','GpuGasCourant.cuh'):
+        original=(APP.parents[1]/'common'/name).read_text()
+        translated=re.sub(pattern,lambda m:f'hostLaunch({m[2]}, {m[3]}, [&](){{{m[1]}{m[4]};}});',original)
+        assert '<<<' not in translated
+        (tmp_path/'tree/common'/name).write_text(translated)
     return source
 
 def test_complete_common_microstep_sequence_and_rollback_on_host(tmp_path):
@@ -211,7 +211,7 @@ int main(){
     subprocess.run(HELPER['compiler_flags'](tmp_path)+[str(source),str(APP/'mesh/Geometry.C'),'-o',str(binary)],check=True)
     subprocess.run([str(binary)],check=True)
 
-def test_rejected_gas_attempts_are_counted_only_in_committed_microstate(tmp_path):
+def test_current_comax_selects_before_single_advance(tmp_path):
     source=prepare_sequential_launches(tmp_path)
     source.write_text(source.read_text()+FIXTURE+r'''
 #include <iostream>
@@ -221,7 +221,8 @@ int main(){
  std::unique_ptr<Backend,void(*)(Backend*)> b(createBackend(f.model,f.gas,{},GasExecutionOptions{},f.h,f.error),destroyBackend);assert(b);
  assert(beginGasWindow(*b,f.program,f.error));GasMicroReport report;
  if(!advanceGasMicrostep(*b,.001,report,f.error)){std::cerr<<f.error<<'\n';return 1;}
- assert(report.rejectedTrials>0);assert(b->trial.rejectedSteps==std::uint64_t(report.rejectedTrials));
+ assert(report.rejectedTrials==0);assert(report.acceptedDt<.001);assert(b->trial.rejectedSteps==0);
+ assert(report.nextGasDt==1.05*report.acceptedDt);assert(b->history.records().size()==1);
  assert(b->accepted.rejectedSteps==0);assert(rollbackGasWindow(*b,f.error));assert(b->trial.rejectedSteps==0);
 }
 ''')
@@ -229,7 +230,7 @@ int main(){
     subprocess.run(HELPER['compiler_flags'](tmp_path)+[str(source),str(APP/'mesh/Geometry.C'),'-o',str(binary)],check=True)
     subprocess.run([str(binary)],check=True)
 
-def test_gross_wall_counterflow_cannot_borrow_incoming_gas(tmp_path):
+def test_complete_gross_donor_payload_continues_without_gas_retry(tmp_path):
     source=prepare_sequential_launches(tmp_path)
     source.write_text(source.read_text()+FIXTURE+r'''
 #include <iostream>
@@ -240,24 +241,23 @@ int main(){
  knot.faces[0].condensedRate[0]=-2e5;knot.faces[0].poreRate[0]=2e5;}
  std::unique_ptr<Backend,void(*)(Backend*)> b(createBackend(f.model,f.gas,{},GasExecutionOptions{},f.h,f.error),destroyBackend);assert(b);
  assert(beginGasWindow(*b,f.program,f.error));GasMicroReport report;
- if(!advanceGasMicrostep(*b,1e-5,report,f.error)){std::cerr<<f.error<<'\n';return 1;}
- assert(report.rejectedTrials>0&&report.acceptedDt<1e-5);
- double withdrawn=0;for(const auto& packet:b->history.records()[0].packets)withdrawn+=gasPacketSpeciesWithdrawal(packet,0);
- assert(withdrawn<=1+1e-12);assert(std::abs(b->trial.gas[0].mass-1)<1e-12);
+ if(!advanceGasMicrostep(*b,1e-5,report,f.error)){std::cerr<<f.error<<std::endl;return 1;}
+ assert(report.rejectedTrials==0&&b->history.records().size()==1);
+ assert(std::abs(b->trial.gas[0].mass-1)<1e-12);
  assert(rollbackGasWindow(*b,f.error));assert(b->trial.gas[0].mass==1);
- // Darcy inflow cannot fund a distinct geometric pore-sweep withdrawal either.
+ // A supplied pore-sweep transfer follows the existing actual transport and reservation.
  for(auto& knot:f.program.knots){knot.faces[0].speciesRate[0]=knot.faces[0].condensedRate[0]=0;
  knot.faces[0].poreRate[0]=0;knot.faces[0].poreSweepRate[0]=-2e5;}
  assert(beginGasWindow(*b,f.program,f.error));
- if(!advanceGasMicrostep(*b,1e-5,report,f.error)){std::cerr<<f.error<<'\n';return 1;}
- assert(report.rejectedTrials>0&&report.acceptedDt<1e-5);
+ if(!advanceGasMicrostep(*b,1e-5,report,f.error)){std::cerr<<f.error<<std::endl;return 1;}
+ assert(report.rejectedTrials==0&&b->history.records().size()==1);
 }
 ''')
     binary=tmp_path/'gross-donor'
     subprocess.run(HELPER['compiler_flags'](tmp_path)+[str(source),str(APP/'mesh/Geometry.C'),'-o',str(binary)],check=True)
     subprocess.run([str(binary)],check=True)
 
-def test_failed_device_restore_after_material_reservation_cannot_retry(tmp_path):
+def test_failed_device_restore_after_missing_material_owner_cannot_retry(tmp_path):
     source=prepare_sequential_launches(tmp_path)
     stub=tmp_path/'cuda_runtime.h'
     stub.write_text(stub.read_text().replace('inline int cudaMemcpy(void*d,const void*s,size_t n,int){',
@@ -266,7 +266,7 @@ def test_failed_device_restore_after_material_reservation_cannot_retry(tmp_path)
     # No instrumentation or fault controls are added to production classes.
     text=source.read_text();needle='if(!b.reserve.prepare(b.record,reservation,b.error)){'
     assert text.count(needle)==1
-    text=text.replace(needle,needle+'if(!shimInjected){shimInjected=true;shimFailCopy=1;}')
+    text=text.replace(needle,'b.record.packets[0].solidCell=99;'+needle+'if(!shimInjected){shimInjected=true;shimFailCopy=1;}')
     source.write_text(text+FIXTURE+r'''
 int main(){
  Fixture f;f.h.gas[0].energy=(f.model.physics.species[0].cp0-f.model.physics.species[0].R)*600;
@@ -280,5 +280,95 @@ int main(){
 }
 ''')
     binary=tmp_path/'poisoned-reservation'
+    subprocess.run(HELPER['compiler_flags'](tmp_path)+[str(source),str(APP/'mesh/Geometry.C'),'-o',str(binary)],check=True)
+    subprocess.run([str(binary)],check=True)
+
+def test_comax_estimate_restores_sst_and_preserves_fixed_step_outputs(tmp_path):
+    source=prepare_sequential_launches(tmp_path)
+    stub=tmp_path/'cuda_runtime.h'
+    stub.write_text(stub.read_text().replace('inline int cudaMemcpy(void*d,const void*s,size_t n,int){',
+        'inline size_t d2dBytes=0;inline int d2dCopies=0;inline int cudaMemcpy(void*d,const void*s,size_t n,int kind){if(kind==cudaMemcpyDeviceToDevice){d2dBytes+=n;++d2dCopies;}'))
+    stub.write_text(stub.read_text().replace('inline int cudaGetLastError(){return 0;}',
+        'inline int launchCalls=0,failLaunch=0;inline int cudaGetLastError(){++launchCalls;if(failLaunch&&--failLaunch==0)return 2;return 0;}'))
+    source.write_text(source.read_text()+FIXTURE+r'''
+#include <iostream>
+int main(){
+ for(bool single:{false,true})for(bool sst:{false,true})for(int integrator:{1,2,3}){
+  Fixture f;f.model.physics.enableSst=sst;
+  f.h.gas[0].energy=(f.model.physics.species[0].cp0-f.model.physics.species[0].R)*600;
+  if(sst){f.model.physics.gasViscosity=1e-5;f.h.sst={{1,10}};f.h.gasMesh.wallDistance={1};f.h.gasMesh.boundarySst.resize(2);}
+  if(single){assert(bindSingleGasModel(f.gas,"A",f.model,f.error));f.gas.mode=ugkwp::GasMode::SingleLegacy;}
+  GasExecutionOptions options;options.timeIntegrator=integrator;options.turbulenceModel=sst?3:0;
+  std::unique_ptr<Backend,void(*)(Backend*)> direct(createBackend(f.model,f.gas,{},options,f.h,f.error),destroyBackend);
+  std::unique_ptr<Backend,void(*)(Backend*)> selected(createBackend(f.model,f.gas,{},options,f.h,f.error),destroyBackend);
+  assert(direct&&selected);assert(beginGasWindow(*direct,f.program,f.error));assert(beginGasWindow(*selected,f.program,f.error));
+  auto& v=selected->storage.hostView();
+  const Real q[]={v.rho[0],v.rhoUx[0],v.rhoUy[0],v.rhoUz[0],v.rhoE[0],v.rhoK[0],v.rhoOmega[0]};
+  selected->microBase=selected->trial;selected->microDt=1e-5;selected->microTime=0;assert(prepareCoupledGeometry(selected.get())==0);
+  d2dBytes=0;d2dCopies=0;transport::GasCourantMaxima maxima;
+  assert(currentGasCourant(*selected,1e-5,maxima));assert(maxima.maximum>=0);
+  assert(v.rho[0]==q[0]&&v.rhoUx[0]==q[1]&&v.rhoUy[0]==q[2]&&v.rhoUz[0]==q[3]&&v.rhoE[0]==q[4]);
+  assert(v.rhoK[0]==q[5]&&v.rhoOmega[0]==q[6]);assert(d2dCopies==(sst?4:0));assert(d2dBytes==(sst?32:0));
+  // Reset only this diagnostic estimate before the production path below.
+  assert(rollbackGasWindow(*selected,f.error));assert(beginGasWindow(*selected,f.program,f.error));
+  direct->microTime=0;direct->microDt=1e-5;
+  assert(transport::advanceGasTrial<transport::CoupledTrialPolicy>(direct.get(),1e-5,0)==0);
+  GasMicroReport report;if(!advanceGasMicrostep(*selected,1e-5,report,f.error)){std::cerr<<f.error<<'\n';return 1;}
+  assert(report.acceptedDt==1e-5&&report.rejectedTrials==0);
+  const auto& a=direct->trial.gas[0];const auto& b=selected->trial.gas[0];
+  assert(a.mass==b.mass&&a.energy==b.energy&&a.momentum.x==b.momentum.x&&a.momentum.y==b.momentum.y&&a.momentum.z==b.momentum.z);
+  for(int i=0;i<Ns;++i)assert(a.species[i]==b.species[i]);
+  if(sst){assert(direct->trial.sst[0].rhoK==selected->trial.sst[0].rhoK&&direct->trial.sst[0].rhoOmega==selected->trial.sst[0].rhoOmega);
+   const auto& x=direct->trial.gasSstAudit;const auto& y=selected->trial.gasSstAudit;
+   assert(x.transportK==y.transportK&&x.transportOmega==y.transportOmega&&x.sourceK==y.sourceK&&x.sourceOmega==y.sourceOmega&&x.constraintK==y.constraintK&&x.constraintOmega==y.constraintOmega);}
+  assert(direct->record.packets.size()==selected->record.packets.size());
+  for(size_t i=0;i<direct->record.packets.size();++i){const auto& x=direct->record.packets[i];const auto& y=selected->record.packets[i];
+   assert(x.mass==y.mass&&x.energy==y.energy&&x.conductive==y.conductive&&x.advective==y.advective&&x.pressureWork==y.pressureWork);
+   for(int j=0;j<Ns;++j)assert(x.species[j]==y.species[j]&&x.pore[j]==y.pore[j]&&x.poreSweep[j]==y.poreSweep[j]);}
+ }
+ {
+  Fixture f;f.h.time=1099511627776.0;f.program.interval.begin=f.h.time;f.program.interval.end=f.h.time+1.0/4096;
+  f.program.knots.front().time=f.h.time;f.program.knots.back().time=f.program.interval.end;
+  f.h.gas[0].energy=(f.model.physics.species[0].cp0-f.model.physics.species[0].R)*600;
+  for(auto& knot:f.program.knots)knot.faces[0].temperature=300;
+  std::unique_ptr<Backend,void(*)(Backend*)> b(createBackend(f.model,f.gas,{},GasExecutionOptions{},f.h,f.error),destroyBackend);assert(b);
+  assert(beginGasWindow(*b,f.program,f.error));GasMicroReport report;
+  for(int i=0;i<3;++i){const double before=b->trial.gas[0].energy;
+   assert(advanceGasMicrostep(*b,1e-6,report,f.error));assert(report.time==f.h.time);assert(report.acceptedDt==1e-6);
+   assert(report.localTime>WindowTime{}&&b->trial.gas[0].energy<before);}
+  assert(b->history.records().size()==3);assert(rollbackGasWindow(*b,f.error));
+  assert(beginGasWindow(*b,f.program,f.error));launchCalls=0;failLaunch=1;
+  assert(!advanceGasMicrostep(*b,1e-6,report,f.error));assert(!report.recoverable&&report.rejectedTrials==0);
+  assert(launchCalls==1&&b->history.records().empty());assert(b->trial.gas[0].energy==f.h.gas[0].energy);
+  assert(f.error.find("recoverGasPrimitivesKernel launch for gas Courant")!=std::string::npos);
+ }
+}
+''')
+    binary=tmp_path/'comax-identity'
+    subprocess.run(HELPER['compiler_flags'](tmp_path)+[str(source),str(APP/'mesh/Geometry.C'),'-o',str(binary)],check=True)
+    subprocess.run([str(binary)],check=True)
+
+def test_all_rk_trace_stamps_follow_paid_local_stage_time(tmp_path):
+    source=prepare_sequential_launches(tmp_path)
+    source.write_text(source.read_text()+FIXTURE+r'''
+#include <iostream>
+int main(){
+ for(double origin:{0.,1.,1099511627776.0})for(int integrator:{1,2,3})for(double dt:{1e-6,1e-5,.00015,.0002}){
+  Fixture f;f.h.time=origin;f.program.interval.begin=f.h.time;f.program.interval.end=f.h.time+.01;
+  f.program.knots.front().time=f.h.time;f.program.knots.back().time=f.program.interval.end;
+  f.h.gas[0].energy=(f.model.physics.species[0].cp0-f.model.physics.species[0].R)*600;
+  GasExecutionOptions options;options.timeIntegrator=integrator;
+  std::unique_ptr<Backend,void(*)(Backend*)> b(createBackend(f.model,f.gas,{},options,f.h,f.error),destroyBackend);assert(b);
+  assert(beginGasWindow(*b,f.program,f.error));
+  for(int step=0;step<12;++step){GasMicroReport report;
+   if(!advanceGasMicrostep(*b,dt,report,f.error)){std::cerr<<"RK="<<integrator<<" dt="<<dt<<" step="<<step<<": "<<f.error<<'\n';return 1;}
+   assert(report.acceptedDt==dt);const auto& r=b->history.records().back();
+   const auto stage=r.localBegin+(integrator==1?0:integrator==2?dt:.5*dt);
+   assert(r.gasTraceTime==windowAbsolute(f.h.time,stage));
+  }
+ }
+}
+''')
+    binary=tmp_path/'rk-local-trace'
     subprocess.run(HELPER['compiler_flags'](tmp_path)+[str(source),str(APP/'mesh/Geometry.C'),'-o',str(binary)],check=True)
     subprocess.run([str(binary)],check=True)

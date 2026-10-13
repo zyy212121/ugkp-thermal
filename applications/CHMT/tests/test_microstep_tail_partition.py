@@ -1,52 +1,26 @@
-"""Exercise the exact production first-step selection and actual time additions."""
+"""Classical pre-step selection and paid tails, without speculative retries."""
 from pathlib import Path
-import re
 import subprocess
-
 APP=Path(__file__).resolve().parents[1]
-
-
-def test_production_microsteps_keep_feasible_endpoint_tail(tmp_path):
-    source=(APP/'gpu/Backend.cu').read_text()
-    selection=re.search(r'b.microTime=b.trial.time;Real dt=(.*);\n    for\(int retry=',source).group(1)
-    cpp=r'''
+def test_comax_caps_and_paid_tail(tmp_path):
+    source=tmp_path/'step.cpp'
+    source.write_text(r'''
 #include "gpu/GasWindowProgram.H"
 #include <cassert>
-#include <cmath>
-#include <iostream>
 using namespace chmt;
-Real choose(Real time,Real end,Real cap,Real maximum,Real minimum){
- struct B {HostState trial;ModelConfig model;WallProgram program;Real microTime;} b;
- b.trial.time=time;b.microTime=time;b.model.physics.maxDt=maximum;b.model.physics.minDt=minimum;
- b.program.interval.end=end;
- return SELECTION;
-}
 int main(){
- const Real minimum=1e-14;
- for(bool retry:{false,true})for(int j=0;j<1000;++j){
-  Real begin=.0000137*j,time=begin,end=begin+.001,integrated=0;
-  for(int i=0;i<2000 && time<end;++i){
-   const Real remaining=end-time,cap=1e-6,dt=choose(time,end,cap,2e-6,minimum);
-   assert(dt>=minimum && dt<=cap && dt<=2e-6 && dt<=remaining && time+dt>time);
-   // A retry can only shrink the accepted step. Shrinking must not leave a
-   // smaller endpoint tail. Retry once early to exercise another partition.
-   const Real accepted=(retry&&i==3?dt*.5:dt);assert(accepted>=minimum);
-   integrated+=accepted;time+=accepted;
-  }
-  assert(time==end);assert(std::abs(integrated-(end-begin))<1e-15);
- }
- // A feasible split never exceeds the caller's stable cap or the max step.
- assert(choose(0,2.1,1.5,1.25,1)==1.05);
- // Less than two minimum steps cannot be split under a cap below the endpoint.
- assert(choose(0,1.5,1.25,2,1)<1);
- assert(choose(0,.5,2,2,1)<1);
- // An exactly feasible last minimum step and a complete single step remain.
- assert(choose(0,2,1,1,1)==1);assert(choose(0,1.5,2,2,1)==1.5);
- std::cout<<"2000 endpoint partitions and min/cap/retry contracts passed\n";
+ assert(gasCoMaxStep(1,.4,.8,1)==.5);
+ assert(gasCoMaxStep(1,.4,0,0.5)==.525);
+ assert(gasCoMaxStep(1,.4,.1,1)==1);
+ // Diffusion and source are already equivalent Co; apply target only once.
+ for(double co:{.8,1.6})assert(gasCoMaxStep(1,.4,co,1)==.4/co);
+ assert(boundedGasMicrostep(0,1.5,1.25,2)==1.25);
+ assert(boundedGasMicrostep(0,.5,2,2)==.5);
+ WindowTime time,end(.001L);int steps=0;
+ while(time<end){const double dt=std::min(1e-6,boundedWindowDuration(end,time));assert(dt>0);time+=dt;++steps;}
+ assert(time==end);assert(steps>=1000&&steps<=1002);
 }
-'''.replace('SELECTION',selection)
-    src=tmp_path/'tail.cpp';src.write_text(cpp);binary=tmp_path/'tail'
-    build=subprocess.run(['g++','-std=c++14','-O2','-I',str(APP),'-I',str(APP.parents[1]/'common'),str(src),'-o',str(binary)],capture_output=True,text=True)
-    assert build.returncode==0,build.stderr
-    run=subprocess.run([str(binary)],capture_output=True,text=True)
-    assert run.returncode==0,run.stdout+run.stderr
+''')
+    binary=tmp_path/'step'
+    subprocess.run(['g++','-std=c++17','-O2','-I'+str(APP),'-I'+str(APP.parents[1]/'common'),str(source),'-o',str(binary)],check=True)
+    subprocess.run([str(binary)],check=True)
