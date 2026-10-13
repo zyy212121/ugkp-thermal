@@ -1,0 +1,57 @@
+/workspace/scratch/98b6339ec81b/chmt_remaining_work_20261013/common/gasTransport/MixtureThermo.H(16): warning #20013-D: calling a constexpr __host__ function("max") from a __host__ __device__ function("gasFinite") is not allowed. The experimental flag '--expt-relaxed-constexpr' can be used to allow this.
+      return x == x && x <= (std::numeric_limits<Real>::max)()
+                            ^
+          detected during:
+            instantiation of "__nv_bool ugkwp::gasFinite(Real) noexcept [with Real=double]" at line 39 of /workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/implementation/b1/v2/freeze-temp/test_cuda_real_primitive_compl0/completion.cu
+            instantiation of "void recoverGasPrimitiveCell(GasState &, int, __nv_bool) [with GasState=State<2>]" at line 183 of /workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/implementation/b1/v2/freeze-temp/test_cuda_real_primitive_compl0/completion.cu
+
+Remark: The warnings can be suppressed with "-diag-suppress <warning-number>"
+
+/workspace/scratch/98b6339ec81b/chmt_remaining_work_20261013/common/gasTransport/MixtureThermo.H(17): warning #20013-D: calling a constexpr __host__ function("max") from a __host__ __device__ function("gasFinite") is not allowed. The experimental flag '--expt-relaxed-constexpr' can be used to allow this.
+          && x >= -(std::numeric_limits<Real>::max)();
+                   ^
+          detected during:
+            instantiation of "__nv_bool ugkwp::gasFinite(Real) noexcept [with Real=double]" at line 39 of /workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/implementation/b1/v2/freeze-temp/test_cuda_real_primitive_compl0/completion.cu
+            instantiation of "void recoverGasPrimitiveCell(GasState &, int, __nv_bool) [with GasState=State<2>]" at line 183 of /workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/implementation/b1/v2/freeze-temp/test_cuda_real_primitive_compl0/completion.cu
+
+/workspace/scratch/98b6339ec81b/chmt_remaining_work_20261013/common/gasTransport/MixtureThermo.H(478): warning #20013-D: calling a constexpr __host__ function("max") from a __host__ __device__ function("invertMixtureEnergy") is not allowed. The experimental flag '--expt-relaxed-constexpr' can be used to allow this.
+      Real lo=Real(0),hi=(std::numeric_limits<Real>::max)();
+                         ^
+          detected during:
+            instantiation of "ugkwp::ThermoStatus ugkwp::invertMixtureEnergy(const Real *, Real, const ugkwp::SpeciesThermoView<TableReal, Ns> &, const ugkwp::ThermoInversionControls<Real> &, Real &, __nv_bool *) noexcept [with Refinement=true, Real=double, Ns=2, TableReal=double]" at line 65 of /workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/implementation/b1/v2/freeze-temp/test_cuda_real_primitive_compl0/completion.cu
+            instantiation of "void recoverGasPrimitiveCell(GasState &, int, __nv_bool) [with GasState=State<2>]" at line 183 of /workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/implementation/b1/v2/freeze-temp/test_cuda_real_primitive_compl0/completion.cu
+
+/workspace/scratch/98b6339ec81b/chmt_remaining_work_20261013/common/gasTransport/MixtureThermo.H(29): warning #20013-D: calling a constexpr __host__ function("quiet_NaN") from a __host__ __device__ function("invalidValue") is not allowed. The experimental flag '--expt-relaxed-constexpr' can be used to allow this.
+  { return std::numeric_limits<Real>::quiet_NaN(); }
+           ^
+          detected during:
+            instantiation of "Real ugkwp::gasThermoDetail::invalidValue<Real>() noexcept [with Real=double]" at line 83
+            instantiation of "ugkwp::ThermoStatus ugkwp::gasThermoDetail::evaluateSpecies(int, Real, const ugkwp::SpeciesThermoView<TableReal, Ns> &, ugkwp::gasThermoDetail::SpeciesValues<Real> &, __nv_bool *) noexcept [with Real=double, Ns=2, TableReal=double, Complete=true]" at line 178
+            instantiation of "ugkwp::ThermoStatus ugkwp::evaluateMixtureEnergy(const Real *, Real, const ugkwp::SpeciesThermoView<TableReal, Ns> &, Real &, Real &, __nv_bool *) noexcept [with Refinement=false, Real=double, Ns=2, TableReal=double, Complete=true]" at line 464
+            instantiation of "ugkwp::ThermoStatus ugkwp::MixtureEnergyEvaluator<Real, Ns, TableReal, Refinement>::complete(Real, Real &, Real &, __nv_bool &) const noexcept [with Real=double, Ns=2, TableReal=double, Refinement=true]" at line 361
+            instantiation of "ugkwp::ThermoStatus ugkwp::completeNonFiniteCaloricTarget(const ugkwp::MixtureEnergyEvaluator<Real, Ns, TableReal, Refinement> &, Real, Real, const ugkwp::ThermoInversionControls<Real> &, Real &, __nv_bool *) noexcept [with Real=double, Ns=2, TableReal=double, Refinement=true]" at line 379
+            instantiation of "ugkwp::ThermoStatus ugkwp::invertCaloricEnergy(const Evaluator &, Real, Real, Real, const ugkwp::ThermoInversionControls<Real> &, Real &, __nv_bool *) noexcept [with Refinement=true, Real=double, Evaluator=ugkwp::MixtureEnergyEvaluator<double, 2, double, true>]" at line 485
+            instantiation of "ugkwp::ThermoStatus ugkwp::invertMixtureEnergy(const Real *, Real, const ugkwp::SpeciesThermoView<TableReal, Ns> &, const ugkwp::ThermoInversionControls<Real> &, Real &, __nv_bool *) noexcept [with Refinement=true, Real=double, Ns=2, TableReal=double]" at line 65 of /workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/implementation/b1/v2/freeze-temp/test_cuda_real_primitive_compl0/completion.cu
+            instantiation of "void recoverGasPrimitiveCell(GasState &, int, __nv_bool) [with GasState=State<2>]" at line 183 of /workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/implementation/b1/v2/freeze-temp/test_cuda_real_primitive_compl0/completion.cu
+
+/workspace/scratch/98b6339ec81b/chmt_remaining_work_20261013/common/gasTransport/MixtureThermo.H(478): warning #20013-D: calling a constexpr __host__ function("max") from a __host__ __device__ function("invertMixtureEnergy") is not allowed. The experimental flag '--expt-relaxed-constexpr' can be used to allow this.
+      Real lo=Real(0),hi=(std::numeric_limits<Real>::max)();
+                         ^
+          detected during:
+            instantiation of "ugkwp::ThermoStatus ugkwp::invertMixtureEnergy(const Real *, Real, const ugkwp::SpeciesThermoView<TableReal, Ns> &, const ugkwp::ThermoInversionControls<Real> &, Real &, __nv_bool *) noexcept [with Refinement=false, Real=double, Ns=2, TableReal=double]" at line 66 of /workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/implementation/b1/v2/freeze-temp/test_cuda_real_primitive_compl0/completion.cu
+            instantiation of "void recoverGasPrimitiveCell(GasState &, int, __nv_bool) [with GasState=State<2>]" at line 183 of /workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/implementation/b1/v2/freeze-temp/test_cuda_real_primitive_compl0/completion.cu
+
+/workspace/scratch/98b6339ec81b/chmt_remaining_work_20261013/common/gasTransport/MixtureThermo.H(478): warning #20013-D: calling a constexpr __host__ function("max") from a __host__ __device__ function("invertMixtureEnergy") is not allowed. The experimental flag '--expt-relaxed-constexpr' can be used to allow this.
+      Real lo=Real(0),hi=(std::numeric_limits<Real>::max)();
+                         ^
+          detected during:
+            instantiation of "ugkwp::ThermoStatus ugkwp::invertMixtureEnergy(const Real *, Real, const ugkwp::SpeciesThermoView<TableReal, Ns> &, const ugkwp::ThermoInversionControls<Real> &, Real &, __nv_bool *) noexcept [with Refinement=true, Real=double, Ns=10, TableReal=double]" at line 65 of /workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/implementation/b1/v2/freeze-temp/test_cuda_real_primitive_compl0/completion.cu
+            instantiation of "void recoverGasPrimitiveCell(GasState &, int, __nv_bool) [with GasState=State<10>]" at line 185 of /workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/implementation/b1/v2/freeze-temp/test_cuda_real_primitive_compl0/completion.cu
+
+/workspace/scratch/98b6339ec81b/chmt_remaining_work_20261013/common/gasTransport/MixtureThermo.H(478): warning #20013-D: calling a constexpr __host__ function("max") from a __host__ __device__ function("invertMixtureEnergy") is not allowed. The experimental flag '--expt-relaxed-constexpr' can be used to allow this.
+      Real lo=Real(0),hi=(std::numeric_limits<Real>::max)();
+                         ^
+          detected during:
+            instantiation of "ugkwp::ThermoStatus ugkwp::invertMixtureEnergy(const Real *, Real, const ugkwp::SpeciesThermoView<TableReal, Ns> &, const ugkwp::ThermoInversionControls<Real> &, Real &, __nv_bool *) noexcept [with Refinement=false, Real=double, Ns=10, TableReal=double]" at line 66 of /workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/implementation/b1/v2/freeze-temp/test_cuda_real_primitive_compl0/completion.cu
+            instantiation of "void recoverGasPrimitiveCell(GasState &, int, __nv_bool) [with GasState=State<10>]" at line 185 of /workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/implementation/b1/v2/freeze-temp/test_cuda_real_primitive_compl0/completion.cu
+

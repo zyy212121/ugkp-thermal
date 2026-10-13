@@ -1,0 +1,80 @@
+{
+  "batch": "B3",
+  "revision": "v2",
+  "created_utc": "2026-10-13T09:18:25.566817+00:00",
+  "base_commit": "1aaee9eb905562ea04bafefcb05e40c88bb94508",
+  "branch": "perf/shared-producer-continuation-20261013",
+  "original_planning_base": "82f9c016704c9822b16b87cdeeb11f5bbd44d06f",
+  "files": [
+    {
+      "path": "common/GpuGasAdvance.cuh",
+      "sha256": "a43e9b05f080703d135d0d3a4f17de16de5be0d5d3c0a77e3a59ef714ae06da3",
+      "base_sha256": "335bc7d912d6c4fce2bd384769f3858642355b979d64ca0b4f3ebcd5bc04b633",
+      "change": "modified"
+    },
+    {
+      "path": "common/operators/computeGasPrimitiveGradientsKernel.cuh",
+      "sha256": "52fa7c49cb212a12985fc4904e63008a70eaee32c7f7a7606a18e1a502a7d5d1",
+      "base_sha256": "6f49e4ce60b368d00d29501d1f98e495f0dc192764112d9d6922e6de9542dc77",
+      "change": "modified"
+    },
+    {
+      "path": "common/operators/computeSstFaceFluxKernel.cuh",
+      "sha256": "1ae72ecfafcbb92782d8819c6ac3f46dc3f2f2738ec8d5fe8e41e043c27d8cae",
+      "base_sha256": "f83fde08eaa13cfffdba0ecbf582554621a5aa8c225923d99a04706084f23b07",
+      "change": "modified"
+    },
+    {
+      "path": "tests/gas_transport/test_boundary_layer_host.py",
+      "sha256": "0f3eec738aead77085274bbd03a09b78e6788aad8cf7b5c736c1e4344a088caa",
+      "base_sha256": "e387f7fc72e90e8ee4c395a470da9572e430b72a7b63b942acc8d812ef323df7",
+      "change": "modified"
+    },
+    {
+      "path": "tests/gas_transport/test_bulk_candidate_continuation.py",
+      "sha256": "6d6df344563ce6839db2ef638942d5a668239412323c4c7691a1b2947fcbaaa4",
+      "base_sha256": "abc29b3e8e4d1ad81e8785f6ba20838c82eaf9e18c0769b1b80bfb2e06b2449d",
+      "change": "modified"
+    },
+    {
+      "path": "tests/gas_transport/test_gas_advance_view.py",
+      "sha256": "e559c050005517df88095e932c32ffa1b08c2c485e465a62d52ad0c5cb06ee31",
+      "base_sha256": "cb77d88ec2f1b185e1cb6e3ceae7dda9d834c1e34e91468ac1770e862c15066c",
+      "change": "modified"
+    },
+    {
+      "path": "tests/gas_transport/test_legacy_ale_transport.py",
+      "sha256": "1c98bbfa9827d9fc50d3265a50bbf13928919cf2c5b2559970e6fd9136b3b99b",
+      "base_sha256": "fb6ca9bc0f49d03d44c03317408242165bb1997138676f300964c021b97078e6",
+      "change": "modified"
+    },
+    {
+      "path": "tests/gas_transport/test_cell_producer_completion.py",
+      "sha256": "a7790ea9b7c39a59f30320b52c88b766f0f9e7259441670c742a99d1a9c55d02",
+      "base_sha256": null,
+      "change": "added"
+    }
+  ],
+  "patch_sha256": "fa663866f0fde47957d326f1e24a4a3c286976dfcb74b718a82a37bd9a7329d5",
+  "repair_patch_sha256": "a423eb9cc39ef1fed9bb86347dae0286586d611bac1c580147ed5cd9a3c4ecd7",
+  "independent_review": "focused re-review required for R1/R2",
+  "compiler": "final divergence supplemental compile plus valid unchanged V1 instantiations; see dependency-reuse",
+  "all_v1_705_artifacts_preserved": true,
+  "existing_manifest_common_owners": {
+    "common/GpuGasAdvance.cuh": true,
+    "common/operators/computeGasPrimitiveGradientsKernel.cuh": true,
+    "common/operators/computeSstFaceFluxKernel.cuh": true
+  },
+  "readme_changed": false,
+  "commit_push_merge": false,
+  "gpu_execution": "NOT_RUN",
+  "deliverables": {
+    "report.md": "0fda478bc52b927e7398bc23a05e4f78d4ac6ab8fb0bc3435e294cfcb2b95cc9",
+    "evidence-index.json": "0773e08776cce68428ef268e9445f337b634882716bbf93a518f4e15bf201f1f",
+    "field-consumer-cost.json": "e0e5b6cd38071067463a829bd9a3cad30a765dd99351fee1be5d049c13f99686",
+    "coverage-gap-matrix.json": "11ca3b4dcba9b8d6ecc932a3e13c63c2ff7a1c928b4315b9868cef5e5d9fa644",
+    "dependency-reuse.json": "d3fc498e42b016110077351790c604981c52976a76b443590afc24837155c6f4",
+    "b3.patch": "fa663866f0fde47957d326f1e24a4a3c286976dfcb74b718a82a37bd9a7329d5",
+    "repair.patch": "a423eb9cc39ef1fed9bb86347dae0286586d611bac1c580147ed5cd9a3c4ecd7"
+  }
+}

@@ -1,0 +1,119 @@
+Making dependency list for source file diluteUgkwpFoam.C
+Making dependency list for source file GpuSolidThermalCoupler.C
+g++ -std=c++14 -m64 -Dlinux64 -DWM_ARCH_OPTION=64 -DWM_DP -DWM_LABEL_SIZE=32 -Wall -Wextra -Wold-style-cast -Wnon-virtual-dtor -Wno-unused-parameter -Wno-invalid-offsetof -Wno-attributes -O3  -DNoRepository -ftemplate-depth-100 -fopenmp -I/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/finiteVolume/lnInclude -I/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/meshTools/lnInclude -I/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude -I. -I../../common -Igpu -Ithermal -DUGKWP_USE_CUDA -IlnInclude -I. -I/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude -I/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OSspecific/POSIX/lnInclude   -fPIC -c diluteUgkwpFoam.C -o Make/linux64GccDPInt32Opt/diluteUgkwpFoam.o
+In file included from /workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/scalarMatrices.H:46,
+                 from /workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/dimensionSets.H:39,
+                 from /workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/dimensionSet.H:444,
+                 from /workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/dimensionedType.H:40,
+                 from /workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/dimensionedScalar.H:38,
+                 from /workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/TimeState.H:38,
+                 from /workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/Time.H:47,
+                 from /workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/finiteVolume/lnInclude/fvCFD.H:6,
+                 from diluteUgkwpFoam.C:1:
+/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/DiagonalMatrix.H:64:29: warning: template-id not allowed for constructor in C++20 [-Wtemplate-id-cdtor]
+   64 |         DiagonalMatrix<Type>();
+      |                             ^
+/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/DiagonalMatrix.H:64:29: note: remove the ‘< >’
+/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/DiagonalMatrix.H:68:29: warning: template-id not allowed for constructor in C++20 [-Wtemplate-id-cdtor]
+   68 |         DiagonalMatrix<Type>(const Matrix<Form, Type>&);
+      |                             ^
+/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/DiagonalMatrix.H:68:29: note: remove the ‘< >’
+/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/DiagonalMatrix.H:71:29: warning: template-id not allowed for constructor in C++20 [-Wtemplate-id-cdtor]
+   71 |         DiagonalMatrix<Type>(const label size);
+      |                             ^
+/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/DiagonalMatrix.H:71:29: note: remove the ‘< >’
+/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/DiagonalMatrix.H:74:29: warning: template-id not allowed for constructor in C++20 [-Wtemplate-id-cdtor]
+   74 |         DiagonalMatrix<Type>(const label, const Type&);
+      |                             ^
+/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/DiagonalMatrix.H:74:29: note: remove the ‘< >’
+In file included from /workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/finiteVolume/lnInclude/volFields.H:40,
+                 from /workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/finiteVolume/lnInclude/surfaceInterpolationScheme.C:27,
+                 from /workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/finiteVolume/lnInclude/surfaceInterpolationScheme.H:308,
+                 from /workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/finiteVolume/lnInclude/surfaceInterpolate.H:41,
+                 from /workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/finiteVolume/lnInclude/fvc.H:39,
+                 from /workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/finiteVolume/lnInclude/fvCFD.H:8:
+/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/finiteVolume/lnInclude/fvPatchField.H:297:13: warning: template-id not allowed for destructor in C++20 [-Wtemplate-id-cdtor]
+  297 |     virtual ~fvPatchField<Type>()
+      |             ^
+/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/finiteVolume/lnInclude/fvPatchField.H:297:13: note: remove the ‘< >’
+In file included from /workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/finiteVolume/lnInclude/fvsPatchFields.H:34,
+                 from /workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/finiteVolume/lnInclude/surfaceFields.H:41,
+                 from /workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/finiteVolume/lnInclude/surfaceInterpolationScheme.C:28:
+/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/finiteVolume/lnInclude/fvsPatchField.H:293:13: warning: template-id not allowed for destructor in C++20 [-Wtemplate-id-cdtor]
+  293 |     virtual ~fvsPatchField<Type>()
+      |             ^
+/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/finiteVolume/lnInclude/fvsPatchField.H:293:13: note: remove the ‘< >’
+g++ -std=c++14 -m64 -Dlinux64 -DWM_ARCH_OPTION=64 -DWM_DP -DWM_LABEL_SIZE=32 -Wall -Wextra -Wold-style-cast -Wnon-virtual-dtor -Wno-unused-parameter -Wno-invalid-offsetof -Wno-attributes -O3  -DNoRepository -ftemplate-depth-100 -fopenmp -I/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/finiteVolume/lnInclude -I/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/meshTools/lnInclude -I/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude -I. -I../../common -Igpu -Ithermal -DUGKWP_USE_CUDA -IlnInclude -I. -I/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude -I/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OSspecific/POSIX/lnInclude   -fPIC -c thermal/GpuSolidThermalCoupler.C -o Make/linux64GccDPInt32Opt/thermal/GpuSolidThermalCoupler.o
+In file included from /workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/scalarMatrices.H:46,
+                 from /workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/dimensionSets.H:39,
+                 from /workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/dimensionSet.H:444,
+                 from /workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/dimensionedType.H:40,
+                 from /workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/DimensionedField.H:43,
+                 from /workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/finiteVolume/lnInclude/fvMesh.H:58,
+                 from thermal/GpuSolidThermalCoupler.H:6,
+                 from thermal/GpuSolidThermalCoupler.C:1:
+/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/DiagonalMatrix.H:64:29: warning: template-id not allowed for constructor in C++20 [-Wtemplate-id-cdtor]
+   64 |         DiagonalMatrix<Type>();
+      |                             ^
+/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/DiagonalMatrix.H:64:29: note: remove the ‘< >’
+/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/DiagonalMatrix.H:68:29: warning: template-id not allowed for constructor in C++20 [-Wtemplate-id-cdtor]
+   68 |         DiagonalMatrix<Type>(const Matrix<Form, Type>&);
+      |                             ^
+/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/DiagonalMatrix.H:68:29: note: remove the ‘< >’
+/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/DiagonalMatrix.H:71:29: warning: template-id not allowed for constructor in C++20 [-Wtemplate-id-cdtor]
+   71 |         DiagonalMatrix<Type>(const label size);
+      |                             ^
+/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/DiagonalMatrix.H:71:29: note: remove the ‘< >’
+/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/DiagonalMatrix.H:74:29: warning: template-id not allowed for constructor in C++20 [-Wtemplate-id-cdtor]
+   74 |         DiagonalMatrix<Type>(const label, const Type&);
+      |                             ^
+/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/DiagonalMatrix.H:74:29: note: remove the ‘< >’
+In file included from /workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/finiteVolume/lnInclude/volFields.H:40,
+                 from thermal/GpuSolidThermalCoupler.H:9:
+/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/finiteVolume/lnInclude/fvPatchField.H:297:13: warning: template-id not allowed for destructor in C++20 [-Wtemplate-id-cdtor]
+  297 |     virtual ~fvPatchField<Type>()
+      |             ^
+/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/finiteVolume/lnInclude/fvPatchField.H:297:13: note: remove the ‘< >’
+In file included from /workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/finiteVolume/lnInclude/fvsPatchFields.H:34,
+                 from /workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/finiteVolume/lnInclude/surfaceFields.H:41,
+                 from /workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/finiteVolume/lnInclude/fvmLaplacian.C:27,
+                 from /workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/finiteVolume/lnInclude/fvmLaplacian.H:189,
+                 from thermal/GpuSolidThermalCoupler.C:9:
+/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/finiteVolume/lnInclude/fvsPatchField.H:293:13: warning: template-id not allowed for destructor in C++20 [-Wtemplate-id-cdtor]
+  293 |     virtual ~fvsPatchField<Type>()
+      |             ^
+/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/finiteVolume/lnInclude/fvsPatchField.H:293:13: note: remove the ‘< >’
+thermal/GpuSolidThermalCoupler.C: In constructor ‘Foam::gpuThermal::GpuSolidThermalCouplerData::GpuSolidThermalCouplerData(Foam::Time&, Foam::fvMesh&, Foam::GpuParticleResidentSolver&, const Foam::dictionary&, const Foam::gpuThermal::ThermalExchangeRestartState&)’:
+thermal/GpuSolidThermalCoupler.C:930:27: warning: possibly dangling reference to a temporary [-Wdangling-reference]
+  930 |         const dictionary& coupling =
+      |                           ^~~~~~~~
+thermal/GpuSolidThermalCoupler.C:931:31: note: the temporary was destroyed at the end of the full expression ‘Foam::gpuThermal::{anonymous}::exactSubDictionary(((Foam::gpuThermal::GpuSolidThermalCouplerData*)this)->Foam::gpuThermal::GpuSolidThermalCouplerData::resolvedConfiguration, Foam::word(((const char*)"solidThermalCoupling"), 1))’
+  931 |             exactSubDictionary(resolvedConfiguration, "solidThermalCoupling");
+      |             ~~~~~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+thermal/GpuSolidThermalCoupler.C:1052:31: warning: possibly dangling reference to a temporary [-Wdangling-reference]
+ 1052 |             const dictionary& regions =
+      |                               ^~~~~~~
+thermal/GpuSolidThermalCoupler.C:1053:35: note: the temporary was destroyed at the end of the full expression ‘Foam::gpuThermal::{anonymous}::exactSubDictionary((* & coupling), Foam::word(((const char*)"solidRegions"), 1))’
+ 1053 |                 exactSubDictionary(coupling, "solidRegions");
+      |                 ~~~~~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~
+thermal/GpuSolidThermalCoupler.C:1144:27: warning: possibly dangling reference to a temporary [-Wdangling-reference]
+ 1144 |         const dictionary& particleContract = resolvedConfiguration.found
+      |                           ^~~~~~~~~~~~~~~~
+thermal/GpuSolidThermalCoupler.C:1148:31: note: the temporary was destroyed at the end of the full expression ‘Foam::gpuThermal::{anonymous}::exactSubDictionary(((Foam::gpuThermal::GpuSolidThermalCouplerData*)this)->Foam::gpuThermal::GpuSolidThermalCouplerData::resolvedConfiguration, Foam::word(((const char*)"resolvedParticleContract"), 1))’
+ 1148 |           ? exactSubDictionary(resolvedConfiguration, "resolvedParticleContract")
+      |             ~~~~~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+thermal/GpuSolidThermalCoupler.C:1157:31: warning: possibly dangling reference to a temporary [-Wdangling-reference]
+ 1157 |             const dictionary& radiation =
+      |                               ^~~~~~~~~
+thermal/GpuSolidThermalCoupler.C:1158:35: note: the temporary was destroyed at the end of the full expression ‘Foam::gpuThermal::{anonymous}::exactSubDictionary((* & coupling), Foam::word(((const char*)"radiation"), 1))’
+ 1158 |                 exactSubDictionary(coupling, "radiation");
+      |                 ~~~~~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~
+thermal/GpuSolidThermalCoupler.C:1165:31: warning: possibly dangling reference to a temporary [-Wdangling-reference]
+ 1165 |             const dictionary& doDictionary =
+      |                               ^~~~~~~~~~~~
+thermal/GpuSolidThermalCoupler.C:1166:35: note: the temporary was destroyed at the end of the full expression ‘Foam::gpuThermal::{anonymous}::exactSubDictionary((* & radiation), Foam::word(((const char*)"do"), 1))’
+ 1166 |                 exactSubDictionary(radiation, "do");
+      |                 ~~~~~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~
+g++ -std=c++14 -m64 -Dlinux64 -DWM_ARCH_OPTION=64 -DWM_DP -DWM_LABEL_SIZE=32 -Wall -Wextra -Wold-style-cast -Wnon-virtual-dtor -Wno-unused-parameter -Wno-invalid-offsetof -Wno-attributes -O3  -DNoRepository -ftemplate-depth-100 -fopenmp -I/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/finiteVolume/lnInclude -I/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/meshTools/lnInclude -I/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude -I. -I../../common -Igpu -Ithermal -DUGKWP_USE_CUDA -IlnInclude -I. -I/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude -I/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OSspecific/POSIX/lnInclude   -fPIC -fuse-ld=bfd -Xlinker --add-needed -Xlinker --no-as-needed Make/linux64GccDPInt32Opt/diluteUgkwpFoam.o Make/linux64GccDPInt32Opt/thermal/MieTable.o Make/linux64GccDPInt32Opt/thermal/MieDoRadiationSolver.o Make/linux64GccDPInt32Opt/thermal/GpuParticleRadiationCoupler.o Make/linux64GccDPInt32Opt/thermal/GpuSolidThermalProperties.o Make/linux64GccDPInt32Opt/thermal/GpuSolidPatchMapper.o Make/linux64GccDPInt32Opt/thermal/GpuThermalExchangeState.o Make/linux64GccDPInt32Opt/thermal/GpuSolidThermalCoupler.o -L/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/platforms/linux64GccDPInt32Opt/lib \
+    -fopenmp -lfiniteVolume -lmeshTools -lmomentumTransportModels -lOpenFOAM /workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/implementation/restart-codec-cxx14/source/applications/CHT/gpu/libugkpcht_cuda_internal.a -L/workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/toolchains/cuda/lib64 -lcudart -lOpenFOAM -ldl  \
+     -lm -o /workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/implementation/restart-codec-cxx14/bin/CHT

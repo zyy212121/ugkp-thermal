@@ -1,0 +1,135 @@
+ELF Header:
+  Magic:   7f 45 4c 46 02 01 01 03 00 00 00 00 00 00 00 00 
+  Class:                             ELF64
+  Data:                              2's complement, little endian
+  Version:                           1 (current)
+  OS/ABI:                            UNIX - GNU
+  ABI Version:                       0
+  Type:                              DYN (Position-Independent Executable file)
+  Machine:                           Advanced Micro Devices X86-64
+  Version:                           0x1
+  Entry point address:               0xeb20
+  Start of program headers:          64 (bytes into file)
+  Start of section headers:          6796680 (bytes into file)
+  Flags:                             0x0
+  Size of this header:               64 (bytes)
+  Size of program headers:           56 (bytes)
+  Number of program headers:         15
+  Size of section headers:           64 (bytes)
+  Number of section headers:         36
+  Section header string table index: 35
+
+Section Headers:
+  [Nr] Name              Type             Address           Offset
+       Size              EntSize          Flags  Link  Info  Align
+  [ 0]                   NULL             0000000000000000  00000000
+       0000000000000000  0000000000000000           0     0     0
+  [ 1] .note.gnu.pr[...] NOTE             0000000000000388  00000388
+       0000000000000020  0000000000000000   A       0     0     8
+  [ 2] .note.gnu.bu[...] NOTE             00000000000003a8  000003a8
+       0000000000000024  0000000000000000   A       0     0     4
+  [ 3] .interp           PROGBITS         00000000000003cc  000003cc
+       000000000000001c  0000000000000000   A       0     0     1
+  [ 4] .gnu.hash         GNU_HASH         00000000000003e8  000003e8
+       0000000000000028  0000000000000000   A       5     0     8
+  [ 5] .dynsym           DYNSYM           0000000000000410  00000410
+       0000000000000ac8  0000000000000018   A       6     1     8
+  [ 6] .dynstr           STRTAB           0000000000000ed8  00000ed8
+       0000000000000b13  0000000000000000   A       0     0     1
+  [ 7] .gnu.version      VERSYM           00000000000019ec  000019ec
+       00000000000000e6  0000000000000002   A       5     0     2
+  [ 8] .gnu.version_r    VERNEED          0000000000001ad8  00001ad8
+       0000000000000160  0000000000000000   A       6     5     8
+  [ 9] .rela.dyn         RELA             0000000000001c38  00001c38
+       0000000000000648  0000000000000018   A       5     0     8
+  [10] .rela.plt         RELA             0000000000002280  00002280
+       0000000000000948  0000000000000018  AI       5    28     8
+  [11] .init             PROGBITS         0000000000003000  00003000
+       0000000000000017  0000000000000000  AX       0     0     4
+  [12] .plt              PROGBITS         0000000000003020  00003020
+       0000000000000640  0000000000000010  AX       0     0     16
+  [13] .plt.got          PROGBITS         0000000000003660  00003660
+       0000000000000008  0000000000000008  AX       0     0     8
+  [14] .text             PROGBITS         0000000000003680  00003680
+       00000000000487de  0000000000000000  AX       0     0     64
+  [15] .fini             PROGBITS         000000000004be60  0004be60
+       0000000000000009  0000000000000000  AX       0     0     4
+  [16] .rodata           PROGBITS         000000000004c000  0004c000
+       000000000000fc10  0000000000000000   A       0     0     32
+  [17] .nv_fatbin        PROGBITS         000000000005bc10  0005bc10
+       00000000005dbc88  0000000000000000   A       0     0     8
+  [18] .eh_frame_hdr     PROGBITS         0000000000637898  00637898
+       000000000000144c  0000000000000000   A       0     0     4
+  [19] .eh_frame         PROGBITS         0000000000638ce8  00638ce8
+       0000000000008410  0000000000000000   A       0     0     8
+  [20] .gcc_except_table PROGBITS         00000000006410f8  006410f8
+       00000000000021bc  0000000000000000   A       0     0     4
+  [21] .note.ABI-tag     NOTE             00000000006432b4  006432b4
+       0000000000000020  0000000000000000   A       0     0     4
+  [22] .tbss             NOBITS           0000000000644ba0  00643ba0
+       0000000000000041  0000000000000000 WAT       0     0     16
+  [23] .init_array       INIT_ARRAY       0000000000644ba0  00643ba0
+       0000000000000010  0000000000000008  WA       0     0     8
+  [24] .fini_array       FINI_ARRAY       0000000000644bb0  00643bb0
+       0000000000000008  0000000000000008  WA       0     0     8
+  [25] .data.rel.ro      PROGBITS         0000000000644bb8  00643bb8
+       00000000000001b0  0000000000000000  WA       0     0     8
+  [26] .dynamic          DYNAMIC          0000000000644d68  00643d68
+       0000000000000230  0000000000000010  WA       6     0     8
+  [27] .got              PROGBITS         0000000000644f98  00643f98
+       0000000000000048  0000000000000008  WA       0     0     8
+  [28] .got.plt          PROGBITS         0000000000644fe8  00643fe8
+       0000000000000330  0000000000000008  WA       0     0     8
+  [29] .data             PROGBITS         0000000000645320  00644320
+       0000000000000840  0000000000000000  WA       0     0     32
+  [30] .nvFatBinSegment  PROGBITS         0000000000645b60  00644b60
+       0000000000000018  0000000000000000  WA       0     0     8
+  [31] .bss              NOBITS           0000000000645b80  00644b78
+       00000000000012f0  0000000000000000  WA       0     0     32
+  [32] .comment          PROGBITS         0000000000000000  00644b78
+       000000000000001f  0000000000000001  MS       0     0     1
+  [33] .symtab           SYMTAB           0000000000000000  00644b98
+       0000000000007980  0000000000000018          34   868     8
+  [34] .strtab           STRTAB           0000000000000000  0064c518
+       000000000002ef11  0000000000000000           0     0     1
+  [35] .shstrtab         STRTAB           0000000000000000  0067b429
+       000000000000015b  0000000000000000           0     0     1
+Key to Flags:
+  W (write), A (alloc), X (execute), M (merge), S (strings), I (info),
+  L (link order), O (extra OS processing required), G (group), T (TLS),
+  C (compressed), x (unknown), o (OS specific), E (exclude),
+  R (retain), D (mbind), l (large), p (processor specific)
+
+Dynamic section at offset 0x643d68 contains 31 entries:
+  Tag        Type                         Name/Value
+ 0x0000000000000001 (NEEDED)             Shared library: [libcudart.so.13]
+ 0x0000000000000001 (NEEDED)             Shared library: [libstdc++.so.6]
+ 0x0000000000000001 (NEEDED)             Shared library: [libm.so.6]
+ 0x0000000000000001 (NEEDED)             Shared library: [libgcc_s.so.1]
+ 0x0000000000000001 (NEEDED)             Shared library: [libc.so.6]
+ 0x000000000000001d (RUNPATH)            Library runpath: [/workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/toolchains/cuda/lib64]
+ 0x000000000000000c (INIT)               0x3000
+ 0x000000000000000d (FINI)               0x4be60
+ 0x0000000000000019 (INIT_ARRAY)         0x644ba0
+ 0x000000000000001b (INIT_ARRAYSZ)       16 (bytes)
+ 0x000000000000001a (FINI_ARRAY)         0x644bb0
+ 0x000000000000001c (FINI_ARRAYSZ)       8 (bytes)
+ 0x000000006ffffef5 (GNU_HASH)           0x3e8
+ 0x0000000000000005 (STRTAB)             0xed8
+ 0x0000000000000006 (SYMTAB)             0x410
+ 0x000000000000000a (STRSZ)              2835 (bytes)
+ 0x000000000000000b (SYMENT)             24 (bytes)
+ 0x0000000000000015 (DEBUG)              0x0
+ 0x0000000000000003 (PLTGOT)             0x644fe8
+ 0x0000000000000002 (PLTRELSZ)           2376 (bytes)
+ 0x0000000000000014 (PLTREL)             RELA
+ 0x0000000000000017 (JMPREL)             0x2280
+ 0x0000000000000007 (RELA)               0x1c38
+ 0x0000000000000008 (RELASZ)             1608 (bytes)
+ 0x0000000000000009 (RELAENT)            24 (bytes)
+ 0x000000006ffffffb (FLAGS_1)            Flags: PIE
+ 0x000000006ffffffe (VERNEED)            0x1ad8
+ 0x000000006fffffff (VERNEEDNUM)         5
+ 0x000000006ffffff0 (VERSYM)             0x19ec
+ 0x000000006ffffff9 (RELACOUNT)          46
+ 0x0000000000000000 (NULL)               0x0
