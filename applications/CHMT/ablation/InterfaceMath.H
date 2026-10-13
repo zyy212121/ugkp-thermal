@@ -144,8 +144,10 @@ CHMT_HD inline bool makeInterfacePrimitive(const Real* Y, Real T, Real pressure,
         if (!Terminal&&(!validSpecies(p.species[s]) || !finite(Y[s]) || Y[s]<0
             || T<p.species[s].Tmin || T>p.species[s].Tmax)) return false;
         R+=Y[s]*p.species[s].R;
-        if(Terminal){const GasThermoAdapter<1> thermo(&p.species[s]);Real energy,capacity;
-            if(terminalSpeciesCaloric(0,T,thermo.view(),energy,capacity)!=ugkwp::ThermoStatus::Success){if(numericalFailure)*numericalFailure=false;return false;}
+        if(Terminal){const GasThermoAdapter<1> thermo(&p.species[s]);
+            Real energy,capacity;
+            if(terminalSpeciesCaloric(0,T,thermo.view(),energy,capacity,&p.species[s])
+                !=ugkwp::ThermoStatus::Success){if(numericalFailure)*numericalFailure=false;return false;}
             cv+=Y[s]*capacity;
         }else cv+=Y[s]*speciesCv(p.species[s],T);
         sum+=Y[s];
@@ -184,7 +186,7 @@ CHMT_HD inline bool evaluateInterfaceGasClosure(const GasPrimitive& bulk,const G
     InterfaceGasClosure result;
     if(p.wallModel.family==ugkwp::gaswall::WallFamily::BoundaryLayer){
         if(!Terminal&&(p.material.gasContactResistance!=0))return false;
-        const GasThermoAdapter<Ns> thermo(p.species);
+        const GasThermoAdapter<Ns> thermo(p.species,Terminal);
         ugkwp::gaswall::WallInput<Real,Ns> input;
         input.pressure=context.matchingPressure;input.temperature=temperature;
         input.matchingDistance=context.matchingDistance;input.ownerDistance=context.ownerDistance;
@@ -779,7 +781,6 @@ CHMT_HD inline bool assembleSurfacePackets(const SurfacePhysicsInput& input,
     for (int c=0; c<Nc; ++c) primary.condensed[c]=scale*result.condensed[c];
     const Real mechanicalPressure=p.wallModel.family==ugkwp::gaswall::WallFamily::BoundaryLayer
         ?input.wallContext.mechanicalPressure:result.gasState.pressure;
-    if(!finite(mechanicalPressure)||mechanicalPressure<=0)return false;
     primary.momentum=result.gasState.velocity*primary.mass
         +(input.gasNormal*mechanicalPressure-result.traction)*(input.gasArea*dt);
     primary.advective=scale*result.gasAdvective;
@@ -830,7 +831,7 @@ CHMT_HD inline bool assembleSurfacePackets(const SurfacePhysicsInput& input,
             for (int s=0; s<Ns; ++s) {
                 if (!closeEnough(available.species[s],available.mass*p.material.phaseFilmY[s],
                     p.tolerances.absoluteMass,p.tolerances.relativeMass)) {
-                    return failStatus(status,ErrorCode::Composition,face,available.species[s],ErrorLocation::Face);
+                    failStatus(status,ErrorCode::Composition,face,available.species[s],ErrorLocation::Face);
                 }
             }
             phase.mass=-available.mass;
@@ -846,7 +847,7 @@ CHMT_HD inline bool assembleSurfacePackets(const SurfacePhysicsInput& input,
     DeviceStatus local;
     if (!validatePacketMath(primary,p.tolerances,&local)
         || !validatePacketMath(pore,p.tolerances,&local) || !validatePacketMath(phase,p.tolerances,&local)) {
-        return failStatus(status,ErrorCode::Packet,face,local.value,ErrorLocation::Face);
+        failStatus(status,ErrorCode::Packet,face,local.value,ErrorLocation::Face);
     }
     output[0]=primary; output[1]=pore; output[2]=phase;
     return true;

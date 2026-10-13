@@ -54,7 +54,7 @@ public:
         std::vector<GasWallMatchingSample> result(cache_.descriptors.size());
         for(std::size_t f=0;f<result.size();++f){auto& sample=result[f];const auto& d=cache_.descriptors[f];
             GasPrimitive owner;SstPrimitive ownerTurbulence;
-            if(!read(d.ownerCell,owner,ownerTurbulence)||!finite(owner.pressure)||owner.pressure<=0){
+            if(!read(d.ownerCell,owner,ownerTurbulence)){
                 error="wall mechanical owner pressure is unavailable at actual stage";return false;}
             sample.mechanicalPressure=owner.pressure;
             for(std::size_t j=0;j<d.matchingCells.size();++j){GasPrimitive gas;SstPrimitive turbulence;
@@ -76,9 +76,10 @@ public:
     }
     bool sample(const HostState& state,const PhysicsConfig& p,std::vector<GasWallMatchingSample>& output,std::string& error)const{
         return sampleWith([&](int c,GasPrimitive& w,SstPrimitive& t){
-            if(c<0||std::size_t(c)>=state.gas.size()||std::size_t(c)>=state.gasMesh.volumes.size()
-                ||!recoverGas(state.gas[c],state.gasMesh.volumes[c],p,w))return false;
-            if(p.enableSst){if(std::size_t(c)>=state.sst.size()||state.gas[c].mass<=0)return false;
+            if(state.gas.empty()||state.gasMesh.volumes.empty())return false;
+            if(!recoverGas(state.gas[c],state.gasMesh.volumes[c],p,w)
+                && !completePredictorGas(state.gas[c],state.gasMesh.volumes[c],p,w))return false;
+            if(p.enableSst){if(state.sst.empty())return false;
                 t.k=state.sst[c].rhoK/state.gas[c].mass;t.omega=state.sst[c].rhoOmega/state.gas[c].mass;}
             return true;},p.enableSst,output,error);
     }
