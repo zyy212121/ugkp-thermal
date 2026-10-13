@@ -1,0 +1,28 @@
+{
+  "stable_id": "CW-1",
+  "status": "source_repair_and_compile_complete_pending_independent_review",
+  "compile_count": 4,
+  "compile_exits": [
+    0,
+    0,
+    0,
+    0
+  ],
+  "compile_seconds": 16.659362590995443,
+  "dependency_preprocessing_count": 4,
+  "after_scope_change_cpu_numerical_runs": 0,
+  "gpu_runs": 0,
+  "warnings": "nvcc #20013-D retained in logs",
+  "changed_compile_dependencies": [
+    {
+      "path": "common/wall/GpuColdWallSolidification.H",
+      "v1_sha256": "fbd74acbde2fc6685369c9da4f816ac9c4a637b52eca3caf8fafc03410a91480",
+      "v2_sha256": "391cbfc0507a3b1b2af027139a6166f798013fd4cbdc38ae3d258e536215da5b"
+    }
+  ],
+  "gaps": [
+    "No full app link",
+    "No numerical or runtime acceptance",
+    "User-owned fast GPU CW-1 and original-success bitwise scenarios pending"
+  ]
+}

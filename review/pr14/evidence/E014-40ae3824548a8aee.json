@@ -1,0 +1,73 @@
+[
+  {
+    "path": "/workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/final-native-build/remaining/bin/gasUGKP",
+    "sha256": "209d67a687ac811eab0425a309fdad5c276dca171deba60a6c913e64f5044a23",
+    "size": 791992,
+    "readelf_exit": 0,
+    "has_cuda_fatbin": false,
+    "needed": [
+      "libfiniteVolume.so",
+      "libmeshTools.so",
+      "libmomentumTransportModels.so",
+      "libOpenFOAM.so",
+      "libstdc++.so.6",
+      "libm.so.6",
+      "libgcc_s.so.1",
+      "libc.so.6",
+      "ld-linux-x86-64.so.2",
+      "libPstream.so"
+    ],
+    "nm_exit": 0
+  },
+  {
+    "path": "/workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/final-native-build/remaining/bin/gasUGKPCudaBackend",
+    "sha256": "f223f0543d41f9160bea421db3b5817c66519e7938c1227bbb58359718de7d64",
+    "size": 11976904,
+    "readelf_exit": 0,
+    "has_cuda_fatbin": true,
+    "needed": [
+      "libcudart.so.13",
+      "libstdc++.so.6",
+      "libm.so.6",
+      "libgcc_s.so.1",
+      "libc.so.6"
+    ],
+    "nm_exit": 0
+  },
+  {
+    "path": "/workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/final-native-build/remaining/source/applications/gasUGKP/Make/linux64GccDPInt32Opt/diluteUgkwpFoam.o",
+    "sha256": "6ebf742b1aa9178bff31d45e1855251ee6e14c736b651e02f84bb1b02e078ded",
+    "size": 1264416,
+    "readelf_exit": 0,
+    "has_cuda_fatbin": false,
+    "needed": [],
+    "nm_exit": 0
+  },
+  {
+    "path": "/workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/final-native-build/remaining/source/applications/gasUGKP/Make/linux64GccDPInt32Opt/gpu/GpuBackendClient.o",
+    "sha256": "4208273ff329c8ab5088ab168a01f75b8aa14c22969b1e7be1831af95c3d56b2",
+    "size": 83008,
+    "readelf_exit": 0,
+    "has_cuda_fatbin": false,
+    "needed": [],
+    "nm_exit": 0
+  },
+  {
+    "path": "/workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/final-native-build/remaining/source/applications/gasUGKP/private_backend/build/linux64GccDPInt32Opt/GpuResidentStrict.o",
+    "sha256": "49c65f63eff4867bbfb799fbfd0968088872994380f7744585d7a1d5ea228cac",
+    "size": 12279680,
+    "readelf_exit": 0,
+    "has_cuda_fatbin": true,
+    "needed": [],
+    "nm_exit": 0
+  },
+  {
+    "path": "/workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/final-native-build/remaining/source/applications/gasUGKP/private_backend/libugkwp_cuda_backend.a",
+    "sha256": "35d9a6ada784c89e12aa0a31c043c11547c52c53837a9ad38ebb8a71c3592b55",
+    "size": 12322220,
+    "readelf_exit": 0,
+    "has_cuda_fatbin": true,
+    "needed": [],
+    "nm_exit": 0
+  }
+]

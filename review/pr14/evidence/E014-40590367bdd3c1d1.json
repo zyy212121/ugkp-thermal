@@ -1,0 +1,98 @@
+{
+  "schema": 1,
+  "batch": "B4",
+  "review_scope": "Read-only frozen evidence integrity, source/test mapping, scope, and evidence reuse. No compiler, pytest, or GPU execution in this review.",
+  "reviewed_utc": "2026-10-13T10:16:09.211828+00:00",
+  "verdict": "ACCEPT_WITH_DISCLOSED_LIMITS",
+  "blocking_findings": [],
+  "head": "cf49400267b0df39017d6ce348ce72cbcab6b513",
+  "patch_sha256": "04d148899e948309edfbc75683c1b294fd4b3ef23038f23249168d51cdd11b25",
+  "integrity": {
+    "indexed_files_verified": 2825,
+    "frozen_paths_verified": 14,
+    "production_paths": 8,
+    "test_paths": 6,
+    "inherited_review_files_verified": 12,
+    "original_d6110_header_copies_verified": 1036,
+    "hash_mismatches": 0,
+    "missing_indexed_files": 0,
+    "unindexed_files_at_start": 0,
+    "working_tree_matches_frozen_patch": true
+  },
+  "receipts": [
+    {
+      "name": "accuracy",
+      "result": "18 passed, 1 optional-CUDA skip",
+      "source_state": "source-states/terminal-accuracy",
+      "references": [
+        "logs/accuracy.log",
+        "execution-provenance.json",
+        "tmp/accuracy",
+        "h2o2-inputs.json"
+      ],
+      "notes": "12 available default-step CPU cases = 3 closed-reactor CPU tests + 8 H2O2 histories + 1 H2O2 tolerance-refinement test. The selection also contains 4 exact-lineage tests and 2 requested-step supplements. All 16 original/corrected H2O2 histories match byte-for-byte. These are not asserted to be the unavailable historical twelve."
+    },
+    {
+      "name": "focused",
+      "result": "81 passed; JUnit 0 errors/failures/skips",
+      "source_state": "source-states/final81",
+      "references": [
+        "final-run.json",
+        "final.xml",
+        "logs/final.log",
+        "source"
+      ],
+      "notes": "The record is intentionally pre-final-diagnostic. Its production hashes match final81. Terminal generated C++ matches the retained contemporaneous test snapshot."
+    },
+    {
+      "name": "final-delta",
+      "result": "40 passed; JUnit 0 errors/failures/skips",
+      "source_state": "source-states/final",
+      "references": [
+        "final-delta-run.json",
+        "final-delta.xml",
+        "logs/final-delta.log",
+        "tmp/final-delta"
+      ],
+      "notes": "All eight production hashes equal freeze. The then-current test hash 521e1219... is reproduced exactly by removing the later Troe-centre and strict-transaction additions from the frozen final test. Its generated C++ matches that reconstruction. Covers 31 terminal cases, 3 exact-lineage cases, and 6 continuation cases."
+    },
+    {
+      "name": "Troe final",
+      "result": "2 passed, 30 deselected",
+      "source_state": "source-states/final",
+      "references": [
+        "logs/troe-final.log",
+        "execution-provenance.json",
+        "tmp/troe-final/terminal-completion0/probe.cpp"
+      ],
+      "notes": "Generated C++ equals the final frozen test SOURCE. Includes the added Troe-centre case and the updated original Troe case, both with strict-transaction checks. Final terminal file has 32 cases."
+    },
+    {
+      "name": "CUDA final",
+      "result": "Recorded compile exit 0; retained nonempty ELF relocatable object with .nv_fatbin; empty final compiler log",
+      "source_state": "final production headers as declared in freeze",
+      "references": [
+        "freeze.json:final_cuda",
+        "cuda/chemistry.cu",
+        "cuda/chemistry-final.o",
+        "logs/cuda-final.log",
+        "logs/toolchains.log",
+        "logs/cuda.log"
+      ],
+      "notes": "Command records nvcc 13.1.115, C++17, sm_80, relaxed constexpr. TU instantiates Ns2 adapter/reactor chain and Ns10 scalar/AD producers. No GPU numeric run is claimed or independently performed."
+    }
+  ],
+  "overlap": "Counts are receipts, not additive coverage totals. The 81 and 40 JUnit sets overlap in 39 node IDs. Troe final repeats the existing Troe case and adds one new case; accuracy also overlaps exact-lineage selections.",
+  "reuse_assessment": [
+    "Diff of terminal-accuracy to final leaves successful strict positive-rank/backed-storage arithmetic unchanged. Later changes concern unused backing/zero loops, output-availability pointers, terminal Gibbs channel selection, terminal diagnostic forwarding, and comments.",
+    "Final81 to final production delta contains only two comment edits and terminal continueImplicitStage diagnostic forwarding. The 40-run covers that production delta; the final additional Troe run uses the final generated test source.",
+    "Small reactor public/retry-owner and density-adapter original/corrected outputs match byte-for-byte in both final81 and final-delta receipts.",
+    "All eight common production owners are already in tools/managed_mirrors.json. Frozen patch touches no README or B5-B7 outer application source. GPU half-capture, copy failure and native outer routing remain out of scope."
+  ],
+  "limits": [
+    "This is validation of retained evidence, not independent execution of tests or compilers.",
+    "Intermediate header states and phase commands are reconstructed/recorded in provenance.py and reconstruct_source_states.py rather than contemporaneously signed build manifests; this is explicitly disclosed. Hashes establish frozen integrity, not historical authenticity.",
+    "The original lost twelve PASS-to-FAIL receipts remain unavailable; only the named replayable accuracy cases are supported.",
+    "No whole unchanged FP64 suite rerun, full application build, actual GPU numerical execution/timing, or B7 outer integration completion is established."
+  ]
+}

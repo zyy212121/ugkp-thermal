@@ -1,0 +1,195 @@
+0000000000000000 r .LC0
+0000000000000000 r .LC10
+0000000000000010 r .LC11
+0000000000000018 r .LC12
+0000000000000020 r .LC13
+0000000000000033 r .LC14
+0000000000000058 r .LC15
+00000000000000c0 r .LC16
+0000000000000043 r .LC17
+0000000000000000 r .LC2
+0000000000000010 r .LC20
+0000000000000028 r .LC21
+0000000000000000 r .LC22
+0000000000000078 r .LC23
+0000000000000000 r .LC24
+0000000000000009 r .LC25
+0000000000000000 r .LC26
+0000000000000000 r .LC27
+0000000000000108 r .LC28
+0000000000000128 r .LC29
+0000000000000003 r .LC3
+0000000000000160 r .LC30
+00000000000001d0 r .LC31
+000000000000004d r .LC32
+0000000000000063 r .LC33
+000000000000006d r .LC34
+0000000000000072 r .LC35
+0000000000000248 r .LC36
+0000000000000278 r .LC37
+00000000000002a8 r .LC38
+00000000000002e8 r .LC39
+0000000000000350 r .LC40
+00000000000003a8 r .LC41
+00000000000003d8 r .LC42
+0000000000000408 r .LC43
+0000000000000079 r .LC44
+000000000000008d r .LC45
+0000000000000450 r .LC46
+00000000000004c0 r .LC47
+0000000000000540 r .LC48
+0000000000000568 r .LC49
+000000000000001b r .LC5
+00000000000005a0 r .LC50
+00000000000005d0 r .LC52
+00000000000005f8 r .LC53
+0000000000000618 r .LC54
+0000000000000099 r .LC56
+0000000000000670 r .LC57
+0000000000000690 r .LC58
+0000000000000038 r .LC6
+00000000000006c8 r .LC61
+00000000000006f0 r .LC62
+0000000000000738 r .LC64
+0000000000000768 r .LC65
+0000000000000020 r .LC70
+0000000000000030 r .LC71
+0000000000000040 r .LC72
+0000000000000050 r .LC73
+0000000000000060 r .LC74
+0000000000000000 r .LC8
+0000000000000008 r .LC9
+0000000000000000 V DW.ref._ZTISt8bad_cast
+0000000000000000 V DW.ref.__gxx_personality_v0
+                 U _GLOBAL_OFFSET_TABLE_
+                 U _Unwind_Resume
+                 U Foam::FatalError
+                 U Foam::SLListBase::removeHead()
+                 U Foam::SLListBase::endConstIter_
+                 U Foam::SLListBase::append(Foam::SLListBase::link*)
+000000000000000c t Foam::gpuThermal::(anonymous namespace)::propertiesFailure(Foam::word const&, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const&)
+0000000000000c20 T Foam::gpuThermal::GpuSolidThermalProperties::lowerBound(Foam::gpuThermal::GpuSolidThermalProperties::PropertyModel const&)
+0000000000000c40 T Foam::gpuThermal::GpuSolidThermalProperties::upperBound(Foam::gpuThermal::GpuSolidThermalProperties::PropertyModel const&)
+0000000000001f10 T Foam::gpuThermal::GpuSolidThermalProperties::readProperty(Foam::dictionary const&, Foam::word const&)
+0000000000000260 t Foam::gpuThermal::GpuSolidThermalProperties::readProperty(Foam::dictionary const&, Foam::word const&) [clone .cold]
+0000000000000000 W Foam::gpuThermal::GpuSolidThermalProperties::PropertyModel::~PropertyModel()
+0000000000000000 W Foam::gpuThermal::GpuSolidThermalProperties::PropertyModel::~PropertyModel()
+0000000000000000 n Foam::gpuThermal::GpuSolidThermalProperties::PropertyModel::~PropertyModel()
+0000000000000ed0 T Foam::gpuThermal::GpuSolidThermalProperties::buildRhoCpKnotUnion(Foam::gpuThermal::GpuSolidThermalProperties::PropertyModel const&, Foam::gpuThermal::GpuSolidThermalProperties::PropertyModel const&)
+000000000000010c t Foam::gpuThermal::GpuSolidThermalProperties::buildRhoCpKnotUnion(Foam::gpuThermal::GpuSolidThermalProperties::PropertyModel const&, Foam::gpuThermal::GpuSolidThermalProperties::PropertyModel const&) [clone .cold]
+0000000000001260 T Foam::gpuThermal::GpuSolidThermalProperties::selectReferenceTemperature(Foam::gpuThermal::GpuSolidThermalProperties::PropertyModel const&, Foam::gpuThermal::GpuSolidThermalProperties::PropertyModel const&)
+0000000000000c60 T Foam::gpuThermal::GpuSolidThermalProperties::evaluate(Foam::gpuThermal::GpuSolidThermalProperties::PropertyModel const&, double)
+0000000000003170 T Foam::gpuThermal::GpuSolidThermalProperties::GpuSolidThermalProperties(Foam::dictionary const&)
+0000000000003170 T Foam::gpuThermal::GpuSolidThermalProperties::GpuSolidThermalProperties(Foam::dictionary const&)
+000000000000038e t Foam::gpuThermal::GpuSolidThermalProperties::GpuSolidThermalProperties(Foam::dictionary const&) [clone .cold]
+0000000000000000 W Foam::gpuThermal::GpuSolidThermalPropertiesError::~GpuSolidThermalPropertiesError()
+0000000000000000 W Foam::gpuThermal::GpuSolidThermalPropertiesError::~GpuSolidThermalPropertiesError()
+0000000000000000 W Foam::gpuThermal::GpuSolidThermalPropertiesError::~GpuSolidThermalPropertiesError()
+0000000000000000 n Foam::gpuThermal::GpuSolidThermalPropertiesError::~GpuSolidThermalPropertiesError()
+                 U Foam::FatalIOError
+0000000000000000 W Foam::List<Foam::Tuple2<double, double> >::setSize(int)
+0000000000000000 W Foam::List<Foam::Tuple2<double, double> >::operator=(Foam::LList<Foam::SLListBase, Foam::Tuple2<double, double> > const&)
+0000000000000000 W Foam::List<double>::setSize(int)
+0000000000000590 t Foam::word::stripInvalid() [clone .part.0]
+0000000000000106 t Foam::word::stripInvalid() [clone .part.0] [clone .cold]
+                 U Foam::word::debug
+                 U Foam::word::word(Foam::Istream&)
+                 U Foam::error::abort()
+                 U Foam::error::operator()(char const*, char const*, int)
+                 U Foam::token::transferCompoundToken(Foam::Istream const&)
+0000000000000000 W Foam::token::clear()
+                 U Foam::token::token(Foam::Istream&)
+                 U Foam::IOerror::exit(int)
+                 U Foam::IOerror::operator()(char const*, char const*, int, Foam::dictionary const&)
+                 U Foam::IOerror::operator()(char const*, char const*, int, Foam::IOstream const&)
+                 U Foam::Istream::readEndList(char const*)
+                 U Foam::Istream::readBeginList(char const*)
+                 U Foam::Istream::putBack(Foam::token const&)
+                 U Foam::Istream::readEnd(char const*)
+                 U Foam::Istream::readBegin(char const*)
+                 U Foam::pTraits<double>::pTraits(Foam::Istream&)
+                 U Foam::operator<<(Foam::Ostream&, char const*)
+                 U Foam::operator<<(Foam::Ostream&, Foam::word const&)
+                 U Foam::operator<<(Foam::Ostream&, Foam::fileName const&)
+                 U Foam::operator<<(Foam::Ostream&, int)
+                 U Foam::Ostream& Foam::operator<< <Foam::token>(Foam::Ostream&, Foam::InfoProxy<Foam::token> const&)
+                 U Foam::operator>>(Foam::Istream&, Foam::token&)
+                 U Foam::operator>>(Foam::Istream&, double&)
+0000000000001670 t Foam::Istream& Foam::operator>><Foam::Tuple2<double, double> >(Foam::Istream&, Foam::List<Foam::Tuple2<double, double> >&) [clone .isra.0]
+000000000000014c t Foam::Istream& Foam::operator>><Foam::Tuple2<double, double> >(Foam::Istream&, Foam::List<Foam::Tuple2<double, double> >&) [clone .isra.0] [clone .cold]
+                 U Foam::dictionary::lookupEntryPtr(Foam::word const&, bool, bool) const
+                 U Foam::dictionary::found(Foam::word const&, bool, bool) const
+                 U Foam::dictionary::lookup(Foam::word const&, bool, bool) const
+0000000000000000 W Foam::word Foam::dictionary::lookup<Foam::word>(Foam::word const&, bool, bool) const
+00000000000012e0 T Foam::gpuThermal::GpuSolidThermalProperties::emissivity(double) const
+00000000000012f0 T Foam::gpuThermal::GpuSolidThermalProperties::integrateRhoCp(double, double) const
+0000000000001660 T Foam::gpuThermal::GpuSolidThermalProperties::referenceTemperature() const
+00000000000012c0 T Foam::gpuThermal::GpuSolidThermalProperties::Cp(double) const
+00000000000015b0 T Foam::gpuThermal::GpuSolidThermalProperties::Hv(double) const
+00000000000012b0 T Foam::gpuThermal::GpuSolidThermalProperties::rho(double) const
+00000000000015f0 T Foam::gpuThermal::GpuSolidThermalProperties::Csec(double, double) const
+00000000000012d0 T Foam::gpuThermal::GpuSolidThermalProperties::kappa(double) const
+00000000000015d0 T Foam::gpuThermal::GpuSolidThermalProperties::deltaHv(double, double) const
+0000000000000000 W Foam::entry::isDict() const
+                 U Foam::IOstream::fatalCheck(char const*) const
+                 U std::runtime_error::what() const
+                 U std::ctype<char>::_M_widen_init() const
+0000000000000000 W std::ctype<char>::do_widen(char) const
+                 U std::ostream::put(char)
+                 U std::ostream::flush()
+                 U std::ostream::operator<<(int)
+                 U std::runtime_error::runtime_error(std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const&)
+                 U std::runtime_error::~runtime_error()
+00000000000001d0 t void std::vector<double, std::allocator<double> >::_M_range_insert<double const*>(__gnu_cxx::__normal_iterator<double*, std::vector<double, std::allocator<double> > >, double const*, double const*, std::forward_iterator_tag) [clone .isra.0]
+00000000000000fa t void std::vector<double, std::allocator<double> >::_M_range_insert<double const*>(__gnu_cxx::__normal_iterator<double*, std::vector<double, std::allocator<double> > >, double const*, double const*, std::forward_iterator_tag) [clone .isra.0] [clone .cold]
+                 U std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >::_M_dispose()
+                 U std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >::append(char const*)
+                 U std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >::append(char const*, unsigned long)
+                 U std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >::insert(unsigned long, char const*)
+                 U std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >::resize(unsigned long, char)
+                 U std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >::_M_assign(std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const&)
+                 U std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >::_M_create(unsigned long&, unsigned long)
+                 U std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >::basic_string(std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >&&)
+0000000000000000 t std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >::basic_string(char const*, std::allocator<char> const&) [clone .isra.0]
+0000000000000000 t std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >::basic_string(char const*, std::allocator<char> const&) [clone .isra.0] [clone .cold]
+                 U std::basic_ios<char, std::char_traits<char> >::clear(std::_Ios_Iostate)
+0000000000000640 t void std::__adjust_heap<__gnu_cxx::__normal_iterator<double*, std::vector<double, std::allocator<double> > >, long, double, __gnu_cxx::__ops::_Iter_comp_iter<Foam::gpuThermal::GpuSolidThermalProperties::buildRhoCpKnotUnion(Foam::gpuThermal::GpuSolidThermalProperties::PropertyModel const&, Foam::gpuThermal::GpuSolidThermalProperties::PropertyModel const&)::{lambda(double, double)#1}> >(__gnu_cxx::__normal_iterator<double*, std::vector<double, std::allocator<double> > >, long, long, double, __gnu_cxx::__ops::_Iter_comp_iter<Foam::gpuThermal::GpuSolidThermalProperties::buildRhoCpKnotUnion(Foam::gpuThermal::GpuSolidThermalProperties::PropertyModel const&, Foam::gpuThermal::GpuSolidThermalProperties::PropertyModel const&)::{lambda(double, double)#1}>) [clone .constprop.0]
+00000000000000b0 t void std::__insertion_sort<__gnu_cxx::__normal_iterator<double*, std::vector<double, std::allocator<double> > >, __gnu_cxx::__ops::_Iter_comp_iter<Foam::gpuThermal::GpuSolidThermalProperties::buildRhoCpKnotUnion(Foam::gpuThermal::GpuSolidThermalProperties::PropertyModel const&, Foam::gpuThermal::GpuSolidThermalProperties::PropertyModel const&)::{lambda(double, double)#1}> >(__gnu_cxx::__normal_iterator<double*, std::vector<double, std::allocator<double> > >, __gnu_cxx::__normal_iterator<double*, std::vector<double, std::allocator<double> > >, __gnu_cxx::__ops::_Iter_comp_iter<Foam::gpuThermal::GpuSolidThermalProperties::buildRhoCpKnotUnion(Foam::gpuThermal::GpuSolidThermalProperties::PropertyModel const&, Foam::gpuThermal::GpuSolidThermalProperties::PropertyModel const&)::{lambda(double, double)#1}>) [clone .isra.0]
+00000000000007d0 t void std::__introsort_loop<__gnu_cxx::__normal_iterator<double*, std::vector<double, std::allocator<double> > >, long, __gnu_cxx::__ops::_Iter_comp_iter<Foam::gpuThermal::GpuSolidThermalProperties::buildRhoCpKnotUnion(Foam::gpuThermal::GpuSolidThermalProperties::PropertyModel const&, Foam::gpuThermal::GpuSolidThermalProperties::PropertyModel const&)::{lambda(double, double)#1}> >(__gnu_cxx::__normal_iterator<double*, std::vector<double, std::allocator<double> > >, __gnu_cxx::__normal_iterator<double*, std::vector<double, std::allocator<double> > >, long, __gnu_cxx::__ops::_Iter_comp_iter<Foam::gpuThermal::GpuSolidThermalProperties::buildRhoCpKnotUnion(Foam::gpuThermal::GpuSolidThermalProperties::PropertyModel const&, Foam::gpuThermal::GpuSolidThermalProperties::PropertyModel const&)::{lambda(double, double)#1}>) [clone .isra.0]
+                 U std::basic_ostream<char, std::char_traits<char> >& std::__ostream_insert<char, std::char_traits<char> >(std::basic_ostream<char, std::char_traits<char> >&, char const*, long)
+                 U std::__throw_bad_cast()
+                 U std::__throw_logic_error(char const*)
+                 U std::__throw_length_error(char const*)
+                 U std::ios_base_library_init()
+                 U std::cerr
+0000000000000000 V typeinfo for Foam::gpuThermal::GpuSolidThermalPropertiesError
+0000000000000000 V typeinfo for Foam::List<Foam::Tuple2<double, double> >
+0000000000000000 V typeinfo for Foam::UList<Foam::Tuple2<double, double> >
+0000000000000000 V typeinfo for Foam::token::Compound<Foam::List<Foam::Tuple2<double, double> > >
+                 U typeinfo for Foam::token::compound
+                 U typeinfo for std::runtime_error
+                 U typeinfo for std::bad_cast
+0000000000000000 V typeinfo name for Foam::gpuThermal::GpuSolidThermalPropertiesError
+0000000000000000 V typeinfo name for Foam::List<Foam::Tuple2<double, double> >
+0000000000000000 V typeinfo name for Foam::UList<Foam::Tuple2<double, double> >
+0000000000000000 V typeinfo name for Foam::token::Compound<Foam::List<Foam::Tuple2<double, double> > >
+                 U vtable for __cxxabiv1::__class_type_info
+                 U vtable for __cxxabiv1::__si_class_type_info
+                 U vtable for __cxxabiv1::__vmi_class_type_info
+0000000000000000 V vtable for Foam::gpuThermal::GpuSolidThermalPropertiesError
+                 U operator delete[](void*)
+                 U operator delete(void*, unsigned long)
+                 U operator new[](unsigned long)
+                 U operator new(unsigned long)
+                 U __cxa_allocate_exception
+                 U __cxa_bad_cast
+                 U __cxa_begin_catch
+                 U __cxa_end_catch
+                 U __cxa_free_exception
+                 U __cxa_throw
+                 U __dynamic_cast
+                 U __gxx_personality_v0
+                 U abort
+                 U memcpy
+                 U memmove
+                 U strlen

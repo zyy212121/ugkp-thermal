@@ -1,0 +1,60 @@
+In file included from /workspace/scratch/98b6339ec81b/chmt_remaining_work_20261013/applications/CHMT/gpu/CommonGasTraction.H:4,
+                 from /workspace/scratch/98b6339ec81b/chmt_remaining_work_20261013/applications/CHMT/ablation/InterfaceMath.H:4,
+                 from /workspace/scratch/98b6339ec81b/chmt_remaining_work_20261013/applications/CHMT/gpu/GasWallMath.H:3,
+                 from /workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/implementation/frontend-terminal/v2/compile/frontend.C:7:
+/workspace/scratch/98b6339ec81b/chmt_remaining_work_20261013/applications/CHMT/gpu/../../../common/gasNumerics/OpenFoamViscousFlux.cuh: In function ‘GpuReal ugkptransport::magnitude(const Vector3&)’:
+/workspace/scratch/98b6339ec81b/chmt_remaining_work_20261013/applications/CHMT/gpu/../../../common/gasNumerics/OpenFoamViscousFlux.cuh:80:16: error: call of overloaded ‘sqrt(GpuReal)’ is ambiguous
+   80 |     return sqrt(dot(value, value));
+      |            ~~~~^~~~~~~~~~~~~~~~~~~
+In file included from /usr/include/features.h:523,
+                 from /usr/include/x86_64-linux-gnu/c++/14/bits/os_defines.h:39,
+                 from /usr/include/x86_64-linux-gnu/c++/14/bits/c++config.h:683,
+                 from /usr/include/c++/14/cstdint:38,
+                 from /workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/int32.H:39,
+                 from /workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/int.H:38,
+                 from /workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/label.H:39,
+                 from /workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/labelList.H:47,
+                 from /workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/UPstream.H:42,
+                 from /workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/Pstream.H:42,
+                 from /workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/parRun.H:35,
+                 from /workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/finiteVolume/lnInclude/fvCFD.H:4,
+                 from /workspace/scratch/98b6339ec81b/chmt_remaining_work_20261013/applications/CHMT/configuration/InputValues.H:3,
+                 from /workspace/scratch/98b6339ec81b/chmt_remaining_work_20261013/applications/CHMT/configuration/ModelIO.H:3,
+                 from /workspace/scratch/98b6339ec81b/chmt_remaining_work_20261013/applications/CHMT/configuration/MultirateIO.H:3,
+                 from /workspace/scratch/98b6339ec81b/chmt_remaining_work_20261013/applications/CHMT/configuration/CouplingInput.H:3,
+                 from /workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/implementation/frontend-terminal/v2/compile/frontend.C:1:
+/usr/include/x86_64-linux-gnu/bits/mathcalls.h:176:1: note: candidate: ‘double sqrt(double)’
+  176 | __MATHCALL (sqrt,, (_Mdouble_ __x));
+      | ^~~~~~~~~~
+In file included from /workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/scalar.H:39,
+                 from /workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/zeroI.H:27,
+                 from /workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/zero.H:107,
+                 from /workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/UList.H:49,
+                 from /workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/List.H:43,
+                 from /workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/labelList.H:48:
+/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/Scalar.H:113:11: note: candidate: ‘Foam::floatScalar Foam::sqrt(floatScalar)’
+  113 | transFunc(sqrt)
+      |           ^~~~
+/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/floatScalar.H:115:15: note: in definition of macro ‘transFunc’
+  115 | inline Scalar func(const Scalar s) \
+      |               ^~~~
+In file included from /workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/scalar.H:40:
+/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/Scalar.H:113:11: note: candidate: ‘Foam::doubleScalar Foam::sqrt(doubleScalar)’
+  113 | transFunc(sqrt)
+      |           ^~~~
+/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/doubleScalar.H:116:15: note: in definition of macro ‘transFunc’
+  116 | inline Scalar func(const Scalar s) \
+      |               ^~~~
+In file included from /workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/scalar.H:41:
+/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/Scalar.H:113:11: note: candidate: ‘Foam::longDoubleScalar Foam::sqrt(longDoubleScalar)’
+  113 | transFunc(sqrt)
+      |           ^~~~
+/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/longDoubleScalar.H:121:15: note: in definition of macro ‘transFunc’
+  121 | inline Scalar func(const Scalar s) \
+      |               ^~~~
+In file included from /workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/TimeState.H:38,
+                 from /workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/Time.H:47,
+                 from /workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/finiteVolume/lnInclude/fvCFD.H:6:
+/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/dimensionedScalar.H:65:19: note: candidate: ‘Foam::dimensionedScalar Foam::sqrt(const dimensionedScalar&)’
+   65 | dimensionedScalar sqrt(const dimensionedScalar&);
+      |                   ^~~~
