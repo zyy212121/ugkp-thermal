@@ -75,10 +75,7 @@ int main(int argc, char** argv)
     GpuSolidThermalCandidateSolver solver(mesh,properties,patches,controls,ownerPatches);
     near("startup surface reconstructed",coupledPatchSurfaceTemperature(T,left)[0],config.lookupOrDefault<scalar>("initialSurface",300));
     T.boundaryFieldRef()[left][0]=123;
-    bool staleRejected=false;
-    try { coupledPatchSurfaceTemperature(T,left); }
-    catch (const GpuSolidThermalSolveError&) { staleRejected=true; }
-    if (!staleRejected) throw std::runtime_error("stale surface was accepted");
+    near("finite stale surface is readable",coupledPatchSurfaceTemperature(T,left)[0],123,0);
     T.correctBoundaryConditions();
     fixedGradientFvPatchScalarField& startingPatch=refCast<fixedGradientFvPatchScalarField>(T.boundaryFieldRef()[left]);
     const scalar savedGradient=startingPatch.gradient()[0];
@@ -110,6 +107,29 @@ int main(int argc, char** argv)
     near("registered owner unchanged before publish",T[0],300);
     near("energy ledger unchanged",energy[0][0],originalEnergy[0][0],0);
     near("integrated energy residual",candidate.integratedEnergyResidualJ,0,1e-8);
+    if (config.lookupOrDefault<bool>("terminalOnly",false))
+    {
+        scalar expected=300;
+        for(label i=0;i<max(label(1),controls.nonlinearMaxIterations);++i)
+            expected=ownerExpected+q/(properties.kappa(expected)*delta);
+        near("actual terminal surface iterate",surface,expected);
+        solver.publishSolidCandidate(candidate,T);
+        near("actual terminal owner publication",T[0],ownerExpected);
+        near("actual terminal surface publication",T.boundaryField()[left][0],surface);
+        std::cout << "PASS actual terminal surface iterations=" << candidate.nonlinearIterations << '\n';
+        return 0;
+    }
+    if (chtSurfaceFault==1 || chtSurfaceFault==3)
+    {
+        const label last=candidate.temperature().boundaryField()[left].size()-1;
+        near("actual finite injected surface",candidate.temperature().boundaryField()[left][last],
+            chtSurfaceFault==3?0:ownerExpected+q/(6*delta)+1);
+        solver.publishSolidCandidate(candidate,T);
+        near("finite surface owner publication",T[0],ownerExpected);
+        near("published physical fixed gradient",refCast<const fixedGradientFvPatchScalarField>(T.boundaryField()[left]).gradient()[last],q/6);
+        std::cout << "PASS finite surface publication\n";
+        return 0;
+    }
     const scalar expectedSurface=ownerConductivity ? owner+q/(properties.kappa(owner)*delta) : variable ? (owner+std::sqrt(owner*owner+4*q/(0.02*delta)))/2 : owner+q/(6*delta);
     near("surface closure",surface,expectedSurface);
     near("face Fourier flux",properties.kappa(ownerConductivity?owner:surface)*delta*(surface-owner),q);

@@ -9,6 +9,7 @@
 #include <algorithm>
 #include <cmath>
 #include <iostream>
+#include <limits>
 #include <stdexcept>
 using namespace Foam;
 using namespace Foam::gpuThermal;
@@ -219,12 +220,19 @@ int main(int argc, char** argv)
             }
         }
     }
-    // First-pass validation still rejects stale accepted state before upload.
+    // A finite supplied surface is the value consumed by the mapper.
     solid.boundaryFieldRef()[pairs[2]][0]+=1;
+    harness.resident=Resident();
+    harness.mapSolidWallTemperatureToFluid(gas);
+    require(harness.resident.uploads==2, "finite surface was not uploaded");
+    const scalarField& surface=solid.boundaryField()[pairs[2]];
+    near(harness.resident.temperatures[pairs[2]][surface.size()-1],surface[0]);
+    // Required nonfinite surface arithmetic still fails before any upload.
+    solid.boundaryFieldRef()[pairs[0]][0]=std::numeric_limits<scalar>::quiet_NaN();
     harness.resident=Resident();
     bool rejected=false;
     try { harness.mapSolidWallTemperatureToFluid(gas); }
     catch (const GpuSolidThermalSolveError&) { rejected=true; }
-    require(rejected && harness.resident.uploads==0, "invalid surface reached GPU upload");
+    require(rejected && harness.resident.uploads==0, "nonfinite surface reached upload");
     std::cout << "PASS mapping\n";
 }
