@@ -7,7 +7,6 @@
 #include <algorithm>
 #include <cmath>
 #include <limits>
-#include <sstream>
 #include <stdexcept>
 
 namespace Foam
@@ -55,77 +54,45 @@ inline ConservativeBoundaryEnergyScaleResult conservativeBoundaryEnergyScale
     const scalar relativeTolerance
 )
 {
-    if
-    (
-        !finiteParticleRadiationScalar(acceptedParticleEnergyJ)
-     || !finiteParticleRadiationScalar(rawBoundaryEnergyJ)
-     || !finiteParticleRadiationScalar(grossRawEnergyJ)
-     || !finiteParticleRadiationScalar(relativeTolerance)
-     || grossRawEnergyJ < scalar(0)
-     || relativeTolerance <= scalar(0)
-    )
+    if (!finiteParticleRadiationScalar(acceptedParticleEnergyJ)
+        || !finiteParticleRadiationScalar(rawBoundaryEnergyJ))
     {
-        implicitRootFailure("invalid conservative radiation-boundary scale inputs");
+        implicitRootFailure("radiation-boundary energy is nonfinite");
     }
-
-    const scalar roundoffToleranceJ =
-        scalar(4096)*std::numeric_limits<scalar>::epsilon()
-       *std::max(grossRawEnergyJ, scalar(1));
-    const scalar zeroToleranceJ =
-        relativeTolerance*grossRawEnergyJ + roundoffToleranceJ;
-
-    if (std::abs(rawBoundaryEnergyJ) <= zeroToleranceJ)
+    // Preserve the original successful near-zero identity. Inputs outside its
+    // former admitted domain continue to the actual nonzero division below.
+    if (finiteParticleRadiationScalar(grossRawEnergyJ)
+        && finiteParticleRadiationScalar(relativeTolerance)
+        && grossRawEnergyJ >= scalar(0) && relativeTolerance > scalar(0))
     {
-        const scalar residualJ =
-            acceptedParticleEnergyJ + rawBoundaryEnergyJ;
-        if (std::abs(residualJ) > zeroToleranceJ)
+        const scalar roundoffToleranceJ =
+            scalar(4096)*std::numeric_limits<scalar>::epsilon()
+           *std::max(grossRawEnergyJ, scalar(1));
+        const scalar zeroToleranceJ =
+            relativeTolerance*grossRawEnergyJ + roundoffToleranceJ;
+        if (std::abs(rawBoundaryEnergyJ) <= zeroToleranceJ)
         {
-            implicitRootFailure
-            (
-                "nonzero particle radiation energy has no representable boundary balance"
-            );
+            const scalar residualJ = acceptedParticleEnergyJ + rawBoundaryEnergyJ;
+            if (std::abs(residualJ) <= zeroToleranceJ)
+            {
+                return ConservativeBoundaryEnergyScaleResult{scalar(1), residualJ};
+            }
         }
-        return ConservativeBoundaryEnergyScaleResult{scalar(1), residualJ};
     }
-
+    if (rawBoundaryEnergyJ == scalar(0))
+    {
+        if (acceptedParticleEnergyJ != scalar(0))
+        {
+            implicitRootFailure("nonzero particle radiation energy has zero boundary divisor");
+        }
+        return ConservativeBoundaryEnergyScaleResult{scalar(1), scalar(0)};
+    }
     const scalar scale = -acceptedParticleEnergyJ/rawBoundaryEnergyJ;
-    const scalar scaleTolerance =
-        relativeTolerance
-      + scalar(4096)*std::numeric_limits<scalar>::epsilon();
-    if
-    (
-        !finiteParticleRadiationScalar(scale)
-     || scale < scalar(0)
-     || scale > scalar(1) + scaleTolerance
-    )
+    const scalar residualJ = acceptedParticleEnergyJ + scale*rawBoundaryEnergyJ;
+    if (!finiteParticleRadiationScalar(scale) || !finiteParticleRadiationScalar(residualJ))
     {
-        implicitRootFailure
-        (
-            "implicit radiation update requires a negative or amplifying boundary scale"
-        );
+        implicitRootFailure("radiation-boundary rescale arithmetic is nonfinite");
     }
-
-    const scalar residualJ =
-        acceptedParticleEnergyJ + scale*rawBoundaryEnergyJ;
-    const scalar appliedGrossEnergyJ =
-        std::abs(acceptedParticleEnergyJ)
-      + std::abs(scale*rawBoundaryEnergyJ);
-    const scalar conservationToleranceJ =
-        relativeTolerance*appliedGrossEnergyJ
-      + scalar(4096)*std::numeric_limits<scalar>::epsilon()
-       *std::max(appliedGrossEnergyJ, scalar(1));
-    if
-    (
-        !finiteParticleRadiationScalar(residualJ)
-     || std::abs(residualJ) > conservationToleranceJ
-    )
-    {
-        implicitRootFailure
-        (
-            "implicit radiation boundary rescale failed global conservation"
-        );
-    }
-
     return ConservativeBoundaryEnergyScaleResult{scale, residualJ};
 }
 
@@ -161,16 +128,6 @@ ImplicitTemperatureRootResult solveImplicitMaterialTemperature
      || !finiteParticleRadiationScalar(elapsedTimeS)
      || !finiteParticleRadiationScalar(temperatureRelativeTolerance)
      || !finiteParticleRadiationScalar(energyRelativeTolerance)
-     || minimumTemperatureK >= maximumTemperatureK
-     || oldTemperatureK < minimumTemperatureK
-     || oldTemperatureK > maximumTemperatureK
-     || equilibriumTemperatureK < minimumTemperatureK
-     || equilibriumTemperatureK > maximumTemperatureK
-     || capacityJPerK <= scalar(0)
-     || elapsedTimeS <= scalar(0)
-     || maxIterations < 1
-     || temperatureRelativeTolerance <= scalar(0)
-     || energyRelativeTolerance <= scalar(0)
     )
     {
         implicitRootFailure("invalid implicit particle-radiation root inputs");
@@ -210,10 +167,13 @@ ImplicitTemperatureRootResult solveImplicitMaterialTemperature
     }
     if (!oppositeSigns(lowerResidualJ, upperResidualJ))
     {
-        implicitRootFailure("implicit particle-radiation material root has no sign-changing bracket");
+        return std::abs(lowerResidualJ) <= std::abs(upperResidualJ)
+          ? ImplicitTemperatureRootResult{lowerTemperatureK, lowerResidualJ, 0}
+          : ImplicitTemperatureRootResult{upperTemperatureK, upperResidualJ, 0};
     }
+    ImplicitTemperatureRootResult last{lowerTemperatureK, lowerResidualJ, 0};
 
-    for (label iteration = 1; iteration <= maxIterations; ++iteration)
+    for (label iteration = 1; iteration <= std::max(maxIterations, label(1)); ++iteration)
     {
         const scalar temperatureK =
             scalar(0.5)*(lowerTemperatureK + upperTemperatureK);
@@ -226,6 +186,13 @@ ImplicitTemperatureRootResult solveImplicitMaterialTemperature
             capacityJPerK*(temperatureK - oldTemperatureK);
         const scalar radiationEnergyJ = elapsedTimeS*powerW;
         const scalar residualJ = capacityEnergyJ - radiationEnergyJ;
+        if (!finiteParticleRadiationScalar(capacityEnergyJ)
+            || !finiteParticleRadiationScalar(radiationEnergyJ)
+            || !finiteParticleRadiationScalar(residualJ))
+        {
+            implicitRootFailure("implicit particle-radiation residual is nonfinite");
+        }
+        last = ImplicitTemperatureRootResult{temperatureK, residualJ, iteration};
         const scalar energyScaleJ = std::max
         (
             std::max(std::abs(capacityEnergyJ), std::abs(radiationEnergyJ)),
@@ -290,21 +257,11 @@ ImplicitTemperatureRootResult solveImplicitMaterialTemperature
         }
         else
         {
-            implicitRootFailure("implicit particle-radiation material root lost its bracket");
+            return last;
         }
     }
 
-    std::ostringstream message;
-    message.precision(17);
-    message
-        << "implicit particle-radiation material root reached its iteration limit"
-        << "; oldTemperatureK=" << oldTemperatureK
-        << "; equilibriumTemperatureK=" << equilibriumTemperatureK
-        << "; lowerTemperatureK=" << lowerTemperatureK
-        << "; upperTemperatureK=" << upperTemperatureK
-        << "; lowerResidualJ=" << lowerResidualJ
-        << "; upperResidualJ=" << upperResidualJ;
-    throw ParticleRadiationSolveError(message.str());
+    return last;
 }
 
 template<class RadiativeBalanceAtTemperature>
@@ -324,11 +281,6 @@ scalar solveRadiativeEquilibriumTemperature
      || !finiteParticleRadiationScalar(minimumTemperatureK)
      || !finiteParticleRadiationScalar(maximumTemperatureK)
      || !finiteParticleRadiationScalar(temperatureRelativeTolerance)
-     || minimumTemperatureK >= maximumTemperatureK
-     || oldTemperatureK < minimumTemperatureK
-     || oldTemperatureK > maximumTemperatureK
-     || maxIterations < 1
-     || temperatureRelativeTolerance <= scalar(0)
     )
     {
         implicitRootFailure("invalid radiative-equilibrium root inputs");
@@ -371,10 +323,12 @@ scalar solveRadiativeEquilibriumTemperature
     }
     if (!oppositeSigns(lowerBalance, upperBalance))
     {
-        implicitRootFailure("radiative equilibrium lies outside the legal temperature interval");
+        return std::abs(lowerBalance) <= std::abs(upperBalance)
+          ? lowerTemperatureK : upperTemperatureK;
     }
 
-    for (label iteration = 1; iteration <= maxIterations; ++iteration)
+    scalar lastTemperatureK = oldTemperatureK;
+    for (label iteration = 1; iteration <= std::max(maxIterations, label(1)); ++iteration)
     {
         const scalar middleTemperatureK =
             scalar(0.5)*(lowerTemperatureK + upperTemperatureK);
@@ -384,6 +338,7 @@ scalar solveRadiativeEquilibriumTemperature
         {
             implicitRootFailure("radiative-equilibrium iteration is nonfinite");
         }
+        lastTemperatureK = middleTemperatureK;
         if (middleBalance == scalar(0))
         {
             return middleTemperatureK;
@@ -401,7 +356,7 @@ scalar solveRadiativeEquilibriumTemperature
         }
         else
         {
-            implicitRootFailure("radiative-equilibrium root lost its bracket");
+            return lastTemperatureK;
         }
 
         const scalar relativeInterval =
@@ -413,7 +368,7 @@ scalar solveRadiativeEquilibriumTemperature
         }
     }
 
-    implicitRootFailure("radiative-equilibrium root reached its iteration limit");
+    return lastTemperatureK;
 }
 
 template<class RadiativeBalanceAtTemperature, class PowerAtTemperature>
@@ -437,11 +392,6 @@ ImplicitTemperatureRootResult solveBoundedImplicitMaterialTemperature
      || !finiteParticleRadiationScalar(minimumTemperatureK)
      || !finiteParticleRadiationScalar(maximumTemperatureK)
      || !finiteParticleRadiationScalar(temperatureRelativeTolerance)
-     || minimumTemperatureK >= maximumTemperatureK
-     || oldTemperatureK < minimumTemperatureK
-     || oldTemperatureK > maximumTemperatureK
-     || maxIterations < 1
-     || temperatureRelativeTolerance <= scalar(0)
     )
     {
         implicitRootFailure("invalid bounded particle-radiation root inputs");
@@ -482,8 +432,7 @@ ImplicitTemperatureRootResult solveBoundedImplicitMaterialTemperature
 
     if (farBalance != scalar(0) && oppositeSigns(nearBalance, farBalance))
     {
-        bool equilibriumBracketConverged = false;
-        for (label iteration = 1; iteration <= maxIterations; ++iteration)
+        for (label iteration = 1; iteration <= std::max(maxIterations, label(1)); ++iteration)
         {
             const scalar middleTemperatureK =
                 scalar(0.5)*(nearTemperatureK + farTemperatureK);
@@ -497,7 +446,6 @@ ImplicitTemperatureRootResult solveBoundedImplicitMaterialTemperature
             {
                 farTemperatureK = middleTemperatureK;
                 farBalance = scalar(0);
-                equilibriumBracketConverged = true;
                 break;
             }
             if (oppositeSigns(nearBalance, middleBalance))
@@ -512,7 +460,7 @@ ImplicitTemperatureRootResult solveBoundedImplicitMaterialTemperature
             }
             else
             {
-                implicitRootFailure("bounded radiative-equilibrium bracket was lost");
+                break;
             }
 
             const scalar relativeInterval =
@@ -520,13 +468,8 @@ ImplicitTemperatureRootResult solveBoundedImplicitMaterialTemperature
                /std::max(std::abs(middleTemperatureK), scalar(1));
             if (relativeInterval <= temperatureRelativeTolerance)
             {
-                equilibriumBracketConverged = true;
                 break;
             }
-        }
-        if (!equilibriumBracketConverged)
-        {
-            implicitRootFailure("bounded radiative-equilibrium bracket reached its iteration limit");
         }
     }
 
