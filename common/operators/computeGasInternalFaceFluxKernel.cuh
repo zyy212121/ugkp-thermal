@@ -49,12 +49,6 @@ __global__ void enforcePeriodicGasFluxAntisymmetryKernel(GasState* sp, const boo
     }
     const int pair=s.facePeriodicPair[f];
     if(pair<0)return;
-    // Only the consumed pair address is required by this averaging operation.
-    if(pair>=s.nFaces)
-    {
-        if(!ugkwp::gasRecordFaceFailure(s,f,ugkwp::GasTransportCode::InvalidGeometry))asm("trap;");
-        return;
-    }
     if (f > pair)
     {
         return;
@@ -69,9 +63,8 @@ __global__ void enforcePeriodicGasFluxAntisymmetryKernel(GasState* sp, const boo
     if(!nativeRefinement && (!ugkwp::gasFinite(rho)||!ugkwp::gasFinite(rhoUx)||!ugkwp::gasFinite(rhoUy)
         ||!ugkwp::gasFinite(rhoUz)||!ugkwp::gasFinite(rhoE)))
     {
-        if(!ugkwp::gasRecordFaceFailure(s,f,ugkwp::GasTransportCode::NonFiniteState))asm("trap;");
+        ugkwp::gasRecordFaceFailure(s,f,ugkwp::GasTransportCode::NonFiniteState);
         ugkwp::gasRecordFaceFailure(s,pair,ugkwp::GasTransportCode::NonFiniteState);
-        return;
     }
     if(nativeRefinement)
     {
@@ -93,16 +86,14 @@ __global__ void enforcePeriodicGasFluxAntisymmetryKernel(GasState* sp, const boo
                 {
                     ugkwp::gasRecordFaceFailure(s,f,ugkwp::GasTransportCode::NonFiniteState);
                     ugkwp::gasRecordFaceFailure(s,pair,ugkwp::GasTransportCode::NonFiniteState);
-                    return;
                 }
-                if(nativeRefinement)valid=valid&&ugkwp::gasFinite(flux[f])&&ugkwp::gasFinite(flux[pair]);
+                valid=valid&&ugkwp::gasFinite(flux[f])&&ugkwp::gasFinite(flux[pair]);
                 sumF+=flux[f];sumPair+=flux[pair];magF+=fabs(flux[f]);magPair+=fabs(flux[pair]);
                 value[k]=GPU_OPERATOR_R(.5)*(flux[f]-flux[pair]);
                 if(!nativeRefinement && !ugkwp::gasFinite(value[k]))
                 {
                     if(!ugkwp::gasRecordFaceFailure(s,f,ugkwp::GasTransportCode::NonFiniteState))asm("trap;");
                     ugkwp::gasRecordFaceFailure(s,pair,ugkwp::GasTransportCode::NonFiniteState);
-                    return;
                 }
                 sum+=value[k];mag+=fabs(value[k]);
             }

@@ -444,16 +444,23 @@ __global__ void applySstFluxAndSourceKernel
     const GPU_OPERATOR_REAL beforeK=s.rhoK[c],beforeOmega=s.rhoOmega[c];
     GPU_OPERATOR_REAL oldVolume=s.V[c],newVolume=s.V[c];
     const bool moving=ugkwp::gasMovingGeometry(s);
-    if(moving && !ugkwp::gasGeometryCellVolumes(s,c,dt,oldVolume,newVolume))
-    { if(!ugkwp::gasRecordCellFailure(s,c,ugkwp::GasTransportCode::InvalidGeometry))asm("trap;"); return; }
-    if(moving && ugkwp::gasCellFailure(s,c)!=0)return;
+    if(moving)
+    {
+        bool evaluated=false;
+        if(!ugkwp::gasGeometryCellVolumes(s,c,dt,oldVolume,newVolume,&evaluated))
+        {
+            const bool recorded=ugkwp::gasRecordCellFailure(s,c,evaluated?ugkwp::GasTransportCode::InvalidGeometry:ugkwp::GasTransportCode::InvalidStorage);
+            if(nativeRefinement || !evaluated){if(!recorded)asm("trap;");return;}
+        }
+    }
+    if(nativeRefinement && moving && ugkwp::gasCellFailure(s,c)!=0)return;
     bool constrainedOmega = ugkwp::gasBoundaryLayerOwnerSlot(s,c)>=0;
     GPU_OPERATOR_REAL fluxK = GPU_OPERATOR_R(0.0);
     GPU_OPERATOR_REAL fluxOmega = GPU_OPERATOR_R(0.0);
     GPU_OPERATOR_REAL volumeFlux = GPU_OPERATOR_R(0.0);
     const int start = s.cellPlaneStart[c];
     const int count = s.cellPlaneCount[c];
-    if(count>0 && start<0){if(!ugkwp::gasRecordCellFailure(s,c,ugkwp::GasTransportCode::InvalidGeometry))asm("trap;");return;}
+    if(nativeRefinement && count>0 && start<0){if(!ugkwp::gasRecordCellFailure(s,c,ugkwp::GasTransportCode::InvalidGeometry))asm("trap;");return;}
     for (int i = 0; i < count; ++i)
     {
         const int f = s.cellFaceId[start + i];
@@ -465,9 +472,12 @@ __global__ void applySstFluxAndSourceKernel
         // actual flux for optional accounting; the final required omega
         // candidate, rather than this unused channel, determines failure.
         if(moving && (ugkwp::gasFaceFailure(s,f)!=0 || !finiteDevice(s.sstPhiRhoK[f]) || (nativeRefinement && !finiteDevice(s.sstPhiRhoOmega[f]))))
-        { if(!ugkwp::gasRecordCellFailure(s,c,ugkwp::GasTransportCode::NonFiniteState))asm("trap;"); return; }
+        {
+            const bool recorded=ugkwp::gasRecordCellFailure(s,c,ugkwp::GasTransportCode::NonFiniteState);
+            if(nativeRefinement){if(!recorded)asm("trap;");return;}
+        }
         const int own=s.faceOwner[f],nei=coupledFaceNeighbour(s,f);
-        if(own<0 || own>=s.nCells || nei>=s.nCells)
+        if(nativeRefinement && (own<0 || own>=s.nCells || nei>=s.nCells))
         {if(!ugkwp::gasRecordCellFailure(s,c,ugkwp::GasTransportCode::InvalidGeometry))asm("trap;");return;}
         const GPU_OPERATOR_REAL sign = s.faceOwner[f] == c ? -GPU_OPERATOR_R(1.0) : GPU_OPERATOR_R(1.0);
         fluxK += sign*s.sstPhiRhoK[f];
@@ -478,8 +488,12 @@ __global__ void applySstFluxAndSourceKernel
         if(moving)
         {
             ugkwp::GasFaceFrame<GPU_OPERATOR_REAL> frame;
-            if(!ugkwp::gasGeometryFaceFrame(s,f,dt,frame))
-            {if(!ugkwp::gasRecordCellFailure(s,c,ugkwp::GasTransportCode::InvalidGeometry))asm("trap;");return;}
+            bool evaluated=false;
+            if(!ugkwp::gasGeometryFaceFrame(s,f,dt,frame,&evaluated))
+            {
+                const bool recorded=ugkwp::gasRecordCellFailure(s,c,evaluated?ugkwp::GasTransportCode::InvalidGeometry:ugkwp::GasTransportCode::InvalidStorage);
+                if(nativeRefinement || !evaluated){if(!recorded)asm("trap;");return;}
+            }
             absoluteVolumeFlux+=frame.meshVolumeRate;
         }
         volumeFlux -= sign*absoluteVolumeFlux;
@@ -531,7 +545,10 @@ __global__ void applySstFluxAndSourceKernel
         const GPU_OPERATOR_REAL nextOmega=(s.rhoOmega[c]*oldVolume
             +(constrainedOmega?GPU_OPERATOR_R(0.0):dt*(fluxOmega+oldVolume*sourceOmega)))/newVolume;
         if(!finiteDevice(nextK)||!finiteDevice(nextOmega))
-        { if(!ugkwp::gasRecordCellFailure(s,c,ugkwp::GasTransportCode::NonFiniteState))asm("trap;"); return; }
+        {
+            const bool recorded=ugkwp::gasRecordCellFailure(s,c,ugkwp::GasTransportCode::NonFiniteState);
+            if(nativeRefinement){if(!recorded)asm("trap;");return;}
+        }
         s.rhoK[c]=clampMin(nextK,rhoKFloor*oldVolume/newVolume);
         s.rhoOmega[c]=clampMin(nextOmega,rhoOmegaFloor*oldVolume/newVolume);
         ugkwp::gasSstAuditEuler(s,c,beforeK,beforeOmega,oldVolume,newVolume,dt,fluxK,fluxOmega,sourceK,sourceOmega);
@@ -564,12 +581,19 @@ __global__ void computeGasCourantFieldKernel(GasState* sp, const GPU_OPERATOR_TI
     }
 
     ugkwp::GasFaceFrame<GPU_OPERATOR_REAL> meshFrame;
-    if(ugkwp::gasMovingGeometry(s) && !ugkwp::gasGeometryFaceFrame(s,f,dt,meshFrame))
+    if(ugkwp::gasMovingGeometry(s))
     {
-        s.gasPhiRhoE[f]=ugkwp::gasThermoDetail::invalidValue<GPU_OPERATOR_REAL>();
-        if(s.sstConfigured!=0)s.gasPhiRho[f]=GPU_OPERATOR_R(0.0);
-        if(!ugkwp::gasRecordFaceFailure(s,f,ugkwp::GasTransportCode::InvalidGeometry))asm("trap;");
-        return;
+        bool evaluated=false;
+        if(!ugkwp::gasGeometryFaceFrame(s,f,dt,meshFrame,&evaluated))
+        {
+            const bool recorded=ugkwp::gasRecordFaceFailure(s,f,evaluated?ugkwp::GasTransportCode::InvalidGeometry:ugkwp::GasTransportCode::InvalidStorage);
+            if(nativeRefinement || !evaluated)
+            {
+                s.gasPhiRhoE[f]=ugkwp::gasThermoDetail::invalidValue<GPU_OPERATOR_REAL>();
+                if(s.sstConfigured!=0)s.gasPhiRho[f]=GPU_OPERATOR_R(0.0);
+                if(!recorded)asm("trap;");return;
+            }
+        }
     }
     // Courant-only scratch lifetime: energy-flux storage holds amaxSf until
     // computeGasConvectiveCourantByCellKernel consumes it. The next gas face
@@ -585,7 +609,7 @@ __global__ void computeGasCourantFieldKernel(GasState* sp, const GPU_OPERATOR_TI
         s.gasPhiRho[f] = mass;
     }
     const int own = s.faceOwner[f];
-    if (own < 0 || own >= s.nCells)
+    if (nativeRefinement && (own < 0 || own >= s.nCells))
     {
         s.gasPhiRhoE[f] = OfGreat;
         return;
@@ -614,7 +638,7 @@ __global__ void computeGasCourantFieldKernel(GasState* sp, const GPU_OPERATOR_TI
     if (f < s.nInternalFaces || isPeriodicFace(s, f))
     {
         const int nei = s.faceNeighbour[f];
-        if (nei < 0 || nei >= s.nCells)
+        if (nativeRefinement && (nei < 0 || nei >= s.nCells))
         {
             s.gasPhiRhoE[f] = OfGreat;
             return;
@@ -663,14 +687,16 @@ __global__ void computeGasCourantFieldKernel(GasState* sp, const GPU_OPERATOR_TI
     );
     const GPU_OPERATOR_REAL amaxSf = spectralRadius*area;
 
-    s.gasPhiRhoE[f] = finiteDevice(amaxSf) ? amaxSf : OfGreat;
+    s.gasPhiRhoE[f] = nativeRefinement && !finiteDevice(amaxSf) ? OfGreat : amaxSf;
+    if(!finiteDevice(amaxSf))ugkwp::gasRecordFaceFailure(s,f,ugkwp::GasTransportCode::NonFiniteState);
 }
 
 template<class GasState>
 __global__ void computeGasConvectiveCourantByCellKernel
 (
     GasState* sp,
-    const GPU_OPERATOR_TIME dt
+    const GPU_OPERATOR_TIME dt,
+    const bool nativeRefinement=false
 )
 {
     GasState& s = *sp;
@@ -684,14 +710,19 @@ __global__ void computeGasConvectiveCourantByCellKernel
     if(ugkwp::gasMovingGeometry(s))
     {
         GPU_OPERATOR_REAL oldVolume,newVolume;
-        if(!ugkwp::gasGeometryCellVolumes(s,c,dt,oldVolume,newVolume))
-        {s.gasFluxPositivityScale[c]=ugkwp::gasThermoDetail::invalidValue<GPU_OPERATOR_REAL>();if(!ugkwp::gasRecordCellFailure(s,c,ugkwp::GasTransportCode::InvalidGeometry))asm("trap;");return;}
+        bool evaluated=false;
+        if(!ugkwp::gasGeometryCellVolumes(s,c,dt,oldVolume,newVolume,&evaluated))
+        {
+            const bool recorded=ugkwp::gasRecordCellFailure(s,c,evaluated?ugkwp::GasTransportCode::InvalidGeometry:ugkwp::GasTransportCode::InvalidStorage);
+            if(nativeRefinement || !evaluated)
+            {s.gasFluxPositivityScale[c]=ugkwp::gasThermoDetail::invalidValue<GPU_OPERATOR_REAL>();if(!recorded)asm("trap;");return;}
+        }
         stabilityVolume=fmin(oldVolume,newVolume);
     }
     GPU_OPERATOR_REAL sumAmaxSf = GPU_OPERATOR_R(0.0);
     const int start = s.cellPlaneStart[c];
     const int count = s.cellPlaneCount[c];
-    if(count>0 && start<0){if(!ugkwp::gasRecordCellFailure(s,c,ugkwp::GasTransportCode::InvalidGeometry))asm("trap;");return;}
+    if(nativeRefinement && count>0 && start<0){if(!ugkwp::gasRecordCellFailure(s,c,ugkwp::GasTransportCode::InvalidGeometry))asm("trap;");return;}
     for (int i = 0; i < count; ++i)
     {
         const int f = s.cellFaceId[start + i];
@@ -699,14 +730,17 @@ __global__ void computeGasConvectiveCourantByCellKernel
         {
             continue;
         }
-        sumAmaxSf += finiteOr(s.gasPhiRhoE[f], OfGreat);
+        if(ugkwp::gasFaceFailure(s,f)==int(ugkwp::GasTransportCode::InvalidStorage))
+            ugkwp::gasRecordCellFailure(s,c,ugkwp::GasTransportCode::InvalidStorage);
+        sumAmaxSf += nativeRefinement?finiteOr(s.gasPhiRhoE[f], OfGreat):s.gasPhiRhoE[f];
     }
 
                                                      
                                               
     const GPU_OPERATOR_REAL co =
         GPU_OPERATOR_R(0.5)*dt*sumAmaxSf/clampMin(stabilityVolume, OfSmall);
-    s.gasFluxPositivityScale[c] = finiteDevice(co) ? co : OfGreat;
+    s.gasFluxPositivityScale[c] = nativeRefinement && !finiteDevice(co) ? OfGreat : co;
+    if(!finiteDevice(co))ugkwp::gasRecordCellFailure(s,c,ugkwp::GasTransportCode::NonFiniteState);
 }
 
 template<class GasState>
@@ -728,8 +762,13 @@ __global__ void computeGasDiffusionNumberKernel
     if(ugkwp::gasMovingGeometry(s))
     {
         GPU_OPERATOR_REAL oldVolume,newVolume;
-        if(!ugkwp::gasGeometryCellVolumes(s,c,dt,oldVolume,newVolume))
-        {s.gasDiffusionNumber[c]=ugkwp::gasThermoDetail::invalidValue<GPU_OPERATOR_REAL>();if(!ugkwp::gasRecordCellFailure(s,c,ugkwp::GasTransportCode::InvalidGeometry))asm("trap;");return;}
+        bool evaluated=false;
+        if(!ugkwp::gasGeometryCellVolumes(s,c,dt,oldVolume,newVolume,&evaluated))
+        {
+            const bool recorded=ugkwp::gasRecordCellFailure(s,c,evaluated?ugkwp::GasTransportCode::InvalidGeometry:ugkwp::GasTransportCode::InvalidStorage);
+            if(nativeRefinement || !evaluated)
+            {s.gasDiffusionNumber[c]=ugkwp::gasThermoDetail::invalidValue<GPU_OPERATOR_REAL>();if(!recorded)asm("trap;");return;}
+        }
         stabilityVolume=fmin(oldVolume,newVolume);
     }
     GPU_OPERATOR_REAL sum = GPU_OPERATOR_R(0.0);
@@ -737,7 +776,7 @@ __global__ void computeGasDiffusionNumberKernel
     bool molecularDiffusivityComputed=false;
     const int start = s.cellPlaneStart[c];
     const int count = s.cellPlaneCount[c];
-    if(count>0 && start<0){if(!ugkwp::gasRecordCellFailure(s,c,ugkwp::GasTransportCode::InvalidGeometry))asm("trap;");return;}
+    if(nativeRefinement && count>0 && start<0){if(!ugkwp::gasRecordCellFailure(s,c,ugkwp::GasTransportCode::InvalidGeometry))asm("trap;");return;}
     for (int i = 0; i < count; ++i)
     {
         const int f = s.cellFaceId[start + i];
@@ -746,7 +785,7 @@ __global__ void computeGasDiffusionNumberKernel
         const int other = (f < s.nInternalFaces || isPeriodicFace(s, f))
           ? (s.faceOwner[f] == c ? s.faceNeighbour[f] : s.faceOwner[f])
           : -1;
-        if(other>=s.nCells)
+        if(nativeRefinement && other>=s.nCells)
         {if(!ugkwp::gasRecordCellFailure(s,c,ugkwp::GasTransportCode::InvalidGeometry))asm("trap;");return;}
         const GPU_OPERATOR_REAL rhoFace = other >= 0
           ? GPU_OPERATOR_R(0.5)*(s.rho[c] + s.rho[other]) : s.rho[c];
@@ -808,7 +847,8 @@ __global__ void computeGasDiffusionNumberKernel
     const GPU_OPERATOR_REAL d = dt*sum/clampMin(stabilityVolume, OfSmall);
     const GPU_OPERATOR_REAL equivalentCo =
         targetMaxCo*d/clampMin(s.maxDiffusionNumber, OfSmall);
-    s.gasDiffusionNumber[c] = finiteDevice(equivalentCo) ? equivalentCo : OfGreat;
+    s.gasDiffusionNumber[c] = nativeRefinement && !finiteDevice(equivalentCo) ? OfGreat : equivalentCo;
+    if(!finiteDevice(equivalentCo))ugkwp::gasRecordCellFailure(s,c,ugkwp::GasTransportCode::NonFiniteState);
 }
 
 // Current-state timestep estimate: the predictor uses fresh pre-positivity
@@ -823,7 +863,8 @@ __global__ void computeSstStabilityNumberKernel
     GasState* sp,
     const GPU_OPERATOR_TIME dt,
     const GPU_OPERATOR_REAL targetMaxCo,
-    const bool requireWallProfile=true
+    const bool requireWallProfile=true,
+    const bool nativeRefinement=false
 )
 {
     GasState& s = *sp;
@@ -837,8 +878,13 @@ __global__ void computeSstStabilityNumberKernel
     if(ugkwp::gasMovingGeometry(s))
     {
         GPU_OPERATOR_REAL oldVolume,newVolume;
-        if(!ugkwp::gasGeometryCellVolumes(s,c,dt,oldVolume,newVolume))
-        {s.sstSourceNumber[c]=ugkwp::gasThermoDetail::invalidValue<GPU_OPERATOR_REAL>();if(!ugkwp::gasRecordCellFailure(s,c,ugkwp::GasTransportCode::InvalidGeometry))asm("trap;");return;}
+        bool evaluated=false;
+        if(!ugkwp::gasGeometryCellVolumes(s,c,dt,oldVolume,newVolume,&evaluated))
+        {
+            const bool recorded=ugkwp::gasRecordCellFailure(s,c,evaluated?ugkwp::GasTransportCode::InvalidGeometry:ugkwp::GasTransportCode::InvalidStorage);
+            if(nativeRefinement || !evaluated)
+            {s.sstSourceNumber[c]=ugkwp::gasThermoDetail::invalidValue<GPU_OPERATOR_REAL>();if(!recorded)asm("trap;");return;}
+        }
         stabilityVolume=fmin(oldVolume,newVolume);sourceVolume=oldVolume;
     }
     GPU_OPERATOR_REAL diffusionRate = GPU_OPERATOR_R(0.0);
@@ -848,7 +894,7 @@ __global__ void computeSstStabilityNumberKernel
     bool constrainedOmega = ugkwp::gasBoundaryLayerOwnerSlot(s,c)>=0;
     const int start = s.cellPlaneStart[c];
     const int count = s.cellPlaneCount[c];
-    if(count>0 && start<0){if(!ugkwp::gasRecordCellFailure(s,c,ugkwp::GasTransportCode::InvalidGeometry))asm("trap;");return;}
+    if(nativeRefinement && count>0 && start<0){if(!ugkwp::gasRecordCellFailure(s,c,ugkwp::GasTransportCode::InvalidGeometry))asm("trap;");return;}
     for (int i = 0; i < count; ++i)
     {
         const int f = s.cellFaceId[start + i];
@@ -856,7 +902,7 @@ __global__ void computeSstStabilityNumberKernel
         if(f>=s.nInternalFaces
             && (s.riemannBoundaryKind[f]==3 || s.riemannBoundaryKind[f]==4))continue;
         const int own=s.faceOwner[f],nei=coupledFaceNeighbour(s,f);
-        if(own<0 || own>=s.nCells || nei>=s.nCells)
+        if(nativeRefinement && (own<0 || own>=s.nCells || nei>=s.nCells))
         {if(!ugkwp::gasRecordCellFailure(s,c,ugkwp::GasTransportCode::InvalidGeometry))asm("trap;");return;}
         const GPU_OPERATOR_REAL outwardSign = s.faceOwner[f] == c
           ? GPU_OPERATOR_R(1.0) : -GPU_OPERATOR_R(1.0);
@@ -865,8 +911,13 @@ __global__ void computeSstStabilityNumberKernel
         if(ugkwp::gasMovingGeometry(s))
         {
             ugkwp::GasFaceFrame<GPU_OPERATOR_REAL> frame;
-            if(!ugkwp::gasGeometryFaceFrame(s,f,dt,frame))
-            {s.sstSourceNumber[c]=ugkwp::gasThermoDetail::invalidValue<GPU_OPERATOR_REAL>();if(!ugkwp::gasRecordCellFailure(s,c,ugkwp::GasTransportCode::InvalidGeometry))asm("trap;");return;}
+            bool evaluated=false;
+            if(!ugkwp::gasGeometryFaceFrame(s,f,dt,frame,&evaluated))
+            {
+                const bool recorded=ugkwp::gasRecordCellFailure(s,c,evaluated?ugkwp::GasTransportCode::InvalidGeometry:ugkwp::GasTransportCode::InvalidStorage);
+                if(nativeRefinement || !evaluated)
+                {s.sstSourceNumber[c]=ugkwp::gasThermoDetail::invalidValue<GPU_OPERATOR_REAL>();if(!recorded)asm("trap;");return;}
+            }
             meshVolumeFlux+=outwardSign*frame.meshVolumeRate;
         }
         minimumVolumeFlux += fmin(outwardVolumeFlux, GPU_OPERATOR_R(0.0));
@@ -994,7 +1045,8 @@ __global__ void computeSstStabilityNumberKernel
         diffusionNumber/clampMin(s.maxDiffusionNumber, OfSmall),
         sourceNumber/clampMin(s.sstMaxSourceNumber, OfSmall)
     );
-    s.sstSourceNumber[c] = finiteDevice(equivalentCo) ? equivalentCo : OfGreat;
+    s.sstSourceNumber[c] = nativeRefinement && !finiteDevice(equivalentCo) ? OfGreat : equivalentCo;
+    if(!finiteDevice(equivalentCo))ugkwp::gasRecordCellFailure(s,c,ugkwp::GasTransportCode::NonFiniteState);
 }
 
 template<class GasState>
@@ -1014,6 +1066,8 @@ __global__ void applyGasFluxDivergenceByCellKernel(GasState* sp, const GPU_OPERA
     using Energy = ugkwp::GasEnergyScalar<GasState>;
     Energy dRhoE = Energy(0);
     constexpr int Ns=ugkwp::GasStateTraits<GasState>::speciesCount;
+    // Terminal candidates finish this traversal and its publication in place;
+    // never replay a prefix that has already updated the optional budget.
     // Reuse the publication scratch for face sums. Each species retains the
     // original face accumulation order; no extra face/domain pass is added.
     GPU_OPERATOR_REAL trial[Ns>0?Ns:1]{};
@@ -1022,11 +1076,15 @@ __global__ void applyGasFluxDivergenceByCellKernel(GasState* sp, const GPU_OPERA
     // Exact binary64 epsilon, usable in CUDA without a host constexpr call.
     constexpr GPU_OPERATOR_REAL roundoff=GPU_OPERATOR_REAL(0x1p-52);
     if constexpr(Ns>0)
-        if(ugkwp::mixtureGasActive(s)&&s.gasSpecies.cellStatus[c]!=0)return;
+        if(ugkwp::mixtureGasActive(s))
+        {
+            if(!s.gasSpecies.cellStatus){asm("trap;");return;}
+            if(nativeRefinement && s.gasSpecies.cellStatus[c]!=0)return;
+        }
 
     const int start = s.cellPlaneStart[c];
     const int count = s.cellPlaneCount[c];
-    if(count>0 && start<0){if(!ugkwp::gasRecordCellFailure(s,c,ugkwp::GasTransportCode::InvalidGeometry))asm("trap;");return;}
+    if(nativeRefinement && count>0 && start<0){if(!ugkwp::gasRecordCellFailure(s,c,ugkwp::GasTransportCode::InvalidGeometry))asm("trap;");return;}
     for (int i = 0; i < count; ++i)
     {
         const int faceI = s.cellFaceId[start + i];
@@ -1052,14 +1110,20 @@ __global__ void applyGasFluxDivergenceByCellKernel(GasState* sp, const GPU_OPERA
         if constexpr(Ns>0)
         if(ugkwp::mixtureGasActive(s))
         {
+            // Empty/invalid/unowned incidences consume no face storage. Check
+            // each backing only when the original route reaches its read.
+            if(!s.gasSpecies.faceStatus)
+            {ugkwp::gasRecordCellFailure(s,c,ugkwp::GasTransportCode::InvalidStorage);return;}
             if(s.gasSpecies.faceStatus[faceI]!=0)
-            {s.gasSpecies.cellStatus[c]=s.gasSpecies.faceStatus[faceI];return;}
+            {ugkwp::gasRecordCellFailure(s,c,static_cast<ugkwp::GasTransportCode>(s.gasSpecies.faceStatus[faceI]));if(nativeRefinement)return;}
+            if(!s.gasSpecies.flux)
+            {ugkwp::gasRecordCellFailure(s,c,ugkwp::GasTransportCode::InvalidStorage);return;}
             GPU_OPERATOR_REAL faceSum=GPU_OPERATOR_R(0.0),faceMagnitude=GPU_OPERATOR_R(0.0);
             for(int k=0;k<Ns;++k)
             {
                 const GPU_OPERATOR_REAL flux=s.gasSpecies.flux[k*s.nFaces+faceI];
                 if(!finiteDevice(flux))
-                {s.gasSpecies.cellStatus[c]=int(ugkwp::GasTransportCode::InvalidComposition);return;}
+                {ugkwp::gasRecordCellFailure(s,c,ugkwp::GasTransportCode::InvalidComposition);if(nativeRefinement)return;}
                 trial[k]+=sign*flux;faceSum+=flux;faceMagnitude+=fabs(flux);
                 if(ugkwp::gasBudgetEnabled(s) && ugkwp::gasBudgetExternalFace(s,faceI))
                     ugkwp::gasBudgetFlux(s,c,k+2,dt,sign*flux);
@@ -1069,9 +1133,9 @@ __global__ void applyGasFluxDivergenceByCellKernel(GasState* sp, const GPU_OPERA
                 *fmax(fabs(massFlux),faceMagnitude);
             if(nativeRefinement && (!finiteDevice(massFlux)||!finiteDevice(faceSum)||!finiteDevice(faceMagnitude)
                 ||fabs(faceSum-massFlux)>faceBound))
-            {s.gasSpecies.cellStatus[c]=int(ugkwp::GasTransportCode::InvalidComposition);return;}
+            {ugkwp::gasRecordCellFailure(s,c,ugkwp::GasTransportCode::InvalidComposition);return;}
             if(!finiteDevice(massFlux))
-            {s.gasSpecies.cellStatus[c]=int(ugkwp::GasTransportCode::NonFiniteState);return;}
+            {ugkwp::gasRecordCellFailure(s,c,ugkwp::GasTransportCode::NonFiniteState);if(nativeRefinement)return;}
             repairableFlux=repairableFlux&&finiteDevice(faceSum)&&finiteDevice(faceMagnitude)
                 &&fabs(faceSum-massFlux)<=faceBound;
             speciesFluxMagnitude+=faceMagnitude;
@@ -1094,14 +1158,18 @@ __global__ void applyGasFluxDivergenceByCellKernel(GasState* sp, const GPU_OPERA
     if(ugkwp::gasMovingGeometry(s))
     {
         GPU_OPERATOR_REAL oldVolume,newVolume;
-        if(!ugkwp::gasGeometryCellVolumes(s,c,dt,oldVolume,newVolume))
-        {if(!ugkwp::gasRecordCellFailure(s,c,ugkwp::GasTransportCode::InvalidGeometry))asm("trap;");return;}
-        if(ugkwp::gasCellFailure(s,c)!=0)return;
+        bool evaluated=false;
+        if(!ugkwp::gasGeometryCellVolumes(s,c,dt,oldVolume,newVolume,&evaluated))
+        {
+            const bool recorded=ugkwp::gasRecordCellFailure(s,c,evaluated?ugkwp::GasTransportCode::InvalidGeometry:ugkwp::GasTransportCode::InvalidStorage);
+            if(nativeRefinement || !evaluated){if(!recorded)asm("trap;");return;}
+        }
+        if(nativeRefinement && ugkwp::gasCellFailure(s,c)!=0)return;
         for(int i=0;i<count;++i)
         {
             const int f=s.cellFaceId[start+i];
             if(ugkwp::gasFaceFailure(s,f)!=0)
-            {if(!ugkwp::gasRecordCellFailure(s,c,static_cast<ugkwp::GasTransportCode>(ugkwp::gasFaceFailure(s,f))))asm("trap;");return;}
+            {if(!ugkwp::gasRecordCellFailure(s,c,static_cast<ugkwp::GasTransportCode>(ugkwp::gasFaceFailure(s,f))) && nativeRefinement)asm("trap;");if(nativeRefinement)return;}
         }
         densityRatio=oldVolume/newVolume;scale=dt/newVolume;
         energyAfter=s.rhoE[c]*densityRatio+scale*dRhoE;
@@ -1112,7 +1180,7 @@ __global__ void applyGasFluxDivergenceByCellKernel(GasState* sp, const GPU_OPERA
         const bool mixture=ugkwp::mixtureGasActive(s);
         if constexpr(Ns>0)
             if(mixture && (!ugkwp::gasFinite(s.V[c]) || s.V[c]==GPU_OPERATOR_R(0.0)))
-            {s.gasSpecies.cellStatus[c]=int(ugkwp::GasTransportCode::InvalidGeometry);return;}
+            {ugkwp::gasRecordCellFailure(s,c,ugkwp::GasTransportCode::InvalidGeometry);if(nativeRefinement)return;}
         const GPU_OPERATOR_REAL volume=mixture?s.V[c]:clampMin(s.V[c],s.rhoMin);
         scale=dt/volume;
         Energy energyScale;
@@ -1136,22 +1204,23 @@ __global__ void applyGasFluxDivergenceByCellKernel(GasState* sp, const GPU_OPERA
             && (!finiteDevice(momentumXAfter)||!finiteDevice(momentumYAfter)
                 ||!finiteDevice(momentumZAfter)||!ugkwp::gasEnergyFinite(energyAfter))))
     {
-        if(ugkwp::mixtureGasActive(s)||ugkwp::gasMovingGeometry(s))
-            if(ugkwp::gasRecordCellFailure(s,c,ugkwp::GasTransportCode::NonFiniteState))return;
-        asm("trap;");
-        return;
+        const bool recorded=(ugkwp::mixtureGasActive(s)||ugkwp::gasMovingGeometry(s))
+            && ugkwp::gasRecordCellFailure(s,c,ugkwp::GasTransportCode::NonFiniteState);
+        if(nativeRefinement){if(!recorded)asm("trap;");return;}
     }
     if constexpr (ugkwp::GasStateTraits<GasState>::speciesCount > 0)
     {
         if (ugkwp::mixtureGasActive(s))
         {
+            if(!s.gasSpecies.rho)
+            {ugkwp::gasRecordCellFailure(s,c,ugkwp::GasTransportCode::InvalidStorage);return;}
             for(int k=0;k<Ns;++k)
             {
                 trial[k]=s.gasSpecies.rho[k*s.nCells+c]*densityRatio+scale*trial[k];
                 if(nativeRefinement && (!ugkwp::gasFinite(trial[k])||trial[k]<GPU_OPERATOR_R(0)))
-                {s.gasSpecies.cellStatus[c]=int(ugkwp::GasTransportCode::NegativeInventory);return;}
+                {ugkwp::gasRecordCellFailure(s,c,ugkwp::GasTransportCode::NegativeInventory);return;}
                 if(!ugkwp::gasFinite(trial[k]))
-                {s.gasSpecies.cellStatus[c]=int(ugkwp::GasTransportCode::NonFiniteState);return;}
+                {ugkwp::gasRecordCellFailure(s,c,ugkwp::GasTransportCode::NonFiniteState);if(nativeRefinement)return;}
             }
             if(nativeRefinement)
             {
@@ -1166,7 +1235,7 @@ __global__ void applyGasFluxDivergenceByCellKernel(GasState* sp, const GPU_OPERA
             {
                 const GPU_OPERATOR_REAL previous=s.gasSpecies.rho[k*s.nCells+c];
                 if(!finiteDevice(previous)||previous<GPU_OPERATOR_R(0.0))
-                {s.gasSpecies.cellStatus[c]=int(ugkwp::GasTransportCode::InvalidComposition);return;}
+                {ugkwp::gasRecordCellFailure(s,c,ugkwp::GasTransportCode::InvalidComposition);return;}
                 beforeSum+=previous;
                 afterSum+=trial[k];
             }
@@ -1181,13 +1250,13 @@ __global__ void applyGasFluxDivergenceByCellKernel(GasState* sp, const GPU_OPERA
                 || !finiteDevice(s.gasSpecies.densityClosureTolerance)
                 || s.gasSpecies.densityClosureTolerance<GPU_OPERATOR_R(0.0)
                 || fabs(beforeSum-rhoBefore)>s.gasSpecies.densityClosureTolerance*rhoBefore)
-            {s.gasSpecies.cellStatus[c]=int(ugkwp::GasTransportCode::InvalidComposition);return;}
+            {ugkwp::gasRecordCellFailure(s,c,ugkwp::GasTransportCode::InvalidComposition);return;}
             // Carry an already admissible input defect in integrated mass
             // units; repair only fresh arithmetic drift, never erase the input
             // discrepancy repeatedly or use it to enlarge the repair budget.
             const GPU_OPERATOR_REAL targetSum=rhoAfter+(beforeSum-rhoBefore)*densityRatio;
             if(!finiteDevice(targetSum))
-            {s.gasSpecies.cellStatus[c]=int(ugkwp::GasTransportCode::InvalidComposition);return;}
+            {ugkwp::gasRecordCellFailure(s,c,ugkwp::GasTransportCode::InvalidComposition);return;}
             if(afterSum!=targetSum&&fabs(afterSum-targetSum)<=bound)
             {
                 GPU_OPERATOR_REAL independent=GPU_OPERATOR_R(0.0);
@@ -1204,14 +1273,14 @@ __global__ void applyGasFluxDivergenceByCellKernel(GasState* sp, const GPU_OPERA
                 }
                 if(!finiteDevice(replacement) || replacement<GPU_OPERATOR_R(0.0)
                     || fabs(replacement-trial[dependent])>bound)
-                {s.gasSpecies.cellStatus[c]=int(ugkwp::GasTransportCode::InvalidComposition);return;}
+                {ugkwp::gasRecordCellFailure(s,c,ugkwp::GasTransportCode::InvalidComposition);return;}
                 trial[dependent]=replacement;
             }
             GPU_OPERATOR_REAL publishedSum=GPU_OPERATOR_R(0.0);
             for(int k=0;k<Ns;++k)publishedSum+=trial[k];
             if(!finiteDevice(publishedSum)
                 ||fabs(publishedSum-rhoAfter)>s.gasSpecies.densityClosureTolerance*rhoAfter)
-            {s.gasSpecies.cellStatus[c]=int(ugkwp::GasTransportCode::InvalidComposition);return;}
+            {ugkwp::gasRecordCellFailure(s,c,ugkwp::GasTransportCode::InvalidComposition);return;}
             }
             else
             {
@@ -1325,7 +1394,10 @@ __global__ void blendGasConservativeStateKernel
     GPU_OPERATOR_REAL blendedSpecies[reviewNs>0?reviewNs:1]{};
     if constexpr(reviewNs>0) if(ugkwp::mixtureGasActive(s))
     {
-        if(s.gasSpecies.cellStatus[c]!=0)return;
+        if(!s.gasSpecies.cellStatus){asm("trap;");return;}
+        if(nativeRefinement && s.gasSpecies.cellStatus[c]!=0)return;
+        if(!s.gasSpecies.rho || !s.gasSpecies.initial)
+        {ugkwp::gasRecordCellFailure(s,c,ugkwp::GasTransportCode::InvalidStorage);return;}
         if(nativeRefinement)
         {
         GPU_OPERATOR_REAL sumInitial=GPU_OPERATOR_R(0),sumStage=GPU_OPERATOR_R(0),sumBlend=GPU_OPERATOR_R(0);
@@ -1335,21 +1407,21 @@ __global__ void blendGasConservativeStateKernel
             const int i=k*s.nCells+c;
             const GPU_OPERATOR_REAL a=s.gasSpecies.initial[i],b=s.gasSpecies.rho[i];
             if(!finiteDevice(a)||!finiteDevice(b)||a<GPU_OPERATOR_R(0)||b<GPU_OPERATOR_R(0))
-            {s.gasSpecies.cellStatus[c]=int(ugkwp::GasTransportCode::InvalidComposition);return;}
+            {ugkwp::gasRecordCellFailure(s,c,ugkwp::GasTransportCode::InvalidComposition);return;}
             sumInitial+=a;sumStage+=b;blendedSpecies[k]=initialWeight*a+stageWeight*b;sumBlend+=blendedSpecies[k];
         }
         const GPU_OPERATOR_REAL tol=s.gasSpecies.densityClosureTolerance;
         if(!finiteDevice(tol)||tol<GPU_OPERATOR_R(0)||!finiteDevice(blendedDensity)||!(blendedDensity>GPU_OPERATOR_R(0))
             ||!finiteDevice(s.rhoNext[c])||!(s.rhoNext[c]>GPU_OPERATOR_R(0))||!finiteDevice(s.rho[c])||!(s.rho[c]>GPU_OPERATOR_R(0))
             ||fabs(sumInitial-s.rhoNext[c])>tol*s.rhoNext[c]||fabs(sumStage-s.rho[c])>tol*s.rho[c])
-        {s.gasSpecies.cellStatus[c]=int(ugkwp::GasTransportCode::InvalidComposition);return;}
+        {ugkwp::gasRecordCellFailure(s,c,ugkwp::GasTransportCode::InvalidComposition);return;}
         // Preserve the convexly transported input defects; repair only newly
         // introduced rounding in this RK publication, not physical imbalance.
         const GPU_OPERATOR_REAL target=blendedDensity+initialWeight*(sumInitial-s.rhoNext[c])+stageWeight*(sumStage-s.rho[c]);
         constexpr GPU_OPERATOR_REAL eps=GPU_OPERATOR_REAL(0x1p-52);
         const GPU_OPERATOR_REAL bound=GPU_OPERATOR_R(8*reviewNs)*eps*(fabs(initialWeight*s.rhoNext[c])+fabs(stageWeight*s.rho[c]));
         if(!finiteDevice(target)||!finiteDevice(sumBlend)||fabs(sumBlend-target)>bound)
-        {s.gasSpecies.cellStatus[c]=int(ugkwp::GasTransportCode::InvalidComposition);return;}
+        {ugkwp::gasRecordCellFailure(s,c,ugkwp::GasTransportCode::InvalidComposition);return;}
         if(sumBlend!=target)
         {
             if(!(blendedSpecies[dependent]>GPU_OPERATOR_R(0)))
@@ -1359,12 +1431,12 @@ __global__ void blendGasConservativeStateKernel
             if(replacement<GPU_OPERATOR_R(0))
             {for(int k=0;k<reviewNs;++k)if(blendedSpecies[k]>blendedSpecies[dependent])dependent=k;independent=GPU_OPERATOR_R(0);for(int k=0;k<reviewNs;++k)if(k!=dependent)independent+=blendedSpecies[k];replacement=target-independent;}
             if(!finiteDevice(replacement)||replacement<GPU_OPERATOR_R(0)||fabs(replacement-blendedSpecies[dependent])>bound)
-            {s.gasSpecies.cellStatus[c]=int(ugkwp::GasTransportCode::InvalidComposition);return;}
+            {ugkwp::gasRecordCellFailure(s,c,ugkwp::GasTransportCode::InvalidComposition);return;}
             blendedSpecies[dependent]=replacement;
         }
         GPU_OPERATOR_REAL published=GPU_OPERATOR_R(0);for(int k=0;k<reviewNs;++k)published+=blendedSpecies[k];
         if(!finiteDevice(published)||fabs(published-blendedDensity)>tol*blendedDensity)
-        {s.gasSpecies.cellStatus[c]=int(ugkwp::GasTransportCode::InvalidComposition);return;}
+        {ugkwp::gasRecordCellFailure(s,c,ugkwp::GasTransportCode::InvalidComposition);return;}
         }
         else
         {
@@ -1376,11 +1448,11 @@ __global__ void blendGasConservativeStateKernel
             const int i=k*s.nCells+c;
             const GPU_OPERATOR_REAL a=s.gasSpecies.initial[i],b=s.gasSpecies.rho[i];
             if(!finiteDevice(a)||!finiteDevice(b))
-            {s.gasSpecies.cellStatus[c]=int(ugkwp::GasTransportCode::InvalidComposition);return;}
+                ugkwp::gasRecordCellFailure(s,c,ugkwp::GasTransportCode::InvalidComposition);
             repairable=repairable&&a>=GPU_OPERATOR_R(0)&&b>=GPU_OPERATOR_R(0);
             sumInitial+=a;sumStage+=b;blendedSpecies[k]=initialWeight*a+stageWeight*b;sumBlend+=blendedSpecies[k];
             if(!finiteDevice(blendedSpecies[k]))
-            {s.gasSpecies.cellStatus[c]=int(ugkwp::GasTransportCode::NonFiniteState);return;}
+                ugkwp::gasRecordCellFailure(s,c,ugkwp::GasTransportCode::NonFiniteState);
         }
         const GPU_OPERATOR_REAL tol=s.gasSpecies.densityClosureTolerance;
         repairable=repairable&&finiteDevice(tol)&&tol>=GPU_OPERATOR_R(0)&&finiteDevice(blendedDensity)&&blendedDensity>GPU_OPERATOR_R(0)
@@ -1447,14 +1519,14 @@ __device__ void recoverGasPrimitiveCell(GasState& s, const int c, const bool nat
         auto& species = s.gasSpecies;
         if (species.mode != ugkwp::GasMode::SingleLegacy)
         {
-            // Recovery is read-only on all accepted/conserved inventories. A
-            // failed candidate leaves every primitive output unchanged.
+            // Strict retry candidates remain transactional. The final route
+            // completes primitives from conserved inputs and retains status.
             if (!species.cellStatus) { asm("trap;"); return; }
-            if (species.cellStatus[c] != 0) return;
+            if (nativeRefinement && species.cellStatus[c] != 0) return;
             if (!species.rho || !species.soundSpeed || !species.heatCapacity
                 || !species.gasConstant)
             {
-                species.cellStatus[c] = int(ugkwp::GasTransportCode::InvalidStorage);
+                ugkwp::gasRecordCellFailure(s,c,ugkwp::GasTransportCode::InvalidStorage);
                 return;
             }
             using Energy = ugkwp::GasEnergyScalar<GasState>;
@@ -1462,14 +1534,15 @@ __device__ void recoverGasPrimitiveCell(GasState& s, const int c, const bool nat
             Energy partialDensity[Ns];
             Energy densitySum = Energy(0);
             Energy gasConstantDensity = Energy(0.0);
+            int failure=species.cellStatus[c];
             const Energy density = s.rho[c];
             for (int k = 0; k < Ns; ++k)
             {
                 partialDensity[k] = species.rho[k*s.nCells+c];
                 if (!ugkwp::gasFinite(partialDensity[k]) || (nativeRefinement && partialDensity[k]<Energy(0)))
                 {
-                    species.cellStatus[c] = int(ugkwp::GasTransportCode::InvalidComposition);
-                    return;
+                    if(!failure)failure=int(ugkwp::GasTransportCode::InvalidComposition);
+                    if(nativeRefinement){ugkwp::gasRecordCellFailure(s,c,static_cast<ugkwp::GasTransportCode>(failure));return;}
                 }
                 if(nativeRefinement)densitySum+=partialDensity[k];
             }
@@ -1479,8 +1552,8 @@ __device__ void recoverGasPrimitiveCell(GasState& s, const int c, const bool nat
                     || species.densityClosureTolerance<Energy(0)
                     || fabs(densitySum-density)>species.densityClosureTolerance*density)))
             {
-                species.cellStatus[c] = int(ugkwp::GasTransportCode::InvalidComposition);
-                return;
+                if(!failure)failure=int(ugkwp::GasTransportCode::InvalidComposition);
+                if(nativeRefinement){ugkwp::gasRecordCellFailure(s,c,static_cast<ugkwp::GasTransportCode>(failure));return;}
             }
             const Energy ux = Energy(s.rhoUx[c])/density;
             const Energy uy = Energy(s.rhoUy[c])/density;
@@ -1488,22 +1561,38 @@ __device__ void recoverGasPrimitiveCell(GasState& s, const int c, const bool nat
             const Energy internalEnergy = s.rhoE[c]
                 - Energy(0.5)*density*(ux*ux+uy*uy+uz*uz);
             Energy temperature = s.Tgas[c];
+            bool temperatureEvaluated=false;
             const auto status = nativeRefinement
                 ? ugkwp::invertMixtureEnergy<true>(partialDensity,internalEnergy,species.thermo,
-                    ugkwp::castThermoControls<Energy>(species.thermoControls),temperature)
+                    ugkwp::castThermoControls<Energy>(species.thermoControls),temperature,&temperatureEvaluated)
                 : ugkwp::invertMixtureEnergy(partialDensity,internalEnergy,species.thermo,
-                    ugkwp::castThermoControls<Energy>(species.thermoControls),temperature);
+                    ugkwp::castThermoControls<Energy>(species.thermoControls),temperature,&temperatureEvaluated);
             if (status != ugkwp::ThermoStatus::Success)
             {
-                species.cellStatus[c] = int(ugkwp::GasTransportCode::InvalidThermodynamics);
-                return;
+                if(!failure)failure=int(ugkwp::GasTransportCode::InvalidThermodynamics);
+                // Status alone cannot distinguish a metadata certificate from
+                // missing backing. Only a truly evaluated T can be completed.
+                if(nativeRefinement || !temperatureEvaluated)
+                {ugkwp::gasRecordCellFailure(s,c,!nativeRefinement&&!temperatureEvaluated?ugkwp::GasTransportCode::InvalidStorage:static_cast<ugkwp::GasTransportCode>(failure));return;}
             }
             Energy cpDensity = Energy(0.0);
             for (int k = 0; k < Ns; ++k)
             {
                 gasConstantDensity += partialDensity[k]*ugkwp::universalGasConstant<Energy>()
                     /species.thermo.species[k].molarMass;
-                cpDensity += partialDensity[k]*ugkwp::speciesCp(k, temperature, species.thermo);
+                if(nativeRefinement)
+                    cpDensity += partialDensity[k]*ugkwp::speciesCp(k, temperature, species.thermo);
+                else
+                {
+                    ugkwp::gasThermoDetail::SpeciesValues<Energy> values;
+                    bool propertyEvaluated=false;
+                    const auto property=ugkwp::gasThermoDetail::evaluateSpecies(k,temperature,species.thermo,values,&propertyEvaluated);
+                    if(!propertyEvaluated)
+                    {ugkwp::gasRecordCellFailure(s,c,ugkwp::GasTransportCode::InvalidStorage);return;}
+                    if(property!=ugkwp::ThermoStatus::Success && !failure)
+                        failure=int(ugkwp::GasTransportCode::InvalidThermodynamics);
+                    cpDensity += partialDensity[k]*values.cp;
+                }
             }
             const Energy R = gasConstantDensity/density;
             const Energy cp = cpDensity/density;
@@ -1514,14 +1603,15 @@ __device__ void recoverGasPrimitiveCell(GasState& s, const int c, const bool nat
                 || !ugkwp::gasFinite(sqrt(a2))
                 || (nativeRefinement && (!(pressure>Energy(0)) || !ugkwp::gasFinite(a2) || !(a2>Energy(0)))))
             {
-                species.cellStatus[c] = int(ugkwp::GasTransportCode::InvalidThermodynamics);
-                return;
+                if(!failure)failure=int(ugkwp::GasTransportCode::InvalidThermodynamics);
+                if(nativeRefinement){ugkwp::gasRecordCellFailure(s,c,static_cast<ugkwp::GasTransportCode>(failure));return;}
             }
 
             s.Ux[c] = ux; s.Uy[c] = uy; s.Uz[c] = uz;
             s.p[c] = pressure; s.Tgas[c] = temperature;
             species.soundSpeed[c] = sqrt(a2);
             species.heatCapacity[c] = cp; species.gasConstant[c] = R;
+            ugkwp::gasRecordCellFailure(s,c,static_cast<ugkwp::GasTransportCode>(failure));
             return;
         }
     }
@@ -1529,7 +1619,7 @@ __device__ void recoverGasPrimitiveCell(GasState& s, const int c, const bool nat
         // Preserve the established homogeneous legacy numerical path.
     if(ugkwp::gasMovingGeometry(s))
     {
-        if(ugkwp::gasCellFailure(s,c)!=0)return;
+        if(nativeRefinement && ugkwp::gasCellFailure(s,c)!=0)return;
         const GPU_OPERATOR_REAL density=s.rho[c];
         const GPU_OPERATOR_REAL ux=s.rhoUx[c]/density,uy=s.rhoUy[c]/density,uz=s.rhoUz[c]/density;
         const GPU_OPERATOR_REAL internal=s.rhoE[c]-GPU_OPERATOR_R(0.5)*density*(ux*ux+uy*uy+uz*uz);
@@ -1537,7 +1627,11 @@ __device__ void recoverGasPrimitiveCell(GasState& s, const int c, const bool nat
         const GPU_OPERATOR_REAL temperature=pressure/(density*s.Rgas);
         if(!finiteDevice(density)||!finiteDevice(ux)||!finiteDevice(uy)||!finiteDevice(uz)
             ||!finiteDevice(pressure)||!finiteDevice(temperature))
-        {if(!ugkwp::gasRecordCellFailure(s,c,ugkwp::GasTransportCode::InvalidThermodynamics))asm("trap;");return;}
+        {
+            if(!ugkwp::gasCellFailure(s,c)
+                && !ugkwp::gasRecordCellFailure(s,c,ugkwp::GasTransportCode::InvalidThermodynamics))asm("trap;");
+            if(nativeRefinement)return;
+        }
         s.Ux[c]=ux;s.Uy[c]=uy;s.Uz[c]=uz;s.p[c]=pressure;s.Tgas[c]=temperature;
         return;
     }

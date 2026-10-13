@@ -29,7 +29,6 @@ __global__ void computeGasFluxPositivityScaleKernel(GasState* sp, const GPU_OPER
     GPU_OPERATOR_REAL outgoingMassFlux = GPU_OPERATOR_R(0.0);
     const int start = s.cellPlaneStart[c];
     const int count = s.cellPlaneCount[c];
-    if(count>0 && start<0){if(!ugkwp::gasRecordCellFailure(s,c,ugkwp::GasTransportCode::InvalidGeometry))asm("trap;");return;}
     for (int i = 0; i < count; ++i)
     {
         const int f = s.cellFaceId[start + i];
@@ -57,10 +56,10 @@ __global__ void computeGasFluxPositivityScaleKernel(GasState* sp, const GPU_OPER
             volumes=ugkwp::gasMovingGeometry(s)?s.gasGeometry.oldVolume:s.V;
         else volumes=s.V;
         if(!volumes)
-        {if(!ugkwp::gasRecordCellFailure(s,c,ugkwp::GasTransportCode::InvalidGeometry))asm("trap;");return;}
+        {if(!ugkwp::gasRecordCellFailure(s,c,ugkwp::GasTransportCode::InvalidStorage))asm("trap;");return;}
         inventoryVolume=volumes[c];
         if(!ugkwp::gasFinite(inventoryVolume))
-        {if(!ugkwp::gasRecordCellFailure(s,c,ugkwp::GasTransportCode::InvalidGeometry))asm("trap;");return;}
+            ugkwp::gasRecordCellFailure(s,c,ugkwp::GasTransportCode::InvalidGeometry);
         inventoryVolumeComputed=true;
         const GPU_OPERATOR_REAL availableMass =
             clampMin(s.rho[c] - s.rhoMin, GPU_OPERATOR_R(0.0))*inventoryVolume;
@@ -89,7 +88,7 @@ __global__ void computeGasFluxPositivityScaleKernel(GasState* sp, const GPU_OPER
                     if (f<0 || f>=s.nFaces) continue;
                     const GPU_OPERATOR_REAL flux=s.gasSpecies.flux[k*s.nFaces+f];
                     if (!ugkwp::gasFinite(flux))
-                    { s.gasSpecies.cellStatus[c]=int(ugkwp::GasTransportCode::NonFiniteState); return; }
+                    { ugkwp::gasRecordCellFailure(s,c,ugkwp::GasTransportCode::NonFiniteState); }
                     if (s.faceOwner[f]==c && flux>GPU_OPERATOR_R(0.0)) outflow+=flux;
                     else if (s.faceNeighbour[f]==c && flux<GPU_OPERATOR_R(0.0)) outflow-=flux;
                 }
@@ -103,10 +102,10 @@ __global__ void computeGasFluxPositivityScaleKernel(GasState* sp, const GPU_OPER
                             volumes=ugkwp::gasMovingGeometry(s)?s.gasGeometry.oldVolume:s.V;
                         else volumes=s.V;
                         if(!volumes)
-                        {if(!ugkwp::gasRecordCellFailure(s,c,ugkwp::GasTransportCode::InvalidGeometry))asm("trap;");return;}
+                        {if(!ugkwp::gasRecordCellFailure(s,c,ugkwp::GasTransportCode::InvalidStorage))asm("trap;");return;}
                         inventoryVolume=volumes[c];
                         if(!ugkwp::gasFinite(inventoryVolume))
-                        {if(!ugkwp::gasRecordCellFailure(s,c,ugkwp::GasTransportCode::InvalidGeometry))asm("trap;");return;}
+                        {if(!ugkwp::gasRecordCellFailure(s,c,ugkwp::GasTransportCode::InvalidGeometry))asm("trap;");}
                         inventoryVolumeComputed=true;
                     }
                     const GPU_OPERATOR_REAL available=s.gasSpecies.rho[k*s.nCells+c]*inventoryVolume;
@@ -165,7 +164,7 @@ __global__ void applyGasFluxPositivityScaleKernel(GasState* sp, const bool nativ
             if(ugkwp::gasBoundaryLayerFaceSlot(s,f)>=0)
             {
                 if(nativeRefinement && scale<GPU_OPERATOR_R(1.0))
-                {s.gasSpecies.faceStatus[f]=int(ugkwp::GasTransportCode::NegativeInventory);return;}
+                {ugkwp::gasRecordFaceFailure(s,f,ugkwp::GasTransportCode::NegativeInventory);return;}
                 scale=GPU_OPERATOR_R(1.0);
             }
             for (int k=0; k<ugkwp::GasStateTraits<GasState>::speciesCount; ++k)

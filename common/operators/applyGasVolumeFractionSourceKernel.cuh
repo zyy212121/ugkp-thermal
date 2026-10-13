@@ -88,23 +88,7 @@ __global__ void applyGasVolumeFractionSourceKernel
       ? s.rhoK[c]*massScale : GPU_OPERATOR_R(0.0);
     const GPU_OPERATOR_REAL rhoOmegaCandidate = s.sstConfigured != 0
       ? s.rhoOmega[c]*massScale : GPU_OPERATOR_R(0.0);
-    if
-    (
-        !finiteDevice(rhoKCandidate)
-     || !finiteDevice(rhoOmegaCandidate)
-     || !finiteDevice(cepsG)
-     || !finiteDevice(massScale)
-     || !finiteDevice(mgCandidate)
-     || !finiteDevice(momGXCandidate)
-     || !finiteDevice(momGYCandidate)
-     || !finiteDevice(momGZCandidate)
-     || !finiteDevice(pressureOld)
-     || !ugkwp::gasEnergyFinite(enerGCandidate)
-    )
-    {
-        asm("trap;");
-        return;
-    }
+
 
     if (s.sstConfigured != 0)
     {

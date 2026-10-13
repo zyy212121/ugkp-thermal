@@ -124,18 +124,23 @@ __device__ GasPrimDevice reconstructGasCellToFace
     const GasState& s,
     const int c,
     const int f,
-    const bool nativeRefinement=false
+    const bool nativeRefinement=false, bool* evaluated=nullptr
 )
 {
+    if(evaluated)*evaluated=false;
     if constexpr (ugkwp::GasStateTraits<GasState>::speciesCount > 0)
         if (ugkwp::mixtureGasActive(s))
         {
             GasPrimDevice face=gasCellPrimitive(s,c);
             GPU_OPERATOR_REAL y[ugkwp::GasStateTraits<GasState>::speciesCount];
-            if(!reconstructGasMixtureFace(s,c,f,face,y,nativeRefinement))
-                s.gasSpecies.faceStatus[f]=int(ugkwp::GasTransportCode::InvalidThermodynamics);
+            bool complete=false;
+            if(!reconstructGasMixtureFace(s,c,f,face,y,nativeRefinement,&complete))
+                ugkwp::gasRecordFaceFailure(s,f,!nativeRefinement&&!complete
+                    ?ugkwp::GasTransportCode::InvalidStorage:ugkwp::GasTransportCode::InvalidThermodynamics);
+            if(evaluated)*evaluated=complete;
             return face;
         }
+    if(evaluated)*evaluated=true;
     if (s.gasReconstruction != 1)
     {
         return makeGasPrimDevice

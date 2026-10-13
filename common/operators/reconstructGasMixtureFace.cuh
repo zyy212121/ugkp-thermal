@@ -12,16 +12,17 @@ template<class GasState>
 __device__ bool reconstructGasMixtureFace
 (
     const GasState& s, const int c, const int f,
-    GasPrimDevice& output, GPU_OPERATOR_REAL* massFractions, const bool nativeRefinement=false
+    GasPrimDevice& output, GPU_OPERATOR_REAL* massFractions, const bool nativeRefinement=false, bool* evaluated=nullptr
 )
 {
+    if(evaluated)*evaluated=false;
     constexpr int Ns=ugkwp::GasStateTraits<GasState>::speciesCount;
     const GasPrimDevice centre=gasCellPrimitive(s,c);
     GPU_OPERATOR_REAL yc[Ns],dy[Ns];
     for(int k=0;k<Ns;++k)
     {yc[k]=s.gasSpecies.rho[k*s.nCells+c]/centre.rho;dy[k]=GPU_OPERATOR_R(0.0);}
     if(s.gasReconstruction!=1)
-    {output=centre;for(int k=0;k<Ns;++k)massFractions[k]=yc[k];return true;}
+    {output=centre;for(int k=0;k<Ns;++k)massFractions[k]=yc[k];if(evaluated)*evaluated=true;return true;}
     GPU_OPERATOR_REAL cx,cy,cz;
     periodicMappedCellCentre(s,f,c,cx,cy,cz);
     const GPU_OPERATOR_REAL dx=s.faceCx[f]-cx, ddy=s.faceCy[f]-cy, dz=s.faceCz[f]-cz;
@@ -79,7 +80,7 @@ __device__ bool reconstructGasMixtureFace
         // If the final centre EOS is undefined, the last complete slope state
         // remains available; no untouched centre seed is reported as computed.
         if(complete && !nativeRefinement)
-        {output=candidate;for(int k=0;k<Ns;++k)massFractions[k]=y[k];haveCompleteCandidate=true;}
+        {output=candidate;for(int k=0;k<Ns;++k)massFractions[k]=y[k];haveCompleteCandidate=true;if(evaluated)*evaluated=true;}
         if(valid)
         {
             valid=ugkwp::gasFinite(candidate.T)&&candidate.T>=s.TgasMin;
@@ -101,7 +102,16 @@ __device__ bool reconstructGasMixtureFace
         {
             if(nativeRefinement)
             {output=candidate;for(int k=0;k<Ns;++k)massFractions[k]=y[k];}
+            if(evaluated)*evaluated=true;
             return true;
+        }
+        if(!nativeRefinement && attempt==64 && !haveCompleteCandidate)
+        {
+            if(!s.gasSpecies.thermo.species)return false;
+            const auto R=ugkwp::mixtureGasConstant(y,s.gasSpecies.thermo);
+            candidate.T=candidate.p/(candidate.rho*R);
+            output=candidate;for(int k=0;k<Ns;++k)massFractions[k]=y[k];
+            if(evaluated)*evaluated=true;
         }
         alpha=attempt==63?GPU_OPERATOR_R(0.0):GPU_OPERATOR_R(0.5)*alpha;
     }

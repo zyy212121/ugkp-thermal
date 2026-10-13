@@ -67,7 +67,7 @@ __device__ GasPrimDevice riemannFacePrimitiveForGradient
         if(ugkwp::gasMovingGeometry(s))
         {
             GPU_OPERATOR_REAL meshNormal;
-            if(!gasBoundaryMeshNormalSpeed(s,f,meshNormal))return centre;
+            if(!gasBoundaryMeshNormalSpeed(s,f,meshNormal,nativeRefinement))return centre;
             un-=meshNormal;
         }
         GasPrimDevice face = centre;
@@ -98,7 +98,7 @@ __device__ GasPrimDevice riemannFacePrimitiveForGradient
         if(ugkwp::gasMovingGeometry(s))
         {
             GPU_OPERATOR_REAL meshNormal;
-            if(!gasBoundaryMeshNormalSpeed(s,f,meshNormal))return centre;
+            if(!gasBoundaryMeshNormalSpeed(s,f,meshNormal,nativeRefinement))return centre;
             const GPU_OPERATOR_REAL area=s.magSf[f],nx=s.Sfx[f]/area,ny=s.Sfy[f]/area,nz=s.Sfz[f]/area;
             const GPU_OPERATOR_REAL correction=meshNormal-(wall.ux*nx+wall.uy*ny+wall.uz*nz);
             wall.ux+=correction*nx;wall.uy+=correction*ny;wall.uz+=correction*nz;

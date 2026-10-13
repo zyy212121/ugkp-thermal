@@ -36,17 +36,19 @@ __device__ GasPrimDevice gasCellPrimitive(const GasState& s,const int c)
 }
 
 template<class GasState>
-__device__ bool gasBoundaryMeshNormalSpeed(const GasState& s,const int f,GPU_OPERATOR_REAL& normalSpeed)
+__device__ bool gasBoundaryMeshNormalSpeed(const GasState& s,const int f,GPU_OPERATOR_REAL& normalSpeed,const bool nativeRefinement=false)
 {
     normalSpeed=GPU_OPERATOR_R(0.0);
     if constexpr (ugkwp::GasGeometryCapability<GasState>::value)
         if(ugkwp::gasMovingGeometry(s))
         {
             ugkwp::GasFaceFrame<GPU_OPERATOR_REAL> frame;
-            if(!ugkwp::gasGeometryFaceFrame(s,f,s.gasGeometry.interval,frame))
+            bool evaluated=false;
+            if(!ugkwp::gasGeometryFaceFrame(s,f,s.gasGeometry.interval,frame,&evaluated))
             {
-                if(!ugkwp::gasRecordFaceFailure(s,f,ugkwp::GasTransportCode::InvalidGeometry))asm("trap;");
-                return false;
+                if(!ugkwp::gasRecordFaceFailure(s,f,evaluated?ugkwp::GasTransportCode::InvalidGeometry:ugkwp::GasTransportCode::InvalidStorage)
+                    && (nativeRefinement || !evaluated))asm("trap;");
+                if(nativeRefinement || !evaluated)return false;
             }
             normalSpeed=frame.meshVolumeRate/frame.area;
         }
@@ -58,7 +60,7 @@ __device__ bool useRiemannBoundaryVelocity
 (
     const GasState& s,
     const int f,
-    const GasPrimDevice& ownerState
+    const GasPrimDevice& ownerState, const bool nativeRefinement=false
 )
 {
     const int mode = s.riemannBoundaryUFix[f];
@@ -80,7 +82,7 @@ __device__ bool useRiemannBoundaryVelocity
     if(ugkwp::gasMovingGeometry(s))
     {
         GPU_OPERATOR_REAL meshNormal;
-        if(!gasBoundaryMeshNormalSpeed(s,f,meshNormal))return false;
+        if(!gasBoundaryMeshNormalSpeed(s,f,meshNormal,nativeRefinement))return false;
         outwardVelocity-=meshNormal;
     }
     return outwardVelocity < GPU_OPERATOR_R(0.0);
@@ -110,9 +112,27 @@ __device__ GasPrimDevice riemannBoundaryState
                         :s.gasSpecies.rho[k*s.nCells+own]/s.rho[own]);
             const GPU_OPERATOR_REAL R=ugkwp::mixtureGasConstant(Y,s.gasSpecies.thermo);
             if(s.riemannBoundaryUFix[f]==3 || s.riemannBoundaryPWave[f]!=0 || s.nScheduledInletFaces>0)
-            {s.gasSpecies.faceStatus[f]=int(ugkwp::GasTransportCode::UnsupportedConfiguration);return ownerState;}
+            {ugkwp::gasRecordFaceFailure(s,f,ugkwp::GasTransportCode::UnsupportedConfiguration);if(nativeRefinement)return ownerState;}
+            if(!s.gasSpecies.thermo.species)
+            {ugkwp::gasRecordFaceFailure(s,f,ugkwp::GasTransportCode::InvalidStorage);return ownerState;}
+            if(s.riemannBoundaryUFix[f]==3)
+            {
+                GPU_OPERATOR_REAL energy,cv;bool evaluated=false;
+                ugkwp::evaluateMixtureEnergy(Y,ownerState.T,s.gasSpecies.thermo,energy,cv,&evaluated);
+                if(!evaluated){ugkwp::gasRecordFaceFailure(s,f,ugkwp::GasTransportCode::InvalidStorage);return ownerState;}
+                const GPU_OPERATOR_REAL area=clampMin(s.magSf[f],OfSmall);
+                const auto boundary=ugkpboundary::totalConditionInletState
+                (
+                    ugkpboundary::Primitive{ownerState.rho,ownerState.ux,ownerState.uy,ownerState.uz,ownerState.p,ownerState.T},
+                    s.Sfx[f]/area,s.Sfy[f]/area,s.Sfz[f]/area,
+                    clampMin(finiteOr(s.riemannBoundaryP[f],ownerState.p),s.rhoMin*R*clampMin(finiteOr(s.riemannBoundaryT[f],ownerState.T),s.TgasMin)),
+                    clampMin(finiteOr(s.riemannBoundaryT[f],ownerState.T),s.TgasMin),
+                    (cv+R)/cv,R,s.rhoMin,s.TgasMin
+                );
+                return GasPrimDevice{boundary.rho,boundary.ux,boundary.uy,boundary.uz,boundary.p,boundary.T};
+            }
             GasPrimDevice out=ownerState;
-            const bool rf=s.riemannBoundaryRhoFix[f]!=0,pf=s.riemannBoundaryPFix[f]!=0,tf=s.riemannBoundaryTFix[f]!=0;
+            const bool rf=s.riemannBoundaryRhoFix[f]!=0,pf=s.riemannBoundaryPFix[f]!=0 || (!nativeRefinement && s.riemannBoundaryPWave[f]!=0),tf=s.riemannBoundaryTFix[f]!=0;
             if(rf)out.rho=s.riemannBoundaryRho[f];
             if(pf)out.p=s.riemannBoundaryP[f];
             if(tf)out.T=s.riemannBoundaryT[f];
@@ -124,12 +144,12 @@ __device__ GasPrimDevice riemannBoundaryState
                 : ugkwp::mixtureDensityFromPressureTemperature(out.p,out.T,Y,s.gasSpecies.thermo,density,s.gasSpecies.densityClosureTolerance);
             if(status!=ugkwp::ThermoStatus::Success || (nativeRefinement && rf&&pf&&tf
                 && fabs(density-out.rho)>s.gasSpecies.densityClosureTolerance*density))
-            {s.gasSpecies.faceStatus[f]=int(ugkwp::GasTransportCode::InvalidThermodynamics);return ownerState;}
+            {ugkwp::gasRecordFaceFailure(s,f,ugkwp::GasTransportCode::InvalidThermodynamics);if(nativeRefinement)return ownerState;}
             out.rho=density;
-            if(useRiemannBoundaryVelocity(s,f,ownerState))
+            if(useRiemannBoundaryVelocity(s,f,ownerState,nativeRefinement))
             {out.ux=s.riemannBoundaryUx[f];out.uy=s.riemannBoundaryUy[f];out.uz=s.riemannBoundaryUz[f];}
             if(!ugkwp::gasFinite(out.ux)||!ugkwp::gasFinite(out.uy)||!ugkwp::gasFinite(out.uz))
-            {s.gasSpecies.faceStatus[f]=int(ugkwp::GasTransportCode::NonFiniteState);return ownerState;}
+            {ugkwp::gasRecordFaceFailure(s,f,ugkwp::GasTransportCode::NonFiniteState);if(nativeRefinement)return ownerState;}
             return out;
         }
     }
@@ -182,7 +202,7 @@ __device__ GasPrimDevice riemannBoundaryState
     }
 
     const bool velocityFixed =
-        useRiemannBoundaryVelocity(s, f, ownerState);
+        useRiemannBoundaryVelocity(s, f, ownerState,nativeRefinement);
     const bool rhoFixed = s.riemannBoundaryRhoFix[f] != 0;
     const bool pFixed =
         s.riemannBoundaryPFix[f] != 0

@@ -2,6 +2,7 @@
 
 #include "../gasTransport/GasStateView.H"
 #include "../gasTransport/GasCapabilities.H"
+#include "../gasTransport/GasGeometryValidation.H"
 #include "../gasTransport/GasBudgetAudit.H"
 #include "../chemistry/LocalStiffIntegrator.H"
 
@@ -21,13 +22,15 @@ UGKWP_GAS_HD inline ChemistryStatus recordFailure
 (
     SpeciesState& species,
     const int cell,
-    const ChemistryStatus status
+    const ChemistryStatus status,
+    const bool unavailable=true
 ) noexcept
 {
     if (species.chemistryStatus)
         species.chemistryStatus[cell] = status;
-    if (species.cellStatus && species.cellStatus[cell] == 0)
-        species.cellStatus[cell] = int(GasTransportCode::ChemistryFailure);
+    if (species.cellStatus && species.cellStatus[cell]!=int(GasTransportCode::InvalidStorage)
+        && (unavailable || species.cellStatus[cell]==0))
+        species.cellStatus[cell] = int(unavailable?GasTransportCode::InvalidStorage:GasTransportCode::ChemistryFailure);
     return status;
 }
 } // namespace gasChemistryAdapterDetail
@@ -50,14 +53,17 @@ UGKWP_GAS_HD inline ChemistryStatus advanceGasChemistryCell
     const int cell,
     const Time chemicalInterval,
     const GasChemistryStateReal<GasState> stageVolume,
-    const bool nativeRefinement=false
+    const bool nativeRefinement=false,
+    bool* evaluated=nullptr
 ) noexcept
 {
+    if(evaluated)*evaluated=false;
     ChemistryStatus status;
     if constexpr (GasStateTraits<GasState>::speciesCount == 0)
     {
         // No species field, allocation, metadata access, or floating-point work
         // is required by the unchanged legacy path.
+        if(evaluated)*evaluated=true;
         return status;
     }
     else
@@ -68,14 +74,11 @@ UGKWP_GAS_HD inline ChemistryStatus advanceGasChemistryCell
         auto& species = state.gasSpecies;
         if (species.mode == GasMode::SingleLegacy
             || species.mode == GasMode::MixtureFrozen)
-            return status;
-
-        // Invalid indices cannot safely address diagnostic arrays either.
-        if (cell < 0 || cell >= state.nCells)
         {
-            status.code = ChemistryCode::InvalidComposition;
+            if(evaluated)*evaluated=true;
             return status;
         }
+
         if(nativeRefinement && species.cellStatus && species.cellStatus[cell]!=0)
         {
             if(species.chemistryStatus && !species.chemistryStatus[cell])return species.chemistryStatus[cell];
@@ -85,8 +88,7 @@ UGKWP_GAS_HD inline ChemistryStatus advanceGasChemistryCell
         // For public calls, old numerical diagnostics do not replace executing this
         // cell. Missing storage and unavailable arithmetic are checked where
         // their actual inputs/outputs are needed below.
-        if (species.mode != GasMode::MixtureChemistry
-            || !species.rho || !species.chemistryStatus || !species.cellStatus
+        if (!species.rho || !species.cellStatus
             || !state.rho || !state.rhoUx || !state.rhoUy || !state.rhoUz
             || !state.rhoE)
         {
@@ -100,7 +102,6 @@ UGKWP_GAS_HD inline ChemistryStatus advanceGasChemistryCell
             || !gasFinite(stageVolume) || stageVolume == StorageReal(0))
         {
             status.code = ChemistryCode::NonFiniteInput;
-            return gasChemistryAdapterDetail::recordFailure(species, cell, status);
         }
         const Real density = state.rho[cell];
 
@@ -114,7 +115,6 @@ UGKWP_GAS_HD inline ChemistryStatus advanceGasChemistryCell
             if (!gasFinite(partialDensity))
             {
                 status.code = ChemistryCode::InvalidComposition;
-                return gasChemistryAdapterDetail::recordFailure(species, cell, status);
             }
             densitySum += partialDensity;
             input.speciesMass[s] = partialDensity*stageVolume;
@@ -131,18 +131,20 @@ UGKWP_GAS_HD inline ChemistryStatus advanceGasChemistryCell
             || !gasFinite(input.internalEnergy))
         {
             status.code = ChemistryCode::NonFiniteInput;
-            return gasChemistryAdapterDetail::recordFailure(species, cell, status);
         }
 
         ClosedReactorResult<Real, Ns> result;
         ChemistryAudit<Real, Ns> localAudit;
+        const ChemistryStatus inputDiagnostic=status;
+        bool reactorAvailable=false;
         status = advanceClosedReactor
         (
             input, interval, species.thermo, species.mechanism,
-            castChemistryControls<Real>(species.chemistryControls), result, localAudit
+            castChemistryControls<Real>(species.chemistryControls), result, localAudit, &reactorAvailable
         );
-        if (!status)
+        if (!reactorAvailable)
             return gasChemistryAdapterDetail::recordFailure(species, cell, status);
+        gasChemistryDetail::retainDiagnostic(status,inputDiagnostic);
 
         // Convert the actual publication before the first write. A zero-time
         // call retains the original density bits, not their volume round trip.
@@ -156,7 +158,6 @@ UGKWP_GAS_HD inline ChemistryStatus advanceGasChemistryCell
             if (!gasFinite(candidateDensity[s]))
             {
                 status.code = ChemistryCode::NonFiniteInput;
-                return gasChemistryAdapterDetail::recordFailure(species, cell, status);
             }
             densitySum += candidateDensity[s];
         }
@@ -235,15 +236,29 @@ UGKWP_GAS_HD inline ChemistryStatus advanceGasChemistryCell
         }
         if (species.chemistryAudit)
             species.chemistryAudit[cell] = castChemistryAudit<StorageReal>(localAudit);
-        species.chemistryStatus[cell] = status;
-        // Do not erase a separate transport/geometry/wall operation's error.
-        // Their producers classify execution versus policy in their own task.
-        const auto previous=static_cast<GasTransportCode>(species.cellStatus[cell]);
-        if(previous==GasTransportCode::Success || previous==GasTransportCode::InvalidComposition
-            || previous==GasTransportCode::InvalidThermodynamics || previous==GasTransportCode::NegativeInventory
-            || previous==GasTransportCode::ChemistryFailure || previous==GasTransportCode::SourceStepLimit)
-            species.cellStatus[cell] = 0;
+        if(species.chemistryStatus)species.chemistryStatus[cell] = status;
+        if(evaluated)*evaluated=true;
+        if(!status)return gasChemistryAdapterDetail::recordFailure(species,cell,status,false);
         return status;
+    }
+}
+
+// The volume pointer is consumed only for an active chemistry cell. Missing
+// storage cannot be substituted with a supplied numerical zero volume.
+template<class GasState,class Time>
+UGKWP_GAS_HD inline ChemistryStatus advanceGasChemistryCellWithVolumes
+(GasState& state,int cell,Time interval,const GasChemistryStateReal<GasState>* volumes,
+ bool nativeRefinement=false,bool* evaluated=nullptr) noexcept
+{
+    if(evaluated)*evaluated=false;
+    if constexpr(GasStateTraits<GasState>::speciesCount==0){if(evaluated)*evaluated=true;return ChemistryStatus{};}
+    else {
+        auto& species=state.gasSpecies;
+        if(species.mode==GasMode::SingleLegacy || species.mode==GasMode::MixtureFrozen)
+        {if(evaluated)*evaluated=true;return ChemistryStatus{};}
+        if(!volumes){ChemistryStatus status;status.code=ChemistryCode::InvalidModel;
+            return gasChemistryAdapterDetail::recordFailure(species,cell,status);}
+        return advanceGasChemistryCell(state,cell,interval,volumes[cell],nativeRefinement,evaluated);
     }
 }
 
@@ -264,9 +279,6 @@ __global__ void advanceGasChemistryKernel
     if (!state) return;
     const int cell = blockIdx.x*blockDim.x + threadIdx.x;
     if (cell >= state->nCells) return;
-    using Real = ugkwp::GasChemistryStateReal<GasState>;
-    const Real volume = stageVolumes
-        ? stageVolumes[cell] : Real(0);
-    ugkwp::advanceGasChemistryCell(*state, cell, chemicalInterval, volume, nativeRefinement);
+    ugkwp::advanceGasChemistryCellWithVolumes(*state, cell, chemicalInterval, stageVolumes, nativeRefinement);
 }
 #endif

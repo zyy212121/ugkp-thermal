@@ -24,7 +24,7 @@ __global__ void computeGasPrimitiveGradientsKernel
     GPU_OPERATOR_REAL gpx = GPU_OPERATOR_R(0.0), gpy = GPU_OPERATOR_R(0.0), gpz = GPU_OPERATOR_R(0.0);
     GPU_OPERATOR_REAL gtx = GPU_OPERATOR_R(0.0), gty = GPU_OPERATOR_R(0.0), gtz = GPU_OPERATOR_R(0.0);
     const bool refreshSensor = refreshSstCourantSensor
-      && s.sstConfigured != 0 && s.gasFluxScheme == 7;
+      && s.sstConfigured != 0 && s.gasFluxScheme == 7 && !ugkwp::mixtureGasActive(s);
     const GPU_OPERATOR_REAL centrePressure = refreshSensor
       ? clampMin(s.p[c], OfSmall) : GPU_OPERATOR_R(1.0);
     GPU_OPERATOR_REAL sensor = GPU_OPERATOR_R(1.0);
@@ -283,7 +283,10 @@ __device__ void applySstWallFunctionStateCell(GasState& s, const int c, const bo
             {if(allowUnprepared)return;if(!ugkwp::gasRecordCellFailure(s,c,ugkwp::GasTransportCode::InvalidStorage))asm("trap;");return;}
             const GPU_OPERATOR_REAL target=s.gasBoundaryLayer.sst[slot].ownerOmega;
             if(!finiteDevice(target) || (nativeRefinement && !(target>GPU_OPERATOR_R(0))))
-            {if(!ugkwp::gasRecordCellFailure(s,c,ugkwp::GasTransportCode::NonFiniteState))asm("trap;");return;}
+            {
+                const bool recorded=ugkwp::gasRecordCellFailure(s,c,ugkwp::GasTransportCode::NonFiniteState);
+                if(nativeRefinement){if(!recorded)asm("trap;");return;}
+            }
             s.omega[c]=clampMin(target,s.sstOmegaMin);
             s.rhoOmega[c]=clampMin(s.rho[c],s.rhoMin)*s.omega[c];
             ugkwp::gasSstAuditConstraint(s,c,beforeK,beforeOmega);
@@ -332,7 +335,7 @@ __global__ void applySstWallFunctionStateKernel(GasState* sp, const bool allowUn
 }
 
 template<class GasState>
-__global__ void initialiseSstConservativeStateKernel(GasState* sp)
+__global__ void initialiseSstConservativeStateKernel(GasState* sp, bool initializeInventory=true)
 {
     GasState& s = *sp;
     const int c = blockIdx.x*blockDim.x + threadIdx.x;
@@ -348,7 +351,7 @@ __global__ void initialiseSstConservativeStateKernel(GasState* sp)
             s.sstWallE
         );
     }
-    if (c >= s.nCells || s.sstConfigured == 0)
+    if (!initializeInventory || c >= s.nCells || s.sstConfigured == 0)
     {
         return;
     }

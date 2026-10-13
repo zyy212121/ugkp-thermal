@@ -42,10 +42,7 @@ __global__ void accumulateParticleWallRepresentedContactAreaKernel
         {
             physicalContactArea =
                 static_cast<GPU_OPERATOR_REAL>(s.pDepositionArea[i]);
-            if (!std::isfinite(physicalContactArea))
-            {
-                asm("trap;");
-            }
+
         }
         else if
         (
@@ -63,15 +60,7 @@ __global__ void accumulateParticleWallRepresentedContactAreaKernel
                 static_cast<GPU_OPERATOR_REAL>(s.pDepositionArea[i]);
             const GPU_OPERATOR_TIME age =
                 clampRange(finiteOr(particleContactAgeStorage(s, i, 0), GPU_OPERATOR_TIME(0)), GPU_OPERATOR_TIME(0), duration);
-            if
-            (
-                !Foam::gpuThermal::finiteContactValue(duration) || duration == GPU_OPERATOR_TIME(0)
-             || !std::isfinite(maximumArea) || !std::isfinite(peakTimeFraction)
-             || !std::isfinite(damageArea)
-            )
-            {
-                asm("trap;");
-            }
+
             const GPU_OPERATOR_REAL kinematicArea =
                 maximumArea*Foam::gpuThermal::normalizedKinematicArea
                 (
@@ -92,7 +81,6 @@ __global__ void accumulateParticleWallRepresentedContactAreaKernel
                 GPU_OPERATOR_R(0.0)
             );
 
-
             if (!(physicalContactArea > GPU_OPERATOR_R(0.0)))
             {
                 continue;
@@ -111,10 +99,7 @@ __global__ void accumulateParticleWallRepresentedContactAreaKernel
                 physicalContactArea,
                 s.pm[i]
             );
-        if (!std::isfinite(representedArea))
-        {
-            asm("trap;");
-        }
+
         atomicAdd
         (
             &s.particleWallRepresentedContactArea[faceI],

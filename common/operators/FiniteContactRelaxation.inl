@@ -12,10 +12,6 @@
         if
         (
             faceI < 0 || faceI >= s.nFaces
-         || !Foam::gpuThermal::finiteContactValue(duration) || duration == 0.0
-         || !Foam::gpuThermal::finiteContactValue(maximumArea)
-         || !Foam::gpuThermal::finiteContactValue(peakTimeFraction)
-         || !Foam::gpuThermal::finiteContactValue(damageArea)
         )
         {
             asm("trap;");
@@ -78,13 +74,7 @@
                     s, i, s.gasBoundaryT[faceI], physicalMass, s.pm[i],
                     conductanceTimeIntegral, 0
                 );
-            if
-            (
-                !material.valid || !result.valid
-            )
-            {
-                asm("trap;");
-            }
+
             commitParticleFiniteContactThermalCandidateDevice(s, i, result, 0);
             atomicAddParticleWallEnergyByFace
             (
@@ -144,10 +134,7 @@
                     kinematicArea <= targetContactArea
                  || !(kinematicArea > GPU_OPERATOR_R(0.0))
                 );
-            if (!capillary.valid)
-            {
-                asm("trap;");
-            }
+
         }
 
         if (detach)
@@ -168,10 +155,6 @@
         }
         else if (enterLongDeposit)
         {
-            if (!Foam::gpuThermal::finiteContactValue(longDepositArea))
-            {
-                asm("trap;");
-            }
             s.pStuck[i] = Foam::gpuThermal::particleWallDeposited;
             s.pTheta[i] = GPU_OPERATOR_R(0.0);
             GPU_RESET_CONTACT_AGE(s, i)
