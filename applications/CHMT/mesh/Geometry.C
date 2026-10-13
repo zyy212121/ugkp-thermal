@@ -1331,7 +1331,7 @@ namespace chmt {
         }
         for (std::size_t vertex=0;vertex<weight.size();++vertex) if (weight[vertex]>0) {
             if (!Terminal && (!(mag(normal[vertex])>0))) return errorAt(error,"cancelling base vertex normals",vertex);
-            normal[vertex]=normalized(normal[vertex]);
+            normal[vertex]=Terminal?normal[vertex]/mag(normal[vertex]):normalized(normal[vertex]);
             depth[vertex]/=weight[vertex];
         }
         std::vector<int> reverse(gas.points.size(),-1);
@@ -1501,6 +1501,11 @@ namespace chmt {
         return rebuildTrajectorySurfaceImpl<false>(ag,as,ref,g,so,dt,out,e,tol,numericalFailure);
     }
     namespace detail {
+    bool completeConformalInterface(const HostMesh& gas,const HostMesh& solid,const std::vector<int>& faces,
+        const std::vector<Real>& thickness,const std::vector<int>& candidates,std::vector<int>& mapped,
+        std::vector<int>& vertices,std::string& error) {
+        return mapConformalInterfaceImpl<true>(gas,solid,faces,thickness,candidates,mapped,vertices,error);
+    }
     bool completeGeometry(HostMesh& m,std::string& e,bool* n) {if(n)*n=true;return rebuildGeometryImpl<true>(m,e,n);}
     bool completeStageAreaVectors(const HostMesh& m,const std::vector<Vec3>& p,std::vector<Vec3>& a,std::string& e,bool* n) {
         if(n)*n=true;

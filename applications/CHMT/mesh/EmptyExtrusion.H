@@ -18,6 +18,20 @@ inline bool reject(std::string& error,const char* message) {
 // The first supported representation has two fixed axis-aligned layers. Pairing
 // is exact and reconstructed from authoritative points/topology, never nearest
 // neighbour tolerance or an independently persisted cache.
+// Terminal supplied NaNs form one ordered equivalence class after numbers.
+// Finite keys, infinities and signed-zero equivalence retain their old ordering.
+template<bool Terminal> struct CoordinateLess {
+    bool operator()(Real a,Real b) const {
+        if(Terminal){if(a!=a)return false;if(b!=b)return true;}
+        return a<b;
+    }
+};
+template<bool Terminal> struct TangentialLess {
+    bool operator()(const std::pair<Real,Real>& a,const std::pair<Real,Real>& b) const {
+        const CoordinateLess<Terminal> less;
+        return less(a.first,b.first)||(!less(b.first,a.first)&&less(a.second,b.second));
+    }
+};
 template<bool Terminal=false>
 inline bool build(const HostMesh& mesh,Extrusion& output,std::string& error) {
     if(!Terminal && (mesh.boundaryKind.size()!=mesh.owner.size() || mesh.areaVectors.size()!=mesh.owner.size()
@@ -25,7 +39,7 @@ inline bool build(const HostMesh& mesh,Extrusion& output,std::string& error) {
         || mesh.faceOffsets.front()!=0 || mesh.faceOffsets.back()<0
         || static_cast<std::size_t>(mesh.faceOffsets.back())!=mesh.facePoints.size()))
         return reject(error,"incomplete authoritative geometry");
-    Extrusion result;std::set<Real> levels;std::vector<unsigned char> seen(mesh.points.size());
+    Extrusion result;std::set<Real,CoordinateLess<Terminal>> levels;std::vector<unsigned char> seen(mesh.points.size());
     for(std::size_t f=0;f<mesh.owner.size();++f) {
         const int begin=mesh.faceOffsets[f],end=mesh.faceOffsets[f+1];
         if(!Terminal && (begin<0 || end<begin || static_cast<std::size_t>(end)>mesh.facePoints.size() || end-begin<3))
@@ -52,7 +66,7 @@ inline bool build(const HostMesh& mesh,Extrusion& output,std::string& error) {
     if(!Terminal && (levels.size()!=2))return reject(error,"two distinct normal layers are required");
     const Real low=*levels.begin(),high=*levels.rbegin();
     const int u=(result.axis+1)%3,v=(result.axis+2)%3;
-    std::map<std::pair<Real,Real>,std::array<int,2>> pairs;
+    std::map<std::pair<Real,Real>,std::array<int,2>,TangentialLess<Terminal>> pairs;
     for(std::size_t p=0;p<mesh.points.size();++p) {
         if(!Terminal && (!seen[p]))return reject(error,"every point must belong to an Empty layer");
         const Real normal=component(mesh.points[p],result.axis);
