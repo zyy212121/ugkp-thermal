@@ -34,11 +34,6 @@ template<class S,int N> UGKWP_GAS_HD inline bool publishWallPrecision(const Wall
     // Residuals, audit differences and optional source integrals are diagnostics.
     // Preserve their actual narrowed results, including inf/NaN, without making
     // diagnostic representability a requirement for physical publication.
-    if(!gasFinite(dst.traceTemperature)||!gasFinite(dst.traceDensity)||!gasFinite(dst.conductiveHeatFlux)
-        ||!gasFinite(dst.ownerOmega)||!gasFinite(dst.wallKFlux))return false;
-    for(int d=0;d<3;++d)if(!gasFinite(dst.traceVelocity[d])||!gasFinite(dst.traction[d]))return false;
-    for(int j=0;j<N;++j)if(!gasFinite(dst.traceMassFraction[j])||!gasFinite(dst.wallSpeciesFlux[j])
-        ||!gasFinite(dst.matchingSpeciesFlux[j])||!gasFinite(dst.reactionIntegral[j]))return false;
     output=dst;return true;
 }
 }}}

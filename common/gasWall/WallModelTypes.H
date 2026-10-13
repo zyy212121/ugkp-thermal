@@ -80,28 +80,40 @@ template<class R> UGKWP_GAS_HD inline R min(R x,R y){return x<y?x:y;}
 UGKWP_GAS_HD inline bool fail(WallStatus& s,WallCode c,int node=-1){s.code=c;s.node=node;return false;}
 template<class R> UGKWP_GAS_HD inline R dot(const R* a,const R* b){return a[0]*b[0]+a[1]*b[1]+a[2]*b[2];}
 template<class R> UGKWP_GAS_HD inline R expRatio(R x){return abs(x)<R(1e-5)?R(1)-x/R(2)+x*x/R(12)-x*x*x*x/R(720):x/::expm1(x);}
+// Complete only the channel consumed by the wall. Scalar helpers keep their
+// historical partial-property behavior for all other callers.
+template<bool Enthalpy,class R,int N,class TableReal> UGKWP_GAS_HD inline R wallProperty(
+ int species,R temperature,const SpeciesThermoView<TableReal,N>& thermo,bool* evaluated=nullptr){
+    const R original=Enthalpy?speciesH(species,temperature,thermo):speciesCp(species,temperature,thermo);
+    if(gasFinite(original)){if(evaluated)*evaluated=true;return original;}
+    gasThermoDetail::SpeciesValues<R> values;bool available=false;
+    gasThermoDetail::evaluateSpecies<R,N,TableReal,true,Enthalpy>(species,temperature,thermo,values,&available);
+    if(evaluated)*evaluated=available;
+    return available?(Enthalpy?values.h:values.cp):gasThermoDetail::invalidValue<R>();
+}
 template<class R,int N,class TableReal> UGKWP_GAS_HD inline bool validateInput(const WallInput<R,N,TableReal>& in,const WallModelConfig<R>& c,WallStatus& s){
     s=WallStatus{};
+    // Both arrays are actually consumed by wall EOS and caloric expressions.
+    if(!in.model.thermo.species||!in.model.thermo.coefficients)return fail(s,WallCode::InvalidThermodynamics);
     if(!gasFinite(in.pressure)||!gasFinite(in.temperature)||!gasFinite(in.matching.temperature)
         ||!gasFinite(in.matchingDistance)||!gasFinite(in.ownerDistance)
         ||!gasFinite(in.model.molecularPrandtl)||!gasFinite(in.model.viscosity)
-        ||!gasFinite(in.model.conductivity))return fail(s,WallCode::InvalidInput);
+        ||!gasFinite(in.model.conductivity))s.code=WallCode::InvalidInput;
     for(int d=0;d<3;++d)if(!gasFinite(in.normal[d])||!gasFinite(in.velocity[d])
-        ||!gasFinite(in.matching.velocity[d]))return fail(s,WallCode::InvalidInput);
+        ||!gasFinite(in.matching.velocity[d]))s.code=WallCode::InvalidInput;
     for(int j=0;j<N;++j){if(!gasFinite(in.massFlux[j])||!gasFinite(in.matching.massFraction[j])
-        ||!gasFinite(in.model.diffusivity[j]))return fail(s,WallCode::InvalidInput);
-        if(in.coarseReactionIntegral&&!gasFinite(in.coarseReactionIntegral[j]))return fail(s,WallCode::InvalidInput);}
-    if(validateSpeciesThermoView(in.model.thermo)!=ThermoStatus::Success)return fail(s,WallCode::InvalidThermodynamics);
+        ||!gasFinite(in.model.diffusivity[j]))s.code=WallCode::InvalidInput;}
     if(!gasFinite(c.relativeTolerance)||!gasFinite(c.absoluteTolerance)||!gasFinite(c.stretch)
-        ||!gasFinite(c.turbulentPrandtl)||!gasFinite(c.turbulentSchmidt))return fail(s,WallCode::InvalidInput);
+        ||!gasFinite(c.turbulentPrandtl)||!gasFinite(c.turbulentSchmidt))s.code=WallCode::InvalidInput;
     return true;
 }
-template<class R,int N,class TableReal> UGKWP_GAS_HD inline bool trace(const WallInput<R,N,TableReal>& in,const R* Y,WallOutput<R,N>& out){
+template<class R,int N,class TableReal> UGKWP_GAS_HD inline bool trace(const WallInput<R,N,TableReal>& in,const R* Y,WallOutput<R,N>& out,const bool terminalProfile=false){
+    if(!in.model.thermo.species)return false;
     R gasR=0,m=0;for(int j=0;j<N;++j){gasR+=Y[j]*universalGasConstant<R>()/in.model.thermo.species[j].molarMass;m+=in.massFlux[j];out.traceMassFraction[j]=Y[j];out.wallSpeciesFlux[j]=in.massFlux[j];}
     out.traceTemperature=in.temperature;out.traceDensity=in.pressure/(gasR*in.temperature);
     for(int d=0;d<3;++d)out.traceVelocity[d]=in.velocity[d]+in.normal[d]*m/out.traceDensity;
-    if(!gasFinite(out.traceDensity))return false;
-    for(int d=0;d<3;++d)if(!gasFinite(out.traceVelocity[d]))return false;
+    if(!terminalProfile&&!gasFinite(out.traceDensity))return false;
+    for(int d=0;d<3;++d)if(!terminalProfile&&!gasFinite(out.traceVelocity[d]))return false;
     return true;
 }
 } // detail

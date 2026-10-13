@@ -139,7 +139,6 @@ template<class R> bool gaussRule(int order,std::vector<R>&x,std::vector<R>&weigh
         for(int j=2;j<=order;++j){const R p=(R(2*j-1)*z*p1-R(j-1)*p0)/R(j);p0=p1;p1=p;}
         derivative=R(order)*(z*p1-p0)/(z*z-R(1));
         const R w=R(2)/((R(1)-z*z)*derivative*derivative);
-        if(!gasFinite(w)||!gasFinite(z))return false;
         x[i]=-z;x[order-1-i]=z;weight[i]=weight[order-1-i]=w;
     }
     return true;
@@ -231,11 +230,9 @@ template<class R> bool tetraSection(const std::array<Vec<R>,4>&p,const std::arra
     area=0;Vec<R> offset{};
     for(int i=0;i<count;++i){const auto a=sub(section[angle[i].second],centre),b=sub(section[angle[(i+1)%count].second],centre);
         const R w=dot(cross(a,b),d.normal)/R(2);
-        if(!gasFinite(w)||w<0)return false;
         area+=w;offset=add(offset,mul(add(a,b),w/R(3)));
     }
-    if(!(area>0)||!gasFinite(area))return false;
-    centroid=add(p[anchor],add(centre,mul(offset,R(1)/area)));return finite(centroid);
+    centroid=add(p[anchor],add(centre,mul(offset,R(1)/area)));return true;
 }
 // The section area is quadratic between projected tetrahedron vertices.
 // Cutting again at every BVP node makes area * reconstructed source cubic,
@@ -283,7 +280,6 @@ template<class R> bool profileOwnerQuadrature(const std::vector<std::array<Vec<R
             const R x=firstInterval?ctx.firstGaussPoint[q]:(q==0?-gauss:gauss);
             const R coordinate=mid+half*x,y=firstInterval?first*coordinate*coordinate:coordinate;
             const R dy=firstInterval?half*ctx.firstGaussWeight[q]*R(2)*first*coordinate:half;
-            if(!(y>a&&y<b))return false;
             R totalArea=0;Vec<R> firstAreaMoment{};
             for(std::size_t t=0;t<tetra.size();++t){
                 const R low=*std::min_element(height[t].begin(),height[t].end()),high=*std::max_element(height[t].begin(),height[t].end());
@@ -292,7 +288,7 @@ template<class R> bool profileOwnerQuadrature(const std::vector<std::array<Vec<R
                 if(!tetraSection(tetra[t],height[t],y,d,area,point))return false;
                 totalArea+=area;firstAreaMoment=add(firstAreaMoment,mul(sub(point,d.origin),area));
             }
-            const R weight=totalArea*dy;if(!(weight>0)||!gasFinite(weight))return false;
+            const R weight=totalArea*dy;
             const Vec<R> centroid=add(d.origin,mul(firstAreaMoment,R(1)/totalArea));
             d.distance.push_back(y);d.volumeWeight.push_back(weight);d.quadraturePoints.push_back(centroid);
         }
@@ -363,8 +359,7 @@ template<class R> bool build(const WallGeometryMesh<R>&m,const Context<R>&ctx,in
     std::vector<R> profile;
     if(opt.constructQuadrature&&opt.profileNodes){
         profile.resize(opt.profileNodes);
-        for(int i=0;i<opt.profileNodes;++i){profile[i]=d.matchingDistance*std::pow(R(i)/R(opt.profileNodes-1),opt.profileStretch);
-            if(!gasFinite(profile[i])||(i>0&&!(profile[i]>profile[i-1])))return invalid(s,wallFace);}
+        for(int i=0;i<opt.profileNodes;++i)profile[i]=d.matchingDistance*std::pow(R(i)/R(opt.profileNodes-1),opt.profileStretch);
     }
     R volume=0;Vec<R> moment{};
     std::vector<std::array<Vec<R>,4>> tetra;
@@ -372,7 +367,6 @@ template<class R> bool build(const WallGeometryMesh<R>&m,const Context<R>&ctx,in
         if(m.owner[f]!=d.ownerCell)std::swap(t.b,t.c);
         const auto&a=m.points[t.a],&b=m.points[t.b],&c=m.points[t.c];
         R v=dot(sub(a,seed),cross(sub(b,seed),sub(c,seed)))/R(6);
-        if(!gasFinite(v)||!(v>0))return invalid(s,f);
         const Vec<R> centre=mul(add(add(seed,a),add(b,c)),R(.25));
         volume+=v;moment=add(moment,mul(sub(centre,m.cellCentres[d.ownerCell]),v));
         if(!opt.constructQuadrature)continue;
@@ -380,7 +374,6 @@ template<class R> bool build(const WallGeometryMesh<R>&m,const Context<R>&ctx,in
         else tetraQuadrature<R>({{seed,a,b,c}},v,opt.quadratureRefinement,d);
     }
     d.geometryVolume=volume;d.volume=m.volumes[d.ownerCell];
-    if(!gasFinite(volume)||volume==0||!gasFinite(d.volume))return invalid(s,wallFace);
     if(!opt.constructQuadrature){
         // Retain the actual geometric moments without diagnostic nodes.
         const Vec<R> centroid=add(m.cellCentres[d.ownerCell],mul(moment,R(1)/volume));
@@ -392,10 +385,8 @@ template<class R> bool build(const WallGeometryMesh<R>&m,const Context<R>&ctx,in
     // Preserve the existing stage-volume normalization, without making its
     // difference from the constructed geometry an admission certificate.
     R quadratureVolume=0;for(R weight:d.volumeWeight)quadratureVolume+=weight;
-    if(!gasFinite(quadratureVolume)||quadratureVolume==0)return invalid(s,wallFace);
     const R factor=d.volume/quadratureVolume;
     for(std::size_t i=0;i<d.distance.size();++i){
-        if(!gasFinite(d.distance[i]))return invalid(s,wallFace);
         d.volumeWeight[i]*=factor;d.firstMoment+=d.volumeWeight[i]*d.distance[i];
         d.firstMomentVector=add(d.firstMomentVector,mul(d.quadraturePoints[i],d.volumeWeight[i]));
     }

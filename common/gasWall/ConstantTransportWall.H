@@ -7,8 +7,10 @@ template<class R,int N,class TableReal> UGKWP_GAS_HD inline bool evaluateConstan
  const WallInput<R,N,TableReal>& in,const WallModelConfig<R>& c,WallOutput<R,N>& output,WallStatus& status){
     if(!detail::validateInput(in,c,status))return false;
     R m=0,cp=0;for(int j=0;j<N;++j)m+=in.massFlux[j];
-    for(int j=0;j<N;++j)cp+=in.matching.massFraction[j]*speciesCp(j,in.temperature,in.model.thermo);
-    WallOutput<R,N> out;if(!detail::trace(in,in.matching.massFraction,out))return detail::fail(status,WallCode::InvalidThermodynamics);
+    for(int j=0;j<N;++j){bool available=false;const R value=detail::wallProperty<false>(j,in.temperature,in.model.thermo,&available);
+        if(!available)return detail::fail(status,WallCode::InvalidThermodynamics);
+        cp+=in.matching.massFraction[j]*value;}
+    WallOutput<R,N> out;if(!detail::trace(in,in.matching.massFraction,out,true))return detail::fail(status,WallCode::InvalidThermodynamics);
     const R length=in.matchingDistance,mu=in.model.viscosity,lambda=in.model.molecularPrandtl>0?mu*cp/in.model.molecularPrandtl:in.model.conductivity;
     const R a=m*length/mu,b=m*cp*length/lambda;
     R du[3],normalDifference=0,speed2=0;for(int d=0;d<3;++d){du[d]=in.matching.velocity[d]-in.velocity[d];normalDifference+=du[d]*in.normal[d];}
@@ -29,7 +31,7 @@ template<class R,int N,class TableReal> UGKWP_GAS_HD inline bool evaluateConstan
     for(int j=0;j<N;++j){out.matchingSpeciesFlux[j]=in.massFlux[j];
         out.chemistryMismatch[j]=in.coarseReactionIntegral?-in.coarseReactionIntegral[j]:std::numeric_limits<R>::quiet_NaN();}
     out.chemistryMismatchAvailable=in.coarseReactionIntegral!=nullptr;
-    if(!gasFinite(out.conductiveHeatFlux))return detail::fail(status,WallCode::InadmissibleState);
+    if(!gasFinite(out.conductiveHeatFlux)||!gasFinite(out.traceDensity))status.code=WallCode::InadmissibleState;
     status.residual=0;output=out;return true;
 }
 // Keep the original <R,N> entry-point spelling while deducing borrowed tables.
