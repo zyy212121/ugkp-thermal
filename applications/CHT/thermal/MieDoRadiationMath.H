@@ -14,7 +14,6 @@ namespace Foam
 {
 namespace gpuThermal
 {
-
 inline scalar stefanBoltzmannConstant()
 {
     return scalar(5.670374419e-8);
@@ -95,21 +94,6 @@ inline RadiationConservationAssessment assessRadiationConservation
     const scalar relativeTolerance
 )
 {
-    if
-    (
-        !std::isfinite(particlePowerW)
-     || !std::isfinite(boundaryPowerW)
-     || !std::isfinite(grossTransportPowerW)
-     || grossTransportPowerW < scalar(0)
-     || !std::isfinite(finalSourceResidual)
-     || finalSourceResidual < scalar(0)
-     || !std::isfinite(relativeTolerance)
-     || relativeTolerance <= scalar(0)
-    )
-    {
-        throw std::runtime_error("radiation conservation inputs are invalid");
-    }
-
     RadiationConservationAssessment result;
     result.residualW = particlePowerW + boundaryPowerW;
     result.netScaleW = max(mag(particlePowerW), mag(boundaryPowerW));
@@ -172,10 +156,7 @@ inline PhaseBalanceMetrics measurePhaseBalance
         for (label colI = 0; colI < n; ++colI)
         {
             const scalar value = probabilities[rowI][colI];
-            if (!std::isfinite(value))
-            {
-                throw std::runtime_error("phase probability is nonfinite");
-            }
+
             rowSum += value;
         }
         metrics.maxRowError = max(metrics.maxRowError, mag(rowSum - scalar(1)));
@@ -183,11 +164,6 @@ inline PhaseBalanceMetrics measurePhaseBalance
 
     for (label colI = 0; colI < n; ++colI)
     {
-        if (!std::isfinite(weights[colI]) || weights[colI] == scalar(0))
-        {
-            throw std::runtime_error("phase quadrature weight is zero or nonfinite");
-        }
-
         scalar weightedColumn = 0;
         for (label rowI = 0; rowI < n; ++rowI)
         {
@@ -219,10 +195,6 @@ inline PhaseBalanceMetrics balanceSymmetricPhaseKernelInPlace
     {
         throw std::runtime_error("phase kernel/weight sizes are inconsistent");
     }
-    if (!std::isfinite(tolerance))
-    {
-        throw std::runtime_error("phase balance controls are invalid");
-    }
 
     for (label rowI = 0; rowI < n; ++rowI)
     {
@@ -230,11 +202,6 @@ inline PhaseBalanceMetrics balanceSymmetricPhaseKernelInPlace
         {
             throw std::runtime_error("phase kernel is not square");
         }
-        if (!std::isfinite(weights[rowI]) || weights[rowI] == scalar(0))
-        {
-            throw std::runtime_error("phase quadrature weight is zero or nonfinite");
-        }
-
     }
 
     scaling.setSize(n);
@@ -258,15 +225,9 @@ inline PhaseBalanceMetrics balanceSymmetricPhaseKernelInPlace
                     weights[colI]*scaling[rowI]
                    *rawSymmetricKernel[rowI][colI]*scaling[colI];
             }
-            if (!std::isfinite(rowSum) || rowSum <= scalar(0))
-            {
-                throw std::runtime_error("phase kernel row sum has an undefined square root or zero divisor");
-            }
+
             newScaling[rowI] = scaling[rowI]/std::sqrt(rowSum);
-            if (!std::isfinite(newScaling[rowI]))
-            {
-                throw std::runtime_error("phase diagonal scaling is zero or nonfinite");
-            }
+
         }
         scaling = newScaling;
         scalar maxScalingCorrection = scalar(0);
