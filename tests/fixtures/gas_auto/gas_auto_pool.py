@@ -2,15 +2,14 @@ from pathlib import Path
 import os,re,resource,subprocess,sys
 root,out=Path(sys.argv[1]),Path(sys.argv[2]);out.mkdir(parents=True,exist_ok=True)
 app=sys.argv[3] if len(sys.argv)>3 else 'gasUGKP'
-bits=int(sys.argv[4]) if len(sys.argv)>4 else 64
 source=root/'applications'/app/('gpu' if app=='CHT' else 'private_backend')
 text=(source/'GpuResidentStrict.cu').read_text();a=text.index('struct DeviceState');b=text.index('\n};',a)
 state=text[a:b].replace('#include "GpuAutomaticCsrScheduleFields.inl"',(root/'common/GpuAutomaticCsrScheduleFields.inl').read_text())
 fields=re.findall(r'^\s*((?:unsigned\s+)?(?:long long|char)|double|float|int|GpuReal|GpuTime|GpuWallEnergy)\*\s+(\w+)\s*=',state,re.M)
-fields=[(ty,n) for ty,n in fields if n not in ['diagnosticPreTransportParticleCount','sourceInjectedCount'] and (bits==32 or not n.startswith('flatPressure'))]
+fields=[(ty,n) for ty,n in fields if n not in ['diagnosticPreTransportParticleCount','sourceInjectedCount'] and not n.startswith('flatPressure')]
 limits={'csrMultiTaskCellList':4,'csrHeavyCellCount':1,'csrHeavyTaskCount':1,'csrHeavyTaskCursor':1,'csrMaximumOccupancy':1,'csrHeavyPartials':8*128}
 code=Path(__file__).with_name('gas_auto_pool.cu.in').read_text().replace('ALLOCATE_FIELDS','\n'.join(f'mem(s->{n},{limits.get(n,4096)});' for _,n in fields))
-production_chain=len(sys.argv)>5 and sys.argv[5]=='production-directory'
+production_chain=len(sys.argv)>4 and sys.argv[4]=='production-directory'
 if production_chain:
     code=code[:code.index('int main(')]+Path(__file__).with_name('production_directory.cu.in').read_text()
     def stage(name):
@@ -20,7 +19,7 @@ if production_chain:
         end=begin+match.end()
         return text[begin:end]
     code=code.replace('PRODUCTION_PRE_STAGE',stage('ProbeBinPre')).replace('PRODUCTION_COMPACTION_STAGE',stage('ProbeCompaction'))
-prefix='using namespace ugkwpCudaFp32;\n' if app=='CHT' and bits==32 else ''
+prefix=''
 if app=='gasUGKP':
     adapter='''using TestDirectory=HeavyDirectoryKind;
 void selectDirectory(DeviceState*s,TestDirectory k){s->useSplitPreDirectory=k!=TestDirectory::full;s->preInjectionSegmentActive=k==TestDirectory::splitBaseAndInjection;}
@@ -44,11 +43,11 @@ int lightPool(DeviceState*s,TestDirectory k,double dt,int b){if(k==TestDirectory
 int expectedSource(TestDirectory k){return int(k==TestDirectory::full?CsrReductionTaskSource::fullIndexed:CsrReductionTaskSource::splitLogical);}
 int directoryTag(TestDirectory k){return int(k!=TestDirectory::full);}
 constexpr double tolerance=TOLERANCE;
-'''.replace('TOLERANCE','2e-5' if bits==32 else '2e-12')
+'''.replace('TOLERANCE','2e-12')
 code=code.replace('TEST_ADAPTERS',prefix+adapter).replace('TEST_LIGHT_BLOCKS','lightBlocksPerSm' if app=='gasUGKP' else 'lightResidentBlocksPerSm')
 cu=out/'gas_auto_pool.cu';cu.write_text(code);exe=out/'gas_auto_pool'
 resource.setrlimit(resource.RLIMIT_STACK,(512*1024*1024,resource.RLIM_INFINITY));resource.setrlimit(resource.RLIMIT_CORE,(0,0))
-cmd=['/usr/local/cuda/bin/nvcc','-std=c++17','-O3','-arch='+os.environ.get('UGKWP_CUDA_ARCH','sm_89'),'--fmad='+('false' if app=='CHT' else 'true'),'-DUGKWP_GPU_REAL_BITS='+str(bits),'-I'+str(source),'-I'+str(root/'common'),'-I'+str(root/'applications'/app/'gpu'),str(cu),'-o',str(exe)]
+cmd=['/usr/local/cuda/bin/nvcc','-std=c++17','-O3','-arch='+os.environ.get('UGKWP_CUDA_ARCH','sm_89'),'--fmad='+('false' if app=='CHT' else 'true'),'-I'+str(source),'-I'+str(root/'common'),'-I'+str(root/'applications'/app/'gpu'),str(cu),'-o',str(exe)]
 if app=='CHT':cmd.append(str(source/'GpuWallEnergy64.cu'))
 if production_chain:cmd+=['-Xlinker','--wrap=cudaLaunchKernel','-Xlinker','--wrap=__cudaLaunchKernel']
 with (out/'build.log').open('w') as f:q=subprocess.run(cmd,stdout=f,stderr=subprocess.STDOUT)
