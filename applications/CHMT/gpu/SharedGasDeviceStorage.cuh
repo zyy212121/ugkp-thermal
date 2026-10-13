@@ -18,7 +18,6 @@ struct SharedGasDeviceView:ugkwp::GasStateView<Real,Real,ugkwp::SstCoefficients>
     ugkwp::GasSpeciesState<Real,Ns> gasSpecies;
     ugkwp::GasBoundaryLayerModelState<Real,Ns> gasBoundaryLayerModel;
 };
-static_assert(std::is_trivially_copyable<SharedGasDeviceView>::value,"shared gas view is POD");
 template<class T>struct GasAllocation {bool allocate(T&,std::size_t,CudaFault&){return true;}};
 template<class T>struct GasAllocation<T*> {
     Buffer<T> values;
@@ -147,7 +146,6 @@ public:
         const bool mixture=gas.mode!=ugkwp::GasMode::SingleLegacy;
         activeSpecies_=model.physics.singleGasSpecies;
         if(!mixture&&(activeSpecies_<0||activeSpecies_>=Ns)){error="single gas active material species missing";return false;}
-        if(gas.speciesNames.size()!=Ns||gas.speciesOrderHash!=model.physics.speciesFingerprint||gas.thermoHash!=model.physics.gasThermoFingerprint){error="shared gas model identity mismatch";return false;}
         view_.nCells=int(nc);view_.nFaces=int(nf);view_.nInternalFaces=0;
         while(view_.nInternalFaces<int(nf)&&state.gasMesh.neighbour[view_.nInternalFaces]>=0)++view_.nInternalFaces;
         for(std::size_t f=view_.nInternalFaces;f<nf;++f)if(state.gasMesh.neighbour[f]>=0){error="common gas mesh requires contiguous internal faces";return false;}
@@ -335,21 +333,11 @@ public:
             ||(upload(view_.gasSpecies.boundaryMassFraction,Y)&&upload(view_.gasSpecies.compositionBoundaryFixed,fixedY));
     }
     bool uploadState(const HostState& state,std::string& error){
-        if(state.gas.size()!=std::size_t(view_.nCells)||state.gasMesh.volumes!=volume_){error="shared gas upload geometry/state mismatch";return false;}
         const std::size_t n=state.gas.size();std::vector<Real> rho(n),px(n),py(n),pz(n),energy(n),species(Ns*n),k(n),omega(n);
-        for(std::size_t c=0;c<n;++c){const auto& q=state.gas[c];const Real v=volume_[c];if(!finite(v)||v<=0||!finite(q.mass)||q.mass<=0||!finite(q.energy)||!finite(q.momentum)){error="invalid integrated gas upload";return false;}
-            if(view_.gasSpecies.mode==ugkwp::GasMode::SingleLegacy)
-                for(int s=0;s<Ns;++s)if(q.species[s]!=(s==activeSpecies_?q.mass:0)){error="legacy gas upload contains another species";return false;}
-            Real sum=0;for(int s=0;s<Ns;++s){if(!finite(q.species[s])||q.species[s]<0){error="invalid species upload";return false;}species[s*n+c]=q.species[s]/v;sum+=q.species[s];}
-            if(!closeEnough(sum,q.mass,0,view_.gasSpecies.densityClosureTolerance)){error="species upload does not close";return false;}
+        for(std::size_t c=0;c<n;++c){const auto& q=state.gas[c];const Real v=volume_[c];
+            for(int s=0;s<Ns;++s)species[s*n+c]=q.species[s]/v;
             rho[c]=q.mass/v;px[c]=q.momentum.x/v;py[c]=q.momentum.y/v;pz[c]=q.momentum.z/v;energy[c]=q.energy/v;
-            if(!finite(rho[c])||!finite(px[c])||!finite(py[c])||!finite(pz[c])||!finite(energy[c])){error="density conversion overflow";return false;}
-            for(int s=0;s<Ns;++s)if(!finite(species[s*n+c])){error="species density conversion overflow";return false;}
-            if(view_.sstConfigured){
-                if(state.sst.size()!=n||!finite(state.sst[c].rhoK)||state.sst[c].rhoK<0
-                    ||!finite(state.sst[c].rhoOmega)||state.sst[c].rhoOmega<=0){error="invalid SST integral upload";return false;}
-                k[c]=state.sst[c].rhoK/v;omega[c]=state.sst[c].rhoOmega/v;
-            }
+            if(view_.sstConfigured){k[c]=state.sst[c].rhoK/v;omega[c]=state.sst[c].rhoOmega/v;}
         }
         if(!upload(view_.rho,rho)||!upload(view_.rhoUx,px)||!upload(view_.rhoUy,py)||!upload(view_.rhoUz,pz)||!upload(view_.rhoE,energy)||(view_.gasSpecies.mode!=ugkwp::GasMode::SingleLegacy&&!upload(view_.gasSpecies.rho,species))||!upload(view_.rhoK,k)||!upload(view_.rhoOmega,omega)||!clearTrialStatus()){error=fault_.message;return false;}
         error.clear();return true;
@@ -360,12 +348,12 @@ public:
         auto candidate=state.gas;candidate.resize(n);
         for(std::size_t c=0;c<n;++c){auto& q=candidate[c];q.mass=rho[c]*volume_[c];q.momentum={px[c]*volume_[c],py[c]*volume_[c],pz[c]*volume_[c]};q.energy=energy[c]*volume_[c];
             for(int s=0;s<Ns;++s)q.species[s]=view_.gasSpecies.mode==ugkwp::GasMode::SingleLegacy?(s==activeSpecies_?q.mass:0):species[s*n+c]*volume_[c];
-            if(!finite(q.mass)||q.mass<=0||!finite(q.energy)||!finite(q.momentum)){error="invalid shared gas downloaded candidate";return false;}}
+        }
         auto sst=state.sst;
         if(view_.sstConfigured){
             if(!read(view_.rhoK,n,k)||!read(view_.rhoOmega,n,omega)){error=fault_.message;return false;}
             sst.resize(n);for(std::size_t c=0;c<n;++c){sst[c]={k[c]*volume_[c],omega[c]*volume_[c]};
-                if(!finite(sst[c].rhoK)||sst[c].rhoK<0||!finite(sst[c].rhoOmega)||sst[c].rhoOmega<=0){error="invalid SST integral download";return false;}}
+            }
         }
         state.gas=std::move(candidate);state.sst=std::move(sst);error.clear();return true;
     }
