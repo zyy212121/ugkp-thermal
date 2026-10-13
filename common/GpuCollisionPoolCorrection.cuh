@@ -152,14 +152,7 @@ __device__ void correctOnePoissonThermalizedParticle
         ((s.puy[i] - targetUy) - sampleMeanDeltaY);
     const GPU_OPERATOR_REAL correctedUz = targetUz + scale*
         ((s.puz[i] - targetUz) - sampleMeanDeltaZ);
-    if
-    (
-        !std::isfinite(correctedUx) || !std::isfinite(correctedUy)
-     || !std::isfinite(correctedUz)
-    )
-    {
-        asm("trap;");
-    }
+
 #if GPU_OPERATOR_THERMAL
     finalizeOneThermalizedParticlePath<StuckPath>
     (

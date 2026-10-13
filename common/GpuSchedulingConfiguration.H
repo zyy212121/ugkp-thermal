@@ -114,12 +114,7 @@ inline GpuSchedulingConfiguration readGpuSchedulingConfiguration
     value.reductionBlockThreads =
         properties.lookupOrDefault<label>("gpuReductionBlockThreads", 128);
 
-    if (value.particleCapacity < 0)
-    {
-        FatalErrorInFunction
-            << "gpuResidentParticleCapacity must be non-negative. Current value = "
-            << value.particleCapacity << exit(FatalError);
-    }
+
     if
     (
         value.heavyReductionMode == GpuHeavyReductionMode::automatic

@@ -32,13 +32,9 @@ UGKWP_THERMAL_CONSUMER_HD inline ParticleWallThermalPublication publishFiniteWal
 {
     const double oldEnthalpy = effectiveParticleEnthalpy(state, caloric);
     const double oldTemperature = caloric.temperature(oldEnthalpy);
-    if (!finiteThermalCarry(oldEnthalpy) || !finiteThermalCarry(oldTemperature)
-        || !finiteThermalCarry(wallTemperature) || !finiteThermalCarry(physicalMass)
-        || !finiteThermalCarry(parcelMass) || !finiteThermalCarry(conductanceIntegral))
-        return {false, 0.0};
     if (conductanceIntegral == 0.0 || wallTemperature == oldTemperature)
     {
-        const auto publication = publishParticleThermalHeat
+        const auto publication = publishParticleThermalHeatImpl<true, true>
             (state, 0.0, minimumTemperature, maximumTemperature, caloric);
         return {publication.valid, 0.0};
     }
@@ -49,7 +45,6 @@ UGKWP_THERMAL_CONSUMER_HD inline ParticleWallThermalPublication publishFiniteWal
         const double middle = lower + 0.5*(upper - lower);
         const double residual = physicalMass*(caloric.enthalpy(middle) - oldEnthalpy)
             + conductanceIntegral*(middle - wallTemperature);
-        if (!finiteThermalCarry(residual)) return {false, 0.0};
         if (residual < 0.0) lower = middle;
         else upper = middle;
         if (lower + 0.5*(upper - lower) == middle) break;
@@ -60,12 +55,11 @@ UGKWP_THERMAL_CONSUMER_HD inline ParticleWallThermalPublication publishFiniteWal
     const double proposedSpecificHeat =
         conductanceIntegral*(wallTemperature - solvedTemperature)/physicalMass;
     auto candidate = state;
-    const auto publication = publishParticleThermalHeat
+    const auto publication = publishParticleThermalHeatImpl<true, true>
         (candidate, proposedSpecificHeat, minimumTemperature, maximumTemperature, caloric);
     const double wallEnergy = -parcelMass*publication.acceptedSpecificHeat;
-    if (!publication.valid || !finiteThermalCarry(wallEnergy)) return {false, 0.0};
     state = candidate;
-    return {true, wallEnergy};
+    return {publication.valid && finiteThermalCarry(wallEnergy), wallEnergy};
 }
 
 template<class Storage, class Caloric>

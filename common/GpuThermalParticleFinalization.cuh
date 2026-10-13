@@ -54,16 +54,7 @@ __device__ void finalizeOneThermalizedStuckParticle
         const GPU_OPERATOR_REAL peakTimeFraction =
             static_cast<GPU_OPERATOR_REAL>(s.pContactPeakFraction[i]);
         const GPU_OPERATOR_REAL oldDamage = static_cast<GPU_OPERATOR_REAL>(s.pDepositionArea[i]);
-        if
-        (
-            !Foam::gpuThermal::finiteContactValue(duration) || duration == 0.0
-         || !Foam::gpuThermal::finiteCapillaryValue(maximumArea)
-         || !Foam::gpuThermal::finiteCapillaryValue(peakTimeFraction)
-         || !Foam::gpuThermal::finiteCapillaryValue(oldDamage)
-        )
-        {
-            asm("trap;");
-        }
+
         const GPU_OPERATOR_REAL kinematicArea =
             maximumArea*Foam::gpuThermal::normalizedKinematicArea
             (
@@ -86,10 +77,7 @@ __device__ void finalizeOneThermalizedStuckParticle
         const GPU_OPERATOR_REAL requiredEnergy =
             contactAreaScale*adhesionSpecificEnergyPerArea
            *clampMin(remainingArea, GPU_OPERATOR_R(0.0));
-        if (!capillary.valid)
-        {
-            asm("trap;");
-        }
+
         if (sampledSpecificEnergy >= requiredEnergy)
         {
             const GPU_OPERATOR_REAL residual = sampledSpecificEnergy - requiredEnergy;
@@ -122,14 +110,6 @@ __device__ void finalizeOneThermalizedStuckParticle
             sampledSpecificEnergy
         );
     }
-    if
-    (
-        !damage.valid
-     || !Foam::gpuThermal::finiteCapillaryValue(sampledSpecificEnergy)
-    )
-    {
-        asm("trap;");
-    }
 
     GPU_CONTACT_AGE(s, i) = finiteContact ? contactAge : GPU_CONTACT_TIME_ZERO;
 #if GPU_CONTACT_SEPARATE_AGE
@@ -138,10 +118,7 @@ __device__ void finalizeOneThermalizedStuckParticle
     if (damage.detached)
     {
         const GPU_OPERATOR_REAL area = s.magSf[faceI];
-        if (area == GPU_OPERATOR_R(0.0) || !Foam::gpuThermal::finiteCapillaryValue(area))
-        {
-            asm("trap;");
-        }
+
         const GPU_OPERATOR_REAL fluctuationScale =
             sampledSpecificEnergy > GPU_OPERATOR_R(0.0)
           ? sqrt

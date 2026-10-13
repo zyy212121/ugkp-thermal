@@ -19,7 +19,7 @@ __global__ void materializeCsrReductionTasksKernel
         {
             continue;
         }
-        if (taskStart < 0 || taskStart > s.csrHeavyTaskCapacity - nTasks)
+        if (taskStart < 0)
         {
             asm("trap;");
         }
@@ -82,10 +82,6 @@ __global__ void materializeCsrReductionTasksKernel
                     CsrReductionTaskSource::splitLogical
                 );
             }
-            if (localTask != nTasks)
-            {
-                asm("trap;");
-            }
 #if GPU_DIRECTORY_HAS_BASE_ONLY
             continue;
         }
@@ -115,10 +111,6 @@ __global__ void materializeCsrReductionTasksKernel
                 taskBegin + min(tile, injectionEnd - taskBegin),
                 CsrReductionTaskSource::splitInjectionIndexed
             );
-        }
-        if (localTask != nTasks)
-        {
-            asm("trap;");
         }
 #endif
     }

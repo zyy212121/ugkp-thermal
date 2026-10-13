@@ -60,7 +60,7 @@ int advanceGasEulerSubstage(GasHostState* s, const GasHostPolicy::Time dt, const
             return 1;
         }
     }
-    if (s->hostGasFluxScheme == 7)
+    if (s->hostGasFluxScheme == 7 && !ugkwp::mixtureGasActive(*s))
     {
         computeGasHllcAdcSensorKernel<<<cellGrid, cellBlock, 0, s->gasCaptureStream>>>(s->deviceState);
         err = cudaGetLastError();
@@ -654,11 +654,11 @@ int prepareGasTrialTransport(GasHostState* s,const GasHostPolicy::Time dt,
                         computeSstGradientsKernel<<<grid,block,0,s->gasCaptureStream>>>(s->deviceState);
                         auto error=cudaGetLastError();
                         if(error!=cudaSuccess){setLastError("pre-transport SST gradients",error);return 1;}
-                        computeSstStabilityNumberKernel<<<grid,block,0,s->gasCaptureStream>>>(s->deviceState,dt,TrialPolicy::targetMaxCo(s));
+                        computeSstStabilityNumberKernel<<<grid,block,0,s->gasCaptureStream>>>(s->deviceState,dt,TrialPolicy::targetMaxCo(s),true,nativeRefinement);
                         error=cudaGetLastError();
                         if(error!=cudaSuccess){setLastError("pre-transport SST stability",error);return 1;}
                     }
-                computeGasConvectiveCourantByCellKernel<<<grid,block,0,s->gasCaptureStream>>>(s->deviceState,dt);
+                computeGasConvectiveCourantByCellKernel<<<grid,block,0,s->gasCaptureStream>>>(s->deviceState,dt,nativeRefinement);
                 auto error=cudaGetLastError();
                 if(error!=cudaSuccess){setLastError("post-chemistry convective bound",error);return 1;}
                 computeGasDiffusionNumberKernel<<<grid,block,0,s->gasCaptureStream>>>
@@ -727,6 +727,12 @@ int advanceGasTrial
     return 0;
 }
 
+template<class Policy,class State>
+auto gasTrialCanContinueTerminal(State* state,int)->decltype(Policy::continueTerminal(state))
+{return Policy::continueTerminal(state);}
+template<class Policy,class State>
+bool gasTrialCanContinueTerminal(State*,long){return false;}
+
 template<class Time>
 struct GasRequestedIntervalControls
 {
@@ -773,7 +779,11 @@ int advanceGasRequestedInterval
         else
         {
             if(!TrialPolicy::retryable(s))
-            {TrialPolicy::rollbackInterval(s);return 1;}
+            {
+                if(refining && gasTrialCanContinueTerminal<TrialPolicy>(s,0))
+                {refining=false;substep=remaining;continue;}
+                TrialPolicy::rollbackInterval(s);return 1;
+            }
             if(!refining)
             {TrialPolicy::rollbackInterval(s);return 1;}
             substep*=Time(.5);

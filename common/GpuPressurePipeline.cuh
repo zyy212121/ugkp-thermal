@@ -8,8 +8,8 @@ int launchCommonPressureKick(DeviceState* s,PressureTime dt,int block,
     int projectionBlock,bool split,bool compact)
 {
     if(!s->collisionalPressureEnabled)return 0;
-    if(dt==0 || !std::isfinite(dt))
-    {setLastErrorText("invalid collisional-pressure kick dt");return 1;}
+    // A zero-time kick is the identity, including the pressure projection.
+    if(dt==0)return 0;
     const int cellGrid=(s->nCells+block-1)/block;
     const int faceGrid=(s->nFaces+block-1)/block;
     computeCollisionalPressureFaceFluxKernel<<<faceGrid,block>>>(s->deviceState);

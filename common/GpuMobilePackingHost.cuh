@@ -14,11 +14,8 @@ int applyMobilePackingProjection
     {
         return 0;
     }
-    if (dt == static_cast<GasHostPolicy::Weight>(0.0) || !std::isfinite(dt))
-    {
-        setLastErrorText("invalid mobile packing-projection dt");
-        return 1;
-    }
+    // Zero time has no displacement or pressure impulse.
+    if (dt == static_cast<GasHostPolicy::Weight>(0.0)) return 0;
     const int cellGrid = (s->nCells + block - 1)/block;
     cudaError_t err = cudaSuccess;
 

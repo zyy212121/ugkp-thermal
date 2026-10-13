@@ -46,8 +46,9 @@ UGKWP_THERMAL_CARRY_HD inline double effectiveParticleTemperature
 // Compute a candidate completely before changing either component. Caloric must
 // provide mutually consistent double enthalpy(T) and temperature(h) operations.
 // The caller pairs acceptedSpecificHeat with its other phase and commits only
-// after validating the whole shared transaction. No production trap is added.
-template<bool LimitAcceptedHeat, class Storage,class Caloric>
+// after validating the whole shared transaction. Terminal wall publication opts
+// in to the same arithmetic without numerical refusal; the default stays strict.
+template<bool LimitAcceptedHeat, bool TerminalPublication = false, class Storage,class Caloric>
 UGKWP_THERMAL_CARRY_HD inline ParticleThermalPublication publishParticleThermalHeatImpl
 (
     ParticleThermalCarry<Storage>& state,
@@ -59,8 +60,8 @@ UGKWP_THERMAL_CARRY_HD inline ParticleThermalPublication publishParticleThermalH
 {
     const double base=caloric.enthalpy(double(state.temperature));
     const double residual=state.specificEnthalpyResidual;
-    if (!finiteThermalCarry(base)||!finiteThermalCarry(residual)
-        ||!finiteThermalCarry(proposedSpecificHeat))
+    if (!TerminalPublication && (!finiteThermalCarry(base)||!finiteThermalCarry(residual)
+        ||!finiteThermalCarry(proposedSpecificHeat)))
         return {false,false,0.0};
     if (proposedSpecificHeat==0.0) return {true,false,0.0};
 
@@ -71,7 +72,7 @@ UGKWP_THERMAL_CARRY_HD inline ParticleThermalPublication publishParticleThermalH
         // Only formerly refused represented states use the extension interval.
         const double minimum=caloric.enthalpy(double(minimumTemperature));
         const double maximum=caloric.enthalpy(double(maximumTemperature));
-        if (!finiteThermalCarry(minimum)||!finiteThermalCarry(maximum))
+        if (!TerminalPublication && (!finiteThermalCarry(minimum)||!finiteThermalCarry(maximum)))
             return {false,false,0.0};
         const double lowerBound=(minimum-base)-residual;
         const double upperBound=(maximum-base)-residual;
@@ -84,7 +85,7 @@ UGKWP_THERMAL_CARRY_HD inline ParticleThermalPublication publishParticleThermalH
     }
     const double target=base+(residual+accepted);
     const double candidateTemperature=caloric.temperature(target);
-    if (!finiteThermalCarry(candidateTemperature)) return {false,false,0.0};
+    if (!TerminalPublication && (!finiteThermalCarry(candidateTemperature))) return {false,false,0.0};
     Storage published=Storage(candidateTemperature);
     if (published<minimumTemperature) published=minimumTemperature;
     if (published>maximumTemperature) published=maximumTemperature;
@@ -93,11 +94,11 @@ UGKWP_THERMAL_CARRY_HD inline ParticleThermalPublication publishParticleThermalH
     // when it was first added to the large base. Keep the small component local.
     const double publishedResidual=((base-publishedBase)+residual)+accepted;
     const double actual=(publishedBase-base)+(publishedResidual-residual);
-    if (!finiteThermalCarry(publishedBase)||!finiteThermalCarry(publishedResidual)
-        ||!finiteThermalCarry(actual)) return {false,false,0.0};
+    if (!TerminalPublication && (!finiteThermalCarry(publishedBase)||!finiteThermalCarry(publishedResidual)
+        ||!finiteThermalCarry(actual))) return {false,false,0.0};
     state.temperature=published;
     state.specificEnthalpyResidual=publishedResidual;
-    return {true,accepted!=proposedSpecificHeat,actual};
+    return {finiteThermalCarry(actual),accepted!=proposedSpecificHeat,actual};
 }
 
 template<class Storage,class Caloric>

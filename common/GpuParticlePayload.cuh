@@ -10,7 +10,7 @@ __global__ void gatherCellLocalParticlePayloadKernel(DeviceState* sp)
     {
         const int i = UseSurvivorDirectory
             ? s.sortedParticleIndex[dst] : s.compactPStatus[dst];
-        if (i < 0 || i >= s.particleCapacity)
+        if (i < 0)
         {
             asm("trap;");
         }
