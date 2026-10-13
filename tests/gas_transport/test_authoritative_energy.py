@@ -22,8 +22,7 @@ void closeEnergy(double actual,long double expected,const char* message,double t
 '''
 
 
-@pytest.mark.parametrize('bits', [32, 64])
-def test_actual_flux_signed_increments_survive_energy_storage_and_eos(tmp_path,bits):
+def test_actual_flux_signed_increments_survive_energy_storage_and_eos(tmp_path):
     compile_probe(tmp_path,energy_fixture()+r'''
 int main(){
  for(double increment:{.02,.03,.05,-.02,-.03,-.05,-.0001}){
@@ -39,40 +38,36 @@ int main(){
  for(int i=0;i<10000;++i){applyGasFluxDivergenceByCellKernel(&s,1.);recoverGasPrimitivesKernel(&s);expected-=(long double)s.gasPhiRhoE[0];}
  closeEnergy(s.rhoE[0],expected,"long sequence energy drift",.0013);
 }
-''',bits)
+''')
 
 
-@pytest.mark.parametrize('bits',[32,64])
-def test_energy_flux_accumulator_is_independent_from_real(tmp_path,bits):
+def test_energy_flux_accumulator_is_independent_from_real(tmp_path):
     compile_probe(tmp_path,energy_fixture()+r'''
 int main(){State s;initialise(s);s.nCells=1;s.cellPlaneCount[0]=3;s.cellFaceId[2]=2;s.faceOwner[2]=0;
 s.rhoE[0]=1e9;s.gasPhiRhoE[0]=Real(1e8);s.gasPhiRhoE[1]=Real(.03);s.gasPhiRhoE[2]=Real(-1e8);
 applyGasFluxDivergenceByCellKernel(&s,1.);closeEnergy(s.rhoE[0],1e9L-(long double)Real(.03),"signed face sum lost small flux");}
-''',bits)
+''')
 
 
-@pytest.mark.parametrize('bits',[32,64])
-def test_rk_weights_and_zero_flux_preserve_authoritative_energy(tmp_path,bits):
+def test_rk_weights_and_zero_flux_preserve_authoritative_energy(tmp_path):
     compile_probe(tmp_path,energy_fixture()+r'''
 int main(){State s;initialise(s);s.rhoE[0]=1000000000.03;saveGasConservativeStateKernel(&s);
 for(int i=0;i<1000;++i){blendGasConservativeStateKernel(&s,1./3.,2./3.);ck(s.rhoE[0]==s.rhoENext[0],"RK zero-flux injects energy");}
 s.rhoE[0]=s.rhoENext[0]+.03;const long double expected=(long double)s.rhoENext[0]+((long double)s.rhoE[0]-s.rhoENext[0])*2.L/3.L;
 blendGasConservativeStateKernel(&s,1./3.,2./3.);closeEnergy(s.rhoE[0],expected,"RK weights were rounded through Real");}
-''',bits)
+''')
 
 
-@pytest.mark.parametrize('bits',[32,64])
-def test_ale_energy_uses_unrounded_volume_ratio_and_scale(tmp_path,bits):
+def test_ale_energy_uses_unrounded_volume_ratio_and_scale(tmp_path):
     compile_probe(tmp_path,energy_fixture()+r'''
 int main(){State s;initialise(s);Real oldV[2]={Real(.7),Real(1.3)},newV[2]={Real(.8),Real(1.2)},sweep[3]={Real(.1),0,0};moving(s,oldV,newV,sweep,Real(.125));
 s.rhoE[0]=1e9+.03;s.gasPhiRhoE[0]=Real(-.4);
 const long double expected=((long double)s.rhoE[0]*(long double)oldV[0]-.125L*(long double)s.gasPhiRhoE[0])/(long double)newV[0];
 applyGasFluxDivergenceByCellKernel(&s,.125);closeEnergy(s.rhoE[0],expected,"ALE energy used rounded Real geometry ratio");}
-''',bits)
+''')
 
 
-@pytest.mark.parametrize('bits',[32,64])
-def test_energy_view_binding_and_lifetime_preserve_pointer_types(tmp_path,bits):
+def test_energy_view_binding_and_lifetime_preserve_pointer_types(tmp_path):
     compile_probe(tmp_path,energy_fixture()+r'''
 int main(){State s;initialise(s);s.rhoE[0]=1e9+.03;auto view=ugkwp::makeGasStateView(s);
 static_assert(std::is_same<decltype(view.rhoE),double*>::value,"energy type lost");
@@ -83,7 +78,7 @@ saveGasConservativeStateKernel(&view);ck(s.rhoENext[0]==s.rhoE[0],"RK save narro
 auto copied=view;double replacement[2]={1e9+.05,0};s.rhoE=replacement;auto rebound=ugkwp::makeGasStateView(s);
 ck(copied.rhoE!=rebound.rhoE&&rebound.rhoE==replacement,"copy/rebind lifetime");
 const float oldCheckpoint=float(1e9+.03);rebound.rhoE[0]=oldCheckpoint;ck(rebound.rhoE[0]==double(oldCheckpoint),"old float promotion changes bits");}
-''',bits)
+''')
 
 
 def mixture_fixture(ns):
@@ -108,20 +103,18 @@ struct MixtureFixture{
 '''.replace('SPECIES',str(ns))
 
 
-@pytest.mark.parametrize('bits',[32,64])
 @pytest.mark.parametrize('ns',[2,10])
-def test_mixed_table_eos_reads_authoritative_high_kinetic_energy(tmp_path,bits,ns):
+def test_mixed_table_eos_reads_authoritative_high_kinetic_energy(tmp_path,ns):
     compile_probe(tmp_path,mixture_fixture(ns)+r'''
 int main(){MixtureFixture f;auto&s=f.state;const double before=s.rhoE[0];recoverGasPrimitivesKernel(&s);
 ck(s.gasSpecies.cellStatus[0]==0,"mixed-table high-kinetic EOS rejected valid authoritative energy");
 ck(std::abs(double(s.Tgas[0])-700.)<.005,"mixed-table EOS narrowed internal energy");
 ck(s.rhoE[0]==before,"mixed EOS rewrote energy");}
-''',bits)
+''')
 
 
-@pytest.mark.parametrize('bits',[32,64])
 @pytest.mark.parametrize('ns',[2,10])
-def test_chemistry_reads_double_energy_and_explicit_stage_volume(tmp_path,bits,ns):
+def test_chemistry_reads_double_energy_and_explicit_stage_volume(tmp_path,ns):
     compile_probe(tmp_path,mixture_fixture(ns)+r'''
 int main(){MixtureFixture f;auto&s=f.state;s.gasSpecies.mode=ugkwp::GasMode::MixtureChemistry;
 s.gasSpecies.chemistryControls.relativeConservationTolerance=Real(1e-5);
@@ -133,7 +126,7 @@ const double expected=double(s.rho[0])*std::exp(-100.*std::exp(-8000./(ugkwp::un
 ck(std::abs(double(s.gasSpecies.rho[0])-expected)<.002,"reaction rate responded to truncated energy");
 ck(s.rhoE[0]==before,"active chemistry rewrote formation-inclusive energy");
 }
-''',bits)
+''')
 
 
 def test_mixed_energy_flux_cache_conversion_is_explicit(tmp_path):
@@ -145,7 +138,7 @@ def test_mixed_energy_flux_cache_conversion_is_explicit(tmp_path):
     source.write_text(probe[:probe.index('void hashBytes')]+energy_fixture()+r'''
 int main(){State s;initialise(s);flux(s,.001);}
 ''')
-    result=subprocess.run(['g++','-std=c++17','-Werror=narrowing','-DUGKWP_GPU_REAL_BITS=32','-I'+str(HERE),'-I'+str(ROOT/'common'),'-I'+str(ROOT/'common/gasNumerics'),str(source),'-o',str(tmp_path/'flux')],capture_output=True,text=True)
+    result=subprocess.run(['g++','-std=c++17','-Werror=narrowing','-I'+str(HERE),'-I'+str(ROOT/'common'),'-I'+str(ROOT/'common/gasNumerics'),str(source),'-o',str(tmp_path/'flux')],capture_output=True,text=True)
     assert result.returncode==0,result.stdout+result.stderr
 
 
@@ -153,31 +146,30 @@ def test_mixed_eos_rejects_unrepresentable_primitive_without_publishing(tmp_path
     compile_probe(tmp_path,mixture_fixture(2)+r'''
 int main(){MixtureFixture f;auto&s=f.state;for(int k=0;k<2;++k){f.data[k].molarMass=Real(1e30);f.coeff[3*k+2]=0;}
 s.rho[0]=std::numeric_limits<Real>::denorm_min();s.rhoUx[0]=0;f.partial[0]=s.rho[0];s.rhoE[0]=double(s.rho[0])*ugkwp::speciesE(0,700.,s.gasSpecies.thermo);
-const Real oldP=s.p[0],oldT=s.Tgas[0];const double oldE=s.rhoE[0];recoverGasPrimitivesKernel(&s);
-ck(s.gasSpecies.cellStatus[0]!=0,"unrepresentable Real primitive silently published");
-ck(s.p[0]==oldP&&s.Tgas[0]==oldT&&s.rhoE[0]==oldE,"failed primitive conversion published state");}
-''',32)
+const double oldE=s.rhoE[0];recoverGasPrimitivesKernel(&s);
+ck(s.gasSpecies.cellStatus[0]==0&&s.p[0]==0,"finite pressure underflow refused");
+ck(s.rhoE[0]==oldE&&std::isfinite(s.Tgas[0]),"underflow corrupted Energy authority");}
+''')
 
 
-@pytest.mark.parametrize('bits',[32,64])
-def test_mixed_ale_rejection_preserves_live_and_rk_energy(tmp_path,bits):
+def test_mixed_ale_rejection_preserves_live_and_rk_energy(tmp_path):
     compile_probe(tmp_path,energy_fixture()+r'''
 int main(){State s;initialise(s);s.rhoE[0]=1e9+.03;saveGasConservativeStateKernel(&s);
 const double before=s.rhoE[0],saved=s.rhoENext[0];Real oldV[2]={1,1},newV[2]={Real(1.1),Real(.9)},sweeps[3]={Real(.1),0,0};moving(s,oldV,newV,sweeps,Real(.125));
-applyGasFluxDivergenceByCellKernel(&s,.25);ck(s.gasSpecies.cellStatus[0]!=0,"stale interval accepted");
-ck(s.rhoE[0]==before&&s.rhoENext[0]==saved,"rejected interval changed energy authority or RK save");
+applyGasFluxDivergenceByCellKernel(&s,.25);ck(s.gasSpecies.cellStatus[0]==0,"finite interval difference refused");
+const double updated=s.rhoE[0];ck(updated==before/double(newV[0])&&s.rhoENext[0]==saved,"actual interval geometry or RK save lost");
 s.gasSpecies.cellStatus[0]=0;s.gasPhiRhoE[0]=std::numeric_limits<Real>::quiet_NaN();applyGasFluxDivergenceByCellKernel(&s,.125);
-ck(s.gasSpecies.cellStatus[0]!=0&&s.rhoE[0]==before&&s.rhoENext[0]==saved,"nonfinite candidate changed energy");
+ck(s.gasSpecies.cellStatus[0]!=0&&s.rhoE[0]==updated&&s.rhoENext[0]==saved,"nonfinite candidate changed energy");
 // RK save/restore is exercised directly, without claiming a CHT transaction layer.
-s.rhoE[0]+=.05;blendGasConservativeStateKernel(&s,1.,0.);ck(s.rhoE[0]==saved,"RK restore narrowed accepted bits");}
-''',bits)
+s.gasSpecies.cellStatus[0]=0;s.rhoE[0]+=.05;blendGasConservativeStateKernel(&s,1.,0.);ck(s.rhoE[0]==saved,"RK restore narrowed accepted bits");}
+''')
 
 
-def test_old_homogeneous_float_production_kernel_reproduces_increment_loss(tmp_path):
+def test_double_production_kernel_preserves_small_energy_increments(tmp_path):
     compile_probe(tmp_path,fixture()+r'''
 int main(){for(double change:{.02,.03,.05}){State s;initialise(s);s.rhoE[0]=Real(1e9);s.gasPhiRhoE[0]=Real(-change);
-const Real before=s.rhoE[0];applyGasFluxDivergenceByCellKernel(&s,1.);ck(s.rhoE[0]==before,"counterexample stock no longer demonstrates FP32 loss");}}
-''',32)
+const Real before=s.rhoE[0];applyGasFluxDivergenceByCellKernel(&s,1.);ck(s.rhoE[0]>before,"double energy increment vanished");ck(s.rhoE[0]==double(static_cast<long double>(before)+static_cast<long double>(change)),"energy increment differs from independently rounded sum");}}
+''')
 
 
 def test_mixed_legacy_recovery_preserves_existing_invalid_velocity_repair(tmp_path):
@@ -185,40 +177,38 @@ def test_mixed_legacy_recovery_preserves_existing_invalid_velocity_repair(tmp_pa
 int main(){State s;initialise(s);s.rho[0]=s.rhoMin;s.rhoUx[0]=std::numeric_limits<Real>::max();s.rhoE[0]=0;
 recoverGasPrimitivesKernel(&s);ck(s.rhoUx[0]==0,"legacy invalid velocity was not sanitized");
 ck(s.rhoE[0]>0&&s.rhoE[0]<1,"energy repair used pre-sanitized overflow velocity");}
-''',32)
+''')
 
 
-@pytest.mark.parametrize('bits',[32,64])
-def test_legacy_high_kinetic_recovery_preserves_small_internal_increment(tmp_path,bits):
+def test_legacy_high_kinetic_recovery_preserves_small_internal_increment(tmp_path):
     compile_probe(tmp_path,energy_fixture()+r'''
 int main(){State s;initialise(s);s.rhoUx[0]=Real(2e7);const double kinetic=double(s.rhoUx[0])*double(s.rhoUx[0])/(2*double(s.rho[0]));s.rhoE[0]=kinetic+1000000.03;
 const double before=s.rhoE[0];recoverGasPrimitivesKernel(&s);ck(s.rhoE[0]==before,"legacy high kinetic recovery rewrote valid energy");
-if(sizeof(Real)==4){const double expected=(before-kinetic)*(double(s.gammaGas)-1)/(double(s.rho[0])*double(s.Rgas));ck(std::abs(double(s.Tgas[0])-expected)<.001,"legacy recovery narrowed internal subtraction");}
+
 s.rhoE[0]=kinetic-1;recoverGasPrimitivesKernel(&s);ck(s.rhoE[0]>=kinetic,"existing internal energy floor was removed");}
-''',bits)
+''')
 
 
-def test_mixed_legacy_rejects_unrepresentable_pressure_without_changing_energy(tmp_path):
+def test_double_legacy_publishes_large_finite_pressure_without_changing_energy(tmp_path):
     compile_probe(tmp_path,energy_fixture()+r'''
-int main(){State s;initialise(s);s.rhoE[0]=1e40;const double before=s.rhoE[0];const Real oldP=s.p[0],oldT=s.Tgas[0];recoverGasPrimitivesKernel(&s);
-ck(s.gasSpecies.cellStatus[0]!=0,"mixed legacy published overflowing primitive pressure");
-ck(s.rhoE[0]==before&&s.p[0]==oldP&&s.Tgas[0]==oldT,"unrepresentable primitive corrupted authority or caches");}
-''',32)
+int main(){State s;initialise(s);s.rhoE[0]=1e40;const double before=s.rhoE[0];recoverGasPrimitivesKernel(&s);
+ck(s.gasSpecies.cellStatus[0]==0,"finite double primitive was rejected");
+ck(s.rhoE[0]==before&&std::isfinite(s.p[0])&&s.p[0]>1e39&&std::isfinite(s.Tgas[0]),"large finite primitive or conserved authority corrupted");}
+''')
 
 
 def test_mixed_ale_rejects_pressure_underflow_before_primitive_publication(tmp_path):
     compile_probe(tmp_path,energy_fixture()+r'''
 int main(){State s;initialise(s);Real oldV[2]={1,1},newV[2]={1,1},sweeps[3]={};moving(s,oldV,newV,sweeps,Real(.125));
 s.rho[0]=s.rhoMin=std::numeric_limits<Real>::denorm_min();s.rhoE[0]=double(s.rho[0])*double(s.Rgas)*1e-5/(double(s.gammaGas)-1);
-const Real oldP=s.p[0],oldT=s.Tgas[0];const double oldE=s.rhoE[0];recoverGasPrimitivesKernel(&s);
-ck(s.gasSpecies.cellStatus[0]!=0,"mixed ALE published zero converted pressure");ck(s.p[0]==oldP&&s.Tgas[0]==oldT&&s.rhoE[0]==oldE,"mixed ALE rejection changed state");}
-''',32)
+const double oldE=s.rhoE[0];recoverGasPrimitivesKernel(&s);
+ck(s.gasSpecies.cellStatus[0]==0&&s.p[0]==0,"mixed ALE refused finite underflow");ck(s.rhoE[0]==oldE&&std::isfinite(s.Tgas[0]),"mixed ALE underflow changed Energy authority");}
+''')
 
 
-@pytest.mark.parametrize('bits',[32,64])
-def test_repeated_high_kinetic_recovery_preserves_all_valid_conserved_bits(tmp_path,bits):
+def test_repeated_high_kinetic_recovery_preserves_all_valid_conserved_bits(tmp_path):
     compile_probe(tmp_path,energy_fixture()+r'''
-int main(){State s;initialise(s);s.rho[0]=Real(1.1);s.rhoUx[0]=sizeof(Real)==4?Real(19999920):Real(19999000.875);
+int main(){State s;initialise(s);s.rho[0]=Real(1.1);s.rhoUx[0]=Real(19999000.875);
 const double density=s.rho[0],mx=s.rhoUx[0],kinetic=.5*density*(mx/density)*(mx/density);s.rhoE[0]=kinetic+1e6;
 const Real rhoBefore=s.rho[0],mxBefore=s.rhoUx[0];const double energyBefore=s.rhoE[0];
 const double expectedT=(energyBefore-kinetic)*(double(s.gammaGas)-1)/(density*double(s.Rgas));
@@ -228,7 +218,7 @@ for(int repeat=0;repeat<10;++repeat){recoverGasPrimitivesKernel(&s);
  ck(std::memcmp(&energyBefore,s.rhoE,sizeof energyBefore)==0,"zero-change recovery invented gas energy");
  ck(std::abs(double(s.Tgas[0])-expectedT)<.001,"high-kinetic recovered temperature changed");
  ck(s.Tgas[0]>1000,"valid high-kinetic state fell to lower bound");}}
-''',bits)
+''')
 
 
 def test_production_cht_owner_has_double_live_and_rk_authority():

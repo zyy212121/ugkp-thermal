@@ -19,8 +19,7 @@ void stage(State&s,double dt,double rate){
 '''
 
 
-@pytest.mark.parametrize('bits', [32, 64])
-def test_mixed_energy_budget_uses_actual_energy_stage_weights(tmp_path, bits):
+def test_mixed_energy_budget_uses_actual_energy_stage_weights(tmp_path):
     source = audited_fixture().replace(
         'GasStateView<Real,Time,ugkwp::SstCoefficients>',
         'GasStateView<Real,Time,ugkwp::SstCoefficients,double>',
@@ -43,12 +42,11 @@ int main(){
  blendGasConservativeStateKernel(&s,.25,.75);
  ck(s.gasBudgetAudit.transport[2]==saved,"disabled audit changed storage");
 }
-''', bits)
+''')
 
 
-@pytest.mark.parametrize('bits',[32,64])
 @pytest.mark.parametrize('rk',[1,2,3])
-def test_actual_rk_weights_propagate_final_boundary_flux_budget(tmp_path,bits,rk):
+def test_actual_rk_weights_propagate_final_boundary_flux_budget(tmp_path,rk):
     compile_probe(tmp_path,audited_fixture()+r'''
 int main(){State s;initialise(s);enable(s);const double dt=.001;
 if(RK!=1)for(int c=0;c<2;++c){threadIdx.x=c;saveGasConservativeStateKernel(&s);}
@@ -61,7 +59,7 @@ ck(std::abs(s.gasBudgetAudit.transport[2]-100*expected)<1e-9,"physical energy bu
 ck(std::abs(s.gasBudgetAudit.transport[4]-.4*expected)<1e-9,"species boundary budget missing");
 ck(std::abs(s.gasBudgetAudit.transport[6]-.6*expected)<1e-9,"species second component missing");
 ck(s.gasBudgetAudit.transport[1]==0,"unforced cell gained external flux budget");}
-'''.replace('RK',str(rk)),bits)
+'''.replace('RK',str(rk)))
 
 
 def test_budget_reads_limited_flux_and_excludes_internal_periodic_faces(tmp_path):
@@ -95,8 +93,7 @@ ck(s.gasBudgetAudit.transport[6]==dt*limitedSpecies,"counterflow species audit m
 ''')
 
 
-@pytest.mark.parametrize('bits',[32,64])
-def test_budget_records_final_physical_wall_override(tmp_path,bits):
+def test_budget_records_final_physical_wall_override(tmp_path):
     from test_boundary_layer_operators import SETUP
     compile_probe(tmp_path,audited_fixture()+SETUP+r'''
 int main(){State s;initialise(s);enable(s);wall(s);const double dt=.0001;
@@ -110,4 +107,4 @@ ck(s.gasSpecies.cellStatus[0]==0,"physical wall update failed");
 ck(s.gasBudgetAudit.transport[0]==-dt*finalMass,"wall mass budget read pre-override flux");
 ck(s.gasBudgetAudit.transport[2]==-dt*finalEnergy,"wall energy budget read pre-override flux");
 ck(s.gasBudgetAudit.transport[4]==-dt*finalSpecies,"wall species budget read pre-override flux");}
-''',bits)
+''')

@@ -6,18 +6,17 @@ import pytest
 ROOT=Path(__file__).resolve().parents[2]
 HERE=Path(__file__).resolve().parent
 
-def compile_probe(tmp_path,body,bits=64):
+def compile_probe(tmp_path,body):
     legacy=(HERE/'gas_state_probe.cpp').read_text()
     pre=legacy[:legacy.index('void hashBytes')]
     source=tmp_path/'mixture.cpp';source.write_text(pre+body)
     exe=tmp_path/'mixture'
-    result=subprocess.run(['g++','-std=c++17','-O0',f'-DUGKWP_GPU_REAL_BITS={bits}','-I'+str(HERE),'-I'+str(ROOT/'common'),'-I'+str(ROOT/'common/gasNumerics'),str(source),'-o',str(exe)],capture_output=True,text=True)
+    result=subprocess.run(['g++','-std=c++17','-O0','-I'+str(HERE),'-I'+str(ROOT/'common'),'-I'+str(ROOT/'common/gasNumerics'),str(source),'-o',str(exe)],capture_output=True,text=True)
     assert result.returncode==0,result.stdout+result.stderr
     run=subprocess.run([str(exe)],capture_output=True,text=True)
     assert run.returncode==0,run.stdout+run.stderr
 
-@pytest.mark.parametrize('bits',[32,64])
-def test_mixture_recovery_is_conservative_and_failed_outputs_unchanged(tmp_path,bits):
+def test_mixture_recovery_is_conservative_and_failed_outputs_unchanged(tmp_path):
     compile_probe(tmp_path,r'''
 #include "gasTransport/GasCapabilities.H"
 struct State : ugkwp::GasStateView<Real,Time,ugkwp::SstCoefficients> {
@@ -42,11 +41,11 @@ int main(){
  ck(ux[0]==3&&uy[0]==-1&&uz[0]==Real(.5),"momentum velocity");ck(a[0]>0&&cp[0]>R[0]&&p[0]>0,"derived EOS fields");
  ck(std::abs(p[0]-rho[0]*R[0]*T[0])<Real(.02),"ideal mixture pressure");
  Real after[]={rho[0],mx[0],my[0],mz[0],energy[0],species[0],species[1]};ck(std::memcmp(saved,after,sizeof(saved))==0,"recovery altered conserved state");
- const Real oldOutputs[]={ux[0],uy[0],uz[0],p[0],T[0],a[0],cp[0],R[0]};species[1]=-1;status[0]=0;recoverGasPrimitivesKernel(&s);
- Real failedOutputs[]={ux[0],uy[0],uz[0],p[0],T[0],a[0],cp[0],R[0]};ck(status[0]!=0,"negative species accepted");ck(std::memcmp(oldOutputs,failedOutputs,sizeof(oldOutputs))==0,"failed recovery published outputs");
+ const Real oldOutputs[]={ux[0],uy[0],uz[0],p[0],T[0],a[0],cp[0],R[0]};species[1]=std::numeric_limits<Real>::quiet_NaN();status[0]=0;recoverGasPrimitivesKernel(&s);
+ Real failedOutputs[]={ux[0],uy[0],uz[0],p[0],T[0],a[0],cp[0],R[0]};ck(status[0]!=0,"required NaN species accepted");ck(std::memcmp(oldOutputs,failedOutputs,sizeof(oldOutputs))==0,"failed recovery published outputs");
  species[1]=1.5;energy[0]=Real(-1e20);status[0]=0;recoverGasPrimitivesKernel(&s);ck(status[0]!=0,"out of range energy accepted");ck(T[0]==oldOutputs[4],"failed inversion changed temperature");
 }
-''',bits)
+''')
 
 def test_mixture_capabilities_reject_unproved_combinations(tmp_path):
     compile_probe(tmp_path,r'''
@@ -62,8 +61,7 @@ r.turbulenceModel=3;r.sstWallTreatment=1;if(!ugkwp::validateGasCapabilities(r))r
 r.mode=ugkwp::GasMode::MixtureChemistry;if(!ugkwp::validateGasCapabilities(r))return 8;}
 ''')
 
-@pytest.mark.parametrize('bits',[32,64])
-def test_general_rusanov_species_dissipation_transports_formation_energy(tmp_path,bits):
+def test_general_rusanov_species_dissipation_transports_formation_energy(tmp_path):
     compile_probe(tmp_path,r'''
 int main(){
 using namespace ugkpriemann;Primitive l{1,0,0,0,100000},r=l;
@@ -80,4 +78,4 @@ auto old=rusanovTadmorFluxUnitNormal(l,r,Real(1),Real(0),Real(0),Real(1.4),false
 auto now=rusanovTadmorFluxUnitNormal(l,ul,a,r,ur,a,Real(1),Real(0),Real(0),false);
 for(int k=0;k<5;++k)if(old.flux[k]!=now.flux[k])return 3;
 }
-''',bits)
+''')

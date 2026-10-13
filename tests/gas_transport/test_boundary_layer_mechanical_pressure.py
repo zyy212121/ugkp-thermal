@@ -8,10 +8,9 @@ from test_mixture_state import compile_probe
 from test_mixture_transport import fixture
 
 
-@pytest.mark.parametrize('bits', [32, 64])
 @pytest.mark.parametrize('moving', [False, True])
 @pytest.mark.parametrize('blowing', [False, True])
-def test_local_pressure_force_and_sweep_work_leave_wall_transport_unchanged(tmp_path, bits, moving, blowing):
+def test_local_pressure_force_and_sweep_work_leave_wall_transport_unchanged(tmp_path, moving, blowing):
     body = r'''
 #include "gasTransport/GasBoundaryLayerEvaluation.H"
 void near(Real a,Real b,const char*m){if(std::abs(a-b)>Real(256)*std::numeric_limits<Real>::epsilon()*std::max(Real(1),std::abs(b))){std::fprintf(stderr,"%s: %.17g != %.17g\n",m,double(a),double(b));std::abort();}}
@@ -43,7 +42,7 @@ ck(input.pressure==Real(.7)*s.p[0]&&exchange[0].energy==published.energy,"flux e
 exchange[0].ready=false;ck(computeRiemannGasFaceFluxDevice<false,true>(s,1,m,x,y,z,e),"mass predictor forced profile");near(m,published.mass,"mass-only predictor changed");
 }
 '''.replace('MOVING', str(int(moving))).replace('BLOWING', str(int(blowing)))
-    compile_probe(tmp_path, fixture()+body, bits)
+    compile_probe(tmp_path, fixture()+body)
 
 
 def test_n128_muscl_euler_couette_reaches_original_time_and_accuracy_gate(tmp_path):
@@ -58,8 +57,7 @@ def test_n128_muscl_euler_couette_reaches_original_time_and_accuracy_gate(tmp_pa
     source=tmp_path/'couette.cpp'
     source.write_text(pre+storage+(HERE/'boundary_layer_couette_probe.cpp').read_text())
     exe=tmp_path/'couette'
-    build=subprocess.run(['g++','-std=c++17','-O2','-DUGKWP_GPU_REAL_BITS=64',
-        '-I'+str(HERE),'-I'+str(ROOT/'common'),'-I'+str(ROOT/'common/gasNumerics'),
+    build=subprocess.run(['g++','-std=c++17','-O2','-I'+str(HERE),'-I'+str(ROOT/'common'),'-I'+str(ROOT/'common/gasNumerics'),
         str(source),'-o',str(exe)],capture_output=True,text=True)
     assert build.returncode==0,build.stdout+build.stderr
     run=subprocess.run([str(exe),'1'],capture_output=True,text=True,timeout=120)
@@ -88,27 +86,25 @@ def test_n128_muscl_euler_couette_reaches_original_time_and_accuracy_gate(tmp_pa
     assert max(abs(row[2]) for row in rows)<1e-3
 
 
-@pytest.mark.parametrize('bits', [32, 64])
-def test_unavailable_matching_pressure_cannot_publish_a_ready_full_flux(tmp_path,bits):
+def test_unavailable_matching_pressure_cannot_publish_a_ready_full_flux(tmp_path):
     from test_boundary_layer_operators import SETUP
     from test_legacy_ale_transport import fixture as legacy
     compile_probe(tmp_path,legacy()+SETUP+r'''
 int main(){State s;initialise(s);wall(s);Real m,x,y,z,e;
-s.gasBoundaryLayer.exchange[0].matchingPressure=0;
+s.gasBoundaryLayer.exchange[0].matchingPressure=std::numeric_limits<Real>::quiet_NaN();
 ck(!computeRiemannGasFaceFluxDevice<false>(s,1,m,x,y,z,e),"missing thermodynamic reference pressure silently accepted");
 ck(s.gasSpecies.faceStatus[1]==int(ugkwp::GasTransportCode::InvalidThermodynamics),"missing pressure failure lost");
 s.gasSpecies.faceStatus[1]=0;s.gasBoundaryLayer.exchange[0].ready=false;
 ck(computeRiemannGasFaceFluxDevice<false,true>(s,1,m,x,y,z,e),"known mass needs no pressure/profile solve");near(m,Real(-.4),"mass predictor changed");}
-''',bits)
+''')
 
 
-@pytest.mark.parametrize('bits', [32, 64])
-def test_nonfinite_corrected_force_rejects_before_species_publication(tmp_path,bits):
+def test_nonfinite_corrected_force_rejects_before_species_publication(tmp_path):
     from test_boundary_layer_operators import SETUP
     from test_legacy_ale_transport import fixture as legacy
     compile_probe(tmp_path,legacy()+SETUP+r'''
-int main(){State s;initialise(s);wall(s);s.p[0]=std::pow(Real(10),Real(sizeof(Real)==4?20:290));
+int main(){State s;initialise(s);wall(s);s.p[0]=std::pow(Real(10),Real(290));
 s.magSf[1]=Real(1e20);s.Sfx[1]=-s.magSf[1];s.gasBoundaryLayer.exchange[0].matchingPressure=1;
 Real m,x,y,z,e;ck(!computeRiemannGasFaceFluxDevice<false>(s,1,m,x,y,z,e),"overflowed mechanical force was accepted");
 ck(s.gasSpecies.faceStatus[1]==int(ugkwp::GasTransportCode::NonFiniteState),"overflowed mechanical force lacks failure status");}
-''',bits)
+''')

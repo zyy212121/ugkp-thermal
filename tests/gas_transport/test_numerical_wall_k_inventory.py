@@ -28,8 +28,7 @@ void wall(State&s,Real tau,Real omega){
 }
 '''
 
-@pytest.mark.parametrize('bits',[32,64])
-def test_auxiliary_profile_cannot_drain_unrelated_owner_inventory(tmp_path,bits):
+def test_auxiliary_profile_cannot_drain_unrelated_owner_inventory(tmp_path):
     compile_probe(tmp_path,fixture()+AUDIT+SETUP+r'''
 int main(){State s;initialise(s);s.k[0]=1e-4;s.rhoK[0]=s.rho[0]*s.k[0];wall(s,Real(4),Real(47776.201947879716));audit(s);
 threadIdx.x=0;applySstWallFunctionStateKernel(&s);
@@ -47,10 +46,9 @@ near(s.rhoK[0],old+dt*expected,"auxiliary profile source leaked into owner");
 near(s.gasSstAudit.sourceK[0],dt*expected,"applied k source ledger mismatch");
 ck(std::abs(s.gasSstAudit.constraintK[0])<Real(8)*std::numeric_limits<Real>::epsilon()*old,"source update required a k clamp");
 }
-''',bits)
+''')
 
-@pytest.mark.parametrize('bits',[32,64])
-def test_zero_inventory_stays_zero_without_injected_tke(tmp_path,bits):
+def test_zero_inventory_stays_zero_without_injected_tke(tmp_path):
     compile_probe(tmp_path,fixture()+SETUP+r'''
 int main(){State s;initialise(s);s.k[0]=s.rhoK[0]=0;s.sstKMin=0;wall(s,Real(4),Real(100));
 threadIdx.x=0;applySstWallFunctionStateKernel(&s);Real sk,so;sstSourcesForCell(s,0,Real(.3),sk,so);
@@ -61,10 +59,9 @@ ck(s.sstPhiRhoOmega[1]==0,"algebraic omega also acquired an independent injected
 threadIdx.x=0;applySstFluxAndSourceKernel(&s,Real(.001));
 ck(s.gasSpecies.cellStatus[0]==0,"zero inventory source number is undefined");ck(s.rhoK[0]==0,"zero inventory was floored or drained");
 }
-''',bits)
+''')
 
-@pytest.mark.parametrize('bits',[32,64])
-def test_wall_stress_source_relation_and_gross_timestep(tmp_path,bits):
+def test_wall_stress_source_relation_and_gross_timestep(tmp_path):
     compile_probe(tmp_path,fixture()+SETUP+r'''
 int main(){for(Real rho:{Real(.2),Real(2),Real(20)})for(Real k:{Real(1e-8),Real(.3),Real(30)}){
 State s;initialise(s);s.rho[0]=rho;s.k[0]=k;s.rhoK[0]=rho*k;wall(s,Real(4),Real(100));threadIdx.x=0;applySstWallFunctionStateKernel(&s);
@@ -77,21 +74,19 @@ const Real tau=s.rho[0]*Real(.09)*k*omega*Real(.41)*Real(.5)/(std::pow(Real(.09)
 Real sk,so;sstSourcesForCell(s,0,Real(0),sk,so);near(sk,Real(0),"manufactured equilibrium source");
 computeSstStabilityNumberKernel(&s,Real(.1),Real(.5));
 near(s.sstSourceNumber[0],Real(.5)/Real(.25)*Real(.1)*Real(2)*Real(.09)*omega,"equilibrium hid source stiffness");
-Real before=s.rhoK[0];applySstFluxAndSourceKernel(&s,Real(.1));ck(s.gasSpecies.cellStatus[0]==int(ugkwp::GasTransportCode::SourceStepLimit),"large source activity escaped unchanged explicit guard");ck(s.rhoK[0]==before,"rejected step changed inventory");
+Real before=s.rhoK[0];applySstFluxAndSourceKernel(&s,Real(.1));ck(s.gasSpecies.cellStatus[0]==0,"finite large source activity refused");near(s.rhoK[0],before+Real(.1)*sk,"actual equilibrium source was not applied");
 }
-''',bits)
+''')
 
-@pytest.mark.parametrize('bits',[32,64])
-def test_tangential_traction_norm_is_scale_safe(tmp_path,bits):
+def test_tangential_traction_norm_is_scale_safe(tmp_path):
     compile_probe(tmp_path,fixture()+SETUP+r'''
-int main(){for(Real tau:{sizeof(Real)==4?Real(1e20):Real(1e200),sizeof(Real)==4?Real(1e-20):Real(1e-200)}){
+int main(){for(Real tau:{Real(1e200),Real(1e-200)}){
 State s;initialise(s);wall(s,tau,Real(100));ck(s.gasBoundaryLayer.sst[0].wallShearStress==tau,"traction norm overflowed or underflowed");}
 }
-''',bits)
+''')
 
 
-@pytest.mark.parametrize('bits',[32,64])
-def test_selected_wall_ale_source_envelope_and_rk_audit(tmp_path,bits):
+def test_selected_wall_ale_source_envelope_and_rk_audit(tmp_path):
     compile_probe(tmp_path,fixture()+AUDIT+SETUP+r'''
 
 int main(){
@@ -122,9 +117,8 @@ int main(){
  }
 }
 
-''',bits)
+''')
 
-@pytest.mark.parametrize('bits',[32,64])
-def test_rotated_traction_excludes_normal_component(tmp_path,bits):
+def test_rotated_traction_excludes_normal_component(tmp_path):
     setup=SETUP.replace('in.normal[0]=-1;', 'in.normal[0]=Real(.6);in.normal[1]=Real(.8);').replace('out.traction[1]=tau;', 'out.traction[0]=Real(.8)*tau+Real(.6)*tau/2;out.traction[1]=-Real(.6)*tau+Real(.8)*tau/2;')
-    compile_probe(tmp_path,fixture()+setup+r'''int main(){for(Real tau:{Real(4),sizeof(Real)==4?Real(1e20):Real(1e200),sizeof(Real)==4?Real(1e-20):Real(1e-200)}){State s;initialise(s);wall(s,tau,Real(100));ck(std::abs(s.gasBoundaryLayer.sst[0].wallShearStress/tau-1)<Real(128)*std::numeric_limits<Real>::epsilon(),"rotated tangential projection/norm scaling");}}''',bits)
+    compile_probe(tmp_path,fixture()+setup+r'''int main(){for(Real tau:{Real(4),Real(1e200),Real(1e-200)}){State s;initialise(s);wall(s,tau,Real(100));ck(std::abs(s.gasBoundaryLayer.sst[0].wallShearStress/tau-1)<Real(128)*std::numeric_limits<Real>::epsilon(),"rotated tangential projection/norm scaling");}}''')

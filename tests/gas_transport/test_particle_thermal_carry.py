@@ -78,12 +78,10 @@ template<class Storage>void run(){
 int main(){run<STORAGE>();}
 '''
 
-@pytest.mark.parametrize('storage', ['float','double'])
-@pytest.mark.parametrize('bits', [32,64])
-def test_actual_compensated_material_heat_and_cumulative_budget(tmp_path,storage,bits):
-    code=tmp_path/'carry.cpp';code.write_text(SOURCE.replace('STORAGE',storage))
+def test_actual_compensated_material_heat_and_cumulative_budget(tmp_path):
+    code=tmp_path/'carry.cpp';code.write_text(SOURCE.replace('STORAGE','double'))
     executable=tmp_path/'carry'
-    built=subprocess.run(['g++','-std=c++17','-O2',f'-DUGKWP_GPU_REAL_BITS={bits}','-I'+str(ROOT/'common'),'-I'+str(ROOT/'common/gpu'),str(code),'-o',str(executable)],capture_output=True,text=True)
+    built=subprocess.run(['g++','-std=c++17','-O2','-I'+str(ROOT/'common'),'-I'+str(ROOT/'common/gpu'),str(code),'-o',str(executable)],capture_output=True,text=True)
     assert built.returncode==0,built.stdout+built.stderr
     result=subprocess.run([str(executable)],capture_output=True,text=True)
     assert result.returncode==0,result.stdout+result.stderr

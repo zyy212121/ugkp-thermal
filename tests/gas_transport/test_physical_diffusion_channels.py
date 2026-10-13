@@ -4,9 +4,8 @@ from test_mixture_state import compile_probe
 from test_mixture_transport import fixture
 
 
-@pytest.mark.parametrize('bits',[32,64])
 @pytest.mark.parametrize('kind,fixed,composition',[(1,0,0),(1,1,0),(2,0,0),(2,1,0),(0,0,0),(0,1,0),(0,0,1),(3,0,0),(4,0,0)])
-def test_boundary_bound_matches_physical_diffusion_channels(tmp_path,bits,kind,fixed,composition):
+def test_boundary_bound_matches_physical_diffusion_channels(tmp_path,kind,fixed,composition):
     body=fixture()+r'''
 int main(){State s;initialise(s);
 const int kind=KIND,fixed=FIXED,composition=COMPOSITION;
@@ -28,11 +27,10 @@ if(kind==1){ck(s.gasPhiRho[1]==0&&s.gasSpecies.flux[1]==0&&s.gasSpecies.flux[4]=
  ck(fixed?s.gasPhiRhoE[1]!=0:s.gasPhiRhoE[1]==0,"slip thermal channel mismatch");}
 }
 '''.replace('KIND',str(kind)).replace('FIXED',str(fixed)).replace('COMPOSITION',str(composition))
-    compile_probe(tmp_path,body,bits)
+    compile_probe(tmp_path,body)
 
 
-@pytest.mark.parametrize('bits',[32,64])
-def test_internal_species_and_invalid_ale_geometry_keep_limits(tmp_path,bits):
+def test_internal_species_and_invalid_ale_geometry_keep_limits(tmp_path):
     compile_probe(tmp_path,fixture()+r'''
 int main(){State s;initialise(s);s.maxDiffusionNumber=1;Real D[2]={Real(.02),Real(.03)};s.gasSpecies.diffusivity=D;
 s.cellPlaneCount[0]=1;s.cellFaceId[0]=0;threadIdx.x=0;computeGasDiffusionNumberKernel(&s,1.,Real(1));
@@ -41,4 +39,4 @@ s.gasGeometry.enabled=true;s.gasGeometry.interval=1; // invalid geometry must fa
 s.cellFaceId[0]=1;computeGasDiffusionNumberKernel(&s,1.,Real(1));
 ck(s.gasSpecies.cellStatus[0]==int(ugkwp::GasTransportCode::InvalidGeometry)&&s.gasDiffusionNumber[0]==OfGreat,"inactive channel bypassed ALE geometry gate");
 }
-''',bits)
+''')

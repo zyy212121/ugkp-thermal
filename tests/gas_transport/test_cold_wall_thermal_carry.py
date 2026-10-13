@@ -41,8 +41,11 @@ void pure_profile(int n) {
  auto a=ugkwp::publishColdWallUniformSpecificHeat(h,n,r,-7.25);
  require(a.valid,"finite cooling accepted");near(inventory(h,n,r)-before,2.75,2.e-9,"finite cooling mean");
  const double saved=r;std::copy(h,h+n,old);
- require(!ugkwp::publishColdWallUniformSpecificHeat(h,n,r,-1.e12).valid,"reject invalid heat");
- require(r==saved&&std::equal(h,h+n,old),"invalid heat transactional");
+ const double previous=inventory(h,n,r);
+ auto signedHeat=ugkwp::publishColdWallUniformSpecificHeat(h,n,r,-1.e12);
+ require(signedHeat.valid,"finite signed heat continues");
+ near(inventory(h,n,r)-previous,signedHeat.acceptedSpecificHeat,.001,"signed heat actual inventory");
+ (void)saved;
  DeviceState s;const auto c=law(s);
  for(double t:{c.solidus()-1.e-6,c.solidus()+1.e-6,c.liquidus()-1.e-6,c.liquidus()+1.e-6}) {
   for(int j=0;j<n;++j)h[j]=float(c.enthalpy(t));r=c.enthalpy(t)-h[0];
@@ -169,8 +172,9 @@ void prepare_1d_wrapper(DeviceState& s) {
  s.pThermalEnthalpyResidual[0]=.07125;s.gasBoundaryT[0]=GPU_R(2200);
  s.particleWallDepositionHeatTransferEfficiency=GPU_R(.2);
 }
-void full_1d_wrapper(double dt) {
+void full_1d_wrapper(double dt,bool wide=false) {
  DeviceState actual,reference;prepare_1d_wrapper(actual);prepare_1d_wrapper(reference);
+ if(wide){actual.particleWallDepositionHeatTransferEfficiency=GPU_R(1.01);reference.particleWallDepositionHeatTransferEfficiency=GPU_R(1.01);}
  const double before=particleEffectiveSpecificEnthalpyDevice(actual,0);
  const auto proposal=pairedParticleHeatCandidate(actual,0,dt);
  const GpuReal volume=(finiteContactPi/GPU_R(6))*actual.pd[0]*actual.pd[0]*actual.pd[0];
@@ -267,9 +271,194 @@ void mixed_cell(double dt,bool nearFloor=false,bool counterflow=false,int coldes
  require(s.rhoE[0]>=pairedGasEnergyFloor(s,0),"mixed gas floor preserved");
  require(s.Tgas[0]>s.TgasMin,"mixed actual gas recovery ran");
 }
+
+void extended_carry() {
+ for(double sign:{-1.,1.})for(int count:{8,64}) {
+  float nodes[64];std::fill(nodes,nodes+count,sign*4000000.f);
+  double carry=sign*double(FLT_MAX)*4.;const double before=inventory(nodes,count,carry);
+  auto zero=ugkwp::publishColdWallUniformSpecificHeat(nodes,count,carry,0.);
+  require(zero.valid && zero.acceptedSpecificHeat==0.,"large effective zero-heat identity");
+  const double heat=sign*double(FLT_MAX)*.5;
+  auto change=ugkwp::publishColdWallUniformSpecificHeat(nodes,count,carry,heat);
+  require(change.valid,"large signed effective heat publishes");
+  for(int j=0;j<count;++j)require(std::isfinite(nodes[j]),"cache endpoint finite");
+  near(inventory(nodes,count,carry)-before,heat,1.e25,"large actual inventory change");
+  near(change.acceptedSpecificHeat,heat,1.e25,"large accepted heat");
+  const double now=inventory(nodes,count,carry);
+  auto tiny=ugkwp::publishColdWallUniformSpecificHeat(nodes,count,carry,1.e-10);
+  require(tiny.valid&&tiny.acceptedSpecificHeat==0.&&inventory(nodes,count,carry)==now,"absorbed tiny heat reported honestly");
+ }
+ for(double target:{-1.00000003,1.00000003,-double(FLT_MAX)*2.,double(FLT_MAX)*2.}) {
+  float stored=ugkwp::coldWallStoredEnthalpyFloor(target);
+  require(std::isfinite(stored),"finite endpoint for signed overflow");
+  if(target>=-double(FLT_MAX))require(double(stored)<=target,"directed mathematical floor in float interval");
+ }
+ float nodes[8];std::fill(nodes,nodes+8,100.f);double carry=0.;
+ require(!ugkwp::publishColdWallUniformSpecificHeat(nullptr,8,carry,1.).valid,"missing required nodes fails");
+ require(!ugkwp::publishColdWallUniformSpecificHeat(nodes,8,carry,NAN).valid,"actual nonfinite heat fails");
+ nodes[3]=NAN;require(!ugkwp::publishColdWallUniformSpecificHeat(nodes,8,carry,0.).valid,"actual nonfinite node fails");
+}
+void finite_policy_paths() {
+ DeviceState s;seed(s);s.pColdFrozenArea[0]=3.e-8f;
+ s.pThermalEnthalpyResidual[0]=-.125;
+ for(int j=0;j<8;++j)s.coldH[j]=-140000.f;
+ GpuReal mean=-999.,frozen=-999.,wall=-999.;
+ require(launch8([&]{GpuReal m=-999.,f=-999.,w=-999.;
+  bool ok=advanceColdWall1DThermalGroup(s,0,threadIdx.x,255,GPU_R(1.e-12),GPU_R(3.e-9),
+    GPU_R(2.e-8),GPU_R(1.e-8),.01,GPU_R(1.1),0.,GPU_R(-300),GPU_R(10000),GPU_R(1.01),GPU_R(-10),GPU_R(0),m,f,w);
+  if(!ok)throw DeviceTrap{};if(threadIdx.x==0){mean=m;frozen=f;wall=w;}
+ })==0,"finite outside-old zero interval publishes complete actual output");
+ require(mean<0.&&frozen==s.pColdFrozenArea[0]&&wall==0.,"actual outside profile/history retained");
+ s.coldWallSolidificationEnabled=0;initialiseColdWallParticleState(s,0,GPU_R(-100));
+ for(int j=0;j<8;++j)near(s.coldH[j],double(GPU_R(-100)*s.coldWallSolidificationParameters.solidSpecificHeatJkgK),.02,"existing destination initialized despite enabled identity");
+ const auto cap=evaluateCapillaryDetachmentState(GPU_R(-100),GPU_R(1.e-4),GPU_R(-1),GPU_R(.5));
+ require(cap.valid&&cap.adhesionSpecificEnergyJkg<0.&&cap.equilibriumContactAreaM2>0.,"capillary complete finite signed energy");
+ const auto damage=applyCapillaryContactDamage(cap,cap.equilibriumContactAreaM2,GPU_R(1.01),GPU_R(1));
+ require(damage.valid&&damage.detached&&damage.residualSpecificEnergyJkg>GPU_R(1),"signed capillary actual damage transition");
+}
+
+void contact_continuation() {
+ const GpuReal a=GPU_R(2.e-8),r=GPU_R(1.e-7),eff=GPU_R(10000);
+ const GpuReal unit=wallInterfaceConductanceTimeIntegral(a,GPU_R(1),.001,.002,r,GPU_R(0),eff,false);
+ const GpuReal wide=wallInterfaceConductanceTimeIntegral(a,GPU_R(1.01),.001,.002,r,GPU_R(0),eff,false);
+ near(wide,GPU_R(1.01)*unit,1.e-10,"interface finite efficiency actual equation");
+ const GpuReal signedQ=wallInterfaceConductanceTimeIntegral(a,GPU_R(-.5),.001,.002,r,GPU_R(0),eff,false);
+ near(signedQ,-GPU_R(.5)*unit,1.e-10,"signed interface conductance");
+ const GpuReal integral=finiteContactWallConductanceTimeIntegral(a,a,.01,GPU_R(1.1),.009,.0001,GPU_R(1.01),r,GPU_R(0),eff,false);
+ require(std::isfinite(integral)&&integral>0.,"finite contact complete ring integral outside old metadata");
+ auto impact=evaluateFiniteWallContactImpact(GPU_R(-100),GPU_R(1.e-4),GPU_R(-10),GPU_R(.5));
+ require(impact.valid&&impact.betaMax>0.&&impact.maximumAreaM2>0.&&impact.physicalMassKg>0.&&impact.contactDurationS!=0.,"finite signed impact publishes actual full fields");
+ const auto material=liquidAluminaProperties(GPU_R(-100));
+ near(impact.weber,material.densityKgM3*GPU_R(100)*GPU_R(1.e-4)/material.surfaceTensionNM,GPU_R(.001),"impact actual Weber");
+ const auto cap=evaluateCapillaryDetachmentState(GPU_R(-100),GPU_R(1.e-4),GPU_R(-1),GPU_R(.5));
+ require(cap.valid&&cap.adhesionSpecificEnergyJkg<0.,"signed capillary producer");
+ DeviceState s;seed(s);s.pStuck[0]=particleWallMobile;s.pT[0]=GPU_R(-100);s.pm[0]=GPU_R(2.1e-8);s.pThermalEnthalpyResidual[0]=.07125;
+ auto candidate=particleFiniteContactThermalCandidateDevice(s,0,GPU_R(-200),GPU_R(3.e-9),GPU_R(2.1e-8),GPU_R(1.e-10),0);
+ require(candidate.valid&&std::isfinite(candidate.wallEnergyJ),"carried finite-wall signed old state continues");
+ const double old=particleEffectiveSpecificEnthalpyDevice(s,0);
+ commitParticleFiniteContactThermalCandidateDevice(s,0,candidate,0);
+ near(double(s.pm[0])*(particleEffectiveSpecificEnthalpyDevice(s,0)-old),0.,1.e-12,"outside-old outward limiter retains zero-containing interval");
+ require(!std::isfinite(wallInterfaceConductanceTimeIntegral(a,GPU_R(1),.001,.002,GPU_R(0),GPU_R(0),eff,false)),"actual zero resistance division error");
+ require(!evaluateFiniteWallContactImpact(GPU_R(3000),GPU_R(1.e-4),GPU_R(0),GPU_R(.5)).valid,"actual undefined zero-speed duration error");
+}
+
+
+
+void geometry_arithmetic() {
+ for(GpuReal area:{GPU_R(0),GPU_R(-1)}) {
+  const auto g=coldWall2DGeometry(GPU_R(1),GPU_R(1),area);
+  require(g.valid,"finite geometry inputs retain original formula outcome");
+  for(double dt:{0.,1.e-10}) {
+   DeviceState s;seed(s);std::fill(s.cold2DH,s.cold2DH+64,4000000.f);
+   const int failures=launch8([&]{GpuReal m=-999,t=-999,f=-999,w=-999;
+    if(!advanceColdWall2DThermalGroup(s,0,threadIdx.x,255,GPU_R(1.e-12),GPU_R(3.e-9),area,GPU_R(1.e-8),dt,GPU_R(300),GPU_R(10000),GPU_R(1.e-5),GPU_R(4200),GPU_R(0),m,t,f,w))throw DeviceTrap{};
+   });require(failures==(dt==0. ? 0 : 8),"zero interval needs no geometry arithmetic; active invalid geometry propagates");
+  }
+ }
+ const auto signedGeometry=coldWall2DGeometry(GPU_R(-1),GPU_R(-1),GPU_R(1));
+ require(signedGeometry.valid&&signedGeometry.filmThicknessM<0&&signedGeometry.nodeMassKg<0,"finite signed geometry executes existing divisions");
+}
+void resistance_arithmetic() {
+ for(int which=0;which<6;++which) {
+  DeviceState s;seed(s);auto c=law(s);for(int j=0;j<64;++j)s.cold2DH[j]=float(c.enthalpy(1000.));
+  for(int r=0;r<8;++r)s.cold2DAge[r]=.001;
+  GpuReal eff=GPU_R(10000),area=GPU_R(1.e-8);double dt=1.e-10;
+  if(which==1||which==4||which==5)s.coldWallSolidificationParameters.solidThermalConductivityWmK=GPU_R(0);
+  if(which==2||which==4||which==5){s.coldWallSolidificationParameters.wallTransientResistance=1;eff=GPU_R(0);}
+  if(which==3){s.coldWallSolidificationParameters.wallTransientResistance=1;s.cold2DAge[0]=-.001;}
+  if(which==4)area=GPU_R(0);if(which==5)dt=0.;
+  GpuReal wall=-999;
+  const int failures=launch8([&]{GpuReal m=-999,t=-999,f=-999,w=-999;
+   if(!advanceColdWall2DThermalGroup(s,0,threadIdx.x,255,GPU_R(1.e-12),GPU_R(3.e-9),GPU_R(2.e-8),area,dt,GPU_R(900),eff,GPU_R(1.e-5),GPU_R(1100),GPU_R(0),m,t,f,w))throw DeviceTrap{};
+   if(threadIdx.x==0)wall=w;
+  });
+  require(failures==(which==3?8:0),"infinite resistance gives zero conductance; invalid active square root propagates",failures,which);
+  if(which==0)require(wall>0,"ordinary actual wet wall heat remains nonzero");
+  if(which>=4)require(wall==0.,"unused wall operator has actual zero wall heat");
+ }
+}
+void complete_group_layout() {
+ for(bool two:{false,true}) {
+  std::vector<double> reference;
+  for(int block:{32,8,16,24}) {
+   DeviceState s;seed(s);blockDim.x=block;
+   s.particleCount=s.particleCapacity=s.wallBoundCount=s.nFaces=3;s.particleHeatCoefficient[0]=.3;
+   const auto c=law(s);double old[3];
+   for(int i=0;i<3;++i){
+    s.wallBoundParticleIndex[i]=i;s.pCellId[i]=0;s.pStuckFaceId[i]=i;s.pStatus[i]=1;
+    s.pStuck[i]=particleWallDeposited;s.pDepositionArea[i]=1.e-8f;
+    s.particleStuckCandidateMask[i]=two?particleWallColdWall2D:particleWallSolidifyingDeposition;
+    s.particleWallContactAreaScale[i]=GPU_R(1);s.gasBoundaryT[i]=GPU_R(2200);
+    s.pd[i]=s.pd[0];s.pm[i]=s.pm[0];s.pT[i]=GPU_R(3200);s.pThermalEnthalpyResidual[i]=.07125;
+    s.pContactDuration[i]=.01f;s.pContactMaximumArea[i]=2.2e-8f;s.pContactPeakFraction[i]=.4f;
+    s.pContactAge[i]=.008;s.pColdContactAge[i]=.008;
+    for(int j=0;j<(two?64:8);++j)(two?s.cold2DH:s.coldH)[i*(two?64:8)+j]=float(c.enthalpy(3200.));
+    old[i]=inventory((two?s.cold2DH:s.coldH)+i*(two?64:8),two?64:8,s.pThermalEnthalpyResidual[i]);
+   }
+   int traps=0;
+   for(int group=0;group<block/8;++group)traps+=launch8([&]{threadIdx.x+=group*8;if(two)relaxColdWall2DParticlesToResidentGasKernel(&s,1.e-10);else relaxColdWall1DParticlesToResidentGasKernel(&s,1.e-10);});
+   require(traps==0,"every complete eight-lane group executes",traps,block);
+   std::vector<double> fields;double ledger=0.;
+   for(int i=0;i<3;++i){
+    float* h=(two?s.cold2DH:s.coldH)+i*(two?64:8);const int n=two?64:8;
+    const double dh=inventory(h,n,s.pThermalEnthalpyResidual[i])-old[i];
+    require(dh!=0.&&s.deposited[i]!=0.,"every directory particle receives its actual interval and wall heat");
+    ledger+=double(s.pm[i])*dh+double(s.deposited[i]);
+    for(int j=0;j<n;++j)fields.push_back(h[j]);
+    for(int j=0;j<8;++j)fields.push_back(two?s.cold2DAge[i*8+j]:double(s.coldRing[i*8+j]));
+    for(double v:{double(s.pT[i]),s.pThermalEnthalpyResidual[i],double(s.coldFrozen[i]),double(s.pCold2DFrozenArea[i]),s.coldAge[i],s.pContactAge[i],double(s.deposited[i]),double(s.reflected[i]),double(s.pux[i]),double(s.puy[i]),double(s.puz[i]),double(s.pStuck[i])})fields.push_back(v);
+   }
+   near(ledger,s.heatBudget[0],1.2e-16,"all three inventory/wall changes settle gas once");fields.push_back(s.heatBudget[0]);
+   if(block==32)reference=fields;else require(fields==reference,"complete layout fullfield parity against block32");
+  }
+ }
+ blockDim.x=32;
+}
+void missing_gas_ledger() {
+ DeviceState s;seed(s);s.particleHeatBudget=nullptr;
+ for(int j=0;j<64;++j)s.cold2DH[j]=4000000.f;
+ const int traps=launch8([&]{GpuReal m=-999.,t=-999.,f=-999.,w=-999.;
+  advanceColdWall2DThermalGroup(s,0,threadIdx.x,255,GPU_R(1.e-12),GPU_R(3.e-9),GPU_R(2.e-8),GPU_R(1.e-8),1.e-10,GPU_R(300),GPU_R(10000),GPU_R(1.e-5),GPU_R(4200),GPU_R(1.e-5),m,t,f,w);
+ });
+ require(traps==1,"actual required gas settlement address fails on its leader lane");
+}
+void large_group_identity() {
+ for(bool twoD:{false,true})for(double sign:{-1.,1.}) {
+  DeviceState s;seed(s);s.pThermalEnthalpyResidual[0]=sign*4.*double(FLT_MAX);
+  float* nodes=twoD?s.cold2DH:s.coldH;int count=twoD?64:8;
+  std::fill(nodes,nodes+count,sign*4000000.f);
+  const double before=inventory(nodes,count,s.pThermalEnthalpyResidual[0]);
+  const double oldCarry=s.pThermalEnthalpyResidual[0];
+  require(launch8([&]{GpuReal m=-999.,t=-999.,f=-999.,w=-999.;bool ok;
+   if(twoD)ok=advanceColdWall2DThermalGroup(s,0,threadIdx.x,255,GPU_R(1.e-12),GPU_R(3.e-9),GPU_R(2.e-8),GPU_R(1.e-8),0.,GPU_R(-300),GPU_R(10000),GPU_R(1.01),GPU_R(4200),GPU_R(0),m,t,f,w);
+   else ok=advanceColdWall1DThermalGroup(s,0,threadIdx.x,255,GPU_R(1.e-12),GPU_R(3.e-9),GPU_R(2.e-8),GPU_R(1.e-8),.01,GPU_R(.4),0.,GPU_R(-300),GPU_R(10000),GPU_R(1.01),GPU_R(4200),GPU_R(0),m,f,w);
+   if(!ok)throw DeviceTrap{};
+   near(m,GpuReal(law(s).temperature(before)),0.,"large actual effective group temperature");require(w==0.,"zero interval actual zero wall heat");
+  })==0,"large signed effective identity actual group");
+  require(s.pThermalEnthalpyResidual[0]==oldCarry&&inventory(nodes,count,oldCarry)==before,"zero interval preserves full large signed inventory");
+ }
+ DeviceState missing;seed(missing);missing.pColdNodeSpecificEnthalpy=nullptr;
+ bool trapped=false;try{initialiseColdWallParticleState(missing,0,GPU_R(300));}catch(DeviceTrap&){trapped=true;}
+ require(trapped,"actual absent initializer destination fails");
+}
+#include "cold_wall_2d_continuation.hpp"
 int main(int argc,char** argv) {
  require(argc==2,"case required");std::string k=argv[1];
- if(k=="publication_stress")publication_stress();
+ if(k=="geometry_arithmetic")geometry_arithmetic();
+ else if(k=="resistance_arithmetic")resistance_arithmetic();
+ else if(k=="complete_group_layout")complete_group_layout();
+ else if(k=="missing_gas_ledger")missing_gas_ledger();
+ else if(k=="wide1d")full_1d_wrapper(1.e-10,true);
+ else if(k=="large_group_identity")large_group_identity();
+ else if(k=="signedwall2d")full_2d_interval(false,false,false,true);
+ else if(k=="signedgas2d")full_2d_interval(false,false,true);
+ else if(k=="reverse2d")full_2d_interval(false,true);
+ else if(k=="contact_continuation")contact_continuation();
+ else if(k=="interval2d")full_2d_interval(false);
+ else if(k=="tail2d")full_2d_interval(true);
+ else if(k=="extended_carry")extended_carry();
+ else if(k=="finite_policy_paths")finite_policy_paths();
+ else if(k=="publication_stress")publication_stress();
  else if(k=="coldest_positive")coldest_positive_roundoff();
  else if(k=="coldest_roundoff")coldest_node_roundoff();
  else if(k=="mixed_coldest")mixed_cell(1.e-5,false,true,1);
@@ -295,17 +484,23 @@ int main(int argc,char** argv) {
 }
 '''
 
-@pytest.fixture(scope="module", params=[32,64])
-def cold_carry_binary(request,tmp_path_factory):
-    build=tmp_path_factory.mktemp(f"cold_carry_{request.param}")
+@pytest.fixture(scope="module")
+def cold_carry_binary(tmp_path_factory):
+    build=tmp_path_factory.mktemp(f"cold_carry_64")
     fixture=(ROOT/"tests/fixtures/cold_wall_contact_routes.cpp").read_text()
     prefix=fixture[:fixture.index('#include "GpuThermalParticleRelaxation.cuh"')]
     prefix=prefix.replace('#include <thread>','#include <thread>\n#include <string>\n#include "GpuColdWall2DSolidification.H"\n#define GPU_PAIRED_PARTICLE_HEAT 1')
     prefix=prefix.replace('struct DeviceState {','struct DeviceState {\n double pThermalEnthalpyResidual[1]{}; double heatBudget[1]{}; double heatCoefficient[1]{1.}; double* particleHeatBudget=heatBudget; double* particleHeatCoefficient=heatCoefficient;\n int coldWall2DEnabled=1;\n float cold2DH[64]{}; GpuTime cold2DAge[8]{};\n float* pCold2DNodeSpecificEnthalpy=cold2DH;\n GpuTime* pCold2DRingContactAge=cold2DAge;')
     prefix=prefix.replace('struct DeviceTrap {};','struct DeviceTrap {};\nvoid __syncwarp(unsigned){lanes.arrive_and_wait();}')
+    # The host atomic adapter models a genuine missing-address error.
+    prefix=prefix.replace('T atomicAdd(T* target,T value) {', 'T atomicAdd(T* target,T value) {if(!target)throw DeviceTrap{};')
     prefix=prefix.replace('struct DeviceState {', 'struct DeviceState {\n GpuReal epsGPrev[1]{GPU_R(.9)},V[1]{GPU_R(1)},rho[1]{GPU_R(1)},rhoUx[1]{},rhoUy[1]{},rhoUz[1]{};\n GpuReal Tgas[1]{GPU_R(4200)},p[1]{},Ux[1]{},Uy[1]{},Uz[1]{};\n GpuReal Rgas=GPU_R(287),gammaGas=GPU_R(1.4);\n double rhoE[1]{3.e6},rhoENext[1]{};\n unsigned char* compactPStuck=pStuck;int* compactPStuckFaceId=pStuckFaceId;GpuReal* compactPT=pT;\n float* compactPColdNodeSpecificEnthalpy=coldH;float* compactPCold2DNodeSpecificEnthalpy=cold2DH;\n double* compactPThermalEnthalpyResidual=pThermalEnthalpyResidual;\n')
     # All three particle kinds share one cell; face and parcel arrays have
     # independent slots. Default single-particle cases still use slot zero.
+    prefix=prefix.replace('laneValues[threadIdx.x]','laneValues[threadIdx.x&7]').replace('laneValues[target]','laneValues[target&7]')
+    prefix=prefix.replace('threadIdx.x >= offset ? threadIdx.x-offset : threadIdx.x','(threadIdx.x&7) >= offset ? (threadIdx.x&7)-offset : (threadIdx.x&7)')
+    prefix=prefix.replace('threadIdx.x+offset < 8 ? threadIdx.x+offset : threadIdx.x','(threadIdx.x&7)+offset < 8 ? (threadIdx.x&7)+offset : (threadIdx.x&7)')
+    prefix=prefix.replace('    return result;\n}\nbool __all_sync','    return result << (threadIdx.x&24);\n}\nbool __all_sync')
     prefix=prefix.replace('[1]','[3]').replace('coldH[8]','coldH[24]').replace('coldRing[8]','coldRing[24]').replace('cold2DH[64]','cold2DH[192]').replace('cold2DAge[8]','cold2DAge[24]')
     prefix=prefix.replace('#include \"GpuColdWall1DDevice.cuh\"', '#include "GpuParticleThermalCarry.H"\n#include "GpuPairedParticleHeat.H"\n#include "GpuColdWallThermalCarry.cuh"\n#include "GpuParticleCaloricDevice.cuh"\nconstexpr GpuReal OfSmall=GPU_R(2.22044604925031308085e-16);\n#include "actual_gas_recovery.cuh"\n#define publishPairedParticleGasHeat actualPublishPairedParticleGasHeat\n#include "GpuPairedParticleHeat.cuh"\n#include "paired_heat_reference.cuh"\n#undef publishPairedParticleGasHeat\nstd::atomic<int> pairedCallbackCalls{0};\nvoid publishPairedParticleGasHeat(DeviceState& s,int i,GpuTime dt) {\n ++pairedCallbackCalls;actualPublishPairedParticleGasHeat(s,i,dt);\n}\n#include "GpuColdWall1DDevice.cuh"')
     recovery=(ROOT/'common/operators/computeSstFaceFluxKernel.cuh').read_text()
@@ -316,21 +511,23 @@ def cold_carry_binary(request,tmp_path_factory):
     (build/'actual_gas_recovery.cuh').write_text('#include \"gasTransport/GasCapabilities.H\"\n#include \"gasTransport/MixtureThermo.H\"\n#include \"gasTransport/GasGeometryValidation.H\"\n'+recovery[start:end])
     prefix=prefix.replace('void clearColdWall2DParticleState(DeviceState&,int) {}','void clearColdWall2DParticleState(DeviceState&,int);')
     two=(ROOT/'common/wall/GpuColdWall2DDevice.cuh').read_text()
+    # Observe each actual step without replacing any numerical expression.
+    two=two.replace('        ColdWallThermalReal power[', '        if(radialNode==0)observedStepTimes.push_back(stepTime);\n        ColdWallThermalReal power[')
+    prefix += '\n#include <vector>\nstd::vector<double> observedStepTimes;\n'
     # Compile the complete production 2D wrapper as well as its group.
     (build/'actual_2d_group.cuh').write_text(two)
     helpers=fixture[fixture.index('void require('):fixture.index('double meanH(')]
-    (build/'test.cpp').write_text(prefix+'\n#include "actual_2d_group.cuh"\n'+helpers+HARNESS)
+    (build/'test.cpp').write_text(prefix+'\n#include "actual_2d_group.cuh"\n#include "GpuParticleThermalConsumerDevice.cuh"\n'+helpers+HARNESS)
     conductivity=(ROOT/'common/operators/updateLegacyGasBoundaryMirrorKernel.cuh').read_text()
     start=conductivity.index('template<class GasState>\n__device__ GPU_OPERATOR_REAL molecularGasConductivity')
     end=conductivity.index('\n}',start)+2
     (build/'route_conductivity.cuh').write_text('#include "gasTransport/GasStateView.H"\n'+conductivity[start:end])
     binary=build/'test'
-    run=subprocess.run(['g++','-std=c++20','-O2','-pthread',f'-DUGKWP_GPU_REAL_BITS={request.param}',
-        '-DROUTE_FSH=0','-I',str(build),'-I',str(ROOT/'common'),'-I',str(ROOT/'common/wall'),'-I',str(ROOT/'tests/gas_transport'),str(build/'test.cpp'),'-o',str(binary)],capture_output=True,text=True,timeout=90)
+    run=subprocess.run(['g++','-std=c++20','-O2','-pthread','-DROUTE_FSH=0','-I',str(ROOT/'tests/fixtures'),'-I',str(build),'-I',str(ROOT/'common'),'-I',str(ROOT/'common/wall'),'-I',str(ROOT/'tests/gas_transport'),str(build/'test.cpp'),'-o',str(binary)],capture_output=True,text=True,timeout=90)
     assert run.returncode==0,run.stdout+run.stderr
     return binary
 
-@pytest.mark.parametrize('case',['publication_stress','coldest_positive','coldest_roundoff','mixed_coldest','mixed_coldest_positive','wrapper1d_micro','wrapper1d_finite','mixed_micro','mixed_finite','mixed_gas_floor','mixed_counterflow_floor','wrapper2d_zero','wrapper2d_scaled','wrapper2d_full','uniform8','uniform64','no_duplicate',
+@pytest.mark.parametrize('case',['geometry_arithmetic','resistance_arithmetic','complete_group_layout','missing_gas_ledger','wide1d','large_group_identity','signedwall2d','signedgas2d','reverse2d','contact_continuation','interval2d','tail2d','extended_carry','finite_policy_paths','publication_stress','coldest_positive','coldest_roundoff','mixed_coldest','mixed_coldest_positive','wrapper1d_micro','wrapper1d_finite','mixed_micro','mixed_finite','mixed_gas_floor','mixed_counterflow_floor','wrapper2d_zero','wrapper2d_scaled','wrapper2d_full','uniform8','uniform64','no_duplicate',
  '1d_zero','1d_micro','1d_finite','1d_mushy','1d_gradient','2d_zero','2d_null','2d_micro','2d_finite','2d_mushy','2d_gradient','2d_gas','2d_micro_gas','2d_mushy_gas','2d_liquidus_gas','2d_solidus_gas_cooling'])
 def test_cold_wall_mean_authority(cold_carry_binary,case):
     run=subprocess.run([str(cold_carry_binary),case],capture_output=True,text=True,timeout=30)

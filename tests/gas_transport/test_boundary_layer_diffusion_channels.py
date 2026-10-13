@@ -16,8 +16,7 @@ void near(Real a,Real b,const char* message){
 '''
 
 
-@pytest.mark.parametrize('bits', [32, 64])
-def test_ordinary_boundary_bound_uses_actual_diffusion_channels(tmp_path, bits):
+def test_ordinary_boundary_bound_uses_actual_diffusion_channels(tmp_path):
     compile_probe(tmp_path, fixture()+CHECK+r'''
 int main(){
  const int cases[][3]={{1,0,0},{1,1,0},{2,0,0},{2,1,0},{0,0,0},{0,1,0},{0,0,1},{3,0,0},{4,0,0}};
@@ -41,12 +40,11 @@ int main(){
    ck(fixed?s.gasPhiRhoE[1]!=0:s.gasPhiRhoE[1]==0,"slip thermal channel mismatch");}
  }
 }
-''', bits)
+''')
 
 
-@pytest.mark.parametrize('bits', [32, 64])
 @pytest.mark.parametrize('channel', ['thermal', 'species'])
-def test_selected_wall_keeps_bound_without_ordinary_flags_or_ready_profile(tmp_path, bits, channel):
+def test_selected_wall_keeps_bound_without_ordinary_flags_or_ready_profile(tmp_path, channel):
     compile_probe(tmp_path, fixture()+CHECK+r'''
 #include "gasTransport/GasBoundaryLayerEvaluation.H"
 int main(){for(int turbulent:{0,1}){
@@ -92,15 +90,14 @@ int main(){for(int turbulent:{0,1}){
  w.enabled=true;faces[1]=-1;computeGasDiffusionNumberKernel(&s,.1,Real(.5));
  near(s.gasDiffusionNumber[0],nu*weight,"unselected wall incorrectly retained wall-only channels");
 }}
-'''.replace('THERMAL', str(int(channel == 'thermal'))), bits)
+'''.replace('THERMAL', str(int(channel == 'thermal'))))
 
 
-@pytest.mark.parametrize('bits', [32, 64])
-def test_inactive_channels_still_validate_ale_geometry(tmp_path, bits):
+def test_inactive_channels_still_validate_ale_geometry(tmp_path):
     compile_probe(tmp_path, fixture()+r'''
 int main(){State s;initialise(s);s.maxDiffusionNumber=1;
  s.cellPlaneCount[0]=1;s.cellFaceId[0]=1;s.gasGeometry.enabled=true;s.gasGeometry.interval=1;
  threadIdx.x=0;computeGasDiffusionNumberKernel(&s,1.,Real(1));
  ck(s.gasSpecies.cellStatus[0]==int(ugkwp::GasTransportCode::InvalidGeometry)&&s.gasDiffusionNumber[0]==OfGreat,"inactive channel bypassed ALE geometry gate");
 }
-''', bits)
+''')

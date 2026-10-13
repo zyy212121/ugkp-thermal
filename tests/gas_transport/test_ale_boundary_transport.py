@@ -3,9 +3,8 @@ import pytest
 from test_mixture_state import compile_probe
 from test_mixture_transport import fixture
 
-@pytest.mark.parametrize('bits',[32,64])
 @pytest.mark.parametrize('legacy',[False,True])
-def test_moving_wall_gradients_pressure_work_and_inlet_outlet_direction(tmp_path,bits,legacy):
+def test_moving_wall_gradients_pressure_work_and_inlet_outlet_direction(tmp_path,legacy):
     compile_probe(tmp_path,fixture()+r'''
 int main(){State s;initialise(s);if(LEGACY)s.gasSpecies.mode=ugkwp::GasMode::SingleLegacy;
 Real oldV[2]={1,1},newV[2]={1.1,1.1},sweep[3]={0,.1,.1};
@@ -21,4 +20,4 @@ ck(s.gasSpecies.faceStatus[1]==0&&s.gasPhiRho[1]==0,"moving wall leaks mass");
 ck(std::abs(s.gasPhiRhoE[1]-s.p[0]*100)<Real(2e-6)*std::abs(s.p[0]*100),"wall pressure work is not p times sweep rate");
 s.gasGeometry.faceSweptVolume=nullptr;s.gasSpecies.faceStatus[1]=0;riemannFacePrimitiveForGradient(s,0,1);ck(s.gasSpecies.faceStatus[1]!=0,"invalid boundary geometry unreported");
 }
-'''.replace('LEGACY','true' if legacy else 'false'),bits)
+'''.replace('LEGACY','true' if legacy else 'false'))

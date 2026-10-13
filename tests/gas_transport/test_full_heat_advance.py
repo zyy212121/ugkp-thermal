@@ -55,10 +55,7 @@ def test_actual_advance_source_order_and_time_arguments():
                      (ROOT / "applications/CHT/diluteUgkwpFoam.C").read_text())
     wrapper = braced_function((OWNER.parent/"GpuResidentStrict.H").read_text(), "void advanceOneStep(")
     assert "ugkwpGpuResidentStrictAdvance(handle_, dt, simulationTime)" in wrapper
-    dispatch = braced_function((OWNER.parent/"GpuPrecisionDispatch.C").read_text(),
-                               'extern "C" int ugkwpGpuResidentStrictAdvance(')
-    for bits in (32, 64):
-        assert f"ugkwpGpuResidentStrictAdvance_{bits}(handle, dt, simulationTime)" in dispatch
+    assert 'extern "C" int ugkwpGpuResidentStrictAdvance' in OWNER.read_text()
 
 
 def cache_path_fixture():
@@ -150,12 +147,12 @@ FIELDS = ("gas_energy", "particle_T", "gas_T", "coupling_T", "eps", "rho", "gx",
 STAGES = ("before", "volume", "snapshot", "source", "recovered", "pre_relax", "relaxed", "moments", "final_recovered")
 
 
-@pytest.fixture(params=[32, 64], ids=["mixed32", "fp64"])
+@pytest.fixture()
 def cache_probe(tmp_path, request):
-    return compile_cache_probe(tmp_path, request.param), request.param
+    return compile_cache_probe(tmp_path), 64
 
 
-def compile_cache_probe(tmp_path, bits, source_root=ROOT):
+def compile_cache_probe(tmp_path, source_root=ROOT):
     legacy = (HERE / "gas_state_probe.cpp").read_text()
     cpp = tmp_path / "cache_path.cpp"
     source = cache_path_fixture()
@@ -166,8 +163,7 @@ def compile_cache_probe(tmp_path, bits, source_root=ROOT):
         source = source.replace("s.rhoENext=new double[8]{};", "s.rhoENext=new Real[8]{};")
     cpp.write_text(legacy[:legacy.index("void hashBytes")] + source)
     exe = tmp_path / "cache_path"
-    command = ["g++", "-std=c++17", "-O0", f"-DUGKWP_GPU_REAL_BITS={bits}",
-               "-I"+str(HERE), "-I"+str(source_root/"common"), "-I"+str(source_root/"common/gasNumerics"),
+    command = ["g++", "-std=c++17", "-O0", "-I"+str(HERE), "-I"+str(source_root/"common"), "-I"+str(source_root/"common/gasNumerics"),
                str(cpp), "-o", str(exe)]
     run = subprocess.run(command, text=True, capture_output=True)
     assert run.returncode == 0, run.stdout + run.stderr
@@ -175,7 +171,7 @@ def compile_cache_probe(tmp_path, bits, source_root=ROOT):
 
 
 def observe_cache(probe, scenario):
-    exe, bits = probe
+    exe, _ = probe
     run = subprocess.run([str(exe), str(scenario)], text=True, capture_output=True)
     assert run.returncode == 0, run.stdout + run.stderr
     result = json.loads(run.stdout)
@@ -246,17 +242,16 @@ def test_recovery_does_not_replace_the_actual_particle_coupling_cache(cache_prob
                       "counterfactual_fresh_cache_particle_T": o["fresh_cache_T"]}, sort_keys=True))
 
 
-@pytest.mark.parametrize("bits", [32, 64])
-def test_exact_baseline_cache_path_identifies_migration_side(tmp_path, bits):
+def test_exact_baseline_cache_path_identifies_migration_side(tmp_path):
     baseline = os.environ.get("UGKWP_PARTICLE_BUDGET_BASELINE_ROOT")
     if not baseline:
         pytest.skip("set UGKWP_PARTICLE_BUDGET_BASELINE_ROOT to an exact old source snapshot")
     old_dir, new_dir = tmp_path/"old", tmp_path/"new"
     old_dir.mkdir(); new_dir.mkdir()
-    old = compile_cache_probe(old_dir, bits, Path(baseline))
-    new = compile_cache_probe(new_dir, bits)
+    old = compile_cache_probe(old_dir, Path(baseline))
+    new = compile_cache_probe(new_dir)
     for scenario in (0, 2, 3):
-        a, b = observe_cache((old, bits), scenario), observe_cache((new, bits), scenario)
+        a, b = observe_cache((old, 64), scenario), observe_cache((new, 64), scenario)
         # Coupling cached initial gas T can differ in the last native ULP after
         # recovering the exact baseline's rounded gas energy. Report it too.
         for observation in (a, b):
@@ -264,19 +259,15 @@ def test_exact_baseline_cache_path_identifies_migration_side(tmp_path, bits):
             assert observation["final_recovered"]["coupling_T"] == expected
         da = caloric_inventory(a["final_recovered"], a["caloric"]) - caloric_inventory(a["before"], a["caloric"])
         db = caloric_inventory(b["final_recovered"], b["caloric"]) - caloric_inventory(b["before"], b["caloric"])
-        if scenario == 2 and bits == 32:
-            assert a["final_recovered"]["particle_T"] == b["final_recovered"]["particle_T"] == 2800
-            assert da == 0
-            assert db < Decimal("-0.06")
         if scenario == 3:
             assert da > 1 and db > 1
-        print(json.dumps({"scope": "exact-baseline HOST cache path", "bits": bits, "scenario": scenario,
+        print(json.dumps({"scope": "exact-baseline HOST cache path", "bits": 64, "scenario": scenario,
                           "baseline_total_delta_J": str(da), "current_total_delta_J": str(db),
                           "baseline_coupling_T": a["snapshot"]["coupling_T"],
                           "current_coupling_T": b["snapshot"]["coupling_T"]}, sort_keys=True))
 
 
-def native_cuda_fixture(bits):
+def native_cuda_fixture():
     """Generate a real resident-Advance driver; never substitute numeric stages.
 
     Field clearing is derived from allocateFields so scratch/state allocations
@@ -287,11 +278,11 @@ def native_cuda_fixture(bits):
     allocations = re.findall(r"allocate\s*\(\s*s->(\w+),\s*([^,]+),\s*\"", allocator)
     zeros = []
     for field, count in allocations:
-        if field == "deviceState" or (bits == 64 and field.startswith("flatPressure")):
+        if field == "deviceState" or field.startswith("flatPressure"):
             continue
         zeros.append(f"if(s->{field}) CUDA_OK(cudaMemset(s->{field},0,({count})*sizeof(*s->{field}))); ")
     assert len(zeros) > 150
-    namespace = "using namespace ugkwpCudaFp32;" if bits == 32 else ""
+    namespace = ""
     return r'''
 #include "GpuResidentStrict.cu"
 #include <cstdio>
@@ -380,9 +371,8 @@ int main(int argc,char**argv){
 '''.replace("NAMESPACE", namespace).replace("ZEROS", "\n".join(zeros))
 
 
-@pytest.mark.parametrize("bits", [32, 64])
-def test_native_cuda_fixture_calls_unmodified_full_advance(bits):
-    source = native_cuda_fixture(bits)
+def test_native_cuda_fixture_calls_unmodified_full_advance():
+    source = native_cuda_fixture()
     assert '#include "GpuResidentStrict.cu"' in source
     assert "ugkwpGpuResidentStrictAdvance(s,dt,dt)" in source
     assert "allocateFields(s)" in source
@@ -391,19 +381,17 @@ def test_native_cuda_fixture_calls_unmodified_full_advance(bits):
     assert "relaxOneParticleToResidentGas(" not in source
 
 
-@pytest.mark.parametrize("bits", [32, 64])
-def test_opt_in_native_cuda_full_heat_advance(tmp_path, bits):
+def test_opt_in_native_cuda_full_heat_advance(tmp_path):
     mode = os.environ.get("UGKWP_FULL_HEAT_CUDA", "")
     if mode not in ("compile", "run"):
         pytest.skip("opt-in only: UGKWP_FULL_HEAT_CUDA=compile or run")
     path = tmp_path / "full_heat_advance.cu"
-    path.write_text(native_cuda_fixture(bits))
+    path.write_text(native_cuda_fixture())
     executable = tmp_path / "full_heat_advance"
     app = ROOT / "applications/CHT/gpu"
     nvcc = str(Path(os.environ.get("CUDA_HOME", "/usr/local/cuda")) / "bin/nvcc")
     command = [nvcc, "-std=c++17", "-O1", "--fmad=false",
-               "-arch="+os.environ.get("UGKWP_CUDA_ARCH", "sm_89"), f"-DUGKWP_GPU_REAL_BITS={bits}",
-               "-I"+str(app), "-I"+str(ROOT/"common"), str(path), str(app/"GpuWallEnergy64.cu"),
+               "-arch="+os.environ.get("UGKWP_CUDA_ARCH", "sm_89"), "-I"+str(app), "-I"+str(ROOT/"common"), str(path), str(app/"GpuWallEnergy64.cu"),
                "-o", str(executable)]
     result = subprocess.run(command, text=True, capture_output=True)
     assert result.returncode == 0, result.stdout + result.stderr
@@ -424,7 +412,7 @@ def test_opt_in_native_cuda_full_heat_advance(tmp_path, bits):
             assert o["after"]["gas_energy"] < o["before"]["gas_energy"]
             assert abs(delta) < Decimal("0.000002")
             assert o["after"]["particle_T"] > o["before"]["particle_T"] or o["carry_after"] > o["carry_before"]
-        print(json.dumps({"scope": "actual CUDA full resident Advance", "bits": bits,
+        print(json.dumps({"scope": "actual CUDA full resident Advance", "bits": 64,
                           "scenario": scenario, "dt": o["dt"], "actual_total_delta_J": str(delta)}, sort_keys=True))
 
 

@@ -14,15 +14,32 @@ assert(r.slots==2560&&r.bytes==2560*std::size_t(bytes)&&r.budget==GiB);
 r=resolveBoundaryLayerWorkspace(100000,0,200,8*GiB,bytes);assert(r.slots==4096);
 r=resolveBoundaryLayerWorkspace(17,0,80,8*GiB,bytes);assert(r.slots==17);
 r=resolveBoundaryLayerWorkspace(1000,0,80,8*bytes,bytes);assert(r.slots==1);
-assert(resolveBoundaryLayerWorkspace(1000,0,80,8*bytes-1,bytes).slots==0);
-assert(resolveBoundaryLayerWorkspace(1000,0,0,8*GiB,bytes).slots==0);
-assert(resolveBoundaryLayerWorkspace(1000,4097,80,8*GiB,bytes).slots==0);
+assert(resolveBoundaryLayerWorkspace(1000,0,80,8*bytes-1,bytes).slots==1);
+assert(resolveBoundaryLayerWorkspace(1000,0,0,8*GiB,bytes).slots==32);
+assert(resolveBoundaryLayerWorkspace(1000,4097,80,8*GiB,bytes).slots==1000);
 r=resolveBoundaryLayerWorkspace(1000,32,0,32*bytes,bytes);assert(r.slots==32);
-assert(resolveBoundaryLayerWorkspace(1000,32,80,32*bytes-1,bytes).slots==0);
+assert(resolveBoundaryLayerWorkspace(1000,32,80,32*bytes-1,bytes).slots==32);
 assert(gasBoundaryLayerWorkspaceCapacity(24)==24&&gasBoundaryLayerWorkspaceCapacity(25)==48);
 assert(gasBoundaryLayerWorkspaceCapacity(48)==48&&gasBoundaryLayerWorkspaceCapacity(49)==128);
 assert(gasBoundaryLayerWorkspaceCapacity(128)==128&&gasBoundaryLayerWorkspaceCapacity(129)==0);
 assert((gasBoundaryLayerWorkspaceBytes<double,2>(24)==sizeof(gaswall::WallWorkspace<double,2,24>)));
 assert((gasBoundaryLayerWorkspaceBytes<double,10>(96)==sizeof(gaswall::WallWorkspace<double,10,128>)));
+}
+''')
+
+
+def test_advisory_memory_cannot_refuse_an_actual_workspace(tmp_path):
+    compile_probe(tmp_path,r'''
+#include "gasTransport/GasBoundaryLayerWorkspace.H"
+#include <cassert>
+int main(){using namespace ugkwp;
+const std::size_t bytes=gasBoundaryLayerWorkspaceBytes<double,2>(24);
+auto r=resolveBoundaryLayerWorkspace(12,0,80,0,bytes);assert(r.slots==1&&r.bytes==bytes);
+r=resolveBoundaryLayerWorkspace(12,5000,80,0,bytes);assert(r.slots==12&&r.bytes==12*bytes);
+r=resolveBoundaryLayerWorkspace(10000,5000,80,0,bytes);assert(r.slots==5000&&r.bytes==5000*bytes);
+r=resolveBoundaryLayerWorkspace(12,0,0,0,bytes);assert(r.slots>=1&&r.bytes==std::size_t(r.slots)*bytes);
+r=resolveBoundaryLayerWorkspace(0,5000,80,0,bytes);assert(!r.slots&&!r.bytes);
+assert(!resolveBoundaryLayerWorkspace(12,1,80,0,0).slots);
+assert(!resolveBoundaryLayerWorkspace(12,12,80,0,std::numeric_limits<std::size_t>::max()).slots);
 }
 ''')

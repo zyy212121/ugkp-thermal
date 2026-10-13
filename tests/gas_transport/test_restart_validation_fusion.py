@@ -17,8 +17,7 @@ def braced(source, start):
     return source[start:end]
 
 
-@pytest.mark.parametrize('bits', [32, 64])
-def test_carry_check_shares_actual_upload_scan_and_precedes_array_copy(tmp_path, bits):
+def test_carry_check_shares_actual_upload_scan_and_precedes_array_copy(tmp_path):
     source = (ROOT/'applications/CHT/gpu/GpuResidentStrict.cu').read_text()
     start = source.index('extern "C" int ugkwpGpuResidentStrictUploadParticleRestartMirror')
     upload = braced(source, start)
@@ -62,7 +61,7 @@ int main(){
  }
  error.clear();if(validate(-1,0,true)!=1||copies!=1||error!="particle restart stuck state/face/area is invalid")return 3;
 }
-'''.replace('REAL', 'float' if bits == 32 else 'double').replace('ARRAYS', arrays).replace('LOOP', loop)
+'''.replace('REAL', 'double').replace('ARRAYS', arrays).replace('LOOP', loop)
     path=tmp_path/'probe.cpp';path.write_text(code)
     binary=tmp_path/'probe'
     subprocess.run(['g++','-std=c++17','-O2',str(path),'-o',str(binary)],check=True,capture_output=True,text=True)

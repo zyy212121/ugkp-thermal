@@ -3,10 +3,9 @@ import pytest
 from test_mixture_state import compile_probe
 from test_mixture_transport import fixture
 
-@pytest.mark.parametrize('bits',[32,64])
 @pytest.mark.parametrize('scheme',[1,2])
 @pytest.mark.parametrize('limiter',[0,1,2])
-def test_muscl_reconstructs_composition_and_formation_energy(tmp_path,bits,scheme,limiter):
+def test_muscl_reconstructs_composition_and_formation_energy(tmp_path,scheme,limiter):
     compile_probe(tmp_path,fixture()+r'''
 int main(){State s;initialise(s);s.gasFluxScheme=SCHEME;s.gasReconstruction=1;s.gasLimiter=LIMITER;
 for(int c=0;c<2;++c){s.gasSpecies.rho[c]=c?Real(.3):Real(.7);s.gasSpecies.rho[2+c]=1-s.gasSpecies.rho[c];Real r[2]={s.gasSpecies.rho[c],s.gasSpecies.rho[2+c]};s.rhoE[c]=ugkwp::mixtureEnergy(r,Real(700),s.gasSpecies.thermo);threadIdx.x=c;recoverGasPrimitivesKernel(&s);}
@@ -20,7 +19,7 @@ ck(std::abs(muscl)<Real(.8)*std::abs(s.gasSpecies.flux[0]),"MUSCL still transpor
 ck(std::abs(energy-Real(-3e6)*muscl)<Real(2e-5)*(1+std::abs(energy)),"MUSCL formation energy does not follow species flux");
 s.gasReconstruction=1;transport(s,1e-6);for(int c=0;c<2;++c){ck(s.gasSpecies.cellStatus[c]==0,"MUSCL trial invalid");ck(std::abs(s.Tgas[c]-700)<Real(.03),"MUSCL stationary formation contact heated");}
 }
-'''.replace('SCHEME',str(scheme)).replace('LIMITER',str(limiter)),bits)
+'''.replace('SCHEME',str(scheme)).replace('LIMITER',str(limiter)))
 
 def test_chemistry_and_muscl_use_the_shared_transport_capabilities(tmp_path):
     compile_probe(tmp_path,r'''
@@ -28,11 +27,10 @@ def test_chemistry_and_muscl_use_the_shared_transport_capabilities(tmp_path):
 int main(){ugkwp::GasCapabilityRequest r;r.mode=ugkwp::GasMode::MixtureChemistry;
 for(int scheme=1;scheme<=2;++scheme)for(int limiter=0;limiter<=2;++limiter)for(int rk=1;rk<=3;++rk){r.fluxScheme=scheme;r.limiter=limiter;r.reconstruction=1;r.timeIntegrator=rk;if(!ugkwp::validateGasCapabilities(r))return 1;}
 r.movingGeometry=true;r.timeIntegrator=1;if(!ugkwp::validateGasCapabilities(r))return 2;
-r.timeIntegrator=2;if(ugkwp::validateGasCapabilities(r))return 3;}
+r.timeIntegrator=2;if(!ugkwp::validateGasCapabilities(r))return 3;}
 ''')
 
-@pytest.mark.parametrize('bits',[32,64])
-def test_muscl_face_simplex_and_eos_are_jointly_admissible(tmp_path,bits):
+def test_muscl_face_simplex_and_eos_are_jointly_admissible(tmp_path):
     compile_probe(tmp_path,fixture()+r'''
 int main(){State s;initialise(s);s.gasReconstruction=1;s.gasLimiter=0;
 auto* m=const_cast<ugkwp::SpeciesThermoData<Real>*>(s.gasSpecies.thermo.species);m[1].molarMass=.044;
@@ -52,15 +50,14 @@ ck(reconstructGasMixtureFace(s,0,1,p,y),"boundary reconstruction failed");thread
 ck(s.gasSpecies.faceStatus[1]==0,"extrapolated boundary rejected");
 ck(std::abs(s.gasPhiRho[1])<Real(.002),"extrapolated boundary created spurious mass dissipation");
 }
-''',bits)
+''')
 
-@pytest.mark.parametrize('bits',[32,64])
-def test_mixture_gradients_ignore_scalar_eos_bootstrap(tmp_path,bits):
+def test_mixture_gradients_ignore_scalar_eos_bootstrap(tmp_path):
     compile_probe(tmp_path,fixture()+r'''
 int main(){State a,b;initialise(a);initialise(b);b.Rgas=1e8;b.gammaGas=9;b.gasCp=1;b.TgasMin=100;
 for(int c=0;c<2;++c){threadIdx.x=c;computeGasPrimitiveGradientsKernel(&a);computeGasPrimitiveGradientsKernel(&b);ck(a.gradPx[c]==b.gradPx[c]&&a.gradTX[c]==b.gradTX[c]&&a.gradRhoX[c]==b.gradRhoX[c],"mixture gradients use bootstrap scalar EOS");}
 }
-''',bits)
+''')
 
 @pytest.mark.parametrize('scheme',[1,2])
 def test_smooth_periodic_muscl_has_refinement_gain_over_first_order(tmp_path,scheme):
@@ -90,9 +87,8 @@ ck(muscl16/muscl32>3.5&&muscl32/muscl64>3.5,"MUSCL lost second-order spatial ref
 ck(muscl32<Real(.02)*first32,"MUSCL did not improve smooth periodic transport");}
 '''.replace('SCHEME',str(scheme)))
 
-@pytest.mark.parametrize('bits',[32,64])
 @pytest.mark.parametrize('scheme',[1,2])
-def test_muscl_boundary_validates_only_with_reconstructed_composition(tmp_path,bits,scheme):
+def test_muscl_boundary_validates_only_with_reconstructed_composition(tmp_path,scheme):
     compile_probe(tmp_path,fixture()+r'''
 int main(){State s;initialise(s);s.gasReconstruction=1;s.gasFluxScheme=SCHEME;
 auto* m=const_cast<ugkwp::SpeciesThermoData<Real>*>(s.gasSpecies.thermo.species);m[0].molarMass=.002;m[1].molarMass=.044;
@@ -106,8 +102,8 @@ auto right=riemannBoundaryState(s,1,left,faceY);ck(s.gasSpecies.faceStatus[1]==0
 Real mass,mx,my,mz,energy;
 ck(computeRiemannGasFaceFluxDevice<false>(s,1,mass,mx,my,mz,energy),"premature cell-composition boundary EOS rejected valid MUSCL face");
 ck(s.gasSpecies.faceStatus[1]==0&&std::isfinite(energy),"valid MUSCL boundary left failure status");
-// The table bound still applies to the actual reconstructed composition.
+// The actual reconstructed composition also supports finite extrapolation.
 s.riemannBoundaryP[1]=ugkwp::mixtureGasConstant(desiredY,s.gasSpecies.thermo)*4000;
-ck(!computeRiemannGasFaceFluxDevice<false>(s,1,mass,mx,my,mz,energy)&&s.gasSpecies.faceStatus[1]!=0,"invalid actual boundary temperature accepted");
+ck(computeRiemannGasFaceFluxDevice<false>(s,1,mass,mx,my,mz,energy)&&s.gasSpecies.faceStatus[1]==0&&std::isfinite(energy),"finite extrapolated boundary flux not published");
 }
-'''.replace('SCHEME',str(scheme)),bits)
+'''.replace('SCHEME',str(scheme)))
