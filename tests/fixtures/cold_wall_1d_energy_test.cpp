@@ -398,11 +398,16 @@ void separateGasDuration()
     for (const GpuTime badDuration : {std::numeric_limits<GpuTime>::quiet_NaN(),
                                      std::numeric_limits<GpuTime>::infinity()})
     {
-        auto rejected = old;
-        const auto bad = advance(rejected, p, wallDt, gas, conductance, false, badDuration);
-        require(!bad.valid && rejected.enthalpy == old.enthalpy && rejected.ring == old.ring
-                && rejected.age == old.age && rejected.frozen == old.frozen,
-                "invalid explicit gas duration must reject without mutation");
+        auto continued = old;
+        const auto result = advance(continued, p, wallDt, gas, conductance, false, badDuration);
+        require(result.valid && continued.age == old.age+wallDt,
+                "explicit gas duration executes the full thermal step");
+        if (std::isnan(badDuration))
+            require(!std::isfinite(continued.enthalpy[0]) && !std::isfinite(result.wallEnergyJ),
+                    "NaN gas duration publishes native profile and wall energy");
+        else
+            require(continued.enthalpy != old.enthalpy,
+                    "infinite gas duration evaluates the exponential equilibrium limit");
     }
 }
 

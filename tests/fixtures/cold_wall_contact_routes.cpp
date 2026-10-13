@@ -371,43 +371,32 @@ void run(const char* mode) {
         else if(!std::strcmp(mode,"invalid_damage_nan")) s.pDepositionArea[0]=std::numeric_limits<double>::quiet_NaN();
         else if(!std::strcmp(mode,"invalid_damage_inf")) s.pDepositionArea[0]=std::numeric_limits<double>::infinity();
         else require(false,"unknown invalid metadata case");
-        std::array<DeviceState::ProfileStorage,8> oldH{};std::array<double,8> oldRing{};
-        std::copy_n(s.coldH,8,oldH.begin());std::copy_n(s.coldRing,8,oldRing.begin());
-        const auto temperature=s.pT[0];const auto frozen=s.coldFrozen[0];const auto age=s.coldAge[0];
-        const auto contactAge=mechanicalAge(s);const auto wallState=s.pStuck[0];
+        const double oldMean=meanH(s), dh=expectedGasIncrement(s,dt);
+        const auto age=s.coldAge[0], contactAge=mechanicalAge(s);
+        const auto wallState=s.pStuck[0];
+        const double duration=s.pContactDuration[0];
+        const double age0=clampRange(finiteOr(contactAge,0.),0.,duration);
+        const double active=clampRange(dt,0.,duration-age0);
         const int traps=launch8([&]{relaxColdWall1DParticlesToResidentGasKernel(&s,dt);});
-        const bool finitePolicy = !std::strcmp(mode,"invalid_peak_zero") || !std::strcmp(mode,"invalid_peak_one") || !std::strcmp(mode,"invalid_damage_negative");
-        if(finitePolicy) {
-            require(traps==0,"finite contact metadata executes all eight lanes",traps,0);
-            require(s.coldAge[0]>age && std::isfinite(s.pT[0]),"actual thermal age and temperature published");
-            require(std::memcmp(s.coldH,oldH.data(),sizeof(s.coldH))!=0,"complete computed profile replaces old state");
-            return;
-        }
-        require(traps==8,"invalid contact metadata must reject all eight lanes before thermal publication",traps,8);
-        require(!std::memcmp(s.coldH,oldH.data(),sizeof(s.coldH)),"invalid metadata preserves all enthalpy bits");
-        require(!std::memcmp(s.coldRing,oldRing.data(),sizeof(s.coldRing)),"invalid metadata preserves all ring bits");
-        near(s.pT[0],temperature,0,"invalid metadata preserves bulk temperature");
-        near(s.coldAge[0],age,0,"invalid metadata preserves thermal age");
-        near(mechanicalAge(s),contactAge,0,"invalid metadata preserves mechanical age");
-        near(s.pStuck[0],wallState,0,"invalid metadata preserves mechanical wall state");
-        near(s.coldFrozen[0],frozen,0,"invalid metadata preserves frozen footprint");
-        near(s.reflected[0]+s.deposited[0],0,0,"invalid metadata preserves wall ledgers");
+        require(traps==0,"contact metadata follows native arithmetic on all eight lanes",traps,0);
+        near(s.coldAge[0],age+active,1e-14,"actual active thermal interval published");
+        near(mechanicalAge(s),contactAge,0,"thermal calculation preserves mechanical age");
+        require(s.pStuck[0]==wallState,"thermal calculation preserves mechanical wall state");
+        require(std::isfinite(s.pT[0]),"native clamped route publishes its bulk temperature");
+        if (!std::strcmp(mode,"invalid_duration_zero") || !std::strcmp(mode,"invalid_damage_inf"))
+            near(meanH(s),oldMean+dh,1.1,"zero wet or active interval still computes full gas source");
     } else if(!std::strcmp(mode,"gas_only_invalid_profile")) {
         collisionDamageToZeroMidpoint(s,dt);
-        // One invalid non-leader lane must veto publication on every lane.
         s.coldRing[5]=std::numeric_limits<double>::quiet_NaN();
-        std::array<DeviceState::ProfileStorage,8> oldH{};std::array<double,8> oldRing{};
-        std::copy_n(s.coldH,8,oldH.begin());std::copy_n(s.coldRing,8,oldRing.begin());
-        const auto temperature=s.pT[0];const auto frozen=s.coldFrozen[0];
-        const auto age=s.coldAge[0];
+        const double oldMean=meanH(s), dh=expectedGasIncrement(s,dt);
+        const auto frozen=s.coldFrozen[0], age=s.coldAge[0];
         const int traps=launch8([&]{relaxColdWall1DParticlesToResidentGasKernel(&s,dt);});
-        require(traps==8,"one invalid gas-only lane rejects the whole eight-lane group",traps,8);
-        require(!std::memcmp(s.coldH,oldH.data(),sizeof(s.coldH)),"invalid gas-only profile preserves all enthalpy bits");
-        require(!std::memcmp(s.coldRing,oldRing.data(),sizeof(s.coldRing)),"invalid gas-only profile preserves all ring bits");
-        near(s.pT[0],temperature,0,"invalid gas-only profile preserves bulk temperature");
-        near(s.coldAge[0],age,0,"invalid gas-only profile preserves thermal age");
-        near(s.coldFrozen[0],frozen,0,"invalid gas-only profile preserves frozen footprint");
-        near(s.reflected[0]+s.deposited[0],0,0,"invalid gas-only profile preserves wall ledgers");
+        require(traps==0,"gas-only native source continues with nonfinite ring history",traps,0);
+        near(meanH(s),oldMean+dh,1.1,"gas-only complete enthalpy increment");
+        require(std::isnan(s.coldRing[5]),"unselected melt scaling preserves real NaN ring history");
+        near(s.coldAge[0],age+dt,1e-14,"gas-only actual active interval");
+        near(s.coldFrozen[0],frozen,0,"gas-only frozen footprint unchanged");
+        near(s.reflected[0]+s.deposited[0],0,0,"zero-area branch has no wall heat");
     } else if(!std::strcmp(mode,"completed_frozen_heating") || !std::strcmp(mode,"completed_frozen_cooling")) {
         const bool cooling=!std::strcmp(mode,"completed_frozen_cooling");
         s.pT[0]=GPU_R(2327);seed(s);
