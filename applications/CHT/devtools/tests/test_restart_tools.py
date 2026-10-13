@@ -47,7 +47,7 @@ def test_weighted_round_trip_and_cell_refinement_are_conservative(tmp_path: Path
     manifest = refine_restart(source, output, {1}, 4, 2.0, 3001, chunk_particles=3)
     restored = collect_restart(output)
 
-    assert manifest["format"] == "UGKP_PARTICLES_SCHEMA1_BIN"
+    assert manifest["format"] == "UGKP_CHT_PARTICLES_SCHEMA9_FLOAT_COLD_PROFILES_BIN"
     assert manifest["conservation_passed"] is True
     assert manifest["output_particles"] == 9
     assert len(np.unique(restored["orig_id"])) == 9

@@ -46,10 +46,9 @@ class ChtWriteMirrorContract(unittest.TestCase):
             r"runTime\.writeTime\(\)[\s\S]{0,160}?writeAtThermalCoupling"
             r"[\s\S]{0,80}?thermalCoupledThisStep",
         )
-        self.assertRegex(
+        self.assertNotIn(
+            "thermal persistence requires a completed owned writeTime event",
             coupler,
-            r"!runTime\.writeTime\(\)[\s\S]{0,180}?completedSimulationTimeS"
-            r"[\s\S]{0,80}?!=\s*runTime\.value\(\)",
         )
         self.assertIn("const bool allowThermalCouplingWrite = false", gpu_header)
         self.assertGreaterEqual(
