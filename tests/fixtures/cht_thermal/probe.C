@@ -60,6 +60,18 @@ int main(int argc,char**argv){
   forAll(T.boundaryField(),pi){forAll(T.boundaryField()[pi],f)std::cout<<"PARITY face "<<pi<<' '<<f<<' '<<std::hexfloat<<T.boundaryField()[pi][f]<<'\n';if(isA<fixedGradientFvPatchScalarField>(T.boundaryField()[pi]))for(scalar g:refCast<const fixedGradientFvPatchScalarField>(T.boundaryField()[pi]).gradient())std::cout<<"PARITY gradient "<<std::hexfloat<<g<<'\n';}
   std::cout<<"PARITY residual "<<std::hexfloat<<result.integratedEnergyResidualJ<<' '<<result.nonlinearIterations<<'\n';
  }
+ else if(mode=="diagnostic_overflow"){
+  GpuSolidThermalProperties material(parse("rho {type constant; value 1000;} Cp {type constant; value 1;} kappa {type constant; value 6;} emissivity {type constant; value 0.8;}"));
+  volScalarField T(IOobject("T",runTime.timeName(),mesh,IOobject::MUST_READ,IOobject::NO_WRITE,false),mesh);
+  label left=mesh.boundaryMesh().findPatchID("left");labelList ids(1,left);List<scalarField> energy(1);energy[0]=scalarField(mesh.boundary()[left].size(),1e308);
+  GpuSolidThermalControls c;c.nonlinearMaxIterations=1;
+  GpuSolidThermalCandidateSolver solver(mesh,material,ids,c);auto result=solver.solveTemporarySolidCandidate(T,energy,1e307);
+  require(!std::isfinite(result.integratedEnergyResidualJ),"diagnostic overflow was hidden");
+  forAll(result.temperature(),i)require(std::isfinite(result.temperature()[i]) && result.temperature()[i]!=T[i],"finite physical candidate missing");
+  solver.publishSolidCandidate(result,T);
+  forAll(T,i)require(T[i]==result.temperature()[i],"computed solid field not published");
+  std::cout<<"OVERFLOW physical="<<T[0]<<" diagnostic="<<result.integratedEnergyResidualJ<<'\n';
+ }
  else if(mode=="nearest_rounding"){
   fvMesh coarse(IOobject("coarse",runTime.timeName(),runTime,IOobject::MUST_READ,IOobject::NO_WRITE,false));List<SolidPatchPair> pairs(1);pairs[0].fluidPatch="left";pairs[0].solidPatch="right";
   ConservativeNearestSolidPatchMapper mapper(mesh,coarse,pairs);scalarField e(4);e[0]=1e17;e[1]=1;e[2]=-1e17;e[3]=1;auto mapped=mapper.mapIntegratedFaceEnergyToSolid(0,e);require(mapped.size()==2,"actual coarse mapping extent");near(mapped[0],1e17,0);near(mapped[1],-1e17,0);scalar input=0,output=0;for(scalar v:e)input+=v;for(scalar v:mapped)output+=v;near(input,1,0);near(output,0,0);std::cout<<"MAPPING actual input total="<<input<<" output total="<<output<<'\n';
@@ -82,6 +94,17 @@ int main(int argc,char**argv){
   solver.publishSolidCandidate(result,T);near(T[0],result.temperature()[0]);
   forAll(T.boundaryField(),pI)forAll(T.boundaryField()[pI],f)near(T.boundaryField()[pI][f],result.temperature().boundaryField()[pI][f]);
   near(refCast<const fixedGradientFvPatchScalarField>(T.boundaryField()[left]).gradient()[0],100.0/(0.1*6));
+ }
+ else if(mode=="property_overflow"){
+  GpuSolidThermalProperties product(parse("rho {type constant; value 1e308;} Cp {type constant; value 2;} kappa {type constant; value 6;} emissivity {type constant; value 0.8;}"));
+  require(std::isinf(product.Csec(300,300)),"computed property product withheld");
+  GpuSolidThermalProperties integral(parse("rho {type constant; value 1e307;} Cp {type constant; value 1;} kappa {type constant; value 6;} emissivity {type constant; value 0.8;}"));
+  require(std::isinf(integral.deltaHv(100,0)),"computed enthalpy integral withheld");
+  require(std::isinf(integral.Csec(100,0)),"computed secant withheld");
+  GpuSolidThermalProperties table(parse(property()));
+  require(std::isnan(table.rho(std::numeric_limits<scalar>::quiet_NaN())),"NaN query must consume a backed interpolation pair");
+  require(std::isinf(table.rho(std::numeric_limits<scalar>::infinity())),"infinite query must retain extrapolation arithmetic");
+  require(table.kappa(std::numeric_limits<scalar>::quiet_NaN())==6,"constant property consumed an unused temperature certificate");
  }
  else if(mode=="mapper"){
   List<SolidPatchPair> pairs(1);pairs[0].fluidPatch="left";pairs[0].solidPatch="right";
@@ -109,8 +132,8 @@ int main(int argc,char**argv){
   initial.completedSimulationTimeS=4;initial.completedTimeIndex=5;initial.previousExchangeSimulationTimeS=3;initial.exchangeSequence=d.exchangeSequence;machine.commitPreparedExchange(initial);
   auto same=machine.prepareWriteEvent(true,999,4);require(!same.exchangeRequired,"zero elapsed duplicate consumed twice");
  }
- else if(mode=="missing_property"||mode=="nonfinite_property"){
-  bool failed=false;try {GpuSolidThermalProperties p(parse(mode=="missing_property"?"rho {type constant; value 1;}":property()));if(mode=="nonfinite_property")p.rho(std::numeric_limits<scalar>::infinity());}catch(const GpuSolidThermalPropertiesError&){failed=true;}require(failed,"required property error lost");
+ else if(mode=="missing_property"){
+  bool failed=false;try {GpuSolidThermalProperties p(parse(mode=="missing_property"?"rho {type constant; value 1;}":property()));}catch(const GpuSolidThermalPropertiesError&){failed=true;}require(failed,"required property error lost");
  }
  else if(mode=="missing_state"||mode=="missing_pending"){
   bool failed=false;try {if(mode=="missing_state"){ThermalRestartPreflightExpectations e;ThermalRestartPreflight::validateRestartDirectory(runTime.timePath(),e);}else ThermalRestartPreflight::readPendingWallEnergyLedgers(runTime.timePath(),1,0,"a",mesh.nFaces());}catch(const ThermalExchangeStateError&){failed=true;}require(failed,"required file error lost");

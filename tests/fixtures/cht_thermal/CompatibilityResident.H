@@ -5,10 +5,17 @@
 #include "GpuParticleCaloric.H"
 #include "GpuPrecisionTypes.H"
 #include "GpuParticleThermalConsumers.H"
+#include "GpuThermalExchangeState.H"
 #include <fstream>
 #include <stdexcept>
 namespace Foam {
-struct GpuThermalRestartMirrorMetadata {label particleCount{1};};
+// Legacy test-only ABI supports the immutable original owner. Production's
+// reduced metadata remains unchanged; these recording files are not codecs.
+struct GpuThermalRestartMirrorMetadata {
+ fileName particleFile,epsGPrevFile,sourceResidualFile;
+ label particleCount{0},epsGPrevCount{0},sourceResidualCount{0};
+ word particleSha1,epsGPrevSha1,sourceResidualSha1;
+};
 class GpuParticleResidentSolver {
  const fvMesh& mesh_;
 public:
@@ -39,6 +46,20 @@ public:
  void applyParticleRadiationEnergy(const fvMesh&,const scalarField& energy,const scalarField&,const scalarField& mean,scalar){radiationEnergy=energy;radiationMean=mean;++radiationApplications;}
  void refreshParticleEnthalpyAfterRadiation(){++enthalpyRefreshes;}
  void downloadToHostMirror(Time&,volScalarField&,volVectorField&,volScalarField&,volVectorField&,volScalarField&,volScalarField&,volScalarField&,volVectorField&,volScalarField&,volScalarField&,volScalarField&,volVectorField&,volScalarField&,volScalarField&,volScalarField&,bool)const{}
- GpuThermalRestartMirrorMetadata stageThermalRestartMirrors(const Time& t,bool)const{mkDir(t.timePath());GpuThermalRestartMirrorMetadata m;for(const fileName& n:{fileName("recording-particle.dat"),fileName("recording-eps.dat"),fileName("recording-source.dat")}){std::ofstream out((t.timePath()/n).c_str());out<<"test resident payload\n";}return m;}
+ GpuThermalRestartMirrorMetadata stageThermalRestartMirrors(const Time& t,bool)const{
+  mkDir(t.timePath());GpuThermalRestartMirrorMetadata m;
+  m.particleFile="recording-particle.dat";m.epsGPrevFile="recording-eps.dat";m.sourceResidualFile="recording-source.dat";
+  m.particleCount=particleCount();m.epsGPrevCount=mesh_.nCells();m.sourceResidualCount=mesh_.nCells();
+  auto writeRecords=[&](const fileName& name,label count){
+   std::ofstream out((t.timePath()/name).c_str());
+   for(label i=0;i<count;++i)out<<"recording "<<i<<'\n';
+   out.close();if(!out)throw std::runtime_error("recording restart file write failed");
+   return gpuThermal::ThermalRestartPreflight::fileSha1(t.timePath()/name);
+  };
+  m.particleSha1=writeRecords(m.particleFile,m.particleCount);
+  m.epsGPrevSha1=writeRecords(m.epsGPrevFile,m.epsGPrevCount);
+  m.sourceResidualSha1=writeRecords(m.sourceResidualFile,m.sourceResidualCount);
+  return m;
+ }
 };}
 #endif

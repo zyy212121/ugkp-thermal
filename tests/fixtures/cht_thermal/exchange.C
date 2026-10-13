@@ -41,7 +41,15 @@ int main(int argc,char**argv){
   GpuSolidThermalCoupler coupler(runTime,mesh,resident,config,initial);coupler.initialiseWallTemperatureBeforeFirstAdvance(T);
   runTime.setTime(.1,1);
   auto advance=[&](){return coupler.exchangeIfDue(runTime,rho,rhoU,rhoE,U,p,T,epsilonS,rhoUs,rhoEs,rhoDs,rhoHp,Us,theta,Tp,dMeanCell);};
-  if(mode=="outer_zero_k") {bool failed=false;try{advance();}catch(const GpuSolidThermalSolveError& e){failed=std::string(e.what()).find("conductance divisor is zero")!=std::string::npos;}ck(failed,"required zero divisor hidden");ck(resident.gasResets==0&&resident.particleResets==0,"arithmetic error consumed ledgers");Info<<"PASS "<<mode<<nl;return 0;}
+  if(mode=="outer_zero_k") {
+   auto r=advance();ck(r.coupled,"native zero-conductivity exchange withheld");
+   const auto& sm=runTime.lookupObject<fvMesh>("solid");const auto& ts=sm.lookupObject<volScalarField>("T");
+   ck(resident.gasResets==1&&resident.particleResets==1,"completed exchange did not consume ledgers once");
+   const label wall=sm.boundaryMesh().findPatchID("right");
+   ck(!std::isfinite(ts.boundaryField()[wall][0]),"native zero-divisor surface was replaced");
+   ck(!advance().coupled&&resident.gasResets==1,"zero-conductivity exchange repeated");
+   Info<<"PASS "<<mode<<" nativeSurface="<<ts.boundaryField()[wall][0]<<nl;return 0;
+  }
   if(mode=="consume_error") {bool fail=false;try{advance();}catch(const std::runtime_error& e){fail=std::string(e.what()).find("consume error")!=std::string::npos;}ck(fail,"actual failure hidden");const auto& sm=runTime.lookupObject<fvMesh>("solid");near(sm.lookupObject<volScalarField>("T")[0],300,0);ck(resident.gasResets==0,"reset on failed consume");Info<<"PASS "<<mode<<nl;return 0;}
   auto result=advance();ck(result.coupled,"no actual exchange");near(result.elapsedCouplingTimeS,.1,0);
   const auto& sm=runTime.lookupObject<fvMesh>("solid");const auto& ts=sm.lookupObject<volScalarField>("T");
