@@ -1,4 +1,3 @@
-#include "gpu/GpuPrecisionApi.H"
 #include "fvCFD.H"
 #include "physicoChemicalConstants.H"
 #include "zeroGradientFvPatchFields.H"
@@ -26,7 +25,7 @@ namespace
 {
 inline void requireLosslessGasEnergyRestartPrecision(const dictionary& control)
 {
-    // rhoE is authoritative DP storage even when other resident fields are FP32.
+    // rhoE is authoritative double storage.
     // OpenFOAM defaults to ASCII; require an explicit round-trip precision there.
     const word format = control.lookupOrDefault<word>("writeFormat", "ascii");
     if
@@ -125,12 +124,7 @@ int main(int argc, char *argv[])
     }
 
 #ifdef UGKWP_USE_CUDA
-    if (ugkwpGpuSelectPrecision(gpuScheduling.precision) != 0)
-    {
-        FatalErrorInFunction << "Cannot select GPU precision" << exit(FatalError);
-    }
-    Info<< "GPU precision: physical=" << gpuScheduling.precision
-        << " time=64 wallEnergyAccumulation=64 (schedulingProperties gpuPrecision; default 32)" << nl;
+    Info<< "GPU precision physical=64 time=64 wallEnergyAccumulation=64" << nl;
 #endif
     constexpr bool gpuResidentStrict = true;
     const bool gpuResidentPureGasOnly = gpuScheduling.pureGasOnly;
