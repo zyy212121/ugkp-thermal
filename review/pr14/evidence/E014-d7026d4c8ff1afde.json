@@ -1,0 +1,107 @@
+{
+  "base": "5f1a39ac96e2e7ff9a0640a4db344d9cccd34245",
+  "dependencies": [
+    {
+      "path": "common/ParticleFieldManifest.json",
+      "sha256": "0ca19b52ea37fba71ab344d4227d299aa8a948d302c1b39c52bac72c4fe71451",
+      "base_sha256": "0ca19b52ea37fba71ab344d4227d299aa8a948d302c1b39c52bac72c4fe71451",
+      "matches_fixed_base": true
+    },
+    {
+      "path": "common/GpuParticleFields.cuh",
+      "sha256": "f622c28748cc0af31fa1657f65bd50f9a1875abfe77ced1922ba0256c976fbaa",
+      "base_sha256": "f622c28748cc0af31fa1657f65bd50f9a1875abfe77ced1922ba0256c976fbaa",
+      "matches_fixed_base": true
+    },
+    {
+      "path": "common/GpuParticleRestartFields.inl",
+      "sha256": "99b35dfe35f66434aaaa879d268e814f84602ab418480e77882cf1f10baefc6d",
+      "base_sha256": "99b35dfe35f66434aaaa879d268e814f84602ab418480e77882cf1f10baefc6d",
+      "matches_fixed_base": true
+    },
+    {
+      "path": "common/GpuParticleSavedVelocityRestart.inl",
+      "sha256": "6b64df7d024f2bc2d069389753f1635aba0be07cf960d5ba8737225f1c9d28d5",
+      "base_sha256": "6b64df7d024f2bc2d069389753f1635aba0be07cf960d5ba8737225f1c9d28d5",
+      "matches_fixed_base": true
+    },
+    {
+      "path": "common/GpuParticleBufferCommit.cuh",
+      "sha256": "f75fa9e0fac078a44df86d272c8d1f638c7b6293c7ffef43d5a0a4a10b8d9714",
+      "base_sha256": "f75fa9e0fac078a44df86d272c8d1f638c7b6293c7ffef43d5a0a4a10b8d9714",
+      "matches_fixed_base": true
+    },
+    {
+      "path": "common/GpuCellLocalThermalFields.cuh",
+      "sha256": "5c70a81b1ea086886988f5a1443a5a36c14e26ca52914a756808bb1985989f04",
+      "base_sha256": "5c70a81b1ea086886988f5a1443a5a36c14e26ca52914a756808bb1985989f04",
+      "matches_fixed_base": true
+    },
+    {
+      "path": "common/GpuCellLocalPrimary.cuh",
+      "sha256": "aebd2100bef0dc110dfdf6e8acc0b63db4723ab1c7004d4ee567ad781ce69944",
+      "base_sha256": "aebd2100bef0dc110dfdf6e8acc0b63db4723ab1c7004d4ee567ad781ce69944",
+      "matches_fixed_base": true
+    },
+    {
+      "path": "common/GpuParticleRestartTheta.H",
+      "sha256": "122e0e2992578791e46e849e4d1fc883f047bb79941ce3cade385aacb45cbe00",
+      "base_sha256": "122e0e2992578791e46e849e4d1fc883f047bb79941ce3cade385aacb45cbe00",
+      "matches_fixed_base": true
+    },
+    {
+      "path": "common/GpuThermalParticleRestartCodec.H",
+      "sha256": "c3d60bddcae603d03ef183fa11e691082613faba17a2979087d7e07881b0a847",
+      "base_sha256": "c3d60bddcae603d03ef183fa11e691082613faba17a2979087d7e07881b0a847",
+      "matches_fixed_base": true
+    },
+    {
+      "path": "common/GpuParticleThermalCarryStorage.cuh",
+      "sha256": "4bbba633dac8330b5ab8741475f270463da27c22e2fe4603a38a2cbac2bcc6ae",
+      "base_sha256": "4bbba633dac8330b5ab8741475f270463da27c22e2fe4603a38a2cbac2bcc6ae",
+      "matches_fixed_base": true
+    },
+    {
+      "path": "common/operators/swapParticlePointerDevice.cuh",
+      "sha256": "9eb03f5c3326f502439164dd3823a4d1b9743833f9bd4c8e8eb6777833faaab8",
+      "base_sha256": "9eb03f5c3326f502439164dd3823a4d1b9743833f9bd4c8e8eb6777833faaab8",
+      "matches_fixed_base": true
+    },
+    {
+      "path": "common/GpuPrecisionTypes.H",
+      "sha256": "4c4ed3559280f49deab7ac865a81e7fb3b0285378d745e123c6f3718db2556fe",
+      "base_sha256": "4c4ed3559280f49deab7ac865a81e7fb3b0285378d745e123c6f3718db2556fe",
+      "matches_fixed_base": true
+    },
+    {
+      "path": "tests/fixtures/shared_operators/current_particle_wire_golden.json",
+      "sha256": "d19def23954a5dedc15ffc5ac9402bd332ef82da7d6de91aa1befbb463e12b99",
+      "base_sha256": "d19def23954a5dedc15ffc5ac9402bd332ef82da7d6de91aa1befbb463e12b99",
+      "matches_fixed_base": true
+    },
+    {
+      "path": "applications/gasUGKP/private_backend/GpuResidentStrict.cu",
+      "sha256": "5edaf48833be7d229d1560712f3d9964ad62fc59e44fcd570643d96e74739925",
+      "base_sha256": "5edaf48833be7d229d1560712f3d9964ad62fc59e44fcd570643d96e74739925",
+      "matches_fixed_base": true
+    },
+    {
+      "path": "applications/FSH/private_backend/GpuResidentStrict.cu",
+      "sha256": "05223dd1978468c4a011f4bc521d3154f241a45955cbb1959117884f43de4b41",
+      "base_sha256": "05223dd1978468c4a011f4bc521d3154f241a45955cbb1959117884f43de4b41",
+      "matches_fixed_base": true
+    },
+    {
+      "path": "applications/CHT/gpu/GpuResidentStrict.cu",
+      "sha256": "6122d23f8b00d8534c8e271509d1a676af31068fdcc1640f2acd74675b2e663f",
+      "base_sha256": "6122d23f8b00d8534c8e271509d1a676af31068fdcc1640f2acd74675b2e663f",
+      "matches_fixed_base": true
+    },
+    {
+      "path": "common/GpuSchedulingConfiguration.H",
+      "sha256": "712a1fd92f6ae2e686bf90cc71d1a4f2b586ec93715fc67677d2be5ed348b6e8",
+      "base_sha256": "712a1fd92f6ae2e686bf90cc71d1a4f2b586ec93715fc67677d2be5ed348b6e8",
+      "matches_fixed_base": true
+    }
+  ]
+}

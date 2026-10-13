@@ -1,0 +1,49 @@
+{
+  "verified": {
+    "v2": {
+      "artifacts": 67,
+      "closure_entries": 35,
+      "compiler_dep_units": 8,
+      "compiler_dep_records": 501,
+      "unique_compiler_deps": 88,
+      "repo_compiler_deps": 28,
+      "compile_variants": 8
+    },
+    "pool-delta": {
+      "artifacts": 27,
+      "closure_entries": 8,
+      "compiler_dep_units": 2,
+      "compiler_dep_records": 122,
+      "unique_compiler_deps": 61,
+      "repo_compiler_deps": 7,
+      "compile_variants": 2
+    }
+  },
+  "combined_owned_paths": 25,
+  "errors": [],
+  "reviewed_at_utc": "2026-10-13T15:49:17.444075+00:00",
+  "verdict": "No blocking defect identified; PT-C1, PT-C2 and PT-C3 closed for targeted compile-only extent; pool contribution delta source approved. Full owner/device link, GPU correctness and performance remain unverified.",
+  "closed_compile_items": [
+    "PT-C1",
+    "PT-C2",
+    "PT-C3"
+  ],
+  "successful_pool_expressions_verbatim": true,
+  "original_frozen_owned_sources_preserved": 24,
+  "compile_executed_by_reviewer": false,
+  "cpu_numerical_tests_executed_by_reviewer": false,
+  "gpu_execution": false,
+  "native_owner_link_verified": false,
+  "device_link_verified": false,
+  "hashes": {
+    "v2/artifact-manifest.json": "f582a2ceb3be6633df85a598fb88ee4d5a804adf04d3281f5c4b2a1e0d58580c",
+    "v2/compiler-dependencies.json": "a8c18cdb5e7641e272636e664dd888a67fd5e136cda766a08e8b87bebfcbfa91",
+    "v2/cuda/commands.json": "2441d4031cabf78a41ecbc7f34655ac88628c33e3bee734698c9e6c512c133f1",
+    "pool-delta/artifact-manifest.json": "c5ed7e008bc07749291c4a9ed2374e9f040958183260f27169adff55649d3475",
+    "pool-delta/compiler-dependencies.json": "12aa2e567989af66769a5dbecd780870fc33622c8acaaf2f7ae5cdb069b11b20",
+    "pool-delta/source-manifest.json": "d99d3c72e373db748d91754effccaca56896a4572ca22eccc1ac2df684ab2b39",
+    "pool-delta/combined-owned-source-manifest.json": "8dd01c873dc02393210df2753b5a19e34a6bf4d2b09837597c08674cc032d99f",
+    "pool-delta/delta.patch": "b58ff1fa2d49392fb2408762e126ec71b2099ee4a73b537746a56a959318f994",
+    "pool-delta/cuda/commands.json": "778c936bb370cc0167b475386b4431c4e397ac23075869cc18f10c067b50a7ea"
+  }
+}

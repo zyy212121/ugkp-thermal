@@ -1,0 +1,95 @@
+{
+  "scope": "B6 review candidate; no commit/push/merge; no GPU or whole-PR acceptance",
+  "utc": "2026-10-13T12:47:09.124491+00:00",
+  "base": "bb1057e40856f9562ff60ce31cae51e35f1f3d8b",
+  "branch": "perf/shared-producer-continuation-20261013",
+  "sources": [
+    {
+      "path": "applications/CHMT/gpu/Backend.cu",
+      "bytes": 33588,
+      "sha256": "eef0754411f0438a66d5febd1e097751f182cb291ce60252b7d39fd3e9ce071a",
+      "new": false
+    },
+    {
+      "path": "applications/CHMT/gpu/SharedGasDeviceStorage.cuh",
+      "bytes": 46420,
+      "sha256": "a85997ba9907747a078dd6e080f173e899a6c7f11fc297dbad9515f639199fa3",
+      "new": false
+    },
+    {
+      "path": "applications/CHMT/tests/test_shared_reconfiguration.py",
+      "bytes": 18197,
+      "sha256": "d3abaad91ee57c86bd6c55332af54ab1a3790d5f97a05cfa4bbefadeef9a9c6a",
+      "new": true
+    },
+    {
+      "path": "applications/gasUGKP/private_backend/BoundaryLayerAdapter.cuh",
+      "bytes": 12176,
+      "sha256": "d08012aa3ceb80fd04051c36da4507484ef4a051a497ddf799bbca3a7e62c5aa",
+      "new": false
+    },
+    {
+      "path": "applications/gasUGKP/private_backend/BoundaryLayerStorage.cuh",
+      "bytes": 3335,
+      "sha256": "9758a4136b699d2ef0e0bce1c1ccc13e43bf19d9afb90c50614dfb1fa619cb16",
+      "new": false
+    },
+    {
+      "path": "applications/gasUGKP/private_backend/GpuResidentStrict.cu",
+      "bytes": 191609,
+      "sha256": "8d70c589e72351178bd9678f2497c9f586eb3f37b4d16160d292cb22da227281",
+      "new": false
+    },
+    {
+      "path": "applications/gasUGKP/private_backend/SharedGasAdapter.cuh",
+      "bytes": 13072,
+      "sha256": "e719a823d09c20c598be2cbe178f34fe63b048435298199f6b7bdd4f8a6064e5",
+      "new": false
+    },
+    {
+      "path": "applications/gasUGKP/private_backend/SharedGasStorage.cuh",
+      "bytes": 4065,
+      "sha256": "2747c1ee8aaeaa0997ba939059dc95d925d7bc5686db0f055c22b580a8428f7f",
+      "new": false
+    },
+    {
+      "path": "applications/gasUGKP/tests/test_boundary_layer_lifecycle.py",
+      "bytes": 13883,
+      "sha256": "1263e500d75156cdd14deec03878cb18efd04c13bb02bf47b70577a2397bdfdf",
+      "new": false
+    },
+    {
+      "path": "applications/gasUGKP/tests/test_shared_reconfiguration_lifecycle.py",
+      "bytes": 20128,
+      "sha256": "f00d97aee5f72a8d58cdf27bdb2caf780b6d7b5bbd4c9d6d0a49677d5b7dc04e",
+      "new": true
+    },
+    {
+      "path": "applications/gasUGKP/tests/test_wall_adapter_continuation.py",
+      "bytes": 10318,
+      "sha256": "55c7a2b1b5a0b3966bdaca81d8a0397e3bd5f5dc7e5ca4aec29283096cc91534",
+      "new": false
+    },
+    {
+      "path": "common/operators/computeGasPrimitiveGradientsKernel.cuh",
+      "bytes": 16627,
+      "sha256": "9c68dfac32a5a7f128893783335a632f29700ebada88c1949cd9f2b61558dec5",
+      "new": false
+    },
+    {
+      "path": "tools/managed_mirrors.json",
+      "bytes": 57056,
+      "sha256": "8e4475241c91f2823162b7fb1651ba73c6f8ca942552fea535d9a31d1d94ffa1",
+      "new": false
+    }
+  ],
+  "patch_sha256": "01bfdfd5e9c1f2ad180dad54c79f3951e961a05a888f45f7ff38c7b98ede59cd",
+  "report_sha256": "f9729c5da150d6da9fb158467c8c89f5e483ddfab127caa06b5eb1ae304da7e1",
+  "artifact_index_sha256": "82e12daaf8f8b186e0050d3b2af1fe4479fd192ab51725f90d4f51c35179fa10",
+  "artifacts": 1003,
+  "receipt_sha256": "f7774d51acfd3bc5be27c4e879210eabc31783a88be883ccb13c811498ba0357",
+  "readme_changed": false,
+  "source_diff_check": true,
+  "patch_reverse_check": true,
+  "independent_review": "pending"
+}
