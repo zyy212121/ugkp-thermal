@@ -52,18 +52,6 @@ if (g.dimensions() != dimAcceleration)
         << g.dimensions() << exit(FatalError);
 }
 
-if
-(
-    !finiteScalar(g.value().x())
- || !finiteScalar(g.value().y())
- || !finiteScalar(g.value().z())
-)
-{
-    FatalErrorInFunction
-        << "constant/g must contain a finite vector; current value is "
-        << g.value() << exit(FatalError);
-}
-
 Info<< "GPU particle forces: dragModel=" << gpuDragModel->modelName()
     << " particleGasHeatTransferModel=" << particleGasHeatTransferModel
     << " gravity=" << g.value() << " m/s^2" << nl;
@@ -171,51 +159,6 @@ dimensionedScalar legacyRestartParcelMass
         parcelMass.value()
     )
 );
-
-if (!finiteScalar(rhoS.value()) || rhoS.value() <= SMALL)
-{
-    FatalErrorInFunction
-        << "ugkwpProperties: rhoS must be positive. Current rhoS = "
-        << rhoS.value() << exit(FatalError);
-}
-
-if (!finiteScalar(dS.value()) || dS.value() <= SMALL)
-{
-    FatalErrorInFunction
-        << "ugkwpProperties: dS must be positive. Current dS = "
-        << dS.value() << exit(FatalError);
-}
-
-if (!finiteScalar(parcelMass.value()) || parcelMass.value() <= SMALL)
-{
-    FatalErrorInFunction
-        << "ugkwpProperties: parcelMass must be positive. Current parcelMass = "
-        << parcelMass.value() << exit(FatalError);
-}
-
-if
-(
-    !finiteScalar(injectionParcelMass.value())
- || injectionParcelMass.value() <= SMALL
-)
-{
-    FatalErrorInFunction
-        << "ugkwpProperties: injectionParcelMass must be positive. Current "
-        << "injectionParcelMass = " << injectionParcelMass.value()
-        << exit(FatalError);
-}
-
-if
-(
-    !finiteScalar(legacyRestartParcelMass.value())
- || legacyRestartParcelMass.value() <= SMALL
-)
-{
-    FatalErrorInFunction
-        << "ugkwpProperties: legacyRestartParcelMass must be positive. "
-        << "Current legacyRestartParcelMass = "
-        << legacyRestartParcelMass.value() << exit(FatalError);
-}
 
 volVectorField U
 (
