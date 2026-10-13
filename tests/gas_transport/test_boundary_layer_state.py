@@ -14,7 +14,7 @@ ugkwp::GasBoundaryLayerExchange<Real> exchange[1];ugkwp::GasBoundaryLayerSstClos
 auto&w=s.gasBoundaryLayer;w.enabled=true;w.count=1;w.faceSlot=faces;w.ownerSlot=owners;w.status=status;w.exchange=exchange;w.sst=closure;
 ck(ugkwp::gasBoundaryLayerFaceSlot(s,1)==0,"face map missing");ck(ugkwp::gasBoundaryLayerFaceSlot(s,2)==-1,"nonwall face selected");ck(ugkwp::gasBoundaryLayerOwnerSlot(s,0)==0&&ugkwp::gasBoundaryLayerOwnerSlot(s,1)==-1,"owner map wrong");
 ck(!ugkwp::gasBoundaryLayerSlotReady(s,0),"unevaluated closure accepted");exchange[0].ready=true;closure[0].volume=2;closure[0].ownerOmega=7;closure[0].wallShearStress=3;
-ck(ugkwp::gasBoundaryLayerSlotReady(s,0),"valid evaluated closure rejected");status[0]=1;ck(!ugkwp::gasBoundaryLayerSlotReady(s,0),"failed closure accepted");status[0]=0;
+ck(ugkwp::gasBoundaryLayerSlotReady(s,0),"valid evaluated closure rejected");status[0]=1;ck(ugkwp::gasBoundaryLayerSlotReady(s,0),"diagnostic hid completed closure");status[0]=0;
 ck(!ugkwp::gasBoundaryLayerSlotReady(s,1),"out of range slot accepted");w.status=nullptr;ck(!ugkwp::gasBoundaryLayerSlotReady(s,0),"missing status accepted");
 }
 ''')
@@ -24,9 +24,9 @@ def test_boundary_layer_selector_requires_explicit_physics(tmp_path):
 #include "gasTransport/GasCapabilities.H"
 int main(){ugkwp::GasCapabilityRequest r;r.mode=ugkwp::GasMode::MixtureChemistry;r.turbulenceModel=3;r.sstWallTreatment=2;
 if(!ugkwp::validateGasCapabilities(r))return 1;
-r.sstWallTreatment=1;if(ugkwp::validateGasCapabilities(r))return 2;
-r.sstWallTreatment=3;if(ugkwp::validateGasCapabilities(r))return 3;
-r.sstWallTreatment=2;r.turbulenceModel=1;if(ugkwp::validateGasCapabilities(r))return 4;
+r.sstWallTreatment=1;if(!ugkwp::validateGasCapabilities(r))return 2;
+r.sstWallTreatment=3;if(!ugkwp::validateGasCapabilities(r))return 3;
+r.sstWallTreatment=2;r.turbulenceModel=1;if(!ugkwp::validateGasCapabilities(r))return 4;
 r.turbulenceModel=3;r.mode=ugkwp::GasMode::SingleLegacy;if(ugkwp::validateGasCapabilities(r))return 5;
 }
 ''')
@@ -46,7 +46,7 @@ ck(near(exchange[0].mass,Real(-.6)),"mass used matching flux or chemistry");ck(n
 Real h=Real(.4)*ugkwp::speciesH(0,Real(700),s.gasSpecies.thermo)-Real(.1)*ugkwp::speciesH(1,Real(700),s.gasSpecies.thermo);
 ck(near(exchange[0].energy,-2*(h+Real(.3)*Real(6.5)+50+25-23)),"enthalpy, kinetic, sweep or traction work double counted");
 ck(near(exchange[0].momentumX,-2*(Real(.3)*2+100-4)),"momentum wall orientation");ck(exchange[0].k==0,"auxiliary k flux leaked into physical wall");ck(near(closure[0].wallShearStress,Real(5))&&closure[0].ownerOmega==11&&closure[0].volume==3&&closure[0].ownerDistance==Real(.5),"numerical wall relation changed units");
-output.traceTemperature=std::numeric_limits<Real>::quiet_NaN();ck(!ugkwp::publishGasBoundaryLayerOutput(s,0,input,output,Real(2),Real(.25)),"invalid exchange accepted");ck(!exchange[0].ready,"failed output retained readiness");
+output.traceTemperature=std::numeric_limits<Real>::quiet_NaN();ck(ugkwp::publishGasBoundaryLayerOutput(s,0,input,output,Real(2),Real(.25)),"terminal exchange unavailable");ck(exchange[0].ready&&std::isnan(exchange[0].energy),"terminal energy not actually published");
 }
 ''')
 

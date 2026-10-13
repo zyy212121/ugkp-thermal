@@ -51,12 +51,12 @@ for(int k=0;k<5;++k)ck(fields[k][0]==3*(k+1)&&fields[k][1]==-3*(k+1),"complete p
 ck(s.gasSpecies.flux[0]==Real(1.5)&&s.gasSpecies.flux[1]==Real(-1.5)&&s.gasSpecies.flux[2]==Real(1.5)&&s.gasSpecies.flux[3]==Real(-1.5),"complete periodic species output");ck(!s.gasSpecies.faceStatus[0]&&!s.gasSpecies.faceStatus[1],"unused frame certificate blocked average");}
 '''.replace('REVERSE','true' if reverse else 'false'))
 
-@pytest.mark.parametrize('operation',['convective','diffusion','owner'])
+@pytest.mark.parametrize('operation',['convective','diffusion','sweep_backing'])
 def test_courant_required_error_does_not_become_finite_sentinel(tmp_path,operation):
     bodies={
       'convective':'s.gasPhiRhoE[0]=std::numeric_limits<Real>::infinity();computeGasConvectiveCourantByCellKernel(&s,1.);ck(s.gasSpecies.cellStatus[0]!=0,"required overflow hidden as finite Co");',
       'diffusion':'s.gasMu=std::numeric_limits<Real>::infinity();computeGasDiffusionNumberKernel(&s,1.,.5);ck(s.gasSpecies.cellStatus[0]!=0,"required diffusion overflow hidden");',
-      'owner':'s.faceOwner[0]=999;computeGasCourantFieldKernel(&s,1.);ck(s.gasSpecies.faceStatus[0]!=0,"missing owner hidden as OfGreat");',
+      'sweep_backing':'s.gasGeometry.enabled=true;s.gasGeometry.faceSweptVolume=nullptr;computeGasCourantFieldKernel(&s,1.);ck(s.gasSpecies.faceStatus[0]==int(ugkwp::GasTransportCode::InvalidStorage),"missing consumed sweep backing hidden");',
     }
     compile_probe(tmp_path,fixture()+'\nint main(){State s;initialise(s);threadIdx.x=0;'+bodies[operation]+'}')
 

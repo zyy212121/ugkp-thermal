@@ -199,7 +199,7 @@ struct SpeciesTag {static constexpr int speciesCount=2;ugkwp::GasMode mode=ugkwp
 struct MixedHost:IndependentHost{SpeciesTag gasSpecies;double*V=nullptr;};
 template<class S,class T>void advanceGasChemistryKernel(S*,T dt,const double*,bool nativeRefinement=false){checkNativeOwner(nativeRefinement);trace.push_back(dt==.05?"half-chemistry":"BAD-INTERVAL");}
 template<class S>void computeGasCourantFieldKernel(S*,double,bool nativeRefinement=false){checkNativeOwner(nativeRefinement);trace.push_back("wave-speed");}
-template<class S>void computeGasConvectiveCourantByCellKernel(S*,double){trace.push_back("courant");}
+int convectiveModeChecks=0;template<class S>void computeGasConvectiveCourantByCellKernel(S*,double,bool nativeRefinement=false){checkNativeOwner(nativeRefinement);++convectiveModeChecks;trace.push_back("courant");}
 template<class S>void computeGasDiffusionNumberKernel(S*,double,double,bool nativeRefinement=false){checkNativeOwner(nativeRefinement);trace.push_back("diffusion-bound");}
 struct Policy {
  static int begin(MixedHost*){trace.push_back("begin");return 0;}
@@ -219,6 +219,9 @@ int main(){MixedHost h;Payload p;h.deviceState=&p;if(advanceGasTrial<Policy>(&h,
 int first=-1,last=-1,cfl=-1,flux=-1,n=0;for(int i=0;i<int(trace.size());++i){if(trace[i]=="half-chemistry"){if(n++==0)first=i;last=i;}if(trace[i]=="check-CFL")cfl=i;if(trace[i].find("face-flux")==0)flux=i;}
 if(n!=2||cfl!=-1||!(first<flux&&flux<last)||trace.back()!="commit")return 2;
 trace.clear();Policy::reject=1;if(advanceGasTrial<Policy>(&h,.1,2.)!=0||trace.back()!="commit")return 3;
+// The original direct trace remains above; execute strict bounds separately.
+trace.clear();Policy::reject=0;expectedNativeOwner=true;convectiveModeChecks=0;
+if(prepareGasTrialTransport<Policy>(&h,.1,2.,true)!=0||convectiveModeChecks!=1)return 4;
 }
 '''
     (tmp_path/'protocol.hpp').write_text(source)
@@ -239,9 +242,9 @@ struct MixedDevice{SpeciesTag gasSpecies;};
 struct MixedHost:IndependentHost{SpeciesTag gasSpecies;MixedDevice*deviceState;};
 template<class S,class T>void advanceGasChemistryKernel(S*,T,const double*,bool nativeRefinement=false){checkNativeOwner(nativeRefinement);}
 template<class S>void computeGasCourantFieldKernel(S*,double,bool nativeRefinement=false){checkNativeOwner(nativeRefinement);trace.push_back("fresh-mass");}
-template<class S>void computeGasConvectiveCourantByCellKernel(S*,double){}
+int convectiveModeChecks=0;template<class S>void computeGasConvectiveCourantByCellKernel(S*,double,bool nativeRefinement=false){checkNativeOwner(nativeRefinement);++convectiveModeChecks;}
 template<class S>void computeGasDiffusionNumberKernel(S*,double,double,bool nativeRefinement=false){checkNativeOwner(nativeRefinement);}
-template<class S>void computeSstStabilityNumberKernel(S*,double,double){trace.push_back("sst-bound");}
+int sstModeChecks=0;template<class S>void computeSstStabilityNumberKernel(S*,double,double,bool requireWallProfile=true,bool nativeRefinement=false){checkNativeOwner(nativeRefinement);if(!requireWallProfile)std::abort();++sstModeChecks;trace.push_back("sst-bound");}
 struct Policy{
  static int validate(MixedHost*){return 0;}static int validateTimeStep(MixedHost*,double){return 0;}
  static double targetMaxCo(MixedHost*){return .5;}static const double*stageVolumes(MixedHost*,bool){return nullptr;}
@@ -256,6 +259,11 @@ auto position=[](const char*name){return std::find(trace.begin(),trace.end(),nam
 for(const auto& line:trace)std::puts(line.c_str());
 if(position("fresh-mass")!=trace.size()||position("sst-bound")!=trace.size())return 2;
 if(position("recoverGasPrimitivesKernel")==trace.size())return 3;
+// Strict post-source launches forward their actual owner/profile mode.
+trace.clear();expectedNativeOwner=true;convectiveModeChecks=sstModeChecks=0;
+if(prepareGasTrialTransport<Policy>(&h,.01,0.,true)!=0)return 4;
+if(position("fresh-mass")==trace.size()||position("sst-bound")==trace.size()
+    ||convectiveModeChecks!=1||sstModeChecks!=1)return 5;
 }
 '''
     cpp = tmp_path/'preflight.cpp';cpp.write_text(preamble+extras+source+main)

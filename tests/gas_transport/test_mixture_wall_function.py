@@ -63,12 +63,12 @@ def test_wall_thermo_flux_and_diffusion_use_same_mixture_properties(tmp_path,dir
 ''')
 
 
-def test_fixed_frozen_wall_capability_is_bounded(tmp_path):
+def test_existing_wall_capability_dispatch_keeps_unavailable_particle_model(tmp_path):
     compile_probe(tmp_path,r'''
 int main(){ugkwp::GasCapabilityRequest r;r.mode=ugkwp::GasMode::MixtureFrozen;r.turbulenceModel=3;r.sstWallTreatment=1;
 if(!ugkwp::validateGasCapabilities(r))return 1;
-r.movingGeometry=true;if(ugkwp::validateGasCapabilities(r))return 2;r.movingGeometry=false;
-r.mode=ugkwp::GasMode::MixtureChemistry;if(ugkwp::validateGasCapabilities(r))return 3;
+r.movingGeometry=true;if(!ugkwp::validateGasCapabilities(r))return 2;r.movingGeometry=false;
+r.mode=ugkwp::GasMode::MixtureChemistry;if(!ugkwp::validateGasCapabilities(r))return 3;
 r.mode=ugkwp::GasMode::MixtureFrozen;r.particleCoupling=true;if(ugkwp::validateGasCapabilities(r))return 4;}
 ''')
 

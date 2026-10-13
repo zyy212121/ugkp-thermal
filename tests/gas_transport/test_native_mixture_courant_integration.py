@@ -59,8 +59,8 @@ DeviceState s;setupNative(s,0,0);double result=-777;assert(ugkwpGpuResidentStric
 auto*coeff=s.gasSpecies.thermo.coefficients;s.gasSpecies.thermo.coefficients=nullptr;hostReads=0;result=-777;
 assert(ugkwpGpuResidentStrictComputeGasCourant(&s,.001,.5,2.,&result)!=0&&result==-777&&s.gasSpecies.cellStatus[0]!=0&&hostReads==2);
 s.gasSpecies.thermo.coefficients=coeff;assert(ugkwpGpuResidentStrictComputeGasCourant(&s,.001,.5,2.,&result)==0);
-// Actual required face address and launch failures also keep the caller output unpublished.
-const int owner=s.faceOwner[2];s.faceOwner[2]=999;result=-777;assert(ugkwpGpuResidentStrictComputeGasCourant(&s,.001,.5,2.,&result)!=0&&result==-777&&s.gasSpecies.faceStatus[2]!=0);s.faceOwner[2]=owner;
+// Actual absent consumed moving-face backing and launch failures keep output unpublished.
+s.gasGeometry.enabled=true;s.gasGeometry.faceSweptVolume=nullptr;result=-777;assert(ugkwpGpuResidentStrictComputeGasCourant(&s,.001,.5,2.,&result)!=0&&result==-777&&s.gasSpecies.faceStatus[2]!=0);s.gasGeometry.enabled=false;
 failLaunch=launchCount+1;assert(ugkwpGpuResidentStrictComputeGasCourant(&s,.001,.5,2.,&result)!=0&&result==-777);failLaunch=0;
 assert(ugkwpGpuResidentStrictComputeGasCourant(&s,1e16,.5,2.,&result)==0&&result>.5*OfGreat);
 releaseSharedGasSpecies(s.gasSpecies);assert(allocations==0&&cases==16);

@@ -48,9 +48,9 @@ template<class S>void prepareGasSstAuditKernel(S*){trace.push_back("audit-volume
 struct MixedHost:IndependentHost{SpeciesTag gasSpecies;MixedDevice*deviceState;ugkwp::GasBoundaryLayerState<double> gasBoundaryLayer;};
 template<class S,class T>void advanceGasChemistryKernel(S*,T,const double*,bool nativeRefinement=false){checkNativeOwner(nativeRefinement);trace.push_back("chemistry");}
 template<class S>void computeGasCourantFieldKernel(S*,double,bool nativeRefinement=false){checkNativeOwner(nativeRefinement);trace.push_back("fresh-mass");}
-template<class S>void computeGasConvectiveCourantByCellKernel(S*,double){}
+template<class S>void computeGasConvectiveCourantByCellKernel(S*,double,bool nativeRefinement=false){checkNativeOwner(nativeRefinement);}
 template<class S>void computeGasDiffusionNumberKernel(S*,double,double,bool nativeRefinement=false){checkNativeOwner(nativeRefinement);}
-template<class S>void computeSstStabilityNumberKernel(S*,double,double){trace.push_back("sst-bound");}
+template<class S>void computeSstStabilityNumberKernel(S*,double,double,bool requireWallProfile=true,bool nativeRefinement=false){checkNativeOwner(nativeRefinement);if(!requireWallProfile)std::abort();trace.push_back("sst-bound");}
 struct NativeAuditHost:MixedHost{ugkwp::GasSstAuditState<double> gasSstAudit;};
 struct Policy{
  static inline int attempts=0,rollbacks=0;static inline bool limit=false;static inline double covered=0,current=0;

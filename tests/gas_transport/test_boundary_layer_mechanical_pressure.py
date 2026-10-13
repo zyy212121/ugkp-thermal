@@ -86,20 +86,21 @@ def test_n128_muscl_euler_couette_reaches_original_time_and_accuracy_gate(tmp_pa
     assert max(abs(row[2]) for row in rows)<1e-3
 
 
-def test_unavailable_matching_pressure_cannot_publish_a_ready_full_flux(tmp_path):
+def test_nonfinite_matching_pressure_completes_actual_force_and_work(tmp_path):
     from test_boundary_layer_operators import SETUP
     from test_legacy_ale_transport import fixture as legacy
     compile_probe(tmp_path,legacy()+SETUP+r'''
 int main(){State s;initialise(s);wall(s);Real m,x,y,z,e;
 s.gasBoundaryLayer.exchange[0].matchingPressure=std::numeric_limits<Real>::quiet_NaN();
-ck(!computeRiemannGasFaceFluxDevice<false>(s,1,m,x,y,z,e),"missing thermodynamic reference pressure silently accepted");
-ck(s.gasSpecies.faceStatus[1]==int(ugkwp::GasTransportCode::InvalidThermodynamics),"missing pressure failure lost");
+ck(!computeRiemannGasFaceFluxDevice<false>(s,1,m,x,y,z,e),"nonfinite thermodynamic diagnostic lost");
+ck(s.gasSpecies.faceStatus[1]==int(ugkwp::GasTransportCode::NonFiniteState),"nonfinite pressure diagnostic lost");
+ck(std::isnan(x)&&std::isnan(y)&&std::isnan(z)&&std::isnan(e)&&m==Real(-.4),"actual terminal pressure expressions missing");
 s.gasSpecies.faceStatus[1]=0;s.gasBoundaryLayer.exchange[0].ready=false;
 ck(computeRiemannGasFaceFluxDevice<false,true>(s,1,m,x,y,z,e),"known mass needs no pressure/profile solve");near(m,Real(-.4),"mass predictor changed");}
 ''')
 
 
-def test_nonfinite_corrected_force_rejects_before_species_publication(tmp_path):
+def test_nonfinite_corrected_force_completes_physical_tail(tmp_path):
     from test_boundary_layer_operators import SETUP
     from test_legacy_ale_transport import fixture as legacy
     compile_probe(tmp_path,legacy()+SETUP+r'''

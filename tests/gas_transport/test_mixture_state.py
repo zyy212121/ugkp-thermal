@@ -16,7 +16,7 @@ def compile_probe(tmp_path,body):
     run=subprocess.run([str(exe)],capture_output=True,text=True)
     assert run.returncode==0,run.stdout+run.stderr
 
-def test_mixture_recovery_is_conservative_and_failed_outputs_unchanged(tmp_path):
+def test_mixture_recovery_is_conservative_and_strict_failures_unchanged(tmp_path):
     compile_probe(tmp_path,r'''
 #include "gasTransport/GasCapabilities.H"
 struct State : ugkwp::GasStateView<Real,Time,ugkwp::SstCoefficients> {
@@ -41,21 +41,21 @@ int main(){
  ck(ux[0]==3&&uy[0]==-1&&uz[0]==Real(.5),"momentum velocity");ck(a[0]>0&&cp[0]>R[0]&&p[0]>0,"derived EOS fields");
  ck(std::abs(p[0]-rho[0]*R[0]*T[0])<Real(.02),"ideal mixture pressure");
  Real after[]={rho[0],mx[0],my[0],mz[0],energy[0],species[0],species[1]};ck(std::memcmp(saved,after,sizeof(saved))==0,"recovery altered conserved state");
- const Real oldOutputs[]={ux[0],uy[0],uz[0],p[0],T[0],a[0],cp[0],R[0]};species[1]=std::numeric_limits<Real>::quiet_NaN();status[0]=0;recoverGasPrimitivesKernel(&s);
+ const Real oldOutputs[]={ux[0],uy[0],uz[0],p[0],T[0],a[0],cp[0],R[0]};species[1]=std::numeric_limits<Real>::quiet_NaN();status[0]=0;recoverGasPrimitiveCell(s,0,true);
  Real failedOutputs[]={ux[0],uy[0],uz[0],p[0],T[0],a[0],cp[0],R[0]};ck(status[0]!=0,"required NaN species accepted");ck(std::memcmp(oldOutputs,failedOutputs,sizeof(oldOutputs))==0,"failed recovery published outputs");
- species[1]=1.5;energy[0]=Real(-1e20);status[0]=0;recoverGasPrimitivesKernel(&s);ck(status[0]!=0,"out of range energy accepted");ck(T[0]==oldOutputs[4],"failed inversion changed temperature");
+ species[1]=1.5;energy[0]=Real(-1e20);status[0]=0;recoverGasPrimitiveCell(s,0,true);ck(status[0]!=0,"out of range energy accepted");ck(T[0]==oldOutputs[4],"failed inversion changed temperature");
 }
 ''')
 
-def test_mixture_capabilities_reject_unproved_combinations(tmp_path):
+def test_mixture_capabilities_admit_existing_dispatch_without_particle_model(tmp_path):
     compile_probe(tmp_path,r'''
 #include "gasTransport/GasCapabilities.H"
 int main(){ugkwp::GasCapabilityRequest r;
 for(int scheme=1;scheme<=9;++scheme){r.fluxScheme=scheme;if(!ugkwp::validateGasCapabilities(r))return 1;}
 r.mode=ugkwp::GasMode::MixtureFrozen;r.fluxScheme=1;if(!ugkwp::validateGasCapabilities(r))return 2;
-r.fluxScheme=4;if(ugkwp::validateGasCapabilities(r))return 3;r.fluxScheme=1;
-r.reconstruction=2;if(ugkwp::validateGasCapabilities(r))return 4;r.reconstruction=0;
-r.movingGeometry=true;r.timeIntegrator=2;if(ugkwp::validateGasCapabilities(r))return 5;r.timeIntegrator=1;if(!ugkwp::validateGasCapabilities(r))return 9;r.movingGeometry=false;
+r.fluxScheme=4;if(!ugkwp::validateGasCapabilities(r))return 3;r.fluxScheme=1;
+r.reconstruction=2;if(!ugkwp::validateGasCapabilities(r))return 4;r.reconstruction=0;
+r.movingGeometry=true;r.timeIntegrator=2;if(!ugkwp::validateGasCapabilities(r))return 5;r.timeIntegrator=1;if(!ugkwp::validateGasCapabilities(r))return 9;r.movingGeometry=false;
 r.particleCoupling=true;if(ugkwp::validateGasCapabilities(r))return 6;r.particleCoupling=false;
 r.turbulenceModel=3;r.sstWallTreatment=1;if(!ugkwp::validateGasCapabilities(r))return 7;r.turbulenceModel=0;r.sstWallTreatment=0;
 r.mode=ugkwp::GasMode::MixtureChemistry;if(!ugkwp::validateGasCapabilities(r))return 8;}

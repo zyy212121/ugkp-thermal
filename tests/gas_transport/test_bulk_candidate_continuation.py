@@ -60,11 +60,16 @@ ck(f.flux[0]==2*p.rho&&f.flux[1]==2*q.q[1]+p.p&&f.flux[2]==2*q.q[2]&&f.flux[3]==
 def test_complete_bulk_candidates(tmp_path,scenario):
     compile_probe(tmp_path,fixture()+'\nint main(){State s;initialise(s);'+CASES[scenario]+'\n}')
 
-def test_required_nan_flux_stays_failure(tmp_path):
-    compile_probe(tmp_path,fixture()+r'''
-int main(){State s;initialise(s);s.gasSpecies.flux[0]=std::numeric_limits<Real>::quiet_NaN();const Real before=s.rho[0];
-threadIdx.x=0;applyGasFluxDivergenceByCellKernel(&s,.1);ck(s.gasSpecies.cellStatus[0]!=0&&s.rho[0]==before,"required NaN treated as finite publication");}
-''')
+@pytest.mark.parametrize('strict',[False,True])
+def test_required_nan_flux_finishes_terminal_but_retains_strict_retry(tmp_path,strict):
+    from test_gas_budget_audit import audited_fixture
+    compile_probe(tmp_path,audited_fixture()+r"""
+int main(){State s;initialise(s);enable(s);s.gasSpecies.flux[0]=std::numeric_limits<Real>::quiet_NaN();s.gasPhiRho[1]=-.2;s.gasPhiRhoE[1]=-7;s.gasSpecies.flux[1]=-.18;s.gasSpecies.flux[4]=-.02;s.gasPhiRhoUy[1]=-3;
+const Real before[]={s.rho[0],s.rhoUx[0],s.rhoUy[0],s.rhoUz[0],s.rhoE[0],s.gasSpecies.rho[0],s.gasSpecies.rho[2]};threadIdx.x=0;applyGasFluxDivergenceByCellKernel(&s,.1,STRICT);
+ck(s.gasSpecies.cellStatus[0]!=0,"required NaN certificate lost");
+if(STRICT){const Real after[]={s.rho[0],s.rhoUx[0],s.rhoUy[0],s.rhoUz[0],s.rhoE[0],s.gasSpecies.rho[0],s.gasSpecies.rho[2]};ck(std::memcmp(before,after,sizeof before)==0,"strict NaN retry published state");for(int k=0;k<8;++k)ck(s.gasBudgetAudit.transport[k]==0,"strict failure before external face wrote budget");}
+else{ck(s.rho[0]==before[0]+Real(.1)*Real(.2)&&s.rhoUx[0]==0&&s.rhoUy[0]==Real(.1)*Real(3)&&s.rhoUz[0]==0&&s.rhoE[0]==before[4]+Real(.1)*Real(7),"terminal NaN bulk formula incomplete");ck(std::isnan(s.gasSpecies.rho[0])&&s.gasSpecies.rho[2]==before[6]+Real(.1)*Real(.02),"terminal NaN species formula incomplete");ck(s.gasBudgetAudit.transport[0]==Real(.1)*Real(.2)&&s.gasBudgetAudit.transport[2]==Real(.1)*Real(7)&&s.gasBudgetAudit.transport[4]==Real(.1)*Real(.18)&&s.gasBudgetAudit.transport[6]==Real(.1)*Real(.02),"terminal external budget incomplete or doubled");}}
+""".replace('STRICT','true' if strict else 'false'))
 
 @pytest.mark.parametrize('case',['source_cap','volume_residual','omega_sign','sst_flag'])
 def test_sst_finite_diagnostics_do_not_block(tmp_path,case):
@@ -90,17 +95,20 @@ int main(){State s;initialise(s);wall(s);s.gasPhiRho[1]=0;s.gasPhiRhoE[1]=17;s.g
 ''')
 
 @pytest.mark.parametrize('case',['rk','divergence','periodic'])
-def test_required_candidate_overflow_is_not_complete_publication(tmp_path,case):
+def test_numeric_candidates_publish_actual_terminal_fields(tmp_path,case):
+    from test_gas_budget_audit import audited_fixture
     bodies={
-        'rk':r'''threadIdx.x=0;saveGasConservativeStateKernel(&s);s.rhoUx[0]=s.rhoUxNext[0]=std::numeric_limits<Real>::max();const Real species=s.gasSpecies.rho[0];blendGasConservativeStateKernel(&s,1.,1.);ck(s.gasSpecies.cellStatus[0]!=0&&s.gasSpecies.rho[0]==species,"overflowed RK candidate published");''',
-        'divergence':r'''s.rhoUx[0]=std::numeric_limits<Real>::max();s.gasPhiRhoUx[0]=-std::numeric_limits<Real>::max();const Real species=s.gasSpecies.rho[0];threadIdx.x=0;applyGasFluxDivergenceByCellKernel(&s,1.);ck(s.gasSpecies.cellStatus[0]!=0&&s.gasSpecies.rho[0]==species,"overflowed divergence candidate published");''',
-        'periodic':r'''s.nFaces=2;s.nInternalFaces=0;s.facePeriodicPair[0]=1;s.facePeriodicPair[1]=0;s.gasSpecies.flux[0]=std::numeric_limits<Real>::quiet_NaN();threadIdx.x=0;enforcePeriodicGasFluxAntisymmetryKernel(&s);ck(s.gasSpecies.faceStatus[0]!=0&&s.gasSpecies.faceStatus[1]!=0,"required periodic NaN published as complete");'''}
-    compile_probe(tmp_path,fixture()+'\nint main(){State s;initialise(s);'+bodies[case]+'}')
+        'rk':r"""threadIdx.x=0;enable(s);for(int k=0;k<4;++k)s.gasBudgetAudit.transport[2*k]=1;saveGasConservativeStateKernel(&s);for(int k=0;k<4;++k)s.gasBudgetAudit.transport[2*k]=3;s.rhoUx[0]=s.rhoUxNext[0]=std::numeric_limits<Real>::max();const Real energy=s.rhoE[0];blendGasConservativeStateKernel(&s,1.,1.);ck(s.gasSpecies.cellStatus[0]==0,"original normal-return static RK status changed");ck(s.rho[0]==2&&std::isinf(s.rhoUx[0])&&s.rhoUy[0]==0&&s.rhoUz[0]==0&&s.rhoE[0]==2*energy&&s.gasSpecies.rho[0]==2*Real(.9)&&s.gasSpecies.rho[2]==2*Real(.1),"actual RK candidate fields incomplete");for(int k=0;k<4;++k)ck(s.gasBudgetAudit.transport[2*k]==4,"actual RK budget weights lost");""",
+        'divergence':r"""enable(s);s.rhoUx[0]=std::numeric_limits<Real>::max();s.gasPhiRhoUx[0]=-std::numeric_limits<Real>::max();const Real energy=s.rhoE[0];threadIdx.x=0;applyGasFluxDivergenceByCellKernel(&s,1.);ck(s.gasSpecies.cellStatus[0]==0,"original normal-return static divergence status changed");ck(s.rho[0]==1&&std::isinf(s.rhoUx[0])&&s.rhoUy[0]==0&&s.rhoUz[0]==0&&s.rhoE[0]==energy&&s.gasSpecies.rho[0]==Real(.9)&&s.gasSpecies.rho[2]==Real(.1),"actual divergence candidate fields incomplete");for(int k=0;k<8;++k)ck(s.gasBudgetAudit.transport[k]==0,"internal face polluted external budget");""",
+        'periodic':r"""s.nFaces=2;s.nInternalFaces=0;s.facePeriodicPair[0]=1;s.facePeriodicPair[1]=0;s.gasSpecies.flux[0]=std::numeric_limits<Real>::quiet_NaN();threadIdx.x=0;enforcePeriodicGasFluxAntisymmetryKernel(&s);ck(s.gasSpecies.faceStatus[0]!=0&&s.gasSpecies.faceStatus[1]!=0,"periodic numerical certificate lost");ck(std::isnan(s.gasSpecies.flux[0])&&std::isnan(s.gasSpecies.flux[1])&&s.gasSpecies.flux[2]==0&&s.gasSpecies.flux[3]==0,"actual two-face periodic species average incomplete");for(auto field:{s.gasPhiRho,s.gasPhiRhoUx,s.gasPhiRhoUy,s.gasPhiRhoUz,s.gasPhiRhoE})ck(field[0]==0&&field[1]==0,"actual two-face periodic bulk average incomplete");"""}
+    compile_probe(tmp_path,audited_fixture()+'\nint main(){State s;initialise(s);'+bodies[case]+'}')
 
-def test_required_courant_wave_nan_is_reported(tmp_path):
-    compile_probe(tmp_path,fixture()+r'''
-int main(){State s;initialise(s);s.gasSpecies.soundSpeed[0]=std::numeric_limits<Real>::quiet_NaN();threadIdx.x=0;computeGasCourantFieldKernel(&s,.01);ck(s.gasSpecies.faceStatus[0]!=0,"fmax hid required NaN wave speed");}
-''')
+@pytest.mark.parametrize('both_nan',[False,True])
+def test_courant_wave_nan_retains_original_fmax_and_ofgreat_fallback(tmp_path,both_nan):
+    compile_probe(tmp_path,fixture()+r"""
+int main(){State s;initialise(s);s.gasSpecies.soundSpeed[0]=std::numeric_limits<Real>::quiet_NaN();if(BOTH)s.gasSpecies.soundSpeed[1]=std::numeric_limits<Real>::quiet_NaN();s.gasPhiRhoE[0]=-77;
+const Real expected=BOTH?OfGreat:s.gasSpecies.soundSpeed[1]*clampMin(s.magSf[0],OfSmall);threadIdx.x=0;computeGasCourantFieldKernel(&s,.01);ck(s.gasPhiRhoE[0]==expected,"original required spectral formula/fallback changed");ck(s.gasSpecies.faceStatus[0]==0,"original wave fallback gained a refusal");}
+""".replace('BOTH','true' if both_nan else 'false'))
 
 def test_large_courant_and_subsmall_time_keep_actual_values(tmp_path):
     compile_probe(tmp_path,fixture()+r'''
@@ -160,9 +168,21 @@ const Real R=ugkwp::mixtureGasConstant(Y,s.gasSpecies.thermo);ck(std::isfinite(o
 ''')
 
 @pytest.mark.parametrize('field',['gasPhiRhoUx','gasSpecies.flux'])
-def test_periodic_required_average_overflow_is_error(tmp_path,field):
-    body=f'''s.nFaces=2;s.nInternalFaces=0;s.facePeriodicPair[0]=1;s.facePeriodicPair[1]=0;
+@pytest.mark.parametrize('strict',[False,True])
+def test_periodic_numeric_average_retains_strict_prefix_and_terminal_writes(tmp_path,field,strict):
+    body=f"""s.nFaces=2;s.nInternalFaces=0;s.facePeriodicPair[0]=1;s.facePeriodicPair[1]=0;
 s.{field}[0]=std::numeric_limits<Real>::max();s.{field}[1]=-std::numeric_limits<Real>::max();
-const Real before=s.gasPhiRho[0];threadIdx.x=0;enforcePeriodicGasFluxAntisymmetryKernel(&s);
-ck(s.gasSpecies.faceStatus[0]!=0&&s.gasSpecies.faceStatus[1]!=0&&s.gasPhiRho[0]==before,"required periodic average overflow published");'''
+threadIdx.x=0;enforcePeriodicGasFluxAntisymmetryKernel(&s,{'true' if strict else 'false'});
+for(auto bulk:{{s.gasPhiRho,s.gasPhiRhoUy,s.gasPhiRhoUz,s.gasPhiRhoE}})ck(bulk[0]==0&&bulk[1]==0,"periodic unchanged channels lost their actual average");
+"""
+    if strict and field=='gasPhiRhoUx':
+        body+='ck(s.gasSpecies.faceStatus[0]==0&&s.gasSpecies.faceStatus[1]==0,"original strict bulk normal-return status changed");'
+    else:
+        body+='ck(s.gasSpecies.faceStatus[0]!=0&&s.gasSpecies.faceStatus[1]!=0,"numeric periodic certificate lost");'
+    if field=='gasPhiRhoUx':
+        body+='ck(std::isinf(s.gasPhiRhoUx[0])&&s.gasPhiRhoUx[0]>0&&std::isinf(s.gasPhiRhoUx[1])&&s.gasPhiRhoUx[1]<0,"actual periodic bulk overflow not published");'
+    elif strict:
+        body+='ck(s.gasSpecies.flux[0]==std::numeric_limits<Real>::max()&&s.gasSpecies.flux[1]==-std::numeric_limits<Real>::max(),"strict failed species prefix unexpectedly published");'
+    else:
+        body+='ck(std::isinf(s.gasSpecies.flux[0])&&s.gasSpecies.flux[0]>0&&std::isinf(s.gasSpecies.flux[1])&&s.gasSpecies.flux[1]<0&&s.gasSpecies.flux[2]==0&&s.gasSpecies.flux[3]==0,"actual terminal periodic species overflow incomplete");'
     compile_probe(tmp_path,fixture()+'\nint main(){State s;initialise(s);'+body+'}')

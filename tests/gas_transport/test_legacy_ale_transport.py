@@ -49,14 +49,18 @@ for(int c=0;c<2;++c){threadIdx.x=c;applySstFluxAndSourceKernel(&a,dt);applySstFl
 ''')
 
 
-def test_legacy_invalid_geometry_and_flux_fail_transactionally(tmp_path):
-    compile_probe(tmp_path, fixture()+r'''
+@pytest.mark.parametrize('strict',[False,True])
+def test_legacy_numeric_geometry_flux_terminal_and_strict_routes(tmp_path,strict):
+    compile_probe(tmp_path, fixture()+r"""
 int main(){State s;initialise(s);Real oldV[2]={1,1},newV[2]={Real(1.1),Real(.9)},sweeps[3]={Real(.1),0,0};const Real dt=Real(.001);moving(s,oldV,newV,sweeps,dt);
-Real before[5]={s.rho[0],s.rhoUx[0],s.rhoUy[0],s.rhoUz[0],s.rhoE[0]};
-threadIdx.x=0;applyGasFluxDivergenceByCellKernel(&s,Real(.002));ck(s.gasSpecies.cellStatus[0]==0,"finite interval difference refused");for(int k=0;k<5;++k)before[k]*=oldV[0]/newV[0];
-s.gasSpecies.cellStatus[0]=0;s.gasPhiRhoE[0]=std::numeric_limits<Real>::quiet_NaN();applyGasFluxDivergenceByCellKernel(&s,dt);ck(s.gasSpecies.cellStatus[0]==int(ugkwp::GasTransportCode::NonFiniteState),"legacy nonfinite flux not rejected");
-Real after[5]={s.rho[0],s.rhoUx[0],s.rhoUy[0],s.rhoUz[0],s.rhoE[0]};ck(std::memcmp(before,after,sizeof before)==0,"rejected moving update published state");}
-''')
+threadIdx.x=0;applyGasFluxDivergenceByCellKernel(&s,Real(.002),STRICT);ck(s.gasSpecies.cellStatus[0]==0,"finite interval difference refused");
+const Real before[5]={s.rho[0],s.rhoUx[0],s.rhoUy[0],s.rhoUz[0],s.rhoE[0]};s.gasPhiRhoE[0]=std::numeric_limits<Real>::quiet_NaN();applyGasFluxDivergenceByCellKernel(&s,dt,STRICT);ck(s.gasSpecies.cellStatus[0]==int(ugkwp::GasTransportCode::NonFiniteState),"legacy numeric certificate lost");
+Real after[5]={s.rho[0],s.rhoUx[0],s.rhoUy[0],s.rhoUz[0],s.rhoE[0]};
+if(STRICT)ck(std::memcmp(before,after,sizeof before)==0,"strict moving retry published state");
+else{for(int k=0;k<4;++k)ck(after[k]==before[k]*(oldV[0]/newV[0]),"terminal moving bulk formula incomplete");ck(std::isnan(after[4]),"terminal moving energy formula was not evaluated");}
+// True missing consumed backing remains an error in both routes.
+s.gasGeometry.newVolume=nullptr;applyGasFluxDivergenceByCellKernel(&s,dt,STRICT);const Real missing[5]={s.rho[0],s.rhoUx[0],s.rhoUy[0],s.rhoUz[0],s.rhoE[0]};ck(s.gasSpecies.cellStatus[0]==int(ugkwp::GasTransportCode::InvalidGeometry)&&std::memcmp(after,missing,sizeof after)==0,"missing volume backing was hidden by terminal continuation");}
+""".replace('STRICT','true' if strict else 'false'))
 
 
 def test_legacy_moving_cfl_guards_missing_geometry_and_uses_smaller_volume(tmp_path):
@@ -78,10 +82,10 @@ def test_transaction_preflight_applies_to_null_species_legacy_host(tmp_path):
 #include "gasTransport/GasStateView.H"
 struct SpeciesTag {static constexpr int speciesCount=2;ugkwp::GasMode mode=ugkwp::GasMode::SingleLegacy;};
 struct LegacyHost:IndependentHost{SpeciesTag gasSpecies;double*V=nullptr;};
-template<class S,class T>void advanceGasChemistryKernel(S*,T,const double*){trace.push_back("unexpected-chemistry");}
-template<class S>void computeGasCourantFieldKernel(S*,double){trace.push_back("wave-speed");}
-template<class S>void computeGasConvectiveCourantByCellKernel(S*,double){trace.push_back("courant");}
-template<class S>void computeGasDiffusionNumberKernel(S*,double,double){trace.push_back("diffusion-bound");}
+template<class S,class T>void advanceGasChemistryKernel(S*,T,const double*,bool nativeRefinement=false){checkNativeOwner(nativeRefinement);trace.push_back("unexpected-chemistry");}
+template<class S>void computeGasCourantFieldKernel(S*,double,bool nativeRefinement=false){checkNativeOwner(nativeRefinement);trace.push_back("wave-speed");}
+template<class S>void computeGasConvectiveCourantByCellKernel(S*,double,bool nativeRefinement=false){checkNativeOwner(nativeRefinement);trace.push_back("courant");}
+template<class S>void computeGasDiffusionNumberKernel(S*,double,double,bool nativeRefinement=false){checkNativeOwner(nativeRefinement);trace.push_back("diffusion-bound");}
 struct Policy {
  static const double*stageVolumes(LegacyHost*h,bool){return h->V;}
  static int captureChemistryAudit(LegacyHost*,bool){return 1;}
