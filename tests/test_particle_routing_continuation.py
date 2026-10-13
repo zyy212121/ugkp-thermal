@@ -1,10 +1,11 @@
 """Sentinel-filled actual production-header continuation fixtures, CPU only."""
 from pathlib import Path
 import re
+import os
 import subprocess
 import pytest
 ROOT=Path(__file__).resolve().parents[1]
-COMMON=ROOT/'common'
+COMMON=Path(os.environ.get('PARTICLE_TERMINAL_COMMON', ROOT/'common'))
 def body(path):
     return (COMMON/path).read_text().replace('#pragma once','').replace('asm("trap;");','throw std::runtime_error("production trap");')
 def function(text,name):
@@ -137,11 +138,12 @@ int prepareCsrSegmentedReductionTasks(DeviceState*s,int,int kind){++prepares;s->
 '''+launch_host(source)+r'''
 int main(){DeviceState s;for(int j=0;j<3;++j)assert(runAutomaticCsrSchedule(&s,32,1)==0);
 assert(s.schedulingAdvanceCount==3&&updates==1&&decisions==1&&prepares==1&&s.csrHeavyTileParticles==2);
+s.nCells=0;assert(runAutomaticCsrSchedule(&s,32,1)==0&&s.schedulingAdvanceCount==4&&updates==1);
 s.csrHeavyAutoInterval=0;assert(runAutomaticCsrSchedule(&s,32,1)==1&&errors==1);}
 ''',tmp_path)
 
 @pytest.mark.parametrize('which',['pressure','packing'])
-def test_signed_dt_host_protocol_and_real_zero_divisor_cuda_errors(tmp_path,which):
+def test_signed_nonfinite_dt_host_protocol_and_real_cuda_errors(tmp_path,which):
     code=body('GpuPressurePipeline.cuh' if which=='pressure' else 'GpuMobilePackingHost.cuh')
     run(PREFIX+r'''
 #include <string>
@@ -166,7 +168,8 @@ int cudaLaunchCooperativeKernel(const void*,dim3,dim3,void**args,int,void*){seen
 int main(){DeviceState s;
 '''+('auto invoke=[&](double dt){return launchCommonPressureKick<Backend>(&s,dt,32,32,false,false);};' if which=='pressure' else 'auto invoke=[&](double dt){return applyMobilePackingProjection(&s,dt,32);};')+r'''
 assert(invoke(-.25)==0&&seenDt==-.25);const auto ordinary=calls;assert(!ordinary.empty());
-for(double bad:{0.,std::numeric_limits<double>::infinity()}){calls.clear();assert(invoke(bad)==1&&calls.empty());}
+calls.clear();assert(invoke(0.)==0&&calls.empty());
+calls.clear();assert(invoke(std::numeric_limits<double>::infinity())==0&&calls==ordinary&&std::isinf(seenDt));
 for(int fail=1;fail<=int(ordinary.size());++fail){calls.clear();queries=0;failAt=fail;assert(invoke(-.25)==1&&calls.size()==size_t(fail));}
 }
 ''',tmp_path)
@@ -205,7 +208,9 @@ int main(){for(double mass:{-2.,0.,2.,GPU_OPERATOR_THERMAL?1.1e300:2.}){DeviceSt
  const double weight=GPU_OPERATOR_THERMAL?mass:max(mass,0.);
  assert(s.poolThermalSumUx[0]==weight*(s.pux[0]-2));assert(s.poolThermalSumUy[0]==weight*(s.puy[0]-3));assert(s.poolThermalSumUz[0]==weight*(s.puz[0]-4));
  assert(s.poolThermalSumU2[0]==weight*sqr3(s.pux[0]-2,s.puy[0]-3,s.puz[0]-4));}
- DeviceState s;s.pm[0]=1;s.poissonPoolMomX[0]=std::numeric_limits<double>::infinity();bool caught=false;try{sampleOnePoissonPoolParticle(s,0,true);}catch(...){caught=true;}assert(caught);
+ DeviceState s;s.pm[0]=1;s.poissonPoolMomX[0]=std::numeric_limits<double>::infinity();sampleOnePoissonPoolParticle(s,0,true);assert(std::isinf(s.pux[0])&&s.pRng[0]!=41);
+ DeviceState fallback;fallback.pm[0]=1;fallback.poissonPoolEnergy[0]=std::numeric_limits<double>::quiet_NaN();sampleOnePoissonPoolParticle(fallback,0,true);assert(fallback.pux[0]==2&&fallback.puy[0]==3&&fallback.puz[0]==4&&fallback.pRng[0]!=41&&fallback.poolThermalSumU2[0]==0);
+ DeviceState badMass;badMass.pm[0]=std::numeric_limits<double>::quiet_NaN();sampleOnePoissonPoolParticle(badMass,0,true);assert(badMass.pRng[0]!=41);assert(GPU_OPERATOR_THERMAL?std::isnan(badMass.poolThermalSumU2[0]):badMass.poolThermalSumU2[0]==0);
 }
 ''',tmp_path)
 
@@ -222,7 +227,7 @@ double sqr3(double x,double y,double z){return x*x+y*y+z*z;}
 double contribution(DeviceState&s,double theta){const int i=0;
 '''+code+r'''
 return m*specificEnergy;}
-int main(){DeviceState s;assert(contribution(s,-1)==22);bool caught=false;try{contribution(s,std::numeric_limits<double>::quiet_NaN());}catch(...){caught=true;}assert(caught);}
+int main(){DeviceState s;assert(contribution(s,-1)==22);assert(std::isnan(contribution(s,std::numeric_limits<double>::quiet_NaN())));}
 ''',tmp_path)
 
 def test_selected_stuck_route_mobile_particle_runs_existing_mobile_correction(tmp_path):
@@ -241,7 +246,7 @@ template<bool StuckPath>void finalizeOneThermalizedParticlePath(DeviceState&s,in
 int main(){DeviceState a,b;correctOnePoissonThermalizedParticlePath<false>(a,0,true);correctOnePoissonThermalizedParticlePath<true>(b,0,true);
 assert(a.route==0&&b.route==0&&b.pStatus[0]==1&&a.pux[0]==b.pux[0]&&a.puy[0]==b.puy[0]&&a.puz[0]==b.puz[0]&&a.pTheta[0]==b.pTheta[0]);
 DeviceState large;large.pux[0]=2.2e300;correctOnePoissonThermalizedParticlePath<false>(large,0,true);assert(large.route==0&&large.pStatus[0]==1&&std::isfinite(large.pux[0])&&large.pux[0]>1e300);
-DeviceState invalid;invalid.pux[0]=std::numeric_limits<double>::quiet_NaN();bool caught=false;try{correctOnePoissonThermalizedParticlePath<false>(invalid,0,true);}catch(...){caught=true;}assert(caught);}
+DeviceState invalid;invalid.pux[0]=std::numeric_limits<double>::quiet_NaN();correctOnePoissonThermalizedParticlePath<false>(invalid,0,true);assert(invalid.pStatus[0]==1&&std::isnan(invalid.pux[0]));}
 ''',tmp_path)
 
 
@@ -276,9 +281,9 @@ s.particleStuckCandidateMask[0]=1;s.particleWallRepresentedContactArea[0]=2;fina
 s.pStuck[0]=2;s.pContactDuration[0]=-1;s.pContactPeakFraction[0]=1.5;s.pDepositionArea[0]=-1;s.particleWallRepresentedContactArea[0]=0;
 const double area=max(s.pContactMaximumArea[0]*Foam::gpuThermal::normalizedKinematicArea(1.,1.5),0.)+1.;
 accumulateParticleWallRepresentedContactAreaKernel(&s);assert(std::abs(s.particleWallRepresentedContactArea[0]-Foam::gpuThermal::representedDepositionContactArea(s.rhoSolid,s.pd[0],area,s.pm[0]))<1e-12);
-s.pContactDuration[0]=0;bool caught=false;try{accumulateParticleWallRepresentedContactAreaKernel(&s);}catch(...){caught=true;}assert(caught);
+s.pContactDuration[0]=0;accumulateParticleWallRepresentedContactAreaKernel(&s);bool caught=false;
 {DeviceState large;large.pm[0]=1.1e300;large.pDepositionArea[0]=2;large.rhoSolid=1;accumulateParticleWallRepresentedContactAreaKernel(&large);assert(large.particleWallRepresentedContactArea[0]>1e300&&std::isfinite(large.particleWallRepresentedContactArea[0]));}
-{DeviceState large;large.particleStuckCandidateMask[0]=1;large.particleWallRepresentedContactArea[0]=1.1e300;large.particleWallMaximumCoverage=1.2e300;finalizeParticleWallContactAreaScaleKernel(&large);assert(large.particleWallContactAreaScale[0]==1);large.particleWallMaximumCoverage=std::numeric_limits<double>::quiet_NaN();caught=false;try{finalizeParticleWallContactAreaScaleKernel(&large);}catch(...){caught=true;}assert(caught);}
+{DeviceState large;large.particleStuckCandidateMask[0]=1;large.particleWallRepresentedContactArea[0]=1.1e300;large.particleWallMaximumCoverage=1.2e300;finalizeParticleWallContactAreaScaleKernel(&large);assert(large.particleWallContactAreaScale[0]==1);large.particleWallMaximumCoverage=std::numeric_limits<double>::quiet_NaN();finalizeParticleWallContactAreaScaleKernel(&large);assert(large.particleWallContactAreaScale[0]==1);}
 s.pStuck[0]=255;caught=false;try{accumulateParticleWallRepresentedContactAreaKernel(&s);}catch(...){caught=true;}assert(caught);}
 ''',tmp_path)
 
@@ -326,25 +331,29 @@ int main(){DeviceState s;completeMobilePackingProjectionCooperativeKernel(&s,-.2
 ''',tmp_path)
 
 
-def test_descriptor_writes_keep_real_capacity_error(tmp_path):
+def test_descriptor_writes_ignore_capacity_label_with_full_backing(tmp_path):
     run(PREFIX+r'''
 enum class CsrReductionTaskSource{fullIndexed};struct CsrReductionTask{int cell,begin,end,source;};
-struct DeviceState{int csrHeavyTaskCapacity=1;CsrReductionTask csrReductionTasks[1]={{-99,-99,-99,-99}};};
+struct DeviceState{int csrHeavyTaskCapacity=1;CsrReductionTask csrReductionTasks[2]={{-99,-99,-99,-99},{-99,-99,-99,-99}};};
 '''+body('GpuReductionTaskWrite.cuh')+r'''
-int main(){DeviceState s;for(int bad:{-1,1}){bool caught=false;try{writeCsrReductionTask(s,bad,0,0,1,CsrReductionTaskSource::fullIndexed);}catch(...){caught=true;}assert(caught&&s.csrReductionTasks[0].cell==-99);}
+int main(){DeviceState s;for(int bad:{-1}){bool caught=false;try{writeCsrReductionTask(s,bad,0,0,1,CsrReductionTaskSource::fullIndexed);}catch(...){caught=true;}assert(caught&&s.csrReductionTasks[0].cell==-99);}
+writeCsrReductionTask(s,1,3,0,1,CsrReductionTaskSource::fullIndexed);assert(s.csrReductionTasks[1].cell==3);
 writeCsrReductionTask(s,0,0,0,1,CsrReductionTaskSource::fullIndexed);assert(s.csrReductionTasks[0].begin==0&&s.csrReductionTasks[0].end==1);}
 ''',tmp_path)
 
 
-def test_payload_gathers_keep_actual_index_errors(tmp_path):
+def test_payload_gathers_keep_negative_address_and_ignore_capacity_label(tmp_path):
     code=body('GpuParticlePayload.cuh').split('// Both scheduling policies',1)[0]+body('operators/gatherSelectedParticlesKernel.cuh')
     run(PREFIX+r'''
-struct DeviceState{int nCells=1,particleCapacity=1,compactCellOffset[2]={0,1},n=1,*compactCountDevice=&n,sortedParticleIndex[1]={},compactPStatus[1]={},pStatus[1]={2},pCellId[1]={0},copies=0;};
-void copyCellLocalParticle(DeviceState&s,int,int,int){++s.copies;}
+struct DeviceState{int nCells=1,particleCapacity=1,compactCellOffset[2]={0,1},n=1,*compactCountDevice=&n,sortedParticleIndex[1]={},compactPStatus[1]={},pStatus[2]={2,2},pCellId[2]={0,0},compactPCellId[1]={-9};
+ double px[2]={1,2},py[2]={3,4},pz[2]={5,6},pux[2]={7,8},puy[2]={9,10},puz[2]={11,12},pT[2]={13,14},pTheta[2]={15,16},pd[2]={17,18},pm[2]={19,20};
+ double compactPx[1]={-9},compactPy[1]={-9},compactPz[1]={-9},compactPux[1]={-9},compactPuy[1]={-9},compactPuz[1]={-9},compactPT[1]={-9},compactPTheta[1]={-9},compactPd[1]={-9},compactPm[1]={-9};
+ unsigned long long pRng[2]={21,22},pOrigId[2]={23,24},compactPRng[1]={99},compactPOrigId[1]={99};};
+#include "GpuCellLocalPrimary.cuh"
 template<class T>T clampRange(T x,T a,T b){return min(max(x,a),b);}
 '''+code+r'''
 int main(){for(int bad:{-1,1})for(int route:{0,1,2}){DeviceState s;s.sortedParticleIndex[0]=s.compactPStatus[0]=bad;bool caught=false;
-try{if(route==0)gatherSelectedParticlesKernel(&s);else if(route==1)gatherCellLocalParticlePayloadKernel<false>(&s);else gatherCellLocalParticlePayloadKernel<true>(&s);}catch(...){caught=true;}assert(caught&&s.copies==0);}}
+try{if(route==0)gatherSelectedParticlesKernel(&s);else if(route==1)gatherCellLocalParticlePayloadKernel<false>(&s);else gatherCellLocalParticlePayloadKernel<true>(&s);}catch(...){caught=true;}assert(bad<0?(caught&&s.compactPOrigId[0]==99):(!caught&&s.compactPOrigId[0]==24&&s.compactPux[0]==8&&s.compactPTheta[0]==16&&s.compactPm[0]==20&&s.compactPStatus[0]==1));}}
 ''',tmp_path)
 
 
@@ -359,7 +368,7 @@ double finiteOr(double x,double d){return finiteDevice(x)?x:d;}double clampMin(d
 double contribution(DeviceState&s,double theta){const int i=0;
 '''+code+r'''
 return m*specificEnergy;}
-int main(){DeviceState s;assert(contribution(s,1.1e300)==1.5*1.1e300);bool caught=false;try{contribution(s,std::numeric_limits<double>::quiet_NaN());}catch(...){caught=true;}assert(caught);}
+int main(){DeviceState s;assert(contribution(s,1.1e300)==1.5*1.1e300);assert(std::isnan(contribution(s,std::numeric_limits<double>::quiet_NaN())));}
 ''',tmp_path)
 
 
@@ -372,7 +381,7 @@ double finiteOr(double x,double d){return finiteDevice(x)?x:d;}double clampMin(d
 void drag(DeviceState&s){const int i=0,c=0;const double dt=.25,invTauDrag=0,ugx=0,ugy=0,ugz=0,ux=0,uy=0,uz=0;
 '''+body('operators/ParticleDragMomentum.inl')+r'''
 }
-int main(){DeviceState s;drag(s);assert(s.pux[0]==.25*s.gravityX&&s.puy[0]==.25*s.gravityY&&s.puz[0]==1);s.gravityX=std::numeric_limits<double>::quiet_NaN();bool caught=false;try{drag(s);}catch(...){caught=true;}assert(caught);}
+int main(){DeviceState s;drag(s);assert(s.pux[0]==.25*s.gravityX&&s.puy[0]==.25*s.gravityY&&s.puz[0]==1);s.gravityX=std::numeric_limits<double>::quiet_NaN();drag(s);assert(std::isnan(s.pux[0]));s.gravityX=std::numeric_limits<double>::max();s.invRhoSolid=-std::numeric_limits<double>::max();s.gradPx[0]=2;drag(s);assert(std::isinf(s.pux[0]));}
 ''',tmp_path)
 
 

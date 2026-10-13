@@ -80,7 +80,7 @@ def test_cuda_assembly_uses_one_bulk_source_and_old_enthalpy():
     assert "s.particleGasHeatTransferModelId != 0" in inputs
     assert "gasConductanceWK = __shfl_sync(mask, gasConductanceWK, 0, 8)" in inputs
     wrappers = (ROOT / "common/wall/GpuColdWall1DDevice.cuh").read_text()
-    assert wrappers.count('#include "GpuColdWall1DAdvance.inl"') == 2
+    assert wrappers.count('#include "GpuColdWall1DAdvance.inl"') == 1
     for application, backend in [("FSH", "private_backend"), ("CHT", "gpu")]:
         caller = (ROOT / "applications" / application / backend / "GpuResidentStrict.cu").read_text()
         assert '#include "../../../common/wall/GpuColdWall1DDevice.cuh"' in caller

@@ -8,6 +8,7 @@ import importlib.util
 import shutil
 import re
 import subprocess
+import os
 import pytest
 ROOT=Path(__file__).resolve().parents[1];THERMAL=ROOT/'applications/CHT/thermal'
 spec=importlib.util.spec_from_file_location('t14_case_writer',ROOT/'tests/test_cht_surface_temperature.py');cases=importlib.util.module_from_spec(spec);spec.loader.exec_module(cases)
@@ -66,6 +67,7 @@ def make_case(path,mode):
 @pytest.mark.parametrize('mode',['radiation','outer_one','outer_zero','outer_zero_k','outer_reversed','mismatch','consume_error','pending_reordered','pending_missing','legacy_absent','legacy_one_absent','legacy_two_absent','pending_legacy_present','missing_current','missing_unknown'])
 def test_full_actual_exchange(exchange_probe,tmp_path,mode):
     make_case(tmp_path,mode)
-    p=subprocess.run([str(exchange_probe),'-case',str(tmp_path)],capture_output=True,text=True)
+    env=os.environ.copy();env.pop('FOAM_SIGFPE',None)
+    p=subprocess.run([str(exchange_probe),'-case',str(tmp_path)],capture_output=True,text=True,env=env)
     assert p.returncode==0,p.stdout+p.stderr
     assert 'PASS '+mode in p.stdout

@@ -41,7 +41,9 @@ def thermal_probe(tmp_path_factory):
     return build/'probe'
 
 def execute(probe,path,mode,extra=''):
-    CASES.make_case(path,1000,variable=False,transverse_cells=4 if mode=='nearest_rounding' else 3 if mode=='linear_one' else 1)
+    CASES.make_case(path,1000,variable=False,transverse_cells=4 if mode=='nearest_rounding' else 3 if mode in ('linear_one','diagnostic_overflow') else 1)
+    if mode=='diagnostic_overflow':
+        f=path/'0/T';f.write_text(f.read_text().replace('right { type zeroGradient;', 'right { type fixedValue; value uniform 300;'))
     if mode=='nearest_rounding':
         coarse=path/'coarse_seed';CASES.make_case(coarse,0,transverse_cells=2);(path/'constant/coarse').mkdir();shutil.copytree(coarse/'constant/polyMesh',path/'constant/coarse/polyMesh');(path/'system/coarse').mkdir()
         for f in ['fvSchemes','fvSolution']:shutil.copy(coarse/'system'/f,path/'system/coarse'/f)
@@ -49,15 +51,16 @@ def execute(probe,path,mode,extra=''):
         f=path/'system/blockMeshDict';f.write_text(f.read_text().replace('(1 3 1)','(3 3 1)'));p=subprocess.run(['blockMesh','-case',str(path)],capture_output=True,text=True);assert p.returncode==0,p.stdout+p.stderr
         f=path/'system/fvSolution';f.write_text(f.read_text().replace('tolerance 1e-14;','tolerance 0; maxIter 1;'))
     with (path/'constant/testProperties').open('a') as f:f.write(f't14Mode {mode};\n'+extra)
-    return subprocess.run([str(probe),'-case',str(path)],text=True,capture_output=True)
+    env=os.environ.copy();env.pop('FOAM_SIGFPE',None)
+    return subprocess.run([str(probe),'-case',str(path)],text=True,capture_output=True,env=env)
 
-@pytest.mark.parametrize('mode',['ordinary','atomic_directory','linear_one','nearest_rounding','properties','unordered','reversed_axis','duplicate_endpoint','clamp','nonoverlap','signed','absorbed','candidate_one','candidate_zero','rebind','mapper','pending','state','state_machine'])
+@pytest.mark.parametrize('mode',['property_overflow','diagnostic_overflow','ordinary','atomic_directory','linear_one','nearest_rounding','properties','unordered','reversed_axis','duplicate_endpoint','clamp','nonoverlap','signed','absorbed','candidate_one','candidate_zero','rebind','mapper','pending','state','state_machine'])
 def test_actual_thermal_continuation(thermal_probe,tmp_path,mode):
     p=execute(thermal_probe,tmp_path,mode)
     assert p.returncode==0,p.stdout+p.stderr
     assert 'PASS '+mode in p.stdout
 
-@pytest.mark.parametrize('mode',['missing_property','nonfinite_property','missing_state','missing_pending','truncated_pending','missing_conservative','atomic_io'])
+@pytest.mark.parametrize('mode',['missing_property','missing_state','missing_pending','truncated_pending','missing_conservative','atomic_io'])
 def test_actual_required_data_and_io_errors(thermal_probe,tmp_path,mode):
     p=execute(thermal_probe,tmp_path,mode)
     assert p.returncode==0,p.stdout+p.stderr

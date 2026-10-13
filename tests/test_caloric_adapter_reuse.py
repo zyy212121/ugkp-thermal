@@ -13,7 +13,8 @@ def test_adapter_reuse_exact_secants(tmp_path):
     counts = []
     for label, source in [('base', base), ('current', (ROOT / OWNER).read_text())]:
         header = tmp_path / (label + '.H')
-        needle = 'CHMT_HD explicit GasThermoAdapter(const SpeciesThermo* input) {'
+        needle = ('CHMT_HD explicit GasThermoAdapter(const SpeciesThermo* input) {' if label == 'base'
+                  else 'CHMT_HD explicit GasThermoAdapter(const SpeciesThermo* input,bool terminal=false) {')
         assert source.count(needle) == 1
         header.write_text(source.replace(needle, needle + ' ++adapterConstructions;'))
         # The historical adapter is paired with its historical caloric users;
