@@ -262,107 +262,38 @@ def parse_particle_restart(path: Path):
             raise ValueError("particle restart header is not ASCII") from error
         if header.startswith("UGKP_PARTICLES_SCHEMA3"):
             return _parse_schema3(path, header)
-        tokens = header.split()
-        if len(tokens) != 3 or tokens[0] not in (
-            "UGKP_FSH_PARTICLES_SCHEMA2_BIN",
-            "UGKP_FSH_PARTICLES_SCHEMA3_BIN",
-            "UGKP_FSH_PARTICLES_SCHEMA4_BIN",
-            "UGKP_FSH_PARTICLES_SCHEMA5_BIN",
-            "UGKP_FSH_PARTICLES_SCHEMA6_BIN",
-        ):
-            raise ValueError("unsupported particle restart format: " + header)
-        has_peak_fraction = tokens[0] in (
-            "UGKP_FSH_PARTICLES_SCHEMA3_BIN",
-            "UGKP_FSH_PARTICLES_SCHEMA4_BIN",
-            "UGKP_FSH_PARTICLES_SCHEMA5_BIN",
-            "UGKP_FSH_PARTICLES_SCHEMA6_BIN",
-        )
-        has_cold_profile = tokens[0] in (
-            "UGKP_FSH_PARTICLES_SCHEMA4_BIN",
-            "UGKP_FSH_PARTICLES_SCHEMA5_BIN",
-            "UGKP_FSH_PARTICLES_SCHEMA6_BIN",
-        )
-        has_cold_2d_profile = tokens[0] in ("UGKP_FSH_PARTICLES_SCHEMA5_BIN", "UGKP_FSH_PARTICLES_SCHEMA6_BIN")
-        time_code = "d" if tokens[0] == "UGKP_FSH_PARTICLES_SCHEMA6_BIN" else "f"
-        count = int(tokens[1])
-        maximum_chunk = int(tokens[2])
-        if count < 0 or maximum_chunk <= 0:
-            raise ValueError("invalid particle restart count or chunk bound")
-        formats = (
-            ("px", "d"),
-            ("py", "d"),
-            ("pz", "d"),
-            ("pux", "d"),
-            ("puy", "d"),
-            ("puz", "d"),
-            ("temperature", "d"),
-            ("contact_age", "d"),
-            ("diameter", "d"),
-            ("mass", "d"),
-            ("cell", "i"),
-            ("status", "i"),
-            ("rng", "Q"),
-            ("original_id", "Q"),
-            ("wall_state", "B"),
-            ("wall_face", "i"),
-            ("area", "f"),
-            ("duration", time_code),
-            ("maximum_area", "f"),
-        )
-        if has_peak_fraction:
-            formats += (("peak_fraction", "f"),)
-        arrays = {name: [] for name, _ in formats}
-        arrays["cold_node_specific_enthalpy"] = []
-        arrays["cold_frozen_area"] = []
-        arrays["cold_contact_age"] = []
-        arrays["cold_2d_node_specific_enthalpy"] = []
-        arrays["cold_2d_ring_contact_age"] = []
-        arrays["cold_2d_frozen_area"] = []
-        loaded = 0
-        while loaded < count:
-            chunk = _read_values(stream, "I", 1)[0]
-            if chunk <= 0 or chunk > maximum_chunk or loaded + chunk > count:
-                raise ValueError("invalid particle restart chunk size")
-            for name, code in formats:
-                arrays[name].extend(_read_values(stream, code, chunk))
-            if has_cold_profile:
-                arrays["cold_node_specific_enthalpy"].extend(
-                    _read_values(stream, "f", chunk * AXIAL_NODE_COUNT)
-                )
-                _read_values(stream, "f", chunk * 8)
-                arrays["cold_frozen_area"].extend(
-                    _read_values(stream, "f", chunk)
-                )
-                arrays["cold_contact_age"].extend(
-                    _read_values(stream, time_code, chunk)
-                )
-            else:
-                arrays["cold_node_specific_enthalpy"].extend(
-                    [0.0] * (chunk * AXIAL_NODE_COUNT)
-                )
-                arrays["cold_frozen_area"].extend([0.0] * chunk)
-                arrays["cold_contact_age"].extend([0.0] * chunk)
-            if has_cold_2d_profile:
-                arrays["cold_2d_node_specific_enthalpy"].extend(
-                    _read_values(stream, "f", chunk * COLD_2D_NODE_COUNT)
-                )
-                arrays["cold_2d_ring_contact_age"].extend(
-                    _read_values(stream, time_code, chunk * RADIAL_NODE_COUNT)
-                )
-                arrays["cold_2d_frozen_area"].extend(
-                    _read_values(stream, "f", chunk)
-                )
-            else:
-                arrays["cold_2d_node_specific_enthalpy"].extend(
-                    [0.0] * (chunk * COLD_2D_NODE_COUNT)
-                )
-                arrays["cold_2d_ring_contact_age"].extend(
-                    [0.0] * (chunk * RADIAL_NODE_COUNT)
-                )
-                arrays["cold_2d_frozen_area"].extend([0.0] * chunk)
-            loaded += chunk
-        if stream.read(1):
-            raise ValueError("trailing data in particle restart")
+        # Reuse the shipped thermal reader's exact historical/current widths.
+        import sys
+        sys.path.insert(0, str(Path(__file__).resolve().parent))
+        from fsh_restart_reader import iter_fsh_chunks
+        aliases = {"T": "temperature", "theta": "contact_age", "d": "diameter",
+                   "stuck": "wall_state", "contact_area": "area",
+                   "contact_duration": "duration", "contact_maximum_area": "maximum_area",
+                   "contact_peak_fraction": "peak_fraction",
+                   "cold2d_node_specific_enthalpy": "cold_2d_node_specific_enthalpy",
+                   "cold2d_ring_contact_age": "cold_2d_ring_contact_age",
+                   "cold2d_frozen_area": "cold_2d_frozen_area"}
+        arrays = {name: [] for name in ("temperature", "contact_age", "diameter",
+                  "original_id", "wall_state", "area", "duration", "maximum_area",
+                  "peak_fraction", "cold_node_specific_enthalpy", "cold_frozen_area",
+                  "cold_contact_age", "cold_2d_node_specific_enthalpy",
+                  "cold_2d_ring_contact_age", "cold_2d_frozen_area", "status")}
+        widths = {"cold_node_specific_enthalpy": AXIAL_NODE_COUNT,
+                  "cold_2d_node_specific_enthalpy": COLD_2D_NODE_COUNT,
+                  "cold_2d_ring_contact_age": RADIAL_NODE_COUNT}
+        count = 0
+        has_peak_fraction = True
+        for chunk in iter_fsh_chunks(path):
+            values = {aliases.get(name, name): value for name, value in chunk.items()}
+            n = len(chunk["status"])
+            for name in arrays:
+                if name in values:
+                    arrays[name].extend(values[name].reshape(-1).tolist())
+                elif name == "peak_fraction":
+                    arrays[name].extend(0.5 if state in (2, 3) else 0.0 for state in chunk["stuck"])
+                else:
+                    arrays[name].extend([0.0] * (n * widths.get(name, 1)))
+            count += n
     return [
         ParticleState(
             temperature_k=arrays["temperature"][i],
