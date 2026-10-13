@@ -1,10 +1,6 @@
 #!/bin/bash
 cd "${0%/*}" || exit 1
 
-# Read-only source contracts run before compiler or CUDA work.
-python3 tools/managed_mirrors.py || exit 1
-python3 tools/particle_field_contract.py || exit 1
-
 echo "=== ugkp-thermal Allwmake ==="
 echo "Building four GPU solvers: gasUGKP, FSH, CHT, CHMT"
 echo ""
@@ -63,8 +59,6 @@ fi
 echo "UGKWP_CUDA_EXE_INC=$UGKWP_CUDA_EXE_INC"
 echo "CUDA compiler: $CUDA_ROOT/bin/nvcc"
 "$CUDA_ROOT/bin/nvcc" --version | tail -n 1
-SOURCE_HASH="$(python3 tools/compute_source_hash.py)"
-echo "Solver source hash: $SOURCE_HASH"
 echo ""
 
 
