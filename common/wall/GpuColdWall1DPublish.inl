@@ -14,8 +14,8 @@
     const double nextCarry = (oldCarry-storageChange)+meanIncrement;
     guessedTemperature = coldWallCarryTemperature(double(publishedEnthalpy)+nextCarry,
       s.coldWallSolidificationParameters);
-    if (!__all_sync(mask, publishedEnthalpy>0.0f && ::fabs(nextCarry)<=DBL_MAX
-        && guessedTemperature>0.0 && guessedTemperature<=DBL_MAX)) return false;
+    if (!__all_sync(mask, ::fabs(nextCarry)<=DBL_MAX
+        && Foam::gpuThermal::finiteColdWallValue(guessedTemperature))) return false;
 #endif
     ColdWallThermalReal connectedFraction = coldWall1DSolidFractionFromKnownTemperature
     (
@@ -105,15 +105,15 @@
 #ifdef GPU_PAIRED_PARTICLE_HEAT
         publishedEnthalpy;
 #else
-        static_cast<float>(candidateEnthalpy);
+        candidateEnthalpy;
 #endif
     s.pColdRingSolidMass[ringBase + lane] =
-        static_cast<float>(ringSolidMass);
+        ringSolidMass;
     if (lane == 0)
     {
         s.pColdContactAge[particleI] =
             static_cast<GpuTime>(profileContactAgeS);
-        s.pColdFrozenArea[particleI] = static_cast<float>(frozenArea);
+        s.pColdFrozenArea[particleI] = frozenArea;
     }
 #ifdef GPU_PAIRED_PARTICLE_HEAT
     if (lane == 0) s.pThermalEnthalpyResidual[particleI] = nextCarry;
@@ -136,8 +136,6 @@
     wallEnergyJ = acceptedWallPower*deltaTSeconds;
     stateValid =
         Foam::gpuThermal::finiteColdWallValue(meanTemperatureK)
-     && meanTemperatureK > GPU_R(0.0)
      && Foam::gpuThermal::finiteColdWallValue(frozenFootprintAreaM2)
-     && frozenFootprintAreaM2 >= GPU_R(0.0)
      && Foam::gpuThermal::finiteColdWallValue(wallEnergyJ);
     return __all_sync(mask, stateValid);

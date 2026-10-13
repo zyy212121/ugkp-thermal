@@ -3,6 +3,7 @@
 #define GPU_THERMAL_GPU_WALL_INTERFACE_HEAT_H
 
 #include <cmath>
+#include <limits>
 #include <cfloat>
 
 #if defined(__CUDACC__)
@@ -19,12 +20,11 @@ namespace gpuThermal
 constexpr GpuReal wallInterfacePi =
     GPU_R(3.141592653589793238462643383279502884);
 
-GPU_WALL_INTERFACE_HD inline bool finiteWallInterfaceValue
-(
-    const GpuReal value
-) noexcept
+template<class Real>
+GPU_WALL_INTERFACE_HD inline bool finiteWallInterfaceValue(const Real value) noexcept
 {
-    return value == value && value >= -GPU_REAL_MAX && value <= GPU_REAL_MAX;
+    return value == value && value >= -std::numeric_limits<Real>::max()
+        && value <= std::numeric_limits<Real>::max();
 }
 
 GPU_WALL_INTERFACE_HD inline GpuReal wallInterfaceLog1pMinusX
@@ -59,43 +59,35 @@ GPU_WALL_INTERFACE_HD inline GpuReal wallInterfaceResistanceTimeIntegral
      || !finiteWallInterfaceValue(age1S)
      || !finiteWallInterfaceValue(baseResistanceM2KW)
      || !finiteWallInterfaceValue(wallEffusivityWsHalfM2K)
-     || age0S < GPU_R(0.0)
-     || age1S < age0S
-     || baseResistanceM2KW < GPU_R(0.0)
-     || !(wallEffusivityWsHalfM2K > GPU_R(0.0))
     )
     {
-        return -GPU_R(1.0);
+        return std::numeric_limits<GpuReal>::quiet_NaN();
     }
     const GpuTime deltaAge = age1S - age0S;
-    if (!(deltaAge > GPU_R(0.0)))
+    if (deltaAge == GPU_R(0.0))
     {
         return GPU_R(0.0);
     }
     if (!wallTransientResistance)
     {
-        return baseResistanceM2KW > GPU_R(0.0)
+        return baseResistanceM2KW != GPU_R(0.0)
           ? deltaAge/baseResistanceM2KW
-          : -GPU_R(1.0);
+          : std::numeric_limits<GpuReal>::quiet_NaN();
     }
     const GpuReal c = ::sqrt(wallInterfacePi)/wallEffusivityWsHalfM2K;
     const GpuTime root0 = ::sqrt(age0S);
     const GpuTime root1 = ::sqrt(age1S);
-    #if UGKWP_GPU_REAL_BITS == 32
-    const GpuTime rootDifference = deltaAge/(root1 + root0);
-#else
     const GpuTime rootDifference = root1 - root0;
-#endif
-    if (!(c > GPU_R(0.0)) || !finiteWallInterfaceValue(c))
+    if (!finiteWallInterfaceValue(c))
     {
-        return -GPU_R(1.0);
+        return std::numeric_limits<GpuReal>::quiet_NaN();
     }
-    if (!(baseResistanceM2KW > GPU_R(0.0)))
+    if (baseResistanceM2KW == GPU_R(0.0))
     {
         const GpuReal integral = GPU_R(2.0)*rootDifference/c;
-        return finiteWallInterfaceValue(integral) && integral >= GPU_R(0.0)
+        return finiteWallInterfaceValue(integral)
           ? integral
-          : -GPU_R(1.0);
+          : std::numeric_limits<GpuReal>::quiet_NaN();
     }
     const GpuReal x0 = c*root0;
     const GpuReal dx = c*rootDifference;
@@ -105,9 +97,9 @@ GPU_WALL_INTERFACE_HD inline GpuReal wallInterfaceResistanceTimeIntegral
         x0*ratioIncrement
       - baseResistanceM2KW*wallInterfaceLog1pMinusX(ratioIncrement);
     const GpuReal integral = GPU_R(2.0)*bracket/(c*c);
-    return finiteWallInterfaceValue(integral) && integral >= GPU_R(0.0)
+    return finiteWallInterfaceValue(integral)
       ? integral
-      : -GPU_R(1.0);
+      : std::numeric_limits<GpuReal>::quiet_NaN();
 }
 
 GPU_WALL_INTERFACE_HD inline GpuReal wallInterfaceConductanceTimeIntegral
@@ -128,16 +120,11 @@ GPU_WALL_INTERFACE_HD inline GpuReal wallInterfaceConductanceTimeIntegral
      || !finiteWallInterfaceValue(efficiency)
      || !finiteWallInterfaceValue(interfaceResistanceM2KW)
      || !finiteWallInterfaceValue(particleAdditionalResistanceM2KW)
-     || !(areaM2 >= GPU_R(0.0))
-     || !(efficiency > GPU_R(0.0))
-     || efficiency > GPU_R(1.0)
-     || interfaceResistanceM2KW < GPU_R(0.0)
-     || particleAdditionalResistanceM2KW < GPU_R(0.0)
     )
     {
-        return -GPU_R(1.0);
+        return std::numeric_limits<GpuReal>::quiet_NaN();
     }
-    if (!(areaM2 > GPU_R(0.0)))
+    if (areaM2 == GPU_R(0.0))
     {
         return GPU_R(0.0);
     }
@@ -152,11 +139,9 @@ GPU_WALL_INTERFACE_HD inline GpuReal wallInterfaceConductanceTimeIntegral
     const GpuReal conductanceIntegral =
         efficiency*areaM2*resistanceIntegral;
     return
-        resistanceIntegral >= GPU_R(0.0)
-     && finiteWallInterfaceValue(conductanceIntegral)
-     && conductanceIntegral >= GPU_R(0.0)
+        finiteWallInterfaceValue(conductanceIntegral)
       ? conductanceIntegral
-      : -GPU_R(1.0);
+      : std::numeric_limits<GpuReal>::quiet_NaN();
 }
 
 }

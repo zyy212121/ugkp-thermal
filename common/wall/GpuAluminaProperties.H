@@ -3,6 +3,7 @@
 #define GPU_THERMAL_GPU_ALUMINA_PROPERTIES_H
 
 #include <cmath>
+#include <limits>
 #include <cfloat>
 
 #if defined(__CUDACC__)
@@ -34,9 +35,11 @@ struct AluminaLiquidProperties
     GpuReal thermalConductivityWmK;
 };
 
-GPU_ALUMINA_HD inline bool finiteAluminaValue(const GpuReal value) noexcept
+template<class Real>
+GPU_ALUMINA_HD inline bool finiteAluminaValue(const Real value) noexcept
 {
-    return value == value && value >= -GPU_REAL_MAX && value <= GPU_REAL_MAX;
+    return value == value && value >= -std::numeric_limits<Real>::max()
+        && value <= std::numeric_limits<Real>::max();
 }
 
 GPU_ALUMINA_HD inline GpuReal clampAlumina
@@ -54,7 +57,7 @@ GPU_ALUMINA_HD inline GpuReal aluminaSpecificHeatJkgK
     const GpuReal temperatureK
 ) noexcept
 {
-    if (!finiteAluminaValue(temperatureK) || !(temperatureK > GPU_R(0.0)))
+    if (!finiteAluminaValue(temperatureK))
     {
         return GPU_R(0.0);
     }
@@ -77,9 +80,9 @@ GPU_ALUMINA_HD inline GpuReal aluminaSpecificEnthalpyJkg
     const GpuReal temperatureK
 ) noexcept
 {
-    if (!finiteAluminaValue(temperatureK) || temperatureK < GPU_R(0.0))
+    if (!finiteAluminaValue(temperatureK))
     {
-        return -GPU_R(1.0);
+        return std::numeric_limits<GpuReal>::quiet_NaN();
     }
 
     const GpuReal cpMin = aluminaSpecificHeatJkgK
@@ -121,10 +124,9 @@ GPU_ALUMINA_HD inline GpuReal aluminaTemperatureFromSpecificEnthalpyK
     if
     (
         !finiteAluminaValue(specificEnthalpyJkg)
-     || specificEnthalpyJkg < GPU_R(0.0)
     )
     {
-        return -GPU_R(1.0);
+        return std::numeric_limits<GpuReal>::quiet_NaN();
     }
 
     const GpuReal cpMin = aluminaSpecificHeatJkgK
@@ -164,7 +166,7 @@ GPU_ALUMINA_HD inline AluminaLiquidProperties liquidAluminaProperties
     const GpuReal particleTemperatureK
 ) noexcept
 {
-    if (!finiteAluminaValue(particleTemperatureK) || !(particleTemperatureK > GPU_R(0.0)))
+    if (!finiteAluminaValue(particleTemperatureK))
     {
         return {false, GPU_R(0.0), GPU_R(0.0), GPU_R(0.0), GPU_R(0.0), GPU_R(0.0), GPU_R(0.0)};
     }

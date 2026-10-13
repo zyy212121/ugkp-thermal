@@ -72,8 +72,6 @@ evaluateCapillaryDetachmentState
      || !finiteCapillaryValue(particleDiameterM)
      || !finiteCapillaryValue(adhesionEnergyScale)
      || !finiteCapillaryValue(contactAngleCosine)
-     || !(particleDiameterM > GPU_R(0.0))
-     || !(adhesionEnergyScale > GPU_R(0.0))
     )
     {
         return {false, GPU_R(0.0), GPU_R(0.0), GPU_R(0.0), material};
@@ -92,8 +90,6 @@ evaluateCapillaryDetachmentState
     if
     (
         !finiteCapillaryValue(capDenominator)
-     || !(volumeM3 > GPU_R(0.0))
-     || !(capDenominator > GPU_R(0.0))
     )
     {
         return {false, GPU_R(0.0), GPU_R(0.0), GPU_R(0.0), material};
@@ -111,9 +107,7 @@ evaluateCapillaryDetachmentState
 
     const bool valid =
         finiteCapillaryValue(contactAreaM2)
-     && finiteCapillaryValue(adhesionSpecificEnergyJkg)
-     && contactAreaM2 > GPU_R(0.0)
-     && adhesionSpecificEnergyJkg > GPU_R(0.0);
+     && finiteCapillaryValue(adhesionSpecificEnergyJkg);
     return
     {
         valid,
@@ -139,12 +133,6 @@ applyCapillaryContactDamage
      || !finiteCapillaryValue(currentContactAreaM2)
      || !finiteCapillaryValue(contactAreaScale)
      || !finiteCapillaryValue(sampledSpecificEnergyJkg)
-     || !(capillary.equilibriumContactAreaM2 > GPU_R(0.0))
-     || !(capillary.adhesionSpecificEnergyJkg > GPU_R(0.0))
-     || !(currentContactAreaM2 > GPU_R(0.0))
-     || !(contactAreaScale > GPU_R(0.0))
-     || contactAreaScale > GPU_R(1.0)
-     || sampledSpecificEnergyJkg < GPU_R(0.0)
     )
     {
         return {false, false, GPU_R(0.0), GPU_R(0.0)};
@@ -159,8 +147,6 @@ applyCapillaryContactDamage
     (
         !finiteCapillaryValue(adhesionSpecificEnergyPerArea)
      || !finiteCapillaryValue(remainingAdhesionSpecificEnergy)
-     || !(adhesionSpecificEnergyPerArea > GPU_R(0.0))
-     || !(remainingAdhesionSpecificEnergy > GPU_R(0.0))
     )
     {
         return {false, false, GPU_R(0.0), GPU_R(0.0)};
@@ -186,9 +172,7 @@ applyCapillaryContactDamage
         currentContactAreaM2 - consumedAreaM2;
     const bool valid =
         finiteCapillaryValue(consumedAreaM2)
-     && finiteCapillaryValue(remainingAreaM2)
-     && consumedAreaM2 >= GPU_R(0.0)
-     && remainingAreaM2 > GPU_R(0.0);
+     && finiteCapillaryValue(remainingAreaM2);
     return
     {
         valid,

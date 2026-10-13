@@ -6,6 +6,7 @@
 #include "GpuWallInterfaceHeat.H"
 
 #include <cmath>
+#include <limits>
 #include <cfloat>
 
 #if defined(__CUDACC__)
@@ -52,9 +53,11 @@ struct FiniteWallContactImpact
     GpuReal ohnesorge;
 };
 
-GPU_FINITE_CONTACT_HD inline bool finiteContactValue(const GpuReal x) noexcept
+template<class Real>
+GPU_FINITE_CONTACT_HD inline bool finiteContactValue(const Real x) noexcept
 {
-    return x == x && x >= -GPU_REAL_MAX && x <= GPU_REAL_MAX;
+    return x == x && x >= -std::numeric_limits<Real>::max()
+        && x <= std::numeric_limits<Real>::max();
 }
 
 GPU_FINITE_CONTACT_HD inline GpuReal clampFiniteContact
@@ -103,24 +106,18 @@ GPU_FINITE_CONTACT_HD inline GpuReal correctedMaximumSpreadFactor
     const GpuReal contactAngleCosine
 ) noexcept
 {
-    if
-    (
-        !(weber >= GPU_R(0.0))
-     || !(ohnesorge > GPU_R(0.0))
-     || !finiteContactValue(contactAngleCosine)
-     || !(contactAngleCosine > -GPU_R(1.0))
-     || !(contactAngleCosine < GPU_R(1.0))
-    )
+    if (!finiteContactValue(weber) || !finiteContactValue(ohnesorge)
+        || !finiteContactValue(contactAngleCosine))
     {
-        return -GPU_R(1.0);
+        return std::numeric_limits<GpuReal>::quiet_NaN();
     }
     const GpuReal oneMinusCosContactAngle = GPU_R(1.0) - contactAngleCosine;
 
     const GpuReal uncorrected =
         GPU_R(0.61)*::pow(GPU_R(23.3) + weber/ohnesorge, GPU_R(1.0)/GPU_R(6.0));
-    if (!(uncorrected > GPU_R(0.0)) || !finiteContactValue(uncorrected))
+    if (!finiteContactValue(uncorrected))
     {
-        return -GPU_R(1.0);
+        return std::numeric_limits<GpuReal>::quiet_NaN();
     }
 
                                                                          
@@ -149,7 +146,7 @@ GPU_FINITE_CONTACT_HD inline GpuReal correctedMaximumSpreadFactor
      || !finiteContactValue(upperResidual)
     )
     {
-        return -GPU_R(1.0);
+        return std::numeric_limits<GpuReal>::quiet_NaN();
     }
     if (lowerResidual >= GPU_R(0.0))
     {
@@ -164,7 +161,7 @@ GPU_FINITE_CONTACT_HD inline GpuReal correctedMaximumSpreadFactor
         upper *= GPU_R(2.0);
         if (!finiteContactValue(upper))
         {
-            return -GPU_R(1.0);
+            return std::numeric_limits<GpuReal>::quiet_NaN();
         }
         upperResidual = correctedSpreadResidual
         (
@@ -172,13 +169,13 @@ GPU_FINITE_CONTACT_HD inline GpuReal correctedMaximumSpreadFactor
         );
         if (!finiteContactValue(upperResidual))
         {
-            return -GPU_R(1.0);
+            return std::numeric_limits<GpuReal>::quiet_NaN();
         }
         ++expansion;
     }
     if (!(upperResidual > GPU_R(0.0)))
     {
-        return -GPU_R(1.0);
+        return upper;
     }
 
     for (int iteration = 0; iteration < 40; ++iteration)
@@ -190,7 +187,7 @@ GPU_FINITE_CONTACT_HD inline GpuReal correctedMaximumSpreadFactor
         );
         if (!finiteContactValue(middleResidual))
         {
-            return -GPU_R(1.0);
+            return std::numeric_limits<GpuReal>::quiet_NaN();
         }
         if (middleResidual <= GPU_R(0.0))
         {
@@ -203,7 +200,7 @@ GPU_FINITE_CONTACT_HD inline GpuReal correctedMaximumSpreadFactor
         }
     }
     const GpuReal beta = GPU_R(0.5)*(lower + upper);
-    return finiteContactValue(beta) && beta >= GPU_R(1.0) ? beta : -GPU_R(1.0);
+    return beta;
 }
 
 GPU_FINITE_CONTACT_HD inline FiniteWallContactImpact evaluateFiniteWallContactImpact
@@ -218,7 +215,7 @@ GPU_FINITE_CONTACT_HD inline FiniteWallContactImpact evaluateFiniteWallContactIm
         liquidAluminaProperties(particleTemperatureK);
     if
     (
-        !material.valid || !(diameterM > GPU_R(0.0)) || !(normalSpeedMps > GPU_R(0.0))
+        !material.valid || !finiteContactValue(diameterM) || !finiteContactValue(normalSpeedMps)
     )
     {
         return {false, GPU_R(0.0), GPU_R(0.0), GPU_R(0.0), GPU_R(0.0), GPU_R(0.0), GPU_R(0.0), GPU_R(0.0)};
@@ -257,26 +254,15 @@ GPU_FINITE_CONTACT_HD inline FiniteWallContactImpact evaluateFiniteWallContactIm
        /dampedFrequency;
     const GpuTime duration = spreadingDuration + recoilDuration;
     GpuReal peakTimeFraction = static_cast<GpuReal>(spreadingDuration/duration);
-#if UGKWP_GPU_REAL_BITS == 32
-
-
-    if (spreadingDuration > 0 && recoilDuration > 0 && duration > 0 && duration < DBL_MAX)
-    {
-        if (peakTimeFraction == GPU_R(1)) peakTimeFraction = GPU_R(1)-GPU_R(0.5)*FLT_EPSILON;
-        if (peakTimeFraction == GPU_R(0)) peakTimeFraction = FLT_MIN;
-    }
-#endif
     const GpuReal maximumArea =
         (finiteContactPi/GPU_R(4.0))*beta*beta*diameterM*diameterM;
     const GpuReal physicalMass =
         (finiteContactPi/GPU_R(6.0))*material.densityKgM3
        *diameterM*diameterM*diameterM;
     const bool valid =
-        beta > GPU_R(0.0) && spreadingDuration > GPU_R(0.0) && recoilDuration > GPU_R(0.0)
-     && duration > GPU_R(0.0) && peakTimeFraction > GPU_R(0.0) && peakTimeFraction < GPU_R(1.0)
-     && maximumArea > GPU_R(0.0)
-     && physicalMass > GPU_R(0.0) && finiteContactValue(duration)
-     && finiteContactValue(peakTimeFraction)
+        finiteContactValue(beta) && finiteContactValue(spreadingDuration)
+     && finiteContactValue(recoilDuration) && finiteContactValue(duration)
+     && finiteContactValue(physicalMass) && finiteContactValue(peakTimeFraction)
      && finiteContactValue(maximumArea);
     return
     {
@@ -293,17 +279,6 @@ GPU_FINITE_CONTACT_HD inline FiniteWallContactImpact evaluateFiniteWallContactIm
 
 
 
-
-GPU_FINITE_CONTACT_HD inline float finiteContactPeakFractionForStorage
-(
-    const GpuReal peakTimeFraction
-) noexcept
-{
-    const float stored = static_cast<float>(peakTimeFraction);
-    return peakTimeFraction > GPU_R(0.0) && peakTimeFraction < GPU_R(1.0) && stored == 1.0f
-      ? 1.0f - 0.5f*FLT_EPSILON
-      : stored;
-}
 
 GPU_FINITE_CONTACT_HD inline GpuReal normalizedKinematicArea
 (
@@ -372,23 +347,15 @@ GPU_FINITE_CONTACT_HD inline GpuReal finiteContactWallConductanceTimeIntegral
      || !finiteContactValue(peakTimeFraction)
      || !finiteContactValue(profileAge0S)
      || !finiteContactValue(deltaTSeconds)
-     || !(maximumAreaM2 > GPU_R(0.0))
-     || contactAreaM2 < GPU_R(0.0)
-     || contactAreaM2 > maximumAreaM2
-     || !(contactDurationS > GPU_R(0.0))
-     || !(peakTimeFraction > GPU_R(0.0))
-     || !(peakTimeFraction < GPU_R(1.0))
-     || profileAge0S < GPU_R(0.0)
-     || deltaTSeconds < GPU_R(0.0)
     )
     {
-        return -GPU_R(1.0);
+        return std::numeric_limits<GpuReal>::quiet_NaN();
     }
     if (!(contactAreaM2 > GPU_R(0.0)))
     {
         return GPU_R(0.0);
     }
-    if (!(deltaTSeconds > GPU_R(0.0)))
+    if (deltaTSeconds == GPU_R(0.0))
     {
         return GPU_R(0.0);
     }
@@ -433,13 +400,13 @@ GPU_FINITE_CONTACT_HD inline GpuReal finiteContactWallConductanceTimeIntegral
             wallEffusivityWsHalfM2K,
             wallTransientResistance
         );
-        if (!(contribution >= GPU_R(0.0)) || !finiteContactValue(contribution))
+        if (!finiteContactValue(contribution))
         {
-            return -GPU_R(1.0);
+            return std::numeric_limits<GpuReal>::quiet_NaN();
         }
         total += contribution;
     }
-    return finiteContactValue(total) && total >= GPU_R(0.0) ? total : -GPU_R(1.0);
+    return total;
 }
 
 GPU_FINITE_CONTACT_HD inline GpuReal combinedContactEffusivityFromWallEffusivity
@@ -539,7 +506,7 @@ inline GpuReal dimensionlessFiniteContactRate
     return GPU_R(2.0)*finiteContactPi/::sqrt(finiteContactPi)*integral;
 }
 
-inline void buildFiniteContactRateTable(float* table) noexcept
+inline void buildFiniteContactRateTable(double* table) noexcept
 {
     if (table == nullptr)
     {
@@ -563,7 +530,7 @@ inline void buildFiniteContactRateTable(float* table) noexcept
                 const int tableIndex =
                     (peakI*finiteContactDamageTableSize + damageI)
                    *finiteContactTimeTableSize + timeI;
-                table[tableIndex] = static_cast<float>
+                table[tableIndex] = static_cast<double>
                 (
                     dimensionlessFiniteContactRate(theta, peak, damage)
                 );
@@ -574,7 +541,7 @@ inline void buildFiniteContactRateTable(float* table) noexcept
 
 GPU_FINITE_CONTACT_HD inline GpuReal interpolateFiniteContactRate
 (
-    const float* table,
+    const double* table,
     const GpuReal normalizedAge,
     const GpuReal peakTimeFraction,
     const GpuReal normalizedDamage

@@ -52,23 +52,27 @@ GPU_COLD_WALL_2D_HD inline ColdWall2DGeometry coldWall2DGeometry
     const bool valid =
         finiteColdWallValue(particleVolumeM3)
      && finiteColdWallValue(physicalParticleMassKg)
-     && finiteColdWallValue(maximumAreaM2)
-     && particleVolumeM3 > GPU_R(0.0)
-     && physicalParticleMassKg > GPU_R(0.0)
-     && maximumAreaM2 > GPU_R(0.0);
+     && finiteColdWallValue(maximumAreaM2);
     if (!valid)
     {
         return {false, GPU_R(0.0), GPU_R(0.0), GPU_R(0.0), GPU_R(0.0), GPU_R(0.0)};
     }
     const GpuReal filmThickness = particleVolumeM3/maximumAreaM2;
+    const GpuReal maximumRadius = ::sqrt(maximumAreaM2/coldWallPi);
+    const GpuReal axialNodeThickness =
+        filmThickness/static_cast<GpuReal>(coldWall2DAxialNodeCount);
+    const GpuReal ringArea =
+        maximumAreaM2/static_cast<GpuReal>(coldWall2DRadialNodeCount);
+    const GpuReal nodeMass =
+        physicalParticleMassKg/static_cast<GpuReal>(coldWall2DNodeCount);
     return
     {
         true,
-        ::sqrt(maximumAreaM2/coldWallPi),
+        maximumRadius,
         filmThickness,
-        filmThickness/static_cast<GpuReal>(coldWall2DAxialNodeCount),
-        maximumAreaM2/static_cast<GpuReal>(coldWall2DRadialNodeCount),
-        physicalParticleMassKg/static_cast<GpuReal>(coldWall2DNodeCount)
+        axialNodeThickness,
+        ringArea,
+        nodeMass
     };
 }
 
@@ -133,8 +137,6 @@ GPU_COLD_WALL_2D_HD inline GpuReal coldWall2DRadialFaceConductanceWK
         !geometry.valid
      || innerRing < 0
      || innerRing + 1 >= coldWall2DRadialNodeCount
-     || !(innerConductivityWmK > GPU_R(0.0))
-     || !(outerConductivityWmK > GPU_R(0.0))
     )
     {
         return GPU_R(0.0);
