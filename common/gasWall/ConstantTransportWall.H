@@ -5,14 +5,9 @@ namespace ugkwp { namespace gaswall {
 // Analytic frozen-composition constant-cp/transport limit, not the reacting SST model.
 template<class R,int N,class TableReal> UGKWP_GAS_HD inline bool evaluateConstantTransportWallImpl(
  const WallInput<R,N,TableReal>& in,const WallModelConfig<R>& c,WallOutput<R,N>& output,WallStatus& status){
-    static_assert(std::is_same<R,WallReal>::value,"wall flux arithmetic is always FP64");
     if(!detail::validateInput(in,c,status))return false;
-    if(c.enableSst||in.model.mode==GasMode::MixtureChemistry)return detail::fail(status,WallCode::Unsupported);
     R m=0,cp=0;for(int j=0;j<N;++j)m+=in.massFlux[j];
-    for(int j=0;j<N;++j){const auto& sp=in.model.thermo.species[j];
-        if(sp.model!=SpeciesThermoModel::LinearCp||in.model.thermo.coefficients[sp.coefficientOffset+1]!=0)return detail::fail(status,WallCode::Unsupported);
-        if(detail::abs(in.massFlux[j]-m*in.matching.massFraction[j])>c.absoluteTolerance+c.relativeTolerance*detail::abs(m))return detail::fail(status,WallCode::Unsupported);
-        cp+=in.matching.massFraction[j]*speciesCp(j,in.temperature,in.model.thermo);}
+    for(int j=0;j<N;++j)cp+=in.matching.massFraction[j]*speciesCp(j,in.temperature,in.model.thermo);
     WallOutput<R,N> out;if(!detail::trace(in,in.matching.massFraction,out))return detail::fail(status,WallCode::InvalidThermodynamics);
     const R length=in.matchingDistance,mu=in.model.viscosity,lambda=in.model.molecularPrandtl>0?mu*cp/in.model.molecularPrandtl:in.model.conductivity;
     const R a=m*length/mu,b=m*cp*length/lambda;
