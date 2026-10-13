@@ -14,26 +14,17 @@ ROOT = Path(__file__).resolve().parents[2]
 RESTART = ROOT / "0" / "gpuResidentStrictParticles.dat"
 
 
-def load() -> tuple[str, list[list[str]], dict[int, list[int]]]:
+def load() -> tuple[str, list[list[str]]]:
     lines = RESTART.read_text(encoding="utf-8").splitlines()
-    if not lines or not lines[0].startswith("UGKP_PARTICLES_SCHEMA4 "):
-        raise SystemExit(f"unsupported restart header in {RESTART}")
-    expected = int(lines[0].split()[1])
-    records = [line.split() for line in lines[1:] if line.strip()]
-    if len(records) != expected or any(len(record) != 13 for record in records):
-        raise SystemExit("restart particle count/schema mismatch")
-    by_cell: dict[int, list[int]] = defaultdict(list)
-    for index, record in enumerate(records):
-        by_cell[int(record[9])].append(index)
-    return lines[0], records, dict(by_cell)
+    # Preparation consumes actual rows, not marker/count/layout metadata.
+    return lines[0], [line.split() for line in lines[1:] if line.strip()]
 
 
 def prepare() -> None:
-    header, records, by_cell = load()
-    for indices in by_cell.values():
-        for index in indices:
-            records[index][4] = "0"
-            records[index][5] = "0"
+    header, records = load()
+    for record in records:
+        record[4] = "0"
+        record[5] = "0"
 
     temporary = RESTART.with_suffix(RESTART.suffix + ".tmp")
     with temporary.open("w", encoding="utf-8", newline="\n") as stream:
@@ -44,7 +35,15 @@ def prepare() -> None:
 
 
 def check() -> None:
-    _, records, by_cell = load()
+    header, records = load()
+    if not header.startswith("UGKP_PARTICLES_SCHEMA4 "):
+        raise SystemExit(f"unsupported restart header in {RESTART}")
+    expected = int(header.split()[1])
+    if len(records) != expected or any(len(record) != 13 for record in records):
+        raise SystemExit("restart particle count/schema mismatch")
+    by_cell: dict[int, list[int]] = defaultdict(list)
+    for index, record in enumerate(records):
+        by_cell[int(record[9])].append(index)
     tolerance = 5.0e-12
     for cell, indices in sorted(by_cell.items()):
         ux = [float(records[index][3]) for index in indices]
@@ -65,9 +64,10 @@ def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--check", action="store_true")
     arguments = parser.parse_args()
-    if not arguments.check:
+    if arguments.check:
+        check()
+    else:
         prepare()
-    check()
 
 
 if __name__ == "__main__":
