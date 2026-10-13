@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstdlib>
 #include <fstream>
 #include <sstream>
 #include <string>
@@ -58,8 +59,14 @@ scalar number(const fileName& file, const std::string& label, const std::string&
     std::istringstream in(word);
     scalar value;
     char extra;
-    if (!(in >> value) || (in >> extra) || !std::isfinite(value))
-        fail(file, label + " is not a finite scalar: " + word);
+    if ((in >> value) && !(in >> extra)) return value;
+
+    // Keep every successful stream conversion unchanged. The fallback parses
+    // IEEE scalar tokens and overflow/underflow results, not missing data.
+    char* end = nullptr;
+    value = std::strtod(word.c_str(), &end);
+    if (end == word.c_str() || *end != '\0')
+        fail(file, label + " is not a scalar: " + word);
     return value;
 }
 
@@ -91,9 +98,8 @@ Bracket linearBracket(const scalarField& axis, scalar value)
             count = step;
         }
     }
-    const std::size_t hi = first;
-    if (hi == 0 || hi >= std::size_t(axis.size()))
-        throw MieTableError("interpolation has no accessible bracket");
+    // Unordered comparisons still evaluate an actual, backed endpoint pair.
+    const std::size_t hi = std::max(std::size_t(1), std::min(first, last));
     return {hi-1, (value-axis[hi-1])/(axis[hi]-axis[hi-1])};
 }
 
@@ -191,8 +197,15 @@ MieTable::MieTable(const fileName& tableFile)
         n.phi.setSize(data->mu.size());
         forAll(n.phi, i)
         {
-            if (!(phiWords >> n.phi[i]) || !std::isfinite(n.phi[i]))
-                fail(tableFile, "invalid PHI value");
+            const std::streampos position = phiWords.tellg();
+            if (!(phiWords >> n.phi[i]))
+            {
+                phiWords.clear();
+                phiWords.seekg(position);
+                std::string word;
+                if (!(phiWords >> word)) fail(tableFile, "invalid PHI value");
+                n.phi[i] = number(tableFile, "PHI value", word);
+            }
         }
         data->nodes.push_back(std::move(n));
     }
