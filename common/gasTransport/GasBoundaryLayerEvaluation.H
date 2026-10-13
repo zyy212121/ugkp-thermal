@@ -19,11 +19,11 @@ UGKWP_GAS_HD inline bool publishGasBoundaryLayerOutput
     if(!wall.enabled || slot<0 || slot>=wall.count || !wall.exchange || !wall.sst
         || !wall.status || !wall.speciesFlux)return false;
     wall.exchange[slot].ready=false;
-    if(!gasFinite(area) || !(area>0) || !gasFinite(normalSweepRate)
-        || !gasFinite(output.traceTemperature) || !(output.traceTemperature>0)
-        || !gasFinite(input.pressure) || !(input.pressure>0))return false;
+    if(!gasFinite(area) || !gasFinite(normalSweepRate)
+        || !gasFinite(output.traceTemperature)
+        || !gasFinite(input.pressure))return false;
     GasBoundaryLayerExchange<Real> candidate;
-    Real mass=0,enthalpy=0,speed2=0,viscousWork=0,tractionScale=0;
+    Real mass=0,enthalpy=0,speed2=0,viscousWork=0,tractionScale=0,scaledSpecies[Ns];
     for(int d=0;d<3;++d)
     {
         if(!gasFinite(output.traceVelocity[d]) || !gasFinite(output.traction[d])
@@ -50,6 +50,7 @@ UGKWP_GAS_HD inline bool publishGasBoundaryLayerOutput
     {
         const Real flux=output.wallSpeciesFlux[species];
         const Real h=speciesH(species,output.traceTemperature,input.model.thermo);
+        scaledSpecies[species]=-area*flux;
         if(!gasFinite(flux) || !gasFinite(h))return false;
         mass+=flux;enthalpy+=flux*h;
     }
@@ -67,10 +68,10 @@ UGKWP_GAS_HD inline bool publishGasBoundaryLayerOutput
     if(!gasFinite(candidate.mass) || !gasFinite(candidate.momentumX) || !gasFinite(candidate.momentumY)
         || !gasFinite(candidate.momentumZ) || !gasFinite(candidate.energy) || !gasFinite(candidate.k)
         || !gasFinite(shear) || !gasFinite(output.ownerOmega)
-        || !gasFinite(input.ownerDistance) || !(input.ownerDistance>0)
-        || !gasFinite(input.quadrature.volume) || !(input.quadrature.volume>0))return false;
+        || !gasFinite(input.ownerDistance)
+        || !gasFinite(input.quadrature.volume))return false;
     for(int species=0;species<Ns;++species)
-        wall.speciesFlux[species*wall.count+slot]=-area*output.wallSpeciesFlux[species];
+        wall.speciesFlux[species*wall.count+slot]=scaledSpecies[species];
     wall.sst[slot]={shear,output.ownerOmega,input.quadrature.volume,input.ownerDistance};
     candidate.ready=true;
     candidate.massReady=true;

@@ -1,5 +1,6 @@
 #pragma once
 #include <type_traits>
+#include <cmath>
 #include <utility>
 #include "GasModel.H"
 
@@ -14,13 +15,18 @@ using GasEnergyScalar = typename std::remove_cv<typename std::remove_reference
 template<class Energy>
 UGKWP_GAS_HD inline bool gasEnergyFinite(Energy value) noexcept
 {
-    // Retain the legacy source/recovery admissibility bound.
-    return value == value && value < 1.0e300 && value > -1.0e300;
+    return std::isfinite(value);
 }
+
+// This bound selects the legacy repair value; it is not a final-output gate.
+// Keep it separate from mathematical finiteness used by terminal publication.
+template<class Energy>
+UGKWP_GAS_HD inline bool gasEnergyFallbackFinite(Energy value) noexcept
+{ return value == value && value < 1.0e300 && value > -1.0e300; }
 
 template<class Energy>
 UGKWP_GAS_HD inline Energy gasEnergyFiniteOr(Energy value, Energy fallback) noexcept
-{ return gasEnergyFinite(value) ? value : fallback; }
+{ return gasEnergyFallbackFinite(value) ? value : fallback; }
 
 template<class Energy>
 UGKWP_GAS_HD inline Energy gasEnergyClampMin(Energy value, Energy minimum) noexcept

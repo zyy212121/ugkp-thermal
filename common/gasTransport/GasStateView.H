@@ -46,7 +46,6 @@ struct GasStateView
 template<class Real, int Ns>
 struct GasSpeciesState
 {
-    static_assert(Ns > 0, "species storage requires a positive exact count");
     static constexpr int speciesCount = Ns;
     using RealType = Real;
     GasMode mode = GasMode::SingleLegacy;

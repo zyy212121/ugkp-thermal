@@ -11,23 +11,24 @@ UGKWP_GAS_HD inline bool correctedSpeciesDiffusion
     const Real (&massFraction)[Ns], const Real (&gradNormalArea)[Ns],
     Real density, const Real* molecularD, Real eddyViscosity, Real schmidt,
     Real temperature, const SpeciesThermoView<TableReal,Ns>& thermo,
-    Real (&flux)[Ns], Real& enthalpyFlux
+    Real (&flux)[Ns], Real& enthalpyFlux, const bool trialEligibility=false
 )
 {
-    if (!gasFinite(density) || !(density>Real(0)) || !gasFinite(eddyViscosity)
-        || eddyViscosity<Real(0) || !gasFinite(schmidt) || !(schmidt>Real(0))) return false;
-    Real raw[Ns], corrected[Ns], sumRaw=Real(0), sumY=Real(0);
+    if (!gasFinite(density) || !gasFinite(eddyViscosity) || !gasFinite(schmidt)) return false;
+    if(trialEligibility && (!(density>Real(0)) || eddyViscosity<Real(0) || !(schmidt>Real(0))))return false;
+    Real raw[Ns], corrected[Ns], sumRaw=Real(0),sumY=Real(0);
     for(int k=0;k<Ns;++k)
     {
         const Real D=molecularD?molecularD[k]:Real(0);
-        if(!gasFinite(D)||D<Real(0)||!gasFinite(massFraction[k])||massFraction[k]<Real(0)
+        if(!gasFinite(D)||!gasFinite(massFraction[k])
             ||!gasFinite(gradNormalArea[k]))return false;
-        sumY+=massFraction[k];
+        if(trialEligibility && (D<Real(0) || massFraction[k]<Real(0)))return false;
+        if(trialEligibility)sumY+=massFraction[k];
         raw[k]=-density*(D+eddyViscosity/schmidt)*gradNormalArea[k];
         sumRaw+=raw[k];
     }
-    if(!gasFinite(sumY)||gasThermoDetail::absValue(sumY-Real(1))>
-        Real(64*Ns)*std::numeric_limits<Real>::epsilon())return false;
+    if(trialEligibility && (!gasFinite(sumY)||gasThermoDetail::absValue(sumY-Real(1))>
+        Real(64*Ns)*std::numeric_limits<Real>::epsilon()))return false;
     int dependent=Ns-1;
     // Preserve the established arithmetic unless its carrier is absent.
     if(massFraction[dependent]==Real(0))

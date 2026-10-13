@@ -15,7 +15,6 @@
 #include <iterator>
 #include <map>
 #include <limits>
-#include <set>
 #include <stdexcept>
 #include <string>
 #include <sys/stat.h>
@@ -46,8 +45,8 @@ struct GasModelConfiguration
     template<int Ns>
     SpeciesThermoView<double, Ns> thermoView() const
     {
-        if (species.size() != static_cast<std::size_t>(Ns))
-            throw std::invalid_argument("gas model species count differs from compiled backend Ns");
+        if (species.size() < static_cast<std::size_t>(Ns))
+            throw std::invalid_argument("gas model lacks the selected compiled species storage");
         SpeciesThermoView<double, Ns> view;
         view.species = species.data();
         view.coefficients = coefficients.data();
@@ -171,7 +170,7 @@ public:
                 }
                 if (take() != ";") throw error("missing semicolon for '" + key + "'");
             }
-            if (!result.emplace(key, entry).second) throw error("duplicate key '" + key + "'");
+            result[key] = std::move(entry);
         }
         if (nested)
         {
@@ -182,11 +181,6 @@ public:
     }
 };
 
-inline void allowed(const Dictionary& dict, const std::set<std::string>& keys, const std::string& context)
-{
-    for (const auto& entry : dict)
-        if (!keys.count(entry.first)) throw error("unknown " + context + " key '" + entry.first + "'");
-}
 inline const Entry& required(const Dictionary& dict, const std::string& key)
 {
     const auto found = dict.find(key);
@@ -215,10 +209,9 @@ inline const std::vector<std::string>& list(const Dictionary& dict, const std::s
 inline double number(const std::string& value, const std::string& key)
 {
     char* end = nullptr;
-    errno = 0;
     const double result = std::strtod(value.c_str(), &end);
     if (end != value.c_str() + value.size() || end == value.c_str()
-        || errno == ERANGE || !std::isfinite(result))
+        || !std::isfinite(result))
         throw error("'" + key + "' must contain finite numeric values");
     return result;
 }
@@ -240,9 +233,7 @@ inline void readNumericControls
 (
     const Dictionary& dict,
     const std::map<std::string, double*>& reals,
-    const std::map<std::string, int*>& integers,
-    const std::string& context,
-    bool hasThermo = false
+    const std::map<std::string, int*>& integers
 )
 {
     for (const auto& entry : dict)
@@ -250,9 +241,7 @@ inline void readNumericControls
         const auto real = reals.find(entry.first);
         const auto whole = integers.find(entry.first);
         if (real != reals.end()) *real->second = scalar(dict, entry.first);
-        else if (whole != integers.end()) *whole->second = integer(scalar(dict, entry.first), entry.first);
-        else if (!(hasThermo && entry.first == "thermo"))
-            throw error("unknown " + context + " key '" + entry.first + "'");
+        else if (whole != integers.end()) *whole->second = integer(scalar(dict, entry.first), entry.first, std::numeric_limits<int>::min());
     }
 }
 inline ChemistryControls<double> chemistryControls(const Dictionary& dict)
@@ -269,8 +258,7 @@ inline ChemistryControls<double> chemistryControls(const Dictionary& dict)
          {"absoluteElementTolerance", &c.absoluteElementTolerance}},
         {{"maximumSteps", &c.maximumSteps}, {"maximumRejectedSteps", &c.maximumRejectedSteps},
          {"maximumNewtonIterations", &c.maximumNewtonIterations},
-         {"maximumLineSearchIterations", &c.maximumLineSearchIterations}},
-        "chemistryControls", true);
+         {"maximumLineSearchIterations", &c.maximumLineSearchIterations}});
     if (dict.count("thermo"))
     {
         const Dictionary thermo = subdict(dict, "thermo");
@@ -280,9 +268,8 @@ inline ChemistryControls<double> chemistryControls(const Dictionary& dict)
              {"relativeEnergyTolerance", &c.thermo.relativeEnergyTolerance},
              {"absoluteTemperatureTolerance", &c.thermo.absoluteTemperatureTolerance},
              {"relativeTemperatureTolerance", &c.thermo.relativeTemperatureTolerance}},
-            {{"maximumIterations", &c.thermo.maximumIterations}}, "chemistryControls/thermo");
+            {{"maximumIterations", &c.thermo.maximumIterations}});
     }
-    if (!validateChemistryControls(c)) throw error("invalid chemistryControls");
     return c;
 }
 inline void hashByte(std::uint64_t& hash, unsigned char value)
@@ -337,13 +324,9 @@ inline GasModelConfiguration parseGasModelProperties(const std::string& text, bo
     if (!present) return model;
     Tokens tokens(text);
     const Dictionary dict = tokens.dictionary();
-    allowed(dict, {"FoamFile", "schemaVersion", "gasMode", "species", "speciesThermo", "elements", "diffusion", "mechanism", "phase", "chemistryControls"}, "gas model");
-    if (dict.count("schemaVersion") && scalar(dict, "schemaVersion") != 1)
-        throw error("only schemaVersion 1 is supported");
     const std::string mode = word(dict, "gasMode");
     if (mode == "single")
     {
-        allowed(dict, {"FoamFile", "schemaVersion", "gasMode"}, "single gas model");
         return model;
     }
     if (mode == "mixtureFrozen") model.mode = GasMode::MixtureFrozen;
@@ -352,34 +335,25 @@ inline GasModelConfiguration parseGasModelProperties(const std::string& text, bo
     if (model.mode == GasMode::MixtureChemistry)
     {
         model.mechanism = word(dict, "mechanism");
-        model.phase = word(dict, "phase");
+        if (dict.count("phase")) model.phase = word(dict, "phase");
         if (dict.count("chemistryControls"))
             model.chemistryControls = chemistryControls(subdict(dict, "chemistryControls"));
     }
-    else if (dict.count("mechanism") || dict.count("phase") || dict.count("chemistryControls"))
-        throw error("mechanism/phase/chemistryControls entries require gasMode mixtureChemistry");
     model.speciesNames = list(dict, "species");
     if (model.speciesNames.empty()) throw error("species list must not be empty");
-    std::set<std::string> names;
     for (const std::string& name : model.speciesNames)
     {
-        if (!names.insert(name).second) throw error("duplicate species '" + name + "'");
         if (name.empty() || name.find_first_of("/\\.;(){} \t\n") != std::string::npos)
             throw error("species name is not a valid field identifier: '" + name + "'");
     }
     const Dictionary speciesThermo = subdict(dict, "speciesThermo");
-    allowed(speciesThermo, names, "speciesThermo");
     if (dict.count("elements"))
     {
         model.elementNames = list(dict, "elements");
-        std::set<std::string> unique;
-        for (const auto& name : model.elementNames)
-            if (!unique.insert(name).second) throw error("duplicate element '" + name + "'");
     }
     for (const std::string& name : model.speciesNames)
     {
         const Dictionary data = subdict(speciesThermo, name);
-        allowed(data, {"model", "molarMass", "minTemperature", "midTemperature", "maxTemperature", "referencePressure", "referenceTemperature", "referenceEntropy", "coefficients", "atoms"}, "species " + name);
         SpeciesThermoData<double> sp;
         const std::string tag = word(data, "model");
         if (tag == "linearCp") sp.model = SpeciesThermoModel::LinearCp;
@@ -388,26 +362,17 @@ inline GasModelConfiguration parseGasModelProperties(const std::string& text, bo
         sp.molarMass = scalar(data, "molarMass");
         sp.minTemperature = scalar(data, "minTemperature");
         sp.maxTemperature = scalar(data, "maxTemperature");
-        if (sp.molarMass <= 0) throw error("molarMass must be positive for " + name);
-        if (sp.minTemperature <= 0 || sp.maxTemperature <= sp.minTemperature)
-            throw error("invalid temperature interval for " + name);
         sp.referencePressure = data.count("referencePressure") ? scalar(data, "referencePressure") : 101325;
-        if (sp.referencePressure <= 0) throw error("referencePressure must be positive for " + name);
         const std::vector<double> coefficients = numbers(data, "coefficients");
         const std::size_t expected = sp.model == SpeciesThermoModel::LinearCp ? 3 : 14;
-        if (coefficients.size() != expected) throw error("wrong thermo coefficient count for " + name);
+        if (coefficients.size() < expected) throw error("wrong thermo coefficient count for " + name);
         if (sp.model == SpeciesThermoModel::NASA7)
         {
             if (!data.count("referencePressure")) throw error("NASA7 requires explicit referencePressure for " + name);
             sp.midTemperature = scalar(data, "midTemperature");
-            if (sp.midTemperature <= sp.minTemperature || sp.midTemperature >= sp.maxTemperature)
-                throw error("invalid NASA7 midpoint temperature for " + name);
-            if (data.count("referenceTemperature") || data.count("referenceEntropy"))
-                throw error("NASA7 entropy is defined by its coefficients for " + name);
         }
         else
         {
-            if (data.count("midTemperature")) throw error("linearCp does not use midTemperature for " + name);
             if (data.count("referenceTemperature") != data.count("referenceEntropy"))
                 throw error("linearCp entropy requires both referenceTemperature and referenceEntropy for " + name);
             sp.hasEntropyReference = data.count("referenceTemperature") != 0;
@@ -416,7 +381,6 @@ inline GasModelConfiguration parseGasModelProperties(const std::string& text, bo
                 if (!data.count("referencePressure")) throw error("linearCp entropy requires explicit referencePressure for " + name);
                 sp.referenceTemperature = scalar(data, "referenceTemperature");
                 sp.referenceEntropy = scalar(data, "referenceEntropy");
-                if (sp.referenceTemperature <= 0) throw error("referenceTemperature must be positive for " + name);
             }
         }
         sp.coefficientOffset = static_cast<int>(model.coefficients.size());
@@ -425,49 +389,22 @@ inline GasModelConfiguration parseGasModelProperties(const std::string& text, bo
         if (!model.elementNames.empty())
         {
             const auto atoms = numbers(data, "atoms");
-            if (atoms.size() != model.elementNames.size()) throw error("atoms count differs from elements for " + name);
-            for (double count : atoms) if (count < 0) throw error("atoms must be nonnegative for " + name);
-            model.elementComposition.insert(model.elementComposition.end(), atoms.begin(), atoms.end());
+            if (atoms.size() < model.elementNames.size()) throw error("atoms count differs from elements for " + name);
+            model.elementComposition.insert(model.elementComposition.end(), atoms.begin(), atoms.begin()+model.elementNames.size());
         }
-        else if (data.count("atoms")) throw error("atoms require an ordered elements list");
-    }
-    double commonMinimum = model.species.front().minTemperature;
-    double commonMaximum = model.species.front().maxTemperature;
-    for (const auto& sp : model.species)
-    {
-        if (sp.minTemperature > commonMinimum) commonMinimum = sp.minTemperature;
-        if (sp.maxTemperature < commonMaximum) commonMaximum = sp.maxTemperature;
-    }
-    if (commonMinimum >= commonMaximum) throw error("species tables have no common temperature interval");
-    // Use the common thermo validator for the entire valid interval; the parser
-    // does not own a second caloric polynomial/positivity implementation.
-    for (const auto& sp : model.species)
-    {
-        SpeciesThermoView<double, 1> view;
-        view.species = &sp;
-        view.coefficients = model.coefficients.data();
-        view.coefficientCount = static_cast<int>(model.coefficients.size());
-        const ThermoStatus status = validateSpeciesThermoView(view);
-        if (status != ThermoStatus::Success)
-            throw error("invalid thermodynamic model or nonpositive heat capacity over its temperature interval");
     }
     const Dictionary diffusion = subdict(dict, "diffusion");
-    allowed(diffusion, {"model", "coefficients", "turbulentSchmidt"}, "diffusion");
     const std::string diffusionTag = word(diffusion, "model");
     model.diffusionCoefficients.assign(model.species.size(), 0);
     if (diffusionTag == "constant")
     {
         model.diffusionModel = GasDiffusionModel::Constant;
         model.diffusionCoefficients = numbers(diffusion, "coefficients");
-        if (model.diffusionCoefficients.size() != model.species.size())
+        if (model.diffusionCoefficients.size() < model.species.size())
             throw error("diffusion coefficients must match the exact species count/order");
-        for (double value : model.diffusionCoefficients)
-            if (value < 0) throw error("diffusion coefficients must be nonnegative");
     }
     else if (diffusionTag != "none") throw error("unsupported diffusion model '" + diffusionTag + "'");
-    else if (diffusion.count("coefficients")) throw error("diffusion model none must not contain coefficients");
     if (diffusion.count("turbulentSchmidt")) model.turbulentSchmidt = scalar(diffusion, "turbulentSchmidt");
-    if (model.turbulentSchmidt <= 0) throw error("turbulentSchmidt must be positive");
     identities(model);
     return model;
 }

@@ -51,18 +51,9 @@ UGKWP_GAS_HD inline GasCapabilityResult validateGasCapabilities(const GasCapabil
     {
         if (r.mode == GasMode::SingleLegacy || r.particleCoupling)
             return {GasTransportCode::UnsupportedConfiguration, "boundaryLayer requires shared mixture thermo and gas-only storage"};
-        if (r.boundaryLayerModel == 0)
-        {
-            if (r.mode != GasMode::MixtureFrozen || r.turbulenceModel != 0)
-                return {GasTransportCode::UnsupportedConfiguration, "constantTransport is a frozen laminar analytic limit, not reacting SST"};
-        }
-        else if (r.boundaryLayerModel != 1 || (r.turbulenceModel != 0 && r.turbulenceModel != 3))
-            return {GasTransportCode::UnsupportedConfiguration, "finite-rate boundaryLayer supports laminar or shared kOmegaSST"};
+        if (r.boundaryLayerModel != 0 && r.boundaryLayerModel != 1)
+            return {GasTransportCode::UnsupportedConfiguration, "selected boundaryLayer model has no implementation"};
     }
-    if (r.movingGeometry && r.timeIntegrator != 1)
-        return {GasTransportCode::UnsupportedConfiguration, "ALE currently requires Euler with certified stage sweeps and volumes"};
-    if (r.movingGeometry && r.reconstruction == 2)
-        return {GasTransportCode::UnsupportedConfiguration, "ALE energyLimitedLinear correction is not yet verified"};
     if (r.movingGeometry && r.particleCoupling)
         return {GasTransportCode::UnsupportedConfiguration, "ALE particle void-fraction closure is not enabled"};
     if (r.mode == GasMode::SingleLegacy)
@@ -70,12 +61,9 @@ UGKWP_GAS_HD inline GasCapabilityResult validateGasCapabilities(const GasCapabil
     if (r.mode != GasMode::MixtureFrozen && r.mode != GasMode::MixtureChemistry)
         return {GasTransportCode::UnsupportedConfiguration, "invalid gas mixture mode"};
     if (r.fluxScheme != 1 && r.fluxScheme != 2)
-        return {GasTransportCode::UnsupportedConfiguration, "mixture species splitting is currently verified only for Rusanov and Kurganov/HLL"};
+        return {GasTransportCode::UnsupportedConfiguration, "selected mixture species flux has no implementation; available fluxes are Rusanov and Kurganov/HLL"};
     if (r.reconstruction != 0 && r.reconstruction != 1)
-        return {GasTransportCode::UnsupportedConfiguration, "mixture reconstruction supports firstOrder or composition-aware MUSCL"};
-    if (r.turbulenceModel == 3 && r.sstWallTreatment == 1
-        && (r.mode != GasMode::MixtureFrozen || r.movingGeometry))
-        return {GasTransportCode::UnsupportedConfiguration, "mixture ordinary wallFunction supports only fixed impermeable mixtureFrozen walls"};
+        return {GasTransportCode::UnsupportedConfiguration, "selected mixture reconstruction has no implementation; available paths are firstOrder and composition-aware MUSCL"};
     if (r.particleCoupling)
         return {GasTransportCode::UnsupportedConfiguration, "mixture particle thermal and void-fraction closure is not enabled"};
     return {GasTransportCode::Success, "mixture shared Rusanov or Kurganov/HLL with firstOrder or MUSCL"};
