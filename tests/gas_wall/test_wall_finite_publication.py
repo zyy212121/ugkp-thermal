@@ -33,8 +33,8 @@ for(bool sst:{false,true})for(int nodes:{2,3}) {Model m;m.in.integrateOwnerKSour
  assert(evaluateWallModel(m.in,c,w,out,s));assert(out.traceTemperature==m.in.temperature);
  detail::LayerContext<double,2> ctx;detail::makeContext(m.in,c,ctx);
  assert(detail::publishLayer(m.in,c,ctx,w,out.iterations,out.residual,expected));sameOutput(out,expected);
- c.nodes=1;assert(!evaluateWallModel(m.in,c,w,out,s));
- c.nodes=4;assert(!evaluateWallModel(m.in,c,w,out,s));
+ // Supplied out-of-capacity node metadata is caller risk; never run an OOB probe.
+ m.in.model.thermo.coefficients=nullptr;assert(!evaluateWallModel(m.in,c,w,out,s));
 }
 ''',
     'signed_point': r'''

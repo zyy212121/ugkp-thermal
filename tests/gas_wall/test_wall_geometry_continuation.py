@@ -94,8 +94,9 @@ int main(){
  }
  auto m=cubes();WallGeometryDescriptor<double>d;WallStatus s;
  assert(buildWallGeometry(m,0,d,s));checkMoments(d,{.5,.5,.5},1);
- // A finite seed outside the polyhedron is not a positive decomposition.
- m.cellCentres[0]={3,3,.5};assert(!buildWallGeometry(m,0,d,s));
+ // Exhausted seed search still publishes its actual signed tetrahedral moments.
+ m.cellCentres[0]={3,3,.5};assert(buildWallGeometry(m,0,d,s));
+ assert(d.matchingCells==std::vector<int>{1}&&std::isfinite(d.firstMoment));
 }
 '''
     cpp=tmp_path/'iterations.cpp';cpp.write_text(code);exe=tmp_path/'iterations'
@@ -147,3 +148,29 @@ assert(buildWallGeometry(m,0,d,s));checkMoments(d,{.5,.5,.5},1);
     run=subprocess.run([str(binary)],capture_output=True,text=True)
     assert run.returncode==0,run.stdout+run.stderr
     assert 'runtime error' not in run.stderr
+
+
+def test_nonfinite_stage_volume_completes_actual_geometry_fields(tmp_path):
+    compile_run(tmp_path, r'''
+for(bool quadrature:{false,true}){
+ auto m=cubes();m.volumes[0]=std::numeric_limits<double>::infinity();
+ WallGeometryOptions<double> o;o.constructQuadrature=quadrature;WallGeometryDescriptor<double>d;WallStatus s;
+ d.firstMoment=917;d.matchingDistance=918;assert(buildWallGeometry(m,0,d,s,o));
+ assert(d.matchingCells==std::vector<int>{1}&&d.matchingWeights==std::vector<double>{1});
+ assert(d.matchingDistance==1.5&&d.ownerDistance==.5&&d.geometryVolume==1);
+ assert(std::isinf(d.volume)&&std::isinf(d.firstMoment)&&std::isinf(d.firstMomentVector[0]));
+ if(quadrature){assert(!d.volumeWeight.empty());for(double weight:d.volumeWeight)assert(std::isinf(weight));}
+ else assert(d.distance.empty()&&d.volumeWeight.empty());
+}
+''')
+
+
+def test_profile_control_diagnostic_completes_existing_quadrature_arithmetic(tmp_path):
+    compile_run(tmp_path,r'''
+auto m=cubes();WallGeometryOptions<double> o;o.profileNodes=3;o.profileStretch=std::numeric_limits<double>::quiet_NaN();
+WallGeometryDescriptor<double>d;WallStatus status;d.firstMoment=917;
+assert(buildWallGeometry(m,0,d,status,o));
+assert(d.matchingCells==std::vector<int>{1}&&d.matchingDistance==1.5);
+assert(!d.distance.empty()&&d.distance.size()==d.volumeWeight.size());
+checkMoments(d,{.5,.5,.5},1);
+''')

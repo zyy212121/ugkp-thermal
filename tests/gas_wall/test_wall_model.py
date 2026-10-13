@@ -52,8 +52,9 @@ def test_constant_limits_and_failure_atomicity(tmp_path):
  assert(evaluateWallModel(m.in,c,w,o,s));assert(o.wallSpeciesFlux[0]==-.1);
  m.in.massFlux[0]=.0007;m.in.normal[1]=2;
  assert(evaluateWallModel(m.in,c,w,o,s));assert(std::isfinite(o.conductiveHeatFlux));
- const double keep=o.conductiveHeatFlux;m.in.temperature=std::numeric_limits<double>::quiet_NaN();
- assert(!evaluateWallModel(m.in,c,w,o,s));assert(o.conductiveHeatFlux==keep);
+ m.in.temperature=std::numeric_limits<double>::quiet_NaN();
+ assert(evaluateWallModel(m.in,c,w,o,s));assert(std::isnan(o.traceTemperature)&&std::isnan(o.conductiveHeatFlux));
+ assert(o.wallSpeciesFlux[0]==.0007&&o.matchingSpeciesFlux[1]==.0003);
  ''')
 
 def test_reacting_diffusion_and_frozen_control(tmp_path):

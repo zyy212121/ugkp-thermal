@@ -115,3 +115,28 @@ def test_final_publication_skips_only_unused_sst_work(tmp_path, nodes):
     result = subprocess.run([str(exe)], capture_output=True, text=True, timeout=30)
     assert result.returncode == 0, result.stdout+result.stderr
     print(result.stdout, end='')
+
+
+def test_terminal_publication_retains_bounded_work_and_all_tails(tmp_path):
+    local=tmp_path/'instrumented';local.mkdir()
+    (local/'WallModel.H').write_text((ROOT/'common/gasWall/WallModel.H').read_text())
+    (local/'ReactingWallLayer.H').write_text(instrumented_header())
+    source=tmp_path/'terminal-publication.cpp'
+    source.write_text(BASE.replace('"common/gasWall/WallModel.H"','"instrumented/WallModel.H"')+r'''
+int main(){Model m;m.in.integrateOwnerKSource=false;WallModelConfig<double> c;c.nodes=24;c.maxIterations=0;c.enableSst=true;
+m.in.matching.k=.5;m.in.matching.omega=200;WallWorkspace<double,2,24>w;WallOutput<double,2> initial,out;WallStatus status;
+assert(evaluateWallModel(m.in,c,w,initial,status));detail::LayerContext<double,2> ctx;assert(detail::makeContext(m.in,c,ctx));
+w.state[12][2]=std::numeric_limits<double>::infinity();out.ownerOmega=917;out.matchingSpeciesFlux[1]=918;
+stateCalls=reactionCalls=sstCalls=0;
+assert(detail::publishLayer(m.in,c,ctx,w,3,std::numeric_limits<double>::quiet_NaN(),out,true));
+assert(stateCalls==5+c.nodes&&reactionCalls==c.nodes&&sstCalls==4);
+assert(out.ownerOmega==initial.ownerOmega&&out.matchingSpeciesFlux[1]==initial.matchingSpeciesFlux[1]);
+assert(out.iterations==3&&std::isnan(out.residual)&&std::isnan(out.integratedKSource));
+std::cout<<"terminal states="<<stateCalls<<" reactions="<<reactionCalls<<" sst="<<sstCalls<<'\n';
+}
+''')
+    binary=source.with_suffix('');cmd=['g++','-std=c++17','-O1','-I'+str(ROOT),'-I'+str(ROOT/'common'),'-I'+str(ROOT/'common/gasWall'),str(source),'-o',str(binary)]
+    (tmp_path/'command.txt').write_text(' '.join(cmd));built=subprocess.run(cmd,capture_output=True,text=True)
+    (tmp_path/'build.log').write_text(built.stdout+built.stderr);assert built.returncode==0,built.stderr
+    run=subprocess.run([str(binary)],capture_output=True,text=True);(tmp_path/'run.log').write_text(run.stdout+run.stderr)
+    assert run.returncode==0,run.stdout+run.stderr

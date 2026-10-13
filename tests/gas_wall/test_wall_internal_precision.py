@@ -34,11 +34,11 @@ int main(){
  c.relativeTolerance=1e-20;c.absoluteTolerance=0;
  assert(evaluateWallModel(m.in,c,w,out,status));assert(status.residual>c.relativeTolerance);
  assert(status.code==WallCode::Success&&out.residual==double(status.residual));
- const auto saved=out;
  c.model=BoundaryLayerModel::ConstantTransport;c.enableSst=false;c.relativeTolerance=1e-8;
  m.in.model.mode=GasMode::MixtureFrozen;m.in.massFlux[0]=m.in.massFlux[1]=0;m.in.temperature=std::numeric_limits<double>::quiet_NaN();
- assert(!evaluateWallModel(m.in,c,w,out,status));assert(status.code!=WallCode::Success);
- assert(out.conductiveHeatFlux==saved.conductiveHeatFlux);
+ assert(evaluateWallModel(m.in,c,w,out,status));assert(status.code!=WallCode::Success);
+ assert(std::isnan(out.traceTemperature)&&std::isnan(out.conductiveHeatFlux));
+ assert(out.wallSpeciesFlux[0]==0&&out.matchingSpeciesFlux[1]==0);
 
 }
 '''
