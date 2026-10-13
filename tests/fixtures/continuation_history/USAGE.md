@@ -10,7 +10,7 @@ python3 tests/fixtures/continuation_history/prepare.py
 ```
 
 The existing first-round fixture is unchanged. This continuation bundle advertises
-only `refs/audit/continuation-original-history`, at `a164be44fd28b3d05a1cb430e4e98675b1397bd4`.
+only `refs/audit/continuation-original-history`, at `a73b9635510fb09d7baa5339e14d1aa609f0ff87`.
 Its single prerequisite is the published first-round head
 `82f9c016704c9822b16b87cdeeb11f5bbd44d06f` and that commit's ancestry.
 A shallow or tree-only checkout missing that prerequisite must obtain its
@@ -39,6 +39,12 @@ incompatible history without substituting another baseline.
 - `ee77457f3b60728b201d47bfca32d25505ff7199` Complete native frontend material and supported boundary publication
 - `7fbfb2b49e1060bee07574f857f26691d28fce9f` Complete particle and pool native contribution publication
 - `a164be44fd28b3d05a1cb430e4e98675b1397bd4` Complete resident mirrors and native source publication without metadata admission
+- `7982a97294d4a9f19184517226bcde036f235a56` Preserve offline continuation source history for PR review
+- `970d9fedcc061dfa08fc88d427a1a47b3c22f65f` Preserve restart codec dispatch under native C++14 builds
+- `dc79925991e8dd4f4fc8f339942a3b9e85e0c633` Pin offline review history to final C++14 source
+- `d1abd791774a2abd0af26fed09f3ebee3353c21e` Add PR-local FAST review requests and immutable developer evidence
+- `47e6c02ff7cd127f1a92c1fcf712d59450e71bab` Include explicitly owned raw build logs and review evidence
+- `a73b9635510fb09d7baa5339e14d1aa609f0ff87` Remove unconsumed mapper configuration and source-size refusals
 
 The face-producer completion tests pin B1 (`b236292...`). Resident terminal
 wrapper, storage, and Courant tests pin B6 (`5f1a39a...`). EOS completion and
