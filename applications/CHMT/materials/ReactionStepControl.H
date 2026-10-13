@@ -24,20 +24,22 @@ CHMT_HD inline Real reactionMassDerivative(const Reaction& reaction,int componen
         derivative*=::pow(q.condensed[k]/volume,reaction.order[k]);
     return derivative;
 }
+template<bool Terminal=false>
 CHMT_HD inline bool reactionStepControl(const SolidQ& state,Real volume,const PhysicsConfig& p,
-    Real cfl,ReactionStepControl& output) {
-    if(!(cfl>0&&cfl<=1)||p.nReactions<0||p.nReactions>Nr)return false;
-    MaterialPrimitive material;if(!recoverMaterial(state,volume,p,material))return false;
+    Real cfl,ReactionStepControl& output,bool* numericalFailure=nullptr) {
+    if(numericalFailure)*numericalFailure=true;
+    if(!Terminal&&(!(cfl>0&&cfl<=1)||p.nReactions<0||p.nReactions>Nr))return false;
+    MaterialPrimitive material;if(!recoverMaterial<Terminal>(state,volume,p,material,nullptr,-1,numericalFailure))return false;
     ReactionStepControl c;c.temperature=material.temperature;
     Real mass=0,a1=0,a2=0;
     for(int k=0;k<Nc;++k){mass+=state.condensed[k];a1+=state.condensed[k]*p.condensed[k].cp0;a2+=state.condensed[k]*p.condensed[k].cp1;}
-    for(int s=0;s<Ns;++s){mass+=state.pore[s];if(state.pore[s]>0)a1+=state.pore[s]*speciesCv(p.species[s],c.temperature);}
+    for(int s=0;s<Ns;++s){mass+=state.pore[s];if(state.pore[s]>0)a1+=state.pore[s]*(Terminal?terminalSpeciesCv(p.species[s],c.temperature):speciesCv(p.species[s],c.temperature));}
     c.capacity=a1+a2*c.temperature;c.massTolerance=maxValue(p.tolerances.absoluteMass,64*std::numeric_limits<Real>::epsilon()*mass);
-    if(!(c.capacity>0)||!finite(c.capacity)||!finite(c.massTolerance)||c.massTolerance<0)return false;
+    if(!Terminal&&(!(c.capacity>0)||!finite(c.capacity)||!finite(c.massTolerance)||c.massTolerance<0))return false;
     if(!p.enableReactions){output=c;return true;}
     SolidQ loss;Real stageRates[Nr]{};bool negligible[Nr]{};
-    for(int r=0;r<p.nReactions;++r){const auto& reaction=p.reactions[r];const Real rate=reactionRate(reaction,state.condensed,volume,c.temperature);
-        if(!finite(rate)||rate<0)return false;
+    for(int r=0;r<p.nReactions;++r){const auto& reaction=p.reactions[r];const Real rate=reactionRate<Terminal>(reaction,state.condensed,volume,c.temperature);
+        if(!Terminal&&(!finite(rate)||rate<0))return false;
         stageRates[r]=rate;c.active=c.active||rate>0;
         Real donorExtent=std::numeric_limits<Real>::max();bool fractionalDonor=false;
         for(int k=0;k<Nc;++k){const Real nu=reaction.condensedNu[k];loss.condensed[k]+=rate*maxValue(0,-nu);c.extentEnergy[r]+=nu*condensedE(p.condensed[k],c.temperature);
@@ -61,31 +63,46 @@ CHMT_HD inline bool reactionStepControl(const SolidQ& state,Real volume,const Ph
         for(int j=0;j<p.nReactions;++j){Real entry=-dT*c.extentEnergy[j]/c.capacity;
             for(int k=0;k<Nc;++k)entry+=dm[k]*p.reactions[j].condensedNu[k];
             row+=absValue(entry);}
-        if(!finite(row))return false;
+        if(!Terminal&&(!finite(row)))return false;
         c.sensitivity=maxValue(c.sensitivity,row);
     }
     for(int k=0;k<Nc;++k)if(loss.condensed[k]>0&&state.condensed[k]>c.massTolerance)c.dtLimit=minValue(c.dtLimit,cfl*state.condensed[k]/loss.condensed[k]);
     for(int s=0;s<Ns;++s)if(loss.pore[s]>0&&state.pore[s]>c.massTolerance)c.dtLimit=minValue(c.dtLimit,cfl*state.pore[s]/loss.pore[s]);
     if(c.sensitivity>0)c.dtLimit=minValue(c.dtLimit,cfl/c.sensitivity);
-    if(!(c.dtLimit>0)||!finite(c.dtLimit))return false;
+    if(!Terminal&&(!(c.dtLimit>0)||!finite(c.dtLimit)))return false;
     output=c;return true;
 }
 // Select one admissible local step. The full Euler state is returned; the two
 // half steps are only an error estimate, not a change to the accepted method.
 // Failure leaves output, step and active unchanged. The bounded retry loop is
 // shared with CUDA timestep selection, not a second GPU chemistry integrator.
+// Only after the unchanged selection prefix fails, evaluate the original
+// requested interval once. The published state and paid interval come from the
+// same full Euler call; no nominal candidate cache or tiny-step expansion.
+CHMT_HD inline bool completeReactionStep(const SolidQ& state,Real volume,const PhysicsConfig& p,
+    Real maximumStep,Real /*cfl*/,SolidQ& output,Real& step,bool& active,bool* numericalFailure) {
+    SolidQ full;Real rates[Nr]{};
+    if(!advanceLocalReactions<true>(state,volume,p,maximumStep,full,rates,nullptr,-1,numericalFailure))return false;
+    output=full;step=maximumStep;active=true;return true;
+}
+template<bool Terminal=false>
 CHMT_HD inline bool reactionStepCandidate(const SolidQ& state,Real volume,const PhysicsConfig& p,
-    Real maximumStep,Real cfl,SolidQ& output,Real& step,bool& active) {
+    Real maximumStep,Real cfl,SolidQ& output,Real& step,bool& active,bool* numericalFailure=nullptr) {
+    if(Terminal){
+        if(reactionStepCandidate<false>(state,volume,p,maximumStep,cfl,output,step,active,numericalFailure))return true;
+        return completeReactionStep(state,volume,p,maximumStep,cfl,output,step,active,numericalFailure);
+    }
+    if(numericalFailure)*numericalFailure=true;
     if(!(maximumStep>0)||!finite(maximumStep))return false;
-    ReactionStepControl c;if(!reactionStepControl(state,volume,p,cfl,c))return false;
+    ReactionStepControl c;if(!reactionStepControl(state,volume,p,cfl,c,numericalFailure))return false;
     if(!c.active){output=state;step=maximumStep;active=false;return true;}
     Real dt=minValue(maximumStep,c.dtLimit);
     for(int retry=0;retry<40;++retry){if(!finite(dt)||!(dt>0)||dt/2==0)break;
         SolidQ full,half,refined;Real rates[Nr]{},unused[Nr]{};MaterialPrimitive fullState,refinedState;
-        if(advanceLocalReactions(state,volume,p,dt,full,rates)
-            &&advanceLocalReactions(state,volume,p,dt/2,half,unused)
-            &&advanceLocalReactions(half,volume,p,dt/2,refined,unused)
-            &&recoverMaterial(full,volume,p,fullState)&&recoverMaterial(refined,volume,p,refinedState)){
+        if(advanceLocalReactions(state,volume,p,dt,full,rates,nullptr,-1,numericalFailure)
+            &&advanceLocalReactions(state,volume,p,dt/2,half,unused,nullptr,-1,numericalFailure)
+            &&advanceLocalReactions(half,volume,p,dt/2,refined,unused,nullptr,-1,numericalFailure)
+            &&recoverMaterial(full,volume,p,fullState,nullptr,-1,numericalFailure)&&recoverMaterial(refined,volume,p,refinedState,nullptr,-1,numericalFailure)){
             Real defect=0,variation=0,thermalVariation=0;
             for(int k=0;k<Nc;++k)defect+=absValue(full.condensed[k]-refined.condensed[k]);
             for(int s=0;s<Ns;++s)defect+=absValue(full.pore[s]-refined.pore[s]);

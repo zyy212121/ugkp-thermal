@@ -5,13 +5,13 @@ namespace chmt {
 inline Real materialDriveRelative(Real a,Real b,Real floor){return absValue(a-b)/maxValue(floor,maxValue(absValue(a),absValue(b)));}
 // A LOCAL first-order lag control, not a bound on global PDE error. Only
 // interface records are scanned; no volume RHS or implicit solve occurs here.
-inline bool materialDriveSlabEnd(const IntervalHistory& history,Real begin,Real requested,
-    Real tolerance,Real tractionScale,Real& output,std::uint64_t& samples,std::string& error){
-    if(!history.complete()||begin<history.interval().begin||requested>history.interval().end||requested<=begin
+inline bool materialDriveSlabEndLocal(const IntervalHistory& history,WindowTime begin,WindowTime requested,
+    Real tolerance,Real tractionScale,WindowTime& output,std::uint64_t& samples,std::string& error){
+    if(!history.complete()||begin<WindowTime{}||requested>history.localEnd()||requested<=begin
         ||!finite(tolerance)||tolerance<0||!finite(tractionScale)||tractionScale<=0){error="invalid material driving control";return false;}
-    const GasIntervalRecord* held=nullptr;for(const auto& r:history.records())if(begin<r.end){held=&r;break;}
-    if(!held){error="no driving sample at material slab start";return false;}Real end=requested;
-    for(const auto& r:history.records()){if(r.begin<=begin||r.begin>=end)continue;
+    const GasIntervalRecord* held=nullptr;for(const auto& r:history.records())if(begin<r.localEnd){held=&r;break;}
+    if(!held){error="no driving sample at material slab start";return false;}WindowTime end=requested;
+    for(const auto& r:history.records()){if(r.localBegin<=begin||r.localBegin>=end)continue;
         if(r.gasTrace.size()!=held->gasTrace.size()||r.gasTraction.size()!=held->gasTraction.size()||r.gasGradient.size()!=held->gasGradient.size()||r.gasWallMatching.size()!=held->gasWallMatching.size()){
             error="gas drive layout changed";return false;}
         Real change=0;++samples;
@@ -37,9 +37,14 @@ inline bool materialDriveSlabEnd(const IntervalHistory& history,Real begin,Real 
         for(std::size_t f=0;f<r.gasTraction.size();++f)change=maxValue(change,mag(r.gasTraction[f]-held->gasTraction[f])/maxValue(tractionScale,maxValue(mag(r.gasTraction[f]),mag(held->gasTraction[f]))));
         for(std::size_t f=0;f<r.gasGradient.size();++f){for(int j=0;j<3;++j)change=maxValue(change,mag(r.gasGradient[f].velocity[j]-held->gasGradient[f].velocity[j])/maxValue(1,maxValue(mag(r.gasGradient[f].velocity[j]),mag(held->gasGradient[f].velocity[j]))));}
         if(!finite(change)){error="nonfinite gas driving change";return false;}
-        if(change>tolerance||r.radiationReceiver!=held->radiationReceiver){end=r.begin;break;}
+        if(change>tolerance||r.radiationReceiver!=held->radiationReceiver){end=r.localBegin;break;}
     }
     if(!(end>begin)){error="driving slab does not advance";return false;}output=end;error.clear();return true;
+}
+inline bool materialDriveSlabEnd(const IntervalHistory& history,Real begin,Real requested,Real tolerance,Real tractionScale,Real& output,std::uint64_t& samples,std::string& error){
+    WindowTime local;const Real origin=history.interval().begin;
+    if(!materialDriveSlabEndLocal(history,windowOffset(origin,begin),windowOffset(origin,requested),tolerance,tractionScale,local,samples,error))return false;
+    output=windowAbsolute(origin,local);return true;
 }
 }
 #endif
