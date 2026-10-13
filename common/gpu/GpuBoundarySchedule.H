@@ -23,8 +23,7 @@ class GpuBoundaryScheduleTable
         if (!validRows(rows_))
         {
             FatalErrorInFunction
-                << context << ": schedule requires at least one finite row, "
-                << "strictly increasing non-negative times, and finite values"
+                << context << ": schedule requires finite times and values"
                 << exit(FatalError);
         }
     }
@@ -57,12 +56,6 @@ public:
 
     static bool validRows(const List<Tuple2<scalar, scalar>>& rows)
     {
-        if (rows.empty())
-        {
-            return false;
-        }
-
-        scalar previousTime = -1;
         forAll(rows, i)
         {
             const scalar timeValue = rows[i].first();
@@ -71,13 +64,10 @@ public:
             (
                 !std::isfinite(timeValue)
              || !std::isfinite(value)
-             || timeValue < 0
-             || (i > 0 && timeValue <= previousTime)
             )
             {
                 return false;
             }
-            previousTime = timeValue;
         }
         return true;
     }
