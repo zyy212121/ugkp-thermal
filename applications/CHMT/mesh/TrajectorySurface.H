@@ -10,8 +10,12 @@ namespace chmt {
 // whole path is certified independently, and output changes only on success.
 bool rebuildTrajectorySurface(const HostMesh& oldGas, const HostMesh& oldSolid,
     const SurfaceMesh& referenceSurface, const HostMesh& gasEndpoint, const HostMesh& solidEndpoint,
-    Real interval, SurfaceMesh& output, std::string& error, const Tolerances& tolerances=Tolerances{});
+    Real interval, SurfaceMesh& output, std::string& error, const Tolerances& tolerances=Tolerances{},bool* numericalFailure=nullptr);
 bool rebuildTrajectorySurface(const HostState& base, const HostMesh& gasEndpoint,
-    const HostMesh& solidEndpoint, Real interval, SurfaceMesh& output, std::string& error, const Tolerances& tolerances=Tolerances{});
+    const HostMesh& solidEndpoint, Real interval, SurfaceMesh& output, std::string& error, const Tolerances& tolerances=Tolerances{},bool* numericalFailure=nullptr);
+namespace detail {
+bool completeTrajectorySurface(const HostMesh&,const HostMesh&,const SurfaceMesh&,const HostMesh&,const HostMesh&,
+    Real,SurfaceMesh&,std::string&,const Tolerances& =Tolerances{},bool* numericalFailure=nullptr);
+}
 }
 #endif

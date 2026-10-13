@@ -20,13 +20,21 @@ namespace chmt {
     // Configured tolerances bound GCL and periodic swept-volume residuals only;
     // topology, orientation and area-closure validity remain independent.
     bool makeStageGeometry(const HostMesh&, const std::vector<Vec3>&, double, HostMesh&, std::vector<double>&,
-        std::string&, const Tolerances& tolerances=Tolerances{});
+        std::string&, const Tolerances& tolerances=Tolerances{}, bool* numericalFailure=nullptr);
     bool makeStageAreaVectors(const HostMesh&, const std::vector<Vec3>&, std::vector<Vec3>&, std::string&);
     // Surface diagnostic is physical normal/hinge area change, NOT a source
     // correction and NOT a target that must be forced to zero. Units m^2.
     bool surfaceAreaMetricChange(const SurfaceMesh&, std::vector<Real>&, std::string&);
     bool integrateSurfaceEdgeSweep(const HostMesh&, const std::vector<Vec3>&, int faceOwner, int faceNeighbour,
         int pointA, int pointB, int segments, Real&, std::string&);
+    namespace detail {
+    bool completeGeometry(HostMesh&,std::string&,bool* numericalFailure=nullptr);
+    bool completeStageAreaVectors(const HostMesh&,const std::vector<Vec3>&,std::vector<Vec3>&,std::string&,bool* numericalFailure=nullptr);
+    bool completeStageGeometry(const HostMesh&,const std::vector<Vec3>&,double,HostMesh&,std::vector<double>&,
+        std::string&,const Tolerances& =Tolerances{},bool* numericalFailure=nullptr);
+    bool completeHarmonicPointMotion(const HostMesh&,const std::vector<Vec3>&,const std::vector<unsigned char>&,
+        std::vector<Vec3>&,std::string&,bool* numericalFailure=nullptr);
+    }
     Real maximumGclResidual(const HostMesh& oldMesh, const HostMesh& newMesh, const std::vector<Real>& sweeps);
 }
 #endif
