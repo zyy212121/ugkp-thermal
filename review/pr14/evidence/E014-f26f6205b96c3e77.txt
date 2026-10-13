@@ -1,0 +1,126 @@
+chmt_remaining_work_20261013/common/GpuToolB1.cuh:48:        float elapsed = 0.0f;
+chmt_remaining_work_20261013/common/wall/GpuColdWallThermalCarry.cuh:15:UGKWP_COLD_CARRY_HD inline float coldWallStoredEnthalpyFloor(double target) {
+chmt_remaining_work_20261013/common/wall/GpuColdWallThermalCarry.cuh:16: // The FP64 residual carries values outside the float cache interval.
+chmt_remaining_work_20261013/common/wall/GpuColdWallThermalCarry.cuh:19: float stored=static_cast<float>(target);
+chmt_remaining_work_20261013/common/wall/GpuColdWallThermalCarry.cuh:26:(const float* nodes,int count,double residual) {
+chmt_remaining_work_20261013/common/wall/GpuColdWallThermalCarry.cuh:36:(float* nodes, int count, double& residual, double specificHeat) {
+chmt_remaining_work_20261013/common/wall/GpuColdWallThermalCarry.cuh:52:  const float stored=coldWallStoredEnthalpyFloor(target);
+chmt_remaining_work_20261013/applications/FSH/gpu/GpuFshParticleRestart.H:197:        gpuThermalRestart::readConverted<float>(is, v.pDepositionArea, begin, chunk);
+chmt_remaining_work_20261013/applications/FSH/gpu/GpuFshParticleRestart.H:292:        gpuThermalRestart::readConverted<float>(is, v.pDepositionArea, begin, chunk);
+chmt_remaining_work_20261013/applications/FSH/gpu/GpuFshParticleRestart.H:293:        gpuThermalRestart::readConverted<float>(is, v.pContactDuration, begin, chunk);
+chmt_remaining_work_20261013/applications/FSH/gpu/GpuFshParticleRestart.H:294:        gpuThermalRestart::readConverted<float>(is, v.pContactMaximumArea, begin, chunk);
+chmt_remaining_work_20261013/applications/FSH/gpu/GpuFshParticleRestart.H:375:        gpuThermalRestart::readConverted<float>(is, v.pDepositionArea, begin, chunk);
+chmt_remaining_work_20261013/applications/FSH/gpu/GpuFshParticleRestart.H:376:        gpuThermalRestart::readConverted<float>(is, v.pContactDuration, begin, chunk);
+chmt_remaining_work_20261013/applications/FSH/gpu/GpuFshParticleRestart.H:377:        gpuThermalRestart::readConverted<float>(is, v.pContactMaximumArea, begin, chunk);
+chmt_remaining_work_20261013/applications/FSH/gpu/GpuFshParticleRestart.H:378:        gpuThermalRestart::readConverted<float>(is, v.pContactPeakFraction, begin, chunk);
+chmt_remaining_work_20261013/applications/FSH/gpu/GpuFshParticleRestart.H:454:        gpuThermalRestart::readConverted<float>(is, v.pDepositionArea, begin, chunk);
+chmt_remaining_work_20261013/applications/FSH/gpu/GpuFshParticleRestart.H:455:        gpuThermalRestart::readConverted<float>(is, v.pContactDuration, begin, chunk);
+chmt_remaining_work_20261013/applications/FSH/gpu/GpuFshParticleRestart.H:456:        gpuThermalRestart::readConverted<float>(is, v.pContactMaximumArea, begin, chunk);
+chmt_remaining_work_20261013/applications/FSH/gpu/GpuFshParticleRestart.H:457:        gpuThermalRestart::readConverted<float>(is, v.pContactPeakFraction, begin, chunk);
+chmt_remaining_work_20261013/applications/FSH/gpu/GpuFshParticleRestart.H:458:        gpuThermalRestart::readConverted<float>
+chmt_remaining_work_20261013/applications/FSH/gpu/GpuFshParticleRestart.H:465:        gpuThermalRestart::readConverted<float>
+chmt_remaining_work_20261013/applications/FSH/gpu/GpuFshParticleRestart.H:472:        gpuThermalRestart::readConverted<float>(is, v.pColdFrozenArea, begin, chunk);
+chmt_remaining_work_20261013/applications/FSH/gpu/GpuFshParticleRestart.H:473:        gpuThermalRestart::readConverted<float>(is, v.pColdContactAge, begin, chunk);
+chmt_remaining_work_20261013/applications/FSH/gpu/GpuFshParticleRestart.H:529:        gpuThermalRestart::readConverted<float>(is, v.pDepositionArea, begin, chunk);
+chmt_remaining_work_20261013/applications/FSH/gpu/GpuFshParticleRestart.H:530:        gpuThermalRestart::readConverted<float>(is, v.pContactDuration, begin, chunk);
+chmt_remaining_work_20261013/applications/FSH/gpu/GpuFshParticleRestart.H:531:        gpuThermalRestart::readConverted<float>(is, v.pContactMaximumArea, begin, chunk);
+chmt_remaining_work_20261013/applications/FSH/gpu/GpuFshParticleRestart.H:532:        gpuThermalRestart::readConverted<float>(is, v.pContactPeakFraction, begin, chunk);
+chmt_remaining_work_20261013/applications/FSH/gpu/GpuFshParticleRestart.H:533:        gpuThermalRestart::readConverted<float>
+chmt_remaining_work_20261013/applications/FSH/gpu/GpuFshParticleRestart.H:540:        gpuThermalRestart::readConverted<float>
+chmt_remaining_work_20261013/applications/FSH/gpu/GpuFshParticleRestart.H:547:        gpuThermalRestart::readConverted<float>(is, v.pColdFrozenArea, begin, chunk);
+chmt_remaining_work_20261013/applications/FSH/gpu/GpuFshParticleRestart.H:548:        gpuThermalRestart::readConverted<float>(is, v.pColdContactAge, begin, chunk);
+chmt_remaining_work_20261013/applications/FSH/gpu/GpuFshParticleRestart.H:549:        gpuThermalRestart::readConverted<float>
+chmt_remaining_work_20261013/applications/FSH/gpu/GpuFshParticleRestart.H:556:        gpuThermalRestart::readConverted<float>
+chmt_remaining_work_20261013/applications/FSH/gpu/GpuFshParticleRestart.H:563:        gpuThermalRestart::readConverted<float>(is, v.pCold2DFrozenArea, begin, chunk);
+chmt_remaining_work_20261013/applications/FSH/gpu/GpuFshParticleRestart.H:568:static const char* const schema7FormatName = gpuThermalRestart::marker<float>();
+chmt_remaining_work_20261013/applications/FSH/gpu/GpuFshParticleRestart.H:570:{ gpuThermalRestart::readPayload<float>(is,bound,v); }
+chmt_remaining_work_20261013/common/operators/computeSstFaceFluxKernel.cuh:528:    // Compare in the source-time type: a float/double fmax otherwise selects
+chmt_remaining_work_20261013/common/wall/GpuColdWall2DDevice.cuh:583:        const float stored=ugkwp::coldWallStoredEnthalpyFloor(enthalpy[node]);
+chmt_remaining_work_20261013/common/wall/GpuColdWall2DDevice.cuh:592:    // Phase and output caches use exactly the published float profile + carry.
+chmt_remaining_work_20261013/common/wall/GpuColdWall2DDevice.cuh:594:        const float stored=ugkwp::coldWallStoredEnthalpyFloor(enthalpy[node]);
+chmt_remaining_work_20261013/common/wall/GpuColdWall1DPublish.inl:11:    const float publishedEnthalpy = ugkwp::coldWallStoredEnthalpyFloor(candidateEnthalpy);
+chmt_remaining_work_20261013/common/GpuParticleCaloricDevice.cuh:31: const float* h=count==8?(CompactParticles?s.compactPColdNodeSpecificEnthalpy:s.pColdNodeSpecificEnthalpy):(CompactParticles?s.compactPCold2DNodeSpecificEnthalpy:s.pCold2DNodeSpecificEnthalpy);
+chmt_remaining_work_20261013/common/GpuThermalParticleRestartCodec.H:17:template<> inline const char* marker<float>() { return "UGKP_THERMAL_PARTICLES_SCHEMA7_T32_BIN"; }
+chmt_remaining_work_20261013/common/GpuThermalParticleRestartCodec.H:96:    fn(v.pDepositionArea, begin*1u, count*1u, float{});
+chmt_remaining_work_20261013/common/GpuThermalParticleRestartCodec.H:98:    fn(v.pContactMaximumArea, begin*1u, count*1u, float{});
+chmt_remaining_work_20261013/common/GpuThermalParticleRestartCodec.H:99:    fn(v.pContactPeakFraction, begin*1u, count*1u, float{});
+chmt_remaining_work_20261013/common/GpuThermalParticleRestartCodec.H:100:    fn(v.pColdNodeSpecificEnthalpy, begin*8u, count*8u, float{});
+chmt_remaining_work_20261013/common/GpuThermalParticleRestartCodec.H:101:    fn(v.pColdRingSolidMass, begin*8u, count*8u, float{});
+chmt_remaining_work_20261013/common/GpuThermalParticleRestartCodec.H:102:    fn(v.pColdFrozenArea, begin*1u, count*1u, float{});
+chmt_remaining_work_20261013/common/GpuThermalParticleRestartCodec.H:104:    fn(v.pCold2DNodeSpecificEnthalpy, begin*64u, count*64u, float{});
+chmt_remaining_work_20261013/common/GpuThermalParticleRestartCodec.H:106:    fn(v.pCold2DFrozenArea, begin*1u, count*1u, float{});
+chmt_remaining_work_20261013/common/GpuPairedParticleHeat.cuh:123:  float* nodes=(count==8?s.pColdNodeSpecificEnthalpy:s.pCold2DNodeSpecificEnthalpy)+i*count;
+chmt_remaining_work_20261013/common/GpuDevelopmentThermalProbeSample.cuh:17:    float totalElapsedMs = 0.0f;
+chmt_remaining_work_20261013/common/GpuDevelopmentThermalProbeSample.cuh:47:            float elapsedMs = 0.0f;
+chmt_remaining_work_20261013/common/GpuCellLocalThermalFields.cuh:35:        if constexpr (Packed && Width % 4 == 0 && std::is_same<Scalar, float>::value)
+chmt_remaining_work_20261013/common/GpuCellLocalThermalFields.cuh:39:                reinterpret_cast<float4*>(dest)[dst*(Width/4)+j] =
+chmt_remaining_work_20261013/common/GpuCellLocalThermalFields.cuh:40:                    reinterpret_cast<const float4*>(src)[i*(Width/4)+j];
+chmt_remaining_work_20261013/applications/CHT/gpu/GpuBackendApi.H:210:    const float* pColdNodeSpecificEnthalpy,
+chmt_remaining_work_20261013/applications/CHT/gpu/GpuBackendApi.H:214:    const float* pCold2DNodeSpecificEnthalpy,
+chmt_remaining_work_20261013/applications/CHT/gpu/GpuBackendApi.H:229:    float* pColdNodeSpecificEnthalpy,
+chmt_remaining_work_20261013/applications/CHT/gpu/GpuBackendApi.H:233:    float* pCold2DNodeSpecificEnthalpy,
+chmt_remaining_work_20261013/applications/CHT/gpu/GpuParticleRadiationMath.H:36:    // when particle temperature is a float cache with an enthalpy carry.
+chmt_remaining_work_20261013/applications/CHT/gpu/GpuChtParticleRestart.H:52:    const float* pColdNodeSpecificEnthalpy;
+chmt_remaining_work_20261013/applications/CHT/gpu/GpuChtParticleRestart.H:56:    const float* pCold2DNodeSpecificEnthalpy;
+chmt_remaining_work_20261013/applications/CHT/gpu/GpuChtParticleRestart.H:88:    float* pColdNodeSpecificEnthalpy;
+chmt_remaining_work_20261013/applications/CHT/gpu/GpuChtParticleRestart.H:92:    float* pCold2DNodeSpecificEnthalpy;
+chmt_remaining_work_20261013/applications/CHT/gpu/GpuChtParticleRestart.H:209:        gpuThermalRestart::readConverted<float>(is, v.pDepositionArea, begin, chunk);
+chmt_remaining_work_20261013/applications/CHT/gpu/GpuChtParticleRestart.H:304:        gpuThermalRestart::readConverted<float>(is, v.pDepositionArea, begin, chunk);
+chmt_remaining_work_20261013/applications/CHT/gpu/GpuChtParticleRestart.H:305:        readConvertedArray<float>(is, v.pContactDuration, begin, chunk);
+chmt_remaining_work_20261013/applications/CHT/gpu/GpuChtParticleRestart.H:306:        gpuThermalRestart::readConverted<float>(is, v.pContactMaximumArea, begin, chunk);
+chmt_remaining_work_20261013/applications/CHT/gpu/GpuChtParticleRestart.H:387:        gpuThermalRestart::readConverted<float>(is, v.pDepositionArea, begin, chunk);
+chmt_remaining_work_20261013/applications/CHT/gpu/GpuChtParticleRestart.H:388:        readConvertedArray<float>(is, v.pContactDuration, begin, chunk);
+chmt_remaining_work_20261013/applications/CHT/gpu/GpuChtParticleRestart.H:389:        gpuThermalRestart::readConverted<float>(is, v.pContactMaximumArea, begin, chunk);
+chmt_remaining_work_20261013/applications/CHT/gpu/GpuChtParticleRestart.H:390:        gpuThermalRestart::readConverted<float>(is, v.pContactPeakFraction, begin, chunk);
+chmt_remaining_work_20261013/applications/CHT/gpu/GpuChtParticleRestart.H:466:        gpuThermalRestart::readConverted<float>(is, v.pDepositionArea, begin, chunk);
+chmt_remaining_work_20261013/applications/CHT/gpu/GpuChtParticleRestart.H:467:        readConvertedArray<float>(is, v.pContactDuration, begin, chunk);
+chmt_remaining_work_20261013/applications/CHT/gpu/GpuChtParticleRestart.H:468:        gpuThermalRestart::readConverted<float>(is, v.pContactMaximumArea, begin, chunk);
+chmt_remaining_work_20261013/applications/CHT/gpu/GpuChtParticleRestart.H:469:        gpuThermalRestart::readConverted<float>(is, v.pContactPeakFraction, begin, chunk);
+chmt_remaining_work_20261013/applications/CHT/gpu/GpuChtParticleRestart.H:470:        gpuThermalRestart::readConverted<float>
+chmt_remaining_work_20261013/applications/CHT/gpu/GpuChtParticleRestart.H:477:        gpuThermalRestart::readConverted<float>
+chmt_remaining_work_20261013/applications/CHT/gpu/GpuChtParticleRestart.H:484:        gpuThermalRestart::readConverted<float>(is, v.pColdFrozenArea, begin, chunk);
+chmt_remaining_work_20261013/applications/CHT/gpu/GpuChtParticleRestart.H:485:        readConvertedArray<float>(is, v.pColdContactAge, begin, chunk);
+chmt_remaining_work_20261013/applications/CHT/gpu/GpuChtParticleRestart.H:541:        gpuThermalRestart::readConverted<float>(is, v.pDepositionArea, begin, chunk);
+chmt_remaining_work_20261013/applications/CHT/gpu/GpuChtParticleRestart.H:542:        readConvertedArray<float>(is, v.pContactDuration, begin, chunk);
+chmt_remaining_work_20261013/applications/CHT/gpu/GpuChtParticleRestart.H:543:        gpuThermalRestart::readConverted<float>(is, v.pContactMaximumArea, begin, chunk);
+chmt_remaining_work_20261013/applications/CHT/gpu/GpuChtParticleRestart.H:544:        gpuThermalRestart::readConverted<float>(is, v.pContactPeakFraction, begin, chunk);
+chmt_remaining_work_20261013/applications/CHT/gpu/GpuChtParticleRestart.H:545:        gpuThermalRestart::readConverted<float>
+chmt_remaining_work_20261013/applications/CHT/gpu/GpuChtParticleRestart.H:552:        gpuThermalRestart::readConverted<float>
+chmt_remaining_work_20261013/applications/CHT/gpu/GpuChtParticleRestart.H:559:        gpuThermalRestart::readConverted<float>(is, v.pColdFrozenArea, begin, chunk);
+chmt_remaining_work_20261013/applications/CHT/gpu/GpuChtParticleRestart.H:560:        readConvertedArray<float>(is, v.pColdContactAge, begin, chunk);
+chmt_remaining_work_20261013/applications/CHT/gpu/GpuChtParticleRestart.H:561:        gpuThermalRestart::readConverted<float>
+chmt_remaining_work_20261013/applications/CHT/gpu/GpuChtParticleRestart.H:568:        readConvertedArray<float>
+chmt_remaining_work_20261013/applications/CHT/gpu/GpuChtParticleRestart.H:575:        gpuThermalRestart::readConverted<float>(is, v.pCold2DFrozenArea, begin, chunk);
+chmt_remaining_work_20261013/applications/CHT/gpu/GpuChtParticleRestart.H:630:        gpuThermalRestart::readConverted<float>(is, v.pDepositionArea, begin, chunk);
+chmt_remaining_work_20261013/applications/CHT/gpu/GpuChtParticleRestart.H:632:        gpuThermalRestart::readConverted<float>(is, v.pContactMaximumArea, begin, chunk);
+chmt_remaining_work_20261013/applications/CHT/gpu/GpuChtParticleRestart.H:633:        gpuThermalRestart::readConverted<float>(is, v.pContactPeakFraction, begin, chunk);
+chmt_remaining_work_20261013/applications/CHT/gpu/GpuChtParticleRestart.H:634:        gpuThermalRestart::readConverted<float>
+chmt_remaining_work_20261013/applications/CHT/gpu/GpuChtParticleRestart.H:641:        gpuThermalRestart::readConverted<float>
+chmt_remaining_work_20261013/applications/CHT/gpu/GpuChtParticleRestart.H:648:        gpuThermalRestart::readConverted<float>(is, v.pColdFrozenArea, begin, chunk);
+chmt_remaining_work_20261013/applications/CHT/gpu/GpuChtParticleRestart.H:650:        gpuThermalRestart::readConverted<float>
+chmt_remaining_work_20261013/applications/CHT/gpu/GpuChtParticleRestart.H:664:        gpuThermalRestart::readConverted<float>(is, v.pCold2DFrozenArea, begin, chunk);
+chmt_remaining_work_20261013/applications/CHT/gpu/GpuChtParticleRestart.H:704:// Current writer: mixed float cold profiles, double remaining physical fields and carry.
+chmt_remaining_work_20261013/applications/CHT/gpu/GpuResidentStrict.cu:513:    float* pColdNodeSpecificEnthalpy = nullptr;
+chmt_remaining_work_20261013/applications/CHT/gpu/GpuResidentStrict.cu:517:    float* pCold2DNodeSpecificEnthalpy = nullptr;
+chmt_remaining_work_20261013/applications/CHT/gpu/GpuResidentStrict.cu:602:    float* compactPColdNodeSpecificEnthalpy = nullptr;
+chmt_remaining_work_20261013/applications/CHT/gpu/GpuResidentStrict.cu:606:    float* compactPCold2DNodeSpecificEnthalpy = nullptr;
+chmt_remaining_work_20261013/applications/CHT/gpu/GpuResidentStrict.cu:5758:    float*& coldNodeSpecificEnthalpy = s->pColdNodeSpecificEnthalpy;
+chmt_remaining_work_20261013/applications/CHT/gpu/GpuResidentStrict.cu:5762:    float*& compactColdNodeSpecificEnthalpy = s->compactPColdNodeSpecificEnthalpy;
+chmt_remaining_work_20261013/applications/CHT/gpu/GpuResidentStrict.cu:5766:    float*& cold2DNodeSpecificEnthalpy = s->pCold2DNodeSpecificEnthalpy;
+chmt_remaining_work_20261013/applications/CHT/gpu/GpuResidentStrict.cu:5769:    float*& compactCold2DNodeSpecificEnthalpy = s->compactPCold2DNodeSpecificEnthalpy;
+chmt_remaining_work_20261013/applications/CHT/gpu/GpuResidentStrict.cu:5858:        const cudaError_t e0 = initialise(coldNodeSpecificEnthalpy, coldNodeStorage*sizeof(float), coldNodeSpecificEnthalpyInit);
+chmt_remaining_work_20261013/applications/CHT/gpu/GpuResidentStrict.cu:5870:        const cudaError_t e0 = initialise(cold2DNodeSpecificEnthalpy, cold2DNodeStorage*sizeof(float), cold2DNodeSpecificEnthalpyInit);
+chmt_remaining_work_20261013/applications/CHT/gpu/GpuResidentStrict.cu:6054:    const float* pColdNodeSpecificEnthalpy,
+chmt_remaining_work_20261013/applications/CHT/gpu/GpuResidentStrict.cu:6058:    const float* pCold2DNodeSpecificEnthalpy,
+chmt_remaining_work_20261013/applications/CHT/gpu/GpuResidentStrict.cu:6329:    float* pColdNodeSpecificEnthalpy,
+chmt_remaining_work_20261013/applications/CHT/gpu/GpuResidentStrict.cu:6333:    float* pCold2DNodeSpecificEnthalpy,
+chmt_remaining_work_20261013/applications/CHT/gpu/GpuResidentStrict.H:380:    const float* pColdNodeSpecificEnthalpy,
+chmt_remaining_work_20261013/applications/CHT/gpu/GpuResidentStrict.H:384:    const float* pCold2DNodeSpecificEnthalpy,
+chmt_remaining_work_20261013/applications/CHT/gpu/GpuResidentStrict.H:415:    float* pColdNodeSpecificEnthalpy,
+chmt_remaining_work_20261013/applications/CHT/gpu/GpuResidentStrict.H:419:    float* pCold2DNodeSpecificEnthalpy,
+chmt_remaining_work_20261013/applications/CHT/gpu/GpuResidentStrict.H:2023:        List<float> pColdNodeSpecificEnthalpy
+chmt_remaining_work_20261013/applications/CHT/gpu/GpuResidentStrict.H:2035:        List<float> pCold2DNodeSpecificEnthalpy
+chmt_remaining_work_20261013/applications/CHT/gpu/GpuResidentStrict.H:2660:        List<float> pColdNodeSpecificEnthalpy
+chmt_remaining_work_20261013/applications/CHT/gpu/GpuResidentStrict.H:2672:        List<float> pCold2DNodeSpecificEnthalpy
+chmt_remaining_work_20261013/applications/gasUGKP/private_backend/GpuResidentStrict.cu:3144:    float totalElapsedMs = 0.0f;
+chmt_remaining_work_20261013/applications/gasUGKP/private_backend/GpuResidentStrict.cu:3174:            float elapsedMs = 0.0f;

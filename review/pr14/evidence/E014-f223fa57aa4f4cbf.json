@@ -1,0 +1,20 @@
+[
+  {
+    "id": "RES-CXX14-001",
+    "file": "common/GpuThermalParticleRestartCodec.H",
+    "functions": [
+      "readConverted",
+      "readConvertedImpl",
+      "currentFields",
+      "appendCurrentCarry"
+    ],
+    "change": "C++14 tag dispatch preserving compile-time branch selection and callback copy count",
+    "evidence": [
+      "freeze.json",
+      "branch-comparison.json",
+      "CHT-build.log",
+      "FSH-build.log"
+    ],
+    "gpu_acceptance": "Existing restart roundtrip acceptance remains user-owned; no runtime executed."
+  }
+]

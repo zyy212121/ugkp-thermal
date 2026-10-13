@@ -1,0 +1,38 @@
+[
+  {
+    "command": [
+      "/workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/toolchains/cuda/bin/nvcc",
+      "-std=c++17",
+      "--expt-relaxed-constexpr",
+      "-arch=sm_80",
+      "-I/workspace/scratch/98b6339ec81b/chmt_remaining_work_20261013/common",
+      "-MMD",
+      "-MF",
+      "/workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/implementation/resident-followup/cuda/volume-fraction.d",
+      "-c",
+      "/workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/implementation/resident-followup/cuda/volume-fraction.cu",
+      "-o",
+      "/workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/implementation/resident-followup/cuda/volume-fraction.o"
+    ],
+    "exit": 0,
+    "seconds": 0.6768908660014858
+  },
+  {
+    "command": [
+      "/workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/toolchains/cuda/bin/nvcc",
+      "-std=c++17",
+      "--expt-relaxed-constexpr",
+      "-arch=sm_80",
+      "-I/workspace/scratch/98b6339ec81b/chmt_remaining_work_20261013/common",
+      "-MMD",
+      "-MF",
+      "/workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/implementation/resident-followup/cuda/saved-velocity.d",
+      "-c",
+      "/workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/implementation/resident-followup/cuda/saved-velocity.cu",
+      "-o",
+      "/workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/implementation/resident-followup/cuda/saved-velocity.o"
+    ],
+    "exit": 0,
+    "seconds": 0.6187430060017505
+  }
+]

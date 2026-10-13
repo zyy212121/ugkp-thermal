@@ -1,0 +1,11 @@
+/workspace/scratch/98b6339ec81b/chmt_remaining_work_20261013/tests/fixtures/continuation_history/history.gitbundle is okay
+The bundle contains this ref:
+a164be44fd28b3d05a1cb430e4e98675b1397bd4 refs/audit/continuation-original-history
+The bundle requires this ref:
+82f9c016704c9822b16b87cdeeb11f5bbd44d06f 
+The bundle uses this hash algorithm: sha1
+From /workspace/scratch/98b6339ec81b/chmt_remaining_work_20261013/tests/fixtures/continuation_history/history.gitbundle
+   7fbfb2b..a164be4  refs/audit/continuation-original-history -> refs/audit/continuation-original-history
+Original continuation history retained at refs/audit/continuation-original-history
+Original continuation history retained at refs/audit/continuation-original-history
+notice: HEAD points to an unborn branch (master)
