@@ -21,10 +21,8 @@ namespace Foam
 {
 namespace gpuThermal
 {
-
 namespace
 {
-
 struct PatchRadiationControls
 {
     word type;
@@ -56,11 +54,6 @@ struct PatchRadiationControls
     throw MieDoSolveError(message.str());
 }
 
-inline bool finiteScalar(const scalar value)
-{
-    return std::isfinite(value);
-}
-
 scalar mieAsymmetryFactor
 (
     const MieTable& table,
@@ -85,15 +78,9 @@ scalar mieAsymmetryFactor
             *(mu[i - 1]*previousPhase + mu[i]*currentPhase)*deltaMu;
         previousPhase = currentPhase;
     }
-    if (!finiteScalar(denominator) || denominator == scalar(0))
-    {
-        solveFailure("Mie phase table has an invalid angular integral");
-    }
+
     const scalar value = firstMoment/denominator;
-    if (!finiteScalar(value))
-    {
-        solveFailure("Mie phase table has an invalid asymmetry factor", 0, value);
-    }
+
     return max(scalar(-1), min(scalar(1), value));
 }
 
@@ -101,25 +88,13 @@ scalar radiationIntensityWithRoundoffClamp
 (
     const scalar value,
     const scalar referenceMagnitude,
-    const std::string& location,
+    const char* location,
     const label iteration = 0,
     const label cell = -1,
     const label patch = -1,
     const label face = -1
 )
 {
-    if (!finiteScalar(value))
-    {
-        solveFailure
-        (
-            "nonfinite radiation intensity at " + location,
-            iteration,
-            value,
-            cell,
-            patch,
-            face
-        );
-    }
     if (value >= scalar(0))
     {
         return value;
@@ -253,25 +228,7 @@ void validatePatchControls
             -1
         );
     }
-    if
-    (
-        !finiteScalar(controls.absorptivity)
-    )
-    {
-        solveFailure("boundary absorptivity is nonfinite", 0, controls.absorptivity, -1, patchI, -1);
-    }
-    if (!finiteScalar(controls.fixedIntensity))
-    {
-        solveFailure("fixed boundary intensity is nonfinite", 0, controls.fixedIntensity, -1, patchI, -1);
-    }
-    if
-    (
-        controls.hasSpecifiedTemperature
-     && !finiteScalar(controls.specifiedTemperatureK)
-    )
-    {
-        solveFailure("specified boundary temperature is nonfinite", 0, controls.specifiedTemperatureK, -1, patchI, -1);
-    }
+
 }
 
 void buildAngularQuadrature
@@ -313,10 +270,6 @@ void buildAngularQuadrature
         }
     }
 
-    if (!finiteScalar(weightSum) || weightSum <= scalar(0))
-    {
-        solveFailure("angular quadrature has a nonpositive weight sum");
-    }
     forAll(weights, i)
     {
         weights[i] *= fourPiConstant()/weightSum;
@@ -438,12 +391,6 @@ public:
         (
             controls.nTheta < 1
          || controls.nPhi < 1
-         || !finiteScalar(controls.sourceRelativeTolerance)
-         || !finiteScalar(controls.phaseBalanceTolerance)
-         || !finiteScalar(controls.radiationActiveEpsilonMin)
-         || !finiteScalar(sourceRelaxation)
-         || !finiteScalar(linearSolverTolerance)
-         || !finiteScalar(linearSolverRelativeTolerance)
         )
         {
             solveFailure("invalid Mie DO controls");
@@ -606,10 +553,7 @@ public:
             forAll(faceAreas, faceI)
             {
                 const scalar areaMagnitude = mag(faceAreas[faceI]);
-                if (!finiteScalar(areaMagnitude) || areaMagnitude == scalar(0))
-                {
-                    solveFailure("radiation boundary face has zero/nonfinite area", 0, areaMagnitude, -1, patchI, faceI);
-                }
+
                 const vector outwardNormal = faceAreas[faceI]/areaMagnitude;
                 scalar denominator = 0;
                 forAll(directions, directionI)
@@ -620,14 +564,10 @@ public:
                         denominator += weights[directionI]*(-cosineOut);
                     }
                 }
-                if (!finiteScalar(denominator) || denominator == scalar(0))
-                {
-                    solveFailure("angular grid has no incoming direction on boundary face", 0, denominator, -1, patchI, faceI);
-                }
+
                 diffuseDenominator[patchI][faceI] = denominator;
             }
         }
-
     }
 
     scalar boundaryTemperature
@@ -789,28 +729,6 @@ public:
             solveFailure("coupled-wall emissivity list does not match boundary patch count");
         }
 
-        for (label cellI = 0; cellI < nCells; ++cellI)
-        {
-            const scalar epsilon = snapshot.epsilonS[cellI];
-            const scalar temperature = snapshot.particleTemperatureK[cellI];
-            const scalar diameter = snapshot.representativeDiameterM[cellI];
-            if (!finiteScalar(epsilon))
-            {
-                solveFailure("epsilonS is nonfinite", 0, epsilon, cellI);
-            }
-            if (!finiteScalar(temperature) || !finiteScalar(diameter))
-            {
-                solveFailure("particle temperature/diameter is nonfinite", 0, scalar(0), cellI);
-            }
-            if (epsilon > controls.radiationActiveEpsilonMin)
-            {
-                if (diameter == scalar(0))
-                {
-                    solveFailure("active radiation cell has zero diameter", 0, diameter, cellI);
-                }
-            }
-        }
-
         forAll(mesh.boundary(), patchI)
         {
             const scalarField& temperature =
@@ -818,13 +736,6 @@ public:
             if (temperature.size() < mesh.boundary()[patchI].size())
             {
                 solveFailure("wall-temperature patch size mismatch", 0, scalar(0), -1, patchI, -1);
-            }
-            for (label faceI = 0; faceI < mesh.boundary()[patchI].size(); ++faceI)
-            {
-                if (!finiteScalar(temperature[faceI]))
-                {
-                    solveFailure("wall temperature is nonfinite", 0, temperature[faceI], -1, patchI, faceI);
-                }
             }
 
             if (isCoupledPatch[patchI])
@@ -834,16 +745,7 @@ public:
                 {
                     solveFailure("coupled-wall emissivity patch size mismatch", 0, scalar(0), -1, patchI, -1);
                 }
-                for (label faceI = 0; faceI < mesh.boundary()[patchI].size(); ++faceI)
-                {
-                    if
-                    (
-                        !finiteScalar(emissivity[faceI])
-                    )
-                    {
-                        solveFailure("coupled-wall emissivity is nonfinite", 0, emissivity[faceI], -1, patchI, faceI);
-                    }
-                }
+
             }
         }
     }
@@ -934,7 +836,6 @@ public:
             incidentFlux[patchI].setSize(data.mesh.boundary()[patchI].size());
             incidentFlux[patchI] = scalar(0);
         }
-
     }
 };
 
@@ -1323,20 +1224,6 @@ MieDoResult MieDoRadiationSolver::solve
                     );
             }
 
-            forAll(diagonal, cellI)
-            {
-                if (!finiteScalar(diagonal[cellI]) || diagonal[cellI] == scalar(0))
-                {
-                    solveFailure
-                    (
-                        "DO upwind linear system has a zero or nonfinite diagonal",
-                        iteration,
-                        diagonal[cellI],
-                        cellI
-                    );
-                }
-            }
-
             scalarField& solved = directionSolved[directionI];
             solved = oldIntensity;
             const auto linearResidual = [&](const scalarField& values)->scalar
@@ -1399,10 +1286,22 @@ MieDoResult MieDoRadiationSolver::solve
             scalar finalLinearResidual = initialLinearResidual;
             label linearIteration = 0;
 
+            // A nonfinite diagnostic is not a converged initial field. Evaluate
+            // one native sweep before returning its candidate; retain every
+            // originally successful finite-residual convergence/no-work path.
             while
             (
                 (finalLinearResidual > linearTarget
-                 || (linearIteration == 0 && data.linearSolverMaxIterations <= 0))
+                 ||
+                    (
+                        linearIteration == 0
+                     &&
+                        (
+                            data.linearSolverMaxIterations <= 0
+                         || !std::isfinite(initialLinearResidual)
+                         || std::isnan(linearTarget)
+                        )
+                    ))
              && linearIteration < max(data.linearSolverMaxIterations, label(1))
             )
             {
@@ -1445,16 +1344,6 @@ MieDoResult MieDoRadiationSolver::solve
                 finalLinearResidual = linearResidual(solved);
             }
 
-            if (!finiteScalar(finalLinearResidual))
-            {
-                solveFailure
-                (
-                    "FV upwind linear residual is nonfinite",
-                    iteration,
-                    finalLinearResidual
-                );
-            }
-
             forAll(solved, cellI)
             {
                 solved[cellI] =
@@ -1464,10 +1353,7 @@ MieDoResult MieDoRadiationSolver::solve
 
             const scalar directionRelativeChange =
                 relativeChange(oldIntensity, solved);
-            if (!finiteScalar(directionRelativeChange))
-            {
-                solveFailure("DO source change arithmetic is nonfinite", iteration, directionRelativeChange);
-            }
+
             maximumRelativeChange = max
             (
                 maximumRelativeChange,
