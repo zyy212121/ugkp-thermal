@@ -38,10 +38,8 @@ namespace Foam
 {
 namespace gpuThermal
 {
-
 namespace
 {
-
 [[noreturn]] void solidFailure(const std::string& reason)
 {
     throw GpuSolidThermalSolveError(reason);
@@ -50,27 +48,6 @@ namespace
 bool finiteScalar(const scalar value)
 {
     return std::isfinite(static_cast<double>(value));
-}
-
-void validateCoupledSurfaceFace
-(
-    const scalar owner,
-    const scalar gradient,
-    const scalar delta,
-    const scalar surface
-)
-{
-    if
-    (
-        !finiteScalar(owner)
-     || !finiteScalar(gradient)
-     || !finiteScalar(delta) || delta == scalar(0)
-     || !finiteScalar(surface)
-    )
-    {
-        solidFailure("invalid accepted coupled solid surface state");
-    }
-
 }
 
 scalar relativeTemperatureChange
@@ -186,9 +163,6 @@ scalar clampedAitkenRelaxation
     if
     (
         previousResidual.size() < currentResidual.size()
-     || !finiteScalar(previousRelaxation)
-     || !finiteScalar(minimumRelaxation)
-     || !finiteScalar(maximumRelaxation)
     )
     {
         solidFailure("invalid Aitken relaxation inputs");
@@ -297,7 +271,6 @@ GpuSolidThermalCandidateSolver::GpuSolidThermalCandidateSolver
     ownerConductivityPatchIds_(ownerConductivityPatchIds),
     controls_(controls)
 {
-
 }
 
 GpuSolidThermalCandidate
@@ -311,8 +284,6 @@ GpuSolidThermalCandidateSolver::solveTemporarySolidCandidate
     if
     (
         interfaceEnergyJ.size() < coupledPatchIds_.size()
-     || !finiteScalar(deltaTExchange)
-     || deltaTExchange == scalar(0)
     )
     {
         solidFailure("invalid solid candidate mesh, energy list, or exchange time");
@@ -346,16 +317,9 @@ GpuSolidThermalCandidateSolver::solveTemporarySolidCandidate
         forAll(mesh_.boundary()[patchI], faceI)
         {
             const scalar energyJ = interfaceEnergyJ[coupledI][faceI];
-            if (!finiteScalar(energyJ))
-            {
-                solidFailure("non-finite solid interface energy");
-            }
+
             totalInterfaceEnergyJ += energyJ;
         }
-    }
-    if (!finiteScalar(totalInterfaceEnergyJ))
-    {
-        solidFailure("non-finite integrated solid interface energy");
     }
 
     const scalarField oldInternal(candidate->primitiveField());
@@ -459,16 +423,10 @@ GpuSolidThermalCandidateSolver::solveTemporarySolidCandidate
             forAll(interfacePatch, faceI)
             {
                 const scalar area = mesh_.magSf().boundaryField()[patchI][faceI];
-                if (!finiteScalar(area) || area <= scalar(0))
-                {
-                    solidFailure("invalid coupled solid face area");
-                }
+
                 const scalar denominator =
                     area*deltaTExchange*kappa.boundaryField()[patchI][faceI];
-                if (denominator == scalar(0) || !finiteScalar(denominator))
-                {
-                    solidFailure("solid interface gradient divisor is zero or nonfinite");
-                }
+
                 interfacePatch.gradient()[faceI] =
                     interfaceEnergyJ[coupledI][faceI]/denominator;
             }
@@ -551,20 +509,12 @@ GpuSolidThermalCandidateSolver::solveTemporarySolidCandidate
                 (
                     candidate->boundaryField()[patchI]
                 );
-            const labelUList& faceCells = patch.patch().faceCells();
-            const scalarField& internal = candidate->primitiveField();
             const scalarField& gradient = patch.gradient();
-            const scalarField& delta = patch.patch().deltaCoeffs();
             const scalarField& area = mesh_.magSf().boundaryField()[patchI];
             scalarField& previousPatchSurface = previousSurface[coupledI];
             forAll(patch, faceI)
             {
                 const scalar surface = patch[faceI];
-                validateCoupledSurfaceFace
-                (
-                    internal[faceCells[faceI]], gradient[faceI],
-                    delta[faceI], surface
-                );
                 const scalar previousSurfaceTemperature =
                     previousPatchSurface[faceI];
                 finalSurfaceResidual = max
@@ -604,10 +554,7 @@ GpuSolidThermalCandidateSolver::solveTemporarySolidCandidate
             {
                 const scalar faceFluxW =
                     matrixFlux().boundaryField()[patchI][faceI];
-                if (!finiteScalar(faceFluxW))
-                {
-                    solidFailure("solid matrix returned non-finite boundary flux");
-                }
+
                 externalBoundaryEnergyIntoSolidJ -= deltaTExchange*faceFluxW;
             }
         }
@@ -615,10 +562,6 @@ GpuSolidThermalCandidateSolver::solveTemporarySolidCandidate
         scalar enthalpyChangeJ = scalar(0);
         forAll(candidate->primitiveField(), cellI)
         {
-            if (!finiteScalar((*candidate)[cellI]))
-            {
-                solidFailure("solid candidate solve produced non-finite temperature");
-            }
             enthalpyChangeJ += mesh_.V()[cellI]
                *properties_.deltaHv((*candidate)[cellI], oldInternal[cellI]);
         }
@@ -626,10 +569,7 @@ GpuSolidThermalCandidateSolver::solveTemporarySolidCandidate
             enthalpyChangeJ
           - totalInterfaceEnergyJ
           - externalBoundaryEnergyIntoSolidJ;
-        if (!finiteScalar(finalResidual))
-        {
-            solidFailure("solid candidate energy arithmetic is nonfinite");
-        }
+
         const scalar energyScale = max
         (
             max
@@ -720,10 +660,8 @@ namespace Foam
 {
 namespace gpuThermal
 {
-
 namespace
 {
-
 const dictionary& exactSubDictionary
 (
     const dictionary& parent,
@@ -1021,11 +959,10 @@ public:
         );
         if
         (
-            !std::isfinite(solidContactCouplingInterval)
-         || (radiationEnabled && radiationCouplingFrequency == 0)
+            radiationEnabled && radiationCouplingFrequency == 0
         )
         {
-            solidFailure("thermal coupling interval is nonfinite or the active radiation frequency is zero");
+            solidFailure("active radiation frequency is zero");
         }
         if (threeRegion)
         {
@@ -1603,15 +1540,7 @@ public:
             const scalar gas = pending.gasConvectiveEnergyJ[entryI];
             const scalar deposited = pending.particleDepositedEnergyJ[entryI];
             const scalar reflected = pending.particleReflectedEnergyJ[entryI];
-            if
-            (
-                !finiteScalar(gas)
-             || !finiteScalar(deposited)
-             || !finiteScalar(reflected)
-            )
-            {
-                solidFailure("non-finite pending wall-energy ledger value");
-            }
+
             gasTotal += gas;
             depositedTotal += deposited;
             reflectedTotal += reflected;
@@ -1691,10 +1620,7 @@ public:
                 const scalar cpWall = properties->Cp(Tw);
                 const scalar kappaWall = properties->kappa(Tw);
                 const scalar squaredEffusivity = rhoWall*cpWall*kappaWall;
-                if (!finiteScalar(squaredEffusivity) || squaredEffusivity < scalar(0))
-                {
-                    solidFailure("solid wall effusivity square root is undefined");
-                }
+
                 solidWallEffusivity[faceI] = sqrt(squaredEffusivity);
             }
             mappedWallEffusivity[fluidPatchI] =
@@ -1797,10 +1723,7 @@ GpuThermalCouplingResult GpuSolidThermalCoupler::exchangeIfDue
     const scalar elapsedSinceCoupling =
         runTime.value()
       - data_->writeState.committedState().completedSimulationTimeS;
-    if (!std::isfinite(elapsedSinceCoupling))
-    {
-        solidFailure("elapsed coupling time is nonfinite");
-    }
+
     if
     (
         !ugkpcht::thermalEventIsDue
@@ -1826,14 +1749,7 @@ GpuThermalCouplingResult GpuSolidThermalCoupler::exchangeIfDue
         runTime.value()
       - data_->writeState.committedState()
             .completedRadiationSimulationTimeS;
-    if
-    (
-        !std::isfinite(elapsedSinceRadiation)
-    )
-    {
-        data_->writeState.cancelPreparedExchange();
-        solidFailure("elapsed radiation coupling time is invalid");
-    }
+
     const bool radiationDue =
         data_->radiationEnabled
      && decision.exchangeSequence
@@ -1891,19 +1807,7 @@ GpuThermalCouplingResult GpuSolidThermalCoupler::exchangeIfDue
                     );
                     const scalar occupiedArea =
                         occupiedContactArea[globalFaceI];
-                    if
-                    (
-                        !std::isfinite(faceArea)
-                     || !std::isfinite(occupiedArea)
-                     || faceArea == scalar(0)
-                    )
-                    {
-                        solidFailure
-                        (
-                            "invalid instantaneous particle-wall radiation "
-                            "occupied area"
-                        );
-                    }
+
                     const scalar exposedFraction = max
                     (
                         scalar(0),
@@ -1954,10 +1858,6 @@ GpuThermalCouplingResult GpuSolidThermalCoupler::exchangeIfDue
         scalar particleContactEnergyJ = scalar(0);
         forAll(particleContactPreview, faceI)
         {
-            if (!finiteScalar(particleContactPreview[faceI]))
-            {
-                solidFailure("non-finite particle-wall contact energy");
-            }
             particleContactEnergyJ += particleContactPreview[faceI];
         }
         forAll(solidEnergy, pairI)
@@ -2068,20 +1968,11 @@ GpuThermalCouplingResult GpuSolidThermalCoupler::exchangeIfDue
                     const scalar auxiliaryDenominator = kAux*dAux;
                     const scalar primaryDenominator =
                         mappedPrimaryKappa[faceI]*mappedPrimaryDelta[faceI];
-                    if (auxiliaryDenominator == scalar(0)
-                     || primaryDenominator == scalar(0)
-                     || !finiteScalar(auxiliaryDenominator)
-                     || !finiteScalar(primaryDenominator))
-                    {
-                        solidFailure("solid-solid interface conductance divisor is zero or nonfinite");
-                    }
+
                     const scalar resistance =
                         scalar(1)/auxiliaryDenominator
                       + scalar(1)/primaryDenominator;
-                    if (resistance == scalar(0) || !finiteScalar(resistance))
-                    {
-                        solidFailure("solid-solid interface resistance divisor is zero or nonfinite");
-                    }
+
                     auxiliaryEnergy[faceI] =
                         area*deltaTExchange
                        *(
@@ -2353,7 +2244,6 @@ label GpuSolidThermalCoupler::persistAtWriteTime
     const bool thermalCouplingWrite
 )
 {
-
     if
     (
         thermalCouplingWrite
