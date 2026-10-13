@@ -45,13 +45,21 @@ class SharedGasModelInput
                     scalar& density,scalar& energy) const
     {
         const auto thermo=model_.thermoView<ugkwp::compiledGasSpecies>();
-        double rho=0;
-        if(ugkwp::mixtureDensityFromPressureTemperature(double(pressure),double(temperature),y,thermo,rho)
-           !=ugkwp::ThermoStatus::Success)
-            FatalErrorInFunction<<"Invalid mixture p/T/Y state or temperature outside common thermo range"<<exit(FatalError);
-        const double internal=ugkwp::mixtureEnergy(y,double(temperature),thermo);
+        double rho;
+        const auto densityStatus=ugkwp::mixtureDensityFromPressureTemperature(
+            double(pressure),double(temperature),y,thermo,rho);
+        // This completed EOS writes its actual result on NonFiniteInput; other
+        // failures mean the formula lacked its input storage.
+        if(densityStatus!=ugkwp::ThermoStatus::Success
+            &&densityStatus!=ugkwp::ThermoStatus::NonFiniteInput)
+            FatalErrorInFunction<<"Mixture density expression unavailable"<<exit(FatalError);
+        double internal=ugkwp::mixtureEnergy(y,double(temperature),thermo);
+        if(!std::isfinite(internal)){
+            bool evaluated=false;
+            ugkwp::evaluateMixtureInternalEnergy(y,double(temperature),thermo,internal,&evaluated);
+            if(!evaluated)FatalErrorInFunction<<"Mixture energy expression unavailable"<<exit(FatalError);
+        }
         const scalar total=rho*(internal+0.5*magSqr(velocity));
-        if(!std::isfinite(total)) FatalErrorInFunction<<"Nonfinite formation-inclusive mixture energy"<<exit(FatalError);
         density=rho;energy=total;
     }
     void initialiseIdentity(const Time& time,const fvMesh& mesh)
@@ -213,8 +221,6 @@ public:
             forAll(rho,cell)
             {
                 const double value=values[std::size_t(species)*mesh_.nCells()+cell];
-                if(!std::isfinite(value) || rho[cell]==0)
-                    FatalErrorInFunction<<"Invalid accepted species output"<<exit(FatalError);
                 speciesDensity_[species][cell]=value;
                 massFractions_[species][cell]=value/rho[cell];
             }

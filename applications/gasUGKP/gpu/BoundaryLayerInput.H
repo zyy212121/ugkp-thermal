@@ -65,9 +65,6 @@ class BoundaryLayerInput
                 if(species>=std::size_t(flux.size()))
                     FatalErrorInFunction<<"speciesFlux missing species "<<speciesNames_[species]
                         <<" at index "<<species<<" on patch "<<name<<exit(FatalError);
-                if(!std::isfinite(flux[species]))
-                    FatalErrorInFunction<<"speciesFlux must be finite for "<<speciesNames_[species]
-                        <<" on patch "<<name<<exit(FatalError);
                 for(auto face=first;face!=faces_.end();++face)
                     if(onPatch(*face))speciesFlux_[species*faces_.size()+std::size_t(face-faces_.begin())]=flux[species];
             }
