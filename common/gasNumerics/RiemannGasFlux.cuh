@@ -240,7 +240,7 @@ UGKP_RIEMANN_HD bool normalise
     GpuReal& nx,
     GpuReal& ny,
     GpuReal& nz,
-    GpuReal& magnitude
+    GpuReal& magnitude, const bool trialEligibility=true
 )
 {
     const GpuReal scale = maximum
@@ -248,7 +248,7 @@ UGKP_RIEMANN_HD bool normalise
         absolute(normalX),
         maximum(absolute(normalY), absolute(normalZ))
     );
-    if (!finiteScalar(scale) || scale <= GPU_R(0.0))
+    if (trialEligibility && (!finiteScalar(scale) || scale <= GPU_R(0.0)))
     {
         nx = GPU_R(0.0);
         ny = GPU_R(0.0);
@@ -264,7 +264,7 @@ UGKP_RIEMANN_HD bool normalise
     (
         scaledX*scaledX + scaledY*scaledY + scaledZ*scaledZ
     );
-    if (!finiteScalar(scaledMagnitude) || scaledMagnitude <= GPU_R(0.0))
+    if (trialEligibility && (!finiteScalar(scaledMagnitude) || scaledMagnitude <= GPU_R(0.0)))
     {
         nx = GPU_R(0.0);
         ny = GPU_R(0.0);
@@ -1958,13 +1958,13 @@ UGKP_RIEMANN_HD FluxResult fluxUnitArea
     const Scheme scheme,
     const GpuReal rhoFloor = GPU_R(1.0e-14),
     const GpuReal pressureFloor = GPU_R(1.0e-12),
-    const GpuReal hllcAdcOmega = GPU_R(1.0)
+    const GpuReal hllcAdcOmega = GPU_R(1.0), const bool trialEligibility=false
 )
 {
     if
     (
-        !physicalPrimitive(left, gamma, rhoFloor, pressureFloor)
-     || !physicalPrimitive(right, gamma, rhoFloor, pressureFloor)
+        trialEligibility && (!physicalPrimitive(left, gamma, rhoFloor, pressureFloor)
+     || !physicalPrimitive(right, gamma, rhoFloor, pressureFloor))
     )
     {
         return invalidResult(scheme);
@@ -1974,13 +1974,9 @@ UGKP_RIEMANN_HD FluxResult fluxUnitArea
     GpuReal ny;
     GpuReal nz;
     GpuReal magnitude;
-    if
-    (
-        !normalise
-        (
-            normalX, normalY, normalZ, nx, ny, nz, magnitude
-        )
-    )
+    const bool normalValid=normalise
+        (normalX, normalY, normalZ, nx, ny, nz, magnitude,trialEligibility);
+    if(trialEligibility && !normalValid)
     {
         return invalidResult(scheme);
     }

@@ -430,13 +430,14 @@ UGKP_WALL_HD JayatillekeThermalTransport sstJayatillekeThermalTransport
     const GpuReal y,
     const GpuReal velocityDifference,
     const GpuReal wallSpeed,
-    const GpuReal temperatureNormalGradient
+    const GpuReal temperatureNormalGradient, const bool trialEligibility=false
 )
 {
     const GpuReal molecular = mu*cp/Pr;
     const GpuReal uStar = sqrt(sqrt(Cmu))*sqrt(maximum(turbulentK, GPU_R(0.0)));
-    if (!std::isfinite(molecular) || !std::isfinite(uStar)
-        || !std::isfinite(temperatureNormalGradient))
+    const bool inputsFinite=std::isfinite(molecular)&&std::isfinite(uStar)
+        &&std::isfinite(temperatureNormalGradient);
+    if (trialEligibility && !inputsFinite)
     {
         return {molecular, 0};
     }
@@ -447,11 +448,11 @@ UGKP_WALL_HD JayatillekeThermalTransport sstJayatillekeThermalTransport
     }
     // This branch actually divides by viscosity; the zero-uStar molecular
     // branch above already has its complete result even when viscosity is zero.
-    if (mu == GPU_R(0.0)) return {molecular, 0};
+    if (trialEligibility && mu == GPU_R(0.0)) return {molecular, 0};
     const GpuReal yPlus = uStar*y*rhoWall/mu;
     const bool viscous = yPlus < yPlusThermal;
     const GpuReal tPlus = viscous ? Pr*yPlus : Prt*(log(E*yPlus)/kappa + P);
-    if (tPlus == GPU_R(0.0) || !std::isfinite(tPlus))
+    if (trialEligibility && (tPlus == GPU_R(0.0) || !std::isfinite(tPlus)))
     {
         return {molecular, 0};
     }
@@ -462,7 +463,8 @@ UGKP_WALL_HD JayatillekeThermalTransport sstJayatillekeThermalTransport
         : Prt*velocityDifference*velocityDifference + (Pr-Prt)*uc*uc);
     const GpuReal conductivity = maximum(molecular, cp*rhoWall*uStar*y/tPlus);
     const GpuReal heatFlux = -conductivity*temperatureNormalGradient + C/tPlus;
-    return {conductivity, std::isfinite(heatFlux) ? 1 : 0, heatFlux};
+    return {conductivity, inputsFinite && mu != GPU_R(0.0) && tPlus != GPU_R(0.0)
+        && std::isfinite(tPlus) && std::isfinite(heatFlux) ? 1 : 0, heatFlux};
 }
 
 UGKP_WALL_HD JayatillekeWallHeatState jayatillekeWallHeatFluxPrecomputed
