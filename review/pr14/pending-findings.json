@@ -1,0 +1,120 @@
+{
+  "identity": "PR14_REVIEW_ONLY",
+  "captured_utc": "2026-10-13T16:01:18.506380+00:00",
+  "not_final_review": false,
+  "findings": [
+    {
+      "id": "R014-FIND-SIGNED-R",
+      "topic": "R014-032",
+      "status": "SOURCE_SCOPE_CLOSED_GPU_PENDING",
+      "finding": "Frontend report explicitly says common boundary-layer profile does not yet consume original CHMT signed/unrepresentable R. Check latest formal repair and reviewer evidence; material/interface fix alone does not close this path.",
+      "original_status": "PENDING_OWNER_CLOSURE",
+      "source_resolution": {
+        "source_commit": "a164be44fd28b3d05a1cb430e4e98675b1397bd4",
+        "repair_commit": "ee77457f3b60728b201d47bfca32d25505ff7199",
+        "evidence_id": "E014-8c705e0c274da29a",
+        "conclusion": "Frontend v3: signed-R native wall/profile representation, exact consumed fixed-array prefixes, FilmIntegralFields surplus, supported thermal boundary pairing and actual startup/output producers closed for frozen source/compile scope."
+      }
+    },
+    {
+      "id": "R014-FIND-DO-SWEEP",
+      "topic": "R014-020",
+      "status": "SOURCE_SCOPE_CLOSED_GPU_PENDING",
+      "finding": "Pass2 DO initial NaN residual may skip actual equation sweep and republish old intensity. Owner repair/source pin/recheck pending in this snapshot.",
+      "original_status": "PENDING_REVIEWER_SOURCE_RECHECK",
+      "source_resolution": {
+        "source_commit": "a164be44fd28b3d05a1cb430e4e98675b1397bd4",
+        "repair_commit": "449cfbaad1cb5432168c36acf3ad538fca202df2",
+        "evidence_id": "E014-89628f0f69e95895",
+        "conclusion": "Actual DO sweep on nonfinite initial diagnostics, original finite-success skip preserved; nine production-file source scope approved with seven actual .C objects and partial shared-library link extent."
+      }
+    },
+    {
+      "id": "R014-FIND-PARSER-COPY",
+      "topic": "R014-006",
+      "status": "SOURCE_SCOPE_CLOSED_GPU_PENDING",
+      "finding": "Pass2 fixed-destination copy should perform actual N-consuming work; user disallows count/equality gates. Check native repair without inventing new admission.",
+      "original_status": "PENDING_REVIEWER_SOURCE_RECHECK",
+      "source_resolution": {
+        "source_commit": "a164be44fd28b3d05a1cb430e4e98675b1397bd4",
+        "repair_commit": "ee77457f3b60728b201d47bfca32d25505ff7199",
+        "evidence_id": "E014-8c705e0c274da29a",
+        "conclusion": "Pass2 fixed-destination copy finding resolved by exact consumed-index native writes, without restoring count/equality admission; this supplements historical M1 evidence."
+      }
+    },
+    {
+      "id": "R014-FIND-FINAL-PINS",
+      "topic": "R014-001",
+      "status": "SOURCE_FROZEN_REMOTE_RECORD_COMMIT_AND_CI_PENDING",
+      "finding": "Final immutable source head/tree, remote blob/mode comparison, CI and complete source review outcomes are not yet filled.",
+      "source_commit": "a73b9635510fb09d7baa5339e14d1aa609f0ff87",
+      "source_tree": "e343cb9f477dcd86556f7b6595189fa2c9c1c099"
+    },
+    {
+      "id": "R014-FIND-COLD-CW1",
+      "topic": "R014-033",
+      "status": "SOURCE_SCOPE_CLOSED_GPU_PENDING",
+      "source_resolution": {
+        "source_commit": "a164be44fd28b3d05a1cb430e4e98675b1397bd4",
+        "repair_commit": "9ac74fc16d19bf809f58fbe565903b5d9e13ca77",
+        "evidence_id": "E014-3eecf953992eb814",
+        "conclusion": "CW-1 stationary bracket-growth source finding resolved; existing multiply, forty bisections and actual return retained. Four selected native CUDA variants compiled, no full owner link/GPU result."
+      }
+    },
+    {
+      "id": "R014-FIND-POOL-PUBLICATION",
+      "topic": "R014-031",
+      "status": "SOURCE_SCOPE_CLOSED_GPU_PENDING",
+      "source_resolution": {
+        "source_commit": "a164be44fd28b3d05a1cb430e4e98675b1397bd4",
+        "repair_commit": "7fbfb2b49e1060bee07574f857f26691d28fce9f",
+        "evidence_id": "E014-a044c8ee9311c21a",
+        "conclusion": "PT-C1/C2/C3 targeted compile closure qualified; pool native computed contribution reaches accumulators/atomics without numerical trap. Eight v2 and two pool CUDA variants remain selected-header coverage, not full owner build."
+      }
+    },
+    {
+      "id": "R014-FIND-RESIDENT-VOLUME-MIRROR",
+      "topic": "R014-018",
+      "status": "SOURCE_SCOPE_CLOSED_GPU_PENDING",
+      "source_resolution": {
+        "source_commit": "a164be44fd28b3d05a1cb430e4e98675b1397bd4",
+        "repair_commit": "a164be44fd28b3d05a1cb430e4e98675b1397bd4",
+        "evidence_id": "E014-24d1004f94dd2618",
+        "conclusion": "Resident initial combined scope and final seven-file delta approved: gas mirror/particleCapacity metadata and volume-fraction actual publication; real gasUGKP main .C and selected native CUDA source objects, not full application link."
+      }
+    },
+    {
+      "id": "R014-FIND-FILM-BOUNDARY-PAIR",
+      "topic": "R014-032",
+      "status": "SOURCE_SCOPE_CLOSED_GPU_PENDING",
+      "source_resolution": {
+        "source_commit": "a164be44fd28b3d05a1cb430e4e98675b1397bd4",
+        "repair_commit": "ee77457f3b60728b201d47bfca32d25505ff7199",
+        "evidence_id": "E014-8c705e0c274da29a",
+        "conclusion": "Frontend v3: signed-R native wall/profile representation, exact consumed fixed-array prefixes, FilmIntegralFields surplus, supported thermal boundary pairing and actual startup/output producers closed for frozen source/compile scope."
+      }
+    },
+    {
+      "id": "R014-FIND-CODEC-CXX14",
+      "topic": "R014-019",
+      "status": "SOURCE_SCOPE_CLOSED_GPU_PENDING",
+      "source_commit": "970d9fedcc061dfa08fc88d427a1a47b3c22f65f",
+      "evidence_id": "E014-e99a5a8c7d6fa711",
+      "verified_records": 848
+    },
+    {
+      "id": "R014-FIND-MAPPER-CONSUMED-ACCESS",
+      "topic": "R014-020",
+      "status": "SOURCE_SCOPE_CLOSED_GPU_PENDING",
+      "source_commit": "a73b9635510fb09d7baa5339e14d1aa609f0ff87",
+      "source_sha256": "947decef7e1a2aa552c6d201401674617fdb8be22a331d98c430fe115ee63074",
+      "evidence_id": "E014-df24bc6578459988",
+      "finding": "Empty pair configuration and nearest selected-index source consumption no longer incur unused whole-configuration/source preflights. No substitute access guard; native addressing risk and retained actual access failures disclosed."
+    }
+  ],
+  "source_commit": "a73b9635510fb09d7baa5339e14d1aa609f0ff87",
+  "source_review_final": true,
+  "gpu_acceptance_final": false,
+  "limits": "Source findings closed only to cited scoped evidence; final pass2 source review is complete with documented coverage limits. All real-GPU acceptance remains pending.",
+  "source_review_lineage": "a164 category-level review plus independently reviewed 970 codec and a73 mapper deltas; no all-files re-review or runtime acceptance"
+}

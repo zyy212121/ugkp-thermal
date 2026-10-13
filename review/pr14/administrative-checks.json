@@ -1,0 +1,49 @@
+{
+  "identity": "PR14_REVIEW_ONLY",
+  "interaction_class": "FAST",
+  "scope": "Administrative Python syntax and isolated dry-run/plan checks only; no application compilation/numerics/GPU execution or actual cleanup",
+  "actual_apply_executed": false,
+  "actual_repository_cleanup_executed": false,
+  "checks": [
+    {
+      "check": "isolated_default_dry_run_preserves_all_bytes",
+      "passed": true,
+      "output": {
+        "identity": "PR14_REVIEW_ONLY",
+        "mode": "check/dry-run",
+        "applied": false,
+        "owned_records": 714,
+        "source_comment_edits": 0,
+        "archive_created": false,
+        "source_bytes_changed": 0
+      }
+    },
+    {
+      "check": "standalone_marker_plan_preserves_every_other_byte_including_mixed_line_endings",
+      "passed": true,
+      "production_write": false
+    },
+    {
+      "check": "README protection",
+      "passed": true
+    },
+    {
+      "check": "parent traversal protection",
+      "passed": true
+    },
+    {
+      "check": "source hash mismatch",
+      "passed": true
+    },
+    {
+      "check": "non-marker line protection",
+      "passed": true
+    },
+    {
+      "check": "production remainder hash mismatch",
+      "passed": true
+    }
+  ],
+  "archive_apply_code": "Source-inspected only; --apply intentionally not executed, even in scratch",
+  "development_correction": "An initial isolated marker-plan check rejected the documented colon-after-ID syntax. The standalone marker regex was corrected; all listed checks then passed. No source or cleanup --apply execution occurred."
+}

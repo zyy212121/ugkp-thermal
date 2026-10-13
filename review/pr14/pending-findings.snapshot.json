@@ -1,0 +1,31 @@
+{
+  "identity": "PR14_REVIEW_ONLY",
+  "captured_utc": "2026-10-13T16:01:11.617737+00:00",
+  "not_final_review": true,
+  "findings": [
+    {
+      "id": "R014-FIND-SIGNED-R",
+      "topic": "R014-032",
+      "status": "PENDING_OWNER_CLOSURE",
+      "finding": "Frontend report explicitly says common boundary-layer profile does not yet consume original CHMT signed/unrepresentable R. Check latest formal repair and reviewer evidence; material/interface fix alone does not close this path."
+    },
+    {
+      "id": "R014-FIND-DO-SWEEP",
+      "topic": "R014-020",
+      "status": "PENDING_REVIEWER_SOURCE_RECHECK",
+      "finding": "Pass2 DO initial NaN residual may skip actual equation sweep and republish old intensity. Owner repair/source pin/recheck pending in this snapshot."
+    },
+    {
+      "id": "R014-FIND-PARSER-COPY",
+      "topic": "R014-006",
+      "status": "PENDING_REVIEWER_SOURCE_RECHECK",
+      "finding": "Pass2 fixed-destination copy should perform actual N-consuming work; user disallows count/equality gates. Check native repair without inventing new admission."
+    },
+    {
+      "id": "R014-FIND-FINAL-PINS",
+      "topic": "R014-001",
+      "status": "PENDING_FINAL_PUBLICATION",
+      "finding": "Final immutable source head/tree, remote blob/mode comparison, CI and complete source review outcomes are not yet filled."
+    }
+  ]
+}

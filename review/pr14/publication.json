@@ -1,0 +1,90 @@
+{
+  "identity": "PR14_REVIEW_ONLY",
+  "interaction_class": "FAST",
+  "status": "FINAL_PRODUCTION_SOURCE_FROZEN_REMOTE_RECORD_COMMIT_CI_PENDING",
+  "production_source_commit": "a73b9635510fb09d7baa5339e14d1aa609f0ff87",
+  "production_source_tree": "e343cb9f477dcd86556f7b6595189fa2c9c1c099",
+  "record_containing_commit": null,
+  "remote_head": null,
+  "remote_tree": null,
+  "base_commit": "d6110c02745a8ad726208a426c4bb3a28233c1fd",
+  "per_path_blob_mode_deletion_comparison_evidence_id": null,
+  "readme_diff_count": 0,
+  "ci_status_and_check_urls": [],
+  "global_pass1_final_applicability": "Historical findings retained; identified repairs and final-source applicability documented by scoped reviews and final pass2; not an independent all-lines approval",
+  "global_pass2_final_decision": "SOURCE_REVIEW_COMPLETE_NO_BLOCKER_IDENTIFIED_WITHIN_DOCUMENTED_COVERAGE",
+  "gpu_acceptance": "NOT_RUN_PENDING_REVIEWER",
+  "record_note": "Fill only after actual verification. Record-containing commit identity is provided through immutable PR history; do not create a self-referential commit hash.",
+  "merge_authorized": false,
+  "source_record_note": "Production source identity is immutable a73. Refreshed review records and offline history bundle are later administrative bytes; their containing commit is separate and deliberately not self-referenced.",
+  "global_pass2_evidence_id": "E014-c0eb1b4b9d88b077",
+  "full_build_evidence": {
+    "CHMT_Ns2_sm80_O2": "E014-21d5564aa441d581",
+    "other_application_configurations": "RECORDED_AT_A164_WITH_GAS_WRAPPER_EXIT_CAVEAT",
+    "CHT_full_build": {
+      "evidence_id": "E014-9bd75000c4edd46b",
+      "source_commit": "a164be44fd28b3d05a1cb430e4e98675b1397bd4",
+      "build_script_exit": 0,
+      "wrapper_exit": 0,
+      "scope": "Native CUDA/archive/host full build and link; no runtime/GPU acceptance"
+    },
+    "FSH_full_build": {
+      "evidence_id": "E014-9bd75000c4edd46b",
+      "source_commit": "a164be44fd28b3d05a1cb430e4e98675b1397bd4",
+      "build_script_exit": 0,
+      "wrapper_exit": 0,
+      "scope": "Native CUDA/archive/host full build and link; no runtime/GPU acceptance"
+    },
+    "gasUGKP_build": {
+      "evidence_id": "E014-9bd75000c4edd46b",
+      "source_commit": "a164be44fd28b3d05a1cb430e4e98675b1397bd4",
+      "all_compile_link_stages_completed": true,
+      "wrapper_exit": 2,
+      "build_script_exit": null,
+      "limits": "CUDA/archive/backend/frontend link stages and artifacts completed; wrapper metadata-capture parse failed after final echo and test -x checks. Child exit was not independently recorded. Do not report an exit-0 full build; no runtime/GPU acceptance."
+    }
+  },
+  "additional_build_evidence": "E014-9bd75000c4edd46b",
+  "current_followup": {
+    "status": "MAPPER_SCOPED_SOURCE_AND_CHT_HOST_COMPILE_APPROVED",
+    "baseline_source_commit": "970d9fedcc061dfa08fc88d427a1a47b3c22f65f",
+    "new_source_commit": "a73b9635510fb09d7baa5339e14d1aa609f0ff87",
+    "review_evidence_id": "E014-df24bc6578459988",
+    "verified_records": {
+      "mapper_dependencies": 492,
+      "repository_export_source_pairs": 385,
+      "object_archive_records": 11
+    }
+  },
+  "global_source_review_lineage": {
+    "full_category_level_review_commit": "a164be44fd28b3d05a1cb430e4e98675b1397bd4",
+    "final_delta_commit": "a73b9635510fb09d7baa5339e14d1aa609f0ff87",
+    "final_delta_review_evidence_id": "E014-df24bc6578459988",
+    "whole_review_reexecuted_at_final_delta": false,
+    "prior_delta_reviews": [
+      {
+        "source_commit": "970d9fedcc061dfa08fc88d427a1a47b3c22f65f",
+        "review_evidence_id": "E014-e99a5a8c7d6fa711"
+      }
+    ]
+  },
+  "history_administrative_commit": null,
+  "history_bundle_sha256": "bf69f1b9f4a4c96d27af04bd885296264305393f941ea1db3a81cb4ea4eac5e8",
+  "source_followup_history": [
+    {
+      "status": "CODEC_SCOPED_APPROVED",
+      "baseline_source_commit": "a164be44fd28b3d05a1cb430e4e98675b1397bd4",
+      "new_source_commit": "970d9fedcc061dfa08fc88d427a1a47b3c22f65f",
+      "review_evidence_id": "E014-e99a5a8c7d6fa711",
+      "verified_records": 848
+    }
+  ],
+  "history_delivery_history": [
+    {
+      "administrative_commit": "dc79925991e8dd4f4fc8f339942a3b9e85e0c633",
+      "bundle_sha256": "f964a9fec2d5f0a2132165fe16b6023f4270bc95e6e6943c0a456284fae8a450",
+      "embedded_source_commit": "970d9fedcc061dfa08fc88d427a1a47b3c22f65f"
+    }
+  ],
+  "history_embedded_source_commit": "a73b9635510fb09d7baa5339e14d1aa609f0ff87"
+}
