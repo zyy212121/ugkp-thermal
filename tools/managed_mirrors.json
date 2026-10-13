@@ -505,6 +505,11 @@
       "downstream": "ugkp-thermal"
     },
     {
+      "path": "applications/gasUGKP/tests/test_shared_reconfiguration_lifecycle.py",
+      "upstream": "gpu-riemann-gkp-main",
+      "downstream": "ugkp-thermal"
+    },
+    {
       "path": "applications/gasUGKP/tests/test_split_pre_runtime_contract.py",
       "upstream": "gpu-riemann-gkp-main",
       "downstream": "ugkp-thermal"

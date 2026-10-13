@@ -75,6 +75,24 @@ def calls(text, name):
                     break
 
 
+def lambda_definition(text, name):
+    """Keep the constructor's actual acquisition/initialization helper body."""
+    match = re.search(r'\bauto\s+' + re.escape(name) + r'\s*=\s*\[[^]]*\]\s*\([^;{}]*\)\s*\{', text)
+    if not match:
+        raise ValueError('missing constructor helper: ' + name)
+    level = 1
+    for index in range(match.end(), len(text)):
+        if text[index] == '{':
+            level += 1
+        elif text[index] == '}':
+            level -= 1
+            if level == 0:
+                if not re.match(r'\s*;', text[index + 1:]):
+                    raise ValueError('unclosed constructor helper: ' + name)
+                return text[match.start():index + 1] + ';'
+    raise ValueError('unclosed constructor helper: ' + name)
+
+
 def build_probe(root, meta, app):
     source = root / 'applications' / app / ('gpu' if app == 'CHT' else 'private_backend') / 'GpuResidentStrict.cu'
     text = source.read_text()
@@ -107,19 +125,35 @@ def build_probe(root, meta, app):
         upload += function_body(saved, 'ugkwpGpuResidentStrictUploadParticleSavedVelocity')
         download += function_body(saved, 'ugkwpGpuResidentStrictDownloadParticleSavedVelocity')
     alloc_calls, release_calls, upload_calls, download_calls, aliases = [], [], [], [], {}
+    reference_aliases, helper_allocations, helper_initialisations = {}, [], []
+    constructor = function_body(text, 'ugkwpGpuResidentStrictConfigureParticleStuckModel') if app != 'gasUGKP' else ''
     for f in storage_fields:
         for name in (f['name'], f['compact']):
             if not name:
                 continue
             selected = [call for call in calls(text, 'allocate') if re.match(r'allocate\s*\(\s*s->'+name+r'\s*,', call)]
             if not selected and f['group'].startswith('COLD'):
-                matches = re.findall(r's->' + name + r'\s*=\s*(\w+)\s*;', text)
-                matches = [n for n in matches if n != 'nullptr']
-                if len(matches) != 1:
-                    raise ValueError(f'{app}: cold installation is not unique for {name}')
-                alias = matches[0]
-                aliases[name] = alias
-                selected = [call for call in calls(text, 'allocate') if re.match(r'allocate\s*\(\s*'+alias+r'\s*,', call)]
+                references = re.findall(r'^\s*([\w ]+)\*&\s*(\w+)\s*=\s*s->' + name + r'\s*;', constructor, re.M)
+                if references:
+                    if len(references) != 1 or references[0][0].strip() != pointers[name]:
+                        raise ValueError(f'{app}: missing/wrong cold owner reference for {name}')
+                    _, alias = references[0]
+                    aliases[name] = alias
+                    reference_aliases[name] = alias
+                    selected = [call for call in calls(constructor, 'acquire') if re.match(r'acquire\s*\(\s*'+alias+r'\s*,', call)]
+                    helper_allocations += selected
+                    initialisations = [call for call in calls(constructor, 'initialise') if re.match(r'initialise\s*\(\s*'+alias+r'\s*,', call)]
+                    if selected and not re.search(r',\s*0\s*\)$', selected[0]) and len(initialisations) != 1:
+                        raise ValueError(f'{app}: initialization closure for {name}: expected one, got {len(initialisations)}')
+                    helper_initialisations += initialisations
+                else:
+                    matches = re.findall(r's->' + name + r'\s*=\s*(\w+)\s*;', text)
+                    matches = [n for n in matches if n != 'nullptr']
+                    if len(matches) != 1:
+                        raise ValueError(f'{app}: cold installation is not unique for {name}')
+                    alias = matches[0]
+                    aliases[name] = alias
+                    selected = [call for call in calls(text, 'allocate') if re.match(r'allocate\s*\(\s*'+alias+r'\s*,', call)]
             if len(selected) != 1:
                 raise ValueError(f'{app}: allocation closure for {name}: expected one, got {len(selected)}')
             alloc_calls += selected
@@ -141,6 +175,17 @@ def build_probe(root, meta, app):
         target = re.match(r'cudaMemset\s*\(\s*(?:s->)?(\w+)\s*,', call)
         if target and target.group(1) in (names | set(aliases.values())):
             memset_calls.append(call)
+    helpers = ''
+    helper_state = ''
+    if helper_allocations:
+        helpers = '\n'.join(re.findall(r'constexpr unsigned short\s+\w+\s*=[^;]+;', constructor)) + '\n'
+        helpers += '\n'.join(lambda_definition(constructor, name) for name in
+                             ('pending', 'markPending', 'clearPending', 'acquire', 'initialise')) + '\n'
+        for name in sorted(set(re.findall(r's->(\w+)', helpers)) - names):
+            declaration = re.search(r'^\s*([\w ]+)\s+' + name + r'\s*=\s*([^;]+);', state, re.M)
+            if not declaration:
+                raise ValueError(f'{app}: missing constructor helper state: {name}')
+            helper_state += f'{declaration[1].strip()} {name}={declaration[2]};\n'
     code = r'''
 #include <algorithm>
 #include <cassert>
@@ -166,15 +211,18 @@ constexpr int coldWallAxialNodeCount=8, coldWallRadialRingCount=8,
 constexpr unsigned char particleWallMobile=0;
 } namespace gpuWall { template<class S> void publishWallBoundParticleIndex(S&,int){} } }
 std::map<void*,size_t> live;
+std::map<void*,size_t> liveBytes;
+using cudaError_t=int;constexpr cudaError_t cudaSuccess=0;
+size_t memsetCount=0;
 template<class T> int allocate(T*& p,size_t n,const char*) {
- if(p) throw std::runtime_error("duplicate allocation"); p=new T[n]{};live[p]=n;return 0;
+ if(p) throw std::runtime_error("duplicate allocation"); p=new T[n]{};live[p]=n;liveBytes[p]=n*sizeof(T);return 0;
 }
-template<class T> int cudaMemset(T* p,int value,std::size_t bytes) {
- if(!p || live.at(p)*sizeof(T)!=bytes) throw std::runtime_error("memset byte closure");
- std::memset(p,value,bytes);return 0;
+int cudaMemset(void* p,int value,std::size_t bytes) {
+ if(!p || liveBytes.at(p)!=bytes) throw std::runtime_error("memset byte closure");
+ ++memsetCount;std::memset(p,value,bytes);return 0;
 }
 template<class T> void release(T*& p) {
- if(!p || !live.erase(p)) throw std::runtime_error("invalid release"); delete[] p;p=nullptr;
+ if(!p || !live.erase(p) || !liveBytes.erase(p)) throw std::runtime_error("invalid release"); delete[] p;p=nullptr;
 }
 template<class T,class U> int copyToDevice(T* d,const U* s,size_t n,const char*) {
  if(!d || live.at(d)!=n) throw std::runtime_error("upload size mismatch");
@@ -187,7 +235,7 @@ template<class T,class U> int copyToHost(T* d,const U* s,size_t n,const char*) {
 '''
     code += f'using GpuReal={"double"};using GpuTime=double;\n'
     code += 'struct DeviceState { int coldWallSolidificationEnabled=1,coldWall2DEnabled=1,particleCapacity=3;\n'
-    code += ''.join(f'{pointers[n]}* {n}=nullptr;\n' for n in sorted(names)) + '};\n'
+    code += ''.join(f'{pointers[n]}* {n}=nullptr;\n' for n in sorted(names)) + helper_state + '};\n'
     if app != 'gasUGKP':
         code += '#include "GpuCellLocalThermalFields.cuh"\n'
         adapter = re.search(r'#define GPU_PARTICLE_EXTRA_FIELDS (CellLocalThermalExtraFields<[^>]+>)', text).group(1)
@@ -204,16 +252,26 @@ template<class T,class U> int copyToHost(T* d,const U* s,size_t n,const char*) {
         match = re.search(r'const size_t '+constant+r'\s*=[^;]+;', text)
         if match:
             code += match.group(0) + '\n'
+    code += helpers
     for name, alias in aliases.items():
-        code += f'{pointers[name]}* {alias}=nullptr;\n'
+        code += f'{pointers[name]}*& {alias}=s->{name};\n' if name in reference_aliases else f'{pointers[name]}* {alias}=nullptr;\n'
     code += ''.join(call + ';\n' for call in alloc_calls)
-    code += ''.join(f's->{name}={alias};\n' for name, alias in aliases.items())
+    code += ''.join(f's->{name}={alias};\n' for name, alias in aliases.items() if name not in reference_aliases)
     code += ''.join(call + ';\n' for call in memset_calls)
+    code += ''.join(call + ';\n' for call in helper_initialisations)
     for f in storage_fields:
         for name in (f['name'], f['compact']):
             if not name:
                 continue
             code += f'if(!s->{name} || live.at(s->{name})!=n*{f["width"]}) throw std::runtime_error("allocation closure: {name}");\n'
+    if helper_allocations:
+        # Exercise the real retained-owner and pending-bit paths as well as the
+        # first acquisition; no replacement allocation or initialization body.
+        code += 'const size_t retainedCount=live.size(),retainedMemsets=memsetCount;\n'
+        code += ''.join(f's->{name}[0]=7;\n' for name in reference_aliases)
+        code += ''.join(call + ';\n' for call in helper_allocations + helper_initialisations)
+        code += 'if(live.size()!=retainedCount || memsetCount!=retainedMemsets) throw std::runtime_error("initialization changed retained cold storage");\n'
+        code += ''.join(f'if(s->{name}[0]!=7) throw std::runtime_error("initialization changed retained cold storage: {name}");\n' for name in reference_aliases)
     for index, f in enumerate(fields):
         name, typ, width = f['name'], f['host'][app], f['width']
         code += f'std::vector<{typ}> h_{name}(n*{width}); auto* {name}=h_{name}.data();\n'

@@ -23,6 +23,7 @@ KEYS = (
     "gpuCsrWarpAggregatedBinning",
     "gpuCsrSplitPreDirectory",
     "gpuCsrLevel",
+    "gpuResearchVariant",
     "bn",
 )
 
@@ -55,12 +56,6 @@ def migrate(path: Path) -> None:
     original = path.read_text()
     schedule = path.with_name("schedulingProperties")
     existing_schedule = schedule.read_text() if schedule.is_file() else ""
-    for text in (original, existing_schedule):
-        if re.search(r"(?m)^\s*gpuResearchVariant\b", text):
-            raise ValueError("thermal rejects gpuResearchVariant; select gpuCsrLevel L0/L1/L2/auto")
-        level = scalar_value(text, "gpuCsrLevel")
-        if level is not None and level not in ("L0", "L1", "L2", "auto"):
-            raise ValueError("thermal requires gpuCsrLevel L0/L1/L2/auto; choose a level before migration")
     values = dict(DEFAULTS)
     for key in KEYS:
         value = scalar_value(existing_schedule, key)
@@ -70,7 +65,11 @@ def migrate(path: Path) -> None:
             values[key] = value
 
     csr_level = values.get("gpuCsrLevel")
-    if csr_level not in ("L0", "L1", "L2", "auto"):
+    if csr_level is not None and csr_level not in ("L0", "L1", "L2", "auto"):
+        # Match readGpuCsrLevel's existing success fallback. An explicitly
+        # supplied unknown level must not activate a legacy heavy-mode flag.
+        csr_level = "L0"
+    if csr_level is None:
         heavy_mode = values["gpuCsrHeavyReduction"]
         if heavy_mode == "auto":
             csr_level = "auto"
@@ -81,8 +80,8 @@ def migrate(path: Path) -> None:
         else:
             csr_level = "L0"
 
-    if csr_level == "auto" and int(values["gpuCsrHeavyReductionAutoInterval"]) < 1:
-        raise ValueError("gpuCsrHeavyReductionAutoInterval must be positive in auto mode")
+    if csr_level == "auto" and int(values["gpuCsrHeavyReductionAutoInterval"]) == 0:
+        raise ValueError("gpuCsrHeavyReductionAutoInterval is a zero modulo divisor in auto mode")
 
     bn = scalar_value(original, "bn")
     if bn is not None:
