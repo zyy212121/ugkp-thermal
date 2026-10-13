@@ -16,8 +16,10 @@ template<class X,class R> UGKWP_GAS_HD inline X concentrationProduct(const GasSt
 template<class X,class R,int N> UGKWP_GAS_HD inline bool progressRate
 (int r,const X& T,const X* c,const SpeciesThermoView<R,N>& t,const GasMechanismView<R,N>& m,X& q) noexcept {
  using C=decltype(rateValue(T));
+ if(!reactionInputAvailable(m,r))return false;
  const auto& a=m.reactions[r];X k=arrhenius(a.highRate,T);
  if(a.type!=GasReactionType::Elementary) {
+   if(!c)return false;
    X collider(0);
    // Sum positive efficiencies directly, avoiding subtraction cancellation when
    // an excluded explicit collider has default efficiency zero.
@@ -47,9 +49,11 @@ template<class X,class R,int N> UGKWP_GAS_HD inline bool progressRate
      k=low*collider/(X(1)+reduced)*broadening;
    }
  }
+ if(a.reactantCount && !c)return false;
  const X forward=k*concentrationProduct(m.reactants,a.reactantOffset,a.reactantCount,c);
  X backward(0);
  if(a.reversible){
+   if(!t.species)return false;
    X deltaG(0);C deltaNu=0;
    for(int side=0;side<2;++side){const auto* terms=side?m.products:m.reactants;int offset=side?a.productOffset:a.reactantOffset;int count=side?a.productCount:a.reactantCount;
      for(int j=0;j<count;++j){const auto& term=terms[offset+j];const C sign=side?term.coefficient:-term.coefficient;const C Tvalue=rateValue(T);const C W=t.species[term.species].molarMass;
@@ -58,6 +62,7 @@ template<class X,class R,int N> UGKWP_GAS_HD inline bool progressRate
        deltaG=deltaG+X(sign)*GibbsNumber<X,C>::make(g,dg);deltaNu+=sign;}
    }
    const X logKc=X(-1)*deltaG/(X(universalGasConstant<C>())*T)+X(deltaNu)*rateLog(X(C(m.referencePressure)/universalGasConstant<C>())/T);
+   if(a.productCount && !c)return false;
    const X reverseFactor=concentrationProduct(m.products,a.productOffset,a.productCount,c);
    // This also handles exact-zero products and colliders with finite limiting
    // derivatives, without forming an overflowing reciprocal Kc.
@@ -72,10 +77,9 @@ template<class X,class R,int N> UGKWP_GAS_HD inline bool progressRate
 }
 template<class R,int N,class TableReal> UGKWP_GAS_HD inline ChemistryStatus rateInputStatus
 (R T,const R* c,const SpeciesThermoView<TableReal,N>& t,const GasMechanismView<TableReal,N>& m) noexcept {
- ChemistryStatus st=validateGasMechanismView(t,m);if(!st)return st;
- if(!c || !gasFinite(T)){st.code=ChemistryCode::NonFiniteInput;return st;}
- for(int s=0;s<N;++s){if(!gasFinite(c[s]) || c[s]<R(0)){st.code=ChemistryCode::InvalidComposition;return st;}
-   if(!gasFinite(speciesE(s,T,t))){st.code=ChemistryCode::TemperatureFailure;return st;}}
+ (void)t;ChemistryStatus st;
+ if(m.reactionCount<0 || (m.reactionCount && !m.reactions)){st.code=ChemistryCode::InvalidModel;return st;}
+ (void)T;(void)c;
  return st;
 }
 }

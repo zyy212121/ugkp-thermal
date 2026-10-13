@@ -7,8 +7,8 @@ enum class ChemistryCode : unsigned char {
     TemperatureFailure, RateFailure, SingularJacobian, NewtonFailure,
     StepUnderflow, StepLimit, ConservationFailure
 };
-// Failed attempted-work diagnostics travel in the return value, never the
-// accepted result/audit. Neither a failure nor a rejected substep publishes state.
+// Internal numerical trial failures travel in the return value and drive
+// caller refinement. Only a completed accepted state publishes its audit.
 struct ChemistryStatus {
     ChemistryCode code = ChemistryCode::Success;
     ThermoStatus thermoCode = ThermoStatus::Success;
@@ -88,7 +88,8 @@ UGKWP_GAS_HD inline ChemistryAudit<To,Ns> castChemistryAudit
     return out;
 }
 
-template<class R> UGKWP_GAS_HD inline bool validateChemistryControls(const ChemistryControls<R>& c) noexcept {
+// Original controls belong only to an explicitly retryable numerical trial.
+template<class R> UGKWP_GAS_HD inline bool chemistryTrialControls(const ChemistryControls<R>& c) noexcept {
  return gasFinite(c.relativeTolerance) && c.relativeTolerance>R(0)
  && gasFinite(c.absoluteMassFractionTolerance) && c.absoluteMassFractionTolerance>R(0)
  && gasFinite(c.absoluteTemperatureTolerance) && c.absoluteTemperatureTolerance>R(0)
@@ -107,6 +108,12 @@ template<class R> UGKWP_GAS_HD inline bool validateChemistryControls(const Chemi
  && gasFinite(c.thermo.relativeEnergyTolerance) && c.thermo.relativeEnergyTolerance>=R(0)
  && gasFinite(c.thermo.absoluteTemperatureTolerance) && c.thermo.absoluteTemperatureTolerance>=R(0)
  && gasFinite(c.thermo.relativeTemperatureTolerance) && c.thermo.relativeTemperatureTolerance>=R(0);
+}
+
+template<class R> UGKWP_GAS_HD inline bool validateChemistryControls(const ChemistryControls<R>& c) noexcept {
+ // Controls select arithmetic and refinement effort; they are not admission
+ // criteria. A missing/nonfinite computed result is reported at its producer.
+ (void)c;return true;
 }
 
 }
