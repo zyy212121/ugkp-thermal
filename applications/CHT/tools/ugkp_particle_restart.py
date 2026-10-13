@@ -4,19 +4,23 @@
 from __future__ import annotations
 
 import hashlib
-import os
 import struct
 from pathlib import Path
-from typing import Iterable, Iterator
+from typing import Iterator
 
 import numpy as np
+
+import sys
+sys.path.insert(0, str(Path(__file__).resolve().parents[3] / "common"))
+from thermal_particle_restart_current import CHT_MARKER, field_specs, iter_chunks, normalize, write_restart
 
 
 FLOAT_FIELDS = ("px", "py", "pz", "pux", "puy", "puz", "pT", "pTheta", "pd")
 WEIGHTED_FLOAT_FIELDS = FLOAT_FIELDS + ("pm",)
 INT_FIELDS = ("cell", "status")
 UINT_FIELDS = ("rng", "orig_id")
-ALL_FIELDS = WEIGHTED_FLOAT_FIELDS + INT_FIELDS + UINT_FIELDS
+BASE_FIELDS = WEIGHTED_FLOAT_FIELDS + INT_FIELDS + UINT_FIELDS
+ALL_FIELDS = tuple(name for name, _, _ in field_specs(CHT_MARKER))
 
 
 def sha256(path: Path) -> str:
@@ -35,14 +39,14 @@ def _read_array(stream, dtype: str, count: int, field: str, path: Path) -> np.nd
 
 
 def _validate_chunk(chunk: dict[str, np.ndarray], path: Path) -> None:
-    lengths = {len(chunk[name]) for name in ALL_FIELDS}
+    lengths = {len(chunk[name]) for name in BASE_FIELDS}
     if len(lengths) != 1:
         raise ValueError(f"{path}: particle fields have inconsistent lengths")
     if not np.all(np.isfinite(chunk["pm"])) or np.any(chunk["pm"] <= 0):
         raise ValueError(f"{path}: particle statistical mass must be finite and positive")
 
 
-def iter_restart_chunks(
+def _iter_legacy_restart_chunks(
     path: Path,
     legacy_parcel_mass: float | None = None,
     text_chunk_particles: int = 262144,
@@ -137,54 +141,44 @@ def _v4_rows(rows: list[list[str]], legacy_mass: float) -> dict[str, np.ndarray]
     return chunk
 
 
-def write_ugkp_restart(
-    path: Path,
-    chunks: Iterable[dict[str, np.ndarray]],
-    total_particles: int,
-    chunk_particles: int = 262144,
-) -> None:
-    path = Path(path)
-    if total_particles < 0:
-        raise ValueError("total particle count must be non-negative")
-    if chunk_particles < 1 or chunk_particles > 0xFFFFFFFF:
-        raise ValueError("invalid output chunk size")
-    emitted = 0
-    with path.open("xb") as stream:
-        stream.write(
-            f"UGKP_PARTICLES_SCHEMA1_BIN {total_particles} {chunk_particles}\n".encode("ascii")
-        )
-        for input_chunk in chunks:
-            _validate_chunk(input_chunk, path)
-            input_count = len(input_chunk["pm"])
-            for start in range(0, input_count, chunk_particles):
-                count = min(chunk_particles, input_count - start)
-                stream.write(struct.pack("<I", count))
-                stop = start + count
-                for name in WEIGHTED_FLOAT_FIELDS:
-                    np.ascontiguousarray(input_chunk[name][start:stop], dtype="<f8").tofile(stream)
-                for name in INT_FIELDS:
-                    np.ascontiguousarray(input_chunk[name][start:stop], dtype="<i4").tofile(stream)
-                for name in UINT_FIELDS:
-                    np.ascontiguousarray(input_chunk[name][start:stop], dtype="<u8").tofile(stream)
-                emitted += count
-        if emitted != total_particles:
-            raise ValueError(
-                f"output declared {total_particles} particles but wrote {emitted}"
-            )
-        stream.flush()
-        os.fsync(stream.fileno())
+def iter_restart_chunks(path, legacy_parcel_mass=None, text_chunk_particles=262144):
+    with Path(path).open("rb") as stream:
+        marker = stream.readline().decode("ascii").split()[0]
+    if marker.startswith("UGKP_PARTICLES_"):
+        chunks = _iter_legacy_restart_chunks(path, legacy_parcel_mass, text_chunk_particles)
+    elif marker.startswith("UGKP_FSH_PARTICLES_SCHEMA") and marker != "UGKP_FSH_PARTICLES_SCHEMA8_FP64_FIELDS_BIN":
+        sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "FSH/tools"))
+        from fsh_particle_restart_schema6 import iter_restart_chunks as legacy_fsh_chunks
+        chunks = legacy_fsh_chunks(path, legacy_parcel_mass)
+    else:
+        chunks = (data for _, data in iter_chunks(path))
+    for chunk in chunks:
+        yield normalize(chunk, CHT_MARKER)
+
+def write_ugkp_restart(path, chunks, total_particles, chunk_particles=262144):
+    write_restart(path, chunks, total_particles, chunk_particles, cht=True)
+
+def collect_restart(path, legacy_parcel_mass=None):
+    pieces = list(iter_restart_chunks(path, legacy_parcel_mass))
+    return {name: np.concatenate([p[name] for p in pieces], axis=0) if pieces else np.empty((0,) if width == 1 else (0, width), dtype=dtype)
+            for name, dtype, width in field_specs(CHT_MARKER)}
 
 
-def collect_restart(
-    path: Path,
-    legacy_parcel_mass: float | None = None,
-) -> dict[str, np.ndarray]:
-    pieces: dict[str, list[np.ndarray]] = {name: [] for name in ALL_FIELDS}
-    for chunk in iter_restart_chunks(path, legacy_parcel_mass):
-        for name in ALL_FIELDS:
-            pieces[name].append(chunk[name])
-    result: dict[str, np.ndarray] = {}
-    for name in ALL_FIELDS:
-        dtype = "<f8" if name in WEIGHTED_FLOAT_FIELDS else "<i4" if name in INT_FIELDS else "<u8"
-        result[name] = np.concatenate(pieces[name]) if pieces[name] else np.empty(0, dtype=dtype)
-    return result
+def input_metadata(path):
+    with Path(path).open("rb") as stream:
+        marker = stream.readline().decode("ascii").split()[0]
+    if marker.startswith("UGKP_PARTICLES_"):
+        specs = [(name, "<f8", 1) for name in FLOAT_FIELDS]
+        if marker == "UGKP_PARTICLES_SCHEMA1_BIN":
+            specs += [("pm", "<f8", 1)]
+        specs += [(name, "<i4", 1) for name in INT_FIELDS] + [(name, "<u8", 1) for name in UINT_FIELDS]
+        dtypes = {name: ("ascii" if marker == "UGKP_PARTICLES_SCHEMA4" else dtype) for name, dtype, _ in specs}
+    elif marker.startswith("UGKP_FSH_PARTICLES_SCHEMA") and marker != "UGKP_FSH_PARTICLES_SCHEMA8_FP64_FIELDS_BIN":
+        sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "FSH/tools"))
+        from fsh_particle_restart_schema6 import _field_specs, SCHEMA_NAMES
+        dtypes = {name: dtype for name, dtype, _ in _field_specs(SCHEMA_NAMES[marker])}
+    else:
+        dtypes = {name: dtype for name, dtype, _ in field_specs(marker)}
+    return {"source_format": marker, "source_field_dtypes": dtypes,
+            "defaulted_saved_velocity": "puxOld" not in dtypes,
+            "missing_saved_velocity_default": "existing native zero initialization; history not reconstructed"}
