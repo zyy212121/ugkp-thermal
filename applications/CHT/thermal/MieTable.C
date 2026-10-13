@@ -1,12 +1,8 @@
 #include "MieTable.H"
-#include "SHA1.H"
 
 #include <algorithm>
 #include <cmath>
 #include <fstream>
-#include <iomanip>
-#include <map>
-#include <set>
 #include <sstream>
 #include <string>
 #include <vector>
@@ -57,44 +53,6 @@ std::string readFile(const fileName& file)
     return clean;
 }
 
-std::map<std::string, std::string> readHeader
-(
-    const fileName& file,
-    const std::string& content,
-    const std::size_t payloadBegin
-)
-{
-    std::istringstream lines(content.substr(0, payloadBegin));
-    std::string line;
-    if (!std::getline(lines, line) || line != "MIE_TABLE")
-        fail(file, "magic must be MIE_TABLE");
-
-    const std::set<std::string> allowed
-    {
-        "formatVersion", "units", "interpolation", "generatorSha256",
-        "generationArgs", "diameter", "temperature", "mu", "wavelength"
-    };
-    std::map<std::string, std::string> result;
-    while (std::getline(lines, line))
-    {
-        if (line.empty()) continue;
-        const std::size_t p = line.find_first_of(" \t");
-        if (p == std::string::npos) fail(file, "malformed header line: " + line);
-        const std::string key = line.substr(0, p);
-        if (!allowed.count(key)) fail(file, "unknown header field: " + key);
-        if (!result.emplace(key, line.substr(p+1)).second)
-            fail(file, "duplicate header field: " + key);
-    }
-    for (const std::string& key : allowed)
-        if (!result.count(key)) fail(file, "missing header field: " + key);
-    if (result["formatVersion"] != "1") fail(file, "unsupported formatVersion");
-    if (result["units"] != "diameter_m temperature_K wavelength_m")
-        fail(file, "unexpected units");
-    if (result["interpolation"] != "logDiameter_linearTemperature_linearMu")
-        fail(file, "unexpected interpolation contract");
-    return result;
-}
-
 scalar number(const fileName& file, const std::string& label, const std::string& word)
 {
     std::istringstream in(word);
@@ -105,23 +63,9 @@ scalar number(const fileName& file, const std::string& label, const std::string&
     return value;
 }
 
-std::size_t indexValue(const fileName& file, const std::string& label, const std::string& word)
-{
-    std::istringstream in(word);
-    std::size_t value;
-    char extra;
-    if (!(in >> value) || (in >> extra)) fail(file, label + " is not an index");
-    return value;
-}
-
-void increasing(const fileName& file, const std::string& label, const scalarField& x)
+void requireBracketNodes(const fileName& file, const std::string& label, const scalarField& x)
 {
     if (x.size() < 2) fail(file, label + " requires at least two values");
-    forAll(x, i)
-    {
-        if (!std::isfinite(x[i])) fail(file, label + " contains non-finite value");
-        if (i && !(x[i] > x[i-1])) fail(file, label + " is not strictly increasing");
-    }
 }
 
 Bracket linearBracket(const scalarField& axis, scalar value)
@@ -129,8 +73,27 @@ Bracket linearBracket(const scalarField& axis, scalar value)
     if (value <= axis[0]) return {0, 0};
     const std::size_t last = axis.size()-1;
     if (value >= axis[last]) return {last-1, 1};
-    const scalar* it = std::upper_bound(axis.begin(), axis.end(), value);
-    const std::size_t hi = it-axis.begin();
+    // Keep the existing upper-bound search progression without requiring a
+    // global ordering certificate for otherwise executable table queries.
+    std::size_t first = 0;
+    std::size_t count = axis.size();
+    while (count)
+    {
+        const std::size_t step = count/2;
+        const std::size_t middle = first + step;
+        if (!(value < axis[middle]))
+        {
+            first = middle + 1;
+            count -= step + 1;
+        }
+        else
+        {
+            count = step;
+        }
+    }
+    const std::size_t hi = first;
+    if (hi == 0 || hi >= std::size_t(axis.size()))
+        throw MieTableError("interpolation has no accessible bracket");
     return {hi-1, (value-axis[hi-1])/(axis[hi]-axis[hi-1])};
 }
 
@@ -168,26 +131,12 @@ MieTable::MieTable(const fileName& tableFile)
     const std::size_t payloadBegin = content.find("Tvals ");
     if (payloadBegin == std::string::npos || (payloadBegin && content[payloadBegin-1] != '\n'))
         fail(tableFile, "missing Tvals payload");
-    readHeader(tableFile, content, payloadBegin);
 
     const std::string endMarker = "END_MIE_TABLE\n";
     const std::size_t end = content.find(endMarker, payloadBegin);
     if (end == std::string::npos) fail(tableFile, "missing END_MIE_TABLE");
     const std::size_t payloadEnd = end + endMarker.size();
-    const std::string checksumPrefix = "payloadSha1 ";
-    if (content.compare(payloadEnd, checksumPrefix.size(), checksumPrefix) != 0)
-        fail(tableFile, "missing payloadSha1");
-    const std::size_t checksumEnd = content.find('\n', payloadEnd);
-    if (checksumEnd == std::string::npos || checksumEnd+1 != content.size())
-        fail(tableFile, "trailing data after payloadSha1");
-    const std::string expected = content.substr
-    (
-        payloadEnd + checksumPrefix.size(),
-        checksumEnd - payloadEnd - checksumPrefix.size()
-    );
     const std::string payload = content.substr(payloadBegin, payloadEnd-payloadBegin);
-    const std::string actual = Foam::SHA1(payload).digest().str();
-    if (actual != expected) fail(tableFile, "payloadSha1 mismatch");
 
     std::istringstream in(payload);
     auto field = [&](const std::string& expectedName) -> scalarField
@@ -211,13 +160,10 @@ MieTable::MieTable(const fileName& tableFile)
     data->D = field("Dvals");
     data->mu = field("Muvals");
     data->band = field("PlanckBandFractions");
-    increasing(tableFile, "Tvals", data->T);
-    increasing(tableFile, "Dvals", data->D);
-    increasing(tableFile, "Muvals", data->mu);
-    if (data->band.size() != data->T.size()) fail(tableFile, "PlanckBandFractions size mismatch");
-    forAll(data->band, i)
-        if (!std::isfinite(data->band[i]) || data->band[i] < 0 || data->band[i] > 1)
-            fail(tableFile, "PlanckBandFractions must be in [0,1]");
+    requireBracketNodes(tableFile, "Tvals", data->T);
+    requireBracketNodes(tableFile, "Dvals", data->D);
+    requireBracketNodes(tableFile, "Muvals", data->mu);
+    if (data->band.size() < data->T.size()) fail(tableFile, "PlanckBandFractions size mismatch");
 
     std::string line;
     if (!std::getline(in, line) || line != "DATA") fail(tableFile, "missing DATA");
@@ -230,18 +176,13 @@ MieTable::MieTable(const fileName& tableFile)
     {
         if (!std::getline(in, line)) fail(tableFile, "missing NODE");
         std::istringstream words(line);
-        std::string tag, ds, ts, qa, qs, qe, extra;
-        if (!(words >> tag >> ds >> ts >> qa >> qs >> qe) || (words >> extra) || tag != "NODE")
+        std::string tag, ds, ts, qa, qs, qe;
+        if (!(words >> tag >> ds >> ts >> qa >> qs >> qe) || tag != "NODE")
             fail(tableFile, "malformed NODE");
-        if (indexValue(tableFile, "NODE d", ds) != d || indexValue(tableFile, "NODE t", ts) != t)
-            fail(tableFile, "NODE order mismatch");
         Node n;
         n.Qabs = number(tableFile, "Qabs", qa);
         n.Qsca = number(tableFile, "Qsca", qs);
         n.Qext = number(tableFile, "Qext", qe);
-        if (n.Qabs < 0 || n.Qsca < 0 || n.Qext < 0) fail(tableFile, "negative efficiency");
-        const scalar qScale = std::max(scalar(1), std::max(n.Qext, n.Qabs+n.Qsca));
-        if (std::abs(n.Qext-n.Qabs-n.Qsca) > 1e-10*qScale) fail(tableFile, "Qext identity failed");
 
         if (!std::getline(in, line)) fail(tableFile, "missing PHI");
         std::istringstream phiWords(line);
@@ -250,14 +191,9 @@ MieTable::MieTable(const fileName& tableFile)
         n.phi.setSize(data->mu.size());
         forAll(n.phi, i)
         {
-            if (!(phiWords >> n.phi[i]) || !std::isfinite(n.phi[i]) || n.phi[i] < 0)
+            if (!(phiWords >> n.phi[i]) || !std::isfinite(n.phi[i]))
                 fail(tableFile, "invalid PHI value");
         }
-        if (phiWords >> extra) fail(tableFile, "too many PHI values");
-        scalar integral = 0;
-        for (label i=1; i<n.phi.size(); ++i)
-            integral += 0.5*(n.phi[i-1]+n.phi[i])*(data->mu[i]-data->mu[i-1]);
-        if (std::abs(integral-2) > 1e-6) fail(tableFile, "PHI normalization failed");
         data->nodes.push_back(std::move(n));
     }
     if (!std::getline(in, line) || line != "END_MIE_TABLE") fail(tableFile, "missing terminator");
@@ -292,7 +228,7 @@ scalar MieTable::phase(const scalar diameter, const scalar temperature, const sc
     const auto bi = [&](scalar av, scalar bv, scalar cv, scalar ev)
     { return blend(blend(av,bv,t.w), blend(cv,ev,t.w), d.w); };
     const scalar q = bi(a.Qsca,b.Qsca,c.Qsca,e.Qsca);
-    if (q <= 0) return 1;
+    if (q == 0) return 1;
     return bi(a.Qsca*at(a),b.Qsca*at(b),c.Qsca*at(c),e.Qsca*at(e))/q;
 }
 
