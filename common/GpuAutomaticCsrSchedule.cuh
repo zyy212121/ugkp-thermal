@@ -14,7 +14,7 @@ int runAutomaticCsrSchedule
  const GPU_DIRECTORY_PARAMETER_TYPE GPU_DIRECTORY_SELECTOR)
 {
     if (s->csrHeavyReductionMode != 2 || s->particleCapacity <= 0) return 0;
-    if (s->csrHeavyAutoInterval == 0 || block < 1 || s->nCells < 1)
+    if (s->csrHeavyAutoInterval == 0 || block < 1)
     {
         setLastError("automatic CSR schedule invalid parameters", cudaErrorInvalidValue);
         return 1;
