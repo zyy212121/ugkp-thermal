@@ -1,0 +1,376 @@
+diff --git a/applications/CHMT/gpu/Backend.cu b/applications/CHMT/gpu/Backend.cu
+index bfc116a..c097cae 100644
+--- a/applications/CHMT/gpu/Backend.cu
++++ b/applications/CHMT/gpu/Backend.cu
+@@ -18,6 +18,8 @@
+ #include "../../../common/gasNumerics/GpuLesAlgebra.cuh"
+ #include <thrust/device_ptr.h>
+ #include <thrust/reduce.h>
++#include <thrust/transform_reduce.h>
++#include <thrust/iterator/counting_iterator.h>
+ #include <thrust/system/cuda/execution_policy.h>
+ #include <memory>
+ #include <algorithm>
+@@ -44,6 +46,7 @@ struct Backend {
+ };
+ inline void bindSharedGasStorage(Backend& b){
+     const auto& view=b.storage.hostView();
++    b.preparedWallReady=false;
+     b.gasSpecies=view.gasSpecies;b.gasBoundaryLayer=view.gasBoundaryLayer;b.gasGeometry=view.gasGeometry;
+     b.deviceState=b.storage.deviceView();b.nCells=view.nCells;b.nFaces=view.nFaces;
+ }
+@@ -83,6 +86,16 @@ struct GasPrimDevice {double rho,ux,uy,uz,p,T;};
+ #include "../../../common/operators/computeGasFluxPositivityScaleKernel.cuh"
+ #include "../../../common/operators/computeSstFaceFluxKernel.cuh"
+ #include "../../../common/operators/evaluateGasBoundaryLayerKernel.cuh"
++// Only a stale prepared packet needs this refresh. The normal stage already
++// evaluated these exact face expressions before its material callback.
++template<class State>
++__global__ void refreshCoupledWallFluxKernel(State* state){
++    const int slot=blockIdx.x*blockDim.x+threadIdx.x;
++    if(slot>=state->gasBoundaryLayer.count)return;
++    const int face=state->gasBoundaryLayerModel.faces[slot];
++    computeRiemannGasFaceFluxDevice<false>(*state,face,state->gasPhiRho[face],
++        state->gasPhiRhoUx[face],state->gasPhiRhoUy[face],state->gasPhiRhoUz[face],state->gasPhiRhoE[face]);
++}
+ } // transport
+ } // chmt
+ #include "../../../common/GpuGasHostPolicy.cuh"
+@@ -98,6 +111,7 @@ struct GasHostPolicy:GasHostWithWallEnergy<Real,Real,&accountCoupledFaces> {
+ #include "../../../common/GpuGasCourant.cuh"
+ struct CoupledTrialPolicy {
+     static int begin(Backend* b){
++        b->firstChemistry.clear();b->secondChemistry.clear();
+         b->preparedWallReady=false;b->terminalWallFailure=false;ugkwp::invalidateGasBoundaryLayerPreparation(*b);
+         if(!b->microGeometryPrepared)b->microBase=b->trial;b->gasStageIndex=0;b->trialBudget=b->trial.budget;b->record={};b->record.microSequence=b->history.records().size()+1;
+         b->record.begin=b->microTime;b->record.actualDt=b->microDt;b->record.localBegin=b->elapsed;b->record.localEnd=b->elapsed+b->microDt;b->record.end=windowAbsolute(b->program.interval.begin,b->record.localEnd);b->record.gasGeometry=b->trial.gasMesh.geometryVersion;b->record.solidGeometry=b->trial.solidMesh.geometryVersion;
+@@ -117,20 +131,22 @@ struct CoupledTrialPolicy {
+     static int validateTimeStep(Backend*,Real){return 0;} // Direct CHMT path does not request native refinement.
+     static int applySources(Backend* b,Real){return finishCoupledGeometry(b); }
+     static int validate(Backend* b){
+-        if(!b->storage.checkStatus(b->error)||!b->storage.downloadState(b->trial,b->error))return 1;
++        if(!b->storage.checkStatus(b->error))return 1;
+         return 0;
+     }
+     static int commit(Backend* b){
++        if(!b->storage.downloadState(b->trial,b->error))return 1;
+         if(b->model.physics.gasMode==ugkwp::GasMode::MixtureChemistry){
+             b->trial.gasChemistryAudit.resize(b->nCells);
+             for(const auto* half:{&b->firstChemistry,&b->secondChemistry}){
+                 if(half->size()!=std::size_t(b->nCells)){b->error="missing chemical half audit";return 1;}
+                 for(int c=0;c<b->nCells;++c){auto& dst=b->trial.gasChemistryAudit[c];const auto& src=(*half)[c];
+-                    if(dst.acceptedSteps>INT_MAX-src.acceptedSteps||dst.rejectedSteps>INT_MAX-src.rejectedSteps||dst.nonlinearIterations>INT_MAX-src.nonlinearIterations){b->error="accepted chemistry counter overflow";return 1;}
+                     for(int s=0;s<Ns;++s)dst.speciesMassChange[s]+=src.speciesMassChange[s];
+                     dst.massResidual+=src.massResidual;dst.energyResidual+=src.energyResidual;dst.maximumElementResidual=maxValue(dst.maximumElementResidual,src.maximumElementResidual);
+                     dst.maximumLocalError=maxValue(dst.maximumLocalError,src.maximumLocalError);dst.integratedTime+=src.integratedTime;
+-                    dst.acceptedSteps+=src.acceptedSteps;dst.rejectedSteps+=src.rejectedSteps;dst.nonlinearIterations+=src.nonlinearIterations;
++                    // Same-width counter arithmetic, with defined wrap instead of signed UB.
++                    const auto add=[](int a,int b){const unsigned bits=unsigned(a)+unsigned(b);return bits<=unsigned(INT_MAX)?int(bits):-1-int(UINT_MAX-bits);};
++                    dst.acceptedSteps=add(dst.acceptedSteps,src.acceptedSteps);dst.rejectedSteps=add(dst.rejectedSteps,src.rejectedSteps);dst.nonlinearIterations=add(dst.nonlinearIterations,src.nonlinearIterations);
+                 }
+             }
+         }
+@@ -219,6 +235,14 @@ int prepareCoupledBoundaryLayer(Backend* b,Real dt,Real stageTime){
+     b->preparedWallTime=stageTime;b->preparedWallDt=dt;b->preparedWallReady=true;return 0;
+ }
+ int applyCoupledFaces(Backend* b,Real dt,Real stageTime){
++    if(b->gasBoundaryLayer.enabled && (!b->preparedWallReady
++        || b->preparedWallTime!=stageTime || b->preparedWallDt!=dt)){
++        if(prepareCoupledBoundaryLayer(b,dt,stageTime)!=0)return 1;
++        const int count=b->gasBoundaryLayer.count;
++        transport::refreshCoupledWallFluxKernel<<<(count+31)/32,32,0,b->gasCaptureStream>>>(b->deviceState);
++        const auto code=cudaGetLastError();
++        if(code!=cudaSuccess){b->error=std::string("refresh current wall face flux: ")+cudaGetErrorString(code);return 1;}
++    }
+     b->stageTime=windowAbsolute(b->program.interval.begin,coupledStageTime(*b));b->stagePacketDt=dt;WallKnot wall;if(!sampleGasWallProgramLocal(b->program,coupledStageTime(*b),wall,b->error,false))return 1;
+     std::vector<GasPrimitive> primitive;std::vector<GasGradient> gradient;std::vector<GasQ> flux;
+     if(!readBulk(*b,primitive,gradient)||!fluxes(*b,flux,false)){b->error=b->storage.error();return 1;}
+@@ -229,8 +253,6 @@ int applyCoupledFaces(Backend* b,Real dt,Real stageTime){
+         Real massFlux=0;for(int s=0;s<Ns;++s){input.speciesRate[s]=w.speciesRate[s];input.poreRate[s]=w.poreRate[s];input.poreSweepRate[s]=w.poreSweepRate[s];
+             massFlux+=(w.speciesRate[s]+w.poreRate[s])*(input.area/input.gasArea);}
+         if(b->gasBoundaryLayer.enabled){
+-            if(!b->preparedWallReady||b->preparedWallTime!=stageTime||b->preparedWallDt!=dt||b->preparedWallLayers.size()!=surface.area.size()||b->preparedMatching.size()!=surface.area.size()){
+-                b->error="boundaryLayer stage closure is missing or stale";return 1;}
+             input.normal=-b->trial.gasMesh.areaVectors[f]/input.gasArea;
+             input.preparedLayer=&b->preparedWallLayers[i];input.wallContext.matchingPressure=b->preparedMatching[i].pressure;
+             input.wallContext.matching=b->preparedMatching[i].state;
+@@ -315,6 +337,10 @@ Backend* createBackend(const ModelConfig& model,const ugkwp::GasModelConfigurati
+     if(options.turbulenceModel!=(model.physics.enableSst?3:0)){error="coupled gas turbulence mode must match configured SST inventory";return nullptr;}
+     ugkwp::GasCapabilityRequest request;request.mode=gas.mode;request.fluxScheme=options.fluxScheme;request.reconstruction=options.reconstruction;request.limiter=options.limiter;request.timeIntegrator=options.timeIntegrator;request.turbulenceModel=options.turbulenceModel;request.sstWallTreatment=int(model.physics.wallModel.family);request.boundaryLayerModel=int(model.physics.wallModel.model);request.movingGeometry=model.physics.meshMotion.policy!=MeshMotionPolicy::Static;request.particleCoupling=model.physics.enableParticles;
+     const auto supported=ugkwp::validateGasCapabilities(request);if(!supported){error=supported.message;return nullptr;}
++    if(gas.mode!=ugkwp::GasMode::SingleLegacy
++        && ((options.fluxScheme!=1&&options.fluxScheme!=2)||(options.reconstruction!=0&&options.reconstruction!=1)))
++        std::fprintf(stderr,"CHMT mixture requested flux=%d reconstruction=%d; effective flux=%d reconstruction=%d (existing fallback)\n",
++            options.fluxScheme,options.reconstruction,options.fluxScheme==2?2:1,options.reconstruction==1?1:0);
+     std::unique_ptr<Backend> b(new Backend);b->model=model;b->options=options;b->accepted=b->trial=state;
+     if(!b->storage.configure(model,gas,mechanism,state,error))return nullptr;
+     auto& v=b->storage.hostView();v.gasFluxScheme=options.fluxScheme;v.gasReconstruction=options.reconstruction;v.gasLimiter=options.limiter;v.turbulenceModel=options.turbulenceModel;v.sstConfigured=options.turbulenceModel==3;
+@@ -336,6 +362,18 @@ bool beginGasWindow(Backend& b,const WallProgram& program,std::string& error){
+ struct CoupledCourantMaximum {
+     __host__ __device__ double operator()(double a,double b)const{return a!=a?a:b!=b?b:fmax(a,b);}
+ };
++struct CoupledCourantValue {double value;bool unavailable;};
++struct CoupledCourantRead {
++    const double* field;const int* status;
++    __host__ __device__ CoupledCourantValue operator()(int cell)const{
++        return {field[cell],status&&status[cell]==int(ugkwp::GasTransportCode::InvalidStorage)};
++    }
++};
++struct CoupledCourantReduce {
++    __host__ __device__ CoupledCourantValue operator()(CoupledCourantValue a,CoupledCourantValue b)const{
++        return {CoupledCourantMaximum{}(a.value,b.value),a.unavailable||b.unavailable};
++    }
++};
+ static bool currentGasCourant(Backend& b,Real referenceDt,transport::GasCourantMaxima& result){
+     const auto& v=b.storage.hostView();
+     struct View {
+@@ -344,9 +382,24 @@ static bool currentGasCourant(Backend& b,Real referenceDt,transport::GasCourantM
+     } view{b.nCells,b.nFaces,b.hostTurbulenceModel,b.deviceState,v.gasFluxPositivityScale,v.gasDiffusionNumber,v.sstSourceNumber};
+     auto copy=[&](Real* to,const Real* from){const auto code=cudaMemcpy(to,from,b.nCells*sizeof(Real),cudaMemcpyDeviceToDevice);if(code!=cudaSuccess){transport::setLastError("current Co SST scratch copy",code);return false;}return true;};
+     const bool sst=b.hostTurbulenceModel==3;
++    if(sst&&b.gasBoundaryLayer.enabled&&!b.storage.wallMassPublished()){
++        WallKnot wall;if(!sampleGasWallProgramLocal(b.program,b.elapsed,wall,b.error,false)
++            ||!b.storage.prepareWallBoundary(wall,b.trial.surface,b.error))return false;
++    }
+     if(sst&&(!copy(v.rhoKInitial,v.rhoK)||!copy(v.rhoOmegaInitial,v.rhoOmega)))return false;
+-    const auto maximum=[](const double* field,int count,cudaStream_t stream,double& value){
+-        try {value=thrust::reduce(thrust::cuda::par.on(stream),thrust::device_pointer_cast(field),thrust::device_pointer_cast(field)+count,-std::numeric_limits<double>::infinity(),CoupledCourantMaximum{});}
++    const auto maximum=[&](const double* field,int count,cudaStream_t stream,double& value){
++        try {
++            if(field==v.gasFluxPositivityScale){
++                // The existing first maximum traversal also reports actual
++                // unavailable inputs. No separate status transfer/scan/sync.
++                const auto first=thrust::make_counting_iterator(0);
++                const auto reduced=thrust::transform_reduce(thrust::cuda::par.on(stream),first,first+count,
++                    CoupledCourantRead{field,v.gasSpecies.cellStatus},
++                    CoupledCourantValue{-std::numeric_limits<double>::infinity(),false},CoupledCourantReduce{});
++                if(reduced.unavailable){transport::setLastErrorText("current Co consumed input unavailable");return 1;}
++                value=reduced.value;
++            }else value=thrust::reduce(thrust::cuda::par.on(stream),thrust::device_pointer_cast(field),thrust::device_pointer_cast(field)+count,-std::numeric_limits<double>::infinity(),CoupledCourantMaximum{});
++        }
+         catch(const std::exception& e){transport::setLastErrorText(e.what());return 1;}
+         const auto code=cudaGetLastError();if(code!=cudaSuccess){transport::setLastError("gas Courant maximum reduction",code);return 1;}return 0;
+     };
+@@ -366,10 +419,13 @@ bool advanceGasMicrostep(Backend& b,Real cap,GasMicroReport& report,std::string&
+     if(prepareCoupledGeometry(&b)!=0){error=b.error;return false;}
+     transport::GasCourantMaxima co;
+     if(!currentGasCourant(b,referenceDt,co)){
+-        error=transport::lastError;std::string restoreError;if(!restoreGasSnapshot(b,b.microBase,restoreError))error+="; "+restoreError;return false;
++        error=b.error.empty()?transport::lastError:b.error;std::string restoreError;if(!restoreGasSnapshot(b,b.microBase,restoreError))error+="; "+restoreError;return false;
+     }
+     const Real growthBase=b.trial.lastAcceptedDt>0?b.trial.lastAcceptedDt:referenceDt;
+-    const Real dt=gasCoMaxStep(referenceDt,b.model.physics.cfl,co.maximum,growthBase);
++    const Real selectedDt=gasCoMaxStep(referenceDt,b.model.physics.cfl,co.maximum,growthBase);
++    // An exhausted numerical split still executes the real requested interval.
++    // No clock is advanced until that physical trial and commit have completed.
++    const Real dt=selectedDt>0 && b.elapsed+selectedDt!=b.elapsed?selectedDt:referenceDt;
+     if(dt!=referenceDt){b.microDt=dt;if(prepareCoupledGeometry(&b)!=0){error=b.error;return false;}}
+     b.microGeometryPrepared=true;
+     if(transport::advanceGasTrial<transport::CoupledTrialPolicy>(&b,dt,b.microTime)!=0){
+diff --git a/applications/CHMT/gpu/SharedGasDeviceStorage.cuh b/applications/CHMT/gpu/SharedGasDeviceStorage.cuh
+index 98e5a31..a9387dd 100644
+--- a/applications/CHMT/gpu/SharedGasDeviceStorage.cuh
++++ b/applications/CHMT/gpu/SharedGasDeviceStorage.cuh
+@@ -47,7 +47,6 @@ class SharedGasDeviceStorage {
+     Buffer<ugkwp::GasStoichTerm<Real>> reactants_,products_;
+     Buffer<ugkwp::GasColliderEfficiency<Real>> efficiencies_;
+     Buffer<ugkwp::ChemistryAudit<Real,Ns>> chemistryAudit_;
+-    Buffer<ugkwp::ChemistryStatus> chemistryStatus_;
+     Buffer<Real> geometryOld_,geometryNew_,geometrySweeps_;
+     std::array<Buffer<Real>,13> sstAudit_;
+     std::uint64_t identity_=0,thermoIdentity_=0,mechanismIdentity_=0,geometryVersion_=0;
+@@ -60,7 +59,7 @@ class SharedGasDeviceStorage {
+     std::unique_ptr<WallClosureHost> wallGeometry_;
+     std::vector<int> wallFaces_;
+     std::vector<ugkwp::gaswall::WallInput<Real,Ns>> wallHostInput_;
+-    std::uint64_t wallGeometryVersion_=0;bool wallGeometryReady_=false,wallModelFailed_=false;
++    std::uint64_t wallGeometryVersion_=0;bool wallGeometryReady_=false,wallModelFailed_=false,wallInputDirty_=false,wallMassPublished_=false;
+     Buffer<int> wallFaceSlot_,wallOwnerSlot_,wallStatus_,wallFaceList_,wallMatchOffsets_,wallMatchCells_;
+     Buffer<Real> wallSpecies_,wallDistance_,wallWeights_,wallMatchWeights_;
+     Buffer<ugkwp::GasBoundaryLayerExchange<Real>> wallExchange_;
+@@ -104,7 +103,6 @@ class SharedGasDeviceStorage {
+         cellStatus_.rebindFault(fault_);
+         faceStatus_.rebindFault(fault_);
+         chemistryAudit_.rebindFault(fault_);
+-        chemistryStatus_.rebindFault(fault_);
+         geometryOld_.rebindFault(fault_);
+         geometryNew_.rebindFault(fault_);
+         geometrySweeps_.rebindFault(fault_);
+@@ -158,7 +156,6 @@ class SharedGasDeviceStorage {
+         cellStatus_.swap(other.cellStatus_);
+         faceStatus_.swap(other.faceStatus_);
+         chemistryAudit_.swap(other.chemistryAudit_);
+-        chemistryStatus_.swap(other.chemistryStatus_);
+         geometryOld_.swap(other.geometryOld_);
+         geometryNew_.swap(other.geometryNew_);
+         geometrySweeps_.swap(other.geometrySweeps_);
+@@ -181,7 +178,7 @@ class SharedGasDeviceStorage {
+             wallOutput_.swap(other.wallOutput_);
+             wallModelStatus_.swap(other.wallModelStatus_);
+             wallGeometry_.swap(other.wallGeometry_);wallFaces_.swap(other.wallFaces_);wallHostInput_.swap(other.wallHostInput_);
+-            std::swap(wallGeometryVersion_,other.wallGeometryVersion_);std::swap(wallGeometryReady_,other.wallGeometryReady_);std::swap(wallModelFailed_,other.wallModelFailed_);
++            std::swap(wallGeometryVersion_,other.wallGeometryVersion_);std::swap(wallGeometryReady_,other.wallGeometryReady_);std::swap(wallModelFailed_,other.wallModelFailed_);std::swap(wallInputDirty_,other.wallInputDirty_);std::swap(wallMassPublished_,other.wallMassPublished_);
+         }
+         rebindOwners();other.rebindOwners();
+     }
+@@ -214,7 +211,6 @@ class SharedGasDeviceStorage {
+         if(!view_.gasSpecies.cellStatus)cellStatus_.release();
+         if(!view_.gasSpecies.faceStatus)faceStatus_.release();
+         if(!view_.gasSpecies.chemistryAudit)chemistryAudit_.release();
+-        if(!view_.gasSpecies.chemistryStatus)chemistryStatus_.release();
+         const auto& a=view_.gasSstAudit;
+         const Real* fields[]={a.transportK,a.transportOmega,a.sourceK,a.sourceOmega,a.constraintK,a.constraintOmega,
+             a.initialTransportK,a.initialTransportOmega,a.initialSourceK,a.initialSourceOmega,a.initialConstraintK,a.initialConstraintOmega,a.volume};
+@@ -238,7 +234,6 @@ class SharedGasDeviceStorage {
+         ok=cellStatus_.release()&&ok;
+         ok=faceStatus_.release()&&ok;
+         ok=chemistryAudit_.release()&&ok;
+-        ok=chemistryStatus_.release()&&ok;
+         ok=geometryOld_.release()&&ok;
+         ok=geometryNew_.release()&&ok;
+         ok=geometrySweeps_.release()&&ok;
+@@ -299,24 +294,19 @@ public:
+     template<class T>bool write(T* pointer,const std::vector<T>& values){return upload(pointer,values);}
+     void invalidateWallGeometry(){if(wallGeometry_)wallGeometry_->clearGeometry();wallGeometryReady_=false;}
+     const WallClosureHost* wallGeometry()const{return wallGeometry_.get();}
++    bool wallMassPublished()const{return wallMassPublished_;}
+     bool clearTrialStatus(){
+-        wallModelFailed_=false;
++        wallModelFailed_=false;wallMassPublished_=false;
+         view_.gasBoundaryLayer.preparedFirstStage=false;
+         if(view_.gasBoundaryLayer.enabled&&(!wallStatus_.zero(nullptr)||!wallExchange_.zero(nullptr)||!wallModelStatus_.zero(nullptr)))return false;
+         for(auto& buffer:sstAudit_)if(!buffer.zero(nullptr))return false;
+-        return cellStatus_.zero(nullptr)&&faceStatus_.zero(nullptr)&&chemistryStatus_.zero(nullptr)&&chemistryAudit_.zero(nullptr);}
++        return cellStatus_.zero(nullptr)&&faceStatus_.zero(nullptr)&&chemistryAudit_.zero(nullptr);}
+     bool checkStatus(std::string& error){
+         if(!fault_.check(cudaDeviceSynchronize(),"synchronize shared gas trial")){error=fault_.message;return false;}
+         std::vector<int> cells,faces;
+-        if(!cellStatus_.download(cells,nullptr)||!faceStatus_.download(faces,nullptr)){error=fault_.message;return false;}
+-        for(std::size_t c=0;c<cells.size();++c)if(cells[c]){error="shared gas cell "+std::to_string(c)+" status "+std::to_string(cells[c]);return false;}
+-        for(std::size_t f=0;f<faces.size();++f)if(faces[f]){error="shared gas face "+std::to_string(f)+" status "+std::to_string(faces[f]);return false;}
+-        std::vector<ugkwp::ChemistryStatus> chemical;
+-        if(!chemistryStatus_.download(chemical,nullptr)){error=fault_.message;return false;}
+-        for(std::size_t c=0;c<chemical.size();++c)if(!chemical[c]){error="shared chemistry cell "+std::to_string(c)+" status "+std::to_string(int(chemical[c].code));return false;}
+-        if(view_.gasBoundaryLayer.enabled){std::vector<int> status;
+-            if(!wallStatus_.download(status,nullptr)){error=fault_.message;return false;}
+-            for(std::size_t f=0;f<status.size();++f)if(status[f]){error="boundaryLayer rejected wall slot "+std::to_string(f)+" code "+std::to_string(status[f]);return false;}}
++        if(!read(cellStatus_.data(),cellStatus_.size(),cells)||!read(faceStatus_.data(),faceStatus_.size(),faces)){error=fault_.message;return false;}
++        for(std::size_t c=0;c<cells.size();++c)if(cells[c]==int(ugkwp::GasTransportCode::InvalidStorage)){error="shared gas cell "+std::to_string(c)+" status "+std::to_string(cells[c]);return false;}
++        for(std::size_t f=0;f<faces.size();++f)if(faces[f]==int(ugkwp::GasTransportCode::InvalidStorage)){error="shared gas face "+std::to_string(f)+" status "+std::to_string(faces[f]);return false;}
+         error.clear();return true;
+     }
+     bool configure(const ModelConfig& model,const ugkwp::GasModelConfiguration& gas,
+@@ -398,7 +388,7 @@ private:
+         ALLOC(compositionFixed_,compositionBoundaryFixed,nf);ALLOC(sound_,soundSpeed,nc);ALLOC(cp_,heatCapacity,nc);ALLOC(r_,gasConstant,nc);
+         }
+         ALLOC(cellStatus_,cellStatus,nc);ALLOC(faceStatus_,faceStatus,nf);
+-        if(gas.mode==ugkwp::GasMode::MixtureChemistry){ALLOC(chemistryAudit_,chemistryAudit,nc);ALLOC(chemistryStatus_,chemistryStatus,nc);}
++        if(gas.mode==ugkwp::GasMode::MixtureChemistry){ALLOC(chemistryAudit_,chemistryAudit,nc);sp.chemistryStatus=nullptr;}
+ #undef ALLOC
+         if(mixture){
+         sp.diffusivity=nullptr;sp.mechanism={};
+@@ -511,25 +501,28 @@ public:
+         wall.exchange=wallExchange_.data();wall.sst=wallSst_.data();wall.status=wallStatus_.data();wall.speciesFlux=wallSpecies_.data();
+         auto& layer=view_.gasBoundaryLayerModel;layer.input=wallInput_.data();layer.output=wallOutput_.data();layer.status=wallModelStatus_.data();
+         layer.faces=wallFaceList_.data();layer.matchingOffsets=wallMatchOffsets_.data();layer.matchingCells=wallMatchCells_.data();layer.matchingWeights=wallMatchWeights_.data();
+-        wallGeometryReady_=true;wallGeometryVersion_=mesh.geometryVersion;
+-        return wallExchange_.zero(nullptr)&&wallStatus_.zero(nullptr)&&wallModelStatus_.zero(nullptr);
++        wallInputDirty_=false;wallGeometryReady_=true;wallGeometryVersion_=mesh.geometryVersion;
++        wallMassPublished_=false;return wallExchange_.zero(nullptr)&&wallStatus_.zero(nullptr)&&wallModelStatus_.zero(nullptr);
+     }
+     bool prepareWallBoundary(const WallKnot& knot,const SurfaceMesh& surface,std::string& error){
+         if(!view_.gasBoundaryLayer.enabled){error.clear();return true;}
+         if(!wallHostInput_.empty()&&(knot.faces.empty()||surface.area.empty())){
+             error="boundaryLayer material wall layout mismatch";return false;}
++        auto supply=[&](Real& destination,Real value){
++            if(std::memcmp(&destination,&value,sizeof(Real))){destination=value;wallInputDirty_=true;}
++        };
+         for(std::size_t i=0;i<wallHostInput_.size();++i){auto& in=wallHostInput_[i];const auto& w=knot.faces[i];
+             const auto& d=wallGeometry_->descriptors()[i];
+             if(wallFaceArea_.empty()){error="boundaryLayer physical area storage missing";return false;}
+             const Real area=wallFaceArea_[d.wallFace];
+-            in.temperature=w.temperature;const Vec3 n={in.normal[0],in.normal[1],in.normal[2]};
++            supply(in.temperature,w.temperature);const Vec3 n={in.normal[0],in.normal[1],in.normal[2]};
+             const Vec3 velocity=w.velocity-n*dot(w.velocity,n)+n*w.normalVelocity;
+-            in.velocity[0]=velocity.x;in.velocity[1]=velocity.y;in.velocity[2]=velocity.z;
++            supply(in.velocity[0],velocity.x);supply(in.velocity[1],velocity.y);supply(in.velocity[2],velocity.z);
+             const Real ratio=surface.area[i]/area;
+-            for(int s=0;s<Ns;++s)in.massFlux[s]=(w.speciesRate[s]+w.poreRate[s])*ratio;
++            for(int s=0;s<Ns;++s)supply(in.massFlux[s],(w.speciesRate[s]+w.poreRate[s])*ratio);
+         }
+-        if(!wallInput_.upload(wallHostInput_,fault_)){error=fault_.message;return false;}
+-        error.clear();return true;
++        if(wallInputDirty_&&!wallInput_.upload(wallHostInput_,fault_)){error=fault_.message;return false;}
++        wallInputDirty_=false;error.clear();return true;
+     }
+     bool downloadWallOutputs(std::vector<ugkwp::gaswall::WallOutput<Real,Ns>>& output,std::vector<GasWallMatchingSample>& matching){
+         std::vector<ugkwp::gaswall::WallInput<Real,Ns>> inputs;
+@@ -543,6 +536,9 @@ public:
+             if(f<modelStatus.size())fault_.message+=" wall code "+std::to_string(int(modelStatus[f].code))+" node "+std::to_string(modelStatus[f].node)+" iteration "+std::to_string(modelStatus[f].iteration)+" residual "+(std::isfinite(modelStatus[f].residual)?std::to_string(modelStatus[f].residual):"NOT_AVAILABLE");
+             return false;
+         }
++        // Existing sparse read proves an actual exchange was published. Co may
++        // retain this lagged mass until the normal next stage updates it.
++        wallMassPublished_=true;
+         if(!wallOutput_.download(output,nullptr)||!wallInput_.download(inputs,nullptr))return false;
+         matching.resize(inputs.size());for(std::size_t f=0;f<inputs.size();++f){matching[f].pressure=inputs[f].pressure;matching[f].mechanicalPressure=0;matching[f].state=inputs[f].matching;}return true;
+     }
+diff --git a/common/operators/advanceGasChemistryKernel.cuh b/common/operators/advanceGasChemistryKernel.cuh
+index 4b6806b..79db0a1 100644
+--- a/common/operators/advanceGasChemistryKernel.cuh
++++ b/common/operators/advanceGasChemistryKernel.cuh
+@@ -2,6 +2,7 @@
+ 
+ #include "../gasTransport/GasStateView.H"
+ #include "../gasTransport/GasCapabilities.H"
++#include "../gasTransport/GasGeometryValidation.H"
+ #include "../gasTransport/GasBudgetAudit.H"
+ #include "../chemistry/LocalStiffIntegrator.H"
+ 
+@@ -21,13 +22,15 @@ UGKWP_GAS_HD inline ChemistryStatus recordFailure
+ (
+     SpeciesState& species,
+     const int cell,
+-    const ChemistryStatus status
++    const ChemistryStatus status,
++    const bool unavailable=true
+ ) noexcept
+ {
+     if (species.chemistryStatus)
+         species.chemistryStatus[cell] = status;
+-    if (species.cellStatus && species.cellStatus[cell] == 0)
+-        species.cellStatus[cell] = int(GasTransportCode::ChemistryFailure);
++    if (species.cellStatus && species.cellStatus[cell]!=int(GasTransportCode::InvalidStorage)
++        && (unavailable || species.cellStatus[cell]==0))
++        species.cellStatus[cell] = int(unavailable?GasTransportCode::InvalidStorage:GasTransportCode::ChemistryFailure);
+     return status;
+ }
+ } // namespace gasChemistryAdapterDetail
+@@ -85,7 +88,7 @@ UGKWP_GAS_HD inline ChemistryStatus advanceGasChemistryCell
+         // For public calls, old numerical diagnostics do not replace executing this
+         // cell. Missing storage and unavailable arithmetic are checked where
+         // their actual inputs/outputs are needed below.
+-        if (!species.rho || !species.chemistryStatus || !species.cellStatus
++        if (!species.rho || !species.cellStatus
+             || !state.rho || !state.rhoUx || !state.rhoUy || !state.rhoUz
+             || !state.rhoE)
+         {
+@@ -233,16 +236,9 @@ UGKWP_GAS_HD inline ChemistryStatus advanceGasChemistryCell
+         }
+         if (species.chemistryAudit)
+             species.chemistryAudit[cell] = castChemistryAudit<StorageReal>(localAudit);
+-        species.chemistryStatus[cell] = status;
++        if(species.chemistryStatus)species.chemistryStatus[cell] = status;
+         if(evaluated)*evaluated=true;
+-        if(!status)return gasChemistryAdapterDetail::recordFailure(species,cell,status);
+-        // Do not erase a separate transport/geometry/wall operation's error.
+-        // Their producers classify execution versus policy in their own task.
+-        const auto previous=static_cast<GasTransportCode>(species.cellStatus[cell]);
+-        if(previous==GasTransportCode::Success || previous==GasTransportCode::InvalidComposition
+-            || previous==GasTransportCode::InvalidThermodynamics || previous==GasTransportCode::NegativeInventory
+-            || previous==GasTransportCode::ChemistryFailure || previous==GasTransportCode::SourceStepLimit)
+-            species.cellStatus[cell] = 0;
++        if(!status)return gasChemistryAdapterDetail::recordFailure(species,cell,status,false);
+         return status;
+     }
+ }

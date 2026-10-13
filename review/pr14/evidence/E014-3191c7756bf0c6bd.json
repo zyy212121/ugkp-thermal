@@ -1,0 +1,8 @@
+{
+  "converting_branch_token_identical": true,
+  "same_type_call_identical": "readArray(is,p,b,n);",
+  "carry_true_call_identical": "fn(v.pThermalEnthalpyResidual,begin,count);",
+  "carry_false_body_empty": true,
+  "callback_helper_passed_by_reference": true,
+  "if_constexpr_remaining": false
+}

@@ -1,0 +1,67 @@
+{
+  "cwd": "/workspace/scratch/98b6339ec81b/chmt_remaining_work_20261013",
+  "environment": {
+    "PYTHONPATH": "/workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/python_deps",
+    "TMPDIR": "/workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/implementation/b5/v2/tmp"
+  },
+  "executed": [
+    {
+      "argv": [
+        "python",
+        "-m",
+        "pytest",
+        "-q",
+        "applications/CHMT/tests/test_wall_terminal_packet_completion.py",
+        "-k",
+        "prepared_velocity",
+        "--basetemp=/workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/implementation/b5/v2/tmp/red"
+      ],
+      "log": "logs/red.log",
+      "compiler_and_input": "tmp/red/prepared-velocity0/{command.txt,reuse.cpp,build.log,reuse,run-*.log}"
+    },
+    {
+      "argv": [
+        "python",
+        "-m",
+        "pytest",
+        "-q",
+        "applications/CHMT/tests/test_wall_terminal_packet_completion.py",
+        "-k",
+        "prepared_velocity",
+        "--basetemp=/workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/implementation/b5/v2/tmp/green"
+      ],
+      "log": "logs/green.log",
+      "compiler_and_input": "tmp/green/prepared-velocity0/{command.txt,reuse.cpp,build.log,reuse,run-*.log}"
+    },
+    {
+      "argv": [
+        "python",
+        "-m",
+        "pytest",
+        "-q",
+        "applications/CHMT/tests/test_wall_terminal_packet_completion.py",
+        "-k",
+        "inf_speed",
+        "--basetemp=/workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/implementation/b5/v2/tmp/inf-component"
+      ],
+      "log": "logs/inf-component.log",
+      "compiler_and_input": "tmp/inf-component/prepared-velocity0/{command.txt,reuse.cpp,build.log,reuse,run-*.log}"
+    },
+    {
+      "argv": [
+        "python",
+        "-m",
+        "pytest",
+        "-q",
+        "applications/CHMT/tests/test_wall_terminal_packet_completion.py",
+        "-k",
+        "prepared_velocity",
+        "--basetemp=/workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/implementation/b5/v2/tmp/final"
+      ],
+      "log": "logs/final.log",
+      "compiler_and_input": "tmp/final/prepared-velocity0/{command.txt,reuse.cpp,build.log,reuse,run-*.log}"
+    }
+  ],
+  "compiler_flags": "g++ C++17 -O0 -ffp-contract=off -finstrument-functions -fno-inline -Wall -Wextra -Werror; command.txt records exact invocation",
+  "no_cuda_rerun": true
+}
