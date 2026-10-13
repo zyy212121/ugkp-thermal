@@ -1,0 +1,122 @@
+[
+  {
+    "path": "/workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/final-native-build/remaining/bin/CHT",
+    "sha256": "566fe768de73723a2651b5df97534d7555e83a3a206e6bee7cbeb3c61f14e32d",
+    "size": 5787688,
+    "readelf_exit": 0,
+    "has_cuda_fatbin": true,
+    "needed": [
+      "libfiniteVolume.so",
+      "libmeshTools.so",
+      "libmomentumTransportModels.so",
+      "libOpenFOAM.so",
+      "libcudart.so.13",
+      "libstdc++.so.6",
+      "libm.so.6",
+      "libgomp.so.1",
+      "libgcc_s.so.1",
+      "libc.so.6",
+      "libPstream.so"
+    ],
+    "nm_exit": 0
+  },
+  {
+    "path": "/workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/final-native-build/remaining/source/applications/CHT/Make/linux64GccDPInt32Opt/diluteUgkwpFoam.o",
+    "sha256": "195bf918de41c7661ffe23c8d2294f69a70299476bf223c2ad3d6e0d54db8957",
+    "size": 1068496,
+    "readelf_exit": 0,
+    "has_cuda_fatbin": false,
+    "needed": [],
+    "nm_exit": 0
+  },
+  {
+    "path": "/workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/final-native-build/remaining/source/applications/CHT/Make/linux64GccDPInt32Opt/gpu/GpuResidentStrict.o",
+    "sha256": "64dc49169417279a6e49e5e474f0fa170a7cc53d706f450947ea68c82bad5490",
+    "size": 4893520,
+    "readelf_exit": 0,
+    "has_cuda_fatbin": true,
+    "needed": [],
+    "nm_exit": 0
+  },
+  {
+    "path": "/workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/final-native-build/remaining/source/applications/CHT/Make/linux64GccDPInt32Opt/gpu/GpuWallEnergy64.o",
+    "sha256": "c3d989b7b4b0bbb2d7e4db1ff8add11ddfc8a65b769b257e2f5a660f02d04f6b",
+    "size": 36296,
+    "readelf_exit": 0,
+    "has_cuda_fatbin": true,
+    "needed": [],
+    "nm_exit": 0
+  },
+  {
+    "path": "/workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/final-native-build/remaining/source/applications/CHT/Make/linux64GccDPInt32Opt/thermal/GpuParticleRadiationCoupler.o",
+    "sha256": "8ca091cb8306bed86fa77b58d9afd0e3e750d21ba9131b5167675ffef2c74609",
+    "size": 46952,
+    "readelf_exit": 0,
+    "has_cuda_fatbin": false,
+    "needed": [],
+    "nm_exit": 0
+  },
+  {
+    "path": "/workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/final-native-build/remaining/source/applications/CHT/Make/linux64GccDPInt32Opt/thermal/GpuSolidPatchMapper.o",
+    "sha256": "b315fd125e9f077c19a00ac2d176c0331bc85cf9abc489712d232e15d998ab4a",
+    "size": 50656,
+    "readelf_exit": 0,
+    "has_cuda_fatbin": false,
+    "needed": [],
+    "nm_exit": 0
+  },
+  {
+    "path": "/workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/final-native-build/remaining/source/applications/CHT/Make/linux64GccDPInt32Opt/thermal/GpuSolidThermalCoupler.o",
+    "sha256": "d6d9203d207cb3dd5bec668d9e1f37471b665d41b3a34105b3d4c7e6f61177bc",
+    "size": 1010536,
+    "readelf_exit": 0,
+    "has_cuda_fatbin": false,
+    "needed": [],
+    "nm_exit": 0
+  },
+  {
+    "path": "/workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/final-native-build/remaining/source/applications/CHT/Make/linux64GccDPInt32Opt/thermal/GpuSolidThermalProperties.o",
+    "sha256": "dd690cace1e674315453ea45daa711b7713c30b41fa83ab0bd4a65c4f4c09cfe",
+    "size": 54840,
+    "readelf_exit": 0,
+    "has_cuda_fatbin": false,
+    "needed": [],
+    "nm_exit": 0
+  },
+  {
+    "path": "/workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/final-native-build/remaining/source/applications/CHT/Make/linux64GccDPInt32Opt/thermal/GpuThermalExchangeState.o",
+    "sha256": "751c4a54cdc1b15a57005a08a6700ff1ff65b63d5ce1f5dd1a78b20e59089483",
+    "size": 545984,
+    "readelf_exit": 0,
+    "has_cuda_fatbin": false,
+    "needed": [],
+    "nm_exit": 0
+  },
+  {
+    "path": "/workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/final-native-build/remaining/source/applications/CHT/Make/linux64GccDPInt32Opt/thermal/MieDoRadiationSolver.o",
+    "sha256": "dd58363644835c50d453926f61fe73221b86aa3d1f5b83ed0022759a06f96c47",
+    "size": 120128,
+    "readelf_exit": 0,
+    "has_cuda_fatbin": false,
+    "needed": [],
+    "nm_exit": 0
+  },
+  {
+    "path": "/workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/final-native-build/remaining/source/applications/CHT/Make/linux64GccDPInt32Opt/thermal/MieTable.o",
+    "sha256": "dec235864983716d3fa25dbd41affe763db72f663771c780ce7e7ad0a2c927fb",
+    "size": 60096,
+    "readelf_exit": 0,
+    "has_cuda_fatbin": false,
+    "needed": [],
+    "nm_exit": 0
+  },
+  {
+    "path": "/workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/final-native-build/remaining/source/applications/CHT/gpu/libugkpcht_cuda_internal.a",
+    "sha256": "50e3728f55ad331d09a99346facb1d4bf837a27fa947afb17b47f38521e78728",
+    "size": 4973590,
+    "readelf_exit": 0,
+    "has_cuda_fatbin": true,
+    "needed": [],
+    "nm_exit": 0
+  }
+]

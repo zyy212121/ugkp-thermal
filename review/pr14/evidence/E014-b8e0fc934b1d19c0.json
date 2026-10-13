@@ -1,0 +1,67 @@
+{
+  "compiler": "g++ (Debian 14.2.0-19) 14.2.0",
+  "command": [
+    "python",
+    "tools/particle_field_contract.py",
+    "--cpu",
+    "--output",
+    "/workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/implementation/tools/cpu-final"
+  ],
+  "exit": 0,
+  "cases": [
+    {
+      "case": "gasUGKP64",
+      "passed": true,
+      "files": {
+        "gasUGKP64.cpp": {
+          "bytes": 17911,
+          "sha256": "039dbec1e53ff053d51f0f96031789fbd49585b2cc4ecd47cddb51e5a1248ce3"
+        },
+        "gasUGKP64.probe": {
+          "bytes": 95880,
+          "sha256": "806dd29918e1d835a4fb00a8360fa7f34526119cc40b481e2bce32e505391321"
+        }
+      }
+    },
+    {
+      "case": "FSH64",
+      "passed": true,
+      "files": {
+        "FSH64.cpp": {
+          "bytes": 53273,
+          "sha256": "c10106103ea88effe1c08c2f2366053a390095770176e8b83a2296e1d8bb0a30"
+        },
+        "FSH64.probe": {
+          "bytes": 158200,
+          "sha256": "69462549559d6ed47759dd2ca69f360e8dbcc9135778af3e24da5be5bac58286"
+        },
+        "FSH64.wire": {
+          "bytes": 2735,
+          "sha256": "1b3efad0ef1ae8c308483ee35df270575e7c6b00906792ddf49ef29e3d648899"
+        }
+      },
+      "wire_golden_expected": "1b3efad0ef1ae8c308483ee35df270575e7c6b00906792ddf49ef29e3d648899",
+      "wire_golden_matched": true
+    },
+    {
+      "case": "CHT64",
+      "passed": true,
+      "files": {
+        "CHT64.cpp": {
+          "bytes": 57531,
+          "sha256": "404eee950edb859b309885e6d5caf1ea87f8eee1f55fa499c9349186a454a3aa"
+        },
+        "CHT64.probe": {
+          "bytes": 174992,
+          "sha256": "102b647a59720ed18805baf4e415d83f100871f3954e2e066a7c3a4df77397e6"
+        },
+        "CHT64.wire": {
+          "bytes": 1903,
+          "sha256": "c0ce9784e59613a2956bac2d07f5cf136c73be908ef652dc0d0bdc02fc820f21"
+        }
+      },
+      "wire_golden_expected": "c0ce9784e59613a2956bac2d07f5cf136c73be908ef652dc0d0bdc02fc820f21",
+      "wire_golden_matched": true
+    }
+  ]
+}

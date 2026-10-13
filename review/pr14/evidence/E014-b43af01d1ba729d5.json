@@ -1,0 +1,28 @@
+{
+  "batch": "B5-v2",
+  "frozen_utc": "2026-10-13T11:39:11.961657+00:00",
+  "head": "fe254252b643589d26af0572b67cdf95ab2cbbad",
+  "branch": "perf/shared-producer-continuation-20261013",
+  "production_changed_from_v1": [
+    "applications/CHMT/gpu/GasWallMath.H"
+  ],
+  "tests_changed_from_v1": [
+    "applications/CHMT/tests/test_wall_terminal_packet_completion.py"
+  ],
+  "full_patch_sha256": "d902708ab0f65abf266a479910df64cae88bad18b46dbbc6ad5d669e00f14794",
+  "repair_patch_sha256": "d69fe8ff4965c41f3b7b41527ca4ee693da5045903561971a223f1bd3207ee0b",
+  "report_sha256": "e584c1f36b0e90b1326d965900ebafdaffd57f3014b318c93d1812c61d83f2a5",
+  "source_index_sha256": "799bc22dc53f95b0e3f6a0aa355ea6256018029fc2882695c179e5d95be6171c",
+  "dependency_index_sha256": "b709c93d4ae473a79157289e36f733b498ff1248b68a486c0aac35123ca9847b",
+  "evidence_index_sha256": "9ba574fd99dee1d4caa14f8a6513cd72f0f3c023dacc20925d8dd4d495fda1fc",
+  "new_artifact_count": 79,
+  "reused_artifact_count": 4474,
+  "v1_freeze_sha256": "1975c4e718a3ac27716a62ec58ff31e3c1478aa314ef18b8f1a677428ce1bb13",
+  "review_status": "PENDING same-reviewer B5-R1 re-review",
+  "new_tests": "16 passed,8 unrelated deselected",
+  "CUDA": "reuse two valid v1 compiler receipts; no GPU run",
+  "no_commit_push": true,
+  "no_README": true,
+  "no_new_common_file": true,
+  "remaining_scope": "B6/B7 and final PR14 acceptance remain"
+}

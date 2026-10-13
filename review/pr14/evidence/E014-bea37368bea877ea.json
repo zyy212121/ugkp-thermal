@@ -1,0 +1,65 @@
+{
+  "schema": 1,
+  "review": "B7 v2 independent common/native re-review",
+  "verdict": "scoped_approval",
+  "base": "5f1a39ac96e2e7ff9a0640a4db344d9cccd34245",
+  "patch_sha256": "075086099d6a0dd74d14dc73195ccdb30e2ed683f2e33c5d0ef002c04e6a4cd1",
+  "freeze_integrity": {
+    "patch_matches": true,
+    "source_files_verified": 42,
+    "source_mismatches": [],
+    "artifact_hashes_verified": 88,
+    "artifact_mismatches": [],
+    "delta_files": [
+      "applications/CHMT/tests/test_coupled_runtime_transactions.py",
+      "common/gasTransport/GasBoundaryLayerModelState.H",
+      "common/operators/computeRiemannGasFaceFluxDevice.cuh",
+      "tests/gas_transport/test_final_native_consumers.py"
+    ],
+    "unchanged_files_reused": 38
+  },
+  "closed_findings": [
+    {
+      "id": "A1/P1",
+      "result": "closed",
+      "evidence": "Actual ready wall numerical diagnosis remains distinct from unavailable output; maintained six-combination native/public full-array regression and genuine missing controls"
+    },
+    {
+      "id": "A2/P2",
+      "result": "closed",
+      "evidence": "Removed unused local faceOwner veto; actual wall outputs compared to backed reference; pointer supplied before true face consumer"
+    },
+    {
+      "id": "B7-CHMT-R1/P2",
+      "result": "closed",
+      "evidence": "Actual program/history/elapsed/trial assertions replace pending; supplied formation e0 and Cp asserted with original rebind control"
+    }
+  ],
+  "new_findings": [],
+  "receipts": {
+    "host": "../logs/review-repairs-green-v2.log",
+    "host_result": "5 passed, 12 deselected",
+    "cuda": "cuda/receipts.json",
+    "cuda_source_and_object_hashes_independently_verified": true
+  },
+  "review_actions": {
+    "production_edits": 0,
+    "compilations": 0,
+    "test_runs": 0,
+    "index_edits": 0,
+    "commits": 0
+  },
+  "reuse": [
+    "../independent-review-common.md",
+    "../independent-review-chmt.md",
+    "../coverage-reuse-gaps.json"
+  ],
+  "limitations": [
+    "No actual GPU runtime/asynchronous behavior/performance evidence",
+    "No giant native CUDA TU build",
+    "Unchanged CHMT material/scheduler/storage scope relies on separate Review B",
+    "Parent integration and global PR audits still required",
+    "Unrelated CHT/FSH/tools work not approved"
+  ],
+  "report_sha256": "70e14da4e2a72bec425761865861036a60e6298190af9a79e1b4600beb9f5669"
+}

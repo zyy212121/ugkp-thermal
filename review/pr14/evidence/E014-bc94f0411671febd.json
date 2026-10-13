@@ -1,0 +1,76 @@
+{
+  "purpose": "Check newly added terminal Cv completion against a legitimate empty rank-by-rank output consumer. This gap was not covered by the frozen zero_rank_storage test.",
+  "source": "review/zero-rank-unused-caloric.cpp",
+  "source_sha256": "74f14f48201179a9d62d9ffa1e908531d36e30fee458cfb6d6fc9bd3e0021a32",
+  "base_headers": "git archive cf49400267b0df39017d6ce348ce72cbcab6b513 common extracted into review/tmp/base",
+  "flags": [
+    "-std=c++17",
+    "-O2",
+    "-ffp-contract=off",
+    "-Wall",
+    "-Wextra",
+    "-Werror"
+  ],
+  "commands": [
+    {
+      "label": "base",
+      "command": [
+        "g++",
+        "-std=c++17",
+        "-O2",
+        "-ffp-contract=off",
+        "-Wall",
+        "-Wextra",
+        "-Werror",
+        "-I/workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/implementation/b4/review/tmp/base",
+        "/workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/implementation/b4/review/zero-rank-unused-caloric.cpp",
+        "-o",
+        "/workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/implementation/b4/review/tmp/zero-rank-base"
+      ],
+      "build_exit_code": 0,
+      "run_command": [
+        "/workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/implementation/b4/review/tmp/zero-rank-base"
+      ],
+      "run_exit_code": 0,
+      "build_log": "review/zero-rank-base-build.log",
+      "output": "review/zero-rank-base.log",
+      "output_sha256": "b828eccb5f9096ccbaa216967b6f23432c90403c63eaf945eafa6fc17003c105",
+      "binary_sha256": "4bfd48fba315a0dbff42be245cbb8f805724db65a6a96ebd6c8594c59195ecae"
+    },
+    {
+      "label": "final",
+      "command": [
+        "g++",
+        "-std=c++17",
+        "-O2",
+        "-ffp-contract=off",
+        "-Wall",
+        "-Wextra",
+        "-Werror",
+        "-DFINAL",
+        "-I/workspace/scratch/98b6339ec81b/chmt_remaining_work_20261013",
+        "/workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/implementation/b4/review/zero-rank-unused-caloric.cpp",
+        "-o",
+        "/workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/implementation/b4/review/tmp/zero-rank-final"
+      ],
+      "build_exit_code": 0,
+      "run_command": [
+        "/workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/implementation/b4/review/tmp/zero-rank-final"
+      ],
+      "run_exit_code": 0,
+      "build_log": "review/zero-rank-final-build.log",
+      "output": "review/zero-rank-final.log",
+      "output_sha256": "b4ecd901c194986af7b6f4cf9129cf9dc1772763a46795b23d5fec70d3d2c673",
+      "binary_sha256": "9f6e45f704d8983e8e5358cd07e20b55265cc59e3d28b0e5df879eb6984355d8"
+    }
+  ],
+  "cases": {
+    "0": "rank 0 with present, finite caloric data (control)",
+    "1": "rank 0, irreversible reaction, actual coefficient pointer absent; no reduced Jacobian element consumes Cv/E",
+    "2": "rank 0, all backing present, linear Cp slopes 1e307 overflow at T=700; irreversible reaction/AD remain finite"
+  },
+  "interpretation": "Base returns Success in all three cases. Final retains Success for finite control, but reports TemperatureFailure/InvalidModel and evaluated=false for mode 1, and TemperatureFailure/NonFiniteInput with evaluated=true for mode 2. Every Jacobian sentinel remains untouched because rank is zero.",
+  "exploratory_attempt": "review/zero-rank-unused-caloric-v1.cpp and *-v1.log retain an initial tiny-molar-mass stress case; it also failed the base rate derivative and is not used as evidence of a regression. The revised mode 2 isolates unused Cv overflow. No production source was edited.",
+  "commands_are": "Absolute-path normalized equivalent argv; actual shell used paths relative to /workspace/scratch/98b6339ec81b and the same flags. Both builds and both runs completed with exit 0.",
+  "compiler": "g++ (Debian 14.2.0-19) 14.2.0"
+}

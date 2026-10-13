@@ -1,0 +1,10 @@
+{
+  "finding": "B4-R1",
+  "producer": "ReactorContext::evaluateJacobian",
+  "consumer": "j < independentRank fixed-U temperature feedback",
+  "repair": "Only the added terminal Cv completion/diagnostic now requires a nonempty feedback consumer. The original Cv computation and every positive-rank equation remain unchanged.",
+  "empty_output": "Actual scalar/AD rates still run; zero reduced Jacobian entries are complete with all Jacobian sentinels untouched. Missing rates still fail.",
+  "positive_rank": "Missing consumed caloric backing remains unavailable. Numeric overflow completion retains its diagnostic and publishes actual derivative output.",
+  "cost": "One local count-dependent selection of added work; no new scan/allocation/cache/array/sync. At rank zero the formerly added Cv completion scan is no longer performed; the original Cv scan is preserved.",
+  "precision": "No arithmetic type, expression, projection order, tolerance or cast change."
+}

@@ -1,0 +1,16 @@
+{
+  "command": [
+    "/workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/toolchains/cuda/bin/nvcc",
+    "-std=c++17",
+    "-arch=sm_80",
+    "-dc",
+    "-DROUTE_FSH=1",
+    "-I/workspace/scratch/98b6339ec81b/chmt_remaining_work_20261013/common",
+    "-I/workspace/scratch/98b6339ec81b/chmt_remaining_work_20261013/common/wall",
+    "/workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/implementation/coldwall-terminal/v2/nvcc-wrappers/probe.cu",
+    "-o",
+    "/workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/implementation/coldwall-terminal/v2/nvcc-wrappers/probe-1.o"
+  ],
+  "seconds": 4.887832957996579,
+  "exit": 0
+}

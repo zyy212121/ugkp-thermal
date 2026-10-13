@@ -1,0 +1,29 @@
+[
+  {
+    "command": "python -m pytest -q tests/chemistry/test_gas_review_regressions.py -k 'rank_' --basetemp=/workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/implementation/b4/v2/tmp/red",
+    "command_sha256": "d43b6a66a05c34e1f82048644f786621ffd94741f6150fcb11084373414531e1",
+    "PYTHONPATH": "/workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/python_deps:tests/chemistry",
+    "cwd": "/workspace/scratch/98b6339ec81b/chmt_remaining_work_20261013",
+    "source_state": "v1 production plus new test",
+    "output": "logs/red.log",
+    "output_sha256": "ef6344295049ae250a257625400d0b4fa47729f6902a961c9eaf1586918f9146"
+  },
+  {
+    "command": "python -m pytest -q tests/chemistry/test_gas_review_regressions.py -k 'rank_' tests/chemistry/test_gas_terminal_completion.py::test_terminal_real_fields[zero_rank_storage] tests/chemistry/test_gas_terminal_completion.py::test_terminal_real_fields[scalar_ad_split] --basetemp=/workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/implementation/b4/v2/tmp/green",
+    "command_sha256": "7f461dccda163d503a930fb339ee85a6d9058a2e8bda020cc7274d0ad7362177",
+    "PYTHONPATH": "/workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/python_deps:tests/chemistry",
+    "cwd": "/workspace/scratch/98b6339ec81b/chmt_remaining_work_20261013",
+    "source_state": "v2 production and test",
+    "output": "logs/green.log",
+    "output_sha256": "8909f178fa1f441a2b682555357a9a1bc05b8d7d3506a33a6d0c4fc4f958a37c"
+  },
+  {
+    "command": "python -m pytest -q 'tests/chemistry/test_gas_terminal_completion.py::test_terminal_real_fields[scalar_ad_split]' --basetemp=/workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/implementation/b4/v2/tmp/scalar-control",
+    "command_sha256": "155adc38f7e8818656bf7131532debca0cd38970f418456543cd7c4cc1608fb3",
+    "PYTHONPATH": "/workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/python_deps:tests/chemistry",
+    "cwd": "/workspace/scratch/98b6339ec81b/chmt_remaining_work_20261013",
+    "source_state": "v2 production and test",
+    "output": "logs/scalar-control.log",
+    "output_sha256": "bb33dffc7f90fa16dec2c04086faaaa37e7df0e6208cdd382848b30ddc128470"
+  }
+]

@@ -1,0 +1,51 @@
+In file included from /workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/scalarMatrices.H:46,
+                 from /workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/dimensionSets.H:39,
+                 from /workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/dimensionSet.H:444,
+                 from /workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/dimensionedType.H:40,
+                 from /workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/dimensionedScalar.H:38,
+                 from /workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/TimeState.H:38,
+                 from /workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/Time.H:47,
+                 from /workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/finiteVolume/lnInclude/fvCFD.H:6,
+                 from /workspace/scratch/98b6339ec81b/chmt_remaining_work_20261013/applications/gasUGKP/diluteUgkwpFoam.C:1:
+/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/DiagonalMatrix.H:64:29: warning: template-id not allowed for constructor in C++20 [-Wtemplate-id-cdtor]
+   64 |         DiagonalMatrix<Type>();
+      |                             ^
+/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/DiagonalMatrix.H:64:29: note: remove the ‘< >’
+/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/DiagonalMatrix.H:68:29: warning: template-id not allowed for constructor in C++20 [-Wtemplate-id-cdtor]
+   68 |         DiagonalMatrix<Type>(const Matrix<Form, Type>&);
+      |                             ^
+/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/DiagonalMatrix.H:68:29: note: remove the ‘< >’
+/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/DiagonalMatrix.H:71:29: warning: template-id not allowed for constructor in C++20 [-Wtemplate-id-cdtor]
+   71 |         DiagonalMatrix<Type>(const label size);
+      |                             ^
+/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/DiagonalMatrix.H:71:29: note: remove the ‘< >’
+/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/DiagonalMatrix.H:74:29: warning: template-id not allowed for constructor in C++20 [-Wtemplate-id-cdtor]
+   74 |         DiagonalMatrix<Type>(const label, const Type&);
+      |                             ^
+/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/DiagonalMatrix.H:74:29: note: remove the ‘< >’
+In file included from /workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/finiteVolume/lnInclude/volFields.H:40,
+                 from /workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/finiteVolume/lnInclude/surfaceInterpolationScheme.C:27,
+                 from /workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/finiteVolume/lnInclude/surfaceInterpolationScheme.H:308,
+                 from /workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/finiteVolume/lnInclude/surfaceInterpolate.H:41,
+                 from /workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/finiteVolume/lnInclude/fvc.H:39,
+                 from /workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/finiteVolume/lnInclude/fvCFD.H:8:
+/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/finiteVolume/lnInclude/fvPatchField.H:297:13: warning: template-id not allowed for destructor in C++20 [-Wtemplate-id-cdtor]
+  297 |     virtual ~fvPatchField<Type>()
+      |             ^
+/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/finiteVolume/lnInclude/fvPatchField.H:297:13: note: remove the ‘< >’
+In file included from /workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/finiteVolume/lnInclude/fvsPatchFields.H:34,
+                 from /workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/finiteVolume/lnInclude/surfaceFields.H:41,
+                 from /workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/finiteVolume/lnInclude/surfaceInterpolationScheme.C:28:
+/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/finiteVolume/lnInclude/fvsPatchField.H:293:13: warning: template-id not allowed for destructor in C++20 [-Wtemplate-id-cdtor]
+  293 |     virtual ~fvsPatchField<Type>()
+      |             ^
+/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/finiteVolume/lnInclude/fvsPatchField.H:293:13: note: remove the ‘< >’
+In file included from /workspace/scratch/98b6339ec81b/chmt_remaining_work_20261013/applications/gasUGKP/gpu/GpuResidentStrict.H:5,
+                 from /workspace/scratch/98b6339ec81b/chmt_remaining_work_20261013/applications/gasUGKP/diluteUgkwpFoam.C:13:
+/workspace/scratch/98b6339ec81b/chmt_remaining_work_20261013/applications/gasUGKP/gpu/SharedGasModelInput.H: In member function ‘void Foam::SharedGasModelInput::pointState(Foam::scalar, Foam::scalar, const Foam::vector&, const double*, Foam::scalar&, Foam::scalar&) const’:
+/workspace/scratch/98b6339ec81b/chmt_remaining_work_20261013/applications/gasUGKP/gpu/SharedGasModelInput.H:63:16: warning: ‘rho’ may be used uninitialized [-Wmaybe-uninitialized]
+   63 |         density=rho;energy=total;
+      |         ~~~~~~~^~~~
+/workspace/scratch/98b6339ec81b/chmt_remaining_work_20261013/applications/gasUGKP/gpu/SharedGasModelInput.H:48:16: note: ‘rho’ was declared here
+   48 |         double rho;
+      |                ^~~

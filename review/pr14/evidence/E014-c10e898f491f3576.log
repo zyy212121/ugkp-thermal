@@ -1,0 +1,429 @@
++++ dirname applications/CHT/tools/build_cuda_solver.sh
+++ cd applications/CHT/tools/..
+++ pwd
++ solver_root=/workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/final-native-build/remaining/source/applications/CHT
++ '[' -z /workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10 ']'
++ set -euo pipefail
++ cd /workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/final-native-build/remaining/source/applications/CHT
++ cuda_home=/workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/toolchains/cuda
++ cuda_arch=sm_80
++ log_phase=ugkpcht_upgrade
++ log_dir=/workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/final-native-build/remaining/source/applications/CHT/docs/build_logs/ugkpcht_upgrade
++ obj_dir=/workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/final-native-build/remaining/source/applications/CHT/Make/linux64GccDPInt32Opt/gpu
++ lib_path=/workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/final-native-build/remaining/source/applications/CHT/gpu/libugkpcht_cuda_internal.a
++ cuda_bin=/workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/final-native-build/remaining/bin/CHT
++ mkdir -p /workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/final-native-build/remaining/source/applications/CHT/docs/build_logs/ugkpcht_upgrade /workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/final-native-build/remaining/source/applications/CHT/Make/linux64GccDPInt32Opt/gpu
+++ date +%Y%m%d_%H%M%S
++ log=/workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/final-native-build/remaining/source/applications/CHT/docs/build_logs/ugkpcht_upgrade/cuda_solver_build_20261014_000239.log
++ tee /workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/final-native-build/remaining/source/applications/CHT/docs/build_logs/ugkpcht_upgrade/cuda_solver_build_20261014_000239.log
++ echo '[cuda-build] solver_root=/workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/final-native-build/remaining/source/applications/CHT'
+[cuda-build] solver_root=/workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/final-native-build/remaining/source/applications/CHT
++ echo '[cuda-build] cuda_home=/workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/toolchains/cuda'
+[cuda-build] cuda_home=/workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/toolchains/cuda
++ echo '[cuda-build] cuda_arch=sm_80'
+[cuda-build] cuda_arch=sm_80
++ echo '[cuda-build] WM_OPTIONS=linux64GccDPInt32Opt'
+[cuda-build] WM_OPTIONS=linux64GccDPInt32Opt
++ rm -f '/workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/final-native-build/remaining/source/applications/CHT/Make/linux64GccDPInt32Opt/gpu/*.o' /workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/final-native-build/remaining/source/applications/CHT/gpu/libugkpcht_cuda_internal.a
++ probe_flags=()
++ '[' 0 = 1 ']'
++ echo '[cuda-build] physical=64 time=64'
+[cuda-build] physical=64 time=64
++ /workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/toolchains/cuda/bin/nvcc -std=c++17 -O3 -lineinfo --fmad=false -arch=sm_80 -Xcompiler -fPIC -I/workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/final-native-build/remaining/source/applications/CHT/thermal -I/workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/final-native-build/remaining/source/applications/CHT/../../common -c /workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/final-native-build/remaining/source/applications/CHT/gpu/GpuResidentStrict.cu -o /workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/final-native-build/remaining/source/applications/CHT/Make/linux64GccDPInt32Opt/gpu/GpuResidentStrict.o
+/workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/final-native-build/remaining/source/applications/CHT/gpu/../thermal/GpuFiniteWallContact.H(111): warning #20013-D: calling a constexpr __host__ function("quiet_NaN") from a __host__ __device__ function("correctedMaximumSpreadFactor") is not allowed. The experimental flag '--expt-relaxed-constexpr' can be used to allow this.
+          return std::numeric_limits<GpuReal>::quiet_NaN();
+                 ^
+
+Remark: The warnings can be suppressed with "-diag-suppress <warning-number>"
+
+/workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/final-native-build/remaining/source/applications/CHT/gpu/../thermal/GpuFiniteWallContact.H(119): warning #20013-D: calling a constexpr __host__ function("quiet_NaN") from a __host__ __device__ function("correctedMaximumSpreadFactor") is not allowed. The experimental flag '--expt-relaxed-constexpr' can be used to allow this.
+          return std::numeric_limits<GpuReal>::quiet_NaN();
+                 ^
+
+/workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/final-native-build/remaining/source/applications/CHT/gpu/../thermal/GpuFiniteWallContact.H(148): warning #20013-D: calling a constexpr __host__ function("quiet_NaN") from a __host__ __device__ function("correctedMaximumSpreadFactor") is not allowed. The experimental flag '--expt-relaxed-constexpr' can be used to allow this.
+          return std::numeric_limits<GpuReal>::quiet_NaN();
+                 ^
+
+/workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/final-native-build/remaining/source/applications/CHT/gpu/../thermal/GpuFiniteWallContact.H(163): warning #20013-D: calling a constexpr __host__ function("quiet_NaN") from a __host__ __device__ function("correctedMaximumSpreadFactor") is not allowed. The experimental flag '--expt-relaxed-constexpr' can be used to allow this.
+              return std::numeric_limits<GpuReal>::quiet_NaN();
+                     ^
+
+/workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/final-native-build/remaining/source/applications/CHT/gpu/../thermal/GpuFiniteWallContact.H(171): warning #20013-D: calling a constexpr __host__ function("quiet_NaN") from a __host__ __device__ function("correctedMaximumSpreadFactor") is not allowed. The experimental flag '--expt-relaxed-constexpr' can be used to allow this.
+              return std::numeric_limits<GpuReal>::quiet_NaN();
+                     ^
+
+/workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/final-native-build/remaining/source/applications/CHT/gpu/../thermal/GpuFiniteWallContact.H(189): warning #20013-D: calling a constexpr __host__ function("quiet_NaN") from a __host__ __device__ function("correctedMaximumSpreadFactor") is not allowed. The experimental flag '--expt-relaxed-constexpr' can be used to allow this.
+              return std::numeric_limits<GpuReal>::quiet_NaN();
+                     ^
+
+/workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/final-native-build/remaining/source/applications/CHT/gpu/GpuResidentStrict.cu(4423): warning #177-D: variable "warpCount" was declared but never referenced
+      const int warpCount = (block + 31)/32;
+                ^
+
+/workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/final-native-build/remaining/source/applications/CHT/gpu/GpuParticleRadiationMath.H(24): warning #20013-D: calling a constexpr __host__ function("max") from a __host__ __device__ function("finiteRadiationMathValue") is not allowed. The experimental flag '--expt-relaxed-constexpr' can be used to allow this.
+      const Real maximum = std::numeric_limits<Real>::max();
+                           ^
+          detected during instantiation of "__nv_bool Foam::gpuThermal::finiteRadiationMathValue(Real) noexcept [with Real=GpuReal]" at line 55
+
+/workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/final-native-build/remaining/source/applications/CHT/gpu/../thermal/GpuAluminaProperties.H(40): warning #20013-D: calling a constexpr __host__ function("max") from a __host__ __device__ function("finiteAluminaValue") is not allowed. The experimental flag '--expt-relaxed-constexpr' can be used to allow this.
+      return value == value && value >= -std::numeric_limits<Real>::max()
+                                         ^
+          detected during instantiation of "__nv_bool Foam::gpuThermal::finiteAluminaValue(Real) noexcept [with Real=GpuReal]" at line 167
+
+/workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/final-native-build/remaining/source/applications/CHT/gpu/../thermal/GpuAluminaProperties.H(41): warning #20013-D: calling a constexpr __host__ function("max") from a __host__ __device__ function("finiteAluminaValue") is not allowed. The experimental flag '--expt-relaxed-constexpr' can be used to allow this.
+          && value <= std::numeric_limits<Real>::max();
+                      ^
+          detected during instantiation of "__nv_bool Foam::gpuThermal::finiteAluminaValue(Real) noexcept [with Real=GpuReal]" at line 167
+
+/workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/final-native-build/remaining/source/applications/CHT/gpu/../thermal/GpuParticleWallContactHeat.H(46): warning #20013-D: calling a constexpr __host__ function("max") from a __host__ __device__ function("finiteParticleWallContactValue") is not allowed. The experimental flag '--expt-relaxed-constexpr' can be used to allow this.
+      return value == value && value >= -std::numeric_limits<Real>::max()
+                                         ^
+          detected during instantiation of "__nv_bool Foam::gpuThermal::finiteParticleWallContactValue(Real) noexcept [with Real=GpuReal]" at line 127
+
+/workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/final-native-build/remaining/source/applications/CHT/gpu/../thermal/GpuParticleWallContactHeat.H(47): warning #20013-D: calling a constexpr __host__ function("max") from a __host__ __device__ function("finiteParticleWallContactValue") is not allowed. The experimental flag '--expt-relaxed-constexpr' can be used to allow this.
+          && value <= std::numeric_limits<Real>::max();
+                      ^
+          detected during instantiation of "__nv_bool Foam::gpuThermal::finiteParticleWallContactValue(Real) noexcept [with Real=GpuReal]" at line 127
+
+/workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/final-native-build/remaining/source/applications/CHT/gpu/../thermal/GpuFiniteWallContact.H(58): warning #20013-D: calling a constexpr __host__ function("max") from a __host__ __device__ function("finiteContactValue") is not allowed. The experimental flag '--expt-relaxed-constexpr' can be used to allow this.
+      return x == x && x >= -std::numeric_limits<Real>::max()
+                             ^
+          detected during instantiation of "__nv_bool Foam::gpuThermal::finiteContactValue(Real) noexcept [with Real=GpuReal]" at line 108
+
+/workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/final-native-build/remaining/source/applications/CHT/gpu/../thermal/GpuFiniteWallContact.H(59): warning #20013-D: calling a constexpr __host__ function("max") from a __host__ __device__ function("finiteContactValue") is not allowed. The experimental flag '--expt-relaxed-constexpr' can be used to allow this.
+          && x <= std::numeric_limits<Real>::max();
+                  ^
+          detected during instantiation of "__nv_bool Foam::gpuThermal::finiteContactValue(Real) noexcept [with Real=GpuReal]" at line 108
+
+/workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/final-native-build/remaining/source/applications/CHT/gpu/../../../common/wall/GpuColdWallSolidification.H(64): warning #20013-D: calling a constexpr __host__ function("max") from a __host__ __device__ function("finiteColdWallValue") is not allowed. The experimental flag '--expt-relaxed-constexpr' can be used to allow this.
+      return value == value && value >= -std::numeric_limits<Real>::max()
+                                         ^
+          detected during instantiation of "__nv_bool Foam::gpuThermal::finiteColdWallValue(Real) noexcept [with Real=GpuReal]" at line 282
+
+/workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/final-native-build/remaining/source/applications/CHT/gpu/../../../common/wall/GpuColdWallSolidification.H(65): warning #20013-D: calling a constexpr __host__ function("max") from a __host__ __device__ function("finiteColdWallValue") is not allowed. The experimental flag '--expt-relaxed-constexpr' can be used to allow this.
+          && value <= std::numeric_limits<Real>::max();
+                      ^
+          detected during instantiation of "__nv_bool Foam::gpuThermal::finiteColdWallValue(Real) noexcept [with Real=GpuReal]" at line 282
+
+/workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/final-native-build/remaining/source/applications/CHT/../../common/gasTransport/../chemistry/../gasTransport/MixtureThermo.H(16): warning #20013-D: calling a constexpr __host__ function("max") from a __host__ __device__ function("gasFinite") is not allowed. The experimental flag '--expt-relaxed-constexpr' can be used to allow this.
+      return x == x && x <= (std::numeric_limits<Real>::max)()
+                            ^
+          detected during:
+            instantiation of "__nv_bool ugkwp::gasFinite(Real) noexcept [with Real=GpuReal]" at line 63 of /workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/final-native-build/remaining/source/applications/CHT/../../common/operators/computeGasInternalFaceFluxKernel.cuh
+            instantiation of "void <unnamed>::enforcePeriodicGasFluxAntisymmetryKernel(GasState *, __nv_bool) [with GasState=<unnamed>::DeviceState]" at line 71 of /workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/final-native-build/remaining/source/applications/CHT/gpu/../../../common/GpuToolB1Launch.cuh
+
+/workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/final-native-build/remaining/source/applications/CHT/../../common/gasTransport/../chemistry/../gasTransport/MixtureThermo.H(17): warning #20013-D: calling a constexpr __host__ function("max") from a __host__ __device__ function("gasFinite") is not allowed. The experimental flag '--expt-relaxed-constexpr' can be used to allow this.
+          && x >= -(std::numeric_limits<Real>::max)();
+                   ^
+          detected during:
+            instantiation of "__nv_bool ugkwp::gasFinite(Real) noexcept [with Real=GpuReal]" at line 63 of /workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/final-native-build/remaining/source/applications/CHT/../../common/operators/computeGasInternalFaceFluxKernel.cuh
+            instantiation of "void <unnamed>::enforcePeriodicGasFluxAntisymmetryKernel(GasState *, __nv_bool) [with GasState=<unnamed>::DeviceState]" at line 71 of /workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/final-native-build/remaining/source/applications/CHT/gpu/../../../common/GpuToolB1Launch.cuh
+
+/workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/final-native-build/remaining/source/applications/CHT/../../common/gasTransport/../chemistry/../gasTransport/MixtureThermo.H(29): warning #20013-D: calling a constexpr __host__ function("quiet_NaN") from a __host__ __device__ function("invalidValue") is not allowed. The experimental flag '--expt-relaxed-constexpr' can be used to allow this.
+  { return std::numeric_limits<Real>::quiet_NaN(); }
+           ^
+          detected during:
+            instantiation of "Real ugkwp::gasThermoDetail::invalidValue<Real>() noexcept [with Real=GpuReal]" at line 592 of /workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/final-native-build/remaining/source/applications/CHT/../../common/operators/computeSstFaceFluxKernel.cuh
+            instantiation of "void <unnamed>::computeGasCourantFieldKernel(GasState *, GpuTime, __nv_bool) [with GasState=<unnamed>::DeviceState]" at line 4298 of /workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/final-native-build/remaining/source/applications/CHT/gpu/GpuResidentStrict.cu
+
+/workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/final-native-build/remaining/source/applications/CHT/gpu/../../../common/GpuThermalParticleRelaxation.cuh(87): warning #177-D: variable "re" was declared but never referenced
+      const GpuReal re = rhoG*dPart*relMag/mu;
+                    ^
+          detected during instantiation of "void relaxMobileParticlesToResidentGasKernelStatic(<unnamed>::DeviceState *, GpuTime, DragModel) [with DragModel=ugkwpGpuDrag::GidaspowErgunWenYuDrag]" at line 4789 of /workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/final-native-build/remaining/source/applications/CHT/gpu/GpuResidentStrict.cu
+
++ /workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/toolchains/cuda/bin/nvcc -std=c++17 -O3 -lineinfo --fmad=false -arch=sm_80 -Xcompiler -fPIC -c /workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/final-native-build/remaining/source/applications/CHT/gpu/GpuWallEnergy64.cu -o /workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/final-native-build/remaining/source/applications/CHT/Make/linux64GccDPInt32Opt/gpu/GpuWallEnergy64.o
++ ar rcs /workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/final-native-build/remaining/source/applications/CHT/gpu/libugkpcht_cuda_internal.a /workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/final-native-build/remaining/source/applications/CHT/Make/linux64GccDPInt32Opt/gpu/GpuResidentStrict.o /workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/final-native-build/remaining/source/applications/CHT/Make/linux64GccDPInt32Opt/gpu/GpuWallEnergy64.o
++ rm -f /workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/final-native-build/remaining/source/applications/CHT/Make/linux64GccDPInt32Opt/diluteUgkwpFoam.o /workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/final-native-build/remaining/source/applications/CHT/Make/linux64GccDPInt32Opt/diluteUgkwpFoam.C.dep '/workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/final-native-build/remaining/source/applications/CHT/Make/linux64GccDPInt32Opt/thermal/*.o' '/workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/final-native-build/remaining/source/applications/CHT/Make/linux64GccDPInt32Opt/thermal/*.dep'
++ UGKWP_CUDA_EXE_INC=-DUGKWP_USE_CUDA
++ UGKWP_CUDA_EXE_LIBS='/workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/final-native-build/remaining/source/applications/CHT/gpu/libugkpcht_cuda_internal.a -L/workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/toolchains/cuda/lib64 -lcudart'
++ wmake
+Making dependency list for source file diluteUgkwpFoam.C
+Making dependency list for source file MieTable.C
+Making dependency list for source file MieDoRadiationSolver.C
+Making dependency list for source file GpuParticleRadiationCoupler.C
+Making dependency list for source file GpuSolidThermalProperties.C
+Making dependency list for source file GpuSolidPatchMapper.C
+Making dependency list for source file GpuThermalExchangeState.C
+Making dependency list for source file GpuSolidThermalCoupler.C
+g++ -std=c++14 -m64 -Dlinux64 -DWM_ARCH_OPTION=64 -DWM_DP -DWM_LABEL_SIZE=32 -Wall -Wextra -Wold-style-cast -Wnon-virtual-dtor -Wno-unused-parameter -Wno-invalid-offsetof -Wno-attributes -O3  -DNoRepository -ftemplate-depth-100 -fopenmp -I/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/finiteVolume/lnInclude -I/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/meshTools/lnInclude -I/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude -I. -I../../common -Igpu -Ithermal -DUGKWP_USE_CUDA -IlnInclude -I. -I/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude -I/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OSspecific/POSIX/lnInclude   -fPIC -c diluteUgkwpFoam.C -o Make/linux64GccDPInt32Opt/diluteUgkwpFoam.o
+In file included from /workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/scalarMatrices.H:46,
+                 from /workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/dimensionSets.H:39,
+                 from /workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/dimensionSet.H:444,
+                 from /workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/dimensionedType.H:40,
+                 from /workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/dimensionedScalar.H:38,
+                 from /workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/TimeState.H:38,
+                 from /workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/Time.H:47,
+                 from /workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/finiteVolume/lnInclude/fvCFD.H:6,
+                 from diluteUgkwpFoam.C:1:
+/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/DiagonalMatrix.H:64:29: warning: template-id not allowed for constructor in C++20 [-Wtemplate-id-cdtor]
+   64 |         DiagonalMatrix<Type>();
+      |                             ^
+/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/DiagonalMatrix.H:64:29: note: remove the ‘< >’
+/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/DiagonalMatrix.H:68:29: warning: template-id not allowed for constructor in C++20 [-Wtemplate-id-cdtor]
+   68 |         DiagonalMatrix<Type>(const Matrix<Form, Type>&);
+      |                             ^
+/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/DiagonalMatrix.H:68:29: note: remove the ‘< >’
+/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/DiagonalMatrix.H:71:29: warning: template-id not allowed for constructor in C++20 [-Wtemplate-id-cdtor]
+   71 |         DiagonalMatrix<Type>(const label size);
+      |                             ^
+/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/DiagonalMatrix.H:71:29: note: remove the ‘< >’
+/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/DiagonalMatrix.H:74:29: warning: template-id not allowed for constructor in C++20 [-Wtemplate-id-cdtor]
+   74 |         DiagonalMatrix<Type>(const label, const Type&);
+      |                             ^
+/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/DiagonalMatrix.H:74:29: note: remove the ‘< >’
+In file included from /workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/finiteVolume/lnInclude/volFields.H:40,
+                 from /workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/finiteVolume/lnInclude/surfaceInterpolationScheme.C:27,
+                 from /workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/finiteVolume/lnInclude/surfaceInterpolationScheme.H:308,
+                 from /workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/finiteVolume/lnInclude/surfaceInterpolate.H:41,
+                 from /workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/finiteVolume/lnInclude/fvc.H:39,
+                 from /workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/finiteVolume/lnInclude/fvCFD.H:8:
+/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/finiteVolume/lnInclude/fvPatchField.H:297:13: warning: template-id not allowed for destructor in C++20 [-Wtemplate-id-cdtor]
+  297 |     virtual ~fvPatchField<Type>()
+      |             ^
+/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/finiteVolume/lnInclude/fvPatchField.H:297:13: note: remove the ‘< >’
+In file included from /workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/finiteVolume/lnInclude/fvsPatchFields.H:34,
+                 from /workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/finiteVolume/lnInclude/surfaceFields.H:41,
+                 from /workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/finiteVolume/lnInclude/surfaceInterpolationScheme.C:28:
+/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/finiteVolume/lnInclude/fvsPatchField.H:293:13: warning: template-id not allowed for destructor in C++20 [-Wtemplate-id-cdtor]
+  293 |     virtual ~fvsPatchField<Type>()
+      |             ^
+/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/finiteVolume/lnInclude/fvsPatchField.H:293:13: note: remove the ‘< >’
+In file included from gpu/GpuChtParticleRestart.H:5,
+                 from gpu/GpuResidentStrict.H:6,
+                 from diluteUgkwpFoam.C:13:
+gpu/../../../common/GpuThermalParticleRestartCodec.H: In function ‘void Foam::gpuThermalRestart::readConverted(std::istream&, Memory*, std::size_t, std::size_t)’:
+gpu/../../../common/GpuThermalParticleRestartCodec.H:62:8: warning: ‘if constexpr’ only available with ‘-std=c++17’ or ‘-std=gnu++17’ [-Wc++17-extensions]
+   62 |     if constexpr (std::is_same<Disk,Memory>::value) readArray(is,p,b,n);
+      |        ^~~~~~~~~
+gpu/../../../common/GpuThermalParticleRestartCodec.H: In function ‘void Foam::gpuThermalRestart::currentFields(const View&, std::size_t, std::size_t, Fn)’:
+gpu/../../../common/GpuThermalParticleRestartCodec.H:136:8: warning: ‘if constexpr’ only available with ‘-std=c++17’ or ‘-std=gnu++17’ [-Wc++17-extensions]
+  136 |     if constexpr (HasCarry) fn(v.pThermalEnthalpyResidual,begin,count);
+      |        ^~~~~~~~~
+g++ -std=c++14 -m64 -Dlinux64 -DWM_ARCH_OPTION=64 -DWM_DP -DWM_LABEL_SIZE=32 -Wall -Wextra -Wold-style-cast -Wnon-virtual-dtor -Wno-unused-parameter -Wno-invalid-offsetof -Wno-attributes -O3  -DNoRepository -ftemplate-depth-100 -fopenmp -I/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/finiteVolume/lnInclude -I/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/meshTools/lnInclude -I/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude -I. -I../../common -Igpu -Ithermal -DUGKWP_USE_CUDA -IlnInclude -I. -I/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude -I/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OSspecific/POSIX/lnInclude   -fPIC -c thermal/MieTable.C -o Make/linux64GccDPInt32Opt/thermal/MieTable.o
+g++ -std=c++14 -m64 -Dlinux64 -DWM_ARCH_OPTION=64 -DWM_DP -DWM_LABEL_SIZE=32 -Wall -Wextra -Wold-style-cast -Wnon-virtual-dtor -Wno-unused-parameter -Wno-invalid-offsetof -Wno-attributes -O3  -DNoRepository -ftemplate-depth-100 -fopenmp -I/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/finiteVolume/lnInclude -I/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/meshTools/lnInclude -I/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude -I. -I../../common -Igpu -Ithermal -DUGKWP_USE_CUDA -IlnInclude -I. -I/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude -I/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OSspecific/POSIX/lnInclude   -fPIC -c thermal/MieDoRadiationSolver.C -o Make/linux64GccDPInt32Opt/thermal/MieDoRadiationSolver.o
+In file included from /workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/scalarMatrices.H:46,
+                 from /workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/dimensionSets.H:39,
+                 from /workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/dimensionSet.H:444,
+                 from /workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/dimensionedType.H:40,
+                 from /workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/DimensionedField.H:43,
+                 from /workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/finiteVolume/lnInclude/fvMesh.H:58,
+                 from thermal/MieDoRadiationSolver.H:6,
+                 from thermal/MieDoRadiationSolver.C:1:
+/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/DiagonalMatrix.H:64:29: warning: template-id not allowed for constructor in C++20 [-Wtemplate-id-cdtor]
+   64 |         DiagonalMatrix<Type>();
+      |                             ^
+/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/DiagonalMatrix.H:64:29: note: remove the ‘< >’
+/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/DiagonalMatrix.H:68:29: warning: template-id not allowed for constructor in C++20 [-Wtemplate-id-cdtor]
+   68 |         DiagonalMatrix<Type>(const Matrix<Form, Type>&);
+      |                             ^
+/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/DiagonalMatrix.H:68:29: note: remove the ‘< >’
+/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/DiagonalMatrix.H:71:29: warning: template-id not allowed for constructor in C++20 [-Wtemplate-id-cdtor]
+   71 |         DiagonalMatrix<Type>(const label size);
+      |                             ^
+/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/DiagonalMatrix.H:71:29: note: remove the ‘< >’
+/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/DiagonalMatrix.H:74:29: warning: template-id not allowed for constructor in C++20 [-Wtemplate-id-cdtor]
+   74 |         DiagonalMatrix<Type>(const label, const Type&);
+      |                             ^
+/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/DiagonalMatrix.H:74:29: note: remove the ‘< >’
+In file included from /workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/finiteVolume/lnInclude/volFields.H:40,
+                 from thermal/MieDoRadiationSolver.H:9:
+/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/finiteVolume/lnInclude/fvPatchField.H:297:13: warning: template-id not allowed for destructor in C++20 [-Wtemplate-id-cdtor]
+  297 |     virtual ~fvPatchField<Type>()
+      |             ^
+/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/finiteVolume/lnInclude/fvPatchField.H:297:13: note: remove the ‘< >’
+In file included from /workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/finiteVolume/lnInclude/fvsPatchFields.H:34,
+                 from /workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/finiteVolume/lnInclude/surfaceFields.H:41,
+                 from thermal/MieDoRadiationSolver.C:5:
+/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/finiteVolume/lnInclude/fvsPatchField.H:293:13: warning: template-id not allowed for destructor in C++20 [-Wtemplate-id-cdtor]
+  293 |     virtual ~fvsPatchField<Type>()
+      |             ^
+/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/finiteVolume/lnInclude/fvsPatchField.H:293:13: note: remove the ‘< >’
+g++ -std=c++14 -m64 -Dlinux64 -DWM_ARCH_OPTION=64 -DWM_DP -DWM_LABEL_SIZE=32 -Wall -Wextra -Wold-style-cast -Wnon-virtual-dtor -Wno-unused-parameter -Wno-invalid-offsetof -Wno-attributes -O3  -DNoRepository -ftemplate-depth-100 -fopenmp -I/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/finiteVolume/lnInclude -I/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/meshTools/lnInclude -I/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude -I. -I../../common -Igpu -Ithermal -DUGKWP_USE_CUDA -IlnInclude -I. -I/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude -I/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OSspecific/POSIX/lnInclude   -fPIC -c thermal/GpuParticleRadiationCoupler.C -o Make/linux64GccDPInt32Opt/thermal/GpuParticleRadiationCoupler.o
+In file included from /workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/scalarMatrices.H:46,
+                 from /workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/dimensionSets.H:39,
+                 from /workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/dimensionSet.H:444,
+                 from /workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/dimensionedType.H:40,
+                 from /workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/DimensionedField.H:43,
+                 from /workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/finiteVolume/lnInclude/fvMesh.H:58,
+                 from thermal/MieDoRadiationSolver.H:6,
+                 from thermal/GpuParticleRadiationCoupler.H:4,
+                 from thermal/GpuParticleRadiationCoupler.C:1:
+/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/DiagonalMatrix.H:64:29: warning: template-id not allowed for constructor in C++20 [-Wtemplate-id-cdtor]
+   64 |         DiagonalMatrix<Type>();
+      |                             ^
+/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/DiagonalMatrix.H:64:29: note: remove the ‘< >’
+/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/DiagonalMatrix.H:68:29: warning: template-id not allowed for constructor in C++20 [-Wtemplate-id-cdtor]
+   68 |         DiagonalMatrix<Type>(const Matrix<Form, Type>&);
+      |                             ^
+/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/DiagonalMatrix.H:68:29: note: remove the ‘< >’
+/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/DiagonalMatrix.H:71:29: warning: template-id not allowed for constructor in C++20 [-Wtemplate-id-cdtor]
+   71 |         DiagonalMatrix<Type>(const label size);
+      |                             ^
+/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/DiagonalMatrix.H:71:29: note: remove the ‘< >’
+/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/DiagonalMatrix.H:74:29: warning: template-id not allowed for constructor in C++20 [-Wtemplate-id-cdtor]
+   74 |         DiagonalMatrix<Type>(const label, const Type&);
+      |                             ^
+/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/DiagonalMatrix.H:74:29: note: remove the ‘< >’
+In file included from /workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/finiteVolume/lnInclude/volFields.H:40,
+                 from thermal/MieDoRadiationSolver.H:9:
+/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/finiteVolume/lnInclude/fvPatchField.H:297:13: warning: template-id not allowed for destructor in C++20 [-Wtemplate-id-cdtor]
+  297 |     virtual ~fvPatchField<Type>()
+      |             ^
+/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/finiteVolume/lnInclude/fvPatchField.H:297:13: note: remove the ‘< >’
+In file included from /workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/finiteVolume/lnInclude/fvsPatchFields.H:34,
+                 from /workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/finiteVolume/lnInclude/surfaceFields.H:41,
+                 from thermal/GpuParticleRadiationCoupler.C:4:
+/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/finiteVolume/lnInclude/fvsPatchField.H:293:13: warning: template-id not allowed for destructor in C++20 [-Wtemplate-id-cdtor]
+  293 |     virtual ~fvsPatchField<Type>()
+      |             ^
+/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/finiteVolume/lnInclude/fvsPatchField.H:293:13: note: remove the ‘< >’
+g++ -std=c++14 -m64 -Dlinux64 -DWM_ARCH_OPTION=64 -DWM_DP -DWM_LABEL_SIZE=32 -Wall -Wextra -Wold-style-cast -Wnon-virtual-dtor -Wno-unused-parameter -Wno-invalid-offsetof -Wno-attributes -O3  -DNoRepository -ftemplate-depth-100 -fopenmp -I/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/finiteVolume/lnInclude -I/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/meshTools/lnInclude -I/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude -I. -I../../common -Igpu -Ithermal -DUGKWP_USE_CUDA -IlnInclude -I. -I/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude -I/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OSspecific/POSIX/lnInclude   -fPIC -c thermal/GpuSolidThermalProperties.C -o Make/linux64GccDPInt32Opt/thermal/GpuSolidThermalProperties.o
+g++ -std=c++14 -m64 -Dlinux64 -DWM_ARCH_OPTION=64 -DWM_DP -DWM_LABEL_SIZE=32 -Wall -Wextra -Wold-style-cast -Wnon-virtual-dtor -Wno-unused-parameter -Wno-invalid-offsetof -Wno-attributes -O3  -DNoRepository -ftemplate-depth-100 -fopenmp -I/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/finiteVolume/lnInclude -I/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/meshTools/lnInclude -I/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude -I. -I../../common -Igpu -Ithermal -DUGKWP_USE_CUDA -IlnInclude -I. -I/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude -I/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OSspecific/POSIX/lnInclude   -fPIC -c thermal/GpuSolidPatchMapper.C -o Make/linux64GccDPInt32Opt/thermal/GpuSolidPatchMapper.o
+In file included from /workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/scalarMatrices.H:46,
+                 from /workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/dimensionSets.H:39,
+                 from /workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/dimensionSet.H:444,
+                 from /workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/dimensionedType.H:40,
+                 from /workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/DimensionedField.H:43,
+                 from /workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/finiteVolume/lnInclude/fvMesh.H:58,
+                 from thermal/GpuSolidPatchMapper.H:5,
+                 from thermal/GpuSolidPatchMapper.C:1:
+/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/DiagonalMatrix.H:64:29: warning: template-id not allowed for constructor in C++20 [-Wtemplate-id-cdtor]
+   64 |         DiagonalMatrix<Type>();
+      |                             ^
+/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/DiagonalMatrix.H:64:29: note: remove the ‘< >’
+/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/DiagonalMatrix.H:68:29: warning: template-id not allowed for constructor in C++20 [-Wtemplate-id-cdtor]
+   68 |         DiagonalMatrix<Type>(const Matrix<Form, Type>&);
+      |                             ^
+/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/DiagonalMatrix.H:68:29: note: remove the ‘< >’
+/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/DiagonalMatrix.H:71:29: warning: template-id not allowed for constructor in C++20 [-Wtemplate-id-cdtor]
+   71 |         DiagonalMatrix<Type>(const label size);
+      |                             ^
+/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/DiagonalMatrix.H:71:29: note: remove the ‘< >’
+/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/DiagonalMatrix.H:74:29: warning: template-id not allowed for constructor in C++20 [-Wtemplate-id-cdtor]
+   74 |         DiagonalMatrix<Type>(const label, const Type&);
+      |                             ^
+/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/DiagonalMatrix.H:74:29: note: remove the ‘< >’
+g++ -std=c++14 -m64 -Dlinux64 -DWM_ARCH_OPTION=64 -DWM_DP -DWM_LABEL_SIZE=32 -Wall -Wextra -Wold-style-cast -Wnon-virtual-dtor -Wno-unused-parameter -Wno-invalid-offsetof -Wno-attributes -O3  -DNoRepository -ftemplate-depth-100 -fopenmp -I/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/finiteVolume/lnInclude -I/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/meshTools/lnInclude -I/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude -I. -I../../common -Igpu -Ithermal -DUGKWP_USE_CUDA -IlnInclude -I. -I/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude -I/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OSspecific/POSIX/lnInclude   -fPIC -c thermal/GpuThermalExchangeState.C -o Make/linux64GccDPInt32Opt/thermal/GpuThermalExchangeState.o
+In file included from /workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/scalarMatrices.H:46,
+                 from /workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/dimensionSets.H:39,
+                 from /workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/dimensionSet.H:444,
+                 from /workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/dimensionedType.H:40,
+                 from /workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/dimensionedScalar.H:38,
+                 from /workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/TimeState.H:38,
+                 from /workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/Time.H:47,
+                 from thermal/GpuThermalExchangeState.C:13:
+/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/DiagonalMatrix.H:64:29: warning: template-id not allowed for constructor in C++20 [-Wtemplate-id-cdtor]
+   64 |         DiagonalMatrix<Type>();
+      |                             ^
+/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/DiagonalMatrix.H:64:29: note: remove the ‘< >’
+/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/DiagonalMatrix.H:68:29: warning: template-id not allowed for constructor in C++20 [-Wtemplate-id-cdtor]
+   68 |         DiagonalMatrix<Type>(const Matrix<Form, Type>&);
+      |                             ^
+/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/DiagonalMatrix.H:68:29: note: remove the ‘< >’
+/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/DiagonalMatrix.H:71:29: warning: template-id not allowed for constructor in C++20 [-Wtemplate-id-cdtor]
+   71 |         DiagonalMatrix<Type>(const label size);
+      |                             ^
+/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/DiagonalMatrix.H:71:29: note: remove the ‘< >’
+/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/DiagonalMatrix.H:74:29: warning: template-id not allowed for constructor in C++20 [-Wtemplate-id-cdtor]
+   74 |         DiagonalMatrix<Type>(const label, const Type&);
+      |                             ^
+/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/DiagonalMatrix.H:74:29: note: remove the ‘< >’
+In file included from /workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/finiteVolume/lnInclude/volFields.H:40,
+                 from thermal/GpuThermalExchangeState.C:19:
+/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/finiteVolume/lnInclude/fvPatchField.H:297:13: warning: template-id not allowed for destructor in C++20 [-Wtemplate-id-cdtor]
+  297 |     virtual ~fvPatchField<Type>()
+      |             ^
+/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/finiteVolume/lnInclude/fvPatchField.H:297:13: note: remove the ‘< >’
+g++ -std=c++14 -m64 -Dlinux64 -DWM_ARCH_OPTION=64 -DWM_DP -DWM_LABEL_SIZE=32 -Wall -Wextra -Wold-style-cast -Wnon-virtual-dtor -Wno-unused-parameter -Wno-invalid-offsetof -Wno-attributes -O3  -DNoRepository -ftemplate-depth-100 -fopenmp -I/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/finiteVolume/lnInclude -I/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/meshTools/lnInclude -I/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude -I. -I../../common -Igpu -Ithermal -DUGKWP_USE_CUDA -IlnInclude -I. -I/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude -I/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OSspecific/POSIX/lnInclude   -fPIC -c thermal/GpuSolidThermalCoupler.C -o Make/linux64GccDPInt32Opt/thermal/GpuSolidThermalCoupler.o
+In file included from /workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/scalarMatrices.H:46,
+                 from /workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/dimensionSets.H:39,
+                 from /workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/dimensionSet.H:444,
+                 from /workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/dimensionedType.H:40,
+                 from /workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/DimensionedField.H:43,
+                 from /workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/finiteVolume/lnInclude/fvMesh.H:58,
+                 from thermal/GpuSolidThermalCoupler.H:6,
+                 from thermal/GpuSolidThermalCoupler.C:1:
+/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/DiagonalMatrix.H:64:29: warning: template-id not allowed for constructor in C++20 [-Wtemplate-id-cdtor]
+   64 |         DiagonalMatrix<Type>();
+      |                             ^
+/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/DiagonalMatrix.H:64:29: note: remove the ‘< >’
+/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/DiagonalMatrix.H:68:29: warning: template-id not allowed for constructor in C++20 [-Wtemplate-id-cdtor]
+   68 |         DiagonalMatrix<Type>(const Matrix<Form, Type>&);
+      |                             ^
+/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/DiagonalMatrix.H:68:29: note: remove the ‘< >’
+/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/DiagonalMatrix.H:71:29: warning: template-id not allowed for constructor in C++20 [-Wtemplate-id-cdtor]
+   71 |         DiagonalMatrix<Type>(const label size);
+      |                             ^
+/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/DiagonalMatrix.H:71:29: note: remove the ‘< >’
+/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/DiagonalMatrix.H:74:29: warning: template-id not allowed for constructor in C++20 [-Wtemplate-id-cdtor]
+   74 |         DiagonalMatrix<Type>(const label, const Type&);
+      |                             ^
+/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude/DiagonalMatrix.H:74:29: note: remove the ‘< >’
+In file included from /workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/finiteVolume/lnInclude/volFields.H:40,
+                 from thermal/GpuSolidThermalCoupler.H:9:
+/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/finiteVolume/lnInclude/fvPatchField.H:297:13: warning: template-id not allowed for destructor in C++20 [-Wtemplate-id-cdtor]
+  297 |     virtual ~fvPatchField<Type>()
+      |             ^
+/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/finiteVolume/lnInclude/fvPatchField.H:297:13: note: remove the ‘< >’
+In file included from /workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/finiteVolume/lnInclude/fvsPatchFields.H:34,
+                 from /workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/finiteVolume/lnInclude/surfaceFields.H:41,
+                 from /workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/finiteVolume/lnInclude/fvmLaplacian.C:27,
+                 from /workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/finiteVolume/lnInclude/fvmLaplacian.H:189,
+                 from thermal/GpuSolidThermalCoupler.C:9:
+/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/finiteVolume/lnInclude/fvsPatchField.H:293:13: warning: template-id not allowed for destructor in C++20 [-Wtemplate-id-cdtor]
+  293 |     virtual ~fvsPatchField<Type>()
+      |             ^
+/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/finiteVolume/lnInclude/fvsPatchField.H:293:13: note: remove the ‘< >’
+In file included from thermal/../gpu/GpuChtParticleRestart.H:5,
+                 from thermal/../gpu/GpuResidentStrict.H:6,
+                 from thermal/GpuSolidThermalCoupler.C:31:
+thermal/../gpu/../../../common/GpuThermalParticleRestartCodec.H: In function ‘void Foam::gpuThermalRestart::readConverted(std::istream&, Memory*, std::size_t, std::size_t)’:
+thermal/../gpu/../../../common/GpuThermalParticleRestartCodec.H:62:8: warning: ‘if constexpr’ only available with ‘-std=c++17’ or ‘-std=gnu++17’ [-Wc++17-extensions]
+   62 |     if constexpr (std::is_same<Disk,Memory>::value) readArray(is,p,b,n);
+      |        ^~~~~~~~~
+thermal/../gpu/../../../common/GpuThermalParticleRestartCodec.H: In function ‘void Foam::gpuThermalRestart::currentFields(const View&, std::size_t, std::size_t, Fn)’:
+thermal/../gpu/../../../common/GpuThermalParticleRestartCodec.H:136:8: warning: ‘if constexpr’ only available with ‘-std=c++17’ or ‘-std=gnu++17’ [-Wc++17-extensions]
+  136 |     if constexpr (HasCarry) fn(v.pThermalEnthalpyResidual,begin,count);
+      |        ^~~~~~~~~
+thermal/GpuSolidThermalCoupler.C: In constructor ‘Foam::gpuThermal::GpuSolidThermalCouplerData::GpuSolidThermalCouplerData(Foam::Time&, Foam::fvMesh&, Foam::GpuParticleResidentSolver&, const Foam::dictionary&, const Foam::gpuThermal::ThermalExchangeRestartState&)’:
+thermal/GpuSolidThermalCoupler.C:930:27: warning: possibly dangling reference to a temporary [-Wdangling-reference]
+  930 |         const dictionary& coupling =
+      |                           ^~~~~~~~
+thermal/GpuSolidThermalCoupler.C:931:31: note: the temporary was destroyed at the end of the full expression ‘Foam::gpuThermal::{anonymous}::exactSubDictionary(((Foam::gpuThermal::GpuSolidThermalCouplerData*)this)->Foam::gpuThermal::GpuSolidThermalCouplerData::resolvedConfiguration, Foam::word(((const char*)"solidThermalCoupling"), 1))’
+  931 |             exactSubDictionary(resolvedConfiguration, "solidThermalCoupling");
+      |             ~~~~~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+thermal/GpuSolidThermalCoupler.C:1052:31: warning: possibly dangling reference to a temporary [-Wdangling-reference]
+ 1052 |             const dictionary& regions =
+      |                               ^~~~~~~
+thermal/GpuSolidThermalCoupler.C:1053:35: note: the temporary was destroyed at the end of the full expression ‘Foam::gpuThermal::{anonymous}::exactSubDictionary((* & coupling), Foam::word(((const char*)"solidRegions"), 1))’
+ 1053 |                 exactSubDictionary(coupling, "solidRegions");
+      |                 ~~~~~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~
+thermal/GpuSolidThermalCoupler.C:1144:27: warning: possibly dangling reference to a temporary [-Wdangling-reference]
+ 1144 |         const dictionary& particleContract = resolvedConfiguration.found
+      |                           ^~~~~~~~~~~~~~~~
+thermal/GpuSolidThermalCoupler.C:1148:31: note: the temporary was destroyed at the end of the full expression ‘Foam::gpuThermal::{anonymous}::exactSubDictionary(((Foam::gpuThermal::GpuSolidThermalCouplerData*)this)->Foam::gpuThermal::GpuSolidThermalCouplerData::resolvedConfiguration, Foam::word(((const char*)"resolvedParticleContract"), 1))’
+ 1148 |           ? exactSubDictionary(resolvedConfiguration, "resolvedParticleContract")
+      |             ~~~~~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+thermal/GpuSolidThermalCoupler.C:1157:31: warning: possibly dangling reference to a temporary [-Wdangling-reference]
+ 1157 |             const dictionary& radiation =
+      |                               ^~~~~~~~~
+thermal/GpuSolidThermalCoupler.C:1158:35: note: the temporary was destroyed at the end of the full expression ‘Foam::gpuThermal::{anonymous}::exactSubDictionary((* & coupling), Foam::word(((const char*)"radiation"), 1))’
+ 1158 |                 exactSubDictionary(coupling, "radiation");
+      |                 ~~~~~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~
+thermal/GpuSolidThermalCoupler.C:1165:31: warning: possibly dangling reference to a temporary [-Wdangling-reference]
+ 1165 |             const dictionary& doDictionary =
+      |                               ^~~~~~~~~~~~
+thermal/GpuSolidThermalCoupler.C:1166:35: note: the temporary was destroyed at the end of the full expression ‘Foam::gpuThermal::{anonymous}::exactSubDictionary((* & radiation), Foam::word(((const char*)"do"), 1))’
+ 1166 |                 exactSubDictionary(radiation, "do");
+      |                 ~~~~~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~
+g++ -std=c++14 -m64 -Dlinux64 -DWM_ARCH_OPTION=64 -DWM_DP -DWM_LABEL_SIZE=32 -Wall -Wextra -Wold-style-cast -Wnon-virtual-dtor -Wno-unused-parameter -Wno-invalid-offsetof -Wno-attributes -O3  -DNoRepository -ftemplate-depth-100 -fopenmp -I/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/finiteVolume/lnInclude -I/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/meshTools/lnInclude -I/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude -I. -I../../common -Igpu -Ithermal -DUGKWP_USE_CUDA -IlnInclude -I. -I/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OpenFOAM/lnInclude -I/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/src/OSspecific/POSIX/lnInclude   -fPIC -fuse-ld=bfd -Xlinker --add-needed -Xlinker --no-as-needed Make/linux64GccDPInt32Opt/diluteUgkwpFoam.o Make/linux64GccDPInt32Opt/thermal/MieTable.o Make/linux64GccDPInt32Opt/thermal/MieDoRadiationSolver.o Make/linux64GccDPInt32Opt/thermal/GpuParticleRadiationCoupler.o Make/linux64GccDPInt32Opt/thermal/GpuSolidThermalProperties.o Make/linux64GccDPInt32Opt/thermal/GpuSolidPatchMapper.o Make/linux64GccDPInt32Opt/thermal/GpuThermalExchangeState.o Make/linux64GccDPInt32Opt/thermal/GpuSolidThermalCoupler.o -L/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10/platforms/linux64GccDPInt32Opt/lib \
+    -fopenmp -lfiniteVolume -lmeshTools -lmomentumTransportModels -lOpenFOAM /workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/final-native-build/remaining/source/applications/CHT/gpu/libugkpcht_cuda_internal.a -L/workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/toolchains/cuda/lib64 -lcudart -lOpenFOAM -ldl  \
+     -lm -o /workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/final-native-build/remaining/bin/CHT
++ test -x /workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/final-native-build/remaining/bin/CHT
++ echo '[cuda-build] cuda binary=/workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/final-native-build/remaining/bin/CHT'
+[cuda-build] cuda binary=/workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/final-native-build/remaining/bin/CHT
++ echo /workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/final-native-build/remaining/source/applications/CHT/docs/build_logs/ugkpcht_upgrade/cuda_solver_build_20261014_000239.log
+/workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/final-native-build/remaining/source/applications/CHT/docs/build_logs/ugkpcht_upgrade/cuda_solver_build_20261014_000239.log
+real 87.68
+user 84.87
+sys 2.78
