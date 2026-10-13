@@ -13,11 +13,12 @@ struct FilmProfile {
 CHMT_HD inline Vec3 profileVelocity(const FilmProfile& p, Real z) {
     return p.baseVelocity+p.linear*z+p.quadratic*(z*z);
 }
+template<bool Terminal=false>
 CHMT_HD inline FilmProfile filmProfile(Real delta, Real mu, Vec3 ub, Vec3 tau, Vec3 G) {
     FilmProfile p;
     p.delta=delta; p.baseVelocity=ub;
-    if (!finite(delta) || delta<0 || !finite(mu) || mu<=0
-        || !finite(ub) || !finite(tau) || !finite(G)) {
+    if (!Terminal&&(!finite(delta) || delta<0 || !finite(mu) || mu<=0
+        || !finite(ub) || !finite(tau) || !finite(G))) {
         p.dissipation=p.kineticPerArea=undefinedValue(); return p;
     }
     p.linear=(tau-G*delta)/mu;
@@ -55,19 +56,20 @@ CHMT_HD inline FilmProfile withNormalProfile(FilmProfile p, Vec3 normal, Real bo
 }
 // The interface owner supplies a reference-frame normal trace independently
 // of film mass. A dry owner explicitly clears it; no old wet trace is inferred.
+template<bool Terminal=false>
 CHMT_HD inline bool setCoupledFilmNormalTrace(FilmAux& aux, Vec3 normal, bool wet,
     Real bottom, Real top, DeviceStatus* status=nullptr, int index=-1) {
-    if (!finite(normal) || !closeEnough(mag(normal),1,1e-12,1e-12) || !finite(aux.baseVelocity)) {
+    if (!Terminal&&(!finite(normal) || !closeEnough(mag(normal),1,1e-12,1e-12) || !finite(aux.baseVelocity))) {
         return failStatus(status,ErrorCode::InvalidInput,index,0,ErrorLocation::Face);
     }
     FilmAux next=aux;
     if (wet) {
-        if (!finite(bottom) || !finite(top) || !finite(aux.meanVelocity) || !finite(aux.topVelocity)) {
+        if (!Terminal&&(!finite(bottom) || !finite(top) || !finite(aux.meanVelocity) || !finite(aux.topVelocity))) {
             return failStatus(status,ErrorCode::Nonfinite,index,top,ErrorLocation::Face);
         }
         next.meanVelocity+=normal*(0.5*(bottom+top)-dot(aux.meanVelocity,normal));
         next.topVelocity+=normal*(top-dot(aux.topVelocity,normal));
-        if (!finite(next.meanVelocity) || !finite(next.topVelocity)) {
+        if (!Terminal&&(!finite(next.meanVelocity) || !finite(next.topVelocity))) {
             return failStatus(status,ErrorCode::Nonfinite,index,top,ErrorLocation::Face);
         }
     } else {
@@ -80,58 +82,60 @@ CHMT_HD inline bool setCoupledFilmNormalTrace(FilmAux& aux, Vec3 normal, bool we
 // Thermal recovery does not own a coupled interface's normal kinematics. The
 // plain recoverFilm empty-film convention remains unchanged for standalone EOS
 // callers. Only a finite, explicitly coupled trace is restored here.
+template<bool Terminal=false>
 CHMT_HD inline bool recoverFilmThermalState(const FilmQ& q, Real area, Real pressure,
     const PhysicsConfig& p, Vec3 normal, bool coupled, FilmAux& aux,
     DeviceStatus* status=nullptr, int index=-1) {
-    if (!finite(normal) || !closeEnough(mag(normal),1,1e-12,1e-12) || !finite(aux.baseVelocity)) {
+    if (!Terminal&&(!finite(normal) || !closeEnough(mag(normal),1,1e-12,1e-12) || !finite(aux.baseVelocity))) {
         return failStatus(status,ErrorCode::InvalidInput,index,0,ErrorLocation::Face);
     }
     Real meanNormal=0, topNormal=0;
     if (coupled) {
-        if (!finite(aux.meanVelocity) || !finite(aux.topVelocity)) {
+        if (!Terminal&&(!finite(aux.meanVelocity) || !finite(aux.topVelocity))) {
             return failStatus(status,ErrorCode::Nonfinite,index,0,ErrorLocation::Face);
         }
         meanNormal=dot(aux.meanVelocity,normal);
         topNormal=dot(aux.topVelocity,normal);
-        if (!finite(meanNormal) || !finite(topNormal)) {
+        if (!Terminal&&(!finite(meanNormal) || !finite(topNormal))) {
             return failStatus(status,ErrorCode::Nonfinite,index,topNormal,ErrorLocation::Face);
         }
     }
     FilmAux next=aux;
     next.normal=normal;
-    if (!recoverFilm(q,area,pressure,p,next,status,index)) return false;
+    if (!recoverFilm<Terminal>(q,area,pressure,p,next,status,index)) return false;
     if (coupled) {
         next.meanVelocity+=normal*(meanNormal-dot(next.meanVelocity,normal));
         next.topVelocity+=normal*(topNormal-dot(next.topVelocity,normal));
-        if (!finite(next.meanVelocity) || !finite(next.topVelocity)) {
+        if (!Terminal&&(!finite(next.meanVelocity) || !finite(next.topVelocity))) {
             return failStatus(status,ErrorCode::Nonfinite,index,topNormal,ErrorLocation::Face);
         }
     }
     aux=next; return true;
 }
 // Shared by the actual CUDA profile kernel and the host sequence regression.
+template<bool Terminal=false>
 CHMT_HD inline bool updateFilmProfileState(FilmAux& aux, const PhysicsConfig& p, Vec3 normal,
     Vec3 shear, Vec3 pressureBodyGradient, bool coupled, DeviceStatus* status=nullptr, int index=-1) {
-    if (!finite(normal) || !closeEnough(mag(normal),1,1e-12,1e-12)
-        || !finite(aux.area) || aux.area<=0 || !finite(p.liquid.rho) || p.liquid.rho<=0) {
+    if (!Terminal&&(!finite(normal) || !closeEnough(mag(normal),1,1e-12,1e-12)
+        || !finite(aux.area) || aux.area<=0 || !finite(p.liquid.rho) || p.liquid.rho<=0)) {
         return failStatus(status,ErrorCode::InvalidInput,index,aux.area,ErrorLocation::Face);
     }
     Real bottom=dot(aux.baseVelocity,normal), top=bottom;
     if (coupled) {
-        if (!finite(aux.meanVelocity) || !finite(aux.topVelocity)) {
+        if (!Terminal&&(!finite(aux.meanVelocity) || !finite(aux.topVelocity))) {
             return failStatus(status,ErrorCode::Nonfinite,index,0,ErrorLocation::Face);
         }
         top=dot(aux.topVelocity,normal);
         bottom=2*dot(aux.meanVelocity,normal)-top;
     }
-    if (!finite(bottom) || !finite(top)) {
+    if (!Terminal&&(!finite(bottom) || !finite(top))) {
         return failStatus(status,ErrorCode::Nonfinite,index,top,ErrorLocation::Face);
     }
-    FilmProfile profile=filmProfile(aux.thickness,p.liquidViscosity,aux.baseVelocity,shear,pressureBodyGradient);
+    FilmProfile profile=filmProfile<Terminal>(aux.thickness,p.liquidViscosity,aux.baseVelocity,shear,pressureBodyGradient);
     profile=withNormalProfile(profile,normal,bottom,top);
     const Real kinetic=p.liquid.rho*aux.area*profile.kineticPerArea;
-    if (!finite(profile.meanVelocity) || !finite(profile.topVelocity) || !finite(profile.dissipation)
-        || !finite(kinetic) || kinetic<0) {
+    if (!Terminal&&(!finite(profile.meanVelocity) || !finite(profile.topVelocity) || !finite(profile.dissipation)
+        || !finite(kinetic) || kinetic<0)) {
         return failStatus(status,ErrorCode::Nonfinite,index,kinetic,ErrorLocation::Face);
     }
     FilmAux next=aux;
