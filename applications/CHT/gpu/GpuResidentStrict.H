@@ -6,7 +6,6 @@
 #include "GpuChtParticleRestart.H"
 #include "GpuGasBoundarySpec.H"
 #include "GpuParticleRadiationMath.H"
-#include "SHA1.H"
 #include "cyclicPolyPatch.H"
 #include "emptyPolyPatch.H"
 #include "inletOutletFvPatchFields.H"
@@ -20,7 +19,6 @@
 
 #ifdef UGKWP_USE_CUDA
 #include "GpuBackendApi.H"
-extern "C" int ugkwpGpuSelectedPrecision();
 #endif
 
 #include <cmath>
@@ -375,17 +373,17 @@ extern "C" int ugkwpGpuResidentStrictUploadParticleRestartMirror
     const int* pStatus,
     const unsigned char* pStuck,
     const int* pStuckFaceId,
-    const float* pDepositionArea,
+    const double* pDepositionArea,
     const double* pContactDuration,
-    const float* pContactMaximumArea,
-    const float* pContactPeakFraction,
+    const double* pContactMaximumArea,
+    const double* pContactPeakFraction,
     const float* pColdNodeSpecificEnthalpy,
-    const float* pColdRingSolidMass,
-    const float* pColdFrozenArea,
+    const double* pColdRingSolidMass,
+    const double* pColdFrozenArea,
     const double* pColdContactAge,
     const float* pCold2DNodeSpecificEnthalpy,
     const double* pCold2DRingContactAge,
-    const float* pCold2DFrozenArea,
+    const double* pCold2DFrozenArea,
     const unsigned long long* pRng,
     const unsigned long long* pOrigId,
     const double* pThermalEnthalpyResidual
@@ -410,17 +408,17 @@ extern "C" int ugkwpGpuResidentStrictDownloadParticleRestartMirror
     int* pStatus,
     unsigned char* pStuck,
     int* pStuckFaceId,
-    float* pDepositionArea,
+    double* pDepositionArea,
     double* pContactDuration,
-    float* pContactMaximumArea,
-    float* pContactPeakFraction,
+    double* pContactMaximumArea,
+    double* pContactPeakFraction,
     float* pColdNodeSpecificEnthalpy,
-    float* pColdRingSolidMass,
-    float* pColdFrozenArea,
+    double* pColdRingSolidMass,
+    double* pColdFrozenArea,
     double* pColdContactAge,
     float* pCold2DNodeSpecificEnthalpy,
     double* pCold2DRingContactAge,
-    float* pCold2DFrozenArea,
+    double* pCold2DFrozenArea,
     unsigned long long* pRng,
     unsigned long long* pOrigId,
     double* pThermalEnthalpyResidual
@@ -443,6 +441,9 @@ extern "C" int ugkwpGpuResidentStrictDownloadNut
     void* handle,
     double* nut
 );
+
+extern "C" int ugkwpGpuResidentStrictResetGasWallEnergy(void* handle);
+extern "C" int ugkwpGpuResidentStrictResetParticleWallHeatLedgers(void* handle);
 
 extern "C" int ugkwpGpuResidentStrictDownloadAndResetParticleWallHeatLedgers
 (
@@ -493,17 +494,8 @@ extern "C" const char* ugkwpGpuResidentStrictLastError();
 
 struct GpuThermalRestartMirrorMetadata
 {
-    fileName particleFile;
-    fileName epsGPrevFile;
-    fileName sourceResidualFile;
     label particleCount{0};
-    label epsGPrevCount{0};
-    label sourceResidualCount{0};
-    word particleSha1;
-    word epsGPrevSha1;
-    word sourceResidualSha1;
 };
-
 class GpuResidentStrictBase
 {
 protected:
@@ -580,38 +572,20 @@ public:
     ) const
     {
         requireInitialised("particleWallContactEnabledOnPatch");
-        if
-        (
-            residentMesh_ != &mesh
-         || patchI < 0
-         || patchI >= mesh.boundaryMesh().size()
-        )
-        {
-            FatalErrorInFunction
-                << "Particle-wall contact patch query requires a valid patch "
-                << "of the resident mesh." << exit(FatalError);
-        }
+
         if (!particleWallHeatTransferEnabled_)
         {
             return false;
         }
         const polyPatch& patch = mesh.boundaryMesh()[patchI];
         bool anyCandidate = false;
-        bool anyNonCandidate = false;
         forAll(patch, faceI)
         {
             const bool candidate =
                 particleStuckCandidateFaceMask_[patch.start() + faceI] != 0;
             anyCandidate = anyCandidate || candidate;
-            anyNonCandidate = anyNonCandidate || !candidate;
         }
-        if (anyCandidate && anyNonCandidate)
-        {
-            FatalErrorInFunction
-                << "A wall patch cannot be partially configured for the "
-                << "stuck contact model: " << patch.name()
-                << exit(FatalError);
-        }
+
         return anyCandidate;
     }
 
@@ -623,6 +597,17 @@ public:
     const word& particleReflectedWallHeatFluxFieldName() const
     {
         return particleReflectedWallHeatFluxFieldName_;
+    }
+
+    void resetParticleWallHeatLedgers()
+    {
+        requireInitialised("resetParticleWallHeatLedgers");
+        if (!particleWallHeatTransferEnabled_) return;
+        check
+        (
+            ugkwpGpuResidentStrictResetParticleWallHeatLedgers(handle_),
+            "reset GPU particle wall heat ledgers"
+        );
     }
 
     void downloadAndResetParticleWallHeatLedgers
@@ -660,27 +645,10 @@ public:
     )
     {
         requireInitialised("configureGasWallEnergyLedger");
-        if (gasWallEnergyConfigured_ || residentMesh_ != &mesh)
-        {
-            FatalErrorInFunction
-                << "Gas-wall ledger is already configured or the mesh is "
-                << "not the resident mesh." << exit(FatalError);
-        }
         label nConfigured = 0;
         forAll(coupledWallPatchIds, patchListI)
         {
             const label patchI = coupledWallPatchIds[patchListI];
-            if
-            (
-                patchI < 0
-             || patchI >= mesh.boundaryMesh().size()
-             || !isA<wallPolyPatch>(mesh.boundaryMesh()[patchI])
-            )
-            {
-                FatalErrorInFunction
-                    << "Invalid coupled gas-wall patch " << patchI
-                    << exit(FatalError);
-            }
             nConfigured += mesh.boundaryMesh()[patchI].size();
         }
         labelList faceIds(nConfigured);
@@ -740,15 +708,6 @@ public:
                 continue;
             }
             const label firstFace = gasWallEnergyFaceIds_[offset];
-            for (label faceI = 1; faceI < patchSize; ++faceI)
-            {
-                if (gasWallEnergyFaceIds_[offset + faceI] != firstFace + faceI)
-                {
-                    FatalErrorInFunction
-                        << "Configured coupled-patch faces are not contiguous."
-                        << exit(FatalError);
-                }
-            }
             check
             (
                 ugkwpGpuResidentStrictPeekWallEnergyLedgerRange
@@ -764,12 +723,6 @@ public:
             );
             offset += patchSize;
         }
-        if (offset != nConfigured)
-        {
-            FatalErrorInFunction
-                << "Configured gas-wall ledger patch sizes are inconsistent."
-                << exit(FatalError);
-        }
     }
 
     void restorePendingWallEnergyLedgers
@@ -780,18 +733,6 @@ public:
     )
     {
         requireInitialised("restorePendingWallEnergyLedgers");
-        const label nConfigured = gasWallEnergyFaceIds_.size();
-        if
-        (
-            gasEnergy.size() != nConfigured
-         || depositedEnergy.size() != nConfigured
-         || reflectedEnergy.size() != nConfigured
-        )
-        {
-            FatalErrorInFunction
-                << "Pending wall-energy ledger size does not match the "
-                << "configured coupled faces." << exit(FatalError);
-        }
         label offset = 0;
         forAll(gasWallEnergyPatchSizes_, patchListI)
         {
@@ -814,12 +755,6 @@ public:
                 "restore compact GPU pending wall-energy ledgers"
             );
             offset += patchSize;
-        }
-        if (offset != nConfigured)
-        {
-            FatalErrorInFunction
-                << "Configured gas-wall ledger patch sizes are inconsistent."
-                << exit(FatalError);
         }
     }
 
@@ -854,6 +789,17 @@ public:
             }
         }
         return grouped;
+    }
+
+    void resetGasWallEnergy()
+    {
+        requireInitialised("resetGasWallEnergy");
+        if (gasWallEnergyFaceIds_.empty()) return;
+        check
+        (
+            ugkwpGpuResidentStrictResetGasWallEnergy(handle_),
+            "reset GPU gas-wall energy ledger"
+        );
     }
 
     void downloadAndResetGasWallEnergy(scalarField& configuredEnergy)
@@ -940,12 +886,6 @@ public:
     )
     {
         requireInitialised("updateSolidWallTemperatures");
-        if (residentMesh_ != &mesh)
-        {
-            FatalErrorInFunction
-                << "Wall temperatures require the resident mesh."
-                << exit(FatalError);
-        }
         forAll(coupledWallPatchIds, patchListI)
         {
             const label patchI = coupledWallPatchIds[patchListI];
@@ -973,40 +913,12 @@ public:
     )
     {
         requireInitialised("updateParticleWallEffusivities");
-        if (residentMesh_ != &mesh || wallEffusivity.size() != mesh.boundary().size())
-        {
-            FatalErrorInFunction
-                << "Particle-wall effusivity requires the resident mesh and "
-                << "one field slot per boundary patch."
-                << exit(FatalError);
-        }
+
         forAll(coupledWallPatchIds, patchListI)
         {
             const label patchI = coupledWallPatchIds[patchListI];
             const polyPatch& patch = mesh.boundaryMesh()[patchI];
-            if (!particleWallContactEnabledOnPatch(mesh, patchI))
-            {
-                FatalErrorInFunction
-                    << "Particle-wall effusivity may only be uploaded for a "
-                    << "configured stuck contact patch: " << patch.name()
-                    << exit(FatalError);
-            }
             const scalarField& values = wallEffusivity[patchI];
-            if (values.size() != patch.size())
-            {
-                FatalErrorInFunction
-                    << "Mapped wall effusivity size mismatch on patch "
-                    << patch.name() << exit(FatalError);
-            }
-            forAll(values, faceI)
-            {
-                if (!finiteMirrorScalar(values[faceI]) || values[faceI] <= 0)
-                {
-                    FatalErrorInFunction
-                        << "Mapped wall effusivity must be finite and positive "
-                        << "on patch " << patch.name() << exit(FatalError);
-                }
-            }
             check
             (
                 ugkwpGpuResidentStrictUploadParticleWallEffusivityPatch
@@ -1126,12 +1038,7 @@ public:
     ) const
     {
         requireInitialised("downloadMobileParticleRadiationMaterial");
-        if (residentMesh_ != &mesh || !particleStateCellLocalPacked_)
-        {
-            FatalErrorInFunction
-                << "Mobile particle radiation material requires the packed "
-                << "post-step resident state." << exit(FatalError);
-        }
+
         particleMassKg.setSize(mesh.nCells(), scalar(0));
         scalarField temperatureMassKgK(mesh.nCells(), scalar(0));
         scalarField diameterMassKgM(mesh.nCells(), scalar(0));
@@ -1152,29 +1059,14 @@ public:
         forAll(particleMassKg, cellI)
         {
             const scalar mass = particleMassKg[cellI];
-            if (!std::isfinite(mass) || mass < scalar(0))
-            {
-                FatalErrorInFunction
-                    << "Invalid mobile particle radiation mass in cell "
-                    << cellI << exit(FatalError);
-            }
+
             if (mass > scalar(0))
             {
                 particleMeanTemperatureK[cellI] =
                     temperatureMassKgK[cellI]/mass;
                 representativeDiameterM[cellI] =
                     diameterMassKgM[cellI]/mass;
-                if
-                (
-                    !std::isfinite(particleMeanTemperatureK[cellI])
-                 || !std::isfinite(representativeDiameterM[cellI])
-                 || representativeDiameterM[cellI] <= scalar(0)
-                )
-                {
-                    FatalErrorInFunction
-                        << "Invalid mobile particle radiation material in "
-                        << "cell " << cellI << exit(FatalError);
-                }
+
             }
         }
     }
@@ -1197,12 +1089,7 @@ public:
     void refreshParticleEnthalpyAfterRadiation()
     {
         requireInitialised("refreshParticleEnthalpyAfterRadiation");
-        if (!particleStateCellLocalPacked_)
-        {
-            FatalErrorInFunction
-                << "Particle radiation requires the packed post-step state."
-                << exit(FatalError);
-        }
+
         check
         (
             ugkwpGpuResidentStrictRefreshParticleEnthalpyPacked(handle_),
@@ -1276,7 +1163,7 @@ protected:
         const dictionary* particleWallProps
     )
     {
-        ensureStorage();
+
         ensureFieldSizes(mesh, rho, rhoU, rhoE, U, p, Tgas, epsS, rhoUs, rhoEs, rhoDs, rhoHp, Us, theta, Tp, dMeanCell);
 
         const label nCells = mesh.nCells();
@@ -1657,7 +1544,7 @@ protected:
         const GpuSchedulingConfiguration& scheduling
     )
     {
-        ensureStorage();
+
         ensureGasFieldSizes(mesh, rho, rhoU, rhoE, U, p, Tgas);
 
         const label nCells = mesh.nCells();
@@ -1785,18 +1672,6 @@ public:
     )
     {
         requireInitialised("configure SST");
-        if
-        (
-            residentMesh_ != &mesh
-         || k.size() != mesh.nCells()
-         || omega.size() != mesh.nCells()
-         || wallDistance.size() != mesh.nCells()
-        )
-        {
-            FatalErrorInFunction
-                << "SST fields and wall distance must use the resident mesh."
-                << exit(FatalError);
-        }
 
         labelList boundaryKMode(mesh.nFaces(), 0);
         labelList boundaryOmegaMode(mesh.nFaces(), 0);
@@ -1913,12 +1788,6 @@ public:
     )
     {
         requireInitialised("download SST fields");
-        if (!runTime.writeTime() && !allowThermalCouplingWrite)
-        {
-            FatalErrorInFunction
-                << "SST fields may only be downloaded at writeTime()."
-                << exit(FatalError);
-        }
         scalarField kValues(hostMirrorCells_);
         scalarField omegaValues(hostMirrorCells_);
         scalarField nutValues(hostMirrorCells_);
@@ -1933,9 +1802,7 @@ public:
             ),
             "download GPU resident explicit SST"
         );
-        validateMirrorScalar("k", kValues);
-        validateMirrorScalar("omega", omegaValues);
-        validateMirrorScalar("nut", nutValues);
+
         assignScalar(k, kValues);
         assignScalar(omega, omegaValues);
         assignScalar(nut, nutValues);
@@ -1989,13 +1856,6 @@ public:
     )
     {
         requireInitialised("downloadNutToHostMirror");
-        if (!runTime.writeTime() && !allowThermalCouplingWrite)
-        {
-            FatalErrorInFunction
-                << "downloadNutToHostMirror is only allowed at writeTime(). "
-                << "LES diagnostics remain GPU resident between write times."
-                << exit(FatalError);
-        }
 
         scalarField nutF(hostMirrorCells_);
         check
@@ -2003,16 +1863,7 @@ public:
             ugkwpGpuResidentStrictDownloadNut(handle_, nutF.begin()),
             "download GPU resident nut field to host mirror"
         );
-        validateMirrorScalar("nut", nutF);
-        forAll(nutF, cellI)
-        {
-            if (nutF[cellI] < scalar(0))
-            {
-                FatalErrorInFunction
-                    << "GPU resident nut is negative at cell " << cellI
-                    << ": " << nutF[cellI] << exit(FatalError);
-            }
-        }
+
         assignScalar(nut, nutF);
         nut.correctBoundaryConditions();
     }
@@ -2028,23 +1879,6 @@ public:
     )
     {
         requireInitialised("configureScheduledInlet");
-        if
-        (
-            faceIds.empty()
-         || !finiteMirrorScalar(inletTemperature)
-         || inletTemperature <= SMALL
-         || pressureTimes.empty()
-         || pressureTimes.size() != pressureValues.size()
-         || volumeFractionTimes.empty()
-         || volumeFractionTimes.size() != volumeFractionValues.size()
-        )
-        {
-            FatalErrorInFunction
-                << "Scheduled inlet configuration requires non-empty faces, "
-                << "positive finite inlet temperature, and non-empty "
-                << "time/value tables with matching sizes"
-                << exit(FatalError);
-        }
 
         check
         (
@@ -2099,14 +1933,6 @@ public:
     )
     {
         requireInitialised("downloadToHostMirror");
-        if (!runTime.writeTime() && !allowThermalExchange)
-        {
-            FatalErrorInFunction
-                << "downloadToHostMirror is only allowed at writeTime(). "
-                << "Active GPU resident state must not be mirrored to CPU "
-                << "between write/restart boundaries."
-                << exit(FatalError);
-        }
 
         scalarField rhoF(hostMirrorCells_);
         scalarField rhoUxF(hostMirrorCells_);
@@ -2164,22 +1990,6 @@ public:
             "download GPU resident fields to host mirror"
         );
 
-        validateMirrorScalar("rho", rhoF);
-        validateMirrorVector("rhoU", rhoUxF, rhoUyF, rhoUzF);
-        validateMirrorScalar("rhoE", rhoEF);
-        validateMirrorVector("U", UxF, UyF, UzF);
-        validateMirrorScalar("p", pF);
-        validateMirrorScalar("T", TgasF);
-        validateMirrorScalar("epsilonS", epsSF);
-        validateMirrorVector("rhoUs", rhoUsxF, rhoUsyF, rhoUszF);
-        validateMirrorScalar("rhoEs", rhoEsF);
-        validateMirrorScalar("rhoDs", rhoDsF);
-        validateMirrorScalar("rhoHp", rhoHpF);
-        validateMirrorVector("Us", UsxF, UsyF, UszF);
-        validateMirrorScalar("theta", thetaF);
-        validateMirrorScalar("Tp", TpF);
-        validateMirrorScalar("dMeanCell", dMeanF);
-
         assignScalar(rho, rhoF);
         assignVector(rhoU, rhoUxF, rhoUyF, rhoUzF);
         assignScalar(rhoE, rhoEF);
@@ -2211,28 +2021,8 @@ public:
             runTime,
             allowThermalCouplingWrite
         );
-        int nSources = 0;
-        check
-        (
-            ugkwpGpuResidentStrictDownloadSourceResidualMass
-            (
-                handle_, &nSources, 0, nullptr, nullptr
-            ),
-            "query source residual count for thermal restart manifest"
-        );
-        const fileName particlePath = particleRestartFile(runTime);
-        const fileName epsPath = epsGPrevRestartFile(runTime);
-        const fileName sourcePath = sourceResidualRestartFile(runTime);
         GpuThermalRestartMirrorMetadata result;
-        result.particleFile = particlePath.name();
-        result.epsGPrevFile = epsPath.name();
-        result.sourceResidualFile = sourcePath.name();
         result.particleCount = nParticles;
-        result.epsGPrevCount = hostMirrorCells_;
-        result.sourceResidualCount = nSources;
-        result.particleSha1 = sha1File(particlePath);
-        result.epsGPrevSha1 = sha1File(epsPath);
-        result.sourceResidualSha1 = sha1File(sourcePath);
         return result;
     }
 
@@ -2243,14 +2033,6 @@ public:
     ) const
     {
         requireInitialised("writeParticleRestartMirror");
-        if (!runTime.writeTime() && !allowThermalCouplingWrite)
-        {
-            FatalErrorInFunction
-                << "writeParticleRestartMirror is only allowed at writeTime(). "
-                << "Particle SoA must remain GPU resident between restart "
-                << "boundaries."
-                << exit(FatalError);
-        }
 
         mkDir(runTime.timePath());
 
@@ -2311,33 +2093,33 @@ public:
         List<unsigned char> pStuck(nParticles);
         pStuck = static_cast<unsigned char>(0);
         labelList pStuckFaceId(nParticles, -1);
-        List<float> pDepositionArea(nParticles, 0.0f);
-        List<double> pContactDuration(nParticles, 0.0f);
-        List<float> pContactMaximumArea(nParticles, 0.0f);
-        List<float> pContactPeakFraction(nParticles, 0.0f);
+        List<double> pDepositionArea(nParticles, 0.0);
+        List<double> pContactDuration(nParticles, 0.0);
+        List<double> pContactMaximumArea(nParticles, 0.0);
+        List<double> pContactPeakFraction(nParticles, 0.0);
         List<float> pColdNodeSpecificEnthalpy
         (
             nParticles*gpuFshRestart::coldWallAxialNodeCount,
-            0.0f
+            0.0
         );
-        List<float> pColdRingSolidMass
+        List<double> pColdRingSolidMass
         (
             nParticles*gpuFshRestart::coldWallRadialRingCount,
-            0.0f
+            0.0
         );
-        List<float> pColdFrozenArea(nParticles, 0.0f);
-        List<double> pColdContactAge(nParticles, 0.0f);
+        List<double> pColdFrozenArea(nParticles, 0.0);
+        List<double> pColdContactAge(nParticles, 0.0);
         List<float> pCold2DNodeSpecificEnthalpy
         (
             nParticles*gpuFshRestart::coldWall2DNodeCount,
-            0.0f
+            0.0
         );
         List<double> pCold2DRingContactAge
         (
             nParticles*gpuFshRestart::coldWall2DRadialNodeCount,
-            0.0f
+            0.0
         );
-        List<float> pCold2DFrozenArea(nParticles, 0.0f);
+        List<double> pCold2DFrozenArea(nParticles, 0.0);
         List<unsigned long long> pRng(nParticles);
         List<unsigned long long> pOrigId(nParticles);
 
@@ -2423,7 +2205,7 @@ public:
         };
         try
         {
-            gpuFshRestart::writeV8(os, restartView);
+            gpuFshRestart::writeCurrent(os, restartView);
             os.close();
             if (!os.good() || std::rename(stagingFile.c_str(),restartFile.c_str())!=0)
                 throw std::runtime_error("failed publishing complete particle restart");
@@ -2447,13 +2229,6 @@ public:
     ) const
     {
         requireInitialised("writeEpsGPrevRestartMirror");
-
-        if (!runTime.writeTime() && !allowThermalCouplingWrite)
-        {
-            FatalErrorInFunction
-                << "writeEpsGPrevRestartMirror is only allowed at writeTime()."
-                << exit(FatalError);
-        }
 
         scalarField epsGPrev(hostMirrorCells_, scalar(1));
 
@@ -2493,12 +2268,6 @@ public:
     ) const
     {
         requireInitialised("writeSourceResidualRestartMirror");
-        if (!runTime.writeTime() && !allowThermalCouplingWrite)
-        {
-            FatalErrorInFunction
-                << "writeSourceResidualRestartMirror is only allowed at writeTime()."
-                << exit(FatalError);
-        }
 
         int nSources = 0;
         check
@@ -2561,45 +2330,9 @@ protected:
         return runTime.timePath()/"gpuResidentStrictSourceResidual.dat";
     }
 
-    static word sha1File(const fileName& path)
-    {
-        std::ifstream stream(path.c_str(), std::ios::binary);
-        if (!stream)
-        {
-            FatalErrorInFunction
-                << "Cannot open restart mirror for SHA-1: " << path
-                << exit(FatalError);
-        }
-        SHA1 digest;
-        char buffer[65536];
-        while (stream.good())
-        {
-            stream.read(buffer, sizeof(buffer));
-            const std::streamsize count = stream.gcount();
-            if (count > 0)
-            {
-                digest.append(buffer, static_cast<std::size_t>(count));
-            }
-        }
-        if (!stream.eof())
-        {
-            FatalErrorInFunction
-                << "Failed reading restart mirror for SHA-1: " << path
-                << exit(FatalError);
-        }
-        return word(digest.digest().str());
-    }
 
-    static void ensureStorage()
-    {
-        if (sizeof(scalar) != sizeof(double) || sizeof(label) != sizeof(int))
-        {
-            FatalErrorInFunction
-                << "GPU resident strict mode currently requires DP scalar "
-                << "storage and 32-bit labels."
-                << exit(FatalError);
-        }
-    }
+
+
 
     void requireInitialised(const char* action) const
     {
@@ -2772,52 +2505,9 @@ protected:
         return (value == value) && (mag(value) < GREAT);
     }
 
-    static void validateMirrorScalar
-    (
-        const word& name,
-        const scalarField& values
-    )
-    {
-        forAll(values, i)
-        {
-            if (!finiteMirrorScalar(values[i]))
-            {
-                FatalErrorInFunction
-                    << "GPU resident strict downloaded a non-finite scalar "
-                    << "mirror value before write: field=" << name
-                    << " cell=" << i
-                    << " value=" << values[i]
-                    << exit(FatalError);
-            }
-        }
-    }
 
-    static void validateMirrorVector
-    (
-        const word& name,
-        const scalarField& x,
-        const scalarField& y,
-        const scalarField& z
-    )
-    {
-        forAll(x, i)
-        {
-            if
-            (
-                !finiteMirrorScalar(x[i])
-             || !finiteMirrorScalar(y[i])
-             || !finiteMirrorScalar(z[i])
-            )
-            {
-                FatalErrorInFunction
-                    << "GPU resident strict downloaded a non-finite vector "
-                    << "mirror value before write: field=" << name
-                    << " cell=" << i
-                    << " value=(" << x[i] << ' ' << y[i] << ' ' << z[i] << ')'
-                    << exit(FatalError);
-            }
-        }
-    }
+
+
 
     void downloadGasBoundaryToHostMirror
     (
@@ -2913,6 +2603,7 @@ protected:
         bool weightedFshV4 = false;
         bool weightedFshV5 = false;
         bool weightedV7 = false;
+        bool currentLayout = false;
         bool weightedV8 = false;
         bool version3 = false;
         bool version2 = false;
@@ -2922,7 +2613,13 @@ protected:
                 << "Invalid GPU resident particle restart mirror: "
                 << restartFile << exit(FatalError);
         }
-        if (restartHeader == gpuFshRestart::schema8FormatName)
+        if (restartHeader == gpuFshRestart::currentFormatName)
+        {
+            currentLayout = true;
+            if (!(is >> nParticles >> maximumChunk))
+                FatalErrorInFunction << "Invalid current particle restart header" << exit(FatalError);
+        }
+        else if (restartHeader == gpuFshRestart::schema8FormatName)
         {
             weightedV8 = true;
             if (!(is >> nParticles >> maximumChunk))
@@ -3038,39 +2735,39 @@ protected:
         List<unsigned char> pStuck(nParticles);
         pStuck = static_cast<unsigned char>(0);
         labelList pStuckFaceId(nParticles, -1);
-        List<float> pDepositionArea(nParticles, 0.0f);
-        List<double> pContactDuration(nParticles, 0.0f);
-        List<float> pContactMaximumArea(nParticles, 0.0f);
-        List<float> pContactPeakFraction(nParticles, 0.0f);
+        List<double> pDepositionArea(nParticles, 0.0);
+        List<double> pContactDuration(nParticles, 0.0);
+        List<double> pContactMaximumArea(nParticles, 0.0);
+        List<double> pContactPeakFraction(nParticles, 0.0);
         List<float> pColdNodeSpecificEnthalpy
         (
             nParticles*gpuFshRestart::coldWallAxialNodeCount,
-            0.0f
+            0.0
         );
-        List<float> pColdRingSolidMass
+        List<double> pColdRingSolidMass
         (
             nParticles*gpuFshRestart::coldWallRadialRingCount,
-            0.0f
+            0.0
         );
-        List<float> pColdFrozenArea(nParticles, 0.0f);
-        List<double> pColdContactAge(nParticles, 0.0f);
+        List<double> pColdFrozenArea(nParticles, 0.0);
+        List<double> pColdContactAge(nParticles, 0.0);
         List<float> pCold2DNodeSpecificEnthalpy
         (
             nParticles*gpuFshRestart::coldWall2DNodeCount,
-            0.0f
+            0.0
         );
         List<double> pCold2DRingContactAge
         (
             nParticles*gpuFshRestart::coldWall2DRadialNodeCount,
-            0.0f
+            0.0
         );
-        List<float> pCold2DFrozenArea(nParticles, 0.0f);
+        List<double> pCold2DFrozenArea(nParticles, 0.0);
         List<unsigned long long> pRng(nParticles);
         List<unsigned long long> pOrigId(nParticles);
 
         if
         (
-            weightedFshV1 || weightedFshV2 || weightedFshV3
+            currentLayout || weightedFshV1 || weightedFshV2 || weightedFshV3
          || weightedFshV4 || weightedFshV5 || weightedV7 || weightedV8
         )
         {
@@ -3102,15 +2799,13 @@ protected:
             };
             try
             {
-                if (weightedV8)
+                if (currentLayout)
+                {
+                    gpuFshRestart::readCurrentPayload(is,static_cast<std::uint32_t>(maximumChunk),restartView);
+                }
+                else if (weightedV8)
                 {
                     gpuFshRestart::readV8Payload(is,static_cast<std::uint32_t>(maximumChunk),restartView);
-                    gpuFshRestart::prepareSchema8ThermalAuthorityForPrecision
-                    (
-                        restartView, ugkwpGpuSelectedPrecision(),
-                        particleStuckCandidateFaceMask_.cdata(),
-                        static_cast<std::size_t>(particleStuckCandidateFaceMask_.size())
-                    );
                 }
                 else if (weightedV7)
                 {
@@ -3178,43 +2873,43 @@ protected:
                  || pStuckFaceId[i] < -2
                  || pStuckFaceId[i] >= hostMirrorFaces_
                  || !std::isfinite(static_cast<double>(pDepositionArea[i]))
-                 || pDepositionArea[i] < 0.0f
+                 || pDepositionArea[i] < 0.0
                  || !std::isfinite(static_cast<double>(pContactDuration[i]))
                  || !std::isfinite(static_cast<double>(pContactMaximumArea[i]))
                  || !std::isfinite(static_cast<double>(pContactPeakFraction[i]))
-                 || pContactDuration[i] < 0.0f
-                 || pContactMaximumArea[i] < 0.0f
-                 || pContactPeakFraction[i] < 0.0f
+                 || pContactDuration[i] < 0.0
+                 || pContactMaximumArea[i] < 0.0
+                 || pContactPeakFraction[i] < 0.0
                  || (pStuck[i] == 0 && pStuckFaceId[i] != -1)
-                 || (pStuck[i] == 0 && pDepositionArea[i] != 0.0f)
+                 || (pStuck[i] == 0 && pDepositionArea[i] != 0.0)
                  || (pStuck[i] != 0 && pStuckFaceId[i] == -1)
                  || (pStuck[i] == 1 && pStuckFaceId[i] >= 0
-                     && pDepositionArea[i] <= 0.0f)
+                     && pDepositionArea[i] <= 0.0)
                  || (pStuck[i] == 1 && !
                     (
                         (
-                            pContactDuration[i] == 0.0f
-                         && pContactMaximumArea[i] == 0.0f
-                         && pContactPeakFraction[i] == 0.0f
+                            pContactDuration[i] == 0.0
+                         && pContactMaximumArea[i] == 0.0
+                         && pContactPeakFraction[i] == 0.0
                         )
                      || (
-                            pContactDuration[i] > 0.0f
-                         && pContactMaximumArea[i] > 0.0f
-                         && pContactPeakFraction[i] > 0.0f
-                         && pContactPeakFraction[i] < 1.0f
+                            pContactDuration[i] > 0.0
+                         && pContactMaximumArea[i] > 0.0
+                         && pContactPeakFraction[i] > 0.0
+                         && pContactPeakFraction[i] < 1.0
                         )
                     ))
                  || ((pStuck[i] == 2 || pStuck[i] == 3)
-                     && !(pContactDuration[i] > 0.0f))
+                     && !(pContactDuration[i] > 0.0))
                  || ((pStuck[i] == 2 || pStuck[i] == 3)
-                     && !(pContactMaximumArea[i] > 0.0f))
+                     && !(pContactMaximumArea[i] > 0.0))
                  || ((pStuck[i] == 2 || pStuck[i] == 3)
-                     && !(pContactPeakFraction[i] > 0.0f))
+                     && !(pContactPeakFraction[i] > 0.0))
                  || ((pStuck[i] == 2 || pStuck[i] == 3)
-                     && !(pContactPeakFraction[i] < 1.0f))
+                     && !(pContactPeakFraction[i] < 1.0))
                  || ((pStuck[i] == 2 || pStuck[i] == 3)
                      && pTheta[i] > pContactDuration[i])
-                 || (pStuckFaceId[i] == -2 && pDepositionArea[i] != 0.0f)
+                 || (pStuckFaceId[i] == -2 && pDepositionArea[i] != 0.0)
                  || (particleWallHeatTransferEnabled_ && pStuckFaceId[i] == -2)
                 )
                 {
@@ -3228,8 +2923,8 @@ protected:
         string line;
         if
         (
-            !weightedFshV1 && !weightedFshV2
-         && !weightedFshV3 && !weightedFshV4 && !weightedFshV5 && !weightedV7
+            !currentLayout && !weightedFshV1 && !weightedFshV2
+         && !weightedFshV3 && !weightedFshV4 && !weightedFshV5 && !weightedV7 && !weightedV8
         )
         {
           std::getline(is, line);
@@ -3368,22 +3063,17 @@ protected:
             if (version3)
             {
                 pStuckFaceId[i] = stuckFaceId;
-                pDepositionArea[i] = static_cast<float>(depositionArea);
+                pDepositionArea[i] = depositionArea;
                 if
                 (
                     !std::isfinite
                     (
                         static_cast<double>(pDepositionArea[i])
                     )
-                 || (
-                        depositionArea > scalar(0)
-                     && pDepositionArea[i] <= 0.0f
-                    )
                 )
                 {
                     FatalErrorInFunction
-                        << "V3 deposition area cannot be represented as "
-                        << "single precision at particle " << i
+                        << "Nonfinite V3 deposition area at particle " << i
                         << exit(FatalError);
                 }
             }
@@ -3403,18 +3093,9 @@ protected:
           }
         }
 
-        if (!weightedV7 && !weightedV8)
-        {
-            forAll(pStuck,i)
-                if (pStuck[i]==2u || pStuck[i]==3u)
-                    FatalErrorInFunction << "Legacy transient restart lacks saved impact velocity; use schema7 or fresh initial state" << exit(FatalError);
-        }
-        const double savedVelocityBound=(ugkwpGpuSelectedPrecision()==32 ? static_cast<double>(std::numeric_limits<float>::max()) : std::numeric_limits<double>::max());
-        forAll(puxOld,i)
-            if (!std::isfinite(puxOld[i]) || !std::isfinite(puyOld[i]) || !std::isfinite(puzOld[i])
-                || std::fabs(puxOld[i])>savedVelocityBound || std::fabs(puyOld[i])>savedVelocityBound
-                || std::fabs(puzOld[i])>savedVelocityBound)
-                FatalErrorInFunction << "Restart saved velocity is not representable" << exit(FatalError);
+        // Legacy files have no saved impact velocity. Retain the existing
+        // zero-initialized fallback; it does not reconstruct impact history.
+
 
         check
         (
@@ -3469,19 +3150,11 @@ protected:
         std::ifstream epsGIs(epsGPrevFile.c_str());
 
         label nCells = 0;
-        if (!(epsGIs >> nCells) || nCells < 0)
+        if (!(epsGIs >> nCells))
         {
             FatalErrorInFunction
                 << "Invalid GPU resident epsGPrev restart mirror: "
                 << epsGPrevFile << exit(FatalError);
-        }
-
-        if (nCells != hostMirrorCells_)
-        {
-            FatalErrorInFunction
-                << "GPU resident epsGPrev restart mirror cell count mismatch: "
-                << epsGPrevFile << ", expected " << hostMirrorCells_
-                << ", got " << nCells << exit(FatalError);
         }
 
         scalarField epsGPrev(hostMirrorCells_);
@@ -3531,8 +3204,6 @@ protected:
         if
         (
             !(is >> version >> nSources)
-         || version != "UGKP_SOURCE_RESIDUAL_SCHEMA1"
-         || nSources < 0
         )
         {
             FatalErrorInFunction
@@ -3547,8 +3218,6 @@ protected:
             if
             (
                 !(is >> sourceFace[i] >> residualMass[i])
-             || !finiteMirrorScalar(residualMass[i])
-             || residualMass[i] < scalar(0)
             )
             {
                 FatalErrorInFunction
@@ -3601,15 +3270,6 @@ protected:
             (
                 "maximumCoverage", scalar(0.63)
             );
-        if (model != nullptr && model->found("thermalContactAreaFraction"))
-        {
-            FatalErrorInFunction
-                << "gpuResidentStuckModel thermalContactAreaFraction was "
-                << "replaced by depositionHeatTransferEfficiency and "
-                << "reflectionHeatTransferEfficiency; configure both "
-                << "channels explicitly."
-                << exit(FatalError);
-        }
         const scalar depositionHeatTransferEfficiency =
             model == nullptr
           ? scalar(1)
@@ -3691,24 +3351,6 @@ protected:
         const label nonlinearIterations = model == nullptr
           ? label(4)
           : model->lookupOrDefault<label>("solidificationIterations", 4);
-        if
-        (
-            model != nullptr
-         && (
-                model->found("wallDensity")
-             || model->found("wallSpecificHeat")
-             || model->found("wallThermalConductivity")
-            )
-        )
-        {
-            FatalErrorInFunction
-                << "CHT does not accept wallDensity, wallSpecificHeat or "
-                << "wallThermalConductivity in gpuResidentStuckModel. "
-                << "Particle-wall contact properties are evaluated from "
-                << "solidRegionProperties rho/Cp/kappa at the local solid "
-                << "wall temperature."
-                << exit(FatalError);
-        }
         const word heatFluxField =
             model == nullptr
           ? word("particleStuckWallHeatFlux")
@@ -3724,110 +3366,6 @@ protected:
                 "reflectionHeatFluxField",
                 word("particleReflectedWallHeatFlux")
             );
-
-        if
-        (
-            !finiteMirrorScalar(sommerfeldThreshold)
-         || sommerfeldThreshold <= scalar(0)
-        )
-        {
-            FatalErrorInFunction
-                << "gpuResidentStuckModel sommerfeldThreshold must be "
-                << "finite and positive." << exit(FatalError);
-        }
-        if
-        (
-            !finiteMirrorScalar(maximumCoverage)
-         || maximumCoverage <= scalar(0)
-         || maximumCoverage > scalar(1)
-        )
-        {
-            FatalErrorInFunction
-                << "gpuResidentStuckModel maximumCoverage must be finite and "
-                << "in (0, 1]. Current value = " << maximumCoverage
-                << exit(FatalError);
-        }
-        if
-        (
-            !finiteMirrorScalar(depositionHeatTransferEfficiency)
-         || depositionHeatTransferEfficiency <= scalar(0)
-         || depositionHeatTransferEfficiency > scalar(1)
-        )
-        {
-            FatalErrorInFunction
-                << "gpuResidentStuckModel depositionHeatTransferEfficiency must be "
-                << "finite and in (0, 1]. Current value = "
-                << depositionHeatTransferEfficiency << exit(FatalError);
-        }
-        if
-        (
-            !finiteMirrorScalar(reflectionHeatTransferEfficiency)
-         || reflectionHeatTransferEfficiency <= scalar(0)
-         || reflectionHeatTransferEfficiency > scalar(1)
-        )
-        {
-            FatalErrorInFunction
-                << "gpuResidentStuckModel reflectionHeatTransferEfficiency must be "
-                << "finite and in (0, 1]. Current value = "
-                << reflectionHeatTransferEfficiency << exit(FatalError);
-        }
-        if
-        (
-            !finiteMirrorScalar(adhesionEnergyScale)
-         || adhesionEnergyScale <= scalar(0)
-        )
-        {
-            FatalErrorInFunction
-                << "gpuResidentStuckModel adhesionEnergyScale must be "
-                << "finite and positive."
-                << exit(FatalError);
-        }
-        if
-        (
-            !finiteMirrorScalar(contactAngleDegree)
-         || contactAngleDegree <= scalar(0)
-         || contactAngleDegree >= scalar(180)
-        )
-        {
-            FatalIOErrorInFunction(ugkwpProps)
-                << "gpuResidentStuckModel contactAngleDegree must be finite "
-                << "and in (0, 180) degrees. Current value = "
-                << contactAngleDegree << exit(FatalIOError);
-        }
-        if
-        (
-            !finiteMirrorScalar(meltingTemperatureK)
-         || !finiteMirrorScalar(mushyRangeK)
-         || !finiteMirrorScalar(latentHeatJkg)
-         || !finiteMirrorScalar(solidDensityKgM3)
-         || !finiteMirrorScalar(solidSpecificHeatJkgK)
-         || !finiteMirrorScalar(solidThermalConductivityWmK)
-         || !finiteMirrorScalar(pinningThicknessFraction)
-         || !finiteMirrorScalar(interfaceResistanceM2KW)
-         || meltingTemperatureK <= scalar(0)
-         || mushyRangeK <= scalar(0)
-         || latentHeatJkg <= scalar(0)
-         || solidDensityKgM3 <= scalar(0)
-         || solidSpecificHeatJkgK <= scalar(0)
-         || solidThermalConductivityWmK <= scalar(0)
-         || pinningThicknessFraction <= scalar(0)
-         || pinningThicknessFraction > scalar(1)
-         || interfaceResistanceM2KW < scalar(0)
-         || nonlinearIterations < 1
-         || nonlinearIterations > 12
-        )
-        {
-            FatalErrorInFunction
-                << "Invalid cold-wall solidification properties."
-                << exit(FatalError);
-        }
-        if (heatTransfer && heatFluxField == reflectionHeatFluxField)
-        {
-            FatalErrorInFunction
-                << "gpuResidentStuckModel heatFluxField and "
-                << "reflectionHeatFluxField must be different."
-                << exit(FatalError);
-        }
 
         const wordList candidatePatches =
             ugkwpProps.lookupOrDefault<wordList>
@@ -3845,35 +3383,22 @@ protected:
             if (name == "reboundContact") return 1;
             if (name == "solidifyingDeposition" || name == "coldWall1D") return 3;
             if (name == "coldWall2D") return 4;
-            FatalErrorInFunction
-                << "Unknown wall interaction model '" << name << "'. Valid "
-                << "models are reboundContact, coldWall1D, and coldWall2D. "
-                << "solidifyingDeposition is retained as an "
-                << "alias of coldWall1D."
-                << exit(FatalError);
             return 0;
         };
         const unsigned char defaultInteractionCode =
             wallInteractionCode(defaultWallInteractionModel);
-        boolList seen(mesh.boundaryMesh().size(), false);
         bool coldWallInteractionPresent = false;
         forAll(candidatePatches, nameI)
         {
             const word& patchName = candidatePatches[nameI];
             const label patchI = mesh.boundaryMesh().findPatchID(patchName);
-            if
-            (
-                patchI < 0
-             || seen[patchI]
-             || !isA<wallPolyPatch>(mesh.boundaryMesh()[patchI])
-            )
+            if (patchI < 0)
             {
                 FatalErrorInFunction
-                    << "gpuResidentStuckWallPatches contains a missing, "
-                    << "duplicate, or non-wall patch: " << patchName
+                    << "gpuResidentStuckWallPatches names a missing patch: "
+                    << patchName
                     << exit(FatalError);
             }
-            seen[patchI] = true;
             const polyPatch& pp = mesh.boundaryMesh()[patchI];
             forAll(pp, localFaceI)
             {
@@ -3893,11 +3418,11 @@ protected:
             {
                 const word patchName(iter().keyword());
                 const label patchI = mesh.boundaryMesh().findPatchID(patchName);
-                if (patchI < 0 || !seen[patchI])
+                if (patchI < 0)
                 {
                     FatalErrorInFunction
                         << "wallInteractionModels entry '" << patchName
-                        << "' is not listed in gpuResidentStuckWallPatches."
+                        << "' names a missing patch."
                         << exit(FatalError);
                 }
                 const unsigned char interactionCode = wallInteractionCode
@@ -3914,28 +3439,6 @@ protected:
                  || interactionCode == 3
                  || interactionCode == 4;
             }
-        }
-
-        if (heatTransfer)
-        {
-            if
-            (
-                candidatePatches.empty()
-             || !solveParticleTemperature
-            )
-            {
-                FatalErrorInFunction
-                    << "Enabled gpuResidentStuckModel heatTransfer requires "
-                    << "candidate wall patches and "
-                    << "particleTemperatureTransport true."
-                    << exit(FatalError);
-            }
-        }
-        if (coldWallInteractionPresent && !heatTransfer)
-        {
-            FatalErrorInFunction
-                << "coldWall1D/coldWall2D requires heatTransfer true."
-                << exit(FatalError);
         }
 
         if (candidatePatches.empty() && !heatTransfer)
@@ -4721,13 +4224,7 @@ protected:
                     (
                         !std::isfinite(expectedT)
                      || !std::isfinite(relativeEosError)
-                     || relativeEosError > max
-                       (
-                           scalar(1e-8),
-                           ugkwpGpuSelectedPrecision() == 32
-                         ? scalar(4)*scalar(std::numeric_limits<float>::epsilon())
-                         : scalar(0)
-                       )
+                     || relativeEosError > scalar(1e-8)
                     )
                     {
                         FatalErrorInFunction
@@ -5184,14 +4681,6 @@ public:
     )
     {
         requireInitialised("downloadToHostMirror");
-        if (!runTime.writeTime())
-        {
-            FatalErrorInFunction
-                << "downloadToHostMirror is only allowed at writeTime(). "
-                << "Active GPU resident state must not be mirrored to CPU "
-                << "between write/restart boundaries."
-                << exit(FatalError);
-        }
 
         scalarField rhoF(hostMirrorCells_);
         scalarField rhoUxF(hostMirrorCells_);
@@ -5236,13 +4725,6 @@ public:
             ),
             "download GPU resident pure-gas fields to host mirror"
         );
-
-        validateMirrorScalar("rho", rhoF);
-        validateMirrorVector("rhoU", rhoUxF, rhoUyF, rhoUzF);
-        validateMirrorScalar("rhoE", rhoEF);
-        validateMirrorVector("U", UxF, UyF, UzF);
-        validateMirrorScalar("p", pF);
-        validateMirrorScalar("T", TgasF);
 
         assignScalar(rho, rhoF);
         assignVector(rhoU, rhoUxF, rhoUyF, rhoUzF);

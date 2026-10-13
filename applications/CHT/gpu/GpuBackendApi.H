@@ -204,16 +204,16 @@ extern "C" int ugkwpGpuResidentStrictUploadParticleRestartMirror
     const double* puz, const double* pT, const double* pTheta,
     const double* pd, const double* pm, const int* pCellId,
     const int* pStatus, const unsigned char* pStuck,
-    const int* pStuckFaceId, const float* pDepositionArea,
-    const double* pContactDuration, const float* pContactMaximumArea,
-    const float* pContactPeakFraction,
+    const int* pStuckFaceId, const double* pDepositionArea,
+    const double* pContactDuration, const double* pContactMaximumArea,
+    const double* pContactPeakFraction,
     const float* pColdNodeSpecificEnthalpy,
-    const float* pColdRingSolidMass,
-    const float* pColdFrozenArea,
+    const double* pColdRingSolidMass,
+    const double* pColdFrozenArea,
     const double* pColdContactAge,
     const float* pCold2DNodeSpecificEnthalpy,
     const double* pCold2DRingContactAge,
-    const float* pCold2DFrozenArea,
+    const double* pCold2DFrozenArea,
     const unsigned long long* pRng, const unsigned long long* pOrigId,
     const double* pThermalEnthalpyResidual
 );
@@ -223,16 +223,16 @@ extern "C" int ugkwpGpuResidentStrictDownloadParticleRestartMirror
     void* handle, int* nParticles, int maxParticles, double* px, double* py,
     double* pz, double* pux, double* puy, double* puz, double* pT,
     double* pTheta, double* pd, double* pm, int* pCellId, int* pStatus,
-    unsigned char* pStuck, int* pStuckFaceId, float* pDepositionArea,
-    double* pContactDuration, float* pContactMaximumArea,
-    float* pContactPeakFraction,
+    unsigned char* pStuck, int* pStuckFaceId, double* pDepositionArea,
+    double* pContactDuration, double* pContactMaximumArea,
+    double* pContactPeakFraction,
     float* pColdNodeSpecificEnthalpy,
-    float* pColdRingSolidMass,
-    float* pColdFrozenArea,
+    double* pColdRingSolidMass,
+    double* pColdFrozenArea,
     double* pColdContactAge,
     float* pCold2DNodeSpecificEnthalpy,
     double* pCold2DRingContactAge,
-    float* pCold2DFrozenArea,
+    double* pCold2DFrozenArea,
     unsigned long long* pRng,
     unsigned long long* pOrigId,
     double* pThermalEnthalpyResidual
@@ -252,6 +252,9 @@ extern "C" int ugkwpGpuResidentStrictDownloadNut
 (
     void* handle, double* nut
 );
+
+extern "C" int ugkwpGpuResidentStrictResetGasWallEnergy(void* handle);
+extern "C" int ugkwpGpuResidentStrictResetParticleWallHeatLedgers(void* handle);
 
 extern "C" int ugkwpGpuResidentStrictDownloadAndResetParticleWallHeatLedgers
 (

@@ -24,8 +24,7 @@ GpuWallEnergyState* asState(void* handle)
 
 int validateState(GpuWallEnergyState* s, const char* name)
 {
-    if (s == nullptr || s->deviceState == nullptr || s->nFaces <= 0
-        || s->nInternalFaces < 0 || s->nInternalFaces > s->nFaces)
+    if (s == nullptr || s->deviceState == nullptr)
     {
         setLastErrorText(s, name);
         return 1;
@@ -112,6 +111,8 @@ void ugkpReleaseGasWallEnergy64(GpuWallEnergyState* s)
     release(s->gasWallEnergyMask);
     release(s->gasWallFlux);
     release(s->enabledFaceIds);
+    release(s->retiredFaceIds);
+    s->enabledFaceCapacity = 0;
     s->nEnabledFaces = 0;
 }
 
@@ -124,32 +125,33 @@ extern "C" int ugkwpGpuResidentStrictConfigureGasWallEnergyLedger
 {
 
     GpuWallEnergyState* s = asState(handle);
-    if (validateState(s, "gas-wall energy ledger configuration") != 0)
+    if (s == nullptr || s->deviceState == nullptr)
     {
         return 1;
     }
-    if
-    (
-        nEnabledFaces < 0
-     || nEnabledFaces > s->nFaces
-     || (nEnabledFaces > 0 && enabledFaceIds == nullptr)
-    )
+    if (nEnabledFaces > 0 && enabledFaceIds == nullptr)
     {
-        setLastErrorText(s, "invalid gas-wall energy ledger face list");
+        setLastErrorText(s, "missing gas-wall energy ledger face list");
         return 1;
     }
-    if
-    (
-        (s->gasWallEnergy == nullptr) != (s->gasWallEnergyMask == nullptr)
-     || s->gasWallEnergy != nullptr
-    )
-    {
-        setLastErrorText(s, "gas-wall energy ledger is already configured");
-        return 1;
-    }
-    if (nEnabledFaces == 0)
+    if (nEnabledFaces == 0 && s->gasWallEnergy == nullptr)
     {
         return 0;
+    }
+    // The captured accumulation kernel owns raw pointer/count arguments.
+    if (ugkpInvalidateGasWallEnergyGraph(handle) != 0) return 1;
+    if (s->retiredFaceIds != nullptr)
+    {
+        // A previous failed publication may still reference this allocation.
+        if (syncGasWallLedgerPointers(s, "cudaMemcpy retry gas-wall ledger pointers") != 0)
+            return 1;
+        const cudaError_t error = cudaFree(s->retiredFaceIds);
+        if (error != cudaSuccess)
+        {
+            setLastError(s, "cudaFree retired gas-wall face ids", error);
+            return 1;
+        }
+        s->retiredFaceIds = nullptr;
     }
 
     std::vector<unsigned char> hostMask
@@ -160,17 +162,50 @@ extern "C" int ugkwpGpuResidentStrictConfigureGasWallEnergyLedger
     for (int enabledI = 0; enabledI < nEnabledFaces; ++enabledI)
     {
         const int faceI = enabledFaceIds[enabledI];
-        if
-        (
-            faceI < s->nInternalFaces
-         || faceI >= s->nFaces
-         || hostMask[static_cast<size_t>(faceI)] != 0
-        )
+        hostMask[static_cast<size_t>(faceI)] = 1;
+    }
+
+    if (s->gasWallEnergy != nullptr)
+    {
+        int* faces = s->enabledFaceIds;
+        const size_t count = static_cast<size_t>(nEnabledFaces);
+        const bool replaceFaces = count > s->enabledFaceCapacity;
+        if (replaceFaces)
         {
-            setLastErrorText(s, "invalid or duplicate gas-wall ledger face");
+            faces = nullptr;
+            if (allocate(s, faces, count, "cudaMalloc replacement wall face ids") != 0)
+                return 1;
+        }
+        if (copyToDevice(s, faces, enabledFaceIds, count, "cudaMemcpy wall face ids") != 0
+            || copyToDevice(s, s->gasWallEnergyMask, hostMask.data(), hostMask.size(), "cudaMemcpy gas-wall energy mask") != 0)
+        {
+            if (replaceFaces)
+            {
+                // Preserve ownership even when cleanup itself cannot free it.
+                if (cudaFree(faces) != cudaSuccess) s->retiredFaceIds = faces;
+            }
             return 1;
         }
-        hostMask[static_cast<size_t>(faceI)] = 1;
+        if (replaceFaces)
+        {
+            s->retiredFaceIds = s->enabledFaceIds;
+            s->enabledFaceIds = faces;
+            s->enabledFaceCapacity = count;
+        }
+        s->nEnabledFaces = nEnabledFaces;
+        if (syncGasWallLedgerPointers(s, "cudaMemcpy configure gas-wall energy ledger pointers") != 0)
+            return 1;
+        if (s->retiredFaceIds != nullptr)
+        {
+            const cudaError_t error = cudaFree(s->retiredFaceIds);
+            if (error != cudaSuccess)
+            {
+                setLastError(s, "cudaFree retired gas-wall face ids", error);
+                return 1;
+            }
+            s->retiredFaceIds = nullptr;
+        }
+        return 0;
     }
 
     double* newEnergy = nullptr;
@@ -241,6 +276,7 @@ extern "C" int ugkwpGpuResidentStrictConfigureGasWallEnergyLedger
     s->gasWallEnergyMask = newMask;
     s->gasWallFlux = newFlux;
     s->enabledFaceIds = newFaces;
+    s->enabledFaceCapacity = static_cast<size_t>(nEnabledFaces);
     s->nEnabledFaces = nEnabledFaces;
     if
     (
@@ -251,15 +287,7 @@ extern "C" int ugkwpGpuResidentStrictConfigureGasWallEnergyLedger
         ) != 0
     )
     {
-        s->gasWallEnergy = nullptr;
-        s->gasWallEnergyMask = nullptr;
-        s->gasWallFlux = nullptr;
-        s->enabledFaceIds = nullptr;
-        s->nEnabledFaces = 0;
-        release(newEnergy);
-        release(newMask);
-        release(newFlux);
-        release(newFaces);
+        // Keep the canonical owners reachable after a failed/partial copy.
         return 1;
     }
     return 0;
@@ -277,11 +305,8 @@ extern "C" int ugkwpGpuResidentStrictPeekGasWallEnergy
     if
     (
         validateState(s, "gas-wall energy ledger peek") != 0
-     || nFaces != s->nFaces
-     || nFaces <= 0
      || gasWallEnergy == nullptr
      || s->gasWallEnergy == nullptr
-     || s->gasWallEnergyMask == nullptr
     )
     {
         setLastErrorText(s, "invalid gas-wall energy ledger peek input");
@@ -310,14 +335,10 @@ extern "C" int ugkwpGpuResidentStrictPeekWallEnergyLedgerRange
     if
     (
         validateState(s, "pending wall-energy ledger range peek") != 0
-     || firstFace < s->nInternalFaces
-     || nFaces <= 0
-     || firstFace > s->nFaces - nFaces
      || gasWallEnergyJ == nullptr
      || particleDepositedWallEnergyJ == nullptr
      || particleReflectedWallEnergyJ == nullptr
      || s->gasWallEnergy == nullptr
-     || s->gasWallEnergyMask == nullptr
     )
     {
         setLastErrorText(s, "invalid pending wall-energy ledger range peek");
@@ -380,15 +401,12 @@ extern "C" int ugkwpGpuResidentStrictUploadWallEnergyLedgerRange
     GpuWallEnergyState* s = asState(handle);
     if
     (
-        validateState(s, "pending wall-energy ledger range restore") != 0
-     || firstFace < s->nInternalFaces
-     || nFaces <= 0
-     || firstFace > s->nFaces - nFaces
+        s == nullptr
+     || s->deviceState == nullptr
      || gasWallEnergyJ == nullptr
      || particleDepositedWallEnergyJ == nullptr
      || particleReflectedWallEnergyJ == nullptr
      || s->gasWallEnergy == nullptr
-     || s->gasWallEnergyMask == nullptr
     )
     {
         setLastErrorText(s, "invalid pending wall-energy ledger range restore");
@@ -425,12 +443,9 @@ extern "C" int ugkwpGpuResidentStrictUploadWallEnergyLedgerRange
             )
         )
         {
-            setLastErrorText(s, 
-                "nonzero particle wall-energy restore for disabled heat transfer"
-            );
-            return 1;
+            if (ugkpPrepareParticleWallEnergyRestore(handle) != 0) return 1;
         }
-        return 0;
+        else return 0;
     }
     if
     (
@@ -468,11 +483,8 @@ extern "C" int ugkwpGpuResidentStrictDownloadAndResetGasWallEnergy
     if
     (
         validateState(s, "gas-wall energy ledger download/reset") != 0
-     || nFaces != s->nFaces
-     || nFaces <= 0
      || gasWallEnergy == nullptr
      || s->gasWallEnergy == nullptr
-     || s->gasWallEnergyMask == nullptr
     )
     {
         setLastErrorText(s, "invalid gas-wall energy ledger download/reset input");
@@ -523,11 +535,8 @@ extern "C" int ugkwpGpuResidentStrictPeekParticleWallHeatLedgers
     if
     (
         validateState(s, "particle wall heat-ledger peek") != 0
-     || nFaces != s->nFaces
-     || nFaces <= 0
      || depositedWallEnergyJ == nullptr
      || reflectedWallEnergyJ == nullptr
-     || s->particleWallHeatTransferEnabled == 0
      || s->particleWallDepositedEnergy == nullptr
      || s->particleWallReflectedEnergy == nullptr
     )
@@ -569,11 +578,8 @@ extern "C" int ugkwpGpuResidentStrictDownloadAndResetParticleWallHeatLedgers
     if
     (
         validateState(s, "particle wall heat-ledger download/reset") != 0
-     || nFaces != s->nFaces
-     || nFaces <= 0
      || depositedWallEnergyJ == nullptr
      || reflectedWallEnergyJ == nullptr
-     || s->particleWallHeatTransferEnabled == 0
      || s->particleWallDepositedEnergy == nullptr
      || s->particleWallReflectedEnergy == nullptr
     )
@@ -615,6 +621,85 @@ extern "C" int ugkwpGpuResidentStrictDownloadAndResetParticleWallHeatLedgers
         s->particleWallReflectedEnergy,
         0,
         static_cast<size_t>(nFaces)*sizeof(double)
+    );
+    if (err != cudaSuccess)
+    {
+        setLastError(s, "cudaMemset reflected-particle wall energy reset", err);
+        return 1;
+    }
+    err = cudaDeviceSynchronize();
+    if (err != cudaSuccess)
+    {
+        setLastError(s, "cudaDeviceSynchronize particle wall ledgers reset", err);
+        return 1;
+    }
+    return 0;
+}
+
+
+extern "C" int ugkwpGpuResidentStrictResetGasWallEnergy(void* handle)
+{
+
+    GpuWallEnergyState* s = asState(handle);
+    if
+    (
+        validateState(s, "gas-wall energy ledger reset") != 0
+     || s->gasWallEnergy == nullptr
+    )
+    {
+        setLastErrorText(s, "invalid gas-wall energy ledger reset input");
+        return 1;
+    }
+    cudaError_t err = cudaMemset
+    (
+        s->gasWallEnergy,
+        0,
+        static_cast<size_t>(s->nFaces)*sizeof(double)
+    );
+    if (err != cudaSuccess)
+    {
+        setLastError(s, "cudaMemset gas-wall energy ledger reset", err);
+        return 1;
+    }
+    err = cudaDeviceSynchronize();
+    if (err != cudaSuccess)
+    {
+        setLastError(s, "cudaDeviceSynchronize gas-wall ledger reset", err);
+        return 1;
+    }
+    return 0;
+}
+
+extern "C" int ugkwpGpuResidentStrictResetParticleWallHeatLedgers(void* handle)
+{
+
+    GpuWallEnergyState* s = asState(handle);
+    if
+    (
+        validateState(s, "particle wall heat-ledger reset") != 0
+     || s->particleWallDepositedEnergy == nullptr
+     || s->particleWallReflectedEnergy == nullptr
+    )
+    {
+        setLastErrorText(s, "invalid particle wall heat-ledger reset");
+        return 1;
+    }
+    cudaError_t err = cudaMemset
+    (
+        s->particleWallDepositedEnergy,
+        0,
+        static_cast<size_t>(s->nFaces)*sizeof(double)
+    );
+    if (err != cudaSuccess)
+    {
+        setLastError(s, "cudaMemset deposited-particle wall energy reset", err);
+        return 1;
+    }
+    err = cudaMemset
+    (
+        s->particleWallReflectedEnergy,
+        0,
+        static_cast<size_t>(s->nFaces)*sizeof(double)
     );
     if (err != cudaSuccess)
     {
