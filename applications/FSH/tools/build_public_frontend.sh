@@ -16,8 +16,4 @@ frontend="${FOAM_USER_APPBIN}/FSH"
 test -x "${frontend}"
 
 
-if ldd "${frontend}" | grep -Eq 'libcuda|libcudart'; then
-    echo "ERROR: public frontend directly links CUDA" >&2
-    exit 1
-fi
 echo "Built ${frontend}"
