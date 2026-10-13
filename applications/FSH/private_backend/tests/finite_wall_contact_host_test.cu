@@ -31,7 +31,7 @@ int main()
     assert(normalizedEffectiveArea(impact.peakTimeFraction, impact.peakTimeFraction, 0.25) > 0.74);
     assert(normalizedEffectiveArea(0.01, impact.peakTimeFraction, 0.5) == 0.0);
 
-    std::vector<float> table
+    std::vector<double> table
     (
         finiteContactTimeTableSize*finiteContactDamageTableSize
        *finiteContactPeakTableSize
