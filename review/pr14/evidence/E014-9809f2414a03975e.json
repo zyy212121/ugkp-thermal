@@ -1,0 +1,83 @@
+[
+  {
+    "command": [
+      "/workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/toolchains/cuda/bin/nvcc",
+      "-std=c++17",
+      "-arch=sm_80",
+      "-I/workspace/scratch/98b6339ec81b/chmt_remaining_work_20261013/applications/CHMT",
+      "-I/workspace/scratch/98b6339ec81b/chmt_remaining_work_20261013/common",
+      "-c",
+      "/workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/implementation/b6/cuda/storage.cu",
+      "-o",
+      "/workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/implementation/b6/cuda/storage.o"
+    ],
+    "returncode": 0,
+    "seconds": 4.984001437002007
+  },
+  {
+    "command": [
+      "/workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/toolchains/cuda/bin/nvcc",
+      "-std=c++17",
+      "--expt-relaxed-constexpr",
+      "-arch=sm_80",
+      "-I/workspace/scratch/98b6339ec81b/chmt_remaining_work_20261013",
+      "-I/workspace/scratch/98b6339ec81b/chmt_remaining_work_20261013/common",
+      "-c",
+      "/workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/implementation/b6/cuda/native.cu",
+      "-o",
+      "/workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/implementation/b6/cuda/native.o"
+    ],
+    "returncode": 0,
+    "seconds": 3.411976715000492
+  },
+  {
+    "command": [
+      "/workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/toolchains/cuda/bin/nvcc",
+      "-std=c++17",
+      "--expt-relaxed-constexpr",
+      "-arch=sm_80",
+      "-I/workspace/scratch/98b6339ec81b/chmt_remaining_work_20261013",
+      "-I/workspace/scratch/98b6339ec81b/chmt_remaining_work_20261013/applications/CHMT",
+      "-I/workspace/scratch/98b6339ec81b/chmt_remaining_work_20261013/common",
+      "-c",
+      "/workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/implementation/b6/cuda/storage.cu",
+      "-o",
+      "/workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/implementation/b6/cuda/storage-final.o"
+    ],
+    "returncode": 0,
+    "seconds": 5.490554539999721
+  },
+  {
+    "command": [
+      "/workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/toolchains/cuda/bin/nvcc",
+      "-std=c++17",
+      "--expt-relaxed-constexpr",
+      "-arch=sm_80",
+      "-I/workspace/scratch/98b6339ec81b/chmt_remaining_work_20261013",
+      "-I/workspace/scratch/98b6339ec81b/chmt_remaining_work_20261013/applications/CHMT",
+      "-I/workspace/scratch/98b6339ec81b/chmt_remaining_work_20261013/common",
+      "-c",
+      "/workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/implementation/b6/cuda/sst.cu",
+      "-o",
+      "/workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/implementation/b6/cuda/sst-final.o"
+    ],
+    "returncode": 0,
+    "seconds": 0.8904498180017981
+  },
+  {
+    "command": [
+      "/workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/toolchains/cuda/bin/nvcc",
+      "-std=c++17",
+      "--expt-relaxed-constexpr",
+      "-arch=sm_80",
+      "-I/workspace/scratch/98b6339ec81b/chmt_remaining_work_20261013/applications/CHMT",
+      "-I/workspace/scratch/98b6339ec81b/chmt_remaining_work_20261013/common",
+      "-c",
+      "/workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/implementation/b6/cuda/storage.cu",
+      "-o",
+      "/workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/implementation/b6/cuda/storage-freeze.o"
+    ],
+    "returncode": 0,
+    "seconds": 5.222544395997829
+  }
+]

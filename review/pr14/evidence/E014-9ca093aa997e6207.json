@@ -1,0 +1,14 @@
+{
+  "remote_commit": "82f9c016704c9822b16b87cdeeb11f5bbd44d06f",
+  "frozen_commit": "74d48d30123c903845cf7a11210c8b5c65aeff68",
+  "frozen_tree": "116d667da1a853798b336c40070845039899d84c",
+  "files": 7174,
+  "expected_files": 7174,
+  "mode_counts": {
+    "100644": 6956,
+    "100755": 152,
+    "120000": 66
+  },
+  "issues": [],
+  "matching": true
+}

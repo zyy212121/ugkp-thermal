@@ -1,0 +1,35 @@
+{
+  "new_verified": [
+    "zero-rank absent coefficients succeeds with complete empty output",
+    "zero-rank fully backed unused Cv overflow succeeds with complete empty output",
+    "strict empty Jacobian retains success",
+    "positive-rank absent coefficients remains a real unavailable consumed channel",
+    "positive-rank overflowing calorics still complete actual derivative with diagnostic",
+    "zero-rank actually missing reaction input still unavailable",
+    "review paired finite/missing/overflow shared status and field outputs match inherited source",
+    "fresh small CUDA compile"
+  ],
+  "reused": [
+    {
+      "source": "/workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/implementation/b4/freeze.json",
+      "sha256": "126b4373e515325332b9b2334076094a184f9b61a0515916d0ce245a89a75374",
+      "scope": "All independently verified unaffected B4 accuracy/lineage receipts and 2,825 indexed artifacts remain unchanged."
+    },
+    {
+      "source": "/workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/implementation/b4/independent-review.json",
+      "sha256": "a44abe902284765cf6db709626170fcdc2f4839f172847b1ab769214c6f74bda",
+      "scope": "Evidence validation and no other blocking finding from the v1 review retained."
+    }
+  ],
+  "invalidated": [
+    "v1 zero-rank missing/overflow caloric status/availability behavior",
+    "v1 CUDA source hash superseded for the revised header"
+  ],
+  "remaining_gaps": [
+    "Fresh independent re-review of R1",
+    "Lost historical exact twelve-case mapping remains unavailable",
+    "No actual GPU numeric/timing execution",
+    "B7 actual native outer routing, two-half capture, D2H/commit/copy-error integration"
+  ],
+  "not_rerun": "No unchanged default-step/H2O2/lineage suite or huge application build."
+}

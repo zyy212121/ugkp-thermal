@@ -1,0 +1,36 @@
+{
+  "base_commit": "1aaee9eb905562ea04bafefcb05e40c88bb94508",
+  "cases": 32,
+  "matching_stdout_sha256": {
+    "base": "568dfec82b064dc37074537023b6d38ba0d0fd7b9cb4d6b0a060bbe8460fb49c",
+    "current": "568dfec82b064dc37074537023b6d38ba0d0fd7b9cb4d6b0a060bbe8460fb49c"
+  },
+  "elapsed_seconds": 6.868808367000383,
+  "scope": "strict/direct x Euler/SSPRK2/3 x SST off/on x ordinary wall/skip x moving Euler; all allocated bulk/Next/primitive/gradient/face species arrays, SST inventories/initial/gradients/F1/F2/nut, budget and13 SST ledger arrays; dump each Euler and blend boundary",
+  "commands": [
+    [
+      "g++",
+      "-std=c++17",
+      "-O2",
+      "-ffp-contract=off",
+      "-I/workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/implementation/b3/success/base-tree/common",
+      "-I/workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/implementation/b3/success/base-tree/common/gasNumerics",
+      "-I/workspace/scratch/98b6339ec81b/chmt_remaining_work_20261013/tests/gas_transport",
+      "/workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/implementation/b3/success/base.cpp",
+      "-o",
+      "/workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/implementation/b3/success/base"
+    ],
+    [
+      "g++",
+      "-std=c++17",
+      "-O2",
+      "-ffp-contract=off",
+      "-I/workspace/scratch/98b6339ec81b/chmt_remaining_work_20261013/common",
+      "-I/workspace/scratch/98b6339ec81b/chmt_remaining_work_20261013/common/gasNumerics",
+      "-I/workspace/scratch/98b6339ec81b/chmt_remaining_work_20261013/tests/gas_transport",
+      "/workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/implementation/b3/success/current.cpp",
+      "-o",
+      "/workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/implementation/b3/success/current"
+    ]
+  ]
+}

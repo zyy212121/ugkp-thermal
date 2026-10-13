@@ -1,0 +1,94 @@
+[
+  {
+    "id": "RES-FE-001",
+    "files": [
+      "applications/CHT/readGpuGasConfiguration.H",
+      "applications/FSH/readGpuGasConfiguration.H"
+    ],
+    "function": "main included gas configuration",
+    "change": "Remove schema equality and numerical thermo/transport/floor/LES/SST preflight; remove forced robustFallback.",
+    "preserved": "Dictionary syntax/lookups, available model selection, exact RR/molWeight; Cv=Cp-R; gamma=Cp/Cv and dimensioned field assignments. Unsupported selected operators and F3 remain missing implementation errors.",
+    "cost": "Remove fixed numerical predicate chain and unused schema lookups; no new loop or fallback.",
+    "gpu_request": "Run baseline accepted CHT/FSH cases and compare output. Then supplied finite Cp=2R (gamma2), dormant invalid LES/SST values in laminar mode, alternate schema markers and false robustFallback must reach existing backend. User accepts resulting physics/numerical risk."
+  },
+  {
+    "id": "RES-FE-002",
+    "files": [
+      "applications/CHT/createFields.H",
+      "applications/FSH/createFields.H"
+    ],
+    "function": "main included field creation",
+    "change": "Remove numerical gravity/rhoS/dS/parcel/injection/legacy-mass admission.",
+    "preserved": "Original dictionary reads, dimensions, field allocation/initialization and missing model/field failures.",
+    "cost": "Remove fixed checks only.",
+    "gpu_request": "Baseline valid field initialization must remain identical; supplied signed/nonfinite values may propagate through unchanged native producers without frontend refusal."
+  },
+  {
+    "id": "RES-FE-003",
+    "files": [
+      "common/gpu/GpuBoundarySchedule.H"
+    ],
+    "function": "GpuBoundaryScheduleTable constructors",
+    "change": "Remove requireValid and validRows numerical schedule preflight; preserve tracked CHT/FSH/gasUGKP symlinks.",
+    "preserved": "File open and actual extraction errors, original row storage, copyColumns order and values.",
+    "cost": "Remove one O(schedule rows) finiteness scan per construction.",
+    "gpu_request": "All three consumers: old accepted schedules unchanged; unusual backed schedule scalar values reach unchanged native interpolation. Real missing/malformed file must still fail."
+  },
+  {
+    "id": "RES-FE-004",
+    "files": [
+      "applications/CHT/gpu/GpuDragModel.H",
+      "applications/FSH/gpu/GpuDragModel.H"
+    ],
+    "function": "Gidaspow residualRe read",
+    "change": "Remove residualRe finite/positive refusal.",
+    "preserved": "Original required CHT lookup, existing FSH default, same parameter assignment and actual selected drag implementation.",
+    "cost": "Remove fixed scalar predicates.",
+    "gpu_request": "Baseline Gidaspow drag preserved; user-supplied residualRe reaches existing drag path without frontend stop. Unknown model and missing required coefficient dictionary still error."
+  },
+  {
+    "id": "RES-FE-005",
+    "files": [
+      "applications/CHT/diluteUgkwpFoam.C"
+    ],
+    "function": "main entry and thermal configuration",
+    "change": "Remove ASCII write-precision admission and solid/radiation schemaVersion1 gate.",
+    "preserved": "Configured output precision itself, thermal dictionary reads and unchanged producer/write operations.",
+    "cost": "Remove metadata reads/checks, no additional writes or warnings.",
+    "gpu_request": "Ordinary baseline restart output unchanged; lower requested ASCII precision and alternate otherwise-valid schema markers no longer prevent startup. Precision-related data loss is user-accepted."
+  },
+  {
+    "id": "RES-FE-006",
+    "files": [
+      "applications/CHT/diluteUgkwpFoam.C",
+      "applications/FSH/diluteUgkwpFoam.C"
+    ],
+    "function": "main resident options and scheduled boundary configuration",
+    "change": "Remove dead legacy partial-offload/random-bridge/representative-merge admission reads and scheduled inlet temperature finiteness/uniformity scan.",
+    "preserved": "Mandatory existing resident route; no unavailable legacy feature is activated. Missing/empty selected patch checks, actual first-face T choice and schedule tables remain.",
+    "cost": "Remove dead option reads and O(inlet faces) temperature scan.",
+    "gpu_request": "Accepted uniform scheduled cases preserve first-face value and outputs. Newly admitted nonuniform input uses the existing first face representative; obsolete flags do not implement a new CPU bridge or merge route."
+  },
+  {
+    "id": "RES-FE-007",
+    "files": [
+      "applications/FSH/diluteUgkwpFoam.C"
+    ],
+    "function": "main wall-ledger output",
+    "change": "Remove duplicate resident-vs-field switch/name certificates and positive accumulation-time refusal; accept ledger surplus while retaining actual minimum consumed prefix.",
+    "preserved": "Host output fields still constructed under existing host heat flag. Real download/reset failures, missing prefix, exact per-face energy/(area*time) arithmetic and write order remain.",
+    "cost": "Remove constant metadata/numerical checks, retain actual output loops and transfers.",
+    "gpu_request": "Baseline wall outputs unchanged; verify accepted payload reaches same heat-flux calculation for changed numerical interval, and unavailable ledger bytes/copy errors remain errors."
+  },
+  {
+    "id": "RES-FE-008",
+    "files": [
+      "applications/CHT/diluteUgkwpFoam.C"
+    ],
+    "function": "main writeInterval startup",
+    "change": "Remove blanket nonpositive writeInterval gate; preserve exact -1 thermal-coupling sentinel and actual OpenFOAM Time scheduling behavior.",
+    "preserved": "Existing readTimeControls/writeTime arithmetic and native Time dictionary/modulo/division/conversion errors; no replacement schedule or zero result.",
+    "cost": "Remove fixed predicate only.",
+    "gpu_request": "Compare baseline positive interval and -1 thermal coupling writes; user-selected negative non-sentinel runTime reaches existing Time scheduling behavior. Zero/native unsupported timeStep values can still fail in actual OpenFOAM machinery."
+  }
+]

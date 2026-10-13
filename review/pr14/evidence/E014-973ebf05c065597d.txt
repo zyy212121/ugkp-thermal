@@ -1,0 +1,175 @@
+0000000000000000 r .LC0
+0000000000000080 r .LC10
+0000000000000090 r .LC11
+00000000000000a0 r .LC12
+00000000000000b0 r .LC13
+00000000000000c0 r .LC14
+0000000000000038 r .LC15
+0000000000000000 r .LC16
+000000000000000e r .LC17
+000000000000001c r .LC18
+0000000000000000 r .LC2
+0000000000000070 r .LC20
+0000000000000098 r .LC22
+000000000000002c r .LC23
+0000000000000000 r .LC25
+0000000000000068 r .LC26
+0000000000000000 r .LC27
+0000000000000000 r .LC28
+00000000000000b8 r .LC29
+0000000000000010 r .LC3
+000000000000002e r .LC30
+00000000000000e0 r .LC32
+0000000000000150 r .LC33
+000000000000003a r .LC34
+0000000000000054 r .LC35
+000000000000005c r .LC36
+00000000000001b8 r .LC37
+00000000000000d0 r .LC38
+00000000000000e0 r .LC39
+0000000000000020 r .LC4
+00000000000000f0 r .LC40
+0000000000000208 r .LC42
+0000000000000100 r .LC43
+0000000000000110 r .LC44
+0000000000000120 r .LC46
+0000000000000130 r .LC48
+0000000000000030 r .LC5
+0000000000000250 r .LC50
+0000000000000280 r .LC51
+0000000000000072 r .LC52
+000000000000008d r .LC53
+0000000000000140 r .LC54
+0000000000000150 r .LC55
+0000000000000160 r .LC56
+0000000000000000 r .LC59
+0000000000000040 r .LC6
+0000000000000000 r .LC60
+00000000000002a8 r .LC61
+00000000000002d8 r .LC62
+0000000000000170 r .LC63
+0000000000000180 r .LC66
+0000000000000190 r .LC67
+00000000000001a0 r .LC68
+00000000000001b0 r .LC69
+0000000000000050 r .LC7
+0000000000000060 r .LC8
+0000000000000070 r .LC9
+0000000000000000 V DW.ref.__gxx_personality_v0
+                 U _GLOBAL_OFFSET_TABLE_
+0000000000000000 t _GLOBAL__sub_I_GpuSolidPatchMapper.C
+                 U _Unwind_Resume
+                 U Foam::FatalError
+00000000000000f0 t Foam::gpuThermal::(anonymous namespace)::mappingFailure(Foam::gpuThermal::SolidPatchPair const&, int, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const&)
+000000000000000c t Foam::gpuThermal::(anonymous namespace)::mappingFailure(Foam::gpuThermal::SolidPatchPair const&, int, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const&) [clone .cold]
+0000000000000330 t Foam::gpuThermal::(anonymous namespace)::validateSourceSize(Foam::Field<double> const&, int, Foam::gpuThermal::SolidPatchPair const&, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const&)
+00000000000000e5 t Foam::gpuThermal::(anonymous namespace)::validateSourceSize(Foam::Field<double> const&, int, Foam::gpuThermal::SolidPatchPair const&, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const&) [clone .cold]
+0000000000000000 W Foam::gpuThermal::SolidPatchMappingError::~SolidPatchMappingError()
+0000000000000000 W Foam::gpuThermal::SolidPatchMappingError::~SolidPatchMappingError()
+0000000000000000 W Foam::gpuThermal::SolidPatchMappingError::~SolidPatchMappingError()
+0000000000000000 n Foam::gpuThermal::SolidPatchMappingError::~SolidPatchMappingError()
+0000000000001170 T Foam::gpuThermal::OneToOneConformalSolidPatchMapper::OneToOneConformalSolidPatchMapper(Foam::fvMesh const&, Foam::fvMesh const&, Foam::List<Foam::gpuThermal::SolidPatchPair> const&, bool)
+0000000000001170 T Foam::gpuThermal::OneToOneConformalSolidPatchMapper::OneToOneConformalSolidPatchMapper(Foam::fvMesh const&, Foam::fvMesh const&, Foam::List<Foam::gpuThermal::SolidPatchPair> const&, bool)
+0000000000000194 t Foam::gpuThermal::OneToOneConformalSolidPatchMapper::OneToOneConformalSolidPatchMapper(Foam::fvMesh const&, Foam::fvMesh const&, Foam::List<Foam::gpuThermal::SolidPatchPair> const&, bool) [clone .cold]
+0000000000000000 W Foam::gpuThermal::OneToOneConformalSolidPatchMapper::~OneToOneConformalSolidPatchMapper()
+0000000000000000 W Foam::gpuThermal::OneToOneConformalSolidPatchMapper::~OneToOneConformalSolidPatchMapper()
+0000000000000000 W Foam::gpuThermal::OneToOneConformalSolidPatchMapper::~OneToOneConformalSolidPatchMapper()
+0000000000000000 n Foam::gpuThermal::OneToOneConformalSolidPatchMapper::~OneToOneConformalSolidPatchMapper()
+0000000000001670 T Foam::gpuThermal::ConservativeNearestSolidPatchMapper::ConservativeNearestSolidPatchMapper(Foam::fvMesh const&, Foam::fvMesh const&, Foam::List<Foam::gpuThermal::SolidPatchPair> const&)
+0000000000001670 T Foam::gpuThermal::ConservativeNearestSolidPatchMapper::ConservativeNearestSolidPatchMapper(Foam::fvMesh const&, Foam::fvMesh const&, Foam::List<Foam::gpuThermal::SolidPatchPair> const&)
+00000000000001f6 t Foam::gpuThermal::ConservativeNearestSolidPatchMapper::ConservativeNearestSolidPatchMapper(Foam::fvMesh const&, Foam::fvMesh const&, Foam::List<Foam::gpuThermal::SolidPatchPair> const&) [clone .cold]
+0000000000000000 W Foam::gpuThermal::ConservativeNearestSolidPatchMapper::~ConservativeNearestSolidPatchMapper()
+0000000000000000 W Foam::gpuThermal::ConservativeNearestSolidPatchMapper::~ConservativeNearestSolidPatchMapper()
+0000000000000000 W Foam::gpuThermal::ConservativeNearestSolidPatchMapper::~ConservativeNearestSolidPatchMapper()
+0000000000000000 n Foam::gpuThermal::ConservativeNearestSolidPatchMapper::~ConservativeNearestSolidPatchMapper()
+0000000000000000 W Foam::List<Foam::List<int> >::List(int)
+0000000000000000 W Foam::List<Foam::List<int> >::List(int)
+0000000000000000 n Foam::List<Foam::List<int> >::List(int)
+0000000000000000 W Foam::List<Foam::gpuThermal::SolidPatchPair>::List(Foam::List<Foam::gpuThermal::SolidPatchPair> const&)
+0000000000000000 W Foam::List<Foam::gpuThermal::SolidPatchPair>::List(Foam::List<Foam::gpuThermal::SolidPatchPair> const&)
+0000000000000000 n Foam::List<Foam::gpuThermal::SolidPatchPair>::List(Foam::List<Foam::gpuThermal::SolidPatchPair> const&)
+0000000000000000 W Foam::List<Foam::gpuThermal::SolidPatchPair>::~List()
+0000000000000000 W Foam::List<Foam::gpuThermal::SolidPatchPair>::~List()
+0000000000000000 n Foam::List<Foam::gpuThermal::SolidPatchPair>::~List()
+0000000000000000 W Foam::List<int>::List(int, int const&)
+0000000000000000 W Foam::List<int>::List(int, int const&)
+0000000000000000 n Foam::List<int>::List(int, int const&)
+                 U Foam::error::abort()
+                 U Foam::error::operator()(char const*, char const*, int)
+                 U Foam::operator<<(Foam::Ostream&, char const*)
+                 U Foam::operator<<(Foam::Ostream&, int)
+0000000000000010 T Foam::gpuThermal::OneToOneConformalSolidPatchMapper::patchPairs() const
+0000000000000250 T Foam::gpuThermal::OneToOneConformalSolidPatchMapper::checkedPair(int) const
+00000000000000b0 t Foam::gpuThermal::OneToOneConformalSolidPatchMapper::checkedPair(int) const [clone .cold]
+0000000000000020 T Foam::gpuThermal::OneToOneConformalSolidPatchMapper::fluidPatchIds() const
+0000000000000030 T Foam::gpuThermal::OneToOneConformalSolidPatchMapper::solidPatchIds() const
+0000000000000e20 T Foam::gpuThermal::OneToOneConformalSolidPatchMapper::mapSolidScalarToFluid(int, Foam::Field<double> const&) const
+0000000000000182 t Foam::gpuThermal::OneToOneConformalSolidPatchMapper::mapSolidScalarToFluid(int, Foam::Field<double> const&) const [clone .cold]
+0000000000000ad0 T Foam::gpuThermal::OneToOneConformalSolidPatchMapper::mapIntegratedFaceEnergyToSolid(int, Foam::Field<double> const&) const
+0000000000000170 t Foam::gpuThermal::OneToOneConformalSolidPatchMapper::mapIntegratedFaceEnergyToSolid(int, Foam::Field<double> const&) const [clone .cold]
+0000000000000000 T Foam::gpuThermal::OneToOneConformalSolidPatchMapper::size() const
+0000000000000010 T Foam::gpuThermal::ConservativeNearestSolidPatchMapper::patchPairs() const
+00000000000001c0 T Foam::gpuThermal::ConservativeNearestSolidPatchMapper::checkedPair(int) const
+000000000000008e t Foam::gpuThermal::ConservativeNearestSolidPatchMapper::checkedPair(int) const [clone .cold]
+0000000000000020 T Foam::gpuThermal::ConservativeNearestSolidPatchMapper::fluidPatchIds() const
+0000000000000030 T Foam::gpuThermal::ConservativeNearestSolidPatchMapper::solidPatchIds() const
+0000000000000840 T Foam::gpuThermal::ConservativeNearestSolidPatchMapper::mapSolidScalarToFluid(int, Foam::Field<double> const&) const
+000000000000015e t Foam::gpuThermal::ConservativeNearestSolidPatchMapper::mapSolidScalarToFluid(int, Foam::Field<double> const&) const [clone .cold]
+00000000000004a0 T Foam::gpuThermal::ConservativeNearestSolidPatchMapper::mapIntegratedFaceEnergyToSolid(int, Foam::Field<double> const&) const
+000000000000014c t Foam::gpuThermal::ConservativeNearestSolidPatchMapper::mapIntegratedFaceEnergyToSolid(int, Foam::Field<double> const&) const [clone .cold]
+0000000000000000 T Foam::gpuThermal::ConservativeNearestSolidPatchMapper::size() const
+                 U Foam::fvBoundaryMesh::findPatchID(Foam::word const&) const
+                 U Foam::fvMesh::boundary() const
+                 U Foam::fvPatch::Cf() const
+0000000000000000 W Foam::fvPatch::size() const
+                 U std::runtime_error::what() const
+                 U std::__cxx11::basic_stringbuf<char, std::char_traits<char>, std::allocator<char> >::str() const
+                 U std::ostream::operator<<(int)
+                 U std::runtime_error::runtime_error(std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const&)
+                 U std::runtime_error::~runtime_error()
+                 U std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >::_M_dispose()
+                 U std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >::_M_replace(unsigned long, unsigned long, char const*, unsigned long)
+                 U std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >::append(char const*)
+                 U std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >::insert(unsigned long, char const*)
+                 U std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >::reserve(unsigned long)
+                 U std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >::_M_append(char const*, unsigned long)
+                 U std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >::_M_assign(std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const&)
+                 U std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >::_M_create(unsigned long&, unsigned long)
+                 U std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >::basic_string(std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >&&)
+0000000000000040 t std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >::basic_string(char const*, std::allocator<char> const&) [clone .isra.0]
+0000000000000000 t std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >::basic_string(char const*, std::allocator<char> const&) [clone .isra.0] [clone .cold]
+                 U std::__cxx11::basic_ostringstream<char, std::char_traits<char>, std::allocator<char> >::basic_ostringstream()
+                 U std::__cxx11::basic_ostringstream<char, std::char_traits<char>, std::allocator<char> >::~basic_ostringstream()
+0000000000000000 W std::__cxx11::to_string(int)
+                 U std::basic_ostream<char, std::char_traits<char> >& std::__ostream_insert<char, std::char_traits<char> >(std::basic_ostream<char, std::char_traits<char> >&, char const*, long)
+                 U std::__throw_logic_error(char const*)
+                 U std::__throw_length_error(char const*)
+                 U std::ios_base_library_init()
+0000000000000000 W std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > std::operator+<char, std::char_traits<char>, std::allocator<char> >(std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >&&, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >&&)
+0000000000000000 V typeinfo for Foam::gpuThermal::GpuSolidPatchMapper
+0000000000000000 V typeinfo for Foam::gpuThermal::SolidPatchMappingError
+0000000000000000 V typeinfo for Foam::gpuThermal::OneToOneConformalSolidPatchMapper
+0000000000000000 V typeinfo for Foam::gpuThermal::ConservativeNearestSolidPatchMapper
+                 U typeinfo for std::runtime_error
+0000000000000000 V typeinfo name for Foam::gpuThermal::GpuSolidPatchMapper
+0000000000000000 V typeinfo name for Foam::gpuThermal::SolidPatchMappingError
+0000000000000000 V typeinfo name for Foam::gpuThermal::OneToOneConformalSolidPatchMapper
+0000000000000000 V typeinfo name for Foam::gpuThermal::ConservativeNearestSolidPatchMapper
+                 U vtable for __cxxabiv1::__class_type_info
+                 U vtable for __cxxabiv1::__si_class_type_info
+0000000000000000 V vtable for Foam::gpuThermal::SolidPatchMappingError
+0000000000000000 V vtable for Foam::gpuThermal::OneToOneConformalSolidPatchMapper
+0000000000000000 V vtable for Foam::gpuThermal::ConservativeNearestSolidPatchMapper
+                 U operator delete[](void*)
+                 U operator delete[](void*, unsigned long)
+                 U operator delete(void*, unsigned long)
+                 U operator new[](unsigned long)
+                 U __cxa_allocate_exception
+                 U __cxa_free_exception
+                 U __cxa_throw
+                 U __gxx_personality_v0
+                 U fmax
+                 U memcpy
+                 U memmove
+                 U memset
+                 U strlen

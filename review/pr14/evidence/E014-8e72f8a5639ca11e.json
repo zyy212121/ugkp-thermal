@@ -1,0 +1,36 @@
+[
+  {
+    "name": "base-5f",
+    "command": [
+      "g++",
+      "-std=c++17",
+      "-O1",
+      "-I/workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/implementation/b7/tmp/cost-base-5f",
+      "-I/workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/implementation/b7/baseline/applications/CHMT",
+      "-I/workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/implementation/b7/baseline",
+      "-I/workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/implementation/b7/baseline/common",
+      "/workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/implementation/b7/tmp/cost-base-5f/source.cpp",
+      "-o",
+      "/workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/implementation/b7/tmp/cost-base-5f/probe"
+    ],
+    "result": "resident allocations=142 bytes=4024 chemistryStatusBytes=20 ownerBytes=7056\nclear zero_calls=4 zero_bytes=104\ncheck D2H_bytes=32 sync=4 allocations=0 frees=0\n",
+    "source_sha256": "cd8492c14557f56f96f178d79e06a2715974f11c9c319806cf508cec3cdc372f"
+  },
+  {
+    "name": "working",
+    "command": [
+      "g++",
+      "-std=c++17",
+      "-O1",
+      "-I/workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/implementation/b7/tmp/cost-final-working",
+      "-I/workspace/scratch/98b6339ec81b/chmt_remaining_work_20261013/applications/CHMT",
+      "-I/workspace/scratch/98b6339ec81b/chmt_remaining_work_20261013",
+      "-I/workspace/scratch/98b6339ec81b/chmt_remaining_work_20261013/common",
+      "/workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/implementation/b7/tmp/cost-final-working/source.cpp",
+      "-o",
+      "/workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/implementation/b7/tmp/cost-final-working/probe"
+    ],
+    "result": "resident allocations=141 bytes=4004 chemistryStatusBytes=20 ownerBytes=7040\nclear zero_calls=3 zero_bytes=84\ncheck D2H_bytes=12 sync=1 allocations=0 frees=0\n",
+    "source_sha256": "cd8492c14557f56f96f178d79e06a2715974f11c9c319806cf508cec3cdc372f"
+  }
+]

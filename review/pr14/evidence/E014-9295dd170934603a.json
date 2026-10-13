@@ -1,0 +1,39 @@
+{
+  "repair": "B5-R1",
+  "v1_freeze": {
+    "path": "/workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/implementation/b5/freeze.json",
+    "sha256": "1975c4e718a3ac27716a62ec58ff31e3c1478aa314ef18b8f1a677428ce1bb13"
+  },
+  "independent_review": {
+    "path": "/workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/implementation/b5/independent-review.json",
+    "sha256": "588afe1a65eb7a77680e79c2717e0b9d5ef9ce75e8575ff91d31bc0699bb3787"
+  },
+  "new_evidence": {
+    "red": "logs/red.log: 5 failed,8 passed; four actual changed terminal reuse defects plus true missing new workspace",
+    "intermediate": "logs/green.log:13 passed; superseded by final terminal primitive tail",
+    "newly_identified_gap": "logs/inf-component.log:2 passed,1 failed; unchanged +Inf normalSpeed actual fresh projection tail",
+    "final": "logs/final.log:16 passed,8 deselected; actual closure call counts and complete layer/trace/packet fields"
+  },
+  "reused": {
+    "v1_evidence_artifacts": 4474,
+    "verified_hash_mismatches": 0,
+    "v1_dependency_entries": 637,
+    "changed_dependencies": [
+      "applications/CHMT/gpu/GasWallMath.H"
+    ],
+    "unchanged_source_files": 30,
+    "original_success_traces": "11/29/150 + analytic overflow unchanged; no rebuild",
+    "cuda": "two v1 real nvcc sm80 receipts unchanged; neither TU includes GasWallMath; no unrelated recompile",
+    "v1_independent_review": "All findings except R1 retained; B5-R1 awaits scoped re-review"
+  },
+  "remaining_gaps": [
+    "Independent R1 re-review",
+    "B6 lifecycle/reconfiguration/ownership",
+    "B7 stale stage actual producer + dependent face scheduling",
+    "B7 HostState terminal material sampling",
+    "B7 global status/retry/commit consumption",
+    "Native GPU/OF execution and performance unavailable",
+    "Unified PR14 final acceptance; no merge"
+  ],
+  "no_broad_rerun": true
+}
