@@ -485,9 +485,6 @@ PendingWallEnergyLedgerSnapshot readPendingWallEnergyLedgersImpl
         (
             value.face < 0
          || value.face >= nMeshFaces
-         || !finiteScalar(value.gasEnergyJ)
-         || !finiteScalar(value.depositedEnergyJ)
-         || !finiteScalar(value.reflectedEnergyJ)
         )
         {
             stateError("invalid pending wall-energy ledger entry in " + pathText(path));
@@ -559,10 +556,6 @@ Foam::gpuThermal::ThermalExchangeWriteEventStateMachine::prepareWriteEvent
         return decision;
     }
     const scalar deltaT = simulationTimeS - committedState_.completedSimulationTimeS;
-    if (!finiteScalar(deltaT))
-    {
-        stateError("thermal exchange interval is nonfinite");
-    }
     if (deltaT == scalar(0))
     {
         return decision;
