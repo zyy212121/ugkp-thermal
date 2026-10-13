@@ -17,7 +17,23 @@
     "budget_note": "Proposed per-case process budget; reviewer records actual plan before execution. Timeout is external observation, never production admission. Larger or production scope needs separate plan."
   },
   "reviewer_results": [],
-  "developer_replies": [],
+  "developer_replies": [
+    {
+      "id": "R014-001-A001",
+      "interaction_class": "FAST",
+      "recorded_utc": "2026-10-13T17:53:04.518048+00:00",
+      "responds_to": "R014-001 publication identity and remote integrity request",
+      "final_source_commit": "a73b9635510fb09d7baa5339e14d1aa609f0ff87",
+      "local_delivery_commit": "f207912ac1ad8d3c6dcc8368831a6cc0ea2748d4",
+      "verified_preclosure_remote_head": "a747db386160a7f3737fa67b25207e34f5c118d9",
+      "verified_preclosure_remote_tree": "76ffd38cf7470879347423a4f8467cf47547aae6",
+      "evidence_ids": [
+        "E014-ceba3ce114bee654"
+      ],
+      "reply": "Fetched remote delivery matched every path, object and mode of the frozen f207 tree. All 919 frozen review paths matched; main remained d611 and README differences were zero. Explicit CI observation is retained in the evidence, with no inferred overall pass.",
+      "remaining_work": "Verify the subsequent closure metadata commit against a new committed freeze, then deliver its exact remote head/tree and fresh CI directly to the user with fixed-version links. Reviewer real-GPU acceptance remains pending. Draft/unmerged; merge requires separate approval."
+    }
+  ],
   "recheck_results": [],
   "final_decision": {
     "status": "PENDING",
@@ -33,5 +49,8 @@
       "superseded_for_future_execution_by": "a73b9635510fb09d7baa5339e14d1aa609f0ff87",
       "recorded_utc": "2026-10-13T17:04:48.115739+00:00"
     }
+  ],
+  "publication_observation_evidence_ids": [
+    "E014-ceba3ce114bee654"
   ]
 }
