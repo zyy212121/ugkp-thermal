@@ -17,7 +17,7 @@ DISCRETE = ("cell", "status", "rng")
 
 def read_restart(path: Path) -> tuple[list[int], dict[int, dict[str, float | int]]]:
     with path.open("rb") as stream:
-        binary_fsh = stream.readline().startswith(b"UGKP_FSH_PARTICLES_SCHEMA")
+        binary_fsh = stream.readline().startswith((b"UGKP_FSH_PARTICLES_SCHEMA", b"UGKP_CHT_PARTICLES_SCHEMA", b"UGKP_THERMAL_PARTICLES_SCHEMA"))
     if binary_fsh:
         sys.path.insert(0, str(Path(__file__).resolve().parents[3] / "examples/thermal/postprocessing"))
         from fsh_restart_reader import iter_fsh_chunks
