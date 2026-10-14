@@ -1,0 +1,33 @@
+{
+  "name": "device-low-opt",
+  "command": [
+    "/tmp/pr14_cuda13/nvidia/cu13/bin/nvcc",
+    "--Ofast-compile=max",
+    "-Xptxas=-O0",
+    "-std=c++17",
+    "-O0",
+    "-arch=sm_89",
+    "--fmad=true",
+    "-I/workspace/scratch/98b6339ec81b/pr14_fast_fix_20261014/applications/gasUGKP/private_backend",
+    "-I/workspace/scratch/98b6339ec81b/pr14_fast_fix_20261014/common",
+    "-I/workspace/scratch/98b6339ec81b/pr14_fast_fix_20261014/common/gasNumerics",
+    "-I/workspace/scratch/98b6339ec81b/pr14_fast_fix_20261014/applications/gasUGKP/gpu",
+    "/workspace/scratch/98b6339ec81b/pr14_fast4_chemistry_final_compile_20261014/chemistry_trial.cu",
+    "-o",
+    "/workspace/scratch/98b6339ec81b/pr14_fast4_chemistry_final_compile_20261014/chemistry_trial-device-low-opt"
+  ],
+  "cwd": "/workspace/scratch/98b6339ec81b/pr14_fast_fix_20261014",
+  "started_at_utc": "2026-10-14T17:28:28.900564+00:00",
+  "finished_at_utc": "2026-10-14T17:28:46.857805+00:00",
+  "elapsed_seconds": 17.957264083001064,
+  "exit_code": 0,
+  "maximum_child_rss_kib": 777400,
+  "source_before_after_equal": true,
+  "source_changes_during_run": [],
+  "source_count": 288,
+  "generated_source_sha256": "175760f07385e87ac21710772c96e1776d9df0c2fa1dc4eb9ba74c73181493d8",
+  "gpu_runtime_executed": false,
+  "original_O3_acceptance": false,
+  "full_production_fixture_compiled": true,
+  "binary_sha256": "39b0f694b2adae5e1d5a2a415c3165af542b7a8b58f987837670e54e240fecb5"
+}
