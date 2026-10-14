@@ -33,6 +33,39 @@ UGKWP_GAS_HD inline ChemistryStatus recordFailure
         species.cellStatus[cell] = int(unavailable?GasTransportCode::InvalidStorage:GasTransportCode::ChemistryFailure);
     return status;
 }
+// Called only after the selected reactor failed to publish. InvalidModel can
+// also be a strict-trial metadata/basis diagnostic; only actually unavailable
+// consumed backing belongs in the sticky storage channel. Numerical metadata
+// still reaches the owner's existing public terminal-completion path.
+template<class TableReal,int Ns>
+UGKWP_GAS_HD inline bool unavailableTrialModel
+(
+    const SpeciesThermoView<TableReal,Ns>& thermo,
+    const GasMechanismView<TableReal,Ns>& mechanism,
+    const ChemistryStatus& status
+) noexcept
+{
+    if (status.thermoCode == ThermoStatus::InvalidModel)
+    {
+        if (!thermo.species || !thermo.coefficients) return true;
+        for (int s = 0; s < Ns; ++s)
+            if (thermo.species[s].model != SpeciesThermoModel::LinearCp
+                && thermo.species[s].model != SpeciesThermoModel::NASA7) return true;
+        // The thermo producer stopped before any mechanism input was consumed.
+        // In particular, zero-time completion need not consume a missing basis.
+        return false;
+    }
+    if (status.code == ChemistryCode::InvalidModel
+        && mechanism.independentRank > 0 && !mechanism.stoichiometricBasis) return true;
+    if (status.attemptedSteps > 0)
+    {
+        if (mechanism.reactionCount > 0 && !mechanism.reactions) return true;
+        if (status.reaction >= 0 && mechanism.reactions)
+            return !gasChemistryDetail::reactionInputAvailable<TableReal,Ns,true>
+                (mechanism,status.reaction);
+    }
+    return false;
+}
 } // namespace gasChemistryAdapterDetail
 
 // The single density-storage-to-closed-reactor adapter. Both application
@@ -137,13 +170,25 @@ UGKWP_GAS_HD inline ChemistryStatus advanceGasChemistryCell
         ChemistryAudit<Real, Ns> localAudit;
         const ChemistryStatus inputDiagnostic=status;
         bool reactorAvailable=false;
-        status = advanceClosedReactor
-        (
-            input, interval, species.thermo, species.mechanism,
-            castChemistryControls<Real>(species.chemistryControls), result, localAudit, &reactorAvailable
-        );
+        if (nativeRefinement)
+            status = advanceClosedReactorTrial
+            (
+                input, interval, species.thermo, species.mechanism,
+                castChemistryControls<Real>(species.chemistryControls), result, localAudit, &reactorAvailable
+            );
+        else
+            status = advanceClosedReactor
+            (
+                input, interval, species.thermo, species.mechanism,
+                castChemistryControls<Real>(species.chemistryControls), result, localAudit, &reactorAvailable
+            );
         if (!reactorAvailable)
-            return gasChemistryAdapterDetail::recordFailure(species, cell, status);
+            return gasChemistryAdapterDetail::recordFailure
+            (
+                species, cell, status,
+                !nativeRefinement || gasChemistryAdapterDetail::unavailableTrialModel
+                    (species.thermo,species.mechanism,status)
+            );
         gasChemistryDetail::retainDiagnostic(status,inputDiagnostic);
 
         // Convert the actual publication before the first write. A zero-time

@@ -58,6 +58,12 @@ __device__ void initialiseColdWallParticleState
         s.pColdNodeSpecificEnthalpy[nodeBase + node] =
             static_cast<typename std::remove_reference<decltype(s.pColdNodeSpecificEnthalpy[0])>::type>(nodeEnthalpy[node]);
     }
+#ifdef GPU_PAIRED_PARTICLE_HEAT
+    // The uniform float profile is a cache; retain its cast loss in the
+    // existing physical J/kg carry without discarding earlier heat.
+    s.pThermalEnthalpyResidual[particleI] += double(nodeEnthalpy[0])
+      - double(s.pColdNodeSpecificEnthalpy[nodeBase]);
+#endif
     for (int ring = 0; ring < Foam::gpuThermal::coldWallRadialRingCount; ++ring)
     {
         s.pColdRingSolidMass[ringBase + ring] = 0.0;
