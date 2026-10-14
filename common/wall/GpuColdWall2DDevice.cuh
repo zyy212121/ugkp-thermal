@@ -102,6 +102,12 @@ __device__ void initialiseColdWall2DParticleState
     {
         s.pCold2DRingContactAge[ringBase + ring] = 0.0;
     }
+#ifdef GPU_PAIRED_PARTICLE_HEAT
+    // The uniform float profile is a cache; retain its cast loss in the
+    // existing physical J/kg carry without discarding earlier heat.
+    s.pThermalEnthalpyResidual[particleI] += double(initialEnthalpy)
+      - double(s.pCold2DNodeSpecificEnthalpy[nodeBase]);
+#endif
     s.pCold2DFrozenArea[particleI] = 0.0;
 }
 
