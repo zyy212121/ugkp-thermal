@@ -1,8 +1,7 @@
 // Actual OpenFOAM material/film driver with prescribed, stage-matched gas history.
 // This tests pressure adaptation and the ledger, not native gas execution.
 #include "ablation/WallClosureHost.H"
-#include "fvCFD.H"
-#include "materials/CpuMaterialDriver.C"
+#include "tests/NativeMaterialProbe.H"
 #include "materials/ConductionContinuation.H"
 #include "mesh/TrajectorySurface.H"
 #include "coupling/IntervalAudit.H"
@@ -78,12 +77,14 @@ int main(int argc,char** argv){
     for(auto& q:endpoint.gas)q.energy+=1e9;
     assert(!driver.advanceCandidate(base,endpoint,history,controls,result,corrected,report,error));
     assert(report.failureOrigin==MaterialFailureOrigin::SurfaceNumerical);
+    chmt_test::resetMaterialObservations();
     if(!detail::ConductionContinuation::complete(driver,base,endpoint,history,controls,result,corrected,report,error,nullptr)){std::cerr<<"terminal wet owner: "<<error<<'\n';return 4;}
     assert(result.time==dt&&corrected.knots.size()>=2&&corrected.knots.back().faces.size()==4);
     for(std::size_t c=0;c<endpoint.gas.size();++c)assert(result.gas[c].energy==endpoint.gas[c].energy);
-    assert(result.filmStorage.size()==4&&report.materialSteps>0&&report.linearSolves>0);
+    assert(result.filmStorage.size()==4&&report.materialSteps>0&&chmt_test::materialSolveCalls>0);
     assert(finalizeIntervalLedger(history,result,error));
-    std::cout<<"actual wet endpoint baseTrace/surface/storage/account/ledger tail dt "<<result.time<<" material "<<report.materialSteps<<" solves "<<report.linearSolves<<'\n';
+    chmt_test::physicalSnapshot("owner_endpoint",result,corrected);
+    std::cout<<"actual wet endpoint baseTrace/surface/storage/account/ledger tail dt "<<result.time<<" material "<<report.materialSteps<<" solves "<<chmt_test::materialSolveCalls<<'\n';
     IntervalHistory missingTrace;assert(missingTrace.begin(interval,error));assert(missingTrace.appendAccepted(record,error));second.gasTrace.clear();assert(missingTrace.appendAccepted(second,error));
     controls.maxSubstep=dt/2;
     assert(!detail::ConductionContinuation::complete(driver,base,endpoint,missingTrace,controls,result,corrected,report,error,nullptr));

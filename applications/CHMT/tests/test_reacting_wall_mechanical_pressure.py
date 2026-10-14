@@ -82,8 +82,8 @@ int main(){
  auto& sample=a.gasWallMatching[0];sample.pressure=bulk.pressure;sample.state=context.matching;setMechanical(sample,mechanical);
  check(history.appendAccepted(a,error),"valid mechanical history accepted");
  auto b=a;b.microSequence=2;b.begin=.5;b.end=1;setMechanical(b.gasWallMatching[0],2*mechanical);
- check(history.appendAccepted(b,error),"changed mechanical history accepted");Real end=0;std::uint64_t count=0;
- check(materialDriveSlabEnd(history,0,1,.05,1,end,count,error),"mechanical drive slab");near(end,.5,"mechanical pressure changes limit material lag");
+ check(history.appendAccepted(b,error),"changed mechanical history accepted");Real end=0;
+ check(materialDriveSlabEnd(history,0,1,.05,1,end,error),"mechanical drive slab");near(end,.5,"mechanical pressure changes limit material lag");
  for(Real invalid:{Real(0),Real(-1),std::numeric_limits<Real>::quiet_NaN()}){
   IntervalHistory bad;check(bad.begin(interval,error),"invalid history begin");setMechanical(a.gasWallMatching[0],invalid);
   check(bad.appendAccepted(a,error),"actual numerical mechanical pressure retained");

@@ -1,8 +1,7 @@
 // Actual OpenFOAM material/film driver with prescribed, stage-matched gas history.
 // This tests pressure adaptation and the ledger, not native gas execution.
 #include "ablation/WallClosureHost.H"
-#include "fvCFD.H"
-#include "materials/CpuMaterialDriver.H"
+#include "tests/NativeMaterialProbe.H"
 #include "mesh/TrajectorySurface.H"
 #include <cassert>
 #include <iostream>
@@ -79,8 +78,18 @@ int main(int argc,char** argv){
         filmDelta+=(result.film[f].enthalpy-result.filmAux[f].pressure*volume)-(base.film[f].enthalpy-initialPressure*volume);
         expectedPV+=(endpointPressure-initialPressure)*volume;}
     for(std::size_t c=0;c<base.solid.size();++c)solidDelta+=result.solid[c].energy-base.solid[c].energy;
-    assert(std::abs(result.budget.filmPressureVolume-expectedPV)<1e-7);
-    assert(std::abs(gasDelta+filmDelta+solidDelta+result.budget.boundaryEnergy)<1e-7);
-    assert(report.materialSteps==2&&report.filmSteps==2&&report.linearSolves>0);
+    Real storedPV=0,resultGasDelta=0;assert(result.filmStorage.size()==4);
+    for(std::size_t f=0;f<result.filmStorage.size();++f){const auto& storage=result.filmStorage[f];
+        assert(storage.consumed&&storage.filmFace==static_cast<int>(f));
+        assert(storage.oldPV==initialPressure*base.film[f].mass/p.liquid.rho);
+        assert(storage.newPV==result.filmAux[f].pressure*result.film[f].mass/p.liquid.rho);
+        storedPV+=storage.newPV-storage.oldPV;}
+    for(std::size_t c=0;c<result.gas.size();++c)resultGasDelta+=result.gas[c].energy-base.gas[c].energy;
+    assert(resultGasDelta==gasDelta&&std::abs(storedPV-expectedPV)<1e-7);
+    // Gas energy is prescribed by its external owner. The actual material plus
+    // film internal energy closes independently of the removed budget counter.
+    assert(std::abs(resultGasDelta+filmDelta+solidDelta-gasDelta)<1e-7);
+    assert(report.materialSteps==2&&chmt_test::filmCandidateCalls==2&&chmt_test::materialSolveCalls>0);
+    chmt_test::physicalSnapshot("reacting_wall_film",result,corrected);
     std::cout<<"NATIVE_OF10 boundaryLayer film endpoint matching pressure, pV and total-energy ledger passed; pV="<<expectedPV<<"\n";
 }

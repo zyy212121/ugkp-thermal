@@ -1,5 +1,5 @@
 // Actual OF10 material owner with reaction terminal continuation; no GPU execution.
-#include "materials/CpuMaterialDriver.C"
+#include "tests/NativeMaterialProbe.H"
 #include "materials/ConductionContinuation.H"
 #include <cassert>
 #include <iomanip>
@@ -40,14 +40,17 @@ int main(int argc,char** argv){
     HostState endpoint=base;endpoint.time=dt;CpuMaterialDriver driver(model,&mesh);HostState result;WallProgram corrected;CpuMaterialReport report;
     controls.maxSubsteps=1;controls.reactionMaxSubstep=.004;
     assert(!driver.advanceCandidate(base,endpoint,history,controls,result,corrected,report,error));
-    assert(report.failureOrigin==MaterialFailureOrigin::ReactionNumerical&&report.failedLocalDt==dt);
+    assert(report.failureOrigin==MaterialFailureOrigin::ReactionNumerical&&chmt_test::lastMaterialInterval==dt);
+    chmt_test::resetMaterialObservations();
     if(!detail::ConductionContinuation::complete(driver,base,endpoint,history,controls,result,corrected,report,error,nullptr)){std::cerr<<error<<'\n';return 3;}
     assert(result.time==dt&&!corrected.knots.empty());
+    std::uint64_t referenceSteps=0;
     for(std::size_t c=0;c<base.solid.size();++c){
         SolidQ reference;std::uint64_t count=0;bool numerical=false;
         assert(detail::completeMaterialReactions(base.solid[c],base.solidMesh.volumes[c],p,dt,.004,controls.reactionCfl,1,reference,count,error,&numerical));
-        assert(count==3&&result.solid[c].condensed[0]==reference.condensed[0]);
+        assert(count==3&&result.solid[c].condensed[0]==reference.condensed[0]);referenceSteps+=count;
         assert(result.solid[c].condensed[1]==reference.condensed[1]&&result.solid[c].progress[0]==reference.progress[0]);
     }
-    std::cout<<"actual material reaction publication paid_dt "<<dt<<" steps "<<report.reactionSteps<<'\n';
+    chmt_test::physicalSnapshot("sources_terminal",result,corrected);
+    std::cout<<"actual material reaction publication paid_dt "<<dt<<" steps "<<referenceSteps<<'\n';
 }

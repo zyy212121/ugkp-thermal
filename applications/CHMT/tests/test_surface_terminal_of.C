@@ -1,8 +1,7 @@
 // Actual OpenFOAM material/film driver with prescribed, stage-matched gas history.
 // This tests pressure adaptation and the ledger, not native gas execution.
 #include "ablation/WallClosureHost.H"
-#include "fvCFD.H"
-#include "materials/CpuMaterialDriver.C"
+#include "tests/NativeMaterialProbe.H"
 #include "materials/ConductionContinuation.H"
 #include "mesh/TrajectorySurface.H"
 #include <cassert>
@@ -77,9 +76,11 @@ int main(int argc,char** argv){
     HostState result;WallProgram corrected;CpuMaterialReport report;
     assert(!driver.advanceCandidate(base,endpoint,history,controls,result,corrected,report,error));
     assert(report.failureOrigin==MaterialFailureOrigin::SurfaceNumerical);
+    chmt_test::resetMaterialObservations();
     if(!detail::ConductionContinuation::complete(driver,base,endpoint,history,controls,result,corrected,report,error,nullptr)){std::cerr<<error<<'\n';return 3;}
     assert(result.time==dt&&corrected.knots.back().faces.size()==4);
     for(const auto& face:corrected.knots.back().faces)assert(face.temperature==3000);
-    assert(report.materialSteps==1&&report.filmSteps==1&&report.linearSolves>0&&report.boundaryDriveSamples>=2);
-    std::cout<<"actual native surface early/history/endpoint publication time "<<result.time<<" material "<<report.materialSteps<<" film "<<report.filmSteps<<" solves "<<report.linearSolves<<'\n';
+    assert(report.materialSteps==1&&chmt_test::filmCandidateCalls==1&&chmt_test::materialSolveCalls>0&&corrected.knots.size()>=2&&corrected.knots.front().faces.size()==4);
+    chmt_test::physicalSnapshot("surface_terminal",result,corrected);
+    std::cout<<"actual native surface early/history/endpoint publication time "<<result.time<<" material "<<report.materialSteps<<" film "<<chmt_test::filmCandidateCalls<<" solves "<<chmt_test::materialSolveCalls<<'\n';
 }

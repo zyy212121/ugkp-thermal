@@ -23,7 +23,7 @@ struct Script {
     int terminalCalls=0,predictorTerminalCalls=0;Real terminalDt=0,predictorTerminalDt=0;
     bool numericalPredictor=false,failTerminalPredictor=false;
     MaterialFailureOrigin origin=MaterialFailureOrigin::None;
-    Real eventTime=0,maxPredictionInterval=0,numericalMassRoundoff=0;
+    Real eventTime=0,maxPredictionInterval=0,legacyAuditResidual=0;
     WallProgram current{};
 } script;
 struct CpuMaterialDriver::Implementation {};
@@ -53,8 +53,8 @@ bool CpuMaterialDriver::advanceCandidate(const HostState& base,const HostState& 
     const CpuMaterialControls&,HostState& candidate,WallProgram& corrected,CpuMaterialReport& report,std::string& error,const WallProgram*) {
     assert(base.time==history.interval().begin);++script.materialCalls;
     if(script.failAll||script.materialCalls<=script.failMaterial){report.failureOrigin=script.origin!=MaterialFailureOrigin::None?script.origin:script.conductionFailure?MaterialFailureOrigin::ConductionNumerical:MaterialFailureOrigin::None;report.recoverable=!script.permanent;report.eventTime=script.eventTime;error="scripted material failure";return false;}
-    candidate=endpoint;corrected=script.current;report.materialSteps=3;report.linearSolves=3;
-    report.numericalMassRoundoff=script.numericalMassRoundoff*script.materialCalls;
+    candidate=endpoint;corrected=script.current;report.materialSteps=3;
+    candidate.budget.numericalEnergyResidual=script.legacyAuditResidual*script.materialCalls;
     if(script.movePrediction&&script.materialCalls==1)corrected.knots.back().gasPoints[0].x+=.1;
     if(script.badEnergy)candidate.gas[0].energy+=1;
     error.clear();return true;
@@ -65,7 +65,7 @@ bool CpuMaterialDriver::advanceCandidateImpl(const HostState& base,const HostSta
     assert(endpoint.time==history.interval().end&&base.time==history.interval().begin);
     if(script.failTerminal){error="unfinished endpoint producer";return false;}
     candidate=endpoint;candidate.gas[0].energy+=2;corrected=script.current;report=CpuMaterialReport{};
-    report.linearSolves=1;error.clear();return true;
+    error.clear();return true;
 }
 bool beginGasWindow(Backend& b,const WallProgram& p,std::string& error) {
     assert(!b.pending);b.pending=true;++b.begins;b.program=p;b.trial=b.accepted;script.current=p;
@@ -113,7 +113,7 @@ int main(){
         const bool ok=advanceCoupledWindow(backend,cpu,model,controls,material,.2,false,accepted,report,error);
         assert(ok==(failure==0));assert(script.materialCalls==3&&script.terminalCalls==1&&script.terminalDt==.05);
         assert(backend.rollbacks==(failure?3:2));
-        if(ok){assert(accepted.time==.05&&accepted.gas[0].energy==5&&report.linearSolves==1&&backend.commits==1);}
+        if(ok){assert(accepted.time==.05&&accepted.gas[0].energy==5&&script.terminalCalls==1&&!backend.pending&&backend.commits==1);}
         else {assert(accepted.time==0&&backend.commits==0&&!error.empty());}
     }
     {
@@ -128,8 +128,8 @@ int main(){
         assert(advanceCoupledWindow(backend,cpu,model,controls,material,.2,false,accepted,report,error));
         assert(accepted.time==.2&&accepted.acceptedSteps==1&&accepted.commitSequence==1);
         assert(script.materialCalls==1&&backend.begins==1&&backend.commits==1);
-        assert(report.gasMicrosteps>=20&&report.interval.end-report.interval.begin==.2);
-        assert(report.nextCouplingInterval==1&&report.nextGasDt==.01&&!backend.pending);
+        assert(backend.history.records().size()>=20&&backend.program.interval.end-backend.program.interval.begin==.2);
+        assert(accepted.lastAcceptedDt==.2&&report.nextGasDt==.01&&!backend.pending);
     }
     {
         script=Script{};script.failMaterial=1;Backend backend;backend.accepted=initial;HostState accepted=initial;WindowEvolutionReport report;
@@ -140,7 +140,7 @@ int main(){
         script=Script{};script.movePrediction=true;Backend backend;backend.accepted=initial;HostState accepted=initial;WindowEvolutionReport report;
         assert(advanceCoupledWindow(backend,cpu,model,controls,material,.2,false,accepted,report,error));
         assert(accepted.time==.2&&backend.begins==2&&backend.rollbacks==1&&backend.commits==1);
-        assert(accepted.gasMesh.points[0].x==.1&&report.interval.identity.epoch==1);
+        assert(accepted.gasMesh.points[0].x==.1&&backend.program.interval.identity.epoch==1);
     }
     {
         script=Script{};script.failAll=true;Backend backend;backend.accepted=initial;HostState accepted=initial;WindowEvolutionReport report;
@@ -151,8 +151,12 @@ int main(){
     {
         script=Script{};script.badEnergy=true;Backend backend;backend.accepted=initial;HostState accepted=initial;WindowEvolutionReport report;
         assert(advanceCoupledWindow(backend,cpu,model,controls,material,.2,false,accepted,report,error));
-        assert(accepted.gas[0].energy==4&&accepted.time==.05&&backend.commits==1&&!backend.pending);
-        assert(script.materialCalls==3&&backend.rollbacks==2);
+        // A deliberately unbalanced endpoint is published unchanged. This proves
+        // removal of audit-only window shrinking, not physical conservation.
+        assert(accepted.gas[0].energy==4&&accepted.time==.2&&backend.commits==1&&!backend.pending);
+        assert(script.materialCalls==1&&backend.rollbacks==0);
+        assert(accepted.gas[0].energy!=initial.gas[0].energy);
+        std::cout<<"nonconservative endpoint accepted without audit-only shortening\n";
     }
     {
         script=Script{};script.failMaterial=1;script.eventTime=.075;Backend backend;backend.accepted=initial;HostState accepted=initial;WindowEvolutionReport report;
@@ -168,7 +172,7 @@ int main(){
         script=Script{};script.maxPredictionInterval=.1;Backend backend;backend.accepted=initial;HostState accepted=initial;WindowEvolutionReport report;
         assert(advanceCoupledWindow(backend,cpu,model,controls,material,.2,false,accepted,report,error));
         assert(accepted.time==.1&&script.predictorCalls==2&&backend.begins==1&&backend.commits==1);
-        assert(report.windowRetries==1&&report.interval.identity.epoch==1&&script.predictorTerminalCalls==0);
+        assert(script.predictorCalls==2&&backend.program.interval.identity.epoch==1&&script.predictorTerminalCalls==0);
     }
     {
         script=Script{};script.failPredictor=true;script.permanentPredictor=true;Backend backend;backend.accepted=initial;HostState accepted=initial;WindowEvolutionReport report;
@@ -179,7 +183,7 @@ int main(){
     {
         script=Script{};script.failMaterial=1;script.rejectPredictionCall=2;Backend backend;backend.accepted=initial;HostState accepted=initial;WindowEvolutionReport report;
         assert(advanceCoupledWindow(backend,cpu,model,controls,material,.2,false,accepted,report,error));
-        assert(accepted.time==.05&&script.predictorCalls==3&&report.windowRetries==2);
+        assert(accepted.time==.05&&script.predictorCalls==3&&backend.program.interval.identity.epoch==2);
         assert(backend.begins==2&&backend.rollbacks==1&&backend.commits==1);
     }
     {
@@ -210,23 +214,25 @@ int main(){
         if(ok){assert(backend.program.interval.end==.05&&backend.program.knots.back().time==.05);}
     }
     {
-        script=Script{};script.numericalMassRoundoff=-4e-18;Backend backend;backend.accepted=initial;HostState accepted=initial;WindowEvolutionReport report;
+        // Retained checkpoint diagnostics are carried without creating a physical
+        // mass source, admission decision, or hidden correction on replay.
+        script=Script{};script.legacyAuditResidual=-4e-18;Backend backend;backend.accepted=initial;HostState accepted=initial;WindowEvolutionReport report;
         assert(advanceCoupledWindow(backend,cpu,model,controls,material,.2,false,accepted,report,error));
-        assert(report.numericalMassRoundoff==script.numericalMassRoundoff);
+        assert(accepted.budget.numericalEnergyResidual==script.legacyAuditResidual);
         assert(accepted.gas[0].mass==initial.gas[0].mass&&accepted.budget.boundaryMass==0);
     }
     {
-        script=Script{};script.movePrediction=true;script.numericalMassRoundoff=4e-18;
+        script=Script{};script.movePrediction=true;script.legacyAuditResidual=4e-18;
         Backend backend;backend.accepted=initial;HostState accepted=initial;WindowEvolutionReport report;
         assert(advanceCoupledWindow(backend,cpu,model,controls,material,.2,false,accepted,report,error));
-        assert(script.materialCalls==2&&report.numericalMassRoundoff==2*script.numericalMassRoundoff);
+        assert(script.materialCalls==2&&accepted.budget.numericalEnergyResidual==2*script.legacyAuditResidual);
         assert(accepted.gas[0].mass==initial.gas[0].mass&&accepted.budget.boundaryMass==0);
     }
     {
-        script=Script{};script.numericalMassRoundoff=std::numeric_limits<Real>::quiet_NaN();
+        script=Script{};script.legacyAuditResidual=std::numeric_limits<Real>::quiet_NaN();
         Backend backend;backend.accepted=initial;HostState accepted=initial;WindowEvolutionReport report;
         assert(advanceCoupledWindow(backend,cpu,model,controls,material,.2,false,accepted,report,error));
-        assert(accepted.time==.2&&accepted.gas[0].mass==initial.gas[0].mass&&backend.commits==1&&std::isnan(report.numericalMassRoundoff));
+        assert(accepted.time==.2&&accepted.gas[0].mass==initial.gas[0].mass&&backend.commits==1&&std::isnan(accepted.budget.numericalEnergyResidual));
     }
     std::cout<<"multirate orchestration host unit tests passed (no CFD/OF/CUDA execution)\n";
 }

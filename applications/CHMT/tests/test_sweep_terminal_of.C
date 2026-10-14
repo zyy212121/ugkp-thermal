@@ -1,5 +1,5 @@
 // Actual OF10 material owner with inherited remainder continuation; no GPU execution.
-#include "materials/CpuMaterialDriver.C"
+#include "tests/NativeMaterialProbe.H"
 #include "materials/ConductionContinuation.H"
 #include <cassert>
 #include <iomanip>
@@ -38,14 +38,16 @@ int main(int argc,char** argv){
     GasIntervalRecord record;record.end=dt;record.microSequence=1;assert(history.appendAccepted(record,error));
     HostState endpoint=base;endpoint.time=dt;CpuMaterialDriver driver(model,&mesh);HostState result;WallProgram corrected;CpuMaterialReport report;
     assert(driver.advanceCandidate(base,endpoint,history,controls,result,corrected,report,error));
-    const auto normal=result;const auto normalReport=report;
+    const auto normal=result;const auto normalReport=report;const auto normalSolves=chmt_test::materialSolveCalls;
     base.solidSweepRemainder={7};endpoint.solidSweepRemainder=base.solidSweepRemainder;
     assert(!driver.advanceCandidate(base,endpoint,history,controls,result,corrected,report,error));
     assert(report.failureOrigin==MaterialFailureOrigin::GeometryNumerical);
+    chmt_test::resetMaterialObservations();
     if(!detail::ConductionContinuation::complete(driver,base,endpoint,history,controls,result,corrected,report,error,nullptr)){std::cerr<<error<<'\n';return 3;}
     assert(result.time==dt&&!corrected.knots.empty());assert(result.solidSweepRemainder==base.solidSweepRemainder);
-    assert(report.linearSolves==normalReport.linearSolves&&report.materialSteps==normalReport.materialSteps);
+    assert(chmt_test::materialSolveCalls==normalSolves&&report.materialSteps==normalReport.materialSteps);
     assert(result.solidMesh.volumes==normal.solidMesh.volumes&&result.solidMesh.oldVolumes==normal.solidMesh.oldVolumes);
     for(std::size_t c=0;c<base.solid.size();++c){assert(result.solid[c].energy==normal.solid[c].energy);assert(result.solid[c].condensed[0]==normal.solid[c].condensed[0]);}
-    std::cout<<"actual material inherited remainder publication paid_dt "<<dt<<" solves "<<report.linearSolves<<" cells "<<result.solidMesh.volumes.size()<<'\n';
+    chmt_test::physicalSnapshot("sweep_terminal",result,corrected);
+    std::cout<<"actual material inherited remainder publication paid_dt "<<dt<<" solves "<<chmt_test::materialSolveCalls<<" cells "<<result.solidMesh.volumes.size()<<'\n';
 }

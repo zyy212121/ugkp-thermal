@@ -64,7 +64,7 @@ int main(){
  wall.knots={first,last};WallKnot sample;
  assert(sampleGasWallProgramLocal(wall,WindowTime(dt),sample,error));assert(sample.time==origin);assert(sample.faces[0].temperature==101);
  assert(intervalSampleWallLocal(wall,WindowTime(dt),sample,error));assert(sample.faces[0].temperature==101);
- WindowTime end;std::uint64_t count=0;assert(materialDriveSlabEndLocal(history,WindowTime{},history.localEnd(),.05,1,end,count,error));assert(end==history.localEnd());
+ WindowTime end;assert(materialDriveSlabEndLocal(history,WindowTime{},history.localEnd(),.05,1,end,error));assert(end==history.localEnd());
 }
 ''')
     binary=tmp_path/'history'

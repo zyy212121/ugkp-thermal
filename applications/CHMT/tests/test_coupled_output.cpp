@@ -25,6 +25,7 @@ int main(){
     check(exchange.str().find("consumer_mask")!=std::string::npos&&exchange.str().find("conductive")!=std::string::npos,"exchange owners and energy decomposition exported");
     check(io::writeAcceptedCoupledSummary(summary,state,model,error),error);
     check(summary.str().find("commit_sequence")!=std::string::npos,"summary synchronized commit sequence");
+    check(summary.str().find("sst_chemistry_integral_audit_collection")!=std::string::npos&&summary.str().find("NOT_COLLECTED_LEGACY_CHECKPOINT_SLOTS_ONLY")!=std::string::npos,"legacy audit payload is not reported as current collection");
     for(int bad=0;bad<4;++bad){auto invalid=state;
         if(bad==0)invalid.commitSequence=1;
         if(bad==1)invalid.ledger[0].consumerMask=ConsumeGas;

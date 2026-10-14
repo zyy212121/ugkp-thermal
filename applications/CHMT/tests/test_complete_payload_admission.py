@@ -5,7 +5,7 @@ import subprocess
 APP=Path(__file__).resolve().parents[1]
 RUNTIME=runpy.run_path(str(APP/'tests/test_coupled_runtime_transactions.py'))
 
-def test_downloaded_payload_and_sst_totals_are_consumed(tmp_path):
+def test_downloaded_physical_payload_and_sst_inventory_are_consumed(tmp_path):
     RUNTIME['run_probe'](tmp_path,r'''
  Fixture f;f.model.physics.enableSst=true;f.h.sst={{1,10}};f.h.gasMesh.wallDistance={1};f.h.gasMesh.boundarySst.resize(2);
  GasExecutionOptions options;options.turbulenceModel=3;
@@ -14,15 +14,20 @@ def test_downloaded_payload_and_sst_totals_are_consumed(tmp_path):
  auto& v=b->storage.hostView();v.rho[0]=-2;v.rhoE[0]=std::numeric_limits<Real>::infinity();v.rhoUx[0]=-7;
  v.gasSpecies.rho[0]=-3;v.rhoK[0]=-4;v.rhoOmega[0]=0;
  assert(transport::CoupledTrialPolicy::validate(b.get())==0);
+ assert(transport::CoupledTrialPolicy::commit(b.get())==0);
  assert(b->trial.gas[0].mass==-2&&std::isinf(b->trial.gas[0].energy)&&b->trial.gas[0].momentum.x==-7);
  assert(b->trial.gas[0].species[0]==-3&&b->trial.sst[0].rhoK==-4&&b->trial.sst[0].rhoOmega==0);
- auto& a=v.gasSstAudit;a.transportK[0]=2;a.transportOmega[0]=3;a.sourceK[0]=4;a.sourceOmega[0]=5;a.constraintK[0]=6;a.constraintOmega[0]=-7;
- assert(acceptSstAudit(b.get())==0);assert(b->trial.gasSstAudit.transportK==2&&b->trial.gasSstAudit.sourceK==4&&b->trial.gasSstAudit.constraintK==6);
- assert(b->trial.gasSstAudit.transportOmega==3&&b->trial.gasSstAudit.sourceOmega==5&&b->trial.gasSstAudit.constraintOmega==-7);
- assert(b->trialBudget.turbulenceInventory==-4&&b->trialBudget.turbulenceBoundaryFlux==-2&&b->trialBudget.turbulenceOmegaConstraint==-7);
- a.sourceK[0]=std::numeric_limits<Real>::quiet_NaN();assert(acceptSstAudit(b.get())==0);assert(std::isnan(b->trial.gasSstAudit.sourceK));
+ // Publication consumes the actual conservative state, not an audit total.
+ assert(transport::CoupledTrialPolicy::commit(b.get())==0);
+ const Real volume=b->trial.gasMesh.volumes[0];
+ assert(b->trial.gas[0].mass==v.rho[0]*volume&&b->trial.gas[0].momentum.x==v.rhoUx[0]*volume);
+ assert(b->trial.gas[0].species[0]==v.gasSpecies.rho[0]*volume);
+ assert(b->trial.sst[0].rhoK==v.rhoK[0]*volume&&b->trial.sst[0].rhoOmega==v.rhoOmega[0]*volume);
  HostState output=b->trial;output.gas[0].mass=123;shimFailCopy=1;assert(!b->storage.downloadState(output,f.error));assert(output.gas[0].mass==123);
- shimFailCopy=1;assert(acceptSstAudit(b.get())!=0);
+ // A real physical-state copy failure remains observable and retryable.
+ const auto before=b->trial;shimFailCopy=1;assert(transport::CoupledTrialPolicy::commit(b.get())!=0);
+ assert(b->trial.gas[0].mass==before.gas[0].mass&&b->trial.sst[0].rhoK==before.sst[0].rhoK);
+ assert(transport::CoupledTrialPolicy::commit(b.get())==0);
  ''')
 
 def test_actual_packet_scaling_keeps_outside_unit_ratios(tmp_path):
@@ -37,7 +42,8 @@ def test_actual_packet_scaling_keeps_outside_unit_ratios(tmp_path):
  assert(accountCoupledFaces(b.get(),.01)==0);const auto&p=b->record.packets[0];
  assert(p.energy==expected.energy&&p.mass==expected.mass&&p.conductive==expected.conductive&&p.advective==expected.advective);
  for(int s=0;s<Ns;++s)assert(p.species[s]==expected.species[s]);
- assert(b->trialBudget.exchangeEnergy[GasParticipant]==packetDelta(p).gas.energy&&b->gasStageIndex==1);
+ assert(p.momentum.x==expected.momentum.x&&p.momentum.y==expected.momentum.y&&p.momentum.z==expected.momentum.z);
+ assert(b->gasStageIndex==1);
  shimFailCopy=1;assert(accountCoupledFaces(b.get(),.01)!=0);assert(b->gasStageIndex==1);
  }
  ''')
@@ -45,9 +51,10 @@ def test_actual_packet_scaling_keeps_outside_unit_ratios(tmp_path):
 def test_history_preserves_supplied_identity_quality_and_first_receiver(tmp_path):
     owner=(APP/'materials/CpuMaterialDriver.C').read_text()
     select=next(line.strip() for line in owner.splitlines() if 'for(const auto& r:history.records())if(elapsed<r.localEnd)' in line)
-    consume=next(line.strip() for line in owner.splitlines() if 'stepReport.budgetDelta.radiation+=radiation[f]' in line)
+    consume=next(line.strip() for line in owner.splitlines() if 'trial.solid[c].energy+=radiation[f]' in line)
     source=r'''
 #include "coupling/IntervalContracts.H"
+#include "materials/CpuMaterialDriver.H"
 #include <cassert>
 #include <cmath>
 using namespace chmt;
@@ -66,9 +73,10 @@ int main(){std::string error;CouplingInterval w;w.end=1;IntervalHistory history;
  Real mass=0;for(const auto& q:packets)mass+=q.mass;assert(mass==8);
  WindowTime elapsed{};const GasIntervalRecord* driveRecord=nullptr;
  SELECT
- HostState state,trial;state.surface.solidCell={0};trial.solid.resize(1);struct{Budget budgetDelta;}stepReport;
+ HostState state,trial;state.surface.solidCell={0};trial.solid.resize(1);
+ const bool terminalMaterial=false;MaterialFailureOrigin lastFailure=MaterialFailureOrigin::None;
  CONSUME
- assert(error.empty()&&trial.solid[0].energy==10&&stepReport.budgetDelta.radiation==10);
+ assert(error.empty()&&trial.solid[0].energy==10);
 }
 '''.replace('SELECT',select).replace('CONSUME',consume)
     src=tmp_path/'history.cpp';src.write_text(source);exe=tmp_path/'history'

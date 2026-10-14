@@ -26,6 +26,24 @@ struct Fixture {
  WallFaceSample sample;sample.temperature=900;sample.primaryKind=ExchangeKind::GasSolid;a.faces={sample};z.faces={sample};program.knots={a,z};
  }
 };
+
+// Test-only comparison of independently executed physical candidates.
+void samePhysicalGas(const HostState& a,const HostState& b){
+ assert(a.gas.size()==b.gas.size()&&a.sst.size()==b.sst.size());
+ for(size_t c=0;c<a.gas.size();++c){const auto& x=a.gas[c];const auto& y=b.gas[c];
+  assert(x.mass==y.mass&&x.energy==y.energy&&x.momentum.x==y.momentum.x&&x.momentum.y==y.momentum.y&&x.momentum.z==y.momentum.z);
+  for(int k=0;k<Ns;++k)assert(x.species[k]==y.species[k]);}
+ for(size_t c=0;c<a.sst.size();++c)assert(a.sst[c].rhoK==b.sst[c].rhoK&&a.sst[c].rhoOmega==b.sst[c].rhoOmega);
+ assert(a.gasMesh.volumes==b.gasMesh.volumes);
+}
+void checkPublishedSstInventory(Backend& b){
+ const auto& v=b.storage.hostView();double k=0,omega=0,hostK=0,hostOmega=0;
+ for(int c=0;c<b.nCells;++c){const double volume=b.trial.gasMesh.volumes[c];
+  assert(b.trial.sst[c].rhoK==v.rhoK[c]*volume&&b.trial.sst[c].rhoOmega==v.rhoOmega[c]*volume);
+  k+=v.rhoK[c]*volume;omega+=v.rhoOmega[c]*volume;hostK+=b.trial.sst[c].rhoK;hostOmega+=b.trial.sst[c].rhoOmega;}
+ assert(k==hostK&&omega==hostOmega);
+}
+
 '''
 
 def run_probe(tmp_path,body):
@@ -102,6 +120,23 @@ def prepare_sequential_launches(tmp_path):
     source=HELPER['prepare_backend'](tmp_path)
     stub=tmp_path/'cuda_runtime.h'
     stub.write_text(stub.read_text()+r'''
+#include <vector>
+inline std::vector<double> hostChemistryIntervals;
+struct HostChemistryObservation {
+ double dt=0;std::vector<double> volume,before,after,beforeEnergy,afterEnergy;
+};
+inline std::vector<HostChemistryObservation> hostChemistryObservations;
+template<class State,class Time,class Volume,class Function>
+void hostObserveChemistry(State* state,Time dt,const Volume* volumes,int speciesCount,Function body){
+ HostChemistryObservation record;record.dt=double(dt);const int n=state->nCells;
+ // Test-only snapshots of actual fields around the real translated kernel.
+ for(int c=0;c<n;++c){record.volume.push_back(double(volumes[c]));record.beforeEnergy.push_back(double(state->rhoE[c]));}
+ for(int k=0;k<speciesCount;++k)for(int c=0;c<n;++c)record.before.push_back(double(state->gasSpecies.rho[k*n+c]));
+ body();
+ for(int c=0;c<n;++c)record.afterEnergy.push_back(double(state->rhoE[c]));
+ for(int k=0;k<speciesCount;++k)for(int c=0;c<n;++c)record.after.push_back(double(state->gasSpecies.rho[k*n+c]));
+ hostChemistryIntervals.push_back(double(dt));hostChemistryObservations.push_back(record);
+}
 template<class Function> void hostLaunch(int grid,int block,Function body){
  const auto oldBlock=blockIdx,oldDim=blockDim,oldThread=threadIdx;blockDim.x=block;
  for(blockIdx.x=0;blockIdx.x<grid;++blockIdx.x)for(threadIdx.x=0;threadIdx.x<block;++threadIdx.x)body();
@@ -111,7 +146,17 @@ template<class Function> void hostLaunch(int grid,int block,Function body){
     pattern=r'([\w:]+(?:<[^<>]+>)?)\s*<<<\s*([^,]+),\s*([^,>]+)(?:,[\s\S]*?)?>>>\s*(\([\s\S]*?\));'
     for name in ('GpuGasAdvance.cuh','GpuGasCourant.cuh'):
         original=(APP.parents[1]/'common'/name).read_text()
-        translated=re.sub(pattern,lambda m:f'hostLaunch({m[2]}, {m[3]}, [&](){{{m[1]}{m[4]};}});',original)
+        def translate(m):
+            launch=f'hostLaunch({m[2]}, {m[3]}, [&](){{{m[1]}{m[4]};}});'
+            if m[1]=='advanceGasChemistryKernel':
+                interval=re.search(r'\(\s*s->deviceState\s*,\s*([^,]+),',m[4])
+                assert interval, m[4]
+                volume=re.search(r'TrialPolicy::stageVolumes\(s,(?:false|true)\)',m[4])
+                assert volume, m[4]
+                launch=('hostObserveChemistry(s->deviceState,'+interval[1]+','+volume[0]
+                        +',ugkwp::GasStateTraits<GasHostState>::speciesCount,[&](){'+launch+'});')
+            return launch
+        translated=re.sub(pattern,translate,original)
         assert '<<<' not in translated
         (tmp_path/'tree/common'/name).write_text(translated)
     return source
@@ -133,7 +178,7 @@ int main(){
  const auto& record=b->history.records().front();double exchange=0;
  for(const auto& packet:record.packets)exchange+=packetDelta(packet).gas.energy;
  assert(std::abs(b->trial.gas[0].energy-f.h.gas[0].energy-exchange)<1e-9);
- assert(std::abs(b->trial.budget.exchangeEnergy[GasParticipant]-exchange)<1e-12);
+ // The preceding assertion independently closes actual energy against packets.
  assert(rollbackGasWindow(*b,f.error));assert(b->trial.gas[0].energy==f.h.gas[0].energy);
  }
 }
@@ -142,7 +187,7 @@ int main(){
     subprocess.run(HELPER['compiler_flags'](tmp_path)+[str(source),str(APP/'mesh/Geometry.C'),'-o',str(binary)],check=True)
     subprocess.run([str(binary)],check=True)
 
-def test_common_sst_microstep_has_closed_integral_audit_and_rolls_back(tmp_path):
+def test_common_sst_microstep_matches_direct_physical_state_and_rolls_back(tmp_path):
     source=prepare_sequential_launches(tmp_path)
     source.write_text(source.read_text()+FIXTURE+r'''
 #include <iostream>
@@ -157,11 +202,12 @@ int main(){
  if(!b){std::cerr<<f.error<<'\n';return 1;}
  assert(beginGasWindow(*b,f.program,f.error));GasMicroReport report;
  if(!advanceGasMicrostep(*b,1e-5,report,f.error)){std::cerr<<f.error<<'\n';return 1;}
- const auto& audit=b->trial.gasSstAudit;
- assert(std::abs(b->trial.sst[0].rhoK-f.h.sst[0].rhoK-audit.transportK-audit.sourceK-audit.constraintK)<1e-10);
- assert(std::abs(b->trial.sst[0].rhoOmega-f.h.sst[0].rhoOmega-audit.transportOmega-audit.sourceOmega-audit.constraintOmega)<1e-9);
- assert(audit.sourceK!=0||audit.constraintOmega!=0);
- assert(rollbackGasWindow(*b,f.error));assert(b->trial.sst[0].rhoK==1&&b->trial.gasSstAudit.sourceK==0);
+ std::unique_ptr<Backend,void(*)(Backend*)> reference(createBackend(f.model,f.gas,{},options,f.h,f.error),destroyBackend);assert(reference);
+ assert(beginGasWindow(*reference,f.program,f.error));reference->microTime=0;reference->microDt=report.acceptedDt;
+ assert(transport::advanceGasTrial<transport::CoupledTrialPolicy>(reference.get(),report.acceptedDt,0)==0);
+ samePhysicalGas(b->trial,reference->trial);checkPublishedSstInventory(*b);checkPublishedSstInventory(*reference);
+ assert(b->trial.sst[0].rhoK!=f.h.sst[0].rhoK||b->trial.sst[0].rhoOmega!=f.h.sst[0].rhoOmega);
+ assert(rollbackGasWindow(*b,f.error));samePhysicalGas(b->trial,f.h);
  }
 }
 ''')
@@ -169,7 +215,7 @@ int main(){
     subprocess.run(HELPER['compiler_flags'](tmp_path)+[str(source),str(APP/'mesh/Geometry.C'),'-o',str(binary)],check=True)
     subprocess.run([str(binary)],check=True)
 
-def test_coupled_moving_geometry_uses_common_volume_audit_and_rollback(tmp_path):
+def test_coupled_moving_geometry_preserves_physical_inventory_and_rollback(tmp_path):
     source=prepare_sequential_launches(tmp_path)
     source.write_text(source.read_text()+FIXTURE+r'''
 #include <iostream>
@@ -207,8 +253,12 @@ int main(){
  assert(std::abs(b->trial.gas[0].mass-f.h.gas[0].mass)<1e-12);
  double energy=0;for(const auto& packet:b->history.records()[0].packets)energy+=packetDelta(packet).gas.energy;
  assert(std::abs(b->trial.gas[0].energy-f.h.gas[0].energy-energy)<1e-8);
- if(sst){const auto& a=b->trial.gasSstAudit;
- assert(std::abs(b->trial.sst[0].rhoK-f.h.sst[0].rhoK-a.transportK-a.sourceK-a.constraintK)<1e-10);}
+ if(sst){
+  std::unique_ptr<Backend,void(*)(Backend*)> reference(createBackend(f.model,f.gas,{},options,f.h,f.error),destroyBackend);assert(reference);
+  assert(beginGasWindow(*reference,f.program,f.error));reference->microTime=0;reference->microDt=report.acceptedDt;
+  assert(transport::advanceGasTrial<transport::CoupledTrialPolicy>(reference.get(),report.acceptedDt,0)==0);
+  samePhysicalGas(b->trial,reference->trial);checkPublishedSstInventory(*b);checkPublishedSstInventory(*reference);
+ }
  assert(rollbackGasWindow(*b,f.error));assert(b->trial.gasMesh.volumes==f.h.gasMesh.volumes);
  assert(b->storage.hostView().gasGeometry.enabled==false);assert(b->trial.gas[0].energy==f.h.gas[0].energy);
  if(!single&&!sst&&integrator==1){assert(beginGasWindow(*b,f.program,f.error));for(auto& knot:b->program.knots)knot.gasPoints.clear();
@@ -328,8 +378,7 @@ int main(){
   assert(a.mass==b.mass&&a.energy==b.energy&&a.momentum.x==b.momentum.x&&a.momentum.y==b.momentum.y&&a.momentum.z==b.momentum.z);
   for(int i=0;i<Ns;++i)assert(a.species[i]==b.species[i]);
   if(sst){assert(direct->trial.sst[0].rhoK==selected->trial.sst[0].rhoK&&direct->trial.sst[0].rhoOmega==selected->trial.sst[0].rhoOmega);
-   const auto& x=direct->trial.gasSstAudit;const auto& y=selected->trial.gasSstAudit;
-   assert(x.transportK==y.transportK&&x.transportOmega==y.transportOmega&&x.sourceK==y.sourceK&&x.sourceOmega==y.sourceOmega&&x.constraintK==y.constraintK&&x.constraintOmega==y.constraintOmega);}
+   checkPublishedSstInventory(*direct);checkPublishedSstInventory(*selected);}
   assert(direct->record.packets.size()==selected->record.packets.size());
   for(size_t i=0;i<direct->record.packets.size();++i){const auto& x=direct->record.packets[i];const auto& y=selected->record.packets[i];
    assert(x.mass==y.mass&&x.energy==y.energy&&x.conductive==y.conductive&&x.advective==y.advective&&x.pressureWork==y.pressureWork);

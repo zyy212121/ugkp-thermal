@@ -44,14 +44,16 @@ int main(int argc,char**argv){
   assert(transport::CoupledTrialPolicy::validate(b.get())!=0);
  }
  if(test==2){
+  // Former audit-counter wrap is no longer a production operation.  Stale
+  // checkpoint audit slots must not alter physical-state publication.
   b->model.physics.gasMode=ugkwp::GasMode::MixtureChemistry;
-  b->firstChemistry.resize(1);b->secondChemistry.resize(1);
-  auto& a=b->firstChemistry[0];auto& z=b->secondChemistry[0];
-  a.acceptedSteps=INT_MAX;a.rejectedSteps=2;a.nonlinearIterations=3;a.integratedTime=.2;a.speciesMassChange[0]=.4;
-  z.acceptedSteps=1;z.rejectedSteps=5;z.nonlinearIterations=7;z.integratedTime=.3;z.speciesMassChange[0]=.6;
+  b->trial.gasChemistryAudit.resize(1);auto& legacy=b->trial.gasChemistryAudit[0];
+  legacy.acceptedSteps=INT_MAX;legacy.rejectedSteps=2;legacy.energyResidual=NAN;
   assert(transport::CoupledTrialPolicy::commit(b.get())==0);
-  const auto& sum=b->trial.gasChemistryAudit[0];assert(sum.acceptedSteps==INT_MIN&&sum.rejectedSteps==7&&sum.nonlinearIterations==10);
-  assert(sum.integratedTime==.5&&sum.speciesMassChange[0]==1);
+  assert(b->trial.gas[0].mass==v.rho[0]*b->trial.gasMesh.volumes[0]);
+  assert(b->trial.gas[0].energy==v.rhoE[0]*b->trial.gasMesh.volumes[0]);
+  for(int k=0;k<Ns;++k)assert(b->trial.gas[0].species[k]==v.gasSpecies.rho[k]*b->trial.gasMesh.volumes[0]);
+  assert(legacy.acceptedSteps==INT_MAX&&legacy.rejectedSteps==2&&std::isnan(legacy.energyResidual));
  }
  if(test==3){
   // thermoView forwards its actual source; declared vector size is not a gate.
@@ -84,7 +86,7 @@ int main(int argc,char**argv){
  }
 
  if(test==14||test==15){
-  assert(v.sstConfigured==(test==14)&&v.gasSstAudit.enabled==(test==14));
+  assert(v.sstConfigured==(test==14));
   if(test==14)assert(v.rhoK[0]==1&&v.rhoOmega[0]==10);
   auto resolved=f.model;resolved.physics.enableSst=execution.turbulenceModel==3;
   std::unique_ptr<Backend,void(*)(Backend*)> reference(createBackend(resolved,f.gas,{},execution,f.h,f.error),destroyBackend);assert(reference);
@@ -111,7 +113,7 @@ int main(int argc,char**argv){
     assert result.returncode==0,result.stderr
     return exe
 
-@pytest.mark.parametrize('case',range(18),ids=['terminal-publication','missing-sticky','audit-counter-wrap','thermo-source','infinite-comax','nan-comax','sub-ulp-time','zero-cap','negative-cap','infinite-cap','nan-cap','zero-window','metadata-pending','completed-window','effective-sst','effective-no-sst','static-wall-velocity','missing-effective-sst'])
+@pytest.mark.parametrize('case',range(18),ids=['terminal-publication','missing-sticky','legacy-audit-no-physical-consumer','thermo-source','infinite-comax','nan-comax','sub-ulp-time','zero-cap','negative-cap','infinite-cap','nan-cap','zero-window','metadata-pending','completed-window','effective-sst','effective-no-sst','static-wall-velocity','missing-effective-sst'])
 def test_final_consumer(executable,case):
     result=subprocess.run([str(executable),str(case)],capture_output=True,text=True)
     executable.with_name('case-'+str(case)+'.log').write_text(result.stdout+result.stderr)
@@ -150,18 +152,10 @@ inline int cudaMemcpy(void*d,const void*s,size_t n,int kind){if(kind==cudaMemcpy
     source.write_text(source.read_text()+FIXTURE+r'''
 #include <iostream>
 struct Observed:transport::CoupledTrialPolicy{
- static inline Real before[2][Ns]{},volumes[2]{},times[2]{};static inline int captures=0,commits=0;static inline bool failCommit=false;
- static int begin(Backend* b){int rc=CoupledTrialPolicy::begin(b);if(rc)return rc;
-  for(int s=0;s<Ns;++s)before[0][s]=b->deviceState->gasSpecies.rho[s];return 0;}
- static int applySources(Backend* b,Real dt){int rc=CoupledTrialPolicy::applySources(b,dt);if(rc)return rc;
-  for(int s=0;s<Ns;++s)before[1][s]=b->deviceState->gasSpecies.rho[s];return 0;}
- static int captureChemistryAudit(Backend* b,bool after){
-  volumes[after]=stageVolumes(b,after)[0];int rc=CoupledTrialPolicy::captureChemistryAudit(b,after);if(rc)return rc;
-  const auto& audit=(after?b->secondChemistry:b->firstChemistry)[0];times[after]=audit.integratedTime;
-  auto same=[](Real a,Real z){return a==z||(std::isnan(a)&&std::isnan(z));};
-  for(int s=0;s<Ns;++s)assert(same(audit.speciesMassChange[s],b->deviceState->gasSpecies.rho[s]*volumes[after]-before[after][s]*volumes[after]));
-  ++captures;return 0;}
- static int commit(Backend* b){++commits;if(failCommit){failSource=b->deviceState->rho;failOccurrence=1;copyCount=0;}return CoupledTrialPolicy::commit(b);}
+ static inline int commits=0,failingPhysicalCopy=0;
+ static int commit(Backend* b){++commits;if(failingPhysicalCopy){
+  failSource=failingPhysicalCopy==2?static_cast<const void*>(b->deviceState->gasSpecies.rho):static_cast<const void*>(b->deviceState->rho);
+  failOccurrence=1;copyCount=0;}return CoupledTrialPolicy::commit(b);}
 };
 int main(int argc,char** argv){
  int scenario=std::atoi(argv[1]);Fixture f;
@@ -179,20 +173,25 @@ int main(int argc,char** argv){
  assert(prepareCoupledGeometry(b.get())==0);
  b->endpointGas.volumes[0]=2;b->gasStage.newVolume[0]=2;
  assert(b->storage.bindStageGeometry(b->gasStage));bindSharedGasStorage(*b);b->microGeometryPrepared=true;
- if(scenario==2){failSource=b->deviceState->gasSpecies.chemistryAudit;failOccurrence=2;}
- if(scenario==3)Observed::failCommit=true;
+ if(scenario>=2)Observed::failingPhysicalCopy=scenario;
  const int rc=transport::advanceGasTrial<Observed>(b.get(),.0001,0);
- if(scenario>=2){assert(rc!=0&&b->trial.gas[0].energy==f.h.gas[0].energy);assert(!b->poisoned);assert(Observed::captures==(scenario==2?1:2)&&Observed::commits==(scenario==2?0:1));return 0;}
+ if(scenario>=2){assert(rc!=0&&b->trial.gas[0].energy==f.h.gas[0].energy);assert(!b->poisoned);
+  assert(hostChemistryObservations.size()==2&&Observed::commits==1);
+  samePhysicalGas(b->trial,f.h);return 0;}
  if(rc){std::cerr<<b->error<<' '<<transport::lastError<<'\n';return 1;}
- assert(Observed::captures==2&&Observed::commits==1&&Observed::volumes[0]==1&&Observed::volumes[1]==2);
- assert(Observed::times[0]==.00005&&Observed::times[1]==.00005);
- const auto&a=b->firstChemistry[0];const auto&z=b->secondChemistry[0];const auto&sum=b->trial.gasChemistryAudit[0];
- auto same=[](Real x,Real y){return x==y||(std::isnan(x)&&std::isnan(y));};
- for(int s=0;s<Ns;++s)assert(same(sum.speciesMassChange[s],a.speciesMassChange[s]+z.speciesMassChange[s]));
- assert(same(sum.massResidual,a.massResidual+z.massResidual)&&same(sum.energyResidual,a.energyResidual+z.energyResidual));
- assert(same(sum.maximumElementResidual,maxValue(a.maximumElementResidual,z.maximumElementResidual)));
- assert(same(sum.maximumLocalError,maxValue(a.maximumLocalError,z.maximumLocalError)));
- assert(sum.integratedTime==.0001&&sum.acceptedSteps==a.acceptedSteps+z.acceptedSteps&&sum.rejectedSteps==a.rejectedSteps+z.rejectedSteps&&sum.nonlinearIterations==a.nonlinearIterations+z.nonlinearIterations);
+ assert(hostChemistryObservations.size()==2&&Observed::commits==1&&hostChemistryObservations[0].volume[0]==1&&hostChemistryObservations[1].volume[0]==2);
+ assert(hostChemistryIntervals.size()==2&&hostChemistryIntervals[0]==.00005&&hostChemistryIntervals[1]==.00005);
+ for(int half=0;half<2;++half){
+  Real massChange=0;
+  for(int k=0;k<Ns;++k){const Real dm=(hostChemistryObservations[half].after[k]-hostChemistryObservations[half].before[k])*hostChemistryObservations[half].volume[0];massChange+=dm;
+   std::cout<<"physical half="<<half<<" species="<<k<<" massChange="<<std::hexfloat<<dm<<'\n';}
+  if(scenario==0){assert(std::abs(massChange)<1e-12);assert(hostChemistryObservations[half].after[0]<hostChemistryObservations[half].before[0]);
+   assert(hostChemistryObservations[half].after[1]>hostChemistryObservations[half].before[1]);assert(hostChemistryObservations[half].afterEnergy[0]==hostChemistryObservations[half].beforeEnergy[0]);}
+ }
+ // The final consumer publishes the observed second half using the endpoint
+ // volume, independently of any removed diagnostic residual/counter fields.
+ for(int k=0;k<Ns;++k){const Real expected=hostChemistryObservations[1].after[k]*hostChemistryObservations[1].volume[0];const Real actual=b->trial.gas[0].species[k];
+  assert(actual==expected||(std::isnan(actual)&&std::isnan(expected)));}
  assert(b->trial.time==.0001);assert(!b->deviceState->gasSpecies.chemistryStatus);
 }
 ''')
@@ -202,7 +201,7 @@ int main(int argc,char** argv){
     (folder/'build.log').write_text(result.stdout+result.stderr);assert result.returncode==0,result.stderr
     return exe
 
-@pytest.mark.parametrize('scenario',range(4),ids=['distinct-volumes','terminal-audits','second-capture-copy-error','commit-copy-error'])
+@pytest.mark.parametrize('scenario',range(4),ids=['distinct-volumes','terminal-physical-state','species-commit-copy-error','rho-commit-copy-error'])
 def test_actual_two_half_capture_commit(chemistry_executable,scenario):
     result=subprocess.run([str(chemistry_executable),str(scenario)],capture_output=True,text=True,timeout=60)
     chemistry_executable.with_name('scenario-'+str(scenario)+'.log').write_text(result.stdout+result.stderr)

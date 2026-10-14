@@ -1,5 +1,5 @@
 // Actual OF10 material owner with transport/control continuation; no GPU execution.
-#include "materials/CpuMaterialDriver.C"
+#include "tests/NativeMaterialProbe.H"
 #include "restart/Checkpoint.H"
 #include "materials/ConductionContinuation.H"
 #include <cassert>
@@ -43,12 +43,13 @@ int main(int argc,char** argv){
     GasIntervalRecord record;record.end=dt;record.microSequence=1;assert(history.appendAccepted(record,error));
     HostState endpoint=base;endpoint.time=dt;CpuMaterialDriver driver(model,&mesh);HostState result;WallProgram corrected;CpuMaterialReport report;
     countAllocations=true;assert(driver.advanceCandidate(base,endpoint,history,controls,result,corrected,report,error));countAllocations=false;
-    const auto normal=result;const auto normalReport=report;
+    const auto normal=result;const auto normalReport=report;const auto normalSolves=chmt_test::materialSolveCalls,normalRhs=chmt_test::materialRhsCalls;
     std::cout<<std::hexfloat<<"OWNER_PROGRAM ";programOut(corrected);std::cout<<"OWNER_COST "<<ownerAllocations<<' '<<ownerBytes<<'\n';
     assert(normal.gasWallDiagnostics.empty());
+    chmt_test::physicalSnapshot("owner_normal",normal,corrected);
 
     if(const char* path=std::getenv("CHMT_PARITY_PATH"))assert(writeCheckpoint(path,model,normal,error));
-    std::cout<<std::hexfloat<<"OWNER_NORMAL "<<normal.time<<' '<<normalReport.materialSteps<<' '<<normalReport.materialRhsEvaluations<<' '<<normalReport.linearSolves<<' '<<normalReport.nonlinearIterations<<' '<<normalReport.energyResidual<<' '<<normalReport.minimumTemperature<<'\n';
+    std::cout<<std::hexfloat<<"OWNER_NORMAL "<<normal.time<<' '<<normalReport.materialSteps<<' '<<normalRhs<<' '<<normalSolves<<'\n';
 #if F2_TERMINAL
     for(int mode=0;mode<3;++mode){HostState changed=endpoint;IntervalHistory supplied=history;CpuMaterialControls requested=controls;
         if(mode==0)changed.solidMesh.topologyHash^=1;
@@ -56,13 +57,14 @@ int main(int argc,char** argv){
         if(mode==2)requested.driveRelativeTolerance=-1;
         assert(!driver.advanceCandidate(base,changed,supplied,requested,result,corrected,report,error));
         assert(report.failureOrigin==MaterialFailureOrigin::OwnerNumerical);
+        chmt_test::resetMaterialObservations();
         if(!detail::ConductionContinuation::complete(driver,base,changed,supplied,requested,result,corrected,report,error,nullptr)){std::cerr<<error<<'\n';return 3;}
         assert(result.time==dt&&corrected.knots.front().time==base.time&&corrected.knots.back().time==dt);
-        assert(report.materialSteps==1&&report.materialRhsEvaluations==2&&report.linearSolves==normalReport.linearSolves);
+        assert(report.materialSteps==1&&chmt_test::materialRhsCalls==2&&chmt_test::materialSolveCalls==normalSolves);
         for(std::size_t c=0;c<base.solid.size();++c){assert(result.solid[c].energy==normal.solid[c].energy);assert(result.solid[c].condensed[0]==normal.solid[c].condensed[0]);}
     }
     auto interfaceTail=base;for(auto& kind:interfaceTail.solidMesh.boundaryKind)kind=BoundaryKind::Interface;interfaceTail.solidMesh.thermalBoundary.resize(1);
-    CpuMaterialReport directReport;assert(nativeConduction<true>(mesh,base,interfaceTail,p,dt,controls,directReport,error));assert(directReport.linearSolves>0);
+    CpuMaterialReport directReport;chmt_test::resetMaterialObservations();assert(nativeConduction<true>(mesh,base,interfaceTail,p,dt,controls,directReport,error));assert(chmt_test::materialSolveCalls>0);
     CpuMaterialDriver missing(model,nullptr);assert(!detail::ConductionContinuation::complete(missing,base,endpoint,history,controls,result,corrected,report,error,nullptr));assert(report.failureOrigin==MaterialFailureOrigin::None);
     IntervalHistory unavailable;assert(unavailable.begin(interval,error));assert(!detail::ConductionContinuation::complete(driver,base,endpoint,unavailable,controls,result,corrected,report,error,nullptr));assert(report.failureOrigin==MaterialFailureOrigin::None);
     std::cout<<"actual final-owner metadata/history/control tails and absent inputs passed\n";

@@ -43,10 +43,7 @@ BODY += r'''
  #define SEED(name) seed(sp.name)
  SEED(rho);SEED(initial);SEED(flux);SEED(gradX);SEED(gradY);SEED(gradZ);SEED(limiter);SEED(boundaryMassFraction);SEED(positivityScale);SEED(compositionBoundaryFixed);SEED(soundSpeed);SEED(heatCapacity);SEED(gasConstant);SEED(cellStatus);SEED(faceStatus);
  #undef SEED
- auto& a=v.gasSstAudit;
- #define SEED(name) seed(a.name)
- SEED(transportK);SEED(transportOmega);SEED(sourceK);SEED(sourceOmega);SEED(constraintK);SEED(constraintOmega);SEED(initialTransportK);SEED(initialTransportOmega);SEED(initialSourceK);SEED(initialSourceOmega);SEED(initialConstraintK);SEED(initialConstraintOmega);SEED(volume);
- #undef SEED
+ // Only real resident solver channels have owners; removed audit arrays do not.
  const auto old=v;auto count=live.size();h.gas[0].mass=999;h.gas[0].energy=777;h.sst[0]={888,444};
  gas.thermoHash+=19;gas.speciesOrderHash=37;gas.coefficients[0]=1140;gas.diffusionCoefficients[0]=.03;
  resetCounts();
@@ -121,14 +118,14 @@ def test_optional_channels_retain_inventory_across_disable_and_enable(tmp_path):
  assert(!v.gasSpecies.rho);v.rho[0]=31;v.rhoE[0]=41;h.gas[0].mass=222;h.sst={{12,18}};
  model.physics.enableSst=true;assert(storage.configure(model,mixture,{},h,error));
  assert(v.rho[0]==31&&v.rhoE[0]==41&&v.gasSpecies.rho[0]==.25&&v.gasSpecies.rho[1]==.75&&v.rhoK[0]==6&&v.rhoOmega[0]==9);
- auto* rho=v.gasSpecies.rho;auto* audit=v.gasSstAudit.sourceK;rho[0]=7;v.rhoK[0]=19;audit[0]=23;
+ auto* rho=v.gasSpecies.rho;auto* rhoK=v.rhoK;auto* rhoOmega=v.rhoOmega;rho[0]=7;v.rhoK[0]=19;v.rhoOmega[0]=23;
  gas=mixture;gas.mode=ugkwp::GasMode::MixtureChemistry;assert(storage.configure(model,gas,{},h,error));
- auto* chemical=v.gasSpecies.chemistryAudit;auto* status=v.gasSpecies.chemistryStatus;chemical[0].energyResidual=81;assert(!status);
+ auto* status=v.gasSpecies.chemistryStatus;assert(!status);
  gas.mode=ugkwp::GasMode::SingleLegacy;model.physics.enableSst=false;assert(storage.configure(model,gas,{},h,error));
- assert(!v.gasSstAudit.enabled&&v.gasSpecies.rho==rho&&v.gasSpecies.chemistryAudit==chemical&&!v.gasSpecies.thermo.species&&!v.gasSpecies.mechanism.reactions);
+ assert(!v.sstConfigured&&v.gasSpecies.rho==rho&&v.rhoK==rhoK&&v.rhoOmega==rhoOmega&&!v.gasSpecies.thermo.species&&!v.gasSpecies.mechanism.reactions);
  gas=mixture;gas.mode=ugkwp::GasMode::MixtureChemistry;model.physics.enableSst=true;h.sst[0]={999,999};
- assert(storage.configure(model,gas,{},h,error));assert(v.rho[0]==31&&v.rhoK[0]==19&&v.gasSpecies.rho==rho&&rho[0]==7&&v.gasSstAudit.sourceK==audit&&audit[0]==23);
- assert(v.gasSpecies.chemistryAudit==chemical&&chemical[0].energyResidual==81&&v.gasSpecies.chemistryStatus==status);
+ assert(storage.configure(model,gas,{},h,error));assert(v.rho[0]==31&&v.rhoK[0]==19&&v.rhoOmega[0]==23&&v.gasSpecies.rho==rho&&rho[0]==7);
+ assert(v.rhoK==rhoK&&v.rhoOmega==rhoOmega&&v.sstConfigured&&v.gasSpecies.chemistryStatus==status);
  }assert(live.empty());
 }
 '''
