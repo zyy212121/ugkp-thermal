@@ -1,0 +1,240 @@
+..........................FF.....F.......................                [100%]
+=================================== FAILURES ===================================
+_____________ test_actual_packet_scaling_keeps_outside_unit_ratios _____________
+
+tmp_path = PosixPath('/tmp/pytest-of-agent/pytest-68/test_actual_packet_scaling_kee0')
+
+    def test_actual_packet_scaling_keeps_outside_unit_ratios(tmp_path):
+>       RUNTIME['run_probe'](tmp_path,r'''
+     for(double scale:{.5,2.,-1.}){
+     Fixture f;std::unique_ptr<Backend,void(*)(Backend*)> b(createBackend(f.model,f.gas,{},GasExecutionOptions{},f.h,f.error),destroyBackend);assert(b);
+     assert(beginGasWindow(*b,f.program,f.error));b->microTime=0;b->microDt=.01;assert(transport::CoupledTrialPolicy::begin(b.get())==0);
+     auto&v=b->storage.hostView();v.rho[0]=1;v.Tgas[0]=600;v.p[0]=f.model.physics.species[0].R*600;v.gasSpecies.soundSpeed[0]=400;
+     assert(applyCoupledFaces(b.get(),.01,0)==0);const auto expected=scaledIntervalPacket(b->faceRates[0].primary,scale);
+     v.gasPhiRhoE[0]*=scale;v.gasPhiRhoUx[0]*=scale;v.gasPhiRhoUy[0]*=scale;v.gasPhiRhoUz[0]*=scale;v.gasPhiRho[0]*=scale;
+     for(int s=0;s<Ns;++s)v.gasSpecies.flux[s*b->nFaces]*=scale;
+     assert(accountCoupledFaces(b.get(),.01)==0);const auto&p=b->record.packets[0];
+     assert(p.energy==expected.energy&&p.mass==expected.mass&&p.conductive==expected.conductive&&p.advective==expected.advective);
+     for(int s=0;s<Ns;++s)assert(p.species[s]==expected.species[s]);
+     assert(b->trialBudget.exchangeEnergy[GasParticipant]==packetDelta(p).gas.energy&&b->gasStageIndex==1);
+     shimFailCopy=1;assert(accountCoupledFaces(b.get(),.01)!=0);assert(b->gasStageIndex==1);
+     }
+     ''')
+
+applications/CHMT/tests/test_complete_payload_admission.py:34: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+applications/CHMT/tests/test_coupled_runtime_transactions.py:57: in run_probe
+    subprocess.run(HELPER['compiler_flags'](tmp_path)+[str(source),str(APP/'mesh/Geometry.C'),'-o',str(binary)],check=True)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+input = None, capture_output = False, timeout = None, check = True
+popenargs = (['g++', '-std=c++17', '-Werror=return-type', '-Wno-unused-variable', '-Wno-unused-function', '-I/tmp/pytest-of-agent/pytest-68/test_actual_packet_scaling_kee0', ...],)
+kwargs = {}
+process = <Popen: returncode: 1 args: ['g++', '-std=c++17', '-Werror=return-type', '-W...>
+stdout = None, stderr = None, retcode = 1
+
+    def run(*popenargs,
+            input=None, capture_output=False, timeout=None, check=False, **kwargs):
+        """Run command with arguments and return a CompletedProcess instance.
+    
+        The returned instance will have attributes args, returncode, stdout and
+        stderr. By default, stdout and stderr are not captured, and those attributes
+        will be None. Pass stdout=PIPE and/or stderr=PIPE in order to capture them,
+        or pass capture_output=True to capture both.
+    
+        If check is True and the exit code was non-zero, it raises a
+        CalledProcessError. The CalledProcessError object will have the return code
+        in the returncode attribute, and output & stderr attributes if those streams
+        were captured.
+    
+        If timeout (seconds) is given and the process takes too long,
+         a TimeoutExpired exception will be raised.
+    
+        There is an optional argument "input", allowing you to
+        pass bytes or a string to the subprocess's stdin.  If you use this argument
+        you may not also use the Popen constructor's "stdin" argument, as
+        it will be used internally.
+    
+        By default, all communication is in bytes, and therefore any "input" should
+        be bytes, and the stdout and stderr will be bytes. If in text mode, any
+        "input" should be a string, and stdout and stderr will be strings decoded
+        according to locale encoding, or by "encoding" if set. Text mode is
+        triggered by setting any of text, encoding, errors or universal_newlines.
+    
+        The other arguments are the same as for the Popen constructor.
+        """
+        if input is not None:
+            if kwargs.get('stdin') is not None:
+                raise ValueError('stdin and input arguments may not both be used.')
+            kwargs['stdin'] = PIPE
+    
+        if capture_output:
+            if kwargs.get('stdout') is not None or kwargs.get('stderr') is not None:
+                raise ValueError('stdout and stderr arguments may not be used '
+                                 'with capture_output.')
+            kwargs['stdout'] = PIPE
+            kwargs['stderr'] = PIPE
+    
+        with Popen(*popenargs, **kwargs) as process:
+            try:
+                stdout, stderr = process.communicate(input, timeout=timeout)
+            except TimeoutExpired as exc:
+                process.kill()
+                if _mswindows:
+                    # Windows accumulates the output in a single blocking
+                    # read() call run on child threads, with the timeout
+                    # being done in a join() on those threads.  communicate()
+                    # _after_ kill() is required to collect that and add it
+                    # to the exception.
+                    exc.stdout, exc.stderr = process.communicate()
+                else:
+                    # POSIX _communicate already populated the output so
+                    # far into the TimeoutExpired exception.
+                    process.wait()
+                raise
+            except:  # Including KeyboardInterrupt, communicate handled that.
+                process.kill()
+                # We don't call process.wait() as .__exit__ does that for us.
+                raise
+            retcode = process.poll()
+            if check and retcode:
+>               raise CalledProcessError(retcode, process.args,
+                                         output=stdout, stderr=stderr)
+E               subprocess.CalledProcessError: Command '['g++', '-std=c++17', '-Werror=return-type', '-Wno-unused-variable', '-Wno-unused-function', '-I/tmp/pytest-of-agent/pytest-68/test_actual_packet_scaling_kee0', '-I/workspace/scratch/98b6339ec81b/pr14_fast_fix_20261014/applications/CHMT', '-I/workspace/scratch/98b6339ec81b/pr14_fast_fix_20261014/common', '-I/workspace/scratch/98b6339ec81b/pr14_fast_fix_20261014/common/gasNumerics', '/tmp/pytest-of-agent/pytest-68/test_actual_packet_scaling_kee0/tree/applications/CHMT/gpu/Backend.cpp', '/workspace/scratch/98b6339ec81b/pr14_fast_fix_20261014/applications/CHMT/mesh/Geometry.C', '-o', '/tmp/pytest-of-agent/pytest-68/test_actual_packet_scaling_kee0/probe']' returned non-zero exit status 1.
+
+/opt/codex/runtimes/codex-primary-runtime/dependencies/python/lib/python3.12/subprocess.py:571: CalledProcessError
+----------------------------- Captured stderr call -----------------------------
+In file included from /usr/include/c++/14/cassert:44,
+                 from /tmp/pytest-of-agent/pytest-68/test_actual_packet_scaling_kee0/tree/applications/CHMT/gpu/Backend.cpp:434:
+/tmp/pytest-of-agent/pytest-68/test_actual_packet_scaling_kee0/tree/applications/CHMT/gpu/Backend.cpp: In function ‘int main()’:
+/tmp/pytest-of-agent/pytest-68/test_actual_packet_scaling_kee0/tree/applications/CHMT/gpu/Backend.cpp:483:12: error: ‘struct chmt::Backend’ has no member named ‘trialBudget’
+  483 |  assert(b->trialBudget.exchangeEnergy[GasParticipant]==packetDelta(p).gas.energy&&b->gasStageIndex==1);
+      |            ^~~~~~~~~~~
+_____ test_history_preserves_supplied_identity_quality_and_first_receiver ______
+
+tmp_path = PosixPath('/tmp/pytest-of-agent/pytest-68/test_history_preserves_supplie0')
+
+    def test_history_preserves_supplied_identity_quality_and_first_receiver(tmp_path):
+        owner=(APP/'materials/CpuMaterialDriver.C').read_text()
+        select=next(line.strip() for line in owner.splitlines() if 'for(const auto& r:history.records())if(elapsed<r.localEnd)' in line)
+>       consume=next(line.strip() for line in owner.splitlines() if 'stepReport.budgetDelta.radiation+=radiation[f]' in line)
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       StopIteration
+
+applications/CHMT/tests/test_complete_payload_admission.py:53: StopIteration
+_________ test_complete_common_microstep_sequence_and_rollback_on_host _________
+
+tmp_path = PosixPath('/tmp/pytest-of-agent/pytest-68/test_complete_common_microstep0')
+
+    def test_complete_common_microstep_sequence_and_rollback_on_host(tmp_path):
+        source=prepare_sequential_launches(tmp_path)
+        source.write_text(source.read_text()+FIXTURE+r'''
+    #include <iostream>
+    int main(){
+     for(bool single:{false,true})for(int integrator:{1,2,3}){
+     Fixture f;f.h.gas[0].energy=(f.model.physics.species[0].cp0-f.model.physics.species[0].R)*600;
+     for(auto& knot:f.program.knots)knot.faces[0].temperature=300;
+     if(single){assert(bindSingleGasModel(f.gas,"A",f.model,f.error));f.gas.mode=ugkwp::GasMode::SingleLegacy;}
+     GasExecutionOptions options;options.timeIntegrator=integrator;
+     std::unique_ptr<Backend,void(*)(Backend*)> b(createBackend(f.model,f.gas,{},options,f.h,f.error),destroyBackend);assert(b);
+     assert(beginGasWindow(*b,f.program,f.error));GasMicroReport report;
+     if(!advanceGasMicrostep(*b,1e-5,report,f.error)){std::cerr<<f.error<<'\n';return 1;}
+     assert(b->trial.time==1e-5&&b->accepted.time==0);assert(b->trial.gas[0].energy<f.h.gas[0].energy);
+     const auto& record=b->history.records().front();double exchange=0;
+     for(const auto& packet:record.packets)exchange+=packetDelta(packet).gas.energy;
+     assert(std::abs(b->trial.gas[0].energy-f.h.gas[0].energy-exchange)<1e-9);
+     assert(std::abs(b->trial.budget.exchangeEnergy[GasParticipant]-exchange)<1e-12);
+     assert(rollbackGasWindow(*b,f.error));assert(b->trial.gas[0].energy==f.h.gas[0].energy);
+     }
+    }
+    ''')
+        binary=tmp_path/'pipeline'
+        subprocess.run(HELPER['compiler_flags'](tmp_path)+[str(source),str(APP/'mesh/Geometry.C'),'-o',str(binary)],check=True)
+>       subprocess.run([str(binary)],check=True)
+
+applications/CHMT/tests/test_coupled_runtime_transactions.py:188: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+input = None, capture_output = False, timeout = None, check = True
+popenargs = (['/tmp/pytest-of-agent/pytest-68/test_complete_common_microstep0/pipeline'],)
+kwargs = {}
+process = <Popen: returncode: -6 args: ['/tmp/pytest-of-agent/pytest-68/test_complete_...>
+stdout = None, stderr = None, retcode = -6
+
+    def run(*popenargs,
+            input=None, capture_output=False, timeout=None, check=False, **kwargs):
+        """Run command with arguments and return a CompletedProcess instance.
+    
+        The returned instance will have attributes args, returncode, stdout and
+        stderr. By default, stdout and stderr are not captured, and those attributes
+        will be None. Pass stdout=PIPE and/or stderr=PIPE in order to capture them,
+        or pass capture_output=True to capture both.
+    
+        If check is True and the exit code was non-zero, it raises a
+        CalledProcessError. The CalledProcessError object will have the return code
+        in the returncode attribute, and output & stderr attributes if those streams
+        were captured.
+    
+        If timeout (seconds) is given and the process takes too long,
+         a TimeoutExpired exception will be raised.
+    
+        There is an optional argument "input", allowing you to
+        pass bytes or a string to the subprocess's stdin.  If you use this argument
+        you may not also use the Popen constructor's "stdin" argument, as
+        it will be used internally.
+    
+        By default, all communication is in bytes, and therefore any "input" should
+        be bytes, and the stdout and stderr will be bytes. If in text mode, any
+        "input" should be a string, and stdout and stderr will be strings decoded
+        according to locale encoding, or by "encoding" if set. Text mode is
+        triggered by setting any of text, encoding, errors or universal_newlines.
+    
+        The other arguments are the same as for the Popen constructor.
+        """
+        if input is not None:
+            if kwargs.get('stdin') is not None:
+                raise ValueError('stdin and input arguments may not both be used.')
+            kwargs['stdin'] = PIPE
+    
+        if capture_output:
+            if kwargs.get('stdout') is not None or kwargs.get('stderr') is not None:
+                raise ValueError('stdout and stderr arguments may not be used '
+                                 'with capture_output.')
+            kwargs['stdout'] = PIPE
+            kwargs['stderr'] = PIPE
+    
+        with Popen(*popenargs, **kwargs) as process:
+            try:
+                stdout, stderr = process.communicate(input, timeout=timeout)
+            except TimeoutExpired as exc:
+                process.kill()
+                if _mswindows:
+                    # Windows accumulates the output in a single blocking
+                    # read() call run on child threads, with the timeout
+                    # being done in a join() on those threads.  communicate()
+                    # _after_ kill() is required to collect that and add it
+                    # to the exception.
+                    exc.stdout, exc.stderr = process.communicate()
+                else:
+                    # POSIX _communicate already populated the output so
+                    # far into the TimeoutExpired exception.
+                    process.wait()
+                raise
+            except:  # Including KeyboardInterrupt, communicate handled that.
+                process.kill()
+                # We don't call process.wait() as .__exit__ does that for us.
+                raise
+            retcode = process.poll()
+            if check and retcode:
+>               raise CalledProcessError(retcode, process.args,
+                                         output=stdout, stderr=stderr)
+E               subprocess.CalledProcessError: Command '['/tmp/pytest-of-agent/pytest-68/test_complete_common_microstep0/pipeline']' died with <Signals.SIGABRT: 6>.
+
+/opt/codex/runtimes/codex-primary-runtime/dependencies/python/lib/python3.12/subprocess.py:571: CalledProcessError
+----------------------------- Captured stderr call -----------------------------
+pipeline: /tmp/pytest-of-agent/pytest-68/test_complete_common_microstep0/tree/applications/CHMT/gpu/Backend.cpp:486: int main(): Assertion `std::abs(b->trial.budget.exchangeEnergy[GasParticipant]-exchange)<1e-12' failed.
+=========================== short test summary info ============================
+FAILED applications/CHMT/tests/test_complete_payload_admission.py::test_actual_packet_scaling_keeps_outside_unit_ratios
+FAILED applications/CHMT/tests/test_complete_payload_admission.py::test_history_preserves_supplied_identity_quality_and_first_receiver
+FAILED applications/CHMT/tests/test_coupled_runtime_transactions.py::test_complete_common_microstep_sequence_and_rollback_on_host
+3 failed, 54 passed in 224.39s (0:03:44)

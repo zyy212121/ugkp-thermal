@@ -1,0 +1,263 @@
+.FF.......EEEEEEEEE                                                      [100%]
+==================================== ERRORS ====================================
+_ ERROR at setup of test_full_h2o2_histories_and_invariants[nitrogen_1000K_1atm] _
+
+tmp_path_factory = TempPathFactory(_given_basetemp=None, _trace=<pluggy._tracing.TagTracerSub object at 0x7fbe46249520>, _basetemp=PosixPath('/tmp/pytest-of-agent/pytest-67'), _retention_count=3, _retention_policy='all')
+
+    @pytest.fixture(scope='module')
+    def runner(tmp_path_factory):
+        tmp=tmp_path_factory.mktemp('h2o2-reactor');src=tmp/'run.cpp';src.write_text(SOURCE);exe=tmp/'run'
+        build=subprocess.run(['g++','-std=c++14','-O2','-Wall','-Wextra','-Werror','-pedantic','-I',str(ROOT),str(src),'-o',str(exe)],capture_output=True,text=True)
+>       assert build.returncode==0,build.stderr
+E       AssertionError: In file included from /tmp/pytest-of-agent/pytest-67/h2o2-reactor0/run.cpp:2:
+E         /workspace/scratch/98b6339ec81b/pr14_fast_fix_20261014/common/chemistry/LocalStiffIntegrator.H: In function ‘ugkwp::ChemistryStatus ugkwp::advanceClosedReactorImpl(const ClosedReactorInput<R, N>&, Time, const SpeciesThermoView<TableReal, Ns>&, const GasMechanismView<TableReal, N>&, const ChemistryControls<From>&, ClosedReactorResult<R, N>&, bool*)’:
+E         /workspace/scratch/98b6339ec81b/pr14_fast_fix_20261014/common/chemistry/LocalStiffIntegrator.H:244:5: error: ‘if constexpr’ only available with ‘-std=c++17’ or ‘-std=gnu++17’ [-Werror=c++17-extensions]
+E           244 |  if constexpr(RetryTrial){
+E               |     ^~~~~~~~~
+E         cc1plus: all warnings being treated as errors
+E         
+E       assert 1 == 0
+E        +  where 1 = CompletedProcess(args=['g++', '-std=c++14', '-O2', '-Wall', '-Wextra', '-Werror', '-pedantic', '-I', '/workspace/scrat...tensions]\n  244 |  if constexpr(RetryTrial){\n      |     ^~~~~~~~~\ncc1plus: all warnings being treated as errors\n').returncode
+
+tests/chemistry/test_h2o2_reactor.py:39: AssertionError
+_ ERROR at setup of test_full_h2o2_histories_and_invariants[nitrogen_1000K_10atm] _
+
+tmp_path_factory = TempPathFactory(_given_basetemp=None, _trace=<pluggy._tracing.TagTracerSub object at 0x7fbe46249520>, _basetemp=PosixPath('/tmp/pytest-of-agent/pytest-67'), _retention_count=3, _retention_policy='all')
+
+    @pytest.fixture(scope='module')
+    def runner(tmp_path_factory):
+        tmp=tmp_path_factory.mktemp('h2o2-reactor');src=tmp/'run.cpp';src.write_text(SOURCE);exe=tmp/'run'
+        build=subprocess.run(['g++','-std=c++14','-O2','-Wall','-Wextra','-Werror','-pedantic','-I',str(ROOT),str(src),'-o',str(exe)],capture_output=True,text=True)
+>       assert build.returncode==0,build.stderr
+E       AssertionError: In file included from /tmp/pytest-of-agent/pytest-67/h2o2-reactor0/run.cpp:2:
+E         /workspace/scratch/98b6339ec81b/pr14_fast_fix_20261014/common/chemistry/LocalStiffIntegrator.H: In function ‘ugkwp::ChemistryStatus ugkwp::advanceClosedReactorImpl(const ClosedReactorInput<R, N>&, Time, const SpeciesThermoView<TableReal, Ns>&, const GasMechanismView<TableReal, N>&, const ChemistryControls<From>&, ClosedReactorResult<R, N>&, bool*)’:
+E         /workspace/scratch/98b6339ec81b/pr14_fast_fix_20261014/common/chemistry/LocalStiffIntegrator.H:244:5: error: ‘if constexpr’ only available with ‘-std=c++17’ or ‘-std=gnu++17’ [-Werror=c++17-extensions]
+E           244 |  if constexpr(RetryTrial){
+E               |     ^~~~~~~~~
+E         cc1plus: all warnings being treated as errors
+E         
+E       assert 1 == 0
+E        +  where 1 = CompletedProcess(args=['g++', '-std=c++14', '-O2', '-Wall', '-Wextra', '-Werror', '-pedantic', '-I', '/workspace/scrat...tensions]\n  244 |  if constexpr(RetryTrial){\n      |     ^~~~~~~~~\ncc1plus: all warnings being treated as errors\n').returncode
+
+tests/chemistry/test_h2o2_reactor.py:39: AssertionError
+_ ERROR at setup of test_full_h2o2_histories_and_invariants[nitrogen_1200K_1atm] _
+
+tmp_path_factory = TempPathFactory(_given_basetemp=None, _trace=<pluggy._tracing.TagTracerSub object at 0x7fbe46249520>, _basetemp=PosixPath('/tmp/pytest-of-agent/pytest-67'), _retention_count=3, _retention_policy='all')
+
+    @pytest.fixture(scope='module')
+    def runner(tmp_path_factory):
+        tmp=tmp_path_factory.mktemp('h2o2-reactor');src=tmp/'run.cpp';src.write_text(SOURCE);exe=tmp/'run'
+        build=subprocess.run(['g++','-std=c++14','-O2','-Wall','-Wextra','-Werror','-pedantic','-I',str(ROOT),str(src),'-o',str(exe)],capture_output=True,text=True)
+>       assert build.returncode==0,build.stderr
+E       AssertionError: In file included from /tmp/pytest-of-agent/pytest-67/h2o2-reactor0/run.cpp:2:
+E         /workspace/scratch/98b6339ec81b/pr14_fast_fix_20261014/common/chemistry/LocalStiffIntegrator.H: In function ‘ugkwp::ChemistryStatus ugkwp::advanceClosedReactorImpl(const ClosedReactorInput<R, N>&, Time, const SpeciesThermoView<TableReal, Ns>&, const GasMechanismView<TableReal, N>&, const ChemistryControls<From>&, ClosedReactorResult<R, N>&, bool*)’:
+E         /workspace/scratch/98b6339ec81b/pr14_fast_fix_20261014/common/chemistry/LocalStiffIntegrator.H:244:5: error: ‘if constexpr’ only available with ‘-std=c++17’ or ‘-std=gnu++17’ [-Werror=c++17-extensions]
+E           244 |  if constexpr(RetryTrial){
+E               |     ^~~~~~~~~
+E         cc1plus: all warnings being treated as errors
+E         
+E       assert 1 == 0
+E        +  where 1 = CompletedProcess(args=['g++', '-std=c++14', '-O2', '-Wall', '-Wextra', '-Werror', '-pedantic', '-I', '/workspace/scrat...tensions]\n  244 |  if constexpr(RetryTrial){\n      |     ^~~~~~~~~\ncc1plus: all warnings being treated as errors\n').returncode
+
+tests/chemistry/test_h2o2_reactor.py:39: AssertionError
+_ ERROR at setup of test_full_h2o2_histories_and_invariants[nitrogen_1200K_10atm] _
+
+tmp_path_factory = TempPathFactory(_given_basetemp=None, _trace=<pluggy._tracing.TagTracerSub object at 0x7fbe46249520>, _basetemp=PosixPath('/tmp/pytest-of-agent/pytest-67'), _retention_count=3, _retention_policy='all')
+
+    @pytest.fixture(scope='module')
+    def runner(tmp_path_factory):
+        tmp=tmp_path_factory.mktemp('h2o2-reactor');src=tmp/'run.cpp';src.write_text(SOURCE);exe=tmp/'run'
+        build=subprocess.run(['g++','-std=c++14','-O2','-Wall','-Wextra','-Werror','-pedantic','-I',str(ROOT),str(src),'-o',str(exe)],capture_output=True,text=True)
+>       assert build.returncode==0,build.stderr
+E       AssertionError: In file included from /tmp/pytest-of-agent/pytest-67/h2o2-reactor0/run.cpp:2:
+E         /workspace/scratch/98b6339ec81b/pr14_fast_fix_20261014/common/chemistry/LocalStiffIntegrator.H: In function ‘ugkwp::ChemistryStatus ugkwp::advanceClosedReactorImpl(const ClosedReactorInput<R, N>&, Time, const SpeciesThermoView<TableReal, Ns>&, const GasMechanismView<TableReal, N>&, const ChemistryControls<From>&, ClosedReactorResult<R, N>&, bool*)’:
+E         /workspace/scratch/98b6339ec81b/pr14_fast_fix_20261014/common/chemistry/LocalStiffIntegrator.H:244:5: error: ‘if constexpr’ only available with ‘-std=c++17’ or ‘-std=gnu++17’ [-Werror=c++17-extensions]
+E           244 |  if constexpr(RetryTrial){
+E               |     ^~~~~~~~~
+E         cc1plus: all warnings being treated as errors
+E         
+E       assert 1 == 0
+E        +  where 1 = CompletedProcess(args=['g++', '-std=c++14', '-O2', '-Wall', '-Wextra', '-Werror', '-pedantic', '-I', '/workspace/scrat...tensions]\n  244 |  if constexpr(RetryTrial){\n      |     ^~~~~~~~~\ncc1plus: all warnings being treated as errors\n').returncode
+
+tests/chemistry/test_h2o2_reactor.py:39: AssertionError
+_ ERROR at setup of test_full_h2o2_histories_and_invariants[nitrogen_1500K_1atm] _
+
+tmp_path_factory = TempPathFactory(_given_basetemp=None, _trace=<pluggy._tracing.TagTracerSub object at 0x7fbe46249520>, _basetemp=PosixPath('/tmp/pytest-of-agent/pytest-67'), _retention_count=3, _retention_policy='all')
+
+    @pytest.fixture(scope='module')
+    def runner(tmp_path_factory):
+        tmp=tmp_path_factory.mktemp('h2o2-reactor');src=tmp/'run.cpp';src.write_text(SOURCE);exe=tmp/'run'
+        build=subprocess.run(['g++','-std=c++14','-O2','-Wall','-Wextra','-Werror','-pedantic','-I',str(ROOT),str(src),'-o',str(exe)],capture_output=True,text=True)
+>       assert build.returncode==0,build.stderr
+E       AssertionError: In file included from /tmp/pytest-of-agent/pytest-67/h2o2-reactor0/run.cpp:2:
+E         /workspace/scratch/98b6339ec81b/pr14_fast_fix_20261014/common/chemistry/LocalStiffIntegrator.H: In function ‘ugkwp::ChemistryStatus ugkwp::advanceClosedReactorImpl(const ClosedReactorInput<R, N>&, Time, const SpeciesThermoView<TableReal, Ns>&, const GasMechanismView<TableReal, N>&, const ChemistryControls<From>&, ClosedReactorResult<R, N>&, bool*)’:
+E         /workspace/scratch/98b6339ec81b/pr14_fast_fix_20261014/common/chemistry/LocalStiffIntegrator.H:244:5: error: ‘if constexpr’ only available with ‘-std=c++17’ or ‘-std=gnu++17’ [-Werror=c++17-extensions]
+E           244 |  if constexpr(RetryTrial){
+E               |     ^~~~~~~~~
+E         cc1plus: all warnings being treated as errors
+E         
+E       assert 1 == 0
+E        +  where 1 = CompletedProcess(args=['g++', '-std=c++14', '-O2', '-Wall', '-Wextra', '-Werror', '-pedantic', '-I', '/workspace/scrat...tensions]\n  244 |  if constexpr(RetryTrial){\n      |     ^~~~~~~~~\ncc1plus: all warnings being treated as errors\n').returncode
+
+tests/chemistry/test_h2o2_reactor.py:39: AssertionError
+_ ERROR at setup of test_full_h2o2_histories_and_invariants[nitrogen_1500K_10atm] _
+
+tmp_path_factory = TempPathFactory(_given_basetemp=None, _trace=<pluggy._tracing.TagTracerSub object at 0x7fbe46249520>, _basetemp=PosixPath('/tmp/pytest-of-agent/pytest-67'), _retention_count=3, _retention_policy='all')
+
+    @pytest.fixture(scope='module')
+    def runner(tmp_path_factory):
+        tmp=tmp_path_factory.mktemp('h2o2-reactor');src=tmp/'run.cpp';src.write_text(SOURCE);exe=tmp/'run'
+        build=subprocess.run(['g++','-std=c++14','-O2','-Wall','-Wextra','-Werror','-pedantic','-I',str(ROOT),str(src),'-o',str(exe)],capture_output=True,text=True)
+>       assert build.returncode==0,build.stderr
+E       AssertionError: In file included from /tmp/pytest-of-agent/pytest-67/h2o2-reactor0/run.cpp:2:
+E         /workspace/scratch/98b6339ec81b/pr14_fast_fix_20261014/common/chemistry/LocalStiffIntegrator.H: In function ‘ugkwp::ChemistryStatus ugkwp::advanceClosedReactorImpl(const ClosedReactorInput<R, N>&, Time, const SpeciesThermoView<TableReal, Ns>&, const GasMechanismView<TableReal, N>&, const ChemistryControls<From>&, ClosedReactorResult<R, N>&, bool*)’:
+E         /workspace/scratch/98b6339ec81b/pr14_fast_fix_20261014/common/chemistry/LocalStiffIntegrator.H:244:5: error: ‘if constexpr’ only available with ‘-std=c++17’ or ‘-std=gnu++17’ [-Werror=c++17-extensions]
+E           244 |  if constexpr(RetryTrial){
+E               |     ^~~~~~~~~
+E         cc1plus: all warnings being treated as errors
+E         
+E       assert 1 == 0
+E        +  where 1 = CompletedProcess(args=['g++', '-std=c++14', '-O2', '-Wall', '-Wextra', '-Werror', '-pedantic', '-I', '/workspace/scrat...tensions]\n  244 |  if constexpr(RetryTrial){\n      |     ^~~~~~~~~\ncc1plus: all warnings being treated as errors\n').returncode
+
+tests/chemistry/test_h2o2_reactor.py:39: AssertionError
+_ ERROR at setup of test_full_h2o2_histories_and_invariants[argon_1200K_1atm] __
+
+tmp_path_factory = TempPathFactory(_given_basetemp=None, _trace=<pluggy._tracing.TagTracerSub object at 0x7fbe46249520>, _basetemp=PosixPath('/tmp/pytest-of-agent/pytest-67'), _retention_count=3, _retention_policy='all')
+
+    @pytest.fixture(scope='module')
+    def runner(tmp_path_factory):
+        tmp=tmp_path_factory.mktemp('h2o2-reactor');src=tmp/'run.cpp';src.write_text(SOURCE);exe=tmp/'run'
+        build=subprocess.run(['g++','-std=c++14','-O2','-Wall','-Wextra','-Werror','-pedantic','-I',str(ROOT),str(src),'-o',str(exe)],capture_output=True,text=True)
+>       assert build.returncode==0,build.stderr
+E       AssertionError: In file included from /tmp/pytest-of-agent/pytest-67/h2o2-reactor0/run.cpp:2:
+E         /workspace/scratch/98b6339ec81b/pr14_fast_fix_20261014/common/chemistry/LocalStiffIntegrator.H: In function ‘ugkwp::ChemistryStatus ugkwp::advanceClosedReactorImpl(const ClosedReactorInput<R, N>&, Time, const SpeciesThermoView<TableReal, Ns>&, const GasMechanismView<TableReal, N>&, const ChemistryControls<From>&, ClosedReactorResult<R, N>&, bool*)’:
+E         /workspace/scratch/98b6339ec81b/pr14_fast_fix_20261014/common/chemistry/LocalStiffIntegrator.H:244:5: error: ‘if constexpr’ only available with ‘-std=c++17’ or ‘-std=gnu++17’ [-Werror=c++17-extensions]
+E           244 |  if constexpr(RetryTrial){
+E               |     ^~~~~~~~~
+E         cc1plus: all warnings being treated as errors
+E         
+E       assert 1 == 0
+E        +  where 1 = CompletedProcess(args=['g++', '-std=c++14', '-O2', '-Wall', '-Wextra', '-Werror', '-pedantic', '-I', '/workspace/scrat...tensions]\n  244 |  if constexpr(RetryTrial){\n      |     ^~~~~~~~~\ncc1plus: all warnings being treated as errors\n').returncode
+
+tests/chemistry/test_h2o2_reactor.py:39: AssertionError
+_ ERROR at setup of test_full_h2o2_histories_and_invariants[seeded_relaxation_2000K_1atm] _
+
+tmp_path_factory = TempPathFactory(_given_basetemp=None, _trace=<pluggy._tracing.TagTracerSub object at 0x7fbe46249520>, _basetemp=PosixPath('/tmp/pytest-of-agent/pytest-67'), _retention_count=3, _retention_policy='all')
+
+    @pytest.fixture(scope='module')
+    def runner(tmp_path_factory):
+        tmp=tmp_path_factory.mktemp('h2o2-reactor');src=tmp/'run.cpp';src.write_text(SOURCE);exe=tmp/'run'
+        build=subprocess.run(['g++','-std=c++14','-O2','-Wall','-Wextra','-Werror','-pedantic','-I',str(ROOT),str(src),'-o',str(exe)],capture_output=True,text=True)
+>       assert build.returncode==0,build.stderr
+E       AssertionError: In file included from /tmp/pytest-of-agent/pytest-67/h2o2-reactor0/run.cpp:2:
+E         /workspace/scratch/98b6339ec81b/pr14_fast_fix_20261014/common/chemistry/LocalStiffIntegrator.H: In function ‘ugkwp::ChemistryStatus ugkwp::advanceClosedReactorImpl(const ClosedReactorInput<R, N>&, Time, const SpeciesThermoView<TableReal, Ns>&, const GasMechanismView<TableReal, N>&, const ChemistryControls<From>&, ClosedReactorResult<R, N>&, bool*)’:
+E         /workspace/scratch/98b6339ec81b/pr14_fast_fix_20261014/common/chemistry/LocalStiffIntegrator.H:244:5: error: ‘if constexpr’ only available with ‘-std=c++17’ or ‘-std=gnu++17’ [-Werror=c++17-extensions]
+E           244 |  if constexpr(RetryTrial){
+E               |     ^~~~~~~~~
+E         cc1plus: all warnings being treated as errors
+E         
+E       assert 1 == 0
+E        +  where 1 = CompletedProcess(args=['g++', '-std=c++14', '-O2', '-Wall', '-Wextra', '-Werror', '-pedantic', '-I', '/workspace/scrat...tensions]\n  244 |  if constexpr(RetryTrial){\n      |     ^~~~~~~~~\ncc1plus: all warnings being treated as errors\n').returncode
+
+tests/chemistry/test_h2o2_reactor.py:39: AssertionError
+__ ERROR at setup of test_chemical_tolerance_refinement_reduces_history_error __
+
+tmp_path_factory = TempPathFactory(_given_basetemp=None, _trace=<pluggy._tracing.TagTracerSub object at 0x7fbe46249520>, _basetemp=PosixPath('/tmp/pytest-of-agent/pytest-67'), _retention_count=3, _retention_policy='all')
+
+    @pytest.fixture(scope='module')
+    def runner(tmp_path_factory):
+        tmp=tmp_path_factory.mktemp('h2o2-reactor');src=tmp/'run.cpp';src.write_text(SOURCE);exe=tmp/'run'
+        build=subprocess.run(['g++','-std=c++14','-O2','-Wall','-Wextra','-Werror','-pedantic','-I',str(ROOT),str(src),'-o',str(exe)],capture_output=True,text=True)
+>       assert build.returncode==0,build.stderr
+E       AssertionError: In file included from /tmp/pytest-of-agent/pytest-67/h2o2-reactor0/run.cpp:2:
+E         /workspace/scratch/98b6339ec81b/pr14_fast_fix_20261014/common/chemistry/LocalStiffIntegrator.H: In function ‘ugkwp::ChemistryStatus ugkwp::advanceClosedReactorImpl(const ClosedReactorInput<R, N>&, Time, const SpeciesThermoView<TableReal, Ns>&, const GasMechanismView<TableReal, N>&, const ChemistryControls<From>&, ClosedReactorResult<R, N>&, bool*)’:
+E         /workspace/scratch/98b6339ec81b/pr14_fast_fix_20261014/common/chemistry/LocalStiffIntegrator.H:244:5: error: ‘if constexpr’ only available with ‘-std=c++17’ or ‘-std=gnu++17’ [-Werror=c++17-extensions]
+E           244 |  if constexpr(RetryTrial){
+E               |     ^~~~~~~~~
+E         cc1plus: all warnings being treated as errors
+E         
+E       assert 1 == 0
+E        +  where 1 = CompletedProcess(args=['g++', '-std=c++14', '-O2', '-Wall', '-Wextra', '-Werror', '-pedantic', '-I', '/workspace/scrat...tensions]\n  244 |  if constexpr(RetryTrial){\n      |     ^~~~~~~~~\ncc1plus: all warnings being treated as errors\n').returncode
+
+tests/chemistry/test_h2o2_reactor.py:39: AssertionError
+=================================== FAILURES ===================================
+____________ test_double_reactor_uses_explicit_precision_tolerances ____________
+
+tmp_path = PosixPath('/tmp/pytest-of-agent/pytest-67/test_double_reactor_uses_expli0')
+
+    def test_double_reactor_uses_explicit_precision_tolerances(tmp_path):
+        src=tmp_path/'double.cpp'
+        src.write_text(MODEL.replace('double','double')+r'''
+    #include "common/chemistry/LocalStiffIntegrator.H"
+    int main(){Model a;ClosedReactorInput<double,2> b;b.speciesMass[0]=.028;b.totalMass=.028;b.volume=.001;b.internalEnergy=mixtureEnergy(b.speciesMass,700.,a.t);
+    ChemistryControls<double> c;c.relativeTolerance=1e-3;c.absoluteMassFractionTolerance=1e-7;c.absoluteTemperatureTolerance=.01;c.relativeConservationTolerance=1e-5;c.thermo.relativeEnergyTolerance=1e-5;c.thermo.absoluteTemperatureTolerance=.01;c.thermo.relativeTemperatureTolerance=1e-5;
+    ClosedReactorResult<double,2> r;auto status=advanceClosedReactor(b,.25,a.t,a.m,c,r);assert(status);assert(std::abs(r.speciesMass[0]-.028*std::exp(-.5))<2e-5);assert(std::abs(r.temperature-700.)<.02);}
+    ''')
+        run=subprocess.run(['g++','-std=c++14','-O2','-Wall','-Wextra','-Werror','-I',str(ROOT),str(src),'-o',str(tmp_path/'double')],capture_output=True,text=True)
+>       assert run.returncode==0,run.stderr
+E       AssertionError: In file included from /tmp/pytest-of-agent/pytest-67/test_double_reactor_uses_expli0/double.cpp:23:
+E         /workspace/scratch/98b6339ec81b/pr14_fast_fix_20261014/common/chemistry/LocalStiffIntegrator.H: In function ‘ugkwp::ChemistryStatus ugkwp::advanceClosedReactorImpl(const ClosedReactorInput<R, N>&, Time, const SpeciesThermoView<TableReal, Ns>&, const GasMechanismView<TableReal, N>&, const ChemistryControls<From>&, ClosedReactorResult<R, N>&, bool*)’:
+E         /workspace/scratch/98b6339ec81b/pr14_fast_fix_20261014/common/chemistry/LocalStiffIntegrator.H:244:5: error: ‘if constexpr’ only available with ‘-std=c++17’ or ‘-std=gnu++17’ [-Werror=c++17-extensions]
+E           244 |  if constexpr(RetryTrial){
+E               |     ^~~~~~~~~
+E         cc1plus: all warnings being treated as errors
+E         
+E       assert 1 == 0
+E        +  where 1 = CompletedProcess(args=['g++', '-std=c++14', '-O2', '-Wall', '-Wextra', '-Werror', '-I', '/workspace/scratch/98b6339ec8...tensions]\n  244 |  if constexpr(RetryTrial){\n      |     ^~~~~~~~~\ncc1plus: all warnings being treated as errors\n').returncode
+
+tests/chemistry/test_closed_reactor.py:68: AssertionError
+_______ test_inactive_fast_mode_does_not_block_independent_slow_reaction _______
+
+tmp_path = PosixPath('/tmp/pytest-of-agent/pytest-67/test_inactive_fast_mode_does_n0')
+
+    def test_inactive_fast_mode_does_not_block_independent_slow_reaction(tmp_path):
+        """A dimensionally large independent row cannot invalidate a unit pivot."""
+        src=tmp_path/'empty_fast_mode.cpp'
+        src.write_text(r'''
+    #include "common/chemistry/LocalStiffIntegrator.H"
+    #include <cassert>
+    #include <cmath>
+    using namespace ugkwp;
+    int main(){
+     SpeciesThermoData<double> species[4];double coefficients[12],atoms[4]={1,1,1,1};
+     double basis[8]={-1,0,1,0,0,-1,0,1};
+     for(int s=0;s<4;++s){species[s].coefficientOffset=3*s;species[s].molarMass=.028;species[s].minTemperature=200;species[s].maxTemperature=4000;species[s].referencePressure=101325;coefficients[3*s]=1000;coefficients[3*s+1]=coefficients[3*s+2]=0;}
+     SpeciesThermoView<double,4> t;t.species=species;t.coefficients=coefficients;t.coefficientCount=12;t.elementCount=1;t.elementComposition=atoms;
+     GasReactionData<double> reactions[2];GasStoichTerm<double> reactants[2]={{0,1},{2,1}},products[2]={{1,1},{3,1}};
+     for(int r=0;r<2;++r){reactions[r].reactantOffset=reactions[r].productOffset=r;reactions[r].reactantCount=reactions[r].productCount=1;reactions[r].highRate.preExponential=1;}
+     GasMechanismView<double,4> m;m.reactions=reactions;m.reactionCount=2;m.reactants=reactants;m.reactantTermCount=2;m.products=products;m.productTermCount=2;m.referencePressure=101325;m.stoichiometricBasis=basis;m.independentRank=2;
+     ClosedReactorInput<double,4> base;base.speciesMass[2]=.028;base.totalMass=.028;base.volume=.001;base.internalEnergy=mixtureEnergy(base.speciesMass,700.,t);
+     ChemistryControls<double> controls;controls.relativeTolerance=1e-8;ClosedReactorResult<double,4> out;
+     const double rates[4]={1,1e12,1e20,1e100};int baselineAttempts=0;
+     for(double rate:rates){reactions[0].highRate.preExponential=rate;auto status=advanceClosedReactor(base,1.,t,m,controls,out);assert(status);assert(out.speciesMass[0]==0 && out.speciesMass[1]==0);assert(std::abs(out.speciesMass[2]/base.totalMass-std::exp(-1.))<3e-6);assert(std::abs(out.temperature-700.)<1e-8);assert(status.attemptedSteps>0);if(rate==1)baselineAttempts=status.attemptedSteps;else assert(status.attemptedSteps==baselineAttempts);}
+     // Row-relative pivot testing must still reject an actually singular system.
+     double singular[16]={1,2,0,0,2,4,0,0},rhs[4]={1,2,0,0};assert((!gasChemistryDetail::solveDense<double,4>(2,singular,rhs)));
+    }
+    ''')
+        exe=tmp_path/'empty_fast_mode'
+        built=subprocess.run(['g++','-std=c++14','-O2','-Wall','-Wextra','-Werror','-pedantic','-I',str(ROOT),str(src),'-o',str(exe)],capture_output=True,text=True)
+>       assert built.returncode==0,built.stderr
+E       AssertionError: In file included from /tmp/pytest-of-agent/pytest-67/test_inactive_fast_mode_does_n0/empty_fast_mode.cpp:2:
+E         /workspace/scratch/98b6339ec81b/pr14_fast_fix_20261014/common/chemistry/LocalStiffIntegrator.H: In function ‘ugkwp::ChemistryStatus ugkwp::advanceClosedReactorImpl(const ClosedReactorInput<R, N>&, Time, const SpeciesThermoView<TableReal, Ns>&, const GasMechanismView<TableReal, N>&, const ChemistryControls<From>&, ClosedReactorResult<R, N>&, bool*)’:
+E         /workspace/scratch/98b6339ec81b/pr14_fast_fix_20261014/common/chemistry/LocalStiffIntegrator.H:244:5: error: ‘if constexpr’ only available with ‘-std=c++17’ or ‘-std=gnu++17’ [-Werror=c++17-extensions]
+E           244 |  if constexpr(RetryTrial){
+E               |     ^~~~~~~~~
+E         cc1plus: all warnings being treated as errors
+E         
+E       assert 1 == 0
+E        +  where 1 = CompletedProcess(args=['g++', '-std=c++14', '-O2', '-Wall', '-Wextra', '-Werror', '-pedantic', '-I', '/workspace/scrat...tensions]\n  244 |  if constexpr(RetryTrial){\n      |     ^~~~~~~~~\ncc1plus: all warnings being treated as errors\n').returncode
+
+tests/chemistry/test_closed_reactor.py:99: AssertionError
+=========================== short test summary info ============================
+FAILED tests/chemistry/test_closed_reactor.py::test_double_reactor_uses_explicit_precision_tolerances
+FAILED tests/chemistry/test_closed_reactor.py::test_inactive_fast_mode_does_not_block_independent_slow_reaction
+ERROR tests/chemistry/test_h2o2_reactor.py::test_full_h2o2_histories_and_invariants[nitrogen_1000K_1atm]
+ERROR tests/chemistry/test_h2o2_reactor.py::test_full_h2o2_histories_and_invariants[nitrogen_1000K_10atm]
+ERROR tests/chemistry/test_h2o2_reactor.py::test_full_h2o2_histories_and_invariants[nitrogen_1200K_1atm]
+ERROR tests/chemistry/test_h2o2_reactor.py::test_full_h2o2_histories_and_invariants[nitrogen_1200K_10atm]
+ERROR tests/chemistry/test_h2o2_reactor.py::test_full_h2o2_histories_and_invariants[nitrogen_1500K_1atm]
+ERROR tests/chemistry/test_h2o2_reactor.py::test_full_h2o2_histories_and_invariants[nitrogen_1500K_10atm]
+ERROR tests/chemistry/test_h2o2_reactor.py::test_full_h2o2_histories_and_invariants[argon_1200K_1atm]
+ERROR tests/chemistry/test_h2o2_reactor.py::test_full_h2o2_histories_and_invariants[seeded_relaxation_2000K_1atm]
+ERROR tests/chemistry/test_h2o2_reactor.py::test_chemical_tolerance_refinement_reduces_history_error
+2 failed, 8 passed, 2 deselected, 9 errors in 102.33s (0:01:42)
