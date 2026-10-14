@@ -1,0 +1,25 @@
+/tmp/pr14_zero_phase_green_final/chmt_zero_phase_material0/phase_probe -case /tmp/pr14_zero_phase_green_final/chmt_zero_phase_material0/case -phaseCase melting
+/*---------------------------------------------------------------------------*\
+  =========                 |
+  \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
+   \\    /   O peration     | Website:  https://openfoam.org
+    \\  /    A nd           | Version:  10
+     \\/     M anipulation  |
+\*---------------------------------------------------------------------------*/
+Build  : 10-c4cf895ad8fa
+Exec   : /tmp/pr14_zero_phase_green_final/chmt_zero_phase_material0/phase_probe -case /tmp/pr14_zero_phase_green_final/chmt_zero_phase_material0/case -phaseCase melting
+Date   : Oct 14 2026
+Time   : 19:30:51
+Host   : "b6c931a35d52"
+PID    : 219
+I/O    : uncollated
+Case   : /tmp/pr14_zero_phase_green_final/chmt_zero_phase_material0/case
+nProcs : 1
+sigFpe : Enabling floating point exception trapping (FOAM_SIGFPE).
+fileModificationChecking : Monitoring run-time modified files using timeStampMaster (fileModificationSkew 10)
+allowSystemOperations : Allowing user-supplied system call operations
+
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+diagonal:  Solving for CHMTMaterialTemperature, Initial residual = 0, Final residual = 0, No Iterations 0
+diagonal:  Solving for CHMTMaterialTemperature, Initial residual = 0, Final residual = 0, No Iterations 0
+PASS native CPU phase melting mass=0x1.0c91d6232f269p-18 heat=0x1.3367a0f9096bcp+1 force=0x1.d63886594af4fp-3 sweep=-0x1.1303edb56fc53p-28
