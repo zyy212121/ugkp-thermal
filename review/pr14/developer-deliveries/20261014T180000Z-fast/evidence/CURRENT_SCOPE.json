@@ -1,0 +1,17 @@
+{
+  "recorded_at_utc": "2026-10-14T17:30:23.400793+00:00",
+  "latest_direction": "Delete all pure production audit/check-only work without physical consumers; no optional audit mode",
+  "implementation_status": "PRODUCTION_FREEZE_2026_10_14_17_25_20_FINAL_LOWOPT_CUDA_PASS_GPU_OPEN",
+  "cancelled": [
+    "wet single scalar pressure integral",
+    "CHMT_ENABLE_SST_AUDIT",
+    "V1 wire16+2Ns"
+  ],
+  "wire_final": "25+2Ns,9reservedzero,species offset25",
+  "retired_metric": "support-only total momentum residual RETIRED_BY_USER, never PASS",
+  "real_gas_mass_momentum_energy_gaps_retained": true,
+  "compact_transfers_implemented": false,
+  "production_numerical_gates_added": false,
+  "test_accounting_location": "independent tests, never production feature",
+  "source_commit_tree_pending": true
+}

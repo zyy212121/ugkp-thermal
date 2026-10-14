@@ -1,0 +1,1968 @@
+{
+  "timestamp_utc": "2026-10-14T18:18:12.031045+00:00",
+  "base": "0aa34bc1b0e370ec99e6107faf83ff7f0ac3e668",
+  "source_commit": "47034e4e0380fa5b84165b49207a95a9b187a52a",
+  "source_tree": "c932823a00b3ed2f647e22de5002f9b913962fee",
+  "changed_path_count": 139,
+  "actual_changes": [
+    "M\tapplications/CHMT/ablation/CpuSurfaceInterface.C",
+    "M\tapplications/CHMT/ablation/CpuSurfaceInterface.H",
+    "M\tapplications/CHMT/ablation/InterfaceMath.H",
+    "M\tapplications/CHMT/core/HostState.H",
+    "M\tapplications/CHMT/core/Types.H",
+    "M\tapplications/CHMT/coupling/Coordinator.H",
+    "M\tapplications/CHMT/coupling/ExchangeLedger.C",
+    "M\tapplications/CHMT/coupling/ExchangeLedger.H",
+    "M\tapplications/CHMT/coupling/IntervalAudit.H",
+    "M\tapplications/CHMT/coupling/IntervalContracts.H",
+    "M\tapplications/CHMT/devtools/multirate/check_cpu_material_of.sh",
+    "M\tapplications/CHMT/devtools/multirate/test_cpu_checkpoint.cpp",
+    "M\tapplications/CHMT/devtools/multirate/test_cpu_film.cpp",
+    "M\tapplications/CHMT/devtools/multirate/test_cpu_film_curved.cpp",
+    "M\tapplications/CHMT/devtools/multirate/test_cpu_material_of.C",
+    "M\tapplications/CHMT/devtools/multirate/test_cpu_phase_lifecycle.cpp",
+    "M\tapplications/CHMT/devtools/multirate/test_material_drive.cpp",
+    "M\tapplications/CHMT/devtools/multirate/test_material_transport.cpp",
+    "M\tapplications/CHMT/film/CpuFilmDriver.C",
+    "M\tapplications/CHMT/film/CpuFilmDriver.H",
+    "M\tapplications/CHMT/gpu/Backend.cu",
+    "M\tapplications/CHMT/gpu/SharedGasDeviceStorage.cuh",
+    "M\tapplications/CHMT/io/CoupledOutput.H",
+    "M\tapplications/CHMT/io/MultirateEvolution.C",
+    "M\tapplications/CHMT/io/MultirateEvolution.H",
+    "M\tapplications/CHMT/materials/CpuMaterialDriver.C",
+    "M\tapplications/CHMT/materials/CpuMaterialDriver.H",
+    "M\tapplications/CHMT/materials/MaterialDrive.H",
+    "M\tapplications/CHMT/materials/MaterialTransport.C",
+    "M\tapplications/CHMT/materials/MaterialTransport.H",
+    "A\tapplications/CHMT/tests/NativeMaterialProbe.H",
+    "M\tapplications/CHMT/tests/run_reacting_wall_film_of.sh",
+    "M\tapplications/CHMT/tests/test_complete_payload_admission.py",
+    "M\tapplications/CHMT/tests/test_conduction_terminal_of.C",
+    "M\tapplications/CHMT/tests/test_coupled_output.cpp",
+    "M\tapplications/CHMT/tests/test_coupled_runtime_transactions.py",
+    "M\tapplications/CHMT/tests/test_final_gas_consumers.py",
+    "M\tapplications/CHMT/tests/test_geometry_terminal_of.C",
+    "M\tapplications/CHMT/tests/test_interval_audit_normalization.py",
+    "M\tapplications/CHMT/tests/test_multirate_orchestration.cpp",
+    "M\tapplications/CHMT/tests/test_owner_endpoint_of.C",
+    "M\tapplications/CHMT/tests/test_owner_terminal_of.C",
+    "M\tapplications/CHMT/tests/test_reacting_wall_film_of.C",
+    "M\tapplications/CHMT/tests/test_reacting_wall_material_drive.py",
+    "M\tapplications/CHMT/tests/test_reacting_wall_mechanical_pressure.py",
+    "M\tapplications/CHMT/tests/test_shared_backend_compile.py",
+    "M\tapplications/CHMT/tests/test_shared_reconfiguration.py",
+    "M\tapplications/CHMT/tests/test_sources_terminal_of.C",
+    "M\tapplications/CHMT/tests/test_surface_terminal_of.C",
+    "M\tapplications/CHMT/tests/test_sweep_terminal_of.C",
+    "M\tapplications/CHMT/tests/test_transaction.cpp",
+    "M\tapplications/CHMT/tests/test_transport_terminal_of.C",
+    "M\tapplications/CHMT/tests/test_window_duration.py",
+    "A\tapplications/CHMT/verification/multirate/InventoryAudit.H",
+    "M\tapplications/CHMT/verification/multirate/interval_audit.cpp",
+    "M\tapplications/CHT/devtools/audit_cht_long_run.py",
+    "M\tapplications/CHT/devtools/tests/radiationContinuation/TestRadiationContinuation.C",
+    "M\tapplications/CHT/devtools/tests/radiationOriginalSuccess/TestRadiationOriginalSuccess.C",
+    "M\tapplications/CHT/devtools/tests/test_long_run_audit.py",
+    "M\tapplications/CHT/thermal/GpuParticleRadiationCoupler.C",
+    "M\tapplications/CHT/thermal/GpuParticleRadiationCoupler.H",
+    "M\tapplications/CHT/thermal/GpuSolidThermalCoupler.C",
+    "M\tapplications/CHT/thermal/GpuThermalExchangeState.C",
+    "M\tapplications/CHT/thermal/GpuThermalExchangeState.H",
+    "M\tapplications/gasUGKP/gpu/BoundaryLayerInput.H",
+    "M\tapplications/gasUGKP/gpu/GpuBackendProtocol.H",
+    "M\tapplications/gasUGKP/private_backend/BoundaryLayerAdapter.cuh",
+    "M\tapplications/gasUGKP/private_backend/BoundaryLayerStorage.cuh",
+    "D\tapplications/gasUGKP/private_backend/GasBudgetRuntime.cuh",
+    "M\tapplications/gasUGKP/private_backend/GpuResidentStrict.cu",
+    "M\tapplications/gasUGKP/private_backend/SharedGasAdapter.cuh",
+    "M\tapplications/gasUGKP/private_backend/SharedGasStorage.cuh",
+    "M\tapplications/gasUGKP/private_backend/SharedGasTrialFields.H",
+    "M\tapplications/gasUGKP/private_backend/SharedGasTrialPolicy.cuh",
+    "M\tapplications/gasUGKP/tests/test_boundary_layer_lifecycle.py",
+    "M\tapplications/gasUGKP/tests/test_boundary_layer_protocol.py",
+    "M\tapplications/gasUGKP/tests/test_boundary_layer_storage.py",
+    "M\tapplications/gasUGKP/tests/test_budget_reconfiguration_continuation.py",
+    "M\tapplications/gasUGKP/tests/test_gas_budget_runtime.py",
+    "M\tapplications/gasUGKP/tests/test_native_boundary_layer_frontend.py",
+    "M\tapplications/gasUGKP/tests/test_shared_gas_adapter.py",
+    "M\tapplications/gasUGKP/tests/test_shared_gas_trial_policy.py",
+    "M\tapplications/gasUGKP/tests/test_shared_reconfiguration_lifecycle.py",
+    "M\tapplications/gasUGKP/tests/test_wall_adapter_continuation.py",
+    "M\tcommon/GpuGasAdvance.cuh",
+    "M\tcommon/GpuGasOperatorDependencies.cuh",
+    "M\tcommon/chemistry/ChemistryTypes.H",
+    "M\tcommon/chemistry/LocalStiffIntegrator.H",
+    "D\tcommon/gasTransport/GasBudgetAudit.H",
+    "D\tcommon/gasTransport/GasSstAudit.H",
+    "M\tcommon/gasTransport/GasStateView.H",
+    "M\tcommon/operators/advanceGasChemistryKernel.cuh",
+    "M\tcommon/operators/computeGasPrimitiveGradientsKernel.cuh",
+    "M\tcommon/operators/computeSstFaceFluxKernel.cuh",
+    "M\ttests/chemistry/fixtures/finite_candidate_lineage/lineage_probe.cpp",
+    "M\ttests/chemistry/fixtures/finite_candidate_lineage/repeated_call_probe.cpp",
+    "M\ttests/chemistry/fixtures/finite_candidate_lineage/wider_time_probe.cpp",
+    "M\ttests/chemistry/test_closed_reactor.py",
+    "M\ttests/chemistry/test_gas_budget_publication.py",
+    "M\ttests/chemistry/test_gas_chemistry_adapter.py",
+    "M\ttests/chemistry/test_gas_controlled_step_accuracy.py",
+    "M\ttests/chemistry/test_gas_finite_continuation.py",
+    "M\ttests/chemistry/test_gas_publication_limits.py",
+    "M\ttests/chemistry/test_gas_stage_lineage.py",
+    "M\ttests/chemistry/test_gas_terminal_completion.py",
+    "M\ttests/chemistry/test_h2o2_reactor.py",
+    "M\ttests/chemistry/test_rounded_chemical_publication.py",
+    "M\ttests/fixtures/chemistry_trial/chemistry_trial.cu.in",
+    "M\ttests/fixtures/chmt_zero_phase_material/probe.C",
+    "M\ttests/fixtures/cht_thermal/compatibility.C",
+    "M\ttests/fixtures/cht_thermal/exchange.C",
+    "M\ttests/fixtures/cht_thermal/probe.C",
+    "M\ttests/fixtures/film_incidence/probe.cpp",
+    "M\ttests/fixtures/terminal_sources/film.cpp",
+    "M\ttests/fixtures/terminal_sources/interval.cpp",
+    "M\ttests/gas_transport/test_actual_wall_producer_consumers.py",
+    "M\ttests/gas_transport/test_boundary_layer_host.py",
+    "M\ttests/gas_transport/test_boundary_layer_operators.py",
+    "M\ttests/gas_transport/test_boundary_layer_state.py",
+    "M\ttests/gas_transport/test_bulk_candidate_continuation.py",
+    "M\ttests/gas_transport/test_bulk_review_findings.py",
+    "M\ttests/gas_transport/test_cell_producer_completion.py",
+    "M\ttests/gas_transport/test_gas_budget_audit.py",
+    "M\ttests/gas_transport/test_gas_state_contract.py",
+    "M\ttests/gas_transport/test_global_operator_dependencies.py",
+    "M\ttests/gas_transport/test_native_original_success.py",
+    "M\ttests/gas_transport/test_numerical_wall_k_inventory.py",
+    "M\ttests/gas_transport/test_sst_ale_audit.py",
+    "M\ttests/test_chemistry_trial_cuda_fixture.py",
+    "M\ttests/test_chmt_input_admission.py",
+    "A\ttests/test_chmt_material_report_removal.py",
+    "A\ttests/test_chmt_support_accounting_removal.py",
+    "A\ttests/test_cht_diagnostic_accounting_removal.py",
+    "M\ttests/test_film_incidence.py",
+    "A\ttests/test_gas_diagnostic_accounting_removal.py",
+    "M\ttests/test_sst_courant_mass_flux.py",
+    "M\ttests/test_sst_high_re_omega.py",
+    "M\ttests/test_terminal_sources.py",
+    "M\ttools/managed_mirrors.json"
+  ],
+  "incidental_local_mode_only_excluded": [
+    "test/gasUGKP/mixtureTransport/make_case.py",
+    "test/gasUGKP/mixtureTransport/reference.py"
+  ],
+  "expected_missing": [],
+  "unexpected_changes": [],
+  "results": [
+    {
+      "path": "applications/CHMT/ablation/CpuSurfaceInterface.C",
+      "remote": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "cdbaf70fbc2048f53fe0aece80a95d9f41a663a0"
+      },
+      "local_blob": "cdbaf70fbc2048f53fe0aece80a95d9f41a663a0",
+      "local_mode": "100644",
+      "blob_matches": true,
+      "mode_matches": true,
+      "ok": true
+    },
+    {
+      "path": "applications/CHMT/ablation/CpuSurfaceInterface.H",
+      "remote": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "fb961361c9dab20811c10aeb20b38173618311ab"
+      },
+      "local_blob": "fb961361c9dab20811c10aeb20b38173618311ab",
+      "local_mode": "100644",
+      "blob_matches": true,
+      "mode_matches": true,
+      "ok": true
+    },
+    {
+      "path": "applications/CHMT/ablation/InterfaceMath.H",
+      "remote": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "9ea90d5052d1454c5ae96aacb4a6f6e4d603c135"
+      },
+      "local_blob": "9ea90d5052d1454c5ae96aacb4a6f6e4d603c135",
+      "local_mode": "100644",
+      "blob_matches": true,
+      "mode_matches": true,
+      "ok": true
+    },
+    {
+      "path": "applications/CHMT/core/HostState.H",
+      "remote": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "353e6ba02d11e8fb8e07dc8ee3acc0ad161d7e33"
+      },
+      "local_blob": "353e6ba02d11e8fb8e07dc8ee3acc0ad161d7e33",
+      "local_mode": "100644",
+      "blob_matches": true,
+      "mode_matches": true,
+      "ok": true
+    },
+    {
+      "path": "applications/CHMT/core/Types.H",
+      "remote": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "d0cb0078cd7525e365588cf6714d4ee98ecebc4c"
+      },
+      "local_blob": "d0cb0078cd7525e365588cf6714d4ee98ecebc4c",
+      "local_mode": "100644",
+      "blob_matches": true,
+      "mode_matches": true,
+      "ok": true
+    },
+    {
+      "path": "applications/CHMT/coupling/Coordinator.H",
+      "remote": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "d86a9c446f7c64813e1ec55444dc84a5b24a996a"
+      },
+      "local_blob": "d86a9c446f7c64813e1ec55444dc84a5b24a996a",
+      "local_mode": "100644",
+      "blob_matches": true,
+      "mode_matches": true,
+      "ok": true
+    },
+    {
+      "path": "applications/CHMT/coupling/ExchangeLedger.C",
+      "remote": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "75ca04cd9003c95d1c85c21b3ab6ee18fbc94315"
+      },
+      "local_blob": "75ca04cd9003c95d1c85c21b3ab6ee18fbc94315",
+      "local_mode": "100644",
+      "blob_matches": true,
+      "mode_matches": true,
+      "ok": true
+    },
+    {
+      "path": "applications/CHMT/coupling/ExchangeLedger.H",
+      "remote": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "85fa1329f1470c5e70c15ce3a5a53a9a8ac3b241"
+      },
+      "local_blob": "85fa1329f1470c5e70c15ce3a5a53a9a8ac3b241",
+      "local_mode": "100644",
+      "blob_matches": true,
+      "mode_matches": true,
+      "ok": true
+    },
+    {
+      "path": "applications/CHMT/coupling/IntervalAudit.H",
+      "remote": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "fd94eb84d9fe877d9d5672eec6ac99160c72fe61"
+      },
+      "local_blob": "fd94eb84d9fe877d9d5672eec6ac99160c72fe61",
+      "local_mode": "100644",
+      "blob_matches": true,
+      "mode_matches": true,
+      "ok": true
+    },
+    {
+      "path": "applications/CHMT/coupling/IntervalContracts.H",
+      "remote": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "387773b2fbed69306d6a4e93421c8e4d149a792f"
+      },
+      "local_blob": "387773b2fbed69306d6a4e93421c8e4d149a792f",
+      "local_mode": "100644",
+      "blob_matches": true,
+      "mode_matches": true,
+      "ok": true
+    },
+    {
+      "path": "applications/CHMT/devtools/multirate/check_cpu_material_of.sh",
+      "remote": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "fc256793567a350cdc694269ca9393aab7135a98"
+      },
+      "local_blob": "fc256793567a350cdc694269ca9393aab7135a98",
+      "local_mode": "100644",
+      "blob_matches": true,
+      "mode_matches": true,
+      "ok": true
+    },
+    {
+      "path": "applications/CHMT/devtools/multirate/test_cpu_checkpoint.cpp",
+      "remote": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "3c704b6e5323b0b64733d4554fa5a74551bbf6b0"
+      },
+      "local_blob": "3c704b6e5323b0b64733d4554fa5a74551bbf6b0",
+      "local_mode": "100644",
+      "blob_matches": true,
+      "mode_matches": true,
+      "ok": true
+    },
+    {
+      "path": "applications/CHMT/devtools/multirate/test_cpu_film.cpp",
+      "remote": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "ac28d4b951550f344ddccc6ecd9da503df1eb2a9"
+      },
+      "local_blob": "ac28d4b951550f344ddccc6ecd9da503df1eb2a9",
+      "local_mode": "100644",
+      "blob_matches": true,
+      "mode_matches": true,
+      "ok": true
+    },
+    {
+      "path": "applications/CHMT/devtools/multirate/test_cpu_film_curved.cpp",
+      "remote": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "2ca5fb250bac7f0e6d82d2c4a10bcc8165489a92"
+      },
+      "local_blob": "2ca5fb250bac7f0e6d82d2c4a10bcc8165489a92",
+      "local_mode": "100644",
+      "blob_matches": true,
+      "mode_matches": true,
+      "ok": true
+    },
+    {
+      "path": "applications/CHMT/devtools/multirate/test_cpu_material_of.C",
+      "remote": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "4caf954d9a8afefd066ac8406990c5e10fd13e3b"
+      },
+      "local_blob": "4caf954d9a8afefd066ac8406990c5e10fd13e3b",
+      "local_mode": "100644",
+      "blob_matches": true,
+      "mode_matches": true,
+      "ok": true
+    },
+    {
+      "path": "applications/CHMT/devtools/multirate/test_cpu_phase_lifecycle.cpp",
+      "remote": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "cbfc3b3c1e8887a9c302032d5aec3383275be9d8"
+      },
+      "local_blob": "cbfc3b3c1e8887a9c302032d5aec3383275be9d8",
+      "local_mode": "100644",
+      "blob_matches": true,
+      "mode_matches": true,
+      "ok": true
+    },
+    {
+      "path": "applications/CHMT/devtools/multirate/test_material_drive.cpp",
+      "remote": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "ce9dd36f2b69d327c6b16fb5112ad9f11745654a"
+      },
+      "local_blob": "ce9dd36f2b69d327c6b16fb5112ad9f11745654a",
+      "local_mode": "100644",
+      "blob_matches": true,
+      "mode_matches": true,
+      "ok": true
+    },
+    {
+      "path": "applications/CHMT/devtools/multirate/test_material_transport.cpp",
+      "remote": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "5c695db9b376ca81094e3634cad904623f08c0c2"
+      },
+      "local_blob": "5c695db9b376ca81094e3634cad904623f08c0c2",
+      "local_mode": "100644",
+      "blob_matches": true,
+      "mode_matches": true,
+      "ok": true
+    },
+    {
+      "path": "applications/CHMT/film/CpuFilmDriver.C",
+      "remote": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "f028686d7237da74ac42f86311432def9cb3b392"
+      },
+      "local_blob": "f028686d7237da74ac42f86311432def9cb3b392",
+      "local_mode": "100644",
+      "blob_matches": true,
+      "mode_matches": true,
+      "ok": true
+    },
+    {
+      "path": "applications/CHMT/film/CpuFilmDriver.H",
+      "remote": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "1adbf5f177cfcce5392f10bce9d0f619dff5a13d"
+      },
+      "local_blob": "1adbf5f177cfcce5392f10bce9d0f619dff5a13d",
+      "local_mode": "100644",
+      "blob_matches": true,
+      "mode_matches": true,
+      "ok": true
+    },
+    {
+      "path": "applications/CHMT/gpu/Backend.cu",
+      "remote": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "bcd7178a531f3ea0019aae4967694342f8d41882"
+      },
+      "local_blob": "bcd7178a531f3ea0019aae4967694342f8d41882",
+      "local_mode": "100644",
+      "blob_matches": true,
+      "mode_matches": true,
+      "ok": true
+    },
+    {
+      "path": "applications/CHMT/gpu/SharedGasDeviceStorage.cuh",
+      "remote": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "d0e4049223c44084baa7bb020b0441ff3d14c5a0"
+      },
+      "local_blob": "d0e4049223c44084baa7bb020b0441ff3d14c5a0",
+      "local_mode": "100644",
+      "blob_matches": true,
+      "mode_matches": true,
+      "ok": true
+    },
+    {
+      "path": "applications/CHMT/io/CoupledOutput.H",
+      "remote": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "249cdf60e70da7f4be0f83abcb5ab1c7e85988cd"
+      },
+      "local_blob": "249cdf60e70da7f4be0f83abcb5ab1c7e85988cd",
+      "local_mode": "100644",
+      "blob_matches": true,
+      "mode_matches": true,
+      "ok": true
+    },
+    {
+      "path": "applications/CHMT/io/MultirateEvolution.C",
+      "remote": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "d61b7c00d8a2ca31a570ab35377ce024f4d6d873"
+      },
+      "local_blob": "d61b7c00d8a2ca31a570ab35377ce024f4d6d873",
+      "local_mode": "100644",
+      "blob_matches": true,
+      "mode_matches": true,
+      "ok": true
+    },
+    {
+      "path": "applications/CHMT/io/MultirateEvolution.H",
+      "remote": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "0d440dd49ef3fb61903b89846cbd02740f9b75f0"
+      },
+      "local_blob": "0d440dd49ef3fb61903b89846cbd02740f9b75f0",
+      "local_mode": "100644",
+      "blob_matches": true,
+      "mode_matches": true,
+      "ok": true
+    },
+    {
+      "path": "applications/CHMT/materials/CpuMaterialDriver.C",
+      "remote": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "3ecd7badcefdfa3ba5d9b14cb0c8aa258c124367"
+      },
+      "local_blob": "3ecd7badcefdfa3ba5d9b14cb0c8aa258c124367",
+      "local_mode": "100644",
+      "blob_matches": true,
+      "mode_matches": true,
+      "ok": true
+    },
+    {
+      "path": "applications/CHMT/materials/CpuMaterialDriver.H",
+      "remote": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "a64bf673ffdc258e53f82b2cc77d14fbec90f47a"
+      },
+      "local_blob": "a64bf673ffdc258e53f82b2cc77d14fbec90f47a",
+      "local_mode": "100644",
+      "blob_matches": true,
+      "mode_matches": true,
+      "ok": true
+    },
+    {
+      "path": "applications/CHMT/materials/MaterialDrive.H",
+      "remote": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "11156213a010d6caadcd16a658c771d64a276f6c"
+      },
+      "local_blob": "11156213a010d6caadcd16a658c771d64a276f6c",
+      "local_mode": "100644",
+      "blob_matches": true,
+      "mode_matches": true,
+      "ok": true
+    },
+    {
+      "path": "applications/CHMT/materials/MaterialTransport.C",
+      "remote": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "ef3fbe1efee8429c588ab2e00140c61b99c1b045"
+      },
+      "local_blob": "ef3fbe1efee8429c588ab2e00140c61b99c1b045",
+      "local_mode": "100644",
+      "blob_matches": true,
+      "mode_matches": true,
+      "ok": true
+    },
+    {
+      "path": "applications/CHMT/materials/MaterialTransport.H",
+      "remote": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "72c49f55b296650ab8e17f86fc253c62a83a517d"
+      },
+      "local_blob": "72c49f55b296650ab8e17f86fc253c62a83a517d",
+      "local_mode": "100644",
+      "blob_matches": true,
+      "mode_matches": true,
+      "ok": true
+    },
+    {
+      "path": "applications/CHMT/tests/run_reacting_wall_film_of.sh",
+      "remote": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "acd6362ead173911425807cbe65bb968ac8f9edf"
+      },
+      "local_blob": "acd6362ead173911425807cbe65bb968ac8f9edf",
+      "local_mode": "100644",
+      "blob_matches": true,
+      "mode_matches": true,
+      "ok": true
+    },
+    {
+      "path": "applications/CHMT/tests/test_complete_payload_admission.py",
+      "remote": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "375a515155f4395043c767cca159fa3c3059c984"
+      },
+      "local_blob": "375a515155f4395043c767cca159fa3c3059c984",
+      "local_mode": "100644",
+      "blob_matches": true,
+      "mode_matches": true,
+      "ok": true
+    },
+    {
+      "path": "applications/CHMT/tests/test_conduction_terminal_of.C",
+      "remote": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "3a01fe37e2990fb472ed99c5ab42fb967f884432"
+      },
+      "local_blob": "3a01fe37e2990fb472ed99c5ab42fb967f884432",
+      "local_mode": "100644",
+      "blob_matches": true,
+      "mode_matches": true,
+      "ok": true
+    },
+    {
+      "path": "applications/CHMT/tests/test_coupled_output.cpp",
+      "remote": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "476e018cc277e643971eda87da7848f832494458"
+      },
+      "local_blob": "476e018cc277e643971eda87da7848f832494458",
+      "local_mode": "100644",
+      "blob_matches": true,
+      "mode_matches": true,
+      "ok": true
+    },
+    {
+      "path": "applications/CHMT/tests/test_coupled_runtime_transactions.py",
+      "remote": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "433ae956edd9259447fa175dc7a10607a7d8577c"
+      },
+      "local_blob": "433ae956edd9259447fa175dc7a10607a7d8577c",
+      "local_mode": "100644",
+      "blob_matches": true,
+      "mode_matches": true,
+      "ok": true
+    },
+    {
+      "path": "applications/CHMT/tests/test_final_gas_consumers.py",
+      "remote": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "048c0e3b17e2e4b7022ee4aedebe3583b1723f8e"
+      },
+      "local_blob": "048c0e3b17e2e4b7022ee4aedebe3583b1723f8e",
+      "local_mode": "100644",
+      "blob_matches": true,
+      "mode_matches": true,
+      "ok": true
+    },
+    {
+      "path": "applications/CHMT/tests/test_geometry_terminal_of.C",
+      "remote": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "aa23536291d0ff52db9c065ed87ec56332574a22"
+      },
+      "local_blob": "aa23536291d0ff52db9c065ed87ec56332574a22",
+      "local_mode": "100644",
+      "blob_matches": true,
+      "mode_matches": true,
+      "ok": true
+    },
+    {
+      "path": "applications/CHMT/tests/test_interval_audit_normalization.py",
+      "remote": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "9a12e7ee2f2fff869c716618352c90d320baae6d"
+      },
+      "local_blob": "9a12e7ee2f2fff869c716618352c90d320baae6d",
+      "local_mode": "100644",
+      "blob_matches": true,
+      "mode_matches": true,
+      "ok": true
+    },
+    {
+      "path": "applications/CHMT/tests/test_multirate_orchestration.cpp",
+      "remote": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "bb6bee6aa8463ba2f47c59b955cf0966b1632022"
+      },
+      "local_blob": "bb6bee6aa8463ba2f47c59b955cf0966b1632022",
+      "local_mode": "100644",
+      "blob_matches": true,
+      "mode_matches": true,
+      "ok": true
+    },
+    {
+      "path": "applications/CHMT/tests/test_owner_endpoint_of.C",
+      "remote": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "586b356bf1a4b0cddc705542f0e8f5c43c5366a9"
+      },
+      "local_blob": "586b356bf1a4b0cddc705542f0e8f5c43c5366a9",
+      "local_mode": "100644",
+      "blob_matches": true,
+      "mode_matches": true,
+      "ok": true
+    },
+    {
+      "path": "applications/CHMT/tests/test_owner_terminal_of.C",
+      "remote": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "277cd3e6e4527d122ccfb483ed454485747fe887"
+      },
+      "local_blob": "277cd3e6e4527d122ccfb483ed454485747fe887",
+      "local_mode": "100644",
+      "blob_matches": true,
+      "mode_matches": true,
+      "ok": true
+    },
+    {
+      "path": "applications/CHMT/tests/test_reacting_wall_film_of.C",
+      "remote": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "0f7b6c0f79bbee4e17830941df1330329179255f"
+      },
+      "local_blob": "0f7b6c0f79bbee4e17830941df1330329179255f",
+      "local_mode": "100644",
+      "blob_matches": true,
+      "mode_matches": true,
+      "ok": true
+    },
+    {
+      "path": "applications/CHMT/tests/test_reacting_wall_material_drive.py",
+      "remote": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "07b010ef373fb7f3f4ea2196ed71ab7d59b39832"
+      },
+      "local_blob": "07b010ef373fb7f3f4ea2196ed71ab7d59b39832",
+      "local_mode": "100644",
+      "blob_matches": true,
+      "mode_matches": true,
+      "ok": true
+    },
+    {
+      "path": "applications/CHMT/tests/test_reacting_wall_mechanical_pressure.py",
+      "remote": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "9618c71a8380495eae068a74e83031e2cbb5363f"
+      },
+      "local_blob": "9618c71a8380495eae068a74e83031e2cbb5363f",
+      "local_mode": "100644",
+      "blob_matches": true,
+      "mode_matches": true,
+      "ok": true
+    },
+    {
+      "path": "applications/CHMT/tests/test_shared_backend_compile.py",
+      "remote": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "20183700a7bba6a9064aa4343e4ea241bd9bc3c8"
+      },
+      "local_blob": "20183700a7bba6a9064aa4343e4ea241bd9bc3c8",
+      "local_mode": "100644",
+      "blob_matches": true,
+      "mode_matches": true,
+      "ok": true
+    },
+    {
+      "path": "applications/CHMT/tests/test_shared_reconfiguration.py",
+      "remote": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "731444703c1b770f945f6ad5a71d4f22fde33816"
+      },
+      "local_blob": "731444703c1b770f945f6ad5a71d4f22fde33816",
+      "local_mode": "100644",
+      "blob_matches": true,
+      "mode_matches": true,
+      "ok": true
+    },
+    {
+      "path": "applications/CHMT/tests/test_sources_terminal_of.C",
+      "remote": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "a653df8928fd628790b9cd309a73f254302e43ce"
+      },
+      "local_blob": "a653df8928fd628790b9cd309a73f254302e43ce",
+      "local_mode": "100644",
+      "blob_matches": true,
+      "mode_matches": true,
+      "ok": true
+    },
+    {
+      "path": "applications/CHMT/tests/test_surface_terminal_of.C",
+      "remote": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "b50acbe44fb0ffa318ef2a80ea260931eed7bb14"
+      },
+      "local_blob": "b50acbe44fb0ffa318ef2a80ea260931eed7bb14",
+      "local_mode": "100644",
+      "blob_matches": true,
+      "mode_matches": true,
+      "ok": true
+    },
+    {
+      "path": "applications/CHMT/tests/test_sweep_terminal_of.C",
+      "remote": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "ee151dc4e6c14b4bbd6ff3bba4e69d21852d1156"
+      },
+      "local_blob": "ee151dc4e6c14b4bbd6ff3bba4e69d21852d1156",
+      "local_mode": "100644",
+      "blob_matches": true,
+      "mode_matches": true,
+      "ok": true
+    },
+    {
+      "path": "applications/CHMT/tests/test_transaction.cpp",
+      "remote": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "9db9d51e59645cfbc7c3e26c3b0a17aa5e7f5980"
+      },
+      "local_blob": "9db9d51e59645cfbc7c3e26c3b0a17aa5e7f5980",
+      "local_mode": "100644",
+      "blob_matches": true,
+      "mode_matches": true,
+      "ok": true
+    },
+    {
+      "path": "applications/CHMT/tests/test_transport_terminal_of.C",
+      "remote": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "4601a4d2b8ae88a763d91a29a7b493d184448473"
+      },
+      "local_blob": "4601a4d2b8ae88a763d91a29a7b493d184448473",
+      "local_mode": "100644",
+      "blob_matches": true,
+      "mode_matches": true,
+      "ok": true
+    },
+    {
+      "path": "applications/CHMT/tests/test_window_duration.py",
+      "remote": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "045126171dfb0919fbb74dfc1e0a8e87d04a9054"
+      },
+      "local_blob": "045126171dfb0919fbb74dfc1e0a8e87d04a9054",
+      "local_mode": "100644",
+      "blob_matches": true,
+      "mode_matches": true,
+      "ok": true
+    },
+    {
+      "path": "applications/CHMT/verification/multirate/interval_audit.cpp",
+      "remote": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "2e3564b33dd3d20b6e5a78a18ace16dad4ced75d"
+      },
+      "local_blob": "2e3564b33dd3d20b6e5a78a18ace16dad4ced75d",
+      "local_mode": "100644",
+      "blob_matches": true,
+      "mode_matches": true,
+      "ok": true
+    },
+    {
+      "path": "applications/CHT/devtools/audit_cht_long_run.py",
+      "remote": {
+        "mode": "100755",
+        "type": "blob",
+        "blob": "d5cfe049e31d7aaec4e888c25f368b2e3460e0cb"
+      },
+      "local_blob": "d5cfe049e31d7aaec4e888c25f368b2e3460e0cb",
+      "local_mode": "100755",
+      "blob_matches": true,
+      "mode_matches": true,
+      "ok": true
+    },
+    {
+      "path": "applications/CHT/devtools/tests/radiationContinuation/TestRadiationContinuation.C",
+      "remote": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "7bf5b28c452fbd59d944f9a894ce8372306efdc6"
+      },
+      "local_blob": "7bf5b28c452fbd59d944f9a894ce8372306efdc6",
+      "local_mode": "100644",
+      "blob_matches": true,
+      "mode_matches": true,
+      "ok": true
+    },
+    {
+      "path": "applications/CHT/devtools/tests/radiationOriginalSuccess/TestRadiationOriginalSuccess.C",
+      "remote": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "49ce89eb797ec885d60f6daf7ea5bb1bc500c16f"
+      },
+      "local_blob": "49ce89eb797ec885d60f6daf7ea5bb1bc500c16f",
+      "local_mode": "100644",
+      "blob_matches": true,
+      "mode_matches": true,
+      "ok": true
+    },
+    {
+      "path": "applications/CHT/devtools/tests/test_long_run_audit.py",
+      "remote": {
+        "mode": "100755",
+        "type": "blob",
+        "blob": "a6e8f4f1152d714e9db9b398aa1cee5c250de6db"
+      },
+      "local_blob": "a6e8f4f1152d714e9db9b398aa1cee5c250de6db",
+      "local_mode": "100755",
+      "blob_matches": true,
+      "mode_matches": true,
+      "ok": true
+    },
+    {
+      "path": "applications/CHT/thermal/GpuParticleRadiationCoupler.C",
+      "remote": {
+        "mode": "100755",
+        "type": "blob",
+        "blob": "b5f904d81d60ff04130e514e789ef028047d3063"
+      },
+      "local_blob": "b5f904d81d60ff04130e514e789ef028047d3063",
+      "local_mode": "100755",
+      "blob_matches": true,
+      "mode_matches": true,
+      "ok": true
+    },
+    {
+      "path": "applications/CHT/thermal/GpuParticleRadiationCoupler.H",
+      "remote": {
+        "mode": "100755",
+        "type": "blob",
+        "blob": "7ccca40540332a937f40e5715a1631e9be893e9f"
+      },
+      "local_blob": "7ccca40540332a937f40e5715a1631e9be893e9f",
+      "local_mode": "100755",
+      "blob_matches": true,
+      "mode_matches": true,
+      "ok": true
+    },
+    {
+      "path": "applications/CHT/thermal/GpuSolidThermalCoupler.C",
+      "remote": {
+        "mode": "100755",
+        "type": "blob",
+        "blob": "57559073bd45d319842282a360bfb35408a7f943"
+      },
+      "local_blob": "57559073bd45d319842282a360bfb35408a7f943",
+      "local_mode": "100755",
+      "blob_matches": true,
+      "mode_matches": true,
+      "ok": true
+    },
+    {
+      "path": "applications/CHT/thermal/GpuThermalExchangeState.C",
+      "remote": {
+        "mode": "100755",
+        "type": "blob",
+        "blob": "749ab39aefcaa0923025c4e1e89acaf2b8cb4725"
+      },
+      "local_blob": "749ab39aefcaa0923025c4e1e89acaf2b8cb4725",
+      "local_mode": "100755",
+      "blob_matches": true,
+      "mode_matches": true,
+      "ok": true
+    },
+    {
+      "path": "applications/CHT/thermal/GpuThermalExchangeState.H",
+      "remote": {
+        "mode": "100755",
+        "type": "blob",
+        "blob": "238daa2d95713a8869adff126431eda074ee92d7"
+      },
+      "local_blob": "238daa2d95713a8869adff126431eda074ee92d7",
+      "local_mode": "100755",
+      "blob_matches": true,
+      "mode_matches": true,
+      "ok": true
+    },
+    {
+      "path": "applications/gasUGKP/gpu/BoundaryLayerInput.H",
+      "remote": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "4f780fe8b5d7824c1981eda5114ab21d14d60d10"
+      },
+      "local_blob": "4f780fe8b5d7824c1981eda5114ab21d14d60d10",
+      "local_mode": "100644",
+      "blob_matches": true,
+      "mode_matches": true,
+      "ok": true
+    },
+    {
+      "path": "applications/gasUGKP/gpu/GpuBackendProtocol.H",
+      "remote": {
+        "mode": "100755",
+        "type": "blob",
+        "blob": "fde1ec808d55018e2829e2406c2bb75f3aedc4e2"
+      },
+      "local_blob": "fde1ec808d55018e2829e2406c2bb75f3aedc4e2",
+      "local_mode": "100755",
+      "blob_matches": true,
+      "mode_matches": true,
+      "ok": true
+    },
+    {
+      "path": "applications/gasUGKP/private_backend/BoundaryLayerAdapter.cuh",
+      "remote": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "aa4348e7b03b71e3b128ffaf39cac69443685793"
+      },
+      "local_blob": "aa4348e7b03b71e3b128ffaf39cac69443685793",
+      "local_mode": "100644",
+      "blob_matches": true,
+      "mode_matches": true,
+      "ok": true
+    },
+    {
+      "path": "applications/gasUGKP/private_backend/BoundaryLayerStorage.cuh",
+      "remote": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "5d0dc5c1d9bb6966679afe7339c84b546523817e"
+      },
+      "local_blob": "5d0dc5c1d9bb6966679afe7339c84b546523817e",
+      "local_mode": "100644",
+      "blob_matches": true,
+      "mode_matches": true,
+      "ok": true
+    },
+    {
+      "path": "applications/gasUGKP/private_backend/GasBudgetRuntime.cuh",
+      "deleted": true,
+      "ok": true
+    },
+    {
+      "path": "applications/gasUGKP/private_backend/GpuResidentStrict.cu",
+      "remote": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "281e6f14e79c2a24ffaf63bc2ba0874304d5e22b"
+      },
+      "local_blob": "281e6f14e79c2a24ffaf63bc2ba0874304d5e22b",
+      "local_mode": "100644",
+      "blob_matches": true,
+      "mode_matches": true,
+      "ok": true
+    },
+    {
+      "path": "applications/gasUGKP/private_backend/SharedGasAdapter.cuh",
+      "remote": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "f2a0aaa7af102becdfa834d7aa48d488e1aba9c8"
+      },
+      "local_blob": "f2a0aaa7af102becdfa834d7aa48d488e1aba9c8",
+      "local_mode": "100644",
+      "blob_matches": true,
+      "mode_matches": true,
+      "ok": true
+    },
+    {
+      "path": "applications/gasUGKP/private_backend/SharedGasStorage.cuh",
+      "remote": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "2ba84195158b49ed6fb527633d052e57183f613b"
+      },
+      "local_blob": "2ba84195158b49ed6fb527633d052e57183f613b",
+      "local_mode": "100644",
+      "blob_matches": true,
+      "mode_matches": true,
+      "ok": true
+    },
+    {
+      "path": "applications/gasUGKP/private_backend/SharedGasTrialFields.H",
+      "remote": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "d2de5defd62f02db35c58de20f43087dccd0dba8"
+      },
+      "local_blob": "d2de5defd62f02db35c58de20f43087dccd0dba8",
+      "local_mode": "100644",
+      "blob_matches": true,
+      "mode_matches": true,
+      "ok": true
+    },
+    {
+      "path": "applications/gasUGKP/private_backend/SharedGasTrialPolicy.cuh",
+      "remote": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "f762cdb03262d9d08b873211dbef32d91cbcaf91"
+      },
+      "local_blob": "f762cdb03262d9d08b873211dbef32d91cbcaf91",
+      "local_mode": "100644",
+      "blob_matches": true,
+      "mode_matches": true,
+      "ok": true
+    },
+    {
+      "path": "applications/gasUGKP/tests/test_boundary_layer_lifecycle.py",
+      "remote": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "707b59f87ceca2decac8188bd7ceec5bc3c40c1f"
+      },
+      "local_blob": "707b59f87ceca2decac8188bd7ceec5bc3c40c1f",
+      "local_mode": "100644",
+      "blob_matches": true,
+      "mode_matches": true,
+      "ok": true
+    },
+    {
+      "path": "applications/gasUGKP/tests/test_boundary_layer_protocol.py",
+      "remote": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "02359090feb58a4ed9bdc8c60ebeff13713ad4be"
+      },
+      "local_blob": "02359090feb58a4ed9bdc8c60ebeff13713ad4be",
+      "local_mode": "100644",
+      "blob_matches": true,
+      "mode_matches": true,
+      "ok": true
+    },
+    {
+      "path": "applications/gasUGKP/tests/test_boundary_layer_storage.py",
+      "remote": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "92e25e318c184d525001916b978d13434b349a6e"
+      },
+      "local_blob": "92e25e318c184d525001916b978d13434b349a6e",
+      "local_mode": "100644",
+      "blob_matches": true,
+      "mode_matches": true,
+      "ok": true
+    },
+    {
+      "path": "applications/gasUGKP/tests/test_budget_reconfiguration_continuation.py",
+      "remote": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "82724db247e434e4a20e47708bfa643b0dd4af26"
+      },
+      "local_blob": "82724db247e434e4a20e47708bfa643b0dd4af26",
+      "local_mode": "100644",
+      "blob_matches": true,
+      "mode_matches": true,
+      "ok": true
+    },
+    {
+      "path": "applications/gasUGKP/tests/test_gas_budget_runtime.py",
+      "remote": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "50a1fabcc1ad782511a3f6eacd8a1463e6c17109"
+      },
+      "local_blob": "50a1fabcc1ad782511a3f6eacd8a1463e6c17109",
+      "local_mode": "100644",
+      "blob_matches": true,
+      "mode_matches": true,
+      "ok": true
+    },
+    {
+      "path": "applications/gasUGKP/tests/test_native_boundary_layer_frontend.py",
+      "remote": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "496a8bc432908eb5f00c192f87bf1f624a38cf37"
+      },
+      "local_blob": "496a8bc432908eb5f00c192f87bf1f624a38cf37",
+      "local_mode": "100644",
+      "blob_matches": true,
+      "mode_matches": true,
+      "ok": true
+    },
+    {
+      "path": "applications/gasUGKP/tests/test_shared_gas_adapter.py",
+      "remote": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "e681724d723616c2ae2a058e1e6b9b7b90ceaba5"
+      },
+      "local_blob": "e681724d723616c2ae2a058e1e6b9b7b90ceaba5",
+      "local_mode": "100644",
+      "blob_matches": true,
+      "mode_matches": true,
+      "ok": true
+    },
+    {
+      "path": "applications/gasUGKP/tests/test_shared_gas_trial_policy.py",
+      "remote": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "0ff0eae5e09a2e087a38168d2a266e9ac98ea9c9"
+      },
+      "local_blob": "0ff0eae5e09a2e087a38168d2a266e9ac98ea9c9",
+      "local_mode": "100644",
+      "blob_matches": true,
+      "mode_matches": true,
+      "ok": true
+    },
+    {
+      "path": "applications/gasUGKP/tests/test_shared_reconfiguration_lifecycle.py",
+      "remote": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "4567f13b637fabaa29c00912200a3e379275286e"
+      },
+      "local_blob": "4567f13b637fabaa29c00912200a3e379275286e",
+      "local_mode": "100644",
+      "blob_matches": true,
+      "mode_matches": true,
+      "ok": true
+    },
+    {
+      "path": "applications/gasUGKP/tests/test_wall_adapter_continuation.py",
+      "remote": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "5ea5fabcdcc4a4710612e6d4ebfee05dde5b7fff"
+      },
+      "local_blob": "5ea5fabcdcc4a4710612e6d4ebfee05dde5b7fff",
+      "local_mode": "100644",
+      "blob_matches": true,
+      "mode_matches": true,
+      "ok": true
+    },
+    {
+      "path": "common/GpuGasAdvance.cuh",
+      "remote": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "f1ffa12aa4430b9f806cef15a56b34e0951f492f"
+      },
+      "local_blob": "f1ffa12aa4430b9f806cef15a56b34e0951f492f",
+      "local_mode": "100644",
+      "blob_matches": true,
+      "mode_matches": true,
+      "ok": true
+    },
+    {
+      "path": "common/GpuGasOperatorDependencies.cuh",
+      "remote": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "ac5d5713f6225ed496bfe1fd4c97f2e5182cf77b"
+      },
+      "local_blob": "ac5d5713f6225ed496bfe1fd4c97f2e5182cf77b",
+      "local_mode": "100644",
+      "blob_matches": true,
+      "mode_matches": true,
+      "ok": true
+    },
+    {
+      "path": "common/chemistry/ChemistryTypes.H",
+      "remote": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "2db4bb35990cfc419f5ad646029d6e1c023fd709"
+      },
+      "local_blob": "2db4bb35990cfc419f5ad646029d6e1c023fd709",
+      "local_mode": "100644",
+      "blob_matches": true,
+      "mode_matches": true,
+      "ok": true
+    },
+    {
+      "path": "common/chemistry/LocalStiffIntegrator.H",
+      "remote": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "17a98102ab52740319e3ec7b6795f818d178041a"
+      },
+      "local_blob": "17a98102ab52740319e3ec7b6795f818d178041a",
+      "local_mode": "100644",
+      "blob_matches": true,
+      "mode_matches": true,
+      "ok": true
+    },
+    {
+      "path": "common/gasTransport/GasBudgetAudit.H",
+      "deleted": true,
+      "ok": true
+    },
+    {
+      "path": "common/gasTransport/GasSstAudit.H",
+      "deleted": true,
+      "ok": true
+    },
+    {
+      "path": "common/gasTransport/GasStateView.H",
+      "remote": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "1275b155dc3ec23a94d3ff8f3c5eb8b004b5ff72"
+      },
+      "local_blob": "1275b155dc3ec23a94d3ff8f3c5eb8b004b5ff72",
+      "local_mode": "100644",
+      "blob_matches": true,
+      "mode_matches": true,
+      "ok": true
+    },
+    {
+      "path": "common/operators/advanceGasChemistryKernel.cuh",
+      "remote": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "563d1cdb8a832092f304d0577d997474fb13bd2d"
+      },
+      "local_blob": "563d1cdb8a832092f304d0577d997474fb13bd2d",
+      "local_mode": "100644",
+      "blob_matches": true,
+      "mode_matches": true,
+      "ok": true
+    },
+    {
+      "path": "common/operators/computeGasPrimitiveGradientsKernel.cuh",
+      "remote": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "02d1196ba13974285dd73315548ef9065211e2cc"
+      },
+      "local_blob": "02d1196ba13974285dd73315548ef9065211e2cc",
+      "local_mode": "100644",
+      "blob_matches": true,
+      "mode_matches": true,
+      "ok": true
+    },
+    {
+      "path": "common/operators/computeSstFaceFluxKernel.cuh",
+      "remote": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "d86d9b7a9f29afdb885a035163f1ecca608c9d60"
+      },
+      "local_blob": "d86d9b7a9f29afdb885a035163f1ecca608c9d60",
+      "local_mode": "100644",
+      "blob_matches": true,
+      "mode_matches": true,
+      "ok": true
+    },
+    {
+      "path": "test/gasUGKP/mixtureTransport/make_case.py",
+      "remote": {
+        "mode": "100755",
+        "type": "blob",
+        "blob": "e941a347f80f6ca85bdd522bbbe03a1529d4465d"
+      },
+      "local_blob": "e941a347f80f6ca85bdd522bbbe03a1529d4465d",
+      "local_mode": "100755",
+      "blob_matches": true,
+      "mode_matches": true,
+      "ok": true
+    },
+    {
+      "path": "test/gasUGKP/mixtureTransport/reference.py",
+      "remote": {
+        "mode": "100755",
+        "type": "blob",
+        "blob": "a18df5929246527898a07c0806dbde8a94d2ffe9"
+      },
+      "local_blob": "a18df5929246527898a07c0806dbde8a94d2ffe9",
+      "local_mode": "100755",
+      "blob_matches": true,
+      "mode_matches": true,
+      "ok": true
+    },
+    {
+      "path": "tests/chemistry/fixtures/finite_candidate_lineage/lineage_probe.cpp",
+      "remote": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "a659622ff78a9d0adcf45b409e756292326d7b45"
+      },
+      "local_blob": "a659622ff78a9d0adcf45b409e756292326d7b45",
+      "local_mode": "100644",
+      "blob_matches": true,
+      "mode_matches": true,
+      "ok": true
+    },
+    {
+      "path": "tests/chemistry/fixtures/finite_candidate_lineage/repeated_call_probe.cpp",
+      "remote": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "5340436602321916b209154233949026d9f9a7a0"
+      },
+      "local_blob": "5340436602321916b209154233949026d9f9a7a0",
+      "local_mode": "100644",
+      "blob_matches": true,
+      "mode_matches": true,
+      "ok": true
+    },
+    {
+      "path": "tests/chemistry/fixtures/finite_candidate_lineage/wider_time_probe.cpp",
+      "remote": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "8d3c63d67a99b4ff45b2de76a573a12f9669bf82"
+      },
+      "local_blob": "8d3c63d67a99b4ff45b2de76a573a12f9669bf82",
+      "local_mode": "100644",
+      "blob_matches": true,
+      "mode_matches": true,
+      "ok": true
+    },
+    {
+      "path": "tests/chemistry/test_closed_reactor.py",
+      "remote": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "1a73b352f8112df0b3e989cf5ffb4fb7e3143d09"
+      },
+      "local_blob": "1a73b352f8112df0b3e989cf5ffb4fb7e3143d09",
+      "local_mode": "100644",
+      "blob_matches": true,
+      "mode_matches": true,
+      "ok": true
+    },
+    {
+      "path": "tests/chemistry/test_gas_budget_publication.py",
+      "remote": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "2f3a49abdd371ddcd5c42a8757d0f2640c0e1a57"
+      },
+      "local_blob": "2f3a49abdd371ddcd5c42a8757d0f2640c0e1a57",
+      "local_mode": "100644",
+      "blob_matches": true,
+      "mode_matches": true,
+      "ok": true
+    },
+    {
+      "path": "tests/chemistry/test_gas_chemistry_adapter.py",
+      "remote": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "b48ad67a1b3be397469d6963180d6195a2c30a96"
+      },
+      "local_blob": "b48ad67a1b3be397469d6963180d6195a2c30a96",
+      "local_mode": "100644",
+      "blob_matches": true,
+      "mode_matches": true,
+      "ok": true
+    },
+    {
+      "path": "tests/chemistry/test_gas_controlled_step_accuracy.py",
+      "remote": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "1ed8d03f4777713b7ecabcff295340b55e42a2e9"
+      },
+      "local_blob": "1ed8d03f4777713b7ecabcff295340b55e42a2e9",
+      "local_mode": "100644",
+      "blob_matches": true,
+      "mode_matches": true,
+      "ok": true
+    },
+    {
+      "path": "tests/chemistry/test_gas_finite_continuation.py",
+      "remote": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "4c9e85d483399294e07c068abba3af1885e9418d"
+      },
+      "local_blob": "4c9e85d483399294e07c068abba3af1885e9418d",
+      "local_mode": "100644",
+      "blob_matches": true,
+      "mode_matches": true,
+      "ok": true
+    },
+    {
+      "path": "tests/chemistry/test_gas_publication_limits.py",
+      "remote": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "1e265a5b50a4fa4d67304a27afe73ea9da72b1ba"
+      },
+      "local_blob": "1e265a5b50a4fa4d67304a27afe73ea9da72b1ba",
+      "local_mode": "100644",
+      "blob_matches": true,
+      "mode_matches": true,
+      "ok": true
+    },
+    {
+      "path": "tests/chemistry/test_gas_stage_lineage.py",
+      "remote": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "b0fe2f206245a94a3f565ba4a2f45e7c85cc3445"
+      },
+      "local_blob": "b0fe2f206245a94a3f565ba4a2f45e7c85cc3445",
+      "local_mode": "100644",
+      "blob_matches": true,
+      "mode_matches": true,
+      "ok": true
+    },
+    {
+      "path": "tests/chemistry/test_gas_terminal_completion.py",
+      "remote": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "fc3c5f4f43110bc020b28718ca8254ae7978473f"
+      },
+      "local_blob": "fc3c5f4f43110bc020b28718ca8254ae7978473f",
+      "local_mode": "100644",
+      "blob_matches": true,
+      "mode_matches": true,
+      "ok": true
+    },
+    {
+      "path": "tests/chemistry/test_h2o2_reactor.py",
+      "remote": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "48f851b805f275cf9fac3bd8fb8ebd3335f42ee2"
+      },
+      "local_blob": "48f851b805f275cf9fac3bd8fb8ebd3335f42ee2",
+      "local_mode": "100644",
+      "blob_matches": true,
+      "mode_matches": true,
+      "ok": true
+    },
+    {
+      "path": "tests/chemistry/test_rounded_chemical_publication.py",
+      "remote": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "ffd92a4d031aa5a3356e863ea72e381abdcc4f80"
+      },
+      "local_blob": "ffd92a4d031aa5a3356e863ea72e381abdcc4f80",
+      "local_mode": "100644",
+      "blob_matches": true,
+      "mode_matches": true,
+      "ok": true
+    },
+    {
+      "path": "tests/fixtures/chemistry_trial/chemistry_trial.cu.in",
+      "remote": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "145d51e7083731bb48775270644be8ff048ebc51"
+      },
+      "local_blob": "145d51e7083731bb48775270644be8ff048ebc51",
+      "local_mode": "100644",
+      "blob_matches": true,
+      "mode_matches": true,
+      "ok": true
+    },
+    {
+      "path": "tests/fixtures/chmt_zero_phase_material/probe.C",
+      "remote": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "4597c309e11771d89c752583a89e025445df9202"
+      },
+      "local_blob": "4597c309e11771d89c752583a89e025445df9202",
+      "local_mode": "100644",
+      "blob_matches": true,
+      "mode_matches": true,
+      "ok": true
+    },
+    {
+      "path": "tests/fixtures/cht_thermal/compatibility.C",
+      "remote": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "834111c4ae291da7188ca907cd46f50a0c69af77"
+      },
+      "local_blob": "834111c4ae291da7188ca907cd46f50a0c69af77",
+      "local_mode": "100644",
+      "blob_matches": true,
+      "mode_matches": true,
+      "ok": true
+    },
+    {
+      "path": "tests/fixtures/cht_thermal/exchange.C",
+      "remote": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "20cca75e5ffe64bf8f10a4f6b00103c055ddd966"
+      },
+      "local_blob": "20cca75e5ffe64bf8f10a4f6b00103c055ddd966",
+      "local_mode": "100644",
+      "blob_matches": true,
+      "mode_matches": true,
+      "ok": true
+    },
+    {
+      "path": "tests/fixtures/cht_thermal/probe.C",
+      "remote": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "d182bdf5ab23efbba5a0740ca1edf7db3bde2b32"
+      },
+      "local_blob": "d182bdf5ab23efbba5a0740ca1edf7db3bde2b32",
+      "local_mode": "100644",
+      "blob_matches": true,
+      "mode_matches": true,
+      "ok": true
+    },
+    {
+      "path": "tests/fixtures/film_incidence/probe.cpp",
+      "remote": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "c5fbade67e91a4551f3b70be2a737b1141652ba5"
+      },
+      "local_blob": "c5fbade67e91a4551f3b70be2a737b1141652ba5",
+      "local_mode": "100644",
+      "blob_matches": true,
+      "mode_matches": true,
+      "ok": true
+    },
+    {
+      "path": "tests/fixtures/terminal_sources/film.cpp",
+      "remote": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "86e42b7fc452c8dad7017626d27c850ae4594765"
+      },
+      "local_blob": "86e42b7fc452c8dad7017626d27c850ae4594765",
+      "local_mode": "100644",
+      "blob_matches": true,
+      "mode_matches": true,
+      "ok": true
+    },
+    {
+      "path": "tests/fixtures/terminal_sources/interval.cpp",
+      "remote": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "1128f6dada6a2826cfc07cde6a4f29c70dda0e5b"
+      },
+      "local_blob": "1128f6dada6a2826cfc07cde6a4f29c70dda0e5b",
+      "local_mode": "100644",
+      "blob_matches": true,
+      "mode_matches": true,
+      "ok": true
+    },
+    {
+      "path": "tests/gas_transport/test_actual_wall_producer_consumers.py",
+      "remote": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "65dfa3247f13b74653a56a449f1e8f33b6e284ce"
+      },
+      "local_blob": "65dfa3247f13b74653a56a449f1e8f33b6e284ce",
+      "local_mode": "100644",
+      "blob_matches": true,
+      "mode_matches": true,
+      "ok": true
+    },
+    {
+      "path": "tests/gas_transport/test_boundary_layer_host.py",
+      "remote": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "edd6654c47057d36aa02b55555fc8c6b9441b578"
+      },
+      "local_blob": "edd6654c47057d36aa02b55555fc8c6b9441b578",
+      "local_mode": "100644",
+      "blob_matches": true,
+      "mode_matches": true,
+      "ok": true
+    },
+    {
+      "path": "tests/gas_transport/test_boundary_layer_operators.py",
+      "remote": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "9212ccf02b4e1022c8ec5afae65062e69b4f899e"
+      },
+      "local_blob": "9212ccf02b4e1022c8ec5afae65062e69b4f899e",
+      "local_mode": "100644",
+      "blob_matches": true,
+      "mode_matches": true,
+      "ok": true
+    },
+    {
+      "path": "tests/gas_transport/test_boundary_layer_state.py",
+      "remote": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "9722594e372048dcbacf92957c542b68612420e6"
+      },
+      "local_blob": "9722594e372048dcbacf92957c542b68612420e6",
+      "local_mode": "100644",
+      "blob_matches": true,
+      "mode_matches": true,
+      "ok": true
+    },
+    {
+      "path": "tests/gas_transport/test_bulk_candidate_continuation.py",
+      "remote": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "4117e238fa7c10e87e0e2cb7fafffc02cb99258d"
+      },
+      "local_blob": "4117e238fa7c10e87e0e2cb7fafffc02cb99258d",
+      "local_mode": "100644",
+      "blob_matches": true,
+      "mode_matches": true,
+      "ok": true
+    },
+    {
+      "path": "tests/gas_transport/test_bulk_review_findings.py",
+      "remote": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "d65ac8d005c5e4822fe49b2b7ca899fa41a671c6"
+      },
+      "local_blob": "d65ac8d005c5e4822fe49b2b7ca899fa41a671c6",
+      "local_mode": "100644",
+      "blob_matches": true,
+      "mode_matches": true,
+      "ok": true
+    },
+    {
+      "path": "tests/gas_transport/test_cell_producer_completion.py",
+      "remote": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "2bd74e8473c44f8022f379edecc99e68519701c2"
+      },
+      "local_blob": "2bd74e8473c44f8022f379edecc99e68519701c2",
+      "local_mode": "100644",
+      "blob_matches": true,
+      "mode_matches": true,
+      "ok": true
+    },
+    {
+      "path": "tests/gas_transport/test_gas_budget_audit.py",
+      "remote": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "c600ac33e6d62c7dbbd6f5b88abb3f352ee4fa0d"
+      },
+      "local_blob": "c600ac33e6d62c7dbbd6f5b88abb3f352ee4fa0d",
+      "local_mode": "100644",
+      "blob_matches": true,
+      "mode_matches": true,
+      "ok": true
+    },
+    {
+      "path": "tests/gas_transport/test_gas_state_contract.py",
+      "remote": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "73c7027f6dcadda1d9ef81cab91170ccc9fad748"
+      },
+      "local_blob": "73c7027f6dcadda1d9ef81cab91170ccc9fad748",
+      "local_mode": "100644",
+      "blob_matches": true,
+      "mode_matches": true,
+      "ok": true
+    },
+    {
+      "path": "tests/gas_transport/test_global_operator_dependencies.py",
+      "remote": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "c423b46f8415d03170cbc0e1e6e94aeb85d10133"
+      },
+      "local_blob": "c423b46f8415d03170cbc0e1e6e94aeb85d10133",
+      "local_mode": "100644",
+      "blob_matches": true,
+      "mode_matches": true,
+      "ok": true
+    },
+    {
+      "path": "tests/gas_transport/test_native_original_success.py",
+      "remote": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "6a0c1c326b68a04e07c0304135b2b58d50c1cec1"
+      },
+      "local_blob": "6a0c1c326b68a04e07c0304135b2b58d50c1cec1",
+      "local_mode": "100644",
+      "blob_matches": true,
+      "mode_matches": true,
+      "ok": true
+    },
+    {
+      "path": "tests/gas_transport/test_numerical_wall_k_inventory.py",
+      "remote": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "30556eedf488d7ad019ff33869cd6fb7601b18d2"
+      },
+      "local_blob": "30556eedf488d7ad019ff33869cd6fb7601b18d2",
+      "local_mode": "100644",
+      "blob_matches": true,
+      "mode_matches": true,
+      "ok": true
+    },
+    {
+      "path": "tests/gas_transport/test_sst_ale_audit.py",
+      "remote": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "ef265dc19c565762cb9a2ea269f4cc0a1b887235"
+      },
+      "local_blob": "ef265dc19c565762cb9a2ea269f4cc0a1b887235",
+      "local_mode": "100644",
+      "blob_matches": true,
+      "mode_matches": true,
+      "ok": true
+    },
+    {
+      "path": "tests/test_chemistry_trial_cuda_fixture.py",
+      "remote": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "7a99e79f8c3967e034598aab332510d0ea149eff"
+      },
+      "local_blob": "7a99e79f8c3967e034598aab332510d0ea149eff",
+      "local_mode": "100644",
+      "blob_matches": true,
+      "mode_matches": true,
+      "ok": true
+    },
+    {
+      "path": "tests/test_chmt_input_admission.py",
+      "remote": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "890500e7e943ecf8c8c36300d7160e4065e201d5"
+      },
+      "local_blob": "890500e7e943ecf8c8c36300d7160e4065e201d5",
+      "local_mode": "100644",
+      "blob_matches": true,
+      "mode_matches": true,
+      "ok": true
+    },
+    {
+      "path": "tests/test_film_incidence.py",
+      "remote": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "0ad5ebf7c832582567a4160bf88c25ab86cc240b"
+      },
+      "local_blob": "0ad5ebf7c832582567a4160bf88c25ab86cc240b",
+      "local_mode": "100644",
+      "blob_matches": true,
+      "mode_matches": true,
+      "ok": true
+    },
+    {
+      "path": "tests/test_sst_courant_mass_flux.py",
+      "remote": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "f8262a1812376b60b0511ba4eae2801e1168deda"
+      },
+      "local_blob": "f8262a1812376b60b0511ba4eae2801e1168deda",
+      "local_mode": "100644",
+      "blob_matches": true,
+      "mode_matches": true,
+      "ok": true
+    },
+    {
+      "path": "tests/test_sst_high_re_omega.py",
+      "remote": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "94f7ee6b012c14f33709120f57430fb5774dbfda"
+      },
+      "local_blob": "94f7ee6b012c14f33709120f57430fb5774dbfda",
+      "local_mode": "100644",
+      "blob_matches": true,
+      "mode_matches": true,
+      "ok": true
+    },
+    {
+      "path": "tests/test_terminal_sources.py",
+      "remote": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "b7d82da6f0788f5e651b03c2b6622dbd8e913356"
+      },
+      "local_blob": "b7d82da6f0788f5e651b03c2b6622dbd8e913356",
+      "local_mode": "100644",
+      "blob_matches": true,
+      "mode_matches": true,
+      "ok": true
+    },
+    {
+      "path": "tools/managed_mirrors.json",
+      "remote": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "f312ed696d552870ebdac24bf81ad098cdf8776e"
+      },
+      "local_blob": "f312ed696d552870ebdac24bf81ad098cdf8776e",
+      "local_mode": "100644",
+      "blob_matches": true,
+      "mode_matches": true,
+      "ok": true
+    },
+    {
+      "path": "applications/CHMT/tests/NativeMaterialProbe.H",
+      "remote": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "51d475dd0059bd9379b89c22a5f175630e622665"
+      },
+      "local_blob": "51d475dd0059bd9379b89c22a5f175630e622665",
+      "local_mode": "100644",
+      "blob_matches": true,
+      "mode_matches": true,
+      "ok": true
+    },
+    {
+      "path": "applications/CHMT/verification/multirate/InventoryAudit.H",
+      "remote": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "b27164d097584253984a162ba0a50e33029a7e1b"
+      },
+      "local_blob": "b27164d097584253984a162ba0a50e33029a7e1b",
+      "local_mode": "100644",
+      "blob_matches": true,
+      "mode_matches": true,
+      "ok": true
+    },
+    {
+      "path": "tests/test_chmt_material_report_removal.py",
+      "remote": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "337825fbfbc6d2365ab6ff861b8322f2b3d6c8ce"
+      },
+      "local_blob": "337825fbfbc6d2365ab6ff861b8322f2b3d6c8ce",
+      "local_mode": "100644",
+      "blob_matches": true,
+      "mode_matches": true,
+      "ok": true
+    },
+    {
+      "path": "tests/test_chmt_support_accounting_removal.py",
+      "remote": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "5f9e8b9737a245730291288ffb71deee51ee362e"
+      },
+      "local_blob": "5f9e8b9737a245730291288ffb71deee51ee362e",
+      "local_mode": "100644",
+      "blob_matches": true,
+      "mode_matches": true,
+      "ok": true
+    },
+    {
+      "path": "tests/test_cht_diagnostic_accounting_removal.py",
+      "remote": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "cff64f393690b05a5c9a52804a4ccf9a85671c8f"
+      },
+      "local_blob": "cff64f393690b05a5c9a52804a4ccf9a85671c8f",
+      "local_mode": "100644",
+      "blob_matches": true,
+      "mode_matches": true,
+      "ok": true
+    },
+    {
+      "path": "tests/test_gas_diagnostic_accounting_removal.py",
+      "remote": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "0fb51d39dae1ef581b2d55d7f45284132a3b46a4"
+      },
+      "local_blob": "0fb51d39dae1ef581b2d55d7f45284132a3b46a4",
+      "local_mode": "100644",
+      "blob_matches": true,
+      "mode_matches": true,
+      "ok": true
+    }
+  ],
+  "all_verified": true,
+  "readme_changes": [],
+  "review_changes": []
+}

@@ -1,0 +1,1792 @@
+{
+  "identity": "PR14_REVIEW_ONLY",
+  "draft": true,
+  "fixed_evidence_commit": "0aa34bc1b0e370ec99e6107faf83ff7f0ac3e668",
+  "tested_source_commit": "9d5be6eff69dbced2fc959d422d3ba419a1bc39e",
+  "fixed_references": [
+    {
+      "commit": "0aa34bc1b0e370ec99e6107faf83ff7f0ac3e668",
+      "path": "review/pr14/reviewer-deliveries/20261014T120103Z-fast/REPORT.md",
+      "sha256": "2c83433c2197cb7ab904a44995bcf613f3fb464f47e5dfea6880788a9d6c73ed",
+      "git_blob": "1f195f4832458bd552bb3502b1c2f86297eeca6c",
+      "bytes": 14475,
+      "local_matches_fixed_git_blob": true
+    },
+    {
+      "commit": "0aa34bc1b0e370ec99e6107faf83ff7f0ac3e668",
+      "path": "review/pr14/reviewer-deliveries/20261014T120103Z-fast/SOURCE.json",
+      "sha256": "12455ca6111ec558fb1fa37fde5929e0078f96541e8df4d11791c1963a52a211",
+      "git_blob": "928dd096cb1d49875e1450e9d528a0d4d0932a12",
+      "bytes": 1417,
+      "local_matches_fixed_git_blob": true
+    },
+    {
+      "commit": "0aa34bc1b0e370ec99e6107faf83ff7f0ac3e668",
+      "path": "review/pr14/reviewer-deliveries/20261014T120103Z-fast/artifacts/chemistry-S302-full-failure-summary.json",
+      "sha256": "c0e19e4fa91357182a509e119b496f96a64d5263a7f5d37025c2151b7e42728c",
+      "git_blob": "8f791fee3672832340b0254966e590c1ea1c48fa",
+      "bytes": 4887,
+      "local_matches_fixed_git_blob": true
+    },
+    {
+      "commit": "0aa34bc1b0e370ec99e6107faf83ff7f0ac3e668",
+      "path": "review/pr14/reviewer-deliveries/20261014T120103Z-fast/artifacts/chemistry-fixture-summary.json",
+      "sha256": "b0cd2482c8370bc5b097175591144925de08e4d2a062f6e46841568a55f70554",
+      "git_blob": "6dcc75cfd29d1d8822f1778ac84417355d94af27",
+      "bytes": 1055,
+      "local_matches_fixed_git_blob": true
+    },
+    {
+      "commit": "0aa34bc1b0e370ec99e6107faf83ff7f0ac3e668",
+      "path": "review/pr14/reviewer-deliveries/20261014T120103Z-fast/artifacts/chemistry-owner-entry-S305.json",
+      "sha256": "599fe8259835003c49e50199e8f9a55745736033710ded9fe6617015be2f7373",
+      "git_blob": "8b499a784681acee2c9a953daa1e1512cd4d3cf4",
+      "bytes": 8417,
+      "local_matches_fixed_git_blob": true
+    },
+    {
+      "commit": "0aa34bc1b0e370ec99e6107faf83ff7f0ac3e668",
+      "path": "review/pr14/reviewer-deliveries/20261014T120103Z-fast/artifacts/evaporation-blocked-cause-and-progress.json",
+      "sha256": "f42ad0302ece8d7fb62a37442928dffc233e0aa60ad77140cc1c2b8a4bc1a59c",
+      "git_blob": "425cce0cbb5955e24ccc08d4091b1c0166d01b39",
+      "bytes": 22790,
+      "local_matches_fixed_git_blob": true
+    },
+    {
+      "commit": "0aa34bc1b0e370ec99e6107faf83ff7f0ac3e668",
+      "path": "review/pr14/reviewer-deliveries/20261014T120103Z-fast/artifacts/nonzero-phase-two-direction-summary.json",
+      "sha256": "98fa058286bbd7d6e808c07393032bf7201adcc36e57d7c086388f21873b71bf",
+      "git_blob": "545639e8624b54be977be4e9dcde6f53bfb50ae6",
+      "bytes": 12988,
+      "local_matches_fixed_git_blob": true
+    },
+    {
+      "commit": "0aa34bc1b0e370ec99e6107faf83ff7f0ac3e668",
+      "path": "review/pr14/reviewer-deliveries/20261014T120103Z-fast/artifacts/resident/CHT-active16-ASCII-S306-active-profile-audit.json",
+      "sha256": "515d9a06085501404a0615076fd46eb67a22e41defcfc53f0b791f2f0ad7c547",
+      "git_blob": "6c2806a7a51971ccefc2d7cf9eceb8a81d3db27d",
+      "bytes": 113990,
+      "local_matches_fixed_git_blob": true
+    },
+    {
+      "commit": "0aa34bc1b0e370ec99e6107faf83ff7f0ac3e668",
+      "path": "review/pr14/reviewer-deliveries/20261014T120103Z-fast/artifacts/resident/FSH-active16-ASCII-S306-active-profile-audit.json",
+      "sha256": "115a22eb4614f3a0f954cb8b43b7d604ae7908629e8769451d898fb3e91ad73e",
+      "git_blob": "b483f9f34939378e76b7d39b085af53672338b5d",
+      "bytes": 113771,
+      "local_matches_fixed_git_blob": true
+    },
+    {
+      "commit": "0aa34bc1b0e370ec99e6107faf83ff7f0ac3e668",
+      "path": "review/pr14/reviewer-deliveries/20261014T120103Z-fast/artifacts/thermal-first-currentCo-seed-difference.json",
+      "sha256": "2dd4c292829e6ad025003cbabc1d41f8946f51e09b087169d32237744d018a96",
+      "git_blob": "cf35c1760ec609e8c6950a274233c7fe1605c9a6",
+      "bytes": 26507,
+      "local_matches_fixed_git_blob": true
+    },
+    {
+      "commit": "0aa34bc1b0e370ec99e6107faf83ff7f0ac3e668",
+      "path": "review/pr14/reviewer-deliveries/20261014T120103Z-fast/artifacts/wet-actual-final-stage-gas-physical-budget.json",
+      "sha256": "c6f47660e36a78e596fb47ee135b078dfd980669b97c7a2bc2ec32eb4ebb44f5",
+      "git_blob": "be405cb8c110032c8f14e333be2e58fcb4953a01",
+      "bytes": 4220,
+      "local_matches_fixed_git_blob": true
+    },
+    {
+      "commit": "0aa34bc1b0e370ec99e6107faf83ff7f0ac3e668",
+      "path": "review/pr14/reviewer-deliveries/20261014T120103Z-fast/artifacts/wet-complete-physical-audit-S307.json",
+      "sha256": "f2ab972af69a10b31bc84d133821e436a1b3b4ca982666264c628dd0ece1f64e",
+      "git_blob": "af1fb507662ed5aee0c3327418a9377b54299275",
+      "bytes": 24631,
+      "local_matches_fixed_git_blob": true
+    },
+    {
+      "commit": "0aa34bc1b0e370ec99e6107faf83ff7f0ac3e668",
+      "path": "review/pr14/reviewer-deliveries/20261014T120103Z-fast/artifacts/wet-full-restart-first-difference.json",
+      "sha256": "034de32d30142ba3b8d0416e0e9fb596421802bb7f03d2879c7db4d944205473",
+      "git_blob": "8e0108dd2c60269978a0312d3727ffa9f44064b7",
+      "bytes": 9631,
+      "local_matches_fixed_git_blob": true
+    },
+    {
+      "commit": "0aa34bc1b0e370ec99e6107faf83ff7f0ac3e668",
+      "path": "review/pr14/reviewer-deliveries/20261014T120103Z-fast/artifacts/wet-observer-output-comparison.json",
+      "sha256": "5403f513743fc62dcba57b83e78a749912d319fdae39f916b76453a0700bae9e",
+      "git_blob": "18bc642a0be5fd8284511e038b8fdd06fcbd093e",
+      "bytes": 3799,
+      "local_matches_fixed_git_blob": true
+    },
+    {
+      "commit": "0aa34bc1b0e370ec99e6107faf83ff7f0ac3e668",
+      "path": "review/pr14/reviewer-deliveries/20261014T120103Z-fast/coverage.json",
+      "sha256": "26a5384631e57d96fd84b8890276852024a08a5eddbb1d8df58c6520f4146b3c",
+      "git_blob": "8e633f6e376317fa9c6cc298d332947cf26fc2df",
+      "bytes": 72399,
+      "local_matches_fixed_git_blob": true
+    },
+    {
+      "commit": "0aa34bc1b0e370ec99e6107faf83ff7f0ac3e668",
+      "path": "review/pr14/reviewer-deliveries/20261014T120103Z-fast/findings.json",
+      "sha256": "81ad47b6d353e3ec76f3bfb30428d3c1d7a7d112413d2ce2df7c329ffe33f1f6",
+      "git_blob": "d5ac40b7bb537f6760f3a0eba466433a97c850d4",
+      "bytes": 13333,
+      "local_matches_fixed_git_blob": true
+    },
+    {
+      "commit": "0aa34bc1b0e370ec99e6107faf83ff7f0ac3e668",
+      "path": "review/pr14/reviewer-deliveries/20261014T120103Z-fast/inputs/FSH-native-wire-ASan-S312.cpp",
+      "sha256": "667d83eac9055dc9ccbd6c6d35c91e4b8056c3462ade4000332d7733a16d6b8f",
+      "git_blob": "3d4433f38cdd61a90e72a6231730bd9807498a74",
+      "bytes": 2425,
+      "local_matches_fixed_git_blob": true
+    },
+    {
+      "commit": "0aa34bc1b0e370ec99e6107faf83ff7f0ac3e668",
+      "path": "review/pr14/reviewer-deliveries/20261014T120103Z-fast/inputs/chemistry-fixture-S302.cu",
+      "sha256": "8a18cd6c0c895160701e7139f00fbd82b5df66d0d7b3b7ca04d52b4baef6d943",
+      "git_blob": "83216ef99c03a671ef9e693ea0c6a2e080c30aaa",
+      "bytes": 38012,
+      "local_matches_fixed_git_blob": true
+    },
+    {
+      "commit": "0aa34bc1b0e370ec99e6107faf83ff7f0ac3e668",
+      "path": "review/pr14/reviewer-deliveries/20261014T120103Z-fast/inputs/native-mapper-ASan-S312.C",
+      "sha256": "a91619923798b07309267db20022e0e98d067e61cd119d4cd391fe76071b4b02",
+      "git_blob": "d6bb1bccc71fed7127d94d406af3882fff42775e",
+      "bytes": 1238,
+      "local_matches_fixed_git_blob": true
+    },
+    {
+      "commit": "0aa34bc1b0e370ec99e6107faf83ff7f0ac3e668",
+      "path": "review/pr14/reviewer-deliveries/20261014T120103Z-fast/logs/CHEMISTRY-S302-FULL-FAILED-TRANSACTIONS.log",
+      "sha256": "d36b5000f6930be22d48a29b8a1bc1c18b1bb8ceb1716faba74a77b7633e6757",
+      "git_blob": "ef77919f4e8fcb12d52325f24961bc7a281b0623",
+      "bytes": 41519,
+      "local_matches_fixed_git_blob": true
+    },
+    {
+      "commit": "0aa34bc1b0e370ec99e6107faf83ff7f0ac3e668",
+      "path": "review/pr14/reviewer-deliveries/20261014T120103Z-fast/metadata/cold-group-count-correction.json",
+      "sha256": "30d2e6cae68240be102b4f1c284402b745ed71bb2d59f51200f70ab8e27b9063",
+      "git_blob": "ee56213bd6eff46805cd728c8fd828f6f6d2dd48",
+      "bytes": 793,
+      "local_matches_fixed_git_blob": true
+    },
+    {
+      "commit": "0aa34bc1b0e370ec99e6107faf83ff7f0ac3e668",
+      "path": "review/pr14/reviewer-deliveries/20261014T120103Z-fast/metadata/final-evidence-scope-review.json",
+      "sha256": "67785cbdd0cde86975379e0d395386b100c017cbf1630080c3738acebd62790d",
+      "git_blob": "32cfe5e80d3e45c2993a70ea0728ef7119925d0f",
+      "bytes": 73198,
+      "local_matches_fixed_git_blob": true
+    },
+    {
+      "commit": "0aa34bc1b0e370ec99e6107faf83ff7f0ac3e668",
+      "path": "review/pr14/reviewer-deliveries/20261014T120103Z-fast/metadata/independent-source-review.json",
+      "sha256": "b044cc7d3fea1c7f963fba3dfc09da41b9274ac2953f42e679663d8a890c5afd",
+      "git_blob": "4e9aa9fe66a09d7c7a1e70e29f92755bde09d11e",
+      "bytes": 77824,
+      "local_matches_fixed_git_blob": true
+    },
+    {
+      "commit": "0aa34bc1b0e370ec99e6107faf83ff7f0ac3e668",
+      "path": "review/pr14/reviewer-deliveries/20261014T120103Z-fast/metadata/independent-source-review.md",
+      "sha256": "4414a9140341073745ae0734334a3e777124f8e69be6a5a350eabd161e228ba3",
+      "git_blob": "e1cf8e8b47c2bf04ba233e2bb3aa8e144c91dcdb",
+      "bytes": 21012,
+      "local_matches_fixed_git_blob": true
+    },
+    {
+      "commit": "0aa34bc1b0e370ec99e6107faf83ff7f0ac3e668",
+      "path": "review/pr14/reviewer-deliveries/20261014T120103Z-fast/metadata/independent-wet-P-review.json",
+      "sha256": "b95f8a61af0cd7d9c4ca552c25db75d77e365968ea502e839321af96863f2bc6",
+      "git_blob": "8ad62dfd500711a7a2fd7b4cb9cce321047dccf8",
+      "bytes": 35844,
+      "local_matches_fixed_git_blob": true
+    },
+    {
+      "commit": "0aa34bc1b0e370ec99e6107faf83ff7f0ac3e668",
+      "path": "review/pr14/reviewer-deliveries/20261014T120103Z-fast/metadata/same-input-chemistry-full-initcheck-1800.json",
+      "sha256": "fee674b56cacfeb93f7a7e851130132374b5f61fa551146f7d705abe5e745b39",
+      "git_blob": "02e31b9c610431dfd565d8e1a9d820899ff30718",
+      "bytes": 20884,
+      "local_matches_fixed_git_blob": true
+    },
+    {
+      "commit": "0aa34bc1b0e370ec99e6107faf83ff7f0ac3e668",
+      "path": "review/pr14/reviewer-deliveries/20261014T120103Z-fast/patches/S301-complete-failure-transactions.patch",
+      "sha256": "78c3e093843c8b731b371ec2e0c73d55d19772446b0e479da2d07ebfaa590b36",
+      "git_blob": "e509a8273b8b5611ab950386daf4f47e08e2fbbf",
+      "bytes": 7036,
+      "local_matches_fixed_git_blob": true
+    },
+    {
+      "commit": "0aa34bc1b0e370ec99e6107faf83ff7f0ac3e668",
+      "path": "review/pr14/reviewer-deliveries/20261014T120103Z-fast/patches/S302-explicit-status-bool.patch",
+      "sha256": "b11ce1ff1696d967596a680a9b1fa59ac23b71cacecc1f418052bb1f96e7f1f6",
+      "git_blob": "13e2181930d235e9ee04f6b02462230be940fbf0",
+      "bytes": 676,
+      "local_matches_fixed_git_blob": true
+    },
+    {
+      "commit": "0aa34bc1b0e370ec99e6107faf83ff7f0ac3e668",
+      "path": "review/pr14/reviewer-deliveries/20261014T120103Z-fast/results.json",
+      "sha256": "92e03d0925924611649f56ea66bca83b35134ade04c093ea597c155b86aab851",
+      "git_blob": "a0929acaa5044987b700a99d33483c4d4e516ae6",
+      "bytes": 5098301,
+      "local_matches_fixed_git_blob": true
+    }
+  ],
+  "original_acceptance_units": [
+    {
+      "id": "R3-formal-chemistry-fixture",
+      "verdict": "PASS",
+      "topics": [
+        "R014-010",
+        "R014-012",
+        "R014-014",
+        "R014-026"
+      ],
+      "source_commit": "9d5be6eff69dbced2fc959d422d3ba419a1bc39e",
+      "kind": "FORMAL_GPU",
+      "scope": "Submittedfixture fresh nvcc/realCUDA withoutS202/S203/S208: host/deviceownership repaired, actualCo target.5, originalpositive fullsemantic assertions,16original coarse failurechecks.",
+      "executed_test_ids": [
+        "CHEMISTRY-FORMAL-FIXTURE"
+      ],
+      "evidence_paths": [
+        "artifacts/chemistry-fixture-summary.json"
+      ],
+      "limitations": "Submittednegative fullstatus/transaction coverage stillincomplete; S302 supportproof separate.",
+      "counts_not_additive_across_topics": true
+    },
+    {
+      "id": "R3-chemistry-full-failed-transactions",
+      "verdict": "PASS",
+      "topics": [
+        "R014-010",
+        "R014-012",
+        "R014-014",
+        "R014-026"
+      ],
+      "source_commit": "9d5be6eff69dbced2fc959d422d3ba419a1bc39e",
+      "kind": "SUPPORT_GPU",
+      "scope": "16original combinations,32complete statusrecords, allcell/face transactionstate/audit/budget/hostledger restored; retry/terminal flags intentionallyretained.",
+      "executed_test_ids": [
+        "CHEMISTRY-S302-FULL-FAILED-TRANSACTIONS"
+      ],
+      "evidence_paths": [
+        "artifacts/chemistry-S302-full-failure-summary.json"
+      ],
+      "limitations": "GeneratedS301/S302 extension only; notsubmittedfixturefullnegative PASS; normalcleanup, nogeneralfaultrecovery.",
+      "counts_not_additive_across_topics": true
+    },
+    {
+      "id": "R3-chemistry-actual-owner-entry",
+      "verdict": "PASS",
+      "topics": [
+        "R014-010",
+        "R014-012",
+        "R014-014",
+        "R014-026"
+      ],
+      "source_commit": "9d5be6eff69dbced2fc959d422d3ba419a1bc39e",
+      "kind": "DIAGNOSTIC_GPU",
+      "scope": "Actualnativeentry rejected4e-6→2e-6→1e-6 chronology, StepLimit/rollback, alloriginal4positive owner/terminal/direct controls andsemanticstdout bitexact.",
+      "executed_test_ids": [
+        "CHEMISTRY-OWNER-ENTRY-S305"
+      ],
+      "evidence_paths": [
+        "artifacts/chemistry-owner-entry-S305.json"
+      ],
+      "limitations": "S304 rejectedcurrentDuration wasstale; preserveoriginal partialtrace. I/O notefficiency.",
+      "counts_not_additive_across_topics": true
+    },
+    {
+      "id": "R3-wet-formal-zero-phase-ME",
+      "verdict": "PASS",
+      "topics": [
+        "R014-003",
+        "R014-006",
+        "R014-013",
+        "R014-014",
+        "R014-020",
+        "R014-021",
+        "R014-026",
+        "R014-029"
+      ],
+      "source_commit": "9d5be6eff69dbced2fc959d422d3ba419a1bc39e",
+      "kind": "FORMAL_GPU",
+      "scope": "Exactoriginalwet-film-S209/noMelting/end.001 completeformalnative; allzero phasepackets retainactualheat/force, target0, measuredrho1000, global/perrecipient/perfilmM/E/species.",
+      "executed_test_ids": [
+        "WET-FILM-FORMAL",
+        "WET-FILM-OBSERVER-D302",
+        "AUDIT-WET-FULL-ME-P-S307"
+      ],
+      "evidence_paths": [
+        "artifacts/wet-complete-physical-audit-S307.json",
+        "artifacts/wet-observer-output-comparison.json"
+      ],
+      "limitations": "CompletephysicalglobalP remainsseparateFAIL; drychecker notapplicable tofilm.",
+      "counts_not_additive_across_topics": true
+    },
+    {
+      "id": "R3-wet-actual-final-flux-gas-MEP",
+      "verdict": "PASS",
+      "topics": [
+        "R014-003",
+        "R014-006",
+        "R014-013",
+        "R014-014",
+        "R014-020",
+        "R014-021",
+        "R014-026",
+        "R014-029"
+      ],
+      "source_commit": "9d5be6eff69dbced2fc959d422d3ba419a1bc39e",
+      "kind": "ANALYSIS_ACTUAL_GPU_DATA",
+      "scope": "All50realEulerstages/window, finalweightedfaceflux/ledgerDt/currentpackets andcheckpoint close actualgas M/E/vectorP/species underoriginalcriteria.",
+      "executed_test_ids": [
+        "AUDIT-WET-ACTUAL-FINAL-FLUX-PHYSICAL-GAS"
+      ],
+      "evidence_paths": [
+        "artifacts/wet-actual-final-stage-gas-physical-budget.json"
+      ],
+      "limitations": "Originaldoublecumulativeaudit red andfullfilmmechanicalchannel remain.",
+      "counts_not_additive_across_topics": true
+    },
+    {
+      "id": "R3-wet-full-physical-P",
+      "verdict": "FAIL",
+      "topics": [
+        "R014-003",
+        "R014-006",
+        "R014-013",
+        "R014-014",
+        "R014-020",
+        "R014-021",
+        "R014-026",
+        "R014-029"
+      ],
+      "source_commit": "9d5be6eff69dbced2fc959d422d3ba419a1bc39e",
+      "kind": "ANALYSIS_ACTUAL_GPU_DATA",
+      "scope": "Globalgas+film physicalP withactualboundary/support: residualx -9.01619622716089e-5 and-1.57820679374845e-4kgm/s. FilmnetexchangeP nonzero, algebraicmeanVelocity0; no fabricated reaction.",
+      "executed_test_ids": [
+        "AUDIT-WET-FULL-ME-P-S307"
+      ],
+      "evidence_paths": [
+        "artifacts/wet-complete-physical-audit-S307.json",
+        "metadata/independent-wet-P-review.json"
+      ],
+      "limitations": "Pre-existing reducedmodelqualification, notconfirmednewzerophase productionregression. Exactpressure/stage mismatch cause notunique-proven.",
+      "counts_not_additive_across_topics": true
+    },
+    {
+      "id": "R3-wet-restart-strict-bitparity",
+      "verdict": "FAIL",
+      "topics": [
+        "R014-005",
+        "R014-006",
+        "R014-013",
+        "R014-014",
+        "R014-026",
+        "R014-029"
+      ],
+      "source_commit": "9d5be6eff69dbced2fc959d422d3ba419a1bc39e",
+      "kind": "FORMAL_GPU",
+      "scope": "Formalwetrestart checkpoint1 completesend.001 but27terminalsemanticdifferences; firstexchange row6/packet4/step1/face16 energy/conductive differs.",
+      "executed_test_ids": [
+        "WET-FILM-FORMAL-RESTART",
+        "AUDIT-WET-RESTART-FIRST-DIFFERENCE"
+      ],
+      "evidence_paths": [
+        "artifacts/wet-full-restart-first-difference.json"
+      ],
+      "limitations": "Finiteend/smallerror doesnotclose strictbitrule; thermal causalobserver notdirectwetcausation proof.",
+      "counts_not_additive_across_topics": true
+    },
+    {
+      "id": "R3-wet-evaporation-original-900",
+      "verdict": "BLOCKED",
+      "topics": [
+        "R014-003",
+        "R014-006",
+        "R014-013",
+        "R014-014",
+        "R014-020",
+        "R014-021",
+        "R014-026",
+        "R014-029"
+      ],
+      "source_commit": "9d5be6eff69dbced2fc959d422d3ba419a1bc39e",
+      "kind": "FORMAL_GPU",
+      "scope": "Exactoriginalevapinput/end.001 formalnative900s, committed.00025 thenexternal124; readonly300s showsongoingtinylocaldt~1.13686e-16, partialwindowprogress4.86e-13s.",
+      "executed_test_ids": [
+        "WET-EVAPORATION-FORMAL-900",
+        "EVAPORATION-PROGRESS-D302"
+      ],
+      "evidence_paths": [
+        "artifacts/evaporation-blocked-cause-and-progress.json"
+      ],
+      "limitations": "OldSIGFPE/oldD204300timeout retained. Noautobudgetextension orphysicalinputchange; noobservedCUDAresourceerror, exactinternallimiter notstack-proven.",
+      "counts_not_additive_across_topics": true
+    },
+    {
+      "id": "R3-nonzero-phase-both-directions",
+      "verdict": "PASS",
+      "topics": [
+        "R014-003",
+        "R014-006",
+        "R014-013",
+        "R014-014",
+        "R014-020",
+        "R014-021",
+        "R014-026",
+        "R014-029"
+      ],
+      "source_commit": "9d5be6eff69dbced2fc959d422d3ba419a1bc39e",
+      "kind": "FORMAL_GPU",
+      "scope": "Legalonecellselectedphase0: +4.002e-6/-2.004e-6kg; whole1e-6 completed, originalFP64volumeexpressionbits; actualheat/force/forcing/recession andfullreducedM/E/P; bothold4b/formal/allobserver10filesexact.",
+      "executed_test_ids": [
+        "PHASE-FORMAL-onecell-melting-S308",
+        "PHASE-OLD4B-onecell-melting-S308",
+        "PHASE-D302-onecell-melting-S308",
+        "PHASE-FORMAL-onecell-solidification-S308",
+        "PHASE-OLD4B-onecell-solidification-S308",
+        "PHASE-D302-onecell-solidification-S308",
+        "AUDIT-PHASE-onecell-melting-S308",
+        "AUDIT-PHASE-onecell-solidification-S308"
+      ],
+      "evidence_paths": [
+        "artifacts/nonzero-phase-two-direction-summary.json"
+      ],
+      "limitations": "Original8cellcontrolsblocked andinitialonecellgeometrysupportFAIL preserved; S308onlycorrectsglobalcoordinate mismatch. Notallpore/materialmodels.",
+      "counts_not_additive_across_topics": true
+    },
+    {
+      "id": "R3-Ns10-full-original-initcheck",
+      "verdict": "PASS",
+      "topics": [
+        "R014-009",
+        "R014-010",
+        "R014-024",
+        "R014-026",
+        "R014-028"
+      ],
+      "source_commit": "9d5be6eff69dbced2fc959d422d3ba419a1bc39e",
+      "kind": "FORMAL_GPU_SANITIZER",
+      "scope": "Exactoriginalreactingfullinput end2e-5,700microsteps,473.736s, finalinitcheckERRORSUMMARY0 +originalcheckerPASS.",
+      "executed_test_ids": [
+        "NS10-REACTING-FULL-INITCHECK-1800",
+        "ORIGINAL-CHECK-NS10-REACTING-FULL-INITCHECK-1800"
+      ],
+      "evidence_paths": [
+        "metadata/same-input-chemistry-full-initcheck-1800.json"
+      ],
+      "limitations": "Original300s timeout permanent. Wholeinput/control notsubstituted; initchecknotall-sanitizerfamily.",
+      "counts_not_additive_across_topics": true
+    },
+    {
+      "id": "R3-active-cold-fullgroups-CHT-FSH",
+      "verdict": "PASS",
+      "topics": [
+        "R014-012",
+        "R014-018",
+        "R014-019",
+        "R014-020",
+        "R014-023",
+        "R014-026",
+        "R014-033"
+      ],
+      "source_commit": "9d5be6eff69dbced2fc959d422d3ba419a1bc39e",
+      "kind": "UNCHANGED_DEPENDENCY_NATIVE_GPU",
+      "scope": "AuthoritativeSCHEMA3mobileingress16records; actualcontact/stuck3/uniqueaddresses,10writes activeprofiles andlaterages; CHT9.094947e-13K/FSH4.429239e-10K under1e-9. Actual8radiallanes perparticle/block128=16completegroups; corresponding218/238outputfilesbytepreserved.",
+      "executed_test_ids": [
+        "NATIVE-CHT-active16-ASCII-S306",
+        "NATIVE-FSH-active16-ASCII-S306",
+        "AUDIT-ACTIVE-COLD-CHT",
+        "AUDIT-ACTIVE-COLD-FSH",
+        "COLD-ACTUAL-LAUNCH-CHT-S309",
+        "COLD-ACTUAL-LAUNCH-FSH-S309"
+      ],
+      "evidence_paths": [
+        "metadata/cold-group-count-correction.json",
+        "artifacts/resident/CHT-active16-ASCII-S306-active-profile-audit.json",
+        "artifacts/resident/FSH-active16-ASCII-S306-active-profile-audit.json"
+      ],
+      "limitations": "Producer4b completeCHT/FSH/common dependencyidenticalto9d. Oldinactivecache red retained. Grosspairedallstagebudgets separate.",
+      "counts_not_additive_across_topics": true
+    },
+    {
+      "id": "R3-thermal-restart-first-currentCo-cause",
+      "verdict": "PASS",
+      "topics": [
+        "R014-005",
+        "R014-009",
+        "R014-012",
+        "R014-014",
+        "R014-026"
+      ],
+      "source_commit": "9d5be6eff69dbced2fc959d422d3ba419a1bc39e",
+      "kind": "DIAGNOSTIC_GPU",
+      "scope": "Readonlyoriginalfull100/restart50outputbytesunchanged; actualfirstpreTgas warmvs0, firstpost4cellsT/p1ULP, conservative/volume/dtidentical thenfirstnativefinalflux/pairedpacketdifferent.",
+      "executed_test_ids": [
+        "THERMAL-SEED-thermal-full",
+        "THERMAL-SEED-thermal-restart"
+      ],
+      "evidence_paths": [
+        "artifacts/thermal-first-currentCo-seed-difference.json",
+        "metadata/final-evidence-scope-review.json"
+      ],
+      "limitations": "Strictfull-vs-restartparity remainsFAIL; no productionTgas/checkpoint/timearithmetic rewrite.",
+      "counts_not_additive_across_topics": true
+    },
+    {
+      "id": "R3-cold-start-Js-ConstantTransport",
+      "verdict": "PASS",
+      "topics": [
+        "R014-004",
+        "R014-009",
+        "R014-012",
+        "R014-014",
+        "R014-015",
+        "R014-017",
+        "R014-026",
+        "R014-029"
+      ],
+      "source_commit": "9d5be6eff69dbced2fc959d422d3ba419a1bc39e",
+      "kind": "SUPPORT_ACTUAL_GPU",
+      "scope": "ActualfullnativeBackend/kernel/SharedGasDeviceStorage noCUDAstub:2changedrho/T/U/dt inputs,6freshownerCo-arraybitreferences/phi=-areaJs, truepublishedlagged .034→.055 actualwallstage, K/omega unchanged.",
+      "executed_test_ids": [
+        "COLD-START-JS-ACTUAL-S311"
+      ],
+      "evidence_paths": [],
+      "limitations": "ConstantTransportonly; referenceDt supplied, selectedDt/microstepconsumer/ReactingSst/copyfailure-retry notcovered; gapPARTIAL.",
+      "counts_not_additive_across_topics": true
+    },
+    {
+      "id": "R3-host-codec-mapper-wire-sanitizers",
+      "verdict": "PASS",
+      "topics": [
+        "R014-005",
+        "R014-012",
+        "R014-019",
+        "R014-020",
+        "R014-023",
+        "R014-026",
+        "R014-028",
+        "R014-033"
+      ],
+      "source_commit": "9d5be6eff69dbced2fc959d422d3ba419a1bc39e",
+      "kind": "HOST_SANITIZER",
+      "scope": "Actualcurrentcodec onnewGPUcheckpoints +realOpenFoamfvMesh/nativeempty-single-multiplemapper andrealFSHclient/POSIX10uploadframes underASan/UBSan; normalcleanup.",
+      "executed_test_ids": [
+        "HOST-NATIVE-MAPPER-ASAN-S312",
+        "HOST-NATIVE-WIRE-ASAN-S312"
+      ],
+      "evidence_paths": [
+        "inputs/native-mapper-ASan-S312.C",
+        "inputs/FSH-native-wire-ASan-S312.cpp"
+      ],
+      "limitations": "NotGPUmapperconsumer/server/fullresource-owner/concurrentfault proof; emptycouplerdictionary semanticnotchanged.",
+      "counts_not_additive_across_topics": true
+    },
+    {
+      "id": "R3-prior-strict-P-arithmetic-reanalysis",
+      "verdict": "PASS",
+      "topics": [
+        "R014-008",
+        "R014-009",
+        "R014-014",
+        "R014-026",
+        "R014-029"
+      ],
+      "source_commit": "9d5be6eff69dbced2fc959d422d3ba419a1bc39e",
+      "kind": "ANALYSIS_PRIOR_IMMUTABLE_GPU_DATA",
+      "scope": "Independentexactreplay ofdeveloperpriorSST-RK2/RK3/drygasPx analysis:46inputhashes/42fixedoldGitblobs, all300micro/6macro physicalgasP withinoriginalmassrule; doubleaccumulatorreplay exact5FAIL+drywindow1PASS.",
+      "executed_test_ids": [],
+      "evidence_paths": [
+        "metadata/independent-source-review.json"
+      ],
+      "limitations": "No newGPUrun; onlygasbulkx, notfilm/global/allgrossmodel/sourceinventory; oldcumulativeaudit reds preserved.",
+      "counts_not_additive_across_topics": true
+    },
+    {
+      "id": "R3-gross-SST-resident-complete-budgets",
+      "verdict": "NOT_RUN",
+      "topics": [
+        "R014-008",
+        "R014-009",
+        "R014-018",
+        "R014-020",
+        "R014-026",
+        "R014-029",
+        "R014-031"
+      ],
+      "source_commit": "9d5be6eff69dbced2fc959d422d3ba419a1bc39e",
+      "kind": "NOT_RUN",
+      "scope": "MissinggrossSSTproduction/dissipation andallthree residentfinal-limitedflux/allsource/M-E-P inventory.",
+      "executed_test_ids": [],
+      "evidence_paths": [],
+      "limitations": "Primaryoriginalevap/strictglobalfilmP notclosed. NetSST/RK/dry/allboundarysolid evidence reused withoutexpanding scope.",
+      "counts_not_additive_across_topics": true
+    },
+    {
+      "id": "R3-GPU-empty-multi-selected-mapper",
+      "verdict": "NOT_RUN",
+      "topics": [
+        "R014-020",
+        "R014-026",
+        "R014-029"
+      ],
+      "source_commit": "9d5be6eff69dbced2fc959d422d3ba419a1bc39e",
+      "kind": "NOT_RUN",
+      "scope": "RemainingrealGPUempty/multiple-selected mapperconsumer; nativehostmapper subset newlypassed.",
+      "executed_test_ids": [],
+      "evidence_paths": [],
+      "limitations": "Originalsingle/mixed/DO solidbudget reused; hostmappingtest cannotreplaceGPUconsumer.",
+      "counts_not_additive_across_topics": true
+    },
+    {
+      "id": "R3-pore-material-to-geometry",
+      "verdict": "NOT_RUN",
+      "topics": [
+        "R014-003",
+        "R014-006",
+        "R014-011",
+        "R014-014",
+        "R014-026",
+        "R014-029",
+        "R014-032"
+      ],
+      "source_commit": "9d5be6eff69dbced2fc959d422d3ba419a1bc39e",
+      "kind": "NOT_RUN",
+      "scope": "Uncoveredpore/material-to-geometry andothermaterials/completeinventories.",
+      "executed_test_ids": [],
+      "evidence_paths": [],
+      "limitations": "Bothlegalnonzero melting/solidification nowclosedonlynamedcontrol; originalevapfinitebudget blocked.",
+      "counts_not_additive_across_topics": true
+    },
+    {
+      "id": "R3-allocation-free-sync-host-concurrency",
+      "verdict": "NOT_RUN",
+      "topics": [
+        "R014-012",
+        "R014-026",
+        "R014-028"
+      ],
+      "source_commit": "9d5be6eff69dbced2fc959d422d3ba419a1bc39e",
+      "kind": "NOT_RUN",
+      "scope": "Uncoveredactualfree/sync/hostallocationfailure/concurrency andfullresourceownerhostsanitizers.",
+      "executed_test_ids": [],
+      "evidence_paths": [],
+      "limitations": "OldactualSST22/CoOOM/copy/retry/destruction reused; S302fixture exits-onerror notgenericrecovery. No hazardousOOB ornewproductionresourcegate.",
+      "counts_not_additive_across_topics": true
+    }
+  ],
+  "original_reused_acceptance_units": [
+    {
+      "id": "R2-A-owner-full-semantic",
+      "verdict": "PASS",
+      "variant": "FORMAL_SOURCE_TEST_SUPPORT",
+      "test_ids": [
+        "CHEM-OWNER-S208"
+      ],
+      "topics": [
+        "R014-010",
+        "R014-012",
+        "R014-014",
+        "R014-026"
+      ],
+      "scope": "RealNs2requested4e-6: StepLimit rollback, fouracceptedparts, exhaustedterminal originalpublicfalse, original1e-6 control; allsemanticfields/audits/status/budget and16failedresource combinations.",
+      "limitations": "S202/S203/S208 fixture support only. Submittedoriginalfixture itself FAIL. Ns2 is speciescount, notclaimallNs10ownerconfigurations.",
+      "counts_separately_from_commands": true,
+      "fixed_evidence_commit": "f5e6c5e2cbde2693f5fa811d874c200b07bbbc66",
+      "producer_commit": "4b5c480b572f234ddecf5e89164fe59b0d2e9735",
+      "reuse_basis": "Exactunchangedsource/dependencyandoriginalscope; no newGPUexecution or expandedacceptance."
+    },
+    {
+      "id": "R2-A-Ns10-native",
+      "verdict": "PASS",
+      "variant": "FORMAL",
+      "test_ids": [
+        "CHMT-chemistry-full",
+        "CHMT-chemistry-control"
+      ],
+      "topics": [
+        "R014-010",
+        "R014-024",
+        "R014-026"
+      ],
+      "scope": "RealNs10originalfull/control inputs, originalchecker andalloutput bytes equal802; freshfullnativecompile serialretry.",
+      "limitations": "Fullinitcheck300s BLOCKED separate.",
+      "counts_separately_from_commands": true,
+      "fixed_evidence_commit": "f5e6c5e2cbde2693f5fa811d874c200b07bbbc66",
+      "producer_commit": "4b5c480b572f234ddecf5e89164fe59b0d2e9735",
+      "reuse_basis": "Exactunchangedsource/dependencyandoriginalscope; no newGPUexecution or expandedacceptance."
+    },
+    {
+      "id": "R2-B-CHT-original-inputs",
+      "verdict": "PASS",
+      "variant": "FORMAL",
+      "test_ids": [
+        "NATIVE-CHT-coldWall1D-INPUT2",
+        "NATIVE-CHT-coldWall2D-INPUT2",
+        "RESTART-CHT-coldWall2D-INPUT2",
+        "NATIVE-CHT-coldWall1D-WET100",
+        "NATIVE-CHT-coldWall2D-INPUT2-memcheck",
+        "NATIVE-CHT-coldWall2D-INPUT2-synccheck"
+      ],
+      "topics": [
+        "R014-018",
+        "R014-019",
+        "R014-023",
+        "R014-026",
+        "R014-033"
+      ],
+      "scope": "Originalcold1D/cold2D/wet100, alltime1e-9 mean(double)+carry; original2Drestart terminalbytes.",
+      "limitations": "P007/P010 notapplied. Multipleactivegroups/fullgasledger separate.",
+      "counts_separately_from_commands": true,
+      "fixed_evidence_commit": "f5e6c5e2cbde2693f5fa811d874c200b07bbbc66",
+      "producer_commit": "4b5c480b572f234ddecf5e89164fe59b0d2e9735",
+      "reuse_basis": "Exactunchangedsource/dependencyandoriginalscope; no newGPUexecution or expandedacceptance."
+    },
+    {
+      "id": "R2-B-FSH-double-restart",
+      "verdict": "PASS",
+      "variant": "FORMAL_TEST_SUPPORT",
+      "test_ids": [
+        "NATIVE-FSH-coldWall1D",
+        "RESTART-FSH-coldWall1D",
+        "NATIVE-FSH-coldWall2D",
+        "RESTART-FSH-coldWall2D"
+      ],
+      "topics": [
+        "R014-018",
+        "R014-019",
+        "R014-023",
+        "R014-026",
+        "R014-033"
+      ],
+      "scope": "RealFSHdoublecold1D/2D andmidpointrestart allterminalbytes; S204 samecaloric1e-9 usingactualFSHschema.",
+      "limitations": "FSHhasnoCHTcarryfield; do notinventone.",
+      "counts_separately_from_commands": true,
+      "fixed_evidence_commit": "f5e6c5e2cbde2693f5fa811d874c200b07bbbc66",
+      "producer_commit": "4b5c480b572f234ddecf5e89164fe59b0d2e9735",
+      "reuse_basis": "Exactunchangedsource/dependencyandoriginalscope; no newGPUexecution or expandedacceptance."
+    },
+    {
+      "id": "R2-B-init-config-copy",
+      "verdict": "PASS",
+      "variant": "FORMAL",
+      "test_ids": [
+        "COLD-FIXTURE-CHT",
+        "COLD-FIXTURE-FSH",
+        "COLD-ACTUAL-COPY-RETRY"
+      ],
+      "topics": [
+        "R014-012",
+        "R014-018",
+        "R014-023",
+        "R014-026",
+        "R014-033"
+      ],
+      "scope": "Fourphases/nonzerocarry,actualconfig-before/afterpatch mixedfaces/toggle preserveuploads; actualCUDAcopyerror initializerretry.",
+      "limitations": "Fixturegroupsinglethreadinitialization, not full8lane dynamics.",
+      "counts_separately_from_commands": true,
+      "fixed_evidence_commit": "f5e6c5e2cbde2693f5fa811d874c200b07bbbc66",
+      "producer_commit": "4b5c480b572f234ddecf5e89164fe59b0d2e9735",
+      "reuse_basis": "Exactunchangedsource/dependencyandoriginalscope; no newGPUexecution or expandedacceptance."
+    },
+    {
+      "id": "R2-C-tail-whole-output",
+      "verdict": "PASS",
+      "variant": "FORMAL",
+      "test_ids": [
+        "CHMT-thermal-full",
+        "CHMT-thermal-full-initcheck"
+      ],
+      "topics": [
+        "R014-009",
+        "R014-012",
+        "R014-014",
+        "R014-026",
+        "R014-028"
+      ],
+      "scope": "RealNs2original100microsteps initcheck0; ALLCSV/checkpoints/serializedgeometry bytesexact802.",
+      "limitations": "No clockobserver; d611notusedasthisbytebaseline.",
+      "counts_separately_from_commands": true,
+      "fixed_evidence_commit": "f5e6c5e2cbde2693f5fa811d874c200b07bbbc66",
+      "producer_commit": "4b5c480b572f234ddecf5e89164fe59b0d2e9735",
+      "reuse_basis": "Exactunchangedsource/dependencyandoriginalscope; no newGPUexecution or expandedacceptance."
+    },
+    {
+      "id": "R2-C-cache-freshdata",
+      "verdict": "PASS",
+      "variant": "FORMAL_OPERATOR",
+      "test_ids": [
+        "CO-FIXTURE",
+        "CO-FRESH-2",
+        "CO-FRESH-10",
+        "CO-FRESH-10-INITCHECK"
+      ],
+      "topics": [
+        "R014-009",
+        "R014-012",
+        "R014-014",
+        "R014-026",
+        "R014-028"
+      ],
+      "scope": "Actualempty/single/multiblock/maxOR/NaNbitcontrol,168changingarraycases/ns, sameowner growth/reuse andsecondowner streams, realOOM/retry/destruction.",
+      "limitations": "Hostserializedstreams; no sameBackendconcurrenthostthread claim.",
+      "counts_separately_from_commands": true,
+      "fixed_evidence_commit": "f5e6c5e2cbde2693f5fa811d874c200b07bbbc66",
+      "producer_commit": "4b5c480b572f234ddecf5e89164fe59b0d2e9735",
+      "reuse_basis": "Exactunchangedsource/dependencyandoriginalscope; no newGPUexecution or expandedacceptance."
+    },
+    {
+      "id": "R2-C-Ns10-control-initcheck",
+      "verdict": "PASS",
+      "variant": "FORMAL",
+      "test_ids": [
+        "CHMT-chemistry-control-initcheck"
+      ],
+      "topics": [
+        "R014-009",
+        "R014-010",
+        "R014-026",
+        "R014-028"
+      ],
+      "scope": "ActualoriginalNs10control wholecase initcheck0; alloutputbytes802.",
+      "limitations": "Notfullreactinginputsanitizer.",
+      "counts_separately_from_commands": true,
+      "fixed_evidence_commit": "f5e6c5e2cbde2693f5fa811d874c200b07bbbc66",
+      "producer_commit": "4b5c480b572f234ddecf5e89164fe59b0d2e9735",
+      "reuse_basis": "Exactunchangedsource/dependencyandoriginalscope; no newGPUexecution or expandedacceptance."
+    },
+    {
+      "id": "R2-C-restart-vs802",
+      "verdict": "PASS",
+      "variant": "FORMAL_VS_802",
+      "test_ids": [
+        "THERMAL-802-SAME-RESTART"
+      ],
+      "topics": [
+        "R014-005",
+        "R014-009",
+        "R014-012",
+        "R014-014",
+        "R014-026"
+      ],
+      "scope": "Currentand802fromsameactualcheckpoint/input: all10outputfiles byteexact.",
+      "limitations": "Full-vs-restart strictdifference separatelyretained, no newcacheregression shown.",
+      "counts_separately_from_commands": true,
+      "fixed_evidence_commit": "f5e6c5e2cbde2693f5fa811d874c200b07bbbc66",
+      "producer_commit": "4b5c480b572f234ddecf5e89164fe59b0d2e9735",
+      "reuse_basis": "Exactunchangedsource/dependencyandoriginalscope; no newGPUexecution or expandedacceptance."
+    },
+    {
+      "id": "R2-D-clock-lineage",
+      "verdict": "PASS",
+      "variant": "READONLY_DIAGNOSTIC",
+      "test_ids": [
+        "TRACE-NATIVE-tested",
+        "TRACE-NATIVE-formal",
+        "TRACE-BASELINE-CHECKPOINT-PAYLOAD-PROOF"
+      ],
+      "topics": [
+        "R014-014",
+        "R014-015",
+        "R014-021",
+        "R014-022",
+        "R014-026",
+        "R014-027"
+      ],
+      "scope": "Actual3version21400hexrecords: firstclockacceptedstep6, stageclockstep7, firstdt/gas/packetstep50/window; wallphysicalallunchanged;802vsformalalltracebitsidentical.",
+      "limitations": "Baselinecheckpoint identity/checksum changes66bytes; allstatepayload/configotherbytes bitidentical. OriginalwholebyteFAILretained. Approvedcompensatedclockpreserved, notd611wholeparityPASS.",
+      "counts_separately_from_commands": true,
+      "fixed_evidence_commit": "f5e6c5e2cbde2693f5fa811d874c200b07bbbc66",
+      "producer_commit": "4b5c480b572f234ddecf5e89164fe59b0d2e9735",
+      "reuse_basis": "Exactunchangedsource/dependencyandoriginalscope; no newGPUexecution or expandedacceptance."
+    },
+    {
+      "id": "R2-F-SST22-resource",
+      "verdict": "PASS",
+      "variant": "FORMAL_REAL_ERROR_OBSERVER",
+      "test_ids": [
+        "SST22-ACTUAL-OWNER-CHT",
+        "SST22-ACTUAL-OWNER-FSH"
+      ],
+      "topics": [
+        "R014-004",
+        "R014-012",
+        "R014-017",
+        "R014-018",
+        "R014-026",
+        "R014-028"
+      ],
+      "scope": "ActualCHT/FSH22canonicalowners, late/reconfigure, realOOMeveryallocation/copyerror,retryonlymissingowner,nativeinit anddestroy.",
+      "limitations": "Allmodelmigration/concurrency/freefailure types notproved.",
+      "counts_separately_from_commands": true,
+      "fixed_evidence_commit": "f5e6c5e2cbde2693f5fa811d874c200b07bbbc66",
+      "producer_commit": "4b5c480b572f234ddecf5e89164fe59b0d2e9735",
+      "reuse_basis": "Exactunchangedsource/dependencyandoriginalscope; no newGPUexecution or expandedacceptance."
+    },
+    {
+      "id": "R2-F-SST-RK-net-budget",
+      "verdict": "PASS",
+      "variant": "FORMAL_READONLY_DIAGNOSTIC",
+      "test_ids": [
+        "ACTUAL-WEIGHTED-LEDGER-SST-SSPRK2",
+        "ACTUAL-WEIGHTED-LEDGER-SST-SSPRK3",
+        "SCOPED-MASS-ENERGY-SST-SST-RK",
+        "SCOPED-MASS-ENERGY-SST-SST-SSPRK2",
+        "SCOPED-MASS-ENERGY-SST-SST-SSPRK3"
+      ],
+      "topics": [
+        "R014-008",
+        "R014-009",
+        "R014-014",
+        "R014-026",
+        "R014-029"
+      ],
+      "scope": "ActualEuler/RK2/RK3 SSTK/omega transport/source/constraintstockclosure,globalM/E andperrecipientM/E; actualfinalflux weights .5/.5 and1/6/1/6/2/3.",
+      "limitations": "Grossproduction/dissipation andcompletebulkmomentum stillopen; strictmomentumred unchanged.",
+      "counts_separately_from_commands": true,
+      "fixed_evidence_commit": "f5e6c5e2cbde2693f5fa811d874c200b07bbbc66",
+      "producer_commit": "4b5c480b572f234ddecf5e89164fe59b0d2e9735",
+      "reuse_basis": "Exactunchangedsource/dependencyandoriginalscope; no newGPUexecution or expandedacceptance."
+    },
+    {
+      "id": "R2-F-ALE-chemistry-volumes",
+      "verdict": "PASS",
+      "variant": "FORMAL_READONLY_DIAGNOSTIC",
+      "test_ids": [
+        "ACTUAL-KERNELS-moving-chemistry-S206",
+        "ACTUAL-ALL-MICROGEOMETRY-moving-GCL",
+        "ACTUAL-ALL-MICROGEOMETRY-moving-chemistry"
+      ],
+      "topics": [
+        "R014-008",
+        "R014-010",
+        "R014-014",
+        "R014-026",
+        "R014-029"
+      ],
+      "scope": "All100Ns2/700Ns10acceptedmicrosteps bothgeometry stages; GCLmax5.5511e-17m3 beloworiginal1e-14; all1400actualNs10chemkernels old/newvolume arguments bitexact andsamehalfdt.",
+      "limitations": "Observeroutputsalloriginalbytesunchanged, IOexcludedtiming.",
+      "counts_separately_from_commands": true,
+      "fixed_evidence_commit": "f5e6c5e2cbde2693f5fa811d874c200b07bbbc66",
+      "producer_commit": "4b5c480b572f234ddecf5e89164fe59b0d2e9735",
+      "reuse_basis": "Exactunchangedsource/dependencyandoriginalscope; no newGPUexecution or expandedacceptance."
+    },
+    {
+      "id": "R2-F-dry-ablation-scoped",
+      "verdict": "PASS",
+      "variant": "FORMAL",
+      "test_ids": [
+        "ACTUAL-WEIGHTED-LEDGER-dry-ablation",
+        "SCOPED-MASS-ENERGY-SST-dry-ablation"
+      ],
+      "topics": [
+        "R014-003",
+        "R014-006",
+        "R014-011",
+        "R014-014",
+        "R014-026",
+        "R014-029"
+      ],
+      "scope": "ActualC0->S0surfacegas/CoupledRecession, fullM/E stock andpairedM/E, actualfinalflux/rawallmicrogeometry.",
+      "limitations": "CompleteP strictred3.58e-13; bulk/pore/meltingcampaign notcovered.",
+      "counts_separately_from_commands": true,
+      "fixed_evidence_commit": "f5e6c5e2cbde2693f5fa811d874c200b07bbbc66",
+      "producer_commit": "4b5c480b572f234ddecf5e89164fe59b0d2e9735",
+      "reuse_basis": "Exactunchangedsource/dependencyandoriginalscope; no newGPUexecution or expandedacceptance."
+    },
+    {
+      "id": "R2-F-radiation-singlemapper",
+      "verdict": "PASS",
+      "variant": "FORMAL",
+      "test_ids": [
+        "NATIVE-CHT-actual-coupler-S210",
+        "NATIVE-CHT-actual-radiation-S210",
+        "COMPLETE-SOLID-ALLBOUNDARY-CHT-actual-coupler-S210",
+        "COMPLETE-SOLID-ALLBOUNDARY-CHT-actual-radiation-S210"
+      ],
+      "topics": [
+        "R014-018",
+        "R014-020",
+        "R014-023",
+        "R014-026",
+        "R014-030",
+        "R014-033"
+      ],
+      "scope": "ActualCHT GPUresident+realDOsolidcoupler/oneface/mixeddefaults; profiles1e-9; fullallboundarysolidledger max3.64e-13/2.59e-13J.",
+      "limitations": "Empty/multiple-selectedmapper, fullgas/particleinventory stillopen; wall-onlyincompleteFAILpreserved.",
+      "counts_separately_from_commands": true,
+      "fixed_evidence_commit": "f5e6c5e2cbde2693f5fa811d874c200b07bbbc66",
+      "producer_commit": "4b5c480b572f234ddecf5e89164fe59b0d2e9735",
+      "reuse_basis": "Exactunchangedsource/dependencyandoriginalscope; no newGPUexecution or expandedacceptance."
+    },
+    {
+      "id": "R2-F-host-codec-sanitizer",
+      "verdict": "PASS",
+      "variant": "FORMAL_HOST_SANITIZER",
+      "test_ids": [
+        "HOST-DECODE-SST-RK-checkpoint-0",
+        "HOST-DECODE-SST-RK-checkpoint-1",
+        "HOST-DECODE-SST-RK-checkpoint-2",
+        "HOST-DECODE-moving-GCL-checkpoint-0",
+        "HOST-DECODE-moving-GCL-checkpoint-1",
+        "HOST-DECODE-moving-GCL-checkpoint-2",
+        "HOST-DECODE-moving-chemistry-checkpoint-0",
+        "HOST-DECODE-moving-chemistry-checkpoint-1",
+        "HOST-DECODE-moving-chemistry-checkpoint-2",
+        "HOST-DECODE-SST-SSPRK2-0-DIR",
+        "HOST-DECODE-SST-SSPRK2-1-DIR",
+        "HOST-DECODE-SST-SSPRK2-2-DIR",
+        "HOST-DECODE-SST-SSPRK3-0-DIR",
+        "HOST-DECODE-SST-SSPRK3-1-DIR",
+        "HOST-DECODE-SST-SSPRK3-2-DIR",
+        "HOST-DECODE-S207-SST-RK-checkpoint-0",
+        "HOST-DECODE-S207-SST-RK-checkpoint-1",
+        "HOST-DECODE-S207-SST-RK-checkpoint-2",
+        "HOST-DECODE-S207-SST-SSPRK2-checkpoint-0",
+        "HOST-DECODE-S207-SST-SSPRK2-checkpoint-1",
+        "HOST-DECODE-S207-SST-SSPRK2-checkpoint-2",
+        "HOST-DECODE-S207-SST-SSPRK3-checkpoint-0",
+        "HOST-DECODE-S207-SST-SSPRK3-checkpoint-1",
+        "HOST-DECODE-S207-SST-SSPRK3-checkpoint-2",
+        "HOST-DECODE-S207-moving-GCL-checkpoint-0",
+        "HOST-DECODE-S207-moving-GCL-checkpoint-1",
+        "HOST-DECODE-S207-moving-GCL-checkpoint-2",
+        "HOST-DECODE-S207-dry-ablation-checkpoint-0",
+        "HOST-DECODE-S207-dry-ablation-checkpoint-1",
+        "HOST-DECODE-S207-dry-ablation-checkpoint-2",
+        "HOST-DECODE-S207-wet-film-S209-checkpoint-0",
+        "HOST-DECODE-S207-wet-evaporation-S209-checkpoint-0",
+        "HOST-DECODE-S207-wet-film-S209-D204-checkpoint-0",
+        "HOST-DECODE-S207-wet-film-S209-D204-checkpoint-1",
+        "HOST-DECODE-S207-wet-film-S209-D204-checkpoint-2"
+      ],
+      "topics": [
+        "R014-005",
+        "R014-019",
+        "R014-026",
+        "R014-028"
+      ],
+      "scope": "Actualcurrentcheckpointdecoder ofrealGPUdata underhostASan/UBSan, expandedactualstock/packet fields.",
+      "limitations": "Onlynamedcodec path; not allwire/mapper/resourceownerhosts.",
+      "counts_separately_from_commands": true,
+      "fixed_evidence_commit": "f5e6c5e2cbde2693f5fa811d874c200b07bbbc66",
+      "producer_commit": "4b5c480b572f234ddecf5e89164fe59b0d2e9735",
+      "reuse_basis": "Exactunchangedsource/dependencyandoriginalscope; no newGPUexecution or expandedacceptance."
+    },
+    {
+      "id": "R2-performance-resource",
+      "verdict": "PASS",
+      "variant": "PERFORMANCE_QUALIFIED",
+      "test_ids": [
+        "NSYS-FORMAL",
+        "TIMING-old-production-warmup-0",
+        "TIMING-formal-warmup-0",
+        "TIMING-formal-warmup-1",
+        "TIMING-old-production-warmup-1",
+        "TIMING-old-production-warmup-2",
+        "TIMING-formal-warmup-2",
+        "TIMING-old-production-measured-0",
+        "TIMING-formal-measured-0",
+        "TIMING-formal-measured-1",
+        "TIMING-old-production-measured-1",
+        "TIMING-old-production-measured-2",
+        "TIMING-formal-measured-2",
+        "TIMING-formal-measured-3",
+        "TIMING-old-production-measured-3",
+        "TIMING-old-production-measured-4",
+        "TIMING-formal-measured-4",
+        "TIMING-formal-measured-5",
+        "TIMING-old-production-measured-5",
+        "TIMING-old-production-measured-6",
+        "TIMING-formal-measured-6"
+      ],
+      "topics": [
+        "R014-002",
+        "R014-009",
+        "R014-016",
+        "R014-026",
+        "R014-027"
+      ],
+      "scope": "Matched100step Nsight allocation339->140;3000kernels unchanged, stable198Co ranges0malloc/free; peaktracked22281B/final0; nonprofiling3warm+7rawsamples retained.",
+      "limitations": "Memorysubset,certainnonmallocmemoryevents unresolved. Median ratio.99785 withlargevariance; no stablewhole-solverspeedup claim.",
+      "counts_separately_from_commands": true,
+      "fixed_evidence_commit": "f5e6c5e2cbde2693f5fa811d874c200b07bbbc66",
+      "producer_commit": "4b5c480b572f234ddecf5e89164fe59b0d2e9735",
+      "reuse_basis": "Exactunchangedsource/dependencyandoriginalscope; no newGPUexecution or expandedacceptance."
+    }
+  ],
+  "original_14_remaining_gaps": [
+    {
+      "gap_id": "SST22-owner-graph",
+      "verdict": "CLOSED_SCOPED",
+      "observations": "Reusedunchangedoriginalscope. Actual22owners/resourceretry/reconfigure inbothapps; concurrenthost/freefailure coverageelsewhere.",
+      "historical_unit_id": "NOT-RUN-SST22-owner-graph",
+      "historical_fixed_commit": "ae5a59478023c74e23b64dc1a1f388fb805ef565",
+      "topics": [
+        "R014-004",
+        "R014-012",
+        "R014-017"
+      ],
+      "prior_evidence_commit": "f5e6c5e2cbde2693f5fa811d874c200b07bbbc66",
+      "prior_verdict": "CLOSED_SCOPED"
+    },
+    {
+      "gap_id": "SST-RK-budgets",
+      "verdict": "PARTIAL",
+      "observations": "OldnetK/omega/RKweights/M/E reused. Independentpriorgasbulkx exactphysicalflux closes underoriginalcriteria, strictdoublecumulative red retained; grossproduction/dissipation/allglobalP notclosed.",
+      "historical_unit_id": "NOT-RUN-SST-RK-budgets",
+      "historical_fixed_commit": "ae5a59478023c74e23b64dc1a1f388fb805ef565",
+      "topics": [
+        "R014-008",
+        "R014-009",
+        "R014-026",
+        "R014-029"
+      ],
+      "prior_evidence_commit": "f5e6c5e2cbde2693f5fa811d874c200b07bbbc66",
+      "prior_verdict": "PARTIAL"
+    },
+    {
+      "gap_id": "moving-GCL",
+      "verdict": "CLOSED",
+      "observations": "Reusedunchangedoriginalscope. Allmicrogeometry GCL and1400realchemicalold/newvolume input pairs qualified.",
+      "historical_unit_id": "NOT-RUN-moving-GCL",
+      "historical_fixed_commit": "ae5a59478023c74e23b64dc1a1f388fb805ef565",
+      "topics": [
+        "R014-008",
+        "R014-009",
+        "R014-014",
+        "R014-026",
+        "R014-029"
+      ],
+      "prior_evidence_commit": "f5e6c5e2cbde2693f5fa811d874c200b07bbbc66",
+      "prior_verdict": "CLOSED"
+    },
+    {
+      "gap_id": "cold-start-Js",
+      "verdict": "PARTIAL",
+      "observations": "S311 actualConstantTransportfreshJs/Co2changedflows +realstage laggedpublication. MissingReactingSst/selectedDt-microstepconsumer/copyfail retry remain.",
+      "historical_unit_id": "NOT-RUN-cold-start-Js",
+      "historical_fixed_commit": "ae5a59478023c74e23b64dc1a1f388fb805ef565",
+      "topics": [
+        "R014-015",
+        "R014-026"
+      ],
+      "prior_evidence_commit": "f5e6c5e2cbde2693f5fa811d874c200b07bbbc66",
+      "prior_verdict": "NOT_RUN"
+    },
+    {
+      "gap_id": "chem-native-full-retry-owner",
+      "verdict": "CLOSED_SCOPED",
+      "observations": "Reusedunchangedoriginalscope. RealNs2owner fullrequestedinterval/refinement/terminal/fullsemantic auditS208;Ns10ordinary/ALEpaths separatelycovered.",
+      "historical_unit_id": "NOT-RUN-chem-native-full-retry-owner",
+      "historical_fixed_commit": "ae5a59478023c74e23b64dc1a1f388fb805ef565",
+      "topics": [
+        "R014-010",
+        "R014-012",
+        "R014-014",
+        "R014-026"
+      ],
+      "prior_evidence_commit": "f5e6c5e2cbde2693f5fa811d874c200b07bbbc66",
+      "prior_verdict": "CLOSED_SCOPED"
+    },
+    {
+      "gap_id": "wet-ablation-material",
+      "verdict": "PARTIAL_BLOCKED",
+      "observations": "GPU-F006 formalzeroheat/force/M/E andlegalnonzerobothdirectionsnowpass. Originalevap900sBLOCKED .00025/.001; globalwetfilmP open, otherpore/materialinventory notrun.",
+      "historical_unit_id": "NOT-RUN-wet-ablation-material",
+      "historical_fixed_commit": "ae5a59478023c74e23b64dc1a1f388fb805ef565",
+      "topics": [
+        "R014-003",
+        "R014-006",
+        "R014-011",
+        "R014-014",
+        "R014-026",
+        "R014-029",
+        "R014-032"
+      ],
+      "prior_evidence_commit": "f5e6c5e2cbde2693f5fa811d874c200b07bbbc66",
+      "prior_verdict": "FAIL_OPEN"
+    },
+    {
+      "gap_id": "CHT-radiation-mapper",
+      "verdict": "PARTIAL",
+      "observations": "Oldsingle/mixed/enabledDO/fullsolidledger reused. NewactualOpenFoamhostempty/single/multi ASanUBSanPASS; actualGPUempty/multipleconsumer stillnotrun.",
+      "historical_unit_id": "NOT-RUN-CHT-radiation-mapper",
+      "historical_fixed_commit": "ae5a59478023c74e23b64dc1a1f388fb805ef565",
+      "topics": [
+        "R014-020",
+        "R014-026",
+        "R014-029"
+      ],
+      "prior_evidence_commit": "f5e6c5e2cbde2693f5fa811d874c200b07bbbc66",
+      "prior_verdict": "PARTIAL"
+    },
+    {
+      "gap_id": "mixed-wall-coupler",
+      "verdict": "CLOSED_SCOPED",
+      "observations": "Reusedunchangedoriginalscope. Bothorder/toggle/downloadedvalues/actualcopyretry;actualnativeonecoupled+othersuncoupled;full3appgasbudget elsewhere.",
+      "historical_unit_id": "NOT-RUN-mixed-wall-coupler",
+      "historical_fixed_commit": "ae5a59478023c74e23b64dc1a1f388fb805ef565",
+      "topics": [
+        "R014-012",
+        "R014-020",
+        "R014-033"
+      ],
+      "prior_evidence_commit": "f5e6c5e2cbde2693f5fa811d874c200b07bbbc66",
+      "prior_verdict": "CLOSED_SCOPED"
+    },
+    {
+      "gap_id": "FSH-cold-profile",
+      "verdict": "PARTIAL",
+      "observations": "Originalreal1D/2Ddouble/restart reused; new16trulyactivewholegroups/eachtime1e-9/launchbyteparityPASS. Fullgas/particle/wall stageinventories remain.",
+      "historical_unit_id": "NOT-RUN-FSH-cold-profile",
+      "historical_fixed_commit": "ae5a59478023c74e23b64dc1a1f388fb805ef565",
+      "topics": [
+        "R014-018",
+        "R014-019",
+        "R014-023",
+        "R014-026",
+        "R014-033"
+      ],
+      "prior_evidence_commit": "f5e6c5e2cbde2693f5fa811d874c200b07bbbc66",
+      "prior_verdict": "PARTIAL"
+    },
+    {
+      "gap_id": "host-sanitizers",
+      "verdict": "PARTIAL",
+      "observations": "Actualnewcodec +nativeOpenFoammapper +realFSHclient10POSIXwireframes ASanUBSanPASS. Fullresourceowner/server/concurrentfault range remains.",
+      "historical_unit_id": "NOT-RUN-host-sanitizers",
+      "historical_fixed_commit": "ae5a59478023c74e23b64dc1a1f388fb805ef565",
+      "topics": [
+        "R014-005",
+        "R014-012",
+        "R014-019",
+        "R014-020",
+        "R014-028"
+      ],
+      "prior_evidence_commit": "f5e6c5e2cbde2693f5fa811d874c200b07bbbc66",
+      "prior_verdict": "PARTIAL"
+    },
+    {
+      "gap_id": "allocation-fault-lifecycle",
+      "verdict": "PARTIAL",
+      "observations": "Reusedunchangedoriginalscope. Actual22slotOOM/copyretry/coldcopy andCoOOM/destructionpass;otherfree/sync/hostfailure/concurrency effectsnotcovered.",
+      "historical_unit_id": "NOT-RUN-allocation-fault-lifecycle",
+      "historical_fixed_commit": "ae5a59478023c74e23b64dc1a1f388fb805ef565",
+      "topics": [
+        "R014-012",
+        "R014-026",
+        "R014-028"
+      ],
+      "prior_evidence_commit": "f5e6c5e2cbde2693f5fa811d874c200b07bbbc66",
+      "prior_verdict": "PARTIAL"
+    },
+    {
+      "gap_id": "resident-full-budgets",
+      "verdict": "FAIL_OPEN",
+      "observations": "NewwetfullgasfinalweightedM/E/vectorP/species underoriginalcriteriaPASS; globalreducedfilmP notclosed. Threeappgrossfinal-limitedflux/allsourceM/E/P remains.",
+      "historical_unit_id": "NOT-RUN-resident-full-budgets",
+      "historical_fixed_commit": "ae5a59478023c74e23b64dc1a1f388fb805ef565",
+      "topics": [
+        "R014-018",
+        "R014-020",
+        "R014-026",
+        "R014-029",
+        "R014-031"
+      ],
+      "prior_evidence_commit": "f5e6c5e2cbde2693f5fa811d874c200b07bbbc66",
+      "prior_verdict": "FAIL_OPEN"
+    },
+    {
+      "gap_id": "native-FP64-clock-lineage",
+      "verdict": "CLOSED_SCOPED",
+      "observations": "Reusedunchangedoriginalscope. Actualfirstclockstep6/firstphysicaldt-gas-packetstep50; baselinepayloadidentityproof;approvedcompensatedclockunchanged. Fullvsrestartfirstdiffunresolved separately.",
+      "historical_unit_id": "NOT-RUN-native-FP64-clock-lineage",
+      "historical_fixed_commit": "ae5a59478023c74e23b64dc1a1f388fb805ef565",
+      "topics": [
+        "R014-014",
+        "R014-015",
+        "R014-021",
+        "R014-022",
+        "R014-026"
+      ],
+      "prior_evidence_commit": "f5e6c5e2cbde2693f5fa811d874c200b07bbbc66",
+      "prior_verdict": "CLOSED_SCOPED"
+    },
+    {
+      "gap_id": "developer-formal-recheck",
+      "verdict": "PARTIAL",
+      "observations": "Source9d zero-phase formaloriginalwet andbothlegalnonzero branches, submittedfixtureoriginalGPU controls, Ns10fullsanitizer, activecold groups rechecked. Fullnegativefixture proof stillsupportS302, wetP/restart/evap andremaininggaps preventoverallFAST.",
+      "historical_unit_id": "NOT-RUN-developer-formal-recheck",
+      "historical_fixed_commit": "ae5a59478023c74e23b64dc1a1f388fb805ef565",
+      "topics": [
+        "R014-021",
+        "R014-022",
+        "R014-024",
+        "R014-026",
+        "R014-029",
+        "R014-030",
+        "R014-033"
+      ],
+      "prior_evidence_commit": "f5e6c5e2cbde2693f5fa811d874c200b07bbbc66",
+      "prior_verdict": "PARTIAL"
+    }
+  ],
+  "original_additional_open_ranges": [
+    "strictthermal/wetrestartbitparity",
+    "submittednegativefixturesemanticcoverage",
+    "actualfree/sync/hostallocationconcurrentfailure"
+  ],
+  "original_findings": [
+    {
+      "id": "GPU-F001",
+      "priority": "P1",
+      "title": "nativeRefinement ignored by reactor selection",
+      "topics": [
+        10,
+        12,
+        14,
+        26
+      ],
+      "status": "FORMAL_RECHECK_PASS_SCOPED",
+      "source_commit": "9d5be6eff69dbced2fc959d422d3ba419a1bc39e",
+      "historical_status": "FORMAL_RECHECK_PASS_SCOPED",
+      "historical_finding": {
+        "fixed_commit": "f5e6c5e2cbde2693f5fa811d874c200b07bbbc66",
+        "repo_path": "review/pr14/reviewer-deliveries/20261014T072053Z-fast/findings.json",
+        "sha256": "06dd2ff16b4614d709116e882e31069830cab0c088a560f808ea237190f1464a",
+        "id": "GPU-F001",
+        "producer_commit": "4b5c480b572f234ddecf5e89164fe59b0d2e9735"
+      },
+      "observations": "Originalscopedproof reused; source/dependencies unchanged."
+    },
+    {
+      "id": "GPU-F002",
+      "priority": "P1",
+      "title": "Allocated zero per-face effusivity hides available scalar fallback, NaN actual cold output",
+      "topics": [
+        12,
+        18,
+        20,
+        26,
+        33
+      ],
+      "status": "FORMAL_ORIGINAL_RECHECK_PASS_SCOPED",
+      "source_commit": "9d5be6eff69dbced2fc959d422d3ba419a1bc39e",
+      "historical_status": "FORMAL_ORIGINAL_RECHECK_PASS_SCOPED",
+      "historical_finding": {
+        "fixed_commit": "f5e6c5e2cbde2693f5fa811d874c200b07bbbc66",
+        "repo_path": "review/pr14/reviewer-deliveries/20261014T072053Z-fast/findings.json",
+        "sha256": "06dd2ff16b4614d709116e882e31069830cab0c088a560f808ea237190f1464a",
+        "id": "GPU-F002",
+        "producer_commit": "4b5c480b572f234ddecf5e89164fe59b0d2e9735"
+      },
+      "observations": "Originalscopedproof reused; source/dependencies unchanged."
+    },
+    {
+      "id": "GPU-F003",
+      "priority": "P2-QUALIFICATION",
+      "title": "Tiny original-success FP64 crossversion dt/stamp/packet/momentum difference",
+      "topics": [
+        14,
+        15,
+        21,
+        22,
+        26,
+        27
+      ],
+      "status": "EXPLAINED_APPROVED_CLOCK_CHANGE",
+      "source_commit": "9d5be6eff69dbced2fc959d422d3ba419a1bc39e",
+      "historical_status": "EXPLAINED_APPROVED_CLOCK_CHANGE",
+      "historical_finding": {
+        "fixed_commit": "f5e6c5e2cbde2693f5fa811d874c200b07bbbc66",
+        "repo_path": "review/pr14/reviewer-deliveries/20261014T072053Z-fast/findings.json",
+        "sha256": "06dd2ff16b4614d709116e882e31069830cab0c088a560f808ea237190f1464a",
+        "id": "GPU-F003",
+        "producer_commit": "4b5c480b572f234ddecf5e89164fe59b0d2e9735"
+      },
+      "observations": "Originalscopedproof reused; source/dependencies unchanged."
+    },
+    {
+      "id": "GPU-F004",
+      "priority": "P2",
+      "title": "Initial float profile cast loses double enthalpy remainder",
+      "topics": [
+        23,
+        26,
+        29,
+        33
+      ],
+      "status": "FORMAL_ORIGINAL_RECHECK_PASS_SCOPED",
+      "source_commit": "9d5be6eff69dbced2fc959d422d3ba419a1bc39e",
+      "historical_status": "FORMAL_ORIGINAL_RECHECK_PASS_SCOPED",
+      "historical_finding": {
+        "fixed_commit": "f5e6c5e2cbde2693f5fa811d874c200b07bbbc66",
+        "repo_path": "review/pr14/reviewer-deliveries/20261014T072053Z-fast/findings.json",
+        "sha256": "06dd2ff16b4614d709116e882e31069830cab0c088a560f808ea237190f1464a",
+        "id": "GPU-F004",
+        "producer_commit": "4b5c480b572f234ddecf5e89164fe59b0d2e9735"
+      },
+      "observations": "Originalscopedproof reused; source/dependencies unchanged."
+    },
+    {
+      "id": "GPU-F005",
+      "priority": "P2",
+      "title": "Thrust16byte reduction result transfers seven uninitialized tail bytes",
+      "topics": [
+        9,
+        12,
+        14,
+        15,
+        26,
+        28
+      ],
+      "status": "FORMAL_RECHECK_PASS_SCOPED",
+      "source_commit": "9d5be6eff69dbced2fc959d422d3ba419a1bc39e",
+      "historical_status": "FORMAL_RECHECK_PASS_SCOPED",
+      "historical_finding": {
+        "fixed_commit": "f5e6c5e2cbde2693f5fa811d874c200b07bbbc66",
+        "repo_path": "review/pr14/reviewer-deliveries/20261014T072053Z-fast/findings.json",
+        "sha256": "06dd2ff16b4614d709116e882e31069830cab0c088a560f808ea237190f1464a",
+        "id": "GPU-F005",
+        "producer_commit": "4b5c480b572f234ddecf5e89164fe59b0d2e9735"
+      },
+      "observations": "Originalscopedproof reused; source/dependencies unchanged."
+    },
+    {
+      "id": "GPU-F006",
+      "priority": "P1",
+      "title": "Zero phase transfer reads disabled condensed material index -1",
+      "topics": [
+        3,
+        6,
+        13,
+        14,
+        20,
+        21,
+        26,
+        29
+      ],
+      "status": "FORMAL_ZERO_PHASE_RECHECK_PASS_SCOPED",
+      "source_commit": "9d5be6eff69dbced2fc959d422d3ba419a1bc39e",
+      "historical_status": "OPEN_DEVELOPER_FORMAL_REPAIR_REQUIRED",
+      "historical_finding": {
+        "fixed_commit": "f5e6c5e2cbde2693f5fa811d874c200b07bbbc66",
+        "repo_path": "review/pr14/reviewer-deliveries/20261014T072053Z-fast/findings.json",
+        "sha256": "06dd2ff16b4614d709116e882e31069830cab0c088a560f808ea237190f1464a",
+        "id": "GPU-F006",
+        "producer_commit": "4b5c480b572f234ddecf5e89164fe59b0d2e9735"
+      },
+      "observations": "Originalsamewet noMeltingcomplete,actualheat/force+fullME;bothselectednonzero directionsold/formalbitexact. Evap andglobalfilmP separateopen."
+    },
+    {
+      "id": "TEST-R2-S1",
+      "priority": "P2",
+      "title": "Chemistryfixture managedhost/deviceowner fails asynchronoushostread onWSL",
+      "topics": [
+        10,
+        14,
+        26
+      ],
+      "status": "FORMAL_OWNERSHIP_RECHECK_PASS",
+      "source_commit": "9d5be6eff69dbced2fc959d422d3ba419a1bc39e",
+      "historical_status": "OPEN_DEVELOPER_SUPPORT_REPAIR",
+      "historical_finding": {
+        "fixed_commit": "f5e6c5e2cbde2693f5fa811d874c200b07bbbc66",
+        "repo_path": "review/pr14/reviewer-deliveries/20261014T072053Z-fast/findings.json",
+        "sha256": "06dd2ff16b4614d709116e882e31069830cab0c088a560f808ea237190f1464a",
+        "id": "TEST-R2-S1",
+        "producer_commit": "4b5c480b572f234ddecf5e89164fe59b0d2e9735"
+      },
+      "observations": "Freshformalfixture actualCUDA completeswithhostowner/device canonicalseparation; noS202overlay."
+    },
+    {
+      "id": "TEST-R2-S2",
+      "priority": "P2",
+      "title": "Hardcodedtwo acceptedchemicalparts conflictswithrealCFL",
+      "topics": [
+        10,
+        14,
+        26
+      ],
+      "status": "FORMAL_REAL_CFL_TIMELINE_RECHECK_PASS",
+      "source_commit": "9d5be6eff69dbced2fc959d422d3ba419a1bc39e",
+      "historical_status": "OPEN_DEVELOPER_SUPPORT_REPAIR",
+      "historical_finding": {
+        "fixed_commit": "f5e6c5e2cbde2693f5fa811d874c200b07bbbc66",
+        "repo_path": "review/pr14/reviewer-deliveries/20261014T072053Z-fast/findings.json",
+        "sha256": "06dd2ff16b4614d709116e882e31069830cab0c088a560f808ea237190f1464a",
+        "id": "TEST-R2-S2",
+        "producer_commit": "4b5c480b572f234ddecf5e89164fe59b0d2e9735"
+      },
+      "observations": "FreshformalfixtureactualCo.5/native4acceptedparts endexact; noS203/S208. S305 actualrejectedattemptduration chronology."
+    },
+    {
+      "id": "OBS-R2-P",
+      "priority": null,
+      "title": "CompleteCHMT/SST/film momentumcriterion unresolved",
+      "topics": [
+        8,
+        9,
+        14,
+        26,
+        29
+      ],
+      "status": "STRICT_AUDIT_RED_RETAINED_PHYSICAL_SCOPES_SEPARATE",
+      "source_commit": "9d5be6eff69dbced2fc959d422d3ba419a1bc39e",
+      "historical_status": "OPEN_NOT_CONFIRMED_NEW_PRODUCTION_BUG",
+      "historical_finding": {
+        "fixed_commit": "f5e6c5e2cbde2693f5fa811d874c200b07bbbc66",
+        "repo_path": "review/pr14/reviewer-deliveries/20261014T072053Z-fast/findings.json",
+        "sha256": "06dd2ff16b4614d709116e882e31069830cab0c088a560f808ea237190f1464a",
+        "id": "OBS-R2-P",
+        "producer_commit": "4b5c480b572f234ddecf5e89164fe59b0d2e9735"
+      },
+      "observations": "IndependentpriorSST/dryphysicalgasPx closes; doubleaccumulatorsstrictreds reproduced. NewwetphysicalgasM/E/vectorP closes; globalfilmPmechanicalchannelstillopen."
+    },
+    {
+      "id": "OBS-R2-COLD16",
+      "priority": null,
+      "title": "16inactivecoldcache profile/currentpT strictmismatch",
+      "topics": [
+        18,
+        23,
+        26,
+        33
+      ],
+      "status": "ACTIVE_GROUP_PROFILE_WITNESS_NOW_PASS_OLD_RED_RETAINED",
+      "source_commit": "9d5be6eff69dbced2fc959d422d3ba419a1bc39e",
+      "historical_status": "OPEN_ACTIVE_FULLGROUP_WITNESS_REQUIRED",
+      "historical_finding": {
+        "fixed_commit": "f5e6c5e2cbde2693f5fa811d874c200b07bbbc66",
+        "repo_path": "review/pr14/reviewer-deliveries/20261014T072053Z-fast/findings.json",
+        "sha256": "06dd2ff16b4614d709116e882e31069830cab0c088a560f808ea237190f1464a",
+        "id": "OBS-R2-COLD16",
+        "producer_commit": "4b5c480b572f234ddecf5e89164fe59b0d2e9735"
+      },
+      "observations": "NewauthoritativeASCII16contactedparticles/16eight-lanegroups, actualprofiles/ages. Originalinactive/stalecache strictred remainsfixedoldhistory, notconfirmedproductionregression."
+    },
+    {
+      "id": "OBS-R2-RESTART",
+      "priority": null,
+      "title": "Fullvsrestart notbitexact, formalvs802restart exact",
+      "topics": [
+        5,
+        14,
+        26
+      ],
+      "status": "STRICT_RESTART_BITPARITY_FAIL_CAUSAL_OBSERVATION_RECORDED",
+      "source_commit": "9d5be6eff69dbced2fc959d422d3ba419a1bc39e",
+      "historical_status": "OPEN_FIRST_RESTART_DIVERGENCE",
+      "historical_finding": {
+        "fixed_commit": "f5e6c5e2cbde2693f5fa811d874c200b07bbbc66",
+        "repo_path": "review/pr14/reviewer-deliveries/20261014T072053Z-fast/findings.json",
+        "sha256": "06dd2ff16b4614d709116e882e31069830cab0c088a560f808ea237190f1464a",
+        "id": "OBS-R2-RESTART",
+        "producer_commit": "4b5c480b572f234ddecf5e89164fe59b0d2e9735"
+      },
+      "observations": "D303 readonlyTgas warm/fresh seed, postrecovery1ULP, firstflux/packet; outputbytesunchanged; nativewetrestartfirstdiffalsosaved. NoTgas/time/checkpoint rewrite."
+    },
+    {
+      "id": "TEST-R3-NEGATIVE-SEMANTICS",
+      "priority": "P2",
+      "status": "SUBMITTED_FIXTURE_COVERAGE_GAP_SUPPORT_PROOF_PASS",
+      "title": "Submitted16failurechecks omit complete negative status/transaction semantics",
+      "topics": [
+        10,
+        12,
+        14,
+        26
+      ],
+      "source_commit": "9d5be6eff69dbced2fc959d422d3ba419a1bc39e",
+      "file": "tests/fixtures/chemistry_trial/chemistry_trial.cu.in",
+      "observations": "failedCellTest onlyspecies4,bothAudit,chemSpeciesbudget4 andcoarsecell0status; kind7/15 publicoverwrites originalstatus beforemarker. S302 directbegin/nativevalidate/rollback verifies32sixmemberstatus rows/allarrays/hostledger; formalfixture stillneeds equivalentnegativeassertions. Notproductionnumericbug.",
+      "evidence": [
+        "metadata/independent-source-review.json",
+        "artifacts/chemistry-S302-full-failure-summary.json",
+        "patches/S301-complete-failure-transactions.patch",
+        "patches/S302-explicit-status-bool.patch"
+      ]
+    },
+    {
+      "id": "OBS-R3-WET-P-PHYSICAL",
+      "priority": "P2-QUALIFICATION",
+      "status": "OPEN_COMPLETE_PHYSICAL_MOMENTUM_CHANNEL",
+      "title": "Wetfilm retains net impulse while reduced algebraicfilm momentum remainszero",
+      "topics": [
+        3,
+        6,
+        13,
+        14,
+        20,
+        21,
+        26,
+        29
+      ],
+      "source_commit": "9d5be6eff69dbced2fc959d422d3ba419a1bc39e",
+      "observations": "FullglobalP residual -9.01619622716089e-5/-1.57820679374845e-4 kgm/s matchesnonzero filmexchangeP. ActualgasphysicalP closes -4.10e-15/-4.17e-15 underoriginalrule. IntervalAudit excludesrigidsolid/reducedfilmfullmomentum; no fabricated constraint/reaction toclose; source unchangedinthisrepair.",
+      "evidence": [
+        "artifacts/wet-complete-physical-audit-S307.json",
+        "artifacts/wet-actual-final-stage-gas-physical-budget.json",
+        "metadata/independent-wet-P-review.json"
+      ]
+    },
+    {
+      "id": "OBS-R3-EVAP-TINY-LOCAL-STEPS",
+      "priority": "P2-QUALIFICATION",
+      "status": "BLOCKED_ORIGINAL_ENDPOINT",
+      "title": "Originalevapiration keeps advancing extremelytiny localsteps afterfirstwindow",
+      "topics": [
+        3,
+        6,
+        13,
+        14,
+        20,
+        21,
+        26,
+        29
+      ],
+      "source_commit": "9d5be6eff69dbced2fc959d422d3ba419a1bc39e",
+      "observations": "900s formalcompleted.00025/.001. Separate300s readonlyD302 window2 dtmin1.1368638508927316e-16 andlocalprogress4.8601e-13, activeCPU/GPU/log growth/noobservedCUDAresourceerror; exactinternalnumericlimiter cause notstack-proven. No originalinput/end/tolerancechange orautomaticlongrun.",
+      "evidence": [
+        "artifacts/evaporation-blocked-cause-and-progress.json",
+        "artifacts/evaporation-progress-resource-timeseries.json"
+      ]
+    }
+  ],
+  "fast4_dispositions": [
+    {
+      "id": "R3-formal-chemistry-fixture",
+      "historical_verdict": "PASS",
+      "fast4_disposition": "HISTORICAL_SUPPORT_PLUS_NEW_FORMAL_FIXTURE_REQUIRED",
+      "reason": "New submitted assertions and shared comparators require original-O3 build and complete real-GPU fixture; S302 cannot substitute."
+    },
+    {
+      "id": "R3-chemistry-full-failed-transactions",
+      "historical_verdict": "PASS",
+      "fast4_disposition": "HISTORICAL_SUPPORT_PLUS_NEW_FORMAL_FIXTURE_REQUIRED",
+      "reason": "New submitted assertions and shared comparators require original-O3 build and complete real-GPU fixture; S302 cannot substitute."
+    },
+    {
+      "id": "R3-chemistry-actual-owner-entry",
+      "historical_verdict": "PASS",
+      "fast4_disposition": "REUSE_EXACT_HISTORICAL_SCOPE_IF_FINAL_DEPENDENCIES_UNCHANGED",
+      "reason": "Retain S305 true native-entry chronology; do not use stale S304 currentDuration. Final unchanged owner dependency must be checked."
+    },
+    {
+      "id": "R3-wet-formal-zero-phase-ME",
+      "historical_verdict": "PASS",
+      "fast4_disposition": "RETAIN_HISTORICAL_PASS_RECHECK_AFFECTED_FILM_CONTROL",
+      "reason": "Ordinary open-edge production consumer changed; run the affected original short wet control without claiming full P closed."
+    },
+    {
+      "id": "R3-wet-actual-final-flux-gas-MEP",
+      "historical_verdict": "PASS",
+      "fast4_disposition": "REUSE_EXACT_HISTORICAL_SCOPE_IF_FINAL_DEPENDENCIES_UNCHANGED",
+      "reason": "Retain original limitations; no new execution counted."
+    },
+    {
+      "id": "R3-wet-full-physical-P",
+      "historical_verdict": "FAIL",
+      "fast4_disposition": "RETAIN_HISTORICAL_FAIL_RETIRE_ACCOUNTING_ONLY_REPAIR_TARGET",
+      "reason": "User cancelled pressure-integral proposal; pure physically unused support accounting removal authorized, implementation/equivalence evidence pending. No conservation PASS; real gas P/M/E gaps retained."
+    },
+    {
+      "id": "R3-wet-restart-strict-bitparity",
+      "historical_verdict": "FAIL",
+      "fast4_disposition": "KEEP_FAIL_NO_UNNECESSARY_RESTART_SOURCE_CHANGE",
+      "reason": "Strict equality remains open; later changes only trigger dependency-relevant checks."
+    },
+    {
+      "id": "R3-wet-evaporation-original-900",
+      "historical_verdict": "BLOCKED",
+      "fast4_disposition": "KEEP_BLOCKED_AND_RECHECK_CHANGED_NATIVE_OWNER_CHAIN",
+      "reason": "Signed open-edge change has native CPU evidence; original GPU endpoint .001 and full application link remain outstanding."
+    },
+    {
+      "id": "R3-nonzero-phase-both-directions",
+      "historical_verdict": "PASS",
+      "fast4_disposition": "REUSE_EXACT_HISTORICAL_SCOPE_IF_FINAL_DEPENDENCIES_UNCHANGED",
+      "reason": "Retain successful original control proof; repeat only exact legal controls whose consumer is demonstrably changed by final diff."
+    },
+    {
+      "id": "R3-Ns10-full-original-initcheck",
+      "historical_verdict": "PASS",
+      "fast4_disposition": "REUSE_EXACT_HISTORICAL_SCOPE_IF_FINAL_DEPENDENCIES_UNCHANGED",
+      "reason": "Retain original limitations; no new execution counted."
+    },
+    {
+      "id": "R3-active-cold-fullgroups-CHT-FSH",
+      "historical_verdict": "PASS",
+      "fast4_disposition": "REUSE_EXACT_HISTORICAL_SCOPE_IF_FINAL_DEPENDENCIES_UNCHANGED",
+      "reason": "Retain original limitations; no new execution counted."
+    },
+    {
+      "id": "R3-thermal-restart-first-currentCo-cause",
+      "historical_verdict": "PASS",
+      "fast4_disposition": "REUSE_EXACT_HISTORICAL_SCOPE_IF_FINAL_DEPENDENCIES_UNCHANGED",
+      "reason": "Retain original limitations; no new execution counted."
+    },
+    {
+      "id": "R3-cold-start-Js-ConstantTransport",
+      "historical_verdict": "PASS",
+      "fast4_disposition": "REUSE_EXACT_HISTORICAL_SCOPE_IF_FINAL_DEPENDENCIES_UNCHANGED",
+      "reason": "Retain original limitations; no new execution counted."
+    },
+    {
+      "id": "R3-host-codec-mapper-wire-sanitizers",
+      "historical_verdict": "PASS",
+      "fast4_disposition": "REUSE_EXACT_HISTORICAL_SCOPE_IF_FINAL_DEPENDENCIES_UNCHANGED",
+      "reason": "Retain original limitations; no new execution counted."
+    },
+    {
+      "id": "R3-prior-strict-P-arithmetic-reanalysis",
+      "historical_verdict": "PASS",
+      "fast4_disposition": "REUSE_EXACT_HISTORICAL_SCOPE_IF_FINAL_DEPENDENCIES_UNCHANGED",
+      "reason": "Retain original limitations; no new execution counted."
+    },
+    {
+      "id": "R3-gross-SST-resident-complete-budgets",
+      "historical_verdict": "NOT_RUN",
+      "fast4_disposition": "KEEP_NOT_RUN_NO_AUTOMATIC_UNRELATED_CAMPAIGN",
+      "reason": "Retain original limitations; no new execution counted."
+    },
+    {
+      "id": "R3-GPU-empty-multi-selected-mapper",
+      "historical_verdict": "NOT_RUN",
+      "fast4_disposition": "KEEP_NOT_RUN_NO_AUTOMATIC_UNRELATED_CAMPAIGN",
+      "reason": "Retain original limitations; no new execution counted."
+    },
+    {
+      "id": "R3-pore-material-to-geometry",
+      "historical_verdict": "NOT_RUN",
+      "fast4_disposition": "KEEP_NOT_RUN_NO_AUTOMATIC_UNRELATED_CAMPAIGN",
+      "reason": "Retain original limitations; no new execution counted."
+    },
+    {
+      "id": "R3-allocation-free-sync-host-concurrency",
+      "historical_verdict": "NOT_RUN",
+      "fast4_disposition": "KEEP_NOT_RUN_NO_AUTOMATIC_UNRELATED_CAMPAIGN",
+      "reason": "Retain original limitations; no new execution counted."
+    }
+  ],
+  "counts_not_additive_across_topics": true,
+  "historical_records_preserved_verbatim": true,
+  "historical_pass_is_not_new_execution": true,
+  "overall_FAST_acceptance": false,
+  "scope_change": {
+    "source_message_id": "Sentinel_bed493fb3af4819191893c13d013f892",
+    "accounting_only_target": "WITHDRAWN_NOT_PASSED",
+    "single_scalar_proposal": "CANCELLED",
+    "new_deletion_evidence": "PENDING",
+    "original_records_unmodified": true
+  }
+}
