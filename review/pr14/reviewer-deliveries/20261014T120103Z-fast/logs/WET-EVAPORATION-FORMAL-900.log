@@ -1,0 +1,27 @@
+/*---------------------------------------------------------------------------*\
+  =========                 |
+  \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
+   \\    /   O peration     | Website:  https://openfoam.org
+    \\  /    A nd           | Version:  10
+     \\/     M anipulation  |
+\*---------------------------------------------------------------------------*/
+Build  : 10-c4cf895ad8fa
+Exec   : /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T120103Z-fast/work/install/ns2/bin/CHMT -case /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T120103Z-fast/work/cases/extra/wet-evaporation-formal-900
+Date   : Oct 14 2026
+Time   : 20:15:02
+Host   : "lss"
+PID    : 61538
+I/O    : uncollated
+Case   : /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T120103Z-fast/work/cases/extra/wet-evaporation-formal-900
+nProcs : 1
+sigFpe : Enabling floating point exception trapping (FOAM_SIGFPE).
+fileModificationChecking : Monitoring run-time modified files using timeStampMaster (fileModificationSkew 10)
+allowSystemOperations : Allowing user-supplied system call operations
+
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 1, Final residual = 3.9999999719999995e-18, No Iterations 1
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 0, Final residual = 0, No Iterations 0
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 1, Final residual = 1.4311140951125212e-16, No Iterations 1
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 0, Final residual = 0, No Iterations 0
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 1, Final residual = 1.4311140951125212e-16, No Iterations 1
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 0, Final residual = 0, No Iterations 0

@@ -1,0 +1,52 @@
+/*---------------------------------------------------------------------------*\
+  =========                 |
+  \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
+   \\    /   O peration     | Website:  https://openfoam.org
+    \\  /    A nd           | Version:  10
+     \\/     M anipulation  |
+\*---------------------------------------------------------------------------*/
+Build  : 10-c4cf895ad8fa
+Exec   : /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T120103Z-fast/work/install/ns2/bin/FSH -case /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T120103Z-fast/work/cases/resident/FSH-active16-witness-S309
+Date   : Oct 14 2026
+Time   : 21:45:17
+Host   : "lss"
+PID    : 111604
+I/O    : uncollated
+Case   : /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T120103Z-fast/work/cases/resident/FSH-active16-witness-S309
+nProcs : 1
+sigFpe : Enabling floating point exception trapping (FOAM_SIGFPE).
+fileModificationChecking : Monitoring run-time modified files using timeStampMaster (fileModificationSkew 10)
+allowSystemOperations : Allowing user-supplied system call operations
+
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+Create time
+
+FSH: weighted-parcel separated-backend GPU-Riemann-GKP/FSH solver
+Create mesh for time = 0
+
+Particle force configuration: dragModel=SchillerNaumann particleGasHeatTransferModel=RanzMarshall g=(0 0 0)
+Particle cell path: csrCellLocalPath=0 heavyReductionMode=0 warpAggregatedBinning=0 B2=128 B3=128 heavyAutoInterval=100
+Tracking geometry: B2=128 blocksPerSM=5 grid=1
+Launch geometry: B1cell=128 B1face=128 (ToolB1 pending) B2=128 B3=128 SM=24 lightBlocksPerSM=4 heavyBlocksPerSM=0
+Particle stuck model: candidatePatches=1(impactWall) SommerfeldThreshold=20 heatTransfer=1 aluminaWallProperties=temperatureDependent depositionHeatTransferEfficiency=1 reflectionHeatTransferEfficiency=1 adhesionEnergyScale=1 contactAngleDegree=70 defaultWallInteractionModel=coldWall2D coldWall=1 wallDensity=1800 wallSpecificHeat=710 wallThermalConductivity=100
+ToolB1: B1cell=64 B1face=32 cellMedianMs=0.050176 faceMedianMs=0.036864 measuredKernelMs=4.913792 warmup=1 repeats=5
+ACTUAL_COLD_LAUNCH,_Z43relaxColdWall2DParticlesToResidentGasKernelPN53_GLOBAL__N__fb11de59_20_GpuResidentStrict_cu_c309ccbe11DeviceStateEd,grid=1:1:1,block=128:1:1,shared=0
+runTime = 0 simulationTime = 1e-06 particleCount = 16 CoMax = 0
+ACTUAL_COLD_LAUNCH,_Z43relaxColdWall2DParticlesToResidentGasKernelPN53_GLOBAL__N__fb11de59_20_GpuResidentStrict_cu_c309ccbe11DeviceStateEd,grid=1:1:1,block=128:1:1,shared=0
+runTime = 0 simulationTime = 2e-06 particleCount = 16 CoMax = 0
+ACTUAL_COLD_LAUNCH,_Z43relaxColdWall2DParticlesToResidentGasKernelPN53_GLOBAL__N__fb11de59_20_GpuResidentStrict_cu_c309ccbe11DeviceStateEd,grid=1:1:1,block=128:1:1,shared=0
+runTime = 0 simulationTime = 3e-06 particleCount = 16 CoMax = 0
+ACTUAL_COLD_LAUNCH,_Z43relaxColdWall2DParticlesToResidentGasKernelPN53_GLOBAL__N__fb11de59_20_GpuResidentStrict_cu_c309ccbe11DeviceStateEd,grid=1:1:1,block=128:1:1,shared=0
+runTime = 0 simulationTime = 4e-06 particleCount = 16 CoMax = 0
+ACTUAL_COLD_LAUNCH,_Z43relaxColdWall2DParticlesToResidentGasKernelPN53_GLOBAL__N__fb11de59_20_GpuResidentStrict_cu_c309ccbe11DeviceStateEd,grid=1:1:1,block=128:1:1,shared=0
+runTime = 0 simulationTime = 5e-06 particleCount = 16 CoMax = 0
+ACTUAL_COLD_LAUNCH,_Z43relaxColdWall2DParticlesToResidentGasKernelPN53_GLOBAL__N__fb11de59_20_GpuResidentStrict_cu_c309ccbe11DeviceStateEd,grid=1:1:1,block=128:1:1,shared=0
+runTime = 0 simulationTime = 6e-06 particleCount = 16 CoMax = 0
+ACTUAL_COLD_LAUNCH,_Z43relaxColdWall2DParticlesToResidentGasKernelPN53_GLOBAL__N__fb11de59_20_GpuResidentStrict_cu_c309ccbe11DeviceStateEd,grid=1:1:1,block=128:1:1,shared=0
+runTime = 0 simulationTime = 7e-06 particleCount = 16 CoMax = 0
+ACTUAL_COLD_LAUNCH,_Z43relaxColdWall2DParticlesToResidentGasKernelPN53_GLOBAL__N__fb11de59_20_GpuResidentStrict_cu_c309ccbe11DeviceStateEd,grid=1:1:1,block=128:1:1,shared=0
+runTime = 0 simulationTime = 8e-06 particleCount = 16 CoMax = 0
+ACTUAL_COLD_LAUNCH,_Z43relaxColdWall2DParticlesToResidentGasKernelPN53_GLOBAL__N__fb11de59_20_GpuResidentStrict_cu_c309ccbe11DeviceStateEd,grid=1:1:1,block=128:1:1,shared=0
+runTime = 0 simulationTime = 9e-06 particleCount = 16 CoMax = 0
+ACTUAL_COLD_LAUNCH,_Z43relaxColdWall2DParticlesToResidentGasKernelPN53_GLOBAL__N__fb11de59_20_GpuResidentStrict_cu_c309ccbe11DeviceStateEd,grid=1:1:1,block=128:1:1,shared=0
+runTime = 0 simulationTime = 1e-05 particleCount = 16 CoMax = 0

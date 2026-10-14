@@ -1,0 +1,62 @@
+OWNER_INPUT request=0x1.0c6f7a0b5ed8dp-18 targetMaxCo=0x1p-1 measuredCo=0x1.166548f19fe31p+0
+OWNER_INPUT request=0x1.0c6f7a0b5ed8dp-18 targetMaxCo=0x1p-1 measuredCo=0x1.166548f19fe31p+0
+OWNER_TRACE begins=8 commits=4 rollbacks=4 stepLimits=1 terminal=0
+OWNER_ACCEPT dt=0x1.0c6f7a0b5ed8dp-20 stamp=0x1p+1
+OWNER_ACCEPT dt=0x1.0c6f7a0b5ed8dp-20 stamp=0x1.000008637bd06p+1
+OWNER_ACCEPT dt=0x1.0c6f7a0b5ed8dp-20 stamp=0x1.000010c6f7a0bp+1
+OWNER_ACCEPT dt=0x1.0c6f7a0b5ed8cp-20 stamp=0x1.0000192a73711p+1
+FULL_AUDIT c=0 mass=0x1p-58 element=0x0p+0 energy=-0x1p-38 local=0x1.33fa672e0f4d2p-30 time=0x1.0c6f7a0b5ed8cp-21 accepted=1 rejected=0 nonlinear=12 status=0 thermo=0 reaction=-1 attempted=1 statusRejected=0 statusNonlinear=12
+FULL_SPECIES_AUDIT c=0 species=0 massChange=-0x1.e10860f4p-26
+FULL_SPECIES_AUDIT c=0 species=1 massChange=0x1.e10860f418a98p-26
+FULL_AUDIT c=1 mass=0x1p-58 element=0x0p+0 energy=-0x1p-38 local=0x1.33fa672e0f4d2p-30 time=0x1.0c6f7a0b5ed8cp-21 accepted=1 rejected=0 nonlinear=12 status=0 thermo=0 reaction=-1 attempted=1 statusRejected=0 statusNonlinear=12
+FULL_SPECIES_AUDIT c=1 species=0 massChange=-0x1.e10860f4p-26
+FULL_SPECIES_AUDIT c=1 species=1 massChange=0x1.e10860f418a98p-26
+OWNER_LEDGER {"schema":1,"record":"NEW_SEGMENT","continuity":"UNVERIFIED_NEW_SEGMENT","accepted_initial_time":2,"output_path":"","initial_inventory":[0.0560000000000000011657,27559.7523345854623393,0.0560000000000000011657,0],"fixture":"chemistry_trial","channels":"mass_kg,formation_inclusive_total_energy_J,species_mass_kg","source_scope":"boundary transport and chemistry species are measured; other body, particle, moving-volume and external-source contributions are unavailable and remain in residual"}
+{"schema":1,"record":"ACCEPTED_INTERVAL","sequence":1,"interval_start":2,"accepted_time":2.0000040000000001,"completed_duration":3.9999999999999998e-06,"inventory":[0.0560000000000000011657,27559.7523345854623393,0.0559995520017920054855,4.47998208004783182069e-07],"cumulative_boundary_transport":[0,0,0,0],"cumulative_chemistry_species":[-4.47998207995681242994e-07,4.47998208004783141408e-07],"constraint_or_roundoff_residual":[0,0,1.05879118406787542384e-21,4.06610969858097666429e-23],"element_conservation_residual_mol":[3.25107067466957384448e-16],"chemistry_element_drift_mol":[3.25067801203279492224e-16],"element_status":"DECLARED","audit_device_bytes":96,"audit_host_read_bytes":256,"audit_extra_kernel_launches":0,"cost_scope":"host boundary inventory reads/reductions; device bytes include the actual-error trial snapshot; allocation/reset/snapshot/fused-kernel/file-IO time excluded; not complete overhead"}
+PASS requested owner accepted trace: full interval, cell/face fields, semantic audits/statuses and budgets
+OWNER_INPUT request=0x1.0c6f7a0b5ed8dp-18 targetMaxCo=0x1p-1 measuredCo=0x1.166548f19fe31p+0
+OWNER_INPUT request=0x1.0c6f7a0b5ed8dp-18 targetMaxCo=0x1p-1 measuredCo=0x1.166548f19fe31p+0
+FULL_AUDIT c=0 mass=0x0p+0 element=0x1p-53 energy=-0x1.8p-38 local=0x1.8d84acf7ecba4p-27 time=0x1.0c6f7a0b5ed8dp-19 accepted=2 rejected=0 nonlinear=24 status=0 thermo=0 reaction=-1 attempted=2 statusRejected=0 statusNonlinear=24
+FULL_SPECIES_AUDIT c=0 species=0 massChange=-0x1.e108903d8p-24
+FULL_SPECIES_AUDIT c=0 species=1 massChange=0x1.e108903db219fp-24
+FULL_AUDIT c=1 mass=0x0p+0 element=0x1p-53 energy=-0x1.8p-38 local=0x1.8d84acf7ecba4p-27 time=0x1.0c6f7a0b5ed8dp-19 accepted=2 rejected=0 nonlinear=24 status=0 thermo=0 reaction=-1 attempted=2 statusRejected=0 statusNonlinear=24
+FULL_SPECIES_AUDIT c=1 species=0 massChange=-0x1.e108903d8p-24
+FULL_SPECIES_AUDIT c=1 species=1 massChange=0x1.e108903db219fp-24
+OWNER_LEDGER {"schema":1,"record":"NEW_SEGMENT","continuity":"UNVERIFIED_NEW_SEGMENT","accepted_initial_time":2,"output_path":"","initial_inventory":[0.0560000000000000011657,27559.7523345854623393,0.0560000000000000011657,0],"fixture":"chemistry_trial","channels":"mass_kg,formation_inclusive_total_energy_J,species_mass_kg","source_scope":"boundary transport and chemistry species are measured; other body, particle, moving-volume and external-source contributions are unavailable and remain in residual"}
+{"schema":1,"record":"ACCEPTED_INTERVAL","sequence":1,"interval_start":2,"accepted_time":2.0000040000000001,"completed_duration":3.9999999999999998e-06,"inventory":[0.0560000000000000011657,27559.7523345854623393,0.0559995520017919983806,4.47998208004796734596e-07],"cumulative_boundary_transport":[0,0,0,0],"cumulative_chemistry_species":[-4.47998208002786684751e-07,4.47998208004796746875e-07],"constraint_or_roundoff_residual":[0,0,1.58818677610181313575e-21,-1.22784622175840045489e-23],"element_conservation_residual_mol":[7.18442145835603579603e-17],"chemistry_element_drift_mol":[7.17879332146822499573e-17],"element_status":"DECLARED","audit_device_bytes":96,"audit_host_read_bytes":256,"audit_extra_kernel_launches":0,"cost_scope":"host boundary inventory reads/reductions; device bytes include the actual-error trial snapshot; allocation/reset/snapshot/fused-kernel/file-IO time excluded; not complete overhead"}
+PASS terminal owner completion: complete original public state, semantic audits/statuses and budgets
+OWNER_INPUT request=0x1.0c6f7a0b5ed8dp-20 targetMaxCo=0x1p-1 measuredCo=0x1.166548f19fe31p-2
+OWNER_INPUT request=0x1.0c6f7a0b5ed8dp-20 targetMaxCo=0x1p-1 measuredCo=0x1.166548f19fe31p-2
+FULL_AUDIT c=0 mass=0x1p-58 element=0x1p-52 energy=-0x1.8p-38 local=0x1.d19331d55bc29p-29 time=0x1.0c6f7a0b5ed8dp-21 accepted=1 rejected=0 nonlinear=12 status=0 thermo=0 reaction=-1 attempted=1 statusRejected=0 statusNonlinear=12
+FULL_SPECIES_AUDIT c=0 species=0 massChange=-0x1.e1091e1ap-26
+FULL_SPECIES_AUDIT c=0 species=1 massChange=0x1.e1091e1a94e58p-26
+FULL_AUDIT c=1 mass=0x1p-58 element=0x1p-52 energy=-0x1.8p-38 local=0x1.d19331d55bc29p-29 time=0x1.0c6f7a0b5ed8dp-21 accepted=1 rejected=0 nonlinear=12 status=0 thermo=0 reaction=-1 attempted=1 statusRejected=0 statusNonlinear=12
+FULL_SPECIES_AUDIT c=1 species=0 massChange=-0x1.e1091e1ap-26
+FULL_SPECIES_AUDIT c=1 species=1 massChange=0x1.e1091e1a94e58p-26
+OWNER_LEDGER {"schema":1,"record":"NEW_SEGMENT","continuity":"UNVERIFIED_NEW_SEGMENT","accepted_initial_time":2,"output_path":"","initial_inventory":[0.0560000000000000011657,27559.7523345854623393,0.0560000000000000011657,0],"fixture":"chemistry_trial","channels":"mass_kg,formation_inclusive_total_energy_J,species_mass_kg","source_scope":"boundary transport and chemistry species are measured; other body, particle, moving-volume and external-source contributions are unavailable and remain in residual"}
+{"schema":1,"record":"ACCEPTED_INTERVAL","sequence":1,"interval_start":2,"accepted_time":2.0000010000000001,"completed_duration":9.9999999999999995e-07,"inventory":[0.0560000000000000011657,27559.7523345854623393,0.0559998880001120025723,1.11999888000075800232e-07],"cumulative_boundary_transport":[0,0,0,0],"cumulative_chemistry_species":[-1.11999887998592841098e-07,1.11999888000075797266e-07],"constraint_or_roundoff_residual":[0,0,-6.22039820639876811503e-22,2.96621797782687267786e-24],"element_conservation_residual_mol":[5.29406105499523260899e-17],"chemistry_element_drift_mol":[5.29627202605452559667e-17],"element_status":"DECLARED","audit_device_bytes":96,"audit_host_read_bytes":256,"audit_extra_kernel_launches":0,"cost_scope":"host boundary inventory reads/reductions; device bytes include the actual-error trial snapshot; allocation/reset/snapshot/fused-kernel/file-IO time excluded; not complete overhead"}
+PASS original successful requested interval: real Courant owner/public control, full fields/audits/statuses/budgets
+FULL_AUDIT c=0 mass=0x0p+0 element=0x0p+0 energy=-0x1p-37 local=0x1.cede3ef06576ep-26 time=0x1.0c6f7a0b5ed8dp-20 accepted=1 rejected=0 nonlinear=12 status=0 thermo=0 reaction=-1 attempted=1 statusRejected=0 statusNonlinear=12
+FULL_SPECIES_AUDIT c=0 species=0 massChange=-0x1.e1092ddep-25
+FULL_SPECIES_AUDIT c=0 species=1 massChange=0x1.e1092dddcd983p-25
+FULL_AUDIT c=1 mass=0x0p+0 element=0x0p+0 energy=-0x1p-37 local=0x1.cede3ef06576ep-26 time=0x1.0c6f7a0b5ed8dp-20 accepted=1 rejected=0 nonlinear=12 status=0 thermo=0 reaction=-1 attempted=1 statusRejected=0 statusNonlinear=12
+FULL_SPECIES_AUDIT c=1 species=0 massChange=-0x1.e1092ddep-25
+FULL_SPECIES_AUDIT c=1 species=1 massChange=0x1.e1092dddcd983p-25
+OWNER_LEDGER PASS original direct chemistry success: native/public fields, full semantic audits/statuses and budget channels
+PASS failed-cell kind=0 code=10 thermo=0 retry=1 terminal=1
+PASS failed-cell kind=1 code=1 thermo=1 retry=0 terminal=0
+PASS failed-cell kind=2 code=1 thermo=1 retry=0 terminal=0
+PASS failed-cell kind=3 code=1 thermo=0 retry=0 terminal=0
+PASS failed-cell kind=4 code=1 thermo=0 retry=0 terminal=0
+PASS failed-cell kind=5 code=6 thermo=0 retry=0 terminal=0
+PASS failed-cell kind=6 code=6 thermo=0 retry=0 terminal=0
+PASS failed-cell kind=7 code=4 thermo=1 retry=0 terminal=1
+PASS failed-cell kind=8 code=1 thermo=0 retry=0 terminal=1
+PASS failed-cell kind=9 code=6 thermo=0 retry=1 terminal=1
+PASS failed-cell kind=10 code=10 thermo=0 retry=0 terminal=0
+PASS failed-cell kind=11 code=6 thermo=0 retry=0 terminal=0
+PASS failed-cell kind=12 code=1 thermo=1 retry=0 terminal=0
+PASS failed-cell kind=13 code=3 thermo=0 retry=0 terminal=1
+PASS failed-cell kind=14 code=1 thermo=0 retry=0 terminal=0
+PASS failed-cell kind=15 code=5 thermo=1 retry=0 terminal=1
+PASS real CUDA chemistry Trial routing, owner retry, terminal completion and unavailable-resource controls

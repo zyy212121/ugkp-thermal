@@ -1,0 +1,1991 @@
+{
+  "identity": "PR14_REVIEW_ONLY",
+  "interaction_class": "FAST",
+  "source_commit": "9d5be6eff69dbced2fc959d422d3ba419a1bc39e",
+  "topics": [
+    {
+      "topic_id": "R014-001",
+      "verdict": "REUSED_OR_ADMINISTRATIVE_SCOPE",
+      "acceptance_unit_ids": [],
+      "executed_test_ids": [
+        "BUILD-INFO-Ns2",
+        "BUILD-INFO-Ns10",
+        "NATIVE-BUILD-IDENTITY-Ns2",
+        "NATIVE-BUILD-IDENTITY-Ns10"
+      ],
+      "reused_unit_ids": [],
+      "remaining_gaps": [],
+      "finding_ids": []
+    },
+    {
+      "topic_id": "R014-002",
+      "verdict": "REUSED_OR_ADMINISTRATIVE_SCOPE",
+      "acceptance_unit_ids": [],
+      "executed_test_ids": [],
+      "reused_unit_ids": [
+        "R2-performance-resource"
+      ],
+      "remaining_gaps": [],
+      "finding_ids": []
+    },
+    {
+      "topic_id": "R014-003",
+      "verdict": "PARTIAL_RECHECK_OPEN_GAPS",
+      "acceptance_unit_ids": [
+        "R3-wet-formal-zero-phase-ME",
+        "R3-wet-actual-final-flux-gas-MEP",
+        "R3-wet-full-physical-P",
+        "R3-wet-evaporation-original-900",
+        "R3-nonzero-phase-both-directions",
+        "R3-pore-material-to-geometry"
+      ],
+      "executed_test_ids": [
+        "BUILD-NATIVE-HOST-LINK-Ns2",
+        "BUILD-NATIVE-HOST-LINK-Ns10",
+        "WET-FILM-FORMAL",
+        "ORIGINAL-CHECK-WET-FILM-FORMAL",
+        "WET-FILM-FORMAL-RESTART",
+        "ORIGINAL-CHECK-WET-FILM-FORMAL-RESTART",
+        "WET-EVAPORATION-FORMAL-900",
+        "ORIGINAL-CHECK-WET-EVAPORATION-FORMAL-900",
+        "BUILD-PHASE-LEDGER-OBSERVER",
+        "BUILD-PHASE-LEDGER-OBSERVER-D302",
+        "PHASE-FORMAL-melting-positive",
+        "PHASE-OLD4B-melting-positive",
+        "PHASE-OBSERVER-melting-positive",
+        "PHASE-FORMAL-solidification-negative",
+        "PHASE-OLD4B-solidification-negative",
+        "PHASE-OBSERVER-solidification-negative",
+        "WET-FILM-OBSERVER-D302",
+        "MESH-onecell-melting-gas",
+        "MESH-onecell-melting-solid",
+        "MESH-onecell-solidification-gas",
+        "MESH-onecell-solidification-solid",
+        "NS10-REACTING-FULL-INITCHECK-1800",
+        "ORIGINAL-CHECK-NS10-REACTING-FULL-INITCHECK-1800",
+        "AUDIT-WET-FULL-ME-P",
+        "PHASE-FORMAL-onecell-melting",
+        "PHASE-FORMAL-onecell-solidification",
+        "AUDIT-WET-FULL-ME-P-S307",
+        "PHASE-FORMAL-onecell-melting-S308",
+        "PHASE-OLD4B-onecell-melting-S308",
+        "PHASE-D302-onecell-melting-S308",
+        "PHASE-FORMAL-onecell-solidification-S308",
+        "PHASE-OLD4B-onecell-solidification-S308",
+        "PHASE-D302-onecell-solidification-S308",
+        "DECODE-PHASE-onecell-melting-S308-checkpoint-0",
+        "DECODE-PHASE-onecell-melting-S308-checkpoint-1",
+        "AUDIT-PHASE-onecell-melting-S308",
+        "DECODE-PHASE-onecell-solidification-S308-checkpoint-0",
+        "DECODE-PHASE-onecell-solidification-S308-checkpoint-1",
+        "AUDIT-PHASE-onecell-solidification-S308",
+        "EVAPORATION-PROGRESS-D302",
+        "AUDIT-WET-ACTUAL-FINAL-FLUX-PHYSICAL-GAS"
+      ],
+      "reused_unit_ids": [
+        "R2-F-dry-ablation-scoped"
+      ],
+      "remaining_gaps": [
+        "wet-ablation-material"
+      ],
+      "finding_ids": [
+        "GPU-F006",
+        "OBS-R3-WET-P-PHYSICAL",
+        "OBS-R3-EVAP-TINY-LOCAL-STEPS"
+      ]
+    },
+    {
+      "topic_id": "R014-004",
+      "verdict": "PASS_SCOPED_NOT_WHOLE_TOPIC",
+      "acceptance_unit_ids": [
+        "R3-cold-start-Js-ConstantTransport"
+      ],
+      "executed_test_ids": [
+        "BUILD-COLD-START-JS-S310",
+        "BUILD-COLD-START-JS-GEOMETRY-S311",
+        "BUILD-COLD-START-JS-S311",
+        "COLD-START-JS-ACTUAL-S311"
+      ],
+      "reused_unit_ids": [
+        "R2-F-SST22-resource"
+      ],
+      "remaining_gaps": [],
+      "finding_ids": []
+    },
+    {
+      "topic_id": "R014-005",
+      "verdict": "PARTIAL_RECHECK_OPEN_GAPS",
+      "acceptance_unit_ids": [
+        "R3-wet-restart-strict-bitparity",
+        "R3-thermal-restart-first-currentCo-cause",
+        "R3-host-codec-mapper-wire-sanitizers"
+      ],
+      "executed_test_ids": [
+        "WET-FILM-FORMAL",
+        "ORIGINAL-CHECK-WET-FILM-FORMAL",
+        "WET-FILM-FORMAL-RESTART",
+        "ORIGINAL-CHECK-WET-FILM-FORMAL-RESTART",
+        "BUILD-CHECKPOINT-FULL-ASAN",
+        "DECODE-WET-FILM-FORMAL-checkpoint-0",
+        "DECODE-WET-FILM-FORMAL-checkpoint-1",
+        "DECODE-WET-FILM-FORMAL-checkpoint-2",
+        "DECODE-WET-FILM-FORMAL-RESTART-checkpoint-1",
+        "DECODE-WET-FILM-FORMAL-RESTART-checkpoint-2",
+        "WET-EVAPORATION-FORMAL-900",
+        "ORIGINAL-CHECK-WET-EVAPORATION-FORMAL-900",
+        "NS10-REACTING-FULL-INITCHECK-1800",
+        "ORIGINAL-CHECK-NS10-REACTING-FULL-INITCHECK-1800",
+        "AUDIT-WET-RESTART-FIRST-DIFFERENCE",
+        "BUILD-THERMAL-SEED-D303-CUDA",
+        "BUILD-THERMAL-SEED-D303-HOST",
+        "BUILD-CHECKPOINT-ADDRESSING-S307",
+        "DECODE-WET-ADDRESSING-S307-0",
+        "DECODE-WET-ADDRESSING-S307-1",
+        "DECODE-WET-ADDRESSING-S307-2",
+        "NATIVE-CHT-active16-ASCII-S306",
+        "NATIVE-FSH-active16-ASCII-S306",
+        "THERMAL-SEED-thermal-full",
+        "THERMAL-SEED-thermal-restart",
+        "DECODE-PHASE-onecell-melting-S308-checkpoint-0",
+        "DECODE-PHASE-onecell-melting-S308-checkpoint-1",
+        "DECODE-PHASE-onecell-solidification-S308-checkpoint-0",
+        "DECODE-PHASE-onecell-solidification-S308-checkpoint-1"
+      ],
+      "reused_unit_ids": [
+        "R2-C-restart-vs802",
+        "R2-F-host-codec-sanitizer"
+      ],
+      "remaining_gaps": [
+        "host-sanitizers"
+      ],
+      "finding_ids": [
+        "OBS-R2-RESTART"
+      ]
+    },
+    {
+      "topic_id": "R014-006",
+      "verdict": "PARTIAL_RECHECK_OPEN_GAPS",
+      "acceptance_unit_ids": [
+        "R3-wet-formal-zero-phase-ME",
+        "R3-wet-actual-final-flux-gas-MEP",
+        "R3-wet-full-physical-P",
+        "R3-wet-restart-strict-bitparity",
+        "R3-wet-evaporation-original-900",
+        "R3-nonzero-phase-both-directions",
+        "R3-pore-material-to-geometry"
+      ],
+      "executed_test_ids": [
+        "BUILD-NATIVE-HOST-LINK-Ns2",
+        "BUILD-NATIVE-HOST-LINK-Ns10",
+        "WET-FILM-FORMAL",
+        "ORIGINAL-CHECK-WET-FILM-FORMAL",
+        "WET-FILM-FORMAL-RESTART",
+        "ORIGINAL-CHECK-WET-FILM-FORMAL-RESTART",
+        "BUILD-CHECKPOINT-FULL-ASAN",
+        "DECODE-WET-FILM-FORMAL-checkpoint-0",
+        "DECODE-WET-FILM-FORMAL-checkpoint-1",
+        "DECODE-WET-FILM-FORMAL-checkpoint-2",
+        "DECODE-WET-FILM-FORMAL-RESTART-checkpoint-1",
+        "DECODE-WET-FILM-FORMAL-RESTART-checkpoint-2",
+        "WET-EVAPORATION-FORMAL-900",
+        "ORIGINAL-CHECK-WET-EVAPORATION-FORMAL-900",
+        "BUILD-PHASE-LEDGER-OBSERVER",
+        "BUILD-PHASE-LEDGER-OBSERVER-D302",
+        "PHASE-FORMAL-melting-positive",
+        "PHASE-OLD4B-melting-positive",
+        "PHASE-OBSERVER-melting-positive",
+        "PHASE-FORMAL-solidification-negative",
+        "PHASE-OLD4B-solidification-negative",
+        "PHASE-OBSERVER-solidification-negative",
+        "WET-FILM-OBSERVER-D302",
+        "MESH-onecell-melting-gas",
+        "MESH-onecell-melting-solid",
+        "MESH-onecell-solidification-gas",
+        "MESH-onecell-solidification-solid",
+        "NS10-REACTING-FULL-INITCHECK-1800",
+        "ORIGINAL-CHECK-NS10-REACTING-FULL-INITCHECK-1800",
+        "AUDIT-WET-FULL-ME-P",
+        "AUDIT-WET-RESTART-FIRST-DIFFERENCE",
+        "BUILD-CHECKPOINT-ADDRESSING-S307",
+        "DECODE-WET-ADDRESSING-S307-0",
+        "DECODE-WET-ADDRESSING-S307-1",
+        "DECODE-WET-ADDRESSING-S307-2",
+        "PHASE-FORMAL-onecell-melting",
+        "PHASE-FORMAL-onecell-solidification",
+        "AUDIT-WET-FULL-ME-P-S307",
+        "PHASE-FORMAL-onecell-melting-S308",
+        "PHASE-OLD4B-onecell-melting-S308",
+        "PHASE-D302-onecell-melting-S308",
+        "PHASE-FORMAL-onecell-solidification-S308",
+        "PHASE-OLD4B-onecell-solidification-S308",
+        "PHASE-D302-onecell-solidification-S308",
+        "DECODE-PHASE-onecell-melting-S308-checkpoint-0",
+        "DECODE-PHASE-onecell-melting-S308-checkpoint-1",
+        "AUDIT-PHASE-onecell-melting-S308",
+        "DECODE-PHASE-onecell-solidification-S308-checkpoint-0",
+        "DECODE-PHASE-onecell-solidification-S308-checkpoint-1",
+        "AUDIT-PHASE-onecell-solidification-S308",
+        "EVAPORATION-PROGRESS-D302",
+        "AUDIT-WET-ACTUAL-FINAL-FLUX-PHYSICAL-GAS"
+      ],
+      "reused_unit_ids": [
+        "R2-F-dry-ablation-scoped"
+      ],
+      "remaining_gaps": [
+        "wet-ablation-material"
+      ],
+      "finding_ids": [
+        "GPU-F006",
+        "OBS-R3-WET-P-PHYSICAL",
+        "OBS-R3-EVAP-TINY-LOCAL-STEPS"
+      ]
+    },
+    {
+      "topic_id": "R014-007",
+      "verdict": "REUSED_OR_ADMINISTRATIVE_SCOPE",
+      "acceptance_unit_ids": [],
+      "executed_test_ids": [],
+      "reused_unit_ids": [],
+      "remaining_gaps": [],
+      "finding_ids": []
+    },
+    {
+      "topic_id": "R014-008",
+      "verdict": "PARTIAL_RECHECK_OPEN_GAPS",
+      "acceptance_unit_ids": [
+        "R3-prior-strict-P-arithmetic-reanalysis",
+        "R3-gross-SST-resident-complete-budgets"
+      ],
+      "executed_test_ids": [
+        "WET-FILM-FORMAL",
+        "WET-EVAPORATION-FORMAL-900",
+        "NS10-REACTING-FULL-INITCHECK-1800"
+      ],
+      "reused_unit_ids": [
+        "R2-F-SST-RK-net-budget",
+        "R2-F-ALE-chemistry-volumes"
+      ],
+      "remaining_gaps": [
+        "SST-RK-budgets"
+      ],
+      "finding_ids": [
+        "OBS-R2-P"
+      ]
+    },
+    {
+      "topic_id": "R014-009",
+      "verdict": "PARTIAL_RECHECK_OPEN_GAPS",
+      "acceptance_unit_ids": [
+        "R3-Ns10-full-original-initcheck",
+        "R3-thermal-restart-first-currentCo-cause",
+        "R3-cold-start-Js-ConstantTransport",
+        "R3-prior-strict-P-arithmetic-reanalysis",
+        "R3-gross-SST-resident-complete-budgets"
+      ],
+      "executed_test_ids": [
+        "BUILD-THERMAL-SEED-D303-CUDA",
+        "BUILD-THERMAL-SEED-D303-HOST",
+        "THERMAL-SEED-thermal-full",
+        "THERMAL-SEED-thermal-restart",
+        "BUILD-COLD-START-JS-S310",
+        "BUILD-COLD-START-JS-GEOMETRY-S311",
+        "BUILD-COLD-START-JS-S311",
+        "COLD-START-JS-ACTUAL-S311"
+      ],
+      "reused_unit_ids": [
+        "R2-C-tail-whole-output",
+        "R2-C-cache-freshdata",
+        "R2-C-Ns10-control-initcheck",
+        "R2-C-restart-vs802",
+        "R2-F-SST-RK-net-budget",
+        "R2-performance-resource"
+      ],
+      "remaining_gaps": [
+        "SST-RK-budgets"
+      ],
+      "finding_ids": [
+        "GPU-F005",
+        "OBS-R2-P"
+      ]
+    },
+    {
+      "topic_id": "R014-010",
+      "verdict": "PASS_SCOPED_NOT_WHOLE_TOPIC",
+      "acceptance_unit_ids": [
+        "R3-formal-chemistry-fixture",
+        "R3-chemistry-full-failed-transactions",
+        "R3-chemistry-actual-owner-entry",
+        "R3-Ns10-full-original-initcheck"
+      ],
+      "executed_test_ids": [
+        "BUILD-CHEMISTRY-FORMAL-FIXTURE",
+        "CHEMISTRY-FORMAL-FIXTURE",
+        "WET-FILM-FORMAL",
+        "ORIGINAL-CHECK-WET-FILM-FORMAL",
+        "ORIGINAL-CHECK-WET-FILM-FORMAL-RESTART",
+        "BUILD-CHEMISTRY-S301",
+        "BUILD-CHEMISTRY-S302",
+        "WET-EVAPORATION-FORMAL-900",
+        "ORIGINAL-CHECK-WET-EVAPORATION-FORMAL-900",
+        "CHEMISTRY-S302-FULL-FAILED-TRANSACTIONS",
+        "BUILD-CHEMISTRY-OWNER-CHRONOLOGY-S304",
+        "CHEMISTRY-OWNER-CHRONOLOGY-S304",
+        "BUILD-CHEMISTRY-OWNER-ENTRY-S305",
+        "NS10-REACTING-FULL-INITCHECK-1800",
+        "ORIGINAL-CHECK-NS10-REACTING-FULL-INITCHECK-1800",
+        "CHEMISTRY-OWNER-ENTRY-S305"
+      ],
+      "reused_unit_ids": [
+        "R2-A-owner-full-semantic",
+        "R2-A-Ns10-native",
+        "R2-C-Ns10-control-initcheck",
+        "R2-F-ALE-chemistry-volumes"
+      ],
+      "remaining_gaps": [],
+      "finding_ids": [
+        "GPU-F001",
+        "TEST-R2-S1",
+        "TEST-R2-S2",
+        "TEST-R3-NEGATIVE-SEMANTICS"
+      ]
+    },
+    {
+      "topic_id": "R014-011",
+      "verdict": "PARTIAL_RECHECK_OPEN_GAPS",
+      "acceptance_unit_ids": [
+        "R3-pore-material-to-geometry"
+      ],
+      "executed_test_ids": [],
+      "reused_unit_ids": [
+        "R2-F-dry-ablation-scoped"
+      ],
+      "remaining_gaps": [
+        "wet-ablation-material"
+      ],
+      "finding_ids": []
+    },
+    {
+      "topic_id": "R014-012",
+      "verdict": "PARTIAL_RECHECK_OPEN_GAPS",
+      "acceptance_unit_ids": [
+        "R3-formal-chemistry-fixture",
+        "R3-chemistry-full-failed-transactions",
+        "R3-chemistry-actual-owner-entry",
+        "R3-active-cold-fullgroups-CHT-FSH",
+        "R3-thermal-restart-first-currentCo-cause",
+        "R3-cold-start-Js-ConstantTransport",
+        "R3-host-codec-mapper-wire-sanitizers",
+        "R3-allocation-free-sync-host-concurrency"
+      ],
+      "executed_test_ids": [
+        "BUILD-CHEMISTRY-FORMAL-FIXTURE",
+        "CHEMISTRY-FORMAL-FIXTURE",
+        "BUILD-CHEMISTRY-S301",
+        "BUILD-CHEMISTRY-S302",
+        "CHEMISTRY-S302-FULL-FAILED-TRANSACTIONS",
+        "BUILD-CHEMISTRY-OWNER-CHRONOLOGY-S304",
+        "CHEMISTRY-OWNER-CHRONOLOGY-S304",
+        "BUILD-CHEMISTRY-OWNER-ENTRY-S305",
+        "BUILD-THERMAL-SEED-D303-CUDA",
+        "BUILD-THERMAL-SEED-D303-HOST",
+        "CHEMISTRY-OWNER-ENTRY-S305",
+        "NATIVE-CHT-active16-ASCII-S306",
+        "NATIVE-FSH-active16-ASCII-S306",
+        "THERMAL-SEED-thermal-full",
+        "THERMAL-SEED-thermal-restart",
+        "AUDIT-ACTIVE-COLD-CHT",
+        "AUDIT-ACTIVE-COLD-FSH",
+        "BUILD-COLD-START-JS-S310",
+        "BUILD-COLD-START-JS-GEOMETRY-S311",
+        "COLD-ACTUAL-LAUNCH-CHT-S309",
+        "COLD-ACTUAL-LAUNCH-FSH-S309",
+        "BUILD-COLD-START-JS-S311",
+        "COLD-START-JS-ACTUAL-S311"
+      ],
+      "reused_unit_ids": [
+        "R2-A-owner-full-semantic",
+        "R2-B-init-config-copy",
+        "R2-C-tail-whole-output",
+        "R2-C-cache-freshdata",
+        "R2-C-restart-vs802",
+        "R2-F-SST22-resource"
+      ],
+      "remaining_gaps": [
+        "host-sanitizers",
+        "allocation-fault-lifecycle"
+      ],
+      "finding_ids": [
+        "GPU-F001",
+        "GPU-F002",
+        "GPU-F005",
+        "TEST-R3-NEGATIVE-SEMANTICS"
+      ]
+    },
+    {
+      "topic_id": "R014-013",
+      "verdict": "PARTIAL_RECHECK_OPEN_GAPS",
+      "acceptance_unit_ids": [
+        "R3-wet-formal-zero-phase-ME",
+        "R3-wet-actual-final-flux-gas-MEP",
+        "R3-wet-full-physical-P",
+        "R3-wet-restart-strict-bitparity",
+        "R3-wet-evaporation-original-900",
+        "R3-nonzero-phase-both-directions"
+      ],
+      "executed_test_ids": [
+        "BUILD-NATIVE-HOST-LINK-Ns2",
+        "BUILD-NATIVE-HOST-LINK-Ns10",
+        "WET-FILM-FORMAL",
+        "WET-FILM-FORMAL-RESTART",
+        "BUILD-CHECKPOINT-FULL-ASAN",
+        "DECODE-WET-FILM-FORMAL-checkpoint-0",
+        "DECODE-WET-FILM-FORMAL-checkpoint-1",
+        "DECODE-WET-FILM-FORMAL-checkpoint-2",
+        "DECODE-WET-FILM-FORMAL-RESTART-checkpoint-1",
+        "DECODE-WET-FILM-FORMAL-RESTART-checkpoint-2",
+        "WET-EVAPORATION-FORMAL-900",
+        "BUILD-PHASE-LEDGER-OBSERVER",
+        "BUILD-PHASE-LEDGER-OBSERVER-D302",
+        "PHASE-FORMAL-melting-positive",
+        "PHASE-OLD4B-melting-positive",
+        "PHASE-OBSERVER-melting-positive",
+        "PHASE-FORMAL-solidification-negative",
+        "PHASE-OLD4B-solidification-negative",
+        "PHASE-OBSERVER-solidification-negative",
+        "WET-FILM-OBSERVER-D302",
+        "MESH-onecell-melting-gas",
+        "MESH-onecell-melting-solid",
+        "MESH-onecell-solidification-gas",
+        "MESH-onecell-solidification-solid",
+        "NS10-REACTING-FULL-INITCHECK-1800",
+        "AUDIT-WET-FULL-ME-P",
+        "AUDIT-WET-RESTART-FIRST-DIFFERENCE",
+        "BUILD-CHECKPOINT-ADDRESSING-S307",
+        "DECODE-WET-ADDRESSING-S307-0",
+        "DECODE-WET-ADDRESSING-S307-1",
+        "DECODE-WET-ADDRESSING-S307-2",
+        "PHASE-FORMAL-onecell-melting",
+        "PHASE-FORMAL-onecell-solidification",
+        "AUDIT-WET-FULL-ME-P-S307",
+        "PHASE-FORMAL-onecell-melting-S308",
+        "PHASE-OLD4B-onecell-melting-S308",
+        "PHASE-D302-onecell-melting-S308",
+        "PHASE-FORMAL-onecell-solidification-S308",
+        "PHASE-OLD4B-onecell-solidification-S308",
+        "PHASE-D302-onecell-solidification-S308",
+        "DECODE-PHASE-onecell-melting-S308-checkpoint-0",
+        "DECODE-PHASE-onecell-melting-S308-checkpoint-1",
+        "AUDIT-PHASE-onecell-melting-S308",
+        "DECODE-PHASE-onecell-solidification-S308-checkpoint-0",
+        "DECODE-PHASE-onecell-solidification-S308-checkpoint-1",
+        "AUDIT-PHASE-onecell-solidification-S308",
+        "EVAPORATION-PROGRESS-D302",
+        "AUDIT-WET-ACTUAL-FINAL-FLUX-PHYSICAL-GAS"
+      ],
+      "reused_unit_ids": [],
+      "remaining_gaps": [],
+      "finding_ids": [
+        "GPU-F006",
+        "OBS-R3-WET-P-PHYSICAL",
+        "OBS-R3-EVAP-TINY-LOCAL-STEPS"
+      ]
+    },
+    {
+      "topic_id": "R014-014",
+      "verdict": "PARTIAL_RECHECK_OPEN_GAPS",
+      "acceptance_unit_ids": [
+        "R3-formal-chemistry-fixture",
+        "R3-chemistry-full-failed-transactions",
+        "R3-chemistry-actual-owner-entry",
+        "R3-wet-formal-zero-phase-ME",
+        "R3-wet-actual-final-flux-gas-MEP",
+        "R3-wet-full-physical-P",
+        "R3-wet-restart-strict-bitparity",
+        "R3-wet-evaporation-original-900",
+        "R3-nonzero-phase-both-directions",
+        "R3-thermal-restart-first-currentCo-cause",
+        "R3-cold-start-Js-ConstantTransport",
+        "R3-prior-strict-P-arithmetic-reanalysis",
+        "R3-pore-material-to-geometry"
+      ],
+      "executed_test_ids": [
+        "BUILD-NATIVE-HOST-LINK-Ns2",
+        "BUILD-NATIVE-HOST-LINK-Ns10",
+        "BUILD-CHEMISTRY-FORMAL-FIXTURE",
+        "CHEMISTRY-FORMAL-FIXTURE",
+        "WET-FILM-FORMAL",
+        "ORIGINAL-CHECK-WET-FILM-FORMAL",
+        "WET-FILM-FORMAL-RESTART",
+        "ORIGINAL-CHECK-WET-FILM-FORMAL-RESTART",
+        "BUILD-CHEMISTRY-S301",
+        "BUILD-CHEMISTRY-S302",
+        "WET-EVAPORATION-FORMAL-900",
+        "ORIGINAL-CHECK-WET-EVAPORATION-FORMAL-900",
+        "CHEMISTRY-S302-FULL-FAILED-TRANSACTIONS",
+        "BUILD-PHASE-LEDGER-OBSERVER",
+        "BUILD-CHEMISTRY-OWNER-CHRONOLOGY-S304",
+        "BUILD-PHASE-LEDGER-OBSERVER-D302",
+        "CHEMISTRY-OWNER-CHRONOLOGY-S304",
+        "PHASE-FORMAL-melting-positive",
+        "PHASE-OLD4B-melting-positive",
+        "PHASE-OBSERVER-melting-positive",
+        "PHASE-FORMAL-solidification-negative",
+        "PHASE-OLD4B-solidification-negative",
+        "PHASE-OBSERVER-solidification-negative",
+        "WET-FILM-OBSERVER-D302",
+        "BUILD-CHEMISTRY-OWNER-ENTRY-S305",
+        "MESH-onecell-melting-gas",
+        "MESH-onecell-melting-solid",
+        "MESH-onecell-solidification-gas",
+        "MESH-onecell-solidification-solid",
+        "NS10-REACTING-FULL-INITCHECK-1800",
+        "ORIGINAL-CHECK-NS10-REACTING-FULL-INITCHECK-1800",
+        "AUDIT-WET-FULL-ME-P",
+        "AUDIT-WET-RESTART-FIRST-DIFFERENCE",
+        "BUILD-THERMAL-SEED-D303-CUDA",
+        "BUILD-THERMAL-SEED-D303-HOST",
+        "CHEMISTRY-OWNER-ENTRY-S305",
+        "THERMAL-SEED-thermal-full",
+        "THERMAL-SEED-thermal-restart",
+        "PHASE-FORMAL-onecell-melting",
+        "PHASE-FORMAL-onecell-solidification",
+        "AUDIT-WET-FULL-ME-P-S307",
+        "PHASE-FORMAL-onecell-melting-S308",
+        "PHASE-OLD4B-onecell-melting-S308",
+        "PHASE-D302-onecell-melting-S308",
+        "PHASE-FORMAL-onecell-solidification-S308",
+        "PHASE-OLD4B-onecell-solidification-S308",
+        "PHASE-D302-onecell-solidification-S308",
+        "BUILD-COLD-START-JS-S310",
+        "BUILD-COLD-START-JS-GEOMETRY-S311",
+        "BUILD-COLD-START-JS-S311",
+        "DECODE-PHASE-onecell-melting-S308-checkpoint-0",
+        "DECODE-PHASE-onecell-melting-S308-checkpoint-1",
+        "AUDIT-PHASE-onecell-melting-S308",
+        "DECODE-PHASE-onecell-solidification-S308-checkpoint-0",
+        "DECODE-PHASE-onecell-solidification-S308-checkpoint-1",
+        "AUDIT-PHASE-onecell-solidification-S308",
+        "EVAPORATION-PROGRESS-D302",
+        "COLD-START-JS-ACTUAL-S311",
+        "AUDIT-WET-ACTUAL-FINAL-FLUX-PHYSICAL-GAS"
+      ],
+      "reused_unit_ids": [
+        "R2-A-owner-full-semantic",
+        "R2-C-tail-whole-output",
+        "R2-C-cache-freshdata",
+        "R2-C-restart-vs802",
+        "R2-D-clock-lineage",
+        "R2-F-SST-RK-net-budget",
+        "R2-F-ALE-chemistry-volumes",
+        "R2-F-dry-ablation-scoped"
+      ],
+      "remaining_gaps": [
+        "wet-ablation-material"
+      ],
+      "finding_ids": [
+        "GPU-F001",
+        "GPU-F003",
+        "GPU-F005",
+        "GPU-F006",
+        "TEST-R2-S1",
+        "TEST-R2-S2",
+        "OBS-R2-P",
+        "OBS-R2-RESTART",
+        "TEST-R3-NEGATIVE-SEMANTICS",
+        "OBS-R3-WET-P-PHYSICAL",
+        "OBS-R3-EVAP-TINY-LOCAL-STEPS"
+      ]
+    },
+    {
+      "topic_id": "R014-015",
+      "verdict": "PARTIAL_RECHECK_OPEN_GAPS",
+      "acceptance_unit_ids": [
+        "R3-cold-start-Js-ConstantTransport"
+      ],
+      "executed_test_ids": [
+        "COLD-START-JS-ACTUAL-S311"
+      ],
+      "reused_unit_ids": [
+        "R2-D-clock-lineage"
+      ],
+      "remaining_gaps": [
+        "cold-start-Js"
+      ],
+      "finding_ids": [
+        "GPU-F003",
+        "GPU-F005"
+      ]
+    },
+    {
+      "topic_id": "R014-016",
+      "verdict": "REUSED_OR_ADMINISTRATIVE_SCOPE",
+      "acceptance_unit_ids": [],
+      "executed_test_ids": [],
+      "reused_unit_ids": [
+        "R2-performance-resource"
+      ],
+      "remaining_gaps": [],
+      "finding_ids": []
+    },
+    {
+      "topic_id": "R014-017",
+      "verdict": "PASS_SCOPED_NOT_WHOLE_TOPIC",
+      "acceptance_unit_ids": [
+        "R3-cold-start-Js-ConstantTransport"
+      ],
+      "executed_test_ids": [
+        "BUILD-COLD-START-JS-S310",
+        "BUILD-COLD-START-JS-GEOMETRY-S311",
+        "BUILD-COLD-START-JS-S311",
+        "COLD-START-JS-ACTUAL-S311"
+      ],
+      "reused_unit_ids": [
+        "R2-F-SST22-resource"
+      ],
+      "remaining_gaps": [],
+      "finding_ids": []
+    },
+    {
+      "topic_id": "R014-018",
+      "verdict": "PARTIAL_RECHECK_OPEN_GAPS",
+      "acceptance_unit_ids": [
+        "R3-active-cold-fullgroups-CHT-FSH",
+        "R3-gross-SST-resident-complete-budgets"
+      ],
+      "executed_test_ids": [
+        "NATIVE-CHT-active16-ASCII-S306",
+        "NATIVE-FSH-active16-ASCII-S306",
+        "AUDIT-ACTIVE-COLD-CHT",
+        "AUDIT-ACTIVE-COLD-FSH",
+        "BUILD-COLD-ACTUAL-LAUNCH-S309",
+        "BUILD-NATIVE-MAPPER-ASAN-S312",
+        "HOST-NATIVE-MAPPER-ASAN-S312",
+        "COLD-ACTUAL-LAUNCH-CHT-S309",
+        "COLD-ACTUAL-LAUNCH-FSH-S309",
+        "BUILD-ALL-ACTUAL-LAUNCH-S313"
+      ],
+      "reused_unit_ids": [
+        "R2-B-CHT-original-inputs",
+        "R2-B-FSH-double-restart",
+        "R2-B-init-config-copy",
+        "R2-F-SST22-resource",
+        "R2-F-radiation-singlemapper"
+      ],
+      "remaining_gaps": [
+        "FSH-cold-profile",
+        "resident-full-budgets"
+      ],
+      "finding_ids": [
+        "GPU-F002",
+        "OBS-R2-COLD16"
+      ]
+    },
+    {
+      "topic_id": "R014-019",
+      "verdict": "PARTIAL_RECHECK_OPEN_GAPS",
+      "acceptance_unit_ids": [
+        "R3-active-cold-fullgroups-CHT-FSH",
+        "R3-host-codec-mapper-wire-sanitizers"
+      ],
+      "executed_test_ids": [
+        "BUILD-CHECKPOINT-FULL-ASAN",
+        "DECODE-WET-FILM-FORMAL-checkpoint-0",
+        "DECODE-WET-FILM-FORMAL-checkpoint-1",
+        "DECODE-WET-FILM-FORMAL-checkpoint-2",
+        "DECODE-WET-FILM-FORMAL-RESTART-checkpoint-1",
+        "DECODE-WET-FILM-FORMAL-RESTART-checkpoint-2",
+        "BUILD-CHECKPOINT-ADDRESSING-S307",
+        "DECODE-WET-ADDRESSING-S307-0",
+        "DECODE-WET-ADDRESSING-S307-1",
+        "DECODE-WET-ADDRESSING-S307-2",
+        "NATIVE-CHT-active16-ASCII-S306",
+        "NATIVE-FSH-active16-ASCII-S306",
+        "AUDIT-ACTIVE-COLD-CHT",
+        "AUDIT-ACTIVE-COLD-FSH",
+        "BUILD-NATIVE-WIRE-ASAN-S312",
+        "HOST-NATIVE-WIRE-ASAN-S312",
+        "COLD-ACTUAL-LAUNCH-CHT-S309",
+        "COLD-ACTUAL-LAUNCH-FSH-S309"
+      ],
+      "reused_unit_ids": [
+        "R2-B-CHT-original-inputs",
+        "R2-B-FSH-double-restart",
+        "R2-F-host-codec-sanitizer"
+      ],
+      "remaining_gaps": [
+        "FSH-cold-profile",
+        "host-sanitizers"
+      ],
+      "finding_ids": []
+    },
+    {
+      "topic_id": "R014-020",
+      "verdict": "PARTIAL_RECHECK_OPEN_GAPS",
+      "acceptance_unit_ids": [
+        "R3-wet-formal-zero-phase-ME",
+        "R3-wet-actual-final-flux-gas-MEP",
+        "R3-wet-full-physical-P",
+        "R3-wet-evaporation-original-900",
+        "R3-nonzero-phase-both-directions",
+        "R3-active-cold-fullgroups-CHT-FSH",
+        "R3-host-codec-mapper-wire-sanitizers",
+        "R3-gross-SST-resident-complete-budgets",
+        "R3-GPU-empty-multi-selected-mapper"
+      ],
+      "executed_test_ids": [
+        "BUILD-NATIVE-HOST-LINK-Ns2",
+        "BUILD-NATIVE-HOST-LINK-Ns10",
+        "WET-FILM-FORMAL",
+        "WET-FILM-FORMAL-RESTART",
+        "BUILD-CHECKPOINT-FULL-ASAN",
+        "DECODE-WET-FILM-FORMAL-checkpoint-0",
+        "DECODE-WET-FILM-FORMAL-checkpoint-1",
+        "DECODE-WET-FILM-FORMAL-checkpoint-2",
+        "DECODE-WET-FILM-FORMAL-RESTART-checkpoint-1",
+        "DECODE-WET-FILM-FORMAL-RESTART-checkpoint-2",
+        "WET-EVAPORATION-FORMAL-900",
+        "BUILD-PHASE-LEDGER-OBSERVER",
+        "BUILD-PHASE-LEDGER-OBSERVER-D302",
+        "PHASE-FORMAL-melting-positive",
+        "PHASE-OLD4B-melting-positive",
+        "PHASE-OBSERVER-melting-positive",
+        "PHASE-FORMAL-solidification-negative",
+        "PHASE-OLD4B-solidification-negative",
+        "PHASE-OBSERVER-solidification-negative",
+        "WET-FILM-OBSERVER-D302",
+        "MESH-onecell-melting-gas",
+        "MESH-onecell-melting-solid",
+        "MESH-onecell-solidification-gas",
+        "MESH-onecell-solidification-solid",
+        "NS10-REACTING-FULL-INITCHECK-1800",
+        "AUDIT-WET-FULL-ME-P",
+        "BUILD-CHECKPOINT-ADDRESSING-S307",
+        "DECODE-WET-ADDRESSING-S307-0",
+        "DECODE-WET-ADDRESSING-S307-1",
+        "DECODE-WET-ADDRESSING-S307-2",
+        "NATIVE-CHT-active16-ASCII-S306",
+        "NATIVE-FSH-active16-ASCII-S306",
+        "PHASE-FORMAL-onecell-melting",
+        "PHASE-FORMAL-onecell-solidification",
+        "AUDIT-WET-FULL-ME-P-S307",
+        "PHASE-FORMAL-onecell-melting-S308",
+        "PHASE-OLD4B-onecell-melting-S308",
+        "PHASE-D302-onecell-melting-S308",
+        "PHASE-FORMAL-onecell-solidification-S308",
+        "PHASE-OLD4B-onecell-solidification-S308",
+        "PHASE-D302-onecell-solidification-S308",
+        "AUDIT-ACTIVE-COLD-CHT",
+        "AUDIT-ACTIVE-COLD-FSH",
+        "BUILD-COLD-ACTUAL-LAUNCH-S309",
+        "BUILD-NATIVE-MAPPER-ASAN-S312",
+        "HOST-NATIVE-MAPPER-ASAN-S312",
+        "BUILD-NATIVE-WIRE-ASAN-S312",
+        "HOST-NATIVE-WIRE-ASAN-S312",
+        "COLD-ACTUAL-LAUNCH-CHT-S309",
+        "COLD-ACTUAL-LAUNCH-FSH-S309",
+        "DECODE-PHASE-onecell-melting-S308-checkpoint-0",
+        "DECODE-PHASE-onecell-melting-S308-checkpoint-1",
+        "AUDIT-PHASE-onecell-melting-S308",
+        "DECODE-PHASE-onecell-solidification-S308-checkpoint-0",
+        "DECODE-PHASE-onecell-solidification-S308-checkpoint-1",
+        "AUDIT-PHASE-onecell-solidification-S308",
+        "EVAPORATION-PROGRESS-D302",
+        "BUILD-ALL-ACTUAL-LAUNCH-S313",
+        "AUDIT-WET-ACTUAL-FINAL-FLUX-PHYSICAL-GAS"
+      ],
+      "reused_unit_ids": [
+        "R2-F-radiation-singlemapper"
+      ],
+      "remaining_gaps": [
+        "CHT-radiation-mapper",
+        "host-sanitizers",
+        "resident-full-budgets"
+      ],
+      "finding_ids": [
+        "GPU-F002",
+        "GPU-F006",
+        "OBS-R3-WET-P-PHYSICAL",
+        "OBS-R3-EVAP-TINY-LOCAL-STEPS"
+      ]
+    },
+    {
+      "topic_id": "R014-021",
+      "verdict": "PARTIAL_RECHECK_OPEN_GAPS",
+      "acceptance_unit_ids": [
+        "R3-wet-formal-zero-phase-ME",
+        "R3-wet-actual-final-flux-gas-MEP",
+        "R3-wet-full-physical-P",
+        "R3-wet-evaporation-original-900",
+        "R3-nonzero-phase-both-directions"
+      ],
+      "executed_test_ids": [
+        "BUILD-NATIVE-HOST-LINK-Ns2",
+        "BUILD-NATIVE-HOST-LINK-Ns10",
+        "WET-FILM-FORMAL",
+        "WET-FILM-FORMAL-RESTART",
+        "WET-EVAPORATION-FORMAL-900",
+        "BUILD-PHASE-LEDGER-OBSERVER",
+        "BUILD-PHASE-LEDGER-OBSERVER-D302",
+        "PHASE-FORMAL-melting-positive",
+        "PHASE-OLD4B-melting-positive",
+        "PHASE-OBSERVER-melting-positive",
+        "PHASE-FORMAL-solidification-negative",
+        "PHASE-OLD4B-solidification-negative",
+        "PHASE-OBSERVER-solidification-negative",
+        "WET-FILM-OBSERVER-D302",
+        "MESH-onecell-melting-gas",
+        "MESH-onecell-melting-solid",
+        "MESH-onecell-solidification-gas",
+        "MESH-onecell-solidification-solid",
+        "NS10-REACTING-FULL-INITCHECK-1800",
+        "AUDIT-WET-FULL-ME-P",
+        "PHASE-FORMAL-onecell-melting",
+        "PHASE-FORMAL-onecell-solidification",
+        "AUDIT-WET-FULL-ME-P-S307",
+        "PHASE-FORMAL-onecell-melting-S308",
+        "PHASE-OLD4B-onecell-melting-S308",
+        "PHASE-D302-onecell-melting-S308",
+        "PHASE-FORMAL-onecell-solidification-S308",
+        "PHASE-OLD4B-onecell-solidification-S308",
+        "PHASE-D302-onecell-solidification-S308",
+        "DECODE-PHASE-onecell-melting-S308-checkpoint-0",
+        "DECODE-PHASE-onecell-melting-S308-checkpoint-1",
+        "AUDIT-PHASE-onecell-melting-S308",
+        "DECODE-PHASE-onecell-solidification-S308-checkpoint-0",
+        "DECODE-PHASE-onecell-solidification-S308-checkpoint-1",
+        "AUDIT-PHASE-onecell-solidification-S308",
+        "EVAPORATION-PROGRESS-D302",
+        "AUDIT-WET-ACTUAL-FINAL-FLUX-PHYSICAL-GAS"
+      ],
+      "reused_unit_ids": [
+        "R2-D-clock-lineage"
+      ],
+      "remaining_gaps": [
+        "developer-formal-recheck"
+      ],
+      "finding_ids": [
+        "GPU-F003",
+        "GPU-F006",
+        "OBS-R3-WET-P-PHYSICAL",
+        "OBS-R3-EVAP-TINY-LOCAL-STEPS"
+      ]
+    },
+    {
+      "topic_id": "R014-022",
+      "verdict": "PARTIAL_RECHECK_OPEN_GAPS",
+      "acceptance_unit_ids": [],
+      "executed_test_ids": [],
+      "reused_unit_ids": [
+        "R2-D-clock-lineage"
+      ],
+      "remaining_gaps": [
+        "developer-formal-recheck"
+      ],
+      "finding_ids": [
+        "GPU-F003"
+      ]
+    },
+    {
+      "topic_id": "R014-023",
+      "verdict": "PARTIAL_RECHECK_OPEN_GAPS",
+      "acceptance_unit_ids": [
+        "R3-active-cold-fullgroups-CHT-FSH",
+        "R3-host-codec-mapper-wire-sanitizers"
+      ],
+      "executed_test_ids": [
+        "NATIVE-CHT-active16-ASCII-S306",
+        "NATIVE-FSH-active16-ASCII-S306",
+        "AUDIT-ACTIVE-COLD-CHT",
+        "AUDIT-ACTIVE-COLD-FSH",
+        "BUILD-COLD-ACTUAL-LAUNCH-S309",
+        "BUILD-NATIVE-MAPPER-ASAN-S312",
+        "HOST-NATIVE-MAPPER-ASAN-S312",
+        "COLD-ACTUAL-LAUNCH-CHT-S309",
+        "COLD-ACTUAL-LAUNCH-FSH-S309",
+        "BUILD-ALL-ACTUAL-LAUNCH-S313"
+      ],
+      "reused_unit_ids": [
+        "R2-B-CHT-original-inputs",
+        "R2-B-FSH-double-restart",
+        "R2-B-init-config-copy",
+        "R2-F-radiation-singlemapper"
+      ],
+      "remaining_gaps": [
+        "FSH-cold-profile"
+      ],
+      "finding_ids": [
+        "GPU-F004",
+        "OBS-R2-COLD16"
+      ]
+    },
+    {
+      "topic_id": "R014-024",
+      "verdict": "PARTIAL_RECHECK_OPEN_GAPS",
+      "acceptance_unit_ids": [
+        "R3-Ns10-full-original-initcheck"
+      ],
+      "executed_test_ids": [
+        "BUILD-INFO-Ns2",
+        "BUILD-NATIVE-HOST-LINK-Ns2",
+        "BUILD-INFO-Ns10",
+        "BUILD-NATIVE-HOST-LINK-Ns10"
+      ],
+      "reused_unit_ids": [
+        "R2-A-Ns10-native"
+      ],
+      "remaining_gaps": [
+        "developer-formal-recheck"
+      ],
+      "finding_ids": []
+    },
+    {
+      "topic_id": "R014-025",
+      "verdict": "REUSED_OR_ADMINISTRATIVE_SCOPE",
+      "acceptance_unit_ids": [],
+      "executed_test_ids": [
+        "BUILD-INFO-Ns2",
+        "BUILD-NATIVE-HOST-LINK-Ns2",
+        "BUILD-INFO-Ns10",
+        "BUILD-NATIVE-HOST-LINK-Ns10"
+      ],
+      "reused_unit_ids": [],
+      "remaining_gaps": [],
+      "finding_ids": []
+    },
+    {
+      "topic_id": "R014-026",
+      "verdict": "PARTIAL_RECHECK_OPEN_GAPS",
+      "acceptance_unit_ids": [
+        "R3-formal-chemistry-fixture",
+        "R3-chemistry-full-failed-transactions",
+        "R3-chemistry-actual-owner-entry",
+        "R3-wet-formal-zero-phase-ME",
+        "R3-wet-actual-final-flux-gas-MEP",
+        "R3-wet-full-physical-P",
+        "R3-wet-restart-strict-bitparity",
+        "R3-wet-evaporation-original-900",
+        "R3-nonzero-phase-both-directions",
+        "R3-Ns10-full-original-initcheck",
+        "R3-active-cold-fullgroups-CHT-FSH",
+        "R3-thermal-restart-first-currentCo-cause",
+        "R3-cold-start-Js-ConstantTransport",
+        "R3-host-codec-mapper-wire-sanitizers",
+        "R3-prior-strict-P-arithmetic-reanalysis",
+        "R3-gross-SST-resident-complete-budgets",
+        "R3-GPU-empty-multi-selected-mapper",
+        "R3-pore-material-to-geometry",
+        "R3-allocation-free-sync-host-concurrency"
+      ],
+      "executed_test_ids": [
+        "BUILD-INFO-Ns2",
+        "BUILD-NATIVE-HOST-LINK-Ns2",
+        "BUILD-INFO-Ns10",
+        "BUILD-NATIVE-HOST-LINK-Ns10",
+        "BUILD-CHEMISTRY-FORMAL-FIXTURE",
+        "CHEMISTRY-FORMAL-FIXTURE",
+        "WET-FILM-FORMAL",
+        "ORIGINAL-CHECK-WET-FILM-FORMAL",
+        "WET-FILM-FORMAL-RESTART",
+        "ORIGINAL-CHECK-WET-FILM-FORMAL-RESTART",
+        "BUILD-CHEMISTRY-S301",
+        "BUILD-CHECKPOINT-FULL-ASAN",
+        "DECODE-WET-FILM-FORMAL-checkpoint-0",
+        "DECODE-WET-FILM-FORMAL-checkpoint-1",
+        "DECODE-WET-FILM-FORMAL-checkpoint-2",
+        "DECODE-WET-FILM-FORMAL-RESTART-checkpoint-1",
+        "DECODE-WET-FILM-FORMAL-RESTART-checkpoint-2",
+        "BUILD-CHEMISTRY-S302",
+        "WET-EVAPORATION-FORMAL-900",
+        "ORIGINAL-CHECK-WET-EVAPORATION-FORMAL-900",
+        "CHEMISTRY-S302-FULL-FAILED-TRANSACTIONS",
+        "BUILD-PHASE-LEDGER-OBSERVER",
+        "BUILD-CHEMISTRY-OWNER-CHRONOLOGY-S304",
+        "BUILD-PHASE-LEDGER-OBSERVER-D302",
+        "CHEMISTRY-OWNER-CHRONOLOGY-S304",
+        "PHASE-FORMAL-melting-positive",
+        "PHASE-OLD4B-melting-positive",
+        "PHASE-OBSERVER-melting-positive",
+        "PHASE-FORMAL-solidification-negative",
+        "PHASE-OLD4B-solidification-negative",
+        "PHASE-OBSERVER-solidification-negative",
+        "WET-FILM-OBSERVER-D302",
+        "BUILD-CHEMISTRY-OWNER-ENTRY-S305",
+        "MESH-onecell-melting-gas",
+        "MESH-onecell-melting-solid",
+        "MESH-onecell-solidification-gas",
+        "MESH-onecell-solidification-solid",
+        "NS10-REACTING-FULL-INITCHECK-1800",
+        "ORIGINAL-CHECK-NS10-REACTING-FULL-INITCHECK-1800",
+        "AUDIT-WET-FULL-ME-P",
+        "AUDIT-WET-RESTART-FIRST-DIFFERENCE",
+        "BUILD-THERMAL-SEED-D303-CUDA",
+        "BUILD-THERMAL-SEED-D303-HOST",
+        "BUILD-CHECKPOINT-ADDRESSING-S307",
+        "DECODE-WET-ADDRESSING-S307-0",
+        "DECODE-WET-ADDRESSING-S307-1",
+        "DECODE-WET-ADDRESSING-S307-2",
+        "CHEMISTRY-OWNER-ENTRY-S305",
+        "NATIVE-CHT-active16-ASCII-S306",
+        "NATIVE-FSH-active16-ASCII-S306",
+        "THERMAL-SEED-thermal-full",
+        "THERMAL-SEED-thermal-restart",
+        "PHASE-FORMAL-onecell-melting",
+        "PHASE-FORMAL-onecell-solidification",
+        "AUDIT-WET-FULL-ME-P-S307",
+        "PHASE-FORMAL-onecell-melting-S308",
+        "PHASE-OLD4B-onecell-melting-S308",
+        "PHASE-D302-onecell-melting-S308",
+        "PHASE-FORMAL-onecell-solidification-S308",
+        "PHASE-OLD4B-onecell-solidification-S308",
+        "PHASE-D302-onecell-solidification-S308",
+        "AUDIT-ACTIVE-COLD-CHT",
+        "AUDIT-ACTIVE-COLD-FSH",
+        "BUILD-COLD-ACTUAL-LAUNCH-S309",
+        "BUILD-COLD-START-JS-S310",
+        "BUILD-COLD-START-JS-GEOMETRY-S311",
+        "BUILD-NATIVE-MAPPER-ASAN-S312",
+        "HOST-NATIVE-MAPPER-ASAN-S312",
+        "BUILD-NATIVE-WIRE-ASAN-S312",
+        "HOST-NATIVE-WIRE-ASAN-S312",
+        "COLD-ACTUAL-LAUNCH-CHT-S309",
+        "COLD-ACTUAL-LAUNCH-FSH-S309",
+        "BUILD-COLD-START-JS-S311",
+        "DECODE-PHASE-onecell-melting-S308-checkpoint-0",
+        "DECODE-PHASE-onecell-melting-S308-checkpoint-1",
+        "AUDIT-PHASE-onecell-melting-S308",
+        "DECODE-PHASE-onecell-solidification-S308-checkpoint-0",
+        "DECODE-PHASE-onecell-solidification-S308-checkpoint-1",
+        "AUDIT-PHASE-onecell-solidification-S308",
+        "EVAPORATION-PROGRESS-D302",
+        "BUILD-ALL-ACTUAL-LAUNCH-S313",
+        "COLD-START-JS-ACTUAL-S311",
+        "NATIVE-BUILD-IDENTITY-Ns2",
+        "NATIVE-BUILD-IDENTITY-Ns10",
+        "AUDIT-WET-ACTUAL-FINAL-FLUX-PHYSICAL-GAS"
+      ],
+      "reused_unit_ids": [
+        "R2-A-owner-full-semantic",
+        "R2-A-Ns10-native",
+        "R2-B-CHT-original-inputs",
+        "R2-B-FSH-double-restart",
+        "R2-B-init-config-copy",
+        "R2-C-tail-whole-output",
+        "R2-C-cache-freshdata",
+        "R2-C-Ns10-control-initcheck",
+        "R2-C-restart-vs802",
+        "R2-D-clock-lineage",
+        "R2-F-SST22-resource",
+        "R2-F-SST-RK-net-budget",
+        "R2-F-ALE-chemistry-volumes",
+        "R2-F-dry-ablation-scoped",
+        "R2-F-radiation-singlemapper",
+        "R2-F-host-codec-sanitizer",
+        "R2-performance-resource"
+      ],
+      "remaining_gaps": [
+        "SST-RK-budgets",
+        "cold-start-Js",
+        "wet-ablation-material",
+        "CHT-radiation-mapper",
+        "FSH-cold-profile",
+        "allocation-fault-lifecycle",
+        "resident-full-budgets",
+        "developer-formal-recheck"
+      ],
+      "finding_ids": [
+        "GPU-F001",
+        "GPU-F002",
+        "GPU-F003",
+        "GPU-F004",
+        "GPU-F005",
+        "GPU-F006",
+        "TEST-R2-S1",
+        "TEST-R2-S2",
+        "OBS-R2-P",
+        "OBS-R2-COLD16",
+        "OBS-R2-RESTART",
+        "TEST-R3-NEGATIVE-SEMANTICS",
+        "OBS-R3-WET-P-PHYSICAL",
+        "OBS-R3-EVAP-TINY-LOCAL-STEPS"
+      ]
+    },
+    {
+      "topic_id": "R014-027",
+      "verdict": "REUSED_OR_ADMINISTRATIVE_SCOPE",
+      "acceptance_unit_ids": [],
+      "executed_test_ids": [],
+      "reused_unit_ids": [
+        "R2-D-clock-lineage",
+        "R2-performance-resource"
+      ],
+      "remaining_gaps": [],
+      "finding_ids": [
+        "GPU-F003"
+      ]
+    },
+    {
+      "topic_id": "R014-028",
+      "verdict": "PARTIAL_RECHECK_OPEN_GAPS",
+      "acceptance_unit_ids": [
+        "R3-Ns10-full-original-initcheck",
+        "R3-host-codec-mapper-wire-sanitizers",
+        "R3-allocation-free-sync-host-concurrency"
+      ],
+      "executed_test_ids": [
+        "WET-FILM-FORMAL",
+        "BUILD-CHECKPOINT-FULL-ASAN",
+        "DECODE-WET-FILM-FORMAL-checkpoint-0",
+        "DECODE-WET-FILM-FORMAL-checkpoint-1",
+        "DECODE-WET-FILM-FORMAL-checkpoint-2",
+        "DECODE-WET-FILM-FORMAL-RESTART-checkpoint-1",
+        "DECODE-WET-FILM-FORMAL-RESTART-checkpoint-2",
+        "WET-EVAPORATION-FORMAL-900",
+        "NS10-REACTING-FULL-INITCHECK-1800",
+        "BUILD-CHECKPOINT-ADDRESSING-S307",
+        "DECODE-WET-ADDRESSING-S307-0",
+        "DECODE-WET-ADDRESSING-S307-1",
+        "DECODE-WET-ADDRESSING-S307-2",
+        "BUILD-NATIVE-MAPPER-ASAN-S312",
+        "HOST-NATIVE-MAPPER-ASAN-S312",
+        "BUILD-NATIVE-WIRE-ASAN-S312",
+        "HOST-NATIVE-WIRE-ASAN-S312"
+      ],
+      "reused_unit_ids": [
+        "R2-C-tail-whole-output",
+        "R2-C-cache-freshdata",
+        "R2-C-Ns10-control-initcheck",
+        "R2-F-SST22-resource",
+        "R2-F-host-codec-sanitizer"
+      ],
+      "remaining_gaps": [
+        "host-sanitizers",
+        "allocation-fault-lifecycle"
+      ],
+      "finding_ids": [
+        "GPU-F005"
+      ]
+    },
+    {
+      "topic_id": "R014-029",
+      "verdict": "PARTIAL_RECHECK_OPEN_GAPS",
+      "acceptance_unit_ids": [
+        "R3-wet-formal-zero-phase-ME",
+        "R3-wet-actual-final-flux-gas-MEP",
+        "R3-wet-full-physical-P",
+        "R3-wet-restart-strict-bitparity",
+        "R3-wet-evaporation-original-900",
+        "R3-nonzero-phase-both-directions",
+        "R3-cold-start-Js-ConstantTransport",
+        "R3-prior-strict-P-arithmetic-reanalysis",
+        "R3-gross-SST-resident-complete-budgets",
+        "R3-GPU-empty-multi-selected-mapper",
+        "R3-pore-material-to-geometry"
+      ],
+      "executed_test_ids": [
+        "BUILD-NATIVE-HOST-LINK-Ns2",
+        "BUILD-NATIVE-HOST-LINK-Ns10",
+        "WET-FILM-FORMAL",
+        "ORIGINAL-CHECK-WET-FILM-FORMAL",
+        "WET-FILM-FORMAL-RESTART",
+        "ORIGINAL-CHECK-WET-FILM-FORMAL-RESTART",
+        "WET-EVAPORATION-FORMAL-900",
+        "ORIGINAL-CHECK-WET-EVAPORATION-FORMAL-900",
+        "BUILD-PHASE-LEDGER-OBSERVER",
+        "BUILD-PHASE-LEDGER-OBSERVER-D302",
+        "PHASE-FORMAL-melting-positive",
+        "PHASE-OLD4B-melting-positive",
+        "PHASE-OBSERVER-melting-positive",
+        "PHASE-FORMAL-solidification-negative",
+        "PHASE-OLD4B-solidification-negative",
+        "PHASE-OBSERVER-solidification-negative",
+        "WET-FILM-OBSERVER-D302",
+        "MESH-onecell-melting-gas",
+        "MESH-onecell-melting-solid",
+        "MESH-onecell-solidification-gas",
+        "MESH-onecell-solidification-solid",
+        "NS10-REACTING-FULL-INITCHECK-1800",
+        "ORIGINAL-CHECK-NS10-REACTING-FULL-INITCHECK-1800",
+        "AUDIT-WET-FULL-ME-P",
+        "AUDIT-WET-RESTART-FIRST-DIFFERENCE",
+        "PHASE-FORMAL-onecell-melting",
+        "PHASE-FORMAL-onecell-solidification",
+        "AUDIT-WET-FULL-ME-P-S307",
+        "PHASE-FORMAL-onecell-melting-S308",
+        "PHASE-OLD4B-onecell-melting-S308",
+        "PHASE-D302-onecell-melting-S308",
+        "PHASE-FORMAL-onecell-solidification-S308",
+        "PHASE-OLD4B-onecell-solidification-S308",
+        "PHASE-D302-onecell-solidification-S308",
+        "BUILD-COLD-START-JS-S310",
+        "BUILD-COLD-START-JS-GEOMETRY-S311",
+        "BUILD-COLD-START-JS-S311",
+        "DECODE-PHASE-onecell-melting-S308-checkpoint-0",
+        "DECODE-PHASE-onecell-melting-S308-checkpoint-1",
+        "AUDIT-PHASE-onecell-melting-S308",
+        "DECODE-PHASE-onecell-solidification-S308-checkpoint-0",
+        "DECODE-PHASE-onecell-solidification-S308-checkpoint-1",
+        "AUDIT-PHASE-onecell-solidification-S308",
+        "EVAPORATION-PROGRESS-D302",
+        "COLD-START-JS-ACTUAL-S311",
+        "AUDIT-WET-ACTUAL-FINAL-FLUX-PHYSICAL-GAS"
+      ],
+      "reused_unit_ids": [
+        "R2-F-SST-RK-net-budget",
+        "R2-F-ALE-chemistry-volumes",
+        "R2-F-dry-ablation-scoped"
+      ],
+      "remaining_gaps": [
+        "SST-RK-budgets",
+        "wet-ablation-material",
+        "CHT-radiation-mapper",
+        "resident-full-budgets",
+        "developer-formal-recheck"
+      ],
+      "finding_ids": [
+        "GPU-F004",
+        "GPU-F006",
+        "OBS-R2-P",
+        "OBS-R3-WET-P-PHYSICAL",
+        "OBS-R3-EVAP-TINY-LOCAL-STEPS"
+      ]
+    },
+    {
+      "topic_id": "R014-030",
+      "verdict": "PARTIAL_RECHECK_OPEN_GAPS",
+      "acceptance_unit_ids": [],
+      "executed_test_ids": [],
+      "reused_unit_ids": [
+        "R2-F-radiation-singlemapper"
+      ],
+      "remaining_gaps": [
+        "developer-formal-recheck"
+      ],
+      "finding_ids": []
+    },
+    {
+      "topic_id": "R014-031",
+      "verdict": "PARTIAL_RECHECK_OPEN_GAPS",
+      "acceptance_unit_ids": [
+        "R3-gross-SST-resident-complete-budgets"
+      ],
+      "executed_test_ids": [],
+      "reused_unit_ids": [],
+      "remaining_gaps": [
+        "resident-full-budgets"
+      ],
+      "finding_ids": []
+    },
+    {
+      "topic_id": "R014-032",
+      "verdict": "PARTIAL_RECHECK_OPEN_GAPS",
+      "acceptance_unit_ids": [
+        "R3-pore-material-to-geometry"
+      ],
+      "executed_test_ids": [],
+      "reused_unit_ids": [],
+      "remaining_gaps": [
+        "wet-ablation-material"
+      ],
+      "finding_ids": []
+    },
+    {
+      "topic_id": "R014-033",
+      "verdict": "PARTIAL_RECHECK_OPEN_GAPS",
+      "acceptance_unit_ids": [
+        "R3-active-cold-fullgroups-CHT-FSH",
+        "R3-host-codec-mapper-wire-sanitizers"
+      ],
+      "executed_test_ids": [
+        "NATIVE-CHT-active16-ASCII-S306",
+        "NATIVE-FSH-active16-ASCII-S306",
+        "AUDIT-ACTIVE-COLD-CHT",
+        "AUDIT-ACTIVE-COLD-FSH",
+        "BUILD-COLD-ACTUAL-LAUNCH-S309",
+        "BUILD-NATIVE-MAPPER-ASAN-S312",
+        "HOST-NATIVE-MAPPER-ASAN-S312",
+        "COLD-ACTUAL-LAUNCH-CHT-S309",
+        "COLD-ACTUAL-LAUNCH-FSH-S309",
+        "BUILD-ALL-ACTUAL-LAUNCH-S313"
+      ],
+      "reused_unit_ids": [
+        "R2-B-CHT-original-inputs",
+        "R2-B-FSH-double-restart",
+        "R2-B-init-config-copy",
+        "R2-F-radiation-singlemapper"
+      ],
+      "remaining_gaps": [
+        "FSH-cold-profile",
+        "developer-formal-recheck"
+      ],
+      "finding_ids": [
+        "GPU-F002",
+        "GPU-F004",
+        "OBS-R2-COLD16"
+      ]
+    }
+  ],
+  "remaining_gaps": [
+    {
+      "gap_id": "SST22-owner-graph",
+      "verdict": "CLOSED_SCOPED",
+      "observations": "Reusedunchangedoriginalscope. Actual22owners/resourceretry/reconfigure inbothapps; concurrenthost/freefailure coverageelsewhere.",
+      "historical_unit_id": "NOT-RUN-SST22-owner-graph",
+      "historical_fixed_commit": "ae5a59478023c74e23b64dc1a1f388fb805ef565",
+      "topics": [
+        "R014-004",
+        "R014-012",
+        "R014-017"
+      ],
+      "prior_evidence_commit": "f5e6c5e2cbde2693f5fa811d874c200b07bbbc66",
+      "prior_verdict": "CLOSED_SCOPED"
+    },
+    {
+      "gap_id": "SST-RK-budgets",
+      "verdict": "PARTIAL",
+      "observations": "OldnetK/omega/RKweights/M/E reused. Independentpriorgasbulkx exactphysicalflux closes underoriginalcriteria, strictdoublecumulative red retained; grossproduction/dissipation/allglobalP notclosed.",
+      "historical_unit_id": "NOT-RUN-SST-RK-budgets",
+      "historical_fixed_commit": "ae5a59478023c74e23b64dc1a1f388fb805ef565",
+      "topics": [
+        "R014-008",
+        "R014-009",
+        "R014-026",
+        "R014-029"
+      ],
+      "prior_evidence_commit": "f5e6c5e2cbde2693f5fa811d874c200b07bbbc66",
+      "prior_verdict": "PARTIAL"
+    },
+    {
+      "gap_id": "moving-GCL",
+      "verdict": "CLOSED",
+      "observations": "Reusedunchangedoriginalscope. Allmicrogeometry GCL and1400realchemicalold/newvolume input pairs qualified.",
+      "historical_unit_id": "NOT-RUN-moving-GCL",
+      "historical_fixed_commit": "ae5a59478023c74e23b64dc1a1f388fb805ef565",
+      "topics": [
+        "R014-008",
+        "R014-009",
+        "R014-014",
+        "R014-026",
+        "R014-029"
+      ],
+      "prior_evidence_commit": "f5e6c5e2cbde2693f5fa811d874c200b07bbbc66",
+      "prior_verdict": "CLOSED"
+    },
+    {
+      "gap_id": "cold-start-Js",
+      "verdict": "PARTIAL",
+      "observations": "S311 actualConstantTransportfreshJs/Co2changedflows +realstage laggedpublication. MissingReactingSst/selectedDt-microstepconsumer/copyfail retry remain.",
+      "historical_unit_id": "NOT-RUN-cold-start-Js",
+      "historical_fixed_commit": "ae5a59478023c74e23b64dc1a1f388fb805ef565",
+      "topics": [
+        "R014-015",
+        "R014-026"
+      ],
+      "prior_evidence_commit": "f5e6c5e2cbde2693f5fa811d874c200b07bbbc66",
+      "prior_verdict": "NOT_RUN"
+    },
+    {
+      "gap_id": "chem-native-full-retry-owner",
+      "verdict": "CLOSED_SCOPED",
+      "observations": "Reusedunchangedoriginalscope. RealNs2owner fullrequestedinterval/refinement/terminal/fullsemantic auditS208;Ns10ordinary/ALEpaths separatelycovered.",
+      "historical_unit_id": "NOT-RUN-chem-native-full-retry-owner",
+      "historical_fixed_commit": "ae5a59478023c74e23b64dc1a1f388fb805ef565",
+      "topics": [
+        "R014-010",
+        "R014-012",
+        "R014-014",
+        "R014-026"
+      ],
+      "prior_evidence_commit": "f5e6c5e2cbde2693f5fa811d874c200b07bbbc66",
+      "prior_verdict": "CLOSED_SCOPED"
+    },
+    {
+      "gap_id": "wet-ablation-material",
+      "verdict": "PARTIAL_BLOCKED",
+      "observations": "GPU-F006 formalzeroheat/force/M/E andlegalnonzerobothdirectionsnowpass. Originalevap900sBLOCKED .00025/.001; globalwetfilmP open, otherpore/materialinventory notrun.",
+      "historical_unit_id": "NOT-RUN-wet-ablation-material",
+      "historical_fixed_commit": "ae5a59478023c74e23b64dc1a1f388fb805ef565",
+      "topics": [
+        "R014-003",
+        "R014-006",
+        "R014-011",
+        "R014-014",
+        "R014-026",
+        "R014-029",
+        "R014-032"
+      ],
+      "prior_evidence_commit": "f5e6c5e2cbde2693f5fa811d874c200b07bbbc66",
+      "prior_verdict": "FAIL_OPEN"
+    },
+    {
+      "gap_id": "CHT-radiation-mapper",
+      "verdict": "PARTIAL",
+      "observations": "Oldsingle/mixed/enabledDO/fullsolidledger reused. NewactualOpenFoamhostempty/single/multi ASanUBSanPASS; actualGPUempty/multipleconsumer stillnotrun.",
+      "historical_unit_id": "NOT-RUN-CHT-radiation-mapper",
+      "historical_fixed_commit": "ae5a59478023c74e23b64dc1a1f388fb805ef565",
+      "topics": [
+        "R014-020",
+        "R014-026",
+        "R014-029"
+      ],
+      "prior_evidence_commit": "f5e6c5e2cbde2693f5fa811d874c200b07bbbc66",
+      "prior_verdict": "PARTIAL"
+    },
+    {
+      "gap_id": "mixed-wall-coupler",
+      "verdict": "CLOSED_SCOPED",
+      "observations": "Reusedunchangedoriginalscope. Bothorder/toggle/downloadedvalues/actualcopyretry;actualnativeonecoupled+othersuncoupled;full3appgasbudget elsewhere.",
+      "historical_unit_id": "NOT-RUN-mixed-wall-coupler",
+      "historical_fixed_commit": "ae5a59478023c74e23b64dc1a1f388fb805ef565",
+      "topics": [
+        "R014-012",
+        "R014-020",
+        "R014-033"
+      ],
+      "prior_evidence_commit": "f5e6c5e2cbde2693f5fa811d874c200b07bbbc66",
+      "prior_verdict": "CLOSED_SCOPED"
+    },
+    {
+      "gap_id": "FSH-cold-profile",
+      "verdict": "PARTIAL",
+      "observations": "Originalreal1D/2Ddouble/restart reused; new16trulyactivewholegroups/eachtime1e-9/launchbyteparityPASS. Fullgas/particle/wall stageinventories remain.",
+      "historical_unit_id": "NOT-RUN-FSH-cold-profile",
+      "historical_fixed_commit": "ae5a59478023c74e23b64dc1a1f388fb805ef565",
+      "topics": [
+        "R014-018",
+        "R014-019",
+        "R014-023",
+        "R014-026",
+        "R014-033"
+      ],
+      "prior_evidence_commit": "f5e6c5e2cbde2693f5fa811d874c200b07bbbc66",
+      "prior_verdict": "PARTIAL"
+    },
+    {
+      "gap_id": "host-sanitizers",
+      "verdict": "PARTIAL",
+      "observations": "Actualnewcodec +nativeOpenFoammapper +realFSHclient10POSIXwireframes ASanUBSanPASS. Fullresourceowner/server/concurrentfault range remains.",
+      "historical_unit_id": "NOT-RUN-host-sanitizers",
+      "historical_fixed_commit": "ae5a59478023c74e23b64dc1a1f388fb805ef565",
+      "topics": [
+        "R014-005",
+        "R014-012",
+        "R014-019",
+        "R014-020",
+        "R014-028"
+      ],
+      "prior_evidence_commit": "f5e6c5e2cbde2693f5fa811d874c200b07bbbc66",
+      "prior_verdict": "PARTIAL"
+    },
+    {
+      "gap_id": "allocation-fault-lifecycle",
+      "verdict": "PARTIAL",
+      "observations": "Reusedunchangedoriginalscope. Actual22slotOOM/copyretry/coldcopy andCoOOM/destructionpass;otherfree/sync/hostfailure/concurrency effectsnotcovered.",
+      "historical_unit_id": "NOT-RUN-allocation-fault-lifecycle",
+      "historical_fixed_commit": "ae5a59478023c74e23b64dc1a1f388fb805ef565",
+      "topics": [
+        "R014-012",
+        "R014-026",
+        "R014-028"
+      ],
+      "prior_evidence_commit": "f5e6c5e2cbde2693f5fa811d874c200b07bbbc66",
+      "prior_verdict": "PARTIAL"
+    },
+    {
+      "gap_id": "resident-full-budgets",
+      "verdict": "FAIL_OPEN",
+      "observations": "NewwetfullgasfinalweightedM/E/vectorP/species underoriginalcriteriaPASS; globalreducedfilmP notclosed. Threeappgrossfinal-limitedflux/allsourceM/E/P remains.",
+      "historical_unit_id": "NOT-RUN-resident-full-budgets",
+      "historical_fixed_commit": "ae5a59478023c74e23b64dc1a1f388fb805ef565",
+      "topics": [
+        "R014-018",
+        "R014-020",
+        "R014-026",
+        "R014-029",
+        "R014-031"
+      ],
+      "prior_evidence_commit": "f5e6c5e2cbde2693f5fa811d874c200b07bbbc66",
+      "prior_verdict": "FAIL_OPEN"
+    },
+    {
+      "gap_id": "native-FP64-clock-lineage",
+      "verdict": "CLOSED_SCOPED",
+      "observations": "Reusedunchangedoriginalscope. Actualfirstclockstep6/firstphysicaldt-gas-packetstep50; baselinepayloadidentityproof;approvedcompensatedclockunchanged. Fullvsrestartfirstdiffunresolved separately.",
+      "historical_unit_id": "NOT-RUN-native-FP64-clock-lineage",
+      "historical_fixed_commit": "ae5a59478023c74e23b64dc1a1f388fb805ef565",
+      "topics": [
+        "R014-014",
+        "R014-015",
+        "R014-021",
+        "R014-022",
+        "R014-026"
+      ],
+      "prior_evidence_commit": "f5e6c5e2cbde2693f5fa811d874c200b07bbbc66",
+      "prior_verdict": "CLOSED_SCOPED"
+    },
+    {
+      "gap_id": "developer-formal-recheck",
+      "verdict": "PARTIAL",
+      "observations": "Source9d zero-phase formaloriginalwet andbothlegalnonzero branches, submittedfixtureoriginalGPU controls, Ns10fullsanitizer, activecold groups rechecked. Fullnegativefixture proof stillsupportS302, wetP/restart/evap andremaininggaps preventoverallFAST.",
+      "historical_unit_id": "NOT-RUN-developer-formal-recheck",
+      "historical_fixed_commit": "ae5a59478023c74e23b64dc1a1f388fb805ef565",
+      "topics": [
+        "R014-021",
+        "R014-022",
+        "R014-024",
+        "R014-026",
+        "R014-029",
+        "R014-030",
+        "R014-033"
+      ],
+      "prior_evidence_commit": "f5e6c5e2cbde2693f5fa811d874c200b07bbbc66",
+      "prior_verdict": "PARTIAL"
+    }
+  ],
+  "additional_open_ranges": [
+    "strictthermal/wetrestartbitparity",
+    "submittednegativefixturesemanticcoverage",
+    "actualfree/sync/hostallocationconcurrentfailure"
+  ],
+  "reused_acceptance_units": [
+    {
+      "id": "R2-A-owner-full-semantic",
+      "verdict": "PASS",
+      "variant": "FORMAL_SOURCE_TEST_SUPPORT",
+      "test_ids": [
+        "CHEM-OWNER-S208"
+      ],
+      "topics": [
+        "R014-010",
+        "R014-012",
+        "R014-014",
+        "R014-026"
+      ],
+      "scope": "RealNs2requested4e-6: StepLimit rollback, fouracceptedparts, exhaustedterminal originalpublicfalse, original1e-6 control; allsemanticfields/audits/status/budget and16failedresource combinations.",
+      "limitations": "S202/S203/S208 fixture support only. Submittedoriginalfixture itself FAIL. Ns2 is speciescount, notclaimallNs10ownerconfigurations.",
+      "counts_separately_from_commands": true,
+      "fixed_evidence_commit": "f5e6c5e2cbde2693f5fa811d874c200b07bbbc66",
+      "producer_commit": "4b5c480b572f234ddecf5e89164fe59b0d2e9735",
+      "reuse_basis": "Exactunchangedsource/dependencyandoriginalscope; no newGPUexecution or expandedacceptance."
+    },
+    {
+      "id": "R2-A-Ns10-native",
+      "verdict": "PASS",
+      "variant": "FORMAL",
+      "test_ids": [
+        "CHMT-chemistry-full",
+        "CHMT-chemistry-control"
+      ],
+      "topics": [
+        "R014-010",
+        "R014-024",
+        "R014-026"
+      ],
+      "scope": "RealNs10originalfull/control inputs, originalchecker andalloutput bytes equal802; freshfullnativecompile serialretry.",
+      "limitations": "Fullinitcheck300s BLOCKED separate.",
+      "counts_separately_from_commands": true,
+      "fixed_evidence_commit": "f5e6c5e2cbde2693f5fa811d874c200b07bbbc66",
+      "producer_commit": "4b5c480b572f234ddecf5e89164fe59b0d2e9735",
+      "reuse_basis": "Exactunchangedsource/dependencyandoriginalscope; no newGPUexecution or expandedacceptance."
+    },
+    {
+      "id": "R2-B-CHT-original-inputs",
+      "verdict": "PASS",
+      "variant": "FORMAL",
+      "test_ids": [
+        "NATIVE-CHT-coldWall1D-INPUT2",
+        "NATIVE-CHT-coldWall2D-INPUT2",
+        "RESTART-CHT-coldWall2D-INPUT2",
+        "NATIVE-CHT-coldWall1D-WET100",
+        "NATIVE-CHT-coldWall2D-INPUT2-memcheck",
+        "NATIVE-CHT-coldWall2D-INPUT2-synccheck"
+      ],
+      "topics": [
+        "R014-018",
+        "R014-019",
+        "R014-023",
+        "R014-026",
+        "R014-033"
+      ],
+      "scope": "Originalcold1D/cold2D/wet100, alltime1e-9 mean(double)+carry; original2Drestart terminalbytes.",
+      "limitations": "P007/P010 notapplied. Multipleactivegroups/fullgasledger separate.",
+      "counts_separately_from_commands": true,
+      "fixed_evidence_commit": "f5e6c5e2cbde2693f5fa811d874c200b07bbbc66",
+      "producer_commit": "4b5c480b572f234ddecf5e89164fe59b0d2e9735",
+      "reuse_basis": "Exactunchangedsource/dependencyandoriginalscope; no newGPUexecution or expandedacceptance."
+    },
+    {
+      "id": "R2-B-FSH-double-restart",
+      "verdict": "PASS",
+      "variant": "FORMAL_TEST_SUPPORT",
+      "test_ids": [
+        "NATIVE-FSH-coldWall1D",
+        "RESTART-FSH-coldWall1D",
+        "NATIVE-FSH-coldWall2D",
+        "RESTART-FSH-coldWall2D"
+      ],
+      "topics": [
+        "R014-018",
+        "R014-019",
+        "R014-023",
+        "R014-026",
+        "R014-033"
+      ],
+      "scope": "RealFSHdoublecold1D/2D andmidpointrestart allterminalbytes; S204 samecaloric1e-9 usingactualFSHschema.",
+      "limitations": "FSHhasnoCHTcarryfield; do notinventone.",
+      "counts_separately_from_commands": true,
+      "fixed_evidence_commit": "f5e6c5e2cbde2693f5fa811d874c200b07bbbc66",
+      "producer_commit": "4b5c480b572f234ddecf5e89164fe59b0d2e9735",
+      "reuse_basis": "Exactunchangedsource/dependencyandoriginalscope; no newGPUexecution or expandedacceptance."
+    },
+    {
+      "id": "R2-B-init-config-copy",
+      "verdict": "PASS",
+      "variant": "FORMAL",
+      "test_ids": [
+        "COLD-FIXTURE-CHT",
+        "COLD-FIXTURE-FSH",
+        "COLD-ACTUAL-COPY-RETRY"
+      ],
+      "topics": [
+        "R014-012",
+        "R014-018",
+        "R014-023",
+        "R014-026",
+        "R014-033"
+      ],
+      "scope": "Fourphases/nonzerocarry,actualconfig-before/afterpatch mixedfaces/toggle preserveuploads; actualCUDAcopyerror initializerretry.",
+      "limitations": "Fixturegroupsinglethreadinitialization, not full8lane dynamics.",
+      "counts_separately_from_commands": true,
+      "fixed_evidence_commit": "f5e6c5e2cbde2693f5fa811d874c200b07bbbc66",
+      "producer_commit": "4b5c480b572f234ddecf5e89164fe59b0d2e9735",
+      "reuse_basis": "Exactunchangedsource/dependencyandoriginalscope; no newGPUexecution or expandedacceptance."
+    },
+    {
+      "id": "R2-C-tail-whole-output",
+      "verdict": "PASS",
+      "variant": "FORMAL",
+      "test_ids": [
+        "CHMT-thermal-full",
+        "CHMT-thermal-full-initcheck"
+      ],
+      "topics": [
+        "R014-009",
+        "R014-012",
+        "R014-014",
+        "R014-026",
+        "R014-028"
+      ],
+      "scope": "RealNs2original100microsteps initcheck0; ALLCSV/checkpoints/serializedgeometry bytesexact802.",
+      "limitations": "No clockobserver; d611notusedasthisbytebaseline.",
+      "counts_separately_from_commands": true,
+      "fixed_evidence_commit": "f5e6c5e2cbde2693f5fa811d874c200b07bbbc66",
+      "producer_commit": "4b5c480b572f234ddecf5e89164fe59b0d2e9735",
+      "reuse_basis": "Exactunchangedsource/dependencyandoriginalscope; no newGPUexecution or expandedacceptance."
+    },
+    {
+      "id": "R2-C-cache-freshdata",
+      "verdict": "PASS",
+      "variant": "FORMAL_OPERATOR",
+      "test_ids": [
+        "CO-FIXTURE",
+        "CO-FRESH-2",
+        "CO-FRESH-10",
+        "CO-FRESH-10-INITCHECK"
+      ],
+      "topics": [
+        "R014-009",
+        "R014-012",
+        "R014-014",
+        "R014-026",
+        "R014-028"
+      ],
+      "scope": "Actualempty/single/multiblock/maxOR/NaNbitcontrol,168changingarraycases/ns, sameowner growth/reuse andsecondowner streams, realOOM/retry/destruction.",
+      "limitations": "Hostserializedstreams; no sameBackendconcurrenthostthread claim.",
+      "counts_separately_from_commands": true,
+      "fixed_evidence_commit": "f5e6c5e2cbde2693f5fa811d874c200b07bbbc66",
+      "producer_commit": "4b5c480b572f234ddecf5e89164fe59b0d2e9735",
+      "reuse_basis": "Exactunchangedsource/dependencyandoriginalscope; no newGPUexecution or expandedacceptance."
+    },
+    {
+      "id": "R2-C-Ns10-control-initcheck",
+      "verdict": "PASS",
+      "variant": "FORMAL",
+      "test_ids": [
+        "CHMT-chemistry-control-initcheck"
+      ],
+      "topics": [
+        "R014-009",
+        "R014-010",
+        "R014-026",
+        "R014-028"
+      ],
+      "scope": "ActualoriginalNs10control wholecase initcheck0; alloutputbytes802.",
+      "limitations": "Notfullreactinginputsanitizer.",
+      "counts_separately_from_commands": true,
+      "fixed_evidence_commit": "f5e6c5e2cbde2693f5fa811d874c200b07bbbc66",
+      "producer_commit": "4b5c480b572f234ddecf5e89164fe59b0d2e9735",
+      "reuse_basis": "Exactunchangedsource/dependencyandoriginalscope; no newGPUexecution or expandedacceptance."
+    },
+    {
+      "id": "R2-C-restart-vs802",
+      "verdict": "PASS",
+      "variant": "FORMAL_VS_802",
+      "test_ids": [
+        "THERMAL-802-SAME-RESTART"
+      ],
+      "topics": [
+        "R014-005",
+        "R014-009",
+        "R014-012",
+        "R014-014",
+        "R014-026"
+      ],
+      "scope": "Currentand802fromsameactualcheckpoint/input: all10outputfiles byteexact.",
+      "limitations": "Full-vs-restart strictdifference separatelyretained, no newcacheregression shown.",
+      "counts_separately_from_commands": true,
+      "fixed_evidence_commit": "f5e6c5e2cbde2693f5fa811d874c200b07bbbc66",
+      "producer_commit": "4b5c480b572f234ddecf5e89164fe59b0d2e9735",
+      "reuse_basis": "Exactunchangedsource/dependencyandoriginalscope; no newGPUexecution or expandedacceptance."
+    },
+    {
+      "id": "R2-D-clock-lineage",
+      "verdict": "PASS",
+      "variant": "READONLY_DIAGNOSTIC",
+      "test_ids": [
+        "TRACE-NATIVE-tested",
+        "TRACE-NATIVE-formal",
+        "TRACE-BASELINE-CHECKPOINT-PAYLOAD-PROOF"
+      ],
+      "topics": [
+        "R014-014",
+        "R014-015",
+        "R014-021",
+        "R014-022",
+        "R014-026",
+        "R014-027"
+      ],
+      "scope": "Actual3version21400hexrecords: firstclockacceptedstep6, stageclockstep7, firstdt/gas/packetstep50/window; wallphysicalallunchanged;802vsformalalltracebitsidentical.",
+      "limitations": "Baselinecheckpoint identity/checksum changes66bytes; allstatepayload/configotherbytes bitidentical. OriginalwholebyteFAILretained. Approvedcompensatedclockpreserved, notd611wholeparityPASS.",
+      "counts_separately_from_commands": true,
+      "fixed_evidence_commit": "f5e6c5e2cbde2693f5fa811d874c200b07bbbc66",
+      "producer_commit": "4b5c480b572f234ddecf5e89164fe59b0d2e9735",
+      "reuse_basis": "Exactunchangedsource/dependencyandoriginalscope; no newGPUexecution or expandedacceptance."
+    },
+    {
+      "id": "R2-F-SST22-resource",
+      "verdict": "PASS",
+      "variant": "FORMAL_REAL_ERROR_OBSERVER",
+      "test_ids": [
+        "SST22-ACTUAL-OWNER-CHT",
+        "SST22-ACTUAL-OWNER-FSH"
+      ],
+      "topics": [
+        "R014-004",
+        "R014-012",
+        "R014-017",
+        "R014-018",
+        "R014-026",
+        "R014-028"
+      ],
+      "scope": "ActualCHT/FSH22canonicalowners, late/reconfigure, realOOMeveryallocation/copyerror,retryonlymissingowner,nativeinit anddestroy.",
+      "limitations": "Allmodelmigration/concurrency/freefailure types notproved.",
+      "counts_separately_from_commands": true,
+      "fixed_evidence_commit": "f5e6c5e2cbde2693f5fa811d874c200b07bbbc66",
+      "producer_commit": "4b5c480b572f234ddecf5e89164fe59b0d2e9735",
+      "reuse_basis": "Exactunchangedsource/dependencyandoriginalscope; no newGPUexecution or expandedacceptance."
+    },
+    {
+      "id": "R2-F-SST-RK-net-budget",
+      "verdict": "PASS",
+      "variant": "FORMAL_READONLY_DIAGNOSTIC",
+      "test_ids": [
+        "ACTUAL-WEIGHTED-LEDGER-SST-SSPRK2",
+        "ACTUAL-WEIGHTED-LEDGER-SST-SSPRK3",
+        "SCOPED-MASS-ENERGY-SST-SST-RK",
+        "SCOPED-MASS-ENERGY-SST-SST-SSPRK2",
+        "SCOPED-MASS-ENERGY-SST-SST-SSPRK3"
+      ],
+      "topics": [
+        "R014-008",
+        "R014-009",
+        "R014-014",
+        "R014-026",
+        "R014-029"
+      ],
+      "scope": "ActualEuler/RK2/RK3 SSTK/omega transport/source/constraintstockclosure,globalM/E andperrecipientM/E; actualfinalflux weights .5/.5 and1/6/1/6/2/3.",
+      "limitations": "Grossproduction/dissipation andcompletebulkmomentum stillopen; strictmomentumred unchanged.",
+      "counts_separately_from_commands": true,
+      "fixed_evidence_commit": "f5e6c5e2cbde2693f5fa811d874c200b07bbbc66",
+      "producer_commit": "4b5c480b572f234ddecf5e89164fe59b0d2e9735",
+      "reuse_basis": "Exactunchangedsource/dependencyandoriginalscope; no newGPUexecution or expandedacceptance."
+    },
+    {
+      "id": "R2-F-ALE-chemistry-volumes",
+      "verdict": "PASS",
+      "variant": "FORMAL_READONLY_DIAGNOSTIC",
+      "test_ids": [
+        "ACTUAL-KERNELS-moving-chemistry-S206",
+        "ACTUAL-ALL-MICROGEOMETRY-moving-GCL",
+        "ACTUAL-ALL-MICROGEOMETRY-moving-chemistry"
+      ],
+      "topics": [
+        "R014-008",
+        "R014-010",
+        "R014-014",
+        "R014-026",
+        "R014-029"
+      ],
+      "scope": "All100Ns2/700Ns10acceptedmicrosteps bothgeometry stages; GCLmax5.5511e-17m3 beloworiginal1e-14; all1400actualNs10chemkernels old/newvolume arguments bitexact andsamehalfdt.",
+      "limitations": "Observeroutputsalloriginalbytesunchanged, IOexcludedtiming.",
+      "counts_separately_from_commands": true,
+      "fixed_evidence_commit": "f5e6c5e2cbde2693f5fa811d874c200b07bbbc66",
+      "producer_commit": "4b5c480b572f234ddecf5e89164fe59b0d2e9735",
+      "reuse_basis": "Exactunchangedsource/dependencyandoriginalscope; no newGPUexecution or expandedacceptance."
+    },
+    {
+      "id": "R2-F-dry-ablation-scoped",
+      "verdict": "PASS",
+      "variant": "FORMAL",
+      "test_ids": [
+        "ACTUAL-WEIGHTED-LEDGER-dry-ablation",
+        "SCOPED-MASS-ENERGY-SST-dry-ablation"
+      ],
+      "topics": [
+        "R014-003",
+        "R014-006",
+        "R014-011",
+        "R014-014",
+        "R014-026",
+        "R014-029"
+      ],
+      "scope": "ActualC0->S0surfacegas/CoupledRecession, fullM/E stock andpairedM/E, actualfinalflux/rawallmicrogeometry.",
+      "limitations": "CompleteP strictred3.58e-13; bulk/pore/meltingcampaign notcovered.",
+      "counts_separately_from_commands": true,
+      "fixed_evidence_commit": "f5e6c5e2cbde2693f5fa811d874c200b07bbbc66",
+      "producer_commit": "4b5c480b572f234ddecf5e89164fe59b0d2e9735",
+      "reuse_basis": "Exactunchangedsource/dependencyandoriginalscope; no newGPUexecution or expandedacceptance."
+    },
+    {
+      "id": "R2-F-radiation-singlemapper",
+      "verdict": "PASS",
+      "variant": "FORMAL",
+      "test_ids": [
+        "NATIVE-CHT-actual-coupler-S210",
+        "NATIVE-CHT-actual-radiation-S210",
+        "COMPLETE-SOLID-ALLBOUNDARY-CHT-actual-coupler-S210",
+        "COMPLETE-SOLID-ALLBOUNDARY-CHT-actual-radiation-S210"
+      ],
+      "topics": [
+        "R014-018",
+        "R014-020",
+        "R014-023",
+        "R014-026",
+        "R014-030",
+        "R014-033"
+      ],
+      "scope": "ActualCHT GPUresident+realDOsolidcoupler/oneface/mixeddefaults; profiles1e-9; fullallboundarysolidledger max3.64e-13/2.59e-13J.",
+      "limitations": "Empty/multiple-selectedmapper, fullgas/particleinventory stillopen; wall-onlyincompleteFAILpreserved.",
+      "counts_separately_from_commands": true,
+      "fixed_evidence_commit": "f5e6c5e2cbde2693f5fa811d874c200b07bbbc66",
+      "producer_commit": "4b5c480b572f234ddecf5e89164fe59b0d2e9735",
+      "reuse_basis": "Exactunchangedsource/dependencyandoriginalscope; no newGPUexecution or expandedacceptance."
+    },
+    {
+      "id": "R2-F-host-codec-sanitizer",
+      "verdict": "PASS",
+      "variant": "FORMAL_HOST_SANITIZER",
+      "test_ids": [
+        "HOST-DECODE-SST-RK-checkpoint-0",
+        "HOST-DECODE-SST-RK-checkpoint-1",
+        "HOST-DECODE-SST-RK-checkpoint-2",
+        "HOST-DECODE-moving-GCL-checkpoint-0",
+        "HOST-DECODE-moving-GCL-checkpoint-1",
+        "HOST-DECODE-moving-GCL-checkpoint-2",
+        "HOST-DECODE-moving-chemistry-checkpoint-0",
+        "HOST-DECODE-moving-chemistry-checkpoint-1",
+        "HOST-DECODE-moving-chemistry-checkpoint-2",
+        "HOST-DECODE-SST-SSPRK2-0-DIR",
+        "HOST-DECODE-SST-SSPRK2-1-DIR",
+        "HOST-DECODE-SST-SSPRK2-2-DIR",
+        "HOST-DECODE-SST-SSPRK3-0-DIR",
+        "HOST-DECODE-SST-SSPRK3-1-DIR",
+        "HOST-DECODE-SST-SSPRK3-2-DIR",
+        "HOST-DECODE-S207-SST-RK-checkpoint-0",
+        "HOST-DECODE-S207-SST-RK-checkpoint-1",
+        "HOST-DECODE-S207-SST-RK-checkpoint-2",
+        "HOST-DECODE-S207-SST-SSPRK2-checkpoint-0",
+        "HOST-DECODE-S207-SST-SSPRK2-checkpoint-1",
+        "HOST-DECODE-S207-SST-SSPRK2-checkpoint-2",
+        "HOST-DECODE-S207-SST-SSPRK3-checkpoint-0",
+        "HOST-DECODE-S207-SST-SSPRK3-checkpoint-1",
+        "HOST-DECODE-S207-SST-SSPRK3-checkpoint-2",
+        "HOST-DECODE-S207-moving-GCL-checkpoint-0",
+        "HOST-DECODE-S207-moving-GCL-checkpoint-1",
+        "HOST-DECODE-S207-moving-GCL-checkpoint-2",
+        "HOST-DECODE-S207-dry-ablation-checkpoint-0",
+        "HOST-DECODE-S207-dry-ablation-checkpoint-1",
+        "HOST-DECODE-S207-dry-ablation-checkpoint-2",
+        "HOST-DECODE-S207-wet-film-S209-checkpoint-0",
+        "HOST-DECODE-S207-wet-evaporation-S209-checkpoint-0",
+        "HOST-DECODE-S207-wet-film-S209-D204-checkpoint-0",
+        "HOST-DECODE-S207-wet-film-S209-D204-checkpoint-1",
+        "HOST-DECODE-S207-wet-film-S209-D204-checkpoint-2"
+      ],
+      "topics": [
+        "R014-005",
+        "R014-019",
+        "R014-026",
+        "R014-028"
+      ],
+      "scope": "Actualcurrentcheckpointdecoder ofrealGPUdata underhostASan/UBSan, expandedactualstock/packet fields.",
+      "limitations": "Onlynamedcodec path; not allwire/mapper/resourceownerhosts.",
+      "counts_separately_from_commands": true,
+      "fixed_evidence_commit": "f5e6c5e2cbde2693f5fa811d874c200b07bbbc66",
+      "producer_commit": "4b5c480b572f234ddecf5e89164fe59b0d2e9735",
+      "reuse_basis": "Exactunchangedsource/dependencyandoriginalscope; no newGPUexecution or expandedacceptance."
+    },
+    {
+      "id": "R2-performance-resource",
+      "verdict": "PASS",
+      "variant": "PERFORMANCE_QUALIFIED",
+      "test_ids": [
+        "NSYS-FORMAL",
+        "TIMING-old-production-warmup-0",
+        "TIMING-formal-warmup-0",
+        "TIMING-formal-warmup-1",
+        "TIMING-old-production-warmup-1",
+        "TIMING-old-production-warmup-2",
+        "TIMING-formal-warmup-2",
+        "TIMING-old-production-measured-0",
+        "TIMING-formal-measured-0",
+        "TIMING-formal-measured-1",
+        "TIMING-old-production-measured-1",
+        "TIMING-old-production-measured-2",
+        "TIMING-formal-measured-2",
+        "TIMING-formal-measured-3",
+        "TIMING-old-production-measured-3",
+        "TIMING-old-production-measured-4",
+        "TIMING-formal-measured-4",
+        "TIMING-formal-measured-5",
+        "TIMING-old-production-measured-5",
+        "TIMING-old-production-measured-6",
+        "TIMING-formal-measured-6"
+      ],
+      "topics": [
+        "R014-002",
+        "R014-009",
+        "R014-016",
+        "R014-026",
+        "R014-027"
+      ],
+      "scope": "Matched100step Nsight allocation339->140;3000kernels unchanged, stable198Co ranges0malloc/free; peaktracked22281B/final0; nonprofiling3warm+7rawsamples retained.",
+      "limitations": "Memorysubset,certainnonmallocmemoryevents unresolved. Median ratio.99785 withlargevariance; no stablewhole-solverspeedup claim.",
+      "counts_separately_from_commands": true,
+      "fixed_evidence_commit": "f5e6c5e2cbde2693f5fa811d874c200b07bbbc66",
+      "producer_commit": "4b5c480b572f234ddecf5e89164fe59b0d2e9735",
+      "reuse_basis": "Exactunchangedsource/dependencyandoriginalscope; no newGPUexecution or expandedacceptance."
+    }
+  ],
+  "counts_not_additive_across_topics": true,
+  "overall_FAST_acceptance": false
+}

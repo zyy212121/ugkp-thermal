@@ -1,0 +1,61 @@
+/*--------------------------------*- C++ -*----------------------------------*\
+  =========                 |
+  \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
+   \\    /   O peration     | Website:  https://openfoam.org
+    \\  /    A nd           | Version:  10
+     \\/     M anipulation  |
+\*---------------------------------------------------------------------------*/
+FoamFile
+{
+    format      ascii;
+    class       surfaceScalarField;
+    location    "7e-06";
+    object      particleReflectedWallHeatFlux;
+}
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
+dimensions      [1 0 -3 0 0 0 0];
+
+internalField   uniform 0;
+
+boundaryField
+{
+    impactWall
+    {
+        type            calculated;
+        value           nonuniform List<scalar> 
+16
+(
+312462.97560135322
+312462.97560135328
+312462.97560135298
+312462.97560135287
+312462.97560135322
+312462.97560135293
+312462.97560135328
+312462.97560135287
+312462.97560135298
+312462.97560135328
+312462.9756013531
+312462.97560135328
+312462.97560135316
+312462.97560135293
+312462.97560135293
+312462.97560135316
+)
+;
+    }
+    top
+    {
+        type            calculated;
+        value           uniform 0;
+    }
+    sideWalls
+    {
+        type            calculated;
+        value           uniform 0;
+    }
+}
+
+
+// ************************************************************************* //

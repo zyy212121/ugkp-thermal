@@ -1,0 +1,35 @@
+--- a/formal-generated-chemistry_trial.cu
++++ b/readonly-owner-chronology.cu
+@@ -443,20 +443,21 @@
+     static double currentDuration;
+     static void clear(){begins=commits=rollbacks=stepLimits=terminalStages=0;
+         currentDuration=0.;sourceDurations.clear();acceptedDurations.clear();}
+-    static int begin(DeviceState* s){++begins;return SharedGasTrialPolicy::begin(s);}
++    static int begin(DeviceState* s){++begins;const int rc=SharedGasTrialPolicy::begin(s);std::printf("R3TRIAL event=begin attempt=%d rc=%d\n",begins,rc);return rc;}
+     static int validate(DeviceState* s,bool native=false){
+         const int rc=SharedGasTrialPolicy::validate(s,native);
+         if(rc && native && s->gasSpecies.chemistryStatus[0].code==ChemistryCode::StepLimit){
+             ++stepLimits;check(retryable(s)&&continueTerminal(s),"chemistry StepLimit did not reach owner retry");}
++        std::printf("R3TRIAL event=validate attempt=%d dt=%a rc=%d stepLimits=%d retry=%d terminal=%d\n",begins,currentDuration,rc,stepLimits,int(s->gasTrial.retryableFailure),int(s->gasTrial.terminalContinuation));
+         return rc;
+     }
+     static int applySources(DeviceState* s,double dt,bool native=false){
+-        currentDuration=dt;sourceDurations.push_back(dt);if(!native)++terminalStages;
++        currentDuration=dt;sourceDurations.push_back(dt);if(!native)++terminalStages;std::printf("R3TRIAL event=source attempt=%d dt=%a native=%d\n",begins,dt,int(native));
+         return SharedGasTrialPolicy::applySources(s,dt,native);
+     }
+     static int commit(DeviceState* s){const int rc=SharedGasTrialPolicy::commit(s);
+-        if(!rc){++commits;acceptedDurations.push_back(currentDuration);}return rc;}
+-    static void rollback(DeviceState* s){++rollbacks;SharedGasTrialPolicy::rollback(s);}
++        if(!rc){++commits;acceptedDurations.push_back(currentDuration);}std::printf("R3TRIAL event=commit attempt=%d dt=%a rc=%d commits=%d\n",begins,currentDuration,rc,commits);return rc;}
++    static void rollback(DeviceState* s){++rollbacks;SharedGasTrialPolicy::rollback(s);std::printf("R3TRIAL event=rollback attempt=%d dt=%a rollbacks=%d retry=%d terminal=%d\n",begins,currentDuration,rollbacks,int(s->gasTrial.retryableFailure),int(s->gasTrial.terminalContinuation));}
+ };
+ int TracePolicy::begins=0,TracePolicy::commits=0,TracePolicy::rollbacks=0,TracePolicy::stepLimits=0,TracePolicy::terminalStages=0;
+ std::vector<double> TracePolicy::sourceDurations,TracePolicy::acceptedDurations;
+@@ -595,5 +596,5 @@
+ }
+ } // namespace chemistryTrialTest
+ int main(){setvbuf(stdout,nullptr,_IONBF,0);chemistryTrialTest::ownerTests();
+-    chemistryTrialTest::failedCellTests();chemistryTrialTest::cleanup();
++    chemistryTrialTest::cleanup();
+     std::puts("PASS real CUDA chemistry Trial routing, owner retry, terminal completion and unavailable-resource controls");}

@@ -1,0 +1,13 @@
+--- a/CpuMaterialDriver-phase-observer.C
++++ b/CpuMaterialDriver-phase-observer-D302.C
+@@ -618,8 +618,9 @@
+                 for(const auto& phase:surface.phasePackets){const int f=phase.filmFace,c=phase.solidCell;
+                     MaterialPrimitive material;recoverMaterial(state.solid[c],state.solidMesh.volumes[c],p,material);
+                     const double density=phase.mass==0?0:p.condensed[p.material.phaseCondensed].rho;
++                    std::fprintf(stderr,"R3CONFIG liquidRho=%a condensedRho0=%a condensedRho1=%a liquidE0=%a referencePressure=%a phaseIndex=%d enableMelting=%d meltTemperature=%a\n",p.liquid.rho,p.condensed[0].rho,p.condensed[1].rho,p.liquid.e0,p.liquidReferencePressure,p.material.phaseCondensed,int(p.material.enableMelting),p.meltTemperature);
+                     std::fprintf(stderr,"R3PHASE,window=%llu,micro=%llu,time=%a,dt=%a,face=%llu,film=%d,solid=%d,index=%d,mass=%a,rho=%a,porosity=%a,target=%a,energy=%a,heat=%a,mx=%a,my=%a,mz=%a,forcingMass=%a,forcingPhaseMass=%a,oldFilmM=%a,newFilmM=%a,oldFilmH=%a,newFilmH=%a,oldMeanX=%a,newMeanX=%a,oldSolidV=%a,newSolidV=%a\n",
+-                        static_cast<unsigned long long>(window.identity.sequence),static_cast<unsigned long long>(record.microSequence),state.time,dt,
++                        static_cast<unsigned long long>(window.identity.sequence),static_cast<unsigned long long>(driveRecord->microSequence),state.time,dt,
+                         static_cast<unsigned long long>(phase.face),f,c,p.material.phaseCondensed,phase.mass,density,material.porosity,target[f],phase.energy,phase.conductive,
+                         phase.momentum.x,phase.momentum.y,phase.momentum.z,forcing[f].mass,forcing[f].phaseMass,state.film[f].mass,trial.film[f].mass,
+                         state.film[f].enthalpy,trial.film[f].enthalpy,state.filmAux[f].meanVelocity.x,trial.filmAux[f].meanVelocity.x,state.solidMesh.volumes[c],trial.solidMesh.volumes[c]);

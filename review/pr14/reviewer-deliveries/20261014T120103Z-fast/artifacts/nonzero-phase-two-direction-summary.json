@@ -1,0 +1,444 @@
+[
+  {
+    "name": "onecell-melting-S308",
+    "source": "9d5be6eff69dbced2fc959d422d3ba419a1bc39e",
+    "old_safe_source": "4b5c480b572f234ddecf5e89164fe59b0d2e9735",
+    "complete_end": 1e-06,
+    "recorded_consumed_config": [
+      {
+        "liquidRho": "0x1.f4p+9",
+        "condensedRho0": "0x1.f4p+9",
+        "condensedRho1": "0x1.f4p+9",
+        "liquidE0": "0x1.86ap+17",
+        "referencePressure": "0x0p+0",
+        "phaseIndex": "0",
+        "enableMelting": "1",
+        "meltTemperature": "0x1.2cp+9"
+      },
+      {
+        "liquidRho": "0x1.f4p+9",
+        "condensedRho0": "0x1.f4p+9",
+        "condensedRho1": "0x1.f4p+9",
+        "liquidE0": "0x1.86ap+17",
+        "referencePressure": "0x0p+0",
+        "phaseIndex": "0",
+        "enableMelting": "1",
+        "meltTemperature": "0x1.2cp+9"
+      }
+    ],
+    "actual_phase_candidates": [
+      {
+        "window": "1",
+        "micro": "1",
+        "time": "0x0p+0",
+        "dt": "0x1.0c6f7a0b5ed8dp-20",
+        "face": "0",
+        "film": "0",
+        "solid": "0",
+        "index": "0",
+        "mass": "0x1.0c91d6232f267p-18",
+        "rho": "0x1.f4p+9",
+        "porosity": "0x0p+0",
+        "target": "-0x1.1303edb56fc51p-28",
+        "energy": "0x1.3367a0f9096bap+1",
+        "heat": "0x1.a36e2eb1c432ap-12",
+        "mx": "0x1.d63713b7c462dp-3",
+        "my": "0x0p+0",
+        "mz": "0x0p+0",
+        "forcingMass": "0x0p+0",
+        "forcingPhaseMass": "0x1.0c91d6232f267p-18",
+        "oldFilmM": "0x1p+0",
+        "newFilmM": "0x1.000043247588dp+0",
+        "oldFilmH": "0x1.e864b33333333p+19",
+        "newFilmH": "0x1.e8650005878f6p+19",
+        "oldMeanX": "0x0p+0",
+        "newMeanX": "0x0p+0",
+        "oldSolidV": "0x1p+0",
+        "newSolidV": "0x1.ffffffdd9f827p-1"
+      },
+      {
+        "window": "1",
+        "micro": "1",
+        "time": "0x0p+0",
+        "dt": "0x1.0c6f7a0b5ed8dp-20",
+        "face": "0",
+        "film": "0",
+        "solid": "0",
+        "index": "0",
+        "mass": "0x1.0c91d6232f267p-18",
+        "rho": "0x1.f4p+9",
+        "porosity": "0x0p+0",
+        "target": "-0x1.1303edb56fc51p-28",
+        "energy": "0x1.3367a0f9096bap+1",
+        "heat": "0x1.a36e2eb1c432ap-12",
+        "mx": "0x1.d63713b7c462dp-3",
+        "my": "0x0p+0",
+        "mz": "0x0p+0",
+        "forcingMass": "0x0p+0",
+        "forcingPhaseMass": "0x1.0c91d6232f267p-18",
+        "oldFilmM": "0x1p+0",
+        "newFilmM": "0x1.000043247588dp+0",
+        "oldFilmH": "0x1.e864b33333333p+19",
+        "newFilmH": "0x1.e864fffe034c7p+19",
+        "oldMeanX": "0x0p+0",
+        "newMeanX": "0x0p+0",
+        "oldSolidV": "0x1p+0",
+        "newSolidV": "0x1.ffffffdd9f827p-1"
+      }
+    ],
+    "final_committed_phase_packet": {
+      "kind": 2,
+      "stage": 1,
+      "consumerMask": 6,
+      "step": 1,
+      "face": 0,
+      "mass": 4.001999999999999e-06,
+      "energy": 2.4015999999999993,
+      "momentum": [
+        0.2295972385841635,
+        0,
+        0
+      ],
+      "species": [
+        4.001999999999999e-06,
+        0
+      ],
+      "condensed": [
+        4.001999999999999e-06,
+        0
+      ],
+      "pore": [
+        0,
+        0
+      ],
+      "conductive": 0.00039999999999999986,
+      "advective": 2.402118848148813,
+      "pressureWork": -0.000918848148813822,
+      "viscousWork": 0,
+      "radiation": 0,
+      "liquidKineticAdvection": 0
+    },
+    "actual_phase_mass": 4.001999999999999e-06,
+    "desired_direction_measured": true,
+    "target_hex": "-0x1.1303edb56fc51p-28",
+    "original_expression_target_hex": "-0x1.1303edb56fc51p-28",
+    "nonzero_expression_bit_identical": true,
+    "solid_volume_initial": [
+      1
+    ],
+    "solid_volume_final": [
+      0.9999999959980003
+    ],
+    "solid_recession_volume_residual": "2.6839346776746898513344753711695744868848123587667942047119140625E-16",
+    "global_M_residual": "3.13082892944294144399464130401611328125E-14",
+    "global_E_residual_J": "-1.2247854102338676501906262475817821251818876687744719333750254009E-7",
+    "recipients": [
+      {
+        "participant": 0,
+        "packet_M": "0",
+        "packet_E": "5.097987452810392975167906311033394484155678583192639052867889404296875E-11",
+        "packet_P": [
+          "0.2295972385841635043934871873716474510729312896728515625",
+          "0",
+          "0"
+        ],
+        "M_residual": "0",
+        "E_residual": "0E-80",
+        "P_residual": [
+          "0E-55",
+          "0",
+          "0"
+        ],
+        "ME_pass": true,
+        "P_audit_pass": true
+      },
+      {
+        "participant": 1,
+        "packet_M": "-0.0000040019999999999991222173444105347783761317259632050991058349609375",
+        "packet_E": "-2.40159999999999929087834971142001450061798095703125",
+        "packet_P": [
+          "-0.2295972385841635043934871873716474510729312896728515625",
+          "0",
+          "0"
+        ],
+        "M_residual": "0E-70",
+        "E_residual": "0E-50",
+        "P_residual": [
+          "0E-55",
+          "0",
+          "0"
+        ],
+        "ME_pass": true,
+        "P_audit_pass": true
+      },
+      {
+        "participant": 2,
+        "packet_M": "0.0000040019999999999991222173444105347783761317259632050991058349609375",
+        "packet_E": "2.4015999999490194163502457816683354375076470121896932141680736094713211059570312",
+        "packet_P": [
+          "0E-55",
+          "0",
+          "0"
+        ],
+        "M_residual": "0E-70",
+        "E_residual": "2.095941561416658905747222724214040567858319263905286788940429688E-16",
+        "P_residual": [
+          "0E-55",
+          "0",
+          "0"
+        ],
+        "ME_pass": true,
+        "P_audit_pass": true
+      },
+      {
+        "participant": 3,
+        "packet_M": "0",
+        "packet_E": "0",
+        "packet_P": [
+          "0",
+          "0",
+          "0"
+        ],
+        "M_residual": "0",
+        "E_residual": "0",
+        "P_residual": [
+          "0",
+          "0",
+          "0"
+        ],
+        "ME_pass": true,
+        "P_audit_pass": true
+      }
+    ],
+    "global_physical_P_residual": [
+      "0E-55",
+      "0E-52",
+      "0E-52"
+    ],
+    "full_P_model_qualification": "reduced film has algebraic velocity and no complete mechanicalreaction channel; scope remainsOPEN, no inventedbalancing term",
+    "scope_ME_expression_before_after_pass": true,
+    "before_after_observer_comparison_ref": "phase-onecell-melting-S308-before-after.json",
+    "material_corrector_candidates_not_doublecounted": true
+  },
+  {
+    "name": "onecell-solidification-S308",
+    "source": "9d5be6eff69dbced2fc959d422d3ba419a1bc39e",
+    "old_safe_source": "4b5c480b572f234ddecf5e89164fe59b0d2e9735",
+    "complete_end": 1e-06,
+    "recorded_consumed_config": [
+      {
+        "liquidRho": "0x1.f4p+9",
+        "condensedRho0": "0x1.f4p+9",
+        "condensedRho1": "0x1.f4p+9",
+        "liquidE0": "0x1.86ap+17",
+        "referencePressure": "0x0p+0",
+        "phaseIndex": "0",
+        "enableMelting": "1",
+        "meltTemperature": "0x1.c2p+9"
+      },
+      {
+        "liquidRho": "0x1.f4p+9",
+        "condensedRho0": "0x1.f4p+9",
+        "condensedRho1": "0x1.f4p+9",
+        "liquidE0": "0x1.86ap+17",
+        "referencePressure": "0x0p+0",
+        "phaseIndex": "0",
+        "enableMelting": "1",
+        "meltTemperature": "0x1.c2p+9"
+      }
+    ],
+    "actual_phase_candidates": [
+      {
+        "window": "1",
+        "micro": "1",
+        "time": "0x0p+0",
+        "dt": "0x1.0c6f7a0b5ed8dp-20",
+        "face": "0",
+        "film": "0",
+        "solid": "0",
+        "index": "0",
+        "mass": "-0x1.0cf8ea6aa00f7p-19",
+        "rho": "0x1.f4p+9",
+        "porosity": "0x0p+0",
+        "target": "0x1.136d7b4e76d88p-29",
+        "energy": "-0x1.cded288ce7039p+0",
+        "heat": "-0x1.a36e2eb1c432ap-11",
+        "mx": "0x1.d63713b7c462dp-3",
+        "my": "0x0p+0",
+        "mz": "0x0p+0",
+        "forcingMass": "0x0p+0",
+        "forcingPhaseMass": "-0x1.0cf8ea6aa00f7p-19",
+        "oldFilmM": "0x1p+0",
+        "newFilmM": "0x1.ffffbcc1c5655p-1",
+        "oldFilmH": "0x1.e864b33333333p+19",
+        "newFilmH": "0x1.e86479576685cp+19",
+        "oldMeanX": "0x0p+0",
+        "newMeanX": "0x0p+0",
+        "oldSolidV": "0x1p+0",
+        "newSolidV": "0x1.000000089b6bep+0"
+      },
+      {
+        "window": "1",
+        "micro": "1",
+        "time": "0x0p+0",
+        "dt": "0x1.0c6f7a0b5ed8dp-20",
+        "face": "0",
+        "film": "0",
+        "solid": "0",
+        "index": "0",
+        "mass": "-0x1.0cf8ea6aa00f7p-19",
+        "rho": "0x1.f4p+9",
+        "porosity": "0x0p+0",
+        "target": "0x1.136d7b4e76d88p-29",
+        "energy": "-0x1.cded288ce7039p+0",
+        "heat": "-0x1.a36e2eb1c432ap-11",
+        "mx": "0x1.d63713b7c462fp-3",
+        "my": "0x0p+0",
+        "mz": "0x0p+0",
+        "forcingMass": "0x0p+0",
+        "forcingPhaseMass": "-0x1.0cf8ea6aa00f7p-19",
+        "oldFilmM": "0x1p+0",
+        "newFilmM": "0x1.ffffbcc1c5655p-1",
+        "oldFilmH": "0x1.e864b33333333p+19",
+        "newFilmH": "0x1.e864795b2a188p+19",
+        "oldMeanX": "0x0p+0",
+        "newMeanX": "0x0p+0",
+        "oldSolidV": "0x1p+0",
+        "newSolidV": "0x1.000000089b6bep+0"
+      }
+    ],
+    "final_committed_phase_packet": {
+      "kind": 2,
+      "stage": 1,
+      "consumerMask": 6,
+      "step": 1,
+      "face": 0,
+      "mass": -2.0039999999999994e-06,
+      "energy": -1.8043999999999996,
+      "momentum": [
+        0.22959723858416356,
+        0,
+        0
+      ],
+      "species": [
+        -2.0039999999999994e-06,
+        0
+      ],
+      "condensed": [
+        -2.0039999999999994e-06,
+        0
+      ],
+      "pore": [
+        0,
+        0
+      ],
+      "conductive": -0.0007999999999999997,
+      "advective": -1.8040601128661222,
+      "pressureWork": 0.0004601128661226637,
+      "viscousWork": 0,
+      "radiation": 0,
+      "liquidKineticAdvection": 0
+    },
+    "actual_phase_mass": -2.0039999999999994e-06,
+    "desired_direction_measured": true,
+    "target_hex": "0x1.136d7b4e76d88p-29",
+    "original_expression_target_hex": "0x1.136d7b4e76d88p-29",
+    "nonzero_expression_bit_identical": true,
+    "solid_volume_initial": [
+      1
+    ],
+    "solid_volume_final": [
+      1.000000002004
+    ],
+    "solid_recession_volume_residual": "7.6993862228594958977377638031924789174809120595455169677734375E-17",
+    "global_M_residual": "-4.740652315149418427608907222747802734375E-14",
+    "global_E_residual_J": "-1.5205694471851878724869983238095204114886981397458676212863792898E-7",
+    "recipients": [
+      {
+        "participant": 0,
+        "packet_M": "0",
+        "packet_E": "5.097987361860924319970127678355712765034812861131285899318754673004150390625E-11",
+        "packet_P": [
+          "0.2295972385841635599046384186294744722545146942138671875",
+          "0",
+          "0"
+        ],
+        "M_residual": "0",
+        "E_residual": "0E-86",
+        "P_residual": [
+          "0E-55",
+          "0",
+          "0"
+        ],
+        "ME_pass": true,
+        "P_audit_pass": true
+      },
+      {
+        "participant": 1,
+        "packet_M": "0.00000200399999999999936297896512005234370690232026390731334686279296875",
+        "packet_E": "1.8043999999999995598187751966179348528385162353515625",
+        "packet_P": [
+          "-0.2295972385841635599046384186294744722545146942138671875",
+          "0",
+          "0"
+        ],
+        "M_residual": "0E-71",
+        "E_residual": "0E-52",
+        "P_residual": [
+          "0E-55",
+          "0",
+          "0"
+        ],
+        "ME_pass": true,
+        "P_audit_pass": true
+      },
+      {
+        "participant": 2,
+        "packet_M": "-0.00000200399999999999936297896512005234370690232026390731334686279296875",
+        "packet_E": "-1.8044000000509794334373844398176361296220733630019106286113128589931875467300415",
+        "packet_P": [
+          "0E-55",
+          "0",
+          "0"
+        ],
+        "M_residual": "0E-71",
+        "E_residual": "-1.33599434699173952963308380139512143713886871410068124532699585E-17",
+        "P_residual": [
+          "0E-55",
+          "0",
+          "0"
+        ],
+        "ME_pass": true,
+        "P_audit_pass": true
+      },
+      {
+        "participant": 3,
+        "packet_M": "0",
+        "packet_E": "0",
+        "packet_P": [
+          "0",
+          "0",
+          "0"
+        ],
+        "M_residual": "0",
+        "E_residual": "0",
+        "P_residual": [
+          "0",
+          "0",
+          "0"
+        ],
+        "ME_pass": true,
+        "P_audit_pass": true
+      }
+    ],
+    "global_physical_P_residual": [
+      "0E-55",
+      "0E-53",
+      "0E-53"
+    ],
+    "full_P_model_qualification": "reduced film has algebraic velocity and no complete mechanicalreaction channel; scope remainsOPEN, no inventedbalancing term",
+    "scope_ME_expression_before_after_pass": true,
+    "before_after_observer_comparison_ref": "phase-onecell-solidification-S308-before-after.json",
+    "material_corrector_candidates_not_doublecounted": true
+  }
+]

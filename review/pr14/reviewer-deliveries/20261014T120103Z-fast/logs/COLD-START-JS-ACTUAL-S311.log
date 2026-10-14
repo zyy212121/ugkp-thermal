@@ -1,0 +1,17 @@
+CHMT boundaryLayer workspace requested=2 resolved=0 capacity=0 bytes=0 budget=0
+CHMT boundaryLayer workspace requested=2 resolved=0 capacity=0 bytes=0 budget=0
+CHMT boundaryLayer workspace requested=2 resolved=0 capacity=0 bytes=0 budget=0
+CHMT boundaryLayer workspace requested=2 resolved=0 capacity=0 bytes=0 budget=0
+CHMT boundaryLayer workspace requested=2 resolved=0 capacity=0 bytes=0 budget=0
+CHMT boundaryLayer workspace requested=2 resolved=0 capacity=0 bytes=0 budget=0
+CHMT boundaryLayer workspace requested=2 resolved=0 capacity=0 bytes=0 budget=0
+CHMT boundaryLayer workspace requested=2 resolved=0 capacity=0 bytes=0 budget=0
+R3JS fresh variant=0 Js=0x1.a9fbe76c8b439p-7 area=0x1p+0 phi=-0x1.a9fbe76c8b439p-7 dt=0x1.a36e2eb1c432dp-14 Co=0x1.b9dbc98829624p-5 flux=0x1.b9dbc98829624p-5,0x1.b9dbc98829624p-5,0x1.b9dbc98829624p-6 diffusion=0x1.8726183c74434p-15,0x1.75e469fd8d406p-14,0x1.9a52a0f41f9bfp-15
+R3JS fresh variant=0 Js=0x1.5810624dd2f1bp-6 area=0x1p+0 phi=-0x1.5810624dd2f1bp-6 dt=0x1.a36e2eb1c432dp-14 Co=0x1.b9dbc98829624p-5 flux=0x1.b9dbc98829624p-5,0x1.b9dbc98829624p-5,0x1.b9dbc98829624p-6 diffusion=0x1.8726183c74434p-15,0x1.75e469fd8d406p-14,0x1.9a52a0f41f9bfp-15
+R3JS fresh variant=0 Js=0x1.16872b020c49cp-5 area=0x1p+0 phi=-0x1.16872b020c49cp-5 dt=0x1.a36e2eb1c432dp-14 Co=0x1.b9dbc98829624p-5 flux=0x1.b9dbc98829624p-5,0x1.b9dbc98829624p-5,0x1.b9dbc98829624p-6 diffusion=0x1.8726183c74434p-15,0x1.75e469fd8d406p-14,0x1.9a52a0f41f9bfp-15
+R3JS lagged variant=0 published=-0x1.16872b020c49cp-5 Co=0x1.b9dbc98829624p-5 nextactualStage=-0x1.c28f5c28f5c29p-5 dt=0x1.a36e2eb1c432dp-14
+R3JS fresh variant=1 Js=0x1.a9fbe76c8b439p-7 area=0x1p+0 phi=-0x1.a9fbe76c8b439p-7 dt=0x1.a36e2eb1c432dp-15 Co=0x1.f5053f29df451p-6 flux=0x1.f5053f29df451p-6,0x1.f5053f29df451p-6,0x1.f5053f29df451p-7 diffusion=0x1.3b69629a290c8p-16,0x1.49501285b8794p-15,0x1.9a52a0f41f9c2p-16
+R3JS fresh variant=1 Js=0x1.5810624dd2f1bp-6 area=0x1p+0 phi=-0x1.5810624dd2f1bp-6 dt=0x1.a36e2eb1c432dp-15 Co=0x1.f5053f29df451p-6 flux=0x1.f5053f29df451p-6,0x1.f5053f29df451p-6,0x1.f5053f29df451p-7 diffusion=0x1.3b69629a290c8p-16,0x1.49501285b8794p-15,0x1.9a52a0f41f9c2p-16
+R3JS fresh variant=1 Js=0x1.16872b020c49cp-5 area=0x1p+0 phi=-0x1.16872b020c49cp-5 dt=0x1.a36e2eb1c432dp-15 Co=0x1.f5053f29df451p-6 flux=0x1.f5053f29df451p-6,0x1.f5053f29df451p-6,0x1.f5053f29df451p-7 diffusion=0x1.3b69629a290c8p-16,0x1.49501285b8794p-15,0x1.9a52a0f41f9c2p-16
+R3JS lagged variant=1 published=-0x1.16872b020c49cp-5 Co=0x1.f5053f29df451p-6 nextactualStage=-0x1.c28f5c28f5c29p-5 dt=0x1.a36e2eb1c432dp-15
+PASS actual CUDA cold-start Js fresh references and lagged stage consumer two changed flow/dt controls

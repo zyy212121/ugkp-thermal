@@ -1,0 +1,4300 @@
+{
+  "source_producer": "4b5c480b572f234ddecf5e89164fe59b0d2e9735",
+  "dependencies_unchanged_against": "9d5be6eff69dbced2fc959d422d3ba419a1bc39e",
+  "checks": [
+    {
+      "time": "1e-06",
+      "particle_count": 16,
+      "profile_dtype": "float64",
+      "active_count": 16,
+      "positive_cold2D_age_count": 0,
+      "positive_all_cold2D_rings_count": 0,
+      "complete_8lane_groups_from_actual_active_count": 2,
+      "rows": [
+        {
+          "particle": 0,
+          "active_stuck": true,
+          "addressing": {
+            "cell": 0,
+            "orig_id": 1
+          },
+          "temperature_K": 2373.1499520861535,
+          "mean_double": 4191779.387314074,
+          "carry_double": 0.0,
+          "caloric_temperature_K": 2373.1499520861566,
+          "absolute_error_K": 3.183231456205249e-12,
+          "serialized_ages": {
+            "pColdContactAge": 0.0,
+            "pCold2DRingContactAge": [
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        {
+          "particle": 1,
+          "active_stuck": true,
+          "addressing": {
+            "cell": 1,
+            "orig_id": 2
+          },
+          "temperature_K": 2373.1499520861535,
+          "mean_double": 4191779.387314074,
+          "carry_double": 0.0,
+          "caloric_temperature_K": 2373.1499520861566,
+          "absolute_error_K": 3.183231456205249e-12,
+          "serialized_ages": {
+            "pColdContactAge": 0.0,
+            "pCold2DRingContactAge": [
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        {
+          "particle": 2,
+          "active_stuck": true,
+          "addressing": {
+            "cell": 2,
+            "orig_id": 3
+          },
+          "temperature_K": 2373.1499520861535,
+          "mean_double": 4191779.387314074,
+          "carry_double": 0.0,
+          "caloric_temperature_K": 2373.1499520861566,
+          "absolute_error_K": 3.183231456205249e-12,
+          "serialized_ages": {
+            "pColdContactAge": 0.0,
+            "pCold2DRingContactAge": [
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        {
+          "particle": 3,
+          "active_stuck": true,
+          "addressing": {
+            "cell": 3,
+            "orig_id": 4
+          },
+          "temperature_K": 2373.1499520861535,
+          "mean_double": 4191779.387314074,
+          "carry_double": 0.0,
+          "caloric_temperature_K": 2373.1499520861566,
+          "absolute_error_K": 3.183231456205249e-12,
+          "serialized_ages": {
+            "pColdContactAge": 0.0,
+            "pCold2DRingContactAge": [
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        {
+          "particle": 4,
+          "active_stuck": true,
+          "addressing": {
+            "cell": 4,
+            "orig_id": 5
+          },
+          "temperature_K": 2373.1499520861535,
+          "mean_double": 4191779.387314074,
+          "carry_double": 0.0,
+          "caloric_temperature_K": 2373.1499520861566,
+          "absolute_error_K": 3.183231456205249e-12,
+          "serialized_ages": {
+            "pColdContactAge": 0.0,
+            "pCold2DRingContactAge": [
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        {
+          "particle": 5,
+          "active_stuck": true,
+          "addressing": {
+            "cell": 5,
+            "orig_id": 6
+          },
+          "temperature_K": 2373.1499520861535,
+          "mean_double": 4191779.387314074,
+          "carry_double": 0.0,
+          "caloric_temperature_K": 2373.1499520861566,
+          "absolute_error_K": 3.183231456205249e-12,
+          "serialized_ages": {
+            "pColdContactAge": 0.0,
+            "pCold2DRingContactAge": [
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        {
+          "particle": 6,
+          "active_stuck": true,
+          "addressing": {
+            "cell": 6,
+            "orig_id": 7
+          },
+          "temperature_K": 2373.1499520861535,
+          "mean_double": 4191779.387314074,
+          "carry_double": 0.0,
+          "caloric_temperature_K": 2373.1499520861566,
+          "absolute_error_K": 3.183231456205249e-12,
+          "serialized_ages": {
+            "pColdContactAge": 0.0,
+            "pCold2DRingContactAge": [
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        {
+          "particle": 7,
+          "active_stuck": true,
+          "addressing": {
+            "cell": 7,
+            "orig_id": 8
+          },
+          "temperature_K": 2373.1499520861535,
+          "mean_double": 4191779.387314074,
+          "carry_double": 0.0,
+          "caloric_temperature_K": 2373.1499520861566,
+          "absolute_error_K": 3.183231456205249e-12,
+          "serialized_ages": {
+            "pColdContactAge": 0.0,
+            "pCold2DRingContactAge": [
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        {
+          "particle": 8,
+          "active_stuck": true,
+          "addressing": {
+            "cell": 8,
+            "orig_id": 9
+          },
+          "temperature_K": 2373.1499520861535,
+          "mean_double": 4191779.387314074,
+          "carry_double": 0.0,
+          "caloric_temperature_K": 2373.1499520861566,
+          "absolute_error_K": 3.183231456205249e-12,
+          "serialized_ages": {
+            "pColdContactAge": 0.0,
+            "pCold2DRingContactAge": [
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        {
+          "particle": 9,
+          "active_stuck": true,
+          "addressing": {
+            "cell": 9,
+            "orig_id": 10
+          },
+          "temperature_K": 2373.1499520861535,
+          "mean_double": 4191779.387314074,
+          "carry_double": 0.0,
+          "caloric_temperature_K": 2373.1499520861566,
+          "absolute_error_K": 3.183231456205249e-12,
+          "serialized_ages": {
+            "pColdContactAge": 0.0,
+            "pCold2DRingContactAge": [
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        {
+          "particle": 10,
+          "active_stuck": true,
+          "addressing": {
+            "cell": 10,
+            "orig_id": 11
+          },
+          "temperature_K": 2373.1499520861535,
+          "mean_double": 4191779.387314074,
+          "carry_double": 0.0,
+          "caloric_temperature_K": 2373.1499520861566,
+          "absolute_error_K": 3.183231456205249e-12,
+          "serialized_ages": {
+            "pColdContactAge": 0.0,
+            "pCold2DRingContactAge": [
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        {
+          "particle": 11,
+          "active_stuck": true,
+          "addressing": {
+            "cell": 11,
+            "orig_id": 12
+          },
+          "temperature_K": 2373.1499520861535,
+          "mean_double": 4191779.387314074,
+          "carry_double": 0.0,
+          "caloric_temperature_K": 2373.1499520861566,
+          "absolute_error_K": 3.183231456205249e-12,
+          "serialized_ages": {
+            "pColdContactAge": 0.0,
+            "pCold2DRingContactAge": [
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        {
+          "particle": 12,
+          "active_stuck": true,
+          "addressing": {
+            "cell": 12,
+            "orig_id": 13
+          },
+          "temperature_K": 2373.1499520861535,
+          "mean_double": 4191779.387314074,
+          "carry_double": 0.0,
+          "caloric_temperature_K": 2373.1499520861566,
+          "absolute_error_K": 3.183231456205249e-12,
+          "serialized_ages": {
+            "pColdContactAge": 0.0,
+            "pCold2DRingContactAge": [
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        {
+          "particle": 13,
+          "active_stuck": true,
+          "addressing": {
+            "cell": 13,
+            "orig_id": 14
+          },
+          "temperature_K": 2373.1499520861535,
+          "mean_double": 4191779.387314074,
+          "carry_double": 0.0,
+          "caloric_temperature_K": 2373.1499520861566,
+          "absolute_error_K": 3.183231456205249e-12,
+          "serialized_ages": {
+            "pColdContactAge": 0.0,
+            "pCold2DRingContactAge": [
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        {
+          "particle": 14,
+          "active_stuck": true,
+          "addressing": {
+            "cell": 14,
+            "orig_id": 15
+          },
+          "temperature_K": 2373.1499520861535,
+          "mean_double": 4191779.387314074,
+          "carry_double": 0.0,
+          "caloric_temperature_K": 2373.1499520861566,
+          "absolute_error_K": 3.183231456205249e-12,
+          "serialized_ages": {
+            "pColdContactAge": 0.0,
+            "pCold2DRingContactAge": [
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        {
+          "particle": 15,
+          "active_stuck": true,
+          "addressing": {
+            "cell": 15,
+            "orig_id": 16
+          },
+          "temperature_K": 2373.1499520861535,
+          "mean_double": 4191779.387314074,
+          "carry_double": 0.0,
+          "caloric_temperature_K": 2373.1499520861566,
+          "absolute_error_K": 3.183231456205249e-12,
+          "serialized_ages": {
+            "pColdContactAge": 0.0,
+            "pCold2DRingContactAge": [
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ]
+          }
+        }
+      ],
+      "all_floating_fields_finite": true,
+      "nonfinite_fields": []
+    },
+    {
+      "time": "2e-06",
+      "particle_count": 16,
+      "profile_dtype": "float64",
+      "active_count": 16,
+      "positive_cold2D_age_count": 16,
+      "positive_all_cold2D_rings_count": 0,
+      "complete_8lane_groups_from_actual_active_count": 2,
+      "rows": [
+        {
+          "particle": 0,
+          "active_stuck": true,
+          "addressing": {
+            "cell": 0,
+            "orig_id": 1
+          },
+          "temperature_K": 2373.1497787821463,
+          "mean_double": 4191779.1261664983,
+          "carry_double": 0.0,
+          "caloric_temperature_K": 2373.149778782271,
+          "absolute_error_K": 1.2460077414289117e-10,
+          "serialized_ages": {
+            "pColdContactAge": 0.0,
+            "pCold2DRingContactAge": [
+              1e-06,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        {
+          "particle": 1,
+          "active_stuck": true,
+          "addressing": {
+            "cell": 1,
+            "orig_id": 2
+          },
+          "temperature_K": 2373.1497787821463,
+          "mean_double": 4191779.1261664983,
+          "carry_double": 0.0,
+          "caloric_temperature_K": 2373.149778782271,
+          "absolute_error_K": 1.2460077414289117e-10,
+          "serialized_ages": {
+            "pColdContactAge": 0.0,
+            "pCold2DRingContactAge": [
+              1e-06,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        {
+          "particle": 2,
+          "active_stuck": true,
+          "addressing": {
+            "cell": 2,
+            "orig_id": 3
+          },
+          "temperature_K": 2373.1497787821463,
+          "mean_double": 4191779.1261664983,
+          "carry_double": 0.0,
+          "caloric_temperature_K": 2373.149778782271,
+          "absolute_error_K": 1.2460077414289117e-10,
+          "serialized_ages": {
+            "pColdContactAge": 0.0,
+            "pCold2DRingContactAge": [
+              1e-06,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        {
+          "particle": 3,
+          "active_stuck": true,
+          "addressing": {
+            "cell": 3,
+            "orig_id": 4
+          },
+          "temperature_K": 2373.1497787821463,
+          "mean_double": 4191779.1261664983,
+          "carry_double": 0.0,
+          "caloric_temperature_K": 2373.149778782271,
+          "absolute_error_K": 1.2460077414289117e-10,
+          "serialized_ages": {
+            "pColdContactAge": 0.0,
+            "pCold2DRingContactAge": [
+              1e-06,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        {
+          "particle": 4,
+          "active_stuck": true,
+          "addressing": {
+            "cell": 4,
+            "orig_id": 5
+          },
+          "temperature_K": 2373.1497787821463,
+          "mean_double": 4191779.1261664983,
+          "carry_double": 0.0,
+          "caloric_temperature_K": 2373.149778782271,
+          "absolute_error_K": 1.2460077414289117e-10,
+          "serialized_ages": {
+            "pColdContactAge": 0.0,
+            "pCold2DRingContactAge": [
+              1e-06,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        {
+          "particle": 5,
+          "active_stuck": true,
+          "addressing": {
+            "cell": 5,
+            "orig_id": 6
+          },
+          "temperature_K": 2373.1497787821463,
+          "mean_double": 4191779.1261664983,
+          "carry_double": 0.0,
+          "caloric_temperature_K": 2373.149778782271,
+          "absolute_error_K": 1.2460077414289117e-10,
+          "serialized_ages": {
+            "pColdContactAge": 0.0,
+            "pCold2DRingContactAge": [
+              1e-06,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        {
+          "particle": 6,
+          "active_stuck": true,
+          "addressing": {
+            "cell": 6,
+            "orig_id": 7
+          },
+          "temperature_K": 2373.1497787821463,
+          "mean_double": 4191779.1261664983,
+          "carry_double": 0.0,
+          "caloric_temperature_K": 2373.149778782271,
+          "absolute_error_K": 1.2460077414289117e-10,
+          "serialized_ages": {
+            "pColdContactAge": 0.0,
+            "pCold2DRingContactAge": [
+              1e-06,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        {
+          "particle": 7,
+          "active_stuck": true,
+          "addressing": {
+            "cell": 7,
+            "orig_id": 8
+          },
+          "temperature_K": 2373.1497787821463,
+          "mean_double": 4191779.1261664983,
+          "carry_double": 0.0,
+          "caloric_temperature_K": 2373.149778782271,
+          "absolute_error_K": 1.2460077414289117e-10,
+          "serialized_ages": {
+            "pColdContactAge": 0.0,
+            "pCold2DRingContactAge": [
+              1e-06,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        {
+          "particle": 8,
+          "active_stuck": true,
+          "addressing": {
+            "cell": 8,
+            "orig_id": 9
+          },
+          "temperature_K": 2373.1497787821463,
+          "mean_double": 4191779.1261664983,
+          "carry_double": 0.0,
+          "caloric_temperature_K": 2373.149778782271,
+          "absolute_error_K": 1.2460077414289117e-10,
+          "serialized_ages": {
+            "pColdContactAge": 0.0,
+            "pCold2DRingContactAge": [
+              1e-06,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        {
+          "particle": 9,
+          "active_stuck": true,
+          "addressing": {
+            "cell": 9,
+            "orig_id": 10
+          },
+          "temperature_K": 2373.1497787821463,
+          "mean_double": 4191779.1261664983,
+          "carry_double": 0.0,
+          "caloric_temperature_K": 2373.149778782271,
+          "absolute_error_K": 1.2460077414289117e-10,
+          "serialized_ages": {
+            "pColdContactAge": 0.0,
+            "pCold2DRingContactAge": [
+              1e-06,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        {
+          "particle": 10,
+          "active_stuck": true,
+          "addressing": {
+            "cell": 10,
+            "orig_id": 11
+          },
+          "temperature_K": 2373.1497787821463,
+          "mean_double": 4191779.1261664983,
+          "carry_double": 0.0,
+          "caloric_temperature_K": 2373.149778782271,
+          "absolute_error_K": 1.2460077414289117e-10,
+          "serialized_ages": {
+            "pColdContactAge": 0.0,
+            "pCold2DRingContactAge": [
+              1e-06,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        {
+          "particle": 11,
+          "active_stuck": true,
+          "addressing": {
+            "cell": 11,
+            "orig_id": 12
+          },
+          "temperature_K": 2373.1497787821463,
+          "mean_double": 4191779.1261664983,
+          "carry_double": 0.0,
+          "caloric_temperature_K": 2373.149778782271,
+          "absolute_error_K": 1.2460077414289117e-10,
+          "serialized_ages": {
+            "pColdContactAge": 0.0,
+            "pCold2DRingContactAge": [
+              1e-06,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        {
+          "particle": 12,
+          "active_stuck": true,
+          "addressing": {
+            "cell": 12,
+            "orig_id": 13
+          },
+          "temperature_K": 2373.1497787821463,
+          "mean_double": 4191779.1261664983,
+          "carry_double": 0.0,
+          "caloric_temperature_K": 2373.149778782271,
+          "absolute_error_K": 1.2460077414289117e-10,
+          "serialized_ages": {
+            "pColdContactAge": 0.0,
+            "pCold2DRingContactAge": [
+              1e-06,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        {
+          "particle": 13,
+          "active_stuck": true,
+          "addressing": {
+            "cell": 13,
+            "orig_id": 14
+          },
+          "temperature_K": 2373.1497787821463,
+          "mean_double": 4191779.1261664983,
+          "carry_double": 0.0,
+          "caloric_temperature_K": 2373.149778782271,
+          "absolute_error_K": 1.2460077414289117e-10,
+          "serialized_ages": {
+            "pColdContactAge": 0.0,
+            "pCold2DRingContactAge": [
+              1e-06,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        {
+          "particle": 14,
+          "active_stuck": true,
+          "addressing": {
+            "cell": 14,
+            "orig_id": 15
+          },
+          "temperature_K": 2373.1497787821463,
+          "mean_double": 4191779.1261664983,
+          "carry_double": 0.0,
+          "caloric_temperature_K": 2373.149778782271,
+          "absolute_error_K": 1.2460077414289117e-10,
+          "serialized_ages": {
+            "pColdContactAge": 0.0,
+            "pCold2DRingContactAge": [
+              1e-06,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        {
+          "particle": 15,
+          "active_stuck": true,
+          "addressing": {
+            "cell": 15,
+            "orig_id": 16
+          },
+          "temperature_K": 2373.1497787821463,
+          "mean_double": 4191779.1261664983,
+          "carry_double": 0.0,
+          "caloric_temperature_K": 2373.149778782271,
+          "absolute_error_K": 1.2460077414289117e-10,
+          "serialized_ages": {
+            "pColdContactAge": 0.0,
+            "pCold2DRingContactAge": [
+              1e-06,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ]
+          }
+        }
+      ],
+      "all_floating_fields_finite": true,
+      "nonfinite_fields": []
+    },
+    {
+      "time": "3e-06",
+      "particle_count": 16,
+      "profile_dtype": "float64",
+      "active_count": 16,
+      "positive_cold2D_age_count": 16,
+      "positive_all_cold2D_rings_count": 0,
+      "complete_8lane_groups_from_actual_active_count": 2,
+      "rows": [
+        {
+          "particle": 0,
+          "active_stuck": true,
+          "addressing": {
+            "cell": 0,
+            "orig_id": 1
+          },
+          "temperature_K": 2373.1492820570675,
+          "mean_double": 4191778.3776623937,
+          "carry_double": 0.0,
+          "caloric_temperature_K": 2373.149282056732,
+          "absolute_error_K": 3.356035449542105e-10,
+          "serialized_ages": {
+            "pColdContactAge": 0.0,
+            "pCold2DRingContactAge": [
+              2e-06,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        {
+          "particle": 1,
+          "active_stuck": true,
+          "addressing": {
+            "cell": 1,
+            "orig_id": 2
+          },
+          "temperature_K": 2373.1492820570675,
+          "mean_double": 4191778.3776623937,
+          "carry_double": 0.0,
+          "caloric_temperature_K": 2373.149282056732,
+          "absolute_error_K": 3.356035449542105e-10,
+          "serialized_ages": {
+            "pColdContactAge": 0.0,
+            "pCold2DRingContactAge": [
+              2e-06,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        {
+          "particle": 2,
+          "active_stuck": true,
+          "addressing": {
+            "cell": 2,
+            "orig_id": 3
+          },
+          "temperature_K": 2373.1492820570675,
+          "mean_double": 4191778.3776623937,
+          "carry_double": 0.0,
+          "caloric_temperature_K": 2373.149282056732,
+          "absolute_error_K": 3.356035449542105e-10,
+          "serialized_ages": {
+            "pColdContactAge": 0.0,
+            "pCold2DRingContactAge": [
+              2e-06,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        {
+          "particle": 3,
+          "active_stuck": true,
+          "addressing": {
+            "cell": 3,
+            "orig_id": 4
+          },
+          "temperature_K": 2373.1492820570675,
+          "mean_double": 4191778.3776623937,
+          "carry_double": 0.0,
+          "caloric_temperature_K": 2373.149282056732,
+          "absolute_error_K": 3.356035449542105e-10,
+          "serialized_ages": {
+            "pColdContactAge": 0.0,
+            "pCold2DRingContactAge": [
+              2e-06,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        {
+          "particle": 4,
+          "active_stuck": true,
+          "addressing": {
+            "cell": 4,
+            "orig_id": 5
+          },
+          "temperature_K": 2373.1492820570675,
+          "mean_double": 4191778.3776623937,
+          "carry_double": 0.0,
+          "caloric_temperature_K": 2373.149282056732,
+          "absolute_error_K": 3.356035449542105e-10,
+          "serialized_ages": {
+            "pColdContactAge": 0.0,
+            "pCold2DRingContactAge": [
+              2e-06,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        {
+          "particle": 5,
+          "active_stuck": true,
+          "addressing": {
+            "cell": 5,
+            "orig_id": 6
+          },
+          "temperature_K": 2373.1492820570675,
+          "mean_double": 4191778.3776623937,
+          "carry_double": 0.0,
+          "caloric_temperature_K": 2373.149282056732,
+          "absolute_error_K": 3.356035449542105e-10,
+          "serialized_ages": {
+            "pColdContactAge": 0.0,
+            "pCold2DRingContactAge": [
+              2e-06,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        {
+          "particle": 6,
+          "active_stuck": true,
+          "addressing": {
+            "cell": 6,
+            "orig_id": 7
+          },
+          "temperature_K": 2373.1492820570675,
+          "mean_double": 4191778.3776623937,
+          "carry_double": 0.0,
+          "caloric_temperature_K": 2373.149282056732,
+          "absolute_error_K": 3.356035449542105e-10,
+          "serialized_ages": {
+            "pColdContactAge": 0.0,
+            "pCold2DRingContactAge": [
+              2e-06,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        {
+          "particle": 7,
+          "active_stuck": true,
+          "addressing": {
+            "cell": 7,
+            "orig_id": 8
+          },
+          "temperature_K": 2373.1492820570675,
+          "mean_double": 4191778.3776623937,
+          "carry_double": 0.0,
+          "caloric_temperature_K": 2373.149282056732,
+          "absolute_error_K": 3.356035449542105e-10,
+          "serialized_ages": {
+            "pColdContactAge": 0.0,
+            "pCold2DRingContactAge": [
+              2e-06,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        {
+          "particle": 8,
+          "active_stuck": true,
+          "addressing": {
+            "cell": 8,
+            "orig_id": 9
+          },
+          "temperature_K": 2373.1492820570675,
+          "mean_double": 4191778.3776623937,
+          "carry_double": 0.0,
+          "caloric_temperature_K": 2373.149282056732,
+          "absolute_error_K": 3.356035449542105e-10,
+          "serialized_ages": {
+            "pColdContactAge": 0.0,
+            "pCold2DRingContactAge": [
+              2e-06,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        {
+          "particle": 9,
+          "active_stuck": true,
+          "addressing": {
+            "cell": 9,
+            "orig_id": 10
+          },
+          "temperature_K": 2373.1492820570675,
+          "mean_double": 4191778.3776623937,
+          "carry_double": 0.0,
+          "caloric_temperature_K": 2373.149282056732,
+          "absolute_error_K": 3.356035449542105e-10,
+          "serialized_ages": {
+            "pColdContactAge": 0.0,
+            "pCold2DRingContactAge": [
+              2e-06,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        {
+          "particle": 10,
+          "active_stuck": true,
+          "addressing": {
+            "cell": 10,
+            "orig_id": 11
+          },
+          "temperature_K": 2373.1492820570675,
+          "mean_double": 4191778.3776623937,
+          "carry_double": 0.0,
+          "caloric_temperature_K": 2373.149282056732,
+          "absolute_error_K": 3.356035449542105e-10,
+          "serialized_ages": {
+            "pColdContactAge": 0.0,
+            "pCold2DRingContactAge": [
+              2e-06,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        {
+          "particle": 11,
+          "active_stuck": true,
+          "addressing": {
+            "cell": 11,
+            "orig_id": 12
+          },
+          "temperature_K": 2373.1492820570675,
+          "mean_double": 4191778.3776623937,
+          "carry_double": 0.0,
+          "caloric_temperature_K": 2373.149282056732,
+          "absolute_error_K": 3.356035449542105e-10,
+          "serialized_ages": {
+            "pColdContactAge": 0.0,
+            "pCold2DRingContactAge": [
+              2e-06,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        {
+          "particle": 12,
+          "active_stuck": true,
+          "addressing": {
+            "cell": 12,
+            "orig_id": 13
+          },
+          "temperature_K": 2373.1492820570675,
+          "mean_double": 4191778.3776623937,
+          "carry_double": 0.0,
+          "caloric_temperature_K": 2373.149282056732,
+          "absolute_error_K": 3.356035449542105e-10,
+          "serialized_ages": {
+            "pColdContactAge": 0.0,
+            "pCold2DRingContactAge": [
+              2e-06,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        {
+          "particle": 13,
+          "active_stuck": true,
+          "addressing": {
+            "cell": 13,
+            "orig_id": 14
+          },
+          "temperature_K": 2373.1492820570675,
+          "mean_double": 4191778.3776623937,
+          "carry_double": 0.0,
+          "caloric_temperature_K": 2373.149282056732,
+          "absolute_error_K": 3.356035449542105e-10,
+          "serialized_ages": {
+            "pColdContactAge": 0.0,
+            "pCold2DRingContactAge": [
+              2e-06,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        {
+          "particle": 14,
+          "active_stuck": true,
+          "addressing": {
+            "cell": 14,
+            "orig_id": 15
+          },
+          "temperature_K": 2373.1492820570675,
+          "mean_double": 4191778.3776623937,
+          "carry_double": 0.0,
+          "caloric_temperature_K": 2373.149282056732,
+          "absolute_error_K": 3.356035449542105e-10,
+          "serialized_ages": {
+            "pColdContactAge": 0.0,
+            "pCold2DRingContactAge": [
+              2e-06,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        {
+          "particle": 15,
+          "active_stuck": true,
+          "addressing": {
+            "cell": 15,
+            "orig_id": 16
+          },
+          "temperature_K": 2373.1492820570675,
+          "mean_double": 4191778.3776623937,
+          "carry_double": 0.0,
+          "caloric_temperature_K": 2373.149282056732,
+          "absolute_error_K": 3.356035449542105e-10,
+          "serialized_ages": {
+            "pColdContactAge": 0.0,
+            "pCold2DRingContactAge": [
+              2e-06,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ]
+          }
+        }
+      ],
+      "all_floating_fields_finite": true,
+      "nonfinite_fields": []
+    },
+    {
+      "time": "4e-06",
+      "particle_count": 16,
+      "profile_dtype": "float64",
+      "active_count": 16,
+      "positive_cold2D_age_count": 16,
+      "positive_all_cold2D_rings_count": 0,
+      "complete_8lane_groups_from_actual_active_count": 2,
+      "rows": [
+        {
+          "particle": 0,
+          "active_stuck": true,
+          "addressing": {
+            "cell": 0,
+            "orig_id": 1
+          },
+          "temperature_K": 2373.1484666932483,
+          "mean_double": 4191777.14900991,
+          "carry_double": 0.0,
+          "caloric_temperature_K": 2373.1484666930323,
+          "absolute_error_K": 2.1600499167107046e-10,
+          "serialized_ages": {
+            "pColdContactAge": 0.0,
+            "pCold2DRingContactAge": [
+              3e-06,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        {
+          "particle": 1,
+          "active_stuck": true,
+          "addressing": {
+            "cell": 1,
+            "orig_id": 2
+          },
+          "temperature_K": 2373.1484666932483,
+          "mean_double": 4191777.14900991,
+          "carry_double": 0.0,
+          "caloric_temperature_K": 2373.1484666930323,
+          "absolute_error_K": 2.1600499167107046e-10,
+          "serialized_ages": {
+            "pColdContactAge": 0.0,
+            "pCold2DRingContactAge": [
+              3e-06,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        {
+          "particle": 2,
+          "active_stuck": true,
+          "addressing": {
+            "cell": 2,
+            "orig_id": 3
+          },
+          "temperature_K": 2373.1484666932483,
+          "mean_double": 4191777.14900991,
+          "carry_double": 0.0,
+          "caloric_temperature_K": 2373.1484666930323,
+          "absolute_error_K": 2.1600499167107046e-10,
+          "serialized_ages": {
+            "pColdContactAge": 0.0,
+            "pCold2DRingContactAge": [
+              3e-06,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        {
+          "particle": 3,
+          "active_stuck": true,
+          "addressing": {
+            "cell": 3,
+            "orig_id": 4
+          },
+          "temperature_K": 2373.1484666932483,
+          "mean_double": 4191777.14900991,
+          "carry_double": 0.0,
+          "caloric_temperature_K": 2373.1484666930323,
+          "absolute_error_K": 2.1600499167107046e-10,
+          "serialized_ages": {
+            "pColdContactAge": 0.0,
+            "pCold2DRingContactAge": [
+              3e-06,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        {
+          "particle": 4,
+          "active_stuck": true,
+          "addressing": {
+            "cell": 4,
+            "orig_id": 5
+          },
+          "temperature_K": 2373.1484666932483,
+          "mean_double": 4191777.14900991,
+          "carry_double": 0.0,
+          "caloric_temperature_K": 2373.1484666930323,
+          "absolute_error_K": 2.1600499167107046e-10,
+          "serialized_ages": {
+            "pColdContactAge": 0.0,
+            "pCold2DRingContactAge": [
+              3e-06,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        {
+          "particle": 5,
+          "active_stuck": true,
+          "addressing": {
+            "cell": 5,
+            "orig_id": 6
+          },
+          "temperature_K": 2373.1484666932483,
+          "mean_double": 4191777.14900991,
+          "carry_double": 0.0,
+          "caloric_temperature_K": 2373.1484666930323,
+          "absolute_error_K": 2.1600499167107046e-10,
+          "serialized_ages": {
+            "pColdContactAge": 0.0,
+            "pCold2DRingContactAge": [
+              3e-06,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        {
+          "particle": 6,
+          "active_stuck": true,
+          "addressing": {
+            "cell": 6,
+            "orig_id": 7
+          },
+          "temperature_K": 2373.1484666932483,
+          "mean_double": 4191777.14900991,
+          "carry_double": 0.0,
+          "caloric_temperature_K": 2373.1484666930323,
+          "absolute_error_K": 2.1600499167107046e-10,
+          "serialized_ages": {
+            "pColdContactAge": 0.0,
+            "pCold2DRingContactAge": [
+              3e-06,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        {
+          "particle": 7,
+          "active_stuck": true,
+          "addressing": {
+            "cell": 7,
+            "orig_id": 8
+          },
+          "temperature_K": 2373.1484666932483,
+          "mean_double": 4191777.14900991,
+          "carry_double": 0.0,
+          "caloric_temperature_K": 2373.1484666930323,
+          "absolute_error_K": 2.1600499167107046e-10,
+          "serialized_ages": {
+            "pColdContactAge": 0.0,
+            "pCold2DRingContactAge": [
+              3e-06,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        {
+          "particle": 8,
+          "active_stuck": true,
+          "addressing": {
+            "cell": 8,
+            "orig_id": 9
+          },
+          "temperature_K": 2373.1484666932483,
+          "mean_double": 4191777.14900991,
+          "carry_double": 0.0,
+          "caloric_temperature_K": 2373.1484666930323,
+          "absolute_error_K": 2.1600499167107046e-10,
+          "serialized_ages": {
+            "pColdContactAge": 0.0,
+            "pCold2DRingContactAge": [
+              3e-06,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        {
+          "particle": 9,
+          "active_stuck": true,
+          "addressing": {
+            "cell": 9,
+            "orig_id": 10
+          },
+          "temperature_K": 2373.1484666932483,
+          "mean_double": 4191777.14900991,
+          "carry_double": 0.0,
+          "caloric_temperature_K": 2373.1484666930323,
+          "absolute_error_K": 2.1600499167107046e-10,
+          "serialized_ages": {
+            "pColdContactAge": 0.0,
+            "pCold2DRingContactAge": [
+              3e-06,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        {
+          "particle": 10,
+          "active_stuck": true,
+          "addressing": {
+            "cell": 10,
+            "orig_id": 11
+          },
+          "temperature_K": 2373.1484666932483,
+          "mean_double": 4191777.14900991,
+          "carry_double": 0.0,
+          "caloric_temperature_K": 2373.1484666930323,
+          "absolute_error_K": 2.1600499167107046e-10,
+          "serialized_ages": {
+            "pColdContactAge": 0.0,
+            "pCold2DRingContactAge": [
+              3e-06,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        {
+          "particle": 11,
+          "active_stuck": true,
+          "addressing": {
+            "cell": 11,
+            "orig_id": 12
+          },
+          "temperature_K": 2373.1484666932483,
+          "mean_double": 4191777.14900991,
+          "carry_double": 0.0,
+          "caloric_temperature_K": 2373.1484666930323,
+          "absolute_error_K": 2.1600499167107046e-10,
+          "serialized_ages": {
+            "pColdContactAge": 0.0,
+            "pCold2DRingContactAge": [
+              3e-06,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        {
+          "particle": 12,
+          "active_stuck": true,
+          "addressing": {
+            "cell": 12,
+            "orig_id": 13
+          },
+          "temperature_K": 2373.1484666932483,
+          "mean_double": 4191777.14900991,
+          "carry_double": 0.0,
+          "caloric_temperature_K": 2373.1484666930323,
+          "absolute_error_K": 2.1600499167107046e-10,
+          "serialized_ages": {
+            "pColdContactAge": 0.0,
+            "pCold2DRingContactAge": [
+              3e-06,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        {
+          "particle": 13,
+          "active_stuck": true,
+          "addressing": {
+            "cell": 13,
+            "orig_id": 14
+          },
+          "temperature_K": 2373.1484666932483,
+          "mean_double": 4191777.14900991,
+          "carry_double": 0.0,
+          "caloric_temperature_K": 2373.1484666930323,
+          "absolute_error_K": 2.1600499167107046e-10,
+          "serialized_ages": {
+            "pColdContactAge": 0.0,
+            "pCold2DRingContactAge": [
+              3e-06,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        {
+          "particle": 14,
+          "active_stuck": true,
+          "addressing": {
+            "cell": 14,
+            "orig_id": 15
+          },
+          "temperature_K": 2373.1484666932483,
+          "mean_double": 4191777.14900991,
+          "carry_double": 0.0,
+          "caloric_temperature_K": 2373.1484666930323,
+          "absolute_error_K": 2.1600499167107046e-10,
+          "serialized_ages": {
+            "pColdContactAge": 0.0,
+            "pCold2DRingContactAge": [
+              3e-06,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        {
+          "particle": 15,
+          "active_stuck": true,
+          "addressing": {
+            "cell": 15,
+            "orig_id": 16
+          },
+          "temperature_K": 2373.1484666932483,
+          "mean_double": 4191777.14900991,
+          "carry_double": 0.0,
+          "caloric_temperature_K": 2373.1484666930323,
+          "absolute_error_K": 2.1600499167107046e-10,
+          "serialized_ages": {
+            "pColdContactAge": 0.0,
+            "pCold2DRingContactAge": [
+              3e-06,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ]
+          }
+        }
+      ],
+      "all_floating_fields_finite": true,
+      "nonfinite_fields": []
+    },
+    {
+      "time": "5e-06",
+      "particle_count": 16,
+      "profile_dtype": "float64",
+      "active_count": 16,
+      "positive_cold2D_age_count": 16,
+      "positive_all_cold2D_rings_count": 0,
+      "complete_8lane_groups_from_actual_active_count": 2,
+      "rows": [
+        {
+          "particle": 0,
+          "active_stuck": true,
+          "addressing": {
+            "cell": 0,
+            "orig_id": 1
+          },
+          "temperature_K": 2373.147337040802,
+          "mean_double": 4191775.4467628077,
+          "carry_double": 0.0,
+          "caloric_temperature_K": 2373.147337040393,
+          "absolute_error_K": 4.092726157978177e-10,
+          "serialized_ages": {
+            "pColdContactAge": 0.0,
+            "pCold2DRingContactAge": [
+              4e-06,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        {
+          "particle": 1,
+          "active_stuck": true,
+          "addressing": {
+            "cell": 1,
+            "orig_id": 2
+          },
+          "temperature_K": 2373.147337040802,
+          "mean_double": 4191775.4467628077,
+          "carry_double": 0.0,
+          "caloric_temperature_K": 2373.147337040393,
+          "absolute_error_K": 4.092726157978177e-10,
+          "serialized_ages": {
+            "pColdContactAge": 0.0,
+            "pCold2DRingContactAge": [
+              4e-06,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        {
+          "particle": 2,
+          "active_stuck": true,
+          "addressing": {
+            "cell": 2,
+            "orig_id": 3
+          },
+          "temperature_K": 2373.147337040802,
+          "mean_double": 4191775.4467628077,
+          "carry_double": 0.0,
+          "caloric_temperature_K": 2373.147337040393,
+          "absolute_error_K": 4.092726157978177e-10,
+          "serialized_ages": {
+            "pColdContactAge": 0.0,
+            "pCold2DRingContactAge": [
+              4e-06,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        {
+          "particle": 3,
+          "active_stuck": true,
+          "addressing": {
+            "cell": 3,
+            "orig_id": 4
+          },
+          "temperature_K": 2373.147337040802,
+          "mean_double": 4191775.4467628077,
+          "carry_double": 0.0,
+          "caloric_temperature_K": 2373.147337040393,
+          "absolute_error_K": 4.092726157978177e-10,
+          "serialized_ages": {
+            "pColdContactAge": 0.0,
+            "pCold2DRingContactAge": [
+              4e-06,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        {
+          "particle": 4,
+          "active_stuck": true,
+          "addressing": {
+            "cell": 4,
+            "orig_id": 5
+          },
+          "temperature_K": 2373.147337040802,
+          "mean_double": 4191775.4467628077,
+          "carry_double": 0.0,
+          "caloric_temperature_K": 2373.147337040393,
+          "absolute_error_K": 4.092726157978177e-10,
+          "serialized_ages": {
+            "pColdContactAge": 0.0,
+            "pCold2DRingContactAge": [
+              4e-06,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        {
+          "particle": 5,
+          "active_stuck": true,
+          "addressing": {
+            "cell": 5,
+            "orig_id": 6
+          },
+          "temperature_K": 2373.147337040802,
+          "mean_double": 4191775.446762806,
+          "carry_double": 0.0,
+          "caloric_temperature_K": 2373.1473370403914,
+          "absolute_error_K": 4.106368578504771e-10,
+          "serialized_ages": {
+            "pColdContactAge": 0.0,
+            "pCold2DRingContactAge": [
+              4e-06,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        {
+          "particle": 6,
+          "active_stuck": true,
+          "addressing": {
+            "cell": 6,
+            "orig_id": 7
+          },
+          "temperature_K": 2373.147337040802,
+          "mean_double": 4191775.446762806,
+          "carry_double": 0.0,
+          "caloric_temperature_K": 2373.1473370403914,
+          "absolute_error_K": 4.106368578504771e-10,
+          "serialized_ages": {
+            "pColdContactAge": 0.0,
+            "pCold2DRingContactAge": [
+              4e-06,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        {
+          "particle": 7,
+          "active_stuck": true,
+          "addressing": {
+            "cell": 7,
+            "orig_id": 8
+          },
+          "temperature_K": 2373.147337040802,
+          "mean_double": 4191775.4467628077,
+          "carry_double": 0.0,
+          "caloric_temperature_K": 2373.147337040393,
+          "absolute_error_K": 4.092726157978177e-10,
+          "serialized_ages": {
+            "pColdContactAge": 0.0,
+            "pCold2DRingContactAge": [
+              4e-06,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        {
+          "particle": 8,
+          "active_stuck": true,
+          "addressing": {
+            "cell": 8,
+            "orig_id": 9
+          },
+          "temperature_K": 2373.147337040802,
+          "mean_double": 4191775.4467628077,
+          "carry_double": 0.0,
+          "caloric_temperature_K": 2373.147337040393,
+          "absolute_error_K": 4.092726157978177e-10,
+          "serialized_ages": {
+            "pColdContactAge": 0.0,
+            "pCold2DRingContactAge": [
+              4e-06,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        {
+          "particle": 9,
+          "active_stuck": true,
+          "addressing": {
+            "cell": 9,
+            "orig_id": 10
+          },
+          "temperature_K": 2373.147337040802,
+          "mean_double": 4191775.446762806,
+          "carry_double": 0.0,
+          "caloric_temperature_K": 2373.1473370403914,
+          "absolute_error_K": 4.106368578504771e-10,
+          "serialized_ages": {
+            "pColdContactAge": 0.0,
+            "pCold2DRingContactAge": [
+              4e-06,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        {
+          "particle": 10,
+          "active_stuck": true,
+          "addressing": {
+            "cell": 10,
+            "orig_id": 11
+          },
+          "temperature_K": 2373.147337040802,
+          "mean_double": 4191775.446762806,
+          "carry_double": 0.0,
+          "caloric_temperature_K": 2373.1473370403914,
+          "absolute_error_K": 4.106368578504771e-10,
+          "serialized_ages": {
+            "pColdContactAge": 0.0,
+            "pCold2DRingContactAge": [
+              4e-06,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        {
+          "particle": 11,
+          "active_stuck": true,
+          "addressing": {
+            "cell": 11,
+            "orig_id": 12
+          },
+          "temperature_K": 2373.147337040802,
+          "mean_double": 4191775.4467628077,
+          "carry_double": 0.0,
+          "caloric_temperature_K": 2373.147337040393,
+          "absolute_error_K": 4.092726157978177e-10,
+          "serialized_ages": {
+            "pColdContactAge": 0.0,
+            "pCold2DRingContactAge": [
+              4e-06,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        {
+          "particle": 12,
+          "active_stuck": true,
+          "addressing": {
+            "cell": 12,
+            "orig_id": 13
+          },
+          "temperature_K": 2373.147337040802,
+          "mean_double": 4191775.4467628077,
+          "carry_double": 0.0,
+          "caloric_temperature_K": 2373.147337040393,
+          "absolute_error_K": 4.092726157978177e-10,
+          "serialized_ages": {
+            "pColdContactAge": 0.0,
+            "pCold2DRingContactAge": [
+              4e-06,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        {
+          "particle": 13,
+          "active_stuck": true,
+          "addressing": {
+            "cell": 13,
+            "orig_id": 14
+          },
+          "temperature_K": 2373.147337040802,
+          "mean_double": 4191775.4467628077,
+          "carry_double": 0.0,
+          "caloric_temperature_K": 2373.147337040393,
+          "absolute_error_K": 4.092726157978177e-10,
+          "serialized_ages": {
+            "pColdContactAge": 0.0,
+            "pCold2DRingContactAge": [
+              4e-06,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        {
+          "particle": 14,
+          "active_stuck": true,
+          "addressing": {
+            "cell": 14,
+            "orig_id": 15
+          },
+          "temperature_K": 2373.147337040802,
+          "mean_double": 4191775.4467628077,
+          "carry_double": 0.0,
+          "caloric_temperature_K": 2373.147337040393,
+          "absolute_error_K": 4.092726157978177e-10,
+          "serialized_ages": {
+            "pColdContactAge": 0.0,
+            "pCold2DRingContactAge": [
+              4e-06,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        {
+          "particle": 15,
+          "active_stuck": true,
+          "addressing": {
+            "cell": 15,
+            "orig_id": 16
+          },
+          "temperature_K": 2373.147337040802,
+          "mean_double": 4191775.4467628077,
+          "carry_double": 0.0,
+          "caloric_temperature_K": 2373.147337040393,
+          "absolute_error_K": 4.092726157978177e-10,
+          "serialized_ages": {
+            "pColdContactAge": 0.0,
+            "pCold2DRingContactAge": [
+              4e-06,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ]
+          }
+        }
+      ],
+      "all_floating_fields_finite": true,
+      "nonfinite_fields": []
+    },
+    {
+      "time": "6e-06",
+      "particle_count": 16,
+      "profile_dtype": "float64",
+      "active_count": 16,
+      "positive_cold2D_age_count": 16,
+      "positive_all_cold2D_rings_count": 0,
+      "complete_8lane_groups_from_actual_active_count": 2,
+      "rows": [
+        {
+          "particle": 0,
+          "active_stuck": true,
+          "addressing": {
+            "cell": 0,
+            "orig_id": 1
+          },
+          "temperature_K": 2373.1458967067847,
+          "mean_double": 4191773.2763579306,
+          "carry_double": 0.0,
+          "caloric_temperature_K": 2373.145896706813,
+          "absolute_error_K": 2.8194335754960775e-11,
+          "serialized_ages": {
+            "pColdContactAge": 0.0,
+            "pCold2DRingContactAge": [
+              4.9999999999999996e-06,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        {
+          "particle": 1,
+          "active_stuck": true,
+          "addressing": {
+            "cell": 1,
+            "orig_id": 2
+          },
+          "temperature_K": 2373.1458967067847,
+          "mean_double": 4191773.2763579306,
+          "carry_double": 0.0,
+          "caloric_temperature_K": 2373.145896706813,
+          "absolute_error_K": 2.8194335754960775e-11,
+          "serialized_ages": {
+            "pColdContactAge": 0.0,
+            "pCold2DRingContactAge": [
+              4.9999999999999996e-06,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        {
+          "particle": 2,
+          "active_stuck": true,
+          "addressing": {
+            "cell": 2,
+            "orig_id": 3
+          },
+          "temperature_K": 2373.1458967067847,
+          "mean_double": 4191773.2763579306,
+          "carry_double": 0.0,
+          "caloric_temperature_K": 2373.145896706813,
+          "absolute_error_K": 2.8194335754960775e-11,
+          "serialized_ages": {
+            "pColdContactAge": 0.0,
+            "pCold2DRingContactAge": [
+              4.9999999999999996e-06,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        {
+          "particle": 3,
+          "active_stuck": true,
+          "addressing": {
+            "cell": 3,
+            "orig_id": 4
+          },
+          "temperature_K": 2373.1458967067847,
+          "mean_double": 4191773.2763579306,
+          "carry_double": 0.0,
+          "caloric_temperature_K": 2373.145896706813,
+          "absolute_error_K": 2.8194335754960775e-11,
+          "serialized_ages": {
+            "pColdContactAge": 0.0,
+            "pCold2DRingContactAge": [
+              4.9999999999999996e-06,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        {
+          "particle": 4,
+          "active_stuck": true,
+          "addressing": {
+            "cell": 4,
+            "orig_id": 5
+          },
+          "temperature_K": 2373.1458967067847,
+          "mean_double": 4191773.2763579306,
+          "carry_double": 0.0,
+          "caloric_temperature_K": 2373.145896706813,
+          "absolute_error_K": 2.8194335754960775e-11,
+          "serialized_ages": {
+            "pColdContactAge": 0.0,
+            "pCold2DRingContactAge": [
+              4.9999999999999996e-06,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        {
+          "particle": 5,
+          "active_stuck": true,
+          "addressing": {
+            "cell": 5,
+            "orig_id": 6
+          },
+          "temperature_K": 2373.1458967067847,
+          "mean_double": 4191773.2763579306,
+          "carry_double": 0.0,
+          "caloric_temperature_K": 2373.145896706813,
+          "absolute_error_K": 2.8194335754960775e-11,
+          "serialized_ages": {
+            "pColdContactAge": 0.0,
+            "pCold2DRingContactAge": [
+              4.9999999999999996e-06,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        {
+          "particle": 6,
+          "active_stuck": true,
+          "addressing": {
+            "cell": 6,
+            "orig_id": 7
+          },
+          "temperature_K": 2373.1458967067847,
+          "mean_double": 4191773.2763579306,
+          "carry_double": 0.0,
+          "caloric_temperature_K": 2373.145896706813,
+          "absolute_error_K": 2.8194335754960775e-11,
+          "serialized_ages": {
+            "pColdContactAge": 0.0,
+            "pCold2DRingContactAge": [
+              4.9999999999999996e-06,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        {
+          "particle": 7,
+          "active_stuck": true,
+          "addressing": {
+            "cell": 7,
+            "orig_id": 8
+          },
+          "temperature_K": 2373.1458967067847,
+          "mean_double": 4191773.2763579306,
+          "carry_double": 0.0,
+          "caloric_temperature_K": 2373.145896706813,
+          "absolute_error_K": 2.8194335754960775e-11,
+          "serialized_ages": {
+            "pColdContactAge": 0.0,
+            "pCold2DRingContactAge": [
+              4.9999999999999996e-06,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        {
+          "particle": 8,
+          "active_stuck": true,
+          "addressing": {
+            "cell": 8,
+            "orig_id": 9
+          },
+          "temperature_K": 2373.1458967067847,
+          "mean_double": 4191773.2763579306,
+          "carry_double": 0.0,
+          "caloric_temperature_K": 2373.145896706813,
+          "absolute_error_K": 2.8194335754960775e-11,
+          "serialized_ages": {
+            "pColdContactAge": 0.0,
+            "pCold2DRingContactAge": [
+              4.9999999999999996e-06,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        {
+          "particle": 9,
+          "active_stuck": true,
+          "addressing": {
+            "cell": 9,
+            "orig_id": 10
+          },
+          "temperature_K": 2373.1458967067847,
+          "mean_double": 4191773.2763579306,
+          "carry_double": 0.0,
+          "caloric_temperature_K": 2373.145896706813,
+          "absolute_error_K": 2.8194335754960775e-11,
+          "serialized_ages": {
+            "pColdContactAge": 0.0,
+            "pCold2DRingContactAge": [
+              4.9999999999999996e-06,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        {
+          "particle": 10,
+          "active_stuck": true,
+          "addressing": {
+            "cell": 10,
+            "orig_id": 11
+          },
+          "temperature_K": 2373.1458967067847,
+          "mean_double": 4191773.2763579306,
+          "carry_double": 0.0,
+          "caloric_temperature_K": 2373.145896706813,
+          "absolute_error_K": 2.8194335754960775e-11,
+          "serialized_ages": {
+            "pColdContactAge": 0.0,
+            "pCold2DRingContactAge": [
+              4.9999999999999996e-06,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        {
+          "particle": 11,
+          "active_stuck": true,
+          "addressing": {
+            "cell": 11,
+            "orig_id": 12
+          },
+          "temperature_K": 2373.1458967067847,
+          "mean_double": 4191773.2763579306,
+          "carry_double": 0.0,
+          "caloric_temperature_K": 2373.145896706813,
+          "absolute_error_K": 2.8194335754960775e-11,
+          "serialized_ages": {
+            "pColdContactAge": 0.0,
+            "pCold2DRingContactAge": [
+              4.9999999999999996e-06,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        {
+          "particle": 12,
+          "active_stuck": true,
+          "addressing": {
+            "cell": 12,
+            "orig_id": 13
+          },
+          "temperature_K": 2373.1458967067847,
+          "mean_double": 4191773.2763579306,
+          "carry_double": 0.0,
+          "caloric_temperature_K": 2373.145896706813,
+          "absolute_error_K": 2.8194335754960775e-11,
+          "serialized_ages": {
+            "pColdContactAge": 0.0,
+            "pCold2DRingContactAge": [
+              4.9999999999999996e-06,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        {
+          "particle": 13,
+          "active_stuck": true,
+          "addressing": {
+            "cell": 13,
+            "orig_id": 14
+          },
+          "temperature_K": 2373.1458967067847,
+          "mean_double": 4191773.2763579306,
+          "carry_double": 0.0,
+          "caloric_temperature_K": 2373.145896706813,
+          "absolute_error_K": 2.8194335754960775e-11,
+          "serialized_ages": {
+            "pColdContactAge": 0.0,
+            "pCold2DRingContactAge": [
+              4.9999999999999996e-06,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        {
+          "particle": 14,
+          "active_stuck": true,
+          "addressing": {
+            "cell": 14,
+            "orig_id": 15
+          },
+          "temperature_K": 2373.1458967067847,
+          "mean_double": 4191773.2763579306,
+          "carry_double": 0.0,
+          "caloric_temperature_K": 2373.145896706813,
+          "absolute_error_K": 2.8194335754960775e-11,
+          "serialized_ages": {
+            "pColdContactAge": 0.0,
+            "pCold2DRingContactAge": [
+              4.9999999999999996e-06,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        {
+          "particle": 15,
+          "active_stuck": true,
+          "addressing": {
+            "cell": 15,
+            "orig_id": 16
+          },
+          "temperature_K": 2373.1458967067847,
+          "mean_double": 4191773.2763579306,
+          "carry_double": 0.0,
+          "caloric_temperature_K": 2373.145896706813,
+          "absolute_error_K": 2.8194335754960775e-11,
+          "serialized_ages": {
+            "pColdContactAge": 0.0,
+            "pCold2DRingContactAge": [
+              4.9999999999999996e-06,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ]
+          }
+        }
+      ],
+      "all_floating_fields_finite": true,
+      "nonfinite_fields": []
+    },
+    {
+      "time": "7e-06",
+      "particle_count": 16,
+      "profile_dtype": "float64",
+      "active_count": 16,
+      "positive_cold2D_age_count": 16,
+      "positive_all_cold2D_rings_count": 0,
+      "complete_8lane_groups_from_actual_active_count": 2,
+      "rows": [
+        {
+          "particle": 0,
+          "active_stuck": true,
+          "addressing": {
+            "cell": 0,
+            "orig_id": 1
+          },
+          "temperature_K": 2373.144148836229,
+          "mean_double": 4191770.6425323435,
+          "carry_double": 0.0,
+          "caloric_temperature_K": 2373.1441488358982,
+          "absolute_error_K": 3.306013240944594e-10,
+          "serialized_ages": {
+            "pColdContactAge": 0.0,
+            "pCold2DRingContactAge": [
+              5.999999999999999e-06,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        {
+          "particle": 1,
+          "active_stuck": true,
+          "addressing": {
+            "cell": 1,
+            "orig_id": 2
+          },
+          "temperature_K": 2373.144148836229,
+          "mean_double": 4191770.6425323426,
+          "carry_double": 0.0,
+          "caloric_temperature_K": 2373.1441488358973,
+          "absolute_error_K": 3.3151081879623234e-10,
+          "serialized_ages": {
+            "pColdContactAge": 0.0,
+            "pCold2DRingContactAge": [
+              5.999999999999999e-06,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        {
+          "particle": 2,
+          "active_stuck": true,
+          "addressing": {
+            "cell": 2,
+            "orig_id": 3
+          },
+          "temperature_K": 2373.144148836229,
+          "mean_double": 4191770.6425323426,
+          "carry_double": 0.0,
+          "caloric_temperature_K": 2373.1441488358973,
+          "absolute_error_K": 3.3151081879623234e-10,
+          "serialized_ages": {
+            "pColdContactAge": 0.0,
+            "pCold2DRingContactAge": [
+              5.999999999999999e-06,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        {
+          "particle": 3,
+          "active_stuck": true,
+          "addressing": {
+            "cell": 3,
+            "orig_id": 4
+          },
+          "temperature_K": 2373.144148836229,
+          "mean_double": 4191770.6425323435,
+          "carry_double": 0.0,
+          "caloric_temperature_K": 2373.1441488358982,
+          "absolute_error_K": 3.306013240944594e-10,
+          "serialized_ages": {
+            "pColdContactAge": 0.0,
+            "pCold2DRingContactAge": [
+              5.999999999999999e-06,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        {
+          "particle": 4,
+          "active_stuck": true,
+          "addressing": {
+            "cell": 4,
+            "orig_id": 5
+          },
+          "temperature_K": 2373.144148836229,
+          "mean_double": 4191770.6425323426,
+          "carry_double": 0.0,
+          "caloric_temperature_K": 2373.1441488358973,
+          "absolute_error_K": 3.3151081879623234e-10,
+          "serialized_ages": {
+            "pColdContactAge": 0.0,
+            "pCold2DRingContactAge": [
+              5.999999999999999e-06,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        {
+          "particle": 5,
+          "active_stuck": true,
+          "addressing": {
+            "cell": 5,
+            "orig_id": 6
+          },
+          "temperature_K": 2373.144148836229,
+          "mean_double": 4191770.6425323426,
+          "carry_double": 0.0,
+          "caloric_temperature_K": 2373.1441488358973,
+          "absolute_error_K": 3.3151081879623234e-10,
+          "serialized_ages": {
+            "pColdContactAge": 0.0,
+            "pCold2DRingContactAge": [
+              5.999999999999999e-06,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        {
+          "particle": 6,
+          "active_stuck": true,
+          "addressing": {
+            "cell": 6,
+            "orig_id": 7
+          },
+          "temperature_K": 2373.144148836229,
+          "mean_double": 4191770.6425323426,
+          "carry_double": 0.0,
+          "caloric_temperature_K": 2373.1441488358973,
+          "absolute_error_K": 3.3151081879623234e-10,
+          "serialized_ages": {
+            "pColdContactAge": 0.0,
+            "pCold2DRingContactAge": [
+              5.999999999999999e-06,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        {
+          "particle": 7,
+          "active_stuck": true,
+          "addressing": {
+            "cell": 7,
+            "orig_id": 8
+          },
+          "temperature_K": 2373.144148836229,
+          "mean_double": 4191770.6425323426,
+          "carry_double": 0.0,
+          "caloric_temperature_K": 2373.1441488358973,
+          "absolute_error_K": 3.3151081879623234e-10,
+          "serialized_ages": {
+            "pColdContactAge": 0.0,
+            "pCold2DRingContactAge": [
+              5.999999999999999e-06,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        {
+          "particle": 8,
+          "active_stuck": true,
+          "addressing": {
+            "cell": 8,
+            "orig_id": 9
+          },
+          "temperature_K": 2373.144148836229,
+          "mean_double": 4191770.6425323426,
+          "carry_double": 0.0,
+          "caloric_temperature_K": 2373.1441488358973,
+          "absolute_error_K": 3.3151081879623234e-10,
+          "serialized_ages": {
+            "pColdContactAge": 0.0,
+            "pCold2DRingContactAge": [
+              5.999999999999999e-06,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        {
+          "particle": 9,
+          "active_stuck": true,
+          "addressing": {
+            "cell": 9,
+            "orig_id": 10
+          },
+          "temperature_K": 2373.144148836229,
+          "mean_double": 4191770.6425323426,
+          "carry_double": 0.0,
+          "caloric_temperature_K": 2373.1441488358973,
+          "absolute_error_K": 3.3151081879623234e-10,
+          "serialized_ages": {
+            "pColdContactAge": 0.0,
+            "pCold2DRingContactAge": [
+              5.999999999999999e-06,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        {
+          "particle": 10,
+          "active_stuck": true,
+          "addressing": {
+            "cell": 10,
+            "orig_id": 11
+          },
+          "temperature_K": 2373.144148836229,
+          "mean_double": 4191770.6425323426,
+          "carry_double": 0.0,
+          "caloric_temperature_K": 2373.1441488358973,
+          "absolute_error_K": 3.3151081879623234e-10,
+          "serialized_ages": {
+            "pColdContactAge": 0.0,
+            "pCold2DRingContactAge": [
+              5.999999999999999e-06,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        {
+          "particle": 11,
+          "active_stuck": true,
+          "addressing": {
+            "cell": 11,
+            "orig_id": 12
+          },
+          "temperature_K": 2373.144148836229,
+          "mean_double": 4191770.6425323426,
+          "carry_double": 0.0,
+          "caloric_temperature_K": 2373.1441488358973,
+          "absolute_error_K": 3.3151081879623234e-10,
+          "serialized_ages": {
+            "pColdContactAge": 0.0,
+            "pCold2DRingContactAge": [
+              5.999999999999999e-06,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        {
+          "particle": 12,
+          "active_stuck": true,
+          "addressing": {
+            "cell": 12,
+            "orig_id": 13
+          },
+          "temperature_K": 2373.144148836229,
+          "mean_double": 4191770.6425323435,
+          "carry_double": 0.0,
+          "caloric_temperature_K": 2373.1441488358982,
+          "absolute_error_K": 3.306013240944594e-10,
+          "serialized_ages": {
+            "pColdContactAge": 0.0,
+            "pCold2DRingContactAge": [
+              5.999999999999999e-06,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        {
+          "particle": 13,
+          "active_stuck": true,
+          "addressing": {
+            "cell": 13,
+            "orig_id": 14
+          },
+          "temperature_K": 2373.144148836229,
+          "mean_double": 4191770.6425323426,
+          "carry_double": 0.0,
+          "caloric_temperature_K": 2373.1441488358973,
+          "absolute_error_K": 3.3151081879623234e-10,
+          "serialized_ages": {
+            "pColdContactAge": 0.0,
+            "pCold2DRingContactAge": [
+              5.999999999999999e-06,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        {
+          "particle": 14,
+          "active_stuck": true,
+          "addressing": {
+            "cell": 14,
+            "orig_id": 15
+          },
+          "temperature_K": 2373.144148836229,
+          "mean_double": 4191770.6425323426,
+          "carry_double": 0.0,
+          "caloric_temperature_K": 2373.1441488358973,
+          "absolute_error_K": 3.3151081879623234e-10,
+          "serialized_ages": {
+            "pColdContactAge": 0.0,
+            "pCold2DRingContactAge": [
+              5.999999999999999e-06,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        {
+          "particle": 15,
+          "active_stuck": true,
+          "addressing": {
+            "cell": 15,
+            "orig_id": 16
+          },
+          "temperature_K": 2373.144148836229,
+          "mean_double": 4191770.6425323435,
+          "carry_double": 0.0,
+          "caloric_temperature_K": 2373.1441488358982,
+          "absolute_error_K": 3.306013240944594e-10,
+          "serialized_ages": {
+            "pColdContactAge": 0.0,
+            "pCold2DRingContactAge": [
+              5.999999999999999e-06,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ]
+          }
+        }
+      ],
+      "all_floating_fields_finite": true,
+      "nonfinite_fields": []
+    },
+    {
+      "time": "8e-06",
+      "particle_count": 16,
+      "profile_dtype": "float64",
+      "active_count": 16,
+      "positive_cold2D_age_count": 16,
+      "positive_all_cold2D_rings_count": 0,
+      "complete_8lane_groups_from_actual_active_count": 2,
+      "rows": [
+        {
+          "particle": 0,
+          "active_stuck": true,
+          "addressing": {
+            "cell": 0,
+            "orig_id": 1
+          },
+          "temperature_K": 2373.142096246749,
+          "mean_double": 4191767.5495348,
+          "carry_double": 0.0,
+          "caloric_temperature_K": 2373.142096247192,
+          "absolute_error_K": 4.4292391976341605e-10,
+          "serialized_ages": {
+            "pColdContactAge": 0.0,
+            "pCold2DRingContactAge": [
+              6.999999999999999e-06,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        {
+          "particle": 1,
+          "active_stuck": true,
+          "addressing": {
+            "cell": 1,
+            "orig_id": 2
+          },
+          "temperature_K": 2373.142096246749,
+          "mean_double": 4191767.549534799,
+          "carry_double": 0.0,
+          "caloric_temperature_K": 2373.1420962471916,
+          "absolute_error_K": 4.424691724125296e-10,
+          "serialized_ages": {
+            "pColdContactAge": 0.0,
+            "pCold2DRingContactAge": [
+              6.999999999999999e-06,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        {
+          "particle": 2,
+          "active_stuck": true,
+          "addressing": {
+            "cell": 2,
+            "orig_id": 3
+          },
+          "temperature_K": 2373.142096246749,
+          "mean_double": 4191767.549534799,
+          "carry_double": 0.0,
+          "caloric_temperature_K": 2373.1420962471916,
+          "absolute_error_K": 4.424691724125296e-10,
+          "serialized_ages": {
+            "pColdContactAge": 0.0,
+            "pCold2DRingContactAge": [
+              6.999999999999999e-06,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        {
+          "particle": 3,
+          "active_stuck": true,
+          "addressing": {
+            "cell": 3,
+            "orig_id": 4
+          },
+          "temperature_K": 2373.142096246749,
+          "mean_double": 4191767.5495348,
+          "carry_double": 0.0,
+          "caloric_temperature_K": 2373.142096247192,
+          "absolute_error_K": 4.4292391976341605e-10,
+          "serialized_ages": {
+            "pColdContactAge": 0.0,
+            "pCold2DRingContactAge": [
+              6.999999999999999e-06,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        {
+          "particle": 4,
+          "active_stuck": true,
+          "addressing": {
+            "cell": 4,
+            "orig_id": 5
+          },
+          "temperature_K": 2373.142096246749,
+          "mean_double": 4191767.549534799,
+          "carry_double": 0.0,
+          "caloric_temperature_K": 2373.1420962471916,
+          "absolute_error_K": 4.424691724125296e-10,
+          "serialized_ages": {
+            "pColdContactAge": 0.0,
+            "pCold2DRingContactAge": [
+              6.999999999999999e-06,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        {
+          "particle": 5,
+          "active_stuck": true,
+          "addressing": {
+            "cell": 5,
+            "orig_id": 6
+          },
+          "temperature_K": 2373.142096246749,
+          "mean_double": 4191767.549534797,
+          "carry_double": 0.0,
+          "caloric_temperature_K": 2373.1420962471902,
+          "absolute_error_K": 4.411049303598702e-10,
+          "serialized_ages": {
+            "pColdContactAge": 0.0,
+            "pCold2DRingContactAge": [
+              6.999999999999999e-06,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        {
+          "particle": 6,
+          "active_stuck": true,
+          "addressing": {
+            "cell": 6,
+            "orig_id": 7
+          },
+          "temperature_K": 2373.142096246749,
+          "mean_double": 4191767.549534797,
+          "carry_double": 0.0,
+          "caloric_temperature_K": 2373.1420962471902,
+          "absolute_error_K": 4.411049303598702e-10,
+          "serialized_ages": {
+            "pColdContactAge": 0.0,
+            "pCold2DRingContactAge": [
+              6.999999999999999e-06,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        {
+          "particle": 7,
+          "active_stuck": true,
+          "addressing": {
+            "cell": 7,
+            "orig_id": 8
+          },
+          "temperature_K": 2373.142096246749,
+          "mean_double": 4191767.549534799,
+          "carry_double": 0.0,
+          "caloric_temperature_K": 2373.1420962471916,
+          "absolute_error_K": 4.424691724125296e-10,
+          "serialized_ages": {
+            "pColdContactAge": 0.0,
+            "pCold2DRingContactAge": [
+              6.999999999999999e-06,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        {
+          "particle": 8,
+          "active_stuck": true,
+          "addressing": {
+            "cell": 8,
+            "orig_id": 9
+          },
+          "temperature_K": 2373.142096246749,
+          "mean_double": 4191767.549534799,
+          "carry_double": 0.0,
+          "caloric_temperature_K": 2373.1420962471916,
+          "absolute_error_K": 4.424691724125296e-10,
+          "serialized_ages": {
+            "pColdContactAge": 0.0,
+            "pCold2DRingContactAge": [
+              6.999999999999999e-06,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        {
+          "particle": 9,
+          "active_stuck": true,
+          "addressing": {
+            "cell": 9,
+            "orig_id": 10
+          },
+          "temperature_K": 2373.142096246749,
+          "mean_double": 4191767.549534797,
+          "carry_double": 0.0,
+          "caloric_temperature_K": 2373.1420962471902,
+          "absolute_error_K": 4.411049303598702e-10,
+          "serialized_ages": {
+            "pColdContactAge": 0.0,
+            "pCold2DRingContactAge": [
+              6.999999999999999e-06,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        {
+          "particle": 10,
+          "active_stuck": true,
+          "addressing": {
+            "cell": 10,
+            "orig_id": 11
+          },
+          "temperature_K": 2373.142096246749,
+          "mean_double": 4191767.549534797,
+          "carry_double": 0.0,
+          "caloric_temperature_K": 2373.1420962471902,
+          "absolute_error_K": 4.411049303598702e-10,
+          "serialized_ages": {
+            "pColdContactAge": 0.0,
+            "pCold2DRingContactAge": [
+              6.999999999999999e-06,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        {
+          "particle": 11,
+          "active_stuck": true,
+          "addressing": {
+            "cell": 11,
+            "orig_id": 12
+          },
+          "temperature_K": 2373.142096246749,
+          "mean_double": 4191767.549534799,
+          "carry_double": 0.0,
+          "caloric_temperature_K": 2373.1420962471916,
+          "absolute_error_K": 4.424691724125296e-10,
+          "serialized_ages": {
+            "pColdContactAge": 0.0,
+            "pCold2DRingContactAge": [
+              6.999999999999999e-06,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        {
+          "particle": 12,
+          "active_stuck": true,
+          "addressing": {
+            "cell": 12,
+            "orig_id": 13
+          },
+          "temperature_K": 2373.142096246749,
+          "mean_double": 4191767.5495348,
+          "carry_double": 0.0,
+          "caloric_temperature_K": 2373.142096247192,
+          "absolute_error_K": 4.4292391976341605e-10,
+          "serialized_ages": {
+            "pColdContactAge": 0.0,
+            "pCold2DRingContactAge": [
+              6.999999999999999e-06,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        {
+          "particle": 13,
+          "active_stuck": true,
+          "addressing": {
+            "cell": 13,
+            "orig_id": 14
+          },
+          "temperature_K": 2373.142096246749,
+          "mean_double": 4191767.549534799,
+          "carry_double": 0.0,
+          "caloric_temperature_K": 2373.1420962471916,
+          "absolute_error_K": 4.424691724125296e-10,
+          "serialized_ages": {
+            "pColdContactAge": 0.0,
+            "pCold2DRingContactAge": [
+              6.999999999999999e-06,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        {
+          "particle": 14,
+          "active_stuck": true,
+          "addressing": {
+            "cell": 14,
+            "orig_id": 15
+          },
+          "temperature_K": 2373.142096246749,
+          "mean_double": 4191767.549534799,
+          "carry_double": 0.0,
+          "caloric_temperature_K": 2373.1420962471916,
+          "absolute_error_K": 4.424691724125296e-10,
+          "serialized_ages": {
+            "pColdContactAge": 0.0,
+            "pCold2DRingContactAge": [
+              6.999999999999999e-06,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        {
+          "particle": 15,
+          "active_stuck": true,
+          "addressing": {
+            "cell": 15,
+            "orig_id": 16
+          },
+          "temperature_K": 2373.142096246749,
+          "mean_double": 4191767.5495348,
+          "carry_double": 0.0,
+          "caloric_temperature_K": 2373.142096247192,
+          "absolute_error_K": 4.4292391976341605e-10,
+          "serialized_ages": {
+            "pColdContactAge": 0.0,
+            "pCold2DRingContactAge": [
+              6.999999999999999e-06,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ]
+          }
+        }
+      ],
+      "all_floating_fields_finite": true,
+      "nonfinite_fields": []
+    },
+    {
+      "time": "9e-06",
+      "particle_count": 16,
+      "profile_dtype": "float64",
+      "active_count": 16,
+      "positive_cold2D_age_count": 16,
+      "positive_all_cold2D_rings_count": 0,
+      "complete_8lane_groups_from_actual_active_count": 2,
+      "rows": [
+        {
+          "particle": 0,
+          "active_stuck": true,
+          "addressing": {
+            "cell": 0,
+            "orig_id": 1
+          },
+          "temperature_K": 2373.1397415176725,
+          "mean_double": 4191764.001248969,
+          "carry_double": 0.0,
+          "caloric_temperature_K": 2373.1397415179554,
+          "absolute_error_K": 2.828528522513807e-10,
+          "serialized_ages": {
+            "pColdContactAge": 0.0,
+            "pCold2DRingContactAge": [
+              8e-06,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        {
+          "particle": 1,
+          "active_stuck": true,
+          "addressing": {
+            "cell": 1,
+            "orig_id": 2
+          },
+          "temperature_K": 2373.1397415176725,
+          "mean_double": 4191764.0012489683,
+          "carry_double": 0.0,
+          "caloric_temperature_K": 2373.1397415179545,
+          "absolute_error_K": 2.8194335754960775e-10,
+          "serialized_ages": {
+            "pColdContactAge": 0.0,
+            "pCold2DRingContactAge": [
+              8e-06,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        {
+          "particle": 2,
+          "active_stuck": true,
+          "addressing": {
+            "cell": 2,
+            "orig_id": 3
+          },
+          "temperature_K": 2373.1397415176725,
+          "mean_double": 4191764.0012489683,
+          "carry_double": 0.0,
+          "caloric_temperature_K": 2373.1397415179545,
+          "absolute_error_K": 2.8194335754960775e-10,
+          "serialized_ages": {
+            "pColdContactAge": 0.0,
+            "pCold2DRingContactAge": [
+              8e-06,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        {
+          "particle": 3,
+          "active_stuck": true,
+          "addressing": {
+            "cell": 3,
+            "orig_id": 4
+          },
+          "temperature_K": 2373.1397415176725,
+          "mean_double": 4191764.001248969,
+          "carry_double": 0.0,
+          "caloric_temperature_K": 2373.1397415179554,
+          "absolute_error_K": 2.828528522513807e-10,
+          "serialized_ages": {
+            "pColdContactAge": 0.0,
+            "pCold2DRingContactAge": [
+              8e-06,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        {
+          "particle": 4,
+          "active_stuck": true,
+          "addressing": {
+            "cell": 4,
+            "orig_id": 5
+          },
+          "temperature_K": 2373.1397415176725,
+          "mean_double": 4191764.0012489683,
+          "carry_double": 0.0,
+          "caloric_temperature_K": 2373.1397415179545,
+          "absolute_error_K": 2.8194335754960775e-10,
+          "serialized_ages": {
+            "pColdContactAge": 0.0,
+            "pCold2DRingContactAge": [
+              8e-06,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        {
+          "particle": 5,
+          "active_stuck": true,
+          "addressing": {
+            "cell": 5,
+            "orig_id": 6
+          },
+          "temperature_K": 2373.1397415176725,
+          "mean_double": 4191764.001248966,
+          "carry_double": 0.0,
+          "caloric_temperature_K": 2373.139741517953,
+          "absolute_error_K": 2.8057911549694836e-10,
+          "serialized_ages": {
+            "pColdContactAge": 0.0,
+            "pCold2DRingContactAge": [
+              8e-06,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        {
+          "particle": 6,
+          "active_stuck": true,
+          "addressing": {
+            "cell": 6,
+            "orig_id": 7
+          },
+          "temperature_K": 2373.1397415176725,
+          "mean_double": 4191764.001248966,
+          "carry_double": 0.0,
+          "caloric_temperature_K": 2373.139741517953,
+          "absolute_error_K": 2.8057911549694836e-10,
+          "serialized_ages": {
+            "pColdContactAge": 0.0,
+            "pCold2DRingContactAge": [
+              8e-06,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        {
+          "particle": 7,
+          "active_stuck": true,
+          "addressing": {
+            "cell": 7,
+            "orig_id": 8
+          },
+          "temperature_K": 2373.1397415176725,
+          "mean_double": 4191764.0012489683,
+          "carry_double": 0.0,
+          "caloric_temperature_K": 2373.1397415179545,
+          "absolute_error_K": 2.8194335754960775e-10,
+          "serialized_ages": {
+            "pColdContactAge": 0.0,
+            "pCold2DRingContactAge": [
+              8e-06,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        {
+          "particle": 8,
+          "active_stuck": true,
+          "addressing": {
+            "cell": 8,
+            "orig_id": 9
+          },
+          "temperature_K": 2373.1397415176725,
+          "mean_double": 4191764.0012489683,
+          "carry_double": 0.0,
+          "caloric_temperature_K": 2373.1397415179545,
+          "absolute_error_K": 2.8194335754960775e-10,
+          "serialized_ages": {
+            "pColdContactAge": 0.0,
+            "pCold2DRingContactAge": [
+              8e-06,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        {
+          "particle": 9,
+          "active_stuck": true,
+          "addressing": {
+            "cell": 9,
+            "orig_id": 10
+          },
+          "temperature_K": 2373.1397415176725,
+          "mean_double": 4191764.001248966,
+          "carry_double": 0.0,
+          "caloric_temperature_K": 2373.139741517953,
+          "absolute_error_K": 2.8057911549694836e-10,
+          "serialized_ages": {
+            "pColdContactAge": 0.0,
+            "pCold2DRingContactAge": [
+              8e-06,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        {
+          "particle": 10,
+          "active_stuck": true,
+          "addressing": {
+            "cell": 10,
+            "orig_id": 11
+          },
+          "temperature_K": 2373.1397415176725,
+          "mean_double": 4191764.001248966,
+          "carry_double": 0.0,
+          "caloric_temperature_K": 2373.139741517953,
+          "absolute_error_K": 2.8057911549694836e-10,
+          "serialized_ages": {
+            "pColdContactAge": 0.0,
+            "pCold2DRingContactAge": [
+              8e-06,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        {
+          "particle": 11,
+          "active_stuck": true,
+          "addressing": {
+            "cell": 11,
+            "orig_id": 12
+          },
+          "temperature_K": 2373.1397415176725,
+          "mean_double": 4191764.0012489683,
+          "carry_double": 0.0,
+          "caloric_temperature_K": 2373.1397415179545,
+          "absolute_error_K": 2.8194335754960775e-10,
+          "serialized_ages": {
+            "pColdContactAge": 0.0,
+            "pCold2DRingContactAge": [
+              8e-06,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        {
+          "particle": 12,
+          "active_stuck": true,
+          "addressing": {
+            "cell": 12,
+            "orig_id": 13
+          },
+          "temperature_K": 2373.1397415176725,
+          "mean_double": 4191764.001248969,
+          "carry_double": 0.0,
+          "caloric_temperature_K": 2373.1397415179554,
+          "absolute_error_K": 2.828528522513807e-10,
+          "serialized_ages": {
+            "pColdContactAge": 0.0,
+            "pCold2DRingContactAge": [
+              8e-06,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        {
+          "particle": 13,
+          "active_stuck": true,
+          "addressing": {
+            "cell": 13,
+            "orig_id": 14
+          },
+          "temperature_K": 2373.1397415176725,
+          "mean_double": 4191764.0012489683,
+          "carry_double": 0.0,
+          "caloric_temperature_K": 2373.1397415179545,
+          "absolute_error_K": 2.8194335754960775e-10,
+          "serialized_ages": {
+            "pColdContactAge": 0.0,
+            "pCold2DRingContactAge": [
+              8e-06,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        {
+          "particle": 14,
+          "active_stuck": true,
+          "addressing": {
+            "cell": 14,
+            "orig_id": 15
+          },
+          "temperature_K": 2373.1397415176725,
+          "mean_double": 4191764.0012489683,
+          "carry_double": 0.0,
+          "caloric_temperature_K": 2373.1397415179545,
+          "absolute_error_K": 2.8194335754960775e-10,
+          "serialized_ages": {
+            "pColdContactAge": 0.0,
+            "pCold2DRingContactAge": [
+              8e-06,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        {
+          "particle": 15,
+          "active_stuck": true,
+          "addressing": {
+            "cell": 15,
+            "orig_id": 16
+          },
+          "temperature_K": 2373.1397415176725,
+          "mean_double": 4191764.001248969,
+          "carry_double": 0.0,
+          "caloric_temperature_K": 2373.1397415179554,
+          "absolute_error_K": 2.828528522513807e-10,
+          "serialized_ages": {
+            "pColdContactAge": 0.0,
+            "pCold2DRingContactAge": [
+              8e-06,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ]
+          }
+        }
+      ],
+      "all_floating_fields_finite": true,
+      "nonfinite_fields": []
+    },
+    {
+      "time": "1e-05",
+      "particle_count": 16,
+      "profile_dtype": "float64",
+      "active_count": 16,
+      "positive_cold2D_age_count": 16,
+      "positive_all_cold2D_rings_count": 0,
+      "complete_8lane_groups_from_actual_active_count": 2,
+      "rows": [
+        {
+          "particle": 0,
+          "active_stuck": true,
+          "addressing": {
+            "cell": 0,
+            "orig_id": 1
+          },
+          "temperature_K": 2373.137087035513,
+          "mean_double": 4191760.0012724525,
+          "carry_double": 0.0,
+          "caloric_temperature_K": 2373.137087035601,
+          "absolute_error_K": 8.776623872108757e-11,
+          "serialized_ages": {
+            "pColdContactAge": 0.0,
+            "pCold2DRingContactAge": [
+              9e-06,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        {
+          "particle": 1,
+          "active_stuck": true,
+          "addressing": {
+            "cell": 1,
+            "orig_id": 2
+          },
+          "temperature_K": 2373.137087035513,
+          "mean_double": 4191760.0012724483,
+          "carry_double": 0.0,
+          "caloric_temperature_K": 2373.1370870355977,
+          "absolute_error_K": 8.458300726488233e-11,
+          "serialized_ages": {
+            "pColdContactAge": 0.0,
+            "pCold2DRingContactAge": [
+              9e-06,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        {
+          "particle": 2,
+          "active_stuck": true,
+          "addressing": {
+            "cell": 2,
+            "orig_id": 3
+          },
+          "temperature_K": 2373.137087035513,
+          "mean_double": 4191760.0012724483,
+          "carry_double": 0.0,
+          "caloric_temperature_K": 2373.1370870355977,
+          "absolute_error_K": 8.458300726488233e-11,
+          "serialized_ages": {
+            "pColdContactAge": 0.0,
+            "pCold2DRingContactAge": [
+              9e-06,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        {
+          "particle": 3,
+          "active_stuck": true,
+          "addressing": {
+            "cell": 3,
+            "orig_id": 4
+          },
+          "temperature_K": 2373.137087035513,
+          "mean_double": 4191760.0012724525,
+          "carry_double": 0.0,
+          "caloric_temperature_K": 2373.137087035601,
+          "absolute_error_K": 8.776623872108757e-11,
+          "serialized_ages": {
+            "pColdContactAge": 0.0,
+            "pCold2DRingContactAge": [
+              9e-06,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        {
+          "particle": 4,
+          "active_stuck": true,
+          "addressing": {
+            "cell": 4,
+            "orig_id": 5
+          },
+          "temperature_K": 2373.137087035513,
+          "mean_double": 4191760.0012724483,
+          "carry_double": 0.0,
+          "caloric_temperature_K": 2373.1370870355977,
+          "absolute_error_K": 8.458300726488233e-11,
+          "serialized_ages": {
+            "pColdContactAge": 0.0,
+            "pCold2DRingContactAge": [
+              9e-06,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        {
+          "particle": 5,
+          "active_stuck": true,
+          "addressing": {
+            "cell": 5,
+            "orig_id": 6
+          },
+          "temperature_K": 2373.137087035513,
+          "mean_double": 4191760.0012724465,
+          "carry_double": 0.0,
+          "caloric_temperature_K": 2373.137087035597,
+          "absolute_error_K": 8.36735125631094e-11,
+          "serialized_ages": {
+            "pColdContactAge": 0.0,
+            "pCold2DRingContactAge": [
+              9e-06,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        {
+          "particle": 6,
+          "active_stuck": true,
+          "addressing": {
+            "cell": 6,
+            "orig_id": 7
+          },
+          "temperature_K": 2373.137087035513,
+          "mean_double": 4191760.0012724465,
+          "carry_double": 0.0,
+          "caloric_temperature_K": 2373.137087035597,
+          "absolute_error_K": 8.36735125631094e-11,
+          "serialized_ages": {
+            "pColdContactAge": 0.0,
+            "pCold2DRingContactAge": [
+              9e-06,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        {
+          "particle": 7,
+          "active_stuck": true,
+          "addressing": {
+            "cell": 7,
+            "orig_id": 8
+          },
+          "temperature_K": 2373.137087035513,
+          "mean_double": 4191760.0012724483,
+          "carry_double": 0.0,
+          "caloric_temperature_K": 2373.1370870355977,
+          "absolute_error_K": 8.458300726488233e-11,
+          "serialized_ages": {
+            "pColdContactAge": 0.0,
+            "pCold2DRingContactAge": [
+              9e-06,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        {
+          "particle": 8,
+          "active_stuck": true,
+          "addressing": {
+            "cell": 8,
+            "orig_id": 9
+          },
+          "temperature_K": 2373.137087035513,
+          "mean_double": 4191760.0012724483,
+          "carry_double": 0.0,
+          "caloric_temperature_K": 2373.1370870355977,
+          "absolute_error_K": 8.458300726488233e-11,
+          "serialized_ages": {
+            "pColdContactAge": 0.0,
+            "pCold2DRingContactAge": [
+              9e-06,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        {
+          "particle": 9,
+          "active_stuck": true,
+          "addressing": {
+            "cell": 9,
+            "orig_id": 10
+          },
+          "temperature_K": 2373.137087035513,
+          "mean_double": 4191760.0012724465,
+          "carry_double": 0.0,
+          "caloric_temperature_K": 2373.137087035597,
+          "absolute_error_K": 8.36735125631094e-11,
+          "serialized_ages": {
+            "pColdContactAge": 0.0,
+            "pCold2DRingContactAge": [
+              9e-06,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        {
+          "particle": 10,
+          "active_stuck": true,
+          "addressing": {
+            "cell": 10,
+            "orig_id": 11
+          },
+          "temperature_K": 2373.137087035513,
+          "mean_double": 4191760.0012724465,
+          "carry_double": 0.0,
+          "caloric_temperature_K": 2373.137087035597,
+          "absolute_error_K": 8.36735125631094e-11,
+          "serialized_ages": {
+            "pColdContactAge": 0.0,
+            "pCold2DRingContactAge": [
+              9e-06,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        {
+          "particle": 11,
+          "active_stuck": true,
+          "addressing": {
+            "cell": 11,
+            "orig_id": 12
+          },
+          "temperature_K": 2373.137087035513,
+          "mean_double": 4191760.0012724483,
+          "carry_double": 0.0,
+          "caloric_temperature_K": 2373.1370870355977,
+          "absolute_error_K": 8.458300726488233e-11,
+          "serialized_ages": {
+            "pColdContactAge": 0.0,
+            "pCold2DRingContactAge": [
+              9e-06,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        {
+          "particle": 12,
+          "active_stuck": true,
+          "addressing": {
+            "cell": 12,
+            "orig_id": 13
+          },
+          "temperature_K": 2373.137087035513,
+          "mean_double": 4191760.0012724525,
+          "carry_double": 0.0,
+          "caloric_temperature_K": 2373.137087035601,
+          "absolute_error_K": 8.776623872108757e-11,
+          "serialized_ages": {
+            "pColdContactAge": 0.0,
+            "pCold2DRingContactAge": [
+              9e-06,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        {
+          "particle": 13,
+          "active_stuck": true,
+          "addressing": {
+            "cell": 13,
+            "orig_id": 14
+          },
+          "temperature_K": 2373.137087035513,
+          "mean_double": 4191760.0012724483,
+          "carry_double": 0.0,
+          "caloric_temperature_K": 2373.1370870355977,
+          "absolute_error_K": 8.458300726488233e-11,
+          "serialized_ages": {
+            "pColdContactAge": 0.0,
+            "pCold2DRingContactAge": [
+              9e-06,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        {
+          "particle": 14,
+          "active_stuck": true,
+          "addressing": {
+            "cell": 14,
+            "orig_id": 15
+          },
+          "temperature_K": 2373.137087035513,
+          "mean_double": 4191760.0012724483,
+          "carry_double": 0.0,
+          "caloric_temperature_K": 2373.1370870355977,
+          "absolute_error_K": 8.458300726488233e-11,
+          "serialized_ages": {
+            "pColdContactAge": 0.0,
+            "pCold2DRingContactAge": [
+              9e-06,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        {
+          "particle": 15,
+          "active_stuck": true,
+          "addressing": {
+            "cell": 15,
+            "orig_id": 16
+          },
+          "temperature_K": 2373.137087035513,
+          "mean_double": 4191760.0012724525,
+          "carry_double": 0.0,
+          "caloric_temperature_K": 2373.137087035601,
+          "absolute_error_K": 8.776623872108757e-11,
+          "serialized_ages": {
+            "pColdContactAge": 0.0,
+            "pCold2DRingContactAge": [
+              9e-06,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ]
+          }
+        }
+      ],
+      "all_floating_fields_finite": true,
+      "nonfinite_fields": []
+    }
+  ],
+  "failures": [],
+  "scope_pass": true,
+  "maximum_active_error_K": 4.4292391976341605e-10,
+  "scope": "Actual16ingress/contactedprofiles/time/finite anddynamicages, sameoriginal1e-9. Launch group witness andallstagefullMEP separatelyrequired."
+}

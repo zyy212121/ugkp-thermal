@@ -1,0 +1,14 @@
+[
+  "/usr/local/cuda/bin/nvcc",
+  "-std=c++17",
+  "-O3",
+  "-arch=sm_89",
+  "--fmad=true",
+  "-I/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T120103Z-fast/work/owner-entry-S305/applications/gasUGKP/private_backend",
+  "-I/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T120103Z-fast/work/owner-entry-S305/common",
+  "-I/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T120103Z-fast/work/owner-entry-S305/common/gasNumerics",
+  "-I/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T120103Z-fast/work/owner-entry-S305/applications/gasUGKP/gpu",
+  "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T120103Z-fast/review/pr14/reviewer-deliveries/20261014T120103Z-fast/inputs/chemistry-owner-chronology-S304.cu",
+  "-o",
+  "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T120103Z-fast/work/fixtures/chemistry-owner-entry-S305"
+]

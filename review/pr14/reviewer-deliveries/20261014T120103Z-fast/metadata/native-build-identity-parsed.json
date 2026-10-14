@@ -1,0 +1,32 @@
+{
+  "2": {
+    "Ns": 2,
+    "artifact_kind": "CHMT_BUILD_MANIFEST",
+    "build_id": "9f33f4973e72c977e2d6680895b4ca93a2d2b3a1fc8b6548da7fa867fe519a07",
+    "cuda_arch": "sm_89",
+    "cuda_compiler": "nvcc: NVIDIA (R) Cuda compiler driver\nCopyright (c) 2005-2025 NVIDIA Corporation\nBuilt on Tue_Dec_16_07:23:41_PM_PST_2025\nCuda compilation tools, release 13.1, V13.1.115\nBuild cuda_13.1.r13.1/compiler.37061995_0",
+    "host_compiler": "g++ (Ubuntu 11.4.0-1ubuntu1~22.04.3) 11.4.0\nCopyright (C) 2021 Free Software Foundation, Inc.\nThis is free software; see the source for copying conditions.  There is NO\nwarranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.",
+    "openfoam_directory": "/opt/openfoam10",
+    "openfoam_version": "10",
+    "precision": "FP64",
+    "solver_commit": "UNKNOWN",
+    "source_fingerprint": "UNKNOWN",
+    "species_identity": "runtime name/order hash",
+    "upstream_base": "UNKNOWN"
+  },
+  "10": {
+    "Ns": 10,
+    "artifact_kind": "CHMT_BUILD_MANIFEST",
+    "build_id": "a5ce7f930c54173d51a93daa18332f35d3596073484cab4d5c87564d89267854",
+    "cuda_arch": "sm_89",
+    "cuda_compiler": "nvcc: NVIDIA (R) Cuda compiler driver\nCopyright (c) 2005-2025 NVIDIA Corporation\nBuilt on Tue_Dec_16_07:23:41_PM_PST_2025\nCuda compilation tools, release 13.1, V13.1.115\nBuild cuda_13.1.r13.1/compiler.37061995_0",
+    "host_compiler": "g++ (Ubuntu 11.4.0-1ubuntu1~22.04.3) 11.4.0\nCopyright (C) 2021 Free Software Foundation, Inc.\nThis is free software; see the source for copying conditions.  There is NO\nwarranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.",
+    "openfoam_directory": "/opt/openfoam10",
+    "openfoam_version": "10",
+    "precision": "FP64",
+    "solver_commit": "UNKNOWN",
+    "source_fingerprint": "UNKNOWN",
+    "species_identity": "runtime name/order hash",
+    "upstream_base": "UNKNOWN"
+  }
+}

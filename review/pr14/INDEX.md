@@ -124,3 +124,14 @@ The continuation bundle now embeds source `a73b9635510fb09d7baa5339e14d1aa609f0f
 - [原始结果](reviewer-deliveries/20261014T072053Z-fast/results.json)
 - [发现](reviewer-deliveries/20261014T072053Z-fast/findings.json)
 - [复现与不可变引用](reviewer-deliveries/20261014T072053Z-fast/REPRODUCE.md)
+
+## 第三轮独立真实GPU FAST 20261014T120103Z-fast
+
+生产固定9d5be6ef，记录父a462edd1。19限定单位(12PASS/2FAIL/1BLOCKED/4NOT_RUN)，17未变第二轮单位固定复用，不跨topic相加。正式原wet零质量热/力/库存、合法非零两方向前后逐位、正式fixture原CUDA控制及补充全事务、activecold完整groups、原Ns10fullinitcheck0已交付。完整wetP/strictrestart/原evap终点/fixture完整负例语义及剩余范围开放；不满足整体FAST、无合并授权。
+
+- [报告](reviewer-deliveries/20261014T120103Z-fast/REPORT.md)
+- [测试计划](reviewer-deliveries/20261014T120103Z-fast/TEST_PLAN.md)
+- [覆盖与原gap IDs](reviewer-deliveries/20261014T120103Z-fast/coverage.json)
+- [所有实际结果](reviewer-deliveries/20261014T120103Z-fast/results.json)
+- [发现](reviewer-deliveries/20261014T120103Z-fast/findings.json)
+- [复现/固定历史引用](reviewer-deliveries/20261014T120103Z-fast/REPRODUCE.md)

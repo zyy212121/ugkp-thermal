@@ -1,0 +1,21 @@
+{
+  "identity": "PR14_REVIEW_ONLY",
+  "utc": "2026-10-14T12:58:51.938321+00:00",
+  "active_test": "PHASE-OBSERVER-melting-positive",
+  "PID": 75767,
+  "binary_sha256": "b428d331876eda44704dcebe7090a5fadcc5b612bddc69a2cbc10da081828d5d",
+  "reason": "Validselected-materialphasecontrol showsboundednoacceptedprogress; readonlyhoststacktoidentifyCPUversusCUDAwait. No oldunselectedOOBexecution.",
+  "command": [
+    "/usr/local/cuda/bin/cuda-gdb",
+    "--batch",
+    "-p",
+    "75767",
+    "-ex",
+    "thread apply all bt 16",
+    "-ex",
+    "detach"
+  ],
+  "timeout_seconds": 30,
+  "timing_scope": "Diagnosticattachpause, notperformance; original300s budget remains.",
+  "first_tool_resolution_failure": "gdb notonPATH/root; exactCUDAtoolkitcuda-gdb used. No app attach in that failed tool attempt."
+}

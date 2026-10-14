@@ -1,0 +1,29 @@
+{
+  "id": "META-ENVIRONMENT",
+  "identity": "PR14_REVIEW_ONLY",
+  "interaction_class": "FAST",
+  "kind": "ENVIRONMENT",
+  "variant": "FORMAL",
+  "source_commit": "9d5be6eff69dbced2fc959d422d3ba419a1bc39e",
+  "source_tree": "5dc844d4189f50fcfbed2a77fa5e6cd6e9cfd066",
+  "source_hash_manifest": "metadata/source-hashes.json",
+  "source_hash_manifest_sha256": "fd149e12fccfd52f16f836256475ec5b31809655869940cd534174b7fd025ca5",
+  "source_targets": [],
+  "topics": [],
+  "argv": [
+    "bash",
+    "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T120103Z-fast/review/pr14/reviewer-deliveries/20261014T120103Z-fast/inputs/env.sh",
+    "bash",
+    "-c",
+    "printf \"APPBIN=%s\\nLIBBIN=%s\\nCUDA=%s\\nFOAM=%s\\n\" \"$FOAM_USER_APPBIN\" \"$FOAM_USER_LIBBIN\" \"$CUDA_HOME\" \"$WM_PROJECT_DIR\"; nvidia-smi; nvcc --version; g++ --version; free -b; uname -a"
+  ],
+  "working_directory": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T120103Z-fast",
+  "budget_seconds": 300,
+  "expected": "Environment/install paths only, no numerical acceptance.",
+  "input_hashes": {},
+  "binary": null,
+  "binary_sha256": null,
+  "environment_script_sha256": "2e9ba1655533bb17676f60b83f3628c2409d36978b703cfa8f9251a788e31c83",
+  "started_utc": "2026-10-14T12:08:15.080223+00:00",
+  "progress_monitor": "External30s metadata snapshots only; no solver changes."
+}

@@ -142,6 +142,61 @@
       "counts_not_additive_across_topics": true,
       "merge_ready": false,
       "merge_authorized": false
+    },
+    {
+      "id": "R014-030-REVIEWER-20261014T120103Z-fast",
+      "question_id": "R014-030",
+      "author": "Codex independent reviewer +independent source/evidence scope reviewer; actualRTX4060",
+      "recorded_utc": "2026-10-14T14:34:57.984281+00:00",
+      "interaction_class": "FAST",
+      "source_commit": "9d5be6eff69dbced2fc959d422d3ba419a1bc39e",
+      "source_tree": "5dc844d4189f50fcfbed2a77fa5e6cd6e9cfd066",
+      "record_parent": "a462edd16c20750a5875548f2e4ec690602d05cc",
+      "prior_source_commit": "4b5c480b572f234ddecf5e89164fe59b0d2e9735",
+      "prior_evidence_commit": "f5e6c5e2cbde2693f5fa811d874c200b07bbbc66",
+      "file_ids": [],
+      "function_ids": [],
+      "source_blobs": [],
+      "delivery_path": "reviewer-deliveries/20261014T120103Z-fast",
+      "report": "reviewer-deliveries/20261014T120103Z-fast/REPORT.md",
+      "plan": "reviewer-deliveries/20261014T120103Z-fast/TEST_PLAN.md",
+      "coverage": "reviewer-deliveries/20261014T120103Z-fast/coverage.json",
+      "results": "reviewer-deliveries/20261014T120103Z-fast/results.json",
+      "versions": "reviewer-deliveries/20261014T120103Z-fast/versions.json",
+      "environment": "reviewer-deliveries/20261014T120103Z-fast/environment.json",
+      "exact_commands_timestamps_exit_budget": "results tests[] andlogs/<id>.spec.json /commands.txt",
+      "input_binary_object_dependency_hashes": "tests[]/versions/source-hashes/registry",
+      "evidence_ids": [
+        "E014-2c83433c2197cb7a",
+        "E014-e009782188cdfcaa",
+        "E014-12455ca6111ec558",
+        "E014-f682411014a88305",
+        "E014-26a5384631e57d96",
+        "E014-92e03d0925924611",
+        "E014-81ad47b6d353e3ec",
+        "E014-c00b09cc2467a9e1",
+        "E014-d13e5fe88ef9ea59",
+        "E014-fd149e12fccfd52f",
+        "E014-68d403918a435244",
+        "E014-7006d80bff3608d0",
+        "E014-c32c8a24c67fce11",
+        "E014-67785cbdd0cde869"
+      ],
+      "verdict": "PARTIAL_RECHECK_OPEN_GAPS",
+      "acceptance_unit_ids": [],
+      "executed_test_ids": [],
+      "reused_unit_ids": [
+        "R2-F-radiation-singlemapper"
+      ],
+      "remaining_gaps": [
+        "developer-formal-recheck"
+      ],
+      "findings": [],
+      "diagnostic_or_support_PASS_not_submitted_full_PASS": true,
+      "counts_not_additive_across_topics": true,
+      "whole_FAST_acceptance": false,
+      "merge_ready": false,
+      "merge_authorized": false
     }
   ],
   "developer_replies": [
@@ -296,6 +351,66 @@
       ],
       "reviewer_result_id": "R014-030-REVIEWER-20261014T072053Z-fast",
       "status": "FORMAL_RECHECK_SCOPED_OPEN_LIMITATIONS"
+    },
+    {
+      "id": "R014-030-RECHECK-20261014T120103Z-fast",
+      "question_id": "R014-030",
+      "author": "Codex independent reviewer +independent source/evidence scope reviewer; actualRTX4060",
+      "recorded_utc": "2026-10-14T14:34:57.984281+00:00",
+      "interaction_class": "FAST",
+      "source_commit": "9d5be6eff69dbced2fc959d422d3ba419a1bc39e",
+      "source_tree": "5dc844d4189f50fcfbed2a77fa5e6cd6e9cfd066",
+      "record_parent": "a462edd16c20750a5875548f2e4ec690602d05cc",
+      "prior_source_commit": "4b5c480b572f234ddecf5e89164fe59b0d2e9735",
+      "prior_evidence_commit": "f5e6c5e2cbde2693f5fa811d874c200b07bbbc66",
+      "file_ids": [],
+      "function_ids": [],
+      "source_blobs": [],
+      "delivery_path": "reviewer-deliveries/20261014T120103Z-fast",
+      "report": "reviewer-deliveries/20261014T120103Z-fast/REPORT.md",
+      "plan": "reviewer-deliveries/20261014T120103Z-fast/TEST_PLAN.md",
+      "coverage": "reviewer-deliveries/20261014T120103Z-fast/coverage.json",
+      "results": "reviewer-deliveries/20261014T120103Z-fast/results.json",
+      "versions": "reviewer-deliveries/20261014T120103Z-fast/versions.json",
+      "environment": "reviewer-deliveries/20261014T120103Z-fast/environment.json",
+      "exact_commands_timestamps_exit_budget": "results tests[] andlogs/<id>.spec.json /commands.txt",
+      "input_binary_object_dependency_hashes": "tests[]/versions/source-hashes/registry",
+      "evidence_ids": [
+        "E014-2c83433c2197cb7a",
+        "E014-e009782188cdfcaa",
+        "E014-12455ca6111ec558",
+        "E014-f682411014a88305",
+        "E014-26a5384631e57d96",
+        "E014-92e03d0925924611",
+        "E014-81ad47b6d353e3ec",
+        "E014-c00b09cc2467a9e1",
+        "E014-d13e5fe88ef9ea59",
+        "E014-fd149e12fccfd52f",
+        "E014-68d403918a435244",
+        "E014-7006d80bff3608d0",
+        "E014-c32c8a24c67fce11",
+        "E014-67785cbdd0cde869"
+      ],
+      "verdict": "PARTIAL_RECHECK_OPEN_GAPS",
+      "acceptance_unit_ids": [],
+      "executed_test_ids": [],
+      "reused_unit_ids": [
+        "R2-F-radiation-singlemapper"
+      ],
+      "remaining_gaps": [
+        "developer-formal-recheck"
+      ],
+      "findings": [],
+      "diagnostic_or_support_PASS_not_submitted_full_PASS": true,
+      "counts_not_additive_across_topics": true,
+      "whole_FAST_acceptance": false,
+      "merge_ready": false,
+      "merge_authorized": false,
+      "reply_to": [
+        "R014-030-DEV-20261014T112400Z-fast"
+      ],
+      "reviewer_result_id": "R014-030-REVIEWER-20261014T120103Z-fast",
+      "status": "FAST3_FORMAL_SCOPED_RECHECK_OPEN_QUALIFICATIONS"
     }
   ],
   "final_decision": {
@@ -344,6 +459,25 @@
         "E014-756a8f0580d6d985",
         "E014-a08c119850809560",
         "E014-06dd2ff16b4614d7"
+      ],
+      "merge_authorized": false
+    },
+    {
+      "recorded_utc": "2026-10-14T14:34:57.984281+00:00",
+      "source_commit": "9d5be6eff69dbced2fc959d422d3ba419a1bc39e",
+      "delivery_path": "reviewer-deliveries/20261014T120103Z-fast",
+      "status": "FAST3_SCOPED_EVIDENCE_DELIVERED_NOT_COMPLETE_FAST",
+      "remaining_gaps": [
+        "developer-formal-recheck"
+      ],
+      "evidence_ids": [
+        "E014-2c83433c2197cb7a",
+        "E014-e009782188cdfcaa",
+        "E014-12455ca6111ec558",
+        "E014-f682411014a88305",
+        "E014-26a5384631e57d96",
+        "E014-92e03d0925924611",
+        "E014-81ad47b6d353e3ec"
       ],
       "merge_authorized": false
     }

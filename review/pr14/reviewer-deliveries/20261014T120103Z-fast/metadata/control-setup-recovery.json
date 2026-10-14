@@ -1,0 +1,9 @@
+{
+  "utc": "2026-10-14T13:21:43.410941+00:00",
+  "phase_setup_support_errors": [
+    "points compact ASCII 8((...)) not newline list; corrected by actual format",
+    "R2 has no authoritative ASCII alias; directly load immutable R1 Git blob"
+  ],
+  "before_any_phase_onecell_or_active16_GPU": true,
+  "no_physical_failure_replaced": true
+}

@@ -764,6 +764,223 @@
       "counts_not_additive_across_topics": true,
       "merge_ready": false,
       "merge_authorized": false
+    },
+    {
+      "id": "R014-008-REVIEWER-20261014T120103Z-fast",
+      "question_id": "R014-008",
+      "author": "Codex independent reviewer +independent source/evidence scope reviewer; actualRTX4060",
+      "recorded_utc": "2026-10-14T14:34:57.952380+00:00",
+      "interaction_class": "FAST",
+      "source_commit": "9d5be6eff69dbced2fc959d422d3ba419a1bc39e",
+      "source_tree": "5dc844d4189f50fcfbed2a77fa5e6cd6e9cfd066",
+      "record_parent": "a462edd16c20750a5875548f2e4ec690602d05cc",
+      "prior_source_commit": "4b5c480b572f234ddecf5e89164fe59b0d2e9735",
+      "prior_evidence_commit": "f5e6c5e2cbde2693f5fa811d874c200b07bbbc66",
+      "file_ids": [
+        "F014-eb4cad71d712",
+        "F014-f7c4a554f18f",
+        "F014-2c15355b77e4",
+        "F014-9ea3d079f71e",
+        "F014-dc29202fccba",
+        "F014-b8fc7daf05d6",
+        "F014-99919154f20f",
+        "F014-746bf670dfc6",
+        "F014-5326e92c6b46",
+        "F014-636af715dec6",
+        "F014-1c53a890f630",
+        "F014-9eb9de33bcec",
+        "F014-27bda566267a"
+      ],
+      "function_ids": [
+        "FN014-dd5c18238282",
+        "FN014-d9706a83b2a8",
+        "FN014-8438905fb180",
+        "FN014-8f4a628f78d1",
+        "FN014-dcdfe50a71c5",
+        "FN014-919e00309d62",
+        "FN014-63881946db94",
+        "FN014-36764a6e7f61",
+        "FN014-2f3799a4f321",
+        "FN014-ebd5a5c3fcdf",
+        "FN014-5ed031581191",
+        "FN014-efef3c51efbb",
+        "FN014-aaeb3d65a2f5",
+        "FN014-beca87e5be27",
+        "FN014-3250b281bf9f",
+        "FN014-e956eaae8ab5",
+        "FN014-e6afa2bafaf5",
+        "FN014-7e3cfb3a21b1",
+        "FN014-2b12c3f846ab",
+        "FN014-46b91d42554f",
+        "FN014-562aff4ced03",
+        "FN014-5ba13e655160",
+        "FN014-a19925ff5eb5",
+        "FN014-dc78a1289032",
+        "FN014-01f75c44b701",
+        "FN014-917f10e02436",
+        "FN014-4bebb76b9eb5",
+        "FN014-41117b9e83c5",
+        "FN014-c494c4419f58",
+        "FN014-9d5caf096e19",
+        "FN014-00687c64df09",
+        "FN014-480b767f9757",
+        "FN014-891a87ca3308",
+        "FN014-6e9aaf2fa118",
+        "FN014-c386d82bef20",
+        "FN014-b740f3146dd4",
+        "FN014-2a63c26c609a",
+        "FN014-9db9a909502d",
+        "FN014-51536643dcf6",
+        "FN014-0ccc36ffcaf5",
+        "FN014-cd7cf61e9e1e",
+        "FN014-285a85743085",
+        "FN014-43d47cd42d74",
+        "FN014-ce048b6b494e",
+        "FN014-2459dec56107",
+        "FN014-efaaf0af8a23",
+        "FN014-cfb5923d1d46",
+        "FN014-9083a8d4e998",
+        "FN014-836e1e988262",
+        "FN014-2295e1fbacae",
+        "FN014-4b3732c7d454"
+      ],
+      "source_blobs": [
+        {
+          "file_id": "F014-eb4cad71d712",
+          "path": "common/gasNumerics/OpenFoamWallFunctions.cuh",
+          "git_blob_sha1": "b4b8e563cca7a517c5f2be99b19ffc48abedd8e0",
+          "sha256": "ea8f9f672d89feab22134f04ed76f915c9b42a5e69f4768cee6c7b8a12fae877"
+        },
+        {
+          "file_id": "F014-f7c4a554f18f",
+          "path": "common/gasNumerics/RiemannGasFlux.cuh",
+          "git_blob_sha1": "1f0f1de3dc4e7d438fc5c7868aec7c641f53dda6",
+          "sha256": "9ab48b43bd72aee573d3108e0b47ef846163a3672c243a0ad3162b9ee521cf73"
+        },
+        {
+          "file_id": "F014-2c15355b77e4",
+          "path": "common/gasTransport/GasGeometryPolicy.H",
+          "git_blob_sha1": "e5a950ad50b97f99214ed0bba7aa73e5b5011005",
+          "sha256": "78429030f49caa0b69ab8b163af0a72e97fbfa1d732af0f484d5375ddc85c3ee"
+        },
+        {
+          "file_id": "F014-9ea3d079f71e",
+          "path": "common/gasTransport/GasGeometryValidation.H",
+          "git_blob_sha1": "558063127545c36f32a17addab3538a34867c320",
+          "sha256": "4704cca232071c112ce0181d3a12814ae77be26f3e531837b2ce5a810132e3e6"
+        },
+        {
+          "file_id": "F014-dc29202fccba",
+          "path": "common/gasTransport/MixtureThermo.H",
+          "git_blob_sha1": "92c5d08baecd46800609b1a5c74697a7f59f0878",
+          "sha256": "6bd6783e7c88feaaf1e4f887df1e3560d7be083e9fe6332fe50d0cb253b916bf"
+        },
+        {
+          "file_id": "F014-b8fc7daf05d6",
+          "path": "common/gasTransport/SpeciesDiffusion.H",
+          "git_blob_sha1": "636a652fea4c634222445de4cc82aa7a66816d10",
+          "sha256": "24f0f18129a6f14bee7780b8d51f224de23e4a2e322d881922b9d95f2465d8ea"
+        },
+        {
+          "file_id": "F014-99919154f20f",
+          "path": "common/operators/computeGasFluxPositivityScaleKernel.cuh",
+          "git_blob_sha1": "744ae52d5d478b01ff94039580a3195ef5ca2dd1",
+          "sha256": "984adf4d754122fa26c26cd1d50b11d0dd4cd7156ec6af35519e632a1fd00ae3"
+        },
+        {
+          "file_id": "F014-746bf670dfc6",
+          "path": "common/operators/computeGasInternalFaceFluxKernel.cuh",
+          "git_blob_sha1": "5009094eb4545d903ee69d5c9eed234e5ec3d3d3",
+          "sha256": "6aa81cef658d5bd71245fa5103a6dfd875dedb4f78395441f98a978b4b07ef85"
+        },
+        {
+          "file_id": "F014-5326e92c6b46",
+          "path": "common/operators/computeRiemannGasFaceFluxDevice.cuh",
+          "git_blob_sha1": "6dd1880e6f8188e586a8fe996477cfa79e9efa82",
+          "sha256": "b6da75b64718c42da9e5b0a589d38450b9894e8388991bff5c6443b3d3548428"
+        },
+        {
+          "file_id": "F014-636af715dec6",
+          "path": "common/operators/gasFaceSubgridTransportProperties.cuh",
+          "git_blob_sha1": "759648f0c868e9251e877b76a6076c5f00003b8b",
+          "sha256": "80cc5beebc2c70e3985ae47eb840d51d34d80d1a0005e144a119d991d579686c"
+        },
+        {
+          "file_id": "F014-1c53a890f630",
+          "path": "common/operators/makeGasPrimDevice.cuh",
+          "git_blob_sha1": "3abe28487aadee19fb3ad5c35425d5fb01079742",
+          "sha256": "44650881c7201d40ac1c20ea08eb8e20f0913e81da18c30b01e1225fbca30ddd"
+        },
+        {
+          "file_id": "F014-9eb9de33bcec",
+          "path": "common/operators/reconstructGasMixtureFace.cuh",
+          "git_blob_sha1": "ff7cca7fb7f05f1ce4fe0daa32ad3e98f3c2d428",
+          "sha256": "195f4a49d9007062617848a3399b6b5dec9c07ac9525eea378ef2a521e74c4ff"
+        },
+        {
+          "file_id": "F014-27bda566267a",
+          "path": "common/operators/riemannFacePrimitiveForGradient.cuh",
+          "git_blob_sha1": "3fac42c00dcd48fdc499a26481e82f07e60ca741",
+          "sha256": "6108161aba86933385beed51e199c17d64db96420bfa4bb89ade49c3440ab780"
+        }
+      ],
+      "delivery_path": "reviewer-deliveries/20261014T120103Z-fast",
+      "report": "reviewer-deliveries/20261014T120103Z-fast/REPORT.md",
+      "plan": "reviewer-deliveries/20261014T120103Z-fast/TEST_PLAN.md",
+      "coverage": "reviewer-deliveries/20261014T120103Z-fast/coverage.json",
+      "results": "reviewer-deliveries/20261014T120103Z-fast/results.json",
+      "versions": "reviewer-deliveries/20261014T120103Z-fast/versions.json",
+      "environment": "reviewer-deliveries/20261014T120103Z-fast/environment.json",
+      "exact_commands_timestamps_exit_budget": "results tests[] andlogs/<id>.spec.json /commands.txt",
+      "input_binary_object_dependency_hashes": "tests[]/versions/source-hashes/registry",
+      "evidence_ids": [
+        "E014-2c83433c2197cb7a",
+        "E014-e009782188cdfcaa",
+        "E014-12455ca6111ec558",
+        "E014-f682411014a88305",
+        "E014-26a5384631e57d96",
+        "E014-92e03d0925924611",
+        "E014-81ad47b6d353e3ec",
+        "E014-c00b09cc2467a9e1",
+        "E014-d13e5fe88ef9ea59",
+        "E014-fd149e12fccfd52f",
+        "E014-68d403918a435244",
+        "E014-7006d80bff3608d0",
+        "E014-c32c8a24c67fce11",
+        "E014-67785cbdd0cde869",
+        "E014-13dc7d5a954caeeb",
+        "E014-4793dde9968b93ab",
+        "E014-6d1308ce2879a367",
+        "E014-d95a7925d3198a5a",
+        "E014-24ba77144ae99ab0",
+        "E014-bb2366e495d6f673",
+        "E014-b044cc7d3fea1c7f"
+      ],
+      "verdict": "PARTIAL_RECHECK_OPEN_GAPS",
+      "acceptance_unit_ids": [
+        "R3-prior-strict-P-arithmetic-reanalysis",
+        "R3-gross-SST-resident-complete-budgets"
+      ],
+      "executed_test_ids": [
+        "WET-FILM-FORMAL",
+        "WET-EVAPORATION-FORMAL-900",
+        "NS10-REACTING-FULL-INITCHECK-1800"
+      ],
+      "reused_unit_ids": [
+        "R2-F-SST-RK-net-budget",
+        "R2-F-ALE-chemistry-volumes"
+      ],
+      "remaining_gaps": [
+        "SST-RK-budgets"
+      ],
+      "findings": [
+        "OBS-R2-P"
+      ],
+      "diagnostic_or_support_PASS_not_submitted_full_PASS": true,
+      "counts_not_additive_across_topics": true,
+      "whole_FAST_acceptance": false,
+      "merge_ready": false,
+      "merge_authorized": false
     }
   ],
   "developer_replies": [
@@ -1244,6 +1461,228 @@
       "reply_to": [],
       "reviewer_result_id": "R014-008-REVIEWER-20261014T072053Z-fast",
       "status": "FORMAL_RECHECK_SCOPED_OPEN_LIMITATIONS"
+    },
+    {
+      "id": "R014-008-RECHECK-20261014T120103Z-fast",
+      "question_id": "R014-008",
+      "author": "Codex independent reviewer +independent source/evidence scope reviewer; actualRTX4060",
+      "recorded_utc": "2026-10-14T14:34:57.952380+00:00",
+      "interaction_class": "FAST",
+      "source_commit": "9d5be6eff69dbced2fc959d422d3ba419a1bc39e",
+      "source_tree": "5dc844d4189f50fcfbed2a77fa5e6cd6e9cfd066",
+      "record_parent": "a462edd16c20750a5875548f2e4ec690602d05cc",
+      "prior_source_commit": "4b5c480b572f234ddecf5e89164fe59b0d2e9735",
+      "prior_evidence_commit": "f5e6c5e2cbde2693f5fa811d874c200b07bbbc66",
+      "file_ids": [
+        "F014-eb4cad71d712",
+        "F014-f7c4a554f18f",
+        "F014-2c15355b77e4",
+        "F014-9ea3d079f71e",
+        "F014-dc29202fccba",
+        "F014-b8fc7daf05d6",
+        "F014-99919154f20f",
+        "F014-746bf670dfc6",
+        "F014-5326e92c6b46",
+        "F014-636af715dec6",
+        "F014-1c53a890f630",
+        "F014-9eb9de33bcec",
+        "F014-27bda566267a"
+      ],
+      "function_ids": [
+        "FN014-dd5c18238282",
+        "FN014-d9706a83b2a8",
+        "FN014-8438905fb180",
+        "FN014-8f4a628f78d1",
+        "FN014-dcdfe50a71c5",
+        "FN014-919e00309d62",
+        "FN014-63881946db94",
+        "FN014-36764a6e7f61",
+        "FN014-2f3799a4f321",
+        "FN014-ebd5a5c3fcdf",
+        "FN014-5ed031581191",
+        "FN014-efef3c51efbb",
+        "FN014-aaeb3d65a2f5",
+        "FN014-beca87e5be27",
+        "FN014-3250b281bf9f",
+        "FN014-e956eaae8ab5",
+        "FN014-e6afa2bafaf5",
+        "FN014-7e3cfb3a21b1",
+        "FN014-2b12c3f846ab",
+        "FN014-46b91d42554f",
+        "FN014-562aff4ced03",
+        "FN014-5ba13e655160",
+        "FN014-a19925ff5eb5",
+        "FN014-dc78a1289032",
+        "FN014-01f75c44b701",
+        "FN014-917f10e02436",
+        "FN014-4bebb76b9eb5",
+        "FN014-41117b9e83c5",
+        "FN014-c494c4419f58",
+        "FN014-9d5caf096e19",
+        "FN014-00687c64df09",
+        "FN014-480b767f9757",
+        "FN014-891a87ca3308",
+        "FN014-6e9aaf2fa118",
+        "FN014-c386d82bef20",
+        "FN014-b740f3146dd4",
+        "FN014-2a63c26c609a",
+        "FN014-9db9a909502d",
+        "FN014-51536643dcf6",
+        "FN014-0ccc36ffcaf5",
+        "FN014-cd7cf61e9e1e",
+        "FN014-285a85743085",
+        "FN014-43d47cd42d74",
+        "FN014-ce048b6b494e",
+        "FN014-2459dec56107",
+        "FN014-efaaf0af8a23",
+        "FN014-cfb5923d1d46",
+        "FN014-9083a8d4e998",
+        "FN014-836e1e988262",
+        "FN014-2295e1fbacae",
+        "FN014-4b3732c7d454"
+      ],
+      "source_blobs": [
+        {
+          "file_id": "F014-eb4cad71d712",
+          "path": "common/gasNumerics/OpenFoamWallFunctions.cuh",
+          "git_blob_sha1": "b4b8e563cca7a517c5f2be99b19ffc48abedd8e0",
+          "sha256": "ea8f9f672d89feab22134f04ed76f915c9b42a5e69f4768cee6c7b8a12fae877"
+        },
+        {
+          "file_id": "F014-f7c4a554f18f",
+          "path": "common/gasNumerics/RiemannGasFlux.cuh",
+          "git_blob_sha1": "1f0f1de3dc4e7d438fc5c7868aec7c641f53dda6",
+          "sha256": "9ab48b43bd72aee573d3108e0b47ef846163a3672c243a0ad3162b9ee521cf73"
+        },
+        {
+          "file_id": "F014-2c15355b77e4",
+          "path": "common/gasTransport/GasGeometryPolicy.H",
+          "git_blob_sha1": "e5a950ad50b97f99214ed0bba7aa73e5b5011005",
+          "sha256": "78429030f49caa0b69ab8b163af0a72e97fbfa1d732af0f484d5375ddc85c3ee"
+        },
+        {
+          "file_id": "F014-9ea3d079f71e",
+          "path": "common/gasTransport/GasGeometryValidation.H",
+          "git_blob_sha1": "558063127545c36f32a17addab3538a34867c320",
+          "sha256": "4704cca232071c112ce0181d3a12814ae77be26f3e531837b2ce5a810132e3e6"
+        },
+        {
+          "file_id": "F014-dc29202fccba",
+          "path": "common/gasTransport/MixtureThermo.H",
+          "git_blob_sha1": "92c5d08baecd46800609b1a5c74697a7f59f0878",
+          "sha256": "6bd6783e7c88feaaf1e4f887df1e3560d7be083e9fe6332fe50d0cb253b916bf"
+        },
+        {
+          "file_id": "F014-b8fc7daf05d6",
+          "path": "common/gasTransport/SpeciesDiffusion.H",
+          "git_blob_sha1": "636a652fea4c634222445de4cc82aa7a66816d10",
+          "sha256": "24f0f18129a6f14bee7780b8d51f224de23e4a2e322d881922b9d95f2465d8ea"
+        },
+        {
+          "file_id": "F014-99919154f20f",
+          "path": "common/operators/computeGasFluxPositivityScaleKernel.cuh",
+          "git_blob_sha1": "744ae52d5d478b01ff94039580a3195ef5ca2dd1",
+          "sha256": "984adf4d754122fa26c26cd1d50b11d0dd4cd7156ec6af35519e632a1fd00ae3"
+        },
+        {
+          "file_id": "F014-746bf670dfc6",
+          "path": "common/operators/computeGasInternalFaceFluxKernel.cuh",
+          "git_blob_sha1": "5009094eb4545d903ee69d5c9eed234e5ec3d3d3",
+          "sha256": "6aa81cef658d5bd71245fa5103a6dfd875dedb4f78395441f98a978b4b07ef85"
+        },
+        {
+          "file_id": "F014-5326e92c6b46",
+          "path": "common/operators/computeRiemannGasFaceFluxDevice.cuh",
+          "git_blob_sha1": "6dd1880e6f8188e586a8fe996477cfa79e9efa82",
+          "sha256": "b6da75b64718c42da9e5b0a589d38450b9894e8388991bff5c6443b3d3548428"
+        },
+        {
+          "file_id": "F014-636af715dec6",
+          "path": "common/operators/gasFaceSubgridTransportProperties.cuh",
+          "git_blob_sha1": "759648f0c868e9251e877b76a6076c5f00003b8b",
+          "sha256": "80cc5beebc2c70e3985ae47eb840d51d34d80d1a0005e144a119d991d579686c"
+        },
+        {
+          "file_id": "F014-1c53a890f630",
+          "path": "common/operators/makeGasPrimDevice.cuh",
+          "git_blob_sha1": "3abe28487aadee19fb3ad5c35425d5fb01079742",
+          "sha256": "44650881c7201d40ac1c20ea08eb8e20f0913e81da18c30b01e1225fbca30ddd"
+        },
+        {
+          "file_id": "F014-9eb9de33bcec",
+          "path": "common/operators/reconstructGasMixtureFace.cuh",
+          "git_blob_sha1": "ff7cca7fb7f05f1ce4fe0daa32ad3e98f3c2d428",
+          "sha256": "195f4a49d9007062617848a3399b6b5dec9c07ac9525eea378ef2a521e74c4ff"
+        },
+        {
+          "file_id": "F014-27bda566267a",
+          "path": "common/operators/riemannFacePrimitiveForGradient.cuh",
+          "git_blob_sha1": "3fac42c00dcd48fdc499a26481e82f07e60ca741",
+          "sha256": "6108161aba86933385beed51e199c17d64db96420bfa4bb89ade49c3440ab780"
+        }
+      ],
+      "delivery_path": "reviewer-deliveries/20261014T120103Z-fast",
+      "report": "reviewer-deliveries/20261014T120103Z-fast/REPORT.md",
+      "plan": "reviewer-deliveries/20261014T120103Z-fast/TEST_PLAN.md",
+      "coverage": "reviewer-deliveries/20261014T120103Z-fast/coverage.json",
+      "results": "reviewer-deliveries/20261014T120103Z-fast/results.json",
+      "versions": "reviewer-deliveries/20261014T120103Z-fast/versions.json",
+      "environment": "reviewer-deliveries/20261014T120103Z-fast/environment.json",
+      "exact_commands_timestamps_exit_budget": "results tests[] andlogs/<id>.spec.json /commands.txt",
+      "input_binary_object_dependency_hashes": "tests[]/versions/source-hashes/registry",
+      "evidence_ids": [
+        "E014-2c83433c2197cb7a",
+        "E014-e009782188cdfcaa",
+        "E014-12455ca6111ec558",
+        "E014-f682411014a88305",
+        "E014-26a5384631e57d96",
+        "E014-92e03d0925924611",
+        "E014-81ad47b6d353e3ec",
+        "E014-c00b09cc2467a9e1",
+        "E014-d13e5fe88ef9ea59",
+        "E014-fd149e12fccfd52f",
+        "E014-68d403918a435244",
+        "E014-7006d80bff3608d0",
+        "E014-c32c8a24c67fce11",
+        "E014-67785cbdd0cde869",
+        "E014-13dc7d5a954caeeb",
+        "E014-4793dde9968b93ab",
+        "E014-6d1308ce2879a367",
+        "E014-d95a7925d3198a5a",
+        "E014-24ba77144ae99ab0",
+        "E014-bb2366e495d6f673",
+        "E014-b044cc7d3fea1c7f"
+      ],
+      "verdict": "PARTIAL_RECHECK_OPEN_GAPS",
+      "acceptance_unit_ids": [
+        "R3-prior-strict-P-arithmetic-reanalysis",
+        "R3-gross-SST-resident-complete-budgets"
+      ],
+      "executed_test_ids": [
+        "WET-FILM-FORMAL",
+        "WET-EVAPORATION-FORMAL-900",
+        "NS10-REACTING-FULL-INITCHECK-1800"
+      ],
+      "reused_unit_ids": [
+        "R2-F-SST-RK-net-budget",
+        "R2-F-ALE-chemistry-volumes"
+      ],
+      "remaining_gaps": [
+        "SST-RK-budgets"
+      ],
+      "findings": [
+        "OBS-R2-P"
+      ],
+      "diagnostic_or_support_PASS_not_submitted_full_PASS": true,
+      "counts_not_additive_across_topics": true,
+      "whole_FAST_acceptance": false,
+      "merge_ready": false,
+      "merge_authorized": false,
+      "reply_to": [
+        "R014-008-DEV-20261014T112400Z-fast"
+      ],
+      "reviewer_result_id": "R014-008-REVIEWER-20261014T120103Z-fast",
+      "status": "FAST3_FORMAL_SCOPED_RECHECK_OPEN_QUALIFICATIONS"
     }
   ],
   "final_decision": {
@@ -1292,6 +1731,25 @@
         "E014-756a8f0580d6d985",
         "E014-a08c119850809560",
         "E014-06dd2ff16b4614d7"
+      ],
+      "merge_authorized": false
+    },
+    {
+      "recorded_utc": "2026-10-14T14:34:57.952380+00:00",
+      "source_commit": "9d5be6eff69dbced2fc959d422d3ba419a1bc39e",
+      "delivery_path": "reviewer-deliveries/20261014T120103Z-fast",
+      "status": "FAST3_SCOPED_EVIDENCE_DELIVERED_NOT_COMPLETE_FAST",
+      "remaining_gaps": [
+        "SST-RK-budgets"
+      ],
+      "evidence_ids": [
+        "E014-2c83433c2197cb7a",
+        "E014-e009782188cdfcaa",
+        "E014-12455ca6111ec558",
+        "E014-f682411014a88305",
+        "E014-26a5384631e57d96",
+        "E014-92e03d0925924611",
+        "E014-81ad47b6d353e3ec"
       ],
       "merge_authorized": false
     }

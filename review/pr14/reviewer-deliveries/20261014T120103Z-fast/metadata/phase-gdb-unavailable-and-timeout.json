@@ -1,0 +1,16 @@
+{
+  "identity": "PR14_REVIEW_ONLY",
+  "attempts": [
+    {
+      "PID": 74958,
+      "command": "gdb --batch -p74958 ...",
+      "result": "FileNotFoundError gdb, beforeattach"
+    },
+    {
+      "PID": 75767,
+      "command": "/usr/local/cuda/bin/cuda-gdb --batch -p75767 -ex thread apply all bt16 -ex detach",
+      "result": "external30sTimeoutExpired; subprocess killed debugger, no usable stack; observerafterattachnotunmodifiedruntime"
+    }
+  ],
+  "production_source_unchanged": true
+}

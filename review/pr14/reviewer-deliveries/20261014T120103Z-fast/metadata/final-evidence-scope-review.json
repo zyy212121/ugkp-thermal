@@ -1,0 +1,1901 @@
+{
+  "review_kind": "PR14_REVIEW_ONLY independent final evidence scope, read-only source seat",
+  "finished_utc": "2026-10-14T14:21:44.233991+00:00",
+  "formal_source": "9d5be6eff69dbced2fc959d422d3ba419a1bc39e",
+  "formal_tree": "5dc844d4189f50fcfbed2a77fa5e6cd6e9cfd066",
+  "previous_source": "4b5c480b572f234ddecf5e89164fe59b0d2e9735",
+  "observed_HEAD": "a462edd16c20750a5875548f2e4ec690602d05cc",
+  "actions": {
+    "gpu_runs": 0,
+    "builds": 0,
+    "subagents": 0,
+    "production_changes": 0,
+    "index_changes": 0,
+    "HEAD_changes": 0,
+    "new_numeric_or_index_admission": false,
+    "old_OOB_rerun": false,
+    "writes": [
+      "metadata/final-evidence-scope-review.md",
+      "metadata/final-evidence-scope-review.json"
+    ]
+  },
+  "assessment": "SCOPED_SUPPORT_CONFIRMED_WITH_RETAINED_OPEN_PHYSICAL_P_AND_PARTIAL_COLD_START_JS; NOT_WHOLE_PR_GPU_ACCEPTANCE_OR_MERGE_READY",
+  "source_pins": [
+    {
+      "path": "applications/CHMT/materials/CpuMaterialDriver.C",
+      "formal_blob": "a728a5daaf0bab41ff33fa954828737c2fce3f01",
+      "sha256": "cd79a6a6300bfbf24de7c388a11755270734604bc78053e66a44771b6e345e4e",
+      "working_bytes_equal_formal": true,
+      "equal_previous_source": false
+    },
+    {
+      "path": "applications/CHMT/ablation/CpuSurfaceInterface.C",
+      "formal_blob": "512d0263fbe30b4815ea5de7d9f36a7cc74bbcb3",
+      "sha256": "3828e279133094b8a218816fd9dcedf9467e428e46ca47e76c36fe02d5097434",
+      "working_bytes_equal_formal": true,
+      "equal_previous_source": true
+    },
+    {
+      "path": "applications/CHMT/film/CpuFilmDriver.C",
+      "formal_blob": "bd314e0b78a36f4020e0a859e18ded2921d997a6",
+      "sha256": "d52c38751124be82e73b3a458bf512dc08a64d2108981d0033787e97ff677e67",
+      "working_bytes_equal_formal": true,
+      "equal_previous_source": true
+    },
+    {
+      "path": "applications/CHMT/film/CpuFilmDriver.H",
+      "formal_blob": "45f8ebabfd5b5c3fb905a99ee857aec731830100",
+      "sha256": "4eb6f1e33dfb01efcff32d7393123e60a62c01611bed092699e534b85655c386",
+      "working_bytes_equal_formal": true,
+      "equal_previous_source": true
+    },
+    {
+      "path": "applications/CHMT/film/FilmMath.H",
+      "formal_blob": "47f569128dd8bedfe22b94970c5fe8680f87eaf3",
+      "sha256": "daf48f096c6b3262eb5d4ee0f50e56a7e02ad6c45c93d4e198605c310ea73b8f",
+      "working_bytes_equal_formal": true,
+      "equal_previous_source": true
+    },
+    {
+      "path": "applications/CHMT/coupling/Coordinator.H",
+      "formal_blob": "763ff41f38a7daa840fa3068040f09c2c8ffac26",
+      "sha256": "22c956f38151cf5209b5174b7ba99f37cd77497ea1eb926de32cf8c06e08b087",
+      "working_bytes_equal_formal": true,
+      "equal_previous_source": true
+    },
+    {
+      "path": "applications/CHMT/coupling/IntervalAudit.H",
+      "formal_blob": "587afd228c195196ebc961edb10f73d4431755f2",
+      "sha256": "cd3cbea9062db52ad5ccf56c9554cec626d06e17c18e2227bef073e3c9a70332",
+      "working_bytes_equal_formal": true,
+      "equal_previous_source": true
+    },
+    {
+      "path": "applications/CHMT/gpu/Backend.cu",
+      "formal_blob": "69d513d0b1fafdf37f42e01244740283c780b250",
+      "sha256": "c650e85eaf0798dfb8c33b1bb41ab01e105cfa19efaa48dff75ca651e81ff4d3",
+      "working_bytes_equal_formal": true,
+      "equal_previous_source": true
+    },
+    {
+      "path": "applications/CHMT/gpu/SharedGasDeviceStorage.cuh",
+      "formal_blob": "c9719a3454be89b658082a3e91fa4194cb355223",
+      "sha256": "9cb232b7e2d69d850f35b34c941a425bf5e2dee3e58c3850e55948fc3c01a95e",
+      "working_bytes_equal_formal": true,
+      "equal_previous_source": true
+    },
+    {
+      "path": "common/wall/GpuColdWall2DDevice.cuh",
+      "formal_blob": "a00c87eb8cff3b475fc684d8b4ffb152c98db036",
+      "sha256": "666c19639f1e5a2a958ccaa9685e8d5defe7182ddbdc088c0d0a5a4171633685",
+      "working_bytes_equal_formal": true,
+      "equal_previous_source": true
+    },
+    {
+      "path": "common/wall/GpuColdWall2DSolidification.H",
+      "formal_blob": "412aad519d7f235e58112060885bb572fd4941db",
+      "sha256": "52acee5803ecde4e3d2f072b2f89b95e002b3ef198755b9145882407250f7a0e",
+      "working_bytes_equal_formal": true,
+      "equal_previous_source": true
+    },
+    {
+      "path": "common/GpuParticleCaloric.H",
+      "formal_blob": "f42f89a2a2a82241b3716d7d212a6af7c05b2a37",
+      "sha256": "47f4b6fafe6e7f41d8a6071e586e10f277dce13560fb1f311f3c412ed30c1b33",
+      "working_bytes_equal_formal": true,
+      "equal_previous_source": true
+    },
+    {
+      "path": "applications/CHT/gpu/GpuResidentStrict.cu",
+      "formal_blob": "f2caa33b2cc2a1ddd20883eac8f36b6775a6bafd",
+      "sha256": "4d44af173d9c1ba5ba4556ae230ac539dd8b99d5564f00f4267f13ce556ad5ab",
+      "working_bytes_equal_formal": true,
+      "equal_previous_source": true
+    },
+    {
+      "path": "applications/FSH/private_backend/GpuResidentStrict.cu",
+      "formal_blob": "dda420c9c1172f7ce407200474a3c402b70fff52",
+      "sha256": "e0fdbc4faa2f680c8adb840cd323db339d318f65fe9abd36e3afd3c093e1471f",
+      "working_bytes_equal_formal": true,
+      "equal_previous_source": true
+    },
+    {
+      "path": "common/thermal_particle_restart_current.py",
+      "formal_blob": "57b0bd255abdf68c20d858f1ac8db7e3ae1bd9d0",
+      "sha256": "709e10601fc351405fe626823557e8de45c4553a87ad71f566f708da10f66572",
+      "working_bytes_equal_formal": true,
+      "equal_previous_source": true
+    },
+    {
+      "path": "common/thermal_particle_restart_schema7.py",
+      "formal_blob": "65d40ba2cf32973a466bce0c055fd3998eaa9beb",
+      "sha256": "86ffa9f28b1cda2cb27c936dea1d34364f15f09ca13d551027fd0aead4f9a849",
+      "working_bytes_equal_formal": true,
+      "equal_previous_source": true
+    }
+  ],
+  "preserved_prior_reports": {
+    "metadata/independent-source-review.md": "4414a9140341073745ae0734334a3e777124f8e69be6a5a350eabd161e228ba3",
+    "metadata/independent-source-review.json": "b044cc7d3fea1c7f963fba3dfc09da41b9274ac2953f42e679663d8a890c5afd",
+    "metadata/independent-wet-P-review.md": "4cc29276c67543ced81052bfea559de1dfff69484b4102e77578a4c55238e244",
+    "metadata/independent-wet-P-review.json": "b95f8a61af0cd7d9c4ca552c25db75d77e365968ea502e839321af96863f2bc6"
+  },
+  "evidence_pins": [
+    {
+      "path": "TEST_PLAN.md",
+      "sha256": "03325f1c9920bc1b5e5c951973af308f463d8e869fd52157ce52b9e9bde5e5f9",
+      "bytes": 17873
+    },
+    {
+      "path": "artifacts/PHASE-D302-onecell-melting-S308/accepted-0.csv",
+      "sha256": "21d0fed3e8cdcb4cbb0d29fb31a44b3c56dd3ee03ce25663bd34240345e872a4",
+      "bytes": 133
+    },
+    {
+      "path": "artifacts/PHASE-D302-onecell-melting-S308/accepted-1.csv",
+      "sha256": "46009c1de6cfd666b23283613a0d250839efa2586aea4631cc7e46ac32e68a8e",
+      "bytes": 154
+    },
+    {
+      "path": "artifacts/PHASE-D302-onecell-melting-S308/checkpoint-0/state.chmt",
+      "sha256": "a915c69e09e18a9c284e37997c5136e96641bb1ba4452d8c76ae5ee752e7228e",
+      "bytes": 9917
+    },
+    {
+      "path": "artifacts/PHASE-D302-onecell-melting-S308/checkpoint-1/state.chmt",
+      "sha256": "54d5ee28895875da1319c9a57c2162f1df3f4455a571aa0e4d41267d0f7f46a6",
+      "bytes": 13946
+    },
+    {
+      "path": "artifacts/PHASE-D302-onecell-melting-S308/exchange-0.csv",
+      "sha256": "28e083ed7242aede54ec558af274ade8b51d6a09029f15ea9799789bbea282a3",
+      "bytes": 166
+    },
+    {
+      "path": "artifacts/PHASE-D302-onecell-melting-S308/exchange-1.csv",
+      "sha256": "230d00af10edb6cbbe0e3d9d2029ba0ea25cdb7176444ed2d304b51798bedf40",
+      "bytes": 431
+    },
+    {
+      "path": "artifacts/PHASE-D302-onecell-melting-S308/gas-0.csv",
+      "sha256": "aeaa0dc16c78c7fcedbbed4a9d840352ce26c564bf46ca125ba62072fc3dbaa1",
+      "bytes": 227
+    },
+    {
+      "path": "artifacts/PHASE-D302-onecell-melting-S308/gas-1.csv",
+      "sha256": "2764900c5c3eb4ebe34b4cc4ad311bf080d8a99b84995d8b1f9572bbf3fd5ca4",
+      "bytes": 228
+    },
+    {
+      "path": "artifacts/PHASE-D302-onecell-melting-S308/material-0.csv",
+      "sha256": "ef6672634bcbc19a238c0cb19f2772fd9c05ec82e2c599d29436ea7112f3dece",
+      "bytes": 127
+    },
+    {
+      "path": "artifacts/PHASE-D302-onecell-melting-S308/material-1.csv",
+      "sha256": "47d275bcddd608ee6f4326cc588566a82e7489427f2fcfc1637d9255ecc41384",
+      "bytes": 183
+    },
+    {
+      "path": "artifacts/PHASE-D302-onecell-solidification-S308/accepted-0.csv",
+      "sha256": "21d0fed3e8cdcb4cbb0d29fb31a44b3c56dd3ee03ce25663bd34240345e872a4",
+      "bytes": 133
+    },
+    {
+      "path": "artifacts/PHASE-D302-onecell-solidification-S308/accepted-1.csv",
+      "sha256": "46009c1de6cfd666b23283613a0d250839efa2586aea4631cc7e46ac32e68a8e",
+      "bytes": 154
+    },
+    {
+      "path": "artifacts/PHASE-D302-onecell-solidification-S308/checkpoint-0/state.chmt",
+      "sha256": "89f68893805d181069ca6fcde2eb5bf28acf65264f215bafc59b161bc28670f4",
+      "bytes": 9917
+    },
+    {
+      "path": "artifacts/PHASE-D302-onecell-solidification-S308/checkpoint-1/state.chmt",
+      "sha256": "80cb4a87989d850dfbb3b90b44f408b2e08390a671ed4083c9d5de68a6d4e549",
+      "bytes": 13946
+    },
+    {
+      "path": "artifacts/PHASE-D302-onecell-solidification-S308/exchange-0.csv",
+      "sha256": "28e083ed7242aede54ec558af274ade8b51d6a09029f15ea9799789bbea282a3",
+      "bytes": 166
+    },
+    {
+      "path": "artifacts/PHASE-D302-onecell-solidification-S308/exchange-1.csv",
+      "sha256": "65c000fd3fdcb5ed9989a60633b6441da058a41fb1cfdeea50932907a20e1e8d",
+      "bytes": 435
+    },
+    {
+      "path": "artifacts/PHASE-D302-onecell-solidification-S308/gas-0.csv",
+      "sha256": "aeaa0dc16c78c7fcedbbed4a9d840352ce26c564bf46ca125ba62072fc3dbaa1",
+      "bytes": 227
+    },
+    {
+      "path": "artifacts/PHASE-D302-onecell-solidification-S308/gas-1.csv",
+      "sha256": "2764900c5c3eb4ebe34b4cc4ad311bf080d8a99b84995d8b1f9572bbf3fd5ca4",
+      "bytes": 228
+    },
+    {
+      "path": "artifacts/PHASE-D302-onecell-solidification-S308/material-0.csv",
+      "sha256": "ef6672634bcbc19a238c0cb19f2772fd9c05ec82e2c599d29436ea7112f3dece",
+      "bytes": 127
+    },
+    {
+      "path": "artifacts/PHASE-D302-onecell-solidification-S308/material-1.csv",
+      "sha256": "d50471577c6ea01ffdd945a1190d08059d5dbfd1e56d732d72ecb300a90cc03f",
+      "bytes": 178
+    },
+    {
+      "path": "artifacts/PHASE-FORMAL-onecell-melting-S308/accepted-0.csv",
+      "sha256": "21d0fed3e8cdcb4cbb0d29fb31a44b3c56dd3ee03ce25663bd34240345e872a4",
+      "bytes": 133
+    },
+    {
+      "path": "artifacts/PHASE-FORMAL-onecell-melting-S308/accepted-1.csv",
+      "sha256": "46009c1de6cfd666b23283613a0d250839efa2586aea4631cc7e46ac32e68a8e",
+      "bytes": 154
+    },
+    {
+      "path": "artifacts/PHASE-FORMAL-onecell-melting-S308/checkpoint-0-decoded.json",
+      "sha256": "3138fea9697d5c51d5957a87f7e721c1021d0265c3bcf66b6390d81515b76c35",
+      "bytes": 3980
+    },
+    {
+      "path": "artifacts/PHASE-FORMAL-onecell-melting-S308/checkpoint-0/state.chmt",
+      "sha256": "a915c69e09e18a9c284e37997c5136e96641bb1ba4452d8c76ae5ee752e7228e",
+      "bytes": 9917
+    },
+    {
+      "path": "artifacts/PHASE-FORMAL-onecell-melting-S308/checkpoint-1-decoded.json",
+      "sha256": "ac9f9410b10a827f3150d1bc6c4e963eff7bea284210f2c1585c00371c68e258",
+      "bytes": 6893
+    },
+    {
+      "path": "artifacts/PHASE-FORMAL-onecell-melting-S308/checkpoint-1/state.chmt",
+      "sha256": "54d5ee28895875da1319c9a57c2162f1df3f4455a571aa0e4d41267d0f7f46a6",
+      "bytes": 13946
+    },
+    {
+      "path": "artifacts/PHASE-FORMAL-onecell-melting-S308/exchange-0.csv",
+      "sha256": "28e083ed7242aede54ec558af274ade8b51d6a09029f15ea9799789bbea282a3",
+      "bytes": 166
+    },
+    {
+      "path": "artifacts/PHASE-FORMAL-onecell-melting-S308/exchange-1.csv",
+      "sha256": "230d00af10edb6cbbe0e3d9d2029ba0ea25cdb7176444ed2d304b51798bedf40",
+      "bytes": 431
+    },
+    {
+      "path": "artifacts/PHASE-FORMAL-onecell-melting-S308/gas-0.csv",
+      "sha256": "aeaa0dc16c78c7fcedbbed4a9d840352ce26c564bf46ca125ba62072fc3dbaa1",
+      "bytes": 227
+    },
+    {
+      "path": "artifacts/PHASE-FORMAL-onecell-melting-S308/gas-1.csv",
+      "sha256": "2764900c5c3eb4ebe34b4cc4ad311bf080d8a99b84995d8b1f9572bbf3fd5ca4",
+      "bytes": 228
+    },
+    {
+      "path": "artifacts/PHASE-FORMAL-onecell-melting-S308/material-0.csv",
+      "sha256": "ef6672634bcbc19a238c0cb19f2772fd9c05ec82e2c599d29436ea7112f3dece",
+      "bytes": 127
+    },
+    {
+      "path": "artifacts/PHASE-FORMAL-onecell-melting-S308/material-1.csv",
+      "sha256": "47d275bcddd608ee6f4326cc588566a82e7489427f2fcfc1637d9255ecc41384",
+      "bytes": 183
+    },
+    {
+      "path": "artifacts/PHASE-FORMAL-onecell-solidification-S308/accepted-0.csv",
+      "sha256": "21d0fed3e8cdcb4cbb0d29fb31a44b3c56dd3ee03ce25663bd34240345e872a4",
+      "bytes": 133
+    },
+    {
+      "path": "artifacts/PHASE-FORMAL-onecell-solidification-S308/accepted-1.csv",
+      "sha256": "46009c1de6cfd666b23283613a0d250839efa2586aea4631cc7e46ac32e68a8e",
+      "bytes": 154
+    },
+    {
+      "path": "artifacts/PHASE-FORMAL-onecell-solidification-S308/checkpoint-0-decoded.json",
+      "sha256": "3138fea9697d5c51d5957a87f7e721c1021d0265c3bcf66b6390d81515b76c35",
+      "bytes": 3980
+    },
+    {
+      "path": "artifacts/PHASE-FORMAL-onecell-solidification-S308/checkpoint-0/state.chmt",
+      "sha256": "89f68893805d181069ca6fcde2eb5bf28acf65264f215bafc59b161bc28670f4",
+      "bytes": 9917
+    },
+    {
+      "path": "artifacts/PHASE-FORMAL-onecell-solidification-S308/checkpoint-1-decoded.json",
+      "sha256": "3e098b99e1c9f7db8aa5c3faaf30b134aeb83a949c09521b04c729062afbca50",
+      "bytes": 6856
+    },
+    {
+      "path": "artifacts/PHASE-FORMAL-onecell-solidification-S308/checkpoint-1/state.chmt",
+      "sha256": "80cb4a87989d850dfbb3b90b44f408b2e08390a671ed4083c9d5de68a6d4e549",
+      "bytes": 13946
+    },
+    {
+      "path": "artifacts/PHASE-FORMAL-onecell-solidification-S308/exchange-0.csv",
+      "sha256": "28e083ed7242aede54ec558af274ade8b51d6a09029f15ea9799789bbea282a3",
+      "bytes": 166
+    },
+    {
+      "path": "artifacts/PHASE-FORMAL-onecell-solidification-S308/exchange-1.csv",
+      "sha256": "65c000fd3fdcb5ed9989a60633b6441da058a41fb1cfdeea50932907a20e1e8d",
+      "bytes": 435
+    },
+    {
+      "path": "artifacts/PHASE-FORMAL-onecell-solidification-S308/gas-0.csv",
+      "sha256": "aeaa0dc16c78c7fcedbbed4a9d840352ce26c564bf46ca125ba62072fc3dbaa1",
+      "bytes": 227
+    },
+    {
+      "path": "artifacts/PHASE-FORMAL-onecell-solidification-S308/gas-1.csv",
+      "sha256": "2764900c5c3eb4ebe34b4cc4ad311bf080d8a99b84995d8b1f9572bbf3fd5ca4",
+      "bytes": 228
+    },
+    {
+      "path": "artifacts/PHASE-FORMAL-onecell-solidification-S308/material-0.csv",
+      "sha256": "ef6672634bcbc19a238c0cb19f2772fd9c05ec82e2c599d29436ea7112f3dece",
+      "bytes": 127
+    },
+    {
+      "path": "artifacts/PHASE-FORMAL-onecell-solidification-S308/material-1.csv",
+      "sha256": "d50471577c6ea01ffdd945a1190d08059d5dbfd1e56d732d72ecb300a90cc03f",
+      "bytes": 178
+    },
+    {
+      "path": "artifacts/PHASE-OLD4B-onecell-melting-S308/accepted-0.csv",
+      "sha256": "21d0fed3e8cdcb4cbb0d29fb31a44b3c56dd3ee03ce25663bd34240345e872a4",
+      "bytes": 133
+    },
+    {
+      "path": "artifacts/PHASE-OLD4B-onecell-melting-S308/accepted-1.csv",
+      "sha256": "46009c1de6cfd666b23283613a0d250839efa2586aea4631cc7e46ac32e68a8e",
+      "bytes": 154
+    },
+    {
+      "path": "artifacts/PHASE-OLD4B-onecell-melting-S308/checkpoint-0/state.chmt",
+      "sha256": "a915c69e09e18a9c284e37997c5136e96641bb1ba4452d8c76ae5ee752e7228e",
+      "bytes": 9917
+    },
+    {
+      "path": "artifacts/PHASE-OLD4B-onecell-melting-S308/checkpoint-1/state.chmt",
+      "sha256": "54d5ee28895875da1319c9a57c2162f1df3f4455a571aa0e4d41267d0f7f46a6",
+      "bytes": 13946
+    },
+    {
+      "path": "artifacts/PHASE-OLD4B-onecell-melting-S308/exchange-0.csv",
+      "sha256": "28e083ed7242aede54ec558af274ade8b51d6a09029f15ea9799789bbea282a3",
+      "bytes": 166
+    },
+    {
+      "path": "artifacts/PHASE-OLD4B-onecell-melting-S308/exchange-1.csv",
+      "sha256": "230d00af10edb6cbbe0e3d9d2029ba0ea25cdb7176444ed2d304b51798bedf40",
+      "bytes": 431
+    },
+    {
+      "path": "artifacts/PHASE-OLD4B-onecell-melting-S308/gas-0.csv",
+      "sha256": "aeaa0dc16c78c7fcedbbed4a9d840352ce26c564bf46ca125ba62072fc3dbaa1",
+      "bytes": 227
+    },
+    {
+      "path": "artifacts/PHASE-OLD4B-onecell-melting-S308/gas-1.csv",
+      "sha256": "2764900c5c3eb4ebe34b4cc4ad311bf080d8a99b84995d8b1f9572bbf3fd5ca4",
+      "bytes": 228
+    },
+    {
+      "path": "artifacts/PHASE-OLD4B-onecell-melting-S308/material-0.csv",
+      "sha256": "ef6672634bcbc19a238c0cb19f2772fd9c05ec82e2c599d29436ea7112f3dece",
+      "bytes": 127
+    },
+    {
+      "path": "artifacts/PHASE-OLD4B-onecell-melting-S308/material-1.csv",
+      "sha256": "47d275bcddd608ee6f4326cc588566a82e7489427f2fcfc1637d9255ecc41384",
+      "bytes": 183
+    },
+    {
+      "path": "artifacts/PHASE-OLD4B-onecell-solidification-S308/accepted-0.csv",
+      "sha256": "21d0fed3e8cdcb4cbb0d29fb31a44b3c56dd3ee03ce25663bd34240345e872a4",
+      "bytes": 133
+    },
+    {
+      "path": "artifacts/PHASE-OLD4B-onecell-solidification-S308/accepted-1.csv",
+      "sha256": "46009c1de6cfd666b23283613a0d250839efa2586aea4631cc7e46ac32e68a8e",
+      "bytes": 154
+    },
+    {
+      "path": "artifacts/PHASE-OLD4B-onecell-solidification-S308/checkpoint-0/state.chmt",
+      "sha256": "89f68893805d181069ca6fcde2eb5bf28acf65264f215bafc59b161bc28670f4",
+      "bytes": 9917
+    },
+    {
+      "path": "artifacts/PHASE-OLD4B-onecell-solidification-S308/checkpoint-1/state.chmt",
+      "sha256": "80cb4a87989d850dfbb3b90b44f408b2e08390a671ed4083c9d5de68a6d4e549",
+      "bytes": 13946
+    },
+    {
+      "path": "artifacts/PHASE-OLD4B-onecell-solidification-S308/exchange-0.csv",
+      "sha256": "28e083ed7242aede54ec558af274ade8b51d6a09029f15ea9799789bbea282a3",
+      "bytes": 166
+    },
+    {
+      "path": "artifacts/PHASE-OLD4B-onecell-solidification-S308/exchange-1.csv",
+      "sha256": "65c000fd3fdcb5ed9989a60633b6441da058a41fb1cfdeea50932907a20e1e8d",
+      "bytes": 435
+    },
+    {
+      "path": "artifacts/PHASE-OLD4B-onecell-solidification-S308/gas-0.csv",
+      "sha256": "aeaa0dc16c78c7fcedbbed4a9d840352ce26c564bf46ca125ba62072fc3dbaa1",
+      "bytes": 227
+    },
+    {
+      "path": "artifacts/PHASE-OLD4B-onecell-solidification-S308/gas-1.csv",
+      "sha256": "2764900c5c3eb4ebe34b4cc4ad311bf080d8a99b84995d8b1f9572bbf3fd5ca4",
+      "bytes": 228
+    },
+    {
+      "path": "artifacts/PHASE-OLD4B-onecell-solidification-S308/material-0.csv",
+      "sha256": "ef6672634bcbc19a238c0cb19f2772fd9c05ec82e2c599d29436ea7112f3dece",
+      "bytes": 127
+    },
+    {
+      "path": "artifacts/PHASE-OLD4B-onecell-solidification-S308/material-1.csv",
+      "sha256": "d50471577c6ea01ffdd945a1190d08059d5dbfd1e56d732d72ecb300a90cc03f",
+      "bytes": 178
+    },
+    {
+      "path": "artifacts/WET-FILM-FORMAL/checkpoint-0-full-decoded.json",
+      "sha256": "d9d7211168909c08289e606f5b2c8bb06573ad50990783f22ae1863124003bac",
+      "bytes": 9930
+    },
+    {
+      "path": "artifacts/WET-FILM-FORMAL/checkpoint-1-address-decoded.json",
+      "sha256": "bb9e05cc0a07319d43172bf1c5e997e4e08ad60ef0f88d9c5dd6ba86812b8707",
+      "bytes": 229657
+    },
+    {
+      "path": "artifacts/WET-FILM-FORMAL/checkpoint-1-full-decoded.json",
+      "sha256": "e0c7ec6492e306eaf02f038b50d4b50a950cd5cefe195f3c91006053e6666c2b",
+      "bytes": 228835
+    },
+    {
+      "path": "artifacts/WET-FILM-FORMAL/checkpoint-2-address-decoded.json",
+      "sha256": "c26a56f82c01efbd366324c25c904b9bdb85851024812c370f280f916ca0dd3e",
+      "bytes": 229653
+    },
+    {
+      "path": "artifacts/WET-FILM-FORMAL/checkpoint-2-full-decoded.json",
+      "sha256": "d610667b8356229f25a0a5b8bab668961ab5d37e3a431b96cd85462599892afd",
+      "bytes": 228831
+    },
+    {
+      "path": "artifacts/nonzero-phase-two-direction-summary.json",
+      "sha256": "98fa058286bbd7d6e808c07393032bf7201adcc36e57d7c086388f21873b71bf",
+      "bytes": 12988
+    },
+    {
+      "path": "artifacts/phase-onecell-melting-S308-before-after.json",
+      "sha256": "7e73fac38325ff3585fe67c4cacbacd9c05baa9026f253565efa7b13882ce966",
+      "bytes": 5408
+    },
+    {
+      "path": "artifacts/phase-onecell-melting-S308-complete-audit.json",
+      "sha256": "bb2f9d2cfa7adfb00d8228edfe849e31b57199123473e86c2f26fca11c011dc8",
+      "bytes": 6032
+    },
+    {
+      "path": "artifacts/phase-onecell-solidification-S308-before-after.json",
+      "sha256": "621fe8a94b961854e7cb99dd8c38f586cac93f7a954d3be063e36b0acb2022b5",
+      "bytes": 5408
+    },
+    {
+      "path": "artifacts/phase-onecell-solidification-S308-complete-audit.json",
+      "sha256": "eeed94ce828ff3c3466a4f039c390a59248eab473ff36dab7e1ff3713f0f1fcc",
+      "bytes": 6067
+    },
+    {
+      "path": "artifacts/resident/CHT-active16-ASCII-S306-active-profile-audit.json",
+      "sha256": "515d9a06085501404a0615076fd46eb67a22e41defcfc53f0b791f2f0ad7c547",
+      "bytes": 113990
+    },
+    {
+      "path": "artifacts/resident/CHT-active16-ASCII-S306/1e-05/gpuResidentStrictParticles.dat",
+      "sha256": "2816befc05aa10330f14347468bd25b17442338d6887c5059fd3bb69c7521316",
+      "bytes": 9873
+    },
+    {
+      "path": "artifacts/resident/CHT-active16-ASCII-S306/1e-06/gpuResidentStrictParticles.dat",
+      "sha256": "44dc61cf97bdfccfa12d7c62195975bb6df73fdd5a02e55e66865b25a0fec340",
+      "bytes": 9873
+    },
+    {
+      "path": "artifacts/resident/CHT-active16-ASCII-S306/2e-06/gpuResidentStrictParticles.dat",
+      "sha256": "5689f28f5d2abba3032680e94d175878a5a6b9d7151850d7d1d43cb4030b4d4b",
+      "bytes": 9873
+    },
+    {
+      "path": "artifacts/resident/CHT-active16-ASCII-S306/3e-06/gpuResidentStrictParticles.dat",
+      "sha256": "07cde6bf965a960bc13fedc6906c319416f77b93ad0095657e25f1a041189864",
+      "bytes": 9873
+    },
+    {
+      "path": "artifacts/resident/CHT-active16-ASCII-S306/4e-06/gpuResidentStrictParticles.dat",
+      "sha256": "e15a4a58e1d4c7c1402fae46f1d5cc6cc69f39669a5287be2d5e98aac212b90f",
+      "bytes": 9873
+    },
+    {
+      "path": "artifacts/resident/CHT-active16-ASCII-S306/5e-06/gpuResidentStrictParticles.dat",
+      "sha256": "f2e430f50f3a7797f0bc68ab0e57124b025d56c7ba2feec64bec4edacf95ef84",
+      "bytes": 9873
+    },
+    {
+      "path": "artifacts/resident/CHT-active16-ASCII-S306/6e-06/gpuResidentStrictParticles.dat",
+      "sha256": "adecde0351e1f43be7e71fd36d9ef5e0098c6f5e7ca71b991aac3f1b66f10c63",
+      "bytes": 9873
+    },
+    {
+      "path": "artifacts/resident/CHT-active16-ASCII-S306/7e-06/gpuResidentStrictParticles.dat",
+      "sha256": "380b760828df4608da501559da424f60ffce0be9bfd2af9525f66d1bd1192e33",
+      "bytes": 9873
+    },
+    {
+      "path": "artifacts/resident/CHT-active16-ASCII-S306/8e-06/gpuResidentStrictParticles.dat",
+      "sha256": "ed7c727cd819820cdaa3a0d45bc2a060b45b6be07bd6e5b41aab9a8d84213d73",
+      "bytes": 9873
+    },
+    {
+      "path": "artifacts/resident/CHT-active16-ASCII-S306/9e-06/gpuResidentStrictParticles.dat",
+      "sha256": "8b338a51bde6643535b99bd499b69612fd12c98201f1e861b2613e721bf6346b",
+      "bytes": 9873
+    },
+    {
+      "path": "artifacts/resident/FSH-active16-ASCII-S306-active-profile-audit.json",
+      "sha256": "115a22eb4614f3a0f954cb8b43b7d604ae7908629e8769451d898fb3e91ad73e",
+      "bytes": 113771
+    },
+    {
+      "path": "artifacts/resident/FSH-active16-ASCII-S306/1e-05/gpuResidentStrictParticles.dat",
+      "sha256": "ff7533897bfe411aaacdd64b69bfe0cdb770fbcfd9be52f410040b8d4b8da132",
+      "bytes": 14345
+    },
+    {
+      "path": "artifacts/resident/FSH-active16-ASCII-S306/1e-06/gpuResidentStrictParticles.dat",
+      "sha256": "f092bbcc8572407ec10ea7a30fc5795077a78e08101f304244f11cc7a5aba68d",
+      "bytes": 14345
+    },
+    {
+      "path": "artifacts/resident/FSH-active16-ASCII-S306/2e-06/gpuResidentStrictParticles.dat",
+      "sha256": "0c56e8e749619f2e2c66af8b8e0b7b20f4806226d6e40a02abef21b75c04cb1c",
+      "bytes": 14345
+    },
+    {
+      "path": "artifacts/resident/FSH-active16-ASCII-S306/3e-06/gpuResidentStrictParticles.dat",
+      "sha256": "68d45eabe05079c88b6022e9a65d4fba7af21de8aad7dc6f7ce128982149fc23",
+      "bytes": 14345
+    },
+    {
+      "path": "artifacts/resident/FSH-active16-ASCII-S306/4e-06/gpuResidentStrictParticles.dat",
+      "sha256": "1df89ad20557d91a087f10bed30f316a98786074c0fe6202545c079924839af8",
+      "bytes": 14345
+    },
+    {
+      "path": "artifacts/resident/FSH-active16-ASCII-S306/5e-06/gpuResidentStrictParticles.dat",
+      "sha256": "c75b0652748a5bf74759a3223ca5dbcf5cdbda7b01ac7d647698ac4d36ca261d",
+      "bytes": 14345
+    },
+    {
+      "path": "artifacts/resident/FSH-active16-ASCII-S306/6e-06/gpuResidentStrictParticles.dat",
+      "sha256": "c1f3123c9bb7cf868b6771a4ce5881f87ca7d086ea7b2a1bec1d319ff851cf82",
+      "bytes": 14345
+    },
+    {
+      "path": "artifacts/resident/FSH-active16-ASCII-S306/7e-06/gpuResidentStrictParticles.dat",
+      "sha256": "28d33b9195856dbd9d63c560e7fdb85592cbb97cfa259e8a0e8e0f315b5de407",
+      "bytes": 14345
+    },
+    {
+      "path": "artifacts/resident/FSH-active16-ASCII-S306/8e-06/gpuResidentStrictParticles.dat",
+      "sha256": "8f6cdfce95e0c48960ff4997d31a6a1b49e037b1a2b4d5772dd4c6f9bc908b83",
+      "bytes": 14345
+    },
+    {
+      "path": "artifacts/resident/FSH-active16-ASCII-S306/9e-06/gpuResidentStrictParticles.dat",
+      "sha256": "d5df33d9362365a46ff8cf56e9934562bf83e2388f2e0617484f1dd0d89cc468",
+      "bytes": 14345
+    },
+    {
+      "path": "artifacts/resident/cold-actual-groups-CHT-S309.json",
+      "sha256": "c2fa3a3970eb89c718d2e61ac5f5b22b38c500e7adbb63f45059aabfb98a2a70",
+      "bytes": 57027
+    },
+    {
+      "path": "artifacts/resident/cold-actual-groups-FSH-S309.json",
+      "sha256": "cdc6ea76440e88eecabb2b23e9e01a5d7eb8e27c4a3921498cf2b927f822f52f",
+      "bytes": 62447
+    },
+    {
+      "path": "artifacts/thermal-first-currentCo-seed-difference.json",
+      "sha256": "2dd4c292829e6ad025003cbabc1d41f8946f51e09b087169d32237744d018a96",
+      "bytes": 26507
+    },
+    {
+      "path": "artifacts/wet-complete-physical-audit-S307.json",
+      "sha256": "f2ab972af69a10b31bc84d133821e436a1b3b4ca982666264c628dd0ece1f64e",
+      "bytes": 24631
+    },
+    {
+      "path": "artifacts/wet-observer-output-comparison.json",
+      "sha256": "5403f513743fc62dcba57b83e78a749912d319fdae39f916b76453a0700bae9e",
+      "bytes": 3799
+    },
+    {
+      "path": "inputs/Backend-seed-observer-D303.cu",
+      "sha256": "521c7e3c33b02bef6d8422e60ae6334f46c3194576d5f5c978aa8aec17c4e50c",
+      "bytes": 43872
+    },
+    {
+      "path": "inputs/CpuMaterialDriver-phase-observer-D302.C",
+      "sha256": "fcb6c7fefc17cea26f439e8912da4013ede222e98b1ca81e2f0645a14ecb1251",
+      "bytes": 83217
+    },
+    {
+      "path": "inputs/cold-actual-kernel-dimensions-S309.cpp",
+      "sha256": "ed1eafee03ac6757b9dc3c21183b9b7e7bdf91a115c60637483d1ccfce6715fb",
+      "bytes": 844
+    },
+    {
+      "path": "inputs/cold-start-Js-actual-native-S310.cu",
+      "sha256": "f88c6918c34c6d62f1c578ee18d2d101d74e38a6050e5946d3b2bc9688607783",
+      "bytes": 10043
+    },
+    {
+      "path": "inputs/resident-original-caloric-helpers-S306.py",
+      "sha256": "35aad1e5a49424a999ed1e82c3c5666aecacbecc4ba631da3b57ffbb9a3da261",
+      "bytes": 3598
+    },
+    {
+      "path": "inputs/wet-audit-S307-real-addressing.py",
+      "sha256": "5129b15ef4aeb79c892632b6f5d7629fad8dc44493671697c621eba5093cdba9",
+      "bytes": 8404
+    },
+    {
+      "path": "logs/COLD-START-JS-ACTUAL-S311.log",
+      "sha256": "2067247c638aa0420a990353afc481f19c39e85974a35aa39c6ab0fa733b5662",
+      "bytes": 2681
+    },
+    {
+      "path": "logs/COLD-START-JS-ACTUAL-S311.spec.json",
+      "sha256": "a43a927a09fa57fa254b7c4372bc63d8d3cab1e392e8821f4d06ab26f9a36855",
+      "bytes": 33983
+    },
+    {
+      "path": "logs/THERMAL-SEED-thermal-full.log",
+      "sha256": "40cc3ed060af4901f7f21f305d5d672438e0dec3d0af49ecc2605cac310510d3",
+      "bytes": 1634611
+    },
+    {
+      "path": "logs/THERMAL-SEED-thermal-restart.log",
+      "sha256": "172635c99c330876887a2abe046c9297b1d24f6fed985dbaf0bc841bc79e8b9a",
+      "bytes": 819200
+    },
+    {
+      "path": "logs/WET-FILM-OBSERVER-D302.log",
+      "sha256": "2d4b62cb729ca7cb57642c03cc7b1d05f02fb60ee385e570b698883a8f9c812e",
+      "bytes": 1372869
+    }
+  ],
+  "findings": [
+    {
+      "id": "FSCOPE-R3-001",
+      "severity": "P2",
+      "class": "EVIDENCE_DERIVED_METRIC",
+      "location": "artifacts/resident/{CHT,FSH}-active16-ASCII-S306-active-profile-audit.json checks[*].complete_8lane_groups_from_actual_active_count",
+      "trigger": "16 active particles were divided by 8 although each particle itself consumes 8 radial lanes.",
+      "finding": "The preserved value 2 is an arithmetic/statistical error. The actual 128-lane launch provides 16 complete 8-lane groups, one group per particle. All 16 observed profiles evolve.",
+      "recommendation": "Keep original JSON intact and cite this correction beside it. Do not describe 16 particles as two groups or require all eight contact rings to have positive age."
+    },
+    {
+      "id": "FSCOPE-R3-002",
+      "severity": "P2",
+      "class": "EXISTING_MODEL_ACCOUNTING_QUALIFICATION",
+      "location": "applications/CHMT/coupling/IntervalAudit.H:54; applications/CHMT/film/CpuFilmDriver.H:9; applications/CHMT/materials/CpuMaterialDriver.C:35",
+      "trigger": "Original wet heat case has finite net normal film packet impulse while film algebraic mean velocity stays zero.",
+      "finding": "Complete physical global P remains unclosed, separately from the small strict film-packet double-ledger residual. S307 correctly excludes P from its M/E PASS.",
+      "recommendation": "Retain the earlier wet P report and all strict FAIL records. Report M/E, packet P, and full physical P scopes separately; do not invent a reaction from the residual."
+    },
+    {
+      "id": "FSCOPE-R3-003",
+      "severity": "P2",
+      "class": "COVERAGE_GAP",
+      "location": "inputs/cold-start-Js-actual-native-S310.cu:77,103-116; applications/CHMT/gpu/Backend.cu:394,437-447",
+      "trigger": "A claim expands successful direct currentCo/Js probes into all boundary-layer models, actual copy-failure recovery, or selected-dt interval consumption.",
+      "finding": "S311 uses ConstantTransport and explicit referenceDt. It does not inject copy failures, run advanceGasMicrostep/accepted interval ownership, or test ReactingSSTWallModel. The repeated Js values change actual phi but not the observed Co maximum/arrays within either flow variant.",
+      "recommendation": "Keep cold-start-Js PARTIAL. Name the successful actual-native ConstantTransport/fresh-reference and lagged-stage-publication scopes explicitly."
+    },
+    {
+      "id": "FSCOPE-R3-004",
+      "severity": "P2",
+      "class": "EXISTING_STRICT_RESTART_SCOPE",
+      "location": "inputs/Backend-seed-observer-D303.cu:466-505; artifacts/thermal-first-currentCo-seed-difference.json; logs/THERMAL-SEED-thermal-{full,restart}.log",
+      "trigger": "A description says only pre-currentCo cache values differ or that the new observer closes restart bit parity.",
+      "finding": "The first recovered post-currentCo T/p differ by one ULP despite identical conservative input; first stage final energy flux then differs and paired exchange E/P differs. Selected dt is identical. Strict endpoint parity remains a retained failure.",
+      "recommendation": "Cite the actual warm/fresh recovery-to-flux sequence as an observed explanation, not an exclusive causal proof or a fixed parity result. all_different_rows is capped at 32, not the complete difference population."
+    }
+  ],
+  "wet": {
+    "independently_recomputed": [
+      {
+        "checkpoint": 1,
+        "stocks_before": [
+          [
+            "1.000000000000000222044604925031308084726333618164062500",
+            "445832.9438967164314817637205123901367187500"
+          ],
+          [
+            "1000",
+            "300000000"
+          ],
+          [
+            "0.0100000000000000002081668171172168513294309377670288085937500",
+            "4498.2839999999999999642785741826855883118696510791778564453125000"
+          ]
+        ],
+        "stocks_after": [
+          [
+            "0.9999999999999998889776975374843459576368331909179687500",
+            "445832.4439079380535986274480819702148437500"
+          ],
+          [
+            "1000",
+            "300000000.099997967481613159179687500"
+          ],
+          [
+            "0.0100000000000000002081668171172168513294309377670288085937500",
+            "4498.6839907783031244973434491486181535965434314771440978066203986163174022294696"
+          ]
+        ],
+        "globalM": "-3.330669073875469621270895004272460937500000000E-16",
+        "globalE": "-3.259314544402786795398930971532621960203375863869210138368259777E-8",
+        "nominalP": [
+          "-0.000090161962271608898195855014146005146358220372349023818969726562500",
+          "-6.661338147750939242541790008544921875000000000E-16",
+          "-6.661338147750939242541790008544921875000000000E-16"
+        ],
+        "perfilm": [
+          {
+            "film": 0,
+            "SF_gasmesh_face_id": 12,
+            "GF_surface_persistent_id": 16,
+            "packet_count": 51,
+            "packet_kind_counts": {
+              "2": 1,
+              "1": 50
+            },
+            "mass_residual": "0E-61",
+            "energy_residual": "-1.359544418036712011309186893738318496109243214628459206494426326E-13",
+            "impulse": [
+              "0.000022540490563549564484446818823926150798797607421875",
+              "0",
+              "0"
+            ]
+          },
+          {
+            "film": 1,
+            "SF_gasmesh_face_id": 13,
+            "GF_surface_persistent_id": 17,
+            "packet_count": 51,
+            "packet_kind_counts": {
+              "2": 1,
+              "1": 50
+            },
+            "mass_residual": "0E-61",
+            "energy_residual": "-1.359544418036712011309186893738318496109243214628459206494426326E-13",
+            "impulse": [
+              "0.000022540490563549564484446818823926150798797607421875",
+              "0",
+              "0"
+            ]
+          },
+          {
+            "film": 2,
+            "SF_gasmesh_face_id": 14,
+            "GF_surface_persistent_id": 18,
+            "packet_count": 51,
+            "packet_kind_counts": {
+              "2": 1,
+              "1": 50
+            },
+            "mass_residual": "0E-61",
+            "energy_residual": "-1.359613806975751083592963370717574172378774464628459206494426326E-13",
+            "impulse": [
+              "0.000022540490563549564484446818823926150798797607421875",
+              "0",
+              "0"
+            ]
+          },
+          {
+            "film": 3,
+            "SF_gasmesh_face_id": 15,
+            "GF_surface_persistent_id": 19,
+            "packet_count": 51,
+            "packet_kind_counts": {
+              "2": 1,
+              "1": 50
+            },
+            "mass_residual": "0E-61",
+            "energy_residual": "-1.359613806975751083592963370717574172378774464628459206494426326E-13",
+            "impulse": [
+              "0.000022540490563549564484446818823926150798797607421875",
+              "0",
+              "0"
+            ]
+          }
+        ],
+        "recipients": [
+          {
+            "participant": 0,
+            "M_residual": "0",
+            "E_residual": "-6.41847686111418624932412058115005493164062500E-17",
+            "P_residual": [
+              "3.4416913763379852753132581710815429687500E-14",
+              "0",
+              "0"
+            ],
+            "species_residual": [
+              "0",
+              "0"
+            ]
+          },
+          {
+            "participant": 1,
+            "M_residual": "0",
+            "E_residual": "-1.3877787807814456755295395851135253906250E-17",
+            "P_residual": [
+              "0E-46",
+              "0",
+              "0"
+            ],
+            "species_residual": [
+              "0",
+              "0"
+            ]
+          },
+          {
+            "participant": 2,
+            "M_residual": "0",
+            "E_residual": "1.058181320345852327591273933649063110351562500E-16",
+            "P_residual": [
+              "-3.4416913763379852753132581710815429687500E-14",
+              "0",
+              "0"
+            ],
+            "species_residual": [
+              "0",
+              "0"
+            ]
+          },
+          {
+            "participant": 3,
+            "M_residual": "0",
+            "E_residual": "0",
+            "P_residual": [
+              "0",
+              "0",
+              "0"
+            ],
+            "species_residual": [
+              "0",
+              "0"
+            ]
+          }
+        ],
+        "physical_inventories": [
+          {
+            "participant": 0,
+            "M_residual": "-3.330669073875469621270895004272460937500E-16",
+            "E_residual": "-3.42155834914814604985622281674295663833618164062500E-11"
+          },
+          {
+            "participant": 1,
+            "M_residual": "0",
+            "E_residual": "-3.2558386028891384000871767057105898857116699218750E-8"
+          },
+          {
+            "participant": 2,
+            "M_residual": "0E-61",
+            "E_residual": "-5.438316450024926189804300528911785336976035358513836825977705304E-13"
+          }
+        ],
+        "external_work_values": {
+          "bodyWork": 0,
+          "supportWork": 0,
+          "radiation": 0,
+          "filmKineticDefect": 0
+        },
+        "retained_exact_matches": {
+          "globalM": true,
+          "globalE": true,
+          "nominalP": true,
+          "perfilmME": true,
+          "recipients": true,
+          "physical_inventories": true
+        }
+      },
+      {
+        "checkpoint": 2,
+        "stocks_before": [
+          [
+            "0.9999999999999998889776975374843459576368331909179687500",
+            "445832.4439079380535986274480819702148437500"
+          ],
+          [
+            "1000",
+            "300000000.099997967481613159179687500"
+          ],
+          [
+            "0.0100000000000000002081668171172168513294309377670288085937500",
+            "4498.6839907783031244973434491486181535965434314771440978066203986163174022294696"
+          ]
+        ],
+        "stocks_after": [
+          [
+            "1.0000000000000000000000000000000000000000000000000000000",
+            "445831.9440013075072783976793289184570312500"
+          ],
+          [
+            "1000",
+            "300000000.200075954198837280273437500"
+          ],
+          [
+            "0.0100000000000000002081668171172168513294309377670288085937500",
+            "4499.0838194126398610744408303575831071053522949242985600826552627928833771875360"
+          ]
+        ],
+        "globalM": "-2.220446049250313080847263336181640625000000000E-16",
+        "globalE": "-4.208550497560548979678216870651735615487929636265723720711662281E-8",
+        "nominalP": [
+          "-0.000157820679374844985518727691342633079329971224069595336914062500",
+          "-7.771561172376095782965421676635742187500000000E-16",
+          "-7.771561172376095782965421676635742187500000000E-16"
+        ],
+        "perfilm": [
+          {
+            "film": 0,
+            "SF_gasmesh_face_id": 12,
+            "GF_surface_persistent_id": 16,
+            "packet_count": 51,
+            "packet_kind_counts": {
+              "2": 1,
+              "1": 50
+            },
+            "mass_residual": "0E-61",
+            "energy_residual": "3.84849670324211156982611570575053604692067040285441414937395166E-14",
+            "impulse": [
+              "0.000016914679261570420010230009211227297782897949218750",
+              "0",
+              "0"
+            ]
+          },
+          {
+            "film": 1,
+            "SF_gasmesh_face_id": 13,
+            "GF_surface_persistent_id": 17,
+            "packet_count": 51,
+            "packet_kind_counts": {
+              "2": 1,
+              "1": 50
+            },
+            "mass_residual": "0E-61",
+            "energy_residual": "3.84849670324211156982611570575053604692067040285441414937395166E-14",
+            "impulse": [
+              "0.000016914679261570420010230009211227297782897949218750",
+              "0",
+              "0"
+            ]
+          },
+          {
+            "film": 2,
+            "SF_gasmesh_face_id": 14,
+            "GF_surface_persistent_id": 18,
+            "packet_count": 51,
+            "packet_kind_counts": {
+              "2": 1,
+              "1": 50
+            },
+            "mass_residual": "0E-61",
+            "energy_residual": "3.84780281385172084698835093595797928422535790285441414937395166E-14",
+            "impulse": [
+              "0.000016914679261570420010230009211227297782897949218750",
+              "0",
+              "0"
+            ]
+          },
+          {
+            "film": 3,
+            "SF_gasmesh_face_id": 15,
+            "GF_surface_persistent_id": 19,
+            "packet_count": 51,
+            "packet_kind_counts": {
+              "2": 1,
+              "1": 50
+            },
+            "mass_residual": "0E-61",
+            "energy_residual": "3.84780281385172084698835093595797928422535790285441414937395166E-14",
+            "impulse": [
+              "0.000016914679261570420010230009211227297782897949218750",
+              "0",
+              "0"
+            ]
+          }
+        ],
+        "recipients": [
+          {
+            "participant": 0,
+            "M_residual": "0",
+            "E_residual": "3.035766082959412415220867842435836791992187500E-16",
+            "P_residual": [
+              "3.108624468950438313186168670654296875000E-15",
+              "0",
+              "0"
+            ],
+            "species_residual": [
+              "0",
+              "0"
+            ]
+          },
+          {
+            "participant": 1,
+            "M_residual": "0",
+            "E_residual": "1.3877787807814456755295395851135253906250E-17",
+            "P_residual": [
+              "-1.4210854715202003717422485351562500E-14",
+              "0",
+              "0"
+            ],
+            "species_residual": [
+              "0",
+              "0"
+            ]
+          },
+          {
+            "participant": 2,
+            "M_residual": "0",
+            "E_residual": "-4.284766985662713523197453469038009643554687500E-16",
+            "P_residual": [
+              "1.03472785895064589567482471466064453125000E-13",
+              "0",
+              "0"
+            ],
+            "species_residual": [
+              "0",
+              "0"
+            ]
+          },
+          {
+            "participant": 3,
+            "M_residual": "0",
+            "E_residual": "0",
+            "P_residual": [
+              "0",
+              "0",
+              "0"
+            ],
+            "species_residual": [
+              "0",
+              "0"
+            ]
+          }
+        ],
+        "physical_inventories": [
+          {
+            "participant": 0,
+            "M_residual": "1.110223024625156540423631668090820312500E-16",
+            "E_residual": "-1.39929474257671770942579314578324556350708007812500E-11"
+          },
+          {
+            "participant": 1,
+            "M_residual": "0",
+            "E_residual": "-9.478520510142196542346937349066138267517089843750E-9"
+          },
+          {
+            "participant": 2,
+            "M_residual": "0E-61",
+            "E_residual": "1.539259903418766483362893328341703066229205661141765659749580664E-13"
+          }
+        ],
+        "external_work_values": {
+          "bodyWork": 0,
+          "supportWork": 0,
+          "radiation": 0,
+          "filmKineticDefect": 0
+        },
+        "retained_exact_matches": {
+          "globalM": true,
+          "globalE": true,
+          "nominalP": true,
+          "perfilmME": true,
+          "recipients": true,
+          "physical_inventories": true
+        }
+      }
+    ],
+    "consumed_liquid_rho": 1000,
+    "energy_inventory": "sum(gas.energy)+sum(solid.energy)+sum(film.enthalpy-film.pressure*film.mass/consumed_liquid_rho+film.kineticEnergy)",
+    "P_sign": "Delta(Pgas+sum(Mfilm*meanVelocity))+outwardBoundaryMomentum+solidReceivedSupportImpulse",
+    "packet_namespaces": {
+      "SolidFilm": "gasMesh.faceIds[surface.gasFace[film]]",
+      "GasFilm": "surface.persistentId[film]"
+    },
+    "address_examples": [
+      [
+        12,
+        16
+      ],
+      [
+        13,
+        17
+      ],
+      [
+        14,
+        18
+      ],
+      [
+        15,
+        19
+      ]
+    ],
+    "global_ME_scope": "original tolerances, actual original endpoint 0.001; S307 does not close full physical P",
+    "force_inventory": "Solid-received support bookkeeping is actual; no independent reduced-film constraint reaction channel",
+    "decode_model_defaults_are_consumed_config": false
+  },
+  "phase_controls": {
+    "independently_recomputed": [
+      {
+        "name": "onecell-melting-S308",
+        "mass": 4.001999999999999e-06,
+        "globalM": "3.13082892944294144399464130401611328125E-14",
+        "globalE": "-1.2247854102338676501906262475817821251818876687744719333750254009E-7",
+        "globalP": [
+          "0E-55",
+          "0E-52",
+          "0E-52"
+        ],
+        "target_hex_recalculated": "-0x1.1303edb56fc51p-28",
+        "expression_recession_residual": "2.6839346776746898513344753711695744868848123587667942047119140625E-16",
+        "exact_physical_volume_residual": "2.683934676814422014279326589303309447132050991058349609375E-16",
+        "retained_exact_matches": {
+          "M": true,
+          "E": true,
+          "P": true,
+          "target": true,
+          "recession": true
+        }
+      },
+      {
+        "name": "onecell-solidification-S308",
+        "mass": -2.0039999999999994e-06,
+        "globalM": "-4.740652315149418427608907222747802734375E-14",
+        "globalE": "-1.5205694471851878724869983238095204114886981397458676212863792898E-7",
+        "globalP": [
+          "0E-55",
+          "0E-53",
+          "0E-53"
+        ],
+        "target_hex_recalculated": "0x1.136d7b4e76d88p-29",
+        "expression_recession_residual": "7.6993862228594958977377638031924789174809120595455169677734375E-17",
+        "exact_physical_volume_residual": "7.699386214918562017228698124426955473609268665313720703125E-17",
+        "retained_exact_matches": {
+          "M": true,
+          "E": true,
+          "P": true,
+          "target": true,
+          "recession": true
+        }
+      }
+    ],
+    "actual_before_after_and_observer_raw_file_comparisons": [
+      {
+        "path": "artifacts/phase-onecell-solidification-S308-before-after.json",
+        "scopes": {
+          "formal_before_after": {
+            "count": 10,
+            "actual_files_equal_and_hash_matched": true,
+            "mismatches": [],
+            "left_root": "artifacts/PHASE-OLD4B-onecell-solidification-S308",
+            "right_root": "artifacts/PHASE-FORMAL-onecell-solidification-S308"
+          },
+          "observer_compare": {
+            "count": 10,
+            "actual_files_equal_and_hash_matched": true,
+            "mismatches": [],
+            "left_root": "artifacts/PHASE-FORMAL-onecell-solidification-S308",
+            "right_root": "artifacts/PHASE-D302-onecell-solidification-S308"
+          }
+        }
+      },
+      {
+        "path": "artifacts/phase-onecell-melting-S308-before-after.json",
+        "scopes": {
+          "formal_before_after": {
+            "count": 10,
+            "actual_files_equal_and_hash_matched": true,
+            "mismatches": [],
+            "left_root": "artifacts/PHASE-OLD4B-onecell-melting-S308",
+            "right_root": "artifacts/PHASE-FORMAL-onecell-melting-S308"
+          },
+          "observer_compare": {
+            "count": 10,
+            "actual_files_equal_and_hash_matched": true,
+            "mismatches": [],
+            "left_root": "artifacts/PHASE-FORMAL-onecell-melting-S308",
+            "right_root": "artifacts/PHASE-D302-onecell-melting-S308"
+          }
+        }
+      }
+    ],
+    "nonzero_expression": "unchanged binary64 operation order; target matches measured actual packet mass and consumed rho1000/porosity0",
+    "full_P_in_these_controls": "measured residual exactly zero in all three components; no extrapolation to original wet heat case",
+    "corrector_candidates": "two constitutive candidates are not two committed packets; only final committed packet is inventoried"
+  },
+  "cold_groups": {
+    "actual_global_kernel": "relaxColdWall2DParticlesToResidentGasKernel",
+    "inner_device_thermal_function": "advanceColdWall2DThermalGroup",
+    "lane_mapping": "radialNode=threadIdx.x%8; group=blockIdx.x*(blockDim.x/8)+threadIdx.x/8; groupMask=0xff<<(warpLane&~7)",
+    "radial_lanes_per_particle": 8,
+    "axial_nodes_per_lane": 8,
+    "nodes_per_particle": 64,
+    "grid": [
+      1,
+      1,
+      1
+    ],
+    "block": [
+      128,
+      1,
+      1
+    ],
+    "complete_groups": 16,
+    "preserved_wrong_derived_value": 2,
+    "producer_source": "4b5c480b572f234ddecf5e89164fe59b0d2e9735",
+    "unchanged_dependency_applicability": "cold group/launcher/caloric/reader bytes equal formal source; no new whole-TU build inference",
+    "independent_decodes_and_retained_current_output_hashes": [
+      {
+        "app": "CHT",
+        "all_retained_rows_match": true,
+        "maximum_error_K": 9.094947017729282e-13,
+        "states": [
+          {
+            "time": "1e-06",
+            "count": 16,
+            "serialized_status_values": [
+              1
+            ],
+            "unique_cell_count": 16,
+            "unique_orig_id_count": 16,
+            "stuck_values": [
+              3
+            ],
+            "all_finite": true,
+            "max_temperature_error_K": 0.0,
+            "matches_retained_rows": true,
+            "profile_changed_from_first_particles": 0,
+            "positive_age_rings_min_max": [
+              0,
+              0
+            ]
+          },
+          {
+            "time": "2e-06",
+            "count": 16,
+            "serialized_status_values": [
+              1
+            ],
+            "unique_cell_count": 16,
+            "unique_orig_id_count": 16,
+            "stuck_values": [
+              3
+            ],
+            "all_finite": true,
+            "max_temperature_error_K": 0.0,
+            "matches_retained_rows": true,
+            "profile_changed_from_first_particles": 16,
+            "positive_age_rings_min_max": [
+              1,
+              1
+            ]
+          },
+          {
+            "time": "3e-06",
+            "count": 16,
+            "serialized_status_values": [
+              1
+            ],
+            "unique_cell_count": 16,
+            "unique_orig_id_count": 16,
+            "stuck_values": [
+              3
+            ],
+            "all_finite": true,
+            "max_temperature_error_K": 4.547473508864641e-13,
+            "matches_retained_rows": true,
+            "profile_changed_from_first_particles": 16,
+            "positive_age_rings_min_max": [
+              1,
+              1
+            ]
+          },
+          {
+            "time": "4e-06",
+            "count": 16,
+            "serialized_status_values": [
+              1
+            ],
+            "unique_cell_count": 16,
+            "unique_orig_id_count": 16,
+            "stuck_values": [
+              3
+            ],
+            "all_finite": true,
+            "max_temperature_error_K": 0.0,
+            "matches_retained_rows": true,
+            "profile_changed_from_first_particles": 16,
+            "positive_age_rings_min_max": [
+              1,
+              1
+            ]
+          },
+          {
+            "time": "5e-06",
+            "count": 16,
+            "serialized_status_values": [
+              1
+            ],
+            "unique_cell_count": 16,
+            "unique_orig_id_count": 16,
+            "stuck_values": [
+              3
+            ],
+            "all_finite": true,
+            "max_temperature_error_K": 4.547473508864641e-13,
+            "matches_retained_rows": true,
+            "profile_changed_from_first_particles": 16,
+            "positive_age_rings_min_max": [
+              1,
+              1
+            ]
+          },
+          {
+            "time": "6e-06",
+            "count": 16,
+            "serialized_status_values": [
+              1
+            ],
+            "unique_cell_count": 16,
+            "unique_orig_id_count": 16,
+            "stuck_values": [
+              3
+            ],
+            "all_finite": true,
+            "max_temperature_error_K": 9.094947017729282e-13,
+            "matches_retained_rows": true,
+            "profile_changed_from_first_particles": 16,
+            "positive_age_rings_min_max": [
+              1,
+              1
+            ]
+          },
+          {
+            "time": "7e-06",
+            "count": 16,
+            "serialized_status_values": [
+              1
+            ],
+            "unique_cell_count": 16,
+            "unique_orig_id_count": 16,
+            "stuck_values": [
+              3
+            ],
+            "all_finite": true,
+            "max_temperature_error_K": 4.547473508864641e-13,
+            "matches_retained_rows": true,
+            "profile_changed_from_first_particles": 16,
+            "positive_age_rings_min_max": [
+              1,
+              1
+            ]
+          },
+          {
+            "time": "8e-06",
+            "count": 16,
+            "serialized_status_values": [
+              1
+            ],
+            "unique_cell_count": 16,
+            "unique_orig_id_count": 16,
+            "stuck_values": [
+              3
+            ],
+            "all_finite": true,
+            "max_temperature_error_K": 4.547473508864641e-13,
+            "matches_retained_rows": true,
+            "profile_changed_from_first_particles": 16,
+            "positive_age_rings_min_max": [
+              1,
+              1
+            ]
+          },
+          {
+            "time": "9e-06",
+            "count": 16,
+            "serialized_status_values": [
+              1
+            ],
+            "unique_cell_count": 16,
+            "unique_orig_id_count": 16,
+            "stuck_values": [
+              3
+            ],
+            "all_finite": true,
+            "max_temperature_error_K": 4.547473508864641e-13,
+            "matches_retained_rows": true,
+            "profile_changed_from_first_particles": 16,
+            "positive_age_rings_min_max": [
+              1,
+              1
+            ]
+          },
+          {
+            "time": "1e-05",
+            "count": 16,
+            "serialized_status_values": [
+              1
+            ],
+            "unique_cell_count": 16,
+            "unique_orig_id_count": 16,
+            "stuck_values": [
+              3
+            ],
+            "all_finite": true,
+            "max_temperature_error_K": 4.547473508864641e-13,
+            "matches_retained_rows": true,
+            "profile_changed_from_first_particles": 16,
+            "positive_age_rings_min_max": [
+              1,
+              1
+            ]
+          }
+        ],
+        "retained_output_hash_count": 218,
+        "retained_output_hash_mismatches": [],
+        "actual_launches": [
+          "ACTUAL_COLD_LAUNCH,_Z43relaxColdWall2DParticlesToResidentGasKernelPN53_GLOBAL__N__14853250_20_GpuResidentStrict_cu_c309ccbe11DeviceStateEd,grid=1:1:1,block=128:1:1,shared=0",
+          "ACTUAL_COLD_LAUNCH,_Z43relaxColdWall2DParticlesToResidentGasKernelPN53_GLOBAL__N__14853250_20_GpuResidentStrict_cu_c309ccbe11DeviceStateEd,grid=1:1:1,block=128:1:1,shared=0",
+          "ACTUAL_COLD_LAUNCH,_Z43relaxColdWall2DParticlesToResidentGasKernelPN53_GLOBAL__N__14853250_20_GpuResidentStrict_cu_c309ccbe11DeviceStateEd,grid=1:1:1,block=128:1:1,shared=0",
+          "ACTUAL_COLD_LAUNCH,_Z43relaxColdWall2DParticlesToResidentGasKernelPN53_GLOBAL__N__14853250_20_GpuResidentStrict_cu_c309ccbe11DeviceStateEd,grid=1:1:1,block=128:1:1,shared=0",
+          "ACTUAL_COLD_LAUNCH,_Z43relaxColdWall2DParticlesToResidentGasKernelPN53_GLOBAL__N__14853250_20_GpuResidentStrict_cu_c309ccbe11DeviceStateEd,grid=1:1:1,block=128:1:1,shared=0",
+          "ACTUAL_COLD_LAUNCH,_Z43relaxColdWall2DParticlesToResidentGasKernelPN53_GLOBAL__N__14853250_20_GpuResidentStrict_cu_c309ccbe11DeviceStateEd,grid=1:1:1,block=128:1:1,shared=0",
+          "ACTUAL_COLD_LAUNCH,_Z43relaxColdWall2DParticlesToResidentGasKernelPN53_GLOBAL__N__14853250_20_GpuResidentStrict_cu_c309ccbe11DeviceStateEd,grid=1:1:1,block=128:1:1,shared=0",
+          "ACTUAL_COLD_LAUNCH,_Z43relaxColdWall2DParticlesToResidentGasKernelPN53_GLOBAL__N__14853250_20_GpuResidentStrict_cu_c309ccbe11DeviceStateEd,grid=1:1:1,block=128:1:1,shared=0",
+          "ACTUAL_COLD_LAUNCH,_Z43relaxColdWall2DParticlesToResidentGasKernelPN53_GLOBAL__N__14853250_20_GpuResidentStrict_cu_c309ccbe11DeviceStateEd,grid=1:1:1,block=128:1:1,shared=0",
+          "ACTUAL_COLD_LAUNCH,_Z43relaxColdWall2DParticlesToResidentGasKernelPN53_GLOBAL__N__14853250_20_GpuResidentStrict_cu_c309ccbe11DeviceStateEd,grid=1:1:1,block=128:1:1,shared=0"
+        ]
+      },
+      {
+        "app": "FSH",
+        "all_retained_rows_match": true,
+        "maximum_error_K": 4.4292391976341605e-10,
+        "states": [
+          {
+            "time": "1e-06",
+            "count": 16,
+            "serialized_status_values": [
+              1
+            ],
+            "unique_cell_count": 16,
+            "unique_orig_id_count": 16,
+            "stuck_values": [
+              3
+            ],
+            "all_finite": true,
+            "max_temperature_error_K": 3.183231456205249e-12,
+            "matches_retained_rows": true,
+            "profile_changed_from_first_particles": 0,
+            "positive_age_rings_min_max": [
+              0,
+              0
+            ]
+          },
+          {
+            "time": "2e-06",
+            "count": 16,
+            "serialized_status_values": [
+              1
+            ],
+            "unique_cell_count": 16,
+            "unique_orig_id_count": 16,
+            "stuck_values": [
+              3
+            ],
+            "all_finite": true,
+            "max_temperature_error_K": 1.2460077414289117e-10,
+            "matches_retained_rows": true,
+            "profile_changed_from_first_particles": 16,
+            "positive_age_rings_min_max": [
+              1,
+              1
+            ]
+          },
+          {
+            "time": "3e-06",
+            "count": 16,
+            "serialized_status_values": [
+              1
+            ],
+            "unique_cell_count": 16,
+            "unique_orig_id_count": 16,
+            "stuck_values": [
+              3
+            ],
+            "all_finite": true,
+            "max_temperature_error_K": 3.356035449542105e-10,
+            "matches_retained_rows": true,
+            "profile_changed_from_first_particles": 16,
+            "positive_age_rings_min_max": [
+              1,
+              1
+            ]
+          },
+          {
+            "time": "4e-06",
+            "count": 16,
+            "serialized_status_values": [
+              1
+            ],
+            "unique_cell_count": 16,
+            "unique_orig_id_count": 16,
+            "stuck_values": [
+              3
+            ],
+            "all_finite": true,
+            "max_temperature_error_K": 2.1600499167107046e-10,
+            "matches_retained_rows": true,
+            "profile_changed_from_first_particles": 16,
+            "positive_age_rings_min_max": [
+              1,
+              1
+            ]
+          },
+          {
+            "time": "5e-06",
+            "count": 16,
+            "serialized_status_values": [
+              1
+            ],
+            "unique_cell_count": 16,
+            "unique_orig_id_count": 16,
+            "stuck_values": [
+              3
+            ],
+            "all_finite": true,
+            "max_temperature_error_K": 4.106368578504771e-10,
+            "matches_retained_rows": true,
+            "profile_changed_from_first_particles": 16,
+            "positive_age_rings_min_max": [
+              1,
+              1
+            ]
+          },
+          {
+            "time": "6e-06",
+            "count": 16,
+            "serialized_status_values": [
+              1
+            ],
+            "unique_cell_count": 16,
+            "unique_orig_id_count": 16,
+            "stuck_values": [
+              3
+            ],
+            "all_finite": true,
+            "max_temperature_error_K": 2.8194335754960775e-11,
+            "matches_retained_rows": true,
+            "profile_changed_from_first_particles": 16,
+            "positive_age_rings_min_max": [
+              1,
+              1
+            ]
+          },
+          {
+            "time": "7e-06",
+            "count": 16,
+            "serialized_status_values": [
+              1
+            ],
+            "unique_cell_count": 16,
+            "unique_orig_id_count": 16,
+            "stuck_values": [
+              3
+            ],
+            "all_finite": true,
+            "max_temperature_error_K": 3.3151081879623234e-10,
+            "matches_retained_rows": true,
+            "profile_changed_from_first_particles": 16,
+            "positive_age_rings_min_max": [
+              1,
+              1
+            ]
+          },
+          {
+            "time": "8e-06",
+            "count": 16,
+            "serialized_status_values": [
+              1
+            ],
+            "unique_cell_count": 16,
+            "unique_orig_id_count": 16,
+            "stuck_values": [
+              3
+            ],
+            "all_finite": true,
+            "max_temperature_error_K": 4.4292391976341605e-10,
+            "matches_retained_rows": true,
+            "profile_changed_from_first_particles": 16,
+            "positive_age_rings_min_max": [
+              1,
+              1
+            ]
+          },
+          {
+            "time": "9e-06",
+            "count": 16,
+            "serialized_status_values": [
+              1
+            ],
+            "unique_cell_count": 16,
+            "unique_orig_id_count": 16,
+            "stuck_values": [
+              3
+            ],
+            "all_finite": true,
+            "max_temperature_error_K": 2.828528522513807e-10,
+            "matches_retained_rows": true,
+            "profile_changed_from_first_particles": 16,
+            "positive_age_rings_min_max": [
+              1,
+              1
+            ]
+          },
+          {
+            "time": "1e-05",
+            "count": 16,
+            "serialized_status_values": [
+              1
+            ],
+            "unique_cell_count": 16,
+            "unique_orig_id_count": 16,
+            "stuck_values": [
+              3
+            ],
+            "all_finite": true,
+            "max_temperature_error_K": 8.776623872108757e-11,
+            "matches_retained_rows": true,
+            "profile_changed_from_first_particles": 16,
+            "positive_age_rings_min_max": [
+              1,
+              1
+            ]
+          }
+        ],
+        "retained_output_hash_count": 238,
+        "retained_output_hash_mismatches": [],
+        "actual_launches": [
+          "ACTUAL_COLD_LAUNCH,_Z43relaxColdWall2DParticlesToResidentGasKernelPN53_GLOBAL__N__fb11de59_20_GpuResidentStrict_cu_c309ccbe11DeviceStateEd,grid=1:1:1,block=128:1:1,shared=0",
+          "ACTUAL_COLD_LAUNCH,_Z43relaxColdWall2DParticlesToResidentGasKernelPN53_GLOBAL__N__fb11de59_20_GpuResidentStrict_cu_c309ccbe11DeviceStateEd,grid=1:1:1,block=128:1:1,shared=0",
+          "ACTUAL_COLD_LAUNCH,_Z43relaxColdWall2DParticlesToResidentGasKernelPN53_GLOBAL__N__fb11de59_20_GpuResidentStrict_cu_c309ccbe11DeviceStateEd,grid=1:1:1,block=128:1:1,shared=0",
+          "ACTUAL_COLD_LAUNCH,_Z43relaxColdWall2DParticlesToResidentGasKernelPN53_GLOBAL__N__fb11de59_20_GpuResidentStrict_cu_c309ccbe11DeviceStateEd,grid=1:1:1,block=128:1:1,shared=0",
+          "ACTUAL_COLD_LAUNCH,_Z43relaxColdWall2DParticlesToResidentGasKernelPN53_GLOBAL__N__fb11de59_20_GpuResidentStrict_cu_c309ccbe11DeviceStateEd,grid=1:1:1,block=128:1:1,shared=0",
+          "ACTUAL_COLD_LAUNCH,_Z43relaxColdWall2DParticlesToResidentGasKernelPN53_GLOBAL__N__fb11de59_20_GpuResidentStrict_cu_c309ccbe11DeviceStateEd,grid=1:1:1,block=128:1:1,shared=0",
+          "ACTUAL_COLD_LAUNCH,_Z43relaxColdWall2DParticlesToResidentGasKernelPN53_GLOBAL__N__fb11de59_20_GpuResidentStrict_cu_c309ccbe11DeviceStateEd,grid=1:1:1,block=128:1:1,shared=0",
+          "ACTUAL_COLD_LAUNCH,_Z43relaxColdWall2DParticlesToResidentGasKernelPN53_GLOBAL__N__fb11de59_20_GpuResidentStrict_cu_c309ccbe11DeviceStateEd,grid=1:1:1,block=128:1:1,shared=0",
+          "ACTUAL_COLD_LAUNCH,_Z43relaxColdWall2DParticlesToResidentGasKernelPN53_GLOBAL__N__fb11de59_20_GpuResidentStrict_cu_c309ccbe11DeviceStateEd,grid=1:1:1,block=128:1:1,shared=0",
+          "ACTUAL_COLD_LAUNCH,_Z43relaxColdWall2DParticlesToResidentGasKernelPN53_GLOBAL__N__fb11de59_20_GpuResidentStrict_cu_c309ccbe11DeviceStateEd,grid=1:1:1,block=128:1:1,shared=0"
+        ]
+      }
+    ],
+    "age_scope": "first write ages0; later ring0 advances on every particle, other rings0; finite footprint does not contact all rings",
+    "thermal_witness": "actual launch joined with all16 eligible/current serialized contacted records and evolving profiles; launch name alone is insufficient",
+    "S313": "compile only; full-name GPU rerun cancelled per TEST_PLAN:86",
+    "not_proven": "all gas/particle/wall stage-by-stage full M/E/P and force budgets"
+  },
+  "thermal_restart_observer": {
+    "independent_complete_log_pairing": {
+      "R3SEED_META": {
+        "full_count": 100,
+        "restart_count": 100,
+        "different_count": 0,
+        "same_count": 100,
+        "first_difference": null
+      },
+      "R3SEED_CELL": {
+        "full_count": 800,
+        "restart_count": 800,
+        "different_count": 740,
+        "same_count": 60,
+        "first_difference": [
+          "R3SEED_CELL,pre,2,1,0,0x1.2bffe86ea2c14p+9,0x1.5bfb6c2e4f3c7p+17,0x1.0000003f770b2p-3,0x1.b3621aa0a4edep+15,-0x1.9ed40bfbfc652p-18,0x0p+0,0x0p+0,0x1p-3",
+          "R3SEED_CELL,pre,2,1,0,0x0p+0,0x0p+0,0x1.0000003f770b2p-3,0x1.b3621aa0a4edep+15,-0x1.9ed40bfbfc652p-18,0x0p+0,0x0p+0,0x1p-3"
+        ],
+        "difference_positions": {
+          "pre": 372,
+          "post": 368
+        },
+        "different_fields": {
+          "5": 12,
+          "6": 12,
+          "9": 728
+        },
+        "first_pre": "R3SEED_CELL,pre,2,1,0,0x1.2bffe86ea2c14p+9,0x1.5bfb6c2e4f3c7p+17,0x1.0000003f770b2p-3,0x1.b3621aa0a4edep+15,-0x1.9ed40bfbfc652p-18,0x0p+0,0x0p+0,0x1p-3",
+        "first_post_difference": [
+          "R3SEED_CELL,post,2,1,0,0x1.2bffe86ea2c14p+9,0x1.5bfb6c2e4f3c7p+17,0x1.0000003f770b2p-3,0x1.b3621aa0a4edep+15,-0x1.9ed40bfbfc652p-18,0x0p+0,0x0p+0,0x1p-3",
+          "R3SEED_CELL,post,2,1,0,0x1.2bffe86ea2c13p+9,0x1.5bfb6c2e4f3c6p+17,0x1.0000003f770b2p-3,0x1.b3621aa0a4edep+15,-0x1.9ed40bfbfc652p-18,0x0p+0,0x0p+0,0x1p-3"
+        ],
+        "first_post_both": [
+          [
+            "R3SEED_CELL",
+            "post",
+            "2",
+            "1",
+            "0",
+            "0x1.2bffe86ea2c14p+9",
+            "0x1.5bfb6c2e4f3c7p+17",
+            "0x1.0000003f770b2p-3",
+            "0x1.b3621aa0a4edep+15",
+            "-0x1.9ed40bfbfc652p-18",
+            "0x0p+0",
+            "0x0p+0",
+            "0x1p-3"
+          ],
+          [
+            "R3SEED_CELL",
+            "post",
+            "2",
+            "1",
+            "0",
+            "0x1.2bffe86ea2c13p+9",
+            "0x1.5bfb6c2e4f3c6p+17",
+            "0x1.0000003f770b2p-3",
+            "0x1.b3621aa0a4edep+15",
+            "-0x1.9ed40bfbfc652p-18",
+            "0x0p+0",
+            "0x0p+0",
+            "0x1p-3"
+          ]
+        ]
+      },
+      "R3DT": {
+        "full_count": 50,
+        "restart_count": 50,
+        "different_count": 0,
+        "same_count": 50,
+        "first_difference": null
+      },
+      "LEDGER_FINAL_FLUX": {
+        "full_count": 1800,
+        "restart_count": 1800,
+        "different_count": 216,
+        "same_count": 1584,
+        "first_difference": [
+          "LEDGER_FINAL_FLUX,2,1,0,0,1,0,-0x1.60ede01eb3b46p-17,-0x1.21459c3656db6p+5,0x1.5bfb77d5e7abp+15,0x0p+0,0x0p+0,-0x1.60ede01eb3b46p-17,-0x0p+0",
+          "LEDGER_FINAL_FLUX,2,1,0,0,1,0,-0x1.60ede01eb3b46p-17,-0x1.21459c3656dbep+5,0x1.5bfb77d5e7abp+15,0x0p+0,0x0p+0,-0x1.60ede01eb3b46p-17,-0x0p+0"
+        ]
+      },
+      "LEDGER_PAIRED": {
+        "full_count": 400,
+        "restart_count": 400,
+        "different_count": 4,
+        "same_count": 396,
+        "first_difference": [
+          "LEDGER_PAIRED,2,1,0,0,0,0,0x1p+0,0x1p+0,0x0p+0,-0x1.89370df15a40dp-10,0x1.c81b6c7413a49p-2,0x0p+0,0x0p+0",
+          "LEDGER_PAIRED,2,1,0,0,0,0,0x1p+0,0x1p+0,0x0p+0,-0x1.89370df15a408p-10,0x1.c81b6c7413a47p-2,0x0p+0,0x0p+0"
+        ]
+      },
+      "read_errors": [
+        [],
+        []
+      ]
+    },
+    "seed_fields": {
+      "5": "Tgas",
+      "6": "p",
+      "7": "gas.mass",
+      "8": "gas.energy",
+      "9": "gas.momentum.x",
+      "10": "gas.momentum.y",
+      "11": "gas.momentum.z",
+      "12": "gasMesh.volume"
+    },
+    "artifact_examples_limit": 32,
+    "scope": "actual warm/fresh recovery sequence, equal selected dt, later actual flux differences; retained strict restart mismatch remains"
+  },
+  "cold_start_Js": {
+    "fixture": "inputs/cold-start-Js-actual-native-S310.cu",
+    "actual_execution_log": "logs/COLD-START-JS-ACTUAL-S311.log",
+    "fresh_reference_rows": [
+      "R3JS fresh variant=0 Js=0x1.a9fbe76c8b439p-7 area=0x1p+0 phi=-0x1.a9fbe76c8b439p-7 dt=0x1.a36e2eb1c432dp-14 Co=0x1.b9dbc98829624p-5 flux=0x1.b9dbc98829624p-5,0x1.b9dbc98829624p-5,0x1.b9dbc98829624p-6 diffusion=0x1.8726183c74434p-15,0x1.75e469fd8d406p-14,0x1.9a52a0f41f9bfp-15",
+      "R3JS fresh variant=0 Js=0x1.5810624dd2f1bp-6 area=0x1p+0 phi=-0x1.5810624dd2f1bp-6 dt=0x1.a36e2eb1c432dp-14 Co=0x1.b9dbc98829624p-5 flux=0x1.b9dbc98829624p-5,0x1.b9dbc98829624p-5,0x1.b9dbc98829624p-6 diffusion=0x1.8726183c74434p-15,0x1.75e469fd8d406p-14,0x1.9a52a0f41f9bfp-15",
+      "R3JS fresh variant=0 Js=0x1.16872b020c49cp-5 area=0x1p+0 phi=-0x1.16872b020c49cp-5 dt=0x1.a36e2eb1c432dp-14 Co=0x1.b9dbc98829624p-5 flux=0x1.b9dbc98829624p-5,0x1.b9dbc98829624p-5,0x1.b9dbc98829624p-6 diffusion=0x1.8726183c74434p-15,0x1.75e469fd8d406p-14,0x1.9a52a0f41f9bfp-15",
+      "R3JS fresh variant=1 Js=0x1.a9fbe76c8b439p-7 area=0x1p+0 phi=-0x1.a9fbe76c8b439p-7 dt=0x1.a36e2eb1c432dp-15 Co=0x1.f5053f29df451p-6 flux=0x1.f5053f29df451p-6,0x1.f5053f29df451p-6,0x1.f5053f29df451p-7 diffusion=0x1.3b69629a290c8p-16,0x1.49501285b8794p-15,0x1.9a52a0f41f9c2p-16",
+      "R3JS fresh variant=1 Js=0x1.5810624dd2f1bp-6 area=0x1p+0 phi=-0x1.5810624dd2f1bp-6 dt=0x1.a36e2eb1c432dp-15 Co=0x1.f5053f29df451p-6 flux=0x1.f5053f29df451p-6,0x1.f5053f29df451p-6,0x1.f5053f29df451p-7 diffusion=0x1.3b69629a290c8p-16,0x1.49501285b8794p-15,0x1.9a52a0f41f9c2p-16",
+      "R3JS fresh variant=1 Js=0x1.16872b020c49cp-5 area=0x1p+0 phi=-0x1.16872b020c49cp-5 dt=0x1.a36e2eb1c432dp-15 Co=0x1.f5053f29df451p-6 flux=0x1.f5053f29df451p-6,0x1.f5053f29df451p-6,0x1.f5053f29df451p-7 diffusion=0x1.3b69629a290c8p-16,0x1.49501285b8794p-15,0x1.9a52a0f41f9c2p-16"
+    ],
+    "lagged_stage_rows": [
+      "R3JS lagged variant=0 published=-0x1.16872b020c49cp-5 Co=0x1.b9dbc98829624p-5 nextactualStage=-0x1.c28f5c28f5c29p-5 dt=0x1.a36e2eb1c432dp-14",
+      "R3JS lagged variant=1 published=-0x1.16872b020c49cp-5 Co=0x1.f5053f29df451p-6 nextactualStage=-0x1.c28f5c28f5c29p-5 dt=0x1.a36e2eb1c432dp-15"
+    ],
+    "actual_models": "MixtureFrozen; BoundaryLayerModel::ConstantTransport; SST state enabled",
+    "flow_controls": [
+      {
+        "rho": 1,
+        "T": 700,
+        "u": 5,
+        "reference_dt": 0.0001
+      },
+      {
+        "rho": 0.8,
+        "T": 900,
+        "u": 25,
+        "reference_dt": 5e-05
+      }
+    ],
+    "Js_controls": [
+      0.013,
+      0.021,
+      0.034
+    ],
+    "actual_lagged_stage_publication": [
+      0.034,
+      0.055
+    ],
+    "maximum_comparator": "memcmp double bits",
+    "array_comparator": "vector<double> equality; all recorded entries finite positive nonzero, so observed equal values have identical binary64 representation",
+    "uncovered": [
+      "ReactingSSTWallModel",
+      "actual cudaMemcpy error and owner recovery",
+      "gasCoMaxStep selected-dt consumer",
+      "advanceGasMicrostep full accepted interval"
+    ],
+    "gap_status": "PARTIAL"
+  },
+  "declined_to_judge": [
+    "Independent live GPU acceptance, timings, fresh complete CUDA TU build or binary provenance beyond coordinator records",
+    "Whole-PR merge readiness",
+    "Complete mechanical momentum equation/reaction for the reduced wet film",
+    "All cold particle gas/wall stage M/E/P/force closure beyond observed writepoints and profile consistency",
+    "Exclusive root cause or repair of strict thermal restart bit mismatch",
+    "Unexercised currentCo copy-failure and non-ConstantTransport boundary-layer branches",
+    "Dangerous historical OOB behavior by rerun"
+  ]
+}

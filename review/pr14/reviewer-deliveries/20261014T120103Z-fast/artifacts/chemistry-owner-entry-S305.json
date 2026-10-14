@@ -1,0 +1,186 @@
+{
+  "all_original_owner_semantic_stdout_bitexact": true,
+  "actual_native_entry_calls": [
+    {
+      "dt_hex": "0x1.0c6f7a0b5ed8dp-18",
+      "time_hex": "0x1p+1",
+      "native": 1
+    },
+    {
+      "dt_hex": "0x1.0c6f7a0b5ed8dp-19",
+      "time_hex": "0x1p+1",
+      "native": 1
+    },
+    {
+      "dt_hex": "0x1.0c6f7a0b5ed8dp-20",
+      "time_hex": "0x1p+1",
+      "native": 1
+    },
+    {
+      "dt_hex": "0x1.0c6f7a0b5ed8dp-19",
+      "time_hex": "0x1.000008637bd06p+1",
+      "native": 1
+    },
+    {
+      "dt_hex": "0x1.0c6f7a0b5ed8dp-20",
+      "time_hex": "0x1.000008637bd06p+1",
+      "native": 1
+    },
+    {
+      "dt_hex": "0x1.0c6f7a0b5ed8dp-19",
+      "time_hex": "0x1.000010c6f7a0bp+1",
+      "native": 1
+    },
+    {
+      "dt_hex": "0x1.0c6f7a0b5ed8dp-20",
+      "time_hex": "0x1.000010c6f7a0bp+1",
+      "native": 1
+    },
+    {
+      "dt_hex": "0x1.0c6f7a0b5ed8cp-20",
+      "time_hex": "0x1.0000192a73711p+1",
+      "native": 1
+    },
+    {
+      "dt_hex": "0x1.0c6f7a0b5ed8dp-20",
+      "time_hex": "0x1p+1",
+      "native": 1
+    },
+    {
+      "dt_hex": "0x1.0c6f7a0b5ed8dp-20",
+      "time_hex": "0x1.000008637bd06p+1",
+      "native": 1
+    },
+    {
+      "dt_hex": "0x1.0c6f7a0b5ed8dp-20",
+      "time_hex": "0x1.000010c6f7a0bp+1",
+      "native": 1
+    },
+    {
+      "dt_hex": "0x1.0c6f7a0b5ed8cp-20",
+      "time_hex": "0x1.0000192a73711p+1",
+      "native": 1
+    },
+    {
+      "dt_hex": "0x1.0c6f7a0b5ed8dp-18",
+      "time_hex": "0x1p+1",
+      "native": 1
+    },
+    {
+      "dt_hex": "0x1.0c6f7a0b5ed8dp-18",
+      "time_hex": "0x1p+1",
+      "native": 0
+    },
+    {
+      "dt_hex": "0x1.0c6f7a0b5ed8dp-18",
+      "time_hex": "0x1p+1",
+      "native": 0
+    },
+    {
+      "dt_hex": "0x1.0c6f7a0b5ed8dp-20",
+      "time_hex": "0x1p+1",
+      "native": 1
+    },
+    {
+      "dt_hex": "0x1.0c6f7a0b5ed8dp-20",
+      "time_hex": "0x1p+1",
+      "native": 0
+    }
+  ],
+  "raw_chronology": [
+    "R3CALL dt=0x1.0c6f7a0b5ed8dp-18 time=0x1p+1 native=1",
+    "R3TRIAL event=begin attempt=1 rc=0",
+    "R3TRIAL event=validate attempt=1 dt=0x0p+0 rc=1 stepLimits=1 retry=1 terminal=1",
+    "R3TRIAL event=rollback attempt=1 dt=0x0p+0 rollbacks=1 retry=1 terminal=1",
+    "R3CALL dt=0x1.0c6f7a0b5ed8dp-19 time=0x1p+1 native=1",
+    "R3TRIAL event=begin attempt=2 rc=0",
+    "R3TRIAL event=validate attempt=2 dt=0x0p+0 rc=0 stepLimits=1 retry=0 terminal=0",
+    "R3TRIAL event=validate attempt=2 dt=0x0p+0 rc=0 stepLimits=1 retry=0 terminal=0",
+    "R3TRIAL event=rollback attempt=2 dt=0x0p+0 rollbacks=2 retry=1 terminal=0",
+    "R3CALL dt=0x1.0c6f7a0b5ed8dp-20 time=0x1p+1 native=1",
+    "R3TRIAL event=begin attempt=3 rc=0",
+    "R3TRIAL event=validate attempt=3 dt=0x0p+0 rc=0 stepLimits=1 retry=0 terminal=0",
+    "R3TRIAL event=validate attempt=3 dt=0x0p+0 rc=0 stepLimits=1 retry=0 terminal=0",
+    "R3TRIAL event=source attempt=3 dt=0x1.0c6f7a0b5ed8dp-20 native=1",
+    "R3TRIAL event=validate attempt=3 dt=0x1.0c6f7a0b5ed8dp-20 rc=0 stepLimits=1 retry=0 terminal=0",
+    "R3TRIAL event=validate attempt=3 dt=0x1.0c6f7a0b5ed8dp-20 rc=0 stepLimits=1 retry=0 terminal=0",
+    "R3TRIAL event=commit attempt=3 dt=0x1.0c6f7a0b5ed8dp-20 rc=0 commits=1",
+    "R3CALL dt=0x1.0c6f7a0b5ed8dp-19 time=0x1.000008637bd06p+1 native=1",
+    "R3TRIAL event=begin attempt=4 rc=0",
+    "R3TRIAL event=validate attempt=4 dt=0x1.0c6f7a0b5ed8dp-20 rc=0 stepLimits=1 retry=0 terminal=0",
+    "R3TRIAL event=validate attempt=4 dt=0x1.0c6f7a0b5ed8dp-20 rc=0 stepLimits=1 retry=0 terminal=0",
+    "R3TRIAL event=rollback attempt=4 dt=0x1.0c6f7a0b5ed8dp-20 rollbacks=3 retry=1 terminal=0",
+    "R3CALL dt=0x1.0c6f7a0b5ed8dp-20 time=0x1.000008637bd06p+1 native=1",
+    "R3TRIAL event=begin attempt=5 rc=0",
+    "R3TRIAL event=validate attempt=5 dt=0x1.0c6f7a0b5ed8dp-20 rc=0 stepLimits=1 retry=0 terminal=0",
+    "R3TRIAL event=validate attempt=5 dt=0x1.0c6f7a0b5ed8dp-20 rc=0 stepLimits=1 retry=0 terminal=0",
+    "R3TRIAL event=source attempt=5 dt=0x1.0c6f7a0b5ed8dp-20 native=1",
+    "R3TRIAL event=validate attempt=5 dt=0x1.0c6f7a0b5ed8dp-20 rc=0 stepLimits=1 retry=0 terminal=0",
+    "R3TRIAL event=validate attempt=5 dt=0x1.0c6f7a0b5ed8dp-20 rc=0 stepLimits=1 retry=0 terminal=0",
+    "R3TRIAL event=commit attempt=5 dt=0x1.0c6f7a0b5ed8dp-20 rc=0 commits=2",
+    "R3CALL dt=0x1.0c6f7a0b5ed8dp-19 time=0x1.000010c6f7a0bp+1 native=1",
+    "R3TRIAL event=begin attempt=6 rc=0",
+    "R3TRIAL event=validate attempt=6 dt=0x1.0c6f7a0b5ed8dp-20 rc=0 stepLimits=1 retry=0 terminal=0",
+    "R3TRIAL event=validate attempt=6 dt=0x1.0c6f7a0b5ed8dp-20 rc=0 stepLimits=1 retry=0 terminal=0",
+    "R3TRIAL event=rollback attempt=6 dt=0x1.0c6f7a0b5ed8dp-20 rollbacks=4 retry=1 terminal=0",
+    "R3CALL dt=0x1.0c6f7a0b5ed8dp-20 time=0x1.000010c6f7a0bp+1 native=1",
+    "R3TRIAL event=begin attempt=7 rc=0",
+    "R3TRIAL event=validate attempt=7 dt=0x1.0c6f7a0b5ed8dp-20 rc=0 stepLimits=1 retry=0 terminal=0",
+    "R3TRIAL event=validate attempt=7 dt=0x1.0c6f7a0b5ed8dp-20 rc=0 stepLimits=1 retry=0 terminal=0",
+    "R3TRIAL event=source attempt=7 dt=0x1.0c6f7a0b5ed8dp-20 native=1",
+    "R3TRIAL event=validate attempt=7 dt=0x1.0c6f7a0b5ed8dp-20 rc=0 stepLimits=1 retry=0 terminal=0",
+    "R3TRIAL event=validate attempt=7 dt=0x1.0c6f7a0b5ed8dp-20 rc=0 stepLimits=1 retry=0 terminal=0",
+    "R3TRIAL event=commit attempt=7 dt=0x1.0c6f7a0b5ed8dp-20 rc=0 commits=3",
+    "R3CALL dt=0x1.0c6f7a0b5ed8cp-20 time=0x1.0000192a73711p+1 native=1",
+    "R3TRIAL event=begin attempt=8 rc=0",
+    "R3TRIAL event=validate attempt=8 dt=0x1.0c6f7a0b5ed8dp-20 rc=0 stepLimits=1 retry=0 terminal=0",
+    "R3TRIAL event=validate attempt=8 dt=0x1.0c6f7a0b5ed8dp-20 rc=0 stepLimits=1 retry=0 terminal=0",
+    "R3TRIAL event=source attempt=8 dt=0x1.0c6f7a0b5ed8cp-20 native=1",
+    "R3TRIAL event=validate attempt=8 dt=0x1.0c6f7a0b5ed8cp-20 rc=0 stepLimits=1 retry=0 terminal=0",
+    "R3TRIAL event=validate attempt=8 dt=0x1.0c6f7a0b5ed8cp-20 rc=0 stepLimits=1 retry=0 terminal=0",
+    "R3TRIAL event=commit attempt=8 dt=0x1.0c6f7a0b5ed8cp-20 rc=0 commits=4",
+    "R3CALL dt=0x1.0c6f7a0b5ed8dp-20 time=0x1p+1 native=1",
+    "R3CALL dt=0x1.0c6f7a0b5ed8dp-20 time=0x1.000008637bd06p+1 native=1",
+    "R3CALL dt=0x1.0c6f7a0b5ed8dp-20 time=0x1.000010c6f7a0bp+1 native=1",
+    "R3CALL dt=0x1.0c6f7a0b5ed8cp-20 time=0x1.0000192a73711p+1 native=1",
+    "R3CALL dt=0x1.0c6f7a0b5ed8dp-18 time=0x1p+1 native=1",
+    "R3TRIAL event=begin attempt=1 rc=0",
+    "R3TRIAL event=validate attempt=1 dt=0x0p+0 rc=1 stepLimits=1 retry=1 terminal=1",
+    "R3TRIAL event=rollback attempt=1 dt=0x0p+0 rollbacks=1 retry=1 terminal=1",
+    "R3CALL dt=0x1.0c6f7a0b5ed8dp-18 time=0x1p+1 native=0",
+    "R3TRIAL event=begin attempt=2 rc=0",
+    "R3TRIAL event=validate attempt=2 dt=0x0p+0 rc=0 stepLimits=1 retry=0 terminal=0",
+    "R3TRIAL event=validate attempt=2 dt=0x0p+0 rc=0 stepLimits=1 retry=0 terminal=0",
+    "R3TRIAL event=source attempt=2 dt=0x1.0c6f7a0b5ed8dp-18 native=0",
+    "R3TRIAL event=validate attempt=2 dt=0x1.0c6f7a0b5ed8dp-18 rc=0 stepLimits=1 retry=0 terminal=0",
+    "R3TRIAL event=validate attempt=2 dt=0x1.0c6f7a0b5ed8dp-18 rc=0 stepLimits=1 retry=0 terminal=0",
+    "R3TRIAL event=commit attempt=2 dt=0x1.0c6f7a0b5ed8dp-18 rc=0 commits=1",
+    "R3CALL dt=0x1.0c6f7a0b5ed8dp-18 time=0x1p+1 native=0",
+    "R3CALL dt=0x1.0c6f7a0b5ed8dp-20 time=0x1p+1 native=1",
+    "R3TRIAL event=begin attempt=1 rc=0",
+    "R3TRIAL event=validate attempt=1 dt=0x0p+0 rc=0 stepLimits=0 retry=0 terminal=0",
+    "R3TRIAL event=validate attempt=1 dt=0x0p+0 rc=0 stepLimits=0 retry=0 terminal=0",
+    "R3TRIAL event=source attempt=1 dt=0x1.0c6f7a0b5ed8dp-20 native=1",
+    "R3TRIAL event=validate attempt=1 dt=0x1.0c6f7a0b5ed8dp-20 rc=0 stepLimits=0 retry=0 terminal=0",
+    "R3TRIAL event=validate attempt=1 dt=0x1.0c6f7a0b5ed8dp-20 rc=0 stepLimits=0 retry=0 terminal=0",
+    "R3TRIAL event=commit attempt=1 dt=0x1.0c6f7a0b5ed8dp-20 rc=0 commits=1",
+    "R3CALL dt=0x1.0c6f7a0b5ed8dp-20 time=0x1p+1 native=0"
+  ],
+  "first_attempts": [
+    4e-06,
+    2e-06,
+    1e-06,
+    2e-06,
+    1e-06,
+    2e-06,
+    1e-06,
+    9.999999999999997e-07,
+    1e-06,
+    1e-06,
+    1e-06,
+    9.999999999999997e-07
+  ],
+  "first_requested_4e6_StepLimit_then_halves": true,
+  "source": "9d5be6eff69dbced2fc959d422d3ba419a1bc39e",
+  "S304_correction": "Ignore currentDuration dt in rejected R3TRIAL rows; R3CALL records actualdt, existing begin ids/order link the calls."
+}

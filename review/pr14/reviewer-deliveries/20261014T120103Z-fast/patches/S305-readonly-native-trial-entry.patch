@@ -1,0 +1,10 @@
+--- a/common/GpuGasAdvance.cuh
++++ b/isolated/common/GpuGasAdvance.cuh
+@@ -712,6 +712,7 @@
+     const bool nativeRefinement=false
+ )
+ {
++    std::fprintf(stdout,"R3CALL dt=%a time=%a native=%d\n",double(dt),double(simulationTime),int(nativeRefinement));
+     ugkwp::invalidateGasBoundaryLayerPreparation(*s);
+     if (TrialPolicy::begin(s) != 0)
+     { ugkwp::invalidateGasBoundaryLayerPreparation(*s); TrialPolicy::rollback(s); return 1; }

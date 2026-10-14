@@ -1,0 +1,11 @@
+--- a/chemistry-fixture-S301.cu
++++ b/chemistry-fixture-S302.cu
+@@ -590,7 +590,7 @@
+ void failedTransactionTests(){
+     auto* successful=fixture();
+     advanceGasChemistryKernel<<<1,32>>>(successful->deviceState,1e-6,successful->V,true);sync();
+-    check(successful->gasSpecies.chemistryStatus[0],"independent original direct control failed");
++    check(bool(successful->gasSpecies.chemistryStatus[0]),"independent original direct control failed");
+     const int expectedNewton=successful->gasSpecies.chemistryStatus[0].nonlinearIterations;
+     for(int kind=0;kind<16;++kind){auto* s=fixture();auto& g=s->gasSpecies;
+         g.chemistryControls.maximumRejectedSteps=0;

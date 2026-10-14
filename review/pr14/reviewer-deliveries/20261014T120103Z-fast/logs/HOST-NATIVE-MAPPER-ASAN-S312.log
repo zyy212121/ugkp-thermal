@@ -1,0 +1,27 @@
+/*---------------------------------------------------------------------------*\
+  =========                 |
+  \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
+   \\    /   O peration     | Website:  https://openfoam.org
+    \\  /    A nd           | Version:  10
+     \\/     M anipulation  |
+\*---------------------------------------------------------------------------*/
+Build  : 10-c4cf895ad8fa
+Exec   : /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T120103Z-fast/work/fixtures/native-mapper-ASan-S312 -case /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T120103Z-fast/work/cases/phase/onecell-melting-S308
+Date   : Oct 14 2026
+Time   : 21:43:20
+Host   : "lss"
+PID    : 107400
+I/O    : uncollated
+Case   : /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T120103Z-fast/work/cases/phase/onecell-melting-S308
+nProcs : 1
+sigFpe : Enabling floating point exception trapping (FOAM_SIGFPE).
+fileModificationChecking : Monitoring run-time modified files using timeStampMaster (fileModificationSkew 10)
+allowSystemOperations : Allowing user-supplied system call operations
+
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+PASS actualnative hostmapper selectedPairs=0
+MAPPER pair=0 faces=1 heat=0x1p-5 temperature=0x1.2cp+8
+PASS actualnative hostmapper selectedPairs=1
+MAPPER pair=0 faces=1 heat=0x1p-5 temperature=0x1.2cp+8
+MAPPER pair=1 faces=1 heat=0x1p-4 temperature=0x1.2dp+8
+PASS actualnative hostmapper selectedPairs=2

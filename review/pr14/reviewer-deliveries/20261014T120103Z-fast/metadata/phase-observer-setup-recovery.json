@@ -1,0 +1,6 @@
+{
+  "identity": "PR14_REVIEW_ONLY",
+  "utc": "2026-10-14T12:38:01.317437+00:00",
+  "original_exception": "AssertionError at phase_prepare line18 before any compile/GPU: assumed unqualified include spelling did not match actual qualified include.",
+  "recovery": "Prepend cstdio only to isolated observer source; no production source or assertions changed."
+}

@@ -1,0 +1,15 @@
+from r3_runner import *
+import difflib
+old=(D/'inputs/checkpoint-full-wet-observer.cpp').read_text();anchor='arr(s.surface.solidCell);std::printf("}");';assert old.count(anchor)==1
+new=old.replace(anchor,'arr(s.surface.solidCell);std::printf(",\\\"persistentId\\\":");arr(s.surface.persistentId);std::printf(",\\\"gasFaceIds\\\":");arr(s.gasMesh.faceIds);std::printf(",\\\"solidFaceIds\\\":");arr(s.solidMesh.faceIds);std::printf("}");')
+source=D/'inputs/checkpoint-addressing-S307.cpp';source.write_text(new);patch=D/'patches/S307-actual-persistent-face-addressing.patch';patch.write_text(''.join(difflib.unified_diff(old.splitlines(True),new.splitlines(True),fromfile='a/checkpoint-full-wet-observer.cpp',tofile='b/checkpoint-addressing-S307.cpp')))
+with (D/'TEST_PLAN.md').open('a') as h:h.write('\nS307实际codec映射字段观察：首个wet离线逐film核算误把surface face index作为packet persistent face ID，同时global P supportImpulse符号与真实budget约定相反。保存原分析源/原错误诊断值和FAIL，不能当物理失败。新增真实codec IO字段surface.persistentId、gas/solid faceIds，依据实际packet namespace逐recipient核对；global P采用Δstock+boundary+support，无虚构reaction。reader/physical input/阈值不变；hostASan/UBSan compile900/run300，S303 physics默认零仍不代表consumedrho。\n')
+shutil.copy2(Path(__file__).parent/'r3_wet_audit.py',D/'inputs/wet-audit-v1-wrong-addressing-and-support-sign.py')
+app=ROOT/'applications/CHMT';binary=ROOT/'work/fixtures/checkpoint-addressing-S307';t=run('BUILD-CHECKPOINT-ADDRESSING-S307',cmd('g++','-std=c++17','-O1','-g','-DUGKWP_GAS_SPECIES=2','-fsanitize=address,undefined','-fno-omit-frame-pointer','-I'+str(app),'-I'+str(ROOT/'common'),source,app/'restart/Checkpoint.C','-o',binary),[5,6,13,19,20,26,28],900,'Purefieldprinting originalnativecheckpointdecoder; realpersistentIDs for recipientaddressing.',inputs=[source,patch],kind='BUILD',variant='SUPPORT_S307');assert t['exit_code']==0
+for i in range(3):
+ cp=D/'artifacts/WET-FILM-FORMAL'/f'checkpoint-{i}';t=run('DECODE-WET-ADDRESSING-S307-'+str(i),cmd(binary,cp),[5,6,13,19,20,26,28],300,'Actualnativecodec hostASan/UBSan +faceaddressing fields.',inputs=[cp/'state.chmt',source],binary=binary,kind='HOST_SANITIZER',variant='SUPPORT_S307');assert t['exit_code']==0
+ state=json.loads((D/t['log']).read_text());(cp.parent/(cp.name+'-address-decoded.json')).write_text(json.dumps(state,indent=2)+'\n');assertion(t,True,'Nativecodecactualfielddecoder no observedASanUBSan diagnostics')
+ print(i,state['surface'],flush=True)
+final=next(q for q in json.loads((D/'results.json').read_text())['tests'] if q['id']=='NS10-REACTING-FULL-INITCHECK-1800');raw=(D/final['log']).read_text();checker=next(q for q in json.loads((D/'results.json').read_text())['tests'] if q['id']=='ORIGINAL-CHECK-NS10-REACTING-FULL-INITCHECK-1800');ok=final['exit_code']==0 and 'ERROR SUMMARY: 0 errors' in raw and checker['verdict']=='PASS'
+assertion(final,ok,'OriginalNs10complete reactingfullinput/end .001; finalinitcheckERRORSUMMARY0 and originalcheckerPASS; nocontrol substitution.',artifacts=['artifacts/NS10-REACTING-FULL-INITCHECK-1800'])
+print('FULL_INITCHECK',raw[-2600:])
