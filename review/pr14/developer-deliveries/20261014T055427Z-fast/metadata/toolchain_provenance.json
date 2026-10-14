@@ -1,0 +1,61 @@
+{
+  "generated_at_utc": "2026-10-14T06:11:34.725731+00:00",
+  "installation_prefix": "/tmp/pr14_cuda13/nvidia/cu13",
+  "source": "Official NVIDIA-owned PyPI wheels; URLs and PyPI SHA256 are in per-package JSON files under /tmp/pr14_cuda13_wheels.",
+  "packages": [
+    {
+      "file": "/tmp/pr14_cuda13_wheels/nvidia_cuda_cccl-13.0.50-py3-none-manylinux2014_x86_64.manylinux_2_17_x86_64.whl",
+      "sha256": "46c209499996c18a0c673298f5eac3a09fecdb032da2b8be21c7d0914d966861",
+      "url": "https://files.pythonhosted.org/packages/1c/17/c2760193cbf5f8e6b4e84378aa0579466fc7f9e177331a3eede56e99e560/nvidia_cuda_cccl-13.0.50-py3-none-manylinux2014_x86_64.manylinux_2_17_x86_64.whl",
+      "registry_sha256": "46c209499996c18a0c673298f5eac3a09fecdb032da2b8be21c7d0914d966861"
+    },
+    {
+      "file": "/tmp/pr14_cuda13_wheels/nvidia_cuda_crt-13.0.48-py3-none-manylinux2014_x86_64.manylinux_2_17_x86_64.whl",
+      "sha256": "944b6070c50dc4fbb7c012b1a4c28b444c9c5ac071ac17d84dc9726d9cbc6bea",
+      "url": "https://files.pythonhosted.org/packages/50/51/0f40cd375857a6a4817c3f2704e573c0da86b2feefa799274a5dfd032f26/nvidia_cuda_crt-13.0.48-py3-none-manylinux2014_x86_64.manylinux_2_17_x86_64.whl",
+      "registry_sha256": "944b6070c50dc4fbb7c012b1a4c28b444c9c5ac071ac17d84dc9726d9cbc6bea"
+    },
+    {
+      "file": "/tmp/pr14_cuda13_wheels/nvidia_cuda_nvcc-13.0.48-py3-none-manylinux2014_x86_64.manylinux_2_17_x86_64.whl",
+      "sha256": "d529c52d30c403cbf6fb17a3009530a48d94ea3ad99c990ad0301d9c744eb866",
+      "url": "https://files.pythonhosted.org/packages/80/73/f74e28c8d08d126f89a4341948fe8918d5ddf71efe51e115bbc3cf8ed966/nvidia_cuda_nvcc-13.0.48-py3-none-manylinux2014_x86_64.manylinux_2_17_x86_64.whl",
+      "registry_sha256": "d529c52d30c403cbf6fb17a3009530a48d94ea3ad99c990ad0301d9c744eb866"
+    },
+    {
+      "file": "/tmp/pr14_cuda13_wheels/nvidia_cuda_runtime-13.0.48-py3-none-manylinux2014_x86_64.manylinux_2_17_x86_64.whl",
+      "sha256": "5b54d12087a1abff81a4cbfa6556876e3afea1fc60da2e0816da374619810c89",
+      "url": "https://files.pythonhosted.org/packages/cc/78/edb119083ca2ff0f09ab0cd597e97775ac3f575b8aa0caf10d68ed49e032/nvidia_cuda_runtime-13.0.48-py3-none-manylinux2014_x86_64.manylinux_2_17_x86_64.whl",
+      "registry_sha256": "5b54d12087a1abff81a4cbfa6556876e3afea1fc60da2e0816da374619810c89"
+    },
+    {
+      "file": "/tmp/pr14_cuda13_wheels/nvidia_nvvm-13.0.48-py3-none-manylinux2010_x86_64.manylinux_2_12_x86_64.whl",
+      "sha256": "a7cf76afc14682c46d43d5cdc370fc1da69cb84270e6854c6b3869584ecbd483",
+      "url": "https://files.pythonhosted.org/packages/0c/52/8e953d1c140fb1566f9b9328a819ea3b883cdd5da6af2a217de7f89b675b/nvidia_nvvm-13.0.48-py3-none-manylinux2010_x86_64.manylinux_2_12_x86_64.whl",
+      "registry_sha256": "a7cf76afc14682c46d43d5cdc370fc1da69cb84270e6854c6b3869584ecbd483"
+    }
+  ],
+  "supplement": {
+    "file": "cuda_nvcc-linux-x86_64-13.0.48-archive.tar.xz",
+    "url": "https://developer.download.nvidia.com/compute/cuda/redist/cuda_nvcc/linux-x86_64/cuda_nvcc-linux-x86_64-13.0.48-archive.tar.xz",
+    "sha256": "cc5ff4a00d3be7c6c86ff740de7672e142ec87fea74e7e46b1b142b59fd2ac51",
+    "extracted_files": [
+      "bin/crt/link.stub",
+      "bin/crt/prelink.stub"
+    ]
+  },
+  "layout_links": {
+    "nvvm/bin": "../bin",
+    "lib64": "lib",
+    "lib/libcudart.so": "libcudart.so.13"
+  },
+  "nvcc_version": "nvcc: NVIDIA (R) Cuda compiler driver\nCopyright (c) 2005-2025 NVIDIA Corporation\nBuilt on Wed_Jul_16_07:30:01_PM_PDT_2025\nCuda compilation tools, release 13.0, V13.0.48\nBuild cuda_13.0.r13.0/compiler.36260728_0\n",
+  "host_compiler": "g++ (Debian 14.2.0-19) 14.2.0\nCopyright (C) 2024 Free Software Foundation, Inc.\nThis is free software; see the source for copying conditions.  There is NO\nwarranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.\n\n",
+  "gpu_execution": false,
+  "openfoam": {
+    "release": "Foundation OpenFOAM10 official 20230119 package",
+    "environment_script": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/environment.sh",
+    "frontend_smoke": "CHMT frontend-only compile/link passed before final GPU build",
+    "package_file": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/openfoam10_20230119_amd64.deb",
+    "package_sha256": "5fdde3417e6fabcc31fa2b2b465938eb760f22d354585b14192eb34e1f486f36"
+  }
+}

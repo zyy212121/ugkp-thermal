@@ -1,0 +1,15 @@
+{
+  "Ns": 2,
+  "artifact_kind": "CHMT_BUILD_MANIFEST",
+  "build_id": "4060bffaa8d80ef6de67c31e1d997f93cc927c606dde176b610cb120daf5f0e1",
+  "cuda_arch": "sm_89",
+  "cuda_compiler": "nvcc: NVIDIA (R) Cuda compiler driver\nCopyright (c) 2005-2025 NVIDIA Corporation\nBuilt on Wed_Jul_16_07:30:01_PM_PDT_2025\nCuda compilation tools, release 13.0, V13.0.48\nBuild cuda_13.0.r13.0/compiler.36260728_0",
+  "host_compiler": "g++ (Debian 14.2.0-19) 14.2.0\nCopyright (C) 2024 Free Software Foundation, Inc.\nThis is free software; see the source for copying conditions.  There is NO\nwarranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.",
+  "openfoam_directory": "/workspace/scratch/98b6339ec81b/openfoam10_cpu/extracted/opt/openfoam10",
+  "openfoam_version": "10",
+  "precision": "FP64",
+  "solver_commit": "UNKNOWN",
+  "source_fingerprint": "UNKNOWN",
+  "species_identity": "runtime name/order hash",
+  "upstream_base": "UNKNOWN"
+}
