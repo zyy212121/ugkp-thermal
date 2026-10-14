@@ -26,9 +26,14 @@ template<class T> void testTable(const T*& pointer,const T* input,int count) {
 }
 DeviceState* fixture() {
     static_assert(ugkwp::compiledGasSpecies==2,"fixture uses a two-species mechanism");
-    DeviceState* s=nullptr;testMem(s,1);fixtures.push_back(s);
+    // The native backend keeps its canonical launch/owner state on the host.
+    // A managed host owner aliases device memory on limited-UVM systems (WSL)
+    // and cannot be read between an asynchronous kernel launch and its sync.
+    DeviceState* s=new DeviceState;fixtures.push_back(s);
+    cudaCheck(cudaMalloc(&s->deviceState,sizeof(DeviceState)));
+    allocated.push_back(s->deviceState);
 ALLOCATE_NATIVE_FIELDS
-    s->deviceState=s;s->nCells=2;s->nFaces=3;s->nInternalFaces=1;
+    s->nCells=2;s->nFaces=3;s->nInternalFaces=1;
     s->fixedCellBlockThreads=s->fixedFaceBlockThreads=32;
     s->gasTimeIntegrator=s->hostGasTimeIntegrator=1;
     s->gasFluxScheme=s->hostGasFluxScheme=1;s->gasReconstruction=s->hostGasReconstruction=0;
@@ -80,28 +85,87 @@ ALLOCATE_NATIVE_FIELDS
     s->gasBudgetHost->elementMassFactors={1/.028,1/.028};
     s->gasBudgetHost->identity="\"fixture\":\"chemistry_trial\"";
     g.rho[7]=918273.125;g.cellStatus[7]=123456;g.chemistryAudit[7].acceptedSteps=123456;
+    cudaCheck(cudaMemcpy(s->deviceState,s,sizeof(DeviceState),cudaMemcpyHostToDevice));
     return s;
+}
+bool sameBits(double x,double y){return std::memcmp(&x,&y,sizeof(double))==0;}
+bool sameAudit(const ChemistryAudit<double,compiledGasSpecies>& x,
+               const ChemistryAudit<double,compiledGasSpecies>& y) {
+    // Compare semantic members, never uninitialized struct padding.
+    return std::memcmp(x.speciesMassChange,y.speciesMassChange,sizeof(x.speciesMassChange))==0
+        &&sameBits(x.massResidual,y.massResidual)
+        &&sameBits(x.maximumElementResidual,y.maximumElementResidual)
+        &&sameBits(x.energyResidual,y.energyResidual)
+        &&sameBits(x.maximumLocalError,y.maximumLocalError)
+        &&sameBits(x.integratedTime,y.integratedTime)
+        &&x.acceptedSteps==y.acceptedSteps&&x.rejectedSteps==y.rejectedSteps
+        &&x.nonlinearIterations==y.nonlinearIterations;
 }
 void compare(const DeviceState* left,const DeviceState* right) {
     sync();auto a=sharedGasTrialDetail::cellFields(const_cast<DeviceState*>(left));
     auto b=sharedGasTrialDetail::cellFields(const_cast<DeviceState*>(right));
+    check(a.size()==b.size(),"accepted cell field count differs");
     for(std::size_t k=0;k<a.size();++k)
-        check(a[k].count==b[k].count && (!a[k].pointer ||
+        check(a[k].count==b[k].count && bool(a[k].pointer)==bool(b[k].pointer) && (!a[k].pointer ||
             std::memcmp(a[k].pointer,b[k].pointer,a[k].count*sizeof(double))==0),"accepted cell fields differ");
     a=sharedGasTrialDetail::faceFields(const_cast<DeviceState*>(left));
     b=sharedGasTrialDetail::faceFields(const_cast<DeviceState*>(right));
+    check(a.size()==b.size(),"accepted face field count differs");
     for(std::size_t k=0;k<a.size();++k)
-        check(std::memcmp(a[k].pointer,b[k].pointer,a[k].count*sizeof(double))==0,"accepted face fields differ");
+        check(a[k].count==b[k].count && bool(a[k].pointer)==bool(b[k].pointer) && (!a[k].pointer ||
+            std::memcmp(a[k].pointer,b[k].pointer,a[k].count*sizeof(double))==0),"accepted face fields differ");
+    check(std::memcmp(left->gasSpecies.faceStatus,right->gasSpecies.faceStatus,
+        left->nFaces*sizeof(int))==0,"accepted face statuses differ");
+    // cellFields already includes every transport/species budget channel.
+    check(std::memcmp(left->gasBudgetAudit.initialTransport,right->gasBudgetAudit.initialTransport,
+        left->nCells*(left->gasBudgetAudit.speciesCount+2)*sizeof(double))==0,"initial transport budget differs");
     for(int c=0;c<2;++c){const auto& x=left->gasSpecies.chemistryAudit[c];const auto& y=right->gasSpecies.chemistryAudit[c];
-        check(x.integratedTime==y.integratedTime && x.acceptedSteps==y.acceptedSteps
-            && x.rejectedSteps==y.rejectedSteps && x.nonlinearIterations==y.nonlinearIterations,"accepted chemistry audit differs");
-        check(left->gasSpecies.cellStatus[c]==right->gasSpecies.cellStatus[c]
-            && left->gasSpecies.chemistryStatus[c].code==right->gasSpecies.chemistryStatus[c].code,"accepted status differs");}
+        check(sameAudit(x,y),"accepted full semantic chemistry audit differs");
+        const auto& sx=left->gasSpecies.chemistryStatus[c];const auto& sy=right->gasSpecies.chemistryStatus[c];
+        check(sx.code==sy.code&&sx.thermoCode==sy.thermoCode&&sx.reaction==sy.reaction
+            &&sx.attemptedSteps==sy.attemptedSteps&&sx.rejectedSteps==sy.rejectedSteps
+            &&sx.nonlinearIterations==sy.nonlinearIterations,"accepted full semantic chemistry status differs");
+        check(left->gasSpecies.cellStatus[c]==right->gasSpecies.cellStatus[c],"accepted cell status differs");
+        std::printf("FULL_AUDIT c=%d mass=%a element=%a energy=%a local=%a time=%a accepted=%d rejected=%d nonlinear=%d status=%d thermo=%d reaction=%d attempted=%d statusRejected=%d statusNonlinear=%d\n",
+            c,x.massResidual,x.maximumElementResidual,x.energyResidual,x.maximumLocalError,x.integratedTime,
+            x.acceptedSteps,x.rejectedSteps,x.nonlinearIterations,int(sx.code),int(sx.thermoCode),
+            sx.reaction,sx.attemptedSteps,sx.rejectedSteps,sx.nonlinearIterations);
+        for(int k=0;k<compiledGasSpecies;++k)
+            std::printf("FULL_SPECIES_AUDIT c=%d species=%d massChange=%a\n",c,k,x.speciesMassChange[k]);
+    }
+}
+std::string semanticLedger(const DeviceState* s){
+    auto* output=s->gasBudgetHost->output;std::rewind(output);
+    std::string result;char row[8192];
+    while(std::fgets(row,sizeof(row),output)){
+        std::string line(row);
+        // Host wall-clock cost is not a physical/audit equivalence field.
+        // All inventories, residuals, sources, accepted times and byte counts stay.
+        const auto cost=line.find("\"audit_host_seconds\":");
+        if(cost!=std::string::npos){const auto end=line.find(',',cost);
+            check(end!=std::string::npos,"malformed budget cost field");line.erase(cost,end-cost+1);}
+        result+=line;
+    }
+    check(!std::ferror(output),"read accepted budget ledger");return result;
+}
+void compareBudget(const DeviceState* left,const DeviceState* right){
+    const auto& x=*left->gasBudgetHost;const auto& y=*right->gasBudgetHost;
+    check(x.initialized==y.initialized&&x.requestActive==y.requestActive&&x.sequence==y.sequence
+        &&x.speciesCount==y.speciesCount&&x.elementCount==y.elementCount
+        &&sameBits(x.originTime,y.originTime)&&sameBits(x.acceptedTime,y.acceptedTime)
+        &&sameBits(x.requestedEnd,y.requestedEnd)&&sameBits(x.requestedDt,y.requestedDt)
+        &&x.origin==y.origin&&x.cumulativeBoundary==y.cumulativeBoundary
+        &&x.cumulativeChemistry==y.cumulativeChemistry&&x.volumes==y.volumes
+        &&x.elementMassFactors==y.elementMassFactors,"accepted host budget state differs");
+    check(semanticLedger(left)==semanticLedger(right),"accepted full semantic budget records differ");
+    std::printf("OWNER_LEDGER %s",semanticLedger(left).c_str());
 }
 struct TracePolicy:SharedGasTrialPolicy {
     static int begins,commits,rollbacks,stepLimits,terminalStages;
-    static std::vector<double> sourceDurations;
-    static void clear(){begins=commits=rollbacks=stepLimits=terminalStages=0;sourceDurations.clear();}
+    static std::vector<double> sourceDurations,acceptedDurations;
+    static double currentDuration;
+    static void clear(){begins=commits=rollbacks=stepLimits=terminalStages=0;
+        currentDuration=0.;sourceDurations.clear();acceptedDurations.clear();}
     static int begin(DeviceState* s){++begins;return SharedGasTrialPolicy::begin(s);}
     static int validate(DeviceState* s,bool native=false){
         const int rc=SharedGasTrialPolicy::validate(s,native);
@@ -110,43 +174,96 @@ struct TracePolicy:SharedGasTrialPolicy {
         return rc;
     }
     static int applySources(DeviceState* s,double dt,bool native=false){
-        sourceDurations.push_back(dt);if(!native)++terminalStages;
+        currentDuration=dt;sourceDurations.push_back(dt);if(!native)++terminalStages;
         return SharedGasTrialPolicy::applySources(s,dt,native);
     }
-    static int commit(DeviceState* s){++commits;return SharedGasTrialPolicy::commit(s);}
+    static int commit(DeviceState* s){const int rc=SharedGasTrialPolicy::commit(s);
+        if(!rc){++commits;acceptedDurations.push_back(currentDuration);}return rc;}
     static void rollback(DeviceState* s){++rollbacks;SharedGasTrialPolicy::rollback(s);}
 };
 int TracePolicy::begins=0,TracePolicy::commits=0,TracePolicy::rollbacks=0,TracePolicy::stepLimits=0,TracePolicy::terminalStages=0;
-std::vector<double> TracePolicy::sourceDurations;
+std::vector<double> TracePolicy::sourceDurations,TracePolicy::acceptedDurations;
+double TracePolicy::currentDuration=0.;
+double prepareOwner(DeviceState* s,double dt,double time){
+    double co=0.;check(ugkwpGpuResidentStrictComputeGasCourant(s,dt,.5,time,&co)==0,
+        "real native Courant preparation");sync();
+    check(s->gasTrial.targetMaxCo==.5,"original targetMaxCo changed");
+    std::printf("OWNER_INPUT request=%a targetMaxCo=%a measuredCo=%a\n",dt,s->gasTrial.targetMaxCo,co);
+    return co;
+}
+void startReference(DeviceState* reference,double requestedDt,double time){
+    check(prepareGasBudgetRequest(reference,requestedDt,time)==0,"prepare reference requested budget");
+    check(SharedGasTrialPolicy::beginInterval(reference)==0,"begin reference requested interval");
+}
+void finishReference(DeviceState* reference){
+    check(SharedGasTrialPolicy::commitInterval(reference)==0,"commit reference requested interval");
+}
 void ownerTests(){
-    auto* actual=fixture();auto* reference=fixture();TracePolicy::clear();
+    const double requestedDt=4e-6,time=2.;
+    auto* actual=fixture();auto* reference=fixture();
+    check(prepareOwner(actual,requestedDt,time)>.5,"original requested interval lost actual CFL refinement");
+    prepareOwner(reference,requestedDt,time);TracePolicy::clear();
     GasRequestedIntervalControls<double> controls;
-    check(prepareGasBudgetRequest(actual,4e-6,2.)==0,"prepare full requested budget");
-    check(advanceGasRequestedInterval<TracePolicy>(actual,4e-6,2.,controls)==0,"requested interval did not complete");
-    check(TracePolicy::begins==3&&TracePolicy::commits==2&&TracePolicy::rollbacks==1
-        &&TracePolicy::stepLimits==1&&TracePolicy::terminalStages==0,"owner did not shrink to two accepted native substeps");
-    check(TracePolicy::sourceDurations.size()==2&&TracePolicy::sourceDurations[0]==2e-6
-        &&TracePolicy::sourceDurations[1]==2e-6,"accepted partition differs");
-    check(advanceGasTrial<SharedGasTrialPolicy>(reference,2e-6,2.,true)==0
-        &&advanceGasTrial<SharedGasTrialPolicy>(reference,2e-6,2.+2e-6,true)==0,"explicit accepted partition failed");
-    compare(actual,reference);
+    check(prepareGasBudgetRequest(actual,requestedDt,time)==0,"prepare full requested budget");
+    check(advanceGasRequestedInterval<TracePolicy>(actual,requestedDt,time,controls)==0,"requested interval did not complete");
+    std::printf("OWNER_TRACE begins=%d commits=%d rollbacks=%d stepLimits=%d terminal=%d\n",
+        TracePolicy::begins,TracePolicy::commits,TracePolicy::rollbacks,TracePolicy::stepLimits,TracePolicy::terminalStages);
+    check(TracePolicy::begins==TracePolicy::commits+TracePolicy::rollbacks&&TracePolicy::commits>1
+        &&TracePolicy::rollbacks>0&&TracePolicy::stepLimits>0&&TracePolicy::terminalStages==0,
+        "owner did not complete genuine native refinement after chemistry StepLimit");
+    check(TracePolicy::acceptedDurations.size()==std::size_t(TracePolicy::commits),"accepted trace count differs");
+    startReference(reference,requestedDt,time);
+    double elapsed=0.;for(double dt:TracePolicy::acceptedDurations){
+        std::printf("OWNER_ACCEPT dt=%a stamp=%a\n",dt,time+elapsed);
+        check(dt>0.&&dt<requestedDt,"accepted owner duration did not shrink");
+        check(advanceGasTrial<SharedGasTrialPolicy>(reference,dt,time+elapsed,true)==0,
+            "explicit accepted native partition failed");elapsed+=dt;
+    }
+    check(elapsed==requestedDt,"accepted native partition did not cover exact requested interval");
+    finishReference(reference);compare(actual,reference);compareBudget(actual,reference);
     check(actual->gasBudgetHost->sequence==1&&!actual->gasBudgetHost->requestActive
-        &&actual->gasBudgetHost->acceptedTime==2.+4e-6,"accepted requested ledger did not cover interval");
-    std::puts("PASS actual requested-interval owner: one StepLimit rollback, two native half-size substeps, full accepted fields/audits");
-    actual=fixture();reference=fixture();TracePolicy::clear();controls.maximumAttempts=1;
-    check(prepareGasBudgetRequest(actual,4e-6,2.)==0,"prepare terminal budget");
-    check(advanceGasRequestedInterval<TracePolicy>(actual,4e-6,2.,controls)==0,"exhausted owner did not complete terminal interval");
-    check(TracePolicy::begins==2&&TracePolicy::rollbacks==1&&TracePolicy::commits==1&&TracePolicy::terminalStages==1,"terminal fallback trace differs");
-    check(advanceGasTrial<SharedGasTrialPolicy>(reference,4e-6,2.,false)==0,"direct public completion failed");
-    compare(actual,reference);
-    std::puts("PASS exhausted native effort preserves complete public terminal result");
-    actual=fixture();reference=fixture();TracePolicy::clear();controls={};
-    check(prepareGasBudgetRequest(actual,1e-6,2.)==0,"prepare original-success budget");
-    check(advanceGasRequestedInterval<TracePolicy>(actual,1e-6,2.,controls)==0,"original successful interval failed");
-    check(TracePolicy::begins==1&&TracePolicy::rollbacks==0&&TracePolicy::terminalStages==0,"original successful interval partition changed");
-    check(advanceGasTrial<SharedGasTrialPolicy>(reference,1e-6,2.,false)==0,"original success public control failed");
-    compare(actual,reference);
-    std::puts("PASS original successful FP64 interval matches full public control fields/audits");
+        &&actual->gasBudgetHost->acceptedTime==time+requestedDt,"accepted requested ledger did not cover interval");
+    std::puts("PASS requested owner accepted trace: full interval, cell/face fields, semantic audits/statuses and budgets");
+
+    actual=fixture();reference=fixture();prepareOwner(actual,requestedDt,time);prepareOwner(reference,requestedDt,time);
+    TracePolicy::clear();controls.maximumAttempts=1;
+    check(prepareGasBudgetRequest(actual,requestedDt,time)==0,"prepare terminal budget");
+    check(advanceGasRequestedInterval<TracePolicy>(actual,requestedDt,time,controls)==0,"exhausted owner did not complete terminal interval");
+    check(TracePolicy::begins==2&&TracePolicy::rollbacks==1&&TracePolicy::commits==1
+        &&TracePolicy::stepLimits==1&&TracePolicy::terminalStages==1,"terminal fallback trace differs");
+    check(TracePolicy::acceptedDurations.size()==1&&TracePolicy::acceptedDurations[0]==requestedDt,
+        "terminal accepted duration differs");
+    startReference(reference,requestedDt,time);
+    check(advanceGasTrial<SharedGasTrialPolicy>(reference,requestedDt,time,false)==0,"direct public completion failed");
+    finishReference(reference);compare(actual,reference);compareBudget(actual,reference);
+    check(actual->gasBudgetHost->acceptedTime==time+requestedDt,"terminal requested endpoint differs");
+    std::puts("PASS terminal owner completion: complete original public state, semantic audits/statuses and budgets");
+
+    // Preserve the original full requested-owner success witness as well as the
+    // direct chemistry kernel control. Both use the unchanged 1e-6 interval.
+    const double successfulDt=1e-6;
+    actual=fixture();reference=fixture();
+    check(prepareOwner(actual,successfulDt,time)<=.5,"original success control exceeds actual CFL");
+    prepareOwner(reference,successfulDt,time);TracePolicy::clear();controls={};
+    check(prepareGasBudgetRequest(actual,successfulDt,time)==0,"prepare original-success budget");
+    check(advanceGasRequestedInterval<TracePolicy>(actual,successfulDt,time,controls)==0,"original successful requested interval failed");
+    check(TracePolicy::begins==1&&TracePolicy::commits==1&&TracePolicy::rollbacks==0
+        &&TracePolicy::stepLimits==0&&TracePolicy::terminalStages==0,"original successful interval partition changed");
+    check(TracePolicy::acceptedDurations.size()==1&&TracePolicy::acceptedDurations[0]==successfulDt,
+        "original successful interval duration changed");
+    startReference(reference,successfulDt,time);
+    check(advanceGasTrial<SharedGasTrialPolicy>(reference,successfulDt,time,false)==0,"original success public control failed");
+    finishReference(reference);compare(actual,reference);compareBudget(actual,reference);
+    check(actual->gasBudgetHost->acceptedTime==time+successfulDt,"original successful endpoint differs");
+    std::puts("PASS original successful requested interval: real Courant owner/public control, full fields/audits/statuses/budgets");
+
+    actual=fixture();reference=fixture();
+    advanceGasChemistryKernel<<<1,32>>>(actual->deviceState,successfulDt,actual->V,true);
+    advanceGasChemistryKernel<<<1,32>>>(reference->deviceState,successfulDt,reference->V,false);sync();
+    for(int c=0;c<2;++c)check(actual->gasSpecies.chemistryStatus[c]&&reference->gasSpecies.chemistryStatus[c],
+        "original direct chemistry success control failed");
+    compare(actual,reference);compareBudget(actual,reference);
+    std::puts("PASS original direct chemistry success: native/public fields, full semantic audits/statuses and budget channels");
 }
 void failedCellTests(){
     for(int kind=0;kind<16;++kind){auto* s=fixture();auto& g=s->gasSpecies;
@@ -168,13 +285,17 @@ void failedCellTests(){
         if(kind==13)g.chemistryControls.maximumNewtonIterations=0;
         if(kind==15){g.thermo.coefficientCount=1;g.mechanism.stoichiometricBasis=nullptr;}
         const double savedSpecies[4]={g.rho[0],g.rho[1],g.rho[2],g.rho[3]};
+        const auto savedAudit0=g.chemistryAudit[0],savedAudit1=g.chemistryAudit[1];
+        double savedBudget[4];std::memcpy(savedBudget,s->gasBudgetAudit.chemistrySpecies,sizeof(savedBudget));
         const double* volume=kind==14?nullptr:s->V;
         const double interval=kind==15?0.:2e-6;
-        advanceGasChemistryKernel<<<1,32>>>(s,interval,volume,true);sync();
+        cudaCheck(cudaMemcpy(s->deviceState,s,sizeof(DeviceState),cudaMemcpyHostToDevice));
+        advanceGasChemistryKernel<<<1,32>>>(s->deviceState,interval,volume,true);sync();
         check(!g.chemistryStatus[0],"failed native cell reported success");
-        check(std::memcmp(savedSpecies,g.rho,sizeof(savedSpecies))==0&&g.chemistryAudit[0].integratedTime==99
-            &&g.chemistryAudit[0].acceptedSteps==7,"failed native cell published species/audit");
-        check(s->gasBudgetAudit.chemistrySpecies[0]==0&&s->gasBudgetAudit.chemistrySpecies[2]==0,"failed native cell published budget");
+        check(std::memcmp(savedSpecies,g.rho,sizeof(savedSpecies))==0&&sameAudit(savedAudit0,g.chemistryAudit[0])
+            &&sameAudit(savedAudit1,g.chemistryAudit[1]),"failed native cell published species/audit");
+        check(std::memcmp(savedBudget,s->gasBudgetAudit.chemistrySpecies,sizeof(savedBudget))==0,
+            "failed native cell published any species budget channel");
         check(SharedGasTrialPolicy::validate(s,true)!=0,"failed cell passed shared validation");
         const bool unavailable=(kind>=1&&kind<=6)||kind==10||kind==11||kind==12||kind==14;
         check((g.cellStatus[0]==int(GasTransportCode::InvalidStorage))==unavailable,"actual unavailable model classification differs");
@@ -183,7 +304,7 @@ void failedCellTests(){
         if(unavailable)check(!SharedGasTrialPolicy::retryable(s),"missing consumed backing became retryable");
         if(kind==7||kind==15){check(g.chemistryStatus[0].code==ChemistryCode::InvalidModel,"thermo model status lost");
             check(SharedGasTrialPolicy::resetErrors(s)==0,"reset metadata control");
-            advanceGasChemistryKernel<<<1,32>>>(s,interval,s->V,false);sync();
+            advanceGasChemistryKernel<<<1,32>>>(s->deviceState,interval,s->V,false);sync();
             check(g.chemistryAudit[0].integratedTime==interval&&g.cellStatus[0]!=int(GasTransportCode::InvalidStorage),"metadata-only trial failure blocked public completion");}
         std::printf("PASS failed-cell kind=%d code=%d thermo=%d retry=%d terminal=%d\n",kind,int(g.chemistryStatus[0].code),int(g.chemistryStatus[0].thermoCode),int(SharedGasTrialPolicy::retryable(s)),int(SharedGasTrialPolicy::continueTerminal(s)));
     }
@@ -192,7 +313,7 @@ void cleanup(){sync();for(auto* s:fixtures){
     check(s->gasSpecies.rho[7]==918273.125&&s->gasSpecies.cellStatus[7]==123456
         &&s->gasSpecies.chemistryAudit[7].acceptedSteps==123456,"canary overwritten");
     check(releaseSharedGasTrialStorage(s->gasTrial)==0,"snapshot release failed");
-    delete s->gasBudgetHost;s->gasBudgetHost=nullptr;s->~DeviceState();}
+    delete s->gasBudgetHost;s->gasBudgetHost=nullptr;delete s;}
     for(auto it=allocated.rbegin();it!=allocated.rend();++it)cudaCheck(cudaFree(*it));
 }
 } // namespace chemistryTrialTest
