@@ -54,8 +54,8 @@ ck(s.gasSpecies.flux[1]==-.007&&s.gasSpecies.flux[4]==-.003,"selected species-ma
 audit(s);threadIdx.x=0;const Real kBefore=s.rhoK[0],omegaBefore=s.rhoOmega[0];
 applySstWallFunctionStateKernel(&s);
 near(s.omega[0],clampMin(closure.ownerOmega,s.sstOmegaMin),"actual owner omega");
-near(s.gasSstAudit.constraintK[0],Real(0),"wall profile replaced coarse k");
-near(s.gasSstAudit.constraintOmega[0],s.rhoOmega[0]-omegaBefore,"actual omega constraint audit");
+near(observed.constraintK[0],Real(0),"wall profile replaced coarse k");
+near(observed.constraintOmega[0],s.rhoOmega[0]-omegaBefore,"actual omega constraint audit");
 threadIdx.x=1;computeSstFaceFluxKernel(&s);
 ck(s.sstPhiRhoK[1]==0&&s.sstPhiRhoOmega[1]==0,"auxiliary wall profile became inventory flux");
 if(!TERMINAL){threadIdx.x=0;Real sk,so;sstSourcesForCell(s,0,Real(0),sk,so);
@@ -65,9 +65,9 @@ if(!TERMINAL){threadIdx.x=0;Real sk,so;sstSourcesForCell(s,0,Real(0),sk,so);
  sstSourcesForCell(s,0,div,sk,so);
  const Real dt=1e-7;applySstFluxAndSourceKernel(&s,dt);
  near(s.rhoK[0],kBefore+dt*sk,"actual SST inventory increment");
- near(s.gasSstAudit.sourceK[0],dt*sk,"actual SST source audit");
- ck(s.gasSstAudit.transportK[0]==0&&s.gasSstAudit.transportOmega[0]==0,"unexpected transport audit");
- ck(std::isfinite(s.gasSstAudit.sourceOmega[0])&&std::isfinite(s.gasSstAudit.constraintOmega[0]),"omega audit tails missing");
+ near(observed.sourceK[0],dt*sk,"actual SST source audit");
+ ck(observed.transportK[0]==0&&observed.transportOmega[0]==0,"unexpected transport audit");
+ ck(std::isfinite(observed.sourceOmega[0])&&std::isfinite(observed.constraintOmega[0]),"omega audit tails missing");
  }
 }
 '''.replace('TERMINAL','true' if terminal else 'false'))

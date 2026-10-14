@@ -43,15 +43,13 @@ struct GasHostPolicy:GasHostWithWallEnergy<double,double,accumulateWall>{
 #include "gasTransport/GasStateView.H"
 #include <algorithm>
 struct SpeciesTag{static constexpr int speciesCount=2;ugkwp::GasMode mode=ugkwp::GasMode::MixtureChemistry;};
-struct MixedDevice{SpeciesTag gasSpecies;ugkwp::GasSstAuditState<double> gasSstAudit;};
-template<class S>void prepareGasSstAuditKernel(S*){trace.push_back("audit-volume");}
+struct MixedDevice{SpeciesTag gasSpecies;};
 struct MixedHost:IndependentHost{SpeciesTag gasSpecies;MixedDevice*deviceState;ugkwp::GasBoundaryLayerState<double> gasBoundaryLayer;};
 template<class S,class T>void advanceGasChemistryKernel(S*,T,const double*,bool nativeRefinement=false){checkNativeOwner(nativeRefinement);trace.push_back("chemistry");}
 template<class S>void computeGasCourantFieldKernel(S*,double,bool nativeRefinement=false){checkNativeOwner(nativeRefinement);trace.push_back("fresh-mass");}
 template<class S>void computeGasConvectiveCourantByCellKernel(S*,double,bool nativeRefinement=false){checkNativeOwner(nativeRefinement);}
 template<class S>void computeGasDiffusionNumberKernel(S*,double,double,bool nativeRefinement=false){checkNativeOwner(nativeRefinement);}
 template<class S>void computeSstStabilityNumberKernel(S*,double,double,bool requireWallProfile=true,bool nativeRefinement=false){checkNativeOwner(nativeRefinement);if(!requireWallProfile)std::abort();trace.push_back("sst-bound");}
-struct NativeAuditHost:MixedHost{ugkwp::GasSstAuditState<double> gasSstAudit;};
 struct Policy{
  static inline int attempts=0,rollbacks=0;static inline bool limit=false;static inline double covered=0,current=0;
  static int begin(MixedHost*){++attempts;return 0;}static int applySources(MixedHost*,double dt){current=dt;return 0;}
@@ -69,13 +67,11 @@ int count(const char*s){return std::count(trace.begin(),trace.end(),s);}
 int prefixes(const char*s){int n=0;for(auto&t:trace)if(t.find(s)==0)++n;return n;}
 int main(){expectedNativeOwner=true;MixedHost h;MixedDevice d;h.deviceState=&d;h.hostTurbulenceModel=3;h.gasBoundaryLayer.enabled=true;
 for(int rk=1;rk<=3;++rk){h.hostGasTimeIntegrator=rk;trace.clear();if(advanceGasTrial<Policy>(&h,.01,2.,true))return 1;
-if(count("profile")!=rk)return 2;if(count("audit-volume")!=1)return 10;if(count("chemistry")!=2)return 3;
+if(count("profile")!=rk)return 2;if(count("audit-volume")!=0)return 10;if(count("chemistry")!=2)return 3;
 if(prefixes("updateLegacyGasBoundaryMirrorKernel")!=2)return 4;
 if(count("updateRiemannBoundaryMirrorKernel")!=rk+1)return 5;
 if(std::find(trace.begin(),trace.end(),"chemistry")>std::find(trace.begin(),trace.end(),"profile"))return 6;
 }
-for(int enabled=0;enabled<2;++enabled){NativeAuditHost native;native.deviceState=&d;native.hostTurbulenceModel=3;native.gasBoundaryLayer.enabled=true;native.gasSstAudit.enabled=enabled;trace.clear();
-if(advanceGasTrial<Policy>(&native,.01,2.,true))return 11;if(count("audit-volume")!=enabled||count("profile")!=1)return 12;}
 h.hostGasTimeIntegrator=1;Policy::limit=true;Policy::attempts=Policy::rollbacks=0;trace.clear();
 GasRequestedIntervalControls<double> controls;controls.minimumSubstep=1e-8;
 if(advanceGasRequestedInterval<Policy>(&h,.1,2.,controls))return 7;

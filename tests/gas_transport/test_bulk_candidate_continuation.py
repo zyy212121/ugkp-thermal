@@ -62,13 +62,12 @@ def test_complete_bulk_candidates(tmp_path,scenario):
 
 @pytest.mark.parametrize('strict',[False,True])
 def test_required_nan_flux_finishes_terminal_but_retains_strict_retry(tmp_path,strict):
-    from test_gas_budget_audit import audited_fixture
-    compile_probe(tmp_path,audited_fixture()+r"""
-int main(){State s;initialise(s);enable(s);s.gasSpecies.flux[0]=std::numeric_limits<Real>::quiet_NaN();s.gasPhiRho[1]=-.2;s.gasPhiRhoE[1]=-7;s.gasSpecies.flux[1]=-.18;s.gasSpecies.flux[4]=-.02;s.gasPhiRhoUy[1]=-3;
+    compile_probe(tmp_path,fixture()+r"""
+int main(){State s;initialise(s);s.gasSpecies.flux[0]=std::numeric_limits<Real>::quiet_NaN();s.gasPhiRho[1]=-.2;s.gasPhiRhoE[1]=-7;s.gasSpecies.flux[1]=-.18;s.gasSpecies.flux[4]=-.02;s.gasPhiRhoUy[1]=-3;
 const Real before[]={s.rho[0],s.rhoUx[0],s.rhoUy[0],s.rhoUz[0],s.rhoE[0],s.gasSpecies.rho[0],s.gasSpecies.rho[2]};threadIdx.x=0;applyGasFluxDivergenceByCellKernel(&s,.1,STRICT);
 ck(s.gasSpecies.cellStatus[0]!=0,"required NaN certificate lost");
-if(STRICT){const Real after[]={s.rho[0],s.rhoUx[0],s.rhoUy[0],s.rhoUz[0],s.rhoE[0],s.gasSpecies.rho[0],s.gasSpecies.rho[2]};ck(std::memcmp(before,after,sizeof before)==0,"strict NaN retry published state");for(int k=0;k<8;++k)ck(s.gasBudgetAudit.transport[k]==0,"strict failure before external face wrote budget");}
-else{ck(s.rho[0]==before[0]+Real(.1)*Real(.2)&&s.rhoUx[0]==0&&s.rhoUy[0]==Real(.1)*Real(3)&&s.rhoUz[0]==0&&s.rhoE[0]==before[4]+Real(.1)*Real(7),"terminal NaN bulk formula incomplete");ck(std::isnan(s.gasSpecies.rho[0])&&s.gasSpecies.rho[2]==before[6]+Real(.1)*Real(.02),"terminal NaN species formula incomplete");ck(s.gasBudgetAudit.transport[0]==Real(.1)*Real(.2)&&s.gasBudgetAudit.transport[2]==Real(.1)*Real(7)&&s.gasBudgetAudit.transport[4]==Real(.1)*Real(.18)&&s.gasBudgetAudit.transport[6]==Real(.1)*Real(.02),"terminal external budget incomplete or doubled");}}
+if(STRICT){const Real after[]={s.rho[0],s.rhoUx[0],s.rhoUy[0],s.rhoUz[0],s.rhoE[0],s.gasSpecies.rho[0],s.gasSpecies.rho[2]};ck(std::memcmp(before,after,sizeof before)==0,"strict NaN retry published state");}
+else{ck(s.rho[0]==before[0]+Real(.1)*Real(.2)&&s.rhoUx[0]==0&&s.rhoUy[0]==Real(.1)*Real(3)&&s.rhoUz[0]==0&&s.rhoE[0]==before[4]+Real(.1)*Real(7),"terminal NaN bulk formula incomplete");ck(std::isnan(s.gasSpecies.rho[0])&&s.gasSpecies.rho[2]==before[6]+Real(.1)*Real(.02),"terminal NaN species formula incomplete");}}
 """.replace('STRICT','true' if strict else 'false'))
 
 @pytest.mark.parametrize('case',['source_cap','volume_residual','omega_sign','sst_flag'])
@@ -96,19 +95,19 @@ int main(){State s;initialise(s);wall(s);s.gasPhiRho[1]=0;s.gasPhiRhoE[1]=17;s.g
 
 @pytest.mark.parametrize('case',['rk','divergence','periodic'])
 def test_numeric_candidates_publish_actual_terminal_fields(tmp_path,case):
-    from test_gas_budget_audit import audited_fixture
     bodies={
-        'rk':r"""threadIdx.x=0;enable(s);for(int k=0;k<4;++k)s.gasBudgetAudit.transport[2*k]=1;saveGasConservativeStateKernel(&s);for(int k=0;k<4;++k)s.gasBudgetAudit.transport[2*k]=3;s.rhoUx[0]=s.rhoUxNext[0]=std::numeric_limits<Real>::max();const Real energy=s.rhoE[0];blendGasConservativeStateKernel(&s,1.,1.);ck(s.gasSpecies.cellStatus[0]==0,"original normal-return static RK status changed");ck(s.rho[0]==2&&std::isinf(s.rhoUx[0])&&s.rhoUy[0]==0&&s.rhoUz[0]==0&&s.rhoE[0]==2*energy&&s.gasSpecies.rho[0]==2*Real(.9)&&s.gasSpecies.rho[2]==2*Real(.1),"actual RK candidate fields incomplete");for(int k=0;k<4;++k)ck(s.gasBudgetAudit.transport[2*k]==4,"actual RK budget weights lost");""",
-        'divergence':r"""enable(s);s.rhoUx[0]=std::numeric_limits<Real>::max();s.gasPhiRhoUx[0]=-std::numeric_limits<Real>::max();const Real energy=s.rhoE[0];threadIdx.x=0;applyGasFluxDivergenceByCellKernel(&s,1.);ck(s.gasSpecies.cellStatus[0]==0,"original normal-return static divergence status changed");ck(s.rho[0]==1&&std::isinf(s.rhoUx[0])&&s.rhoUy[0]==0&&s.rhoUz[0]==0&&s.rhoE[0]==energy&&s.gasSpecies.rho[0]==Real(.9)&&s.gasSpecies.rho[2]==Real(.1),"actual divergence candidate fields incomplete");for(int k=0;k<8;++k)ck(s.gasBudgetAudit.transport[k]==0,"internal face polluted external budget");""",
+        'rk':r"""threadIdx.x=0;saveGasConservativeStateKernel(&s);s.rhoUx[0]=s.rhoUxNext[0]=std::numeric_limits<Real>::max();const Real energy=s.rhoE[0];blendGasConservativeStateKernel(&s,1.,1.);ck(s.gasSpecies.cellStatus[0]==0,"original normal-return static RK status changed");ck(s.rho[0]==2&&std::isinf(s.rhoUx[0])&&s.rhoUy[0]==0&&s.rhoUz[0]==0&&s.rhoE[0]==2*energy&&s.gasSpecies.rho[0]==2*Real(.9)&&s.gasSpecies.rho[2]==2*Real(.1),"actual RK candidate fields incomplete");""",
+        'divergence':r"""s.rhoUx[0]=std::numeric_limits<Real>::max();s.gasPhiRhoUx[0]=-std::numeric_limits<Real>::max();const Real energy=s.rhoE[0];threadIdx.x=0;applyGasFluxDivergenceByCellKernel(&s,1.);ck(s.gasSpecies.cellStatus[0]==0,"original normal-return static divergence status changed");ck(s.rho[0]==1&&std::isinf(s.rhoUx[0])&&s.rhoUy[0]==0&&s.rhoUz[0]==0&&s.rhoE[0]==energy&&s.gasSpecies.rho[0]==Real(.9)&&s.gasSpecies.rho[2]==Real(.1),"actual divergence candidate fields incomplete");""",
         'periodic':r"""s.nFaces=2;s.nInternalFaces=0;s.facePeriodicPair[0]=1;s.facePeriodicPair[1]=0;s.gasSpecies.flux[0]=std::numeric_limits<Real>::quiet_NaN();threadIdx.x=0;enforcePeriodicGasFluxAntisymmetryKernel(&s);ck(s.gasSpecies.faceStatus[0]!=0&&s.gasSpecies.faceStatus[1]!=0,"periodic numerical certificate lost");ck(std::isnan(s.gasSpecies.flux[0])&&std::isnan(s.gasSpecies.flux[1])&&s.gasSpecies.flux[2]==0&&s.gasSpecies.flux[3]==0,"actual two-face periodic species average incomplete");for(auto field:{s.gasPhiRho,s.gasPhiRhoUx,s.gasPhiRhoUy,s.gasPhiRhoUz,s.gasPhiRhoE})ck(field[0]==0&&field[1]==0,"actual two-face periodic bulk average incomplete");"""}
-    compile_probe(tmp_path,audited_fixture()+'\nint main(){State s;initialise(s);'+bodies[case]+'}')
+    compile_probe(tmp_path,fixture()+'\nint main(){State s;initialise(s);'+bodies[case]+'}')
 
 @pytest.mark.parametrize('both_nan',[False,True])
-def test_courant_wave_nan_retains_original_fmax_and_ofgreat_fallback(tmp_path,both_nan):
+@pytest.mark.parametrize('strict',[False,True])
+def test_courant_wave_nonfinite_is_reported_and_strict_fallback_retained(tmp_path,both_nan,strict):
     compile_probe(tmp_path,fixture()+r"""
 int main(){State s;initialise(s);s.gasSpecies.soundSpeed[0]=std::numeric_limits<Real>::quiet_NaN();if(BOTH)s.gasSpecies.soundSpeed[1]=std::numeric_limits<Real>::quiet_NaN();s.gasPhiRhoE[0]=-77;
-const Real expected=BOTH?OfGreat:s.gasSpecies.soundSpeed[1]*clampMin(s.magSf[0],OfSmall);threadIdx.x=0;computeGasCourantFieldKernel(&s,.01);ck(s.gasPhiRhoE[0]==expected,"original required spectral formula/fallback changed");ck(s.gasSpecies.faceStatus[0]==0,"original wave fallback gained a refusal");}
-""".replace('BOTH','true' if both_nan else 'false'))
+const Real expected=s.gasSpecies.soundSpeed[1]*clampMin(s.magSf[0],OfSmall);threadIdx.x=0;computeGasCourantFieldKernel(&s,.01,STRICT);if(BOTH){ck(s.gasSpecies.faceStatus[0]!=0,"nonfinite spectral status was hidden");ck(STRICT?s.gasPhiRhoE[0]==OfGreat:std::isnan(s.gasPhiRhoE[0]),"strict fallback or terminal evaluated spectral diagnostic lost");}else{ck(s.gasPhiRhoE[0]==expected&&s.gasSpecies.faceStatus[0]==0,"finite fmax spectral result changed");}}
+""".replace('BOTH','true' if both_nan else 'false').replace('STRICT','true' if strict else 'false'))
 
 def test_large_courant_and_subsmall_time_keep_actual_values(tmp_path):
     compile_probe(tmp_path,fixture()+r'''
@@ -116,10 +115,10 @@ int main(){State s;initialise(s);s.gasPhiRhoE[0]=s.gasPhiRhoE[1]=OfGreat;threadI
 computeGasConvectiveCourantByCellKernel(&s,1e-30);ck(s.gasFluxPositivityScale[0]>0&&s.gasSpecies.cellStatus[0]==0,"subSMALL step refused");}
 ''')
 
-def test_optional_sst_audit_storage_does_not_poison_physics(tmp_path):
+def test_sst_source_needs_only_physical_storage(tmp_path):
     from test_legacy_ale_transport import fixture as legacy_fixture
     compile_probe(tmp_path,legacy_fixture()+r'''
-int main(){State s;initialise(s);s.gasSstAudit.enabled=true;threadIdx.x=0;prepareGasSstAuditKernel(&s);ck(s.gasSpecies.cellStatus[0]==0,"optional unavailable audit poisoned cell");applySstFluxAndSourceKernel(&s,.001);ck(s.gasSpecies.cellStatus[0]==0&&std::isfinite(s.rhoK[0]),"missing optional audit blocked physical source");}
+int main(){State s;initialise(s);s.sstConfigured=1;threadIdx.x=0;Real sk,so;sstSourcesForCell(s,0,Real(0),sk,so);const Real k=s.rhoK[0],o=s.rhoOmega[0];applySstFluxAndSourceKernel(&s,.001);ck(s.gasSpecies.cellStatus[0]==0,"physical source status");near(s.rhoK[0],k+Real(.001)*sk,"actual k source missing");near(s.rhoOmega[0],o+Real(.001)*so,"actual omega source missing");}
 ''')
 
 def test_wall_subgrid_finite_composition_defect_keeps_real_heat(tmp_path):

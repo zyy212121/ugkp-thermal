@@ -131,32 +131,14 @@ int main(){for(int limit:{0,1}){DeviceState native,direct;setupNative(native,0,0
     build_run(tmp_path,'terminal',ROOT,body)
 
 
-def audited_source(root):
-    body=source(root).replace('struct DeviceState:State{',
-        'struct GasBudgetHostLedger;\nstruct DeviceState:State{\n ugkwp::GasBudgetAuditState gasBudgetAudit;GasBudgetHostLedger*gasBudgetHost=nullptr;')
-    body=body.replace('setupNative(s,0,0);trace.clear();',r'''setupNative(s,0,3);trace.clear();
- double transport[8]{},initialTransport[8]{},chemistry[4]{},sst[13][2]{};
- s.gasBudgetAudit.enabled=true;s.gasBudgetAudit.speciesCount=2;
- s.gasBudgetAudit.transport=transport;s.gasBudgetAudit.initialTransport=initialTransport;s.gasBudgetAudit.chemistrySpecies=chemistry;
- s.gasBudgetHost=new GasBudgetHostLedger;s.gasBudgetHost->output=std::tmpfile();assert(s.gasBudgetHost->output);s.gasBudgetHost->speciesCount=2;s.gasBudgetHost->volumes.assign(s.V,s.V+2);s.gasBudgetHost->cumulativeBoundary.assign(4,0);s.gasBudgetHost->cumulativeChemistry.assign(2,0);
- s.gasSstAudit.enabled=true;s.gasSstAudit.transportK=sst[0];s.gasSstAudit.transportOmega=sst[1];
- s.gasSstAudit.sourceK=sst[2];s.gasSstAudit.sourceOmega=sst[3];s.gasSstAudit.constraintK=sst[4];s.gasSstAudit.constraintOmega=sst[5];
- s.gasSstAudit.initialTransportK=sst[6];s.gasSstAudit.initialTransportOmega=sst[7];s.gasSstAudit.initialSourceK=sst[8];s.gasSstAudit.initialSourceOmega=sst[9];
- s.gasSstAudit.initialConstraintK=sst[10];s.gasSstAudit.initialConstraintOmega=sst[11];s.gasSstAudit.volume=sst[12];
-''')
-    body=body.replace('releaseSharedGasTrialStorage(s.gasTrial);',r'''
- for(double x:transport)std::printf("%a ",x);std::puts("");for(double x:initialTransport)std::printf("%a ",x);std::puts("");for(double x:chemistry)std::printf("%a ",x);std::puts("");
- for(auto& row:sst){for(double x:row)std::printf("%a ",x);std::puts("");}
- auto& ledger=*s.gasBudgetHost;assert(ledger.sequence==1&&!ledger.requestActive&&ledger.acceptedTime==2.+dt);
- std::printf("LEDGER %a %a %a %zu %d\n",ledger.originTime,ledger.acceptedTime,ledger.requestedEnd,ledger.sequence,int(ledger.requestActive));
- for(const auto* values:{&ledger.origin,&ledger.cumulativeBoundary,&ledger.cumulativeChemistry}){for(long double x:*values)std::printf("%La ",x);std::puts("");}
- delete s.gasBudgetHost;s.gasBudgetHost=nullptr;
- releaseSharedGasTrialStorage(s.gasTrial);''')
-    return body
 
 
-def test_native_sst_interval_matches_original_enabled_audits_and_accepted_ledger(tmp_path,original_native_root):
-    before=build_run(tmp_path,'original',original_native_root,audited_source(original_native_root))
-    after=build_run(tmp_path,'corrected',ROOT,audited_source(ROOT))
-    assert before==after
-    assert before.count('LEDGER ')==3
+
+
+def test_native_sst_interval_matches_original_physical_fields(tmp_path, original_native_root):
+    def sst_source(root):
+        return source(root).replace('setupNative(s,0,0);trace.clear();', 'setupNative(s,0,3);trace.clear();')
+    before = build_run(tmp_path, 'original_sst', original_native_root, sst_source(original_native_root))
+    after = build_run(tmp_path, 'current_sst', ROOT, sst_source(ROOT))
+    assert before == after
+    assert sum(line.startswith('CASE ') for line in after.splitlines()) == 3

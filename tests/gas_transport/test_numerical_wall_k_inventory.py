@@ -43,8 +43,8 @@ Real sk,so;sstSourcesForCell(s,0,Real(0),sk,so);near(sk,expected,"production doe
 applySstFluxAndSourceKernel(&s,dt);
 ck(s.gasSpecies.cellStatus[0]==0,"inventory-proportional source was rejected");
 near(s.rhoK[0],old+dt*expected,"auxiliary profile source leaked into owner");
-near(s.gasSstAudit.sourceK[0],dt*expected,"applied k source ledger mismatch");
-ck(std::abs(s.gasSstAudit.constraintK[0])<Real(8)*std::numeric_limits<Real>::epsilon()*old,"source update required a k clamp");
+near(observed.sourceK[0],dt*expected,"applied k source ledger mismatch");
+ck(std::abs(observed.constraintK[0])<Real(8)*std::numeric_limits<Real>::epsilon()*old,"source update required a k clamp");
 }
 ''')
 
@@ -106,7 +106,7 @@ int main(){
  Real expected,unused;sstSourcesForCell(s,0,Real(0),expected,unused);
  const Real k0=s.rhoK[0],o0=initialOmega;applySstFluxAndSourceKernel(&s,dt);
  ck(s.gasSpecies.cellStatus[0]==0,"selected ALE source rejected legal dt");
- near(s.gasSstAudit.sourceK[0],dt*expected,"selected wall ALE source contains spurious mesh compression");checkBudget(s,k0,o0,0);
+ near(observed.sourceK[0],dt*expected,"selected wall ALE source contains spurious mesh compression");checkBudget(s,k0,o0,0);
  // Selected algebraic omega survives the same actual conservative RK blend
  // and recover path while the independent k equation remains transported.
  for(Real weight:{Real(.5),Real(.25),Real(2)/3}){

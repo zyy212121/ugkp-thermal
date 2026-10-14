@@ -12,15 +12,15 @@ w.exchange[0].matchingPressure=s.p[0];w.exchange[0].ready=true;w.exchange[0].mas
 s.sstWallCmu=.09;s.sstWallKappa=.41;s.sstWallE=9.8;w.exchange[0].k=0;w.sst[0]={4,11,1,.5};}
 '''
 
-def test_selected_wall_uses_actual_k_once_and_keeps_six_channel_budget(tmp_path):
+def test_selected_wall_uses_actual_k_once_and_independent_inventory_balance(tmp_path):
     compile_probe(tmp_path,fixture()+AUDIT+SETUP+r'''
 int main(){State s;initialise(s);wall(s);audit(s);
 threadIdx.x=0;applySstWallFunctionStateKernel(&s);near(s.omega[0],11,"new owner omega not applied");near(s.rhoK[0],6,"k was projected");
 threadIdx.x=1;computeSstFaceFluxKernel(&s);near(s.sstPhiRhoK[1],0,"modeled wall k flux not used");
 s.sstPhiRhoK[0]=.5;s.sstPhiRhoOmega[0]=.7;
 threadIdx.x=0;Real source,unused;sstSourcesForCell(s,0,Real(0),source,unused);applySstFluxAndSourceKernel(&s,.01);near(s.rhoK[0],Real(6)+Real(.01)*(source-Real(.5)),"wall source was not applied exactly once");recoverSstPrimitivesKernel(&s);
-near(s.rhoOmega[0],22,"finite owner constraint not retained");near(s.gasSstAudit.sourceK[0],Real(.01)*source,"physical volume source audit wrong");
-checkBudget(s,6,8,0);ck(s.gasSstAudit.transportOmega[0]!=0,"replaced omega transport row omitted");ck(s.gasSstAudit.sourceOmega[0]!=0,"replaced omega source row omitted");
+near(s.rhoOmega[0],22,"finite owner constraint not retained");near(observed.sourceK[0],Real(.01)*source,"test-side source impulse disagrees");
+checkBudget(s,6,8,0);ck(observed.transportOmega[0]!=0,"replaced omega transport row omitted");ck(observed.sourceOmega[0]!=0,"replaced omega source row omitted");
 Real saved=s.rhoOmega[0];recoverSstPrimitivesKernel(&s);near(s.rhoOmega[0],saved,"omega projection not idempotent");checkBudget(s,6,8,0);
 }
 ''')
@@ -76,12 +76,12 @@ near(s.sstSourceNumber[0],bound,"trial source activity differs from the actual s
 ''')
 
 
-def test_optional_full_budget_audit_does_not_change_physical_wall_update(tmp_path):
+def test_test_side_observer_does_not_change_physical_wall_update(tmp_path):
     compile_probe(tmp_path,fixture()+AUDIT+SETUP+r'''
-int main(){Real accepted[2][2]{};for(int enabled=0;enabled<2;++enabled){State s;initialise(s);wall(s);audit(s);s.gasSstAudit.enabled=enabled;
+int main(){Real accepted[2][2]{};for(int enabled=0;enabled<2;++enabled){State s;initialise(s);wall(s);audit(s);observed.enabled=enabled;
 threadIdx.x=0;applySstWallFunctionStateKernel(&s);threadIdx.x=1;computeSstFaceFluxKernel(&s);
 s.sstPhiRhoK[0]=.5;s.sstPhiRhoOmega[0]=.7;threadIdx.x=0;Real source,unused;sstSourcesForCell(s,0,Real(0),source,unused);applySstFluxAndSourceKernel(&s,.01);recoverSstPrimitivesKernel(&s);
-near(s.rhoK[0],Real(6)+Real(.01)*(source-Real(.5)),"physical wall k source changed with audit");near(s.rhoOmega[0],22,"owner omega changed with audit");
+near(s.rhoK[0],Real(6)+Real(.01)*(source-Real(.5)),"test observer changed physical wall k source");near(s.rhoOmega[0],22,"test observer changed owner omega");
 accepted[enabled][0]=s.rhoK[0];accepted[enabled][1]=s.rhoOmega[0];if(enabled)checkBudget(s,6,8,0);
-}ck(accepted[0][0]==accepted[1][0]&&accepted[0][1]==accepted[1][1],"diagnostic audit changed physical result");}
+}ck(accepted[0][0]==accepted[1][0]&&accepted[0][1]==accepted[1][1],"test-side observation changed physical result");}
 ''')

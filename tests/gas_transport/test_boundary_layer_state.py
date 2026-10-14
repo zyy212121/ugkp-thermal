@@ -52,7 +52,7 @@ output.traceTemperature=std::numeric_limits<Real>::quiet_NaN();ck(ugkwp::publish
 
 @pytest.mark.parametrize('nodes,tolerance,success',
     [(0, 1e-08, True), (24, 1e-08, True), (48, 1e-08, True), (96, 1e-08, True), (48, 1e-20, False), (96, 1e-20, False)])
-def test_stage_evaluation_uses_unconstrained_matching_and_preserves_inventory(tmp_path,nodes,tolerance,success):
+def test_stage_evaluation_uses_unconstrained_matching_and_preserves_inventory(tmp_path,nodes,tolerance,success,missing_storage=None):
     from test_mixture_transport import fixture
     src=fixture().replace('struct State:ugkwp::GasStateView<Real,Time,ugkwp::SstCoefficients>{ugkwp::GasSpeciesState<Real,2> gasSpecies;};',
         '#include "gasTransport/GasBoundaryLayerModelState.H"\nstruct State:ugkwp::GasStateView<Real,Time,ugkwp::SstCoefficients>{ugkwp::GasSpeciesState<Real,2> gasSpecies;ugkwp::GasBoundaryLayerModelState<Real,2> gasBoundaryLayerModel;};')
@@ -71,7 +71,7 @@ if(m.workspace)for(std::size_t b=0;b<ugkwp::gasBoundaryLayerWorkspaceBytes<Real,
 Real savedRho=s.rho[0],savedEnergy=s.rhoE[0],savedSpecies=s.gasSpecies.rho[0];
 if(!ugkwp::evaluateGasBoundaryLayerSlot(s,0)){std::fprintf(stderr,"wall failed transport=%d code=%d iterations=%d residual=%.17g\n",status[0],int(modelStatus[0].code),modelStatus[0].iteration,modelStatus[0].residual);return 1;}ck(exchange[0].ready,"stage not published");
 ck(!in[0].integrateOwnerKSource,"disabled audit requested auxiliary quadrature");
-s.gasSstAudit.enabled=true;ck(ugkwp::evaluateGasBoundaryLayerSlot(s,0),"audited reevaluation failed");ck(!in[0].integrateOwnerKSource,"coarse audit requested unrelated auxiliary source");s.gasSstAudit.enabled=false;
+ck(ugkwp::evaluateGasBoundaryLayerSlot(s,0),"physical reevaluation failed");ck(!in[0].integrateOwnerKSource,"coarse update requested unrelated auxiliary source");
 ck(in[0].matching.temperature==s.Tgas[1]&&in[0].matching.velocity[1]==10,"matching cell not refreshed");
 ck(s.rho[0]==savedRho&&s.rhoE[0]==savedEnergy&&s.gasSpecies.rho[0]==savedSpecies,"auxiliary solve changed bulk inventory");
 os[1]=0;ck(ugkwp::evaluateGasBoundaryLayerSlot(s,0),"readable constrained donor rejected");
@@ -89,4 +89,14 @@ matching[0]=s.nCells;ck(!ugkwp::evaluateGasBoundaryLayerSlot(s,0),"inaccessible 
             'ck(exchange[0].ready,"stage not published");'
             'ck(modelStatus[0].code==ugkwp::gaswall::WallCode::Success,"stale terminal status");'
             'ck(modelStatus[0].residual>double(m.config.relativeTolerance),"residual was fabricated");')
+    if missing_storage:
+        body=body.replace('matching[0]=s.nCells;ck(!ugkwp::evaluateGasBoundaryLayerSlot(s,0),"inaccessible matching donor accepted");ck(s.gasSpecies.faceStatus[1]!=0&&!exchange[0].ready,"failed stage not invalidated");',
+            'm.'+missing_storage+'=nullptr;ck(!ugkwp::evaluateGasBoundaryLayerSlot(s,0),"missing matching backing accepted");ck(s.gasSpecies.faceStatus[1]==int(ugkwp::GasTransportCode::InvalidStorage)&&!exchange[0].ready,"missing backing did not invalidate closure");ck(s.rho[0]==savedRho&&s.rhoE[0]==savedEnergy&&s.gasSpecies.rho[0]==savedSpecies,"missing matching backing changed physical inventory");')
+    # The original out-of-range-index tail is deliberately retained otherwise:
+    # its unchecked array access has no valid physical reference to turn green.
     compile_probe(tmp_path,src+body)
+
+
+@pytest.mark.parametrize('missing',['matchingCells','matchingWeights','matchingOffsets'])
+def test_unavailable_matching_backing_preserves_inventory(tmp_path,missing):
+    test_stage_evaluation_uses_unconstrained_matching_and_preserves_inventory(tmp_path,0,1e-8,True,missing_storage=missing)

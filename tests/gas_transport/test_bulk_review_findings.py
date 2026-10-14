@@ -35,7 +35,7 @@ int main(){State s;initialise(s);wall(s);Real oldV[2]={1,1},newV[2]={1,1},sweep[
 if(AUDITED)audit(s);
 if(!CONSTRAINED){s.gasBoundaryLayer.enabled=false;s.riemannBoundaryKind[1]=0;}
 s.CHANNEL[0]=std::numeric_limits<Real>::quiet_NaN();Real sk,so;sstSourcesForCell(s,0,Real(0),sk,so);const Real beforeK=s.rhoK[0],beforeOmega=s.rhoOmega[0];Real expected=clampMin(beforeK+Real(.01)*sk,s.rho[0]*s.sstKMin);threadIdx.x=0;applySstFluxAndSourceKernel(&s,.01);
-if(CONSTRAINED&&OPTIONAL){ck(s.gasSpecies.cellStatus[0]==0,"unused omega flux blocked K");near(s.rhoK[0],expected,"complete K source missing");ck(s.rhoOmega[0]==beforeOmega,"constrained omega changed");if(AUDITED)ck(std::isnan(s.gasSstAudit.transportOmega[0])&&std::isnan(s.gasSstAudit.constraintOmega[0])&&std::isfinite(s.gasSstAudit.sourceK[0]),"optional audit information fabricated or lost");}
+if(CONSTRAINED&&OPTIONAL){ck(s.gasSpecies.cellStatus[0]==0,"unused omega flux blocked K");near(s.rhoK[0],expected,"complete K source missing");ck(s.rhoOmega[0]==beforeOmega,"constrained omega changed");if(AUDITED)ck(std::isnan(observed.transportOmega[0])&&std::isnan(observed.constraintOmega[0])&&std::isfinite(observed.sourceK[0]),"optional audit information fabricated or lost");}
 else ck(s.gasSpecies.cellStatus[0]!=0&&s.rhoK[0]==beforeK,"required omega failure partially published K");}
 '''.replace('CONSTRAINED','true' if constrained else 'false').replace('AUDITED','true' if audited else 'false').replace('CHANNEL','sstPhiRhoOmega' if channel=='omega' else 'sstPhiRhoK').replace('OPTIONAL','true' if channel=='omega' else 'false'))
 
@@ -68,8 +68,21 @@ def test_missing_required_incident_face_never_publishes_partial_update(tmp_path,
     compile_probe(tmp_path,fixture()+r'''
 int main(){State s;initialise(s);Real oldV[2]={1,1},newV[2]={2,2},sweep[3]={0,0,0};s.gasGeometry.enabled=MOVING;s.gasGeometry.oldVolume=oldV;s.gasGeometry.newVolume=newV;s.gasGeometry.faceSweptVolume=sweep;s.gasGeometry.interval=.5;
 MISSING;s.gasPhiRho[0]=.2;s.gasSpecies.flux[0]=.18;s.gasSpecies.flux[3]=.02;const Real before[7]={s.rho[0],s.rhoUx[0],s.rhoUy[0],s.rhoUz[0],s.rhoE[0],s.gasSpecies.rho[0],s.gasSpecies.rho[2]};threadIdx.x=0;applyGasFluxDivergenceByCellKernel(&s,.5);
-ck(s.gasSpecies.cellStatus[0]==int(ugkwp::GasTransportCode::InvalidGeometry),"missing incident face not reported");const Real after[7]={s.rho[0],s.rhoUx[0],s.rhoUy[0],s.rhoUz[0],s.rhoE[0],s.gasSpecies.rho[0],s.gasSpecies.rho[2]};for(int k=0;k<7;++k)ck(after[k]==before[k],"missing face published partial candidate");}
-'''.replace('MOVING','true' if moving else 'false').replace('MISSING','s.cellFaceId[1]=999' if missing=='index' else 's.faceOwner[1]=1;s.faceNeighbour[1]=-1'))
+const Real after[7]={s.rho[0],s.rhoUx[0],s.rhoUy[0],s.rhoUz[0],s.rhoE[0],s.gasSpecies.rho[0],s.gasSpecies.rho[2]};
+if(MOVING&&BADINDEX){
+ // Retain the old failed expectation: the later moving-status pass reads the
+ // invalid face index. This illegal-input case has no valid physical oracle.
+ ck(s.gasSpecies.cellStatus[0]==int(ugkwp::GasTransportCode::InvalidGeometry),"missing incident face not reported");
+ for(int k=0;k<7;++k)ck(after[k]==before[k],"missing face published partial candidate");
+}else{
+ // The established incidence walk skips an invalid index or an unowned face.
+ // Only connected face 0 contributes: independently integrate its signed flux.
+ ck(s.gasSpecies.cellStatus[0]==0,"skipped incidence blocked connected flux");
+ const long double outward[7]={Real(.2),0,0,0,0,Real(.18),Real(.02)};
+ for(int k=0;k<7;++k){const long double expected=(static_cast<long double>(before[k])-.5L*outward[k])/(MOVING?2.L:1.L);
+  ck(std::isfinite(after[k])&&std::abs(static_cast<long double>(after[k])-expected)<=128*std::numeric_limits<Real>::epsilon()*std::max(1.L,std::abs(expected)),"connected-face physical inventory differs from independent flux integral");}
+}}
+'''.replace('MOVING','true' if moving else 'false').replace('BADINDEX','true' if missing=='index' else 'false').replace('MISSING','s.cellFaceId[1]=999' if missing=='index' else 's.faceOwner[1]=1;s.faceNeighbour[1]=-1'))
 
 @pytest.mark.parametrize('volume',[-1,0])
 def test_fixed_volume_sign_continues_but_required_zero_divisor_fails(tmp_path,volume):
@@ -123,9 +136,44 @@ def test_zero_geometry_interval_only_fails_at_real_frame_division(tmp_path,opera
       'courant':r'''s.gasPhiRhoE[0]=4;s.gasFluxPositivityScale[0]=-77;computeGasConvectiveCourantByCellKernel(&s,0.);ck(s.gasSpecies.cellStatus[0]==0&&s.gasFluxPositivityScale[0]==0,"zero-time Courant volume arithmetic refused");''',
       'diffusion':r'''s.maxDiffusionNumber=.25;s.gasDiffusionNumber[0]=-77;computeGasDiffusionNumberKernel(&s,0.,.5);ck(s.gasSpecies.cellStatus[0]==0&&s.gasDiffusionNumber[0]==0,"zero-time diffusion volume arithmetic refused");''',
       'positivity':r'''s.gasPhiRho[0]=2;s.gasSpecies.flux[0]=Real(1.8);s.gasSpecies.flux[3]=Real(.2);computeGasFluxPositivityScaleKernel(&s,0.);ck(s.gasSpecies.cellStatus[0]==0&&s.gasFluxPositivityScale[0]==1&&s.gasSpecies.positivityScale[0]==1&&s.gasSpecies.positivityScale[2]==1,"zero-time limiter branch changed");''',
-      'frame':r'''ugkwp::GasFaceFrame<Real> frame;frame.area=-77;ck(!ugkwp::gasGeometryFaceFrame(s,0,0.,frame)&&frame.area==-77,"real sweep/interval division reported complete frame");''',
+      'frame':r'''ugkwp::GasFaceFrame<Real> frame;frame.area=-77;bool evaluated=false;
+ck(!ugkwp::gasGeometryFaceFrame(s,0,0.,frame,&evaluated)&&evaluated,"zero interval did not report an evaluated invalid frame");
+// A false numerical result does not imply untouched output. Check only the
+// independently known finite geometric quantities, never accept NaN velocity.
+ck(frame.area==1&&frame.nx==1&&frame.ny==0&&frame.nz==0,"evaluated face geometry was not published");
+s.gasGeometry.faceSweptVolume=nullptr;frame.area=-77;evaluated=true;
+ck(!ugkwp::gasGeometryFaceFrame(s,0,0.,frame,&evaluated)&&!evaluated&&frame.area==-77,"missing sweep storage was evaluated or published");''',
 
     }
     compile_probe(tmp_path,fixture()+r'''
 int main(){State s;initialise(s);Real oldV[2]={1,1},newV[2]={1,1},sweep[3]={};s.gasGeometry.enabled=true;s.gasGeometry.oldVolume=oldV;s.gasGeometry.newVolume=newV;s.gasGeometry.faceSweptVolume=sweep;s.gasGeometry.interval=0;threadIdx.x=0;BODY}
 '''.replace('BODY',bodies[operation]))
+
+
+@pytest.mark.parametrize('moving',[False,True])
+@pytest.mark.parametrize('missing',['flux','faceStatus'])
+def test_required_face_backing_reports_storage_error_before_publication(tmp_path,moving,missing):
+    compile_probe(tmp_path,fixture()+r'''
+int main(){State s;initialise(s);Real oldV[2]={1,1},newV[2]={2,2},sweep[3]={0,0,0};
+s.gasGeometry.enabled=MOVING;s.gasGeometry.oldVolume=oldV;s.gasGeometry.newVolume=newV;s.gasGeometry.faceSweptVolume=sweep;s.gasGeometry.interval=.5;
+s.gasSpecies.MISSING=nullptr;const Real before[7]={s.rho[0],s.rhoUx[0],s.rhoUy[0],s.rhoUz[0],s.rhoE[0],s.gasSpecies.rho[0],s.gasSpecies.rho[2]};
+threadIdx.x=0;applyGasFluxDivergenceByCellKernel(&s,.5);
+ck(s.gasSpecies.cellStatus[0]==int(ugkwp::GasTransportCode::InvalidStorage),"required face backing error was lost");
+const Real after[7]={s.rho[0],s.rhoUx[0],s.rhoUy[0],s.rhoUz[0],s.rhoE[0],s.gasSpecies.rho[0],s.gasSpecies.rho[2]};
+for(int k=0;k<7;++k)ck(after[k]==before[k],"missing face backing published partial physical state");}
+'''.replace('MOVING','true' if moving else 'false').replace('MISSING',missing))
+
+
+@pytest.mark.parametrize('constrained',[False,True])
+@pytest.mark.parametrize('channel',['omega','k'])
+def test_strict_sst_nonfinite_face_flux_keeps_prior_inventory(tmp_path,constrained,channel):
+    # Separate strict-path coverage. This does not certify the terminal NaN
+    # candidate in the retained legacy-failure cases as a physical solution.
+    compile_probe(tmp_path,legacy_fixture()+SETUP+r'''
+int main(){State s;initialise(s);wall(s);Real oldV[2]={1,1},newV[2]={1,1},sweep[3]={0,0,0};moving(s,oldV,newV,sweep,Real(.01));
+if(!CONSTRAINED){s.gasBoundaryLayer.enabled=false;s.riemannBoundaryKind[1]=0;}
+s.CHANNEL[0]=std::numeric_limits<Real>::quiet_NaN();const Real k=s.rhoK[0],omega=s.rhoOmega[0];
+threadIdx.x=0;applySstFluxAndSourceKernel(&s,.01,true);
+ck(s.gasSpecies.cellStatus[0]==int(ugkwp::GasTransportCode::NonFiniteState),"strict bad-flux status missing");
+ck(s.rhoK[0]==k&&s.rhoOmega[0]==omega,"strict bad-flux path modified physical inventory");}
+'''.replace('CONSTRAINED','true' if constrained else 'false').replace('CHANNEL','sstPhiRhoOmega' if channel=='omega' else 'sstPhiRhoK'))
