@@ -22,18 +22,9 @@ struct CpuFilmDrive {
     Real bottomNormalVelocity=0,topNormalVelocity=0;
     Real interfaceNormalVelocity=0,solidNormalVelocity=0;
 };
-struct CpuFilmReport {
-    Budget budgetDelta{};
-    Real internalEnergyBefore=0,internalEnergyAfter=0;
-    Real reducedEnergyResidual=0,kineticDefect=0,numericalMassRoundoff=0;
-    bool phaseEvent=false;
-    std::vector<FilmQ> edgeFlux{}; // Rates, owner-outward, evaluated once per edge.
-    std::vector<FilmRateBudget> rateBudget{};
-};
 struct CpuFilmCandidate {
     std::vector<FilmQ> film{};
     std::vector<FilmAux> filmAux{};
-    CpuFilmReport report{};
 };
 // Finalize the CPU-owned SolidFilm packet at an exactly empty film event,
 // including depletion caused entirely by accepted gas packets. The remaining
@@ -51,10 +42,10 @@ bool advanceCpuFilmCandidate(const HostState&,const PhysicsConfig&,Real dt,
     CpuFilmCandidate&,std::string& error,bool* numericalFailure=nullptr);
 // Interface-owner RHS: suppresses top and bottom interface work and excludes all
 // integrated transfers; retains edge transport, body work and standalone radiation.
-// Rates/budgets are published together only after a successful evaluation.
+// Rates are published only after a successful evaluation.
 bool evaluateCpuFilmTransport(const HostState&,const PhysicsConfig&,Real dt,
     const std::vector<CpuFilmDrive>&,std::vector<FilmQ>& rates,
-    std::vector<FilmRateBudget>& budgets,std::string& error,
+    std::string& error,
     std::vector<FilmAux>* refreshedAux=nullptr,
     std::vector<Vec3>* pressureGradient=nullptr,
     std::vector<Real>* sideMeshVolumeRate=nullptr,bool* numericalFailure=nullptr);
@@ -66,7 +57,7 @@ bool estimateCpuFilmStep(const HostState&,const PhysicsConfig&,
 namespace detail {
 bool completeCpuFilmPhasePacket(const FilmQ&,Real,const FilmQ&,const CpuFilmForcing&,Real,Vec3,const PhysicsConfig&,ExchangePacket&,bool&,std::string&,bool*);
 bool completeCpuFilmCandidate(const HostState&,const PhysicsConfig&,Real,const std::vector<CpuFilmForcing>&,const std::vector<CpuFilmDrive>&,CpuFilmCandidate&,std::string&,bool*);
-bool completeCpuFilmTransport(const HostState&,const PhysicsConfig&,Real,const std::vector<CpuFilmDrive>&,std::vector<FilmQ>&,std::vector<FilmRateBudget>&,std::string&,std::vector<FilmAux>*,std::vector<Vec3>*,std::vector<Real>*,bool*);
+bool completeCpuFilmTransport(const HostState&,const PhysicsConfig&,Real,const std::vector<CpuFilmDrive>&,std::vector<FilmQ>&,std::string&,std::vector<FilmAux>*,std::vector<Vec3>*,std::vector<Real>*,bool*);
 bool completeCpuFilmStep(const HostState&,const PhysicsConfig&,const std::vector<CpuFilmForcing>&,const std::vector<CpuFilmDrive>&,Real,Real,Real&,std::string&,bool*);
 }
 }

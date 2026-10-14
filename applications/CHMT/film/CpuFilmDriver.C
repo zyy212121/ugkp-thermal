@@ -7,10 +7,9 @@
 namespace chmt { namespace {
 struct Evaluation {
     std::vector<std::size_t> incidentOffsets,incident;
-    std::vector<FilmQ> q,rhs,edgeFlux,withdrawal;
+    std::vector<FilmQ> q,rhs,withdrawal;
     std::vector<FilmAux> aux;
     std::vector<Vec3> shear,gradient;
-    std::vector<FilmRateBudget> budget;
     std::vector<Real> outgoingLength,conductance,sideMeshVolumeRate;
 };
 bool reject(std::string& error,const char* message,std::size_t index) {
@@ -247,7 +246,7 @@ bool evaluate(const HostState& h,const PhysicsConfig& p,Real dt,
     Evaluation& e,std::string& error,bool* numericalFailure=nullptr) {
     if(!validate<Terminal>(h,p,dt,forcing,drive,error,numericalFailure)||!recoverAndProfile<Terminal>(h,p,drive,e,error,numericalFailure))return false;
     const auto& m=h.surface;const std::size_t n=h.film.size(),ne=m.edgeOwner.size();
-    e.rhs.resize(n);e.withdrawal.resize(n);e.budget.resize(n);e.edgeFlux.resize(ne);
+    e.rhs.resize(n);e.withdrawal.resize(n);
     e.outgoingLength.assign(n,0);e.conductance.assign(n,0);e.sideMeshVolumeRate.assign(n,0);
     auto& sideVolumeRate=e.sideMeshVolumeRate;
     for(std::size_t edge=0;edge<ne;++edge) {
@@ -256,7 +255,8 @@ bool evaluate(const HostState& h,const PhysicsConfig& p,Real dt,
         const Real meshRate=m.sweptEdgeArea.empty()?0:m.sweptEdgeArea[edge]/dt;
         const Vec3 velocity=neighbour>=0?(e.aux[owner].meanVelocity+e.aux[neighbour].meanVelocity)*.5:e.aux[owner].meanVelocity;
         const Real lengthRate=length*dot(velocity,conormal)-meshRate;
-        if(!Terminal&&(!finite(lengthRate)||(neighbour<0&&lengthRate<0)))return numericReject(error,"undeclared open-edge inflow",edge,numericalFailure);
+        // Open edges use the existing owner extrapolation for either flow direction.
+        if(!Terminal&&!finite(lengthRate))return numericReject(error,"non-finite film edge transport rate",edge,numericalFailure);
         const int donor=lengthRate>=0||neighbour<0?owner:neighbour;
         FilmQ reconstructed;
         if(!reconstruct<Terminal>(donor,donor==owner?m.edgeOwnerOffset[edge]:m.edgeNeighbourOffset[edge],e,m,p,reconstructed))
@@ -273,34 +273,28 @@ bool evaluate(const HostState& h,const PhysicsConfig& p,Real dt,
             e.conductance[owner]+=conductance;e.conductance[neighbour]+=conductance;
         }
         if(!Terminal&&(!finite(flux.mass)||!finite(flux.enthalpy)))return numericReject(error,"nonfinite edge flux",edge,numericalFailure);
-        e.edgeFlux[edge]=flux;addRate(e.rhs[owner],flux,-1);
-        e.budget[owner].edgeEnergyOutflow+=flux.enthalpy;
+        addRate(e.rhs[owner],flux,-1);
         const FilmProfile profile=faceProfile<Terminal>(donor,e,m,p);
-        const Vec3 grid=conormal*(meshRate/length);
-        const Real kinetic=p.liquid.rho*length*profileKineticFlux(profile,grid,conormal);
-        e.budget[owner].edgeKineticOutflow+=kinetic;sideVolumeRate[owner]+=profile.delta*meshRate;
+        sideVolumeRate[owner]+=profile.delta*meshRate;
         if(neighbour>=0) {
-            addRate(e.rhs[neighbour],flux,1);e.budget[neighbour].edgeEnergyOutflow-=flux.enthalpy;
-            e.budget[neighbour].edgeKineticOutflow-=kinetic;sideVolumeRate[neighbour]-=profile.delta*meshRate;
+            addRate(e.rhs[neighbour],flux,1);
+            sideVolumeRate[neighbour]-=profile.delta*meshRate;
         }
     }
     for(std::size_t f=0;f<n;++f) {
-        auto& a=e.aux[f];auto& b=e.budget[f];const auto& source=forcing[f];
+        auto& a=e.aux[f];Real bodyPower=0,supportPower=0,prescribedTopPower=0;const auto& source=forcing[f];
         const bool coupled=coupledFace(m,f);const FilmProfile profile=faceProfile<Terminal>(f,e,m,p);
         if(!coupled) {
             a.solidNormalVelocity=dot(a.baseVelocity,m.normal[f]);
             a.normalVelocity=a.solidNormalVelocity+((e.rhs[f].mass+(source.mass+source.phaseMass)/dt)/p.liquid.rho-sideVolumeRate[f])/a.area;
         }
-        b.bodyPower=h.film[f].mass*dot(p.gravity,a.meanVelocity);
-        if(!m.prescribedPressureGradient.empty())b.bodyPower-=h.film[f].mass/p.liquid.rho*dot(m.prescribedPressureGradient[f],a.meanVelocity);
-        if(!source.topWorkIncluded)b.prescribedTopPower=a.area*(dot(e.shear[f],a.topVelocity)-a.pressure*a.normalVelocity);
-        if(!source.bottomWorkIncluded)b.supportPower=a.area*(-dot(profile.bottomShear,a.baseVelocity)+a.pressure*a.solidNormalVelocity);
+        bodyPower=h.film[f].mass*dot(p.gravity,a.meanVelocity);
+        if(!m.prescribedPressureGradient.empty())bodyPower-=h.film[f].mass/p.liquid.rho*dot(m.prescribedPressureGradient[f],a.meanVelocity);
+        if(!source.topWorkIncluded)prescribedTopPower=a.area*(dot(e.shear[f],a.topVelocity)-a.pressure*a.normalVelocity);
+        if(!source.bottomWorkIncluded)supportPower=a.area*(-dot(profile.bottomShear,a.baseVelocity)+a.pressure*a.solidNormalVelocity);
         const Real localRadiation=!coupled&&h.film[f].mass>0?a.area*grayRadiation(a.temperature,p):0;
-        b.radiationPower=source.radiationEnergy/dt+localRadiation;
-        b.dissipationPower=a.area*profile.dissipation;
-        b.interfaceKineticOutflow=(source.interfaceKineticOutflow+source.phaseKineticOutflow)/dt;
-        e.rhs[f].enthalpy+=b.bodyPower+b.supportPower+b.prescribedTopPower+localRadiation;
-        if(!Terminal&&(!finite(e.rhs[f].enthalpy)||!finite(a.normalVelocity)||!finite(b.dissipationPower)))
+        e.rhs[f].enthalpy+=bodyPower+supportPower+prescribedTopPower+localRadiation;
+        if(!Terminal&&(!finite(e.rhs[f].enthalpy)||!finite(a.normalVelocity)))
             return numericReject(error,"nonfinite surface source",f,numericalFailure);
     }
     return true;
@@ -352,10 +346,8 @@ bool advanceCpuFilmCandidateImpl(const HostState& h,const PhysicsConfig& p,Real 
     CpuFilmCandidate& output,std::string& error,bool* numericalFailure) {
     Evaluation e;if(!evaluate<Terminal>(h,p,dt,forcing,drive,e,error,numericalFailure))return false;
     CpuFilmCandidate next;next.film=h.film;next.filmAux=e.aux;
-    auto& report=next.report;report.edgeFlux=e.edgeFlux;report.rateBudget=e.budget;
-    auto& budget=report.budgetDelta;Real totalInput=0,totalKinetic=0,deltaK=0;
     for(std::size_t f=0;f<h.film.size();++f) {
-        const auto& old=h.film[f];const auto& source=forcing[f];const auto& b=e.budget[f];
+        const auto& old=h.film[f];const auto& source=forcing[f];
         const Real withdrawn=dt*e.withdrawal[f].mass+maxValue(source.withdrawnMass,maxValue(0,-source.mass)+maxValue(0,-source.phaseMass));
         if(!Terminal&&(!finite(withdrawn)||withdrawn-old.mass>16*std::numeric_limits<Real>::epsilon()*(absValue(withdrawn)+absValue(old.mass))))return numericReject(error,"aggregate mass donor exhausted",f,numericalFailure);
         for(int s=0;s<Ns;++s) {
@@ -367,7 +359,7 @@ bool advanceCpuFilmCandidateImpl(const HostState& h,const PhysicsConfig& p,Real 
         for(int s=0;s<Ns;++s)q.species[s]=(old.species[s]+dt*e.rhs[f].species[s]+source.species[s])+source.phaseSpecies[s];
         const Real massScale=absValue(old.mass)+absValue(dt*e.rhs[f].mass)+absValue(source.mass)+absValue(source.phaseMass);
         const Real massRoundoff=16*std::numeric_limits<Real>::epsilon()*massScale;
-        if((q.mass<0||source.exactPhaseEvent)&&absValue(q.mass)<=massRoundoff){report.numericalMassRoundoff-=q.mass;q.mass=0;}
+        if((q.mass<0||source.exactPhaseEvent)&&absValue(q.mass)<=massRoundoff){q.mass=0;}
         for(int species=0;species<Ns;++species){const Real scale=absValue(old.species[species])+absValue(dt*e.rhs[f].species[species])+absValue(source.species[species])+absValue(source.phaseSpecies[species]);
             const Real roundoff=16*std::numeric_limits<Real>::epsilon()*scale;
             if((q.species[species]<0||q.mass==0)&&absValue(q.species[species])<=roundoff)q.species[species]=0;
@@ -384,7 +376,7 @@ bool advanceCpuFilmCandidateImpl(const HostState& h,const PhysicsConfig& p,Real 
         if(q.mass==0){const Real scale=absValue(before)+absValue(dt*e.rhs[f].enthalpy)+absValue(source.energy)+absValue(source.phaseEnergy)
             +absValue(source.interfaceKineticOutflow)+absValue(source.phaseKineticOutflow)+absValue(source.radiationEnergy);
             if(absValue(physical)<=32*std::numeric_limits<Real>::epsilon()*scale)physical=0;
-        } // Any correction remains visible in the physical reduced-energy residual.
+        }
         q.enthalpy=physical+newPV;
         if(!Terminal&&(!validFilmInventory(q)))return numericReject(error,"invalid candidate inventory or unaligned dryout event",f,numericalFailure);
         if(!recoverFilmThermalState<Terminal>(q,h.surface.area[f],newPressure,p,h.surface.normal[f],coupledFace(h.surface,f),a))
@@ -392,53 +384,27 @@ bool advanceCpuFilmCandidateImpl(const HostState& h,const PhysicsConfig& p,Real 
         a.solidFront=h.filmAux[f].solidFront+dt*e.aux[f].solidNormalVelocity;
         a.gasFront=h.filmAux[f].gasFront+dt*e.aux[f].normalVelocity;
         if(!Terminal&&(!finite(a.solidFront)||!finite(a.gasFront)))return numericReject(error,"nonfinite front motion",f,numericalFailure);
-        report.phaseEvent=report.phaseEvent||((old.mass==0)!=(q.mass==0));
-        report.internalEnergyBefore+=before;report.internalEnergyAfter+=q.enthalpy-newPV;
-        budget.filmPressureVolume+=newPV-oldPV;
-        budget.bodyWork+=dt*b.bodyPower;budget.supportWork+=dt*(b.supportPower+b.prescribedTopPower);
-        budget.radiation+=dt*b.radiationPower;
-        budget.boundaryEnergy+=dt*(b.edgeEnergyOutflow+b.edgeKineticOutflow);
-        budget.exchangeMass[FilmParticipant]+=source.mass+source.phaseMass;
-        budget.exchangeEnergy[FilmParticipant]+=source.energy+source.phaseEnergy;
-        for(int s=0;s<Ns;++s)budget.exchangeSpecies[FilmParticipant][s]+=source.species[s]+source.phaseSpecies[s];
-        budget.filmKineticAdvection+=source.interfaceKineticOutflow+source.phaseKineticOutflow;
-        totalInput+=dt*(b.bodyPower+b.supportPower+b.prescribedTopPower+b.radiationPower)+source.energy+source.phaseEnergy+source.interfaceKineticOutflow+source.phaseKineticOutflow;
-        totalKinetic+=dt*b.edgeKineticOutflow+source.interfaceKineticOutflow+source.phaseKineticOutflow;
     }
     // Recover endpoint profiles using endpoint pressure, composition and thickness.
-    // This changes kinetic diagnostics only, never thermal inventory.
+    // The recovered auxiliary profile is the actual accepted endpoint state.
     HostState endpoint;endpoint.surface=h.surface;endpoint.film=next.film;endpoint.filmAux=next.filmAux;
     auto endpointDrive=drive;for(auto& d:endpointDrive)d.pressure=endpointPressure(d);
     Evaluation finalEvaluation;
     if(!recoverAndProfile<Terminal>(endpoint,p,endpointDrive,finalEvaluation,error,numericalFailure))return false;
     next.filmAux=std::move(finalEvaluation.aux);
-    Real edgeEnergy=0;
-    for(std::size_t f=0;f<h.film.size();++f) {
-        deltaK+=next.filmAux[f].kineticEnergy-h.filmAux[f].kineticEnergy;
-        edgeEnergy+=dt*e.budget[f].edgeEnergyOutflow;
-    }
-    for(std::size_t edge=0;edge<h.surface.edgeOwner.size();++edge)if(h.surface.edgeNeighbour[edge]<0) {
-        const auto& flux=e.edgeFlux[edge];budget.boundaryMass+=dt*flux.mass;
-        for(int s=0;s<Ns;++s){budget.boundarySpecies[s]+=dt*flux.species[s];for(int element=0;element<p.nElements;++element)budget.boundaryElements[element]+=dt*flux.species[s]*p.species[s].element[element];}
-    }
-    report.reducedEnergyResidual=report.internalEnergyAfter-report.internalEnergyBefore+edgeEnergy-totalInput;
-    report.kineticDefect=deltaK+totalKinetic;budget.filmKineticStorage=deltaK;
-    budget.filmReducedResidual=report.reducedEnergyResidual;budget.filmKineticDefect=report.kineticDefect;
-    budget.numericalEnergyResidual=report.reducedEnergyResidual;
-    if(!Terminal&&(!finite(report.reducedEnergyResidual)||!finite(report.kineticDefect)))return numericReject(error,"nonfinite energy audit",0,numericalFailure);
     output=std::move(next);error.clear();return true;
 }
 
 template<bool Terminal>
 bool evaluateCpuFilmTransportImpl(const HostState& h,const PhysicsConfig& p,Real dt,
     const std::vector<CpuFilmDrive>& drive,std::vector<FilmQ>& rates,
-    std::vector<FilmRateBudget>& budgets,std::string& error,
+    std::string& error,
     std::vector<FilmAux>* refreshedAux,std::vector<Vec3>* pressureGradient,
     std::vector<Real>* sideMeshVolumeRate,bool* numericalFailure) {
     std::vector<CpuFilmForcing> owned(h.film.size());
     for(auto& force:owned)force.topWorkIncluded=force.bottomWorkIncluded=true;
     Evaluation e;if(!evaluate<Terminal>(h,p,dt,owned,drive,e,error,numericalFailure))return false;
-    rates=std::move(e.rhs);budgets=std::move(e.budget);
+    rates=std::move(e.rhs);
     if(refreshedAux)*refreshedAux=std::move(e.aux);
     if(pressureGradient)*pressureGradient=std::move(e.gradient);
     if(sideMeshVolumeRate)*sideMeshVolumeRate=std::move(e.sideMeshVolumeRate);
@@ -491,12 +457,12 @@ bool estimateCpuFilmStepImpl(const HostState& h,const PhysicsConfig& p,
 
 bool finalizeCpuFilmPhasePacket(const FilmQ& q,Real pressure,const FilmQ& rate,const CpuFilmForcing& f,Real dt,Vec3 velocity,const PhysicsConfig& p,ExchangePacket& phase,bool& exact,std::string& error,bool* numerical){return finalizeCpuFilmPhasePacketImpl<false>(q,pressure,rate,f,dt,velocity,p,phase,exact,error,numerical);}
 bool advanceCpuFilmCandidate(const HostState& h,const PhysicsConfig& p,Real dt,const std::vector<CpuFilmForcing>& f,const std::vector<CpuFilmDrive>& d,CpuFilmCandidate& out,std::string& error,bool* numerical){return advanceCpuFilmCandidateImpl<false>(h,p,dt,f,d,out,error,numerical);}
-bool evaluateCpuFilmTransport(const HostState& h,const PhysicsConfig& p,Real dt,const std::vector<CpuFilmDrive>& d,std::vector<FilmQ>& rates,std::vector<FilmRateBudget>& budgets,std::string& error,std::vector<FilmAux>* aux,std::vector<Vec3>* gradient,std::vector<Real>* side,bool* numerical){return evaluateCpuFilmTransportImpl<false>(h,p,dt,d,rates,budgets,error,aux,gradient,side,numerical);}
+bool evaluateCpuFilmTransport(const HostState& h,const PhysicsConfig& p,Real dt,const std::vector<CpuFilmDrive>& d,std::vector<FilmQ>& rates,std::string& error,std::vector<FilmAux>* aux,std::vector<Vec3>* gradient,std::vector<Real>* side,bool* numerical){return evaluateCpuFilmTransportImpl<false>(h,p,dt,d,rates,error,aux,gradient,side,numerical);}
 bool estimateCpuFilmStep(const HostState& h,const PhysicsConfig& p,const std::vector<CpuFilmForcing>& f,const std::vector<CpuFilmDrive>& d,Real interval,Real maximum,Real& out,std::string& error,bool* numerical){return estimateCpuFilmStepImpl<false>(h,p,f,d,interval,maximum,out,error,numerical);}
 namespace detail {
 bool completeCpuFilmPhasePacket(const FilmQ& q,Real pressure,const FilmQ& rate,const CpuFilmForcing& f,Real dt,Vec3 velocity,const PhysicsConfig& p,ExchangePacket& phase,bool& exact,std::string& error,bool* numerical){return finalizeCpuFilmPhasePacketImpl<true>(q,pressure,rate,f,dt,velocity,p,phase,exact,error,numerical);}
 bool completeCpuFilmCandidate(const HostState& h,const PhysicsConfig& p,Real dt,const std::vector<CpuFilmForcing>& f,const std::vector<CpuFilmDrive>& d,CpuFilmCandidate& out,std::string& error,bool* numerical){return advanceCpuFilmCandidateImpl<true>(h,p,dt,f,d,out,error,numerical);}
-bool completeCpuFilmTransport(const HostState& h,const PhysicsConfig& p,Real dt,const std::vector<CpuFilmDrive>& d,std::vector<FilmQ>& rates,std::vector<FilmRateBudget>& budgets,std::string& error,std::vector<FilmAux>* aux,std::vector<Vec3>* gradient,std::vector<Real>* side,bool* numerical){return evaluateCpuFilmTransportImpl<true>(h,p,dt,d,rates,budgets,error,aux,gradient,side,numerical);}
+bool completeCpuFilmTransport(const HostState& h,const PhysicsConfig& p,Real dt,const std::vector<CpuFilmDrive>& d,std::vector<FilmQ>& rates,std::string& error,std::vector<FilmAux>* aux,std::vector<Vec3>* gradient,std::vector<Real>* side,bool* numerical){return evaluateCpuFilmTransportImpl<true>(h,p,dt,d,rates,error,aux,gradient,side,numerical);}
 bool completeCpuFilmStep(const HostState& h,const PhysicsConfig& p,const std::vector<CpuFilmForcing>& f,const std::vector<CpuFilmDrive>& d,Real interval,Real maximum,Real& out,std::string& error,bool* numerical){return estimateCpuFilmStepImpl<true>(h,p,f,d,interval,maximum,out,error,numerical);}
 }
 } // namespace chmt
