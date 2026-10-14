@@ -16,10 +16,12 @@ a.nodes=128;if(!boundaryLayerPayloadBytes(a,4,2,bytes))return 4;a.nodes=129;if(!
 a.speciesCount=3;if(!boundaryLayerPayloadBytes(a,4,2,bytes))return 5;a.speciesCount=2;
 a.workspaceSlots=0;if(!boundaryLayerPayloadBytes(a,4,2,bytes))return 6;
 a.workspaceSlots=4097;if(!boundaryLayerPayloadBytes(a,4,2,bytes))return 8;a.workspaceSlots=0;
-a.budgetAudit=1;if(!boundaryLayerPayloadBytes(a,4,2,bytes))return 9;
-a.budgetAudit=2;if(!boundaryLayerPayloadBytes(a,4,2,bytes))return 10;
+if(a.reservedAudit!=0)return 9;
+auto encoded=encodeWire(a);for(int i=36;i<40;++i)if(encoded[i]!=0)return 14;
+encoded[36]=255;BoundaryLayerConfigV1 restored;WireCodec<BoundaryLayerConfigV1>::decode(encoded.data(),restored);if(restored.reservedAudit!=0)return 15;
+a.reservedAudit=2;if(!boundaryLayerPayloadBytes(a,4,2,bytes))return 10;
 if(sizeof(a)!=80||boundaryLayerDiagnosticScalars!=25)return 11;
-a.budgetAudit=0;a.quadratureCount=0;if(!boundaryLayerPayloadBytes(a,4,2,bytes)||bytes!=expected-12*sizeof(double))return 12;
+a.reservedAudit=0;a.quadratureCount=0;if(!boundaryLayerPayloadBytes(a,4,2,bytes)||bytes!=expected-12*sizeof(double))return 12;
 a.quadratureCount=1;if(!boundaryLayerPayloadBytes(a,4,2,bytes))return 13;}
 ''')
     result=subprocess.run(['g++','-std=c++17','-I'+str(ROOT),str(source),'-o',str(exe)],capture_output=True,text=True)
@@ -41,7 +43,7 @@ int main(){using namespace ugkwpGpuIpc;int sockets[2];assert(socketpair(AF_UNIX,
  std::thread peer([&]{RequestHeader request{};assert(readAll(sockets[1],&request,sizeof(request)));
  assert(request.operation==static_cast<unsigned>(Op::configureBoundaryLayerV1)&&request.payloadBytes==bytes);
  std::vector<unsigned char> payload(bytes);assert(readAll(sockets[1],payload.data(),payload.size()));
- const auto* c=reinterpret_cast<const BoundaryLayerConfigV1*>(payload.data());assert(c->quadratureCount==0);
+ const auto* c=reinterpret_cast<const BoundaryLayerConfigV1*>(payload.data());assert(c->quadratureCount==0&&c->reservedAudit==0);
  ResponseHeader reply{magic,protocolMajor,protocolMinor,0,0,0};assert(sendObject(sockets[1],reply));close(sockets[1]);});
  int faces[]={0},qo[]={0,0},mo[]={0,1},mc[]={1};double geometry[]={1,0,0,.5,1.5,1,.5},mw[]={1},flux[]={0,0};
  assert(ugkwpGpuResidentStrictConfigureBoundaryLayerV1(&state,&a,faces,qo,mo,mc,geometry,nullptr,nullptr,mw,flux)==0);

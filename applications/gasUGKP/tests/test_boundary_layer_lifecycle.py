@@ -79,7 +79,7 @@ def _publication_probe():
     pre = pre.replace(' double* rho=nullptr;', ''' double* rho=nullptr;
  ugkwp::GasBoundaryLayerState<double> gasBoundaryLayer;
  ugkwp::GasBoundaryLayerModelState<double,ugkwp::compiledGasSpecies> gasBoundaryLayerModel;
- ugkwp::GasSstAuditState<double> gasSstAudit;SharedGasTrialStorage gasTrial;
+ SharedGasTrialStorage gasTrial;
  double *gasWallQuadratureDistance=nullptr,*gasWallQuadratureWeight=nullptr;
  double gasBoundaryLayerStageTime=0,gasThermalConductivity=-1;
  int *faceOwner=nullptr,*faceNeighbour=nullptr,*gasBoundaryKind=nullptr,*riemannBoundaryKind=nullptr;
@@ -121,7 +121,7 @@ int cudaMemGetInfo(std::size_t*f,std::size_t*t){*f=*t=std::size_t(8)<<30;return 
 void checkUnrelated(const DeviceState& before,const DeviceState& after){
  bool changed[sizeof(DeviceState)]{};
 #define ALLOWED(field) for(std::size_t i=offsetof(DeviceState,field);i<offsetof(DeviceState,field)+sizeof(before.field);++i)changed[i]=true
- ALLOWED(gasBoundaryLayer);ALLOWED(gasBoundaryLayerModel);ALLOWED(gasSstAudit);
+ ALLOWED(gasBoundaryLayer);ALLOWED(gasBoundaryLayerModel);
  ALLOWED(gasWallQuadratureDistance);ALLOWED(gasWallQuadratureWeight);ALLOWED(sstWallTreatment);
 #undef ALLOWED
  const auto*a=reinterpret_cast<const unsigned char*>(&before);const auto*b=reinterpret_cast<const unsigned char*>(&after);
@@ -152,26 +152,23 @@ int main(int argc,char**argv){assert(argc==4);const int model=std::atoi(argv[1])
  // then call the public wall configuration ABI. No restoration of scrubbed data.
  scrubHostCalculationScalars(&state);assert(state.gasMu==0&&state.gasPrClamped==0&&state.gasFluxScheme==0);
  residentTarget=&device;residentBytes=sizeof(device);if(failPublication==-2)state.deviceState=nullptr;
- ugkwpGpuIpc::BoundaryLayerConfigV1 cfg;cfg.budgetAudit=audit;cfg.model=model;cfg.nodes=32;cfg.speciesCount=2;cfg.wallCount=1;cfg.quadratureCount=1;cfg.matchingCount=1;cfg.workspaceSlots=1;
+ ugkwpGpuIpc::BoundaryLayerConfigV1 cfg;cfg.reservedAudit=audit;cfg.model=model;cfg.nodes=32;cfg.speciesCount=2;cfg.wallCount=1;cfg.quadratureCount=1;cfg.matchingCount=1;cfg.workspaceSlots=1;
  int faces[]={0},offset[]={0,1},match[]={1};double geometry[]={0,1,0,.004,.01,4e-7,1.6e-9},qd[]={.004},qw[]={4e-7},mw[]={1},flux[]={0,0};
  auto configure=[&](){return ugkwpGpuResidentStrictConfigureBoundaryLayerV1(&state,&cfg,faces,offset,offset,match,geometry,qd,qw,mw,flux);};
  const int rc=configure();checkUnrelated(before,device);
  if(failPublication!=-1){assert(rc!=0&&state.gasModelPoisoned);assert(publicationAttempts==(failPublication==-2?0:failPublication+1));
   const int calls=publicationAttempts,live=allocations;assert(configure()!=0&&publicationAttempts==calls&&allocations==live);
- }else{assert(rc==0&&!state.gasModelPoisoned&&device.gasBoundaryLayer.enabled&&publicationAttempts==6);
-  assert(device.gasSstAudit.enabled==bool(audit));
-  assert(bool(device.gasSstAudit.transportK)==bool(audit));
+ }else{assert(rc==0&&!state.gasModelPoisoned&&device.gasBoundaryLayer.enabled&&publicationAttempts==5);
   assert(device.gasMu==2e-5&&device.gasPrClamped==.5&&device.gasFluxScheme==2);
   assert(ugkwp::evaluateGasBoundaryLayerSlot(device,0));
   assert(device.gasBoundaryLayer.exchange[0].ready&&std::isfinite(device.gasBoundaryLayerModel.output[0].conductiveHeatFlux));
   if(model)assert(device.gasBoundaryLayerModel.output[0].reactionIntegral[0]<-1e-8);
   assert(state.gasMu==0&&state.gasPrClamped==0&&state.gasFluxScheme==0);
   const int calls=publicationAttempts,live=allocations;
-  assert(configure()==0&&publicationAttempts==calls+6&&allocations==live);
+  assert(configure()==0&&publicationAttempts==calls+5&&allocations==live);
  }
  releaseBoundaryLayerStorage(state);assert(allocations==0);
- assert(!state.gasBoundaryLayer.enabled&&!state.gasBoundaryLayerModel.input&&!state.gasSstAudit.enabled);
- assert(!state.gasSstAudit.transportK&&!state.gasSstAudit.volume);
+ assert(!state.gasBoundaryLayer.enabled&&!state.gasBoundaryLayerModel.input);
  releaseBoundaryLayerStorage(state);assert(allocations==0);
 }
 '''
@@ -191,7 +188,7 @@ def publication_probe(tmp_path_factory):
 
 
 @pytest.mark.parametrize('model,audit',[(0,0),(1,0),(1,1)])
-@pytest.mark.parametrize('failed_publication',[-2,-1,0,1,2,3,4,5])
+@pytest.mark.parametrize('failed_publication',[-2,-1,0,1,2,3,4])
 def test_wall_publication_preserves_scrubbed_device_state_and_poisons_partial_copy(publication_probe,model,audit,failed_publication):
     run=subprocess.run([str(publication_probe),str(model),str(failed_publication),str(audit)],capture_output=True,text=True)
     assert run.returncode==0,run.stdout+run.stderr

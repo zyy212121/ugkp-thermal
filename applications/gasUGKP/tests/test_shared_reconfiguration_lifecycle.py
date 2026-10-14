@@ -4,16 +4,17 @@ import subprocess
 from test_shared_gas_adapter import ADAPTER_PROBE, ROOT
 
 
-def test_native_model_reconfigure_retains_audits_and_invalidates_old_captures(tmp_path):
+def test_native_model_reconfigure_retains_species_and_invalidates_old_captures(tmp_path):
     source=ADAPTER_PROBE.replace('#include <cassert>', '#include <cassert>\n#include <cmath>')
     source=source.replace(' bool gasModelPoisoned=false;', ' double gasGraphDt=.25;struct Snapshot {bool valid=true;};struct Trial {Snapshot trial,interval;} gasTrial;\n bool gasModelPoisoned=false;')
     point=' assert(ugkwpGpuResidentStrictConfigureGasModelV1(&state,&args,text.data(),nullptr)==0);\n double density[]='
-    replacement=r''' assert(allocateSharedGasZero(state.gasSpecies.chemistryAudit,2)==0);
- state.gasSpecies.chemistryAudit[0].energyResidual=987;
- auto* audit=state.gasSpecies.chemistryAudit;state.gasGraphDt=.25;state.gasTrial.trial.valid=state.gasTrial.interval.valid=true;
+    replacement=r''' assert(ugkwpGpuResidentStrictConfigureGasModelV1(&state,&args,text.data(),nullptr)==0);
+ state.gasSpecies.rho[0]=987;
+ auto* inventory=state.gasSpecies.rho;state.gasGraphDt=.25;state.gasTrial.trial.valid=state.gasTrial.interval.valid=true;
  assert(ugkwpGpuResidentStrictConfigureGasModelV1(&state,&args,text.data(),nullptr)==0);
- assert(state.gasSpecies.chemistryAudit==audit&&device.gasSpecies.chemistryAudit==audit&&audit[0].energyResidual==987);
+ assert(state.gasSpecies.rho==inventory&&device.gasSpecies.rho==inventory&&inventory[0]==987);
  assert(std::isnan(state.gasGraphDt)&&!state.gasTrial.trial.valid&&!state.gasTrial.interval.valid);
+ inventory[0]=0; // Restore the zero initial fixture for the subsequent upload/error tests.
  double density[]='''
     assert point in source
     source=source.replace(point,replacement)
@@ -73,13 +74,16 @@ int main(){IndependentHost s;Payload device;s.deviceState=&device;expectedDevice
     assert r.returncode==0,r.stdout+r.stderr
 
 
-def test_native_wall_reconfigure_retains_existing_sst_audit_inventory(tmp_path):
+def test_native_wall_reconfigure_retains_physical_sst_inventory(tmp_path):
     from test_boundary_layer_lifecycle import _publication_probe
-    source=_publication_probe().replace('  const int calls=publicationAttempts,live=allocations;\n  assert(configure()==0&&publicationAttempts==calls+6&&allocations==live);', '''
-  auto* inventory=state.gasSstAudit.sourceK;inventory[0]=777;
+    original=_publication_probe()
+    marker='  const int calls=publicationAttempts,live=allocations;\n  assert(configure()==0&&publicationAttempts==calls+5&&allocations==live);'
+    assert marker in original
+    source=original.replace('  const int calls=publicationAttempts,live=allocations;\n  assert(configure()==0&&publicationAttempts==calls+5&&allocations==live);', '''
+  auto* inventory=state.k;inventory[0]=777;
   const int calls=publicationAttempts,live=allocations;
-  assert(configure()==0&&publicationAttempts==calls+6&&allocations==live);
-  assert(state.gasSstAudit.sourceK==inventory&&inventory[0]==777&&device.gasSstAudit.sourceK==inventory);
+  assert(configure()==0&&publicationAttempts==calls+5&&allocations==live);
+  assert(state.k==inventory&&inventory[0]==777&&device.k==inventory);
 ''')
     (tmp_path/'probe.cpp').write_text(source)
     cmd=['g++','-std=c++17','-O1','-I'+str(ROOT),'-I'+str(ROOT/'common'),str(tmp_path/'probe.cpp'),'-o',str(tmp_path/'probe')]
@@ -89,7 +93,7 @@ def test_native_wall_reconfigure_retains_existing_sst_audit_inventory(tmp_path):
     assert r.returncode==0,r.stdout+r.stderr
 
 
-def test_native_all_seventeen_dynamic_fields_are_retained_at_table_only_cost(tmp_path):
+def test_native_all_sixteen_dynamic_fields_are_retained_at_table_only_cost(tmp_path):
     pre=ADAPTER_PROBE.split('int main(){',1)[0]
     pre=pre.replace('static int allocations=0,', 'static int mallocCalls=0,freeCalls=0,zeroCalls=0,viewCalls=0;static std::size_t h2dBytes=0;\nstatic int allocations=0,')
     pre=pre.replace('if(p){--allocations;', 'if(p){++freeCalls;--allocations;')
@@ -100,16 +104,16 @@ def test_native_all_seventeen_dynamic_fields_are_retained_at_table_only_cost(tmp
     text=ADAPTER_PROBE[ADAPTER_PROBE.index(' const std::string text='):ADAPTER_PROBE.index(' state.turbulenceModel=')]
     source=pre+'\n#include <cstdio>\nint main(){DeviceState state,device;state.deviceState=&device;\n'+text+r'''
  assert(ugkwpGpuResidentStrictConfigureGasModelV1(&state,&args,text.data(),nullptr)==0);
- auto& s=state.gasSpecies;assert(!allocateSharedGasZero(s.chemistryAudit,2)&&!allocateSharedGasZero(s.chemistryStatus,2));
+ auto& s=state.gasSpecies;assert(!allocateSharedGasZero(s.chemistryStatus,2));
  struct Field {void* p;std::size_t n;};std::vector<Field> fields;
  #define FIELD(name,count) fields.push_back({s.name,(count)*sizeof(*s.name)})
- FIELD(rho,4);FIELD(initial,4);FIELD(flux,4);FIELD(gradX,4);FIELD(gradY,4);FIELD(gradZ,4);FIELD(limiter,2);FIELD(boundaryMassFraction,4);FIELD(compositionBoundaryFixed,2);FIELD(positivityScale,4);FIELD(soundSpeed,2);FIELD(heatCapacity,2);FIELD(gasConstant,2);FIELD(cellStatus,2);FIELD(faceStatus,2);FIELD(chemistryStatus,2);FIELD(chemistryAudit,2);
+ FIELD(rho,4);FIELD(initial,4);FIELD(flux,4);FIELD(gradX,4);FIELD(gradY,4);FIELD(gradZ,4);FIELD(limiter,2);FIELD(boundaryMassFraction,4);FIELD(compositionBoundaryFixed,2);FIELD(positivityScale,4);FIELD(soundSpeed,2);FIELD(heatCapacity,2);FIELD(gasConstant,2);FIELD(cellStatus,2);FIELD(faceStatus,2);FIELD(chemistryStatus,2);
  #undef FIELD
  std::vector<std::vector<unsigned char>> saved;for(std::size_t i=0;i<fields.size();++i){auto f=fields[i];std::memset(f.p,11+i,f.n);saved.emplace_back((unsigned char*)f.p,(unsigned char*)f.p+f.n);}
  mallocCalls=freeCalls=zeroCalls=viewCalls=0;h2dBytes=0;
  assert(ugkwpGpuResidentStrictConfigureGasModelV1(&state,&args,text.data(),nullptr)==0);
  for(std::size_t i=0;i<fields.size();++i)assert(!std::memcmp(fields[i].p,saved[i].data(),fields[i].n));
- assert(device.gasSpecies.chemistryAudit==s.chemistryAudit&&device.gasSpecies.chemistryStatus==s.chemistryStatus);
+ assert(device.gasSpecies.chemistryStatus==s.chemistryStatus);
  const auto bytes=model.species.size()*sizeof(ugkwp::SpeciesThermoData<double>)+model.coefficients.size()*sizeof(double)+model.diffusionCoefficients.size()*sizeof(double)+sizeof(s);
  assert(mallocCalls==3&&freeCalls==3&&zeroCalls==0&&viewCalls==1&&h2dBytes==bytes);
  std::printf("native repeat allocations=%d frees=%d zero=%d view=%d H2D=%zu\n",mallocCalls,freeCalls,zeroCalls,viewCalls,h2dBytes);
@@ -147,9 +151,9 @@ def test_native_wall_free_error_reports_poison_and_keeps_failed_allocation(tmp_p
     source=_publication_probe().replace('static int allocations=0,', 'static bool failFree=false;\nstatic int allocations=0,')
     source=source.replace('int cudaFree(void*p){if(p){', 'int cudaFree(void*p){if(p&&failFree){failFree=false;return 7;}if(p){')
     source=source.split('  const int calls=publicationAttempts,live=allocations;')[0]+r'''
-  auto* audit=state.gasSstAudit.sourceK;audit[0]=999;
+  auto* inventory=state.k;inventory[0]=999;const int live=allocations;
   failFree=true;assert(configure()!=0&&state.gasModelPoisoned);
-  assert(state.gasSstAudit.sourceK==audit&&audit[0]==999&&allocations==14);
+  assert(state.k==inventory&&inventory[0]==999&&allocations==live);
  }
  releaseBoundaryLayerStorage(state);assert(allocations==0);
 }
@@ -184,7 +188,21 @@ def _actual_sst_code(rev=None):
     import sys,re
     sys.path.insert(0,str(ROOT/'tests'))
     import test_sst_owner_lifecycle as owner
-    c=owner.code('gasUGKP',rev)
+    if rev is None:
+        # Current-path fault tests must not require an unavailable historical tree.
+        # Extract the actual current SST allocations, retaining the helper's 22-slot check.
+        current=owner.source('gasUGKP')
+        alloc=owner.h.block(current,'int allocateFields(')
+        slots=re.findall(r'allocate\(s->(\w+), (nc|nf), "(cudaMalloc SST [^"]+)"\)',alloc)
+        assert len(slots)==22
+        original_inventory=owner.inventory
+        try:
+            owner.inventory=lambda app: slots
+            c=owner.code('gasUGKP')
+        finally:
+            owner.inventory=original_inventory
+    else:
+        c=owner.code('gasUGKP',rev)
     src=owner.source('gasUGKP',rev);scrub=owner.h.block(src,'void scrubHostCalculationScalars(')
     fields=set(re.findall(r's->(\w+)\s*=',scrub))
     existing=set(re.findall(r'\b(\w+)\s*(?:=|;|,)',c[c.index('struct DeviceState'):c.index('DeviceState*asState')]))
@@ -290,7 +308,7 @@ def test_snapshot_free_failure_stops_wall_publication_and_keeps_retryable_owner(
 def test_old_wall_free_and_candidate_free_failures_keep_both_unique_owners(tmp_path):
     source=_free_failure_wall_source()+r'''
  assert(configure()==0);freeCalls=0;freeFailure=0;freeFailure2=16;
- assert(configure()!=0&&state.gasModelPoisoned&&allocations==15);
+ assert(configure()!=0&&state.gasModelPoisoned&&allocations==2);
  auto* old=state.gasBoundaryLayer.faceSlot;auto* rejected=state.gasTrial.rejectedWall.gasBoundaryLayer.faceSlot;
  assert(old&&rejected&&old!=rejected);freeFailure=freeFailure2=-1;freeTarget=rejected;
  assert(releaseBoundaryLayerStorage(state)!=0&&allocations==1&&state.gasTrial.rejectedWall.gasBoundaryLayer.faceSlot==rejected);
@@ -308,7 +326,9 @@ def _actual_trial_code():
     c=re.search("code=r'''(.*?)'''",text,re.S).group(1).split('int main(){')[0]
     names='rho rhoUx rhoUy rhoUz rhoE Ux Uy Uz p Tgas gasFluxPositivityScale gasDiffusionNumber sstSourceNumber rhoK rhoOmega k omega nut gasBoundaryRho gasBoundaryUx gasBoundaryUy gasBoundaryUz gasBoundaryP gasBoundaryT V'.split()
     c=c.replace('__DECLARATIONS__','\n'.join('double* '+n+'=nullptr;' for n in names))
-    c=c.replace('int allocations=0,deviceCopyFailures=0;', 'int allocations=0,deviceCopyFailures=0,copyCalls=0;void* freeTarget=nullptr;int mallocCalls=0;')
+    marker='int allocations=0,'
+    assert marker in c
+    c=c.replace(marker, 'int copyCalls=0;void* freeTarget=nullptr;int mallocCalls=0;\n'+marker,1)
     c=c.replace('int cudaFree(void*p){if(p){', 'int cudaFree(void*p){if(p==freeTarget&&p)return 7;if(p){')
     c=c.replace('int cudaMemcpy(void*d,const void*s,std::size_t n,int kind){', 'int cudaMemcpy(void*d,const void*s,std::size_t n,int kind){++copyCalls;')
     c=c.replace('int allocate(T*&p,std::size_t n,const char*){', 'int allocate(T*&p,std::size_t n,const char*){++mallocCalls;')
@@ -333,33 +353,21 @@ int main(){DeviceState state;auto& saved=state.gasTrial.trial;
 
 def test_all_snapshot_release_channels_report_actual_error_and_retain_only_failed_pointer(tmp_path):
     source=_actual_trial_code()+r'''
-int main(){for(int slot=0;slot<14;++slot){DeviceState state;std::vector<void*> pointers;
+int main(){for(int slot=0;slot<12;++slot){DeviceState state;std::vector<void*> pointers;
  for(auto* saved:{&state.gasTrial.trial,&state.gasTrial.interval}){
   assert(!allocateSharedGasZero(saved->cells,2));assert(!allocateSharedGasZero(saved->faces,2));
   assert(!allocateSharedGasZero(saved->cellStatus,2));assert(!allocateSharedGasZero(saved->faceStatus,2));
-  assert(!allocateSharedGasZero(saved->chemistryStatus,2));assert(!allocateSharedGasZero(saved->chemistryAudit,2));assert(!allocateSharedGasZero(saved->wallRecords,2));
-  pointers.insert(pointers.end(),{saved->cells,saved->faces,saved->cellStatus,saved->faceStatus,saved->chemistryStatus,saved->chemistryAudit,saved->wallRecords});saved->valid=true;
+  assert(!allocateSharedGasZero(saved->chemistryStatus,2));assert(!allocateSharedGasZero(saved->wallRecords,2));
+  pointers.insert(pointers.end(),{saved->cells,saved->faces,saved->cellStatus,saved->faceStatus,saved->chemistryStatus,saved->wallRecords});saved->valid=true;
  }
  freeTarget=pointers[slot];assert(releaseSharedGasTrialStorage(state.gasTrial)!=0&&allocations==1&&!state.gasTrial.trial.valid&&!state.gasTrial.interval.valid);
  assert(releaseSharedGasTrialStorage(state.gasTrial)!=0&&allocations==1);
  freeTarget=nullptr;assert(!releaseSharedGasTrialStorage(state.gasTrial)&&allocations==0);
- }std::puts("14 actual snapshot release channels: error, repeated failed release, successful retry");}
+ }std::puts("12 actual snapshot release channels: error, repeated failed release, successful retry");}
 '''
     _compile_free_probe(tmp_path,source)
 
 
-def test_budget_cleanup_retains_actual_failed_free_instead_of_clearing_owner(tmp_path):
-    source=_actual_trial_code().replace('#include "applications/gasUGKP/private_backend/SharedGasTrialFields.H"', '#include "common/gasTransport/GasBudgetAudit.H"\nstruct GasBudgetHostLedger;\n#include "applications/gasUGKP/private_backend/SharedGasTrialFields.H"')
-    source=source.replace('SharedGasTrialStorage gasTrial;', 'SharedGasTrialStorage gasTrial;ugkwp::GasBudgetAuditState gasBudgetAudit;GasBudgetHostLedger* gasBudgetHost=nullptr;')
-    source+=r'''
-int main(){for(int slot=0;slot<3;++slot){DeviceState state;auto& a=state.gasBudgetAudit;
- assert(!allocateSharedGasZero(a.transport,2));assert(!allocateSharedGasZero(a.initialTransport,2));assert(!allocateSharedGasZero(a.chemistrySpecies,2));
- void* pointers[]={a.transport,a.initialTransport,a.chemistrySpecies};freeTarget=pointers[slot];
- assert(releaseGasBudget(&state)!=0&&allocations==1);assert(releaseGasBudget(&state)!=0&&allocations==1);
- freeTarget=nullptr;assert(!releaseGasBudget(&state)&&allocations==0);
- }std::puts("3 budget allocation owners retained across repeated actual free failure");}
-'''
-    _compile_free_probe(tmp_path,source)
 
 
 def test_snapshot_free_then_candidate_cleanup_free_preserves_both_until_teardown(tmp_path):
@@ -385,19 +393,4 @@ int main(){DeviceState state;auto& saved=state.gasTrial.trial;assert(sharedGasTr
  auto* retained=saved.cells;const int calls=mallocCalls;assert(sharedGasTrialDetail::ensureSnapshot(&state,saved)!=0&&saved.cells==retained&&mallocCalls==calls);
  freeTarget=nullptr;retainFirstAllocation=false;failAllocationAt=-1;assert(!sharedGasTrialDetail::ensureSnapshot(&state,saved));assert(!releaseSharedGasTrialStorage(state.gasTrial)&&allocations==0);}
 '''
-    _compile_free_probe(tmp_path,source)
-
-
-def test_budget_actual_allocation_failure_plus_cleanup_free_failure_retains_owner_and_poison(tmp_path):
-    source=_allocation_then_free_fault_source().replace('#include "applications/gasUGKP/private_backend/SharedGasTrialFields.H"', '#include "common/gasTransport/GasBudgetAudit.H"\nstruct GasBudgetHostLedger;\n#include "applications/gasUGKP/private_backend/SharedGasTrialFields.H"')
-    source=source.replace('SharedGasTrialStorage gasTrial;', 'SharedGasTrialStorage gasTrial;ugkwp::GasBudgetAuditState gasBudgetAudit;GasBudgetHostLedger* gasBudgetHost=nullptr;')
-    source+=r'''
-#include "common/gasTransport/GasModelIO.H"
-int main(){DeviceState state,device;state.deviceState=&device;setenv("UGKP_GAS_BUDGET_OUTPUT","__BUDGET_PATH__",1);
- auto model=ugkwp::parseGasModelProperties(R"(gasMode mixtureFrozen;species(A B);elements(X);
- speciesThermo{A{model linearCp;molarMass .028;minTemperature 100;maxTemperature 3000;coefficients(1000 0 0);atoms(1);}
- B{model linearCp;molarMass .028;minTemperature 100;maxTemperature 3000;coefficients(1000 0 0);atoms(1);}}diffusion{model none;})");
- assert(configureGasBudget(&state,model)!=0&&state.gasModelPoisoned&&allocations==1&&state.gasBudgetAudit.transport==freeTarget&&!state.gasBudgetHost);
- assert(releaseGasBudget(&state)!=0&&allocations==1);freeTarget=nullptr;assert(!releaseGasBudget(&state)&&allocations==0);}
-'''.replace('__BUDGET_PATH__',str(tmp_path/'budget.jsonl'))
     _compile_free_probe(tmp_path,source)

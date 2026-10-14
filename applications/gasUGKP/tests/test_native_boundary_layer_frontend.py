@@ -17,13 +17,11 @@ PROBE = r'''
 #include "gpu/BoundaryLayerInput.H"
 #include "GpuSchedulingConfiguration.H"
 using namespace Foam;
-static bool budgetAudit=false;
 inline bool finiteScalar(scalar x){return std::isfinite(x);}
 extern "C" const char* ugkwpGpuResidentStrictLastError(){return "recording backend";}
 extern "C" int ugkwpGpuResidentStrictConfigureBoundaryLayerV1(void*,const ugkwpGpuIpc::BoundaryLayerConfigV1* c,
  const int* faces,const int* qo,const int* mo,const int* mc,const double* g,const double* qd,
  const double* qw,const double* mw,const double* js){
- budgetAudit=c->budgetAudit;
  if(c->quadratureCount!=0||qo[0]!=0||qo[1]!=0||qd||qw)return 1;
  double v=g[5],m=g[6];
  Info<<"WALL_UPLOAD model="<<c->model<<" walls="<<c->wallCount<<" donor="<<mc[0]
@@ -33,7 +31,7 @@ extern "C" int ugkwpGpuResidentStrictConfigureBoundaryLayerV1(void*,const ugkwpG
 }
 extern "C" int ugkwpGpuResidentStrictDownloadBoundaryLayerV1(void*,std::uint32_t walls,std::uint32_t species,double* out){
  for(unsigned f=0;f<walls;++f)for(unsigned col=0;col<25+2*species;++col)
- out[f*(25+2*species)+col]=col==15 ? 0.375 : col==16 ? (budgetAudit?1:0) : (col>=17&&col<25&&!budgetAudit) ? std::numeric_limits<double>::quiet_NaN() : 100*f+col;
+ out[f*(25+2*species)+col]=col==15 ? 0.375 : 100*f+col;
  return 0;
 }
 int main(int argc,char**argv){
@@ -106,8 +104,7 @@ def test_native_wall_configuration_geometry_upload_and_csv(native_wall_probe,tmp
     assert float(rows[0]["speciesFlux_A"])==25
     assert float(rows[0]["reactionIntegral_B"])==28
     assert not any("mismatch" in key.lower() for key in rows[0])
-    assert float(rows[0]["budgetAuditAvailable"])==0
-    assert all(rows[0][name]=="" for name in rows[0] if name.startswith("budget") and name!="budgetAuditAvailable")
+    assert not any(name.startswith("budget") for name in rows[0])
 
 
 def test_native_wall_omitted_flux_defaults_to_zero(native_wall_probe,tmp_path):
@@ -171,13 +168,14 @@ def test_native_sst_has_no_unused_quadrature_at_any_profile_resolution(native_wa
     assert counts==[0,0], "production created unused auxiliary owner-source points"
 
 
-def test_native_sst_budget_audit_is_explicit_and_available(native_wall_probe,tmp_path):
+def test_native_sst_legacy_audit_option_does_not_add_output_columns(native_wall_probe,tmp_path):
     make_case(tmp_path,"reactingSst",True,options="budgetAudit true;")
     result=run_probe(native_wall_probe,tmp_path)
     assert result.returncode==0,result.stdout+result.stderr
     rows=list(csv.DictReader((tmp_path/"0.5/uniform/gasBoundaryLayer.csv").open()))
-    assert float(rows[0]["budgetAuditAvailable"])==1
-    assert float(rows[0]["budgetSourceK"])==21
+    assert not any(name.startswith("budget") for name in rows[0])
+    assert len(rows[0])==20
+    assert float(rows[0]["stageTime"])==.375
 
 
 @pytest.mark.parametrize("options,flux",[

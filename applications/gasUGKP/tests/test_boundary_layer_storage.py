@@ -18,7 +18,6 @@ def test_boundary_layer_native_storage_is_atomic_and_scratch_bounded(tmp_path):
     pre=pre.replace(' double* rho=nullptr;', ''' double* rho=nullptr;
  ugkwp::GasBoundaryLayerState<double> gasBoundaryLayer;
  ugkwp::GasBoundaryLayerModelState<double,ugkwp::compiledGasSpecies> gasBoundaryLayerModel;
- ugkwp::GasSstAuditState<double> gasSstAudit;
  SharedGasTrialStorage gasTrial;
  double *gasWallQuadratureDistance=nullptr,*gasWallQuadratureWeight=nullptr;
  double gasBoundaryLayerStageTime=0;
@@ -50,31 +49,27 @@ assert(configure()==0);assert(state.gasBoundaryLayer.enabled&&device.gasBoundary
 assert(state.gasBoundaryLayerModel.workspaceCount==0&&!state.gasBoundaryLayerModel.workspace&&deviceQueries==0);assert(state.gasBoundaryLayer.faceSlot[0]==0&&state.gasBoundaryLayer.faceSlot[1]==-1);
 assert(state.gasBoundaryLayer.ownerSlot[0]==0&&state.gasBoundaryLayer.ownerSlot[1]==-1);
 assert(state.gasBoundaryLayer.exchange[0].massReady&&!state.gasBoundaryLayer.exchange[0].ready);
-assert(std::abs(state.gasBoundaryLayer.exchange[0].mass+.3)<1e-14);assert(!state.gasSstAudit.enabled);
+assert(std::abs(state.gasBoundaryLayer.exchange[0].mass+.3)<1e-14);
 const int live=allocations;assert(configure()==0&&allocations==live);
 releaseBoundaryLayerStorage(state);assert(allocations==0);
 a.model=1;a.nodes=96;a.workspaceSlots=0;state.hostTurbulenceModel=3;assert(configure()==0);
 assert(deviceQueries==1&&state.gasBoundaryLayerModel.workspaceCount==1&&state.gasBoundaryLayerModel.workspaceCapacity==128&&state.gasBoundaryLayerModel.workspace);
-const int unauditedAllocations=allocations;assert(!state.gasSstAudit.enabled&&!state.gasSstAudit.sourceK);
+const int unauditedAllocations=allocations;
 releaseBoundaryLayerStorage(state);assert(allocations==0);
-a.budgetAudit=1;assert(configure()==0);assert(state.gasSstAudit.enabled&&state.gasSstAudit.sourceK&&allocations==unauditedAllocations+13);
-state.gasBoundaryLayer.exchange[0].ready=true;state.gasSstAudit.transportK[0]=7;state.gasSstAudit.sourceOmega[0]=11;
+assert(configure()==0&&allocations==unauditedAllocations);state.gasBoundaryLayer.exchange[0].ready=true;
+state.gasBoundaryLayerModel.output[0].wallSpeciesFlux[0]=7;state.gasBoundaryLayerModel.output[0].reactionIntegral[1]=11;
 double diagnostics[ugkwpGpuIpc::boundaryLayerDiagnosticScalars+4];
 assert(ugkwpGpuResidentStrictDownloadBoundaryLayerV1(&state,1,2,diagnostics)==0);
-assert(diagnostics[16]==1&&diagnostics[17]==0&&diagnostics[18]==0&&diagnostics[19]==7&&diagnostics[22]==11);
+assert(ugkwpGpuIpc::boundaryLayerDiagnosticScalars==25&&diagnostics[25]==7&&diagnostics[28]==11);
+for(int j=16;j<25;++j)assert(diagnostics[j]==0);
 releaseBoundaryLayerStorage(state);assert(allocations==0);
-a.budgetAudit=0;assert(configure()==0);state.gasBoundaryLayer.exchange[0].ready=true;
-assert(ugkwpGpuResidentStrictDownloadBoundaryLayerV1(&state,1,2,diagnostics)==0);
-assert(diagnostics[16]==0);for(int j=17;j<25;++j)assert(std::isnan(diagnostics[j]));
-releaseBoundaryLayerStorage(state);assert(allocations==0);
-// Production requests no auxiliary source points, even when coarse audit is enabled.
+// Production requests no auxiliary source points or cell-wide audit arrays.
 a.quadratureCount=0;int emptyQ[]={0,0};
 assert(ugkwpGpuResidentStrictConfigureBoundaryLayerV1(&state,&a,faces,emptyQ,offset,match,geometry,nullptr,nullptr,mw,flux)==0);
 assert(!state.gasWallQuadratureDistance&&!state.gasWallQuadratureWeight);
 const auto& input=state.gasBoundaryLayerModel.input[0];assert(!input.quadrature.distance&&!input.quadrature.volumeWeight&&input.quadrature.count==0&&input.quadrature.volume==1&&input.quadrature.firstMoment==.5);
 assert(allocations==unauditedAllocations-2);releaseBoundaryLayerStorage(state);assert(allocations==0);
-a.budgetAudit=1;assert(ugkwpGpuResidentStrictConfigureBoundaryLayerV1(&state,&a,faces,emptyQ,offset,match,geometry,nullptr,nullptr,mw,flux)==0);
-assert(state.gasSstAudit.enabled&&!state.gasWallQuadratureDistance&&!state.gasWallQuadratureWeight);releaseBoundaryLayerStorage(state);assert(allocations==0);
+
 }
 '''
     source=tmp_path/'probe.cpp';exe=tmp_path/'probe';source.write_text(body)

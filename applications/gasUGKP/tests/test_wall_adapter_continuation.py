@@ -10,7 +10,7 @@ def adapter_probe_source():
     pre=pre.replace(' double* rho=nullptr;', ''' double* rho=nullptr;
  ugkwp::GasBoundaryLayerState<double> gasBoundaryLayer;
  ugkwp::GasBoundaryLayerModelState<double,ugkwp::compiledGasSpecies> gasBoundaryLayerModel;
- ugkwp::GasSstAuditState<double> gasSstAudit;SharedGasTrialStorage gasTrial;
+ SharedGasTrialStorage gasTrial;
  double *gasWallQuadratureDistance=nullptr,*gasWallQuadratureWeight=nullptr;
  double gasBoundaryLayerStageTime=0;
  int *faceOwner=nullptr,*faceNeighbour=nullptr,*gasBoundaryKind=nullptr;
@@ -65,15 +65,14 @@ auto* output=s.gasBoundaryLayerModel.output;s.gasBoundaryLayerModel.output=nullp
 assert(ugkwpGpuResidentStrictDownloadBoundaryLayerV1(&s,1,1,diagnostic));s.gasBoundaryLayerModel.output=output;
 // Reconfiguration replaces actual arrays and invalidates obsolete snapshots.
 for(auto*p:{&s.gasTrial.trial}){assert(!allocateSharedGasZero(p->cells,2));assert(!allocateSharedGasZero(p->wallRecords,3));p->valid=true;}
-old=s.gasBoundaryLayerModel.input;g[3]=.75;g[4]=2.5;g[5]=7;a.budgetAudit=1;
-assert(configure()==0&&allocations==live+13);assert(s.gasBoundaryLayerModel.input!=old);
+old=s.gasBoundaryLayerModel.input;g[3]=.75;g[4]=2.5;g[5]=7;
+assert(configure()==0&&allocations==live);assert(s.gasBoundaryLayerModel.input!=old);
 assert(device.gasBoundaryLayerModel.input==s.gasBoundaryLayerModel.input&&device.gasBoundaryLayerModel.input[0].matchingDistance==2.5);
 for(auto*p:{&s.gasTrial.trial})assert(!p->cells&&!p->wallRecords&&!p->valid);
-// An empty wall request releases wall owners and preserves resident SST audit.
-auto* audit=s.gasSstAudit.sourceK;audit[0]=987;
+// An empty wall request releases all wall-owned resources.
 a.wallCount=a.quadratureCount=a.matchingCount=0;int empty[]={0};
 assert(!ugkwpGpuResidentStrictConfigureBoundaryLayerV1(&s,&a,nullptr,empty,empty,nullptr,nullptr,nullptr,nullptr,nullptr,nullptr));
-assert(!s.gasBoundaryLayer.enabled&&!device.gasBoundaryLayer.enabled&&allocations==13&&s.gasSstAudit.sourceK==audit&&audit[0]==987&&!s.gasSstAudit.enabled);
+assert(!s.gasBoundaryLayer.enabled&&!device.gasBoundaryLayer.enabled&&allocations==0);
 assert(!ugkwpGpuResidentStrictDownloadBoundaryLayerV1(&s,0,2,nullptr));
 releaseBoundaryLayerStorage(s);assert(!allocations);
 }

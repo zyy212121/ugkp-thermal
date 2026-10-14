@@ -35,7 +35,6 @@ template<class T>int copyToHost(T*d,const T*s,std::size_t n,const char*){if(host
 struct DeviceState{
  ugkwp::GasSpeciesState<double,2> gasSpecies;
  SharedGasTrialStorage gasTrial;
- ugkwp::GasSstAuditState<double> gasSstAudit;
  ugkwp::GasBoundaryLayerState<double> gasBoundaryLayer;
  ugkwp::GasBoundaryLayerModelState<double,2> gasBoundaryLayerModel;
  double gasBoundaryLayerStageTime=0;
@@ -55,13 +54,6 @@ int main(){
  state.gasSpecies.mode=ugkwp::GasMode::MixtureFrozen;state.gasSpecies.rho=partial;
  state.gasSpecies.soundSpeed=sound;state.gasSpecies.heatCapacity=cp;state.gasSpecies.gasConstant=r;
  state.gasSpecies.cellStatus=cellStatus;state.gasSpecies.faceStatus=faceStatus;
- double audit[13][2]{};state.gasSstAudit.enabled=true;
- state.gasSstAudit.transportK=audit[0];state.gasSstAudit.transportOmega=audit[1];
- state.gasSstAudit.sourceK=audit[2];state.gasSstAudit.sourceOmega=audit[3];
- state.gasSstAudit.constraintK=audit[4];state.gasSstAudit.constraintOmega=audit[5];
- state.gasSstAudit.initialTransportK=audit[6];state.gasSstAudit.initialTransportOmega=audit[7];
- state.gasSstAudit.initialSourceK=audit[8];state.gasSstAudit.initialSourceOmega=audit[9];
- state.gasSstAudit.initialConstraintK=audit[10];state.gasSstAudit.initialConstraintOmega=audit[11];state.gasSstAudit.volume=audit[12];
  ugkwp::GasBoundaryLayerExchange<double> wallExchange[1];ugkwp::GasBoundaryLayerSstClosure<double> wallClosure[1];
  int wallStatus[1]{},wallFace[1]{1};double wallSpecies[2]{};
  ugkwp::gaswall::WallInput<double,2> wallInput[1];ugkwp::gaswall::WallOutput<double,2> wallOutput[1];ugkwp::gaswall::WallStatus coreStatus[1];
@@ -79,7 +71,6 @@ int main(){
  assert(SharedGasTrialPolicy::begin(&state)==0);
  state.rho[0]=9;partial[0]=-1;state.gasBoundaryP[0]=8;
  wallOutput[0].conductiveHeatFlux=123;wallInput[0].temperature=555;wallExchange[0].ready=true;state.gasBoundaryLayerStageTime=9;state.gasBoundaryLayer.preparedTime=9;state.gasBoundaryLayer.preparedInterval=.01;
- state.gasSstAudit.sourceK[0]=19;state.gasSstAudit.constraintOmega[0]=23;
  cellStatus[0]=int(ugkwp::GasTransportCode::InvalidStorage);
  assert(SharedGasTrialPolicy::validate(&state)!=0);
  assert(!SharedGasTrialPolicy::retryable(&state));
@@ -88,7 +79,6 @@ int main(){
  assert(wallOutput[0].conductiveHeatFlux==0&&wallInput[0].temperature==0&&!wallExchange[0].ready&&state.gasBoundaryLayerStageTime==0);
  assert(!state.gasBoundaryLayer.preparedFirstStage);
  assert(state.gasBoundaryLayer.preparedTime==2&&state.gasBoundaryLayer.preparedInterval==.25);
- assert(state.gasSstAudit.sourceK[0]==0 && state.gasSstAudit.constraintOmega[0]==0);
  SharedGasTrialPolicy::rollbackInterval(&state);
  assert(state.rho[0]==1 && partial[0]==.4 && state.gasBoundaryP[0]==1);
  assert(cellStatus[0]==0 && faceStatus[0]==0);
@@ -111,11 +101,14 @@ int main(){
  hostCopyFailAfter=-1;assert(SharedGasTrialPolicy::validate(&state,true)!=0&&SharedGasTrialPolicy::continueTerminal(&state));
  wallStatus[0]=0;faceStatus[0]=0;
  // Reconfigure optional chemistry storage between same-sized intervals.
- ugkwp::ChemistryStatus chemicalStatus[2];ugkwp::ChemistryAudit<double,2> chemicalAudit[2];
- state.gasSpecies.chemistryStatus=chemicalStatus;state.gasSpecies.chemistryAudit=chemicalAudit;
+ ugkwp::ChemistryStatus chemicalStatus[2];
+ state.gasSpecies.chemistryStatus=chemicalStatus;
  assert(SharedGasTrialPolicy::begin(&state)==0);
- assert(state.gasTrial.trial.chemistryStatus&&state.gasTrial.trial.chemistryAudit);
- state.gasSpecies.chemistryStatus=nullptr;state.gasSpecies.chemistryAudit=nullptr;
+ assert(state.gasTrial.trial.chemistryStatus);
+ chemicalStatus[0].code=ugkwp::ChemistryCode::NewtonFailure;
+ SharedGasTrialPolicy::rollback(&state);
+ assert(chemicalStatus[0].code==ugkwp::ChemistryCode::Success);
+ state.gasSpecies.chemistryStatus=nullptr;
  assert(SharedGasTrialPolicy::begin(&state)==0);
  state.rho[0]=99;deviceCopyFailures=1;
  SharedGasTrialPolicy::rollback(&state);

@@ -200,7 +200,7 @@ int main(int argc,char**argv){
  failAfter=-1;
  assert(ugkwpGpuResidentStrictConfigureGasModelV1(&state,&args,text.data(),chemistry.data())==0);
  assert(state.gasSpecies.mode==ugkwp::GasMode::MixtureChemistry);
- assert(!state.gasSpecies.chemistryAudit && state.gasSpecies.chemistryStatus);
+ assert(state.gasSpecies.chemistryStatus);
  assert(state.gasSpecies.mechanism.reactionCount==29);
  assert(state.gasSpecies.mechanism.mechanismHash==mechanism.mechanismHash);
  assert(device.gasSpecies.thermo.species==state.gasSpecies.thermo.species);
@@ -209,18 +209,20 @@ int main(int argc,char**argv){
  std::string frozen=text;const auto at=frozen.find("mixtureChemistry");assert(at!=std::string::npos);frozen.replace(at,std::string("mixtureChemistry").size(),"mixtureFrozen");
  auto frozenArgs=args;frozenArgs.modelBytes=frozen.size();frozenArgs.mechanismBytes=0;
  assert(ugkwpGpuResidentStrictConfigureGasModelV1(&state,&frozenArgs,frozen.data(),nullptr)==0);
- assert(state.gasSpecies.mode==ugkwp::GasMode::MixtureFrozen&&state.gasSpecies.chemistryStatus==status&&!state.gasSpecies.chemistryAudit);
+ assert(state.gasSpecies.mode==ugkwp::GasMode::MixtureFrozen&&state.gasSpecies.chemistryStatus==status);
  syncFailAfter=0;
  assert(ugkwpGpuResidentStrictConfigureGasModelV1(&state,&args,text.data(),chemistry.data())!=0);
  assert(state.gasSpecies.mode==ugkwp::GasMode::MixtureFrozen&&state.gasSpecies.chemistryStatus==status);
  assert(ugkwpGpuResidentStrictConfigureGasModelV1(&state,&args,text.data(),chemistry.data())==0);
- assert(state.gasSpecies.chemistryStatus==status&&device.gasSpecies.chemistryStatus==status&&!state.gasSpecies.chemistryAudit);
+ assert(state.gasSpecies.chemistryStatus==status&&device.gasSpecies.chemistryStatus==status);
  // Actual adapter reports its missing required energy/momentum storage through
  // the independently retained status, after chemistry-frozen-chemistry changes.
  auto result=ugkwp::advanceGasChemistryCell(state,0,.1,1.);
  assert(!result&&result.code==ugkwp::ChemistryCode::InvalidModel&&status[0].code==result.code);
- assert(state.gasSpecies.cellStatus[0]==int(ugkwp::GasTransportCode::ChemistryFailure));
+ assert(state.gasSpecies.cellStatus[0]==int(ugkwp::GasTransportCode::InvalidStorage));
 
+ // Start a distinct valid trial: the preceding missing-storage status is sticky.
+ state.gasSpecies.cellStatus[0]=0;
  // Complete positive chemistry after the same lifecycle, with no optional audit.
  double rho[2]={1,1},momentum[2]={0,0},energy[2]{};
  state.rho=rho;state.rhoUx=state.rhoUy=state.rhoUz=momentum;state.rhoE=energy;
@@ -230,15 +232,15 @@ int main(int argc,char**argv){
  const double beforeEnergy=energy[0],volume=.7,dt=1e-8;
  ugkwp::ClosedReactorInput<double,10> input;input.totalMass=volume;input.volume=volume;input.internalEnergy=energy[0]*volume;
  for(int k=0;k<10;++k)input.speciesMass[k]=initial[k]*volume;
- ugkwp::ClosedReactorResult<double,10> expected;ugkwp::ChemistryAudit<double,10> expectedAudit;
- const auto expectedStatus=ugkwp::advanceClosedReactor(input,dt,state.gasSpecies.thermo,state.gasSpecies.mechanism,state.gasSpecies.chemistryControls,expected,expectedAudit);
- assert(expectedStatus&&expectedAudit.integratedTime==dt);
+ ugkwp::ClosedReactorResult<double,10> expected;
+ const auto expectedStatus=ugkwp::advanceClosedReactor(input,dt,state.gasSpecies.thermo,state.gasSpecies.mechanism,state.gasSpecies.chemistryControls,expected);
+ assert(expectedStatus);
  result=ugkwp::advanceGasChemistryCell(state,0,dt,volume);
  assert(result&&status[0].code==ugkwp::ChemistryCode::Success&&state.gasSpecies.cellStatus[0]==0);
- assert(result.attemptedSteps==expectedStatus.attemptedSteps&&status[0].nonlinearIterations==expectedStatus.nonlinearIterations);
+ assert(result.attemptedSteps==expectedStatus.attemptedSteps&&result.rejectedSteps==expectedStatus.rejectedSteps);
  bool changed=false;
  for(int k=0;k<10;++k){assert(state.gasSpecies.rho[2*k]==expected.speciesMass[k]/volume);assert(state.gasSpecies.rho[2*k+1]==initial[k]);changed|=state.gasSpecies.rho[2*k]!=initial[k];}
- assert(changed&&energy[0]==beforeEnergy&&!state.gasSpecies.chemistryAudit&&state.gasSpecies.chemistryStatus==status);
+ assert(changed&&energy[0]==beforeEnergy&&state.gasSpecies.chemistryStatus==status);
  assert(std::memcmp(state.gasSpecies.thermo.coefficients,model.coefficients.data(),model.coefficients.size()*sizeof(double))==0);
  for(int k=0;k<10;++k)assert(state.gasSpecies.thermo.species[k].molarMass==model.species[k].molarMass);
  assert(state.gasSpecies.mechanism.reactionCount==int(mechanism.reactions.size())&&state.gasSpecies.mechanism.mechanismHash==mechanism.mechanismHash);
@@ -304,32 +306,3 @@ def test_double_view_copy_failure_quarantines_live_storage_and_poisoned_resident
     assert build.returncode==0,build.stderr
     run=subprocess.run([str(binary)],capture_output=True,text=True)
     assert run.returncode==0,run.stderr
-
-
-def test_reconfigure_enabled_budget_preserves_output_and_uses_current_model(tmp_path):
-    import json
-    harness=ADAPTER_PROBE.split('int main(){',1)[0]
-    harness=harness.replace('struct DeviceState {', '#include "common/gasTransport/GasBudgetAudit.H"\nstruct GasBudgetHostLedger;\nstruct DeviceState {')
-    harness=harness.replace(' double* rho=nullptr;', ' double* rho=nullptr;double* rhoE=nullptr;double* V=nullptr;bool hostGravityActive=true;int nBoundarySources=4;ugkwp::GasBudgetAuditState gasBudgetAudit;GasBudgetHostLedger*gasBudgetHost=nullptr;')
-    setup=ADAPTER_PROBE.split('int main(){',1)[1].split(' state.turbulenceModel=',1)[0]
-    code=harness+'int main(int argc,char**argv){assert(argc==2);'+setup+r'''
- setenv("UGKP_GAS_BUDGET_OUTPUT",argv[1],1);state.particleCapacity=7;
- double rho[2]={1,1},energy[2]={5,6},V[2]={1,2};state.rho=rho;state.rhoE=energy;state.V=V;
- assert(ugkwpGpuResidentStrictConfigureGasModelV1(&state,&args,text.data(),nullptr)==0);
- state.gasSpecies.rho[0]=.4;state.gasSpecies.rho[1]=.5;state.gasSpecies.rho[2]=.6;state.gasSpecies.rho[3]=.5;
- assert(prepareGasBudgetRequest(&state,.1,0)==0);assert(beginGasBudgetInterval(&state)==0);assert(commitGasBudgetInterval(&state)==0);
- auto* saved=state.gasSpecies.rho;const int before=allocations;
- assert(ugkwpGpuResidentStrictConfigureGasModelV1(&state,&args,text.data(),nullptr)==0);
- assert(state.gasSpecies.rho==saved&&state.gasSpecies.rho[0]==.4&&allocations==before);
- V[0]=3;rho[0]=2;assert(prepareGasBudgetRequest(&state,1.,1e20)==0);assert(beginGasBudgetInterval(&state)==0);assert(commitGasBudgetInterval(&state)==0);
- releaseGasBudget(&state);releaseSharedGasSpecies(state.gasSpecies);assert(allocations==0);
- }
-'''
-    source=tmp_path/'budget-adapter.cpp';source.write_text(code);binary=tmp_path/'budget-adapter'
-    b=subprocess.run(['g++','-std=c++17','-I'+str(ROOT),str(source),'-o',str(binary)],capture_output=True,text=True);assert b.returncode==0,b.stderr
-    output=tmp_path/'reconfigure.jsonl';r=subprocess.run([str(binary),str(output)],capture_output=True,text=True);assert r.returncode==0,r.stderr
-    rows=[json.loads(x) for x in output.read_text().splitlines()]
-    assert [x['record'] for x in rows]==['NEW_SEGMENT','ACCEPTED_INTERVAL']*2
-    assert rows[0]['initial_inventory'][0]==3 and rows[2]['initial_inventory'][0]==8
-    assert rows[-1]['completed_duration']==1 and rows[-1]['accepted_time']==1e20
-    assert 'unavailable' in rows[-2]['source_scope']
