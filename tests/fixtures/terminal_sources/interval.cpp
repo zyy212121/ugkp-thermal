@@ -21,9 +21,9 @@ int main(){PhysicsConfig p;p.enableReactions=true;p.nReactions=1;
  assert(out.energy==expected.energy&&out.porosity==expected.porosity);
  // Inconsistent computed reaction state reaches the real packet sum; no clip
  // replaces a significant negative inventory on the terminal route.
- q.condensed[0]=-2;std::vector<SolidQ> batch;Real correction=0;
- assert(!applyMaterialPacketBatch({q},{},batch,correction,error,&numerical)&&numerical);
- assert(detail::completeMaterialPacketBatch({q},{},batch,correction,error,&numerical));
- assert(batch[0].condensed[0]==-2&&batch[0].energy==q.energy&&correction==0);
+ q.condensed[0]=-2;std::vector<SolidQ> batch;
+ assert(!applyMaterialPacketBatch({q},{},batch,error,&numerical)&&numerical);
+ assert(detail::completeMaterialPacketBatch({q},{},batch,error,&numerical));
+ assert(batch[0].condensed[0]==-2&&batch[0].energy==q.energy);
  std::cout<<"stagnation_real_euler paid_dt 0.5 interval 1 accepted 2; packet_tail negative preserved\n";
 }

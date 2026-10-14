@@ -21,11 +21,11 @@ int main(){
  std::cout<<"film_terminal_actual_trial 48\n";
  // Early recovery failure must still produce actual edge flux/rate/profile tails.
  p.spatialOrder=1;h=state(p,3,3,tangentX*.2);d=drive(h);h.film[0].enthalpy+=1e10;
- std::vector<FilmQ> rates;std::vector<FilmRateBudget> budgets;std::vector<FilmAux> aux;
+ std::vector<FilmQ> rates;std::vector<FilmAux> aux;
  std::vector<Vec3> gradients;std::vector<Real> sides;bool numeric=false;
- assert(!evaluateCpuFilmTransport(h,p,.01,d,rates,budgets,error,nullptr,nullptr,nullptr,&numeric)&&numeric);
- assert(detail::completeCpuFilmTransport(h,p,.01,d,rates,budgets,error,&aux,&gradients,&sides,&numeric));
- assert(rates.size()==9&&budgets.size()==9&&aux.size()==9&&gradients.size()==9&&sides.size()==9);
+ assert(!evaluateCpuFilmTransport(h,p,.01,d,rates,error,nullptr,nullptr,nullptr,&numeric)&&numeric);
+ assert(detail::completeCpuFilmTransport(h,p,.01,d,rates,error,&aux,&gradients,&sides,&numeric));
+ assert(rates.size()==9&&aux.size()==9&&gradients.size()==9&&sides.size()==9);
  assert(rates[0].enthalpy!=0&&aux[0].temperature==p.liquid.Tmax);
  // Endpoint-only thermal failure: actual energy source reaches endpoint and
  // unchanged profile and kinetic formulas are evaluated at the actual mass.
@@ -36,8 +36,7 @@ int main(){
  assert(candidate.film[0].enthalpy==h.film[0].enthalpy+forcing[0].energy);
  assert(candidate.filmAux[0].temperature==p.liquid.Tmax);
  assert(candidate.filmAux[0].thickness==candidate.film[0].mass/p.liquid.rho);
- assert(candidate.report.rateBudget.size()==1);
- assert(candidate.report.internalEnergyAfter==filmInternalEnergy(candidate.film[0],candidate.filmAux[0].pressure,p));
+ assert(filmInternalEnergy(candidate.film[0],candidate.filmAux[0].pressure,p)==h.film[0].enthalpy+forcing[0].energy-candidate.filmAux[0].pressure*candidate.film[0].mass/p.liquid.rho);
  assert(candidate.filmAux[0].kineticEnergy==h.filmAux[0].kineticEnergy);
  // Missing actual storage remains a failure, even on terminal evaluation.
  h.filmAux.clear();numeric=true;
