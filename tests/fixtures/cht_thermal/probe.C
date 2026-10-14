@@ -124,7 +124,7 @@ int main(int argc,char**argv){
  else if(mode=="state"){
   writeText(runTime.timePath()/ThermalRestartPreflight::stateObjectName(),stateText());
   ThermalRestartPreflightExpectations expected;expected.completedSimulationTimeS=8;expected.completedTimeIndex=19;expected.fluidFaceCount=mesh.nFaces();
-  auto s=ThermalRestartPreflight::validateRestartDirectory(runTime.timePath(),expected);near(s.completedSimulationTimeS,3,0);near(s.completedRadiationSimulationTimeS,2,0);near(s.particleContactEnergyJ,-9,0);require(s.exchangeSequence==7,"state sequence fabricated");require(t14DictionaryOpens==1&&t14HashCalls==0&&t14FieldScans==0,"restart performed discarded certificate work");std::cout<<"COST dictionary_opens="<<t14DictionaryOpens<<" hash_calls="<<t14HashCalls<<" field_scans="<<t14FieldScans<<'\n';
+  auto s=ThermalRestartPreflight::validateRestartDirectory(runTime.timePath(),expected);near(s.completedSimulationTimeS,3,0);near(s.completedRadiationSimulationTimeS,2,0);require(!ThermalRestartPreflight::stateDictionary(s).found("particleContactEnergyJ"),"removed contact summary was republished");require(s.exchangeSequence==7,"state sequence fabricated");require(t14DictionaryOpens==1&&t14HashCalls==0&&t14FieldScans==0,"restart performed discarded certificate work");std::cout<<"COST dictionary_opens="<<t14DictionaryOpens<<" hash_calls="<<t14HashCalls<<" field_scans="<<t14FieldScans<<'\n';
  }
  else if(mode=="state_machine"){
   auto initial=ThermalRestartPreflight::stateFromDictionary(parse(stateText()));

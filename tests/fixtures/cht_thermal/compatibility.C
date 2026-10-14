@@ -72,7 +72,11 @@ int main(int argc,char**argv){
   coupler.persistAtWriteTime(runTime,rho,rhoU,rhoE,U,p,T,epsilonS,rhoUs,rhoEs,rhoDs,rhoHp,Us,theta,Tp,dMeanCell,true);
   IFstream in(runTime.timePath()/ThermalRestartPreflight::stateObjectName());dictionary state(in);
   for(const word& n:wordList{"gasWallLedgerConsumed","particleWallLedgerConsumed","particleRadiationApplied","solidStateUpdated","wallTemperatureUploaded","particleMomentsRebuilt"})emitData(n,bool(state.lookup<Switch>(n)));
-  for(const word& n:wordList{"completedSimulationTimeS","completedRadiationSimulationTimeS","previousExchangeSimulationTimeS","particleContactEnergyJ"})emitData(n,state.lookup<scalar>(n));
+  for(const word& n:wordList{"completedSimulationTimeS","completedRadiationSimulationTimeS","previousExchangeSimulationTimeS"})emitData(n,state.lookup<scalar>(n));
+  scalar contactEnergy=0;
+  const auto& depositedFlux=mesh.lookupObject<surfaceScalarField>("particleStuckWallHeatFlux");const auto& reflectedFlux=mesh.lookupObject<surfaceScalarField>("particleReflectedWallHeatFlux");
+  forAll(depositedFlux.boundaryField(),pi)forAll(depositedFlux.boundaryField()[pi],f)contactEnergy+=(depositedFlux.boundaryField()[pi][f]+reflectedFlux.boundaryField()[pi][f])*mesh.magSf().boundaryField()[pi][f]*r.elapsedCouplingTimeS;
+  emitData("transferredContactEnergyJ",contactEnergy);
   const auto noWork=coupler.exchangeIfDue(runTime,rho,rhoU,rhoE,U,p,T,epsilonS,rhoUs,rhoEs,rhoDs,rhoHp,Us,theta,Tp,dMeanCell);emitData("repeatedCoupled",noWork.coupled);emitData("finalGasResets",resident.gasResets);return 0;
  }catch(const Foam::error& e){std::cerr<<"ERROR "<<e.message()<<'\n';return 2;}catch(const std::exception& e){std::cerr<<"ERROR "<<e.what()<<'\n';return 2;}
 }

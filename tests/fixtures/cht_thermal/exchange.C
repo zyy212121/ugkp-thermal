@@ -65,7 +65,10 @@ int main(int argc,char**argv){
   near(T.boundaryField()[left][0],ts.boundaryField()[sm.boundaryMesh().findPatchID("right")][0]);
   forAll(ts.boundaryField(),pi)forAll(ts.boundaryField()[pi],f)ck(std::isfinite(ts.boundaryField()[pi][f]),"unpublished face");
   coupler.persistAtWriteTime(runTime,rho,rhoU,rhoE,U,p,T,epsilonS,rhoUs,rhoEs,rhoDs,rhoHp,Us,theta,Tp,dMeanCell,true);
-  ThermalRestartPreflightExpectations expected;auto state=ThermalRestartPreflight::validateRestartDirectory(runTime.timePath(),expected);near(state.completedSimulationTimeS,.1,0);near(state.completedRadiationSimulationTimeS,radiating?.1:0,0);near(state.particleContactEnergyJ,pending?45:15,0);
+  ThermalRestartPreflightExpectations expected;auto state=ThermalRestartPreflight::validateRestartDirectory(runTime.timePath(),expected);near(state.completedSimulationTimeS,.1,0);near(state.completedRadiationSimulationTimeS,radiating?.1:0,0);ck(!ThermalRestartPreflight::stateDictionary(state).found("particleContactEnergyJ"),"removed contact summary was republished");
+  scalar contactEnergy=0;const auto& depositedFlux=mesh.lookupObject<surfaceScalarField>("particleStuckWallHeatFlux");const auto& reflectedFlux=mesh.lookupObject<surfaceScalarField>("particleReflectedWallHeatFlux");
+  forAll(depositedFlux.boundaryField(),pi)forAll(depositedFlux.boundaryField()[pi],f)contactEnergy+=(depositedFlux.boundaryField()[pi][f]+reflectedFlux.boundaryField()[pi][f])*mesh.magSf().boundaryField()[pi][f]*result.elapsedCouplingTimeS;
+  near(contactEnergy,pending?45:15,1e-14);
   auto ledger=ThermalRestartPreflight::readPendingWallEnergyLedgers(runTime.timePath(),.1,.1,"",mesh.nFaces());ck(ledger.faceIds.size()==(pending?3:1),"missing persisted face");forAll(ledger.faceIds,i){near(ledger.gasConvectiveEnergyJ[i],0,0);near(ledger.particleDepositedEnergyJ[i],0,0);near(ledger.particleReflectedEnergyJ[i],0,0);}
   ck(t14HashCalls==0&&t14FieldScans==0,"runtime certificate work remains");ck(t14DictionaryOpens==(pending?3:2),"unexpected state/ledger reread");Info<<"COST dictionary_opens="<<t14DictionaryOpens<<" hash_calls="<<t14HashCalls<<" field_scans="<<t14FieldScans<<nl;
   Info<<"PASS "<<mode<<" energy="<<energy<<" primary="<<ts[0]<<" transfers="<<resident.gasDownloads+resident.particleDownloads<<nl;return 0;
