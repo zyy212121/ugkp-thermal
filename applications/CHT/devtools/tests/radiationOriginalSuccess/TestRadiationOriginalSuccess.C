@@ -18,7 +18,10 @@ void value(const char* name,double x){std::uint64_t bits;std::memcpy(&bits,&x,si
 void dump(const ParticleRadiationMaterialResult& r){
  forAll(r.finalMeanTemperatureK,i){value("absorption",r.absorptionCoefficientInvM[i]);value("scattering",r.scatteringCoefficientInvM[i]);value("extinction",r.extinctionCoefficientInvM[i]);value("asymmetry",r.asymmetryFactor[i]);value("temperature",r.finalMeanTemperatureK[i]);value("energy",r.deltaParticleRadiationEnergyJ[i]);}
  forAll(r.solidWallRadiationEnergyJ,p)forAll(r.solidWallRadiationEnergyJ[p],f)value("wall",r.solidWallRadiationEnergyJ[p][f]);
- value("escaped",r.escapedBoundaryRadiationEnergyJ);value("residual",r.globalConservationResidualJ);
+ double particle=0,boundary=r.escapedBoundaryRadiationEnergyJ;
+ forAll(r.deltaParticleRadiationEnergyJ,i)particle+=r.deltaParticleRadiationEnergyJ[i];
+ forAll(r.solidWallRadiationEnergyJ,p)forAll(r.solidWallRadiationEnergyJ[p],f)boundary+=r.solidWallRadiationEnergyJ[p][f];
+ value("escaped",r.escapedBoundaryRadiationEnergyJ);value("transferred_residual",particle+boundary);
 }
 int main(int argc,char**argv) try {
  fedisableexcept(FE_ALL_EXCEPT);
@@ -38,6 +41,9 @@ int main(int argc,char**argv) try {
   #include "setRootCase.H"
   #include "createTime.H"
   #include "createMesh.H"
+  // The application prepares cell-face addressing in resident.initialise()
+  // before constructing the radiation coupler. Match that serial setup here.
+  (void)mesh.cells();
   fedisableexcept(FE_ALL_EXCEPT);
   MieTable table(std::getenv("C04_TABLE"));
   volScalarField wall(IOobject("T",runTime.timeName(),mesh,IOobject::NO_READ,IOobject::NO_WRITE),mesh,dimensionedScalar("T",dimTemperature,300));
