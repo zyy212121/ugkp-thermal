@@ -31,9 +31,9 @@ template<class R,int N,class TableReal,class Time> UGKWP_GAS_HD UGKWP_CHEMISTRY_
    ChemistryStatus local;
    if(iteration==0 && !reuseState)local=context.evaluate(z,f,temperature,jac,masses,&scalarAvailable);
    else local=context.evaluateJacobian(masses,temperature,jac);
-   ++status.nonlinearIterations;
+
    retainDiagnostic(status,local);
-   if(!scalarAvailable){local.nonlinearIterations=status.nonlinearIterations;return local;}
+   if(!scalarAvailable){return local;}
    bool zero=true;
    for(int i=0;i<rank;++i){residual[i]=z[i]-rhs[i]-stageProduct(h,coefficient,f[i]);zero=zero && residual[i]==R(0);}
    const R norm=coordinateNorm(context,residual,masses);
@@ -74,7 +74,7 @@ template<class R,int N,class TableReal,class Time> UGKWP_GAS_HD UGKWP_CHEMISTRY_
      } else failed.code=ChemistryCode::TemperatureFailure;
      damping*=R(.5);
    }
-   if(!found){failed.nonlinearIterations=status.nonlinearIterations;return failed;}
+   if(!found){return failed;}
    updated=true;
    if(!accepted || !scalarAvailable){if(evaluated)*evaluated=scalarAvailable;return status;}
  }
@@ -88,8 +88,8 @@ template<class R,int N,class TableReal,class Time> UGKWP_GAS_HD UGKWP_CHEMISTRY_
    R f[N]={},jac[N*N]={},residual[N]={},masses[N];
    // Successful strict inversion already returned this exact evaluated T and
    // mass bundle. Re-evaluating the same state accepts the same T immediately.
-   ChemistryStatus local=context.evaluate(z,f,temperature,jac,masses);++status.nonlinearIterations;
-   if(!local){local.nonlinearIterations=status.nonlinearIterations;return local;}
+   ChemistryStatus local=context.evaluate(z,f,temperature,jac,masses);
+   if(!local){return local;}
    for(int i=0;i<rank;++i)residual[i]=z[i]-rhs[i]-stageProduct(interval,coefficient,f[i]);
    R norm=coordinateNorm(context,residual,masses);
    // Do not freeze trace donors by accepting an unchanged initial guess.
@@ -128,15 +128,15 @@ template<class R,int N,class TableReal,class Time> UGKWP_GAS_HD inline Chemistry
    if(!scalarAvailable){st.code=ChemistryCode::RateFailure;return st;}
    for(int i=0;i<context.mechanism.independentRank;++i)rhs[i]=stageProduct(interval,R(1)-gamma,f[i]);
    ChemistryStatus second=continueImplicitStage(context,rhs,interval,gamma,z,temperature,masses,f,scalarAvailable,true,&stageAvailable);
-   second.nonlinearIterations+=st.nonlinearIterations;retainDiagnostic(second,st);if(!stageAvailable)return second;
+   retainDiagnostic(second,st);if(!stageAvailable)return second;
    for(int i=0;i<N;++i)result.speciesMass[i]=masses[i];
    result.temperature=temperature;if(evaluated)*evaluated=true;return second;
  }
  const R gamma=R(1)-R(1)/::sqrt(R(2));R z[N]={},rhs[N]={},f[N]={},temperature=initialTemperature;
  st=implicitStage(context,rhs,interval,gamma,z,temperature);if(!st)return st;
- ChemistryStatus eval=context.evaluate(z,f,temperature,nullptr);if(!eval){eval.nonlinearIterations+=st.nonlinearIterations;return eval;}
+ ChemistryStatus eval=context.evaluate(z,f,temperature,nullptr);if(!eval){return eval;}
  for(int i=0;i<context.mechanism.independentRank;++i)rhs[i]=stageProduct(interval,R(1)-gamma,f[i]);
- ChemistryStatus second=implicitStage(context,rhs,interval,gamma,z,temperature);second.nonlinearIterations+=st.nonlinearIterations;if(!second)return second;
+ ChemistryStatus second=implicitStage(context,rhs,interval,gamma,z,temperature);if(!second)return second;
  if(!context.state(z,result.speciesMass,temperature)){second.code=ChemistryCode::TemperatureFailure;return second;}
  result.temperature=temperature;if(evaluated)*evaluated=true;return second;
 }
@@ -155,7 +155,7 @@ template<class R,int N> UGKWP_GAS_HD inline R stepError
 }}
 namespace ugkwp {
 template<bool RetryTrial=false,class R,int N,class TableReal,class Time> UGKWP_GAS_HD inline ChemistryStatus advanceClosedReactorImpl
-(const ClosedReactorInput<R,N>& base,Time interval,const SpeciesThermoView<TableReal,N>& t,const GasMechanismView<TableReal,N>& m,const ChemistryControls<R>& controls,ClosedReactorResult<R,N>& result,ChemistryAudit<R,N>& audit,bool* evaluated=nullptr) noexcept {
+(const ClosedReactorInput<R,N>& base,Time interval,const SpeciesThermoView<TableReal,N>& t,const GasMechanismView<TableReal,N>& m,const ChemistryControls<R>& controls,ClosedReactorResult<R,N>& result,bool* evaluated=nullptr) noexcept {
  if(evaluated)*evaluated=false;
  using namespace gasChemistryDetail;using gasThermoDetail::absValue;using gasThermoDetail::maxValue;using gasThermoDetail::minValue;
  ChemistryStatus status;
@@ -175,7 +175,7 @@ template<bool RetryTrial=false,class R,int N,class TableReal,class Time> UGKWP_G
    if(RetryTrial || !temperatureAvailable)return status;
  }
  ClosedReactorInput<R,N> current=base;ClosedReactorResult<R,N> accepted;for(int s=0;s<N;++s)accepted.speciesMass[s]=base.speciesMass[s];accepted.temperature=temperature;
- ChemistryAudit<R,N> localAudit;Time covered=0;
+ Time covered=0;
  ReactorContext<R,N,TableReal> context(current,t,m,controls);
  if(!RetryTrial && (terminalInterval || !status))context.refinement=false;
  if(interval!=Time(0)){
@@ -212,10 +212,10 @@ template<bool RetryTrial=false,class R,int N,class TableReal,class Time> UGKWP_G
    }
    ++status.attemptedSteps;ClosedReactorResult<R,N> full,half,end;
    bool stepAvailable=false;
-   ChemistryStatus trial=sdirkStep(context,h,full,temperature,&stepAvailable);status.nonlinearIterations+=trial.nonlinearIterations;
+   ChemistryStatus trial=sdirkStep(context,h,full,temperature,&stepAvailable);
    ChemistryStatus diagnostic=trial;
-   if(stepAvailable){trial=sdirkStep(context,h/Time(2),half,temperature,&stepAvailable);status.nonlinearIterations+=trial.nonlinearIterations;retainDiagnostic(diagnostic,trial);}
-   if(stepAvailable){ClosedReactorInput<R,N> middle=current;for(int s=0;s<N;++s)middle.speciesMass[s]=half.speciesMass[s];ReactorContext<R,N,TableReal> middleContext(middle,t,m,controls,context.refinement);for(int k=0;k<N*N;++k)middleContext.leftInverse[k]=context.leftInverse[k];trial=sdirkStep(middleContext,h/Time(2),end,half.temperature,&stepAvailable);status.nonlinearIterations+=trial.nonlinearIterations;retainDiagnostic(diagnostic,trial);}
+   if(stepAvailable){trial=sdirkStep(context,h/Time(2),half,temperature,&stepAvailable);retainDiagnostic(diagnostic,trial);}
+   if(stepAvailable){ClosedReactorInput<R,N> middle=current;for(int s=0;s<N;++s)middle.speciesMass[s]=half.speciesMass[s];ReactorContext<R,N,TableReal> middleContext(middle,t,m,controls,context.refinement);for(int k=0;k<N*N;++k)middleContext.leftInverse[k]=context.leftInverse[k];trial=sdirkStep(middleContext,h/Time(2),end,half.temperature,&stepAvailable);retainDiagnostic(diagnostic,trial);}
    if(!context.refinement){retainDiagnostic(status,diagnostic);if(!stepAvailable)return status;}
    R error=stepAvailable?stepError(current,full,end,controls):R(2);
    if(!stepAvailable || (context.refinement && (!gasFinite(error) || error>R(1)))){
@@ -236,34 +236,37 @@ template<bool RetryTrial=false,class R,int N,class TableReal,class Time> UGKWP_G
    }
    rejectedDiagnostic=ChemistryStatus{};
    accepted=end;for(int s=0;s<N;++s)current.speciesMass[s]=end.speciesMass[s];temperature=end.temperature;
-   covered+=h;terminalPending=false;++localAudit.acceptedSteps;localAudit.maximumLocalError=gasFinite(error)?maxValue(localAudit.maximumLocalError,error):gasThermoDetail::invalidValue<R>();
+   covered+=h;terminalPending=false;
    R factor=error>R(0)?minValue(R(3),maxValue(R(.25),R(.9)*R(::pow(error,R(-1)/R(3))))):R(3);if(context.refinement || (gasFinite(error) && error<=R(1)))h*=factor;if(controls.maximumStep>R(0))h=minValue(h,Time(controls.maximumStep));
  }
- R sum=0;for(int s=0;s<N;++s){sum+=accepted.speciesMass[s];localAudit.speciesMassChange[s]=accepted.speciesMass[s]-base.speciesMass[s];}
- localAudit.massResidual=sum-base.totalMass;
- if(RetryTrial && absValue(localAudit.massResidual)>controls.absoluteMassTolerance+controls.relativeConservationTolerance*base.totalMass){status.code=ChemistryCode::ConservationFailure;return status;}
- if(t.elementCount>0 && !t.elementComposition)localAudit.maximumElementResidual=gasThermoDetail::invalidValue<R>();
- else for(int e=0;e<t.elementCount;++e){R before=0,after=0;for(int s=0;s<N;++s){R atoms=R(t.elementComposition[s*t.elementCount+e])/R(t.species[s].molarMass);before+=base.speciesMass[s]*atoms;after+=accepted.speciesMass[s]*atoms;}
-   R residual=absValue(after-before);localAudit.maximumElementResidual=maxValue(localAudit.maximumElementResidual,residual);
-   if(RetryTrial && residual>controls.absoluteElementTolerance+controls.relativeConservationTolerance*absValue(before)){status.code=ChemistryCode::ConservationFailure;return status;}
+ // These residuals select a real smaller-step trial. The direct continuation
+ // path has no reporting pass or output-only inventory reconstruction.
+ if(RetryTrial){
+   R sum=0;for(int s=0;s<N;++s)sum+=accepted.speciesMass[s];
+   const R massResidual=sum-base.totalMass;
+   if(absValue(massResidual)>controls.absoluteMassTolerance+controls.relativeConservationTolerance*base.totalMass){status.code=ChemistryCode::ConservationFailure;return status;}
+   if(!(t.elementCount>0 && !t.elementComposition))
+   for(int e=0;e<t.elementCount;++e){R before=0,after=0;for(int s=0;s<N;++s){R atoms=R(t.elementComposition[s*t.elementCount+e])/R(t.species[s].molarMass);before+=base.speciesMass[s]*atoms;after+=accepted.speciesMass[s]*atoms;}
+     const R residual=absValue(after-before);
+     if(residual>controls.absoluteElementTolerance+controls.relativeConservationTolerance*absValue(before)){status.code=ChemistryCode::ConservationFailure;return status;}
+   }
+   const R energyResidual=mixtureEnergy(accepted.speciesMass,accepted.temperature,t)-base.internalEnergy;
+   if(!gasFinite(energyResidual) || absValue(energyResidual)>controls.thermo.absoluteEnergyTolerance+controls.thermo.relativeEnergyTolerance*absValue(base.internalEnergy)){status.code=ChemistryCode::ConservationFailure;return status;}
  }
- localAudit.energyResidual=mixtureEnergy(accepted.speciesMass,accepted.temperature,t)-base.internalEnergy;
- if(RetryTrial && (!gasFinite(localAudit.energyResidual) || absValue(localAudit.energyResidual)>controls.thermo.absoluteEnergyTolerance+controls.thermo.relativeEnergyTolerance*absValue(base.internalEnergy))){status.code=ChemistryCode::ConservationFailure;return status;}
- localAudit.integratedTime=interval;localAudit.rejectedSteps=status.rejectedSteps;localAudit.nonlinearIterations=status.nonlinearIterations;
- result=accepted;audit=localAudit;if(evaluated)*evaluated=true;return status;
+ result=accepted;if(evaluated)*evaluated=true;return status;
 }
 template<class R,int N,class TableReal,class Time> UGKWP_GAS_HD inline ChemistryStatus advanceClosedReactor
-(const ClosedReactorInput<R,N>& base,Time interval,const SpeciesThermoView<TableReal,N>& t,const GasMechanismView<TableReal,N>& m,const ChemistryControls<R>& controls,ClosedReactorResult<R,N>& result,ChemistryAudit<R,N>& audit,bool* evaluated=nullptr) noexcept {
+(const ClosedReactorInput<R,N>& base,Time interval,const SpeciesThermoView<TableReal,N>& t,const GasMechanismView<TableReal,N>& m,const ChemistryControls<R>& controls,ClosedReactorResult<R,N>& result,bool* evaluated=nullptr) noexcept {
  const R originalInterval=R(interval);
  if(gasFinite(originalInterval) && (interval==Time(0) || originalInterval>R(0)))
-   return advanceClosedReactorImpl(base,originalInterval,t,m,controls,result,audit,evaluated);
- return advanceClosedReactorImpl(base,interval,t,m,controls,result,audit,evaluated);
+   return advanceClosedReactorImpl(base,originalInterval,t,m,controls,result,evaluated);
+ return advanceClosedReactorImpl(base,interval,t,m,controls,result,evaluated);
 }
 // Retry-capable native owners must use this entry: a local budget/conservation
 // stop is part of their original successful smaller-step method, not terminal.
 template<class R,int N,class TableReal,class Time> UGKWP_GAS_HD inline ChemistryStatus advanceClosedReactorTrial
-(const ClosedReactorInput<R,N>& base,Time interval,const SpeciesThermoView<TableReal,N>& t,const GasMechanismView<TableReal,N>& m,const ChemistryControls<R>& controls,ClosedReactorResult<R,N>& result,ChemistryAudit<R,N>& audit,bool* evaluated=nullptr) noexcept {
- return advanceClosedReactorImpl<true>(base,R(interval),t,m,controls,result,audit,evaluated);
+(const ClosedReactorInput<R,N>& base,Time interval,const SpeciesThermoView<TableReal,N>& t,const GasMechanismView<TableReal,N>& m,const ChemistryControls<R>& controls,ClosedReactorResult<R,N>& result,bool* evaluated=nullptr) noexcept {
+ return advanceClosedReactorImpl<true>(base,R(interval),t,m,controls,result,evaluated);
 }
 }
 #endif

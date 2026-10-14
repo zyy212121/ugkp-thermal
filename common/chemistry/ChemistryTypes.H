@@ -8,14 +8,13 @@ enum class ChemistryCode : unsigned char {
     StepUnderflow, StepLimit, ConservationFailure
 };
 // Internal numerical trial failures travel in the return value and drive
-// caller refinement. Only a completed accepted state publishes its audit.
+// caller refinement. Attempt/rejection counters are real integration controls.
 struct ChemistryStatus {
     ChemistryCode code = ChemistryCode::Success;
     ThermoStatus thermoCode = ThermoStatus::Success;
     int reaction = -1;
     int attemptedSteps = 0;
     int rejectedSteps = 0;
-    int nonlinearIterations = 0;
     UGKWP_GAS_HD explicit operator bool() const noexcept { return code==ChemistryCode::Success; }
 };
 template<class Real> struct ChemistryControls {
@@ -35,6 +34,8 @@ template<class Real> struct ChemistryControls {
     Real absoluteElementTolerance = Real(1e-12); // mol atoms, NOT kg
     ThermoInversionControls<Real> thermo;
 };
+// Historical CHMT checkpoint payload only. Runtime chemistry does not create
+// or publish this record; retaining its layout preserves existing checkpoints.
 template<class Real,int Ns> struct ChemistryAudit {
     Real speciesMassChange[Ns] = {};
     Real massResidual = Real(0); // kg
@@ -68,23 +69,6 @@ UGKWP_GAS_HD inline ChemistryControls<To> castChemistryControls
     out.relativeConservationTolerance=input.relativeConservationTolerance;
     out.absoluteElementTolerance=input.absoluteElementTolerance;
     out.thermo=castThermoControls<To>(input.thermo);
-    return out;
-}
-
-template<class To,class From,int Ns>
-UGKWP_GAS_HD inline ChemistryAudit<To,Ns> castChemistryAudit
-(const ChemistryAudit<From,Ns>& input) noexcept
-{
-    ChemistryAudit<To,Ns> out;
-    for(int s=0;s<Ns;++s)out.speciesMassChange[s]=To(input.speciesMassChange[s]);
-    out.massResidual=input.massResidual;
-    out.maximumElementResidual=input.maximumElementResidual;
-    out.energyResidual=input.energyResidual;
-    out.maximumLocalError=input.maximumLocalError;
-    out.integratedTime=input.integratedTime;
-    out.acceptedSteps=input.acceptedSteps;
-    out.rejectedSteps=input.rejectedSteps;
-    out.nonlinearIterations=input.nonlinearIterations;
     return out;
 }
 
