@@ -52,7 +52,6 @@ bool advanceCoupledWindow(Backend& backend,CpuMaterialDriver& material,const Mod
                     ?diagnostics.eventTime-interval.begin:.5*(interval.end-interval.begin);
                 std::string retryError;
                 if(!controller.shorten(duration,retryError))return completePrediction();
-                report.windowRetries=controller.retries();
             }
         };
         if(!predict("initial window predictor"))return false;
@@ -63,7 +62,6 @@ bool advanceCoupledWindow(Backend& backend,CpuMaterialDriver& material,const Mod
                 ?eventTime-interval.begin:.5*(interval.end-interval.begin);
             std::string retryError;
             if(!controller.shorten(duration,retryError)){error=cause+"; "+retryError;return false;}
-            report.windowRetries=controller.retries();
             return predict("shortened-window predictor after "+cause);
         };
         auto replay=[&](WallProgram corrected,const std::string& cause)->bool {
@@ -75,7 +73,6 @@ bool advanceCoupledWindow(Backend& backend,CpuMaterialDriver& material,const Mod
             program=std::move(corrected);return true;
         };
         for(;;) {
-            ++report.windowIterations;
             report.geometry.clear();
             const CouplingInterval interval=controller.interval();
             if(!beginGasWindow(backend,program,error))return false;
@@ -90,8 +87,6 @@ bool advanceCoupledWindow(Backend& backend,CpuMaterialDriver& material,const Mod
                     if(!shorten(0,cause))return false;
                     retryWindow=true;break;
                 }
-                ++report.gasMicrosteps;
-                report.gasRejectedTrials+=micro.rejectedTrials;
                 report.nextGasDt=micro.nextGasDt;
                 if(retainStageGeometry) {
                     MicrostepGeometryReport geometry;geometry.microSequence=micro.microSequence;
@@ -116,10 +111,6 @@ bool advanceCoupledWindow(Backend& backend,CpuMaterialDriver& material,const Mod
             bool terminalPublication=false;
             bool materialSolved=material.advanceCandidate(base,gasEndpoint,history,
                 materialControls,candidate,corrected,cpu,error,&program);
-            report.materialSubsteps+=cpu.materialSteps;report.reactionSubsteps+=cpu.reactionSteps;
-            report.filmSubsteps+=cpu.filmSteps;report.linearSolves+=cpu.linearSolves;
-            report.boundaryDriveSamples+=cpu.boundaryDriveSamples;
-            report.materialRhsEvaluations+=cpu.materialRhsEvaluations;
             if(!materialSolved&&cpu.failureOrigin!=MaterialFailureOrigin::None
                 &&(!cpu.recoverable||controller.retries()>=controls.maxWindowRetries)) {
                 // The old retry path has ended. Its gas trial and exact attempted
@@ -127,10 +118,6 @@ bool advanceCoupledWindow(Backend& backend,CpuMaterialDriver& material,const Mod
                 ++report.materialSolves;
                 materialSolved=detail::ConductionContinuation::complete(material,base,gasEndpoint,history,
                     materialControls,candidate,corrected,cpu,error,&program);
-                report.materialSubsteps+=cpu.materialSteps;report.reactionSubsteps+=cpu.reactionSteps;
-                report.filmSubsteps+=cpu.filmSteps;report.linearSolves+=cpu.linearSolves;
-                report.boundaryDriveSamples+=cpu.boundaryDriveSamples;
-                report.materialRhsEvaluations+=cpu.materialRhsEvaluations;
                 if(!materialSolved){discard("terminal material producer: "+error);return false;}
                 terminalPublication=true;
             }
@@ -146,31 +133,16 @@ bool advanceCoupledWindow(Backend& backend,CpuMaterialDriver& material,const Mod
             if(!compareWallPrograms(program,corrected,model.physics.tolerances,comparison,error)) {
                 discard("invalid corrected wall program: "+error);return false;
             }
-            report.temperaturePredictionError=comparison.thermalError;
-            report.massPredictionError=comparison.massPredictionError;
-            report.geometryError=comparison.geometryError;
             WindowAssessment assessment;
             assessment.regimeConsistent=comparison.regimeMatches;
             assessment.geometryMatches=comparison.geometryError<=1
                 &&sameEndpointPoints(candidate.gasMesh,gasEndpoint.gasMesh)
                 &&sameEndpointPoints(candidate.solidMesh,gasEndpoint.solidMesh);
             assessment.predictionError=std::max(comparison.thermalError,comparison.massPredictionError);
-            std::string auditError;
-            WindowConservationAudit audit;
-            assessment.conservative=auditCoupledCandidate(base,candidate,history,model.physics,audit,auditError);
-            report.energyResidual=audit.energyResidual;
-            // Each actual gas/material geometric trajectory was independently
-            // validated by its owner; comparison prevents committing another one.
-            assessment.gclValid=finite(candidate.budget.gclResidual);
             const auto decision=controller.assess(assessment);
             if(!terminalPublication&&decision==WindowDecision::Replay
                 &&(controller.iterations()<controls.maxWindowIterations||controller.retries()<controls.maxWindowRetries)) {
                 if(!replay(std::move(corrected),"coupling waveform/regime/geometry requires replay"))return false;
-                continue;
-            }
-            if(!terminalPublication&&decision==WindowDecision::Shorten&&controller.retries()<controls.maxWindowRetries) {
-                const std::string cause=!auditError.empty()?auditError:"coupling geometric/admissibility audit failed";
-                if(!shorten(cpu.eventTime,cause,cpu.eventDuration))return false;
                 continue;
             }
             // A complete candidate survives the final numeric assessment or
@@ -186,12 +158,7 @@ bool advanceCoupledWindow(Backend& backend,CpuMaterialDriver& material,const Mod
                 discard("atomic gas/material commit: "+error);return false;
             }
             active=false;
-            report.interval=interval;report.windowRetries=controller.retries();
             report.acceptedGasMicrosteps=history.records().size();
-            report.nextCouplingInterval=controls.interval;
-            // Rejected/replayed candidates never contribute a physical roundoff
-            // diagnostic to the committed window. Do not reapply this amount.
-            report.numericalMassRoundoff=cpu.numericalMassRoundoff;
             accepted=std::move(candidate);
             error.clear();return true;
         }

@@ -12,9 +12,9 @@ namespace chmt { namespace io {
 
 inline bool writeAcceptedCoupledSummary(std::ostream& stream,const HostState& state,
     const ModelConfig& model,std::string& error) {
-    stream<<std::setprecision(17)<<"time,accepted_steps,gas_cells,material_cells,interface_faces,gas_mode,thermo_hash,commit_sequence\n"
+    stream<<std::setprecision(17)<<"time,accepted_steps,gas_cells,material_cells,interface_faces,gas_mode,thermo_hash,commit_sequence,sst_chemistry_integral_audit_collection\n"
         <<state.time<<','<<state.acceptedSteps<<','<<state.gas.size()<<','<<state.solid.size()<<','
-        <<state.surface.area.size()<<','<<static_cast<int>(model.physics.gasMode)<<','<<model.physics.gasThermoFingerprint<<','<<state.commitSequence<<'\n';
+        <<state.surface.area.size()<<','<<static_cast<int>(model.physics.gasMode)<<','<<model.physics.gasThermoFingerprint<<','<<state.commitSequence<<",NOT_COLLECTED_LEGACY_CHECKPOINT_SLOTS_ONLY\n";
     if(!stream){error="coupled summary write failed";return false;}
     error.clear();return true;
 }
