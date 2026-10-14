@@ -8,7 +8,7 @@ PR14_REVIEW_ONLY。本文件可以直接交给一个没有前文的新审查 age
 - PR：https://github.com/zyy212121/ugkp-thermal/pull/14
 - 分支：`perf/chmt-first-round-20261013`
 - 本轮开发交付：`review/pr14/developer-deliveries/20261014T112400Z-fast/`。正式修复 commit/tree/blob 和编译范围以其中 `SOURCE.json`、`VALIDATION.json` 为准。
-- 本轮正式修复 commit：`9d5be6eff69dbced2fc959d422d3ba419a1bc39e`，tree `5dc844d4189f50fcfbed2a77fa5e6cd6e9cfd066`。已核对五个 source/test 文件的 blob/SHA256 与本地编译源一致；本地/远端完整 tree 相同。固定链接：https://github.com/zyy212121/ugkp-thermal/commit/9d5be6eff69dbced2fc959d422d3ba419a1bc39e。不要把后续记录提交混作新的生产改动。
+- 本轮正式修复 commit：`9d5be6eff69dbced2fc959d422d3ba419a1bc39e`，tree `5dc844d4189f50fcfbed2a77fa5e6cd6e9cfd066`。已核对五个 source/test 文件的 blob/SHA256 与本地编译源一致；本地/远端完整 tree 相同。固定链接：[正式修复提交](https://github.com/zyy212121/ugkp-thermal/commit/9d5be6eff69dbced2fc959d422d3ba419a1bc39e)。不要把后续记录提交混作新的生产改动。
 - 上轮真实被测正式源码：`4b5c480b572f234ddecf5e89164fe59b0d2e9735`，tree `0fa2562f4c83394cdf94e9650de3b22c4fb4bb15`。
 - 上轮不可变证据提交：`f5e6c5e2cbde2693f5fa811d874c200b07bbbc66`，目录 `review/pr14/reviewer-deliveries/20261014T072053Z-fast/`。完整链接：https://github.com/zyy212121/ugkp-thermal/tree/f5e6c5e2cbde2693f5fa811d874c200b07bbbc66/review/pr14/reviewer-deliveries/20261014T072053Z-fast
 - 用户本地 test 开发区：`/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test`。用户授权在该 test 区完整重构、覆盖、更新源码，重新构建、安装测试产物和调整测试支持；旧原始失败证据须先保留。正式仓库、正式安装、生产结果及原始 checkpoint 不在覆盖权限内。先确认实际路径、安装输出和符号链接均留在 test 区，不把 test 构建安装到正式路径。
