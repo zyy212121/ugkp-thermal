@@ -389,7 +389,6 @@ def thermal_state_metrics(path: Path) -> dict[str, object]:
         "completed_time_index": int(parse_dictionary_scalar(path, "completedTimeIndex")),
         "completed_simulation_time": parse_dictionary_scalar(path, "completedSimulationTimeS"),
         "previous_exchange_time": parse_dictionary_scalar(path, "previousExchangeSimulationTimeS"),
-        "particle_contact_energy_j": parse_dictionary_scalar(path, "particleContactEnergyJ"),
         "flags": flags,
     }
 
