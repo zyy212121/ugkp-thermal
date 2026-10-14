@@ -1,0 +1,46 @@
+[
+  {
+    "ns": 2,
+    "command": [
+      "/tmp/pr14_cuda13/nvidia/cu13/bin/nvcc",
+      "--Ofast-compile=max",
+      "-Xptxas=-O0",
+      "-std=c++17",
+      "-O0",
+      "-arch=sm_80",
+      "-DUGKWP_GAS_SPECIES=2",
+      "-Iapplications/CHMT",
+      "-Icommon",
+      "-Icommon/gasNumerics",
+      "-c",
+      "applications/CHMT/gpu/Backend.cu",
+      "-o",
+      "/workspace/scratch/98b6339ec81b/pr14_chmt_final_compile_20261014/Backend-Ns2.o"
+    ],
+    "start": "2026-10-14T17:27:02.379988+00:00",
+    "end": "2026-10-14T17:27:22.796299+00:00",
+    "exit": 0
+  },
+  {
+    "ns": 10,
+    "command": [
+      "/tmp/pr14_cuda13/nvidia/cu13/bin/nvcc",
+      "--Ofast-compile=max",
+      "-Xptxas=-O0",
+      "-std=c++17",
+      "-O0",
+      "-arch=sm_80",
+      "-DUGKWP_GAS_SPECIES=10",
+      "-Iapplications/CHMT",
+      "-Icommon",
+      "-Icommon/gasNumerics",
+      "-c",
+      "applications/CHMT/gpu/Backend.cu",
+      "-o",
+      "/workspace/scratch/98b6339ec81b/pr14_chmt_final_compile_20261014/Backend-Ns10.o"
+    ],
+    "start": "2026-10-14T17:27:22.796618+00:00",
+    "end": "2026-10-14T17:27:44.734674+00:00",
+    "exit": 0
+  }
+]
