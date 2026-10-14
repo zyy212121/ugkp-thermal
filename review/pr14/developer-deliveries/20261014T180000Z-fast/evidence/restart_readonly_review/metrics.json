@@ -1,0 +1,574 @@
+{
+  "scope": "Read-only source/evidence review and CPU offline arithmetic; no new GPU run, no production/test/threshold edits, no acceptance change.",
+  "source_commit": "9d5be6eff69dbced2fc959d422d3ba419a1bc39e",
+  "source_tree": "5dc844d4189f50fcfbed2a77fa5e6cd6e9cfd066",
+  "evidence_commit": "0aa34bc1b0e370ec99e6107faf83ff7f0ac3e668",
+  "recommendation": "Keep mature FP64 primitive recovery and warm start unchanged; retain strict-bitparity failure as open qualification evidence, not a demonstrated regression of the latest fixes.",
+  "raw_log_coverage": {
+    "full": {
+      "window2_raw_cell_rows": 800,
+      "window2_unique_cell_keys": 800
+    },
+    "restart": {
+      "window2_raw_cell_rows": 800,
+      "window2_unique_cell_keys": 800
+    }
+  },
+  "common_window2_post_rows": 400,
+  "window2_post_max_absolute_deltas": {
+    "temperature_K": 1.1368683772161603e-13,
+    "pressure_Pa": 2.9103830456733704e-11,
+    "mass_kg": 0.0,
+    "total_energy_J": 0.0,
+    "momentum_x_kg_m_s": 1.455185662723943e-16,
+    "momentum_y_kg_m_s": 0.0,
+    "momentum_z_kg_m_s": 0.0,
+    "volume_m3": 0.0
+  },
+  "first_post_cell0": {
+    "full": {
+      "temperature_K": 599.9992807669355,
+      "pressure_Pa": 178166.84516325427,
+      "mass_kg": 0.125000001847075,
+      "total_energy_J": 55729.0520068684,
+      "momentum_x_kg_m_s": -6.181423483285469e-06,
+      "momentum_y_kg_m_s": 0.0,
+      "momentum_z_kg_m_s": 0.0,
+      "volume_m3": 0.125
+    },
+    "restart": {
+      "temperature_K": 599.9992807669354,
+      "pressure_Pa": 178166.84516325424,
+      "mass_kg": 0.125000001847075,
+      "total_energy_J": 55729.0520068684,
+      "momentum_x_kg_m_s": -6.181423483285469e-06,
+      "momentum_y_kg_m_s": 0.0,
+      "momentum_z_kg_m_s": 0.0,
+      "volume_m3": 0.125
+    }
+  },
+  "first_post_cell0_full_minus_restart": {
+    "temperature_K": 1.1368683772161603e-13,
+    "pressure_Pa": 2.9103830456733704e-11,
+    "mass_kg": 0.0,
+    "total_energy_J": 0.0,
+    "momentum_x_kg_m_s": 0.0,
+    "momentum_y_kg_m_s": 0.0,
+    "momentum_z_kg_m_s": 0.0,
+    "volume_m3": 0.0
+  },
+  "window2_dt_row_counts": {
+    "full": 50,
+    "restart": 50
+  },
+  "window2_dt_rows_identical": true,
+  "temperature_delta_fraction_of_original_default_tolerance": 1.863720848632488e-06,
+  "offline_cpu_reconstruction": {
+    "assumptions": "Original thermal mixtureFrozen input: species S0 mass fraction 1, cp=1040, molar mass=.028, no diffusion; density reconstructed from captured mass/volume. Ordinary host binary64 operation ordering. This is not a GPU branch/iteration witness.",
+    "values": {
+      "full": {
+        "density": 1.0000000147766,
+        "target_internal_energy_density": 445832.41605494596,
+        "recomputed_energy_density": 445832.41605494596,
+        "residual": 0.0,
+        "correction_K": 0.0,
+        "original_default_energy_tolerance": 4.45833416054946e-05,
+        "original_default_temperature_tolerance_K": 6.099992807669355e-08
+      },
+      "restart": {
+        "density": 1.0000000147766,
+        "target_internal_energy_density": 445832.41605494596,
+        "recomputed_energy_density": 445832.4160549459,
+        "residual": -5.820766091346741e-11,
+        "correction_K": -7.833561092807994e-14,
+        "original_default_energy_tolerance": 4.45833416054946e-05,
+        "original_default_temperature_tolerance_K": 6.099992807669353e-08
+      }
+    }
+  },
+  "thermal_observer_preserves_each_original_run_bytes": {
+    "full": true,
+    "restart": true
+  },
+  "thermal_raw_category_counts": {
+    "R3SEED_META": {
+      "full_count": 100,
+      "restart_count": 100,
+      "different_row_count": 0
+    },
+    "R3SEED_CELL": {
+      "full_count": 800,
+      "restart_count": 800,
+      "different_row_count": 740
+    },
+    "R3DT": {
+      "full_count": 50,
+      "restart_count": 50,
+      "different_row_count": 0
+    },
+    "LEDGER_FINAL_FLUX": {
+      "full_count": 1800,
+      "restart_count": 1800,
+      "different_row_count": 216
+    },
+    "LEDGER_PAIRED": {
+      "full_count": 400,
+      "restart_count": 400,
+      "different_row_count": 4
+    }
+  },
+  "wet_strict_bitparity": false,
+  "wet_semantic_difference_count": 27,
+  "wet_first_exchange_difference": {
+    "row_number": 6,
+    "full": {
+      "packet": "4",
+      "step": "1",
+      "geometry": "0",
+      "face": "16",
+      "stage": "1",
+      "kind": "1",
+      "gas_cell": "0",
+      "solid_cell": "-1",
+      "mass": "0",
+      "energy": "-0.0024995380314830938",
+      "conductive": "-0.0024995380314830938",
+      "advective": "0",
+      "pressure_work": "-0",
+      "viscous_work": "0",
+      "radiation": "0",
+      "liquid_kinetic_advection": "0",
+      "consumer_mask": "5"
+    },
+    "restart": {
+      "packet": "4",
+      "step": "1",
+      "geometry": "0",
+      "face": "16",
+      "stage": "1",
+      "kind": "1",
+      "gas_cell": "0",
+      "solid_cell": "-1",
+      "mass": "0",
+      "energy": "-0.0024995380314830904",
+      "conductive": "-0.0024995380314830904",
+      "advective": "0",
+      "pressure_work": "-0",
+      "viscous_work": "0",
+      "radiation": "0",
+      "liquid_kinetic_advection": "0",
+      "consumer_mask": "5"
+    },
+    "different_fields": {
+      "energy": [
+        "-0.0024995380314830938",
+        "-0.0024995380314830904"
+      ],
+      "conductive": [
+        "-0.0024995380314830938",
+        "-0.0024995380314830904"
+      ]
+    }
+  },
+  "wet_terminal_semantic_differences": [
+    {
+      "path": ".gas[0].momentum[0]",
+      "full": -3.394934639101847e-05,
+      "restart": -3.3949346391163985e-05,
+      "difference": -1.4551348407471076e-16,
+      "full_hex": "-0x1.1cc9aa8e60806p-15",
+      "restart_hex": "-0x1.1cc9aa8e65be8p-15",
+      "relative_to_full_magnitude": 4.286193978485764e-12
+    },
+    {
+      "path": ".gas[1].momentum[0]",
+      "full": -3.394933936149756e-05,
+      "restart": -3.394933936164308e-05,
+      "difference": -1.455202603382888e-16,
+      "full_hex": "-0x1.1cc9a6b10f51cp-15",
+      "restart_hex": "-0x1.1cc9a6b1148ffp-15",
+      "relative_to_full_magnitude": 4.286394465258003e-12
+    },
+    {
+      "path": ".gas[2].momentum[0]",
+      "full": -3.394934639101847e-05,
+      "restart": -3.3949346391163985e-05,
+      "difference": -1.4551348407471076e-16,
+      "full_hex": "-0x1.1cc9aa8e60806p-15",
+      "restart_hex": "-0x1.1cc9aa8e65be8p-15",
+      "relative_to_full_magnitude": 4.286193978485764e-12
+    },
+    {
+      "path": ".gas[3].momentum[0]",
+      "full": -3.394933936149756e-05,
+      "restart": -3.394933936164308e-05,
+      "difference": -1.455202603382888e-16,
+      "full_hex": "-0x1.1cc9a6b10f51cp-15",
+      "restart_hex": "-0x1.1cc9a6b1148ffp-15",
+      "relative_to_full_magnitude": 4.286394465258003e-12
+    },
+    {
+      "path": ".gas[4].momentum[0]",
+      "full": -3.394934639101847e-05,
+      "restart": -3.3949346391163985e-05,
+      "difference": -1.4551348407471076e-16,
+      "full_hex": "-0x1.1cc9aa8e60806p-15",
+      "restart_hex": "-0x1.1cc9aa8e65be8p-15",
+      "relative_to_full_magnitude": 4.286193978485764e-12
+    },
+    {
+      "path": ".gas[5].momentum[0]",
+      "full": -3.394933936149756e-05,
+      "restart": -3.394933936164308e-05,
+      "difference": -1.455202603382888e-16,
+      "full_hex": "-0x1.1cc9a6b10f51cp-15",
+      "restart_hex": "-0x1.1cc9a6b1148ffp-15",
+      "relative_to_full_magnitude": 4.286394465258003e-12
+    },
+    {
+      "path": ".gas[6].momentum[0]",
+      "full": -3.394934639101847e-05,
+      "restart": -3.3949346391163985e-05,
+      "difference": -1.4551348407471076e-16,
+      "full_hex": "-0x1.1cc9aa8e60806p-15",
+      "restart_hex": "-0x1.1cc9aa8e65be8p-15",
+      "relative_to_full_magnitude": 4.286193978485764e-12
+    },
+    {
+      "path": ".gas[7].momentum[0]",
+      "full": -3.394933936149756e-05,
+      "restart": -3.394933936164308e-05,
+      "difference": -1.455202603382888e-16,
+      "full_hex": "-0x1.1cc9a6b10f51cp-15",
+      "restart_hex": "-0x1.1cc9a6b1148ffp-15",
+      "relative_to_full_magnitude": 4.286394465258003e-12
+    },
+    {
+      "path": ".budget.supportImpulse[0]",
+      "full": -178.16688032344035,
+      "restart": -178.1668803234403,
+      "difference": 5.684341886080802e-14,
+      "full_hex": "-0x1.64557156770b6p+7",
+      "restart_hex": "-0x1.64557156770b4p+7",
+      "relative_to_full_magnitude": 3.190459346743664e-16
+    },
+    {
+      "path": ".budget.exchangeMomentum[1][0]",
+      "full": -178.16688032344035,
+      "restart": -178.1668803234403,
+      "difference": 5.684341886080802e-14,
+      "full_hex": "-0x1.64557156770b6p+7",
+      "restart_hex": "-0x1.64557156770b4p+7",
+      "relative_to_full_magnitude": 3.190459346743664e-16
+    },
+    {
+      "path": ".budget.exchangeMomentum[2][0]",
+      "full": 0.0001578206793695358,
+      "restart": 0.00015782067931979782,
+      "difference": -4.973799150320701e-14,
+      "full_hex": "0x1.4af9550240000p-13",
+      "restart_hex": "0x1.4af9550080000p-13",
+      "relative_to_full_magnitude": 3.151550969232994e-10
+    },
+    {
+      "path": ".ledger[0].momentum[0]",
+      "full": 22.270838067949622,
+      "restart": 22.27083806794961,
+      "difference": -1.0658141036401503e-14,
+      "full_hex": "0x1.64555a4c45affp+4",
+      "restart_hex": "0x1.64555a4c45afcp+4",
+      "relative_to_full_magnitude": 4.785693741691666e-16
+    },
+    {
+      "path": ".ledger[1].momentum[0]",
+      "full": 22.270838067949622,
+      "restart": 22.27083806794961,
+      "difference": -1.0658141036401503e-14,
+      "full_hex": "0x1.64555a4c45affp+4",
+      "restart_hex": "0x1.64555a4c45afcp+4",
+      "relative_to_full_magnitude": 4.785693741691666e-16
+    },
+    {
+      "path": ".ledger[2].momentum[0]",
+      "full": 22.270838067949622,
+      "restart": 22.27083806794961,
+      "difference": -1.0658141036401503e-14,
+      "full_hex": "0x1.64555a4c45affp+4",
+      "restart_hex": "0x1.64555a4c45afcp+4",
+      "relative_to_full_magnitude": 4.785693741691666e-16
+    },
+    {
+      "path": ".ledger[3].momentum[0]",
+      "full": 22.270838067949622,
+      "restart": 22.27083806794961,
+      "difference": -1.0658141036401503e-14,
+      "full_hex": "0x1.64555a4c45affp+4",
+      "restart_hex": "0x1.64555a4c45afcp+4",
+      "relative_to_full_magnitude": 4.785693741691666e-16
+    },
+    {
+      "path": ".ledger[4].energy",
+      "full": -0.002499538031483094,
+      "restart": -0.0024995380314830904,
+      "difference": 3.469446951953614e-18,
+      "full_hex": "-0x1.479e94335e34ap-9",
+      "restart_hex": "-0x1.479e94335e342p-9",
+      "relative_to_full_magnitude": 1.388035272219894e-15
+    },
+    {
+      "path": ".ledger[4].momentum[0]",
+      "full": 0.4454167613589925,
+      "restart": 0.4454167613589923,
+      "difference": -2.220446049250313e-16,
+      "full_hex": "0x1.c81b54dc8228fp-2",
+      "restart_hex": "0x1.c81b54dc8228bp-2",
+      "relative_to_full_magnitude": 4.985097647595485e-16
+    },
+    {
+      "path": ".ledger[4].conductive",
+      "full": -0.002499538031483094,
+      "restart": -0.0024995380314830904,
+      "difference": 3.469446951953614e-18,
+      "full_hex": "-0x1.479e94335e34ap-9",
+      "restart_hex": "-0x1.479e94335e342p-9",
+      "relative_to_full_magnitude": 1.388035272219894e-15
+    },
+    {
+      "path": ".ledger[6].energy",
+      "full": -0.002499538031483094,
+      "restart": -0.0024995380314830904,
+      "difference": 3.469446951953614e-18,
+      "full_hex": "-0x1.479e94335e34ap-9",
+      "restart_hex": "-0x1.479e94335e342p-9",
+      "relative_to_full_magnitude": 1.388035272219894e-15
+    },
+    {
+      "path": ".ledger[6].momentum[0]",
+      "full": 0.4454167613589925,
+      "restart": 0.4454167613589923,
+      "difference": -2.220446049250313e-16,
+      "full_hex": "0x1.c81b54dc8228fp-2",
+      "restart_hex": "0x1.c81b54dc8228bp-2",
+      "relative_to_full_magnitude": 4.985097647595485e-16
+    },
+    {
+      "path": ".ledger[6].conductive",
+      "full": -0.002499538031483094,
+      "restart": -0.0024995380314830904,
+      "difference": 3.469446951953614e-18,
+      "full_hex": "-0x1.479e94335e34ap-9",
+      "restart_hex": "-0x1.479e94335e342p-9",
+      "relative_to_full_magnitude": 1.388035272219894e-15
+    },
+    {
+      "path": ".ledger[8].energy",
+      "full": -0.002499538031483094,
+      "restart": -0.0024995380314830904,
+      "difference": 3.469446951953614e-18,
+      "full_hex": "-0x1.479e94335e34ap-9",
+      "restart_hex": "-0x1.479e94335e342p-9",
+      "relative_to_full_magnitude": 1.388035272219894e-15
+    },
+    {
+      "path": ".ledger[8].momentum[0]",
+      "full": 0.4454167613589925,
+      "restart": 0.4454167613589923,
+      "difference": -2.220446049250313e-16,
+      "full_hex": "0x1.c81b54dc8228fp-2",
+      "restart_hex": "0x1.c81b54dc8228bp-2",
+      "relative_to_full_magnitude": 4.985097647595485e-16
+    },
+    {
+      "path": ".ledger[8].conductive",
+      "full": -0.002499538031483094,
+      "restart": -0.0024995380314830904,
+      "difference": 3.469446951953614e-18,
+      "full_hex": "-0x1.479e94335e34ap-9",
+      "restart_hex": "-0x1.479e94335e342p-9",
+      "relative_to_full_magnitude": 1.388035272219894e-15
+    },
+    {
+      "path": ".ledger[10].energy",
+      "full": -0.002499538031483094,
+      "restart": -0.0024995380314830904,
+      "difference": 3.469446951953614e-18,
+      "full_hex": "-0x1.479e94335e34ap-9",
+      "restart_hex": "-0x1.479e94335e342p-9",
+      "relative_to_full_magnitude": 1.388035272219894e-15
+    },
+    {
+      "path": ".ledger[10].momentum[0]",
+      "full": 0.4454167613589925,
+      "restart": 0.4454167613589923,
+      "difference": -2.220446049250313e-16,
+      "full_hex": "0x1.c81b54dc8228fp-2",
+      "restart_hex": "0x1.c81b54dc8228bp-2",
+      "relative_to_full_magnitude": 4.985097647595485e-16
+    },
+    {
+      "path": ".ledger[10].conductive",
+      "full": -0.002499538031483094,
+      "restart": -0.0024995380314830904,
+      "difference": 3.469446951953614e-18,
+      "full_hex": "-0x1.479e94335e34ap-9",
+      "restart_hex": "-0x1.479e94335e342p-9",
+      "relative_to_full_magnitude": 1.388035272219894e-15
+    }
+  ],
+  "prior_802_vs_formal_restart": {
+    "all_files_byte_equal": true,
+    "file_count": 10
+  },
+  "prior_formal_full_vs_restart_strict": false,
+  "source_blob_lineage": {
+    "d6110c02745a8ad726208a426c4bb3a28233c1fd": {
+      "common/operators/computeSstFaceFluxKernel.cuh": "eaf76b87e218cf4fa7c88ee546fd451b110da291",
+      "common/gasTransport/MixtureThermo.H": "a3be183ae9fa340132013e543852cc31a31f0409",
+      "common/gasTransport/GasModel.H": "9a61f1ae57713b4b3c1d1e2cd9a6cce5ce5decda",
+      "applications/CHMT/verification/coupled_runtime/check_case.py": "31abb6c1e767910d92e9259c80e807cf7a847032",
+      "applications/CHMT/gpu/SharedGasDeviceStorage.cuh": "9ca790b30390299a28c6a3ae59bfae989b2428c4"
+    },
+    "802a11e7dfe986488a8bf8305e86424dcc94c9e1": {
+      "common/operators/computeSstFaceFluxKernel.cuh": "c07f8c5958eaace8476eda1c95ed02e69b59d3b9",
+      "common/gasTransport/MixtureThermo.H": "92c5d08baecd46800609b1a5c74697a7f59f0878",
+      "common/gasTransport/GasModel.H": "d22107aeb52522edb7b0d9dd57625edba5e31684",
+      "applications/CHMT/verification/coupled_runtime/check_case.py": "31abb6c1e767910d92e9259c80e807cf7a847032",
+      "applications/CHMT/gpu/SharedGasDeviceStorage.cuh": "c9719a3454be89b658082a3e91fa4194cb355223"
+    },
+    "4b5c480b572f234ddecf5e89164fe59b0d2e9735": {
+      "common/operators/computeSstFaceFluxKernel.cuh": "c07f8c5958eaace8476eda1c95ed02e69b59d3b9",
+      "common/gasTransport/MixtureThermo.H": "92c5d08baecd46800609b1a5c74697a7f59f0878",
+      "common/gasTransport/GasModel.H": "d22107aeb52522edb7b0d9dd57625edba5e31684",
+      "applications/CHMT/verification/coupled_runtime/check_case.py": "ab392db1e4cd1d767e3f098dc6d7969f01979afe",
+      "applications/CHMT/gpu/SharedGasDeviceStorage.cuh": "c9719a3454be89b658082a3e91fa4194cb355223"
+    },
+    "9d5be6eff69dbced2fc959d422d3ba419a1bc39e": {
+      "common/operators/computeSstFaceFluxKernel.cuh": "c07f8c5958eaace8476eda1c95ed02e69b59d3b9",
+      "common/gasTransport/MixtureThermo.H": "92c5d08baecd46800609b1a5c74697a7f59f0878",
+      "common/gasTransport/GasModel.H": "d22107aeb52522edb7b0d9dd57625edba5e31684",
+      "applications/CHMT/verification/coupled_runtime/check_case.py": "ab392db1e4cd1d767e3f098dc6d7969f01979afe",
+      "applications/CHMT/gpu/SharedGasDeviceStorage.cuh": "c9719a3454be89b658082a3e91fa4194cb355223"
+    }
+  },
+  "fixed_references": {
+    "review/pr14/reviewer-deliveries/20261014T120103Z-fast/logs/THERMAL-SEED-thermal-full.log": {
+      "evidence_commit": "0aa34bc1b0e370ec99e6107faf83ff7f0ac3e668",
+      "git_blob": "bb1a87aae48e92f60fbef78b98c944c57f02eb42",
+      "sha256": "40cc3ed060af4901f7f21f305d5d672438e0dec3d0af49ecc2605cac310510d3",
+      "bytes": 1634611,
+      "matches_fixed_commit": true
+    },
+    "review/pr14/reviewer-deliveries/20261014T120103Z-fast/logs/THERMAL-SEED-thermal-restart.log": {
+      "evidence_commit": "0aa34bc1b0e370ec99e6107faf83ff7f0ac3e668",
+      "git_blob": "d6e4b51796a3a0a6e1027ee8aaec397bb6b80317",
+      "sha256": "172635c99c330876887a2abe046c9297b1d24f6fed985dbaf0bc841bc79e8b9a",
+      "bytes": 819200,
+      "matches_fixed_commit": true
+    },
+    "review/pr14/reviewer-deliveries/20261014T120103Z-fast/artifacts/wet-full-restart-first-difference.json": {
+      "evidence_commit": "0aa34bc1b0e370ec99e6107faf83ff7f0ac3e668",
+      "git_blob": "8e0108dd2c60269978a0312d3727ffa9f44064b7",
+      "sha256": "034de32d30142ba3b8d0416e0e9fb596421802bb7f03d2879c7db4d944205473",
+      "bytes": 9631,
+      "matches_fixed_commit": true
+    },
+    "review/pr14/reviewer-deliveries/20261014T120103Z-fast/artifacts/thermal-first-currentCo-seed-difference.json": {
+      "evidence_commit": "0aa34bc1b0e370ec99e6107faf83ff7f0ac3e668",
+      "git_blob": "cf35c1760ec609e8c6950a274233c7fe1605c9a6",
+      "sha256": "2dd4c292829e6ad025003cbabc1d41f8946f51e09b087169d32237744d018a96",
+      "bytes": 26507,
+      "matches_fixed_commit": true
+    },
+    "review/pr14/reviewer-deliveries/20261014T072053Z-fast/artifacts/chmt/old802-vs-formal-restart.json": {
+      "evidence_commit": "0aa34bc1b0e370ec99e6107faf83ff7f0ac3e668",
+      "git_blob": "a6be91703cf737d93afa6cbc9600d4ddc15cc56d",
+      "sha256": "fafa3728a5df0eaab282f4ee04ca7957e81827f6272ebf820e02b25bb1c03aac",
+      "bytes": 2600,
+      "matches_fixed_commit": true
+    },
+    "review/pr14/reviewer-deliveries/20261014T072053Z-fast/artifacts/chmt/formal-restart-terminal-comparison.json": {
+      "evidence_commit": "0aa34bc1b0e370ec99e6107faf83ff7f0ac3e668",
+      "git_blob": "08364dc5632181ad19e5d76c9fafa8016403afd4",
+      "sha256": "056dcecb75424825e943355392c57b1ad095d9a96f4464bc7da6ac3f4f036d09",
+      "bytes": 1330,
+      "matches_fixed_commit": true
+    },
+    "review/pr14/reviewer-deliveries/20261014T120103Z-fast/artifacts/thermal-seed-output-thermal-full.json": {
+      "evidence_commit": "0aa34bc1b0e370ec99e6107faf83ff7f0ac3e668",
+      "git_blob": "cab2ba9e50397a6e5c0b44bb62b9b3144a8c426f",
+      "sha256": "f22dc0575305c78400e0cb6e49081593a1073fbfa4d185c5db3e0646765ce4bd",
+      "bytes": 3799,
+      "matches_fixed_commit": true
+    },
+    "review/pr14/reviewer-deliveries/20261014T120103Z-fast/artifacts/thermal-seed-output-thermal-restart.json": {
+      "evidence_commit": "0aa34bc1b0e370ec99e6107faf83ff7f0ac3e668",
+      "git_blob": "973a6c80390853ccb30241525c6f46be36a41d2a",
+      "sha256": "55c591dee7909f3a76c823793fae75d656bbe76ac985a03e9be169943a84781e",
+      "bytes": 2550,
+      "matches_fixed_commit": true
+    },
+    "review/pr14/reviewer-deliveries/20261013T182722Z-fast/inputs/native/chmt/thermal-full/constant/gasModelProperties": {
+      "evidence_commit": "0aa34bc1b0e370ec99e6107faf83ff7f0ac3e668",
+      "git_blob": "cf382a01ede1015f059f19c64523959f90bb4bfb",
+      "sha256": "5c2ebae303b9c8d8fa6fe95f4cd62da8aee33d7d1488ed297774754aecbbbaa0",
+      "bytes": 383,
+      "matches_fixed_commit": true
+    },
+    "review/pr14/reviewer-deliveries/20261014T120103Z-fast/metadata/final-evidence-scope-review.md": {
+      "evidence_commit": "0aa34bc1b0e370ec99e6107faf83ff7f0ac3e668",
+      "git_blob": "94d8562f4e1e2d7deb6ca9ffd923e90d97351a22",
+      "sha256": "7d93cf11f5c1f2a52d648e8897e2c9faf29ebc3015e5088320c3952914014233",
+      "bytes": 11754,
+      "matches_fixed_commit": true
+    },
+    "review/pr14/reviewer-deliveries/20261014T120103Z-fast/REPORT.md": {
+      "evidence_commit": "0aa34bc1b0e370ec99e6107faf83ff7f0ac3e668",
+      "git_blob": "1f195f4832458bd552bb3502b1c2f86297eeca6c",
+      "sha256": "2c83433c2197cb7ab904a44995bcf613f3fb464f47e5dfea6880788a9d6c73ed",
+      "bytes": 14475,
+      "matches_fixed_commit": true
+    },
+    "common/operators/computeSstFaceFluxKernel.cuh": {
+      "evidence_commit": "0aa34bc1b0e370ec99e6107faf83ff7f0ac3e668",
+      "git_blob": "c07f8c5958eaace8476eda1c95ed02e69b59d3b9",
+      "sha256": "ecb810f6473ed07511a9ce546fbd44a66a5edfeb88eeacdf6d9861173a7e59da",
+      "bytes": 79944,
+      "matches_fixed_commit": true
+    },
+    "common/gasTransport/MixtureThermo.H": {
+      "evidence_commit": "0aa34bc1b0e370ec99e6107faf83ff7f0ac3e668",
+      "git_blob": "92c5d08baecd46800609b1a5c74697a7f59f0878",
+      "sha256": "6bd6783e7c88feaaf1e4f887df1e3560d7be083e9fe6332fe50d0cb253b916bf",
+      "bytes": 27114,
+      "matches_fixed_commit": true
+    },
+    "common/gasTransport/GasModel.H": {
+      "evidence_commit": "0aa34bc1b0e370ec99e6107faf83ff7f0ac3e668",
+      "git_blob": "d22107aeb52522edb7b0d9dd57625edba5e31684",
+      "sha256": "b18104b55faf56c8ab2ab3e3d268d1f620741ffdaf7319bfacd6d816d451c99a",
+      "bytes": 7196,
+      "matches_fixed_commit": true
+    },
+    "applications/CHMT/verification/coupled_runtime/check_case.py": {
+      "evidence_commit": "0aa34bc1b0e370ec99e6107faf83ff7f0ac3e668",
+      "git_blob": "ab392db1e4cd1d767e3f098dc6d7969f01979afe",
+      "sha256": "dcc53695d9cc205286ef894101478f37c6a0c6a56f29a01c5b0d0e69e5051f09",
+      "bytes": 21200,
+      "matches_fixed_commit": true
+    },
+    "applications/CHMT/gpu/SharedGasDeviceStorage.cuh": {
+      "evidence_commit": "0aa34bc1b0e370ec99e6107faf83ff7f0ac3e668",
+      "git_blob": "c9719a3454be89b658082a3e91fa4194cb355223",
+      "sha256": "9cb232b7e2d69d850f35b34c941a425bf5e2dee3e58c3850e55948fc3c01a95e",
+      "bytes": 46416,
+      "matches_fixed_commit": true
+    }
+  },
+  "limitations": [
+    "Raw D303 records do not capture caloric iteration count, energy residual/correction, or exact return branch.",
+    "D303 thermal seed observation is not an exclusive-cause witness for the separate wet case.",
+    "Pre-PR d6110 source blobs differ; old802 evidence does not establish full pre-PR baseline runtime equivalence.",
+    "Existing numerical continuation tolerance and strict byte equality are distinct criteria. Neither this script nor this review changes them.",
+    "No fresh GPU work is necessary merely to keep unchanged numerical code. If exclusive seed causality is required, collect one read-only first-affected native recovery witness using identical conserved inputs and actual controls, for warm/fresh seeds, including iteration/exit/residual and subsequent original output preservation."
+  ]
+}
