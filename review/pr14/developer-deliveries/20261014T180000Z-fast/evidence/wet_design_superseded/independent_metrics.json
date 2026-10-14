@@ -1,0 +1,228 @@
+{
+  "scope": "Independent read-only algebra and retained native observer arithmetic; no solver execution or new PASS claim",
+  "source_commit": "9d5be6eff69dbced2fc959d422d3ba419a1bc39e",
+  "evidence_commit": "0aa34bc1b0e370ec99e6107faf83ff7f0ac3e668",
+  "sources": [
+    {
+      "path": "applications/CHMT/gpu/Backend.cu",
+      "git_blob": "69d513d0b1fafdf37f42e01244740283c780b250",
+      "sha256": "c650e85eaf0798dfb8c33b1bb41ab01e105cfa19efaa48dff75ca651e81ff4d3",
+      "bytes": 37548,
+      "url": "https://github.com/zyy212121/ugkp-thermal/blob/9d5be6eff69dbced2fc959d422d3ba419a1bc39e/applications/CHMT/gpu/Backend.cu"
+    },
+    {
+      "path": "applications/CHMT/gpu/GasWallMath.H",
+      "git_blob": "1241887b9043a884fd3fa24d8bda29afde92f456",
+      "sha256": "680a27c874c6563ca91fe82e6fdaaf319359299d142dfa2d0245af353313ffa1",
+      "bytes": 8324,
+      "url": "https://github.com/zyy212121/ugkp-thermal/blob/9d5be6eff69dbced2fc959d422d3ba419a1bc39e/applications/CHMT/gpu/GasWallMath.H"
+    },
+    {
+      "path": "applications/CHMT/ablation/InterfaceMath.H",
+      "git_blob": "7b8fc102571b01a9a0e8b82e7666a589589f9b19",
+      "sha256": "423b845f11f1af38d5271b01c2bc442df37774ff0b11dcf0647805e725d72411",
+      "bytes": 51760,
+      "url": "https://github.com/zyy212121/ugkp-thermal/blob/9d5be6eff69dbced2fc959d422d3ba419a1bc39e/applications/CHMT/ablation/InterfaceMath.H"
+    },
+    {
+      "path": "applications/CHMT/ablation/CpuSurfaceInterface.C",
+      "git_blob": "512d0263fbe30b4815ea5de7d9f36a7cc74bbcb3",
+      "sha256": "3828e279133094b8a218816fd9dcedf9467e428e46ca47e76c36fe02d5097434",
+      "bytes": 10205,
+      "url": "https://github.com/zyy212121/ugkp-thermal/blob/9d5be6eff69dbced2fc959d422d3ba419a1bc39e/applications/CHMT/ablation/CpuSurfaceInterface.C"
+    },
+    {
+      "path": "applications/CHMT/film/FilmMath.H",
+      "git_blob": "47f569128dd8bedfe22b94970c5fe8680f87eaf3",
+      "sha256": "daf48f096c6b3262eb5d4ee0f50e56a7e02ad6c45c93d4e198605c310ea73b8f",
+      "bytes": 10169,
+      "url": "https://github.com/zyy212121/ugkp-thermal/blob/9d5be6eff69dbced2fc959d422d3ba419a1bc39e/applications/CHMT/film/FilmMath.H"
+    },
+    {
+      "path": "applications/CHMT/film/CpuFilmDriver.C",
+      "git_blob": "bd314e0b78a36f4020e0a859e18ded2921d997a6",
+      "sha256": "d52c38751124be82e73b3a458bf512dc08a64d2108981d0033787e97ff677e67",
+      "bytes": 37209,
+      "url": "https://github.com/zyy212121/ugkp-thermal/blob/9d5be6eff69dbced2fc959d422d3ba419a1bc39e/applications/CHMT/film/CpuFilmDriver.C"
+    },
+    {
+      "path": "applications/CHMT/materials/CpuMaterialDriver.C",
+      "git_blob": "a728a5daaf0bab41ff33fa954828737c2fce3f01",
+      "sha256": "cd79a6a6300bfbf24de7c388a11755270734604bc78053e66a44771b6e345e4e",
+      "bytes": 81501,
+      "url": "https://github.com/zyy212121/ugkp-thermal/blob/9d5be6eff69dbced2fc959d422d3ba419a1bc39e/applications/CHMT/materials/CpuMaterialDriver.C"
+    },
+    {
+      "path": "applications/CHMT/coupling/IntervalContracts.H",
+      "git_blob": "b3460695073045cf14181da8e87f8f753c1fcc9c",
+      "sha256": "fa35aea8e91c268c88ed6b11439342ff341d8d7389685a402b3b8f8654844d83",
+      "bytes": 21874,
+      "url": "https://github.com/zyy212121/ugkp-thermal/blob/9d5be6eff69dbced2fc959d422d3ba419a1bc39e/applications/CHMT/coupling/IntervalContracts.H"
+    },
+    {
+      "path": "applications/CHMT/coupling/ExchangeLedger.H",
+      "git_blob": "fa92f38d10b3799278256d742e6f38ffeada858a",
+      "sha256": "6b5ee54d511e44cb234e28d9c00a463cd73ecebc3b10f3d113e27dbdd2013703",
+      "bytes": 3355,
+      "url": "https://github.com/zyy212121/ugkp-thermal/blob/9d5be6eff69dbced2fc959d422d3ba419a1bc39e/applications/CHMT/coupling/ExchangeLedger.H"
+    },
+    {
+      "path": "applications/CHMT/core/Types.H",
+      "git_blob": "0904aec6e83ea84a38c6a8c9dd4e97960a8b3142",
+      "sha256": "916e1ea24a1a4eab070bbf295a92e64d8a8daf628e1920df06fc6945de0ab95a",
+      "bytes": 9647,
+      "url": "https://github.com/zyy212121/ugkp-thermal/blob/9d5be6eff69dbced2fc959d422d3ba419a1bc39e/applications/CHMT/core/Types.H"
+    },
+    {
+      "path": "common/GpuGasAdvance.cuh",
+      "git_blob": "f54c196bf7a85be1b003ac37567ff6dbbce2b8cd",
+      "sha256": "4710414e5c9d4ad05690ad0f2ea3954189c1986327a74554890e388cfe6e2055",
+      "bytes": 33718,
+      "url": "https://github.com/zyy212121/ugkp-thermal/blob/9d5be6eff69dbced2fc959d422d3ba419a1bc39e/common/GpuGasAdvance.cuh"
+    },
+    {
+      "path": "common/GpuGasHostPolicy.cuh",
+      "git_blob": "6108527a6e1bf590d72aa736db4f5b95e3f2885b",
+      "sha256": "6834a9a98330be97e78e07f6e504127bd94f5b412bcbb1534e4034bcfd148800",
+      "bytes": 1557,
+      "url": "https://github.com/zyy212121/ugkp-thermal/blob/9d5be6eff69dbced2fc959d422d3ba419a1bc39e/common/GpuGasHostPolicy.cuh"
+    }
+  ],
+  "observer_log": {
+    "path": "/workspace/scratch/98b6339ec81b/pr14_fast_fix_20261014/review/pr14/reviewer-deliveries/20261014T120103Z-fast/logs/WET-FILM-OBSERVER-D302.log",
+    "sha256": "2d4b62cb729ca7cb57642c03cc7b1d05f02fb60ee385e570b698883a8f9c812e",
+    "equals_fixed_evidence": true
+  },
+  "decoded_state": {
+    "path": "/workspace/scratch/98b6339ec81b/pr14_fast4_wet_mechanics/checkpoint_1_full_model_state.json",
+    "sha256": "a5a936345a25a3f1d37e82225028ea0bde60bead27dc24de234ccc4369393f3c"
+  },
+  "reviewed_design": {
+    "path": "/workspace/scratch/98b6339ec81b/pr14_fast4_wet_mechanics_review_20261014/REVIEWED_DESIGN.md",
+    "sha256": "bff1689e5fa3c599606316c0f843b4e4a308697c21e61d97d90b35cdc0d6c2fa",
+    "bytes": 19273
+  },
+  "windows": [
+    {
+      "window": 1,
+      "gas_stages": 50,
+      "top_records": 200,
+      "bottom_records": 4,
+      "duration": "0.000500000000000000010408340855860842566471546888351440429687500000000",
+      "all_top_mass_zero": true,
+      "all_bottom_mass_zero": true,
+      "all_scales_one": true,
+      "faces": [
+        {
+          "film": 0,
+          "gas_impulse": "22.270859472419898772432844680224661715328693389892578125",
+          "bottom_impulse": "22.2708820129104623219973291270434856414794921875",
+          "difference": "0.000022540490563549564484446818823926150798797607421875",
+          "pressure_first": "178167.05610328367956047723839456580230107070841233452222786005641830644022432058",
+          "pressure_mean": "178166.87577935918647061961277102165998696110598514139061130297256707480495271286",
+          "bottom_minus_first_pressure_rule": "1.913331812025658158488677031553273994573695944046504742772335930E-15"
+        },
+        {
+          "film": 1,
+          "gas_impulse": "22.270859472419898772432844680224661715328693389892578125",
+          "bottom_impulse": "22.2708820129104623219973291270434856414794921875",
+          "difference": "0.000022540490563549564484446818823926150798797607421875",
+          "pressure_first": "178167.05610328367956047723839456580230107070841233452222786005641830644022432058",
+          "pressure_mean": "178166.87577935918647061961277102165998696110598514139061130297256707480495271286",
+          "bottom_minus_first_pressure_rule": "1.913331812025658158488677031553273994573695944046504742772335930E-15"
+        },
+        {
+          "film": 2,
+          "gas_impulse": "22.270859472419898772432844680224661715328693389892578125",
+          "bottom_impulse": "22.2708820129104623219973291270434856414794921875",
+          "difference": "0.000022540490563549564484446818823926150798797607421875",
+          "pressure_first": "178167.05610328367956047723839456580230107070841233452222786005641830644022432058",
+          "pressure_mean": "178166.87577935918647061961277102165998696110598514139061130297256707480495271286",
+          "bottom_minus_first_pressure_rule": "1.913331812025658158488677031553273994573695944046504742772335930E-15"
+        },
+        {
+          "film": 3,
+          "gas_impulse": "22.270859472419898772432844680224661715328693389892578125",
+          "bottom_impulse": "22.2708820129104623219973291270434856414794921875",
+          "difference": "0.000022540490563549564484446818823926150798797607421875",
+          "pressure_first": "178167.05610328367956047723839456580230107070841233452222786005641830644022432058",
+          "pressure_mean": "178166.87577935918647061961277102165998696110598514139061130297256707480495271286",
+          "bottom_minus_first_pressure_rule": "1.913331812025658158488677031553273994573695944046504742772335930E-15"
+        }
+      ],
+      "gap": "0.000090161962254198257937787275295704603195190429687500",
+      "cumulative_gap": "0.000090161962254198257937787275295704603195190429687500"
+    },
+    {
+      "window": 2,
+      "gas_stages": 50,
+      "top_records": 200,
+      "bottom_records": 4,
+      "duration": "0.000500000000000000010408340855860842566471546888351440429687500000000",
+      "all_top_mass_zero": true,
+      "all_bottom_mass_zero": true,
+      "all_scales_one": true,
+      "faces": [
+        {
+          "film": 0,
+          "gas_impulse": "22.270821153270360714948594704765127971768379211425781250",
+          "bottom_impulse": "22.270838067949622285368604934774339199066162109375",
+          "difference": "0.000016914679261570420010230009211227297782897949218750",
+          "pressure_first": "178166.70454359698413647195511592388197668884481635477683292057981540380639481366",
+          "pressure_mean": "178166.56922616288201075199438766057091587680675389059917458331279655066645313575",
+          "bottom_minus_first_pressure_rule": "-1.195295336968518171508398890448684900922550998367489171818602168E-15"
+        },
+        {
+          "film": 1,
+          "gas_impulse": "22.270821153270360714948594704765127971768379211425781250",
+          "bottom_impulse": "22.270838067949622285368604934774339199066162109375",
+          "difference": "0.000016914679261570420010230009211227297782897949218750",
+          "pressure_first": "178166.70454359698413647195511592388197668884481635477683292057981540380639481366",
+          "pressure_mean": "178166.56922616288201075199438766057091587680675389059917458331279655066645313575",
+          "bottom_minus_first_pressure_rule": "-1.195295336968518171508398890448684900922550998367489171818602168E-15"
+        },
+        {
+          "film": 2,
+          "gas_impulse": "22.270821153270360714948594704765127971768379211425781250",
+          "bottom_impulse": "22.270838067949622285368604934774339199066162109375",
+          "difference": "0.000016914679261570420010230009211227297782897949218750",
+          "pressure_first": "178166.70454359698413647195511592388197668884481635477683292057981540380639481366",
+          "pressure_mean": "178166.56922616288201075199438766057091587680675389059917458331279655066645313575",
+          "bottom_minus_first_pressure_rule": "-1.195295336968518171508398890448684900922550998367489171818602168E-15"
+        },
+        {
+          "film": 3,
+          "gas_impulse": "22.270821153270360714948594704765127971768379211425781250",
+          "bottom_impulse": "22.270838067949622285368604934774339199066162109375",
+          "difference": "0.000016914679261570420010230009211227297782897949218750",
+          "pressure_first": "178166.70454359698413647195511592388197668884481635477683292057981540380639481366",
+          "pressure_mean": "178166.56922616288201075199438766057091587680675389059917458331279655066645313575",
+          "bottom_minus_first_pressure_rule": "-1.195295336968518171508398890448684900922550998367489171818602168E-15"
+        }
+      ],
+      "gap": "0.000067658717046281680040920036844909191131591796875000",
+      "cumulative_gap": "0.000157820679300479937978707312140613794326782226562500"
+    }
+  ],
+  "minimal_metadata_bytes_per_face_record": 8,
+  "minimal_metadata_bytes_for_4_faces_50_records": 1600,
+  "quadrature_weights": {
+    "Euler": [
+      "1"
+    ],
+    "SSPRK2": [
+      "1/2",
+      "1/2"
+    ],
+    "SSPRK3": [
+      "1/6",
+      "1/6",
+      "2/3"
+    ]
+  },
+  "reviewed_revision": {
+    "path": "/workspace/scratch/98b6339ec81b/pr14_fast4_wet_mechanics_review_20261014/REVIEWED_DESIGN_REVISION.md",
+    "sha256": "bd09f39d84c34e7119e45b0d0fd16be72e896bf642ecb963ca9684e3d0825016",
+    "review_scope": "Sections 5 to 7: one unscaled EOS-pressure-time scalar, original CPU geometry/shear/energy preserved"
+  }
+}
