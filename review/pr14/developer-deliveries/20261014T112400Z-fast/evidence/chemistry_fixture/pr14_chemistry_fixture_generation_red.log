@@ -1,0 +1,40 @@
+FFF                                                                      [100%]
+=================================== FAILURES ===================================
+_________ test_fixture_separates_canonical_host_owner_and_device_view __________
+
+generated_fixture = (PosixPath('/tmp/pytest-of-agent/pytest-0/chemistry-trial-generated0'), '// Actual native CUDA owner, kernels, storage...uts("PASS real CUDA chemistry Trial routing, owner retry, terminal completion and unavailable-resource controls");}\n')
+
+    def test_fixture_separates_canonical_host_owner_and_device_view(generated_fixture):
+        _, source = generated_fixture
+>       assert 'new DeviceState' in source
+E       assert 'new DeviceState' in '// Actual native CUDA owner, kernels, storage, rollback and validation policy.\n// Host code only supplies inputs, ob...puts("PASS real CUDA chemistry Trial routing, owner retry, terminal completion and unavailable-resource controls");}\n'
+
+tests/test_chemistry_trial_cuda_fixture.py:30: AssertionError
+______ test_fixture_uses_real_courant_owner_and_committed_duration_replay ______
+
+generated_fixture = (PosixPath('/tmp/pytest-of-agent/pytest-0/chemistry-trial-generated0'), '// Actual native CUDA owner, kernels, storage...uts("PASS real CUDA chemistry Trial routing, owner retry, terminal completion and unavailable-resource controls");}\n')
+
+    def test_fixture_uses_real_courant_owner_and_committed_duration_replay(generated_fixture):
+        _, source = generated_fixture
+>       assert 'ugkwpGpuResidentStrictComputeGasCourant(s,dt,.5,time,&co)' in source
+E       assert 'ugkwpGpuResidentStrictComputeGasCourant(s,dt,.5,time,&co)' in '// Actual native CUDA owner, kernels, storage, rollback and validation policy.\n// Host code only supplies inputs, ob...puts("PASS real CUDA chemistry Trial routing, owner retry, terminal completion and unavailable-resource controls");}\n'
+
+tests/test_chemistry_trial_cuda_fixture.py:41: AssertionError
+________ test_fixture_compares_all_semantic_audits_statuses_and_budgets ________
+
+generated_fixture = (PosixPath('/tmp/pytest-of-agent/pytest-0/chemistry-trial-generated0'), '// Actual native CUDA owner, kernels, storage...uts("PASS real CUDA chemistry Trial routing, owner retry, terminal completion and unavailable-resource controls");}\n')
+
+    def test_fixture_compares_all_semantic_audits_statuses_and_budgets(generated_fixture):
+        _, source = generated_fixture
+        for field in ('speciesMassChange', 'massResidual', 'maximumElementResidual',
+                      'energyResidual', 'maximumLocalError', 'integratedTime',
+                      'acceptedSteps', 'rejectedSteps', 'nonlinearIterations'):
+>           assert f'x.{field}' in source and f'y.{field}' in source
+E           assert ('x.speciesMassChange' in '// Actual native CUDA owner, kernels, storage, rollback and validation policy.\n// Host code only supplies inputs, ob...puts("PASS real CUDA chemistry Trial routing, owner retry, terminal completion and unavailable-resource controls");}\n')
+
+tests/test_chemistry_trial_cuda_fixture.py:55: AssertionError
+=========================== short test summary info ============================
+FAILED tests/test_chemistry_trial_cuda_fixture.py::test_fixture_separates_canonical_host_owner_and_device_view
+FAILED tests/test_chemistry_trial_cuda_fixture.py::test_fixture_uses_real_courant_owner_and_committed_duration_replay
+FAILED tests/test_chemistry_trial_cuda_fixture.py::test_fixture_compares_all_semantic_audits_statuses_and_budgets
+3 failed, 2 deselected in 0.10s

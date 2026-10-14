@@ -1,0 +1,174 @@
+{
+  "kind": "SOURCE_COVERAGE_PRESERVATION_ONLY",
+  "gpu_runtime_executed": false,
+  "baseline_commit": "f5e6c5e2cbde2693f5fa811d874c200b07bbbc66",
+  "failure_config_prefix_byte_identical": true,
+  "failure_config_sha256": "0b44f19a8ad28801b30a424c4a81c3d5a78adce2b75a129b138d7fca610f6843",
+  "preserved_original_controls": [
+    "g.chemistryControls.initialStep=g.chemistryControls.maximumStep=1e-6;",
+    "g.chemistryControls.maximumSteps=1;",
+    "s->gasTimeIntegrator=s->hostGasTimeIntegrator=1;",
+    "s->gasFluxScheme=s->hostGasFluxScheme=1;s->gasReconstruction=s->hostGasReconstruction=0;",
+    "s->V[c]=.001;s->Cx[c]=c;s->cellLength[c]=1;",
+    "s->rho[c]=28;s->Tgas[c]=700;s->p[c]=28*s->Rgas*700;",
+    "reaction[0].reactantCount=reaction[0].productCount=1;reaction[0].highRate.preExponential=2;"
+  ],
+  "failure_matrix": [
+    {
+      "kind": 0,
+      "combination": "original maximumSteps=1 native StepLimit",
+      "interval": 2e-06,
+      "maximumSteps": 1,
+      "maximumRejectedSteps": 0
+    },
+    {
+      "kind": 1,
+      "combination": "missing thermo species backing",
+      "interval": 2e-06,
+      "maximumSteps": 1,
+      "maximumRejectedSteps": 0
+    },
+    {
+      "kind": 2,
+      "combination": "missing thermo coefficient backing",
+      "interval": 2e-06,
+      "maximumSteps": 1,
+      "maximumRejectedSteps": 0
+    },
+    {
+      "kind": 3,
+      "combination": "missing stoichiometric basis backing",
+      "interval": 2e-06,
+      "maximumSteps": 1,
+      "maximumRejectedSteps": 0
+    },
+    {
+      "kind": 4,
+      "combination": "missing reaction backing",
+      "interval": 2e-06,
+      "maximumSteps": 1,
+      "maximumRejectedSteps": 0
+    },
+    {
+      "kind": 5,
+      "combination": "missing reactant backing",
+      "interval": 2e-06,
+      "maximumSteps": 1,
+      "maximumRejectedSteps": 0
+    },
+    {
+      "kind": 6,
+      "combination": "missing product backing",
+      "interval": 2e-06,
+      "maximumSteps": 1,
+      "maximumRejectedSteps": 0
+    },
+    {
+      "kind": 7,
+      "combination": "coefficientCount=1 with complete supplied backing",
+      "interval": 2e-06,
+      "maximumSteps": 1,
+      "maximumRejectedSteps": 0
+    },
+    {
+      "kind": 8,
+      "combination": "zero stoichiometric basis metadata",
+      "interval": 2e-06,
+      "maximumSteps": 1,
+      "maximumRejectedSteps": 0
+    },
+    {
+      "kind": 9,
+      "combination": "non-finite reaction rate",
+      "interval": 2e-06,
+      "maximumSteps": 1,
+      "maximumRejectedSteps": 0
+    },
+    {
+      "kind": 10,
+      "combination": "missing reactants with maximumRejectedSteps=100 and unchanged maximumSteps=1",
+      "interval": 2e-06,
+      "maximumSteps": 1,
+      "maximumRejectedSteps": 100
+    },
+    {
+      "kind": 11,
+      "combination": "ThirdBody efficiencyCount=1 with missing efficiency backing",
+      "interval": 2e-06,
+      "maximumSteps": 1,
+      "maximumRejectedSteps": 0
+    },
+    {
+      "kind": 12,
+      "combination": "invalid thermo species model enum",
+      "interval": 2e-06,
+      "maximumSteps": 1,
+      "maximumRejectedSteps": 0
+    },
+    {
+      "kind": 13,
+      "combination": "maximumNewtonIterations=0",
+      "interval": 2e-06,
+      "maximumSteps": 1,
+      "maximumRejectedSteps": 0
+    },
+    {
+      "kind": 14,
+      "combination": "missing consumed volume",
+      "interval": 2e-06,
+      "maximumSteps": 1,
+      "maximumRejectedSteps": 0
+    },
+    {
+      "kind": 15,
+      "combination": "coefficientCount=1 plus missing basis at interval=0",
+      "interval": 0.0,
+      "maximumSteps": 1,
+      "maximumRejectedSteps": 0
+    }
+  ],
+  "cuda_comparison_coverage": {
+    "cell_and_face_state": "all SharedGasTrialPolicy transaction fields; no removed comparisons",
+    "chemistry_audit": [
+      "speciesMassChange[0:2]",
+      "massResidual",
+      "maximumElementResidual",
+      "energyResidual",
+      "maximumLocalError",
+      "integratedTime",
+      "acceptedSteps",
+      "rejectedSteps",
+      "nonlinearIterations"
+    ],
+    "chemistry_status": [
+      "code",
+      "thermoCode",
+      "reaction",
+      "attemptedSteps",
+      "rejectedSteps",
+      "nonlinearIterations"
+    ],
+    "status_arrays": [
+      "cellStatus[0:2]",
+      "faceStatus[0:3]"
+    ],
+    "budget_device": [
+      "transport: nCells*(Ns+2)",
+      "initialTransport: nCells*(Ns+2)",
+      "chemistrySpecies: nCells*Ns"
+    ],
+    "budget_host": "request/accept timestamps, complete origin and cumulative source vectors, species/element counts, volumes and element factors",
+    "budget_records": "every serialized field including inventories/residuals/sources/times/counters except measured audit_host_seconds",
+    "comparisons": "double semantic members and arrays are byte-exact; integer status fields equal; long-double host vectors compare semantic values, not padding"
+  },
+  "owner_controls": [
+    "4e-6 actual Co preparation at targetMaxCo=0.5 and time=2; replay only committed durations and assert exact endpoint",
+    "maximumAttempts=1: complete public terminal 4e-6 control",
+    "1e-6 actual Co preparation: full owner success versus full public stage",
+    "1e-6 direct native/public chemistry kernel success retained"
+  ],
+  "limitations": [
+    "Generation checks do not establish numerical equivalence or GPU execution.",
+    "No CUDA runtime, WSL rerun or sanitizer execution is available in this environment."
+  ]
+}
