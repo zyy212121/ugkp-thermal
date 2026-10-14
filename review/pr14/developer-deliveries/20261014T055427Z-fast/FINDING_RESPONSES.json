@@ -1,0 +1,30 @@
+{
+  "identity": "PR14_REVIEW_ONLY",
+  "interaction_class": "FAST",
+  "source_commit": "4b5c480b572f234ddecf5e89164fe59b0d2e9735",
+  "findings": {
+    "GPU-F001": {
+      "formal_source_fix": true,
+      "recheck": "native requested-interval owner, Trial/public, resource diagnosis, Ns2/Ns10"
+    },
+    "GPU-F002": {
+      "formal_source_fix": true,
+      "recheck": "mixed faces, cold1D/2D, reconfigure/copy error, FSH"
+    },
+    "GPU-F004": {
+      "formal_source_fix": true,
+      "recheck": "initial carry, wet100, restart, paired ledger"
+    },
+    "GPU-F005": {
+      "formal_source_fix": true,
+      "recheck": "initcheck, original thermal output parity, allocation reuse"
+    },
+    "GPU-F003": {
+      "formal_source_fix": false,
+      "decision": "Retain compensated clock, approved by user",
+      "recheck": "actual GPU first divergence trace; hypothesis supported but not closed"
+    }
+  },
+  "gpu_recheck_status": "NOT_RUN",
+  "prior_results_preserved": true
+}
