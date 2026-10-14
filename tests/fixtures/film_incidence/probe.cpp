@@ -14,16 +14,6 @@ void operator delete(void* p,std::size_t) noexcept { std::free(p); }
 void qout(const FilmQ& q){std::cout<<q.mass<<' '<<q.enthalpy;for(double x:q.species)std::cout<<' '<<x;std::cout<<'\n';}
 void vout(const Vec3& v){std::cout<<v.x<<' '<<v.y<<' '<<v.z<<'\n';}
 void aout(const FilmAux& a){std::cout<<a.pressure<<' '<<a.thickness<<' '<<a.temperature<<' '<<a.area<<' '<<a.kineticEnergy<<' '<<a.normalVelocity<<' '<<a.solidNormalVelocity<<' '<<a.solidFront<<' '<<a.gasFront<<'\n';vout(a.baseVelocity);vout(a.meanVelocity);vout(a.topVelocity);vout(a.normal);}
-void bout(const FilmRateBudget& b){std::cout<<b.bodyPower<<' '<<b.supportPower<<' '<<b.prescribedTopPower<<' '<<b.radiationPower<<' '<<b.edgeEnergyOutflow<<' '<<b.edgeKineticOutflow<<' '<<b.interfaceKineticOutflow<<' '<<b.dissipationPower<<'\n';}
-void budgetout(const Budget& b){
- std::cout<<b.boundaryMass<<' '<<b.boundaryEnergy<<' '<<b.supportWork<<' '<<b.bodyWork<<' '<<b.radiation<<' '<<b.gclResidual<<' '
- <<b.filmPressureVolume<<' '<<b.filmKineticAdvection<<' '<<b.filmKineticStorage<<' '<<b.filmReducedResidual<<' '<<b.filmKineticDefect<<' '
- <<b.thinLayerGeometryDefect<<' '<<b.thinLayerStressDefect<<' '<<b.numericalEnergyResidual<<' '<<b.turbulenceOmegaConstraint<<' '
- <<b.turbulenceInventory<<' '<<b.turbulenceProduction<<' '<<b.turbulenceDissipation<<' '<<b.turbulenceBoundaryFlux<<' '<<b.consumedPackets<<'\n';
- for(auto x:b.boundarySpecies)std::cout<<x<<' ';for(auto x:b.boundaryElements)std::cout<<x<<' ';std::cout<<'\n';
- vout(b.boundaryMomentum);vout(b.supportImpulse);
- for(int k=0;k<NParticipants;++k){std::cout<<b.exchangeMass[k]<<' '<<b.exchangeEnergy[k]<<' ';for(auto x:b.exchangeSpecies[k])std::cout<<x<<' ';std::cout<<'\n';vout(b.exchangeMomentum[k]);}
-}
 void specialWitnesses() {
  auto p=physics();p.spatialOrder=2;p.reconstruction=ReconstructionMode::LimitedLinear;p.liquid.e0=0;
  auto h=state(p,3,1,Vec3{.2,0,0});
@@ -39,7 +29,8 @@ void specialWitnesses() {
  require(acceptedTrial==1,"limited reconstruction retains successful second trial");qout(reconstructed);
  for(int f=0;f<3;++f)d[f].endpointPressure=100000+500*f*(f+1);
  CpuFilmCandidate c;require(advanceCpuFilmCandidate(h,p,.01,std::vector<CpuFilmForcing>(3),d,c,error),error);
- require(near(c.report.edgeFlux[1].mass,67.0/380)&&near(c.report.edgeFlux[1].enthalpy,50000),"limited retry actual edge flux");
+ std::vector<FilmQ> edgeRates;require(evaluateCpuFilmTransport(h,p,.01,d,edgeRates,error),error);
+ require(near(edgeRates[2].mass,67.0/380)&&near((-edgeRates[2].enthalpy),-50000),"limited retry actual receiving-cell edge flux");
  const Real endpointGradient[]={1000,1500,2000};
  for(int f=0;f<3;++f){const Real thickness=c.film[f].mass/1000;
   const auto profile=filmProfile(thickness,p.liquidViscosity,Vec3{.2,0,0},{},Vec3{endpointGradient[f],0,0});
@@ -81,20 +72,29 @@ for(int ny:{8,16,32,64})for(int order:{1,2})for(int mode:{0,1})for(int sign:{-1,
  auto p=physics();p.spatialOrder=order;p.reconstruction=static_cast<ReconstructionMode>(mode);p.liquid.conductivity=10;
  auto h=state(p,3,ny,tangentX*(sign*.1)+tangentY*.03);auto d=drive(h);
  for(size_t f=0;f<d.size();++f){d[f].pressure+=f*3;d[f].endpointPressure=100500+f*f*.25;}
- std::vector<FilmQ> rhs;std::vector<FilmRateBudget> budgets;std::vector<FilmAux> aux;std::vector<Vec3> gradients;std::vector<Real> side;std::string error;
+ std::vector<FilmQ> rhs;std::vector<FilmAux> aux;std::vector<Vec3> gradients;std::vector<Real> side;std::string error;
  gradientVisits=limiterVisits=buildEdgeVisits=buildEntries=buildFaces=0;const auto ac=allocations,bc=allocatedBytes;
- const bool ok=evaluateCpuFilmTransport(h,p,.001,d,rhs,budgets,error,&aux,&gradients,&side);
+ const bool ok=evaluateCpuFilmTransport(h,p,.001,d,rhs,error,&aux,&gradients,&side);
  const auto allocated=allocations-ac,bytes=allocatedBytes-bc;require(ok,error);
  if(order==2&&mode==0&&sign==1)std::cerr<<"COUNT "<<h.film.size()<<' '<<h.surface.edgeOwner.size()<<' '<<gradientVisits<<' '<<limiterVisits<<' '<<allocated<<' '<<bytes<<'\n';
  if(order==2&&mode==0&&sign==1)std::cerr<<"BUILD "<<h.film.size()<<' '<<h.surface.edgeOwner.size()<<' '<<buildEdgeVisits<<' '<<buildEntries<<' '<<buildFaces<<'\n';
- for(auto q:rhs)qout(q);for(auto g:gradients)vout(g);for(auto x:side)std::cout<<x<<'\n';for(auto a:aux)aout(a);for(auto b:budgets)bout(b);
+ for(auto q:rhs)qout(q);for(auto g:gradients)vout(g);for(auto x:side)std::cout<<x<<'\n';for(auto a:aux)aout(a);
  std::vector<CpuFilmForcing> forcing(h.film.size());Real dt=0;require(estimateCpuFilmStep(h,p,forcing,d,.001,.001,dt,error),error);std::cout<<dt<<'\n';
  CpuFilmCandidate c;profileCalls=0;const auto advanceAc=allocations,advanceBc=allocatedBytes;
  const bool advanced=advanceCpuFilmCandidate(h,p,.001,forcing,d,c,error);
  const auto advanceAllocations=allocations-advanceAc,advanceBytes=allocatedBytes-advanceBc;
  require(advanced,error);require(profileCalls==2,"initial and direct endpoint profile paths");
  if(order==2&&mode==0&&sign==1)std::cerr<<"ADVCOUNT "<<h.film.size()<<' '<<advanceAllocations<<' '<<advanceBytes<<'\n';
- for(auto q:c.film)qout(q);for(auto q:c.report.edgeFlux)qout(q);for(auto a:c.filmAux)aout(a);for(auto b:c.report.rateBudget)bout(b);budgetout(c.report.budgetDelta);std::cout<<c.report.phaseEvent<<'\n';
- std::cout<<c.report.internalEnergyBefore<<' '<<c.report.internalEnergyAfter<<' '<<c.report.reducedEnergyResidual<<' '<<c.report.kineticDefect<<' '<<c.report.numericalMassRoundoff<<'\n';
+ for(auto q:c.film)qout(q);for(auto a:c.filmAux)aout(a);
+ // Test-only actual inventories, independent of deleted runtime reports.
+ Real beforeU=0,afterU=0,deltaPV=0,beforeK=0,afterK=0;
+ for(std::size_t f=0;f<h.film.size();++f){
+  const Real oldPV=h.filmAux[f].pressure*h.film[f].mass/p.liquid.rho;
+  const Real newPV=c.filmAux[f].pressure*c.film[f].mass/p.liquid.rho;
+  beforeU+=h.film[f].enthalpy-oldPV;afterU+=c.film[f].enthalpy-newPV;
+  deltaPV+=newPV-oldPV;beforeK+=h.filmAux[f].kineticEnergy;afterK+=c.filmAux[f].kineticEnergy;
+ }
+ std::cout<<beforeU<<' '<<afterU<<' '<<deltaPV<<' '<<beforeK<<' '<<afterK<<'\n';
+
 }
 specialWitnesses();return 0;}
