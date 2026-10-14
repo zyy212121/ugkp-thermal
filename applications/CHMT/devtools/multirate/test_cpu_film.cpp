@@ -3,6 +3,7 @@
 #include <cmath>
 #include <cstdlib>
 #include <iostream>
+#include <iomanip>
 #include <string>
 using namespace chmt;
 namespace {
@@ -50,7 +51,7 @@ CpuFilmCandidate advance(const HostState& h,const PhysicsConfig& p,Real dt) {
     CpuFilmCandidate c;std::string error;
     require(advanceCpuFilmCandidate(h,p,dt,std::vector<CpuFilmForcing>(h.film.size()),drive(h),c,error),"advance: "+error);return c;
 }
-Real energy(const HostState& h,const PhysicsConfig& p) {Real sum=0;for(std::size_t i=0;i<h.film.size();++i)sum+=filmInternalEnergy(h.film[i],h.filmAux[i].pressure,p);return sum;}
+template<class State> Real energy(const State& h,const PhysicsConfig& p) {Real sum=0;for(std::size_t i=0;i<h.film.size();++i)sum+=h.film[i].enthalpy-h.filmAux[i].pressure*h.film[i].mass/p.liquid.rho;return sum;}
 void transportBothTangents() {
     const auto p=physics();const Real dt=.02;
     for(int axis=0;axis<3;++axis) {
@@ -70,8 +71,8 @@ void transportBothTangents() {
         }
         require(near(mass0,mass1),"closed mass conservation");
         for(int s=0;s<Ns;++s)require(near(species0[s],species1[s]),"closed species conservation");
-        require(near(c.report.internalEnergyAfter,energy(h,p)),"closed physical energy conservation");
-        require(std::abs(c.report.reducedEnergyResidual)<1e-7,"reduced energy residual");
+        require(near(energy(c,p),energy(h,p)),"closed physical energy conservation");
+        require(std::abs(energy(c,p)-energy(h,p))<1e-7,"independent closed physical energy difference");
     }
 }
 void pressureStorage() {
@@ -80,8 +81,8 @@ void pressureStorage() {
     require(advanceCpuFilmCandidate(h,p,.1,std::vector<CpuFilmForcing>(1),d,c,error),"pressure update: "+error);
     require(near(c.film[0].enthalpy-h.film[0].enthalpy,200),"endpoint pV exactly once");
     require(near(c.filmAux[0].temperature,h.filmAux[0].temperature),"pressure change preserves temperature");
-    require(near(c.report.internalEnergyAfter,c.report.internalEnergyBefore),"pressure change preserves physical U");
-    require(near(c.report.budgetDelta.filmPressureVolume,200),"PV storage audit");
+    require(near(energy(c,p),energy(h,p)),"pressure change preserves physical U");
+    require(near((c.filmAux[0].pressure*c.film[0].mass-h.filmAux[0].pressure*h.film[0].mass)/p.liquid.rho,200),"actual endpoint pressure-volume storage");
 }
 void donorRollback() {
     auto p=physics();auto h=state(p,3,3,tangentX*.75+tangentY*.75);
@@ -96,21 +97,21 @@ void conservativeConduction() {
     auto p=physics();p.liquid.conductivity=200;auto h=state(p,3,3,{});auto c=advance(h,p,.02);
     require(c.filmAux[0].temperature>h.filmAux[0].temperature,"tangential conduction heats cold face");
     require(c.filmAux[8].temperature<h.filmAux[8].temperature,"tangential conduction cools hot face");
-    require(near(c.report.internalEnergyAfter,energy(h,p)),"conduction is antisymmetric");
+    require(near(energy(c,p),energy(h,p)),"conduction is antisymmetric");
     for(std::size_t f=0;f<h.film.size();++f)require(c.film[f].mass==h.film[f].mass,"conduction does not change mass");
 }
 void surfaceRhsOwnership() {
     auto p=physics();p.nElements=1;for(int species=0;species<Ns;++species)p.species[species].element[0]=1;auto h=state(p,1,1,tangentX*.2);h.surface.gasFace[0]=0;
     auto d=drive(h);d[0].shear=tangentX*10;d[0].hasCoupledNormalTrace=true;
     d[0].interfaceNormalVelocity=.01;d[0].solidNormalVelocity=-.02;
-    std::vector<FilmQ> rates;std::vector<FilmRateBudget> budgets;std::string error;
+    std::vector<FilmQ> rates;std::string error;
     std::vector<FilmAux> aux;std::vector<Vec3> gradients;std::vector<Real> sideVolume;
-    const bool ok=evaluateCpuFilmTransport(h,p,.1,d,rates,budgets,error,&aux,&gradients,&sideVolume);
+    const bool ok=evaluateCpuFilmTransport(h,p,.1,d,rates,error,&aux,&gradients,&sideVolume);
     require(ok,"interface-owner RHS: "+error);
     require(aux.size()==1&&gradients.size()==1&&sideVolume.size()==1,"RHS refreshes all optional profile outputs");
     require(near(dot(aux[0].topVelocity,tangentX),.21),"refreshed profile uses actual recorded shear");
     require(rates[0].enthalpy==0,"RHS excludes top/bottom owned interface work");
-    require(budgets[0].supportPower==0&&budgets[0].prescribedTopPower==0,"RHS ownership audit");
+    require(rates[0].mass==0,"interface-owner transport excludes integrated mass sources");
 }
 void forcingAndKineticSeparation() {
     auto p=physics();auto h=state(p,1,1,{});h.surface.gasFace[0]=0;auto d=drive(h);
@@ -120,23 +121,38 @@ void forcingAndKineticSeparation() {
     f[0].interfaceKineticOutflow=3;f[0].topWorkIncluded=f[0].bottomWorkIncluded=true;
     CpuFilmCandidate c;std::string error;const bool ok=advanceCpuFilmCandidate(h,p,.1,f,d,c,error);
     require(ok,"owned source: "+error);
-    require(near(c.report.internalEnergyAfter-c.report.internalEnergyBefore,41),"physical source, radiation and kinetic advection added once");
-    require(c.report.budgetDelta.supportWork==0,"no duplicated top or bottom work");
-    require(near(c.report.budgetDelta.radiation,7),"radiation added once");
-    require(near(c.report.budgetDelta.exchangeEnergy[FilmParticipant],31),"kinetic advection excluded from physical exchange");
-    require(near(c.report.kineticDefect,c.filmAux[0].kineticEnergy-h.filmAux[0].kineticEnergy+3),"kinetic defect separate from heating");
+    require(near(energy(c,p)-energy(h,p),41),"physical source, radiation and kinetic advection added once");
+    require(near(energy(c,p)-energy(h,p)-f[0].radiationEnergy-f[0].interfaceKineticOutflow,f[0].energy),"physical source remains distinct from radiation and kinetic channel");
+    require(c.film[0].mass==h.film[0].mass,"energy forcing does not create film mass");
     d[0].hasCoupledNormalTrace=false;
     require(!advanceCpuFilmCandidate(h,p,.1,f,d,c,error),"missing actual coupled trace refused");
 }
-void undeclaredInflowAndOutflow() {
+void signedOpenEdgeInflowAndOutflow() {
     auto p=physics();p.nElements=1;for(int species=0;species<Ns;++species)p.species[species].element[0]=1;auto h=state(p,1,1,tangentX*.2);
     h.surface.edgeOwner={0};h.surface.edgeNeighbour={-1};h.surface.edgeLength={1};
     h.surface.edgeConormal={tangentX};h.surface.edgeOwnerOffset={tangentX*.5};h.surface.edgeNeighbourOffset={Vec3{}};
     auto c=advance(h,p,.1);require(near(c.film[0].mass,.98),"open edge outflow transports actual mass");
-    require(near(c.report.budgetDelta.boundaryMass,.02),"outflow mass budget");require(near(c.report.budgetDelta.boundaryElements[0],.02),"open film outflow elemental budget");
+    require(near(h.film[0].mass-c.film[0].mass,.02),"actual outflow mass loss");
+    Real elementalOut=0;for(int species=0;species<Ns;++species)elementalOut+=(h.film[0].species[species]-c.film[0].species[species])*p.species[species].element[0];
+    require(near(elementalOut,.02),"outflow actual elemental loss");
     h.surface.baseVelocity[0]=-tangentX*.2;std::string error;
-    require(!advanceCpuFilmCandidate(h,p,.1,std::vector<CpuFilmForcing>(1),drive(h),c,error),"undeclared edge inflow refused");
-    require(error.find("inflow")!=std::string::npos,"inflow policy diagnostic");
+    require(advanceCpuFilmCandidate(h,p,.1,std::vector<CpuFilmForcing>(1),drive(h),c,error),"signed owner-extrapolated inflow: "+error);
+    require(near(c.film[0].mass,1.02),"signed inflow adds owner-extrapolated mass");
+    require(near(c.film[0].enthalpy,1.02*h.film[0].enthalpy),"signed inflow thermal inventory follows owner enthalpy");
+    std::vector<FilmQ> rates;
+    require(evaluateCpuFilmTransport(h,p,.1,drive(h),rates,error),"observe actual inflow transport RHS: "+error);
+    require(rates[0].mass>0&&near(rates[0].mass,.2),"signed negative outward flux gives positive mass RHS");
+    Real elementalIn=0;
+    for(int species=0;species<Ns;++species){
+        require(near(c.film[0].species[species],1.02*h.film[0].species[species]),"signed inflow species inventory");
+        require(near(c.film[0].species[species]-h.film[0].species[species],.1*rates[0].species[species]),"species RHS and actual inventory close");
+        elementalIn+=(c.film[0].species[species]-h.film[0].species[species])*p.species[species].element[0];
+    }
+    require(near(elementalIn,.02),"signed inflow actual elemental gain");
+    require(near((-rates[0].enthalpy),-.2*h.film[0].enthalpy),"actual RHS edge energy matches independent owner enthalpy flux");
+    // Standalone surface pV work is -p*dV/dt. It is suppressed in the interface-owner transport helper.
+    const Real pressureWork=-h.filmAux[0].pressure*rates[0].mass/p.liquid.rho;
+    require(near(energy(c,p)-energy(h,p)+.1*(-rates[0].enthalpy),.1*pressureWork),"signed inflow physical energy plus pressure work closes");
 }
 void radiationAndSourceLimits() {
     auto p=physics();auto h=state(p,1,1,{});auto d=drive(h);std::vector<CpuFilmForcing> f(1);std::string error;
@@ -144,8 +160,8 @@ void radiationAndSourceLimits() {
     p.enableRadiation=true;p.emissivity=1;p.ambientTemperature=100;
     require(estimateCpuFilmStep(h,p,f,d,1000,1000,dt1,error),"radiation step");
     require(dt1<dt0,"radiation local restriction");
-    auto c=advance(h,p,.1);require(c.report.internalEnergyAfter<c.report.internalEnergyBefore,"gray radiation cools film");
-    require(near(c.report.internalEnergyAfter-c.report.internalEnergyBefore,c.report.budgetDelta.radiation),"radiation budget closes");
+    auto c=advance(h,p,.1);require(energy(c,p)<energy(h,p),"gray radiation cools film");
+    require(near(energy(c,p)-energy(h,p),.1*h.surface.area[0]*5.670374419e-8*p.emissivity*(std::pow(p.ambientTemperature,4)-std::pow(h.filmAux[0].temperature,4))),"independent Stefan-Boltzmann energy closes");
     p.enableRadiation=false;f[0].energy=1e9;
     require(estimateCpuFilmStep(h,p,f,d,1,1,dt1,error)&&dt1<.01,"source temperature limit");
     f[0]=CpuFilmForcing{};f[0].withdrawnMass=1.1;f[0].withdrawnSpecies[0]=.22;f[0].withdrawnSpecies[1]=.88;
@@ -156,7 +172,7 @@ void secondOrderAndPeriodicOffsets() {
     auto c=advance(h,p,.02);Real mass=0,expected=0;
     for(std::size_t f=0;f<h.film.size();++f){mass+=c.film[f].mass;expected+=h.film[f].mass;}
     require(near(mass,expected),"limited-linear mass conservation");
-    require(near(c.report.internalEnergyAfter,energy(h,p)),"limited-linear energy conservation");
+    require(near(energy(c,p),energy(h,p)),"limited-linear energy conservation");
     // Centres are intentionally wrong: periodic image offsets, not wrapped centre differences, own the stencil.
     for(auto& centre:h.surface.centre)centre={999,999,999};
     auto other=advance(h,p,.02);
@@ -180,7 +196,7 @@ void exactDryoutRemainder() {
     require(ok,"exact physical dryout remainder: "+error);
     require(c.film[0].mass==0&&c.film[0].enthalpy==0,"dryout exactly empties H and species without clipping");
     for(int s=0;s<Ns;++s)require(c.film[0].species[s]==0,"exact dryout species");
-    require(c.report.phaseEvent,"dryout reports phase event");
+    require(h.film[0].mass>0&&c.film[0].mass==0,"actual wet-to-dry phase transition");
 }
 void exactGasDryout(){auto p=physics();auto h=state(p,1,1,{});h.surface.gasFace[0]=0;auto d=drive(h);d[0].hasCoupledNormalTrace=true;
     std::vector<CpuFilmForcing> f(1);f[0].mass=-h.film[0].mass;for(int species=0;species<Ns;++species)f[0].species[species]=-h.film[0].species[species];
@@ -190,8 +206,8 @@ void exactGasDryout(){auto p=physics();auto h=state(p,1,1,{});h.surface.gasFace[
 void edgeSweepVolumeRate() {
     const auto p=physics();auto h=state(p,3,3,tangentX*.2+tangentY*.15);
     h.surface.sweptEdgeArea.assign(h.surface.edgeOwner.size(),0);h.surface.sweptEdgeArea[0]=.01;
-    std::vector<FilmQ> rates;std::vector<FilmRateBudget> budgets;std::vector<Real> side;std::string error;
-    require(evaluateCpuFilmTransport(h,p,.1,drive(h),rates,budgets,error,nullptr,nullptr,&side),"swept-edge RHS");
+    std::vector<FilmQ> rates;std::vector<Real> side;std::string error;
+    require(evaluateCpuFilmTransport(h,p,.1,drive(h),rates,error,nullptr,nullptr,&side),"swept-edge RHS");
     require(near(side[0],.0001)&&near(side[1],-.0001),"actual swept edge volume antisymmetric");
 }
 void bodySupportTopWorkOnce() {
@@ -202,9 +218,9 @@ void bodySupportTopWorkOnce() {
     const Real support=-dot(profile.bottomShear,h.surface.baseVelocity[0]);
     const Real top=dot(tangentX*10,profile.topVelocity);
     const auto c=advance(h,p,.1);
-    require(near(c.report.budgetDelta.bodyWork,.1*body),"body power once");
-    require(near(c.report.budgetDelta.supportWork,.1*(support+top)),"top and support power once");
-    require(near(c.report.internalEnergyAfter-c.report.internalEnergyBefore,.1*(body+support+top),2e-10),"mechanical input is not doubled by dissipation or kinetic defect");
+    require(mag(c.filmAux[0].meanVelocity-profile.meanVelocity)<1e-12,"actual endpoint mean velocity agrees with independent mechanical profile");
+    require(mag(c.filmAux[0].topVelocity-profile.topVelocity)<1e-12,"actual endpoint top velocity agrees with independent mechanical profile");
+    require(near(energy(c,p)-energy(h,p),.1*(body+support+top),2e-10),"mechanical input is not doubled by dissipation or kinetic defect");
 }
 void rejectsMalformedGrossWithdrawals() {
     auto p=physics();auto h=state(p,1,1,{});std::vector<CpuFilmForcing> f(1);
@@ -221,5 +237,39 @@ void localStep() {
     Real other=0;require(estimateCpuFilmStep(h,p,f,d,10,10,other,error),"gas-independent estimate");
     require(dt==other,"gas CFL/maxDt/diffusion absent from film step");
 }
+
+void twoUlpPressureOpenEdge() {
+    auto p=physics();p.liquid.cp0=1000;p.liquid.e0=100000;p.liquidViscosity=.01;p.liquidReferencePressure=171600;
+    HostState h;const Vec3 n{1,0,0},t{0,1,0};
+    const Real pressure0=178167.05269620317,pressure1=std::nextafter(std::nextafter(pressure0,0.0),0.0);
+    h.surface.area=h.surface.oldArea={.25,.25};h.surface.normal={n,n};h.surface.baseVelocity={{},{}};h.surface.gasFace={0,1};
+    h.surface.centre={{1,.25,.25},{1,.75,.25}};
+    h.surface.edgeOwner={0,0};h.surface.edgeNeighbour={-1,1};h.surface.edgeLength={.5,.5};
+    h.surface.edgeConormal={-t,t};h.surface.edgeOwnerOffset={t*-.25,t*.25};h.surface.edgeNeighbourOffset={{},t*-.25};h.surface.sweptEdgeArea={0,0};
+    h.film.resize(2);h.filmAux.resize(2);std::vector<CpuFilmDrive> d(2);std::vector<CpuFilmForcing> forcing(2);
+    for(int f=0;f<2;++f){const Real pressure=f?pressure1:pressure0;auto& q=h.film[f];q.mass=.0025;q.species[0]=q.mass*.2;q.species[1]=q.mass-q.species[0];q.enthalpy=q.mass*liquidH(p,350,pressure);h.filmAux[f].normal=n;require(recoverFilm(q,.25,pressure,p,h.filmAux[f]),"two-ulp fixture thermal inventory");d[f].pressure=d[f].endpointPressure=pressure;d[f].hasCoupledNormalTrace=true;forcing[f].topWorkIncluded=forcing[f].bottomWorkIncluded=true;}
+    const Real fullDt=1.2207031249998656e-7;
+    for(int halves:{0,30}){const Real requested=std::ldexp(fullDt,-halves);std::string error;std::vector<FilmQ> rates;std::vector<FilmAux> profiles;
+        require(detail::completeCpuFilmTransport(h,p,requested,d,rates,error,&profiles,nullptr,nullptr,nullptr),"two-ulp actual profile observation: "+error);
+        const Real signedLengthRate=h.surface.edgeLength[0]*dot(profiles[0].meanVelocity,h.surface.edgeConormal[0]);
+        require(std::isfinite(signedLengthRate)&&signedLengthRate<0,"two-ulp pressure difference produces strictly negative finite open-edge rate");
+        const bool ordinaryTransport=evaluateCpuFilmTransport(h,p,requested,d,rates,error);
+        require(ordinaryTransport,"two-ulp finite signed transport: "+error);
+        Real allowed=0;require(estimateCpuFilmStep(h,p,forcing,d,requested,requested,allowed,error),"two-ulp physical step estimate: "+error);require(allowed==requested,"two-ulp pressure variation does not shorten physically allowed dt");
+        CpuFilmCandidate c;require(advanceCpuFilmCandidate(h,p,requested,forcing,d,c,error),"two-ulp signed candidate: "+error);
+        Real massRhs=0;for(const auto& rate:rates)massRhs+=rate.mass;
+        const Real signedBoundaryMass=-(requested*massRhs);
+        require(signedBoundaryMass<0,"two-ulp negative outward boundary mass retained by actual RHS");
+        const Real independentFlux=p.liquid.rho*profiles[0].thickness*signedLengthRate;
+        require(near(-massRhs,independentFlux),"two-ulp boundary flux matches independently sampled profile");
+        Real deltaMass=0;for(int f=0;f<2;++f)deltaMass+=c.film[f].mass-h.film[f].mass;
+        require(near(deltaMass,-signedBoundaryMass),"two-ulp actual mass boundary closure");
+        for(int species=0;species<Ns;++species){Real delta=0,rhs=0;for(int f=0;f<2;++f){delta+=c.film[f].species[species]-h.film[f].species[species];rhs+=rates[f].species[species];}require(near(delta,requested*rhs),"two-ulp actual species boundary closure");}
+        Real energyRhs=0;for(const auto& rate:rates)energyRhs+=rate.enthalpy;
+        require(near(energy(c,p)-energy(h,p),requested*energyRhs),"two-ulp actual RHS and independent physical energy close");
+        std::cout<<std::setprecision(17)<<"two-ulp signed edge half="<<halves<<" rate="<<signedLengthRate<<" requested="<<requested<<" allowed="<<allowed<<'\n';
+    }
 }
-int main(){transportBothTangents();pressureStorage();donorRollback();localStep();conservativeConduction();surfaceRhsOwnership();forcingAndKineticSeparation();undeclaredInflowAndOutflow();radiationAndSourceLimits();secondOrderAndPeriodicOffsets();exactDryoutRemainder();exactGasDryout();edgeSweepVolumeRate();bodySupportTopWorkOnce();rejectsMalformedGrossWithdrawals();std::cout<<"CPU film tests passed\n";}
+
+}
+int main(){twoUlpPressureOpenEdge();transportBothTangents();pressureStorage();donorRollback();localStep();conservativeConduction();surfaceRhsOwnership();forcingAndKineticSeparation();signedOpenEdgeInflowAndOutflow();radiationAndSourceLimits();secondOrderAndPeriodicOffsets();exactDryoutRemainder();exactGasDryout();edgeSweepVolumeRate();bodySupportTopWorkOnce();rejectsMalformedGrossWithdrawals();std::cout<<"CPU film tests passed\n";}

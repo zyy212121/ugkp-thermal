@@ -42,7 +42,13 @@ int main(){auto p=config();HostMesh m;m.volumes.assign(4,.001);m.cellCentres={{0
  assert(materialSweepsCompatible(dense,surface,{0,0},{2*epsV,-2*epsV,0},tol));
  std::vector<SolidQ> donor(1);donor[0].condensed[0]=.3;donor[0].condensed[1]=.7;std::vector<ExchangePacket> withdrawals(3);
  for(auto& packet:withdrawals){packet.kind=ExchangeKind::GasSolid;packet.solidCell=0;packet.mass=.1;packet.condensed[0]=.1;packet.species[0]=.1;}
- std::vector<SolidQ> applied;Real correction=0;assert(applyMaterialPacketBatch(donor,withdrawals,applied,correction,error));assert(applied[0].condensed[0]==0&&correction>0&&correction<1e-15);
- withdrawals[2].condensed[0]=.11;withdrawals[2].mass=.11;withdrawals[2].species[0]=.11;assert(!applyMaterialPacketBatch(donor,withdrawals,applied,correction,error));
+ long double rawRemainder=donor[0].condensed[0];
+ for(const auto& packet:withdrawals)rawRemainder-=static_cast<long double>(packet.condensed[0]);
+ assert(rawRemainder<0&&-rawRemainder<1e-15L);
+ std::vector<SolidQ> applied;assert(applyMaterialPacketBatch(donor,withdrawals,applied,error));
+ const long double actualCorrection=static_cast<long double>(applied[0].condensed[0])-rawRemainder;
+ assert(applied[0].condensed[0]==0&&actualCorrection==-rawRemainder);
+ assert(applied[0].condensed[1]==donor[0].condensed[1]&&applied[0].energy==donor[0].energy);
+ withdrawals[2].condensed[0]=.11;withdrawals[2].mass=.11;withdrawals[2].species[0]=.11;assert(!applyMaterialPacketBatch(donor,withdrawals,applied,error));
  std::cout<<"CPU three-axis Darcy and reaction tests passed\n";
 }

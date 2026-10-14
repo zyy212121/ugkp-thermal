@@ -1,6 +1,5 @@
-#include "fvCFD.H"
 #include "mesh/Geometry.H"
-#include "materials/CpuMaterialDriver.H"
+#include "tests/NativeMaterialProbe.H"
 #include "materials/MaterialCaloric.H"
 #include <algorithm>
 #include <cassert>
@@ -41,7 +40,9 @@ int main(int argc,char** argv){
         forAll(mesh.C(),c){const auto x=mesh.C()[c];const chmt::Real T=400+100*x.x()+30*x.y()+80*x.z();auto& q=base.solid[c];q.condensed[0]=1000*mesh.V()[c];q.energy=q.condensed[0]*chmt::condensedE(p.condensed[0],T);before+=q.energy;}
         chmt::CpuMaterialDriver driver(model,&mesh);chmt::CpuMaterialControls controls;controls.maxSubstep=10000;
         chmt::HostState endpoint=base;endpoint.time=10000;chmt::HostState result;chmt::WallProgram wall;chmt::CpuMaterialReport report;std::string error;
+        chmt_test::resetMaterialObservations();
         if(!driver.advanceCandidate(base,endpoint,history(1),controls,result,wall,report,error)){std::cerr<<error<<'\n';return 1;}
+        chmt_test::physicalSnapshot(nonlinear?"native_nonlinear":"native_linear",result,wall);
         long double after=0;chmt::Real maxError=0;std::vector<chmt::Real> temperatures(result.solid.size());
         for(std::size_t c=0;c<result.solid.size();++c){chmt::MaterialPrimitive material;assert(chmt::recoverMaterial(result.solid[c],result.solidMesh.volumes[c],p,material));after+=result.solid[c].energy;
             temperatures[c]=material.temperature;assert(material.temperature>=452.5&&material.temperature<=557.5);
@@ -50,7 +51,7 @@ int main(int argc,char** argv){
                 // 2*alpha/dx^2 with insulated ends. Exact discrete BE amplitude.
                 const chmt::Real exact=505+(initial-505)/(1+2*.001*10000/(.5*.5));maxError=std::max(maxError,std::abs(material.temperature-exact));}}
         assert(std::abs(after-before)<1e-8L*std::abs(before));if(!nonlinear)assert(maxError<1e-7);
-        assert(report.linearSolves>0);assert(mesh.moving()==moving);assert(mesh.points()==original);
+        const auto solves=chmt_test::materialSolveCalls,rhsCalls=chmt_test::materialRhsCalls;assert(solves>0);assert(mesh.moving()==moving);assert(mesh.points()==original);
         assert(time.timeIndex()==timeIndex&&time.value()==timeValue);
         // Check every actual native result against the local nonlinear BE
         // equation, not just the global energy sum (which cannot detect a
@@ -64,8 +65,8 @@ int main(int argc,char** argv){
             assert(std::abs(residual)<1e-3L+1e-8L*scale);
         }
         chmt::HostState refined;chmt::WallProgram refinedWall;chmt::CpuMaterialReport refinedReport;
-        assert(driver.advanceCandidate(base,endpoint,history(100),controls,refined,refinedWall,refinedReport,error));
-        assert(refinedReport.materialSteps==report.materialSteps&&refinedReport.materialRhsEvaluations==report.materialRhsEvaluations&&refinedReport.linearSolves==report.linearSolves);
+        chmt_test::resetMaterialObservations();assert(driver.advanceCandidate(base,endpoint,history(100),controls,refined,refinedWall,refinedReport,error));
+        assert(refinedReport.materialSteps==report.materialSteps&&chmt_test::materialRhsCalls==rhsCalls&&chmt_test::materialSolveCalls==solves);
         for(std::size_t c=0;c<result.solid.size();++c)assert(refined.solid[c].energy==result.solid[c].energy);
         // A real sparse solve followed by deliberate nonlinear nonconvergence
         // must leave both caller-owned outputs and the accepted native mesh
@@ -74,14 +75,14 @@ int main(int argc,char** argv){
         chmt::HostState rejected;rejected.time=-123;rejected.solid.resize(1);rejected.solid[0].energy=17;rejected.solidSweepRemainder={123};
         chmt::WallProgram rejectedWall;rejectedWall.interval.identity.sequence=987;
         chmt::CpuMaterialReport rejectedReport;
-        assert(!driver.advanceCandidate(base,endpoint,history(1),rejectedControls,rejected,rejectedWall,rejectedReport,error));
-        assert(error=="OpenFOAM material caloric nonlinear iteration failed");assert(rejectedReport.linearSolves==1);
+        chmt_test::resetMaterialObservations();assert(!driver.advanceCandidate(base,endpoint,history(1),rejectedControls,rejected,rejectedWall,rejectedReport,error));
+        assert(error=="OpenFOAM material caloric nonlinear iteration failed");assert(chmt_test::materialSolveCalls==1);
         assert(rejected.time==-123&&rejected.solid.size()==1&&rejected.solid[0].energy==17);
         assert(rejected.solidSweepRemainder==std::vector<chmt::Real>{123});
         assert(rejectedWall.interval.identity.sequence==987&&rejectedWall.knots.empty());
         assert(mesh.points()==original&&mesh.moving()==moving&&time.timeIndex()==timeIndex&&time.value()==timeValue);
         forAll(mesh.C(),c)assert(std::abs(mesh.V()[c]-.125)<1e-12);
-        std::cout<<(nonlinear?"NATIVE_OF10 nonlinear caloric energy check":"NATIVE_OF10 exact three-axis discrete backward-Euler modal check")<<" passed; linear solves="<<report.linearSolves<<", material RHS="<<report.materialRhsEvaluations<<", max modal error="<<maxError<<'\n';
+        std::cout<<(nonlinear?"NATIVE_OF10 nonlinear caloric energy check":"NATIVE_OF10 exact three-axis discrete backward-Euler modal check")<<" passed; linear solves="<<solves<<", material RHS="<<rhsCalls<<", max modal error="<<maxError<<'\n';
     }
     {
         // Native coupled calorics component test: stationary condensed matter
@@ -106,7 +107,9 @@ int main(int argc,char** argv){
             q.energy=static_cast<chmt::Real>(q.condensed[0]*condensedEnergy(T)+q.pore[0]*poreEnergy(T));before+=q.energy;}
         chmt::CpuMaterialDriver driver(model,&mesh);chmt::CpuMaterialControls controls;controls.maxSubstep=10000;
         chmt::HostState endpoint=base;endpoint.time=10000;chmt::HostState result;chmt::WallProgram wall;chmt::CpuMaterialReport report;std::string error;
+        chmt_test::resetMaterialObservations();
         if(!driver.advanceCandidate(base,endpoint,history(1),controls,result,wall,report,error)){std::cerr<<"NASA7 pore conduction: "<<error<<'\n';return 1;}
+        chmt_test::physicalSnapshot("native_nasa7",result,wall);
         long double after=0,variation=0,maximumResidual=0;bool crossedBreakpoint=false;
         for(std::size_t c=0;c<result.solid.size();++c){chmt::MaterialPrimitive material;
             assert(chmt::recoverMaterial(result.solid[c],result.solidMesh.volumes[c],p,material));temperature[c]=material.temperature;
@@ -131,10 +134,10 @@ int main(int argc,char** argv){
             maximumResidual=std::max(maximumResidual,std::abs(residual));
             assert(std::abs(residual)<1e-3L+1e-8L*scale);
         }
-        assert(report.linearSolves>0&&report.materialSteps==1);assert(report.budgetDelta.boundaryEnergy==0);
+        const auto solves=chmt_test::materialSolveCalls;assert(solves>0&&report.materialSteps==1);assert(chmt_test::boundaryHeat(result,p,10000)==0);
         assert(mesh.points()==original&&mesh.moving()==moving&&time.timeIndex()==timeIndex&&time.value()==timeValue);
         std::cout<<"NATIVE_OF10 NASA7 pore/condensed conduction and local nonlinear backward-Euler residual passed; linear solves="
-            <<report.linearSolves<<", energy residual="<<static_cast<double>(after-before)<<", max local residual="<<static_cast<double>(maximumResidual)<<'\n';
+            <<solves<<", energy residual="<<static_cast<double>(after-before)<<", max local residual="<<static_cast<double>(maximumResidual)<<'\n';
     }
     {
         chmt::ModelConfig model;auto& p=model.physics;p.enableGas=false;p.spatialOrder=1;p.minDt=1e-9;p.maxDt=10000;p.cfl=.4;
@@ -146,16 +149,25 @@ int main(int argc,char** argv){
             base.solidMesh.boundaryPrimitive[face].temperature=650;base.solidMesh.thermalBoundary[face]=chmt::ThermalBoundaryKind::FixedValue;}
         chmt::HostState endpoint=base;endpoint.time=10000;chmt::CpuMaterialDriver driver(model,&mesh);chmt::CpuMaterialControls controls;
         chmt::HostState result;chmt::WallProgram wall;chmt::CpuMaterialReport report;std::string error;
+        chmt_test::resetMaterialObservations();
         if(!driver.advanceCandidate(base,endpoint,history(1),controls,result,wall,report,error)){std::cerr<<error<<'\n';return 1;}
+        chmt_test::physicalSnapshot("native_fixed_boundary",result,wall);
         // Each corner cell has three fixed-temperature faces of area .25 and
         // centre-to-boundary distance .25. Internal gradients remain zero.
         const chmt::Real ratio=10000*3*1000*.25/.25/(125*1000),exact=(400+ratio*650)/(1+ratio);
         long double sensibleChange=0;
         for(std::size_t c=0;c<result.solid.size();++c){chmt::MaterialPrimitive material;assert(chmt::recoverMaterial(result.solid[c],result.solidMesh.volumes[c],p,material));
             assert(std::abs(material.temperature-exact)<1e-7);sensibleChange+=125000.L*(material.temperature-400);}
-        assert(report.budgetDelta.boundaryEnergy<0);
-        assert(std::abs(sensibleChange+report.budgetDelta.boundaryEnergy)<1e-3L);
-        assert(result.budget.boundaryEnergy==report.budgetDelta.boundaryEnergy);
+        const long double outwardHeat=chmt_test::boundaryHeat(result,p,10000);
+        // Recovering T from a rounded, large formation-energy inventory adds
+        // uncertainty to the independent boundary oracle. Propagate four stored
+        // energy ULPs through the boundary/capacity ratio; do not use a report.
+        long double recoveryRoundoff=0;for(const auto& q:result.solid){
+            const chmt::Real quantum=std::nextafter(q.energy,std::numeric_limits<chmt::Real>::infinity())-q.energy;
+            recoveryRoundoff+=4*static_cast<long double>(quantum)*(1+ratio);}
+        assert(outwardHeat<0);assert(std::abs(sensibleChange+outwardHeat)<1e-3L+recoveryRoundoff);
+        long double inventoryChange=0;for(std::size_t c=0;c<result.solid.size();++c)inventoryChange+=static_cast<long double>(result.solid[c].energy)-base.solid[c].energy;
+        assert(std::abs(inventoryChange+outwardHeat)<1e-3L+recoveryRoundoff);
         assert(mesh.points()==original&&mesh.moving()==moving&&time.timeIndex()==timeIndex&&time.value()==timeValue);
         std::cout<<"NATIVE_OF10 fixed-temperature heating and signed boundary-energy closure passed\n";
     }
@@ -189,6 +201,7 @@ int main(int argc,char** argv){
             if(chosen<0)continue;
             chmt::CpuMaterialDriver driver(model,&probe);chmt::CpuMaterialControls controls;
             chmt::HostState endpoint=base;endpoint.time=10000;chmt::HostState result;chmt::WallProgram wall;chmt::CpuMaterialReport report;std::string error;
+            chmt_test::resetMaterialObservations();
             if(!driver.advanceCandidate(base,endpoint,history(1),controls,result,wall,report,error)){
                 std::cerr<<"canonical-volume regression: "<<error<<" cell="<<chosen<<" hostV="<<base.solidMesh.volumes[chosen]<<" nativeV="<<probe.V()[chosen]<<'\n';return 1;
             }
@@ -197,6 +210,7 @@ int main(int argc,char** argv){
                 chmt::MaterialPrimitive material;assert(chmt::recoverMaterial(result.solid[c],result.solidMesh.volumes[c],p,material));
                 assert(std::abs(material.temperature-600)<1e-8);
             }
+            chmt_test::physicalSnapshot("native_canonical_volume",result,wall);
             exercised=true;
         }
         assert(exercised);
@@ -218,6 +232,7 @@ int main(int argc,char** argv){
         chmt::CpuMaterialDriver driver(model,nullptr);chmt::CpuMaterialControls controls;controls.maxSubstep=dt;
         chmt::HostState result;chmt::WallProgram wall;chmt::CpuMaterialReport report;
         if(!driver.advanceCandidate(base,endpoint,history,controls,result,wall,report,error)){std::cerr<<"local duration: "<<error<<'\n';return 1;}
+        chmt_test::physicalSnapshot("native_sub_ulp",result,wall);
         assert(report.materialSteps==256&&wall.knots.size()==257&&report.donorPlan.knots.size()==257);
         assert(wall.knots[0].time==wall.knots[1].time);
         assert(wall.knots[0].localTime<wall.knots[1].localTime);
