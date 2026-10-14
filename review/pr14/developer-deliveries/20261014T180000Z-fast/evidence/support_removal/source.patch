@@ -1,0 +1,467 @@
+diff --git a/applications/CHMT/ablation/CpuSurfaceInterface.C b/applications/CHMT/ablation/CpuSurfaceInterface.C
+index 512d026..cdbaf70 100644
+--- a/applications/CHMT/ablation/CpuSurfaceInterface.C
++++ b/applications/CHMT/ablation/CpuSurfaceInterface.C
+@@ -5,7 +5,7 @@ bool evaluateCpuSurfaceImpl(const HostState& h,const PhysicsConfig& p,
+     const std::vector<GasPrimitive>& bulk,const std::vector<GasGradient>& gradients,
+     const std::vector<SolidQ>& materialRate,const std::vector<FilmQ>& filmRate,
+     Real dt,std::uint64_t sequence,CpuSurfaceResult& output,std::string& error,
+-    const std::vector<Vec3>* filmPressureGradient,const std::vector<Real>* sideMeshVolumeRate,
++    const std::vector<Real>* sideMeshVolumeRate,
+     const std::vector<GasWallClosureContext>* wallContexts,bool* numericalFailure){
+     if(numericalFailure)*numericalFailure=true;
+     const auto& surface=h.surface;const std::size_t nf=surface.area.size();
+@@ -53,7 +53,6 @@ bool evaluateCpuSurfaceImpl(const HostState& h,const PhysicsConfig& p,
+         if(!solveSurfaceInterface<Terminal>(input,p,physics,&status,numericalFailure)){error="CPU surface constitutive solve rejected face "+std::to_string(f)+" code "+std::to_string(status.code);return false;}
+         SurfacePacketIdentity id;id.step=sequence;id.stage=1;id.geometry=h.gasMesh.geometryVersion;id.face=h.gasMesh.faceIds[gf];
+         id.gasCell=gc;id.solidCell=sc;id.filmFace=f;id.oldFilmPV=input.hasFilm?h.filmAux[f].pressure*h.film[f].mass/p.liquid.rho:0;
+-        if(filmPressureGradient){if(Terminal?filmPressureGradient->size()<nf:filmPressureGradient->size()!=nf){if(numericalFailure)*numericalFailure=filmPressureGradient->size()>=nf;error="film pressure-gradient layout mismatch";return false;}id.filmPressureGradient=(*filmPressureGradient)[f];}
+         if(input.hasSolid&&physics.wet){
+             // The CPU consumes actual recorded primary flux, so no hypothetical
+             // gas packet may choose a terminal film-energy remainder here.
+@@ -63,10 +62,7 @@ bool evaluateCpuSurfaceImpl(const HostState& h,const PhysicsConfig& p,
+             for(int species=0;species<Ns;++species)phase.species[species]=phase.mass*p.material.phaseFilmY[species];
+             phase.energy=scale*physics.phaseEnergy;phase.advective=scale*physics.phaseAdvective;phase.conductive=scale*physics.phaseConductive;
+             phase.pressureWork=scale*physics.phasePressureWork;phase.viscousWork=scale*physics.phaseViscousWork;phase.liquidKineticAdvection=scale*physics.bottomKineticAdvection;
+-            Vec3 gradient=id.filmPressureGradient;gradient-=(p.gravity-input.normal*dot(p.gravity,input.normal))*p.liquid.rho;
+-            const FilmProfile profile=filmProfile<Terminal>(input.aux.thickness,p.liquidViscosity,input.baseVelocity,physics.shear,gradient);
+-            const Vec3 bottomShear=profile.bottomShear-input.solidNormal*dot(profile.bottomShear,input.solidNormal);
+-            phase.momentum=input.solidNormal*(physics.gasState.pressure*input.solidArea*dt)-bottomShear*scale;
++            // This reduced solid/film model evolves mass and energy, not momentum.
+             if(!Terminal&&!validatePacketMath(phase,p.tolerances,&status)){error="CPU raw phase packet invalid";return false;}
+             result.phasePackets.push_back(phase);
+         }
+@@ -79,9 +75,9 @@ bool evaluateCpuSurfaceImpl(const HostState& h,const PhysicsConfig& p,
+     }
+     output=std::move(result);error.clear();return true;
+ }
+-bool evaluateCpuSurface(const HostState& h,const PhysicsConfig& p,const std::vector<GasPrimitive>& bulk,const std::vector<GasGradient>& gradients,const std::vector<SolidQ>& materialRate,const std::vector<FilmQ>& filmRate,Real dt,std::uint64_t sequence,CpuSurfaceResult& output,std::string& error,const std::vector<Vec3>* pressureGradient,const std::vector<Real>* sideVolume,const std::vector<GasWallClosureContext>* contexts,bool* numerical){return evaluateCpuSurfaceImpl<false>(h,p,bulk,gradients,materialRate,filmRate,dt,sequence,output,error,pressureGradient,sideVolume,contexts,numerical);}
++bool evaluateCpuSurface(const HostState& h,const PhysicsConfig& p,const std::vector<GasPrimitive>& bulk,const std::vector<GasGradient>& gradients,const std::vector<SolidQ>& materialRate,const std::vector<FilmQ>& filmRate,Real dt,std::uint64_t sequence,CpuSurfaceResult& output,std::string& error,const std::vector<Real>* sideVolume,const std::vector<GasWallClosureContext>* contexts,bool* numerical){return evaluateCpuSurfaceImpl<false>(h,p,bulk,gradients,materialRate,filmRate,dt,sequence,output,error,sideVolume,contexts,numerical);}
+ namespace detail {
+-bool completeCpuSurface(const HostState& h,const PhysicsConfig& p,const std::vector<GasPrimitive>& bulk,const std::vector<GasGradient>& gradients,const std::vector<SolidQ>& materialRate,const std::vector<FilmQ>& filmRate,Real dt,std::uint64_t sequence,CpuSurfaceResult& output,std::string& error,const std::vector<Vec3>* pressureGradient,const std::vector<Real>* sideVolume,const std::vector<GasWallClosureContext>* contexts,bool* numerical){return evaluateCpuSurfaceImpl<true>(h,p,bulk,gradients,materialRate,filmRate,dt,sequence,output,error,pressureGradient,sideVolume,contexts,numerical);}
++bool completeCpuSurface(const HostState& h,const PhysicsConfig& p,const std::vector<GasPrimitive>& bulk,const std::vector<GasGradient>& gradients,const std::vector<SolidQ>& materialRate,const std::vector<FilmQ>& filmRate,Real dt,std::uint64_t sequence,CpuSurfaceResult& output,std::string& error,const std::vector<Real>* sideVolume,const std::vector<GasWallClosureContext>* contexts,bool* numerical){return evaluateCpuSurfaceImpl<true>(h,p,bulk,gradients,materialRate,filmRate,dt,sequence,output,error,sideVolume,contexts,numerical);}
+ }
+ 
+ }
+diff --git a/applications/CHMT/ablation/CpuSurfaceInterface.H b/applications/CHMT/ablation/CpuSurfaceInterface.H
+index c721e57..fb96136 100644
+--- a/applications/CHMT/ablation/CpuSurfaceInterface.H
++++ b/applications/CHMT/ablation/CpuSurfaceInterface.H
+@@ -15,10 +15,10 @@ bool evaluateCpuSurface(const HostState&,const PhysicsConfig&,
+     const std::vector<GasPrimitive>& bulk,const std::vector<GasGradient>& gradients,
+     const std::vector<SolidQ>& materialRate,const std::vector<FilmQ>& filmRate,
+     Real dt,std::uint64_t sequence,CpuSurfaceResult&,std::string&,
+-    const std::vector<Vec3>* filmPressureGradient=nullptr,const std::vector<Real>* sideMeshVolumeRate=nullptr,
++    const std::vector<Real>* sideMeshVolumeRate=nullptr,
+     const std::vector<GasWallClosureContext>* wallContexts=nullptr,bool* numericalFailure=nullptr);
+ namespace detail {
+-bool completeCpuSurface(const HostState&,const PhysicsConfig&,const std::vector<GasPrimitive>&,const std::vector<GasGradient>&,const std::vector<SolidQ>&,const std::vector<FilmQ>&,Real,std::uint64_t,CpuSurfaceResult&,std::string&,const std::vector<Vec3>*,const std::vector<Real>*,const std::vector<GasWallClosureContext>*,bool*);
++bool completeCpuSurface(const HostState&,const PhysicsConfig&,const std::vector<GasPrimitive>&,const std::vector<GasGradient>&,const std::vector<SolidQ>&,const std::vector<FilmQ>&,Real,std::uint64_t,CpuSurfaceResult&,std::string&,const std::vector<Real>*,const std::vector<GasWallClosureContext>*,bool*);
+ }
+ 
+ }
+diff --git a/applications/CHMT/ablation/InterfaceMath.H b/applications/CHMT/ablation/InterfaceMath.H
+index 7b8fc10..9ea90d5 100644
+--- a/applications/CHMT/ablation/InterfaceMath.H
++++ b/applications/CHMT/ablation/InterfaceMath.H
+@@ -753,7 +753,6 @@ struct SurfacePacketIdentity {
+     std::uint64_t step=0, geometry=0, face=0;
+     int stage=0, gasCell=-1, solidCell=-1, filmFace=-1;
+     Real oldFilmPV=0;
+-    Vec3 filmPressureGradient{};
+ };
+ CHMT_HD inline ExchangePacket surfacePacketIdentity(ExchangeKind kind, const SurfacePacketIdentity& id) {
+     ExchangePacket packet;
+@@ -810,13 +809,7 @@ CHMT_HD inline bool assembleSurfacePackets(const SurfacePhysicsInput& input,
+         phase.viscousWork=scale*result.phaseViscousWork;
+         phase.energy=phase.advective+phase.conductive+phase.pressureWork+phase.viscousWork;
+         phase.liquidKineticAdvection=scale*result.bottomKineticAdvection;
+-        Vec3 G=identity.filmPressureGradient;
+-        G-=(p.gravity-input.normal*dot(p.gravity,input.normal))*p.liquid.rho;
+-        const FilmProfile profile=filmProfile(input.aux.thickness,p.liquidViscosity,
+-            input.baseVelocity,result.shear,G);
+-        const Vec3 bottomShear=profile.bottomShear
+-            -input.solidNormal*dot(profile.bottomShear,input.solidNormal);
+-        phase.momentum=input.solidNormal*(result.gasState.pressure*input.solidArea*dt)-bottomShear*scale;
++        // SolidFilm carries no evolved momentum in the reduced material model.
+         // Exact event transfer: the disappearing film hands its actual remaining
+         // internal energy to the solid. This is not a correction for R_K.
+         FilmQ available=input.filmBase;
+diff --git a/applications/CHMT/core/Types.H b/applications/CHMT/core/Types.H
+index 0904aec..9fb3658 100644
+--- a/applications/CHMT/core/Types.H
++++ b/applications/CHMT/core/Types.H
+@@ -159,13 +159,14 @@ struct Tolerances {
+ };
+ struct Budget {
+     Real boundaryMass=0,boundarySpecies[Ns]{},boundaryElements[Ne]{},boundaryEnergy=0;
+-    Vec3 boundaryMomentum{},supportImpulse{};
++    Vec3 boundaryMomentum{};
++    Vec3 supportImpulse{}; // Legacy checkpoint slot only; never accumulated or used by physics.
+     Real supportWork=0,bodyWork=0,radiation=0,gclResidual=0;
+     Real exchangeMass[NParticipants]{},exchangeSpecies[NParticipants][Ns]{},exchangeEnergy[NParticipants]{};
+     Vec3 exchangeMomentum[NParticipants]{};
+     Real filmPressureVolume=0,filmKineticAdvection=0,filmKineticStorage=0,filmReducedResidual=0,filmKineticDefect=0;
+     Real thinLayerGeometryDefect=0,thinLayerStressDefect=0,numericalEnergyResidual=0;
+-    Real turbulenceOmegaConstraint=0; // accepted omega-only constraint inventory changes [kg/s].
++    Real turbulenceOmegaConstraint=0; // Legacy checkpoint-only SST statistics; no runtime admission.
+     Real turbulenceInventory=0,turbulenceProduction=0,turbulenceDissipation=0,turbulenceBoundaryFlux=0;
+     std::uint64_t consumedPackets=0;
+ };
+diff --git a/applications/CHMT/coupling/Coordinator.H b/applications/CHMT/coupling/Coordinator.H
+index 763ff41..d3c5fd3 100644
+--- a/applications/CHMT/coupling/Coordinator.H
++++ b/applications/CHMT/coupling/Coordinator.H
+@@ -27,10 +27,9 @@ CHMT_HD inline bool filmReceivesSurfaceRadiation(bool coupled,const ExchangePack
+ CHMT_HD inline bool validBudget(const Budget& b){
+     const Real values[]={b.boundaryMass,b.boundaryEnergy,b.supportWork,b.bodyWork,b.radiation,b.gclResidual,
+         b.filmPressureVolume,b.filmKineticAdvection,b.filmKineticStorage,b.filmReducedResidual,b.filmKineticDefect,
+-        b.thinLayerGeometryDefect,b.thinLayerStressDefect,b.numericalEnergyResidual,b.turbulenceOmegaConstraint,
+-        b.turbulenceInventory,b.turbulenceProduction,b.turbulenceDissipation,b.turbulenceBoundaryFlux};
++        b.thinLayerGeometryDefect,b.thinLayerStressDefect,b.numericalEnergyResidual};
+     for(Real value:values)if(!finite(value))return false;
+-    if(!finite(b.boundaryMomentum)||!finite(b.supportImpulse))return false;
++    if(!finite(b.boundaryMomentum))return false;
+     for(int s=0;s<Ns;++s)if(!finite(b.boundarySpecies[s]))return false;
+     for(int e=0;e<Ne;++e)if(!finite(b.boundaryElements[e]))return false;
+     for(int k=0;k<NParticipants;++k){if(!finite(b.exchangeMass[k])||!finite(b.exchangeEnergy[k])||!finite(b.exchangeMomentum[k]))return false;
+@@ -78,7 +77,7 @@ CHMT_HD inline bool accountAssembledPacket(ExchangePacket& packet,Budget& budget
+         if(bit==ConsumeSolid){const Real sign=packet.kind==ExchangeKind::ParticleWall?1:-1;
+             dm=sign*packet.mass;de=delta.solid.energy;momentum=packet.momentum*sign;
+             for(int s=0;s<Ns;++s){species[s]=sign*packet.species[s];}
+-            next.supportImpulse+=momentum;}
++        }
+         if(bit==ConsumeFilm){const Real sign=packet.kind==ExchangeKind::SolidFilm?1:-1;
+             dm=delta.film.mass;de=sign*packet.energy;momentum=packet.momentum*sign;
+             for(int s=0;s<Ns;++s)species[s]=delta.film.species[s];
+@@ -90,7 +89,7 @@ CHMT_HD inline bool accountAssembledPacket(ExchangePacket& packet,Budget& budget
+             return packetFailure(status,packet,ErrorCode::Nonfinite,de);
+         for(int s=0;s<Ns;++s){next.exchangeSpecies[k][s]+=species[s];if(!finite(next.exchangeSpecies[k][s]))return false;}
+     }
+-    if(!finite(next.supportImpulse)||!finite(next.filmKineticAdvection))return false;
++    if(!finite(next.filmKineticAdvection))return false;
+     if(next.consumedPackets==std::numeric_limits<std::uint64_t>::max()||!validBudget(next))return packetFailure(status,packet,ErrorCode::Nonfinite,0);
+     ++next.consumedPackets;packet.consumerMask=mask;budget=next;return true;
+ }
+diff --git a/applications/CHMT/devtools/multirate/test_cpu_checkpoint.cpp b/applications/CHMT/devtools/multirate/test_cpu_checkpoint.cpp
+index bed3c09..3c704b6 100644
+--- a/applications/CHMT/devtools/multirate/test_cpu_checkpoint.cpp
++++ b/applications/CHMT/devtools/multirate/test_cpu_checkpoint.cpp
+@@ -14,7 +14,15 @@ int main(){ModelConfig model;auto& p=model.physics;p.enableGas=false;p.minDt=1e-
+  require(writeCheckpoint(path,model,h,error),"actual checkpoint write: "+error);HostState restored;require(readCheckpoint(path,model,restored,error),"actual checkpoint read: "+error);
+  require(restored.rejectedSteps==3&&restored.acceptedSteps==1&&restored.solidStages[1].newPoints.size()==m.points.size(),"accepted counters/stage geometry restored");
+  for(std::size_t c=0;c<h.solid.size();++c)require(restored.solid[c].energy==h.solid[c].energy,"material conservative energy bitwise roundtrip");
+- HostState missing=h;missing.solidStages={};require(!writeCheckpoint(std::string(root)+"/missing",model,missing,error),"missing native solid stage history rejected");
++ // Stage history is serialized as supplied; it is not a writer admission gate.
++ HostState missing=h;missing.solidStages={};missing.budget.supportImpulse={NAN,INFINITY,-INFINITY};
++ const std::string missingPath=std::string(root)+"/missing";
++ require(writeCheckpoint(missingPath,model,missing,error),"checkpoint accepts absent optional stage history: "+error);
++ HostState missingRestored;require(readCheckpoint(missingPath,model,missingRestored,error),"read checkpoint without stage history: "+error);
++ require(missingRestored.solidStages[0].newPoints.empty()&&missingRestored.solidStages[1].newPoints.empty(),"absent stage history roundtrip");
++ for(std::size_t c=0;c<h.solid.size();++c)require(missingRestored.solid[c].energy==h.solid[c].energy,"absent stage history preserves actual conservative energy");
++ require(std::isnan(missingRestored.budget.supportImpulse.x)&&missingRestored.budget.supportImpulse.y==INFINITY&&missingRestored.budget.supportImpulse.z==-INFINITY,"legacy support slot bit-pattern classes survive codec without admission");
++ unlink((missingPath+"/state.chmt").c_str());rmdir(missingPath.c_str());
+  unlink((path+"/state.chmt").c_str());rmdir(path.c_str());rmdir(root);
+  std::cout<<"CPU checkpoint: actual 3-D conservative state/stage/counter roundtrip passed\n";
+ }
+diff --git a/applications/CHMT/materials/CpuMaterialDriver.C b/applications/CHMT/materials/CpuMaterialDriver.C
+index a728a5d..dd0bfdc 100644
+--- a/applications/CHMT/materials/CpuMaterialDriver.C
++++ b/applications/CHMT/materials/CpuMaterialDriver.C
+@@ -25,7 +25,7 @@ bool controlsValid(const CpuMaterialControls& c,bool terminalMaterial=false){ret
+     &&finite(c.driveTractionScale)&&c.driveTractionScale>0&&(terminalMaterial||c.maxSubsteps>0)&&(terminalMaterial||(c.nonlinearMaxIterations>0&&finite(c.nonlinearRelativeTolerance)&&c.nonlinearRelativeTolerance>=0
+     &&finite(c.energyAbsoluteTolerance)&&c.energyAbsoluteTolerance>=0&&finite(c.energyRelativeTolerance)&&c.energyRelativeTolerance>=0)));}
+ void addBudget(Budget& a,const Budget& b){
+-    a.boundaryMass+=b.boundaryMass;a.boundaryEnergy+=b.boundaryEnergy;a.boundaryMomentum+=b.boundaryMomentum;a.supportImpulse+=b.supportImpulse;
++    a.boundaryMass+=b.boundaryMass;a.boundaryEnergy+=b.boundaryEnergy;a.boundaryMomentum+=b.boundaryMomentum;
+     a.supportWork+=b.supportWork;a.bodyWork+=b.bodyWork;a.radiation+=b.radiation;a.gclResidual+=b.gclResidual;
+     for(int s=0;s<Ns;++s)a.boundarySpecies[s]+=b.boundarySpecies[s];for(int e=0;e<Ne;++e)a.boundaryElements[e]+=b.boundaryElements[e];
+     for(int k=0;k<NParticipants;++k){a.exchangeMass[k]+=b.exchangeMass[k];a.exchangeEnergy[k]+=b.exchangeEnergy[k];a.exchangeMomentum[k]+=b.exchangeMomentum[k];for(int s=0;s<Ns;++s)a.exchangeSpecies[k][s]+=b.exchangeSpecies[k][s];}
+@@ -34,7 +34,7 @@ void addBudget(Budget& a,const Budget& b){
+ }
+ void accountCpuPacket(const ExchangePacket& packet,Budget& budget){const unsigned mask=requiredConsumers(packet.kind);const auto d=packetDelta(packet);
+     if(mask&ConsumeSolid){const Real sign=packet.kind==ExchangeKind::ParticleWall?1:-1;budget.exchangeMass[SolidParticipant]+=sign*packet.mass;budget.exchangeEnergy[SolidParticipant]+=d.solid.energy;
+-        budget.exchangeMomentum[SolidParticipant]+=packet.momentum*sign;budget.supportImpulse+=packet.momentum*sign;for(int s=0;s<Ns;++s)budget.exchangeSpecies[SolidParticipant][s]+=sign*packet.species[s];}
++        budget.exchangeMomentum[SolidParticipant]+=packet.momentum*sign;for(int s=0;s<Ns;++s)budget.exchangeSpecies[SolidParticipant][s]+=sign*packet.species[s];}
+     if(mask&ConsumeFilm){const Real sign=packet.kind==ExchangeKind::SolidFilm?1:-1;budget.exchangeMass[FilmParticipant]+=d.film.mass;budget.exchangeEnergy[FilmParticipant]+=sign*packet.energy;
+         budget.exchangeMomentum[FilmParticipant]+=packet.momentum*sign;for(int s=0;s<Ns;++s)budget.exchangeSpecies[FilmParticipant][s]+=d.film.species[s];budget.filmKineticAdvection+=packet.liquidKineticAdvection;}
+     if(packet.kind==ExchangeKind::SolidFilm)++budget.consumedPackets;
+@@ -151,7 +151,7 @@ struct CpuMaterialDriver::Implementation {
+     bool evaluate(const HostState& state,const PhysicsConfig& p,const std::vector<GasPrimitive>& bulk,
+         const std::vector<GasGradient>& gradients,const std::vector<SolidQ>& materialRate,const std::vector<FilmQ>& filmRate,
+         Real dt,std::uint64_t sequence,CpuSurfaceResult& output,std::string& error,
+-        const std::vector<Vec3>* pressureGradient=nullptr,const std::vector<Real>* sideVolume=nullptr,
++        const std::vector<Real>* sideVolume=nullptr,
+         const std::vector<GasWallMatchingSample>* recorded=nullptr,bool terminalSurface=false){
+         std::vector<GasWallClosureContext> contexts;terminalWallFailure=false;surfaceNumericalFailure=false;
+         if(wall){
+@@ -170,9 +170,9 @@ struct CpuMaterialDriver::Implementation {
+             }
+         }
+         terminalWallFailure=false;
+-        bool success=evaluateCpuSurface(state,p,bulk,gradients,materialRate,filmRate,dt,sequence,output,error,pressureGradient,sideVolume,wall?&contexts:nullptr,&surfaceNumericalFailure);
++        bool success=evaluateCpuSurface(state,p,bulk,gradients,materialRate,filmRate,dt,sequence,output,error,sideVolume,wall?&contexts:nullptr,&surfaceNumericalFailure);
+         if(!success&&terminalSurface&&surfaceNumericalFailure)
+-            success=detail::completeCpuSurface(state,p,bulk,gradients,materialRate,filmRate,dt,sequence,output,error,pressureGradient,sideVolume,wall?&contexts:nullptr,&surfaceNumericalFailure);
++            success=detail::completeCpuSurface(state,p,bulk,gradients,materialRate,filmRate,dt,sequence,output,error,sideVolume,wall?&contexts:nullptr,&surfaceNumericalFailure);
+         if(!success&&wall&&wall->failureStatus().code!=ugkwp::gaswall::WallCode::Success){
+             terminalWallFailure=true;const auto& status=wall->failureStatus();
+             error+="; stationary wall profile code "+std::to_string(int(status.code))+" node "+std::to_string(status.node)+" iteration "+std::to_string(status.iteration)+" residual "+(std::isfinite(status.residual)?std::to_string(status.residual):"NOT_AVAILABLE");
+@@ -195,7 +195,7 @@ bool CpuMaterialDriver::predictWallImpl(const HostState& base,const CouplingInte
+     if(!terminalPredictor&&(data_->model.physics.filmThermalMode!=FilmThermalMode::ThicknessAveraged||!base.normalEnthalpy.empty())){error="CPU material owner requires actual volume/surface state, not normal columns";return fail(MaterialFailureOrigin::SurfaceNumerical);}
+     std::vector<GasPrimitive> bulk;bool numerical=false;
+     if(!(terminalPredictor?baseTrace<true>(base,data_->model.physics,bulk,error,&numerical):baseTrace(base,data_->model.physics,bulk,error,&numerical)))return fail(numerical?MaterialFailureOrigin::SurfaceNumerical:MaterialFailureOrigin::None);CpuSurfaceResult surface;
+-    if(!data_->evaluate(base,data_->model.physics,bulk,{},{},{},interval.end-interval.begin,interval.identity.sequence,surface,error,nullptr,nullptr,nullptr,terminalPredictor)){if(diagnostics)diagnostics->recoverable=!data_->terminalWallFailure;return fail(data_->surfaceNumericalFailure?MaterialFailureOrigin::SurfaceNumerical:MaterialFailureOrigin::None);}
++    if(!data_->evaluate(base,data_->model.physics,bulk,{},{},{},interval.end-interval.begin,interval.identity.sequence,surface,error,nullptr,nullptr,terminalPredictor)){if(diagnostics)diagnostics->recoverable=!data_->terminalWallFailure;return fail(data_->surfaceNumericalFailure?MaterialFailureOrigin::SurfaceNumerical:MaterialFailureOrigin::None);}
+     WallProgram program;program.interval=interval;program.surface=base.surface;WallKnot first;first.time=interval.begin;first.faces=surface.wall;first.gasPoints=base.gasMesh.points;first.solidPoints=base.solidMesh.points;
+     WallKnot last=first;last.time=interval.end;
+     if(data_->model.physics.meshMotion.policy==MeshMotionPolicy::PrescribedSinusoidal){
+@@ -311,7 +311,7 @@ bool CpuMaterialDriver::advanceCandidateImpl(const HostState& base,const HostSta
+             HostState trial;WallKnot beginning;CpuSurfaceResult surface;MaterialTransportResult transport;
+             std::vector<ExchangePacket> packets;std::vector<Real> radiation;std::vector<CpuFilmDrive> drive;
+             std::vector<CpuFilmForcing> forcing;std::vector<FilmQ> filmRate;std::vector<FilmRateBudget> filmRateBudget;
+-            std::vector<Vec3> pressureGradient;std::vector<Real> sideVolume;
++            std::vector<Real> sideVolume;
+             std::vector<Real> solidSweep,gasSweep;IntervalCursor trialCursor=cursor;
+             SurfaceMesh filmEvaluationSurface=state.surface;filmEvaluationSurface.sweptEdgeArea.assign(state.surface.edgeOwner.size(),0);
+             std::vector<CpuFilmDrive> refinementDrive;Real filmGuessDt=dt;
+@@ -372,21 +372,21 @@ bool CpuMaterialDriver::advanceCandidateImpl(const HostState& base,const HostSta
+                 HostState evaluation=state;evaluation.surface=filmEvaluationSurface;
+                 if(p.enableFilm){std::vector<FilmAux> profiles;
+                     bool numerical=false;
+-                    if(!evaluateCpuFilmTransport(evaluation,p,dt,drive,filmRate,filmRateBudget,error,&profiles,&pressureGradient,&sideVolume,&numerical)){
++                    if(!evaluateCpuFilmTransport(evaluation,p,dt,drive,filmRate,filmRateBudget,error,&profiles,nullptr,&sideVolume,&numerical)){
+                         lastFailure=numerical?MaterialFailureOrigin::FilmNumerical:MaterialFailureOrigin::None;
+-                        if(!terminalMaterial||!numerical||!detail::completeCpuFilmTransport(evaluation,p,attemptedDt,drive,filmRate,filmRateBudget,error,&profiles,&pressureGradient,&sideVolume,&numerical)){if(!numerical)lastFailure=MaterialFailureOrigin::None;break;}
++                        if(!terminalMaterial||!numerical||!detail::completeCpuFilmTransport(evaluation,p,attemptedDt,drive,filmRate,filmRateBudget,error,&profiles,nullptr,&sideVolume,&numerical)){if(!numerical)lastFailure=MaterialFailureOrigin::None;break;}
+                         lastFailure=MaterialFailureOrigin::None;
+                     }
+                     evaluation.filmAux=profiles;
+                     for(std::size_t f=0;f<profiles.size();++f)evaluation.film[f].enthalpy+=pressureVolumeProduct(state.filmAux[f].pressure,state.film[f].mass/p.liquid.rho,profiles[f].pressure,state.film[f].mass/p.liquid.rho);
+-                }else{filmRate.clear();pressureGradient.assign(state.surface.area.size(),Vec3{});sideVolume.assign(state.surface.area.size(),0);}
+-                if(!data_->evaluate(evaluation,p,bulk,driveRecord->gasGradient,transport.rates,filmRate,dt,window.identity.sequence,surface,error,&pressureGradient,&sideVolume,&driveRecord->gasWallMatching,terminalMaterial)){lastFailure=data_->surfaceNumericalFailure?MaterialFailureOrigin::SurfaceNumerical:MaterialFailureOrigin::None;if(data_->terminalWallFailure){report.recoverable=false;return false;}break;}
++                }else{filmRate.clear();sideVolume.assign(state.surface.area.size(),0);}
++                if(!data_->evaluate(evaluation,p,bulk,driveRecord->gasGradient,transport.rates,filmRate,dt,window.identity.sequence,surface,error,&sideVolume,&driveRecord->gasWallMatching,terminalMaterial)){lastFailure=data_->surfaceNumericalFailure?MaterialFailureOrigin::SurfaceNumerical:MaterialFailureOrigin::None;if(data_->terminalWallFailure){report.recoverable=false;return false;}break;}
+                 bool shortenedForSource=false;
+                 // These extra responses only choose a shorter retry; the final
+                 // terminal attempt has no consumer for that proof-only work.
+                 for(const auto& record:history.records())if(!terminalLast&&record.localBegin>elapsed&&record.localBegin<trialElapsed){
+                     CpuSurfaceResult response;++accumulated.boundaryDriveSamples;
+-                    if(!data_->evaluate(evaluation,p,record.gasTrace,record.gasGradient,transport.rates,filmRate,dt,window.identity.sequence,response,error,&pressureGradient,&sideVolume,&record.gasWallMatching,terminalLast)){lastFailure=data_->surfaceNumericalFailure?MaterialFailureOrigin::SurfaceNumerical:MaterialFailureOrigin::None;if(data_->terminalWallFailure){report.recoverable=false;return false;}dt=boundedWindowDuration(record.localBegin,elapsed);error.clear();shortenedForSource=true;break;}
++                    if(!data_->evaluate(evaluation,p,record.gasTrace,record.gasGradient,transport.rates,filmRate,dt,window.identity.sequence,response,error,&sideVolume,&record.gasWallMatching,terminalLast)){lastFailure=data_->surfaceNumericalFailure?MaterialFailureOrigin::SurfaceNumerical:MaterialFailureOrigin::None;if(data_->terminalWallFailure){report.recoverable=false;return false;}dt=boundedWindowDuration(record.localBegin,elapsed);error.clear();shortenedForSource=true;break;}
+                     Real fraction=0;
+                     for(std::size_t f=0;f<surface.physics.size();++f){if(state.surface.gasFace[f]<0)continue;
+                         const auto& a=surface.physics[f];const auto& b=response.physics[f];const Real scale=state.surface.area[f]*dt;
+@@ -603,7 +603,7 @@ bool CpuMaterialDriver::advanceCandidateImpl(const HostState& base,const HostSta
+                 if(program.knots.empty())program.knots.push_back(beginning);
+                 WallKnot ending=beginning;ending.time=trial.time;ending.localTime=trialElapsed;ending.gasPoints=trial.gasMesh.points;ending.solidPoints=trial.solidMesh.points;
+                 if(trialElapsed<windowEnd){CpuSurfaceResult endpointProposal;
+-                    if(!endpointRecord){error="missing endpoint wall matching record";break;}if(!data_->evaluate(trial,p,endpointBulk,endpointRecord->gasGradient,{},{},dt,window.identity.sequence,endpointProposal,error,nullptr,nullptr,&endpointRecord->gasWallMatching,terminalMaterial)){lastFailure=data_->surfaceNumericalFailure?MaterialFailureOrigin::SurfaceNumerical:MaterialFailureOrigin::None;if(data_->terminalWallFailure){report.recoverable=false;return false;}break;}
++                    if(!endpointRecord){error="missing endpoint wall matching record";break;}if(!data_->evaluate(trial,p,endpointBulk,endpointRecord->gasGradient,{},{},dt,window.identity.sequence,endpointProposal,error,nullptr,&endpointRecord->gasWallMatching,terminalMaterial)){lastFailure=data_->surfaceNumericalFailure?MaterialFailureOrigin::SurfaceNumerical:MaterialFailureOrigin::None;if(data_->terminalWallFailure){report.recoverable=false;return false;}break;}
+                     ending.faces=endpointProposal.wall;for(std::size_t f=0;f<ending.faces.size();++f)ending.faces[f].primaryKind=beginning.faces[f].primaryKind;}
+                 for(std::size_t f=0;f<ending.faces.size();++f){ending.faces[f].solidNormalVelocity=aux[f].solidNormalVelocity;ending.faces[f].normalVelocity=aux[f].normalVelocity;}
+                 program.knots.push_back(ending);
+@@ -663,7 +663,6 @@ bool CpuMaterialDriver::advanceCandidateImpl(const HostState& base,const HostSta
+                 +physicalSweepSum[f].value()-actualSweepSum[f].value());
+             if(!(terminalMaterial?validateMaterialSweepRemainder<true>(state,error):validateMaterialSweepRemainder(state,error))){report=accumulated;report.failureOrigin=MaterialFailureOrigin::GeometryNumerical;return false;}
+         }
+-        state.gasChemistryAudit=geometryEndpoint.gasChemistryAudit;state.gasSstAudit=geometryEndpoint.gasSstAudit;
+         state.gasWallDiagnostics=geometryEndpoint.gasWallDiagnostics;state.gasWallDiagnosticTime=geometryEndpoint.gasWallDiagnosticTime;
+         state.gas=geometryEndpoint.gas;state.sst=geometryEndpoint.sst;state.particles=geometryEndpoint.particles;
+         state.rejectedSteps=geometryEndpoint.rejectedSteps;state.gasVoidFraction=geometryEndpoint.gasVoidFraction;state.gasStages=geometryEndpoint.gasStages;
+@@ -672,7 +671,7 @@ bool CpuMaterialDriver::advanceCandidateImpl(const HostState& base,const HostSta
+         if(data_->wall&&p.meshMotion.policy!=MeshMotionPolicy::Static)data_->wall->clearGeometry();
+         if(!program.knots.empty()){const auto& last=history.records().back();CpuSurfaceResult endpointSurface;
+             std::vector<GasPrimitive> finalBulk;bool numerical=false;if(!(terminalMaterial?baseTrace<true>(state,p,finalBulk,error,&numerical):baseTrace(state,p,finalBulk,error,&numerical))){report=accumulated;report.failureOrigin=numerical?MaterialFailureOrigin::SurfaceNumerical:MaterialFailureOrigin::None;return false;}
+-            if(!data_->evaluate(state,p,finalBulk,last.gasGradient,{},{},interval,window.identity.sequence,endpointSurface,error,nullptr,nullptr,nullptr,terminalMaterial)){report=accumulated;report.failureOrigin=data_->surfaceNumericalFailure?MaterialFailureOrigin::SurfaceNumerical:MaterialFailureOrigin::None;report.recoverable=!data_->terminalWallFailure;return false;}
++            if(!data_->evaluate(state,p,finalBulk,last.gasGradient,{},{},interval,window.identity.sequence,endpointSurface,error,nullptr,nullptr,terminalMaterial)){report=accumulated;report.failureOrigin=data_->surfaceNumericalFailure?MaterialFailureOrigin::SurfaceNumerical:MaterialFailureOrigin::None;report.recoverable=!data_->terminalWallFailure;return false;}
+             program.knots.back().faces=endpointSurface.wall;
+             // The executed regime owns the interval including its terminal flux.
+             // An endpoint phase event changes the next window's predictor only.
+diff --git a/tests/fixtures/chmt_zero_phase_material/probe.C b/tests/fixtures/chmt_zero_phase_material/probe.C
+index bef1710..4597c30 100644
+--- a/tests/fixtures/chmt_zero_phase_material/probe.C
++++ b/tests/fixtures/chmt_zero_phase_material/probe.C
+@@ -103,7 +103,14 @@ int main(int argc, char** argv)
+         record.gasTrace = {gas}; record.gasTraction = {{0, 0, 0}};
+         IntervalHistory history;
+         check(history.begin(interval, error) && history.appendAccepted(record, error), error);
++        base.gasChemistryAudit.resize(1);
++        base.gasChemistryAudit[0].integratedTime = 42;
++        base.gasChemistryAudit[0].energyResidual = NAN;
++        base.gasSstAudit.sourceK = NAN;
++        base.budget.turbulenceInventory = NAN;
+         HostState endpoint = base;
++        endpoint.gasChemistryAudit[0].integratedTime = 99; // Legacy endpoint diagnostics are not propagated.
++        endpoint.gasSstAudit.sourceK = 123;
+         endpoint.time = interval.end;
+         CpuMaterialDriver driver(model, &mesh);
+         HostState result;
+@@ -112,21 +119,24 @@ int main(int argc, char** argv)
+         const bool advanced = driver.advanceCandidate(base, endpoint, history,
+             CpuMaterialControls{}, result, corrected, report, error);
+         check(advanced, "actual CPU material candidate: " + error);
++        check(result.gasChemistryAudit.size() == 1 && result.gasChemistryAudit[0].integratedTime == 42
++            && std::isnan(result.gasChemistryAudit[0].energyResidual) && std::isnan(result.gasSstAudit.sourceK),
++            "legacy diagnostics remain base payload without per-window endpoint copy");
+         check(report.materialSteps == 1 && report.filmSteps == 1, "complete material/film step");
+         check(result.ledger.size() == 1, "phase packet must be retained");
+         const auto& phase = result.ledger[0];
+         check(phase.kind == ExchangeKind::SolidFilm, "phase packet kind");
+-        check(phase.energy != 0 && phase.conductive != 0 && mag(phase.momentum) > 0,
+-            "zero-mass packet must carry heat and force");
++        check(phase.energy != 0 && phase.conductive != 0 && mag(phase.momentum) == 0,
++            "phase packet retains heat without unused support impulse");
+         check(report.budgetDelta.consumedPackets == 1, "phase accounting count");
+         check(report.budgetDelta.exchangeEnergy[SolidParticipant] == -phase.energy
+             && report.budgetDelta.exchangeEnergy[FilmParticipant] == phase.energy,
+             "solid/film phase heat accounting");
+         check(report.budgetDelta.exchangeMomentum[SolidParticipant].x == -phase.momentum.x
+             && report.budgetDelta.exchangeMomentum[FilmParticipant].x == phase.momentum.x,
+-            "solid/film phase force accounting");
++            "solid/film phase momentum diagnostic is inactive");
+         check(report.budgetDelta.supportImpulse.x == -phase.momentum.x,
+-            "phase support force accounting");
++            "legacy support slot is not accumulated");
+         check(result.film[0].enthalpy != base.film[0].enthalpy,
+             "phase heat must still reach film forcing");
+         if (mode == "melting") {
+diff --git a/tests/test_chmt_input_admission.py b/tests/test_chmt_input_admission.py
+index 531a1ff..890500e 100644
+--- a/tests/test_chmt_input_admission.py
++++ b/tests/test_chmt_input_admission.py
+@@ -57,7 +57,8 @@ def evaluate_probe(rev=None):
+     spec=importlib.util.spec_from_file_location('helper',ROOT/'tests/test_native_cleanup.py');helper=importlib.util.module_from_spec(spec);spec.loader.exec_module(helper)
+     p='applications/CHMT/materials/CpuMaterialDriver.C';src=subprocess.check_output(['git','show',rev+':'+p],cwd=ROOT,text=True) if rev else (ROOT/p).read_text()
+     body=helper.block(src,'    bool evaluate(const HostState&')
+-    signature='const HostState&,const PhysicsConfig&,const std::vector<GasPrimitive>&,const std::vector<GasGradient>&,const std::vector<SolidQ>&,const std::vector<FilmQ>&,Real,std::uint64_t,CpuSurfaceResult&,std::string&,const std::vector<Vec3>*,const std::vector<Real>*,const std::vector<GasWallClosureContext>*,bool*'
++    signature='const HostState&,const PhysicsConfig&,const std::vector<GasPrimitive>&,const std::vector<GasGradient>&,const std::vector<SolidQ>&,const std::vector<FilmQ>&,Real,std::uint64_t,CpuSurfaceResult&,std::string&,const std::vector<Real>*,const std::vector<GasWallClosureContext>*,bool*'
++    if rev: signature=signature.replace('std::string&,const std::vector<Real>*','std::string&,const std::vector<Vec3>*,const std::vector<Real>*')
+     return r'''
+ #include "ablation/CpuSurfaceInterface.H"
+ #include "../common/gasTransport/GasMechanismIO.H"
+@@ -83,3 +84,10 @@ int main(){using namespace chmt;Driver d;HostState state;PhysicsConfig p;p.gasMo
+     d=tmp_path/'admitted';d.mkdir();extra=r'''
+  d.mechanism.speciesNames.clear();d.mechanism.mechanismHash=99;assert(d.evaluate(state,p,{},{},{},{},.1,1,result,error));assert(observedHash==99&&observedReactions==d.mechanism.reactions.data());geometryOk=false;int prior=surfaceCalls;assert(!d.evaluate(state,p,{},{},{},{},.1,1,result,error)&&surfaceCalls==prior&&d.terminalWallFailure);geometryOk=true;surfaceOk=false;assert(!d.evaluate(state,p,{},{},{},{},.1,1,result,error));
+ ''';build_run(d,evaluate_probe()+main.replace('EXTRA',extra))
++
++
++def test_current_material_surface_interface_after_support_removal(tmp_path):
++    main=r'''
++int main(){using namespace chmt;Driver d;HostState state;PhysicsConfig p;p.gasMode=ugkwp::GasMode::MixtureChemistry;d.mechanism.mechanismHash=17;d.mechanism.speciesNames.resize(Ns);d.mechanism.reactions.resize(1);CpuSurfaceResult result;std::string error;assert(d.evaluate(state,p,{},{},{},{},.1,1,result,error));assert(observedHash==17&&observedReactions==d.mechanism.reactions.data());assert(prepared==1&&sampled==1&&contextCalls==1&&surfaceCalls==1);}
++'''
++    build_run(tmp_path,evaluate_probe()+main)
+diff --git a/tests/test_chmt_support_accounting_removal.py b/tests/test_chmt_support_accounting_removal.py
+new file mode 100644
+index 0000000..73f0e7c
+--- /dev/null
++++ b/tests/test_chmt_support_accounting_removal.py
+@@ -0,0 +1,108 @@
++"""Actual reduced-model physical outputs retain FP64 values after force removal."""
++from pathlib import Path
++import io
++import subprocess
++import tarfile
++ROOT = Path(__file__).resolve().parents[1]
++BASE = '0aa34bc1b0e370ec99e6107faf83ff7f0ac3e668'
++SOURCE = r'''
++#include "LIFECYCLE_HEADER"
++#include "coupling/Coordinator.H"
++#include <cstdio>
++void scalar(Real x){std::printf("%a ",x);}
++void vector(Vec3 v){scalar(v.x);scalar(v.y);scalar(v.z);}
++int main(int argc,char**){
++ auto p=lifecyclePhysics();p.material.enableMelting=true;
++ for(Real temperature:{500.,600.}){
++  auto h=lifecycleState(p,.02);auto g=primitive(p,temperature);
++  p.gravity={};p.gasViscosity=0;g.velocity={};
++  h.surface.baseVelocity.assign(2,Vec3{});
++  CpuSurfaceResult surface;std::string error;
++  require(evaluateCpuSurface(h,p,std::vector<GasPrimitive>(2,g),{},{},{},.001,1,surface,error),error);
++  for(const auto& q:surface.phasePackets){
++   if(argc>1)require(mag(q.momentum)==0,"unused phase momentum still computed");
++   scalar(q.mass);scalar(q.energy);scalar(q.advective);scalar(q.conductive);scalar(q.pressureWork);scalar(q.viscousWork);scalar(q.liquidKineticAdvection);
++   for(auto v:q.species)scalar(v);for(auto v:q.condensed)scalar(v);
++  }
++  for(const auto& r:surface.physics){scalar(r.phaseMass);scalar(r.phaseEnergy);scalar(r.topTemperature);scalar(r.solidSpeed);scalar(r.topSpeed);vector(r.shear);vector(r.gasState.velocity);scalar(r.gasState.pressure);}
++  p.gravity={};p.gasViscosity=0;h.surface.baseVelocity.assign(2,Vec3{});g.velocity={};
++  const auto step=advanceLifecycle(h,p,std::vector<GasPrimitive>(2,g),.001);
++  scalar(step.gasMass);scalar(step.gasEnergy);scalar(step.phaseMass);scalar(step.filmResidual);scalar(step.storage);
++  for(const auto& q:step.state.solid){scalar(q.energy);scalar(q.porosity);for(auto v:q.condensed)scalar(v);for(auto v:q.pore)scalar(v);}
++  for(const auto& q:step.state.film){scalar(q.mass);scalar(q.enthalpy);for(auto v:q.species)scalar(v);}
++  for(const auto& a:step.state.filmAux){scalar(a.pressure);scalar(a.thickness);scalar(a.temperature);vector(a.meanVelocity);vector(a.topVelocity);scalar(a.kineticEnergy);scalar(a.solidFront);scalar(a.gasFront);}
++  for(auto x:step.state.solidMesh.points)vector(x);for(auto x:step.state.gasMesh.points)vector(x);
++ }
++ // Both packet producers preserve phase energy and mass for signed phase rates.
++ for(Real rate:{-.01,0.,.01}){
++  SurfacePhysicsInput in;in.hasSolid=true;in.dt=.001;in.area=2;in.solidArea=3;in.gasArea=4;
++  in.normal=in.solidNormal=in.gasNormal={0,0,1};in.aux.thickness=.02;in.baseVelocity={.2,.3,0};
++  in.filmBase.mass=1;in.filmBase.species[0]=1;in.filmBase.enthalpy=1000;
++  SurfacePhysicsResult r;r.wet=true;r.phaseMass=rate;r.phaseAdvective=7;r.phaseConductive=9;
++  r.phasePressureWork=11;r.phaseViscousWork=13;r.bottomKineticAdvection=17;
++  r.shear={.3,.4,0};r.gasState.pressure=100000;p.gravity={1,2,3};
++  SurfacePacketIdentity id;id.gasCell=id.solidCell=id.filmFace=0;ExchangePacket out[3];
++  require(assembleSurfacePackets(in,r,id,p,out),"actual signed phase assembly");
++  if(argc>1)require(mag(out[2].momentum)==0,"unused assembled phase momentum still computed");
++  scalar(out[2].mass);scalar(out[2].energy);scalar(out[2].advective);scalar(out[2].conductive);
++  scalar(out[2].pressureWork);scalar(out[2].viscousWork);scalar(out[2].liquidKineticAdvection);
++ }
++ if(argc>1){Budget b;b.supportImpulse={NAN,INFINITY,-INFINITY};require(validBudget(b),"legacy support value affected budget validity");
++  ExchangePacket q;q.kind=ExchangeKind::GasSolid;q.gasCell=q.solidCell=0;q.momentum={3,4,5};
++  require(accountAssembledPacket(q,b,Tolerances{}),"legacy support value affected assembly");
++  require(b.exchangeMomentum[GasParticipant].x==3&&b.exchangeMomentum[SolidParticipant].x==-3,"actual gas impulse accounting changed");
++  require(std::isnan(b.supportImpulse.x),"legacy support slot was modified");
++ }
++}
++'''
++
++def test_removed_support_red_green_and_physical_parity(tmp_path):
++    baseline = tmp_path / 'base'; baseline.mkdir()
++    archive = subprocess.check_output(['git', 'archive', BASE, 'applications/CHMT', 'common'], cwd=ROOT)
++    with tarfile.open(fileobj=io.BytesIO(archive)) as tar: tar.extractall(baseline, filter='data')
++    outputs = []
++    for label, root in [('base', baseline), ('current', ROOT)]:
++        app = root / 'applications/CHMT'
++        fixture = tmp_path / (label + '-lifecycle.H')
++        fixture.write_text((app/'devtools/multirate/test_cpu_phase_lifecycle.cpp').read_text().replace('int main(int argc,char** argv)', 'int lifecycle_test_main(int argc,char** argv)'))
++        source = tmp_path / (label + '.cpp'); source.write_text(SOURCE.replace('LIFECYCLE_HEADER', str(fixture)))
++        exe = tmp_path / (label+'-probe')
++        command = ['g++', '-std=c++17', '-O1', '-ffp-contract=off', '-I'+str(app), '-I'+str(app/'devtools/multirate'), '-I'+str(root/'common'), str(source)]
++        command += [str(app / name) for name in ['ablation/CpuSurfaceInterface.C', 'film/CpuFilmDriver.C', 'materials/MaterialTransport.C', 'mesh/Geometry.C']]
++        command += ['-o', str(exe)]
++        build = subprocess.run(command, capture_output=True, text=True)
++        (tmp_path/(label+'.build.log')).write_text(' '.join(command)+'\n'+build.stdout+build.stderr)
++        assert build.returncode == 0, build.stderr
++        run = subprocess.run([str(exe)], capture_output=True, text=True)
++        (tmp_path/(label+'.parity.log')).write_text(run.stdout+run.stderr)
++        assert run.returncode == 0, run.stderr
++        outputs.append(run.stdout)
++        removal = subprocess.run([str(exe), 'removed'], capture_output=True, text=True)
++        (tmp_path/(label+'.removal.log')).write_text(removal.stdout+removal.stderr)
++        if label == 'base':
++            assert removal.returncode != 0
++            assert 'unused phase momentum still computed' in removal.stderr
++        else: assert removal.returncode == 0, removal.stderr
++    assert outputs[0] == outputs[1], 'physical mass/energy/profile/geometry FP64 outputs changed'
++
++
++def test_legacy_sst_nonfinite_slots_do_not_change_actual_packet_state(tmp_path):
++    source=tmp_path/'legacy.cpp'
++    source.write_text(r'''
++#include "coupling/Coordinator.H"
++#include <cassert>
++#include <cmath>
++#include <limits>
++using namespace chmt;
++int main(){Budget clean,legacy;legacy.turbulenceOmegaConstraint=NAN;legacy.turbulenceInventory=INFINITY;legacy.turbulenceProduction=-INFINITY;legacy.turbulenceDissipation=NAN;legacy.turbulenceBoundaryFlux=NAN;
++ assert(validBudget(clean)&&validBudget(legacy));
++ ExchangePacket a;a.kind=ExchangeKind::GasSolid;a.gasCell=a.solidCell=0;a.mass=.25;a.species[0]=a.condensed[0]=.25;a.energy=a.advective=13;a.momentum={3,4,5};auto b=a;
++ assert(accountAssembledPacket(a,clean,Tolerances{})&&accountAssembledPacket(b,legacy,Tolerances{}));
++ for(int k=0;k<NParticipants;++k){assert(clean.exchangeMass[k]==legacy.exchangeMass[k]&&clean.exchangeEnergy[k]==legacy.exchangeEnergy[k]);assert(clean.exchangeMomentum[k].x==legacy.exchangeMomentum[k].x);for(int s=0;s<Ns;++s)assert(clean.exchangeSpecies[k][s]==legacy.exchangeSpecies[k][s]);}
++ assert(clean.consumedPackets==legacy.consumedPackets&&a.consumerMask==b.consumerMask);
++ assert(std::isnan(legacy.turbulenceOmegaConstraint)&&legacy.turbulenceInventory==INFINITY&&legacy.turbulenceProduction==-INFINITY);
++}
++''')
++    app=ROOT/'applications/CHMT';exe=tmp_path/'legacy'
++    subprocess.run(['g++','-std=c++17','-O1','-ffp-contract=off','-I'+str(app),'-I'+str(ROOT/'common'),str(source),'-o',str(exe)],check=True)
++    subprocess.run([str(exe)],check=True)
