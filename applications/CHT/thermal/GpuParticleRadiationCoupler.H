@@ -37,7 +37,6 @@ struct ParticleRadiationMaterialResult
     scalarField deltaParticleRadiationEnergyJ;
     List<scalarField> solidWallRadiationEnergyJ;
     scalar escapedBoundaryRadiationEnergyJ;
-    scalar globalConservationResidualJ;
 };
 
 namespace detail

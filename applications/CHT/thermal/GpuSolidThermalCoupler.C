@@ -1855,11 +1855,6 @@ GpuThermalCouplingResult GpuSolidThermalCoupler::exchangeIfDue
         scalarField particleContactPreview(particleDepositedPreview);
         particleContactPreview += particleReflectedPreview;
         List<scalarField> solidEnergy(data_->mapper->size());
-        scalar particleContactEnergyJ = scalar(0);
-        forAll(particleContactPreview, faceI)
-        {
-            particleContactEnergyJ += particleContactPreview[faceI];
-        }
         forAll(solidEnergy, pairI)
         {
             const label fluidPatchI = data_->mapper->fluidPatchIds()[pairI];
@@ -2203,7 +2198,6 @@ GpuThermalCouplingResult GpuSolidThermalCoupler::exchangeIfDue
         completed.solidStateUpdated = true;
         completed.wallTemperatureUploaded = true;
         completed.particleMomentsRebuilt = true;
-        completed.particleContactEnergyJ = particleContactEnergyJ;
         data_->writeState.commitPreparedExchange(completed);
         result.coupled = true;
         result.radiationCoupled = radiationDue;

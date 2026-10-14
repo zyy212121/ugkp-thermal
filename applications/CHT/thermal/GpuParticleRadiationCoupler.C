@@ -218,7 +218,6 @@ try
         );
     }
     result.escapedBoundaryRadiationEnergyJ = scalar(0);
-    result.globalConservationResidualJ = scalar(0);
     const scalar couplingDeltaT = snapshot.elapsedCouplingTimeS;
 
     scalarField currentTemperatureK(snapshot.particleMeanTemperatureK);
@@ -371,7 +370,6 @@ try
             scalar(1e-10)
         );
 
-    scalar appliedBoundaryEnergyJ = scalar(0);
     forAll(context.mesh.boundary(), patchI)
     {
         const bool coupled = isCoupledPatch
@@ -384,7 +382,6 @@ try
             const scalar boundaryEnergyJ =
                 boundaryScale.scale*rawBoundaryEnergyJ[patchI][faceI];
 
-            appliedBoundaryEnergyJ += boundaryEnergyJ;
             if (coupled)
             {
                 result.solidWallRadiationEnergyJ[patchI][faceI] =
@@ -397,23 +394,6 @@ try
         }
     }
 
-    // The second scale is diagnostic only. Preserve the original successful
-    // diagnostic arithmetic and its failure fallback, never rescale faces twice.
-    const detail::ConservativeBoundaryEnergyScaleResult appliedBalance =
-        detail::conservativeBoundaryEnergyScale
-        (
-            acceptedParticleEnergyJ,
-            appliedBoundaryEnergyJ,
-            grossTransactionEnergyJ,
-            scalar(1e-10)
-        );
-    result.globalConservationResidualJ =
-        finiteParticleRadiationScalar(acceptedParticleEnergyJ)
-     && finiteParticleRadiationScalar(appliedBoundaryEnergyJ)
-     && finiteParticleRadiationScalar(appliedBalance.scale)
-     && finiteParticleRadiationScalar(appliedBalance.residualJ)
-      ? appliedBalance.residualJ
-      : acceptedParticleEnergyJ + appliedBoundaryEnergyJ;
     result.finalMeanTemperatureK = currentTemperatureK;
     return result;
 

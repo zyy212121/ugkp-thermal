@@ -871,7 +871,6 @@ Foam::dictionary Foam::gpuThermal::ThermalRestartPreflight::stateDictionary
     result.add("solidStateUpdated", Foam::Switch(state.solidStateUpdated));
     result.add("wallTemperatureUploaded", Foam::Switch(state.wallTemperatureUploaded));
     result.add("particleMomentsRebuilt", Foam::Switch(state.particleMomentsRebuilt));
-    result.add("particleContactEnergyJ", state.particleContactEnergyJ);
     return result;
 }
 
@@ -930,7 +929,6 @@ Foam::gpuThermal::ThermalRestartPreflight::stateFromDictionary
     state.solidStateUpdated = bool(dict.lookupOrDefault<Foam::Switch>("solidStateUpdated", false));
     state.wallTemperatureUploaded = bool(dict.lookupOrDefault<Foam::Switch>("wallTemperatureUploaded", false));
     state.particleMomentsRebuilt = bool(dict.lookupOrDefault<Foam::Switch>("particleMomentsRebuilt", false));
-    state.particleContactEnergyJ = dict.lookupOrDefault<scalar>("particleContactEnergyJ", scalar(0));
     return state;
 }
 
