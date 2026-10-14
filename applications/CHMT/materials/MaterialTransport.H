@@ -6,11 +6,11 @@ namespace chmt {
 struct MaterialTransportResult {
     std::vector<SolidQ> rates,faceFlux;
     std::vector<Vec3> poreVelocity;
-    Real dtLimit=std::numeric_limits<Real>::max(),bodyPower=0;
+    Real dtLimit=std::numeric_limits<Real>::max();
 };
 bool filmThicknessFromMass(Real mass,Real area,Real density,Real& thickness);
 bool filmSweepsCompatible(Real oldMass,Real newMass,Real density,Real gasOutwardSweep,Real solidOutwardSweep,Real sideSweep,const Tolerances&);
-bool applyMaterialPacketBatch(const std::vector<SolidQ>&,const std::vector<ExchangePacket>&,std::vector<SolidQ>&,Real& numericalMassRoundoff,std::string&,bool* numericalFailure=nullptr);
+bool applyMaterialPacketBatch(const std::vector<SolidQ>&,const std::vector<ExchangePacket>&,std::vector<SolidQ>&,std::string&,bool* numericalFailure=nullptr);
 bool materialPointsClose(const HostMesh&,const std::vector<Vec3>&,const Tolerances&);
 bool materialSweepsCompatible(const HostMesh&,const SurfaceMesh&,const std::vector<Real>& targets,const std::vector<Real>& actual,const Tolerances&);
 // Conservative physical Darcy + ALE transport only. Conduction is exclusively
@@ -28,7 +28,7 @@ bool advanceMaterialReactions(const SolidQ&,Real volume,const PhysicsConfig&,Rea
 namespace detail {
 bool completeMaterialTransport(const HostMesh&,const std::vector<SolidQ>&,const PhysicsConfig&,const std::vector<Real>&,Real,Real,MaterialTransportResult&,std::string&,bool*);
 bool completeFilmThicknessFromMass(Real,Real,Real,Real&);
-bool completeMaterialPacketBatch(const std::vector<SolidQ>&,const std::vector<ExchangePacket>&,std::vector<SolidQ>&,Real&,std::string&,bool*);
+bool completeMaterialPacketBatch(const std::vector<SolidQ>&,const std::vector<ExchangePacket>&,std::vector<SolidQ>&,std::string&,bool*);
 bool completeMaterialReactions(const SolidQ&,Real,const PhysicsConfig&,Real,Real,Real,int,SolidQ&,std::uint64_t&,std::string&,bool*);
 }
 }

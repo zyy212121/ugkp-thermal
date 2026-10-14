@@ -16,17 +16,13 @@ struct CpuMaterialControls {
 };
 struct CpuMaterialReport {
     MaterialFailureOrigin failureOrigin=MaterialFailureOrigin::None;
-    Real failedLocalDt=0; // Last attempted local duration, before any retry proposal.
-    std::uint64_t boundaryDriveSamples=0,materialRhsEvaluations=0;
-    std::uint64_t materialSteps=0,reactionSteps=0,filmSteps=0,linearSolves=0;
-    bool recoverable=true,geometryCorrection=false;Real eventTime=0,eventDuration=0,numericalMassRoundoff=0;
-    int nonlinearIterations=0;Real energyResidual=0,minimumTemperature=std::numeric_limits<Real>::max();
-    Budget budgetDelta{};MaterialDonorPlan donorPlan{};
-    std::vector<Real> solidTargetSweeps{};
+    std::uint64_t materialSteps=0;
+    bool recoverable=true,geometryCorrection=false;Real eventTime=0,eventDuration=0;
+    MaterialDonorPlan donorPlan{};
 };
 // Owns CPU numerical machinery, not a second copy of accepted inventories.
 // Candidate solve never mutates the accepted native mesh: it builds an unregistered full-topology fvMesh for the real sparse solve.
-// Successful output merges exact gasEndpoint inventories/budget with CPU changes once.
+// Successful output merges exact gasEndpoint inventories with CPU changes once.
 class CpuMaterialDriver {
     struct Implementation;std::unique_ptr<Implementation> data_;
     friend struct detail::ConductionContinuation;

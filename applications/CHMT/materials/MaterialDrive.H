@@ -6,7 +6,7 @@ inline Real materialDriveRelative(Real a,Real b,Real floor){return absValue(a-b)
 // A LOCAL first-order lag control, not a bound on global PDE error. Only
 // interface records are scanned; no volume RHS or implicit solve occurs here.
 inline bool materialDriveSlabEndLocal(const IntervalHistory& history,WindowTime begin,WindowTime requested,
-    Real tolerance,Real tractionScale,WindowTime& output,std::uint64_t& samples,std::string& error){
+    Real tolerance,Real tractionScale,WindowTime& output,std::string& error){
     if(!history.complete()||begin<WindowTime{}||requested>history.localEnd()||requested<=begin
         ||!finite(tolerance)||tolerance<0||!finite(tractionScale)||tractionScale<=0){error="invalid material driving control";return false;}
     const GasIntervalRecord* held=nullptr;for(const auto& r:history.records())if(begin<r.localEnd){held=&r;break;}
@@ -14,7 +14,7 @@ inline bool materialDriveSlabEndLocal(const IntervalHistory& history,WindowTime 
     for(const auto& r:history.records()){if(r.localBegin<=begin||r.localBegin>=end)continue;
         if(r.gasTrace.size()!=held->gasTrace.size()||r.gasTraction.size()!=held->gasTraction.size()||r.gasGradient.size()!=held->gasGradient.size()||r.gasWallMatching.size()!=held->gasWallMatching.size()){
             error="gas drive layout changed";return false;}
-        Real change=0;++samples;
+        Real change=0;
         for(std::size_t f=0;f<r.gasTrace.size();++f){const auto& a=held->gasTrace[f];const auto& b=r.gasTrace[f];
             change=maxValue(change,materialDriveRelative(a.temperature,b.temperature,1));change=maxValue(change,materialDriveRelative(a.pressure,b.pressure,1));
             change=maxValue(change,materialDriveRelative(a.rho,b.rho,1e-30));
@@ -41,9 +41,9 @@ inline bool materialDriveSlabEndLocal(const IntervalHistory& history,WindowTime 
     }
     if(!(end>begin)){error="driving slab does not advance";return false;}output=end;error.clear();return true;
 }
-inline bool materialDriveSlabEnd(const IntervalHistory& history,Real begin,Real requested,Real tolerance,Real tractionScale,Real& output,std::uint64_t& samples,std::string& error){
+inline bool materialDriveSlabEnd(const IntervalHistory& history,Real begin,Real requested,Real tolerance,Real tractionScale,Real& output,std::string& error){
     WindowTime local;const Real origin=history.interval().begin;
-    if(!materialDriveSlabEndLocal(history,windowOffset(origin,begin),windowOffset(origin,requested),tolerance,tractionScale,local,samples,error))return false;
+    if(!materialDriveSlabEndLocal(history,windowOffset(origin,begin),windowOffset(origin,requested),tolerance,tractionScale,local,error))return false;
     output=windowAbsolute(origin,local);return true;
 }
 }

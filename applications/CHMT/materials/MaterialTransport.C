@@ -91,9 +91,9 @@ bool filmSweepsCompatible(Real oldMass,Real newMass,Real density,Real gasOutward
     return finite(actual)&&absValue(actual-expected)<=tol.absoluteGeometry+tol.relativeGeometry*maxValue(absValue(actual),absValue(expected))+roundoff;
 }
 template<bool Terminal>
-bool applyMaterialPacketBatchImpl(const std::vector<SolidQ>& base,const std::vector<ExchangePacket>& packets,std::vector<SolidQ>& output,Real& numericalMassRoundoff,std::string& error,bool* numericalFailure){
+bool applyMaterialPacketBatchImpl(const std::vector<SolidQ>& base,const std::vector<ExchangePacket>& packets,std::vector<SolidQ>& output,std::string& error,bool* numericalFailure){
     if(numericalFailure)*numericalFailure=false;
-    std::vector<SolidQ> next=base;Real correction=0;
+    std::vector<SolidQ> next=base;
     std::vector<std::array<long double,Nc+Ns+1>> sum(base.size()),scale(base.size());std::vector<std::size_t> operations(base.size());
     for(std::size_t cell=0;cell<base.size();++cell){for(int c=0;c<Nc;++c){sum[cell][c]=base[cell].condensed[c];scale[cell][c]=absValue(base[cell].condensed[c]);}
         for(int species=0;species<Ns;++species){sum[cell][Nc+species]=base[cell].pore[species];scale[cell][Nc+species]=absValue(base[cell].pore[species]);}sum[cell][Nc+Ns]=base[cell].energy;}
@@ -106,19 +106,19 @@ bool applyMaterialPacketBatchImpl(const std::vector<SolidQ>& base,const std::vec
     for(std::size_t cell=0;cell<base.size();++cell){for(int component=0;component<Nc+Ns;++component){Real value=static_cast<Real>(sum[cell][component]);
             if(value<0){const long double bound=(operations[cell]+2)*std::numeric_limits<Real>::epsilon()*scale[cell][component];
                 if(-sum[cell][component]>bound){if(!Terminal){if(numericalFailure)*numericalFailure=true;error="material packet batch exceeds physical donor inventory";return false;}}
-                else {correction-=value;value=0;} // Demonstrated arithmetic deficit, explicitly reported.
+                else {value=0;} // Complete the demonstrated arithmetic deficit.
             }
             if(!Terminal&&!finite(value)){if(numericalFailure)*numericalFailure=true;error="nonfinite material packet result";return false;}
             if(component<Nc)next[cell].condensed[component]=value;else next[cell].pore[component-Nc]=value;}
         next[cell].energy=static_cast<Real>(sum[cell][Nc+Ns]);if(!Terminal&&!finite(next[cell].energy)){if(numericalFailure)*numericalFailure=true;error="nonfinite material packet energy";return false;}}
-    output=std::move(next);numericalMassRoundoff=correction;error.clear();return true;
+    output=std::move(next);error.clear();return true;
 }
-bool applyMaterialPacketBatch(const std::vector<SolidQ>& base,const std::vector<ExchangePacket>& packets,std::vector<SolidQ>& output,Real& roundoff,std::string& error,bool* numericalFailure){
-    return applyMaterialPacketBatchImpl<false>(base,packets,output,roundoff,error,numericalFailure);
+bool applyMaterialPacketBatch(const std::vector<SolidQ>& base,const std::vector<ExchangePacket>& packets,std::vector<SolidQ>& output,std::string& error,bool* numericalFailure){
+    return applyMaterialPacketBatchImpl<false>(base,packets,output,error,numericalFailure);
 }
 namespace detail {
-bool completeMaterialPacketBatch(const std::vector<SolidQ>& base,const std::vector<ExchangePacket>& packets,std::vector<SolidQ>& output,Real& roundoff,std::string& error,bool* numericalFailure){
-    return applyMaterialPacketBatchImpl<true>(base,packets,output,roundoff,error,numericalFailure);
+bool completeMaterialPacketBatch(const std::vector<SolidQ>& base,const std::vector<ExchangePacket>& packets,std::vector<SolidQ>& output,std::string& error,bool* numericalFailure){
+    return applyMaterialPacketBatchImpl<true>(base,packets,output,error,numericalFailure);
 }
 }
 bool materialPointsClose(const HostMesh& a,const std::vector<Vec3>& b,const Tolerances& tol){
@@ -219,11 +219,11 @@ bool evaluateMaterialTransportImpl(const HostMesh& m,const std::vector<SolidQ>& 
             for(int k=0;k<Nc;++k)outgoing[c].condensed[k]+=maxValue(0,sign*flux.condensed[k]);
             for(int s=0;s<Ns;++s)outgoing[c].pore[s]+=maxValue(0,sign*flux.pore[s]);}
         Real poreMass=0;for(int s=0;s<Ns;++s)poreMass+=q[c].pore[s];const Real power=poreMass*dot(p.gravity,result.poreVelocity[c]);
-        result.rates[c].energy+=power;result.bodyPower+=power;
+        result.rates[c].energy+=power;
         for(int k=0;k<Nc;++k)if(outgoing[c].condensed[k]>0)result.dtLimit=minValue(result.dtLimit,cfl*q[c].condensed[k]/outgoing[c].condensed[k]);
         for(int s=0;s<Ns;++s)if(outgoing[c].pore[s]>0)result.dtLimit=minValue(result.dtLimit,cfl*q[c].pore[s]/outgoing[c].pore[s]);
     }
-    if(!Terminal&&(!finite(result.dtLimit)||result.dtLimit<=0||!finite(result.bodyPower))){error="invalid material transport timestep/body work";return false;}
+    if(!Terminal&&(!finite(result.dtLimit)||result.dtLimit<=0)){error="invalid material transport timestep";return false;}
     output=std::move(result);if(numericalFailure)*numericalFailure=false;error.clear();return true;
 }
 bool evaluateMaterialTransport(const HostMesh& m,const std::vector<SolidQ>& q,const PhysicsConfig& p,
