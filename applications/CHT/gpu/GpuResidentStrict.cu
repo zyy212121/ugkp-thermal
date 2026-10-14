@@ -85,6 +85,7 @@
 #include <cstdlib>
 #include <cmath>
 #include <vector>
+#include <new>
 
 #ifdef UGKP_DEVELOPMENT_PROBES
 #include <cerrno>
@@ -3858,7 +3859,7 @@ int acquireParticleWallEffusivity(DeviceState* s, const size_t nFaces)
     if (s->particleWallEffusivityByFace != nullptr) return 0;
     if (allocate(s->particleWallEffusivityByFace, nFaces,
                  "cudaMalloc CHT particle wall effusivity") != 0) return 1;
-    // These host bits record actual unfinished zero/publication work only.
+    // These host bits record actual unfinished initialization/publication work only.
     s->particleStuckInitialisationPending |= 4 | 0x800;
     return 0;
 }
@@ -3866,8 +3867,31 @@ int acquireParticleWallEffusivity(DeviceState* s, const size_t nFaces)
 cudaError_t initialiseParticleWallEffusivity(DeviceState* s, const size_t nFaces)
 {
     if ((s->particleStuckInitialisationPending & 4) == 0) return cudaSuccess;
-    const cudaError_t error = cudaMemset
-    (s->particleWallEffusivityByFace, 0, nFaces*sizeof(GpuReal));
+    // A face owner replaces the scalar fallback in every contact consumer.
+    // Seed from that same material before publishing it; actual coupled patch
+    // uploads then replace only their faces. The pending bit prevents later
+    // stuck-model reconfiguration from overwriting those coupled values.
+    const GpuReal fallbackEffusivity = ::sqrt
+    (
+        s->particleWallDensityKgM3*s->particleWallSpecificHeatJkgK
+       *s->particleWallConductivityWmK
+    );
+    cudaError_t error;
+    try
+    {
+        const std::vector<GpuReal> initialEffusivity(nFaces, fallbackEffusivity);
+        // Synchronous H2D staging finishes using the host vector before it dies.
+        error = cudaMemcpy
+        (
+            s->particleWallEffusivityByFace, initialEffusivity.data(),
+            nFaces*sizeof(GpuReal), cudaMemcpyHostToDevice
+        );
+    }
+    catch (const std::bad_alloc&)
+    {
+        // Keep initialization pending for the existing error/retry path.
+        return cudaErrorMemoryAllocation;
+    }
     if (error == cudaSuccess)
         s->particleStuckInitialisationPending &= static_cast<unsigned short>(~4);
     return error;
@@ -3912,7 +3936,7 @@ extern "C" int ugkwpGpuResidentStrictUploadParticleWallEffusivityPatch
     const cudaError_t error = initialiseParticleWallEffusivity(s, static_cast<size_t>(s->nFaces));
     if (error != cudaSuccess)
     {
-        setLastError("cudaMemset CHT particle wall effusivity", error);
+        setLastError("cudaMemcpy initial CHT particle wall effusivity", error);
         return 1;
     }
     if (publishParticleWallEffusivity(s) != 0) return 1;
@@ -5927,7 +5951,7 @@ extern "C" int ugkwpGpuResidentStrictConfigureParticleStuckModel
                   : (
                         areaErr != cudaSuccess
                       ? "cudaMemset particle wall represented contact area"
-                      : "cudaMemset CHT particle wall effusivity"
+                      : "cudaMemcpy initial CHT particle wall effusivity"
                     )
                 ),
                 firstError
