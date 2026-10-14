@@ -34,8 +34,7 @@ struct Backend {
     bool poisoned=false;std::string error;
     GasIntervalRecord record;std::vector<GasPrimitive> stageBulk;std::vector<GasGradient> stageGradient;std::vector<GasWallResult> faceRates;std::vector<GasQ> rawInterface;
     Real microDt=0,microTime=0,stageTime=0,stagePacketDt=0;
-    WindowTime elapsed{};Real nextGasSeed=0;bool microGeometryPrepared=false;int gasStageIndex=0;Budget trialBudget{};
-    std::vector<ugkwp::ChemistryAudit<Real,Ns>> firstChemistry,secondChemistry;
+    WindowTime elapsed{};Real nextGasSeed=0;bool microGeometryPrepared=false;int gasStageIndex=0;
     int nCells=0,nFaces=0,fixedCellBlockThreads=128,fixedFaceBlockThreads=128;
     int hostTurbulenceModel=0,hostGasFluxScheme=1,hostGasTimeIntegrator=1,hasPeriodicFaces=0;
     ugkwp::GasSpeciesState<Real,Ns> gasSpecies;
@@ -59,7 +58,6 @@ int finishCoupledGeometry(Backend*);
 int prepareCoupledBoundaryLayer(Backend*,Real,Real);
 int applyCoupledFaces(Backend*,Real,Real);
 int accountCoupledFaces(Backend*,Real);
-int acceptSstAudit(Backend*);
 namespace transport {
 using std::isfinite;
 #define GPU_OPERATOR_REAL double
@@ -113,9 +111,8 @@ struct GasHostPolicy:GasHostWithWallEnergy<Real,Real,&accountCoupledFaces> {
 #include "../../../common/GpuGasCourant.cuh"
 struct CoupledTrialPolicy {
     static int begin(Backend* b){
-        b->firstChemistry.clear();b->secondChemistry.clear();
         b->preparedWallReady=false;b->terminalWallFailure=false;ugkwp::invalidateGasBoundaryLayerPreparation(*b);
-        if(!b->microGeometryPrepared)b->microBase=b->trial;b->gasStageIndex=0;b->trialBudget=b->trial.budget;b->record={};b->record.microSequence=b->history.records().size()+1;
+        if(!b->microGeometryPrepared)b->microBase=b->trial;b->gasStageIndex=0;b->record={};b->record.microSequence=b->history.records().size()+1;
         b->record.begin=b->microTime;b->record.actualDt=b->microDt;b->record.localBegin=b->elapsed;b->record.localEnd=b->elapsed+b->microDt;b->record.end=windowAbsolute(b->program.interval.begin,b->record.localEnd);b->record.gasGeometry=b->trial.gasMesh.geometryVersion;b->record.solidGeometry=b->trial.solidMesh.geometryVersion;
         if(!b->storage.clearTrialStatus())return 1;
         if(!b->microGeometryPrepared&&prepareCoupledGeometry(b)!=0)return 1;
@@ -125,11 +122,7 @@ struct CoupledTrialPolicy {
     }
     static const Real* stageVolumes(Backend* b,bool after){const auto& g=b->storage.hostView().gasGeometry;return g.enabled?(after?g.newVolume:g.oldVolume):b->storage.hostView().V;}
     static Real targetMaxCo(Backend* b){return b->model.physics.cfl;}
-    static int captureChemistryAudit(Backend* b,bool after){
-        auto& audit=after?b->secondChemistry:b->firstChemistry;
-        if(b->model.physics.gasMode!=ugkwp::GasMode::MixtureChemistry){audit.clear();return 0;}
-        return b->storage.read(b->storage.hostView().gasSpecies.chemistryAudit,b->nCells,audit)?0:1;
-    }
+    // Shared trial composition keeps this hook; CHMT has no output-audit buffer.
     static int validateTimeStep(Backend*,Real){return 0;} // Direct CHMT path does not request native refinement.
     static int applySources(Backend* b,Real){return finishCoupledGeometry(b); }
     static int validate(Backend* b){
@@ -138,23 +131,8 @@ struct CoupledTrialPolicy {
     }
     static int commit(Backend* b){
         if(!b->storage.downloadState(b->trial,b->error))return 1;
-        if(b->model.physics.gasMode==ugkwp::GasMode::MixtureChemistry){
-            b->trial.gasChemistryAudit.resize(b->nCells);
-            for(const auto* half:{&b->firstChemistry,&b->secondChemistry}){
-                if(b->nCells>0&&half->empty()){b->error="missing chemical half audit";return 1;}
-                for(int c=0;c<b->nCells;++c){auto& dst=b->trial.gasChemistryAudit[c];const auto& src=(*half)[c];
-                    for(int s=0;s<Ns;++s)dst.speciesMassChange[s]+=src.speciesMassChange[s];
-                    dst.massResidual+=src.massResidual;dst.energyResidual+=src.energyResidual;dst.maximumElementResidual=maxValue(dst.maximumElementResidual,src.maximumElementResidual);
-                    dst.maximumLocalError=maxValue(dst.maximumLocalError,src.maximumLocalError);dst.integratedTime+=src.integratedTime;
-                    // Same-width counter arithmetic, with defined wrap instead of signed UB.
-                    const auto add=[](int a,int b){const unsigned bits=unsigned(a)+unsigned(b);return bits<=unsigned(INT_MAX)?int(bits):-1-int(UINT_MAX-bits);};
-                    dst.acceptedSteps=add(dst.acceptedSteps,src.acceptedSteps);dst.rejectedSteps=add(dst.rejectedSteps,src.rejectedSteps);dst.nonlinearIterations=add(dst.nonlinearIterations,src.nonlinearIterations);
-                }
-            }
-        }
-        if(acceptSstAudit(b)!=0)return 1;
         if(b->gasBoundaryLayer.enabled){b->trial.gasWallDiagnostics=b->preparedWallLayers;b->trial.gasWallDiagnosticTime=b->stageTime;}
-        b->trial.time=b->record.end;b->trial.budget=b->trialBudget;return 0;
+        b->trial.time=b->record.end;return 0;
     }
     static void rollback(Backend* b){
         std::string rollbackError;
@@ -190,7 +168,6 @@ bool fluxes(Backend& b,std::vector<GasQ>& values,bool writing){
     std::vector<Real>a(Ns*nf);if(writing){for(int s=0;s<Ns;++s)for(int f=0;f<nf;++f)a[s*nf+f]=values[f].species[s];return b.storage.write(v.gasSpecies.flux,a);}
     if(!b.storage.read(v.gasSpecies.flux,Ns*nf,a))return false;for(int s=0;s<Ns;++s)for(int f=0;f<nf;++f)values[f].species[s]=a[s*nf+f];return true;
 }
-void addGasBudget(Budget& budget,const ExchangePacket& packet){const auto delta=packetDelta(packet).gas;budget.exchangeMass[GasParticipant]+=delta.mass;budget.exchangeEnergy[GasParticipant]+=delta.energy;budget.exchangeMomentum[GasParticipant]+=delta.momentum;for(int s=0;s<Ns;++s)budget.exchangeSpecies[GasParticipant][s]+=delta.species[s];}
 }
 int prepareCoupledGeometry(Backend* b){
     const auto& base=b->microBase;const bool moving=b->model.physics.meshMotion.policy!=MeshMotionPolicy::Static;
@@ -289,45 +266,21 @@ int applyCoupledFaces(Backend* b,Real dt,Real stageTime){
 }
 int accountCoupledFaces(Backend* b,Real ledgerDt){
     std::vector<GasQ> accepted;if(!fluxes(*b,accepted,false)){b->error=b->storage.error();return 1;}
-    const auto& surface=b->trial.surface;std::vector<bool> interface(b->nFaces,false);
+    const auto& surface=b->trial.surface;
     if(b->record.packets.empty()){
         for(const auto& rates:b->faceRates){for(const auto* packet:{&rates.primary,&rates.pore}){auto p=scaledIntervalPacket(*packet,0);p.consumerMask=ConsumeGas;b->record.packets.push_back(p);}}
         b->record.radiationEnergy.assign(surface.area.size(),0);b->record.radiationReceiver.resize(surface.area.size());
     }
     WallKnot wall;if(!sampleGasWallProgramLocal(b->program,coupledStageTime(*b),wall,b->error,false))return 1;
-    for(std::size_t i=0;i<surface.area.size();++i){const int f=surface.gasFace[i];interface[f]=true;const auto& raw=b->rawInterface[i];const auto& now=accepted[f];
+    for(std::size_t i=0;i<surface.area.size();++i){const int f=surface.gasFace[i];const auto& raw=b->rawInterface[i];const auto& now=accepted[f];
         Real denominator=raw.energy,numerator=now.energy;if(absValue(raw.mass)>absValue(denominator)){denominator=raw.mass;numerator=now.mass;}
         for(int s=0;s<Ns;++s)if(absValue(raw.species[s])>absValue(denominator)){denominator=raw.species[s];numerator=now.species[s];}
         const Real scale=denominator==0?1:numerator/denominator;
         for(int channel=0;channel<2;++channel){const auto& rate=channel?b->faceRates[i].pore:b->faceRates[i].primary;auto packet=scaledIntervalPacket(rate,(ledgerDt/b->stagePacketDt)*scale);packet.consumerMask=ConsumeGas;
-            addIntervalPacket(b->record.packets[2*i+channel],packet);addGasBudget(b->trialBudget,packet);}
+            addIntervalPacket(b->record.packets[2*i+channel],packet);}
         b->record.radiationEnergy[i]+=ledgerDt*wall.faces[i].radiationFlux*surface.area[i];b->record.radiationReceiver[i]=wall.faces[i].primaryKind==ExchangeKind::GasFilm?ConsumeFilm:ConsumeSolid;
     }
-    for(int f=0;f<b->nFaces;++f)if(b->trial.gasMesh.neighbour[f]<0&&!interface[f]&&b->trial.gasMesh.boundaryKind[f]!=BoundaryKind::Periodic){const auto q=accepted[f]*ledgerDt;b->trialBudget.boundaryMass+=q.mass;b->trialBudget.boundaryEnergy+=q.energy;b->trialBudget.boundaryMomentum+=q.momentum;
-        for(int s=0;s<Ns;++s){b->trialBudget.boundarySpecies[s]+=q.species[s];for(int e=0;e<b->model.physics.nElements;++e)b->trialBudget.boundaryElements[e]+=q.species[s]*b->model.physics.species[s].element[e];}}
     ++b->gasStageIndex;return 0;
-}
-int acceptSstAudit(Backend* b){
-    if(b->hostTurbulenceModel!=3)return 0;
-    const auto& audit=b->storage.hostView().gasSstAudit;const Real* fields[]={audit.transportK,audit.transportOmega,audit.sourceK,audit.sourceOmega,audit.constraintK,audit.constraintOmega};
-    std::array<std::vector<Real>,6> values;
-    for(int j=0;j<6;++j)if(!b->storage.read(fields[j],b->nCells,values[j])){b->error=b->storage.error();return 1;}
-    GasSstIntegralAudit totals;Real* sum[]={&totals.transportK,&totals.transportOmega,&totals.sourceK,&totals.sourceOmega,&totals.constraintK,&totals.constraintOmega};
-    if(b->nCells>0&&b->trial.sst.empty()){b->error="SST audit/state size mismatch";return 1;}
-    Real inventory=0;
-    for(int c=0;c<b->nCells;++c){
-        for(int j=0;j<6;++j)*sum[j]+=values[j][c];
-        const auto& next=b->trial.sst[c];
-        inventory+=next.rhoK;
-    }
-    auto& dst=b->trial.gasSstAudit;
-    dst.transportK+=totals.transportK;dst.transportOmega+=totals.transportOmega;
-    dst.sourceK+=totals.sourceK;dst.sourceOmega+=totals.sourceOmega;
-    dst.constraintK+=totals.constraintK;dst.constraintOmega+=totals.constraintOmega;
-    b->trialBudget.turbulenceInventory=inventory;
-    b->trialBudget.turbulenceBoundaryFlux-=totals.transportK;
-    b->trialBudget.turbulenceOmegaConstraint+=totals.constraintOmega;
-    return 0;
 }
 bool restoreGasSnapshot(Backend& b,const HostState& snapshot,std::string& error){
     b.storage.beginOperation();

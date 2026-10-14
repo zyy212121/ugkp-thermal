@@ -46,9 +46,7 @@ class SharedGasDeviceStorage {
     Buffer<ugkwp::GasReactionData<Real>> reactions_;
     Buffer<ugkwp::GasStoichTerm<Real>> reactants_,products_;
     Buffer<ugkwp::GasColliderEfficiency<Real>> efficiencies_;
-    Buffer<ugkwp::ChemistryAudit<Real,Ns>> chemistryAudit_;
     Buffer<Real> geometryOld_,geometryNew_,geometrySweeps_;
-    std::array<Buffer<Real>,13> sstAudit_;
     std::uint64_t identity_=0,thermoIdentity_=0,mechanismIdentity_=0,geometryVersion_=0;
     bool sstInitialized_=false,poisoned_=false;
     std::unique_ptr<SharedGasDeviceStorage> rejected_;
@@ -102,7 +100,6 @@ class SharedGasDeviceStorage {
         r_.rebindFault(fault_);
         cellStatus_.rebindFault(fault_);
         faceStatus_.rebindFault(fault_);
-        chemistryAudit_.rebindFault(fault_);
         geometryOld_.rebindFault(fault_);
         geometryNew_.rebindFault(fault_);
         geometrySweeps_.rebindFault(fault_);
@@ -135,7 +132,6 @@ class SharedGasDeviceStorage {
         device_.rebindFault(fault_);
         wallWorkspace_.rebindFault(fault_);
         previousWorkspace_.rebindFault(fault_);
-        for(auto& owner:sstAudit_)owner.rebindFault(fault_);
     }
     // Only transfer ownership, never snapshot or copy live cell/face fields.
     void exchangeResident(SharedGasDeviceStorage& other,bool mesh,bool wall){
@@ -155,11 +151,9 @@ class SharedGasDeviceStorage {
         r_.swap(other.r_);
         cellStatus_.swap(other.cellStatus_);
         faceStatus_.swap(other.faceStatus_);
-        chemistryAudit_.swap(other.chemistryAudit_);
         geometryOld_.swap(other.geometryOld_);
         geometryNew_.swap(other.geometryNew_);
         geometrySweeps_.swap(other.geometrySweeps_);
-        for(std::size_t i=0;i<sstAudit_.size();++i)sstAudit_[i].swap(other.sstAudit_[i]);
         if(mesh){speciesBoundary_.swap(other.speciesBoundary_);compositionFixed_.swap(other.compositionFixed_);volume_.swap(other.volume_);wallFaceArea_.swap(other.wallFaceArea_);}
         if(wall){
             wallFaceSlot_.swap(other.wallFaceSlot_);
@@ -210,11 +204,6 @@ class SharedGasDeviceStorage {
         if(!view_.gasSpecies.gasConstant)r_.release();
         if(!view_.gasSpecies.cellStatus)cellStatus_.release();
         if(!view_.gasSpecies.faceStatus)faceStatus_.release();
-        if(!view_.gasSpecies.chemistryAudit)chemistryAudit_.release();
-        const auto& a=view_.gasSstAudit;
-        const Real* fields[]={a.transportK,a.transportOmega,a.sourceK,a.sourceOmega,a.constraintK,a.constraintOmega,
-            a.initialTransportK,a.initialTransportOmega,a.initialSourceK,a.initialSourceOmega,a.initialConstraintK,a.initialConstraintOmega,a.volume};
-        for(std::size_t i=0;i<sstAudit_.size();++i)if(!fields[i])sstAudit_[i].release();
     }
     bool releaseOwners(){bool ok=true;
 #define UGKWP_GAS_STATE_FIELD(Type,Name) ok=owner_##Name.release()&&ok;
@@ -233,7 +222,6 @@ class SharedGasDeviceStorage {
         ok=r_.release()&&ok;
         ok=cellStatus_.release()&&ok;
         ok=faceStatus_.release()&&ok;
-        ok=chemistryAudit_.release()&&ok;
         ok=geometryOld_.release()&&ok;
         ok=geometryNew_.release()&&ok;
         ok=geometrySweeps_.release()&&ok;
@@ -266,7 +254,6 @@ class SharedGasDeviceStorage {
         ok=device_.release()&&ok;
         ok=wallWorkspace_.release()&&ok;
         ok=previousWorkspace_.release()&&ok;
-        for(auto& owner:sstAudit_)ok=owner.release()&&ok;
         return ok;
     }
 public:
@@ -301,8 +288,7 @@ public:
         wallModelFailed_=false;wallMassPublished_=false;
         view_.gasBoundaryLayer.preparedFirstStage=false;
         if(view_.gasBoundaryLayer.enabled&&(!wallStatus_.zero(nullptr)||!wallExchange_.zero(nullptr)||!wallModelStatus_.zero(nullptr)))return false;
-        for(auto& buffer:sstAudit_)if(!buffer.zero(nullptr))return false;
-        return cellStatus_.zero(nullptr)&&faceStatus_.zero(nullptr)&&chemistryAudit_.zero(nullptr);}
+        return cellStatus_.zero(nullptr)&&faceStatus_.zero(nullptr);}
     bool checkStatus(std::string& error){
         if(!fault_.check(cudaDeviceSynchronize(),"synchronize shared gas trial")){error=fault_.message;return false;}
         std::vector<int> cells,faces;
@@ -390,7 +376,7 @@ private:
         ALLOC(compositionFixed_,compositionBoundaryFixed,nf);ALLOC(sound_,soundSpeed,nc);ALLOC(cp_,heatCapacity,nc);ALLOC(r_,gasConstant,nc);
         }
         ALLOC(cellStatus_,cellStatus,nc);ALLOC(faceStatus_,faceStatus,nf);
-        if(gas.mode==ugkwp::GasMode::MixtureChemistry){ALLOC(chemistryAudit_,chemistryAudit,nc);sp.chemistryStatus=nullptr;}
+        sp.chemistryStatus=nullptr;
 #undef ALLOC
         if(mixture){
         sp.diffusivity=nullptr;sp.mechanism={};
@@ -419,13 +405,6 @@ private:
         coeff.alphaOmega1=st.sigmaOmega1;coeff.alphaOmega2=st.sigmaOmega2;coeff.c1=st.productionLimit;
         view_.sstKMin=maxValue(st.minimumK,1e-12);view_.sstOmegaMin=maxValue(st.minimumOmega,1e-12);view_.sstMaxSourceNumber=.25;
         view_.turbulenceModel=model.physics.enableSst?3:0;view_.sstConfigured=model.physics.enableSst;view_.sstWallTreatment=int(model.physics.wallModel.family);
-        view_.gasSstAudit.enabled=model.physics.enableSst;
-        if(model.physics.enableSst){
-            auto& audit=view_.gasSstAudit;audit.enabled=true;
-            Real** pointers[]={&audit.transportK,&audit.transportOmega,&audit.sourceK,&audit.sourceOmega,&audit.constraintK,&audit.constraintOmega,
-                &audit.initialTransportK,&audit.initialTransportOmega,&audit.initialSourceK,&audit.initialSourceOmega,&audit.initialConstraintK,&audit.initialConstraintOmega,&audit.volume};
-            for(std::size_t i=0;i<sstAudit_.size();++i)if(!allocateSpecies(sstAudit_[i],*pointers[i],nc)){error=fault_.message;return false;}
-        }
         view_.sstWallKappa=.41;view_.sstWallE=9.8;view_.sstWallCmu=.09;view_.lesDeltaCoeff=1;view_.waleCw=.325;view_.smagorinskyCs=.17;
         if(geometry&&!uploadGeometry(state.gasMesh,false)){error=fault_.message;return false;}
         if(!geometry&&!prepareWallGeometry(state.gasMesh)){error=fault_.message;return false;}
