@@ -31,6 +31,7 @@ def code(app,revision=None):
     cuda=cuda.replace('++allocations;if(allocations==failAlloc)', '++allocations;events.push_back("alloc "+std::to_string(n));if(allocations==failAlloc)')
     cuda=cuda.replace('void counters(){','void counters(){events.clear();',1)
     cuda+=r'''
+constexpr int cudaErrorMemoryAllocation=2;
 int hostBuffers=0;size_t hostFilledBytes=0;
 template<class T>struct CountingAllocator:std::allocator<T>{template<class U>struct rebind{using other=CountingAllocator<U>;};T*allocate(size_t n){++hostBuffers;return std::allocator<T>::allocate(n);}};
 template<class T>struct CountedVector:std::vector<T,CountingAllocator<T>>{explicit CountedVector(size_t n,T v=T{}):std::vector<T,CountingAllocator<T>>(n,v){hostFilledBytes+=n*sizeof(T);}};
@@ -58,7 +59,7 @@ int syncDeviceState(DeviceState*s,const char*){return cudaMemcpy(s->deviceState,
     common=common.replace('int syncDeviceState(DeviceState*s,const char*){return cudaMemcpy(s->deviceState,s,sizeof(*s),1);}',h.block(src,'int syncDeviceState('))
     if app=='CHT':common+=h.block(src,'extern "C" int ugkpPrepareParticleWallEnergyRestore')+'\n'
     for helper in ['int acquireParticleWallEffusivity(', 'cudaError_t initialiseParticleWallEffusivity(']:
-        if helper in src:common+=h.block(src,helper)+'\n'
+        if helper in src:common+=h.block(src,helper).replace('std::vector<', 'CountedVector<')+'\n'
 
     call='20,heat,.63,1,1,1,'+('1800,710,100,' if app=='FSH' else '')+'145,0,12,2300,20,100000,2500,1000,20,.5,0'
     post='int configure(DeviceState&s,const unsigned char*m,int heat=1){return ugkwpGpuResidentStrictConfigureParticleStuckModel(&s,4,m,'+call+');}\n'
@@ -101,7 +102,37 @@ int main(){for(int model=0;model<5;++model)for(int heat:{0,1}){if(model==0&&heat
     result={}
     for label,revision in [('old',BASE),('current',None)]:
         d=tmp_path/label;d.mkdir();result[label]=h.run_cpp(d,code(app,revision)+main,[ROOT/'common',ROOT/f'applications/{app}/thermal'])
-    assert result['old']==result['current']
+    if app == 'FSH':
+        assert result['old'] == result['current']
+    else:
+        # F002 intentionally changes the first face-owner initialization from
+        # zeroing device storage to one scalar-filled H2D transfer. This owner
+        # fixture supplies zero scalar material, so all data hashes still match;
+        # the real-material behavior is covered by the actual CUDA regression.
+        before, after = result['old'].splitlines(), result['current'].splitlines()
+        assert len(before) == len(after)
+        heat = False
+        replacements = 0
+        for old, current in zip(before, after):
+            if old.startswith('CASE '):
+                a, b = old.split(), current.split()
+                heat = a[2] == '1'
+                if heat:
+                    # allocations stay fixed, one memset becomes one H2D copy,
+                    # and exactly one temporary four-face host buffer is filled.
+                    assert int(b[5]) == int(a[5]) + 1
+                    assert int(b[6]) == int(a[6]) + 1
+                    assert int(b[7]) == int(a[7]) - 1
+                    assert int(b[8]) == int(a[8]) - 4*8
+                    assert int(b[10]) == int(a[10]) + 1
+                    assert int(b[11]) == int(a[11]) + 4*8
+                    for i in (5, 6, 7, 8, 10, 11):
+                        b[i] = a[i]
+                assert a == b
+            elif old != current:
+                assert heat and old == 'OP zero 32' and current == 'OP copy 1 32'
+                replacements += 1
+        assert replacements == 4
     (tmp_path/'first-success-parity.json').write_text(json.dumps(result,indent=2))
 
 
@@ -137,12 +168,12 @@ int main(){unsigned char mixed[]={0,3,4,0};for(int kind=0;kind<4;++kind)for(int 
 def test_partial_publication_retains_owners_and_retries(tmp_path,app):
     partial=code(app).replace('if(copies==failCopy)return 1;', 'if(copies==failCopy){std::memcpy(d,s,n-8);return 1;}')
     h.run_cpp(tmp_path,partial+r'''
-int main(){DeviceState s,d;s.deviceState=&d;unsigned char mixed[]={0,3,4,0};counters();failCopy=4;
+int main(){DeviceState s,d;s.deviceState=&d;unsigned char mixed[]={0,3,4,0};counters();failCopy=PUBLICATION_COPY;
  assert(configure(s,mixed)!=0);auto before=pointers(s);auto device=pointers(d);for(size_t i=0;i+1<device.size();++i)assert(device[i]==before[i]);
- for(auto*p:device)if(p)assert(live.count(p));assert(s.particleStuckInitialisationPending==0);
+ for(auto*p:device)if(p)assert(live.count(p));assert(s.particleStuckInitialisationPending==PUBLICATION_PENDING);
  counters();assert(configure(s,mixed)==0);assert(before==pointers(s));assert(allocations==0&&memsets==0&&hostBuffers==0);
  assert(h2d==EXPECTED);cleanup(s);assert(live.empty());}
-'''.replace('EXPECTED','3' if app=='CHT' else '2'),[ROOT/'common',ROOT/f'applications/{app}/thermal'])
+'''.replace('EXPECTED','3' if app=='CHT' else '2').replace('PUBLICATION_COPY', '5' if app=='CHT' else '4').replace('PUBLICATION_PENDING', '0x800' if app=='CHT' else '0'),[ROOT/'common',ROOT/f'applications/{app}/thermal'])
 
 
 @pytest.mark.parametrize('app',['CHT','FSH'])

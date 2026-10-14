@@ -20,7 +20,7 @@ def code(rev=None):
 def test_missing_owner_canonical_restore_and_l3(tmp_path):
     h.run_cpp(tmp_path,code()+r'''
 int main(){DeviceState s,d;s.deviceState=&d;double x[]={-0.,-2};counters();assert(upload(s,1,0,nullptr)==0&&allocations==0&&copies==0&&memsets==0);
- assert(upload(s,1,2,x)==0);assert(s.particleWallEffusivityByFace&&d.particleWallEffusivityByFace==s.particleWallEffusivityByFace);assert(std::memcmp(s.particleWallEffusivityByFace+1,x,16)==0);assert(allocations==1&&memsets==1&&copies==2&&copiedBytes==sizeof(void*)+16&&syncs==0);auto*p=s.particleWallEffusivityByFace;
+ assert(upload(s,1,2,x)==0);assert(s.particleWallEffusivityByFace&&d.particleWallEffusivityByFace==s.particleWallEffusivityByFace);assert(std::memcmp(s.particleWallEffusivityByFace+1,x,16)==0);assert(allocations==1&&memsets==0&&copies==3&&copiedBytes==4*sizeof(GpuReal)+sizeof(void*)+16&&syncs==0);auto*p=s.particleWallEffusivityByFace;
  unsigned char mask[]={0,1,0,0};counters();assert(configure(s,mask)==0);assert(s.particleWallEffusivityByFace==p&&std::memcmp(p+1,x,16)==0);assert(!(s.particleStuckInitialisationPending&(4|2048)));
  counters();assert(upload(s,1,2,x)==0&&copies==1&&allocations==0&&memsets==0);cleanup(s);assert(live.empty());}
 ''',[ROOT/'applications/CHT/thermal'])
@@ -30,7 +30,7 @@ def partial(c):
 
 def test_each_partial_failure_retries_only_unfinished_work(tmp_path):
     h.run_cpp(tmp_path,partial(code())+r'''
-int main(){for(int fault=0;fault<4;++fault){DeviceState s,d;s.deviceState=&d;double x[]={-0.,std::nan("23")};counters();if(fault==0)failAlloc=1;if(fault==1)failMemset=1;if(fault==2)failCopy=1;if(fault==3)failCopy=2;
+int main(){for(int fault=0;fault<4;++fault){DeviceState s,d;s.deviceState=&d;double x[]={-0.,std::nan("23")};counters();if(fault==0)failAlloc=1;if(fault==1)failCopy=1;if(fault==2)failCopy=2;if(fault==3)failCopy=3;
  assert(upload(s,1,2,x)!=0);auto*p=s.particleWallEffusivityByFace;
  if(fault==0)assert(!p&&live.empty());else assert(p&&live.count(p));
  if(fault==1)assert((s.particleStuckInitialisationPending&(4|2048))==(4|2048));
@@ -38,7 +38,7 @@ int main(){for(int fault=0;fault<4;++fault){DeviceState s,d;s.deviceState=&d;dou
  if(fault==3)assert(!(s.particleStuckInitialisationPending&(4|2048)));
  counters();assert(upload(s,0,0,nullptr)==0&&allocations==0&&memsets==0&&copies==0);
  assert(upload(s,1,2,x)==0);assert(s.particleWallEffusivityByFace==(p?p:s.particleWallEffusivityByFace));assert(d.particleWallEffusivityByFace==s.particleWallEffusivityByFace);assert(std::memcmp(s.particleWallEffusivityByFace+1,x,16)==0);
- assert(allocations==(fault==0));assert(memsets==(fault<=1));assert(copies==(fault<=2?2:1));assert(syncs==0);
+ assert(allocations==(fault==0));assert(memsets==0);assert(copies==(fault<=1?3:fault==2?2:1));assert(syncs==0);
  std::cout<<"RETRY "<<fault<<" "<<allocations<<" "<<memsets<<" "<<copies<<" "<<copiedBytes<<"\n";cleanup(s);assert(live.empty());}
  DeviceState s,d;s.deviceState=&d;counters();assert(upload(s,1,2,nullptr)!=0&&allocations==0&&copies==0);}
 ''',[ROOT/'applications/CHT/thermal'])
