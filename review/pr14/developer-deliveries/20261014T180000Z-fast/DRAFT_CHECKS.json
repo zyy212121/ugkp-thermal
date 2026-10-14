@@ -1,0 +1,38 @@
+{
+  "recorded_at_utc": "2026-10-14T18:22:38.163184+00:00",
+  "status": "SOURCE_PINNED_LOCAL_DELIVERY_READY_REMOTE_EVIDENCE_UNVERIFIED",
+  "checks": {
+    "json_parse": "PASS",
+    "no_binary_products": "PASS",
+    "no_readme_or_conversation_edit": "PASS",
+    "full_reviewer_prompt": "REVIEW_REQUEST.md",
+    "source_final_commit_tree": "PASS_LOCAL_COMMIT_TREE_AND_MANIFEST_TO_PUBLISHER_139_PATH_RECEIPT",
+    "native_CUDA_final_lowopt_receipts": "PASS_2_BACKEND_SPECIALIZATIONS_AND_FULL_FIXTURE",
+    "original_optimized_build_GPU_and_remaining_gaps": "OPEN_NOT_WAIVED",
+    "final_CPU_film_material_evidence": "COPIED_AND_INDEXED",
+    "root_managed_and_entry_checks": "PASS_315_STANDALONE_AND_5_ENTRY_CASES",
+    "final_CUDA_dependencies_still_match": {
+      "CHMT_Ns2_Ns10": {
+        "input_count": 348,
+        "changed_since_final_compile": [
+          "applications/CHMT/devtools/multirate/test_cpu_material_of.C",
+          "applications/CHMT/tests/NativeMaterialProbe.H"
+        ],
+        "result": "PASS_PRODUCTION_DEPENDENCIES_UNCHANGED_TEST_ONLY_DRIFT_DOCUMENTED",
+        "dependency_review": {
+          "changed_paths": "Only native CPU material test oracle/helper; outside Backend production include graph",
+          "production_references_to_changed_test_files": [],
+          "recompile_required": false,
+          "note": "All compiled production files remain hash-identical;348 is a conservative selected set including tests, not literal preprocessor include closure."
+        }
+      },
+      "formal_chemistry": {
+        "input_count": 288,
+        "changed_since_final_compile": [],
+        "result": "PASS"
+      }
+    },
+    "remote_evidence": "PENDING_UPLOAD_AND_VERIFICATION"
+  },
+  "limits": "No whole FAST or conservation pass claimed. Final film/material/administrative evidence is included; missing historical baselines, original optimized build/GPU/endpoints/strict restart remain open. No commit/push."
+}
