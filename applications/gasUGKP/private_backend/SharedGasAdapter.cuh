@@ -1,5 +1,4 @@
 #pragma once
-#include "GasBudgetRuntime.cuh"
 // Host adapter for the native resident backend. No transport/thermo/chemistry
 // formula is implemented here: model parsing and capability gates are common.
 inline ugkwp::GasCapabilityRequest sharedGasCapabilityRequest
@@ -120,7 +119,6 @@ extern "C" int ugkwpGpuResidentStrictConfigureGasModelV1
         }
         if(rc) {discardSharedGasSpecies(state,candidate);return 1;}
         candidate.mode=model.mode;
-        auto budgetMetadata=prepareGasBudgetMetadata(state,candidate,model);
         const bool keepChemistry=accepted.chemistryStatus!=nullptr;
         auto exchangePending=[&]()
         {
@@ -130,7 +128,7 @@ extern "C" int ugkwpGpuResidentStrictConfigureGasModelV1
             KEEP_SHARED(limiter); KEEP_SHARED(boundaryMassFraction);
             KEEP_SHARED(compositionBoundaryFixed); KEEP_SHARED(positivityScale);
             KEEP_SHARED(soundSpeed); KEEP_SHARED(heatCapacity); KEEP_SHARED(gasConstant);
-            KEEP_SHARED(cellStatus); KEEP_SHARED(faceStatus); KEEP_SHARED(chemistryAudit);
+            KEEP_SHARED(cellStatus); KEEP_SHARED(faceStatus);
             if (keepChemistry)
             { KEEP_SHARED(chemistryStatus); }
 #undef KEEP_SHARED
@@ -148,7 +146,6 @@ extern "C" int ugkwpGpuResidentStrictConfigureGasModelV1
         invalidateSharedGasConfiguration(state);
         candidate={}; // state owns the published allocations, including on diagnostic failure.
         if(discardSharedGasSpecies(state,accepted))return 1;
-        if(configureGasBudget(state,model,std::move(budgetMetadata)))return 1;
         return 0;
     }
     catch(const std::exception& error)

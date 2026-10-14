@@ -13,15 +13,8 @@ template<class State> int releaseBoundaryLayerStorage(State& s)
     WALL_RELEASE(gasBoundaryLayerModel.faces);WALL_RELEASE(gasBoundaryLayerModel.matchingOffsets);
     WALL_RELEASE(gasBoundaryLayerModel.matchingCells);WALL_RELEASE(gasBoundaryLayerModel.matchingWeights);
     WALL_RELEASE(gasWallQuadratureDistance);WALL_RELEASE(gasWallQuadratureWeight);
-    WALL_RELEASE(gasSstAudit.transportK);WALL_RELEASE(gasSstAudit.transportOmega);
-    WALL_RELEASE(gasSstAudit.sourceK);WALL_RELEASE(gasSstAudit.sourceOmega);
-    WALL_RELEASE(gasSstAudit.constraintK);WALL_RELEASE(gasSstAudit.constraintOmega);
-    WALL_RELEASE(gasSstAudit.initialTransportK);WALL_RELEASE(gasSstAudit.initialTransportOmega);
-    WALL_RELEASE(gasSstAudit.initialSourceK);WALL_RELEASE(gasSstAudit.initialSourceOmega);
-    WALL_RELEASE(gasSstAudit.initialConstraintK);WALL_RELEASE(gasSstAudit.initialConstraintOmega);
-    WALL_RELEASE(gasSstAudit.volume);
 #undef WALL_RELEASE
-    if(!result){s.gasBoundaryLayer={};s.gasBoundaryLayerModel={};s.gasSstAudit={};}
+    if(!result){s.gasBoundaryLayer={};s.gasBoundaryLayerModel={};}
     return result;
 }
 
@@ -62,7 +55,6 @@ inline int syncBoundaryLayerConfiguration(DeviceState* state)
         } \
     } while(false)
     WALL_PUBLISH(gasBoundaryLayerModel);
-    WALL_PUBLISH(gasSstAudit);
     WALL_PUBLISH(gasWallQuadratureDistance);
     WALL_PUBLISH(gasWallQuadratureWeight);
     WALL_PUBLISH(sstWallTreatment);

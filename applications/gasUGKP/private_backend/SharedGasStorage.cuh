@@ -45,7 +45,7 @@ int releaseSharedGasSpecies(ugkwp::GasSpeciesState<Real,Ns>& state)
     RELEASE_SHARED(compositionBoundaryFixed); RELEASE_SHARED(positivityScale);
     RELEASE_SHARED(diffusivity); RELEASE_SHARED(soundSpeed); RELEASE_SHARED(heatCapacity);
     RELEASE_SHARED(gasConstant); RELEASE_SHARED(cellStatus); RELEASE_SHARED(faceStatus);
-    RELEASE_SHARED(chemistryAudit); RELEASE_SHARED(chemistryStatus);
+    RELEASE_SHARED(chemistryStatus);
     RELEASE_SHARED(thermo.species); RELEASE_SHARED(thermo.coefficients);
     RELEASE_SHARED(thermo.elementComposition); RELEASE_SHARED(mechanism.reactions);
     RELEASE_SHARED(mechanism.reactants); RELEASE_SHARED(mechanism.products);

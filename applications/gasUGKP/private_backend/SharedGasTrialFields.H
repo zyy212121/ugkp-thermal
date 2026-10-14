@@ -5,7 +5,6 @@ struct BoundaryLayerAllocation
 {
     ugkwp::GasBoundaryLayerState<double> gasBoundaryLayer;
     ugkwp::GasBoundaryLayerModelState<double,ugkwp::compiledGasSpecies> gasBoundaryLayerModel;
-    ugkwp::GasSstAuditState<double> gasSstAudit;
     double *gasWallQuadratureDistance=nullptr,*gasWallQuadratureWeight=nullptr;
 };
 struct SharedGasTrialSnapshot
@@ -15,7 +14,6 @@ struct SharedGasTrialSnapshot
     int* cellStatus=nullptr;
     int* faceStatus=nullptr;
     ugkwp::ChemistryStatus* chemistryStatus=nullptr;
-    ugkwp::ChemistryAudit<double,ugkwp::compiledGasSpecies>* chemistryAudit=nullptr;
     std::size_t cellScalars=0,faceScalars=0;
     unsigned char* wallRecords=nullptr;
     std::size_t wallRecordBytes=0;

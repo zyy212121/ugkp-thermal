@@ -14,8 +14,7 @@ try
     if(!a.wallCount)
     {
         if(releaseSharedGasTrialStorage(s->gasTrial))return 1;
-        auto audit=s->gasSstAudit;s->gasSstAudit={};audit.enabled=false;
-        const int released=releaseBoundaryLayerStorage(*s);s->gasSstAudit=audit;
+        const int released=releaseBoundaryLayerStorage(*s);
         if(released){s->gasModelPoisoned=true;return 1;}
         s->sstWallTreatment=2;
         invalidateSharedGasConfiguration(s);
@@ -69,18 +68,7 @@ try
     rc|=allocate(scratch,sizing.bytes,"allocate bounded wall scratch");
     model.workspace=scratch;
     if(a.quadratureCount){WALL_ALLOC(gasWallQuadratureDistance,a.quadratureCount);WALL_ALLOC(gasWallQuadratureWeight,a.quadratureCount);}
-    const bool retainAudit=s->gasSstAudit.transportK!=nullptr;
-    if(a.budgetAudit&&!retainAudit)
-    {
-        WALL_ALLOC(gasSstAudit.transportK,s->nCells);WALL_ALLOC(gasSstAudit.transportOmega,s->nCells);
-        WALL_ALLOC(gasSstAudit.sourceK,s->nCells);WALL_ALLOC(gasSstAudit.sourceOmega,s->nCells);
-        WALL_ALLOC(gasSstAudit.constraintK,s->nCells);WALL_ALLOC(gasSstAudit.constraintOmega,s->nCells);
-        WALL_ALLOC(gasSstAudit.initialTransportK,s->nCells);WALL_ALLOC(gasSstAudit.initialTransportOmega,s->nCells);
-        WALL_ALLOC(gasSstAudit.initialSourceK,s->nCells);WALL_ALLOC(gasSstAudit.initialSourceOmega,s->nCells);
-        WALL_ALLOC(gasSstAudit.initialConstraintK,s->nCells);WALL_ALLOC(gasSstAudit.initialConstraintOmega,s->nCells);
-        WALL_ALLOC(gasSstAudit.volume,s->nCells);
-        candidate.gasSstAudit.enabled=true;
-    }
+
 #undef WALL_ALLOC
     rc|=uploadSharedGasTable(w.faceSlot,faceSlot.data(),faceSlot.size());
     rc|=uploadSharedGasTable(w.ownerSlot,ownerSlot.data(),ownerSlot.size());
@@ -119,13 +107,10 @@ try
     // All real allocations and uploads succeeded. Replace old ownership and
     // discard snapshots of the previous wall/audit layout before publication.
     if(releaseSharedGasTrialStorage(s->gasTrial)){discardBoundaryLayerCandidate(s,candidate);return 1;}
-    if(retainAudit){candidate.gasSstAudit=s->gasSstAudit;s->gasSstAudit={};}
-    candidate.gasSstAudit.enabled=bool(a.budgetAudit);
     if(releaseBoundaryLayerStorage(*s)){
-        if(retainAudit){s->gasSstAudit=candidate.gasSstAudit;candidate.gasSstAudit={};}
         discardBoundaryLayerCandidate(s,candidate);s->gasModelPoisoned=true;return 1;
     }
-    w.enabled=true;s->gasBoundaryLayer=w;s->gasBoundaryLayerModel=model;s->gasSstAudit=candidate.gasSstAudit;
+    w.enabled=true;s->gasBoundaryLayer=w;s->gasBoundaryLayerModel=model;
     s->gasWallQuadratureDistance=candidate.gasWallQuadratureDistance;s->gasWallQuadratureWeight=candidate.gasWallQuadratureWeight;
     s->sstWallTreatment=2;
     invalidateSharedGasConfiguration(s);
@@ -133,7 +118,6 @@ try
     {s->gasModelPoisoned=true;return 1;}
     std::fprintf(stderr,"boundaryLayer scratch: nodes=%u capacity=%d slots=%d bytes=%zu budget=%zu (auto=%s)\n",
         a.nodes,model.workspaceCapacity,model.workspaceCount,sizing.bytes,sizing.budget,a.workspaceSlots==0?"yes":"no");
-    std::fprintf(stderr,"boundaryLayer full-cell SST budget audit: %s\n",a.budgetAudit?"enabled":"disabled");
     return 0;
 }
 catch(const std::bad_alloc&)
@@ -159,17 +143,6 @@ extern "C" int ugkwpGpuResidentStrictDownloadBoundaryLayerV1
         || copyToHost(owners.data(),s->faceOwner,owners.size(),"read wall owner map"))return 1;
     const unsigned columns=ugkwpGpuIpc::boundaryLayerDiagnosticScalars+2*species;
     std::vector<double> result(std::size_t(walls)*columns);
-    std::vector<double> budget[6];
-    if(s->gasSstAudit.enabled)
-    {
-        const double* channels[]={s->gasSstAudit.transportK,s->gasSstAudit.transportOmega,
-            s->gasSstAudit.sourceK,s->gasSstAudit.sourceOmega,s->gasSstAudit.constraintK,s->gasSstAudit.constraintOmega};
-        for(int channel=0;channel<6;++channel)
-        {
-            budget[channel].resize(s->nCells);
-            if(copyToHost(budget[channel].data(),channels[channel],s->nCells,"read opt-in SST budget channel"))return 1;
-        }
-    }
     for(unsigned slot=0;slot<walls;++slot)
     {
         if(!exchange[slot].ready){setLastErrorText("wall diagnostics requested before an accepted profile");return 1;}
@@ -177,13 +150,7 @@ extern "C" int ugkwpGpuResidentStrictDownloadBoundaryLayerV1
         r[0]=faces[slot];r[1]=owners[faces[slot]];r[2]=i.matchingDistance;r[3]=i.ownerDistance;r[4]=o.conductiveHeatFlux;
         r[5]=o.traction[0];r[6]=o.traction[1];r[7]=o.traction[2];r[8]=o.wallKFlux;r[9]=o.integratedKSource;
         r[10]=o.ownerOmega;r[11]=o.residual;r[12]=o.iterations;r[13]=o.traceDensity;r[14]=i.model.viscosity;r[15]=s->gasBoundaryLayerStageTime;
-        // These are unique-owner inventory increments (k: J, omega: kg/s),
-        // for the last accepted microstep, not face fluxes or an output-interval sum.
-        r[16]=s->gasSstAudit.enabled?1:0;
-        r[17]=s->gasSstAudit.enabled?s->gasBoundaryLayer.preparedTime:std::numeric_limits<double>::quiet_NaN();
-        r[18]=s->gasSstAudit.enabled?s->gasBoundaryLayer.preparedInterval:std::numeric_limits<double>::quiet_NaN();
-        for(int channel=0;channel<6;++channel)r[19+channel]=s->gasSstAudit.enabled
-            ?budget[channel][owners[faces[slot]]]:std::numeric_limits<double>::quiet_NaN();
+        // V1 words 16..24 stay zero-initialized reserved slots, never observations.
         for(unsigned k=0;k<species;++k){r[25+k]=o.wallSpeciesFlux[k];r[25+species+k]=o.reactionIntegral[k];}
     }
     std::copy(result.begin(),result.end(),diagnostics);return 0;
