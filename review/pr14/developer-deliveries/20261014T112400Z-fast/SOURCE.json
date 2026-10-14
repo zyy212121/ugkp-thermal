@@ -1,0 +1,110 @@
+{
+  "identity": "PR14_REVIEW_ONLY",
+  "interaction_class": "FAST",
+  "repository": "https://github.com/zyy212121/ugkp-thermal",
+  "pull_request": "https://github.com/zyy212121/ugkp-thermal/pull/14",
+  "branch": "perf/chmt-first-round-20261013",
+  "production_commit": "9d5be6eff69dbced2fc959d422d3ba419a1bc39e",
+  "production_tree": "5dc844d4189f50fcfbed2a77fa5e6cd6e9cfd066",
+  "parent_delivery_commit": "f5e6c5e2cbde2693f5fa811d874c200b07bbbc66",
+  "previous_tested_production": "4b5c480b572f234ddecf5e89164fe59b0d2e9735",
+  "previous_tested_tree": "0fa2562f4c83394cdf94e9650de3b22c4fb4bb15",
+  "changed_files": [
+    {
+      "path": "applications/CHMT/materials/CpuMaterialDriver.C",
+      "blob": "a728a5daaf0bab41ff33fa954828737c2fce3f01",
+      "sha256": "cd79a6a6300bfbf24de7c388a11755270734604bc78053e66a44771b6e345e4e",
+      "bytes": 81501,
+      "mode": "100644"
+    },
+    {
+      "path": "tests/fixtures/chemistry_trial/chemistry_trial.cu.in",
+      "blob": "4a7475100f1d9a185603da79de7ceb56e0ef10d6",
+      "sha256": "6cf44c609ce59ea79a677a1bda6a3e6ace544fd3052c2d52443ff4fb2981655b",
+      "bytes": 23470,
+      "mode": "100644"
+    },
+    {
+      "path": "tests/fixtures/chmt_zero_phase_material/probe.C",
+      "blob": "bef1710a8b5d11ab7469e87bb0259938c6675215",
+      "sha256": "96bbcdd9f1ee14f78b8374b9a0a6546b0e2005fdf92f3b9a0ca7e3c2912f1522",
+      "bytes": 7535,
+      "mode": "100644"
+    },
+    {
+      "path": "tests/test_chemistry_trial_cuda_fixture.py",
+      "blob": "d281a869aed75bd7597503e4064f651ce7b14eb8",
+      "sha256": "5c74cf92e9c6edb51644907ecb1394d8008d22456451972d239038e63c383a2b",
+      "bytes": 4780,
+      "mode": "100644"
+    },
+    {
+      "path": "tests/test_chmt_zero_phase_material.py",
+      "blob": "5bd5099eb3d88b3e5312ad8d6519abbea729a770",
+      "sha256": "54dbe7c2135ac378b361c57202b7f69fbfe5dc4804e937c7e8ec4c977203ba63",
+      "bytes": 4016,
+      "mode": "100644"
+    }
+  ],
+  "expected_change_scope": {
+    "production": [
+      "applications/CHMT/materials/CpuMaterialDriver.C"
+    ],
+    "test_support": [
+      "tests/fixtures/chemistry_trial/chemistry_trial.cu.in",
+      "tests/test_chemistry_trial_cuda_fixture.py",
+      "tests/fixtures/chmt_zero_phase_material/",
+      "tests/test_chmt_zero_phase_material.py"
+    ]
+  },
+  "historical_evidence": [
+    {
+      "commit": "f5e6c5e2cbde2693f5fa811d874c200b07bbbc66",
+      "path": "review/pr14/reviewer-deliveries/20261014T072053Z-fast/REPORT.md",
+      "sha256": "76f7ab1c9023fc2f94b947690ba42135148ab6cb732ff5706abd019a4abb3bdb"
+    },
+    {
+      "commit": "f5e6c5e2cbde2693f5fa811d874c200b07bbbc66",
+      "path": "review/pr14/reviewer-deliveries/20261014T072053Z-fast/SOURCE.json",
+      "sha256": "d817113fd529720caff90cc68bb73deb9ca09613e711a02b88adf3bdaf8f81f9"
+    },
+    {
+      "commit": "f5e6c5e2cbde2693f5fa811d874c200b07bbbc66",
+      "path": "review/pr14/reviewer-deliveries/20261014T072053Z-fast/findings.json",
+      "sha256": "06dd2ff16b4614d709116e882e31069830cab0c088a560f808ea237190f1464a"
+    },
+    {
+      "commit": "f5e6c5e2cbde2693f5fa811d874c200b07bbbc66",
+      "path": "review/pr14/reviewer-deliveries/20261014T072053Z-fast/coverage.json",
+      "sha256": "756a8f0580d6d98532fdfb457da865e0486360491a3e433620280ee040e3c81a"
+    },
+    {
+      "commit": "f5e6c5e2cbde2693f5fa811d874c200b07bbbc66",
+      "path": "review/pr14/reviewer-deliveries/20261014T072053Z-fast/results.json",
+      "sha256": "a08c11985080956008319ee3fddc26d6a200d8aa36d08e2b31b618f17ab26857"
+    },
+    {
+      "commit": "f5e6c5e2cbde2693f5fa811d874c200b07bbbc66",
+      "path": "review/pr14/reviewer-deliveries/20261014T072053Z-fast/TEST_PLAN.md",
+      "sha256": "f097c45c3b4f2f9288efd20b6be33ed09f86eeb2d64f740469048e4a8cff6e45"
+    },
+    {
+      "commit": "f5e6c5e2cbde2693f5fa811d874c200b07bbbc66",
+      "path": "review/pr14/reviewer-deliveries/20261014T072053Z-fast/metadata/reused-evidence.json",
+      "sha256": "877457420dfff6af30faa2fd55016035ee4fb17a283a1fb200d8e46624447182"
+    }
+  ],
+  "compile_scope": "Incremental native host compilation plus final CHMT Ns2/Ns10 application links; unchanged GPU Backend objects may be reused only with exact object/source/dependency hash evidence. Repaired chemistry CUDA fixture receives fresh nvcc compile/link.",
+  "gpu_runtime_executed": false,
+  "record_containing_commit": "Supplied by immutable PR commit history; do not self-hash this record.",
+  "remote_verification": "evidence/source_publication_verification.json",
+  "clock_decision": "Keep approved compensated clock; no production time-arithmetic change in this repair.",
+  "readme_changed": false,
+  "merge_authorized": false,
+  "publication_ready": true,
+  "local_prepublication_source_commit": "0643a7a40767b91896a87af9d06efb042082debd",
+  "local_prepublication_source_tree": "5dc844d4189f50fcfbed2a77fa5e6cd6e9cfd066",
+  "changed_files_scope": "All five source/test files match final published production commit; local and remote whole trees are equal.",
+  "compile_dependency_evidence": "evidence/native_application_build/receipts.json; evidence/chemistry_fixture/start_source_sha256.txt",
+  "source_url": "https://github.com/zyy212121/ugkp-thermal/commit/9d5be6eff69dbced2fc959d422d3ba419a1bc39e"
+}

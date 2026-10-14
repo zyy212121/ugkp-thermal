@@ -1,0 +1,80 @@
+{
+  "identity": "PR14_REVIEW_ONLY",
+  "interaction_class": "FAST",
+  "source_commit": "9d5be6eff69dbced2fc959d422d3ba419a1bc39e",
+  "status": "COMPILE_LINK_AND_HOST_CHECKS_COMPLETE_GPU_NOT_RUN",
+  "gpu_runtime_executed": false,
+  "whole_fresh_cuda_application_build_claimed": false,
+  "numerical_gpu_acceptance_claimed": false,
+  "scopes": [
+    {
+      "name": "Initial OpenFOAM environment setup",
+      "execution_type": "ENVIRONMENT_SETUP",
+      "status": "BLOCKED_BEFORE_COMPILER",
+      "observation": "First root build attempt failed while sourcing OpenFOAM under bash errexit (pop_var_context). No compiler invoked; not a compilation failure or numerical result.",
+      "evidence": "evidence/native_application_build/attempt1-environment-failure/"
+    },
+    {
+      "name": "CHMT Ns2 and Ns10",
+      "execution_type": "INCREMENTAL_NATIVE_HOST_COMPILE_AND_FINAL_APPLICATION_LINK",
+      "status": "PASS_COMPILE_LINK_ONLY",
+      "scope": "Compile changed CpuMaterialDriver host source and final-link CHMT with unchanged prior GPU Backend objects after exact object/source/dependency hash verification. No application GPU execution.",
+      "evidence": "evidence/native_application_build/receipts.json",
+      "logs": [
+        "evidence/native_application_build/ns2/build.log",
+        "evidence/native_application_build/ns10/build.log"
+      ],
+      "binary_sha256": {
+        "CHMT Ns=2 native host compilation and final application link": "a1bb78c53ea4dc48b539067f357e31f37ab63e30f6eb880fadcf250848b8d297",
+        "CHMT Ns=10 native host compilation and final application link": "44a58dc8aac747f8cb1502dd7e1d2cb67b194308649000e2bfa9473e11475107"
+      },
+      "reused_cuda_objects_sha256": {
+        "CHMT Ns=2 native host compilation and final application link": "190354b5cb984dcaf53497c72155d22dd734fe64dcf23f4548d944a93f42f447",
+        "CHMT Ns=10 native host compilation and final application link": "2df9a6d20f68f8fe0e833544de6e79d76e89d0efa16003cf5e8b2515274744a6"
+      }
+    },
+    {
+      "name": "Repaired chemistry fixture",
+      "execution_type": "FRESH_NVCC_FIXTURE_COMPILE_AND_LINK",
+      "status": "PASS_COMPILE_LINK_ONLY",
+      "scope": "Actual native owner/Trial source compiled into repaired fixture. Runtime requires reviewer GPU.",
+      "evidence": "evidence/chemistry_fixture/compile_receipt.json",
+      "binary_sha256": "19c1a37776d73a07edfa6c9a056d8880cd7cde61ca3533a7d81502d173e49b91",
+      "generated_source_sha256": "4ed2436d7c0c3251cb4580d1d21e331cf39e166c63808a63abadb740e6db7fe1",
+      "warnings": "30 existing #20013-D constexpr warnings and 2 existing #177-D unused-variable warnings retained; no suppression or relaxed constexpr flag added."
+    },
+    {
+      "name": "Chemistry fixture source-generation contracts",
+      "execution_type": "TEST_SUPPORT_CONTRACT_CHECK",
+      "status": "PASS_SCOPED_SUPPORT_CHECKS",
+      "evidence": "evidence/chemistry_fixture/pr14_chemistry_fixture_generation_red.log; evidence/chemistry_fixture/pr14_chemistry_fixture_generation_green.log; evidence/chemistry_fixture/pytest-final.log",
+      "observed": "Generation contract red had 3 failures, green had 3 passes. Final targeted pytest: 3 passed, 2 CUDA cases skipped because default PATH had no nvcc; independent explicit-nvcc compilation succeeded."
+    },
+    {
+      "name": "Actual CPU material driver bounds regression",
+      "execution_type": "NATIVE_HOST_DRIVER_REGRESSION",
+      "status": "PASS_SCOPED_NATIVE_HOST_REGRESSION",
+      "evidence": "evidence/native_material/HOST_RECEIPT.json and referenced raw logs",
+      "observed": "Final native OpenFOAM/whole host material driver bounds regression: 3 passed in 41.86 s. Original source with the identical final fixture still reports index -1 bounds error for unselected mode. Original selected/noMelting and nonzero melting controls reproduce final mass/heat/force/sweep hex outputs exactly. Existing CPU material/film helper checks pass. This is not a GPU run or complete wet/evap inventory proof.",
+      "limitations": "Normal-path host regression only; does not prove all allocation/free/sync error paths or full application execution. Early fixture failures are retained separately."
+    },
+    {
+      "name": "Existing strict momentum logs reanalysis",
+      "execution_type": "OFFLINE_REANALYSIS_OF_PRIOR_GPU_DATA",
+      "status": "COMPLETE_SCOPED_OFFLINE_ATTRIBUTION",
+      "scope": "Gas bulk x momentum only, three fixed historical cases; preserve original strict accumulated-budget FAIL. Not new GPU execution or complete P/global inventory acceptance.",
+      "evidence": "evidence/strict_momentum_reanalysis/SCOPE.md; evidence/strict_momentum_reanalysis/RESULT.json",
+      "observed": "Three CHMT gas Px cases: double budget replay matches both checkpoint endpoints bit-for-bit; independent exact-float high-precision integration at 300 accepted microsteps and 6 macro endpoints meets the unchanged original criterion. Original cumulative-budget statuses remain 5 FAIL and dry window1 PASS."
+    }
+  ],
+  "final_source_unchanged_verification": "evidence/native_application_build/final_source_identity_check.json; evidence/chemistry_fixture/source_unchanged.log; evidence/source_publication_verification.json. All five compiled/test source file blobs match the final remote source; local/remote entire trees are equal.",
+  "administrative_validation": {
+    "path": "../../administrative-checks.json",
+    "entry": "FAST3 final registration and validator receipt",
+    "scope": "External administrative record, not numerical evidence. Read actual recorded validator outcome there; this delivery does not self-hash its registration."
+  },
+  "remaining_runtime": "All new formal GPU regressions and open FAST gaps in REVIEW_REQUEST.md remain reviewer work.",
+  "merge_ready": false,
+  "local_prepublication_source_commit": "0643a7a40767b91896a87af9d06efb042082debd",
+  "source_tree": "5dc844d4189f50fcfbed2a77fa5e6cd6e9cfd066"
+}
