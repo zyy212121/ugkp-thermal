@@ -69,44 +69,28 @@ CHMT_HD inline bool validFilmInventory(const FilmQ& q,bool pendingStorage=false)
     Real sum=0;for(int s=0;s<Ns;++s){if(!finite(q.species[s])||q.species[s]<0)return false;sum+=q.species[s];}
     return packetClose(sum,q.mass,1e-14,1e-10,sum)&&(pendingStorage||q.mass!=0||q.enthalpy==0);
 }
-CHMT_HD inline bool applyPacketDelta(const ExchangePacket& p,unsigned bit,GasQ* gas,SolidQ* solid,FilmQ* film,Budget& budget,DeviceStatus* status,bool pendingFilmStorage) {
+CHMT_HD inline bool applyPacketDelta(const ExchangePacket& p,unsigned bit,GasQ* gas,SolidQ* solid,FilmQ* film,DeviceStatus* status,bool pendingFilmStorage) {
     if(bit==0||(bit&(bit-1))!=0||(bit&requiredConsumers(p.kind))==0)return packetFailure(status,p,ErrorCode::Packet,bit);
     if(p.consumerMask&bit)return packetFailure(status,p,ErrorCode::Duplicate,bit);
-    const PacketDelta d=packetDelta(p);int participant=-1;Real dm=0,dE=0;Vec3 dMomentum{};
-    Real ds[Ns]{};
+    const PacketDelta d=packetDelta(p);
     GasQ g{};SolidQ s{};FilmQ f{};
     if(bit==ConsumeGas){
         if(!gas)return packetFailure(status,p,ErrorCode::InvalidInput,bit);
         g=*gas+d.gas;if(!validGasInventory(g))return packetFailure(status,p,ErrorCode::Inventory,g.mass);
-        participant=GasParticipant;dm=d.gas.mass;dE=d.gas.energy;dMomentum=d.gas.momentum;
-        for(int k=0;k<Ns;++k)ds[k]=d.gas.species[k];
     }else if(bit==ConsumeSolid){
         if(!solid)return packetFailure(status,p,ErrorCode::InvalidInput,bit);
         s=*solid;for(int c=0;c<Nc;++c)s.condensed[c]+=d.solid.condensed[c];
         for(int k=0;k<Ns;++k)s.pore[k]+=d.solid.pore[k];
         s.energy+=d.solid.energy;
         if(!validSolidInventory(s))return packetFailure(status,p,ErrorCode::Inventory,s.energy);
-        participant=SolidParticipant;dm=p.kind==ExchangeKind::ParticleWall?p.mass:-p.mass;dE=d.solid.energy;
-        dMomentum=p.kind==ExchangeKind::ParticleWall?p.momentum:-p.momentum;
-        for(int k=0;k<Ns;++k)ds[k]=(p.kind==ExchangeKind::ParticleWall?1:-1)*p.species[k];
     }else if(bit==ConsumeFilm){
         if(!film)return packetFailure(status,p,ErrorCode::InvalidInput,bit);
         f=*film;f.mass+=d.film.mass;f.enthalpy+=d.film.enthalpy;
         for(int k=0;k<Ns;++k)f.species[k]+=d.film.species[k];
         if(!validFilmInventory(f,pendingFilmStorage))return packetFailure(status,p,ErrorCode::Inventory,f.mass);
-        participant=FilmParticipant;dm=d.film.mass;dE=p.kind==ExchangeKind::SolidFilm?p.energy:-p.energy;
-        dMomentum=(p.kind==ExchangeKind::SolidFilm?1:-1)*p.momentum;
-        for(int k=0;k<Ns;++k)ds[k]=d.film.species[k];
     }else return packetFailure(status,p,ErrorCode::Unsupported,bit);
-    Budget b=budget;b.exchangeMass[participant]+=dm;b.exchangeEnergy[participant]+=dE;b.exchangeMomentum[participant]+=dMomentum;
-    for(int k=0;k<Ns;++k)b.exchangeSpecies[participant][k]+=ds[k];
-    if((p.consumerMask|bit)==requiredConsumers(p.kind))++b.consumedPackets;
-    if(bit==ConsumeFilm)b.filmKineticAdvection+=p.liquidKineticAdvection;
-    if(!finite(b.exchangeMass[participant])||!finite(b.exchangeEnergy[participant])||!finite(b.exchangeMomentum[participant])||!finite(b.filmKineticAdvection))
-        return packetFailure(status,p,ErrorCode::Nonfinite,dE);
-    for(int k=0;k<Ns;++k)if(!finite(b.exchangeSpecies[participant][k]))return packetFailure(status,p,ErrorCode::Nonfinite,k);
     if(bit==ConsumeGas)*gas=g;else if(bit==ConsumeSolid)*solid=s;else *film=f;
-    budget=b;return true;
+    return true;
 }
 inline std::string packetError(const ExchangePacket& p,const DeviceStatus& status) {
     return "packet face "+std::to_string(p.face)+" stage "+std::to_string(p.stage)+" local index "+std::to_string(status.index)
@@ -116,23 +100,22 @@ inline bool validatePacket(const ExchangePacket& p,const PhysicsConfig& config,s
     DeviceStatus status{};if(!validatePacketMath(p,config.tolerances,&status)){error=packetError(p,status);return false;}
     error.clear();return true;
 }
-inline bool consumePacket(ExchangePacket& p,unsigned bit,GasQ* gas,SolidQ* solid,FilmQ* film,Budget& budget,std::string& error) {
-    DeviceStatus status{};if(!validatePacketMath(p,Tolerances{},&status)||!applyPacketDelta(p,bit,gas,solid,film,budget,&status)){
+inline bool consumePacket(ExchangePacket& p,unsigned bit,GasQ* gas,SolidQ* solid,FilmQ* film,std::string& error) {
+    DeviceStatus status{};if(!validatePacketMath(p,Tolerances{},&status)||!applyPacketDelta(p,bit,gas,solid,film,&status)){
         error=packetError(p,status);return false;
     }
     p.consumerMask|=bit;error.clear();return true;
 }
-inline bool consumeFilmPressureVolume(FilmPressureVolumeUpdate& u,FilmQ& q,Budget& budget,std::string& error) {
+inline bool consumeFilmPressureVolume(FilmPressureVolumeUpdate& u,FilmQ& q,std::string& error) {
     const std::string prefix="film storage face "+std::to_string(u.face)+" stage "+std::to_string(u.stage)+": ";
     if(u.consumed){error=prefix+"duplicate pressure-volume storage conversion";return false;}
     if(u.filmFace<0||u.stage<0||u.stage>1||!finite(u.oldPV)||!finite(u.newPV)){error=prefix+"invalid identity or pressure-volume values";return false;}
     FilmQ next=q;const Real delta=filmPressureVolumeDelta(u);next.enthalpy+=delta;
-    const Real nextBudget=budget.filmPressureVolume+delta;
-    if(!validFilmInventory(next)||!finite(nextBudget)){error=prefix+"invalid candidate inventory";return false;}
-    q=next;budget.filmPressureVolume=nextBudget;u.consumed=true;error.clear();return true;
+    if(!validFilmInventory(next)){error=prefix+"invalid candidate inventory";return false;}
+    q=next;u.consumed=true;error.clear();return true;
 }
 
-CHMT_HD inline bool applyPacketTransaction(ExchangePacket& packet,GasQ* gas,SolidQ* solid,FilmQ* film,FilmPressureVolumeUpdate* storage,Budget& budget,const Tolerances& tolerances,DeviceStatus* status) {
+CHMT_HD inline bool applyPacketTransaction(ExchangePacket& packet,GasQ* gas,SolidQ* solid,FilmQ* film,FilmPressureVolumeUpdate* storage,const Tolerances& tolerances,DeviceStatus* status) {
     if(!validatePacketMath(packet,tolerances,status))return false;
     const unsigned required=requiredConsumers(packet.kind);
     if(packet.consumerMask!=0)return packetFailure(status,packet,ErrorCode::Duplicate,packet.consumerMask);
@@ -142,26 +125,25 @@ CHMT_HD inline bool applyPacketTransaction(ExchangePacket& packet,GasQ* gas,Soli
         ||storage->step!=packet.step||storage->geometry!=packet.geometry||storage->stage!=packet.stage||!finite(storage->oldPV)||!finite(storage->newPV)))
         return packetFailure(status,packet,ErrorCode::Packet,-1);
     GasQ g=gas?*gas:GasQ{};SolidQ s=solid?*solid:SolidQ{};FilmQ f=film?*film:FilmQ{};
-    Budget b=budget;ExchangePacket p=packet;
+    ExchangePacket p=packet;
     for(unsigned bit=ConsumeGas;bit<=ConsumeFilm;bit<<=1)if(required&bit){
-        if(!applyPacketDelta(p,bit,&g,&s,&f,b,status,storage!=nullptr))return false;
+        if(!applyPacketDelta(p,bit,&g,&s,&f,status,storage!=nullptr))return false;
         p.consumerMask|=bit;
     }
     if(storage){
         // Evaluate the same storage identity with its thermal part grouped first;
         // this avoids stranding a pV roundoff remainder in a completely dry cell.
         f.enthalpy=(film->enthalpy-storage->oldPV)+packetDelta(packet).film.enthalpy+storage->newPV;
-        b.filmPressureVolume+=filmPressureVolumeDelta(*storage);
-        if(!validFilmInventory(f)||!finite(b.filmPressureVolume))return packetFailure(status,packet,ErrorCode::Inventory,f.enthalpy);
+        if(!validFilmInventory(f))return packetFailure(status,packet,ErrorCode::Inventory,f.enthalpy);
     }
     if(required&ConsumeGas)*gas=g;
     if(required&ConsumeSolid)*solid=s;
     if(required&ConsumeFilm)*film=f;
-    budget=b;packet=p;if(storage)storage->consumed=true;return true;
+    packet=p;if(storage)storage->consumed=true;return true;
 }
-inline bool consumePacketTransaction(ExchangePacket& packet,GasQ* gas,SolidQ* solid,FilmQ* film,FilmPressureVolumeUpdate* storage,Budget& budget,std::string& error) {
+inline bool consumePacketTransaction(ExchangePacket& packet,GasQ* gas,SolidQ* solid,FilmQ* film,FilmPressureVolumeUpdate* storage,std::string& error) {
     DeviceStatus status{};
-    if(!applyPacketTransaction(packet,gas,solid,film,storage,budget,Tolerances{},&status)){error=packetError(packet,status);return false;}
+    if(!applyPacketTransaction(packet,gas,solid,film,storage,Tolerances{},&status)){error=packetError(packet,status);return false;}
     error.clear();return true;
 }
 } // namespace chmt

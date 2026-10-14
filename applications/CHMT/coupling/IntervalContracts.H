@@ -312,7 +312,7 @@ public:
 
 enum class WindowDecision { Accept,Replay,Shorten,Reject };
 struct WindowAssessment {
-    bool conservative=true,gclValid=true,regimeConsistent=true,geometryMatches=true;
+    bool regimeConsistent=true,geometryMatches=true;
     bool recoverable=true;
     Real predictionError=0;
 };
@@ -328,7 +328,6 @@ public:
     }
     WindowDecision assess(const WindowAssessment& a)const{
         if(!ready_||!a.recoverable||!finite(a.predictionError)||a.predictionError<0)return WindowDecision::Reject;
-        if(!a.conservative||!a.gclValid)return WindowDecision::Shorten;
         if(!a.regimeConsistent||!a.geometryMatches)return WindowDecision::Replay;
         if(controls_.enforcePredictionAccuracy&&a.predictionError>controls_.predictionTolerance)return WindowDecision::Replay;
         return WindowDecision::Accept;

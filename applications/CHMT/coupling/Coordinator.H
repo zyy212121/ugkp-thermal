@@ -24,19 +24,6 @@ CHMT_HD inline Real darcyPressureRelaxation(Real storage,Real permeability,Real 
 CHMT_HD inline bool filmReceivesSurfaceRadiation(bool coupled,const ExchangePacket* primary){
     return !coupled||(primary&&primary->kind==ExchangeKind::GasFilm);
 }
-CHMT_HD inline bool validBudget(const Budget& b){
-    const Real values[]={b.boundaryMass,b.boundaryEnergy,b.supportWork,b.bodyWork,b.radiation,b.gclResidual,
-        b.filmPressureVolume,b.filmKineticAdvection,b.filmKineticStorage,b.filmReducedResidual,b.filmKineticDefect,
-        b.thinLayerGeometryDefect,b.thinLayerStressDefect,b.numericalEnergyResidual,b.turbulenceOmegaConstraint,
-        b.turbulenceInventory,b.turbulenceProduction,b.turbulenceDissipation,b.turbulenceBoundaryFlux};
-    for(Real value:values)if(!finite(value))return false;
-    if(!finite(b.boundaryMomentum)||!finite(b.supportImpulse))return false;
-    for(int s=0;s<Ns;++s)if(!finite(b.boundarySpecies[s]))return false;
-    for(int e=0;e<Ne;++e)if(!finite(b.boundaryElements[e]))return false;
-    for(int k=0;k<NParticipants;++k){if(!finite(b.exchangeMass[k])||!finite(b.exchangeEnergy[k])||!finite(b.exchangeMomentum[k]))return false;
-        for(int s=0;s<Ns;++s)if(!finite(b.exchangeSpecies[k][s]))return false;}
-    return true;
-}
 CHMT_HD inline SolidQ assembleSolidCandidate(const SolidQ& base,const SolidQ& rhs,Real dt,
     const ExchangePacket* packets,int count,int cell) {
     SolidQ next=addSolid(base,rhs,dt);
@@ -66,33 +53,11 @@ CHMT_HD inline FilmQ assembleFilmCandidate(const FilmQ& base,const FilmQ& rhs,Re
 }
 // Participants have ALREADY been assembled from their common base. This
 // function only records the exact common transfer; it never reapplies a source.
-CHMT_HD inline bool accountAssembledPacket(ExchangePacket& packet,Budget& budget,
+CHMT_HD inline bool accountAssembledPacket(ExchangePacket& packet,
     const Tolerances& tol,DeviceStatus* status=nullptr) {
     if(!validatePacketMath(packet,tol,status))return false;
     if(packet.consumerMask)return packetFailure(status,packet,ErrorCode::Duplicate,packet.consumerMask);
-    Budget next=budget;const auto delta=packetDelta(packet);const unsigned mask=requiredConsumers(packet.kind);
-    for(int k=0;k<NParticipants;++k){unsigned bit=1u<<k;if(!(mask&bit))continue;
-        Real dm=0,de=0;Vec3 momentum{};Real species[Ns]{};
-        if(bit==ConsumeGas){dm=delta.gas.mass;de=delta.gas.energy;momentum=delta.gas.momentum;
-            for(int s=0;s<Ns;++s)species[s]=delta.gas.species[s];}
-        if(bit==ConsumeSolid){const Real sign=packet.kind==ExchangeKind::ParticleWall?1:-1;
-            dm=sign*packet.mass;de=delta.solid.energy;momentum=packet.momentum*sign;
-            for(int s=0;s<Ns;++s){species[s]=sign*packet.species[s];}
-            next.supportImpulse+=momentum;}
-        if(bit==ConsumeFilm){const Real sign=packet.kind==ExchangeKind::SolidFilm?1:-1;
-            dm=delta.film.mass;de=sign*packet.energy;momentum=packet.momentum*sign;
-            for(int s=0;s<Ns;++s)species[s]=delta.film.species[s];
-            next.filmKineticAdvection+=packet.liquidKineticAdvection;}
-        if(bit==ConsumeParticle){dm=delta.particleMass;de=delta.particleEnergy;momentum=delta.particleMomentum;
-            for(int s=0;s<Ns;++s)species[s]=-packet.species[s];}
-        next.exchangeMass[k]+=dm;next.exchangeEnergy[k]+=de;next.exchangeMomentum[k]+=momentum;
-        if(!finite(next.exchangeMass[k])||!finite(next.exchangeEnergy[k])||!finite(next.exchangeMomentum[k]))
-            return packetFailure(status,packet,ErrorCode::Nonfinite,de);
-        for(int s=0;s<Ns;++s){next.exchangeSpecies[k][s]+=species[s];if(!finite(next.exchangeSpecies[k][s]))return false;}
-    }
-    if(!finite(next.supportImpulse)||!finite(next.filmKineticAdvection))return false;
-    if(next.consumedPackets==std::numeric_limits<std::uint64_t>::max()||!validBudget(next))return packetFailure(status,packet,ErrorCode::Nonfinite,0);
-    ++next.consumedPackets;packet.consumerMask=mask;budget=next;return true;
+    packet.consumerMask=requiredConsumers(packet.kind);return true;
 }
 inline bool publishAcceptedCandidate(HostState& accepted,HostState candidate,int stage,
     Real dt,bool synchronized,std::string& error) {
