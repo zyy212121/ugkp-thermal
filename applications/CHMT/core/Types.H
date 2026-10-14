@@ -81,10 +81,6 @@ CHMT_HD inline GasQ& operator+=(GasQ& a,const GasQ& b) { a=a+b;return a; }
 struct GasPrimitive { Real rho=0;Vec3 velocity{};Real temperature=0,pressure=0,soundSpeed=0;Real Y[Ns]{}; };
 struct GasGradient { Vec3 rho{},velocity[3]{},temperature{},pressure{},Y[Ns]{}; };
 struct SolidQ { Real condensed[Nc]{},progress[Nr]{},pore[Ns]{},energy=0,porosity=0; };
-struct FilmRateBudget {
-    Real bodyPower=0,supportPower=0,prescribedTopPower=0,radiationPower=0;
-    Real edgeEnergyOutflow=0,edgeKineticOutflow=0,interfaceKineticOutflow=0,dissipationPower=0;
-}; // W: external powers input-positive, edge/interface fluxes outward-positive.
 struct FilmQ { Real mass=0,enthalpy=0,species[Ns]{}; }; // true H [J], not h_ref inventory.
 struct FilmAux {
     Real pressure=0,thickness=0,temperature=0;
@@ -159,13 +155,14 @@ struct Tolerances {
 };
 struct Budget {
     Real boundaryMass=0,boundarySpecies[Ns]{},boundaryElements[Ne]{},boundaryEnergy=0;
-    Vec3 boundaryMomentum{},supportImpulse{};
+    Vec3 boundaryMomentum{};
+    Vec3 supportImpulse{}; // Legacy checkpoint slot only; never accumulated or used by physics.
     Real supportWork=0,bodyWork=0,radiation=0,gclResidual=0;
     Real exchangeMass[NParticipants]{},exchangeSpecies[NParticipants][Ns]{},exchangeEnergy[NParticipants]{};
     Vec3 exchangeMomentum[NParticipants]{};
     Real filmPressureVolume=0,filmKineticAdvection=0,filmKineticStorage=0,filmReducedResidual=0,filmKineticDefect=0;
     Real thinLayerGeometryDefect=0,thinLayerStressDefect=0,numericalEnergyResidual=0;
-    Real turbulenceOmegaConstraint=0; // accepted omega-only constraint inventory changes [kg/s].
+    Real turbulenceOmegaConstraint=0; // Legacy checkpoint-only SST statistics; no runtime admission.
     Real turbulenceInventory=0,turbulenceProduction=0,turbulenceDissipation=0,turbulenceBoundaryFlux=0;
     std::uint64_t consumedPackets=0;
 };

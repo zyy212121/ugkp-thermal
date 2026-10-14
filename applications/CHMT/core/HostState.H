@@ -39,8 +39,8 @@ struct HostStageGeometry {
     std::vector<Real> oldVolume{},newVolume{},evaluationVolume{},sweptVolume{};
     std::vector<Vec3> areaVector{},cellCentre{},faceCentre{},oldPoints{},newPoints{};
 };
-// Accepted cumulative diagnostics from the common SST source/transport owner.
-// Net source is not relabelled as gross production or dissipation.
+// Legacy checkpoint payload only; the solver no longer accumulates this audit.
+// Retained values are not measurements from the current run.
 struct GasSstIntegralAudit {
     Real transportK=0,transportOmega=0,sourceK=0,sourceOmega=0,constraintK=0,constraintOmega=0;
 };
@@ -49,7 +49,7 @@ struct HostState {
     Real nextDt=0,lastAcceptedDt=0;
 
     HostMesh gasMesh{},solidMesh{};SurfaceMesh surface{};
-    std::vector<ugkwp::ChemistryAudit<Real,Ns>> gasChemistryAudit{}; // accepted cumulative cell diagnostics only
+    std::vector<ugkwp::ChemistryAudit<Real,Ns>> gasChemistryAudit{}; // legacy checkpoint payload only; not collected by the solver
     std::vector<GasQ> gas{};std::vector<SolidQ> solid{};std::vector<FilmQ> film{};
     std::vector<FilmAux> filmAux{};std::vector<ParticleQ> particles{};std::vector<SstQ> sst{};
     // Numerical geometry carry, indexed by surface.solidFace [signed m^3]:
