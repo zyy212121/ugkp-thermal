@@ -1,0 +1,68 @@
+{
+  "scope": "Current native CPU checkpoint/operator replay, frozen geometry/recorded forcing; no full GPU owner replay. Only actual film and filmAux fields compared; deleted report/checksum excluded.",
+  "shared_success_count": 17,
+  "promoted_count": 8,
+  "previous_signed_success_count": 25,
+  "shared": [
+    "checkpoint_aux-complete-half0",
+    "checkpoint_aux-complete-half1",
+    "checkpoint_aux-complete-half10",
+    "checkpoint_aux-complete-half30",
+    "checkpoint_bulk-complete-half0",
+    "checkpoint_bulk-complete-half1",
+    "checkpoint_bulk-complete-half10",
+    "checkpoint_bulk-complete-half30",
+    "uniform_pressure_control-advance-half0",
+    "uniform_pressure_control-complete-half0",
+    "uniform_pressure_control-advance-half1",
+    "uniform_pressure_control-complete-half1",
+    "uniform_pressure_control-advance-half10",
+    "uniform_pressure_control-complete-half10",
+    "uniform_pressure_control-advance-half30",
+    "uniform_pressure_control-complete-half30",
+    "control-ordinary_outward"
+  ],
+  "promoted": [
+    [
+      "checkpoint_aux-complete-half0",
+      "checkpoint_aux-advance-half0"
+    ],
+    [
+      "checkpoint_aux-complete-half1",
+      "checkpoint_aux-advance-half1"
+    ],
+    [
+      "checkpoint_aux-complete-half10",
+      "checkpoint_aux-advance-half10"
+    ],
+    [
+      "checkpoint_aux-complete-half30",
+      "checkpoint_aux-advance-half30"
+    ],
+    [
+      "checkpoint_bulk-complete-half0",
+      "checkpoint_bulk-advance-half0"
+    ],
+    [
+      "checkpoint_bulk-complete-half1",
+      "checkpoint_bulk-advance-half1"
+    ],
+    [
+      "checkpoint_bulk-complete-half10",
+      "checkpoint_bulk-advance-half10"
+    ],
+    [
+      "checkpoint_bulk-complete-half30",
+      "checkpoint_bulk-advance-half30"
+    ]
+  ],
+  "sha256": {
+    "/workspace/scratch/98b6339ec81b/pr14_audit_test_migration/film_report_stage/native_replay/run.py": "6e493b3b2adc77af4b57de971df07be3063a1baac0785bfbcf800600128265a5",
+    "/workspace/scratch/98b6339ec81b/pr14_audit_test_migration/film_report_stage/native_replay/checkpoint_film_boundary_probe.cpp": "2081cfe60d46615632035e18243be78fe9432156025fc4fe017c059db929652a",
+    "/workspace/scratch/98b6339ec81b/pr14_audit_test_migration/film_report_stage/native_replay/current_state.json.snapshots.jsonl": "68fce2fae0a9983ea4ef201d1a74931382cff3462f58c1ac85a6843cb700f82b",
+    "/workspace/scratch/98b6339ec81b/pr14_fast4_evap_analysis/boundary_original_state.json.snapshots.jsonl": "00131003fecb96bde207fb3dbb115ed85a8ce105c516bf1398b96bb5cb4bbb1d",
+    "/workspace/scratch/98b6339ec81b/pr14_fast4_evap_analysis/boundary_signed_open_edge_state.json.snapshots.jsonl": "5e284df481df58e05f1cde2796b4126bd532104ff7cc1aa90c900c86f029842f",
+    "/workspace/scratch/98b6339ec81b/pr14_fast_fix_20261014/applications/CHMT/film/CpuFilmDriver.C": "80745125b3f791427a95ed80deb57cd89a84cccf11f8fa05388c32f5f98addbb",
+    "/workspace/scratch/98b6339ec81b/pr14_fast_fix_20261014/applications/CHMT/film/CpuFilmDriver.H": "c379142fee2f1f966da415ac8be136935025423fa6479733a96ee2380c9500a9"
+  }
+}

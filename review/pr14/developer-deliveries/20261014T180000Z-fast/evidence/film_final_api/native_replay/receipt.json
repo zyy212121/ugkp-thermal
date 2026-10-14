@@ -1,0 +1,31 @@
+[
+  {
+    "label": "build",
+    "argv": [
+      "g++",
+      "-std=c++17",
+      "-O0",
+      "-g0",
+      "-ffp-contract=off",
+      "-DUGKWP_GAS_SPECIES=2",
+      "-I/workspace/scratch/98b6339ec81b/pr14_fast_fix_20261014/applications/CHMT",
+      "-I/workspace/scratch/98b6339ec81b/pr14_fast_fix_20261014/common",
+      "/workspace/scratch/98b6339ec81b/pr14_audit_test_migration/film_report_stage/native_replay/checkpoint_film_boundary_probe.cpp",
+      "/workspace/scratch/98b6339ec81b/pr14_fast_fix_20261014/applications/CHMT/film/CpuFilmDriver.C",
+      "-o",
+      "/workspace/scratch/98b6339ec81b/pr14_audit_test_migration/film_report_stage/native_replay/probe"
+    ],
+    "exit": 0,
+    "seconds": 3.096490903000813
+  },
+  {
+    "label": "run",
+    "argv": [
+      "/workspace/scratch/98b6339ec81b/pr14_audit_test_migration/film_report_stage/native_replay/probe",
+      "/workspace/scratch/98b6339ec81b/pr14_fast_fix_20261014/review/pr14/reviewer-deliveries/20261014T072053Z-fast/artifacts/extra/wet-evaporation-S209-D204/checkpoint-1",
+      "/workspace/scratch/98b6339ec81b/pr14_audit_test_migration/film_report_stage/native_replay/current_state.json"
+    ],
+    "exit": 0,
+    "seconds": 0.024721793000935577
+  }
+]
