@@ -458,7 +458,9 @@ bool CpuMaterialDriver::advanceCandidateImpl(const HostState& base,const HostSta
                     if(!error.empty())break;
                 }
                 for(const auto& phase:surface.phasePackets){MaterialPrimitive material;const int c=phase.solidCell;if(!(terminalMaterial?recoverMaterial<true>(state.solid[c],state.solidMesh.volumes[c],p,material):recoverMaterial(state.solid[c],state.solidMesh.volumes[c],p,material))){lastFailure=terminalMaterial?MaterialFailureOrigin::None:MaterialFailureOrigin::GeometryNumerical;error="phase donor EOS failed";break;}
-                    target[phase.filmFace]-=phase.mass/p.condensed[p.material.phaseCondensed].rho/(1-material.porosity);}
+                    // Heat/force-only packets do not select a condensed phase.
+                    target[phase.filmFace]-=phase.mass==0 ? Real(0)
+                        : phase.mass/p.condensed[p.material.phaseCondensed].rho/(1-material.porosity);}
                 if(!error.empty())break;
                 std::vector<FilmAux> aux=evaluation.filmAux;
                 for(std::size_t f=0;f<aux.size();++f)if(state.surface.gasFace[f]>=0){const int sf=state.surface.solidFace[f],gf=state.surface.gasFace[f];const Real as=sf>=0?mag(state.solidMesh.areaVectors[sf]):0,ag=mag(state.gasMesh.areaVectors[gf]);
