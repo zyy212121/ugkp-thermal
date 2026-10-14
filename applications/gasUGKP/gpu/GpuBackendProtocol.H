@@ -271,7 +271,7 @@ inline bool sameGasSpeciesIdentity(const GasSpeciesIdentityV1& a, const GasSpeci
 struct BoundaryLayerConfigV1
 {
     std::uint32_t version=1,speciesCount=0,model=1,nodes=24,maxIterations=60;
-    std::uint32_t wallCount=0,quadratureCount=0,matchingCount=0,workspaceSlots=0,budgetAudit=0;
+    std::uint32_t wallCount=0,quadratureCount=0,matchingCount=0,workspaceSlots=0,reservedAudit=0;
     double relativeTolerance=1e-8,absoluteTolerance=1e-10,stretch=2;
     double turbulentPrandtl=.9,turbulentSchmidt=.7;
 };
@@ -814,7 +814,7 @@ template<> struct WireCodec<BoundaryLayerConfigV1>
         && offsetof(BoundaryLayerConfigV1,quadratureCount)==24
         && offsetof(BoundaryLayerConfigV1,matchingCount)==28
         && offsetof(BoundaryLayerConfigV1,workspaceSlots)==32
-        && offsetof(BoundaryLayerConfigV1,budgetAudit)==36
+        && offsetof(BoundaryLayerConfigV1,reservedAudit)==36
         && offsetof(BoundaryLayerConfigV1,relativeTolerance)==40
         && offsetof(BoundaryLayerConfigV1,absoluteTolerance)==48
         && offsetof(BoundaryLayerConfigV1,stretch)==56
@@ -832,7 +832,7 @@ template<> struct WireCodec<BoundaryLayerConfigV1>
         encodeWireScalar(b+24,v.quadratureCount);
         encodeWireScalar(b+28,v.matchingCount);
         encodeWireScalar(b+32,v.workspaceSlots);
-        encodeWireScalar(b+36,v.budgetAudit);
+        encodeWireScalar(b+36,std::uint32_t(0));
         encodeWireScalar(b+40,v.relativeTolerance);
         encodeWireScalar(b+48,v.absoluteTolerance);
         encodeWireScalar(b+56,v.stretch);
@@ -850,7 +850,7 @@ template<> struct WireCodec<BoundaryLayerConfigV1>
         decodeWireScalar(b+24,v.quadratureCount);
         decodeWireScalar(b+28,v.matchingCount);
         decodeWireScalar(b+32,v.workspaceSlots);
-        decodeWireScalar(b+36,v.budgetAudit);
+        v.reservedAudit=0;
         decodeWireScalar(b+40,v.relativeTolerance);
         decodeWireScalar(b+48,v.absoluteTolerance);
         decodeWireScalar(b+56,v.stretch);
@@ -907,6 +907,7 @@ inline bool gasSpeciesPayloadBytes(const GasSpeciesIdentityV1& identity,
 }
 // Optional wall-family extension; every pre-existing wire layout is unchanged.
 
+// V1 keeps nine reserved zero words before species, preserving old endpoint offsets.
 static constexpr std::uint32_t boundaryLayerDiagnosticScalars=25;
 inline bool boundaryLayerDiagnosticBytes(const std::uint32_t walls,
     const std::uint32_t species,std::uint64_t& bytes)

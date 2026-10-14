@@ -90,7 +90,6 @@ public:
         const label iterations=d.lookupOrDefault<label>("maxIterations",60);
         const label slots=d.lookupOrDefault<label>("workspaceSlots",0);
         config_.nodes=nodes;config_.maxIterations=iterations;config_.workspaceSlots=slots;
-        config_.budgetAudit=d.lookupOrDefault<Switch>("budgetAudit",false)?1:0;
         geometryOptions_.constructQuadrature=false;
         config_.relativeTolerance=coefficient(d,"relativeTolerance","rtol",1e-8);
         config_.absoluteTolerance=coefficient(d,"absoluteTolerance","atol",1e-10);
@@ -187,9 +186,7 @@ public:
         std::ofstream output(path.c_str());
         output<<std::setprecision(std::numeric_limits<double>::max_digits10);
         output<<"face,owner,matchingDistance,ownerDistance,heatFluxIntoGas,tractionX,tractionY,tractionZ,"
-            <<"wallKFlux,integratedKSource,ownerOmega,residual,iterations,traceDensity,viscosity,stageTime,"
-            <<"budgetAuditAvailable,budgetIntervalStart,budgetIntervalDuration,budgetTransportK,budgetTransportOmega,budgetSourceK,budgetSourceOmega,"
-            <<"budgetConstraintK,budgetConstraintOmega";
+            <<"wallKFlux,integratedKSource,ownerOmega,residual,iterations,traceDensity,viscosity,stageTime";
         for(const auto& species:speciesNames_)output<<",speciesFlux_"<<species;
         for(const auto& species:speciesNames_)output<<",reactionIntegral_"<<species;
         output<<'\n';
@@ -199,9 +196,10 @@ public:
         {
             for(std::size_t col=0;col<columns;++col)
             {
+                // Retired V1 audit words are not CSV observations.
+                if(col>=16&&col<25)continue;
                 if(col)output<<',';
-                const bool unavailableBudget=col>=17&&col<25&&diagnostics[row*columns+16]==0;
-                if(!unavailableBudget)output<<diagnostics[row*columns+col];
+                output<<diagnostics[row*columns+col];
             }
             output<<'\n';
         }
