@@ -753,7 +753,6 @@ struct SurfacePacketIdentity {
     std::uint64_t step=0, geometry=0, face=0;
     int stage=0, gasCell=-1, solidCell=-1, filmFace=-1;
     Real oldFilmPV=0;
-    Vec3 filmPressureGradient{};
 };
 CHMT_HD inline ExchangePacket surfacePacketIdentity(ExchangeKind kind, const SurfacePacketIdentity& id) {
     ExchangePacket packet;
@@ -810,13 +809,7 @@ CHMT_HD inline bool assembleSurfacePackets(const SurfacePhysicsInput& input,
         phase.viscousWork=scale*result.phaseViscousWork;
         phase.energy=phase.advective+phase.conductive+phase.pressureWork+phase.viscousWork;
         phase.liquidKineticAdvection=scale*result.bottomKineticAdvection;
-        Vec3 G=identity.filmPressureGradient;
-        G-=(p.gravity-input.normal*dot(p.gravity,input.normal))*p.liquid.rho;
-        const FilmProfile profile=filmProfile(input.aux.thickness,p.liquidViscosity,
-            input.baseVelocity,result.shear,G);
-        const Vec3 bottomShear=profile.bottomShear
-            -input.solidNormal*dot(profile.bottomShear,input.solidNormal);
-        phase.momentum=input.solidNormal*(result.gasState.pressure*input.solidArea*dt)-bottomShear*scale;
+        // SolidFilm carries no evolved momentum in the reduced material model.
         // Exact event transfer: the disappearing film hands its actual remaining
         // internal energy to the solid. This is not a correction for R_K.
         FilmQ available=input.filmBase;

@@ -5,7 +5,7 @@ bool evaluateCpuSurfaceImpl(const HostState& h,const PhysicsConfig& p,
     const std::vector<GasPrimitive>& bulk,const std::vector<GasGradient>& gradients,
     const std::vector<SolidQ>& materialRate,const std::vector<FilmQ>& filmRate,
     Real dt,std::uint64_t sequence,CpuSurfaceResult& output,std::string& error,
-    const std::vector<Vec3>* filmPressureGradient,const std::vector<Real>* sideMeshVolumeRate,
+    const std::vector<Real>* sideMeshVolumeRate,
     const std::vector<GasWallClosureContext>* wallContexts,bool* numericalFailure){
     if(numericalFailure)*numericalFailure=true;
     const auto& surface=h.surface;const std::size_t nf=surface.area.size();
@@ -53,7 +53,6 @@ bool evaluateCpuSurfaceImpl(const HostState& h,const PhysicsConfig& p,
         if(!solveSurfaceInterface<Terminal>(input,p,physics,&status,numericalFailure)){error="CPU surface constitutive solve rejected face "+std::to_string(f)+" code "+std::to_string(status.code);return false;}
         SurfacePacketIdentity id;id.step=sequence;id.stage=1;id.geometry=h.gasMesh.geometryVersion;id.face=h.gasMesh.faceIds[gf];
         id.gasCell=gc;id.solidCell=sc;id.filmFace=f;id.oldFilmPV=input.hasFilm?h.filmAux[f].pressure*h.film[f].mass/p.liquid.rho:0;
-        if(filmPressureGradient){if(Terminal?filmPressureGradient->size()<nf:filmPressureGradient->size()!=nf){if(numericalFailure)*numericalFailure=filmPressureGradient->size()>=nf;error="film pressure-gradient layout mismatch";return false;}id.filmPressureGradient=(*filmPressureGradient)[f];}
         if(input.hasSolid&&physics.wet){
             // The CPU consumes actual recorded primary flux, so no hypothetical
             // gas packet may choose a terminal film-energy remainder here.
@@ -63,10 +62,7 @@ bool evaluateCpuSurfaceImpl(const HostState& h,const PhysicsConfig& p,
             for(int species=0;species<Ns;++species)phase.species[species]=phase.mass*p.material.phaseFilmY[species];
             phase.energy=scale*physics.phaseEnergy;phase.advective=scale*physics.phaseAdvective;phase.conductive=scale*physics.phaseConductive;
             phase.pressureWork=scale*physics.phasePressureWork;phase.viscousWork=scale*physics.phaseViscousWork;phase.liquidKineticAdvection=scale*physics.bottomKineticAdvection;
-            Vec3 gradient=id.filmPressureGradient;gradient-=(p.gravity-input.normal*dot(p.gravity,input.normal))*p.liquid.rho;
-            const FilmProfile profile=filmProfile<Terminal>(input.aux.thickness,p.liquidViscosity,input.baseVelocity,physics.shear,gradient);
-            const Vec3 bottomShear=profile.bottomShear-input.solidNormal*dot(profile.bottomShear,input.solidNormal);
-            phase.momentum=input.solidNormal*(physics.gasState.pressure*input.solidArea*dt)-bottomShear*scale;
+            // This reduced solid/film model evolves mass and energy, not momentum.
             if(!Terminal&&!validatePacketMath(phase,p.tolerances,&status)){error="CPU raw phase packet invalid";return false;}
             result.phasePackets.push_back(phase);
         }
@@ -79,9 +75,9 @@ bool evaluateCpuSurfaceImpl(const HostState& h,const PhysicsConfig& p,
     }
     output=std::move(result);error.clear();return true;
 }
-bool evaluateCpuSurface(const HostState& h,const PhysicsConfig& p,const std::vector<GasPrimitive>& bulk,const std::vector<GasGradient>& gradients,const std::vector<SolidQ>& materialRate,const std::vector<FilmQ>& filmRate,Real dt,std::uint64_t sequence,CpuSurfaceResult& output,std::string& error,const std::vector<Vec3>* pressureGradient,const std::vector<Real>* sideVolume,const std::vector<GasWallClosureContext>* contexts,bool* numerical){return evaluateCpuSurfaceImpl<false>(h,p,bulk,gradients,materialRate,filmRate,dt,sequence,output,error,pressureGradient,sideVolume,contexts,numerical);}
+bool evaluateCpuSurface(const HostState& h,const PhysicsConfig& p,const std::vector<GasPrimitive>& bulk,const std::vector<GasGradient>& gradients,const std::vector<SolidQ>& materialRate,const std::vector<FilmQ>& filmRate,Real dt,std::uint64_t sequence,CpuSurfaceResult& output,std::string& error,const std::vector<Real>* sideVolume,const std::vector<GasWallClosureContext>* contexts,bool* numerical){return evaluateCpuSurfaceImpl<false>(h,p,bulk,gradients,materialRate,filmRate,dt,sequence,output,error,sideVolume,contexts,numerical);}
 namespace detail {
-bool completeCpuSurface(const HostState& h,const PhysicsConfig& p,const std::vector<GasPrimitive>& bulk,const std::vector<GasGradient>& gradients,const std::vector<SolidQ>& materialRate,const std::vector<FilmQ>& filmRate,Real dt,std::uint64_t sequence,CpuSurfaceResult& output,std::string& error,const std::vector<Vec3>* pressureGradient,const std::vector<Real>* sideVolume,const std::vector<GasWallClosureContext>* contexts,bool* numerical){return evaluateCpuSurfaceImpl<true>(h,p,bulk,gradients,materialRate,filmRate,dt,sequence,output,error,pressureGradient,sideVolume,contexts,numerical);}
+bool completeCpuSurface(const HostState& h,const PhysicsConfig& p,const std::vector<GasPrimitive>& bulk,const std::vector<GasGradient>& gradients,const std::vector<SolidQ>& materialRate,const std::vector<FilmQ>& filmRate,Real dt,std::uint64_t sequence,CpuSurfaceResult& output,std::string& error,const std::vector<Real>* sideVolume,const std::vector<GasWallClosureContext>* contexts,bool* numerical){return evaluateCpuSurfaceImpl<true>(h,p,bulk,gradients,materialRate,filmRate,dt,sequence,output,error,sideVolume,contexts,numerical);}
 }
 
 }
