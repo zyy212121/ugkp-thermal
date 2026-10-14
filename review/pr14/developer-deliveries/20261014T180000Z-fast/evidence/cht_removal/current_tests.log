@@ -1,0 +1,28 @@
+.........s.............................................................. [ 36%]
+............................sF.......................................... [ 72%]
+......................................................                   [100%]
+=================================== FAILURES ===================================
+_____________________ test_original_implicit_math_fixture ______________________
+
+tmp_path = PosixPath('/workspace/scratch/98b6339ec81b/cht_diagnostic_evidence/current_tests/test_original_implicit_math_fi0')
+
+    def test_original_implicit_math_fixture(tmp_path):
+        if not os.environ.get('WM_PROJECT_DIR'):pytest.skip('source real OpenFOAM')
+        (tmp_path/'Make').mkdir()
+        source=Path(__file__).parent/'particleRadiationImplicitTransactionMath/TestParticleRadiationImplicitTransactionMath.C'
+        (tmp_path/'original.C').write_text(source.read_text())
+        (tmp_path/'Make/files').write_text(f'original.C\nEXE = {tmp_path}/original\n')
+        (tmp_path/'Make/options').write_text(f'EXE_INC = -std=c++17 -I{THERMAL}\nEXE_LIBS = -lOpenFOAM\n')
+        r=subprocess.run(['wmake'],cwd=tmp_path,capture_output=True,text=True)
+        assert r.returncode==0,r.stdout+r.stderr
+        r=subprocess.run([str(tmp_path/'original')],capture_output=True,text=True)
+>       assert r.returncode==0,r.stdout+r.stderr
+E       AssertionError: FAIL: nonzero particle energy with zero boundary energy must be rejected
+E         
+E       assert -6 == 0
+E        +  where -6 = CompletedProcess(args=['/workspace/scratch/98b6339ec81b/cht_diagnostic_evidence/current_tests/test_original_implicit_m...ginal'], returncode=-6, stdout='', stderr='FAIL: nonzero particle energy with zero boundary energy must be rejected\n').returncode
+
+applications/CHT/devtools/tests/test_radiation_continuation.py:218: AssertionError
+=========================== short test summary info ============================
+FAILED applications/CHT/devtools/tests/test_radiation_continuation.py::test_original_implicit_math_fixture
+1 failed, 195 passed, 2 skipped in 262.10s (0:04:22)

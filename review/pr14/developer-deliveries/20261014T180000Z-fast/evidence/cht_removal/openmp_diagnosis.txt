@@ -1,0 +1,63 @@
+OpenMP cold-mesh fixture failure diagnosis
+
+Affected tests (before fixture preparation correction):
+applications/CHT/devtools/tests/test_radiation_original_success.py::test_original_parallel_transaction_success
+applications/CHT/devtools/tests/test_radiation_continuation.py::test_real_parallel_sweep
+
+Observed native failure:
+FOAM FATAL ERROR: cells already calculated
+Foam::primitiveMesh::calcCells() const
+meshes/primitiveMesh/primitiveMeshCells.C:113
+Stack printed by OpenFOAM:
+#0 Foam::error::printStack(Foam::Ostream&)
+#1 Foam::error::abort()
+#2 Foam::primitiveMesh::cells() const
+#3 unresolved executable frame
+#4 libgomp.so.1
+#5 libc.so.6
+#6 libc.so.6
+The executable contains Foam::gpuThermal::MieDoRadiationSolver::solve(...)
+[clone ._omp_fn.0]. Source maps the cells() call inside this parallel worker
+to applications/CHT/thermal/MieDoRadiationSolver.C:1312; the parallel region
+begins at line 1101. Raw printed stack is preserved in parallel_repeat_before_4.log.
+No debug-line-resolved claim is made for the unresolved native frame.
+
+Cache call chain and race:
+primitiveMeshCells.C:136 cells() checks !cfPtr_ at 138, calls calcCells() at 140.
+calcCells() starts at 99, checks cfPtr_ at 111, and raises FatalError at 113
+if another thread has already assigned it. It assigns cfPtr_ at 120 and
+fills the cell-face addressing at 123-129. A first concurrent cells()
+request is therefore unsafe; a populated cache is read without recomputation.
+The Mie solver serially obtains V(), owner(), and neighbour() at 1096-1098,
+but its first cells() accessor is inside the angle-parallel solve loop.
+
+Real CHT application ordering:
+applications/CHT/diluteUgkwpFoam.C:594 calls resident.initialise before the
+GpuSolidThermalCoupler construction at 673. GpuResidentStrict.H:4526 calls
+initialiseBase unconditionally; initialiseBase at 1171 iterates mesh.cells()
+serially to count cell planes. The resident mesh upload also accesses cells
+at 3523. The inspected executable entry has no later mesh.update(),
+readUpdate(), movePoints(), or clearOut() before radiation exchange.
+The direct-radiation fixtures omit the actual resident initialization and
+thus were entering the solver with a cold cell-face cache.
+
+Evidence of pre-existence, not performance improvement:
+Saved-before MieDoRadiationSolver.C and current file have identical SHA256:
+8546d9dc4975bcdcada7cef3fd200c0480af0a1c6a1e4c4a9746cef49320dc7a
+Repeated cold runs reproduced this error before and after deletion; observed
+2/12 before and 1/12 after are incidental scheduling outcomes, not evidence
+of an improvement. A separate saved-before pytest run passed both tests,
+consistent with timing sensitivity. Original cold binaries and failure logs
+remain retained outside the repository.
+
+Narrow fixture correction:
+Both native fixtures now call (void)mesh.cells() serially after createMesh,
+with comments tying this preparation to the actual application ordering.
+No production solver/cache policy or numerical operations changed.
+The public MieDoRadiationSolver API can still be called directly with a cold
+mesh by another client; this audit does not claim those clients are safe.
+If such direct cold production use is to be supported, the smallest proposed
+production change is to bind const cellList& cells = mesh.cells() before the
+parallel region and use cells[cellI] at the existing inner-loop read. That
+would only materialize addressing in one thread, without changing arithmetic,
+iteration order, or adding an admission boundary. It was not implemented.
