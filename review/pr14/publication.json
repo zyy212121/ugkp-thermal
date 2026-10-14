@@ -1,22 +1,22 @@
 {
   "identity": "PR14_REVIEW_ONLY",
   "interaction_class": "FAST",
-  "status": "FAST2_FORMAL_SOURCE_COMPILED_PUBLICATION_PENDING_GPU_RECHECK_PENDING",
-  "production_source_commit": "4b5c480b572f234ddecf5e89164fe59b0d2e9735",
-  "production_source_tree": "0fa2562f4c83394cdf94e9650de3b22c4fb4bb15",
+  "status": "FAST3_SOURCE_PUBLISHED_REVIEW_RECORD_PUBLICATION_PENDING_GPU_RECHECK_PENDING",
+  "production_source_commit": "9d5be6eff69dbced2fc959d422d3ba419a1bc39e",
+  "production_source_tree": "5dc844d4189f50fcfbed2a77fa5e6cd6e9cfd066",
   "record_containing_commit": null,
-  "remote_head": "a747db386160a7f3737fa67b25207e34f5c118d9",
-  "remote_tree": "76ffd38cf7470879347423a4f8467cf47547aae6",
+  "remote_head": "9d5be6eff69dbced2fc959d422d3ba419a1bc39e",
+  "remote_tree": "5dc844d4189f50fcfbed2a77fa5e6cd6e9cfd066",
   "base_commit": "d6110c02745a8ad726208a426c4bb3a28233c1fd",
   "per_path_blob_mode_deletion_comparison_evidence_id": "E014-ceba3ce114bee654",
   "readme_diff_count": 0,
   "ci_status_and_check_urls": [],
   "global_pass1_final_applicability": "Historical findings retained; identified repairs and final-source applicability documented by scoped reviews and final pass2; not an independent all-lines approval",
   "global_pass2_final_decision": "SOURCE_REVIEW_COMPLETE_NO_BLOCKER_IDENTIFIED_WITHIN_DOCUMENTED_COVERAGE",
-  "gpu_acceptance": "FORMAL_RECHECK_PENDING",
-  "record_note": "Source and record commits separate; current remote publication is verified after push and reported in chat.",
+  "gpu_acceptance": "FAST3_FORMAL_RECHECK_PENDING_PRIOR_SCOPED_RESULTS_PRESERVED",
+  "record_note": "Source and review-record commits are separate. No self-hash and no new CI observation.",
   "merge_authorized": false,
-  "source_record_note": "Production source remains immutable a73. The local preclosure delivery f207 contains the refreshed review records and offline bundle; its exact tree matches the recorded preclosure remote head. Closure metadata is a later administrative delta.",
+  "source_record_note": "FAST3 source is published and hash-matched to local compile inputs. Record-containing commit is supplied by immutable PR history after separate publication.",
   "global_pass2_evidence_id": "E014-c0eb1b4b9d88b077",
   "full_build_evidence": {
     "CHMT_Ns2_sm80_O2": "E014-21d5564aa441d581",
@@ -46,15 +46,10 @@
   },
   "additional_build_evidence": "E014-9bd75000c4edd46b",
   "current_followup": {
-    "status": "MAPPER_SCOPED_SOURCE_AND_CHT_HOST_COMPILE_APPROVED",
-    "baseline_source_commit": "970d9fedcc061dfa08fc88d427a1a47b3c22f65f",
-    "new_source_commit": "a73b9635510fb09d7baa5339e14d1aa609f0ff87",
-    "review_evidence_id": "E014-df24bc6578459988",
-    "verified_records": {
-      "mapper_dependencies": 492,
-      "repository_export_source_pairs": 385,
-      "object_archive_records": 11
-    }
+    "source_commit": "9d5be6eff69dbced2fc959d422d3ba419a1bc39e",
+    "source_tree": "5dc844d4189f50fcfbed2a77fa5e6cd6e9cfd066",
+    "status": "FAST3_NATIVE_HOST_AND_COMPILE_SCOPED_CHECKS_COMPLETE_GPU_PENDING",
+    "validation": "developer-deliveries/20261014T112400Z-fast/VALIDATION.json"
   },
   "global_source_review_lineage": {
     "full_category_level_review_commit": "a164be44fd28b3d05a1cb430e4e98675b1397bd4",
@@ -65,6 +60,15 @@
       {
         "source_commit": "970d9fedcc061dfa08fc88d427a1a47b3c22f65f",
         "review_evidence_id": "E014-e99a5a8c7d6fa711"
+      }
+    ],
+    "additional_scoped_deltas": [
+      {
+        "source_commit": "9d5be6eff69dbced2fc959d422d3ba419a1bc39e",
+        "baseline_commit": "f5e6c5e2cbde2693f5fa811d874c200b07bbbc66",
+        "scope": "One production and four test files; no blocker identified. Not a whole-PR rereview.",
+        "report": "developer-deliveries/20261014T112400Z-fast/REPORT.md",
+        "validation": "developer-deliveries/20261014T112400Z-fast/VALIDATION.json"
       }
     ]
   },
@@ -82,6 +86,25 @@
       "source_commit": "a73b9635510fb09d7baa5339e14d1aa609f0ff87",
       "source_tree": "e343cb9f477dcd86556f7b6595189fa2c9c1c099",
       "status": "PRECLOSURE_DELIVERY_TREE_VERIFIED_CLOSURE_METADATA_PUBLICATION_PENDING"
+    },
+    {
+      "source_commit": "4b5c480b572f234ddecf5e89164fe59b0d2e9735",
+      "source_tree": "0fa2562f4c83394cdf94e9650de3b22c4fb4bb15",
+      "status": "FAST2_FORMAL_SOURCE_COMPILED_PUBLICATION_PENDING_GPU_RECHECK_PENDING",
+      "remote_head": "a747db386160a7f3737fa67b25207e34f5c118d9",
+      "remote_tree": "76ffd38cf7470879347423a4f8467cf47547aae6",
+      "source_record_note": "Production source remains immutable a73. The local preclosure delivery f207 contains the refreshed review records and offline bundle; its exact tree matches the recorded preclosure remote head. Closure metadata is a later administrative delta.",
+      "current_followup": {
+        "status": "MAPPER_SCOPED_SOURCE_AND_CHT_HOST_COMPILE_APPROVED",
+        "baseline_source_commit": "970d9fedcc061dfa08fc88d427a1a47b3c22f65f",
+        "new_source_commit": "a73b9635510fb09d7baa5339e14d1aa609f0ff87",
+        "review_evidence_id": "E014-df24bc6578459988",
+        "verified_records": {
+          "mapper_dependencies": 492,
+          "repository_export_source_pairs": 385,
+          "object_archive_records": 11
+        }
+      }
     }
   ],
   "history_delivery_history": [
@@ -92,7 +115,7 @@
     }
   ],
   "history_embedded_source_commit": "a73b9635510fb09d7baa5339e14d1aa609f0ff87",
-  "remote_identity_scope": "Verified preclosure delivery only; excludes later closure metadata",
+  "remote_identity_scope": "Publisher-verified FAST3 production source only; review-record publication is separate.",
   "verified_delivery_commit": "f207912ac1ad8d3c6dcc8368831a6cc0ea2748d4",
   "verified_delivery_tree": "76ffd38cf7470879347423a4f8467cf47547aae6",
   "final_identity_delivery": "DIRECT_TO_USER_WITH_FIXED_VERSION_LINKS",
@@ -108,6 +131,11 @@
     "observation_note": "Authenticated PR14 UI showed latest commit a747db3, Checks (0), Draft, Conversation (0), No description provided. No check/status results were observed; no API completeness or CI pass is asserted. Checked PR checks navigation at https://github.com/zyy212121/ugkp-thermal/pull/14/checks. No merge performed.",
     "overall_pass_claim": false
   },
-  "closure_publication_status": "PENDING_SEPARATE_EXACT_TREE_CHECK_AND_USER_DELIVERY",
-  "latest_developer_delivery": "developer-deliveries/20261014T055427Z-fast"
+  "closure_publication_status": "PENDING_FAST3_REVIEW_RECORD_PUBLICATION_AND_REMOTE_CHECK",
+  "latest_developer_delivery": "developer-deliveries/20261014T112400Z-fast",
+  "latest_ci_observation": {
+    "status": "NOT_CHECKED_THIS_DELIVERY",
+    "overall_pass_claim": false,
+    "note": "Existing CI observations remain historical; FAST3 did not check or claim CI."
+  }
 }

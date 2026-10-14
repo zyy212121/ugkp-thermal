@@ -1,14 +1,14 @@
 {
   "identity": "PR14_REVIEW_ONLY",
-  "captured_utc": "2026-10-14T06:35:44.359348+00:00",
+  "captured_utc": "2026-10-14T11:42:52.932201+00:00",
   "base": "d6110c02745a8ad726208a426c4bb3a28233c1fd",
   "first_published_head": "82f9c016704c9822b16b87cdeeb11f5bbd44d06f",
-  "observed_head": "4b5c480b572f234ddecf5e89164fe59b0d2e9735",
-  "final_head": "4b5c480b572f234ddecf5e89164fe59b0d2e9735",
-  "final_tree": "0fa2562f4c83394cdf94e9650de3b22c4fb4bb15",
-  "remote_head": null,
-  "remote_tree": null,
-  "status": "FAST2_FORMAL_SOURCE_COMPILED_GPU_RECHECK_PENDING",
+  "observed_head": "9d5be6eff69dbced2fc959d422d3ba419a1bc39e",
+  "final_head": "9d5be6eff69dbced2fc959d422d3ba419a1bc39e",
+  "final_tree": "5dc844d4189f50fcfbed2a77fa5e6cd6e9cfd066",
+  "remote_head": "9d5be6eff69dbced2fc959d422d3ba419a1bc39e",
+  "remote_tree": "5dc844d4189f50fcfbed2a77fa5e6cd6e9cfd066",
+  "status": "FAST3_SOURCE_PUBLISHED_NATIVE_HOST_AND_COMPILE_CHECKED_GPU_RECHECK_PENDING",
   "files": [
     {
       "id": "F014-75f3d36c9f18",
@@ -2579,16 +2579,19 @@
         "R014-013",
         "R014-014",
         "R014-015",
-        "R014-016"
+        "R014-016",
+        "R014-020",
+        "R014-026",
+        "R014-029"
       ],
-      "worktree_sha256": "170ae1974fe71d14b093d3f39d93276cfb083cfe430149bbb9c1074a2757b79c",
-      "worktree_git_blob": "a24f61cd2e4fa1626e0dc32a46851c6e8ac9a3ee",
-      "head_commit": "a73b9635510fb09d7baa5339e14d1aa609f0ff87",
-      "head_blob": "a24f61cd2e4fa1626e0dc32a46851c6e8ac9a3ee",
+      "worktree_sha256": "cd79a6a6300bfbf24de7c388a11755270734604bc78053e66a44771b6e345e4e",
+      "worktree_git_blob": "a728a5daaf0bab41ff33fa954828737c2fce3f01",
+      "head_commit": "9d5be6eff69dbced2fc959d422d3ba419a1bc39e",
+      "head_blob": "a728a5daaf0bab41ff33fa954828737c2fce3f01",
       "base_commit": "d6110c02745a8ad726208a426c4bb3a28233c1fd",
       "base_blob": "314d861050ad58f9279a4b84aafebf8a9c738fea",
       "deleted": false,
-      "pin_status": "FINAL_SOURCE_COMMIT",
+      "pin_status": "FAST3_SOURCE_PUBLISHED_GPU_RECHECK_PENDING",
       "functions": [
         {
           "id": "FN014-731eb5e69721",
@@ -2725,9 +2728,48 @@
             "R014-016"
           ],
           "review_status": "GPU_REVIEW_PENDING"
+        },
+        {
+          "id": "FN014-1b456312a130",
+          "symbol": "CpuMaterialDriver::advanceCandidateImpl",
+          "locator_kind": "function_symbol",
+          "supplementary_line": 461,
+          "git_hunk_context": "zero-mass phase packet recession contribution",
+          "source_sha256": "cd79a6a6300bfbf24de7c388a11755270734604bc78053e66a44771b6e345e4e",
+          "source_commit": "9d5be6eff69dbced2fc959d422d3ba419a1bc39e",
+          "requests": [
+            "R014-003",
+            "R014-006",
+            "R014-013",
+            "R014-014",
+            "R014-020",
+            "R014-026",
+            "R014-029"
+          ],
+          "review_status": "FAST3_SOURCE_AND_NATIVE_CPU_SCOPED_PASS_GPU_PENDING",
+          "id_scheme": "sha256(repository path + NUL + exact symbol), first 12 hex"
         }
       ],
-      "hash_meaning": "Bytes from immutable final production-source commit; later review/history administration is separately identified."
+      "hash_meaning": "Immutable FAST3 source bytes; native host checks and compilation are separate from pending GPU recheck.",
+      "previous_pins": [
+        {
+          "head_commit": "a73b9635510fb09d7baa5339e14d1aa609f0ff87",
+          "head_blob": "a24f61cd2e4fa1626e0dc32a46851c6e8ac9a3ee",
+          "worktree_sha256": "170ae1974fe71d14b093d3f39d93276cfb083cfe430149bbb9c1074a2757b79c",
+          "worktree_git_blob": "a24f61cd2e4fa1626e0dc32a46851c6e8ac9a3ee",
+          "pin_status": "FINAL_SOURCE_COMMIT",
+          "hash_meaning": "Bytes from immutable final production-source commit; later review/history administration is separately identified."
+        }
+      ],
+      "latest_delta_topic_ids": [
+        "R014-003",
+        "R014-006",
+        "R014-013",
+        "R014-014",
+        "R014-020",
+        "R014-026",
+        "R014-029"
+      ]
     },
     {
       "id": "F014-4a4ddae7a828",
@@ -26193,6 +26235,9 @@
       "id": "F014-7625fa74c748",
       "path": "tests/fixtures/chemistry_trial/chemistry_trial.cu.in",
       "topic_ids": [
+        "R014-010",
+        "R014-012",
+        "R014-014",
         "R014-021",
         "R014-024",
         "R014-026"
@@ -26206,14 +26251,28 @@
           "head_commit": null,
           "head_blob": null,
           "worktree_sha256": null
+        },
+        {
+          "head_commit": "4b5c480b572f234ddecf5e89164fe59b0d2e9735",
+          "head_blob": "58752fa9103bea112d5f96e0d18809fe9206e628",
+          "worktree_sha256": "1a160b0f805d13675c71580c796aeefeefa3cd3c4f13506e0350dc4d352275e5",
+          "worktree_git_blob": "58752fa9103bea112d5f96e0d18809fe9206e628",
+          "pin_status": "FAST2_FORMAL_SOURCE_GPU_RECHECK_PENDING",
+          "hash_meaning": "Formal repair commit; GPU evidence for previous versions must be qualified by dependency."
         }
       ],
-      "worktree_sha256": "1a160b0f805d13675c71580c796aeefeefa3cd3c4f13506e0350dc4d352275e5",
-      "worktree_git_blob": "58752fa9103bea112d5f96e0d18809fe9206e628",
-      "head_commit": "4b5c480b572f234ddecf5e89164fe59b0d2e9735",
-      "head_blob": "58752fa9103bea112d5f96e0d18809fe9206e628",
-      "pin_status": "FAST2_FORMAL_SOURCE_GPU_RECHECK_PENDING",
-      "hash_meaning": "Formal repair commit; GPU evidence for previous versions must be qualified by dependency."
+      "worktree_sha256": "6cf44c609ce59ea79a677a1bda6a3e6ace544fd3052c2d52443ff4fb2981655b",
+      "worktree_git_blob": "4a7475100f1d9a185603da79de7ceb56e0ef10d6",
+      "head_commit": "9d5be6eff69dbced2fc959d422d3ba419a1bc39e",
+      "head_blob": "4a7475100f1d9a185603da79de7ceb56e0ef10d6",
+      "pin_status": "FAST3_SOURCE_PUBLISHED_GPU_RECHECK_PENDING",
+      "hash_meaning": "Immutable FAST3 source bytes; native host checks and compilation are separate from pending GPU recheck.",
+      "latest_delta_topic_ids": [
+        "R014-010",
+        "R014-012",
+        "R014-014",
+        "R014-026"
+      ]
     },
     {
       "id": "F014-a02312440385",
@@ -26396,6 +26455,84 @@
       "head_blob": "9ccfb3db7d9693593da9813c12cc10ad5bfe41dd",
       "pin_status": "FAST2_FORMAL_SOURCE_GPU_RECHECK_PENDING",
       "hash_meaning": "Formal repair commit; GPU evidence for previous versions must be qualified by dependency."
+    },
+    {
+      "id": "F014-889a20fc9a4a",
+      "path": "tests/fixtures/chmt_zero_phase_material/probe.C",
+      "topic_ids": [
+        "R014-003",
+        "R014-014",
+        "R014-026",
+        "R014-028"
+      ],
+      "base_commit": "f5e6c5e2cbde2693f5fa811d874c200b07bbbc66",
+      "base_blob": null,
+      "deleted": false,
+      "functions": [],
+      "worktree_sha256": "96bbcdd9f1ee14f78b8374b9a0a6546b0e2005fdf92f3b9a0ca7e3c2912f1522",
+      "worktree_git_blob": "bef1710a8b5d11ab7469e87bb0259938c6675215",
+      "head_commit": "9d5be6eff69dbced2fc959d422d3ba419a1bc39e",
+      "head_blob": "bef1710a8b5d11ab7469e87bb0259938c6675215",
+      "pin_status": "FAST3_SOURCE_PUBLISHED_GPU_RECHECK_PENDING",
+      "hash_meaning": "Immutable FAST3 source bytes; native host checks and compilation are separate from pending GPU recheck.",
+      "latest_delta_topic_ids": [
+        "R014-003",
+        "R014-014",
+        "R014-026",
+        "R014-028"
+      ]
+    },
+    {
+      "id": "F014-b5cd0a9d592e",
+      "path": "tests/test_chemistry_trial_cuda_fixture.py",
+      "topic_ids": [
+        "R014-010",
+        "R014-014",
+        "R014-024",
+        "R014-026"
+      ],
+      "base_commit": "f5e6c5e2cbde2693f5fa811d874c200b07bbbc66",
+      "base_blob": null,
+      "deleted": false,
+      "functions": [],
+      "worktree_sha256": "5c74cf92e9c6edb51644907ecb1394d8008d22456451972d239038e63c383a2b",
+      "worktree_git_blob": "d281a869aed75bd7597503e4064f651ce7b14eb8",
+      "head_commit": "9d5be6eff69dbced2fc959d422d3ba419a1bc39e",
+      "head_blob": "d281a869aed75bd7597503e4064f651ce7b14eb8",
+      "pin_status": "FAST3_SOURCE_PUBLISHED_GPU_RECHECK_PENDING",
+      "hash_meaning": "Immutable FAST3 source bytes; native host checks and compilation are separate from pending GPU recheck.",
+      "latest_delta_topic_ids": [
+        "R014-010",
+        "R014-014",
+        "R014-024",
+        "R014-026"
+      ]
+    },
+    {
+      "id": "F014-9c4af00e71f2",
+      "path": "tests/test_chmt_zero_phase_material.py",
+      "topic_ids": [
+        "R014-003",
+        "R014-014",
+        "R014-026",
+        "R014-028"
+      ],
+      "base_commit": "f5e6c5e2cbde2693f5fa811d874c200b07bbbc66",
+      "base_blob": null,
+      "deleted": false,
+      "functions": [],
+      "worktree_sha256": "54dbe7c2135ac378b361c57202b7f69fbfe5dc4804e937c7e8ec4c977203ba63",
+      "worktree_git_blob": "5bd5099eb3d88b3e5312ad8d6519abbea729a770",
+      "head_commit": "9d5be6eff69dbced2fc959d422d3ba419a1bc39e",
+      "head_blob": "5bd5099eb3d88b3e5312ad8d6519abbea729a770",
+      "pin_status": "FAST3_SOURCE_PUBLISHED_GPU_RECHECK_PENDING",
+      "hash_meaning": "Immutable FAST3 source bytes; native host checks and compilation are separate from pending GPU recheck.",
+      "latest_delta_topic_ids": [
+        "R014-003",
+        "R014-014",
+        "R014-026",
+        "R014-028"
+      ]
     }
   ],
   "previous_source_commit": "970d9fedcc061dfa08fc88d427a1a47b3c22f65f",
@@ -26414,8 +26551,17 @@
       "head": "a73b9635510fb09d7baa5339e14d1aa609f0ff87",
       "tree": "e343cb9f477dcd86556f7b6595189fa2c9c1c099",
       "reason": "Previous FAST source before formal GPU finding repairs"
+    },
+    {
+      "recorded_utc": "2026-10-14T11:42:52.932201+00:00",
+      "head": "4b5c480b572f234ddecf5e89164fe59b0d2e9735",
+      "tree": "0fa2562f4c83394cdf94e9650de3b22c4fb4bb15",
+      "status": "FAST2_FORMAL_SOURCE_COMPILED_GPU_RECHECK_PENDING",
+      "reason": "Historical source pin before FAST3 one-production/four-test repair"
     }
   ],
   "final_history_embedded_source_commit": "a73b9635510fb09d7baa5339e14d1aa609f0ff87",
-  "latest_developer_delivery": "developer-deliveries/20261014T055427Z-fast"
+  "latest_developer_delivery": "developer-deliveries/20261014T112400Z-fast",
+  "local_source_equivalent": "0643a7a40767b91896a87af9d06efb042082debd",
+  "remote_identity_scope": "Verified production source publication only; FAST3 record-containing publication remains separate"
 }

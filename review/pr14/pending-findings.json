@@ -112,7 +112,7 @@
       "finding": "Empty pair configuration and nearest selected-index source consumption no longer incur unused whole-configuration/source preflights. No substitute access guard; native addressing risk and retained actual access failures disclosed."
     }
   ],
-  "source_commit": "a73b9635510fb09d7baa5339e14d1aa609f0ff87",
+  "source_commit": "9d5be6eff69dbced2fc959d422d3ba419a1bc39e",
   "source_review_final": true,
   "gpu_acceptance_final": false,
   "limits": "Round2 formal scoped rechecks recorded; GPU-F006 formal repair, two test support defects and remaining coverage gaps prevent whole-PR merge readiness.",
@@ -1041,9 +1041,69 @@
     }
   ],
   "latest_developer_response": {
-    "source_commit": "4b5c480b572f234ddecf5e89164fe59b0d2e9735",
-    "path": "developer-deliveries/20261014T055427Z-fast/FINDING_RESPONSES.json",
-    "gpu_acceptance_final": false
+    "source_commit": "9d5be6eff69dbced2fc959d422d3ba419a1bc39e",
+    "source_tree": "5dc844d4189f50fcfbed2a77fa5e6cd6e9cfd066",
+    "path": "developer-deliveries/20261014T112400Z-fast/REPORT.md",
+    "finding_responses": "developer-deliveries/20261014T112400Z-fast/REPORT.md",
+    "gpu_acceptance_final": false,
+    "formal_repairs": [
+      "GPU-F006",
+      "TEST-R2-S1",
+      "TEST-R2-S2"
+    ],
+    "status": "FORMAL_REPAIRS_NATIVE_HOST_AND_COMPILE_CHECKED_GPU_RECHECK_PENDING",
+    "remaining_gaps": "developer-deliveries/20261014T112400Z-fast/GAP_RECHECK_PLAN.md",
+    "historical_results_preserved": true,
+    "required_formal_proofs": [
+      {
+        "id": "FAST3-FORMAL-WET-ZERO-PHASE",
+        "finding_ids": [
+          "GPU-F006"
+        ],
+        "status": "GPU_NOT_RUN",
+        "scope": "Original wet heat/evap inputs on formal source, zero-mass heat/force/forcing and inventories, affected wet restart/continue."
+      },
+      {
+        "id": "FAST3-FORMAL-NONZERO-PHASE",
+        "finding_ids": [
+          "GPU-F006"
+        ],
+        "status": "GPU_NOT_RUN",
+        "scope": "Valid selected material with genuine nonzero phase transfer and unchanged successful FP64 arithmetic; native CPU control alone does not close this GPU proof."
+      },
+      {
+        "id": "FAST3-FORMAL-CHEMISTRY-FIXTURE",
+        "finding_ids": [
+          "TEST-R2-S1",
+          "TEST-R2-S2"
+        ],
+        "status": "GPU_NOT_RUN",
+        "scope": "Submitted repaired fixture on a real CUDA device: host/device lifecycle, 16 failure combinations, real Co accepted timeline, native replay, public/terminal controls and complete semantic comparisons."
+      }
+    ],
+    "remaining_coverage_independent_of_formal_proofs": [
+      "active full cold groups and paired ledgers",
+      "full-vs-restart cause",
+      "gross SST and complete M/E/P inventories",
+      "cold-start Js/history-Co changed input",
+      "empty/multiple-selected mapper",
+      "pore/material and uncovered inventory chains",
+      "remaining host sanitizer/resource-error recovery",
+      "original Ns10 full initcheck and evaporation timeout completion"
+    ]
   },
-  "latest_reviewer_delivery": "reviewer-deliveries/20261014T072053Z-fast"
+  "latest_reviewer_delivery": "reviewer-deliveries/20261014T072053Z-fast",
+  "developer_response_history": [
+    {
+      "source_commit": "4b5c480b572f234ddecf5e89164fe59b0d2e9735",
+      "path": "developer-deliveries/20261014T055427Z-fast/FINDING_RESPONSES.json",
+      "gpu_acceptance_final": false
+    }
+  ],
+  "current_delta_source_review": {
+    "source_commit": "9d5be6eff69dbced2fc959d422d3ba419a1bc39e",
+    "status": "NO_BLOCKER_IN_REVIEWED_FAST3_DELTA",
+    "scope": "One production expression and four test files; not a repeated whole-PR approval.",
+    "verification": "developer-deliveries/20261014T112400Z-fast/VALIDATION.json"
+  }
 }

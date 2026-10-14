@@ -1,6 +1,14 @@
 # PR14 developer/reviewer evidence index
 
-## Current FAST2 entrypoint
+## Current FAST3 entrypoint
+
+Published formal source `9d5be6eff69dbced2fc959d422d3ba419a1bc39e`, tree `5dc844d4189f50fcfbed2a77fa5e6cd6e9cfd066`. Read [report](developer-deliveries/20261014T112400Z-fast/REPORT.md), [source pins](developer-deliveries/20261014T112400Z-fast/SOURCE.json), [validation scope](developer-deliveries/20261014T112400Z-fast/VALIDATION.json), [evidence reuse](developer-deliveries/20261014T112400Z-fast/EVIDENCE_REUSE.md), [remaining gaps](developer-deliveries/20261014T112400Z-fast/GAP_RECHECK_PLAN.md), and [incremental GPU request](developer-deliveries/20261014T112400Z-fast/REVIEW_REQUEST.md).
+
+FAST3 changes one production expression and four test files. Actual native CPU-driver bounds regression and native compilation/link results are scoped evidence, not application/GPU acceptance. No CUDA shim, new GPU run, CI claim, whole-PR approval or merge permission is implied. Earlier reviewer PASS/FAIL/BLOCKED/NOT_RUN results and raw artifacts remain unchanged. The new record-containing commit and its remote publication are separate from the published production-source pin.
+
+The sections below retain historical wording and source identities from earlier deliveries. Their statements about pending execution, source freezes or developer-run scope do not replace the current FAST3 records above.
+
+## Historical FAST2 entrypoint
 
 Formal production repair `4b5c480b572f234ddecf5e89164fe59b0d2e9735`. Read [developer report](developer-deliveries/20261014T055427Z-fast/REPORT.md), [source identity](developer-deliveries/20261014T055427Z-fast/SOURCE.json), [compile scope](developer-deliveries/20261014T055427Z-fast/VALIDATION.json), and [incremental GPU request](developer-deliveries/20261014T055427Z-fast/REVIEW_REQUEST.md). The previous reviewer evidence at `ae5a594` is preserved. No merge approval or new GPU acceptance is implied. Historical paragraphs below describe the previous delivery, not the current pending state.
 

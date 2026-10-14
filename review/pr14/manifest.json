@@ -2,19 +2,19 @@
   "schema": 1,
   "identity": "PR14_REVIEW_ONLY",
   "interaction_class": "FAST",
-  "captured_utc": "2026-10-14T06:35:44.359348+00:00",
+  "captured_utc": "2026-10-14T11:42:52.932201+00:00",
   "base_commit": "d6110c02745a8ad726208a426c4bb3a28233c1fd",
   "first_published_head": "82f9c016704c9822b16b87cdeeb11f5bbd44d06f",
-  "observed_source_head": "4b5c480b572f234ddecf5e89164fe59b0d2e9735",
-  "final_source_commit": "4b5c480b572f234ddecf5e89164fe59b0d2e9735",
-  "final_source_tree": "0fa2562f4c83394cdf94e9650de3b22c4fb4bb15",
-  "remote_head": "a747db386160a7f3737fa67b25207e34f5c118d9",
-  "remote_tree": "76ffd38cf7470879347423a4f8467cf47547aae6",
+  "observed_source_head": "9d5be6eff69dbced2fc959d422d3ba419a1bc39e",
+  "final_source_commit": "9d5be6eff69dbced2fc959d422d3ba419a1bc39e",
+  "final_source_tree": "5dc844d4189f50fcfbed2a77fa5e6cd6e9cfd066",
+  "remote_head": "9d5be6eff69dbced2fc959d422d3ba419a1bc39e",
+  "remote_tree": "5dc844d4189f50fcfbed2a77fa5e6cd6e9cfd066",
   "publication_record": "publication.json",
-  "final_pin_status": "FAST2_FORMAL_SOURCE_COMPILED_GPU_RECHECK_PENDING",
-  "reviewer_gpu_acceptance": "SECOND_ROUND_SCOPED_FORMAL_RECHECK_COMPLETE_OPEN_FINDINGS_AND_GAPS",
-  "developer_validation_scope": "source review and actual compilation only; old CPU execution historical",
-  "global_review_status": "FAST2_NOT_MERGE_READY_GPU_F006_SUPPORT_AND_COVERAGE_OPEN",
+  "final_pin_status": "FAST3_SOURCE_PUBLISHED_NATIVE_HOST_AND_COMPILE_CHECKED_GPU_RECHECK_PENDING",
+  "reviewer_gpu_acceptance": "SECOND_ROUND_SCOPED_RESULTS_PRESERVED_FAST3_FORMAL_RECHECK_PENDING",
+  "developer_validation_scope": "FAST3 incremental source review; native CPU material bounds regression; CHMT native host compile/final link with unchanged CUDA objects; fresh chemistry CUDA compile; offline prior-data analysis. No new GPU execution.",
+  "global_review_status": "FAST3_NOT_MERGE_READY_FORMAL_GPU_RECHECK_AND_REMAINING_GAPS_OPEN",
   "topics": [
     {
       "id": "R014-001",
@@ -46,13 +46,22 @@
         "E014-3bc8dcadd4cd06fb",
         "E014-785115a1b65a54af",
         "E014-3a6a28b0fa9fb20e",
-        "E014-877457420dfff6af"
+        "E014-877457420dfff6af",
+        "E014-97878f9e0d3588c1",
+        "E014-b47170325e9af92d",
+        "E014-8c7d2765d1c02233",
+        "E014-275db92db26084cf",
+        "E014-c11cced8208a6e72",
+        "E014-8d72c095c71362a8",
+        "E014-770a319404191360"
       ],
       "file_ids": [],
       "status": "REUSED_OR_ADMINISTRATIVE_SCOPE",
       "developer_publication_status": "PRECLOSURE_TREE_VERIFIED_CLOSURE_METADATA_PUBLICATION_PENDING",
       "publication_evidence_id": "E014-ceba3ce114bee654",
-      "latest_reviewer_result": "R014-001-REVIEWER-20261014T072053Z-fast"
+      "latest_reviewer_result": "R014-001-REVIEWER-20261014T072053Z-fast",
+      "latest_developer_response": "R014-001-DEV-20261014T112400Z-fast",
+      "developer_followup_status": "FAST3_REPAIR_OR_ANALYSIS_GPU_RECHECK_PENDING"
     },
     {
       "id": "R014-002",
@@ -287,7 +296,14 @@
         "E014-da34363d27697929",
         "E014-45b33f189e85e013",
         "E014-be99d1a5465e2e03",
-        "E014-043d282859b106b7"
+        "E014-043d282859b106b7",
+        "E014-97878f9e0d3588c1",
+        "E014-b47170325e9af92d",
+        "E014-8c7d2765d1c02233",
+        "E014-275db92db26084cf",
+        "E014-c11cced8208a6e72",
+        "E014-8d72c095c71362a8",
+        "E014-770a319404191360"
       ],
       "file_ids": [
         "F014-004c176a472f",
@@ -295,11 +311,14 @@
         "F014-dd8210ddc9c1",
         "F014-afeb19205b5b",
         "F014-50d522270b4b",
-        "F014-c12ec9790669"
+        "F014-c12ec9790669",
+        "F014-889a20fc9a4a",
+        "F014-9c4af00e71f2"
       ],
       "status": "PARTIAL_RECHECK_OPEN_GAPS",
-      "latest_developer_response": "R014-003-DEV-20261014T055427Z-fast",
-      "latest_reviewer_result": "R014-003-REVIEWER-20261014T072053Z-fast"
+      "latest_developer_response": "R014-003-DEV-20261014T112400Z-fast",
+      "latest_reviewer_result": "R014-003-REVIEWER-20261014T072053Z-fast",
+      "developer_followup_status": "FAST3_REPAIR_OR_ANALYSIS_GPU_RECHECK_PENDING"
     },
     {
       "id": "R014-004",
@@ -568,7 +587,14 @@
         "E014-be889d1259f3cb64",
         "E014-635df4d31c778a9a",
         "E014-02e2fc777903956e",
-        "E014-186a7c21e85e15fa"
+        "E014-186a7c21e85e15fa",
+        "E014-97878f9e0d3588c1",
+        "E014-b47170325e9af92d",
+        "E014-8c7d2765d1c02233",
+        "E014-275db92db26084cf",
+        "E014-c11cced8208a6e72",
+        "E014-8d72c095c71362a8",
+        "E014-770a319404191360"
       ],
       "file_ids": [
         "F014-66de1f3e805f",
@@ -577,8 +603,9 @@
         "F014-005c8b5bad29"
       ],
       "status": "PARTIAL_RECHECK_OPEN_GAPS",
-      "latest_developer_response": "R014-005-DEV-20261014T055427Z-fast",
-      "latest_reviewer_result": "R014-005-REVIEWER-20261014T072053Z-fast"
+      "latest_developer_response": "R014-005-DEV-20261014T112400Z-fast",
+      "latest_reviewer_result": "R014-005-REVIEWER-20261014T072053Z-fast",
+      "developer_followup_status": "FAST3_REPAIR_OR_ANALYSIS_GPU_RECHECK_PENDING"
     },
     {
       "id": "R014-006",
@@ -729,7 +756,14 @@
         "E014-da34363d27697929",
         "E014-45b33f189e85e013",
         "E014-be99d1a5465e2e03",
-        "E014-043d282859b106b7"
+        "E014-043d282859b106b7",
+        "E014-97878f9e0d3588c1",
+        "E014-b47170325e9af92d",
+        "E014-8c7d2765d1c02233",
+        "E014-275db92db26084cf",
+        "E014-c11cced8208a6e72",
+        "E014-8d72c095c71362a8",
+        "E014-770a319404191360"
       ],
       "file_ids": [
         "F014-b491022bcb4b",
@@ -743,8 +777,9 @@
       "qualification_evidence_ids": [
         "E014-8c705e0c274da29a"
       ],
-      "latest_developer_response": "R014-006-DEV-20261014T055427Z-fast",
-      "latest_reviewer_result": "R014-006-REVIEWER-20261014T072053Z-fast"
+      "latest_developer_response": "R014-006-DEV-20261014T112400Z-fast",
+      "latest_reviewer_result": "R014-006-REVIEWER-20261014T072053Z-fast",
+      "developer_followup_status": "FAST3_REPAIR_OR_ANALYSIS_GPU_RECHECK_PENDING"
     },
     {
       "id": "R014-007",
@@ -1203,7 +1238,14 @@
         "E014-da34363d27697929",
         "E014-45b33f189e85e013",
         "E014-be99d1a5465e2e03",
-        "E014-043d282859b106b7"
+        "E014-043d282859b106b7",
+        "E014-97878f9e0d3588c1",
+        "E014-b47170325e9af92d",
+        "E014-8c7d2765d1c02233",
+        "E014-275db92db26084cf",
+        "E014-c11cced8208a6e72",
+        "E014-8d72c095c71362a8",
+        "E014-770a319404191360"
       ],
       "file_ids": [
         "F014-eb4cad71d712",
@@ -1221,7 +1263,9 @@
         "F014-27bda566267a"
       ],
       "status": "PARTIAL_RECHECK_OPEN_GAPS",
-      "latest_reviewer_result": "R014-008-REVIEWER-20261014T072053Z-fast"
+      "latest_reviewer_result": "R014-008-REVIEWER-20261014T072053Z-fast",
+      "latest_developer_response": "R014-008-DEV-20261014T112400Z-fast",
+      "developer_followup_status": "FAST3_REPAIR_OR_ANALYSIS_GPU_RECHECK_PENDING"
     },
     {
       "id": "R014-009",
@@ -1529,7 +1573,14 @@
         "E014-da34363d27697929",
         "E014-45b33f189e85e013",
         "E014-be99d1a5465e2e03",
-        "E014-043d282859b106b7"
+        "E014-043d282859b106b7",
+        "E014-97878f9e0d3588c1",
+        "E014-b47170325e9af92d",
+        "E014-8c7d2765d1c02233",
+        "E014-275db92db26084cf",
+        "E014-c11cced8208a6e72",
+        "E014-8d72c095c71362a8",
+        "E014-770a319404191360"
       ],
       "file_ids": [
         "F014-7877d7cd5496",
@@ -1539,8 +1590,9 @@
         "F014-9ddfb8b1ab42"
       ],
       "status": "PARTIAL_RECHECK_OPEN_GAPS",
-      "latest_developer_response": "R014-009-DEV-20261014T055427Z-fast",
-      "latest_reviewer_result": "R014-009-REVIEWER-20261014T072053Z-fast"
+      "latest_developer_response": "R014-009-DEV-20261014T112400Z-fast",
+      "latest_reviewer_result": "R014-009-REVIEWER-20261014T072053Z-fast",
+      "developer_followup_status": "FAST3_REPAIR_OR_ANALYSIS_GPU_RECHECK_PENDING"
     },
     {
       "id": "R014-010",
@@ -1753,7 +1805,14 @@
         "E014-da34363d27697929",
         "E014-45b33f189e85e013",
         "E014-be99d1a5465e2e03",
-        "E014-043d282859b106b7"
+        "E014-043d282859b106b7",
+        "E014-97878f9e0d3588c1",
+        "E014-b47170325e9af92d",
+        "E014-8c7d2765d1c02233",
+        "E014-275db92db26084cf",
+        "E014-c11cced8208a6e72",
+        "E014-8d72c095c71362a8",
+        "E014-770a319404191360"
       ],
       "file_ids": [
         "F014-a67c870da5fa",
@@ -1764,11 +1823,14 @@
         "F014-726262aa5370",
         "F014-dc29202fccba",
         "F014-405af05f5909",
-        "F014-0230b261acf2"
+        "F014-0230b261acf2",
+        "F014-7625fa74c748",
+        "F014-b5cd0a9d592e"
       ],
       "status": "PARTIAL_RECHECK_OPEN_GAPS",
-      "latest_developer_response": "R014-010-DEV-20261014T055427Z-fast",
-      "latest_reviewer_result": "R014-010-REVIEWER-20261014T072053Z-fast"
+      "latest_developer_response": "R014-010-DEV-20261014T112400Z-fast",
+      "latest_reviewer_result": "R014-010-REVIEWER-20261014T072053Z-fast",
+      "developer_followup_status": "FAST3_REPAIR_OR_ANALYSIS_GPU_RECHECK_PENDING"
     },
     {
       "id": "R014-011",
@@ -2105,7 +2167,14 @@
         "E014-d9440a36bf7b6521",
         "E014-31b49b2f881b1f6a",
         "E014-377750b338fce0b5",
-        "E014-5735200bd4439ff7"
+        "E014-5735200bd4439ff7",
+        "E014-97878f9e0d3588c1",
+        "E014-b47170325e9af92d",
+        "E014-8c7d2765d1c02233",
+        "E014-275db92db26084cf",
+        "E014-c11cced8208a6e72",
+        "E014-8d72c095c71362a8",
+        "E014-770a319404191360"
       ],
       "file_ids": [
         "F014-3d8a885ad5e7",
@@ -2126,11 +2195,13 @@
         "F014-ec61842af463",
         "F014-9ddfb8b1ab42",
         "F014-c12ec9790669",
-        "F014-405af05f5909"
+        "F014-405af05f5909",
+        "F014-7625fa74c748"
       ],
       "status": "PARTIAL_RECHECK_OPEN_GAPS",
-      "latest_developer_response": "R014-012-DEV-20261014T055427Z-fast",
-      "latest_reviewer_result": "R014-012-REVIEWER-20261014T072053Z-fast"
+      "latest_developer_response": "R014-012-DEV-20261014T112400Z-fast",
+      "latest_reviewer_result": "R014-012-REVIEWER-20261014T072053Z-fast",
+      "developer_followup_status": "FAST3_REPAIR_OR_ANALYSIS_GPU_RECHECK_PENDING"
     },
     {
       "id": "R014-013",
@@ -2270,7 +2341,14 @@
         "E014-da34363d27697929",
         "E014-45b33f189e85e013",
         "E014-be99d1a5465e2e03",
-        "E014-043d282859b106b7"
+        "E014-043d282859b106b7",
+        "E014-97878f9e0d3588c1",
+        "E014-b47170325e9af92d",
+        "E014-8c7d2765d1c02233",
+        "E014-275db92db26084cf",
+        "E014-c11cced8208a6e72",
+        "E014-8d72c095c71362a8",
+        "E014-770a319404191360"
       ],
       "file_ids": [
         "F014-65477d3951bd",
@@ -2309,8 +2387,9 @@
         "F014-dc6f70aee8a8"
       ],
       "status": "PARTIAL_RECHECK_OPEN_GAPS",
-      "latest_developer_response": "R014-013-DEV-20261014T055427Z-fast",
-      "latest_reviewer_result": "R014-013-REVIEWER-20261014T072053Z-fast"
+      "latest_developer_response": "R014-013-DEV-20261014T112400Z-fast",
+      "latest_reviewer_result": "R014-013-REVIEWER-20261014T072053Z-fast",
+      "developer_followup_status": "FAST3_REPAIR_OR_ANALYSIS_GPU_RECHECK_PENDING"
     },
     {
       "id": "R014-014",
@@ -2693,7 +2772,14 @@
         "E014-da34363d27697929",
         "E014-45b33f189e85e013",
         "E014-be99d1a5465e2e03",
-        "E014-043d282859b106b7"
+        "E014-043d282859b106b7",
+        "E014-97878f9e0d3588c1",
+        "E014-b47170325e9af92d",
+        "E014-8c7d2765d1c02233",
+        "E014-275db92db26084cf",
+        "E014-c11cced8208a6e72",
+        "E014-8d72c095c71362a8",
+        "E014-770a319404191360"
       ],
       "file_ids": [
         "F014-65477d3951bd",
@@ -2730,11 +2816,16 @@
         "F014-1c53a890f630",
         "F014-b5c3680eb63b",
         "F014-9ddfb8b1ab42",
-        "F014-dc6f70aee8a8"
+        "F014-dc6f70aee8a8",
+        "F014-7625fa74c748",
+        "F014-889a20fc9a4a",
+        "F014-b5cd0a9d592e",
+        "F014-9c4af00e71f2"
       ],
       "status": "PARTIAL_RECHECK_OPEN_GAPS",
-      "latest_developer_response": "R014-014-DEV-20261014T055427Z-fast",
-      "latest_reviewer_result": "R014-014-REVIEWER-20261014T072053Z-fast"
+      "latest_developer_response": "R014-014-DEV-20261014T112400Z-fast",
+      "latest_reviewer_result": "R014-014-REVIEWER-20261014T072053Z-fast",
+      "developer_followup_status": "FAST3_REPAIR_OR_ANALYSIS_GPU_RECHECK_PENDING"
     },
     {
       "id": "R014-015",
@@ -3347,7 +3438,14 @@
         "E014-b0eea8375d336f24",
         "E014-5d15db329337a85f",
         "E014-e1f8059cd94b9d95",
-        "E014-b00af3faa0b1c3d2"
+        "E014-b00af3faa0b1c3d2",
+        "E014-97878f9e0d3588c1",
+        "E014-b47170325e9af92d",
+        "E014-8c7d2765d1c02233",
+        "E014-275db92db26084cf",
+        "E014-c11cced8208a6e72",
+        "E014-8d72c095c71362a8",
+        "E014-770a319404191360"
       ],
       "file_ids": [
         "F014-0a961a187c9e",
@@ -3376,8 +3474,9 @@
       "qualification_evidence_ids": [
         "E014-24d1004f94dd2618"
       ],
-      "latest_developer_response": "R014-018-DEV-20261014T055427Z-fast",
-      "latest_reviewer_result": "R014-018-REVIEWER-20261014T072053Z-fast"
+      "latest_developer_response": "R014-018-DEV-20261014T112400Z-fast",
+      "latest_reviewer_result": "R014-018-REVIEWER-20261014T072053Z-fast",
+      "developer_followup_status": "FAST3_REPAIR_OR_ANALYSIS_GPU_RECHECK_PENDING"
     },
     {
       "id": "R014-019",
@@ -3754,7 +3853,14 @@
         "E014-043d282859b106b7",
         "E014-5d15db329337a85f",
         "E014-e1f8059cd94b9d95",
-        "E014-b00af3faa0b1c3d2"
+        "E014-b00af3faa0b1c3d2",
+        "E014-97878f9e0d3588c1",
+        "E014-b47170325e9af92d",
+        "E014-8c7d2765d1c02233",
+        "E014-275db92db26084cf",
+        "E014-c11cced8208a6e72",
+        "E014-8d72c095c71362a8",
+        "E014-770a319404191360"
       ],
       "file_ids": [
         "F014-f0d55a5128c6",
@@ -3769,15 +3875,17 @@
         "F014-f616079bdc49",
         "F014-3eef837aa83c",
         "F014-4ce470d85c80",
-        "F014-c12ec9790669"
+        "F014-c12ec9790669",
+        "F014-004c176a472f"
       ],
       "status": "PARTIAL_RECHECK_OPEN_GAPS",
       "developer_source_qualification": "SCOPED_APPROVED_GPU_PENDING",
       "qualification_evidence_ids": [
         "E014-89628f0f69e95895"
       ],
-      "latest_developer_response": "R014-020-DEV-20261014T055427Z-fast",
-      "latest_reviewer_result": "R014-020-REVIEWER-20261014T072053Z-fast"
+      "latest_developer_response": "R014-020-DEV-20261014T112400Z-fast",
+      "latest_reviewer_result": "R014-020-REVIEWER-20261014T072053Z-fast",
+      "developer_followup_status": "FAST3_REPAIR_OR_ANALYSIS_GPU_RECHECK_PENDING"
     },
     {
       "id": "R014-021",
@@ -3850,7 +3958,14 @@
         "E014-da34363d27697929",
         "E014-45b33f189e85e013",
         "E014-be99d1a5465e2e03",
-        "E014-043d282859b106b7"
+        "E014-043d282859b106b7",
+        "E014-97878f9e0d3588c1",
+        "E014-b47170325e9af92d",
+        "E014-8c7d2765d1c02233",
+        "E014-275db92db26084cf",
+        "E014-c11cced8208a6e72",
+        "E014-8d72c095c71362a8",
+        "E014-770a319404191360"
       ],
       "file_ids": [
         "F014-4306943aa60a",
@@ -3867,8 +3982,9 @@
         "F014-61aaa41e38be"
       ],
       "status": "PARTIAL_RECHECK_OPEN_GAPS",
-      "latest_developer_response": "R014-021-DEV-20261014T055427Z-fast",
-      "latest_reviewer_result": "R014-021-REVIEWER-20261014T072053Z-fast"
+      "latest_developer_response": "R014-021-DEV-20261014T112400Z-fast",
+      "latest_reviewer_result": "R014-021-REVIEWER-20261014T072053Z-fast",
+      "developer_followup_status": "FAST3_REPAIR_OR_ANALYSIS_GPU_RECHECK_PENDING"
     },
     {
       "id": "R014-022",
@@ -4038,13 +4154,21 @@
         "E014-da34363d27697929",
         "E014-45b33f189e85e013",
         "E014-be99d1a5465e2e03",
-        "E014-043d282859b106b7"
+        "E014-043d282859b106b7",
+        "E014-97878f9e0d3588c1",
+        "E014-b47170325e9af92d",
+        "E014-8c7d2765d1c02233",
+        "E014-275db92db26084cf",
+        "E014-c11cced8208a6e72",
+        "E014-8d72c095c71362a8",
+        "E014-770a319404191360"
       ],
       "file_ids": [],
       "status": "PARTIAL_RECHECK_OPEN_GAPS",
       "developer_status": "NO_BLOCKER_IDENTIFIED_WITHIN_DOCUMENTED_COVERAGE",
-      "latest_developer_response": "R014-022-DEV-20261014T055427Z-fast",
-      "latest_reviewer_result": "R014-022-REVIEWER-20261014T072053Z-fast"
+      "latest_developer_response": "R014-022-DEV-20261014T112400Z-fast",
+      "latest_reviewer_result": "R014-022-REVIEWER-20261014T072053Z-fast",
+      "developer_followup_status": "FAST3_REPAIR_OR_ANALYSIS_GPU_RECHECK_PENDING"
     },
     {
       "id": "R014-023",
@@ -4205,7 +4329,14 @@
         "E014-b0eea8375d336f24",
         "E014-5d15db329337a85f",
         "E014-e1f8059cd94b9d95",
-        "E014-b00af3faa0b1c3d2"
+        "E014-b00af3faa0b1c3d2",
+        "E014-97878f9e0d3588c1",
+        "E014-b47170325e9af92d",
+        "E014-8c7d2765d1c02233",
+        "E014-275db92db26084cf",
+        "E014-c11cced8208a6e72",
+        "E014-8d72c095c71362a8",
+        "E014-770a319404191360"
       ],
       "file_ids": [
         "F014-dc12db194ecd",
@@ -4404,8 +4535,9 @@
         "F014-61aaa41e38be"
       ],
       "status": "PARTIAL_RECHECK_OPEN_GAPS",
-      "latest_developer_response": "R014-023-DEV-20261014T055427Z-fast",
-      "latest_reviewer_result": "R014-023-REVIEWER-20261014T072053Z-fast"
+      "latest_developer_response": "R014-023-DEV-20261014T112400Z-fast",
+      "latest_reviewer_result": "R014-023-REVIEWER-20261014T072053Z-fast",
+      "developer_followup_status": "FAST3_REPAIR_OR_ANALYSIS_GPU_RECHECK_PENDING"
     },
     {
       "id": "R014-024",
@@ -4595,7 +4727,14 @@
         "E014-d6918166dd3eeea4",
         "E014-94bdb4045fdf2eb8",
         "E014-99d453ce8d5b1293",
-        "E014-3bf3f796f4f41417"
+        "E014-3bf3f796f4f41417",
+        "E014-97878f9e0d3588c1",
+        "E014-b47170325e9af92d",
+        "E014-8c7d2765d1c02233",
+        "E014-275db92db26084cf",
+        "E014-c11cced8208a6e72",
+        "E014-8d72c095c71362a8",
+        "E014-770a319404191360"
       ],
       "file_ids": [
         "F014-4306943aa60a",
@@ -4609,12 +4748,14 @@
         "F014-58254a325f94",
         "F014-9e81835cd6aa",
         "F014-36b71c2ddbe9",
-        "F014-61aaa41e38be"
+        "F014-61aaa41e38be",
+        "F014-b5cd0a9d592e"
       ],
       "status": "PARTIAL_RECHECK_OPEN_GAPS",
       "developer_status": "CHMT_SPECIFIED_CONFIGURATION_PASSED",
-      "latest_developer_response": "R014-024-DEV-20261014T055427Z-fast",
-      "latest_reviewer_result": "R014-024-REVIEWER-20261014T072053Z-fast"
+      "latest_developer_response": "R014-024-DEV-20261014T112400Z-fast",
+      "latest_reviewer_result": "R014-024-REVIEWER-20261014T072053Z-fast",
+      "developer_followup_status": "FAST3_REPAIR_OR_ANALYSIS_GPU_RECHECK_PENDING"
     },
     {
       "id": "R014-025",
@@ -5288,7 +5429,14 @@
         "E014-043d282859b106b7",
         "E014-5d15db329337a85f",
         "E014-e1f8059cd94b9d95",
-        "E014-b00af3faa0b1c3d2"
+        "E014-b00af3faa0b1c3d2",
+        "E014-97878f9e0d3588c1",
+        "E014-b47170325e9af92d",
+        "E014-8c7d2765d1c02233",
+        "E014-275db92db26084cf",
+        "E014-c11cced8208a6e72",
+        "E014-8d72c095c71362a8",
+        "E014-770a319404191360"
       ],
       "file_ids": [
         "F014-4306943aa60a",
@@ -5306,11 +5454,16 @@
         "F014-58254a325f94",
         "F014-9e81835cd6aa",
         "F014-36b71c2ddbe9",
-        "F014-61aaa41e38be"
+        "F014-61aaa41e38be",
+        "F014-004c176a472f",
+        "F014-889a20fc9a4a",
+        "F014-b5cd0a9d592e",
+        "F014-9c4af00e71f2"
       ],
       "status": "PARTIAL_RECHECK_OPEN_GAPS",
-      "latest_developer_response": "R014-026-DEV-20261014T055427Z-fast",
-      "latest_reviewer_result": "R014-026-REVIEWER-20261014T072053Z-fast"
+      "latest_developer_response": "R014-026-DEV-20261014T112400Z-fast",
+      "latest_reviewer_result": "R014-026-REVIEWER-20261014T072053Z-fast",
+      "developer_followup_status": "FAST3_REPAIR_OR_ANALYSIS_GPU_RECHECK_PENDING"
     },
     {
       "id": "R014-027",
@@ -5627,15 +5780,25 @@
         "E014-be889d1259f3cb64",
         "E014-635df4d31c778a9a",
         "E014-02e2fc777903956e",
-        "E014-186a7c21e85e15fa"
+        "E014-186a7c21e85e15fa",
+        "E014-97878f9e0d3588c1",
+        "E014-b47170325e9af92d",
+        "E014-8c7d2765d1c02233",
+        "E014-275db92db26084cf",
+        "E014-c11cced8208a6e72",
+        "E014-8d72c095c71362a8",
+        "E014-770a319404191360"
       ],
       "file_ids": [
         "F014-3d8a885ad5e7",
-        "F014-9ddfb8b1ab42"
+        "F014-9ddfb8b1ab42",
+        "F014-889a20fc9a4a",
+        "F014-9c4af00e71f2"
       ],
       "status": "PARTIAL_RECHECK_OPEN_GAPS",
-      "latest_developer_response": "R014-028-DEV-20261014T055427Z-fast",
-      "latest_reviewer_result": "R014-028-REVIEWER-20261014T072053Z-fast"
+      "latest_developer_response": "R014-028-DEV-20261014T112400Z-fast",
+      "latest_reviewer_result": "R014-028-REVIEWER-20261014T072053Z-fast",
+      "developer_followup_status": "FAST3_REPAIR_OR_ANALYSIS_GPU_RECHECK_PENDING"
     },
     {
       "id": "R014-029",
@@ -5866,12 +6029,22 @@
         "E014-da34363d27697929",
         "E014-45b33f189e85e013",
         "E014-be99d1a5465e2e03",
-        "E014-043d282859b106b7"
+        "E014-043d282859b106b7",
+        "E014-97878f9e0d3588c1",
+        "E014-b47170325e9af92d",
+        "E014-8c7d2765d1c02233",
+        "E014-275db92db26084cf",
+        "E014-c11cced8208a6e72",
+        "E014-8d72c095c71362a8",
+        "E014-770a319404191360"
       ],
-      "file_ids": [],
+      "file_ids": [
+        "F014-004c176a472f"
+      ],
       "status": "PARTIAL_RECHECK_OPEN_GAPS",
-      "latest_developer_response": "R014-029-DEV-20261014T055427Z-fast",
-      "latest_reviewer_result": "R014-029-REVIEWER-20261014T072053Z-fast"
+      "latest_developer_response": "R014-029-DEV-20261014T112400Z-fast",
+      "latest_reviewer_result": "R014-029-REVIEWER-20261014T072053Z-fast",
+      "developer_followup_status": "FAST3_REPAIR_OR_ANALYSIS_GPU_RECHECK_PENDING"
     },
     {
       "id": "R014-030",
@@ -5926,12 +6099,20 @@
         "E014-b0eea8375d336f24",
         "E014-5d15db329337a85f",
         "E014-e1f8059cd94b9d95",
-        "E014-b00af3faa0b1c3d2"
+        "E014-b00af3faa0b1c3d2",
+        "E014-97878f9e0d3588c1",
+        "E014-b47170325e9af92d",
+        "E014-8c7d2765d1c02233",
+        "E014-275db92db26084cf",
+        "E014-c11cced8208a6e72",
+        "E014-8d72c095c71362a8",
+        "E014-770a319404191360"
       ],
       "file_ids": [],
       "status": "PARTIAL_RECHECK_OPEN_GAPS",
-      "latest_developer_response": "R014-030-DEV-20261014T055427Z-fast",
-      "latest_reviewer_result": "R014-030-REVIEWER-20261014T072053Z-fast"
+      "latest_developer_response": "R014-030-DEV-20261014T112400Z-fast",
+      "latest_reviewer_result": "R014-030-REVIEWER-20261014T072053Z-fast",
+      "developer_followup_status": "FAST3_REPAIR_OR_ANALYSIS_GPU_RECHECK_PENDING"
     },
     {
       "id": "R014-031",
@@ -6397,7 +6578,14 @@
         "E014-b0eea8375d336f24",
         "E014-5d15db329337a85f",
         "E014-e1f8059cd94b9d95",
-        "E014-b00af3faa0b1c3d2"
+        "E014-b00af3faa0b1c3d2",
+        "E014-97878f9e0d3588c1",
+        "E014-b47170325e9af92d",
+        "E014-8c7d2765d1c02233",
+        "E014-275db92db26084cf",
+        "E014-c11cced8208a6e72",
+        "E014-8d72c095c71362a8",
+        "E014-770a319404191360"
       ],
       "file_ids": [
         "F014-771ba55c90cf",
@@ -6412,8 +6600,9 @@
       "qualification_evidence_ids": [
         "E014-3eecf953992eb814"
       ],
-      "latest_developer_response": "R014-033-DEV-20261014T055427Z-fast",
-      "latest_reviewer_result": "R014-033-REVIEWER-20261014T072053Z-fast"
+      "latest_developer_response": "R014-033-DEV-20261014T112400Z-fast",
+      "latest_reviewer_result": "R014-033-REVIEWER-20261014T072053Z-fast",
+      "developer_followup_status": "FAST3_REPAIR_OR_ANALYSIS_GPU_RECHECK_PENDING"
     }
   ],
   "evidence": [
@@ -49001,6 +49190,787 @@
       "interaction_class": "FAST",
       "source_commit": "4b5c480b572f234ddecf5e89164fe59b0d2e9735",
       "scope": "Administrative final integrity and publication driver; no numeric acceptance."
+    },
+    {
+      "id": "E014-c11cced8208a6e72",
+      "identity": "PR14_REVIEW_ONLY",
+      "interaction_class": "FAST",
+      "path": "developer-deliveries/20261014T112400Z-fast/EVIDENCE_REUSE.md",
+      "sha256": "c11cced8208a6e72910d613f9c506cdd130b7778cbf4f38c970a949f0da38f6b",
+      "bytes": 4755,
+      "source_commit": "9d5be6eff69dbced2fc959d422d3ba419a1bc39e",
+      "classification": "FAST3_DEVELOPER_NATIVE_HOST_COMPILE_OFFLINE_ANALYSIS_OR_RECHECK_REQUEST",
+      "limits": "Read individual scope: no new GPU execution or whole-PR acceptance; prior failed/blocked results remain unchanged."
+    },
+    {
+      "id": "E014-8d72c095c71362a8",
+      "identity": "PR14_REVIEW_ONLY",
+      "interaction_class": "FAST",
+      "path": "developer-deliveries/20261014T112400Z-fast/GAP_RECHECK_PLAN.md",
+      "sha256": "8d72c095c71362a8c14f78a6b3b991ca7c604ebdbcde060bda51ee562db64800",
+      "bytes": 9197,
+      "source_commit": "9d5be6eff69dbced2fc959d422d3ba419a1bc39e",
+      "classification": "FAST3_DEVELOPER_NATIVE_HOST_COMPILE_OFFLINE_ANALYSIS_OR_RECHECK_REQUEST",
+      "limits": "Read individual scope: no new GPU execution or whole-PR acceptance; prior failed/blocked results remain unchanged."
+    },
+    {
+      "id": "E014-97878f9e0d3588c1",
+      "identity": "PR14_REVIEW_ONLY",
+      "interaction_class": "FAST",
+      "path": "developer-deliveries/20261014T112400Z-fast/REPORT.md",
+      "sha256": "97878f9e0d3588c13a62c4e09237ecb1c79d5e024dfb72a0699870a579987c6f",
+      "bytes": 5799,
+      "source_commit": "9d5be6eff69dbced2fc959d422d3ba419a1bc39e",
+      "classification": "FAST3_DEVELOPER_NATIVE_HOST_COMPILE_OFFLINE_ANALYSIS_OR_RECHECK_REQUEST",
+      "limits": "Read individual scope: no new GPU execution or whole-PR acceptance; prior failed/blocked results remain unchanged."
+    },
+    {
+      "id": "E014-275db92db26084cf",
+      "identity": "PR14_REVIEW_ONLY",
+      "interaction_class": "FAST",
+      "path": "developer-deliveries/20261014T112400Z-fast/REVIEW_REQUEST.md",
+      "sha256": "275db92db26084cf7041b3d68b7493e38aa3bdd740743a6d35d81aa32075c345",
+      "bytes": 12465,
+      "source_commit": "9d5be6eff69dbced2fc959d422d3ba419a1bc39e",
+      "classification": "FAST3_DEVELOPER_NATIVE_HOST_COMPILE_OFFLINE_ANALYSIS_OR_RECHECK_REQUEST",
+      "limits": "Read individual scope: no new GPU execution or whole-PR acceptance; prior failed/blocked results remain unchanged."
+    },
+    {
+      "id": "E014-fb40799628268c1d",
+      "identity": "PR14_REVIEW_ONLY",
+      "interaction_class": "FAST",
+      "path": "developer-deliveries/20261014T112400Z-fast/SHA256SUMS",
+      "sha256": "fb40799628268c1ddb6ea79d71f7865b06f34dd30da5a4b5c83ae8da12088c36",
+      "bytes": 8332,
+      "source_commit": "9d5be6eff69dbced2fc959d422d3ba419a1bc39e",
+      "classification": "FAST3_DEVELOPER_NATIVE_HOST_COMPILE_OFFLINE_ANALYSIS_OR_RECHECK_REQUEST",
+      "limits": "Read individual scope: no new GPU execution or whole-PR acceptance; prior failed/blocked results remain unchanged."
+    },
+    {
+      "id": "E014-b47170325e9af92d",
+      "identity": "PR14_REVIEW_ONLY",
+      "interaction_class": "FAST",
+      "path": "developer-deliveries/20261014T112400Z-fast/SOURCE.json",
+      "sha256": "b47170325e9af92d777375eed0b5778a2ee71bdd76728541288497ea182828b4",
+      "bytes": 5236,
+      "source_commit": "9d5be6eff69dbced2fc959d422d3ba419a1bc39e",
+      "classification": "FAST3_DEVELOPER_NATIVE_HOST_COMPILE_OFFLINE_ANALYSIS_OR_RECHECK_REQUEST",
+      "limits": "Read individual scope: no new GPU execution or whole-PR acceptance; prior failed/blocked results remain unchanged."
+    },
+    {
+      "id": "E014-8c7d2765d1c02233",
+      "identity": "PR14_REVIEW_ONLY",
+      "interaction_class": "FAST",
+      "path": "developer-deliveries/20261014T112400Z-fast/VALIDATION.json",
+      "sha256": "8c7d2765d1c022337e87b9bd784716e938b2971bc1acf73b4ef23dbea653c321",
+      "bytes": 5954,
+      "source_commit": "9d5be6eff69dbced2fc959d422d3ba419a1bc39e",
+      "classification": "FAST3_DEVELOPER_NATIVE_HOST_COMPILE_OFFLINE_ANALYSIS_OR_RECHECK_REQUEST",
+      "limits": "Read individual scope: no new GPU execution or whole-PR acceptance; prior failed/blocked results remain unchanged."
+    },
+    {
+      "id": "E014-bec49998d96bd1a4",
+      "identity": "PR14_REVIEW_ONLY",
+      "interaction_class": "FAST",
+      "path": "developer-deliveries/20261014T112400Z-fast/evidence/chemistry_fixture/binary_dynamic.txt",
+      "sha256": "bec49998d96bd1a4b445a937ce22e0d736f9377a4db060e9c26e2b49b6e8efd9",
+      "bytes": 1703,
+      "source_commit": "9d5be6eff69dbced2fc959d422d3ba419a1bc39e",
+      "classification": "FAST3_DEVELOPER_NATIVE_HOST_COMPILE_OFFLINE_ANALYSIS_OR_RECHECK_REQUEST",
+      "limits": "Read individual scope: no new GPU execution or whole-PR acceptance; prior failed/blocked results remain unchanged."
+    },
+    {
+      "id": "E014-39aaec5d736caba9",
+      "identity": "PR14_REVIEW_ONLY",
+      "interaction_class": "FAST",
+      "path": "developer-deliveries/20261014T112400Z-fast/evidence/chemistry_fixture/binary_type.txt",
+      "sha256": "39aaec5d736caba9351bd0c80641f4fc9d88cb6e9f3f9aa4941538e2ecaf6061",
+      "bytes": 300,
+      "source_commit": "9d5be6eff69dbced2fc959d422d3ba419a1bc39e",
+      "classification": "FAST3_DEVELOPER_NATIVE_HOST_COMPILE_OFFLINE_ANALYSIS_OR_RECHECK_REQUEST",
+      "limits": "Read individual scope: no new GPU execution or whole-PR acceptance; prior failed/blocked results remain unchanged."
+    },
+    {
+      "id": "E014-19bd545574c9b57d",
+      "identity": "PR14_REVIEW_ONLY",
+      "interaction_class": "FAST",
+      "path": "developer-deliveries/20261014T112400Z-fast/evidence/chemistry_fixture/build.log",
+      "sha256": "19bd545574c9b57de44505abb09ac9e7cb997e8806d4da4d3702325a3943f7a5",
+      "bytes": 102758,
+      "source_commit": "9d5be6eff69dbced2fc959d422d3ba419a1bc39e",
+      "classification": "FAST3_DEVELOPER_NATIVE_HOST_COMPILE_OFFLINE_ANALYSIS_OR_RECHECK_REQUEST",
+      "limits": "Read individual scope: no new GPU execution or whole-PR acceptance; prior failed/blocked results remain unchanged."
+    },
+    {
+      "id": "E014-4ed2436d7c0c3251",
+      "identity": "PR14_REVIEW_ONLY",
+      "interaction_class": "FAST",
+      "path": "developer-deliveries/20261014T112400Z-fast/evidence/chemistry_fixture/chemistry_trial.cu",
+      "sha256": "4ed2436d7c0c3251cb4580d1d21e331cf39e166c63808a63abadb740e6db7fe1",
+      "bytes": 32045,
+      "source_commit": "9d5be6eff69dbced2fc959d422d3ba419a1bc39e",
+      "classification": "FAST3_DEVELOPER_NATIVE_HOST_COMPILE_OFFLINE_ANALYSIS_OR_RECHECK_REQUEST",
+      "limits": "Read individual scope: no new GPU execution or whole-PR acceptance; prior failed/blocked results remain unchanged."
+    },
+    {
+      "id": "E014-8a446ee24c3d4573",
+      "identity": "PR14_REVIEW_ONLY",
+      "interaction_class": "FAST",
+      "path": "developer-deliveries/20261014T112400Z-fast/evidence/chemistry_fixture/command.json",
+      "sha256": "8a446ee24c3d45736d0ee8b11eb4036432d74135fe1bd548875f97582eff083a",
+      "bytes": 634,
+      "source_commit": "9d5be6eff69dbced2fc959d422d3ba419a1bc39e",
+      "classification": "FAST3_DEVELOPER_NATIVE_HOST_COMPILE_OFFLINE_ANALYSIS_OR_RECHECK_REQUEST",
+      "limits": "Read individual scope: no new GPU execution or whole-PR acceptance; prior failed/blocked results remain unchanged."
+    },
+    {
+      "id": "E014-6b271d39ccfe36b8",
+      "identity": "PR14_REVIEW_ONLY",
+      "interaction_class": "FAST",
+      "path": "developer-deliveries/20261014T112400Z-fast/evidence/chemistry_fixture/compile_receipt.json",
+      "sha256": "6b271d39ccfe36b81a3d0aa6c33b6ce41bac4bd5ffd5e899a35c5dd6ca3bf4da",
+      "bytes": 2837,
+      "source_commit": "9d5be6eff69dbced2fc959d422d3ba419a1bc39e",
+      "classification": "FAST3_DEVELOPER_NATIVE_HOST_COMPILE_OFFLINE_ANALYSIS_OR_RECHECK_REQUEST",
+      "limits": "Read individual scope: no new GPU execution or whole-PR acceptance; prior failed/blocked results remain unchanged."
+    },
+    {
+      "id": "E014-9f0c15189a929aa2",
+      "identity": "PR14_REVIEW_ONLY",
+      "interaction_class": "FAST",
+      "path": "developer-deliveries/20261014T112400Z-fast/evidence/chemistry_fixture/coverage-preservation.json",
+      "sha256": "9f0c15189a929aa2e95d1f3db4bc5758789a6843c011c67d9cf0c81904738223",
+      "bytes": 5406,
+      "source_commit": "9d5be6eff69dbced2fc959d422d3ba419a1bc39e",
+      "classification": "FAST3_DEVELOPER_NATIVE_HOST_COMPILE_OFFLINE_ANALYSIS_OR_RECHECK_REQUEST",
+      "limits": "Read individual scope: no new GPU execution or whole-PR acceptance; prior failed/blocked results remain unchanged."
+    },
+    {
+      "id": "E014-e9a8c29bc08cb22d",
+      "identity": "PR14_REVIEW_ONLY",
+      "interaction_class": "FAST",
+      "path": "developer-deliveries/20261014T112400Z-fast/evidence/chemistry_fixture/driver.log",
+      "sha256": "e9a8c29bc08cb22d6e009cc84c3b885f8e2212a041dda650adf7f25c9047f6ed",
+      "bytes": 86,
+      "source_commit": "9d5be6eff69dbced2fc959d422d3ba419a1bc39e",
+      "classification": "FAST3_DEVELOPER_NATIVE_HOST_COMPILE_OFFLINE_ANALYSIS_OR_RECHECK_REQUEST",
+      "limits": "Read individual scope: no new GPU execution or whole-PR acceptance; prior failed/blocked results remain unchanged."
+    },
+    {
+      "id": "E014-fa393f279764ff6f",
+      "identity": "PR14_REVIEW_ONLY",
+      "interaction_class": "FAST",
+      "path": "developer-deliveries/20261014T112400Z-fast/evidence/chemistry_fixture/end_time.txt",
+      "sha256": "fa393f279764ff6f8cd86d48f9be922a4dc8f1abe4137bd6883102487ef2e49d",
+      "bytes": 21,
+      "source_commit": "9d5be6eff69dbced2fc959d422d3ba419a1bc39e",
+      "classification": "FAST3_DEVELOPER_NATIVE_HOST_COMPILE_OFFLINE_ANALYSIS_OR_RECHECK_REQUEST",
+      "limits": "Read individual scope: no new GPU execution or whole-PR acceptance; prior failed/blocked results remain unchanged."
+    },
+    {
+      "id": "E014-d68f999874afa579",
+      "identity": "PR14_REVIEW_ONLY",
+      "interaction_class": "FAST",
+      "path": "developer-deliveries/20261014T112400Z-fast/evidence/chemistry_fixture/pr14_chemistry_fixture_generation_green.log",
+      "sha256": "d68f999874afa57918e1cf19adda6ce39e993f4ae375c4f6f5891abfa0efb0b3",
+      "bytes": 112,
+      "source_commit": "9d5be6eff69dbced2fc959d422d3ba419a1bc39e",
+      "classification": "FAST3_DEVELOPER_NATIVE_HOST_COMPILE_OFFLINE_ANALYSIS_OR_RECHECK_REQUEST",
+      "limits": "Read individual scope: no new GPU execution or whole-PR acceptance; prior failed/blocked results remain unchanged."
+    },
+    {
+      "id": "E014-27dd90a26fb6cd31",
+      "identity": "PR14_REVIEW_ONLY",
+      "interaction_class": "FAST",
+      "path": "developer-deliveries/20261014T112400Z-fast/evidence/chemistry_fixture/pr14_chemistry_fixture_generation_red.log",
+      "sha256": "27dd90a26fb6cd31f127a1c0167888434390559282a60630d43117d4cc7bff17",
+      "bytes": 3550,
+      "source_commit": "9d5be6eff69dbced2fc959d422d3ba419a1bc39e",
+      "classification": "FAST3_DEVELOPER_NATIVE_HOST_COMPILE_OFFLINE_ANALYSIS_OR_RECHECK_REQUEST",
+      "limits": "Read individual scope: no new GPU execution or whole-PR acceptance; prior failed/blocked results remain unchanged."
+    },
+    {
+      "id": "E014-47840da57d877399",
+      "identity": "PR14_REVIEW_ONLY",
+      "interaction_class": "FAST",
+      "path": "developer-deliveries/20261014T112400Z-fast/evidence/chemistry_fixture/pytest-final.log",
+      "sha256": "47840da57d8773997d1d982ba3d3cfffde50da5b2a66c4ac0203654dccf48cc2",
+      "bytes": 109,
+      "source_commit": "9d5be6eff69dbced2fc959d422d3ba419a1bc39e",
+      "classification": "FAST3_DEVELOPER_NATIVE_HOST_COMPILE_OFFLINE_ANALYSIS_OR_RECHECK_REQUEST",
+      "limits": "Read individual scope: no new GPU execution or whole-PR acceptance; prior failed/blocked results remain unchanged."
+    },
+    {
+      "id": "E014-2458555a5d3cd64f",
+      "identity": "PR14_REVIEW_ONLY",
+      "interaction_class": "FAST",
+      "path": "developer-deliveries/20261014T112400Z-fast/evidence/chemistry_fixture/source_unchanged.log",
+      "sha256": "2458555a5d3cd64fc4a08f2e6cb1a8341730b22586112621e8aa950a6741c42f",
+      "bytes": 480,
+      "source_commit": "9d5be6eff69dbced2fc959d422d3ba419a1bc39e",
+      "classification": "FAST3_DEVELOPER_NATIVE_HOST_COMPILE_OFFLINE_ANALYSIS_OR_RECHECK_REQUEST",
+      "limits": "Read individual scope: no new GPU execution or whole-PR acceptance; prior failed/blocked results remain unchanged."
+    },
+    {
+      "id": "E014-7dcec0bfcd9f934b",
+      "identity": "PR14_REVIEW_ONLY",
+      "interaction_class": "FAST",
+      "path": "developer-deliveries/20261014T112400Z-fast/evidence/chemistry_fixture/start_source_sha256.txt",
+      "sha256": "7dcec0bfcd9f934b04ef0caadf39478e53090e4c865a8a323d918563a1f366bb",
+      "bytes": 1038,
+      "source_commit": "9d5be6eff69dbced2fc959d422d3ba419a1bc39e",
+      "classification": "FAST3_DEVELOPER_NATIVE_HOST_COMPILE_OFFLINE_ANALYSIS_OR_RECHECK_REQUEST",
+      "limits": "Read individual scope: no new GPU execution or whole-PR acceptance; prior failed/blocked results remain unchanged."
+    },
+    {
+      "id": "E014-5ae913ed402e0ea4",
+      "identity": "PR14_REVIEW_ONLY",
+      "interaction_class": "FAST",
+      "path": "developer-deliveries/20261014T112400Z-fast/evidence/chemistry_fixture/start_time.txt",
+      "sha256": "5ae913ed402e0ea4aef012aa4950cc845b4b93bfa7221f4c190eafcd56ee6b7c",
+      "bytes": 21,
+      "source_commit": "9d5be6eff69dbced2fc959d422d3ba419a1bc39e",
+      "classification": "FAST3_DEVELOPER_NATIVE_HOST_COMPILE_OFFLINE_ANALYSIS_OR_RECHECK_REQUEST",
+      "limits": "Read individual scope: no new GPU execution or whole-PR acceptance; prior failed/blocked results remain unchanged."
+    },
+    {
+      "id": "E014-3865680e82e68a45",
+      "identity": "PR14_REVIEW_ONLY",
+      "interaction_class": "FAST",
+      "path": "developer-deliveries/20261014T112400Z-fast/evidence/cold_fixture_triage.json",
+      "sha256": "3865680e82e68a455c780315e9077891da00b9439cee2ee4845228ba091cb5e8",
+      "bytes": 17307,
+      "source_commit": "9d5be6eff69dbced2fc959d422d3ba419a1bc39e",
+      "classification": "FAST3_DEVELOPER_NATIVE_HOST_COMPILE_OFFLINE_ANALYSIS_OR_RECHECK_REQUEST",
+      "limits": "Read individual scope: no new GPU execution or whole-PR acceptance; prior failed/blocked results remain unchanged."
+    },
+    {
+      "id": "E014-da6237f4257cc7fc",
+      "identity": "PR14_REVIEW_ONLY",
+      "interaction_class": "FAST",
+      "path": "developer-deliveries/20261014T112400Z-fast/evidence/delivery_validation.json",
+      "sha256": "da6237f4257cc7fc6c1156b3ffebf7daac34f17eed8d39165bb3e156625d6ed9",
+      "bytes": 762,
+      "source_commit": "9d5be6eff69dbced2fc959d422d3ba419a1bc39e",
+      "classification": "FAST3_DEVELOPER_NATIVE_HOST_COMPILE_OFFLINE_ANALYSIS_OR_RECHECK_REQUEST",
+      "limits": "Read individual scope: no new GPU execution or whole-PR acceptance; prior failed/blocked results remain unchanged."
+    },
+    {
+      "id": "E014-770a319404191360",
+      "identity": "PR14_REVIEW_ONLY",
+      "interaction_class": "FAST",
+      "path": "developer-deliveries/20261014T112400Z-fast/evidence/independent_review.md",
+      "sha256": "770a31940419136061b8c30a1e4d4612761329e74422f4b2e2ce3cb180fead20",
+      "bytes": 6249,
+      "source_commit": "9d5be6eff69dbced2fc959d422d3ba419a1bc39e",
+      "classification": "FAST3_DEVELOPER_NATIVE_HOST_COMPILE_OFFLINE_ANALYSIS_OR_RECHECK_REQUEST",
+      "limits": "Read individual scope: no new GPU execution or whole-PR acceptance; prior failed/blocked results remain unchanged."
+    },
+    {
+      "id": "E014-0610331d70797832",
+      "identity": "PR14_REVIEW_ONLY",
+      "interaction_class": "FAST",
+      "path": "developer-deliveries/20261014T112400Z-fast/evidence/native_application_build/attempt1-environment-failure/compile_incremental.py",
+      "sha256": "0610331d7079783269da7e1df8f782d0ab78830d1f51ff2b1da531ce6e51f0c8",
+      "bytes": 3001,
+      "source_commit": "9d5be6eff69dbced2fc959d422d3ba419a1bc39e",
+      "classification": "FAST3_DEVELOPER_NATIVE_HOST_COMPILE_OFFLINE_ANALYSIS_OR_RECHECK_REQUEST",
+      "limits": "Read individual scope: no new GPU execution or whole-PR acceptance; prior failed/blocked results remain unchanged."
+    },
+    {
+      "id": "E014-e1f507e37427bb43",
+      "identity": "PR14_REVIEW_ONLY",
+      "interaction_class": "FAST",
+      "path": "developer-deliveries/20261014T112400Z-fast/evidence/native_application_build/attempt1-environment-failure/ns2/build.log",
+      "sha256": "e1f507e37427bb43e35ea2d155048ddf164ab131cbedcbe1e3a827876cb2938f",
+      "bytes": 86,
+      "source_commit": "9d5be6eff69dbced2fc959d422d3ba419a1bc39e",
+      "classification": "FAST3_DEVELOPER_NATIVE_HOST_COMPILE_OFFLINE_ANALYSIS_OR_RECHECK_REQUEST",
+      "limits": "Read individual scope: no new GPU execution or whole-PR acceptance; prior failed/blocked results remain unchanged."
+    },
+    {
+      "id": "E014-4c706a3e59d707e4",
+      "identity": "PR14_REVIEW_ONLY",
+      "interaction_class": "FAST",
+      "path": "developer-deliveries/20261014T112400Z-fast/evidence/native_application_build/attempt1-environment-failure/ns2/command.sh",
+      "sha256": "4c706a3e59d707e4f2e8d354deea0d43d683271e1e4381b1adf7112899f4d386",
+      "bytes": 2186,
+      "source_commit": "9d5be6eff69dbced2fc959d422d3ba419a1bc39e",
+      "classification": "FAST3_DEVELOPER_NATIVE_HOST_COMPILE_OFFLINE_ANALYSIS_OR_RECHECK_REQUEST",
+      "limits": "Read individual scope: no new GPU execution or whole-PR acceptance; prior failed/blocked results remain unchanged."
+    },
+    {
+      "id": "E014-12aa91ea90f7abec",
+      "identity": "PR14_REVIEW_ONLY",
+      "interaction_class": "FAST",
+      "path": "developer-deliveries/20261014T112400Z-fast/evidence/native_application_build/attempt1-environment-failure/receipts.json",
+      "sha256": "12aa91ea90f7abec4d6822ada0142680daf18f398c9d224b1ba265e2bc1f93f1",
+      "bytes": 78720,
+      "source_commit": "9d5be6eff69dbced2fc959d422d3ba419a1bc39e",
+      "classification": "FAST3_DEVELOPER_NATIVE_HOST_COMPILE_OFFLINE_ANALYSIS_OR_RECHECK_REQUEST",
+      "limits": "Read individual scope: no new GPU execution or whole-PR acceptance; prior failed/blocked results remain unchanged."
+    },
+    {
+      "id": "E014-b6f4868ace049554",
+      "identity": "PR14_REVIEW_ONLY",
+      "interaction_class": "FAST",
+      "path": "developer-deliveries/20261014T112400Z-fast/evidence/native_application_build/attempt1-environment-failure/run.log",
+      "sha256": "b6f4868ace049554310add611c60ed7c93f128ad99ceb29b1b67c39d5392e558",
+      "bytes": 69,
+      "source_commit": "9d5be6eff69dbced2fc959d422d3ba419a1bc39e",
+      "classification": "FAST3_DEVELOPER_NATIVE_HOST_COMPILE_OFFLINE_ANALYSIS_OR_RECHECK_REQUEST",
+      "limits": "Read individual scope: no new GPU execution or whole-PR acceptance; prior failed/blocked results remain unchanged."
+    },
+    {
+      "id": "E014-c8c680a272022c0b",
+      "identity": "PR14_REVIEW_ONLY",
+      "interaction_class": "FAST",
+      "path": "developer-deliveries/20261014T112400Z-fast/evidence/native_application_build/compile_incremental.py",
+      "sha256": "c8c680a272022c0b237e27a5e37b3ae023502a727110ffde4b8123b7920222be",
+      "bytes": 3009,
+      "source_commit": "9d5be6eff69dbced2fc959d422d3ba419a1bc39e",
+      "classification": "FAST3_DEVELOPER_NATIVE_HOST_COMPILE_OFFLINE_ANALYSIS_OR_RECHECK_REQUEST",
+      "limits": "Read individual scope: no new GPU execution or whole-PR acceptance; prior failed/blocked results remain unchanged."
+    },
+    {
+      "id": "E014-6b15be4f000bd008",
+      "identity": "PR14_REVIEW_ONLY",
+      "interaction_class": "FAST",
+      "path": "developer-deliveries/20261014T112400Z-fast/evidence/native_application_build/final_source_identity_check.json",
+      "sha256": "6b15be4f000bd008100335d909f9a812c650a5b4ce623e421c4e44ed19741016",
+      "bytes": 823,
+      "source_commit": "9d5be6eff69dbced2fc959d422d3ba419a1bc39e",
+      "classification": "FAST3_DEVELOPER_NATIVE_HOST_COMPILE_OFFLINE_ANALYSIS_OR_RECHECK_REQUEST",
+      "limits": "Read individual scope: no new GPU execution or whole-PR acceptance; prior failed/blocked results remain unchanged."
+    },
+    {
+      "id": "E014-ca3a79a6f0b6117b",
+      "identity": "PR14_REVIEW_ONLY",
+      "interaction_class": "FAST",
+      "path": "developer-deliveries/20261014T112400Z-fast/evidence/native_application_build/ns10/build.log",
+      "sha256": "ca3a79a6f0b6117b445444feadc3b37a01a4e50c62791d41a61c9af5a19bb6c9",
+      "bytes": 65,
+      "source_commit": "9d5be6eff69dbced2fc959d422d3ba419a1bc39e",
+      "classification": "FAST3_DEVELOPER_NATIVE_HOST_COMPILE_OFFLINE_ANALYSIS_OR_RECHECK_REQUEST",
+      "limits": "Read individual scope: no new GPU execution or whole-PR acceptance; prior failed/blocked results remain unchanged."
+    },
+    {
+      "id": "E014-673aa3b11a4e4bd9",
+      "identity": "PR14_REVIEW_ONLY",
+      "interaction_class": "FAST",
+      "path": "developer-deliveries/20261014T112400Z-fast/evidence/native_application_build/ns10/command.sh",
+      "sha256": "673aa3b11a4e4bd9c539bbb03fcbc7c0348510353a33d17fecb5096eb3a8a2bf",
+      "bytes": 2200,
+      "source_commit": "9d5be6eff69dbced2fc959d422d3ba419a1bc39e",
+      "classification": "FAST3_DEVELOPER_NATIVE_HOST_COMPILE_OFFLINE_ANALYSIS_OR_RECHECK_REQUEST",
+      "limits": "Read individual scope: no new GPU execution or whole-PR acceptance; prior failed/blocked results remain unchanged."
+    },
+    {
+      "id": "E014-1d7ab5ae7400bebf",
+      "identity": "PR14_REVIEW_ONLY",
+      "interaction_class": "FAST",
+      "path": "developer-deliveries/20261014T112400Z-fast/evidence/native_application_build/ns10/generated/CHMTBuildIdentity.H",
+      "sha256": "1d7ab5ae7400bebf9c64c34f608089923edb1e8d3dd8f7c9c19c76a119e42549",
+      "bytes": 1780,
+      "source_commit": "9d5be6eff69dbced2fc959d422d3ba419a1bc39e",
+      "classification": "FAST3_DEVELOPER_NATIVE_HOST_COMPILE_OFFLINE_ANALYSIS_OR_RECHECK_REQUEST",
+      "limits": "Read individual scope: no new GPU execution or whole-PR acceptance; prior failed/blocked results remain unchanged."
+    },
+    {
+      "id": "E014-0d08e016e9afb04a",
+      "identity": "PR14_REVIEW_ONLY",
+      "interaction_class": "FAST",
+      "path": "developer-deliveries/20261014T112400Z-fast/evidence/native_application_build/ns2/build.log",
+      "sha256": "0d08e016e9afb04a88bff85b8c02c8909979162cf7323c02ebfa47f4c3aa7170",
+      "bytes": 65,
+      "source_commit": "9d5be6eff69dbced2fc959d422d3ba419a1bc39e",
+      "classification": "FAST3_DEVELOPER_NATIVE_HOST_COMPILE_OFFLINE_ANALYSIS_OR_RECHECK_REQUEST",
+      "limits": "Read individual scope: no new GPU execution or whole-PR acceptance; prior failed/blocked results remain unchanged."
+    },
+    {
+      "id": "E014-610be66d6782baa1",
+      "identity": "PR14_REVIEW_ONLY",
+      "interaction_class": "FAST",
+      "path": "developer-deliveries/20261014T112400Z-fast/evidence/native_application_build/ns2/command.sh",
+      "sha256": "610be66d6782baa1081094e8a094e9cda3a591a133b217e68a4766f02a1c38ea",
+      "bytes": 2194,
+      "source_commit": "9d5be6eff69dbced2fc959d422d3ba419a1bc39e",
+      "classification": "FAST3_DEVELOPER_NATIVE_HOST_COMPILE_OFFLINE_ANALYSIS_OR_RECHECK_REQUEST",
+      "limits": "Read individual scope: no new GPU execution or whole-PR acceptance; prior failed/blocked results remain unchanged."
+    },
+    {
+      "id": "E014-1b55348d22d6c46e",
+      "identity": "PR14_REVIEW_ONLY",
+      "interaction_class": "FAST",
+      "path": "developer-deliveries/20261014T112400Z-fast/evidence/native_application_build/ns2/generated/CHMTBuildIdentity.H",
+      "sha256": "1b55348d22d6c46edf361b0db1bbf484d8573a701035ebf08f0f9875efca6d11",
+      "bytes": 1779,
+      "source_commit": "9d5be6eff69dbced2fc959d422d3ba419a1bc39e",
+      "classification": "FAST3_DEVELOPER_NATIVE_HOST_COMPILE_OFFLINE_ANALYSIS_OR_RECHECK_REQUEST",
+      "limits": "Read individual scope: no new GPU execution or whole-PR acceptance; prior failed/blocked results remain unchanged."
+    },
+    {
+      "id": "E014-26c9df942dc1a08b",
+      "identity": "PR14_REVIEW_ONLY",
+      "interaction_class": "FAST",
+      "path": "developer-deliveries/20261014T112400Z-fast/evidence/native_application_build/receipts.json",
+      "sha256": "26c9df942dc1a08b3a6812cd73238dbd3b1e341db4102708b8a3638c84b9742c",
+      "bytes": 157569,
+      "source_commit": "9d5be6eff69dbced2fc959d422d3ba419a1bc39e",
+      "classification": "FAST3_DEVELOPER_NATIVE_HOST_COMPILE_OFFLINE_ANALYSIS_OR_RECHECK_REQUEST",
+      "limits": "Read individual scope: no new GPU execution or whole-PR acceptance; prior failed/blocked results remain unchanged."
+    },
+    {
+      "id": "E014-6076ff40ab2b9a61",
+      "identity": "PR14_REVIEW_ONLY",
+      "interaction_class": "FAST",
+      "path": "developer-deliveries/20261014T112400Z-fast/evidence/native_application_build/run.log",
+      "sha256": "6076ff40ab2b9a61c0b838b27e85f4e341030ea41173b1d504b7be5d8a44af97",
+      "bytes": 139,
+      "source_commit": "9d5be6eff69dbced2fc959d422d3ba419a1bc39e",
+      "classification": "FAST3_DEVELOPER_NATIVE_HOST_COMPILE_OFFLINE_ANALYSIS_OR_RECHECK_REQUEST",
+      "limits": "Read individual scope: no new GPU execution or whole-PR acceptance; prior failed/blocked results remain unchanged."
+    },
+    {
+      "id": "E014-a7160f8734a7290e",
+      "identity": "PR14_REVIEW_ONLY",
+      "interaction_class": "FAST",
+      "path": "developer-deliveries/20261014T112400Z-fast/evidence/native_material/HOST_RECEIPT.json",
+      "sha256": "a7160f8734a7290eb6d21b734a70754f0c4e728976a3f0f9464724fde64fc201",
+      "bytes": 10255,
+      "source_commit": "9d5be6eff69dbced2fc959d422d3ba419a1bc39e",
+      "classification": "FAST3_DEVELOPER_NATIVE_HOST_COMPILE_OFFLINE_ANALYSIS_OR_RECHECK_REQUEST",
+      "limits": "Read individual scope: no new GPU execution or whole-PR acceptance; prior failed/blocked results remain unchanged."
+    },
+    {
+      "id": "E014-5e04675eade53d1b",
+      "identity": "PR14_REVIEW_ONLY",
+      "interaction_class": "FAST",
+      "path": "developer-deliveries/20261014T112400Z-fast/evidence/native_material/green/blockMesh.log",
+      "sha256": "5e04675eade53d1b0ef532c788b292f127865e983ba75cfc1ae63d0cb15185ec",
+      "bytes": 2050,
+      "source_commit": "9d5be6eff69dbced2fc959d422d3ba419a1bc39e",
+      "classification": "FAST3_DEVELOPER_NATIVE_HOST_COMPILE_OFFLINE_ANALYSIS_OR_RECHECK_REQUEST",
+      "limits": "Read individual scope: no new GPU execution or whole-PR acceptance; prior failed/blocked results remain unchanged."
+    },
+    {
+      "id": "E014-650fc1b0d67ef807",
+      "identity": "PR14_REVIEW_ONLY",
+      "interaction_class": "FAST",
+      "path": "developer-deliveries/20261014T112400Z-fast/evidence/native_material/green/build.log",
+      "sha256": "650fc1b0d67ef80742ee6fa1198181c2fa31459845d29b056ed3800337a80a72",
+      "bytes": 1887,
+      "source_commit": "9d5be6eff69dbced2fc959d422d3ba419a1bc39e",
+      "classification": "FAST3_DEVELOPER_NATIVE_HOST_COMPILE_OFFLINE_ANALYSIS_OR_RECHECK_REQUEST",
+      "limits": "Read individual scope: no new GPU execution or whole-PR acceptance; prior failed/blocked results remain unchanged."
+    },
+    {
+      "id": "E014-b0ff77403bc92cd2",
+      "identity": "PR14_REVIEW_ONLY",
+      "interaction_class": "FAST",
+      "path": "developer-deliveries/20261014T112400Z-fast/evidence/native_material/green/melting.log",
+      "sha256": "b0ff77403bc92cd2c20b4bb5fa3cf1c4a16effc59a7e539b61e85364b8d2de85",
+      "bytes": 1310,
+      "source_commit": "9d5be6eff69dbced2fc959d422d3ba419a1bc39e",
+      "classification": "FAST3_DEVELOPER_NATIVE_HOST_COMPILE_OFFLINE_ANALYSIS_OR_RECHECK_REQUEST",
+      "limits": "Read individual scope: no new GPU execution or whole-PR acceptance; prior failed/blocked results remain unchanged."
+    },
+    {
+      "id": "E014-bb22233b20139cfc",
+      "identity": "PR14_REVIEW_ONLY",
+      "interaction_class": "FAST",
+      "path": "developer-deliveries/20261014T112400Z-fast/evidence/native_material/green/selected.log",
+      "sha256": "bb22233b20139cfc60eee1f9547c0440829044f0543ebc3c5951f00367f2b522",
+      "bytes": 1443,
+      "source_commit": "9d5be6eff69dbced2fc959d422d3ba419a1bc39e",
+      "classification": "FAST3_DEVELOPER_NATIVE_HOST_COMPILE_OFFLINE_ANALYSIS_OR_RECHECK_REQUEST",
+      "limits": "Read individual scope: no new GPU execution or whole-PR acceptance; prior failed/blocked results remain unchanged."
+    },
+    {
+      "id": "E014-05ead487e3f38e73",
+      "identity": "PR14_REVIEW_ONLY",
+      "interaction_class": "FAST",
+      "path": "developer-deliveries/20261014T112400Z-fast/evidence/native_material/green/unselected.log",
+      "sha256": "05ead487e3f38e7364ab80d766d193bec219835c95aacab38a8652a6842a6019",
+      "bytes": 1449,
+      "source_commit": "9d5be6eff69dbced2fc959d422d3ba419a1bc39e",
+      "classification": "FAST3_DEVELOPER_NATIVE_HOST_COMPILE_OFFLINE_ANALYSIS_OR_RECHECK_REQUEST",
+      "limits": "Read individual scope: no new GPU execution or whole-PR acceptance; prior failed/blocked results remain unchanged."
+    },
+    {
+      "id": "E014-40f5e16f222a637e",
+      "identity": "PR14_REVIEW_ONLY",
+      "interaction_class": "FAST",
+      "path": "developer-deliveries/20261014T112400Z-fast/evidence/native_material/green_final/blockMesh.log",
+      "sha256": "40f5e16f222a637e0b135f0c55283ce1e98cf21d132ddeef821b279623007406",
+      "bytes": 2068,
+      "source_commit": "9d5be6eff69dbced2fc959d422d3ba419a1bc39e",
+      "classification": "FAST3_DEVELOPER_NATIVE_HOST_COMPILE_OFFLINE_ANALYSIS_OR_RECHECK_REQUEST",
+      "limits": "Read individual scope: no new GPU execution or whole-PR acceptance; prior failed/blocked results remain unchanged."
+    },
+    {
+      "id": "E014-dc07ac8486ecc3d5",
+      "identity": "PR14_REVIEW_ONLY",
+      "interaction_class": "FAST",
+      "path": "developer-deliveries/20261014T112400Z-fast/evidence/native_material/green_final/build.log",
+      "sha256": "dc07ac8486ecc3d599143589ac3cb4ddb845bb7627ebdbeb9b8b8cb01a93be68",
+      "bytes": 1893,
+      "source_commit": "9d5be6eff69dbced2fc959d422d3ba419a1bc39e",
+      "classification": "FAST3_DEVELOPER_NATIVE_HOST_COMPILE_OFFLINE_ANALYSIS_OR_RECHECK_REQUEST",
+      "limits": "Read individual scope: no new GPU execution or whole-PR acceptance; prior failed/blocked results remain unchanged."
+    },
+    {
+      "id": "E014-18e5266192fd3f03",
+      "identity": "PR14_REVIEW_ONLY",
+      "interaction_class": "FAST",
+      "path": "developer-deliveries/20261014T112400Z-fast/evidence/native_material/green_final/melting.log",
+      "sha256": "18e5266192fd3f03782bcef172c92ebca75f5f425bee7d90f9976cdeb0ff9590",
+      "bytes": 1605,
+      "source_commit": "9d5be6eff69dbced2fc959d422d3ba419a1bc39e",
+      "classification": "FAST3_DEVELOPER_NATIVE_HOST_COMPILE_OFFLINE_ANALYSIS_OR_RECHECK_REQUEST",
+      "limits": "Read individual scope: no new GPU execution or whole-PR acceptance; prior failed/blocked results remain unchanged."
+    },
+    {
+      "id": "E014-d3df1cca8772475c",
+      "identity": "PR14_REVIEW_ONLY",
+      "interaction_class": "FAST",
+      "path": "developer-deliveries/20261014T112400Z-fast/evidence/native_material/green_final/selected.log",
+      "sha256": "d3df1cca8772475c8ef42a9f7a3d6c64327a21af05294ae83101f50728e872ed",
+      "bytes": 1473,
+      "source_commit": "9d5be6eff69dbced2fc959d422d3ba419a1bc39e",
+      "classification": "FAST3_DEVELOPER_NATIVE_HOST_COMPILE_OFFLINE_ANALYSIS_OR_RECHECK_REQUEST",
+      "limits": "Read individual scope: no new GPU execution or whole-PR acceptance; prior failed/blocked results remain unchanged."
+    },
+    {
+      "id": "E014-1c9518b72060b74c",
+      "identity": "PR14_REVIEW_ONLY",
+      "interaction_class": "FAST",
+      "path": "developer-deliveries/20261014T112400Z-fast/evidence/native_material/green_final/unselected.log",
+      "sha256": "1c9518b72060b74cb7487abddfb738c006a542261d36f62fc64935aa9256c913",
+      "bytes": 1479,
+      "source_commit": "9d5be6eff69dbced2fc959d422d3ba419a1bc39e",
+      "classification": "FAST3_DEVELOPER_NATIVE_HOST_COMPILE_OFFLINE_ANALYSIS_OR_RECHECK_REQUEST",
+      "limits": "Read individual scope: no new GPU execution or whole-PR acceptance; prior failed/blocked results remain unchanged."
+    },
+    {
+      "id": "E014-f30b67075b7cbdde",
+      "identity": "PR14_REVIEW_ONLY",
+      "interaction_class": "FAST",
+      "path": "developer-deliveries/20261014T112400Z-fast/evidence/native_material/original_control/build.log",
+      "sha256": "f30b67075b7cbdde5ae1a4d8e63bee33a7a616b04444259e56b10e9f0e7261b0",
+      "bytes": 1827,
+      "source_commit": "9d5be6eff69dbced2fc959d422d3ba419a1bc39e",
+      "classification": "FAST3_DEVELOPER_NATIVE_HOST_COMPILE_OFFLINE_ANALYSIS_OR_RECHECK_REQUEST",
+      "limits": "Read individual scope: no new GPU execution or whole-PR acceptance; prior failed/blocked results remain unchanged."
+    },
+    {
+      "id": "E014-21eed76c38025aeb",
+      "identity": "PR14_REVIEW_ONLY",
+      "interaction_class": "FAST",
+      "path": "developer-deliveries/20261014T112400Z-fast/evidence/native_material/original_control/melting.log",
+      "sha256": "21eed76c38025aeb51f6b69cc37bdd0f36a8178ed00b50ce16e5977cbfd7f365",
+      "bytes": 1563,
+      "source_commit": "9d5be6eff69dbced2fc959d422d3ba419a1bc39e",
+      "classification": "FAST3_DEVELOPER_NATIVE_HOST_COMPILE_OFFLINE_ANALYSIS_OR_RECHECK_REQUEST",
+      "limits": "Read individual scope: no new GPU execution or whole-PR acceptance; prior failed/blocked results remain unchanged."
+    },
+    {
+      "id": "E014-49829668613e886b",
+      "identity": "PR14_REVIEW_ONLY",
+      "interaction_class": "FAST",
+      "path": "developer-deliveries/20261014T112400Z-fast/evidence/native_material/original_control/selected.log",
+      "sha256": "49829668613e886ba288b9a3b45c8e6592acebac65e8faeb3ea44178ce759024",
+      "bytes": 1431,
+      "source_commit": "9d5be6eff69dbced2fc959d422d3ba419a1bc39e",
+      "classification": "FAST3_DEVELOPER_NATIVE_HOST_COMPILE_OFFLINE_ANALYSIS_OR_RECHECK_REQUEST",
+      "limits": "Read individual scope: no new GPU execution or whole-PR acceptance; prior failed/blocked results remain unchanged."
+    },
+    {
+      "id": "E014-68287737b0813f57",
+      "identity": "PR14_REVIEW_ONLY",
+      "interaction_class": "FAST",
+      "path": "developer-deliveries/20261014T112400Z-fast/evidence/native_material/original_control/unselected.log",
+      "sha256": "68287737b0813f579914d719a23b7bf5e5bce42e4aa87a047246b30bcd3f34f5",
+      "bytes": 1273,
+      "source_commit": "9d5be6eff69dbced2fc959d422d3ba419a1bc39e",
+      "classification": "FAST3_DEVELOPER_NATIVE_HOST_COMPILE_OFFLINE_ANALYSIS_OR_RECHECK_REQUEST",
+      "limits": "Read individual scope: no new GPU execution or whole-PR acceptance; prior failed/blocked results remain unchanged."
+    },
+    {
+      "id": "E014-f2cf2808de85286e",
+      "identity": "PR14_REVIEW_ONLY",
+      "interaction_class": "FAST",
+      "path": "developer-deliveries/20261014T112400Z-fast/evidence/native_material/pr14_zero_phase_film_helpers.log",
+      "sha256": "f2cf2808de85286e15fa6c49021975ba8b574f71cf9eec6bf82b4f947f0b7dbb",
+      "bytes": 832,
+      "source_commit": "9d5be6eff69dbced2fc959d422d3ba419a1bc39e",
+      "classification": "FAST3_DEVELOPER_NATIVE_HOST_COMPILE_OFFLINE_ANALYSIS_OR_RECHECK_REQUEST",
+      "limits": "Read individual scope: no new GPU execution or whole-PR acceptance; prior failed/blocked results remain unchanged."
+    },
+    {
+      "id": "E014-3e8ceffa81f636fd",
+      "identity": "PR14_REVIEW_ONLY",
+      "interaction_class": "FAST",
+      "path": "developer-deliveries/20261014T112400Z-fast/evidence/native_material/pr14_zero_phase_green.log",
+      "sha256": "3e8ceffa81f636fd18cd0e6b406171169adc2596c5fa2160abe5cb1b5266b294",
+      "bytes": 4395,
+      "source_commit": "9d5be6eff69dbced2fc959d422d3ba419a1bc39e",
+      "classification": "FAST3_DEVELOPER_NATIVE_HOST_COMPILE_OFFLINE_ANALYSIS_OR_RECHECK_REQUEST",
+      "limits": "Read individual scope: no new GPU execution or whole-PR acceptance; prior failed/blocked results remain unchanged."
+    },
+    {
+      "id": "E014-b2789df0dee3126d",
+      "identity": "PR14_REVIEW_ONLY",
+      "interaction_class": "FAST",
+      "path": "developer-deliveries/20261014T112400Z-fast/evidence/native_material/pr14_zero_phase_green_final.log",
+      "sha256": "b2789df0dee3126d768fd0ecb26d1321c0b966675f0ff9f82ed70f760c6c4ba8",
+      "bytes": 99,
+      "source_commit": "9d5be6eff69dbced2fc959d422d3ba419a1bc39e",
+      "classification": "FAST3_DEVELOPER_NATIVE_HOST_COMPILE_OFFLINE_ANALYSIS_OR_RECHECK_REQUEST",
+      "limits": "Read individual scope: no new GPU execution or whole-PR acceptance; prior failed/blocked results remain unchanged."
+    },
+    {
+      "id": "E014-932e07868245be27",
+      "identity": "PR14_REVIEW_ONLY",
+      "interaction_class": "FAST",
+      "path": "developer-deliveries/20261014T112400Z-fast/evidence/native_material/pr14_zero_phase_material_helpers.log",
+      "sha256": "932e07868245be27afe135d1861329f0b78170141635ef0cd9354ab7ef4522f2",
+      "bytes": 391,
+      "source_commit": "9d5be6eff69dbced2fc959d422d3ba419a1bc39e",
+      "classification": "FAST3_DEVELOPER_NATIVE_HOST_COMPILE_OFFLINE_ANALYSIS_OR_RECHECK_REQUEST",
+      "limits": "Read individual scope: no new GPU execution or whole-PR acceptance; prior failed/blocked results remain unchanged."
+    },
+    {
+      "id": "E014-6d296674b66fc3f8",
+      "identity": "PR14_REVIEW_ONLY",
+      "interaction_class": "FAST",
+      "path": "developer-deliveries/20261014T112400Z-fast/evidence/native_material/pr14_zero_phase_red.log",
+      "sha256": "6d296674b66fc3f827ad9066de8171e37054886bb89182e3f3a4873858d28eff",
+      "bytes": 8738,
+      "source_commit": "9d5be6eff69dbced2fc959d422d3ba419a1bc39e",
+      "classification": "FAST3_DEVELOPER_NATIVE_HOST_COMPILE_OFFLINE_ANALYSIS_OR_RECHECK_REQUEST",
+      "limits": "Read individual scope: no new GPU execution or whole-PR acceptance; prior failed/blocked results remain unchanged."
+    },
+    {
+      "id": "E014-bf35d7891b674c94",
+      "identity": "PR14_REVIEW_ONLY",
+      "interaction_class": "FAST",
+      "path": "developer-deliveries/20261014T112400Z-fast/evidence/native_material/red/blockMesh.log",
+      "sha256": "bf35d7891b674c9435665def39f624a90bf60166eff073d6f81e559e4c559a8b",
+      "bytes": 2044,
+      "source_commit": "9d5be6eff69dbced2fc959d422d3ba419a1bc39e",
+      "classification": "FAST3_DEVELOPER_NATIVE_HOST_COMPILE_OFFLINE_ANALYSIS_OR_RECHECK_REQUEST",
+      "limits": "Read individual scope: no new GPU execution or whole-PR acceptance; prior failed/blocked results remain unchanged."
+    },
+    {
+      "id": "E014-2d7cd550d0271703",
+      "identity": "PR14_REVIEW_ONLY",
+      "interaction_class": "FAST",
+      "path": "developer-deliveries/20261014T112400Z-fast/evidence/native_material/red/build.log",
+      "sha256": "2d7cd550d0271703e2927e6b1a965beb516d3eda3ab03b29fc67a35045df30df",
+      "bytes": 1885,
+      "source_commit": "9d5be6eff69dbced2fc959d422d3ba419a1bc39e",
+      "classification": "FAST3_DEVELOPER_NATIVE_HOST_COMPILE_OFFLINE_ANALYSIS_OR_RECHECK_REQUEST",
+      "limits": "Read individual scope: no new GPU execution or whole-PR acceptance; prior failed/blocked results remain unchanged."
+    },
+    {
+      "id": "E014-52a95d48325cf00d",
+      "identity": "PR14_REVIEW_ONLY",
+      "interaction_class": "FAST",
+      "path": "developer-deliveries/20261014T112400Z-fast/evidence/native_material/red/melting.log",
+      "sha256": "52a95d48325cf00d53bf0c2c196efc143d24cde6d803d659e8f16a66f123ca12",
+      "bytes": 1516,
+      "source_commit": "9d5be6eff69dbced2fc959d422d3ba419a1bc39e",
+      "classification": "FAST3_DEVELOPER_NATIVE_HOST_COMPILE_OFFLINE_ANALYSIS_OR_RECHECK_REQUEST",
+      "limits": "Read individual scope: no new GPU execution or whole-PR acceptance; prior failed/blocked results remain unchanged."
+    },
+    {
+      "id": "E014-2d9271511e2cf3d4",
+      "identity": "PR14_REVIEW_ONLY",
+      "interaction_class": "FAST",
+      "path": "developer-deliveries/20261014T112400Z-fast/evidence/native_material/red/selected.log",
+      "sha256": "2d9271511e2cf3d42c4202a5f2e50afb1e9e089861c51068a6898dbb3e331a41",
+      "bytes": 1433,
+      "source_commit": "9d5be6eff69dbced2fc959d422d3ba419a1bc39e",
+      "classification": "FAST3_DEVELOPER_NATIVE_HOST_COMPILE_OFFLINE_ANALYSIS_OR_RECHECK_REQUEST",
+      "limits": "Read individual scope: no new GPU execution or whole-PR acceptance; prior failed/blocked results remain unchanged."
+    },
+    {
+      "id": "E014-263524fa4afb0329",
+      "identity": "PR14_REVIEW_ONLY",
+      "interaction_class": "FAST",
+      "path": "developer-deliveries/20261014T112400Z-fast/evidence/native_material/red/unselected.log",
+      "sha256": "263524fa4afb0329437a48262b409f1301aa7250b2132028be8b956c32a44ce2",
+      "bytes": 1320,
+      "source_commit": "9d5be6eff69dbced2fc959d422d3ba419a1bc39e",
+      "classification": "FAST3_DEVELOPER_NATIVE_HOST_COMPILE_OFFLINE_ANALYSIS_OR_RECHECK_REQUEST",
+      "limits": "Read individual scope: no new GPU execution or whole-PR acceptance; prior failed/blocked results remain unchanged."
+    },
+    {
+      "id": "E014-145d37194511ed58",
+      "identity": "PR14_REVIEW_ONLY",
+      "interaction_class": "FAST",
+      "path": "developer-deliveries/20261014T112400Z-fast/evidence/source_publication_verification.json",
+      "sha256": "145d37194511ed5876fb73997942d36d8dd416090730c2eea251187be1162864",
+      "bytes": 1762,
+      "source_commit": "9d5be6eff69dbced2fc959d422d3ba419a1bc39e",
+      "classification": "FAST3_DEVELOPER_NATIVE_HOST_COMPILE_OFFLINE_ANALYSIS_OR_RECHECK_REQUEST",
+      "limits": "Read individual scope: no new GPU execution or whole-PR acceptance; prior failed/blocked results remain unchanged."
+    },
+    {
+      "id": "E014-b732514ae5b5a149",
+      "identity": "PR14_REVIEW_ONLY",
+      "interaction_class": "FAST",
+      "path": "developer-deliveries/20261014T112400Z-fast/evidence/strict_momentum_reanalysis/INPUT_HASHES.json",
+      "sha256": "b732514ae5b5a1493d546713867124ba07c4a10321063bdde6eb7498332cab68",
+      "bytes": 7911,
+      "source_commit": "9d5be6eff69dbced2fc959d422d3ba419a1bc39e",
+      "classification": "FAST3_DEVELOPER_NATIVE_HOST_COMPILE_OFFLINE_ANALYSIS_OR_RECHECK_REQUEST",
+      "limits": "Read individual scope: no new GPU execution or whole-PR acceptance; prior failed/blocked results remain unchanged."
+    },
+    {
+      "id": "E014-1ca79575e4e57cd9",
+      "identity": "PR14_REVIEW_ONLY",
+      "interaction_class": "FAST",
+      "path": "developer-deliveries/20261014T112400Z-fast/evidence/strict_momentum_reanalysis/RESULT.json",
+      "sha256": "1ca79575e4e57cd91829f9b0cb54d0f456d19233f12af99e4c0604f549745d89",
+      "bytes": 216630,
+      "source_commit": "9d5be6eff69dbced2fc959d422d3ba419a1bc39e",
+      "classification": "FAST3_DEVELOPER_NATIVE_HOST_COMPILE_OFFLINE_ANALYSIS_OR_RECHECK_REQUEST",
+      "limits": "Read individual scope: no new GPU execution or whole-PR acceptance; prior failed/blocked results remain unchanged."
+    },
+    {
+      "id": "E014-216a80bb63a40771",
+      "identity": "PR14_REVIEW_ONLY",
+      "interaction_class": "FAST",
+      "path": "developer-deliveries/20261014T112400Z-fast/evidence/strict_momentum_reanalysis/SCOPE.md",
+      "sha256": "216a80bb63a4077182d992f8594ace8ee61252d1163d640c97fe82a93a5ba338",
+      "bytes": 5138,
+      "source_commit": "9d5be6eff69dbced2fc959d422d3ba419a1bc39e",
+      "classification": "FAST3_DEVELOPER_NATIVE_HOST_COMPILE_OFFLINE_ANALYSIS_OR_RECHECK_REQUEST",
+      "limits": "Read individual scope: no new GPU execution or whole-PR acceptance; prior failed/blocked results remain unchanged."
+    },
+    {
+      "id": "E014-35ee7c2ea5729448",
+      "identity": "PR14_REVIEW_ONLY",
+      "interaction_class": "FAST",
+      "path": "developer-deliveries/20261014T112400Z-fast/evidence/strict_momentum_reanalysis/reanalyze.py",
+      "sha256": "35ee7c2ea5729448315246b0327fd35898d7b55b4f57bb961bf3fa0e8f01e815",
+      "bytes": 10219,
+      "source_commit": "9d5be6eff69dbced2fc959d422d3ba419a1bc39e",
+      "classification": "FAST3_DEVELOPER_NATIVE_HOST_COMPILE_OFFLINE_ANALYSIS_OR_RECHECK_REQUEST",
+      "limits": "Read individual scope: no new GPU execution or whole-PR acceptance; prior failed/blocked results remain unchanged."
+    },
+    {
+      "id": "E014-ea4cfdcae6a1f3d4",
+      "identity": "PR14_REVIEW_ONLY",
+      "interaction_class": "FAST",
+      "path": "developer-deliveries/20261014T112400Z-fast/evidence/strict_momentum_reanalysis/validation.log",
+      "sha256": "ea4cfdcae6a1f3d4a3e8b942c3ecc3a763679a2c90857836b9bbcf86b46d895f",
+      "bytes": 883,
+      "source_commit": "9d5be6eff69dbced2fc959d422d3ba419a1bc39e",
+      "classification": "FAST3_DEVELOPER_NATIVE_HOST_COMPILE_OFFLINE_ANALYSIS_OR_RECHECK_REQUEST",
+      "limits": "Read individual scope: no new GPU execution or whole-PR acceptance; prior failed/blocked results remain unchanged."
     }
   ],
   "latest_evidence_by_audit_path": {
@@ -50005,6 +50975,80 @@
     "review/pr14/developer-deliveries/20261014T055427Z-fast/metadata/source_unchanged_final.log",
     "review/pr14/developer-deliveries/20261014T055427Z-fast/metadata/toolchain_header_sha256.txt",
     "review/pr14/developer-deliveries/20261014T055427Z-fast/metadata/toolchain_provenance.json",
+    "review/pr14/developer-deliveries/20261014T112400Z-fast/EVIDENCE_REUSE.md",
+    "review/pr14/developer-deliveries/20261014T112400Z-fast/GAP_RECHECK_PLAN.md",
+    "review/pr14/developer-deliveries/20261014T112400Z-fast/REPORT.md",
+    "review/pr14/developer-deliveries/20261014T112400Z-fast/REVIEW_REQUEST.md",
+    "review/pr14/developer-deliveries/20261014T112400Z-fast/SHA256SUMS",
+    "review/pr14/developer-deliveries/20261014T112400Z-fast/SOURCE.json",
+    "review/pr14/developer-deliveries/20261014T112400Z-fast/VALIDATION.json",
+    "review/pr14/developer-deliveries/20261014T112400Z-fast/evidence/chemistry_fixture/binary_dynamic.txt",
+    "review/pr14/developer-deliveries/20261014T112400Z-fast/evidence/chemistry_fixture/binary_type.txt",
+    "review/pr14/developer-deliveries/20261014T112400Z-fast/evidence/chemistry_fixture/build.log",
+    "review/pr14/developer-deliveries/20261014T112400Z-fast/evidence/chemistry_fixture/chemistry_trial.cu",
+    "review/pr14/developer-deliveries/20261014T112400Z-fast/evidence/chemistry_fixture/command.json",
+    "review/pr14/developer-deliveries/20261014T112400Z-fast/evidence/chemistry_fixture/compile_receipt.json",
+    "review/pr14/developer-deliveries/20261014T112400Z-fast/evidence/chemistry_fixture/coverage-preservation.json",
+    "review/pr14/developer-deliveries/20261014T112400Z-fast/evidence/chemistry_fixture/driver.log",
+    "review/pr14/developer-deliveries/20261014T112400Z-fast/evidence/chemistry_fixture/end_time.txt",
+    "review/pr14/developer-deliveries/20261014T112400Z-fast/evidence/chemistry_fixture/exit_code.txt",
+    "review/pr14/developer-deliveries/20261014T112400Z-fast/evidence/chemistry_fixture/pr14_chemistry_fixture_generation_green.log",
+    "review/pr14/developer-deliveries/20261014T112400Z-fast/evidence/chemistry_fixture/pr14_chemistry_fixture_generation_red.log",
+    "review/pr14/developer-deliveries/20261014T112400Z-fast/evidence/chemistry_fixture/pytest-final.log",
+    "review/pr14/developer-deliveries/20261014T112400Z-fast/evidence/chemistry_fixture/source_unchanged.log",
+    "review/pr14/developer-deliveries/20261014T112400Z-fast/evidence/chemistry_fixture/start_source_sha256.txt",
+    "review/pr14/developer-deliveries/20261014T112400Z-fast/evidence/chemistry_fixture/start_time.txt",
+    "review/pr14/developer-deliveries/20261014T112400Z-fast/evidence/cold_fixture_triage.json",
+    "review/pr14/developer-deliveries/20261014T112400Z-fast/evidence/delivery_validation.json",
+    "review/pr14/developer-deliveries/20261014T112400Z-fast/evidence/independent_review.md",
+    "review/pr14/developer-deliveries/20261014T112400Z-fast/evidence/native_application_build/attempt1-environment-failure/compile_incremental.py",
+    "review/pr14/developer-deliveries/20261014T112400Z-fast/evidence/native_application_build/attempt1-environment-failure/ns2/build.log",
+    "review/pr14/developer-deliveries/20261014T112400Z-fast/evidence/native_application_build/attempt1-environment-failure/ns2/command.sh",
+    "review/pr14/developer-deliveries/20261014T112400Z-fast/evidence/native_application_build/attempt1-environment-failure/receipts.json",
+    "review/pr14/developer-deliveries/20261014T112400Z-fast/evidence/native_application_build/attempt1-environment-failure/run.log",
+    "review/pr14/developer-deliveries/20261014T112400Z-fast/evidence/native_application_build/compile_incremental.py",
+    "review/pr14/developer-deliveries/20261014T112400Z-fast/evidence/native_application_build/final_source_identity_check.json",
+    "review/pr14/developer-deliveries/20261014T112400Z-fast/evidence/native_application_build/ns10/build.log",
+    "review/pr14/developer-deliveries/20261014T112400Z-fast/evidence/native_application_build/ns10/command.sh",
+    "review/pr14/developer-deliveries/20261014T112400Z-fast/evidence/native_application_build/ns10/generated/CHMTBuildIdentity.H",
+    "review/pr14/developer-deliveries/20261014T112400Z-fast/evidence/native_application_build/ns10/generated/build.json",
+    "review/pr14/developer-deliveries/20261014T112400Z-fast/evidence/native_application_build/ns2/build.log",
+    "review/pr14/developer-deliveries/20261014T112400Z-fast/evidence/native_application_build/ns2/command.sh",
+    "review/pr14/developer-deliveries/20261014T112400Z-fast/evidence/native_application_build/ns2/generated/CHMTBuildIdentity.H",
+    "review/pr14/developer-deliveries/20261014T112400Z-fast/evidence/native_application_build/ns2/generated/build.json",
+    "review/pr14/developer-deliveries/20261014T112400Z-fast/evidence/native_application_build/receipts.json",
+    "review/pr14/developer-deliveries/20261014T112400Z-fast/evidence/native_application_build/run.log",
+    "review/pr14/developer-deliveries/20261014T112400Z-fast/evidence/native_material/HOST_RECEIPT.json",
+    "review/pr14/developer-deliveries/20261014T112400Z-fast/evidence/native_material/green/blockMesh.log",
+    "review/pr14/developer-deliveries/20261014T112400Z-fast/evidence/native_material/green/build.log",
+    "review/pr14/developer-deliveries/20261014T112400Z-fast/evidence/native_material/green/melting.log",
+    "review/pr14/developer-deliveries/20261014T112400Z-fast/evidence/native_material/green/selected.log",
+    "review/pr14/developer-deliveries/20261014T112400Z-fast/evidence/native_material/green/unselected.log",
+    "review/pr14/developer-deliveries/20261014T112400Z-fast/evidence/native_material/green_final/blockMesh.log",
+    "review/pr14/developer-deliveries/20261014T112400Z-fast/evidence/native_material/green_final/build.log",
+    "review/pr14/developer-deliveries/20261014T112400Z-fast/evidence/native_material/green_final/melting.log",
+    "review/pr14/developer-deliveries/20261014T112400Z-fast/evidence/native_material/green_final/selected.log",
+    "review/pr14/developer-deliveries/20261014T112400Z-fast/evidence/native_material/green_final/unselected.log",
+    "review/pr14/developer-deliveries/20261014T112400Z-fast/evidence/native_material/original_control/build.log",
+    "review/pr14/developer-deliveries/20261014T112400Z-fast/evidence/native_material/original_control/melting.log",
+    "review/pr14/developer-deliveries/20261014T112400Z-fast/evidence/native_material/original_control/selected.log",
+    "review/pr14/developer-deliveries/20261014T112400Z-fast/evidence/native_material/original_control/unselected.log",
+    "review/pr14/developer-deliveries/20261014T112400Z-fast/evidence/native_material/pr14_zero_phase_film_helpers.log",
+    "review/pr14/developer-deliveries/20261014T112400Z-fast/evidence/native_material/pr14_zero_phase_green.log",
+    "review/pr14/developer-deliveries/20261014T112400Z-fast/evidence/native_material/pr14_zero_phase_green_final.log",
+    "review/pr14/developer-deliveries/20261014T112400Z-fast/evidence/native_material/pr14_zero_phase_material_helpers.log",
+    "review/pr14/developer-deliveries/20261014T112400Z-fast/evidence/native_material/pr14_zero_phase_red.log",
+    "review/pr14/developer-deliveries/20261014T112400Z-fast/evidence/native_material/red/blockMesh.log",
+    "review/pr14/developer-deliveries/20261014T112400Z-fast/evidence/native_material/red/build.log",
+    "review/pr14/developer-deliveries/20261014T112400Z-fast/evidence/native_material/red/melting.log",
+    "review/pr14/developer-deliveries/20261014T112400Z-fast/evidence/native_material/red/selected.log",
+    "review/pr14/developer-deliveries/20261014T112400Z-fast/evidence/native_material/red/unselected.log",
+    "review/pr14/developer-deliveries/20261014T112400Z-fast/evidence/source_publication_verification.json",
+    "review/pr14/developer-deliveries/20261014T112400Z-fast/evidence/strict_momentum_reanalysis/INPUT_HASHES.json",
+    "review/pr14/developer-deliveries/20261014T112400Z-fast/evidence/strict_momentum_reanalysis/RESULT.json",
+    "review/pr14/developer-deliveries/20261014T112400Z-fast/evidence/strict_momentum_reanalysis/SCOPE.md",
+    "review/pr14/developer-deliveries/20261014T112400Z-fast/evidence/strict_momentum_reanalysis/reanalyze.py",
+    "review/pr14/developer-deliveries/20261014T112400Z-fast/evidence/strict_momentum_reanalysis/validation.log",
     "review/pr14/evidence/E014-0103817037fdabe3.txt",
     "review/pr14/evidence/E014-01ba4719c80b6fe9.txt",
     "review/pr14/evidence/E014-01e1534f90e1f004.json",
@@ -50694,6 +51738,7 @@
     "review/pr14/files/F014-87b821d806c9.md",
     "review/pr14/files/F014-8840d7e35451.md",
     "review/pr14/files/F014-884c45f91db7.md",
+    "review/pr14/files/F014-889a20fc9a4a.md",
     "review/pr14/files/F014-8a631859218a.md",
     "review/pr14/files/F014-8c94ca4b9203.md",
     "review/pr14/files/F014-8d58300d5120.md",
@@ -50720,6 +51765,7 @@
     "review/pr14/files/F014-99919154f20f.md",
     "review/pr14/files/F014-9b46fb9d9072.md",
     "review/pr14/files/F014-9bf3c8b90a10.md",
+    "review/pr14/files/F014-9c4af00e71f2.md",
     "review/pr14/files/F014-9d1940f02cee.md",
     "review/pr14/files/F014-9d2d8bee9741.md",
     "review/pr14/files/F014-9ddfb8b1ab42.md",
@@ -50762,6 +51808,7 @@
     "review/pr14/files/F014-b491022bcb4b.md",
     "review/pr14/files/F014-b59cc9c31e24.md",
     "review/pr14/files/F014-b5c3680eb63b.md",
+    "review/pr14/files/F014-b5cd0a9d592e.md",
     "review/pr14/files/F014-b6811b10d493.md",
     "review/pr14/files/F014-b6bcd7648911.md",
     "review/pr14/files/F014-b7efaddf1296.md",
@@ -57806,7 +58853,7 @@
     "review/pr14/validate_records.py"
   ],
   "cleanup_status": "NOT_RUN; final user/reviewer approval and archive required; production source unchanged by record system",
-  "current_source_followup": "FAST2_FORMAL_REPAIRS_AND_REUSABLE_REDUCTION_SCRATCH",
+  "current_source_followup": "FAST3_ZERO_PHASE_MATERIAL_AND_NATIVE_CHEMISTRY_TEST_SUPPORT",
   "history_administrative_commit": "f207912ac1ad8d3c6dcc8368831a6cc0ea2748d4",
   "source_identity_history": [
     {
@@ -57819,6 +58866,16 @@
       "source_commit": "a73b9635510fb09d7baa5339e14d1aa609f0ff87",
       "source_tree": "e343cb9f477dcd86556f7b6595189fa2c9c1c099",
       "status": "PRECLOSURE_DELIVERY_TREE_VERIFIED_CLOSURE_METADATA_PUBLICATION_PENDING"
+    },
+    {
+      "recorded_utc": "2026-10-14T11:42:52.932201+00:00",
+      "source_commit": "4b5c480b572f234ddecf5e89164fe59b0d2e9735",
+      "source_tree": "0fa2562f4c83394cdf94e9650de3b22c4fb4bb15",
+      "status": "FAST2_FORMAL_SOURCE_COMPILED_GPU_RECHECK_PENDING",
+      "latest_reviewer_delivery": "reviewer-deliveries/20261014T072053Z-fast",
+      "remote_head": "a747db386160a7f3737fa67b25207e34f5c118d9",
+      "remote_tree": "76ffd38cf7470879347423a4f8467cf47547aae6",
+      "reason": "Prior FAST2 source and second-round scoped GPU results retained before FAST3 delta"
     }
   ],
   "history_embedded_source_commit": "a73b9635510fb09d7baa5339e14d1aa609f0ff87",
@@ -57826,7 +58883,7 @@
   "verified_delivery_commit": "f207912ac1ad8d3c6dcc8368831a6cc0ea2748d4",
   "verified_delivery_tree": "76ffd38cf7470879347423a4f8467cf47547aae6",
   "publication_evidence_id": "E014-ceba3ce114bee654",
-  "remote_identity_scope": "Exact preclosure delivery; later closure commit is separately verified and delivered directly to the user with fixed-version links",
+  "remote_identity_scope": "Verified FAST3 production source; new review-record publication remains separate.",
   "reviewer_deliveries": [
     {
       "batch": "20261013T182722Z-fast",
@@ -57866,7 +58923,7 @@
       "shared_content_policy": "Prior immutable payload bytes referenced by fixed commit/SHA; new raw run provenance retained. One evidence ID per content SHA256."
     }
   ],
-  "latest_developer_delivery": "developer-deliveries/20261014T055427Z-fast",
+  "latest_developer_delivery": "developer-deliveries/20261014T112400Z-fast",
   "developer_deliveries": [
     {
       "path": "developer-deliveries/20261014T055427Z-fast",
@@ -57875,6 +58932,26 @@
       "interaction_class": "FAST",
       "review_request": "developer-deliveries/20261014T055427Z-fast/REVIEW_REQUEST.md",
       "status": "GPU_RECHECK_PENDING"
+    },
+    {
+      "path": "developer-deliveries/20261014T112400Z-fast",
+      "source_commit": "9d5be6eff69dbced2fc959d422d3ba419a1bc39e",
+      "source_tree": "5dc844d4189f50fcfbed2a77fa5e6cd6e9cfd066",
+      "interaction_class": "FAST",
+      "review_request": "developer-deliveries/20261014T112400Z-fast/REVIEW_REQUEST.md",
+      "status": "SOURCE_PUBLISHED_RECORD_PUBLICATION_PENDING_GPU_RECHECK_PENDING",
+      "changed_production_files": 1,
+      "changed_test_files": 4,
+      "gpu_runtime_executed": false,
+      "evidence_ids": [
+        "E014-97878f9e0d3588c1",
+        "E014-b47170325e9af92d",
+        "E014-8c7d2765d1c02233",
+        "E014-275db92db26084cf",
+        "E014-c11cced8208a6e72",
+        "E014-8d72c095c71362a8",
+        "E014-770a319404191360"
+      ]
     }
   ],
   "latest_reviewer_delivery": "reviewer-deliveries/20261014T072053Z-fast",
