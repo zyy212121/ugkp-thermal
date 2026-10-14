@@ -1,0 +1,40 @@
+Final material test evidence
+
+Status: 16 distinct pytest cases covered. Initial batch: 15 PASS, 1 FAIL (baseline-only independent boundary-oracle precision). Only that failed cpu_material case was rerun after the test-only ULP propagation correction: 1 PASS, 10 deselected. There was no full final batch rerun.
+
+Ten real OpenFOAM 10 fixture pairs all pass baseline/current physical hexadecimal equality. Both versions use their own archived/current production dependencies. Actual equation.solve, material transport RHS and film candidate invocations are observed only in the test translation unit; production has no audit hook.
+
+Baseline commit: 0aa34bc1b0e370ec99e6107faf83ff7f0ac3e668
+Production source freeze: 2026-10-14 17:25:20 UTC
+Repository: /workspace/scratch/98b6339ec81b/pr14_fast_fix_20261014
+OF10 environment: /workspace/scratch/98b6339ec81b/openfoam10_cpu/environment.sh
+Python: /tmp/pr14_validation_venv/bin/python
+
+Initial command (after sourcing the OF10 environment):
+/tmp/pr14_validation_venv/bin/python -m pytest -q tests/test_chmt_material_report_removal.py applications/CHMT/tests/test_reacting_wall_material_drive.py applications/CHMT/tests/test_reacting_wall_mechanical_pressure.py applications/CHMT/tests/test_window_duration.py --basetemp=/tmp/pr14_material_final_frozen
+Result: 1 failed, 15 passed in 253.68s.
+
+Corrected failing-case rerun:
+/tmp/pr14_validation_venv/bin/python -m pytest -q tests/test_chmt_material_report_removal.py -k cpu_material --basetemp=/tmp/pr14_material_oracle_corrected
+Result: 1 passed, 10 deselected in 47.13s.
+
+Additional final-frozen host checks passed:
+g++ -std=c++14 -O2 -Wall -Wextra -Werror -pedantic -Iapplications/CHMT -Icommon applications/CHMT/tests/test_multirate_orchestration.cpp applications/CHMT/io/MultirateEvolution.C -o /tmp/pr14_orchestration_final_frozen
+/tmp/pr14_orchestration_final_frozen
+bash applications/CHMT/devtools/multirate/check_cpu_material.sh
+The orchestration check explicitly accepts a nonconservative scripted endpoint at the full paid interval without audit-only shrinking; it does not claim that example conserves energy.
+
+Contents:
+parity-manifest.json: ten exact paired hashes and persistent physical output paths.
+pairs/: actual per-pair compile command/build log, run command/full native output, physical hex output. No binaries.
+build-support/: actual independent baseline/current dependency compilation and blockMesh logs.
+raw-pytest/: both original unedited pytest logs, retaining the initial failure.
+initial-failure/: original baseline build/run failure evidence.
+production-source-hashes.json: baseline/current relevant production source SHA256 values.
+final-test-source/, test-source-hashes.json: final test source copies and SHA256 values.
+tracked-test-changes.patch: owned tracked test changes; new helper/harness copies are in final-test-source.
+ORACLE_CHANGE.txt: ULP derivation and explicit scope of the test-only correction.
+
+Parity intentionally excludes non-collected legacy Budget diagnostic slots and unused SolidFilm support-force momentum; it includes real inventories, gas/particle packet momentum, mass/energy/species channels, film storage, wall/donor programs, geometries and clocks.
+
+No production code, README, commit or push was performed by this test migration worker.

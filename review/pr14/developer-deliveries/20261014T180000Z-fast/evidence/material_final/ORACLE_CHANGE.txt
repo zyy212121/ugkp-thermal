@@ -1,0 +1,26 @@
+The original failure is retained in initial-failure/cpu_material-baseline.run.log and raw-pytest/pr14_material_final_frozen.log.
+It occurs in the ORIGINAL git baseline, before compiling/running current cpu_material. It is not evidence of changed production physics.
+
+Original test oracle: abs(sensibleChange + independently_reconstructed_boundary_heat) < 1e-3 J.
+The new independent boundary integral reconstructs temperature from stored FP64 energy; the former report used the native matrix temperature before inventory rounding.
+
+Logged stored per-cell energy: -12418879668.049793243408203125 J (hex -0x1.721c885a065fap+33)
+Mass = 125 kg, cp = 1000 J/(kg K), formation offset = -1e8 J/kg.
+Exact high-precision inverse from that stored value: T = 648.962655601654052734375 K.
+For 8 identical cells: sensible change = 248962655.601654052734375000000 J.
+For 24 fixed faces, dt=10000, k=1000, A/d=1: outward heat = -248962655.603027343750000000000 J.
+Reconstructed closure residual = -0.001373291015625000000 J, already exceeding 1e-3 J due to storage rounding.
+
+One stored-energy ULP toward +infinity = 0.0000019073486328125 J.
+Boundary/capacity ratio per corner cell = dt*3*k*A/d/(mass*cp) = 240.
+Corrected independent test budget propagates four stored-energy ULPs per cell through (1+240):
+8 * 4 * 0.0000019073486328125 * 241 = 0.0147094726562500000 J.
+Final bound = 1e-3 + propagated recovery/storage bound = 0.0157094726562500000 J.
+The same bound is checked for both sensible-temperature energy change and independently accumulated stored-inventory change.
+
+This change only updates the test oracle in test_cpu_material_of.C. No production tolerance, solver expression, caloric inversion, iteration limit, or convergence condition changed.
+The corrected complete cpu_material baseline/current pytest case passed; exact physical hex output and actual solve/RHS/film call counts also matched.
+
+Clarification (17:39 UTC): the multiplier 4 is a selected safety budget of four stored-energy ULPs for this fixture; the evidence does not derive it from four identified rounding operations. The factor (1+ratio) expresses linear sensitivity of the inventory-plus-boundary oracle to stored-energy recovery error. Neither factor establishes an end-to-end rigorous floating-point bound for caloric recovery, accumulation and the native solve. Describe this as an explicit test-budget assumption, not a strict error-bound proof. Exact baseline/current physical hex-output parity is the primary regression evidence. This clarification changes no production or test code.
+
+Reviewer clarification: four stored-energy ULPs per cell are an explicitly selected test safety budget, not four individually established rounding errors. No rigorous end-to-end recovery/geometry/boundary integral error bound was proved. One energy ULP and sensitivity241 are recomputable; the4ULP premise remains a safety-budget assumption. The10 paired physical hex comparisons are the primary nonregression evidence.

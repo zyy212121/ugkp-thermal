@@ -1,0 +1,716 @@
+diff --git a/applications/CHMT/devtools/multirate/check_cpu_material_of.sh b/applications/CHMT/devtools/multirate/check_cpu_material_of.sh
+index 065e032..fc25679 100644
+--- a/applications/CHMT/devtools/multirate/check_cpu_material_of.sh
++++ b/applications/CHMT/devtools/multirate/check_cpu_material_of.sh
+@@ -7,7 +7,7 @@ trap 'rm -rf "$build"' EXIT
+ cxx=${CXX:-g++}
+ "$cxx" -std=c++14 -DNoRepository -DWM_DP -DWM_LABEL_SIZE=32 -I"$app" -I"$app/../../common" \
+  -I"$WM_PROJECT_DIR/src/OpenFOAM/lnInclude" -I"$WM_PROJECT_DIR/src/finiteVolume/lnInclude" -I"$WM_PROJECT_DIR/src/meshTools/lnInclude" -I"$WM_PROJECT_DIR/src/OSspecific/POSIX/lnInclude" \
+- "$app/devtools/multirate/test_cpu_material_of.C" "$app/materials/CpuMaterialDriver.C" "$app/materials/MaterialTransport.C" "$app/film/CpuFilmDriver.C" "$app/ablation/CpuSurfaceInterface.C" "$app/mesh/Geometry.C" \
++ "$app/devtools/multirate/test_cpu_material_of.C" "$app/materials/MaterialTransport.C" "$app/film/CpuFilmDriver.C" "$app/ablation/CpuSurfaceInterface.C" "$app/mesh/Geometry.C" \
+  -L"$FOAM_LIBBIN" -lfiniteVolume -lmeshTools -lOpenFOAM -L"$FOAM_LIBBIN/$FOAM_MPI" -lPstream -o "$build/test_cpu_material_of"
+ [[ $# -le 1 ]] || { echo 'Usage: check_cpu_material_of.sh [actual-2x2x2-case]' >&2; exit 2; }
+ caseDir=${1:-$build/case}
+diff --git a/applications/CHMT/devtools/multirate/test_cpu_material_of.C b/applications/CHMT/devtools/multirate/test_cpu_material_of.C
+index 7d79c06..4caf954 100644
+--- a/applications/CHMT/devtools/multirate/test_cpu_material_of.C
++++ b/applications/CHMT/devtools/multirate/test_cpu_material_of.C
+@@ -1,6 +1,5 @@
+-#include "fvCFD.H"
+ #include "mesh/Geometry.H"
+-#include "materials/CpuMaterialDriver.H"
++#include "tests/NativeMaterialProbe.H"
+ #include "materials/MaterialCaloric.H"
+ #include <algorithm>
+ #include <cassert>
+@@ -41,7 +40,9 @@ int main(int argc,char** argv){
+         forAll(mesh.C(),c){const auto x=mesh.C()[c];const chmt::Real T=400+100*x.x()+30*x.y()+80*x.z();auto& q=base.solid[c];q.condensed[0]=1000*mesh.V()[c];q.energy=q.condensed[0]*chmt::condensedE(p.condensed[0],T);before+=q.energy;}
+         chmt::CpuMaterialDriver driver(model,&mesh);chmt::CpuMaterialControls controls;controls.maxSubstep=10000;
+         chmt::HostState endpoint=base;endpoint.time=10000;chmt::HostState result;chmt::WallProgram wall;chmt::CpuMaterialReport report;std::string error;
++        chmt_test::resetMaterialObservations();
+         if(!driver.advanceCandidate(base,endpoint,history(1),controls,result,wall,report,error)){std::cerr<<error<<'\n';return 1;}
++        chmt_test::physicalSnapshot(nonlinear?"native_nonlinear":"native_linear",result,wall);
+         long double after=0;chmt::Real maxError=0;std::vector<chmt::Real> temperatures(result.solid.size());
+         for(std::size_t c=0;c<result.solid.size();++c){chmt::MaterialPrimitive material;assert(chmt::recoverMaterial(result.solid[c],result.solidMesh.volumes[c],p,material));after+=result.solid[c].energy;
+             temperatures[c]=material.temperature;assert(material.temperature>=452.5&&material.temperature<=557.5);
+@@ -50,7 +51,7 @@ int main(int argc,char** argv){
+                 // 2*alpha/dx^2 with insulated ends. Exact discrete BE amplitude.
+                 const chmt::Real exact=505+(initial-505)/(1+2*.001*10000/(.5*.5));maxError=std::max(maxError,std::abs(material.temperature-exact));}}
+         assert(std::abs(after-before)<1e-8L*std::abs(before));if(!nonlinear)assert(maxError<1e-7);
+-        assert(report.linearSolves>0);assert(mesh.moving()==moving);assert(mesh.points()==original);
++        const auto solves=chmt_test::materialSolveCalls,rhsCalls=chmt_test::materialRhsCalls;assert(solves>0);assert(mesh.moving()==moving);assert(mesh.points()==original);
+         assert(time.timeIndex()==timeIndex&&time.value()==timeValue);
+         // Check every actual native result against the local nonlinear BE
+         // equation, not just the global energy sum (which cannot detect a
+@@ -64,8 +65,8 @@ int main(int argc,char** argv){
+             assert(std::abs(residual)<1e-3L+1e-8L*scale);
+         }
+         chmt::HostState refined;chmt::WallProgram refinedWall;chmt::CpuMaterialReport refinedReport;
+-        assert(driver.advanceCandidate(base,endpoint,history(100),controls,refined,refinedWall,refinedReport,error));
+-        assert(refinedReport.materialSteps==report.materialSteps&&refinedReport.materialRhsEvaluations==report.materialRhsEvaluations&&refinedReport.linearSolves==report.linearSolves);
++        chmt_test::resetMaterialObservations();assert(driver.advanceCandidate(base,endpoint,history(100),controls,refined,refinedWall,refinedReport,error));
++        assert(refinedReport.materialSteps==report.materialSteps&&chmt_test::materialRhsCalls==rhsCalls&&chmt_test::materialSolveCalls==solves);
+         for(std::size_t c=0;c<result.solid.size();++c)assert(refined.solid[c].energy==result.solid[c].energy);
+         // A real sparse solve followed by deliberate nonlinear nonconvergence
+         // must leave both caller-owned outputs and the accepted native mesh
+@@ -74,14 +75,14 @@ int main(int argc,char** argv){
+         chmt::HostState rejected;rejected.time=-123;rejected.solid.resize(1);rejected.solid[0].energy=17;rejected.solidSweepRemainder={123};
+         chmt::WallProgram rejectedWall;rejectedWall.interval.identity.sequence=987;
+         chmt::CpuMaterialReport rejectedReport;
+-        assert(!driver.advanceCandidate(base,endpoint,history(1),rejectedControls,rejected,rejectedWall,rejectedReport,error));
+-        assert(error=="OpenFOAM material caloric nonlinear iteration failed");assert(rejectedReport.linearSolves==1);
++        chmt_test::resetMaterialObservations();assert(!driver.advanceCandidate(base,endpoint,history(1),rejectedControls,rejected,rejectedWall,rejectedReport,error));
++        assert(error=="OpenFOAM material caloric nonlinear iteration failed");assert(chmt_test::materialSolveCalls==1);
+         assert(rejected.time==-123&&rejected.solid.size()==1&&rejected.solid[0].energy==17);
+         assert(rejected.solidSweepRemainder==std::vector<chmt::Real>{123});
+         assert(rejectedWall.interval.identity.sequence==987&&rejectedWall.knots.empty());
+         assert(mesh.points()==original&&mesh.moving()==moving&&time.timeIndex()==timeIndex&&time.value()==timeValue);
+         forAll(mesh.C(),c)assert(std::abs(mesh.V()[c]-.125)<1e-12);
+-        std::cout<<(nonlinear?"NATIVE_OF10 nonlinear caloric energy check":"NATIVE_OF10 exact three-axis discrete backward-Euler modal check")<<" passed; linear solves="<<report.linearSolves<<", material RHS="<<report.materialRhsEvaluations<<", max modal error="<<maxError<<'\n';
++        std::cout<<(nonlinear?"NATIVE_OF10 nonlinear caloric energy check":"NATIVE_OF10 exact three-axis discrete backward-Euler modal check")<<" passed; linear solves="<<solves<<", material RHS="<<rhsCalls<<", max modal error="<<maxError<<'\n';
+     }
+     {
+         // Native coupled calorics component test: stationary condensed matter
+@@ -106,7 +107,9 @@ int main(int argc,char** argv){
+             q.energy=static_cast<chmt::Real>(q.condensed[0]*condensedEnergy(T)+q.pore[0]*poreEnergy(T));before+=q.energy;}
+         chmt::CpuMaterialDriver driver(model,&mesh);chmt::CpuMaterialControls controls;controls.maxSubstep=10000;
+         chmt::HostState endpoint=base;endpoint.time=10000;chmt::HostState result;chmt::WallProgram wall;chmt::CpuMaterialReport report;std::string error;
++        chmt_test::resetMaterialObservations();
+         if(!driver.advanceCandidate(base,endpoint,history(1),controls,result,wall,report,error)){std::cerr<<"NASA7 pore conduction: "<<error<<'\n';return 1;}
++        chmt_test::physicalSnapshot("native_nasa7",result,wall);
+         long double after=0,variation=0,maximumResidual=0;bool crossedBreakpoint=false;
+         for(std::size_t c=0;c<result.solid.size();++c){chmt::MaterialPrimitive material;
+             assert(chmt::recoverMaterial(result.solid[c],result.solidMesh.volumes[c],p,material));temperature[c]=material.temperature;
+@@ -131,10 +134,10 @@ int main(int argc,char** argv){
+             maximumResidual=std::max(maximumResidual,std::abs(residual));
+             assert(std::abs(residual)<1e-3L+1e-8L*scale);
+         }
+-        assert(report.linearSolves>0&&report.materialSteps==1);assert(report.budgetDelta.boundaryEnergy==0);
++        const auto solves=chmt_test::materialSolveCalls;assert(solves>0&&report.materialSteps==1);assert(chmt_test::boundaryHeat(result,p,10000)==0);
+         assert(mesh.points()==original&&mesh.moving()==moving&&time.timeIndex()==timeIndex&&time.value()==timeValue);
+         std::cout<<"NATIVE_OF10 NASA7 pore/condensed conduction and local nonlinear backward-Euler residual passed; linear solves="
+-            <<report.linearSolves<<", energy residual="<<static_cast<double>(after-before)<<", max local residual="<<static_cast<double>(maximumResidual)<<'\n';
++            <<solves<<", energy residual="<<static_cast<double>(after-before)<<", max local residual="<<static_cast<double>(maximumResidual)<<'\n';
+     }
+     {
+         chmt::ModelConfig model;auto& p=model.physics;p.enableGas=false;p.spatialOrder=1;p.minDt=1e-9;p.maxDt=10000;p.cfl=.4;
+@@ -146,16 +149,25 @@ int main(int argc,char** argv){
+             base.solidMesh.boundaryPrimitive[face].temperature=650;base.solidMesh.thermalBoundary[face]=chmt::ThermalBoundaryKind::FixedValue;}
+         chmt::HostState endpoint=base;endpoint.time=10000;chmt::CpuMaterialDriver driver(model,&mesh);chmt::CpuMaterialControls controls;
+         chmt::HostState result;chmt::WallProgram wall;chmt::CpuMaterialReport report;std::string error;
++        chmt_test::resetMaterialObservations();
+         if(!driver.advanceCandidate(base,endpoint,history(1),controls,result,wall,report,error)){std::cerr<<error<<'\n';return 1;}
++        chmt_test::physicalSnapshot("native_fixed_boundary",result,wall);
+         // Each corner cell has three fixed-temperature faces of area .25 and
+         // centre-to-boundary distance .25. Internal gradients remain zero.
+         const chmt::Real ratio=10000*3*1000*.25/.25/(125*1000),exact=(400+ratio*650)/(1+ratio);
+         long double sensibleChange=0;
+         for(std::size_t c=0;c<result.solid.size();++c){chmt::MaterialPrimitive material;assert(chmt::recoverMaterial(result.solid[c],result.solidMesh.volumes[c],p,material));
+             assert(std::abs(material.temperature-exact)<1e-7);sensibleChange+=125000.L*(material.temperature-400);}
+-        assert(report.budgetDelta.boundaryEnergy<0);
+-        assert(std::abs(sensibleChange+report.budgetDelta.boundaryEnergy)<1e-3L);
+-        assert(result.budget.boundaryEnergy==report.budgetDelta.boundaryEnergy);
++        const long double outwardHeat=chmt_test::boundaryHeat(result,p,10000);
++        // Recovering T from a rounded, large formation-energy inventory adds
++        // uncertainty to the independent boundary oracle. Propagate four stored
++        // energy ULPs through the boundary/capacity ratio; do not use a report.
++        long double recoveryRoundoff=0;for(const auto& q:result.solid){
++            const chmt::Real quantum=std::nextafter(q.energy,std::numeric_limits<chmt::Real>::infinity())-q.energy;
++            recoveryRoundoff+=4*static_cast<long double>(quantum)*(1+ratio);}
++        assert(outwardHeat<0);assert(std::abs(sensibleChange+outwardHeat)<1e-3L+recoveryRoundoff);
++        long double inventoryChange=0;for(std::size_t c=0;c<result.solid.size();++c)inventoryChange+=static_cast<long double>(result.solid[c].energy)-base.solid[c].energy;
++        assert(std::abs(inventoryChange+outwardHeat)<1e-3L+recoveryRoundoff);
+         assert(mesh.points()==original&&mesh.moving()==moving&&time.timeIndex()==timeIndex&&time.value()==timeValue);
+         std::cout<<"NATIVE_OF10 fixed-temperature heating and signed boundary-energy closure passed\n";
+     }
+@@ -189,6 +201,7 @@ int main(int argc,char** argv){
+             if(chosen<0)continue;
+             chmt::CpuMaterialDriver driver(model,&probe);chmt::CpuMaterialControls controls;
+             chmt::HostState endpoint=base;endpoint.time=10000;chmt::HostState result;chmt::WallProgram wall;chmt::CpuMaterialReport report;std::string error;
++            chmt_test::resetMaterialObservations();
+             if(!driver.advanceCandidate(base,endpoint,history(1),controls,result,wall,report,error)){
+                 std::cerr<<"canonical-volume regression: "<<error<<" cell="<<chosen<<" hostV="<<base.solidMesh.volumes[chosen]<<" nativeV="<<probe.V()[chosen]<<'\n';return 1;
+             }
+@@ -197,6 +210,7 @@ int main(int argc,char** argv){
+                 chmt::MaterialPrimitive material;assert(chmt::recoverMaterial(result.solid[c],result.solidMesh.volumes[c],p,material));
+                 assert(std::abs(material.temperature-600)<1e-8);
+             }
++            chmt_test::physicalSnapshot("native_canonical_volume",result,wall);
+             exercised=true;
+         }
+         assert(exercised);
+@@ -218,6 +232,7 @@ int main(int argc,char** argv){
+         chmt::CpuMaterialDriver driver(model,nullptr);chmt::CpuMaterialControls controls;controls.maxSubstep=dt;
+         chmt::HostState result;chmt::WallProgram wall;chmt::CpuMaterialReport report;
+         if(!driver.advanceCandidate(base,endpoint,history,controls,result,wall,report,error)){std::cerr<<"local duration: "<<error<<'\n';return 1;}
++        chmt_test::physicalSnapshot("native_sub_ulp",result,wall);
+         assert(report.materialSteps==256&&wall.knots.size()==257&&report.donorPlan.knots.size()==257);
+         assert(wall.knots[0].time==wall.knots[1].time);
+         assert(wall.knots[0].localTime<wall.knots[1].localTime);
+diff --git a/applications/CHMT/devtools/multirate/test_material_drive.cpp b/applications/CHMT/devtools/multirate/test_material_drive.cpp
+index df0f379..ce9dd36 100644
+--- a/applications/CHMT/devtools/multirate/test_material_drive.cpp
++++ b/applications/CHMT/devtools/multirate/test_material_drive.cpp
+@@ -4,7 +4,7 @@
+ #include <iostream>
+ using namespace chmt;
+ IntervalHistory make(int n,bool ramp){IntervalHistory h;CouplingInterval i;i.end=1;std::string e;assert(h.begin(i,e));for(int k=0;k<n;++k){GasIntervalRecord r;r.microSequence=k;r.begin=double(k)/n;r.end=double(k+1)/n;GasPrimitive g;g.rho=1;g.temperature=1+(ramp?(k+.5)/n:0);g.pressure=1;g.soundSpeed=1;g.Y[0]=1;r.gasTrace={g};r.gasTraction={{}};r.gasGradient.resize(1);assert(h.appendAccepted(r,e));}return h;}
+-Real integrate(const IntervalHistory& h,Real tolerance,Real maxStep,int& slabs){Real t=0,sum=0;std::string e;std::uint64_t samples=0;slabs=0;while(t<1){Real end=0;assert(materialDriveSlabEnd(h,t,std::min(1.,t+maxStep),tolerance,1,end,samples,e));std::vector<GasPrimitive> g;std::vector<Vec3> tr;assert(h.sampleGasDrive(t,g,tr,e));sum+=(end-t)*g[0].temperature;t=end;++slabs;}return sum;}
++Real integrate(const IntervalHistory& h,Real tolerance,Real maxStep,int& slabs){Real t=0,sum=0;std::string e;slabs=0;while(t<1){Real end=0;assert(materialDriveSlabEnd(h,t,std::min(1.,t+maxStep),tolerance,1,end,e));assert(end>t&&end<=std::min(1.,t+maxStep));std::vector<GasPrimitive> g;std::vector<Vec3> tr;assert(h.sampleGasDrive(t,g,tr,e));sum+=(end-t)*g[0].temperature;t=end;++slabs;}return sum;}
+ int main(){int one=0,many=0;assert(integrate(make(1,false),.05,1,one)==1);assert(integrate(make(1000,false),.05,1,many)==1);assert(one==1&&many==1);
+  int coarse=0,tight=0,refined=0;const auto h=make(1000,true);const Real a=integrate(h,.1,1,coarse),b=integrate(h,.01,1,tight),c=integrate(h,.1,.01,refined);
+  assert(std::abs(b-1.5)<std::abs(a-1.5));assert(std::abs(c-1.5)<std::abs(a-1.5));assert(coarse<20&&tight<200);
+diff --git a/applications/CHMT/devtools/multirate/test_material_transport.cpp b/applications/CHMT/devtools/multirate/test_material_transport.cpp
+index b27dfbe..5c695db 100644
+--- a/applications/CHMT/devtools/multirate/test_material_transport.cpp
++++ b/applications/CHMT/devtools/multirate/test_material_transport.cpp
+@@ -42,7 +42,13 @@ int main(){auto p=config();HostMesh m;m.volumes.assign(4,.001);m.cellCentres={{0
+  assert(materialSweepsCompatible(dense,surface,{0,0},{2*epsV,-2*epsV,0},tol));
+  std::vector<SolidQ> donor(1);donor[0].condensed[0]=.3;donor[0].condensed[1]=.7;std::vector<ExchangePacket> withdrawals(3);
+  for(auto& packet:withdrawals){packet.kind=ExchangeKind::GasSolid;packet.solidCell=0;packet.mass=.1;packet.condensed[0]=.1;packet.species[0]=.1;}
+- std::vector<SolidQ> applied;Real correction=0;assert(applyMaterialPacketBatch(donor,withdrawals,applied,correction,error));assert(applied[0].condensed[0]==0&&correction>0&&correction<1e-15);
+- withdrawals[2].condensed[0]=.11;withdrawals[2].mass=.11;withdrawals[2].species[0]=.11;assert(!applyMaterialPacketBatch(donor,withdrawals,applied,correction,error));
++ long double rawRemainder=donor[0].condensed[0];
++ for(const auto& packet:withdrawals)rawRemainder-=static_cast<long double>(packet.condensed[0]);
++ assert(rawRemainder<0&&-rawRemainder<1e-15L);
++ std::vector<SolidQ> applied;assert(applyMaterialPacketBatch(donor,withdrawals,applied,error));
++ const long double actualCorrection=static_cast<long double>(applied[0].condensed[0])-rawRemainder;
++ assert(applied[0].condensed[0]==0&&actualCorrection==-rawRemainder);
++ assert(applied[0].condensed[1]==donor[0].condensed[1]&&applied[0].energy==donor[0].energy);
++ withdrawals[2].condensed[0]=.11;withdrawals[2].mass=.11;withdrawals[2].species[0]=.11;assert(!applyMaterialPacketBatch(donor,withdrawals,applied,error));
+  std::cout<<"CPU three-axis Darcy and reaction tests passed\n";
+ }
+diff --git a/applications/CHMT/tests/run_reacting_wall_film_of.sh b/applications/CHMT/tests/run_reacting_wall_film_of.sh
+index 204966e..acd6362 100644
+--- a/applications/CHMT/tests/run_reacting_wall_film_of.sh
++++ b/applications/CHMT/tests/run_reacting_wall_film_of.sh
+@@ -6,7 +6,7 @@ build=$(mktemp -d /tmp/chmt-wall-film-of.XXXXXX)
+ trap 'rm -rf "$build"' EXIT
+ "${CXX:-g++}" -std=c++17 -O1 -DNoRepository -DWM_DP -DWM_LABEL_SIZE=32 -I"$app" -I"$app/../../common" \
+  -I"$WM_PROJECT_DIR/src/OpenFOAM/lnInclude" -I"$WM_PROJECT_DIR/src/finiteVolume/lnInclude" -I"$WM_PROJECT_DIR/src/meshTools/lnInclude" -I"$WM_PROJECT_DIR/src/OSspecific/POSIX/lnInclude" \
+- "$app/tests/test_reacting_wall_film_of.C" "$app/materials/CpuMaterialDriver.C" "$app/materials/MaterialTransport.C" "$app/film/CpuFilmDriver.C" "$app/ablation/CpuSurfaceInterface.C" "$app/mesh/Geometry.C" \
++ "$app/tests/test_reacting_wall_film_of.C" "$app/materials/MaterialTransport.C" "$app/film/CpuFilmDriver.C" "$app/ablation/CpuSurfaceInterface.C" "$app/mesh/Geometry.C" \
+  -L"$FOAM_LIBBIN" -lfiniteVolume -lmeshTools -lOpenFOAM -L"$FOAM_LIBBIN/$FOAM_MPI" -lPstream -o "$build/test"
+ mkdir -p "$build/case/constant";cp -R "$app/devtools/multirate/of_case/system" "$build/case/system"
+ blockMesh -case "$build/case" >"$build/blockMesh.log"
+diff --git a/applications/CHMT/tests/test_conduction_terminal_of.C b/applications/CHMT/tests/test_conduction_terminal_of.C
+index e8b47c9..3a01fe3 100644
+--- a/applications/CHMT/tests/test_conduction_terminal_of.C
++++ b/applications/CHMT/tests/test_conduction_terminal_of.C
+@@ -1,5 +1,5 @@
+ // Actual OF10 conduction function and full material owner; no gas/GPU execution.
+-#include "materials/CpuMaterialDriver.C"
++#include "tests/NativeMaterialProbe.H"
+ #include "materials/ConductionContinuation.H"
+ #include <cassert>
+ #include <iomanip>
+@@ -23,6 +23,9 @@ chmt::HostMesh testMesh(const Foam::fvMesh& mesh){
+ }
+ 
+ using namespace chmt;
++long double solidEnergyChange(const HostState& before,const HostState& after){
++    long double change=0;for(std::size_t c=0;c<before.solid.size();++c)change+=static_cast<long double>(after.solid[c].energy)-before.solid[c].energy;return change;
++}
+ int main(int argc,char** argv){
+     Foam::argList::noParallel();Foam::argList args(argc,argv);if(!args.checkRootCase())return 2;
+     Foam::Time time(Foam::Time::controlDictName,args);Foam::fvMesh mesh(Foam::IOobject(Foam::polyMesh::defaultRegion,time.timeName(),time,Foam::IOobject::MUST_READ));
+@@ -35,42 +38,49 @@ int main(int argc,char** argv){
+     std::string error;const Real dt=.01;CpuMaterialControls controls;
+     HostState normal=base;CpuMaterialReport nr;
+     assert(nativeConduction(mesh,base,normal,p,dt,controls,nr,error));
+-    HostState replay=base;CpuMaterialReport rr;
++    const auto normalSolves=chmt_test::materialSolveCalls;
++    HostState replay=base;CpuMaterialReport rr;chmt_test::resetMaterialObservations();
+     assert(nativeConduction<true>(mesh,base,replay,p,dt,controls,rr,error));
+-    assert(nr.linearSolves==rr.linearSolves&&nr.energyResidual==rr.energyResidual&&nr.budgetDelta.boundaryEnergy==rr.budgetDelta.boundaryEnergy);
++    assert(normalSolves==chmt_test::materialSolveCalls&&solidEnergyChange(base,normal)==solidEnergyChange(base,replay)&&chmt_test::boundaryHeat(normal,p,dt)==chmt_test::boundaryHeat(replay,p,dt));
+     for(std::size_t c=0;c<base.solid.size();++c)assert(normal.solid[c].energy==replay.solid[c].energy&&normal.solid[c].porosity==replay.solid[c].porosity);
+-    std::cout<<std::hexfloat<<"normal "<<nr.linearSolves<<' '<<nr.energyResidual<<' '<<nr.budgetDelta.boundaryEnergy;
++    std::cout<<std::hexfloat<<"normal "<<normalSolves<<' '<<solidEnergyChange(base,normal)<<' '<<chmt_test::boundaryHeat(normal,p,dt);
+     for(const auto& q:normal.solid)std::cout<<' '<<q.energy<<' '<<q.porosity;std::cout<<'\n';
+     for(int iterations:{0,1}){
+         CpuMaterialControls limited=controls;limited.nonlinearMaxIterations=iterations;limited.nonlinearRelativeTolerance=0;limited.energyAbsoluteTolerance=0;limited.energyRelativeTolerance=0;
+         HostState stopped=base;CpuMaterialReport stoppedReport;
+         assert(!nativeConduction(mesh,base,stopped,p,dt,limited,stoppedReport,error));
+         assert(stoppedReport.failureOrigin==MaterialFailureOrigin::ConductionNumerical);
+-        HostState completed=base;CpuMaterialReport completedReport;
++        HostState completed=base;CpuMaterialReport completedReport;chmt_test::resetMaterialObservations();
+         assert(nativeConduction<true>(mesh,base,completed,p,dt,limited,completedReport,error));
+-        assert(completedReport.linearSolves==1&&completedReport.nonlinearIterations==1);
++        assert(chmt_test::materialSolveCalls==1);
+         bool changed=false;for(std::size_t c=0;c<base.solid.size();++c){changed=changed||completed.solid[c].energy!=base.solid[c].energy;MaterialPrimitive actual;assert(recoverMaterial<true>(completed.solid[c],base.solidMesh.volumes[c],p,actual));assert(completed.solid[c].porosity==actual.porosity);}
+-        assert(changed);std::cout<<"terminal "<<iterations<<' '<<completedReport.energyResidual<<' '<<completedReport.budgetDelta.boundaryEnergy<<'\n';
++        assert(changed);std::cout<<"terminal "<<iterations<<' '<<solidEnergyChange(base,completed)<<' '<<chmt_test::boundaryHeat(completed,p,dt)<<'\n';
+     }
+     {
+         HostState heated=base;heated.solidMesh.thermalBoundary.assign(heated.solidMesh.owner.size(),ThermalBoundaryKind::ZeroGradient);
+         for(std::size_t f=0;f<heated.solidMesh.owner.size();++f)if(heated.solidMesh.neighbour[f]<0){heated.solidMesh.thermalBoundary[f]=ThermalBoundaryKind::FixedValue;heated.solidMesh.boundaryPrimitive[f].temperature=900;}
+         HostState evaluated=heated;CpuMaterialReport fluxReport;
+         CpuMaterialControls limited=controls;limited.nonlinearMaxIterations=0;
+-        assert(nativeConduction<true>(mesh,heated,evaluated,p,dt,limited,fluxReport,error));
+-        assert(fluxReport.linearSolves==1&&fluxReport.budgetDelta.boundaryEnergy!=0);
+-        std::cout<<"actual fixed-boundary integral "<<fluxReport.budgetDelta.boundaryEnergy<<'\n';
++        chmt_test::resetMaterialObservations();assert(nativeConduction<true>(mesh,heated,evaluated,p,dt,limited,fluxReport,error));
++        assert(chmt_test::materialSolveCalls==1&&chmt_test::boundaryHeat(evaluated,p,dt)!=0);
++        std::cout<<"actual fixed-boundary integral "<<chmt_test::boundaryHeat(evaluated,p,dt)<<'\n';
+     }
+-    HostState wrong=base;wrong.solid.push_back(base.solid.front());CpuMaterialReport wrongReport;
++    // Keep all indexed state arrays complete; omit the temperature that the
++    // fixed boundary genuinely consumes, rather than invoking an out-of-bounds cell.
++    HostState wrong=base;wrong.solidMesh.thermalBoundary.assign(mesh.nFaces(),ThermalBoundaryKind::FixedValue);
++    wrong.solidMesh.boundaryPrimitive.clear();CpuMaterialReport wrongReport;chmt_test::resetMaterialObservations();
+     assert(!nativeConduction<true>(mesh,base,wrong,p,dt,controls,wrongReport,error));
+-    assert(wrongReport.failureOrigin==MaterialFailureOrigin::None);
++    assert(wrongReport.failureOrigin==MaterialFailureOrigin::None&&chmt_test::materialSolveCalls==0);
++    assert(error=="CPU conduction consumed boundary temperature missing");
+     CouplingInterval interval;interval.end=dt;interval.identity.sequence=1;IntervalHistory history;assert(history.begin(interval,error));
+     GasIntervalRecord record;record.end=dt;record.microSequence=1;assert(history.appendAccepted(record,error));
+     HostState endpoint=base;endpoint.time=dt;CpuMaterialDriver driver(model,&mesh);HostState result;WallProgram corrected;CpuMaterialReport report;
+     controls.nonlinearMaxIterations=0;
+     assert(!driver.advanceCandidate(base,endpoint,history,controls,result,corrected,report,error));
+     assert(report.failureOrigin==MaterialFailureOrigin::ConductionNumerical);
++    chmt_test::resetMaterialObservations();
+     if(!detail::ConductionContinuation::complete(driver,base,endpoint,history,controls,result,corrected,report,error,nullptr)){std::cerr<<error<<'\n';return 3;}
+-    assert(report.linearSolves==1&&result.time==dt&&!corrected.knots.empty());
+-    std::cout<<"full material terminal publication "<<report.materialSteps<<' '<<report.linearSolves<<'\n';
++    assert(chmt_test::materialSolveCalls==1&&result.time==dt&&!corrected.knots.empty());
++    chmt_test::physicalSnapshot("conduction_terminal",result,corrected);
++    std::cout<<"full material terminal publication "<<report.materialSteps<<' '<<chmt_test::materialSolveCalls<<'\n';
+ }
+diff --git a/applications/CHMT/tests/test_geometry_terminal_of.C b/applications/CHMT/tests/test_geometry_terminal_of.C
+index 06f5b68..aa23536 100644
+--- a/applications/CHMT/tests/test_geometry_terminal_of.C
++++ b/applications/CHMT/tests/test_geometry_terminal_of.C
+@@ -1,5 +1,5 @@
+ // Actual OF10 material owner with geometry terminal continuation; no GPU execution.
+-#include "materials/CpuMaterialDriver.C"
++#include "tests/NativeMaterialProbe.H"
+ #include "materials/ConductionContinuation.H"
+ #include <cassert>
+ #include <iomanip>
+@@ -38,14 +38,16 @@ int main(int argc,char** argv){
+     GasIntervalRecord record;record.end=dt;record.microSequence=1;assert(history.appendAccepted(record,error));
+     HostState endpoint=base;endpoint.time=dt;CpuMaterialDriver driver(model,&mesh);HostState result;WallProgram corrected;CpuMaterialReport report;
+     assert(driver.advanceCandidate(base,endpoint,history,controls,result,corrected,report,error));
+-    const auto normal=result;const auto normalReport=report;
++    const auto normal=result;const auto normalReport=report;const auto normalSolves=chmt_test::materialSolveCalls;
+     base.solidMesh.faceIds.assign(base.solidMesh.faceIds.size(),7);endpoint.solidMesh.faceIds=base.solidMesh.faceIds;
+     assert(!driver.advanceCandidate(base,endpoint,history,controls,result,corrected,report,error));
+-    assert(report.failureOrigin==MaterialFailureOrigin::GeometryNumerical&&report.failedLocalDt==dt);
++    assert(report.failureOrigin==MaterialFailureOrigin::GeometryNumerical&&chmt_test::lastMaterialInterval==dt);
++    chmt_test::resetMaterialObservations();
+     if(!detail::ConductionContinuation::complete(driver,base,endpoint,history,controls,result,corrected,report,error,nullptr)){std::cerr<<error<<'\n';return 3;}
+     assert(result.time==dt&&!corrected.knots.empty());
+-    assert(report.linearSolves==normalReport.linearSolves&&report.materialSteps==normalReport.materialSteps);
++    assert(chmt_test::materialSolveCalls==normalSolves&&report.materialSteps==normalReport.materialSteps);
+     assert(result.solidMesh.volumes==normal.solidMesh.volumes&&result.solidMesh.oldVolumes==normal.solidMesh.oldVolumes);
+     for(std::size_t c=0;c<base.solid.size();++c){assert(result.solid[c].energy==normal.solid[c].energy);assert(result.solid[c].condensed[0]==normal.solid[c].condensed[0]);}
+-    std::cout<<"actual material geometry publication paid_dt "<<dt<<" solves "<<report.linearSolves<<" cells "<<result.solidMesh.volumes.size()<<'\n';
++    chmt_test::physicalSnapshot("geometry_terminal",result,corrected);
++    std::cout<<"actual material geometry publication paid_dt "<<dt<<" solves "<<chmt_test::materialSolveCalls<<" cells "<<result.solidMesh.volumes.size()<<'\n';
+ }
+diff --git a/applications/CHMT/tests/test_multirate_orchestration.cpp b/applications/CHMT/tests/test_multirate_orchestration.cpp
+index c0ed227..bb6bee6 100644
+--- a/applications/CHMT/tests/test_multirate_orchestration.cpp
++++ b/applications/CHMT/tests/test_multirate_orchestration.cpp
+@@ -23,7 +23,7 @@ struct Script {
+     int terminalCalls=0,predictorTerminalCalls=0;Real terminalDt=0,predictorTerminalDt=0;
+     bool numericalPredictor=false,failTerminalPredictor=false;
+     MaterialFailureOrigin origin=MaterialFailureOrigin::None;
+-    Real eventTime=0,maxPredictionInterval=0,numericalMassRoundoff=0;
++    Real eventTime=0,maxPredictionInterval=0,legacyAuditResidual=0;
+     WallProgram current{};
+ } script;
+ struct CpuMaterialDriver::Implementation {};
+@@ -53,8 +53,8 @@ bool CpuMaterialDriver::advanceCandidate(const HostState& base,const HostState&
+     const CpuMaterialControls&,HostState& candidate,WallProgram& corrected,CpuMaterialReport& report,std::string& error,const WallProgram*) {
+     assert(base.time==history.interval().begin);++script.materialCalls;
+     if(script.failAll||script.materialCalls<=script.failMaterial){report.failureOrigin=script.origin!=MaterialFailureOrigin::None?script.origin:script.conductionFailure?MaterialFailureOrigin::ConductionNumerical:MaterialFailureOrigin::None;report.recoverable=!script.permanent;report.eventTime=script.eventTime;error="scripted material failure";return false;}
+-    candidate=endpoint;corrected=script.current;report.materialSteps=3;report.linearSolves=3;
+-    report.numericalMassRoundoff=script.numericalMassRoundoff*script.materialCalls;
++    candidate=endpoint;corrected=script.current;report.materialSteps=3;
++    candidate.budget.numericalEnergyResidual=script.legacyAuditResidual*script.materialCalls;
+     if(script.movePrediction&&script.materialCalls==1)corrected.knots.back().gasPoints[0].x+=.1;
+     if(script.badEnergy)candidate.gas[0].energy+=1;
+     error.clear();return true;
+@@ -65,7 +65,7 @@ bool CpuMaterialDriver::advanceCandidateImpl(const HostState& base,const HostSta
+     assert(endpoint.time==history.interval().end&&base.time==history.interval().begin);
+     if(script.failTerminal){error="unfinished endpoint producer";return false;}
+     candidate=endpoint;candidate.gas[0].energy+=2;corrected=script.current;report=CpuMaterialReport{};
+-    report.linearSolves=1;error.clear();return true;
++    error.clear();return true;
+ }
+ bool beginGasWindow(Backend& b,const WallProgram& p,std::string& error) {
+     assert(!b.pending);b.pending=true;++b.begins;b.program=p;b.trial=b.accepted;script.current=p;
+@@ -113,7 +113,7 @@ int main(){
+         const bool ok=advanceCoupledWindow(backend,cpu,model,controls,material,.2,false,accepted,report,error);
+         assert(ok==(failure==0));assert(script.materialCalls==3&&script.terminalCalls==1&&script.terminalDt==.05);
+         assert(backend.rollbacks==(failure?3:2));
+-        if(ok){assert(accepted.time==.05&&accepted.gas[0].energy==5&&report.linearSolves==1&&backend.commits==1);}
++        if(ok){assert(accepted.time==.05&&accepted.gas[0].energy==5&&script.terminalCalls==1&&!backend.pending&&backend.commits==1);}
+         else {assert(accepted.time==0&&backend.commits==0&&!error.empty());}
+     }
+     {
+@@ -128,8 +128,8 @@ int main(){
+         assert(advanceCoupledWindow(backend,cpu,model,controls,material,.2,false,accepted,report,error));
+         assert(accepted.time==.2&&accepted.acceptedSteps==1&&accepted.commitSequence==1);
+         assert(script.materialCalls==1&&backend.begins==1&&backend.commits==1);
+-        assert(report.gasMicrosteps>=20&&report.interval.end-report.interval.begin==.2);
+-        assert(report.nextCouplingInterval==1&&report.nextGasDt==.01&&!backend.pending);
++        assert(backend.history.records().size()>=20&&backend.program.interval.end-backend.program.interval.begin==.2);
++        assert(accepted.lastAcceptedDt==.2&&report.nextGasDt==.01&&!backend.pending);
+     }
+     {
+         script=Script{};script.failMaterial=1;Backend backend;backend.accepted=initial;HostState accepted=initial;WindowEvolutionReport report;
+@@ -140,7 +140,7 @@ int main(){
+         script=Script{};script.movePrediction=true;Backend backend;backend.accepted=initial;HostState accepted=initial;WindowEvolutionReport report;
+         assert(advanceCoupledWindow(backend,cpu,model,controls,material,.2,false,accepted,report,error));
+         assert(accepted.time==.2&&backend.begins==2&&backend.rollbacks==1&&backend.commits==1);
+-        assert(accepted.gasMesh.points[0].x==.1&&report.interval.identity.epoch==1);
++        assert(accepted.gasMesh.points[0].x==.1&&backend.program.interval.identity.epoch==1);
+     }
+     {
+         script=Script{};script.failAll=true;Backend backend;backend.accepted=initial;HostState accepted=initial;WindowEvolutionReport report;
+@@ -151,8 +151,12 @@ int main(){
+     {
+         script=Script{};script.badEnergy=true;Backend backend;backend.accepted=initial;HostState accepted=initial;WindowEvolutionReport report;
+         assert(advanceCoupledWindow(backend,cpu,model,controls,material,.2,false,accepted,report,error));
+-        assert(accepted.gas[0].energy==4&&accepted.time==.05&&backend.commits==1&&!backend.pending);
+-        assert(script.materialCalls==3&&backend.rollbacks==2);
++        // A deliberately unbalanced endpoint is published unchanged. This proves
++        // removal of audit-only window shrinking, not physical conservation.
++        assert(accepted.gas[0].energy==4&&accepted.time==.2&&backend.commits==1&&!backend.pending);
++        assert(script.materialCalls==1&&backend.rollbacks==0);
++        assert(accepted.gas[0].energy!=initial.gas[0].energy);
++        std::cout<<"nonconservative endpoint accepted without audit-only shortening\n";
+     }
+     {
+         script=Script{};script.failMaterial=1;script.eventTime=.075;Backend backend;backend.accepted=initial;HostState accepted=initial;WindowEvolutionReport report;
+@@ -168,7 +172,7 @@ int main(){
+         script=Script{};script.maxPredictionInterval=.1;Backend backend;backend.accepted=initial;HostState accepted=initial;WindowEvolutionReport report;
+         assert(advanceCoupledWindow(backend,cpu,model,controls,material,.2,false,accepted,report,error));
+         assert(accepted.time==.1&&script.predictorCalls==2&&backend.begins==1&&backend.commits==1);
+-        assert(report.windowRetries==1&&report.interval.identity.epoch==1&&script.predictorTerminalCalls==0);
++        assert(script.predictorCalls==2&&backend.program.interval.identity.epoch==1&&script.predictorTerminalCalls==0);
+     }
+     {
+         script=Script{};script.failPredictor=true;script.permanentPredictor=true;Backend backend;backend.accepted=initial;HostState accepted=initial;WindowEvolutionReport report;
+@@ -179,7 +183,7 @@ int main(){
+     {
+         script=Script{};script.failMaterial=1;script.rejectPredictionCall=2;Backend backend;backend.accepted=initial;HostState accepted=initial;WindowEvolutionReport report;
+         assert(advanceCoupledWindow(backend,cpu,model,controls,material,.2,false,accepted,report,error));
+-        assert(accepted.time==.05&&script.predictorCalls==3&&report.windowRetries==2);
++        assert(accepted.time==.05&&script.predictorCalls==3&&backend.program.interval.identity.epoch==2);
+         assert(backend.begins==2&&backend.rollbacks==1&&backend.commits==1);
+     }
+     {
+@@ -210,23 +214,25 @@ int main(){
+         if(ok){assert(backend.program.interval.end==.05&&backend.program.knots.back().time==.05);}
+     }
+     {
+-        script=Script{};script.numericalMassRoundoff=-4e-18;Backend backend;backend.accepted=initial;HostState accepted=initial;WindowEvolutionReport report;
++        // Retained checkpoint diagnostics are carried without creating a physical
++        // mass source, admission decision, or hidden correction on replay.
++        script=Script{};script.legacyAuditResidual=-4e-18;Backend backend;backend.accepted=initial;HostState accepted=initial;WindowEvolutionReport report;
+         assert(advanceCoupledWindow(backend,cpu,model,controls,material,.2,false,accepted,report,error));
+-        assert(report.numericalMassRoundoff==script.numericalMassRoundoff);
++        assert(accepted.budget.numericalEnergyResidual==script.legacyAuditResidual);
+         assert(accepted.gas[0].mass==initial.gas[0].mass&&accepted.budget.boundaryMass==0);
+     }
+     {
+-        script=Script{};script.movePrediction=true;script.numericalMassRoundoff=4e-18;
++        script=Script{};script.movePrediction=true;script.legacyAuditResidual=4e-18;
+         Backend backend;backend.accepted=initial;HostState accepted=initial;WindowEvolutionReport report;
+         assert(advanceCoupledWindow(backend,cpu,model,controls,material,.2,false,accepted,report,error));
+-        assert(script.materialCalls==2&&report.numericalMassRoundoff==2*script.numericalMassRoundoff);
++        assert(script.materialCalls==2&&accepted.budget.numericalEnergyResidual==2*script.legacyAuditResidual);
+         assert(accepted.gas[0].mass==initial.gas[0].mass&&accepted.budget.boundaryMass==0);
+     }
+     {
+-        script=Script{};script.numericalMassRoundoff=std::numeric_limits<Real>::quiet_NaN();
++        script=Script{};script.legacyAuditResidual=std::numeric_limits<Real>::quiet_NaN();
+         Backend backend;backend.accepted=initial;HostState accepted=initial;WindowEvolutionReport report;
+         assert(advanceCoupledWindow(backend,cpu,model,controls,material,.2,false,accepted,report,error));
+-        assert(accepted.time==.2&&accepted.gas[0].mass==initial.gas[0].mass&&backend.commits==1&&std::isnan(report.numericalMassRoundoff));
++        assert(accepted.time==.2&&accepted.gas[0].mass==initial.gas[0].mass&&backend.commits==1&&std::isnan(accepted.budget.numericalEnergyResidual));
+     }
+     std::cout<<"multirate orchestration host unit tests passed (no CFD/OF/CUDA execution)\n";
+ }
+diff --git a/applications/CHMT/tests/test_owner_endpoint_of.C b/applications/CHMT/tests/test_owner_endpoint_of.C
+index 866cf02..586b356 100644
+--- a/applications/CHMT/tests/test_owner_endpoint_of.C
++++ b/applications/CHMT/tests/test_owner_endpoint_of.C
+@@ -1,8 +1,7 @@
+ // Actual OpenFOAM material/film driver with prescribed, stage-matched gas history.
+ // This tests pressure adaptation and the ledger, not native gas execution.
+ #include "ablation/WallClosureHost.H"
+-#include "fvCFD.H"
+-#include "materials/CpuMaterialDriver.C"
++#include "tests/NativeMaterialProbe.H"
+ #include "materials/ConductionContinuation.H"
+ #include "mesh/TrajectorySurface.H"
+ #include "coupling/IntervalAudit.H"
+@@ -78,12 +77,14 @@ int main(int argc,char** argv){
+     for(auto& q:endpoint.gas)q.energy+=1e9;
+     assert(!driver.advanceCandidate(base,endpoint,history,controls,result,corrected,report,error));
+     assert(report.failureOrigin==MaterialFailureOrigin::SurfaceNumerical);
++    chmt_test::resetMaterialObservations();
+     if(!detail::ConductionContinuation::complete(driver,base,endpoint,history,controls,result,corrected,report,error,nullptr)){std::cerr<<"terminal wet owner: "<<error<<'\n';return 4;}
+     assert(result.time==dt&&corrected.knots.size()>=2&&corrected.knots.back().faces.size()==4);
+     for(std::size_t c=0;c<endpoint.gas.size();++c)assert(result.gas[c].energy==endpoint.gas[c].energy);
+-    assert(result.filmStorage.size()==4&&report.materialSteps>0&&report.linearSolves>0);
++    assert(result.filmStorage.size()==4&&report.materialSteps>0&&chmt_test::materialSolveCalls>0);
+     assert(finalizeIntervalLedger(history,result,error));
+-    std::cout<<"actual wet endpoint baseTrace/surface/storage/account/ledger tail dt "<<result.time<<" material "<<report.materialSteps<<" solves "<<report.linearSolves<<'\n';
++    chmt_test::physicalSnapshot("owner_endpoint",result,corrected);
++    std::cout<<"actual wet endpoint baseTrace/surface/storage/account/ledger tail dt "<<result.time<<" material "<<report.materialSteps<<" solves "<<chmt_test::materialSolveCalls<<'\n';
+     IntervalHistory missingTrace;assert(missingTrace.begin(interval,error));assert(missingTrace.appendAccepted(record,error));second.gasTrace.clear();assert(missingTrace.appendAccepted(second,error));
+     controls.maxSubstep=dt/2;
+     assert(!detail::ConductionContinuation::complete(driver,base,endpoint,missingTrace,controls,result,corrected,report,error,nullptr));
+diff --git a/applications/CHMT/tests/test_owner_terminal_of.C b/applications/CHMT/tests/test_owner_terminal_of.C
+index ed0ab6d..277cd3e 100644
+--- a/applications/CHMT/tests/test_owner_terminal_of.C
++++ b/applications/CHMT/tests/test_owner_terminal_of.C
+@@ -1,5 +1,5 @@
+ // Actual OF10 material owner with transport/control continuation; no GPU execution.
+-#include "materials/CpuMaterialDriver.C"
++#include "tests/NativeMaterialProbe.H"
+ #include "restart/Checkpoint.H"
+ #include "materials/ConductionContinuation.H"
+ #include <cassert>
+@@ -43,12 +43,13 @@ int main(int argc,char** argv){
+     GasIntervalRecord record;record.end=dt;record.microSequence=1;assert(history.appendAccepted(record,error));
+     HostState endpoint=base;endpoint.time=dt;CpuMaterialDriver driver(model,&mesh);HostState result;WallProgram corrected;CpuMaterialReport report;
+     countAllocations=true;assert(driver.advanceCandidate(base,endpoint,history,controls,result,corrected,report,error));countAllocations=false;
+-    const auto normal=result;const auto normalReport=report;
++    const auto normal=result;const auto normalReport=report;const auto normalSolves=chmt_test::materialSolveCalls,normalRhs=chmt_test::materialRhsCalls;
+     std::cout<<std::hexfloat<<"OWNER_PROGRAM ";programOut(corrected);std::cout<<"OWNER_COST "<<ownerAllocations<<' '<<ownerBytes<<'\n';
+     assert(normal.gasWallDiagnostics.empty());
++    chmt_test::physicalSnapshot("owner_normal",normal,corrected);
+ 
+     if(const char* path=std::getenv("CHMT_PARITY_PATH"))assert(writeCheckpoint(path,model,normal,error));
+-    std::cout<<std::hexfloat<<"OWNER_NORMAL "<<normal.time<<' '<<normalReport.materialSteps<<' '<<normalReport.materialRhsEvaluations<<' '<<normalReport.linearSolves<<' '<<normalReport.nonlinearIterations<<' '<<normalReport.energyResidual<<' '<<normalReport.minimumTemperature<<'\n';
++    std::cout<<std::hexfloat<<"OWNER_NORMAL "<<normal.time<<' '<<normalReport.materialSteps<<' '<<normalRhs<<' '<<normalSolves<<'\n';
+ #if F2_TERMINAL
+     for(int mode=0;mode<3;++mode){HostState changed=endpoint;IntervalHistory supplied=history;CpuMaterialControls requested=controls;
+         if(mode==0)changed.solidMesh.topologyHash^=1;
+@@ -56,13 +57,14 @@ int main(int argc,char** argv){
+         if(mode==2)requested.driveRelativeTolerance=-1;
+         assert(!driver.advanceCandidate(base,changed,supplied,requested,result,corrected,report,error));
+         assert(report.failureOrigin==MaterialFailureOrigin::OwnerNumerical);
++        chmt_test::resetMaterialObservations();
+         if(!detail::ConductionContinuation::complete(driver,base,changed,supplied,requested,result,corrected,report,error,nullptr)){std::cerr<<error<<'\n';return 3;}
+         assert(result.time==dt&&corrected.knots.front().time==base.time&&corrected.knots.back().time==dt);
+-        assert(report.materialSteps==1&&report.materialRhsEvaluations==2&&report.linearSolves==normalReport.linearSolves);
++        assert(report.materialSteps==1&&chmt_test::materialRhsCalls==2&&chmt_test::materialSolveCalls==normalSolves);
+         for(std::size_t c=0;c<base.solid.size();++c){assert(result.solid[c].energy==normal.solid[c].energy);assert(result.solid[c].condensed[0]==normal.solid[c].condensed[0]);}
+     }
+     auto interfaceTail=base;for(auto& kind:interfaceTail.solidMesh.boundaryKind)kind=BoundaryKind::Interface;interfaceTail.solidMesh.thermalBoundary.resize(1);
+-    CpuMaterialReport directReport;assert(nativeConduction<true>(mesh,base,interfaceTail,p,dt,controls,directReport,error));assert(directReport.linearSolves>0);
++    CpuMaterialReport directReport;chmt_test::resetMaterialObservations();assert(nativeConduction<true>(mesh,base,interfaceTail,p,dt,controls,directReport,error));assert(chmt_test::materialSolveCalls>0);
+     CpuMaterialDriver missing(model,nullptr);assert(!detail::ConductionContinuation::complete(missing,base,endpoint,history,controls,result,corrected,report,error,nullptr));assert(report.failureOrigin==MaterialFailureOrigin::None);
+     IntervalHistory unavailable;assert(unavailable.begin(interval,error));assert(!detail::ConductionContinuation::complete(driver,base,endpoint,unavailable,controls,result,corrected,report,error,nullptr));assert(report.failureOrigin==MaterialFailureOrigin::None);
+     std::cout<<"actual final-owner metadata/history/control tails and absent inputs passed\n";
+diff --git a/applications/CHMT/tests/test_reacting_wall_film_of.C b/applications/CHMT/tests/test_reacting_wall_film_of.C
+index 43fbad6..0f7b6c0 100644
+--- a/applications/CHMT/tests/test_reacting_wall_film_of.C
++++ b/applications/CHMT/tests/test_reacting_wall_film_of.C
+@@ -1,8 +1,7 @@
+ // Actual OpenFOAM material/film driver with prescribed, stage-matched gas history.
+ // This tests pressure adaptation and the ledger, not native gas execution.
+ #include "ablation/WallClosureHost.H"
+-#include "fvCFD.H"
+-#include "materials/CpuMaterialDriver.H"
++#include "tests/NativeMaterialProbe.H"
+ #include "mesh/TrajectorySurface.H"
+ #include <cassert>
+ #include <iostream>
+@@ -79,8 +78,18 @@ int main(int argc,char** argv){
+         filmDelta+=(result.film[f].enthalpy-result.filmAux[f].pressure*volume)-(base.film[f].enthalpy-initialPressure*volume);
+         expectedPV+=(endpointPressure-initialPressure)*volume;}
+     for(std::size_t c=0;c<base.solid.size();++c)solidDelta+=result.solid[c].energy-base.solid[c].energy;
+-    assert(std::abs(result.budget.filmPressureVolume-expectedPV)<1e-7);
+-    assert(std::abs(gasDelta+filmDelta+solidDelta+result.budget.boundaryEnergy)<1e-7);
+-    assert(report.materialSteps==2&&report.filmSteps==2&&report.linearSolves>0);
++    Real storedPV=0,resultGasDelta=0;assert(result.filmStorage.size()==4);
++    for(std::size_t f=0;f<result.filmStorage.size();++f){const auto& storage=result.filmStorage[f];
++        assert(storage.consumed&&storage.filmFace==static_cast<int>(f));
++        assert(storage.oldPV==initialPressure*base.film[f].mass/p.liquid.rho);
++        assert(storage.newPV==result.filmAux[f].pressure*result.film[f].mass/p.liquid.rho);
++        storedPV+=storage.newPV-storage.oldPV;}
++    for(std::size_t c=0;c<result.gas.size();++c)resultGasDelta+=result.gas[c].energy-base.gas[c].energy;
++    assert(resultGasDelta==gasDelta&&std::abs(storedPV-expectedPV)<1e-7);
++    // Gas energy is prescribed by its external owner. The actual material plus
++    // film internal energy closes independently of the removed budget counter.
++    assert(std::abs(resultGasDelta+filmDelta+solidDelta-gasDelta)<1e-7);
++    assert(report.materialSteps==2&&chmt_test::filmCandidateCalls==2&&chmt_test::materialSolveCalls>0);
++    chmt_test::physicalSnapshot("reacting_wall_film",result,corrected);
+     std::cout<<"NATIVE_OF10 boundaryLayer film endpoint matching pressure, pV and total-energy ledger passed; pV="<<expectedPV<<"\n";
+ }
+diff --git a/applications/CHMT/tests/test_reacting_wall_material_drive.py b/applications/CHMT/tests/test_reacting_wall_material_drive.py
+index 9c5263c..07b010e 100644
+--- a/applications/CHMT/tests/test_reacting_wall_material_drive.py
++++ b/applications/CHMT/tests/test_reacting_wall_material_drive.py
+@@ -12,8 +12,9 @@ int main(){using namespace chmt;for(int component=0;component<6;++component){
+  assert(history.appendAccepted(a,error));auto b=a;b.microSequence=2;b.begin=.5;b.end=1;auto& n=b.gasWallMatching[0];
+  if(component==0)n.pressure=200000;if(component==1)n.state.temperature=700;if(component==2){n.state.massFraction[0]=.7;n.state.massFraction[1]=.3;}
+  if(component==3)n.state.velocity[1]=1000;if(component==4)n.state.k=2;if(component==5)n.state.omega=20;
+- assert(history.appendAccepted(b,error));Real end=0;std::uint64_t samples=0;
+- assert(materialDriveSlabEnd(history,0,1,.05,1,end,samples,error));assert(end==.5&&samples==1);
++ assert(history.appendAccepted(b,error));Real end=0;
++ assert(materialDriveSlabEnd(history,0,1,.05,1,end,error));assert(end==.5);
++ Real tail=0;assert(materialDriveSlabEnd(history,end,1,.05,1,tail,error));assert(tail==1);
+  }}
+ '''
+     src=tmp_path/'drive.cpp';src.write_text(source);exe=tmp_path/'drive'
+diff --git a/applications/CHMT/tests/test_reacting_wall_mechanical_pressure.py b/applications/CHMT/tests/test_reacting_wall_mechanical_pressure.py
+index 03ae3f9..9618c71 100644
+--- a/applications/CHMT/tests/test_reacting_wall_mechanical_pressure.py
++++ b/applications/CHMT/tests/test_reacting_wall_mechanical_pressure.py
+@@ -82,8 +82,8 @@ int main(){
+  auto& sample=a.gasWallMatching[0];sample.pressure=bulk.pressure;sample.state=context.matching;setMechanical(sample,mechanical);
+  check(history.appendAccepted(a,error),"valid mechanical history accepted");
+  auto b=a;b.microSequence=2;b.begin=.5;b.end=1;setMechanical(b.gasWallMatching[0],2*mechanical);
+- check(history.appendAccepted(b,error),"changed mechanical history accepted");Real end=0;std::uint64_t count=0;
+- check(materialDriveSlabEnd(history,0,1,.05,1,end,count,error),"mechanical drive slab");near(end,.5,"mechanical pressure changes limit material lag");
++ check(history.appendAccepted(b,error),"changed mechanical history accepted");Real end=0;
++ check(materialDriveSlabEnd(history,0,1,.05,1,end,error),"mechanical drive slab");near(end,.5,"mechanical pressure changes limit material lag");
+  for(Real invalid:{Real(0),Real(-1),std::numeric_limits<Real>::quiet_NaN()}){
+   IntervalHistory bad;check(bad.begin(interval,error),"invalid history begin");setMechanical(a.gasWallMatching[0],invalid);
+   check(bad.appendAccepted(a,error),"actual numerical mechanical pressure retained");
+diff --git a/applications/CHMT/tests/test_sources_terminal_of.C b/applications/CHMT/tests/test_sources_terminal_of.C
+index 87b3876..a653df8 100644
+--- a/applications/CHMT/tests/test_sources_terminal_of.C
++++ b/applications/CHMT/tests/test_sources_terminal_of.C
+@@ -1,5 +1,5 @@
+ // Actual OF10 material owner with reaction terminal continuation; no GPU execution.
+-#include "materials/CpuMaterialDriver.C"
++#include "tests/NativeMaterialProbe.H"
+ #include "materials/ConductionContinuation.H"
+ #include <cassert>
+ #include <iomanip>
+@@ -40,14 +40,17 @@ int main(int argc,char** argv){
+     HostState endpoint=base;endpoint.time=dt;CpuMaterialDriver driver(model,&mesh);HostState result;WallProgram corrected;CpuMaterialReport report;
+     controls.maxSubsteps=1;controls.reactionMaxSubstep=.004;
+     assert(!driver.advanceCandidate(base,endpoint,history,controls,result,corrected,report,error));
+-    assert(report.failureOrigin==MaterialFailureOrigin::ReactionNumerical&&report.failedLocalDt==dt);
++    assert(report.failureOrigin==MaterialFailureOrigin::ReactionNumerical&&chmt_test::lastMaterialInterval==dt);
++    chmt_test::resetMaterialObservations();
+     if(!detail::ConductionContinuation::complete(driver,base,endpoint,history,controls,result,corrected,report,error,nullptr)){std::cerr<<error<<'\n';return 3;}
+     assert(result.time==dt&&!corrected.knots.empty());
++    std::uint64_t referenceSteps=0;
+     for(std::size_t c=0;c<base.solid.size();++c){
+         SolidQ reference;std::uint64_t count=0;bool numerical=false;
+         assert(detail::completeMaterialReactions(base.solid[c],base.solidMesh.volumes[c],p,dt,.004,controls.reactionCfl,1,reference,count,error,&numerical));
+-        assert(count==3&&result.solid[c].condensed[0]==reference.condensed[0]);
++        assert(count==3&&result.solid[c].condensed[0]==reference.condensed[0]);referenceSteps+=count;
+         assert(result.solid[c].condensed[1]==reference.condensed[1]&&result.solid[c].progress[0]==reference.progress[0]);
+     }
+-    std::cout<<"actual material reaction publication paid_dt "<<dt<<" steps "<<report.reactionSteps<<'\n';
++    chmt_test::physicalSnapshot("sources_terminal",result,corrected);
++    std::cout<<"actual material reaction publication paid_dt "<<dt<<" steps "<<referenceSteps<<'\n';
+ }
+diff --git a/applications/CHMT/tests/test_surface_terminal_of.C b/applications/CHMT/tests/test_surface_terminal_of.C
+index b3fc477..b50acbe 100644
+--- a/applications/CHMT/tests/test_surface_terminal_of.C
++++ b/applications/CHMT/tests/test_surface_terminal_of.C
+@@ -1,8 +1,7 @@
+ // Actual OpenFOAM material/film driver with prescribed, stage-matched gas history.
+ // This tests pressure adaptation and the ledger, not native gas execution.
+ #include "ablation/WallClosureHost.H"
+-#include "fvCFD.H"
+-#include "materials/CpuMaterialDriver.C"
++#include "tests/NativeMaterialProbe.H"
+ #include "materials/ConductionContinuation.H"
+ #include "mesh/TrajectorySurface.H"
+ #include <cassert>
+@@ -77,9 +76,11 @@ int main(int argc,char** argv){
+     HostState result;WallProgram corrected;CpuMaterialReport report;
+     assert(!driver.advanceCandidate(base,endpoint,history,controls,result,corrected,report,error));
+     assert(report.failureOrigin==MaterialFailureOrigin::SurfaceNumerical);
++    chmt_test::resetMaterialObservations();
+     if(!detail::ConductionContinuation::complete(driver,base,endpoint,history,controls,result,corrected,report,error,nullptr)){std::cerr<<error<<'\n';return 3;}
+     assert(result.time==dt&&corrected.knots.back().faces.size()==4);
+     for(const auto& face:corrected.knots.back().faces)assert(face.temperature==3000);
+-    assert(report.materialSteps==1&&report.filmSteps==1&&report.linearSolves>0&&report.boundaryDriveSamples>=2);
+-    std::cout<<"actual native surface early/history/endpoint publication time "<<result.time<<" material "<<report.materialSteps<<" film "<<report.filmSteps<<" solves "<<report.linearSolves<<'\n';
++    assert(report.materialSteps==1&&chmt_test::filmCandidateCalls==1&&chmt_test::materialSolveCalls>0&&corrected.knots.size()>=2&&corrected.knots.front().faces.size()==4);
++    chmt_test::physicalSnapshot("surface_terminal",result,corrected);
++    std::cout<<"actual native surface early/history/endpoint publication time "<<result.time<<" material "<<report.materialSteps<<" film "<<chmt_test::filmCandidateCalls<<" solves "<<chmt_test::materialSolveCalls<<'\n';
+ }
+diff --git a/applications/CHMT/tests/test_sweep_terminal_of.C b/applications/CHMT/tests/test_sweep_terminal_of.C
+index 5e9c789..ee151dc 100644
+--- a/applications/CHMT/tests/test_sweep_terminal_of.C
++++ b/applications/CHMT/tests/test_sweep_terminal_of.C
+@@ -1,5 +1,5 @@
+ // Actual OF10 material owner with inherited remainder continuation; no GPU execution.
+-#include "materials/CpuMaterialDriver.C"
++#include "tests/NativeMaterialProbe.H"
+ #include "materials/ConductionContinuation.H"
+ #include <cassert>
+ #include <iomanip>
+@@ -38,14 +38,16 @@ int main(int argc,char** argv){
+     GasIntervalRecord record;record.end=dt;record.microSequence=1;assert(history.appendAccepted(record,error));
+     HostState endpoint=base;endpoint.time=dt;CpuMaterialDriver driver(model,&mesh);HostState result;WallProgram corrected;CpuMaterialReport report;
+     assert(driver.advanceCandidate(base,endpoint,history,controls,result,corrected,report,error));
+-    const auto normal=result;const auto normalReport=report;
++    const auto normal=result;const auto normalReport=report;const auto normalSolves=chmt_test::materialSolveCalls;
+     base.solidSweepRemainder={7};endpoint.solidSweepRemainder=base.solidSweepRemainder;
+     assert(!driver.advanceCandidate(base,endpoint,history,controls,result,corrected,report,error));
+     assert(report.failureOrigin==MaterialFailureOrigin::GeometryNumerical);
++    chmt_test::resetMaterialObservations();
+     if(!detail::ConductionContinuation::complete(driver,base,endpoint,history,controls,result,corrected,report,error,nullptr)){std::cerr<<error<<'\n';return 3;}
+     assert(result.time==dt&&!corrected.knots.empty());assert(result.solidSweepRemainder==base.solidSweepRemainder);
+-    assert(report.linearSolves==normalReport.linearSolves&&report.materialSteps==normalReport.materialSteps);
++    assert(chmt_test::materialSolveCalls==normalSolves&&report.materialSteps==normalReport.materialSteps);
+     assert(result.solidMesh.volumes==normal.solidMesh.volumes&&result.solidMesh.oldVolumes==normal.solidMesh.oldVolumes);
+     for(std::size_t c=0;c<base.solid.size();++c){assert(result.solid[c].energy==normal.solid[c].energy);assert(result.solid[c].condensed[0]==normal.solid[c].condensed[0]);}
+-    std::cout<<"actual material inherited remainder publication paid_dt "<<dt<<" solves "<<report.linearSolves<<" cells "<<result.solidMesh.volumes.size()<<'\n';
++    chmt_test::physicalSnapshot("sweep_terminal",result,corrected);
++    std::cout<<"actual material inherited remainder publication paid_dt "<<dt<<" solves "<<chmt_test::materialSolveCalls<<" cells "<<result.solidMesh.volumes.size()<<'\n';
+ }
+diff --git a/applications/CHMT/tests/test_transport_terminal_of.C b/applications/CHMT/tests/test_transport_terminal_of.C
+index 5652bc7..4601a4d 100644
+--- a/applications/CHMT/tests/test_transport_terminal_of.C
++++ b/applications/CHMT/tests/test_transport_terminal_of.C
+@@ -1,5 +1,5 @@
+ // Actual OF10 material owner with transport/control continuation; no GPU execution.
+-#include "materials/CpuMaterialDriver.C"
++#include "tests/NativeMaterialProbe.H"
+ #include "materials/ConductionContinuation.H"
+ #include <cassert>
+ #include <iomanip>
+@@ -38,14 +38,16 @@ int main(int argc,char** argv){
+     GasIntervalRecord record;record.end=dt;record.microSequence=1;assert(history.appendAccepted(record,error));
+     HostState endpoint=base;endpoint.time=dt;CpuMaterialDriver driver(model,&mesh);HostState result;WallProgram corrected;CpuMaterialReport report;
+     assert(driver.advanceCandidate(base,endpoint,history,controls,result,corrected,report,error));
+-    const auto normal=result;const auto normalReport=report;
++    const auto normal=result;const auto normalReport=report;const auto normalSolves=chmt_test::materialSolveCalls;
+     controls.transportCfl=0;
+     assert(!driver.advanceCandidate(base,endpoint,history,controls,result,corrected,report,error));
+     assert(report.failureOrigin==MaterialFailureOrigin::TransportNumerical);
++    chmt_test::resetMaterialObservations();
+     if(!detail::ConductionContinuation::complete(driver,base,endpoint,history,controls,result,corrected,report,error,nullptr)){std::cerr<<error<<'\n';return 3;}
+-    assert(result.time==dt&&!corrected.knots.empty());assert(report.materialSteps==1&&report.materialRhsEvaluations==2);
+-    assert(report.linearSolves==normalReport.linearSolves&&report.materialSteps==normalReport.materialSteps);
++    assert(result.time==dt&&!corrected.knots.empty());assert(report.materialSteps==1&&chmt_test::materialRhsCalls==2);
++    assert(chmt_test::materialSolveCalls==normalSolves&&report.materialSteps==normalReport.materialSteps);
+     assert(result.solidMesh.volumes==normal.solidMesh.volumes&&result.solidMesh.oldVolumes==normal.solidMesh.oldVolumes);
+     for(std::size_t c=0;c<base.solid.size();++c){assert(result.solid[c].energy==normal.solid[c].energy);assert(result.solid[c].condensed[0]==normal.solid[c].condensed[0]);}
+-    std::cout<<"actual material zero-CFL complete RHS publication paid_dt "<<dt<<" solves "<<report.linearSolves<<" cells "<<result.solidMesh.volumes.size()<<'\n';
++    chmt_test::physicalSnapshot("transport_terminal",result,corrected);
++    std::cout<<"actual material zero-CFL complete RHS publication paid_dt "<<dt<<" solves "<<chmt_test::materialSolveCalls<<" cells "<<result.solidMesh.volumes.size()<<'\n';
+ }
+diff --git a/applications/CHMT/tests/test_window_duration.py b/applications/CHMT/tests/test_window_duration.py
+index 5583938..0451261 100644
+--- a/applications/CHMT/tests/test_window_duration.py
++++ b/applications/CHMT/tests/test_window_duration.py
+@@ -64,7 +64,7 @@ int main(){
+  wall.knots={first,last};WallKnot sample;
+  assert(sampleGasWallProgramLocal(wall,WindowTime(dt),sample,error));assert(sample.time==origin);assert(sample.faces[0].temperature==101);
+  assert(intervalSampleWallLocal(wall,WindowTime(dt),sample,error));assert(sample.faces[0].temperature==101);
+- WindowTime end;std::uint64_t count=0;assert(materialDriveSlabEndLocal(history,WindowTime{},history.localEnd(),.05,1,end,count,error));assert(end==history.localEnd());
++ WindowTime end;assert(materialDriveSlabEndLocal(history,WindowTime{},history.localEnd(),.05,1,end,error));assert(end==history.localEnd());
+ }
+ ''')
+     binary=tmp_path/'history'
