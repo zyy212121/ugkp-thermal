@@ -2,19 +2,19 @@
   "schema": 1,
   "identity": "PR14_REVIEW_ONLY",
   "interaction_class": "FAST",
-  "captured_utc": "2026-10-13T17:53:04.518048+00:00",
+  "captured_utc": "2026-10-14T06:35:44.359348+00:00",
   "base_commit": "d6110c02745a8ad726208a426c4bb3a28233c1fd",
   "first_published_head": "82f9c016704c9822b16b87cdeeb11f5bbd44d06f",
-  "observed_source_head": "a73b9635510fb09d7baa5339e14d1aa609f0ff87",
-  "final_source_commit": "a73b9635510fb09d7baa5339e14d1aa609f0ff87",
-  "final_source_tree": "e343cb9f477dcd86556f7b6595189fa2c9c1c099",
+  "observed_source_head": "4b5c480b572f234ddecf5e89164fe59b0d2e9735",
+  "final_source_commit": "4b5c480b572f234ddecf5e89164fe59b0d2e9735",
+  "final_source_tree": "0fa2562f4c83394cdf94e9650de3b22c4fb4bb15",
   "remote_head": "a747db386160a7f3737fa67b25207e34f5c118d9",
   "remote_tree": "76ffd38cf7470879347423a4f8467cf47547aae6",
   "publication_record": "publication.json",
-  "final_pin_status": "PRECLOSURE_DELIVERY_TREE_VERIFIED_CLOSURE_METADATA_PUBLICATION_PENDING",
-  "reviewer_gpu_acceptance": "NOT_RUN_PENDING",
+  "final_pin_status": "FAST2_FORMAL_SOURCE_COMPILED_GPU_RECHECK_PENDING",
+  "reviewer_gpu_acceptance": "PREVIOUS_SCOPED_RESULTS_RECEIVED_FORMAL_RECHECK_PENDING",
   "developer_validation_scope": "source review and actual compilation only; old CPU execution historical",
-  "global_review_status": "A164_CATEGORY_REVIEW_PLUS_970_CODEC_AND_A73_MAPPER_DELTAS_APPROVED_WITH_DOCUMENTED_LIMITS_GPU_PENDING",
+  "global_review_status": "FAST2_INDEPENDENT_SOURCE_REVIEW_COMPLETE_GPU_PENDING",
   "topics": [
     {
       "id": "R014-001",
@@ -159,16 +159,24 @@
         "E014-aefacd3704799a0a",
         "E014-2bce049840b5545d",
         "E014-33fc6cf9aff4df49",
-        "E014-0bbeb5bc5aea9309"
+        "E014-0bbeb5bc5aea9309",
+        "E014-cb2388c494416991",
+        "E014-a2245ab4f1d2023f",
+        "E014-e19f0368eb7894fe",
+        "E014-d1aacdd7e2c963a2",
+        "E014-db1b274e93cb0bc4",
+        "E014-17adc26e06df66c6"
       ],
       "file_ids": [
         "F014-004c176a472f",
         "F014-4a4ddae7a828",
         "F014-dd8210ddc9c1",
         "F014-afeb19205b5b",
-        "F014-50d522270b4b"
+        "F014-50d522270b4b",
+        "F014-c12ec9790669"
       ],
-      "status": "REVIEWER_FAST_PENDING"
+      "status": "FORMAL_SOURCE_GPU_RECHECK_PENDING",
+      "latest_developer_response": "R014-003-DEV-20261014T055427Z-fast"
     },
     {
       "id": "R014-004",
@@ -275,7 +283,13 @@
         "E014-33fc6cf9aff4df49",
         "E014-0bbeb5bc5aea9309",
         "E014-5f7fca78bf884f71",
-        "E014-1da667315434e229"
+        "E014-1da667315434e229",
+        "E014-cb2388c494416991",
+        "E014-a2245ab4f1d2023f",
+        "E014-e19f0368eb7894fe",
+        "E014-d1aacdd7e2c963a2",
+        "E014-db1b274e93cb0bc4",
+        "E014-17adc26e06df66c6"
       ],
       "file_ids": [
         "F014-66de1f3e805f",
@@ -283,7 +297,8 @@
         "F014-67ffcf8d4484",
         "F014-005c8b5bad29"
       ],
-      "status": "REVIEWER_FAST_PENDING"
+      "status": "FORMAL_SOURCE_GPU_RECHECK_PENDING",
+      "latest_developer_response": "R014-005-DEV-20261014T055427Z-fast"
     },
     {
       "id": "R014-006",
@@ -328,7 +343,13 @@
         "E014-0a181746c3b7e70c",
         "E014-7c131515e062dfa7",
         "E014-c47fc7a82c7da9c3",
-        "E014-aefacd3704799a0a"
+        "E014-aefacd3704799a0a",
+        "E014-cb2388c494416991",
+        "E014-a2245ab4f1d2023f",
+        "E014-e19f0368eb7894fe",
+        "E014-d1aacdd7e2c963a2",
+        "E014-db1b274e93cb0bc4",
+        "E014-17adc26e06df66c6"
       ],
       "file_ids": [
         "F014-b491022bcb4b",
@@ -337,11 +358,12 @@
         "F014-004c176a472f",
         "F014-584468e90834"
       ],
-      "status": "REVIEWER_FAST_PENDING",
+      "status": "FORMAL_SOURCE_GPU_RECHECK_PENDING",
       "developer_source_qualification": "SCOPED_APPROVED_GPU_PENDING",
       "qualification_evidence_ids": [
         "E014-8c705e0c274da29a"
-      ]
+      ],
+      "latest_developer_response": "R014-006-DEV-20261014T055427Z-fast"
     },
     {
       "id": "R014-007",
@@ -729,14 +751,23 @@
         "E014-bf15c40913e8ba2e",
         "E014-07edc876d27896cd",
         "E014-5a382933428a9a5d",
-        "E014-78c22354cd5129aa"
+        "E014-78c22354cd5129aa",
+        "E014-cb2388c494416991",
+        "E014-a2245ab4f1d2023f",
+        "E014-e19f0368eb7894fe",
+        "E014-d1aacdd7e2c963a2",
+        "E014-db1b274e93cb0bc4",
+        "E014-17adc26e06df66c6"
       ],
       "file_ids": [
         "F014-7877d7cd5496",
         "F014-ec61842af463",
-        "F014-a62fcf62990c"
+        "F014-a62fcf62990c",
+        "F014-3d8a885ad5e7",
+        "F014-9ddfb8b1ab42"
       ],
-      "status": "REVIEWER_FAST_PENDING"
+      "status": "FORMAL_SOURCE_GPU_RECHECK_PENDING",
+      "latest_developer_response": "R014-009-DEV-20261014T055427Z-fast"
     },
     {
       "id": "R014-010",
@@ -811,7 +842,13 @@
         "E014-bd6bf15b1f71d850",
         "E014-a5ea093ede37ee4e",
         "E014-3b45a3632cb7b7c1",
-        "E014-ca447c0c135ba171"
+        "E014-ca447c0c135ba171",
+        "E014-cb2388c494416991",
+        "E014-a2245ab4f1d2023f",
+        "E014-e19f0368eb7894fe",
+        "E014-d1aacdd7e2c963a2",
+        "E014-db1b274e93cb0bc4",
+        "E014-17adc26e06df66c6"
       ],
       "file_ids": [
         "F014-a67c870da5fa",
@@ -821,9 +858,11 @@
         "F014-6114c0aa47db",
         "F014-726262aa5370",
         "F014-dc29202fccba",
-        "F014-405af05f5909"
+        "F014-405af05f5909",
+        "F014-0230b261acf2"
       ],
-      "status": "REVIEWER_FAST_PENDING"
+      "status": "FORMAL_SOURCE_GPU_RECHECK_PENDING",
+      "latest_developer_response": "R014-010-DEV-20261014T055427Z-fast"
     },
     {
       "id": "R014-011",
@@ -1053,7 +1092,13 @@
         "E014-bf15c40913e8ba2e",
         "E014-07edc876d27896cd",
         "E014-5a382933428a9a5d",
-        "E014-78c22354cd5129aa"
+        "E014-78c22354cd5129aa",
+        "E014-cb2388c494416991",
+        "E014-a2245ab4f1d2023f",
+        "E014-e19f0368eb7894fe",
+        "E014-d1aacdd7e2c963a2",
+        "E014-db1b274e93cb0bc4",
+        "E014-17adc26e06df66c6"
       ],
       "file_ids": [
         "F014-3d8a885ad5e7",
@@ -1071,9 +1116,13 @@
         "F014-ebb4a3c2a61f",
         "F014-cc86af906b9a",
         "F014-fe67e627252c",
-        "F014-ec61842af463"
+        "F014-ec61842af463",
+        "F014-9ddfb8b1ab42",
+        "F014-c12ec9790669",
+        "F014-405af05f5909"
       ],
-      "status": "REVIEWER_FAST_PENDING"
+      "status": "FORMAL_SOURCE_GPU_RECHECK_PENDING",
+      "latest_developer_response": "R014-012-DEV-20261014T055427Z-fast"
     },
     {
       "id": "R014-013",
@@ -1166,7 +1215,13 @@
         "E014-c47fc7a82c7da9c3",
         "E014-0df31ccb6d3a60db",
         "E014-aefacd3704799a0a",
-        "E014-4f7022c98684b104"
+        "E014-4f7022c98684b104",
+        "E014-cb2388c494416991",
+        "E014-a2245ab4f1d2023f",
+        "E014-e19f0368eb7894fe",
+        "E014-d1aacdd7e2c963a2",
+        "E014-db1b274e93cb0bc4",
+        "E014-17adc26e06df66c6"
       ],
       "file_ids": [
         "F014-65477d3951bd",
@@ -1201,9 +1256,11 @@
         "F014-a62fcf62990c",
         "F014-636af715dec6",
         "F014-1c53a890f630",
-        "F014-b5c3680eb63b"
+        "F014-b5c3680eb63b",
+        "F014-dc6f70aee8a8"
       ],
-      "status": "REVIEWER_FAST_PENDING"
+      "status": "FORMAL_SOURCE_GPU_RECHECK_PENDING",
+      "latest_developer_response": "R014-013-DEV-20261014T055427Z-fast"
     },
     {
       "id": "R014-014",
@@ -1313,7 +1370,13 @@
         "E014-bf15c40913e8ba2e",
         "E014-07edc876d27896cd",
         "E014-5a382933428a9a5d",
-        "E014-78c22354cd5129aa"
+        "E014-78c22354cd5129aa",
+        "E014-cb2388c494416991",
+        "E014-a2245ab4f1d2023f",
+        "E014-e19f0368eb7894fe",
+        "E014-d1aacdd7e2c963a2",
+        "E014-db1b274e93cb0bc4",
+        "E014-17adc26e06df66c6"
       ],
       "file_ids": [
         "F014-65477d3951bd",
@@ -1348,9 +1411,12 @@
         "F014-a62fcf62990c",
         "F014-636af715dec6",
         "F014-1c53a890f630",
-        "F014-b5c3680eb63b"
+        "F014-b5c3680eb63b",
+        "F014-9ddfb8b1ab42",
+        "F014-dc6f70aee8a8"
       ],
-      "status": "REVIEWER_FAST_PENDING"
+      "status": "FORMAL_SOURCE_GPU_RECHECK_PENDING",
+      "latest_developer_response": "R014-014-DEV-20261014T055427Z-fast"
     },
     {
       "id": "R014-015",
@@ -1435,7 +1501,13 @@
         "E014-bf15c40913e8ba2e",
         "E014-07edc876d27896cd",
         "E014-5a382933428a9a5d",
-        "E014-78c22354cd5129aa"
+        "E014-78c22354cd5129aa",
+        "E014-cb2388c494416991",
+        "E014-a2245ab4f1d2023f",
+        "E014-e19f0368eb7894fe",
+        "E014-d1aacdd7e2c963a2",
+        "E014-db1b274e93cb0bc4",
+        "E014-17adc26e06df66c6"
       ],
       "file_ids": [
         "F014-65477d3951bd",
@@ -1472,7 +1544,8 @@
         "F014-1c53a890f630",
         "F014-b5c3680eb63b"
       ],
-      "status": "REVIEWER_FAST_PENDING"
+      "status": "FORMAL_SOURCE_GPU_RECHECK_PENDING",
+      "latest_developer_response": "R014-015-DEV-20261014T055427Z-fast"
     },
     {
       "id": "R014-016",
@@ -1534,7 +1607,13 @@
         "E014-4f20e43b4814f885",
         "E014-a0e4e753170d4675",
         "E014-549c0eea58a7d928",
-        "E014-929a203c8f327be0"
+        "E014-929a203c8f327be0",
+        "E014-cb2388c494416991",
+        "E014-a2245ab4f1d2023f",
+        "E014-e19f0368eb7894fe",
+        "E014-d1aacdd7e2c963a2",
+        "E014-db1b274e93cb0bc4",
+        "E014-17adc26e06df66c6"
       ],
       "file_ids": [
         "F014-65477d3951bd",
@@ -1569,9 +1648,11 @@
         "F014-a62fcf62990c",
         "F014-636af715dec6",
         "F014-1c53a890f630",
-        "F014-b5c3680eb63b"
+        "F014-b5c3680eb63b",
+        "F014-9ddfb8b1ab42"
       ],
-      "status": "REVIEWER_FAST_PENDING"
+      "status": "FORMAL_SOURCE_GPU_RECHECK_PENDING",
+      "latest_developer_response": "R014-016-DEV-20261014T055427Z-fast"
     },
     {
       "id": "R014-017",
@@ -1715,7 +1796,13 @@
         "E014-3db0da76ac9ae225",
         "E014-52e5ee27557d675a",
         "E014-5f7fca78bf884f71",
-        "E014-1da667315434e229"
+        "E014-1da667315434e229",
+        "E014-cb2388c494416991",
+        "E014-a2245ab4f1d2023f",
+        "E014-e19f0368eb7894fe",
+        "E014-d1aacdd7e2c963a2",
+        "E014-db1b274e93cb0bc4",
+        "E014-17adc26e06df66c6"
       ],
       "file_ids": [
         "F014-0a961a187c9e",
@@ -1734,13 +1821,17 @@
         "F014-577aa4d38c4b",
         "F014-d5b3226d8c44",
         "F014-2197dabe0f01",
-        "F014-cb812ef55a85"
+        "F014-cb812ef55a85",
+        "F014-0230b261acf2",
+        "F014-6e60a7e18472",
+        "F014-25f5122cd935"
       ],
-      "status": "REVIEWER_FAST_PENDING",
+      "status": "FORMAL_SOURCE_GPU_RECHECK_PENDING",
       "developer_source_qualification": "SCOPED_APPROVED_GPU_PENDING",
       "qualification_evidence_ids": [
         "E014-24d1004f94dd2618"
-      ]
+      ],
+      "latest_developer_response": "R014-018-DEV-20261014T055427Z-fast"
     },
     {
       "id": "R014-019",
@@ -1835,7 +1926,13 @@
         "E014-ba58b3bba0963d2f",
         "E014-c3746d0648fdaece",
         "E014-5f7fca78bf884f71",
-        "E014-1da667315434e229"
+        "E014-1da667315434e229",
+        "E014-cb2388c494416991",
+        "E014-a2245ab4f1d2023f",
+        "E014-e19f0368eb7894fe",
+        "E014-d1aacdd7e2c963a2",
+        "E014-db1b274e93cb0bc4",
+        "E014-17adc26e06df66c6"
       ],
       "file_ids": [
         "F014-56ba1674acc9",
@@ -1845,13 +1942,16 @@
         "F014-c85fc9115e74",
         "F014-577aa4d38c4b",
         "F014-d5b3226d8c44",
-        "F014-cb812ef55a85"
+        "F014-cb812ef55a85",
+        "F014-6e60a7e18472",
+        "F014-25f5122cd935"
       ],
-      "status": "REVIEWER_FAST_PENDING",
+      "status": "FORMAL_SOURCE_GPU_RECHECK_PENDING",
       "developer_source_qualification": "SCOPED_APPROVED_GPU_PENDING",
       "qualification_evidence_ids": [
         "E014-24d1004f94dd2618"
-      ]
+      ],
+      "latest_developer_response": "R014-019-DEV-20261014T055427Z-fast"
     },
     {
       "id": "R014-020",
@@ -1903,7 +2003,13 @@
         "E014-19308c0dd461cc62",
         "E014-fdfdc7fa0ec14019",
         "E014-0b2b47e51c7f5713",
-        "E014-52a5564c43980576"
+        "E014-52a5564c43980576",
+        "E014-cb2388c494416991",
+        "E014-a2245ab4f1d2023f",
+        "E014-e19f0368eb7894fe",
+        "E014-d1aacdd7e2c963a2",
+        "E014-db1b274e93cb0bc4",
+        "E014-17adc26e06df66c6"
       ],
       "file_ids": [
         "F014-f0d55a5128c6",
@@ -1917,13 +2023,15 @@
         "F014-3f3422da328e",
         "F014-f616079bdc49",
         "F014-3eef837aa83c",
-        "F014-4ce470d85c80"
+        "F014-4ce470d85c80",
+        "F014-c12ec9790669"
       ],
-      "status": "REVIEWER_FAST_PENDING",
+      "status": "FORMAL_SOURCE_GPU_RECHECK_PENDING",
       "developer_source_qualification": "SCOPED_APPROVED_GPU_PENDING",
       "qualification_evidence_ids": [
         "E014-89628f0f69e95895"
-      ]
+      ],
+      "latest_developer_response": "R014-020-DEV-20261014T055427Z-fast"
     },
     {
       "id": "R014-021",
@@ -1948,10 +2056,30 @@
         "E014-21a449490bd85eb5",
         "E014-4f161f27965d55e1",
         "E014-0ebbf6961c911ce4",
-        "E014-133de94002878c4b"
+        "E014-133de94002878c4b",
+        "E014-cb2388c494416991",
+        "E014-a2245ab4f1d2023f",
+        "E014-e19f0368eb7894fe",
+        "E014-d1aacdd7e2c963a2",
+        "E014-db1b274e93cb0bc4",
+        "E014-17adc26e06df66c6"
       ],
-      "file_ids": [],
-      "status": "REVIEWER_FAST_PENDING"
+      "file_ids": [
+        "F014-4306943aa60a",
+        "F014-3aef3bdd40f0",
+        "F014-7625fa74c748",
+        "F014-a02312440385",
+        "F014-1629c53fc4a7",
+        "F014-6871257af6c9",
+        "F014-3cacfe6982bb",
+        "F014-17069a360be2",
+        "F014-58254a325f94",
+        "F014-9e81835cd6aa",
+        "F014-36b71c2ddbe9",
+        "F014-61aaa41e38be"
+      ],
+      "status": "FORMAL_SOURCE_GPU_RECHECK_PENDING",
+      "latest_developer_response": "R014-021-DEV-20261014T055427Z-fast"
     },
     {
       "id": "R014-022",
@@ -2007,11 +2135,18 @@
         "E014-21a449490bd85eb5",
         "E014-4f161f27965d55e1",
         "E014-0ebbf6961c911ce4",
-        "E014-133de94002878c4b"
+        "E014-133de94002878c4b",
+        "E014-cb2388c494416991",
+        "E014-a2245ab4f1d2023f",
+        "E014-e19f0368eb7894fe",
+        "E014-d1aacdd7e2c963a2",
+        "E014-db1b274e93cb0bc4",
+        "E014-17adc26e06df66c6"
       ],
       "file_ids": [],
-      "status": "REVIEWER_FAST_PENDING",
-      "developer_status": "NO_BLOCKER_IDENTIFIED_WITHIN_DOCUMENTED_COVERAGE"
+      "status": "FORMAL_SOURCE_GPU_RECHECK_PENDING",
+      "developer_status": "NO_BLOCKER_IDENTIFIED_WITHIN_DOCUMENTED_COVERAGE",
+      "latest_developer_response": "R014-022-DEV-20261014T055427Z-fast"
     },
     {
       "id": "R014-023",
@@ -2043,7 +2178,13 @@
         "E014-dfb2fa698ed10624",
         "E014-14be178978a43e07",
         "E014-8e0dc7cbf985c6f1",
-        "E014-1bf20bebddb7c3a2"
+        "E014-1bf20bebddb7c3a2",
+        "E014-cb2388c494416991",
+        "E014-a2245ab4f1d2023f",
+        "E014-e19f0368eb7894fe",
+        "E014-d1aacdd7e2c963a2",
+        "E014-db1b274e93cb0bc4",
+        "E014-17adc26e06df66c6"
       ],
       "file_ids": [
         "F014-dc12db194ecd",
@@ -2236,9 +2377,13 @@
         "F014-6b4484cf436e",
         "F014-d6ca220d0369",
         "F014-3eef18f926eb",
-        "F014-7b71eccd4629"
+        "F014-7b71eccd4629",
+        "F014-25f5122cd935",
+        "F014-9e81835cd6aa",
+        "F014-61aaa41e38be"
       ],
-      "status": "REVIEWER_FAST_PENDING"
+      "status": "FORMAL_SOURCE_GPU_RECHECK_PENDING",
+      "latest_developer_response": "R014-023-DEV-20261014T055427Z-fast"
     },
     {
       "id": "R014-024",
@@ -2394,11 +2539,31 @@
         "E014-a5ea093ede37ee4e",
         "E014-366a869cc8f68d0f",
         "E014-bf15c40913e8ba2e",
-        "E014-07edc876d27896cd"
+        "E014-07edc876d27896cd",
+        "E014-cb2388c494416991",
+        "E014-a2245ab4f1d2023f",
+        "E014-e19f0368eb7894fe",
+        "E014-d1aacdd7e2c963a2",
+        "E014-db1b274e93cb0bc4",
+        "E014-17adc26e06df66c6"
       ],
-      "file_ids": [],
-      "status": "REVIEWER_FAST_PENDING",
-      "developer_status": "CHMT_SPECIFIED_CONFIGURATION_PASSED"
+      "file_ids": [
+        "F014-4306943aa60a",
+        "F014-3aef3bdd40f0",
+        "F014-7625fa74c748",
+        "F014-a02312440385",
+        "F014-1629c53fc4a7",
+        "F014-6871257af6c9",
+        "F014-3cacfe6982bb",
+        "F014-17069a360be2",
+        "F014-58254a325f94",
+        "F014-9e81835cd6aa",
+        "F014-36b71c2ddbe9",
+        "F014-61aaa41e38be"
+      ],
+      "status": "FORMAL_SOURCE_GPU_RECHECK_PENDING",
+      "developer_status": "CHMT_SPECIFIED_CONFIGURATION_PASSED",
+      "latest_developer_response": "R014-024-DEV-20261014T055427Z-fast"
     },
     {
       "id": "R014-025",
@@ -2669,10 +2834,34 @@
         "E014-4f20e43b4814f885",
         "E014-549c0eea58a7d928",
         "E014-5a382933428a9a5d",
-        "E014-78c22354cd5129aa"
+        "E014-78c22354cd5129aa",
+        "E014-cb2388c494416991",
+        "E014-a2245ab4f1d2023f",
+        "E014-e19f0368eb7894fe",
+        "E014-d1aacdd7e2c963a2",
+        "E014-db1b274e93cb0bc4",
+        "E014-17adc26e06df66c6"
       ],
-      "file_ids": [],
-      "status": "REVIEWER_FAST_PENDING"
+      "file_ids": [
+        "F014-4306943aa60a",
+        "F014-3aef3bdd40f0",
+        "F014-c12ec9790669",
+        "F014-0230b261acf2",
+        "F014-dc6f70aee8a8",
+        "F014-405af05f5909",
+        "F014-7625fa74c748",
+        "F014-a02312440385",
+        "F014-1629c53fc4a7",
+        "F014-6871257af6c9",
+        "F014-3cacfe6982bb",
+        "F014-17069a360be2",
+        "F014-58254a325f94",
+        "F014-9e81835cd6aa",
+        "F014-36b71c2ddbe9",
+        "F014-61aaa41e38be"
+      ],
+      "status": "FORMAL_SOURCE_GPU_RECHECK_PENDING",
+      "latest_developer_response": "R014-026-DEV-20261014T055427Z-fast"
     },
     {
       "id": "R014-027",
@@ -2722,10 +2911,20 @@
         "E014-4f20e43b4814f885",
         "E014-a0e4e753170d4675",
         "E014-549c0eea58a7d928",
-        "E014-929a203c8f327be0"
+        "E014-929a203c8f327be0",
+        "E014-cb2388c494416991",
+        "E014-a2245ab4f1d2023f",
+        "E014-e19f0368eb7894fe",
+        "E014-d1aacdd7e2c963a2",
+        "E014-db1b274e93cb0bc4",
+        "E014-17adc26e06df66c6"
       ],
-      "file_ids": [],
-      "status": "REVIEWER_FAST_PENDING"
+      "file_ids": [
+        "F014-3d8a885ad5e7",
+        "F014-9ddfb8b1ab42"
+      ],
+      "status": "FORMAL_SOURCE_GPU_RECHECK_PENDING",
+      "latest_developer_response": "R014-027-DEV-20261014T055427Z-fast"
     },
     {
       "id": "R014-028",
@@ -2769,10 +2968,20 @@
         "E014-bf15c40913e8ba2e",
         "E014-07edc876d27896cd",
         "E014-5a382933428a9a5d",
-        "E014-78c22354cd5129aa"
+        "E014-78c22354cd5129aa",
+        "E014-cb2388c494416991",
+        "E014-a2245ab4f1d2023f",
+        "E014-e19f0368eb7894fe",
+        "E014-d1aacdd7e2c963a2",
+        "E014-db1b274e93cb0bc4",
+        "E014-17adc26e06df66c6"
       ],
-      "file_ids": [],
-      "status": "REVIEWER_FAST_PENDING"
+      "file_ids": [
+        "F014-3d8a885ad5e7",
+        "F014-9ddfb8b1ab42"
+      ],
+      "status": "FORMAL_SOURCE_GPU_RECHECK_PENDING",
+      "latest_developer_response": "R014-028-DEV-20261014T055427Z-fast"
     },
     {
       "id": "R014-029",
@@ -2911,10 +3120,17 @@
         "E014-5f7fca78bf884f71",
         "E014-1da667315434e229",
         "E014-4f20e43b4814f885",
-        "E014-549c0eea58a7d928"
+        "E014-549c0eea58a7d928",
+        "E014-cb2388c494416991",
+        "E014-a2245ab4f1d2023f",
+        "E014-e19f0368eb7894fe",
+        "E014-d1aacdd7e2c963a2",
+        "E014-db1b274e93cb0bc4",
+        "E014-17adc26e06df66c6"
       ],
       "file_ids": [],
-      "status": "REVIEWER_FAST_PENDING"
+      "status": "FORMAL_SOURCE_GPU_RECHECK_PENDING",
+      "latest_developer_response": "R014-029-DEV-20261014T055427Z-fast"
     },
     {
       "id": "R014-030",
@@ -2929,10 +3145,17 @@
         "E014-21a449490bd85eb5",
         "E014-4f161f27965d55e1",
         "E014-0ebbf6961c911ce4",
-        "E014-133de94002878c4b"
+        "E014-133de94002878c4b",
+        "E014-cb2388c494416991",
+        "E014-a2245ab4f1d2023f",
+        "E014-e19f0368eb7894fe",
+        "E014-d1aacdd7e2c963a2",
+        "E014-db1b274e93cb0bc4",
+        "E014-17adc26e06df66c6"
       ],
       "file_ids": [],
-      "status": "REVIEWER_FAST_PENDING"
+      "status": "FORMAL_SOURCE_GPU_RECHECK_PENDING",
+      "latest_developer_response": "R014-030-DEV-20261014T055427Z-fast"
     },
     {
       "id": "R014-031",
@@ -3013,7 +3236,13 @@
         "E014-2822a7926f384d8c",
         "E014-da6729300a157ff0",
         "E014-f736c1b627acfaba",
-        "E014-52a5564c43980576"
+        "E014-52a5564c43980576",
+        "E014-cb2388c494416991",
+        "E014-a2245ab4f1d2023f",
+        "E014-e19f0368eb7894fe",
+        "E014-d1aacdd7e2c963a2",
+        "E014-db1b274e93cb0bc4",
+        "E014-17adc26e06df66c6"
       ],
       "file_ids": [
         "F014-aaeee16318df",
@@ -3036,13 +3265,16 @@
         "F014-58eeb05d7377",
         "F014-366ccb338402",
         "F014-4167d7109b79",
-        "F014-52c1f178846a"
+        "F014-52c1f178846a",
+        "F014-6e60a7e18472",
+        "F014-25f5122cd935"
       ],
-      "status": "REVIEWER_FAST_PENDING",
+      "status": "FORMAL_SOURCE_GPU_RECHECK_PENDING",
       "developer_source_qualification": "SCOPED_APPROVED_GPU_PENDING",
       "qualification_evidence_ids": [
         "E014-a044c8ee9311c21a"
-      ]
+      ],
+      "latest_developer_response": "R014-031-DEV-20261014T055427Z-fast"
     },
     {
       "id": "R014-032",
@@ -3234,19 +3466,28 @@
         "E014-5f7fca78bf884f71",
         "E014-1da667315434e229",
         "E014-8e0dc7cbf985c6f1",
-        "E014-1bf20bebddb7c3a2"
+        "E014-1bf20bebddb7c3a2",
+        "E014-cb2388c494416991",
+        "E014-a2245ab4f1d2023f",
+        "E014-e19f0368eb7894fe",
+        "E014-d1aacdd7e2c963a2",
+        "E014-db1b274e93cb0bc4",
+        "E014-17adc26e06df66c6"
       ],
       "file_ids": [
         "F014-771ba55c90cf",
         "F014-25f5122cd935",
         "F014-81721696a164",
-        "F014-432610a6ea28"
+        "F014-432610a6ea28",
+        "F014-c12ec9790669",
+        "F014-6e60a7e18472"
       ],
-      "status": "REVIEWER_FAST_PENDING",
+      "status": "FORMAL_SOURCE_GPU_RECHECK_PENDING",
       "developer_source_qualification": "SCOPED_APPROVED_GPU_PENDING",
       "qualification_evidence_ids": [
         "E014-3eecf953992eb814"
-      ]
+      ],
+      "latest_developer_response": "R014-033-DEV-20261014T055427Z-fast"
     }
   ],
   "evidence": [
@@ -26075,6 +26316,375 @@
       "sha256": "1c36339aacc2856bdade9c3cc123e7f79076c066af8296590173f56d5cd271f8",
       "bytes": 674169,
       "scope": "Full function coordinates for compact coverage registry, pinned fixed original source."
+    },
+    {
+      "id": "E014-1a683cd8311a9ae3",
+      "identity": "PR14_REVIEW_ONLY",
+      "path": "developer-deliveries/20261014T055427Z-fast/CLOCK_ANALYSIS.txt",
+      "sha256": "1a683cd8311a9ae34b9a9c2bc038fe46a588719e747033836af32e7826ab3b78",
+      "bytes": 2799,
+      "classification": "FAST2_developer_source_compile_or_review_request",
+      "limits": "No developer GPU execution or numerical acceptance; see individual record scope."
+    },
+    {
+      "id": "E014-db1b274e93cb0bc4",
+      "identity": "PR14_REVIEW_ONLY",
+      "path": "developer-deliveries/20261014T055427Z-fast/FINDING_RESPONSES.json",
+      "sha256": "db1b274e93cb0bc49f82c99ef011072cba45efda3a42b16a498cb1a55854882d",
+      "bytes": 976,
+      "classification": "FAST2_developer_source_compile_or_review_request",
+      "limits": "No developer GPU execution or numerical acceptance; see individual record scope."
+    },
+    {
+      "id": "E014-cb2388c494416991",
+      "identity": "PR14_REVIEW_ONLY",
+      "path": "developer-deliveries/20261014T055427Z-fast/REPORT.md",
+      "sha256": "cb2388c49441699157d8653bbfe900d692561ff3f7fad5d069fcc5a8900a0095",
+      "bytes": 5831,
+      "classification": "FAST2_developer_source_compile_or_review_request",
+      "limits": "No developer GPU execution or numerical acceptance; see individual record scope."
+    },
+    {
+      "id": "E014-d1aacdd7e2c963a2",
+      "identity": "PR14_REVIEW_ONLY",
+      "path": "developer-deliveries/20261014T055427Z-fast/REVIEW_REQUEST.md",
+      "sha256": "d1aacdd7e2c963a27d5ae25bc763a27e2a77f96cfc301633a9950df9ba6ce1cb",
+      "bytes": 8140,
+      "classification": "FAST2_developer_source_compile_or_review_request",
+      "limits": "No developer GPU execution or numerical acceptance; see individual record scope."
+    },
+    {
+      "id": "E014-7b2a601595d72282",
+      "identity": "PR14_REVIEW_ONLY",
+      "path": "developer-deliveries/20261014T055427Z-fast/SHA256SUMS",
+      "sha256": "7b2a601595d722827cdde67fe69e8450d3924c04becc0f6d1076b41c8d438252",
+      "bytes": 3947,
+      "classification": "FAST2_developer_source_compile_or_review_request",
+      "limits": "No developer GPU execution or numerical acceptance; see individual record scope."
+    },
+    {
+      "id": "E014-a2245ab4f1d2023f",
+      "identity": "PR14_REVIEW_ONLY",
+      "path": "developer-deliveries/20261014T055427Z-fast/SOURCE.json",
+      "sha256": "a2245ab4f1d2023f0766ccc575218a7741ecd4a6e3237425a810a9db62446a2d",
+      "bytes": 5479,
+      "classification": "FAST2_developer_source_compile_or_review_request",
+      "limits": "No developer GPU execution or numerical acceptance; see individual record scope."
+    },
+    {
+      "id": "E014-17adc26e06df66c6",
+      "identity": "PR14_REVIEW_ONLY",
+      "path": "developer-deliveries/20261014T055427Z-fast/SOURCE_REVIEW.txt",
+      "sha256": "17adc26e06df66c6b44ae7203556dc7c8e95e137ed8b87392b7b9c25d23ca500",
+      "bytes": 2715,
+      "classification": "FAST2_developer_source_compile_or_review_request",
+      "limits": "No developer GPU execution or numerical acceptance; see individual record scope."
+    },
+    {
+      "id": "E014-e19f0368eb7894fe",
+      "identity": "PR14_REVIEW_ONLY",
+      "path": "developer-deliveries/20261014T055427Z-fast/VALIDATION.json",
+      "sha256": "e19f0368eb7894fe28eaf419a72c7fde2b5908b495baace624e500f7870e1b7c",
+      "bytes": 16228,
+      "classification": "FAST2_developer_source_compile_or_review_request",
+      "limits": "No developer GPU execution or numerical acceptance; see individual record scope."
+    },
+    {
+      "id": "E014-ef9b5945bac05111",
+      "identity": "PR14_REVIEW_ONLY",
+      "path": "developer-deliveries/20261014T055427Z-fast/clock-trace/RUN.txt",
+      "sha256": "ef9b5945bac051112c2ecc9e621004fa339ff8db404d60b217052ea148413fb9",
+      "bytes": 4076,
+      "classification": "FAST2_developer_source_compile_or_review_request",
+      "limits": "No developer GPU execution or numerical acceptance; see individual record scope."
+    },
+    {
+      "id": "E014-4fb3274619851e5c",
+      "identity": "PR14_REVIEW_ONLY",
+      "path": "developer-deliveries/20261014T055427Z-fast/clock-trace/baseline-trace.patch",
+      "sha256": "4fb3274619851e5ca94abfd3c5ba61daa1e605e6c02f190a7fec145bdb70b204",
+      "bytes": 6182,
+      "classification": "FAST2_developer_source_compile_or_review_request",
+      "limits": "No developer GPU execution or numerical acceptance; see individual record scope."
+    },
+    {
+      "id": "E014-9a8ad5ed74e4ef7e",
+      "identity": "PR14_REVIEW_ONLY",
+      "path": "developer-deliveries/20261014T055427Z-fast/clock-trace/clock_math.cpp",
+      "sha256": "9a8ad5ed74e4ef7ea4dde9d6e0413a99e4bc4e6754f48d62bf16e46aef2a1e78",
+      "bytes": 776,
+      "classification": "FAST2_developer_source_compile_or_review_request",
+      "limits": "No developer GPU execution or numerical acceptance; see individual record scope."
+    },
+    {
+      "id": "E014-f5177e4d1f7bd7d5",
+      "identity": "PR14_REVIEW_ONLY",
+      "path": "developer-deliveries/20261014T055427Z-fast/clock-trace/clock_math.log",
+      "sha256": "f5177e4d1f7bd7d51b36d99ceb29a0ccb27ffc44a3e1486c09cd751237548f04",
+      "bytes": 3196,
+      "classification": "FAST2_developer_source_compile_or_review_request",
+      "limits": "No developer GPU execution or numerical acceptance; see individual record scope."
+    },
+    {
+      "id": "E014-066ba44d39e8f07b",
+      "identity": "PR14_REVIEW_ONLY",
+      "path": "developer-deliveries/20261014T055427Z-fast/clock-trace/clock_trace.H",
+      "sha256": "066ba44d39e8f07b0059a0a4f9b0d9a178c9a94a4d448f2d22170abe4339def8",
+      "bytes": 3725,
+      "classification": "FAST2_developer_source_compile_or_review_request",
+      "limits": "No developer GPU execution or numerical acceptance; see individual record scope."
+    },
+    {
+      "id": "E014-62a1550d8cc0470b",
+      "identity": "PR14_REVIEW_ONLY",
+      "path": "developer-deliveries/20261014T055427Z-fast/clock-trace/compare_trace.py",
+      "sha256": "62a1550d8cc0470b25d7a29c031280e38e5d5f5a49d48e59c9ce722e8dc535f0",
+      "bytes": 1567,
+      "classification": "FAST2_developer_source_compile_or_review_request",
+      "limits": "No developer GPU execution or numerical acceptance; see individual record scope."
+    },
+    {
+      "id": "E014-9ae9433fbb33b308",
+      "identity": "PR14_REVIEW_ONLY",
+      "path": "developer-deliveries/20261014T055427Z-fast/clock-trace/formal-fix-trace.patch",
+      "sha256": "9ae9433fbb33b3082b10bd7d79e74d0c04f12e54d502c5434238184791640883",
+      "bytes": 6179,
+      "classification": "FAST2_developer_source_compile_or_review_request",
+      "limits": "No developer GPU execution or numerical acceptance; see individual record scope."
+    },
+    {
+      "id": "E014-d4cd564e43a00bfd",
+      "identity": "PR14_REVIEW_ONLY",
+      "path": "developer-deliveries/20261014T055427Z-fast/clock-trace/make_trace_patch.py",
+      "sha256": "d4cd564e43a00bfd23051f5da69f8344d10866869305ec23de4499a553915b82",
+      "bytes": 1562,
+      "classification": "FAST2_developer_source_compile_or_review_request",
+      "limits": "No developer GPU execution or numerical acceptance; see individual record scope."
+    },
+    {
+      "id": "E014-34c4591a0ba051c5",
+      "identity": "PR14_REVIEW_ONLY",
+      "path": "developer-deliveries/20261014T055427Z-fast/clock-trace/saved_csv_differences.json",
+      "sha256": "34c4591a0ba051c599d3901d54749f741e83dbe769de67580b6fdf16ea9d9395",
+      "bytes": 9925,
+      "classification": "FAST2_developer_source_compile_or_review_request",
+      "limits": "No developer GPU execution or numerical acceptance; see individual record scope."
+    },
+    {
+      "id": "E014-87a141ad058d104d",
+      "identity": "PR14_REVIEW_ONLY",
+      "path": "developer-deliveries/20261014T055427Z-fast/generated/chemistry_trial.cu",
+      "sha256": "87a141ad058d104daa18edaeb86acefcae4c18c3cea65325145021f6fb61c7ac",
+      "bytes": 23384,
+      "classification": "FAST2_developer_source_compile_or_review_request",
+      "limits": "No developer GPU execution or numerical acceptance; see individual record scope."
+    },
+    {
+      "id": "E014-10835006400120a1",
+      "identity": "PR14_REVIEW_ONLY",
+      "path": "developer-deliveries/20261014T055427Z-fast/generated/courant_reduction.cu",
+      "sha256": "10835006400120a152f64d11e7fcd25d5d5da4156c8190a0e1ea6abe3eef6820",
+      "bytes": 5538,
+      "classification": "FAST2_developer_source_compile_or_review_request",
+      "limits": "No developer GPU execution or numerical acceptance; see individual record scope."
+    },
+    {
+      "id": "E014-9f08ae5ffdd639e2",
+      "identity": "PR14_REVIEW_ONLY",
+      "path": "developer-deliveries/20261014T055427Z-fast/logs/chemistry_trial.log",
+      "sha256": "9f08ae5ffdd639e21a925e0b3baab9e993a1f18f99f9a6ea75b85e77c13b3276",
+      "bytes": 102618,
+      "classification": "FAST2_developer_source_compile_or_review_request",
+      "limits": "No developer GPU execution or numerical acceptance; see individual record scope."
+    },
+    {
+      "id": "E014-bca3332df973265d",
+      "identity": "PR14_REVIEW_ONLY",
+      "path": "developer-deliveries/20261014T055427Z-fast/logs/chmt_native_ns10.log",
+      "sha256": "bca3332df973265d07a88a857db8f95dfe507affbf6fedfd51ecee637e4182c6",
+      "bytes": 85455,
+      "classification": "FAST2_developer_source_compile_or_review_request",
+      "limits": "No developer GPU execution or numerical acceptance; see individual record scope."
+    },
+    {
+      "id": "E014-ee336d3333a99fe8",
+      "identity": "PR14_REVIEW_ONLY",
+      "path": "developer-deliveries/20261014T055427Z-fast/logs/chmt_native_ns2.log",
+      "sha256": "ee336d3333a99fe838bc6a665883d618dffb712c0d1fd0fff78df5b9a594532d",
+      "bytes": 85347,
+      "classification": "FAST2_developer_source_compile_or_review_request",
+      "limits": "No developer GPU execution or numerical acceptance; see individual record scope."
+    },
+    {
+      "id": "E014-b4b37f253bb4c2b6",
+      "identity": "PR14_REVIEW_ONLY",
+      "path": "developer-deliveries/20261014T055427Z-fast/logs/cold_CHT.log",
+      "sha256": "b4b37f253bb4c2b6ced958c2367d519de66e7ad50b2c39298f74bfdf0d0cce3e",
+      "bytes": 11406,
+      "classification": "FAST2_developer_source_compile_or_review_request",
+      "limits": "No developer GPU execution or numerical acceptance; see individual record scope."
+    },
+    {
+      "id": "E014-7d5a28ba49a9d9eb",
+      "identity": "PR14_REVIEW_ONLY",
+      "path": "developer-deliveries/20261014T055427Z-fast/logs/cold_FSH.log",
+      "sha256": "7d5a28ba49a9d9ebb72cdf99f5f502a3b29403afa2cd917b3f790dc1b37d52de",
+      "bytes": 10974,
+      "classification": "FAST2_developer_source_compile_or_review_request",
+      "limits": "No developer GPU execution or numerical acceptance; see individual record scope."
+    },
+    {
+      "id": "E014-171fdebdb20b95f1",
+      "identity": "PR14_REVIEW_ONLY",
+      "path": "developer-deliveries/20261014T055427Z-fast/logs/courant_pytest.log",
+      "sha256": "171fdebdb20b95f1357c0adf445b2ac6e7af6f56324d064dc0215218003402cc",
+      "bytes": 110,
+      "classification": "FAST2_developer_source_compile_or_review_request",
+      "limits": "No developer GPU execution or numerical acceptance; see individual record scope."
+    },
+    {
+      "id": "E014-a67d84b2715737e0",
+      "identity": "PR14_REVIEW_ONLY",
+      "path": "developer-deliveries/20261014T055427Z-fast/logs/test-support-source-check.json",
+      "sha256": "a67d84b2715737e04c94ab2f2b614e839a5b49e4691ef18e1e772091ca673b25",
+      "bytes": 680,
+      "classification": "FAST2_developer_source_compile_or_review_request",
+      "limits": "No developer GPU execution or numerical acceptance; see individual record scope."
+    },
+    {
+      "id": "E014-cd77d90f717c4caf",
+      "identity": "PR14_REVIEW_ONLY",
+      "path": "developer-deliveries/20261014T055427Z-fast/metadata/chemistry_trial_command.json",
+      "sha256": "cd77d90f717c4caf733ed2faf128a87a468121b147bce3e9c8e1341b0ad7448a",
+      "bytes": 564,
+      "classification": "FAST2_developer_source_compile_or_review_request",
+      "limits": "No developer GPU execution or numerical acceptance; see individual record scope."
+    },
+    {
+      "id": "E014-11ff1a43833227ed",
+      "identity": "PR14_REVIEW_ONLY",
+      "path": "developer-deliveries/20261014T055427Z-fast/metadata/chemistry_trial_sources.sha256",
+      "sha256": "11ff1a43833227ed2564c4a8ca7f06f15cbbb61a927a597d18fac1ca6e7ea994",
+      "bytes": 590,
+      "classification": "FAST2_developer_source_compile_or_review_request",
+      "limits": "No developer GPU execution or numerical acceptance; see individual record scope."
+    },
+    {
+      "id": "E014-f53d9cda53b00e35",
+      "identity": "PR14_REVIEW_ONLY",
+      "path": "developer-deliveries/20261014T055427Z-fast/metadata/chmt_ns10_build.json",
+      "sha256": "f53d9cda53b00e35e3ec29d44a724a777b67c0b5312d32980ab6867b76819ad7",
+      "bytes": 950,
+      "classification": "FAST2_developer_source_compile_or_review_request",
+      "limits": "No developer GPU execution or numerical acceptance; see individual record scope."
+    },
+    {
+      "id": "E014-bb09253c0ed341a3",
+      "identity": "PR14_REVIEW_ONLY",
+      "path": "developer-deliveries/20261014T055427Z-fast/metadata/chmt_ns10_sources.sha256",
+      "sha256": "bb09253c0ed341a3663b38f679a4d2a4138393c5cdcc15fd365c2a4d2890a864",
+      "bytes": 434,
+      "classification": "FAST2_developer_source_compile_or_review_request",
+      "limits": "No developer GPU execution or numerical acceptance; see individual record scope."
+    },
+    {
+      "id": "E014-8c2150ab6c5e315f",
+      "identity": "PR14_REVIEW_ONLY",
+      "path": "developer-deliveries/20261014T055427Z-fast/metadata/chmt_ns2_build.json",
+      "sha256": "8c2150ab6c5e315f10c5d11893daccd4c4e917775de2fac511679a67b0cefd48",
+      "bytes": 949,
+      "classification": "FAST2_developer_source_compile_or_review_request",
+      "limits": "No developer GPU execution or numerical acceptance; see individual record scope."
+    },
+    {
+      "id": "E014-8eeed566bd2b85b4",
+      "identity": "PR14_REVIEW_ONLY",
+      "path": "developer-deliveries/20261014T055427Z-fast/metadata/cold_CHT_command.txt",
+      "sha256": "8eeed566bd2b85b4363ff8338b26b0731b0bd5bdbb58a99409e052136fda0e69",
+      "bytes": 627,
+      "classification": "FAST2_developer_source_compile_or_review_request",
+      "limits": "No developer GPU execution or numerical acceptance; see individual record scope."
+    },
+    {
+      "id": "E014-39f770b12f78a401",
+      "identity": "PR14_REVIEW_ONLY",
+      "path": "developer-deliveries/20261014T055427Z-fast/metadata/cold_FSH_command.txt",
+      "sha256": "39f770b12f78a4018d6d20f97b9cafc218432c8285f88ec1298d8316a70c2c8b",
+      "bytes": 543,
+      "classification": "FAST2_developer_source_compile_or_review_request",
+      "limits": "No developer GPU execution or numerical acceptance; see individual record scope."
+    },
+    {
+      "id": "E014-f7c8dac00558db08",
+      "identity": "PR14_REVIEW_ONLY",
+      "path": "developer-deliveries/20261014T055427Z-fast/metadata/courant_probe_command.json",
+      "sha256": "f7c8dac00558db0898b378842c88049ad7d34c5923d27761c198b1e1964e9ffd",
+      "bytes": 428,
+      "classification": "FAST2_developer_source_compile_or_review_request",
+      "limits": "No developer GPU execution or numerical acceptance; see individual record scope."
+    },
+    {
+      "id": "E014-f862e8fba08c3463",
+      "identity": "PR14_REVIEW_ONLY",
+      "path": "developer-deliveries/20261014T055427Z-fast/metadata/hard_freeze_start_utc.txt",
+      "sha256": "f862e8fba08c346363d1d51a35c51b62a08923458c5c1b7e85d87f83328e81ec",
+      "bytes": 33,
+      "classification": "FAST2_developer_source_compile_or_review_request",
+      "limits": "No developer GPU execution or numerical acceptance; see individual record scope."
+    },
+    {
+      "id": "E014-d8dfc17d159c0857",
+      "identity": "PR14_REVIEW_ONLY",
+      "path": "developer-deliveries/20261014T055427Z-fast/metadata/run_final_chmt.sh",
+      "sha256": "d8dfc17d159c08579ed6b63a32e8d793f14c32da149b1c140bf80bc37649a89a",
+      "bytes": 1101,
+      "classification": "FAST2_developer_source_compile_or_review_request",
+      "limits": "No developer GPU execution or numerical acceptance; see individual record scope."
+    },
+    {
+      "id": "E014-8aea7217d1c3a395",
+      "identity": "PR14_REVIEW_ONLY",
+      "path": "developer-deliveries/20261014T055427Z-fast/metadata/run_final_fixtures.sh",
+      "sha256": "8aea7217d1c3a3955e7075bfa0af59e218c472d68f369ba799d8e7687c5c9be9",
+      "bytes": 1620,
+      "classification": "FAST2_developer_source_compile_or_review_request",
+      "limits": "No developer GPU execution or numerical acceptance; see individual record scope."
+    },
+    {
+      "id": "E014-97daf2fc2f7f201b",
+      "identity": "PR14_REVIEW_ONLY",
+      "path": "developer-deliveries/20261014T055427Z-fast/metadata/source_sha256.txt",
+      "sha256": "97daf2fc2f7f201b1e4bd9ed95670d9a54b9f6072ebab8c8b13114f26f0e81bb",
+      "bytes": 84490,
+      "classification": "FAST2_developer_source_compile_or_review_request",
+      "limits": "No developer GPU execution or numerical acceptance; see individual record scope."
+    },
+    {
+      "id": "E014-0be0b354a1397fb5",
+      "identity": "PR14_REVIEW_ONLY",
+      "path": "developer-deliveries/20261014T055427Z-fast/metadata/source_unchanged_final.log",
+      "sha256": "0be0b354a1397fb51759d7712e5ab9e997f54c2b6150ed77ea4b577c32c85132",
+      "bytes": 39478,
+      "classification": "FAST2_developer_source_compile_or_review_request",
+      "limits": "No developer GPU execution or numerical acceptance; see individual record scope."
+    },
+    {
+      "id": "E014-c8bfc74052347aee",
+      "identity": "PR14_REVIEW_ONLY",
+      "path": "developer-deliveries/20261014T055427Z-fast/metadata/toolchain_header_sha256.txt",
+      "sha256": "c8bfc74052347aeeceb06e99c7e9bf035c77ee2003b750789a505ddf72cdb62b",
+      "bytes": 873,
+      "classification": "FAST2_developer_source_compile_or_review_request",
+      "limits": "No developer GPU execution or numerical acceptance; see individual record scope."
+    },
+    {
+      "id": "E014-0b4f832222c933c4",
+      "identity": "PR14_REVIEW_ONLY",
+      "path": "developer-deliveries/20261014T055427Z-fast/metadata/toolchain_provenance.json",
+      "sha256": "0b4f832222c933c449fbe247b4289dfdf7dd5e52bc6f8e0db848cdc99d0c915f",
+      "bytes": 4324,
+      "classification": "FAST2_developer_source_compile_or_review_request",
+      "limits": "No developer GPU execution or numerical acceptance; see individual record scope."
     }
   ],
   "latest_evidence_by_audit_path": {
@@ -27036,6 +27646,49 @@
     "review/pr14/PROTOCOL.md",
     "review/pr14/administrative-checks.json",
     "review/pr14/cleanup_review.py",
+    "review/pr14/developer-deliveries/20261014T055427Z-fast/CLOCK_ANALYSIS.txt",
+    "review/pr14/developer-deliveries/20261014T055427Z-fast/FINDING_RESPONSES.json",
+    "review/pr14/developer-deliveries/20261014T055427Z-fast/REPORT.md",
+    "review/pr14/developer-deliveries/20261014T055427Z-fast/REVIEW_REQUEST.md",
+    "review/pr14/developer-deliveries/20261014T055427Z-fast/SHA256SUMS",
+    "review/pr14/developer-deliveries/20261014T055427Z-fast/SOURCE.json",
+    "review/pr14/developer-deliveries/20261014T055427Z-fast/SOURCE_REVIEW.txt",
+    "review/pr14/developer-deliveries/20261014T055427Z-fast/VALIDATION.json",
+    "review/pr14/developer-deliveries/20261014T055427Z-fast/clock-trace/RUN.txt",
+    "review/pr14/developer-deliveries/20261014T055427Z-fast/clock-trace/baseline-trace.patch",
+    "review/pr14/developer-deliveries/20261014T055427Z-fast/clock-trace/clock_math.cpp",
+    "review/pr14/developer-deliveries/20261014T055427Z-fast/clock-trace/clock_math.log",
+    "review/pr14/developer-deliveries/20261014T055427Z-fast/clock-trace/clock_trace.H",
+    "review/pr14/developer-deliveries/20261014T055427Z-fast/clock-trace/compare_trace.py",
+    "review/pr14/developer-deliveries/20261014T055427Z-fast/clock-trace/formal-fix-trace.patch",
+    "review/pr14/developer-deliveries/20261014T055427Z-fast/clock-trace/make_trace_patch.py",
+    "review/pr14/developer-deliveries/20261014T055427Z-fast/clock-trace/saved_csv_differences.json",
+    "review/pr14/developer-deliveries/20261014T055427Z-fast/clock-trace/tested-trace.patch",
+    "review/pr14/developer-deliveries/20261014T055427Z-fast/generated/chemistry_trial.cu",
+    "review/pr14/developer-deliveries/20261014T055427Z-fast/generated/courant_reduction.cu",
+    "review/pr14/developer-deliveries/20261014T055427Z-fast/logs/chemistry_trial.log",
+    "review/pr14/developer-deliveries/20261014T055427Z-fast/logs/chmt_native_ns10.log",
+    "review/pr14/developer-deliveries/20261014T055427Z-fast/logs/chmt_native_ns2.log",
+    "review/pr14/developer-deliveries/20261014T055427Z-fast/logs/cold_CHT.log",
+    "review/pr14/developer-deliveries/20261014T055427Z-fast/logs/cold_FSH.log",
+    "review/pr14/developer-deliveries/20261014T055427Z-fast/logs/courant_pytest.log",
+    "review/pr14/developer-deliveries/20261014T055427Z-fast/logs/test-support-source-check.json",
+    "review/pr14/developer-deliveries/20261014T055427Z-fast/metadata/chemistry_trial_command.json",
+    "review/pr14/developer-deliveries/20261014T055427Z-fast/metadata/chemistry_trial_sources.sha256",
+    "review/pr14/developer-deliveries/20261014T055427Z-fast/metadata/chmt_ns10_build.json",
+    "review/pr14/developer-deliveries/20261014T055427Z-fast/metadata/chmt_ns10_sources.sha256",
+    "review/pr14/developer-deliveries/20261014T055427Z-fast/metadata/chmt_ns2_build.json",
+    "review/pr14/developer-deliveries/20261014T055427Z-fast/metadata/chmt_ns2_sources.sha256",
+    "review/pr14/developer-deliveries/20261014T055427Z-fast/metadata/cold_CHT_command.txt",
+    "review/pr14/developer-deliveries/20261014T055427Z-fast/metadata/cold_FSH_command.txt",
+    "review/pr14/developer-deliveries/20261014T055427Z-fast/metadata/courant_probe_command.json",
+    "review/pr14/developer-deliveries/20261014T055427Z-fast/metadata/hard_freeze_start_utc.txt",
+    "review/pr14/developer-deliveries/20261014T055427Z-fast/metadata/run_final_chmt.sh",
+    "review/pr14/developer-deliveries/20261014T055427Z-fast/metadata/run_final_fixtures.sh",
+    "review/pr14/developer-deliveries/20261014T055427Z-fast/metadata/source_sha256.txt",
+    "review/pr14/developer-deliveries/20261014T055427Z-fast/metadata/source_unchanged_final.log",
+    "review/pr14/developer-deliveries/20261014T055427Z-fast/metadata/toolchain_header_sha256.txt",
+    "review/pr14/developer-deliveries/20261014T055427Z-fast/metadata/toolchain_provenance.json",
     "review/pr14/evidence/E014-0103817037fdabe3.txt",
     "review/pr14/evidence/E014-01ba4719c80b6fe9.txt",
     "review/pr14/evidence/E014-01e1534f90e1f004.json",
@@ -27566,6 +28219,8 @@
     "review/pr14/files/F014-137c35421554.md",
     "review/pr14/files/F014-145c7b4d940e.md",
     "review/pr14/files/F014-154b8d44585a.md",
+    "review/pr14/files/F014-1629c53fc4a7.md",
+    "review/pr14/files/F014-17069a360be2.md",
     "review/pr14/files/F014-19ae2856f2b9.md",
     "review/pr14/files/F014-1a339b8d64cf.md",
     "review/pr14/files/F014-1c53a890f630.md",
@@ -27600,13 +28255,16 @@
     "review/pr14/files/F014-3373edcc8444.md",
     "review/pr14/files/F014-362b036312cb.md",
     "review/pr14/files/F014-366ccb338402.md",
+    "review/pr14/files/F014-36b71c2ddbe9.md",
     "review/pr14/files/F014-3830e698e5c7.md",
     "review/pr14/files/F014-38ecf5c2aedf.md",
     "review/pr14/files/F014-390ce808a3cd.md",
     "review/pr14/files/F014-39523e447655.md",
     "review/pr14/files/F014-397320adac3e.md",
     "review/pr14/files/F014-39ff7da0e1d5.md",
+    "review/pr14/files/F014-3aef3bdd40f0.md",
     "review/pr14/files/F014-3bae7a626e41.md",
+    "review/pr14/files/F014-3cacfe6982bb.md",
     "review/pr14/files/F014-3d8a885ad5e7.md",
     "review/pr14/files/F014-3e68224510ad.md",
     "review/pr14/files/F014-3eef18f926eb.md",
@@ -27642,6 +28300,7 @@
     "review/pr14/files/F014-56ba1674acc9.md",
     "review/pr14/files/F014-56c0e6e2fb69.md",
     "review/pr14/files/F014-577aa4d38c4b.md",
+    "review/pr14/files/F014-58254a325f94.md",
     "review/pr14/files/F014-584468e90834.md",
     "review/pr14/files/F014-5857d8f8fb79.md",
     "review/pr14/files/F014-5880b4433db5.md",
@@ -27652,6 +28311,7 @@
     "review/pr14/files/F014-5cd0d722d584.md",
     "review/pr14/files/F014-603d8e7cf79d.md",
     "review/pr14/files/F014-6114c0aa47db.md",
+    "review/pr14/files/F014-61aaa41e38be.md",
     "review/pr14/files/F014-61bf4f10a573.md",
     "review/pr14/files/F014-62460c693667.md",
     "review/pr14/files/F014-636af715dec6.md",
@@ -27667,6 +28327,7 @@
     "review/pr14/files/F014-67accecc322e.md",
     "review/pr14/files/F014-67ffcf8d4484.md",
     "review/pr14/files/F014-680a9ede8729.md",
+    "review/pr14/files/F014-6871257af6c9.md",
     "review/pr14/files/F014-6943fb5eac67.md",
     "review/pr14/files/F014-697e12acfc32.md",
     "review/pr14/files/F014-6ad4e420ce6a.md",
@@ -27692,6 +28353,7 @@
     "review/pr14/files/F014-746bf670dfc6.md",
     "review/pr14/files/F014-75bb3fb2f8ec.md",
     "review/pr14/files/F014-75d1004635eb.md",
+    "review/pr14/files/F014-7625fa74c748.md",
     "review/pr14/files/F014-76c1fe848076.md",
     "review/pr14/files/F014-771ba55c90cf.md",
     "review/pr14/files/F014-7762d8928b23.md",
@@ -27744,10 +28406,13 @@
     "review/pr14/files/F014-9bf3c8b90a10.md",
     "review/pr14/files/F014-9d1940f02cee.md",
     "review/pr14/files/F014-9d2d8bee9741.md",
+    "review/pr14/files/F014-9ddfb8b1ab42.md",
+    "review/pr14/files/F014-9e81835cd6aa.md",
     "review/pr14/files/F014-9ea3d079f71e.md",
     "review/pr14/files/F014-9eb9de33bcec.md",
     "review/pr14/files/F014-9f0ac2df9a08.md",
     "review/pr14/files/F014-9f57aebb2ea9.md",
+    "review/pr14/files/F014-a02312440385.md",
     "review/pr14/files/F014-a13ed41899d6.md",
     "review/pr14/files/F014-a2bfa6e5c021.md",
     "review/pr14/files/F014-a39f23a91e05.md",
@@ -32300,13 +32965,19 @@
     "review/pr14/validate_records.py"
   ],
   "cleanup_status": "NOT_RUN; final user/reviewer approval and archive required; production source unchanged by record system",
-  "current_source_followup": "MAPPER_CONSUMED_ACCESS_SOURCE_AND_CHT_HOST_COMPILE_APPROVED",
+  "current_source_followup": "FAST2_FORMAL_REPAIRS_AND_REUSABLE_REDUCTION_SCRATCH",
   "history_administrative_commit": "f207912ac1ad8d3c6dcc8368831a6cc0ea2748d4",
   "source_identity_history": [
     {
       "source_commit": "970d9fedcc061dfa08fc88d427a1a47b3c22f65f",
       "source_tree": "6078c4274f1c7315c7c86d7bbd4ed802b805edc7",
       "history_administrative_commit": "dc79925991e8dd4f4fc8f339942a3b9e85e0c633"
+    },
+    {
+      "captured_utc": "2026-10-14T06:35:44.359348+00:00",
+      "source_commit": "a73b9635510fb09d7baa5339e14d1aa609f0ff87",
+      "source_tree": "e343cb9f477dcd86556f7b6595189fa2c9c1c099",
+      "status": "PRECLOSURE_DELIVERY_TREE_VERIFIED_CLOSURE_METADATA_PUBLICATION_PENDING"
     }
   ],
   "history_embedded_source_commit": "a73b9635510fb09d7baa5339e14d1aa609f0ff87",
@@ -32329,6 +33000,17 @@
       ],
       "classification": "REAL_GPU_FAST_NOT_MERGE_READY",
       "shared_content_policy": "One evidence ID per content SHA256; repeated native file layout paths refer to identical Git blobs, preserving reproducible cases without duplicate evidence records."
+    }
+  ],
+  "latest_developer_delivery": "developer-deliveries/20261014T055427Z-fast",
+  "developer_deliveries": [
+    {
+      "path": "developer-deliveries/20261014T055427Z-fast",
+      "source_commit": "4b5c480b572f234ddecf5e89164fe59b0d2e9735",
+      "source_tree": "0fa2562f4c83394cdf94e9650de3b22c4fb4bb15",
+      "interaction_class": "FAST",
+      "review_request": "developer-deliveries/20261014T055427Z-fast/REVIEW_REQUEST.md",
+      "status": "GPU_RECHECK_PENDING"
     }
   ]
 }

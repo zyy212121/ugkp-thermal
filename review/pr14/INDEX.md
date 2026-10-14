@@ -1,5 +1,9 @@
 # PR14 developer/reviewer evidence index
 
+## Current FAST2 entrypoint
+
+Formal production repair `4b5c480b572f234ddecf5e89164fe59b0d2e9735`. Read [developer report](developer-deliveries/20261014T055427Z-fast/REPORT.md), [source identity](developer-deliveries/20261014T055427Z-fast/SOURCE.json), [compile scope](developer-deliveries/20261014T055427Z-fast/VALIDATION.json), and [incremental GPU request](developer-deliveries/20261014T055427Z-fast/REVIEW_REQUEST.md). The previous reviewer evidence at `ae5a594` is preserved. No merge approval or new GPU acceptance is implied. Historical paragraphs below describe the previous delivery, not the current pending state.
+
 PR14_REVIEW_ONLY · Current interaction: **FAST**.
 
 This folder is the primary review record, including review requests for already completed first-round, B1–B7, and tool changes. Developer source/compile evidence is distinct from pending real-GPU acceptance. **Production source is frozen and its preclosure delivery tree is remotely verified. Later closure metadata publication, real-GPU acceptance and any merge remain separate.**

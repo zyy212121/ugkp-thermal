@@ -789,5 +789,10 @@
       "formal_fix_commits": [],
       "merge_authorized": false
     }
-  ]
+  ],
+  "latest_developer_response": {
+    "source_commit": "4b5c480b572f234ddecf5e89164fe59b0d2e9735",
+    "path": "developer-deliveries/20261014T055427Z-fast/FINDING_RESPONSES.json",
+    "gpu_acceptance_final": false
+  }
 }

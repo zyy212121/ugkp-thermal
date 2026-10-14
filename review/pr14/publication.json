@@ -1,9 +1,9 @@
 {
   "identity": "PR14_REVIEW_ONLY",
   "interaction_class": "FAST",
-  "status": "PRECLOSURE_DELIVERY_TREE_VERIFIED_CLOSURE_METADATA_PUBLICATION_PENDING",
-  "production_source_commit": "a73b9635510fb09d7baa5339e14d1aa609f0ff87",
-  "production_source_tree": "e343cb9f477dcd86556f7b6595189fa2c9c1c099",
+  "status": "FAST2_FORMAL_SOURCE_COMPILED_PUBLICATION_PENDING_GPU_RECHECK_PENDING",
+  "production_source_commit": "4b5c480b572f234ddecf5e89164fe59b0d2e9735",
+  "production_source_tree": "0fa2562f4c83394cdf94e9650de3b22c4fb4bb15",
   "record_containing_commit": null,
   "remote_head": "a747db386160a7f3737fa67b25207e34f5c118d9",
   "remote_tree": "76ffd38cf7470879347423a4f8467cf47547aae6",
@@ -13,8 +13,8 @@
   "ci_status_and_check_urls": [],
   "global_pass1_final_applicability": "Historical findings retained; identified repairs and final-source applicability documented by scoped reviews and final pass2; not an independent all-lines approval",
   "global_pass2_final_decision": "SOURCE_REVIEW_COMPLETE_NO_BLOCKER_IDENTIFIED_WITHIN_DOCUMENTED_COVERAGE",
-  "gpu_acceptance": "NOT_RUN_PENDING_REVIEWER",
-  "record_note": "Preclosure identities above were read back and verified. The containing closure commit cannot refer to itself; its final remote identity, exact tree comparison and fresh CI observation are delivered directly to the user with fixed-version links, not as a PR Conversation comment.",
+  "gpu_acceptance": "FORMAL_RECHECK_PENDING",
+  "record_note": "Source and record commits separate; current remote publication is verified after push and reported in chat.",
   "merge_authorized": false,
   "source_record_note": "Production source remains immutable a73. The local preclosure delivery f207 contains the refreshed review records and offline bundle; its exact tree matches the recorded preclosure remote head. Closure metadata is a later administrative delta.",
   "global_pass2_evidence_id": "E014-c0eb1b4b9d88b077",
@@ -77,6 +77,11 @@
       "new_source_commit": "970d9fedcc061dfa08fc88d427a1a47b3c22f65f",
       "review_evidence_id": "E014-e99a5a8c7d6fa711",
       "verified_records": 848
+    },
+    {
+      "source_commit": "a73b9635510fb09d7baa5339e14d1aa609f0ff87",
+      "source_tree": "e343cb9f477dcd86556f7b6595189fa2c9c1c099",
+      "status": "PRECLOSURE_DELIVERY_TREE_VERIFIED_CLOSURE_METADATA_PUBLICATION_PENDING"
     }
   ],
   "history_delivery_history": [
@@ -103,5 +108,6 @@
     "observation_note": "Authenticated PR14 UI showed latest commit a747db3, Checks (0), Draft, Conversation (0), No description provided. No check/status results were observed; no API completeness or CI pass is asserted. Checked PR checks navigation at https://github.com/zyy212121/ugkp-thermal/pull/14/checks. No merge performed.",
     "overall_pass_claim": false
   },
-  "closure_publication_status": "PENDING_SEPARATE_EXACT_TREE_CHECK_AND_USER_DELIVERY"
+  "closure_publication_status": "PENDING_SEPARATE_EXACT_TREE_CHECK_AND_USER_DELIVERY",
+  "latest_developer_delivery": "developer-deliveries/20261014T055427Z-fast"
 }
