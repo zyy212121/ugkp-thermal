@@ -68,8 +68,8 @@ int main(int argc,char** argv){
   auto st=evaluateConservativeReactor(b,z,a.t,a.m,controls,f,T,j);assert(!st);assert(st.code==ChemistryCode::RateFailure);assert(f[0]==2000);assert(!gasFinite(j[0]));for(int i=1;i<4;++i)assert(j[i]==-777);
  } else if(test=="conservation") {
   a.basis[1]=2;a.pr[0].coefficient=2;controls.absoluteMassTolerance=controls.absoluteElementTolerance=controls.relativeConservationTolerance=0;
-  ClosedReactorResult<double,2> r;ChemistryAudit<double,2> audit;assert(advanceClosedReactor(b,.1,a.t,a.m,controls,r,audit));assert(r.speciesMass[0]+r.speciesMass[1]>b.totalMass);assert(audit.massResidual>0&&audit.maximumElementResidual>0&&audit.integratedTime==.1);
-  b.totalMass*=2;assert(advanceClosedReactor(b,.1,a.t,a.m,controls,r,audit));assert(audit.massResidual<0);
+  ClosedReactorResult<double,2> r;assert(advanceClosedReactor(b,.1,a.t,a.m,controls,r));assert(r.speciesMass[0]+r.speciesMass[1]>b.totalMass);double beforeElement=0,afterElement=0;for(int i=0;i<2;++i){const double atoms=a.t.elementComposition[i]/a.t.species[i].molarMass;beforeElement+=b.speciesMass[i]*atoms;afterElement+=r.speciesMass[i]*atoms;}assert(afterElement>beforeElement);
+  b.totalMass*=2;assert(advanceClosedReactor(b,.1,a.t,a.m,controls,r));assert(r.speciesMass[0]+r.speciesMass[1]<b.totalMass);
  } else if(test=="dense") {
   const double eps=std::numeric_limits<double>::epsilon();double matrix[4]={1,1,1,1+eps},rhs[2]={1,2};assert((gasChemistryDetail::solveDense<double,2>(2,matrix,rhs)));assert(gasFinite(rhs[0])&&gasFinite(rhs[1])&&std::abs(rhs[1])>1e15);
   double singular[4]={1,2,2,4},srhs[2]={1,2};assert((!gasChemistryDetail::solveDense<double,2>(2,singular,srhs)));
@@ -81,12 +81,12 @@ int main(int argc,char** argv){
   controls.maximumNewtonIterations=0;controls.maximumLineSearchIterations=0;controls.maximumSteps=0;controls.maximumRejectedSteps=0;controls.initialStep=.1;controls.minimumStep=.2;
   if(test=="lte"){controls.relativeTolerance=0;controls.absoluteMassFractionTolerance=0;controls.absoluteTemperatureTolerance=0;}
   if(test=="controls"){controls.thermo.maximumIterations=0;controls.newtonTolerance=0;controls.relativeConservationTolerance=0;controls.absoluteMassTolerance=0;}
-  ClosedReactorResult<double,2> r;r.speciesMass[0]=r.speciesMass[1]=r.temperature=-777;ChemistryAudit<double,2> audit;audit.integratedTime=-777;
-  assert(validateChemistryControls(controls));auto st=advanceClosedReactor(b,1.,a.t,a.m,controls,r,audit);assert(st);assert(r.speciesMass[0]!=b.speciesMass[0]&&r.speciesMass[1]!=-777&&gasFinite(r.temperature));assert(audit.integratedTime==1&&audit.acceptedSteps>0&&audit.acceptedSteps<=10);assert(audit.maximumLocalError!=0);
+  ClosedReactorResult<double,2> r;r.speciesMass[0]=r.speciesMass[1]=r.temperature=-777;
+  assert(validateChemistryControls(controls));auto st=advanceClosedReactor(b,1.,a.t,a.m,controls,r);assert(st);assert(r.speciesMass[0]!=b.speciesMass[0]&&r.speciesMass[1]!=-777&&gasFinite(r.temperature));assert(st.attemptedSteps>0&&st.attemptedSteps<=10);assert(r.speciesMass[0]+r.speciesMass[1]==b.totalMass);
  } else if(test=="subnormal") {
-  const double h=std::numeric_limits<double>::denorm_min();a.rx[0].highRate.preExponential=1e100;ClosedReactorResult<double,2> r;ChemistryAudit<double,2> audit;
-  assert(advanceClosedReactor(b,h,a.t,a.m,controls,r,audit));// Original successful half-step arithmetic rounds h/2 to zero. Preserve it.
-  assert(r.speciesMass[0]==b.speciesMass[0] && r.speciesMass[1]==0);assert(audit.integratedTime==h&&audit.acceptedSteps==1);
+  const double h=std::numeric_limits<double>::denorm_min();a.rx[0].highRate.preExponential=1e100;ClosedReactorResult<double,2> r;
+  assert(advanceClosedReactor(b,h,a.t,a.m,controls,r));// Original successful half-step arithmetic rounds h/2 to zero. Preserve it.
+  assert(r.speciesMass[0]==b.speciesMass[0] && r.speciesMass[1]==0);assert(gasFinite(r.temperature));
  }
 }
 '''
@@ -107,17 +107,28 @@ int main(){
  f.partial[2]+=.01;
  ClosedReactorInput<Real,2> input;input.volume=Real(.7);input.totalMass=f.rho[0]*input.volume;for(int i=0;i<2;++i)input.speciesMass[i]=f.partial[2*i]*input.volume;
  const Real ux=f.mx[0]/f.rho[0],uy=f.my[0]/f.rho[0],uz=f.mz[0]/f.rho[0];input.internalEnergy=(f.energy[0]-Real(.5)*f.rho[0]*(ux*ux+uy*uy+uz*uz))*input.volume;
- ClosedReactorResult<Real,2> expected;ChemistryAudit<Real,2> audit;assert(advanceClosedReactor(input,.1,f.state.gasSpecies.thermo,f.state.gasSpecies.mechanism,c,expected,audit));
- auto st=advanceGasChemistryCell(f.state,0,.1,Real(.7));assert(st);assert(f.partial[0]<1.5);assert(f.audit[0].integratedTime==Real(.1));assert(f.cellStatus[0]==0);assert(f.partial[0]==expected.speciesMass[0]/input.volume&&f.partial[2]==expected.speciesMass[1]/input.volume);
- Fixture stale;stale.cellStatus[0]=int(GasTransportCode::NegativeInventory);stale.chemistryStatus[0].code=ChemistryCode::ConservationFailure;assert(advanceGasChemistryCell(stale.state,0,.01,Real(.5)));assert(stale.cellStatus[0]==0&&stale.chemistryStatus[0]);
+ ClosedReactorResult<Real,2> expected;assert(advanceClosedReactor(input,.1,f.state.gasSpecies.thermo,f.state.gasSpecies.mechanism,c,expected));
+ const Real savedEnergy=f.energy[0];auto st=advanceGasChemistryCell(f.state,0,.1,Real(.7));assert(st);assert(f.partial[0]<1.5);assert(f.energy[0]==savedEnergy);assert(f.cellStatus[0]==0);assert(f.partial[0]==expected.speciesMass[0]/input.volume&&f.partial[2]==expected.speciesMass[1]/input.volume);
+ Fixture reference;assert(advanceGasChemistryCell(reference.state,0,.01,Real(.5)));
+ Fixture stale;stale.cellStatus[0]=int(GasTransportCode::NegativeInventory);stale.chemistryStatus[0].code=ChemistryCode::ConservationFailure;
+ // Real trial owners reset aggregate and chemistry statuses before a new trial.
+ // Direct adapter success owns chemistryStatus, not other operators' aggregate.
+ if(OWNER_RESET){stale.cellStatus[0]=0;stale.chemistryStatus[0]=ChemistryStatus{};}
+ const Real staleEnergy=stale.energy[0];assert(advanceGasChemistryCell(stale.state,0,.01,Real(.5)));
+ assert(stale.cellStatus[0]==(OWNER_RESET?0:int(GasTransportCode::NegativeInventory))&&stale.chemistryStatus[0]);
+ assert(std::memcmp(stale.partial,reference.partial,sizeof stale.partial)==0);
+ assert(stale.partial[0]<Real(1.5)&&stale.partial[2]>Real(.5));
+ assert(std::abs(stale.partial[0]+stale.partial[2]-stale.rho[0])<Real(1e-12));
+ assert(stale.energy[0]==staleEnergy&&stale.rho[0]==reference.rho[0]&&stale.mx[0]==reference.mx[0]&&stale.my[0]==reference.my[0]&&stale.mz[0]==reference.mz[0]);
  Fixture other;other.cellStatus[0]=int(GasTransportCode::InvalidStorage);assert(advanceGasChemistryCell(other.state,0,.01,Real(.5)));assert(other.partial[0]<Real(1.5));assert(other.cellStatus[0]==int(GasTransportCode::InvalidStorage));
- Fixture missing;missing.state.rhoE=nullptr;assert(!advanceGasChemistryCell(missing.state,0,.01,Real(.5)));assert(missing.partial[0]==Real(1.5)&&missing.audit[0].integratedTime==Real(-91));assert(!missing.chemistryStatus[0]);
- Fixture tiny;tiny.reaction[0].highRate.preExponential=Real(1e30);st=advanceGasChemistryCell(tiny.state,0,1e-46,Real(.5));assert(st);assert(tiny.audit[0].acceptedSteps==1);assert(tiny.chemistryStatus[0]&&tiny.cellStatus[0]==0);
+ Fixture missing;missing.state.rhoE=nullptr;assert(!advanceGasChemistryCell(missing.state,0,.01,Real(.5)));assert(missing.partial[0]==Real(1.5)&&missing.partial[2]==Real(.5));assert(!missing.chemistryStatus[0]);
+ Fixture tiny;tiny.reaction[0].highRate.preExponential=Real(1e30);st=advanceGasChemistryCell(tiny.state,0,1e-46,Real(.5));assert(st);assert(tiny.partial[0]==Real(1.5)&&tiny.partial[2]>=Real(0));assert(tiny.chemistryStatus[0]&&tiny.cellStatus[0]==0);
  Fixture zero;Real before[4];std::memcpy(before,zero.partial,sizeof before);st=advanceGasChemistryCell(zero.state,0,0.,Real(.7));assert(st);assert(std::memcmp(before,zero.partial,sizeof before)==0);
 }
 '''
-def test_adapter_publishes_quality_diagnostics(tmp_path):
- src=tmp_path/'adapter.cpp';src.write_text(ADAPTER.replace('TEST_REAL','double'));exe=tmp_path/'adapter'
+@pytest.mark.parametrize('owner_reset',[False,True],ids=['direct_preserves_aggregate','owner_reset_success'])
+def test_adapter_publishes_quality_diagnostics(tmp_path,owner_reset):
+ src=tmp_path/'adapter.cpp';src.write_text(ADAPTER.replace('TEST_REAL','double').replace('OWNER_RESET','true' if owner_reset else 'false'));exe=tmp_path/'adapter'
  b=subprocess.run(['g++','-std=c++17','-O2','-Wall','-Wextra','-Werror','-I',str(ROOT),str(src),'-o',str(exe)],capture_output=True,text=True)
  assert b.returncode==0,b.stderr
  r=subprocess.run([str(exe)],capture_output=True,text=True,timeout=20);assert r.returncode==0,r.stderr

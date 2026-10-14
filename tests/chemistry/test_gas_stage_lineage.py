@@ -19,6 +19,18 @@ ROOT = Path(__file__).resolve().parents[2]
 ORIGINAL = 'd6110c02745a8ad726208a426c4bb3a28233c1fd'
 
 
+LEGACY_CALL_ADAPTER = r'''
+#include "common/chemistry/LocalStiffIntegrator.H"
+template<class R,int N,class TableReal>
+ugkwp::ChemistryStatus testOriginalReactor(const ugkwp::ClosedReactorInput<R,N>& b,R dt,
+ const ugkwp::SpeciesThermoView<TableReal,N>& t,const ugkwp::GasMechanismView<TableReal,N>& m,
+ const ugkwp::ChemistryControls<R>& c,ugkwp::ClosedReactorResult<R,N>& out){
+ ugkwp::ChemistryAudit<R,N> legacyOutput;
+ return ugkwp::advanceClosedReactor(b,dt,t,m,c,out,legacyOutput);
+}
+'''
+
+
 @pytest.fixture(scope='module')
 def original_root(tmp_path_factory):
     folder = tmp_path_factory.mktemp('original-chemistry-headers')
@@ -33,6 +45,11 @@ def original_root(tmp_path_factory):
 def build(folder, label, root, source):
     src = folder / (label + '.cpp')
     exe = folder / label
+    if root != ROOT:
+        # Adapt only the immutable old test build to its retired output argument.
+        # The current production API and measured physical outputs stay untouched.
+        source = source.replace('advanceClosedReactor(', 'testOriginalReactor(')
+        source = LEGACY_CALL_ADAPTER + source
     src.write_text(source)
     command = ['g++', '-std=c++17', '-O2', '-ffp-contract=off', '-Wall', '-Wextra',
                '-Werror', '-I' + str(root), str(src), '-o', str(exe)]
@@ -59,11 +76,9 @@ void run(const char* name,double rate,double interval,double maximumStep,int bud
  ChemistryControls<double> c;c.relativeTolerance=1e-7;c.absoluteMassFractionTolerance=1e-13;c.absoluteTemperatureTolerance=1e-6;c.maximumStep=maximumStep;c.maximumSteps=budget;
  PRECISION_CONTROLS
  ClosedReactorResult<double,2> result;result.speciesMass[0]=result.speciesMass[1]=result.temperature=-777;
- ChemistryAudit<double,2> audit;audit.integratedTime=-778;
- const auto status=ENTRY(b,interval,a.t,a.m,c,result,audit);
- std::printf("%s %d %d %d %d %d %d %a %a %a %a %a %a %a %a %a %a\n",name,int(status.code),int(status.thermoCode),status.reaction,status.attemptedSteps,status.rejectedSteps,status.nonlinearIterations,
- double(result.speciesMass[0]),double(result.speciesMass[1]),double(result.temperature),double(audit.integratedTime),double(audit.maximumLocalError),double(audit.massResidual),double(audit.maximumElementResidual),double(audit.energyResidual),double(audit.speciesMassChange[0]),double(audit.speciesMassChange[1]));
- std::printf("audit %d %d %d\n",audit.acceptedSteps,audit.rejectedSteps,audit.nonlinearIterations);
+ const auto status=ENTRY(b,interval,a.t,a.m,c,result);
+ std::printf("%s %d %d %d %d %d %a %a %a\n",name,int(status.code),int(status.thermoCode),status.reaction,status.attemptedSteps,status.rejectedSteps,
+ double(result.speciesMass[0]),double(result.speciesMass[1]),double(result.temperature));
 }
 int main(){
  run("ordinary",2,.25,0);run("fine",2,.25,.0001);run("stiff",1e8,.001,0);
@@ -83,12 +98,12 @@ def test_exact_reactor_state_and_work_lineage(tmp_path, original_root, retry):
     expected, actual = run(before), run(after)
     assert actual == expected
     if not retry:
-        assert all(line.split()[1] == '0' for line in expected.splitlines() if not line.startswith('audit'))
+        assert all(line.split()[1] == '0' for line in expected.splitlines())
 
 
 def test_exact_h2o2_histories_and_refinement(tmp_path, original_root):
-    # Add counters and temperature/audit data to the existing independent runner.
-    source = H2O2_SOURCE.replace("<<audit.rejectedSteps<<'\\n'", "<<audit.rejectedSteps<<' '<<status.attemptedSteps<<' '<<status.nonlinearIterations<<' '<<audit.maximumLocalError<<'\\n'")
+    # Actual state, independent conservation residuals and control counters.
+    source = H2O2_SOURCE
     original = build(tmp_path, 'original_h2o2', original_root, source)
     corrected = build(tmp_path, 'corrected_h2o2', ROOT, source)
     for case in REFERENCE['cases']:
@@ -109,10 +124,15 @@ def test_exact_density_adapter_publication(tmp_path, original_root):
 int main(){
  for(double interval:{0.,.1000000000001,.25})for(Real volume:{Real(.3),Real(.5),Real(2)}){
   Fixture f;auto status=advanceGasChemistryCell(f.state,0,interval,volume);assert(status);
-  std::printf("status %d %d %d %d %d %d %d\n",int(status.code),int(status.thermoCode),status.reaction,status.attemptedSteps,status.rejectedSteps,status.nonlinearIterations,f.cellStatus[0]);
+  std::printf("status %d %d %d %d %d %d\n",int(status.code),int(status.thermoCode),status.reaction,status.attemptedSteps,status.rejectedSteps,f.cellStatus[0]);
   for(Real x:f.partial)std::printf("%a ",double(x));
   for(Real x:f.energy)std::printf("%a ",double(x));
-  const auto& a=f.audit[0];std::printf("%a %a %a %a %a %a %a %d %d %d\n",double(a.speciesMassChange[0]),double(a.speciesMassChange[1]),double(a.massResidual),double(a.maximumElementResidual),double(a.energyResidual),double(a.maximumLocalError),double(a.integratedTime),a.acceptedSteps,a.rejectedSteps,a.nonlinearIterations);
+  for(Real x:f.rho)std::printf("%a ",double(x));
+  for(Real x:f.mx)std::printf("%a ",double(x));
+  for(Real x:f.my)std::printf("%a ",double(x));
+  for(Real x:f.mz)std::printf("%a ",double(x));
+  for(Real x:f.temperature)std::printf("%a ",double(x));
+  std::puts("");
  }
 }
 '''

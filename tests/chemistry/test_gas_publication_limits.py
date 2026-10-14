@@ -21,18 +21,18 @@ int main(int argc,char**argv){
   for(int i=0;i<3;++i){sp[i].coefficientOffset=i*3;sp[i].molarMass=.028;sp[i].minTemperature=200;sp[i].maxTemperature=4000;sp[i].referencePressure=101325;}
   auto& g=s.gasSpecies;g.thermo.species=sp;g.thermo.coefficients=coefficients;g.thermo.coefficientCount=9;g.mode=GasMode::MixtureChemistry;g.mechanism.referencePressure=101325;g.rho=partial;g.densityClosureTolerance=0;
   if(mode=="audit"){rho=1;volume=1;g.thermo.elementCount=2;g.thermo.elementComposition=elements;for(int i=0;i<3;++i){partial[i]=std::numeric_limits<double>::max()/2;sp[i].molarMass=1;coefficients[3*i]=universalGasConstant<double>();elements[2*i]=std::numeric_limits<double>::max();}}
-  ChemistryStatus status;ChemistryAudit<double,3> audit;audit.integratedTime=-777;int cell=0;g.chemistryStatus=&status;g.chemistryAudit=&audit;g.cellStatus=&cell;
+  ChemistryStatus status;int cell=0;g.chemistryStatus=&status;g.cellStatus=&cell;
   s.nCells=1;s.rho=&rho;s.rhoUx=s.rhoUy=s.rhoUz=&zero;s.rhoE=&energy;
   energy=mixtureEnergy(partial,700.,g.thermo);
   double original[3];for(int i=0;i<3;++i)original[i]=(partial[i]*volume)/volume;
-  assert(advanceGasChemistryCell(s,0,1e-6,volume));assert(status&&cell==0&&audit.integratedTime==1e-6);
+  assert(advanceGasChemistryCell(s,0,1e-6,volume));assert(status&&cell==0);
   for(int i=0;i<3;++i)assert(partial[i]==original[i]);
   if(mode=="repair"){
    // The attempted largest-carrier correction crosses the target by one ULP.
    double independent=original[0]+original[2],proposed=rho-independent;
    assert(proposed!=original[1]);assert(original[0]+proposed+original[2]!=rho);
    assert(original[0]+original[1]+original[2]!=rho);
-  }else {assert(!gasFinite(audit.massResidual));assert(!gasFinite(audit.maximumElementResidual));for(double x:partial)assert(gasFinite(x));}
+  }else {const double massResidual=partial[0]+partial[1]+partial[2]-rho;assert(!gasFinite(massResidual));assert(!gasFinite(partial[0]*elements[0]));for(double x:partial)assert(gasFinite(x));}
  }else{
   State<double,2> s;double rho=1,zero=0,partial[2]={1,0};double energy;
   SpeciesThermoData<double> sp[2];double coefficients[6]={1000,0,0,1000,0,0},basis[2]={0,1};
@@ -40,11 +40,11 @@ int main(int argc,char**argv){
   auto& g=s.gasSpecies;g.thermo.species=sp;g.thermo.coefficients=coefficients;g.thermo.coefficientCount=6;g.rho=partial;g.mode=GasMode::MixtureChemistry;g.mechanism.referencePressure=101325;
   GasReactionData<double> reaction;GasStoichTerm<double> product{1,1};reaction.productCount=1;reaction.highRate.preExponential=1e38;
   g.mechanism.reactions=&reaction;g.mechanism.reactionCount=1;g.mechanism.products=&product;g.mechanism.productTermCount=1;g.mechanism.stoichiometricBasis=basis;g.mechanism.independentRank=1;
-  ChemistryStatus status;ChemistryAudit<double,2> audit;audit.integratedTime=-777;int cell=0;g.chemistryStatus=&status;g.chemistryAudit=&audit;g.cellStatus=&cell;
+  ChemistryStatus status;int cell=0;g.chemistryStatus=&status;g.cellStatus=&cell;
   s.nCells=1;s.rho=&rho;s.rhoUx=s.rhoUy=s.rhoUz=&zero;s.rhoE=&energy;double mass[2]={1,0};energy=mixtureEnergy(mass,700.,g.thermo);
   ClosedReactorInput<double,2> input;input.totalMass=1;input.volume=1;input.speciesMass[0]=1;input.internalEnergy=energy;
-  ClosedReactorResult<double,2> output;ChemistryAudit<double,2> unrounded;assert(advanceClosedReactor(input,1000.,g.thermo,g.mechanism,castChemistryControls<double>(g.chemistryControls),output,unrounded));assert(output.speciesMass[1]>1e38&&std::isfinite(output.speciesMass[1]));
-  assert(advanceGasChemistryCell(s,0,1000.,1.));assert(status&&cell==0&&audit.integratedTime==1000.);assert(partial[0]==1&&partial[1]==output.speciesMass[1]);
+  ClosedReactorResult<double,2> output;assert(advanceClosedReactor(input,1000.,g.thermo,g.mechanism,castChemistryControls<double>(g.chemistryControls),output));assert(output.speciesMass[1]>1e38&&std::isfinite(output.speciesMass[1]));
+  assert(advanceGasChemistryCell(s,0,1000.,1.));assert(status&&cell==0);assert(partial[0]==1&&partial[1]==output.speciesMass[1]);
  }
 }
 '''

@@ -74,17 +74,15 @@ int main(int argc, char** argv) {
     const Real interval = scenario == "zero" ? Real(0) : Real(1e-6);
     const auto input = inputFor(f, volume);
     ClosedReactorResult<Real,2> result;
-    ChemistryAudit<Real,2> reactorAudit;
+
     assert(advanceClosedReactor(input, interval, g.thermo, g.mechanism,
-                                   controls, result, reactorAudit));
+                                   controls, result));
 
     Real savedPartial[4], savedBulk[12];
     std::memcpy(savedPartial, f.partial, sizeof savedPartial);
     Real bulk[12] = {f.rho[0],f.rho[1],f.mx[0],f.mx[1],f.my[0],f.my[1],
                     f.mz[0],f.mz[1],f.energy[0],f.energy[1],f.temperature[0],f.temperature[1]};
     std::memcpy(savedBulk, bulk, sizeof savedBulk);
-    unsigned char savedAudit[sizeof f.audit];
-    std::memcpy(savedAudit, f.audit, sizeof savedAudit);
     const auto status = advanceGasChemistryCell(f.state, 0, double(interval), volume);
     Real after[12] = {f.rho[0],f.rho[1],f.mx[0],f.mx[1],f.my[0],f.my[1],
                      f.mz[0],f.mz[1],f.energy[0],f.energy[1],f.temperature[0],f.temperature[1]};
@@ -113,25 +111,23 @@ int main(int argc, char** argv) {
     }
 
     const Real published[2] = {f.partial[0]*volume, f.partial[2]*volume};
-    const auto& audit = f.audit[0];
-    assert(audit.massResidual == published[0] + published[1] - input.totalMass);
-    for (int s = 0; s < 2; ++s)
-        assert(audit.speciesMassChange[s] == published[s] - input.speciesMass[s]);
-    Real beforeElement = Real(0), afterElement = Real(0);
-    for (int s = 0; s < 2; ++s) {
-        const Real atoms = g.thermo.elementComposition[s]/g.thermo.species[s].molarMass;
-        beforeElement += input.speciesMass[s]*atoms;
-        afterElement += published[s]*atoms;
+    // Independently account actual stored mass and elements in wider precision.
+    // The direct reactor comparison above checks conversion/repair, while these
+    // checks detect lost species mass or an unintended energy source.
+    long double deltaMass=0,deltaElement=0;
+    for(int i=0;i<2;++i){
+        const long double delta=static_cast<long double>(published[i])-input.speciesMass[i];
+        deltaMass+=delta;
+        deltaElement+=delta*g.thermo.elementComposition[i]/g.thermo.species[i].molarMass;
+        assert(std::isfinite(published[i]));
     }
-    assert(audit.maximumElementResidual == std::abs(afterElement - beforeElement));
-    assert(audit.energyResidual == mixtureEnergy(published, result.temperature, g.thermo)
-                                   - input.internalEnergy);
-    assert(audit.integratedTime == interval);
-    assert(audit.acceptedSteps == reactorAudit.acceptedSteps);
-    assert(audit.maximumLocalError == reactorAudit.maximumLocalError);
-    assert(audit.rejectedSteps == reactorAudit.rejectedSteps);
-    assert(audit.nonlinearIterations == reactorAudit.nonlinearIterations);
-    assert(std::memcmp(savedAudit + sizeof audit, &f.audit[1], sizeof audit) == 0);
+    assert(std::abs(deltaMass)<1e-12L);
+    assert(std::abs(deltaElement)<1e-10L);
+    assert(std::isfinite(result.temperature));
+    long double publishedEnergy=0;
+    for(int i=0;i<2;++i)publishedEnergy+=static_cast<long double>(published[i])*speciesE(i,result.temperature,g.thermo);
+    assert(std::isfinite(publishedEnergy));
+    assert(std::abs(publishedEnergy-input.internalEnergy)<1e-7L);
     assert(f.cellStatus[0] == 0 && f.chemistryStatus[0]);
 }
 '''

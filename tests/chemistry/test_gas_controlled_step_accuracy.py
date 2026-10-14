@@ -24,10 +24,9 @@ def test_analytic_reactor_with_requested_maximum_step(tmp_path):
 int main(){
  Model a;ClosedReactorInput<REAL,2> b;b.speciesMass[0]=REAL(.028);b.totalMass=REAL(.028);b.volume=REAL(.001);b.internalEnergy=mixtureEnergy(b.speciesMass,REAL(700),a.t);
  ChemistryControls<REAL> c;c.maximumStep=REAL(.001);c.relativeTolerance=REAL(1e-3);c.absoluteMassFractionTolerance=REAL(1e-7);c.absoluteTemperatureTolerance=REAL(.01);c.thermo.relativeEnergyTolerance=REAL(1e-5);c.thermo.relativeTemperatureTolerance=REAL(1e-5);
- ClosedReactorResult<REAL,2> out;ChemistryAudit<REAL,2> audit;assert(advanceClosedReactor(b,REAL(.25),a.t,a.m,c,out,audit));
+ ClosedReactorResult<REAL,2> out;assert(advanceClosedReactor(b,REAL(.25),a.t,a.m,c,out));
  if(sizeof(REAL)==8)assert(near(out.speciesMass[0],REAL(.028)*std::exp(REAL(-.5)),REAL(3e-6)));
  else assert(std::abs(out.speciesMass[0]-REAL(.028)*std::exp(REAL(-.5)))<REAL(2e-5));
- assert(audit.integratedTime==REAL(.25));
 }
 '''
     exe=build(tmp_path,'analytic',source.replace('REAL','double'))

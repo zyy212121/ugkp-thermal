@@ -35,18 +35,18 @@ int main(int argc,char** argv){
   assert(context.state(z,mass,T));assert(std::isinf(mass[0])&&std::isinf(mass[1]));assert(T==2100);
  }else if(mode=="stage" || mode=="interval" || mode=="nonfinite_interval" || mode=="nan_interval" || mode=="negative_interval"){
   a.rx[0].highRate.preExponential=std::numeric_limits<double>::max();controls.maximumSteps=0;controls.maximumNewtonIterations=1;controls.maximumLineSearchIterations=1;
-  ClosedReactorResult<double,2> result;result.speciesMass[0]=-771;result.speciesMass[1]=-772;result.temperature=-773;ChemistryAudit<double,2> audit;audit.integratedTime=-774;audit.massResidual=-775;audit.energyResidual=-776;
+  ClosedReactorResult<double,2> result;result.speciesMass[0]=-771;result.speciesMass[1]=-772;result.temperature=-773;
   if(mode=="stage"){
    gasChemistryDetail::ReactorContext<double,2> context(base,a.t,a.m,controls,false);assert(context.prepare());gasChemistryDetail::sdirkStep(context,.1,result,700.);
   }else{
-   const double dt=mode=="interval"?.1:(mode=="negative_interval"?-.1:(mode=="nan_interval"?std::numeric_limits<double>::quiet_NaN():std::numeric_limits<double>::infinity()));advanceClosedReactor(base,dt,a.t,a.m,controls,result,audit);
-   assert((audit.integratedTime==dt || (std::isnan(audit.integratedTime)&&std::isnan(dt)))&&audit.acceptedSteps==1);assert(audit.massResidual!=-775&&audit.energyResidual!=-776);
+   const double dt=mode=="interval"?.1:(mode=="negative_interval"?-.1:(mode=="nan_interval"?std::numeric_limits<double>::quiet_NaN():std::numeric_limits<double>::infinity()));st=advanceClosedReactor(base,dt,a.t,a.m,controls,result);
+   assert(st.attemptedSteps==1); // Nonfinite-input propagation, not a finite physical solution.
   }
   assert(result.speciesMass[0]!=-771&&result.speciesMass[1]!=-772&&result.temperature!=-773);assert(!std::isfinite(result.speciesMass[0])&&!std::isfinite(result.speciesMass[1]));
  }else if(mode=="wider_underflow" || mode=="wider_overflow"){
   const long double dt=mode=="wider_underflow"?1e-400L:1e309L;a.rx[0].highRate.preExponential=mode=="wider_underflow"?1e300:1e-310;controls.maximumSteps=0;
-  ClosedReactorResult<double,2> result;ChemistryAudit<double,2> audit;bool available=false;st=advanceClosedReactor(base,dt,a.t,a.m,controls,result,audit,&available);
-  assert(st&&available&&audit.acceptedSteps==1&&result.speciesMass[1]>0);assert(audit.integratedTime==double(dt));
+  ClosedReactorResult<double,2> result;bool available=false;st=advanceClosedReactor(base,dt,a.t,a.m,controls,result,&available);
+  assert(st&&available&&st.attemptedSteps==1&&result.speciesMass[1]>0);
   gasChemistryDetail::ReactorContext<double,2> context(base,a.t,a.m,controls,false);assert(context.prepare());double T=0;assert(invertMixtureEnergy(base.speciesMass,base.internalEnergy,a.t,controls.thermo,T)==ThermoStatus::Success);
   ClosedReactorResult<double,2> full,half,end;assert(gasChemistryDetail::sdirkStep(context,dt,full,T));assert(gasChemistryDetail::sdirkStep(context,dt/2,half,T));
   ClosedReactorInput<double,2> middle=base;for(int i=0;i<2;++i)middle.speciesMass[i]=half.speciesMass[i];gasChemistryDetail::ReactorContext<double,2> second(middle,a.t,a.m,controls,false);assert(second.prepare());assert(gasChemistryDetail::sdirkStep(second,dt/2,end,half.temperature));
@@ -93,24 +93,24 @@ int main(int argc,char** argv){
   const double h=(mode=="half_failure"?12:184)*.0001;
   gasChemistryDetail::ReactorContext<double,2> strict(base,a.t,a.m,controls);assert(strict.prepare());
   ClosedReactorResult<double,2> full,half,end;auto fs=gasChemistryDetail::sdirkStep(strict,h,full,initialTemperature);assert(fs);
-  auto hs=gasChemistryDetail::sdirkStep(strict,h/2,half,initialTemperature);int failedWork=fs.nonlinearIterations+hs.nonlinearIterations;
+  auto hs=gasChemistryDetail::sdirkStep(strict,h/2,half,initialTemperature);
   if(mode=="half_failure")assert(!hs);
   else {assert(hs);ClosedReactorInput<double,2> middle=base;for(int i=0;i<2;++i)middle.speciesMass[i]=half.speciesMass[i];
     gasChemistryDetail::ReactorContext<double,2> second(middle,a.t,a.m,controls);assert(second.prepare());
-    auto es=gasChemistryDetail::sdirkStep(second,h/2,end,half.temperature);assert(!es);failedWork+=es.nonlinearIterations;}
+    auto es=gasChemistryDetail::sdirkStep(second,h/2,end,half.temperature);assert(!es);}
   strict.refinement=false;fs=gasChemistryDetail::sdirkStep(strict,h,full,initialTemperature);hs=gasChemistryDetail::sdirkStep(strict,h/2,half,initialTemperature);assert(fs&&hs);
   ClosedReactorInput<double,2> middle=base;for(int i=0;i<2;++i)middle.speciesMass[i]=half.speciesMass[i];
   gasChemistryDetail::ReactorContext<double,2> second(middle,a.t,a.m,controls,false);assert(second.prepare());
   auto es=gasChemistryDetail::sdirkStep(second,h/2,end,half.temperature);assert(es);
-  ClosedReactorResult<double,2> actual;ChemistryAudit<double,2> audit;st=advanceClosedReactor(base,h,a.t,a.m,controls,actual,audit);assert(st);
+  ClosedReactorResult<double,2> actual;st=advanceClosedReactor(base,h,a.t,a.m,controls,actual);assert(st);
   for(int i=0;i<2;++i)assert(actual.speciesMass[i]==end.speciesMass[i]);
-  assert(actual.temperature==end.temperature&&audit.integratedTime==h&&audit.acceptedSteps==1);
-  assert(st.attemptedSteps==2&&st.rejectedSteps==1&&st.nonlinearIterations==failedWork+fs.nonlinearIterations+hs.nonlinearIterations+es.nonlinearIterations);
+  assert(actual.temperature==end.temperature);
+  assert(st.attemptedSteps==2&&st.rejectedSteps==1);
   assert(actual.speciesMass[0]!=half.speciesMass[0]);
  }else if(mode=="prefix_remaining"){
   controls.initialStep=1e-6;controls.maximumSteps=1;
-  ClosedReactorResult<double,2> prefix;ChemistryAudit<double,2> prefixAudit;
-  const auto first=advanceClosedReactorTrial(base,1e-6,a.t,a.m,controls,prefix,prefixAudit);assert(first&&prefixAudit.acceptedSteps==1);
+  ClosedReactorResult<double,2> prefix;
+  const auto first=advanceClosedReactorTrial(base,1e-6,a.t,a.m,controls,prefix);assert(first&&first.attemptedSteps==1);
   ClosedReactorInput<double,2> current=base;for(int i=0;i<2;++i)current.speciesMass[i]=prefix.speciesMass[i];
   gasChemistryDetail::ReactorContext<double,2> context(current,a.t,a.m,controls,false);assert(context.prepare());
   const double remaining=.1-1e-6;ClosedReactorResult<double,2> full,half,end;
@@ -118,11 +118,11 @@ int main(int argc,char** argv){
   ClosedReactorInput<double,2> middle=current;for(int i=0;i<2;++i)middle.speciesMass[i]=half.speciesMass[i];
   gasChemistryDetail::ReactorContext<double,2> second(middle,a.t,a.m,controls,false);for(int i=0;i<4;++i)second.leftInverse[i]=context.leftInverse[i];
   auto es=gasChemistryDetail::sdirkStep(second,remaining/2,end,half.temperature);assert(es);
-  ClosedReactorResult<double,2> actual;ChemistryAudit<double,2> audit;bool available=false;
-  st=advanceClosedReactor(base,.1,a.t,a.m,controls,actual,audit,&available);assert(st&&available);assert(audit.acceptedSteps==2&&audit.integratedTime==.1);
+  ClosedReactorResult<double,2> actual;bool available=false;
+  st=advanceClosedReactor(base,.1,a.t,a.m,controls,actual,&available);assert(st&&available);
   for(int i=0;i<2;++i)assert(actual.speciesMass[i]==end.speciesMass[i]);
   assert(actual.temperature==end.temperature);
-  assert(st.nonlinearIterations==first.nonlinearIterations+fs.nonlinearIterations+hs.nonlinearIterations+es.nonlinearIterations);assert(st.attemptedSteps==2&&st.rejectedSteps==0);
+  assert(st.attemptedSteps==2&&st.rejectedSteps==0);
   assert(actual.speciesMass[0]!=half.speciesMass[0]&&actual.speciesMass[0]!=prefix.speciesMass[0]);
  }else if(mode=="missing"){
   a.m.reactants=nullptr;assert(!evaluateGasRates(700.,c,a.t,a.m,w,q,st));assert(w[0]==-771&&w[1]==-772&&q[0]==-773);
@@ -147,24 +147,33 @@ ADAPTER=ADAPTER_SOURCE.split('int main(){')[0].replace('TEST_REAL','double')+r''
 int main(int argc,char**argv){
  assert(argc==2);Fixture f;std::string mode=argv[1];auto& c=f.state.gasSpecies.chemistryControls;c.maximumSteps=0;c.maximumNewtonIterations=1;c.maximumLineSearchIterations=1;
  if(mode=="zero_volume"){
-  bool available=false;const auto status=advanceGasChemistryCell(f.state,0,.1,0.,false,&available);assert(!status&&available);assert(!std::isfinite(f.partial[0])&&!std::isfinite(f.partial[2]));assert(f.audit[0].integratedTime==.1);
+  bool available=false;const auto status=advanceGasChemistryCell(f.state,0,.1,0.,false,&available);assert(!status&&available);assert(!std::isfinite(f.partial[0])&&!std::isfinite(f.partial[2]));
  }else if(mode=="nonfinite_energy"){
-  f.energy[0]=std::numeric_limits<double>::infinity();advanceGasChemistryCell(f.state,0,.1,.5);assert(f.partial[0]!=1.5&&f.partial[2]!=0);assert(f.audit[0].integratedTime==.1);
+  f.energy[0]=std::numeric_limits<double>::infinity();advanceGasChemistryCell(f.state,0,.1,.5);assert(f.partial[0]!=1.5&&f.partial[2]!=0);
  }else if(mode=="missing_volume"){
-  double old[4];std::memcpy(old,f.partial,sizeof old);bool available=true;assert(!advanceGasChemistryCellWithVolumes(f.state,0,.1,static_cast<const double*>(nullptr),false,&available));assert(!available);assert(std::memcmp(old,f.partial,sizeof old)==0&&f.audit[0].integratedTime==-91);
+  double old[4];std::memcpy(old,f.partial,sizeof old);bool available=true;assert(!advanceGasChemistryCellWithVolumes(f.state,0,.1,static_cast<const double*>(nullptr),false,&available));assert(!available);assert(std::memcmp(old,f.partial,sizeof old)==0);
   f.state.gasSpecies.mode=GasMode::MixtureFrozen;assert(advanceGasChemistryCellWithVolumes(f.state,0,.1,static_cast<const double*>(nullptr)));
  }else if(mode=="two_halves"){
   const double oldVolume[2]={.5,.7},newVolume[2]={2.,3.};
-  assert(advanceGasChemistryCellWithVolumes(f.state,0,.05,oldVolume));const auto first=f.audit[0];const double middle[2]={f.partial[0],f.partial[2]};
-  assert(advanceGasChemistryCellWithVolumes(f.state,0,.05,newVolume));const auto second=f.audit[0];
-  assert(first.integratedTime==.05&&second.integratedTime==.05);assert(first.speciesMassChange[0]==middle[0]*.5-1.5*.5);
-  assert(second.speciesMassChange[0]==f.partial[0]*2-middle[0]*2);assert(first.speciesMassChange[0]!=second.speciesMassChange[0]);
+  const auto predict=[&](double volume){
+   ClosedReactorInput<double,2> input;input.volume=volume;input.totalMass=f.rho[0]*volume;
+   input.speciesMass[0]=f.partial[0]*volume;input.speciesMass[1]=f.partial[2]*volume;
+   input.internalEnergy=(f.energy[0]-(f.mx[0]*f.mx[0]+f.my[0]*f.my[0]+f.mz[0]*f.mz[0])/(2*f.rho[0]))*volume;
+   ClosedReactorResult<double,2> result;assert(advanceClosedReactor(input,.05,f.state.gasSpecies.thermo,f.state.gasSpecies.mechanism,c,result));return result;
+  };
+  const double initialSpecies[2]={f.partial[0],f.partial[2]};const double savedEnergy=f.energy[0];const auto firstExpected=predict(oldVolume[0]);
+  assert(advanceGasChemistryCellWithVolumes(f.state,0,.05,oldVolume));const double firstChange[2]={f.partial[0]*.5-initialSpecies[0]*.5,f.partial[2]*.5-initialSpecies[1]*.5};const double middle[2]={f.partial[0],f.partial[2]};
+  assert(middle[0]==firstExpected.speciesMass[0]/oldVolume[0]&&middle[1]==firstExpected.speciesMass[1]/oldVolume[0]);
+  const auto secondExpected=predict(newVolume[0]);assert(advanceGasChemistryCellWithVolumes(f.state,0,.05,newVolume));const double secondChange[2]={f.partial[0]*2-middle[0]*2,f.partial[2]*2-middle[1]*2};
+  assert(firstChange[0]<0&&firstChange[1]>0&&secondChange[0]<0&&secondChange[1]>0);
+  assert(std::abs(firstChange[0]+firstChange[1])<1e-12&&std::abs(secondChange[0]+secondChange[1])<1e-12);
+  assert(firstChange[0]!=secondChange[0]);assert(f.partial[0]==secondExpected.speciesMass[0]/newVolume[0]&&f.partial[2]==secondExpected.speciesMass[1]/newVolume[0]);assert(f.energy[0]==savedEnergy);
  }else if(mode=="conversion_overflow"){
   f.species[0].molarMass=f.species[1].molarMass=1e100;
   f.basis[0]=0;f.basis[1]=1;f.reaction[0].reactantCount=0;f.reaction[0].highRate.preExponential=1e300;c.thermo.maximumIterations=0;
-  advanceGasChemistryCell(f.state,0,1e-6,1e-100);assert(std::isinf(f.partial[2]));assert(f.audit[0].integratedTime==1e-6);
+  advanceGasChemistryCell(f.state,0,1e-6,1e-100);assert(std::isinf(f.partial[2]));
  }else if(mode=="missing"){
-  f.state.rhoE=nullptr;assert(!advanceGasChemistryCell(f.state,0,.1,.5));assert(f.partial[0]==1.5&&f.audit[0].integratedTime==-91);
+  f.state.rhoE=nullptr;assert(!advanceGasChemistryCell(f.state,0,.1,.5));assert(f.partial[0]==1.5);
  }else assert(false);
 }
 '''
