@@ -174,7 +174,10 @@ inline bool retryableTransport(int value)
         ||code==ugkwp::GasTransportCode::InvalidThermodynamics
         ||code==ugkwp::GasTransportCode::NonFiniteState
         ||code==ugkwp::GasTransportCode::NegativeInventory
-        ||code==ugkwp::GasTransportCode::SourceStepLimit;
+        ||code==ugkwp::GasTransportCode::SourceStepLimit
+        // The typed chemistry channel decides whether this numerical failure
+        // can shrink. Its transport marker must not veto that same retry.
+        ||code==ugkwp::GasTransportCode::ChemistryFailure;
 }
 // Only entered after the existing status check fails. No successful-stage
 // transfer or additional all-face scan is introduced for error reporting.
@@ -289,11 +292,12 @@ struct SharedGasTrialPolicy
         const bool terminal=s->gasTrial.terminalContinuation;
         const int chemistry=nativeRefinement?sharedGasTrialDetail::chemistryStatus(s):0;
         const bool chemistryRetry=s->gasTrial.retryableFailure;
+        const bool chemistryTerminal=s->gasTrial.terminalContinuation;
         // Unavailable chemistry is already in the sticky transport channel.
         // A failed diagnostic copy is an actual operation error, never a
         // reason to execute another physical interval.
         s->gasTrial.terminalContinuation=nativeRefinement && (transport||chemistry)
-            && (!transport||terminal) && (!chemistry||chemistryRetry||s->gasTrial.terminalContinuation);
+            && (!transport||terminal) && (!chemistry||chemistryTerminal);
         s->gasTrial.retryableFailure=(transport || chemistry) && (!transport || transportRetry) && (!chemistry || chemistryRetry);
         return transport || chemistry;
     }
