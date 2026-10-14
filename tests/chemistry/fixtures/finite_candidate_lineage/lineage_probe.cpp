@@ -59,7 +59,7 @@ int main(int argc,char**argv){
  std::cout<<std::setprecision(21);const std::string mode=argc>1?argv[1]:"ordinary";Model model;
  ClosedReactorInput<double,2> base;base.speciesMass[0]=.028;base.totalMass=.028;base.volume=.001;base.internalEnergy=mixtureEnergy(base.speciesMass,700.,model.t);
  ChemistryControls<double> controls;controls.relativeTolerance=.05;controls.absoluteMassFractionTolerance=1e-10;controls.absoluteTemperatureTolerance=1e-4;
- ClosedReactorResult<double,2> out;out.speciesMass[0]=out.speciesMass[1]=-999;out.temperature=-999;ChemistryAudit<double,2> audit;audit.integratedTime=-999;
+ ClosedReactorResult<double,2> out;out.speciesMass[0]=out.speciesMass[1]=-999;out.temperature=-999;
  double interval=.1;bool direct=false,nontrivial=true;independent::reset();
  if(mode=="full_success_half_failure"){independent::failedSteps={2};controls.maximumRejectedSteps=0;}
  else if(mode=="full_failure_two_half_success"){independent::failedSteps={1};controls.maximumRejectedSteps=0;}
@@ -85,8 +85,8 @@ int main(int argc,char**argv){
  else if(mode=="equilibrium"){model.rx[0].highRate.preExponential=0;nontrivial=false;}
  else if(mode=="zero_interval"){interval=0;nontrivial=false;}
  else if(mode!="ordinary"){std::cerr<<"Unknown case\n";return 2;}
- ChemistryStatus st=direct?gasChemistryDetail::sdirkStep(base,interval,model.t,model.m,controls,out,700.):advanceClosedReactor(base,interval,model.t,model.m,controls,out,audit);
- std::cout<<"CASE "<<mode<<" success="<<bool(st)<<" code="<<int(st.code)<<" attempts="<<st.attemptedSteps<<" rejected="<<st.rejectedSteps<<" mass="<<out.speciesMass[0]<<","<<out.speciesMass[1]<<" T="<<out.temperature<<" integrated="<<audit.integratedTime<<" error="<<audit.maximumLocalError<<" accepted="<<audit.acceptedSteps<<"\n";
+ ChemistryStatus st=direct?gasChemistryDetail::sdirkStep(base,interval,model.t,model.m,controls,out,700.):advanceClosedReactor(base,interval,model.t,model.m,controls,out);
+ std::cout<<"CASE "<<mode<<" success="<<bool(st)<<" code="<<int(st.code)<<" attempts="<<st.attemptedSteps<<" rejected="<<st.rejectedSteps<<" mass="<<out.speciesMass[0]<<","<<out.speciesMass[1]<<" T="<<out.temperature<<"\n";
  independent::dump();
 #ifdef ENDPOINT_ONLY
  return 0;
@@ -94,11 +94,11 @@ int main(int argc,char**argv){
  CHECK(st);validateStageLineage();
  if(st){CHECK(out.speciesMass[0]!=-999 && out.speciesMass[1]!=-999 && out.temperature!=-999);if(nontrivial){if(mode=="failed_armijo")CHECK(out.speciesMass[1]!=base.speciesMass[1]);else CHECK(out.speciesMass[1]>base.speciesMass[1]);}
   if(direct){CHECK(stages.size()>=2);CHECK(independent::counters.rates>=3);for(const auto& stage:stages)CHECK(stage.after!=stage.before);}
-  else {CHECK(audit.integratedTime==interval);if(nontrivial){long double covered=0;auto prior=independent::values(base.speciesMass);long double Tprior=steps[0].Tin;std::size_t begin=0;
+  else {if(nontrivial){long double covered=0;auto prior=independent::values(base.speciesMass);long double Tprior=steps[0].Tin;std::size_t begin=0;
     for(const auto& consumption:independent::consumed){CHECK(actualPath(prior,Tprior,consumption,begin,consumption.h));covered+=consumption.h;prior=consumption.state;Tprior=consumption.T;begin=consumption.endStep;}
     std::cout<<"computed_lineage_duration="<<covered<<" requested="<<interval<<"\n";CHECK(std::abs(covered-(long double)interval)<4*std::numeric_limits<long double>::epsilon()*interval);CHECK(prior==independent::values(out.speciesMass)&&Tprior==out.temperature);}}
  }
- if(mode=="full_success_half_failure"||mode=="full_success_second_half_failure"){CHECK(steps.size()>=2);if(st&&steps.size()>=2){CHECK(steps[0].success);CHECK(outputIs(out,steps[0]));CHECK(!std::isfinite(audit.maximumLocalError));}}
+ if(mode=="full_success_half_failure"||mode=="full_success_second_half_failure"){CHECK(steps.size()>=2);if(st&&steps.size()>=2){CHECK(steps[0].success);CHECK(outputIs(out,steps[0]));}}
  if(mode=="full_failure_two_half_success"){CHECK(steps.size()>=3);if(st&&steps.size()>=3){CHECK(!steps[0].success&&steps[1].success&&steps[2].success);CHECK(outputIs(out,steps[2]));CHECK(steps[1].after==steps[2].before);}}
  if(mode=="first_half_only_then_remainder"){CHECK(steps.size()>=4);if(st&&steps.size()>=4){CHECK(!steps[0].success&&steps[1].success&&!steps[2].success);CHECK(steps[3].before==steps[1].after);CHECK(steps[3].h==(long double)interval-steps[1].h);}}
  if(mode.rfind("subnormal",0)==0&&st){double expected=.028*(interval*1e100);std::cout<<"analytic_first_order_product="<<expected<<" actual="<<out.speciesMass[1]<<"\n";CHECK(out.speciesMass[1]>0);CHECK(std::abs(out.speciesMass[1]/expected-1)<1e-12);for(auto& s:steps)if(s.success)CHECK(s.h>0);if(!stages.empty()){double expectedFirst=(interval*((1-1/std::sqrt(2.))*1e100))*1000;CHECK(stages[0].after[0]>0);CHECK(std::abs(stages[0].after[0]/expectedFirst-1)<1e-12);}}
