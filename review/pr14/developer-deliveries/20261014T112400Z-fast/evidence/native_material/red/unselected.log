@@ -1,0 +1,22 @@
+/tmp/pr14_zero_phase_red/chmt_zero_phase_material0/phase_probe -case /tmp/pr14_zero_phase_red/chmt_zero_phase_material0/case -phaseCase unselected
+/*---------------------------------------------------------------------------*\
+  =========                 |
+  \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
+   \\    /   O peration     | Website:  https://openfoam.org
+    \\  /    A nd           | Version:  10
+     \\/     M anipulation  |
+\*---------------------------------------------------------------------------*/
+Build  : 10-c4cf895ad8fa
+Exec   : /tmp/pr14_zero_phase_red/chmt_zero_phase_material0/phase_probe -case /tmp/pr14_zero_phase_red/chmt_zero_phase_material0/case -phaseCase unselected
+Date   : Oct 14 2026
+Time   : 19:28:26
+Host   : "b6c931a35d52"
+PID    : 219
+I/O    : uncollated
+Case   : /tmp/pr14_zero_phase_red/chmt_zero_phase_material0/case
+nProcs : 1
+sigFpe : Enabling floating point exception trapping (FOAM_SIGFPE).
+fileModificationChecking : Monitoring run-time modified files using timeStampMaster (fileModificationSkew 10)
+allowSystemOperations : Allowing user-supplied system call operations
+
+/workspace/scratch/98b6339ec81b/pr14_fast_fix_20261014/applications/CHMT/materials/CpuMaterialDriver.C:461:93: runtime error: index -1 out of bounds for type 'CondensedThermo [2]'

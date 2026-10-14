@@ -1,0 +1,25 @@
+/tmp/pr14_zero_phase_red/chmt_zero_phase_material0/phase_probe -case /tmp/pr14_zero_phase_red/chmt_zero_phase_material0/case -phaseCase melting
+/*---------------------------------------------------------------------------*\
+  =========                 |
+  \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
+   \\    /   O peration     | Website:  https://openfoam.org
+    \\  /    A nd           | Version:  10
+     \\/     M anipulation  |
+\*---------------------------------------------------------------------------*/
+Build  : 10-c4cf895ad8fa
+Exec   : /tmp/pr14_zero_phase_red/chmt_zero_phase_material0/phase_probe -case /tmp/pr14_zero_phase_red/chmt_zero_phase_material0/case -phaseCase melting
+Date   : Oct 14 2026
+Time   : 19:28:26
+Host   : "b6c931a35d52"
+PID    : 221
+I/O    : uncollated
+Case   : /tmp/pr14_zero_phase_red/chmt_zero_phase_material0/case
+nProcs : 1
+sigFpe : Enabling floating point exception trapping (FOAM_SIGFPE).
+fileModificationChecking : Monitoring run-time modified files using timeStampMaster (fileModificationSkew 10)
+allowSystemOperations : Allowing user-supplied system call operations
+
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+diagonal:  Solving for CHMTMaterialTemperature, Initial residual = 0, Final residual = 0, No Iterations 0
+diagonal:  Solving for CHMTMaterialTemperature, Initial residual = 0, Final residual = 0, No Iterations 0
+FAIL actual CPU material candidate: CPU surface constitutive solve rejected face 0 code 0
