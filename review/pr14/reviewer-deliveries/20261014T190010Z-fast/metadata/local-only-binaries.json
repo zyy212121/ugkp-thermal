@@ -1,0 +1,9 @@
+[
+  {
+    "original_delivery_path": "fixtures/chemistry-formal/chemistry_trial",
+    "sha256": "d25e45f5395f5a5127be4a936afb90e1be3a970039e58709c45e1364fe2ec64c",
+    "bytes": 13268768,
+    "local_cache": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/work/fast4-raw-cache/executables/fixtures/chemistry-formal/chemistry_trial",
+    "reason": "Executable/object evidence hashes andrebuildcommands retained; no enormousbinaries inPR"
+  }
+]

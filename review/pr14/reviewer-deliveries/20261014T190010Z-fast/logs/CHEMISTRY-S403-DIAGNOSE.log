@@ -1,0 +1,132 @@
+OWNER_INPUT request=0x1.0c6f7a0b5ed8dp-18 targetMaxCo=0x1p-1 measuredCo=0x1.166548f19fe31p+0
+OWNER_INPUT request=0x1.0c6f7a0b5ed8dp-18 targetMaxCo=0x1p-1 measuredCo=0x1.166548f19fe31p+0
+OWNER_TRACE begins=8 commits=4 rollbacks=4 stepLimits=1 terminal=0
+OWNER_ACCEPT dt=0x1.0c6f7a0b5ed8dp-20 stamp=0x1p+1
+OWNER_ACCEPT dt=0x1.0c6f7a0b5ed8dp-20 stamp=0x1.000008637bd06p+1
+OWNER_ACCEPT dt=0x1.0c6f7a0b5ed8dp-20 stamp=0x1.000010c6f7a0bp+1
+OWNER_ACCEPT dt=0x1.0c6f7a0b5ed8cp-20 stamp=0x1.0000192a73711p+1
+FULL_STATUS c=0 code=0 thermo=0 reaction=-1 attempted=1 rejected=0
+FULL_STATUS c=1 code=0 thermo=0 reaction=-1 attempted=1 rejected=0
+PHYSICAL_INVENTORY index=0 value=0x1.0624dd2f1a9fcp-10
+PHYSICAL_INVENTORY index=1 value=0x1.cac083126e979p-6
+PHYSICAL_INVENTORY index=2 value=0x1.ae9f0263ff60dp+13
+PHYSICAL_INVENTORY index=3 value=0x0p+0
+PHYSICAL_INVENTORY index=4 value=0x0p+0
+PHYSICAL_INVENTORY index=5 value=0x0p+0
+PHYSICAL_INVENTORY index=6 value=0x1.cabf928e06f26p-6
+PHYSICAL_INVENTORY index=7 value=0x1.e108cf4a882efp-23
+PHYSICAL_INVENTORY index=8 value=0x1.0624dd2f1a9fcp-10
+PHYSICAL_INVENTORY index=9 value=0x1.cac083126e979p-6
+PHYSICAL_INVENTORY index=10 value=0x1.ae9f0263ff60dp+13
+PHYSICAL_INVENTORY index=11 value=0x0p+0
+PHYSICAL_INVENTORY index=12 value=0x0p+0
+PHYSICAL_INVENTORY index=13 value=0x0p+0
+PHYSICAL_INVENTORY index=14 value=0x1.cabf928e06f26p-6
+PHYSICAL_INVENTORY index=15 value=0x1.e108cf4a882efp-23
+PHYSICAL_INVENTORY index=16 value=0x1.0624dd2f1a9fcp-9
+PHYSICAL_INVENTORY index=17 value=0x0p+0
+PHYSICAL_INVENTORY index=18 value=0x0p+0
+PHYSICAL_INVENTORY index=19 value=0x0p+0
+PHYSICAL_INVENTORY index=20 value=0x1.cac083126e979p-5
+PHYSICAL_INVENTORY index=21 value=0x1.ae9f0263ff60dp+14
+PHYSICAL_INVENTORY index=22 value=0x1.cabf928e06f26p-5
+PHYSICAL_INVENTORY index=23 value=0x1.e108cf4a882efp-22
+PASS requested owner accepted trace: full interval, cell/face fields, physical/control statuses and physical inventories
+OWNER_INPUT request=0x1.0c6f7a0b5ed8dp-18 targetMaxCo=0x1p-1 measuredCo=0x1.166548f19fe31p+0
+OWNER_INPUT request=0x1.0c6f7a0b5ed8dp-18 targetMaxCo=0x1p-1 measuredCo=0x1.166548f19fe31p+0
+FULL_STATUS c=0 code=0 thermo=0 reaction=-1 attempted=2 rejected=0
+FULL_STATUS c=1 code=0 thermo=0 reaction=-1 attempted=2 rejected=0
+PHYSICAL_INVENTORY index=0 value=0x1.0624dd2f1a9fcp-10
+PHYSICAL_INVENTORY index=1 value=0x1.cac083126e979p-6
+PHYSICAL_INVENTORY index=2 value=0x1.ae9f0263ff60dp+13
+PHYSICAL_INVENTORY index=3 value=0x0p+0
+PHYSICAL_INVENTORY index=4 value=0x0p+0
+PHYSICAL_INVENTORY index=5 value=0x0p+0
+PHYSICAL_INVENTORY index=6 value=0x1.cabf928e06f25p-6
+PHYSICAL_INVENTORY index=7 value=0x1.e108cf4a883efp-23
+PHYSICAL_INVENTORY index=8 value=0x1.0624dd2f1a9fcp-10
+PHYSICAL_INVENTORY index=9 value=0x1.cac083126e979p-6
+PHYSICAL_INVENTORY index=10 value=0x1.ae9f0263ff60dp+13
+PHYSICAL_INVENTORY index=11 value=0x0p+0
+PHYSICAL_INVENTORY index=12 value=0x0p+0
+PHYSICAL_INVENTORY index=13 value=0x0p+0
+PHYSICAL_INVENTORY index=14 value=0x1.cabf928e06f25p-6
+PHYSICAL_INVENTORY index=15 value=0x1.e108cf4a883efp-23
+PHYSICAL_INVENTORY index=16 value=0x1.0624dd2f1a9fcp-9
+PHYSICAL_INVENTORY index=17 value=0x0p+0
+PHYSICAL_INVENTORY index=18 value=0x0p+0
+PHYSICAL_INVENTORY index=19 value=0x0p+0
+PHYSICAL_INVENTORY index=20 value=0x1.cac083126e979p-5
+PHYSICAL_INVENTORY index=21 value=0x1.ae9f0263ff60dp+14
+PHYSICAL_INVENTORY index=22 value=0x1.cabf928e06f25p-5
+PHYSICAL_INVENTORY index=23 value=0x1.e108cf4a883efp-22
+PASS terminal owner completion: complete original public state, physical/control statuses and physical inventories
+OWNER_INPUT request=0x1.0c6f7a0b5ed8dp-20 targetMaxCo=0x1p-1 measuredCo=0x1.166548f19fe31p-2
+OWNER_INPUT request=0x1.0c6f7a0b5ed8dp-20 targetMaxCo=0x1p-1 measuredCo=0x1.166548f19fe31p-2
+FULL_STATUS c=0 code=0 thermo=0 reaction=-1 attempted=1 rejected=0
+FULL_STATUS c=1 code=0 thermo=0 reaction=-1 attempted=1 rejected=0
+PHYSICAL_INVENTORY index=0 value=0x1.0624dd2f1a9fcp-10
+PHYSICAL_INVENTORY index=1 value=0x1.cac083126e979p-6
+PHYSICAL_INVENTORY index=2 value=0x1.ae9f0263ff60dp+13
+PHYSICAL_INVENTORY index=3 value=0x0p+0
+PHYSICAL_INVENTORY index=4 value=0x0p+0
+PHYSICAL_INVENTORY index=5 value=0x0p+0
+PHYSICAL_INVENTORY index=6 value=0x1.cac046f148dbep-6
+PHYSICAL_INVENTORY index=7 value=0x1.e1092dddcd882p-25
+PHYSICAL_INVENTORY index=8 value=0x1.0624dd2f1a9fcp-10
+PHYSICAL_INVENTORY index=9 value=0x1.cac083126e979p-6
+PHYSICAL_INVENTORY index=10 value=0x1.ae9f0263ff60dp+13
+PHYSICAL_INVENTORY index=11 value=0x0p+0
+PHYSICAL_INVENTORY index=12 value=0x0p+0
+PHYSICAL_INVENTORY index=13 value=0x0p+0
+PHYSICAL_INVENTORY index=14 value=0x1.cac046f148dbep-6
+PHYSICAL_INVENTORY index=15 value=0x1.e1092dddcd882p-25
+PHYSICAL_INVENTORY index=16 value=0x1.0624dd2f1a9fcp-9
+PHYSICAL_INVENTORY index=17 value=0x0p+0
+PHYSICAL_INVENTORY index=18 value=0x0p+0
+PHYSICAL_INVENTORY index=19 value=0x0p+0
+PHYSICAL_INVENTORY index=20 value=0x1.cac083126e979p-5
+PHYSICAL_INVENTORY index=21 value=0x1.ae9f0263ff60dp+14
+PHYSICAL_INVENTORY index=22 value=0x1.cac046f148dbep-5
+PHYSICAL_INVENTORY index=23 value=0x1.e1092dddcd882p-24
+PASS original successful requested interval: real Courant owner/public control, full fields/control statuses/physical inventories
+FULL_STATUS c=0 code=0 thermo=0 reaction=-1 attempted=1 rejected=0
+FULL_STATUS c=1 code=0 thermo=0 reaction=-1 attempted=1 rejected=0
+PHYSICAL_INVENTORY index=0 value=0x1.0624dd2f1a9fcp-10
+PHYSICAL_INVENTORY index=1 value=0x1.cac083126e979p-6
+PHYSICAL_INVENTORY index=2 value=0x1.ae9f0263ff60dp+13
+PHYSICAL_INVENTORY index=3 value=0x0p+0
+PHYSICAL_INVENTORY index=4 value=0x0p+0
+PHYSICAL_INVENTORY index=5 value=0x0p+0
+PHYSICAL_INVENTORY index=6 value=0x1.cac046f148dbdp-6
+PHYSICAL_INVENTORY index=7 value=0x1.e1092dddcd983p-25
+PHYSICAL_INVENTORY index=8 value=0x1.0624dd2f1a9fcp-10
+PHYSICAL_INVENTORY index=9 value=0x1.cac083126e979p-6
+PHYSICAL_INVENTORY index=10 value=0x1.ae9f0263ff60dp+13
+PHYSICAL_INVENTORY index=11 value=0x0p+0
+PHYSICAL_INVENTORY index=12 value=0x0p+0
+PHYSICAL_INVENTORY index=13 value=0x0p+0
+PHYSICAL_INVENTORY index=14 value=0x1.cac046f148dbdp-6
+PHYSICAL_INVENTORY index=15 value=0x1.e1092dddcd983p-25
+PHYSICAL_INVENTORY index=16 value=0x1.0624dd2f1a9fcp-9
+PHYSICAL_INVENTORY index=17 value=0x0p+0
+PHYSICAL_INVENTORY index=18 value=0x0p+0
+PHYSICAL_INVENTORY index=19 value=0x0p+0
+PHYSICAL_INVENTORY index=20 value=0x1.cac083126e979p-5
+PHYSICAL_INVENTORY index=21 value=0x1.ae9f0263ff60dp+14
+PHYSICAL_INVENTORY index=22 value=0x1.cac046f148dbdp-5
+PHYSICAL_INVENTORY index=23 value=0x1.e1092dddcd983p-24
+PASS original direct chemistry success: native/public fields, full physical/control statuses and physical inventories
+PASS failed-cell kind=0 code=10 thermo=0 retry=1 terminal=1
+PASS failed-cell kind=1 code=1 thermo=1 retry=0 terminal=0
+PASS failed-cell kind=2 code=1 thermo=1 retry=0 terminal=0
+PASS failed-cell kind=3 code=1 thermo=0 retry=0 terminal=0
+PASS failed-cell kind=4 code=1 thermo=0 retry=0 terminal=0
+PASS failed-cell kind=5 code=6 thermo=0 retry=0 terminal=0
+PASS failed-cell kind=6 code=6 thermo=0 retry=0 terminal=0
+PASS failed-cell kind=7 code=1 thermo=1 retry=0 terminal=1
+S403_FIELD_DIFFER index=10 element=0 actual=-nan reference=0x1.bfff8a8f49ffap+4 actualCoefficientCount=1 referenceCoefficientCount=6 actualMaximumRejected=0 referenceMaximumRejected=100
+S403_FIELD_DIFFER index=10 element=1 actual=-nan reference=0x1.bfff8a8f49ffap+4 actualCoefficientCount=1 referenceCoefficientCount=6 actualMaximumRejected=0 referenceMaximumRejected=100
+S403_FIELD_DIFFER index=10 element=2 actual=-nan reference=0x1.d5c2d801522d9p-14 actualCoefficientCount=1 referenceCoefficientCount=6 actualMaximumRejected=0 referenceMaximumRejected=100
+S403_FIELD_DIFFER index=10 element=3 actual=-nan reference=0x1.d5c2d801522d9p-14 actualCoefficientCount=1 referenceCoefficientCount=6 actualMaximumRejected=0 referenceMaximumRejected=100
+FAIL accepted cell fields differ: shared gas chemical trial rejected

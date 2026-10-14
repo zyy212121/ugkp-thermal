@@ -1,0 +1,52 @@
+[
+  {
+    "utc": "2026-10-14T20:13:08.409825+00:00",
+    "log_bytes": 0,
+    "processes": [
+      {
+        "pid": 197138,
+        "ppid": 197050,
+        "rss_kib": 1280,
+        "elapsed_seconds": 0,
+        "comm": "time"
+      },
+      {
+        "pid": 197140,
+        "ppid": 197138,
+        "rss_kib": 3072,
+        "elapsed_seconds": 0,
+        "comm": "bash"
+      },
+      {
+        "pid": 197142,
+        "ppid": 197140,
+        "rss_kib": 1536,
+        "elapsed_seconds": 0,
+        "comm": "foamEtcFile"
+      }
+    ],
+    "aggregate_rss_kib": 5888,
+    "meminfo": {
+      "MemTotal": "12243064 kB",
+      "MemAvailable": "11396320 kB",
+      "SwapTotal": "4194304 kB",
+      "SwapFree": "4194304 kB"
+    },
+    "vmstat_oom_kill": "0",
+    "gpu": "2026/10/15 04:13:10.081, NVIDIA GeForce RTX 4060 Laptop GPU, 0, 7956, 0, 0"
+  },
+  {
+    "utc": "2026-10-14T20:13:10.093401+00:00",
+    "log_bytes": 1773,
+    "processes": [],
+    "aggregate_rss_kib": 0,
+    "meminfo": {
+      "MemTotal": "12243064 kB",
+      "MemAvailable": "11401284 kB",
+      "SwapTotal": "4194304 kB",
+      "SwapFree": "4194304 kB"
+    },
+    "vmstat_oom_kill": "0",
+    "gpu": "2026/10/15 04:13:10.158, NVIDIA GeForce RTX 4060 Laptop GPU, 0, 7956, 0, 0"
+  }
+]

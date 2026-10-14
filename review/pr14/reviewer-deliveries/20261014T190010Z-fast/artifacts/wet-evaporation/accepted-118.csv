@@ -1,0 +1,2 @@
+time,accepted_steps,gas_cells,material_cells,interface_faces,gas_mode,thermo_hash,commit_sequence,sst_chemistry_integral_audit_collection
+0.00075698160313699314,118,8,8,4,1,6967546486724445378,118,NOT_COLLECTED_LEGACY_CHECKPOINT_SLOTS_ONLY

@@ -1,0 +1,17 @@
+[
+  {
+    "path": "inputs/r4_stage_audit-initial.py",
+    "sha256": "bb19f605a7f238b71672641a0d1a379120a32d38bfafb80eabcabb8cd4ef6369",
+    "matches_original_executed_spec": true
+  },
+  {
+    "path": "inputs/r4_physical_audit-initial.py",
+    "sha256": "c53493f047df23a241114203c23d4ad2ab374de5f10d5faf1b20da6caace382a",
+    "matches_original_executed_spec": true
+  },
+  {
+    "path": "inputs/r4_physical_audit-S407.py",
+    "sha256": "78fb5bc63b799a103f1dcdf6370b4f70bca7d8a51aa1dfc7eb3c818e3d685349",
+    "matches_original_executed_spec": true
+  }
+]

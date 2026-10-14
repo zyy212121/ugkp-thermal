@@ -1,0 +1,23 @@
+	Command being timed: "bash /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/review/pr14/reviewer-deliveries/20261014T190010Z-fast/inputs/env.sh g++ -O2 -std=c++14 -D_GLIBCXX_ASSERTIONS -Wall -Wextra -Werror -pedantic -I/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/applications/CHMT -I/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/common /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/applications/CHMT/devtools/multirate/test_cpu_film.cpp /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/applications/CHMT/film/CpuFilmDriver.C -o /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/work/host-native/film"
+	User time (seconds): 3.96
+	System time (seconds): 0.32
+	Percent of CPU this job got: 90%
+	Elapsed (wall clock) time (h:mm:ss or m:ss): 0:04.74
+	Average shared text size (kbytes): 0
+	Average unshared data size (kbytes): 0
+	Average stack size (kbytes): 0
+	Average total size (kbytes): 0
+	Maximum resident set size (kbytes): 159236
+	Average resident set size (kbytes): 0
+	Major (requiring I/O) page faults: 0
+	Minor (reclaiming a frame) page faults: 125895
+	Voluntary context switches: 2680
+	Involuntary context switches: 21
+	Swaps: 0
+	File system inputs: 0
+	File system outputs: 2712
+	Socket messages sent: 0
+	Socket messages received: 0
+	Signals delivered: 0
+	Page size (bytes): 4096
+	Exit status: 0

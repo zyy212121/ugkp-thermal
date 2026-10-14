@@ -1,0 +1,89 @@
+--- a/common/GpuGasAdvance.cuh
++++ b/isolated/common/GpuGasAdvance.cuh
+@@ -1,5 +1,6 @@
+ #pragma once
+ #include <type_traits>
++#include "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/review/pr14/reviewer-deliveries/20261014T190010Z-fast/inputs/r4_observer.H"
+ #include "gasTransport/GasStateView.H"
+ #include "gasTransport/GasBoundaryLayerHost.H"
+ #include "operators/advanceGasChemistryKernel.cuh"
+@@ -14,6 +15,7 @@
+ template<class GasHostState>
+ int advanceGasEulerSubstage(GasHostState* s, const GasHostPolicy::Time dt, const GasHostPolicy::Time ledgerDt, const GasHostPolicy::Time stageTime, const bool nativeRefinement=false)
+ {
++    r4obs::dump(s,"EULER_BEFORE",dt,ledgerDt,stageTime);
+     const int cellBlock = s->fixedCellBlockThreads;
+     const int faceBlock = s->fixedFaceBlockThreads;
+     const int cellGrid = (s->nCells + cellBlock - 1)/cellBlock;
+@@ -195,6 +197,7 @@
+                 return 1;
+             }
+         }
++        r4obs::dump(s,"SST_BEFORE",dt,ledgerDt,stageTime);
+         applySstFluxAndSourceKernel<<<cellGrid, cellBlock, 0, s->gasCaptureStream>>>
+         (
+             s->deviceState,
+@@ -206,6 +209,7 @@
+             return 1;
+         }
+     }
++    r4obs::dump(s,"FLUX_BEFORE",dt,ledgerDt,stageTime);
+     applyGasFluxDivergenceByCellKernel<<<cellGrid, cellBlock, 0, s->gasCaptureStream>>>(s->deviceState, dt, nativeRefinement);
+     err = cudaGetLastError();
+     if (err != cudaSuccess)
+@@ -230,6 +234,7 @@
+             return 1;
+         }
+     }
++    r4obs::dump(s,"EULER_AFTER",dt,ledgerDt,stageTime);
+     return 0;
+ }
+ 
+@@ -242,6 +247,7 @@
+     const bool nativeRefinement=false
+ )
+ {
++    r4obs::dump(s,"BLEND_BEFORE",0.,0.,0.,initialWeight,stageWeight);
+     const int block = s->fixedCellBlockThreads;
+     const int cellGrid = (s->nCells + block - 1)/block;
+     blendGasConservativeStateKernel<<<cellGrid, block, 0, s->gasCaptureStream>>>
+@@ -273,6 +279,7 @@
+             return 1;
+         }
+     }
++    r4obs::dump(s,"BLEND_AFTER",0.,0.,0.,initialWeight,stageWeight);
+     return 0;
+ }
+ 
+--- a/common/operators/computeSstFaceFluxKernel.cuh
++++ b/isolated/common/operators/computeSstFaceFluxKernel.cuh
+@@ -486,6 +486,8 @@
+     const GPU_OPERATOR_REAL divU = volumeFlux/clampMin(oldVolume, OfSmall);
+     GPU_OPERATOR_REAL sourceK, sourceOmega;
+     sstSourcesForCell(s, c, divU, sourceK, sourceOmega);
++    printf("R4_SST_SOURCE {\"cell\":%d,\"dt\":\"%a\",\"oldVolume\":\"%a\",\"newVolume\":\"%a\",\"fluxK\":\"%a\",\"fluxOmega\":\"%a\",\"sourceK\":\"%a\",\"sourceOmega\":\"%a\",\"rho\":\"%a\",\"k\":\"%a\",\"omega\":\"%a\",\"divU\":\"%a\",\"betaStar\":\"%a\",\"constrainedOmega\":%d}\n",c,double(dt),double(oldVolume),double(newVolume),double(fluxK),double(fluxOmega),double(sourceK),double(sourceOmega),double(s.rho[c]),double(s.k[c]),double(s.omega[c]),double(divU),double(s.sstCoefficients.betaStar),int(constrainedOmega));
++
+     if constexpr(ugkwp::GasBoundaryLayerCapability<GasState>::value)
+     {
+         const int slot=ugkwp::gasBoundaryLayerOwnerSlot(s,c);
+--- a/common/operators/advanceGasChemistryKernel.cuh
++++ b/isolated/common/operators/advanceGasChemistryKernel.cuh
+@@ -285,6 +285,18 @@
+     if (!state) return;
+     const int cell = blockIdx.x*blockDim.x + threadIdx.x;
+     if (cell >= state->nCells) return;
++    constexpr int observedNs=ugkwp::GasStateTraits<GasState>::speciesCount;
++    if constexpr(observedNs>0){
++        if(state->gasSpecies.mode==ugkwp::GasMode::MixtureChemistry && stageVolumes){
++            const double beforeEnergy=state->rhoE[cell];double beforeSpecies[observedNs];
++            for(int k=0;k<observedNs;++k)beforeSpecies[k]=state->gasSpecies.rho[k*state->nCells+cell];
++            ugkwp::advanceGasChemistryCellWithVolumes(*state, cell, chemicalInterval, stageVolumes, nativeRefinement);
++            printf("R4_CHEM_HALF cell=%d dt=%a V=%a rhoE_before=%a rhoE_after=%a",cell,double(chemicalInterval),double(stageVolumes[cell]),beforeEnergy,double(state->rhoE[cell]));
++            printf("\n");
++            for(int k=0;k<observedNs;++k)printf("R4_CHEM_SPEC cell=%d dt=%a V=%a species=%d before=%a after=%a\n",cell,double(chemicalInterval),double(stageVolumes[cell]),k,beforeSpecies[k],double(state->gasSpecies.rho[k*state->nCells+cell]));
++            printf("\n");return;
++        }
++    }
+     ugkwp::advanceGasChemistryCellWithVolumes(*state, cell, chemicalInterval, stageVolumes, nativeRefinement);
+ }
+ #endif

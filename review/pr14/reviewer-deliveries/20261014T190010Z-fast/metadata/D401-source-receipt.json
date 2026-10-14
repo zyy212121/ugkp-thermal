@@ -1,0 +1,24 @@
+{
+  "identity": "PR14_REVIEW_ONLY",
+  "source_commit": "47034e4e0380fa5b84165b49207a95a9b187a52a",
+  "overlay": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/work/observer-source",
+  "patch_sha256": "6bf7a17b2edcceae6f7e5917a5a9f52c3b837773b930e8029fc7d9b86563d95a",
+  "header_sha256": "dbadbeeb4c98c6f53bc9009d539be1dae9751ddd1471c40d92d3c76e4cd72682",
+  "modified_files": [
+    {
+      "path": "common/GpuGasAdvance.cuh",
+      "sha256": "c77f25d4c543b9a9f56b675d4b5b473ad70a6b6b3070f91f18d8f84e36365588"
+    },
+    {
+      "path": "common/operators/computeSstFaceFluxKernel.cuh",
+      "sha256": "137da1035aa3ff490a8a2d6aeb48343f3b7eeaa990e7653da32dbfa9f4318f5f"
+    },
+    {
+      "path": "common/operators/advanceGasChemistryKernel.cuh",
+      "sha256": "1b231d700331f30cd30d12ca93a2c74e4c7b5da2a2a503cc4cc7197a0cc1dd3b"
+    }
+  ],
+  "production_source_modified": false,
+  "diagnostic_io_not_timing": true,
+  "device_chemistry_lines_single_printf_per_record": true
+}

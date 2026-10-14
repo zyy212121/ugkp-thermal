@@ -1,0 +1,11 @@
+{
+  "identity": "PR14_REVIEW_ONLY",
+  "case": "FSH-active16-ASCII-S306",
+  "actual_GPU_receipt": "GPU-FSH-active16-ASCII-S306",
+  "initial_analysis_failure": "KeyError pThermalEnthalpyResidual after actualGPUcompleted",
+  "classification": "Hostsupportanalysis/schemaassumption, notGPUfailure",
+  "original_rule_provenance": "Previous0aa FSH64 caloricprofile helper uses get(field, zeros); physicalfield absent inoriginalFSH64 schema",
+  "remediation": "Onlyexistingoutput reanalyzed underoriginaldoubleprofile rule; noGPU rerun orproductionchange",
+  "full_initial_orchestration_stdout_available_in_delivery": false,
+  "limitation": "Original exception preserved as fact from session; full initial orchestration stdout was not captured by subprocess runner, so no invented original log."
+}

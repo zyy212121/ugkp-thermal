@@ -1,0 +1,6 @@
+Traceback (most recent call last):
+  File "/mnt/c/Users/25094/Documents/Codex/2026-10-14/files-pasted-by-the-user-ugkp/work/r4_physical_audit.py", line 65, in <module>
+    name=sys.argv[-1];q=chemistry(name) if '--chem' in sys.argv else gas_budget(name);p=D/'artifacts'/(name+('-chemical-half-physical.json' if '--chem' in sys.argv else '-gas-physical-budget.json'));p.write_text(json.dumps(q,indent=2)+'\n');print(json.dumps({k:v for k,v in q.items() if k not in ['actual_stage_volumes','rows']}),flush=True);raise SystemExit(0 if q['pass'] else 1)
+  File "/mnt/c/Users/25094/Documents/Codex/2026-10-14/files-pasted-by-the-user-ugkp/work/r4_physical_audit.py", line 51, in gas_budget
+    assert w is not None,(name,time,times);stagecounts[w]+=1;dt=dec(r['ledgerDt'])
+AssertionError: ('SST-SSPRK2', Decimal('0.001000000000000000020816681711721685132943093776702880859375'), [Decimal('0'), Decimal('0.0005000000000000000104083408558608425664715468883514404296875'), Decimal('0.001000000000000000020816681711721685132943093776702880859375')])

@@ -1,0 +1,10 @@
+{
+  "identity": "PR14_REVIEW_ONLY",
+  "recorded_utc": "2026-10-14T19:16:50.770192+00:00",
+  "original_script": "inputs/env.initial.sh",
+  "original_sha256": "dfd2ba27f5884725e7fc1df8aeb5c5687bdb86d82090aaae693b113858efa6c3",
+  "revised_script": "inputs/env.sh",
+  "revised_sha256": "0f661a9dae464dbae11cec0418054ca5fcb1be690c7db803470501fa869db5ba",
+  "reason": "Before anysplit nativegasUGKP/FSH frontendexecution, bindactualchildbackend executablesandPATHexplicitlytoauthorizedtestinstall. PreviousCHMT runs directlylinkedownCUDA, nochildbackend. InitialgasUGKPbuildalreadyrunningusesinitialenvironment, installpath isstilltest. EachcommandrecordsactualenvironmentSHA.",
+  "production_paths_written": false
+}

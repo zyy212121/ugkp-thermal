@@ -1,0 +1,44 @@
+{
+  "samples": [
+    {
+      "sample": 0,
+      "elapsed_receipt_seconds": 1.878099599001871,
+      "resource_summary": "logs/TIMING-470-THERMAL100-0.resource-summary.txt",
+      "exit_code": 0,
+      "output_bytes_equal": true
+    },
+    {
+      "sample": 1,
+      "elapsed_receipt_seconds": 1.3095136170013575,
+      "resource_summary": "logs/TIMING-470-THERMAL100-1.resource-summary.txt",
+      "exit_code": 0,
+      "output_bytes_equal": true
+    },
+    {
+      "sample": 2,
+      "elapsed_receipt_seconds": 1.3476269890015828,
+      "resource_summary": "logs/TIMING-470-THERMAL100-2.resource-summary.txt",
+      "exit_code": 0,
+      "output_bytes_equal": true
+    },
+    {
+      "sample": 3,
+      "elapsed_receipt_seconds": 1.1180876879952848,
+      "resource_summary": "logs/TIMING-470-THERMAL100-3.resource-summary.txt",
+      "exit_code": 0,
+      "output_bytes_equal": true
+    },
+    {
+      "sample": 4,
+      "elapsed_receipt_seconds": 1.060304904000077,
+      "resource_summary": "logs/TIMING-470-THERMAL100-4.resource-summary.txt",
+      "exit_code": 0,
+      "output_bytes_equal": true
+    }
+  ],
+  "median": 1.3095136170013575,
+  "sample_standard_deviation": 0.32325532450000694,
+  "min": 1.060304904000077,
+  "max": 1.878099599001871,
+  "limits": "Receipt elapsed includes wrapper/startup; GNUtime resource wall separately retained; five current samples only, no new-old solver speed claim."
+}

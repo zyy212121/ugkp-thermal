@@ -1,0 +1,908 @@
+PR14_REVIEW_ONLY FAST4
+All automatic elapsed-time termination disabled by explicit user instruction.
+
+EXECUTED META-ENVIRONMENT
+UTC 2026-10-14T19:04:45.720595+00:00
+cwd /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast
+/usr/bin/time -v -o /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/review/pr14/reviewer-deliveries/20261014T190010Z-fast/logs/META-ENVIRONMENT.resource-summary.txt bash /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/review/pr14/reviewer-deliveries/20261014T190010Z-fast/inputs/env.sh bash -c 'nvidia-smi; nvcc --version; g++ --version; compute-sanitizer --version; nsys --version; free -b; uname -a'
+automatic_time_limit NONE
+
+EXECUTED BUILD-NATIVE-CHMT-Ns2
+UTC 2026-10-14T19:04:47.734046+00:00
+cwd /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast
+/usr/bin/time -v -o /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/review/pr14/reviewer-deliveries/20261014T190010Z-fast/logs/BUILD-NATIVE-CHMT-Ns2.resource-summary.txt bash /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/review/pr14/reviewer-deliveries/20261014T190010Z-fast/inputs/env.sh env CHMT_BUILD=/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/work/build/CHMT2 FOAM_USER_APPBIN=/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/work/install/ns2/bin UGKWP_GAS_SPECIES=2 CHMT_CUDA_ARCH=sm_89 bash /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/applications/CHMT/Allwmake
+automatic_time_limit NONE
+
+EXECUTED BUILD-NATIVE-CHMT-Ns10
+UTC 2026-10-14T19:08:11.779339+00:00
+cwd /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast
+/usr/bin/time -v -o /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/review/pr14/reviewer-deliveries/20261014T190010Z-fast/logs/BUILD-NATIVE-CHMT-Ns10.resource-summary.txt bash /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/review/pr14/reviewer-deliveries/20261014T190010Z-fast/inputs/env.sh env CHMT_BUILD=/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/work/build/CHMT10 FOAM_USER_APPBIN=/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/work/install/ns10/bin UGKWP_GAS_SPECIES=10 CHMT_CUDA_ARCH=sm_89 bash /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/applications/CHMT/Allwmake
+automatic_time_limit NONE
+
+EXECUTED GPU-thermal-full
+UTC 2026-10-14T19:10:14.235975+00:00
+cwd /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast
+/usr/bin/time -v -o /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/review/pr14/reviewer-deliveries/20261014T190010Z-fast/logs/GPU-thermal-full.resource-summary.txt bash /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/review/pr14/reviewer-deliveries/20261014T190010Z-fast/inputs/env.sh compute-sanitizer --tool initcheck --error-exitcode 99 /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/work/install/ns2/bin/CHMT -case /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/work/cases/thermal-full
+automatic_time_limit NONE
+
+EXECUTED CHECK-ORIGINAL-thermal-full
+UTC 2026-10-14T19:10:17.816738+00:00
+cwd /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast
+/usr/bin/time -v -o /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/review/pr14/reviewer-deliveries/20261014T190010Z-fast/logs/CHECK-ORIGINAL-thermal-full.resource-summary.txt bash /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/review/pr14/reviewer-deliveries/20261014T190010Z-fast/inputs/env.sh python3 /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/applications/CHMT/verification/coupled_runtime/check_case.py /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/work/cases/thermal-full
+automatic_time_limit NONE
+
+EXECUTED GPU-wet-film
+UTC 2026-10-14T19:10:18.951931+00:00
+cwd /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast
+/usr/bin/time -v -o /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/review/pr14/reviewer-deliveries/20261014T190010Z-fast/logs/GPU-wet-film.resource-summary.txt bash /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/review/pr14/reviewer-deliveries/20261014T190010Z-fast/inputs/env.sh /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/work/install/ns2/bin/CHMT -case /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/work/cases/wet-film
+automatic_time_limit NONE
+
+EXECUTED GPU-SST-RK
+UTC 2026-10-14T19:10:20.589669+00:00
+cwd /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast
+/usr/bin/time -v -o /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/review/pr14/reviewer-deliveries/20261014T190010Z-fast/logs/GPU-SST-RK.resource-summary.txt bash /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/review/pr14/reviewer-deliveries/20261014T190010Z-fast/inputs/env.sh /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/work/install/ns2/bin/CHMT -case /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/work/cases/SST-RK
+automatic_time_limit NONE
+
+EXECUTED GPU-SST-SSPRK2
+UTC 2026-10-14T19:10:22.330749+00:00
+cwd /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast
+/usr/bin/time -v -o /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/review/pr14/reviewer-deliveries/20261014T190010Z-fast/logs/GPU-SST-SSPRK2.resource-summary.txt bash /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/review/pr14/reviewer-deliveries/20261014T190010Z-fast/inputs/env.sh /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/work/install/ns2/bin/CHMT -case /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/work/cases/SST-SSPRK2
+automatic_time_limit NONE
+
+EXECUTED GPU-SST-SSPRK3
+UTC 2026-10-14T19:10:24.460081+00:00
+cwd /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast
+/usr/bin/time -v -o /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/review/pr14/reviewer-deliveries/20261014T190010Z-fast/logs/GPU-SST-SSPRK3.resource-summary.txt bash /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/review/pr14/reviewer-deliveries/20261014T190010Z-fast/inputs/env.sh /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/work/install/ns2/bin/CHMT -case /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/work/cases/SST-SSPRK3
+automatic_time_limit NONE
+
+EXECUTED GPU-moving-GCL
+UTC 2026-10-14T19:10:26.972648+00:00
+cwd /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast
+/usr/bin/time -v -o /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/review/pr14/reviewer-deliveries/20261014T190010Z-fast/logs/GPU-moving-GCL.resource-summary.txt bash /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/review/pr14/reviewer-deliveries/20261014T190010Z-fast/inputs/env.sh /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/work/install/ns2/bin/CHMT -case /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/work/cases/moving-GCL
+automatic_time_limit NONE
+
+EXECUTED CHECK-S401-thermal-full
+UTC 2026-10-14T19:11:32.054281+00:00
+cwd /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast
+/usr/bin/time -v -o /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/review/pr14/reviewer-deliveries/20261014T190010Z-fast/logs/CHECK-S401-thermal-full.resource-summary.txt bash /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/review/pr14/reviewer-deliveries/20261014T190010Z-fast/inputs/env.sh python3 /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/review/pr14/reviewer-deliveries/20261014T190010Z-fast/inputs/check_case_metadata_support.py /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/work/cases/thermal-full
+automatic_time_limit NONE
+
+EXECUTED BUILD-NATIVE-gasUGKP
+UTC 2026-10-14T19:15:17.799953+00:00
+cwd /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast
+/usr/bin/time -v -o /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/review/pr14/reviewer-deliveries/20261014T190010Z-fast/logs/BUILD-NATIVE-gasUGKP.resource-summary.txt bash /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/review/pr14/reviewer-deliveries/20261014T190010Z-fast/inputs/env.sh env UGKWP_CUDA_ARCH=sm_89 UGKP_DEVELOPMENT_PROBES=0 UGKWP_GAS_SPECIES=2 bash /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/applications/gasUGKP/private_backend/build_private_backend.sh
+automatic_time_limit NONE
+
+EXECUTED GPU-Ns10-chemistry-full
+UTC 2026-10-14T19:16:52.345449+00:00
+cwd /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast
+/usr/bin/time -v -o /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/review/pr14/reviewer-deliveries/20261014T190010Z-fast/logs/GPU-Ns10-chemistry-full.resource-summary.txt bash /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/review/pr14/reviewer-deliveries/20261014T190010Z-fast/inputs/env.sh compute-sanitizer --tool initcheck --error-exitcode 99 /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/work/install/ns10/bin/CHMT -case /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/work/cases/chemistry-full
+automatic_time_limit NONE
+
+EXECUTED BUILD-NATIVE-FSH
+UTC 2026-10-14T19:17:39.513878+00:00
+cwd /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast
+/usr/bin/time -v -o /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/review/pr14/reviewer-deliveries/20261014T190010Z-fast/logs/BUILD-NATIVE-FSH.resource-summary.txt bash /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/review/pr14/reviewer-deliveries/20261014T190010Z-fast/inputs/env.sh env UGKWP_CUDA_ARCH=sm_89 UGKP_DEVELOPMENT_PROBES=0 UGKWP_GAS_SPECIES=2 bash /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/applications/FSH/private_backend/build_private_backend.sh
+automatic_time_limit NONE
+
+EXECUTED BUILD-NATIVE-CHT
+UTC 2026-10-14T19:18:34.686369+00:00
+cwd /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast
+/usr/bin/time -v -o /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/review/pr14/reviewer-deliveries/20261014T190010Z-fast/logs/BUILD-NATIVE-CHT.resource-summary.txt bash /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/review/pr14/reviewer-deliveries/20261014T190010Z-fast/inputs/env.sh env UGKWP_CUDA_ARCH=sm_89 UGKP_DEVELOPMENT_PROBES=0 UGKWP_GAS_SPECIES=2 bash /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/applications/CHT/tools/build_cuda_solver.sh
+automatic_time_limit NONE
+
+EXECUTED BUILD-CHEMISTRY-FORMAL
+UTC 2026-10-14T19:19:49.340493+00:00
+cwd /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast
+/usr/bin/time -v -o /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/review/pr14/reviewer-deliveries/20261014T190010Z-fast/logs/BUILD-CHEMISTRY-FORMAL.resource-summary.txt bash /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/review/pr14/reviewer-deliveries/20261014T190010Z-fast/inputs/env.sh python3 /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/tests/fixtures/chemistry_trial/prepare_chemistry_trial.py /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/review/pr14/reviewer-deliveries/20261014T190010Z-fast/fixtures/chemistry-formal --nvcc /usr/local/cuda/bin/nvcc --arch sm_89
+automatic_time_limit NONE
+
+EXECUTED CHEMISTRY-FORMAL-GPU
+UTC 2026-10-14T19:25:09.285719+00:00
+cwd /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast
+/usr/bin/time -v -o /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/review/pr14/reviewer-deliveries/20261014T190010Z-fast/logs/CHEMISTRY-FORMAL-GPU.resource-summary.txt bash /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/review/pr14/reviewer-deliveries/20261014T190010Z-fast/inputs/env.sh /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/review/pr14/reviewer-deliveries/20261014T190010Z-fast/fixtures/chemistry-formal/chemistry_trial
+automatic_time_limit NONE
+
+EXECUTED CHECK-S401-Ns10-chemistry-full
+UTC 2026-10-14T19:25:09.471813+00:00
+cwd /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast
+/usr/bin/time -v -o /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/review/pr14/reviewer-deliveries/20261014T190010Z-fast/logs/CHECK-S401-Ns10-chemistry-full.resource-summary.txt bash /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/review/pr14/reviewer-deliveries/20261014T190010Z-fast/inputs/env.sh python3 /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/review/pr14/reviewer-deliveries/20261014T190010Z-fast/inputs/check_case_metadata_support.py /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/work/cases/chemistry-full
+automatic_time_limit NONE
+
+EXECUTED GPU-Ns10-moving-chemistry
+UTC 2026-10-14T19:25:14.136548+00:00
+cwd /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast
+/usr/bin/time -v -o /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/review/pr14/reviewer-deliveries/20261014T190010Z-fast/logs/GPU-Ns10-moving-chemistry.resource-summary.txt bash /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/review/pr14/reviewer-deliveries/20261014T190010Z-fast/inputs/env.sh /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/work/install/ns10/bin/CHMT -case /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/work/cases/moving-chemistry
+automatic_time_limit NONE
+
+EXECUTED BUILD-NATIVE-HOST-film
+UTC 2026-10-14T19:25:42.837706+00:00
+cwd /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast
+/usr/bin/time -v -o /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/review/pr14/reviewer-deliveries/20261014T190010Z-fast/logs/BUILD-NATIVE-HOST-film.resource-summary.txt bash /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/review/pr14/reviewer-deliveries/20261014T190010Z-fast/inputs/env.sh g++ -O2 -std=c++14 -D_GLIBCXX_ASSERTIONS -Wall -Wextra -Werror -pedantic -I/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/applications/CHMT -I/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/common /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/applications/CHMT/devtools/multirate/test_cpu_film.cpp /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/applications/CHMT/film/CpuFilmDriver.C -o /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/work/host-native/film
+automatic_time_limit NONE
+
+EXECUTED HOST-NATIVE-film
+UTC 2026-10-14T19:25:47.902865+00:00
+cwd /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast
+/usr/bin/time -v -o /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/review/pr14/reviewer-deliveries/20261014T190010Z-fast/logs/HOST-NATIVE-film.resource-summary.txt bash /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/review/pr14/reviewer-deliveries/20261014T190010Z-fast/inputs/env.sh /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/work/host-native/film
+automatic_time_limit NONE
+
+EXECUTED BUILD-NATIVE-HOST-curved
+UTC 2026-10-14T19:25:48.988962+00:00
+cwd /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast
+/usr/bin/time -v -o /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/review/pr14/reviewer-deliveries/20261014T190010Z-fast/logs/BUILD-NATIVE-HOST-curved.resource-summary.txt bash /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/review/pr14/reviewer-deliveries/20261014T190010Z-fast/inputs/env.sh g++ -O2 -std=c++14 -D_GLIBCXX_ASSERTIONS -Wall -Wextra -Werror -pedantic -I/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/applications/CHMT -I/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/common /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/applications/CHMT/devtools/multirate/test_cpu_film_curved.cpp /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/applications/CHMT/film/CpuFilmDriver.C /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/applications/CHMT/mesh/Geometry.C -o /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/work/host-native/curved
+automatic_time_limit NONE
+
+EXECUTED HOST-NATIVE-curved
+UTC 2026-10-14T19:26:01.439513+00:00
+cwd /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast
+/usr/bin/time -v -o /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/review/pr14/reviewer-deliveries/20261014T190010Z-fast/logs/HOST-NATIVE-curved.resource-summary.txt bash /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/review/pr14/reviewer-deliveries/20261014T190010Z-fast/inputs/env.sh /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/work/host-native/curved
+automatic_time_limit NONE
+
+EXECUTED BUILD-NATIVE-HOST-lifecycle
+UTC 2026-10-14T19:26:02.623705+00:00
+cwd /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast
+/usr/bin/time -v -o /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/review/pr14/reviewer-deliveries/20261014T190010Z-fast/logs/BUILD-NATIVE-HOST-lifecycle.resource-summary.txt bash /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/review/pr14/reviewer-deliveries/20261014T190010Z-fast/inputs/env.sh g++ -O2 -std=c++14 -D_GLIBCXX_ASSERTIONS -Wall -Wextra -Werror -pedantic -I/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/applications/CHMT -I/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/common /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/applications/CHMT/devtools/multirate/test_cpu_phase_lifecycle.cpp /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/applications/CHMT/film/CpuFilmDriver.C /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/applications/CHMT/ablation/CpuSurfaceInterface.C /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/applications/CHMT/materials/MaterialTransport.C /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/applications/CHMT/mesh/Geometry.C -o /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/work/host-native/lifecycle
+automatic_time_limit NONE
+
+EXECUTED CHEMISTRY-FORMAL-MEMCHECK
+UTC 2026-10-14T19:26:13.158787+00:00
+cwd /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast
+/usr/bin/time -v -o /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/review/pr14/reviewer-deliveries/20261014T190010Z-fast/logs/CHEMISTRY-FORMAL-MEMCHECK.resource-summary.txt bash /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/review/pr14/reviewer-deliveries/20261014T190010Z-fast/inputs/env.sh compute-sanitizer --tool memcheck --error-exitcode 99 /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/review/pr14/reviewer-deliveries/20261014T190010Z-fast/fixtures/chemistry-formal/chemistry_trial
+automatic_time_limit NONE
+
+EXECUTED HOST-NATIVE-lifecycle
+UTC 2026-10-14T19:26:26.015991+00:00
+cwd /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast
+/usr/bin/time -v -o /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/review/pr14/reviewer-deliveries/20261014T190010Z-fast/logs/HOST-NATIVE-lifecycle.resource-summary.txt bash /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/review/pr14/reviewer-deliveries/20261014T190010Z-fast/inputs/env.sh /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/work/host-native/lifecycle
+automatic_time_limit NONE
+
+EXECUTED BUILD-ORIGINAL-NATIVE-PHASE-FIXTURE
+UTC 2026-10-14T19:26:26.906683+00:00
+cwd /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast
+/usr/bin/time -v -o /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/review/pr14/reviewer-deliveries/20261014T190010Z-fast/logs/BUILD-ORIGINAL-NATIVE-PHASE-FIXTURE.resource-summary.txt bash /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/review/pr14/reviewer-deliveries/20261014T190010Z-fast/inputs/env.sh g++ -std=c++17 -O1 -g -ffp-contract=off -fsanitize=bounds -fno-sanitize-recover=bounds -DNoRepository -DWM_DP -DWM_LABEL_SIZE=32 -DUGKWP_GAS_SPECIES=2 -I/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/applications/CHMT -I/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/common -I/opt/openfoam10/src/OpenFOAM/lnInclude -I/opt/openfoam10/src/finiteVolume/lnInclude -I/opt/openfoam10/src/meshTools/lnInclude -I/opt/openfoam10/src/OSspecific/POSIX/lnInclude /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/tests/fixtures/chmt_zero_phase_material/probe.C /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/applications/CHMT/materials/CpuMaterialDriver.C /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/applications/CHMT/materials/MaterialTransport.C /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/applications/CHMT/film/CpuFilmDriver.C /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/applications/CHMT/ablation/CpuSurfaceInterface.C /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/applications/CHMT/mesh/Geometry.C -L/opt/openfoam10/platforms/linux64GccDPInt32Opt/lib -Wl,-rpath,/opt/openfoam10/platforms/linux64GccDPInt32Opt/lib -lfiniteVolume -lmeshTools -lOpenFOAM -L/opt/openfoam10/platforms/linux64GccDPInt32Opt/lib/dummy -lPstream -o /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/work/host-native/phase-original
+automatic_time_limit NONE
+
+EXECUTED HOST-ORIGINAL-REACTING-ALE-FIXTURE
+UTC 2026-10-14T19:26:58.481939+00:00
+cwd /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast
+/usr/bin/time -v -o /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/review/pr14/reviewer-deliveries/20261014T190010Z-fast/logs/HOST-ORIGINAL-REACTING-ALE-FIXTURE.resource-summary.txt bash /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/review/pr14/reviewer-deliveries/20261014T190010Z-fast/inputs/env.sh python3 -m pytest -q /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/tests/gas_transport/test_reacting_ale_transport.py --basetemp /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/work/host-native/ale-pytest
+automatic_time_limit NONE
+
+EXECUTED GPU-PHASE-melting
+UTC 2026-10-14T19:27:20.248334+00:00
+cwd /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast
+/usr/bin/time -v -o /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/review/pr14/reviewer-deliveries/20261014T190010Z-fast/logs/GPU-PHASE-melting.resource-summary.txt bash /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/review/pr14/reviewer-deliveries/20261014T190010Z-fast/inputs/env.sh /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/work/install/ns2/bin/CHMT -case /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/work/cases/phase-melting
+automatic_time_limit NONE
+
+EXECUTED GPU-PHASE-solidification
+UTC 2026-10-14T19:27:21.715869+00:00
+cwd /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast
+/usr/bin/time -v -o /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/review/pr14/reviewer-deliveries/20261014T190010Z-fast/logs/GPU-PHASE-solidification.resource-summary.txt bash /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/review/pr14/reviewer-deliveries/20261014T190010Z-fast/inputs/env.sh /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/work/install/ns2/bin/CHMT -case /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/work/cases/phase-solidification
+automatic_time_limit NONE
+
+EXECUTED GPU-ORIGINAL-EVAP-ENDPOINT
+UTC 2026-10-14T19:27:23.107365+00:00
+cwd /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast
+/usr/bin/time -v -o /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/review/pr14/reviewer-deliveries/20261014T190010Z-fast/logs/GPU-ORIGINAL-EVAP-ENDPOINT.resource-summary.txt bash /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/review/pr14/reviewer-deliveries/20261014T190010Z-fast/inputs/env.sh /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/work/install/ns2/bin/CHMT -case /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/work/cases/wet-evaporation
+automatic_time_limit NONE
+
+EXECUTED BUILD-CHEMISTRY-S403
+UTC 2026-10-14T19:40:06.340819+00:00
+cwd /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast
+/usr/bin/time -v -o /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/review/pr14/reviewer-deliveries/20261014T190010Z-fast/logs/BUILD-CHEMISTRY-S403.resource-summary.txt bash /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/review/pr14/reviewer-deliveries/20261014T190010Z-fast/inputs/env.sh /usr/local/cuda/bin/nvcc -std=c++17 -O3 -arch=sm_89 --fmad=true -I/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/applications/gasUGKP/private_backend -I/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/common -I/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/common/gasNumerics -I/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/applications/gasUGKP/gpu /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/review/pr14/reviewer-deliveries/20261014T190010Z-fast/inputs/chemistry-S403-independent-public.cu -o /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/work/fixtures/chemistry-S403
+automatic_time_limit NONE
+
+EXECUTED BUILD-D401-CHMT-Ns2
+UTC 2026-10-14T19:43:02.568472+00:00
+cwd /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast
+/usr/bin/time -v -o /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/review/pr14/reviewer-deliveries/20261014T190010Z-fast/logs/BUILD-D401-CHMT-Ns2.resource-summary.txt bash /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/review/pr14/reviewer-deliveries/20261014T190010Z-fast/inputs/env.sh env CHMT_BUILD=/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/work/build/D401-Ns2 FOAM_USER_APPBIN=/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/work/install/diag2/bin UGKWP_GAS_SPECIES=2 CHMT_CUDA_ARCH=sm_89 bash /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/work/observer-source/applications/CHMT/Allwmake
+automatic_time_limit NONE
+
+EXECUTED CHEMISTRY-S403-DIAGNOSE
+UTC 2026-10-14T19:43:52.453411+00:00
+cwd /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast
+/usr/bin/time -v -o /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/review/pr14/reviewer-deliveries/20261014T190010Z-fast/logs/CHEMISTRY-S403-DIAGNOSE.resource-summary.txt bash /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/review/pr14/reviewer-deliveries/20261014T190010Z-fast/inputs/env.sh /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/work/fixtures/chemistry-S403 diagnose
+automatic_time_limit NONE
+
+EXECUTED CHEMISTRY-S403-SUPPORT
+UTC 2026-10-14T19:43:57.573305+00:00
+cwd /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast
+/usr/bin/time -v -o /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/review/pr14/reviewer-deliveries/20261014T190010Z-fast/logs/CHEMISTRY-S403-SUPPORT.resource-summary.txt bash /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/review/pr14/reviewer-deliveries/20261014T190010Z-fast/inputs/env.sh /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/work/fixtures/chemistry-S403 support
+automatic_time_limit NONE
+
+EXECUTED GPU-RESTART-thermal-full
+UTC 2026-10-14T19:45:25.608016+00:00
+cwd /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast
+/usr/bin/time -v -o /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/review/pr14/reviewer-deliveries/20261014T190010Z-fast/logs/GPU-RESTART-thermal-full.resource-summary.txt bash /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/review/pr14/reviewer-deliveries/20261014T190010Z-fast/inputs/env.sh /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/work/install/ns2/bin/CHMT -case /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/work/cases/thermal-full-restart
+automatic_time_limit NONE
+
+EXECUTED CHEMISTRY-S403-MEMCHECK
+UTC 2026-10-14T19:45:27.280393+00:00
+cwd /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast
+/usr/bin/time -v -o /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/review/pr14/reviewer-deliveries/20261014T190010Z-fast/logs/CHEMISTRY-S403-MEMCHECK.resource-summary.txt bash /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/review/pr14/reviewer-deliveries/20261014T190010Z-fast/inputs/env.sh compute-sanitizer --tool memcheck --error-exitcode 99 /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/work/fixtures/chemistry-S403 support
+automatic_time_limit NONE
+
+EXECUTED BUILD-D401-CHMT-Ns10
+UTC 2026-10-14T19:45:58.533746+00:00
+cwd /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast
+/usr/bin/time -v -o /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/review/pr14/reviewer-deliveries/20261014T190010Z-fast/logs/BUILD-D401-CHMT-Ns10.resource-summary.txt bash /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/review/pr14/reviewer-deliveries/20261014T190010Z-fast/inputs/env.sh env CHMT_BUILD=/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/work/build/D401-Ns10 FOAM_USER_APPBIN=/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/work/install/diag10/bin UGKWP_GAS_SPECIES=10 CHMT_CUDA_ARCH=sm_89 bash /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/work/observer-source/applications/CHMT/Allwmake
+automatic_time_limit NONE
+
+EXECUTED GPU-RESTART-wet-film
+UTC 2026-10-14T19:47:04.430369+00:00
+cwd /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast
+/usr/bin/time -v -o /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/review/pr14/reviewer-deliveries/20261014T190010Z-fast/logs/GPU-RESTART-wet-film.resource-summary.txt bash /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/review/pr14/reviewer-deliveries/20261014T190010Z-fast/inputs/env.sh /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/work/install/ns2/bin/CHMT -case /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/work/cases/wet-film-restart
+automatic_time_limit NONE
+
+EXECUTED GPU-CHT-active16-ASCII-S306
+UTC 2026-10-14T19:52:42.871910+00:00
+cwd /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast
+/usr/bin/time -v -o /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/review/pr14/reviewer-deliveries/20261014T190010Z-fast/logs/GPU-CHT-active16-ASCII-S306.resource-summary.txt bash /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/review/pr14/reviewer-deliveries/20261014T190010Z-fast/inputs/env.sh /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/work/install/ns2/bin/CHT -case /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/work/cases/CHT-active16-ASCII-S306
+automatic_time_limit NONE
+
+EXECUTED GPU-FSH-active16-ASCII-S306
+UTC 2026-10-14T19:52:45.611400+00:00
+cwd /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast
+/usr/bin/time -v -o /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/review/pr14/reviewer-deliveries/20261014T190010Z-fast/logs/GPU-FSH-active16-ASCII-S306.resource-summary.txt bash /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/review/pr14/reviewer-deliveries/20261014T190010Z-fast/inputs/env.sh /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/work/install/ns2/bin/FSH -case /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/work/cases/FSH-active16-ASCII-S306
+automatic_time_limit NONE
+
+EXECUTED D401-GPU-thermal-full
+UTC 2026-10-14T19:55:32.954788+00:00
+cwd /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast
+/usr/bin/time -v -o /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/review/pr14/reviewer-deliveries/20261014T190010Z-fast/logs/D401-GPU-thermal-full.resource-summary.txt bash /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/review/pr14/reviewer-deliveries/20261014T190010Z-fast/inputs/env.sh /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/work/install/diag2/bin/CHMT -case /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/work/cases/D401-thermal-full
+automatic_time_limit NONE
+
+EXECUTED D401-GPU-wet-film
+UTC 2026-10-14T19:55:35.455138+00:00
+cwd /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast
+/usr/bin/time -v -o /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/review/pr14/reviewer-deliveries/20261014T190010Z-fast/logs/D401-GPU-wet-film.resource-summary.txt bash /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/review/pr14/reviewer-deliveries/20261014T190010Z-fast/inputs/env.sh /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/work/install/diag2/bin/CHMT -case /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/work/cases/D401-wet-film
+automatic_time_limit NONE
+
+EXECUTED D401-GPU-SST-RK
+UTC 2026-10-14T19:55:37.235760+00:00
+cwd /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast
+/usr/bin/time -v -o /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/review/pr14/reviewer-deliveries/20261014T190010Z-fast/logs/D401-GPU-SST-RK.resource-summary.txt bash /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/review/pr14/reviewer-deliveries/20261014T190010Z-fast/inputs/env.sh /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/work/install/diag2/bin/CHMT -case /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/work/cases/D401-SST-RK
+automatic_time_limit NONE
+
+EXECUTED D401-GPU-SST-SSPRK2
+UTC 2026-10-14T19:55:39.318953+00:00
+cwd /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast
+/usr/bin/time -v -o /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/review/pr14/reviewer-deliveries/20261014T190010Z-fast/logs/D401-GPU-SST-SSPRK2.resource-summary.txt bash /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/review/pr14/reviewer-deliveries/20261014T190010Z-fast/inputs/env.sh /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/work/install/diag2/bin/CHMT -case /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/work/cases/D401-SST-SSPRK2
+automatic_time_limit NONE
+
+EXECUTED D401-GPU-SST-SSPRK3
+UTC 2026-10-14T19:55:41.823310+00:00
+cwd /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast
+/usr/bin/time -v -o /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/review/pr14/reviewer-deliveries/20261014T190010Z-fast/logs/D401-GPU-SST-SSPRK3.resource-summary.txt bash /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/review/pr14/reviewer-deliveries/20261014T190010Z-fast/inputs/env.sh /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/work/install/diag2/bin/CHMT -case /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/work/cases/D401-SST-SSPRK3
+automatic_time_limit NONE
+
+EXECUTED BUILD-CHECKPOINT-S404-ASAN
+UTC 2026-10-14T19:55:42.572001+00:00
+cwd /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast
+/usr/bin/time -v -o /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/review/pr14/reviewer-deliveries/20261014T190010Z-fast/logs/BUILD-CHECKPOINT-S404-ASAN.resource-summary.txt bash /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/review/pr14/reviewer-deliveries/20261014T190010Z-fast/inputs/env.sh g++ -std=c++17 -O1 -g -DUGKWP_GAS_SPECIES=2 -fsanitize=address,undefined -fno-omit-frame-pointer -I/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/applications/CHMT -I/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/common /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/review/pr14/reviewer-deliveries/20261014T190010Z-fast/inputs/checkpoint-full-wet-observer.cpp /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/applications/CHMT/restart/Checkpoint.C -o /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/work/fixtures/checkpoint-S404
+automatic_time_limit NONE
+
+EXECUTED D401-GPU-moving-GCL
+UTC 2026-10-14T19:55:45.462741+00:00
+cwd /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast
+/usr/bin/time -v -o /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/review/pr14/reviewer-deliveries/20261014T190010Z-fast/logs/D401-GPU-moving-GCL.resource-summary.txt bash /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/review/pr14/reviewer-deliveries/20261014T190010Z-fast/inputs/env.sh /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/work/install/diag2/bin/CHMT -case /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/work/cases/D401-moving-GCL
+automatic_time_limit NONE
+
+EXECUTED D401-GPU-moving-chemistry
+UTC 2026-10-14T19:55:47.508525+00:00
+cwd /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast
+/usr/bin/time -v -o /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/review/pr14/reviewer-deliveries/20261014T190010Z-fast/logs/D401-GPU-moving-chemistry.resource-summary.txt bash /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/review/pr14/reviewer-deliveries/20261014T190010Z-fast/inputs/env.sh /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/work/install/diag10/bin/CHMT -case /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/work/cases/D401-moving-chemistry
+automatic_time_limit NONE
+
+EXECUTED DECODE-S404-thermal-full-checkpoint-0
+UTC 2026-10-14T19:56:05.441437+00:00
+cwd /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast
+/usr/bin/time -v -o /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/review/pr14/reviewer-deliveries/20261014T190010Z-fast/logs/DECODE-S404-thermal-full-checkpoint-0.resource-summary.txt bash /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/review/pr14/reviewer-deliveries/20261014T190010Z-fast/inputs/env.sh /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/work/fixtures/checkpoint-S404 /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/work/cases/thermal-full/chmtOutput/checkpoint-0
+automatic_time_limit NONE
+
+EXECUTED DECODE-S404-thermal-full-checkpoint-1
+UTC 2026-10-14T19:56:06.637333+00:00
+cwd /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast
+/usr/bin/time -v -o /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/review/pr14/reviewer-deliveries/20261014T190010Z-fast/logs/DECODE-S404-thermal-full-checkpoint-1.resource-summary.txt bash /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/review/pr14/reviewer-deliveries/20261014T190010Z-fast/inputs/env.sh /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/work/fixtures/checkpoint-S404 /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/work/cases/thermal-full/chmtOutput/checkpoint-1
+automatic_time_limit NONE
+
+EXECUTED DECODE-S404-thermal-full-checkpoint-2
+UTC 2026-10-14T19:56:07.561374+00:00
+cwd /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast
+/usr/bin/time -v -o /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/review/pr14/reviewer-deliveries/20261014T190010Z-fast/logs/DECODE-S404-thermal-full-checkpoint-2.resource-summary.txt bash /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/review/pr14/reviewer-deliveries/20261014T190010Z-fast/inputs/env.sh /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/work/fixtures/checkpoint-S404 /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/work/cases/thermal-full/chmtOutput/checkpoint-2
+automatic_time_limit NONE
+
+EXECUTED DECODE-S404-wet-film-checkpoint-0
+UTC 2026-10-14T19:56:08.571113+00:00
+cwd /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast
+/usr/bin/time -v -o /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/review/pr14/reviewer-deliveries/20261014T190010Z-fast/logs/DECODE-S404-wet-film-checkpoint-0.resource-summary.txt bash /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/review/pr14/reviewer-deliveries/20261014T190010Z-fast/inputs/env.sh /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/work/fixtures/checkpoint-S404 /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/work/cases/wet-film/chmtOutput/checkpoint-0
+automatic_time_limit NONE
+
+EXECUTED DECODE-S404-wet-film-checkpoint-1
+UTC 2026-10-14T19:56:09.756816+00:00
+cwd /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast
+/usr/bin/time -v -o /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/review/pr14/reviewer-deliveries/20261014T190010Z-fast/logs/DECODE-S404-wet-film-checkpoint-1.resource-summary.txt bash /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/review/pr14/reviewer-deliveries/20261014T190010Z-fast/inputs/env.sh /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/work/fixtures/checkpoint-S404 /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/work/cases/wet-film/chmtOutput/checkpoint-1
+automatic_time_limit NONE
+
+EXECUTED DECODE-S404-wet-film-checkpoint-2
+UTC 2026-10-14T19:56:10.707107+00:00
+cwd /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast
+/usr/bin/time -v -o /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/review/pr14/reviewer-deliveries/20261014T190010Z-fast/logs/DECODE-S404-wet-film-checkpoint-2.resource-summary.txt bash /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/review/pr14/reviewer-deliveries/20261014T190010Z-fast/inputs/env.sh /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/work/fixtures/checkpoint-S404 /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/work/cases/wet-film/chmtOutput/checkpoint-2
+automatic_time_limit NONE
+
+EXECUTED DECODE-S404-SST-RK-checkpoint-0
+UTC 2026-10-14T19:56:11.482510+00:00
+cwd /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast
+/usr/bin/time -v -o /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/review/pr14/reviewer-deliveries/20261014T190010Z-fast/logs/DECODE-S404-SST-RK-checkpoint-0.resource-summary.txt bash /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/review/pr14/reviewer-deliveries/20261014T190010Z-fast/inputs/env.sh /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/work/fixtures/checkpoint-S404 /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/work/cases/SST-RK/chmtOutput/checkpoint-0
+automatic_time_limit NONE
+
+EXECUTED DECODE-S404-SST-RK-checkpoint-1
+UTC 2026-10-14T19:56:12.324713+00:00
+cwd /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast
+/usr/bin/time -v -o /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/review/pr14/reviewer-deliveries/20261014T190010Z-fast/logs/DECODE-S404-SST-RK-checkpoint-1.resource-summary.txt bash /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/review/pr14/reviewer-deliveries/20261014T190010Z-fast/inputs/env.sh /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/work/fixtures/checkpoint-S404 /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/work/cases/SST-RK/chmtOutput/checkpoint-1
+automatic_time_limit NONE
+
+EXECUTED DECODE-S404-SST-RK-checkpoint-2
+UTC 2026-10-14T19:56:13.206627+00:00
+cwd /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast
+/usr/bin/time -v -o /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/review/pr14/reviewer-deliveries/20261014T190010Z-fast/logs/DECODE-S404-SST-RK-checkpoint-2.resource-summary.txt bash /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/review/pr14/reviewer-deliveries/20261014T190010Z-fast/inputs/env.sh /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/work/fixtures/checkpoint-S404 /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/work/cases/SST-RK/chmtOutput/checkpoint-2
+automatic_time_limit NONE
+
+EXECUTED DECODE-S404-SST-SSPRK2-checkpoint-0
+UTC 2026-10-14T19:56:14.052745+00:00
+cwd /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast
+/usr/bin/time -v -o /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/review/pr14/reviewer-deliveries/20261014T190010Z-fast/logs/DECODE-S404-SST-SSPRK2-checkpoint-0.resource-summary.txt bash /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/review/pr14/reviewer-deliveries/20261014T190010Z-fast/inputs/env.sh /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/work/fixtures/checkpoint-S404 /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/work/cases/SST-SSPRK2/chmtOutput/checkpoint-0
+automatic_time_limit NONE
+
+EXECUTED DECODE-S404-SST-SSPRK2-checkpoint-1
+UTC 2026-10-14T19:56:14.923222+00:00
+cwd /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast
+/usr/bin/time -v -o /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/review/pr14/reviewer-deliveries/20261014T190010Z-fast/logs/DECODE-S404-SST-SSPRK2-checkpoint-1.resource-summary.txt bash /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/review/pr14/reviewer-deliveries/20261014T190010Z-fast/inputs/env.sh /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/work/fixtures/checkpoint-S404 /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/work/cases/SST-SSPRK2/chmtOutput/checkpoint-1
+automatic_time_limit NONE
+
+EXECUTED DECODE-S404-SST-SSPRK2-checkpoint-2
+UTC 2026-10-14T19:56:15.740881+00:00
+cwd /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast
+/usr/bin/time -v -o /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/review/pr14/reviewer-deliveries/20261014T190010Z-fast/logs/DECODE-S404-SST-SSPRK2-checkpoint-2.resource-summary.txt bash /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/review/pr14/reviewer-deliveries/20261014T190010Z-fast/inputs/env.sh /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/work/fixtures/checkpoint-S404 /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/work/cases/SST-SSPRK2/chmtOutput/checkpoint-2
+automatic_time_limit NONE
+
+EXECUTED DECODE-S404-SST-SSPRK3-checkpoint-0
+UTC 2026-10-14T19:56:16.624231+00:00
+cwd /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast
+/usr/bin/time -v -o /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/review/pr14/reviewer-deliveries/20261014T190010Z-fast/logs/DECODE-S404-SST-SSPRK3-checkpoint-0.resource-summary.txt bash /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/review/pr14/reviewer-deliveries/20261014T190010Z-fast/inputs/env.sh /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/work/fixtures/checkpoint-S404 /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/work/cases/SST-SSPRK3/chmtOutput/checkpoint-0
+automatic_time_limit NONE
+
+EXECUTED DECODE-S404-SST-SSPRK3-checkpoint-1
+UTC 2026-10-14T19:56:17.454596+00:00
+cwd /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast
+/usr/bin/time -v -o /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/review/pr14/reviewer-deliveries/20261014T190010Z-fast/logs/DECODE-S404-SST-SSPRK3-checkpoint-1.resource-summary.txt bash /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/review/pr14/reviewer-deliveries/20261014T190010Z-fast/inputs/env.sh /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/work/fixtures/checkpoint-S404 /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/work/cases/SST-SSPRK3/chmtOutput/checkpoint-1
+automatic_time_limit NONE
+
+EXECUTED DECODE-S404-SST-SSPRK3-checkpoint-2
+UTC 2026-10-14T19:56:18.419521+00:00
+cwd /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast
+/usr/bin/time -v -o /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/review/pr14/reviewer-deliveries/20261014T190010Z-fast/logs/DECODE-S404-SST-SSPRK3-checkpoint-2.resource-summary.txt bash /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/review/pr14/reviewer-deliveries/20261014T190010Z-fast/inputs/env.sh /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/work/fixtures/checkpoint-S404 /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/work/cases/SST-SSPRK3/chmtOutput/checkpoint-2
+automatic_time_limit NONE
+
+EXECUTED DECODE-S404-moving-GCL-checkpoint-0
+UTC 2026-10-14T19:56:19.315921+00:00
+cwd /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast
+/usr/bin/time -v -o /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/review/pr14/reviewer-deliveries/20261014T190010Z-fast/logs/DECODE-S404-moving-GCL-checkpoint-0.resource-summary.txt bash /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/review/pr14/reviewer-deliveries/20261014T190010Z-fast/inputs/env.sh /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/work/fixtures/checkpoint-S404 /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/work/cases/moving-GCL/chmtOutput/checkpoint-0
+automatic_time_limit NONE
+
+EXECUTED DECODE-S404-moving-GCL-checkpoint-1
+UTC 2026-10-14T19:56:20.109081+00:00
+cwd /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast
+/usr/bin/time -v -o /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/review/pr14/reviewer-deliveries/20261014T190010Z-fast/logs/DECODE-S404-moving-GCL-checkpoint-1.resource-summary.txt bash /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/review/pr14/reviewer-deliveries/20261014T190010Z-fast/inputs/env.sh /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/work/fixtures/checkpoint-S404 /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/work/cases/moving-GCL/chmtOutput/checkpoint-1
+automatic_time_limit NONE
+
+EXECUTED DECODE-S404-moving-GCL-checkpoint-2
+UTC 2026-10-14T19:56:21.054545+00:00
+cwd /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast
+/usr/bin/time -v -o /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/review/pr14/reviewer-deliveries/20261014T190010Z-fast/logs/DECODE-S404-moving-GCL-checkpoint-2.resource-summary.txt bash /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/review/pr14/reviewer-deliveries/20261014T190010Z-fast/inputs/env.sh /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/work/fixtures/checkpoint-S404 /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/work/cases/moving-GCL/chmtOutput/checkpoint-2
+automatic_time_limit NONE
+
+EXECUTED DECODE-S404-phase-melting-checkpoint-0
+UTC 2026-10-14T19:56:21.895229+00:00
+cwd /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast
+/usr/bin/time -v -o /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/review/pr14/reviewer-deliveries/20261014T190010Z-fast/logs/DECODE-S404-phase-melting-checkpoint-0.resource-summary.txt bash /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/review/pr14/reviewer-deliveries/20261014T190010Z-fast/inputs/env.sh /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/work/fixtures/checkpoint-S404 /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/work/cases/phase-melting/chmtOutput/checkpoint-0
+automatic_time_limit NONE
+
+EXECUTED DECODE-S404-phase-melting-checkpoint-1
+UTC 2026-10-14T19:56:24.073478+00:00
+cwd /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast
+/usr/bin/time -v -o /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/review/pr14/reviewer-deliveries/20261014T190010Z-fast/logs/DECODE-S404-phase-melting-checkpoint-1.resource-summary.txt bash /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/review/pr14/reviewer-deliveries/20261014T190010Z-fast/inputs/env.sh /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/work/fixtures/checkpoint-S404 /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/work/cases/phase-melting/chmtOutput/checkpoint-1
+automatic_time_limit NONE
+
+EXECUTED DECODE-S404-phase-solidification-checkpoint-0
+UTC 2026-10-14T19:56:25.076561+00:00
+cwd /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast
+/usr/bin/time -v -o /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/review/pr14/reviewer-deliveries/20261014T190010Z-fast/logs/DECODE-S404-phase-solidification-checkpoint-0.resource-summary.txt bash /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/review/pr14/reviewer-deliveries/20261014T190010Z-fast/inputs/env.sh /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/work/fixtures/checkpoint-S404 /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/work/cases/phase-solidification/chmtOutput/checkpoint-0
+automatic_time_limit NONE
+
+EXECUTED DECODE-S404-phase-solidification-checkpoint-1
+UTC 2026-10-14T19:56:25.971154+00:00
+cwd /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast
+/usr/bin/time -v -o /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/review/pr14/reviewer-deliveries/20261014T190010Z-fast/logs/DECODE-S404-phase-solidification-checkpoint-1.resource-summary.txt bash /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/review/pr14/reviewer-deliveries/20261014T190010Z-fast/inputs/env.sh /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/work/fixtures/checkpoint-S404 /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/work/cases/phase-solidification/chmtOutput/checkpoint-1
+automatic_time_limit NONE
+
+EXECUTED D401-GPU-chemistry-full
+UTC 2026-10-14T19:56:44.783056+00:00
+cwd /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast
+/usr/bin/time -v -o /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/review/pr14/reviewer-deliveries/20261014T190010Z-fast/logs/D401-GPU-chemistry-full.resource-summary.txt bash /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/review/pr14/reviewer-deliveries/20261014T190010Z-fast/inputs/env.sh /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/work/install/diag10/bin/CHMT -case /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/work/cases/D401-chemistry-full
+automatic_time_limit NONE
+
+EXECUTED D401-GPU-phase-melting
+UTC 2026-10-14T19:57:42.723971+00:00
+cwd /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast
+/usr/bin/time -v -o /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/review/pr14/reviewer-deliveries/20261014T190010Z-fast/logs/D401-GPU-phase-melting.resource-summary.txt bash /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/review/pr14/reviewer-deliveries/20261014T190010Z-fast/inputs/env.sh /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/work/install/diag2/bin/CHMT -case /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/work/cases/D401-phase-melting
+automatic_time_limit NONE
+
+EXECUTED D401-GPU-phase-solidification
+UTC 2026-10-14T19:57:43.856248+00:00
+cwd /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast
+/usr/bin/time -v -o /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/review/pr14/reviewer-deliveries/20261014T190010Z-fast/logs/D401-GPU-phase-solidification.resource-summary.txt bash /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/review/pr14/reviewer-deliveries/20261014T190010Z-fast/inputs/env.sh /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/work/install/diag2/bin/CHMT -case /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/work/cases/D401-phase-solidification
+automatic_time_limit NONE
+
+EXECUTED MESH-SST64-RK1-static-gas
+UTC 2026-10-14T20:03:22.178449+00:00
+cwd /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast
+/usr/bin/time -v -o /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/review/pr14/reviewer-deliveries/20261014T190010Z-fast/logs/MESH-SST64-RK1-static-gas.resource-summary.txt bash /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/review/pr14/reviewer-deliveries/20261014T190010Z-fast/inputs/env.sh blockMesh -case /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/work/cases/SST64-RK1-static
+automatic_time_limit NONE
+
+EXECUTED MESH-SST64-RK1-static-solid
+UTC 2026-10-14T20:03:24.231950+00:00
+cwd /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast
+/usr/bin/time -v -o /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/review/pr14/reviewer-deliveries/20261014T190010Z-fast/logs/MESH-SST64-RK1-static-solid.resource-summary.txt bash /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/review/pr14/reviewer-deliveries/20261014T190010Z-fast/inputs/env.sh blockMesh -case /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/work/cases/SST64-RK1-static -region solid -dict /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/work/cases/SST64-RK1-static/system/blockMeshSolidDict
+automatic_time_limit NONE
+
+EXECUTED GPU-SST64-RK1-static
+UTC 2026-10-14T20:03:25.370998+00:00
+cwd /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast
+/usr/bin/time -v -o /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/review/pr14/reviewer-deliveries/20261014T190010Z-fast/logs/GPU-SST64-RK1-static.resource-summary.txt bash /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/review/pr14/reviewer-deliveries/20261014T190010Z-fast/inputs/env.sh /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/work/install/ns2/bin/CHMT -case /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/work/cases/SST64-RK1-static
+automatic_time_limit NONE
+
+EXECUTED D401-GPU-SST64-RK1-static
+UTC 2026-10-14T20:03:26.879042+00:00
+cwd /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast
+/usr/bin/time -v -o /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/review/pr14/reviewer-deliveries/20261014T190010Z-fast/logs/D401-GPU-SST64-RK1-static.resource-summary.txt bash /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/review/pr14/reviewer-deliveries/20261014T190010Z-fast/inputs/env.sh /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/work/install/diag2/bin/CHMT -case /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/work/cases/D401-SST64-RK1-static
+automatic_time_limit NONE
+
+EXECUTED MESH-SST64-RK1-moving-gas
+UTC 2026-10-14T20:03:29.272077+00:00
+cwd /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast
+/usr/bin/time -v -o /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/review/pr14/reviewer-deliveries/20261014T190010Z-fast/logs/MESH-SST64-RK1-moving-gas.resource-summary.txt bash /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/review/pr14/reviewer-deliveries/20261014T190010Z-fast/inputs/env.sh blockMesh -case /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/work/cases/SST64-RK1-moving
+automatic_time_limit NONE
+
+EXECUTED MESH-SST64-RK1-moving-solid
+UTC 2026-10-14T20:03:30.165741+00:00
+cwd /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast
+/usr/bin/time -v -o /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/review/pr14/reviewer-deliveries/20261014T190010Z-fast/logs/MESH-SST64-RK1-moving-solid.resource-summary.txt bash /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/review/pr14/reviewer-deliveries/20261014T190010Z-fast/inputs/env.sh blockMesh -case /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/work/cases/SST64-RK1-moving -region solid -dict /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/work/cases/SST64-RK1-moving/system/blockMeshSolidDict
+automatic_time_limit NONE
+
+EXECUTED GPU-SST64-RK1-moving
+UTC 2026-10-14T20:03:31.363029+00:00
+cwd /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast
+/usr/bin/time -v -o /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/review/pr14/reviewer-deliveries/20261014T190010Z-fast/logs/GPU-SST64-RK1-moving.resource-summary.txt bash /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/review/pr14/reviewer-deliveries/20261014T190010Z-fast/inputs/env.sh /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/work/install/ns2/bin/CHMT -case /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/work/cases/SST64-RK1-moving
+automatic_time_limit NONE
+
+EXECUTED D401-GPU-SST64-RK1-moving
+UTC 2026-10-14T20:03:33.617396+00:00
+cwd /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast
+/usr/bin/time -v -o /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/review/pr14/reviewer-deliveries/20261014T190010Z-fast/logs/D401-GPU-SST64-RK1-moving.resource-summary.txt bash /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/review/pr14/reviewer-deliveries/20261014T190010Z-fast/inputs/env.sh /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/work/install/diag2/bin/CHMT -case /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/work/cases/D401-SST64-RK1-moving
+automatic_time_limit NONE
+
+EXECUTED MESH-SST64-RK2-static-gas
+UTC 2026-10-14T20:03:36.974601+00:00
+cwd /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast
+/usr/bin/time -v -o /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/review/pr14/reviewer-deliveries/20261014T190010Z-fast/logs/MESH-SST64-RK2-static-gas.resource-summary.txt bash /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/review/pr14/reviewer-deliveries/20261014T190010Z-fast/inputs/env.sh blockMesh -case /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/work/cases/SST64-RK2-static
+automatic_time_limit NONE
+
+EXECUTED MESH-SST64-RK2-static-solid
+UTC 2026-10-14T20:03:38.005469+00:00
+cwd /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast
+/usr/bin/time -v -o /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/review/pr14/reviewer-deliveries/20261014T190010Z-fast/logs/MESH-SST64-RK2-static-solid.resource-summary.txt bash /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/review/pr14/reviewer-deliveries/20261014T190010Z-fast/inputs/env.sh blockMesh -case /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/work/cases/SST64-RK2-static -region solid -dict /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/work/cases/SST64-RK2-static/system/blockMeshSolidDict
+automatic_time_limit NONE
+
+EXECUTED GPU-SST64-RK2-static
+UTC 2026-10-14T20:03:39.410304+00:00
+cwd /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast
+/usr/bin/time -v -o /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/review/pr14/reviewer-deliveries/20261014T190010Z-fast/logs/GPU-SST64-RK2-static.resource-summary.txt bash /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/review/pr14/reviewer-deliveries/20261014T190010Z-fast/inputs/env.sh /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/work/install/ns2/bin/CHMT -case /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/work/cases/SST64-RK2-static
+automatic_time_limit NONE
+
+EXECUTED D401-GPU-SST64-RK2-static
+UTC 2026-10-14T20:03:42.630881+00:00
+cwd /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast
+/usr/bin/time -v -o /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/review/pr14/reviewer-deliveries/20261014T190010Z-fast/logs/D401-GPU-SST64-RK2-static.resource-summary.txt bash /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/review/pr14/reviewer-deliveries/20261014T190010Z-fast/inputs/env.sh /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/work/install/diag2/bin/CHMT -case /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/work/cases/D401-SST64-RK2-static
+automatic_time_limit NONE
+
+EXECUTED MESH-SST64-RK2-moving-gas
+UTC 2026-10-14T20:03:45.780734+00:00
+cwd /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast
+/usr/bin/time -v -o /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/review/pr14/reviewer-deliveries/20261014T190010Z-fast/logs/MESH-SST64-RK2-moving-gas.resource-summary.txt bash /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/review/pr14/reviewer-deliveries/20261014T190010Z-fast/inputs/env.sh blockMesh -case /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/work/cases/SST64-RK2-moving
+automatic_time_limit NONE
+
+EXECUTED MESH-SST64-RK2-moving-solid
+UTC 2026-10-14T20:03:46.918976+00:00
+cwd /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast
+/usr/bin/time -v -o /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/review/pr14/reviewer-deliveries/20261014T190010Z-fast/logs/MESH-SST64-RK2-moving-solid.resource-summary.txt bash /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/review/pr14/reviewer-deliveries/20261014T190010Z-fast/inputs/env.sh blockMesh -case /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/work/cases/SST64-RK2-moving -region solid -dict /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/work/cases/SST64-RK2-moving/system/blockMeshSolidDict
+automatic_time_limit NONE
+
+EXECUTED GPU-SST64-RK2-moving
+UTC 2026-10-14T20:03:48.155779+00:00
+cwd /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast
+/usr/bin/time -v -o /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/review/pr14/reviewer-deliveries/20261014T190010Z-fast/logs/GPU-SST64-RK2-moving.resource-summary.txt bash /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/review/pr14/reviewer-deliveries/20261014T190010Z-fast/inputs/env.sh /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/work/install/ns2/bin/CHMT -case /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/work/cases/SST64-RK2-moving
+automatic_time_limit NONE
+
+EXECUTED D401-GPU-SST64-RK2-moving
+UTC 2026-10-14T20:03:50.225767+00:00
+cwd /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast
+/usr/bin/time -v -o /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/review/pr14/reviewer-deliveries/20261014T190010Z-fast/logs/D401-GPU-SST64-RK2-moving.resource-summary.txt bash /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/review/pr14/reviewer-deliveries/20261014T190010Z-fast/inputs/env.sh /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/work/install/diag2/bin/CHMT -case /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/work/cases/D401-SST64-RK2-moving
+automatic_time_limit NONE
+
+EXECUTED MESH-SST64-RK3-static-gas
+UTC 2026-10-14T20:03:54.503503+00:00
+cwd /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast
+/usr/bin/time -v -o /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/review/pr14/reviewer-deliveries/20261014T190010Z-fast/logs/MESH-SST64-RK3-static-gas.resource-summary.txt bash /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/review/pr14/reviewer-deliveries/20261014T190010Z-fast/inputs/env.sh blockMesh -case /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/work/cases/SST64-RK3-static
+automatic_time_limit NONE
+
+EXECUTED MESH-SST64-RK3-static-solid
+UTC 2026-10-14T20:03:55.473118+00:00
+cwd /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast
+/usr/bin/time -v -o /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/review/pr14/reviewer-deliveries/20261014T190010Z-fast/logs/MESH-SST64-RK3-static-solid.resource-summary.txt bash /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/review/pr14/reviewer-deliveries/20261014T190010Z-fast/inputs/env.sh blockMesh -case /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/work/cases/SST64-RK3-static -region solid -dict /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/work/cases/SST64-RK3-static/system/blockMeshSolidDict
+automatic_time_limit NONE
+
+EXECUTED GPU-SST64-RK3-static
+UTC 2026-10-14T20:03:56.707388+00:00
+cwd /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast
+/usr/bin/time -v -o /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/review/pr14/reviewer-deliveries/20261014T190010Z-fast/logs/GPU-SST64-RK3-static.resource-summary.txt bash /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/review/pr14/reviewer-deliveries/20261014T190010Z-fast/inputs/env.sh /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/work/install/ns2/bin/CHMT -case /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/work/cases/SST64-RK3-static
+automatic_time_limit NONE
+
+EXECUTED D401-GPU-SST64-RK3-static
+UTC 2026-10-14T20:03:58.228862+00:00
+cwd /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast
+/usr/bin/time -v -o /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/review/pr14/reviewer-deliveries/20261014T190010Z-fast/logs/D401-GPU-SST64-RK3-static.resource-summary.txt bash /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/review/pr14/reviewer-deliveries/20261014T190010Z-fast/inputs/env.sh /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/work/install/diag2/bin/CHMT -case /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/work/cases/D401-SST64-RK3-static
+automatic_time_limit NONE
+
+EXECUTED MESH-SST64-RK3-moving-gas
+UTC 2026-10-14T20:04:02.530352+00:00
+cwd /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast
+/usr/bin/time -v -o /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/review/pr14/reviewer-deliveries/20261014T190010Z-fast/logs/MESH-SST64-RK3-moving-gas.resource-summary.txt bash /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/review/pr14/reviewer-deliveries/20261014T190010Z-fast/inputs/env.sh blockMesh -case /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/work/cases/SST64-RK3-moving
+automatic_time_limit NONE
+
+EXECUTED MESH-SST64-RK3-moving-solid
+UTC 2026-10-14T20:04:04.057102+00:00
+cwd /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast
+/usr/bin/time -v -o /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/review/pr14/reviewer-deliveries/20261014T190010Z-fast/logs/MESH-SST64-RK3-moving-solid.resource-summary.txt bash /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/review/pr14/reviewer-deliveries/20261014T190010Z-fast/inputs/env.sh blockMesh -case /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/work/cases/SST64-RK3-moving -region solid -dict /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/work/cases/SST64-RK3-moving/system/blockMeshSolidDict
+automatic_time_limit NONE
+
+EXECUTED GPU-SST64-RK3-moving
+UTC 2026-10-14T20:04:05.161379+00:00
+cwd /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast
+/usr/bin/time -v -o /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/review/pr14/reviewer-deliveries/20261014T190010Z-fast/logs/GPU-SST64-RK3-moving.resource-summary.txt bash /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/review/pr14/reviewer-deliveries/20261014T190010Z-fast/inputs/env.sh /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/work/install/ns2/bin/CHMT -case /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/work/cases/SST64-RK3-moving
+automatic_time_limit NONE
+
+EXECUTED D401-GPU-SST64-RK3-moving
+UTC 2026-10-14T20:04:07.676048+00:00
+cwd /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast
+/usr/bin/time -v -o /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/review/pr14/reviewer-deliveries/20261014T190010Z-fast/logs/D401-GPU-SST64-RK3-moving.resource-summary.txt bash /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/review/pr14/reviewer-deliveries/20261014T190010Z-fast/inputs/env.sh /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/work/install/diag2/bin/CHMT -case /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/work/cases/D401-SST64-RK3-moving
+automatic_time_limit NONE
+
+EXECUTED ANALYZE-D401-STAGES
+UTC 2026-10-14T20:08:16.414165+00:00
+cwd /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast
+/usr/bin/time -v -o /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/review/pr14/reviewer-deliveries/20261014T190010Z-fast/logs/ANALYZE-D401-STAGES.resource-summary.txt bash /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/review/pr14/reviewer-deliveries/20261014T190010Z-fast/inputs/env.sh python3 /mnt/c/Users/25094/Documents/Codex/2026-10-14/files-pasted-by-the-user-ugkp/work/r4_stage_audit.py --compute
+automatic_time_limit NONE
+
+EXECUTED BUILD-S406-REAL-CUDA-FAULT-OBSERVER
+UTC 2026-10-14T20:10:46.687391+00:00
+cwd /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast
+/usr/bin/time -v -o /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/review/pr14/reviewer-deliveries/20261014T190010Z-fast/logs/BUILD-S406-REAL-CUDA-FAULT-OBSERVER.resource-summary.txt bash /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/review/pr14/reviewer-deliveries/20261014T190010Z-fast/inputs/env.sh g++ -std=c++17 -O2 -shared -fPIC -I/usr/local/cuda/include /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/review/pr14/reviewer-deliveries/20261014T190010Z-fast/inputs/cuda-actual-fault-observer.cpp -ldl -o /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/work/cuda-actual-fault-observer.so
+automatic_time_limit NONE
+
+EXECUTED BUILD-S406-THIN-REAL-OWNER-CHT
+UTC 2026-10-14T20:10:49.027003+00:00
+cwd /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast
+/usr/bin/time -v -o /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/review/pr14/reviewer-deliveries/20261014T190010Z-fast/logs/BUILD-S406-THIN-REAL-OWNER-CHT.resource-summary.txt bash /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/review/pr14/reviewer-deliveries/20261014T190010Z-fast/inputs/env.sh nvcc -std=c++17 -O2 -arch=sm_89 --cudart=shared -DCHT_TEST=1 -I/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/applications/CHT/gpu -I/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/common -I/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/common/gasNumerics -I/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/applications/CHT/gpu /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/review/pr14/reviewer-deliveries/20261014T190010Z-fast/inputs/thin-real-owner-CHT.cu /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/applications/CHT/gpu/libugkpcht_cuda_internal.a -ldl -o /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/work/fixtures/thin-real-owner-CHT
+automatic_time_limit NONE
+
+EXECUTED S406-COLD-ACTUAL-COPY-RETRY
+UTC 2026-10-14T20:10:56.967748+00:00
+cwd /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast
+/usr/bin/time -v -o /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/review/pr14/reviewer-deliveries/20261014T190010Z-fast/logs/S406-COLD-ACTUAL-COPY-RETRY.resource-summary.txt bash /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/review/pr14/reviewer-deliveries/20261014T190010Z-fast/inputs/env.sh env LD_PRELOAD=/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/work/cuda-actual-fault-observer.so /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/work/fixtures/thin-real-owner-CHT cold
+automatic_time_limit NONE
+
+EXECUTED BUILD-S406-THIN-REAL-OWNER-FSH
+UTC 2026-10-14T20:11:00.527987+00:00
+cwd /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast
+/usr/bin/time -v -o /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/review/pr14/reviewer-deliveries/20261014T190010Z-fast/logs/BUILD-S406-THIN-REAL-OWNER-FSH.resource-summary.txt bash /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/review/pr14/reviewer-deliveries/20261014T190010Z-fast/inputs/env.sh nvcc -std=c++17 -O2 -arch=sm_89 --cudart=shared -DCHT_TEST=0 -I/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/applications/FSH/private_backend -I/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/common -I/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/common/gasNumerics -I/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/applications/FSH/gpu /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/review/pr14/reviewer-deliveries/20261014T190010Z-fast/inputs/thin-real-owner-FSH.cu /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/applications/FSH/private_backend/libugkwp_cuda_backend.a -ldl -o /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/work/fixtures/thin-real-owner-FSH
+automatic_time_limit NONE
+
+EXECUTED S406-SST22-ACTUAL-CHT
+UTC 2026-10-14T20:11:07.346665+00:00
+cwd /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast
+/usr/bin/time -v -o /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/review/pr14/reviewer-deliveries/20261014T190010Z-fast/logs/S406-SST22-ACTUAL-CHT.resource-summary.txt bash /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/review/pr14/reviewer-deliveries/20261014T190010Z-fast/inputs/env.sh env LD_PRELOAD=/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/work/cuda-actual-fault-observer.so /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/work/fixtures/thin-real-owner-CHT sst
+automatic_time_limit NONE
+
+EXECUTED S406-SST22-ACTUAL-FSH
+UTC 2026-10-14T20:11:08.944353+00:00
+cwd /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast
+/usr/bin/time -v -o /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/review/pr14/reviewer-deliveries/20261014T190010Z-fast/logs/S406-SST22-ACTUAL-FSH.resource-summary.txt bash /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/review/pr14/reviewer-deliveries/20261014T190010Z-fast/inputs/env.sh env LD_PRELOAD=/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/work/cuda-actual-fault-observer.so /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/work/fixtures/thin-real-owner-FSH sst
+automatic_time_limit NONE
+
+EXECUTED ANALYZE-D401-MOVING-FAULTHANDLER
+UTC 2026-10-14T20:13:08.408233+00:00
+cwd /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast
+/usr/bin/time -v -o /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/review/pr14/reviewer-deliveries/20261014T190010Z-fast/logs/ANALYZE-D401-MOVING-FAULTHANDLER.resource-summary.txt bash /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/review/pr14/reviewer-deliveries/20261014T190010Z-fast/inputs/env.sh python3 -X faulthandler /mnt/c/Users/25094/Documents/Codex/2026-10-14/files-pasted-by-the-user-ugkp/work/r4_stage_audit.py --compute --only moving-chemistry
+automatic_time_limit NONE
+
+EXECUTED BUILD-D402-SST-OBSERVER
+UTC 2026-10-14T20:17:56.974194+00:00
+cwd /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast
+/usr/bin/time -v -o /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/review/pr14/reviewer-deliveries/20261014T190010Z-fast/logs/BUILD-D402-SST-OBSERVER.resource-summary.txt bash /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/review/pr14/reviewer-deliveries/20261014T190010Z-fast/inputs/env.sh env CHMT_BUILD=/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/work/build/D402-Ns2 FOAM_USER_APPBIN=/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/work/install/diagSST/bin UGKWP_GAS_SPECIES=2 CHMT_CUDA_ARCH=sm_89 bash /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/work/observer-SST-D402/applications/CHMT/Allwmake
+automatic_time_limit NONE
+
+EXECUTED BUILD-D402-IDENTICAL-ICE-RETRY
+UTC 2026-10-14T20:25:43.102895+00:00
+cwd /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast
+/usr/bin/time -v -o /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/review/pr14/reviewer-deliveries/20261014T190010Z-fast/logs/BUILD-D402-IDENTICAL-ICE-RETRY.resource-summary.txt bash /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/review/pr14/reviewer-deliveries/20261014T190010Z-fast/inputs/env.sh env CHMT_BUILD=/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/work/build/D402-Ns2 FOAM_USER_APPBIN=/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/work/install/diagSST/bin UGKWP_GAS_SPECIES=2 CHMT_CUDA_ARCH=sm_89 bash /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/work/observer-SST-D402/applications/CHMT/Allwmake
+automatic_time_limit NONE
+
+EXECUTED D402-GPU-SST-RK
+UTC 2026-10-14T20:28:28.772476+00:00
+cwd /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast
+/usr/bin/time -v -o /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/review/pr14/reviewer-deliveries/20261014T190010Z-fast/logs/D402-GPU-SST-RK.resource-summary.txt bash /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/review/pr14/reviewer-deliveries/20261014T190010Z-fast/inputs/env.sh /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/work/install/diagSST/bin/CHMT -case /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/work/cases/D402-SST-RK
+automatic_time_limit NONE
+
+EXECUTED D402-GPU-SST-SSPRK2
+UTC 2026-10-14T20:28:32.210214+00:00
+cwd /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast
+/usr/bin/time -v -o /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/review/pr14/reviewer-deliveries/20261014T190010Z-fast/logs/D402-GPU-SST-SSPRK2.resource-summary.txt bash /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/review/pr14/reviewer-deliveries/20261014T190010Z-fast/inputs/env.sh /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/work/install/diagSST/bin/CHMT -case /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/work/cases/D402-SST-SSPRK2
+automatic_time_limit NONE
+
+EXECUTED D402-GPU-SST-SSPRK3
+UTC 2026-10-14T20:28:35.327724+00:00
+cwd /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast
+/usr/bin/time -v -o /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/review/pr14/reviewer-deliveries/20261014T190010Z-fast/logs/D402-GPU-SST-SSPRK3.resource-summary.txt bash /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/review/pr14/reviewer-deliveries/20261014T190010Z-fast/inputs/env.sh /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/work/install/diagSST/bin/CHMT -case /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/work/cases/D402-SST-SSPRK3
+automatic_time_limit NONE
+
+EXECUTED D402-GPU-SST64-RK1-static
+UTC 2026-10-14T20:28:39.275191+00:00
+cwd /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast
+/usr/bin/time -v -o /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/review/pr14/reviewer-deliveries/20261014T190010Z-fast/logs/D402-GPU-SST64-RK1-static.resource-summary.txt bash /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/review/pr14/reviewer-deliveries/20261014T190010Z-fast/inputs/env.sh /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/work/install/diagSST/bin/CHMT -case /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/work/cases/D402-SST64-RK1-static
+automatic_time_limit NONE
+
+EXECUTED D402-GPU-SST64-RK1-moving
+UTC 2026-10-14T20:28:41.980396+00:00
+cwd /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast
+/usr/bin/time -v -o /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/review/pr14/reviewer-deliveries/20261014T190010Z-fast/logs/D402-GPU-SST64-RK1-moving.resource-summary.txt bash /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/review/pr14/reviewer-deliveries/20261014T190010Z-fast/inputs/env.sh /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/work/install/diagSST/bin/CHMT -case /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/work/cases/D402-SST64-RK1-moving
+automatic_time_limit NONE
+
+EXECUTED D402-GPU-SST64-RK2-static
+UTC 2026-10-14T20:28:45.680310+00:00
+cwd /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast
+/usr/bin/time -v -o /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/review/pr14/reviewer-deliveries/20261014T190010Z-fast/logs/D402-GPU-SST64-RK2-static.resource-summary.txt bash /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/review/pr14/reviewer-deliveries/20261014T190010Z-fast/inputs/env.sh /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/work/install/diagSST/bin/CHMT -case /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/work/cases/D402-SST64-RK2-static
+automatic_time_limit NONE
+
+EXECUTED ANALYZE-PHYSICAL-chemistry-full
+UTC 2026-10-14T20:28:48.711912+00:00
+cwd /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast
+/usr/bin/time -v -o /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/review/pr14/reviewer-deliveries/20261014T190010Z-fast/logs/ANALYZE-PHYSICAL-chemistry-full.resource-summary.txt bash /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/review/pr14/reviewer-deliveries/20261014T190010Z-fast/inputs/env.sh python3 /mnt/c/Users/25094/Documents/Codex/2026-10-14/files-pasted-by-the-user-ugkp/work/r4_physical_audit.py --compute --chem chemistry-full
+automatic_time_limit NONE
+
+EXECUTED D402-GPU-SST64-RK2-moving
+UTC 2026-10-14T20:28:50.181493+00:00
+cwd /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast
+/usr/bin/time -v -o /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/review/pr14/reviewer-deliveries/20261014T190010Z-fast/logs/D402-GPU-SST64-RK2-moving.resource-summary.txt bash /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/review/pr14/reviewer-deliveries/20261014T190010Z-fast/inputs/env.sh /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/work/install/diagSST/bin/CHMT -case /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/work/cases/D402-SST64-RK2-moving
+automatic_time_limit NONE
+
+EXECUTED ANALYZE-PHYSICAL-moving-chemistry
+UTC 2026-10-14T20:28:51.952802+00:00
+cwd /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast
+/usr/bin/time -v -o /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/review/pr14/reviewer-deliveries/20261014T190010Z-fast/logs/ANALYZE-PHYSICAL-moving-chemistry.resource-summary.txt bash /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/review/pr14/reviewer-deliveries/20261014T190010Z-fast/inputs/env.sh python3 /mnt/c/Users/25094/Documents/Codex/2026-10-14/files-pasted-by-the-user-ugkp/work/r4_physical_audit.py --compute --chem moving-chemistry
+automatic_time_limit NONE
+
+EXECUTED ANALYZE-PHYSICAL-thermal-full
+UTC 2026-10-14T20:28:55.235970+00:00
+cwd /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast
+/usr/bin/time -v -o /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/review/pr14/reviewer-deliveries/20261014T190010Z-fast/logs/ANALYZE-PHYSICAL-thermal-full.resource-summary.txt bash /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/review/pr14/reviewer-deliveries/20261014T190010Z-fast/inputs/env.sh python3 /mnt/c/Users/25094/Documents/Codex/2026-10-14/files-pasted-by-the-user-ugkp/work/r4_physical_audit.py --compute --gas thermal-full
+automatic_time_limit NONE
+
+EXECUTED D402-GPU-SST64-RK3-static
+UTC 2026-10-14T20:28:56.958694+00:00
+cwd /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast
+/usr/bin/time -v -o /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/review/pr14/reviewer-deliveries/20261014T190010Z-fast/logs/D402-GPU-SST64-RK3-static.resource-summary.txt bash /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/review/pr14/reviewer-deliveries/20261014T190010Z-fast/inputs/env.sh /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/work/install/diagSST/bin/CHMT -case /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/work/cases/D402-SST64-RK3-static
+automatic_time_limit NONE
+
+EXECUTED ANALYZE-PHYSICAL-wet-film
+UTC 2026-10-14T20:28:57.823787+00:00
+cwd /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast
+/usr/bin/time -v -o /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/review/pr14/reviewer-deliveries/20261014T190010Z-fast/logs/ANALYZE-PHYSICAL-wet-film.resource-summary.txt bash /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/review/pr14/reviewer-deliveries/20261014T190010Z-fast/inputs/env.sh python3 /mnt/c/Users/25094/Documents/Codex/2026-10-14/files-pasted-by-the-user-ugkp/work/r4_physical_audit.py --compute --gas wet-film
+automatic_time_limit NONE
+
+EXECUTED ANALYZE-PHYSICAL-SST-RK
+UTC 2026-10-14T20:28:59.306345+00:00
+cwd /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast
+/usr/bin/time -v -o /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/review/pr14/reviewer-deliveries/20261014T190010Z-fast/logs/ANALYZE-PHYSICAL-SST-RK.resource-summary.txt bash /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/review/pr14/reviewer-deliveries/20261014T190010Z-fast/inputs/env.sh python3 /mnt/c/Users/25094/Documents/Codex/2026-10-14/files-pasted-by-the-user-ugkp/work/r4_physical_audit.py --compute --gas SST-RK
+automatic_time_limit NONE
+
+EXECUTED ANALYZE-PHYSICAL-SST-SSPRK2
+UTC 2026-10-14T20:29:00.846976+00:00
+cwd /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast
+/usr/bin/time -v -o /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/review/pr14/reviewer-deliveries/20261014T190010Z-fast/logs/ANALYZE-PHYSICAL-SST-SSPRK2.resource-summary.txt bash /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/review/pr14/reviewer-deliveries/20261014T190010Z-fast/inputs/env.sh python3 /mnt/c/Users/25094/Documents/Codex/2026-10-14/files-pasted-by-the-user-ugkp/work/r4_physical_audit.py --compute --gas SST-SSPRK2
+automatic_time_limit NONE
+
+EXECUTED ANALYZE-PHYSICAL-SST-SSPRK3
+UTC 2026-10-14T20:29:02.398012+00:00
+cwd /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast
+/usr/bin/time -v -o /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/review/pr14/reviewer-deliveries/20261014T190010Z-fast/logs/ANALYZE-PHYSICAL-SST-SSPRK3.resource-summary.txt bash /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/review/pr14/reviewer-deliveries/20261014T190010Z-fast/inputs/env.sh python3 /mnt/c/Users/25094/Documents/Codex/2026-10-14/files-pasted-by-the-user-ugkp/work/r4_physical_audit.py --compute --gas SST-SSPRK3
+automatic_time_limit NONE
+
+EXECUTED D402-GPU-SST64-RK3-moving
+UTC 2026-10-14T20:29:02.427212+00:00
+cwd /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast
+/usr/bin/time -v -o /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/review/pr14/reviewer-deliveries/20261014T190010Z-fast/logs/D402-GPU-SST64-RK3-moving.resource-summary.txt bash /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/review/pr14/reviewer-deliveries/20261014T190010Z-fast/inputs/env.sh /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/work/install/diagSST/bin/CHMT -case /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/work/cases/D402-SST64-RK3-moving
+automatic_time_limit NONE
+
+EXECUTED ANALYZE-PHYSICAL-moving-GCL
+UTC 2026-10-14T20:29:04.111389+00:00
+cwd /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast
+/usr/bin/time -v -o /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/review/pr14/reviewer-deliveries/20261014T190010Z-fast/logs/ANALYZE-PHYSICAL-moving-GCL.resource-summary.txt bash /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/review/pr14/reviewer-deliveries/20261014T190010Z-fast/inputs/env.sh python3 /mnt/c/Users/25094/Documents/Codex/2026-10-14/files-pasted-by-the-user-ugkp/work/r4_physical_audit.py --compute --gas moving-GCL
+automatic_time_limit NONE
+
+EXECUTED ANALYZE-PHYSICAL-phase-melting
+UTC 2026-10-14T20:29:05.439958+00:00
+cwd /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast
+/usr/bin/time -v -o /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/review/pr14/reviewer-deliveries/20261014T190010Z-fast/logs/ANALYZE-PHYSICAL-phase-melting.resource-summary.txt bash /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/review/pr14/reviewer-deliveries/20261014T190010Z-fast/inputs/env.sh python3 /mnt/c/Users/25094/Documents/Codex/2026-10-14/files-pasted-by-the-user-ugkp/work/r4_physical_audit.py --compute --gas phase-melting
+automatic_time_limit NONE
+
+EXECUTED ANALYZE-PHYSICAL-phase-solidification
+UTC 2026-10-14T20:29:06.865544+00:00
+cwd /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast
+/usr/bin/time -v -o /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/review/pr14/reviewer-deliveries/20261014T190010Z-fast/logs/ANALYZE-PHYSICAL-phase-solidification.resource-summary.txt bash /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/review/pr14/reviewer-deliveries/20261014T190010Z-fast/inputs/env.sh python3 /mnt/c/Users/25094/Documents/Codex/2026-10-14/files-pasted-by-the-user-ugkp/work/r4_physical_audit.py --compute --gas phase-solidification
+automatic_time_limit NONE
+
+EXECUTED ANALYZE-S407-chemistry-full
+UTC 2026-10-14T20:30:49.625266+00:00
+cwd /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast
+/usr/bin/time -v -o /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/review/pr14/reviewer-deliveries/20261014T190010Z-fast/logs/ANALYZE-S407-chemistry-full.resource-summary.txt bash /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/review/pr14/reviewer-deliveries/20261014T190010Z-fast/inputs/env.sh python3 /mnt/c/Users/25094/Documents/Codex/2026-10-14/files-pasted-by-the-user-ugkp/work/r4_physical_audit.py --compute --chem chemistry-full
+automatic_time_limit NONE
+
+EXECUTED ANALYZE-S407-moving-chemistry
+UTC 2026-10-14T20:30:51.814921+00:00
+cwd /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast
+/usr/bin/time -v -o /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/review/pr14/reviewer-deliveries/20261014T190010Z-fast/logs/ANALYZE-S407-moving-chemistry.resource-summary.txt bash /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/review/pr14/reviewer-deliveries/20261014T190010Z-fast/inputs/env.sh python3 /mnt/c/Users/25094/Documents/Codex/2026-10-14/files-pasted-by-the-user-ugkp/work/r4_physical_audit.py --compute --chem moving-chemistry
+automatic_time_limit NONE
+
+EXECUTED ANALYZE-S407-SST-SSPRK2
+UTC 2026-10-14T20:30:54.595113+00:00
+cwd /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast
+/usr/bin/time -v -o /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/review/pr14/reviewer-deliveries/20261014T190010Z-fast/logs/ANALYZE-S407-SST-SSPRK2.resource-summary.txt bash /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/review/pr14/reviewer-deliveries/20261014T190010Z-fast/inputs/env.sh python3 /mnt/c/Users/25094/Documents/Codex/2026-10-14/files-pasted-by-the-user-ugkp/work/r4_physical_audit.py --compute --gas SST-SSPRK2
+automatic_time_limit NONE
+
+EXECUTED ANALYZE-S407-SST-SSPRK3
+UTC 2026-10-14T20:30:56.328325+00:00
+cwd /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast
+/usr/bin/time -v -o /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/review/pr14/reviewer-deliveries/20261014T190010Z-fast/logs/ANALYZE-S407-SST-SSPRK3.resource-summary.txt bash /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/review/pr14/reviewer-deliveries/20261014T190010Z-fast/inputs/env.sh python3 /mnt/c/Users/25094/Documents/Codex/2026-10-14/files-pasted-by-the-user-ugkp/work/r4_physical_audit.py --compute --gas SST-SSPRK3
+automatic_time_limit NONE
+
+EXECUTED ANALYZE-D402-SST-RK
+UTC 2026-10-14T20:32:40.225249+00:00
+cwd /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast
+/usr/bin/time -v -o /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/review/pr14/reviewer-deliveries/20261014T190010Z-fast/logs/ANALYZE-D402-SST-RK.resource-summary.txt bash /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/review/pr14/reviewer-deliveries/20261014T190010Z-fast/inputs/env.sh python3 /mnt/c/Users/25094/Documents/Codex/2026-10-14/files-pasted-by-the-user-ugkp/work/r4_sst_physical_audit.py --compute SST-RK
+automatic_time_limit NONE
+
+EXECUTED ANALYZE-D402-SST-SSPRK2
+UTC 2026-10-14T20:32:42.196769+00:00
+cwd /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast
+/usr/bin/time -v -o /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/review/pr14/reviewer-deliveries/20261014T190010Z-fast/logs/ANALYZE-D402-SST-SSPRK2.resource-summary.txt bash /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/review/pr14/reviewer-deliveries/20261014T190010Z-fast/inputs/env.sh python3 /mnt/c/Users/25094/Documents/Codex/2026-10-14/files-pasted-by-the-user-ugkp/work/r4_sst_physical_audit.py --compute SST-SSPRK2
+automatic_time_limit NONE
+
+EXECUTED ANALYZE-D402-SST-SSPRK3
+UTC 2026-10-14T20:32:43.921878+00:00
+cwd /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast
+/usr/bin/time -v -o /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/review/pr14/reviewer-deliveries/20261014T190010Z-fast/logs/ANALYZE-D402-SST-SSPRK3.resource-summary.txt bash /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/review/pr14/reviewer-deliveries/20261014T190010Z-fast/inputs/env.sh python3 /mnt/c/Users/25094/Documents/Codex/2026-10-14/files-pasted-by-the-user-ugkp/work/r4_sst_physical_audit.py --compute SST-SSPRK3
+automatic_time_limit NONE
+
+EXECUTED ANALYZE-D402-SST64-RK1-static
+UTC 2026-10-14T20:32:45.759183+00:00
+cwd /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast
+/usr/bin/time -v -o /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/review/pr14/reviewer-deliveries/20261014T190010Z-fast/logs/ANALYZE-D402-SST64-RK1-static.resource-summary.txt bash /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/review/pr14/reviewer-deliveries/20261014T190010Z-fast/inputs/env.sh python3 /mnt/c/Users/25094/Documents/Codex/2026-10-14/files-pasted-by-the-user-ugkp/work/r4_sst_physical_audit.py --compute SST64-RK1-static
+automatic_time_limit NONE
+
+EXECUTED ANALYZE-D402-SST64-RK1-moving
+UTC 2026-10-14T20:32:48.164137+00:00
+cwd /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast
+/usr/bin/time -v -o /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/review/pr14/reviewer-deliveries/20261014T190010Z-fast/logs/ANALYZE-D402-SST64-RK1-moving.resource-summary.txt bash /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/review/pr14/reviewer-deliveries/20261014T190010Z-fast/inputs/env.sh python3 /mnt/c/Users/25094/Documents/Codex/2026-10-14/files-pasted-by-the-user-ugkp/work/r4_sst_physical_audit.py --compute SST64-RK1-moving
+automatic_time_limit NONE
+
+EXECUTED ANALYZE-D402-SST64-RK2-static
+UTC 2026-10-14T20:32:50.599086+00:00
+cwd /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast
+/usr/bin/time -v -o /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/review/pr14/reviewer-deliveries/20261014T190010Z-fast/logs/ANALYZE-D402-SST64-RK2-static.resource-summary.txt bash /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/review/pr14/reviewer-deliveries/20261014T190010Z-fast/inputs/env.sh python3 /mnt/c/Users/25094/Documents/Codex/2026-10-14/files-pasted-by-the-user-ugkp/work/r4_sst_physical_audit.py --compute SST64-RK2-static
+automatic_time_limit NONE
+
+EXECUTED ANALYZE-D402-SST64-RK2-moving
+UTC 2026-10-14T20:32:55.609913+00:00
+cwd /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast
+/usr/bin/time -v -o /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/review/pr14/reviewer-deliveries/20261014T190010Z-fast/logs/ANALYZE-D402-SST64-RK2-moving.resource-summary.txt bash /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/review/pr14/reviewer-deliveries/20261014T190010Z-fast/inputs/env.sh python3 /mnt/c/Users/25094/Documents/Codex/2026-10-14/files-pasted-by-the-user-ugkp/work/r4_sst_physical_audit.py --compute SST64-RK2-moving
+automatic_time_limit NONE
+
+EXECUTED ANALYZE-D402-SST64-RK3-static
+UTC 2026-10-14T20:32:59.470095+00:00
+cwd /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast
+/usr/bin/time -v -o /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/review/pr14/reviewer-deliveries/20261014T190010Z-fast/logs/ANALYZE-D402-SST64-RK3-static.resource-summary.txt bash /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/review/pr14/reviewer-deliveries/20261014T190010Z-fast/inputs/env.sh python3 /mnt/c/Users/25094/Documents/Codex/2026-10-14/files-pasted-by-the-user-ugkp/work/r4_sst_physical_audit.py --compute SST64-RK3-static
+automatic_time_limit NONE
+
+EXECUTED ANALYZE-D402-SST64-RK3-moving
+UTC 2026-10-14T20:33:04.724248+00:00
+cwd /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast
+/usr/bin/time -v -o /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/review/pr14/reviewer-deliveries/20261014T190010Z-fast/logs/ANALYZE-D402-SST64-RK3-moving.resource-summary.txt bash /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/review/pr14/reviewer-deliveries/20261014T190010Z-fast/inputs/env.sh python3 /mnt/c/Users/25094/Documents/Codex/2026-10-14/files-pasted-by-the-user-ugkp/work/r4_sst_physical_audit.py --compute SST64-RK3-moving
+automatic_time_limit NONE
+
+EXECUTED ANALYZE-S408-phase-melting
+UTC 2026-10-14T20:34:23.498315+00:00
+cwd /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast
+/usr/bin/time -v -o /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/review/pr14/reviewer-deliveries/20261014T190010Z-fast/logs/ANALYZE-S408-phase-melting.resource-summary.txt bash /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/review/pr14/reviewer-deliveries/20261014T190010Z-fast/inputs/env.sh python3 /mnt/c/Users/25094/Documents/Codex/2026-10-14/files-pasted-by-the-user-ugkp/work/r4_physical_audit.py --compute --gas phase-melting
+automatic_time_limit NONE
+
+EXECUTED ANALYZE-S408-phase-solidification
+UTC 2026-10-14T20:34:25.540605+00:00
+cwd /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast
+/usr/bin/time -v -o /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/review/pr14/reviewer-deliveries/20261014T190010Z-fast/logs/ANALYZE-S408-phase-solidification.resource-summary.txt bash /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/review/pr14/reviewer-deliveries/20261014T190010Z-fast/inputs/env.sh python3 /mnt/c/Users/25094/Documents/Codex/2026-10-14/files-pasted-by-the-user-ugkp/work/r4_physical_audit.py --compute --gas phase-solidification
+automatic_time_limit NONE
+
+EXECUTED NSYS-470-THERMAL100
+UTC 2026-10-14T20:34:27.922482+00:00
+cwd /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast
+/usr/bin/time -v -o /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/review/pr14/reviewer-deliveries/20261014T190010Z-fast/logs/NSYS-470-THERMAL100.resource-summary.txt bash /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/review/pr14/reviewer-deliveries/20261014T190010Z-fast/inputs/env.sh nsys profile --sample=none --cpuctxsw=none --trace=cuda,nvtx,osrt --cuda-memory-usage=true --output=/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/work/profile-native-trace /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/work/install/ns2/bin/CHMT -case /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/work/profile-native
+automatic_time_limit NONE
+
+EXECUTED NSYS-470-EXPORT
+UTC 2026-10-14T20:34:33.937004+00:00
+cwd /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast
+/usr/bin/time -v -o /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/review/pr14/reviewer-deliveries/20261014T190010Z-fast/logs/NSYS-470-EXPORT.resource-summary.txt bash /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/review/pr14/reviewer-deliveries/20261014T190010Z-fast/inputs/env.sh nsys export --type=sqlite --output=/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/work/profile-native-trace.sqlite /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/work/profile-native-trace.nsys-rep
+automatic_time_limit NONE
+
+EXECUTED TIMING-470-THERMAL100-0
+UTC 2026-10-14T20:34:36.061466+00:00
+cwd /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast
+/usr/bin/time -v -o /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/review/pr14/reviewer-deliveries/20261014T190010Z-fast/logs/TIMING-470-THERMAL100-0.resource-summary.txt bash /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/review/pr14/reviewer-deliveries/20261014T190010Z-fast/inputs/env.sh /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/work/install/ns2/bin/CHMT -case /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/work/timing-thermal-0
+automatic_time_limit NONE
+
+EXECUTED TIMING-470-THERMAL100-1
+UTC 2026-10-14T20:34:38.193606+00:00
+cwd /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast
+/usr/bin/time -v -o /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/review/pr14/reviewer-deliveries/20261014T190010Z-fast/logs/TIMING-470-THERMAL100-1.resource-summary.txt bash /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/review/pr14/reviewer-deliveries/20261014T190010Z-fast/inputs/env.sh /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/work/install/ns2/bin/CHMT -case /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/work/timing-thermal-1
+automatic_time_limit NONE
+
+EXECUTED TIMING-470-THERMAL100-2
+UTC 2026-10-14T20:34:39.753180+00:00
+cwd /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast
+/usr/bin/time -v -o /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/review/pr14/reviewer-deliveries/20261014T190010Z-fast/logs/TIMING-470-THERMAL100-2.resource-summary.txt bash /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/review/pr14/reviewer-deliveries/20261014T190010Z-fast/inputs/env.sh /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/work/install/ns2/bin/CHMT -case /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/work/timing-thermal-2
+automatic_time_limit NONE
+
+EXECUTED TIMING-470-THERMAL100-3
+UTC 2026-10-14T20:34:41.346253+00:00
+cwd /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast
+/usr/bin/time -v -o /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/review/pr14/reviewer-deliveries/20261014T190010Z-fast/logs/TIMING-470-THERMAL100-3.resource-summary.txt bash /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/review/pr14/reviewer-deliveries/20261014T190010Z-fast/inputs/env.sh /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/work/install/ns2/bin/CHMT -case /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/work/timing-thermal-3
+automatic_time_limit NONE
+
+EXECUTED TIMING-470-THERMAL100-4
+UTC 2026-10-14T20:34:42.707502+00:00
+cwd /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast
+/usr/bin/time -v -o /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/review/pr14/reviewer-deliveries/20261014T190010Z-fast/logs/TIMING-470-THERMAL100-4.resource-summary.txt bash /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/review/pr14/reviewer-deliveries/20261014T190010Z-fast/inputs/env.sh /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/work/install/ns2/bin/CHMT -case /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/work/timing-thermal-4
+automatic_time_limit NONE
+
+EXECUTED GPU-WIRE-FSH-old-to-new
+UTC 2026-10-14T20:35:45.187791+00:00
+cwd /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast
+/usr/bin/time -v -o /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/review/pr14/reviewer-deliveries/20261014T190010Z-fast/logs/GPU-WIRE-FSH-old-to-new.resource-summary.txt bash /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/review/pr14/reviewer-deliveries/20261014T190010Z-fast/inputs/env.sh env FSH_CUDA_BACKEND=/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/work/install/ns2/bin/FSHCudaBackend /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T120103Z-fast/work/install/ns2/bin/FSH -case /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/work/cases/FSH-wire-old-to-new
+automatic_time_limit NONE
+
+EXECUTED GPU-WIRE-FSH-new-to-old
+UTC 2026-10-14T20:35:47.919024+00:00
+cwd /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast
+/usr/bin/time -v -o /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/review/pr14/reviewer-deliveries/20261014T190010Z-fast/logs/GPU-WIRE-FSH-new-to-old.resource-summary.txt bash /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/review/pr14/reviewer-deliveries/20261014T190010Z-fast/inputs/env.sh env FSH_CUDA_BACKEND=/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T120103Z-fast/work/install/ns2/bin/FSHCudaBackend /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/work/install/ns2/bin/FSH -case /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/work/cases/FSH-wire-new-to-old
+automatic_time_limit NONE

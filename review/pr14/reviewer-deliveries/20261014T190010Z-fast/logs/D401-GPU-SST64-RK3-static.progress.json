@@ -1,0 +1,45 @@
+[
+  {
+    "utc": "2026-10-14T20:03:58.229536+00:00",
+    "log_bytes": 0,
+    "processes": [
+      {
+        "pid": 188896,
+        "ppid": 177857,
+        "rss_kib": 1280,
+        "elapsed_seconds": 0,
+        "comm": "time"
+      },
+      {
+        "pid": 188898,
+        "ppid": 188896,
+        "rss_kib": 3072,
+        "elapsed_seconds": 0,
+        "comm": "bash"
+      }
+    ],
+    "aggregate_rss_kib": 4352,
+    "meminfo": {
+      "MemTotal": "12243064 kB",
+      "MemAvailable": "11368156 kB",
+      "SwapTotal": "4194304 kB",
+      "SwapFree": "4194304 kB"
+    },
+    "vmstat_oom_kill": "0",
+    "gpu": "2026/10/15 04:03:58.341, NVIDIA GeForce RTX 4060 Laptop GPU, 0, 7956, 0, 0"
+  },
+  {
+    "utc": "2026-10-14T20:04:02.022011+00:00",
+    "log_bytes": 139648111,
+    "processes": [],
+    "aggregate_rss_kib": 0,
+    "meminfo": {
+      "MemTotal": "12243064 kB",
+      "MemAvailable": "11372352 kB",
+      "SwapTotal": "4194304 kB",
+      "SwapFree": "4194304 kB"
+    },
+    "vmstat_oom_kill": "0",
+    "gpu": "2026/10/15 04:04:02.171, NVIDIA GeForce RTX 4060 Laptop GPU, 0, 7956, 6, 0"
+  }
+]

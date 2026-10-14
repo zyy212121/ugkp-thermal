@@ -1,0 +1,99 @@
+{
+  "source_commit": "47034e4e0380fa5b84165b49207a95a9b187a52a",
+  "variant": "DIAGNOSTIC_D401",
+  "all_original_files_byte_equal": true,
+  "comparisons": [
+    {
+      "path": "material-0.csv",
+      "formal_sha256": "bcb36898b9aa756f828d22c3d480e54afcbeaa1ba4366971bed835a4c44dff8f",
+      "observer_sha256": "bcb36898b9aa756f828d22c3d480e54afcbeaa1ba4366971bed835a4c44dff8f",
+      "byte_equal": true
+    },
+    {
+      "path": "material-2.csv",
+      "formal_sha256": "deb8437ebf6e42bf651f2272168be3ed120186223bd691ccd2efc6434687c696",
+      "observer_sha256": "deb8437ebf6e42bf651f2272168be3ed120186223bd691ccd2efc6434687c696",
+      "byte_equal": true
+    },
+    {
+      "path": "exchange-1.csv",
+      "formal_sha256": "97b44f8d1bfad73616e41e464be56cb45d6d3dafb0d577d36b176e05b27c65b9",
+      "observer_sha256": "97b44f8d1bfad73616e41e464be56cb45d6d3dafb0d577d36b176e05b27c65b9",
+      "byte_equal": true
+    },
+    {
+      "path": "accepted-1.csv",
+      "formal_sha256": "d9390ad75e6c1154e5ca31071e144e7550a34c281aebcf97adb73320397aa778",
+      "observer_sha256": "d9390ad75e6c1154e5ca31071e144e7550a34c281aebcf97adb73320397aa778",
+      "byte_equal": true
+    },
+    {
+      "path": "exchange-2.csv",
+      "formal_sha256": "7bc0c964b360ad2f19b0194a0328ce237e55fd8299eedf41cfa261c8d4b9804f",
+      "observer_sha256": "7bc0c964b360ad2f19b0194a0328ce237e55fd8299eedf41cfa261c8d4b9804f",
+      "byte_equal": true
+    },
+    {
+      "path": "accepted-0.csv",
+      "formal_sha256": "327aff0c9873d01590fce692ded824e879a56fc70bc8eac129dea6593da5d030",
+      "observer_sha256": "327aff0c9873d01590fce692ded824e879a56fc70bc8eac129dea6593da5d030",
+      "byte_equal": true
+    },
+    {
+      "path": "exchange-0.csv",
+      "formal_sha256": "28e083ed7242aede54ec558af274ade8b51d6a09029f15ea9799789bbea282a3",
+      "observer_sha256": "28e083ed7242aede54ec558af274ade8b51d6a09029f15ea9799789bbea282a3",
+      "byte_equal": true
+    },
+    {
+      "path": "accepted-2.csv",
+      "formal_sha256": "825dca62a7ec37e973313874cd1f1c16e347b091b6f03a0da2eff47db7d0bcc3",
+      "observer_sha256": "825dca62a7ec37e973313874cd1f1c16e347b091b6f03a0da2eff47db7d0bcc3",
+      "byte_equal": true
+    },
+    {
+      "path": "gas-1.csv",
+      "formal_sha256": "88c1aef0dd212436710b5911775018332e5bd4acd40a4002212a8160bfbba58d",
+      "observer_sha256": "88c1aef0dd212436710b5911775018332e5bd4acd40a4002212a8160bfbba58d",
+      "byte_equal": true
+    },
+    {
+      "path": "gas-2.csv",
+      "formal_sha256": "472dd4db1e1ed4b4380e645aadf3de6e223bf5c33456197a59f7022b17b9bbea",
+      "observer_sha256": "472dd4db1e1ed4b4380e645aadf3de6e223bf5c33456197a59f7022b17b9bbea",
+      "byte_equal": true
+    },
+    {
+      "path": "gas-0.csv",
+      "formal_sha256": "2738c60066e80a7168b2e7e21af108a0c463dac19cab7f9e91540ad7e0e10b6a",
+      "observer_sha256": "2738c60066e80a7168b2e7e21af108a0c463dac19cab7f9e91540ad7e0e10b6a",
+      "byte_equal": true
+    },
+    {
+      "path": "material-1.csv",
+      "formal_sha256": "aa82bbd38408b13e11f3f6afdfe8aae452f288714127bd6a2d002f09a0c69f45",
+      "observer_sha256": "aa82bbd38408b13e11f3f6afdfe8aae452f288714127bd6a2d002f09a0c69f45",
+      "byte_equal": true
+    },
+    {
+      "path": "checkpoint-1/state.chmt",
+      "formal_sha256": "3cd442b361daadcf97d1ebc16aeafb4ebe6e58fbe453a11f50a9f82bccef6a58",
+      "observer_sha256": "3cd442b361daadcf97d1ebc16aeafb4ebe6e58fbe453a11f50a9f82bccef6a58",
+      "byte_equal": true
+    },
+    {
+      "path": "checkpoint-2/state.chmt",
+      "formal_sha256": "c3b5b923ea7ce91c1883a5d495ec1f58351ce8217b54e21239311530b2adfc62",
+      "observer_sha256": "c3b5b923ea7ce91c1883a5d495ec1f58351ce8217b54e21239311530b2adfc62",
+      "byte_equal": true
+    },
+    {
+      "path": "checkpoint-0/state.chmt",
+      "formal_sha256": "3cac989de8e2f1b554186c97e1689116534efd3c1044011500737243ec028105",
+      "observer_sha256": "3cac989de8e2f1b554186c97e1689116534efd3c1044011500737243ec028105",
+      "byte_equal": true
+    }
+  ],
+  "observer_input_recipe_same_as_formal": true,
+  "diagnostic_io_excluded_from_efficiency": true
+}

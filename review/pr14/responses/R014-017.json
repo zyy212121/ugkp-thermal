@@ -258,6 +258,98 @@
       "whole_FAST_acceptance": false,
       "merge_ready": false,
       "merge_authorized": false
+    },
+    {
+      "id": "R014-017-REVIEWER-20261014T190010Z-fast",
+      "question_id": "R014-017",
+      "author": "Codex independent actualGPUreviewer +read-onlysource/evidencescope reviewer",
+      "recorded_utc": "2026-10-14T20:51:17.609962+00:00",
+      "interaction_class": "FAST",
+      "review_round": "FAST4",
+      "source_commit": "47034e4e0380fa5b84165b49207a95a9b187a52a",
+      "source_tree": "c932823a00b3ed2f647e22de5002f9b913962fee",
+      "record_parent": "55d3663830ada63077241c528e2c81b53976e2c4",
+      "baseline_source_commit": "9d5be6eff69dbced2fc959d422d3ba419a1bc39e",
+      "prior_evidence_commit": "0aa34bc1b0e370ec99e6107faf83ff7f0ac3e668",
+      "file_ids": [
+        "F014-f3224cf67a09",
+        "F014-d0e5b888540c"
+      ],
+      "function_ids": [
+        "FN014-116ebc8a64cc",
+        "FN014-a07b6f8317c6",
+        "FN014-863fa2f57b1d",
+        "FN014-f5307145015c",
+        "FN014-b00b4d996d67",
+        "FN014-25dc6887ec34",
+        "FN014-28130a4440c6",
+        "FN014-2713191a5b34"
+      ],
+      "source_blobs": [
+        {
+          "file_id": "F014-f3224cf67a09",
+          "path": "tools/migrate_scheduling_properties.py",
+          "git_blob_sha1": "757d5b9f5df04f19cc6f84c90069c0fa581e1254",
+          "sha256": "6b7adb7c856884cc7de9634d9db5c35a8894e8a4e9a7e957a505440962b6dc55"
+        },
+        {
+          "file_id": "F014-d0e5b888540c",
+          "path": "tools/particle_field_contract.py",
+          "git_blob_sha1": "1ba54cf1e35cab7e45bc7ae45531102f54bc46be",
+          "sha256": "de8065c144037a54cba3cbcaba0f8aadafab86888e7a9982704844d48a56c8a8"
+        }
+      ],
+      "delivery_path": "reviewer-deliveries/20261014T190010Z-fast",
+      "report": "reviewer-deliveries/20261014T190010Z-fast/REPORT.md",
+      "plan": "reviewer-deliveries/20261014T190010Z-fast/TEST_PLAN.md",
+      "coverage": "reviewer-deliveries/20261014T190010Z-fast/coverage.json",
+      "results": "reviewer-deliveries/20261014T190010Z-fast/results.json",
+      "versions": "reviewer-deliveries/20261014T190010Z-fast/versions.json",
+      "environment": "reviewer-deliveries/20261014T190010Z-fast/environment.json",
+      "toolchain_device": "RTX4060Laptop/CUDA13.1.115/g++11.4/OF10; environment.json andMETA-ENVIRONMENT actuallog",
+      "exact_command_input_dependency_binary_utc_exit": "results tests[]/logs.spec.json/commands/versions/source-registry; compressedraworiginalSHA aliases verified",
+      "automatic_time_limit": null,
+      "evidence_ids": [
+        "E014-da7494f1ad46d610",
+        "E014-90e0786a1a5e7459",
+        "E014-68fd4208f93183d8",
+        "E014-b385309d9dfc1c12",
+        "E014-85f4877c3860fa97",
+        "E014-285c5df96b40cb5e",
+        "E014-3a07e4a52efe2302",
+        "E014-3091b0016fcc18d8",
+        "E014-1dfb4356993746a1",
+        "E014-7ac358962ecc5a8a",
+        "E014-7220cc09696a235e",
+        "E014-9dbc79fea09a96aa",
+        "E014-c861fd7c2c2800c0",
+        "E014-a88a30b51e09992a",
+        "E014-e65a9a9bcccc635b",
+        "E014-5fd333e75d346ce4",
+        "E014-6c58a22525aae004",
+        "E014-dc5000c413c7afe3",
+        "E014-0d5a857127aa6e77",
+        "E014-3aa5cc87a8be76ad"
+      ],
+      "verdict": "PARTIAL",
+      "acceptance_unit_ids": [
+        "R4-SST22-actual-resource-recovery"
+      ],
+      "executed_test_ids": [
+        "S406-SST22-ACTUAL-CHT",
+        "S406-SST22-ACTUAL-FSH"
+      ],
+      "remaining_gaps": [
+        "SST22-owner-graph"
+      ],
+      "findings": [],
+      "support_PASS_not_formal_fixture_PASS": true,
+      "legacy_zero_not_measured_conservation": true,
+      "retired_support_metric": "RETIRED_BY_USER",
+      "counts_not_additive_across_topics": true,
+      "whole_FAST_acceptance": false,
+      "merge_ready": false,
+      "merge_authorized": false
     }
   ],
   "developer_replies": [],
@@ -448,6 +540,101 @@
       "reply_to": [],
       "reviewer_result_id": "R014-017-REVIEWER-20261014T120103Z-fast",
       "status": "FAST3_FORMAL_SCOPED_RECHECK_OPEN_QUALIFICATIONS"
+    },
+    {
+      "id": "R014-017-RECHECK-20261014T190010Z-fast",
+      "question_id": "R014-017",
+      "author": "Codex independent actualGPUreviewer +read-onlysource/evidencescope reviewer",
+      "recorded_utc": "2026-10-14T20:51:17.609962+00:00",
+      "interaction_class": "FAST",
+      "review_round": "FAST4",
+      "source_commit": "47034e4e0380fa5b84165b49207a95a9b187a52a",
+      "source_tree": "c932823a00b3ed2f647e22de5002f9b913962fee",
+      "record_parent": "55d3663830ada63077241c528e2c81b53976e2c4",
+      "baseline_source_commit": "9d5be6eff69dbced2fc959d422d3ba419a1bc39e",
+      "prior_evidence_commit": "0aa34bc1b0e370ec99e6107faf83ff7f0ac3e668",
+      "file_ids": [
+        "F014-f3224cf67a09",
+        "F014-d0e5b888540c"
+      ],
+      "function_ids": [
+        "FN014-116ebc8a64cc",
+        "FN014-a07b6f8317c6",
+        "FN014-863fa2f57b1d",
+        "FN014-f5307145015c",
+        "FN014-b00b4d996d67",
+        "FN014-25dc6887ec34",
+        "FN014-28130a4440c6",
+        "FN014-2713191a5b34"
+      ],
+      "source_blobs": [
+        {
+          "file_id": "F014-f3224cf67a09",
+          "path": "tools/migrate_scheduling_properties.py",
+          "git_blob_sha1": "757d5b9f5df04f19cc6f84c90069c0fa581e1254",
+          "sha256": "6b7adb7c856884cc7de9634d9db5c35a8894e8a4e9a7e957a505440962b6dc55"
+        },
+        {
+          "file_id": "F014-d0e5b888540c",
+          "path": "tools/particle_field_contract.py",
+          "git_blob_sha1": "1ba54cf1e35cab7e45bc7ae45531102f54bc46be",
+          "sha256": "de8065c144037a54cba3cbcaba0f8aadafab86888e7a9982704844d48a56c8a8"
+        }
+      ],
+      "delivery_path": "reviewer-deliveries/20261014T190010Z-fast",
+      "report": "reviewer-deliveries/20261014T190010Z-fast/REPORT.md",
+      "plan": "reviewer-deliveries/20261014T190010Z-fast/TEST_PLAN.md",
+      "coverage": "reviewer-deliveries/20261014T190010Z-fast/coverage.json",
+      "results": "reviewer-deliveries/20261014T190010Z-fast/results.json",
+      "versions": "reviewer-deliveries/20261014T190010Z-fast/versions.json",
+      "environment": "reviewer-deliveries/20261014T190010Z-fast/environment.json",
+      "toolchain_device": "RTX4060Laptop/CUDA13.1.115/g++11.4/OF10; environment.json andMETA-ENVIRONMENT actuallog",
+      "exact_command_input_dependency_binary_utc_exit": "results tests[]/logs.spec.json/commands/versions/source-registry; compressedraworiginalSHA aliases verified",
+      "automatic_time_limit": null,
+      "evidence_ids": [
+        "E014-da7494f1ad46d610",
+        "E014-90e0786a1a5e7459",
+        "E014-68fd4208f93183d8",
+        "E014-b385309d9dfc1c12",
+        "E014-85f4877c3860fa97",
+        "E014-285c5df96b40cb5e",
+        "E014-3a07e4a52efe2302",
+        "E014-3091b0016fcc18d8",
+        "E014-1dfb4356993746a1",
+        "E014-7ac358962ecc5a8a",
+        "E014-7220cc09696a235e",
+        "E014-9dbc79fea09a96aa",
+        "E014-c861fd7c2c2800c0",
+        "E014-a88a30b51e09992a",
+        "E014-e65a9a9bcccc635b",
+        "E014-5fd333e75d346ce4",
+        "E014-6c58a22525aae004",
+        "E014-dc5000c413c7afe3",
+        "E014-0d5a857127aa6e77",
+        "E014-3aa5cc87a8be76ad"
+      ],
+      "verdict": "PARTIAL",
+      "acceptance_unit_ids": [
+        "R4-SST22-actual-resource-recovery"
+      ],
+      "executed_test_ids": [
+        "S406-SST22-ACTUAL-CHT",
+        "S406-SST22-ACTUAL-FSH"
+      ],
+      "remaining_gaps": [
+        "SST22-owner-graph"
+      ],
+      "findings": [],
+      "support_PASS_not_formal_fixture_PASS": true,
+      "legacy_zero_not_measured_conservation": true,
+      "retired_support_metric": "RETIRED_BY_USER",
+      "counts_not_additive_across_topics": true,
+      "whole_FAST_acceptance": false,
+      "merge_ready": false,
+      "merge_authorized": false,
+      "reply_to": [],
+      "reviewer_result_id": "R014-017-REVIEWER-20261014T190010Z-fast",
+      "status": "FAST4_SCOPED_REAL_GPU_RECHECK_OPEN_LIMITATIONS"
     }
   ],
   "final_decision": {
@@ -511,6 +698,25 @@
         "E014-26a5384631e57d96",
         "E014-92e03d0925924611",
         "E014-81ad47b6d353e3ec"
+      ],
+      "merge_authorized": false
+    },
+    {
+      "recorded_utc": "2026-10-14T20:51:17.609962+00:00",
+      "source_commit": "47034e4e0380fa5b84165b49207a95a9b187a52a",
+      "delivery_path": "reviewer-deliveries/20261014T190010Z-fast",
+      "status": "FAST4_FORMAL_RED_PARTIAL_GAPS_RETAINED",
+      "remaining_gaps": [
+        "SST22-owner-graph"
+      ],
+      "evidence_ids": [
+        "E014-da7494f1ad46d610",
+        "E014-90e0786a1a5e7459",
+        "E014-68fd4208f93183d8",
+        "E014-b385309d9dfc1c12",
+        "E014-85f4877c3860fa97",
+        "E014-285c5df96b40cb5e",
+        "E014-3a07e4a52efe2302"
       ],
       "merge_authorized": false
     }

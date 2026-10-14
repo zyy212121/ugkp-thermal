@@ -676,6 +676,301 @@
       "whole_FAST_acceptance": false,
       "merge_ready": false,
       "merge_authorized": false
+    },
+    {
+      "id": "R014-032-REVIEWER-20261014T190010Z-fast",
+      "question_id": "R014-032",
+      "author": "Codex independent actualGPUreviewer +read-onlysource/evidencescope reviewer",
+      "recorded_utc": "2026-10-14T20:51:17.634188+00:00",
+      "interaction_class": "FAST",
+      "review_round": "FAST4",
+      "source_commit": "47034e4e0380fa5b84165b49207a95a9b187a52a",
+      "source_tree": "c932823a00b3ed2f647e22de5002f9b913962fee",
+      "record_parent": "55d3663830ada63077241c528e2c81b53976e2c4",
+      "baseline_source_commit": "9d5be6eff69dbced2fc959d422d3ba419a1bc39e",
+      "prior_evidence_commit": "0aa34bc1b0e370ec99e6107faf83ff7f0ac3e668",
+      "file_ids": [
+        "F014-4136839922e7",
+        "F014-a8f79b3f42ce",
+        "F014-b491022bcb4b",
+        "F014-f409f9d9467a",
+        "F014-3830e698e5c7",
+        "F014-518e46c20db0",
+        "F014-fec9067c78b7",
+        "F014-089eff7844b3",
+        "F014-0784aa3a5247",
+        "F014-ead612f94264",
+        "F014-5857d8f8fb79",
+        "F014-49905ba7224a",
+        "F014-145c7b4d940e",
+        "F014-22f65fbee569",
+        "F014-5b3e664266ae",
+        "F014-3e68224510ad",
+        "F014-584468e90834",
+        "F014-680a9ede8729",
+        "F014-65b141924e4e",
+        "F014-45246b3fe7ce"
+      ],
+      "function_ids": [
+        "FN014-d63f075c7595",
+        "FN014-f8fc5d53541f",
+        "FN014-ab80c63ed680",
+        "FN014-8bed5e985279",
+        "FN014-3e93fcf01eb2",
+        "FN014-9c0785fd6a7a",
+        "FN014-229084be9a60",
+        "FN014-886d39ae19cf",
+        "FN014-812d978a618c",
+        "FN014-d12b07acfa1d",
+        "FN014-0b2192532583",
+        "FN014-634d0b0ac201",
+        "FN014-93abcbd17a75",
+        "FN014-3425d2bf8d2f",
+        "FN014-897fe8c3b437",
+        "FN014-f31223129d41",
+        "FN014-24c6ea9c9d05",
+        "FN014-7985656bf8bd",
+        "FN014-9d6c1ef9651d",
+        "FN014-f51873d7fe61",
+        "FN014-f793fb0f3169",
+        "FN014-aa6ed84bae48",
+        "FN014-051bdf428b22",
+        "FN014-84ea7af988fc",
+        "FN014-84d36fdc3b9a",
+        "FN014-e7fd3aacf08f",
+        "FN014-4dc9e39bfddb",
+        "FN014-5f2215a29757",
+        "FN014-3f447e1dc15d",
+        "FN014-80e6f9961cc9",
+        "FN014-7e06866f0051",
+        "FN014-023e779d1dd5",
+        "FN014-472e8acb1bf2",
+        "FN014-3cfb06d6ab22",
+        "FN014-994de343e998",
+        "FN014-c40d37a4a12a",
+        "FN014-5298fcfac82f",
+        "FN014-49379eae8c3c",
+        "FN014-e7d2d266f777",
+        "FN014-ec554011d15f",
+        "FN014-c23e5f09427d",
+        "FN014-be529c99486b",
+        "FN014-d1427ac3bc41",
+        "FN014-1957f5aa8116",
+        "FN014-5d1696dc4970",
+        "FN014-24b5e7bf753a",
+        "FN014-9e28a3e7440d",
+        "FN014-3487d82ed166",
+        "FN014-e8901d2f32cb",
+        "FN014-796d2a1f5d9a",
+        "FN014-9a29d502dfe7",
+        "FN014-e7254f1655ee",
+        "FN014-cb9fde944e71",
+        "FN014-73655b7f22ff",
+        "FN014-5e1e0df325f3",
+        "FN014-bc5f472429e6",
+        "FN014-2ad6fe9dfae4",
+        "FN014-0194e27acfb1",
+        "FN014-a4a2af4e2041",
+        "FN014-3e3330db6888",
+        "FN014-e3a5db37aa8a",
+        "FN014-6a4e29aa041c",
+        "FN014-9a7d3e0c43d0",
+        "FN014-5d9a23240d57",
+        "FN014-2babf01360f9",
+        "FN014-5976b93babf5",
+        "FN014-49edf55d73e7",
+        "FN014-a92ab512bde5",
+        "FN014-38f8e7bca681",
+        "FN014-b046f5f50cba",
+        "FN014-b9539c6b466b",
+        "FN014-b2f4d3a76bd2",
+        "FN014-e7e851c64f05",
+        "FN014-40d7c5a3bc3d",
+        "FN014-98904949e1ef"
+      ],
+      "source_blobs": [
+        {
+          "file_id": "F014-4136839922e7",
+          "path": "applications/CHMT/ablation/InterfaceMath.H",
+          "git_blob_sha1": "9ea90d5052d1454c5ae96aacb4a6f6e4d603c135",
+          "sha256": "9528f003164c571d829f0aeda3a677a10834e6db74b9b008138cd9be7dffdf18"
+        },
+        {
+          "file_id": "F014-a8f79b3f42ce",
+          "path": "applications/CHMT/configuration/InitialConditions.H",
+          "git_blob_sha1": "870130c0d182c74debe50e768087db0566d6b666",
+          "sha256": "5393ce7430d34017a261d78b32b9b359274d5a6f32d3ee23cc4576694b877ea8"
+        },
+        {
+          "file_id": "F014-b491022bcb4b",
+          "path": "applications/CHMT/configuration/InputValues.H",
+          "git_blob_sha1": "d7f31480188939b8144c06075ea2204ebb6c675b",
+          "sha256": "87da6810859729bf9c50c7cca52d7c1024426e41f38228344572d820c92debc9"
+        },
+        {
+          "file_id": "F014-f409f9d9467a",
+          "path": "applications/CHMT/configuration/ModelIO.H",
+          "git_blob_sha1": "682df58325fdaaa23bc00dd9244568355a17e3f9",
+          "sha256": "6de4c3e3b66ecbad85366f5c96d7c2810167dac388973c0019d2d75f8ef4c016"
+        },
+        {
+          "file_id": "F014-3830e698e5c7",
+          "path": "applications/CHMT/core/ThermalBoundary.H",
+          "git_blob_sha1": "7ae84c38c8dd572523e2fd73b68c307cbb273ad3",
+          "sha256": "6226ecb477d65438ce3e445f855f982f359763161862fcceb9b29eccbf6b815f"
+        },
+        {
+          "file_id": "F014-518e46c20db0",
+          "path": "applications/CHMT/gpu/GasWallMath.H",
+          "git_blob_sha1": "1241887b9043a884fd3fa24d8bda29afde92f456",
+          "sha256": "680a27c874c6563ca91fe82e6fdaaf319359299d142dfa2d0245af353313ffa1"
+        },
+        {
+          "file_id": "F014-fec9067c78b7",
+          "path": "applications/CHMT/gpu/StateValidation.H",
+          "git_blob_sha1": "a9a4ebb9569c6747748b4b95e1c530bbff7e4e60",
+          "sha256": "c30c61b90fc20f042c206037c66718cba41c5835523de2b0e1d8181cac736c1b"
+        },
+        {
+          "file_id": "F014-089eff7844b3",
+          "path": "applications/CHMT/io/CoupledOutput.H",
+          "git_blob_sha1": "249cdf60e70da7f4be0f83abcb5ab1c7e85988cd",
+          "sha256": "a146fe16b7c4b772ee2e57ea682a13b137a7da6a9261b03b2104f6825076b553"
+        },
+        {
+          "file_id": "F014-0784aa3a5247",
+          "path": "applications/CHMT/io/MeshIO.H",
+          "git_blob_sha1": "a653bf903c8754dee1e4f4c1ef831fd7726b2c40",
+          "sha256": "a70c687b5867f21b02ae11e5fb687c6d76775e890eb7cf51f3c20dabaec672d3"
+        },
+        {
+          "file_id": "F014-ead612f94264",
+          "path": "applications/CHMT/materials/GasThermoAdapter.H",
+          "git_blob_sha1": "ef151a99ddc55141faa40f1e9f03ea5075a416c5",
+          "sha256": "aa8eaf66fe91278a11ce977167961ddd2bf0526a1028ef15d97abf60bc2825bf"
+        },
+        {
+          "file_id": "F014-5857d8f8fb79",
+          "path": "applications/CHMT/materials/MaterialTransport.C",
+          "git_blob_sha1": "ef3fbe1efee8429c588ab2e00140c61b99c1b045",
+          "sha256": "fc16e7d14ddd9665e5d235dcef9c1e92552ebbe84598b0527c8cbe9315c9a636"
+        },
+        {
+          "file_id": "F014-49905ba7224a",
+          "path": "applications/CHMT/materials/Reaction.H",
+          "git_blob_sha1": "b3e0e1c2873a4358542bf258810572453645fee7",
+          "sha256": "dae80474686744541f0aa5a5456e48bf89e52cbd03a3b7da6e1220705c64d274"
+        },
+        {
+          "file_id": "F014-145c7b4d940e",
+          "path": "applications/CHMT/materials/Thermodynamics.H",
+          "git_blob_sha1": "74b82d49991ac97fb0bbd2dc3e6620d69b2497f7",
+          "sha256": "4b283acf704a318cbad758baad6880cbb488fda8acc310a2c632613dc859b325"
+        },
+        {
+          "file_id": "F014-22f65fbee569",
+          "path": "applications/CHMT/mesh/EmptyExtrusion.H",
+          "git_blob_sha1": "47d323ce32c68b48ba1428cc907fe8c326469600",
+          "sha256": "d6c3077e7ff32ea69bade87d857f316ad47e7467885f1ccf58e8334a31d91cba"
+        },
+        {
+          "file_id": "F014-5b3e664266ae",
+          "path": "applications/CHMT/mesh/Geometry.C",
+          "git_blob_sha1": "89d585d4307d0466e5cb637772b256866718cf2e",
+          "sha256": "07f5a2bac37db84db675471347e40e2625265aed6087f6a283f1ea275f881e2c"
+        },
+        {
+          "file_id": "F014-3e68224510ad",
+          "path": "applications/CHMT/mesh/Geometry.H",
+          "git_blob_sha1": "b7c73b6feb2746d55ad3f684d31768de226d3554",
+          "sha256": "a2c48b7d3093c678b8ee5948c6cc4fdada7649dd734911b4fd6acc9825822d44"
+        },
+        {
+          "file_id": "F014-584468e90834",
+          "path": "applications/CHMT/tests/test_input_admission_of.C",
+          "git_blob_sha1": "0fab36a8aa506584a3852957b3e579ddbeb75c59",
+          "sha256": "d4ffdff626b9abb44ea0d5535311879d2252ae2f0f734a9caa92396e955dca4c"
+        },
+        {
+          "file_id": "F014-680a9ede8729",
+          "path": "applications/gasUGKP/gpu/BoundaryLayerInput.H",
+          "git_blob_sha1": "4f780fe8b5d7824c1981eda5114ab21d14d60d10",
+          "sha256": "d3f925080e0f6b5e1897872ffb86c47c62b0e2947a3cc287a8c53e776ca636bf"
+        },
+        {
+          "file_id": "F014-65b141924e4e",
+          "path": "applications/gasUGKP/gpu/SharedGasModelInput.H",
+          "git_blob_sha1": "213cddcb8672ec7dba566c6830ad1e26d103bb6f",
+          "sha256": "aa11d1f6a746b5719b8f39af7f8c7f7d5a940d6d22d0dc50b6126e493d3e7a97"
+        },
+        {
+          "file_id": "F014-45246b3fe7ce",
+          "path": "common/gasTransport/GasModelIO.H",
+          "git_blob_sha1": "4fe1de309e43089b779212429b4f1ad105fa5518",
+          "sha256": "eea711088aa451c5152f576f68767a9fb5c7058177723dfefeb06e13934f2c86"
+        }
+      ],
+      "delivery_path": "reviewer-deliveries/20261014T190010Z-fast",
+      "report": "reviewer-deliveries/20261014T190010Z-fast/REPORT.md",
+      "plan": "reviewer-deliveries/20261014T190010Z-fast/TEST_PLAN.md",
+      "coverage": "reviewer-deliveries/20261014T190010Z-fast/coverage.json",
+      "results": "reviewer-deliveries/20261014T190010Z-fast/results.json",
+      "versions": "reviewer-deliveries/20261014T190010Z-fast/versions.json",
+      "environment": "reviewer-deliveries/20261014T190010Z-fast/environment.json",
+      "toolchain_device": "RTX4060Laptop/CUDA13.1.115/g++11.4/OF10; environment.json andMETA-ENVIRONMENT actuallog",
+      "exact_command_input_dependency_binary_utc_exit": "results tests[]/logs.spec.json/commands/versions/source-registry; compressedraworiginalSHA aliases verified",
+      "automatic_time_limit": null,
+      "evidence_ids": [
+        "E014-da7494f1ad46d610",
+        "E014-90e0786a1a5e7459",
+        "E014-68fd4208f93183d8",
+        "E014-b385309d9dfc1c12",
+        "E014-85f4877c3860fa97",
+        "E014-285c5df96b40cb5e",
+        "E014-3a07e4a52efe2302",
+        "E014-3091b0016fcc18d8",
+        "E014-1dfb4356993746a1",
+        "E014-7ac358962ecc5a8a",
+        "E014-7220cc09696a235e",
+        "E014-9dbc79fea09a96aa",
+        "E014-c861fd7c2c2800c0",
+        "E014-a88a30b51e09992a",
+        "E014-e65a9a9bcccc635b",
+        "E014-5fd333e75d346ce4",
+        "E014-6c58a22525aae004",
+        "E014-a793e4c0c0ffb26a",
+        "E014-8a2d8121687761c4",
+        "E014-1fbb9644569e9708",
+        "E014-8b1886d161a2ca92",
+        "E014-197f4fcaf28e9d33",
+        "E014-8b459d691baeb24d",
+        "E014-a3a1e9085435a564",
+        "E014-cc5dfec01c012b4c"
+      ],
+      "verdict": "PARTIAL",
+      "acceptance_unit_ids": [
+        "R4-native-film-components",
+        "R4-original-evap-endpoint"
+      ],
+      "executed_test_ids": [
+        "HOST-NATIVE-film",
+        "HOST-NATIVE-curved",
+        "HOST-NATIVE-lifecycle",
+        "GPU-ORIGINAL-EVAP-ENDPOINT"
+      ],
+      "remaining_gaps": [
+        "wet-ablation-material"
+      ],
+      "findings": [
+        "FAST4-F004"
+      ],
+      "support_PASS_not_formal_fixture_PASS": true,
+      "legacy_zero_not_measured_conservation": true,
+      "retired_support_metric": "RETIRED_BY_USER",
+      "counts_not_additive_across_topics": true,
+      "whole_FAST_acceptance": false,
+      "merge_ready": false,
+      "merge_authorized": false
     }
   ],
   "developer_replies": [
@@ -1240,6 +1535,304 @@
       "reply_to": [],
       "reviewer_result_id": "R014-032-REVIEWER-20261014T120103Z-fast",
       "status": "FAST3_FORMAL_SCOPED_RECHECK_OPEN_QUALIFICATIONS"
+    },
+    {
+      "id": "R014-032-RECHECK-20261014T190010Z-fast",
+      "question_id": "R014-032",
+      "author": "Codex independent actualGPUreviewer +read-onlysource/evidencescope reviewer",
+      "recorded_utc": "2026-10-14T20:51:17.634188+00:00",
+      "interaction_class": "FAST",
+      "review_round": "FAST4",
+      "source_commit": "47034e4e0380fa5b84165b49207a95a9b187a52a",
+      "source_tree": "c932823a00b3ed2f647e22de5002f9b913962fee",
+      "record_parent": "55d3663830ada63077241c528e2c81b53976e2c4",
+      "baseline_source_commit": "9d5be6eff69dbced2fc959d422d3ba419a1bc39e",
+      "prior_evidence_commit": "0aa34bc1b0e370ec99e6107faf83ff7f0ac3e668",
+      "file_ids": [
+        "F014-4136839922e7",
+        "F014-a8f79b3f42ce",
+        "F014-b491022bcb4b",
+        "F014-f409f9d9467a",
+        "F014-3830e698e5c7",
+        "F014-518e46c20db0",
+        "F014-fec9067c78b7",
+        "F014-089eff7844b3",
+        "F014-0784aa3a5247",
+        "F014-ead612f94264",
+        "F014-5857d8f8fb79",
+        "F014-49905ba7224a",
+        "F014-145c7b4d940e",
+        "F014-22f65fbee569",
+        "F014-5b3e664266ae",
+        "F014-3e68224510ad",
+        "F014-584468e90834",
+        "F014-680a9ede8729",
+        "F014-65b141924e4e",
+        "F014-45246b3fe7ce"
+      ],
+      "function_ids": [
+        "FN014-d63f075c7595",
+        "FN014-f8fc5d53541f",
+        "FN014-ab80c63ed680",
+        "FN014-8bed5e985279",
+        "FN014-3e93fcf01eb2",
+        "FN014-9c0785fd6a7a",
+        "FN014-229084be9a60",
+        "FN014-886d39ae19cf",
+        "FN014-812d978a618c",
+        "FN014-d12b07acfa1d",
+        "FN014-0b2192532583",
+        "FN014-634d0b0ac201",
+        "FN014-93abcbd17a75",
+        "FN014-3425d2bf8d2f",
+        "FN014-897fe8c3b437",
+        "FN014-f31223129d41",
+        "FN014-24c6ea9c9d05",
+        "FN014-7985656bf8bd",
+        "FN014-9d6c1ef9651d",
+        "FN014-f51873d7fe61",
+        "FN014-f793fb0f3169",
+        "FN014-aa6ed84bae48",
+        "FN014-051bdf428b22",
+        "FN014-84ea7af988fc",
+        "FN014-84d36fdc3b9a",
+        "FN014-e7fd3aacf08f",
+        "FN014-4dc9e39bfddb",
+        "FN014-5f2215a29757",
+        "FN014-3f447e1dc15d",
+        "FN014-80e6f9961cc9",
+        "FN014-7e06866f0051",
+        "FN014-023e779d1dd5",
+        "FN014-472e8acb1bf2",
+        "FN014-3cfb06d6ab22",
+        "FN014-994de343e998",
+        "FN014-c40d37a4a12a",
+        "FN014-5298fcfac82f",
+        "FN014-49379eae8c3c",
+        "FN014-e7d2d266f777",
+        "FN014-ec554011d15f",
+        "FN014-c23e5f09427d",
+        "FN014-be529c99486b",
+        "FN014-d1427ac3bc41",
+        "FN014-1957f5aa8116",
+        "FN014-5d1696dc4970",
+        "FN014-24b5e7bf753a",
+        "FN014-9e28a3e7440d",
+        "FN014-3487d82ed166",
+        "FN014-e8901d2f32cb",
+        "FN014-796d2a1f5d9a",
+        "FN014-9a29d502dfe7",
+        "FN014-e7254f1655ee",
+        "FN014-cb9fde944e71",
+        "FN014-73655b7f22ff",
+        "FN014-5e1e0df325f3",
+        "FN014-bc5f472429e6",
+        "FN014-2ad6fe9dfae4",
+        "FN014-0194e27acfb1",
+        "FN014-a4a2af4e2041",
+        "FN014-3e3330db6888",
+        "FN014-e3a5db37aa8a",
+        "FN014-6a4e29aa041c",
+        "FN014-9a7d3e0c43d0",
+        "FN014-5d9a23240d57",
+        "FN014-2babf01360f9",
+        "FN014-5976b93babf5",
+        "FN014-49edf55d73e7",
+        "FN014-a92ab512bde5",
+        "FN014-38f8e7bca681",
+        "FN014-b046f5f50cba",
+        "FN014-b9539c6b466b",
+        "FN014-b2f4d3a76bd2",
+        "FN014-e7e851c64f05",
+        "FN014-40d7c5a3bc3d",
+        "FN014-98904949e1ef"
+      ],
+      "source_blobs": [
+        {
+          "file_id": "F014-4136839922e7",
+          "path": "applications/CHMT/ablation/InterfaceMath.H",
+          "git_blob_sha1": "9ea90d5052d1454c5ae96aacb4a6f6e4d603c135",
+          "sha256": "9528f003164c571d829f0aeda3a677a10834e6db74b9b008138cd9be7dffdf18"
+        },
+        {
+          "file_id": "F014-a8f79b3f42ce",
+          "path": "applications/CHMT/configuration/InitialConditions.H",
+          "git_blob_sha1": "870130c0d182c74debe50e768087db0566d6b666",
+          "sha256": "5393ce7430d34017a261d78b32b9b359274d5a6f32d3ee23cc4576694b877ea8"
+        },
+        {
+          "file_id": "F014-b491022bcb4b",
+          "path": "applications/CHMT/configuration/InputValues.H",
+          "git_blob_sha1": "d7f31480188939b8144c06075ea2204ebb6c675b",
+          "sha256": "87da6810859729bf9c50c7cca52d7c1024426e41f38228344572d820c92debc9"
+        },
+        {
+          "file_id": "F014-f409f9d9467a",
+          "path": "applications/CHMT/configuration/ModelIO.H",
+          "git_blob_sha1": "682df58325fdaaa23bc00dd9244568355a17e3f9",
+          "sha256": "6de4c3e3b66ecbad85366f5c96d7c2810167dac388973c0019d2d75f8ef4c016"
+        },
+        {
+          "file_id": "F014-3830e698e5c7",
+          "path": "applications/CHMT/core/ThermalBoundary.H",
+          "git_blob_sha1": "7ae84c38c8dd572523e2fd73b68c307cbb273ad3",
+          "sha256": "6226ecb477d65438ce3e445f855f982f359763161862fcceb9b29eccbf6b815f"
+        },
+        {
+          "file_id": "F014-518e46c20db0",
+          "path": "applications/CHMT/gpu/GasWallMath.H",
+          "git_blob_sha1": "1241887b9043a884fd3fa24d8bda29afde92f456",
+          "sha256": "680a27c874c6563ca91fe82e6fdaaf319359299d142dfa2d0245af353313ffa1"
+        },
+        {
+          "file_id": "F014-fec9067c78b7",
+          "path": "applications/CHMT/gpu/StateValidation.H",
+          "git_blob_sha1": "a9a4ebb9569c6747748b4b95e1c530bbff7e4e60",
+          "sha256": "c30c61b90fc20f042c206037c66718cba41c5835523de2b0e1d8181cac736c1b"
+        },
+        {
+          "file_id": "F014-089eff7844b3",
+          "path": "applications/CHMT/io/CoupledOutput.H",
+          "git_blob_sha1": "249cdf60e70da7f4be0f83abcb5ab1c7e85988cd",
+          "sha256": "a146fe16b7c4b772ee2e57ea682a13b137a7da6a9261b03b2104f6825076b553"
+        },
+        {
+          "file_id": "F014-0784aa3a5247",
+          "path": "applications/CHMT/io/MeshIO.H",
+          "git_blob_sha1": "a653bf903c8754dee1e4f4c1ef831fd7726b2c40",
+          "sha256": "a70c687b5867f21b02ae11e5fb687c6d76775e890eb7cf51f3c20dabaec672d3"
+        },
+        {
+          "file_id": "F014-ead612f94264",
+          "path": "applications/CHMT/materials/GasThermoAdapter.H",
+          "git_blob_sha1": "ef151a99ddc55141faa40f1e9f03ea5075a416c5",
+          "sha256": "aa8eaf66fe91278a11ce977167961ddd2bf0526a1028ef15d97abf60bc2825bf"
+        },
+        {
+          "file_id": "F014-5857d8f8fb79",
+          "path": "applications/CHMT/materials/MaterialTransport.C",
+          "git_blob_sha1": "ef3fbe1efee8429c588ab2e00140c61b99c1b045",
+          "sha256": "fc16e7d14ddd9665e5d235dcef9c1e92552ebbe84598b0527c8cbe9315c9a636"
+        },
+        {
+          "file_id": "F014-49905ba7224a",
+          "path": "applications/CHMT/materials/Reaction.H",
+          "git_blob_sha1": "b3e0e1c2873a4358542bf258810572453645fee7",
+          "sha256": "dae80474686744541f0aa5a5456e48bf89e52cbd03a3b7da6e1220705c64d274"
+        },
+        {
+          "file_id": "F014-145c7b4d940e",
+          "path": "applications/CHMT/materials/Thermodynamics.H",
+          "git_blob_sha1": "74b82d49991ac97fb0bbd2dc3e6620d69b2497f7",
+          "sha256": "4b283acf704a318cbad758baad6880cbb488fda8acc310a2c632613dc859b325"
+        },
+        {
+          "file_id": "F014-22f65fbee569",
+          "path": "applications/CHMT/mesh/EmptyExtrusion.H",
+          "git_blob_sha1": "47d323ce32c68b48ba1428cc907fe8c326469600",
+          "sha256": "d6c3077e7ff32ea69bade87d857f316ad47e7467885f1ccf58e8334a31d91cba"
+        },
+        {
+          "file_id": "F014-5b3e664266ae",
+          "path": "applications/CHMT/mesh/Geometry.C",
+          "git_blob_sha1": "89d585d4307d0466e5cb637772b256866718cf2e",
+          "sha256": "07f5a2bac37db84db675471347e40e2625265aed6087f6a283f1ea275f881e2c"
+        },
+        {
+          "file_id": "F014-3e68224510ad",
+          "path": "applications/CHMT/mesh/Geometry.H",
+          "git_blob_sha1": "b7c73b6feb2746d55ad3f684d31768de226d3554",
+          "sha256": "a2c48b7d3093c678b8ee5948c6cc4fdada7649dd734911b4fd6acc9825822d44"
+        },
+        {
+          "file_id": "F014-584468e90834",
+          "path": "applications/CHMT/tests/test_input_admission_of.C",
+          "git_blob_sha1": "0fab36a8aa506584a3852957b3e579ddbeb75c59",
+          "sha256": "d4ffdff626b9abb44ea0d5535311879d2252ae2f0f734a9caa92396e955dca4c"
+        },
+        {
+          "file_id": "F014-680a9ede8729",
+          "path": "applications/gasUGKP/gpu/BoundaryLayerInput.H",
+          "git_blob_sha1": "4f780fe8b5d7824c1981eda5114ab21d14d60d10",
+          "sha256": "d3f925080e0f6b5e1897872ffb86c47c62b0e2947a3cc287a8c53e776ca636bf"
+        },
+        {
+          "file_id": "F014-65b141924e4e",
+          "path": "applications/gasUGKP/gpu/SharedGasModelInput.H",
+          "git_blob_sha1": "213cddcb8672ec7dba566c6830ad1e26d103bb6f",
+          "sha256": "aa11d1f6a746b5719b8f39af7f8c7f7d5a940d6d22d0dc50b6126e493d3e7a97"
+        },
+        {
+          "file_id": "F014-45246b3fe7ce",
+          "path": "common/gasTransport/GasModelIO.H",
+          "git_blob_sha1": "4fe1de309e43089b779212429b4f1ad105fa5518",
+          "sha256": "eea711088aa451c5152f576f68767a9fb5c7058177723dfefeb06e13934f2c86"
+        }
+      ],
+      "delivery_path": "reviewer-deliveries/20261014T190010Z-fast",
+      "report": "reviewer-deliveries/20261014T190010Z-fast/REPORT.md",
+      "plan": "reviewer-deliveries/20261014T190010Z-fast/TEST_PLAN.md",
+      "coverage": "reviewer-deliveries/20261014T190010Z-fast/coverage.json",
+      "results": "reviewer-deliveries/20261014T190010Z-fast/results.json",
+      "versions": "reviewer-deliveries/20261014T190010Z-fast/versions.json",
+      "environment": "reviewer-deliveries/20261014T190010Z-fast/environment.json",
+      "toolchain_device": "RTX4060Laptop/CUDA13.1.115/g++11.4/OF10; environment.json andMETA-ENVIRONMENT actuallog",
+      "exact_command_input_dependency_binary_utc_exit": "results tests[]/logs.spec.json/commands/versions/source-registry; compressedraworiginalSHA aliases verified",
+      "automatic_time_limit": null,
+      "evidence_ids": [
+        "E014-da7494f1ad46d610",
+        "E014-90e0786a1a5e7459",
+        "E014-68fd4208f93183d8",
+        "E014-b385309d9dfc1c12",
+        "E014-85f4877c3860fa97",
+        "E014-285c5df96b40cb5e",
+        "E014-3a07e4a52efe2302",
+        "E014-3091b0016fcc18d8",
+        "E014-1dfb4356993746a1",
+        "E014-7ac358962ecc5a8a",
+        "E014-7220cc09696a235e",
+        "E014-9dbc79fea09a96aa",
+        "E014-c861fd7c2c2800c0",
+        "E014-a88a30b51e09992a",
+        "E014-e65a9a9bcccc635b",
+        "E014-5fd333e75d346ce4",
+        "E014-6c58a22525aae004",
+        "E014-a793e4c0c0ffb26a",
+        "E014-8a2d8121687761c4",
+        "E014-1fbb9644569e9708",
+        "E014-8b1886d161a2ca92",
+        "E014-197f4fcaf28e9d33",
+        "E014-8b459d691baeb24d",
+        "E014-a3a1e9085435a564",
+        "E014-cc5dfec01c012b4c"
+      ],
+      "verdict": "PARTIAL",
+      "acceptance_unit_ids": [
+        "R4-native-film-components",
+        "R4-original-evap-endpoint"
+      ],
+      "executed_test_ids": [
+        "HOST-NATIVE-film",
+        "HOST-NATIVE-curved",
+        "HOST-NATIVE-lifecycle",
+        "GPU-ORIGINAL-EVAP-ENDPOINT"
+      ],
+      "remaining_gaps": [
+        "wet-ablation-material"
+      ],
+      "findings": [
+        "FAST4-F004"
+      ],
+      "support_PASS_not_formal_fixture_PASS": true,
+      "legacy_zero_not_measured_conservation": true,
+      "retired_support_metric": "RETIRED_BY_USER",
+      "counts_not_additive_across_topics": true,
+      "whole_FAST_acceptance": false,
+      "merge_ready": false,
+      "merge_authorized": false,
+      "reply_to": [],
+      "reviewer_result_id": "R014-032-REVIEWER-20261014T190010Z-fast",
+      "status": "FAST4_SCOPED_REAL_GPU_RECHECK_OPEN_LIMITATIONS"
     }
   ],
   "final_decision": {
@@ -1321,6 +1914,25 @@
         "E014-26a5384631e57d96",
         "E014-92e03d0925924611",
         "E014-81ad47b6d353e3ec"
+      ],
+      "merge_authorized": false
+    },
+    {
+      "recorded_utc": "2026-10-14T20:51:17.634188+00:00",
+      "source_commit": "47034e4e0380fa5b84165b49207a95a9b187a52a",
+      "delivery_path": "reviewer-deliveries/20261014T190010Z-fast",
+      "status": "FAST4_FORMAL_RED_PARTIAL_GAPS_RETAINED",
+      "remaining_gaps": [
+        "wet-ablation-material"
+      ],
+      "evidence_ids": [
+        "E014-da7494f1ad46d610",
+        "E014-90e0786a1a5e7459",
+        "E014-68fd4208f93183d8",
+        "E014-b385309d9dfc1c12",
+        "E014-85f4877c3860fa97",
+        "E014-285c5df96b40cb5e",
+        "E014-3a07e4a52efe2302"
       ],
       "merge_authorized": false
     }

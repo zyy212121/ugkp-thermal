@@ -1,0 +1,19 @@
+{
+  "identity": "PR14_REVIEW_ONLY",
+  "interaction_class": "FAST",
+  "source_commit": "47034e4e0380fa5b84165b49207a95a9b187a52a",
+  "source_tree": "c932823a00b3ed2f647e22de5002f9b913962fee",
+  "developer_remote_evidence_verified": true,
+  "source139_identity_verified": true,
+  "whole_FAST_acceptance": false,
+  "merge_ready": false,
+  "merge_authorized": false,
+  "formal_fixture_verdict": "FAIL",
+  "strict_restart_verdict": "FAIL",
+  "current_original_flags_builds": "PASS_SCOPED",
+  "retired_support_global_metric": "RETIRED_BY_USER",
+  "remaining_gaps": "coverage.json",
+  "not_run_scopes": "results.json acceptance_units[] NOT_RUN",
+  "record_publication_status": "PENDING_UNTIL_NORMAL_PUSH_AND_REMOTE_VERIFICATION",
+  "resource_time_limit": null
+}

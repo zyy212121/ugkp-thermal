@@ -1,0 +1,670 @@
+/*---------------------------------------------------------------------------*\
+  =========                 |
+  \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
+   \\    /   O peration     | Website:  https://openfoam.org
+    \\  /    A nd           | Version:  10
+     \\/     M anipulation  |
+\*---------------------------------------------------------------------------*/
+Build  : 10-c4cf895ad8fa
+Exec   : /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/work/install/ns2/bin/CHMT -case /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/work/cases/wet-evaporation
+Date   : Oct 15 2026
+Time   : 03:27:23
+Host   : "lss"
+PID    : 149893
+I/O    : uncollated
+Case   : /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T190010Z-fast/work/cases/wet-evaporation
+nProcs : 1
+sigFpe : Enabling floating point exception trapping (FOAM_SIGFPE).
+fileModificationChecking : Monitoring run-time modified files using timeStampMaster (fileModificationSkew 10)
+allowSystemOperations : Allowing user-supplied system call operations
+
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 1, Final residual = 3.9999999719999995e-18, No Iterations 1
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 0, Final residual = 0, No Iterations 0
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 1, Final residual = 1.4311140951125212e-16, No Iterations 1
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 0, Final residual = 0, No Iterations 0
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 1, Final residual = 1.4311140951125212e-16, No Iterations 1
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 0, Final residual = 0, No Iterations 0
+CHMT accepted time=0.00025000000000000001 gas microsteps=25 material solves=4
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 0.50012882978770468, Final residual = 2.000515338226557e-18, No Iterations 1
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 0, Final residual = 0, No Iterations 0
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 0.50012882978770468, Final residual = 2.000515338226557e-18, No Iterations 1
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 0, Final residual = 0, No Iterations 0
+CHMT accepted time=0.00075000000000000002 gas microsteps=50 material solves=2
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 4.0471881804208021e-05, Final residual = 2.4113907756724086e-30, No Iterations 1
+CHMT accepted time=0.00075006103515624998 gas microsteps=1 material solves=14
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 4.0560375643972204e-05, Final residual = 2.4165189792664601e-30, No Iterations 1
+CHMT accepted time=0.0007501220554113387 gas microsteps=1 material solves=14
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 4.0343925358250498e-05, Final residual = 5.7765406765288054e-21, No Iterations 1
+CHMT accepted time=0.00075018306076890431 gas microsteps=1 material solves=14
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 4.0838759029988043e-05, Final residual = 5.774663398692347e-21, No Iterations 1
+CHMT accepted time=0.00075024405123258388 gas microsteps=1 material solves=14
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 4.0927030760167298e-05, Final residual = 5.7727849955599802e-21, No Iterations 1
+CHMT accepted time=0.0007503050268060134 gas microsteps=1 material solves=14
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 4.1116763791907756e-05, Final residual = 2.4438838199643391e-30, No Iterations 1
+CHMT accepted time=0.00075036598749282841 gas microsteps=1 material solves=14
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 4.0798903422906212e-05, Final residual = 5.7690277544891804e-21, No Iterations 1
+CHMT accepted time=0.00075042693329666315 gas microsteps=1 material solves=14
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 4.0684155307146604e-05, Final residual = 5.7671483343928261e-21, No Iterations 1
+CHMT accepted time=0.00075048786422115123 gas microsteps=1 material solves=14
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 4.0772345882561039e-05, Final residual = 2.4210732217583684e-30, No Iterations 1
+CHMT accepted time=0.00075054878026992536 gas microsteps=1 material solves=14
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 4.0860479105846994e-05, Final residual = 2.4246507677030893e-30, No Iterations 1
+CHMT accepted time=0.00075060968144661719 gas microsteps=1 material solves=14
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 4.054309913882403e-05, Final residual = 5.7615209180656745e-21, No Iterations 1
+CHMT accepted time=0.00075067056775485782 gas microsteps=1 material solves=14
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 4.0529920605938525e-05, Final residual = 2.4024471942762603e-30, No Iterations 1
+CHMT accepted time=0.00075073143919827706 gas microsteps=1 material solves=14
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 4.061803839994911e-05, Final residual = 5.7577759876252578e-21, No Iterations 1
+CHMT accepted time=0.00075079229578050406 gas microsteps=1 material solves=14
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 4.0706082440550385e-05, Final residual = 2.4102629845803979e-30, No Iterations 1
+CHMT accepted time=0.00075085313750516709 gas microsteps=1 material solves=14
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 4.0794077469269053e-05, Final residual = 4.4953373771439044e-23, No Iterations 1
+CHMT accepted time=0.00075091396437589335 gas microsteps=1 material solves=14
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 4.0477210116388168e-05, Final residual = 5.7577748637374464e-21, No Iterations 1
+CHMT accepted time=0.0007509747763963094 gas microsteps=1 material solves=14
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 4.0565214044223367e-05, Final residual = 0, No Iterations 1
+CHMT accepted time=0.0007510355735700408 gas microsteps=1 material solves=14
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 4.0653144338685595e-05, Final residual = 5.7708719478269527e-21, No Iterations 1
+CHMT accepted time=0.00075109635590071215 gas microsteps=1 material solves=14
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 4.0741025677056708e-05, Final residual = 5.6118641133390894e-24, No Iterations 1
+CHMT accepted time=0.00075115712339194739 gas microsteps=1 material solves=14
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 4.0727776050187936e-05, Final residual = 1.1528630240023522e-20, No Iterations 1
+CHMT accepted time=0.00075121787604736929 gas microsteps=1 material solves=14
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 4.0815567784959343e-05, Final residual = 2.2432862929708249e-23, No Iterations 1
+CHMT accepted time=0.00075127861387059994 gas microsteps=1 material solves=14
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 4.0398303028882967e-05, Final residual = 1.1526739427861669e-20, No Iterations 1
+CHMT accepted time=0.00075133933686526047 gas microsteps=1 material solves=14
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 4.0385169515739411e-05, Final residual = 1.1480957816805163e-20, No Iterations 1
+CHMT accepted time=0.00075140004503497114 gas microsteps=1 material solves=14
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 4.0372044539246978e-05, Final residual = 5.7708290750780303e-21, No Iterations 1
+CHMT accepted time=0.00075146073838335123 gas microsteps=1 material solves=14
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 4.0358928091085255e-05, Final residual = 2.2403705607956934e-23, No Iterations 1
+CHMT accepted time=0.00075152141691401937 gas microsteps=1 material solves=14
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 4.0244943434672923e-05, Final residual = 5.73628370490548e-21, No Iterations 1
+CHMT accepted time=0.00075158208063059312 gas microsteps=1 material solves=14
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 4.0635212054803695e-05, Final residual = 5.7596102142367333e-21, No Iterations 1
+CHMT accepted time=0.00075164272953668915 gas microsteps=1 material solves=14
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 4.0319589191769644e-05, Final residual = 2.5179601648573274e-23, No Iterations 1
+CHMT accepted time=0.00075170336363592329 gas microsteps=1 material solves=14
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 4.0306482431109672e-05, Final residual = 5.7726448439300832e-21, No Iterations 1
+CHMT accepted time=0.00075176398293191058 gas microsteps=1 material solves=14
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 4.0293384188956631e-05, Final residual = 5.7428097780057946e-21, No Iterations 1
+CHMT accepted time=0.000751824587428265 gas microsteps=1 material solves=14
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 4.0582408925471466e-05, Final residual = 1.1180030963725032e-23, No Iterations 1
+CHMT accepted time=0.00075188517712859986 gas microsteps=1 material solves=14
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 4.0669909924202968e-05, Final residual = 5.7670242401379066e-21, No Iterations 1
+CHMT accepted time=0.00075194575203652741 gas microsteps=1 material solves=14
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 4.0556066951122695e-05, Final residual = 2.7931935060406816e-24, No Iterations 1
+CHMT accepted time=0.00075200631215565912 gas microsteps=1 material solves=14
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 4.044228975793982e-05, Final residual = 5.5845722957496189e-24, No Iterations 1
+CHMT accepted time=0.00075206685748960549 gas microsteps=1 material solves=14
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 4.0328586460919138e-05, Final residual = 5.7390760032674245e-21, No Iterations 1
+CHMT accepted time=0.00075212738804197616 gas microsteps=1 material solves=14
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 4.0617106557973682e-05, Final residual = 5.7595366825413275e-21, No Iterations 1
+CHMT accepted time=0.00075218790381638 gas microsteps=1 material solves=14
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 4.0503412186341023e-05, Final residual = 3.34748045547089e-23, No Iterations 1
+CHMT accepted time=0.00075224840481642481 gas microsteps=1 material solves=14
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 4.0389783514779243e-05, Final residual = 5.7167548890767211e-21, No Iterations 1
+CHMT accepted time=0.00075230889104571761 gas microsteps=1 material solves=14
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 4.0276220547762628e-05, Final residual = 2.7877548252498067e-23, No Iterations 1
+CHMT accepted time=0.00075236936250786467 gas microsteps=1 material solves=14
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 4.0263158396771235e-05, Final residual = 1.1531988265796732e-20, No Iterations 1
+CHMT accepted time=0.00075242981920647109 gas microsteps=1 material solves=14
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 4.0450853367463283e-05, Final residual = 5.7056198542030808e-21, No Iterations 1
+CHMT accepted time=0.0007524902611451414 gas microsteps=1 material solves=14
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 4.023703527102252e-05, Final residual = 2.228034064865024e-23, No Iterations 1
+CHMT accepted time=0.00075255068832747905 gas microsteps=1 material solves=14
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 4.0324295608784516e-05, Final residual = 5.7130540340817064e-21, No Iterations 1
+CHMT accepted time=0.00075261110075708663 gas microsteps=1 material solves=14
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 4.0010376625998141e-05, Final residual = 5.7501649021043687e-21, No Iterations 1
+CHMT accepted time=0.00075267149843756586 gas microsteps=1 material solves=14
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 4.0197885871886631e-05, Final residual = 5.7872522660438572e-21, No Iterations 1
+CHMT accepted time=0.00075273188137251769 gas microsteps=1 material solves=14
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 4.0685928681375061e-05, Final residual = 5.7074983528482689e-21, No Iterations 1
+CHMT accepted time=0.00075279224956554202 gas microsteps=1 material solves=14
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 4.0472364587883133e-05, Final residual = 5.7779395688768401e-21, No Iterations 1
+CHMT accepted time=0.00075285260302023795 gas microsteps=1 material solves=14
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 4.0258922959643737e-05, Final residual = 5.6926736832836552e-21, No Iterations 1
+CHMT accepted time=0.00075291294174020373 gas microsteps=1 material solves=14
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 4.0345990394450635e-05, Final residual = 1.6672350181349067e-23, No Iterations 1
+CHMT accepted time=0.00075297326572903675 gas microsteps=1 material solves=14
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 4.0432993322551202e-05, Final residual = 5.7667631765566328e-21, No Iterations 1
+CHMT accepted time=0.0007530335749903333 gas microsteps=1 material solves=14
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 4.0119718841810749e-05, Final residual = 5.7260140278373641e-21, No Iterations 1
+CHMT accepted time=0.00075309386952768914 gas microsteps=1 material solves=14
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 4.0206730606703562e-05, Final residual = 5.7741263167962458e-21, No Iterations 1
+CHMT accepted time=0.00075315414934469895 gas microsteps=1 material solves=14
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 4.0293685979407028e-05, Final residual = 5.7722552156585201e-21, No Iterations 1
+CHMT accepted time=0.00075321441444495653 gas microsteps=1 material solves=14
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 4.018065703170494e-05, Final residual = 5.7121232031479978e-21, No Iterations 1
+CHMT accepted time=0.00075327466483205493 gas microsteps=1 material solves=14
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 4.0267548382758337e-05, Final residual = 0, No Iterations 1
+CHMT accepted time=0.0007533349005095862 gas microsteps=1 material solves=14
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 3.9954819090572384e-05, Final residual = 5.7001006727325785e-21, No Iterations 1
+CHMT accepted time=0.00075339512148114146 gas microsteps=1 material solves=14
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 4.0041719277591466e-05, Final residual = 1.3857618044750322e-23, No Iterations 1
+CHMT accepted time=0.00075345532775031115 gas microsteps=1 material solves=14
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 4.0128563131912567e-05, Final residual = 5.7185706076700334e-21, No Iterations 1
+CHMT accepted time=0.00075351551932068461 gas microsteps=1 material solves=14
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 3.9716381131166439e-05, Final residual = 5.6723992167698144e-21, No Iterations 1
+CHMT accepted time=0.00075357569619585035 gas microsteps=1 material solves=14
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 4.0401851781467281e-05, Final residual = 2.7688312398319674e-24, No Iterations 1
+CHMT accepted time=0.00075363585837939632 gas microsteps=1 material solves=14
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 4.008956927248202e-05, Final residual = 5.6687268112066518e-21, No Iterations 1
+CHMT accepted time=0.00075369600587490916 gas microsteps=1 material solves=14
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 3.9976883192831035e-05, Final residual = 2.2136287368294993e-23, No Iterations 1
+CHMT accepted time=0.00075375613868597488 gas microsteps=1 material solves=14
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 3.9963934791216347e-05, Final residual = 2.2129117486197873e-23, No Iterations 1
+CHMT accepted time=0.0007538162568161786 gas microsteps=1 material solves=14
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 3.9950978853777522e-05, Final residual = 0, No Iterations 1
+CHMT accepted time=0.00075387636026910437 gas microsteps=1 material solves=14
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 3.9838447129201659e-05, Final residual = 8.2930427377784351e-24, No Iterations 1
+CHMT accepted time=0.0007539364490483356 gas microsteps=1 material solves=14
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 3.9825540238431524e-05, Final residual = 5.6816572786982394e-21, No Iterations 1
+CHMT accepted time=0.00075399652315745469 gas microsteps=1 material solves=14
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 3.981263378289096e-05, Final residual = 5.6798159965304329e-21, No Iterations 1
+CHMT accepted time=0.00075405658260004321 gas microsteps=1 material solves=14
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 3.9799743610051664e-05, Final residual = 5.6779770373123639e-21, No Iterations 1
+CHMT accepted time=0.00075411662737968183 gas microsteps=1 material solves=14
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 3.9488448534665239e-05, Final residual = 2.2774616531684221e-30, No Iterations 1
+CHMT accepted time=0.00075417665749995049 gas microsteps=1 material solves=14
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 3.9972866179793177e-05, Final residual = 2.3045879864774501e-30, No Iterations 1
+CHMT accepted time=0.00075423667296442803 gas microsteps=1 material solves=14
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 3.98605219700561e-05, Final residual = 5.6503948809857961e-21, No Iterations 1
+CHMT accepted time=0.00075429667377669265 gas microsteps=1 material solves=14
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 3.9748242581139576e-05, Final residual = 1.1032353525491805e-23, No Iterations 1
+CHMT accepted time=0.00075435665994032144 gas microsteps=1 material solves=14
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 4.0132732057589279e-05, Final residual = 5.6632800516184205e-21, No Iterations 1
+CHMT accepted time=0.00075441663145889076 gas microsteps=1 material solves=14
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 4.0020413390016012e-05, Final residual = 5.5126035236492166e-24, No Iterations 1
+CHMT accepted time=0.00075447658833597598 gas microsteps=1 material solves=14
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 3.9808905341471559e-05, Final residual = 2.2043273463952671e-23, No Iterations 1
+CHMT accepted time=0.00075453653057515183 gas microsteps=1 material solves=14
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 3.9597526375277167e-05, Final residual = 5.6412500714528363e-21, No Iterations 1
+CHMT accepted time=0.00075459645817999195 gas microsteps=1 material solves=14
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 3.9485490173668696e-05, Final residual = 5.6394227582131383e-21, No Iterations 1
+CHMT accepted time=0.0007546563711540691 gas microsteps=1 material solves=14
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 3.967107127959239e-05, Final residual = 2.2776379642160241e-30, No Iterations 1
+CHMT accepted time=0.0007547162695009553 gas microsteps=1 material solves=14
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 3.9757398569308694e-05, Final residual = 2.2812608866510729e-30, No Iterations 1
+CHMT accepted time=0.00075477615322422169 gas microsteps=1 material solves=14
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 3.9942771820225812e-05, Final residual = 2.7509544008786332e-24, No Iterations 1
+CHMT accepted time=0.00075483602232743845 gas microsteps=1 material solves=14
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 3.9731675449084356e-05, Final residual = 5.6321303481146743e-21, No Iterations 1
+CHMT accepted time=0.00075489587681417487 gas microsteps=1 material solves=14
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 3.9916929205493639e-05, Final residual = 4.3986792929301633e-23, No Iterations 1
+CHMT accepted time=0.0007549557166879995 gas microsteps=1 material solves=14
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 4.0102055274890679e-05, Final residual = 1.0993142000240579e-23, No Iterations 1
+CHMT accepted time=0.00075501554195248001 gas microsteps=1 material solves=14
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 3.9990085626296216e-05, Final residual = 4.3958330513906514e-23, No Iterations 1
+CHMT accepted time=0.000755075352611183 gas microsteps=1 material solves=14
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 3.9680281819058906e-05, Final residual = 5.6687891894147733e-21, No Iterations 1
+CHMT accepted time=0.0007551351486676744 gas microsteps=1 material solves=14
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 3.9766379445253069e-05, Final residual = 0, No Iterations 1
+CHMT accepted time=0.00075519493012551919 gas microsteps=1 material solves=14
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 3.9654619145072122e-05, Final residual = 5.7090386603372365e-21, No Iterations 1
+CHMT accepted time=0.00075525469698828145 gas microsteps=1 material solves=14
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 4.0136106876718884e-05, Final residual = 5.7071959571777536e-21, No Iterations 1
+CHMT accepted time=0.00075531444925952453 gas microsteps=1 material solves=14
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 3.9925461929688492e-05, Final residual = 5.661460946836093e-21, No Iterations 1
+CHMT accepted time=0.0007553741869428108 gas microsteps=1 material solves=14
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 3.9912555936854386e-05, Final residual = 5.4841384372197059e-24, No Iterations 1
+CHMT accepted time=0.00075543391004170173 gas microsteps=1 material solves=14
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 3.9998423765819004e-05, Final residual = 5.6468377955471743e-21, No Iterations 1
+CHMT accepted time=0.00075549361855975798 gas microsteps=1 material solves=14
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 3.9590560544086854e-05, Final residual = 5.6614520555734311e-21, No Iterations 1
+CHMT accepted time=0.00075555331250053929 gas microsteps=1 material solves=14
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 3.9676468991655113e-05, Final residual = 0, No Iterations 1
+CHMT accepted time=0.00075561299186760456 gas microsteps=1 material solves=14
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 3.9564982523821623e-05, Final residual = 5.6085009322247916e-21, No Iterations 1
+CHMT accepted time=0.00075567265666451181 gas microsteps=1 material solves=14
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 4.0045387402628559e-05, Final residual = 5.6176420213876428e-21, No Iterations 1
+CHMT accepted time=0.00075573230689481832 gas microsteps=1 material solves=14
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 3.9736626037034733e-05, Final residual = 1.0947026587403337e-23, No Iterations 1
+CHMT accepted time=0.00075579194256208027 gas microsteps=1 material solves=14
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 3.9920926993495844e-05, Final residual = 5.6906145191433794e-21, No Iterations 1
+CHMT accepted time=0.00075585156366985318 gas microsteps=1 material solves=14
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 3.9908024321231022e-05, Final residual = 5.6887752799358849e-21, No Iterations 1
+CHMT accepted time=0.00075591117022169151 gas microsteps=1 material solves=14
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 3.9895129986706549e-05, Final residual = 3.8277462119948875e-23, No Iterations 1
+CHMT accepted time=0.00075597076222114917 gas microsteps=1 material solves=14
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 3.9389858962640489e-05, Final residual = 1.1260868551943223e-20, No Iterations 1
+CHMT accepted time=0.00075603033967177875 gas microsteps=1 material solves=14
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 3.9770927333987391e-05, Final residual = 4.3717424987016623e-23, No Iterations 1
+CHMT accepted time=0.00075608990257713233 gas microsteps=1 material solves=14
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 3.9561259724984293e-05, Final residual = 5.6486521590134913e-21, No Iterations 1
+CHMT accepted time=0.00075614945094076098 gas microsteps=1 material solves=14
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 3.9942019141868346e-05, Final residual = 5.5922190251912167e-21, No Iterations 1
+CHMT accepted time=0.00075620898476621494 gas microsteps=1 material solves=14
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 3.983076742873907e-05, Final residual = 5.7214376261844318e-21, No Iterations 1
+CHMT accepted time=0.00075626850405704354 gas microsteps=1 material solves=14
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 3.971958757697145e-05, Final residual = 5.6268101827874596e-21, No Iterations 1
+CHMT accepted time=0.00075632800881679529 gas microsteps=1 material solves=14
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 3.9706767487784272e-05, Final residual = 5.6631850820933117e-21, No Iterations 1
+CHMT accepted time=0.00075638749904901768 gas microsteps=1 material solves=14
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 3.9792188488817464e-05, Final residual = 5.6722632117197077e-21, No Iterations 1
+CHMT accepted time=0.00075644697475725769 gas microsteps=1 material solves=14
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 3.9779337629829198e-05, Final residual = 4.3618702756517806e-23, No Iterations 1
+CHMT accepted time=0.00075650643594506119 gas microsteps=1 material solves=14
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 3.9275531402849322e-05, Final residual = 5.6249933055502886e-21, No Iterations 1
+CHMT accepted time=0.00075656588261597299 gas microsteps=1 material solves=14
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 3.9753668601050735e-05, Final residual = 5.6395282137039288e-21, No Iterations 1
+CHMT accepted time=0.00075662531477353745 gas microsteps=1 material solves=14
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 3.9642713178690119e-05, Final residual = 4.357648804910188e-23, No Iterations 1
+CHMT accepted time=0.00075668473242129775 gas microsteps=1 material solves=14
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 3.9531821595930048e-05, Final residual = 5.5759898096977359e-21, No Iterations 1
+CHMT accepted time=0.0007567441355627964 gas microsteps=1 material solves=14
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 3.9322935538529567e-05, Final residual = 5.6612864797949379e-21, No Iterations 1
+CHMT accepted time=0.00075680352420157506 gas microsteps=1 material solves=14
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 3.9506321942801314e-05, Final residual = 5.44179010411316e-24, No Iterations 1
+CHMT accepted time=0.00075686289834117431 gas microsteps=1 material solves=14
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 3.9297571106308946e-05, Final residual = 7.6160468273934992e-23, No Iterations 1
+CHMT accepted time=0.00075692225798513395 gas microsteps=1 material solves=14
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 3.9186918466129961e-05, Final residual = 5.6123022697316008e-21, No Iterations 1
+CHMT accepted time=0.00075698160313699314 gas microsteps=1 material solves=14
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 3.9566019527201735e-05, Final residual = 0, No Iterations 1
+CHMT accepted time=0.00075704093380028975 gas microsteps=1 material solves=14
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 3.9846975864187409e-05, Final residual = 8.6956324454257992e-23, No Iterations 1
+CHMT accepted time=0.00075710024997856121 gas microsteps=1 material solves=14
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 3.9736237510734164e-05, Final residual = 5.6938002357903512e-21, No Iterations 1
+CHMT accepted time=0.00075715955167534373 gas microsteps=1 material solves=14
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 3.9234214661640118e-05, Final residual = 4.3450103212407741e-23, No Iterations 1
+CHMT accepted time=0.00075721883889417303 gas microsteps=1 material solves=14
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 3.9417192840546698e-05, Final residual = 5.5598213472765227e-21, No Iterations 1
+CHMT accepted time=0.00075727811163858369 gas microsteps=1 material solves=14
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 3.92089185134051e-05, Final residual = 5.6340160324432412e-21, No Iterations 1
+CHMT accepted time=0.00075733736991210948 gas microsteps=1 material solves=14
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 3.968502988791032e-05, Final residual = 4.3408112231030079e-23, No Iterations 1
+CHMT accepted time=0.00075739661371828325 gas microsteps=1 material solves=14
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 3.9476795656770761e-05, Final residual = 5.5978397272053827e-21, No Iterations 1
+CHMT accepted time=0.00075745584306063712 gas microsteps=1 material solves=14
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 3.9171000955831031e-05, Final residual = 5.5580749174248213e-21, No Iterations 1
+CHMT accepted time=0.00075751505794270234 gas microsteps=1 material solves=14
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 3.935368937908374e-05, Final residual = 5.6484379254112493e-21, No Iterations 1
+CHMT accepted time=0.00075757425836800929 gas microsteps=1 material solves=14
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 3.9048123884077838e-05, Final residual = 3.2514094653389032e-23, No Iterations 1
+CHMT accepted time=0.00075763344434008747 gas microsteps=1 material solves=14
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 3.9328311475542624e-05, Final residual = 5.547284571445637e-21, No Iterations 1
+CHMT accepted time=0.00075769261586246532 gas microsteps=1 material solves=14
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 3.9315642464913225e-05, Final residual = 0, No Iterations 1
+CHMT accepted time=0.00075775177293867083 gas microsteps=1 material solves=14
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 3.9302973947784778e-05, Final residual = 5.6844689756485132e-21, No Iterations 1
+CHMT accepted time=0.0007578109155722307 gas microsteps=1 material solves=14
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 3.9290313592274372e-05, Final residual = 0, No Iterations 1
+CHMT accepted time=0.00075787004376667107 gas microsteps=1 material solves=14
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 3.8985252853476852e-05, Final residual = 3.7872034671418138e-23, No Iterations 1
+CHMT accepted time=0.000757929157525517 gas microsteps=1 material solves=14
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 3.89726953399179e-05, Final residual = 5.5491702092785544e-21, No Iterations 1
+CHMT accepted time=0.00075798825685229304 gas microsteps=1 material solves=14
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 3.9057542474103434e-05, Final residual = 0, No Iterations 1
+CHMT accepted time=0.00075804734175052239 gas microsteps=1 material solves=14
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 3.9434453463304099e-05, Final residual = 0, No Iterations 1
+CHMT accepted time=0.00075810641222372784 gas microsteps=1 material solves=14
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 3.9519089667062375e-05, Final residual = 5.5330053372971838e-21, No Iterations 1
+CHMT accepted time=0.00075816546827543112 gas microsteps=1 material solves=14
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 3.9214423201082123e-05, Final residual = 5.5852363800787022e-21, No Iterations 1
+CHMT accepted time=0.00075822450990915293 gas microsteps=1 material solves=14
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 3.8909945654478907e-05, Final residual = 2.6999198470322519e-23, No Iterations 1
+CHMT accepted time=0.00075828353712841337 gas microsteps=1 material solves=14
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 3.9286410966587688e-05, Final residual = 4.3184829712863267e-23, No Iterations 1
+CHMT accepted time=0.00075834254993673164 gas microsteps=1 material solves=14
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 3.927375439982704e-05, Final residual = 5.5258774049155202e-21, No Iterations 1
+CHMT accepted time=0.00075840154833762608 gas microsteps=1 material solves=14
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 3.9261113616220669e-05, Final residual = 4.3157022088269735e-23, No Iterations 1
+CHMT accepted time=0.00075846053233461397 gas microsteps=1 material solves=14
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 3.9054173968275186e-05, Final residual = 5.5438918850024636e-21, No Iterations 1
+CHMT accepted time=0.0007585195019312119 gas microsteps=1 material solves=14
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 3.90415967818847e-05, Final residual = 5.6068003547257462e-21, No Iterations 1
+CHMT accepted time=0.00075857845713093574 gas microsteps=1 material solves=14
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 3.9029027693716503e-05, Final residual = 4.3115348432136249e-23, No Iterations 1
+CHMT accepted time=0.00075863739793730024 gas microsteps=1 material solves=14
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 3.9307645802977076e-05, Final residual = 5.5169900612615016e-21, No Iterations 1
+CHMT accepted time=0.00075869632435381952 gas microsteps=1 material solves=14
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 3.9197963103073757e-05, Final residual = 2.154380255219794e-23, No Iterations 1
+CHMT accepted time=0.00075875523638400662 gas microsteps=1 material solves=14
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 3.9282337875244534e-05, Final residual = 5.556511723610836e-21, No Iterations 1
+CHMT accepted time=0.0007588141340313738 gas microsteps=1 material solves=14
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 3.9172726318971876e-05, Final residual = 5.6300772253352601e-21, No Iterations 1
+CHMT accepted time=0.00075887301729943247 gas microsteps=1 material solves=14
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 3.9063185332326412e-05, Final residual = 5.5421728541293968e-21, No Iterations 1
+CHMT accepted time=0.00075893188619169339 gas microsteps=1 material solves=14
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 3.9050610851360489e-05, Final residual = 5.7232754441191409e-21, No Iterations 1
+CHMT accepted time=0.00075899074071166613 gas microsteps=1 material solves=14
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 3.9134924432785768e-05, Final residual = 3.7641022178924561e-23, No Iterations 1
+CHMT accepted time=0.00075904958086285947 gas microsteps=1 material solves=14
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 3.8831826332452145e-05, Final residual = 7.5257833859784724e-23, No Iterations 1
+CHMT accepted time=0.00075910840664878158 gas microsteps=1 material solves=14
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 3.9109768729610161e-05, Final residual = 5.5028043699172319e-21, No Iterations 1
+CHMT accepted time=0.00075916721807293953 gas microsteps=1 material solves=14
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 3.8903629902220272e-05, Final residual = 5.5869868016540175e-21, No Iterations 1
+CHMT accepted time=0.00075922601513883962 gas microsteps=1 material solves=14
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 3.8794364039927043e-05, Final residual = 5.5851885324351492e-21, No Iterations 1
+CHMT accepted time=0.00075928479784998729 gas microsteps=1 material solves=14
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 3.9072035293266574e-05, Final residual = 5.540444399010015e-21, No Iterations 1
+CHMT accepted time=0.00075934356620988713 gas microsteps=1 material solves=14
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 3.8769414315968795e-05, Final residual = 0, No Iterations 1
+CHMT accepted time=0.00075940232022204295 gas microsteps=1 material solves=14
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 3.8950260517319385e-05, Final residual = 4.2921564309157462e-23, No Iterations 1
+CHMT accepted time=0.00075946105988995748 gas microsteps=1 material solves=14
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 3.9130982994447749e-05, Final residual = 4.2907771157186515e-23, No Iterations 1
+CHMT accepted time=0.0007595197852171328 gas microsteps=1 material solves=14
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 3.9311589355967021e-05, Final residual = 5.5333243058976831e-21, No Iterations 1
+CHMT accepted time=0.00075957849620707002 gas microsteps=1 material solves=14
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 3.9009265086688439e-05, Final residual = 5.5315435358517428e-21, No Iterations 1
+CHMT accepted time=0.00075963719286326948 gas microsteps=1 material solves=14
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 3.8707142819221714e-05, Final residual = 0, No Iterations 1
+CHMT accepted time=0.00075969587518923067 gas microsteps=1 material solves=14
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 3.88876960969973e-05, Final residual = 4.2852620924577905e-23, No Iterations 1
+CHMT accepted time=0.00075975454318845208 gas microsteps=1 material solves=14
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 3.8489331365071887e-05, Final residual = 1.0998871908470207e-20, No Iterations 1
+CHMT accepted time=0.00075981319686443147 gas microsteps=1 material solves=14
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 3.8959150366505316e-05, Final residual = 5.5137309566125795e-21, No Iterations 1
+CHMT accepted time=0.0007598718362206657 gas microsteps=1 material solves=14
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 3.9139441297007819e-05, Final residual = 1.1088136753513123e-20, No Iterations 1
+CHMT accepted time=0.0007599304612606509 gas microsteps=1 material solves=14
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 3.8934107492444955e-05, Final residual = 5.5636836985887288e-21, No Iterations 1
+CHMT accepted time=0.00075998907198788221 gas microsteps=1 material solves=14
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 3.8536224629194814e-05, Final residual = 5.3479754831823894e-24, No Iterations 1
+CHMT accepted time=0.00076004766840585391 gas microsteps=1 material solves=14
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 3.8620156697674191e-05, Final residual = 5.506645485760725e-21, No Iterations 1
+CHMT accepted time=0.00076010625051805951 gas microsteps=1 material solves=14
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 3.9185439653412009e-05, Final residual = 5.5155680353737728e-21, No Iterations 1
+CHMT accepted time=0.00076016481832799155 gas microsteps=1 material solves=14
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 3.8884095750353327e-05, Final residual = 8.5485184938161318e-23, No Iterations 1
+CHMT accepted time=0.00076022337183914192 gas microsteps=1 material solves=14
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 3.877539415476809e-05, Final residual = 1.0981319297808026e-20, No Iterations 1
+CHMT accepted time=0.00076028191105500153 gas microsteps=1 material solves=14
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 3.8378185954526562e-05, Final residual = 5.5583067497936957e-21, No Iterations 1
+CHMT accepted time=0.00076034043597906034 gas microsteps=1 material solves=14
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 3.8846646899749114e-05, Final residual = 5.5938870080233905e-21, No Iterations 1
+CHMT accepted time=0.00076039894661480761 gas microsteps=1 material solves=14
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 3.8738054524917175e-05, Final residual = 5.5494038790642292e-21, No Iterations 1
+CHMT accepted time=0.00076045744296573178 gas microsteps=1 material solves=14
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 3.8821703638573785e-05, Final residual = 1.1036565614682335e-20, No Iterations 1
+CHMT accepted time=0.00076051592503532028 gas microsteps=1 material solves=14
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 3.8521034357976838e-05, Final residual = 4.2660288555214581e-23, No Iterations 1
+CHMT accepted time=0.0007605743928270597 gas microsteps=1 material solves=14
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 3.84126362208112e-05, Final residual = 5.5014105187874354e-21, No Iterations 1
+CHMT accepted time=0.00076063284634443596 gas microsteps=1 material solves=14
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 3.8784322685564745e-05, Final residual = 7.9936722846545358e-23, No Iterations 1
+CHMT accepted time=0.0007606912855909339 gas microsteps=1 material solves=14
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 3.8867842138978925e-05, Final residual = 4.2619232849570663e-23, No Iterations 1
+CHMT accepted time=0.00076074971057003772 gas microsteps=1 material solves=14
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 3.8471593621006834e-05, Final residual = 5.3256918992598613e-24, No Iterations 1
+CHMT accepted time=0.00076080812128523053 gas microsteps=1 material solves=14
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 3.8459240350399169e-05, Final residual = 5.5369410863429265e-21, No Iterations 1
+CHMT accepted time=0.00076086651773999488 gas microsteps=1 material solves=14
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 3.8638664916197722e-05, Final residual = 1.5966824602012019e-23, No Iterations 1
+CHMT accepted time=0.00076092489993781227 gas microsteps=1 material solves=14
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 3.8626265956697365e-05, Final residual = 5.4695428505449172e-21, No Iterations 1
+CHMT accepted time=0.00076098326788216341 gas microsteps=1 material solves=14
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 3.8613867552517975e-05, Final residual = 5.5741643992940465e-21, No Iterations 1
+CHMT accepted time=0.00076104162157652816 gas microsteps=1 material solves=14
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 3.8505688113887951e-05, Final residual = 4.2537215445844397e-23, No Iterations 1
+CHMT accepted time=0.00076109996102438539 gas microsteps=1 material solves=14
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 3.8876362061113639e-05, Final residual = 5.4642798494558889e-21, No Iterations 1
+CHMT accepted time=0.00076115828622921346 gas microsteps=1 material solves=14
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 3.8863880502948389e-05, Final residual = 5.5262903890492819e-21, No Iterations 1
+CHMT accepted time=0.0007612165971944895 gas microsteps=1 material solves=14
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 3.8564331285404666e-05, Final residual = 5.4448366917353266e-21, No Iterations 1
+CHMT accepted time=0.00076127489392369 gas microsteps=1 material solves=14
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 3.8456299103528186e-05, Final residual = 4.2482655429461451e-23, No Iterations 1
+CHMT accepted time=0.00076133317642029059 gas microsteps=1 material solves=14
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 3.8730870655627574e-05, Final residual = 5.5634444166923555e-21, No Iterations 1
+CHMT accepted time=0.00076139144468776614 gas microsteps=1 material solves=14
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 3.8622839558812449e-05, Final residual = 0, No Iterations 1
+CHMT accepted time=0.00076144969872959044 gas microsteps=1 material solves=14
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 3.8323736948545555e-05, Final residual = 5.474990996851822e-21, No Iterations 1
+CHMT accepted time=0.00076150793854923651 gas microsteps=1 material solves=14
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 3.8215905727475116e-05, Final residual = 5.4308068410300503e-21, No Iterations 1
+CHMT accepted time=0.00076156616415017672 gas microsteps=1 material solves=14
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 3.8108136373643113e-05, Final residual = 5.5138936898091432e-21, No Iterations 1
+CHMT accepted time=0.00076162437553588226 gas microsteps=1 material solves=14
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 3.857332913991597e-05, Final residual = 6.360148239739484e-23, No Iterations 1
+CHMT accepted time=0.00076168257270982365 gas microsteps=1 material solves=14
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 3.8560958480346988e-05, Final residual = 5.5103607072717509e-21, No Iterations 1
+CHMT accepted time=0.00076174075567547067 gas microsteps=1 material solves=14
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 3.826234015334897e-05, Final residual = 5.2967245653725276e-24, No Iterations 1
+CHMT accepted time=0.00076179892443629211 gas microsteps=1 material solves=14
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 3.8822412264448351e-05, Final residual = 5.5068301481793427e-21, No Iterations 1
+CHMT accepted time=0.0007618570789957558 gas microsteps=1 material solves=14
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 3.8523901410852066e-05, Final residual = 5.4468386005834567e-21, No Iterations 1
+CHMT accepted time=0.00076191521935732912 gas microsteps=1 material solves=14
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 3.8416211145410319e-05, Final residual = 0, No Iterations 1
+CHMT accepted time=0.00076197334552447816 gas microsteps=1 material solves=14
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 3.8118007251569703e-05, Final residual = 5.4168946308507341e-21, No Iterations 1
+CHMT accepted time=0.00076203145750066846 gas microsteps=1 material solves=14
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 3.8677400566214281e-05, Final residual = 5.4151617754496832e-21, No Iterations 1
+CHMT accepted time=0.00076208955528936459 gas microsteps=1 material solves=14
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 3.8284066247814859e-05, Final residual = 2.6432743672014228e-23, No Iterations 1
+CHMT accepted time=0.00076214763889403026 gas microsteps=1 material solves=14
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 3.8367005061112547e-05, Final residual = 5.4962493425492981e-21, No Iterations 1
+CHMT accepted time=0.00076220570831812839 gas microsteps=1 material solves=14
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 3.8164360863542426e-05, Final residual = 5.415240143962372e-21, No Iterations 1
+CHMT accepted time=0.00076226376356512107 gas microsteps=1 material solves=14
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 3.8342416426614281e-05, Final residual = 5.4504751625017328e-21, No Iterations 1
+CHMT accepted time=0.0007623218046384694 gas microsteps=1 material solves=14
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 3.8235032839327831e-05, Final residual = 2.1119111346030214e-23, No Iterations 1
+CHMT accepted time=0.00076237983154163382 gas microsteps=1 material solves=14
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 3.8317866575286951e-05, Final residual = 0, No Iterations 1
+CHMT accepted time=0.00076243784427807381 gas microsteps=1 material solves=14
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 3.7925380910074167e-05, Final residual = 5.4505159060748322e-21, No Iterations 1
+CHMT accepted time=0.00076249584285124807 gas microsteps=1 material solves=14
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 3.8483374944472291e-05, Final residual = 8.4395316402243938e-23, No Iterations 1
+CHMT accepted time=0.00076255382726461447 gas microsteps=1 material solves=14
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 3.8471055755008715e-05, Final residual = 5.4206632757422938e-21, No Iterations 1
+CHMT accepted time=0.00076261179752162996 gas microsteps=1 material solves=14
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 3.8173839486791661e-05, Final residual = 5.4400102927551827e-21, No Iterations 1
+CHMT accepted time=0.00076266975362575067 gas microsteps=1 material solves=14
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 3.7781888008408461e-05, Final residual = 0, No Iterations 1
+CHMT accepted time=0.00076272769558043195 gas microsteps=1 material solves=14
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 3.8244303662807852e-05, Final residual = 5.431260221874548e-21, No Iterations 1
+CHMT accepted time=0.00076278562338912806 gas microsteps=1 material solves=14
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 3.832692717086941e-05, Final residual = 5.4769176347227673e-21, No Iterations 1
+CHMT accepted time=0.00076284353705529284 gas microsteps=1 material solves=14
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 3.8030130295399273e-05, Final residual = 5.4751625105716781e-21, No Iterations 1
+CHMT accepted time=0.00076290143658237894 gas microsteps=1 material solves=14
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 3.8207588178704948e-05, Final residual = 5.3892058027379214e-21, No Iterations 1
+CHMT accepted time=0.00076295932197383834 gas microsteps=1 material solves=14
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 3.8195362931296022e-05, Final residual = 5.4190486974002761e-21, No Iterations 1
+CHMT accepted time=0.00076301719323312205 gas microsteps=1 material solves=14
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 3.8183138269291934e-05, Final residual = 4.2076227552371073e-23, No Iterations 1
+CHMT accepted time=0.00076307505036368045 gas microsteps=1 material solves=14
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 3.7981487576691113e-05, Final residual = 4.2062765104395823e-23, No Iterations 1
+CHMT accepted time=0.00076313289336896271 gas microsteps=1 material solves=14
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 3.8442775939594467e-05, Final residual = 0, No Iterations 1
+CHMT accepted time=0.00076319072225241756 gas microsteps=1 material solves=14
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 3.8430476617421389e-05, Final residual = 5.2544827571403854e-23, No Iterations 1
+CHMT accepted time=0.00076324853701749266 gas microsteps=1 material solves=14
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 3.7945029669512042e-05, Final residual = 5.4629106525616012e-21, No Iterations 1
+CHMT accepted time=0.00076330633766763479 gas microsteps=1 material solves=14
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 3.7932890190147834e-05, Final residual = 0, No Iterations 1
+CHMT accepted time=0.0007633641242062901 gas microsteps=1 material solves=14
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 3.8204465761611701e-05, Final residual = 8.3991044617910446e-23, No Iterations 1
+CHMT accepted time=0.00076342189663690385 gas microsteps=1 material solves=14
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 3.8097705015047649e-05, Final residual = 3.1486562749193443e-23, No Iterations 1
+CHMT accepted time=0.00076347965496292023 gas microsteps=1 material solves=14
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 3.7991012573891102e-05, Final residual = 5.3719876633928257e-21, No Iterations 1
+CHMT accepted time=0.00076353739918778277 gas microsteps=1 material solves=14
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 3.8262294738140883e-05, Final residual = 0, No Iterations 1
+CHMT accepted time=0.00076359512931493414 gas microsteps=1 material solves=14
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 3.8061162493680478e-05, Final residual = 1.0485453832378041e-23, No Iterations 1
+CHMT accepted time=0.00076365284534781624 gas microsteps=1 material solves=14
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 3.8048987646730539e-05, Final residual = 4.1928399155412798e-23, No Iterations 1
+CHMT accepted time=0.00076371054728987002 gas microsteps=1 material solves=14
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 3.7942425672487022e-05, Final residual = 5.4489473601234676e-21, No Iterations 1
+CHMT accepted time=0.00076376823514453553 gas microsteps=1 material solves=14
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 3.8213369301077472e-05, Final residual = 1.0732045389259522e-20, No Iterations 1
+CHMT accepted time=0.00076382590891525218 gas microsteps=1 material solves=14
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 3.801249545241331e-05, Final residual = 5.2360232847057457e-23, No Iterations 1
+CHMT accepted time=0.00076388356860545843 gas microsteps=1 material solves=14
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 3.7811757231168544e-05, Final residual = 0, No Iterations 1
+CHMT accepted time=0.00076394121421859184 gas microsteps=1 material solves=14
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 3.8082468528233252e-05, Final residual = 4.1861419202581638e-23, No Iterations 1
+CHMT accepted time=0.00076399884575808932 gas microsteps=1 material solves=14
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 3.7881821908320339e-05, Final residual = 3.6617026900692596e-23, No Iterations 1
+CHMT accepted time=0.00076405646322738672 gas microsteps=1 material solves=14
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 3.7681296492832172e-05, Final residual = 3.1375982223052079e-23, No Iterations 1
+CHMT accepted time=0.00076411406662991912 gas microsteps=1 material solves=14
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 3.8234320255940162e-05, Final residual = 3.1365977349041951e-23, No Iterations 1
+CHMT accepted time=0.00076417165596912072 gas microsteps=1 material solves=14
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 3.8033810174383134e-05, Final residual = 8.3615864890738023e-23, No Iterations 1
+CHMT accepted time=0.00076422923124842509 gas microsteps=1 material solves=14
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 3.7833421140751058e-05, Final residual = 0, No Iterations 1
+CHMT accepted time=0.00076428679247126481 gas microsteps=1 material solves=14
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 3.8009506139852403e-05, Final residual = 5.389776954823075e-21, No Iterations 1
+CHMT accepted time=0.0007643443396410717 gas microsteps=1 material solves=14
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 3.8091415069735037e-05, Final residual = 5.4193808346803078e-21, No Iterations 1
+CHMT accepted time=0.0007644018727612765 gas microsteps=1 material solves=14
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 3.7891192479077809e-05, Final residual = 0, No Iterations 1
+CHMT accepted time=0.00076445939183530942 gas microsteps=1 material solves=14
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 3.7973086856668705e-05, Final residual = 5.3846126726960607e-21, No Iterations 1
+CHMT accepted time=0.00076451689686659967 gas microsteps=1 material solves=14
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 3.7960962599807266e-05, Final residual = 6.7807766249768076e-23, No Iterations 1
+CHMT accepted time=0.00076457438785857562 gas microsteps=1 material solves=14
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 3.78548955162614e-05, Final residual = 4.1714517714077432e-23, No Iterations 1
+CHMT accepted time=0.00076463186481466486 gas microsteps=1 material solves=14
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 3.7936715923673579e-05, Final residual = 5.4211564501251572e-21, No Iterations 1
+CHMT accepted time=0.00076468932773829401 gas microsteps=1 material solves=14
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 3.7830731414479786e-05, Final residual = 0, No Iterations 1
+CHMT accepted time=0.00076474677663288914 gas microsteps=1 material solves=14
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 3.7912500201762069e-05, Final residual = 5.2093230996413541e-24, No Iterations 1
+CHMT accepted time=0.00076480421150187526 gas microsteps=1 material solves=14
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 3.7712753402497148e-05, Final residual = 1.2498378253571058e-22, No Iterations 1
+CHMT accepted time=0.0007648616323486766 gas microsteps=1 material solves=14
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 3.8075859867330947e-05, Final residual = 4.1647976657252984e-23, No Iterations 1
+CHMT accepted time=0.00076491903917671653 gas microsteps=1 material solves=14
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 3.77824318816973e-05, Final residual = 1.0741743778420958e-20, No Iterations 1
+CHMT accepted time=0.00076497643198941755 gas microsteps=1 material solves=14
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 3.7582910853616626e-05, Final residual = 5.3275340240911161e-21, No Iterations 1
+CHMT accepted time=0.00076503381079020129 gas microsteps=1 material solves=14
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 3.7758296495570988e-05, Final residual = 5.3726419894077517e-21, No Iterations 1
+CHMT accepted time=0.00076509117558248884 gas microsteps=1 material solves=14
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 3.7746243897495435e-05, Final residual = 5.365727672245157e-21, No Iterations 1
+CHMT accepted time=0.00076514852636970021 gas microsteps=1 material solves=14
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 3.7734198991438834e-05, Final residual = 0, No Iterations 1
+CHMT accepted time=0.00076520586315525444 gas microsteps=1 material solves=14
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 3.7347727278471116e-05, Final residual = 5.3986735219194074e-21, No Iterations 1
+CHMT accepted time=0.00076526318594257012 gas microsteps=1 material solves=14
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 3.7616548137110632e-05, Final residual = 5.1943728667588018e-23, No Iterations 1
+CHMT accepted time=0.00076532049473506465 gas microsteps=1 material solves=14
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 3.7511001902022946e-05, Final residual = 7.2698016438575417e-23, No Iterations 1
+CHMT accepted time=0.00076537778953615469 gas microsteps=1 material solves=14
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 3.7499033301105364e-05, Final residual = 5.3571725009450108e-21, No Iterations 1
+CHMT accepted time=0.00076543507034925623 gas microsteps=1 material solves=14
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 3.7861022376612094e-05, Final residual = 5.1894047874522237e-24, No Iterations 1
+CHMT accepted time=0.00076549233717778417 gas microsteps=1 material solves=14
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 3.7848942720157723e-05, Final residual = 7.2628487323324596e-23, No Iterations 1
+CHMT accepted time=0.00076554959002515289 gas microsteps=1 material solves=14
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 3.7556580109026189e-05, Final residual = 8.2977472563621995e-23, No Iterations 1
+CHMT accepted time=0.00076560682889477557 gas microsteps=1 material solves=14
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 3.791818339400243e-05, Final residual = 5.3503404857354858e-21, No Iterations 1
+CHMT accepted time=0.00076566405379006495 gas microsteps=1 material solves=14
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 3.7532609956075644e-05, Final residual = 5.3849105584158549e-21, No Iterations 1
+CHMT accepted time=0.00076572126471443258 gas microsteps=1 material solves=14
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 3.7520636349992496e-05, Final residual = 0, No Iterations 1
+CHMT accepted time=0.00076577846167128947 gas microsteps=1 material solves=14
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 3.7695294750146441e-05, Final residual = 5.4280931919459524e-21, No Iterations 1
+CHMT accepted time=0.00076583564466404554 gas microsteps=1 material solves=14
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 3.7496726032130027e-05, Final residual = 1.072845741744622e-20, No Iterations 1
+CHMT accepted time=0.00076589281369610995 gas microsteps=1 material solves=14
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 3.720503470838106e-05, Final residual = 5.1761762111807962e-24, No Iterations 1
+CHMT accepted time=0.00076594996877089113 gas microsteps=1 material solves=14
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 3.747283219665742e-05, Final residual = 5.3297633253387152e-21, No Iterations 1
+CHMT accepted time=0.0007660071098917967 gas microsteps=1 material solves=14
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 3.7367692973615709e-05, Final residual = 3.6210138630302102e-23, No Iterations 1
+CHMT accepted time=0.00076606423706223324 gas microsteps=1 material solves=14
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 3.7262620803087732e-05, Final residual = 1.06734134499538e-20, No Iterations 1
+CHMT accepted time=0.00076612135028560676 gas microsteps=1 material solves=14
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 3.7623253405649446e-05, Final residual = 1.0711368680985191e-20, No Iterations 1
+CHMT accepted time=0.00076617844956532221 gas microsteps=1 material solves=14
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 3.7518159766847446e-05, Final residual = 3.1007586710709102e-23, No Iterations 1
+CHMT accepted time=0.00076623553490478375 gas microsteps=1 material solves=14
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 3.7320055211345521e-05, Final residual = 6.1995388392894548e-23, No Iterations 1
+CHMT accepted time=0.00076629260630739493 gas microsteps=1 material solves=14
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 3.7680317765097552e-05, Final residual = 0, No Iterations 1
+CHMT accepted time=0.00076634966377655818 gas microsteps=1 material solves=14
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 3.7482294731189166e-05, Final residual = 5.4108144596051265e-21, No Iterations 1
+CHMT accepted time=0.00076640670731567529 gas microsteps=1 material solves=14
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 3.7191408933302046e-05, Final residual = 4.1290758516001662e-23, No Iterations 1
+CHMT accepted time=0.00076646373692814708 gas microsteps=1 material solves=14
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 3.7644327655112522e-05, Final residual = 3.6117925328972367e-23, No Iterations 1
+CHMT accepted time=0.00076652075261737351 gas microsteps=1 material solves=14
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 3.7353568436569184e-05, Final residual = 5.3489068438069243e-21, No Iterations 1
+CHMT accepted time=0.00076657775438675408 gas microsteps=1 material solves=14
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 3.7155880809879304e-05, Final residual = 5.1564142969195015e-24, No Iterations 1
+CHMT accepted time=0.00076663474223968701 gas microsteps=1 material solves=14
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 3.7701227982854299e-05, Final residual = 5.3609657903614992e-21, No Iterations 1
+CHMT accepted time=0.00076669171617956987 gas microsteps=1 material solves=14
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 3.7410721355757112e-05, Final residual = 5.3592573183222709e-21, No Iterations 1
+CHMT accepted time=0.00076674867620979957 gas microsteps=1 material solves=14
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 3.7027595395474673e-05, Final residual = 5.3163375189356317e-21, No Iterations 1
+CHMT accepted time=0.00076680562233377172 gas microsteps=1 material solves=14
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 3.7572448726363567e-05, Final residual = 8.2397625022334757e-23, No Iterations 1
+CHMT accepted time=0.00076686255455488161 gas microsteps=1 material solves=14
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 3.7374992012602514e-05, Final residual = 5.3026568210793804e-21, No Iterations 1
+CHMT accepted time=0.00076691947287652355 gas microsteps=1 material solves=14
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 3.7548517552077706e-05, Final residual = 5.3112617340886372e-21, No Iterations 1
+CHMT accepted time=0.00076697637730209077 gas microsteps=1 material solves=14
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 3.7536566872228026e-05, Final residual = 0, No Iterations 1
+CHMT accepted time=0.00076703326783497607 gas microsteps=1 material solves=14
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 3.7246646365700176e-05, Final residual = 5.1432940777700553e-24, No Iterations 1
+CHMT accepted time=0.00076709014447857104 gas microsteps=1 material solves=14
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 3.7327419731459316e-05, Final residual = 5.3473239788017439e-21, No Iterations 1
+CHMT accepted time=0.00076714700723626663 gas microsteps=1 material solves=14
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 3.722294600172781e-05, Final residual = 5.2942219958161746e-21, No Iterations 1
+CHMT accepted time=0.00076720385611145315 gas microsteps=1 material solves=14
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 3.7211100237817809e-05, Final residual = 5.343921028095319e-21, No Iterations 1
+CHMT accepted time=0.00076726069110751971 gas microsteps=1 material solves=14
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 3.7384332966337627e-05, Final residual = 5.2600329149441663e-21, No Iterations 1
+CHMT accepted time=0.00076731751222785475 gas microsteps=1 material solves=14
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 3.7372436495997354e-05, Final residual = 4.1080930182374033e-23, No Iterations 1
+CHMT accepted time=0.00076737431947584598 gas microsteps=1 material solves=14
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 3.7083100639188739e-05, Final residual = 5.2874847280227891e-21, No Iterations 1
+CHMT accepted time=0.00076743111285488023 gas microsteps=1 material solves=14
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 3.7533539823270647e-05, Final residual = 3.5922931127138193e-23, No Iterations 1
+CHMT accepted time=0.00076748789236834336 gas microsteps=1 material solves=14
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 3.7336751063127018e-05, Final residual = 5.2943797719332689e-21, No Iterations 1
+CHMT accepted time=0.00076754465801962056 gas microsteps=1 material solves=14
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 3.6862919367676207e-05, Final residual = 6.1542950130668781e-23, No Iterations 1
+CHMT accepted time=0.00076760140981209628 gas microsteps=1 material solves=14
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 3.7128280796200278e-05, Final residual = 0, No Iterations 1
+CHMT accepted time=0.0007676581477491539 gas microsteps=1 material solves=14
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 3.7024141679295035e-05, Final residual = 5.2483261681747325e-21, No Iterations 1
+CHMT accepted time=0.0007677148718341761 gas microsteps=1 material solves=14
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 3.7289283244595918e-05, Final residual = 5.1236906967722092e-24, No Iterations 1
+CHMT accepted time=0.00076777158207054475 gas microsteps=1 material solves=14
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 3.72774196643925e-05, Final residual = 4.0976484762399134e-23, No Iterations 1
+CHMT accepted time=0.00076782827846164081 gas microsteps=1 material solves=14
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 3.7265570505444742e-05, Final residual = 1.2289037940872341e-22, No Iterations 1
+CHMT accepted time=0.00076788496101084451 gas microsteps=1 material solves=14
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 3.7161499543042652e-05, Final residual = 5.3235551512623469e-21, No Iterations 1
+CHMT accepted time=0.00076794162972153518 gas microsteps=1 material solves=14
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 3.7057501627488036e-05, Final residual = 5.2706908318630688e-21, No Iterations 1
+CHMT accepted time=0.00076799828459709143 gas microsteps=1 material solves=14
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 3.7137863212679512e-05, Final residual = 8.1848755978355095e-23, No Iterations 1
+CHMT accepted time=0.00076805492564089098 gas microsteps=1 material solves=14
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 3.7402435838240178e-05, Final residual = 0, No Iterations 1
+CHMT accepted time=0.00076811155285631068 gas microsteps=1 material solves=14
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 3.693005346569212e-05, Final residual = 5.2349887723251166e-21, No Iterations 1
+CHMT accepted time=0.00076816816624672652 gas microsteps=1 material solves=14
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 3.7102461624040112e-05, Final residual = 4.0885366913429887e-23, No Iterations 1
+CHMT accepted time=0.00076822476581551394 gas microsteps=1 material solves=14
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 3.6814561189758262e-05, Final residual = 4.0872373474341322e-23, No Iterations 1
+CHMT accepted time=0.00076828135156604732 gas microsteps=1 material solves=14
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 3.7078893488532272e-05, Final residual = 5.3117214553022347e-21, No Iterations 1
+CHMT accepted time=0.00076833792350170015 gas microsteps=1 material solves=14
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 3.6791169824912664e-05, Final residual = 1.8830383105241988e-30, No Iterations 1
+CHMT accepted time=0.00076839448162584526 gas microsteps=1 material solves=14
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 3.6871423828189829e-05, Final residual = 5.226677777207411e-21, No Iterations 1
+CHMT accepted time=0.00076845102594185464 gas microsteps=1 material solves=14
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 3.7227409190169651e-05, Final residual = 4.0820470943277526e-23, No Iterations 1
+CHMT accepted time=0.00076850755645309929 gas microsteps=1 material solves=14
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 3.7123679375645872e-05, Final residual = 4.0807488714499111e-23, No Iterations 1
+CHMT accepted time=0.00076856407316294967 gas microsteps=1 material solves=14
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 0.13099900946532203, Final residual = 1.869924844924581e-17, No Iterations 1
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 7.0583908915700574e-08, Final residual = 6.0490513036799123e-26, No Iterations 1
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 0.13099900946532203, Final residual = 1.869924844924581e-17, No Iterations 1
+DICPCG:  Solving for CHMTMaterialTemperature, Initial residual = 7.0583908915700574e-08, Final residual = 6.0490513036799123e-26, No Iterations 1
+CHMT accepted time=0.001 gas microsteps=110 material solves=2

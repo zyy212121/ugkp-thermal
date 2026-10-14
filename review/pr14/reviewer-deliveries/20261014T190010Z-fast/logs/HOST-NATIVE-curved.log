@@ -1,0 +1,5 @@
+curved angle scale=1, relative projected-flux error=0.00447139322476, refinement ratio=0
+curved angle scale=0.5, relative projected-flux error=0.00112553280248, refinement ratio=3.97269028048
+curved angle scale=0.25, relative projected-flux error=0.000281868873365, refinement ratio=3.9931078201
+curved angle scale=0.125, relative projected-flux error=7.04976582503e-05, refinement ratio=3.99827285559
+CPU stationary curved-film integration passed

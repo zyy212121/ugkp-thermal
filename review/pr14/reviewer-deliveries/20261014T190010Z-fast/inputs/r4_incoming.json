@@ -1,0 +1,13 @@
+{
+  "area": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test",
+  "old_checkout": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T120103Z-fast",
+  "old_delivery": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T120103Z-fast/review/pr14/reviewer-deliveries/20261014T120103Z-fast",
+  "old_source": "9d5be6eff69dbced2fc959d422d3ba419a1bc39e",
+  "old_delivery_commit": "0aa34bc1b0e370ec99e6107faf83ff7f0ac3e668",
+  "source": "47034e4e0380fa5b84165b49207a95a9b187a52a",
+  "source_tree": "c932823a00b3ed2f647e22de5002f9b913962fee",
+  "remote_head": "55d3663830ada63077241c528e2c81b53976e2c4",
+  "developer_directory": "review/pr14/developer-deliveries/20261014T180000Z-fast",
+  "identity": "PR14_REVIEW_ONLY",
+  "interaction_class": "FAST"
+}

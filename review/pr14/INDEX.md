@@ -135,3 +135,14 @@ The continuation bundle now embeds source `a73b9635510fb09d7baa5339e14d1aa609f0f
 - [所有实际结果](reviewer-deliveries/20261014T120103Z-fast/results.json)
 - [发现](reviewer-deliveries/20261014T120103Z-fast/findings.json)
 - [复现/固定历史引用](reviewer-deliveries/20261014T120103Z-fast/REPRODUCE.md)
+
+## FAST4 独立真实GPU 20261014T190010Z-fast
+
+固定生产47034e4e；新原flags完整构建、原evap完整.001/319windows、Ns10化学两half、9组SST真实净/gross/RK低Re物理范围、22实际资源槽、activecold2D、限定双向FSH端点和Nsight真实资源证据。正式fixture/API编译/strictrestart仍FAIL；14gap全部PARTIAL、旧support总账RETIRED_BY_USER；不满足整体FAST，无合并授权。
+
+- [报告](reviewer-deliveries/20261014T190010Z-fast/REPORT.md)
+- [计划](reviewer-deliveries/20261014T190010Z-fast/TEST_PLAN.md)
+- [覆盖](reviewer-deliveries/20261014T190010Z-fast/coverage.json)
+- [实际命令与结果](reviewer-deliveries/20261014T190010Z-fast/results.json)
+- [发现](reviewer-deliveries/20261014T190010Z-fast/findings.json)
+- [原始数据物化与复现](reviewer-deliveries/20261014T190010Z-fast/REPRODUCE.md)

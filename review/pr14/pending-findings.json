@@ -115,7 +115,7 @@
   "source_commit": "9d5be6eff69dbced2fc959d422d3ba419a1bc39e",
   "source_review_final": true,
   "gpu_acceptance_final": false,
-  "limits": "FAST3formalzero-phase/nonzerocontrol/fixtureownership/activecold/Ns10fullinitcheck scopedproofs delivered; completewetP, strictrestart,originalevapendpoint/submittednegativefixturesemantic andoldcoveragegapsremain.",
+  "limits": "FAST4exact470freshnativeflags/currentGPU evidence; formalchemistryfixture/staleAPI/strictrestart red and14partialscopegaps; oldsupport metricretired, realgrossunmeasured.",
   "source_review_lineage": "a164 category-level review plus independently reviewed 970 codec and a73 mapper deltas; no all-files re-review or runtime acceptance",
   "independent_reviewer_delivery_history": [
     {
@@ -1365,6 +1365,121 @@
         "E014-2c83433c2197cb7a"
       ],
       "merge_authorized": false
+    },
+    {
+      "recorded_utc": "2026-10-14T20:51:17.636389+00:00",
+      "delivery_path": "reviewer-deliveries/20261014T190010Z-fast",
+      "source_commit": "47034e4e0380fa5b84165b49207a95a9b187a52a",
+      "findings": [
+        {
+          "id": "FAST4-F001",
+          "priority": 2,
+          "topics": [
+            "R014-010",
+            "R014-012",
+            "R014-014",
+            "R014-026"
+          ],
+          "status": "OPEN_FORMAL_FIXTURE",
+          "title": "Formal chemistry fixture compares different metadata/control public paths",
+          "evidence": [
+            "logs/CHEMISTRY-FORMAL-GPU.log",
+            "logs/CHEMISTRY-FORMAL-MEMCHECK.log",
+            "logs/CHEMISTRY-S403-DIAGNOSE.log",
+            "patches/S403-independent-public-reference-and-aggregate-inventory.patch"
+          ],
+          "actual": "exit11 atkind7: coefficientCount1/maxRejected0 actual species NaN versuscount6/reject100finite reference; fourpositivecontrols completed. Formalnegative fixture red retained; S4032independentmatching-inputfullpublicTrials and16transactions do notlabelsubmittedfixturePASS."
+        },
+        {
+          "id": "FAST4-F002",
+          "priority": 2,
+          "topics": [
+            "R014-003",
+            "R014-006",
+            "R014-010",
+            "R014-013",
+            "R014-014",
+            "R014-020",
+            "R014-023",
+            "R014-026",
+            "R014-029"
+          ],
+          "status": "OPEN_TEST_API",
+          "title": "Two original fixtures still consume deleted report/audit members",
+          "evidence": [
+            "logs/HOST-ORIGINAL-REACTING-ALE-FIXTURE.log",
+            "logs/BUILD-ORIGINAL-NATIVE-PHASE-FIXTURE.log"
+          ],
+          "actual": "Actual originalC++14ALEschemes1/2compilefail chemistryAudit/speciesMassChange; nativephaseprobe filmSteps/budgetDelta/solidTargetSweeps fail. Need independentphysicaltest migration, do notrestoreproductionaudit."
+        },
+        {
+          "id": "FAST4-F003",
+          "priority": 2,
+          "topics": [
+            "R014-005",
+            "R014-006",
+            "R014-013",
+            "R014-014",
+            "R014-019",
+            "R014-026",
+            "R014-029"
+          ],
+          "status": "OPEN_STRICT_RESTART",
+          "title": "Original thermal/wet strict restart physical CSV each16 bitdifferences",
+          "evidence": [
+            "artifacts/thermal-full-strict-restart.json",
+            "artifacts/wet-film-strict-restart.json"
+          ],
+          "actual": "Initialreserializedcheckpoint exact; thermalfirstexchange-2row0energy -0x1.89370df15a40dp-10 vs -0x1.89370df15a408p-10; wetrow4energy -0x1.479e94335e34ap-9 vs -0x1.479e94335e342p-9. CSVonlyscope; oldwet27wholefields notdismissed."
+        },
+        {
+          "id": "FAST4-F004",
+          "priority": 2,
+          "topics": [
+            "R014-003",
+            "R014-011",
+            "R014-016",
+            "R014-020",
+            "R014-026",
+            "R014-029",
+            "R014-032"
+          ],
+          "status": "OPEN_USER_REMOVAL_SCOPE",
+          "title": "Film profile kineticEnergy/dissipation diagnostic work still lacksphysicalconsumer",
+          "evidence": [
+            "metadata/independent-source-review.md",
+            "metadata/independent-source-review.json"
+          ],
+          "actual": "Independentproducer→storage→validation/checkpoint reviewfoundremainingFilmMath kineticPerArea/dissipation andwithNormalProfile recomputation storedFilmAux.kineticEnergy; actualshear/work/velocities/kinetic-advection remainphysical. Noformalproductionpatchbyreviewer; no new stoppinggate requested."
+        },
+        {
+          "id": "FAST4-F005",
+          "priority": 2,
+          "topics": [
+            "R014-005",
+            "R014-012",
+            "R014-018",
+            "R014-020",
+            "R014-026",
+            "R014-028",
+            "R014-029",
+            "R014-031",
+            "R014-033"
+          ],
+          "status": "OPEN_EVIDENCE_GAPS",
+          "title": "Subset measurements do not close threeappgross/mixturewire/resourceconsumer ranges",
+          "evidence": [
+            "coverage.json",
+            "metadata/independent-source-review.json"
+          ],
+          "actual": "S404defaultsphysics/notopvelocity/noparticles; oldsupportglobalmetricRETIREDBYUSER; V1actualFSHoppositeLegacyheat/boundsPASSbutnonzeroNs2species/gasUGKPpairednotrun. Radiationmapper/Js/selectedowners/free-sync/D2H/concurrency/currentclockpair scopes open."
+        }
+      ],
+      "evidence_ids": [
+        "E014-3a07e4a52efe2302",
+        "E014-da7494f1ad46d610"
+      ],
+      "merge_authorized": false
     }
   ],
   "latest_developer_response": {
@@ -1419,7 +1534,7 @@
       "original Ns10 full initcheck and evaporation timeout completion"
     ]
   },
-  "latest_reviewer_delivery": "reviewer-deliveries/20261014T120103Z-fast",
+  "latest_reviewer_delivery": "reviewer-deliveries/20261014T190010Z-fast",
   "developer_response_history": [
     {
       "source_commit": "4b5c480b572f234ddecf5e89164fe59b0d2e9735",

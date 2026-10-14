@@ -1,0 +1,69 @@
+{
+  "source_commit": "47034e4e0380fa5b84165b49207a95a9b187a52a",
+  "variant": "DIAGNOSTIC_D401",
+  "all_original_files_byte_equal": true,
+  "comparisons": [
+    {
+      "path": "material-0.csv",
+      "formal_sha256": "ef6672634bcbc19a238c0cb19f2772fd9c05ec82e2c599d29436ea7112f3dece",
+      "observer_sha256": "ef6672634bcbc19a238c0cb19f2772fd9c05ec82e2c599d29436ea7112f3dece",
+      "byte_equal": true
+    },
+    {
+      "path": "exchange-1.csv",
+      "formal_sha256": "230d00af10edb6cbbe0e3d9d2029ba0ea25cdb7176444ed2d304b51798bedf40",
+      "observer_sha256": "230d00af10edb6cbbe0e3d9d2029ba0ea25cdb7176444ed2d304b51798bedf40",
+      "byte_equal": true
+    },
+    {
+      "path": "accepted-1.csv",
+      "formal_sha256": "5a0501b13f19e34d3ef6b64f8656ab5910fc833c73adbbd0547617a0014ad845",
+      "observer_sha256": "5a0501b13f19e34d3ef6b64f8656ab5910fc833c73adbbd0547617a0014ad845",
+      "byte_equal": true
+    },
+    {
+      "path": "accepted-0.csv",
+      "formal_sha256": "f3744c51ce3faf95ee4e77e4189fe5ea6334c74fa03850e812eb98ce5e4f3f68",
+      "observer_sha256": "f3744c51ce3faf95ee4e77e4189fe5ea6334c74fa03850e812eb98ce5e4f3f68",
+      "byte_equal": true
+    },
+    {
+      "path": "exchange-0.csv",
+      "formal_sha256": "28e083ed7242aede54ec558af274ade8b51d6a09029f15ea9799789bbea282a3",
+      "observer_sha256": "28e083ed7242aede54ec558af274ade8b51d6a09029f15ea9799789bbea282a3",
+      "byte_equal": true
+    },
+    {
+      "path": "gas-1.csv",
+      "formal_sha256": "2764900c5c3eb4ebe34b4cc4ad311bf080d8a99b84995d8b1f9572bbf3fd5ca4",
+      "observer_sha256": "2764900c5c3eb4ebe34b4cc4ad311bf080d8a99b84995d8b1f9572bbf3fd5ca4",
+      "byte_equal": true
+    },
+    {
+      "path": "gas-0.csv",
+      "formal_sha256": "aeaa0dc16c78c7fcedbbed4a9d840352ce26c564bf46ca125ba62072fc3dbaa1",
+      "observer_sha256": "aeaa0dc16c78c7fcedbbed4a9d840352ce26c564bf46ca125ba62072fc3dbaa1",
+      "byte_equal": true
+    },
+    {
+      "path": "material-1.csv",
+      "formal_sha256": "47d275bcddd608ee6f4326cc588566a82e7489427f2fcfc1637d9255ecc41384",
+      "observer_sha256": "47d275bcddd608ee6f4326cc588566a82e7489427f2fcfc1637d9255ecc41384",
+      "byte_equal": true
+    },
+    {
+      "path": "checkpoint-1/state.chmt",
+      "formal_sha256": "b71f2ef04ecdcc42739252e3a97e5b19a31a0fa86060d448af56382c13234eeb",
+      "observer_sha256": "b71f2ef04ecdcc42739252e3a97e5b19a31a0fa86060d448af56382c13234eeb",
+      "byte_equal": true
+    },
+    {
+      "path": "checkpoint-0/state.chmt",
+      "formal_sha256": "a915c69e09e18a9c284e37997c5136e96641bb1ba4452d8c76ae5ee752e7228e",
+      "observer_sha256": "a915c69e09e18a9c284e37997c5136e96641bb1ba4452d8c76ae5ee752e7228e",
+      "byte_equal": true
+    }
+  ],
+  "observer_input_recipe_same_as_formal": true,
+  "diagnostic_io_excluded_from_efficiency": true
+}

@@ -1,0 +1,214 @@
+{
+  "identity": "PR14_REVIEW_ONLY",
+  "source_commit": "47034e4e0380fa5b84165b49207a95a9b187a52a",
+  "checkpoint_input_sha256": "0148c0a65491f5f94f3f52c166909f8e80589fda821774e80243f74d54fff95b",
+  "initial_reserialized_checkpoint_bytes_equal": true,
+  "all_csv_comparisons": [
+    {
+      "file": "accepted-1.csv",
+      "uninterrupted_sha256": "d9390ad75e6c1154e5ca31071e144e7550a34c281aebcf97adb73320397aa778",
+      "restart_sha256": "d9390ad75e6c1154e5ca31071e144e7550a34c281aebcf97adb73320397aa778",
+      "byte_equal": true
+    },
+    {
+      "file": "accepted-2.csv",
+      "uninterrupted_sha256": "825dca62a7ec37e973313874cd1f1c16e347b091b6f03a0da2eff47db7d0bcc3",
+      "restart_sha256": "825dca62a7ec37e973313874cd1f1c16e347b091b6f03a0da2eff47db7d0bcc3",
+      "byte_equal": true
+    },
+    {
+      "file": "exchange-1.csv",
+      "uninterrupted_sha256": "640cfd26154e372bccc6f76e8eb2ec513d16b96e41d5f87d56ebcbbbc56e938a",
+      "restart_sha256": "640cfd26154e372bccc6f76e8eb2ec513d16b96e41d5f87d56ebcbbbc56e938a",
+      "byte_equal": true
+    },
+    {
+      "file": "exchange-2.csv",
+      "uninterrupted_sha256": "f9206a978361bfc178e3035f3cd5dbb5666c6a133e3b655feb6e34010b1963c1",
+      "restart_sha256": "99f4400c937fba88ed2181f8519804e9a64b6eb2f7d7a9701eae6c4ea61b7f8e",
+      "byte_equal": false
+    },
+    {
+      "file": "gas-1.csv",
+      "uninterrupted_sha256": "28cddfd323d854cec7a18b8eb35d8058774a339f403d850b53e19533422654c5",
+      "restart_sha256": "28cddfd323d854cec7a18b8eb35d8058774a339f403d850b53e19533422654c5",
+      "byte_equal": true
+    },
+    {
+      "file": "gas-2.csv",
+      "uninterrupted_sha256": "1fe36c447e0d9df69f8c8bece669141a8f5764342e1a7b0b9cd02111845868dc",
+      "restart_sha256": "e92230b7536a996b5a68752ed6e246b579aab745c36a87bbd7b06ecadb0afcad",
+      "byte_equal": false
+    },
+    {
+      "file": "material-1.csv",
+      "uninterrupted_sha256": "a3f72abbad0837f50d263a83b2e9be98e90e435ff6f3a06ada36d2b0f1a3d854",
+      "restart_sha256": "a3f72abbad0837f50d263a83b2e9be98e90e435ff6f3a06ada36d2b0f1a3d854",
+      "byte_equal": true
+    },
+    {
+      "file": "material-2.csv",
+      "uninterrupted_sha256": "863bfb1a0ef6516ba074a7c07e80dc9d83256e24c026ee2e908935b2f5ae662e",
+      "restart_sha256": "863bfb1a0ef6516ba074a7c07e80dc9d83256e24c026ee2e908935b2f5ae662e",
+      "byte_equal": true
+    }
+  ],
+  "strict_physical_semantic_bit_difference_count": 16,
+  "first_difference": {
+    "file": "exchange-2.csv",
+    "row": 0,
+    "field": "energy",
+    "uninterrupted": "-0.0014999964008330952",
+    "restart": "-0.0014999964008330941",
+    "uninterrupted_hex": "-0x1.89370df15a40dp-10",
+    "restart_hex": "-0x1.89370df15a408p-10"
+  },
+  "all_differences": [
+    {
+      "file": "exchange-2.csv",
+      "row": 0,
+      "field": "energy",
+      "uninterrupted": "-0.0014999964008330952",
+      "restart": "-0.0014999964008330941",
+      "uninterrupted_hex": "-0x1.89370df15a40dp-10",
+      "restart_hex": "-0x1.89370df15a408p-10"
+    },
+    {
+      "file": "exchange-2.csv",
+      "row": 0,
+      "field": "conductive",
+      "uninterrupted": "-0.0014999964008330952",
+      "restart": "-0.0014999964008330941",
+      "uninterrupted_hex": "-0x1.89370df15a40dp-10",
+      "restart_hex": "-0x1.89370df15a408p-10"
+    },
+    {
+      "file": "exchange-2.csv",
+      "row": 2,
+      "field": "energy",
+      "uninterrupted": "-0.001499996400833095",
+      "restart": "-0.0014999964008330939",
+      "uninterrupted_hex": "-0x1.89370df15a40cp-10",
+      "restart_hex": "-0x1.89370df15a407p-10"
+    },
+    {
+      "file": "exchange-2.csv",
+      "row": 2,
+      "field": "conductive",
+      "uninterrupted": "-0.001499996400833095",
+      "restart": "-0.0014999964008330939",
+      "uninterrupted_hex": "-0x1.89370df15a40cp-10",
+      "restart_hex": "-0x1.89370df15a407p-10"
+    },
+    {
+      "file": "exchange-2.csv",
+      "row": 4,
+      "field": "energy",
+      "uninterrupted": "-0.0014999964008330952",
+      "restart": "-0.0014999964008330941",
+      "uninterrupted_hex": "-0x1.89370df15a40dp-10",
+      "restart_hex": "-0x1.89370df15a408p-10"
+    },
+    {
+      "file": "exchange-2.csv",
+      "row": 4,
+      "field": "conductive",
+      "uninterrupted": "-0.0014999964008330952",
+      "restart": "-0.0014999964008330941",
+      "uninterrupted_hex": "-0x1.89370df15a40dp-10",
+      "restart_hex": "-0x1.89370df15a408p-10"
+    },
+    {
+      "file": "exchange-2.csv",
+      "row": 6,
+      "field": "energy",
+      "uninterrupted": "-0.001499996400833095",
+      "restart": "-0.0014999964008330939",
+      "uninterrupted_hex": "-0x1.89370df15a40cp-10",
+      "restart_hex": "-0x1.89370df15a407p-10"
+    },
+    {
+      "file": "exchange-2.csv",
+      "row": 6,
+      "field": "conductive",
+      "uninterrupted": "-0.001499996400833095",
+      "restart": "-0.0014999964008330939",
+      "uninterrupted_hex": "-0x1.89370df15a40cp-10",
+      "restart_hex": "-0x1.89370df15a407p-10"
+    },
+    {
+      "file": "gas-2.csv",
+      "row": 0,
+      "field": "momentum_x",
+      "uninterrupted": "-2.0371017459692663e-05",
+      "restart": "-2.0371017459765423e-05",
+      "uninterrupted_hex": "-0x1.55c4da910a137p-16",
+      "restart_hex": "-0x1.55c4da910f51ap-16"
+    },
+    {
+      "file": "gas-2.csv",
+      "row": 1,
+      "field": "momentum_x",
+      "uninterrupted": "-2.0371014927732172e-05",
+      "restart": "-2.0371014927804932e-05",
+      "uninterrupted_hex": "-0x1.55c4d7c85b184p-16",
+      "restart_hex": "-0x1.55c4d7c860567p-16"
+    },
+    {
+      "file": "gas-2.csv",
+      "row": 2,
+      "field": "momentum_x",
+      "uninterrupted": "-2.0371017459692663e-05",
+      "restart": "-2.0371017459765423e-05",
+      "uninterrupted_hex": "-0x1.55c4da910a137p-16",
+      "restart_hex": "-0x1.55c4da910f51ap-16"
+    },
+    {
+      "file": "gas-2.csv",
+      "row": 3,
+      "field": "momentum_x",
+      "uninterrupted": "-2.0371014927732172e-05",
+      "restart": "-2.0371014927804932e-05",
+      "uninterrupted_hex": "-0x1.55c4d7c85b184p-16",
+      "restart_hex": "-0x1.55c4d7c860567p-16"
+    },
+    {
+      "file": "gas-2.csv",
+      "row": 4,
+      "field": "momentum_x",
+      "uninterrupted": "-2.0371017459692663e-05",
+      "restart": "-2.0371017459765423e-05",
+      "uninterrupted_hex": "-0x1.55c4da910a137p-16",
+      "restart_hex": "-0x1.55c4da910f51ap-16"
+    },
+    {
+      "file": "gas-2.csv",
+      "row": 5,
+      "field": "momentum_x",
+      "uninterrupted": "-2.0371014927732172e-05",
+      "restart": "-2.0371014927804932e-05",
+      "uninterrupted_hex": "-0x1.55c4d7c85b184p-16",
+      "restart_hex": "-0x1.55c4d7c860567p-16"
+    },
+    {
+      "file": "gas-2.csv",
+      "row": 6,
+      "field": "momentum_x",
+      "uninterrupted": "-2.0371017459692663e-05",
+      "restart": "-2.0371017459765423e-05",
+      "uninterrupted_hex": "-0x1.55c4da910a137p-16",
+      "restart_hex": "-0x1.55c4da910f51ap-16"
+    },
+    {
+      "file": "gas-2.csv",
+      "row": 7,
+      "field": "momentum_x",
+      "uninterrupted": "-2.0371014927732172e-05",
+      "restart": "-2.0371014927804932e-05",
+      "uninterrupted_hex": "-0x1.55c4d7c85b184p-16",
+      "restart_hex": "-0x1.55c4d7c860567p-16"
+    }
+  ],
+  "no_automatic_numerical_approval": true,
+  "legacy_reserved_slots_not_measured": true
+}
