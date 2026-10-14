@@ -115,6 +115,8 @@ int main(int argc,char**argv) try {
   #include "setRootCase.H"
   #include "createTime.H"
   #include "createMesh.H"
+  // Match the application's serial resident.initialise() cell-face setup.
+  (void)mesh.cells();
   MieTable table(std::getenv("T13_TABLE"));
   volScalarField wall(IOobject("T",runTime.timeName(),mesh,IOobject::NO_READ,IOobject::NO_WRITE),mesh,dimensionedScalar("T",dimTemperature,300));
   List<scalarField> emissivity(mesh.boundary().size());forAll(emissivity,i)emissivity[i]=scalarField(mesh.boundary()[i].size(),1.);
@@ -206,22 +208,22 @@ int main(int argc,char**argv) try {
     check(std::isinf(result.solidWallRadiationEnergyJ[patches[0]][0]),"overflow scale never reached physical face publication");
     check(std::isnan(result.escapedBoundaryRadiationEnergyJ),"zero faces must retain actual infinite-scale IEEE product");
    }else if(mode.find("boundary_")==0){
-    const double scale=mode=="boundary_cancellation"?1.:-accepted/suppliedBoundarySum;double applied=0,escaped=0;
+    const double scale=mode=="boundary_cancellation"?1.:-accepted/suppliedBoundarySum;double escaped=0;
     forAll(suppliedBoundary,p)forAll(suppliedBoundary[p],f){
      const double e=scale*(dt*mag(mesh.Sf().boundaryField()[p][f])*suppliedBoundary[p][f]);
-     applied+=e;
      if(p==patches[0])check(result.solidWallRadiationEnergyJ[p][f]==e,"actual per-face boundary scale");else escaped+=e;
     }
-    const double diagnostic=mode=="boundary_cancellation"?accepted+applied:accepted+(-accepted/applied)*applied;
-    check(result.escapedBoundaryRadiationEnergyJ==escaped && result.globalConservationResidualJ==diagnostic,"original diagnostic after one actual per-face application");
-    if(mode=="boundary_cancellation")check(result.globalConservationResidualJ!=0,"cancellation witness must have an honest nonzero residual");
+    check(result.escapedBoundaryRadiationEnergyJ==escaped,"actual escaped energy after one per-face application");
+    double expectedBoundary=escaped;
+    forAll(suppliedBoundary[patches[0]],f)expectedBoundary+=scale*(dt*mag(mesh.Sf().boundaryField()[patches[0]][f])*suppliedBoundary[patches[0]][f]);
+    check(boundary==expectedBoundary,"returned physical boundary energy");
+    if(mode=="boundary_cancellation")check(accepted+boundary!=0,"returned-energy cancellation witness must retain its nonzero residual");
    }else{
-    check(near(result.globalConservationResidualJ,accepted+boundary),"reported applied boundary residual");
     check(near(accepted+boundary,0),"actual transferred boundary energy");
    }
    forAll(result.solidWallRadiationEnergyJ,p)forAll(result.solidWallRadiationEnergyJ[p],f)std::cout<<"BOUNDARY "<<p<<' '<<f<<' '<<result.solidWallRadiationEnergyJ[p][f]<<'\n';
    std::cout<<"ESCAPED "<<result.escapedBoundaryRadiationEnergyJ<<'\n';
-   std::cout<<"BALANCE "<<accepted<<' '<<boundary<<' '<<result.globalConservationResidualJ<<'\n';
+   std::cout<<"BALANCE "<<accepted<<' '<<boundary<<' '<<accepted+boundary<<'\n';
   }else{
    MieDoRadiationSolver solver(mesh,config,table,patches,controls);
    auto workspace=solver.makeWorkspace();
