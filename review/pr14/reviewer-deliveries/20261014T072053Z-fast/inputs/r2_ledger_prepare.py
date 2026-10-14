@@ -1,0 +1,21 @@
+import difflib
+from r2_runner import *
+overlay=ROOT/'work/clock-source/formal-v1';app=overlay/'applications/CHMT';old=(app/'gpu/Backend.cu').read_text();original=(ROOT/'applications/CHMT/gpu/Backend.cu').read_text();s=old
+anchor='    const auto& surface=b->trial.surface;std::vector<bool> interface(b->nFaces,false);'
+insert=r'''    std::fprintf(stderr,"LEDGER_STAGE,%llu,%llu,%d,%a,%a,%a\n",static_cast<unsigned long long>(b->program.interval.identity.sequence),static_cast<unsigned long long>(b->record.microSequence),b->gasStageIndex,ledgerDt,b->microDt,b->stagePacketDt);
+    for(int face=0;face<b->nFaces;++face){const auto& q=accepted[face];std::fprintf(stderr,"LEDGER_FINAL_FLUX,%llu,%llu,%d,%d,%d,%d,%a,%a,%a,%a,%a",static_cast<unsigned long long>(b->program.interval.identity.sequence),static_cast<unsigned long long>(b->record.microSequence),b->gasStageIndex,face,b->trial.gasMesh.neighbour[face],int(b->trial.gasMesh.boundaryKind[face]),q.mass,q.energy,q.momentum.x,q.momentum.y,q.momentum.z);for(int species=0;species<Ns;++species)std::fprintf(stderr,",%a",q.species[species]);std::fprintf(stderr,"\n");}
+'''
+assert s.count(anchor)==1;s=s.replace(anchor,insert+anchor)
+anchor='            addIntervalPacket(b->record.packets[2*i+channel],packet);addGasBudget(b->trialBudget,packet);'
+insert=r'''            std::fprintf(stderr,"LEDGER_PAIRED,%llu,%llu,%d,%zu,%d,%d,%a,%a,%a,%a,%a,%a,%a\n",static_cast<unsigned long long>(b->program.interval.identity.sequence),static_cast<unsigned long long>(b->record.microSequence),b->gasStageIndex,i,channel,int(packet.kind),scale,ledgerDt/b->stagePacketDt,packet.mass,packet.energy,packet.momentum.x,packet.momentum.y,packet.momentum.z);
+'''
+assert s.count(anchor)==1;s=s.replace(anchor,insert+anchor)
+source=app/'gpu/Backend-ledger.cu';source.write_text(s);copied=D/'inputs/Backend-actual-ledger-diagnostic.cu';copied.write_text(s);patch=D/'patches/D203-actual-stage-ledger.patch';patch.write_text(''.join(difflib.unified_diff(original.splitlines(True),s.splitlines(True),fromfile='a/applications/CHMT/gpu/Backend.cu',tofile='b/applications/CHMT/gpu/Backend.cu')))
+with (D/'TEST_PLAN.md').open('a') as f:f.write('\nD203实际阶段收支证据：D201 wall observer记录的是applyCoupledFaces的未加权dt，SSPRK观察确实有200/300stage且全部原输出bytes相同，但把该dt当ledgerDt的新增断言失败，保留red。这不表明RK物理路径失败。隔离CUDA Backend在accountCoupledFaces已下载最终限幅face flux后只打印真正ledgerDt、最终flux、实际scaledpacket及gas accepted库存，零新增D2H、零算式替换。结合D202纯hostgeometrymain输出核验实际1/2+1/2与1/6+1/6+2/3和气体/配对库存。仅编译Ns2 Backend900s/link900s，actualcases300s，原输出必须bytes相同；Ns10化学volume仍复用S206，不重复完整化学。\n')
+obj=ROOT/'work/fixtures/Backend-ledger2.o';t=run('BUILD-ACTUAL-LEDGER-CUDA2',cmd('nvcc','-std=c++17','-O2','-arch=sm_89','-DUGKWP_GAS_SPECIES=2','-I'+str(app),'-I'+str(overlay/'common'),'-I'+str(overlay/'common/gasNumerics'),'-c',source,'-o',obj),[8,9,14,26,29],900,'Full actual formalCUDA translationunit +IO-only hostledgerobserver.',inputs=[copied,source,patch],kind='BUILD',variant='diagnostic-ledger-D203')
+if t['exit_code']==0:
+ app=ROOT/'applications/CHMT';b=ROOT/'work/fixtures/CHMT-actual-ledger2';build=ROOT/'work/build/CHMT2'
+ flags=['-std=c++17','-O2','-DNoRepository','-DWM_DP','-DWM_LABEL_SIZE=32','-DUGKWP_GAS_SPECIES=2','-I'+str(app),'-I'+str(ROOT/'common'),'-I'+str(build/'generated'),'-I/opt/openfoam10/src/OpenFOAM/lnInclude','-I/opt/openfoam10/src/finiteVolume/lnInclude','-I/opt/openfoam10/src/meshTools/lnInclude','-I/opt/openfoam10/src/OSspecific/POSIX/lnInclude']
+ files=[D/'inputs/CHMT-retain-geometry-diagnostic.C',*[app/x for x in ['io/MultirateEvolution.C','materials/CpuMaterialDriver.C','materials/MaterialTransport.C','film/CpuFilmDriver.C','ablation/CpuSurfaceInterface.C','mesh/Geometry.C','restart/Checkpoint.C']],obj]
+ libs=['-L/opt/openfoam10/platforms/linux64GccDPInt32Opt/lib','-lfiniteVolume','-lmeshTools','-lOpenFOAM','-L/opt/openfoam10/platforms/linux64GccDPInt32Opt/lib/dummy','-lPstream','-L/usr/local/cuda/lib64','-Wl,-rpath,/usr/local/cuda/lib64','-lcudart']
+ run('BUILD-ACTUAL-LEDGER-HOST2',cmd('g++',*flags,*files,*libs,'-o',b),[8,9,14,26,29],900,'Fullunmodified physicalhostunits andactualCUDAdiagnosticobject; IO-onlygeometryretention main.',inputs=files,kind='BUILD',variant='diagnostic-ledger-D203')

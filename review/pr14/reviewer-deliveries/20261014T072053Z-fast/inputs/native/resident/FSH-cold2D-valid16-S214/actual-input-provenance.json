@@ -1,0 +1,48 @@
+{
+  "source_record": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T072053Z-fast/review/pr14/reviewer-deliveries/20261014T072053Z-fast/artifacts/resident/FSH-cold2D-fullgroups-S211/1e-06/gpuResidentStrictParticles.dat",
+  "source_production_commit": "4b5c480b572f234ddecf5e89164fe59b0d2e9735",
+  "source_record_sha256": "1b261061fb853edadccb2ab00f04877a2b7c1152c0d8b98441ef74ba2281263b",
+  "corrected_fields": [
+    "cell",
+    "orig_id"
+  ],
+  "before_input_sha256": "cc64b8349b91faad29484c464517ea323f906596ef838c4920f74de50133a17a",
+  "after_input_sha256": "5dd55d801fb383538be2d47fde53733c901dd18e256b12f2a647619cd423dad5",
+  "actual_input_cells": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10,
+    11,
+    12,
+    13,
+    14,
+    15
+  ],
+  "actual_orig_ids": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10,
+    11,
+    12,
+    13,
+    14,
+    15,
+    16
+  ],
+  "count": 16
+}

@@ -163,10 +163,622 @@
       "diagnostic_PASS_does_not_close_original": true,
       "developer_formal_recheck": "NOT_RUN_NO_FORMAL_FIX_COMMIT",
       "merge_authorized": false
+    },
+    {
+      "id": "R014-011-REVIEWER-20261014T072053Z-fast",
+      "question_id": "R014-011",
+      "author": "Codex independent reviewer; actual RTX4060 GPU execution",
+      "recorded_utc": "2026-10-14T10:45:18.342120+00:00",
+      "interaction_class": "FAST",
+      "source_commit": "4b5c480b572f234ddecf5e89164fe59b0d2e9735",
+      "source_tree": "0fa2562f4c83394cdf94e9650de3b22c4fb4bb15",
+      "record_parent": "75cfd885c028fe80d011a8a081f8bed1f8aeb55e",
+      "baseline_commit": "d6110c02745a8ad726208a426c4bb3a28233c1fd",
+      "byte_baseline_production": "802a11e7dfe986488a8bf8305e86424dcc94c9e1",
+      "prior_evidence_commit": "ae5a59478023c74e23b64dc1a1f388fb805ef565",
+      "file_ids": [
+        "F014-4136839922e7",
+        "F014-65477d3951bd",
+        "F014-3d8a885ad5e7",
+        "F014-518e46c20db0",
+        "F014-a904f75fbc54",
+        "F014-f297f3c3c4ee",
+        "F014-9d2d8bee9741",
+        "F014-5880b4433db5",
+        "F014-b6bcd7648911",
+        "F014-603d8e7cf79d",
+        "F014-c1f67f5d6b50",
+        "F014-7d9349e1e8b6",
+        "F014-2824ef06f0f0",
+        "F014-2053ceae4373",
+        "F014-0f6650dad61b",
+        "F014-22734e181689",
+        "F014-95a376d24cde",
+        "F014-b0c3656651bf",
+        "F014-ca01cf5990c0",
+        "F014-ef13af976edc",
+        "F014-78726fc51839",
+        "F014-5326e92c6b46",
+        "F014-b5c3680eb63b"
+      ],
+      "function_ids": [
+        "FN014-d63f075c7595",
+        "FN014-f8fc5d53541f",
+        "FN014-ab80c63ed680",
+        "FN014-8bed5e985279",
+        "FN014-3e93fcf01eb2",
+        "FN014-9c0785fd6a7a",
+        "FN014-229084be9a60",
+        "FN014-886d39ae19cf",
+        "FN014-812d978a618c",
+        "FN014-d12b07acfa1d",
+        "FN014-0b2192532583",
+        "FN014-634d0b0ac201",
+        "FN014-93abcbd17a75",
+        "FN014-3425d2bf8d2f",
+        "FN014-897fe8c3b437",
+        "FN014-f31223129d41",
+        "FN014-99602c6d9cf4",
+        "FN014-79ccda8103f9",
+        "FN014-d2cb8f63be7e",
+        "FN014-17f4ed26be49",
+        "FN014-60d38cb207cf",
+        "FN014-0314a0493a2c",
+        "FN014-51eb2569a16a",
+        "FN014-f421dd83d3b1",
+        "FN014-43e2db63e8d1",
+        "FN014-865c83f1d05e",
+        "FN014-bb57f525107e",
+        "FN014-a836fb0fbb66",
+        "FN014-08f263ca2adb",
+        "FN014-87bdc6da0327",
+        "FN014-183c7eb0a741",
+        "FN014-46806823219a",
+        "FN014-30bd6ff491c0",
+        "FN014-b9d6608d257c",
+        "FN014-96cc95cd9bb1",
+        "FN014-aa6ed84bae48",
+        "FN014-051bdf428b22",
+        "FN014-9819465b5d15",
+        "FN014-438a6bad45be",
+        "FN014-6b7cf9046886",
+        "FN014-b8cc9fc1c7f9",
+        "FN014-1c24737261b4",
+        "FN014-b49d6b08cf3d",
+        "FN014-0267aacf09e1",
+        "FN014-8ccdef45051a",
+        "FN014-1423b882441c",
+        "FN014-6aa138b2a219",
+        "FN014-4f66dc6ff2f6",
+        "FN014-8992cefd5ed7",
+        "FN014-1e0995803b2a",
+        "FN014-efc9bdbf3ff7",
+        "FN014-ebf2974fa370",
+        "FN014-e3a2e5e37c50",
+        "FN014-33c224d49aca",
+        "FN014-e481d1e4d846",
+        "FN014-3c0dd3f688c4",
+        "FN014-7e62df226e53",
+        "FN014-429b8f282411",
+        "FN014-11dbb7c47197",
+        "FN014-3ccf6327605e",
+        "FN014-be4e5ec556a1",
+        "FN014-d71eaba7997a",
+        "FN014-50edc1f23788",
+        "FN014-83fd3f1c53f2",
+        "FN014-649a93f711bf",
+        "FN014-0a33424abc58",
+        "FN014-27869b758829",
+        "FN014-6ae436c562d1",
+        "FN014-b08954c0a93c",
+        "FN014-c29db9183e21",
+        "FN014-4a73819f310d",
+        "FN014-36ead786b407",
+        "FN014-665c8310668a",
+        "FN014-1183a0a10aa1",
+        "FN014-0bb562ebf8d6",
+        "FN014-95ffcfac9c43",
+        "FN014-d2916e9b8f67",
+        "FN014-1597cbb92324",
+        "FN014-df2ac4c8019e",
+        "FN014-5437877fb16d",
+        "FN014-e84cbd7d3ea6",
+        "FN014-414dae794e0e",
+        "FN014-afcd5e8d89c3",
+        "FN014-f96a0de0b7fc",
+        "FN014-0511bc48fbb6",
+        "FN014-43d47cd42d74",
+        "FN014-28a0ae314143"
+      ],
+      "source_blobs": [
+        {
+          "file_id": "F014-4136839922e7",
+          "path": "applications/CHMT/ablation/InterfaceMath.H",
+          "git_blob_sha1": "7b8fc102571b01a9a0e8b82e7666a589589f9b19",
+          "sha256": "423b845f11f1af38d5271b01c2bc442df37774ff0b11dcf0647805e725d72411"
+        },
+        {
+          "file_id": "F014-65477d3951bd",
+          "path": "applications/CHMT/ablation/WallClosureHost.H",
+          "git_blob_sha1": "4b65274a557e459312e1bf3b1e435364a3ebb17b",
+          "sha256": "c27aee68ba36671634f8c3e553b24d0c926fa45705fa391ce64a262003531359"
+        },
+        {
+          "file_id": "F014-3d8a885ad5e7",
+          "path": "applications/CHMT/gpu/Backend.cu",
+          "git_blob_sha1": "69d513d0b1fafdf37f42e01244740283c780b250",
+          "sha256": "c650e85eaf0798dfb8c33b1bb41ab01e105cfa19efaa48dff75ca651e81ff4d3"
+        },
+        {
+          "file_id": "F014-518e46c20db0",
+          "path": "applications/CHMT/gpu/GasWallMath.H",
+          "git_blob_sha1": "1241887b9043a884fd3fa24d8bda29afde92f456",
+          "sha256": "680a27c874c6563ca91fe82e6fdaaf319359299d142dfa2d0245af353313ffa1"
+        },
+        {
+          "file_id": "F014-a904f75fbc54",
+          "path": "applications/CHMT/gpu/SharedGasDeviceStorage.cuh",
+          "git_blob_sha1": "c9719a3454be89b658082a3e91fa4194cb355223",
+          "sha256": "9cb232b7e2d69d850f35b34c941a425bf5e2dee3e58c3850e55948fc3c01a95e"
+        },
+        {
+          "file_id": "F014-f297f3c3c4ee",
+          "path": "applications/CHMT/tests/test_local_wall_closure_reuse.py",
+          "git_blob_sha1": "b1e32f49b7e425975e96fa3702718194797c1558",
+          "sha256": "5e0d84a4793971d32081418415a09eb07de178f1014ff0739a4039024f4e4eb0"
+        },
+        {
+          "file_id": "F014-9d2d8bee9741",
+          "path": "applications/CHMT/tests/test_reacting_wall_adapter.cpp",
+          "git_blob_sha1": "2e45626fde9b21a06c4259fde5b28a3b6dc1d5db",
+          "sha256": "bbafa990b8ff6bee9c099e3deb09a7ee9ba0911382dde74480b11fdc404e2043"
+        },
+        {
+          "file_id": "F014-5880b4433db5",
+          "path": "applications/CHMT/tests/test_reacting_wall_host_context.py",
+          "git_blob_sha1": "b94a57065f9a868c778d9b1f9f189f403c86b64b",
+          "sha256": "0cddfcaab21450da640592b4ee6f93f0cc08d1c2d9aeda3d1cb4952cab19456d"
+        },
+        {
+          "file_id": "F014-b6bcd7648911",
+          "path": "applications/CHMT/tests/test_reacting_wall_mechanical_pressure.py",
+          "git_blob_sha1": "03ae3f93af416d003a0d2d4d49d0e7a280c85222",
+          "sha256": "b6650817c96dd56d7e69558f2c9898fa1893b95e46d33a7f326c0603f153b70c"
+        },
+        {
+          "file_id": "F014-603d8e7cf79d",
+          "path": "applications/CHMT/tests/test_reacting_wall_stage_backend.py",
+          "git_blob_sha1": "d499fa0f6794844622c7156556594f01a3f41277",
+          "sha256": "dbbc056f0aa1b4f25289229754c1c8e766a145835df889f6566a66746f899dd5"
+        },
+        {
+          "file_id": "F014-c1f67f5d6b50",
+          "path": "applications/CHMT/tests/test_reacting_wall_storage.py",
+          "git_blob_sha1": "9fd2710bf2e59127129fd0b37526f57e99990993",
+          "sha256": "e1a587de143a38fb84c050cd7bbc29ae25bdd15df18bd24b83f13b0911e894d2"
+        },
+        {
+          "file_id": "F014-7d9349e1e8b6",
+          "path": "applications/CHMT/tests/test_wall_terminal_packet_completion.py",
+          "git_blob_sha1": "d7aef6cb810e67700e3dcaa87b9eba7b27ed9b34",
+          "sha256": "b958bdec58a1a7de454e1b33a2f3f2f607d1beba5702fecf2eff2048aecfb1f3"
+        },
+        {
+          "file_id": "F014-2824ef06f0f0",
+          "path": "common/chemistry/GasRates.H",
+          "git_blob_sha1": "d08393d306fcf58e09964b2a21152b6473ab8d23",
+          "sha256": "563ffdd982d64d110457aa4f0f646c0bca7e4955d39aa7840fa5975bc5ab64fb"
+        },
+        {
+          "file_id": "F014-2053ceae4373",
+          "path": "common/gasTransport/GasBoundaryLayerEvaluation.H",
+          "git_blob_sha1": "af7c53f8ed12dab6319a856f5bd7b199a9884835",
+          "sha256": "1ea24319028b708eaa77d569ead4a47884cf71387e739e1caa9ded293dad63fe"
+        },
+        {
+          "file_id": "F014-0f6650dad61b",
+          "path": "common/gasTransport/GasBoundaryLayerModelState.H",
+          "git_blob_sha1": "b0fa8b3cc397ce5c1265f396e3c6c26da8674f4b",
+          "sha256": "a833a1c2cf78c18876d6c10e48a580e8e81a67b4591e758d8917b370bcad1099"
+        },
+        {
+          "file_id": "F014-22734e181689",
+          "path": "common/gasTransport/GasBoundaryLayerState.H",
+          "git_blob_sha1": "9fc7bbea65ac5b21b0027376f77d34acfe6162c8",
+          "sha256": "5154895c2fb4d2404e447fdaa6e85cf5c44910f7fa9e29593ca1085b676d659b"
+        },
+        {
+          "file_id": "F014-95a376d24cde",
+          "path": "common/gasWall/ConstantTransportWall.H",
+          "git_blob_sha1": "c9dfb2303e063f78f27c9035938b20e47044750d",
+          "sha256": "48eadbe5ac2296c0f9ecc23cdddbee0768e80c1e88f90cb1f62afdb1b08c0f63"
+        },
+        {
+          "file_id": "F014-b0c3656651bf",
+          "path": "common/gasWall/ReactingWallLayer.H",
+          "git_blob_sha1": "8cc277a04e84c744fd467e73da91a5fc68e6034a",
+          "sha256": "57ab8e74ea7f10b2daa5ccece5be32799d558c4737d4cb2f41651220caf36379"
+        },
+        {
+          "file_id": "F014-ca01cf5990c0",
+          "path": "common/gasWall/WallGeometryBuilder.H",
+          "git_blob_sha1": "c42510731890414763052f2c363fc69b028f98b0",
+          "sha256": "7871bc0d9c5a98ec7c860ddd7b46473422096d385b837e92bd971658a196bdaf"
+        },
+        {
+          "file_id": "F014-ef13af976edc",
+          "path": "common/gasWall/WallModelTypes.H",
+          "git_blob_sha1": "e1562edda90827d140439a202fc0dc310b3b2b24",
+          "sha256": "865fe3dc91d31fd4a1bf9fdd6b1df5d659f12d15fafea987334880942b500b23"
+        },
+        {
+          "file_id": "F014-78726fc51839",
+          "path": "common/gasWall/WallPrecision.H",
+          "git_blob_sha1": "080e5a5afef98111486bdee3550dea7ef4210359",
+          "sha256": "27eb4002d8f11c2999b94bcb632669e6c9428c89bc643b74ab889f681b549340"
+        },
+        {
+          "file_id": "F014-5326e92c6b46",
+          "path": "common/operators/computeRiemannGasFaceFluxDevice.cuh",
+          "git_blob_sha1": "6dd1880e6f8188e586a8fe996477cfa79e9efa82",
+          "sha256": "b6da75b64718c42da9e5b0a589d38450b9894e8388991bff5c6443b3d3548428"
+        },
+        {
+          "file_id": "F014-b5c3680eb63b",
+          "path": "common/operators/updateLegacyGasBoundaryMirrorKernel.cuh",
+          "git_blob_sha1": "02d7202acea61e1efb6bfc39a031acbbf26e1070",
+          "sha256": "702aefb8b159fe64c4d228c61b05fe5073ff51483155fb1d4c7ae15baa3dc6e4"
+        }
+      ],
+      "delivery_path": "reviewer-deliveries/20261014T072053Z-fast",
+      "report": "reviewer-deliveries/20261014T072053Z-fast/REPORT.md",
+      "plan": "reviewer-deliveries/20261014T072053Z-fast/TEST_PLAN.md",
+      "coverage": "reviewer-deliveries/20261014T072053Z-fast/coverage.json",
+      "results": "reviewer-deliveries/20261014T072053Z-fast/results.json",
+      "versions": "reviewer-deliveries/20261014T072053Z-fast/versions.json",
+      "environment": "reviewer-deliveries/20261014T072053Z-fast/environment.json",
+      "exact_commands_and_timestamps": "reviewer-deliveries/20261014T072053Z-fast/commands.txt and logs/<test-id>.spec.json",
+      "input_binary_dependency_hashes": "reviewer-deliveries/20261014T072053Z-fast/results.json tests[] and versions.json; fixed source blob/hash registry above",
+      "evidence_ids": [
+        "E014-76f7ab1c9023fc2f",
+        "E014-f097c45c3b4f2f92",
+        "E014-756a8f0580d6d985",
+        "E014-a08c119850809560",
+        "E014-06dd2ff16b4614d7",
+        "E014-907f77b0c60c08d4",
+        "E014-17349d0292f529a6",
+        "E014-d817113fd529720c",
+        "E014-3bc8dcadd4cd06fb",
+        "E014-785115a1b65a54af",
+        "E014-3a6a28b0fa9fb20e",
+        "E014-877457420dfff6af"
+      ],
+      "verdict": "PARTIAL_RECHECK_OPEN_GAPS",
+      "acceptance_unit_ids": [
+        "R2-F-dry-ablation-scoped"
+      ],
+      "executed_test_ids": [],
+      "reused_unit_ids": [],
+      "remaining_gaps": [
+        "wet-ablation-material"
+      ],
+      "findings": [],
+      "diagnostic_PASS_does_not_close_original": true,
+      "counts_not_additive_across_topics": true,
+      "merge_ready": false,
+      "merge_authorized": false
     }
   ],
   "developer_replies": [],
-  "recheck_results": [],
+  "recheck_results": [
+    {
+      "id": "R014-011-RECHECK-20261014T072053Z-fast",
+      "question_id": "R014-011",
+      "author": "Codex independent reviewer; actual RTX4060 GPU execution",
+      "recorded_utc": "2026-10-14T10:45:18.342120+00:00",
+      "interaction_class": "FAST",
+      "source_commit": "4b5c480b572f234ddecf5e89164fe59b0d2e9735",
+      "source_tree": "0fa2562f4c83394cdf94e9650de3b22c4fb4bb15",
+      "record_parent": "75cfd885c028fe80d011a8a081f8bed1f8aeb55e",
+      "baseline_commit": "d6110c02745a8ad726208a426c4bb3a28233c1fd",
+      "byte_baseline_production": "802a11e7dfe986488a8bf8305e86424dcc94c9e1",
+      "prior_evidence_commit": "ae5a59478023c74e23b64dc1a1f388fb805ef565",
+      "file_ids": [
+        "F014-4136839922e7",
+        "F014-65477d3951bd",
+        "F014-3d8a885ad5e7",
+        "F014-518e46c20db0",
+        "F014-a904f75fbc54",
+        "F014-f297f3c3c4ee",
+        "F014-9d2d8bee9741",
+        "F014-5880b4433db5",
+        "F014-b6bcd7648911",
+        "F014-603d8e7cf79d",
+        "F014-c1f67f5d6b50",
+        "F014-7d9349e1e8b6",
+        "F014-2824ef06f0f0",
+        "F014-2053ceae4373",
+        "F014-0f6650dad61b",
+        "F014-22734e181689",
+        "F014-95a376d24cde",
+        "F014-b0c3656651bf",
+        "F014-ca01cf5990c0",
+        "F014-ef13af976edc",
+        "F014-78726fc51839",
+        "F014-5326e92c6b46",
+        "F014-b5c3680eb63b"
+      ],
+      "function_ids": [
+        "FN014-d63f075c7595",
+        "FN014-f8fc5d53541f",
+        "FN014-ab80c63ed680",
+        "FN014-8bed5e985279",
+        "FN014-3e93fcf01eb2",
+        "FN014-9c0785fd6a7a",
+        "FN014-229084be9a60",
+        "FN014-886d39ae19cf",
+        "FN014-812d978a618c",
+        "FN014-d12b07acfa1d",
+        "FN014-0b2192532583",
+        "FN014-634d0b0ac201",
+        "FN014-93abcbd17a75",
+        "FN014-3425d2bf8d2f",
+        "FN014-897fe8c3b437",
+        "FN014-f31223129d41",
+        "FN014-99602c6d9cf4",
+        "FN014-79ccda8103f9",
+        "FN014-d2cb8f63be7e",
+        "FN014-17f4ed26be49",
+        "FN014-60d38cb207cf",
+        "FN014-0314a0493a2c",
+        "FN014-51eb2569a16a",
+        "FN014-f421dd83d3b1",
+        "FN014-43e2db63e8d1",
+        "FN014-865c83f1d05e",
+        "FN014-bb57f525107e",
+        "FN014-a836fb0fbb66",
+        "FN014-08f263ca2adb",
+        "FN014-87bdc6da0327",
+        "FN014-183c7eb0a741",
+        "FN014-46806823219a",
+        "FN014-30bd6ff491c0",
+        "FN014-b9d6608d257c",
+        "FN014-96cc95cd9bb1",
+        "FN014-aa6ed84bae48",
+        "FN014-051bdf428b22",
+        "FN014-9819465b5d15",
+        "FN014-438a6bad45be",
+        "FN014-6b7cf9046886",
+        "FN014-b8cc9fc1c7f9",
+        "FN014-1c24737261b4",
+        "FN014-b49d6b08cf3d",
+        "FN014-0267aacf09e1",
+        "FN014-8ccdef45051a",
+        "FN014-1423b882441c",
+        "FN014-6aa138b2a219",
+        "FN014-4f66dc6ff2f6",
+        "FN014-8992cefd5ed7",
+        "FN014-1e0995803b2a",
+        "FN014-efc9bdbf3ff7",
+        "FN014-ebf2974fa370",
+        "FN014-e3a2e5e37c50",
+        "FN014-33c224d49aca",
+        "FN014-e481d1e4d846",
+        "FN014-3c0dd3f688c4",
+        "FN014-7e62df226e53",
+        "FN014-429b8f282411",
+        "FN014-11dbb7c47197",
+        "FN014-3ccf6327605e",
+        "FN014-be4e5ec556a1",
+        "FN014-d71eaba7997a",
+        "FN014-50edc1f23788",
+        "FN014-83fd3f1c53f2",
+        "FN014-649a93f711bf",
+        "FN014-0a33424abc58",
+        "FN014-27869b758829",
+        "FN014-6ae436c562d1",
+        "FN014-b08954c0a93c",
+        "FN014-c29db9183e21",
+        "FN014-4a73819f310d",
+        "FN014-36ead786b407",
+        "FN014-665c8310668a",
+        "FN014-1183a0a10aa1",
+        "FN014-0bb562ebf8d6",
+        "FN014-95ffcfac9c43",
+        "FN014-d2916e9b8f67",
+        "FN014-1597cbb92324",
+        "FN014-df2ac4c8019e",
+        "FN014-5437877fb16d",
+        "FN014-e84cbd7d3ea6",
+        "FN014-414dae794e0e",
+        "FN014-afcd5e8d89c3",
+        "FN014-f96a0de0b7fc",
+        "FN014-0511bc48fbb6",
+        "FN014-43d47cd42d74",
+        "FN014-28a0ae314143"
+      ],
+      "source_blobs": [
+        {
+          "file_id": "F014-4136839922e7",
+          "path": "applications/CHMT/ablation/InterfaceMath.H",
+          "git_blob_sha1": "7b8fc102571b01a9a0e8b82e7666a589589f9b19",
+          "sha256": "423b845f11f1af38d5271b01c2bc442df37774ff0b11dcf0647805e725d72411"
+        },
+        {
+          "file_id": "F014-65477d3951bd",
+          "path": "applications/CHMT/ablation/WallClosureHost.H",
+          "git_blob_sha1": "4b65274a557e459312e1bf3b1e435364a3ebb17b",
+          "sha256": "c27aee68ba36671634f8c3e553b24d0c926fa45705fa391ce64a262003531359"
+        },
+        {
+          "file_id": "F014-3d8a885ad5e7",
+          "path": "applications/CHMT/gpu/Backend.cu",
+          "git_blob_sha1": "69d513d0b1fafdf37f42e01244740283c780b250",
+          "sha256": "c650e85eaf0798dfb8c33b1bb41ab01e105cfa19efaa48dff75ca651e81ff4d3"
+        },
+        {
+          "file_id": "F014-518e46c20db0",
+          "path": "applications/CHMT/gpu/GasWallMath.H",
+          "git_blob_sha1": "1241887b9043a884fd3fa24d8bda29afde92f456",
+          "sha256": "680a27c874c6563ca91fe82e6fdaaf319359299d142dfa2d0245af353313ffa1"
+        },
+        {
+          "file_id": "F014-a904f75fbc54",
+          "path": "applications/CHMT/gpu/SharedGasDeviceStorage.cuh",
+          "git_blob_sha1": "c9719a3454be89b658082a3e91fa4194cb355223",
+          "sha256": "9cb232b7e2d69d850f35b34c941a425bf5e2dee3e58c3850e55948fc3c01a95e"
+        },
+        {
+          "file_id": "F014-f297f3c3c4ee",
+          "path": "applications/CHMT/tests/test_local_wall_closure_reuse.py",
+          "git_blob_sha1": "b1e32f49b7e425975e96fa3702718194797c1558",
+          "sha256": "5e0d84a4793971d32081418415a09eb07de178f1014ff0739a4039024f4e4eb0"
+        },
+        {
+          "file_id": "F014-9d2d8bee9741",
+          "path": "applications/CHMT/tests/test_reacting_wall_adapter.cpp",
+          "git_blob_sha1": "2e45626fde9b21a06c4259fde5b28a3b6dc1d5db",
+          "sha256": "bbafa990b8ff6bee9c099e3deb09a7ee9ba0911382dde74480b11fdc404e2043"
+        },
+        {
+          "file_id": "F014-5880b4433db5",
+          "path": "applications/CHMT/tests/test_reacting_wall_host_context.py",
+          "git_blob_sha1": "b94a57065f9a868c778d9b1f9f189f403c86b64b",
+          "sha256": "0cddfcaab21450da640592b4ee6f93f0cc08d1c2d9aeda3d1cb4952cab19456d"
+        },
+        {
+          "file_id": "F014-b6bcd7648911",
+          "path": "applications/CHMT/tests/test_reacting_wall_mechanical_pressure.py",
+          "git_blob_sha1": "03ae3f93af416d003a0d2d4d49d0e7a280c85222",
+          "sha256": "b6650817c96dd56d7e69558f2c9898fa1893b95e46d33a7f326c0603f153b70c"
+        },
+        {
+          "file_id": "F014-603d8e7cf79d",
+          "path": "applications/CHMT/tests/test_reacting_wall_stage_backend.py",
+          "git_blob_sha1": "d499fa0f6794844622c7156556594f01a3f41277",
+          "sha256": "dbbc056f0aa1b4f25289229754c1c8e766a145835df889f6566a66746f899dd5"
+        },
+        {
+          "file_id": "F014-c1f67f5d6b50",
+          "path": "applications/CHMT/tests/test_reacting_wall_storage.py",
+          "git_blob_sha1": "9fd2710bf2e59127129fd0b37526f57e99990993",
+          "sha256": "e1a587de143a38fb84c050cd7bbc29ae25bdd15df18bd24b83f13b0911e894d2"
+        },
+        {
+          "file_id": "F014-7d9349e1e8b6",
+          "path": "applications/CHMT/tests/test_wall_terminal_packet_completion.py",
+          "git_blob_sha1": "d7aef6cb810e67700e3dcaa87b9eba7b27ed9b34",
+          "sha256": "b958bdec58a1a7de454e1b33a2f3f2f607d1beba5702fecf2eff2048aecfb1f3"
+        },
+        {
+          "file_id": "F014-2824ef06f0f0",
+          "path": "common/chemistry/GasRates.H",
+          "git_blob_sha1": "d08393d306fcf58e09964b2a21152b6473ab8d23",
+          "sha256": "563ffdd982d64d110457aa4f0f646c0bca7e4955d39aa7840fa5975bc5ab64fb"
+        },
+        {
+          "file_id": "F014-2053ceae4373",
+          "path": "common/gasTransport/GasBoundaryLayerEvaluation.H",
+          "git_blob_sha1": "af7c53f8ed12dab6319a856f5bd7b199a9884835",
+          "sha256": "1ea24319028b708eaa77d569ead4a47884cf71387e739e1caa9ded293dad63fe"
+        },
+        {
+          "file_id": "F014-0f6650dad61b",
+          "path": "common/gasTransport/GasBoundaryLayerModelState.H",
+          "git_blob_sha1": "b0fa8b3cc397ce5c1265f396e3c6c26da8674f4b",
+          "sha256": "a833a1c2cf78c18876d6c10e48a580e8e81a67b4591e758d8917b370bcad1099"
+        },
+        {
+          "file_id": "F014-22734e181689",
+          "path": "common/gasTransport/GasBoundaryLayerState.H",
+          "git_blob_sha1": "9fc7bbea65ac5b21b0027376f77d34acfe6162c8",
+          "sha256": "5154895c2fb4d2404e447fdaa6e85cf5c44910f7fa9e29593ca1085b676d659b"
+        },
+        {
+          "file_id": "F014-95a376d24cde",
+          "path": "common/gasWall/ConstantTransportWall.H",
+          "git_blob_sha1": "c9dfb2303e063f78f27c9035938b20e47044750d",
+          "sha256": "48eadbe5ac2296c0f9ecc23cdddbee0768e80c1e88f90cb1f62afdb1b08c0f63"
+        },
+        {
+          "file_id": "F014-b0c3656651bf",
+          "path": "common/gasWall/ReactingWallLayer.H",
+          "git_blob_sha1": "8cc277a04e84c744fd467e73da91a5fc68e6034a",
+          "sha256": "57ab8e74ea7f10b2daa5ccece5be32799d558c4737d4cb2f41651220caf36379"
+        },
+        {
+          "file_id": "F014-ca01cf5990c0",
+          "path": "common/gasWall/WallGeometryBuilder.H",
+          "git_blob_sha1": "c42510731890414763052f2c363fc69b028f98b0",
+          "sha256": "7871bc0d9c5a98ec7c860ddd7b46473422096d385b837e92bd971658a196bdaf"
+        },
+        {
+          "file_id": "F014-ef13af976edc",
+          "path": "common/gasWall/WallModelTypes.H",
+          "git_blob_sha1": "e1562edda90827d140439a202fc0dc310b3b2b24",
+          "sha256": "865fe3dc91d31fd4a1bf9fdd6b1df5d659f12d15fafea987334880942b500b23"
+        },
+        {
+          "file_id": "F014-78726fc51839",
+          "path": "common/gasWall/WallPrecision.H",
+          "git_blob_sha1": "080e5a5afef98111486bdee3550dea7ef4210359",
+          "sha256": "27eb4002d8f11c2999b94bcb632669e6c9428c89bc643b74ab889f681b549340"
+        },
+        {
+          "file_id": "F014-5326e92c6b46",
+          "path": "common/operators/computeRiemannGasFaceFluxDevice.cuh",
+          "git_blob_sha1": "6dd1880e6f8188e586a8fe996477cfa79e9efa82",
+          "sha256": "b6da75b64718c42da9e5b0a589d38450b9894e8388991bff5c6443b3d3548428"
+        },
+        {
+          "file_id": "F014-b5c3680eb63b",
+          "path": "common/operators/updateLegacyGasBoundaryMirrorKernel.cuh",
+          "git_blob_sha1": "02d7202acea61e1efb6bfc39a031acbbf26e1070",
+          "sha256": "702aefb8b159fe64c4d228c61b05fe5073ff51483155fb1d4c7ae15baa3dc6e4"
+        }
+      ],
+      "delivery_path": "reviewer-deliveries/20261014T072053Z-fast",
+      "report": "reviewer-deliveries/20261014T072053Z-fast/REPORT.md",
+      "plan": "reviewer-deliveries/20261014T072053Z-fast/TEST_PLAN.md",
+      "coverage": "reviewer-deliveries/20261014T072053Z-fast/coverage.json",
+      "results": "reviewer-deliveries/20261014T072053Z-fast/results.json",
+      "versions": "reviewer-deliveries/20261014T072053Z-fast/versions.json",
+      "environment": "reviewer-deliveries/20261014T072053Z-fast/environment.json",
+      "exact_commands_and_timestamps": "reviewer-deliveries/20261014T072053Z-fast/commands.txt and logs/<test-id>.spec.json",
+      "input_binary_dependency_hashes": "reviewer-deliveries/20261014T072053Z-fast/results.json tests[] and versions.json; fixed source blob/hash registry above",
+      "evidence_ids": [
+        "E014-76f7ab1c9023fc2f",
+        "E014-f097c45c3b4f2f92",
+        "E014-756a8f0580d6d985",
+        "E014-a08c119850809560",
+        "E014-06dd2ff16b4614d7",
+        "E014-907f77b0c60c08d4",
+        "E014-17349d0292f529a6",
+        "E014-d817113fd529720c",
+        "E014-3bc8dcadd4cd06fb",
+        "E014-785115a1b65a54af",
+        "E014-3a6a28b0fa9fb20e",
+        "E014-877457420dfff6af"
+      ],
+      "verdict": "PARTIAL_RECHECK_OPEN_GAPS",
+      "acceptance_unit_ids": [
+        "R2-F-dry-ablation-scoped"
+      ],
+      "executed_test_ids": [],
+      "reused_unit_ids": [],
+      "remaining_gaps": [
+        "wet-ablation-material"
+      ],
+      "findings": [],
+      "diagnostic_PASS_does_not_close_original": true,
+      "counts_not_additive_across_topics": true,
+      "merge_ready": false,
+      "merge_authorized": false,
+      "reply_to": [],
+      "reviewer_result_id": "R014-011-REVIEWER-20261014T072053Z-fast",
+      "status": "FORMAL_RECHECK_SCOPED_OPEN_LIMITATIONS"
+    }
+  ],
   "final_decision": {
     "status": "PENDING",
     "reviewer": null,
@@ -196,6 +808,23 @@
         "E014-4f161f27965d55e1",
         "E014-0ebbf6961c911ce4",
         "E014-133de94002878c4b"
+      ],
+      "merge_authorized": false
+    },
+    {
+      "recorded_utc": "2026-10-14T10:45:18.342120+00:00",
+      "source_commit": "4b5c480b572f234ddecf5e89164fe59b0d2e9735",
+      "delivery_path": "reviewer-deliveries/20261014T072053Z-fast",
+      "status": "FAST_SCOPED_RECHECK_COMPLETE_NOT_MERGE_READY",
+      "remaining_gaps": [
+        "wet-ablation-material"
+      ],
+      "evidence_ids": [
+        "E014-76f7ab1c9023fc2f",
+        "E014-f097c45c3b4f2f92",
+        "E014-756a8f0580d6d985",
+        "E014-a08c119850809560",
+        "E014-06dd2ff16b4614d7"
       ],
       "merge_authorized": false
     }

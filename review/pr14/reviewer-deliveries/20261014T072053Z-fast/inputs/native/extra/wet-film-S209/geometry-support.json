@@ -1,0 +1,11 @@
+{
+  "base_mesh_ref": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T072053Z-fast/work/cases/extra/wet-film/constant/polyMesh",
+  "base_points_sha256": "31137b926b3925df87c9373a7b4cc91978545a4ea66ec23f884fc53f3610df3e",
+  "new_points_sha256": "851bca5c2ea7d817445920645dabab9c6319348f42d43607895cddf7e6c0dd21",
+  "translation_m": [
+    1e-05,
+    0,
+    0
+  ],
+  "reason": "Actualfinitefilmspace required by existingcoupledshape; sameallvolumes/material/threshold/endtime."
+}

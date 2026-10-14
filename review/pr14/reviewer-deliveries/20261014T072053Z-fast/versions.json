@@ -1,0 +1,343 @@
+{
+  "identity": "PR14_REVIEW_ONLY",
+  "source_commit": "4b5c480b572f234ddecf5e89164fe59b0d2e9735",
+  "source_tree": "0fa2562f4c83394cdf94e9650de3b22c4fb4bb15",
+  "build_flags": "Exactpertestargv/spec: native Ns2/Ns10,sm89, physicalFP64; CHTtwo coldfloatprofiles +doublecarry;FSHdouble. Originalsuccess fmad flags perapplicationcommands; no precision change.",
+  "binaries": {
+    "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T072053Z-fast/work/install/ns2/bin/CHMT": {
+      "sha256": "ea78e2ac08b52915dd6da4f741a791f3251df3a530895455887968586b715599",
+      "bytes": 14357392,
+      "test_ids": [
+        "CHMT-thermal-full",
+        "CHMT-thermal-full-initcheck",
+        "NSYS-FORMAL",
+        "TIMING-formal-warmup-0",
+        "TIMING-formal-warmup-1",
+        "TIMING-formal-warmup-2",
+        "TIMING-formal-measured-0",
+        "TIMING-formal-measured-1",
+        "TIMING-formal-measured-2",
+        "TIMING-formal-measured-3",
+        "TIMING-formal-measured-4",
+        "TIMING-formal-measured-5",
+        "TIMING-formal-measured-6",
+        "EXTRA-SST-RK",
+        "EXTRA-moving-GCL",
+        "EXTRA-SST-SSPRK2",
+        "EXTRA-SST-SSPRK3",
+        "ACTUAL-KERNELS-SST-SSPRK2-S206",
+        "ACTUAL-KERNELS-SST-SSPRK3-S206",
+        "THERMAL-FORMAL-RESTART",
+        "EXTRA-wet-film",
+        "EXTRA-wet-evaporation",
+        "EXTRA-dry-ablation",
+        "EXTRA-wet-film-S209",
+        "EXTRA-wet-evaporation-S209"
+      ]
+    },
+    "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T072053Z-fast/work/fixtures/chemistry/chemistry_trial": {
+      "sha256": "ad051902a5509883b67c9b99f4fc134d8e4e738e9759758f282cce846a59ab30",
+      "bytes": 13384688,
+      "test_ids": [
+        "CHEM-OWNER",
+        "CHEM-OWNER-HOST-BACKTRACE",
+        "CHEM-OWNER-HOST-SEGV-OBSERVER",
+        "CHEM-OWNER-CUDA-GDB",
+        "CHEM-OWNER-ADDR2LINE"
+      ]
+    },
+    "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T072053Z-fast/work/fixtures/cold-CHT/initialization": {
+      "sha256": "6f6ed20cf893b555e51fd9fc1fd82f45150338dac9887d9755b0179e1a796566",
+      "bytes": 8763392,
+      "test_ids": [
+        "COLD-FIXTURE-CHT"
+      ]
+    },
+    "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T072053Z-fast/work/install/ns2/bin/CHT": {
+      "sha256": "5b67fa3d77b4b77ea5c610b22715386a482d841056b2b752bd91b632279a8fd3",
+      "bytes": 5855624,
+      "test_ids": [
+        "NATIVE-CHT-coldWall1D-INPUT2",
+        "NATIVE-CHT-coldWall2D-INPUT2",
+        "RESTART-CHT-coldWall2D-INPUT2",
+        "NATIVE-CHT-coldWall1D-WET100",
+        "NATIVE-CHT-coldWall2D-INPUT2-memcheck",
+        "NATIVE-CHT-coldWall2D-INPUT2-synccheck",
+        "NATIVE-CHT-actual-coupler",
+        "NATIVE-CHT-actual-radiation",
+        "NATIVE-CHT-actual-coupler-S210",
+        "NATIVE-CHT-actual-radiation-S210",
+        "NATIVE-CHT-cold2D-fullgroups-S211",
+        "NATIVE-CHT-cold2D-explicit16-S213",
+        "NATIVE-CHT-cold2D-valid16-S214"
+      ]
+    },
+    "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T072053Z-fast/work/fixtures/cold-FSH/initialization": {
+      "sha256": "34d9025006289330376f3ccf9ade14adc6e04e474ff94a75d5f6b9cbcfe11822",
+      "bytes": 7685224,
+      "test_ids": [
+        "COLD-FIXTURE-FSH"
+      ]
+    },
+    "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T072053Z-fast/work/fixtures/courant_reduction": {
+      "sha256": "54d71dd08cd4d31fd17b1a9bd59da93412f39516ef147160e64542e8016968d3",
+      "bytes": 1656912,
+      "test_ids": [
+        "CO-FIXTURE",
+        "RESUME-GPU-HEALTH"
+      ]
+    },
+    "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T072053Z-fast/work/install/clock-baseline/bin/CHMT": {
+      "sha256": "1afecf2ed1a76b7f37af0b069b25fc46657feb36c7d193928345b7e58d71fb60",
+      "bytes": 8498000,
+      "test_ids": [
+        "TRACE-NATIVE-baseline"
+      ]
+    },
+    "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T072053Z-fast/work/install/ns2/bin/FSH": {
+      "sha256": "db07bcfbb0939df936f9edf8b42cde0607c93bedc986125af520c19843074ed3",
+      "bytes": 722168,
+      "test_ids": [
+        "NATIVE-FSH-coldWall1D",
+        "RESTART-FSH-coldWall1D",
+        "NATIVE-FSH-coldWall2D",
+        "RESTART-FSH-coldWall2D",
+        "NATIVE-FSH-cold2D-fullgroups-S211",
+        "NATIVE-FSH-cold2D-explicit16-S213",
+        "NATIVE-FSH-cold2D-valid16-S214"
+      ]
+    },
+    "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T072053Z-fast/work/fixtures/chemistry/chemistry_trial_split": {
+      "sha256": "bd62657262f5ac039c4c5fe7a3040402848db7808a075cba009a169846b0ca89",
+      "bytes": 13442080,
+      "test_ids": [
+        "CHEM-OWNER-S202"
+      ]
+    },
+    "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T072053Z-fast/work/install/clock-tested/bin/CHMT": {
+      "sha256": "3ac635df9a33e0efad2f76d37715073179369b8a7e449ccbeac77c0f15fad1ff",
+      "bytes": 13919288,
+      "test_ids": [
+        "TRACE-NATIVE-tested"
+      ]
+    },
+    "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T072053Z-fast/work/fixtures/chemistry/chemistry_owner_native_prepared": {
+      "sha256": "afaa6508d2bb43e549ba073314ff376317b61b5fc487f1a2055a6352a8cecddf",
+      "bytes": 13435800,
+      "test_ids": [
+        "CHEM-OWNER-S203"
+      ]
+    },
+    "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T072053Z-fast/work/install/clock-formal/bin/CHMT": {
+      "sha256": "4d137ba9b3bda7a588111628ef1bb9481ca9c41dbdb0932f5e7ea87623ee9a45",
+      "bytes": 14365848,
+      "test_ids": [
+        "TRACE-NATIVE-formal",
+        "ACTUAL-RK-WEIGHTS-SST-SSPRK2",
+        "ACTUAL-RK-WEIGHTS-SST-SSPRK3"
+      ]
+    },
+    "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261013T182722Z-fast/work/install/ns2/bin/CHMT": {
+      "sha256": "7124cf69b1cd51da033c1360d67129748803a5c66767489f2864c169b85c845d",
+      "bytes": 13910824,
+      "test_ids": [
+        "TIMING-old-production-warmup-0",
+        "TIMING-old-production-warmup-1",
+        "TIMING-old-production-warmup-2",
+        "TIMING-old-production-measured-0",
+        "TIMING-old-production-measured-1",
+        "TIMING-old-production-measured-2",
+        "TIMING-old-production-measured-3",
+        "TIMING-old-production-measured-4",
+        "TIMING-old-production-measured-5",
+        "TIMING-old-production-measured-6",
+        "THERMAL-802-SAME-RESTART"
+      ]
+    },
+    "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261013T182722Z-fast/work/install/base/bin/CHMT": {
+      "sha256": "3246dff1c1f34b4cb46763d750e19444c05e4f0091c6d42a5b5f90b858a5e93a",
+      "bytes": 8460784,
+      "test_ids": [
+        "TRACE-BASELINE-UNINSTRUMENTED-SAMECASE"
+      ]
+    },
+    "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T072053Z-fast/work/install/ns10/bin/CHMT": {
+      "sha256": "d936d8cc32cd51bbf574944a2d98d05be83530d1b4750445ab89d135d7356ead",
+      "bytes": 7402544,
+      "test_ids": [
+        "CHMT-chemistry-full",
+        "CHMT-chemistry-control",
+        "EXTRA-moving-chemistry",
+        "ACTUAL-MOVING-CHEM-VOLUMES",
+        "CHMT-chemistry-full-initcheck",
+        "ACTUAL-KERNELS-moving-chemistry-S206",
+        "CHMT-chemistry-control-initcheck"
+      ]
+    },
+    "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T072053Z-fast/work/fixtures/thin-real-owner-CHT": {
+      "sha256": "4482a0f48c105f9b66f1fd060ed1b68c6a5066730813906cf2d4aaaf697fe774",
+      "bytes": 4661856,
+      "test_ids": [
+        "COLD-ACTUAL-COPY-RETRY",
+        "SST22-ACTUAL-OWNER-CHT"
+      ]
+    },
+    "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T072053Z-fast/work/fixtures/thin-real-owner-FSH": {
+      "sha256": "4d80f5539ccfa01f032409ef521e1dc98d3fd5f9288f70fe1a8dcced95b9f470",
+      "bytes": 6675872,
+      "test_ids": [
+        "SST22-ACTUAL-OWNER-FSH"
+      ]
+    },
+    "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T072053Z-fast/work/fixtures/checkpoint-ASan-2": {
+      "sha256": "6a16ec8b07d6cd4b57df7993a83887fb58802b2dda28e855ebc0b680edd26b93",
+      "bytes": 7733168,
+      "test_ids": [
+        "HOST-DECODE-SST-RK-checkpoint-0",
+        "HOST-DECODE-SST-RK-checkpoint-1",
+        "HOST-DECODE-SST-RK-checkpoint-2",
+        "HOST-DECODE-moving-GCL-checkpoint-0",
+        "HOST-DECODE-moving-GCL-checkpoint-1",
+        "HOST-DECODE-moving-GCL-checkpoint-2",
+        "HOST-DECODE-SST-SSPRK2-0",
+        "HOST-DECODE-SST-SSPRK2-0-DIR",
+        "HOST-DECODE-SST-SSPRK2-1-DIR",
+        "HOST-DECODE-SST-SSPRK2-2-DIR",
+        "HOST-DECODE-SST-SSPRK3-0-DIR",
+        "HOST-DECODE-SST-SSPRK3-1-DIR",
+        "HOST-DECODE-SST-SSPRK3-2-DIR"
+      ]
+    },
+    "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T072053Z-fast/work/fixtures/checkpoint-ASan-10": {
+      "sha256": "194d3fd419e733c65c2af7ca8912cf6da250eb57462c890d40ffc32a5ec55c34",
+      "bytes": 8291208,
+      "test_ids": [
+        "HOST-DECODE-moving-chemistry-checkpoint-0",
+        "HOST-DECODE-moving-chemistry-checkpoint-1",
+        "HOST-DECODE-moving-chemistry-checkpoint-2"
+      ]
+    },
+    "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T072053Z-fast/work/fixtures/courant_fresh_2": {
+      "sha256": "b4c34f7b0774448e512d2619d35d8433370b2a3f252bc81d96f1d5789363262d",
+      "bytes": 1668112,
+      "test_ids": [
+        "CO-FRESH-2"
+      ]
+    },
+    "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T072053Z-fast/work/fixtures/courant_fresh_10": {
+      "sha256": "8eeb8cd1d683a99e0b80982eb49f3cd1571982f3aeb8f1eb3a1f07becfa440ef",
+      "bytes": 1668112,
+      "test_ids": [
+        "CO-FRESH-10",
+        "CO-FRESH-10-INITCHECK"
+      ]
+    },
+    "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T072053Z-fast/work/fixtures/CHMT-geometry-2": {
+      "sha256": "454a5993e99e881789c24663a9076da53b5f02205cf74748412b971bc01e4148",
+      "bytes": 14357416,
+      "test_ids": [
+        "ACTUAL-ALL-MICROGEOMETRY-moving-GCL"
+      ]
+    },
+    "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T072053Z-fast/work/fixtures/CHMT-geometry-10": {
+      "sha256": "36a03580f2ec239fc90f2897a1d80f7ca682ae8b37bb6a6fc07cdf0776f2629f",
+      "bytes": 7402576,
+      "test_ids": [
+        "ACTUAL-ALL-MICROGEOMETRY-moving-chemistry"
+      ]
+    },
+    "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T072053Z-fast/work/fixtures/chemistry/chemistry_owner_full_audit": {
+      "sha256": "93c6cf030fbb1c59c83f6cbb7ef676d6cc2ad9ddf0bc1aab957b06f50b86a937",
+      "bytes": 13420784,
+      "test_ids": [
+        "CHEM-OWNER-S208"
+      ]
+    },
+    "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T072053Z-fast/work/fixtures/checkpoint-ASan-S207-2": {
+      "sha256": "7b32163e4729ba878c3eb55deb9fdbf1273d010a518aac7b8fec46709c77a61f",
+      "bytes": 7767464,
+      "test_ids": [
+        "HOST-DECODE-S207-SST-RK-checkpoint-0",
+        "HOST-DECODE-S207-SST-RK-checkpoint-0-decoded.json",
+        "HOST-DECODE-S207-SST-RK-checkpoint-1",
+        "HOST-DECODE-S207-SST-RK-checkpoint-2",
+        "HOST-DECODE-S207-SST-SSPRK2-checkpoint-0",
+        "HOST-DECODE-S207-SST-SSPRK2-checkpoint-1",
+        "HOST-DECODE-S207-SST-SSPRK2-checkpoint-2",
+        "HOST-DECODE-S207-SST-SSPRK3-checkpoint-0",
+        "HOST-DECODE-S207-SST-SSPRK3-checkpoint-1",
+        "HOST-DECODE-S207-SST-SSPRK3-checkpoint-2",
+        "HOST-DECODE-S207-moving-GCL-checkpoint-0",
+        "HOST-DECODE-S207-moving-GCL-checkpoint-1",
+        "HOST-DECODE-S207-moving-GCL-checkpoint-2",
+        "HOST-DECODE-S207-dry-ablation-checkpoint-0",
+        "HOST-DECODE-S207-dry-ablation-checkpoint-1",
+        "HOST-DECODE-S207-dry-ablation-checkpoint-2",
+        "HOST-DECODE-S207-wet-film-S209-checkpoint-0",
+        "HOST-DECODE-S207-wet-evaporation-S209-checkpoint-0",
+        "HOST-DECODE-S207-wet-film-S209-D204-checkpoint-0",
+        "HOST-DECODE-S207-wet-film-S209-D204-checkpoint-1",
+        "HOST-DECODE-S207-wet-film-S209-D204-checkpoint-2"
+      ]
+    },
+    "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T072053Z-fast/work/fixtures/CHMT-actual-ledger2": {
+      "sha256": "56f734e0ba84d21019e88566e3f09125b9d1a2c7998c0e3602b705cc40768fba",
+      "bytes": 14365928,
+      "test_ids": [
+        "ACTUAL-WEIGHTED-LEDGER-SST-SSPRK2",
+        "ACTUAL-WEIGHTED-LEDGER-SST-SSPRK3",
+        "ACTUAL-WEIGHTED-LEDGER-moving-GCL",
+        "ACTUAL-WEIGHTED-LEDGER-dry-ablation"
+      ]
+    },
+    "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T072053Z-fast/work/fixtures/CHMT-wet-zero-phase-diagnostic": {
+      "sha256": "0557584e0899f09b104232bfdc530559a0697d96b21b7be3d105e7b9fe1cc641",
+      "bytes": 14357408,
+      "test_ids": [
+        "EXTRA-wet-film-S209-D204",
+        "EXTRA-wet-evaporation-S209-D204"
+      ]
+    }
+  },
+  "objects": {
+    "work/build/CHMT2/Backend.o": {
+      "sha256": "9cea8ed35ab35fc4fb49b584da98b203702b42b45de7e4fbaccb238d2fdb9cd2",
+      "bytes": 13151608
+    },
+    "work/build/CHMT10/Backend.o": {
+      "sha256": "e2c60d257f5f454034370d325514bf15e5b16984ac44b254c6104442a253bc56",
+      "bytes": 6185192
+    },
+    "work/fixtures/Backend-ledger2.o": {
+      "sha256": "6521b73032b67111fa05832f22b42989a531888bc70df732dfb68456a7aa9b6f",
+      "bytes": 13163504
+    },
+    "applications/CHT/gpu/libugkpcht_cuda_internal.a": {
+      "sha256": "45ca5ac13a360be6a7edda8ce44cb09c33fadb317855077df29434d58a1a9706",
+      "bytes": 5030756
+    },
+    "applications/FSH/private_backend/libugkwp_cuda_backend.a": {
+      "sha256": "b283506c711656944109c631b462cdcf2d7b546f5b9eb385fc74db943fdf01f6",
+      "bytes": 7007906
+    }
+  },
+  "diagnostic_patches": {
+    "patches/D203-actual-stage-ledger.patch": "99ea58af691fa5e821e57647f1edea6d1b08810bb1045402481ef4bcb88ddec4",
+    "patches/D201-clock-baseline.patch": "4fb3274619851e5ca94abfd3c5ba61daa1e605e6c02f190a7fec145bdb70b204",
+    "patches/S201-checker-path-adaptation.patch": "bd40c62a2f7d868b0da4aadff3752ff5aa8bc98fd3155f0bcc18d412e0dab05c",
+    "patches/D202-retain-actual-microgeometry.patch": "7decbca8a5dc1a3dbf9988364b3a08475f38ad9856773576d7e83b8555c5ce7b",
+    "patches/S209-wet-evaporation-gaspoints.patch": "4df831eacfa95bef67cb2f9f19a8eee206daf560ac3af57168c4547971223255",
+    "patches/S203-actual-native-courant-owner-fixture.patch": "17492afbd93774ba511ff3d22d3ca2ba9f8e35bd72196be8387e83c0f6edf9fe",
+    "patches/D204-zero-phase-does-not-consume-disabled-material.patch": "b29e7b8558f13318842152195bccb96e6230427221a25b3dc41d84a0574838fc",
+    "patches/S202-fixture-host-device-split.patch": "0084bc79726b7f737e1b4d38e11bbaa124b73faa2efcf00c32786bb353db045f",
+    "patches/S206-CUDA13-kernel-handle-observer.patch": "f6055d7a228a4c74c4508803d1e687c3681ed1eeb61e3b1635e816c2201a98cf",
+    "patches/S205-Co-changing-data.patch": "0fe652be8b428ec524e1a780fcc83682aac985771981e4eff7d389043c122631",
+    "patches/S208-full-semantic-chemistry-audit.patch": "9a8bfbe8c844a12821bfc94fd0b120f5d035df295075fbf3272c333a0a96bf10",
+    "patches/D201-clock-tested.patch": "acd9f150fd618478f26f919cc74bbb24483cabfd9788c3ab4c1a17729a9e0ca3",
+    "patches/D201-clock-formal.patch": "9ae9433fbb33b3082b10bd7d79e74d0c04f12e54d502c5434238184791640883",
+    "patches/S209-wet-film-gaspoints.patch": "5b093f57c6ab166eebd436bf75e45ae023dce23b6884390fe24b0ad45de950f3",
+    "patches/S204-FSH-double-profile-checker.patch": "16da2e2cf9991527bcefc9e122f805c66aa69b4ffbe38863d9624ea500f494e1",
+    "patches/S207-real-codec-observed-fields.patch": "5d38cc6105c75c7591971fb26553b79f0753125e2aeafc8f0d2561533bb52ad8"
+  },
+  "scope": "Hashes of actualused source/object/binary; compilationPASS neverGPU numericalacceptance; compiledpayloads notuploaded."
+}

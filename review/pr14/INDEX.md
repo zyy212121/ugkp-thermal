@@ -105,3 +105,14 @@ The continuation bundle now embeds source `a73b9635510fb09d7baa5339e14d1aa609f0f
 - [原始结果和计数](reviewer-deliveries/20261013T182722Z-fast/results.json)
 - [版本/patch/bin](reviewer-deliveries/20261013T182722Z-fast/versions.json)
 - [复现](reviewer-deliveries/20261013T182722Z-fast/REPRODUCE.md)
+
+## 第二轮独立真实GPU FAST 20261014T072053Z-fast
+
+正式修复4b5c480b；交付起点75cfd885。25个限定单元(18PASS/4FAIL/2BLOCKED/1NOT_RUN)，不可跨主题相加。原指定F001/F002/F004/F005输入定向复验、实际clock位差链已记录。GPU-F006既有wet材料索引问题及两支持夹具问题待开发者；其余严格红/阻断/未测范围保留，不满足整体合并条件。
+
+- [报告](reviewer-deliveries/20261014T072053Z-fast/REPORT.md)
+- [计划](reviewer-deliveries/20261014T072053Z-fast/TEST_PLAN.md)
+- [覆盖与旧gap ID](reviewer-deliveries/20261014T072053Z-fast/coverage.json)
+- [原始结果](reviewer-deliveries/20261014T072053Z-fast/results.json)
+- [发现](reviewer-deliveries/20261014T072053Z-fast/findings.json)
+- [复现与不可变引用](reviewer-deliveries/20261014T072053Z-fast/REPRODUCE.md)

@@ -1,0 +1,7 @@
+{
+  "classification": "TEST_SUPPORT",
+  "production_modified": false,
+  "reason": "FSH current schema8 has double profiles and no CHT float-cache carry channel. Original checker CHT-only key raised KeyError. Require actualFSH float64 dtype and mean inverse1e-9 unchanged; CHT still requires realfloat32/carry. No tolerance/assert removed.",
+  "old_sha256": "caeb6c820d8c4b59d1057abaac0e6b4e948ada1526799b4b40c06275a8df4e67",
+  "new_sha256": "58380bbdfce34f322d1651c1a25415cee8184f3b97e32a32811cf6b44895e5f3"
+}

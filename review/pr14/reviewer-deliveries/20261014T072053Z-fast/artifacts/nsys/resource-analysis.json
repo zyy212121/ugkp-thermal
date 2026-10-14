@@ -1,0 +1,2520 @@
+{
+  "API_count_changes": [
+    {
+      "name": "cuKernelGetName",
+      "old802_count": 3000,
+      "formal_count": 3000,
+      "delta": 0
+    },
+    {
+      "name": "cuLibraryGetKernel",
+      "old802_count": 17,
+      "formal_count": 17,
+      "delta": 0
+    },
+    {
+      "name": "cuLibraryLoadData",
+      "old802_count": 1,
+      "formal_count": 1,
+      "delta": 0
+    },
+    {
+      "name": "cuModuleGetLoadingMode",
+      "old802_count": 1,
+      "formal_count": 1,
+      "delta": 0
+    },
+    {
+      "name": "cudaDeviceSynchronize_v3020",
+      "old802_count": 400,
+      "formal_count": 400,
+      "delta": 0
+    },
+    {
+      "name": "cudaFree_v3020",
+      "old802_count": 339,
+      "formal_count": 140,
+      "delta": -199
+    },
+    {
+      "name": "cudaLaunchKernel_v7000",
+      "old802_count": 3000,
+      "formal_count": 3000,
+      "delta": 0
+    },
+    {
+      "name": "cudaMalloc_v3020",
+      "old802_count": 339,
+      "formal_count": 140,
+      "delta": -199
+    },
+    {
+      "name": "cudaMemcpyAsync_v3020",
+      "old802_count": 200,
+      "formal_count": 200,
+      "delta": 0
+    },
+    {
+      "name": "cudaMemcpy_v3020",
+      "old802_count": 11702,
+      "formal_count": 11702,
+      "delta": 0
+    },
+    {
+      "name": "cudaMemsetAsync_v3020",
+      "old802_count": 346,
+      "formal_count": 346,
+      "delta": 0
+    },
+    {
+      "name": "cudaStreamSynchronize_v3020",
+      "old802_count": 400,
+      "formal_count": 400,
+      "delta": 0
+    }
+  ],
+  "Co_reduction_ranges": [
+    {
+      "index": 0,
+      "name": "thrust::transform_reduce",
+      "start": 945594933,
+      "end": 947106801,
+      "cuda_API_counts": {
+        "cudaMalloc_v3020": 1,
+        "cuLibraryGetKernel": 1,
+        "cuKernelGetName": 1,
+        "cudaLaunchKernel_v7000": 1,
+        "cudaStreamSynchronize_v3020": 2,
+        "cudaMemcpyAsync_v3020": 1
+      }
+    },
+    {
+      "index": 1,
+      "name": "thrust::reduce",
+      "start": 947128903,
+      "end": 947319336,
+      "cuda_API_counts": {
+        "cuLibraryGetKernel": 1,
+        "cuKernelGetName": 1,
+        "cudaLaunchKernel_v7000": 1,
+        "cudaStreamSynchronize_v3020": 2,
+        "cudaMemcpyAsync_v3020": 1
+      }
+    },
+    {
+      "index": 2,
+      "name": "thrust::transform_reduce",
+      "start": 952751392,
+      "end": 952842165,
+      "cuda_API_counts": {
+        "cuKernelGetName": 1,
+        "cudaLaunchKernel_v7000": 1,
+        "cudaStreamSynchronize_v3020": 2,
+        "cudaMemcpyAsync_v3020": 1
+      }
+    },
+    {
+      "index": 3,
+      "name": "thrust::reduce",
+      "start": 952842581,
+      "end": 952895062,
+      "cuda_API_counts": {
+        "cuKernelGetName": 1,
+        "cudaLaunchKernel_v7000": 1,
+        "cudaStreamSynchronize_v3020": 2,
+        "cudaMemcpyAsync_v3020": 1
+      }
+    },
+    {
+      "index": 4,
+      "name": "thrust::transform_reduce",
+      "start": 956849783,
+      "end": 957088036,
+      "cuda_API_counts": {
+        "cuKernelGetName": 1,
+        "cudaLaunchKernel_v7000": 1,
+        "cudaStreamSynchronize_v3020": 2,
+        "cudaMemcpyAsync_v3020": 1
+      }
+    },
+    {
+      "index": 5,
+      "name": "thrust::reduce",
+      "start": 957088417,
+      "end": 957259397,
+      "cuda_API_counts": {
+        "cuKernelGetName": 1,
+        "cudaLaunchKernel_v7000": 1,
+        "cudaStreamSynchronize_v3020": 2,
+        "cudaMemcpyAsync_v3020": 1
+      }
+    },
+    {
+      "index": 6,
+      "name": "thrust::transform_reduce",
+      "start": 961416382,
+      "end": 961732099,
+      "cuda_API_counts": {
+        "cuKernelGetName": 1,
+        "cudaLaunchKernel_v7000": 1,
+        "cudaStreamSynchronize_v3020": 2,
+        "cudaMemcpyAsync_v3020": 1
+      }
+    },
+    {
+      "index": 7,
+      "name": "thrust::reduce",
+      "start": 961733630,
+      "end": 961926652,
+      "cuda_API_counts": {
+        "cuKernelGetName": 1,
+        "cudaLaunchKernel_v7000": 1,
+        "cudaStreamSynchronize_v3020": 2,
+        "cudaMemcpyAsync_v3020": 1
+      }
+    },
+    {
+      "index": 8,
+      "name": "thrust::transform_reduce",
+      "start": 966394227,
+      "end": 966495062,
+      "cuda_API_counts": {
+        "cuKernelGetName": 1,
+        "cudaLaunchKernel_v7000": 1,
+        "cudaStreamSynchronize_v3020": 2,
+        "cudaMemcpyAsync_v3020": 1
+      }
+    },
+    {
+      "index": 9,
+      "name": "thrust::reduce",
+      "start": 966495539,
+      "end": 966559826,
+      "cuda_API_counts": {
+        "cuKernelGetName": 1,
+        "cudaLaunchKernel_v7000": 1,
+        "cudaStreamSynchronize_v3020": 2,
+        "cudaMemcpyAsync_v3020": 1
+      }
+    },
+    {
+      "index": 10,
+      "name": "thrust::transform_reduce",
+      "start": 970454336,
+      "end": 970553095,
+      "cuda_API_counts": {
+        "cuKernelGetName": 1,
+        "cudaLaunchKernel_v7000": 1,
+        "cudaStreamSynchronize_v3020": 2,
+        "cudaMemcpyAsync_v3020": 1
+      }
+    },
+    {
+      "index": 11,
+      "name": "thrust::reduce",
+      "start": 970553453,
+      "end": 970615756,
+      "cuda_API_counts": {
+        "cuKernelGetName": 1,
+        "cudaLaunchKernel_v7000": 1,
+        "cudaStreamSynchronize_v3020": 2,
+        "cudaMemcpyAsync_v3020": 1
+      }
+    },
+    {
+      "index": 12,
+      "name": "thrust::transform_reduce",
+      "start": 974433491,
+      "end": 974533842,
+      "cuda_API_counts": {
+        "cuKernelGetName": 1,
+        "cudaLaunchKernel_v7000": 1,
+        "cudaStreamSynchronize_v3020": 2,
+        "cudaMemcpyAsync_v3020": 1
+      }
+    },
+    {
+      "index": 13,
+      "name": "thrust::reduce",
+      "start": 974534319,
+      "end": 974585594,
+      "cuda_API_counts": {
+        "cuKernelGetName": 1,
+        "cudaLaunchKernel_v7000": 1,
+        "cudaStreamSynchronize_v3020": 2,
+        "cudaMemcpyAsync_v3020": 1
+      }
+    },
+    {
+      "index": 14,
+      "name": "thrust::transform_reduce",
+      "start": 978378384,
+      "end": 978454900,
+      "cuda_API_counts": {
+        "cuKernelGetName": 1,
+        "cudaLaunchKernel_v7000": 1,
+        "cudaStreamSynchronize_v3020": 2,
+        "cudaMemcpyAsync_v3020": 1
+      }
+    },
+    {
+      "index": 15,
+      "name": "thrust::reduce",
+      "start": 978455293,
+      "end": 978527183,
+      "cuda_API_counts": {
+        "cuKernelGetName": 1,
+        "cudaLaunchKernel_v7000": 1,
+        "cudaStreamSynchronize_v3020": 2,
+        "cudaMemcpyAsync_v3020": 1
+      }
+    },
+    {
+      "index": 16,
+      "name": "thrust::transform_reduce",
+      "start": 982448647,
+      "end": 982541490,
+      "cuda_API_counts": {
+        "cuKernelGetName": 1,
+        "cudaLaunchKernel_v7000": 1,
+        "cudaStreamSynchronize_v3020": 2,
+        "cudaMemcpyAsync_v3020": 1
+      }
+    },
+    {
+      "index": 17,
+      "name": "thrust::reduce",
+      "start": 982541847,
+      "end": 982588441,
+      "cuda_API_counts": {
+        "cuKernelGetName": 1,
+        "cudaLaunchKernel_v7000": 1,
+        "cudaStreamSynchronize_v3020": 2,
+        "cudaMemcpyAsync_v3020": 1
+      }
+    },
+    {
+      "index": 18,
+      "name": "thrust::transform_reduce",
+      "start": 985856390,
+      "end": 985940925,
+      "cuda_API_counts": {
+        "cuKernelGetName": 1,
+        "cudaLaunchKernel_v7000": 1,
+        "cudaStreamSynchronize_v3020": 2,
+        "cudaMemcpyAsync_v3020": 1
+      }
+    },
+    {
+      "index": 19,
+      "name": "thrust::reduce",
+      "start": 985941285,
+      "end": 985990496,
+      "cuda_API_counts": {
+        "cuKernelGetName": 1,
+        "cudaLaunchKernel_v7000": 1,
+        "cudaStreamSynchronize_v3020": 2,
+        "cudaMemcpyAsync_v3020": 1
+      }
+    },
+    {
+      "index": 20,
+      "name": "thrust::transform_reduce",
+      "start": 989542810,
+      "end": 989680355,
+      "cuda_API_counts": {
+        "cuKernelGetName": 1,
+        "cudaLaunchKernel_v7000": 1,
+        "cudaStreamSynchronize_v3020": 2,
+        "cudaMemcpyAsync_v3020": 1
+      }
+    },
+    {
+      "index": 21,
+      "name": "thrust::reduce",
+      "start": 989681306,
+      "end": 989787633,
+      "cuda_API_counts": {
+        "cuKernelGetName": 1,
+        "cudaLaunchKernel_v7000": 1,
+        "cudaStreamSynchronize_v3020": 2,
+        "cudaMemcpyAsync_v3020": 1
+      }
+    },
+    {
+      "index": 22,
+      "name": "thrust::transform_reduce",
+      "start": 993217865,
+      "end": 993347465,
+      "cuda_API_counts": {
+        "cuKernelGetName": 1,
+        "cudaLaunchKernel_v7000": 1,
+        "cudaStreamSynchronize_v3020": 2,
+        "cudaMemcpyAsync_v3020": 1
+      }
+    },
+    {
+      "index": 23,
+      "name": "thrust::reduce",
+      "start": 993347824,
+      "end": 993414449,
+      "cuda_API_counts": {
+        "cuKernelGetName": 1,
+        "cudaLaunchKernel_v7000": 1,
+        "cudaStreamSynchronize_v3020": 2,
+        "cudaMemcpyAsync_v3020": 1
+      }
+    },
+    {
+      "index": 24,
+      "name": "thrust::transform_reduce",
+      "start": 997091844,
+      "end": 997183149,
+      "cuda_API_counts": {
+        "cuKernelGetName": 1,
+        "cudaLaunchKernel_v7000": 1,
+        "cudaStreamSynchronize_v3020": 2,
+        "cudaMemcpyAsync_v3020": 1
+      }
+    },
+    {
+      "index": 25,
+      "name": "thrust::reduce",
+      "start": 997183486,
+      "end": 997248849,
+      "cuda_API_counts": {
+        "cuKernelGetName": 1,
+        "cudaLaunchKernel_v7000": 1,
+        "cudaStreamSynchronize_v3020": 2,
+        "cudaMemcpyAsync_v3020": 1
+      }
+    },
+    {
+      "index": 26,
+      "name": "thrust::transform_reduce",
+      "start": 1000546681,
+      "end": 1000640126,
+      "cuda_API_counts": {
+        "cuKernelGetName": 1,
+        "cudaLaunchKernel_v7000": 1,
+        "cudaStreamSynchronize_v3020": 2,
+        "cudaMemcpyAsync_v3020": 1
+      }
+    },
+    {
+      "index": 27,
+      "name": "thrust::reduce",
+      "start": 1000640464,
+      "end": 1000700667,
+      "cuda_API_counts": {
+        "cuKernelGetName": 1,
+        "cudaLaunchKernel_v7000": 1,
+        "cudaStreamSynchronize_v3020": 2,
+        "cudaMemcpyAsync_v3020": 1
+      }
+    },
+    {
+      "index": 28,
+      "name": "thrust::transform_reduce",
+      "start": 1004197208,
+      "end": 1004351411,
+      "cuda_API_counts": {
+        "cuKernelGetName": 1,
+        "cudaLaunchKernel_v7000": 1,
+        "cudaStreamSynchronize_v3020": 2,
+        "cudaMemcpyAsync_v3020": 1
+      }
+    },
+    {
+      "index": 29,
+      "name": "thrust::reduce",
+      "start": 1004353086,
+      "end": 1004438758,
+      "cuda_API_counts": {
+        "cuKernelGetName": 1,
+        "cudaLaunchKernel_v7000": 1,
+        "cudaStreamSynchronize_v3020": 2,
+        "cudaMemcpyAsync_v3020": 1
+      }
+    },
+    {
+      "index": 30,
+      "name": "thrust::transform_reduce",
+      "start": 1008075069,
+      "end": 1008250778,
+      "cuda_API_counts": {
+        "cuKernelGetName": 1,
+        "cudaLaunchKernel_v7000": 1,
+        "cudaStreamSynchronize_v3020": 2,
+        "cudaMemcpyAsync_v3020": 1
+      }
+    },
+    {
+      "index": 31,
+      "name": "thrust::reduce",
+      "start": 1008251341,
+      "end": 1008348547,
+      "cuda_API_counts": {
+        "cuKernelGetName": 1,
+        "cudaLaunchKernel_v7000": 1,
+        "cudaStreamSynchronize_v3020": 2,
+        "cudaMemcpyAsync_v3020": 1
+      }
+    },
+    {
+      "index": 32,
+      "name": "thrust::transform_reduce",
+      "start": 1013086990,
+      "end": 1013297818,
+      "cuda_API_counts": {
+        "cuKernelGetName": 1,
+        "cudaLaunchKernel_v7000": 1,
+        "cudaStreamSynchronize_v3020": 2,
+        "cudaMemcpyAsync_v3020": 1
+      }
+    },
+    {
+      "index": 33,
+      "name": "thrust::reduce",
+      "start": 1013298221,
+      "end": 1013367040,
+      "cuda_API_counts": {
+        "cuKernelGetName": 1,
+        "cudaLaunchKernel_v7000": 1,
+        "cudaStreamSynchronize_v3020": 2,
+        "cudaMemcpyAsync_v3020": 1
+      }
+    },
+    {
+      "index": 34,
+      "name": "thrust::transform_reduce",
+      "start": 1017379575,
+      "end": 1017464351,
+      "cuda_API_counts": {
+        "cuKernelGetName": 1,
+        "cudaLaunchKernel_v7000": 1,
+        "cudaStreamSynchronize_v3020": 2,
+        "cudaMemcpyAsync_v3020": 1
+      }
+    },
+    {
+      "index": 35,
+      "name": "thrust::reduce",
+      "start": 1017464690,
+      "end": 1017528145,
+      "cuda_API_counts": {
+        "cuKernelGetName": 1,
+        "cudaLaunchKernel_v7000": 1,
+        "cudaStreamSynchronize_v3020": 2,
+        "cudaMemcpyAsync_v3020": 1
+      }
+    },
+    {
+      "index": 36,
+      "name": "thrust::transform_reduce",
+      "start": 1020961735,
+      "end": 1021091221,
+      "cuda_API_counts": {
+        "cuKernelGetName": 1,
+        "cudaLaunchKernel_v7000": 1,
+        "cudaStreamSynchronize_v3020": 2,
+        "cudaMemcpyAsync_v3020": 1
+      }
+    },
+    {
+      "index": 37,
+      "name": "thrust::reduce",
+      "start": 1021091770,
+      "end": 1021144789,
+      "cuda_API_counts": {
+        "cuKernelGetName": 1,
+        "cudaLaunchKernel_v7000": 1,
+        "cudaStreamSynchronize_v3020": 2,
+        "cudaMemcpyAsync_v3020": 1
+      }
+    },
+    {
+      "index": 38,
+      "name": "thrust::transform_reduce",
+      "start": 1026022379,
+      "end": 1026126980,
+      "cuda_API_counts": {
+        "cuKernelGetName": 1,
+        "cudaLaunchKernel_v7000": 1,
+        "cudaStreamSynchronize_v3020": 2,
+        "cudaMemcpyAsync_v3020": 1
+      }
+    },
+    {
+      "index": 39,
+      "name": "thrust::reduce",
+      "start": 1026127441,
+      "end": 1026182848,
+      "cuda_API_counts": {
+        "cuKernelGetName": 1,
+        "cudaLaunchKernel_v7000": 1,
+        "cudaStreamSynchronize_v3020": 2,
+        "cudaMemcpyAsync_v3020": 1
+      }
+    },
+    {
+      "index": 40,
+      "name": "thrust::transform_reduce",
+      "start": 1030099380,
+      "end": 1030174843,
+      "cuda_API_counts": {
+        "cuKernelGetName": 1,
+        "cudaLaunchKernel_v7000": 1,
+        "cudaStreamSynchronize_v3020": 2,
+        "cudaMemcpyAsync_v3020": 1
+      }
+    },
+    {
+      "index": 41,
+      "name": "thrust::reduce",
+      "start": 1030175449,
+      "end": 1030236532,
+      "cuda_API_counts": {
+        "cuKernelGetName": 1,
+        "cudaLaunchKernel_v7000": 1,
+        "cudaStreamSynchronize_v3020": 2,
+        "cudaMemcpyAsync_v3020": 1
+      }
+    },
+    {
+      "index": 42,
+      "name": "thrust::transform_reduce",
+      "start": 1033963597,
+      "end": 1034099590,
+      "cuda_API_counts": {
+        "cuKernelGetName": 1,
+        "cudaLaunchKernel_v7000": 1,
+        "cudaStreamSynchronize_v3020": 2,
+        "cudaMemcpyAsync_v3020": 1
+      }
+    },
+    {
+      "index": 43,
+      "name": "thrust::reduce",
+      "start": 1034099988,
+      "end": 1034160144,
+      "cuda_API_counts": {
+        "cuKernelGetName": 1,
+        "cudaLaunchKernel_v7000": 1,
+        "cudaStreamSynchronize_v3020": 2,
+        "cudaMemcpyAsync_v3020": 1
+      }
+    },
+    {
+      "index": 44,
+      "name": "thrust::transform_reduce",
+      "start": 1038142946,
+      "end": 1038288030,
+      "cuda_API_counts": {
+        "cuKernelGetName": 1,
+        "cudaLaunchKernel_v7000": 1,
+        "cudaStreamSynchronize_v3020": 2,
+        "cudaMemcpyAsync_v3020": 1
+      }
+    },
+    {
+      "index": 45,
+      "name": "thrust::reduce",
+      "start": 1038288399,
+      "end": 1038355113,
+      "cuda_API_counts": {
+        "cuKernelGetName": 1,
+        "cudaLaunchKernel_v7000": 1,
+        "cudaStreamSynchronize_v3020": 2,
+        "cudaMemcpyAsync_v3020": 1
+      }
+    },
+    {
+      "index": 46,
+      "name": "thrust::transform_reduce",
+      "start": 1041928058,
+      "end": 1042021719,
+      "cuda_API_counts": {
+        "cuKernelGetName": 1,
+        "cudaLaunchKernel_v7000": 1,
+        "cudaStreamSynchronize_v3020": 2,
+        "cudaMemcpyAsync_v3020": 1
+      }
+    },
+    {
+      "index": 47,
+      "name": "thrust::reduce",
+      "start": 1042022111,
+      "end": 1042075002,
+      "cuda_API_counts": {
+        "cuKernelGetName": 1,
+        "cudaLaunchKernel_v7000": 1,
+        "cudaStreamSynchronize_v3020": 2,
+        "cudaMemcpyAsync_v3020": 1
+      }
+    },
+    {
+      "index": 48,
+      "name": "thrust::transform_reduce",
+      "start": 1045210303,
+      "end": 1045305790,
+      "cuda_API_counts": {
+        "cuKernelGetName": 1,
+        "cudaLaunchKernel_v7000": 1,
+        "cudaStreamSynchronize_v3020": 2,
+        "cudaMemcpyAsync_v3020": 1
+      }
+    },
+    {
+      "index": 49,
+      "name": "thrust::reduce",
+      "start": 1045306196,
+      "end": 1045359502,
+      "cuda_API_counts": {
+        "cuKernelGetName": 1,
+        "cudaLaunchKernel_v7000": 1,
+        "cudaStreamSynchronize_v3020": 2,
+        "cudaMemcpyAsync_v3020": 1
+      }
+    },
+    {
+      "index": 50,
+      "name": "thrust::transform_reduce",
+      "start": 1048982159,
+      "end": 1049101618,
+      "cuda_API_counts": {
+        "cuKernelGetName": 1,
+        "cudaLaunchKernel_v7000": 1,
+        "cudaStreamSynchronize_v3020": 2,
+        "cudaMemcpyAsync_v3020": 1
+      }
+    },
+    {
+      "index": 51,
+      "name": "thrust::reduce",
+      "start": 1049102302,
+      "end": 1049214666,
+      "cuda_API_counts": {
+        "cuKernelGetName": 1,
+        "cudaLaunchKernel_v7000": 1,
+        "cudaStreamSynchronize_v3020": 2,
+        "cudaMemcpyAsync_v3020": 1
+      }
+    },
+    {
+      "index": 52,
+      "name": "thrust::transform_reduce",
+      "start": 1055982730,
+      "end": 1056098110,
+      "cuda_API_counts": {
+        "cuKernelGetName": 1,
+        "cudaLaunchKernel_v7000": 1,
+        "cudaStreamSynchronize_v3020": 2,
+        "cudaMemcpyAsync_v3020": 1
+      }
+    },
+    {
+      "index": 53,
+      "name": "thrust::reduce",
+      "start": 1056098751,
+      "end": 1056207758,
+      "cuda_API_counts": {
+        "cuKernelGetName": 1,
+        "cudaLaunchKernel_v7000": 1,
+        "cudaStreamSynchronize_v3020": 2,
+        "cudaMemcpyAsync_v3020": 1
+      }
+    },
+    {
+      "index": 54,
+      "name": "thrust::transform_reduce",
+      "start": 1061043772,
+      "end": 1061131416,
+      "cuda_API_counts": {
+        "cuKernelGetName": 1,
+        "cudaLaunchKernel_v7000": 1,
+        "cudaStreamSynchronize_v3020": 2,
+        "cudaMemcpyAsync_v3020": 1
+      }
+    },
+    {
+      "index": 55,
+      "name": "thrust::reduce",
+      "start": 1061131818,
+      "end": 1061185002,
+      "cuda_API_counts": {
+        "cuKernelGetName": 1,
+        "cudaLaunchKernel_v7000": 1,
+        "cudaStreamSynchronize_v3020": 2,
+        "cudaMemcpyAsync_v3020": 1
+      }
+    },
+    {
+      "index": 56,
+      "name": "thrust::transform_reduce",
+      "start": 1064241400,
+      "end": 1064362963,
+      "cuda_API_counts": {
+        "cuKernelGetName": 1,
+        "cudaLaunchKernel_v7000": 1,
+        "cudaStreamSynchronize_v3020": 2,
+        "cudaMemcpyAsync_v3020": 1
+      }
+    },
+    {
+      "index": 57,
+      "name": "thrust::reduce",
+      "start": 1064363333,
+      "end": 1064413915,
+      "cuda_API_counts": {
+        "cuKernelGetName": 1,
+        "cudaLaunchKernel_v7000": 1,
+        "cudaStreamSynchronize_v3020": 2,
+        "cudaMemcpyAsync_v3020": 1
+      }
+    },
+    {
+      "index": 58,
+      "name": "thrust::transform_reduce",
+      "start": 1067173875,
+      "end": 1067265004,
+      "cuda_API_counts": {
+        "cuKernelGetName": 1,
+        "cudaLaunchKernel_v7000": 1,
+        "cudaStreamSynchronize_v3020": 2,
+        "cudaMemcpyAsync_v3020": 1
+      }
+    },
+    {
+      "index": 59,
+      "name": "thrust::reduce",
+      "start": 1067265349,
+      "end": 1067315903,
+      "cuda_API_counts": {
+        "cuKernelGetName": 1,
+        "cudaLaunchKernel_v7000": 1,
+        "cudaStreamSynchronize_v3020": 2,
+        "cudaMemcpyAsync_v3020": 1
+      }
+    },
+    {
+      "index": 60,
+      "name": "thrust::transform_reduce",
+      "start": 1070241465,
+      "end": 1070329983,
+      "cuda_API_counts": {
+        "cuKernelGetName": 1,
+        "cudaLaunchKernel_v7000": 1,
+        "cudaStreamSynchronize_v3020": 2,
+        "cudaMemcpyAsync_v3020": 1
+      }
+    },
+    {
+      "index": 61,
+      "name": "thrust::reduce",
+      "start": 1070330349,
+      "end": 1070382839,
+      "cuda_API_counts": {
+        "cuKernelGetName": 1,
+        "cudaLaunchKernel_v7000": 1,
+        "cudaStreamSynchronize_v3020": 2,
+        "cudaMemcpyAsync_v3020": 1
+      }
+    },
+    {
+      "index": 62,
+      "name": "thrust::transform_reduce",
+      "start": 1073472178,
+      "end": 1073559996,
+      "cuda_API_counts": {
+        "cuKernelGetName": 1,
+        "cudaLaunchKernel_v7000": 1,
+        "cudaStreamSynchronize_v3020": 2,
+        "cudaMemcpyAsync_v3020": 1
+      }
+    },
+    {
+      "index": 63,
+      "name": "thrust::reduce",
+      "start": 1073560399,
+      "end": 1073636423,
+      "cuda_API_counts": {
+        "cuKernelGetName": 1,
+        "cudaLaunchKernel_v7000": 1,
+        "cudaStreamSynchronize_v3020": 2,
+        "cudaMemcpyAsync_v3020": 1
+      }
+    },
+    {
+      "index": 64,
+      "name": "thrust::transform_reduce",
+      "start": 1076748868,
+      "end": 1076930257,
+      "cuda_API_counts": {
+        "cuKernelGetName": 1,
+        "cudaLaunchKernel_v7000": 1,
+        "cudaStreamSynchronize_v3020": 2,
+        "cudaMemcpyAsync_v3020": 1
+      }
+    },
+    {
+      "index": 65,
+      "name": "thrust::reduce",
+      "start": 1076931228,
+      "end": 1077055604,
+      "cuda_API_counts": {
+        "cuKernelGetName": 1,
+        "cudaLaunchKernel_v7000": 1,
+        "cudaStreamSynchronize_v3020": 2,
+        "cudaMemcpyAsync_v3020": 1
+      }
+    },
+    {
+      "index": 66,
+      "name": "thrust::transform_reduce",
+      "start": 1083486103,
+      "end": 1083646197,
+      "cuda_API_counts": {
+        "cuKernelGetName": 1,
+        "cudaLaunchKernel_v7000": 1,
+        "cudaStreamSynchronize_v3020": 2,
+        "cudaMemcpyAsync_v3020": 1
+      }
+    },
+    {
+      "index": 67,
+      "name": "thrust::reduce",
+      "start": 1083646763,
+      "end": 1083753972,
+      "cuda_API_counts": {
+        "cuKernelGetName": 1,
+        "cudaLaunchKernel_v7000": 1,
+        "cudaStreamSynchronize_v3020": 2,
+        "cudaMemcpyAsync_v3020": 1
+      }
+    },
+    {
+      "index": 68,
+      "name": "thrust::transform_reduce",
+      "start": 1086973835,
+      "end": 1087088791,
+      "cuda_API_counts": {
+        "cuKernelGetName": 1,
+        "cudaLaunchKernel_v7000": 1,
+        "cudaStreamSynchronize_v3020": 2,
+        "cudaMemcpyAsync_v3020": 1
+      }
+    },
+    {
+      "index": 69,
+      "name": "thrust::reduce",
+      "start": 1087089201,
+      "end": 1087141084,
+      "cuda_API_counts": {
+        "cuKernelGetName": 1,
+        "cudaLaunchKernel_v7000": 1,
+        "cudaStreamSynchronize_v3020": 2,
+        "cudaMemcpyAsync_v3020": 1
+      }
+    },
+    {
+      "index": 70,
+      "name": "thrust::transform_reduce",
+      "start": 1090115500,
+      "end": 1090235351,
+      "cuda_API_counts": {
+        "cuKernelGetName": 1,
+        "cudaLaunchKernel_v7000": 1,
+        "cudaStreamSynchronize_v3020": 2,
+        "cudaMemcpyAsync_v3020": 1
+      }
+    },
+    {
+      "index": 71,
+      "name": "thrust::reduce",
+      "start": 1090235744,
+      "end": 1090322075,
+      "cuda_API_counts": {
+        "cuKernelGetName": 1,
+        "cudaLaunchKernel_v7000": 1,
+        "cudaStreamSynchronize_v3020": 2,
+        "cudaMemcpyAsync_v3020": 1
+      }
+    },
+    {
+      "index": 72,
+      "name": "thrust::transform_reduce",
+      "start": 1093390034,
+      "end": 1093517665,
+      "cuda_API_counts": {
+        "cuKernelGetName": 1,
+        "cudaLaunchKernel_v7000": 1,
+        "cudaStreamSynchronize_v3020": 2,
+        "cudaMemcpyAsync_v3020": 1
+      }
+    },
+    {
+      "index": 73,
+      "name": "thrust::reduce",
+      "start": 1093518690,
+      "end": 1093682224,
+      "cuda_API_counts": {
+        "cuKernelGetName": 1,
+        "cudaLaunchKernel_v7000": 1,
+        "cudaStreamSynchronize_v3020": 2,
+        "cudaMemcpyAsync_v3020": 1
+      }
+    },
+    {
+      "index": 74,
+      "name": "thrust::transform_reduce",
+      "start": 1099191730,
+      "end": 1099351132,
+      "cuda_API_counts": {
+        "cuKernelGetName": 1,
+        "cudaLaunchKernel_v7000": 1,
+        "cudaStreamSynchronize_v3020": 2,
+        "cudaMemcpyAsync_v3020": 1
+      }
+    },
+    {
+      "index": 75,
+      "name": "thrust::reduce",
+      "start": 1099351803,
+      "end": 1099457938,
+      "cuda_API_counts": {
+        "cuKernelGetName": 1,
+        "cudaLaunchKernel_v7000": 1,
+        "cudaStreamSynchronize_v3020": 2,
+        "cudaMemcpyAsync_v3020": 1
+      }
+    },
+    {
+      "index": 76,
+      "name": "thrust::transform_reduce",
+      "start": 1106296061,
+      "end": 1106414867,
+      "cuda_API_counts": {
+        "cuKernelGetName": 1,
+        "cudaLaunchKernel_v7000": 1,
+        "cudaStreamSynchronize_v3020": 2,
+        "cudaMemcpyAsync_v3020": 1
+      }
+    },
+    {
+      "index": 77,
+      "name": "thrust::reduce",
+      "start": 1106415666,
+      "end": 1106533321,
+      "cuda_API_counts": {
+        "cuKernelGetName": 1,
+        "cudaLaunchKernel_v7000": 1,
+        "cudaStreamSynchronize_v3020": 2,
+        "cudaMemcpyAsync_v3020": 1
+      }
+    },
+    {
+      "index": 78,
+      "name": "thrust::transform_reduce",
+      "start": 1113451006,
+      "end": 1113571625,
+      "cuda_API_counts": {
+        "cuKernelGetName": 1,
+        "cudaLaunchKernel_v7000": 1,
+        "cudaStreamSynchronize_v3020": 2,
+        "cudaMemcpyAsync_v3020": 1
+      }
+    },
+    {
+      "index": 79,
+      "name": "thrust::reduce",
+      "start": 1113572487,
+      "end": 1113731583,
+      "cuda_API_counts": {
+        "cuKernelGetName": 1,
+        "cudaLaunchKernel_v7000": 1,
+        "cudaStreamSynchronize_v3020": 2,
+        "cudaMemcpyAsync_v3020": 1
+      }
+    },
+    {
+      "index": 80,
+      "name": "thrust::transform_reduce",
+      "start": 1117123685,
+      "end": 1117228633,
+      "cuda_API_counts": {
+        "cuKernelGetName": 1,
+        "cudaLaunchKernel_v7000": 1,
+        "cudaStreamSynchronize_v3020": 2,
+        "cudaMemcpyAsync_v3020": 1
+      }
+    },
+    {
+      "index": 81,
+      "name": "thrust::reduce",
+      "start": 1117229044,
+      "end": 1117284934,
+      "cuda_API_counts": {
+        "cuKernelGetName": 1,
+        "cudaLaunchKernel_v7000": 1,
+        "cudaStreamSynchronize_v3020": 2,
+        "cudaMemcpyAsync_v3020": 1
+      }
+    },
+    {
+      "index": 82,
+      "name": "thrust::transform_reduce",
+      "start": 1120443346,
+      "end": 1120544360,
+      "cuda_API_counts": {
+        "cuKernelGetName": 1,
+        "cudaLaunchKernel_v7000": 1,
+        "cudaStreamSynchronize_v3020": 2,
+        "cudaMemcpyAsync_v3020": 1
+      }
+    },
+    {
+      "index": 83,
+      "name": "thrust::reduce",
+      "start": 1120544987,
+      "end": 1120605471,
+      "cuda_API_counts": {
+        "cuKernelGetName": 1,
+        "cudaLaunchKernel_v7000": 1,
+        "cudaStreamSynchronize_v3020": 2,
+        "cudaMemcpyAsync_v3020": 1
+      }
+    },
+    {
+      "index": 84,
+      "name": "thrust::transform_reduce",
+      "start": 1123733822,
+      "end": 1123820791,
+      "cuda_API_counts": {
+        "cuKernelGetName": 1,
+        "cudaLaunchKernel_v7000": 1,
+        "cudaStreamSynchronize_v3020": 2,
+        "cudaMemcpyAsync_v3020": 1
+      }
+    },
+    {
+      "index": 85,
+      "name": "thrust::reduce",
+      "start": 1123821296,
+      "end": 1123922625,
+      "cuda_API_counts": {
+        "cuKernelGetName": 1,
+        "cudaLaunchKernel_v7000": 1,
+        "cudaStreamSynchronize_v3020": 2,
+        "cudaMemcpyAsync_v3020": 1
+      }
+    },
+    {
+      "index": 86,
+      "name": "thrust::transform_reduce",
+      "start": 1127383898,
+      "end": 1127479057,
+      "cuda_API_counts": {
+        "cuKernelGetName": 1,
+        "cudaLaunchKernel_v7000": 1,
+        "cudaStreamSynchronize_v3020": 2,
+        "cudaMemcpyAsync_v3020": 1
+      }
+    },
+    {
+      "index": 87,
+      "name": "thrust::reduce",
+      "start": 1127479589,
+      "end": 1127540938,
+      "cuda_API_counts": {
+        "cuKernelGetName": 1,
+        "cudaLaunchKernel_v7000": 1,
+        "cudaStreamSynchronize_v3020": 2,
+        "cudaMemcpyAsync_v3020": 1
+      }
+    },
+    {
+      "index": 88,
+      "name": "thrust::transform_reduce",
+      "start": 1132495880,
+      "end": 1132607492,
+      "cuda_API_counts": {
+        "cuKernelGetName": 1,
+        "cudaLaunchKernel_v7000": 1,
+        "cudaStreamSynchronize_v3020": 2,
+        "cudaMemcpyAsync_v3020": 1
+      }
+    },
+    {
+      "index": 89,
+      "name": "thrust::reduce",
+      "start": 1132607932,
+      "end": 1132668266,
+      "cuda_API_counts": {
+        "cuKernelGetName": 1,
+        "cudaLaunchKernel_v7000": 1,
+        "cudaStreamSynchronize_v3020": 2,
+        "cudaMemcpyAsync_v3020": 1
+      }
+    },
+    {
+      "index": 90,
+      "name": "thrust::transform_reduce",
+      "start": 1137255271,
+      "end": 1137350945,
+      "cuda_API_counts": {
+        "cuKernelGetName": 1,
+        "cudaLaunchKernel_v7000": 1,
+        "cudaStreamSynchronize_v3020": 2,
+        "cudaMemcpyAsync_v3020": 1
+      }
+    },
+    {
+      "index": 91,
+      "name": "thrust::reduce",
+      "start": 1137351301,
+      "end": 1137405017,
+      "cuda_API_counts": {
+        "cuKernelGetName": 1,
+        "cudaLaunchKernel_v7000": 1,
+        "cudaStreamSynchronize_v3020": 2,
+        "cudaMemcpyAsync_v3020": 1
+      }
+    },
+    {
+      "index": 92,
+      "name": "thrust::transform_reduce",
+      "start": 1140641954,
+      "end": 1140761903,
+      "cuda_API_counts": {
+        "cuKernelGetName": 1,
+        "cudaLaunchKernel_v7000": 1,
+        "cudaStreamSynchronize_v3020": 2,
+        "cudaMemcpyAsync_v3020": 1
+      }
+    },
+    {
+      "index": 93,
+      "name": "thrust::reduce",
+      "start": 1140762365,
+      "end": 1140824397,
+      "cuda_API_counts": {
+        "cuKernelGetName": 1,
+        "cudaLaunchKernel_v7000": 1,
+        "cudaStreamSynchronize_v3020": 2,
+        "cudaMemcpyAsync_v3020": 1
+      }
+    },
+    {
+      "index": 94,
+      "name": "thrust::transform_reduce",
+      "start": 1144018406,
+      "end": 1144155405,
+      "cuda_API_counts": {
+        "cuKernelGetName": 1,
+        "cudaLaunchKernel_v7000": 1,
+        "cudaStreamSynchronize_v3020": 2,
+        "cudaMemcpyAsync_v3020": 1
+      }
+    },
+    {
+      "index": 95,
+      "name": "thrust::reduce",
+      "start": 1144157996,
+      "end": 1144266472,
+      "cuda_API_counts": {
+        "cuKernelGetName": 1,
+        "cudaLaunchKernel_v7000": 1,
+        "cudaStreamSynchronize_v3020": 2,
+        "cudaMemcpyAsync_v3020": 1
+      }
+    },
+    {
+      "index": 96,
+      "name": "thrust::transform_reduce",
+      "start": 1147177325,
+      "end": 1147279127,
+      "cuda_API_counts": {
+        "cuKernelGetName": 1,
+        "cudaLaunchKernel_v7000": 1,
+        "cudaStreamSynchronize_v3020": 2,
+        "cudaMemcpyAsync_v3020": 1
+      }
+    },
+    {
+      "index": 97,
+      "name": "thrust::reduce",
+      "start": 1147279640,
+      "end": 1147344506,
+      "cuda_API_counts": {
+        "cuKernelGetName": 1,
+        "cudaLaunchKernel_v7000": 1,
+        "cudaStreamSynchronize_v3020": 2,
+        "cudaMemcpyAsync_v3020": 1
+      }
+    },
+    {
+      "index": 98,
+      "name": "thrust::transform_reduce",
+      "start": 1150442808,
+      "end": 1150534190,
+      "cuda_API_counts": {
+        "cuKernelGetName": 1,
+        "cudaLaunchKernel_v7000": 1,
+        "cudaStreamSynchronize_v3020": 2,
+        "cudaMemcpyAsync_v3020": 1
+      }
+    },
+    {
+      "index": 99,
+      "name": "thrust::reduce",
+      "start": 1150534611,
+      "end": 1150587025,
+      "cuda_API_counts": {
+        "cuKernelGetName": 1,
+        "cudaLaunchKernel_v7000": 1,
+        "cudaStreamSynchronize_v3020": 2,
+        "cudaMemcpyAsync_v3020": 1
+      }
+    },
+    {
+      "index": 100,
+      "name": "thrust::transform_reduce",
+      "start": 1185415031,
+      "end": 1185517460,
+      "cuda_API_counts": {
+        "cuKernelGetName": 1,
+        "cudaLaunchKernel_v7000": 1,
+        "cudaStreamSynchronize_v3020": 2,
+        "cudaMemcpyAsync_v3020": 1
+      }
+    },
+    {
+      "index": 101,
+      "name": "thrust::reduce",
+      "start": 1185517928,
+      "end": 1185574975,
+      "cuda_API_counts": {
+        "cuKernelGetName": 1,
+        "cudaLaunchKernel_v7000": 1,
+        "cudaStreamSynchronize_v3020": 2,
+        "cudaMemcpyAsync_v3020": 1
+      }
+    },
+    {
+      "index": 102,
+      "name": "thrust::transform_reduce",
+      "start": 1188849851,
+      "end": 1188939341,
+      "cuda_API_counts": {
+        "cuKernelGetName": 1,
+        "cudaLaunchKernel_v7000": 1,
+        "cudaStreamSynchronize_v3020": 2,
+        "cudaMemcpyAsync_v3020": 1
+      }
+    },
+    {
+      "index": 103,
+      "name": "thrust::reduce",
+      "start": 1188939774,
+      "end": 1188991057,
+      "cuda_API_counts": {
+        "cuKernelGetName": 1,
+        "cudaLaunchKernel_v7000": 1,
+        "cudaStreamSynchronize_v3020": 2,
+        "cudaMemcpyAsync_v3020": 1
+      }
+    },
+    {
+      "index": 104,
+      "name": "thrust::transform_reduce",
+      "start": 1191964796,
+      "end": 1192056533,
+      "cuda_API_counts": {
+        "cuKernelGetName": 1,
+        "cudaLaunchKernel_v7000": 1,
+        "cudaStreamSynchronize_v3020": 2,
+        "cudaMemcpyAsync_v3020": 1
+      }
+    },
+    {
+      "index": 105,
+      "name": "thrust::reduce",
+      "start": 1192056936,
+      "end": 1192106818,
+      "cuda_API_counts": {
+        "cuKernelGetName": 1,
+        "cudaLaunchKernel_v7000": 1,
+        "cudaStreamSynchronize_v3020": 2,
+        "cudaMemcpyAsync_v3020": 1
+      }
+    },
+    {
+      "index": 106,
+      "name": "thrust::transform_reduce",
+      "start": 1195662590,
+      "end": 1195779117,
+      "cuda_API_counts": {
+        "cuKernelGetName": 1,
+        "cudaLaunchKernel_v7000": 1,
+        "cudaStreamSynchronize_v3020": 2,
+        "cudaMemcpyAsync_v3020": 1
+      }
+    },
+    {
+      "index": 107,
+      "name": "thrust::reduce",
+      "start": 1195779659,
+      "end": 1195839335,
+      "cuda_API_counts": {
+        "cuKernelGetName": 1,
+        "cudaLaunchKernel_v7000": 1,
+        "cudaStreamSynchronize_v3020": 2,
+        "cudaMemcpyAsync_v3020": 1
+      }
+    },
+    {
+      "index": 108,
+      "name": "thrust::transform_reduce",
+      "start": 1199579619,
+      "end": 1199704497,
+      "cuda_API_counts": {
+        "cuKernelGetName": 1,
+        "cudaLaunchKernel_v7000": 1,
+        "cudaStreamSynchronize_v3020": 2,
+        "cudaMemcpyAsync_v3020": 1
+      }
+    },
+    {
+      "index": 109,
+      "name": "thrust::reduce",
+      "start": 1199704874,
+      "end": 1199766027,
+      "cuda_API_counts": {
+        "cuKernelGetName": 1,
+        "cudaLaunchKernel_v7000": 1,
+        "cudaStreamSynchronize_v3020": 2,
+        "cudaMemcpyAsync_v3020": 1
+      }
+    },
+    {
+      "index": 110,
+      "name": "thrust::transform_reduce",
+      "start": 1202758432,
+      "end": 1202844700,
+      "cuda_API_counts": {
+        "cuKernelGetName": 1,
+        "cudaLaunchKernel_v7000": 1,
+        "cudaStreamSynchronize_v3020": 2,
+        "cudaMemcpyAsync_v3020": 1
+      }
+    },
+    {
+      "index": 111,
+      "name": "thrust::reduce",
+      "start": 1202845022,
+      "end": 1202895015,
+      "cuda_API_counts": {
+        "cuKernelGetName": 1,
+        "cudaLaunchKernel_v7000": 1,
+        "cudaStreamSynchronize_v3020": 2,
+        "cudaMemcpyAsync_v3020": 1
+      }
+    },
+    {
+      "index": 112,
+      "name": "thrust::transform_reduce",
+      "start": 1205743006,
+      "end": 1205850882,
+      "cuda_API_counts": {
+        "cuKernelGetName": 1,
+        "cudaLaunchKernel_v7000": 1,
+        "cudaStreamSynchronize_v3020": 2,
+        "cudaMemcpyAsync_v3020": 1
+      }
+    },
+    {
+      "index": 113,
+      "name": "thrust::reduce",
+      "start": 1205851229,
+      "end": 1205910810,
+      "cuda_API_counts": {
+        "cuKernelGetName": 1,
+        "cudaLaunchKernel_v7000": 1,
+        "cudaStreamSynchronize_v3020": 2,
+        "cudaMemcpyAsync_v3020": 1
+      }
+    },
+    {
+      "index": 114,
+      "name": "thrust::transform_reduce",
+      "start": 1208953376,
+      "end": 1209064654,
+      "cuda_API_counts": {
+        "cuKernelGetName": 1,
+        "cudaLaunchKernel_v7000": 1,
+        "cudaStreamSynchronize_v3020": 2,
+        "cudaMemcpyAsync_v3020": 1
+      }
+    },
+    {
+      "index": 115,
+      "name": "thrust::reduce",
+      "start": 1209065074,
+      "end": 1209120492,
+      "cuda_API_counts": {
+        "cuKernelGetName": 1,
+        "cudaLaunchKernel_v7000": 1,
+        "cudaStreamSynchronize_v3020": 2,
+        "cudaMemcpyAsync_v3020": 1
+      }
+    },
+    {
+      "index": 116,
+      "name": "thrust::transform_reduce",
+      "start": 1212014267,
+      "end": 1212143134,
+      "cuda_API_counts": {
+        "cuKernelGetName": 1,
+        "cudaLaunchKernel_v7000": 1,
+        "cudaStreamSynchronize_v3020": 2,
+        "cudaMemcpyAsync_v3020": 1
+      }
+    },
+    {
+      "index": 117,
+      "name": "thrust::reduce",
+      "start": 1212143629,
+      "end": 1212195119,
+      "cuda_API_counts": {
+        "cuKernelGetName": 1,
+        "cudaLaunchKernel_v7000": 1,
+        "cudaStreamSynchronize_v3020": 2,
+        "cudaMemcpyAsync_v3020": 1
+      }
+    },
+    {
+      "index": 118,
+      "name": "thrust::transform_reduce",
+      "start": 1214935326,
+      "end": 1215062971,
+      "cuda_API_counts": {
+        "cuKernelGetName": 1,
+        "cudaLaunchKernel_v7000": 1,
+        "cudaStreamSynchronize_v3020": 2,
+        "cudaMemcpyAsync_v3020": 1
+      }
+    },
+    {
+      "index": 119,
+      "name": "thrust::reduce",
+      "start": 1215063301,
+      "end": 1215112904,
+      "cuda_API_counts": {
+        "cuKernelGetName": 1,
+        "cudaLaunchKernel_v7000": 1,
+        "cudaStreamSynchronize_v3020": 2,
+        "cudaMemcpyAsync_v3020": 1
+      }
+    },
+    {
+      "index": 120,
+      "name": "thrust::transform_reduce",
+      "start": 1218023808,
+      "end": 1218102964,
+      "cuda_API_counts": {
+        "cuKernelGetName": 1,
+        "cudaLaunchKernel_v7000": 1,
+        "cudaStreamSynchronize_v3020": 2,
+        "cudaMemcpyAsync_v3020": 1
+      }
+    },
+    {
+      "index": 121,
+      "name": "thrust::reduce",
+      "start": 1218103303,
+      "end": 1218201654,
+      "cuda_API_counts": {
+        "cuKernelGetName": 1,
+        "cudaLaunchKernel_v7000": 1,
+        "cudaStreamSynchronize_v3020": 2,
+        "cudaMemcpyAsync_v3020": 1
+      }
+    },
+    {
+      "index": 122,
+      "name": "thrust::transform_reduce",
+      "start": 1221637936,
+      "end": 1221735795,
+      "cuda_API_counts": {
+        "cuKernelGetName": 1,
+        "cudaLaunchKernel_v7000": 1,
+        "cudaStreamSynchronize_v3020": 2,
+        "cudaMemcpyAsync_v3020": 1
+      }
+    },
+    {
+      "index": 123,
+      "name": "thrust::reduce",
+      "start": 1221736392,
+      "end": 1221797473,
+      "cuda_API_counts": {
+        "cuKernelGetName": 1,
+        "cudaLaunchKernel_v7000": 1,
+        "cudaStreamSynchronize_v3020": 2,
+        "cudaMemcpyAsync_v3020": 1
+      }
+    },
+    {
+      "index": 124,
+      "name": "thrust::transform_reduce",
+      "start": 1224869996,
+      "end": 1225025816,
+      "cuda_API_counts": {
+        "cuKernelGetName": 1,
+        "cudaLaunchKernel_v7000": 1,
+        "cudaStreamSynchronize_v3020": 2,
+        "cudaMemcpyAsync_v3020": 1
+      }
+    },
+    {
+      "index": 125,
+      "name": "thrust::reduce",
+      "start": 1225026543,
+      "end": 1225087756,
+      "cuda_API_counts": {
+        "cuKernelGetName": 1,
+        "cudaLaunchKernel_v7000": 1,
+        "cudaStreamSynchronize_v3020": 2,
+        "cudaMemcpyAsync_v3020": 1
+      }
+    },
+    {
+      "index": 126,
+      "name": "thrust::transform_reduce",
+      "start": 1228555624,
+      "end": 1228645845,
+      "cuda_API_counts": {
+        "cuKernelGetName": 1,
+        "cudaLaunchKernel_v7000": 1,
+        "cudaStreamSynchronize_v3020": 2,
+        "cudaMemcpyAsync_v3020": 1
+      }
+    },
+    {
+      "index": 127,
+      "name": "thrust::reduce",
+      "start": 1228646181,
+      "end": 1228698702,
+      "cuda_API_counts": {
+        "cuKernelGetName": 1,
+        "cudaLaunchKernel_v7000": 1,
+        "cudaStreamSynchronize_v3020": 2,
+        "cudaMemcpyAsync_v3020": 1
+      }
+    },
+    {
+      "index": 128,
+      "name": "thrust::transform_reduce",
+      "start": 1231560291,
+      "end": 1231680072,
+      "cuda_API_counts": {
+        "cuKernelGetName": 1,
+        "cudaLaunchKernel_v7000": 1,
+        "cudaStreamSynchronize_v3020": 2,
+        "cudaMemcpyAsync_v3020": 1
+      }
+    },
+    {
+      "index": 129,
+      "name": "thrust::reduce",
+      "start": 1231680921,
+      "end": 1231748015,
+      "cuda_API_counts": {
+        "cuKernelGetName": 1,
+        "cudaLaunchKernel_v7000": 1,
+        "cudaStreamSynchronize_v3020": 2,
+        "cudaMemcpyAsync_v3020": 1
+      }
+    },
+    {
+      "index": 130,
+      "name": "thrust::transform_reduce",
+      "start": 1235318534,
+      "end": 1235397201,
+      "cuda_API_counts": {
+        "cuKernelGetName": 1,
+        "cudaLaunchKernel_v7000": 1,
+        "cudaStreamSynchronize_v3020": 2,
+        "cudaMemcpyAsync_v3020": 1
+      }
+    },
+    {
+      "index": 131,
+      "name": "thrust::reduce",
+      "start": 1235397647,
+      "end": 1235451512,
+      "cuda_API_counts": {
+        "cuKernelGetName": 1,
+        "cudaLaunchKernel_v7000": 1,
+        "cudaStreamSynchronize_v3020": 2,
+        "cudaMemcpyAsync_v3020": 1
+      }
+    },
+    {
+      "index": 132,
+      "name": "thrust::transform_reduce",
+      "start": 1238497976,
+      "end": 1238599989,
+      "cuda_API_counts": {
+        "cuKernelGetName": 1,
+        "cudaLaunchKernel_v7000": 1,
+        "cudaStreamSynchronize_v3020": 2,
+        "cudaMemcpyAsync_v3020": 1
+      }
+    },
+    {
+      "index": 133,
+      "name": "thrust::reduce",
+      "start": 1238600331,
+      "end": 1238651367,
+      "cuda_API_counts": {
+        "cuKernelGetName": 1,
+        "cudaLaunchKernel_v7000": 1,
+        "cudaStreamSynchronize_v3020": 2,
+        "cudaMemcpyAsync_v3020": 1
+      }
+    },
+    {
+      "index": 134,
+      "name": "thrust::transform_reduce",
+      "start": 1241715031,
+      "end": 1241809665,
+      "cuda_API_counts": {
+        "cuKernelGetName": 1,
+        "cudaLaunchKernel_v7000": 1,
+        "cudaStreamSynchronize_v3020": 2,
+        "cudaMemcpyAsync_v3020": 1
+      }
+    },
+    {
+      "index": 135,
+      "name": "thrust::reduce",
+      "start": 1241810155,
+      "end": 1241878207,
+      "cuda_API_counts": {
+        "cuKernelGetName": 1,
+        "cudaLaunchKernel_v7000": 1,
+        "cudaStreamSynchronize_v3020": 2,
+        "cudaMemcpyAsync_v3020": 1
+      }
+    },
+    {
+      "index": 136,
+      "name": "thrust::transform_reduce",
+      "start": 1244689789,
+      "end": 1244867247,
+      "cuda_API_counts": {
+        "cuKernelGetName": 1,
+        "cudaLaunchKernel_v7000": 1,
+        "cudaStreamSynchronize_v3020": 2,
+        "cudaMemcpyAsync_v3020": 1
+      }
+    },
+    {
+      "index": 137,
+      "name": "thrust::reduce",
+      "start": 1244868285,
+      "end": 1244944265,
+      "cuda_API_counts": {
+        "cuKernelGetName": 1,
+        "cudaLaunchKernel_v7000": 1,
+        "cudaStreamSynchronize_v3020": 2,
+        "cudaMemcpyAsync_v3020": 1
+      }
+    },
+    {
+      "index": 138,
+      "name": "thrust::transform_reduce",
+      "start": 1248111422,
+      "end": 1248192382,
+      "cuda_API_counts": {
+        "cuKernelGetName": 1,
+        "cudaLaunchKernel_v7000": 1,
+        "cudaStreamSynchronize_v3020": 2,
+        "cudaMemcpyAsync_v3020": 1
+      }
+    },
+    {
+      "index": 139,
+      "name": "thrust::reduce",
+      "start": 1248192805,
+      "end": 1248249276,
+      "cuda_API_counts": {
+        "cuKernelGetName": 1,
+        "cudaLaunchKernel_v7000": 1,
+        "cudaStreamSynchronize_v3020": 2,
+        "cudaMemcpyAsync_v3020": 1
+      }
+    },
+    {
+      "index": 140,
+      "name": "thrust::transform_reduce",
+      "start": 1251324474,
+      "end": 1251421659,
+      "cuda_API_counts": {
+        "cuKernelGetName": 1,
+        "cudaLaunchKernel_v7000": 1,
+        "cudaStreamSynchronize_v3020": 2,
+        "cudaMemcpyAsync_v3020": 1
+      }
+    },
+    {
+      "index": 141,
+      "name": "thrust::reduce",
+      "start": 1251422042,
+      "end": 1251474863,
+      "cuda_API_counts": {
+        "cuKernelGetName": 1,
+        "cudaLaunchKernel_v7000": 1,
+        "cudaStreamSynchronize_v3020": 2,
+        "cudaMemcpyAsync_v3020": 1
+      }
+    },
+    {
+      "index": 142,
+      "name": "thrust::transform_reduce",
+      "start": 1254725571,
+      "end": 1254837909,
+      "cuda_API_counts": {
+        "cuKernelGetName": 1,
+        "cudaLaunchKernel_v7000": 1,
+        "cudaStreamSynchronize_v3020": 2,
+        "cudaMemcpyAsync_v3020": 1
+      }
+    },
+    {
+      "index": 143,
+      "name": "thrust::reduce",
+      "start": 1254838347,
+      "end": 1254898566,
+      "cuda_API_counts": {
+        "cuKernelGetName": 1,
+        "cudaLaunchKernel_v7000": 1,
+        "cudaStreamSynchronize_v3020": 2,
+        "cudaMemcpyAsync_v3020": 1
+      }
+    },
+    {
+      "index": 144,
+      "name": "thrust::transform_reduce",
+      "start": 1258210138,
+      "end": 1258309855,
+      "cuda_API_counts": {
+        "cuKernelGetName": 1,
+        "cudaLaunchKernel_v7000": 1,
+        "cudaStreamSynchronize_v3020": 2,
+        "cudaMemcpyAsync_v3020": 1
+      }
+    },
+    {
+      "index": 145,
+      "name": "thrust::reduce",
+      "start": 1258310342,
+      "end": 1258366698,
+      "cuda_API_counts": {
+        "cuKernelGetName": 1,
+        "cudaLaunchKernel_v7000": 1,
+        "cudaStreamSynchronize_v3020": 2,
+        "cudaMemcpyAsync_v3020": 1
+      }
+    },
+    {
+      "index": 146,
+      "name": "thrust::transform_reduce",
+      "start": 1261779903,
+      "end": 1261899022,
+      "cuda_API_counts": {
+        "cuKernelGetName": 1,
+        "cudaLaunchKernel_v7000": 1,
+        "cudaStreamSynchronize_v3020": 2,
+        "cudaMemcpyAsync_v3020": 1
+      }
+    },
+    {
+      "index": 147,
+      "name": "thrust::reduce",
+      "start": 1261899539,
+      "end": 1261958424,
+      "cuda_API_counts": {
+        "cuKernelGetName": 1,
+        "cudaLaunchKernel_v7000": 1,
+        "cudaStreamSynchronize_v3020": 2,
+        "cudaMemcpyAsync_v3020": 1
+      }
+    },
+    {
+      "index": 148,
+      "name": "thrust::transform_reduce",
+      "start": 1265382957,
+      "end": 1265461068,
+      "cuda_API_counts": {
+        "cuKernelGetName": 1,
+        "cudaLaunchKernel_v7000": 1,
+        "cudaStreamSynchronize_v3020": 2,
+        "cudaMemcpyAsync_v3020": 1
+      }
+    },
+    {
+      "index": 149,
+      "name": "thrust::reduce",
+      "start": 1265461525,
+      "end": 1265527657,
+      "cuda_API_counts": {
+        "cuKernelGetName": 1,
+        "cudaLaunchKernel_v7000": 1,
+        "cudaStreamSynchronize_v3020": 2,
+        "cudaMemcpyAsync_v3020": 1
+      }
+    },
+    {
+      "index": 150,
+      "name": "thrust::transform_reduce",
+      "start": 1268424676,
+      "end": 1268584779,
+      "cuda_API_counts": {
+        "cuKernelGetName": 1,
+        "cudaLaunchKernel_v7000": 1,
+        "cudaStreamSynchronize_v3020": 2,
+        "cudaMemcpyAsync_v3020": 1
+      }
+    },
+    {
+      "index": 151,
+      "name": "thrust::reduce",
+      "start": 1268585738,
+      "end": 1268665462,
+      "cuda_API_counts": {
+        "cuKernelGetName": 1,
+        "cudaLaunchKernel_v7000": 1,
+        "cudaStreamSynchronize_v3020": 2,
+        "cudaMemcpyAsync_v3020": 1
+      }
+    },
+    {
+      "index": 152,
+      "name": "thrust::transform_reduce",
+      "start": 1271587785,
+      "end": 1271719070,
+      "cuda_API_counts": {
+        "cuKernelGetName": 1,
+        "cudaLaunchKernel_v7000": 1,
+        "cudaStreamSynchronize_v3020": 2,
+        "cudaMemcpyAsync_v3020": 1
+      }
+    },
+    {
+      "index": 153,
+      "name": "thrust::reduce",
+      "start": 1271719503,
+      "end": 1271770250,
+      "cuda_API_counts": {
+        "cuKernelGetName": 1,
+        "cudaLaunchKernel_v7000": 1,
+        "cudaStreamSynchronize_v3020": 2,
+        "cudaMemcpyAsync_v3020": 1
+      }
+    },
+    {
+      "index": 154,
+      "name": "thrust::transform_reduce",
+      "start": 1274944877,
+      "end": 1275063617,
+      "cuda_API_counts": {
+        "cuKernelGetName": 1,
+        "cudaLaunchKernel_v7000": 1,
+        "cudaStreamSynchronize_v3020": 2,
+        "cudaMemcpyAsync_v3020": 1
+      }
+    },
+    {
+      "index": 155,
+      "name": "thrust::reduce",
+      "start": 1275064029,
+      "end": 1275125410,
+      "cuda_API_counts": {
+        "cuKernelGetName": 1,
+        "cudaLaunchKernel_v7000": 1,
+        "cudaStreamSynchronize_v3020": 2,
+        "cudaMemcpyAsync_v3020": 1
+      }
+    },
+    {
+      "index": 156,
+      "name": "thrust::transform_reduce",
+      "start": 1278320947,
+      "end": 1278427354,
+      "cuda_API_counts": {
+        "cuKernelGetName": 1,
+        "cudaLaunchKernel_v7000": 1,
+        "cudaStreamSynchronize_v3020": 2,
+        "cudaMemcpyAsync_v3020": 1
+      }
+    },
+    {
+      "index": 157,
+      "name": "thrust::reduce",
+      "start": 1278427815,
+      "end": 1278479822,
+      "cuda_API_counts": {
+        "cuKernelGetName": 1,
+        "cudaLaunchKernel_v7000": 1,
+        "cudaStreamSynchronize_v3020": 2,
+        "cudaMemcpyAsync_v3020": 1
+      }
+    },
+    {
+      "index": 158,
+      "name": "thrust::transform_reduce",
+      "start": 1281384586,
+      "end": 1281466917,
+      "cuda_API_counts": {
+        "cuKernelGetName": 1,
+        "cudaLaunchKernel_v7000": 1,
+        "cudaStreamSynchronize_v3020": 2,
+        "cudaMemcpyAsync_v3020": 1
+      }
+    },
+    {
+      "index": 159,
+      "name": "thrust::reduce",
+      "start": 1281467363,
+      "end": 1281521261,
+      "cuda_API_counts": {
+        "cuKernelGetName": 1,
+        "cudaLaunchKernel_v7000": 1,
+        "cudaStreamSynchronize_v3020": 2,
+        "cudaMemcpyAsync_v3020": 1
+      }
+    },
+    {
+      "index": 160,
+      "name": "thrust::transform_reduce",
+      "start": 1284286307,
+      "end": 1284409875,
+      "cuda_API_counts": {
+        "cuKernelGetName": 1,
+        "cudaLaunchKernel_v7000": 1,
+        "cudaStreamSynchronize_v3020": 2,
+        "cudaMemcpyAsync_v3020": 1
+      }
+    },
+    {
+      "index": 161,
+      "name": "thrust::reduce",
+      "start": 1284410254,
+      "end": 1284459162,
+      "cuda_API_counts": {
+        "cuKernelGetName": 1,
+        "cudaLaunchKernel_v7000": 1,
+        "cudaStreamSynchronize_v3020": 2,
+        "cudaMemcpyAsync_v3020": 1
+      }
+    },
+    {
+      "index": 162,
+      "name": "thrust::transform_reduce",
+      "start": 1287400812,
+      "end": 1287487243,
+      "cuda_API_counts": {
+        "cuKernelGetName": 1,
+        "cudaLaunchKernel_v7000": 1,
+        "cudaStreamSynchronize_v3020": 2,
+        "cudaMemcpyAsync_v3020": 1
+      }
+    },
+    {
+      "index": 163,
+      "name": "thrust::reduce",
+      "start": 1287487564,
+      "end": 1287537935,
+      "cuda_API_counts": {
+        "cuKernelGetName": 1,
+        "cudaLaunchKernel_v7000": 1,
+        "cudaStreamSynchronize_v3020": 2,
+        "cudaMemcpyAsync_v3020": 1
+      }
+    },
+    {
+      "index": 164,
+      "name": "thrust::transform_reduce",
+      "start": 1290400625,
+      "end": 1290497632,
+      "cuda_API_counts": {
+        "cuKernelGetName": 1,
+        "cudaLaunchKernel_v7000": 1,
+        "cudaStreamSynchronize_v3020": 2,
+        "cudaMemcpyAsync_v3020": 1
+      }
+    },
+    {
+      "index": 165,
+      "name": "thrust::reduce",
+      "start": 1290497980,
+      "end": 1290548781,
+      "cuda_API_counts": {
+        "cuKernelGetName": 1,
+        "cudaLaunchKernel_v7000": 1,
+        "cudaStreamSynchronize_v3020": 2,
+        "cudaMemcpyAsync_v3020": 1
+      }
+    },
+    {
+      "index": 166,
+      "name": "thrust::transform_reduce",
+      "start": 1293900939,
+      "end": 1293962537,
+      "cuda_API_counts": {
+        "cuKernelGetName": 1,
+        "cudaLaunchKernel_v7000": 1,
+        "cudaStreamSynchronize_v3020": 2,
+        "cudaMemcpyAsync_v3020": 1
+      }
+    },
+    {
+      "index": 167,
+      "name": "thrust::reduce",
+      "start": 1293963028,
+      "end": 1294016695,
+      "cuda_API_counts": {
+        "cuKernelGetName": 1,
+        "cudaLaunchKernel_v7000": 1,
+        "cudaStreamSynchronize_v3020": 2,
+        "cudaMemcpyAsync_v3020": 1
+      }
+    },
+    {
+      "index": 168,
+      "name": "thrust::transform_reduce",
+      "start": 1296801574,
+      "end": 1296921770,
+      "cuda_API_counts": {
+        "cuKernelGetName": 1,
+        "cudaLaunchKernel_v7000": 1,
+        "cudaStreamSynchronize_v3020": 2,
+        "cudaMemcpyAsync_v3020": 1
+      }
+    },
+    {
+      "index": 169,
+      "name": "thrust::reduce",
+      "start": 1296922095,
+      "end": 1296971777,
+      "cuda_API_counts": {
+        "cuKernelGetName": 1,
+        "cudaLaunchKernel_v7000": 1,
+        "cudaStreamSynchronize_v3020": 2,
+        "cudaMemcpyAsync_v3020": 1
+      }
+    },
+    {
+      "index": 170,
+      "name": "thrust::transform_reduce",
+      "start": 1299829713,
+      "end": 1299922394,
+      "cuda_API_counts": {
+        "cuKernelGetName": 1,
+        "cudaLaunchKernel_v7000": 1,
+        "cudaStreamSynchronize_v3020": 2,
+        "cudaMemcpyAsync_v3020": 1
+      }
+    },
+    {
+      "index": 171,
+      "name": "thrust::reduce",
+      "start": 1299922724,
+      "end": 1299969580,
+      "cuda_API_counts": {
+        "cuKernelGetName": 1,
+        "cudaLaunchKernel_v7000": 1,
+        "cudaStreamSynchronize_v3020": 2,
+        "cudaMemcpyAsync_v3020": 1
+      }
+    },
+    {
+      "index": 172,
+      "name": "thrust::transform_reduce",
+      "start": 1302851498,
+      "end": 1302977659,
+      "cuda_API_counts": {
+        "cuKernelGetName": 1,
+        "cudaLaunchKernel_v7000": 1,
+        "cudaStreamSynchronize_v3020": 2,
+        "cudaMemcpyAsync_v3020": 1
+      }
+    },
+    {
+      "index": 173,
+      "name": "thrust::reduce",
+      "start": 1302977998,
+      "end": 1303027389,
+      "cuda_API_counts": {
+        "cuKernelGetName": 1,
+        "cudaLaunchKernel_v7000": 1,
+        "cudaStreamSynchronize_v3020": 2,
+        "cudaMemcpyAsync_v3020": 1
+      }
+    },
+    {
+      "index": 174,
+      "name": "thrust::transform_reduce",
+      "start": 1306222800,
+      "end": 1306331198,
+      "cuda_API_counts": {
+        "cuKernelGetName": 1,
+        "cudaLaunchKernel_v7000": 1,
+        "cudaStreamSynchronize_v3020": 2,
+        "cudaMemcpyAsync_v3020": 1
+      }
+    },
+    {
+      "index": 175,
+      "name": "thrust::reduce",
+      "start": 1306331560,
+      "end": 1306388469,
+      "cuda_API_counts": {
+        "cuKernelGetName": 1,
+        "cudaLaunchKernel_v7000": 1,
+        "cudaStreamSynchronize_v3020": 2,
+        "cudaMemcpyAsync_v3020": 1
+      }
+    },
+    {
+      "index": 176,
+      "name": "thrust::transform_reduce",
+      "start": 1309622894,
+      "end": 1309739647,
+      "cuda_API_counts": {
+        "cuKernelGetName": 1,
+        "cudaLaunchKernel_v7000": 1,
+        "cudaStreamSynchronize_v3020": 2,
+        "cudaMemcpyAsync_v3020": 1
+      }
+    },
+    {
+      "index": 177,
+      "name": "thrust::reduce",
+      "start": 1309740250,
+      "end": 1309795987,
+      "cuda_API_counts": {
+        "cuKernelGetName": 1,
+        "cudaLaunchKernel_v7000": 1,
+        "cudaStreamSynchronize_v3020": 2,
+        "cudaMemcpyAsync_v3020": 1
+      }
+    },
+    {
+      "index": 178,
+      "name": "thrust::transform_reduce",
+      "start": 1312856725,
+      "end": 1312977216,
+      "cuda_API_counts": {
+        "cuKernelGetName": 1,
+        "cudaLaunchKernel_v7000": 1,
+        "cudaStreamSynchronize_v3020": 2,
+        "cudaMemcpyAsync_v3020": 1
+      }
+    },
+    {
+      "index": 179,
+      "name": "thrust::reduce",
+      "start": 1312977587,
+      "end": 1313041054,
+      "cuda_API_counts": {
+        "cuKernelGetName": 1,
+        "cudaLaunchKernel_v7000": 1,
+        "cudaStreamSynchronize_v3020": 2,
+        "cudaMemcpyAsync_v3020": 1
+      }
+    },
+    {
+      "index": 180,
+      "name": "thrust::transform_reduce",
+      "start": 1317123018,
+      "end": 1317203201,
+      "cuda_API_counts": {
+        "cuKernelGetName": 1,
+        "cudaLaunchKernel_v7000": 1,
+        "cudaStreamSynchronize_v3020": 2,
+        "cudaMemcpyAsync_v3020": 1
+      }
+    },
+    {
+      "index": 181,
+      "name": "thrust::reduce",
+      "start": 1317203679,
+      "end": 1317261812,
+      "cuda_API_counts": {
+        "cuKernelGetName": 1,
+        "cudaLaunchKernel_v7000": 1,
+        "cudaStreamSynchronize_v3020": 2,
+        "cudaMemcpyAsync_v3020": 1
+      }
+    },
+    {
+      "index": 182,
+      "name": "thrust::transform_reduce",
+      "start": 1320763415,
+      "end": 1320938524,
+      "cuda_API_counts": {
+        "cuKernelGetName": 1,
+        "cudaLaunchKernel_v7000": 1,
+        "cudaStreamSynchronize_v3020": 2,
+        "cudaMemcpyAsync_v3020": 1
+      }
+    },
+    {
+      "index": 183,
+      "name": "thrust::reduce",
+      "start": 1320939136,
+      "end": 1320998143,
+      "cuda_API_counts": {
+        "cuKernelGetName": 1,
+        "cudaLaunchKernel_v7000": 1,
+        "cudaStreamSynchronize_v3020": 2,
+        "cudaMemcpyAsync_v3020": 1
+      }
+    },
+    {
+      "index": 184,
+      "name": "thrust::transform_reduce",
+      "start": 1324475616,
+      "end": 1324565618,
+      "cuda_API_counts": {
+        "cuKernelGetName": 1,
+        "cudaLaunchKernel_v7000": 1,
+        "cudaStreamSynchronize_v3020": 2,
+        "cudaMemcpyAsync_v3020": 1
+      }
+    },
+    {
+      "index": 185,
+      "name": "thrust::reduce",
+      "start": 1324566021,
+      "end": 1324619124,
+      "cuda_API_counts": {
+        "cuKernelGetName": 1,
+        "cudaLaunchKernel_v7000": 1,
+        "cudaStreamSynchronize_v3020": 2,
+        "cudaMemcpyAsync_v3020": 1
+      }
+    },
+    {
+      "index": 186,
+      "name": "thrust::transform_reduce",
+      "start": 1328562803,
+      "end": 1328639833,
+      "cuda_API_counts": {
+        "cuKernelGetName": 1,
+        "cudaLaunchKernel_v7000": 1,
+        "cudaStreamSynchronize_v3020": 2,
+        "cudaMemcpyAsync_v3020": 1
+      }
+    },
+    {
+      "index": 187,
+      "name": "thrust::reduce",
+      "start": 1328640449,
+      "end": 1328712529,
+      "cuda_API_counts": {
+        "cuKernelGetName": 1,
+        "cudaLaunchKernel_v7000": 1,
+        "cudaStreamSynchronize_v3020": 2,
+        "cudaMemcpyAsync_v3020": 1
+      }
+    },
+    {
+      "index": 188,
+      "name": "thrust::transform_reduce",
+      "start": 1332734083,
+      "end": 1332886425,
+      "cuda_API_counts": {
+        "cuKernelGetName": 1,
+        "cudaLaunchKernel_v7000": 1,
+        "cudaStreamSynchronize_v3020": 2,
+        "cudaMemcpyAsync_v3020": 1
+      }
+    },
+    {
+      "index": 189,
+      "name": "thrust::reduce",
+      "start": 1332886976,
+      "end": 1332957399,
+      "cuda_API_counts": {
+        "cuKernelGetName": 1,
+        "cudaLaunchKernel_v7000": 1,
+        "cudaStreamSynchronize_v3020": 2,
+        "cudaMemcpyAsync_v3020": 1
+      }
+    },
+    {
+      "index": 190,
+      "name": "thrust::transform_reduce",
+      "start": 1337310016,
+      "end": 1337418429,
+      "cuda_API_counts": {
+        "cuKernelGetName": 1,
+        "cudaLaunchKernel_v7000": 1,
+        "cudaStreamSynchronize_v3020": 2,
+        "cudaMemcpyAsync_v3020": 1
+      }
+    },
+    {
+      "index": 191,
+      "name": "thrust::reduce",
+      "start": 1337418968,
+      "end": 1337475119,
+      "cuda_API_counts": {
+        "cuKernelGetName": 1,
+        "cudaLaunchKernel_v7000": 1,
+        "cudaStreamSynchronize_v3020": 2,
+        "cudaMemcpyAsync_v3020": 1
+      }
+    },
+    {
+      "index": 192,
+      "name": "thrust::transform_reduce",
+      "start": 1341383300,
+      "end": 1341598543,
+      "cuda_API_counts": {
+        "cuKernelGetName": 1,
+        "cudaLaunchKernel_v7000": 1,
+        "cudaStreamSynchronize_v3020": 2,
+        "cudaMemcpyAsync_v3020": 1
+      }
+    },
+    {
+      "index": 193,
+      "name": "thrust::reduce",
+      "start": 1341599136,
+      "end": 1341656156,
+      "cuda_API_counts": {
+        "cuKernelGetName": 1,
+        "cudaLaunchKernel_v7000": 1,
+        "cudaStreamSynchronize_v3020": 2,
+        "cudaMemcpyAsync_v3020": 1
+      }
+    },
+    {
+      "index": 194,
+      "name": "thrust::transform_reduce",
+      "start": 1345031600,
+      "end": 1345107962,
+      "cuda_API_counts": {
+        "cuKernelGetName": 1,
+        "cudaLaunchKernel_v7000": 1,
+        "cudaStreamSynchronize_v3020": 2,
+        "cudaMemcpyAsync_v3020": 1
+      }
+    },
+    {
+      "index": 195,
+      "name": "thrust::reduce",
+      "start": 1345108423,
+      "end": 1345163948,
+      "cuda_API_counts": {
+        "cuKernelGetName": 1,
+        "cudaLaunchKernel_v7000": 1,
+        "cudaStreamSynchronize_v3020": 2,
+        "cudaMemcpyAsync_v3020": 1
+      }
+    },
+    {
+      "index": 196,
+      "name": "thrust::transform_reduce",
+      "start": 1348203110,
+      "end": 1348292563,
+      "cuda_API_counts": {
+        "cuKernelGetName": 1,
+        "cudaLaunchKernel_v7000": 1,
+        "cudaStreamSynchronize_v3020": 2,
+        "cudaMemcpyAsync_v3020": 1
+      }
+    },
+    {
+      "index": 197,
+      "name": "thrust::reduce",
+      "start": 1348292954,
+      "end": 1348346913,
+      "cuda_API_counts": {
+        "cuKernelGetName": 1,
+        "cudaLaunchKernel_v7000": 1,
+        "cudaStreamSynchronize_v3020": 2,
+        "cudaMemcpyAsync_v3020": 1
+      }
+    },
+    {
+      "index": 198,
+      "name": "thrust::transform_reduce",
+      "start": 1351365361,
+      "end": 1351456844,
+      "cuda_API_counts": {
+        "cuKernelGetName": 1,
+        "cudaLaunchKernel_v7000": 1,
+        "cudaStreamSynchronize_v3020": 2,
+        "cudaMemcpyAsync_v3020": 1
+      }
+    },
+    {
+      "index": 199,
+      "name": "thrust::reduce",
+      "start": 1351457212,
+      "end": 1351516611,
+      "cuda_API_counts": {
+        "cuKernelGetName": 1,
+        "cudaLaunchKernel_v7000": 1,
+        "cudaStreamSynchronize_v3020": 2,
+        "cudaMemcpyAsync_v3020": 1
+      }
+    }
+  ],
+  "Co_warm_first_pair": [
+    {
+      "index": 0,
+      "name": "thrust::transform_reduce",
+      "start": 945594933,
+      "end": 947106801,
+      "cuda_API_counts": {
+        "cudaMalloc_v3020": 1,
+        "cuLibraryGetKernel": 1,
+        "cuKernelGetName": 1,
+        "cudaLaunchKernel_v7000": 1,
+        "cudaStreamSynchronize_v3020": 2,
+        "cudaMemcpyAsync_v3020": 1
+      }
+    },
+    {
+      "index": 1,
+      "name": "thrust::reduce",
+      "start": 947128903,
+      "end": 947319336,
+      "cuda_API_counts": {
+        "cuLibraryGetKernel": 1,
+        "cuKernelGetName": 1,
+        "cudaLaunchKernel_v7000": 1,
+        "cudaStreamSynchronize_v3020": 2,
+        "cudaMemcpyAsync_v3020": 1
+      }
+    }
+  ],
+  "Co_stable_remaining_API_counts": {
+    "cuKernelGetName": 198,
+    "cudaLaunchKernel_v7000": 198,
+    "cudaStreamSynchronize_v3020": 396,
+    "cudaMemcpyAsync_v3020": 198
+  },
+  "tracked_peak_cudaMalloc_live_bytes": 22281,
+  "tracked_final_live_bytes": 0,
+  "all_memory_operations_resolved": false,
+  "scope": "Actualmemorysize/scope from CUDA_API correlation/NVTX only. Firstpair is initialCo scratch allocation warmup; stable means remaining same8cell thermal scale. Alloriginal kernels remain. Retainedscratch freed atBackenddestruction; no fullGPUpeakclaim."
+}

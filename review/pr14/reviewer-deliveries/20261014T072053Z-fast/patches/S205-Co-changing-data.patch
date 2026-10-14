@@ -1,0 +1,33 @@
+--- a/fixtures/courant_reduction.cu
++++ b/fixtures/courant_fresh_data.cu
+@@ -74,6 +74,22 @@
+     }
+     check(cudaFree(deviceStatus));check(cudaFree(field));
+ }
++
++void freshData(CoupledCourantStorage& storage,int count,int round,cudaStream_t stream){
++ std::vector<double> h(count);std::vector<int> st(count);
++ for(int i=0;i<count;++i){h[i]=double((i*(round+3)+round*13)%109)-77.-double(round)/8;st[i]=(i+round)%19==0?int(ugkwp::GasTransportCode::InvalidStorage):0;}
++ if(count && round%7==0){std::uint64_t nan=0x7ff8000000000000ULL+round;std::memcpy(&h[count/2],&nan,8);}
++ double*f=nullptr;int*s=nullptr;check(cudaMalloc(&f,std::max(count,1)*sizeof(double)));check(cudaMalloc(&s,std::max(count,1)*sizeof(int)));
++ if(count){check(cudaMemcpyAsync(f,h.data(),count*8,cudaMemcpyHostToDevice,stream));check(cudaMemcpyAsync(s,st.data(),count*4,cudaMemcpyHostToDevice,stream));}
++ auto first=thrust::make_counting_iterator(0);CoupledCourantValue init{-std::numeric_limits<double>::infinity(),false};
++ auto expected=thrust::transform_reduce(thrust::cuda::par.on(stream),first,first+count,CoupledCourantRead{f,s},init,CoupledCourantReduce{});
++ auto actual=thrust::transform_reduce(thrust::cuda::par(storage).on(stream),first,first+count,CoupledCourantRead{f,s},init,CoupledCourantReduce{});
++ sameBits(actual.value,expected.value);assert(actual.unavailable==expected.unavailable);for(auto b:actual.initializedTail)assert(b==0);
++ auto expectedScalar=thrust::reduce(thrust::cuda::par.on(stream),thrust::device_pointer_cast(f),thrust::device_pointer_cast(f)+count,init.value,CoupledCourantMaximum{});
++ auto scalar=thrust::reduce(thrust::cuda::par(storage).on(stream),thrust::device_pointer_cast(f),thrust::device_pointer_cast(f)+count,init.value,CoupledCourantMaximum{});sameBits(scalar,expectedScalar);
++ check(cudaFree(s));check(cudaFree(f));
++ std::printf("FRESH_DATA n=%d round=%d result=%a unavailable=%d\n",count,round,actual.value,int(actual.unavailable));
++}
+ int main(){
+     int devices=0;check(cudaGetDeviceCount(&devices));assert(devices>0);
+     {
+@@ -91,6 +107,7 @@
+     cudaStream_t stream=nullptr;check(cudaStreamCreateWithFlags(&stream,cudaStreamNonBlocking));
+     for(auto selected:{cudaStream_t{},stream})for(int count:{0,1,31,32,33,513,32768})
+         for(int variant:{0,1,2})runCase(count,variant,selected);
++    { CoupledCourantStorage owner,other; int round=0; for(int n:{1,32,513,32768,513,1,0})for(int repeat=0;repeat<12;++repeat){freshData(owner,n,round++,stream);freshData(other,n,round++,nullptr);} }
+     check(cudaStreamDestroy(stream));
+     std::puts("CUDA Courant reuse/equivalence PASS");
+ }

@@ -1,0 +1,398 @@
+{
+  "source": "4b5c480b572f234ddecf5e89164fe59b0d2e9735",
+  "checks": [
+    {
+      "checkpoint": 1,
+      "time": 0.0005,
+      "global_mass_residual": "-3.3306690738754696212708950042724609375000E-15",
+      "global_physical_energy_residual_J": "6.5483618527650833129882812500E-9",
+      "global_pass": true,
+      "actual_perrecipient_packets": [
+        {
+          "participant": 0,
+          "mass_residual": "0",
+          "energy_residual_J": "1.9732479539236180698935640975832939147949218750E-16",
+          "momentum_residual": [
+            "-8.437694987151189707219600677490234375000E-15",
+            "0E-94",
+            "-1E-94"
+          ],
+          "species_residual": [
+            "0",
+            "0"
+          ],
+          "pass": true
+        },
+        {
+          "participant": 1,
+          "mass_residual": "0",
+          "energy_residual_J": "-1.4181364416110397996817482635378837585449218750E-16",
+          "momentum_residual": [
+            "-1.9984014443252817727625370025634765625000E-14",
+            "0E-94",
+            "1E-94"
+          ],
+          "species_residual": [
+            "0",
+            "0"
+          ],
+          "pass": true
+        },
+        {
+          "participant": 2,
+          "mass_residual": "0",
+          "energy_residual_J": "0",
+          "momentum_residual": [
+            "0",
+            "0",
+            "0"
+          ],
+          "species_residual": [
+            "0",
+            "0"
+          ],
+          "pass": true
+        },
+        {
+          "participant": 3,
+          "mass_residual": "0",
+          "energy_residual_J": "0",
+          "momentum_residual": [
+            "0",
+            "0",
+            "0"
+          ],
+          "species_residual": [
+            "0",
+            "0"
+          ],
+          "pass": true
+        }
+      ],
+      "all_paired_participants_pass": true,
+      "SST": [
+        {
+          "variable": "K",
+          "initial": "0.1000000000000000055511151231257827021181583404541015625000",
+          "current": "0.09999993042720221880781394929726957343518733978271484375000",
+          "transport": -1.1999995824571367e-08,
+          "source": -5.757280169506312e-08,
+          "constraint": -1.9621599802128842e-17,
+          "residual": "-2.47487212633472825404393902155341513137831625584409783735750920641294215E-16",
+          "pass": true
+        },
+        {
+          "variable": "Omega",
+          "initial": "10.00",
+          "current": "0.01280000000000000321548343507060963020194321870803833007812500",
+          "transport": -2.573165665217788e-28,
+          "source": -6.1420673233406964e-09,
+          "constraint": -9.987199993857933,
+          "residual": "5.488860277728502300961318351772742356009866955806469901446575932E-16",
+          "pass": true
+        }
+      ],
+      "gas_mass_residual": "-3.3306690738754696212708950042724609375000E-15",
+      "gas_energy_residual_J": "-1.214192246745682268738164566457271575927734375E-9",
+      "gas_momentum": [
+        {
+          "residual": "1.4826123591630754883219367457058979198336601257324218750000E-12",
+          "pass": false
+        },
+        {
+          "residual": "1.110223024625156540423631668090820312500000000000000000000000000E-16",
+          "pass": true
+        },
+        {
+          "residual": "5.551115123125782702118158340454101562500000000000000000000000000E-16",
+          "pass": true
+        }
+      ],
+      "gas_inventory_pass": false,
+      "solid_energy_delta_J": "0.299999266862869262695312500",
+      "film_energy_delta_J": "0",
+      "film_mass_delta": "0",
+      "actual_budget": {
+        "boundaryMass": 0,
+        "boundaryEnergy": 0,
+        "supportWork": 0,
+        "bodyWork": 0,
+        "radiation": 0,
+        "gclResidual": 0,
+        "filmKineticDefect": 0,
+        "filmPressureVolume": 0,
+        "turbulenceOmegaConstraint": -9.987199993857933,
+        "turbulenceInventory": 0.0999999304272022,
+        "turbulenceProduction": 0,
+        "turbulenceDissipation": 0,
+        "turbulenceBoundaryFlux": 1.1999995824571367e-08,
+        "numericalEnergyResidual": 0,
+        "exchangeSpecies": [
+          [
+            0,
+            0
+          ],
+          [
+            0,
+            0
+          ],
+          [
+            0,
+            0
+          ],
+          [
+            0,
+            0
+          ]
+        ],
+        "boundarySpecies": [
+          0,
+          0
+        ],
+        "exchangeMass": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "exchangeEnergy": [
+          -0.29999925910031516,
+          0.2999992591003152,
+          0,
+          0
+        ],
+        "boundaryMomentum": [
+          89.08352274937391,
+          1.1102230246251565e-16,
+          5.551115123125783e-16
+        ],
+        "supportImpulse": [
+          -89.08347340991261,
+          0,
+          0
+        ],
+        "exchangeMomentum": [
+          [
+            89.08347340991259,
+            0,
+            0
+          ],
+          [
+            -89.08347340991261,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0
+          ]
+        ],
+        "consumedPackets": 400
+      }
+    },
+    {
+      "checkpoint": 2,
+      "time": 0.001,
+      "global_mass_residual": "-6.439293542825907934457063674926757812500E-15",
+      "global_physical_energy_residual_J": "-2.77941580861806869506835937500E-8",
+      "global_pass": true,
+      "actual_perrecipient_packets": [
+        {
+          "participant": 0,
+          "mass_residual": "0",
+          "energy_residual_J": "4.4322184811207421262224670499563217163085937500E-16",
+          "momentum_residual": [
+            "1.36113342819044191855937242507934570312500E-13",
+            "0E-94",
+            "-1.2E-93"
+          ],
+          "species_residual": [
+            "0",
+            "0"
+          ],
+          "pass": true
+        },
+        {
+          "participant": 1,
+          "mass_residual": "0",
+          "energy_residual_J": "3.8944542035679319269547704607248306274414062500E-16",
+          "momentum_residual": [
+            "-1.07691633388640184421092271804809570312500E-13",
+            "0E-94",
+            "1.2E-93"
+          ],
+          "species_residual": [
+            "0",
+            "0"
+          ],
+          "pass": true
+        },
+        {
+          "participant": 2,
+          "mass_residual": "0",
+          "energy_residual_J": "0",
+          "momentum_residual": [
+            "0",
+            "0",
+            "0"
+          ],
+          "species_residual": [
+            "0",
+            "0"
+          ],
+          "pass": true
+        },
+        {
+          "participant": 3,
+          "mass_residual": "0",
+          "energy_residual_J": "0",
+          "momentum_residual": [
+            "0",
+            "0",
+            "0"
+          ],
+          "species_residual": [
+            "0",
+            "0"
+          ],
+          "pass": true
+        }
+      ],
+      "all_paired_participants_pass": true,
+      "SST": [
+        {
+          "variable": "K",
+          "initial": "0.1000000000000000055511151231257827021181583404541015625000",
+          "current": "0.09999986141422945173928837903076782822608947753906250000000",
+          "transport": -2.399998332329474e-08,
+          "source": -1.1458578671985848e-07,
+          "constraint": -1.7997197207240423e-17,
+          "residual": "-4.9266141391977887569478474722348519870894591693802084392261875223084644E-16",
+          "pass": true
+        },
+        {
+          "variable": "Omega",
+          "initial": "10.00",
+          "current": "0.01280000000000000343232386956771051700343377888202667236328125",
+          "transport": 9.543737838976953e-28,
+          "source": -1.2244328287813966e-08,
+          "constraint": -9.987199987755682,
+          "residual": "1.03647443546148400724773227896612146531030503200914577588420684151E-14",
+          "pass": true
+        }
+      ],
+      "gas_mass_residual": "-3.1086244689504383131861686706542968750000E-15",
+      "gas_energy_residual_J": "-1.134663307755801042731036432087421417236328125E-9",
+      "gas_momentum": [
+        {
+          "residual": "8.0289771413420002454941482028516475111246109008789062500000E-12",
+          "pass": false
+        },
+        {
+          "residual": "4.440892098500626161694526672363281250000000000000000000000000000E-16",
+          "pass": true
+        },
+        {
+          "residual": "4.440892098500626161694526672363281250000000000000000000000000000E-16",
+          "pass": true
+        }
+      ],
+      "gas_inventory_pass": false,
+      "solid_energy_delta_J": "0.299998670816421508789062500",
+      "film_energy_delta_J": "0",
+      "film_mass_delta": "0",
+      "actual_budget": {
+        "boundaryMass": 0,
+        "boundaryEnergy": 0,
+        "supportWork": 0,
+        "bodyWork": 0,
+        "radiation": 0,
+        "gclResidual": 0,
+        "filmKineticDefect": 0,
+        "filmPressureVolume": 0,
+        "turbulenceOmegaConstraint": -9.987199987755682,
+        "turbulenceInventory": 0.09999986141422945,
+        "turbulenceProduction": 0,
+        "turbulenceDissipation": 0,
+        "turbulenceBoundaryFlux": 2.399998332329474e-08,
+        "numericalEnergyResidual": -5.960464477539063e-08,
+        "exchangeSpecies": [
+          [
+            0,
+            0
+          ],
+          [
+            0,
+            0
+          ],
+          [
+            0,
+            0
+          ],
+          [
+            0,
+            0
+          ]
+        ],
+        "boundarySpecies": [
+          0,
+          0
+        ],
+        "exchangeMass": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "exchangeEnergy": [
+          -0.5999979631245933,
+          0.5999979631245942,
+          0,
+          0
+        ],
+        "boundaryMomentum": [
+          178.16701563746125,
+          5.551115123125783e-16,
+          9.992007221626409e-16
+        ],
+        "supportImpulse": [
+          -178.16685679329777,
+          0,
+          0
+        ],
+        "exchangeMomentum": [
+          [
+            178.16685679329777,
+            0,
+            0
+          ],
+          [
+            -178.16685679329777,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0
+          ]
+        ],
+        "consumedPackets": 800
+      }
+    }
+  ],
+  "all_checks_pass": false,
+  "criteria": "OriginalTolerances absMass1e-14 relMass1e-10 absEnergy1e-10 relEnergy1e-10; momentum uses existingmass tolerance as originalpacket checker.80digit independent sums, perparticipant on actual finalized currentmacro packets. Fullfilmphysical H-pM/rho+KE included; rigid-solid fullmomentum notclaimed.",
+  "limitations": "Actualfinal-weighted faceflux pointaudit separate; allthree residentapps budgetgap remains; configured2species/elements empty in syntheticmaterialinputs."
+}

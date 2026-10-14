@@ -1,0 +1,16 @@
+{
+  "verified_utc": "2026-10-14T10:26:05.997585+00:00",
+  "production_source_commit": "4b5c480b572f234ddecf5e89164fe59b0d2e9735",
+  "source_file_count": 1152,
+  "all_source_hashes_match": true,
+  "all_logs_hash_match": true,
+  "record_count": 221,
+  "command_verdicts": {
+    "PASS": 168,
+    "INCONCLUSIVE": 15,
+    "FAIL": 35,
+    "BLOCKED": 3
+  },
+  "production_tracked_diff_empty": true,
+  "note": "Rawcommand counts include BUILD/setup/analysis/supportfailures; notGPU numericacceptancecounts."
+}

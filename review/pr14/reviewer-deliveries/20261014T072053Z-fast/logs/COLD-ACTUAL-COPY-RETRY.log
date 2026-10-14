@@ -1,0 +1,6 @@
+REAL_CUDA_COPY_ERROR code=21 bytes=32
+FACE_AFTER_RETRY i=0 value=0x1.6146edfee7d43p+13
+FACE_AFTER_RETRY i=1 value=0x1.7705p+14
+FACE_AFTER_RETRY i=2 value=0x1.09aep+14
+FACE_AFTER_RETRY i=3 value=0x1.6146edfee7d43p+13
+PASS actualCUDA cold initialization copyerror/retry and mixedcoupled override

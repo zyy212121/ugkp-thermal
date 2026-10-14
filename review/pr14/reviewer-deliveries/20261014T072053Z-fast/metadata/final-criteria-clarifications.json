@@ -1,0 +1,6 @@
+{
+  "GCL": "Original absoluteGeometry1e-14; observed5.55e-17 below it. Intermediatedriverliteral1e-12 didnot obtainpassinglargererror; finalcriterionoriginal1e-14.",
+  "S213_initial_record": "CurrentproductionGPU S2111e-6 record is base; oldASCIIinput notdecoded bycurrentwriter. S214 correctactualprovenance workingfilehash/source. PriorS213source_single_particle_fixed_commit wasincorrectlabel.",
+  "support_errors": "Oldnamechecker onlyfinite(S211); raw16inputcell/orig_id(S213) correctedS214; alloldreds/logs retained; S214inactiveprofile redunresolved.",
+  "solver_sources_unmodified": true
+}

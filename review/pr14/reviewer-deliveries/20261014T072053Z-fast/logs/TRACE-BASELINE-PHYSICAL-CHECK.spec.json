@@ -1,0 +1,701 @@
+{
+  "id": "TRACE-BASELINE-PHYSICAL-CHECK",
+  "interaction_class": "FAST",
+  "kind": "ANALYSIS",
+  "variant": "baseline",
+  "source_commit": "d6110c02745a8ad726208a426c4bb3a28233c1fd",
+  "source_tree": "54d677b88d2250a781bc0a9767d4881fd5831464",
+  "source_hash_manifest": "metadata/source-hashes.json",
+  "source_hash_manifest_sha256": "3bc8dcadd4cd06fb5dd3fbfcd0b14ab1bbdddd375233f4bac464859c4273f1c5",
+  "diagnostic_patch": null,
+  "topics": [
+    "R014-003",
+    "R014-005",
+    "R014-009",
+    "R014-014",
+    "R014-027"
+  ],
+  "source_targets": [
+    {
+      "file_id": "F014-65477d3951bd",
+      "path": "applications/CHMT/ablation/WallClosureHost.H",
+      "sha256": "c27aee68ba36671634f8c3e553b24d0c926fa45705fa391ce64a262003531359",
+      "function_ids": [
+        "FN014-99602c6d9cf4"
+      ]
+    },
+    {
+      "file_id": "F014-3d8a885ad5e7",
+      "path": "applications/CHMT/gpu/Backend.cu",
+      "sha256": "c650e85eaf0798dfb8c33b1bb41ab01e105cfa19efaa48dff75ca651e81ff4d3",
+      "function_ids": [
+        "FN014-79ccda8103f9",
+        "FN014-d2cb8f63be7e",
+        "FN014-17f4ed26be49",
+        "FN014-60d38cb207cf",
+        "FN014-0314a0493a2c",
+        "FN014-51eb2569a16a",
+        "FN014-f421dd83d3b1",
+        "FN014-43e2db63e8d1",
+        "FN014-865c83f1d05e",
+        "FN014-bb57f525107e",
+        "FN014-a836fb0fbb66",
+        "FN014-08f263ca2adb",
+        "FN014-87bdc6da0327",
+        "FN014-183c7eb0a741",
+        "FN014-46806823219a",
+        "FN014-30bd6ff491c0",
+        "FN014-b9d6608d257c",
+        "FN014-96cc95cd9bb1"
+      ]
+    },
+    {
+      "file_id": "F014-d147b4a0ff7e",
+      "path": "applications/CHMT/gpu/Buffer.H",
+      "sha256": "8f52e65cc7636cfe1915179122f768a5046d3651c98082c622357b29b861fc7f",
+      "function_ids": [
+        "FN014-2e7a51bd2466"
+      ]
+    },
+    {
+      "file_id": "F014-518e46c20db0",
+      "path": "applications/CHMT/gpu/GasWallMath.H",
+      "sha256": "680a27c874c6563ca91fe82e6fdaaf319359299d142dfa2d0245af353313ffa1",
+      "function_ids": [
+        "FN014-aa6ed84bae48",
+        "FN014-051bdf428b22"
+      ]
+    },
+    {
+      "file_id": "F014-a904f75fbc54",
+      "path": "applications/CHMT/gpu/SharedGasDeviceStorage.cuh",
+      "sha256": "9cb232b7e2d69d850f35b34c941a425bf5e2dee3e58c3850e55948fc3c01a95e",
+      "function_ids": [
+        "FN014-9819465b5d15",
+        "FN014-438a6bad45be",
+        "FN014-6b7cf9046886",
+        "FN014-b8cc9fc1c7f9"
+      ]
+    },
+    {
+      "file_id": "F014-004c176a472f",
+      "path": "applications/CHMT/materials/CpuMaterialDriver.C",
+      "sha256": "170ae1974fe71d14b093d3f39d93276cfb083cfe430149bbb9c1074a2757b79c",
+      "function_ids": [
+        "FN014-731eb5e69721",
+        "FN014-5340d75f94b5",
+        "FN014-83c96ff06c24",
+        "FN014-10343e9fdd29",
+        "FN014-63730fac6916",
+        "FN014-5d659316cbf7",
+        "FN014-97c149103e54",
+        "FN014-57117267e6c6"
+      ]
+    },
+    {
+      "file_id": "F014-4a4ddae7a828",
+      "path": "applications/CHMT/materials/CpuMaterialDriver.H",
+      "sha256": "89ac4fc595b063deb226ff9248abd31f1c41c1b55d15fcb0d4a18d06afd8c506",
+      "function_ids": [
+        "FN014-710c977d373a",
+        "FN014-8e6b2291ba27",
+        "FN014-95c4e746bd40"
+      ]
+    },
+    {
+      "file_id": "F014-145c7b4d940e",
+      "path": "applications/CHMT/materials/Thermodynamics.H",
+      "sha256": "4b283acf704a318cbad758baad6880cbb488fda8acc310a2c632613dc859b325",
+      "function_ids": [
+        "FN014-9a29d502dfe7",
+        "FN014-e7254f1655ee",
+        "FN014-cb9fde944e71",
+        "FN014-73655b7f22ff",
+        "FN014-5e1e0df325f3",
+        "FN014-bc5f472429e6",
+        "FN014-2ad6fe9dfae4",
+        "FN014-0194e27acfb1",
+        "FN014-a4a2af4e2041",
+        "FN014-3e3330db6888"
+      ]
+    },
+    {
+      "file_id": "F014-cd53532a88aa",
+      "path": "applications/CHMT/tests/test_coupled_runtime_transactions.py",
+      "sha256": "f686764541a6b7be102a9b8e993246622c57cfb1b0ea1086bed4f8122be71214",
+      "function_ids": [
+        "FN014-948cc5a23580",
+        "FN014-d8df1a76f453",
+        "FN014-3d48eb4e62dd",
+        "FN014-79cffa6ee98a",
+        "FN014-4581e7f1f524",
+        "FN014-232c1302f340",
+        "FN014-a657f5141998"
+      ]
+    },
+    {
+      "file_id": "F014-2f81ca61b43d",
+      "path": "applications/CHMT/tests/test_final_gas_consumers.py",
+      "sha256": "665ed5ca90ac993909806b70135651278ac8d076412ee111a9821c507a0b817f",
+      "function_ids": [
+        "FN014-62e4339996ef"
+      ]
+    },
+    {
+      "file_id": "F014-dd8210ddc9c1",
+      "path": "applications/CHMT/tests/test_multirate_orchestration.cpp",
+      "sha256": "da53e60dd55c132951328b04556fcb94527baa48dddc16696042f5e658fb790c",
+      "function_ids": [
+        "FN014-f15b845085d4",
+        "FN014-b0303a131c00",
+        "FN014-ce0e7fd4448e",
+        "FN014-41b454eb7aaf",
+        "FN014-ca252fff7424",
+        "FN014-c86966a914eb"
+      ]
+    },
+    {
+      "file_id": "F014-afeb19205b5b",
+      "path": "applications/CHMT/tests/test_owner_endpoint_of.C",
+      "sha256": "fc5acbb187c9939cd4af3357e445441342df24bca8deea41a5e31e31ce0f990d",
+      "function_ids": [
+        "FN014-b0398dc54b89"
+      ]
+    },
+    {
+      "file_id": "F014-50d522270b4b",
+      "path": "applications/CHMT/tests/test_owner_terminal_of.C",
+      "sha256": "378a19cf77481cb521ae709fe3070773915875f86dda131045e522cb5fd53b65",
+      "function_ids": [
+        "FN014-ccb8b16e52d8"
+      ]
+    },
+    {
+      "file_id": "F014-fc6879ef4bee",
+      "path": "applications/CHMT/tests/test_predictor_terminal_of.C",
+      "sha256": "996e4cfcdc445d50e486128ddca8ee90b9f97068d95678e89e989e3008ab0207",
+      "function_ids": [
+        "FN014-ce5dcdbf50b3"
+      ]
+    },
+    {
+      "file_id": "F014-603d8e7cf79d",
+      "path": "applications/CHMT/tests/test_reacting_wall_stage_backend.py",
+      "sha256": "dbbc056f0aa1b4f25289229754c1c8e766a145835df889f6566a66746f899dd5",
+      "function_ids": [
+        "FN014-1423b882441c"
+      ]
+    },
+    {
+      "file_id": "F014-884c45f91db7",
+      "path": "applications/CHMT/tests/test_shared_backend_compile.py",
+      "sha256": "b756a6df474755ae51cc4bae227e7f34574ff3044a17c6fbcf9f9044452fd8ab",
+      "function_ids": [
+        "FN014-26e027d48165"
+      ]
+    },
+    {
+      "file_id": "F014-fcd3c6be7a58",
+      "path": "applications/CHMT/tests/test_shared_device_storage.py",
+      "sha256": "79902106855a68e91dd0763a34058a58448c4f27161b5cc90a961aa5b2b90561",
+      "function_ids": [
+        "FN014-2f7867f9992f",
+        "FN014-3e9059384c9f"
+      ]
+    },
+    {
+      "file_id": "F014-87b381768bae",
+      "path": "applications/CHMT/tests/test_shared_reconfiguration.py",
+      "sha256": "f3281518bda3a1cc090ee374956c7865bea6bc4159cdaf7b5c5a27fa896d9803",
+      "function_ids": [
+        "FN014-ab2333e9d9ea"
+      ]
+    },
+    {
+      "file_id": "F014-c12ec9790669",
+      "path": "applications/CHT/gpu/GpuResidentStrict.cu",
+      "sha256": "4d44af173d9c1ba5ba4556ae230ac539dd8b99d5564f00f4267f13ce556ad5ab",
+      "function_ids": [
+        "FN014-3a5d24b54883",
+        "FN014-d90b58be6018",
+        "FN014-e36c8f11bcfd",
+        "FN014-80181e59e7a9",
+        "FN014-5a4d895b783c",
+        "FN014-da66677fc51f",
+        "FN014-b0e9590eb54c",
+        "FN014-fa30b81d9b7e",
+        "FN014-59fd45cd0dcd",
+        "FN014-361a356b0dc9",
+        "FN014-c19d2295ce4d",
+        "FN014-bf367cd6ac49",
+        "FN014-e0c0b1663548",
+        "FN014-cc6b5b32f125",
+        "FN014-9b037c1411c3",
+        "FN014-7fa7b2983581",
+        "FN014-116327341ddb",
+        "FN014-9f7dac7ae099",
+        "FN014-ed6555daeead",
+        "FN014-9d801fa4de0b",
+        "FN014-04adb9aaa067",
+        "FN014-81384d4939a5",
+        "FN014-2782a596596b",
+        "FN014-39722441f9b2",
+        "FN014-2b180bedd98f",
+        "FN014-58fca0391af4",
+        "FN014-e10448545a9e",
+        "FN014-538910e3b754",
+        "FN014-e03416eba9ba",
+        "FN014-3adbed3c650b",
+        "FN014-4d774c11dbd0",
+        "FN014-c3fdb72e9a30",
+        "FN014-e8892ad5c285",
+        "FN014-e4835075cc7c",
+        "FN014-ed31e9d5390a"
+      ]
+    },
+    {
+      "file_id": "F014-66de1f3e805f",
+      "path": "applications/FSH/gpu/GpuBackendClient.C",
+      "sha256": "7f1cd2d8b724a4bcc1ad68e9dc039c1120d17cf355fa709c7ba3379594b5d90a",
+      "function_ids": [
+        "FN014-f69aa83386f2",
+        "FN014-d87a42d59166",
+        "FN014-77c9d21369bf",
+        "FN014-11a1bc54ca94",
+        "FN014-98e63df4dd55",
+        "FN014-686afe08ff7e",
+        "FN014-dc27cb838f7a",
+        "FN014-f354dbff0c06",
+        "FN014-17791adb727b",
+        "FN014-76e7a127efa9",
+        "FN014-fb340520c300",
+        "FN014-6942769214c9",
+        "FN014-01a6eb6f3349",
+        "FN014-c560b996bc9c",
+        "FN014-72c94b489341",
+        "FN014-b262b4a26356",
+        "FN014-79f3a3658322",
+        "FN014-aa1f34bb5649",
+        "FN014-507503c3113f",
+        "FN014-83482b2ba026",
+        "FN014-dae25968fcdd",
+        "FN014-063ce4fcac3d",
+        "FN014-6814c475e311",
+        "FN014-5305a3c1bb70",
+        "FN014-14c90fe00a09",
+        "FN014-fff2d4cbaaa2",
+        "FN014-9c5790ac6777",
+        "FN014-475c14413c40",
+        "FN014-26f4a3eaa726",
+        "FN014-026f45e47db4",
+        "FN014-bd0fa1f0b969",
+        "FN014-3dcfc467c0dc",
+        "FN014-cd829556ce8a",
+        "FN014-919be96b5ed5",
+        "FN014-f32e3b670c25"
+      ]
+    },
+    {
+      "file_id": "F014-c21a589b5894",
+      "path": "applications/FSH/gpu/GpuBackendProtocol.H",
+      "sha256": "0f91767e33d696b29883650a654719d05e90f41409595150aa68a521f32e6d97",
+      "function_ids": [
+        "FN014-e6495821309b",
+        "FN014-22a03833653e",
+        "FN014-1d9919a1913a",
+        "FN014-d425c50a08a2",
+        "FN014-d6df767bfeba"
+      ]
+    },
+    {
+      "file_id": "F014-67ffcf8d4484",
+      "path": "applications/FSH/private_backend/GpuBackendServer.C",
+      "sha256": "48d2a7076478638f78435bd995971e2206c304174930bbd6d2efcd7c01da7ef1",
+      "function_ids": [
+        "FN014-91eb5d1cbcdf",
+        "FN014-8874bcaac3b2",
+        "FN014-bf7e44aa2f8a",
+        "FN014-2ca5a5992ef4",
+        "FN014-ce3582307405",
+        "FN014-ff33c1a12176",
+        "FN014-d87a69445e31",
+        "FN014-99ba3c74420e",
+        "FN014-6aeb025e2c4f",
+        "FN014-4b59561d8a24",
+        "FN014-5ade68fe9a61",
+        "FN014-0132c82eadf6",
+        "FN014-5da2811aee6c",
+        "FN014-90dc5bc4310b",
+        "FN014-dd979a84a8e0",
+        "FN014-68a49910deab",
+        "FN014-eb1bbb90111c",
+        "FN014-dfbe5eeed6b5",
+        "FN014-c99c79a25ca4",
+        "FN014-06fc179f1a4a",
+        "FN014-19c43af68dcd",
+        "FN014-5dc2bfb14f84",
+        "FN014-849350a4f281",
+        "FN014-d8a8925f3e67",
+        "FN014-697ca3c3b389"
+      ]
+    },
+    {
+      "file_id": "F014-07cd923d5021",
+      "path": "applications/gasUGKP/private_backend/SharedGasAdapter.cuh",
+      "sha256": "4889368dec1b792220fd98f0c1e4a10d78c6c11db678e5274f4fee43fe6b617d",
+      "function_ids": [
+        "FN014-6b55bd555eb5",
+        "FN014-4ccf10f257f5",
+        "FN014-76a8779a951f",
+        "FN014-b3fc77f03537",
+        "FN014-5a0e07dc5fa2",
+        "FN014-cafc8483ef0e"
+      ]
+    },
+    {
+      "file_id": "F014-12a588829353",
+      "path": "applications/gasUGKP/private_backend/SharedGasTrialFields.H",
+      "sha256": "46e0c08d822f74b6bb1a074c19568770e468e0f0bd88fd45449eeb3cd158a8dd",
+      "function_ids": [
+        "FN014-1016567f5843",
+        "FN014-83da62861491"
+      ]
+    },
+    {
+      "file_id": "F014-0230b261acf2",
+      "path": "applications/gasUGKP/private_backend/SharedGasTrialPolicy.cuh",
+      "sha256": "342e51a52c1918ae982cfcdd20ceb75084cee48c7ffa29c488690df8105d0f27",
+      "function_ids": [
+        "FN014-c94d6e9ce580",
+        "FN014-76e1e0f59a81",
+        "FN014-24ef8a061822",
+        "FN014-a540ec4f6b24",
+        "FN014-1fa58c240717",
+        "FN014-0872492bf52f",
+        "FN014-373b6aa12416",
+        "FN014-bef343a33525",
+        "FN014-0472e82a5230",
+        "FN014-546a7c78ed96",
+        "FN014-f9d3ffa2e76b",
+        "FN014-7aae9a73f739",
+        "FN014-29b154c8afc2",
+        "FN014-0518e244ed95",
+        "FN014-a9aaab53d129",
+        "FN014-e3f47e6997e0"
+      ]
+    },
+    {
+      "file_id": "F014-e9c789217b58",
+      "path": "applications/gasUGKP/tests/test_gas_frontend_selection_continuation.py",
+      "sha256": "87ccae193845dbd28c2e24ea1371b60d4711daa555b39a2cc9751bd7290260cf",
+      "function_ids": [
+        "FN014-8f1860bd7dc4"
+      ]
+    },
+    {
+      "file_id": "F014-005c8b5bad29",
+      "path": "applications/gasUGKP/tests/test_native_wire_continuation.py",
+      "sha256": "4bba5c9ed0b9bbdcbc43867475b341542bd92f08faea8dcb4ea6e2d301a1e34b",
+      "function_ids": [
+        "FN014-bdf5e86138e4"
+      ]
+    },
+    {
+      "file_id": "F014-92c1c9509b64",
+      "path": "applications/gasUGKP/tests/test_shared_gas_trial_policy.py",
+      "sha256": "706214ab0811b1f52006af0b1ab975adcf7c2b13ddfbc36959bd7dbf6a74a2fd",
+      "function_ids": [
+        "FN014-db1a7ec2d15b",
+        "FN014-bc6768e0dd12",
+        "FN014-0e43f2870cd6",
+        "FN014-920cb44e7b5c",
+        "FN014-f65b39d84a7a"
+      ]
+    },
+    {
+      "file_id": "F014-7877d7cd5496",
+      "path": "common/GpuGasAdvance.cuh",
+      "sha256": "4710414e5c9d4ad05690ad0f2ea3954189c1986327a74554890e388cfe6e2055",
+      "function_ids": [
+        "FN014-7b0b96372aec",
+        "FN014-f2489601d831",
+        "FN014-c3700b88aab7",
+        "FN014-68fa892590f2",
+        "FN014-b08c4b866d5a",
+        "FN014-c52f59368a95",
+        "FN014-69e39767f9cf",
+        "FN014-4de32646cfca",
+        "FN014-52d97fcdd0e7"
+      ]
+    },
+    {
+      "file_id": "F014-dc6f70aee8a8",
+      "path": "common/chemistry/LocalStiffIntegrator.H",
+      "sha256": "40214ae136d161bcc876debc9ab1aea5c62f34b24aa6e5843b27c985b5d4f902",
+      "function_ids": [
+        "FN014-7ab0aeb56aa9",
+        "FN014-94dfe8642244",
+        "FN014-2484deacfbb7",
+        "FN014-007570c73bef",
+        "FN014-f120141b94a0",
+        "FN014-dab7cc43728f"
+      ]
+    },
+    {
+      "file_id": "F014-0f6650dad61b",
+      "path": "common/gasTransport/GasBoundaryLayerModelState.H",
+      "sha256": "a833a1c2cf78c18876d6c10e48a580e8e81a67b4591e758d8917b370bcad1099",
+      "function_ids": [
+        "FN014-33c224d49aca"
+      ]
+    },
+    {
+      "file_id": "F014-22734e181689",
+      "path": "common/gasTransport/GasBoundaryLayerState.H",
+      "sha256": "5154895c2fb4d2404e447fdaa6e85cf5c44910f7fa9e29593ca1085b676d659b",
+      "function_ids": [
+        "FN014-e481d1e4d846",
+        "FN014-3c0dd3f688c4",
+        "FN014-7e62df226e53"
+      ]
+    },
+    {
+      "file_id": "F014-f3be24a88418",
+      "path": "common/gasTransport/GasCapabilities.H",
+      "sha256": "1b59271f2622ef457ed621a17f83812d54cbc59225e11800c814084b1de6478c",
+      "function_ids": [
+        "FN014-187d99629b7d",
+        "FN014-3afc82274397"
+      ]
+    },
+    {
+      "file_id": "F014-9ea3d079f71e",
+      "path": "common/gasTransport/GasGeometryValidation.H",
+      "sha256": "4704cca232071c112ce0181d3a12814ae77be26f3e531837b2ce5a810132e3e6",
+      "function_ids": [
+        "FN014-3250b281bf9f",
+        "FN014-e956eaae8ab5",
+        "FN014-e6afa2bafaf5",
+        "FN014-7e3cfb3a21b1",
+        "FN014-2b12c3f846ab"
+      ]
+    },
+    {
+      "file_id": "F014-45246b3fe7ce",
+      "path": "common/gasTransport/GasModelIO.H",
+      "sha256": "eea711088aa451c5152f576f68767a9fb5c7058177723dfefeb06e13934f2c86",
+      "function_ids": [
+        "FN014-b046f5f50cba",
+        "FN014-b9539c6b466b",
+        "FN014-b2f4d3a76bd2",
+        "FN014-e7e851c64f05",
+        "FN014-40d7c5a3bc3d",
+        "FN014-98904949e1ef"
+      ]
+    },
+    {
+      "file_id": "F014-405af05f5909",
+      "path": "common/operators/advanceGasChemistryKernel.cuh",
+      "sha256": "500430285a6638e7a4826a90dfdea7281c9ecca94de9df873bc919fc5d731b86",
+      "function_ids": [
+        "FN014-477ee9937ec4",
+        "FN014-377608d78fc9",
+        "FN014-3f7171a55125"
+      ]
+    },
+    {
+      "file_id": "F014-99919154f20f",
+      "path": "common/operators/computeGasFluxPositivityScaleKernel.cuh",
+      "sha256": "984adf4d754122fa26c26cd1d50b11d0dd4cd7156ec6af35519e632a1fd00ae3",
+      "function_ids": [
+        "FN014-51536643dcf6",
+        "FN014-0ccc36ffcaf5"
+      ]
+    },
+    {
+      "file_id": "F014-ec61842af463",
+      "path": "common/operators/computeGasPrimitiveGradientsKernel.cuh",
+      "sha256": "b95a3687f28ea0153d10b39ac2f06874f911749e91a9e15d5172b3d689ed745b",
+      "function_ids": [
+        "FN014-bc7f136a8bcb",
+        "FN014-fd6fd201fca1",
+        "FN014-b62072be6a6a",
+        "FN014-f3aab52ed540",
+        "FN014-621ff47896fa",
+        "FN014-9c643d20f7b4"
+      ]
+    },
+    {
+      "file_id": "F014-5326e92c6b46",
+      "path": "common/operators/computeRiemannGasFaceFluxDevice.cuh",
+      "sha256": "b6da75b64718c42da9e5b0a589d38450b9894e8388991bff5c6443b3d3548428",
+      "function_ids": [
+        "FN014-43d47cd42d74"
+      ]
+    },
+    {
+      "file_id": "F014-a62fcf62990c",
+      "path": "common/operators/computeSstFaceFluxKernel.cuh",
+      "sha256": "ecb810f6473ed07511a9ce546fbd44a66a5edfeb88eeacdf6d9861173a7e59da",
+      "function_ids": [
+        "FN014-ecc289531831",
+        "FN014-f232bbab7650",
+        "FN014-8eb41af5a769",
+        "FN014-d860471ddea7",
+        "FN014-54bcbb5adfd7",
+        "FN014-5984acad8db4",
+        "FN014-d59281f12db3",
+        "FN014-2c1d9bdafeb0",
+        "FN014-008c647a6265",
+        "FN014-01ffaaf884c4"
+      ]
+    },
+    {
+      "file_id": "F014-636af715dec6",
+      "path": "common/operators/gasFaceSubgridTransportProperties.cuh",
+      "sha256": "80cc5beebc2c70e3985ae47eb840d51d34d80d1a0005e144a119d991d579686c",
+      "function_ids": [
+        "FN014-ce048b6b494e"
+      ]
+    },
+    {
+      "file_id": "F014-1c53a890f630",
+      "path": "common/operators/makeGasPrimDevice.cuh",
+      "sha256": "44650881c7201d40ac1c20ea08eb8e20f0913e81da18c30b01e1225fbca30ddd",
+      "function_ids": [
+        "FN014-2459dec56107",
+        "FN014-efaaf0af8a23",
+        "FN014-cfb5923d1d46",
+        "FN014-9083a8d4e998",
+        "FN014-836e1e988262"
+      ]
+    },
+    {
+      "file_id": "F014-b5c3680eb63b",
+      "path": "common/operators/updateLegacyGasBoundaryMirrorKernel.cuh",
+      "sha256": "702aefb8b159fe64c4d228c61b05fe5073ff51483155fb1d4c7ae15baa3dc6e4",
+      "function_ids": [
+        "FN014-28a0ae314143"
+      ]
+    },
+    {
+      "file_id": "F014-500dbb3110b5",
+      "path": "tests/chemistry/test_gas_chemistry_adapter.py",
+      "sha256": "f065a141665bd217861f0316a5943a65028e3077c966b983247138086660d2e9",
+      "function_ids": []
+    },
+    {
+      "file_id": "F014-3adbac06c683",
+      "path": "tests/fixtures/owner_terminal/program.hpp",
+      "sha256": "94ca4ac892e291fe8d06b594db3a85e33a5169649deab188e1059bfa18a76c3d",
+      "function_ids": []
+    },
+    {
+      "file_id": "F014-a23fa5e898e7",
+      "path": "tests/gas_transport/test_boundary_layer_host.py",
+      "sha256": "0f3eec738aead77085274bbd03a09b78e6788aad8cf7b5c736c1e4344a088caa",
+      "function_ids": []
+    },
+    {
+      "file_id": "F014-b0fb1cc7166c",
+      "path": "tests/gas_transport/test_boundary_layer_state.py",
+      "sha256": "a5043e1cc6b8e06b29b8f967bfc780ebe49ea7ac8f7dcbb687e505fd26079ecf",
+      "function_ids": []
+    },
+    {
+      "file_id": "F014-c42b92e97885",
+      "path": "tests/gas_transport/test_bulk_candidate_continuation.py",
+      "sha256": "6d6df344563ce6839db2ef638942d5a668239412323c4c7691a1b2947fcbaaa4",
+      "function_ids": []
+    },
+    {
+      "file_id": "F014-df8e4fbd726c",
+      "path": "tests/gas_transport/test_cell_producer_completion.py",
+      "sha256": "a7790ea9b7c39a59f30320b52c88b766f0f9e7259441670c742a99d1a9c55d02",
+      "function_ids": []
+    },
+    {
+      "file_id": "F014-b68d94de7273",
+      "path": "tests/gas_transport/test_final_courant_fields.py",
+      "sha256": "a34f2522fe80af1a4d0e21adaa9f2e79c18aaed4eff242e5c3706be9682e54a8",
+      "function_ids": []
+    },
+    {
+      "file_id": "F014-d89d3cdf789d",
+      "path": "tests/gas_transport/test_final_native_consumers.py",
+      "sha256": "2064618df3d4e2515b724b136980e944b8fc3b07d4377761fb7bdc1ad57ee777",
+      "function_ids": []
+    },
+    {
+      "file_id": "F014-7480a1c5193b",
+      "path": "tests/gas_transport/test_gas_advance_view.py",
+      "sha256": "e559c050005517df88095e932c32ffa1b08c2c485e465a62d52ad0c5cb06ee31",
+      "function_ids": []
+    },
+    {
+      "file_id": "F014-1745f554c8cc",
+      "path": "tests/gas_transport/test_legacy_ale_transport.py",
+      "sha256": "1c98bbfa9827d9fc50d3265a50bbf13928919cf2c5b2559970e6fd9136b3b99b",
+      "function_ids": []
+    },
+    {
+      "file_id": "F014-603b2b3c3822",
+      "path": "tests/gas_transport/test_mixture_selector_fallback.py",
+      "sha256": "9a62bd985fdd7aa4f63ff6e4b47ae32705cf0bb147a5a35ab96cfdeee635e305",
+      "function_ids": []
+    },
+    {
+      "file_id": "F014-250d91af9230",
+      "path": "tests/gas_transport/test_mixture_state.py",
+      "sha256": "5f40491c9529b2c1641a728b08d167698a404065fca46ea128f6622c8f36baa6",
+      "function_ids": []
+    },
+    {
+      "file_id": "F014-caf5b65c65f0",
+      "path": "tests/gas_transport/test_mixture_wall_function.py",
+      "sha256": "5ed8feadb728cf24035257b687d7b418c5e44eaa175980081c24ac3a4398f71d",
+      "function_ids": []
+    },
+    {
+      "file_id": "F014-0b16cd878615",
+      "path": "tests/gas_transport/test_native_interval_continuation.py",
+      "sha256": "78258392dfe43de2db7c59bdf201c856d7373eed9adabf63f2c92240d5db0f32",
+      "function_ids": []
+    },
+    {
+      "file_id": "F014-cd13dc4bd854",
+      "path": "tests/gas_transport/test_native_mixture_courant_integration.py",
+      "sha256": "cc95990f679be2a2b8d4447bdd322156da6fa9551e959ef61917b67d9cae7a2d",
+      "function_ids": []
+    },
+    {
+      "file_id": "F014-e587bd2b1c5d",
+      "path": "tests/test_fsh_wire_admission.py",
+      "sha256": "76ac761bdbe3708a1a471f3812f5294c1ca6ed6b03dbc96d53f81effc78c7da4",
+      "function_ids": []
+    },
+    {
+      "file_id": "F014-9ddfb8b1ab42",
+      "path": "applications/CHMT/gpu/CourantReductionStorage.cuh",
+      "sha256": "85b3840964092264ac3e95f9a4b9884d68da20490bff5f87c3eda23b2ecf48a6",
+      "function_ids": []
+    }
+  ],
+  "argv": [
+    "bash",
+    "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T072053Z-fast/review/pr14/reviewer-deliveries/20261014T072053Z-fast/inputs/env.sh",
+    "python3",
+    "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T072053Z-fast/work/clock-source/baseline-v1/applications/CHMT/verification/coupled_runtime/check_case.py",
+    "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T072053Z-fast/work/clock-cases/baseline"
+  ],
+  "working_directory": "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T072053Z-fast",
+  "budget_seconds": 300,
+  "expected": "Actuald611 own originalphysical thresholds/checkschema.",
+  "input_hashes": {
+    "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T072053Z-fast/work/clock-source/baseline-v1/applications/CHMT/verification/coupled_runtime/check_case.py": "3436135ce584b6165d45a6febeda20afcf922fcbb097ebab1f3b25146364a930"
+  },
+  "binary": null,
+  "binary_sha256": null,
+  "environment_script_sha256": "2e9ba1655533bb17676f60b83f3628c2409d36978b703cfa8f9251a788e31c83",
+  "started_utc": "2026-10-14T08:02:48.646146+00:00"
+}

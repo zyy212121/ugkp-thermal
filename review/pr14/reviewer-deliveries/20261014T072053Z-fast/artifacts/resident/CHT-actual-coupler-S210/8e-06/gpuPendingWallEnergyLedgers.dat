@@ -1,0 +1,23 @@
+FoamFile
+{
+version 2.0;
+format ascii;
+class dictionary;
+location "8e-06";
+object gpuPendingWallEnergyLedgers;
+}
+
+formatVersion 1;
+checkpointSimulationTimeS 7.99999999999999964e-06;
+completedExchangeSimulationTimeS 7.99999999999999964e-06;
+nMeshFaces 51;
+nEntries 1;
+
+entries
+(
+    (9 0.00000000000000000e+00 0.00000000000000000e+00 0.00000000000000000e+00)
+);
+
+gasConvectiveEnergyJ 0.00000000000000000e+00;
+particleDepositedEnergyJ 0.00000000000000000e+00;
+particleReflectedEnergyJ 0.00000000000000000e+00;

@@ -1,0 +1,661 @@
+{
+  "volume_inputs": [],
+  "blends": [
+    [
+      "0x1p-1",
+      "0x1p-1"
+    ],
+    [
+      "0x1p-1",
+      "0x1p-1"
+    ],
+    [
+      "0x1p-1",
+      "0x1p-1"
+    ],
+    [
+      "0x1p-1",
+      "0x1p-1"
+    ],
+    [
+      "0x1p-1",
+      "0x1p-1"
+    ],
+    [
+      "0x1p-1",
+      "0x1p-1"
+    ],
+    [
+      "0x1p-1",
+      "0x1p-1"
+    ],
+    [
+      "0x1p-1",
+      "0x1p-1"
+    ],
+    [
+      "0x1p-1",
+      "0x1p-1"
+    ],
+    [
+      "0x1p-1",
+      "0x1p-1"
+    ],
+    [
+      "0x1p-1",
+      "0x1p-1"
+    ],
+    [
+      "0x1p-1",
+      "0x1p-1"
+    ],
+    [
+      "0x1p-1",
+      "0x1p-1"
+    ],
+    [
+      "0x1p-1",
+      "0x1p-1"
+    ],
+    [
+      "0x1p-1",
+      "0x1p-1"
+    ],
+    [
+      "0x1p-1",
+      "0x1p-1"
+    ],
+    [
+      "0x1p-1",
+      "0x1p-1"
+    ],
+    [
+      "0x1p-1",
+      "0x1p-1"
+    ],
+    [
+      "0x1p-1",
+      "0x1p-1"
+    ],
+    [
+      "0x1p-1",
+      "0x1p-1"
+    ],
+    [
+      "0x1p-1",
+      "0x1p-1"
+    ],
+    [
+      "0x1p-1",
+      "0x1p-1"
+    ],
+    [
+      "0x1p-1",
+      "0x1p-1"
+    ],
+    [
+      "0x1p-1",
+      "0x1p-1"
+    ],
+    [
+      "0x1p-1",
+      "0x1p-1"
+    ],
+    [
+      "0x1p-1",
+      "0x1p-1"
+    ],
+    [
+      "0x1p-1",
+      "0x1p-1"
+    ],
+    [
+      "0x1p-1",
+      "0x1p-1"
+    ],
+    [
+      "0x1p-1",
+      "0x1p-1"
+    ],
+    [
+      "0x1p-1",
+      "0x1p-1"
+    ],
+    [
+      "0x1p-1",
+      "0x1p-1"
+    ],
+    [
+      "0x1p-1",
+      "0x1p-1"
+    ],
+    [
+      "0x1p-1",
+      "0x1p-1"
+    ],
+    [
+      "0x1p-1",
+      "0x1p-1"
+    ],
+    [
+      "0x1p-1",
+      "0x1p-1"
+    ],
+    [
+      "0x1p-1",
+      "0x1p-1"
+    ],
+    [
+      "0x1p-1",
+      "0x1p-1"
+    ],
+    [
+      "0x1p-1",
+      "0x1p-1"
+    ],
+    [
+      "0x1p-1",
+      "0x1p-1"
+    ],
+    [
+      "0x1p-1",
+      "0x1p-1"
+    ],
+    [
+      "0x1p-1",
+      "0x1p-1"
+    ],
+    [
+      "0x1p-1",
+      "0x1p-1"
+    ],
+    [
+      "0x1p-1",
+      "0x1p-1"
+    ],
+    [
+      "0x1p-1",
+      "0x1p-1"
+    ],
+    [
+      "0x1p-1",
+      "0x1p-1"
+    ],
+    [
+      "0x1p-1",
+      "0x1p-1"
+    ],
+    [
+      "0x1p-1",
+      "0x1p-1"
+    ],
+    [
+      "0x1p-1",
+      "0x1p-1"
+    ],
+    [
+      "0x1p-1",
+      "0x1p-1"
+    ],
+    [
+      "0x1p-1",
+      "0x1p-1"
+    ],
+    [
+      "0x1p-1",
+      "0x1p-1"
+    ],
+    [
+      "0x1p-1",
+      "0x1p-1"
+    ],
+    [
+      "0x1p-1",
+      "0x1p-1"
+    ],
+    [
+      "0x1p-1",
+      "0x1p-1"
+    ],
+    [
+      "0x1p-1",
+      "0x1p-1"
+    ],
+    [
+      "0x1p-1",
+      "0x1p-1"
+    ],
+    [
+      "0x1p-1",
+      "0x1p-1"
+    ],
+    [
+      "0x1p-1",
+      "0x1p-1"
+    ],
+    [
+      "0x1p-1",
+      "0x1p-1"
+    ],
+    [
+      "0x1p-1",
+      "0x1p-1"
+    ],
+    [
+      "0x1p-1",
+      "0x1p-1"
+    ],
+    [
+      "0x1p-1",
+      "0x1p-1"
+    ],
+    [
+      "0x1p-1",
+      "0x1p-1"
+    ],
+    [
+      "0x1p-1",
+      "0x1p-1"
+    ],
+    [
+      "0x1p-1",
+      "0x1p-1"
+    ],
+    [
+      "0x1p-1",
+      "0x1p-1"
+    ],
+    [
+      "0x1p-1",
+      "0x1p-1"
+    ],
+    [
+      "0x1p-1",
+      "0x1p-1"
+    ],
+    [
+      "0x1p-1",
+      "0x1p-1"
+    ],
+    [
+      "0x1p-1",
+      "0x1p-1"
+    ],
+    [
+      "0x1p-1",
+      "0x1p-1"
+    ],
+    [
+      "0x1p-1",
+      "0x1p-1"
+    ],
+    [
+      "0x1p-1",
+      "0x1p-1"
+    ],
+    [
+      "0x1p-1",
+      "0x1p-1"
+    ],
+    [
+      "0x1p-1",
+      "0x1p-1"
+    ],
+    [
+      "0x1p-1",
+      "0x1p-1"
+    ],
+    [
+      "0x1p-1",
+      "0x1p-1"
+    ],
+    [
+      "0x1p-1",
+      "0x1p-1"
+    ],
+    [
+      "0x1p-1",
+      "0x1p-1"
+    ],
+    [
+      "0x1p-1",
+      "0x1p-1"
+    ],
+    [
+      "0x1p-1",
+      "0x1p-1"
+    ],
+    [
+      "0x1p-1",
+      "0x1p-1"
+    ],
+    [
+      "0x1p-1",
+      "0x1p-1"
+    ],
+    [
+      "0x1p-1",
+      "0x1p-1"
+    ],
+    [
+      "0x1p-1",
+      "0x1p-1"
+    ],
+    [
+      "0x1p-1",
+      "0x1p-1"
+    ],
+    [
+      "0x1p-1",
+      "0x1p-1"
+    ],
+    [
+      "0x1p-1",
+      "0x1p-1"
+    ],
+    [
+      "0x1p-1",
+      "0x1p-1"
+    ],
+    [
+      "0x1p-1",
+      "0x1p-1"
+    ],
+    [
+      "0x1p-1",
+      "0x1p-1"
+    ],
+    [
+      "0x1p-1",
+      "0x1p-1"
+    ],
+    [
+      "0x1p-1",
+      "0x1p-1"
+    ],
+    [
+      "0x1p-1",
+      "0x1p-1"
+    ],
+    [
+      "0x1p-1",
+      "0x1p-1"
+    ],
+    [
+      "0x1p-1",
+      "0x1p-1"
+    ],
+    [
+      "0x1p-1",
+      "0x1p-1"
+    ],
+    [
+      "0x1p-1",
+      "0x1p-1"
+    ],
+    [
+      "0x1p-1",
+      "0x1p-1"
+    ],
+    [
+      "0x1p-1",
+      "0x1p-1"
+    ]
+  ],
+  "blend_frequencies": {
+    "0x1p-1/0x1p-1": 100
+  },
+  "alloutput_comparison": {
+    "all_files_byte_equal": true,
+    "files": [
+      {
+        "path": "accepted-0.csv",
+        "expected_sha256": "d5d7cae6a764638f06da88c1769dbd31af1fdda97b1e29efd0cf9422d7d83724",
+        "actual_sha256": "d5d7cae6a764638f06da88c1769dbd31af1fdda97b1e29efd0cf9422d7d83724",
+        "byte_equal": true
+      },
+      {
+        "path": "accepted-1.csv",
+        "expected_sha256": "72a5590f356e82d24b196cb26ab66a0f7ef382c3cfc0644be46374c494020ff9",
+        "actual_sha256": "72a5590f356e82d24b196cb26ab66a0f7ef382c3cfc0644be46374c494020ff9",
+        "byte_equal": true
+      },
+      {
+        "path": "accepted-2.csv",
+        "expected_sha256": "9b082c795257498d6b6792d538e39bd862f557abcf1653de89827e902eb6e45a",
+        "actual_sha256": "9b082c795257498d6b6792d538e39bd862f557abcf1653de89827e902eb6e45a",
+        "byte_equal": true
+      },
+      {
+        "path": "checkpoint-0/state.chmt",
+        "expected_sha256": "de6d167b063e8345d29e776b93aab5e86296bafedd9b2358f14a952e3f53f011",
+        "actual_sha256": "de6d167b063e8345d29e776b93aab5e86296bafedd9b2358f14a952e3f53f011",
+        "byte_equal": true
+      },
+      {
+        "path": "checkpoint-1/state.chmt",
+        "expected_sha256": "50446c515c54acda42772dd1d0e7fc10a7934b8856de174cecc217c484e24220",
+        "actual_sha256": "50446c515c54acda42772dd1d0e7fc10a7934b8856de174cecc217c484e24220",
+        "byte_equal": true
+      },
+      {
+        "path": "checkpoint-2/state.chmt",
+        "expected_sha256": "68609a9d20317659b7481a9fe84f761cfbbc6df2a44888193bbbc679ee4271ba",
+        "actual_sha256": "68609a9d20317659b7481a9fe84f761cfbbc6df2a44888193bbbc679ee4271ba",
+        "byte_equal": true
+      },
+      {
+        "path": "exchange-0.csv",
+        "expected_sha256": "28e083ed7242aede54ec558af274ade8b51d6a09029f15ea9799789bbea282a3",
+        "actual_sha256": "28e083ed7242aede54ec558af274ade8b51d6a09029f15ea9799789bbea282a3",
+        "byte_equal": true
+      },
+      {
+        "path": "exchange-1.csv",
+        "expected_sha256": "35fceae64e39be8ebeefe204cd29ab7677fb463c9f560bd76b10e4d296bf9e2a",
+        "actual_sha256": "35fceae64e39be8ebeefe204cd29ab7677fb463c9f560bd76b10e4d296bf9e2a",
+        "byte_equal": true
+      },
+      {
+        "path": "exchange-2.csv",
+        "expected_sha256": "68266ac2c497cb50076ae0704a0c6b1a2e968380ebdbe45a021582dc82934572",
+        "actual_sha256": "68266ac2c497cb50076ae0704a0c6b1a2e968380ebdbe45a021582dc82934572",
+        "byte_equal": true
+      },
+      {
+        "path": "gas-0.csv",
+        "expected_sha256": "fabf5a8d946b96a607fac1c39a1c631fb8036ab5ba4c62c4c38dce46360a81af",
+        "actual_sha256": "fabf5a8d946b96a607fac1c39a1c631fb8036ab5ba4c62c4c38dce46360a81af",
+        "byte_equal": true
+      },
+      {
+        "path": "gas-1.csv",
+        "expected_sha256": "28a8e5e01ff4d95c5e384f9faf5659a45a3170773c7b5a26bc7a7197d46423ce",
+        "actual_sha256": "28a8e5e01ff4d95c5e384f9faf5659a45a3170773c7b5a26bc7a7197d46423ce",
+        "byte_equal": true
+      },
+      {
+        "path": "gas-2.csv",
+        "expected_sha256": "5e7dfc3246f7e87b5f2faf590188818ec5adcd9301bae4939f0136f287cce8ad",
+        "actual_sha256": "5e7dfc3246f7e87b5f2faf590188818ec5adcd9301bae4939f0136f287cce8ad",
+        "byte_equal": true
+      },
+      {
+        "path": "material-0.csv",
+        "expected_sha256": "bcb36898b9aa756f828d22c3d480e54afcbeaa1ba4366971bed835a4c44dff8f",
+        "actual_sha256": "bcb36898b9aa756f828d22c3d480e54afcbeaa1ba4366971bed835a4c44dff8f",
+        "byte_equal": true
+      },
+      {
+        "path": "material-1.csv",
+        "expected_sha256": "a3f72abbad0837f50d263a83b2e9be98e90e435ff6f3a06ada36d2b0f1a3d854",
+        "actual_sha256": "a3f72abbad0837f50d263a83b2e9be98e90e435ff6f3a06ada36d2b0f1a3d854",
+        "byte_equal": true
+      },
+      {
+        "path": "material-2.csv",
+        "expected_sha256": "863bfb1a0ef6516ba074a7c07e80dc9d83256e24c026ee2e908935b2f5ae662e",
+        "actual_sha256": "863bfb1a0ef6516ba074a7c07e80dc9d83256e24c026ee2e908935b2f5ae662e",
+        "byte_equal": true
+      }
+    ]
+  },
+  "actual_kernel_total": [
+    "ACTUAL_KERNEL_TOTAL,0,0",
+    "ACTUAL_KERNEL_TOTAL,0,0",
+    "ACTUAL_KERNEL_TOTAL,0,0",
+    "ACTUAL_KERNEL_TOTAL,0,0",
+    "ACTUAL_KERNEL_TOTAL,0,0",
+    "ACTUAL_KERNEL_TOTAL,0,0",
+    "ACTUAL_KERNEL_TOTAL,0,0",
+    "ACTUAL_KERNEL_TOTAL,0,0",
+    "ACTUAL_KERNEL_TOTAL,0,0",
+    "ACTUAL_KERNEL_TOTAL,0,0",
+    "ACTUAL_KERNEL_TOTAL,0,0",
+    "ACTUAL_KERNEL_TOTAL,0,0",
+    "ACTUAL_KERNEL_TOTAL,0,0",
+    "ACTUAL_KERNEL_TOTAL,0,0",
+    "ACTUAL_KERNEL_TOTAL,0,0",
+    "ACTUAL_KERNEL_TOTAL,0,0",
+    "ACTUAL_KERNEL_TOTAL,0,0",
+    "ACTUAL_KERNEL_TOTAL,0,0",
+    "ACTUAL_KERNEL_TOTAL,0,0",
+    "ACTUAL_KERNEL_TOTAL,0,0",
+    "ACTUAL_KERNEL_TOTAL,0,0",
+    "ACTUAL_KERNEL_TOTAL,0,0",
+    "ACTUAL_KERNEL_TOTAL,0,0",
+    "ACTUAL_KERNEL_TOTAL,0,0",
+    "ACTUAL_KERNEL_TOTAL,0,0",
+    "ACTUAL_KERNEL_TOTAL,0,0",
+    "ACTUAL_KERNEL_TOTAL,0,0",
+    "ACTUAL_KERNEL_TOTAL,0,0",
+    "ACTUAL_KERNEL_TOTAL,0,0",
+    "ACTUAL_KERNEL_TOTAL,0,0",
+    "ACTUAL_KERNEL_TOTAL,0,0",
+    "ACTUAL_KERNEL_TOTAL,0,0",
+    "ACTUAL_KERNEL_TOTAL,0,0",
+    "ACTUAL_KERNEL_TOTAL,0,0",
+    "ACTUAL_KERNEL_TOTAL,0,0",
+    "ACTUAL_KERNEL_TOTAL,0,0",
+    "ACTUAL_KERNEL_TOTAL,0,0",
+    "ACTUAL_KERNEL_TOTAL,0,0",
+    "ACTUAL_KERNEL_TOTAL,0,0",
+    "ACTUAL_KERNEL_TOTAL,0,0",
+    "ACTUAL_KERNEL_TOTAL,0,0",
+    "ACTUAL_KERNEL_TOTAL,0,0",
+    "ACTUAL_KERNEL_TOTAL,0,0",
+    "ACTUAL_KERNEL_TOTAL,0,0",
+    "ACTUAL_KERNEL_TOTAL,0,0",
+    "ACTUAL_KERNEL_TOTAL,0,0",
+    "ACTUAL_KERNEL_TOTAL,0,0",
+    "ACTUAL_KERNEL_TOTAL,0,0",
+    "ACTUAL_KERNEL_TOTAL,0,0",
+    "ACTUAL_KERNEL_TOTAL,0,0",
+    "ACTUAL_KERNEL_TOTAL,0,0",
+    "ACTUAL_KERNEL_TOTAL,0,0",
+    "ACTUAL_KERNEL_TOTAL,0,0",
+    "ACTUAL_KERNEL_TOTAL,0,0",
+    "ACTUAL_KERNEL_TOTAL,0,0",
+    "ACTUAL_KERNEL_TOTAL,0,0",
+    "ACTUAL_KERNEL_TOTAL,0,0",
+    "ACTUAL_KERNEL_TOTAL,0,0",
+    "ACTUAL_KERNEL_TOTAL,0,0",
+    "ACTUAL_KERNEL_TOTAL,0,0",
+    "ACTUAL_KERNEL_TOTAL,0,0",
+    "ACTUAL_KERNEL_TOTAL,0,0",
+    "ACTUAL_KERNEL_TOTAL,0,0",
+    "ACTUAL_KERNEL_TOTAL,0,0",
+    "ACTUAL_KERNEL_TOTAL,0,0",
+    "ACTUAL_KERNEL_TOTAL,0,0",
+    "ACTUAL_KERNEL_TOTAL,0,0",
+    "ACTUAL_KERNEL_TOTAL,0,0",
+    "ACTUAL_KERNEL_TOTAL,0,0",
+    "ACTUAL_KERNEL_TOTAL,0,0",
+    "ACTUAL_KERNEL_TOTAL,0,0",
+    "ACTUAL_KERNEL_TOTAL,0,0",
+    "ACTUAL_KERNEL_TOTAL,0,0",
+    "ACTUAL_KERNEL_TOTAL,0,0",
+    "ACTUAL_KERNEL_TOTAL,0,0",
+    "ACTUAL_KERNEL_TOTAL,0,0",
+    "ACTUAL_KERNEL_TOTAL,0,0",
+    "ACTUAL_KERNEL_TOTAL,0,0",
+    "ACTUAL_KERNEL_TOTAL,0,0",
+    "ACTUAL_KERNEL_TOTAL,0,0",
+    "ACTUAL_KERNEL_TOTAL,0,0",
+    "ACTUAL_KERNEL_TOTAL,0,0",
+    "ACTUAL_KERNEL_TOTAL,0,0",
+    "ACTUAL_KERNEL_TOTAL,0,0",
+    "ACTUAL_KERNEL_TOTAL,0,0",
+    "ACTUAL_KERNEL_TOTAL,0,0",
+    "ACTUAL_KERNEL_TOTAL,0,0",
+    "ACTUAL_KERNEL_TOTAL,0,0",
+    "ACTUAL_KERNEL_TOTAL,0,0",
+    "ACTUAL_KERNEL_TOTAL,0,0",
+    "ACTUAL_KERNEL_TOTAL,0,0",
+    "ACTUAL_KERNEL_TOTAL,0,0",
+    "ACTUAL_KERNEL_TOTAL,0,0",
+    "ACTUAL_KERNEL_TOTAL,0,0",
+    "ACTUAL_KERNEL_TOTAL,0,0",
+    "ACTUAL_KERNEL_TOTAL,0,0",
+    "ACTUAL_KERNEL_TOTAL,0,0",
+    "ACTUAL_KERNEL_TOTAL,0,0",
+    "ACTUAL_KERNEL_TOTAL,0,0",
+    "ACTUAL_KERNEL_TOTAL,0,0",
+    "ACTUAL_KERNEL_TOTAL,0,0",
+    "ACTUAL_KERNEL_TOTAL,0,0",
+    "ACTUAL_KERNEL_TOTAL,0,0",
+    "ACTUAL_KERNEL_TOTAL,0,0",
+    "ACTUAL_KERNEL_TOTAL,0,0",
+    "ACTUAL_KERNEL_TOTAL,0,0",
+    "ACTUAL_KERNEL_TOTAL,0,0",
+    "ACTUAL_KERNEL_TOTAL,0,0",
+    "ACTUAL_KERNEL_TOTAL,0,0",
+    "ACTUAL_KERNEL_TOTAL,0,0",
+    "ACTUAL_KERNEL_TOTAL,0,0",
+    "ACTUAL_KERNEL_TOTAL,0,0",
+    "ACTUAL_KERNEL_TOTAL,0,0",
+    "ACTUAL_KERNEL_TOTAL,0,0",
+    "ACTUAL_KERNEL_TOTAL,0,0",
+    "ACTUAL_KERNEL_TOTAL,0,0",
+    "ACTUAL_KERNEL_TOTAL,0,0",
+    "ACTUAL_KERNEL_TOTAL,0,0",
+    "ACTUAL_KERNEL_TOTAL,0,0",
+    "ACTUAL_KERNEL_TOTAL,0,0",
+    "ACTUAL_KERNEL_TOTAL,0,0",
+    "ACTUAL_KERNEL_TOTAL,0,0",
+    "ACTUAL_KERNEL_TOTAL,0,0",
+    "ACTUAL_KERNEL_TOTAL,0,0",
+    "ACTUAL_KERNEL_TOTAL,0,0",
+    "ACTUAL_KERNEL_TOTAL,0,0",
+    "ACTUAL_KERNEL_TOTAL,0,0",
+    "ACTUAL_KERNEL_TOTAL,0,0",
+    "ACTUAL_KERNEL_TOTAL,0,0",
+    "ACTUAL_KERNEL_TOTAL,0,0",
+    "ACTUAL_KERNEL_TOTAL,0,0",
+    "ACTUAL_KERNEL_TOTAL,0,0",
+    "ACTUAL_KERNEL_TOTAL,0,0",
+    "ACTUAL_KERNEL_TOTAL,0,0",
+    "ACTUAL_KERNEL_TOTAL,0,0",
+    "ACTUAL_KERNEL_TOTAL,0,0",
+    "ACTUAL_KERNEL_TOTAL,0,0",
+    "ACTUAL_KERNEL_TOTAL,0,0",
+    "ACTUAL_KERNEL_TOTAL,0,0",
+    "ACTUAL_KERNEL_TOTAL,0,0",
+    "ACTUAL_KERNEL_TOTAL,0,0",
+    "ACTUAL_KERNEL_TOTAL,0,0",
+    "ACTUAL_KERNEL_TOTAL,0,0",
+    "ACTUAL_KERNEL_TOTAL,0,0",
+    "ACTUAL_KERNEL_TOTAL,0,0",
+    "ACTUAL_KERNEL_TOTAL,0,0",
+    "ACTUAL_KERNEL_TOTAL,0,0",
+    "ACTUAL_KERNEL_TOTAL,0,0",
+    "ACTUAL_KERNEL_TOTAL,0,0",
+    "ACTUAL_KERNEL_TOTAL,0,0",
+    "ACTUAL_KERNEL_TOTAL,0,0",
+    "ACTUAL_KERNEL_TOTAL,0,0",
+    "ACTUAL_KERNEL_TOTAL,0,0",
+    "ACTUAL_KERNEL_TOTAL,0,0",
+    "ACTUAL_KERNEL_TOTAL,0,0",
+    "ACTUAL_KERNEL_TOTAL,6100,0"
+  ]
+}

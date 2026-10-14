@@ -1,0 +1,42 @@
+/*---------------------------------------------------------------------------*\
+  =========                 |
+  \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
+   \\    /   O peration     | Website:  https://openfoam.org
+    \\  /    A nd           | Version:  10
+     \\/     M anipulation  |
+\*---------------------------------------------------------------------------*/
+Build  : 10-c4cf895ad8fa
+Exec   : /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T072053Z-fast/work/install/ns2/bin/CHT -case /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T072053Z-fast/work/cases/resident/CHT-actual-radiation-S210
+Date   : Oct 14 2026
+Time   : 17:32:52
+Host   : "lss"
+PID    : 26601
+I/O    : uncollated
+Case   : /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T072053Z-fast/work/cases/resident/CHT-actual-radiation-S210
+nProcs : 1
+sigFpe : Enabling floating point exception trapping (FOAM_SIGFPE).
+fileModificationChecking : Monitoring run-time modified files using timeStampMaster (fileModificationSkew 10)
+allowSystemOperations : Allowing user-supplied system call operations
+
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+Create time
+
+CHT: weighted-parcel directly linked GPU-Riemann-GKP/CHT solver
+GPU particle forces: dragModel=SchillerNaumann particleGasHeatTransferModel=RanzMarshall gravity=(0 0 0) m/s^2
+GPU precision physical=64 time=64 wallEnergyAccumulation=64
+Particle cell path: csrCellLocalPath=0 heavyReductionMode=0 warpAggregatedBinning=0 B2=128 B3=128 heavyAutoInterval=100
+Tracking geometry: B2=128 blocksPerSM=5 grid=1
+Cold-wall launch geometry: threads=32 grid=1
+Launch geometry: B1cell=128 B1face=128 (ToolB1 pending) B2=128 B3=128 SM=24 lightBlocksPerSM=10 heavyBlocksPerSM=0
+Particle stuck model: candidatePatches=1(impactWall) SommerfeldThreshold=20 heatTransfer=1 aluminaWallProperties=temperatureDependent depositionHeatTransferEfficiency=1 reflectionHeatTransferEfficiency=1 adhesionEnergyScale=1 contactAngleDegree=70 defaultWallInteractionModel=coldWall2D coldWall=1 wallProperties=solidRegionProperties(rho,Cp,kappa)
+ToolB1: B1cell=256 B1face=256 cellMedianMs=0.043008 faceMedianMs=0.035776 measuredKernelMs=3.260256 warmup=1 repeats=5
+runTime = 1 simulationTime = 1e-06 particleCount = 1 CoMax = 0 CHTdeltaT = 9.9999999999999995e-07 radiationCoupled = 1
+runTime = 1 simulationTime = 2e-06 particleCount = 1 CoMax = 0 CHTdeltaT = 9.9999999999999995e-07 radiationCoupled = 1
+runTime = 1 simulationTime = 3e-06 particleCount = 1 CoMax = 0 CHTdeltaT = 1.0000000000000002e-06 radiationCoupled = 1
+runTime = 1 simulationTime = 4e-06 particleCount = 1 CoMax = 0 CHTdeltaT = 9.9999999999999974e-07 radiationCoupled = 1
+runTime = 1 simulationTime = 5e-06 particleCount = 1 CoMax = 0 CHTdeltaT = 9.9999999999999974e-07 radiationCoupled = 1
+runTime = 1 simulationTime = 6e-06 particleCount = 1 CoMax = 0 CHTdeltaT = 9.9999999999999974e-07 radiationCoupled = 1
+runTime = 1 simulationTime = 7e-06 particleCount = 1 CoMax = 0 CHTdeltaT = 9.9999999999999974e-07 radiationCoupled = 1
+runTime = 1 simulationTime = 8e-06 particleCount = 1 CoMax = 0 CHTdeltaT = 1.0000000000000006e-06 radiationCoupled = 1
+runTime = 1 simulationTime = 9e-06 particleCount = 1 CoMax = 0 CHTdeltaT = 1.0000000000000006e-06 radiationCoupled = 1
+runTime = 1 simulationTime = 1e-05 particleCount = 1 CoMax = 0 CHTdeltaT = 1.0000000000000006e-06 radiationCoupled = 1

@@ -1,0 +1,56 @@
+--- a/reviewer/chemistry_trial.cu
++++ b/reviewer/chemistry_trial_host_device_split.cu
+@@ -26,7 +26,7 @@
+ }
+ DeviceState* fixture() {
+     static_assert(ugkwp::compiledGasSpecies==2,"fixture uses a two-species mechanism");
+-    DeviceState* s=nullptr;testMem(s,1);fixtures.push_back(s);
++    DeviceState* s=new DeviceState;fixtures.push_back(s);testMem(s->deviceState,1);
+     testMem(s->csrMaximumOccupancy);
+     testMem(s->csrHeavyTaskCount);
+     testMem(s->csrHeavyCellCount);
+@@ -305,7 +305,7 @@
+     testMem(s->compactPRng);
+     testMem(s->compactPOrigId);
+     testMem(s->poissonCellCollisionProbability);
+-    s->deviceState=s;s->nCells=2;s->nFaces=3;s->nInternalFaces=1;
++    s->nCells=2;s->nFaces=3;s->nInternalFaces=1;
+     s->fixedCellBlockThreads=s->fixedFaceBlockThreads=32;
+     s->gasTimeIntegrator=s->hostGasTimeIntegrator=1;
+     s->gasFluxScheme=s->hostGasFluxScheme=1;s->gasReconstruction=s->hostGasReconstruction=0;
+@@ -357,6 +357,7 @@
+     s->gasBudgetHost->elementMassFactors={1/.028,1/.028};
+     s->gasBudgetHost->identity="\"fixture\":\"chemistry_trial\"";
+     g.rho[7]=918273.125;g.cellStatus[7]=123456;g.chemistryAudit[7].acceptedSteps=123456;
++    cudaCheck(cudaMemcpy(s->deviceState,s,sizeof(DeviceState),cudaMemcpyHostToDevice));
+     return s;
+ }
+ void compare(const DeviceState* left,const DeviceState* right) {
+@@ -447,7 +448,8 @@
+         const double savedSpecies[4]={g.rho[0],g.rho[1],g.rho[2],g.rho[3]};
+         const double* volume=kind==14?nullptr:s->V;
+         const double interval=kind==15?0.:2e-6;
+-        advanceGasChemistryKernel<<<1,32>>>(s,interval,volume,true);sync();
++        cudaCheck(cudaMemcpy(s->deviceState,s,sizeof(DeviceState),cudaMemcpyHostToDevice));
++        advanceGasChemistryKernel<<<1,32>>>(s->deviceState,interval,volume,true);sync();
+         check(!g.chemistryStatus[0],"failed native cell reported success");
+         check(std::memcmp(savedSpecies,g.rho,sizeof(savedSpecies))==0&&g.chemistryAudit[0].integratedTime==99
+             &&g.chemistryAudit[0].acceptedSteps==7,"failed native cell published species/audit");
+@@ -460,7 +462,7 @@
+         if(unavailable)check(!SharedGasTrialPolicy::retryable(s),"missing consumed backing became retryable");
+         if(kind==7||kind==15){check(g.chemistryStatus[0].code==ChemistryCode::InvalidModel,"thermo model status lost");
+             check(SharedGasTrialPolicy::resetErrors(s)==0,"reset metadata control");
+-            advanceGasChemistryKernel<<<1,32>>>(s,interval,s->V,false);sync();
++            advanceGasChemistryKernel<<<1,32>>>(s->deviceState,interval,s->V,false);sync();
+             check(g.chemistryAudit[0].integratedTime==interval&&g.cellStatus[0]!=int(GasTransportCode::InvalidStorage),"metadata-only trial failure blocked public completion");}
+         std::printf("PASS failed-cell kind=%d code=%d thermo=%d retry=%d terminal=%d\n",kind,int(g.chemistryStatus[0].code),int(g.chemistryStatus[0].thermoCode),int(SharedGasTrialPolicy::retryable(s)),int(SharedGasTrialPolicy::continueTerminal(s)));
+     }
+@@ -469,7 +471,7 @@
+     check(s->gasSpecies.rho[7]==918273.125&&s->gasSpecies.cellStatus[7]==123456
+         &&s->gasSpecies.chemistryAudit[7].acceptedSteps==123456,"canary overwritten");
+     check(releaseSharedGasTrialStorage(s->gasTrial)==0,"snapshot release failed");
+-    delete s->gasBudgetHost;s->gasBudgetHost=nullptr;s->~DeviceState();}
++    delete s->gasBudgetHost;s->gasBudgetHost=nullptr;delete s;}
+     for(auto it=allocated.rbegin();it!=allocated.rend();++it)cudaCheck(cudaFree(*it));
+ }
+ } // namespace chemistryTrialTest

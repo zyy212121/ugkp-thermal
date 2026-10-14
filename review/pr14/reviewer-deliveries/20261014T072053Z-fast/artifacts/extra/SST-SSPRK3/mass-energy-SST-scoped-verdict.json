@@ -1,0 +1,21 @@
+{
+  "case": "SST-SSPRK3",
+  "mass_energy_SST_scope_pass": true,
+  "global_energy_residuals_J": [
+    "6.5483618527650833129882812500E-9",
+    "-2.77941580861806869506835937500E-8"
+  ],
+  "SST_residuals": [
+    [
+      "-2.47487212633472825404393902155341513137831625584409783735750920641294215E-16",
+      "5.488860277728502300961318351772742356009866955806469901446575932E-16"
+    ],
+    [
+      "-4.9266141391977887569478474722348519870894591693802084392261875223084644E-16",
+      "1.03647443546148400724773227896612146531030503200914577588420684151E-14"
+    ]
+  ],
+  "fullmomentum_verdict": "FAIL_REMAINS_OPEN",
+  "full_audit_ref": "artifacts/extra/SST-SSPRK3/complete-independent-budget-audit.json",
+  "scope": "Original mass/energy/SST rules. Failedfullmomentum original pointdata retained."
+}

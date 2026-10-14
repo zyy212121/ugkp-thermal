@@ -1,0 +1,71 @@
+REAL_CUDA_ALLOC_ERROR code=2 requested_normal_bytes=16
+REAL_CUDA_ALLOC_ERROR code=2 requested_normal_bytes=16
+REAL_CUDA_ALLOC_ERROR code=2 requested_normal_bytes=16
+REAL_CUDA_ALLOC_ERROR code=2 requested_normal_bytes=16
+REAL_CUDA_ALLOC_ERROR code=2 requested_normal_bytes=16
+REAL_CUDA_ALLOC_ERROR code=2 requested_normal_bytes=16
+REAL_CUDA_ALLOC_ERROR code=2 requested_normal_bytes=16
+REAL_CUDA_ALLOC_ERROR code=2 requested_normal_bytes=16
+REAL_CUDA_ALLOC_ERROR code=2 requested_normal_bytes=16
+REAL_CUDA_ALLOC_ERROR code=2 requested_normal_bytes=16
+REAL_CUDA_ALLOC_ERROR code=2 requested_normal_bytes=16
+REAL_CUDA_ALLOC_ERROR code=2 requested_normal_bytes=16
+REAL_CUDA_ALLOC_ERROR code=2 requested_normal_bytes=16
+REAL_CUDA_ALLOC_ERROR code=2 requested_normal_bytes=16
+REAL_CUDA_ALLOC_ERROR code=2 requested_normal_bytes=16
+REAL_CUDA_ALLOC_ERROR code=2 requested_normal_bytes=32
+REAL_CUDA_ALLOC_ERROR code=2 requested_normal_bytes=32
+REAL_CUDA_ALLOC_ERROR code=2 requested_normal_bytes=16
+REAL_CUDA_ALLOC_ERROR code=2 requested_normal_bytes=16
+REAL_CUDA_ALLOC_ERROR code=2 requested_normal_bytes=32
+REAL_CUDA_ALLOC_ERROR code=2 requested_normal_bytes=32
+REAL_CUDA_ALLOC_ERROR code=2 requested_normal_bytes=16
+REAL_CUDA_COPY_ERROR code=21 bytes=16
+SST_DATA k0=0x1.3333333333333p-2 rhoK0=0x1.8p-2 rhoK1=0x1.0ccccccccccccp-1 rhoOmega0=0x1.4p+1 rhoOmega1=0x1.2p+1 pending=0 owners=22
+SST_DATA k0=0x1p+1 rhoK0=0x1.4p+1 rhoK1=0x1.0ccccccccccccp-1 rhoOmega0=0x1.4p+1 rhoOmega1=0x1.2p+1 pending=0 owners=22
+SST_DATA k0=0x1.3333333333333p-2 rhoK0=0x1.8p-2 rhoK1=0x1.0ccccccccccccp-1 rhoOmega0=0x1.4p+1 rhoOmega1=0x1.2p+1 pending=0 owners=22
+PASS SST_ACTUAL_ALLOC_RETRY n=1 frees=25
+SST_DATA k0=0x1.3333333333333p-2 rhoK0=0x1.8p-2 rhoK1=0x1.0ccccccccccccp-1 rhoOmega0=0x1.4p+1 rhoOmega1=0x1.2p+1 pending=0 owners=22
+PASS SST_ACTUAL_ALLOC_RETRY n=2 frees=25
+SST_DATA k0=0x1.3333333333333p-2 rhoK0=0x1.8p-2 rhoK1=0x1.0ccccccccccccp-1 rhoOmega0=0x1.4p+1 rhoOmega1=0x1.2p+1 pending=0 owners=22
+PASS SST_ACTUAL_ALLOC_RETRY n=3 frees=25
+SST_DATA k0=0x1.3333333333333p-2 rhoK0=0x1.8p-2 rhoK1=0x1.0ccccccccccccp-1 rhoOmega0=0x1.4p+1 rhoOmega1=0x1.2p+1 pending=0 owners=22
+PASS SST_ACTUAL_ALLOC_RETRY n=4 frees=25
+SST_DATA k0=0x1.3333333333333p-2 rhoK0=0x1.8p-2 rhoK1=0x1.0ccccccccccccp-1 rhoOmega0=0x1.4p+1 rhoOmega1=0x1.2p+1 pending=0 owners=22
+PASS SST_ACTUAL_ALLOC_RETRY n=5 frees=25
+SST_DATA k0=0x1.3333333333333p-2 rhoK0=0x1.8p-2 rhoK1=0x1.0ccccccccccccp-1 rhoOmega0=0x1.4p+1 rhoOmega1=0x1.2p+1 pending=0 owners=22
+PASS SST_ACTUAL_ALLOC_RETRY n=6 frees=25
+SST_DATA k0=0x1.3333333333333p-2 rhoK0=0x1.8p-2 rhoK1=0x1.0ccccccccccccp-1 rhoOmega0=0x1.4p+1 rhoOmega1=0x1.2p+1 pending=0 owners=22
+PASS SST_ACTUAL_ALLOC_RETRY n=7 frees=25
+SST_DATA k0=0x1.3333333333333p-2 rhoK0=0x1.8p-2 rhoK1=0x1.0ccccccccccccp-1 rhoOmega0=0x1.4p+1 rhoOmega1=0x1.2p+1 pending=0 owners=22
+PASS SST_ACTUAL_ALLOC_RETRY n=8 frees=25
+SST_DATA k0=0x1.3333333333333p-2 rhoK0=0x1.8p-2 rhoK1=0x1.0ccccccccccccp-1 rhoOmega0=0x1.4p+1 rhoOmega1=0x1.2p+1 pending=0 owners=22
+PASS SST_ACTUAL_ALLOC_RETRY n=9 frees=25
+SST_DATA k0=0x1.3333333333333p-2 rhoK0=0x1.8p-2 rhoK1=0x1.0ccccccccccccp-1 rhoOmega0=0x1.4p+1 rhoOmega1=0x1.2p+1 pending=0 owners=22
+PASS SST_ACTUAL_ALLOC_RETRY n=10 frees=25
+SST_DATA k0=0x1.3333333333333p-2 rhoK0=0x1.8p-2 rhoK1=0x1.0ccccccccccccp-1 rhoOmega0=0x1.4p+1 rhoOmega1=0x1.2p+1 pending=0 owners=22
+PASS SST_ACTUAL_ALLOC_RETRY n=11 frees=25
+SST_DATA k0=0x1.3333333333333p-2 rhoK0=0x1.8p-2 rhoK1=0x1.0ccccccccccccp-1 rhoOmega0=0x1.4p+1 rhoOmega1=0x1.2p+1 pending=0 owners=22
+PASS SST_ACTUAL_ALLOC_RETRY n=12 frees=25
+SST_DATA k0=0x1.3333333333333p-2 rhoK0=0x1.8p-2 rhoK1=0x1.0ccccccccccccp-1 rhoOmega0=0x1.4p+1 rhoOmega1=0x1.2p+1 pending=0 owners=22
+PASS SST_ACTUAL_ALLOC_RETRY n=13 frees=25
+SST_DATA k0=0x1.3333333333333p-2 rhoK0=0x1.8p-2 rhoK1=0x1.0ccccccccccccp-1 rhoOmega0=0x1.4p+1 rhoOmega1=0x1.2p+1 pending=0 owners=22
+PASS SST_ACTUAL_ALLOC_RETRY n=14 frees=25
+SST_DATA k0=0x1.3333333333333p-2 rhoK0=0x1.8p-2 rhoK1=0x1.0ccccccccccccp-1 rhoOmega0=0x1.4p+1 rhoOmega1=0x1.2p+1 pending=0 owners=22
+PASS SST_ACTUAL_ALLOC_RETRY n=15 frees=25
+SST_DATA k0=0x1.3333333333333p-2 rhoK0=0x1.8p-2 rhoK1=0x1.0ccccccccccccp-1 rhoOmega0=0x1.4p+1 rhoOmega1=0x1.2p+1 pending=0 owners=22
+PASS SST_ACTUAL_ALLOC_RETRY n=16 frees=25
+SST_DATA k0=0x1.3333333333333p-2 rhoK0=0x1.8p-2 rhoK1=0x1.0ccccccccccccp-1 rhoOmega0=0x1.4p+1 rhoOmega1=0x1.2p+1 pending=0 owners=22
+PASS SST_ACTUAL_ALLOC_RETRY n=17 frees=25
+SST_DATA k0=0x1.3333333333333p-2 rhoK0=0x1.8p-2 rhoK1=0x1.0ccccccccccccp-1 rhoOmega0=0x1.4p+1 rhoOmega1=0x1.2p+1 pending=0 owners=22
+PASS SST_ACTUAL_ALLOC_RETRY n=18 frees=25
+SST_DATA k0=0x1.3333333333333p-2 rhoK0=0x1.8p-2 rhoK1=0x1.0ccccccccccccp-1 rhoOmega0=0x1.4p+1 rhoOmega1=0x1.2p+1 pending=0 owners=22
+PASS SST_ACTUAL_ALLOC_RETRY n=19 frees=25
+SST_DATA k0=0x1.3333333333333p-2 rhoK0=0x1.8p-2 rhoK1=0x1.0ccccccccccccp-1 rhoOmega0=0x1.4p+1 rhoOmega1=0x1.2p+1 pending=0 owners=22
+PASS SST_ACTUAL_ALLOC_RETRY n=20 frees=25
+SST_DATA k0=0x1.3333333333333p-2 rhoK0=0x1.8p-2 rhoK1=0x1.0ccccccccccccp-1 rhoOmega0=0x1.4p+1 rhoOmega1=0x1.2p+1 pending=0 owners=22
+PASS SST_ACTUAL_ALLOC_RETRY n=21 frees=25
+SST_DATA k0=0x1.3333333333333p-2 rhoK0=0x1.8p-2 rhoK1=0x1.0ccccccccccccp-1 rhoOmega0=0x1.4p+1 rhoOmega1=0x1.2p+1 pending=0 owners=22
+PASS SST_ACTUAL_ALLOC_RETRY n=22 frees=25
+SST_DATA k0=0x1.3333333333333p-2 rhoK0=0x1.8p-2 rhoK1=0x1.0ccccccccccccp-1 rhoOmega0=0x1.4p+1 rhoOmega1=0x1.2p+1 pending=0 owners=22
+PASS actualGPU SST22 configure/reconfigure/realresource retry and destroy

@@ -1,0 +1,11 @@
+{
+  "accepted_windows": 2,
+  "energy_tolerance": 6.003655117513695e-05,
+  "evidence": "independent-output-checks-only",
+  "final_time": 2e-05,
+  "gas_energy_change": -0.03600020776502788,
+  "material_energy_change": 0.03600025177001953,
+  "maximum_total_energy_residual": 7.380731403827667e-08,
+  "scenario": "chemistry",
+  "signed_exchange_energy": -0.036000207996187875
+}

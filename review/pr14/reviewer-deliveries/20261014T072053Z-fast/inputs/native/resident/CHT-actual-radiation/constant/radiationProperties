@@ -1,0 +1,2 @@
+FoamFile {version 2.0;format ascii;class dictionary;object radiationProperties;}
+enabled true; couplingFrequency 1; model {mieTable "constant/mieTable"; do { IBoundaryCondition diffuseGrey; nTheta 2; nPhi 4; maxSourceIterations 200; sourceRelativeTolerance 1e-12; phaseBalanceTolerance 1e-12; maxPhaseBalanceIterations 200; radiationActiveEpsilonMin 0; conservationRelativeTolerance 1e-10; maxPhaseScalingCorrection 100; }}

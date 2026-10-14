@@ -1,0 +1,372 @@
+{
+  "case": "CHT-coldWall2D-INPUT2",
+  "all_particle_members": [
+    {
+      "field": "cell",
+      "bitwise_equal": true,
+      "dtype": "int32",
+      "shape": [
+        1
+      ],
+      "maximum_abs": 0.0
+    },
+    {
+      "field": "orig_id",
+      "bitwise_equal": true,
+      "dtype": "uint64",
+      "shape": [
+        1
+      ],
+      "maximum_abs": 0.0
+    },
+    {
+      "field": "pCold2DFrozenArea",
+      "bitwise_equal": true,
+      "dtype": "float64",
+      "shape": [
+        1
+      ],
+      "maximum_abs": 0.0
+    },
+    {
+      "field": "pCold2DNodeSpecificEnthalpy",
+      "bitwise_equal": true,
+      "dtype": "float32",
+      "shape": [
+        1,
+        64
+      ],
+      "maximum_abs": 0.0
+    },
+    {
+      "field": "pCold2DRingContactAge",
+      "bitwise_equal": true,
+      "dtype": "float64",
+      "shape": [
+        1,
+        8
+      ],
+      "maximum_abs": 0.0
+    },
+    {
+      "field": "pColdContactAge",
+      "bitwise_equal": true,
+      "dtype": "float64",
+      "shape": [
+        1
+      ],
+      "maximum_abs": 0.0
+    },
+    {
+      "field": "pColdFrozenArea",
+      "bitwise_equal": true,
+      "dtype": "float64",
+      "shape": [
+        1
+      ],
+      "maximum_abs": 0.0
+    },
+    {
+      "field": "pColdNodeSpecificEnthalpy",
+      "bitwise_equal": true,
+      "dtype": "float32",
+      "shape": [
+        1,
+        8
+      ],
+      "maximum_abs": 0.0
+    },
+    {
+      "field": "pColdRingSolidMass",
+      "bitwise_equal": true,
+      "dtype": "float64",
+      "shape": [
+        1,
+        8
+      ],
+      "maximum_abs": 0.0
+    },
+    {
+      "field": "pContactDuration",
+      "bitwise_equal": true,
+      "dtype": "float64",
+      "shape": [
+        1
+      ],
+      "maximum_abs": 0.0
+    },
+    {
+      "field": "pContactMaximumArea",
+      "bitwise_equal": true,
+      "dtype": "float64",
+      "shape": [
+        1
+      ],
+      "maximum_abs": 0.0
+    },
+    {
+      "field": "pContactPeakFraction",
+      "bitwise_equal": true,
+      "dtype": "float64",
+      "shape": [
+        1
+      ],
+      "maximum_abs": 0.0
+    },
+    {
+      "field": "pDepositionArea",
+      "bitwise_equal": true,
+      "dtype": "float64",
+      "shape": [
+        1
+      ],
+      "maximum_abs": 0.0
+    },
+    {
+      "field": "pStuck",
+      "bitwise_equal": true,
+      "dtype": "uint8",
+      "shape": [
+        1
+      ],
+      "maximum_abs": 0.0
+    },
+    {
+      "field": "pStuckFaceId",
+      "bitwise_equal": true,
+      "dtype": "int32",
+      "shape": [
+        1
+      ],
+      "maximum_abs": 0.0
+    },
+    {
+      "field": "pT",
+      "bitwise_equal": true,
+      "dtype": "float64",
+      "shape": [
+        1
+      ],
+      "maximum_abs": 0.0
+    },
+    {
+      "field": "pThermalEnthalpyResidual",
+      "bitwise_equal": true,
+      "dtype": "float64",
+      "shape": [
+        1
+      ],
+      "maximum_abs": 0.0
+    },
+    {
+      "field": "pTheta",
+      "bitwise_equal": true,
+      "dtype": "float64",
+      "shape": [
+        1
+      ],
+      "maximum_abs": 0.0
+    },
+    {
+      "field": "pd",
+      "bitwise_equal": true,
+      "dtype": "float64",
+      "shape": [
+        1
+      ],
+      "maximum_abs": 0.0
+    },
+    {
+      "field": "pm",
+      "bitwise_equal": true,
+      "dtype": "float64",
+      "shape": [
+        1
+      ],
+      "maximum_abs": 0.0
+    },
+    {
+      "field": "pux",
+      "bitwise_equal": true,
+      "dtype": "float64",
+      "shape": [
+        1
+      ],
+      "maximum_abs": 0.0
+    },
+    {
+      "field": "puxOld",
+      "bitwise_equal": true,
+      "dtype": "float64",
+      "shape": [
+        1
+      ],
+      "maximum_abs": 0.0
+    },
+    {
+      "field": "puy",
+      "bitwise_equal": true,
+      "dtype": "float64",
+      "shape": [
+        1
+      ],
+      "maximum_abs": 0.0
+    },
+    {
+      "field": "puyOld",
+      "bitwise_equal": true,
+      "dtype": "float64",
+      "shape": [
+        1
+      ],
+      "maximum_abs": 0.0
+    },
+    {
+      "field": "puz",
+      "bitwise_equal": true,
+      "dtype": "float64",
+      "shape": [
+        1
+      ],
+      "maximum_abs": 0.0
+    },
+    {
+      "field": "puzOld",
+      "bitwise_equal": true,
+      "dtype": "float64",
+      "shape": [
+        1
+      ],
+      "maximum_abs": 0.0
+    },
+    {
+      "field": "px",
+      "bitwise_equal": true,
+      "dtype": "float64",
+      "shape": [
+        1
+      ],
+      "maximum_abs": 0.0
+    },
+    {
+      "field": "py",
+      "bitwise_equal": true,
+      "dtype": "float64",
+      "shape": [
+        1
+      ],
+      "maximum_abs": 0.0
+    },
+    {
+      "field": "pz",
+      "bitwise_equal": true,
+      "dtype": "float64",
+      "shape": [
+        1
+      ],
+      "maximum_abs": 0.0
+    },
+    {
+      "field": "rng",
+      "bitwise_equal": true,
+      "dtype": "uint64",
+      "shape": [
+        1
+      ],
+      "maximum_abs": 0.0
+    },
+    {
+      "field": "status",
+      "bitwise_equal": true,
+      "dtype": "int32",
+      "shape": [
+        1
+      ],
+      "maximum_abs": 0.0
+    }
+  ],
+  "all_terminal_files": [
+    {
+      "path": "T",
+      "byte_equal": true
+    },
+    {
+      "path": "Tp",
+      "byte_equal": true
+    },
+    {
+      "path": "U",
+      "byte_equal": true
+    },
+    {
+      "path": "Us",
+      "byte_equal": true
+    },
+    {
+      "path": "dMeanCell",
+      "byte_equal": true
+    },
+    {
+      "path": "epsilonS",
+      "byte_equal": true
+    },
+    {
+      "path": "gpuResidentStrictEpsGPrev.dat",
+      "byte_equal": true
+    },
+    {
+      "path": "gpuResidentStrictParticles.dat",
+      "byte_equal": true
+    },
+    {
+      "path": "gpuResidentStrictSourceResidual.dat",
+      "byte_equal": true
+    },
+    {
+      "path": "k",
+      "byte_equal": true
+    },
+    {
+      "path": "nut",
+      "byte_equal": true
+    },
+    {
+      "path": "omega",
+      "byte_equal": true
+    },
+    {
+      "path": "p",
+      "byte_equal": true
+    },
+    {
+      "path": "rho",
+      "byte_equal": true
+    },
+    {
+      "path": "rhoDs",
+      "byte_equal": true
+    },
+    {
+      "path": "rhoE",
+      "byte_equal": true
+    },
+    {
+      "path": "rhoEs",
+      "byte_equal": true
+    },
+    {
+      "path": "rhoU",
+      "byte_equal": true
+    },
+    {
+      "path": "rhoUs",
+      "byte_equal": true
+    },
+    {
+      "path": "theta",
+      "byte_equal": true
+    }
+  ],
+  "failures": [],
+  "scope": "All final decoded particle members bitwise including IDs/RNG/8 or64 float nodes/double carry/history; all scalar/vector/hidden files byte equality at same final time. Directory uniform time metadata not compared."
+}

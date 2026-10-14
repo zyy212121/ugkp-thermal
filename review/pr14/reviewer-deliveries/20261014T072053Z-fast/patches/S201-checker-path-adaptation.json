@@ -1,0 +1,6 @@
+{
+  "classification": "TEST_SUPPORT",
+  "old_sha256": "8c4d12003e26bb5a44682a0c10ffd7bc730b449596273cb210f4938a83ca600a",
+  "new_sha256": "caeb6c820d8c4b59d1057abaac0e6b4e948ada1526799b4b40c06275a8df4e67",
+  "changes": "Import new runner only; same double-mean/caloric/1e-9 threshold/field/restart assertions."
+}

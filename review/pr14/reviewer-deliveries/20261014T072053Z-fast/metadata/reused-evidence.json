@@ -1,0 +1,365 @@
+{
+  "identity": "PR14_REVIEW_ONLY",
+  "old_source": "802a11e7dfe986488a8bf8305e86424dcc94c9e1",
+  "old_delivery_commit": "ae5a59478023c74e23b64dc1a1f388fb805ef565",
+  "changed_production_support_paths": [
+    "applications/CHMT/gpu/Backend.cu",
+    "applications/CHMT/gpu/CourantReductionStorage.cuh",
+    "applications/CHMT/tests/test_native_coupled_checker.py",
+    "applications/CHMT/verification/coupled_runtime/check_case.py",
+    "applications/CHT/gpu/GpuResidentStrict.cu",
+    "applications/gasUGKP/private_backend/SharedGasTrialPolicy.cuh",
+    "common/chemistry/LocalStiffIntegrator.H",
+    "common/operators/advanceGasChemistryKernel.cuh",
+    "common/operators/clearColdWallParticleState.cuh",
+    "common/wall/GpuColdWall2DDevice.cuh",
+    "tests/fixtures/chemistry_trial/chemistry_trial.cu.in",
+    "tests/fixtures/chemistry_trial/prepare_chemistry_trial.py",
+    "tests/fixtures/operator_unification/baseline.json",
+    "tests/fixtures/pr14_fast_cold/RECHECK.md",
+    "tests/fixtures/pr14_fast_cold/initialization.cu",
+    "tests/fixtures/pr14_fast_cold/run.py",
+    "tests/gas_transport/test_chmt_courant_reduction_cuda.py",
+    "tests/test_effusivity_owner.py",
+    "tests/test_pr14_fast_cold_initialization_cuda.py",
+    "tests/test_stuck_owner_lifecycle.py"
+  ],
+  "scoped_units": [
+    {
+      "unit_id": "ACCEPT-gasUGKP-core",
+      "fixed_commit": "ae5a59478023c74e23b64dc1a1f388fb805ef565",
+      "path": "review/pr14/reviewer-deliveries/20261013T182722Z-fast/results.json",
+      "sha256": "21a449490bd85eb553d8a51d4f65185032e4efc70c3e3c51230049fccf6eaacc",
+      "scope": "Original core full-field bitwise assertions with existing base slip-wall thermal formula restored in frozen oracle; old cold block explicit NOT_RUN.",
+      "qualification": "Directcore/pressure/drag/pool/RNG successful/inactivecold callchains have no mathchanges in20filediff; originalcorecoldblock wasexcluded. Native cold/chemistry/cache neweffects expresslynotreused; seeindependentsource-review dependencytable. Originaltestsource remains802, notnew4bexecution.",
+      "not_counted_as_fresh": true
+    },
+    {
+      "unit_id": "ACCEPT-gasUGKP-pressure",
+      "fixed_commit": "ae5a59478023c74e23b64dc1a1f388fb805ef565",
+      "path": "review/pr14/reviewer-deliveries/20261013T182722Z-fast/results.json",
+      "sha256": "21a449490bd85eb553d8a51d4f65185032e4efc70c3e3c51230049fccf6eaacc",
+      "scope": "Actual pressure face/particle/Eulerian flux-limited mass/momentum/energy balances.",
+      "qualification": "Directcore/pressure/drag/pool/RNG successful/inactivecold callchains have no mathchanges in20filediff; originalcorecoldblock wasexcluded. Native cold/chemistry/cache neweffects expresslynotreused; seeindependentsource-review dependencytable. Originaltestsource remains802, notnew4bexecution.",
+      "not_counted_as_fresh": true
+    },
+    {
+      "unit_id": "ACCEPT-gasUGKP-collision",
+      "fixed_commit": "ae5a59478023c74e23b64dc1a1f388fb805ef565",
+      "path": "review/pr14/reviewer-deliveries/20261013T182722Z-fast/results.json",
+      "sha256": "21a449490bd85eb553d8a51d4f65185032e4efc70c3e3c51230049fccf6eaacc",
+      "scope": "Actual producer/directory/pool/selection/RNG/contact/drag physical consumption; scope in fixture.",
+      "qualification": "Directcore/pressure/drag/pool/RNG successful/inactivecold callchains have no mathchanges in20filediff; originalcorecoldblock wasexcluded. Native cold/chemistry/cache neweffects expresslynotreused; seeindependentsource-review dependencytable. Originaltestsource remains802, notnew4bexecution.",
+      "not_counted_as_fresh": true
+    },
+    {
+      "unit_id": "ACCEPT-CUDA-AUTO-RUN-gasUGKP-d0-p1-b32",
+      "fixed_commit": "ae5a59478023c74e23b64dc1a1f388fb805ef565",
+      "path": "review/pr14/reviewer-deliveries/20261013T182722Z-fast/results.json",
+      "sha256": "21a449490bd85eb553d8a51d4f65185032e4efc70c3e3c51230049fccf6eaacc",
+      "scope": "Explicit d0/1/2, pre0/1, blocks32/64/128 real actual pool fields/count/status/RNG.",
+      "qualification": "Directcore/pressure/drag/pool/RNG successful/inactivecold callchains have no mathchanges in20filediff; originalcorecoldblock wasexcluded. Native cold/chemistry/cache neweffects expresslynotreused; seeindependentsource-review dependencytable. Originaltestsource remains802, notnew4bexecution.",
+      "not_counted_as_fresh": true
+    },
+    {
+      "unit_id": "ACCEPT-CUDA-AUTO-RUN-gasUGKP-d1-p0-b64",
+      "fixed_commit": "ae5a59478023c74e23b64dc1a1f388fb805ef565",
+      "path": "review/pr14/reviewer-deliveries/20261013T182722Z-fast/results.json",
+      "sha256": "21a449490bd85eb553d8a51d4f65185032e4efc70c3e3c51230049fccf6eaacc",
+      "scope": "Explicit d0/1/2, pre0/1, blocks32/64/128 real actual pool fields/count/status/RNG.",
+      "qualification": "Directcore/pressure/drag/pool/RNG successful/inactivecold callchains have no mathchanges in20filediff; originalcorecoldblock wasexcluded. Native cold/chemistry/cache neweffects expresslynotreused; seeindependentsource-review dependencytable. Originaltestsource remains802, notnew4bexecution.",
+      "not_counted_as_fresh": true
+    },
+    {
+      "unit_id": "ACCEPT-CUDA-AUTO-RUN-gasUGKP-d2-p0-b128",
+      "fixed_commit": "ae5a59478023c74e23b64dc1a1f388fb805ef565",
+      "path": "review/pr14/reviewer-deliveries/20261013T182722Z-fast/results.json",
+      "sha256": "21a449490bd85eb553d8a51d4f65185032e4efc70c3e3c51230049fccf6eaacc",
+      "scope": "Explicit d0/1/2, pre0/1, blocks32/64/128 real actual pool fields/count/status/RNG.",
+      "qualification": "Directcore/pressure/drag/pool/RNG successful/inactivecold callchains have no mathchanges in20filediff; originalcorecoldblock wasexcluded. Native cold/chemistry/cache neweffects expresslynotreused; seeindependentsource-review dependencytable. Originaltestsource remains802, notnew4bexecution.",
+      "not_counted_as_fresh": true
+    },
+    {
+      "unit_id": "ACCEPT-CUDA-AUTO-RUN-gasUGKP-d2-p1-b128",
+      "fixed_commit": "ae5a59478023c74e23b64dc1a1f388fb805ef565",
+      "path": "review/pr14/reviewer-deliveries/20261013T182722Z-fast/results.json",
+      "sha256": "21a449490bd85eb553d8a51d4f65185032e4efc70c3e3c51230049fccf6eaacc",
+      "scope": "Explicit d0/1/2, pre0/1, blocks32/64/128 real actual pool fields/count/status/RNG.",
+      "qualification": "Directcore/pressure/drag/pool/RNG successful/inactivecold callchains have no mathchanges in20filediff; originalcorecoldblock wasexcluded. Native cold/chemistry/cache neweffects expresslynotreused; seeindependentsource-review dependencytable. Originaltestsource remains802, notnew4bexecution.",
+      "not_counted_as_fresh": true
+    },
+    {
+      "unit_id": "ACCEPT-CUDA-AUTO-RUN-gasUGKP-d0-p0-b128",
+      "fixed_commit": "ae5a59478023c74e23b64dc1a1f388fb805ef565",
+      "path": "review/pr14/reviewer-deliveries/20261013T182722Z-fast/results.json",
+      "sha256": "21a449490bd85eb553d8a51d4f65185032e4efc70c3e3c51230049fccf6eaacc",
+      "scope": "Explicit d0/1/2, pre0/1, blocks32/64/128 real actual pool fields/count/status/RNG.",
+      "qualification": "Directcore/pressure/drag/pool/RNG successful/inactivecold callchains have no mathchanges in20filediff; originalcorecoldblock wasexcluded. Native cold/chemistry/cache neweffects expresslynotreused; seeindependentsource-review dependencytable. Originaltestsource remains802, notnew4bexecution.",
+      "not_counted_as_fresh": true
+    },
+    {
+      "unit_id": "ACCEPT-CUDA-AUTO-RUN-gasUGKP-d1-p1-b32",
+      "fixed_commit": "ae5a59478023c74e23b64dc1a1f388fb805ef565",
+      "path": "review/pr14/reviewer-deliveries/20261013T182722Z-fast/results.json",
+      "sha256": "21a449490bd85eb553d8a51d4f65185032e4efc70c3e3c51230049fccf6eaacc",
+      "scope": "Explicit d0/1/2, pre0/1, blocks32/64/128 real actual pool fields/count/status/RNG.",
+      "qualification": "Directcore/pressure/drag/pool/RNG successful/inactivecold callchains have no mathchanges in20filediff; originalcorecoldblock wasexcluded. Native cold/chemistry/cache neweffects expresslynotreused; seeindependentsource-review dependencytable. Originaltestsource remains802, notnew4bexecution.",
+      "not_counted_as_fresh": true
+    },
+    {
+      "unit_id": "ACCEPT-FSH-core",
+      "fixed_commit": "ae5a59478023c74e23b64dc1a1f388fb805ef565",
+      "path": "review/pr14/reviewer-deliveries/20261013T182722Z-fast/results.json",
+      "sha256": "21a449490bd85eb553d8a51d4f65185032e4efc70c3e3c51230049fccf6eaacc",
+      "scope": "Original core full-field bitwise assertions with existing base slip-wall thermal formula restored in frozen oracle; old cold block explicit NOT_RUN.",
+      "qualification": "Directcore/pressure/drag/pool/RNG successful/inactivecold callchains have no mathchanges in20filediff; originalcorecoldblock wasexcluded. Native cold/chemistry/cache neweffects expresslynotreused; seeindependentsource-review dependencytable. Originaltestsource remains802, notnew4bexecution.",
+      "not_counted_as_fresh": true
+    },
+    {
+      "unit_id": "ACCEPT-FSH-pressure",
+      "fixed_commit": "ae5a59478023c74e23b64dc1a1f388fb805ef565",
+      "path": "review/pr14/reviewer-deliveries/20261013T182722Z-fast/results.json",
+      "sha256": "21a449490bd85eb553d8a51d4f65185032e4efc70c3e3c51230049fccf6eaacc",
+      "scope": "Actual pressure face/particle/Eulerian flux-limited mass/momentum/energy balances.",
+      "qualification": "Directcore/pressure/drag/pool/RNG successful/inactivecold callchains have no mathchanges in20filediff; originalcorecoldblock wasexcluded. Native cold/chemistry/cache neweffects expresslynotreused; seeindependentsource-review dependencytable. Originaltestsource remains802, notnew4bexecution.",
+      "not_counted_as_fresh": true
+    },
+    {
+      "unit_id": "ACCEPT-FSH-collision",
+      "fixed_commit": "ae5a59478023c74e23b64dc1a1f388fb805ef565",
+      "path": "review/pr14/reviewer-deliveries/20261013T182722Z-fast/results.json",
+      "sha256": "21a449490bd85eb553d8a51d4f65185032e4efc70c3e3c51230049fccf6eaacc",
+      "scope": "Actual producer/directory/pool/selection/RNG/contact/drag physical consumption; scope in fixture.",
+      "qualification": "Directcore/pressure/drag/pool/RNG successful/inactivecold callchains have no mathchanges in20filediff; originalcorecoldblock wasexcluded. Native cold/chemistry/cache neweffects expresslynotreused; seeindependentsource-review dependencytable. Originaltestsource remains802, notnew4bexecution.",
+      "not_counted_as_fresh": true
+    },
+    {
+      "unit_id": "ACCEPT-CUDA-AUTO-RUN-FSH-d0-p1-b32",
+      "fixed_commit": "ae5a59478023c74e23b64dc1a1f388fb805ef565",
+      "path": "review/pr14/reviewer-deliveries/20261013T182722Z-fast/results.json",
+      "sha256": "21a449490bd85eb553d8a51d4f65185032e4efc70c3e3c51230049fccf6eaacc",
+      "scope": "Explicit d0/1/2, pre0/1, blocks32/64/128 real actual pool fields/count/status/RNG.",
+      "qualification": "Directcore/pressure/drag/pool/RNG successful/inactivecold callchains have no mathchanges in20filediff; originalcorecoldblock wasexcluded. Native cold/chemistry/cache neweffects expresslynotreused; seeindependentsource-review dependencytable. Originaltestsource remains802, notnew4bexecution.",
+      "not_counted_as_fresh": true
+    },
+    {
+      "unit_id": "ACCEPT-CUDA-AUTO-RUN-FSH-d1-p0-b64",
+      "fixed_commit": "ae5a59478023c74e23b64dc1a1f388fb805ef565",
+      "path": "review/pr14/reviewer-deliveries/20261013T182722Z-fast/results.json",
+      "sha256": "21a449490bd85eb553d8a51d4f65185032e4efc70c3e3c51230049fccf6eaacc",
+      "scope": "Explicit d0/1/2, pre0/1, blocks32/64/128 real actual pool fields/count/status/RNG.",
+      "qualification": "Directcore/pressure/drag/pool/RNG successful/inactivecold callchains have no mathchanges in20filediff; originalcorecoldblock wasexcluded. Native cold/chemistry/cache neweffects expresslynotreused; seeindependentsource-review dependencytable. Originaltestsource remains802, notnew4bexecution.",
+      "not_counted_as_fresh": true
+    },
+    {
+      "unit_id": "ACCEPT-CUDA-AUTO-RUN-FSH-d2-p0-b128",
+      "fixed_commit": "ae5a59478023c74e23b64dc1a1f388fb805ef565",
+      "path": "review/pr14/reviewer-deliveries/20261013T182722Z-fast/results.json",
+      "sha256": "21a449490bd85eb553d8a51d4f65185032e4efc70c3e3c51230049fccf6eaacc",
+      "scope": "Explicit d0/1/2, pre0/1, blocks32/64/128 real actual pool fields/count/status/RNG.",
+      "qualification": "Directcore/pressure/drag/pool/RNG successful/inactivecold callchains have no mathchanges in20filediff; originalcorecoldblock wasexcluded. Native cold/chemistry/cache neweffects expresslynotreused; seeindependentsource-review dependencytable. Originaltestsource remains802, notnew4bexecution.",
+      "not_counted_as_fresh": true
+    },
+    {
+      "unit_id": "ACCEPT-CUDA-AUTO-RUN-FSH-d2-p1-b128",
+      "fixed_commit": "ae5a59478023c74e23b64dc1a1f388fb805ef565",
+      "path": "review/pr14/reviewer-deliveries/20261013T182722Z-fast/results.json",
+      "sha256": "21a449490bd85eb553d8a51d4f65185032e4efc70c3e3c51230049fccf6eaacc",
+      "scope": "Explicit d0/1/2, pre0/1, blocks32/64/128 real actual pool fields/count/status/RNG.",
+      "qualification": "Directcore/pressure/drag/pool/RNG successful/inactivecold callchains have no mathchanges in20filediff; originalcorecoldblock wasexcluded. Native cold/chemistry/cache neweffects expresslynotreused; seeindependentsource-review dependencytable. Originaltestsource remains802, notnew4bexecution.",
+      "not_counted_as_fresh": true
+    },
+    {
+      "unit_id": "ACCEPT-CUDA-AUTO-RUN-FSH-d0-p0-b128",
+      "fixed_commit": "ae5a59478023c74e23b64dc1a1f388fb805ef565",
+      "path": "review/pr14/reviewer-deliveries/20261013T182722Z-fast/results.json",
+      "sha256": "21a449490bd85eb553d8a51d4f65185032e4efc70c3e3c51230049fccf6eaacc",
+      "scope": "Explicit d0/1/2, pre0/1, blocks32/64/128 real actual pool fields/count/status/RNG.",
+      "qualification": "Directcore/pressure/drag/pool/RNG successful/inactivecold callchains have no mathchanges in20filediff; originalcorecoldblock wasexcluded. Native cold/chemistry/cache neweffects expresslynotreused; seeindependentsource-review dependencytable. Originaltestsource remains802, notnew4bexecution.",
+      "not_counted_as_fresh": true
+    },
+    {
+      "unit_id": "ACCEPT-CUDA-AUTO-RUN-FSH-d1-p1-b32",
+      "fixed_commit": "ae5a59478023c74e23b64dc1a1f388fb805ef565",
+      "path": "review/pr14/reviewer-deliveries/20261013T182722Z-fast/results.json",
+      "sha256": "21a449490bd85eb553d8a51d4f65185032e4efc70c3e3c51230049fccf6eaacc",
+      "scope": "Explicit d0/1/2, pre0/1, blocks32/64/128 real actual pool fields/count/status/RNG.",
+      "qualification": "Directcore/pressure/drag/pool/RNG successful/inactivecold callchains have no mathchanges in20filediff; originalcorecoldblock wasexcluded. Native cold/chemistry/cache neweffects expresslynotreused; seeindependentsource-review dependencytable. Originaltestsource remains802, notnew4bexecution.",
+      "not_counted_as_fresh": true
+    },
+    {
+      "unit_id": "ACCEPT-CHT-core",
+      "fixed_commit": "ae5a59478023c74e23b64dc1a1f388fb805ef565",
+      "path": "review/pr14/reviewer-deliveries/20261013T182722Z-fast/results.json",
+      "sha256": "21a449490bd85eb553d8a51d4f65185032e4efc70c3e3c51230049fccf6eaacc",
+      "scope": "Original core full-field bitwise assertions with existing base slip-wall thermal formula restored in frozen oracle; old cold block explicit NOT_RUN.",
+      "qualification": "Directcore/pressure/drag/pool/RNG successful/inactivecold callchains have no mathchanges in20filediff; originalcorecoldblock wasexcluded. Native cold/chemistry/cache neweffects expresslynotreused; seeindependentsource-review dependencytable. Originaltestsource remains802, notnew4bexecution.",
+      "not_counted_as_fresh": true
+    },
+    {
+      "unit_id": "ACCEPT-CHT-pressure",
+      "fixed_commit": "ae5a59478023c74e23b64dc1a1f388fb805ef565",
+      "path": "review/pr14/reviewer-deliveries/20261013T182722Z-fast/results.json",
+      "sha256": "21a449490bd85eb553d8a51d4f65185032e4efc70c3e3c51230049fccf6eaacc",
+      "scope": "Actual pressure face/particle/Eulerian flux-limited mass/momentum/energy balances.",
+      "qualification": "Directcore/pressure/drag/pool/RNG successful/inactivecold callchains have no mathchanges in20filediff; originalcorecoldblock wasexcluded. Native cold/chemistry/cache neweffects expresslynotreused; seeindependentsource-review dependencytable. Originaltestsource remains802, notnew4bexecution.",
+      "not_counted_as_fresh": true
+    },
+    {
+      "unit_id": "ACCEPT-CHT-collision",
+      "fixed_commit": "ae5a59478023c74e23b64dc1a1f388fb805ef565",
+      "path": "review/pr14/reviewer-deliveries/20261013T182722Z-fast/results.json",
+      "sha256": "21a449490bd85eb553d8a51d4f65185032e4efc70c3e3c51230049fccf6eaacc",
+      "scope": "Actual producer/directory/pool/selection/RNG/contact/drag physical consumption; scope in fixture.",
+      "qualification": "Directcore/pressure/drag/pool/RNG successful/inactivecold callchains have no mathchanges in20filediff; originalcorecoldblock wasexcluded. Native cold/chemistry/cache neweffects expresslynotreused; seeindependentsource-review dependencytable. Originaltestsource remains802, notnew4bexecution.",
+      "not_counted_as_fresh": true
+    },
+    {
+      "unit_id": "ACCEPT-CUDA-AUTO-RUN-CHT-d0-p1-b32",
+      "fixed_commit": "ae5a59478023c74e23b64dc1a1f388fb805ef565",
+      "path": "review/pr14/reviewer-deliveries/20261013T182722Z-fast/results.json",
+      "sha256": "21a449490bd85eb553d8a51d4f65185032e4efc70c3e3c51230049fccf6eaacc",
+      "scope": "Explicit d0/1/2, pre0/1, blocks32/64/128 real actual pool fields/count/status/RNG.",
+      "qualification": "Directcore/pressure/drag/pool/RNG successful/inactivecold callchains have no mathchanges in20filediff; originalcorecoldblock wasexcluded. Native cold/chemistry/cache neweffects expresslynotreused; seeindependentsource-review dependencytable. Originaltestsource remains802, notnew4bexecution.",
+      "not_counted_as_fresh": true
+    },
+    {
+      "unit_id": "ACCEPT-CUDA-AUTO-RUN-CHT-d1-p0-b64",
+      "fixed_commit": "ae5a59478023c74e23b64dc1a1f388fb805ef565",
+      "path": "review/pr14/reviewer-deliveries/20261013T182722Z-fast/results.json",
+      "sha256": "21a449490bd85eb553d8a51d4f65185032e4efc70c3e3c51230049fccf6eaacc",
+      "scope": "Explicit d0/1/2, pre0/1, blocks32/64/128 real actual pool fields/count/status/RNG.",
+      "qualification": "Directcore/pressure/drag/pool/RNG successful/inactivecold callchains have no mathchanges in20filediff; originalcorecoldblock wasexcluded. Native cold/chemistry/cache neweffects expresslynotreused; seeindependentsource-review dependencytable. Originaltestsource remains802, notnew4bexecution.",
+      "not_counted_as_fresh": true
+    },
+    {
+      "unit_id": "ACCEPT-CUDA-AUTO-RUN-CHT-d2-p0-b128",
+      "fixed_commit": "ae5a59478023c74e23b64dc1a1f388fb805ef565",
+      "path": "review/pr14/reviewer-deliveries/20261013T182722Z-fast/results.json",
+      "sha256": "21a449490bd85eb553d8a51d4f65185032e4efc70c3e3c51230049fccf6eaacc",
+      "scope": "Explicit d0/1/2, pre0/1, blocks32/64/128 real actual pool fields/count/status/RNG.",
+      "qualification": "Directcore/pressure/drag/pool/RNG successful/inactivecold callchains have no mathchanges in20filediff; originalcorecoldblock wasexcluded. Native cold/chemistry/cache neweffects expresslynotreused; seeindependentsource-review dependencytable. Originaltestsource remains802, notnew4bexecution.",
+      "not_counted_as_fresh": true
+    },
+    {
+      "unit_id": "ACCEPT-CUDA-AUTO-RUN-CHT-d2-p1-b128",
+      "fixed_commit": "ae5a59478023c74e23b64dc1a1f388fb805ef565",
+      "path": "review/pr14/reviewer-deliveries/20261013T182722Z-fast/results.json",
+      "sha256": "21a449490bd85eb553d8a51d4f65185032e4efc70c3e3c51230049fccf6eaacc",
+      "scope": "Explicit d0/1/2, pre0/1, blocks32/64/128 real actual pool fields/count/status/RNG.",
+      "qualification": "Directcore/pressure/drag/pool/RNG successful/inactivecold callchains have no mathchanges in20filediff; originalcorecoldblock wasexcluded. Native cold/chemistry/cache neweffects expresslynotreused; seeindependentsource-review dependencytable. Originaltestsource remains802, notnew4bexecution.",
+      "not_counted_as_fresh": true
+    },
+    {
+      "unit_id": "ACCEPT-CUDA-AUTO-RUN-CHT-d0-p0-b128",
+      "fixed_commit": "ae5a59478023c74e23b64dc1a1f388fb805ef565",
+      "path": "review/pr14/reviewer-deliveries/20261013T182722Z-fast/results.json",
+      "sha256": "21a449490bd85eb553d8a51d4f65185032e4efc70c3e3c51230049fccf6eaacc",
+      "scope": "Explicit d0/1/2, pre0/1, blocks32/64/128 real actual pool fields/count/status/RNG.",
+      "qualification": "Directcore/pressure/drag/pool/RNG successful/inactivecold callchains have no mathchanges in20filediff; originalcorecoldblock wasexcluded. Native cold/chemistry/cache neweffects expresslynotreused; seeindependentsource-review dependencytable. Originaltestsource remains802, notnew4bexecution.",
+      "not_counted_as_fresh": true
+    },
+    {
+      "unit_id": "ACCEPT-CUDA-AUTO-RUN-CHT-d1-p1-b32",
+      "fixed_commit": "ae5a59478023c74e23b64dc1a1f388fb805ef565",
+      "path": "review/pr14/reviewer-deliveries/20261013T182722Z-fast/results.json",
+      "sha256": "21a449490bd85eb553d8a51d4f65185032e4efc70c3e3c51230049fccf6eaacc",
+      "scope": "Explicit d0/1/2, pre0/1, blocks32/64/128 real actual pool fields/count/status/RNG.",
+      "qualification": "Directcore/pressure/drag/pool/RNG successful/inactivecold callchains have no mathchanges in20filediff; originalcorecoldblock wasexcluded. Native cold/chemistry/cache neweffects expresslynotreused; seeindependentsource-review dependencytable. Originaltestsource remains802, notnew4bexecution.",
+      "not_counted_as_fresh": true
+    },
+    {
+      "unit_id": "ACCEPT-FIELDS-gasUGKP-periodic-PHYS1",
+      "fixed_commit": "ae5a59478023c74e23b64dc1a1f388fb805ef565",
+      "path": "review/pr14/reviewer-deliveries/20261013T182722Z-fast/results.json",
+      "sha256": "21a449490bd85eb553d8a51d4f65185032e4efc70c3e3c51230049fccf6eaacc",
+      "scope": "All actual decoded particle members finite; final dtype/storage fields, terminal macros archived. Complete budget not claimed.",
+      "qualification": "Directcore/pressure/drag/pool/RNG successful/inactivecold callchains have no mathchanges in20filediff; originalcorecoldblock wasexcluded. Native cold/chemistry/cache neweffects expresslynotreused; seeindependentsource-review dependencytable. Originaltestsource remains802, notnew4bexecution.",
+      "not_counted_as_fresh": true
+    },
+    {
+      "unit_id": "ACCEPT-COMPARE-RESTART-gasUGKP-periodic-PHYS1",
+      "fixed_commit": "ae5a59478023c74e23b64dc1a1f388fb805ef565",
+      "path": "review/pr14/reviewer-deliveries/20261013T182722Z-fast/results.json",
+      "sha256": "21a449490bd85eb553d8a51d4f65185032e4efc70c3e3c51230049fccf6eaacc",
+      "scope": "Real native restart; all final particle members/RNG bitwise, all terminal/residual/epsilon history files byte equal.",
+      "qualification": "Directcore/pressure/drag/pool/RNG successful/inactivecold callchains have no mathchanges in20filediff; originalcorecoldblock wasexcluded. Native cold/chemistry/cache neweffects expresslynotreused; seeindependentsource-review dependencytable. Originaltestsource remains802, notnew4bexecution.",
+      "not_counted_as_fresh": true
+    },
+    {
+      "unit_id": "ACCEPT-FIELDS-FSH-periodic-INPUT1-PHYS1",
+      "fixed_commit": "ae5a59478023c74e23b64dc1a1f388fb805ef565",
+      "path": "review/pr14/reviewer-deliveries/20261013T182722Z-fast/results.json",
+      "sha256": "21a449490bd85eb553d8a51d4f65185032e4efc70c3e3c51230049fccf6eaacc",
+      "scope": "All actual decoded particle members finite; final dtype/storage fields, terminal macros archived. Complete budget not claimed.",
+      "qualification": "Directcore/pressure/drag/pool/RNG successful/inactivecold callchains have no mathchanges in20filediff; originalcorecoldblock wasexcluded. Native cold/chemistry/cache neweffects expresslynotreused; seeindependentsource-review dependencytable. Originaltestsource remains802, notnew4bexecution.",
+      "not_counted_as_fresh": true
+    },
+    {
+      "unit_id": "ACCEPT-COMPARE-RESTART-FSH-periodic-INPUT1-PHYS1",
+      "fixed_commit": "ae5a59478023c74e23b64dc1a1f388fb805ef565",
+      "path": "review/pr14/reviewer-deliveries/20261013T182722Z-fast/results.json",
+      "sha256": "21a449490bd85eb553d8a51d4f65185032e4efc70c3e3c51230049fccf6eaacc",
+      "scope": "Real native restart; all final particle members/RNG bitwise, all terminal/residual/epsilon history files byte equal.",
+      "qualification": "Directcore/pressure/drag/pool/RNG successful/inactivecold callchains have no mathchanges in20filediff; originalcorecoldblock wasexcluded. Native cold/chemistry/cache neweffects expresslynotreused; seeindependentsource-review dependencytable. Originaltestsource remains802, notnew4bexecution.",
+      "not_counted_as_fresh": true
+    },
+    {
+      "unit_id": "ACCEPT-FIELDS-CHT-periodic-INPUT2-PHYS1",
+      "fixed_commit": "ae5a59478023c74e23b64dc1a1f388fb805ef565",
+      "path": "review/pr14/reviewer-deliveries/20261013T182722Z-fast/results.json",
+      "sha256": "21a449490bd85eb553d8a51d4f65185032e4efc70c3e3c51230049fccf6eaacc",
+      "scope": "All actual decoded particle members finite; final dtype/storage fields, terminal macros archived. Complete budget not claimed.",
+      "qualification": "Directcore/pressure/drag/pool/RNG successful/inactivecold callchains have no mathchanges in20filediff; originalcorecoldblock wasexcluded. Native cold/chemistry/cache neweffects expresslynotreused; seeindependentsource-review dependencytable. Originaltestsource remains802, notnew4bexecution.",
+      "not_counted_as_fresh": true
+    },
+    {
+      "unit_id": "ACCEPT-COMPARE-RESTART-CHT-periodic-INPUT2-PHYS1",
+      "fixed_commit": "ae5a59478023c74e23b64dc1a1f388fb805ef565",
+      "path": "review/pr14/reviewer-deliveries/20261013T182722Z-fast/results.json",
+      "sha256": "21a449490bd85eb553d8a51d4f65185032e4efc70c3e3c51230049fccf6eaacc",
+      "scope": "Real native restart; all final particle members/RNG bitwise, all terminal/residual/epsilon history files byte equal.",
+      "qualification": "Directcore/pressure/drag/pool/RNG successful/inactivecold callchains have no mathchanges in20filediff; originalcorecoldblock wasexcluded. Native cold/chemistry/cache neweffects expresslynotreused; seeindependentsource-review dependencytable. Originaltestsource remains802, notnew4bexecution.",
+      "not_counted_as_fresh": true
+    },
+    {
+      "unit_id": "ACCEPT-SAN-NATIVE-gasUGKP-periodic-PHYS1-memcheck",
+      "fixed_commit": "ae5a59478023c74e23b64dc1a1f388fb805ef565",
+      "path": "review/pr14/reviewer-deliveries/20261013T182722Z-fast/results.json",
+      "sha256": "21a449490bd85eb553d8a51d4f65185032e4efc70c3e3c51230049fccf6eaacc",
+      "scope": "Only named tool/path errors/hazards; no numerical acceptance from sanitizer0.",
+      "qualification": "Directcore/pressure/drag/pool/RNG successful/inactivecold callchains have no mathchanges in20filediff; originalcorecoldblock wasexcluded. Native cold/chemistry/cache neweffects expresslynotreused; seeindependentsource-review dependencytable. Originaltestsource remains802, notnew4bexecution.",
+      "not_counted_as_fresh": true
+    },
+    {
+      "unit_id": "ACCEPT-SAN-NATIVE-FSH-periodic-INPUT1-PHYS1-memcheck",
+      "fixed_commit": "ae5a59478023c74e23b64dc1a1f388fb805ef565",
+      "path": "review/pr14/reviewer-deliveries/20261013T182722Z-fast/results.json",
+      "sha256": "21a449490bd85eb553d8a51d4f65185032e4efc70c3e3c51230049fccf6eaacc",
+      "scope": "Only named tool/path errors/hazards; no numerical acceptance from sanitizer0.",
+      "qualification": "Directcore/pressure/drag/pool/RNG successful/inactivecold callchains have no mathchanges in20filediff; originalcorecoldblock wasexcluded. Native cold/chemistry/cache neweffects expresslynotreused; seeindependentsource-review dependencytable. Originaltestsource remains802, notnew4bexecution.",
+      "not_counted_as_fresh": true
+    },
+    {
+      "unit_id": "ACCEPT-SAN-NATIVE-CHT-periodic-INPUT2-PHYS1-memcheck",
+      "fixed_commit": "ae5a59478023c74e23b64dc1a1f388fb805ef565",
+      "path": "review/pr14/reviewer-deliveries/20261013T182722Z-fast/results.json",
+      "sha256": "21a449490bd85eb553d8a51d4f65185032e4efc70c3e3c51230049fccf6eaacc",
+      "scope": "Only named tool/path errors/hazards; no numerical acceptance from sanitizer0.",
+      "qualification": "Directcore/pressure/drag/pool/RNG successful/inactivecold callchains have no mathchanges in20filediff; originalcorecoldblock wasexcluded. Native cold/chemistry/cache neweffects expresslynotreused; seeindependentsource-review dependencytable. Originaltestsource remains802, notnew4bexecution.",
+      "not_counted_as_fresh": true
+    }
+  ],
+  "support_reuse": [
+    "P003 originalinput/serialization purpose",
+    "P008 physicalinputpurpose",
+    "P009 originaldouble-mean checker arithmetic only",
+    "P012 CSVquote-all profiler serialization"
+  ],
+  "formal_recheck_excluded": [
+    "oldP007/P010diagnosticpass",
+    "oldP002cellpass",
+    "oldP011tailpass"
+  ],
+  "policy": "Unchangeddirectcallchain GPUevidence reusedwithinoriginalscope, neverwholetranslationunit/newrun/all33approval."
+}

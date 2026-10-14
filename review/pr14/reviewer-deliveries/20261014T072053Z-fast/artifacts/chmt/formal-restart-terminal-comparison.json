@@ -1,0 +1,35 @@
+{
+  "all_files_byte_equal": false,
+  "files": [
+    {
+      "path": "accepted-2.csv",
+      "expected_sha256": "9b082c795257498d6b6792d538e39bd862f557abcf1653de89827e902eb6e45a",
+      "actual_sha256": "9b082c795257498d6b6792d538e39bd862f557abcf1653de89827e902eb6e45a",
+      "byte_equal": true
+    },
+    {
+      "path": "checkpoint-2/state.chmt",
+      "expected_sha256": "7e8372bab46233b6fef69af45f61d23ecec796d0f6ab7db84ed4575a0dd7a631",
+      "actual_sha256": "8137063dd20d12e3c61bb585ccc3588528d124f2b8ec146dc9a695024d95943b",
+      "byte_equal": false
+    },
+    {
+      "path": "exchange-2.csv",
+      "expected_sha256": "f9206a978361bfc178e3035f3cd5dbb5666c6a133e3b655feb6e34010b1963c1",
+      "actual_sha256": "99f4400c937fba88ed2181f8519804e9a64b6eb2f7d7a9701eae6c4ea61b7f8e",
+      "byte_equal": false
+    },
+    {
+      "path": "gas-2.csv",
+      "expected_sha256": "1fe36c447e0d9df69f8c8bece669141a8f5764342e1a7b0b9cd02111845868dc",
+      "actual_sha256": "e92230b7536a996b5a68752ed6e246b579aab745c36a87bbd7b06ecadb0afcad",
+      "byte_equal": false
+    },
+    {
+      "path": "material-2.csv",
+      "expected_sha256": "863bfb1a0ef6516ba074a7c07e80dc9d83256e24c026ee2e908935b2f5ae662e",
+      "actual_sha256": "863bfb1a0ef6516ba074a7c07e80dc9d83256e24c026ee2e908935b2f5ae662e",
+      "byte_equal": true
+    }
+  ]
+}

@@ -1,0 +1,244 @@
+{
+  "identity": "PR14_REVIEW_ONLY",
+  "source_commit": "4b5c480b572f234ddecf5e89164fe59b0d2e9735",
+  "findings": [
+    {
+      "id": "GPU-F001",
+      "priority": "P1",
+      "title": "nativeRefinement ignored by reactor selection",
+      "topics": [
+        10,
+        12,
+        14,
+        26
+      ],
+      "recheck_status": "FORMAL_RECHECK_PASS_SCOPED",
+      "recheck_observations": "S208allsemanticaudit/fullowner; submittedtest2P2 stillopen",
+      "status": "FORMAL_RECHECK_PASS_SCOPED",
+      "source_commit": "4b5c480b572f234ddecf5e89164fe59b0d2e9735",
+      "historical_status": "OPEN",
+      "historical_finding": {
+        "fixed_commit": "ae5a59478023c74e23b64dc1a1f388fb805ef565",
+        "path": "review/pr14/reviewer-deliveries/20261013T182722Z-fast/findings.json",
+        "sha256": "133de94002878c4b2562623b3677d3e157a827b30ef15150292c2e9363f7e012",
+        "id": "GPU-F001",
+        "original_source_commit": "802a11e7dfe986488a8bf8305e86424dcc94c9e1"
+      },
+      "scope": "Formal repair rechecked only within named acceptance units; no whole-topic or merge approval."
+    },
+    {
+      "id": "GPU-F002",
+      "priority": "P1",
+      "title": "Allocated zero per-face effusivity hides available scalar fallback, NaN actual cold output",
+      "topics": [
+        12,
+        18,
+        20,
+        26,
+        33
+      ],
+      "recheck_status": "FORMAL_ORIGINAL_RECHECK_PASS_SCOPED",
+      "recheck_observations": "Originalcold inputs/config/actualcopyretry andsinglecoupler; fullgasledger elsewhere",
+      "status": "FORMAL_ORIGINAL_RECHECK_PASS_SCOPED",
+      "source_commit": "4b5c480b572f234ddecf5e89164fe59b0d2e9735",
+      "historical_status": "OPEN",
+      "historical_finding": {
+        "fixed_commit": "ae5a59478023c74e23b64dc1a1f388fb805ef565",
+        "path": "review/pr14/reviewer-deliveries/20261013T182722Z-fast/findings.json",
+        "sha256": "133de94002878c4b2562623b3677d3e157a827b30ef15150292c2e9363f7e012",
+        "id": "GPU-F002",
+        "original_source_commit": "802a11e7dfe986488a8bf8305e86424dcc94c9e1"
+      },
+      "scope": "Formal repair rechecked only within named acceptance units; no whole-topic or merge approval."
+    },
+    {
+      "id": "GPU-F003",
+      "priority": "P2-QUALIFICATION",
+      "title": "Tiny original-success FP64 crossversion dt/stamp/packet/momentum difference",
+      "topics": [
+        14,
+        15,
+        21,
+        22,
+        26,
+        27
+      ],
+      "recheck_status": "EXPLAINED_APPROVED_CLOCK_CHANGE",
+      "recheck_observations": "Actualfirstclockstep6/stage7/firstdtphysical50;802/formalalltracebitsidentical; no restoration/tolclosure",
+      "status": "EXPLAINED_APPROVED_CLOCK_CHANGE",
+      "source_commit": "4b5c480b572f234ddecf5e89164fe59b0d2e9735",
+      "historical_status": "NEEDS_EXPLANATION",
+      "historical_finding": {
+        "fixed_commit": "ae5a59478023c74e23b64dc1a1f388fb805ef565",
+        "path": "review/pr14/reviewer-deliveries/20261013T182722Z-fast/findings.json",
+        "sha256": "133de94002878c4b2562623b3677d3e157a827b30ef15150292c2e9363f7e012",
+        "id": "GPU-F003",
+        "original_source_commit": "802a11e7dfe986488a8bf8305e86424dcc94c9e1"
+      },
+      "scope": "Formal repair rechecked only within named acceptance units; no whole-topic or merge approval."
+    },
+    {
+      "id": "GPU-F004",
+      "priority": "P2",
+      "title": "Initial float profile cast loses double enthalpy remainder",
+      "topics": [
+        23,
+        26,
+        29,
+        33
+      ],
+      "recheck_status": "FORMAL_ORIGINAL_RECHECK_PASS_SCOPED",
+      "recheck_observations": "Originalalltime1e-9/restart/fourphase/nonzerocarry; activefullgroups notclosed",
+      "status": "FORMAL_ORIGINAL_RECHECK_PASS_SCOPED",
+      "source_commit": "4b5c480b572f234ddecf5e89164fe59b0d2e9735",
+      "historical_status": "OPEN",
+      "historical_finding": {
+        "fixed_commit": "ae5a59478023c74e23b64dc1a1f388fb805ef565",
+        "path": "review/pr14/reviewer-deliveries/20261013T182722Z-fast/findings.json",
+        "sha256": "133de94002878c4b2562623b3677d3e157a827b30ef15150292c2e9363f7e012",
+        "id": "GPU-F004",
+        "original_source_commit": "802a11e7dfe986488a8bf8305e86424dcc94c9e1"
+      },
+      "scope": "Formal repair rechecked only within named acceptance units; no whole-topic or merge approval."
+    },
+    {
+      "id": "GPU-F005",
+      "priority": "P2",
+      "title": "Thrust16byte reduction result transfers seven uninitialized tail bytes",
+      "topics": [
+        9,
+        12,
+        14,
+        15,
+        26,
+        28
+      ],
+      "recheck_status": "FORMAL_RECHECK_PASS_SCOPED",
+      "recheck_observations": "Ns2thermal100 initcheck0/allbytes802; freshNs2/Ns10cachetests; fullNs10sanitizer300sblocked",
+      "status": "FORMAL_RECHECK_PASS_SCOPED",
+      "source_commit": "4b5c480b572f234ddecf5e89164fe59b0d2e9735",
+      "historical_status": "OPEN",
+      "historical_finding": {
+        "fixed_commit": "ae5a59478023c74e23b64dc1a1f388fb805ef565",
+        "path": "review/pr14/reviewer-deliveries/20261013T182722Z-fast/findings.json",
+        "sha256": "133de94002878c4b2562623b3677d3e157a827b30ef15150292c2e9363f7e012",
+        "id": "GPU-F005",
+        "original_source_commit": "802a11e7dfe986488a8bf8305e86424dcc94c9e1"
+      },
+      "scope": "Formal repair rechecked only within named acceptance units; no whole-topic or merge approval."
+    },
+    {
+      "id": "GPU-F006",
+      "priority": "P1",
+      "classification": "EXISTING_PRODUCTION_DEFECT_NEWLY_EXERCISED",
+      "title": "Zero phase transfer reads disabled condensed material index -1",
+      "file": "applications/CHMT/materials/CpuMaterialDriver.C",
+      "line": 461,
+      "source_commit": "4b5c480b572f234ddecf5e89164fe59b0d2e9735",
+      "same_code_in802": true,
+      "trigger": "Supportedwet ThicknessAveraged, noMelting, defaultphaseCondensed=-1; heat-onlySolidFilmphase.mass0 stillunconditionallydivides bycondensed[-1].rho.",
+      "observed": "Formalwet heatand evaporation SIGFPE(-8); originallogs/initialcheckpoints retained. Staticinvalidaccessconfirmed; exactsignalPCnotresolved. KnownOOBnotreexecuted.",
+      "diagnostic": "D204zero-massvolume0 bypassunselectedmaterial; originalGPUobjectunchanged. Sameheatinputwholecompletion/M/Escopedpass, fullPstrictred;evap300sblocked.",
+      "status": "OPEN_DEVELOPER_FORMAL_REPAIR_REQUIRED",
+      "topics": [
+        3,
+        6,
+        13,
+        14,
+        20,
+        21,
+        26,
+        29
+      ],
+      "evidence": [
+        "metadata/independent-wet-review.md",
+        "logs/EXTRA-wet-film-S209.log",
+        "logs/EXTRA-wet-evaporation-S209.log",
+        "patches/D204-zero-phase-does-not-consume-disabled-material.patch"
+      ]
+    },
+    {
+      "id": "TEST-R2-S1",
+      "priority": "P2",
+      "classification": "SUBMITTED_TEST_SUPPORT_DEFECT",
+      "title": "Chemistryfixture managedhost/deviceowner fails asynchronoushostread onWSL",
+      "file": "tests/fixtures/chemistry_trial/chemistry_trial.cu.in",
+      "line": 19,
+      "status": "OPEN_DEVELOPER_SUPPORT_REPAIR",
+      "topics": [
+        10,
+        14,
+        26
+      ],
+      "evidence": [
+        "metadata/independent-source-review.md",
+        "logs/CHEM-OWNER.log",
+        "patches/S202-fixture-host-device-split.patch"
+      ]
+    },
+    {
+      "id": "TEST-R2-S2",
+      "priority": "P2",
+      "classification": "SUBMITTED_TEST_SUPPORT_DEFECT",
+      "title": "Hardcodedtwo acceptedchemicalparts conflictswithrealCFL",
+      "file": "tests/fixtures/chemistry_trial/chemistry_trial.cu.in",
+      "line": 126,
+      "status": "OPEN_DEVELOPER_SUPPORT_REPAIR",
+      "topics": [
+        10,
+        14,
+        26
+      ],
+      "evidence": [
+        "metadata/independent-source-review.md",
+        "logs/CHEM-OWNER-S202.log",
+        "logs/CHEM-OWNER-S208.log"
+      ]
+    },
+    {
+      "id": "OBS-R2-P",
+      "classification": "UNRESOLVED_STRICT_BUDGET_OBSERVATION",
+      "title": "CompleteCHMT/SST/film momentumcriterion unresolved",
+      "status": "OPEN_NOT_CONFIRMED_NEW_PRODUCTION_BUG",
+      "observed": "SSTgasP residual1.30e-12..8.03e-12; dry3.58e-13; diagnosticperFilmP1.03e-13. Packetmass-rule testscaling used; originalM/E/SST pass, strictcombinedFAIL kept.",
+      "topics": [
+        8,
+        9,
+        14,
+        26,
+        29
+      ]
+    },
+    {
+      "id": "OBS-R2-COLD16",
+      "classification": "UNRESOLVED_NEW_INPUT_SCOPE",
+      "title": "16inactivecoldcache profile/currentpT strictmismatch",
+      "status": "OPEN_ACTIVE_FULLGROUP_WITNESS_REQUIRED",
+      "observed": "All16survivecorrectcellinput, cold2Dagesall0; CHT2.076931505e-4K/FSH5.813134476e-5K >1e-9. Inactivecache/initialrecord purpose unresolved; no finite/tolshortcut.",
+      "topics": [
+        18,
+        23,
+        26,
+        33
+      ]
+    },
+    {
+      "id": "OBS-R2-RESTART",
+      "classification": "EXISTING_STRICT_RESTART_DIFFERENCE",
+      "title": "Fullvsrestart notbitexact, formalvs802restart exact",
+      "status": "OPEN_FIRST_RESTART_DIVERGENCE",
+      "topics": [
+        5,
+        14,
+        26
+      ],
+      "evidence": [
+        "artifacts/chmt/formal-restart-terminal-comparison.json",
+        "artifacts/chmt/old802-vs-formal-restart.json"
+      ]
+    }
+  ],
+  "merge_ready": false,
+  "interaction_class": "FAST",
+  "source_tree": "0fa2562f4c83394cdf94e9650de3b22c4fb4bb15"
+}

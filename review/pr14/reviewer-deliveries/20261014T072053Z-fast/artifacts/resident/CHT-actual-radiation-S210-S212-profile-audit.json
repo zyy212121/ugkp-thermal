@@ -1,0 +1,231 @@
+{
+  "name": "CHT-actual-radiation-S210",
+  "states": [
+    {
+      "time": "1e-06",
+      "particle_count": 1,
+      "profile_dtype": "float32",
+      "rows": [
+        {
+          "particle": 0,
+          "mean_double": 4191779.5,
+          "carry_double": -0.11268436807725854,
+          "pT": 2373.1499520871903,
+          "inverse_temperature": 2373.1499520871903,
+          "abs_error_K": 0.0
+        }
+      ],
+      "maximum_error_K": 0.0,
+      "stuck_states": [
+        3
+      ],
+      "positive_contact_age_count": 0,
+      "positive_cold2D_contact_age_count": 0
+    },
+    {
+      "time": "2e-06",
+      "particle_count": 1,
+      "profile_dtype": "float32",
+      "rows": [
+        {
+          "particle": 0,
+          "mean_double": 4191779.06640625,
+          "carry_double": 0.12921366096341622,
+          "pT": 2373.1498248732455,
+          "inverse_temperature": 2373.1498248732455,
+          "abs_error_K": 0.0
+        }
+      ],
+      "maximum_error_K": 0.0,
+      "stuck_states": [
+        3
+      ],
+      "positive_contact_age_count": 0,
+      "positive_cold2D_contact_age_count": 1
+    },
+    {
+      "time": "3e-06",
+      "particle_count": 1,
+      "profile_dtype": "float32",
+      "rows": [
+        {
+          "particle": 0,
+          "mean_double": 4191778.5703125,
+          "carry_double": 0.12032164544788504,
+          "pT": 2373.1494897524035,
+          "inverse_temperature": 2373.1494897524035,
+          "abs_error_K": 0.0
+        }
+      ],
+      "maximum_error_K": 0.0,
+      "stuck_states": [
+        3
+      ],
+      "positive_contact_age_count": 0,
+      "positive_cold2D_contact_age_count": 1
+    },
+    {
+      "time": "4e-06",
+      "particle_count": 1,
+      "profile_dtype": "float32",
+      "rows": [
+        {
+          "particle": 0,
+          "mean_double": 4191777.77734375,
+          "carry_double": 0.10991533895144212,
+          "pT": 2373.1489566131618,
+          "inverse_temperature": 2373.1489566131618,
+          "abs_error_K": 0.0
+        }
+      ],
+      "maximum_error_K": 0.0,
+      "stuck_states": [
+        3
+      ],
+      "positive_contact_age_count": 0,
+      "positive_cold2D_contact_age_count": 1
+    },
+    {
+      "time": "5e-06",
+      "particle_count": 1,
+      "profile_dtype": "float32",
+      "rows": [
+        {
+          "particle": 0,
+          "mean_double": 4191776.703125,
+          "carry_double": 0.09587526106138311,
+          "pT": 2373.148234418106,
+          "inverse_temperature": 2373.1482344181063,
+          "abs_error_K": 4.547473508864641e-13
+        }
+      ],
+      "maximum_error_K": 4.547473508864641e-13,
+      "stuck_states": [
+        3
+      ],
+      "positive_contact_age_count": 0,
+      "positive_cold2D_contact_age_count": 1
+    },
+    {
+      "time": "6e-06",
+      "particle_count": 1,
+      "profile_dtype": "float32",
+      "rows": [
+        {
+          "particle": 0,
+          "mean_double": 4191775.3203125,
+          "carry_double": 0.11612964059156616,
+          "pT": 2373.1473301913466,
+          "inverse_temperature": 2373.1473301913466,
+          "abs_error_K": 0.0
+        }
+      ],
+      "maximum_error_K": 0.0,
+      "stuck_states": [
+        3
+      ],
+      "positive_contact_age_count": 0,
+      "positive_cold2D_contact_age_count": 1
+    },
+    {
+      "time": "7e-06",
+      "particle_count": 1,
+      "profile_dtype": "float32",
+      "rows": [
+        {
+          "particle": 0,
+          "mean_double": 4191773.703125,
+          "carry_double": 0.10524472312247224,
+          "pT": 2373.14624976281,
+          "inverse_temperature": 2373.14624976281,
+          "abs_error_K": 0.0
+        }
+      ],
+      "maximum_error_K": 0.0,
+      "stuck_states": [
+        3
+      ],
+      "positive_contact_age_count": 0,
+      "positive_cold2D_contact_age_count": 1
+    },
+    {
+      "time": "8e-06",
+      "particle_count": 1,
+      "profile_dtype": "float32",
+      "rows": [
+        {
+          "particle": 0,
+          "mean_double": 4191771.80078125,
+          "carry_double": 0.12155083232984554,
+          "pT": 2373.1449981422347,
+          "inverse_temperature": 2373.1449981422347,
+          "abs_error_K": 0.0
+        }
+      ],
+      "maximum_error_K": 0.0,
+      "stuck_states": [
+        3
+      ],
+      "positive_contact_age_count": 0,
+      "positive_cold2D_contact_age_count": 1
+    },
+    {
+      "time": "9e-06",
+      "particle_count": 1,
+      "profile_dtype": "float32",
+      "rows": [
+        {
+          "particle": 0,
+          "mean_double": 4191769.6796875,
+          "carry_double": 0.10527975570510373,
+          "pT": 2373.143579734771,
+          "inverse_temperature": 2373.1435797347713,
+          "abs_error_K": 4.547473508864641e-13
+        }
+      ],
+      "maximum_error_K": 4.547473508864641e-13,
+      "stuck_states": [
+        3
+      ],
+      "positive_contact_age_count": 0,
+      "positive_cold2D_contact_age_count": 1
+    },
+    {
+      "time": "1e-05",
+      "particle_count": 1,
+      "profile_dtype": "float32",
+      "rows": [
+        {
+          "particle": 0,
+          "mean_double": 4191767.27734375,
+          "carry_double": 0.12486538822495374,
+          "pT": 2373.1419984782824,
+          "inverse_temperature": 2373.141998478283,
+          "abs_error_K": 4.547473508864641e-13
+        }
+      ],
+      "maximum_error_K": 4.547473508864641e-13,
+      "stuck_states": [
+        3
+      ],
+      "positive_contact_age_count": 0,
+      "positive_cold2D_contact_age_count": 1
+    }
+  ],
+  "failures": [],
+  "maximum_error_K": 4.547473508864641e-13,
+  "all_counts": [
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1
+  ],
+  "criteria": "No case-name shortcut. Everyphysicalparcel at everyoutput; profile mean sequentialfloat64sum, unchangedcaloric/1e-9K. FSHprofile itselfmustfloat64; nofictionalcarryfield. Dynamiccontacts reported, notinferred.",
+  "all_pass": true
+}

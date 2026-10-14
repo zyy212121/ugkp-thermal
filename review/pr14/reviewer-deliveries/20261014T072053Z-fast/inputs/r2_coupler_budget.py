@@ -1,0 +1,18 @@
+import re,json,decimal
+from r2_runner import *
+decimal.getcontext().prec=80
+def dec(x):return decimal.Decimal.from_float(float(x))
+def internal(p,n):
+ s=p.read_text();m=re.search(r'internalField\s+uniform\s+([^;]+);',s)
+ if m:return [float(m[1])]*n
+ m=re.search(r'internalField\s+nonuniform\s+List<scalar>\s+\d+\s*\((.*?)\)\s*;',s,re.S);assert m;return list(map(float,m[1].split()))
+def wall(p):
+ s=p.read_text();m=re.search(r'impactWall\s*\{([^}]*)\}',s,re.S);assert m;m=re.search(r'value\s+uniform\s+([^;]+);',m[1]);assert m;return float(m[1])
+reports=[]
+for name in ['CHT-actual-coupler-S210','CHT-actual-radiation-S210']:
+ folder=D/'artifacts/resident'/name;case=ROOT/'work/cases/resident'/name;values=[];heat=decimal.Decimal(0);previous=0.;initial=1000.;cpV=dec(1000)*dec(800)*dec(.04)*dec(.04)*dec(.001)/dec(10)
+ for q in sorted(folder.iterdir(),key=lambda p:float(p.name)):
+  p=q/'thermalExchangeState';assert p.exists();text=p.read_text();time=float(re.search(r'completedSimulationTimeS\s+([^;]+);',text)[1]);dt=time-previous;flux={k:wall(q/k) for k in ['gasConvectiveWallHeatFlux','particleStuckWallHeatFlux','particleReflectedWallHeatFlux','particleRadiationWallHeatFlux']};stepheat=sum((dec(v)*dec(.04)*dec(.04)*dec(dt) for v in flux.values()),decimal.Decimal(0));heat+=stepheat;T=internal(q/'solid/T',10);energy=sum((cpV*(dec(v)-dec(initial)) for v in T),decimal.Decimal(0));res=energy-heat
+  values.append({'time':time,'elapsed_dt':dt,'actual_heatflux_Wm2':flux,'actual_integrated_wall_heat_J':str(heat),'actual_solid_energy_delta_J':str(energy),'residual_J':str(res),'solid_minmax_K':[min(T),max(T)],'state_flags':{k:re.search(k+r'\s+([^;]+);',text)[1] for k in ['gasWallLedgerConsumed','particleWallLedgerConsumed','particleRadiationApplied','solidStateUpdated','wallTemperatureUploaded','particleMomentsRebuilt']},'pass':abs(res)<=dec(1e-8)+dec(1e-8)*max(abs(heat),abs(energy))});previous=time
+ report={'case':name,'rows':values,'all_pass':all(x['pass'] for x in values),'maximum_abs_residual_J':max(abs(float(x['residual_J'])) for x in values),'criteria':'Existing configuredsolidcouplerenergyAbsolute/Relative 1e-8 unchanged; integrateallactualwritten wallheat channels each realcompleted interval usingactualoneface area .0016 andsolidrho1000Cp800/volume1.6e-6, notsnapshot alone.','scope':'RealnativeGPUgas/particle resident plus actualOpenFOAMsolid/DO coupler. This verifieswallheat->solidstock and consumedstateflags, NOT fullthree-app gas/particle/momentum budget.'};dest=D/'artifacts/resident'/(name+'-actual-solid-wall-budget.json');dest.write_text(json.dumps(report,indent=2)+'\n');reports.append(report);t=run('REAL-SOLID-WALL-BUDGET-'+name,['python3','-c','print("Actualalltimewallledger/solidinventory sums retained")'],[18,20,23,26,30,33],expected='Allactualwallchannel energy plus realelapsed stageintegration matchesphysicalsolidstock; configuredoriginalsolidcriteria.',inputs=[dest],kind='ANALYSIS');assertion(t,report['all_pass'],'Actualmaxsolid-wall residual='+str(report['maximum_abs_residual_J'])+'J; fullresidentgasbudget NOTclosed.',artifacts=[str(dest.relative_to(D))]);amend('NATIVE-'+name,verdict='PASS' if report['all_pass'] else 'FAIL',observations='RealnativeGPU plus coupledsolid/radiation; alltimeprofiles S212 and actualallchannelwall-solidledger closure='+str(report['all_pass'])+' max='+str(report['maximum_abs_residual_J'])+'J; remainingfullgasinventory scope explicit.');print(name,report['all_pass'],report['maximum_abs_residual_J'],values[-1],flush=True)
+(D/'artifacts/resident/actual-coupler-wall-solid-budgets.json').write_text(json.dumps(reports,indent=2)+'\n')

@@ -1,0 +1,3022 @@
+{
+  "name": "FSH-cold2D-valid16-S214",
+  "states": [
+    {
+      "time": "1e-06",
+      "particle_count": 16,
+      "profile_dtype": "float64",
+      "rows": [
+        {
+          "particle": 0,
+          "mean_double": 4191779.387314074,
+          "carry_double": 0.0,
+          "pT": 2373.14994815774,
+          "inverse_temperature": 2373.1499520861566,
+          "abs_error_K": 3.92841684515588e-06
+        },
+        {
+          "particle": 1,
+          "mean_double": 4191779.387314074,
+          "carry_double": 0.0,
+          "pT": 2373.1499481577384,
+          "inverse_temperature": 2373.1499520861566,
+          "abs_error_K": 3.9284182093979325e-06
+        },
+        {
+          "particle": 2,
+          "mean_double": 4191779.387314074,
+          "carry_double": 0.0,
+          "pT": 2373.14994815774,
+          "inverse_temperature": 2373.1499520861566,
+          "abs_error_K": 3.92841684515588e-06
+        },
+        {
+          "particle": 3,
+          "mean_double": 4191779.387314074,
+          "carry_double": 0.0,
+          "pT": 2373.149948157738,
+          "inverse_temperature": 2373.1499520861566,
+          "abs_error_K": 3.928418664145283e-06
+        },
+        {
+          "particle": 4,
+          "mean_double": 4191779.387314074,
+          "carry_double": 0.0,
+          "pT": 2373.1499481577375,
+          "inverse_temperature": 2373.1499520861566,
+          "abs_error_K": 3.928419118892634e-06
+        },
+        {
+          "particle": 5,
+          "mean_double": 4191779.387314074,
+          "carry_double": 0.0,
+          "pT": 2373.149948157738,
+          "inverse_temperature": 2373.1499520861566,
+          "abs_error_K": 3.928418664145283e-06
+        },
+        {
+          "particle": 6,
+          "mean_double": 4191779.387314074,
+          "carry_double": 0.0,
+          "pT": 2373.1499481577384,
+          "inverse_temperature": 2373.1499520861566,
+          "abs_error_K": 3.9284182093979325e-06
+        },
+        {
+          "particle": 7,
+          "mean_double": 4191779.387314074,
+          "carry_double": 0.0,
+          "pT": 2373.1499481577384,
+          "inverse_temperature": 2373.1499520861566,
+          "abs_error_K": 3.9284182093979325e-06
+        },
+        {
+          "particle": 8,
+          "mean_double": 4191779.387314074,
+          "carry_double": 0.0,
+          "pT": 2373.14994815774,
+          "inverse_temperature": 2373.1499520861566,
+          "abs_error_K": 3.92841684515588e-06
+        },
+        {
+          "particle": 9,
+          "mean_double": 4191779.387314074,
+          "carry_double": 0.0,
+          "pT": 2373.1499481577384,
+          "inverse_temperature": 2373.1499520861566,
+          "abs_error_K": 3.9284182093979325e-06
+        },
+        {
+          "particle": 10,
+          "mean_double": 4191779.387314074,
+          "carry_double": 0.0,
+          "pT": 2373.14994815774,
+          "inverse_temperature": 2373.1499520861566,
+          "abs_error_K": 3.92841684515588e-06
+        },
+        {
+          "particle": 11,
+          "mean_double": 4191779.387314074,
+          "carry_double": 0.0,
+          "pT": 2373.14994815774,
+          "inverse_temperature": 2373.1499520861566,
+          "abs_error_K": 3.92841684515588e-06
+        },
+        {
+          "particle": 12,
+          "mean_double": 4191779.387314074,
+          "carry_double": 0.0,
+          "pT": 2373.149948157738,
+          "inverse_temperature": 2373.1499520861566,
+          "abs_error_K": 3.928418664145283e-06
+        },
+        {
+          "particle": 13,
+          "mean_double": 4191779.387314074,
+          "carry_double": 0.0,
+          "pT": 2373.1499481577384,
+          "inverse_temperature": 2373.1499520861566,
+          "abs_error_K": 3.9284182093979325e-06
+        },
+        {
+          "particle": 14,
+          "mean_double": 4191779.387314074,
+          "carry_double": 0.0,
+          "pT": 2373.149948157738,
+          "inverse_temperature": 2373.1499520861566,
+          "abs_error_K": 3.928418664145283e-06
+        },
+        {
+          "particle": 15,
+          "mean_double": 4191779.387314074,
+          "carry_double": 0.0,
+          "pT": 2373.14994815774,
+          "inverse_temperature": 2373.1499520861566,
+          "abs_error_K": 3.92841684515588e-06
+        }
+      ],
+      "maximum_error_K": 3.928419118892634e-06,
+      "stuck_states": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "positive_contact_age_count": 0,
+      "positive_cold2D_contact_age_count": 0
+    },
+    {
+      "time": "2e-06",
+      "particle_count": 16,
+      "profile_dtype": "float64",
+      "rows": [
+        {
+          "particle": 0,
+          "mean_double": 4191779.387314074,
+          "carry_double": 0.0,
+          "pT": 2373.149943497666,
+          "inverse_temperature": 2373.1499520861566,
+          "abs_error_K": 8.58849080032087e-06
+        },
+        {
+          "particle": 1,
+          "mean_double": 4191779.387314074,
+          "carry_double": 0.0,
+          "pT": 2373.149943497664,
+          "inverse_temperature": 2373.1499520861566,
+          "abs_error_K": 8.588492619310273e-06
+        },
+        {
+          "particle": 2,
+          "mean_double": 4191779.387314074,
+          "carry_double": 0.0,
+          "pT": 2373.149943497666,
+          "inverse_temperature": 2373.1499520861566,
+          "abs_error_K": 8.58849080032087e-06
+        },
+        {
+          "particle": 3,
+          "mean_double": 4191779.387314074,
+          "carry_double": 0.0,
+          "pT": 2373.149943497664,
+          "inverse_temperature": 2373.1499520861566,
+          "abs_error_K": 8.588492619310273e-06
+        },
+        {
+          "particle": 4,
+          "mean_double": 4191779.387314074,
+          "carry_double": 0.0,
+          "pT": 2373.1499434976636,
+          "inverse_temperature": 2373.1499520861566,
+          "abs_error_K": 8.588493074057624e-06
+        },
+        {
+          "particle": 5,
+          "mean_double": 4191779.387314074,
+          "carry_double": 0.0,
+          "pT": 2373.149943497664,
+          "inverse_temperature": 2373.1499520861566,
+          "abs_error_K": 8.588492619310273e-06
+        },
+        {
+          "particle": 6,
+          "mean_double": 4191779.387314074,
+          "carry_double": 0.0,
+          "pT": 2373.1499434976645,
+          "inverse_temperature": 2373.1499520861566,
+          "abs_error_K": 8.588492164562922e-06
+        },
+        {
+          "particle": 7,
+          "mean_double": 4191779.387314074,
+          "carry_double": 0.0,
+          "pT": 2373.1499434976645,
+          "inverse_temperature": 2373.1499520861566,
+          "abs_error_K": 8.588492164562922e-06
+        },
+        {
+          "particle": 8,
+          "mean_double": 4191779.387314074,
+          "carry_double": 0.0,
+          "pT": 2373.149943497666,
+          "inverse_temperature": 2373.1499520861566,
+          "abs_error_K": 8.58849080032087e-06
+        },
+        {
+          "particle": 9,
+          "mean_double": 4191779.387314074,
+          "carry_double": 0.0,
+          "pT": 2373.1499434976645,
+          "inverse_temperature": 2373.1499520861566,
+          "abs_error_K": 8.588492164562922e-06
+        },
+        {
+          "particle": 10,
+          "mean_double": 4191779.387314074,
+          "carry_double": 0.0,
+          "pT": 2373.149943497666,
+          "inverse_temperature": 2373.1499520861566,
+          "abs_error_K": 8.58849080032087e-06
+        },
+        {
+          "particle": 11,
+          "mean_double": 4191779.387314074,
+          "carry_double": 0.0,
+          "pT": 2373.149943497666,
+          "inverse_temperature": 2373.1499520861566,
+          "abs_error_K": 8.58849080032087e-06
+        },
+        {
+          "particle": 12,
+          "mean_double": 4191779.387314074,
+          "carry_double": 0.0,
+          "pT": 2373.149943497664,
+          "inverse_temperature": 2373.1499520861566,
+          "abs_error_K": 8.588492619310273e-06
+        },
+        {
+          "particle": 13,
+          "mean_double": 4191779.387314074,
+          "carry_double": 0.0,
+          "pT": 2373.1499434976645,
+          "inverse_temperature": 2373.1499520861566,
+          "abs_error_K": 8.588492164562922e-06
+        },
+        {
+          "particle": 14,
+          "mean_double": 4191779.387314074,
+          "carry_double": 0.0,
+          "pT": 2373.149943497664,
+          "inverse_temperature": 2373.1499520861566,
+          "abs_error_K": 8.588492619310273e-06
+        },
+        {
+          "particle": 15,
+          "mean_double": 4191779.387314074,
+          "carry_double": 0.0,
+          "pT": 2373.149943497666,
+          "inverse_temperature": 2373.1499520861566,
+          "abs_error_K": 8.58849080032087e-06
+        }
+      ],
+      "maximum_error_K": 8.588493074057624e-06,
+      "stuck_states": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "positive_contact_age_count": 0,
+      "positive_cold2D_contact_age_count": 0
+    },
+    {
+      "time": "3e-06",
+      "particle_count": 16,
+      "profile_dtype": "float64",
+      "rows": [
+        {
+          "particle": 0,
+          "mean_double": 4191779.387314074,
+          "carry_double": 0.0,
+          "pT": 2373.1499383677838,
+          "inverse_temperature": 2373.1499520861566,
+          "abs_error_K": 1.3718372883886332e-05
+        },
+        {
+          "particle": 1,
+          "mean_double": 4191779.387314074,
+          "carry_double": 0.0,
+          "pT": 2373.1499383677815,
+          "inverse_temperature": 2373.1499520861566,
+          "abs_error_K": 1.3718375157623086e-05
+        },
+        {
+          "particle": 2,
+          "mean_double": 4191779.387314074,
+          "carry_double": 0.0,
+          "pT": 2373.1499383677833,
+          "inverse_temperature": 2373.1499520861566,
+          "abs_error_K": 1.3718373338633683e-05
+        },
+        {
+          "particle": 3,
+          "mean_double": 4191779.387314074,
+          "carry_double": 0.0,
+          "pT": 2373.149938367782,
+          "inverse_temperature": 2373.1499520861566,
+          "abs_error_K": 1.3718374702875735e-05
+        },
+        {
+          "particle": 4,
+          "mean_double": 4191779.387314074,
+          "carry_double": 0.0,
+          "pT": 2373.149938367781,
+          "inverse_temperature": 2373.1499520861566,
+          "abs_error_K": 1.3718375612370437e-05
+        },
+        {
+          "particle": 5,
+          "mean_double": 4191779.387314074,
+          "carry_double": 0.0,
+          "pT": 2373.149938367782,
+          "inverse_temperature": 2373.1499520861566,
+          "abs_error_K": 1.3718374702875735e-05
+        },
+        {
+          "particle": 6,
+          "mean_double": 4191779.387314074,
+          "carry_double": 0.0,
+          "pT": 2373.149938367782,
+          "inverse_temperature": 2373.1499520861566,
+          "abs_error_K": 1.3718374702875735e-05
+        },
+        {
+          "particle": 7,
+          "mean_double": 4191779.387314074,
+          "carry_double": 0.0,
+          "pT": 2373.1499383677824,
+          "inverse_temperature": 2373.1499520861566,
+          "abs_error_K": 1.3718374248128384e-05
+        },
+        {
+          "particle": 8,
+          "mean_double": 4191779.387314074,
+          "carry_double": 0.0,
+          "pT": 2373.1499383677833,
+          "inverse_temperature": 2373.1499520861566,
+          "abs_error_K": 1.3718373338633683e-05
+        },
+        {
+          "particle": 9,
+          "mean_double": 4191779.387314074,
+          "carry_double": 0.0,
+          "pT": 2373.149938367782,
+          "inverse_temperature": 2373.1499520861566,
+          "abs_error_K": 1.3718374702875735e-05
+        },
+        {
+          "particle": 10,
+          "mean_double": 4191779.387314074,
+          "carry_double": 0.0,
+          "pT": 2373.1499383677838,
+          "inverse_temperature": 2373.1499520861566,
+          "abs_error_K": 1.3718372883886332e-05
+        },
+        {
+          "particle": 11,
+          "mean_double": 4191779.387314074,
+          "carry_double": 0.0,
+          "pT": 2373.1499383677838,
+          "inverse_temperature": 2373.1499520861566,
+          "abs_error_K": 1.3718372883886332e-05
+        },
+        {
+          "particle": 12,
+          "mean_double": 4191779.387314074,
+          "carry_double": 0.0,
+          "pT": 2373.149938367782,
+          "inverse_temperature": 2373.1499520861566,
+          "abs_error_K": 1.3718374702875735e-05
+        },
+        {
+          "particle": 13,
+          "mean_double": 4191779.387314074,
+          "carry_double": 0.0,
+          "pT": 2373.149938367782,
+          "inverse_temperature": 2373.1499520861566,
+          "abs_error_K": 1.3718374702875735e-05
+        },
+        {
+          "particle": 14,
+          "mean_double": 4191779.387314074,
+          "carry_double": 0.0,
+          "pT": 2373.149938367782,
+          "inverse_temperature": 2373.1499520861566,
+          "abs_error_K": 1.3718374702875735e-05
+        },
+        {
+          "particle": 15,
+          "mean_double": 4191779.387314074,
+          "carry_double": 0.0,
+          "pT": 2373.1499383677833,
+          "inverse_temperature": 2373.1499520861566,
+          "abs_error_K": 1.3718373338633683e-05
+        }
+      ],
+      "maximum_error_K": 1.3718375612370437e-05,
+      "stuck_states": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "positive_contact_age_count": 0,
+      "positive_cold2D_contact_age_count": 0
+    },
+    {
+      "time": "4e-06",
+      "particle_count": 16,
+      "profile_dtype": "float64",
+      "rows": [
+        {
+          "particle": 0,
+          "mean_double": 4191779.387314074,
+          "carry_double": 0.0,
+          "pT": 2373.1499328321133,
+          "inverse_temperature": 2373.1499520861566,
+          "abs_error_K": 1.925404330904712e-05
+        },
+        {
+          "particle": 1,
+          "mean_double": 4191779.387314074,
+          "carry_double": 0.0,
+          "pT": 2373.1499328321115,
+          "inverse_temperature": 2373.1499520861566,
+          "abs_error_K": 1.9254045128036523e-05
+        },
+        {
+          "particle": 2,
+          "mean_double": 4191779.387314074,
+          "carry_double": 0.0,
+          "pT": 2373.1499328321133,
+          "inverse_temperature": 2373.1499520861566,
+          "abs_error_K": 1.925404330904712e-05
+        },
+        {
+          "particle": 3,
+          "mean_double": 4191779.387314074,
+          "carry_double": 0.0,
+          "pT": 2373.1499328321115,
+          "inverse_temperature": 2373.1499520861566,
+          "abs_error_K": 1.9254045128036523e-05
+        },
+        {
+          "particle": 4,
+          "mean_double": 4191779.387314074,
+          "carry_double": 0.0,
+          "pT": 2373.149932832111,
+          "inverse_temperature": 2373.1499520861566,
+          "abs_error_K": 1.9254045582783874e-05
+        },
+        {
+          "particle": 5,
+          "mean_double": 4191779.387314074,
+          "carry_double": 0.0,
+          "pT": 2373.149932832112,
+          "inverse_temperature": 2373.1499520861566,
+          "abs_error_K": 1.9254044673289172e-05
+        },
+        {
+          "particle": 6,
+          "mean_double": 4191779.387314074,
+          "carry_double": 0.0,
+          "pT": 2373.149932832112,
+          "inverse_temperature": 2373.1499520861566,
+          "abs_error_K": 1.9254044673289172e-05
+        },
+        {
+          "particle": 7,
+          "mean_double": 4191779.387314074,
+          "carry_double": 0.0,
+          "pT": 2373.1499328321124,
+          "inverse_temperature": 2373.1499520861566,
+          "abs_error_K": 1.925404421854182e-05
+        },
+        {
+          "particle": 8,
+          "mean_double": 4191779.387314074,
+          "carry_double": 0.0,
+          "pT": 2373.1499328321133,
+          "inverse_temperature": 2373.1499520861566,
+          "abs_error_K": 1.925404330904712e-05
+        },
+        {
+          "particle": 9,
+          "mean_double": 4191779.387314074,
+          "carry_double": 0.0,
+          "pT": 2373.1499328321115,
+          "inverse_temperature": 2373.1499520861566,
+          "abs_error_K": 1.9254045128036523e-05
+        },
+        {
+          "particle": 10,
+          "mean_double": 4191779.387314074,
+          "carry_double": 0.0,
+          "pT": 2373.1499328321133,
+          "inverse_temperature": 2373.1499520861566,
+          "abs_error_K": 1.925404330904712e-05
+        },
+        {
+          "particle": 11,
+          "mean_double": 4191779.387314074,
+          "carry_double": 0.0,
+          "pT": 2373.149932832114,
+          "inverse_temperature": 2373.1499520861566,
+          "abs_error_K": 1.925404285429977e-05
+        },
+        {
+          "particle": 12,
+          "mean_double": 4191779.387314074,
+          "carry_double": 0.0,
+          "pT": 2373.149932832112,
+          "inverse_temperature": 2373.1499520861566,
+          "abs_error_K": 1.9254044673289172e-05
+        },
+        {
+          "particle": 13,
+          "mean_double": 4191779.387314074,
+          "carry_double": 0.0,
+          "pT": 2373.149932832112,
+          "inverse_temperature": 2373.1499520861566,
+          "abs_error_K": 1.9254044673289172e-05
+        },
+        {
+          "particle": 14,
+          "mean_double": 4191779.387314074,
+          "carry_double": 0.0,
+          "pT": 2373.1499328321115,
+          "inverse_temperature": 2373.1499520861566,
+          "abs_error_K": 1.9254045128036523e-05
+        },
+        {
+          "particle": 15,
+          "mean_double": 4191779.387314074,
+          "carry_double": 0.0,
+          "pT": 2373.1499328321133,
+          "inverse_temperature": 2373.1499520861566,
+          "abs_error_K": 1.925404330904712e-05
+        }
+      ],
+      "maximum_error_K": 1.9254045582783874e-05,
+      "stuck_states": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "positive_contact_age_count": 0,
+      "positive_cold2D_contact_age_count": 0
+    },
+    {
+      "time": "5e-06",
+      "particle_count": 16,
+      "profile_dtype": "float64",
+      "rows": [
+        {
+          "particle": 0,
+          "mean_double": 4191779.387314074,
+          "carry_double": 0.0,
+          "pT": 2373.149926945648,
+          "inverse_temperature": 2373.1499520861566,
+          "abs_error_K": 2.514050856916583e-05
+        },
+        {
+          "particle": 1,
+          "mean_double": 4191779.387314074,
+          "carry_double": 0.0,
+          "pT": 2373.1499269456453,
+          "inverse_temperature": 2373.1499520861566,
+          "abs_error_K": 2.5140511297649937e-05
+        },
+        {
+          "particle": 2,
+          "mean_double": 4191779.387314074,
+          "carry_double": 0.0,
+          "pT": 2373.1499269456476,
+          "inverse_temperature": 2373.1499520861566,
+          "abs_error_K": 2.5140509023913182e-05
+        },
+        {
+          "particle": 3,
+          "mean_double": 4191779.387314074,
+          "carry_double": 0.0,
+          "pT": 2373.149926945646,
+          "inverse_temperature": 2373.1499520861566,
+          "abs_error_K": 2.5140510842902586e-05
+        },
+        {
+          "particle": 4,
+          "mean_double": 4191779.387314074,
+          "carry_double": 0.0,
+          "pT": 2373.1499269456453,
+          "inverse_temperature": 2373.1499520861566,
+          "abs_error_K": 2.5140511297649937e-05
+        },
+        {
+          "particle": 5,
+          "mean_double": 4191779.387314074,
+          "carry_double": 0.0,
+          "pT": 2373.1499269456463,
+          "inverse_temperature": 2373.1499520861566,
+          "abs_error_K": 2.5140510388155235e-05
+        },
+        {
+          "particle": 6,
+          "mean_double": 4191779.387314074,
+          "carry_double": 0.0,
+          "pT": 2373.1499269456463,
+          "inverse_temperature": 2373.1499520861566,
+          "abs_error_K": 2.5140510388155235e-05
+        },
+        {
+          "particle": 7,
+          "mean_double": 4191779.387314074,
+          "carry_double": 0.0,
+          "pT": 2373.1499269456467,
+          "inverse_temperature": 2373.1499520861566,
+          "abs_error_K": 2.5140509933407884e-05
+        },
+        {
+          "particle": 8,
+          "mean_double": 4191779.387314074,
+          "carry_double": 0.0,
+          "pT": 2373.1499269456476,
+          "inverse_temperature": 2373.1499520861566,
+          "abs_error_K": 2.5140509023913182e-05
+        },
+        {
+          "particle": 9,
+          "mean_double": 4191779.387314074,
+          "carry_double": 0.0,
+          "pT": 2373.149926945646,
+          "inverse_temperature": 2373.1499520861566,
+          "abs_error_K": 2.5140510842902586e-05
+        },
+        {
+          "particle": 10,
+          "mean_double": 4191779.387314074,
+          "carry_double": 0.0,
+          "pT": 2373.149926945647,
+          "inverse_temperature": 2373.1499520861566,
+          "abs_error_K": 2.5140509478660533e-05
+        },
+        {
+          "particle": 11,
+          "mean_double": 4191779.387314074,
+          "carry_double": 0.0,
+          "pT": 2373.149926945648,
+          "inverse_temperature": 2373.1499520861566,
+          "abs_error_K": 2.514050856916583e-05
+        },
+        {
+          "particle": 12,
+          "mean_double": 4191779.387314074,
+          "carry_double": 0.0,
+          "pT": 2373.1499269456463,
+          "inverse_temperature": 2373.1499520861566,
+          "abs_error_K": 2.5140510388155235e-05
+        },
+        {
+          "particle": 13,
+          "mean_double": 4191779.387314074,
+          "carry_double": 0.0,
+          "pT": 2373.1499269456463,
+          "inverse_temperature": 2373.1499520861566,
+          "abs_error_K": 2.5140510388155235e-05
+        },
+        {
+          "particle": 14,
+          "mean_double": 4191779.387314074,
+          "carry_double": 0.0,
+          "pT": 2373.149926945646,
+          "inverse_temperature": 2373.1499520861566,
+          "abs_error_K": 2.5140510842902586e-05
+        },
+        {
+          "particle": 15,
+          "mean_double": 4191779.387314074,
+          "carry_double": 0.0,
+          "pT": 2373.1499269456476,
+          "inverse_temperature": 2373.1499520861566,
+          "abs_error_K": 2.5140509023913182e-05
+        }
+      ],
+      "maximum_error_K": 2.5140511297649937e-05,
+      "stuck_states": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "positive_contact_age_count": 0,
+      "positive_cold2D_contact_age_count": 0
+    },
+    {
+      "time": "6e-06",
+      "particle_count": 16,
+      "profile_dtype": "float64",
+      "rows": [
+        {
+          "particle": 0,
+          "mean_double": 4191779.387314074,
+          "carry_double": 0.0,
+          "pT": 2373.1499207598963,
+          "inverse_temperature": 2373.1499520861566,
+          "abs_error_K": 3.132626034130226e-05
+        },
+        {
+          "particle": 1,
+          "mean_double": 4191779.387314074,
+          "carry_double": 0.0,
+          "pT": 2373.1499207598936,
+          "inverse_temperature": 2373.1499520861566,
+          "abs_error_K": 3.1326263069786364e-05
+        },
+        {
+          "particle": 2,
+          "mean_double": 4191779.387314074,
+          "carry_double": 0.0,
+          "pT": 2373.149920759896,
+          "inverse_temperature": 2373.1499520861566,
+          "abs_error_K": 3.132626079604961e-05
+        },
+        {
+          "particle": 3,
+          "mean_double": 4191779.387314074,
+          "carry_double": 0.0,
+          "pT": 2373.149920759894,
+          "inverse_temperature": 2373.1499520861566,
+          "abs_error_K": 3.132626261503901e-05
+        },
+        {
+          "particle": 4,
+          "mean_double": 4191779.387314074,
+          "carry_double": 0.0,
+          "pT": 2373.1499207598936,
+          "inverse_temperature": 2373.1499520861566,
+          "abs_error_K": 3.1326263069786364e-05
+        },
+        {
+          "particle": 5,
+          "mean_double": 4191779.387314074,
+          "carry_double": 0.0,
+          "pT": 2373.1499207598945,
+          "inverse_temperature": 2373.1499520861566,
+          "abs_error_K": 3.132626216029166e-05
+        },
+        {
+          "particle": 6,
+          "mean_double": 4191779.387314074,
+          "carry_double": 0.0,
+          "pT": 2373.1499207598945,
+          "inverse_temperature": 2373.1499520861566,
+          "abs_error_K": 3.132626216029166e-05
+        },
+        {
+          "particle": 7,
+          "mean_double": 4191779.387314074,
+          "carry_double": 0.0,
+          "pT": 2373.149920759895,
+          "inverse_temperature": 2373.1499520861566,
+          "abs_error_K": 3.132626170554431e-05
+        },
+        {
+          "particle": 8,
+          "mean_double": 4191779.387314074,
+          "carry_double": 0.0,
+          "pT": 2373.149920759896,
+          "inverse_temperature": 2373.1499520861566,
+          "abs_error_K": 3.132626079604961e-05
+        },
+        {
+          "particle": 9,
+          "mean_double": 4191779.387314074,
+          "carry_double": 0.0,
+          "pT": 2373.1499207598936,
+          "inverse_temperature": 2373.1499520861566,
+          "abs_error_K": 3.1326263069786364e-05
+        },
+        {
+          "particle": 10,
+          "mean_double": 4191779.387314074,
+          "carry_double": 0.0,
+          "pT": 2373.1499207598954,
+          "inverse_temperature": 2373.1499520861566,
+          "abs_error_K": 3.132626125079696e-05
+        },
+        {
+          "particle": 11,
+          "mean_double": 4191779.387314074,
+          "carry_double": 0.0,
+          "pT": 2373.1499207598963,
+          "inverse_temperature": 2373.1499520861566,
+          "abs_error_K": 3.132626034130226e-05
+        },
+        {
+          "particle": 12,
+          "mean_double": 4191779.387314074,
+          "carry_double": 0.0,
+          "pT": 2373.1499207598945,
+          "inverse_temperature": 2373.1499520861566,
+          "abs_error_K": 3.132626216029166e-05
+        },
+        {
+          "particle": 13,
+          "mean_double": 4191779.387314074,
+          "carry_double": 0.0,
+          "pT": 2373.1499207598945,
+          "inverse_temperature": 2373.1499520861566,
+          "abs_error_K": 3.132626216029166e-05
+        },
+        {
+          "particle": 14,
+          "mean_double": 4191779.387314074,
+          "carry_double": 0.0,
+          "pT": 2373.149920759894,
+          "inverse_temperature": 2373.1499520861566,
+          "abs_error_K": 3.132626261503901e-05
+        },
+        {
+          "particle": 15,
+          "mean_double": 4191779.387314074,
+          "carry_double": 0.0,
+          "pT": 2373.1499207598963,
+          "inverse_temperature": 2373.1499520861566,
+          "abs_error_K": 3.132626034130226e-05
+        }
+      ],
+      "maximum_error_K": 3.1326263069786364e-05,
+      "stuck_states": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "positive_contact_age_count": 0,
+      "positive_cold2D_contact_age_count": 0
+    },
+    {
+      "time": "7e-06",
+      "particle_count": 16,
+      "profile_dtype": "float64",
+      "rows": [
+        {
+          "particle": 0,
+          "mean_double": 4191779.387314074,
+          "carry_double": 0.0,
+          "pT": 2373.14991432367,
+          "inverse_temperature": 2373.1499520861566,
+          "abs_error_K": 3.77624864995596e-05
+        },
+        {
+          "particle": 1,
+          "mean_double": 4191779.387314074,
+          "carry_double": 0.0,
+          "pT": 2373.1499143236674,
+          "inverse_temperature": 2373.1499520861566,
+          "abs_error_K": 3.7762489228043705e-05
+        },
+        {
+          "particle": 2,
+          "mean_double": 4191779.387314074,
+          "carry_double": 0.0,
+          "pT": 2373.1499143236692,
+          "inverse_temperature": 2373.1499520861566,
+          "abs_error_K": 3.77624874090543e-05
+        },
+        {
+          "particle": 3,
+          "mean_double": 4191779.387314074,
+          "carry_double": 0.0,
+          "pT": 2373.1499143236674,
+          "inverse_temperature": 2373.1499520861566,
+          "abs_error_K": 3.7762489228043705e-05
+        },
+        {
+          "particle": 4,
+          "mean_double": 4191779.387314074,
+          "carry_double": 0.0,
+          "pT": 2373.1499143236674,
+          "inverse_temperature": 2373.1499520861566,
+          "abs_error_K": 3.7762489228043705e-05
+        },
+        {
+          "particle": 5,
+          "mean_double": 4191779.387314074,
+          "carry_double": 0.0,
+          "pT": 2373.149914323668,
+          "inverse_temperature": 2373.1499520861566,
+          "abs_error_K": 3.7762488773296354e-05
+        },
+        {
+          "particle": 6,
+          "mean_double": 4191779.387314074,
+          "carry_double": 0.0,
+          "pT": 2373.149914323668,
+          "inverse_temperature": 2373.1499520861566,
+          "abs_error_K": 3.7762488773296354e-05
+        },
+        {
+          "particle": 7,
+          "mean_double": 4191779.387314074,
+          "carry_double": 0.0,
+          "pT": 2373.149914323669,
+          "inverse_temperature": 2373.1499520861566,
+          "abs_error_K": 3.776248786380165e-05
+        },
+        {
+          "particle": 8,
+          "mean_double": 4191779.387314074,
+          "carry_double": 0.0,
+          "pT": 2373.1499143236692,
+          "inverse_temperature": 2373.1499520861566,
+          "abs_error_K": 3.77624874090543e-05
+        },
+        {
+          "particle": 9,
+          "mean_double": 4191779.387314074,
+          "carry_double": 0.0,
+          "pT": 2373.149914323667,
+          "inverse_temperature": 2373.1499520861566,
+          "abs_error_K": 3.7762489682791056e-05
+        },
+        {
+          "particle": 10,
+          "mean_double": 4191779.387314074,
+          "carry_double": 0.0,
+          "pT": 2373.149914323669,
+          "inverse_temperature": 2373.1499520861566,
+          "abs_error_K": 3.776248786380165e-05
+        },
+        {
+          "particle": 11,
+          "mean_double": 4191779.387314074,
+          "carry_double": 0.0,
+          "pT": 2373.14991432367,
+          "inverse_temperature": 2373.1499520861566,
+          "abs_error_K": 3.77624864995596e-05
+        },
+        {
+          "particle": 12,
+          "mean_double": 4191779.387314074,
+          "carry_double": 0.0,
+          "pT": 2373.1499143236683,
+          "inverse_temperature": 2373.1499520861566,
+          "abs_error_K": 3.7762488318549003e-05
+        },
+        {
+          "particle": 13,
+          "mean_double": 4191779.387314074,
+          "carry_double": 0.0,
+          "pT": 2373.149914323668,
+          "inverse_temperature": 2373.1499520861566,
+          "abs_error_K": 3.7762488773296354e-05
+        },
+        {
+          "particle": 14,
+          "mean_double": 4191779.387314074,
+          "carry_double": 0.0,
+          "pT": 2373.1499143236674,
+          "inverse_temperature": 2373.1499520861566,
+          "abs_error_K": 3.7762489228043705e-05
+        },
+        {
+          "particle": 15,
+          "mean_double": 4191779.387314074,
+          "carry_double": 0.0,
+          "pT": 2373.1499143236697,
+          "inverse_temperature": 2373.1499520861566,
+          "abs_error_K": 3.776248695430695e-05
+        }
+      ],
+      "maximum_error_K": 3.7762489682791056e-05,
+      "stuck_states": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "positive_contact_age_count": 0,
+      "positive_cold2D_contact_age_count": 0
+    },
+    {
+      "time": "8e-06",
+      "particle_count": 16,
+      "profile_dtype": "float64",
+      "rows": [
+        {
+          "particle": 0,
+          "mean_double": 4191779.387314074,
+          "carry_double": 0.0,
+          "pT": 2373.149907682922,
+          "inverse_temperature": 2373.1499520861566,
+          "abs_error_K": 4.440323482413078e-05
+        },
+        {
+          "particle": 1,
+          "mean_double": 4191779.387314074,
+          "carry_double": 0.0,
+          "pT": 2373.149907682919,
+          "inverse_temperature": 2373.1499520861566,
+          "abs_error_K": 4.440323755261488e-05
+        },
+        {
+          "particle": 2,
+          "mean_double": 4191779.387314074,
+          "carry_double": 0.0,
+          "pT": 2373.149907682921,
+          "inverse_temperature": 2373.1499520861566,
+          "abs_error_K": 4.440323573362548e-05
+        },
+        {
+          "particle": 3,
+          "mean_double": 4191779.387314074,
+          "carry_double": 0.0,
+          "pT": 2373.149907682919,
+          "inverse_temperature": 2373.1499520861566,
+          "abs_error_K": 4.440323755261488e-05
+        },
+        {
+          "particle": 4,
+          "mean_double": 4191779.387314074,
+          "carry_double": 0.0,
+          "pT": 2373.1499076829186,
+          "inverse_temperature": 2373.1499520861566,
+          "abs_error_K": 4.4403238007362233e-05
+        },
+        {
+          "particle": 5,
+          "mean_double": 4191779.387314074,
+          "carry_double": 0.0,
+          "pT": 2373.149907682919,
+          "inverse_temperature": 2373.1499520861566,
+          "abs_error_K": 4.440323755261488e-05
+        },
+        {
+          "particle": 6,
+          "mean_double": 4191779.387314074,
+          "carry_double": 0.0,
+          "pT": 2373.149907682919,
+          "inverse_temperature": 2373.1499520861566,
+          "abs_error_K": 4.440323755261488e-05
+        },
+        {
+          "particle": 7,
+          "mean_double": 4191779.387314074,
+          "carry_double": 0.0,
+          "pT": 2373.1499076829205,
+          "inverse_temperature": 2373.1499520861566,
+          "abs_error_K": 4.440323618837283e-05
+        },
+        {
+          "particle": 8,
+          "mean_double": 4191779.387314074,
+          "carry_double": 0.0,
+          "pT": 2373.1499076829205,
+          "inverse_temperature": 2373.1499520861566,
+          "abs_error_K": 4.440323618837283e-05
+        },
+        {
+          "particle": 9,
+          "mean_double": 4191779.387314074,
+          "carry_double": 0.0,
+          "pT": 2373.149907682918,
+          "inverse_temperature": 2373.1499520861566,
+          "abs_error_K": 4.4403238462109584e-05
+        },
+        {
+          "particle": 10,
+          "mean_double": 4191779.387314074,
+          "carry_double": 0.0,
+          "pT": 2373.14990768292,
+          "inverse_temperature": 2373.1499520861566,
+          "abs_error_K": 4.440323664312018e-05
+        },
+        {
+          "particle": 11,
+          "mean_double": 4191779.387314074,
+          "carry_double": 0.0,
+          "pT": 2373.1499076829214,
+          "inverse_temperature": 2373.1499520861566,
+          "abs_error_K": 4.440323527887813e-05
+        },
+        {
+          "particle": 12,
+          "mean_double": 4191779.387314074,
+          "carry_double": 0.0,
+          "pT": 2373.1499076829195,
+          "inverse_temperature": 2373.1499520861566,
+          "abs_error_K": 4.440323709786753e-05
+        },
+        {
+          "particle": 13,
+          "mean_double": 4191779.387314074,
+          "carry_double": 0.0,
+          "pT": 2373.1499076829195,
+          "inverse_temperature": 2373.1499520861566,
+          "abs_error_K": 4.440323709786753e-05
+        },
+        {
+          "particle": 14,
+          "mean_double": 4191779.387314074,
+          "carry_double": 0.0,
+          "pT": 2373.1499076829186,
+          "inverse_temperature": 2373.1499520861566,
+          "abs_error_K": 4.4403238007362233e-05
+        },
+        {
+          "particle": 15,
+          "mean_double": 4191779.387314074,
+          "carry_double": 0.0,
+          "pT": 2373.149907682921,
+          "inverse_temperature": 2373.1499520861566,
+          "abs_error_K": 4.440323573362548e-05
+        }
+      ],
+      "maximum_error_K": 4.4403238462109584e-05,
+      "stuck_states": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "positive_contact_age_count": 0,
+      "positive_cold2D_contact_age_count": 0
+    },
+    {
+      "time": "9e-06",
+      "particle_count": 16,
+      "profile_dtype": "float64",
+      "rows": [
+        {
+          "particle": 0,
+          "mean_double": 4191779.387314074,
+          "carry_double": 0.0,
+          "pT": 2373.1499008803266,
+          "inverse_temperature": 2373.1499520861566,
+          "abs_error_K": 5.12058300046192e-05
+        },
+        {
+          "particle": 1,
+          "mean_double": 4191779.387314074,
+          "carry_double": 0.0,
+          "pT": 2373.149900880324,
+          "inverse_temperature": 2373.1499520861566,
+          "abs_error_K": 5.120583273310331e-05
+        },
+        {
+          "particle": 2,
+          "mean_double": 4191779.387314074,
+          "carry_double": 0.0,
+          "pT": 2373.1499008803257,
+          "inverse_temperature": 2373.1499520861566,
+          "abs_error_K": 5.1205830914113903e-05
+        },
+        {
+          "particle": 3,
+          "mean_double": 4191779.387314074,
+          "carry_double": 0.0,
+          "pT": 2373.149900880324,
+          "inverse_temperature": 2373.1499520861566,
+          "abs_error_K": 5.120583273310331e-05
+        },
+        {
+          "particle": 4,
+          "mean_double": 4191779.387314074,
+          "carry_double": 0.0,
+          "pT": 2373.149900880323,
+          "inverse_temperature": 2373.1499520861566,
+          "abs_error_K": 5.120583364259801e-05
+        },
+        {
+          "particle": 5,
+          "mean_double": 4191779.387314074,
+          "carry_double": 0.0,
+          "pT": 2373.1499008803235,
+          "inverse_temperature": 2373.1499520861566,
+          "abs_error_K": 5.120583318785066e-05
+        },
+        {
+          "particle": 6,
+          "mean_double": 4191779.387314074,
+          "carry_double": 0.0,
+          "pT": 2373.1499008803235,
+          "inverse_temperature": 2373.1499520861566,
+          "abs_error_K": 5.120583318785066e-05
+        },
+        {
+          "particle": 7,
+          "mean_double": 4191779.387314074,
+          "carry_double": 0.0,
+          "pT": 2373.149900880325,
+          "inverse_temperature": 2373.1499520861566,
+          "abs_error_K": 5.1205831823608605e-05
+        },
+        {
+          "particle": 8,
+          "mean_double": 4191779.387314074,
+          "carry_double": 0.0,
+          "pT": 2373.1499008803253,
+          "inverse_temperature": 2373.1499520861566,
+          "abs_error_K": 5.1205831368861254e-05
+        },
+        {
+          "particle": 9,
+          "mean_double": 4191779.387314074,
+          "carry_double": 0.0,
+          "pT": 2373.149900880323,
+          "inverse_temperature": 2373.1499520861566,
+          "abs_error_K": 5.120583364259801e-05
+        },
+        {
+          "particle": 10,
+          "mean_double": 4191779.387314074,
+          "carry_double": 0.0,
+          "pT": 2373.1499008803244,
+          "inverse_temperature": 2373.1499520861566,
+          "abs_error_K": 5.1205832278355956e-05
+        },
+        {
+          "particle": 11,
+          "mean_double": 4191779.387314074,
+          "carry_double": 0.0,
+          "pT": 2373.149900880326,
+          "inverse_temperature": 2373.1499520861566,
+          "abs_error_K": 5.120583045936655e-05
+        },
+        {
+          "particle": 12,
+          "mean_double": 4191779.387314074,
+          "carry_double": 0.0,
+          "pT": 2373.1499008803244,
+          "inverse_temperature": 2373.1499520861566,
+          "abs_error_K": 5.1205832278355956e-05
+        },
+        {
+          "particle": 13,
+          "mean_double": 4191779.387314074,
+          "carry_double": 0.0,
+          "pT": 2373.1499008803244,
+          "inverse_temperature": 2373.1499520861566,
+          "abs_error_K": 5.1205832278355956e-05
+        },
+        {
+          "particle": 14,
+          "mean_double": 4191779.387314074,
+          "carry_double": 0.0,
+          "pT": 2373.1499008803235,
+          "inverse_temperature": 2373.1499520861566,
+          "abs_error_K": 5.120583318785066e-05
+        },
+        {
+          "particle": 15,
+          "mean_double": 4191779.387314074,
+          "carry_double": 0.0,
+          "pT": 2373.1499008803257,
+          "inverse_temperature": 2373.1499520861566,
+          "abs_error_K": 5.1205830914113903e-05
+        }
+      ],
+      "maximum_error_K": 5.120583364259801e-05,
+      "stuck_states": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "positive_contact_age_count": 0,
+      "positive_cold2D_contact_age_count": 0
+    },
+    {
+      "time": "1e-05",
+      "particle_count": 16,
+      "profile_dtype": "float64",
+      "rows": [
+        {
+          "particle": 0,
+          "mean_double": 4191779.387314074,
+          "carry_double": 0.0,
+          "pT": 2373.149893954816,
+          "inverse_temperature": 2373.1499520861566,
+          "abs_error_K": 5.813134066556813e-05
+        },
+        {
+          "particle": 1,
+          "mean_double": 4191779.387314074,
+          "carry_double": 0.0,
+          "pT": 2373.1498939548133,
+          "inverse_temperature": 2373.1499520861566,
+          "abs_error_K": 5.813134339405224e-05
+        },
+        {
+          "particle": 2,
+          "mean_double": 4191779.387314074,
+          "carry_double": 0.0,
+          "pT": 2373.1498939548146,
+          "inverse_temperature": 2373.1499520861566,
+          "abs_error_K": 5.8131342029810185e-05
+        },
+        {
+          "particle": 3,
+          "mean_double": 4191779.387314074,
+          "carry_double": 0.0,
+          "pT": 2373.1498939548137,
+          "inverse_temperature": 2373.1499520861566,
+          "abs_error_K": 5.8131342939304886e-05
+        },
+        {
+          "particle": 4,
+          "mean_double": 4191779.387314074,
+          "carry_double": 0.0,
+          "pT": 2373.1498939548123,
+          "inverse_temperature": 2373.1499520861566,
+          "abs_error_K": 5.813134430354694e-05
+        },
+        {
+          "particle": 5,
+          "mean_double": 4191779.387314074,
+          "carry_double": 0.0,
+          "pT": 2373.1498939548123,
+          "inverse_temperature": 2373.1499520861566,
+          "abs_error_K": 5.813134430354694e-05
+        },
+        {
+          "particle": 6,
+          "mean_double": 4191779.387314074,
+          "carry_double": 0.0,
+          "pT": 2373.1498939548123,
+          "inverse_temperature": 2373.1499520861566,
+          "abs_error_K": 5.813134430354694e-05
+        },
+        {
+          "particle": 7,
+          "mean_double": 4191779.387314074,
+          "carry_double": 0.0,
+          "pT": 2373.149893954814,
+          "inverse_temperature": 2373.1499520861566,
+          "abs_error_K": 5.8131342484557535e-05
+        },
+        {
+          "particle": 8,
+          "mean_double": 4191779.387314074,
+          "carry_double": 0.0,
+          "pT": 2373.1498939548146,
+          "inverse_temperature": 2373.1499520861566,
+          "abs_error_K": 5.8131342029810185e-05
+        },
+        {
+          "particle": 9,
+          "mean_double": 4191779.387314074,
+          "carry_double": 0.0,
+          "pT": 2373.149893954812,
+          "inverse_temperature": 2373.1499520861566,
+          "abs_error_K": 5.813134475829429e-05
+        },
+        {
+          "particle": 10,
+          "mean_double": 4191779.387314074,
+          "carry_double": 0.0,
+          "pT": 2373.1498939548137,
+          "inverse_temperature": 2373.1499520861566,
+          "abs_error_K": 5.8131342939304886e-05
+        },
+        {
+          "particle": 11,
+          "mean_double": 4191779.387314074,
+          "carry_double": 0.0,
+          "pT": 2373.1498939548155,
+          "inverse_temperature": 2373.1499520861566,
+          "abs_error_K": 5.813134112031548e-05
+        },
+        {
+          "particle": 12,
+          "mean_double": 4191779.387314074,
+          "carry_double": 0.0,
+          "pT": 2373.149893954814,
+          "inverse_temperature": 2373.1499520861566,
+          "abs_error_K": 5.8131342484557535e-05
+        },
+        {
+          "particle": 13,
+          "mean_double": 4191779.387314074,
+          "carry_double": 0.0,
+          "pT": 2373.1498939548133,
+          "inverse_temperature": 2373.1499520861566,
+          "abs_error_K": 5.813134339405224e-05
+        },
+        {
+          "particle": 14,
+          "mean_double": 4191779.387314074,
+          "carry_double": 0.0,
+          "pT": 2373.149893954813,
+          "inverse_temperature": 2373.1499520861566,
+          "abs_error_K": 5.813134384879959e-05
+        },
+        {
+          "particle": 15,
+          "mean_double": 4191779.387314074,
+          "carry_double": 0.0,
+          "pT": 2373.1498939548155,
+          "inverse_temperature": 2373.1499520861566,
+          "abs_error_K": 5.813134112031548e-05
+        }
+      ],
+      "maximum_error_K": 5.813134475829429e-05,
+      "stuck_states": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "positive_contact_age_count": 0,
+      "positive_cold2D_contact_age_count": 0
+    }
+  ],
+  "failures": [
+    {
+      "time": "1e-06",
+      "particle": 0,
+      "mean_double": 4191779.387314074,
+      "carry_double": 0.0,
+      "pT": 2373.14994815774,
+      "inverse_temperature": 2373.1499520861566,
+      "abs_error_K": 3.92841684515588e-06
+    },
+    {
+      "time": "1e-06",
+      "particle": 1,
+      "mean_double": 4191779.387314074,
+      "carry_double": 0.0,
+      "pT": 2373.1499481577384,
+      "inverse_temperature": 2373.1499520861566,
+      "abs_error_K": 3.9284182093979325e-06
+    },
+    {
+      "time": "1e-06",
+      "particle": 2,
+      "mean_double": 4191779.387314074,
+      "carry_double": 0.0,
+      "pT": 2373.14994815774,
+      "inverse_temperature": 2373.1499520861566,
+      "abs_error_K": 3.92841684515588e-06
+    },
+    {
+      "time": "1e-06",
+      "particle": 3,
+      "mean_double": 4191779.387314074,
+      "carry_double": 0.0,
+      "pT": 2373.149948157738,
+      "inverse_temperature": 2373.1499520861566,
+      "abs_error_K": 3.928418664145283e-06
+    },
+    {
+      "time": "1e-06",
+      "particle": 4,
+      "mean_double": 4191779.387314074,
+      "carry_double": 0.0,
+      "pT": 2373.1499481577375,
+      "inverse_temperature": 2373.1499520861566,
+      "abs_error_K": 3.928419118892634e-06
+    },
+    {
+      "time": "1e-06",
+      "particle": 5,
+      "mean_double": 4191779.387314074,
+      "carry_double": 0.0,
+      "pT": 2373.149948157738,
+      "inverse_temperature": 2373.1499520861566,
+      "abs_error_K": 3.928418664145283e-06
+    },
+    {
+      "time": "1e-06",
+      "particle": 6,
+      "mean_double": 4191779.387314074,
+      "carry_double": 0.0,
+      "pT": 2373.1499481577384,
+      "inverse_temperature": 2373.1499520861566,
+      "abs_error_K": 3.9284182093979325e-06
+    },
+    {
+      "time": "1e-06",
+      "particle": 7,
+      "mean_double": 4191779.387314074,
+      "carry_double": 0.0,
+      "pT": 2373.1499481577384,
+      "inverse_temperature": 2373.1499520861566,
+      "abs_error_K": 3.9284182093979325e-06
+    },
+    {
+      "time": "1e-06",
+      "particle": 8,
+      "mean_double": 4191779.387314074,
+      "carry_double": 0.0,
+      "pT": 2373.14994815774,
+      "inverse_temperature": 2373.1499520861566,
+      "abs_error_K": 3.92841684515588e-06
+    },
+    {
+      "time": "1e-06",
+      "particle": 9,
+      "mean_double": 4191779.387314074,
+      "carry_double": 0.0,
+      "pT": 2373.1499481577384,
+      "inverse_temperature": 2373.1499520861566,
+      "abs_error_K": 3.9284182093979325e-06
+    },
+    {
+      "time": "1e-06",
+      "particle": 10,
+      "mean_double": 4191779.387314074,
+      "carry_double": 0.0,
+      "pT": 2373.14994815774,
+      "inverse_temperature": 2373.1499520861566,
+      "abs_error_K": 3.92841684515588e-06
+    },
+    {
+      "time": "1e-06",
+      "particle": 11,
+      "mean_double": 4191779.387314074,
+      "carry_double": 0.0,
+      "pT": 2373.14994815774,
+      "inverse_temperature": 2373.1499520861566,
+      "abs_error_K": 3.92841684515588e-06
+    },
+    {
+      "time": "1e-06",
+      "particle": 12,
+      "mean_double": 4191779.387314074,
+      "carry_double": 0.0,
+      "pT": 2373.149948157738,
+      "inverse_temperature": 2373.1499520861566,
+      "abs_error_K": 3.928418664145283e-06
+    },
+    {
+      "time": "1e-06",
+      "particle": 13,
+      "mean_double": 4191779.387314074,
+      "carry_double": 0.0,
+      "pT": 2373.1499481577384,
+      "inverse_temperature": 2373.1499520861566,
+      "abs_error_K": 3.9284182093979325e-06
+    },
+    {
+      "time": "1e-06",
+      "particle": 14,
+      "mean_double": 4191779.387314074,
+      "carry_double": 0.0,
+      "pT": 2373.149948157738,
+      "inverse_temperature": 2373.1499520861566,
+      "abs_error_K": 3.928418664145283e-06
+    },
+    {
+      "time": "1e-06",
+      "particle": 15,
+      "mean_double": 4191779.387314074,
+      "carry_double": 0.0,
+      "pT": 2373.14994815774,
+      "inverse_temperature": 2373.1499520861566,
+      "abs_error_K": 3.92841684515588e-06
+    },
+    {
+      "time": "2e-06",
+      "particle": 0,
+      "mean_double": 4191779.387314074,
+      "carry_double": 0.0,
+      "pT": 2373.149943497666,
+      "inverse_temperature": 2373.1499520861566,
+      "abs_error_K": 8.58849080032087e-06
+    },
+    {
+      "time": "2e-06",
+      "particle": 1,
+      "mean_double": 4191779.387314074,
+      "carry_double": 0.0,
+      "pT": 2373.149943497664,
+      "inverse_temperature": 2373.1499520861566,
+      "abs_error_K": 8.588492619310273e-06
+    },
+    {
+      "time": "2e-06",
+      "particle": 2,
+      "mean_double": 4191779.387314074,
+      "carry_double": 0.0,
+      "pT": 2373.149943497666,
+      "inverse_temperature": 2373.1499520861566,
+      "abs_error_K": 8.58849080032087e-06
+    },
+    {
+      "time": "2e-06",
+      "particle": 3,
+      "mean_double": 4191779.387314074,
+      "carry_double": 0.0,
+      "pT": 2373.149943497664,
+      "inverse_temperature": 2373.1499520861566,
+      "abs_error_K": 8.588492619310273e-06
+    },
+    {
+      "time": "2e-06",
+      "particle": 4,
+      "mean_double": 4191779.387314074,
+      "carry_double": 0.0,
+      "pT": 2373.1499434976636,
+      "inverse_temperature": 2373.1499520861566,
+      "abs_error_K": 8.588493074057624e-06
+    },
+    {
+      "time": "2e-06",
+      "particle": 5,
+      "mean_double": 4191779.387314074,
+      "carry_double": 0.0,
+      "pT": 2373.149943497664,
+      "inverse_temperature": 2373.1499520861566,
+      "abs_error_K": 8.588492619310273e-06
+    },
+    {
+      "time": "2e-06",
+      "particle": 6,
+      "mean_double": 4191779.387314074,
+      "carry_double": 0.0,
+      "pT": 2373.1499434976645,
+      "inverse_temperature": 2373.1499520861566,
+      "abs_error_K": 8.588492164562922e-06
+    },
+    {
+      "time": "2e-06",
+      "particle": 7,
+      "mean_double": 4191779.387314074,
+      "carry_double": 0.0,
+      "pT": 2373.1499434976645,
+      "inverse_temperature": 2373.1499520861566,
+      "abs_error_K": 8.588492164562922e-06
+    },
+    {
+      "time": "2e-06",
+      "particle": 8,
+      "mean_double": 4191779.387314074,
+      "carry_double": 0.0,
+      "pT": 2373.149943497666,
+      "inverse_temperature": 2373.1499520861566,
+      "abs_error_K": 8.58849080032087e-06
+    },
+    {
+      "time": "2e-06",
+      "particle": 9,
+      "mean_double": 4191779.387314074,
+      "carry_double": 0.0,
+      "pT": 2373.1499434976645,
+      "inverse_temperature": 2373.1499520861566,
+      "abs_error_K": 8.588492164562922e-06
+    },
+    {
+      "time": "2e-06",
+      "particle": 10,
+      "mean_double": 4191779.387314074,
+      "carry_double": 0.0,
+      "pT": 2373.149943497666,
+      "inverse_temperature": 2373.1499520861566,
+      "abs_error_K": 8.58849080032087e-06
+    },
+    {
+      "time": "2e-06",
+      "particle": 11,
+      "mean_double": 4191779.387314074,
+      "carry_double": 0.0,
+      "pT": 2373.149943497666,
+      "inverse_temperature": 2373.1499520861566,
+      "abs_error_K": 8.58849080032087e-06
+    },
+    {
+      "time": "2e-06",
+      "particle": 12,
+      "mean_double": 4191779.387314074,
+      "carry_double": 0.0,
+      "pT": 2373.149943497664,
+      "inverse_temperature": 2373.1499520861566,
+      "abs_error_K": 8.588492619310273e-06
+    },
+    {
+      "time": "2e-06",
+      "particle": 13,
+      "mean_double": 4191779.387314074,
+      "carry_double": 0.0,
+      "pT": 2373.1499434976645,
+      "inverse_temperature": 2373.1499520861566,
+      "abs_error_K": 8.588492164562922e-06
+    },
+    {
+      "time": "2e-06",
+      "particle": 14,
+      "mean_double": 4191779.387314074,
+      "carry_double": 0.0,
+      "pT": 2373.149943497664,
+      "inverse_temperature": 2373.1499520861566,
+      "abs_error_K": 8.588492619310273e-06
+    },
+    {
+      "time": "2e-06",
+      "particle": 15,
+      "mean_double": 4191779.387314074,
+      "carry_double": 0.0,
+      "pT": 2373.149943497666,
+      "inverse_temperature": 2373.1499520861566,
+      "abs_error_K": 8.58849080032087e-06
+    },
+    {
+      "time": "3e-06",
+      "particle": 0,
+      "mean_double": 4191779.387314074,
+      "carry_double": 0.0,
+      "pT": 2373.1499383677838,
+      "inverse_temperature": 2373.1499520861566,
+      "abs_error_K": 1.3718372883886332e-05
+    },
+    {
+      "time": "3e-06",
+      "particle": 1,
+      "mean_double": 4191779.387314074,
+      "carry_double": 0.0,
+      "pT": 2373.1499383677815,
+      "inverse_temperature": 2373.1499520861566,
+      "abs_error_K": 1.3718375157623086e-05
+    },
+    {
+      "time": "3e-06",
+      "particle": 2,
+      "mean_double": 4191779.387314074,
+      "carry_double": 0.0,
+      "pT": 2373.1499383677833,
+      "inverse_temperature": 2373.1499520861566,
+      "abs_error_K": 1.3718373338633683e-05
+    },
+    {
+      "time": "3e-06",
+      "particle": 3,
+      "mean_double": 4191779.387314074,
+      "carry_double": 0.0,
+      "pT": 2373.149938367782,
+      "inverse_temperature": 2373.1499520861566,
+      "abs_error_K": 1.3718374702875735e-05
+    },
+    {
+      "time": "3e-06",
+      "particle": 4,
+      "mean_double": 4191779.387314074,
+      "carry_double": 0.0,
+      "pT": 2373.149938367781,
+      "inverse_temperature": 2373.1499520861566,
+      "abs_error_K": 1.3718375612370437e-05
+    },
+    {
+      "time": "3e-06",
+      "particle": 5,
+      "mean_double": 4191779.387314074,
+      "carry_double": 0.0,
+      "pT": 2373.149938367782,
+      "inverse_temperature": 2373.1499520861566,
+      "abs_error_K": 1.3718374702875735e-05
+    },
+    {
+      "time": "3e-06",
+      "particle": 6,
+      "mean_double": 4191779.387314074,
+      "carry_double": 0.0,
+      "pT": 2373.149938367782,
+      "inverse_temperature": 2373.1499520861566,
+      "abs_error_K": 1.3718374702875735e-05
+    },
+    {
+      "time": "3e-06",
+      "particle": 7,
+      "mean_double": 4191779.387314074,
+      "carry_double": 0.0,
+      "pT": 2373.1499383677824,
+      "inverse_temperature": 2373.1499520861566,
+      "abs_error_K": 1.3718374248128384e-05
+    },
+    {
+      "time": "3e-06",
+      "particle": 8,
+      "mean_double": 4191779.387314074,
+      "carry_double": 0.0,
+      "pT": 2373.1499383677833,
+      "inverse_temperature": 2373.1499520861566,
+      "abs_error_K": 1.3718373338633683e-05
+    },
+    {
+      "time": "3e-06",
+      "particle": 9,
+      "mean_double": 4191779.387314074,
+      "carry_double": 0.0,
+      "pT": 2373.149938367782,
+      "inverse_temperature": 2373.1499520861566,
+      "abs_error_K": 1.3718374702875735e-05
+    },
+    {
+      "time": "3e-06",
+      "particle": 10,
+      "mean_double": 4191779.387314074,
+      "carry_double": 0.0,
+      "pT": 2373.1499383677838,
+      "inverse_temperature": 2373.1499520861566,
+      "abs_error_K": 1.3718372883886332e-05
+    },
+    {
+      "time": "3e-06",
+      "particle": 11,
+      "mean_double": 4191779.387314074,
+      "carry_double": 0.0,
+      "pT": 2373.1499383677838,
+      "inverse_temperature": 2373.1499520861566,
+      "abs_error_K": 1.3718372883886332e-05
+    },
+    {
+      "time": "3e-06",
+      "particle": 12,
+      "mean_double": 4191779.387314074,
+      "carry_double": 0.0,
+      "pT": 2373.149938367782,
+      "inverse_temperature": 2373.1499520861566,
+      "abs_error_K": 1.3718374702875735e-05
+    },
+    {
+      "time": "3e-06",
+      "particle": 13,
+      "mean_double": 4191779.387314074,
+      "carry_double": 0.0,
+      "pT": 2373.149938367782,
+      "inverse_temperature": 2373.1499520861566,
+      "abs_error_K": 1.3718374702875735e-05
+    },
+    {
+      "time": "3e-06",
+      "particle": 14,
+      "mean_double": 4191779.387314074,
+      "carry_double": 0.0,
+      "pT": 2373.149938367782,
+      "inverse_temperature": 2373.1499520861566,
+      "abs_error_K": 1.3718374702875735e-05
+    },
+    {
+      "time": "3e-06",
+      "particle": 15,
+      "mean_double": 4191779.387314074,
+      "carry_double": 0.0,
+      "pT": 2373.1499383677833,
+      "inverse_temperature": 2373.1499520861566,
+      "abs_error_K": 1.3718373338633683e-05
+    },
+    {
+      "time": "4e-06",
+      "particle": 0,
+      "mean_double": 4191779.387314074,
+      "carry_double": 0.0,
+      "pT": 2373.1499328321133,
+      "inverse_temperature": 2373.1499520861566,
+      "abs_error_K": 1.925404330904712e-05
+    },
+    {
+      "time": "4e-06",
+      "particle": 1,
+      "mean_double": 4191779.387314074,
+      "carry_double": 0.0,
+      "pT": 2373.1499328321115,
+      "inverse_temperature": 2373.1499520861566,
+      "abs_error_K": 1.9254045128036523e-05
+    },
+    {
+      "time": "4e-06",
+      "particle": 2,
+      "mean_double": 4191779.387314074,
+      "carry_double": 0.0,
+      "pT": 2373.1499328321133,
+      "inverse_temperature": 2373.1499520861566,
+      "abs_error_K": 1.925404330904712e-05
+    },
+    {
+      "time": "4e-06",
+      "particle": 3,
+      "mean_double": 4191779.387314074,
+      "carry_double": 0.0,
+      "pT": 2373.1499328321115,
+      "inverse_temperature": 2373.1499520861566,
+      "abs_error_K": 1.9254045128036523e-05
+    },
+    {
+      "time": "4e-06",
+      "particle": 4,
+      "mean_double": 4191779.387314074,
+      "carry_double": 0.0,
+      "pT": 2373.149932832111,
+      "inverse_temperature": 2373.1499520861566,
+      "abs_error_K": 1.9254045582783874e-05
+    },
+    {
+      "time": "4e-06",
+      "particle": 5,
+      "mean_double": 4191779.387314074,
+      "carry_double": 0.0,
+      "pT": 2373.149932832112,
+      "inverse_temperature": 2373.1499520861566,
+      "abs_error_K": 1.9254044673289172e-05
+    },
+    {
+      "time": "4e-06",
+      "particle": 6,
+      "mean_double": 4191779.387314074,
+      "carry_double": 0.0,
+      "pT": 2373.149932832112,
+      "inverse_temperature": 2373.1499520861566,
+      "abs_error_K": 1.9254044673289172e-05
+    },
+    {
+      "time": "4e-06",
+      "particle": 7,
+      "mean_double": 4191779.387314074,
+      "carry_double": 0.0,
+      "pT": 2373.1499328321124,
+      "inverse_temperature": 2373.1499520861566,
+      "abs_error_K": 1.925404421854182e-05
+    },
+    {
+      "time": "4e-06",
+      "particle": 8,
+      "mean_double": 4191779.387314074,
+      "carry_double": 0.0,
+      "pT": 2373.1499328321133,
+      "inverse_temperature": 2373.1499520861566,
+      "abs_error_K": 1.925404330904712e-05
+    },
+    {
+      "time": "4e-06",
+      "particle": 9,
+      "mean_double": 4191779.387314074,
+      "carry_double": 0.0,
+      "pT": 2373.1499328321115,
+      "inverse_temperature": 2373.1499520861566,
+      "abs_error_K": 1.9254045128036523e-05
+    },
+    {
+      "time": "4e-06",
+      "particle": 10,
+      "mean_double": 4191779.387314074,
+      "carry_double": 0.0,
+      "pT": 2373.1499328321133,
+      "inverse_temperature": 2373.1499520861566,
+      "abs_error_K": 1.925404330904712e-05
+    },
+    {
+      "time": "4e-06",
+      "particle": 11,
+      "mean_double": 4191779.387314074,
+      "carry_double": 0.0,
+      "pT": 2373.149932832114,
+      "inverse_temperature": 2373.1499520861566,
+      "abs_error_K": 1.925404285429977e-05
+    },
+    {
+      "time": "4e-06",
+      "particle": 12,
+      "mean_double": 4191779.387314074,
+      "carry_double": 0.0,
+      "pT": 2373.149932832112,
+      "inverse_temperature": 2373.1499520861566,
+      "abs_error_K": 1.9254044673289172e-05
+    },
+    {
+      "time": "4e-06",
+      "particle": 13,
+      "mean_double": 4191779.387314074,
+      "carry_double": 0.0,
+      "pT": 2373.149932832112,
+      "inverse_temperature": 2373.1499520861566,
+      "abs_error_K": 1.9254044673289172e-05
+    },
+    {
+      "time": "4e-06",
+      "particle": 14,
+      "mean_double": 4191779.387314074,
+      "carry_double": 0.0,
+      "pT": 2373.1499328321115,
+      "inverse_temperature": 2373.1499520861566,
+      "abs_error_K": 1.9254045128036523e-05
+    },
+    {
+      "time": "4e-06",
+      "particle": 15,
+      "mean_double": 4191779.387314074,
+      "carry_double": 0.0,
+      "pT": 2373.1499328321133,
+      "inverse_temperature": 2373.1499520861566,
+      "abs_error_K": 1.925404330904712e-05
+    },
+    {
+      "time": "5e-06",
+      "particle": 0,
+      "mean_double": 4191779.387314074,
+      "carry_double": 0.0,
+      "pT": 2373.149926945648,
+      "inverse_temperature": 2373.1499520861566,
+      "abs_error_K": 2.514050856916583e-05
+    },
+    {
+      "time": "5e-06",
+      "particle": 1,
+      "mean_double": 4191779.387314074,
+      "carry_double": 0.0,
+      "pT": 2373.1499269456453,
+      "inverse_temperature": 2373.1499520861566,
+      "abs_error_K": 2.5140511297649937e-05
+    },
+    {
+      "time": "5e-06",
+      "particle": 2,
+      "mean_double": 4191779.387314074,
+      "carry_double": 0.0,
+      "pT": 2373.1499269456476,
+      "inverse_temperature": 2373.1499520861566,
+      "abs_error_K": 2.5140509023913182e-05
+    },
+    {
+      "time": "5e-06",
+      "particle": 3,
+      "mean_double": 4191779.387314074,
+      "carry_double": 0.0,
+      "pT": 2373.149926945646,
+      "inverse_temperature": 2373.1499520861566,
+      "abs_error_K": 2.5140510842902586e-05
+    },
+    {
+      "time": "5e-06",
+      "particle": 4,
+      "mean_double": 4191779.387314074,
+      "carry_double": 0.0,
+      "pT": 2373.1499269456453,
+      "inverse_temperature": 2373.1499520861566,
+      "abs_error_K": 2.5140511297649937e-05
+    },
+    {
+      "time": "5e-06",
+      "particle": 5,
+      "mean_double": 4191779.387314074,
+      "carry_double": 0.0,
+      "pT": 2373.1499269456463,
+      "inverse_temperature": 2373.1499520861566,
+      "abs_error_K": 2.5140510388155235e-05
+    },
+    {
+      "time": "5e-06",
+      "particle": 6,
+      "mean_double": 4191779.387314074,
+      "carry_double": 0.0,
+      "pT": 2373.1499269456463,
+      "inverse_temperature": 2373.1499520861566,
+      "abs_error_K": 2.5140510388155235e-05
+    },
+    {
+      "time": "5e-06",
+      "particle": 7,
+      "mean_double": 4191779.387314074,
+      "carry_double": 0.0,
+      "pT": 2373.1499269456467,
+      "inverse_temperature": 2373.1499520861566,
+      "abs_error_K": 2.5140509933407884e-05
+    },
+    {
+      "time": "5e-06",
+      "particle": 8,
+      "mean_double": 4191779.387314074,
+      "carry_double": 0.0,
+      "pT": 2373.1499269456476,
+      "inverse_temperature": 2373.1499520861566,
+      "abs_error_K": 2.5140509023913182e-05
+    },
+    {
+      "time": "5e-06",
+      "particle": 9,
+      "mean_double": 4191779.387314074,
+      "carry_double": 0.0,
+      "pT": 2373.149926945646,
+      "inverse_temperature": 2373.1499520861566,
+      "abs_error_K": 2.5140510842902586e-05
+    },
+    {
+      "time": "5e-06",
+      "particle": 10,
+      "mean_double": 4191779.387314074,
+      "carry_double": 0.0,
+      "pT": 2373.149926945647,
+      "inverse_temperature": 2373.1499520861566,
+      "abs_error_K": 2.5140509478660533e-05
+    },
+    {
+      "time": "5e-06",
+      "particle": 11,
+      "mean_double": 4191779.387314074,
+      "carry_double": 0.0,
+      "pT": 2373.149926945648,
+      "inverse_temperature": 2373.1499520861566,
+      "abs_error_K": 2.514050856916583e-05
+    },
+    {
+      "time": "5e-06",
+      "particle": 12,
+      "mean_double": 4191779.387314074,
+      "carry_double": 0.0,
+      "pT": 2373.1499269456463,
+      "inverse_temperature": 2373.1499520861566,
+      "abs_error_K": 2.5140510388155235e-05
+    },
+    {
+      "time": "5e-06",
+      "particle": 13,
+      "mean_double": 4191779.387314074,
+      "carry_double": 0.0,
+      "pT": 2373.1499269456463,
+      "inverse_temperature": 2373.1499520861566,
+      "abs_error_K": 2.5140510388155235e-05
+    },
+    {
+      "time": "5e-06",
+      "particle": 14,
+      "mean_double": 4191779.387314074,
+      "carry_double": 0.0,
+      "pT": 2373.149926945646,
+      "inverse_temperature": 2373.1499520861566,
+      "abs_error_K": 2.5140510842902586e-05
+    },
+    {
+      "time": "5e-06",
+      "particle": 15,
+      "mean_double": 4191779.387314074,
+      "carry_double": 0.0,
+      "pT": 2373.1499269456476,
+      "inverse_temperature": 2373.1499520861566,
+      "abs_error_K": 2.5140509023913182e-05
+    },
+    {
+      "time": "6e-06",
+      "particle": 0,
+      "mean_double": 4191779.387314074,
+      "carry_double": 0.0,
+      "pT": 2373.1499207598963,
+      "inverse_temperature": 2373.1499520861566,
+      "abs_error_K": 3.132626034130226e-05
+    },
+    {
+      "time": "6e-06",
+      "particle": 1,
+      "mean_double": 4191779.387314074,
+      "carry_double": 0.0,
+      "pT": 2373.1499207598936,
+      "inverse_temperature": 2373.1499520861566,
+      "abs_error_K": 3.1326263069786364e-05
+    },
+    {
+      "time": "6e-06",
+      "particle": 2,
+      "mean_double": 4191779.387314074,
+      "carry_double": 0.0,
+      "pT": 2373.149920759896,
+      "inverse_temperature": 2373.1499520861566,
+      "abs_error_K": 3.132626079604961e-05
+    },
+    {
+      "time": "6e-06",
+      "particle": 3,
+      "mean_double": 4191779.387314074,
+      "carry_double": 0.0,
+      "pT": 2373.149920759894,
+      "inverse_temperature": 2373.1499520861566,
+      "abs_error_K": 3.132626261503901e-05
+    },
+    {
+      "time": "6e-06",
+      "particle": 4,
+      "mean_double": 4191779.387314074,
+      "carry_double": 0.0,
+      "pT": 2373.1499207598936,
+      "inverse_temperature": 2373.1499520861566,
+      "abs_error_K": 3.1326263069786364e-05
+    },
+    {
+      "time": "6e-06",
+      "particle": 5,
+      "mean_double": 4191779.387314074,
+      "carry_double": 0.0,
+      "pT": 2373.1499207598945,
+      "inverse_temperature": 2373.1499520861566,
+      "abs_error_K": 3.132626216029166e-05
+    },
+    {
+      "time": "6e-06",
+      "particle": 6,
+      "mean_double": 4191779.387314074,
+      "carry_double": 0.0,
+      "pT": 2373.1499207598945,
+      "inverse_temperature": 2373.1499520861566,
+      "abs_error_K": 3.132626216029166e-05
+    },
+    {
+      "time": "6e-06",
+      "particle": 7,
+      "mean_double": 4191779.387314074,
+      "carry_double": 0.0,
+      "pT": 2373.149920759895,
+      "inverse_temperature": 2373.1499520861566,
+      "abs_error_K": 3.132626170554431e-05
+    },
+    {
+      "time": "6e-06",
+      "particle": 8,
+      "mean_double": 4191779.387314074,
+      "carry_double": 0.0,
+      "pT": 2373.149920759896,
+      "inverse_temperature": 2373.1499520861566,
+      "abs_error_K": 3.132626079604961e-05
+    },
+    {
+      "time": "6e-06",
+      "particle": 9,
+      "mean_double": 4191779.387314074,
+      "carry_double": 0.0,
+      "pT": 2373.1499207598936,
+      "inverse_temperature": 2373.1499520861566,
+      "abs_error_K": 3.1326263069786364e-05
+    },
+    {
+      "time": "6e-06",
+      "particle": 10,
+      "mean_double": 4191779.387314074,
+      "carry_double": 0.0,
+      "pT": 2373.1499207598954,
+      "inverse_temperature": 2373.1499520861566,
+      "abs_error_K": 3.132626125079696e-05
+    },
+    {
+      "time": "6e-06",
+      "particle": 11,
+      "mean_double": 4191779.387314074,
+      "carry_double": 0.0,
+      "pT": 2373.1499207598963,
+      "inverse_temperature": 2373.1499520861566,
+      "abs_error_K": 3.132626034130226e-05
+    },
+    {
+      "time": "6e-06",
+      "particle": 12,
+      "mean_double": 4191779.387314074,
+      "carry_double": 0.0,
+      "pT": 2373.1499207598945,
+      "inverse_temperature": 2373.1499520861566,
+      "abs_error_K": 3.132626216029166e-05
+    },
+    {
+      "time": "6e-06",
+      "particle": 13,
+      "mean_double": 4191779.387314074,
+      "carry_double": 0.0,
+      "pT": 2373.1499207598945,
+      "inverse_temperature": 2373.1499520861566,
+      "abs_error_K": 3.132626216029166e-05
+    },
+    {
+      "time": "6e-06",
+      "particle": 14,
+      "mean_double": 4191779.387314074,
+      "carry_double": 0.0,
+      "pT": 2373.149920759894,
+      "inverse_temperature": 2373.1499520861566,
+      "abs_error_K": 3.132626261503901e-05
+    },
+    {
+      "time": "6e-06",
+      "particle": 15,
+      "mean_double": 4191779.387314074,
+      "carry_double": 0.0,
+      "pT": 2373.1499207598963,
+      "inverse_temperature": 2373.1499520861566,
+      "abs_error_K": 3.132626034130226e-05
+    },
+    {
+      "time": "7e-06",
+      "particle": 0,
+      "mean_double": 4191779.387314074,
+      "carry_double": 0.0,
+      "pT": 2373.14991432367,
+      "inverse_temperature": 2373.1499520861566,
+      "abs_error_K": 3.77624864995596e-05
+    },
+    {
+      "time": "7e-06",
+      "particle": 1,
+      "mean_double": 4191779.387314074,
+      "carry_double": 0.0,
+      "pT": 2373.1499143236674,
+      "inverse_temperature": 2373.1499520861566,
+      "abs_error_K": 3.7762489228043705e-05
+    },
+    {
+      "time": "7e-06",
+      "particle": 2,
+      "mean_double": 4191779.387314074,
+      "carry_double": 0.0,
+      "pT": 2373.1499143236692,
+      "inverse_temperature": 2373.1499520861566,
+      "abs_error_K": 3.77624874090543e-05
+    },
+    {
+      "time": "7e-06",
+      "particle": 3,
+      "mean_double": 4191779.387314074,
+      "carry_double": 0.0,
+      "pT": 2373.1499143236674,
+      "inverse_temperature": 2373.1499520861566,
+      "abs_error_K": 3.7762489228043705e-05
+    },
+    {
+      "time": "7e-06",
+      "particle": 4,
+      "mean_double": 4191779.387314074,
+      "carry_double": 0.0,
+      "pT": 2373.1499143236674,
+      "inverse_temperature": 2373.1499520861566,
+      "abs_error_K": 3.7762489228043705e-05
+    },
+    {
+      "time": "7e-06",
+      "particle": 5,
+      "mean_double": 4191779.387314074,
+      "carry_double": 0.0,
+      "pT": 2373.149914323668,
+      "inverse_temperature": 2373.1499520861566,
+      "abs_error_K": 3.7762488773296354e-05
+    },
+    {
+      "time": "7e-06",
+      "particle": 6,
+      "mean_double": 4191779.387314074,
+      "carry_double": 0.0,
+      "pT": 2373.149914323668,
+      "inverse_temperature": 2373.1499520861566,
+      "abs_error_K": 3.7762488773296354e-05
+    },
+    {
+      "time": "7e-06",
+      "particle": 7,
+      "mean_double": 4191779.387314074,
+      "carry_double": 0.0,
+      "pT": 2373.149914323669,
+      "inverse_temperature": 2373.1499520861566,
+      "abs_error_K": 3.776248786380165e-05
+    },
+    {
+      "time": "7e-06",
+      "particle": 8,
+      "mean_double": 4191779.387314074,
+      "carry_double": 0.0,
+      "pT": 2373.1499143236692,
+      "inverse_temperature": 2373.1499520861566,
+      "abs_error_K": 3.77624874090543e-05
+    },
+    {
+      "time": "7e-06",
+      "particle": 9,
+      "mean_double": 4191779.387314074,
+      "carry_double": 0.0,
+      "pT": 2373.149914323667,
+      "inverse_temperature": 2373.1499520861566,
+      "abs_error_K": 3.7762489682791056e-05
+    },
+    {
+      "time": "7e-06",
+      "particle": 10,
+      "mean_double": 4191779.387314074,
+      "carry_double": 0.0,
+      "pT": 2373.149914323669,
+      "inverse_temperature": 2373.1499520861566,
+      "abs_error_K": 3.776248786380165e-05
+    },
+    {
+      "time": "7e-06",
+      "particle": 11,
+      "mean_double": 4191779.387314074,
+      "carry_double": 0.0,
+      "pT": 2373.14991432367,
+      "inverse_temperature": 2373.1499520861566,
+      "abs_error_K": 3.77624864995596e-05
+    },
+    {
+      "time": "7e-06",
+      "particle": 12,
+      "mean_double": 4191779.387314074,
+      "carry_double": 0.0,
+      "pT": 2373.1499143236683,
+      "inverse_temperature": 2373.1499520861566,
+      "abs_error_K": 3.7762488318549003e-05
+    },
+    {
+      "time": "7e-06",
+      "particle": 13,
+      "mean_double": 4191779.387314074,
+      "carry_double": 0.0,
+      "pT": 2373.149914323668,
+      "inverse_temperature": 2373.1499520861566,
+      "abs_error_K": 3.7762488773296354e-05
+    },
+    {
+      "time": "7e-06",
+      "particle": 14,
+      "mean_double": 4191779.387314074,
+      "carry_double": 0.0,
+      "pT": 2373.1499143236674,
+      "inverse_temperature": 2373.1499520861566,
+      "abs_error_K": 3.7762489228043705e-05
+    },
+    {
+      "time": "7e-06",
+      "particle": 15,
+      "mean_double": 4191779.387314074,
+      "carry_double": 0.0,
+      "pT": 2373.1499143236697,
+      "inverse_temperature": 2373.1499520861566,
+      "abs_error_K": 3.776248695430695e-05
+    },
+    {
+      "time": "8e-06",
+      "particle": 0,
+      "mean_double": 4191779.387314074,
+      "carry_double": 0.0,
+      "pT": 2373.149907682922,
+      "inverse_temperature": 2373.1499520861566,
+      "abs_error_K": 4.440323482413078e-05
+    },
+    {
+      "time": "8e-06",
+      "particle": 1,
+      "mean_double": 4191779.387314074,
+      "carry_double": 0.0,
+      "pT": 2373.149907682919,
+      "inverse_temperature": 2373.1499520861566,
+      "abs_error_K": 4.440323755261488e-05
+    },
+    {
+      "time": "8e-06",
+      "particle": 2,
+      "mean_double": 4191779.387314074,
+      "carry_double": 0.0,
+      "pT": 2373.149907682921,
+      "inverse_temperature": 2373.1499520861566,
+      "abs_error_K": 4.440323573362548e-05
+    },
+    {
+      "time": "8e-06",
+      "particle": 3,
+      "mean_double": 4191779.387314074,
+      "carry_double": 0.0,
+      "pT": 2373.149907682919,
+      "inverse_temperature": 2373.1499520861566,
+      "abs_error_K": 4.440323755261488e-05
+    },
+    {
+      "time": "8e-06",
+      "particle": 4,
+      "mean_double": 4191779.387314074,
+      "carry_double": 0.0,
+      "pT": 2373.1499076829186,
+      "inverse_temperature": 2373.1499520861566,
+      "abs_error_K": 4.4403238007362233e-05
+    },
+    {
+      "time": "8e-06",
+      "particle": 5,
+      "mean_double": 4191779.387314074,
+      "carry_double": 0.0,
+      "pT": 2373.149907682919,
+      "inverse_temperature": 2373.1499520861566,
+      "abs_error_K": 4.440323755261488e-05
+    },
+    {
+      "time": "8e-06",
+      "particle": 6,
+      "mean_double": 4191779.387314074,
+      "carry_double": 0.0,
+      "pT": 2373.149907682919,
+      "inverse_temperature": 2373.1499520861566,
+      "abs_error_K": 4.440323755261488e-05
+    },
+    {
+      "time": "8e-06",
+      "particle": 7,
+      "mean_double": 4191779.387314074,
+      "carry_double": 0.0,
+      "pT": 2373.1499076829205,
+      "inverse_temperature": 2373.1499520861566,
+      "abs_error_K": 4.440323618837283e-05
+    },
+    {
+      "time": "8e-06",
+      "particle": 8,
+      "mean_double": 4191779.387314074,
+      "carry_double": 0.0,
+      "pT": 2373.1499076829205,
+      "inverse_temperature": 2373.1499520861566,
+      "abs_error_K": 4.440323618837283e-05
+    },
+    {
+      "time": "8e-06",
+      "particle": 9,
+      "mean_double": 4191779.387314074,
+      "carry_double": 0.0,
+      "pT": 2373.149907682918,
+      "inverse_temperature": 2373.1499520861566,
+      "abs_error_K": 4.4403238462109584e-05
+    },
+    {
+      "time": "8e-06",
+      "particle": 10,
+      "mean_double": 4191779.387314074,
+      "carry_double": 0.0,
+      "pT": 2373.14990768292,
+      "inverse_temperature": 2373.1499520861566,
+      "abs_error_K": 4.440323664312018e-05
+    },
+    {
+      "time": "8e-06",
+      "particle": 11,
+      "mean_double": 4191779.387314074,
+      "carry_double": 0.0,
+      "pT": 2373.1499076829214,
+      "inverse_temperature": 2373.1499520861566,
+      "abs_error_K": 4.440323527887813e-05
+    },
+    {
+      "time": "8e-06",
+      "particle": 12,
+      "mean_double": 4191779.387314074,
+      "carry_double": 0.0,
+      "pT": 2373.1499076829195,
+      "inverse_temperature": 2373.1499520861566,
+      "abs_error_K": 4.440323709786753e-05
+    },
+    {
+      "time": "8e-06",
+      "particle": 13,
+      "mean_double": 4191779.387314074,
+      "carry_double": 0.0,
+      "pT": 2373.1499076829195,
+      "inverse_temperature": 2373.1499520861566,
+      "abs_error_K": 4.440323709786753e-05
+    },
+    {
+      "time": "8e-06",
+      "particle": 14,
+      "mean_double": 4191779.387314074,
+      "carry_double": 0.0,
+      "pT": 2373.1499076829186,
+      "inverse_temperature": 2373.1499520861566,
+      "abs_error_K": 4.4403238007362233e-05
+    },
+    {
+      "time": "8e-06",
+      "particle": 15,
+      "mean_double": 4191779.387314074,
+      "carry_double": 0.0,
+      "pT": 2373.149907682921,
+      "inverse_temperature": 2373.1499520861566,
+      "abs_error_K": 4.440323573362548e-05
+    },
+    {
+      "time": "9e-06",
+      "particle": 0,
+      "mean_double": 4191779.387314074,
+      "carry_double": 0.0,
+      "pT": 2373.1499008803266,
+      "inverse_temperature": 2373.1499520861566,
+      "abs_error_K": 5.12058300046192e-05
+    },
+    {
+      "time": "9e-06",
+      "particle": 1,
+      "mean_double": 4191779.387314074,
+      "carry_double": 0.0,
+      "pT": 2373.149900880324,
+      "inverse_temperature": 2373.1499520861566,
+      "abs_error_K": 5.120583273310331e-05
+    },
+    {
+      "time": "9e-06",
+      "particle": 2,
+      "mean_double": 4191779.387314074,
+      "carry_double": 0.0,
+      "pT": 2373.1499008803257,
+      "inverse_temperature": 2373.1499520861566,
+      "abs_error_K": 5.1205830914113903e-05
+    },
+    {
+      "time": "9e-06",
+      "particle": 3,
+      "mean_double": 4191779.387314074,
+      "carry_double": 0.0,
+      "pT": 2373.149900880324,
+      "inverse_temperature": 2373.1499520861566,
+      "abs_error_K": 5.120583273310331e-05
+    },
+    {
+      "time": "9e-06",
+      "particle": 4,
+      "mean_double": 4191779.387314074,
+      "carry_double": 0.0,
+      "pT": 2373.149900880323,
+      "inverse_temperature": 2373.1499520861566,
+      "abs_error_K": 5.120583364259801e-05
+    },
+    {
+      "time": "9e-06",
+      "particle": 5,
+      "mean_double": 4191779.387314074,
+      "carry_double": 0.0,
+      "pT": 2373.1499008803235,
+      "inverse_temperature": 2373.1499520861566,
+      "abs_error_K": 5.120583318785066e-05
+    },
+    {
+      "time": "9e-06",
+      "particle": 6,
+      "mean_double": 4191779.387314074,
+      "carry_double": 0.0,
+      "pT": 2373.1499008803235,
+      "inverse_temperature": 2373.1499520861566,
+      "abs_error_K": 5.120583318785066e-05
+    },
+    {
+      "time": "9e-06",
+      "particle": 7,
+      "mean_double": 4191779.387314074,
+      "carry_double": 0.0,
+      "pT": 2373.149900880325,
+      "inverse_temperature": 2373.1499520861566,
+      "abs_error_K": 5.1205831823608605e-05
+    },
+    {
+      "time": "9e-06",
+      "particle": 8,
+      "mean_double": 4191779.387314074,
+      "carry_double": 0.0,
+      "pT": 2373.1499008803253,
+      "inverse_temperature": 2373.1499520861566,
+      "abs_error_K": 5.1205831368861254e-05
+    },
+    {
+      "time": "9e-06",
+      "particle": 9,
+      "mean_double": 4191779.387314074,
+      "carry_double": 0.0,
+      "pT": 2373.149900880323,
+      "inverse_temperature": 2373.1499520861566,
+      "abs_error_K": 5.120583364259801e-05
+    },
+    {
+      "time": "9e-06",
+      "particle": 10,
+      "mean_double": 4191779.387314074,
+      "carry_double": 0.0,
+      "pT": 2373.1499008803244,
+      "inverse_temperature": 2373.1499520861566,
+      "abs_error_K": 5.1205832278355956e-05
+    },
+    {
+      "time": "9e-06",
+      "particle": 11,
+      "mean_double": 4191779.387314074,
+      "carry_double": 0.0,
+      "pT": 2373.149900880326,
+      "inverse_temperature": 2373.1499520861566,
+      "abs_error_K": 5.120583045936655e-05
+    },
+    {
+      "time": "9e-06",
+      "particle": 12,
+      "mean_double": 4191779.387314074,
+      "carry_double": 0.0,
+      "pT": 2373.1499008803244,
+      "inverse_temperature": 2373.1499520861566,
+      "abs_error_K": 5.1205832278355956e-05
+    },
+    {
+      "time": "9e-06",
+      "particle": 13,
+      "mean_double": 4191779.387314074,
+      "carry_double": 0.0,
+      "pT": 2373.1499008803244,
+      "inverse_temperature": 2373.1499520861566,
+      "abs_error_K": 5.1205832278355956e-05
+    },
+    {
+      "time": "9e-06",
+      "particle": 14,
+      "mean_double": 4191779.387314074,
+      "carry_double": 0.0,
+      "pT": 2373.1499008803235,
+      "inverse_temperature": 2373.1499520861566,
+      "abs_error_K": 5.120583318785066e-05
+    },
+    {
+      "time": "9e-06",
+      "particle": 15,
+      "mean_double": 4191779.387314074,
+      "carry_double": 0.0,
+      "pT": 2373.1499008803257,
+      "inverse_temperature": 2373.1499520861566,
+      "abs_error_K": 5.1205830914113903e-05
+    },
+    {
+      "time": "1e-05",
+      "particle": 0,
+      "mean_double": 4191779.387314074,
+      "carry_double": 0.0,
+      "pT": 2373.149893954816,
+      "inverse_temperature": 2373.1499520861566,
+      "abs_error_K": 5.813134066556813e-05
+    },
+    {
+      "time": "1e-05",
+      "particle": 1,
+      "mean_double": 4191779.387314074,
+      "carry_double": 0.0,
+      "pT": 2373.1498939548133,
+      "inverse_temperature": 2373.1499520861566,
+      "abs_error_K": 5.813134339405224e-05
+    },
+    {
+      "time": "1e-05",
+      "particle": 2,
+      "mean_double": 4191779.387314074,
+      "carry_double": 0.0,
+      "pT": 2373.1498939548146,
+      "inverse_temperature": 2373.1499520861566,
+      "abs_error_K": 5.8131342029810185e-05
+    },
+    {
+      "time": "1e-05",
+      "particle": 3,
+      "mean_double": 4191779.387314074,
+      "carry_double": 0.0,
+      "pT": 2373.1498939548137,
+      "inverse_temperature": 2373.1499520861566,
+      "abs_error_K": 5.8131342939304886e-05
+    },
+    {
+      "time": "1e-05",
+      "particle": 4,
+      "mean_double": 4191779.387314074,
+      "carry_double": 0.0,
+      "pT": 2373.1498939548123,
+      "inverse_temperature": 2373.1499520861566,
+      "abs_error_K": 5.813134430354694e-05
+    },
+    {
+      "time": "1e-05",
+      "particle": 5,
+      "mean_double": 4191779.387314074,
+      "carry_double": 0.0,
+      "pT": 2373.1498939548123,
+      "inverse_temperature": 2373.1499520861566,
+      "abs_error_K": 5.813134430354694e-05
+    },
+    {
+      "time": "1e-05",
+      "particle": 6,
+      "mean_double": 4191779.387314074,
+      "carry_double": 0.0,
+      "pT": 2373.1498939548123,
+      "inverse_temperature": 2373.1499520861566,
+      "abs_error_K": 5.813134430354694e-05
+    },
+    {
+      "time": "1e-05",
+      "particle": 7,
+      "mean_double": 4191779.387314074,
+      "carry_double": 0.0,
+      "pT": 2373.149893954814,
+      "inverse_temperature": 2373.1499520861566,
+      "abs_error_K": 5.8131342484557535e-05
+    },
+    {
+      "time": "1e-05",
+      "particle": 8,
+      "mean_double": 4191779.387314074,
+      "carry_double": 0.0,
+      "pT": 2373.1498939548146,
+      "inverse_temperature": 2373.1499520861566,
+      "abs_error_K": 5.8131342029810185e-05
+    },
+    {
+      "time": "1e-05",
+      "particle": 9,
+      "mean_double": 4191779.387314074,
+      "carry_double": 0.0,
+      "pT": 2373.149893954812,
+      "inverse_temperature": 2373.1499520861566,
+      "abs_error_K": 5.813134475829429e-05
+    },
+    {
+      "time": "1e-05",
+      "particle": 10,
+      "mean_double": 4191779.387314074,
+      "carry_double": 0.0,
+      "pT": 2373.1498939548137,
+      "inverse_temperature": 2373.1499520861566,
+      "abs_error_K": 5.8131342939304886e-05
+    },
+    {
+      "time": "1e-05",
+      "particle": 11,
+      "mean_double": 4191779.387314074,
+      "carry_double": 0.0,
+      "pT": 2373.1498939548155,
+      "inverse_temperature": 2373.1499520861566,
+      "abs_error_K": 5.813134112031548e-05
+    },
+    {
+      "time": "1e-05",
+      "particle": 12,
+      "mean_double": 4191779.387314074,
+      "carry_double": 0.0,
+      "pT": 2373.149893954814,
+      "inverse_temperature": 2373.1499520861566,
+      "abs_error_K": 5.8131342484557535e-05
+    },
+    {
+      "time": "1e-05",
+      "particle": 13,
+      "mean_double": 4191779.387314074,
+      "carry_double": 0.0,
+      "pT": 2373.1498939548133,
+      "inverse_temperature": 2373.1499520861566,
+      "abs_error_K": 5.813134339405224e-05
+    },
+    {
+      "time": "1e-05",
+      "particle": 14,
+      "mean_double": 4191779.387314074,
+      "carry_double": 0.0,
+      "pT": 2373.149893954813,
+      "inverse_temperature": 2373.1499520861566,
+      "abs_error_K": 5.813134384879959e-05
+    },
+    {
+      "time": "1e-05",
+      "particle": 15,
+      "mean_double": 4191779.387314074,
+      "carry_double": 0.0,
+      "pT": 2373.1498939548155,
+      "inverse_temperature": 2373.1499520861566,
+      "abs_error_K": 5.813134112031548e-05
+    }
+  ],
+  "maximum_error_K": 5.813134475829429e-05,
+  "all_counts": [
+    16,
+    16,
+    16,
+    16,
+    16,
+    16,
+    16,
+    16,
+    16,
+    16
+  ],
+  "criteria": "No case-name shortcut. Everyphysicalparcel at everyoutput; profile mean sequentialfloat64sum, unchangedcaloric/1e-9K. FSHprofile itselfmustfloat64; nofictionalcarryfield. Dynamiccontacts reported, notinferred.",
+  "all_pass": false
+}

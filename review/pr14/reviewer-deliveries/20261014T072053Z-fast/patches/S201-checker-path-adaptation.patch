@@ -1,0 +1,9 @@
+--- a/old/resident_check_fp64_mean.py
++++ b/new/resident_check_fp64_mean.py
+@@ -1,5 +1,5 @@
+ import pathlib,json,numpy as np,math,sys
+-from run_fast import ROOT,D
++from r2_runner import ROOT,D
+ sys.path.insert(0,str(ROOT/'common'))
+ from thermal_particle_restart_current import iter_chunks
+ import importlib.util

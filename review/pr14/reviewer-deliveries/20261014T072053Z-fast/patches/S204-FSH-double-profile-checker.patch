@@ -1,0 +1,12 @@
+--- a/checker.py
++++ b/checker-fsh-double.py
+@@ -22,7 +22,8 @@
+   mismatch=None
+   if 'coldWall' in name and not notfinite:
+    nodes=p['pCold2DNodeSpecificEnthalpy' if '2D' in name else 'pColdNodeSpecificEnthalpy']
+-   carry=p['pThermalEnthalpyResidual'];mean=float(nodes.astype(np.float64).mean())+float(carry[0]);expected=caloric(mean);mismatch=abs(float(p['pT'][0])-expected)
++   assert nodes.dtype==np.float64 if name.startswith('FSH') else nodes.dtype==np.float32
++   carry=np.zeros(len(p['pT']),dtype=np.float64) if name.startswith('FSH') else p['pThermalEnthalpyResidual'];mean=float(nodes.astype(np.float64).mean())+float(carry[0]);expected=caloric(mean);mismatch=abs(float(p['pT'][0])-expected)
+    if mismatch>1e-9:bad.append({'time':q.name,'mean_profile_carry_temperature_abs':mismatch})
+   if notfinite:bad.append({'time':q.name,'nonfinite_fields':notfinite})
+   states.append({'time':q.name,'particle_count':len(p['pm']),'all_physical_particle_fields_finite':not notfinite,'physical_dtypes':{k:str(a.dtype) for k,a in p.items()},'profile_carry_temperature_abs':mismatch})

@@ -1,0 +1,202 @@
+[
+  {
+    "id": "TIMING-old-production-warmup-0",
+    "variant": "old-production",
+    "phase": "warmup",
+    "index": 0,
+    "seconds": 2.0713867099839263,
+    "exit_code": 0,
+    "all_output_bytes_equal": true,
+    "binary_sha256": "7124cf69b1cd51da033c1360d67129748803a5c66767489f2864c169b85c845d"
+  },
+  {
+    "id": "TIMING-formal-warmup-0",
+    "variant": "formal",
+    "phase": "warmup",
+    "index": 0,
+    "seconds": 1.871150563005358,
+    "exit_code": 0,
+    "all_output_bytes_equal": true,
+    "binary_sha256": "ea78e2ac08b52915dd6da4f741a791f3251df3a530895455887968586b715599"
+  },
+  {
+    "id": "TIMING-formal-warmup-1",
+    "variant": "formal",
+    "phase": "warmup",
+    "index": 1,
+    "seconds": 1.7707090980256908,
+    "exit_code": 0,
+    "all_output_bytes_equal": true,
+    "binary_sha256": "ea78e2ac08b52915dd6da4f741a791f3251df3a530895455887968586b715599"
+  },
+  {
+    "id": "TIMING-old-production-warmup-1",
+    "variant": "old-production",
+    "phase": "warmup",
+    "index": 1,
+    "seconds": 1.8310727499774657,
+    "exit_code": 0,
+    "all_output_bytes_equal": true,
+    "binary_sha256": "7124cf69b1cd51da033c1360d67129748803a5c66767489f2864c169b85c845d"
+  },
+  {
+    "id": "TIMING-old-production-warmup-2",
+    "variant": "old-production",
+    "phase": "warmup",
+    "index": 2,
+    "seconds": 1.7801264619920403,
+    "exit_code": 0,
+    "all_output_bytes_equal": true,
+    "binary_sha256": "7124cf69b1cd51da033c1360d67129748803a5c66767489f2864c169b85c845d"
+  },
+  {
+    "id": "TIMING-formal-warmup-2",
+    "variant": "formal",
+    "phase": "warmup",
+    "index": 2,
+    "seconds": 1.776521610969212,
+    "exit_code": 0,
+    "all_output_bytes_equal": true,
+    "binary_sha256": "ea78e2ac08b52915dd6da4f741a791f3251df3a530895455887968586b715599"
+  },
+  {
+    "id": "TIMING-old-production-measured-0",
+    "variant": "old-production",
+    "phase": "measured",
+    "index": 0,
+    "seconds": 1.9246399849653244,
+    "exit_code": 0,
+    "all_output_bytes_equal": true,
+    "binary_sha256": "7124cf69b1cd51da033c1360d67129748803a5c66767489f2864c169b85c845d"
+  },
+  {
+    "id": "TIMING-formal-measured-0",
+    "variant": "formal",
+    "phase": "measured",
+    "index": 0,
+    "seconds": 1.8709900149842724,
+    "exit_code": 0,
+    "all_output_bytes_equal": true,
+    "binary_sha256": "ea78e2ac08b52915dd6da4f741a791f3251df3a530895455887968586b715599"
+  },
+  {
+    "id": "TIMING-formal-measured-1",
+    "variant": "formal",
+    "phase": "measured",
+    "index": 1,
+    "seconds": 2.070553197991103,
+    "exit_code": 0,
+    "all_output_bytes_equal": true,
+    "binary_sha256": "ea78e2ac08b52915dd6da4f741a791f3251df3a530895455887968586b715599"
+  },
+  {
+    "id": "TIMING-old-production-measured-1",
+    "variant": "old-production",
+    "phase": "measured",
+    "index": 1,
+    "seconds": 1.8700030019972473,
+    "exit_code": 0,
+    "all_output_bytes_equal": true,
+    "binary_sha256": "7124cf69b1cd51da033c1360d67129748803a5c66767489f2864c169b85c845d"
+  },
+  {
+    "id": "TIMING-old-production-measured-2",
+    "variant": "old-production",
+    "phase": "measured",
+    "index": 2,
+    "seconds": 1.8700401890091598,
+    "exit_code": 0,
+    "all_output_bytes_equal": true,
+    "binary_sha256": "7124cf69b1cd51da033c1360d67129748803a5c66767489f2864c169b85c845d"
+  },
+  {
+    "id": "TIMING-formal-measured-2",
+    "variant": "formal",
+    "phase": "measured",
+    "index": 2,
+    "seconds": 1.7697013989672996,
+    "exit_code": 0,
+    "all_output_bytes_equal": true,
+    "binary_sha256": "ea78e2ac08b52915dd6da4f741a791f3251df3a530895455887968586b715599"
+  },
+  {
+    "id": "TIMING-formal-measured-3",
+    "variant": "formal",
+    "phase": "measured",
+    "index": 3,
+    "seconds": 1.9205050829914398,
+    "exit_code": 0,
+    "all_output_bytes_equal": true,
+    "binary_sha256": "ea78e2ac08b52915dd6da4f741a791f3251df3a530895455887968586b715599"
+  },
+  {
+    "id": "TIMING-old-production-measured-3",
+    "variant": "old-production",
+    "phase": "measured",
+    "index": 3,
+    "seconds": 1.9194538969895802,
+    "exit_code": 0,
+    "all_output_bytes_equal": true,
+    "binary_sha256": "7124cf69b1cd51da033c1360d67129748803a5c66767489f2864c169b85c845d"
+  },
+  {
+    "id": "TIMING-old-production-measured-4",
+    "variant": "old-production",
+    "phase": "measured",
+    "index": 4,
+    "seconds": 1.9833120559924282,
+    "exit_code": 0,
+    "all_output_bytes_equal": true,
+    "binary_sha256": "7124cf69b1cd51da033c1360d67129748803a5c66767489f2864c169b85c845d"
+  },
+  {
+    "id": "TIMING-formal-measured-4",
+    "variant": "formal",
+    "phase": "measured",
+    "index": 4,
+    "seconds": 3.4248263370245695,
+    "exit_code": 0,
+    "all_output_bytes_equal": true,
+    "binary_sha256": "ea78e2ac08b52915dd6da4f741a791f3251df3a530895455887968586b715599"
+  },
+  {
+    "id": "TIMING-formal-measured-5",
+    "variant": "formal",
+    "phase": "measured",
+    "index": 5,
+    "seconds": 2.5938871990074404,
+    "exit_code": 0,
+    "all_output_bytes_equal": true,
+    "binary_sha256": "ea78e2ac08b52915dd6da4f741a791f3251df3a530895455887968586b715599"
+  },
+  {
+    "id": "TIMING-old-production-measured-5",
+    "variant": "old-production",
+    "phase": "measured",
+    "index": 5,
+    "seconds": 2.034655573021155,
+    "exit_code": 0,
+    "all_output_bytes_equal": true,
+    "binary_sha256": "7124cf69b1cd51da033c1360d67129748803a5c66767489f2864c169b85c845d"
+  },
+  {
+    "id": "TIMING-old-production-measured-6",
+    "variant": "old-production",
+    "phase": "measured",
+    "index": 6,
+    "seconds": 2.2293584119761363,
+    "exit_code": 0,
+    "all_output_bytes_equal": true,
+    "binary_sha256": "7124cf69b1cd51da033c1360d67129748803a5c66767489f2864c169b85c845d"
+  },
+  {
+    "id": "TIMING-formal-measured-6",
+    "variant": "formal",
+    "phase": "measured",
+    "index": 6,
+    "seconds": 1.8720207379665226,
+    "exit_code": 0,
+    "all_output_bytes_equal": true,
+    "binary_sha256": "ea78e2ac08b52915dd6da4f741a791f3251df3a530895455887968586b715599"
+  }
+]

@@ -1,0 +1,35 @@
+{
+  "old-production": {
+    "samples": [
+      1.9246399849653244,
+      1.8700030019972473,
+      1.8700401890091598,
+      1.9194538969895802,
+      1.9833120559924282,
+      2.034655573021155,
+      2.2293584119761363
+    ],
+    "median_seconds": 1.9246399849653244,
+    "min_seconds": 1.8700030019972473,
+    "max_seconds": 2.2293584119761363,
+    "stdev_seconds": 0.12647960586005774
+  },
+  "formal": {
+    "samples": [
+      1.8709900149842724,
+      2.070553197991103,
+      1.7697013989672996,
+      1.9205050829914398,
+      3.4248263370245695,
+      2.5938871990074404,
+      1.8720207379665226
+    ],
+    "median_seconds": 1.9205050829914398,
+    "min_seconds": 1.7697013989672996,
+    "max_seconds": 3.4248263370245695,
+    "stdev_seconds": 0.5984775445885334
+  },
+  "ratio_formal_over802": 0.997851597178597,
+  "all_output_bytes_equal": true,
+  "scope": "Entire process startup/context/IO/two nativewindows100steps; distributions and background desktopGPU load apply. No extrapolation to other solver/config."
+}

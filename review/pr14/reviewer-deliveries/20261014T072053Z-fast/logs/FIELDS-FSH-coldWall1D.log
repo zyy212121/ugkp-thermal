@@ -1,0 +1,6 @@
+Traceback (most recent call last):
+  File "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T072053Z-fast/review/pr14/reviewer-deliveries/20261014T072053Z-fast/inputs/resident_check_fp64_mean.py", line 43, in <module>
+    if __name__=='__main__':(restart if sys.argv[1]=='restart' else finite_case)(sys.argv[2])
+  File "/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal-test/pr-review/pr14-20261014T072053Z-fast/review/pr14/reviewer-deliveries/20261014T072053Z-fast/inputs/resident_check_fp64_mean.py", line 25, in finite_case
+    carry=p['pThermalEnthalpyResidual'];mean=float(nodes.astype(np.float64).mean())+float(carry[0]);expected=caloric(mean);mismatch=abs(float(p['pT'][0])-expected)
+KeyError: 'pThermalEnthalpyResidual'

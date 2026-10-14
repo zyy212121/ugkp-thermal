@@ -1,0 +1,1329 @@
+diff --git a/applications/CHMT/gpu/Backend.cu b/applications/CHMT/gpu/Backend.cu
+index e6eecc3..69d513d 100644
+--- a/applications/CHMT/gpu/Backend.cu
++++ b/applications/CHMT/gpu/Backend.cu
+@@ -1,5 +1,6 @@
+ #include "gpu/Backend.H"
+ #include "gpu/SharedGasDeviceStorage.cuh"
++#include "gpu/CourantReductionStorage.cuh"
+ #include "gpu/GasWallMath.H"
+ #include "gpu/GasWindowProgram.H"
+ #include "gpu/SingleGasContract.H"
+@@ -29,6 +30,7 @@ struct Backend {
+     ModelConfig model;GasExecutionOptions options;HostState accepted,trial,microBase;
+     HostMesh endpointGas,endpointSolid;SurfaceMesh endpointSurface;HostStageGeometry gasStage,solidStage;
+     SharedGasDeviceStorage storage;WallProgram program;IntervalHistory history;MaterialDonorReserve reserve;
++    CoupledCourantStorage courantReductionStorage;
+     bool poisoned=false;std::string error;
+     GasIntervalRecord record;std::vector<GasPrimitive> stageBulk;std::vector<GasGradient> stageGradient;std::vector<GasWallResult> faceRates;std::vector<GasQ> rawInterface;
+     Real microDt=0,microTime=0,stageTime=0,stagePacketDt=0;
+@@ -371,7 +373,7 @@ bool beginGasWindow(Backend& b,const WallProgram& program,std::string& error){
+ struct CoupledCourantMaximum {
+     __host__ __device__ double operator()(double a,double b)const{return a!=a?a:b!=b?b:fmax(a,b);}
+ };
+-struct CoupledCourantValue {double value;bool unavailable;};
++struct CoupledCourantValue {double value;bool unavailable;unsigned char initializedTail[7]{};};
+ struct CoupledCourantRead {
+     const double* field;const int* status;
+     __host__ __device__ CoupledCourantValue operator()(int cell)const{
+@@ -402,12 +404,12 @@ static bool currentGasCourant(Backend& b,Real referenceDt,transport::GasCourantM
+                 // The existing first maximum traversal also reports actual
+                 // unavailable inputs. No separate status transfer/scan/sync.
+                 const auto first=thrust::make_counting_iterator(0);
+-                const auto reduced=thrust::transform_reduce(thrust::cuda::par.on(stream),first,first+count,
++                const auto reduced=thrust::transform_reduce(thrust::cuda::par(b.courantReductionStorage).on(stream),first,first+count,
+                     CoupledCourantRead{field,v.gasSpecies.cellStatus},
+                     CoupledCourantValue{-std::numeric_limits<double>::infinity(),false},CoupledCourantReduce{});
+                 if(reduced.unavailable){transport::setLastErrorText("current Co consumed input unavailable");return 1;}
+                 value=reduced.value;
+-            }else value=thrust::reduce(thrust::cuda::par.on(stream),thrust::device_pointer_cast(field),thrust::device_pointer_cast(field)+count,-std::numeric_limits<double>::infinity(),CoupledCourantMaximum{});
++            }else value=thrust::reduce(thrust::cuda::par(b.courantReductionStorage).on(stream),thrust::device_pointer_cast(field),thrust::device_pointer_cast(field)+count,-std::numeric_limits<double>::infinity(),CoupledCourantMaximum{});
+         }
+         catch(const std::exception& e){transport::setLastErrorText(e.what());return 1;}
+         const auto code=cudaGetLastError();if(code!=cudaSuccess){transport::setLastError("gas Courant maximum reduction",code);return 1;}return 0;
+diff --git a/applications/CHMT/gpu/CourantReductionStorage.cuh b/applications/CHMT/gpu/CourantReductionStorage.cuh
+new file mode 100644
+index 0000000..dc7cdbf
+--- /dev/null
++++ b/applications/CHMT/gpu/CourantReductionStorage.cuh
+@@ -0,0 +1,43 @@
++#ifndef CHMT_GPU_COURANTREDUCTIONSTORAGE_CUH
++#define CHMT_GPU_COURANTREDUCTIONSTORAGE_CUH
++#include "gpu/Buffer.H"
++#include <cstddef>
++#include <stdexcept>
++
++namespace chmt {
++// Thrust asks this Backend-owned allocator for temporary bytes. Both Courant
++// reductions return a host scalar synchronously and retain their original
++// stream, so a released block can be reused by the next reduction. Multiple
++// live requests get distinct blocks; larger requests grow an idle block.
++class CoupledCourantStorage {
++    struct Block {Buffer<char> bytes;bool inUse=false;};
++    CudaFault fault_;
++    std::vector<Block> blocks_;
++public:
++    using value_type=char;
++    CoupledCourantStorage()=default;
++    CoupledCourantStorage(const CoupledCourantStorage&)=delete;
++    CoupledCourantStorage& operator=(const CoupledCourantStorage&)=delete;
++    CoupledCourantStorage(CoupledCourantStorage&&)=delete;
++    CoupledCourantStorage& operator=(CoupledCourantStorage&&)=delete;
++
++    char* allocate(std::ptrdiff_t count){
++        const auto bytes=static_cast<std::size_t>(count);
++        Block* idle=nullptr;
++        for(auto& block:blocks_){
++            if(block.inUse)continue;
++            if(block.bytes.size()>=bytes){block.inUse=true;return block.bytes.data();}
++            if(!idle||block.bytes.size()>idle->bytes.size())idle=&block;
++        }
++        if(!idle){blocks_.emplace_back();idle=&blocks_.back();}
++        fault_.message.clear();fault_.runtimeFailure=false;
++        if(!idle->bytes.resize(bytes,fault_))throw std::runtime_error(fault_.message);
++        idle->inUse=true;
++        return idle->bytes.data();
++    }
++    void deallocate(char* pointer,std::size_t){
++        for(auto& block:blocks_)if(block.bytes.data()==pointer){block.inUse=false;return;}
++    }
++};
++}
++#endif
+diff --git a/applications/CHMT/tests/test_native_coupled_checker.py b/applications/CHMT/tests/test_native_coupled_checker.py
+index a2d42a2..1aab467 100644
+--- a/applications/CHMT/tests/test_native_coupled_checker.py
++++ b/applications/CHMT/tests/test_native_coupled_checker.py
+@@ -37,7 +37,7 @@ def checkpoint(path, time, step):
+     digest = 14695981039346656037
+     for byte in body:
+         digest = ((digest ^ byte) * 1099511628211) & ((1 << 64) - 1)
+-    path.write_bytes(struct.pack('<8sQIIIIIIQQQQ', b'CHMTCP2\0', 6, 0x01020304, 8, 2, 2, 8, 8, 15664811910203657810, len(model), len(state), digest) + body)
++    path.write_bytes(struct.pack('<8sQIIIIIIQQQQ', b'CHMTCP2\0', 6, 0x01020304, 8, 2, 2, 8, 8, 11438850135072464462, len(model), len(state), digest) + body)
+ 
+ 
+ def synthetic_case(tmp_path, intervals=2):
+diff --git a/applications/CHMT/verification/coupled_runtime/check_case.py b/applications/CHMT/verification/coupled_runtime/check_case.py
+index 31abb6c..ab392db 100755
+--- a/applications/CHMT/verification/coupled_runtime/check_case.py
++++ b/applications/CHMT/verification/coupled_runtime/check_case.py
+@@ -16,7 +16,7 @@ import struct
+ 
+ 
+ # Schema 6 adds wall-model controls to configuration; the state tail is unchanged.
+-FIELD_SCHEMA_HASH = 15664811910203657810
++FIELD_SCHEMA_HASH = 11438850135072464462
+ HEADER = struct.Struct('<8sQIIIIIIQQQQ')
+ ENERGY_ABS = 2e-5  # J; well below the prescribed millijoule-or-larger exchange
+ MASS_ABS = 1e-10  # kg
+diff --git a/applications/CHT/gpu/GpuResidentStrict.cu b/applications/CHT/gpu/GpuResidentStrict.cu
+index 5c14920..f2caa33 100644
+--- a/applications/CHT/gpu/GpuResidentStrict.cu
++++ b/applications/CHT/gpu/GpuResidentStrict.cu
+@@ -85,6 +85,7 @@
+ #include <cstdlib>
+ #include <cmath>
+ #include <vector>
++#include <new>
+ 
+ #ifdef UGKP_DEVELOPMENT_PROBES
+ #include <cerrno>
+@@ -3858,7 +3859,7 @@ int acquireParticleWallEffusivity(DeviceState* s, const size_t nFaces)
+     if (s->particleWallEffusivityByFace != nullptr) return 0;
+     if (allocate(s->particleWallEffusivityByFace, nFaces,
+                  "cudaMalloc CHT particle wall effusivity") != 0) return 1;
+-    // These host bits record actual unfinished zero/publication work only.
++    // These host bits record actual unfinished initialization/publication work only.
+     s->particleStuckInitialisationPending |= 4 | 0x800;
+     return 0;
+ }
+@@ -3866,8 +3867,31 @@ int acquireParticleWallEffusivity(DeviceState* s, const size_t nFaces)
+ cudaError_t initialiseParticleWallEffusivity(DeviceState* s, const size_t nFaces)
+ {
+     if ((s->particleStuckInitialisationPending & 4) == 0) return cudaSuccess;
+-    const cudaError_t error = cudaMemset
+-    (s->particleWallEffusivityByFace, 0, nFaces*sizeof(GpuReal));
++    // A face owner replaces the scalar fallback in every contact consumer.
++    // Seed from that same material before publishing it; actual coupled patch
++    // uploads then replace only their faces. The pending bit prevents later
++    // stuck-model reconfiguration from overwriting those coupled values.
++    const GpuReal fallbackEffusivity = ::sqrt
++    (
++        s->particleWallDensityKgM3*s->particleWallSpecificHeatJkgK
++       *s->particleWallConductivityWmK
++    );
++    cudaError_t error;
++    try
++    {
++        const std::vector<GpuReal> initialEffusivity(nFaces, fallbackEffusivity);
++        // Synchronous H2D staging finishes using the host vector before it dies.
++        error = cudaMemcpy
++        (
++            s->particleWallEffusivityByFace, initialEffusivity.data(),
++            nFaces*sizeof(GpuReal), cudaMemcpyHostToDevice
++        );
++    }
++    catch (const std::bad_alloc&)
++    {
++        // Keep initialization pending for the existing error/retry path.
++        return cudaErrorMemoryAllocation;
++    }
+     if (error == cudaSuccess)
+         s->particleStuckInitialisationPending &= static_cast<unsigned short>(~4);
+     return error;
+@@ -3912,7 +3936,7 @@ extern "C" int ugkwpGpuResidentStrictUploadParticleWallEffusivityPatch
+     const cudaError_t error = initialiseParticleWallEffusivity(s, static_cast<size_t>(s->nFaces));
+     if (error != cudaSuccess)
+     {
+-        setLastError("cudaMemset CHT particle wall effusivity", error);
++        setLastError("cudaMemcpy initial CHT particle wall effusivity", error);
+         return 1;
+     }
+     if (publishParticleWallEffusivity(s) != 0) return 1;
+@@ -5927,7 +5951,7 @@ extern "C" int ugkwpGpuResidentStrictConfigureParticleStuckModel
+                   : (
+                         areaErr != cudaSuccess
+                       ? "cudaMemset particle wall represented contact area"
+-                      : "cudaMemset CHT particle wall effusivity"
++                      : "cudaMemcpy initial CHT particle wall effusivity"
+                     )
+                 ),
+                 firstError
+diff --git a/applications/gasUGKP/private_backend/SharedGasTrialPolicy.cuh b/applications/gasUGKP/private_backend/SharedGasTrialPolicy.cuh
+index 7107f9f..c2badaa 100644
+--- a/applications/gasUGKP/private_backend/SharedGasTrialPolicy.cuh
++++ b/applications/gasUGKP/private_backend/SharedGasTrialPolicy.cuh
+@@ -174,7 +174,10 @@ inline bool retryableTransport(int value)
+         ||code==ugkwp::GasTransportCode::InvalidThermodynamics
+         ||code==ugkwp::GasTransportCode::NonFiniteState
+         ||code==ugkwp::GasTransportCode::NegativeInventory
+-        ||code==ugkwp::GasTransportCode::SourceStepLimit;
++        ||code==ugkwp::GasTransportCode::SourceStepLimit
++        // The typed chemistry channel decides whether this numerical failure
++        // can shrink. Its transport marker must not veto that same retry.
++        ||code==ugkwp::GasTransportCode::ChemistryFailure;
+ }
+ // Only entered after the existing status check fails. No successful-stage
+ // transfer or additional all-face scan is introduced for error reporting.
+@@ -289,11 +292,12 @@ struct SharedGasTrialPolicy
+         const bool terminal=s->gasTrial.terminalContinuation;
+         const int chemistry=nativeRefinement?sharedGasTrialDetail::chemistryStatus(s):0;
+         const bool chemistryRetry=s->gasTrial.retryableFailure;
++        const bool chemistryTerminal=s->gasTrial.terminalContinuation;
+         // Unavailable chemistry is already in the sticky transport channel.
+         // A failed diagnostic copy is an actual operation error, never a
+         // reason to execute another physical interval.
+         s->gasTrial.terminalContinuation=nativeRefinement && (transport||chemistry)
+-            && (!transport||terminal) && (!chemistry||chemistryRetry||s->gasTrial.terminalContinuation);
++            && (!transport||terminal) && (!chemistry||chemistryTerminal);
+         s->gasTrial.retryableFailure=(transport || chemistry) && (!transport || transportRetry) && (!chemistry || chemistryRetry);
+         return transport || chemistry;
+     }
+diff --git a/common/chemistry/LocalStiffIntegrator.H b/common/chemistry/LocalStiffIntegrator.H
+index bd4f887..3ed7c21 100644
+--- a/common/chemistry/LocalStiffIntegrator.H
++++ b/common/chemistry/LocalStiffIntegrator.H
+@@ -169,7 +169,11 @@ template<bool RetryTrial=false,class R,int N,class TableReal,class Time> UGKWP_G
+  if(terminalInterval || !gasFinite(base.internalEnergy)){status.code=ChemistryCode::NonFiniteInput;if(RetryTrial)return status;}
+  R temperature=!RetryTrial && controls.thermo.maximumIterations<=0?gasThermoDetail::invalidValue<R>():R(0);bool temperatureAvailable=false;
+  status.thermoCode=invertMixtureEnergy<RetryTrial>(base.speciesMass,base.internalEnergy,t,controls.thermo,temperature,&temperatureAvailable);
+- if(status.thermoCode!=ThermoStatus::Success){status.code=ChemistryCode::TemperatureFailure;if(RetryTrial || !temperatureAvailable)return status;}
++ if(status.thermoCode!=ThermoStatus::Success){
++   status.code=RetryTrial && status.thermoCode==ThermoStatus::InvalidModel
++     ?ChemistryCode::InvalidModel:ChemistryCode::TemperatureFailure;
++   if(RetryTrial || !temperatureAvailable)return status;
++ }
+  ClosedReactorInput<R,N> current=base;ClosedReactorResult<R,N> accepted;for(int s=0;s<N;++s)accepted.speciesMass[s]=base.speciesMass[s];accepted.temperature=temperature;
+  ChemistryAudit<R,N> localAudit;Time covered=0;
+  ReactorContext<R,N,TableReal> context(current,t,m,controls);
+@@ -184,22 +188,25 @@ template<bool RetryTrial=false,class R,int N,class TableReal,class Time> UGKWP_G
+  }
+  Time h=controls.initialStep>R(0)?minValue(interval,Time(controls.initialStep)):interval;if(controls.maximumStep>R(0))h=minValue(h,Time(controls.maximumStep));
+  bool terminalPending=terminalInterval;
++ // Preserve the failed producer when a later effort boundary ends this trial.
++ // These diagnostics do not alter the step arithmetic or publication decision.
++ ChemistryStatus rejectedDiagnostic;
+  if(terminalInterval)h=interval;
+  while(covered<interval || terminalPending){
+    if(status.attemptedSteps>=controls.maximumSteps){
+-     if(RetryTrial){status.code=ChemistryCode::StepLimit;return status;}
++     if(RetryTrial){status.code=ChemistryCode::StepLimit;status.reaction=rejectedDiagnostic.reaction;status.thermoCode=rejectedDiagnostic.thermoCode;return status;}
+      if(context.refinement)h=interval-covered;
+      context.refinement=false;
+    }
+    if(!terminalPending)h=minValue(h,interval-covered);
+    if(!terminalPending && (!(h>Time(0)) || covered+h==covered)){
+-     if(RetryTrial){status.code=ChemistryCode::StepUnderflow;return status;}
++     if(RetryTrial){status.code=ChemistryCode::StepUnderflow;status.reaction=rejectedDiagnostic.reaction;status.thermoCode=rejectedDiagnostic.thermoCode;return status;}
+      // Execute the actual remaining interval. Do not move the clock to invent
+      // an endpoint for a step whose duration rounded away.
+      context.refinement=false;h=interval-covered;
+    }
+    if(h<controls.minimumStep && h<interval-covered){
+-     if(RetryTrial){status.code=ChemistryCode::StepUnderflow;return status;}
++     if(RetryTrial){status.code=ChemistryCode::StepUnderflow;status.reaction=rejectedDiagnostic.reaction;status.thermoCode=rejectedDiagnostic.thermoCode;return status;}
+      if(context.refinement)h=interval-covered;
+      context.refinement=false;
+    }
+@@ -212,21 +219,22 @@ template<bool RetryTrial=false,class R,int N,class TableReal,class Time> UGKWP_G
+    if(!context.refinement){retainDiagnostic(status,diagnostic);if(!stepAvailable)return status;}
+    R error=stepAvailable?stepError(current,full,end,controls):R(2);
+    if(!stepAvailable || (context.refinement && (!gasFinite(error) || error>R(1)))){
+-     ++status.rejectedSteps;
++     ++status.rejectedSteps;rejectedDiagnostic=trial;
+      if(status.rejectedSteps>controls.maximumRejectedSteps){
+-       if(RetryTrial){status.code=trial?ChemistryCode::StepLimit:trial.code;status.reaction=trial.reaction;return status;}
++       if(RetryTrial){status.code=trial?ChemistryCode::StepLimit:trial.code;status.reaction=trial.reaction;status.thermoCode=trial.thermoCode;return status;}
+        if(context.refinement){context.refinement=false;h=interval-covered;continue;}
+      }
+      R factor=trial && gasFinite(error)?maxValue(R(.1),R(.8)*R(::pow(error,R(-1)/R(3)))):R(.25);h*=minValue(R(.5),factor);
+      if(h<controls.minimumStep){
+-       if(RetryTrial){status.code=ChemistryCode::StepUnderflow;return status;}
++       if(RetryTrial){status.code=ChemistryCode::StepUnderflow;status.reaction=trial.reaction;status.thermoCode=trial.thermoCode;return status;}
+        if(context.refinement){context.refinement=false;h=interval-covered;continue;}
+      }
+      if(!(h>Time(0))){
+-       if(RetryTrial){status.code=trial?ChemistryCode::StepUnderflow:trial.code;status.reaction=trial.reaction;return status;}
++       if(RetryTrial){status.code=trial?ChemistryCode::StepUnderflow:trial.code;status.reaction=trial.reaction;status.thermoCode=trial.thermoCode;return status;}
+        context.refinement=false;h=interval-covered;
+      }continue;
+    }
++   rejectedDiagnostic=ChemistryStatus{};
+    accepted=end;for(int s=0;s<N;++s)current.speciesMass[s]=end.speciesMass[s];temperature=end.temperature;
+    covered+=h;terminalPending=false;++localAudit.acceptedSteps;localAudit.maximumLocalError=gasFinite(error)?maxValue(localAudit.maximumLocalError,error):gasThermoDetail::invalidValue<R>();
+    R factor=error>R(0)?minValue(R(3),maxValue(R(.25),R(.9)*R(::pow(error,R(-1)/R(3))))):R(3);if(context.refinement || (gasFinite(error) && error<=R(1)))h*=factor;if(controls.maximumStep>R(0))h=minValue(h,Time(controls.maximumStep));
+diff --git a/common/operators/advanceGasChemistryKernel.cuh b/common/operators/advanceGasChemistryKernel.cuh
+index 79db0a1..f472f14 100644
+--- a/common/operators/advanceGasChemistryKernel.cuh
++++ b/common/operators/advanceGasChemistryKernel.cuh
+@@ -33,6 +33,39 @@ UGKWP_GAS_HD inline ChemistryStatus recordFailure
+         species.cellStatus[cell] = int(unavailable?GasTransportCode::InvalidStorage:GasTransportCode::ChemistryFailure);
+     return status;
+ }
++// Called only after the selected reactor failed to publish. InvalidModel can
++// also be a strict-trial metadata/basis diagnostic; only actually unavailable
++// consumed backing belongs in the sticky storage channel. Numerical metadata
++// still reaches the owner's existing public terminal-completion path.
++template<class TableReal,int Ns>
++UGKWP_GAS_HD inline bool unavailableTrialModel
++(
++    const SpeciesThermoView<TableReal,Ns>& thermo,
++    const GasMechanismView<TableReal,Ns>& mechanism,
++    const ChemistryStatus& status
++) noexcept
++{
++    if (status.thermoCode == ThermoStatus::InvalidModel)
++    {
++        if (!thermo.species || !thermo.coefficients) return true;
++        for (int s = 0; s < Ns; ++s)
++            if (thermo.species[s].model != SpeciesThermoModel::LinearCp
++                && thermo.species[s].model != SpeciesThermoModel::NASA7) return true;
++        // The thermo producer stopped before any mechanism input was consumed.
++        // In particular, zero-time completion need not consume a missing basis.
++        return false;
++    }
++    if (status.code == ChemistryCode::InvalidModel
++        && mechanism.independentRank > 0 && !mechanism.stoichiometricBasis) return true;
++    if (status.attemptedSteps > 0)
++    {
++        if (mechanism.reactionCount > 0 && !mechanism.reactions) return true;
++        if (status.reaction >= 0 && mechanism.reactions)
++            return !gasChemistryDetail::reactionInputAvailable<TableReal,Ns,true>
++                (mechanism,status.reaction);
++    }
++    return false;
++}
+ } // namespace gasChemistryAdapterDetail
+ 
+ // The single density-storage-to-closed-reactor adapter. Both application
+@@ -137,13 +170,25 @@ UGKWP_GAS_HD inline ChemistryStatus advanceGasChemistryCell
+         ChemistryAudit<Real, Ns> localAudit;
+         const ChemistryStatus inputDiagnostic=status;
+         bool reactorAvailable=false;
+-        status = advanceClosedReactor
+-        (
+-            input, interval, species.thermo, species.mechanism,
+-            castChemistryControls<Real>(species.chemistryControls), result, localAudit, &reactorAvailable
+-        );
++        if (nativeRefinement)
++            status = advanceClosedReactorTrial
++            (
++                input, interval, species.thermo, species.mechanism,
++                castChemistryControls<Real>(species.chemistryControls), result, localAudit, &reactorAvailable
++            );
++        else
++            status = advanceClosedReactor
++            (
++                input, interval, species.thermo, species.mechanism,
++                castChemistryControls<Real>(species.chemistryControls), result, localAudit, &reactorAvailable
++            );
+         if (!reactorAvailable)
+-            return gasChemistryAdapterDetail::recordFailure(species, cell, status);
++            return gasChemistryAdapterDetail::recordFailure
++            (
++                species, cell, status,
++                !nativeRefinement || gasChemistryAdapterDetail::unavailableTrialModel
++                    (species.thermo,species.mechanism,status)
++            );
+         gasChemistryDetail::retainDiagnostic(status,inputDiagnostic);
+ 
+         // Convert the actual publication before the first write. A zero-time
+diff --git a/common/operators/clearColdWallParticleState.cuh b/common/operators/clearColdWallParticleState.cuh
+index b52573f..4c99987 100644
+--- a/common/operators/clearColdWallParticleState.cuh
++++ b/common/operators/clearColdWallParticleState.cuh
+@@ -58,6 +58,12 @@ __device__ void initialiseColdWallParticleState
+         s.pColdNodeSpecificEnthalpy[nodeBase + node] =
+             static_cast<typename std::remove_reference<decltype(s.pColdNodeSpecificEnthalpy[0])>::type>(nodeEnthalpy[node]);
+     }
++#ifdef GPU_PAIRED_PARTICLE_HEAT
++    // The uniform float profile is a cache; retain its cast loss in the
++    // existing physical J/kg carry without discarding earlier heat.
++    s.pThermalEnthalpyResidual[particleI] += double(nodeEnthalpy[0])
++      - double(s.pColdNodeSpecificEnthalpy[nodeBase]);
++#endif
+     for (int ring = 0; ring < Foam::gpuThermal::coldWallRadialRingCount; ++ring)
+     {
+         s.pColdRingSolidMass[ringBase + ring] = 0.0;
+diff --git a/common/wall/GpuColdWall2DDevice.cuh b/common/wall/GpuColdWall2DDevice.cuh
+index ea30a71..a00c87e 100644
+--- a/common/wall/GpuColdWall2DDevice.cuh
++++ b/common/wall/GpuColdWall2DDevice.cuh
+@@ -102,6 +102,12 @@ __device__ void initialiseColdWall2DParticleState
+     {
+         s.pCold2DRingContactAge[ringBase + ring] = 0.0;
+     }
++#ifdef GPU_PAIRED_PARTICLE_HEAT
++    // The uniform float profile is a cache; retain its cast loss in the
++    // existing physical J/kg carry without discarding earlier heat.
++    s.pThermalEnthalpyResidual[particleI] += double(initialEnthalpy)
++      - double(s.pCold2DNodeSpecificEnthalpy[nodeBase]);
++#endif
+     s.pCold2DFrozenArea[particleI] = 0.0;
+ }
+ 
+diff --git a/tests/fixtures/chemistry_trial/chemistry_trial.cu.in b/tests/fixtures/chemistry_trial/chemistry_trial.cu.in
+new file mode 100644
+index 0000000..58752fa
+--- /dev/null
++++ b/tests/fixtures/chemistry_trial/chemistry_trial.cu.in
+@@ -0,0 +1,201 @@
++// Actual native CUDA owner, kernels, storage, rollback and validation policy.
++// Host code only supplies inputs, observes returned results and compares fields.
++#include "GpuResidentStrict.cu"
++#include <new>
++#include <cstring>
++#include <vector>
++
++namespace chemistryTrialTest {
++using namespace ugkwp;
++std::vector<void*> allocated;
++std::vector<DeviceState*> fixtures;
++void check(bool value,const char* message) {
++    if(!value){std::fprintf(stderr,"FAIL %s: %s\n",message,lastError);std::exit(11);}
++}
++void cudaCheck(cudaError_t error) {
++    if(error!=cudaSuccess){std::fprintf(stderr,"CUDA %s\n",cudaGetErrorString(error));std::exit(12);}
++}
++void sync(){cudaCheck(cudaGetLastError());cudaCheck(cudaDeviceSynchronize());}
++template<class T> void testMem(T*& pointer,int count=8) {
++    cudaCheck(cudaMallocManaged(&pointer,std::size_t(count)*sizeof(T)));
++    allocated.push_back(pointer);
++    for(int i=0;i<count;++i)::new(static_cast<void*>(pointer+i)) T{};
++}
++template<class T> void testTable(const T*& pointer,const T* input,int count) {
++    T* data=nullptr;testMem(data,count);std::memcpy(data,input,std::size_t(count)*sizeof(T));pointer=data;
++}
++DeviceState* fixture() {
++    static_assert(ugkwp::compiledGasSpecies==2,"fixture uses a two-species mechanism");
++    DeviceState* s=nullptr;testMem(s,1);fixtures.push_back(s);
++ALLOCATE_NATIVE_FIELDS
++    s->deviceState=s;s->nCells=2;s->nFaces=3;s->nInternalFaces=1;
++    s->fixedCellBlockThreads=s->fixedFaceBlockThreads=32;
++    s->gasTimeIntegrator=s->hostGasTimeIntegrator=1;
++    s->gasFluxScheme=s->hostGasFluxScheme=1;s->gasReconstruction=s->hostGasReconstruction=0;
++    s->gasLimiter=s->hostGasLimiter=0;s->hostTurbulenceModel=s->turbulenceModel=0;
++    s->gammaGas=1.4;s->Rgas=universalGasConstant<double>()/.028;s->gasCp=1000;
++    s->gasMu=0;s->gasPrClamped=.7;s->rhoMin=1e-12;s->TgasMin=1e-9;s->maxDiffusionNumber=.25;
++    s->sstCoefficients=defaultSstCoefficients();s->sstKMin=1e-12;s->sstOmegaMin=1e-9;
++    s->sstMaxSourceNumber=.25;s->turbulentPrandtl=.9;
++    auto& g=s->gasSpecies;g.mode=GasMode::MixtureChemistry;
++#define CHEM_MEM(field) testMem(g.field)
++    CHEM_MEM(rho);CHEM_MEM(initial);CHEM_MEM(flux);CHEM_MEM(gradX);CHEM_MEM(gradY);CHEM_MEM(gradZ);
++    CHEM_MEM(limiter);CHEM_MEM(boundaryMassFraction);CHEM_MEM(compositionBoundaryFixed);
++    CHEM_MEM(positivityScale);CHEM_MEM(soundSpeed);CHEM_MEM(heatCapacity);CHEM_MEM(gasConstant);
++    CHEM_MEM(cellStatus);CHEM_MEM(faceStatus);CHEM_MEM(chemistryStatus);CHEM_MEM(chemistryAudit);
++#undef CHEM_MEM
++    SpeciesThermoData<double> species[2];double coefficients[6]={1000,0,0,1000,0,0};
++    double elements[2]={1,1},basis[2]={-1,1};
++    for(int k=0;k<2;++k){species[k].coefficientOffset=3*k;species[k].molarMass=.028;
++        species[k].minTemperature=200;species[k].maxTemperature=4000;
++        species[k].referencePressure=101325;species[k].referenceTemperature=300;
++        species[k].referenceEntropy=1500;species[k].hasEntropyReference=true;}
++    testTable(g.thermo.species,species,2);testTable(g.thermo.coefficients,coefficients,6);
++    testTable(g.thermo.elementComposition,elements,2);g.thermo.coefficientCount=6;g.thermo.elementCount=1;
++    GasReactionData<double> reaction[1];GasStoichTerm<double> reactants[1],products[1];
++    reaction[0].reactantCount=reaction[0].productCount=1;reaction[0].highRate.preExponential=2;
++    reactants[0].species=0;reactants[0].coefficient=1;products[0].species=1;products[0].coefficient=1;
++    testTable(g.mechanism.reactions,reaction,1);testTable(g.mechanism.reactants,reactants,1);
++    testTable(g.mechanism.products,products,1);testTable(g.mechanism.stoichiometricBasis,basis,2);
++    g.mechanism.reactionCount=g.mechanism.reactantTermCount=g.mechanism.productTermCount=1;
++    g.mechanism.independentRank=1;g.mechanism.referencePressure=101325;
++    g.chemistryControls.initialStep=g.chemistryControls.maximumStep=1e-6;
++    g.chemistryControls.maximumSteps=1;
++    for(int c=0;c<2;++c){s->V[c]=.001;s->Cx[c]=c;s->cellLength[c]=1;
++        s->rho[c]=28;s->Tgas[c]=700;s->p[c]=28*s->Rgas*700;
++        s->rhoE[c]=28*(1000-s->Rgas)*700;g.rho[c]=28;
++        s->cellPlaneStart[c]=2*c;s->cellPlaneCount[c]=2;s->sstWallDistance[c]=.5;
++        g.chemistryAudit[c].integratedTime=99;g.chemistryAudit[c].acceptedSteps=7;}
++    s->cellFaceId[0]=0;s->cellFaceId[1]=1;s->cellFaceId[2]=0;s->cellFaceId[3]=2;
++    for(int f=0;f<3;++f){s->faceOwner[f]=f==2?1:0;s->faceNeighbour[f]=f==0?1:-1;
++        s->facePeriodicPair[f]=-1;s->magSf[f]=1;s->Sfx[f]=f==1?-1:1;
++        s->faceCx[f]=f==0?.5:f==1?-.5:1.5;s->faceWeight[f]=.5;s->deltaCoeffs[f]=f==0?1:2;
++        s->gasBoundaryKind[f]=s->riemannBoundaryKind[f]=f==0?0:1;s->gasHllcAdcSensor[f]=1;}
++    s->gasBudgetAudit.enabled=true;s->gasBudgetAudit.speciesCount=2;
++    testMem(s->gasBudgetAudit.transport);testMem(s->gasBudgetAudit.initialTransport);
++    testMem(s->gasBudgetAudit.chemistrySpecies);
++    s->gasBudgetHost=new GasBudgetHostLedger;
++    s->gasBudgetHost->output=std::tmpfile();check(s->gasBudgetHost->output!=nullptr,"open diagnostic ledger");
++    s->gasBudgetHost->speciesCount=2;s->gasBudgetHost->elementCount=1;
++    s->gasBudgetHost->elementMassFactors={1/.028,1/.028};
++    s->gasBudgetHost->identity="\"fixture\":\"chemistry_trial\"";
++    g.rho[7]=918273.125;g.cellStatus[7]=123456;g.chemistryAudit[7].acceptedSteps=123456;
++    return s;
++}
++void compare(const DeviceState* left,const DeviceState* right) {
++    sync();auto a=sharedGasTrialDetail::cellFields(const_cast<DeviceState*>(left));
++    auto b=sharedGasTrialDetail::cellFields(const_cast<DeviceState*>(right));
++    for(std::size_t k=0;k<a.size();++k)
++        check(a[k].count==b[k].count && (!a[k].pointer ||
++            std::memcmp(a[k].pointer,b[k].pointer,a[k].count*sizeof(double))==0),"accepted cell fields differ");
++    a=sharedGasTrialDetail::faceFields(const_cast<DeviceState*>(left));
++    b=sharedGasTrialDetail::faceFields(const_cast<DeviceState*>(right));
++    for(std::size_t k=0;k<a.size();++k)
++        check(std::memcmp(a[k].pointer,b[k].pointer,a[k].count*sizeof(double))==0,"accepted face fields differ");
++    for(int c=0;c<2;++c){const auto& x=left->gasSpecies.chemistryAudit[c];const auto& y=right->gasSpecies.chemistryAudit[c];
++        check(x.integratedTime==y.integratedTime && x.acceptedSteps==y.acceptedSteps
++            && x.rejectedSteps==y.rejectedSteps && x.nonlinearIterations==y.nonlinearIterations,"accepted chemistry audit differs");
++        check(left->gasSpecies.cellStatus[c]==right->gasSpecies.cellStatus[c]
++            && left->gasSpecies.chemistryStatus[c].code==right->gasSpecies.chemistryStatus[c].code,"accepted status differs");}
++}
++struct TracePolicy:SharedGasTrialPolicy {
++    static int begins,commits,rollbacks,stepLimits,terminalStages;
++    static std::vector<double> sourceDurations;
++    static void clear(){begins=commits=rollbacks=stepLimits=terminalStages=0;sourceDurations.clear();}
++    static int begin(DeviceState* s){++begins;return SharedGasTrialPolicy::begin(s);}
++    static int validate(DeviceState* s,bool native=false){
++        const int rc=SharedGasTrialPolicy::validate(s,native);
++        if(rc && native && s->gasSpecies.chemistryStatus[0].code==ChemistryCode::StepLimit){
++            ++stepLimits;check(retryable(s)&&continueTerminal(s),"chemistry StepLimit did not reach owner retry");}
++        return rc;
++    }
++    static int applySources(DeviceState* s,double dt,bool native=false){
++        sourceDurations.push_back(dt);if(!native)++terminalStages;
++        return SharedGasTrialPolicy::applySources(s,dt,native);
++    }
++    static int commit(DeviceState* s){++commits;return SharedGasTrialPolicy::commit(s);}
++    static void rollback(DeviceState* s){++rollbacks;SharedGasTrialPolicy::rollback(s);}
++};
++int TracePolicy::begins=0,TracePolicy::commits=0,TracePolicy::rollbacks=0,TracePolicy::stepLimits=0,TracePolicy::terminalStages=0;
++std::vector<double> TracePolicy::sourceDurations;
++void ownerTests(){
++    auto* actual=fixture();auto* reference=fixture();TracePolicy::clear();
++    GasRequestedIntervalControls<double> controls;
++    check(prepareGasBudgetRequest(actual,4e-6,2.)==0,"prepare full requested budget");
++    check(advanceGasRequestedInterval<TracePolicy>(actual,4e-6,2.,controls)==0,"requested interval did not complete");
++    check(TracePolicy::begins==3&&TracePolicy::commits==2&&TracePolicy::rollbacks==1
++        &&TracePolicy::stepLimits==1&&TracePolicy::terminalStages==0,"owner did not shrink to two accepted native substeps");
++    check(TracePolicy::sourceDurations.size()==2&&TracePolicy::sourceDurations[0]==2e-6
++        &&TracePolicy::sourceDurations[1]==2e-6,"accepted partition differs");
++    check(advanceGasTrial<SharedGasTrialPolicy>(reference,2e-6,2.,true)==0
++        &&advanceGasTrial<SharedGasTrialPolicy>(reference,2e-6,2.+2e-6,true)==0,"explicit accepted partition failed");
++    compare(actual,reference);
++    check(actual->gasBudgetHost->sequence==1&&!actual->gasBudgetHost->requestActive
++        &&actual->gasBudgetHost->acceptedTime==2.+4e-6,"accepted requested ledger did not cover interval");
++    std::puts("PASS actual requested-interval owner: one StepLimit rollback, two native half-size substeps, full accepted fields/audits");
++    actual=fixture();reference=fixture();TracePolicy::clear();controls.maximumAttempts=1;
++    check(prepareGasBudgetRequest(actual,4e-6,2.)==0,"prepare terminal budget");
++    check(advanceGasRequestedInterval<TracePolicy>(actual,4e-6,2.,controls)==0,"exhausted owner did not complete terminal interval");
++    check(TracePolicy::begins==2&&TracePolicy::rollbacks==1&&TracePolicy::commits==1&&TracePolicy::terminalStages==1,"terminal fallback trace differs");
++    check(advanceGasTrial<SharedGasTrialPolicy>(reference,4e-6,2.,false)==0,"direct public completion failed");
++    compare(actual,reference);
++    std::puts("PASS exhausted native effort preserves complete public terminal result");
++    actual=fixture();reference=fixture();TracePolicy::clear();controls={};
++    check(prepareGasBudgetRequest(actual,1e-6,2.)==0,"prepare original-success budget");
++    check(advanceGasRequestedInterval<TracePolicy>(actual,1e-6,2.,controls)==0,"original successful interval failed");
++    check(TracePolicy::begins==1&&TracePolicy::rollbacks==0&&TracePolicy::terminalStages==0,"original successful interval partition changed");
++    check(advanceGasTrial<SharedGasTrialPolicy>(reference,1e-6,2.,false)==0,"original success public control failed");
++    compare(actual,reference);
++    std::puts("PASS original successful FP64 interval matches full public control fields/audits");
++}
++void failedCellTests(){
++    for(int kind=0;kind<16;++kind){auto* s=fixture();auto& g=s->gasSpecies;
++        g.chemistryControls.maximumRejectedSteps=0;
++        if(kind==1)g.thermo.species=nullptr;
++        if(kind==2)g.thermo.coefficients=nullptr;
++        if(kind==3)g.mechanism.stoichiometricBasis=nullptr;
++        if(kind==4)g.mechanism.reactions=nullptr;
++        if(kind==5)g.mechanism.reactants=nullptr;
++        if(kind==6)g.mechanism.products=nullptr;
++        if(kind==7)g.thermo.coefficientCount=1; // Supplied backing remains complete.
++        if(kind==8){auto* basis=const_cast<double*>(g.mechanism.stoichiometricBasis);basis[0]=basis[1]=0;}
++        if(kind==9)const_cast<GasReactionData<double>*>(g.mechanism.reactions)[0].highRate.preExponential=NAN;
++        // The next outer local step cap must retain this actual failed reaction.
++        if(kind==10){g.mechanism.reactants=nullptr;g.chemistryControls.maximumRejectedSteps=100;}
++        if(kind==11){auto& reaction=const_cast<GasReactionData<double>*>(g.mechanism.reactions)[0];
++            reaction.type=GasReactionType::ThirdBody;reaction.efficiencyCount=1;g.mechanism.efficiencyCount=1;}
++        if(kind==12)const_cast<SpeciesThermoData<double>*>(g.thermo.species)[0].model=static_cast<SpeciesThermoModel>(255);
++        if(kind==13)g.chemistryControls.maximumNewtonIterations=0;
++        if(kind==15){g.thermo.coefficientCount=1;g.mechanism.stoichiometricBasis=nullptr;}
++        const double savedSpecies[4]={g.rho[0],g.rho[1],g.rho[2],g.rho[3]};
++        const double* volume=kind==14?nullptr:s->V;
++        const double interval=kind==15?0.:2e-6;
++        advanceGasChemistryKernel<<<1,32>>>(s,interval,volume,true);sync();
++        check(!g.chemistryStatus[0],"failed native cell reported success");
++        check(std::memcmp(savedSpecies,g.rho,sizeof(savedSpecies))==0&&g.chemistryAudit[0].integratedTime==99
++            &&g.chemistryAudit[0].acceptedSteps==7,"failed native cell published species/audit");
++        check(s->gasBudgetAudit.chemistrySpecies[0]==0&&s->gasBudgetAudit.chemistrySpecies[2]==0,"failed native cell published budget");
++        check(SharedGasTrialPolicy::validate(s,true)!=0,"failed cell passed shared validation");
++        const bool unavailable=(kind>=1&&kind<=6)||kind==10||kind==11||kind==12||kind==14;
++        check((g.cellStatus[0]==int(GasTransportCode::InvalidStorage))==unavailable,"actual unavailable model classification differs");
++        check(SharedGasTrialPolicy::continueTerminal(s)==!unavailable,"metadata/numerical failure lost terminal route");
++        if(kind==0||kind==9)check(SharedGasTrialPolicy::retryable(s),"numerical chemistry lost native retry");
++        if(unavailable)check(!SharedGasTrialPolicy::retryable(s),"missing consumed backing became retryable");
++        if(kind==7||kind==15){check(g.chemistryStatus[0].code==ChemistryCode::InvalidModel,"thermo model status lost");
++            check(SharedGasTrialPolicy::resetErrors(s)==0,"reset metadata control");
++            advanceGasChemistryKernel<<<1,32>>>(s,interval,s->V,false);sync();
++            check(g.chemistryAudit[0].integratedTime==interval&&g.cellStatus[0]!=int(GasTransportCode::InvalidStorage),"metadata-only trial failure blocked public completion");}
++        std::printf("PASS failed-cell kind=%d code=%d thermo=%d retry=%d terminal=%d\n",kind,int(g.chemistryStatus[0].code),int(g.chemistryStatus[0].thermoCode),int(SharedGasTrialPolicy::retryable(s)),int(SharedGasTrialPolicy::continueTerminal(s)));
++    }
++}
++void cleanup(){sync();for(auto* s:fixtures){
++    check(s->gasSpecies.rho[7]==918273.125&&s->gasSpecies.cellStatus[7]==123456
++        &&s->gasSpecies.chemistryAudit[7].acceptedSteps==123456,"canary overwritten");
++    check(releaseSharedGasTrialStorage(s->gasTrial)==0,"snapshot release failed");
++    delete s->gasBudgetHost;s->gasBudgetHost=nullptr;s->~DeviceState();}
++    for(auto it=allocated.rbegin();it!=allocated.rend();++it)cudaCheck(cudaFree(*it));
++}
++} // namespace chemistryTrialTest
++int main(){setvbuf(stdout,nullptr,_IONBF,0);chemistryTrialTest::ownerTests();
++    chemistryTrialTest::failedCellTests();chemistryTrialTest::cleanup();
++    std::puts("PASS real CUDA chemistry Trial routing, owner retry, terminal completion and unavailable-resource controls");}
+diff --git a/tests/fixtures/chemistry_trial/prepare_chemistry_trial.py b/tests/fixtures/chemistry_trial/prepare_chemistry_trial.py
+new file mode 100644
+index 0000000..18585a8
+--- /dev/null
++++ b/tests/fixtures/chemistry_trial/prepare_chemistry_trial.py
+@@ -0,0 +1,68 @@
++"""Generate/compile a real-CUDA chemistry owner regression; never emulate CUDA.
++
++Execution is explicit (--run) and requires an actual supported CUDA device.
++The generated translation unit includes the unchanged production native owner.
++"""
++import argparse
++import json
++import os
++from pathlib import Path
++import re
++import shutil
++import subprocess
++
++
++def main():
++    parser = argparse.ArgumentParser(description=__doc__)
++    parser.add_argument('root', type=Path)
++    parser.add_argument('output', type=Path)
++    parser.add_argument('--generate-only', action='store_true')
++    parser.add_argument('--run', action='store_true')
++    parser.add_argument('--nvcc', default=shutil.which('nvcc'))
++    parser.add_argument('--arch', default=os.environ.get('UGKWP_CUDA_ARCH', 'sm_89'))
++    args = parser.parse_args()
++    root = args.root.resolve()
++    output = args.output.resolve()
++    output.mkdir(parents=True, exist_ok=True)
++    source = root / 'applications/gasUGKP/private_backend'
++    native = (source / 'GpuResidentStrict.cu').read_text()
++    begin = native.index('struct DeviceState')
++    end = native.index('\n};', begin)
++    state = native[begin:end].replace(
++        '#include "GpuAutomaticCsrScheduleFields.inl"',
++        (root / 'common/GpuAutomaticCsrScheduleFields.inl').read_text())
++    fields = re.findall(
++        r'^\s*((?:unsigned\s+)?(?:long long|char)|double|float|int|GpuReal|GpuTime|GpuWallEnergy)\*\s+(\w+)\s*=',
++        state, re.M)
++    fields = [(ty, name) for ty, name in fields
++              if name not in ('diagnosticPreTransportParticleCount', 'sourceInjectedCount')
++              and not name.startswith('flatPressure')]
++    template = Path(__file__).with_name('chemistry_trial.cu.in').read_text()
++    generated = template.replace('ALLOCATE_NATIVE_FIELDS', '\n'.join(
++        f'    testMem(s->{name});' for _, name in fields))
++    cu = output / 'chemistry_trial.cu'
++    cu.write_text(generated)
++    binary = output / 'chemistry_trial'
++    command = [args.nvcc or 'nvcc', '-std=c++17', '-O3', '-arch=' + args.arch,
++               '--fmad=true', '-I' + str(source), '-I' + str(root / 'common'),
++               '-I' + str(root / 'common/gasNumerics'),
++               '-I' + str(root / 'applications/gasUGKP/gpu'), str(cu), '-o', str(binary)]
++    (output / 'command.json').write_text(json.dumps(command, indent=2) + '\n')
++    if args.generate_only:
++        print(cu)
++        return
++    if not args.nvcc:
++        parser.error('nvcc is unavailable; use --generate-only to prepare the reviewer fixture')
++    with (output / 'build.log').open('w') as log:
++        result = subprocess.run(command, stdout=log, stderr=subprocess.STDOUT)
++    if result.returncode:
++        raise SystemExit(result.returncode)
++    print(binary)
++    if args.run:
++        with (output / 'run.log').open('w') as log:
++            result = subprocess.run([str(binary)], stdout=log, stderr=subprocess.STDOUT)
++        raise SystemExit(result.returncode)
++
++
++if __name__ == '__main__':
++    main()
+diff --git a/tests/fixtures/operator_unification/baseline.json b/tests/fixtures/operator_unification/baseline.json
+index e6bb980..eaadeec 100644
+--- a/tests/fixtures/operator_unification/baseline.json
++++ b/tests/fixtures/operator_unification/baseline.json
+@@ -1,9 +1,9 @@
+ {
+-  "gasUGKP:riemannFacePrimitiveForGradient": "__device__ GasPrimDevice riemannFacePrimitiveForGradient\n(\n    const DeviceState& s,\n    const int c,\n    const int f\n)\n{\n    GasPrimDevice centre = makeGasPrimDevice\n    (\n        s.rho[c], s.Ux[c], s.Uy[c], s.Uz[c], s.p[c],\n        s.Rgas, s.rhoMin, s.TgasMin\n    );\n    centre.T = clampMin(finiteOr(s.Tgas[c], centre.T), s.TgasMin);\n    if (f < s.nInternalFaces || isPeriodicFace(s, f))\n    {\n        const int own = s.faceOwner[f];\n        const int nei = s.faceNeighbour[f];\n        const int other = c == own ? nei : own;\n        if (other < 0 || other >= s.nCells)\n        {\n            return centre;\n        }\n        GasPrimDevice adjacent = makeGasPrimDevice\n        (\n            s.rho[other], s.Ux[other], s.Uy[other], s.Uz[other], s.p[other],\n            s.Rgas, s.rhoMin, s.TgasMin\n        );\n        adjacent.T = clampMin\n        (\n            finiteOr(s.Tgas[other], adjacent.T),\n            s.TgasMin\n        );\n        const double ownerWeight = clampRange(s.faceWeight[f], 0.0, 1.0);\n        const double wc = c == own ? ownerWeight : 1.0 - ownerWeight;\n        GasPrimDevice face = makeGasPrimDevice\n        (\n            wc*centre.rho + (1.0 - wc)*adjacent.rho,\n            wc*centre.ux + (1.0 - wc)*adjacent.ux,\n            wc*centre.uy + (1.0 - wc)*adjacent.uy,\n            wc*centre.uz + (1.0 - wc)*adjacent.uz,\n            wc*centre.p + (1.0 - wc)*adjacent.p,\n            s.Rgas, s.rhoMin, s.TgasMin\n        );\n        face.T = wc*centre.T + (1.0 - wc)*adjacent.T;\n        return face;\n    }\n\n    const int kind = s.riemannBoundaryKind[f];\n    if (kind == 4 || kind == 3)\n    {\n        return centre;\n    }\n    if (kind == 1)\n    {\n        const double area = clampMin(s.magSf[f], OfSmall);\n        const double nx = s.Sfx[f]/area;\n        const double ny = s.Sfy[f]/area;\n        const double nz = s.Sfz[f]/area;\n        const double un = centre.ux*nx + centre.uy*ny + centre.uz*nz;\n        GasPrimDevice face = centre;\n        face.ux -= un*nx;\n        face.uy -= un*ny;\n        face.uz -= un*nz;\n        return face;\n    }\n\n    if (kind == 2)\n    {\n        GasPrimDevice wall = centre;\n        wall.ux = s.riemannBoundaryUFix[f] != 0\n          ? finiteOr(s.riemannBoundaryUx[f], 0.0) : 0.0;\n        wall.uy = s.riemannBoundaryUFix[f] != 0\n          ? finiteOr(s.riemannBoundaryUy[f], 0.0) : 0.0;\n        wall.uz = s.riemannBoundaryUFix[f] != 0\n          ? finiteOr(s.riemannBoundaryUz[f], 0.0) : 0.0;\n        if (s.riemannBoundaryTFix[f] != 0)\n        {\n            wall.T = clampMin\n            (\n                finiteOr(s.riemannBoundaryT[f], centre.T),\n                s.TgasMin\n            );\n            wall.rho = wall.p/clampMin(s.Rgas*wall.T, OfSmall);\n        }\n        return wall;\n    }\n\n    return riemannBoundaryState(s, f, centre);\n}",
++  "gasUGKP:riemannFacePrimitiveForGradient": "__device__ GasPrimDevice riemannFacePrimitiveForGradient\n(\n    const DeviceState& s,\n    const int c,\n    const int f\n)\n{\n    GasPrimDevice centre = makeGasPrimDevice\n    (\n        s.rho[c], s.Ux[c], s.Uy[c], s.Uz[c], s.p[c],\n        s.Rgas, s.rhoMin, s.TgasMin\n    );\n    centre.T = clampMin(finiteOr(s.Tgas[c], centre.T), s.TgasMin);\n    if (f < s.nInternalFaces || isPeriodicFace(s, f))\n    {\n        const int own = s.faceOwner[f];\n        const int nei = s.faceNeighbour[f];\n        const int other = c == own ? nei : own;\n        if (other < 0 || other >= s.nCells)\n        {\n            return centre;\n        }\n        GasPrimDevice adjacent = makeGasPrimDevice\n        (\n            s.rho[other], s.Ux[other], s.Uy[other], s.Uz[other], s.p[other],\n            s.Rgas, s.rhoMin, s.TgasMin\n        );\n        adjacent.T = clampMin\n        (\n            finiteOr(s.Tgas[other], adjacent.T),\n            s.TgasMin\n        );\n        const double ownerWeight = clampRange(s.faceWeight[f], 0.0, 1.0);\n        const double wc = c == own ? ownerWeight : 1.0 - ownerWeight;\n        GasPrimDevice face = makeGasPrimDevice\n        (\n            wc*centre.rho + (1.0 - wc)*adjacent.rho,\n            wc*centre.ux + (1.0 - wc)*adjacent.ux,\n            wc*centre.uy + (1.0 - wc)*adjacent.uy,\n            wc*centre.uz + (1.0 - wc)*adjacent.uz,\n            wc*centre.p + (1.0 - wc)*adjacent.p,\n            s.Rgas, s.rhoMin, s.TgasMin\n        );\n        face.T = wc*centre.T + (1.0 - wc)*adjacent.T;\n        return face;\n    }\n\n    const int kind = s.riemannBoundaryKind[f];\n    if (kind == 4 || kind == 3)\n    {\n        return centre;\n    }\n    if (kind == 1)\n    {\n        const double area = clampMin(s.magSf[f], OfSmall);\n        const double nx = s.Sfx[f]/area;\n        const double ny = s.Sfy[f]/area;\n        const double nz = s.Sfz[f]/area;\n        const double un = centre.ux*nx + centre.uy*ny + centre.uz*nz;\n        GasPrimDevice face = centre;\n        face.ux -= un*nx;\n        face.uy -= un*ny;\n        face.uz -= un*nz;\n        if (s.riemannBoundaryTFix[f] != 0)\n        {\n            face.T = clampMin(finiteOr(s.riemannBoundaryT[f], centre.T), s.TgasMin);\n            face.rho = face.p/clampMin(s.Rgas*face.T, OfSmall);\n        }\n        return face;\n    }\n\n    if (kind == 2)\n    {\n        GasPrimDevice wall = centre;\n        wall.ux = s.riemannBoundaryUFix[f] != 0\n          ? finiteOr(s.riemannBoundaryUx[f], 0.0) : 0.0;\n        wall.uy = s.riemannBoundaryUFix[f] != 0\n          ? finiteOr(s.riemannBoundaryUy[f], 0.0) : 0.0;\n        wall.uz = s.riemannBoundaryUFix[f] != 0\n          ? finiteOr(s.riemannBoundaryUz[f], 0.0) : 0.0;\n        if (s.riemannBoundaryTFix[f] != 0)\n        {\n            wall.T = clampMin\n            (\n                finiteOr(s.riemannBoundaryT[f], centre.T),\n                s.TgasMin\n            );\n            wall.rho = wall.p/clampMin(s.Rgas*wall.T, OfSmall);\n        }\n        return wall;\n    }\n\n    return riemannBoundaryState(s, f, centre);\n}",
+   "gasUGKP:preparePressureProjectionCell": "__device__ PressureProjectionCell preparePressureProjectionCell\n(DeviceState& s, const int c, const double kickDt)\n{\n    PressureProjectionCell projection{};\n    double scaledDelta[4];\n\n        double dpx = 0.0;\n        double dpy = 0.0;\n        double dpz = 0.0;\n        double de = 0.0;\n        const int startFace = s.cellPlaneStart[c];\n        const int faceCount = s.cellPlaneCount[c];\n        for (int j = 0; j < faceCount; ++j)\n        {\n            const int f = s.cellFaceId[startFace + j];\n            if (f < 0 || f >= s.nFaces)\n            {\n                continue;\n            }\n            const double sign = s.faceOwner[f] == c ? 1.0 : -1.0;\n            dpx -= sign*s.solidPressurePhiMomX[f];\n            dpy -= sign*s.solidPressurePhiMomY[f];\n            dpz -= sign*s.solidPressurePhiMomZ[f];\n            de -= sign*s.solidPressurePhiEnergy[f];\n        }\n        const double factor = kickDt/clampMin(s.V[c], OfVSmall);\n        scaledDelta[0] = finiteOr(factor*dpx, 0.0);\n        scaledDelta[1] = finiteOr(factor*dpy, 0.0);\n        scaledDelta[2] = finiteOr(factor*dpz, 0.0);\n        scaledDelta[3] = finiteOr(factor*de, 0.0);\n        s.pressureDeltaMomX[c] = scaledDelta[0];\n        s.pressureDeltaMomY[c] = scaledDelta[1];\n        s.pressureDeltaMomZ[c] = scaledDelta[2];\n        s.pressureDeltaEnergy[c] = scaledDelta[3];\n\n\n\n    projection.active = false;\n    const double rhoP = clampMin(finiteOr(s.momRhoP[c], 0.0), 0.0);\n    if (rhoP <= s.epsSMin*s.rhoSolid)\n    {\n        return projection;\n    }\n    const double px0 = finiteOr(s.momRhoUPx[c], 0.0);\n    const double py0 = finiteOr(s.momRhoUPy[c], 0.0);\n    const double pz0 = finiteOr(s.momRhoUPz[c], 0.0);\n    const double e0 = clampMin(finiteOr(s.momRhoEP[c], 0.0), 0.0);\n    const double px1 = px0 + scaledDelta[0];\n    const double py1 = py0 + scaledDelta[1];\n    const double pz1 = pz0 + scaledDelta[2];\n    const double e1 = e0 + scaledDelta[3];\n    const double ux0 = px0/rhoP;\n    const double uy0 = py0/rhoP;\n    const double uz0 = pz0/rhoP;\n    const double ux1 = px1/rhoP;\n    const double uy1 = py1/rhoP;\n    const double uz1 = pz1/rhoP;\n    const double theta0 =\n        clampMin(pressureKickInternalEnergy(rhoP, px0, py0, pz0, e0)/(1.5*rhoP), 0.0);\n    const double theta1 =\n        clampMin(pressureKickInternalEnergy(rhoP, px1, py1, pz1, e1)/(1.5*rhoP), 0.0);\n    const bool resolved = theta0 > 10.0*s.thetaMin;\n    const double thermalScale =\n        resolved ? sqrt(clampMin(theta1/theta0, 0.0)) : 0.0;\n    const double thetaScale = resolved ? thermalScale*thermalScale : 0.0;\n\n\n    projection =\n        {ux0, uy0, uz0, ux1, uy1, uz1, theta1, thermalScale, thetaScale, true, resolved};\n\n        s.momRhoUPx[c] = px1;\n        s.momRhoUPy[c] = py1;\n        s.momRhoUPz[c] = pz1;\n        s.momRhoEP[c] = e1;\n        s.rhoUsx[c] = px1;\n        s.rhoUsy[c] = py1;\n        s.rhoUsz[c] = pz1;\n        s.rhoEs[c] = e1;\n        s.Usx[c] = ux1;\n        s.Usy[c] = uy1;\n        s.Usz[c] = uz1;\n        s.theta[c] = theta1;\n\n\n    // The atomic path historically publishes the cell update, then reads it\n    // back and reconstructs the old state. Preserve its rounding and clamps:\n    // (e0 + de) - de is not equivalent to e0 near the resolved-theta threshold.\n    if (!s.csrCellLocalPathEnabled)\n    {\n        const double ax1 = finiteOr(px1, 0.0);\n        const double ay1 = finiteOr(py1, 0.0);\n        const double az1 = finiteOr(pz1, 0.0);\n        const double ae1 = clampMin(finiteOr(e1, 0.0), 0.0);\n        const double ax0 = ax1 - scaledDelta[0];\n        const double ay0 = ay1 - scaledDelta[1];\n        const double az0 = az1 - scaledDelta[2];\n        const double ae0 = ae1 - scaledDelta[3];\n        const double at0 = clampMin\n        (\n            pressureKickInternalEnergy(rhoP, ax0, ay0, az0, ae0)/(1.5*rhoP), 0.0\n        );\n        const double at1 = clampMin\n        (\n            pressureKickInternalEnergy(rhoP, ax1, ay1, az1, ae1)/(1.5*rhoP), 0.0\n        );\n        const bool ar = at0 > 10.0*s.thetaMin;\n        const double scale = ar ? sqrt(clampMin(at1/at0, 0.0)) : 0.0;\n        projection =\n        {\n            ax0/rhoP, ay0/rhoP, az0/rhoP, ax1/rhoP, ay1/rhoP, az1/rhoP,\n            at1, scale, ar ? scale*scale : 0.0, true, ar\n        };\n    }\n    return projection;\n}",
+-  "FSH:riemannFacePrimitiveForGradient": "// One operator implementation; scalar/time adapters are compile-time only.\n__device__ GasPrimDevice riemannFacePrimitiveForGradient\n(\n    const DeviceState& s,\n    const int c,\n    const int f\n)\n{\n    GasPrimDevice centre = makeGasPrimDevice\n    (\n        s.rho[c], s.Ux[c], s.Uy[c], s.Uz[c], s.p[c],\n        s.Rgas, s.rhoMin, s.TgasMin\n    );\n    centre.T = clampMin(finiteOr(s.Tgas[c], centre.T), s.TgasMin);\n    if (f < s.nInternalFaces || isPeriodicFace(s, f))\n    {\n        const int own = s.faceOwner[f];\n        const int nei = s.faceNeighbour[f];\n        const int other = isPeriodicFace(s, f) ? nei : (c == own ? nei : own);\n        if (other < 0 || other >= s.nCells)\n        {\n            return centre;\n        }\n        GasPrimDevice adjacent = makeGasPrimDevice\n        (\n            s.rho[other], s.Ux[other], s.Uy[other], s.Uz[other], s.p[other],\n            s.Rgas, s.rhoMin, s.TgasMin\n        );\n        adjacent.T = clampMin\n        (\n            finiteOr(s.Tgas[other], adjacent.T),\n            s.TgasMin\n        );\n        const GPU_OPERATOR_REAL ownerWeight = clampRange(s.faceWeight[f], GPU_OPERATOR_R(0.0), GPU_OPERATOR_R(1.0));\n        const GPU_OPERATOR_REAL wc = c == own ? ownerWeight : GPU_OPERATOR_R(1.0) - ownerWeight;\n        GasPrimDevice face = makeGasPrimDevice\n        (\n            wc*centre.rho + (GPU_OPERATOR_R(1.0) - wc)*adjacent.rho,\n            wc*centre.ux + (GPU_OPERATOR_R(1.0) - wc)*adjacent.ux,\n            wc*centre.uy + (GPU_OPERATOR_R(1.0) - wc)*adjacent.uy,\n            wc*centre.uz + (GPU_OPERATOR_R(1.0) - wc)*adjacent.uz,\n            wc*centre.p + (GPU_OPERATOR_R(1.0) - wc)*adjacent.p,\n            s.Rgas, s.rhoMin, s.TgasMin\n        );\n        face.T = wc*centre.T + (GPU_OPERATOR_R(1.0) - wc)*adjacent.T;\n        return face;\n    }\n\n    const int kind = s.riemannBoundaryKind[f];\n    if (kind == 4 || kind == 3)\n    {\n        return centre;\n    }\n    if (kind == 1)\n    {\n        const GPU_OPERATOR_REAL area = clampMin(s.magSf[f], OfSmall);\n        const GPU_OPERATOR_REAL nx = s.Sfx[f]/area;\n        const GPU_OPERATOR_REAL ny = s.Sfy[f]/area;\n        const GPU_OPERATOR_REAL nz = s.Sfz[f]/area;\n        const GPU_OPERATOR_REAL un = centre.ux*nx + centre.uy*ny + centre.uz*nz;\n        GasPrimDevice face = centre;\n        face.ux -= un*nx;\n        face.uy -= un*ny;\n        face.uz -= un*nz;\n        return face;\n    }\n\n    if (kind == 2)\n    {\n        GasPrimDevice wall = centre;\n        wall.ux = s.riemannBoundaryUFix[f] != 0\n          ? finiteOr(s.riemannBoundaryUx[f], GPU_OPERATOR_R(0.0)) : GPU_OPERATOR_R(0.0);\n        wall.uy = s.riemannBoundaryUFix[f] != 0\n          ? finiteOr(s.riemannBoundaryUy[f], GPU_OPERATOR_R(0.0)) : GPU_OPERATOR_R(0.0);\n        wall.uz = s.riemannBoundaryUFix[f] != 0\n          ? finiteOr(s.riemannBoundaryUz[f], GPU_OPERATOR_R(0.0)) : GPU_OPERATOR_R(0.0);\n        if (s.riemannBoundaryTFix[f] != 0)\n        {\n            wall.T = clampMin\n            (\n                finiteOr(s.riemannBoundaryT[f], centre.T),\n                s.TgasMin\n            );\n            wall.rho = wall.p/clampMin(s.Rgas*wall.T, OfSmall);\n        }\n        return wall;\n    }\n\n    return riemannBoundaryState(s, f, centre);\n}\n",
++  "FSH:riemannFacePrimitiveForGradient": "// One operator implementation; scalar/time adapters are compile-time only.\n__device__ GasPrimDevice riemannFacePrimitiveForGradient\n(\n    const DeviceState& s,\n    const int c,\n    const int f\n)\n{\n    GasPrimDevice centre = makeGasPrimDevice\n    (\n        s.rho[c], s.Ux[c], s.Uy[c], s.Uz[c], s.p[c],\n        s.Rgas, s.rhoMin, s.TgasMin\n    );\n    centre.T = clampMin(finiteOr(s.Tgas[c], centre.T), s.TgasMin);\n    if (f < s.nInternalFaces || isPeriodicFace(s, f))\n    {\n        const int own = s.faceOwner[f];\n        const int nei = s.faceNeighbour[f];\n        const int other = isPeriodicFace(s, f) ? nei : (c == own ? nei : own);\n        if (other < 0 || other >= s.nCells)\n        {\n            return centre;\n        }\n        GasPrimDevice adjacent = makeGasPrimDevice\n        (\n            s.rho[other], s.Ux[other], s.Uy[other], s.Uz[other], s.p[other],\n            s.Rgas, s.rhoMin, s.TgasMin\n        );\n        adjacent.T = clampMin\n        (\n            finiteOr(s.Tgas[other], adjacent.T),\n            s.TgasMin\n        );\n        const GPU_OPERATOR_REAL ownerWeight = clampRange(s.faceWeight[f], GPU_OPERATOR_R(0.0), GPU_OPERATOR_R(1.0));\n        const GPU_OPERATOR_REAL wc = c == own ? ownerWeight : GPU_OPERATOR_R(1.0) - ownerWeight;\n        GasPrimDevice face = makeGasPrimDevice\n        (\n            wc*centre.rho + (GPU_OPERATOR_R(1.0) - wc)*adjacent.rho,\n            wc*centre.ux + (GPU_OPERATOR_R(1.0) - wc)*adjacent.ux,\n            wc*centre.uy + (GPU_OPERATOR_R(1.0) - wc)*adjacent.uy,\n            wc*centre.uz + (GPU_OPERATOR_R(1.0) - wc)*adjacent.uz,\n            wc*centre.p + (GPU_OPERATOR_R(1.0) - wc)*adjacent.p,\n            s.Rgas, s.rhoMin, s.TgasMin\n        );\n        face.T = wc*centre.T + (GPU_OPERATOR_R(1.0) - wc)*adjacent.T;\n        return face;\n    }\n\n    const int kind = s.riemannBoundaryKind[f];\n    if (kind == 4 || kind == 3)\n    {\n        return centre;\n    }\n    if (kind == 1)\n    {\n        const GPU_OPERATOR_REAL area = clampMin(s.magSf[f], OfSmall);\n        const GPU_OPERATOR_REAL nx = s.Sfx[f]/area;\n        const GPU_OPERATOR_REAL ny = s.Sfy[f]/area;\n        const GPU_OPERATOR_REAL nz = s.Sfz[f]/area;\n        const GPU_OPERATOR_REAL un = centre.ux*nx + centre.uy*ny + centre.uz*nz;\n        GasPrimDevice face = centre;\n        face.ux -= un*nx;\n        face.uy -= un*ny;\n        face.uz -= un*nz;\n        if (s.riemannBoundaryTFix[f] != 0)\n        {\n            face.T = clampMin(finiteOr(s.riemannBoundaryT[f], centre.T), s.TgasMin);\n            face.rho = face.p/clampMin(s.Rgas*face.T, OfSmall);\n        }\n        return face;\n    }\n\n    if (kind == 2)\n    {\n        GasPrimDevice wall = centre;\n        wall.ux = s.riemannBoundaryUFix[f] != 0\n          ? finiteOr(s.riemannBoundaryUx[f], GPU_OPERATOR_R(0.0)) : GPU_OPERATOR_R(0.0);\n        wall.uy = s.riemannBoundaryUFix[f] != 0\n          ? finiteOr(s.riemannBoundaryUy[f], GPU_OPERATOR_R(0.0)) : GPU_OPERATOR_R(0.0);\n        wall.uz = s.riemannBoundaryUFix[f] != 0\n          ? finiteOr(s.riemannBoundaryUz[f], GPU_OPERATOR_R(0.0)) : GPU_OPERATOR_R(0.0);\n        if (s.riemannBoundaryTFix[f] != 0)\n        {\n            wall.T = clampMin\n            (\n                finiteOr(s.riemannBoundaryT[f], centre.T),\n                s.TgasMin\n            );\n            wall.rho = wall.p/clampMin(s.Rgas*wall.T, OfSmall);\n        }\n        return wall;\n    }\n\n    return riemannBoundaryState(s, f, centre);\n}\n",
+   "FSH:atomicAddParticleWallEnergyByFace": "__device__ void atomicAddParticleWallEnergyByFace\n(\n    DeviceState& s,\n    double* const wallEnergyLedger,\n    const int globalFaceId,\n    const double wallEnergyJ\n)\n{\n    if (wallEnergyJ == 0.0)\n    {\n        return;\n    }\n#if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 700\n    const unsigned int active = __activemask();\n    const int ledgerChannel =\n        wallEnergyLedger == s.particleWallDepositedEnergy ? 0 : 1;\n    const int faceChannelKey = 2*globalFaceId + ledgerChannel;\n    const unsigned int group =\n        __match_any_sync(active, faceChannelKey);\n    const int leader = __ffs(static_cast<int>(group)) - 1;\n    const int lane = static_cast<int>(threadIdx.x) & 31;\n    double groupEnergy = 0.0;\n    unsigned int remaining = group;\n    while (remaining != 0u)\n    {\n        const int sourceLane = __ffs(static_cast<int>(remaining)) - 1;\n        groupEnergy += __shfl_sync(group, wallEnergyJ, sourceLane);\n        remaining &= remaining - 1u;\n    }\n    if (lane == leader)\n    {\n        atomicAdd(&wallEnergyLedger[globalFaceId], groupEnergy);\n    }\n#else\n    atomicAdd(&wallEnergyLedger[globalFaceId], wallEnergyJ);\n#endif\n}",
+-  "CHT:riemannFacePrimitiveForGradient": "// One operator implementation; scalar/time adapters are compile-time only.\n__device__ GasPrimDevice riemannFacePrimitiveForGradient\n(\n    const DeviceState& s,\n    const int c,\n    const int f\n)\n{\n    GasPrimDevice centre = makeGasPrimDevice\n    (\n        s.rho[c], s.Ux[c], s.Uy[c], s.Uz[c], s.p[c],\n        s.Rgas, s.rhoMin, s.TgasMin\n    );\n    centre.T = clampMin(finiteOr(s.Tgas[c], centre.T), s.TgasMin);\n    if (f < s.nInternalFaces || isPeriodicFace(s, f))\n    {\n        const int own = s.faceOwner[f];\n        const int nei = s.faceNeighbour[f];\n        const int other = isPeriodicFace(s, f) ? nei : (c == own ? nei : own);\n        if (other < 0 || other >= s.nCells)\n        {\n            return centre;\n        }\n        GasPrimDevice adjacent = makeGasPrimDevice\n        (\n            s.rho[other], s.Ux[other], s.Uy[other], s.Uz[other], s.p[other],\n            s.Rgas, s.rhoMin, s.TgasMin\n        );\n        adjacent.T = clampMin\n        (\n            finiteOr(s.Tgas[other], adjacent.T),\n            s.TgasMin\n        );\n        const GPU_OPERATOR_REAL ownerWeight = clampRange(s.faceWeight[f], GPU_OPERATOR_R(0.0), GPU_OPERATOR_R(1.0));\n        const GPU_OPERATOR_REAL wc = c == own ? ownerWeight : GPU_OPERATOR_R(1.0) - ownerWeight;\n        GasPrimDevice face = makeGasPrimDevice\n        (\n            wc*centre.rho + (GPU_OPERATOR_R(1.0) - wc)*adjacent.rho,\n            wc*centre.ux + (GPU_OPERATOR_R(1.0) - wc)*adjacent.ux,\n            wc*centre.uy + (GPU_OPERATOR_R(1.0) - wc)*adjacent.uy,\n            wc*centre.uz + (GPU_OPERATOR_R(1.0) - wc)*adjacent.uz,\n            wc*centre.p + (GPU_OPERATOR_R(1.0) - wc)*adjacent.p,\n            s.Rgas, s.rhoMin, s.TgasMin\n        );\n        face.T = wc*centre.T + (GPU_OPERATOR_R(1.0) - wc)*adjacent.T;\n        return face;\n    }\n\n    const int kind = s.riemannBoundaryKind[f];\n    if (kind == 4 || kind == 3)\n    {\n        return centre;\n    }\n    if (kind == 1)\n    {\n        const GPU_OPERATOR_REAL area = clampMin(s.magSf[f], OfSmall);\n        const GPU_OPERATOR_REAL nx = s.Sfx[f]/area;\n        const GPU_OPERATOR_REAL ny = s.Sfy[f]/area;\n        const GPU_OPERATOR_REAL nz = s.Sfz[f]/area;\n        const GPU_OPERATOR_REAL un = centre.ux*nx + centre.uy*ny + centre.uz*nz;\n        GasPrimDevice face = centre;\n        face.ux -= un*nx;\n        face.uy -= un*ny;\n        face.uz -= un*nz;\n        return face;\n    }\n\n    if (kind == 2)\n    {\n        GasPrimDevice wall = centre;\n        wall.ux = s.riemannBoundaryUFix[f] != 0\n          ? finiteOr(s.riemannBoundaryUx[f], GPU_OPERATOR_R(0.0)) : GPU_OPERATOR_R(0.0);\n        wall.uy = s.riemannBoundaryUFix[f] != 0\n          ? finiteOr(s.riemannBoundaryUy[f], GPU_OPERATOR_R(0.0)) : GPU_OPERATOR_R(0.0);\n        wall.uz = s.riemannBoundaryUFix[f] != 0\n          ? finiteOr(s.riemannBoundaryUz[f], GPU_OPERATOR_R(0.0)) : GPU_OPERATOR_R(0.0);\n        if (s.riemannBoundaryTFix[f] != 0)\n        {\n            wall.T = clampMin\n            (\n                finiteOr(s.riemannBoundaryT[f], centre.T),\n                s.TgasMin\n            );\n            wall.rho = wall.p/clampMin(s.Rgas*wall.T, OfSmall);\n        }\n        return wall;\n    }\n\n    return riemannBoundaryState(s, f, centre);\n}\n",
++  "CHT:riemannFacePrimitiveForGradient": "// One operator implementation; scalar/time adapters are compile-time only.\n__device__ GasPrimDevice riemannFacePrimitiveForGradient\n(\n    const DeviceState& s,\n    const int c,\n    const int f\n)\n{\n    GasPrimDevice centre = makeGasPrimDevice\n    (\n        s.rho[c], s.Ux[c], s.Uy[c], s.Uz[c], s.p[c],\n        s.Rgas, s.rhoMin, s.TgasMin\n    );\n    centre.T = clampMin(finiteOr(s.Tgas[c], centre.T), s.TgasMin);\n    if (f < s.nInternalFaces || isPeriodicFace(s, f))\n    {\n        const int own = s.faceOwner[f];\n        const int nei = s.faceNeighbour[f];\n        const int other = isPeriodicFace(s, f) ? nei : (c == own ? nei : own);\n        if (other < 0 || other >= s.nCells)\n        {\n            return centre;\n        }\n        GasPrimDevice adjacent = makeGasPrimDevice\n        (\n            s.rho[other], s.Ux[other], s.Uy[other], s.Uz[other], s.p[other],\n            s.Rgas, s.rhoMin, s.TgasMin\n        );\n        adjacent.T = clampMin\n        (\n            finiteOr(s.Tgas[other], adjacent.T),\n            s.TgasMin\n        );\n        const GPU_OPERATOR_REAL ownerWeight = clampRange(s.faceWeight[f], GPU_OPERATOR_R(0.0), GPU_OPERATOR_R(1.0));\n        const GPU_OPERATOR_REAL wc = c == own ? ownerWeight : GPU_OPERATOR_R(1.0) - ownerWeight;\n        GasPrimDevice face = makeGasPrimDevice\n        (\n            wc*centre.rho + (GPU_OPERATOR_R(1.0) - wc)*adjacent.rho,\n            wc*centre.ux + (GPU_OPERATOR_R(1.0) - wc)*adjacent.ux,\n            wc*centre.uy + (GPU_OPERATOR_R(1.0) - wc)*adjacent.uy,\n            wc*centre.uz + (GPU_OPERATOR_R(1.0) - wc)*adjacent.uz,\n            wc*centre.p + (GPU_OPERATOR_R(1.0) - wc)*adjacent.p,\n            s.Rgas, s.rhoMin, s.TgasMin\n        );\n        face.T = wc*centre.T + (GPU_OPERATOR_R(1.0) - wc)*adjacent.T;\n        return face;\n    }\n\n    const int kind = s.riemannBoundaryKind[f];\n    if (kind == 4 || kind == 3)\n    {\n        return centre;\n    }\n    if (kind == 1)\n    {\n        const GPU_OPERATOR_REAL area = clampMin(s.magSf[f], OfSmall);\n        const GPU_OPERATOR_REAL nx = s.Sfx[f]/area;\n        const GPU_OPERATOR_REAL ny = s.Sfy[f]/area;\n        const GPU_OPERATOR_REAL nz = s.Sfz[f]/area;\n        const GPU_OPERATOR_REAL un = centre.ux*nx + centre.uy*ny + centre.uz*nz;\n        GasPrimDevice face = centre;\n        face.ux -= un*nx;\n        face.uy -= un*ny;\n        face.uz -= un*nz;\n        if (s.riemannBoundaryTFix[f] != 0)\n        {\n            face.T = clampMin(finiteOr(s.riemannBoundaryT[f], centre.T), s.TgasMin);\n            face.rho = face.p/clampMin(s.Rgas*face.T, OfSmall);\n        }\n        return face;\n    }\n\n    if (kind == 2)\n    {\n        GasPrimDevice wall = centre;\n        wall.ux = s.riemannBoundaryUFix[f] != 0\n          ? finiteOr(s.riemannBoundaryUx[f], GPU_OPERATOR_R(0.0)) : GPU_OPERATOR_R(0.0);\n        wall.uy = s.riemannBoundaryUFix[f] != 0\n          ? finiteOr(s.riemannBoundaryUy[f], GPU_OPERATOR_R(0.0)) : GPU_OPERATOR_R(0.0);\n        wall.uz = s.riemannBoundaryUFix[f] != 0\n          ? finiteOr(s.riemannBoundaryUz[f], GPU_OPERATOR_R(0.0)) : GPU_OPERATOR_R(0.0);\n        if (s.riemannBoundaryTFix[f] != 0)\n        {\n            wall.T = clampMin\n            (\n                finiteOr(s.riemannBoundaryT[f], centre.T),\n                s.TgasMin\n            );\n            wall.rho = wall.p/clampMin(s.Rgas*wall.T, OfSmall);\n        }\n        return wall;\n    }\n\n    return riemannBoundaryState(s, f, centre);\n}\n",
+   "CHT:solidEpsFromMomentDevice": "__device__ GpuReal solidEpsFromMomentDevice(const DeviceState& s, const int c)\n{\n    if (c < 0 || c >= s.nCells)\n    {\n        return GPU_R(0.0);\n    }\n\n    const GpuReal rhoP = clampMin(finiteOr(s.momRhoP[c], GPU_R(0.0)), GPU_R(0.0));\n\n    return clampRange\n    (\n        rhoP/clampMin(s.rhoSolid, GPU_TINY(1.0e-300)),\n        GPU_R(0.0),\n        GPU_R(1.0)\n    );\n}",
+   "CHT:solidPressureFromMomentsDevice": "__device__ GpuReal solidPressureFromMomentsDevice\n(\n    const DeviceState& s,\n    const int c\n)\n{\n    if (c < 0 || c >= s.nCells)\n    {\n        return GPU_R(0.0);\n    }\n\n    const GpuReal rhoP = clampMin(finiteOr(s.momRhoP[c], GPU_R(0.0)), GPU_R(0.0));\n    if (rhoP <= s.epsSMin*s.rhoSolid)\n    {\n        return GPU_R(0.0);\n    }\n\n    const GpuReal eps =\n        clampRange(rhoP/clampMin(s.rhoSolid, GPU_TINY(1.0e-300)), GPU_R(0.0), GPU_R(1.0));\n    const GpuReal ux = finiteOr(s.momRhoUPx[c], GPU_R(0.0))/rhoP;\n    const GpuReal uy = finiteOr(s.momRhoUPy[c], GPU_R(0.0))/rhoP;\n    const GpuReal uz = finiteOr(s.momRhoUPz[c], GPU_R(0.0))/rhoP;\n    const GpuReal kinetic = GPU_R(0.5)*rhoP*sqr3(ux, uy, uz);\n    const GpuReal theta =\n        clampMin\n        (\n            (finiteOr(s.momRhoEP[c], kinetic) - kinetic)/(GPU_R(1.5)*rhoP),\n            GPU_R(0.0)\n        );\n    GpuReal pColl = GPU_R(0.0);\n    if (s.collisionalPressureEnabled)\n    {\n        const GpuReal g0 = radialDistributionG0Device(eps);\n        pColl = ugkwp::collisionalPressure\n        (\n            s.collisionalRestitution,\n            s.rhoSolid,\n            eps,\n            g0,\n            theta\n        );\n        pColl = clampRange(finiteOr(pColl, GPU_R(0.0)), GPU_R(0.0), OfGreat);\n    }\n\n    return clampRange(finiteOr(pColl, OfGreat), GPU_R(0.0), OfGreat);\n}",
+   "CHT:granularCollisionTauFromCellDevice": "__device__ GpuReal granularCollisionTauFromCellDevice(const DeviceState& s, const int c)\n{\n    if (c < 0 || c >= s.nCells)\n    {\n        return OfGreat;\n    }\n\n    const GpuReal rhoP = clampMin(finiteOr(s.momRhoP[c], GPU_R(0.0)), GPU_R(0.0));\n    if (rhoP <= s.epsSMin*s.rhoSolid)\n    {\n        return OfGreat;\n    }\n\n    const GpuReal eps =\n        clampRange(rhoP/clampMin(s.rhoSolid, GPU_TINY(1.0e-300)), GPU_R(0.0), GPU_R(1.0));\n\n    const GpuReal usx = finiteOr(s.momRhoUPx[c], GPU_R(0.0))/rhoP;\n    const GpuReal usy = finiteOr(s.momRhoUPy[c], GPU_R(0.0))/rhoP;\n    const GpuReal usz = finiteOr(s.momRhoUPz[c], GPU_R(0.0))/rhoP;\n\n    const GpuReal e =\n        clampMin(finiteOr(s.momRhoEP[c], GPU_R(0.0)), GPU_R(0.0))/rhoP;\n\n    const GpuReal theta =\n        clampMin((e - GPU_R(0.5)*sqr3(usx, usy, usz))/GPU_R(1.5), GPU_R(0.0));\n\n    const GpuReal dPart =\n        clampMin\n        (\n            finiteOr(s.momRhoPD[c]/rhoP, s.particleDiameterFallback),\n            GPU_R(1.0e-12)\n        );\n\n    const GpuReal g0 = radialDistributionG0Device(eps);\n    const GpuReal lmfp = ugkwp::granularMeanFreePath\n    (\n        OfPi,\n        dPart,\n        eps,\n        g0,\n        OfSmall\n    );\n\n    return clampMin\n    (\n        ugkwp::granularCollisionTime(lmfp, theta, OfSmall),\n        OfSmall\n    );\n}",
+diff --git a/tests/fixtures/pr14_fast_cold/RECHECK.md b/tests/fixtures/pr14_fast_cold/RECHECK.md
+new file mode 100644
+index 0000000..ea27665
+--- /dev/null
++++ b/tests/fixtures/pr14_fast_cold/RECHECK.md
+@@ -0,0 +1,61 @@
++# PR14 FAST F002/F004 GPU recheck
++
++This fixture includes each complete production CUDA translation unit. It uses
++actual CUDA allocations, H2D/D2H copies, native configuration/patch upload, and
++both production device initializers. It contains no CPU CUDA shim. Compilation
++is not evidence that the assertions have executed.
++
++## Focused real-GPU regression
++
++From the repository root, on the RTX 4060 review host with its CUDA toolkit:
++
++```
++python3 tests/fixtures/pr14_fast_cold/run.py . /tmp/pr14-cold-CHT CHT
++python3 tests/fixtures/pr14_fast_cold/run.py . /tmp/pr14-cold-FSH FSH
++```
++
++Override `--nvcc /path/to/nvcc` and `--arch sm_XX` for the actual toolkit/device.
++Use `--compile-only` to compile without claiming runtime results. The runner
++records the exact command, build log, and (only when executed) runtime log.
++CHT uses O3/sm89/fmad=false; FSH retains its native fmad=true setting.
++`PR14_FAST_GPU_TESTS=1 pytest -q tests/test_pr14_fast_cold_initialization_cuda.py`
++runs the same native regression. Without the opt-in, these tests are skipped.
++
++Coverage:
++- Configure-first and patch-upload-first owner creation
++- Uncoupled faces seeded with sqrt(1800*710*100), the existing CHT scalar source
++- Selected coupled patch values retained across repeated configure, heat disable,
++  re-enable, and subsequent patch replacement; canonical/published pointer match
++- No newly imposed restriction on supplied zero or signed patch values
++- Both initializers preserve uniform profile enthalpy plus existing double carry
++  through the CHT float cache cast, including zero/positive/negative prior carry
++- FSH's unchanged double profile path publishes initial enthalpy exactly
++
++## Repeat the original native failure cases
++
++Use unchanged review input directories:
++
++- review/pr14/reviewer-deliveries/20261013T182722Z-fast/inputs/native/resident/CHT-coldWall1D-INPUT2
++- review/pr14/reviewer-deliveries/20261013T182722Z-fast/inputs/native/resident/CHT-coldWall2D-INPUT2
++
++Copy each into a fresh scratch case, build the formal current CHT source with
++applications/CHT/tools/build_cuda_solver.sh, run blockMesh and CHT, and retain
++commands, source/binary hashes, build/run logs, and every written restart/field.
++Do not overwrite the original or diagnostic review evidence. Re-run under
++Compute Sanitizer memcheck and synccheck. Check every written timestamp,
++especially first cold contact, for finite scalar/vector/profile/carry state and
++mean(profile converted to float64) + double carry caloric temperature mismatch
++<= 1e-9 K, using the independent equations/check in
++inputs/resident_check_fp64_mean.py from that review delivery. Its artifact paths
++are delivery-specific; point the checker at the new outputs rather than reusing
++old diagnostic results. Preserve the original thresholds and input physics.
++
++Repeat the recorded split/restart sequence and compare all terminal particle
++members and fields, including float profiles and double carry/history. The
++review's P007/P010 runs are historical diagnosis, not a pass of this formal fix.
++
++Mixed coupled/uncoupled patch behavior in a real OpenFOAM case, actual first
++contact, restart, and full energy budgets remain application-level review work;
++the focused initializer fixture is not a replacement. No speedup is claimed.
++The producer adds one initialization-only host fill/H2D copy, replacing one
++zero fill. Completed owners do not allocate, refill, or recopy at every step.
+diff --git a/tests/fixtures/pr14_fast_cold/initialization.cu b/tests/fixtures/pr14_fast_cold/initialization.cu
+new file mode 100644
+index 0000000..e6752a6
+--- /dev/null
++++ b/tests/fixtures/pr14_fast_cold/initialization.cu
+@@ -0,0 +1,215 @@
++// Real CUDA regression: include the complete production owner and device paths.
++// No CUDA API shim, extracted numerical substitute, or frozen buggy oracle.
++#include "GpuResidentStrict.cu"
++#include <cstdio>
++#include <cstdlib>
++#include <cstring>
++#include <type_traits>
++
++void check(bool condition, const char* message)
++{
++    if (!condition) { std::fprintf(stderr, "FAIL %s\n", message); std::exit(1); }
++}
++void cudaCheck(cudaError_t status)
++{
++    if (status != cudaSuccess)
++    {
++        std::fprintf(stderr, "CUDA: %s\n", cudaGetErrorString(status));
++        std::exit(2);
++    }
++}
++void nativeCheck(int status)
++{
++    if (status) { std::fprintf(stderr, "%s\n", lastError); std::exit(3); }
++}
++int configureCold(DeviceState* s, const unsigned char* mask, int heat = 1)
++{
++    return ugkwpGpuResidentStrictConfigureParticleStuckModel
++    (
++        s, 4, mask, 20, heat, .63, 1, 1, 1,
++#if !PR14_COLD_CHT
++        1800, 710, 100,
++#endif
++        145, 1, 12, 2327, 20, 1160000, 2500, 1273, 20, .5, 0
++    );
++}
++DeviceState* newOwner()
++{
++    DeviceState* s = new DeviceState;
++    s->nFaces = 4;
++    s->nInternalFaces = 0;
++    s->particleCapacity = 4;
++    nativeCheck(allocate(s->deviceState, size_t(1), "test device state"));
++    nativeCheck(syncDeviceState(s, "test initial state publication"));
++    return s;
++}
++
++#if PR14_COLD_CHT
++void checkEffusivity(const DeviceState* s, const double* expected)
++{
++    double faces[4];
++    cudaCheck(cudaMemcpy(faces, s->particleWallEffusivityByFace,
++                         sizeof(faces), cudaMemcpyDeviceToHost));
++    check(std::memcmp(faces, expected, sizeof(faces)) == 0,
++          "scalar fallback and coupled overrides retain exact face values");
++    DeviceState published;
++    cudaCheck(cudaMemcpy(&published, s->deviceState, sizeof(published),
++                         cudaMemcpyDeviceToHost));
++    check(published.particleWallEffusivityByFace == s->particleWallEffusivityByFace,
++          "published face owner matches canonical allocation");
++}
++void effusivityLifecycle(bool uploadFirst)
++{
++    DeviceState* s = newOwner();
++    const unsigned char mixed[] = {0, 3, 4, 0}, off[] = {0, 0, 0, 0};
++    const double fallback = ::sqrt(1800.0*710.0*100.0);
++    double expected[] = {fallback, fallback, fallback, fallback};
++    const double firstPatch[] = {24001.25, 17003.5};
++    if (uploadFirst)
++    {
++        nativeCheck(ugkwpGpuResidentStrictUploadParticleWallEffusivityPatch
++                    (s, 1, 2, firstPatch));
++        expected[1] = firstPatch[0]; expected[2] = firstPatch[1];
++        checkEffusivity(s, expected);
++    }
++    nativeCheck(configureCold(s, mixed));
++    checkEffusivity(s, expected);
++    if (!uploadFirst)
++    {
++        nativeCheck(ugkwpGpuResidentStrictUploadParticleWallEffusivityPatch
++                    (s, 1, 2, firstPatch));
++        expected[1] = firstPatch[0]; expected[2] = firstPatch[1];
++    }
++    auto* owner = s->particleWallEffusivityByFace;
++    nativeCheck(configureCold(s, mixed));
++    nativeCheck(configureCold(s, off, 0));
++    nativeCheck(configureCold(s, mixed));
++    check(s->particleWallEffusivityByFace == owner, "reconfigure retains owner");
++    checkEffusivity(s, expected);
++    // Supplied patch values are copied unchanged, including zero and signed
++    // values. The fix supplies absent material data; it adds no value gate.
++    const double replacement[] = {-0.0, -2.0};
++    nativeCheck(ugkwpGpuResidentStrictUploadParticleWallEffusivityPatch
++                (s, 1, 2, replacement));
++    expected[1] = replacement[0]; expected[2] = replacement[1];
++    nativeCheck(configureCold(s, mixed));
++    checkEffusivity(s, expected);
++    check((s->particleStuckInitialisationPending & (4 | 0x800)) == 0,
++          "initialization/publication work finishes once");
++    releaseState(s);
++}
++#endif
++
++struct ProfileResult
++{
++    double initial, stored, physical, carryBefore, carryAfter;
++    double temperatureBefore, temperatureAfter;
++    int uniform, historyCleared;
++};
++__global__ void initializeProfiles(DeviceState* state, ProfileResult* results)
++{
++    const int i = threadIdx.x;
++    if (i >= 4) return;
++    DeviceState& s = *state;
++    const double temperatures[] = {3200.1234567, 1000.1234567, 2327.25, 2337.125};
++    const double carries[] = {0., .07125, -.0625, 17.03125};
++    const bool two = (i & 1) != 0;
++    ProfileResult r{};
++    r.initial = Foam::gpuThermal::coldWallSpecificEnthalpyJkg
++                (temperatures[i], s.coldWallSolidificationParameters);
++#if PR14_COLD_CHT
++    s.pThermalEnthalpyResidual[i] = carries[i];
++    r.carryBefore = carries[i];
++#endif
++    if (two)
++    {
++        s.pCold2DFrozenArea[i] = 3.;
++        for (int n = 0; n < 8; ++n) s.pCold2DRingContactAge[8*i+n] = 7.;
++        initialiseColdWall2DParticleState(s, i, temperatures[i]);
++    }
++    else
++    {
++        s.pColdFrozenArea[i] = 3.;
++        s.pColdContactAge[i] = 7.;
++        for (int n = 0; n < 8; ++n) s.pColdRingSolidMass[8*i+n] = 7.;
++        initialiseColdWallParticleState(s, i, temperatures[i]);
++    }
++    const int count = two ? 64 : 8;
++    const auto* nodes = two ? s.pCold2DNodeSpecificEnthalpy : s.pColdNodeSpecificEnthalpy;
++    r.stored = double(nodes[i*count]);
++    r.uniform = 1;
++    // Offset averaging is exact for this uniform initialization witness and
++    // does not add an unrelated repeated-summation error to the FSH oracle.
++    r.physical = r.stored;
++    for (int n = 0; n < count; ++n)
++    {
++        r.uniform &= (double(nodes[i*count+n]) == r.stored);
++        r.physical += (double(nodes[i*count+n])-r.stored)/double(count);
++    }
++#if PR14_COLD_CHT
++    r.carryAfter = s.pThermalEnthalpyResidual[i];
++#endif
++    r.physical += r.carryAfter;
++    r.temperatureBefore = Foam::gpuThermal::coldWallTemperatureFromSpecificEnthalpyK
++        (r.initial + r.carryBefore, s.coldWallSolidificationParameters);
++    r.temperatureAfter = Foam::gpuThermal::coldWallTemperatureFromSpecificEnthalpyK
++        (r.physical, s.coldWallSolidificationParameters);
++    r.historyCleared = two ? s.pCold2DFrozenArea[i] == 0 :
++        (s.pColdFrozenArea[i] == 0 && s.pColdContactAge[i] == 0);
++    for (int n = 0; n < 8; ++n)
++        r.historyCleared &= two ? s.pCold2DRingContactAge[8*i+n] == 0 :
++                                  s.pColdRingSolidMass[8*i+n] == 0;
++    results[i] = r;
++}
++void profileInitialization()
++{
++    DeviceState* s = newOwner();
++    const unsigned char mixed[] = {0, 3, 4, 0};
++    nativeCheck(configureCold(s, mixed));
++#if PR14_COLD_CHT
++    static_assert(std::is_same<decltype(s->pColdNodeSpecificEnthalpy), float*>::value,
++                  "CHT retains its profile cache storage");
++    nativeCheck(allocate(s->pThermalEnthalpyResidual, size_t(4), "test carry"));
++#else
++    static_assert(std::is_same<decltype(s->pColdNodeSpecificEnthalpy), double*>::value,
++                  "FSH retains double profiles");
++#endif
++    nativeCheck(syncDeviceState(s, "test profile state publication"));
++    ProfileResult *device, result[4];
++    cudaCheck(cudaMalloc(&device, sizeof(result)));
++    initializeProfiles<<<1, 32>>>(s->deviceState, device);
++    cudaCheck(cudaGetLastError());
++    cudaCheck(cudaDeviceSynchronize());
++    cudaCheck(cudaMemcpy(result, device, sizeof(result), cudaMemcpyDeviceToHost));
++    bool hasCastLoss = false;
++    for (const auto& r : result)
++    {
++        check(r.uniform && r.historyCleared, "uniform profile and cleared history");
++        check(std::isfinite(r.physical), "finite initialized physical enthalpy");
++        check(std::fabs(r.temperatureAfter-r.temperatureBefore) <= 1e-9,
++              "initial mean profile plus carry preserves physical temperature");
++#if PR14_COLD_CHT
++        const double loss = r.initial-r.stored;
++        hasCastLoss |= loss != 0;
++        check(r.carryAfter == r.carryBefore+loss,
++              "initial cast loss is added to pre-existing double carry");
++#else
++        check(r.stored == r.initial && r.physical == r.initial,
++              "FSH initialization remains exact double");
++#endif
++    }
++#if PR14_COLD_CHT
++    check(hasCastLoss, "fixture exercises a real float cache cast loss");
++#endif
++    cudaCheck(cudaFree(device));
++    releaseState(s);
++}
++int main()
++{
++#if PR14_COLD_CHT
++    effusivityLifecycle(false);
++    effusivityLifecycle(true);
++#endif
++    profileInitialization();
++    std::puts("PASS actual CUDA cold-wall initialization and owner lifetime");
++}
+diff --git a/tests/fixtures/pr14_fast_cold/run.py b/tests/fixtures/pr14_fast_cold/run.py
+new file mode 100644
+index 0000000..debd93a
+--- /dev/null
++++ b/tests/fixtures/pr14_fast_cold/run.py
+@@ -0,0 +1,52 @@
++"""Compile/run the real CUDA PR14 cold initialization regression (no CPU shim)."""
++from pathlib import Path
++import argparse
++import os
++import resource
++import subprocess
++
++
++def main():
++    parser = argparse.ArgumentParser(description=__doc__)
++    parser.add_argument("root", type=Path)
++    parser.add_argument("output", type=Path)
++    parser.add_argument("app", choices=["CHT", "FSH"])
++    parser.add_argument("--nvcc", default=os.environ.get("NVCC", "/usr/local/cuda/bin/nvcc"))
++    parser.add_argument("--arch", default="sm_89")
++    parser.add_argument("--compile-only", action="store_true")
++    args = parser.parse_args()
++    root, out = args.root.resolve(), args.output.resolve()
++    out.mkdir(parents=True, exist_ok=True)
++    backend = root / "applications" / args.app / ("gpu" if args.app == "CHT" else "private_backend")
++    command = [args.nvcc, "-std=c++17", "-O3", "-arch=" + args.arch,
++               "--fmad=" + ("false" if args.app == "CHT" else "true"),
++               "-DPR14_COLD_CHT=" + str(int(args.app == "CHT")),
++               "-I" + str(backend), "-I" + str(root / "common"),
++               "-I" + str(root / "common/wall"),
++               "-I" + str(root / "applications" / args.app / "gpu"),
++               str(root / "tests/fixtures/pr14_fast_cold/initialization.cu"),
++               "-o", str(out / "initialization")]
++    if args.app == "CHT":
++        command.append(str(backend / "GpuWallEnergy64.cu"))
++    soft, hard = resource.getrlimit(resource.RLIMIT_STACK)
++    resource.setrlimit(resource.RLIMIT_STACK,
++                       (64 * 1024 * 1024 if hard == resource.RLIM_INFINITY
++                        else min(64 * 1024 * 1024, hard), hard))
++    (out / "command.txt").write_text(" ".join(command) + "\n")
++    with (out / "build.log").open("w") as log:
++        result = subprocess.run(command, stdout=log, stderr=subprocess.STDOUT)
++    if result.returncode:
++        print((out / "build.log").read_text()[-8000:])
++        return result.returncode
++    if args.compile_only:
++        print("Compiled actual CUDA fixture; GPU runtime was not run.")
++        return 0
++    with (out / "run.log").open("w") as log:
++        result = subprocess.run([str(out / "initialization")], stdout=log,
++                                stderr=subprocess.STDOUT)
++    print((out / "run.log").read_text())
++    return result.returncode
++
++
++if __name__ == "__main__":
++    raise SystemExit(main())
+diff --git a/tests/gas_transport/test_chmt_courant_reduction_cuda.py b/tests/gas_transport/test_chmt_courant_reduction_cuda.py
+new file mode 100644
+index 0000000..d5edefb
+--- /dev/null
++++ b/tests/gas_transport/test_chmt_courant_reduction_cuda.py
+@@ -0,0 +1,140 @@
++"""CHMT Courant scratch tests: real CUDA compilation/execution, never CPU shims."""
++from pathlib import Path
++import os
++import shutil
++import subprocess
++
++import pytest
++
++ROOT = Path(__file__).resolve().parents[2]
++APP = ROOT / "applications/CHMT"
++
++
++def test_courant_reductions_keep_algorithms_and_owned_scratch():
++    source = (APP / "gpu/Backend.cu").read_text()
++    assert "CoupledCourantStorage courantReductionStorage;" in source
++    assert "unsigned char initializedTail[7]{};" in source
++    assert source.count("thrust::cuda::par(b.courantReductionStorage).on(stream)") == 2
++    assert "thrust::transform_reduce(" in source and "thrust::reduce(" in source
++    assert "a!=a?a:b!=b?b:fmax(a,b)" in source
++    assert "a.unavailable||b.unavailable" in source
++    assert "CoupledCourantValue{-std::numeric_limits<double>::infinity(),false}" in source
++
++
++@pytest.fixture(scope="module")
++def native_courant_probe(tmp_path_factory):
++    nvcc = os.environ.get("NVCC") or shutil.which("nvcc")
++    if not nvcc:
++        pytest.skip("CUDA compiler unavailable; no native compile/runtime claim")
++    folder = tmp_path_factory.mktemp("chmt-courant-native")
++    backend = (APP / "gpu/Backend.cu").read_text()
++    first = backend.index("struct CoupledCourantMaximum {")
++    last = backend.index("static bool currentGasCourant(", first)
++    source = folder / "courant_reduction.cu"
++    source.write_text(PREAMBLE + backend[first:last] + PROBE)
++    output = folder / "courant_reduction"
++    command = [nvcc, "-std=c++17", "-O2",
++               "-arch=" + os.environ.get("CHMT_CUDA_ARCH", "sm_89"),
++               "-I" + str(APP), "-I" + str(ROOT / "common"),
++               str(source), "-o", str(output)]
++    result = subprocess.run(command, text=True, capture_output=True)
++    assert result.returncode == 0, result.stdout + result.stderr
++    return output
++
++
++def test_courant_native_cuda_compile(native_courant_probe):
++    assert native_courant_probe.is_file()
++
++
++def test_courant_native_gpu_reuse_and_equivalence(native_courant_probe):
++    if os.environ.get("CHMT_COURANT_GPU_TESTS") != "1":
++        pytest.skip("Set CHMT_COURANT_GPU_TESTS=1 on a real GPU; no CPU fallback")
++    result = subprocess.run([str(native_courant_probe)], text=True, capture_output=True)
++    assert result.returncode == 0, result.stdout + result.stderr
++    assert "CUDA Courant reuse/equivalence PASS" in result.stdout
++
++
++PREAMBLE = r'''
++#include "gpu/CourantReductionStorage.cuh"
++#include "gasTransport/GasCapabilities.H"
++#include <thrust/device_ptr.h>
++#include <thrust/reduce.h>
++#include <thrust/transform_reduce.h>
++#include <thrust/iterator/counting_iterator.h>
++#include <thrust/system/cuda/execution_policy.h>
++#include <cassert>
++#include <cmath>
++#include <cstring>
++#include <limits>
++#include <cstdio>
++#include <cstddef>
++#include <cstdint>
++#include <type_traits>
++#include <vector>
++using chmt::CoupledCourantStorage;
++'''
++
++PROBE = r'''
++static_assert(sizeof(CoupledCourantValue)==16,"Preserve reduction value size");
++static_assert(offsetof(CoupledCourantValue,unavailable)==8,"Preserve bool offset");
++static_assert(offsetof(CoupledCourantValue,initializedTail)==9,"Cover all tail bytes");
++static_assert(std::is_same<decltype(CoupledCourantValue::value),double>::value,"FP64 value");
++static_assert(std::is_same<decltype(CoupledCourantValue::unavailable),bool>::value,"Bool status");
++static_assert(!std::is_copy_constructible<CoupledCourantStorage>::value,"Unique owner");
++static_assert(!std::is_move_constructible<CoupledCourantStorage>::value,"Stable fault owner");
++void check(cudaError_t error){if(error!=cudaSuccess){std::fprintf(stderr,"%s\n",cudaGetErrorString(error));std::exit(2);}}
++void sameBits(double a,double b){assert(std::memcmp(&a,&b,sizeof(double))==0);}
++void runCase(int count,int variant,cudaStream_t stream){
++    std::vector<double> input(count);
++    std::vector<int> status(count);
++    for(int i=0;i<count;++i){input[i]=double(i%53)-17.;status[i]=i%17==3?int(ugkwp::GasTransportCode::InvalidStorage):0;}
++    if(variant==1){for(int i=0;i<count;++i)input[i]=i%2?-0.0:0.0;}
++    if(variant==2 && count){
++        const std::uint64_t first=0x7ff8000000000042ULL,second=0x7ff8000000000137ULL;
++        std::memcpy(&input.front(),&first,sizeof(double));
++        if(count>1)std::memcpy(&input.back(),&second,sizeof(double));
++    }
++    double* field=nullptr;int* deviceStatus=nullptr;
++    check(cudaMalloc(reinterpret_cast<void**>(&field),std::max(count,1)*sizeof(double)));
++    check(cudaMalloc(reinterpret_cast<void**>(&deviceStatus),std::max(count,1)*sizeof(int)));
++    if(count){check(cudaMemcpyAsync(field,input.data(),count*sizeof(double),cudaMemcpyHostToDevice,stream));
++        check(cudaMemcpyAsync(deviceStatus,status.data(),count*sizeof(int),cudaMemcpyHostToDevice,stream));}
++    CoupledCourantStorage storage;
++    const auto first=thrust::make_counting_iterator(0);
++    const CoupledCourantValue initial{-std::numeric_limits<double>::infinity(),false};
++    const auto expected=thrust::transform_reduce(thrust::cuda::par.on(stream),first,first+count,
++        CoupledCourantRead{field,deviceStatus},initial,CoupledCourantReduce{});
++    const auto scalar=thrust::reduce(thrust::cuda::par.on(stream),thrust::device_pointer_cast(field),
++        thrust::device_pointer_cast(field)+count,initial.value,CoupledCourantMaximum{});
++    for(int repeat=0;repeat<100;++repeat){
++        const auto value=thrust::transform_reduce(thrust::cuda::par(storage).on(stream),first,first+count,
++            CoupledCourantRead{field,deviceStatus},initial,CoupledCourantReduce{});
++        sameBits(value.value,expected.value);assert(value.unavailable==expected.unavailable);
++        for(auto byte:value.initializedTail)assert(byte==0);
++        const auto maximum=thrust::reduce(thrust::cuda::par(storage).on(stream),thrust::device_pointer_cast(field),
++            thrust::device_pointer_cast(field)+count,initial.value,CoupledCourantMaximum{});
++        sameBits(maximum,scalar);
++    }
++    check(cudaFree(deviceStatus));check(cudaFree(field));
++}
++int main(){
++    int devices=0;check(cudaGetDeviceCount(&devices));assert(devices>0);
++    {
++        CoupledCourantStorage storage;
++        char* first=storage.allocate(17);storage.deallocate(first,17);
++        char* smaller=storage.allocate(9);assert(first==smaller);
++        char* simultaneous=storage.allocate(17);assert(smaller!=simultaneous);
++        storage.deallocate(smaller,9);storage.deallocate(simultaneous,17);
++        char* grown=storage.allocate(4096);check(cudaMemset(grown,0x5a,4096));storage.deallocate(grown,4096);
++        char* retained=storage.allocate(4096);assert(retained==grown);storage.deallocate(retained,4096);
++        bool failed=false;try{storage.allocate(std::numeric_limits<std::ptrdiff_t>::max());}
++        catch(const std::exception&){failed=true;}assert(failed);
++        char* retry=storage.allocate(17);check(cudaMemset(retry,0,17));storage.deallocate(retry,17);
++    }
++    cudaStream_t stream=nullptr;check(cudaStreamCreateWithFlags(&stream,cudaStreamNonBlocking));
++    for(auto selected:{cudaStream_t{},stream})for(int count:{0,1,31,32,33,513,32768})
++        for(int variant:{0,1,2})runCase(count,variant,selected);
++    check(cudaStreamDestroy(stream));
++    std::puts("CUDA Courant reuse/equivalence PASS");
++}
++'''
+diff --git a/tests/test_effusivity_owner.py b/tests/test_effusivity_owner.py
+index 3eff2a7..3ca17e8 100644
+--- a/tests/test_effusivity_owner.py
++++ b/tests/test_effusivity_owner.py
+@@ -20,7 +20,7 @@ def code(rev=None):
+ def test_missing_owner_canonical_restore_and_l3(tmp_path):
+     h.run_cpp(tmp_path,code()+r'''
+ int main(){DeviceState s,d;s.deviceState=&d;double x[]={-0.,-2};counters();assert(upload(s,1,0,nullptr)==0&&allocations==0&&copies==0&&memsets==0);
+- assert(upload(s,1,2,x)==0);assert(s.particleWallEffusivityByFace&&d.particleWallEffusivityByFace==s.particleWallEffusivityByFace);assert(std::memcmp(s.particleWallEffusivityByFace+1,x,16)==0);assert(allocations==1&&memsets==1&&copies==2&&copiedBytes==sizeof(void*)+16&&syncs==0);auto*p=s.particleWallEffusivityByFace;
++ assert(upload(s,1,2,x)==0);assert(s.particleWallEffusivityByFace&&d.particleWallEffusivityByFace==s.particleWallEffusivityByFace);assert(std::memcmp(s.particleWallEffusivityByFace+1,x,16)==0);assert(allocations==1&&memsets==0&&copies==3&&copiedBytes==4*sizeof(GpuReal)+sizeof(void*)+16&&syncs==0);auto*p=s.particleWallEffusivityByFace;
+  unsigned char mask[]={0,1,0,0};counters();assert(configure(s,mask)==0);assert(s.particleWallEffusivityByFace==p&&std::memcmp(p+1,x,16)==0);assert(!(s.particleStuckInitialisationPending&(4|2048)));
+  counters();assert(upload(s,1,2,x)==0&&copies==1&&allocations==0&&memsets==0);cleanup(s);assert(live.empty());}
+ ''',[ROOT/'applications/CHT/thermal'])
+@@ -30,7 +30,7 @@ def partial(c):
+ 
+ def test_each_partial_failure_retries_only_unfinished_work(tmp_path):
+     h.run_cpp(tmp_path,partial(code())+r'''
+-int main(){for(int fault=0;fault<4;++fault){DeviceState s,d;s.deviceState=&d;double x[]={-0.,std::nan("23")};counters();if(fault==0)failAlloc=1;if(fault==1)failMemset=1;if(fault==2)failCopy=1;if(fault==3)failCopy=2;
++int main(){for(int fault=0;fault<4;++fault){DeviceState s,d;s.deviceState=&d;double x[]={-0.,std::nan("23")};counters();if(fault==0)failAlloc=1;if(fault==1)failCopy=1;if(fault==2)failCopy=2;if(fault==3)failCopy=3;
+  assert(upload(s,1,2,x)!=0);auto*p=s.particleWallEffusivityByFace;
+  if(fault==0)assert(!p&&live.empty());else assert(p&&live.count(p));
+  if(fault==1)assert((s.particleStuckInitialisationPending&(4|2048))==(4|2048));
+@@ -38,7 +38,7 @@ int main(){for(int fault=0;fault<4;++fault){DeviceState s,d;s.deviceState=&d;dou
+  if(fault==3)assert(!(s.particleStuckInitialisationPending&(4|2048)));
+  counters();assert(upload(s,0,0,nullptr)==0&&allocations==0&&memsets==0&&copies==0);
+  assert(upload(s,1,2,x)==0);assert(s.particleWallEffusivityByFace==(p?p:s.particleWallEffusivityByFace));assert(d.particleWallEffusivityByFace==s.particleWallEffusivityByFace);assert(std::memcmp(s.particleWallEffusivityByFace+1,x,16)==0);
+- assert(allocations==(fault==0));assert(memsets==(fault<=1));assert(copies==(fault<=2?2:1));assert(syncs==0);
++ assert(allocations==(fault==0));assert(memsets==0);assert(copies==(fault<=1?3:fault==2?2:1));assert(syncs==0);
+  std::cout<<"RETRY "<<fault<<" "<<allocations<<" "<<memsets<<" "<<copies<<" "<<copiedBytes<<"\n";cleanup(s);assert(live.empty());}
+  DeviceState s,d;s.deviceState=&d;counters();assert(upload(s,1,2,nullptr)!=0&&allocations==0&&copies==0);}
+ ''',[ROOT/'applications/CHT/thermal'])
+diff --git a/tests/test_pr14_fast_cold_initialization_cuda.py b/tests/test_pr14_fast_cold_initialization_cuda.py
+new file mode 100644
+index 0000000..9ccfb3d
+--- /dev/null
++++ b/tests/test_pr14_fast_cold_initialization_cuda.py
+@@ -0,0 +1,22 @@
++"""Opt-in actual CUDA regression; compilation alone does not establish GPU results."""
++from pathlib import Path
++import os
++import subprocess
++import sys
++
++import pytest
++
++ROOT = Path(__file__).resolve().parents[1]
++
++
++@pytest.mark.parametrize("app", ["CHT", "FSH"])
++def test_pr14_fast_actual_cold_initialization_cuda(tmp_path, app):
++    if os.environ.get("PR14_FAST_GPU_TESTS") != "1":
++        pytest.skip("set PR14_FAST_GPU_TESTS=1 on the real CUDA GPU test host")
++    result = subprocess.run(
++        [sys.executable, str(ROOT / "tests/fixtures/pr14_fast_cold/run.py"),
++         str(ROOT), str(tmp_path), app],
++        text=True, capture_output=True, timeout=900,
++    )
++    assert result.returncode == 0, result.stdout + result.stderr
++    assert "PASS actual CUDA cold-wall initialization and owner lifetime" in result.stdout
+diff --git a/tests/test_stuck_owner_lifecycle.py b/tests/test_stuck_owner_lifecycle.py
+index 9ccb629..57e6320 100644
+--- a/tests/test_stuck_owner_lifecycle.py
++++ b/tests/test_stuck_owner_lifecycle.py
+@@ -31,6 +31,7 @@ def code(app,revision=None):
+     cuda=cuda.replace('++allocations;if(allocations==failAlloc)', '++allocations;events.push_back("alloc "+std::to_string(n));if(allocations==failAlloc)')
+     cuda=cuda.replace('void counters(){','void counters(){events.clear();',1)
+     cuda+=r'''
++constexpr int cudaErrorMemoryAllocation=2;
+ int hostBuffers=0;size_t hostFilledBytes=0;
+ template<class T>struct CountingAllocator:std::allocator<T>{template<class U>struct rebind{using other=CountingAllocator<U>;};T*allocate(size_t n){++hostBuffers;return std::allocator<T>::allocate(n);}};
+ template<class T>struct CountedVector:std::vector<T,CountingAllocator<T>>{explicit CountedVector(size_t n,T v=T{}):std::vector<T,CountingAllocator<T>>(n,v){hostFilledBytes+=n*sizeof(T);}};
+@@ -58,7 +59,7 @@ int syncDeviceState(DeviceState*s,const char*){return cudaMemcpy(s->deviceState,
+     common=common.replace('int syncDeviceState(DeviceState*s,const char*){return cudaMemcpy(s->deviceState,s,sizeof(*s),1);}',h.block(src,'int syncDeviceState('))
+     if app=='CHT':common+=h.block(src,'extern "C" int ugkpPrepareParticleWallEnergyRestore')+'\n'
+     for helper in ['int acquireParticleWallEffusivity(', 'cudaError_t initialiseParticleWallEffusivity(']:
+-        if helper in src:common+=h.block(src,helper)+'\n'
++        if helper in src:common+=h.block(src,helper).replace('std::vector<', 'CountedVector<')+'\n'
+ 
+     call='20,heat,.63,1,1,1,'+('1800,710,100,' if app=='FSH' else '')+'145,0,12,2300,20,100000,2500,1000,20,.5,0'
+     post='int configure(DeviceState&s,const unsigned char*m,int heat=1){return ugkwpGpuResidentStrictConfigureParticleStuckModel(&s,4,m,'+call+');}\n'
+@@ -101,7 +102,37 @@ int main(){for(int model=0;model<5;++model)for(int heat:{0,1}){if(model==0&&heat
+     result={}
+     for label,revision in [('old',BASE),('current',None)]:
+         d=tmp_path/label;d.mkdir();result[label]=h.run_cpp(d,code(app,revision)+main,[ROOT/'common',ROOT/f'applications/{app}/thermal'])
+-    assert result['old']==result['current']
++    if app == 'FSH':
++        assert result['old'] == result['current']
++    else:
++        # F002 intentionally changes the first face-owner initialization from
++        # zeroing device storage to one scalar-filled H2D transfer. This owner
++        # fixture supplies zero scalar material, so all data hashes still match;
++        # the real-material behavior is covered by the actual CUDA regression.
++        before, after = result['old'].splitlines(), result['current'].splitlines()
++        assert len(before) == len(after)
++        heat = False
++        replacements = 0
++        for old, current in zip(before, after):
++            if old.startswith('CASE '):
++                a, b = old.split(), current.split()
++                heat = a[2] == '1'
++                if heat:
++                    # allocations stay fixed, one memset becomes one H2D copy,
++                    # and exactly one temporary four-face host buffer is filled.
++                    assert int(b[5]) == int(a[5]) + 1
++                    assert int(b[6]) == int(a[6]) + 1
++                    assert int(b[7]) == int(a[7]) - 1
++                    assert int(b[8]) == int(a[8]) - 4*8
++                    assert int(b[10]) == int(a[10]) + 1
++                    assert int(b[11]) == int(a[11]) + 4*8
++                    for i in (5, 6, 7, 8, 10, 11):
++                        b[i] = a[i]
++                assert a == b
++            elif old != current:
++                assert heat and old == 'OP zero 32' and current == 'OP copy 1 32'
++                replacements += 1
++        assert replacements == 4
+     (tmp_path/'first-success-parity.json').write_text(json.dumps(result,indent=2))
+ 
+ 
+@@ -137,12 +168,12 @@ int main(){unsigned char mixed[]={0,3,4,0};for(int kind=0;kind<4;++kind)for(int
+ def test_partial_publication_retains_owners_and_retries(tmp_path,app):
+     partial=code(app).replace('if(copies==failCopy)return 1;', 'if(copies==failCopy){std::memcpy(d,s,n-8);return 1;}')
+     h.run_cpp(tmp_path,partial+r'''
+-int main(){DeviceState s,d;s.deviceState=&d;unsigned char mixed[]={0,3,4,0};counters();failCopy=4;
++int main(){DeviceState s,d;s.deviceState=&d;unsigned char mixed[]={0,3,4,0};counters();failCopy=PUBLICATION_COPY;
+  assert(configure(s,mixed)!=0);auto before=pointers(s);auto device=pointers(d);for(size_t i=0;i+1<device.size();++i)assert(device[i]==before[i]);
+- for(auto*p:device)if(p)assert(live.count(p));assert(s.particleStuckInitialisationPending==0);
++ for(auto*p:device)if(p)assert(live.count(p));assert(s.particleStuckInitialisationPending==PUBLICATION_PENDING);
+  counters();assert(configure(s,mixed)==0);assert(before==pointers(s));assert(allocations==0&&memsets==0&&hostBuffers==0);
+  assert(h2d==EXPECTED);cleanup(s);assert(live.empty());}
+-'''.replace('EXPECTED','3' if app=='CHT' else '2'),[ROOT/'common',ROOT/f'applications/{app}/thermal'])
++'''.replace('EXPECTED','3' if app=='CHT' else '2').replace('PUBLICATION_COPY', '5' if app=='CHT' else '4').replace('PUBLICATION_PENDING', '0x800' if app=='CHT' else '0'),[ROOT/'common',ROOT/f'applications/{app}/thermal'])
+ 
+ 
+ @pytest.mark.parametrize('app',['CHT','FSH'])

@@ -1,0 +1,46 @@
+/*--------------------------------*- C++ -*----------------------------------*\
+  =========                 |
+  \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
+   \\    /   O peration     | Website:  https://openfoam.org
+    \\  /    A nd           | Version:  10
+     \\/     M anipulation  |
+\*---------------------------------------------------------------------------*/
+FoamFile
+{
+    format      ascii;
+    class       dictionary;
+    location    "3e-06";
+    object      thermalExchangeState;
+}
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
+formatVersion   4;
+
+initialState    false;
+
+exchangeSequence "3";
+
+completedTimeIndex 3;
+
+completedSimulationTimeS 3.0000000000000001e-06;
+
+completedRadiationSimulationTimeS 0;
+
+previousExchangeSimulationTimeS 1.9999999999999999e-06;
+
+gasWallLedgerConsumed true;
+
+particleWallLedgerConsumed true;
+
+particleRadiationApplied true;
+
+solidStateUpdated true;
+
+wallTemperatureUploaded true;
+
+particleMomentsRebuilt true;
+
+particleContactEnergyJ 9.4346474099806039e-05;
+
+
+// ************************************************************************* //
