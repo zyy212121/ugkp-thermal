@@ -1,0 +1,491 @@
+{
+  "classification": "OFFLINE_TEST_INPUT_TRIAGE",
+  "new_GPU_runs": 0,
+  "source_base": "f5e6c5e2cbde2693f5fa811d874c200b07bbbc66",
+  "original_authoritative_input": {
+    "path": "review/pr14/reviewer-deliveries/20261013T182722Z-fast/inputs/native/resident/CHT-coldWall2D-INPUT2/0/gpuResidentStrictParticles.dat",
+    "sha256": "ac1f28c2576f17ba57bd7fbe68a8f903fb01362cad5c9f2b07b489274f549cf8",
+    "content": "UGKP_PARTICLES_SCHEMA3 1\n0.02 0.02 5e-7 0 0 -5 2373.15 0 0.005 0 1 123456789 0 0 -1 0\n",
+    "columns": [
+      "x",
+      "y",
+      "z",
+      "ux",
+      "uy",
+      "uz",
+      "T",
+      "theta",
+      "d",
+      "cell",
+      "status",
+      "rng",
+      "orig_id",
+      "stuck",
+      "stuckFaceId",
+      "depositionArea"
+    ],
+    "actual_initial_z": 5e-07,
+    "actual_initial_uz": -5,
+    "native_reader": "applications/CHT/gpu/GpuResidentStrict.H:2607-2615,2815-2825,2885-2916; applications/FSH/gpu/GpuResidentStrict.H:1945-1953,2147-2157",
+    "mass_source": "unchanged constant/particleProperties parcelMass 1.9054628487089897e-4; not an ASCII SCHEMA3 row column"
+  },
+  "important_correction": "0/Us prescribes -10 but this explicit restart is authoritative and supplies -5. Preserve actual original restart -5 and z5e-7 in new witness; do not change to -10 or use current binary iter_chunks on the ASCII file.",
+  "support_root_cause": "FAST2 inputs/r2_groups_explicit.py:10-15 copies actual committed S211 1e-6 wall-contact state with zero current velocity then clears stuck state, face and contact durations, producing mobile particles with zero initial velocity. S214 corrects cell/orig_id only. All observed S214 particles remain mobile; the cold profile is inactive.",
+  "original_S211_record_summary": {
+    "CHT": {
+      "path": "review/pr14/reviewer-deliveries/20261014T072053Z-fast/artifacts/resident/CHT-cold2D-fullgroups-S211/1e-06/gpuResidentStrictParticles.dat",
+      "sha256": "66c81a69912447cf9181a52ebda636775a93320c69f63dbfdbd480510a871a13",
+      "pStuck": [
+        3
+      ],
+      "pStuckFaceId": [
+        384
+      ],
+      "puz": [
+        0.0
+      ],
+      "puzOld": [
+        2.4999999417378476
+      ],
+      "pContactDuration": [
+        0.006646106291838649
+      ],
+      "pT": [
+        2373.1499520863576
+      ]
+    },
+    "FSH": {
+      "path": "review/pr14/reviewer-deliveries/20261014T072053Z-fast/artifacts/resident/FSH-cold2D-fullgroups-S211/1e-06/gpuResidentStrictParticles.dat",
+      "sha256": "1b261061fb853edadccb2ab00f04877a2b7c1152c0d8b98441ef74ba2281263b",
+      "pStuck": [
+        3
+      ],
+      "pStuckFaceId": [
+        384
+      ],
+      "puz": [
+        0.0
+      ],
+      "puzOld": [
+        2.4999999417378476
+      ],
+      "pContactDuration": [
+        0.006646106291838578
+      ],
+      "pT": [
+        2373.1499520861535
+      ]
+    }
+  },
+  "new_fixture_recipe": {
+    "header": "UGKP_PARTICLES_SCHEMA3 16",
+    "changes_only": [
+      "x=.02+.04*(i%4)",
+      "y=.02+.04*(i//4)",
+      "cell=i",
+      "orig_id=i+1"
+    ],
+    "preserve": "Original ASCII row z, incident velocity, T, theta, diameter, status, RNG, mobile/stuckFace/area and unchanged parcelMass; original material properties/mesh dimensions per cell/endTime1e-5/dt1e-6/profile threshold1e-9. Existing absent cold/contact/carry fields receive native loader defaults.",
+    "required_observation": "Actual count16 throughout; valid real contact face/cell directory and complete8lane groups; active cold profiles and positive subsequent thermal ages; original active profile/carry inverse1e-9 and paired gas ledger. Original S214 red stays unchanged."
+  },
+  "production_authority": "common/GpuParticleCaloricDevice.cuh:5-12,27-37 ignores cold profile for mobile; common/wall/GpuColdWall2DDevice.cuh:714-745 selects nonmobile valid wall entries. Do not change production to synchronize inactive profiles.",
+  "formal_test_generator": "No same S213 reset found in tests/fixtures/pr14_fast_cold/initialization.cu; it is a four-parcel initialization fixture, not the faulty16-parcel evidence helper.",
+  "readback": [
+    {
+      "app": "CHT",
+      "time": "input",
+      "source": "review/pr14/reviewer-deliveries/20261014T072053Z-fast/inputs/native/resident/CHT-cold2D-valid16-S214/0/gpuResidentStrictParticles.dat",
+      "sha256": "2f8795cfa3a922a202b61b607b39300557e7740e15065bc778a1b07bf6f91adc",
+      "count": 16,
+      "all_mobile": true,
+      "all_no_stuck_face": true,
+      "cold2D_positive_age_count": 0,
+      "velocity_z_minmax": [
+        0.0,
+        0.0
+      ],
+      "position_z_minmax": [
+        1e-06,
+        1e-06
+      ]
+    },
+    {
+      "app": "CHT",
+      "time": "1e-06",
+      "source": "review/pr14/reviewer-deliveries/20261014T072053Z-fast/artifacts/resident/CHT-cold2D-valid16-S214/1e-06/gpuResidentStrictParticles.dat",
+      "sha256": "56a91a3c70773e8eb1962a5ceff7fbc7336db58b6666a8519232b4e794417bcd",
+      "count": 16,
+      "all_mobile": true,
+      "all_no_stuck_face": true,
+      "cold2D_positive_age_count": 0,
+      "velocity_z_minmax": [
+        -6.866633584467926e-07,
+        -6.866633584284881e-07
+      ],
+      "position_z_minmax": [
+        9.999996566683208e-07,
+        9.999996566683208e-07
+      ]
+    },
+    {
+      "app": "CHT",
+      "time": "2e-06",
+      "source": "review/pr14/reviewer-deliveries/20261014T072053Z-fast/artifacts/resident/CHT-cold2D-valid16-S214/2e-06/gpuResidentStrictParticles.dat",
+      "sha256": "5523da9a3bed309701971a743435cd964f212bec88cb3b4d69df2fc7f826da8e",
+      "count": 16,
+      "all_mobile": true,
+      "all_no_stuck_face": true,
+      "cold2D_positive_age_count": 0,
+      "velocity_z_minmax": [
+        -6.007696319674721e-07,
+        -6.007695295533875e-07
+      ],
+      "position_z_minmax": [
+        9.999990129518257e-07,
+        9.999990129518768e-07
+      ]
+    },
+    {
+      "app": "CHT",
+      "time": "3e-06",
+      "source": "review/pr14/reviewer-deliveries/20261014T072053Z-fast/artifacts/resident/CHT-cold2D-valid16-S214/3e-06/gpuResidentStrictParticles.dat",
+      "sha256": "1d1ec994df977b72c57cbe09cc8a78de6e8d4948af9cde39a92f5af331bd7b07",
+      "count": 16,
+      "all_mobile": true,
+      "all_no_stuck_face": true,
+      "cold2D_positive_age_count": 0,
+      "velocity_z_minmax": [
+        6.58413135253723e-08,
+        6.584150918241583e-08
+      ],
+      "position_z_minmax": [
+        9.999987454876665e-07,
+        9.999987454878666e-07
+      ]
+    },
+    {
+      "app": "CHT",
+      "time": "4e-06",
+      "source": "review/pr14/reviewer-deliveries/20261014T072053Z-fast/artifacts/resident/CHT-cold2D-valid16-S214/4e-06/gpuResidentStrictParticles.dat",
+      "sha256": "f1c71f9f9e4730a13acec4a2697b6aa18025ad2ed0f32addbe16fef298508c85",
+      "count": 16,
+      "all_mobile": true,
+      "all_no_stuck_face": true,
+      "cold2D_positive_age_count": 0,
+      "velocity_z_minmax": [
+        1.1381621229881668e-06,
+        1.1381623586551626e-06
+      ],
+      "position_z_minmax": [
+        9.999993474893847e-07,
+        9.999993474898004e-07
+      ]
+    },
+    {
+      "app": "CHT",
+      "time": "5e-06",
+      "source": "review/pr14/reviewer-deliveries/20261014T072053Z-fast/artifacts/resident/CHT-cold2D-valid16-S214/5e-06/gpuResidentStrictParticles.dat",
+      "sha256": "4b8d1f15e65f863f6dc5eb189fb48778ad0df567fc424379731a13fb792684be",
+      "count": 16,
+      "all_mobile": true,
+      "all_no_stuck_face": true,
+      "cold2D_positive_age_count": 0,
+      "velocity_z_minmax": [
+        2.4610146666860334e-06,
+        2.4610148635066198e-06
+      ],
+      "position_z_minmax": [
+        1.0000011470777796e-06,
+        1.0000011470784115e-06
+      ]
+    },
+    {
+      "app": "CHT",
+      "time": "6e-06",
+      "source": "review/pr14/reviewer-deliveries/20261014T072053Z-fast/artifacts/resident/CHT-cold2D-valid16-S214/6e-06/gpuResidentStrictParticles.dat",
+      "sha256": "04d1c41deffaea3bd2ad9130ebaa1420ece0f1408c46891936a5157d2177e816",
+      "count": 16,
+      "all_mobile": true,
+      "all_no_stuck_face": true,
+      "cold2D_positive_age_count": 0,
+      "velocity_z_minmax": [
+        3.900486596771539e-06,
+        3.900486746852522e-06
+      ],
+      "position_z_minmax": [
+        1.000004327828431e-06,
+        1.0000043278291964e-06
+      ]
+    },
+    {
+      "app": "CHT",
+      "time": "7e-06",
+      "source": "review/pr14/reviewer-deliveries/20261014T072053Z-fast/artifacts/resident/CHT-cold2D-valid16-S214/7e-06/gpuResidentStrictParticles.dat",
+      "sha256": "e562c8c8f41f26dcf6021cf5d2d8df9ea8ce61ef2577d1d72c6446d0e1034a2b",
+      "count": 16,
+      "all_mobile": true,
+      "all_no_stuck_face": true,
+      "cold2D_positive_age_count": 0,
+      "velocity_z_minmax": [
+        5.345925016568811e-06,
+        5.345925362712699e-06
+      ],
+      "position_z_minmax": [
+        1.0000089510343808e-06,
+        1.0000089510351126e-06
+      ]
+    },
+    {
+      "app": "CHT",
+      "time": "8e-06",
+      "source": "review/pr14/reviewer-deliveries/20261014T072053Z-fast/artifacts/resident/CHT-cold2D-valid16-S214/8e-06/gpuResidentStrictParticles.dat",
+      "sha256": "1c01781ffe0b4f7ab4370433534bd7fe5e540cadec299474e1ba5691426d24ff",
+      "count": 16,
+      "all_mobile": true,
+      "all_no_stuck_face": true,
+      "cold2D_positive_age_count": 0,
+      "velocity_z_minmax": [
+        6.7112154187413495e-06,
+        6.711216031440769e-06
+      ],
+      "position_z_minmax": [
+        1.0000149796048594e-06,
+        1.0000149796056107e-06
+      ]
+    },
+    {
+      "app": "CHT",
+      "time": "9e-06",
+      "source": "review/pr14/reviewer-deliveries/20261014T072053Z-fast/artifacts/resident/CHT-cold2D-valid16-S214/9e-06/gpuResidentStrictParticles.dat",
+      "sha256": "e0c87a4f5c2049c75023c598ae81d3b3ee3db46ab6d02673cdadf7407581fcfd",
+      "count": 16,
+      "all_mobile": true,
+      "all_no_stuck_face": true,
+      "cold2D_positive_age_count": 0,
+      "velocity_z_minmax": [
+        7.9348285890703e-06,
+        7.934829506634375e-06
+      ],
+      "position_z_minmax": [
+        1.0000223026268634e-06,
+        1.0000223026282718e-06
+      ]
+    },
+    {
+      "app": "CHT",
+      "time": "1e-05",
+      "source": "review/pr14/reviewer-deliveries/20261014T072053Z-fast/artifacts/resident/CHT-cold2D-valid16-S214/1e-05/gpuResidentStrictParticles.dat",
+      "sha256": "c16630ed8d302e2be2fbaa2ebbd83afac7df023f28368d51657abb2a705ba87f",
+      "count": 16,
+      "all_mobile": true,
+      "all_no_stuck_face": true,
+      "cold2D_positive_age_count": 0,
+      "velocity_z_minmax": [
+        8.978560826797892e-06,
+        8.978562064726961e-06
+      ],
+      "position_z_minmax": [
+        1.0000307593215714e-06,
+        1.0000307593240575e-06
+      ]
+    },
+    {
+      "app": "FSH",
+      "time": "input",
+      "source": "review/pr14/reviewer-deliveries/20261014T072053Z-fast/inputs/native/resident/FSH-cold2D-valid16-S214/0/gpuResidentStrictParticles.dat",
+      "sha256": "5dd55d801fb383538be2d47fde53733c901dd18e256b12f2a647619cd423dad5",
+      "count": 16,
+      "all_mobile": true,
+      "all_no_stuck_face": true,
+      "cold2D_positive_age_count": 0,
+      "velocity_z_minmax": [
+        0.0,
+        0.0
+      ],
+      "position_z_minmax": [
+        1e-06,
+        1e-06
+      ]
+    },
+    {
+      "app": "FSH",
+      "time": "1e-06",
+      "source": "review/pr14/reviewer-deliveries/20261014T072053Z-fast/artifacts/resident/FSH-cold2D-valid16-S214/1e-06/gpuResidentStrictParticles.dat",
+      "sha256": "1e2496be274ce1e543e6fbb77b8f89697a6fcfc5a66f220bf1ef39dfb025c253",
+      "count": 16,
+      "all_mobile": true,
+      "all_no_stuck_face": true,
+      "cold2D_positive_age_count": 0,
+      "velocity_z_minmax": [
+        -6.866633584432675e-07,
+        -6.866633584294304e-07
+      ],
+      "position_z_minmax": [
+        9.999996566683208e-07,
+        9.999996566683208e-07
+      ]
+    },
+    {
+      "app": "FSH",
+      "time": "2e-06",
+      "source": "review/pr14/reviewer-deliveries/20261014T072053Z-fast/artifacts/resident/FSH-cold2D-valid16-S214/2e-06/gpuResidentStrictParticles.dat",
+      "sha256": "014f95d8bc262ebd5d3abf9d530379efd6920594a114dd0b584a05d1f50a4039",
+      "count": 16,
+      "all_mobile": true,
+      "all_no_stuck_face": true,
+      "cold2D_positive_age_count": 0,
+      "velocity_z_minmax": [
+        -6.007696289289517e-07,
+        -6.007695265102821e-07
+      ],
+      "position_z_minmax": [
+        9.999990129518272e-07,
+        9.999990129518784e-07
+      ]
+    },
+    {
+      "app": "FSH",
+      "time": "3e-06",
+      "source": "review/pr14/reviewer-deliveries/20261014T072053Z-fast/artifacts/resident/FSH-cold2D-valid16-S214/3e-06/gpuResidentStrictParticles.dat",
+      "sha256": "65b013fd882d73a792d31f8667abdb9f3006b9fa1834b97ce46e4208e5152945",
+      "count": 16,
+      "all_mobile": true,
+      "all_no_stuck_face": true,
+      "cold2D_positive_age_count": 0,
+      "velocity_z_minmax": [
+        6.5841322425298e-08,
+        6.584151809186256e-08
+      ],
+      "position_z_minmax": [
+        9.999987454876739e-07,
+        9.999987454878742e-07
+      ]
+    },
+    {
+      "app": "FSH",
+      "time": "4e-06",
+      "source": "review/pr14/reviewer-deliveries/20261014T072053Z-fast/artifacts/resident/FSH-cold2D-valid16-S214/4e-06/gpuResidentStrictParticles.dat",
+      "sha256": "67c3e6b998834f4ce10c28fbbabb9c09376dbd2d00164fdd84ab1c3a8737de36",
+      "count": 16,
+      "all_mobile": true,
+      "all_no_stuck_face": true,
+      "cold2D_positive_age_count": 0,
+      "velocity_z_minmax": [
+        1.1381621401005155e-06,
+        1.1381623757685566e-06
+      ],
+      "position_z_minmax": [
+        9.99999347489405e-07,
+        9.999993474898212e-07
+      ]
+    },
+    {
+      "app": "FSH",
+      "time": "5e-06",
+      "source": "review/pr14/reviewer-deliveries/20261014T072053Z-fast/artifacts/resident/FSH-cold2D-valid16-S214/5e-06/gpuResidentStrictParticles.dat",
+      "sha256": "78bbab74e36bb87d6cc39330a8d9abbad08245ab89f402e6281b739439da94e6",
+      "count": 16,
+      "all_mobile": true,
+      "all_no_stuck_face": true,
+      "cold2D_positive_age_count": 0,
+      "velocity_z_minmax": [
+        2.461014693811472e-06,
+        2.461014890657035e-06
+      ],
+      "position_z_minmax": [
+        1.000001147077822e-06,
+        1.0000011470784543e-06
+      ]
+    },
+    {
+      "app": "FSH",
+      "time": "6e-06",
+      "source": "review/pr14/reviewer-deliveries/20261014T072053Z-fast/artifacts/resident/FSH-cold2D-valid16-S214/6e-06/gpuResidentStrictParticles.dat",
+      "sha256": "425ae5b8160c2e05296c451fd4f077a041e5c8311e8d851d7bcc0299fea21642",
+      "count": 16,
+      "all_mobile": true,
+      "all_no_stuck_face": true,
+      "cold2D_positive_age_count": 0,
+      "velocity_z_minmax": [
+        3.900486635187943e-06,
+        3.900486785347661e-06
+      ],
+      "position_z_minmax": [
+        1.0000043278285059e-06,
+        1.000004327829272e-06
+      ]
+    },
+    {
+      "app": "FSH",
+      "time": "7e-06",
+      "source": "review/pr14/reviewer-deliveries/20261014T072053Z-fast/artifacts/resident/FSH-cold2D-valid16-S214/7e-06/gpuResidentStrictParticles.dat",
+      "sha256": "2fe45c4398bda936d9c5c060aa5bb49aa5460026f648825429264caad5a67f24",
+      "count": 16,
+      "all_mobile": true,
+      "all_no_stuck_face": true,
+      "cold2D_positive_age_count": 0,
+      "velocity_z_minmax": [
+        5.345925067025392e-06,
+        5.3459254132273365e-06
+      ],
+      "position_z_minmax": [
+        1.0000089510345002e-06,
+        1.0000089510352327e-06
+      ]
+    },
+    {
+      "app": "FSH",
+      "time": "8e-06",
+      "source": "review/pr14/reviewer-deliveries/20261014T072053Z-fast/artifacts/resident/FSH-cold2D-valid16-S214/8e-06/gpuResidentStrictParticles.dat",
+      "sha256": "277b9e7a73ceac4f29c0ee09ea46ed7aade079eceec85b7519ec6ed4e303a00c",
+      "count": 16,
+      "all_mobile": true,
+      "all_no_stuck_face": true,
+      "cold2D_positive_age_count": 0,
+      "velocity_z_minmax": [
+        6.711215481559213e-06,
+        6.71121609430627e-06
+      ],
+      "position_z_minmax": [
+        1.0000149796050358e-06,
+        1.0000149796057876e-06
+      ]
+    },
+    {
+      "app": "FSH",
+      "time": "9e-06",
+      "source": "review/pr14/reviewer-deliveries/20261014T072053Z-fast/artifacts/resident/FSH-cold2D-valid16-S214/9e-06/gpuResidentStrictParticles.dat",
+      "sha256": "db5c5639a57e3b4b525a89a7bcdfd3332e5cf6d29e489724a5d7b02a80226dc8",
+      "count": 16,
+      "all_mobile": true,
+      "all_no_stuck_face": true,
+      "cold2D_positive_age_count": 0,
+      "velocity_z_minmax": [
+        7.934828664138185e-06,
+        7.93482958173731e-06
+      ],
+      "position_z_minmax": [
+        1.0000223026271086e-06,
+        1.0000223026285177e-06
+      ]
+    },
+    {
+      "app": "FSH",
+      "time": "1e-05",
+      "source": "review/pr14/reviewer-deliveries/20261014T072053Z-fast/artifacts/resident/FSH-cold2D-valid16-S214/1e-05/gpuResidentStrictParticles.dat",
+      "sha256": "89cf403e74788423f4fc711579554122e6c38b694a6b7c39722e6e79a2ec7be0",
+      "count": 16,
+      "all_mobile": true,
+      "all_no_stuck_face": true,
+      "cold2D_positive_age_count": 0,
+      "velocity_z_minmax": [
+        8.97856091369276e-06,
+        8.978562151653158e-06
+      ],
+      "position_z_minmax": [
+        1.0000307593218975e-06,
+        1.0000307593243844e-06
+      ]
+    }
+  ]
+}
