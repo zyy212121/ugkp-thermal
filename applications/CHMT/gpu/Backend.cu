@@ -1,5 +1,6 @@
 #include "gpu/Backend.H"
 #include "gpu/SharedGasDeviceStorage.cuh"
+#include "gpu/CourantReductionStorage.cuh"
 #include "gpu/GasWallMath.H"
 #include "gpu/GasWindowProgram.H"
 #include "gpu/SingleGasContract.H"
@@ -29,6 +30,7 @@ struct Backend {
     ModelConfig model;GasExecutionOptions options;HostState accepted,trial,microBase;
     HostMesh endpointGas,endpointSolid;SurfaceMesh endpointSurface;HostStageGeometry gasStage,solidStage;
     SharedGasDeviceStorage storage;WallProgram program;IntervalHistory history;MaterialDonorReserve reserve;
+    CoupledCourantStorage courantReductionStorage;
     bool poisoned=false;std::string error;
     GasIntervalRecord record;std::vector<GasPrimitive> stageBulk;std::vector<GasGradient> stageGradient;std::vector<GasWallResult> faceRates;std::vector<GasQ> rawInterface;
     Real microDt=0,microTime=0,stageTime=0,stagePacketDt=0;
@@ -371,7 +373,7 @@ bool beginGasWindow(Backend& b,const WallProgram& program,std::string& error){
 struct CoupledCourantMaximum {
     __host__ __device__ double operator()(double a,double b)const{return a!=a?a:b!=b?b:fmax(a,b);}
 };
-struct CoupledCourantValue {double value;bool unavailable;};
+struct CoupledCourantValue {double value;bool unavailable;unsigned char initializedTail[7]{};};
 struct CoupledCourantRead {
     const double* field;const int* status;
     __host__ __device__ CoupledCourantValue operator()(int cell)const{
@@ -402,12 +404,12 @@ static bool currentGasCourant(Backend& b,Real referenceDt,transport::GasCourantM
                 // The existing first maximum traversal also reports actual
                 // unavailable inputs. No separate status transfer/scan/sync.
                 const auto first=thrust::make_counting_iterator(0);
-                const auto reduced=thrust::transform_reduce(thrust::cuda::par.on(stream),first,first+count,
+                const auto reduced=thrust::transform_reduce(thrust::cuda::par(b.courantReductionStorage).on(stream),first,first+count,
                     CoupledCourantRead{field,v.gasSpecies.cellStatus},
                     CoupledCourantValue{-std::numeric_limits<double>::infinity(),false},CoupledCourantReduce{});
                 if(reduced.unavailable){transport::setLastErrorText("current Co consumed input unavailable");return 1;}
                 value=reduced.value;
-            }else value=thrust::reduce(thrust::cuda::par.on(stream),thrust::device_pointer_cast(field),thrust::device_pointer_cast(field)+count,-std::numeric_limits<double>::infinity(),CoupledCourantMaximum{});
+            }else value=thrust::reduce(thrust::cuda::par(b.courantReductionStorage).on(stream),thrust::device_pointer_cast(field),thrust::device_pointer_cast(field)+count,-std::numeric_limits<double>::infinity(),CoupledCourantMaximum{});
         }
         catch(const std::exception& e){transport::setLastErrorText(e.what());return 1;}
         const auto code=cudaGetLastError();if(code!=cudaSuccess){transport::setLastError("gas Courant maximum reduction",code);return 1;}return 0;
