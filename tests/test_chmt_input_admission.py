@@ -57,7 +57,8 @@ def evaluate_probe(rev=None):
     spec=importlib.util.spec_from_file_location('helper',ROOT/'tests/test_native_cleanup.py');helper=importlib.util.module_from_spec(spec);spec.loader.exec_module(helper)
     p='applications/CHMT/materials/CpuMaterialDriver.C';src=subprocess.check_output(['git','show',rev+':'+p],cwd=ROOT,text=True) if rev else (ROOT/p).read_text()
     body=helper.block(src,'    bool evaluate(const HostState&')
-    signature='const HostState&,const PhysicsConfig&,const std::vector<GasPrimitive>&,const std::vector<GasGradient>&,const std::vector<SolidQ>&,const std::vector<FilmQ>&,Real,std::uint64_t,CpuSurfaceResult&,std::string&,const std::vector<Vec3>*,const std::vector<Real>*,const std::vector<GasWallClosureContext>*,bool*'
+    signature='const HostState&,const PhysicsConfig&,const std::vector<GasPrimitive>&,const std::vector<GasGradient>&,const std::vector<SolidQ>&,const std::vector<FilmQ>&,Real,std::uint64_t,CpuSurfaceResult&,std::string&,const std::vector<Real>*,const std::vector<GasWallClosureContext>*,bool*'
+    if rev: signature=signature.replace('std::string&,const std::vector<Real>*','std::string&,const std::vector<Vec3>*,const std::vector<Real>*')
     return r'''
 #include "ablation/CpuSurfaceInterface.H"
 #include "../common/gasTransport/GasMechanismIO.H"
@@ -83,3 +84,10 @@ int main(){using namespace chmt;Driver d;HostState state;PhysicsConfig p;p.gasMo
     d=tmp_path/'admitted';d.mkdir();extra=r'''
  d.mechanism.speciesNames.clear();d.mechanism.mechanismHash=99;assert(d.evaluate(state,p,{},{},{},{},.1,1,result,error));assert(observedHash==99&&observedReactions==d.mechanism.reactions.data());geometryOk=false;int prior=surfaceCalls;assert(!d.evaluate(state,p,{},{},{},{},.1,1,result,error)&&surfaceCalls==prior&&d.terminalWallFailure);geometryOk=true;surfaceOk=false;assert(!d.evaluate(state,p,{},{},{},{},.1,1,result,error));
 ''';build_run(d,evaluate_probe()+main.replace('EXTRA',extra))
+
+
+def test_current_material_surface_interface_after_support_removal(tmp_path):
+    main=r'''
+int main(){using namespace chmt;Driver d;HostState state;PhysicsConfig p;p.gasMode=ugkwp::GasMode::MixtureChemistry;d.mechanism.mechanismHash=17;d.mechanism.speciesNames.resize(Ns);d.mechanism.reactions.resize(1);CpuSurfaceResult result;std::string error;assert(d.evaluate(state,p,{},{},{},{},.1,1,result,error));assert(observedHash==17&&observedReactions==d.mechanism.reactions.data());assert(prepared==1&&sampled==1&&contextCalls==1&&surfaceCalls==1);}
+'''
+    build_run(tmp_path,evaluate_probe()+main)

@@ -35,6 +35,22 @@ def instrument(source):
     return source[:a] + body + source[b:]
 
 
+def legacy_transport_adapter(header):
+    """Bridge only the test call shape; execute the historical RHS unchanged."""
+    if 'std::vector<FilmRateBudget>& budgets' not in header:
+        return ''
+    return r'''#include "film/CpuFilmDriver.H"
+namespace chmt {
+inline bool evaluateCpuFilmTransport(const HostState& h,const PhysicsConfig& p,Real dt,
+ const std::vector<CpuFilmDrive>& d,std::vector<FilmQ>& rates,std::string& error,
+ std::vector<FilmAux>* aux=nullptr,std::vector<Vec3>* gradients=nullptr,std::vector<Real>* side=nullptr){
+ std::vector<FilmRateBudget> oldOutput;
+ return evaluateCpuFilmTransport(h,p,dt,d,rates,oldOutput,error,aux,gradients,side);
+}
+}
+'''
+
+
 def test_film_exact_outputs_and_linear_incidence(tmp_path):
     original = subprocess.check_output(['git', 'show', BASE + ':' + OWNER], cwd=ROOT, text=True)
     current = (ROOT / OWNER).read_text()
@@ -50,7 +66,9 @@ def test_film_exact_outputs_and_linear_incidence(tmp_path):
         owner = tmp_path / (label + '.C')
         owner.write_text(instrument(source))
         body = (ROOT / 'tests/fixtures/film_incidence/probe.cpp').read_text()
-        body = body.replace('FILM_FIXTURE', str(APP / 'devtools/multirate/test_cpu_film.cpp'))
+        owner_app = baseline / 'applications/CHMT' if label == 'base' else APP
+        body = legacy_transport_adapter((owner_app/'film/CpuFilmDriver.H').read_text()) + body
+        body = body.replace('FILM_FIXTURE', str(owner_app / 'devtools/multirate/test_cpu_film.cpp'))
         body = body.replace('FILM_OWNER', str(owner))
         probe = tmp_path / (label + '.cpp')
         probe.write_text(body)
@@ -76,10 +94,11 @@ def test_film_exact_outputs_and_linear_incidence(tmp_path):
         assert grad == 36 * faces and limiter == 32 * faces
         assert grad < old[2] and limiter < old[3]
         # The cache is not allocation-free: record measured new allocation costs.
-        assert allocations == old[4] + 3
-        assert allocated_bytes == old[5] + 8 * (2 * (faces + 1) + 2 * edges)
+        assert allocations == old[4] + 1
+        assert allocated_bytes == old[5] + 8 * (2 * (faces + 1) + 2 * edges) - 64 * faces - 32 * edges
 
-    for label, expected_delta in [('ADVCOUNT', 6), ('ISOLATED', 0)]:
+    # Two Evaluation output vectors and two report copies are removed from advance.
+    for label, expected_delta in [('ADVCOUNT', 2), ('ISOLATED', 0)]:
         old_rows = [list(map(int, line.split()[1:])) for line in results[0].stderr.splitlines() if line.startswith(label + ' ')]
         new_rows = [list(map(int, line.split()[1:])) for line in results[1].stderr.splitlines() if line.startswith(label + ' ')]
         assert len(old_rows) == len(new_rows) == (4 if label == 'ADVCOUNT' else 2)

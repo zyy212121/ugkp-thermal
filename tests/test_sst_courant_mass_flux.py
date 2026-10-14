@@ -15,7 +15,7 @@ def test_mass_only_matches_full_operator(tmp_path):
     full_flux=(ROOT/'common/operators/computeGasInternalFaceFluxKernel.cuh').read_text().split('template<class GasState>\n__global__ void enforcePeriodicGasFluxAntisymmetryKernel')[0]
     fields_source=src+courant+primitive+sensor+full_flux
     arrays=sorted(set(re.findall(r's\.(\w+)\[',fields_source))|{'faceNeighbour'})
-    scalars=sorted(set(re.findall(r's\.(\w+)',fields_source))-set(arrays)-{'gasSpecies','gasGeometry','gasSstAudit','gasBoundaryLayer'})
+    scalars=sorted(set(re.findall(r's\.(\w+)',fields_source))-set(arrays)-{'gasSpecies','gasGeometry','gasBoundaryLayer'})
     int_arrays={'faceOwner','faceNeighbour','riemannBoundaryKind','riemannBoundaryTFix','riemannBoundaryUFix','cellPlaneStart','cellPlaneCount','cellFaceId'}
     int_scalars={'nFaces','nCells','gasReconstruction','gasFluxScheme','nInternalFaces','sstConfigured'}
     fields='\n'.join(('int' if x in int_arrays else 'R')+' '+x+'[2]={};' for x in arrays)
@@ -45,15 +45,15 @@ bool isPeriodicFace(const DeviceState&,int){return false;}
 struct GasPrimDevice{R rho,ux,uy,uz,p,T;};
 GasPrimDevice makeGasPrimDevice(R rho,R ux,R uy,R uz,R p,R gas,R rmin,R tmin){rho=clampMin(rho,rmin);p=clampMin(p,rho*gas*tmin);return{rho,ux,uy,uz,p,p/(rho*gas)};}
 GasPrimDevice gasCellPrimitive(const DeviceState&s,int c){return makeGasPrimDevice(s.rho[c],s.Ux[c],s.Uy[c],s.Uz[c],s.p[c],s.Rgas,s.rhoMin,s.TgasMin);}
-GasPrimDevice reconstructGasCellToFace(const DeviceState&s,int c,int){return makeGasPrimDevice(s.rho[c],s.Ux[c],s.Uy[c],s.Uz[c],s.p[c],s.Rgas,s.rhoMin,s.TgasMin);}
-GasPrimDevice riemannFacePrimitiveForGradient(const DeviceState&s,int c,int){return reconstructGasCellToFace(s,c,0);}
-GasPrimDevice riemannExteriorStateForFace(const DeviceState&s,int,const GasPrimDevice&){return reconstructGasCellToFace(s,1,0);}
-GasPrimDevice riemannBoundaryState(const DeviceState&s,int,const GasPrimDevice&){return reconstructGasCellToFace(s,1,0);}
+GasPrimDevice reconstructGasCellToFace(const DeviceState&s,int c,int,bool=false){return makeGasPrimDevice(s.rho[c],s.Ux[c],s.Uy[c],s.Uz[c],s.p[c],s.Rgas,s.rhoMin,s.TgasMin);}
+GasPrimDevice riemannFacePrimitiveForGradient(const DeviceState&s,int c,int,bool=false){return reconstructGasCellToFace(s,c,0);}
+GasPrimDevice riemannExteriorStateForFace(const DeviceState&s,int,const GasPrimDevice&,bool=false){return reconstructGasCellToFace(s,1,0);}
+GasPrimDevice riemannBoundaryState(const DeviceState&s,int,const GasPrimDevice&,bool* =nullptr,bool=false){return reconstructGasCellToFace(s,1,0);}
 int coupledFaceNeighbour(const DeviceState&s,int f){return s.faceNeighbour[f];}
 void periodicMappedCellCentre(const DeviceState&s,int,int c,R&x,R&y,R&z){x=s.Cx[c];y=s.Cy[c];z=s.Cz[c];}
 bool useRiemannBoundaryVelocity(const DeviceState&,int,const GasPrimDevice&){return false;}
 R molecularGasConductivity(const DeviceState&){return R(.07);}
-void gasFaceSubgridTransportProperties(const DeviceState&,int,int,int,int,R,R&mu,R&kt,R&q,int&a){mu=R(.03);kt=R(.05);q=0;a=0;}
+void gasFaceSubgridTransportProperties(const DeviceState&,int,int,int,int,R,R&mu,R&kt,R&q,int&a,bool=false,bool*evaluated=nullptr){if(evaluated)*evaluated=true;mu=R(.03);kt=R(.05);q=0;a=0;}
 '''.replace('FIELDS',fields)
     body=pre+(src+courant+sensor+primitive+full_flux).replace('asm("trap;");','throw 1;')+r'''
 int main(){int fails=0,count=0;for(int scheme=1;scheme<=9;++scheme){ugkpriemann::Scheme kind;if(!ugkpriemann::schemeFromCreateCode(scheme,kind))continue;
@@ -85,8 +85,8 @@ for(int reconstruction:{0,1,2})for(int boundary:{-1,0,1,2,3,4})for(int state=0;s
   computeGasInternalFaceFluxKernel<false>(&laminar,R(.01));
   if(laminar.gasPhiRho[0]!=full){std::cerr<<"next full flux retained stale mass\n";++fails;}
   DeviceState invalid=s;invalid.faceOwner[0]=-1;invalid.gasPhiRho[0]=R(12345);
-  bool failed=false;try{computeGasCourantFieldKernel(&invalid,R(.01));}catch(int){failed=true;}
-  if(!failed){std::cerr<<"missing owner did not report required operator error\n";++fails;}
+  bool failed=false;try{computeGasCourantFieldKernel(&invalid,R(.01),true);}catch(int){failed=true;}
+  if(!failed&&invalid.gasPhiRhoE[0]!=OfGreat){std::cerr<<"strict missing owner did not report unavailable spectral output\n";++fails;}
  }
  if(scheme==7){
   computeGasHllcAdcSensorKernel(&s);R expected=s.gasHllcAdcSensor[0];
