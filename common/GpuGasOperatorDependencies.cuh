@@ -5,7 +5,6 @@
 #include "gasTransport/GasStateView.H"
 #include "gasTransport/GasBoundaryLayerHost.H"
 #include "gasTransport/GasCapabilities.H"
-#include "gasTransport/GasBudgetAudit.H"
 #include "gasTransport/GasGeometryValidation.H"
 #include "gasTransport/SpeciesDiffusion.H"
 #include "operators/advanceGasChemistryKernel.cuh"

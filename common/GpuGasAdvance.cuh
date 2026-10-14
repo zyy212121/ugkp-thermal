@@ -286,15 +286,6 @@ int advanceGasFluxStage(GasHostState* s, const GasHostPolicy::Time dt, const Gas
         (s->nCells + preparationCellBlock - 1)/preparationCellBlock;
     const int preparationFaceGrid =
         (s->nFaces + preparationFaceBlock - 1)/preparationFaceBlock;
-    using GasDevice=typename std::remove_pointer<decltype(s->deviceState)>::type;
-    if constexpr(ugkwp::GasSstAuditCapability<GasDevice>::value)
-    if(ugkwp::gasSstAuditPreparationRequired(*s)
-        && !ugkwp::gasBoundaryLayerPreparationReusable(*s,dt,simulationTime))
-    {
-        prepareGasSstAuditKernel<<<preparationCellGrid,preparationCellBlock,0,s->gasCaptureStream>>>(s->deviceState);
-        const auto error=cudaGetLastError();
-        if(error!=cudaSuccess){setLastError("prepare SST stage audit",error);return 1;}
-    }
     recoverGasPrimitivesKernel<<<preparationCellGrid, preparationCellBlock, 0, s->gasCaptureStream>>>
     (
         s->deviceState,nativeRefinement);
@@ -553,24 +544,16 @@ struct GasNativeTrialBoundsCapability<Policy,State,std::void_t<
     decltype(Policy::validateTimeStep(std::declval<State*>(),GasHostPolicy::Time{}))>>:std::true_type{};
 
 // Shared source composition: chemistry always uses explicit stage volumes.
-// Audits are copied by the storage policy before the next half overwrites them.
 template<class TrialPolicy,class GasHostState>
 int prepareGasTrialTransport(GasHostState* s,const GasHostPolicy::Time dt,
     const GasHostPolicy::Time simulationTime=GasHostPolicy::Time(0),
     const bool nativeRefinement=false)
 {
+    using GasDevice=typename std::remove_pointer<decltype(s->deviceState)>::type;
     if constexpr (ugkwp::GasStateTraits<GasHostState>::speciesCount > 0)
     {
         {
             const int block=s->fixedCellBlockThreads,grid=(s->nCells+block-1)/block;
-            using GasDevice=typename std::remove_pointer<decltype(s->deviceState)>::type;
-            if constexpr(ugkwp::GasSstAuditCapability<GasDevice>::value)
-            if(ugkwp::gasSstAuditPreparationRequired(*s))
-            {
-                prepareGasSstAuditKernel<<<grid,block,0,s->gasCaptureStream>>>(s->deviceState);
-                const auto error=cudaGetLastError();
-                if(error!=cudaSuccess){setLastError("prepare SST inventory audit",error);return 1;}
-            }
             const bool chemistry=s->gasSpecies.mode==ugkwp::GasMode::MixtureChemistry;
             if(chemistry)
             {
@@ -613,7 +596,6 @@ int prepareGasTrialTransport(GasHostState* s,const GasHostPolicy::Time dt,
                 }
             }
             if(validateGasTrialState<TrialPolicy>(s,nativeRefinement,0)!=0)return 1;
-            if(chemistry && TrialPolicy::captureChemistryAudit(s,false)!=0)return 1;
             if constexpr(GasNativeTrialBoundsCapability<TrialPolicy,GasHostState>::value)
             if(nativeRefinement)
             {
@@ -694,7 +676,6 @@ int finaliseGasTrialSources(GasHostState* s,const GasHostPolicy::Time dt,
             const auto error=cudaGetLastError();
             if(error!=cudaSuccess){setLastError("post-source mixture recovery",error);return 1;}
             if(validateGasTrialState<TrialPolicy>(s,nativeRefinement,0)!=0)return 1;
-            if(chemistry && TrialPolicy::captureChemistryAudit(s,true)!=0)return 1;
         }
     }
     return 0;
