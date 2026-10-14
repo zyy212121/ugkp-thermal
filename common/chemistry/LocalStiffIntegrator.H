@@ -169,7 +169,11 @@ template<bool RetryTrial=false,class R,int N,class TableReal,class Time> UGKWP_G
  if(terminalInterval || !gasFinite(base.internalEnergy)){status.code=ChemistryCode::NonFiniteInput;if(RetryTrial)return status;}
  R temperature=!RetryTrial && controls.thermo.maximumIterations<=0?gasThermoDetail::invalidValue<R>():R(0);bool temperatureAvailable=false;
  status.thermoCode=invertMixtureEnergy<RetryTrial>(base.speciesMass,base.internalEnergy,t,controls.thermo,temperature,&temperatureAvailable);
- if(status.thermoCode!=ThermoStatus::Success){status.code=ChemistryCode::TemperatureFailure;if(RetryTrial || !temperatureAvailable)return status;}
+ if(status.thermoCode!=ThermoStatus::Success){
+   status.code=RetryTrial && status.thermoCode==ThermoStatus::InvalidModel
+     ?ChemistryCode::InvalidModel:ChemistryCode::TemperatureFailure;
+   if(RetryTrial || !temperatureAvailable)return status;
+ }
  ClosedReactorInput<R,N> current=base;ClosedReactorResult<R,N> accepted;for(int s=0;s<N;++s)accepted.speciesMass[s]=base.speciesMass[s];accepted.temperature=temperature;
  ChemistryAudit<R,N> localAudit;Time covered=0;
  ReactorContext<R,N,TableReal> context(current,t,m,controls);
@@ -184,22 +188,25 @@ template<bool RetryTrial=false,class R,int N,class TableReal,class Time> UGKWP_G
  }
  Time h=controls.initialStep>R(0)?minValue(interval,Time(controls.initialStep)):interval;if(controls.maximumStep>R(0))h=minValue(h,Time(controls.maximumStep));
  bool terminalPending=terminalInterval;
+ // Preserve the failed producer when a later effort boundary ends this trial.
+ // These diagnostics do not alter the step arithmetic or publication decision.
+ ChemistryStatus rejectedDiagnostic;
  if(terminalInterval)h=interval;
  while(covered<interval || terminalPending){
    if(status.attemptedSteps>=controls.maximumSteps){
-     if(RetryTrial){status.code=ChemistryCode::StepLimit;return status;}
+     if(RetryTrial){status.code=ChemistryCode::StepLimit;status.reaction=rejectedDiagnostic.reaction;status.thermoCode=rejectedDiagnostic.thermoCode;return status;}
      if(context.refinement)h=interval-covered;
      context.refinement=false;
    }
    if(!terminalPending)h=minValue(h,interval-covered);
    if(!terminalPending && (!(h>Time(0)) || covered+h==covered)){
-     if(RetryTrial){status.code=ChemistryCode::StepUnderflow;return status;}
+     if(RetryTrial){status.code=ChemistryCode::StepUnderflow;status.reaction=rejectedDiagnostic.reaction;status.thermoCode=rejectedDiagnostic.thermoCode;return status;}
      // Execute the actual remaining interval. Do not move the clock to invent
      // an endpoint for a step whose duration rounded away.
      context.refinement=false;h=interval-covered;
    }
    if(h<controls.minimumStep && h<interval-covered){
-     if(RetryTrial){status.code=ChemistryCode::StepUnderflow;return status;}
+     if(RetryTrial){status.code=ChemistryCode::StepUnderflow;status.reaction=rejectedDiagnostic.reaction;status.thermoCode=rejectedDiagnostic.thermoCode;return status;}
      if(context.refinement)h=interval-covered;
      context.refinement=false;
    }
@@ -212,21 +219,22 @@ template<bool RetryTrial=false,class R,int N,class TableReal,class Time> UGKWP_G
    if(!context.refinement){retainDiagnostic(status,diagnostic);if(!stepAvailable)return status;}
    R error=stepAvailable?stepError(current,full,end,controls):R(2);
    if(!stepAvailable || (context.refinement && (!gasFinite(error) || error>R(1)))){
-     ++status.rejectedSteps;
+     ++status.rejectedSteps;rejectedDiagnostic=trial;
      if(status.rejectedSteps>controls.maximumRejectedSteps){
-       if(RetryTrial){status.code=trial?ChemistryCode::StepLimit:trial.code;status.reaction=trial.reaction;return status;}
+       if(RetryTrial){status.code=trial?ChemistryCode::StepLimit:trial.code;status.reaction=trial.reaction;status.thermoCode=trial.thermoCode;return status;}
        if(context.refinement){context.refinement=false;h=interval-covered;continue;}
      }
      R factor=trial && gasFinite(error)?maxValue(R(.1),R(.8)*R(::pow(error,R(-1)/R(3)))):R(.25);h*=minValue(R(.5),factor);
      if(h<controls.minimumStep){
-       if(RetryTrial){status.code=ChemistryCode::StepUnderflow;return status;}
+       if(RetryTrial){status.code=ChemistryCode::StepUnderflow;status.reaction=trial.reaction;status.thermoCode=trial.thermoCode;return status;}
        if(context.refinement){context.refinement=false;h=interval-covered;continue;}
      }
      if(!(h>Time(0))){
-       if(RetryTrial){status.code=trial?ChemistryCode::StepUnderflow:trial.code;status.reaction=trial.reaction;return status;}
+       if(RetryTrial){status.code=trial?ChemistryCode::StepUnderflow:trial.code;status.reaction=trial.reaction;status.thermoCode=trial.thermoCode;return status;}
        context.refinement=false;h=interval-covered;
      }continue;
    }
+   rejectedDiagnostic=ChemistryStatus{};
    accepted=end;for(int s=0;s<N;++s)current.speciesMass[s]=end.speciesMass[s];temperature=end.temperature;
    covered+=h;terminalPending=false;++localAudit.acceptedSteps;localAudit.maximumLocalError=gasFinite(error)?maxValue(localAudit.maximumLocalError,error):gasThermoDetail::invalidValue<R>();
    R factor=error>R(0)?minValue(R(3),maxValue(R(.25),R(.9)*R(::pow(error,R(-1)/R(3))))):R(3);if(context.refinement || (gasFinite(error) && error<=R(1)))h*=factor;if(controls.maximumStep>R(0))h=minValue(h,Time(controls.maximumStep));
