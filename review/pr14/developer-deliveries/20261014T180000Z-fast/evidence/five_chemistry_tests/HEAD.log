@@ -1,0 +1,21 @@
+..............F.............................................             [100%]
+=================================== FAILURES ===================================
+__________________ test_adapter_publishes_quality_diagnostics __________________
+
+tmp_path = PosixPath('/tmp/pytest-of-agent/pytest-62/test_adapter_publishes_quality0')
+
+    def test_adapter_publishes_quality_diagnostics(tmp_path):
+     src=tmp_path/'adapter.cpp';src.write_text(ADAPTER.replace('TEST_REAL','double'));exe=tmp_path/'adapter'
+     b=subprocess.run(['g++','-std=c++17','-O2','-Wall','-Wextra','-Werror','-I',str(ROOT),str(src),'-o',str(exe)],capture_output=True,text=True)
+     assert b.returncode==0,b.stderr
+>    r=subprocess.run([str(exe)],capture_output=True,text=True,timeout=20);assert r.returncode==0,r.stderr
+                                                                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E    AssertionError: adapter: /tmp/pytest-of-agent/pytest-62/test_adapter_publishes_quality0/adapter.cpp:39: int main(): Assertion `stale.cellStatus[0]==0&&stale.chemistryStatus[0]' failed.
+E      
+E    assert -6 == 0
+E     +  where -6 = CompletedProcess(args=['/tmp/pytest-of-agent/pytest-62/test_adapter_publishes_quality0/adapter'], returncode=-6, stdou...publishes_quality0/adapter.cpp:39: int main(): Assertion `stale.cellStatus[0]==0&&stale.chemistryStatus[0]' failed.\n").returncode
+
+tests/chemistry/test_gas_finite_continuation.py:123: AssertionError
+=========================== short test summary info ============================
+FAILED tests/chemistry/test_gas_finite_continuation.py::test_adapter_publishes_quality_diagnostics
+1 failed, 59 passed in 28.66s
