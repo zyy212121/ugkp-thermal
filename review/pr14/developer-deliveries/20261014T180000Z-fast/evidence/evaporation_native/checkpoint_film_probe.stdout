@@ -1,0 +1,117 @@
+MODEL_DECODE bytes=3241 declared=3241
+MODEL liquidRho=1000 liquidE0=100000 liquidReferencePressure=171600 gasViscosity=0 wallFamily=0
+DRIVE mode=checkpoint_aux f=0 pressure=178167.05269620317 bottomNormal=0 topNormal=0 interfaceNormal=-2.7017103881190106e-06
+DRIVE mode=checkpoint_aux f=1 pressure=178167.05269620314 bottomNormal=0 topNormal=0 interfaceNormal=-2.7017103885161127e-06
+DRIVE mode=checkpoint_aux f=2 pressure=178167.05269620311 bottomNormal=0 topNormal=0 interfaceNormal=-2.7017103885161149e-06
+DRIVE mode=checkpoint_aux f=3 pressure=178167.05269620314 bottomNormal=0 topNormal=0 interfaceNormal=-2.7017103881190106e-06
+PROFILE mode=checkpoint_aux ok=1 error=
+GRADIENT mode=checkpoint_aux f=0 xyz=0,-5.8207660913467407e-11,-1.1641532182693481e-10 mean=0,1.9399932722301431e-19,3.8799865444602861e-19
+GRADIENT mode=checkpoint_aux f=1 xyz=0,-5.8207660913467407e-11,0 mean=0,1.9399932722301041e-19,0
+GRADIENT mode=checkpoint_aux f=2 xyz=0,5.8207660913467407e-11,-1.1641532182693481e-10 mean=0,-1.9399932722301041e-19,3.8799865444602081e-19
+GRADIENT mode=checkpoint_aux f=3 xyz=0,5.8207660913467407e-11,0 mean=0,-1.9399932722301431e-19,0
+EDGE mode=checkpoint_aux e=0 owner=0 neighbour=-1 lengthRate=-1.9399932722301431e-19
+EDGE mode=checkpoint_aux e=1 owner=0 neighbour=1 lengthRate=9.6999663611506178e-20
+EDGE mode=checkpoint_aux e=2 owner=0 neighbour=2 lengthRate=1.9399932722301236e-19
+EDGE mode=checkpoint_aux e=3 owner=0 neighbour=-1 lengthRate=-9.6999663611507153e-20
+EDGE mode=checkpoint_aux e=4 owner=1 neighbour=-1 lengthRate=0
+EDGE mode=checkpoint_aux e=5 owner=1 neighbour=-1 lengthRate=9.6999663611505203e-20
+EDGE mode=checkpoint_aux e=6 owner=1 neighbour=3 lengthRate=0
+EDGE mode=checkpoint_aux e=7 owner=2 neighbour=3 lengthRate=-9.6999663611506178e-20
+EDGE mode=checkpoint_aux e=8 owner=2 neighbour=-1 lengthRate=1.9399932722301041e-19
+EDGE mode=checkpoint_aux e=9 owner=2 neighbour=-1 lengthRate=9.6999663611505203e-20
+EDGE mode=checkpoint_aux e=10 owner=3 neighbour=-1 lengthRate=-9.6999663611507153e-20
+EDGE mode=checkpoint_aux e=11 owner=3 neighbour=-1 lengthRate=0
+RESULT mode=checkpoint_aux half=0 dt=1.2207031249998656e-07 op=evaluate ok=0 numerical=1 error=CPU film undeclared open-edge inflow at 0
+RESULT mode=checkpoint_aux half=0 dt=1.2207031249998656e-07 op=estimate ok=0 numerical=1 limited=1.2207031249998656e-07 error=CPU film undeclared open-edge inflow at 0
+RESULT mode=checkpoint_aux half=0 dt=1.2207031249998656e-07 op=advance ok=0 numerical=1 error=CPU film undeclared open-edge inflow at 0
+RESULT mode=checkpoint_aux half=0 dt=1.2207031249998656e-07 op=complete ok=1 numerical=0 error=
+RESULT mode=checkpoint_aux half=1 dt=6.1035156249993278e-08 op=evaluate ok=0 numerical=1 error=CPU film undeclared open-edge inflow at 0
+RESULT mode=checkpoint_aux half=1 dt=6.1035156249993278e-08 op=estimate ok=0 numerical=1 limited=6.1035156249993278e-08 error=CPU film undeclared open-edge inflow at 0
+RESULT mode=checkpoint_aux half=1 dt=6.1035156249993278e-08 op=advance ok=0 numerical=1 error=CPU film undeclared open-edge inflow at 0
+RESULT mode=checkpoint_aux half=1 dt=6.1035156249993278e-08 op=complete ok=1 numerical=0 error=
+RESULT mode=checkpoint_aux half=10 dt=1.1920928955076812e-10 op=evaluate ok=0 numerical=1 error=CPU film undeclared open-edge inflow at 0
+RESULT mode=checkpoint_aux half=10 dt=1.1920928955076812e-10 op=estimate ok=0 numerical=1 limited=1.1920928955076812e-10 error=CPU film undeclared open-edge inflow at 0
+RESULT mode=checkpoint_aux half=10 dt=1.1920928955076812e-10 op=advance ok=0 numerical=1 error=CPU film undeclared open-edge inflow at 0
+RESULT mode=checkpoint_aux half=10 dt=1.1920928955076812e-10 op=complete ok=1 numerical=0 error=
+RESULT mode=checkpoint_aux half=30 dt=1.1368683772160351e-16 op=evaluate ok=0 numerical=1 error=CPU film undeclared open-edge inflow at 0
+RESULT mode=checkpoint_aux half=30 dt=1.1368683772160351e-16 op=estimate ok=0 numerical=1 limited=1.1368683772160351e-16 error=CPU film undeclared open-edge inflow at 0
+RESULT mode=checkpoint_aux half=30 dt=1.1368683772160351e-16 op=advance ok=0 numerical=1 error=CPU film undeclared open-edge inflow at 0
+RESULT mode=checkpoint_aux half=30 dt=1.1368683772160351e-16 op=complete ok=1 numerical=0 error=
+BULK f=0 ok=1 pressure=178167.05269620317
+DRIVE mode=checkpoint_bulk f=0 pressure=178167.05269620317 bottomNormal=0 topNormal=0 interfaceNormal=-2.7017103881190106e-06
+BULK f=1 ok=1 pressure=178167.05269620314
+DRIVE mode=checkpoint_bulk f=1 pressure=178167.05269620314 bottomNormal=0 topNormal=0 interfaceNormal=-2.7017103885161127e-06
+BULK f=2 ok=1 pressure=178167.05269620311
+DRIVE mode=checkpoint_bulk f=2 pressure=178167.05269620311 bottomNormal=0 topNormal=0 interfaceNormal=-2.7017103885161149e-06
+BULK f=3 ok=1 pressure=178167.05269620314
+DRIVE mode=checkpoint_bulk f=3 pressure=178167.05269620314 bottomNormal=0 topNormal=0 interfaceNormal=-2.7017103881190106e-06
+PROFILE mode=checkpoint_bulk ok=1 error=
+GRADIENT mode=checkpoint_bulk f=0 xyz=0,-5.8207660913467407e-11,-1.1641532182693481e-10 mean=0,1.9399932722301431e-19,3.8799865444602861e-19
+GRADIENT mode=checkpoint_bulk f=1 xyz=0,-5.8207660913467407e-11,0 mean=0,1.9399932722301041e-19,0
+GRADIENT mode=checkpoint_bulk f=2 xyz=0,5.8207660913467407e-11,-1.1641532182693481e-10 mean=0,-1.9399932722301041e-19,3.8799865444602081e-19
+GRADIENT mode=checkpoint_bulk f=3 xyz=0,5.8207660913467407e-11,0 mean=0,-1.9399932722301431e-19,0
+EDGE mode=checkpoint_bulk e=0 owner=0 neighbour=-1 lengthRate=-1.9399932722301431e-19
+EDGE mode=checkpoint_bulk e=1 owner=0 neighbour=1 lengthRate=9.6999663611506178e-20
+EDGE mode=checkpoint_bulk e=2 owner=0 neighbour=2 lengthRate=1.9399932722301236e-19
+EDGE mode=checkpoint_bulk e=3 owner=0 neighbour=-1 lengthRate=-9.6999663611507153e-20
+EDGE mode=checkpoint_bulk e=4 owner=1 neighbour=-1 lengthRate=0
+EDGE mode=checkpoint_bulk e=5 owner=1 neighbour=-1 lengthRate=9.6999663611505203e-20
+EDGE mode=checkpoint_bulk e=6 owner=1 neighbour=3 lengthRate=0
+EDGE mode=checkpoint_bulk e=7 owner=2 neighbour=3 lengthRate=-9.6999663611506178e-20
+EDGE mode=checkpoint_bulk e=8 owner=2 neighbour=-1 lengthRate=1.9399932722301041e-19
+EDGE mode=checkpoint_bulk e=9 owner=2 neighbour=-1 lengthRate=9.6999663611505203e-20
+EDGE mode=checkpoint_bulk e=10 owner=3 neighbour=-1 lengthRate=-9.6999663611507153e-20
+EDGE mode=checkpoint_bulk e=11 owner=3 neighbour=-1 lengthRate=0
+RESULT mode=checkpoint_bulk half=0 dt=1.2207031249998656e-07 op=evaluate ok=0 numerical=1 error=CPU film undeclared open-edge inflow at 0
+RESULT mode=checkpoint_bulk half=0 dt=1.2207031249998656e-07 op=estimate ok=0 numerical=1 limited=1.2207031249998656e-07 error=CPU film undeclared open-edge inflow at 0
+RESULT mode=checkpoint_bulk half=0 dt=1.2207031249998656e-07 op=advance ok=0 numerical=1 error=CPU film undeclared open-edge inflow at 0
+RESULT mode=checkpoint_bulk half=0 dt=1.2207031249998656e-07 op=complete ok=1 numerical=0 error=
+RESULT mode=checkpoint_bulk half=1 dt=6.1035156249993278e-08 op=evaluate ok=0 numerical=1 error=CPU film undeclared open-edge inflow at 0
+RESULT mode=checkpoint_bulk half=1 dt=6.1035156249993278e-08 op=estimate ok=0 numerical=1 limited=6.1035156249993278e-08 error=CPU film undeclared open-edge inflow at 0
+RESULT mode=checkpoint_bulk half=1 dt=6.1035156249993278e-08 op=advance ok=0 numerical=1 error=CPU film undeclared open-edge inflow at 0
+RESULT mode=checkpoint_bulk half=1 dt=6.1035156249993278e-08 op=complete ok=1 numerical=0 error=
+RESULT mode=checkpoint_bulk half=10 dt=1.1920928955076812e-10 op=evaluate ok=0 numerical=1 error=CPU film undeclared open-edge inflow at 0
+RESULT mode=checkpoint_bulk half=10 dt=1.1920928955076812e-10 op=estimate ok=0 numerical=1 limited=1.1920928955076812e-10 error=CPU film undeclared open-edge inflow at 0
+RESULT mode=checkpoint_bulk half=10 dt=1.1920928955076812e-10 op=advance ok=0 numerical=1 error=CPU film undeclared open-edge inflow at 0
+RESULT mode=checkpoint_bulk half=10 dt=1.1920928955076812e-10 op=complete ok=1 numerical=0 error=
+RESULT mode=checkpoint_bulk half=30 dt=1.1368683772160351e-16 op=evaluate ok=0 numerical=1 error=CPU film undeclared open-edge inflow at 0
+RESULT mode=checkpoint_bulk half=30 dt=1.1368683772160351e-16 op=estimate ok=0 numerical=1 limited=1.1368683772160351e-16 error=CPU film undeclared open-edge inflow at 0
+RESULT mode=checkpoint_bulk half=30 dt=1.1368683772160351e-16 op=advance ok=0 numerical=1 error=CPU film undeclared open-edge inflow at 0
+RESULT mode=checkpoint_bulk half=30 dt=1.1368683772160351e-16 op=complete ok=1 numerical=0 error=
+DRIVE mode=uniform_pressure_control f=0 pressure=178167.05269620317 bottomNormal=0 topNormal=0 interfaceNormal=-2.7017103881190106e-06
+DRIVE mode=uniform_pressure_control f=1 pressure=178167.05269620317 bottomNormal=0 topNormal=0 interfaceNormal=-2.7017103885161127e-06
+DRIVE mode=uniform_pressure_control f=2 pressure=178167.05269620317 bottomNormal=0 topNormal=0 interfaceNormal=-2.7017103885161149e-06
+DRIVE mode=uniform_pressure_control f=3 pressure=178167.05269620317 bottomNormal=0 topNormal=0 interfaceNormal=-2.7017103881190106e-06
+PROFILE mode=uniform_pressure_control ok=1 error=
+GRADIENT mode=uniform_pressure_control f=0 xyz=0,0,0 mean=0,0,0
+GRADIENT mode=uniform_pressure_control f=1 xyz=0,0,0 mean=0,0,0
+GRADIENT mode=uniform_pressure_control f=2 xyz=0,0,0 mean=0,0,0
+GRADIENT mode=uniform_pressure_control f=3 xyz=0,0,0 mean=0,0,0
+EDGE mode=uniform_pressure_control e=0 owner=0 neighbour=-1 lengthRate=0
+EDGE mode=uniform_pressure_control e=1 owner=0 neighbour=1 lengthRate=0
+EDGE mode=uniform_pressure_control e=2 owner=0 neighbour=2 lengthRate=0
+EDGE mode=uniform_pressure_control e=3 owner=0 neighbour=-1 lengthRate=0
+EDGE mode=uniform_pressure_control e=4 owner=1 neighbour=-1 lengthRate=0
+EDGE mode=uniform_pressure_control e=5 owner=1 neighbour=-1 lengthRate=0
+EDGE mode=uniform_pressure_control e=6 owner=1 neighbour=3 lengthRate=0
+EDGE mode=uniform_pressure_control e=7 owner=2 neighbour=3 lengthRate=0
+EDGE mode=uniform_pressure_control e=8 owner=2 neighbour=-1 lengthRate=0
+EDGE mode=uniform_pressure_control e=9 owner=2 neighbour=-1 lengthRate=0
+EDGE mode=uniform_pressure_control e=10 owner=3 neighbour=-1 lengthRate=0
+EDGE mode=uniform_pressure_control e=11 owner=3 neighbour=-1 lengthRate=0
+RESULT mode=uniform_pressure_control half=0 dt=1.2207031249998656e-07 op=evaluate ok=1 numerical=0 error=
+RESULT mode=uniform_pressure_control half=0 dt=1.2207031249998656e-07 op=estimate ok=1 numerical=0 limited=1.2207031249998656e-07 error=
+RESULT mode=uniform_pressure_control half=0 dt=1.2207031249998656e-07 op=advance ok=1 numerical=0 error=
+RESULT mode=uniform_pressure_control half=0 dt=1.2207031249998656e-07 op=complete ok=1 numerical=0 error=
+RESULT mode=uniform_pressure_control half=1 dt=6.1035156249993278e-08 op=evaluate ok=1 numerical=0 error=
+RESULT mode=uniform_pressure_control half=1 dt=6.1035156249993278e-08 op=estimate ok=1 numerical=0 limited=6.1035156249993278e-08 error=
+RESULT mode=uniform_pressure_control half=1 dt=6.1035156249993278e-08 op=advance ok=1 numerical=0 error=
+RESULT mode=uniform_pressure_control half=1 dt=6.1035156249993278e-08 op=complete ok=1 numerical=0 error=
+RESULT mode=uniform_pressure_control half=10 dt=1.1920928955076812e-10 op=evaluate ok=1 numerical=0 error=
+RESULT mode=uniform_pressure_control half=10 dt=1.1920928955076812e-10 op=estimate ok=1 numerical=0 limited=1.1920928955076812e-10 error=
+RESULT mode=uniform_pressure_control half=10 dt=1.1920928955076812e-10 op=advance ok=1 numerical=0 error=
+RESULT mode=uniform_pressure_control half=10 dt=1.1920928955076812e-10 op=complete ok=1 numerical=0 error=
+RESULT mode=uniform_pressure_control half=30 dt=1.1368683772160351e-16 op=evaluate ok=1 numerical=0 error=
+RESULT mode=uniform_pressure_control half=30 dt=1.1368683772160351e-16 op=estimate ok=1 numerical=0 limited=1.1368683772160351e-16 error=
+RESULT mode=uniform_pressure_control half=30 dt=1.1368683772160351e-16 op=advance ok=1 numerical=0 error=
+RESULT mode=uniform_pressure_control half=30 dt=1.1368683772160351e-16 op=complete ok=1 numerical=0 error=

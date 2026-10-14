@@ -1,0 +1,129 @@
+{
+  "shared_success_count": 17,
+  "shared_mismatch_count": 0,
+  "shared_checks": [
+    {
+      "label": "checkpoint_aux-complete-half0",
+      "fields_identical": true,
+      "binary_checksum_identical": true
+    },
+    {
+      "label": "checkpoint_aux-complete-half1",
+      "fields_identical": true,
+      "binary_checksum_identical": true
+    },
+    {
+      "label": "checkpoint_aux-complete-half10",
+      "fields_identical": true,
+      "binary_checksum_identical": true
+    },
+    {
+      "label": "checkpoint_aux-complete-half30",
+      "fields_identical": true,
+      "binary_checksum_identical": true
+    },
+    {
+      "label": "checkpoint_bulk-complete-half0",
+      "fields_identical": true,
+      "binary_checksum_identical": true
+    },
+    {
+      "label": "checkpoint_bulk-complete-half1",
+      "fields_identical": true,
+      "binary_checksum_identical": true
+    },
+    {
+      "label": "checkpoint_bulk-complete-half10",
+      "fields_identical": true,
+      "binary_checksum_identical": true
+    },
+    {
+      "label": "checkpoint_bulk-complete-half30",
+      "fields_identical": true,
+      "binary_checksum_identical": true
+    },
+    {
+      "label": "control-ordinary_outward",
+      "fields_identical": true,
+      "binary_checksum_identical": true
+    },
+    {
+      "label": "uniform_pressure_control-advance-half0",
+      "fields_identical": true,
+      "binary_checksum_identical": true
+    },
+    {
+      "label": "uniform_pressure_control-advance-half1",
+      "fields_identical": true,
+      "binary_checksum_identical": true
+    },
+    {
+      "label": "uniform_pressure_control-advance-half10",
+      "fields_identical": true,
+      "binary_checksum_identical": true
+    },
+    {
+      "label": "uniform_pressure_control-advance-half30",
+      "fields_identical": true,
+      "binary_checksum_identical": true
+    },
+    {
+      "label": "uniform_pressure_control-complete-half0",
+      "fields_identical": true,
+      "binary_checksum_identical": true
+    },
+    {
+      "label": "uniform_pressure_control-complete-half1",
+      "fields_identical": true,
+      "binary_checksum_identical": true
+    },
+    {
+      "label": "uniform_pressure_control-complete-half10",
+      "fields_identical": true,
+      "binary_checksum_identical": true
+    },
+    {
+      "label": "uniform_pressure_control-complete-half30",
+      "fields_identical": true,
+      "binary_checksum_identical": true
+    }
+  ],
+  "new_ordinary_count": 8,
+  "new_ordinary_matches_original_terminal": [
+    {
+      "label": "checkpoint_aux-advance-half0",
+      "match": true
+    },
+    {
+      "label": "checkpoint_aux-advance-half1",
+      "match": true
+    },
+    {
+      "label": "checkpoint_aux-advance-half10",
+      "match": true
+    },
+    {
+      "label": "checkpoint_aux-advance-half30",
+      "match": true
+    },
+    {
+      "label": "checkpoint_bulk-advance-half0",
+      "match": true
+    },
+    {
+      "label": "checkpoint_bulk-advance-half1",
+      "match": true
+    },
+    {
+      "label": "checkpoint_bulk-advance-half10",
+      "match": true
+    },
+    {
+      "label": "checkpoint_bulk-advance-half30",
+      "match": true
+    }
+  ],
+  "current_source_sha256": "0835d5f25870c55523fd7093ac5384cdacd183ef4ef34b22caf7284de2d5851e",
+  "native_execution_receipt_sha256": "7e1c83f84837447383b15d62d1536e2ffb8b9ee5f8179f8f8930afad654a931e",
+  "intentional_diagnostic_change": "Nonfinite length rate remains rejected; candidate error is CPU film non-finite film edge transport rate at 0."
+}

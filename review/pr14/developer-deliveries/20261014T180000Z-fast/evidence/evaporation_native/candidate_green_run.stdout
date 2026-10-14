@@ -1,0 +1,3 @@
+two-ulp signed edge half=0 rate=-1.9402553637822467e-19 requested=1.2207031249998656e-07 allowed=1.2207031249998656e-07
+two-ulp signed edge half=30 rate=-1.9402553637822467e-19 requested=1.1368683772160351e-16 allowed=1.1368683772160351e-16
+CPU film tests passed

@@ -1,0 +1,1719 @@
+{
+  "scope": "Observed fields only. No absent fields are filled or inferred.",
+  "log": "/workspace/scratch/98b6339ec81b/pr14_review_readonly_20261014T145300Z/review/pr14/reviewer-deliveries/20261014T120103Z-fast/logs/EVAPORATION-PROGRESS-D302.log",
+  "sha256": "cf26a41fd6129c23baec0e7a50d16c99fd6e04a8013afb0ac59c83cbe342d467",
+  "records": [
+    {
+      "line": 66615,
+      "event": "begin",
+      "index": 0,
+      "field": "window_begin",
+      "hex": "0x1.0624dd2f1a9fcp-12",
+      "value": 0.00025
+    },
+    {
+      "line": 66616,
+      "event": "begin",
+      "index": 0,
+      "field": "window_end",
+      "hex": "0x1.0645a1cac0831p-12",
+      "value": 0.0002501220703125
+    },
+    {
+      "line": 66617,
+      "event": "begin",
+      "index": 0,
+      "field": "micro_time",
+      "hex": "0x1.0624dd2f1a9fcp-12",
+      "value": 0.00025
+    },
+    {
+      "line": 66618,
+      "event": "begin",
+      "index": 0,
+      "field": "micro_dt",
+      "hex": "0x1.0624dd2f1a8p-23",
+      "value": 1.2207031249998656e-07
+    },
+    {
+      "line": 66619,
+      "event": "stage",
+      "index": 0,
+      "field": "argument_stamp",
+      "hex": "0x1.0624dd2f1a9fcp-12",
+      "value": 0.00025
+    },
+    {
+      "line": 66620,
+      "event": "stage",
+      "index": 0,
+      "field": "sampled_stamp",
+      "hex": "0x1.0624dd2f1a9fcp-12",
+      "value": 0.00025
+    },
+    {
+      "line": 66621,
+      "event": "stage",
+      "index": 0,
+      "field": "packet_dt",
+      "hex": "0x1.0624dd2f1a8p-23",
+      "value": 1.2207031249998656e-07
+    },
+    {
+      "line": 66622,
+      "event": "wall",
+      "index": 0,
+      "field": "temperature",
+      "hex": "0x1.5e082f1623e74p+8",
+      "value": 350.0319684827475
+    },
+    {
+      "line": 66623,
+      "event": "wall",
+      "index": 0,
+      "field": "normal_velocity",
+      "hex": "-0x1.6a9c4a24bcb08p-19",
+      "value": -2.7016588027782032e-06
+    },
+    {
+      "line": 66624,
+      "event": "wall",
+      "index": 0,
+      "field": "solid_normal_velocity",
+      "hex": "0x0p+0",
+      "value": 0.0
+    },
+    {
+      "line": 66625,
+      "event": "wall",
+      "index": 0,
+      "field": "velocity_x",
+      "hex": "0x0p+0",
+      "value": 0.0
+    },
+    {
+      "line": 66626,
+      "event": "wall",
+      "index": 0,
+      "field": "velocity_y",
+      "hex": "0x1.578d0c6254c2bp-62",
+      "value": 2.9099899083452144e-19
+    },
+    {
+      "line": 66627,
+      "event": "wall",
+      "index": 0,
+      "field": "velocity_z",
+      "hex": "0x1.578d0c6254c2bp-61",
+      "value": 5.819979816690429e-19
+    },
+    {
+      "line": 66628,
+      "event": "wall",
+      "index": 0,
+      "field": "radiation_flux",
+      "hex": "0x0p+0",
+      "value": 0.0
+    },
+    {
+      "line": 66629,
+      "event": "wall_species",
+      "index": 0,
+      "field": "species_rate",
+      "hex": "0x1.621ca067e0446p-9",
+      "value": 0.0027016588027782033
+    },
+    {
+      "line": 66630,
+      "event": "wall_species",
+      "index": 0,
+      "field": "pore_rate",
+      "hex": "0x0p+0",
+      "value": 0.0
+    },
+    {
+      "line": 66631,
+      "event": "wall_species",
+      "index": 0,
+      "field": "pore_sweep_rate",
+      "hex": "0x0p+0",
+      "value": 0.0
+    },
+    {
+      "line": 66632,
+      "event": "wall_species",
+      "index": 1,
+      "field": "species_rate",
+      "hex": "0x0p+0",
+      "value": 0.0
+    },
+    {
+      "line": 66633,
+      "event": "wall_species",
+      "index": 1,
+      "field": "pore_rate",
+      "hex": "0x0p+0",
+      "value": 0.0
+    },
+    {
+      "line": 66634,
+      "event": "wall_species",
+      "index": 1,
+      "field": "pore_sweep_rate",
+      "hex": "0x0p+0",
+      "value": 0.0
+    },
+    {
+      "line": 66635,
+      "event": "wall",
+      "index": 1,
+      "field": "temperature",
+      "hex": "0x1.5e082f1623e7cp+8",
+      "value": 350.03196848274797
+    },
+    {
+      "line": 66636,
+      "event": "wall",
+      "index": 1,
+      "field": "normal_velocity",
+      "hex": "-0x1.6a9c4a24bcb0bp-19",
+      "value": -2.7016588027782045e-06
+    },
+    {
+      "line": 66637,
+      "event": "wall",
+      "index": 1,
+      "field": "solid_normal_velocity",
+      "hex": "0x0p+0",
+      "value": 0.0
+    },
+    {
+      "line": 66638,
+      "event": "wall",
+      "index": 1,
+      "field": "velocity_x",
+      "hex": "0x0p+0",
+      "value": 0.0
+    },
+    {
+      "line": 66639,
+      "event": "wall",
+      "index": 1,
+      "field": "velocity_y",
+      "hex": "0x1.578d0c6254bb2p-62",
+      "value": 2.909989908345156e-19
+    },
+    {
+      "line": 66640,
+      "event": "wall",
+      "index": 1,
+      "field": "velocity_z",
+      "hex": "0x0p+0",
+      "value": 0.0
+    },
+    {
+      "line": 66641,
+      "event": "wall",
+      "index": 1,
+      "field": "radiation_flux",
+      "hex": "0x0p+0",
+      "value": 0.0
+    },
+    {
+      "line": 66642,
+      "event": "wall_species",
+      "index": 2,
+      "field": "species_rate",
+      "hex": "0x1.621ca067e0449p-9",
+      "value": 0.0027016588027782046
+    },
+    {
+      "line": 66643,
+      "event": "wall_species",
+      "index": 2,
+      "field": "pore_rate",
+      "hex": "0x0p+0",
+      "value": 0.0
+    },
+    {
+      "line": 66644,
+      "event": "wall_species",
+      "index": 2,
+      "field": "pore_sweep_rate",
+      "hex": "0x0p+0",
+      "value": 0.0
+    },
+    {
+      "line": 66645,
+      "event": "wall_species",
+      "index": 3,
+      "field": "species_rate",
+      "hex": "0x0p+0",
+      "value": 0.0
+    },
+    {
+      "line": 66646,
+      "event": "wall_species",
+      "index": 3,
+      "field": "pore_rate",
+      "hex": "0x0p+0",
+      "value": 0.0
+    },
+    {
+      "line": 66647,
+      "event": "wall_species",
+      "index": 3,
+      "field": "pore_sweep_rate",
+      "hex": "0x0p+0",
+      "value": 0.0
+    },
+    {
+      "line": 66648,
+      "event": "wall",
+      "index": 2,
+      "field": "temperature",
+      "hex": "0x1.5e082f1623e7cp+8",
+      "value": 350.03196848274797
+    },
+    {
+      "line": 66649,
+      "event": "wall",
+      "index": 2,
+      "field": "normal_velocity",
+      "hex": "-0x1.6a9c4a24bcb14p-19",
+      "value": -2.7016588027782083e-06
+    },
+    {
+      "line": 66650,
+      "event": "wall",
+      "index": 2,
+      "field": "solid_normal_velocity",
+      "hex": "0x0p+0",
+      "value": 0.0
+    },
+    {
+      "line": 66651,
+      "event": "wall",
+      "index": 2,
+      "field": "velocity_x",
+      "hex": "0x0p+0",
+      "value": 0.0
+    },
+    {
+      "line": 66652,
+      "event": "wall",
+      "index": 2,
+      "field": "velocity_y",
+      "hex": "-0x1.578d0c6254bb2p-62",
+      "value": -2.909989908345156e-19
+    },
+    {
+      "line": 66653,
+      "event": "wall",
+      "index": 2,
+      "field": "velocity_z",
+      "hex": "0x1.578d0c6254bb2p-61",
+      "value": 5.819979816690312e-19
+    },
+    {
+      "line": 66654,
+      "event": "wall",
+      "index": 2,
+      "field": "radiation_flux",
+      "hex": "0x0p+0",
+      "value": 0.0
+    },
+    {
+      "line": 66655,
+      "event": "wall_species",
+      "index": 4,
+      "field": "species_rate",
+      "hex": "0x1.621ca067e0452p-9",
+      "value": 0.0027016588027782085
+    },
+    {
+      "line": 66656,
+      "event": "wall_species",
+      "index": 4,
+      "field": "pore_rate",
+      "hex": "0x0p+0",
+      "value": 0.0
+    },
+    {
+      "line": 66657,
+      "event": "wall_species",
+      "index": 4,
+      "field": "pore_sweep_rate",
+      "hex": "0x0p+0",
+      "value": 0.0
+    },
+    {
+      "line": 66658,
+      "event": "wall_species",
+      "index": 5,
+      "field": "species_rate",
+      "hex": "0x0p+0",
+      "value": 0.0
+    },
+    {
+      "line": 66659,
+      "event": "wall_species",
+      "index": 5,
+      "field": "pore_rate",
+      "hex": "0x0p+0",
+      "value": 0.0
+    },
+    {
+      "line": 66660,
+      "event": "wall_species",
+      "index": 5,
+      "field": "pore_sweep_rate",
+      "hex": "0x0p+0",
+      "value": 0.0
+    },
+    {
+      "line": 66661,
+      "event": "wall",
+      "index": 3,
+      "field": "temperature",
+      "hex": "0x1.5e082f1623e74p+8",
+      "value": 350.0319684827475
+    },
+    {
+      "line": 66662,
+      "event": "wall",
+      "index": 3,
+      "field": "normal_velocity",
+      "hex": "-0x1.6a9c4a24bcb1p-19",
+      "value": -2.7016588027782066e-06
+    },
+    {
+      "line": 66663,
+      "event": "wall",
+      "index": 3,
+      "field": "solid_normal_velocity",
+      "hex": "0x0p+0",
+      "value": 0.0
+    },
+    {
+      "line": 66664,
+      "event": "wall",
+      "index": 3,
+      "field": "velocity_x",
+      "hex": "0x0p+0",
+      "value": 0.0
+    },
+    {
+      "line": 66665,
+      "event": "wall",
+      "index": 3,
+      "field": "velocity_y",
+      "hex": "-0x1.578d0c6254c2bp-62",
+      "value": -2.9099899083452144e-19
+    },
+    {
+      "line": 66666,
+      "event": "wall",
+      "index": 3,
+      "field": "velocity_z",
+      "hex": "0x0p+0",
+      "value": 0.0
+    },
+    {
+      "line": 66667,
+      "event": "wall",
+      "index": 3,
+      "field": "radiation_flux",
+      "hex": "0x0p+0",
+      "value": 0.0
+    },
+    {
+      "line": 66668,
+      "event": "wall_species",
+      "index": 6,
+      "field": "species_rate",
+      "hex": "0x1.621ca067e044ep-9",
+      "value": 0.0027016588027782068
+    },
+    {
+      "line": 66669,
+      "event": "wall_species",
+      "index": 6,
+      "field": "pore_rate",
+      "hex": "0x0p+0",
+      "value": 0.0
+    },
+    {
+      "line": 66670,
+      "event": "wall_species",
+      "index": 6,
+      "field": "pore_sweep_rate",
+      "hex": "0x0p+0",
+      "value": 0.0
+    },
+    {
+      "line": 66671,
+      "event": "wall_species",
+      "index": 7,
+      "field": "species_rate",
+      "hex": "0x0p+0",
+      "value": 0.0
+    },
+    {
+      "line": 66672,
+      "event": "wall_species",
+      "index": 7,
+      "field": "pore_rate",
+      "hex": "0x0p+0",
+      "value": 0.0
+    },
+    {
+      "line": 66673,
+      "event": "wall_species",
+      "index": 7,
+      "field": "pore_sweep_rate",
+      "hex": "0x0p+0",
+      "value": 0.0
+    },
+    {
+      "line": 66719,
+      "event": "accepted",
+      "index": 0,
+      "field": "begin",
+      "hex": "0x1.0624dd2f1a9fcp-12",
+      "value": 0.00025
+    },
+    {
+      "line": 66720,
+      "event": "accepted",
+      "index": 0,
+      "field": "end",
+      "hex": "0x1.0645a1cac0831p-12",
+      "value": 0.0002501220703125
+    },
+    {
+      "line": 66721,
+      "event": "accepted",
+      "index": 0,
+      "field": "gas_trace_time",
+      "hex": "0x1.0624dd2f1a9fcp-12",
+      "value": 0.00025
+    },
+    {
+      "line": 66722,
+      "event": "gas",
+      "index": 0,
+      "field": "mass",
+      "hex": "0x1.0000156a32b43p-3",
+      "value": 0.12500015955296293
+    },
+    {
+      "line": 66723,
+      "event": "gas",
+      "index": 0,
+      "field": "energy",
+      "hex": "0x1.b3623be661e9fp+15",
+      "value": 55729.1169920538
+    },
+    {
+      "line": 66724,
+      "event": "gas",
+      "index": 0,
+      "field": "momentum_x",
+      "hex": "-0x1.ae0dcd21d14e3p-25",
+      "value": -5.0064864488952305e-08
+    },
+    {
+      "line": 66725,
+      "event": "gas",
+      "index": 0,
+      "field": "momentum_y",
+      "hex": "-0x1.50917d6b65a91p-52",
+      "value": -2.919264829870367e-16
+    },
+    {
+      "line": 66726,
+      "event": "gas",
+      "index": 0,
+      "field": "momentum_z",
+      "hex": "-0x1.a474538ef34cfp-52",
+      "value": -3.6468605912887104e-16
+    },
+    {
+      "line": 66727,
+      "event": "gas_species",
+      "index": 0,
+      "field": "mass",
+      "hex": "0x1.0000156a32b43p-3",
+      "value": 0.12500015955296293
+    },
+    {
+      "line": 66728,
+      "event": "gas_species",
+      "index": 1,
+      "field": "mass",
+      "hex": "0x0p+0",
+      "value": 0.0
+    },
+    {
+      "line": 66729,
+      "event": "gas",
+      "index": 1,
+      "field": "mass",
+      "hex": "0x1.0000014283832p-3",
+      "value": 0.12500000938638461
+    },
+    {
+      "line": 66730,
+      "event": "gas",
+      "index": 1,
+      "field": "energy",
+      "hex": "0x1.b3623c6076066p+15",
+      "value": 55729.11792343929
+    },
+    {
+      "line": 66731,
+      "event": "gas",
+      "index": 1,
+      "field": "momentum_x",
+      "hex": "-0x1.b0154f5abb44fp-25",
+      "value": -5.0301109685371164e-08
+    },
+    {
+      "line": 66732,
+      "event": "gas",
+      "index": 1,
+      "field": "momentum_y",
+      "hex": "-0x1.797cc39ffd60fp-50",
+      "value": -1.3096723705530167e-15
+    },
+    {
+      "line": 66733,
+      "event": "gas",
+      "index": 1,
+      "field": "momentum_z",
+      "hex": "-0x1.2599ed7c6fbd5p-50",
+      "value": -1.0186340659856801e-15
+    },
+    {
+      "line": 66734,
+      "event": "gas_species",
+      "index": 2,
+      "field": "mass",
+      "hex": "0x1.0000014283832p-3",
+      "value": 0.12500000938638461
+    },
+    {
+      "line": 66735,
+      "event": "gas_species",
+      "index": 3,
+      "field": "mass",
+      "hex": "0x0p+0",
+      "value": 0.0
+    },
+    {
+      "line": 66736,
+      "event": "gas",
+      "index": 2,
+      "field": "mass",
+      "hex": "0x1.0000156a5bf67p-3",
+      "value": 0.1250001595576535
+    },
+    {
+      "line": 66737,
+      "event": "gas",
+      "index": 2,
+      "field": "energy",
+      "hex": "0x1.b3623be6a8156p+15",
+      "value": 55729.11699414502
+    },
+    {
+      "line": 66738,
+      "event": "gas",
+      "index": 2,
+      "field": "momentum_x",
+      "hex": "-0x1.ae0dcd4ba1f48p-25",
+      "value": -5.0064864779102415e-08
+    },
+    {
+      "line": 66739,
+      "event": "gas",
+      "index": 2,
+      "field": "momentum_y",
+      "hex": "-0x1.53a3ec02f2f8cp-53",
+      "value": -1.4729550912306846e-16
+    },
+    {
+      "line": 66740,
+      "event": "gas",
+      "index": 2,
+      "field": "momentum_z",
+      "hex": "0x1.ce65bea0ba1f3p-51",
+      "value": 8.021316943995769e-16
+    },
+    {
+      "line": 66741,
+      "event": "gas_species",
+      "index": 4,
+      "field": "mass",
+      "hex": "0x1.0000156a5bf67p-3",
+      "value": 0.1250001595576535
+    },
+    {
+      "line": 66742,
+      "event": "gas_species",
+      "index": 5,
+      "field": "mass",
+      "hex": "0x0p+0",
+      "value": 0.0
+    },
+    {
+      "line": 66743,
+      "event": "gas",
+      "index": 3,
+      "field": "mass",
+      "hex": "0x1.000001425a40ep-3",
+      "value": 0.12500000938169403
+    },
+    {
+      "line": 66744,
+      "event": "gas",
+      "index": 3,
+      "field": "energy",
+      "hex": "0x1.b3623c602fdb3p+15",
+      "value": 55729.1179213481
+    },
+    {
+      "line": 66745,
+      "event": "gas",
+      "index": 3,
+      "field": "momentum_x",
+      "hex": "-0x1.b0154fe2eb1c2p-25",
+      "value": -5.0301110630357456e-08
+    },
+    {
+      "line": 66746,
+      "event": "gas",
+      "index": 3,
+      "field": "momentum_y",
+      "hex": "-0x1.261cffeb074a6p-51",
+      "value": -5.102052114125398e-16
+    },
+    {
+      "line": 66747,
+      "event": "gas",
+      "index": 3,
+      "field": "momentum_z",
+      "hex": "0x1.500e6afcce1c3p-51",
+      "value": 5.8296478755437395e-16
+    },
+    {
+      "line": 66748,
+      "event": "gas_species",
+      "index": 6,
+      "field": "mass",
+      "hex": "0x1.000001425a40ep-3",
+      "value": 0.12500000938169403
+    },
+    {
+      "line": 66749,
+      "event": "gas_species",
+      "index": 7,
+      "field": "mass",
+      "hex": "0x0p+0",
+      "value": 0.0
+    },
+    {
+      "line": 66750,
+      "event": "gas",
+      "index": 4,
+      "field": "mass",
+      "hex": "0x1.0000156a5bf67p-3",
+      "value": 0.1250001595576535
+    },
+    {
+      "line": 66751,
+      "event": "gas",
+      "index": 4,
+      "field": "energy",
+      "hex": "0x1.b3623be6a8156p+15",
+      "value": 55729.11699414502
+    },
+    {
+      "line": 66752,
+      "event": "gas",
+      "index": 4,
+      "field": "momentum_x",
+      "hex": "-0x1.ae0dcd36eac85p-25",
+      "value": -5.0064864635359634e-08
+    },
+    {
+      "line": 66753,
+      "event": "gas",
+      "index": 4,
+      "field": "momentum_y",
+      "hex": "0x1.cde2ac322291ep-51",
+      "value": 8.012435159798768e-16
+    },
+    {
+      "line": 66754,
+      "event": "gas",
+      "index": 4,
+      "field": "momentum_z",
+      "hex": "-0x1.4f8b588e368ebp-53",
+      "value": -1.4551915228366838e-16
+    },
+    {
+      "line": 66755,
+      "event": "gas_species",
+      "index": 8,
+      "field": "mass",
+      "hex": "0x1.0000156a5bf67p-3",
+      "value": 0.1250001595576535
+    },
+    {
+      "line": 66756,
+      "event": "gas_species",
+      "index": 9,
+      "field": "mass",
+      "hex": "0x0p+0",
+      "value": 0.0
+    },
+    {
+      "line": 66757,
+      "event": "gas",
+      "index": 5,
+      "field": "mass",
+      "hex": "0x1.000001425a40ep-3",
+      "value": 0.12500000938169403
+    },
+    {
+      "line": 66758,
+      "event": "gas",
+      "index": 5,
+      "field": "energy",
+      "hex": "0x1.b3623c602fdb3p+15",
+      "value": 55729.1179213481
+    },
+    {
+      "line": 66759,
+      "event": "gas",
+      "index": 5,
+      "field": "momentum_x",
+      "hex": "-0x1.b0154fd86ec16p-25",
+      "value": -5.030111055759788e-08
+    },
+    {
+      "line": 66760,
+      "event": "gas",
+      "index": 5,
+      "field": "momentum_y",
+      "hex": "0x1.500e6afcce1c3p-51",
+      "value": 5.8296478755437395e-16
+    },
+    {
+      "line": 66761,
+      "event": "gas",
+      "index": 5,
+      "field": "momentum_z",
+      "hex": "-0x1.261cffeb074a6p-51",
+      "value": -5.102052114125398e-16
+    },
+    {
+      "line": 66762,
+      "event": "gas_species",
+      "index": 10,
+      "field": "mass",
+      "hex": "0x1.000001425a40ep-3",
+      "value": 0.12500000938169403
+    },
+    {
+      "line": 66763,
+      "event": "gas_species",
+      "index": 11,
+      "field": "mass",
+      "hex": "0x0p+0",
+      "value": 0.0
+    },
+    {
+      "line": 66764,
+      "event": "gas",
+      "index": 6,
+      "field": "mass",
+      "hex": "0x1.0000156a32b43p-3",
+      "value": 0.12500015955296293
+    },
+    {
+      "line": 66765,
+      "event": "gas",
+      "index": 6,
+      "field": "energy",
+      "hex": "0x1.b3623be661e9ep+15",
+      "value": 55729.116992053794
+    },
+    {
+      "line": 66766,
+      "event": "gas",
+      "index": 6,
+      "field": "momentum_x",
+      "hex": "-0x1.ae0dcd60dc335p-25",
+      "value": -5.006486492639793e-08
+    },
+    {
+      "line": 66767,
+      "event": "gas",
+      "index": 6,
+      "field": "momentum_y",
+      "hex": "0x1.f7d41743e9639p-51",
+      "value": 8.740030921217108e-16
+    },
+    {
+      "line": 66768,
+      "event": "gas",
+      "index": 6,
+      "field": "momentum_z",
+      "hex": "0x1.f85729b280f0ep-51",
+      "value": 8.748912705414109e-16
+    },
+    {
+      "line": 66769,
+      "event": "gas_species",
+      "index": 12,
+      "field": "mass",
+      "hex": "0x1.0000156a32b43p-3",
+      "value": 0.12500015955296293
+    },
+    {
+      "line": 66770,
+      "event": "gas_species",
+      "index": 13,
+      "field": "mass",
+      "hex": "0x0p+0",
+      "value": 0.0
+    },
+    {
+      "line": 66771,
+      "event": "gas",
+      "index": 7,
+      "field": "mass",
+      "hex": "0x1.0000014283832p-3",
+      "value": 0.12500000938638461
+    },
+    {
+      "line": 66772,
+      "event": "gas",
+      "index": 7,
+      "field": "energy",
+      "hex": "0x1.b3623c6076066p+15",
+      "value": 55729.11792343929
+    },
+    {
+      "line": 66773,
+      "event": "gas",
+      "index": 7,
+      "field": "momentum_x",
+      "hex": "-0x1.b0154f84acb01p-25",
+      "value": -5.0301109976409474e-08
+    },
+    {
+      "line": 66774,
+      "event": "gas",
+      "index": 7,
+      "field": "momentum_y",
+      "hex": "0x1.a36e2eb1c432dp-50",
+      "value": 1.4551915228366853e-15
+    },
+    {
+      "line": 66775,
+      "event": "gas",
+      "index": 7,
+      "field": "momentum_z",
+      "hex": "0x1.e2584f4c6e6d9p-50",
+      "value": 1.6734702512621878e-15
+    },
+    {
+      "line": 66776,
+      "event": "gas_species",
+      "index": 14,
+      "field": "mass",
+      "hex": "0x1.0000014283832p-3",
+      "value": 0.12500000938638461
+    },
+    {
+      "line": 66777,
+      "event": "gas_species",
+      "index": 15,
+      "field": "mass",
+      "hex": "0x0p+0",
+      "value": 0.0
+    },
+    {
+      "line": 66778,
+      "event": "packet",
+      "index": 0,
+      "field": "face",
+      "hex": "0x1p+4",
+      "value": 16.0
+    },
+    {
+      "line": 66779,
+      "event": "packet",
+      "index": 0,
+      "field": "stage",
+      "hex": "0x1p+0",
+      "value": 1.0
+    },
+    {
+      "line": 66780,
+      "event": "packet",
+      "index": 0,
+      "field": "kind",
+      "hex": "0x1p+0",
+      "value": 1.0
+    },
+    {
+      "line": 66781,
+      "event": "packet",
+      "index": 0,
+      "field": "mass",
+      "hex": "0x1.6a9c4a24bc84ap-34",
+      "value": 8.244808358086871e-11
+    },
+    {
+      "line": 66782,
+      "event": "packet",
+      "index": 0,
+      "field": "energy",
+      "hex": "-0x1.0c4b60720c54p-21",
+      "value": -4.997373379609545e-07
+    },
+    {
+      "line": 66783,
+      "event": "packet",
+      "index": 0,
+      "field": "conductive",
+      "hex": "-0x1.ffeed509fae99p-16",
+      "value": -3.051358093124224e-05
+    },
+    {
+      "line": 66784,
+      "event": "packet",
+      "index": 0,
+      "field": "advective",
+      "hex": "0x1.f78c7a066a86fp-16",
+      "value": 3.0013843593281285e-05
+    },
+    {
+      "line": 66785,
+      "event": "packet",
+      "index": 0,
+      "field": "pressure_work",
+      "hex": "-0x0p+0",
+      "value": -0.0
+    },
+    {
+      "line": 66786,
+      "event": "packet",
+      "index": 0,
+      "field": "viscous_work",
+      "hex": "0x0p+0",
+      "value": 0.0
+    },
+    {
+      "line": 66787,
+      "event": "packet",
+      "index": 0,
+      "field": "momentum_x",
+      "hex": "0x1.645587ee7a25ep-8",
+      "value": 0.005437226950086497
+    },
+    {
+      "line": 66788,
+      "event": "packet",
+      "index": 0,
+      "field": "momentum_y",
+      "hex": "0x1.e69f30f6aa2ebp-96",
+      "value": 2.3992309118273071e-29
+    },
+    {
+      "line": 66789,
+      "event": "packet",
+      "index": 0,
+      "field": "momentum_z",
+      "hex": "0x1.e69f30f6aa2ebp-95",
+      "value": 4.7984618236546143e-29
+    },
+    {
+      "line": 66790,
+      "event": "packet",
+      "index": 1,
+      "field": "face",
+      "hex": "0x1p+4",
+      "value": 16.0
+    },
+    {
+      "line": 66791,
+      "event": "packet",
+      "index": 1,
+      "field": "stage",
+      "hex": "0x1p+0",
+      "value": 1.0
+    },
+    {
+      "line": 66792,
+      "event": "packet",
+      "index": 1,
+      "field": "kind",
+      "hex": "0x1.8p+1",
+      "value": 3.0
+    },
+    {
+      "line": 66793,
+      "event": "packet",
+      "index": 1,
+      "field": "mass",
+      "hex": "0x0p+0",
+      "value": 0.0
+    },
+    {
+      "line": 66794,
+      "event": "packet",
+      "index": 1,
+      "field": "energy",
+      "hex": "0x0p+0",
+      "value": 0.0
+    },
+    {
+      "line": 66795,
+      "event": "packet",
+      "index": 1,
+      "field": "conductive",
+      "hex": "0x0p+0",
+      "value": 0.0
+    },
+    {
+      "line": 66796,
+      "event": "packet",
+      "index": 1,
+      "field": "advective",
+      "hex": "0x0p+0",
+      "value": 0.0
+    },
+    {
+      "line": 66797,
+      "event": "packet",
+      "index": 1,
+      "field": "pressure_work",
+      "hex": "0x0p+0",
+      "value": 0.0
+    },
+    {
+      "line": 66798,
+      "event": "packet",
+      "index": 1,
+      "field": "viscous_work",
+      "hex": "0x0p+0",
+      "value": 0.0
+    },
+    {
+      "line": 66799,
+      "event": "packet",
+      "index": 1,
+      "field": "momentum_x",
+      "hex": "0x0p+0",
+      "value": 0.0
+    },
+    {
+      "line": 66800,
+      "event": "packet",
+      "index": 1,
+      "field": "momentum_y",
+      "hex": "0x0p+0",
+      "value": 0.0
+    },
+    {
+      "line": 66801,
+      "event": "packet",
+      "index": 1,
+      "field": "momentum_z",
+      "hex": "0x0p+0",
+      "value": 0.0
+    },
+    {
+      "line": 66802,
+      "event": "packet",
+      "index": 2,
+      "field": "face",
+      "hex": "0x1.1p+4",
+      "value": 17.0
+    },
+    {
+      "line": 66803,
+      "event": "packet",
+      "index": 2,
+      "field": "stage",
+      "hex": "0x1p+0",
+      "value": 1.0
+    },
+    {
+      "line": 66804,
+      "event": "packet",
+      "index": 2,
+      "field": "kind",
+      "hex": "0x1p+0",
+      "value": 1.0
+    },
+    {
+      "line": 66805,
+      "event": "packet",
+      "index": 2,
+      "field": "mass",
+      "hex": "0x1.6a9c4a24bc84dp-34",
+      "value": 8.244808358086875e-11
+    },
+    {
+      "line": 66806,
+      "event": "packet",
+      "index": 2,
+      "field": "energy",
+      "hex": "-0x1.0c4b6067bbf2p-21",
+      "value": -4.99737336815871e-07
+    },
+    {
+      "line": 66807,
+      "event": "packet",
+      "index": 2,
+      "field": "conductive",
+      "hex": "-0x1.ffeed509a8678p-16",
+      "value": -3.051358093009721e-05
+    },
+    {
+      "line": 66808,
+      "event": "packet",
+      "index": 2,
+      "field": "advective",
+      "hex": "0x1.f78c7a066a87fp-16",
+      "value": 3.001384359328134e-05
+    },
+    {
+      "line": 66809,
+      "event": "packet",
+      "index": 2,
+      "field": "pressure_work",
+      "hex": "-0x0p+0",
+      "value": -0.0
+    },
+    {
+      "line": 66810,
+      "event": "packet",
+      "index": 2,
+      "field": "viscous_work",
+      "hex": "-0x0p+0",
+      "value": -0.0
+    },
+    {
+      "line": 66811,
+      "event": "packet",
+      "index": 2,
+      "field": "momentum_x",
+      "hex": "0x1.645587ee7a261p-8",
+      "value": 0.0054372269500865
+    },
+    {
+      "line": 66812,
+      "event": "packet",
+      "index": 2,
+      "field": "momentum_y",
+      "hex": "0x1.e69f30f6aa244p-96",
+      "value": 2.3992309118272603e-29
+    },
+    {
+      "line": 66813,
+      "event": "packet",
+      "index": 2,
+      "field": "momentum_z",
+      "hex": "0x0p+0",
+      "value": 0.0
+    },
+    {
+      "line": 66814,
+      "event": "packet",
+      "index": 3,
+      "field": "face",
+      "hex": "0x1.1p+4",
+      "value": 17.0
+    },
+    {
+      "line": 66815,
+      "event": "packet",
+      "index": 3,
+      "field": "stage",
+      "hex": "0x1p+0",
+      "value": 1.0
+    },
+    {
+      "line": 66816,
+      "event": "packet",
+      "index": 3,
+      "field": "kind",
+      "hex": "0x1.8p+1",
+      "value": 3.0
+    },
+    {
+      "line": 66817,
+      "event": "packet",
+      "index": 3,
+      "field": "mass",
+      "hex": "0x0p+0",
+      "value": 0.0
+    },
+    {
+      "line": 66818,
+      "event": "packet",
+      "index": 3,
+      "field": "energy",
+      "hex": "0x0p+0",
+      "value": 0.0
+    },
+    {
+      "line": 66819,
+      "event": "packet",
+      "index": 3,
+      "field": "conductive",
+      "hex": "0x0p+0",
+      "value": 0.0
+    },
+    {
+      "line": 66820,
+      "event": "packet",
+      "index": 3,
+      "field": "advective",
+      "hex": "0x0p+0",
+      "value": 0.0
+    },
+    {
+      "line": 66821,
+      "event": "packet",
+      "index": 3,
+      "field": "pressure_work",
+      "hex": "0x0p+0",
+      "value": 0.0
+    },
+    {
+      "line": 66822,
+      "event": "packet",
+      "index": 3,
+      "field": "viscous_work",
+      "hex": "0x0p+0",
+      "value": 0.0
+    },
+    {
+      "line": 66823,
+      "event": "packet",
+      "index": 3,
+      "field": "momentum_x",
+      "hex": "0x0p+0",
+      "value": 0.0
+    },
+    {
+      "line": 66824,
+      "event": "packet",
+      "index": 3,
+      "field": "momentum_y",
+      "hex": "0x0p+0",
+      "value": 0.0
+    },
+    {
+      "line": 66825,
+      "event": "packet",
+      "index": 3,
+      "field": "momentum_z",
+      "hex": "0x0p+0",
+      "value": 0.0
+    },
+    {
+      "line": 66826,
+      "event": "packet",
+      "index": 4,
+      "field": "face",
+      "hex": "0x1.2p+4",
+      "value": 18.0
+    },
+    {
+      "line": 66827,
+      "event": "packet",
+      "index": 4,
+      "field": "stage",
+      "hex": "0x1p+0",
+      "value": 1.0
+    },
+    {
+      "line": 66828,
+      "event": "packet",
+      "index": 4,
+      "field": "kind",
+      "hex": "0x1p+0",
+      "value": 1.0
+    },
+    {
+      "line": 66829,
+      "event": "packet",
+      "index": 4,
+      "field": "mass",
+      "hex": "0x1.6a9c4a24bc856p-34",
+      "value": 8.244808358086887e-11
+    },
+    {
+      "line": 66830,
+      "event": "packet",
+      "index": 4,
+      "field": "energy",
+      "hex": "-0x1.0c4b6067bbdep-21",
+      "value": -4.997373368158371e-07
+    },
+    {
+      "line": 66831,
+      "event": "packet",
+      "index": 4,
+      "field": "conductive",
+      "hex": "-0x1.ffeed509a867ap-16",
+      "value": -3.0513580930097217e-05
+    },
+    {
+      "line": 66832,
+      "event": "packet",
+      "index": 4,
+      "field": "advective",
+      "hex": "0x1.f78c7a066a88bp-16",
+      "value": 3.001384359328138e-05
+    },
+    {
+      "line": 66833,
+      "event": "packet",
+      "index": 4,
+      "field": "pressure_work",
+      "hex": "-0x0p+0",
+      "value": -0.0
+    },
+    {
+      "line": 66834,
+      "event": "packet",
+      "index": 4,
+      "field": "viscous_work",
+      "hex": "-0x0p+0",
+      "value": -0.0
+    },
+    {
+      "line": 66835,
+      "event": "packet",
+      "index": 4,
+      "field": "momentum_x",
+      "hex": "0x1.645587ee7a25fp-8",
+      "value": 0.005437226950086498
+    },
+    {
+      "line": 66836,
+      "event": "packet",
+      "index": 4,
+      "field": "momentum_y",
+      "hex": "-0x1.e69f30f6aa25p-96",
+      "value": -2.3992309118272637e-29
+    },
+    {
+      "line": 66837,
+      "event": "packet",
+      "index": 4,
+      "field": "momentum_z",
+      "hex": "0x1.e69f30f6aa25p-95",
+      "value": 4.7984618236545274e-29
+    },
+    {
+      "line": 66838,
+      "event": "packet",
+      "index": 5,
+      "field": "face",
+      "hex": "0x1.2p+4",
+      "value": 18.0
+    },
+    {
+      "line": 66839,
+      "event": "packet",
+      "index": 5,
+      "field": "stage",
+      "hex": "0x1p+0",
+      "value": 1.0
+    },
+    {
+      "line": 66840,
+      "event": "packet",
+      "index": 5,
+      "field": "kind",
+      "hex": "0x1.8p+1",
+      "value": 3.0
+    },
+    {
+      "line": 66841,
+      "event": "packet",
+      "index": 5,
+      "field": "mass",
+      "hex": "0x0p+0",
+      "value": 0.0
+    },
+    {
+      "line": 66842,
+      "event": "packet",
+      "index": 5,
+      "field": "energy",
+      "hex": "0x0p+0",
+      "value": 0.0
+    },
+    {
+      "line": 66843,
+      "event": "packet",
+      "index": 5,
+      "field": "conductive",
+      "hex": "0x0p+0",
+      "value": 0.0
+    },
+    {
+      "line": 66844,
+      "event": "packet",
+      "index": 5,
+      "field": "advective",
+      "hex": "0x0p+0",
+      "value": 0.0
+    },
+    {
+      "line": 66845,
+      "event": "packet",
+      "index": 5,
+      "field": "pressure_work",
+      "hex": "0x0p+0",
+      "value": 0.0
+    },
+    {
+      "line": 66846,
+      "event": "packet",
+      "index": 5,
+      "field": "viscous_work",
+      "hex": "0x0p+0",
+      "value": 0.0
+    },
+    {
+      "line": 66847,
+      "event": "packet",
+      "index": 5,
+      "field": "momentum_x",
+      "hex": "0x0p+0",
+      "value": 0.0
+    },
+    {
+      "line": 66848,
+      "event": "packet",
+      "index": 5,
+      "field": "momentum_y",
+      "hex": "-0x0p+0",
+      "value": -0.0
+    },
+    {
+      "line": 66849,
+      "event": "packet",
+      "index": 5,
+      "field": "momentum_z",
+      "hex": "0x0p+0",
+      "value": 0.0
+    },
+    {
+      "line": 66850,
+      "event": "packet",
+      "index": 6,
+      "field": "face",
+      "hex": "0x1.3p+4",
+      "value": 19.0
+    },
+    {
+      "line": 66851,
+      "event": "packet",
+      "index": 6,
+      "field": "stage",
+      "hex": "0x1p+0",
+      "value": 1.0
+    },
+    {
+      "line": 66852,
+      "event": "packet",
+      "index": 6,
+      "field": "kind",
+      "hex": "0x1p+0",
+      "value": 1.0
+    },
+    {
+      "line": 66853,
+      "event": "packet",
+      "index": 6,
+      "field": "mass",
+      "hex": "0x1.6a9c4a24bc852p-34",
+      "value": 8.244808358086881e-11
+    },
+    {
+      "line": 66854,
+      "event": "packet",
+      "index": 6,
+      "field": "energy",
+      "hex": "-0x1.0c4b60720c36p-21",
+      "value": -4.997373379609037e-07
+    },
+    {
+      "line": 66855,
+      "event": "packet",
+      "index": 6,
+      "field": "conductive",
+      "hex": "-0x1.ffeed509fae95p-16",
+      "value": -3.0513580931242226e-05
+    },
+    {
+      "line": 66856,
+      "event": "packet",
+      "index": 6,
+      "field": "advective",
+      "hex": "0x1.f78c7a066a87ap-16",
+      "value": 3.0013843593281322e-05
+    },
+    {
+      "line": 66857,
+      "event": "packet",
+      "index": 6,
+      "field": "pressure_work",
+      "hex": "-0x0p+0",
+      "value": -0.0
+    },
+    {
+      "line": 66858,
+      "event": "packet",
+      "index": 6,
+      "field": "viscous_work",
+      "hex": "-0x0p+0",
+      "value": -0.0
+    },
+    {
+      "line": 66859,
+      "event": "packet",
+      "index": 6,
+      "field": "momentum_x",
+      "hex": "0x1.645587ee7a25dp-8",
+      "value": 0.005437226950086496
+    },
+    {
+      "line": 66860,
+      "event": "packet",
+      "index": 6,
+      "field": "momentum_y",
+      "hex": "-0x1.e69f30f6aa2f6p-96",
+      "value": -2.3992309118273102e-29
+    },
+    {
+      "line": 66861,
+      "event": "packet",
+      "index": 6,
+      "field": "momentum_z",
+      "hex": "0x0p+0",
+      "value": 0.0
+    },
+    {
+      "line": 66862,
+      "event": "packet",
+      "index": 7,
+      "field": "face",
+      "hex": "0x1.3p+4",
+      "value": 19.0
+    },
+    {
+      "line": 66863,
+      "event": "packet",
+      "index": 7,
+      "field": "stage",
+      "hex": "0x1p+0",
+      "value": 1.0
+    },
+    {
+      "line": 66864,
+      "event": "packet",
+      "index": 7,
+      "field": "kind",
+      "hex": "0x1.8p+1",
+      "value": 3.0
+    },
+    {
+      "line": 66865,
+      "event": "packet",
+      "index": 7,
+      "field": "mass",
+      "hex": "0x0p+0",
+      "value": 0.0
+    },
+    {
+      "line": 66866,
+      "event": "packet",
+      "index": 7,
+      "field": "energy",
+      "hex": "0x0p+0",
+      "value": 0.0
+    },
+    {
+      "line": 66867,
+      "event": "packet",
+      "index": 7,
+      "field": "conductive",
+      "hex": "0x0p+0",
+      "value": 0.0
+    },
+    {
+      "line": 66868,
+      "event": "packet",
+      "index": 7,
+      "field": "advective",
+      "hex": "0x0p+0",
+      "value": 0.0
+    },
+    {
+      "line": 66869,
+      "event": "packet",
+      "index": 7,
+      "field": "pressure_work",
+      "hex": "0x0p+0",
+      "value": 0.0
+    },
+    {
+      "line": 66870,
+      "event": "packet",
+      "index": 7,
+      "field": "viscous_work",
+      "hex": "0x0p+0",
+      "value": 0.0
+    },
+    {
+      "line": 66871,
+      "event": "packet",
+      "index": 7,
+      "field": "momentum_x",
+      "hex": "0x0p+0",
+      "value": 0.0
+    },
+    {
+      "line": 66872,
+      "event": "packet",
+      "index": 7,
+      "field": "momentum_y",
+      "hex": "-0x0p+0",
+      "value": -0.0
+    },
+    {
+      "line": 66873,
+      "event": "packet",
+      "index": 7,
+      "field": "momentum_z",
+      "hex": "0x0p+0",
+      "value": 0.0
+    }
+  ]
+}

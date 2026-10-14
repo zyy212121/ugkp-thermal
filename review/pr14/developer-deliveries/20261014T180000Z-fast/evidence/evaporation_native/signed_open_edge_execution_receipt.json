@@ -1,0 +1,73 @@
+{
+  "runs": [
+    {
+      "label": "build_original",
+      "argv": [
+        "g++",
+        "-std=c++17",
+        "-O0",
+        "-g0",
+        "-ffp-contract=off",
+        "-DUGKWP_GAS_SPECIES=2",
+        "-I/workspace/scratch/98b6339ec81b/pr14_fast_fix_20261014/applications/CHMT",
+        "-I/workspace/scratch/98b6339ec81b/pr14_fast_fix_20261014/common",
+        "/workspace/scratch/98b6339ec81b/pr14_fast4_evap_analysis/checkpoint_film_boundary_probe.cpp",
+        "/workspace/scratch/98b6339ec81b/pr14_fast_fix_20261014/applications/CHMT/film/CpuFilmDriver.C",
+        "-o",
+        "/workspace/scratch/98b6339ec81b/pr14_fast4_evap_analysis/boundary_probe_original"
+      ],
+      "exit": 0,
+      "wall_seconds": 4.1063438400015,
+      "maxrss_kib_cumulative_children": 208752
+    },
+    {
+      "label": "run_original",
+      "argv": [
+        "/workspace/scratch/98b6339ec81b/pr14_fast4_evap_analysis/boundary_probe_original",
+        "/workspace/scratch/98b6339ec81b/pr14_fast_fix_20261014/review/pr14/reviewer-deliveries/20261014T072053Z-fast/artifacts/extra/wet-evaporation-S209-D204/checkpoint-1",
+        "/workspace/scratch/98b6339ec81b/pr14_fast4_evap_analysis/boundary_original_state.json"
+      ],
+      "exit": 0,
+      "wall_seconds": 0.027200009993975982,
+      "maxrss_kib_cumulative_children": 208752
+    },
+    {
+      "label": "build_signed_open_edge",
+      "argv": [
+        "g++",
+        "-std=c++17",
+        "-O0",
+        "-g0",
+        "-ffp-contract=off",
+        "-DUGKWP_GAS_SPECIES=2",
+        "-I/workspace/scratch/98b6339ec81b/pr14_fast_fix_20261014/applications/CHMT",
+        "-I/workspace/scratch/98b6339ec81b/pr14_fast_fix_20261014/common",
+        "/workspace/scratch/98b6339ec81b/pr14_fast4_evap_analysis/checkpoint_film_boundary_probe.cpp",
+        "/workspace/scratch/98b6339ec81b/pr14_fast4_evap_analysis/CpuFilmDriver_signed_open_edge.C",
+        "-o",
+        "/workspace/scratch/98b6339ec81b/pr14_fast4_evap_analysis/boundary_probe_signed_open_edge"
+      ],
+      "exit": 0,
+      "wall_seconds": 3.6652570179940085,
+      "maxrss_kib_cumulative_children": 208752
+    },
+    {
+      "label": "run_signed_open_edge",
+      "argv": [
+        "/workspace/scratch/98b6339ec81b/pr14_fast4_evap_analysis/boundary_probe_signed_open_edge",
+        "/workspace/scratch/98b6339ec81b/pr14_fast_fix_20261014/review/pr14/reviewer-deliveries/20261014T072053Z-fast/artifacts/extra/wet-evaporation-S209-D204/checkpoint-1",
+        "/workspace/scratch/98b6339ec81b/pr14_fast4_evap_analysis/boundary_signed_open_edge_state.json"
+      ],
+      "exit": 0,
+      "wall_seconds": 0.028019167999445926,
+      "maxrss_kib_cumulative_children": 208752
+    }
+  ],
+  "sources_sha256": {
+    "/workspace/scratch/98b6339ec81b/pr14_fast4_evap_analysis/checkpoint_film_boundary_probe.cpp": "31a5c8b2b58eceea26a075a397276df7e5aaadf90131a3bb813d71ed10280d23",
+    "/workspace/scratch/98b6339ec81b/pr14_fast4_evap_analysis/CpuFilmDriver_signed_open_edge.C": "0835d5f25870c55523fd7093ac5384cdacd183ef4ef34b22caf7284de2d5851e",
+    "/workspace/scratch/98b6339ec81b/pr14_fast_fix_20261014/applications/CHMT/film/CpuFilmDriver.C": "d52c38751124be82e73b3a458bf512dc08a64d2108981d0033787e97ff677e67",
+    "/workspace/scratch/98b6339ec81b/pr14_fast4_evap_analysis/signed_open_edge_scratch.patch": "1d0b5f5242829c8e9e7f250f83f3b46b284794dd9cfe85229b694ea823a42a65"
+  },
+  "semantic_caveat": "Scratch-only deliberate extension to owner-extrapolated signed open-edge flux. Production test_cpu_film.cpp undeclaredInflowAndOutflow explicitly expects negative open-edge inflow to be rejected; no existing declared inflow BC is being invoked. No production patch applied."
+}

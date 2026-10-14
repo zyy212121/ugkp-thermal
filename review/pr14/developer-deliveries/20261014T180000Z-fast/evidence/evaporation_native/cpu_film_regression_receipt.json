@@ -1,0 +1,100 @@
+{
+  "runs": [
+    {
+      "name": "baseline_red_build",
+      "argv": [
+        "g++",
+        "-std=c++14",
+        "-O2",
+        "-D_GLIBCXX_ASSERTIONS",
+        "-Wall",
+        "-Wextra",
+        "-Werror",
+        "-pedantic",
+        "-I/workspace/scratch/98b6339ec81b/pr14_fast_fix_20261014/applications/CHMT",
+        "-I/workspace/scratch/98b6339ec81b/pr14_fast_fix_20261014/common",
+        "/workspace/scratch/98b6339ec81b/pr14_fast4_evap_analysis/test_cpu_film_signed_open_edge.cpp",
+        "/workspace/scratch/98b6339ec81b/pr14_fast_fix_20261014/applications/CHMT/film/CpuFilmDriver.C",
+        "-o",
+        "/workspace/scratch/98b6339ec81b/pr14_fast4_evap_analysis/test_cpu_film_baseline_red"
+      ],
+      "exit_code": 0,
+      "seconds": 5.113642473996151,
+      "maxrss_kib_cumulative_children": 156520
+    },
+    {
+      "name": "baseline_red_run",
+      "argv": [
+        "/workspace/scratch/98b6339ec81b/pr14_fast4_evap_analysis/test_cpu_film_baseline_red"
+      ],
+      "exit_code": 1,
+      "seconds": 0.0028820240040658973,
+      "maxrss_kib_cumulative_children": 156520
+    },
+    {
+      "name": "candidate_green_build",
+      "argv": [
+        "g++",
+        "-std=c++14",
+        "-O2",
+        "-D_GLIBCXX_ASSERTIONS",
+        "-Wall",
+        "-Wextra",
+        "-Werror",
+        "-pedantic",
+        "-I/workspace/scratch/98b6339ec81b/pr14_fast_fix_20261014/applications/CHMT",
+        "-I/workspace/scratch/98b6339ec81b/pr14_fast_fix_20261014/common",
+        "/workspace/scratch/98b6339ec81b/pr14_fast4_evap_analysis/test_cpu_film_signed_open_edge.cpp",
+        "/workspace/scratch/98b6339ec81b/pr14_fast4_evap_analysis/CpuFilmDriver_signed_open_edge.C",
+        "-o",
+        "/workspace/scratch/98b6339ec81b/pr14_fast4_evap_analysis/test_cpu_film_candidate_green"
+      ],
+      "exit_code": 0,
+      "seconds": 5.555327287002001,
+      "maxrss_kib_cumulative_children": 156524
+    },
+    {
+      "name": "candidate_green_run",
+      "argv": [
+        "/workspace/scratch/98b6339ec81b/pr14_fast4_evap_analysis/test_cpu_film_candidate_green"
+      ],
+      "exit_code": 0,
+      "seconds": 0.004687614004069474,
+      "maxrss_kib_cumulative_children": 156524
+    },
+    {
+      "name": "existing_original_build",
+      "argv": [
+        "g++",
+        "-std=c++14",
+        "-O2",
+        "-D_GLIBCXX_ASSERTIONS",
+        "-Wall",
+        "-Wextra",
+        "-Werror",
+        "-pedantic",
+        "-I/workspace/scratch/98b6339ec81b/pr14_fast_fix_20261014/applications/CHMT",
+        "-I/workspace/scratch/98b6339ec81b/pr14_fast_fix_20261014/common",
+        "/workspace/scratch/98b6339ec81b/pr14_fast_fix_20261014/applications/CHMT/devtools/multirate/test_cpu_film.cpp",
+        "/workspace/scratch/98b6339ec81b/pr14_fast_fix_20261014/applications/CHMT/film/CpuFilmDriver.C",
+        "-o",
+        "/workspace/scratch/98b6339ec81b/pr14_fast4_evap_analysis/test_cpu_film_existing_original"
+      ],
+      "exit_code": 0,
+      "seconds": 5.0108079010024085,
+      "maxrss_kib_cumulative_children": 156868
+    },
+    {
+      "name": "existing_original_run",
+      "argv": [
+        "/workspace/scratch/98b6339ec81b/pr14_fast4_evap_analysis/test_cpu_film_existing_original"
+      ],
+      "exit_code": 0,
+      "seconds": 0.0026329729953431524,
+      "maxrss_kib_cumulative_children": 156868
+    }
+  ],
+  "test_source_sha256": "3e1eee75e77097eb1788fe2ea8cc29b554d8bf00c82fc6fd0431ad9dab89b897",
+  "tolerances": "Original near() default 2e-11 and all pre-existing thresholds unchanged. New direction/finite and timestep-equality assertions use exact comparisons.",
+  "scope": "Scratch-only component/native CPU film regression, not full native owner/GPU completion."
+}
