@@ -2972,5 +2972,24 @@
       ],
       "merge_authorized": false
     }
+  ],
+  "reviewer_publication_verifications": [
+    {
+      "id": "R014-020-PUBLISHED-20261014T190010Z-fast",
+      "identity": "PR14_REVIEW_ONLY",
+      "interaction_class": "FAST",
+      "recorded_utc": "2026-10-14T20:53:44.611312+00:00",
+      "source_commit": "47034e4e0380fa5b84165b49207a95a9b187a52a",
+      "source_tree": "c932823a00b3ed2f647e22de5002f9b913962fee",
+      "primary_record_commit": "b2b032bae56c46ff4495a0296ec9ba6936083291",
+      "verified_remote_head_at_primary_verification": "b2b032bae56c46ff4495a0296ec9ba6936083291",
+      "report_sha256": "da7494f1ad46d610d908da9e2a0b0af9f6beb3449d5cfcc88bca64381d4e7494",
+      "evidence_ids": [
+        "E014-39ae43122393d472",
+        "E014-1c03fdcbd746e240"
+      ],
+      "whole_FAST_acceptance": false,
+      "merge_authorized": false
+    }
   ]
 }
