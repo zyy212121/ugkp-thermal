@@ -3,7 +3,6 @@
 #include "../gasTransport/GasStateView.H"
 #include "../gasTransport/GasCapabilities.H"
 #include "../gasTransport/GasGeometryValidation.H"
-#include "../gasTransport/GasBudgetAudit.H"
 #include "../chemistry/LocalStiffIntegrator.H"
 
 namespace ugkwp
@@ -167,20 +166,19 @@ UGKWP_GAS_HD inline ChemistryStatus advanceGasChemistryCell
         }
 
         ClosedReactorResult<Real, Ns> result;
-        ChemistryAudit<Real, Ns> localAudit;
         const ChemistryStatus inputDiagnostic=status;
         bool reactorAvailable=false;
         if (nativeRefinement)
             status = advanceClosedReactorTrial
             (
                 input, interval, species.thermo, species.mechanism,
-                castChemistryControls<Real>(species.chemistryControls), result, localAudit, &reactorAvailable
+                castChemistryControls<Real>(species.chemistryControls), result, &reactorAvailable
             );
         else
             status = advanceClosedReactor
             (
                 input, interval, species.thermo, species.mechanism,
-                castChemistryControls<Real>(species.chemistryControls), result, localAudit, &reactorAvailable
+                castChemistryControls<Real>(species.chemistryControls), result, &reactorAvailable
             );
         if (!reactorAvailable)
             return gasChemistryAdapterDetail::recordFailure
@@ -237,50 +235,13 @@ UGKWP_GAS_HD inline ChemistryStatus advanceGasChemistryCell
                 densitySum = originalSum;
             }
         }
-        // Requested diagnostics describe the rounded masses actually published.
-        // An unavailable/overflowing diagnostic never cancels finite state.
-        if (species.chemistryAudit)
-        {
-            Real publishedMass[Ns], massSum = Real(0);
-            for (int s = 0; s < Ns; ++s)
-            {
-                publishedMass[s] = Real(candidateDensity[s])*Real(stageVolume);
-                massSum += publishedMass[s];
-                localAudit.speciesMassChange[s] = publishedMass[s] - input.speciesMass[s];
-            }
-            localAudit.massResidual = massSum - input.totalMass;
-            localAudit.maximumElementResidual = Real(0);
-            if (species.thermo.elementCount > 0 && !species.thermo.elementComposition)
-                localAudit.maximumElementResidual = gasThermoDetail::invalidValue<Real>();
-            else for (int e = 0; e < species.thermo.elementCount; ++e)
-            {
-                Real before = Real(0), after = Real(0);
-                for (int s = 0; s < Ns; ++s)
-                {
-                    const Real atoms = species.thermo.elementComposition
-                        [s*species.thermo.elementCount + e]/species.thermo.species[s].molarMass;
-                    before += input.speciesMass[s]*atoms;
-                    after += publishedMass[s]*atoms;
-                }
-                const Real residual = gasThermoDetail::absValue(after - before);
-                if (gasFinite(localAudit.maximumElementResidual))
-                    localAudit.maximumElementResidual = gasFinite(residual)
-                        ? gasThermoDetail::maxValue(localAudit.maximumElementResidual, residual) : residual;
-            }
-            localAudit.energyResidual = mixtureEnergy
-                (publishedMass, result.temperature, species.thermo) - input.internalEnergy;
-        }
-
         // A zero interval must not change density bits through a round trip with
-        // an arbitrary volume. Requested diagnostics still describe its masses.
+        // an arbitrary volume.
         if (interval != Time(0))
         {
-            gasBudgetChemistry(state,cell,candidateDensity,stageVolume);
             for (int s = 0; s < Ns; ++s)
                 species.rho[s*state.nCells + cell] = candidateDensity[s];
         }
-        if (species.chemistryAudit)
-            species.chemistryAudit[cell] = castChemistryAudit<StorageReal>(localAudit);
         if(species.chemistryStatus)species.chemistryStatus[cell] = status;
         if(evaluated)*evaluated=true;
         if(!status)return gasChemistryAdapterDetail::recordFailure(species,cell,status,false);

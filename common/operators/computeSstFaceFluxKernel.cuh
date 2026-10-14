@@ -4,27 +4,6 @@
 #include "gasTransport/GasCapabilities.H"
 #include "gasTransport/MixtureThermo.H"
 #include "gasTransport/GasGeometryValidation.H"
-#include "gasTransport/GasBudgetAudit.H"
-template<class GasState>
-__global__ void prepareGasSstAuditKernel(GasState* sp)
-{
-    GasState& s=*sp;const int c=blockIdx.x*blockDim.x+threadIdx.x;
-    if(c>=s.nCells || !ugkwp::gasSstAuditEnabled(s))return;
-    if(!ugkwp::gasSstAuditComplete(s))return;
-    if constexpr(ugkwp::GasSstAuditCapability<GasState>::value)
-    {
-        GPU_OPERATOR_REAL volume=s.V[c];
-        if constexpr(ugkwp::GasGeometryCapability<GasState>::value)
-            if(ugkwp::gasMovingGeometry(s))
-            {
-                if(!s.gasGeometry.oldVolume)
-                {return;}
-                volume=s.gasGeometry.oldVolume[c];
-            }
-        s.gasSstAudit.volume[c]=volume;
-    }
-}
-
 // One operator implementation; scalar/time adapters are compile-time only.
 // Interpolate the conservative cell diffusion coefficients with the same
 // owner-oriented weight used by the face flux, including coupled faces.
@@ -441,7 +420,6 @@ __global__ void applySstFluxAndSourceKernel
         return;
     }
 
-    const GPU_OPERATOR_REAL beforeK=s.rhoK[c],beforeOmega=s.rhoOmega[c];
     GPU_OPERATOR_REAL oldVolume=s.V[c],newVolume=s.V[c];
     const bool moving=ugkwp::gasMovingGeometry(s);
     if(moving)
@@ -551,7 +529,6 @@ __global__ void applySstFluxAndSourceKernel
         }
         s.rhoK[c]=clampMin(nextK,rhoKFloor*oldVolume/newVolume);
         s.rhoOmega[c]=clampMin(nextOmega,rhoOmegaFloor*oldVolume/newVolume);
-        ugkwp::gasSstAuditEuler(s,c,beforeK,beforeOmega,oldVolume,newVolume,dt,fluxK,fluxOmega,sourceK,sourceOmega);
         return;
     }
     s.rhoK[c] =
@@ -567,7 +544,6 @@ __global__ void applySstFluxAndSourceKernel
             rhoOmegaFloor
         );
     }
-    ugkwp::gasSstAuditEuler(s,c,beforeK,beforeOmega,oldVolume,newVolume,dt,fluxK,fluxOmega,sourceK,sourceOmega);
 }
 template<class GasState>
 __global__ void computeGasCourantFieldKernel(GasState* sp, const GPU_OPERATOR_TIME dt, const bool nativeRefinement=false)
@@ -1125,8 +1101,6 @@ __global__ void applyGasFluxDivergenceByCellKernel(GasState* sp, const GPU_OPERA
                 if(!finiteDevice(flux))
                 {ugkwp::gasRecordCellFailure(s,c,ugkwp::GasTransportCode::InvalidComposition);if(nativeRefinement)return;}
                 trial[k]+=sign*flux;faceSum+=flux;faceMagnitude+=fabs(flux);
-                if(ugkwp::gasBudgetEnabled(s) && ugkwp::gasBudgetExternalFace(s,faceI))
-                    ugkwp::gasBudgetFlux(s,c,k+2,dt,sign*flux);
             }
             const GPU_OPERATOR_REAL massFlux=s.gasPhiRho[faceI];
             const GPU_OPERATOR_REAL faceBound=GPU_OPERATOR_R(8*Ns)*roundoff
@@ -1145,11 +1119,6 @@ __global__ void applyGasFluxDivergenceByCellKernel(GasState* sp, const GPU_OPERA
         dRhoUy += sign*s.gasPhiRhoUy[faceI];
         dRhoUz += sign*s.gasPhiRhoUz[faceI];
         dRhoE += Energy(sign)*Energy(s.gasPhiRhoE[faceI]);
-        if(ugkwp::gasBudgetEnabled(s) && ugkwp::gasBudgetExternalFace(s,faceI))
-        {
-            ugkwp::gasBudgetFlux(s,c,0,dt,sign*s.gasPhiRho[faceI]);
-            ugkwp::gasBudgetFlux(s,c,1,dt,sign*s.gasPhiRhoE[faceI]);
-        }
     }
 
     GPU_OPERATOR_REAL scale;
@@ -1358,7 +1327,6 @@ __global__ void saveGasConservativeStateKernel(GasState* sp)
     s.rhoUyNext[c] = s.rhoUy[c];
     s.rhoUzNext[c] = s.rhoUz[c];
     s.rhoENext[c] = s.rhoE[c];
-    ugkwp::saveGasBudgetAudit(s,c);
     if constexpr (ugkwp::GasStateTraits<GasState>::speciesCount > 0)
         if (ugkwp::mixtureGasActive(s))
             for (int k=0;k<ugkwp::GasStateTraits<GasState>::speciesCount;++k)
@@ -1367,7 +1335,6 @@ __global__ void saveGasConservativeStateKernel(GasState* sp)
     {
         s.rhoKInitial[c] = s.rhoK[c];
         s.rhoOmegaInitial[c] = s.rhoOmega[c];
-        ugkwp::saveGasSstAudit(s,c);
     }
 }
 
@@ -1495,7 +1462,6 @@ __global__ void blendGasConservativeStateKernel
     s.rho[c]=blendedDensity;
     s.rhoUx[c]=blendedMomentumX;s.rhoUy[c]=blendedMomentumY;s.rhoUz[c]=blendedMomentumZ;
     s.rhoE[c]=blendedEnergy;
-    ugkwp::blendGasBudgetAudit(s,c,initialWeight,stageWeight);
     if constexpr (ugkwp::GasStateTraits<GasState>::speciesCount > 0)
         if (ugkwp::mixtureGasActive(s))
             for (int k=0;k<ugkwp::GasStateTraits<GasState>::speciesCount;++k)
@@ -1507,7 +1473,6 @@ __global__ void blendGasConservativeStateKernel
     {
         s.rhoK[c]=blendedK;
         s.rhoOmega[c]=blendedOmega;
-        ugkwp::blendGasSstAudit(s,c,initialWeight,stageWeight);
     }
 }
 

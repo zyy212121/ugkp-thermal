@@ -273,7 +273,6 @@ __device__ void applySstWallFunctionStateCell(GasState& s, const int c, const bo
         return;
     }
 
-    const GPU_OPERATOR_REAL beforeK=s.rhoK[c],beforeOmega=s.rhoOmega[c];
     if constexpr(ugkwp::GasBoundaryLayerCapability<GasState>::value)
     {
         const int slot=ugkwp::gasBoundaryLayerOwnerSlot(s,c);
@@ -289,7 +288,6 @@ __device__ void applySstWallFunctionStateCell(GasState& s, const int c, const bo
             }
             s.omega[c]=clampMin(target,s.sstOmegaMin);
             s.rhoOmega[c]=clampMin(s.rho[c],s.rhoMin)*s.omega[c];
-            ugkwp::gasSstAuditConstraint(s,c,beforeK,beforeOmega);
             return;
         }
     }
@@ -322,7 +320,6 @@ __device__ void applySstWallFunctionStateCell(GasState& s, const int c, const bo
         s.omega[c] = omegaTarget;
         s.rhoOmega[c] = rhoSafe*omegaTarget;
     }
-    ugkwp::gasSstAuditConstraint(s,c,beforeK,beforeOmega);
 }
 
 template<class GasState>
@@ -375,7 +372,6 @@ __device__ void recoverSstPrimitiveCell(GasState& s, const int c, const bool nat
     {
         return;
     }
-    const GPU_OPERATOR_REAL beforeK=s.rhoK[c],beforeOmega=s.rhoOmega[c];
     const GPU_OPERATOR_REAL rhoSafe = clampMin(s.rho[c], s.rhoMin);
     const GPU_OPERATOR_REAL rhoKFloor = rhoSafe*s.sstKMin;
     const GPU_OPERATOR_REAL rhoOmegaFloor = rhoSafe*s.sstOmegaMin;
@@ -384,7 +380,6 @@ __device__ void recoverSstPrimitiveCell(GasState& s, const int c, const bool nat
         clampMin(finiteOr(s.rhoOmega[c], rhoOmegaFloor), rhoOmegaFloor);
     s.k[c] = s.rhoK[c]/rhoSafe;
     s.omega[c] = s.rhoOmega[c]/rhoSafe;
-    ugkwp::gasSstAuditConstraint(s,c,beforeK,beforeOmega);
     if (s.sstWallTreatment == 0 || s.sstWallTreatment == 1
         || (s.sstWallTreatment == 2 && (ugkwp::gasBoundaryLayerOwnerSlot(s,c)<0
             || ugkwp::gasBoundaryLayerSlotReady(s,ugkwp::gasBoundaryLayerOwnerSlot(s,c)))))
