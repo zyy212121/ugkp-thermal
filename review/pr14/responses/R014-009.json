@@ -2,7 +2,7 @@
   "identity": "PR14_REVIEW_ONLY",
   "topic_id": "R014-009",
   "interaction_class": "FAST",
-  "review_request_status": "FAST2_INCREMENTAL_RECHECK_OPEN",
+  "review_request_status": "FAST3_INCREMENTAL_RECHECK_OPEN",
   "reviewer_plan": {
     "source_commit": "a73b9635510fb09d7baa5339e14d1aa609f0ff87",
     "source_tree": "e343cb9f477dcd86556f7b6595189fa2c9c1c099",
@@ -664,6 +664,39 @@
       ],
       "status": "FORMAL_SOURCE_READY_GPU_RECHECK_PENDING",
       "limits": "No original finding closed by developer compilation; reuse unrelated valid existing evidence."
+    },
+    {
+      "id": "R014-009-DEV-20261014T112400Z-fast",
+      "recorded_utc": "2026-10-14T11:42:52.932201+00:00",
+      "interaction_class": "FAST",
+      "source_commit": "9d5be6eff69dbced2fc959d422d3ba419a1bc39e",
+      "source_tree": "5dc844d4189f50fcfbed2a77fa5e6cd6e9cfd066",
+      "reply_to": [
+        "R014-009-REVIEWER-20261014T072053Z-fast"
+      ],
+      "report": "developer-deliveries/20261014T112400Z-fast/REPORT.md",
+      "verification": "developer-deliveries/20261014T112400Z-fast/VALIDATION.json",
+      "review_request": "developer-deliveries/20261014T112400Z-fast/REVIEW_REQUEST.md",
+      "reuse_plan": "developer-deliveries/20261014T112400Z-fast/EVIDENCE_REUSE.md",
+      "remaining_gap_plan": "developer-deliveries/20261014T112400Z-fast/GAP_RECHECK_PLAN.md",
+      "evidence_ids": [
+        "E014-97878f9e0d3588c1",
+        "E014-b47170325e9af92d",
+        "E014-8c7d2765d1c02233",
+        "E014-275db92db26084cf",
+        "E014-c11cced8208a6e72",
+        "E014-8d72c095c71362a8",
+        "E014-770a319404191360"
+      ],
+      "status": "FAST3_SCOPED_DEVELOPER_REPLY_GPU_RECHECK_PENDING",
+      "scope": "Offline SST gas Px attribution only; net K/omega and stage evidence reused, gross/full budgets remain open.",
+      "source_delta_paths": [],
+      "remaining_gaps_preserved": [
+        "SST-RK-budgets"
+      ],
+      "gpu_runtime_executed": false,
+      "prior_reviewer_results_unchanged": true,
+      "merge_authorized": false
     }
   ],
   "recheck_results": [
