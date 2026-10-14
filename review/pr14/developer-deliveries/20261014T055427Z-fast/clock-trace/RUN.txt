@@ -1,0 +1,32 @@
+GPU-F003 targeted actual-CUDA trace. Not a production arithmetic patch.
+
+Purpose
+Compare the actual native CHMT solver for baseline d6110c02745a8ad726208a426c4bb3a28233c1fd and tested 802a11e7dfe986488a8bf8305e86424dcc94c9e1, using the existing FAST thermal-full input, to locate first differing stamp, selected dt, wall value, packet and per-step gas field. These diagnostics only observe existing host scalars and host downloads; there are no substitute kernels, fake CUDA calls, new solver acceptance rules, extra device copies or changed arithmetic expressions. Diagnostic I/O makes these runs unsuitable for performance measurement.
+
+Files
+clock_trace.H: observer compiled against actual CHMT types.
+make_trace_patch.py: emits an actual Backend.cu instrumentation patch; never applies it.
+baseline-trace.patch and tested-trace.patch: emitted from the exact commits above.
+compare_trace.py: reads F003 lines from native logs and compares binary64 bit patterns, including signed zero. Occurrence index keeps repeated RK stages distinct.
+clock_math.cpp/log: scalar arithmetic demonstration only, not GPU evidence.
+saved_csv_differences.json: exact differing existing CSV rows from FAST delivery.
+
+Tester procedure
+1. Use separate disposable source worktrees for the two exact commits. Keep source SHA, toolchain, species count, flags and binaries in the run receipt. Do not replace the baseline with a newer solver. Apply baseline-trace.patch to baseline and tested-trace.patch to tested. For a repaired production revision, regenerate a patch with make_trace_patch.py against that exact Backend.cu.
+2. Build each actual applications/CHMT/Allwmake with nvcc, UGKWP_GAS_SPECIES=2, CHMT_CUDA_ARCH=sm_89 and the saved OpenFOAM/CUDA environment. Use different CHMT_BUILD and FOAM_USER_APPBIN directories. The existing FAST inputs/env.sh can invoke env overrides after loading its environment:
+   bash <FAST>/inputs/env.sh env CHMT_BUILD=<build-base> FOAM_USER_APPBIN=<bin-base> bash <base>/applications/CHMT/Allwmake
+   Repeat with tested checkout/build/bin. The trace has not been executed on a GPU by the developer. Consult the delivery compilation report for the exact compile-only scope.
+3. Make two fresh byte-identical case copies of FAST inputs/native/chmt/thermal-full, with byte-identical generated constant/polyMesh and constant/solid/polyMesh from the original reviewer case. Keep hashes. If those generated meshes are no longer available, regenerate once with the exact archived blockMesh dictionaries and copy the same meshes into both cases.
+4. Run both actual native executables on the same GPU, capture stdout+stderr without filtering:
+   bash <FAST>/inputs/env.sh <bin-base>/CHMT -case <case-base> > baseline-native.log 2>&1
+   bash <FAST>/inputs/env.sh <bin-tested>/CHMT -case <case-tested> > tested-native.log 2>&1
+5. Run the existing unchanged physical checker on each output. Preserve full native logs, output CSV, binary hashes, patch hashes and checker results. Verify the instrumentation has not changed the uninstrumented output CSV.
+6. python compare_trace.py baseline-native.log tested-native.log > first-divergence.json
+   This reports differences, not acceptance. A nonempty exact trace is required; an empty result is not evidence of equality.
+
+Predictions to test, not asserted GPU results
+- First changed clock: window 1 accepted end at microstep 6, equivalently next begin stamp at step 7. Baseline step-7 stamp 0x1.f75104d551d69p-15, tested 0x1.f75104d551d6ap-15.
+- Window 1 selected dt first differs at microstep 50: baseline 0x1.4f8b588e3678p-17, tested 0x1.4f8b588e368dfp-17.
+- Window 2 selected dt at step 50: baseline 0x1.4f8b588e366p-17, tested 0x1.4f8b588e368dfp-17.
+- Existing packet CSV differences occur only at step 50, packet indices 392,394,396,398, energy/conductive fields.
+- Check wall values and per-step gas fields directly. If these differ before the predicted dt split, the clock-tail hypothesis does not fully explain F003; retain and investigate that earlier producer. Do not declare closure from matching end tolerances.
