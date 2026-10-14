@@ -1,0 +1,1 @@
+PASS: exact hexadecimal physical fields, accepted/next dt and packets match HEAD for 3 steps in each Euler/RK2/RK3 host-emulated SST run; not CUDA execution.
