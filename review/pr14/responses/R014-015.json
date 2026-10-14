@@ -2,7 +2,7 @@
   "identity": "PR14_REVIEW_ONLY",
   "topic_id": "R014-015",
   "interaction_class": "FAST",
-  "review_request_status": "OPEN",
+  "review_request_status": "FAST2_INCREMENTAL_RECHECK_OPEN",
   "reviewer_plan": {
     "source_commit": "a73b9635510fb09d7baa5339e14d1aa609f0ff87",
     "source_tree": "e343cb9f477dcd86556f7b6595189fa2c9c1c099",
@@ -138,7 +138,32 @@
       "merge_authorized": false
     }
   ],
-  "developer_replies": [],
+  "developer_replies": [
+    {
+      "id": "R014-015-DEV-20261014T055427Z-fast",
+      "recorded_utc": "2026-10-14T06:35:44.359348+00:00",
+      "interaction_class": "FAST",
+      "source_commit": "4b5c480b572f234ddecf5e89164fe59b0d2e9735",
+      "source_tree": "0fa2562f4c83394cdf94e9650de3b22c4fb4bb15",
+      "reply_to": [
+        "R014-015-REVIEWER-20261013T182722Z-fast"
+      ],
+      "report": "developer-deliveries/20261014T055427Z-fast/REPORT.md",
+      "finding_responses": "developer-deliveries/20261014T055427Z-fast/FINDING_RESPONSES.json",
+      "verification": "developer-deliveries/20261014T055427Z-fast/VALIDATION.json",
+      "review_request": "developer-deliveries/20261014T055427Z-fast/REVIEW_REQUEST.md",
+      "evidence_ids": [
+        "E014-cb2388c494416991",
+        "E014-a2245ab4f1d2023f",
+        "E014-e19f0368eb7894fe",
+        "E014-d1aacdd7e2c963a2",
+        "E014-db1b274e93cb0bc4",
+        "E014-17adc26e06df66c6"
+      ],
+      "status": "FORMAL_SOURCE_READY_GPU_RECHECK_PENDING",
+      "limits": "No original finding closed by developer compilation; reuse unrelated valid existing evidence."
+    }
+  ],
   "recheck_results": [],
   "final_decision": {
     "status": "PENDING",
