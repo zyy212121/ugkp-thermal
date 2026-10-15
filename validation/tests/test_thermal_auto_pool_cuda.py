@@ -1,0 +1,23 @@
+"""The same transition/consumer oracle must pass for each thermal backend."""
+from validation.tools.paths import SOURCE_ROOT, VALIDATION_ROOT, CASES_ROOT
+
+from pathlib import Path
+import subprocess,sys
+import pytest
+ROOT=SOURCE_ROOT
+@pytest.fixture(scope='module',params=['FSH','CHT',],ids=['FSH64','CHT64'])
+def consumer(request,tmp_path_factory):
+    if not Path('/usr/local/cuda/bin/nvcc').is_file():pytest.skip('CUDA compiler and device required')
+    app=request.param
+    out=tmp_path_factory.mktemp(f'thermal-auto-{app}-{64}')
+    q=subprocess.run([sys.executable,str((VALIDATION_ROOT / 'tools/tests/fixtures/gas_auto/gas_auto_pool.py')),str(ROOT),str(out),app],capture_output=True,text=True,timeout=600)
+    assert q.returncode==0,q.stdout+q.stderr
+    return out/'gas_auto_pool'
+@pytest.mark.parametrize('block',[32,64,128])
+@pytest.mark.parametrize('prebuilt',[True,False],ids=['already-L2','activate-from-L1'])
+@pytest.mark.parametrize('directory',[0,1,2],ids=['full','base-no-injection','base-and-injection'])
+def test_auto_prepares_and_consumes_current_directory(consumer,directory,prebuilt,block):
+    q=subprocess.run([str(consumer),str(directory),str(int(prebuilt)),str(block)],capture_output=True,text=True,timeout=120)
+    (consumer.parent/f'directory-{directory}-initial-{int(prebuilt)}-block-{block}.log').write_text(q.stdout+q.stderr)
+    assert q.returncode==0,q.stdout+q.stderr
+    assert 'PASS gas automatic scheduling followed by actual task consumers' in q.stdout

@@ -492,21 +492,26 @@ The supplied radiation cases are `bentSRM_coldWall`,
 The generator is:
 
 ```text
-applications/CHT/thermal/mieTables/make_alumina_mie_table.py
+tool/radiation/mieTables/make_alumina_mie_table.py
 ```
 
-For one case, run it from the repository root and write the file to the path
-referenced by that case:
+Run it from the source repository root and write the shared table to the
+canonical path:
 
 ```bash
-python3 applications/CHT/thermal/mieTables/make_alumina_mie_table.py \
-    --out examples/thermal/MSS7_twoPhase_dense/assets/radiation/alumina_mieTable.dat
+python3 tool/radiation/mieTables/make_alumina_mie_table.py \
+    --out tool/radiation/tables/alumina_mieTable.dat
 ```
 
-Replace `MSS7_twoPhase_dense` with the selected case name for the other
-radiation cases. A single generated table can be copied to the other case
-directories when the same diameter and temperature coverage is appropriate;
-each case still needs its own file at the path named by `mieTable`.
+Cases can read the shared table through an absolute `mieTable` path or a
+symbolic link at the configured path; duplicate per-case copies are not needed
+when the same diameter and temperature coverage is appropriate. The case
+repository's `example/tools/production/Allrun` preserves any existing non-empty
+table referenced by `mieTable`, including a custom table. If that path is
+missing or empty and the shared table is non-empty, the runner creates a
+symbolic link to
+`${UGKP_SOURCE_ROOT}/tool/radiation/tables/alumina_mieTable.dat`. The solver
+continues to read the configured `mieTable` path.
 
 The default sampling is configurable through command-line options rather than
 fixed in the calculation:
@@ -607,7 +612,7 @@ The library default is 32. Increase this limit for trajectories that cross or re
 
 ### 公共算子维护入口（2026-10-03 收口）
 
-gas、FSH、CHT 的公共算子核及主机流程由 `common/` 维护。公共文件上游为 `ugkp-thermal/common`；gas 应用入口上游为独立 gas 库。修改公共实现后运行 `python3 tools/managed_mirrors.py --sync`，按登记归属同步双库；构建前检查会拒绝镜像漂移。无需分别移植三套核心实现。各应用的能力/精度适配仍需各自验证。当前生产双库冻结期间不要运行跨库 `--sync`；后续镜像同步须单独审核，公共调度配置头不在镜像范围内。工程结论与十对 k1/k2 结果见 [本轮结果](docs/OPERATOR_CONSOLIDATION_R2_RESULTS_ZH.md)，维护契约见 [维护说明](docs/OPERATOR_MAINTENANCE_ZH.md)。
+gas、FSH、CHT 的公共算子核及主机流程由 `common/` 维护。公共文件上游为 `ugkp-thermal/common`；gas 应用入口上游为独立 gas 库。修改公共实现后运行 `python3 tool/managed_mirrors.py --sync`，按登记归属同步双库；构建前检查会拒绝镜像漂移。无需分别移植三套核心实现。各应用的能力/精度适配仍需各自验证。当前生产双库冻结期间不要运行跨库 `--sync`；后续镜像同步须单独审核，公共调度配置头不在镜像范围内。工程结论与十对 k1/k2 结果见 [本轮结果](docs/OPERATOR_CONSOLIDATION_R2_RESULTS_ZH.md)，维护契约见 [维护说明](docs/OPERATOR_MAINTENANCE_ZH.md)。
 
 本次自动调度恢复、最后三项代码清理及验证结果见 [2026-10-04 收尾验证](docs/development/auto-cleanup-20261004/README.md)。
 

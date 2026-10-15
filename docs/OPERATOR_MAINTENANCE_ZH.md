@@ -4,12 +4,12 @@ gas 负责流场；FSH 增加有限接触壁面；CHT 增加双向固体耦合�
 
 ## 维护所有权与构建
 
-两库可独立构建。`tools/managed_mirrors.json` 明确公共算子以 ugkp-thermal 为上游、gas 应用以 gpu-riemann-gkp-main 为上游；清单登记共享和库内独有文件。正常检查只读，发现镜像漂移或未登记输入会失败。单独 checkout 校验本地库存；两库并排时同时比较内容。
+两库可独立构建。`tool/managed_mirrors.json` 明确公共算子以 ugkp-thermal 为上游、gas 应用以 gpu-riemann-gkp-main 为上游；清单登记共享和库内独有文件。正常检查只读，发现镜像漂移或未登记输入会失败。单独 checkout 校验本地库存；两库并排时同时比较内容。
 
 ```sh
-python3 tools/managed_mirrors.py
-python3 tools/particle_field_contract.py
-python3 tools/operator_policy_contract_test.py
+python3 tool/managed_mirrors.py
+python3 tool/particle_field_contract.py
+python3 validation/tools/operator_policy_contract_test.py
 ```
 
 修改上游后，使用 `managed_mirrors.py --sync` 按白名单更新下游；新增 common 输入需显式 `--register common/文件名`。工具不会删除未登记文件。库存排除已知的 wmake 平台输出、CUDA build/build_logs、生成的 lnInclude 和固定后台归档路径；不按任意文件后缀全局放行，生成物不能登记为受管源码。Allwmake、直接 CUDA 构建脚本和算子验证入口均执行源码检查。
@@ -30,13 +30,13 @@ auto 的检查周期、占用统计、严格大于阈值的判定、决策发布
 
 full/split 目录在修改前先使 `csrTasksReady` 失效；公共任务生产者同样先使其失效，即使此前处于L1；成功排入当前目录的 count/scan/materialize 后才置为就绪，并记录目录类型。auto 检查更新阈值后重新准备任务；非检查步使用目录生产者刚准备好的任务，遇到未就绪或目录类型变化则补建。返回错误时调用方必须终止推进，不能继续消费任务。任务在同一CUDA流中排在消费者前面。gas 无注入时保留压缩完成后建立的 baseOnly 描述符和目录标签；非检查步既不改写描述符，也不重新执行 count/scan/materialize。auto 检查步仍按原流程更新阈值并重建。FSH/CHT 的无注入 split 仍使用原来的逻辑目录，不新增直接 baseOnly 路径。
 
-同一状态转换及实际碰撞池消费者夹具覆盖 gasUGKP64、FSH64、CHT64、CHT32，运行 `python3 -B -m pytest -q tests/test_shared_auto_schedule.py tests/test_gas_auto_pool_cuda.py tests/test_thermal_auto_pool_cuda.py`。统计判据仍是 `GpuHardwareReductionTile.cuh` 的硬件公式，未添加工况参数；效率评估必须计入检查周期上的任务准备成本。
+同一状态转换及实际碰撞池消费者夹具覆盖 gasUGKP64、FSH64、CHT64、CHT32，运行 `python3 -B -m pytest -q validation/tests/test_shared_auto_schedule.py validation/tests/test_gas_auto_pool_cuda.py validation/tests/test_thermal_auto_pool_cuda.py`。统计判据仍是 `GpuHardwareReductionTile.cuh` 的硬件公式，未添加工况参数；效率评估必须计入检查周期上的任务准备成本。
 
 任务目录保留 count、全局 exclusive scan、materialize 的单元顺序；计数清零并入 count，总任务数发布并入 materialize。`csrHeavyTaskCount` 包含所有非空单元的任务，`csrHeavyCellCount` 只记录需要多个任务的单元。Poisson 抽样、theta 读取时机和 RNG 提交由同一公共默认策略维护；概率与非 Poisson cutoff 语义保留。
 
 ```sh
-python3 tools/validate_shared_operators.py --output /源码目录外/native-validation
-python3 -m pytest -q tests/test_named_launch_options.py tests/test_tool_b1_protocol.py tests/test_source_contracts.py
+python3 validation/tools/validate_shared_operators.py --output /源码目录外/native-validation
+python3 -m pytest -q validation/tests/test_named_launch_options.py validation/tests/test_tool_b1_protocol.py validation/tests/test_source_contracts.py
 ```
 
 效率评估使用同输入、同二进制身份、固定配对数量和均衡顺序；B2/B3 固定为 64 的效率测量与其它块大小的正确性测试分开。按用户最新要求，k2 配对加速比中位数接近 1 且低档收益瓶颈明确可接受，不要求最小值超过 1；不为跨线强行增加优化。性能记录必须绑定实际源码和二进制 SHA。
@@ -44,14 +44,14 @@ python3 -m pytest -q tests/test_named_launch_options.py tests/test_tool_b1_proto
 有限接触粒子/壁面局部账本与既有气粒换热缺口分别评价；不能将“缺口未恶化”写成严格能量闭合通过。成功路径的字段闭包也不等价于穷尽全部资源耗尽或损坏 restart 输入。
 
 
-Poisson 访问策略由 GpuCollisionPoolParticle.cuh 统一，接受后的 RNG 提交延后，拒绝仍立即提交；不再设置应用/层级的 late-theta 开关。GpuCollisionPoolSplitParticle.cuh 是共同的兼容包装。运行 tests/test_uniform_pool_policy.py 可检查公共归属与读写顺序。S2/L2 的 legacy lightBlocksPerSm 字段使用所选规约路径的驻留能力，不能解释为固定 L1 核占用率。本轮最终性能范围按用户要求收敛为 k1/k2。
+Poisson 访问策略由 GpuCollisionPoolParticle.cuh 统一，接受后的 RNG 提交延后，拒绝仍立即提交；不再设置应用/层级的 late-theta 开关。GpuCollisionPoolSplitParticle.cuh 是共同的兼容包装。运行 validation/tests/test_uniform_pool_policy.py 可检查公共归属与读写顺序。S2/L2 的 legacy lightBlocksPerSm 字段使用所选规约路径的驻留能力，不能解释为固定 L1 核占用率。本轮最终性能范围按用户要求收敛为 k1/k2。
 
 ## 当前公共接口与镜像边界
 
 thermal固定L0/L1/L2与auto选择模式由 `common/GpuSchedulingConfiguration.H` 维护，流体库研究接口保持独立。这个配置头不允许机械跨库覆盖。自动判定保留已有周期目录归约和主机回读，不能解释成零成本。生产双库冻结期间只做 standalone 库存检查；不要对生产运行 `--sync`。
 
-本文件是当前维护入口；早期性能结果是历史阶段记录。当前收尾验证见 [自动调度及清理验证](development/auto-cleanup-20261004/README.md)，前一阶段的六项合并见 [算子合并验证](development/operator-unification-20261004/README.md)。
+本文件是当前维护入口；早期性能结果是历史阶段记录。当前收尾验证见 [自动调度及清理验证](../validation/results/history/docs/development/auto-cleanup-20261004/README.md)，前一阶段的六项合并见 [算子合并验证](../validation/results/history/docs/development/operator-unification-20261004/README.md)。
 
-本轮 gas auto 正确性修复及三应用公共流程验证见 [auto 正确性与公共协议](development/gas-auto-correctness-20261004/README.md)。
+本轮 gas auto 正确性修复及三应用公共流程验证见 [auto 正确性与公共协议](../validation/results/history/docs/development/gas-auto-correctness-20261004/README.md)。
 
-生产压缩 → 下一步目录选择 → auto → 实际碰撞归约回归见 [目录主机流程统一验证](development/directory-host-unification-20261004/README.md)。运行 `python3 -B -m pytest -q tests/test_production_directory_cuda.py`；夹具从实际生产函数提取这两个阶段，并在测试二进制中追踪任务构建核启动次数，生产库无需计数或计时代码。
+生产压缩 → 下一步目录选择 → auto → 实际碰撞归约回归见 [目录主机流程统一验证](../validation/results/history/docs/development/directory-host-unification-20261004/README.md)。运行 `python3 -B -m pytest -q validation/tests/test_production_directory_cuda.py`；夹具从实际生产函数提取这两个阶段，并在测试二进制中追踪任务构建核启动次数，生产库无需计数或计时代码。

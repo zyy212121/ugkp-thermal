@@ -64,9 +64,9 @@ echo ""
 
 SOLVERS=(gasUGKP FSH CHT CHMT)
 BUILD_SCRIPTS=(
-    applications/gasUGKP/private_backend/build_private_backend.sh
-    applications/FSH/private_backend/build_private_backend.sh
-    applications/CHT/tools/build_cuda_solver.sh
+    tool/gasUGKP/build_private_backend.sh
+    tool/FSH/build_private_backend.sh
+    tool/CHT/build_cuda_solver.sh
     applications/CHMT/Allwmake
 )
 FAILED=()

@@ -1,5 +1,5 @@
 #pragma once
-// Generated from ParticleFieldManifest.json by tools/particle_field_contract.py.
+// Generated from ParticleFieldManifest.json by tool/particle_field_contract.py.
 // Keep field order: copy/swap instruction order is part of the operator contract.
 
 #define GPU_PARTICLE_FIELDS_PRIMARY_BEFORE_CONTACT(X) \
