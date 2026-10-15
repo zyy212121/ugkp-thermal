@@ -67,12 +67,17 @@ __device__ bool computeRiemannGasFaceFluxDevice
         const int slot=ugkwp::gasBoundaryLayerFaceSlot(s,f);
         if(slot>=0)
         {
+            const auto& wall=s.gasBoundaryLayer;
+            if(slot>=wall.count)
+            {
+                if(!ugkwp::gasRecordFaceFailure(s,f,ugkwp::GasTransportCode::InvalidStorage))asm("trap;");
+                return false;
+            }
             if(boundaryKind==3 || boundaryKind==4)
             {
                 if(!ugkwp::gasRecordFaceFailure(s,f,ugkwp::GasTransportCode::InvalidStorage))asm("trap;");
                 return false;
             }
-            const auto& wall=s.gasBoundaryLayer;
             if constexpr(MassOnly && ugkwp::GasSuppliedWallInputCapability<GasState>::value)
                 if(s.gasBoundaryLayerModel.useSuppliedWallState
                     && (!wall.exchange || !wall.exchange[slot].massReady)){
