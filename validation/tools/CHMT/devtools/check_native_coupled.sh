@@ -81,6 +81,7 @@ fi
 python3 - "$work" "$scenario" "$CHMT_BUILD/CHMT" <<'PY'
 import hashlib, json, sys
 from pathlib import Path
+root=Path(sys.argv[1]); binary=Path(sys.argv[3])
 report={'evidence':'native-cuda-coupled-runtime','scenario':sys.argv[2],
         'binary_sha256':hashlib.sha256(binary.read_bytes()).hexdigest(),
         'build':json.loads((root/'build.json').read_text()),
