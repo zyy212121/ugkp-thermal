@@ -69,12 +69,12 @@ meshes do not create unsampleable one-ulp intervals.
 
 ## Verification
 
-`tests/gas_wall/test_wall_geometry.py` checks cube, skew-prism, tetrahedron,
+`validation/tests/gas_wall/test_wall_geometry.py` checks cube, skew-prism, tetrahedron,
 rotation, concave-star geometry, actual volume and xyz first moments, positive
 weights, connected-ray restrictions, rejection atomicity, cache rebuilds,
 source integration, first-interval convergence, and bounded scalar storage.
 
-The standalone `tests/gas_wall/test_wall_geometry_profile_probe.cpp` emits nine
+The standalone `validation/tests/gas_wall/test_wall_geometry_profile_probe.cpp` emits nine
 JSON records for cube/skew/tetra at 24, 48, and 128 BVP nodes. It compares an
 oscillatory piecewise-linear source with an independent polynomial
 antiderivative using the analytic actual section area. Each record reports

@@ -1,0 +1,1669 @@
+{
+  "schema": 1,
+  "inventory_roots": [
+    "common",
+    "applications/gasUGKP"
+  ],
+  "ownership": {
+    "common": "ugkp-thermal",
+    "applications/gasUGKP": "gpu-riemann-gkp-main"
+  },
+  "mirrors": [
+    {
+      "path": "applications/gasUGKP/.gitattributes",
+      "upstream": "gpu-riemann-gkp-main",
+      "downstream": "ugkp-thermal"
+    },
+    {
+      "path": "applications/gasUGKP/.gitignore",
+      "upstream": "gpu-riemann-gkp-main",
+      "downstream": "ugkp-thermal"
+    },
+    {
+      "path": "applications/gasUGKP/Make/files",
+      "upstream": "gpu-riemann-gkp-main",
+      "downstream": "ugkp-thermal"
+    },
+    {
+      "path": "applications/gasUGKP/Make/options",
+      "upstream": "gpu-riemann-gkp-main",
+      "downstream": "ugkp-thermal"
+    },
+    {
+      "path": "applications/gasUGKP/createFields.H",
+      "upstream": "gpu-riemann-gkp-main",
+      "downstream": "ugkp-thermal"
+    },
+    {
+      "path": "applications/gasUGKP/diluteUgkwpFoam.C",
+      "upstream": "gpu-riemann-gkp-main",
+      "downstream": "ugkp-thermal"
+    },
+    {
+      "path": "applications/gasUGKP/gpu/BoundaryLayerInput.H",
+      "upstream": "gpu-riemann-gkp-main",
+      "downstream": "ugkp-thermal"
+    },
+    {
+      "path": "applications/gasUGKP/gpu/GpuBackendApi.H",
+      "upstream": "gpu-riemann-gkp-main",
+      "downstream": "ugkp-thermal"
+    },
+    {
+      "path": "applications/gasUGKP/gpu/GpuBackendClient.C",
+      "upstream": "gpu-riemann-gkp-main",
+      "downstream": "ugkp-thermal"
+    },
+    {
+      "path": "applications/gasUGKP/gpu/GpuBackendProtocol.H",
+      "upstream": "gpu-riemann-gkp-main",
+      "downstream": "ugkp-thermal"
+    },
+    {
+      "path": "applications/gasUGKP/gpu/GpuBoundarySchedule.H",
+      "upstream": "gpu-riemann-gkp-main",
+      "downstream": "ugkp-thermal"
+    },
+    {
+      "path": "applications/gasUGKP/gpu/GpuCouplingMath.H",
+      "upstream": "gpu-riemann-gkp-main",
+      "downstream": "ugkp-thermal"
+    },
+    {
+      "path": "applications/gasUGKP/gpu/GpuDragModel.H",
+      "upstream": "gpu-riemann-gkp-main",
+      "downstream": "ugkp-thermal"
+    },
+    {
+      "path": "applications/gasUGKP/gpu/GpuGasBoundarySpec.H",
+      "upstream": "gpu-riemann-gkp-main",
+      "downstream": "ugkp-thermal"
+    },
+    {
+      "path": "applications/gasUGKP/gpu/GpuResidentStrict.H",
+      "upstream": "gpu-riemann-gkp-main",
+      "downstream": "ugkp-thermal"
+    },
+    {
+      "path": "applications/gasUGKP/gpu/SharedGasModelInput.H",
+      "upstream": "gpu-riemann-gkp-main",
+      "downstream": "ugkp-thermal"
+    },
+    {
+      "path": "applications/gasUGKP/private_backend/BoundaryLayerAdapter.cuh",
+      "upstream": "gpu-riemann-gkp-main",
+      "downstream": "ugkp-thermal"
+    },
+    {
+      "path": "applications/gasUGKP/private_backend/BoundaryLayerStorage.cuh",
+      "upstream": "gpu-riemann-gkp-main",
+      "downstream": "ugkp-thermal"
+    },
+    {
+      "path": "applications/gasUGKP/private_backend/CharacteristicMuscl.cuh",
+      "upstream": "gpu-riemann-gkp-main",
+      "downstream": "ugkp-thermal"
+    },
+    {
+      "path": "applications/gasUGKP/private_backend/FullSecondOrderGks.cuh",
+      "upstream": "gpu-riemann-gkp-main",
+      "downstream": "ugkp-thermal"
+    },
+    {
+      "path": "applications/gasUGKP/private_backend/GpuBackendServer.C",
+      "upstream": "gpu-riemann-gkp-main",
+      "downstream": "ugkp-thermal"
+    },
+    {
+      "path": "applications/gasUGKP/private_backend/GpuDragAlgebra.cuh",
+      "upstream": "gpu-riemann-gkp-main",
+      "downstream": "ugkp-thermal"
+    },
+    {
+      "path": "applications/gasUGKP/private_backend/GpuDragModels.cuh",
+      "upstream": "gpu-riemann-gkp-main",
+      "downstream": "ugkp-thermal"
+    },
+    {
+      "path": "applications/gasUGKP/private_backend/GpuResidentStrict.cu",
+      "upstream": "gpu-riemann-gkp-main",
+      "downstream": "ugkp-thermal"
+    },
+    {
+      "path": "applications/gasUGKP/private_backend/GpuSstAlgebra.cuh",
+      "upstream": "gpu-riemann-gkp-main",
+      "downstream": "ugkp-thermal"
+    },
+    {
+      "path": "applications/gasUGKP/private_backend/OpenFoamLimitedLinear.cuh",
+      "upstream": "gpu-riemann-gkp-main",
+      "downstream": "ugkp-thermal"
+    },
+    {
+      "path": "applications/gasUGKP/private_backend/OpenFoamViscousFlux.cuh",
+      "upstream": "gpu-riemann-gkp-main",
+      "downstream": "ugkp-thermal"
+    },
+    {
+      "path": "applications/gasUGKP/private_backend/OpenFoamWallFunctions.cuh",
+      "upstream": "gpu-riemann-gkp-main",
+      "downstream": "ugkp-thermal"
+    },
+    {
+      "path": "applications/gasUGKP/private_backend/RiemannBoundaryState.cuh",
+      "upstream": "gpu-riemann-gkp-main",
+      "downstream": "ugkp-thermal"
+    },
+    {
+      "path": "applications/gasUGKP/private_backend/RiemannGasFlux.cuh",
+      "upstream": "gpu-riemann-gkp-main",
+      "downstream": "ugkp-thermal"
+    },
+    {
+      "path": "applications/gasUGKP/private_backend/SharedGasAdapter.cuh",
+      "upstream": "gpu-riemann-gkp-main",
+      "downstream": "ugkp-thermal"
+    },
+    {
+      "path": "applications/gasUGKP/private_backend/SharedGasStorage.cuh",
+      "upstream": "gpu-riemann-gkp-main",
+      "downstream": "ugkp-thermal"
+    },
+    {
+      "path": "applications/gasUGKP/private_backend/SharedGasTrialFields.H",
+      "upstream": "gpu-riemann-gkp-main",
+      "downstream": "ugkp-thermal"
+    },
+    {
+      "path": "applications/gasUGKP/private_backend/SharedGasTrialPolicy.cuh",
+      "upstream": "gpu-riemann-gkp-main",
+      "downstream": "ugkp-thermal"
+    },
+    {
+      "path": "applications/gasUGKP/readGpuGasConfiguration.H",
+      "upstream": "gpu-riemann-gkp-main",
+      "downstream": "ugkp-thermal"
+    },
+    {
+      "path": "applications/gasUGKP/tests/common_algebra_equivalence_test.cpp",
+      "upstream": "gpu-riemann-gkp-main",
+      "downstream": "ugkp-thermal"
+    },
+    {
+      "path": "applications/gasUGKP/tests/gks_reference.py",
+      "upstream": "gpu-riemann-gkp-main",
+      "downstream": "ugkp-thermal"
+    },
+    {
+      "path": "applications/gasUGKP/tests/test_boundary_layer_storage.py",
+      "upstream": "gpu-riemann-gkp-main",
+      "downstream": "ugkp-thermal"
+    },
+    {
+      "path": "applications/gasUGKP/tests/test_gas_budget_runtime.py",
+      "upstream": "gpu-riemann-gkp-main",
+      "downstream": "ugkp-thermal"
+    },
+    {
+      "path": "applications/gasUGKP/tests/test_weighted_collision_conservation.py",
+      "upstream": "gpu-riemann-gkp-main",
+      "downstream": "ugkp-thermal"
+    },
+    {
+      "path": "applications/gasUGKP/tools/refine_particle_cells.py",
+      "upstream": "gpu-riemann-gkp-main",
+      "downstream": "ugkp-thermal"
+    },
+    {
+      "path": "applications/gasUGKP/tools/ugkp_particle_restart.py",
+      "upstream": "gpu-riemann-gkp-main",
+      "downstream": "ugkp-thermal"
+    },
+    {
+      "path": "common/CsrPersistentQueue.cuh",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/GpuAutomaticCsrSchedule.cuh",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/GpuAutomaticCsrScheduleFields.inl",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/GpuBlockComponentReduction.cuh",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/GpuCellDragRate.cuh",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/GpuCellDragUpdate.inl",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/GpuCellLocalGather.cuh",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/GpuCellLocalPrimary.cuh",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/GpuCellLocalThermalFields.cuh",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/GpuCellNeighbour.cuh",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/GpuCollisionPoolAtomic.cuh",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/GpuCollisionPoolCell.cuh",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/GpuCollisionPoolCorrection.cuh",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/GpuCollisionPoolParticle.cuh",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/GpuCollisionPoolRange.cuh",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/GpuCollisionPoolSampling.cuh",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/GpuCollisionPoolSplitCell.cuh",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/GpuCollisionPoolSplitParticle.cuh",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/GpuCollisionPoolTarget.cuh",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/GpuCollisionProbability.cuh",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/GpuContactAgeStorage.cuh",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/GpuDevelopmentAdvanceProbe.cuh",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/GpuDevelopmentProbeInit.cuh",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/GpuDevelopmentThermalProbeSample.cuh",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/GpuFaceGeometry.cuh",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/GpuGasAdvance.cuh",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/GpuGasCourant.cuh",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/GpuGasHostPolicy.cuh",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/GpuGasOperatorDependencies.cuh",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/GpuGravityUpdate.cuh",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/GpuHardwareReductionTile.cuh",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/GpuInjectionDirectory.cuh",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/GpuLaunchOptions.cuh",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/GpuMaterialEnthalpyMoment.cuh",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/GpuMechanicalRecovery.cuh",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/GpuMobilePackingHost.cuh",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/GpuMomentPipeline.cuh",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/GpuMomentRecovery.cuh",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/GpuOperatorContract.cuh",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/GpuPairedParticleHeat.H",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/GpuPairedParticleHeat.cuh",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/GpuParticleBoundaryModel.H",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/GpuParticleBufferCommit.cuh",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/GpuParticleCaloric.H",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/GpuParticleCaloricDevice.cuh",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/GpuParticleDirectoryHost.cuh",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/GpuParticleDirectoryHostPolicy.cuh",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/GpuParticleGasHeatRelaxation.cuh",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/GpuParticleLaunchConfiguration.cuh",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/GpuParticleMomentContribution.inl",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/GpuParticleMomentRange.inl",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/GpuParticleMoments.cuh",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/GpuParticlePayload.cuh",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/GpuParticleRestartFields.inl",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/GpuParticleRestartTheta.H",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/GpuParticleThermalCarry.H",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/GpuParticleThermalCarryStorage.cuh",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/GpuParticleThermalConsumerDevice.cuh",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/GpuParticleThermalConsumers.H",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/GpuParticleTransport.cuh",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/GpuPoolMomentOperations.cuh",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/GpuPoolParticleContribution.inl",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/GpuPoolSelection.cuh",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/GpuPrecisionTypes.H",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/GpuPressureAnalyticAdapter.cuh",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/GpuPressureAnalyticLaunch.cuh",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/GpuPressureCellTraversal.cuh",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/GpuPressureConvexAlgebra.cuh",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/GpuPressureKickAccumulation.cuh",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/GpuPressureLimiter.cuh",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/GpuPressureParticleUpdate.cuh",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/GpuPressurePipeline.cuh",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/GpuPressureUnsortedAlgebra.cuh",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/GpuReductionTaskCount.cuh",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/GpuReductionTaskMaterialize.cuh",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/GpuReductionTaskPipeline.cuh",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/GpuReductionTaskWrite.cuh",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/GpuSegmentedMomentWorkers.cuh",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/GpuSegmentedPoolWorkers.cuh",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/GpuToolB1.cuh",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/GpuToolB1Launch.cuh",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/GpuWallEnergySink.cuh",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/ParticleFieldManifest.json",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/chemistry/ChemistryTypes.H",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/chemistry/ConservativeReactor.H",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/chemistry/GasJacobian.H",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/chemistry/GasRates.H",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/chemistry/LocalStiffIntegrator.H",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/chemistry/MechanismValidation.H",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/chemistry/RateArithmetic.H",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/chemistry/mechanisms/CANTERA-LICENSE.txt",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/chemistry/mechanisms/h2o2-cantera-3.1.0.yaml",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/chemistry/mechanisms/h2o2.cantera-reactor-reference.json",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/chemistry/mechanisms/h2o2.cantera-reference.json",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/chemistry/mechanisms/h2o2.gasModelProperties",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/chemistry/mechanisms/h2o2.mechanism",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/chemistry/mechanisms/requirements-import.txt",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/chemistry/mechanisms/requirements-reference.txt",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/gasNumerics/CharacteristicMuscl.cuh",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/gasNumerics/FullSecondOrderGks.cuh",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/gasNumerics/GpuDragAlgebra.cuh",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/gasNumerics/GpuLesAlgebra.cuh",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/gasNumerics/GpuPackingProjectionAlgebra.cuh",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/gasNumerics/GpuPackingProjectionCooperative.cuh",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/gasNumerics/GpuParticlePhysicsAlgebra.cuh",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/gasNumerics/GpuSstAlgebra.cuh",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/gasNumerics/OpenFoamLimitedLinear.cuh",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/gasNumerics/OpenFoamViscousFlux.cuh",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/gasNumerics/OpenFoamWallFunctions.cuh",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/gasNumerics/RiemannBoundaryState.cuh",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/gasNumerics/RiemannGasFlux.cuh",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/gasTransport/GasBoundaryLayerEvaluation.H",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/gasTransport/GasBoundaryLayerHost.H",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/gasTransport/GasBoundaryLayerModelState.H",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/gasTransport/GasBoundaryLayerState.H",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/gasTransport/GasBoundaryLayerWorkspace.H",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/gasTransport/GasBuildConfig.H",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/gasTransport/GasCapabilities.H",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/gasTransport/GasEnergy.H",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/gasTransport/GasGeometryPolicy.H",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/gasTransport/GasGeometryValidation.H",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/gasTransport/GasMechanismIO.H",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/gasTransport/GasModel.H",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/gasTransport/GasModelIO.H",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/gasTransport/GasNumericsIO.H",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/gasTransport/GasStateFields.inc",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/gasTransport/GasStateView.H",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/gasTransport/MixtureThermo.H",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/gasTransport/SpeciesDiffusion.H",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/gasWall/ConstantTransportWall.H",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/gasWall/ReactingWallLayer.H",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/gasWall/WallGeometryBuilder.H",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/gasWall/WallLayerMath.H",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/gasWall/WallModel.H",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/gasWall/WallModelTypes.H",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/gasWall/WallPrecision.H",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/gasWall/WallThermoMath.H",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/gpu/GpuBoundarySchedule.H",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/gpu/GpuCouplingMath.H",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/gpu/GpuGasBoundarySpec.H",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/operators/ParticleDragMomentum.inl",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/operators/accumulateCsrSplitLogicalPoolTask.cuh",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/operators/accumulateMobilePackingMomentsKernel.cuh",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/operators/accumulateParticleMomentsAtomicKernel.cuh",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/operators/advanceGasChemistryKernel.cuh",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/operators/applyEulerianParticleMaterialHeatKernel.cuh",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/operators/applyGasVolumeFractionSourceKernel.cuh",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/operators/clampMin.cuh",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/operators/clampRange.cuh",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/operators/clearMobilePackingActivityCountsKernel.cuh",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/operators/clearParticleCellBinsKernel.cuh",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/operators/clearParticleMomentsAndCountsAtomicKernel.cuh",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/operators/clearParticleMomentsKernel.cuh",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/operators/clearSolidCell.cuh",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/operators/computeCollisionalPressureKernel.cuh",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/operators/computeGasEddyViscosityKernel.cuh",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/operators/computeGasFluxPositivityScaleKernel.cuh",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/operators/computeGasGradientLimiterKernel.cuh",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/operators/computeGasHllcAdcSensorKernel.cuh",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/operators/computeGasInternalFaceFluxKernel.cuh",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/operators/computeGasPrimitiveGradientsKernel.cuh",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/operators/computePressureGradientKernel.cuh",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/operators/computeRiemannGasFaceFluxDevice.cuh",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/operators/computeSstFaceFluxKernel.cuh",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/operators/computeSstGradientsKernel.cuh",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/operators/countParticlesByCellKernel.cuh",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/operators/evaluateGasBoundaryLayerKernel.cuh",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/operators/gasFaceSubgridTransportProperties.cuh",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/operators/gatherSelectedParticlesKernel.cuh",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/operators/granularCollisionTauFromCellDevice.cuh",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/operators/injectBoundaryParticlesKernel.cuh",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/operators/linearScheduledValueDevice.cuh",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/operators/makeGasPrimDevice.cuh",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/operators/mobilePackingParticleEligible.cuh",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/operators/normalDevice.cuh",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/operators/normalizeMobilePackingMomentsKernel.cuh",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/operators/normalizeParticleMomentsAtomicKernel.cuh",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/operators/pointInsideCell.cuh",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/operators/prepareMobilePackingProjectionKernel.cuh",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/operators/publishHeavyReductionDecisionKernel.cuh",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/operators/publishScheduledInletConfigurationKernel.cuh",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/operators/reconstructGasMixtureFace.cuh",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/operators/recoverPrimitivesKernel.cuh",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/operators/riemannFacePrimitiveForGradient.cuh",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/operators/samplePoissonPoolParticlesKernel.cuh",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/operators/scheduledSolidVolumeFractionDevice.cuh",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/operators/snapshotParticleGasCouplingStateKernel.cuh",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/operators/solidEpsFromMomentDevice.cuh",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/operators/solidPressureFromMomentsDevice.cuh",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/operators/sstVelocityInvariants.cuh",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/operators/swapParticlePointerDevice.cuh",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/operators/trackParticlesLocalFaceWalkKernel.cuh",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/operators/uniform01Device.cuh",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/operators/updateBarthLimiter.cuh",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/operators/updateDynamicHeavyPolicyKernel.cuh",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/operators/updateLegacyGasBoundaryMirrorKernel.cuh",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/operators/updateWaveTransmissivePressureBoundaryKernel.cuh",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/operators/validateDevelopmentProbeCellsKernel.cuh",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/operators/validateDevelopmentProbeParticlesKernel.cuh",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "common/wall/GpuColdWallThermalCarry.cuh",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    },
+    {
+      "path": "tests/fixtures/shared_operators/schema7_wire_golden.json",
+      "upstream": "ugkp-thermal",
+      "downstream": "gpu-riemann-gkp-main"
+    }
+  ],
+  "local_only": {
+    "gpu-riemann-gkp-main": [
+      "applications/gasUGKP/devtools/tests/sst_algebra_test.cpp",
+      "applications/gasUGKP/devtools/tests/test_courant_update_contract.py",
+      "applications/gasUGKP/devtools/tests/test_sst_algebra.py",
+      "applications/gasUGKP/devtools/tests/test_turbulence_port_contract.py",
+      "applications/gasUGKP/devtools/tests/test_wale_compressible_invariant_contract.py",
+      "applications/gasUGKP/private_backend/build_private_backend.sh",
+      "applications/gasUGKP/private_backend/tests/characteristic_muscl_host_test.cu",
+      "applications/gasUGKP/private_backend/tests/full_second_order_gks_host_test.cu",
+      "applications/gasUGKP/private_backend/tests/openfoam_limited_linear_host_test.cu",
+      "applications/gasUGKP/private_backend/tests/openfoam_viscous_flux_host_test.cu",
+      "applications/gasUGKP/private_backend/tests/riemann_boundary_state_host_test.cu",
+      "applications/gasUGKP/private_backend/tests/riemann_gas_flux_host_test.cu",
+      "applications/gasUGKP/private_backend/tests/run_characteristic_muscl_host_test.sh",
+      "applications/gasUGKP/private_backend/tests/run_full_gks_host_test.sh",
+      "applications/gasUGKP/private_backend/tests/run_riemann_boundary_state_host_test.sh",
+      "applications/gasUGKP/private_backend/tests/run_riemann_gas_flux_host_test.sh",
+      "applications/gasUGKP/pytest.ini",
+      "applications/gasUGKP/tests/source_contract_utils.py",
+      "applications/gasUGKP/tests/test_boundary_ce_gradient_contract.py",
+      "applications/gasUGKP/tests/test_boundary_eos_contract.py",
+      "applications/gasUGKP/tests/test_boundary_layer_lifecycle.py",
+      "applications/gasUGKP/tests/test_boundary_layer_protocol.py",
+      "applications/gasUGKP/tests/test_collision_sampling_contract.py",
+      "applications/gasUGKP/tests/test_common_algebra_equivalence.py",
+      "applications/gasUGKP/tests/test_common_gas_numerics_source_contract.py",
+      "applications/gasUGKP/tests/test_cpcst_compaction_dpre_contract.py",
+      "applications/gasUGKP/tests/test_cpcst_warp_reduction_contract.py",
+      "applications/gasUGKP/tests/test_development_probe_repeated_stage_contract.py",
+      "applications/gasUGKP/tests/test_dynamic_block_contract.py",
+      "applications/gasUGKP/tests/test_epsg_prev_restoration.py",
+      "applications/gasUGKP/tests/test_example_release_contract.py",
+      "applications/gasUGKP/tests/test_full_gks_math.py",
+      "applications/gasUGKP/tests/test_gas_mechanism_io.py",
+      "applications/gasUGKP/tests/test_gas_model_io.py",
+      "applications/gasUGKP/tests/test_gas_model_protocol.py",
+      "applications/gasUGKP/tests/test_gas_solid_coupling_contract.py",
+      "applications/gasUGKP/tests/test_gks_les_contract.py",
+      "applications/gasUGKP/tests/test_gpu_boundary_schedule_contract.py",
+      "applications/gasUGKP/tests/test_gravity_drag_contract.py",
+      "applications/gasUGKP/tests/test_identity_contract.py",
+      "applications/gasUGKP/tests/test_identity_contract_2.py",
+      "applications/gasUGKP/tests/test_interface_contract.py",
+      "applications/gasUGKP/tests/test_jamming_pressure_contract.py",
+      "applications/gasUGKP/tests/test_mixture_initialisation_thermo.py",
+      "applications/gasUGKP/tests/test_mixture_transport_case.py",
+      "applications/gasUGKP/tests/test_native_boundary_layer_frontend.py",
+      "applications/gasUGKP/tests/test_native_gas_model_frontend.py",
+      "applications/gasUGKP/tests/test_no_wall_retention_contract.py",
+      "applications/gasUGKP/tests/test_numerics_config.py",
+      "applications/gasUGKP/tests/test_openfoam_boundary_configuration_contract.py",
+      "applications/gasUGKP/tests/test_openfoam_case_configuration_contract.py",
+      "applications/gasUGKP/tests/test_openfoam_energy_interpolation_contract.py",
+      "applications/gasUGKP/tests/test_openfoam_viscous_flux_contract.py",
+      "applications/gasUGKP/tests/test_particle_binary_restart_contract.py",
+      "applications/gasUGKP/tests/test_particle_cell_path_runtime_contract.py",
+      "applications/gasUGKP/tests/test_population_diagnostics_contract.py",
+      "applications/gasUGKP/tests/test_pure_gas_dispatch_contract.py",
+      "applications/gasUGKP/tests/test_refine_particle_cells.py",
+      "applications/gasUGKP/tests/test_s1_kernel_resource_contract.py",
+      "applications/gasUGKP/tests/test_segmented_task_queue_family_contract.py",
+      "applications/gasUGKP/tests/test_serial_translational_cyclic_contract.py",
+      "applications/gasUGKP/tests/test_shared_gas_adapter.py",
+      "applications/gasUGKP/tests/test_shared_gas_numerics_io.py",
+      "applications/gasUGKP/tests/test_shared_gas_trial_policy.py",
+      "applications/gasUGKP/tests/test_shared_reconfiguration_lifecycle.py",
+      "applications/gasUGKP/tests/test_source_hash_contract.py",
+      "applications/gasUGKP/tests/test_split_pre_runtime_contract.py",
+      "applications/gasUGKP/tests/test_strict_csr_level_contract.py",
+      "applications/gasUGKP/tests/test_tau_wave_contract.py",
+      "applications/gasUGKP/tests/test_unified_scheduling_tools_contract.py",
+      "applications/gasUGKP/tests/test_version_neutral_case_controls.py",
+      "applications/gasUGKP/tests/test_wall_gks_contract.py",
+      "applications/gasUGKP/tools/build_public_frontend.sh",
+      "common/GpuParticleFields.cuh",
+      "common/GpuResearchHierarchy.H",
+      "common/GpuSchedulingConfiguration.H",
+      "common/chemistry/mechanisms/GeneratedH2O2.H",
+      "common/chemistry/mechanisms/generate_h2o2_reactor_reference.py",
+      "common/chemistry/mechanisms/h2o2.manifest.json",
+      "common/chemistry/mechanisms/import_h2o2.py",
+      "tools/managed_mirrors.json",
+      "tools/managed_mirrors.py",
+      "tools/operator_policy_contract_test.py",
+      "tools/particle_field_contract.py"
+    ],
+    "ugkp-thermal": [
+      "applications/gasUGKP/devtools/tests/sst_algebra_test.cpp",
+      "applications/gasUGKP/devtools/tests/test_courant_update_contract.py",
+      "applications/gasUGKP/devtools/tests/test_sst_algebra.py",
+      "applications/gasUGKP/devtools/tests/test_turbulence_port_contract.py",
+      "applications/gasUGKP/devtools/tests/test_wale_compressible_invariant_contract.py",
+      "applications/gasUGKP/private_backend/build_private_backend.sh",
+      "applications/gasUGKP/private_backend/tests/characteristic_muscl_host_test.cu",
+      "applications/gasUGKP/private_backend/tests/full_second_order_gks_host_test.cu",
+      "applications/gasUGKP/private_backend/tests/openfoam_limited_linear_host_test.cu",
+      "applications/gasUGKP/private_backend/tests/openfoam_viscous_flux_host_test.cu",
+      "applications/gasUGKP/private_backend/tests/riemann_boundary_state_host_test.cu",
+      "applications/gasUGKP/private_backend/tests/riemann_gas_flux_host_test.cu",
+      "applications/gasUGKP/private_backend/tests/run_characteristic_muscl_host_test.sh",
+      "applications/gasUGKP/private_backend/tests/run_full_gks_host_test.sh",
+      "applications/gasUGKP/private_backend/tests/run_riemann_boundary_state_host_test.sh",
+      "applications/gasUGKP/private_backend/tests/run_riemann_gas_flux_host_test.sh",
+      "applications/gasUGKP/pytest.ini",
+      "applications/gasUGKP/tests/host_contract_probes.py",
+      "applications/gasUGKP/tests/source_contract_utils.py",
+      "applications/gasUGKP/tests/test_boundary_ce_gradient_contract.py",
+      "applications/gasUGKP/tests/test_boundary_eos_contract.py",
+      "applications/gasUGKP/tests/test_boundary_layer_lifecycle.py",
+      "applications/gasUGKP/tests/test_boundary_layer_protocol.py",
+      "applications/gasUGKP/tests/test_budget_reconfiguration_continuation.py",
+      "applications/gasUGKP/tests/test_collision_sampling_contract.py",
+      "applications/gasUGKP/tests/test_common_algebra_equivalence.py",
+      "applications/gasUGKP/tests/test_common_gas_numerics_source_contract.py",
+      "applications/gasUGKP/tests/test_cpcst_compaction_dpre_contract.py",
+      "applications/gasUGKP/tests/test_cpcst_warp_reduction_contract.py",
+      "applications/gasUGKP/tests/test_development_probe_repeated_stage_contract.py",
+      "applications/gasUGKP/tests/test_dynamic_block_contract.py",
+      "applications/gasUGKP/tests/test_epsg_prev_restoration.py",
+      "applications/gasUGKP/tests/test_example_release_contract.py",
+      "applications/gasUGKP/tests/test_full_gks_math.py",
+      "applications/gasUGKP/tests/test_gas_frontend_selection_continuation.py",
+      "applications/gasUGKP/tests/test_gas_mechanism_io.py",
+      "applications/gasUGKP/tests/test_gas_model_io.py",
+      "applications/gasUGKP/tests/test_gas_model_protocol.py",
+      "applications/gasUGKP/tests/test_gas_solid_coupling_contract.py",
+      "applications/gasUGKP/tests/test_gas_species_mapping.py",
+      "applications/gasUGKP/tests/test_gks_les_contract.py",
+      "applications/gasUGKP/tests/test_gpu_boundary_schedule_contract.py",
+      "applications/gasUGKP/tests/test_gravity_drag_contract.py",
+      "applications/gasUGKP/tests/test_identity_contract.py",
+      "applications/gasUGKP/tests/test_identity_contract_2.py",
+      "applications/gasUGKP/tests/test_interface_contract.py",
+      "applications/gasUGKP/tests/test_jamming_pressure_contract.py",
+      "applications/gasUGKP/tests/test_mixture_initialisation_thermo.py",
+      "applications/gasUGKP/tests/test_mixture_transport_case.py",
+      "applications/gasUGKP/tests/test_native_boundary_layer_frontend.py",
+      "applications/gasUGKP/tests/test_native_configuration_continuation.py",
+      "applications/gasUGKP/tests/test_native_gas_input_continuation.py",
+      "applications/gasUGKP/tests/test_native_gas_model_frontend.py",
+      "applications/gasUGKP/tests/test_native_residual_precision.py",
+      "applications/gasUGKP/tests/test_native_wire_continuation.py",
+      "applications/gasUGKP/tests/test_no_wall_retention_contract.py",
+      "applications/gasUGKP/tests/test_numerics_config.py",
+      "applications/gasUGKP/tests/test_openfoam_boundary_configuration_contract.py",
+      "applications/gasUGKP/tests/test_openfoam_case_configuration_contract.py",
+      "applications/gasUGKP/tests/test_openfoam_energy_interpolation_contract.py",
+      "applications/gasUGKP/tests/test_openfoam_viscous_flux_contract.py",
+      "applications/gasUGKP/tests/test_particle_binary_restart_contract.py",
+      "applications/gasUGKP/tests/test_particle_cell_path_runtime_contract.py",
+      "applications/gasUGKP/tests/test_population_diagnostics_contract.py",
+      "applications/gasUGKP/tests/test_pure_gas_dispatch_contract.py",
+      "applications/gasUGKP/tests/test_refine_particle_cells.py",
+      "applications/gasUGKP/tests/test_s1_kernel_resource_contract.py",
+      "applications/gasUGKP/tests/test_segmented_task_queue_family_contract.py",
+      "applications/gasUGKP/tests/test_serial_translational_cyclic_contract.py",
+      "applications/gasUGKP/tests/test_shared_gas_adapter.py",
+      "applications/gasUGKP/tests/test_shared_gas_numerics_io.py",
+      "applications/gasUGKP/tests/test_shared_gas_trial_policy.py",
+      "applications/gasUGKP/tests/test_shared_reconfiguration_lifecycle.py",
+      "applications/gasUGKP/tests/test_source_hash_contract.py",
+      "applications/gasUGKP/tests/test_split_pre_runtime_contract.py",
+      "applications/gasUGKP/tests/test_strict_csr_level_contract.py",
+      "applications/gasUGKP/tests/test_tau_wave_contract.py",
+      "applications/gasUGKP/tests/test_thermal_segmented_queue_contract.py",
+      "applications/gasUGKP/tests/test_unified_scheduling_tools_contract.py",
+      "applications/gasUGKP/tests/test_version_neutral_case_controls.py",
+      "applications/gasUGKP/tests/test_wall_adapter_continuation.py",
+      "applications/gasUGKP/tests/test_wall_gks_contract.py",
+      "applications/gasUGKP/tests/test_wall_preparation_continuation.py",
+      "applications/gasUGKP/tools/build_public_frontend.sh",
+      "common/ContactCapabilityValidation.h",
+      "common/GpuParticleFields.cuh",
+      "common/GpuParticleSavedVelocityRestart.inl",
+      "common/GpuPressureConstrainedAdapter.cuh",
+      "common/GpuPressureConstrainedLaunch.cuh",
+      "common/GpuPressureConstrainedPhysics.cuh",
+      "common/GpuPressureUnsortedConstrained.cuh",
+      "common/GpuRadiationContributions.cuh",
+      "common/GpuSchedulingConfiguration.H",
+      "common/GpuThermalLaunchOccupancy.cuh",
+      "common/GpuThermalParticleFinalization.cuh",
+      "common/GpuThermalParticleRelaxation.cuh",
+      "common/GpuThermalParticleRestartCodec.H",
+      "common/chemistry/mechanisms/GeneratedH2O2.H",
+      "common/chemistry/mechanisms/generate_h2o2_reactor_reference.py",
+      "common/chemistry/mechanisms/h2o2.manifest.json",
+      "common/chemistry/mechanisms/import_h2o2.py",
+      "common/gasNumerics/GpuDragModelsFSHCHT.cuh",
+      "common/operators/FiniteContactRelaxation.inl",
+      "common/operators/accumulateParticleWallRepresentedContactAreaKernel.cuh",
+      "common/operators/accumulatePoissonPoolParticlesByCellKernel.cuh",
+      "common/operators/appendSelectedStuckParticleIndex.cuh",
+      "common/operators/applyCollisionalPressureProjectionKernel.cuh",
+      "common/operators/applyEulerianGasSolidDragKernelStatic.cuh",
+      "common/operators/applyGasGravityKernel.cuh",
+      "common/operators/atomicAddParticleWallEnergyByFace.cuh",
+      "common/operators/clearColdWallParticleState.cuh",
+      "common/operators/clearPoissonThermalPoolKernel.cuh",
+      "common/operators/clearSplitPreInjectionBinsKernel.cuh",
+      "common/operators/correctOnePoissonThermalizedParticlePath.cuh",
+      "common/operators/countCsrReductionTasksKernel.cuh",
+      "common/operators/dragInverseTimeDevice.cuh",
+      "common/operators/finalizeOneThermalizedParticlePath.cuh",
+      "common/operators/maximumDirectoryOccupancyKernel.cuh",
+      "common/operators/particleSpecificHeatDevice.cuh",
+      "common/operators/particleTemperatureFromSpecificEnthalpyDevice.cuh",
+      "common/operators/preparePoissonPoolSamplingKernel.cuh",
+      "common/operators/rebuildWallBoundParticleDirectoryKernel.cuh",
+      "common/operators/relaxMobileParticlesToResidentGasKernelStatic.cuh",
+      "common/operators/solidRecoveryFromParticleMomentsCell.cuh",
+      "common/thermal_particle_restart_current.py",
+      "common/thermal_particle_restart_schema7.py",
+      "common/wall/GpuAluminaProperties.H",
+      "common/wall/GpuCapillaryDetachment.H",
+      "common/wall/GpuColdWall1DAdvance.inl",
+      "common/wall/GpuColdWall1DAlgebra.cuh",
+      "common/wall/GpuColdWall1DDevice.cuh",
+      "common/wall/GpuColdWall1DGasOnly.cuh",
+      "common/wall/GpuColdWall1DInputs.inl",
+      "common/wall/GpuColdWall1DPublish.inl",
+      "common/wall/GpuColdWall2DDevice.cuh",
+      "common/wall/GpuColdWall2DSolidification.H",
+      "common/wall/GpuColdWallSolidification.H",
+      "common/wall/GpuFiniteWallContact.H",
+      "common/wall/GpuParticleWallContactHeat.H",
+      "common/wall/GpuSommerfeldSticking.H",
+      "common/wall/GpuWallContactDirectory.cuh",
+      "common/wall/GpuWallInterfaceHeat.H",
+      "tools/managed_mirrors.json",
+      "tools/managed_mirrors.py",
+      "tools/operator_policy_contract_test.py",
+      "tools/particle_field_contract.py"
+    ]
+  },
+  "local_differences": {
+    "applications/gasUGKP/tests/source_contract_utils.py": "Repository-specific test paths/expectations: retained as independent inputs; not production gas source.",
+    "applications/gasUGKP/tests/test_common_gas_numerics_source_contract.py": "Repository-specific test paths/expectations: retained as independent inputs; not production gas source.",
+    "applications/gasUGKP/tests/test_jamming_pressure_contract.py": "Repository-specific test paths/expectations: retained as independent inputs; not production gas source.",
+    "applications/gasUGKP/tests/test_s1_kernel_resource_contract.py": "Repository-specific test paths/expectations: retained as independent inputs; not production gas source.",
+    "applications/gasUGKP/tests/test_source_hash_contract.py": "Repository-specific test paths/expectations: retained as independent inputs; not production gas source.",
+    "applications/gasUGKP/tests/test_strict_csr_level_contract.py": "Repository-specific test paths/expectations: retained as independent inputs; not production gas source.",
+    "applications/gasUGKP/tests/test_unified_scheduling_tools_contract.py": "Repository-specific test paths/expectations: retained as independent inputs; not production gas source.",
+    "applications/gasUGKP/tests/test_wall_gks_contract.py": "Repository-specific test paths/expectations: retained as independent inputs; not production gas source.",
+    "common/GpuSchedulingConfiguration.H": "Package-specific public scheduling contract: thermal accepts L0/L1/L2 and automatic heavy scheduling; fluid retains research variants. Never synchronize this entry header.",
+    "common/GpuResearchHierarchy.H": "Fluid-only research decoder; absent from thermal by user request on 2026-10-03.",
+    "tools/managed_mirrors.json": "Package-specific thermal formal-only interface contract; fluid unchanged.",
+    "applications/gasUGKP/tests/test_particle_cell_path_runtime_contract.py": "Package-specific thermal formal-only interface contract; fluid unchanged.",
+    "common/wall/GpuColdWall1DInputs.inl": "CHT cold-wall implementation is thermal-only; fluid gasUGKP does not include this file.",
+    "common/wall/GpuColdWall1DAdvance.inl": "CHT cold-wall implementation is thermal-only; fluid gasUGKP does not include this file.",
+    "common/GpuThermalLaunchOccupancy.cuh": "FSH/CHT launch occupancy is thermal-only; fluid gasUGKP does not include this file.",
+    "common/operators/appendSelectedStuckParticleIndex.cuh": "FSH/CHT wall-bound particle indexing is thermal-only; fluid gasUGKP does not include this file.",
+    "common/operators/atomicAddParticleWallEnergyByFace.cuh": "FSH/CHT particle-wall energy accounting is thermal-only; fluid gasUGKP does not include this file.",
+    "applications/gasUGKP/devtools/tests/sst_algebra_test.cpp": "Repository-layout-specific input after validation/tool relocation. The thermal path is mapped in repository_paths; the unchanged gas repository retains its original location/content. Do not byte-sync across these differing relative-path assumptions.",
+    "applications/gasUGKP/devtools/tests/test_courant_update_contract.py": "Repository-layout-specific input after validation/tool relocation. The thermal path is mapped in repository_paths; the unchanged gas repository retains its original location/content. Do not byte-sync across these differing relative-path assumptions.",
+    "applications/gasUGKP/devtools/tests/test_sst_algebra.py": "Repository-layout-specific input after validation/tool relocation. The thermal path is mapped in repository_paths; the unchanged gas repository retains its original location/content. Do not byte-sync across these differing relative-path assumptions.",
+    "applications/gasUGKP/devtools/tests/test_turbulence_port_contract.py": "Repository-layout-specific input after validation/tool relocation. The thermal path is mapped in repository_paths; the unchanged gas repository retains its original location/content. Do not byte-sync across these differing relative-path assumptions.",
+    "applications/gasUGKP/devtools/tests/test_wale_compressible_invariant_contract.py": "Repository-layout-specific input after validation/tool relocation. The thermal path is mapped in repository_paths; the unchanged gas repository retains its original location/content. Do not byte-sync across these differing relative-path assumptions.",
+    "applications/gasUGKP/private_backend/build_private_backend.sh": "Repository-layout-specific input after validation/tool relocation. The thermal path is mapped in repository_paths; the unchanged gas repository retains its original location/content. Do not byte-sync across these differing relative-path assumptions.",
+    "applications/gasUGKP/private_backend/tests/characteristic_muscl_host_test.cu": "Repository-layout-specific input after validation/tool relocation. The thermal path is mapped in repository_paths; the unchanged gas repository retains its original location/content. Do not byte-sync across these differing relative-path assumptions.",
+    "applications/gasUGKP/private_backend/tests/full_second_order_gks_host_test.cu": "Repository-layout-specific input after validation/tool relocation. The thermal path is mapped in repository_paths; the unchanged gas repository retains its original location/content. Do not byte-sync across these differing relative-path assumptions.",
+    "applications/gasUGKP/private_backend/tests/openfoam_limited_linear_host_test.cu": "Repository-layout-specific input after validation/tool relocation. The thermal path is mapped in repository_paths; the unchanged gas repository retains its original location/content. Do not byte-sync across these differing relative-path assumptions.",
+    "applications/gasUGKP/private_backend/tests/openfoam_viscous_flux_host_test.cu": "Repository-layout-specific input after validation/tool relocation. The thermal path is mapped in repository_paths; the unchanged gas repository retains its original location/content. Do not byte-sync across these differing relative-path assumptions.",
+    "applications/gasUGKP/private_backend/tests/riemann_boundary_state_host_test.cu": "Repository-layout-specific input after validation/tool relocation. The thermal path is mapped in repository_paths; the unchanged gas repository retains its original location/content. Do not byte-sync across these differing relative-path assumptions.",
+    "applications/gasUGKP/private_backend/tests/riemann_gas_flux_host_test.cu": "Repository-layout-specific input after validation/tool relocation. The thermal path is mapped in repository_paths; the unchanged gas repository retains its original location/content. Do not byte-sync across these differing relative-path assumptions.",
+    "applications/gasUGKP/private_backend/tests/run_characteristic_muscl_host_test.sh": "Repository-layout-specific input after validation/tool relocation. The thermal path is mapped in repository_paths; the unchanged gas repository retains its original location/content. Do not byte-sync across these differing relative-path assumptions.",
+    "applications/gasUGKP/private_backend/tests/run_full_gks_host_test.sh": "Repository-layout-specific input after validation/tool relocation. The thermal path is mapped in repository_paths; the unchanged gas repository retains its original location/content. Do not byte-sync across these differing relative-path assumptions.",
+    "applications/gasUGKP/private_backend/tests/run_riemann_boundary_state_host_test.sh": "Repository-layout-specific input after validation/tool relocation. The thermal path is mapped in repository_paths; the unchanged gas repository retains its original location/content. Do not byte-sync across these differing relative-path assumptions.",
+    "applications/gasUGKP/private_backend/tests/run_riemann_gas_flux_host_test.sh": "Repository-layout-specific input after validation/tool relocation. The thermal path is mapped in repository_paths; the unchanged gas repository retains its original location/content. Do not byte-sync across these differing relative-path assumptions.",
+    "applications/gasUGKP/pytest.ini": "Repository-layout-specific input after validation/tool relocation. The thermal path is mapped in repository_paths; the unchanged gas repository retains its original location/content. Do not byte-sync across these differing relative-path assumptions.",
+    "applications/gasUGKP/tests/test_boundary_ce_gradient_contract.py": "Repository-layout-specific input after validation/tool relocation. The thermal path is mapped in repository_paths; the unchanged gas repository retains its original location/content. Do not byte-sync across these differing relative-path assumptions.",
+    "applications/gasUGKP/tests/test_boundary_eos_contract.py": "Repository-layout-specific input after validation/tool relocation. The thermal path is mapped in repository_paths; the unchanged gas repository retains its original location/content. Do not byte-sync across these differing relative-path assumptions.",
+    "applications/gasUGKP/tests/test_boundary_layer_lifecycle.py": "Repository-layout-specific input after validation/tool relocation. The thermal path is mapped in repository_paths; the unchanged gas repository retains its original location/content. Do not byte-sync across these differing relative-path assumptions.",
+    "applications/gasUGKP/tests/test_boundary_layer_protocol.py": "Repository-layout-specific input after validation/tool relocation. The thermal path is mapped in repository_paths; the unchanged gas repository retains its original location/content. Do not byte-sync across these differing relative-path assumptions.",
+    "applications/gasUGKP/tests/test_collision_sampling_contract.py": "Repository-layout-specific input after validation/tool relocation. The thermal path is mapped in repository_paths; the unchanged gas repository retains its original location/content. Do not byte-sync across these differing relative-path assumptions.",
+    "applications/gasUGKP/tests/test_common_algebra_equivalence.py": "Repository-layout-specific input after validation/tool relocation. The thermal path is mapped in repository_paths; the unchanged gas repository retains its original location/content. Do not byte-sync across these differing relative-path assumptions.",
+    "applications/gasUGKP/tests/test_cpcst_compaction_dpre_contract.py": "Repository-layout-specific input after validation/tool relocation. The thermal path is mapped in repository_paths; the unchanged gas repository retains its original location/content. Do not byte-sync across these differing relative-path assumptions.",
+    "applications/gasUGKP/tests/test_cpcst_warp_reduction_contract.py": "Repository-layout-specific input after validation/tool relocation. The thermal path is mapped in repository_paths; the unchanged gas repository retains its original location/content. Do not byte-sync across these differing relative-path assumptions.",
+    "applications/gasUGKP/tests/test_development_probe_repeated_stage_contract.py": "Repository-layout-specific input after validation/tool relocation. The thermal path is mapped in repository_paths; the unchanged gas repository retains its original location/content. Do not byte-sync across these differing relative-path assumptions.",
+    "applications/gasUGKP/tests/test_dynamic_block_contract.py": "Repository-layout-specific input after validation/tool relocation. The thermal path is mapped in repository_paths; the unchanged gas repository retains its original location/content. Do not byte-sync across these differing relative-path assumptions.",
+    "applications/gasUGKP/tests/test_epsg_prev_restoration.py": "Repository-layout-specific input after validation/tool relocation. The thermal path is mapped in repository_paths; the unchanged gas repository retains its original location/content. Do not byte-sync across these differing relative-path assumptions.",
+    "applications/gasUGKP/tests/test_example_release_contract.py": "Repository-layout-specific input after validation/tool relocation. The thermal path is mapped in repository_paths; the unchanged gas repository retains its original location/content. Do not byte-sync across these differing relative-path assumptions.",
+    "applications/gasUGKP/tests/test_full_gks_math.py": "Repository-layout-specific input after validation/tool relocation. The thermal path is mapped in repository_paths; the unchanged gas repository retains its original location/content. Do not byte-sync across these differing relative-path assumptions.",
+    "applications/gasUGKP/tests/test_gas_mechanism_io.py": "Repository-layout-specific input after validation/tool relocation. The thermal path is mapped in repository_paths; the unchanged gas repository retains its original location/content. Do not byte-sync across these differing relative-path assumptions.",
+    "applications/gasUGKP/tests/test_gas_model_io.py": "Repository-layout-specific input after validation/tool relocation. The thermal path is mapped in repository_paths; the unchanged gas repository retains its original location/content. Do not byte-sync across these differing relative-path assumptions.",
+    "applications/gasUGKP/tests/test_gas_model_protocol.py": "Repository-layout-specific input after validation/tool relocation. The thermal path is mapped in repository_paths; the unchanged gas repository retains its original location/content. Do not byte-sync across these differing relative-path assumptions.",
+    "applications/gasUGKP/tests/test_gas_solid_coupling_contract.py": "Repository-layout-specific input after validation/tool relocation. The thermal path is mapped in repository_paths; the unchanged gas repository retains its original location/content. Do not byte-sync across these differing relative-path assumptions.",
+    "applications/gasUGKP/tests/test_gks_les_contract.py": "Repository-layout-specific input after validation/tool relocation. The thermal path is mapped in repository_paths; the unchanged gas repository retains its original location/content. Do not byte-sync across these differing relative-path assumptions.",
+    "applications/gasUGKP/tests/test_gpu_boundary_schedule_contract.py": "Repository-layout-specific input after validation/tool relocation. The thermal path is mapped in repository_paths; the unchanged gas repository retains its original location/content. Do not byte-sync across these differing relative-path assumptions.",
+    "applications/gasUGKP/tests/test_gravity_drag_contract.py": "Repository-layout-specific input after validation/tool relocation. The thermal path is mapped in repository_paths; the unchanged gas repository retains its original location/content. Do not byte-sync across these differing relative-path assumptions.",
+    "applications/gasUGKP/tests/test_identity_contract.py": "Repository-layout-specific input after validation/tool relocation. The thermal path is mapped in repository_paths; the unchanged gas repository retains its original location/content. Do not byte-sync across these differing relative-path assumptions.",
+    "applications/gasUGKP/tests/test_identity_contract_2.py": "Repository-layout-specific input after validation/tool relocation. The thermal path is mapped in repository_paths; the unchanged gas repository retains its original location/content. Do not byte-sync across these differing relative-path assumptions.",
+    "applications/gasUGKP/tests/test_interface_contract.py": "Repository-layout-specific input after validation/tool relocation. The thermal path is mapped in repository_paths; the unchanged gas repository retains its original location/content. Do not byte-sync across these differing relative-path assumptions.",
+    "applications/gasUGKP/tests/test_mixture_initialisation_thermo.py": "Repository-layout-specific input after validation/tool relocation. The thermal path is mapped in repository_paths; the unchanged gas repository retains its original location/content. Do not byte-sync across these differing relative-path assumptions.",
+    "applications/gasUGKP/tests/test_mixture_transport_case.py": "Repository-layout-specific input after validation/tool relocation. The thermal path is mapped in repository_paths; the unchanged gas repository retains its original location/content. Do not byte-sync across these differing relative-path assumptions.",
+    "applications/gasUGKP/tests/test_native_boundary_layer_frontend.py": "Repository-layout-specific input after validation/tool relocation. The thermal path is mapped in repository_paths; the unchanged gas repository retains its original location/content. Do not byte-sync across these differing relative-path assumptions.",
+    "applications/gasUGKP/tests/test_native_gas_model_frontend.py": "Repository-layout-specific input after validation/tool relocation. The thermal path is mapped in repository_paths; the unchanged gas repository retains its original location/content. Do not byte-sync across these differing relative-path assumptions.",
+    "applications/gasUGKP/tests/test_no_wall_retention_contract.py": "Repository-layout-specific input after validation/tool relocation. The thermal path is mapped in repository_paths; the unchanged gas repository retains its original location/content. Do not byte-sync across these differing relative-path assumptions.",
+    "applications/gasUGKP/tests/test_numerics_config.py": "Repository-layout-specific input after validation/tool relocation. The thermal path is mapped in repository_paths; the unchanged gas repository retains its original location/content. Do not byte-sync across these differing relative-path assumptions.",
+    "applications/gasUGKP/tests/test_openfoam_boundary_configuration_contract.py": "Repository-layout-specific input after validation/tool relocation. The thermal path is mapped in repository_paths; the unchanged gas repository retains its original location/content. Do not byte-sync across these differing relative-path assumptions.",
+    "applications/gasUGKP/tests/test_openfoam_case_configuration_contract.py": "Repository-layout-specific input after validation/tool relocation. The thermal path is mapped in repository_paths; the unchanged gas repository retains its original location/content. Do not byte-sync across these differing relative-path assumptions.",
+    "applications/gasUGKP/tests/test_openfoam_energy_interpolation_contract.py": "Repository-layout-specific input after validation/tool relocation. The thermal path is mapped in repository_paths; the unchanged gas repository retains its original location/content. Do not byte-sync across these differing relative-path assumptions.",
+    "applications/gasUGKP/tests/test_openfoam_viscous_flux_contract.py": "Repository-layout-specific input after validation/tool relocation. The thermal path is mapped in repository_paths; the unchanged gas repository retains its original location/content. Do not byte-sync across these differing relative-path assumptions.",
+    "applications/gasUGKP/tests/test_particle_binary_restart_contract.py": "Repository-layout-specific input after validation/tool relocation. The thermal path is mapped in repository_paths; the unchanged gas repository retains its original location/content. Do not byte-sync across these differing relative-path assumptions.",
+    "applications/gasUGKP/tests/test_population_diagnostics_contract.py": "Repository-layout-specific input after validation/tool relocation. The thermal path is mapped in repository_paths; the unchanged gas repository retains its original location/content. Do not byte-sync across these differing relative-path assumptions.",
+    "applications/gasUGKP/tests/test_pure_gas_dispatch_contract.py": "Repository-layout-specific input after validation/tool relocation. The thermal path is mapped in repository_paths; the unchanged gas repository retains its original location/content. Do not byte-sync across these differing relative-path assumptions.",
+    "applications/gasUGKP/tests/test_refine_particle_cells.py": "Repository-layout-specific input after validation/tool relocation. The thermal path is mapped in repository_paths; the unchanged gas repository retains its original location/content. Do not byte-sync across these differing relative-path assumptions.",
+    "applications/gasUGKP/tests/test_segmented_task_queue_family_contract.py": "Repository-layout-specific input after validation/tool relocation. The thermal path is mapped in repository_paths; the unchanged gas repository retains its original location/content. Do not byte-sync across these differing relative-path assumptions.",
+    "applications/gasUGKP/tests/test_serial_translational_cyclic_contract.py": "Repository-layout-specific input after validation/tool relocation. The thermal path is mapped in repository_paths; the unchanged gas repository retains its original location/content. Do not byte-sync across these differing relative-path assumptions.",
+    "applications/gasUGKP/tests/test_shared_gas_adapter.py": "Repository-layout-specific input after validation/tool relocation. The thermal path is mapped in repository_paths; the unchanged gas repository retains its original location/content. Do not byte-sync across these differing relative-path assumptions.",
+    "applications/gasUGKP/tests/test_shared_gas_numerics_io.py": "Repository-layout-specific input after validation/tool relocation. The thermal path is mapped in repository_paths; the unchanged gas repository retains its original location/content. Do not byte-sync across these differing relative-path assumptions.",
+    "applications/gasUGKP/tests/test_shared_gas_trial_policy.py": "Repository-layout-specific input after validation/tool relocation. The thermal path is mapped in repository_paths; the unchanged gas repository retains its original location/content. Do not byte-sync across these differing relative-path assumptions.",
+    "applications/gasUGKP/tests/test_shared_reconfiguration_lifecycle.py": "Repository-layout-specific input after validation/tool relocation. The thermal path is mapped in repository_paths; the unchanged gas repository retains its original location/content. Do not byte-sync across these differing relative-path assumptions.",
+    "applications/gasUGKP/tests/test_split_pre_runtime_contract.py": "Repository-layout-specific input after validation/tool relocation. The thermal path is mapped in repository_paths; the unchanged gas repository retains its original location/content. Do not byte-sync across these differing relative-path assumptions.",
+    "applications/gasUGKP/tests/test_tau_wave_contract.py": "Repository-layout-specific input after validation/tool relocation. The thermal path is mapped in repository_paths; the unchanged gas repository retains its original location/content. Do not byte-sync across these differing relative-path assumptions.",
+    "applications/gasUGKP/tests/test_version_neutral_case_controls.py": "Repository-layout-specific input after validation/tool relocation. The thermal path is mapped in repository_paths; the unchanged gas repository retains its original location/content. Do not byte-sync across these differing relative-path assumptions.",
+    "applications/gasUGKP/tools/build_public_frontend.sh": "Repository-layout-specific input after validation/tool relocation. The thermal path is mapped in repository_paths; the unchanged gas repository retains its original location/content. Do not byte-sync across these differing relative-path assumptions.",
+    "common/GpuParticleFields.cuh": "Repository-layout-specific input after validation/tool relocation. The thermal path is mapped in repository_paths; the unchanged gas repository retains its original location/content. Do not byte-sync across these differing relative-path assumptions.",
+    "common/chemistry/mechanisms/GeneratedH2O2.H": "Repository-layout-specific input after validation/tool relocation. The thermal path is mapped in repository_paths; the unchanged gas repository retains its original location/content. Do not byte-sync across these differing relative-path assumptions.",
+    "common/chemistry/mechanisms/generate_h2o2_reactor_reference.py": "Repository-layout-specific input after validation/tool relocation. The thermal path is mapped in repository_paths; the unchanged gas repository retains its original location/content. Do not byte-sync across these differing relative-path assumptions.",
+    "common/chemistry/mechanisms/h2o2.manifest.json": "Repository-layout-specific input after validation/tool relocation. The thermal path is mapped in repository_paths; the unchanged gas repository retains its original location/content. Do not byte-sync across these differing relative-path assumptions.",
+    "common/chemistry/mechanisms/import_h2o2.py": "Repository-layout-specific input after validation/tool relocation. The thermal path is mapped in repository_paths; the unchanged gas repository retains its original location/content. Do not byte-sync across these differing relative-path assumptions.",
+    "tools/managed_mirrors.py": "Repository-layout-specific input after validation/tool relocation. The thermal path is mapped in repository_paths; the unchanged gas repository retains its original location/content. Do not byte-sync across these differing relative-path assumptions.",
+    "tools/operator_policy_contract_test.py": "Repository-layout-specific input after validation/tool relocation. The thermal path is mapped in repository_paths; the unchanged gas repository retains its original location/content. Do not byte-sync across these differing relative-path assumptions.",
+    "tools/particle_field_contract.py": "Repository-layout-specific input after validation/tool relocation. The thermal path is mapped in repository_paths; the unchanged gas repository retains its original location/content. Do not byte-sync across these differing relative-path assumptions."
+  },
+  "repository_paths": {
+    "ugkp-thermal": {
+      "applications/gasUGKP/devtools/tests/sst_algebra_test.cpp": "validation/solvers/gasUGKP/devtools/tests/sst_algebra_test.cpp",
+      "applications/gasUGKP/devtools/tests/test_courant_update_contract.py": "validation/solvers/gasUGKP/devtools/tests/test_courant_update_contract.py",
+      "applications/gasUGKP/devtools/tests/test_sst_algebra.py": "validation/solvers/gasUGKP/devtools/tests/test_sst_algebra.py",
+      "applications/gasUGKP/devtools/tests/test_turbulence_port_contract.py": "validation/solvers/gasUGKP/devtools/tests/test_turbulence_port_contract.py",
+      "applications/gasUGKP/devtools/tests/test_wale_compressible_invariant_contract.py": "validation/solvers/gasUGKP/devtools/tests/test_wale_compressible_invariant_contract.py",
+      "applications/gasUGKP/private_backend/build_private_backend.sh": "tool/gasUGKP/build_private_backend.sh",
+      "applications/gasUGKP/private_backend/tests/characteristic_muscl_host_test.cu": "validation/solvers/gasUGKP/private_backend/tests/characteristic_muscl_host_test.cu",
+      "applications/gasUGKP/private_backend/tests/full_second_order_gks_host_test.cu": "validation/solvers/gasUGKP/private_backend/tests/full_second_order_gks_host_test.cu",
+      "applications/gasUGKP/private_backend/tests/openfoam_limited_linear_host_test.cu": "validation/solvers/gasUGKP/private_backend/tests/openfoam_limited_linear_host_test.cu",
+      "applications/gasUGKP/private_backend/tests/openfoam_viscous_flux_host_test.cu": "validation/solvers/gasUGKP/private_backend/tests/openfoam_viscous_flux_host_test.cu",
+      "applications/gasUGKP/private_backend/tests/riemann_boundary_state_host_test.cu": "validation/solvers/gasUGKP/private_backend/tests/riemann_boundary_state_host_test.cu",
+      "applications/gasUGKP/private_backend/tests/riemann_gas_flux_host_test.cu": "validation/solvers/gasUGKP/private_backend/tests/riemann_gas_flux_host_test.cu",
+      "applications/gasUGKP/private_backend/tests/run_characteristic_muscl_host_test.sh": "validation/tools/gasUGKP/private_backend/tests/run_characteristic_muscl_host_test.sh",
+      "applications/gasUGKP/private_backend/tests/run_full_gks_host_test.sh": "validation/tools/gasUGKP/private_backend/tests/run_full_gks_host_test.sh",
+      "applications/gasUGKP/private_backend/tests/run_riemann_boundary_state_host_test.sh": "validation/tools/gasUGKP/private_backend/tests/run_riemann_boundary_state_host_test.sh",
+      "applications/gasUGKP/private_backend/tests/run_riemann_gas_flux_host_test.sh": "validation/tools/gasUGKP/private_backend/tests/run_riemann_gas_flux_host_test.sh",
+      "applications/gasUGKP/pytest.ini": "validation/solvers/gasUGKP/pytest.ini",
+      "applications/gasUGKP/tests/common_algebra_equivalence_test.cpp": "validation/solvers/gasUGKP/tests/common_algebra_equivalence_test.cpp",
+      "applications/gasUGKP/tests/gks_reference.py": "validation/solvers/gasUGKP/tests/gks_reference.py",
+      "applications/gasUGKP/tests/host_contract_probes.py": "validation/solvers/gasUGKP/tests/host_contract_probes.py",
+      "applications/gasUGKP/tests/source_contract_utils.py": "validation/solvers/gasUGKP/tests/source_contract_utils.py",
+      "applications/gasUGKP/tests/test_boundary_ce_gradient_contract.py": "validation/solvers/gasUGKP/tests/test_boundary_ce_gradient_contract.py",
+      "applications/gasUGKP/tests/test_boundary_eos_contract.py": "validation/solvers/gasUGKP/tests/test_boundary_eos_contract.py",
+      "applications/gasUGKP/tests/test_boundary_layer_lifecycle.py": "validation/solvers/gasUGKP/tests/test_boundary_layer_lifecycle.py",
+      "applications/gasUGKP/tests/test_boundary_layer_protocol.py": "validation/solvers/gasUGKP/tests/test_boundary_layer_protocol.py",
+      "applications/gasUGKP/tests/test_boundary_layer_storage.py": "validation/solvers/gasUGKP/tests/test_boundary_layer_storage.py",
+      "applications/gasUGKP/tests/test_budget_reconfiguration_continuation.py": "validation/solvers/gasUGKP/tests/test_budget_reconfiguration_continuation.py",
+      "applications/gasUGKP/tests/test_collision_sampling_contract.py": "validation/solvers/gasUGKP/tests/test_collision_sampling_contract.py",
+      "applications/gasUGKP/tests/test_common_algebra_equivalence.py": "validation/solvers/gasUGKP/tests/test_common_algebra_equivalence.py",
+      "applications/gasUGKP/tests/test_common_gas_numerics_source_contract.py": "validation/solvers/gasUGKP/tests/test_common_gas_numerics_source_contract.py",
+      "applications/gasUGKP/tests/test_cpcst_compaction_dpre_contract.py": "validation/solvers/gasUGKP/tests/test_cpcst_compaction_dpre_contract.py",
+      "applications/gasUGKP/tests/test_cpcst_warp_reduction_contract.py": "validation/solvers/gasUGKP/tests/test_cpcst_warp_reduction_contract.py",
+      "applications/gasUGKP/tests/test_development_probe_repeated_stage_contract.py": "validation/solvers/gasUGKP/tests/test_development_probe_repeated_stage_contract.py",
+      "applications/gasUGKP/tests/test_dynamic_block_contract.py": "validation/solvers/gasUGKP/tests/test_dynamic_block_contract.py",
+      "applications/gasUGKP/tests/test_epsg_prev_restoration.py": "validation/solvers/gasUGKP/tests/test_epsg_prev_restoration.py",
+      "applications/gasUGKP/tests/test_example_release_contract.py": "validation/solvers/gasUGKP/tests/test_example_release_contract.py",
+      "applications/gasUGKP/tests/test_full_gks_math.py": "validation/solvers/gasUGKP/tests/test_full_gks_math.py",
+      "applications/gasUGKP/tests/test_gas_budget_runtime.py": "validation/solvers/gasUGKP/tests/test_gas_budget_runtime.py",
+      "applications/gasUGKP/tests/test_gas_frontend_selection_continuation.py": "validation/solvers/gasUGKP/tests/test_gas_frontend_selection_continuation.py",
+      "applications/gasUGKP/tests/test_gas_mechanism_io.py": "validation/solvers/gasUGKP/tests/test_gas_mechanism_io.py",
+      "applications/gasUGKP/tests/test_gas_model_io.py": "validation/solvers/gasUGKP/tests/test_gas_model_io.py",
+      "applications/gasUGKP/tests/test_gas_model_protocol.py": "validation/solvers/gasUGKP/tests/test_gas_model_protocol.py",
+      "applications/gasUGKP/tests/test_gas_solid_coupling_contract.py": "validation/solvers/gasUGKP/tests/test_gas_solid_coupling_contract.py",
+      "applications/gasUGKP/tests/test_gas_species_mapping.py": "validation/solvers/gasUGKP/tests/test_gas_species_mapping.py",
+      "applications/gasUGKP/tests/test_gks_les_contract.py": "validation/solvers/gasUGKP/tests/test_gks_les_contract.py",
+      "applications/gasUGKP/tests/test_gpu_boundary_schedule_contract.py": "validation/solvers/gasUGKP/tests/test_gpu_boundary_schedule_contract.py",
+      "applications/gasUGKP/tests/test_gravity_drag_contract.py": "validation/solvers/gasUGKP/tests/test_gravity_drag_contract.py",
+      "applications/gasUGKP/tests/test_identity_contract.py": "validation/solvers/gasUGKP/tests/test_identity_contract.py",
+      "applications/gasUGKP/tests/test_identity_contract_2.py": "validation/solvers/gasUGKP/tests/test_identity_contract_2.py",
+      "applications/gasUGKP/tests/test_interface_contract.py": "validation/solvers/gasUGKP/tests/test_interface_contract.py",
+      "applications/gasUGKP/tests/test_jamming_pressure_contract.py": "validation/solvers/gasUGKP/tests/test_jamming_pressure_contract.py",
+      "applications/gasUGKP/tests/test_mixture_initialisation_thermo.py": "validation/solvers/gasUGKP/tests/test_mixture_initialisation_thermo.py",
+      "applications/gasUGKP/tests/test_mixture_transport_case.py": "validation/solvers/gasUGKP/tests/test_mixture_transport_case.py",
+      "applications/gasUGKP/tests/test_native_boundary_layer_frontend.py": "validation/solvers/gasUGKP/tests/test_native_boundary_layer_frontend.py",
+      "applications/gasUGKP/tests/test_native_configuration_continuation.py": "validation/solvers/gasUGKP/tests/test_native_configuration_continuation.py",
+      "applications/gasUGKP/tests/test_native_gas_input_continuation.py": "validation/solvers/gasUGKP/tests/test_native_gas_input_continuation.py",
+      "applications/gasUGKP/tests/test_native_gas_model_frontend.py": "validation/solvers/gasUGKP/tests/test_native_gas_model_frontend.py",
+      "applications/gasUGKP/tests/test_native_residual_precision.py": "validation/solvers/gasUGKP/tests/test_native_residual_precision.py",
+      "applications/gasUGKP/tests/test_native_wire_continuation.py": "validation/solvers/gasUGKP/tests/test_native_wire_continuation.py",
+      "applications/gasUGKP/tests/test_no_wall_retention_contract.py": "validation/solvers/gasUGKP/tests/test_no_wall_retention_contract.py",
+      "applications/gasUGKP/tests/test_numerics_config.py": "validation/solvers/gasUGKP/tests/test_numerics_config.py",
+      "applications/gasUGKP/tests/test_openfoam_boundary_configuration_contract.py": "validation/solvers/gasUGKP/tests/test_openfoam_boundary_configuration_contract.py",
+      "applications/gasUGKP/tests/test_openfoam_case_configuration_contract.py": "validation/solvers/gasUGKP/tests/test_openfoam_case_configuration_contract.py",
+      "applications/gasUGKP/tests/test_openfoam_energy_interpolation_contract.py": "validation/solvers/gasUGKP/tests/test_openfoam_energy_interpolation_contract.py",
+      "applications/gasUGKP/tests/test_openfoam_viscous_flux_contract.py": "validation/solvers/gasUGKP/tests/test_openfoam_viscous_flux_contract.py",
+      "applications/gasUGKP/tests/test_particle_binary_restart_contract.py": "validation/solvers/gasUGKP/tests/test_particle_binary_restart_contract.py",
+      "applications/gasUGKP/tests/test_particle_cell_path_runtime_contract.py": "validation/solvers/gasUGKP/tests/test_particle_cell_path_runtime_contract.py",
+      "applications/gasUGKP/tests/test_population_diagnostics_contract.py": "validation/solvers/gasUGKP/tests/test_population_diagnostics_contract.py",
+      "applications/gasUGKP/tests/test_pure_gas_dispatch_contract.py": "validation/solvers/gasUGKP/tests/test_pure_gas_dispatch_contract.py",
+      "applications/gasUGKP/tests/test_refine_particle_cells.py": "validation/solvers/gasUGKP/tests/test_refine_particle_cells.py",
+      "applications/gasUGKP/tests/test_s1_kernel_resource_contract.py": "validation/solvers/gasUGKP/tests/test_s1_kernel_resource_contract.py",
+      "applications/gasUGKP/tests/test_segmented_task_queue_family_contract.py": "validation/solvers/gasUGKP/tests/test_segmented_task_queue_family_contract.py",
+      "applications/gasUGKP/tests/test_serial_translational_cyclic_contract.py": "validation/solvers/gasUGKP/tests/test_serial_translational_cyclic_contract.py",
+      "applications/gasUGKP/tests/test_shared_gas_adapter.py": "validation/solvers/gasUGKP/tests/test_shared_gas_adapter.py",
+      "applications/gasUGKP/tests/test_shared_gas_numerics_io.py": "validation/solvers/gasUGKP/tests/test_shared_gas_numerics_io.py",
+      "applications/gasUGKP/tests/test_shared_gas_trial_policy.py": "validation/solvers/gasUGKP/tests/test_shared_gas_trial_policy.py",
+      "applications/gasUGKP/tests/test_shared_reconfiguration_lifecycle.py": "validation/solvers/gasUGKP/tests/test_shared_reconfiguration_lifecycle.py",
+      "applications/gasUGKP/tests/test_source_hash_contract.py": "validation/solvers/gasUGKP/tests/test_source_hash_contract.py",
+      "applications/gasUGKP/tests/test_split_pre_runtime_contract.py": "validation/solvers/gasUGKP/tests/test_split_pre_runtime_contract.py",
+      "applications/gasUGKP/tests/test_strict_csr_level_contract.py": "validation/solvers/gasUGKP/tests/test_strict_csr_level_contract.py",
+      "applications/gasUGKP/tests/test_tau_wave_contract.py": "validation/solvers/gasUGKP/tests/test_tau_wave_contract.py",
+      "applications/gasUGKP/tests/test_thermal_segmented_queue_contract.py": "validation/solvers/gasUGKP/tests/test_thermal_segmented_queue_contract.py",
+      "applications/gasUGKP/tests/test_unified_scheduling_tools_contract.py": "validation/solvers/gasUGKP/tests/test_unified_scheduling_tools_contract.py",
+      "applications/gasUGKP/tests/test_version_neutral_case_controls.py": "validation/solvers/gasUGKP/tests/test_version_neutral_case_controls.py",
+      "applications/gasUGKP/tests/test_wall_adapter_continuation.py": "validation/solvers/gasUGKP/tests/test_wall_adapter_continuation.py",
+      "applications/gasUGKP/tests/test_wall_gks_contract.py": "validation/solvers/gasUGKP/tests/test_wall_gks_contract.py",
+      "applications/gasUGKP/tests/test_wall_preparation_continuation.py": "validation/solvers/gasUGKP/tests/test_wall_preparation_continuation.py",
+      "applications/gasUGKP/tests/test_weighted_collision_conservation.py": "validation/solvers/gasUGKP/tests/test_weighted_collision_conservation.py",
+      "applications/gasUGKP/tools/build_public_frontend.sh": "tool/gasUGKP/build_public_frontend.sh",
+      "applications/gasUGKP/tools/refine_particle_cells.py": "tool/gasUGKP/refine_particle_cells.py",
+      "applications/gasUGKP/tools/ugkp_particle_restart.py": "tool/gasUGKP/ugkp_particle_restart.py",
+      "common/chemistry/mechanisms/CANTERA-LICENSE.txt": "tool/chemistry/mechanisms/CANTERA-LICENSE.txt",
+      "common/chemistry/mechanisms/GeneratedH2O2.H": "tool/chemistry/mechanisms/GeneratedH2O2.H",
+      "common/chemistry/mechanisms/generate_h2o2_reactor_reference.py": "validation/tools/chemistry/generate_h2o2_reactor_reference.py",
+      "common/chemistry/mechanisms/h2o2-cantera-3.1.0.yaml": "tool/chemistry/mechanisms/h2o2-cantera-3.1.0.yaml",
+      "common/chemistry/mechanisms/h2o2.cantera-reactor-reference.json": "validation/reference/chemistry/h2o2.cantera-reactor-reference.json",
+      "common/chemistry/mechanisms/h2o2.cantera-reference.json": "validation/reference/chemistry/h2o2.cantera-reference.json",
+      "common/chemistry/mechanisms/h2o2.gasModelProperties": "tool/chemistry/mechanisms/h2o2.gasModelProperties",
+      "common/chemistry/mechanisms/h2o2.manifest.json": "tool/chemistry/mechanisms/h2o2.manifest.json",
+      "common/chemistry/mechanisms/h2o2.mechanism": "tool/chemistry/mechanisms/h2o2.mechanism",
+      "common/chemistry/mechanisms/import_h2o2.py": "tool/chemistry/mechanisms/import_h2o2.py",
+      "common/chemistry/mechanisms/requirements-import.txt": "tool/chemistry/mechanisms/requirements-import.txt",
+      "common/chemistry/mechanisms/requirements-reference.txt": "validation/reference/chemistry/requirements-reference.txt",
+      "common/thermal_particle_restart_current.py": "tool/restart/thermal_particle_restart_current.py",
+      "common/thermal_particle_restart_schema7.py": "tool/restart/thermal_particle_restart_schema7.py",
+      "tests/fixtures/shared_operators/schema7_wire_golden.json": "validation/tests/fixtures/shared_operators/schema7_wire_golden.json",
+      "tools/managed_mirrors.json": "tool/managed_mirrors.json",
+      "tools/managed_mirrors.py": "tool/managed_mirrors.py",
+      "tools/operator_policy_contract_test.py": "validation/tools/operator_policy_contract_test.py",
+      "tools/particle_field_contract.py": "tool/particle_field_contract.py"
+    }
+  }
+}

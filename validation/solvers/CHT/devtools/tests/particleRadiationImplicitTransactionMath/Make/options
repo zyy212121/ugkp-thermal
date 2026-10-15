@@ -1,0 +1,6 @@
+EXE_INC = \
+    -I../../../../../../applications/CHT/thermal \
+    -I$(LIB_SRC)/OpenFOAM/lnInclude
+
+EXE_LIBS = \
+    -lOpenFOAM

@@ -1,0 +1,52 @@
+#!/usr/bin/env python3
+from validation.tools.paths import SOURCE_ROOT, VALIDATION_ROOT, CASES_ROOT
+
+
+import math
+import unittest
+from pathlib import Path
+
+
+ROOT = (SOURCE_ROOT / 'applications/gasUGKP')
+HEADER = ROOT / "gpu" / "GpuResidentStrict.H"
+
+
+def relative_eos_error(rho: float, pressure: float, temperature: float, gas_r: float) -> float:
+    expected = pressure / (rho * gas_r)
+    return abs(temperature - expected) / max(abs(temperature), abs(expected), 1.0)
+
+
+class BoundaryEosAlgebra(unittest.TestCase):
+    def test_consistent_triple_is_accepted(self) -> None:
+        rho = 1.2
+        gas_r = 287.0
+        temperature = 900.0
+        pressure = rho * gas_r * temperature
+        self.assertLessEqual(relative_eos_error(rho, pressure, temperature, gas_r), 1.0e-8)
+
+    def test_inconsistent_triple_is_rejected(self) -> None:
+        self.assertGreater(relative_eos_error(1.2, 101325.0, 900.0, 287.0), 1.0e-8)
+
+
+class BoundaryEosSourceContract(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls) -> None:
+        cls.source = HEADER.read_text(encoding="utf-8")
+
+    def test_upload_receives_the_solver_gas_constant(self) -> None:
+        self.assertGreaterEqual(
+            self.source.count(
+                "RgasValue,\n            strictOpenFoamGasBoundaries"
+            ),
+            2,
+        )
+
+    def test_redundant_eos_certificate_does_not_replace_boundary_precedence(self) -> None:
+
+
+        self.assertNotIn("relativeEosError", self.source)
+        self.assertIn("ugkwpGpuResidentStrictUploadGasBoundaryFields", self.source)
+
+
+if __name__ == "__main__":
+    unittest.main()

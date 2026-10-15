@@ -1,1 +1,0 @@
-#include "../../thermal/GpuSolidThermalProperties.C"

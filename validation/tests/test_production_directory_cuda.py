@@ -1,0 +1,26 @@
+"""Protect production entry classification, task reuse and compaction-to-consumer order.
+
+The fixture extracts the actual pre/compaction stages, executes real CUDA/CUB,
+and observes task-builder launches through a test-only linker wrapper.
+"""
+from validation.tools.paths import SOURCE_ROOT, VALIDATION_ROOT, CASES_ROOT
+
+from pathlib import Path
+import subprocess,sys
+import pytest
+ROOT=SOURCE_ROOT
+@pytest.fixture(scope='module',params=['gasUGKP','FSH','CHT',],ids=['gas64','FSH64','CHT64'])
+def consumer(request,tmp_path_factory):
+    if not Path('/usr/local/cuda/bin/nvcc').is_file():pytest.skip('CUDA compiler and device required')
+    app=request.param;out=tmp_path_factory.mktemp(f'production-directory-{app}-{64}')
+    q=subprocess.run([sys.executable,str((VALIDATION_ROOT / 'tools/tests/fixtures/gas_auto/gas_auto_pool.py')),str(ROOT),str(out),app,'production-directory'],capture_output=True,text=True,timeout=600)
+    assert q.returncode==0,q.stdout+q.stderr
+    return out/'gas_auto_pool'
+@pytest.mark.parametrize('block',[32,128])
+@pytest.mark.parametrize('scenario',[0,1,2,3],ids=['L2-skip','L2-inspect','L1-activate','L1-skip'])
+@pytest.mark.parametrize('path',[0,1,2],ids=['full-fallback','no-injection','injection'])
+def test_production_directory_then_auto_and_collision(consumer,path,scenario,block):
+    q=subprocess.run([str(consumer),str(path),str(scenario),str(block)],capture_output=True,text=True,timeout=120)
+    (consumer.parent/f'path-{path}-scenario-{scenario}-block-{block}.log').write_text(q.stdout+q.stderr)
+    assert q.returncode==0,q.stdout+q.stderr
+    assert 'PASS production compaction -> directory -> auto -> actual collision consumer' in q.stdout

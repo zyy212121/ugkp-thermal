@@ -3,7 +3,7 @@ set -euo pipefail
 app=$(cd "$(dirname "$0")" && pwd)
 frontend=false
 case ${1:-} in
-  --host-checks) exec bash "$app/devtools/check_host.sh" ;;
+  --host-checks) exec bash "$app/../../validation/tools/CHMT/devtools/check_host.sh" ;;
   --frontend-only) frontend=true ;;
   '') ;;
   *) echo 'Usage: Allwmake [--host-checks|--frontend-only]' >&2; exit 2 ;;
@@ -15,7 +15,7 @@ flags=(-std=c++17 -O2 -DNoRepository -DWM_DP -DWM_LABEL_SIZE=32 -DUGKWP_GAS_SPEC
  -I"$WM_PROJECT_DIR/src/OpenFOAM/lnInclude" -I"$WM_PROJECT_DIR/src/finiteVolume/lnInclude" -I"$WM_PROJECT_DIR/src/meshTools/lnInclude" -I"$WM_PROJECT_DIR/src/OSspecific/POSIX/lnInclude")
 libs=(-L"$FOAM_LIBBIN" -lfiniteVolume -lmeshTools -lOpenFOAM -L"$FOAM_LIBBIN/$FOAM_MPI" -lPstream)
 if $frontend; then
- python3 "$app/devtools/build_info.py" --compile-only --species-count "${UGKWP_GAS_SPECIES:-2}" --output "$build/generated"
+ python3 "$app/../../tool/CHMT/build_info.py" --compile-only --species-count "${UGKWP_GAS_SPECIES:-2}" --output "$build/generated"
  "${CXX:-g++}" "${flags[@]}" -DCHMT_FRONTEND_COMPILE_ONLY "$app/CHMT.C" "$app/mesh/Geometry.C" "${libs[@]}" -o "$build/CHMT-input-check"
  test -x "$build/CHMT-input-check"
  printf '%s\n' "FRONTEND_ONLY: $build/CHMT-input-check; no CUDA backend was built."
@@ -23,7 +23,7 @@ else
  nvcc=${NVCC:-nvcc}
  command -v "$nvcc" >/dev/null || { echo 'BLOCKED: native CHMT build requires the CUDA toolkit compiler nvcc.' >&2; exit 2; }
  cuda=${CUDA_HOME:-$(cd "$(dirname "$(command -v "$nvcc")")/.." && pwd)}
- python3 "$app/devtools/build_info.py" --species-count "${UGKWP_GAS_SPECIES:-2}" --arch "${CHMT_CUDA_ARCH:-}" --nvcc "$nvcc" --output "$build/generated"
+ python3 "$app/../../tool/CHMT/build_info.py" --species-count "${UGKWP_GAS_SPECIES:-2}" --arch "${CHMT_CUDA_ARCH:-}" --nvcc "$nvcc" --output "$build/generated"
  "$nvcc" -std=c++17 -O2 -arch="${CHMT_CUDA_ARCH:-}" -DUGKWP_GAS_SPECIES="${UGKWP_GAS_SPECIES:-2}" -I"$app" -I"$app/../../common" -I"$app/../../common/gasNumerics" -c "$app/gpu/Backend.cu" -o "$build/Backend.o"
  "${CXX:-g++}" "${flags[@]}" "$app/CHMT.C" "$app/io/MultirateEvolution.C" "$app/materials/CpuMaterialDriver.C" "$app/materials/MaterialTransport.C" "$app/film/CpuFilmDriver.C" "$app/ablation/CpuSurfaceInterface.C" "$app/mesh/Geometry.C" "$app/restart/Checkpoint.C" "$build/Backend.o" "${libs[@]}" -L"$cuda/lib64" -Wl,-rpath,"$cuda/lib64" -lcudart -o "$build/CHMT"
  test -x "$build/CHMT"

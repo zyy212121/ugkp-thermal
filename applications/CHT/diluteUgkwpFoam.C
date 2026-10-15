@@ -6,7 +6,7 @@
 #include <limits>
 
 #ifndef UGKWP_USE_CUDA
-#error CHT must be built with UGKWP_USE_CUDA; use tools/build_cuda_solver.sh
+#error CHT must be built with UGKWP_USE_CUDA; use tool/CHT/build_cuda_solver.sh from the source root
 #endif
 
 #ifdef UGKWP_USE_CUDA

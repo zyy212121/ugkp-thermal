@@ -1,0 +1,15 @@
+from validation.tools.paths import SOURCE_ROOT, VALIDATION_ROOT, CASES_ROOT
+
+from pathlib import Path
+import subprocess,sys
+ROOT=SOURCE_ROOT
+def test_explicit_managed_source_and_field_audits(tmp_path):
+
+    commands=[[sys.executable,str((SOURCE_ROOT / 'tool/managed_mirrors.py'))]]
+    if (ROOT/'applications/FSH').is_dir():
+        commands+=[[sys.executable,str((VALIDATION_ROOT / 'tools/tests/fixtures/source_contract_regression.py')),str(ROOT)]]
+    else:
+        commands+=[[sys.executable,str((SOURCE_ROOT / 'tool/particle_field_contract.py')),'--cpu','--output',str(tmp_path/'fields')]]
+    for command in commands:
+        result=subprocess.run(command,capture_output=True,text=True)
+        assert result.returncode==0,result.stdout+result.stderr
