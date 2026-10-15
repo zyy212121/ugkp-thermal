@@ -56,7 +56,7 @@ for app in ['FSH', 'CHT']:
 # Record all production inputs and fixtures so the deferred run is tied to this
 # source state. Build logs contain exact command lines/flags in results.json.
 hashes={str(p.relative_to(ROOT)):hashlib.sha256(p.read_bytes()).hexdigest()
-    for scope in ['applications','common','gpu','validation/tests/fixtures']
+    for scope in ['applications','common','gpu','validation/tests/fixtures','validation/tools/tests/fixtures']
     for p in (ROOT/scope).rglob('*') if p.is_file() and p.suffix in {'.cu','.cuh','.H','.in','.inl','.py'} and '__pycache__' not in p.parts}
 (out/'source-sha256.json').write_text(json.dumps(hashes,indent=2)+'\n')
 if args.run:
