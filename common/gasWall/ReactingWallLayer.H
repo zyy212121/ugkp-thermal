@@ -42,8 +42,8 @@ template<class R,int N,class TableReal> UGKWP_GAS_HD UGKWP_WALL_DEVICE_LEAF bool
     if(c.enableSst&&(terminalProfile?p.z!=0:p.z>0))p.omega=R(1)/(p.z*p.z);
     return true;
 }
-// The strict mechanism schema is checked once at solve entry. Reuse it for
-// Newton probes while retaining actual consumed pointer checks at reaction use.
+
+
 template<class R,int N,class TableReal> UGKWP_GAS_HD UGKWP_WALL_DEVICE_LEAF bool pointReaction(const WallInput<R,N,TableReal>& in,LayerPoint<R,N>& p,const bool terminalProfile=false){
     if(in.model.mode!=GasMode::MixtureChemistry)return true;
     if(!in.model.thermo.species)return false;
@@ -113,12 +113,12 @@ template<class R,int N,class TableReal> UGKWP_GAS_HD inline bool layerFlux(const
     f.energy+=ctx.mass*kinetic-lambda*(b.theta-a.theta)/length;
     const R dk=in.model.viscosity+rho*sstAlphaK((a.f1+b.f1)/R(2),in.model.sstCoefficients)*nut;
     f.k=ctx.mass*(a.k+b.k)/R(2)-dk*(b.k-a.k)/length;
-    // Only SST residual rows consume omega transport. Do not evaluate its
-    // fitting arithmetic when that channel is disabled.
+
+
     if(c.enableSst){const R dw=in.model.viscosity+rho*sstAlphaOmega((a.f1+b.f1)/R(2),in.model.sstCoefficients)*nut;
         f.omega=ctx.mass*(a.omega+b.omega)/R(2)-dw*omegaGradientFit(ya,yb)*(b.omega-a.omega)/length;}
-    // The SST residual consumer checks its omega arithmetic; physical wall
-    // publication consumes momentum/energy/k, not this auxiliary omega flux.
+
+
     return terminalProfile||(gasFinite(f.energy)&&gasFinite(f.k));
 }
 template<class R,int N,int M,class TableReal> UGKWP_GAS_HD inline bool evaluatePoint(const WallInput<R,N,TableReal>& in,
@@ -281,8 +281,8 @@ template<class R,int N,int M> UGKWP_GAS_HD inline bool seedScalar(
 }
 // Positive transport/destruction Picard iteration is only a Newton initializer.
 // Its upwind convection and first-node asymptotic profile never authorize a
-// result: final publication evaluates the actual retained profile and reports
-// the coupled conservative residual separately from output availability.
+
+
 template<class R,int N,int M,class TableReal> UGKWP_GAS_HD inline bool seedSstLayer(const WallInput<R,N,TableReal>& in,
  const WallModelConfig<R>& c,const LayerContext<R,N>& ctx,WallWorkspace<R,N,M>& w){
     if(!c.enableSst)return true;
@@ -381,8 +381,8 @@ template<class R,int N,int M,class TableReal> UGKWP_GAS_HD inline bool publishLa
         int l=0;while(l+1<c.nodes-1&&w.y[l+1]<in.ownerDistance)++l;
         const R fraction=(in.ownerDistance-w.y[l])/(w.y[l+1]-w.y[l]);const R z=w.state[l][N+3]+fraction*(w.state[l+1][N+3]-w.state[l][N+3]);
         out.ownerOmega=R(1)/(z*z);}
-    // Audit differences and optional source integrals retain their actual
-    // arithmetic results, independently of complete physical publication.
+
+
     out.iterations=iterations;out.residual=norm;output=out;return true;
 }
 } // detail
@@ -401,11 +401,11 @@ template<class R,int N,int M,class TableReal> UGKWP_GAS_HD inline bool evaluateR
         w.state[i][2]=f*(in.matching.temperature-in.temperature);
         for(int j=0;j<N-1;++j)w.state[i][3+j]=in.matching.massFraction[ctx.independent[j]];
         w.state[i][N+2]=c.enableSst?::sqrt(in.matching.k)*f:R(0);w.state[i][N+3]=c.enableSst?f/::sqrt(in.matching.omega):R(1);
-        // Trial scratch is idle during seeding; retain the original profile in
-        // the initialization traversal rather than adding a profile pass.
+
+
         if(c.enableSst)for(int j=0;j<N+4;++j)w.trial[i][j]=w.state[i][j];}
-    // The existing trial scratch retains the initialized profile while the
-    // optional Picard/shear seed mutates state. A failed seed is never promoted.
+
+
     bool seeded=strictMechanism&&seedSstLayer(in,c,ctx,w);
     if(c.enableSst&&seeded){
         // Initialize the auxiliary nonlinear profile at a shear-based scale.
@@ -435,17 +435,17 @@ template<class R,int N,int M,class TableReal> UGKWP_GAS_HD inline bool evaluateR
             R next=0;if(allResidual(in,c,ctx,w.trial,w.y,w.residual,next)&&next<norm){for(int i=0;i<c.nodes;++i)for(int j=0;j<N+4;++j)w.state[i][j]=w.trial[i][j];norm=next;accepted=true;break;}
             alpha*=R(.5);}
         if(!accepted){
-            // The rejected trial used residual scratch, never the accepted state.
-            // Restore the measured residual belonging to the retained profile.
+
+
             if(!allResidual(in,c,ctx,w.state,w.y,w.residual,norm))norm=std::numeric_limits<R>::quiet_NaN();
             break;
         }
         ++iteration;
     }
     status.iteration=iteration;status.residual=double(norm);
-    // Search always uses original trial eligibility. Only this existing final
-    // publication may evaluate the retained terminal profile permissively.
-    const bool terminalProfile=true; // Final output, never a Newton trial certificate.
+
+
+    const bool terminalProfile=true;
     if(!publishLayer(in,c,ctx,w,iteration,norm,output,terminalProfile))return fail(status,WallCode::InadmissibleState);
     return true;
 }

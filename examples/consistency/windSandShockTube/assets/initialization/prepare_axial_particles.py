@@ -16,7 +16,7 @@ RESTART = ROOT / "0" / "gpuResidentStrictParticles.dat"
 
 def load() -> tuple[str, list[list[str]]]:
     lines = RESTART.read_text(encoding="utf-8").splitlines()
-    # Preparation consumes actual rows, not marker/count/layout metadata.
+
     return lines[0], [line.split() for line in lines[1:] if line.strip()]
 
 

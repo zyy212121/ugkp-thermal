@@ -106,7 +106,7 @@ bool applyMaterialPacketBatchImpl(const std::vector<SolidQ>& base,const std::vec
     for(std::size_t cell=0;cell<base.size();++cell){for(int component=0;component<Nc+Ns;++component){Real value=static_cast<Real>(sum[cell][component]);
             if(value<0){const long double bound=(operations[cell]+2)*std::numeric_limits<Real>::epsilon()*scale[cell][component];
                 if(-sum[cell][component]>bound){if(!Terminal){if(numericalFailure)*numericalFailure=true;error="material packet batch exceeds physical donor inventory";return false;}}
-                else {value=0;} // Complete the demonstrated arithmetic deficit.
+                else {value=0;}
             }
             if(!Terminal&&!finite(value)){if(numericalFailure)*numericalFailure=true;error="nonfinite material packet result";return false;}
             if(component<Nc)next[cell].condensed[component]=value;else next[cell].pore[component-Nc]=value;}

@@ -28,8 +28,8 @@ inline BoundaryLayerWorkspaceSizing resolveBoundaryLayerWorkspace(
         result.budget=freeBytes;
         result.slots=int(std::min(std::uint32_t(faces),requestedSlots));
     }
-    // A query is a tuning hint. Only cudaMalloc decides whether the chosen
-    // executable batch fits; do not turn a small advisory budget into no work.
+
+
     if(std::size_t(result.slots)>std::numeric_limits<std::size_t>::max()/bytesPerWorkspace)
     {result.slots=0;return result;}
     result.bytes=std::size_t(result.slots)*bytesPerWorkspace;

@@ -151,8 +151,8 @@ int main(){
     {
         script=Script{};script.badEnergy=true;Backend backend;backend.accepted=initial;HostState accepted=initial;WindowEvolutionReport report;
         assert(advanceCoupledWindow(backend,cpu,model,controls,material,.2,false,accepted,report,error));
-        // A deliberately unbalanced endpoint is published unchanged. This proves
-        // removal of audit-only window shrinking, not physical conservation.
+
+
         assert(accepted.gas[0].energy==4&&accepted.time==.2&&backend.commits==1&&!backend.pending);
         assert(script.materialCalls==1&&backend.rollbacks==0);
         assert(accepted.gas[0].energy!=initial.gas[0].energy);
@@ -214,8 +214,8 @@ int main(){
         if(ok){assert(backend.program.interval.end==.05&&backend.program.knots.back().time==.05);}
     }
     {
-        // Retained checkpoint diagnostics are carried without creating a physical
-        // mass source, admission decision, or hidden correction on replay.
+
+
         script=Script{};script.legacyAuditResidual=-4e-18;Backend backend;backend.accepted=initial;HostState accepted=initial;WindowEvolutionReport report;
         assert(advanceCoupledWindow(backend,cpu,model,controls,material,.2,false,accepted,report,error));
         assert(accepted.budget.numericalEnergyResidual==script.legacyAuditResidual);

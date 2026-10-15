@@ -643,19 +643,19 @@ bool writeCheckpoint(const std::string& directory,const ModelConfig& config,cons
 }
 bool readCheckpoint(const std::string& directory,const ModelConfig& expected,HostState& output,std::string& error){
     try{
-        (void)expected; // Supplied state retains the existing positional decoding.
+        (void)expected;
         std::ifstream input(directory+"/state.chmt",std::ios::binary|std::ios::ate);if(!input){error="cannot open checkpoint state.chmt";return false;}
         const auto size=input.tellg();if(size<0){error="cannot determine checkpoint size";return false;}
         Bytes bytes(static_cast<std::size_t>(size));input.seekg(0);if(!bytes.empty())input.read(reinterpret_cast<char*>(bytes.data()),size);if(!input){error="truncated checkpoint read";return false;}
         Decoder decoder(bytes);
-        // These fixed-width slots describe the writer; they do not select a
-        // decoder or certify the payload. Consume every slot independently.
+
+
         for(int i=0;i<8;++i)decoder.integer(1);
         decoder.integer(8);
         for(int i=0;i<6;++i)decoder.integer(4);
         decoder.integer(8);
         const auto configSize=decoder.integer(8),stateSize=decoder.integer(8);
-        decoder.integer(8); // Legacy writer checksum, no read-side hash pass.
+        decoder.integer(8);
         if(configSize>bytes.size()-decoder.offset||stateSize>bytes.size()-decoder.offset-configSize)throw std::runtime_error("checkpoint payload length mismatch");
         decoder.offset+=configSize;const auto stateEnd=decoder.offset+stateSize;
         HostState candidate;decoder(candidate);

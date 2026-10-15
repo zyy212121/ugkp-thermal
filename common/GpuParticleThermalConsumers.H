@@ -84,8 +84,8 @@ UGKWP_THERMAL_CONSUMER_HD inline ParticleThermalPublication publishAffineRadiati
         return {false, false, 0.0};
     // Integrate the small interval before adding it to the large thermal state.
     const double proposedSpecificHeat = caloric.enthalpyIncrement(oldTemperature, temperatureIncrement);
-    // The old accepted affine transaction used the ordinary heat limiter,
-    // including endpoint roundoff. Only old-refused transforms are unlimited.
+
+
     if (scale >= 0.0 && scale <= 1.0
         && proposedTemperature >= double(minimumTemperature)
         && proposedTemperature <= double(maximumTemperature))

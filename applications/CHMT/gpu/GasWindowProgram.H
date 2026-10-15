@@ -31,7 +31,7 @@ inline WindowTime nextGasWallKnotLocal(const WallProgram& program,WindowTime tim
 }
 inline Real nextGasWallKnot(const WallProgram& program,Real time){return windowAbsolute(program.interval.begin,nextGasWallKnotLocal(program,windowOffset(program.interval.begin,time)));}
 inline Real boundedGasMicrostep(Real time,Real knot,Real cap,Real maximum){return minValue(cap,minValue(maximum,knot-time));}
-// The equivalent diffusion/source numbers already include target-Co scaling.
+
 inline Real gasCoMaxStep(Real referenceDt,Real targetCo,Real maximumCo,Real growthBase){
     const Real stable=maximumCo>0?referenceDt*(targetCo/maximumCo):referenceDt;
     return minValue(referenceDt,minValue(stable,1.05*growthBase));

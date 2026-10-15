@@ -245,8 +245,8 @@ struct SstConfigArgs
     double wallCmu;
 };
 
-// Existing native IPC layout, encoded field by field at fixed wire offsets.
-// Padding bytes are reserved; native struct padding never becomes a decoder.
+
+
 inline bool wireLittleEndian()
 { const std::uint16_t one=1; return *reinterpret_cast<const unsigned char*>(&one)==1; }
 template<class T> inline void encodeWireScalar(unsigned char* bytes,const T& value)
@@ -741,8 +741,8 @@ template<> struct WireCodec<SstConfigArgs>
 template<class T> constexpr std::size_t wireBytes(const T&) { return WireCodec<T>::size; }
 template<class T> inline std::array<unsigned char,WireCodec<T>::size> encodeWire(const T& value)
 { std::array<unsigned char,WireCodec<T>::size> b{}; WireCodec<T>::encode(b.data(),value); return b; }
-// Scalar codecs transfer the current host object representation, with byte
-// reversal on another endian; they do not invent numerical format conversion.
+
+
 
 inline void addBytes(std::uint64_t& total, const std::uint64_t count,
                      const std::uint64_t elementBytes)

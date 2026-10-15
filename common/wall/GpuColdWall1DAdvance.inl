@@ -1,6 +1,6 @@
 // Shared assembly, nonlinear enthalpy update and publication.
 // Precision policies retain the existing cache and stable PCR path.
-// Numerical tails complete these same formulas; false denotes missing backing.
+
 
     const bool inputValid =
         true

@@ -39,8 +39,8 @@ struct HostStageGeometry {
     std::vector<Real> oldVolume{},newVolume{},evaluationVolume{},sweptVolume{};
     std::vector<Vec3> areaVector{},cellCentre{},faceCentre{},oldPoints{},newPoints{};
 };
-// Legacy checkpoint payload only; the solver no longer accumulates this audit.
-// Retained values are not measurements from the current run.
+
+
 struct GasSstIntegralAudit {
     Real transportK=0,transportOmega=0,sourceK=0,sourceOmega=0,constraintK=0,constraintOmega=0;
 };
@@ -49,7 +49,7 @@ struct HostState {
     Real nextDt=0,lastAcceptedDt=0;
 
     HostMesh gasMesh{},solidMesh{};SurfaceMesh surface{};
-    std::vector<ugkwp::ChemistryAudit<Real,Ns>> gasChemistryAudit{}; // legacy checkpoint payload only; not collected by the solver
+    std::vector<ugkwp::ChemistryAudit<Real,Ns>> gasChemistryAudit{};
     std::vector<GasQ> gas{};std::vector<SolidQ> solid{};std::vector<FilmQ> film{};
     std::vector<Real> gasTemperature{};
     std::vector<FilmAux> filmAux{};std::vector<ParticleQ> particles{};std::vector<SstQ> sst{};

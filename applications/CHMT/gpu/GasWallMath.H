@@ -14,7 +14,7 @@ CHMT_HD inline Real gasPacketSpeciesWithdrawal(const ExchangePacket& packet,int 
 struct GasWallInput {
     GasWallClosureContext wallContext{};
     const ugkwp::gaswall::WallOutput<Real,Ns>* preparedLayer=nullptr;
-    // Borrow the existing same-stage sample; no second snapshot or cache.
+
     const ugkwp::gaswall::WallMatchingState<Real,Ns>* preparedMatching=nullptr;
     const Real* preparedMatchingPressure=nullptr;
     GasPrimitive bulk{}; GasGradient gradient{};
@@ -37,8 +37,8 @@ CHMT_HD inline bool evaluateGasWall(const GasWallInput& in,const SurfacePacketId
     bool reuse=in.preparedLayer&&p.wallModel.family==ugkwp::gaswall::WallFamily::BoundaryLayer;
     if(reuse){
         const auto& layer=*in.preparedLayer;
-        // Equality selects reuse; a changed input selects a real new closure.
-        // Identically undefined terminal values still belong to this profile.
+
+
         reuse=same(layer.traceTemperature,in.temperature);
         if(in.preparedMatchingPressure)reuse=reuse&&same(*in.preparedMatchingPressure,in.wallContext.matchingPressure);
         if(in.preparedMatching){
@@ -58,15 +58,15 @@ CHMT_HD inline bool evaluateGasWall(const GasWallInput& in,const SurfacePacketId
             if(finite(preparedVelocity)&&finite(closure.trace.velocity))
                 reuse=!(mag(preparedVelocity-closure.trace.velocity)>1e-11*maxValue(1,mag(closure.trace.velocity)));
             else{
-                // Unordered norm comparisons cannot certify reuse. Matching
-                // terminal components still reuse; differences get a real solve.
+
+
                 reuse=same(preparedVelocity.x,closure.trace.velocity.x)
                     &&same(preparedVelocity.y,closure.trace.velocity.y)
                     &&same(preparedVelocity.z,closure.trace.velocity.z);
                 if(reuse){
-                    // Fresh closure projects the supplied wall velocity before
-                    // constructing its primitive. Finish that same terminal
-                    // velocity arithmetic without evaluating the layer again.
+
+
+
                     const Vec3 velocity=in.velocity-in.normal*dot(in.velocity,in.normal)+in.normal*in.normalSpeed;
                     closure.trace.velocity=velocity-in.normal*dot(velocity,in.normal)
                         +in.normal*(in.normalSpeed+mass/closure.trace.rho);

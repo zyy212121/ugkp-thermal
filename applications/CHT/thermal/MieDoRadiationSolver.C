@@ -1286,9 +1286,9 @@ MieDoResult MieDoRadiationSolver::solve
             scalar finalLinearResidual = initialLinearResidual;
             label linearIteration = 0;
 
-            // A nonfinite diagnostic is not a converged initial field. Evaluate
-            // one native sweep before returning its candidate; retain every
-            // originally successful finite-residual convergence/no-work path.
+
+
+
             while
             (
                 (finalLinearResidual > linearTarget

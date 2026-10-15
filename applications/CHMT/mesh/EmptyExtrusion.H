@@ -18,8 +18,8 @@ inline bool reject(std::string& error,const char* message) {
 // The first supported representation has two fixed axis-aligned layers. Pairing
 // is exact and reconstructed from authoritative points/topology, never nearest
 // neighbour tolerance or an independently persisted cache.
-// Terminal supplied NaNs form one ordered equivalence class after numbers.
-// Finite keys, infinities and signed-zero equivalence retain their old ordering.
+
+
 template<bool Terminal> struct CoordinateLess {
     bool operator()(Real a,Real b) const {
         if(Terminal){if(a!=a)return false;if(b!=b)return true;}
@@ -112,7 +112,7 @@ inline bool build(const HostMesh& mesh,Extrusion& output,std::string& error) {
     }
     output=std::move(result);return true;
 }
-// Terminal geometry consumers require only the actual Empty axis, not a mate map.
+
 inline bool axisGeometry(const HostMesh& mesh,Extrusion& output,std::string&,bool*) {
     Extrusion result;
     for(std::size_t f=0;f<mesh.owner.size();++f)if(mesh.boundaryKind[f]==BoundaryKind::Empty) {

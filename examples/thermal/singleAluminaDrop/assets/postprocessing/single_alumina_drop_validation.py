@@ -262,7 +262,7 @@ def parse_particle_restart(path: Path):
             raise ValueError("particle restart header is not ASCII") from error
         if header.startswith("UGKP_PARTICLES_SCHEMA3"):
             return _parse_schema3(path, header)
-        # Reuse the shipped thermal reader's exact historical/current widths.
+
         import sys
         sys.path.insert(0, str(Path(__file__).resolve().parent))
         from fsh_restart_reader import iter_fsh_chunks

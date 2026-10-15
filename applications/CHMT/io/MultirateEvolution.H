@@ -16,7 +16,7 @@ struct WindowEvolutionReport {
     std::vector<MicrostepGeometryReport> geometry{};
 };
 // Advance at most one macro interval toward targetTime. The accepted state is
-// immutable until the completed gas and CPU material candidates are committed. A
+
 // failed/replayed window never becomes output or restart authority.
 bool advanceCoupledWindow(Backend&,CpuMaterialDriver&,const ModelConfig&,
     const CouplingControls&,const CpuMaterialControls&,Real targetTime,

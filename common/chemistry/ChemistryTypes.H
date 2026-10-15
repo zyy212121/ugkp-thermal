@@ -7,8 +7,8 @@ enum class ChemistryCode : unsigned char {
     TemperatureFailure, RateFailure, SingularJacobian, NewtonFailure,
     StepUnderflow, StepLimit, ConservationFailure
 };
-// Internal numerical trial failures travel in the return value and drive
-// caller refinement. Attempt/rejection counters are real integration controls.
+
+
 struct ChemistryStatus {
     ChemistryCode code = ChemistryCode::Success;
     ThermoStatus thermoCode = ThermoStatus::Success;
@@ -34,8 +34,8 @@ template<class Real> struct ChemistryControls {
     Real absoluteElementTolerance = Real(1e-12); // mol atoms, NOT kg
     ThermoInversionControls<Real> thermo;
 };
-// Historical CHMT checkpoint payload only. Runtime chemistry does not create
-// or publish this record; retaining its layout preserves existing checkpoints.
+
+
 template<class Real,int Ns> struct ChemistryAudit {
     Real speciesMassChange[Ns] = {};
     Real massResidual = Real(0); // kg
@@ -72,7 +72,7 @@ UGKWP_GAS_HD inline ChemistryControls<To> castChemistryControls
     return out;
 }
 
-// Original controls belong only to an explicitly retryable numerical trial.
+
 template<class R> UGKWP_GAS_HD inline bool chemistryTrialControls(const ChemistryControls<R>& c) noexcept {
  return gasFinite(c.relativeTolerance) && c.relativeTolerance>R(0)
  && gasFinite(c.absoluteMassFractionTolerance) && c.absoluteMassFractionTolerance>R(0)
@@ -95,8 +95,8 @@ template<class R> UGKWP_GAS_HD inline bool chemistryTrialControls(const Chemistr
 }
 
 template<class R> UGKWP_GAS_HD inline bool validateChemistryControls(const ChemistryControls<R>& c) noexcept {
- // Controls select arithmetic and refinement effort; they are not admission
- // criteria. A missing/nonfinite computed result is reported at its producer.
+
+
  (void)c;return true;
 }
 

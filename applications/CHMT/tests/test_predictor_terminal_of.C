@@ -1,5 +1,5 @@
-// Actual OpenFOAM material/film driver with prescribed, stage-matched gas history.
-// This tests pressure adaptation and the ledger, not native gas execution.
+
+
 #include "ablation/WallClosureHost.H"
 #include "fvCFD.H"
 #include "materials/CpuMaterialDriver.C"
@@ -62,7 +62,7 @@ int main(int argc,char** argv){
     if(!normal.predictWall(base,interval,program,error,&report)){std::cerr<<error<<'\n';return 3;}
     assert(program.knots.size()==2&&program.knots.front().time==0&&program.knots.back().time==dt);
     assert(program.knots.front().faces.size()==4&&program.knots.back().gasPoints.size()==base.gasMesh.points.size());
-    // Required host gas caloric tail: the ordinary EOS refuses supplied energy.
+
     ModelConfig host=model;host.physics.wallModel.family=static_cast<ugkwp::gaswall::WallFamily>(99);
     CpuMaterialDriver terminal(host,&mesh);HostState inconsistent=base;
     for(auto& q:inconsistent.gas)q.energy+=1e10;
@@ -71,8 +71,8 @@ int main(int argc,char** argv){
     if(!detail::ConductionContinuation::predict(terminal,inconsistent,interval,program,error,&report)){std::cerr<<error<<'\n';return 4;}
     assert(program.knots.size()==2&&program.knots.back().time==dt&&program.knots.back().faces.size()==4);
     for(const auto& face:program.knots.back().faces)assert(face.temperature==3000);
-    // No recorded matching snapshot: consume the supplied gas through the
-    // actual host sampling, closure contexts and CPU surface continuation.
+
+
     HostState supplied=base;for(auto& q:supplied.gas)q.energy=NAN;
     GasPrimitive absent;assert(!recoverGas(supplied.gas[0],supplied.gasMesh.volumes[0],p,absent));
     if(!detail::ConductionContinuation::predict(normal,supplied,interval,program,error,&report)){std::cerr<<error<<'\n';return 6;}

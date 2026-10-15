@@ -34,6 +34,9 @@ int main(){
         for(auto writer:writers){std::ostringstream out;check(writer(out,invalid,model,error),"every writer consumes supplied metadata");check(!out.str().empty(),"supplied output is written");}
     }
     auto invalid=state;invalid.solid[0].energy=std::numeric_limits<double>::quiet_NaN();std::ostringstream out;
-    check(!io::writeAcceptedMaterialFields(out,invalid,model,error)&&out.str().empty(),"material validation precedes writing");
+    check(io::writeAcceptedMaterialFields(out,invalid,model,error),error);
+    check(out.str().find("nan")!=std::string::npos,"material output retains supplied IEEE energy");
+    std::ostringstream failed;failed.setstate(std::ios::badbit);
+    check(!io::writeAcceptedMaterialFields(failed,state,model,error)&&!error.empty(),"material stream failure propagates");
     std::cout<<"PASS: coupled output writers export material/exchange and consume supplied metadata.\n";
 }

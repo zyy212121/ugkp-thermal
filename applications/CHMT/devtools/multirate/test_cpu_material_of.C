@@ -159,9 +159,9 @@ int main(int argc,char** argv){
         for(std::size_t c=0;c<result.solid.size();++c){chmt::MaterialPrimitive material;assert(chmt::recoverMaterial(result.solid[c],result.solidMesh.volumes[c],p,material));
             assert(std::abs(material.temperature-exact)<1e-7);sensibleChange+=125000.L*(material.temperature-400);}
         const long double outwardHeat=chmt_test::boundaryHeat(result,p,10000);
-        // Recovering T from a rounded, large formation-energy inventory adds
-        // uncertainty to the independent boundary oracle. Propagate four stored
-        // energy ULPs through the boundary/capacity ratio; do not use a report.
+
+
+
         long double recoveryRoundoff=0;for(const auto& q:result.solid){
             const chmt::Real quantum=std::nextafter(q.energy,std::numeric_limits<chmt::Real>::infinity())-q.energy;
             recoveryRoundoff+=4*static_cast<long double>(quantum)*(1+ratio);}
@@ -216,8 +216,8 @@ int main(int argc,char** argv){
         assert(exercised);
         std::cout<<"NATIVE_OF10 canonical material-volume ownership and unchanged dense inventory passed\n";
     }
-    // Exercise the actual material loop when paid steps cannot advance the
-    // projected absolute double clock. The macro endpoint is representable.
+
+
     {
         chmt::ModelConfig model;model.physics.enableGas=false;
         chmt::HostState base;base.time=1099511627776.0;

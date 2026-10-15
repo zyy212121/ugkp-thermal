@@ -1,5 +1,5 @@
 #pragma once
-// Device allocation ownership for genuine failed-operation restoration. No host pointers
+
 // to STL containers are placed in the gas state or checkpoint.
 struct BoundaryLayerAllocation
 {

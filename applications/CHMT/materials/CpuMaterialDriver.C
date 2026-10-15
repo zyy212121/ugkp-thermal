@@ -278,9 +278,9 @@ bool CpuMaterialDriver::advanceCandidateImpl(const HostState& base,const HostSta
             WindowTime boundedEnd=elapsed+dt;
             if(!materialDriveSlabEndLocal(history,elapsed,boundedEnd,controls.driveRelativeTolerance,controls.driveTractionScale,boundedEnd,error)){
                 if(!terminalMaterial){report=accumulated;report.failureOrigin=MaterialFailureOrigin::OwnerNumerical;return false;}
-                // The selected actual driveRecord already exists. This helper
-                // only proposes a shorter bound and leaves boundedEnd unchanged
-                // on failure; consume that previously evaluated requested bound.
+
+
+
                 error.clear();
             }
             dt=boundedWindowDuration(boundedEnd,elapsed);
@@ -366,8 +366,8 @@ bool CpuMaterialDriver::advanceCandidateImpl(const HostState& base,const HostSta
                 }else{filmRate.clear();sideVolume.assign(state.surface.area.size(),0);}
                 if(!data_->evaluate(evaluation,p,bulk,driveRecord->gasGradient,transport.rates,filmRate,dt,window.identity.sequence,surface,error,&sideVolume,&driveRecord->gasWallMatching,terminalMaterial)){lastFailure=data_->surfaceNumericalFailure?MaterialFailureOrigin::SurfaceNumerical:MaterialFailureOrigin::None;if(data_->terminalWallFailure){report.recoverable=false;return false;}break;}
                 bool shortenedForSource=false;
-                // These extra responses only choose a shorter retry; the final
-                // terminal attempt has no consumer for that proof-only work.
+
+
                 for(const auto& record:history.records())if(!terminalLast&&record.localBegin>elapsed&&record.localBegin<trialElapsed){
                     CpuSurfaceResult response;
                     if(!data_->evaluate(evaluation,p,record.gasTrace,record.gasGradient,transport.rates,filmRate,dt,window.identity.sequence,response,error,&sideVolume,&record.gasWallMatching,terminalLast)){lastFailure=data_->surfaceNumericalFailure?MaterialFailureOrigin::SurfaceNumerical:MaterialFailureOrigin::None;if(data_->terminalWallFailure){report.recoverable=false;return false;}dt=boundedWindowDuration(record.localBegin,elapsed);error.clear();shortenedForSource=true;break;}
@@ -442,7 +442,7 @@ bool CpuMaterialDriver::advanceCandidateImpl(const HostState& base,const HostSta
                     if(!error.empty())break;
                 }
                 for(const auto& phase:surface.phasePackets){MaterialPrimitive material;const int c=phase.solidCell;if(!(terminalMaterial?recoverMaterial<true>(state.solid[c],state.solidMesh.volumes[c],p,material):recoverMaterial(state.solid[c],state.solidMesh.volumes[c],p,material))){lastFailure=terminalMaterial?MaterialFailureOrigin::None:MaterialFailureOrigin::GeometryNumerical;error="phase donor EOS failed";break;}
-                    // Heat/force-only packets do not select a condensed phase.
+
                     target[phase.filmFace]-=phase.mass==0 ? Real(0)
                         : phase.mass/p.condensed[p.material.phaseCondensed].rho/(1-material.porosity);}
                 if(!error.empty())break;

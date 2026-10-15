@@ -188,8 +188,8 @@ GPU_COLD_WALL_HD inline GpuReal coldWallTemperatureFromSpecificEnthalpyK
     {
         const GpuReal previousUpper = upper;
         upper *= GPU_R(1.5);
-        // A stationary bound (including -infinity) cannot extend the bracket.
-        // Continue through the same bounded inverse arithmetic below.
+
+
         if (upper == previousUpper)
         {
             break;
@@ -341,8 +341,8 @@ GPU_COLD_WALL_HD inline void solveColdWallTridiagonal
 // Integrate one whole-particle Ranz--Marshall exchange with a frozen secant
 // heat capacity. Exact for constant cp; first-order across nonlinear/phase
 // regions. The result is a specific-enthalpy increment shared by all nodes.
-// Always calculate that increment. The boolean reports its finiteness; terminal
-// profile owners publish the native arithmetic even when that diagnostic is false.
+
+
 GPU_COLD_WALL_HD inline bool coldWallGasSpecificEnthalpyIncrement
 (
     const GpuReal meanOldSpecificEnthalpyJkg,

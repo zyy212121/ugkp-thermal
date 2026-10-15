@@ -2,8 +2,8 @@
 #define CHMT_COUPLING_WINDOWTIME_H
 #include <cmath>
 namespace chmt {
-// Transient time measured from a coupling-window origin. Keeping the residual
-// separate lets a paid increment remain visible below either clock's spacing.
+
+
 struct WindowTime {
     long double sum=0,correction=0;
     WindowTime()=default;
@@ -38,8 +38,8 @@ inline WindowTime windowOffset(double origin,double time){WindowTime value(time)
 inline double windowFraction(const WindowTime& time,const WindowTime& begin,const WindowTime& end,
     double stamp,double beginStamp,double endStamp){
     const auto numerator=time-begin,denominator=end-begin;
-    // Retain the established expression/order whenever its binary64 differences
-    // are exactly the paid local differences.
+
+
     if(numerator==WindowTime(stamp-beginStamp)&&denominator==WindowTime(endStamp-beginStamp))
         return (stamp-beginStamp)/(endStamp-beginStamp);
     return static_cast<double>((numerator.sum+numerator.correction)/(denominator.sum+denominator.correction));

@@ -1,4 +1,4 @@
-// Actual OF10 material owner with transport/control continuation; no GPU execution.
+
 #include "tests/NativeMaterialProbe.H"
 #include "materials/ConductionContinuation.H"
 #include <cassert>

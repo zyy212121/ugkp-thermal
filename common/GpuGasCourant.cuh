@@ -1,8 +1,8 @@
 #pragma once
 #include <cmath>
 
-// Extracted current-state estimator. The caller supplies actual storage,
-// launch choices, stream and scalar reduction; no application C ABI is used.
+
+
 struct GasCourantMaxima
 {
     double convective=0, diffusion=0, sst=0, maximum=0;
@@ -162,7 +162,7 @@ int computeGasCurrentCourant
             s->deviceState,
             dt,
             targetMaxCo,
-            false // outer estimate: reuse accepted wall source if available, no new BVP
+            false
         );
         err = cudaGetLastError();
         if (err != cudaSuccess)

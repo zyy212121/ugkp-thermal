@@ -38,7 +38,7 @@ template<class Real> struct GasBoundaryLayerState
     double preparedTime=0,preparedInterval=0;
     const int* faceSlot=nullptr;  // nFaces; -1 means not a selected wall
     const int* ownerSlot=nullptr; // nCells; -1 means unconstrained; unique owner
-    int* status=nullptr;         // count; diagnostic, separate from completed exchange.ready
+    int* status=nullptr;
     GasBoundaryLayerExchange<Real>* exchange=nullptr;
     GasBoundaryLayerSstClosure<Real>* sst=nullptr;
     Real* speciesFlux=nullptr;

@@ -51,8 +51,8 @@ try
             freeBytes,workspaceBytes);
         if(sizing.slots<=0){setLastErrorText("boundaryLayer scratch size is not representable");return 1;}
     }
-    // Finish all throwing host staging allocations before acquiring any
-    // candidate device ownership or replacing the published configuration.
+
+
     std::vector<ugkwp::gaswall::WallInput<double,ugkwp::compiledGasSpecies>> inputs(a.wallCount);
     std::vector<ugkwp::GasBoundaryLayerExchange<double>> exchanges(a.wallCount);
     BoundaryLayerAllocation candidate;auto& w=candidate.gasBoundaryLayer;auto& model=candidate.gasBoundaryLayerModel;
@@ -104,8 +104,8 @@ try
     model.config.relativeTolerance=a.relativeTolerance;model.config.absoluteTolerance=a.absoluteTolerance;
     model.config.stretch=a.stretch;model.config.turbulentPrandtl=a.turbulentPrandtl;
     model.config.turbulentSchmidt=a.turbulentSchmidt;model.config.enableSst=s->hostTurbulenceModel==3;
-    // All real allocations and uploads succeeded. Replace old ownership and
-    // discard snapshots of the previous wall/audit layout before publication.
+
+
     if(releaseSharedGasTrialStorage(s->gasTrial)){discardBoundaryLayerCandidate(s,candidate);return 1;}
     if(releaseBoundaryLayerStorage(*s)){
         discardBoundaryLayerCandidate(s,candidate);s->gasModelPoisoned=true;return 1;
@@ -150,7 +150,7 @@ extern "C" int ugkwpGpuResidentStrictDownloadBoundaryLayerV1
         r[0]=faces[slot];r[1]=owners[faces[slot]];r[2]=i.matchingDistance;r[3]=i.ownerDistance;r[4]=o.conductiveHeatFlux;
         r[5]=o.traction[0];r[6]=o.traction[1];r[7]=o.traction[2];r[8]=o.wallKFlux;r[9]=o.integratedKSource;
         r[10]=o.ownerOmega;r[11]=o.residual;r[12]=o.iterations;r[13]=o.traceDensity;r[14]=i.model.viscosity;r[15]=s->gasBoundaryLayerStageTime;
-        // V1 words 16..24 stay zero-initialized reserved slots, never observations.
+
         for(unsigned k=0;k<species;++k){r[25+k]=o.wallSpeciesFlux[k];r[25+species+k]=o.reactionIntegral[k];}
     }
     std::copy(result.begin(),result.end(),diagnostics);return 0;

@@ -62,7 +62,7 @@ bool evaluateCpuSurfaceImpl(const HostState& h,const PhysicsConfig& p,
             for(int species=0;species<Ns;++species)phase.species[species]=phase.mass*p.material.phaseFilmY[species];
             phase.energy=scale*physics.phaseEnergy;phase.advective=scale*physics.phaseAdvective;phase.conductive=scale*physics.phaseConductive;
             phase.pressureWork=scale*physics.phasePressureWork;phase.viscousWork=scale*physics.phaseViscousWork;phase.liquidKineticAdvection=scale*physics.bottomKineticAdvection;
-            // This reduced solid/film model evolves mass and energy, not momentum.
+
             if(!Terminal&&!validatePacketMath(phase,p.tolerances,&status)){error="CPU raw phase packet invalid";return false;}
             result.phasePackets.push_back(phase);
         }

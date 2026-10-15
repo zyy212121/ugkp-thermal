@@ -86,8 +86,8 @@ int main(int argc,char** argv){
         storedPV+=storage.newPV-storage.oldPV;}
     for(std::size_t c=0;c<result.gas.size();++c)resultGasDelta+=result.gas[c].energy-base.gas[c].energy;
     assert(resultGasDelta==gasDelta&&std::abs(storedPV-expectedPV)<1e-7);
-    // Gas energy is prescribed by its external owner. The actual material plus
-    // film internal energy closes independently of the removed budget counter.
+
+
     assert(std::abs(resultGasDelta+filmDelta+solidDelta-gasDelta)<1e-7);
     assert(report.materialSteps==2&&chmt_test::filmCandidateCalls==2&&chmt_test::materialSolveCalls>0);
     chmt_test::physicalSnapshot("reacting_wall_film",result,corrected);

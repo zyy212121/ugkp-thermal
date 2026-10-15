@@ -19,8 +19,8 @@ struct GasGeometryState
     const Real* newVolume = nullptr;
     const Real* faceSweptVolume = nullptr;
     Real interval = Real(0);
-    // Retained caller-configured diagnostic tolerances; neither value controls
-    // whether the existing geometry arithmetic can produce its outputs.
+
+
     Real absoluteGeometryTolerance = Real(-1); // swept volume [m^3]
     Real relativeGeometryTolerance = Real(-1); // dimensionless
 };
@@ -79,7 +79,7 @@ UGKWP_GAS_HD inline bool validStorage(GasConservativeStorage storage)
 // Canonical frame uses normal motion only. Optional tangential velocity is a
 // coordinate-frame choice; it must not contribute to normal swept volume.
 // Reversing both area and sweep preserves physical w and reverses face flux.
-// Required arithmetic completes before publication; residual certificates do not veto it.
+
 template<class Real>
 UGKWP_GAS_HD inline bool makeGasFaceFrame
 (
@@ -177,8 +177,8 @@ UGKWP_GAS_HD inline bool restoreGasFluxFromFaceFrame
     return inputValid;
 }
 
-// Availability of the two volume values. Sweep sums and configured diagnostic
-// tolerances are certificates, not inputs to the conservative Euler equations.
+
+
 template<class Real>
 UGKWP_GAS_HD inline bool validateGasEulerGeometry
 (

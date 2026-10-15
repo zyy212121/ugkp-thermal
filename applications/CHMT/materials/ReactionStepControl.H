@@ -76,11 +76,11 @@ CHMT_HD inline bool reactionStepControl(const SolidQ& state,Real volume,const Ph
 // half steps are only an error estimate, not a change to the accepted method.
 // Failure leaves output, step and active unchanged. The bounded retry loop is
 // shared with CUDA timestep selection, not a second GPU chemistry integrator.
-// Only after the unchanged selection prefix fails, evaluate the original
-// requested interval once. The published state and paid interval come from the
-// same full Euler call; no nominal candidate cache or tiny-step expansion.
+
+
+
 CHMT_HD inline bool completeReactionStep(const SolidQ& state,Real volume,const PhysicsConfig& p,
-    Real maximumStep,Real /*cfl*/,SolidQ& output,Real& step,bool& active,bool* numericalFailure) {
+    Real maximumStep,Real        ,SolidQ& output,Real& step,bool& active,bool* numericalFailure) {
     SolidQ full;Real rates[Nr]{};
     if(!advanceLocalReactions<true>(state,volume,p,maximumStep,full,rates,nullptr,-1,numericalFailure))return false;
     output=full;step=maximumStep;active=true;return true;

@@ -66,8 +66,8 @@ def migrate(path: Path) -> None:
 
     csr_level = values.get("gpuCsrLevel")
     if csr_level is not None and csr_level not in ("L0", "L1", "L2", "auto"):
-        # Match readGpuCsrLevel's existing success fallback. An explicitly
-        # supplied unknown level must not activate a legacy heavy-mode flag.
+
+
         csr_level = "L0"
     if csr_level is None:
         heavy_mode = values["gpuCsrHeavyReduction"]

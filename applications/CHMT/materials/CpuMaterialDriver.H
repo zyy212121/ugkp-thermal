@@ -22,7 +22,7 @@ struct CpuMaterialReport {
 };
 // Owns CPU numerical machinery, not a second copy of accepted inventories.
 // Candidate solve never mutates the accepted native mesh: it builds an unregistered full-topology fvMesh for the real sparse solve.
-// Successful output merges exact gasEndpoint inventories with CPU changes once.
+
 class CpuMaterialDriver {
     struct Implementation;std::unique_ptr<Implementation> data_;
     friend struct detail::ConductionContinuation;

@@ -103,8 +103,8 @@ __device__ void initialiseColdWall2DParticleState
         s.pCold2DRingContactAge[ringBase + ring] = 0.0;
     }
 #ifdef GPU_PAIRED_PARTICLE_HEAT
-    // The uniform float profile is a cache; retain its cast loss in the
-    // existing physical J/kg carry without discarding earlier heat.
+
+
     s.pThermalEnthalpyResidual[particleI] += double(initialEnthalpy)
       - double(s.pCold2DNodeSpecificEnthalpy[nodeBase]);
 #endif
@@ -140,7 +140,7 @@ __device__ bool advanceColdWall2DThermalGroup
             physicalMassKg,
             maximumAreaM2
         );
-    // Only missing consumed backing can prevent the native calculation.
+
     const bool backingValid = s.pCold2DNodeSpecificEnthalpy != nullptr
      && s.pCold2DRingContactAge != nullptr
      && s.pCold2DFrozenArea != nullptr
@@ -204,11 +204,11 @@ __device__ bool advanceColdWall2DThermalGroup
 #ifdef GPU_PAIRED_PARTICLE_HEAT
     double localGasEnergyJ=0.0;
 #endif
-    // Preserve the complete original positive-step prefix. Compensation only
-    // continues an interval after the original 256-step terminal boundary.
+
+
     int substep = deltaTSeconds < 0.0 ? 256 : 0;
     GpuTime remainingCorrection = 0.0;
-    // Nonfinite intervals still execute the native flux update once.
+
     const bool nonfiniteInterval = !Foam::gpuThermal::finiteColdWallValue(deltaTSeconds);
     while (remainingTime > GPU_R(0.0) || remainingCorrection < 0.0 || nonfiniteInterval)
     {
@@ -374,8 +374,8 @@ __device__ bool advanceColdWall2DThermalGroup
           ? remainingTime : remainingTime - remainingCorrection;
         const GpuTime stableMagnitude = minimumStableTime < availableTime
           ? minimumStableTime : availableTime;
-        // A numerically unusable stability estimate is not a rejection or a
-        // zero-time update: evaluate the remaining interval with the same fluxes.
+
+
         const GpuTime stepMagnitude = !nonfiniteInterval
           && stableMagnitude > GPU_R(0.0)
           && Foam::gpuThermal::finiteColdWallValue(stableMagnitude)

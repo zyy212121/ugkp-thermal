@@ -1,4 +1,4 @@
-// Actual checkpoint serialization, permissive metadata and real IO failures.
+
 #define main existing_restart_geometry_fixture_main
 #include "../devtools/multirate/test_sweep_constraints.cpp"
 #undef main
@@ -136,7 +136,7 @@ int main(){
  };
  auto wrong=model;
  require(readCheckpoint(directory,wrong,restored,error),"different expected fingerprints admitted");
- // Every fixed header slot is still consumed, regardless of its label.
+
  for(std::size_t offset:{0,8,16,20,24,28,32,36,40,64}) {
   auto tagged=original;tagged[offset]^=0x31;expectReadSuccess(tagged,"changed header label/digest");
  }
@@ -144,7 +144,7 @@ int main(){
  auto configChanged=original;configChanged[72]^=0x55;expectReadSuccess(configChanged,"saved config is skipped without identity certification");
  auto surplus=original;surplus+="uninterpreted extension";expectReadSuccess(surplus,"surplus bytes admitted");
  auto corrupt=original;corrupt.back()^=1;expectReadSuccess(corrupt,"stale digest does not refuse supplied payload");
- // Actual missing mandatory payload bytes remain errors and preserve all output.
+
  restored=changed;restored.time=999;
  expectReadFailure(original.substr(0,original.size()-1),"length","declared payload missing bytes");
  auto shortPayload=original.substr(0,original.size()-8);setInteger(shortPayload,56,getInteger(shortPayload,56)-8);
@@ -153,7 +153,7 @@ int main(){
  auto badConfigSize=original;setInteger(badConfigSize,48,std::numeric_limits<std::uint64_t>::max());
  expectReadFailure(badConfigSize,"length","config span unavailable");
  // Locate the unique encoded vector, then alter payload with a correct digest:
- // checkpoint IO preserves supplied values; live runtime checks are separate.
+
  std::string encoded(24,0);setInteger(encoded,0,2);setReal(encoded,8,h.solidSweepRemainder[0]);setReal(encoded,16,h.solidSweepRemainder[1]);
  const auto carryOffset=original.find(encoded,72+getInteger(original,48));
  require(carryOffset!=std::string::npos&&original.find(encoded,carryOffset+1)==std::string::npos,"unique serialized remainder vector");
@@ -190,7 +190,7 @@ int main(){
  ExchangePacket packet;packet.consumerMask=0;pending.ledger.push_back(packet);
  require(writeCheckpoint(directory,model,pending,error),error);auto pendingBytes=bytes(file);
  require(readCheckpoint(directory,model,restored,error)&&restored.ledger.size()==1&&!restored.filmStorage[0].consumed,"pending fields persist without resume claims");
- // consumed is the last field in the only FilmPressureVolumeUpdate record.
+
  std::string pair(17,0);setReal(pair,0,3);setReal(pair,8,4);
  const auto boolOffset=pendingBytes.find(pair,72+getInteger(pendingBytes,48));
  require(boolOffset!=std::string::npos&&pendingBytes.find(pair,boolOffset+1)==std::string::npos,"unique storage boolean location");

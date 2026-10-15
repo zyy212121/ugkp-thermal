@@ -52,8 +52,8 @@ inline ConservativeBoundaryEnergyScaleResult conservativeBoundaryEnergyScale
     const scalar relativeTolerance
 )
 {
-    // Preserve the original successful near-zero identity. Inputs outside its
-    // former admitted domain continue to the actual nonzero division below.
+
+
     if (finiteParticleRadiationScalar(grossRawEnergyJ)
         && finiteParticleRadiationScalar(relativeTolerance)
         && grossRawEnergyJ >= scalar(0) && relativeTolerance > scalar(0))

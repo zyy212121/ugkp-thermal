@@ -57,7 +57,7 @@ template<class R,int N> struct WallOutput {
     R integratedKSource=0,ownerOmega=0,wallKFlux=0;
     bool chemistryMismatchAvailable=false;
     int iterations=0;
-    R residual=0; // Measured profile residual, or NaN when that diagnostic is undefined.
+    R residual=0;
 };
 // Caller-owned FP64 scratch, independent of outer/table storage precision.
 // No inventory, recursion, allocation or persistent gas state.
@@ -80,8 +80,8 @@ template<class R> UGKWP_GAS_HD inline R min(R x,R y){return x<y?x:y;}
 UGKWP_GAS_HD inline bool fail(WallStatus& s,WallCode c,int node=-1){s.code=c;s.node=node;return false;}
 template<class R> UGKWP_GAS_HD inline R dot(const R* a,const R* b){return a[0]*b[0]+a[1]*b[1]+a[2]*b[2];}
 template<class R> UGKWP_GAS_HD inline R expRatio(R x){return abs(x)<R(1e-5)?R(1)-x/R(2)+x*x/R(12)-x*x*x*x/R(720):x/::expm1(x);}
-// Complete only the channel consumed by the wall. Scalar helpers keep their
-// historical partial-property behavior for all other callers.
+
+
 template<bool Enthalpy,class R,int N,class TableReal> UGKWP_GAS_HD inline R wallProperty(
  int species,R temperature,const SpeciesThermoView<TableReal,N>& thermo,bool* evaluated=nullptr){
     const R original=Enthalpy?speciesH(species,temperature,thermo):speciesCp(species,temperature,thermo);
@@ -93,7 +93,7 @@ template<bool Enthalpy,class R,int N,class TableReal> UGKWP_GAS_HD inline R wall
 }
 template<class R,int N,class TableReal> UGKWP_GAS_HD inline bool validateInput(const WallInput<R,N,TableReal>& in,const WallModelConfig<R>& c,WallStatus& s){
     s=WallStatus{};
-    // Both arrays are actually consumed by wall EOS and caloric expressions.
+
     if(!in.model.thermo.species||!in.model.thermo.coefficients)return fail(s,WallCode::InvalidThermodynamics);
     if(!gasFinite(in.pressure)||!gasFinite(in.temperature)||!gasFinite(in.matching.temperature)
         ||!gasFinite(in.matchingDistance)||!gasFinite(in.ownerDistance)

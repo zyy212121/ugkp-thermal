@@ -104,11 +104,11 @@ def _body(text, signature):
 
 
 @pytest.mark.parametrize('revision,expected_queries,expected_hashes', [
-    ('40e1b40efe009b1be0485329e95cc68c7d74c545',1,3),('working',0,0)])
+    ('historical',1,3),('working',0,0)])
 def test_actual_mirror_staging_removes_proof_reads(tmp_path,revision,expected_queries,expected_hashes):
     path='applications/CHT/gpu/GpuResidentStrict.H'
     source=((ROOT/path).read_text() if revision=='working' else
-            subprocess.check_output(['git','show',revision+':'+path],cwd=ROOT,text=True))
+            (APP/'tests/fixtures/thermal_restart_mirror_stage_d611.H').read_text())
     method=_body(source,'    GpuThermalRestartMirrorMetadata stageThermalRestartMirrors')
     code=r'''
 #include <string>
@@ -133,7 +133,7 @@ int main(){Resident r;Time t;auto m=r.stageThermalRestartMirrors(t);assert(m.par
 
 def test_actual_orchestration_retains_only_requested_stage_geometry(tmp_path):
     source=(APP/'tests/test_multirate_orchestration.cpp').read_text().split('int main(){')[0]
-    old='bool gasWindowStageGeometry(const Backend&,std::array<HostStageGeometry,2>&,std::array<HostStageGeometry,2>&,std::string& error){error.clear();return true;}'
+    old=_body(source,'bool gasWindowStageGeometry(')
     new='''int geometryCalls=0;bool geometryFault=false;
 bool gasWindowStageGeometry(const Backend&,std::array<HostStageGeometry,2>& gas,std::array<HostStageGeometry,2>& solid,std::string& error){++geometryCalls;if(geometryFault){error="actual geometry transfer failure";return false;}gas[0].newVolume={3,4};solid[1].newPoints={{7,8,9}};error.clear();return true;}'''
     assert old in source
@@ -145,9 +145,9 @@ int main(){using namespace chmt;
  for(bool retain:{false,true}){script=Script{};geometryCalls=0;Backend backend;backend.accepted=initial;HostState accepted=initial;WindowEvolutionReport report;std::string error;
   assert(advanceCoupledWindow(backend,cpu,model,controls,material,.2,retain,accepted,report,error));
   assert(accepted.time==.2&&accepted.gas[0].energy==3);
-  assert(geometryCalls==(retain?int(report.gasMicrosteps):0));assert(report.geometry.size()==(retain?report.gasMicrosteps:0));
+  assert(geometryCalls==(retain?int(report.acceptedGasMicrosteps):0));assert(report.geometry.size()==(retain?report.acceptedGasMicrosteps:0));
   for(const auto& stage:report.geometry){assert(stage.gas[0].newVolume==std::vector<Real>({3,4}));assert(stage.solid[1].newPoints[0].x==7&&stage.solid[1].newPoints[0].y==8&&stage.solid[1].newPoints[0].z==9);}
-  std::cout<<retain<<" "<<report.gasMicrosteps<<" "<<geometryCalls<<" "<<report.geometry.size()<<"\n";
+  std::cout<<retain<<" "<<report.acceptedGasMicrosteps<<" "<<geometryCalls<<" "<<report.geometry.size()<<"\n";
  }
  script=Script{};geometryFault=true;Backend backend;backend.accepted=initial;HostState accepted=initial;WindowEvolutionReport report;std::string error;
  assert(!advanceCoupledWindow(backend,cpu,model,controls,material,.2,true,accepted,report,error));assert(error.find("actual geometry transfer failure")!=std::string::npos);

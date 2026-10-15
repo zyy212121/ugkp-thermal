@@ -275,7 +275,7 @@ namespace chmt {
                 const Vec3 tangent = geometry.points[b]-geometry.points[a];
                 const Real length = mag(tangent);
                 const Vec3 transverse = cross(tangent, s.normal[own]);
-                // Retain the formerly admitted edge path, including its normal clamp.
+
                 Vec3 conormal = length>0?normalized(transverse):transverse/mag(transverse);
                 if (dot(conormal, centre-s.centre[own])<0)conormal = -conormal;
                 s.edgeOwner.push_back(own);

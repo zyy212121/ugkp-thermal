@@ -1,8 +1,8 @@
 #ifndef CHMT_TEST_NATIVE_MATERIAL_PROBE_H
 #define CHMT_TEST_NATIVE_MATERIAL_PROBE_H
-// Observe the real sparse solves and material/film calls only in this test
-// translation unit. Preload every dependency before the scoped macros so
-// neither native declarations nor separately compiled production code change.
+
+
+
 #include "materials/CpuMaterialDriver.H"
 #include "core/ThermalBoundary.H"
 #include "materials/MaterialTransport.H"
@@ -49,15 +49,15 @@ inline const Foam::dictionary& countedMaterialSolver(const Foam::dictionary& sol
 #undef solve
 #undef evaluateMaterialTransport
 #undef advanceCpuFilmCandidate
-// Hexadecimal FP64 output is a comparison artifact, separate from production
-// reports. It covers inventories, geometric state, packet payloads and clocks.
+
+
 #include <cassert>
 #include <iomanip>
 #include <iostream>
 namespace chmt_test {
-// Independent finite-volume boundary integral for these orthogonal fixtures.
-// Recovered endpoint temperatures and the specified boundary values supply the
-// oracle; no production budget or report participates in this calculation.
+
+
+
 inline long double boundaryHeat(const chmt::HostState& state,const chmt::PhysicsConfig& p,chmt::Real dt){
     const auto& mesh=state.solidMesh;long double heat=0;
     for(std::size_t f=0;f<mesh.owner.size();++f){
@@ -108,8 +108,8 @@ inline void physicalSnapshot(const char* label,const chmt::HostState& state,cons
         physicalValue(q.gasCell);physicalValue(q.solidCell);physicalValue(q.filmFace);physicalValue(q.particleIndex);
         physicalValue(q.mass);for(auto value:q.species)physicalValue(value);for(auto value:q.condensed)physicalValue(value);
         for(auto value:q.pore)physicalValue(value);for(auto value:q.poreSweep)physicalValue(value);
-        // SolidFilm momentum was an unused support-force diagnostic; all other
-        // packet momentum channels still feed real gas/particle recipients.
+
+
         if(q.kind!=chmt::ExchangeKind::SolidFilm)physicalValue(q.momentum);
         physicalValue(q.energy);physicalValue(q.conductive);physicalValue(q.advective);physicalValue(q.pressureWork);physicalValue(q.viscousWork);physicalValue(q.radiation);physicalValue(q.liquidKineticAdvection);physicalValue(q.consumerMask);
     }

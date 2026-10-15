@@ -4,7 +4,7 @@
 #include <string>
 #include <stdexcept>
 namespace chmt {
-inline ThermalBoundaryKind importedThermalBoundary(const std::string& type,BoundaryKind kind,bool /* gas */) {
+inline ThermalBoundaryKind importedThermalBoundary(const std::string& type,BoundaryKind kind,bool          ) {
     if(kind==BoundaryKind::Periodic) {
         if(type=="cyclic")return ThermalBoundaryKind::ZeroGradient;
     } else if(kind==BoundaryKind::Empty) {

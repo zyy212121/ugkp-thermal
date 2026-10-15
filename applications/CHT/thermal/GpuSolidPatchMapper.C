@@ -255,9 +255,9 @@ ConservativeNearestSolidPatchMapper::ConservativeNearestSolidPatchMapper
             }
             if (bestSolidFace < 0 && !solidCentres.empty())
             {
-                // Only the formerly refused path needs a scaled comparison.
-                // A shared scale preserves ordering among huge finite centres;
-                // subtract first whenever possible to retain small differences.
+
+
+
                 scalar scale = scalar(0);
                 for (direction component = 0; component < vector::nComponents; ++component)
                 {

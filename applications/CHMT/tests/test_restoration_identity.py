@@ -11,13 +11,14 @@ def test_selective_restoration_matches_historical_source():
     assert all(item['source_sha256']!=item['current_sha256'] for item in report['adapted'])
 
 
-def test_explicit_source_audit_supports_archive_with_unknown_git_identity(tmp_path):
+def test_explicit_source_audit_supports_archive_with_unknown_git_identity(tmp_path,monkeypatch):
     import importlib.util
     module_path=APP/'devtools/source_fingerprint.py'
     spec=importlib.util.spec_from_file_location('chmt_source_fingerprint_audit',module_path)
     module=importlib.util.module_from_spec(spec);spec.loader.exec_module(module)
     app=tmp_path/'applications/CHMT';app.mkdir(parents=True)
     (app/'example.C').write_text('int example(){return 7;}\n')
+    monkeypatch.setenv("GIT_CEILING_DIRECTORIES",str(tmp_path.parent))
     data=module.manifest(app)
     assert data['solver_commit']=='UNKNOWN'
     assert len(data['source_fingerprint'])==64

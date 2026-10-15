@@ -86,8 +86,8 @@ struct GasPrimDevice {double rho,ux,uy,uz,p,T;};
 #include "../../../common/operators/computeGasFluxPositivityScaleKernel.cuh"
 #include "../../../common/operators/computeSstFaceFluxKernel.cuh"
 #include "../../../common/operators/evaluateGasBoundaryLayerKernel.cuh"
-// Only a stale prepared packet needs this refresh. The normal stage already
-// evaluated these exact face expressions before its material callback.
+
+
 template<class State>
 __global__ void refreshCoupledWallFluxKernel(State* state){
     const int slot=blockIdx.x*blockDim.x+threadIdx.x;
@@ -122,8 +122,8 @@ struct CoupledTrialPolicy {
     }
     static const Real* stageVolumes(Backend* b,bool after){const auto& g=b->storage.hostView().gasGeometry;return g.enabled?(after?g.newVolume:g.oldVolume):b->storage.hostView().V;}
     static Real targetMaxCo(Backend* b){return b->model.physics.cfl;}
-    // Shared trial composition keeps this hook; CHMT has no output-audit buffer.
-    static int validateTimeStep(Backend*,Real){return 0;} // Direct CHMT path does not request native refinement.
+
+    static int validateTimeStep(Backend*,Real){return 0;}
     static int applySources(Backend* b,Real){return finishCoupledGeometry(b); }
     static int validate(Backend* b){
         if(!b->storage.checkStatus(b->error))return 1;
@@ -327,7 +327,7 @@ bool beginGasWindow(Backend& b,const WallProgram& program,std::string& error){
     if(!program.donorPlan.knots.empty()&&!b.reserve.setPlan(program.donorPlan,error))return false;
     if(!restoreGasSnapshot(b,b.accepted,error))return false;b.elapsed=WindowTime{};b.nextGasSeed=b.accepted.nextDt>0?b.accepted.nextDt:b.accepted.lastAcceptedDt;return true;
 }
-// Same maximum operation and Thrust reduction semantics as the native owner.
+
 struct CoupledCourantMaximum {
     __host__ __device__ double operator()(double a,double b)const{return a!=a?a:b!=b?b:fmax(a,b);}
 };
@@ -359,8 +359,8 @@ static bool currentGasCourant(Backend& b,Real referenceDt,transport::GasCourantM
     const auto maximum=[&](const double* field,int count,cudaStream_t stream,double& value){
         try {
             if(field==v.gasFluxPositivityScale){
-                // The existing first maximum traversal also reports actual
-                // unavailable inputs. No separate status transfer/scan/sync.
+
+
                 const auto first=thrust::make_counting_iterator(0);
                 const auto reduced=thrust::transform_reduce(thrust::cuda::par(b.courantReductionStorage).on(stream),first,first+count,
                     CoupledCourantRead{field,v.gasSpecies.cellStatus},
@@ -373,7 +373,7 @@ static bool currentGasCourant(Backend& b,Real referenceDt,transport::GasCourantM
         const auto code=cudaGetLastError();if(code!=cudaSuccess){transport::setLastError("gas Courant maximum reduction",code);return 1;}return 0;
     };
     const int status=transport::computeGasCurrentCourant(&view,referenceDt,b.model.physics.cfl,b.microTime,b.fixedCellBlockThreads,b.fixedFaceBlockThreads,b.gasCaptureStream,result,maximum);
-    // Initial scratch is not a live RK snapshot until advanceGasTrial saves it.
+
     bool restored=true;if(sst){restored=copy(v.rhoK,v.rhoKInitial);restored=copy(v.rhoOmega,v.rhoOmegaInitial)&&restored;}
     return status==0&&restored;
 }
@@ -397,8 +397,8 @@ bool advanceGasMicrostep(Backend& b,Real cap,GasMicroReport& report,std::string&
     }
     const Real growthBase=b.trial.lastAcceptedDt>0?b.trial.lastAcceptedDt:referenceDt;
     const Real selectedDt=gasCoMaxStep(referenceDt,b.model.physics.cfl,co.maximum,growthBase);
-    // An exhausted numerical split still executes the real requested interval.
-    // No clock is advanced until that physical trial and commit have completed.
+
+
     const Real dt=selectedDt>0 && b.elapsed+selectedDt!=b.elapsed?selectedDt:referenceDt;
     if(dt!=referenceDt){b.microDt=dt;if(prepareCoupledGeometry(&b)!=0){error=b.error;return false;}}
     b.microGeometryPrepared=true;

@@ -3,8 +3,8 @@
 
 namespace ugkwp
 {
-// Status belongs to trial storage. InvalidStorage records unavailable output;
-// other values are numerical diagnostics used by the original strict retries.
+
+
 enum class GasTransportCode : int
 {
     Success = 0,

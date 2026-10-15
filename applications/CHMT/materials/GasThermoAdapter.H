@@ -18,9 +18,9 @@ struct GasThermoAdapter {
             // traps; common validation still rejects it when it is active.
             const Real Ru=ugkwp::universalGasConstant<Real>();
             const Real minimumR=Ru/std::numeric_limits<Real>::max();
-            // Completed common wall consumers require the native molar-mass
-            // quotient. Their EOS already consumes every species, even Y=0.
-            // Default strict/inactive material construction remains trap-safe.
+
+
+
             d.molarMass=finite(s.R)&&s.R>minimumR ? Ru/s.R : (terminal?Ru/s.R:Real(0));
             d.minTemperature=s.Tmin;d.midTemperature=s.Tmid;d.maxTemperature=s.Tmax;
             d.referencePressure=s.referencePressure;d.referenceTemperature=s.referenceTemperature;
@@ -36,18 +36,18 @@ struct GasThermoAdapter {
         return result;
     }
 };
-// The terminal material route needs the actual caloric expressions even
-// when their IEEE result is nonfinite. Addressability/model availability still
-// comes from the same supplied view; no missing coefficient is manufactured.
+
+
+
 template<int Count>
 CHMT_HD inline ugkwp::ThermoStatus terminalSpeciesCaloric(int species,Real T,
     const ugkwp::SpeciesThermoView<Real,Count>& view,Real& energy,Real& capacity,
     const SpeciesThermo* supplied=nullptr) {
     if(!ugkwp::gasThermoDetail::validMetadata(species,view))return ugkwp::ThermoStatus::InvalidModel;
     const auto& data=view.species[species];const Real* c=view.coefficients+data.coefficientOffset;
-    // Strict adapter metadata protects inactive tables from floating traps.
-    // A terminal owner still has the supplied constant when that metadata
-    // could not represent it; ordinary positive-R arithmetic stays unchanged.
+
+
+
     const Real R=supplied&&data.molarMass==0 ? supplied[species].R
         : ugkwp::universalGasConstant<Real>()/data.molarMass;
     const int available=view.coefficientCount-data.coefficientOffset;
@@ -115,8 +115,8 @@ struct MaterialEnergyEvaluator {
         return evaluate<false>(T,energy,capacity);
     }
 };
-// Used only by the private terminal material continuation. The borrowed
-// evaluator owns all supplied coefficients; its formulas still execute.
+
+
 struct TerminalMaterialEnergyEvaluator {
     const MaterialEnergyEvaluator& energy;
     mutable Real lastTemperature=0;

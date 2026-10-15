@@ -14,7 +14,7 @@ int main(){ModelConfig model;auto& p=model.physics;p.enableGas=false;p.minDt=1e-
  require(writeCheckpoint(path,model,h,error),"actual checkpoint write: "+error);HostState restored;require(readCheckpoint(path,model,restored,error),"actual checkpoint read: "+error);
  require(restored.rejectedSteps==3&&restored.acceptedSteps==1&&restored.solidStages[1].newPoints.size()==m.points.size(),"accepted counters/stage geometry restored");
  for(std::size_t c=0;c<h.solid.size();++c)require(restored.solid[c].energy==h.solid[c].energy,"material conservative energy bitwise roundtrip");
- // Stage history is serialized as supplied; it is not a writer admission gate.
+
  HostState missing=h;missing.solidStages={};missing.budget.supportImpulse={NAN,INFINITY,-INFINITY};
  const std::string missingPath=std::string(root)+"/missing";
  require(writeCheckpoint(missingPath,model,missing,error),"checkpoint accepts absent optional stage history: "+error);

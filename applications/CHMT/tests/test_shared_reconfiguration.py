@@ -178,7 +178,7 @@ def test_optional_first_enable_failure_does_not_destroy_retained_owners(tmp_path
  }assert(live.empty());
 }
 '''
-    # New species + new SST channels must exist before metadata publication.
+
     source=source.replace('INJECT', 'failZero=0;' if failure=='zero' else 'failCopy=6;')
     _run_source(tmp_path,source)
 

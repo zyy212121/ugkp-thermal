@@ -202,8 +202,8 @@ bool recoverAndProfile(const HostState& h,const PhysicsConfig& p,
         const Vec3 supplied=coupled?d.shear:(m.prescribedTopTraction.empty()?Vec3{}:m.prescribedTopTraction[f]);
         e.shear[f]=supplied-m.normal[f]*dot(supplied,m.normal[f]);
     }
-    // Build here, not only in evaluate: endpoint recovery uses this path directly.
-    // Ascending global edge IDs preserve each face's original reduction order.
+
+
     e.incidentOffsets.clear();e.incident.clear();
     for(std::size_t edge=0;edge<m.edgeOwner.size();++edge) {
         const int neighbour=m.edgeNeighbour[edge];
@@ -254,7 +254,7 @@ bool evaluate(const HostState& h,const PhysicsConfig& p,Real dt,
         const Real meshRate=m.sweptEdgeArea.empty()?0:m.sweptEdgeArea[edge]/dt;
         const Vec3 velocity=neighbour>=0?(e.aux[owner].meanVelocity+e.aux[neighbour].meanVelocity)*.5:e.aux[owner].meanVelocity;
         const Real lengthRate=length*dot(velocity,conormal)-meshRate;
-        // Open edges use the existing owner extrapolation for either flow direction.
+
         if(!Terminal&&!finite(lengthRate))return numericReject(error,"non-finite film edge transport rate",edge,numericalFailure);
         const int donor=lengthRate>=0||neighbour<0?owner:neighbour;
         FilmQ reconstructed;
@@ -385,7 +385,7 @@ bool advanceCpuFilmCandidateImpl(const HostState& h,const PhysicsConfig& p,Real 
         if(!Terminal&&(!finite(a.solidFront)||!finite(a.gasFront)))return numericReject(error,"nonfinite front motion",f,numericalFailure);
     }
     // Recover endpoint profiles using endpoint pressure, composition and thickness.
-    // The recovered auxiliary profile is the actual accepted endpoint state.
+
     HostState endpoint;endpoint.surface=h.surface;endpoint.film=next.film;endpoint.filmAux=next.filmAux;
     auto endpointDrive=drive;for(auto& d:endpointDrive)d.pressure=endpointPressure(d);
     Evaluation finalEvaluation;

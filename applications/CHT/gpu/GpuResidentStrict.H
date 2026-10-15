@@ -2917,8 +2917,8 @@ protected:
           }
         }
 
-        // Legacy files have no saved impact velocity. Retain the existing
-        // zero-initialized fallback; it does not reconstruct impact history.
+
+
 
 
         check

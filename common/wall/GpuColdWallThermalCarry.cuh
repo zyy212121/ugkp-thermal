@@ -13,7 +13,7 @@ struct ColdWallHeatPublication { bool valid; double acceptedSpecificHeat; };
 // Equal-mass nodes: the one persistent scalar is a uniform specific-enthalpy
 // correction, never a second copy of the profile or an unbounded heat ledger.
 UGKWP_COLD_CARRY_HD inline float coldWallStoredEnthalpyFloor(double target) {
- // The FP64 residual carries values outside the float cache interval.
+
  if(target>double(FLT_MAX))return FLT_MAX;
  if(target<-double(FLT_MAX))return -FLT_MAX;
  float stored=static_cast<float>(target);

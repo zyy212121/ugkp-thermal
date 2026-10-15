@@ -1,4 +1,4 @@
-// Actual OF10 conduction function and full material owner; no gas/GPU execution.
+
 #include "tests/NativeMaterialProbe.H"
 #include "materials/ConductionContinuation.H"
 #include <cassert>
@@ -65,8 +65,8 @@ int main(int argc,char** argv){
         assert(chmt_test::materialSolveCalls==1&&chmt_test::boundaryHeat(evaluated,p,dt)!=0);
         std::cout<<"actual fixed-boundary integral "<<chmt_test::boundaryHeat(evaluated,p,dt)<<'\n';
     }
-    // Keep all indexed state arrays complete; omit the temperature that the
-    // fixed boundary genuinely consumes, rather than invoking an out-of-bounds cell.
+
+
     HostState wrong=base;wrong.solidMesh.thermalBoundary.assign(mesh.nFaces(),ThermalBoundaryKind::FixedValue);
     wrong.solidMesh.boundaryPrimitive.clear();CpuMaterialReport wrongReport;chmt_test::resetMaterialObservations();
     assert(!nativeConduction<true>(mesh,base,wrong,p,dt,controls,wrongReport,error));

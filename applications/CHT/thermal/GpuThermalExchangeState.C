@@ -635,9 +635,9 @@ Foam::gpuThermal::ThermalRestartPreflight::validateBeforeResidentInitialise
 {
     (void)couplingDictionary;
     ThermalExchangeRestartState state = readRestartState(runTime.timePath());
-    // These are actual restart inventories. The resident readers deliberately
-    // allow their absence for a fresh initial state, so keep the existing
-    // required-file errors here without opening or reparsing their payloads.
+
+
+
     if (!state.initialState)
     {
         for (const word& name : Foam::wordList
@@ -656,9 +656,9 @@ Foam::gpuThermal::ThermalRestartPreflight::validateBeforeResidentInitialise
     {
         const fileName fluidDirectory = fluidMesh.name() == fvMesh::defaultRegion
           ? runTime.timePath() : runTime.timePath()/fluidMesh.name();
-        // These conservative fields are uploaded as authoritative values.
-        // Their READ_IF_PRESENT initial-state formulas cannot replace missing
-        // saved restart data. Derived particle moments are restored elsewhere.
+
+
+
         for (const word& name : Foam::wordList{"rho", "rhoU", "rhoE"})
         {
             if (!isFile(fluidDirectory/name))
@@ -889,8 +889,8 @@ Foam::gpuThermal::ThermalRestartPreflight::stateFromDictionary
         requireEntry(dict, key, sourceName);
     }
     ThermalExchangeRestartState state;
-    // Only an actual recognized numeric tag selects a legacy representation.
-    // Missing or unfamiliar identity must not manufacture inventory or time.
+
+
     state.formatVersion = 0;
     const entry* versionEntry =
         dict.lookupEntryPtr("formatVersion", false, false);
@@ -908,8 +908,8 @@ Foam::gpuThermal::ThermalRestartPreflight::stateFromDictionary
     state.completedSimulationTimeS = dict.lookup<scalar>("completedSimulationTimeS", false, false);
     if (state.formatVersion == 1 || state.formatVersion == 2)
     {
-        // Preserve the established shared clock, including its precedence
-        // over an extra newer-format clock entry in a legacy dictionary.
+
+
         state.completedRadiationSimulationTimeS = state.completedSimulationTimeS;
     }
     else if (dict.found("completedRadiationSimulationTimeS", false, false))
@@ -938,9 +938,9 @@ void Foam::gpuThermal::ThermalRestartPreflight::commitManifestAtomically
     const fileName& finalManifest
 )
 {
-    // The actual atomic no-replace operation reports missing paths, existing
-    // destinations and cross-filesystem errors. No directory-identity proof
-    // is required for a rename the filesystem can execute atomically.
+
+
+
     const long renameResult = ::syscall
     (
         SYS_renameat2,

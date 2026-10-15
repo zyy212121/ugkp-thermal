@@ -10,7 +10,7 @@
 // pointer may name a gas-only view; no particle storage is required here.
 // GasHostPolicy owns only time/weight types and the optional wall-energy ledger;
 // launches, streams, error checks and their ordering are owned here.
-// RK fractions are formed in the fixed double scalar type before division.
+
 template<class GasHostState>
 int advanceGasEulerSubstage(GasHostState* s, const GasHostPolicy::Time dt, const GasHostPolicy::Time ledgerDt, const GasHostPolicy::Time stageTime, const bool nativeRefinement=false)
 {
@@ -517,8 +517,8 @@ int advancePureGasGraph(GasHostState* s, const GasHostPolicy::Time dt, const Gas
     return 0;
 }
 
-// Only native policies with an explicit overload consume refinement mode.
-// Existing coupled policies retain their original source-compatible callback.
+
+
 template<class Policy,class State>
 auto validateGasTrialState(State* s,bool nativeRefinement,int)
     -> decltype(Policy::validate(s,nativeRefinement))
@@ -535,7 +535,7 @@ template<class Policy,class State,class Time>
 int applyGasTrialSources(State* s,Time dt,bool,long)
 {return Policy::applySources(s,dt);}
 
-// Public-only policies need not expose the native retry estimator interface.
+
 template<class Policy,class State,class=void>
 struct GasNativeTrialBoundsCapability:std::false_type{};
 template<class Policy,class State>
@@ -681,9 +681,9 @@ int finaliseGasTrialSources(GasHostState* s,const GasHostPolicy::Time dt,
     return 0;
 }
 
-// The requested-interval owner opts into the established native trial method.
-// Direct callers retain public terminal behavior; both paths use one solve and
-// restore genuinely failed trials through the existing transaction policy.
+
+
+
 template<class TrialPolicy, class GasHostState>
 int advanceGasTrial
 (
@@ -721,9 +721,9 @@ struct GasRequestedIntervalControls
     int maximumAttempts = 10000;
 };
 
-// The native requested-interval owner retains its established accepted partition.
-// Original effort/minimum-step exhaustion selects the public terminal path;
-// it is not a new admission/refusal boundary. CHMT calls the public stage directly.
+
+
+
 template<class TrialPolicy, class GasHostState>
 int advanceGasRequestedInterval
 (

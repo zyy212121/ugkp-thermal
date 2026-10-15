@@ -59,8 +59,8 @@ __device__ void initialiseColdWallParticleState
             static_cast<typename std::remove_reference<decltype(s.pColdNodeSpecificEnthalpy[0])>::type>(nodeEnthalpy[node]);
     }
 #ifdef GPU_PAIRED_PARTICLE_HEAT
-    // The uniform float profile is a cache; retain its cast loss in the
-    // existing physical J/kg carry without discarding earlier heat.
+
+
     s.pThermalEnthalpyResidual[particleI] += double(nodeEnthalpy[0])
       - double(s.pColdNodeSpecificEnthalpy[nodeBase]);
 #endif

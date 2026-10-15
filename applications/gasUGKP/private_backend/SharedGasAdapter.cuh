@@ -9,7 +9,7 @@ inline ugkwp::GasCapabilityRequest sharedGasCapabilityRequest
     request.reconstruction=state->hostGasReconstruction;request.limiter=state->hostGasLimiter;
     request.timeIntegrator=state->hostGasTimeIntegrator;request.turbulenceModel=state->hostTurbulenceModel;
     request.sstWallTreatment=wallTreatment;
-    // Configuration requests the gas operator, not particle evolution.
+
     request.particleCoupling=false;
     return request;
 }
@@ -26,7 +26,7 @@ inline int discardSharedGasSpecies(DeviceState* state,
     ugkwp::GasSpeciesState<double,ugkwp::compiledGasSpecies>& owner)
 {
     if(!releaseSharedGasSpecies(owner))return 0;
-    // A real free failure leaves that allocation owned until resident teardown.
+
     state->gasRejectedView=owner;owner={};state->gasModelPoisoned=true;
     return 1;
 }
@@ -144,7 +144,7 @@ extern "C" int ugkwpGpuResidentStrictConfigureGasModelV1
             return 1;
         }
         invalidateSharedGasConfiguration(state);
-        candidate={}; // state owns the published allocations, including on diagnostic failure.
+        candidate={};
         if(discardSharedGasSpecies(state,accepted))return 1;
         return 0;
     }

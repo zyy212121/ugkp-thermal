@@ -20,9 +20,9 @@ int main(){auto p=config();HostMesh m;m.volumes.assign(4,.001);m.cellCentres={{0
  p.enableReactions=true;p.nReactions=1;p.reactions[0].A=10;p.reactions[0].condensedNu[0]=-1;p.reactions[0].condensedNu[1]=1;p.reactions[0].order[0]=1;
  SolidQ next;std::uint64_t count=0;assert(advanceMaterialReactions(q[0],.001,p,.1,0,.1,10000,next,count,error));assert(count>1);assert(next.energy==q[0].energy);assert(next.condensed[0]<q[0].condensed[0]);assert(std::abs(next.condensed[0]+next.condensed[1]-.9)<1e-14);
  SolidQ unchanged=next;assert(!advanceMaterialReactions(q[0],.001,p,.1,0,.1,1,next,count,error));assert(next.condensed[0]==unchanged.condensed[0]);
- // Real square face coordinates for the downstream endpoint-ULP sweep test.
- // The normal coordinate is zero; the existing inventory-bound assertions
- // therefore remain independent of tangential coordinate spacing.
+
+
+
  m.points={{0,0,0},{0,.1,0},{0,.1,.1},{0,0,.1},
            {0,0,0},{0,0,.1},{.1,0,.1},{.1,0,0},
            {0,0,0},{.1,0,0},{.1,.1,0},{0,.1,0}};

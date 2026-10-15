@@ -150,7 +150,7 @@ void signedOpenEdgeInflowAndOutflow() {
     }
     require(near(elementalIn,.02),"signed inflow actual elemental gain");
     require(near((-rates[0].enthalpy),-.2*h.film[0].enthalpy),"actual RHS edge energy matches independent owner enthalpy flux");
-    // Standalone surface pV work is -p*dV/dt. It is suppressed in the interface-owner transport helper.
+
     const Real pressureWork=-h.filmAux[0].pressure*rates[0].mass/p.liquid.rho;
     require(near(energy(c,p)-energy(h,p)+.1*(-rates[0].enthalpy),.1*pressureWork),"signed inflow physical energy plus pressure work closes");
 }

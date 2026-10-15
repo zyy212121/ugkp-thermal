@@ -119,7 +119,7 @@ __device__ void gasFaceSubgridTransportProperties
                     {
                         Y[species]=s.gasSpecies.rho[species*s.nCells+own]/s.rho[own];
                         if(nativeRefinement)sum+=Y[species];
-                        // The original property evaluation computed all caloric values once.
+
                         ugkwp::gasThermoDetail::SpeciesValues<GPU_OPERATOR_REAL> values;
                         bool propertyEvaluated=false;
                         const auto property=nativeRefinement

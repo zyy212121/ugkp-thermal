@@ -194,7 +194,7 @@ inline void sampleMaterialDonorPlanLocal(const MaterialDonorPlan& plan,WindowTim
         for(int k=0;k<Ns;++k)film[i].species[k]+=fraction*(b.cumulativeFilm[i].species[k]-a.cumulativeFilm[i].species[k]);}
 }
 inline void sampleMaterialDonorPlan(const MaterialDonorPlan& plan,Real time,std::vector<SolidQ>& solid,std::vector<FilmQ>& film){sampleMaterialDonorPlanLocal(plan,windowOffset(plan.interval.begin,time),solid,film);}
-// Compensated accounting of the actual supplied increments.
+
 struct IntervalDonorSum {
     long double sum=0,correction=0;
     long double value()const{return sum+correction;}
@@ -239,8 +239,8 @@ public:
     public:
         std::size_t componentCount()const{return updates_.size();}
     };
-    // These are signed accounting remainders. Supplied negative balances
-    // remain available to the existing consumer without clipping.
+
+
     const std::vector<SolidQ>& solid()const{return solid_;}
     const std::vector<FilmQ>& film()const{return film_;}
     const DonorReserveWork& work()const{return work_;}
@@ -278,8 +278,8 @@ public:
             }
         }
         DonorReserveWork work=work_;work.lastComponents=changed.size();work.lastPlanSamples=0;
-        // Only the endpoint increment enters the actual compensated account.
-        // Intermediate plan samples and withdrawal sums were admission proofs.
+
+
         for(auto& entry:changed){const auto j=entry.first;auto& q=entry.second;
             if(hasPlan_){samplePlanComponent(j,end,q.planEndpoint);++work.lastPlanSamples;q.internal=q.planEndpoint-planApplied_[j];}
             q.next=accounts_[j];q.next.add(q.internal);q.next.merge(q.delta);
@@ -291,7 +291,7 @@ public:
             update.index=entry.first;update.account=entry.second.next;update.planApplied=entry.second.planEndpoint;candidate.updates_.push_back(update);}
         output=std::move(candidate);error.clear();return true;
     }
-    // Publish the supplied computed sparse account using the existing indices.
+
     void commitPrepared(Transaction&& transaction) noexcept{
         for(const auto& update:transaction.updates_){const auto j=update.index;
             accounts_[j]=update.account;if(hasPlan_){planApplied_[j]=update.planApplied;}

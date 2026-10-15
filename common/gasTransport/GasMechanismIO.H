@@ -142,8 +142,8 @@ inline GasMechanismConfiguration parseGasMechanismProperties
     GasMechanismConfiguration model;
     if (dict.count("phase")) model.phase = word(dict, "phase");
     model.speciesNames = list(dict, "species");
-    // Names select the actual thermo rows. Hashes and schema tags are not
-    // substitutes for this mapping; raw views without names remain positional.
+
+
     std::vector<int> speciesMap(thermoSpeciesNames.empty()
         ? std::max(model.speciesNames.size(),static_cast<std::size_t>(Ns))
         : model.speciesNames.size(), -1);
@@ -166,7 +166,7 @@ inline GasMechanismConfiguration parseGasMechanismProperties
     const Dictionary reactionDict = subdict(dict, "reactions");
     std::vector<std::string> reactionNames;
     std::map<std::string,bool> orderedNames;
-    // Preserve the original numeric channel order (reaction2 before reaction10).
+
     for (std::size_t index=0; index<reactionDict.size(); ++index)
     {
         const std::string name="reaction"+std::to_string(index);
@@ -235,8 +235,8 @@ inline GasMechanismConfiguration parseGasMechanismProperties
         if (mapped<0) throw error("collider uses a species absent from the compiled thermo model");
         term.species=mapped;
     }
-    // Move required rows into thermo order without losing rows that cross
-    // the compiled/surplus boundary. Untagged suffix values remain untouched.
+
+
     if (model.independentRank)
     {
         const auto sourceBasis=model.stoichiometricBasis;
@@ -266,7 +266,7 @@ inline GasMechanismConfiguration parseGasMechanismProperties
             }
             appendRow(source);
         }
-        // Any unreferenced named rows still belong to the stored mechanism.
+
         for (std::size_t source=0;source<rows;++source)
             if (!usedRows[source]) appendRow(source);
     }

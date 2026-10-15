@@ -61,8 +61,8 @@ scalar number(const fileName& file, const std::string& label, const std::string&
     char extra;
     if ((in >> value) && !(in >> extra)) return value;
 
-    // Keep every successful stream conversion unchanged. The fallback parses
-    // IEEE scalar tokens and overflow/underflow results, not missing data.
+
+
     char* end = nullptr;
     value = std::strtod(word.c_str(), &end);
     if (end == word.c_str() || *end != '\0')
@@ -80,8 +80,8 @@ Bracket linearBracket(const scalarField& axis, scalar value)
     if (value <= axis[0]) return {0, 0};
     const std::size_t last = axis.size()-1;
     if (value >= axis[last]) return {last-1, 1};
-    // Keep the existing upper-bound search progression without requiring a
-    // global ordering certificate for otherwise executable table queries.
+
+
     std::size_t first = 0;
     std::size_t count = axis.size();
     while (count)
@@ -98,7 +98,7 @@ Bracket linearBracket(const scalarField& axis, scalar value)
             count = step;
         }
     }
-    // Unordered comparisons still evaluate an actual, backed endpoint pair.
+
     const std::size_t hi = std::max(std::size_t(1), std::min(first, last));
     return {hi-1, (value-axis[hi-1])/(axis[hi]-axis[hi-1])};
 }

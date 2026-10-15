@@ -569,7 +569,7 @@ static const char* const schema7FormatName = gpuThermalRestart::marker<float>();
 inline void readV7Payload(std::istream& is,std::uint32_t bound,const MutableView& v)
 { gpuThermalRestart::readPayload<float>(is,bound,v); }
 
-// Current writer: double physical fields, including cold profiles and contact times.
+
 static const char* const currentFormatName = gpuThermalRestart::currentFshMarker;
 inline void writeCurrent(std::ostream& os,const ConstView& v)
 { gpuThermalRestart::writeCurrent<false>(os,currentFormatName,v); }

@@ -38,8 +38,8 @@ class UGKPStuckConfigurationContract(unittest.TestCase):
                 self.assertNotIn(removed, frontend)
 
     def test_contact_angle_is_forwarded_without_numeric_admission(self) -> None:
-        # Actual old/current tuple forwarding and NaN admission are executed in
-        # tests/test_native_consumer_admission.py, not inferred from these tokens.
+
+
         frontend = read("gpu/GpuResidentStrict.H")
         self.assertNotIn("contactAngleDegree <= scalar(0)", frontend)
         self.assertNotIn("contactAngleDegree >= scalar(180)", frontend)

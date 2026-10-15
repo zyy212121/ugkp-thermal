@@ -21,9 +21,9 @@ inline void fields(const View& v, std::size_t begin, std::size_t count, Fn fn)
 {
 #include "GpuParticleRestartFields.inl"
 }
-// Scalar object bytes are stored least-significant-byte first. Matching hosts
-// use one block transfer; other hosts reverse each scalar object byte sequence.
-// This does not translate an unrelated host floating-point representation.
+
+
+
 inline bool littleEndian()
 { const std::uint16_t one=1; return *reinterpret_cast<const unsigned char*>(&one)==1; }
 template<class T> inline void writeArray(std::ostream& os,const T* p,std::size_t begin,std::size_t n)
@@ -55,7 +55,7 @@ template<class View> inline void validate(const View& v)
     fields(v,0u,v.count,[](const auto* p,std::size_t,std::size_t n)
     { if (n && !p) throw std::runtime_error("missing restart field"); });
 }
-inline void representation() {} // Kept for existing callers; endian conversion is at IO.
+inline void representation() {}
 template<class DiskTime, class View> inline void timeType(const View&) {}
 template<class Disk,class Memory>
 inline void readConvertedImpl(std::istream& is,Memory* p,std::size_t b,std::size_t n,std::true_type)
@@ -79,7 +79,7 @@ template<class Disk,class Memory> inline void readConverted(std::istream& is,Mem
 {
     readConvertedImpl<Disk>(is,p,b,n,std::is_same<Disk,Memory>{});
 }
-// Historical schema7 disk widths are independent of current memory storage.
+
 template<class DiskTime,class View,class Fn>
 inline void wireFields(const View& v,std::size_t begin,std::size_t count,Fn fn)
 {
@@ -133,8 +133,8 @@ inline void readPayload(std::istream& is,std::uint32_t bound,const View& v)
         begin+=chunk;
     }
 }
-// Current layouts keep the established field order, with explicit owner markers.
-// Only CHT's two cold-profile fields remain binary32; its carry is binary64.
+
+
 template<class View, class Fn>
 inline void appendCurrentCarry(const View& v,std::size_t begin,std::size_t count,Fn& fn,std::true_type)
 {

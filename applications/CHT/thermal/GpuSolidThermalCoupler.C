@@ -234,8 +234,8 @@ scalarField coupledPatchSurfaceTemperature
     {
         solidFailure("coupled solid surface must be a fixedGradient patch");
     }
-    // This accessor publishes the saved surface, not a reconstruction from
-    // owner/gradient/geometry values. Their arithmetic belongs to the solver.
+
+
     return scalarField(patch);
 }
 
@@ -940,8 +940,8 @@ public:
                 formatVersion = version[0].labelToken();
             }
         }
-        // Established formats select physical operators, not admission.
-        // Unknown identity continues through the available structural layout.
+
+
         threeRegion = formatVersion == 2
           || (formatVersion != 1
            && coupling.found("solidSolidInterfaces", false, false));
@@ -1407,9 +1407,9 @@ public:
         );
         if (!Foam::isFile(pendingPath))
         {
-            // Recognized pre-pending-ledger representations encode a reset
-            // ledger by absence. Directory time and other identity metadata do
-            // not change that representation. A present payload always wins.
+
+
+
             const bool legacyReset = restartState.formatVersion >= 1
                                   && restartState.formatVersion <= 3;
             if (!restartState.initialState && !legacyReset)
@@ -1452,8 +1452,8 @@ public:
             {
                 solidFailure("pending wall-energy entry has no configured destination face");
             }
-            // These rows are snapshots, not increments. Match the native
-            // ordered upload/copy semantics when an address occurs again.
+
+
             found->second = entryI;
         }
         scalarField gas(configuredFaces.size());

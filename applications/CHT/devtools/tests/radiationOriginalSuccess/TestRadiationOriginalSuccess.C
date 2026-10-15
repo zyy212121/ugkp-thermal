@@ -9,9 +9,9 @@
 #include <cfenv>
 #include <iomanip>
 #include <iostream>
-// The actual bounded-reader production dependency and its small storage adapter
-// are inserted from the already reviewed C03 fixture by the Python harness.
-// C04_READER_ADAPTER
+
+
+
 using namespace Foam;
 using namespace Foam::gpuThermal;
 void value(const char* name,double x){std::uint64_t bits;std::memcpy(&bits,&x,sizeof bits);std::cout<<"DATA "<<name<<' '<<std::hex<<bits<<std::dec<<'\n';}
@@ -41,8 +41,8 @@ int main(int argc,char**argv) try {
   #include "setRootCase.H"
   #include "createTime.H"
   #include "createMesh.H"
-  // The application prepares cell-face addressing in resident.initialise()
-  // before constructing the radiation coupler. Match that serial setup here.
+
+
   (void)mesh.cells();
   fedisableexcept(FE_ALL_EXCEPT);
   MieTable table(std::getenv("C04_TABLE"));

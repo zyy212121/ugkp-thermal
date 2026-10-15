@@ -102,7 +102,7 @@ LifecycleStep advanceLifecycle(const HostState& h,const PhysicsConfig& p,const s
     require(admitted>=dt*(1-32*std::numeric_limits<Real>::epsilon()),"lifecycle interval admitted by production film controller");
     const bool filmOk=advanceCpuFilmCandidate(filmState,p,dt,force,drive,film,error);
     require(filmOk,"CPU lifecycle film: "+error);
-    // Test-only physical inventory oracle, independent of removed runtime reports.
+
     std::vector<FilmQ> filmRates;
     require(evaluateCpuFilmTransport(filmState,p,dt,drive,filmRates,error),"lifecycle actual film RHS: "+error);
     for(std::size_t f=0;f<film.film.size();++f){

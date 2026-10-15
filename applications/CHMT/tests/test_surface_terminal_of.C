@@ -1,5 +1,5 @@
-// Actual OpenFOAM material/film driver with prescribed, stage-matched gas history.
-// This tests pressure adaptation and the ledger, not native gas execution.
+
+
 #include "ablation/WallClosureHost.H"
 #include "tests/NativeMaterialProbe.H"
 #include "materials/ConductionContinuation.H"
@@ -67,9 +67,9 @@ int main(int argc,char** argv){
     assert(history.appendAccepted(second,error));
     HostState endpoint=base;endpoint.time=dt;endpoint.gasMesh.geometryVersion+=1;setGas(endpoint,90000,endpointPressure);
     Real gasDelta=0;for(std::size_t c=0;c<base.gas.size();++c)gasDelta+=endpoint.gas[c].energy-base.gas[c].energy;
-    endpoint.budget.boundaryEnergy=-gasDelta; // prescribed gas history supplied by its external owner
-    // A supplied family identity previously refused the actual LowRe branch.
-    // Terminal retains that branch's existing expressions; no new wall model.
+    endpoint.budget.boundaryEnergy=-gasDelta;
+
+
     p.wallModel.family=static_cast<ugkwp::gaswall::WallFamily>(99);
     p.tolerances.maxRetries=0;p.tolerances.maxCouplingIterations=0;
     CpuMaterialDriver driver(model,&mesh);CpuMaterialControls controls;controls.maxSubstep=dt;controls.driveRelativeTolerance=1;

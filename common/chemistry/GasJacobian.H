@@ -1,7 +1,7 @@
 #ifndef UGKWP_GAS_JACOBIAN_H
 #define UGKWP_GAS_JACOBIAN_H
 #include "GasRates.H"
-// Bound device matrix/stage scratch lifetimes; ordinary host inlining stays intact.
+
 #if defined(__CUDA_ARCH__)
 #define UGKWP_CHEMISTRY_DEVICE_LEAF __noinline__
 #else

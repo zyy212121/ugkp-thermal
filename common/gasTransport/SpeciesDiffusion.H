@@ -4,7 +4,7 @@
 namespace ugkwp
 {
 // Inputs gradNormalArea already contain oriented face area. Output is kg/s,
-// with formation-inclusive species enthalpy transport in J/s. Strict trial failure is atomic; the final route publishes its actual arithmetic.
+
 template<class Real, int Ns, class TableReal>
 UGKWP_GAS_HD inline bool correctedSpeciesDiffusion
 (

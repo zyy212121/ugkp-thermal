@@ -1,4 +1,4 @@
-// Actual OpenFOAM dictionary/token input and CHMT serializers; no solver execution.
+
 #include "configuration/ModelIO.H"
 #include "restart/Checkpoint.C"
 #include "IStringStream.H"
@@ -15,14 +15,14 @@ int main(int argc,char**argv){const std::string mode=argc>1?argv[1]:"normal";
  if(mode=="short"){auto d=parseDictionary("x (1 2);");(void)chmt::io::readVector(d,"x");return 99;}
  if(mode=="normal"){for(bool single:{false,true}){auto d=parseDictionary(modelText(false));auto gas=inputGas();if(single){gas.mode=ugkwp::GasMode::SingleLegacy;for(auto& v:gas.diffusionCoefficients)v=0;gas.coefficients[1]=gas.coefficients[2]=gas.coefficients[4]=gas.coefficients[5]=0;}output(chmt::io::readModel(d,gas));}return 0;}
  assert(mode=="admitted");auto d=parseDictionary("x 3.5; v (1 2 3); a (4 5); element (6);");
- // These consumers need every assigned source value; surplus input is unused.
+
  double a[2]={91,92};chmt::io::array(d,"a",a);assert(a[0]==4&&a[1]==5);
  double narrow[1]={93};chmt::io::array(d,"a",narrow);assert(narrow[0]==4);
  double e[2]={94,95};chmt::io::elements(d,e,1);assert(e[0]==6&&e[1]==95);
  bool missing=false;try{double absent[3]{};chmt::io::array(d,"a",absent);}catch(const std::out_of_range&){missing=true;}assert(missing);
  missing=false;try{chmt::io::elements(d,e,2);}catch(const std::out_of_range&){missing=true;}assert(missing);
  const double nan=std::numeric_limits<double>::quiet_NaN(),inf=std::numeric_limits<double>::infinity();
- // Supply complete typed OpenFOAM tokens, without relying on textual nan spelling.
+
  d.lookup("x")[0]=Foam::token(nan);assert(std::isnan(chmt::io::readNumber(d,"x")));
  d.lookup("v")[1]=Foam::token(inf);auto v=chmt::io::readVector(d,"v");assert(std::isinf(v.x)&&v.y==2&&v.z==3);
  d.lookup("a")[1]=Foam::token(-inf);auto numbers=chmt::io::scalars(d,"a");assert(std::isinf(numbers[0])&&numbers[0]<0&&numbers[1]==5);

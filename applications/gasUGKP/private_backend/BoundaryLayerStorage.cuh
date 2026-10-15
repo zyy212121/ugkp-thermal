@@ -18,9 +18,9 @@ template<class State> int releaseBoundaryLayerStorage(State& s)
     return result;
 }
 
-// Rejected candidates contain only allocations whose actual free failed. The
-// resident is poisoned before returning, so this owner cannot be overwritten by
-// another configuration; teardown may retry release without losing addresses.
+
+
+
 inline int releaseBoundaryLayerStorage(DeviceState& s)
 {
     const int resident=releaseBoundaryLayerStorage<DeviceState>(s);
@@ -37,8 +37,8 @@ inline void discardBoundaryLayerCandidate(DeviceState* s,BoundaryLayerAllocation
 // Configure-only publication. Uploading initial fields deliberately scrubs the
 // host calculation scalars, so copying the complete DeviceState here would
 // destroy valid device physics/numerics. Publish only this extension's fields.
-// Reconfiguration has released obsolete snapshots. The enabled wall view is
-// copied last; on any copy
+
+
 // failure the caller poisons the resident and retains ownership until destroy.
 inline int syncBoundaryLayerConfiguration(DeviceState* state)
 {

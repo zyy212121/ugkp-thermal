@@ -113,8 +113,8 @@ bool advanceCoupledWindow(Backend& backend,CpuMaterialDriver& material,const Mod
                 materialControls,candidate,corrected,cpu,error,&program);
             if(!materialSolved&&cpu.failureOrigin!=MaterialFailureOrigin::None
                 &&(!cpu.recoverable||controller.retries()>=controls.maxWindowRetries)) {
-                // The old retry path has ended. Its gas trial and exact attempted
-                // interval still exist here, before shorten() rolls them back.
+
+
                 ++report.materialSolves;
                 materialSolved=detail::ConductionContinuation::complete(material,base,gasEndpoint,history,
                     materialControls,candidate,corrected,cpu,error,&program);
@@ -145,8 +145,8 @@ bool advanceCoupledWindow(Backend& backend,CpuMaterialDriver& material,const Mod
                 if(!replay(std::move(corrected),"coupling waveform/regime/geometry requires replay"))return false;
                 continue;
             }
-            // A complete candidate survives the final numeric assessment or
-            // retry budget. All ordinary successful replay/shortening came first.
+
+
             if(!finalizeIntervalLedger(history,candidate,error)) {
                 discard("macro synchronization ledger: "+error);return false;
             }

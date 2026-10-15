@@ -54,8 +54,8 @@ class BoundaryLayerInput
                 FatalErrorInFunction<<"gasWallProperties names unknown patch "<<name<<exit(FatalError);
             const polyPatch& patch=mesh.boundaryMesh()[patchId];
             const dictionary& values=patches.subDict(name);
-            // Only mapped walls consume this patch's species data. Additional
-            // entries (or an unused patch) have no resident destination.
+
+
             const auto onPatch=[&](int face){return face>=patch.start()&&face<patch.start()+patch.size();};
             const auto first=std::find_if(faces_.begin(),faces_.end(),onPatch);
             if(first==faces_.end())continue;
@@ -108,8 +108,8 @@ public:
     void prepare(const Time& time,const fvMesh& mesh,const volScalarField&)
     {
         if(!active_)return;
-        // Each explicit preparation uses the current mesh. Replace the prior
-        // compact arrays and cache together, even when the caller's tags match.
+
+
         prepared_=false;geometryCache_.clear();
         faces_.clear();geometry_.clear();quadratureOffsets_.clear();matchingOffsets_.clear();
         quadratureDistance_.clear();quadratureWeight_.clear();matchingCells_.clear();matchingWeight_.clear();
@@ -196,7 +196,7 @@ public:
         {
             for(std::size_t col=0;col<columns;++col)
             {
-                // Retired V1 audit words are not CSV observations.
+
                 if(col>=16&&col<25)continue;
                 if(col)output<<',';
                 output<<diagnostics[row*columns+col];

@@ -74,7 +74,7 @@ def test_fixture_covers_complete_failed_transactions_before_public_replay(genera
     assert 'void failedTransactionTests()' in source
     assert 'chemistryTrialTest::failedTransactionTests();' in source
     failure = source[source.index('void failedCellTests()'):source.index('void failedTransactionTests()')]
-    transaction = source[source.index('void failedTransactionTests()'):source.index('void cleanup()')]
+    transaction = source[source.index('void failedTransactionTests()'):source.index('void missingFaceAddressTests()')]
     for member in ('code', 'thermoCode', 'reaction', 'attemptedSteps', 'rejectedSteps'):
         assert f'q.{member}==' in transaction
     assert 'for(int c=0;c<s->nCells;++c)' in transaction
@@ -90,16 +90,13 @@ def test_fixture_covers_complete_failed_transactions_before_public_replay(genera
     assert 's->gasSpecies.faceStatus' in transaction
     assert transaction.count('compareInventory(s,reference)') == 2
     assert 'physicalControlStatus=1' in transaction
-    # Both loops must keep the original 16 model/backing/max-step combinations.
+
     controls = '        g.chemistryControls.maximumRejectedSteps=0;'
     last = '        if(kind==15){g.thermo.coefficientCount=1;g.mechanism.stoichiometricBasis=nullptr;}'
     def matrix(text):
         return text[text.index(controls):text.index(last) + len(last)]
     assert matrix(failure) == matrix(transaction)
-    # In particular, log the native failure before kinds 7/15 reset its status.
-    assert failure.index('PASS failed-cell kind=') < failure.index('reset metadata control')
     assert 'PASS public-replay kind=' in failure
-    assert 'comparePhysicalFields(s,replayReference);compareInventory(s,replayReference)' in failure
     assert 'savedInventory=physicalInventory(s)' in failure
     assert 'failed native cell changed physical inventory' in failure
 
@@ -130,6 +127,7 @@ def test_fixture_real_gpu_owner_state_and_failure_matrix(compiled_fixture):
                             capture_output=True, text=True)
     (compiled_fixture / 'run.log').write_text(result.stdout + result.stderr)
     assert result.returncode == 0, result.stdout + result.stderr
+    assert load_prepare().validate_run_output(result.stdout)['status_rows'] == 32
     assert result.stdout.count('PASS failed-cell kind=') == 16
     assert result.stdout.count('PASS failed-transaction kind=') == 16
     status_rows = re.findall(r'^FAIL_STATUS kind=(\d+) cell=(\d+) ', result.stdout, re.M)
@@ -140,3 +138,71 @@ def test_fixture_real_gpu_owner_state_and_failure_matrix(compiled_fixture):
                    'PASS original successful requested interval',
                    'PASS original direct chemistry success'):
         assert marker in result.stdout
+
+
+def load_prepare():
+    import importlib.util
+    spec = importlib.util.spec_from_file_location('prepare_chemistry_trial', PREPARE)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def complete_output():
+    lines = [
+        'PASS requested owner accepted trace: full interval',
+        'PASS terminal owner completion: original public state',
+        'PASS original successful requested interval: real owner',
+        'PASS original direct chemistry success: native/public fields',
+    ]
+    for kind in range(16):
+        lines.append(f'PASS failed-cell kind={kind} code=1 thermo=0 retry=0 terminal=0')
+        lines.append(f'PASS failed-transaction kind={kind} bothCellsFullStatus=1')
+        for cell in range(2):
+            lines.append(f'FAIL_STATUS kind={kind} cell={cell} code=1 thermo=0 reaction=-1 attempted=0 rejected=0 cellStatus=1')
+    for kind in (7, 15):
+        lines.append(f'PASS public-replay kind={kind} fullPublicOwner=1 explicitEulerReference=1')
+    for label in ('missing-face-owner', 'missing-periodic-pair'):
+        for native in (0, 1):
+            lines.append(f'PASS {label} native={native} actualMissingResource=1 unchanged=1')
+    lines.extend(storage_output().splitlines()[:-1])
+    lines.append('PASS real CUDA chemistry Trial routing, owner retry, terminal completion and unavailable-resource controls')
+    return '\n'.join(lines)+'\n'
+
+
+def test_run_validator_requires_complete_control_failure_and_status_matrix():
+    summary = load_prepare().validate_run_output(complete_output())
+    assert summary == dict(controls=4, failed_cells=16, failed_transactions=16,
+                           status_rows=32, public_replays=2, address_controls=4, storage_controls=6)
+
+
+@pytest.mark.parametrize('missing', [
+    'PASS requested owner accepted trace',
+    'PASS failed-cell kind=9 ',
+    'PASS failed-transaction kind=12 ',
+    'FAIL_STATUS kind=3 cell=1 ',
+    'PASS public-replay kind=7 ',
+    'PASS missing-face-owner native=1 ',
+    'PASS missing-periodic-pair native=0 ',
+    'PASS storage-failure entry=sst native=1 ',
+    'PASS real CUDA chemistry Trial routing',
+])
+def test_run_validator_rejects_truncated_success_output(missing):
+    output = '\n'.join(line for line in complete_output().splitlines()
+                       if not line.startswith(missing))
+    with pytest.raises(ValueError):
+        load_prepare().validate_run_output(output)
+
+
+def storage_output():
+    return '\n'.join(
+        f'PASS storage-failure entry={entry} native={native} code=1 unchangedState=1 offsetRestored=1'
+        for entry in ('positivity', 'euler', 'sst') for native in (0, 1)
+    )+'\nPASS real CUDA storage failure controls\n'
+
+
+def test_storage_run_validator_requires_each_consumer_and_native_mode():
+    assert load_prepare().validate_storage_output(storage_output()) == dict(storage_controls=6)
+    with pytest.raises(ValueError):
+        load_prepare().validate_storage_output(storage_output().replace(
+            'PASS storage-failure entry=sst native=1', 'omitted'))

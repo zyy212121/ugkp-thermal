@@ -217,8 +217,8 @@ scalar GpuSolidThermalProperties::evaluate
         return property.values.last();
     }
 
-    // Use the existing upper-bound progression without a global axis
-    // ordering certificate. Only the selected endpoint arithmetic is needed.
+
+
     label first = 0;
     label count = property.temperatures.size();
     while (count)
@@ -302,8 +302,8 @@ scalarField GpuSolidThermalProperties::buildRhoCpKnotUnion
         Cp.temperatures.begin(),
         Cp.temperatures.end()
     );
-    // Keep the finite ordering, with unordered IEEE knots after ordered ones.
-    // This supplies a strict weak ordering without rejecting supplied values.
+
+
     std::sort(knots.begin(), knots.end(), [](scalar a, scalar b)
     {
         return std::isnan(b) ? !std::isnan(a) : (!std::isnan(a) && a < b);

@@ -5,10 +5,10 @@
 #include <stdexcept>
 
 namespace chmt {
-// Thrust asks this Backend-owned allocator for temporary bytes. Both Courant
-// reductions return a host scalar synchronously and retain their original
-// stream, so a released block can be reused by the next reduction. Multiple
-// live requests get distinct blocks; larger requests grow an idle block.
+
+
+
+
 class CoupledCourantStorage {
     struct Block {Buffer<char> bytes;bool inUse=false;};
     CudaFault fault_;

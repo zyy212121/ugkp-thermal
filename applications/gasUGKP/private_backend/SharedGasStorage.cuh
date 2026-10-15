@@ -10,9 +10,9 @@ template<class State,class=void>struct SharedGasSnapshotStorage:std::false_type{
 template<class State>struct SharedGasSnapshotStorage<State,std::void_t<decltype(std::declval<State>().gasTrial.trial.valid),decltype(std::declval<State>().gasTrial.interval.valid)>>:std::true_type{};
 template<class State>void invalidateSharedGasConfiguration(State* state,bool recapture=true)
 {
-    // Captured kernel arguments are deviceState-indirect, but host dispatch,
-    // launch grids and RK branches were selected at capture time. Reuse the
-    // existing dt-driven destroy/rebuild path after a configuration change.
+
+
+
     if constexpr(SharedGasGraphStorage<State>::value)
         if(recapture)state->gasGraphDt=std::numeric_limits<double>::quiet_NaN();
     if constexpr(SharedGasSnapshotStorage<State>::value)

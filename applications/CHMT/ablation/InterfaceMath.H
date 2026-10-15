@@ -809,7 +809,7 @@ CHMT_HD inline bool assembleSurfacePackets(const SurfacePhysicsInput& input,
         phase.viscousWork=scale*result.phaseViscousWork;
         phase.energy=phase.advective+phase.conductive+phase.pressureWork+phase.viscousWork;
         phase.liquidKineticAdvection=scale*result.bottomKineticAdvection;
-        // SolidFilm carries no evolved momentum in the reduced material model.
+
         // Exact event transfer: the disappearing film hands its actual remaining
         // internal energy to the solid. This is not a correction for R_K.
         FilmQ available=input.filmBase;

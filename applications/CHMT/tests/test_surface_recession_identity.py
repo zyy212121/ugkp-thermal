@@ -14,13 +14,15 @@ def test_production_packet_surface_identity_and_material_volume(tmp_path):
     cpp = r'''
 #include "core/HostState.H"
 #include "materials/Reaction.H"
+#include "materials/CpuMaterialDriver.H"
 #include "materials/SurfacePacketAddressing.H"
 #include <cassert>
 #include <iostream>
 using namespace chmt;
 namespace chmt {
 std::vector<Real> targets(const HostState& state,const PhysicsConfig& p,
- const std::vector<ExchangePacket>& packets,std::string& error){
+ const std::vector<ExchangePacket>& packets,std::string& error,bool terminalMaterial=false){
+MaterialFailureOrigin lastFailure=MaterialFailureOrigin::None;
 SurfacePacketAddressing packetAddressing;
 if(!packetAddressing.build(state,state,error))return {};
 PRODUCTION_LOOP
@@ -37,6 +39,7 @@ int main(){
  ExchangePacket a;a.kind=ExchangeKind::GasSolid;a.face=73;a.solidCell=0;a.condensed[0]=2;a.condensed[1]=4;
  std::string error;auto t=targets(s,p,{a},error);
  assert(error.empty());assert(t.size()==2);
+ auto terminal=targets(s,p,{a},error,true);assert(error.empty()&&terminal==t);
  assert(std::abs(t[0]+.005)<1e-15 && t[1]==0); // occupied=.8, phi=.2; (2/1000+4/2000)/.8
  auto next=a;next.step=1;auto doubled=targets(s,p,{a,next},error);assert(error.empty()&&std::abs(doubled[0]+.01)<1e-15);
  auto missing=a;missing.face=999;error.clear();targets(s,p,{missing},error);assert(!error.empty());

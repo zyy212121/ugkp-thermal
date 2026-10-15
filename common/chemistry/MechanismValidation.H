@@ -33,8 +33,8 @@ template<class R,int N,class TableReal,bool Complete=true> UGKWP_GAS_HD inline b
 }
 }
 namespace gasChemistryDetail {
-// The checks accompany the reaction being consumed, rather than rescanning a
-// whole mechanism before each scalar/AD evaluation.
+
+
 template<class R,int N,bool Complete=true> UGKWP_GAS_HD inline bool reactionInputAvailable
 (const GasMechanismView<R,N>& m,int r) noexcept {
     if(!m.reactions || (!Complete && (r<0 || r>=m.reactionCount)))return false;
@@ -58,8 +58,8 @@ template<class R,int N,bool Complete=true> UGKWP_GAS_HD inline bool reactionInpu
             && (!a.efficiencyCount || m.efficiencies));
 }
 }
-// Explicit inspection remains available to loaders; no conservation, identity,
-// duplicate-declaration or basis proof is needed to read a reaction.
+
+
 template<class R,int N> UGKWP_GAS_HD inline ChemistryStatus validateGasMechanismView
 (const SpeciesThermoView<R,N>& t,const GasMechanismView<R,N>& m) noexcept {
     (void)t;ChemistryStatus st;

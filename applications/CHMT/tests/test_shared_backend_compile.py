@@ -30,8 +30,8 @@ inline int cudaGraphExecKernelNodeSetParams(void*,void*,cudaKernelNodeParams*){r
 inline int cudaGraphLaunch(void*,void*){return 0;}
 '''
     (tmp_path/'cuda_runtime.h').write_text(stub)
-    # Host-only stand-in for Thrust's reduction interface. Native CUDA compile
-    # separately instantiates the actual library and device execution policy.
+
+
     thrust=tmp_path/'thrust';(thrust/'system/cuda').mkdir(parents=True)
     (thrust/'device_ptr.h').write_text('#pragma once\nnamespace thrust {template<class T> T* device_pointer_cast(T* p){return p;}}\n')
     (thrust/'reduce.h').write_text('#pragma once\nnamespace thrust {template<class P,class I,class T,class F>T reduce(P,I first,I last,T value,F combine){for(;first!=last;++first)value=combine(value,*first);return value;}}\n')

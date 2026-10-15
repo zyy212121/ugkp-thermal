@@ -13,7 +13,7 @@ BASE = 'isolated-full-state-copy'
 def _probe(tmp_path, label, source):
     directory = tmp_path / label
     directory.mkdir()
-    # Instrument only actual writer calls. No production counters or test hooks.
+
     source = source.replace('namespace chmt { namespace {',
         'namespace chmt { unsigned long long hashCalls=0,hashBytes=0,modelCopies=0,stateCopies=0; namespace {', 1)
     source = source.replace('std::size_t n){std::uint64_t h=',
@@ -24,7 +24,7 @@ def _probe(tmp_path, label, source):
     fixture = (APP / 'tests/test_restart.cpp').read_text()
     fixture = fixture.replace('/tmp/chmt-restart-regression.', str(directory / 'restart.'))
     fixture = fixture.replace('writeCheckpoint(', 'measuredWriteCheckpoint(')
-    # Expand supplied-state coverage without asking runtime physics to admit it.
+
     marker = 'unlink(file.c_str());rmdir(directory.c_str());unlink(survivorFile.c_str());'
     assert marker in fixture
     special = r'''
@@ -109,7 +109,7 @@ def test_const_writer_exact_bytes_and_fewer_allocations(tmp_path):
     receipt = dict(base=BASE, before=before, after=after)
     (tmp_path/'census.json').write_text(json.dumps(receipt, indent=2)+'\n')
     assert len(before)==len(after) and len(before)>20
-    assert sum(not item['success'] for item in after)==3  # Real fsync faults.
+    assert sum(not item['success'] for item in after)==3
     for old, new in zip(before, after):
         assert old['success']==new['success']
         assert old['sha256']==new['sha256']

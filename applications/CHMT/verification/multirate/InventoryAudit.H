@@ -1,5 +1,5 @@
 #pragma once
-// Test-only conservation oracle. It never participates in production acceptance.
+
 #include "coupling/IntervalAudit.H"
 #include "verification/FilmInventory.H"
 namespace chmt {
@@ -47,9 +47,9 @@ inline bool intervalBalance(Real residual,long double before,long double after,R
     const long double tolerance=absolute+relative*std::max(std::fabs(before),std::fabs(after));
     return finite(residual)&&std::isfinite(tolerance)&&tolerance>=0&&std::fabs(static_cast<long double>(residual))<=tolerance;
 }
-// This audits full endpoint inventory, conserved elements and physical energy,
-// with the baseline reduced-film kinetic defect kept explicit. It does not
-// claim a full momentum equation for the rigid solid/reduced thin-film model.
+
+
+
 inline bool auditCoupledCandidate(const HostState& base,const HostState& candidate,
     const IntervalHistory& history,const PhysicsConfig& p,WindowConservationAudit& report,std::string& error){
     if(!history.complete()||base.time!=history.interval().begin||candidate.time!=history.interval().end)
@@ -82,8 +82,8 @@ inline bool auditCoupledCandidate(const HostState& base,const HostState& candida
         &&compare(n.exchangeEnergy[GasParticipant]-b.exchangeEnergy[GasParticipant],expectedGas.energy,true)
         &&compare(n.exchangeMass[ParticleParticipant]-b.exchangeMass[ParticleParticipant],expectedParticleMass,false)
         &&compare(n.exchangeEnergy[ParticleParticipant]-b.exchangeEnergy[ParticleParticipant],expectedParticleEnergy,true);
-    // Audit each CPU recipient independently. Global cancellation alone can
-    // hide a GasSolid transfer wrongly attributed to FilmParticipant.
+
+
     Budget expectedCpu;
     auto addCpu=[&](const ExchangePacket& packet){
         const auto d=packetDelta(packet);const unsigned mask=requiredConsumers(packet.kind);
@@ -121,10 +121,10 @@ inline bool auditCoupledCandidate(const HostState& base,const HostState& candida
         momentumScale.x+=absValue(momentum.x);momentumScale.y+=absValue(momentum.y);momentumScale.z+=absValue(momentum.z);
         for(int s=0;s<Ns;++s){const Real species=n.exchangeSpecies[k][s]-b.exchangeSpecies[k][s];speciesSum[s]+=species;speciesScale[s]+=absValue(species);}
     }
-    // A zero-sum exchange is normalized by the participating transfer, not by
-    // its cancellation residue. Per-recipient comparisons above still verify
-    // exactly which owner received the amount. This permits only the declared
-    // relative tolerance, including cumulative-budget subtraction roundoff.
+
+
+
+
     auto cancellation=[&](Real residual,Real scale,bool energy)->bool{
         const Real tolerance=(energy?p.tolerances.absoluteEnergy:p.tolerances.absoluteMass)
             +(energy?p.tolerances.relativeEnergy:p.tolerances.relativeMass)*scale;
@@ -136,8 +136,8 @@ inline bool auditCoupledCandidate(const HostState& base,const HostState& candida
     paired=cancellation(massSum,massScale,false)&&cancellation(energySum,energyScale,true)&&paired;
     for(int s=0;s<Ns;++s){paired=compare(n.exchangeSpecies[GasParticipant][s]-b.exchangeSpecies[GasParticipant][s],expectedGas.species[s],false)&&paired;
         paired=compare(n.exchangeSpecies[ParticleParticipant][s]-b.exchangeSpecies[ParticleParticipant][s],expectedParticleSpecies[s],false)&&cancellation(speciesSum[s],speciesScale[s],false)&&paired;}
-    // Momentum has no dedicated tolerance in the existing schema; use the
-    // existing packet mass tolerance consistently, without claiming bulk closure.
+
+
     const Vec3 gasMomentum=n.exchangeMomentum[GasParticipant]-b.exchangeMomentum[GasParticipant];
     const Vec3 particleMomentum=n.exchangeMomentum[ParticleParticipant]-b.exchangeMomentum[ParticleParticipant];
     paired=compare(gasMomentum.x,expectedGas.momentum.x,false)&&compare(gasMomentum.y,expectedGas.momentum.y,false)&&compare(gasMomentum.z,expectedGas.momentum.z,false)&&paired;

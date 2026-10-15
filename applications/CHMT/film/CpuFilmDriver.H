@@ -42,7 +42,7 @@ bool advanceCpuFilmCandidate(const HostState&,const PhysicsConfig&,Real dt,
     CpuFilmCandidate&,std::string& error,bool* numericalFailure=nullptr);
 // Interface-owner RHS: suppresses top and bottom interface work and excludes all
 // integrated transfers; retains edge transport, body work and standalone radiation.
-// Rates are published only after a successful evaluation.
+
 bool evaluateCpuFilmTransport(const HostState&,const PhysicsConfig&,Real dt,
     const std::vector<CpuFilmDrive>&,std::vector<FilmQ>& rates,
     std::string& error,

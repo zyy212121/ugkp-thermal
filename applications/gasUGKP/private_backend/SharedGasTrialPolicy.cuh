@@ -50,8 +50,8 @@ inline int releaseSnapshot(SharedGasTrialSnapshot& snapshot)
     result|=releaseSharedGasPointer(snapshot.chemistryStatus);
     result|=releaseSharedGasPointer(snapshot.wallRecords);
     if(!snapshot.wallRecords)snapshot.wallRecordBytes=0;
-    // Any partial release invalidates the snapshot. A retained pointer must be
-    // released successfully before ensureSnapshot can replace its allocation.
+
+
     snapshot.cellScalars=snapshot.faceScalars=0;snapshot.valid=false;
     return result;
 }
@@ -59,8 +59,8 @@ inline int ensureSnapshot(DeviceState* s,SharedGasTrialSnapshot& snapshot)
 {
     const std::size_t count=std::size_t(s->nCells)*(21+ugkwp::compiledGasSpecies);
     const std::size_t faceCount=std::size_t(s->nFaces)*6;
-    // Same-sized model reconfiguration may attach chemistry buffers later.
-    // Reuse only storage covering the currently present optional channels.
+
+
     if(snapshot.cells && snapshot.cellScalars==count && snapshot.faceScalars==faceCount
         && (!s->gasSpecies.chemistryStatus || snapshot.chemistryStatus))return 0;
     if(releaseSnapshot(snapshot))return 1;
@@ -139,13 +139,13 @@ inline bool retryableTransport(int value)
         ||code==ugkwp::GasTransportCode::NonFiniteState
         ||code==ugkwp::GasTransportCode::NegativeInventory
         ||code==ugkwp::GasTransportCode::SourceStepLimit
-        // The typed chemistry channel decides whether this numerical failure
-        // can shrink. Its transport marker must not veto that same retry.
+
+
         ||code==ugkwp::GasTransportCode::ChemistryFailure;
 }
 // Only entered after the existing status check fails. No successful-stage
 // transfer or additional all-face scan is introduced for error reporting.
-// -1 is an actual diagnostic-copy error, 1 is a reported numerical failure.
+
 template<class State> int reportBoundaryLayerFailure(State* s)
 {
     if constexpr(ugkwp::GasBoundaryLayerCapability<State>::value)
@@ -257,9 +257,9 @@ struct SharedGasTrialPolicy
         const int chemistry=nativeRefinement?sharedGasTrialDetail::chemistryStatus(s):0;
         const bool chemistryRetry=s->gasTrial.retryableFailure;
         const bool chemistryTerminal=s->gasTrial.terminalContinuation;
-        // Unavailable chemistry is already in the sticky transport channel.
-        // A failed diagnostic copy is an actual operation error, never a
-        // reason to execute another physical interval.
+
+
+
         s->gasTrial.terminalContinuation=nativeRefinement && (transport||chemistry)
             && (!transport||terminal) && (!chemistry||chemistryTerminal);
         s->gasTrial.retryableFailure=(transport || chemistry) && (!transport || transportRetry) && (!chemistry || chemistryRetry);

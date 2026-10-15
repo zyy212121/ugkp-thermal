@@ -8,7 +8,7 @@ inline Real intervalNormalizedError(Real a,Real b,Real absolute,Real relative){
     if(!finite(a)||!finite(b)||!finite(tolerance)||absolute<0||relative<0)return std::numeric_limits<Real>::infinity();
     return tolerance>0?difference/tolerance:(difference==0?0:std::numeric_limits<Real>::infinity());
 }
-// Retain synchronized packet identities for checkpoint/output compatibility.
+
 // Existing CPU-owned SolidFilm records are retained; prior macro records are
 // not copied. Bookkeeping only: no inventory or budget source is applied here.
 inline bool finalizeIntervalLedger(const IntervalHistory& history,HostState& candidate,std::string& error){

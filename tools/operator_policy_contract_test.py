@@ -44,14 +44,14 @@ def main():
             if app == 'CHT':
                 setup += '#include "GpuPrecisionTypes.H"\n'
             text = setup+'\n'.join(defines)+'\n#include "GpuOperatorContract.cuh"\n'
-            # These are the real scalar adapter expressions used by operators.
+
             text += 'GPU_OPERATOR_REAL value=GPU_OPERATOR_R(1.25);\nGPU_OPERATOR_TIME interval=0.5;\nint main(){return value<=0 || interval<=0;}\n'
             result = compile_source(text)
             if result.returncode:
                 print(app, 64, result.stderr)
                 return 1
             tests += 1
-        # Omitted types that are actually used still fail naturally at their use.
+
         missing = compile_source('#include "GpuOperatorContract.cuh"\nGPU_OPERATOR_REAL value;\n')
         if missing.returncode == 0 or 'GPU_OPERATOR_REAL' not in missing.stderr:
             print('FAIL compiler did not report the undefined used type')

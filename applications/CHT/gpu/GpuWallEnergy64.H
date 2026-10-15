@@ -15,7 +15,7 @@ struct GpuWallEnergyState
     double* gasWallFlux = nullptr;
     int* enabledFaceIds = nullptr;
     size_t enabledFaceCapacity = 0;
-    // Host ownership until a replacement is published and the old list freed.
+
     int* retiredFaceIds = nullptr;
     double* particleWallDepositedEnergy = nullptr;
     double* particleWallReflectedEnergy = nullptr;

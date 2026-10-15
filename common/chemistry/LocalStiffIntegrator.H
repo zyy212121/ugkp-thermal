@@ -12,7 +12,7 @@ template<class R,int N,class TableReal> UGKWP_GAS_HD inline R coordinateNorm(con
  norm=gasThermoDetail::maxValue(norm,gasThermoDetail::absValue(value)/denominator);}
  return norm;
 }
-// Only durations refused by the old storage cast need wider multiplication.
+
 template<class R,class Time> UGKWP_GAS_HD inline R stageProduct(Time h,R coefficient,R value) noexcept {
  const R hc=R(h*Time(coefficient));
  if(R(h)!=R(0) && gasFinite(R(h)))return hc*value;
@@ -42,7 +42,7 @@ template<class R,int N,class TableReal,class Time> UGKWP_GAS_HD UGKWP_CHEMISTRY_
    for(int i=0;i<rank;++i){delta[i]=-residual[i];for(int j=0;j<rank;++j)jac[i*N+j]=(i==j?R(1):R(0))-stageProduct(h,coefficient,jac[i*N+j]);}
    if(!local || !solveDense<R,N>(rank,jac,delta)){
      if(updated){if(evaluated)*evaluated=true;return status;}
-     // This is an actual fixed-point stage update, only on a failed Newton path.
+
      for(int i=0;i<rank;++i)delta[i]=-residual[i];
    }
    R origin[N],originT=temperature;for(int i=0;i<rank;++i)origin[i]=z[i];
@@ -60,8 +60,8 @@ template<class R,int N,class TableReal,class Time> UGKWP_GAS_HD UGKWP_CHEMISTRY_
        if(trialScalar){for(int i=0;i<rank;++i)trialResidual[i]=trial[i]-rhs[i]-stageProduct(h,coefficient,trialF[i]);trialNorm=coordinateNorm(context,trialResidual,trialMass);}
        const bool armijo=trialScalar && gasFinite(trialNorm)
          && ((gasFinite(norm) && trialNorm<norm*(R(1)-R(1e-4)*damping)) || trialNorm<=context.controls.newtonTolerance);
-       // Required RHS availability precedes optional residual ranking. A finite
-       // final-stage state remains usable when no trial has an available RHS.
+
+
        if(armijo || !found || (trialScalar && !scalarAvailable)
           || (gasFinite(trialNorm) && (!gasFinite(bestNorm) || trialNorm<bestNorm))){
          for(int i=0;i<rank;++i){z[i]=trial[i];f[i]=trialF[i];}
@@ -86,8 +86,8 @@ template<class R,int N,class TableReal,class Time> UGKWP_GAS_HD UGKWP_CHEMISTRY_
  ChemistryStatus status;int rank=context.mechanism.independentRank;
  for(int iteration=0;iteration<(context.controls.maximumNewtonIterations>0?context.controls.maximumNewtonIterations:1);++iteration){
    R f[N]={},jac[N*N]={},residual[N]={},masses[N];
-   // Successful strict inversion already returned this exact evaluated T and
-   // mass bundle. Re-evaluating the same state accepts the same T immediately.
+
+
    ChemistryStatus local=context.evaluate(z,f,temperature,jac,masses);
    if(!local){return local;}
    for(int i=0;i<rank;++i)residual[i]=z[i]-rhs[i]-stageProduct(interval,coefficient,f[i]);
@@ -111,7 +111,7 @@ template<class R,int N,class TableReal,class Time> UGKWP_GAS_HD UGKWP_CHEMISTRY_
  }
  status.code=ChemistryCode::NewtonFailure;return status;
 }
-// Direct stage API retains its original hgamma argument.
+
 template<class R,int N,class TableReal> UGKWP_GAS_HD inline ChemistryStatus implicitStage
 (const ReactorContext<R,N,TableReal>& context,const R* rhs,R hgamma,R* z,R& temperature) noexcept {
  return implicitStage(context,rhs,hgamma,R(1),z,temperature);
@@ -188,8 +188,8 @@ template<bool RetryTrial=false,class R,int N,class TableReal,class Time> UGKWP_G
  }
  Time h=controls.initialStep>R(0)?minValue(interval,Time(controls.initialStep)):interval;if(controls.maximumStep>R(0))h=minValue(h,Time(controls.maximumStep));
  bool terminalPending=terminalInterval;
- // Preserve the failed producer when a later effort boundary ends this trial.
- // These diagnostics do not alter the step arithmetic or publication decision.
+
+
  ChemistryStatus rejectedDiagnostic;
  if(terminalInterval)h=interval;
  while(covered<interval || terminalPending){
@@ -201,8 +201,8 @@ template<bool RetryTrial=false,class R,int N,class TableReal,class Time> UGKWP_G
    if(!terminalPending)h=minValue(h,interval-covered);
    if(!terminalPending && (!(h>Time(0)) || covered+h==covered)){
      if(RetryTrial){status.code=ChemistryCode::StepUnderflow;status.reaction=rejectedDiagnostic.reaction;status.thermoCode=rejectedDiagnostic.thermoCode;return status;}
-     // Execute the actual remaining interval. Do not move the clock to invent
-     // an endpoint for a step whose duration rounded away.
+
+
      context.refinement=false;h=interval-covered;
    }
    if(h<controls.minimumStep && h<interval-covered){
@@ -239,8 +239,8 @@ template<bool RetryTrial=false,class R,int N,class TableReal,class Time> UGKWP_G
    covered+=h;terminalPending=false;
    R factor=error>R(0)?minValue(R(3),maxValue(R(.25),R(.9)*R(::pow(error,R(-1)/R(3))))):R(3);if(context.refinement || (gasFinite(error) && error<=R(1)))h*=factor;if(controls.maximumStep>R(0))h=minValue(h,Time(controls.maximumStep));
  }
- // These residuals select a real smaller-step trial. The direct continuation
- // path has no reporting pass or output-only inventory reconstruction.
+
+
  if(RetryTrial){
    R sum=0;for(int s=0;s<N;++s)sum+=accepted.speciesMass[s];
    const R massResidual=sum-base.totalMass;
@@ -262,8 +262,8 @@ template<class R,int N,class TableReal,class Time> UGKWP_GAS_HD inline Chemistry
    return advanceClosedReactorImpl(base,originalInterval,t,m,controls,result,evaluated);
  return advanceClosedReactorImpl(base,interval,t,m,controls,result,evaluated);
 }
-// Retry-capable native owners must use this entry: a local budget/conservation
-// stop is part of their original successful smaller-step method, not terminal.
+
+
 template<class R,int N,class TableReal,class Time> UGKWP_GAS_HD inline ChemistryStatus advanceClosedReactorTrial
 (const ClosedReactorInput<R,N>& base,Time interval,const SpeciesThermoView<TableReal,N>& t,const GasMechanismView<TableReal,N>& m,const ChemistryControls<R>& controls,ClosedReactorResult<R,N>& result,bool* evaluated=nullptr) noexcept {
  return advanceClosedReactorImpl<true>(base,R(interval),t,m,controls,result,evaluated);

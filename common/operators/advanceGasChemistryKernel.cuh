@@ -32,10 +32,10 @@ UGKWP_GAS_HD inline ChemistryStatus recordFailure
         species.cellStatus[cell] = int(unavailable?GasTransportCode::InvalidStorage:GasTransportCode::ChemistryFailure);
     return status;
 }
-// Called only after the selected reactor failed to publish. InvalidModel can
-// also be a strict-trial metadata/basis diagnostic; only actually unavailable
-// consumed backing belongs in the sticky storage channel. Numerical metadata
-// still reaches the owner's existing public terminal-completion path.
+
+
+
+
 template<class TableReal,int Ns>
 UGKWP_GAS_HD inline bool unavailableTrialModel
 (
@@ -50,8 +50,8 @@ UGKWP_GAS_HD inline bool unavailableTrialModel
         for (int s = 0; s < Ns; ++s)
             if (thermo.species[s].model != SpeciesThermoModel::LinearCp
                 && thermo.species[s].model != SpeciesThermoModel::NASA7) return true;
-        // The thermo producer stopped before any mechanism input was consumed.
-        // In particular, zero-time completion need not consume a missing basis.
+
+
         return false;
     }
     if (status.code == ChemistryCode::InvalidModel
@@ -70,7 +70,7 @@ UGKWP_GAS_HD inline bool unavailableTrialModel
 // The single density-storage-to-closed-reactor adapter. Both application
 // adapters supply the same gas-only view. All arrays must belong to a disposable
 // trial: a successful cell may publish to that trial before another cell fails.
-// Actual execution failures are reported to the trial owner.
+
 //
 // stageVolume is explicit: Vold for the first chemical half and Vnew for the
 // second. This routine does not read state.V, change geometry, or add p*dV work.
@@ -117,9 +117,9 @@ UGKWP_GAS_HD inline ChemistryStatus advanceGasChemistryCell
             status.code=ChemistryCode::InvalidComposition;
             return status;
         }
-        // For public calls, old numerical diagnostics do not replace executing this
-        // cell. Missing storage and unavailable arithmetic are checked where
-        // their actual inputs/outputs are needed below.
+
+
+
         if (!species.rho || !species.cellStatus
             || !state.rho || !state.rhoUx || !state.rhoUy || !state.rhoUz
             || !state.rhoE)
@@ -128,7 +128,7 @@ UGKWP_GAS_HD inline ChemistryStatus advanceGasChemistryCell
             return gasChemistryAdapterDetail::recordFailure(species, cell, status);
         }
 
-        // Retain a wider Time operand through stage products and coverage.
+
         const Time interval = chemicalInterval;
         if (!gasFinite(interval) || interval < Time(0)
             || !gasFinite(stageVolume) || stageVolume == StorageReal(0))
@@ -189,7 +189,7 @@ UGKWP_GAS_HD inline ChemistryStatus advanceGasChemistryCell
             );
         gasChemistryDetail::retainDiagnostic(status,inputDiagnostic);
 
-        // Convert the actual publication before the first write. A zero-time
+
         // call retains the original density bits, not their volume round trip.
         StorageReal candidateDensity[Ns];
         densitySum = Real(0);
@@ -236,7 +236,7 @@ UGKWP_GAS_HD inline ChemistryStatus advanceGasChemistryCell
             }
         }
         // A zero interval must not change density bits through a round trip with
-        // an arbitrary volume.
+
         if (interval != Time(0))
         {
             for (int s = 0; s < Ns; ++s)
@@ -249,8 +249,8 @@ UGKWP_GAS_HD inline ChemistryStatus advanceGasChemistryCell
     }
 }
 
-// The volume pointer is consumed only for an active chemistry cell. Missing
-// storage cannot be substituted with a supplied numerical zero volume.
+
+
 template<class GasState,class Time>
 UGKWP_GAS_HD inline ChemistryStatus advanceGasChemistryCellWithVolumes
 (GasState& state,int cell,Time interval,const GasChemistryStateReal<GasState>* volumes,

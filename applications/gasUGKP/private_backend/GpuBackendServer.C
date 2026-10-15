@@ -129,8 +129,8 @@ bool responseHeader
     const std::string& overrideError = std::string()
 )
 {
-    // Complete request consumption before synchronous response publication.
-    // A send-then-receive peer must not be blocked by unread request surplus.
+
+
     if (readingFrame && !discardRequest(fd)) return false;
     std::string error;
     if (status != 0)

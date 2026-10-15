@@ -138,11 +138,11 @@ extern "C" int ugkwpGpuResidentStrictConfigureGasWallEnergyLedger
     {
         return 0;
     }
-    // The captured accumulation kernel owns raw pointer/count arguments.
+
     if (ugkpInvalidateGasWallEnergyGraph(handle) != 0) return 1;
     if (s->retiredFaceIds != nullptr)
     {
-        // A previous failed publication may still reference this allocation.
+
         if (syncGasWallLedgerPointers(s, "cudaMemcpy retry gas-wall ledger pointers") != 0)
             return 1;
         const cudaError_t error = cudaFree(s->retiredFaceIds);
@@ -181,7 +181,7 @@ extern "C" int ugkwpGpuResidentStrictConfigureGasWallEnergyLedger
         {
             if (replaceFaces)
             {
-                // Preserve ownership even when cleanup itself cannot free it.
+
                 if (cudaFree(faces) != cudaSuccess) s->retiredFaceIds = faces;
             }
             return 1;
@@ -287,7 +287,7 @@ extern "C" int ugkwpGpuResidentStrictConfigureGasWallEnergyLedger
         ) != 0
     )
     {
-        // Keep the canonical owners reachable after a failed/partial copy.
+
         return 1;
     }
     return 0;

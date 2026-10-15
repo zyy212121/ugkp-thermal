@@ -231,7 +231,7 @@ struct SstConfigArgs
 
 // Optional extension operations leave every v7 legacy payload unchanged.
 // These wire objects contain fixed-width scalar fields only, with no padding;
-// model tables cross IPC as canonical dictionary bytes, never pointers.
+
 static constexpr std::uint32_t gasModelApiVersion = 1;
 static constexpr std::uint64_t maxGasModelTextBytes = 8ULL*1024ULL*1024ULL;
 struct GasModelCapabilitiesV1
@@ -265,7 +265,7 @@ inline bool sameGasSpeciesIdentity(const GasSpeciesIdentityV1& a, const GasSpeci
 {
     return a.version==b.version && a.speciesCount==b.speciesCount
         && a.speciesOrderHash==b.speciesOrderHash && a.thermoHash==b.thermoHash
-        && a.mechanismHash==b.mechanismHash; // Optional diagnostic equality only.
+        && a.mechanismHash==b.mechanismHash;
 }
 
 struct BoundaryLayerConfigV1
@@ -275,8 +275,8 @@ struct BoundaryLayerConfigV1
     double relativeTolerance=1e-8,absoluteTolerance=1e-10,stretch=2;
     double turbulentPrandtl=.9,turbulentSchmidt=.7;
 };
-// Existing native IPC layout, encoded field by field at fixed wire offsets.
-// Padding bytes are reserved; native struct padding never becomes a decoder.
+
+
 inline bool wireLittleEndian()
 { const std::uint16_t one=1; return *reinterpret_cast<const unsigned char*>(&one)==1; }
 template<class T> inline void encodeWireScalar(unsigned char* bytes,const T& value)
@@ -861,8 +861,8 @@ template<> struct WireCodec<BoundaryLayerConfigV1>
 template<class T> constexpr std::size_t wireBytes(const T&) { return WireCodec<T>::size; }
 template<class T> inline std::array<unsigned char,WireCodec<T>::size> encodeWire(const T& value)
 { std::array<unsigned char,WireCodec<T>::size> b{}; WireCodec<T>::encode(b.data(),value); return b; }
-// Scalar codecs transfer the current host object representation, with byte
-// reversal on another endian; they do not invent numerical format conversion.
+
+
 inline bool validCount(const std::int32_t count, const std::int32_t limit)
 {
     (void)limit;
@@ -907,7 +907,7 @@ inline bool gasSpeciesPayloadBytes(const GasSpeciesIdentityV1& identity,
 }
 // Optional wall-family extension; every pre-existing wire layout is unchanged.
 
-// V1 keeps nine reserved zero words before species, preserving old endpoint offsets.
+
 static constexpr std::uint32_t boundaryLayerDiagnosticScalars=25;
 inline bool boundaryLayerDiagnosticBytes(const std::uint32_t walls,
     const std::uint32_t species,std::uint64_t& bytes)

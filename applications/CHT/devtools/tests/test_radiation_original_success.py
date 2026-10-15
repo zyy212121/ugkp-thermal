@@ -49,7 +49,7 @@ def table(path,change='ordinary'):
  if change=='negative_diameter':s=s.replace('Dvals 0.0001 0.0002','Dvals -0.0002 -0.0001')
  if change=='equal_logarithms':s=s.replace('Dvals 0.0001 0.0002','Dvals 1e100 1.0000000000000002e100')
  if change=='wide_temperature':s=s.replace('Tvals 300 4000','Tvals -1e308 1e308')
- # Keep actual original payload identity valid, so admission cannot mask arithmetic.
+
  begin=s.index('Tvals ');end=s.index('END_MIE_TABLE\n')+len('END_MIE_TABLE\n');s=s[:end]+'payloadSha1 '+hashlib.sha1(s[begin:end].encode()).hexdigest()+'\n';path.write_text(s);return path
 
 def run(probe,mode,tmp_path,path=None,mesh=None,t='4100',mu='0',d='0.00015',extra=None):

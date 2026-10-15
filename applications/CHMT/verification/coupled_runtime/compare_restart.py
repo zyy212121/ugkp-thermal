@@ -17,7 +17,7 @@ def state_payload(path):
     begin = HEADER.size+config_size
     if begin+state_size != len(data):
         raise ValueError('checkpoint payload length mismatch')
-    return data[begin:],fields[4:8]
+    return data[begin:],fields[2:8]
 
 
 def compare_checkpoints(reference,resumed):

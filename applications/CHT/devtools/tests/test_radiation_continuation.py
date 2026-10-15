@@ -110,8 +110,8 @@ def test_generator_original_single_node_fallback(generator):
     assert np.array_equal(generator.logspace(1.,2.,-1),[1.])
 
 def test_tail_finite_exhaustion(generator):
-    # Negative x is a defined finite continuation witness for the existing series;
-    # this is not a physical Planck-accuracy assertion.
+
+
     T=-generator.C2/.0015
     def tail(x):
         total=0.
@@ -125,7 +125,7 @@ def test_tail_finite_exhaustion(generator):
     assert generator.planck_band_fraction(T,.5,1.)==(a-b)/(math.pi**4/15.)
 
 def test_planck_ordinary_accuracy(generator):
-    # Independent dimensionless Simpson quadrature, unchanged analytic normalization.
+
     T=1500.;lo=.5e-6;hi=8e-6;a=generator.C2/(hi*T);b=generator.C2/(lo*T)
     x=np.linspace(a,b,20001);f=x**3/np.expm1(x);h=(b-a)/20000
     expected=h/3*(f[0]+f[-1]+4*f[1:-1:2].sum()+2*f[2:-1:2].sum())/(math.pi**4/15)
@@ -141,8 +141,8 @@ def test_actual_first_sweep_independent_values(radiation_probe,tmp_path,case,sig
     mode='do_one_negative_diameter' if signed_case=='negative_diameter' else 'do_one'
     r=run(radiation_probe,mode,p,case)
     assert r.returncode==0,r.stdout+r.stderr
-    # Independently assemble the two unit-aspect-ratio cells, angular quadrature,
-    # isotropic scattering and one existing forward Gauss-Seidel direction sweep.
+
+
     directions=[];weights=[]
     for ti in range(2):
         theta=(ti+.5)*math.pi/2

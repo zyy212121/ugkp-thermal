@@ -37,8 +37,8 @@ UGKWP_GAS_HD inline bool validMetadata
     if (species < 0 || species >= Ns || !view.species || !view.coefficients)
         return false;
     const SpeciesThermoData<Real>& data = view.species[species];
-    // Original trial certificate, not proof of the actual allocation extent.
-    // Completed producers can follow supplied backing despite these labels.
+
+
     const int count = data.model == SpeciesThermoModel::LinearCp ? 2
         : (data.model == SpeciesThermoModel::NASA7 ? 5 : 0);
     if (!count || view.coefficientCount < count || data.coefficientOffset < 0
@@ -70,8 +70,8 @@ UGKWP_GAS_HD inline ThermoStatus evaluateSpecies
     const TableReal* c = view.coefficients + data.coefficientOffset;
     const Real R = universalGasConstant<Real>()/data.molarMass;
     const int available=declared?view.coefficientCount-data.coefficientOffset:0;
-    // Full supplied coefficients are consumed only for a formerly refused
-    // metadata route. Preserve original successful per-property availability.
+
+
     bool completeCoefficients=!declared;
     ThermoStatus failure=!declared?ThermoStatus::InvalidModel
         : (Complete && !gasFinite(temperature)?ThermoStatus::NonFiniteInput:ThermoStatus::Success);
@@ -79,9 +79,9 @@ UGKWP_GAS_HD inline ThermoStatus evaluateSpecies
     if (data.model == SpeciesThermoModel::LinearCp)
     {
         local.cp = c[0] + c[1]*temperature;
-        // A selected terminal h/e consumer needs the actual supplied third
-        // coefficient even when the original Cp-only metadata was sufficient.
-        // Default/scalar/strict property availability is deliberately unchanged.
+
+
+
         if(Complete && CompleteEnthalpy && !completeCoefficients && available<3
             && failure==ThermoStatus::Success)failure=ThermoStatus::NonFiniteInput;
         local.h = completeCoefficients || (Complete && CompleteEnthalpy) || available>=3
@@ -114,8 +114,8 @@ UGKWP_GAS_HD inline ThermoStatus evaluateSpecies
     }
     local.cv = local.cp-R;
     local.e = local.h-R*temperature;
-    // Availability is per requested property. An unused entropy or overflowing
-    // enthalpy must not discard a finite cp. Consumers check their own channel.
+
+
     output = local;
     if(evaluated)*evaluated=true;
     return failure;
@@ -123,7 +123,7 @@ UGKWP_GAS_HD inline ThermoStatus evaluateSpecies
 
 } // namespace gasThermoDetail
 
-// Retain the original trial metadata result, without whole-range property proofs.
+
 template<class Real, int Ns>
 UGKWP_GAS_HD inline ThermoStatus validateSpeciesThermoView
 (const SpeciesThermoView<Real,Ns>& view) noexcept
@@ -210,8 +210,8 @@ UGKWP_GAS_HD inline ThermoStatus evaluateMixtureEnergy
     return failure;
 }
 
-// Terminal reconstructed energy has no mass-weighted Cv consumer. Keep its
-// original species energy accumulation independent of that unused channel.
+
+
 template<class Real,int Ns,class TableReal>
 UGKWP_GAS_HD inline ThermoStatus evaluateMixtureInternalEnergy
 (
@@ -237,8 +237,8 @@ UGKWP_GAS_HD inline ThermoStatus evaluateMixtureInternalEnergy
     energy=localEnergy;if(evaluated)*evaluated=true;return failure;
 }
 
-// Terminal Cp-only consumers keep their original independent channel: an
-// unused overflowing/missing enthalpy cannot invalidate finite heat capacity.
+
+
 template<class Real,int Ns,class TableReal>
 UGKWP_GAS_HD inline ThermoStatus evaluateMixtureHeatCapacity
 (
@@ -285,7 +285,7 @@ UGKWP_GAS_HD inline Real mixtureHeatCapacity
 }
 
 // Mass-specific mixture R. Input may contain masses or mass fractions; total
-// mass is explicitly divided out, including its actual IEEE result at zero.
+
 template<class Real,int Ns,class TableReal>
 UGKWP_GAS_HD inline Real mixtureGasConstant
 (const Real* speciesMass,const SpeciesThermoView<TableReal,Ns>& view) noexcept
@@ -344,7 +344,7 @@ UGKWP_GAS_HD inline ThermoStatus mixtureDensityFromPressureTemperatureImpl
     return ThermoStatus::Success;
 }
 
-// Preserve the public explicit <Real,Ns,TableReal> entry-point spelling.
+
 template<class Real,int Ns,class TableReal>
 UGKWP_GAS_HD inline ThermoStatus mixtureDensityFromPressureTemperature
 (
@@ -359,8 +359,8 @@ UGKWP_GAS_HD inline ThermoStatus mixtureDensityFromPressureTemperature
 // Generic caloric inversion permits independent condensed/film calorics to
 // share the same safeguarded solve without representing condensed matter as gas.
 // Evaluators must validate their full operating interval before this call.
-// Refinement trials remain transactional. Completion publishes only an actual
-// successful evaluator call's values, even if their IEEE results are nonfinite.
+
+
 template<bool Refinement=false,class Real,class Evaluator,bool Complete=!Refinement>
 UGKWP_GAS_HD inline ThermoStatus evaluateCaloricEnergy
 (const Evaluator& evaluator,Real temperature,Real& energy,Real& capacity,
@@ -381,8 +381,8 @@ UGKWP_GAS_HD inline ThermoStatus evaluateCaloricEnergy
 
 template<class Real,int Ns,class TableReal,bool Refinement> struct MixtureEnergyEvaluator;
 
-// An arbitrary callback's failure can mean missing data or unwritten outputs.
-// Only the known mixture producer provides a separate complete numeric route.
+
+
 template<class Real,class Evaluator>
 UGKWP_GAS_HD inline ThermoStatus completeCaloricEvaluation
 (const Evaluator& evaluator,Real T,Real& energy,Real& capacity,bool& evaluated,
@@ -400,8 +400,8 @@ UGKWP_GAS_HD inline ThermoStatus completeCaloricEvaluation
  ThermoStatus =ThermoStatus::Success) noexcept
 { return evaluator.complete(T,energy,capacity,evaluated); }
 
-// Generic target refusal must precede all evaluator/bounding work: a material
-// owner can already complete it through its own successful endpoint fallback.
+
+
 template<class Real,class Evaluator>
 UGKWP_GAS_HD inline ThermoStatus completeNonFiniteCaloricTarget
 (const Evaluator&,Real,Real,const ThermoInversionControls<Real>&,Real&,bool*) noexcept
@@ -448,8 +448,8 @@ UGKWP_GAS_HD inline ThermoStatus invertCaloricEnergy
     const ThermoStatus highStatus=evaluateCaloricEnergy<Refinement,Real,Evaluator,false>(evaluator,hi,ehi,chi);
     const bool lowAvailable=lowStatus==ThermoStatus::Success;
     const bool highAvailable=highStatus==ThermoStatus::Success;
-    // These are original trial failures: the reactor must damp/refine them,
-    // rather than publish a different finite temperature into a successful step.
+
+
     if(Refinement) {
         if(!lowAvailable)return lowStatus;
         if(!highAvailable)return highStatus;
@@ -496,7 +496,7 @@ UGKWP_GAS_HD inline ThermoStatus invertCaloricEnergy
             && absValue(correction)<=temperatureTolerance)) { temperature=trial;if(evaluatedTemperature)*evaluatedTemperature=true;return ThermoStatus::Success; }
         if(bracket)
         {
-            // Endpoint residual signs also support decreasing calorics.
+
             if((residual<Real(0))==(elo<internalEnergy)) { lo=trial;elo=energy; }
             else { hi=trial;ehi=energy; }
         }
@@ -507,7 +507,7 @@ UGKWP_GAS_HD inline ThermoStatus invertCaloricEnergy
         trial=next;
     }
     if(Refinement)return ThermoStatus::IterationLimit;
-    // saved is an evaluated T/E pair, never the next unevaluated proposal.
+
     temperature=saved;
     if(evaluatedTemperature)*evaluatedTemperature=true;
     return ThermoStatus::Success;

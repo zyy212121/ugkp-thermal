@@ -16,7 +16,7 @@ PROFILES = {"pColdNodeSpecificEnthalpy", "pCold2DNodeSpecificEnthalpy"}
 
 
 def field_specs(marker):
-    # Dispatch identifies bytes, never a solver precision or admission policy.
+
     if marker == LEGACY_CHT_MARKER:
         return legacy_specs("UGKP_THERMAL_PARTICLES_SCHEMA7_T64_BIN") + [("pThermalEnthalpyResidual", "<f8", 1)]
     if marker not in (CHT_MARKER, FSH_MARKER):
@@ -42,7 +42,7 @@ def iter_chunks(path):
         total, bound = map(int, tokens[1:])
         if total < 0:
             raise ValueError("negative particle restart count")
-        # The native reader treats the saved bound as descriptive metadata.
+
         done = 0
         while done < total:
             raw = stream.read(4)

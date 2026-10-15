@@ -115,7 +115,7 @@ int main(int argc,char**argv) try {
   #include "setRootCase.H"
   #include "createTime.H"
   #include "createMesh.H"
-  // Match the application's serial resident.initialise() cell-face setup.
+
   (void)mesh.cells();
   MieTable table(std::getenv("T13_TABLE"));
   volScalarField wall(IOobject("T",runTime.timeName(),mesh,IOobject::NO_READ,IOobject::NO_WRITE),mesh,dimensionedScalar("T",dimTemperature,300));
@@ -169,8 +169,8 @@ int main(int argc,char**argv) try {
     if(mode=="transaction_padded")check(s.representativeDiameterM[0]==table.maxDiameterM(),"available-prefix shape changed diameter clamping");
     auto actual=solver.solve(s,*w);
     if(mode.find("boundary_")==0){
-     // A controlled supplied boundary field exercises transaction scaling while
-     // retaining the real DO/material solve. This is not an analytic RTE case.
+
+
      int index=0;const double energy[]={1e16,-1e16+2,1};
      forAll(actual.boundaryQrOutwardWm2,p)forAll(actual.boundaryQrOutwardWm2[p],f){
       double e=mode=="boundary_overflow"?(index==0?1e-320:0):mode=="boundary_tiny"?(index==0?1e-20:0):mode=="boundary_negative"?(index==0?-1e-6:0):(index<3?energy[index]:0);
@@ -197,8 +197,8 @@ int main(int argc,char**argv) try {
      check(near(pub.acceptedSpecificHeat,law.enthalpyIncrement(old,std::fma(update.scale-1.,old,update.offset))),"actual enthalpy increment");
      std::cout<<"APPLY "<<i<<' '<<update.scale<<' '<<update.offset<<' '<<pub.acceptedSpecificHeat<<' '<<ugkwp::effectiveParticleTemperature(state,law)<<'\n';
     }
-    // Above-bound public transactions succeed independently of the original
-    // affine entrypoint, which rejects that supplied mean. Do not fake apply.
+
+
     accepted+=energy;
     std::cout<<"DIAG "<<i<<' '<<result.absorptionCoefficientInvM[i]<<' '<<result.scatteringCoefficientInvM[i]<<' '<<result.extinctionCoefficientInvM[i]<<' '<<result.asymmetryFactor[i]<<'\n';
     std::cout<<"CELL "<<i<<' '<<observed<<' '<<result.finalMeanTemperatureK[i]<<' '<<energy<<' '<<state.temperature<<' '<<state.specificEnthalpyResidual<<'\n';

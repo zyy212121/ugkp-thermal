@@ -5,8 +5,8 @@ namespace ugkwp { namespace gasChemistryDetail {
 // Equilibrate each equation by its own row norm before partial pivoting.
 // Independent kinetic modes can have arbitrarily different rate/time scales;
 // a unit slow-mode pivot must not be compared with a 1e100 fast-mode diagonal.
-// Strict trials retain their original pivot choices. Terminal completion also
-// performs the final IEEE divisions when a numerical diagnostic remains.
+
+
 template<class R, int N, bool Refinement=false, bool Complete=!Refinement>
 UGKWP_GAS_HD inline bool solveDense(int n, R* a, R* b,bool* evaluated=nullptr) noexcept
 {
@@ -74,7 +74,7 @@ template<class R,int N,class TableReal=R> struct ReactorContext {
  const SpeciesThermoView<TableReal,N>& thermo;
  const GasMechanismView<TableReal,N>& mechanism;
  const ChemistryControls<R>& controls;
- bool refinement; // Internal trial decisions must remain available to callers.
+ bool refinement;
  R leftInverse[N*N]; // [coordinate*Ns+species]
  UGKWP_GAS_HD ReactorContext(const ClosedReactorInput<R,N>& b,const SpeciesThermoView<TableReal,N>& t,const GasMechanismView<TableReal,N>& m,const ChemistryControls<R>& c,bool refine=true) noexcept:base(b),thermo(t),mechanism(m),controls(c),refinement(refine),leftInverse{} {}
  UGKWP_GAS_HD UGKWP_CHEMISTRY_DEVICE_LEAF bool prepare(bool* evaluated=nullptr) noexcept {
@@ -105,7 +105,7 @@ template<class R,int N,class TableReal=R> struct ReactorContext {
    if(diagnostic)*diagnostic=status;
    return status==ThermoStatus::Success || (!refinement && available);
  }
- // A caller can retain scalar RHS availability when only AD/projection fails.
+
  UGKWP_GAS_HD ChemistryStatus evaluate(const R* z,R* f,R& temperature,R* jacobian,
      R* preparedMasses=nullptr,bool* rhsAvailable=nullptr,bool* jacobianAvailable=nullptr) const noexcept {
    if(rhsAvailable)*rhsAvailable=false;
@@ -147,8 +147,8 @@ template<class R,int N,class TableReal=R> struct ReactorContext {
    if(!derivatives && (refinement || !available))return st;
    const int rank=mechanism.independentRank;
    R cv=mixtureHeatCapacity(masses,temperature,thermo);
-   // Only nonempty fixed-U feedback consumes Cv; an empty Jacobian keeps
-   // its original success independently of unused caloric availability.
+
+
    if(rank>0 && !refinement && !gasFinite(cv)){
      available=false;const auto caloric=evaluateMixtureHeatCapacity(masses,temperature,thermo,cv,&available);
      if(caloric!=ThermoStatus::Success){st.code=ChemistryCode::TemperatureFailure;st.thermoCode=caloric;}
@@ -176,7 +176,7 @@ template<class R,int N,class TableReal=R> struct ReactorContext {
 };
 }}
 namespace ugkwp {
-// Coordinates z are mol/m^3 increments in the supplied dimensionless MOLAR
+
 // basis; masses=baseMass+W*volume*B*z. The fixed formation-inclusive U closes T.
 template<class R,int N,class TableReal> UGKWP_GAS_HD inline ChemistryStatus evaluateConservativeReactor
 (const ClosedReactorInput<R,N>& base,const R* z,const SpeciesThermoView<TableReal,N>& t,const GasMechanismView<TableReal,N>& m,const ChemistryControls<R>& controls,R* f,R& temperature,R* jacobian) noexcept {

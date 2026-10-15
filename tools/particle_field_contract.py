@@ -265,8 +265,8 @@ template<class T,class U> int copyToHost(T* d,const U* s,size_t n,const char*) {
                 continue
             code += f'if(!s->{name} || live.at(s->{name})!=n*{f["width"]}) throw std::runtime_error("allocation closure: {name}");\n'
     if helper_allocations:
-        # Exercise the real retained-owner and pending-bit paths as well as the
-        # first acquisition; no replacement allocation or initialization body.
+
+
         code += 'const size_t retainedCount=live.size(),retainedMemsets=memsetCount;\n'
         code += ''.join(f's->{name}[0]=7;\n' for name in reference_aliases)
         code += ''.join(call + ';\n' for call in helper_allocations + helper_initialisations)

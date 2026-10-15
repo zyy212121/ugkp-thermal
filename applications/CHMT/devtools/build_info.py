@@ -33,7 +33,7 @@ def main():
             'host_compiler': host, 'openfoam_version': os.environ.get('WM_PROJECT_VERSION', 'UNKNOWN'),
             'openfoam_directory': os.environ.get('WM_PROJECT_DIR', 'UNKNOWN'),
             'source_fingerprint': 'UNKNOWN', 'upstream_base': 'UNKNOWN', 'solver_commit': 'UNKNOWN'}
-    # This identifies the recorded metadata only; it is not a verified source hash.
+
     data['build_id'] = hashlib.sha256(json.dumps(data, sort_keys=True, separators=(',', ':')).encode()).hexdigest()
     macros = {'CHMT_BUILD_ID': data['build_id'], 'CHMT_SOURCE_FINGERPRINT': data['source_fingerprint'],
               'CHMT_UPSTREAM_BASE': data['upstream_base'], 'CHMT_SOLVER_COMMIT': data['solver_commit'],

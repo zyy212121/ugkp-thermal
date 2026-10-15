@@ -701,7 +701,7 @@ inline void readV8Payload(std::istream& is, std::uint32_t bound, const MutableVi
 
 }
 
-// Current writer: mixed float cold profiles, double remaining physical fields and carry.
+
 static const char* const currentFormatName = gpuThermalRestart::currentChtMarker;
 inline void writeCurrent(std::ostream& os,const ConstView& v)
 { gpuThermalRestart::writeCurrent<true>(os,currentFormatName,v); }

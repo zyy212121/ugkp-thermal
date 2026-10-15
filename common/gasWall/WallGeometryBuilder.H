@@ -91,7 +91,7 @@ template<class R> bool triangulate(const WallGeometryMesh<R>&m,int f,Face<R>&out
         if(((u>atol&&v<-atol)||(u<-atol&&v>atol))&&((w>atol&&z<-atol)||(w<-atol&&z>atol)))return false;
     }
     // Collinear edge points carry no triangle area but remain in the mesh's
-    // original mesh topology.
+
     bool changed=true;
     while(changed&&ring.size()>3){changed=false;for(std::size_t i=0;i<ring.size();++i){
         const auto&a=m.points[ring[(i+ring.size()-1)%ring.size()]],&b=m.points[ring[i]],&c=m.points[ring[(i+1)%ring.size()]];
@@ -118,12 +118,12 @@ template<class R> bool triangulate(const WallGeometryMesh<R>&m,int f,Face<R>&out
     if(!(sum>0))return false;
     out.centre=add(anchor,mul(moment,R(1)/sum));return finite(out.centre);
 }
-// Host-only Gauss setup, shared by all walls in one rebuild.
-// The final evaluated Newton candidate supplies the rule even at its local
-// iteration budget; weight arithmetic is always evaluated at that same root.
-// The symmetric rule retains its actual evaluated weights.
+
+
+
+
 template<class R> bool gaussRule(int order,std::vector<R>&x,std::vector<R>&weight){
-    if(order<=0)return false; // No quadrature points exist for this request.
+    if(order<=0)return false;
     x.resize(order);weight.resize(order);
     const R pi=std::acos(R(-1)),eps=R(8)*std::numeric_limits<R>::epsilon();
     for(int i=0;i<(order+1)/2;++i){
@@ -175,8 +175,8 @@ template<class R> bool cellSeed(const WallGeometryMesh<R>&m,const Context<R>&ctx
             scale=std::max(scale,norm(sub(m.points[m.facePoints[k]],seed)));
     if(!(scale>0))return false;
     // Prefer a well-separated kernel point to avoid numerically flat positive
-    // tetrahedra at reflex planes. The second pass also tries narrow kernels.
-    // The actual resulting tetrahedra determine whether a decomposition exists.
+
+
     const R margins[2]={R(.01)*scale,R(256)*std::numeric_limits<R>::epsilon()*scale};
     for(R margin:margins){
         seed=m.cellCentres[cell];
@@ -307,9 +307,9 @@ template<class R> bool rayTriangle(const Vec<R>&o,const Vec<R>&n,const Vec<R>&a,
 template<class R> bool matching(const WallGeometryMesh<R>&m,const Context<R>&ctx,WallGeometryDescriptor<R>&d,WallStatus&s,const WallGeometryOptions<R>&,R scale){
     const R tol=R(1024)*std::numeric_limits<R>::epsilon()*scale;
     R entry=0;int cell=d.ownerCell;
-    // Each transition advances to a strictly later actual triangle hit. The
-    // finite mesh therefore supplies the end condition, including re-entry to
-    // a concave cell, without a ray-cell budget or a visited-cell certificate.
+
+
+
     for(;;){
         if(cell<0||(!m.gasCell.empty()&&!m.gasCell[cell]))return invalid(s,d.wallFace);
         R exit=std::numeric_limits<R>::max();int exitFace=-1;bool ambiguous=false;
@@ -375,15 +375,15 @@ template<class R> bool build(const WallGeometryMesh<R>&m,const Context<R>&ctx,in
     }
     d.geometryVolume=volume;d.volume=m.volumes[d.ownerCell];
     if(!opt.constructQuadrature){
-        // Retain the actual geometric moments without diagnostic nodes.
+
         const Vec<R> centroid=add(m.cellCentres[d.ownerCell],mul(moment,R(1)/volume));
         d.firstMoment=d.volume*(d.ownerDistance+dot(moment,d.normal)/volume);
         d.firstMomentVector=mul(centroid,d.volume);
         out=std::move(d);return true;
     }
     if(opt.profileNodes&&!profileOwnerQuadrature(tetra,profile,ctx,d))return invalid(s,wallFace);
-    // Preserve the existing stage-volume normalization, without making its
-    // difference from the constructed geometry an admission certificate.
+
+
     R quadratureVolume=0;for(R weight:d.volumeWeight)quadratureVolume+=weight;
     const R factor=d.volume/quadratureVolume;
     for(std::size_t i=0;i<d.distance.size();++i){

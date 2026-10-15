@@ -4,7 +4,7 @@
 #else
 #define GPU_TILE_HD inline
 #endif
-// Zero denotes invalid input; representational rounding never rejects work.
+
 GPU_TILE_HD int hardwareReductionTile(const long long population, const int blockThreads,
     const int multiprocessors, const int residentBlocksPerSm)
 {

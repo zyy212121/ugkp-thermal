@@ -17,8 +17,8 @@ template<class X,class R,int N,bool Complete=true,bool SchemaChecked=false> UGKW
 (int r,const X& T,const X* c,const SpeciesThermoView<R,N>& t,const GasMechanismView<R,N>& m,X& q,bool* evaluated=nullptr) noexcept {
  if(evaluated)*evaluated=false;
  using C=decltype(rateValue(T));
- // A wall solve may reuse its single strict schema audit across Newton probes.
- // Consumed pointer availability is still checked at every actual reaction.
+
+
  if(!reactionInputAvailable<R,N,Complete || SchemaChecked>(m,r))return false;
  const auto& a=m.reactions[r];X k=arrhenius(a.highRate,T);
  if(a.type!=GasReactionType::Elementary) {
@@ -66,8 +66,8 @@ template<class X,class R,int N,bool Complete=true,bool SchemaChecked=false> UGKW
          gasThermoDetail::SpeciesValues<C> values;bool available=false;
          gasThermoDetail::evaluateSpecies<C,N,R,true,true,true>(term.species,Tvalue,t,values,&available);
          if(!available)return false;
-         // The Gibbs scalar and its thermal derivative consume h and entropy,
-         // not the unused cv/e channels of the caloric bundle.
+
+
          g=(values.h-Tvalue*values.entropy)*W;dg=-values.entropy*W;
        }
        deltaG=deltaG+X(sign)*GibbsNumber<X,C>::make(g,dg);deltaNu+=sign;}
@@ -96,8 +96,8 @@ template<class R,int N,class TableReal,bool Complete=true> UGKWP_GAS_HD inline C
 }
 }
 // Production [mol/(m^3 s)] and optional net progress [mol/(m^3 s)]. All caller
-// outputs stay transactional for strict trials or unavailable consumed data.
-// A terminal numerical diagnostic can accompany fully evaluated public outputs.
+
+
 template<class R,int N,class TableReal,bool Complete=true> UGKWP_GAS_HD inline bool evaluateGasRates
 (R T,const R* c,const SpeciesThermoView<TableReal,N>& t,const GasMechanismView<TableReal,N>& m,R* production,R* progress,ChemistryStatus& status,bool* evaluated=nullptr) noexcept {
  if(evaluated)*evaluated=false;

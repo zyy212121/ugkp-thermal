@@ -156,13 +156,13 @@ struct Tolerances {
 struct Budget {
     Real boundaryMass=0,boundarySpecies[Ns]{},boundaryElements[Ne]{},boundaryEnergy=0;
     Vec3 boundaryMomentum{};
-    Vec3 supportImpulse{}; // Legacy checkpoint slot only; never accumulated or used by physics.
+    Vec3 supportImpulse{};
     Real supportWork=0,bodyWork=0,radiation=0,gclResidual=0;
     Real exchangeMass[NParticipants]{},exchangeSpecies[NParticipants][Ns]{},exchangeEnergy[NParticipants]{};
     Vec3 exchangeMomentum[NParticipants]{};
     Real filmPressureVolume=0,filmKineticAdvection=0,filmKineticStorage=0,filmReducedResidual=0,filmKineticDefect=0;
     Real thinLayerGeometryDefect=0,thinLayerStressDefect=0,numericalEnergyResidual=0;
-    Real turbulenceOmegaConstraint=0; // Legacy checkpoint-only SST statistics; no runtime admission.
+    Real turbulenceOmegaConstraint=0;
     Real turbulenceInventory=0,turbulenceProduction=0,turbulenceDissipation=0,turbulenceBoundaryFlux=0;
     std::uint64_t consumedPackets=0;
 };

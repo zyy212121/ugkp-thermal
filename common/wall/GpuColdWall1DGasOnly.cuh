@@ -44,7 +44,7 @@ __device__ inline bool advanceColdWall1DGasOnlyGroup
     const double assignedMass = coldWall1DGroupSum(double(s.pColdRingSolidMass[ringBase+lane]),mask);
     const GpuTime oldAge = s.pColdContactAge[particleI];
     const GpuTime nextAge = oldAge+activeContactDeltaTSeconds;
-    // Every lane finishes its shared age load before lane zero publishes it.
+
     __syncwarp(mask);
     if(connectedMass<assignedMass && assignedMass>0.0)
       s.pColdRingSolidMass[ringBase+lane]=double(s.pColdRingSolidMass[ringBase+lane])*connectedMass/assignedMass;
@@ -113,7 +113,7 @@ __device__ inline bool advanceColdWall1DGasOnlyGroup
     }
     meanTemperature = __shfl_sync(mask, meanTemperature, 0, 8);
 
-    // Publish the complete result after required arithmetic has finished.
+
     s.pColdNodeSpecificEnthalpy[nodeBase + lane] = storedEnthalpy;
     s.pColdRingSolidMass[ringBase + lane] = ringSolidMass;
     if (lane == 0)

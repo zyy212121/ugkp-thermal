@@ -18,8 +18,8 @@ UGKWP_GAS_HD inline bool gasEnergyFinite(Energy value) noexcept
     return std::isfinite(value);
 }
 
-// This bound selects the legacy repair value; it is not a final-output gate.
-// Keep it separate from mathematical finiteness used by terminal publication.
+
+
 template<class Energy>
 UGKWP_GAS_HD inline bool gasEnergyFallbackFinite(Energy value) noexcept
 { return value == value && value < 1.0e300 && value > -1.0e300; }

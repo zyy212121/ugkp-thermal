@@ -2,7 +2,7 @@
 #define CHMT_MATERIALS_CONDUCTIONCONTINUATION_H
 #include "materials/CpuMaterialDriver.H"
 namespace chmt { namespace detail {
-// Caller-private completion route; never a configuration or user selector.
+
 struct ConductionContinuation {
     static bool predict(const CpuMaterialDriver& driver,const HostState& base,const CouplingInterval& interval,
         WallProgram& output,std::string& error,CpuMaterialReport* report) {

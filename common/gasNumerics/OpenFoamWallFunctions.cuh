@@ -446,8 +446,8 @@ UGKP_WALL_HD JayatillekeThermalTransport sstJayatillekeThermalTransport
         const GpuReal heatFlux = -molecular*temperatureNormalGradient;
         return {molecular, std::isfinite(heatFlux) ? 1 : 0, heatFlux};
     }
-    // This branch actually divides by viscosity; the zero-uStar molecular
-    // branch above already has its complete result even when viscosity is zero.
+
+
     if (trialEligibility && mu == GPU_R(0.0)) return {molecular, 0};
     const GpuReal yPlus = uStar*y*rhoWall/mu;
     const bool viscous = yPlus < yPlusThermal;

@@ -345,8 +345,8 @@ extern "C" int ugkwpGpuResidentStrictDownloadNut
 extern "C" void ugkwpGpuResidentStrictRelease(void* handle);
 extern "C" const char* ugkwpGpuResidentStrictLastError();
 
-// A consumed index must be representable by the actual C ABI. This replaces
-// the blanket native-label-width refusal with conversion of each real value.
+
+
 template<class To,class From>
 inline To gpuHostValue(const From value)
 {
@@ -358,8 +358,8 @@ inline To gpuHostValue(const From value)
     return static_cast<To>(value);
 }
 
-// Borrow the ordinary ABI-compatible input; convert only an actual differing
-// native storage type. The resident arithmetic remains double precision.
+
+
 template<class To>
 class GpuHostReadView
 {
@@ -1697,8 +1697,8 @@ protected:
             const bool UIsInletOutlet =
                 isA<inletOutletFvPatchField<vector>>(UPatch);
 
-            // These fields own their storage. Grow only missing destination
-            // slots, then publish all addressed values and retain surplus tails.
+
+
             if (rhoPatch.size()<size) rhoPatch.setSize(size);
             if (UPatch.size()<size) UPatch.setSize(size);
             if (pPatch.size()<size) pPatch.setSize(size);
@@ -1790,9 +1790,9 @@ protected:
             restartHeader == "UGKP_PARTICLES_SCHEMA5_BIN";
         const bool binaryRestart =
             restartHeader.find("_BIN") != string::npos;
-        // Legacy schema5 omits statistical mass. Other binary labels use the
-        // current weighted layout; required bytes, not version identity, decide
-        // whether reading can complete.
+
+
+
         const bool weightedBinaryRestart =
             binaryRestart && !legacyBinaryRestart;
         Field<double> px(nParticles);

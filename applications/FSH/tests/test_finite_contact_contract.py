@@ -14,7 +14,7 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 def source_text(path):
-    # Follow actual shared quoted includes; executable fixtures test macro branches.
+
     text = _utils._include_expansion(path)[0] if path.suffix == ".cu" else path.read_text()
     for token in ("GPU_OPERATOR_REAL", "GPU_OPERATOR_TIME", "GpuReal", "GpuTime", "GpuWallEnergy"):
         text = text.replace(token, "double")

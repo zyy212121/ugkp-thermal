@@ -31,9 +31,9 @@ template<class S,int N> UGKWP_GAS_HD inline bool publishWallPrecision(const Wall
         dst.chemistryMismatch[j]=src.chemistryMismatchAvailable?S(WallReal(dst.reactionIntegral[j])-WallReal(in.coarseReactionIntegral[j])):std::numeric_limits<S>::quiet_NaN();}
     dst.integratedKSource=S(src.integratedKSource);dst.ownerOmega=S(src.ownerOmega);dst.wallKFlux=S(src.wallKFlux);
     dst.chemistryMismatchAvailable=src.chemistryMismatchAvailable;dst.iterations=src.iterations;dst.residual=S(src.residual);
-    // Residuals, audit differences and optional source integrals are diagnostics.
-    // Preserve their actual narrowed results, including inf/NaN, without making
-    // diagnostic representability a requirement for physical publication.
+
+
+
     output=dst;return true;
 }
 }}}

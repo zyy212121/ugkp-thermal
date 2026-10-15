@@ -1,6 +1,6 @@
 // Inputs: s, i, theta, arithmetic helpers and GPU_POOL_MASS_FALLBACK.
 // GPU_POOL_LOAD_LATE_THETA() supplies the declared theta-read point. Exports m,
-// ux/uy/uz, d and specificEnergy to the caller; computed contributions reach native publication.
+
 // Caller owns RNG selection/commit and accumulation order.
     const GPU_OPERATOR_REAL m = clampMin(finiteOr(s.pm[i], GPU_POOL_MASS_FALLBACK), GPU_OPERATOR_R(0.0));
     const GPU_OPERATOR_REAL ux = finiteOr(s.pux[i], GPU_OPERATOR_R(0.0));
