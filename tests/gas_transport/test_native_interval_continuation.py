@@ -86,7 +86,7 @@ def test_moving_rk_executes_real_substages_and_blends(tmp_path,rk):
     from test_legacy_ale_transport import fixture as legacy_fixture
     from test_current_gas_courant import launches
     fake=PREAMBLE.split('#ifdef LEGACY_REFERENCE',1)[0]
-    # The native host fixture already provides the common CUDA syntax macros.
+
     extra=r'''
 struct Host:State{
  State*deviceState=this;int fixedCellBlockThreads=4,fixedFaceBlockThreads=4,hostGasTimeIntegrator=RK,hostTurbulenceModel=0,hostGasFluxScheme=1,hasPeriodicFaces=0;

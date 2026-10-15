@@ -864,8 +864,8 @@ int syncDeviceState(DeviceState* s, const char* name)
 int syncSstConfiguration(DeviceState* s, const char* name, bool retainConstants=false)
 {
     const size_t first = offsetof(DeviceState, sstConfigured);
-    // The trailing constants are computed from device-only Pr/Prt. Repeated
-    // configuration must not replace them with the scrubbed host mirror.
+
+
     const size_t last = retainConstants ? offsetof(DeviceState, sstJayatillekeP)
         : offsetof(DeviceState, sstThermalYPlus) + sizeof(s->sstThermalYPlus);
     const cudaError_t err = cudaMemcpy
@@ -955,8 +955,8 @@ void scrubHostCalculationScalars(DeviceState* s)
     s->sstOmegaMin = 0.0;
     s->sstMaxSourceNumber = 0.0;
     s->sstWallTreatment = 0;
-    // Keep the two already-published thermal parameters as configuration
-    // metadata; unchanged reconfiguration needs no device work for constants.
+
+
     s->sstWallCmu = 0.0;
     s->particleDiameterFallback = 0.0;
     s->particleDiameterMin = 0.0;
@@ -4445,7 +4445,7 @@ extern "C" int ugkwpGpuResidentStrictUploadSourceResidualMass
         return 1;
     }
 
-    (void)sourceFace; // restart identity metadata is not consumed by this copy.
+    (void)sourceFace;
     return copyToDevice
     (
         s->sourceResidualMass,
@@ -4724,8 +4724,8 @@ extern "C" int ugkwpGpuResidentStrictConfigureSst
     const bool retainInventory=s->gasSpecies.mode!=ugkwp::GasMode::SingleLegacy&&previousConfigured;
     const bool updateConstants=previousKappa!=wallKappa||previousE!=wallE;
     const auto configurationFailed=[&](){
-        // These host fields describe the last completed configuration, so an
-        // actual copy/launch/sync failure remains retryable without a snapshot.
+
+
         s->sstConfigured=previousConfigured;
         s->sstWallKappa=previousKappa;s->sstWallE=previousE;
         return 1;
@@ -4813,7 +4813,7 @@ extern "C" int ugkwpGpuResidentStrictConfigureSst
     return 0;
 }
 
-// Propagate NaN through the existing maxima pass, without another field scan.
+
 struct GasCourantMaximum
 {
     __host__ __device__ double operator()(double a,double b)const
@@ -4868,9 +4868,9 @@ extern "C" int ugkwpGpuResidentStrictAdvance
     }
     if(s->gasSpecies.mode!=ugkwp::GasMode::SingleLegacy)
     {
-        // The existing particle-path flag selects actual coupled evolution;
-        // merely reserved particle storage does not. No mixture coupling body
-        // exists, so report that before mutating gas state.
+
+
+
         if(s->particlesMayBePresent)
         {setLastErrorText("selected mixture particle thermal and void-fraction coupling has no implementation");return 1;}
         return ugkwpGpuResidentStrictAdvanceGasOnly(handle,dt,simulationTime);
@@ -5701,6 +5701,27 @@ extern "C" int ugkwpGpuResidentStrictUploadParticleRestartMirror
     }
 
 
+    if (nParticles < 0 || nParticles > s->particleCapacity)
+    {
+        setLastErrorText("particle restart count exceeds allocated storage");
+        return 1;
+    }
+    if
+    (
+        nParticles > 0
+     && (
+        px == nullptr || py == nullptr || pz == nullptr
+     || pux == nullptr || puy == nullptr || puz == nullptr
+     || pT == nullptr || pTheta == nullptr || pd == nullptr || pm == nullptr
+     || pCellId == nullptr || pStatus == nullptr
+     || pRng == nullptr || pOrigId == nullptr
+        )
+    )
+    {
+        setLastErrorText("null particle restart mirror upload array");
+        return 1;
+    }
+
     cudaError_t err =
         cudaMemset(s->pStatus, 0, static_cast<size_t>(s->particleCapacity)*sizeof(int));
     if (err != cudaSuccess)
@@ -5724,18 +5745,7 @@ extern "C" int ugkwpGpuResidentStrictUploadParticleRestartMirror
     {
         return rebuildResidentParticleMomentsFromParticles(s, 0);
     }
-    if
-    (
-        px == nullptr || py == nullptr || pz == nullptr
-     || pux == nullptr || puy == nullptr || puz == nullptr
-     || pT == nullptr || pTheta == nullptr || pd == nullptr || pm == nullptr
-     || pCellId == nullptr || pStatus == nullptr
-     || pRng == nullptr || pOrigId == nullptr
-    )
-    {
-        setLastErrorText("null particle restart mirror upload array");
-        return 1;
-    }
+
 
 
     const size_t n = static_cast<size_t>(nParticles);

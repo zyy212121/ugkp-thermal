@@ -111,7 +111,7 @@ class Contracts(unittest.TestCase):
             result = run(tool, '--root', copied, '--cpu', '--output', out / 'wrong-wire-order')
             self.assertNotEqual(result.returncode, 0, result.stdout)
             # Even changing the metadata and regenerating both sides cannot silently
-            # change the current particle layout. Its codec must match its own binary golden.
+
             import json
             metadata = copied / 'common/ParticleFieldManifest.json'
             manifest = json.loads(metadata.read_text())

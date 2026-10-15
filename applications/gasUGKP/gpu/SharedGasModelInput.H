@@ -28,7 +28,7 @@ class SharedGasModelInput
 
     static void ensureRestartPrecision()
     {
-        // Preserve the supplied values in restart output at full scalar precision.
+
         IOstream::defaultPrecision(max(IOstream::defaultPrecision(),
             static_cast<unsigned>(std::numeric_limits<scalar>::max_digits10)));
     }
@@ -48,8 +48,8 @@ class SharedGasModelInput
         double rho;
         const auto densityStatus=ugkwp::mixtureDensityFromPressureTemperature(
             double(pressure),double(temperature),y,thermo,rho);
-        // This completed EOS writes its actual result on NonFiniteInput; other
-        // failures mean the formula lacked its input storage.
+
+
         if(densityStatus!=ugkwp::ThermoStatus::Success
             &&densityStatus!=ugkwp::ThermoStatus::NonFiniteInput)
             FatalErrorInFunction<<"Mixture density expression unavailable"<<exit(FatalError);
@@ -64,7 +64,7 @@ class SharedGasModelInput
     }
     void initialiseIdentity(const Time& time,const fvMesh& mesh)
     {
-        // Identity is output metadata. Read physical fields independently of it.
+
         restartIdentity_.reset(new IOdictionary(IOobject("gasModelIdentity",time.timeName(),mesh,
             IOobject::NO_READ,IOobject::AUTO_WRITE)));
         auto& dict=restartIdentity_();
@@ -89,6 +89,9 @@ public:
             modelText_=output.str();
             model_=ugkwp::parseGasModelProperties(modelText_);
             if(!active()) return;
+            if(model_.speciesNames.size()<ugkwp::compiledGasSpecies
+                || model_.species.size()<ugkwp::compiledGasSpecies)
+                throw std::runtime_error("missing species storage for compiled gas model");
             const auto thermo=model_.thermoView<ugkwp::compiledGasSpecies>();
             if(model_.mode==ugkwp::GasMode::MixtureChemistry)
             {

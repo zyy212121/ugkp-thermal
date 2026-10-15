@@ -129,7 +129,7 @@ int main(){Model m;m.in.temperature=500;m.in.matching.temperature=700;m.in.match
 
 
 def test_double_reacting_implementation_is_compilable(tmp_path):
-    # Instantiate the actual supported internal arithmetic body.
+
     source=tmp_path/'reacting_impl.cpp'
     source.write_text(BASE + '\nint main(){auto implementation=&evaluateReactingWallLayerImpl<double,2,48,double>; (void)implementation;}\n')
     result=subprocess.run(['g++','-std=c++17','-O2','-I',str(ROOT),'-I',str(ROOT/'common'),str(source),'-o',str(source.with_suffix(''))],capture_output=True,text=True)

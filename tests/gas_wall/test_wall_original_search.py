@@ -63,8 +63,8 @@ def test_original_successful_rejected_trials_and_complete_profile(tmp_path,origi
 
 
 def test_constant_wall_original_successful_intermediate_overflow(tmp_path,original_wall_root):
-    # The original complete FP64 model returns success: the traction ratio
-    # overflows before multiplying a tiny velocity, while the heat formula is finite.
+
+
     body=BASE+r'''
 int main(){Model m;m.in.integrateOwnerKSource=false;m.in.matchingDistance=1e-20;m.in.ownerDistance=4e-21;
  m.in.temperature=m.in.matching.temperature=300;m.in.matching.velocity[0]=1e-30;m.in.model.viscosity=1e300;

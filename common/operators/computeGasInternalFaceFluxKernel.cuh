@@ -49,6 +49,11 @@ __global__ void enforcePeriodicGasFluxAntisymmetryKernel(GasState* sp, const boo
     }
     const int pair=s.facePeriodicPair[f];
     if(pair<0)return;
+    if(pair>=s.nFaces)
+    {
+        if(!ugkwp::gasRecordFaceFailure(s,f,ugkwp::GasTransportCode::InvalidStorage))asm("trap;");
+        return;
+    }
     if (f > pair)
     {
         return;

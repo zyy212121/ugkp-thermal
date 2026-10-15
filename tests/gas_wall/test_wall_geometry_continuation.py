@@ -71,9 +71,9 @@ assert(cache.rebuild(m,{0},s,o));assert(cache.descriptors[0].matchingCells.data(
 
 
 def test_exhausted_local_iterations_use_evaluated_candidates(tmp_path):
-    # Change only local iteration budgets in a copy of the actual production
-    # header. Force both exhaustion paths deterministically, without replacing
-    # their root, derivative, seed, triangulation or publication arithmetic.
+
+
+
     import subprocess
     from test_wall_geometry import BASE, ROOT
     source=(ROOT/'common/gasWall/WallGeometryBuilder.H').read_text()

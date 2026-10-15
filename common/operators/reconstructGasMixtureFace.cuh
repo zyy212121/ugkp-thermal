@@ -17,12 +17,24 @@ __device__ bool reconstructGasMixtureFace
 {
     if(evaluated)*evaluated=false;
     constexpr int Ns=ugkwp::GasStateTraits<GasState>::speciesCount;
+    if(!gasReconstructionStorageAvailable(s,c,f) || !massFractions || !s.gasSpecies.rho
+        || (s.gasReconstruction==1 && (!s.gasSpecies.thermo.species
+            || !s.gasSpecies.limiter || !s.gasSpecies.gradX || !s.gasSpecies.gradY || !s.gasSpecies.gradZ)))
+    {
+        if(!ugkwp::gasRecordFaceFailure(s,f,ugkwp::GasTransportCode::InvalidStorage))asm("trap;");
+        return false;
+    }
     const GasPrimDevice centre=gasCellPrimitive(s,c);
     GPU_OPERATOR_REAL yc[Ns],dy[Ns];
     for(int k=0;k<Ns;++k)
     {yc[k]=s.gasSpecies.rho[k*s.nCells+c]/centre.rho;dy[k]=GPU_OPERATOR_R(0.0);}
     if(s.gasReconstruction!=1)
     {output=centre;for(int k=0;k<Ns;++k)massFractions[k]=yc[k];if(evaluated)*evaluated=true;return true;}
+    if(!gasCoupledFaceStorageAvailable(s,f))
+    {
+        if(!ugkwp::gasRecordFaceFailure(s,f,ugkwp::GasTransportCode::InvalidStorage))asm("trap;");
+        return false;
+    }
     GPU_OPERATOR_REAL cx,cy,cz;
     periodicMappedCellCentre(s,f,c,cx,cy,cz);
     const GPU_OPERATOR_REAL dx=s.faceCx[f]-cx, ddy=s.faceCy[f]-cy, dz=s.faceCz[f]-cz;
@@ -37,6 +49,12 @@ __device__ bool reconstructGasMixtureFace
     const int nei=coupledFaceNeighbour(s,f);
     if(nei>=0)
     {
+        if(nei>=s.nCells || !s.faceOwner || s.faceOwner[f]<0 || s.faceOwner[f]>=s.nCells
+            || !s.gasSpecies.soundSpeed || !s.faceWeight || !s.Sfx || !s.Sfy || !s.Sfz || !s.magSf)
+        {
+            if(!ugkwp::gasRecordFaceFailure(s,f,ugkwp::GasTransportCode::InvalidStorage))asm("trap;");
+            return false;
+        }
         const int other=c==s.faceOwner[f]?nei:s.faceOwner[f];
         const auto adjacent=gasCellPrimitive(s,other);
         const GPU_OPERATOR_REAL rl=sqrt(centre.rho),rr=sqrt(adjacent.rho);
@@ -76,9 +94,9 @@ __device__ bool reconstructGasMixtureFace
             candidate.T=candidate.p/(candidate.rho*R);
             complete=ugkwp::gasFinite(candidate.T);
         }
-        // Keep the evaluated candidate in the existing disposable outputs.
-        // If the final centre EOS is undefined, the last complete slope state
-        // remains available; no untouched centre seed is reported as computed.
+
+
+
         if(complete && !nativeRefinement)
         {output=candidate;for(int k=0;k<Ns;++k)massFractions[k]=y[k];haveCompleteCandidate=true;if(evaluated)*evaluated=true;}
         if(valid)

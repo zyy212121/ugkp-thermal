@@ -1,68 +1,69 @@
-"""The existing upload validation scan also validates authoritative carry."""
 from pathlib import Path
-import json
+import re
 import subprocess
-
 import pytest
 
-ROOT = Path(__file__).resolve().parents[2]
+ROOT=Path(__file__).resolve().parents[2]
 
-
-def braced(source, start):
-    begin = source.index('{', start)
-    depth, end = 1, begin + 1
+def braced(source,start):
+    begin=source.index('{',start);end=begin+1;depth=1
     while depth:
-        depth += (source[end] == '{') - (source[end] == '}')
-        end += 1
+        depth+=(source[end]=='{')-(source[end]=='}');end+=1
     return source[start:end]
 
-
-def test_carry_check_shares_actual_upload_scan_and_precedes_array_copy(tmp_path):
-    source = (ROOT/'applications/CHT/gpu/GpuResidentStrict.cu').read_text()
-    start = source.index('extern "C" int ugkwpGpuResidentStrictUploadParticleRestartMirror')
-    upload = braced(source, start)
-    start = upload.index('for (int i = 0; i < nParticles; ++i)')
-    loop = braced(upload, start)
-    assert 'std::isfinite(pThermalEnthalpyResidual[i])' in loop, 'carry has a redundant particle scan'
-    assert 'for (size_t i = 0; i < n; ++i)' not in upload
-    assert start + len(loop) < upload.index('copyToDevice(s->px')
-    fields = json.loads((ROOT/'common/ParticleFieldManifest.json').read_text())['fields']
-    arrays = '\n'.join(f"{field['host']['CHT']} {field['name']}[{3*field['width']}]={{}};"
-                       for field in fields if 'CHT' in field['host'])
-    code = r'''
+@pytest.mark.parametrize('app',['CHT','FSH','gasUGKP'])
+def test_restart_upload_consumes_only_available_particle_storage(tmp_path,app):
+    backend='gpu' if app=='CHT' else 'private_backend'
+    source=(ROOT/f'applications/{app}/{backend}/GpuResidentStrict.cu').read_text()
+    upload=braced(source,source.index('extern "C" int ugkwpGpuResidentStrictUploadParticleRestartMirror'))
+    parameters=re.findall(r'const ([\w ]+)\* (\w+)',upload[:upload.index('{')])
+    fields='\n'.join(f'{ty} {name}[192]{{}};' for ty,name in parameters)
+    members={name for _,name in parameters}
+    if 'pContactAge' not in members:fields+='\ndouble pContactAge[192]{};'
+    upload=re.sub(r'<<<.*?>>>','',upload)
+    arguments=','.join(name for _,name in parameters)
+    declarations='\n'.join(f'{ty} data_{name}[192]{{}};const {ty}* {name}=data_{name};' for ty,name in parameters)
+    value_checks='\n'.join(f'assert(std::memcmp(s.{name},data_{name},sizeof({ty})*3)==0);' for ty,name in parameters if name not in ['pTheta'])
+    null_cases=[]
+    for ty,name in parameters:
+        null_cases.append('{const auto saved='+name+';'+name+'=nullptr;calls=0;assert(call(3)==1&&calls==0);'+name+'=saved;assert(call(3)==0);}')
+    code=r"""
+#include <cassert>
+#include <cstring>
 #include <cmath>
-#include <limits>
+#include <vector>
 #include <string>
-using GpuReal=REAL;
-using GpuTime=double;
-#define GPU_R(x) static_cast<GpuReal>(x)
-namespace Foam { namespace gpuThermal {
-constexpr int particleWallTransientDeposit=3,particleWallDeposited=1;
-constexpr int particleWallTransientRebound=2,coldWallAxialNodeCount=8;
-constexpr int coldWallRadialRingCount=8,coldWall2DNodeCount=64,coldWall2DRadialNodeCount=8;
-}}
-std::string error;
-void setLastErrorText(const char* text){error=text;}
-int copies=0;
-int validate(int badIndex,double badCarry,bool badMass){
- const int nParticles=3;
- struct State {int nFaces=1;} state;State* s=&state;
- ARRAYS
- for(int i=0;i<nParticles;++i){pm[i]=1;pStuckFaceId[i]=-1;pThermalEnthalpyResidual[i]=0.0003;}
- if(badIndex>=0)pThermalEnthalpyResidual[badIndex]=badCarry;
- if(badMass)pm[2]=0;
- LOOP
- ++copies;return 0;
+using GpuReal=double;using GpuTime=double;using cudaError_t=int;
+const int cudaSuccess=0;int calls=0,failCopy=0;std::string error;
+namespace Foam {namespace gpuThermal {constexpr int coldWallAxialNodeCount=8,coldWallRadialRingCount=8,coldWall2DNodeCount=64,coldWall2DRadialNodeCount=8;}}
+struct DeviceState {FIELDS
+ int particleCapacity=3,count=0,wallCount=0,*particleCountDevice=&count,*wallBoundParticleCountDevice=&wallCount;
+ int preBaseDirectoryReady=1,splitPreDirectoryActive=1,coldWallSolidificationEnabled=1,coldWall2DEnabled=1;
+ bool particlesMayBePresent=false;DeviceState* deviceState=this;
+};
+DeviceState* asState(void* p){return static_cast<DeviceState*>(p);}
+int validateState(DeviceState* p,const char*){return p?0:1;}
+void setLastError(const char* p,int){error=p;}
+void setLastErrorText(const char* p){error=p;}
+int cudaMemset(void* p,int v,size_t n){++calls;std::memset(p,v,n);return 0;}
+int cudaGetLastError(){return 0;}
+template<class T>int copyToDevice(T* p,const T* v,size_t n,const char*){++calls;if(failCopy&&calls==failCopy)return 1;if(n>192||!v)return 1;std::memcpy(p,v,n*sizeof(T));return 0;}
+void unpackParticleRestartTheta(size_t n,const unsigned char*,const double* v,double* t,double* age){for(size_t i=0;i<n;++i){t[i]=v[i];age[i]=0;}}
+void rebuildWallBoundParticleDirectoryKernel(DeviceState*){}
+int rebuildResidentParticleMomentsFromParticles(DeviceState*,int){++calls;return 0;}
+UPLOAD
+int main(){DeviceState s;DECLARATIONS
+ auto call=[&](int n){return ugkwpGpuResidentStrictUploadParticleRestartMirror(&s,n,ARGUMENTS);};
+ for(int n:{-1,4}){calls=0;const auto before=s;assert(call(n)==1&&calls==0&&s.count==before.count&&s.preBaseDirectoryReady==before.preBaseDirectoryReady);}
+ NULL_CASES
+ data_pT[0]=std::nan("");data_pm[1]=-1;data_px[2]=INFINITY;
+ assert(call(3)==0&&s.count==3);VALUE_CHECKS
+ calls=0;failCopy=8;assert(call(3)==1);failCopy=0;assert(call(3)==0);VALUE_CHECKS
+ assert(call(0)==0&&s.count==0);
 }
-int main(){
- if(validate(-1,0,false)||copies!=1)return 1;
- for(int i=0;i<3;++i)for(double x:{std::nan(""),std::numeric_limits<double>::infinity(),-std::numeric_limits<double>::infinity()}){
-  error.clear();if(validate(i,x,false)!=1||copies!=1||error!="particle restart thermal enthalpy residual is nonfinite")return 2;
- }
- error.clear();if(validate(-1,0,true)!=1||copies!=1||error!="particle restart stuck state/face/area is invalid")return 3;
-}
-'''.replace('REAL', 'double').replace('ARRAYS', arrays).replace('LOOP', loop)
-    path=tmp_path/'probe.cpp';path.write_text(code)
-    binary=tmp_path/'probe'
-    subprocess.run(['g++','-std=c++17','-O2',str(path),'-o',str(binary)],check=True,capture_output=True,text=True)
-    subprocess.run([str(binary)],check=True)
+""".replace('FIELDS',fields).replace('UPLOAD',upload).replace('DECLARATIONS',declarations).replace('ARGUMENTS',arguments).replace('NULL_CASES','\n'.join(null_cases)).replace('VALUE_CHECKS',value_checks)
+    path=tmp_path/'upload.cpp';path.write_text(code);binary=tmp_path/'upload'
+    result=subprocess.run(['g++','-std=c++17','-O1','-g','-fsanitize=address,undefined','-fno-omit-frame-pointer',str(path),'-o',str(binary)],capture_output=True,text=True)
+    assert result.returncode==0,result.stdout+result.stderr
+    result=subprocess.run([str(binary)],capture_output=True,text=True)
+    assert result.returncode==0,result.stdout+result.stderr

@@ -1,19 +1,20 @@
 """Shared mixture state/recovery contract; actual existing common kernels."""
 from pathlib import Path
 import subprocess
+import os
 import pytest
 
 ROOT=Path(__file__).resolve().parents[2]
 HERE=Path(__file__).resolve().parent
 
-def compile_probe(tmp_path,body):
+def compile_probe(tmp_path,body,sanitizers=False):
     legacy=(HERE/'gas_state_probe.cpp').read_text()
     pre=legacy[:legacy.index('void hashBytes')]
     source=tmp_path/'mixture.cpp';source.write_text(pre+body)
     exe=tmp_path/'mixture'
-    result=subprocess.run(['g++','-std=c++17','-O0','-I'+str(HERE),'-I'+str(ROOT/'common'),'-I'+str(ROOT/'common/gasNumerics'),str(source),'-o',str(exe)],capture_output=True,text=True)
+    result=subprocess.run(['g++','-std=c++17','-O0',*(['-g','-fsanitize=address,undefined','-fno-omit-frame-pointer'] if sanitizers else []),'-I'+str(HERE),'-I'+str(ROOT/'common'),'-I'+str(ROOT/'common/gasNumerics'),str(source),'-o',str(exe)],capture_output=True,text=True)
     assert result.returncode==0,result.stdout+result.stderr
-    run=subprocess.run([str(exe)],capture_output=True,text=True)
+    run=subprocess.run([str(exe)],capture_output=True,text=True,env=dict(os.environ,ASAN_OPTIONS='detect_leaks=0') if sanitizers else None)
     assert run.returncode==0,run.stdout+run.stderr
 
 def test_mixture_recovery_is_conservative_and_strict_failures_unchanged(tmp_path):

@@ -40,15 +40,16 @@ ck(ugkwp::evaluateGasBoundaryLayerSlot(s,0),"signed non-normalized donor weights
 m.matchingCells=nullptr;ck(!ugkwp::evaluateGasBoundaryLayerSlot(s,0),"missing donor storage accepted");
 ck(status[0]==int(ugkwp::GasTransportCode::InvalidStorage)&&!exchange[0].ready,"wrong missing storage status");
 m.matchingCells=matching;matching[0]=34;ck(!ugkwp::evaluateGasBoundaryLayerSlot(s,0),"unaddressable donor accepted");
-ck(status[0]==int(ugkwp::GasTransportCode::InvalidGeometry)&&!exchange[0].ready,"wrong donor address status");
+ck(status[0]==int(ugkwp::GasTransportCode::InvalidStorage)&&!exchange[0].ready,"wrong donor address status");
 delete[] workspace;
 }
 '''
 
-def test_actual_donors_publish_complete_stage(tmp_path):
+@pytest.mark.parametrize('sanitizers',[False,True])
+def test_actual_donors_publish_complete_stage(tmp_path,sanitizers):
     source=fixture().replace('struct State:ugkwp::GasStateView<Real,Time,ugkwp::SstCoefficients>{ugkwp::GasSpeciesState<Real,2> gasSpecies;};',
         '#include "gasTransport/GasBoundaryLayerModelState.H"\nstruct State:ugkwp::GasStateView<Real,Time,ugkwp::SstCoefficients>{ugkwp::GasSpeciesState<Real,2> gasSpecies;ugkwp::GasBoundaryLayerModelState<Real,2> gasBoundaryLayerModel;};')
-    compile_probe(tmp_path,source+BODY)
+    compile_probe(tmp_path,source+BODY,sanitizers=sanitizers)
 
 
 def test_original_species_scaling_overflow_preserves_complete_exchange(tmp_path):

@@ -38,18 +38,20 @@ template<int DragModel>void drag(DeviceState*sp,double dt,int dragModel){
 }
 void close(long double x,long double expected){assert(std::abs(x-expected)<=std::abs(expected)*8e-15L+1e-12L);}
 int main(){
- for(double dt:{0.,.25}){DeviceState s;const double energy=s.rhoE[0];Real before[]={s.rho[0],s.rhoUx[0],s.rhoUy[0],s.rhoUz[0]};drag<0>(&s,dt,0);
+ for(double dt:{0.,.25}){DeviceState s;s.rhoE[0]=1e300;const double energy=s.rhoE[0];Real before[]={s.rho[0],s.rhoUx[0],s.rhoUy[0],s.rhoUz[0]};drag<0>(&s,dt,0);
  assert(s.rhoE[0]==energy&&s.rho[0]==before[0]&&s.rhoUx[0]==before[1]&&s.rhoUy[0]==before[2]&&s.rhoUz[0]==before[3]);
  assert(s.couplingRhoOld[0]==1&&s.couplingUxOld[0]==1&&s.couplingUyOld[0]==0&&s.couplingUzOld[0]==0&&s.couplingTgasOld[0]==300);
  assert(s.thetaDragAlpha[0]==(dt==0?Real(1):Real(exp(Real(-2)*dt))));}
  // Equal velocities are insufficient for the strict-zero shortcut: real internal repair runs.
  {DeviceState s;s.rhoE[0]=0;drag<0>(&s,.25,0);assert(s.rhoE[0]>.5&&s.rhoUx[0]==1&&s.thetaDragAlpha[0]<1);}
- {DeviceState s;s.rhoUx[0]=s.Ux[0]=0;drag<0>(&s,.25,0);assert(s.rhoUx[0]>0&&s.rhoUx[0]<1);close(s.rhoE[0],1.4e300L);}
+ {DeviceState s;s.rhoUx[0]=s.Ux[0]=0;drag<0>(&s,.25,0);assert(s.rhoUx[0]>0&&s.rhoUx[0]<1);const long double igMin=.75L*s.Rgas*s.TgasMin/(s.gammaGas-1);
+ const long double diss=.5L-(.5L*.75L*s.rhoUx[0]*s.rhoUx[0]+.5L*std::pow((1.-.75*s.rhoUx[0]),2));
+ close(s.rhoE[0],(.5L*.75L*s.rhoUx[0]*s.rhoUx[0]+igMin+diss)/.75L);}
  {
   DeviceState s;const Real u=1e151;s.Ux[0]=s.rhoUx[0]=u;s.momRhoUPx[0]=-u;s.momRhoEP[0]=Real(.5)*u*u;s.rhoE[0]=u*u;
   const Real mg=.75,ms=1,alpha=exp(-.25*(1+ms/(mg+OfSmall))),w=2*u,us=(mg*u-u-mg*w*alpha)/(mg+ms),ug=us+w*alpha;
   const long double kOld=.5L*mg*u*u+.5L*ms*u*u,kNew=.5L*mg*ug*ug+.5L*ms*us*us;
-  const long double diss=kOld-kNew,expected=(.5L*mg*ug*ug+.75L*(s.rhoE[0]-.5L*u*u)+diss)/.75L;
+  const long double diss=kOld-kNew,expected=(.5L*mg*ug*ug+mg*s.Rgas*s.TgasMin/(s.gammaGas-1))/.75L;
   assert(diss>1e300L&&std::isfinite(expected));drag<0>(&s,.25,0);close(s.rhoE[0],expected);close(s.rhoUx[0],ug);assert(s.rhoUy[0]==0&&s.rhoUz[0]==0);
  }
 }
@@ -72,7 +74,7 @@ def test_actual_zero_time_zero_exchange_and_repair_branch_counts(tmp_path):
         assert old in actual;actual=actual.replace(old,new)
     code='int counts[6]={};\n'+SOURCE.split('int main(){',1)[0].replace('#include "GpuCellDragUpdate.inl"',actual)
     code+=r'''
-int main(){for(int mode:{0,1,2}){DeviceState s;for(int&v:counts)v=0;if(mode==2)s.rhoE[0]=0;drag<0>(&s,mode==0?0.:.25,0);
+int main(){for(int mode:{0,1,2}){DeviceState s;for(int&v:counts)v=0;s.rhoE[0]=mode==2?0.:1e300;drag<0>(&s,mode==0?0.:.25,0);
 const int expected[3][6]={{1,0,0,0,0,0},{1,1,1,0,0,0},{1,1,1,1,1,1}};
 for(int j=0;j<6;++j)assert(counts[j]==expected[mode][j]);
 std::printf("mode=%d cache=%d kinetic=%d alphaI=%d alphaW=%d publish=%d repair=%d\n",mode,counts[0],counts[1],counts[2],counts[3],counts[4],counts[5]);}}

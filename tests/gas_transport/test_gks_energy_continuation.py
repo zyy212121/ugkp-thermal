@@ -20,12 +20,12 @@ ck(ugkwp::gasEnergyFiniteOr(value,0.)==(bounded?value:0.),"legacy fallback bound
 ck(!ugkwp::gasEnergyFinite(std::numeric_limits<double>::infinity())&&!ugkwp::gasEnergyFinite(std::numeric_limits<double>::quiet_NaN()),"nonfinite output admitted");}
 ''')
 
-def test_mixed_energy_positive_pressure_underflow_is_a_computed_cache(tmp_path):
+def test_mixed_energy_small_positive_pressure_uses_native_storage(tmp_path):
     from test_mixture_transport import fixture
     f=fixture().replace('GasStateView<Real,Time,ugkwp::SstCoefficients>','GasStateView<Real,Time,ugkwp::SstCoefficients,double>').replace('s.rhoE=new Real[8]{};','s.rhoE=new double[8]{};').replace('s.rhoENext=new Real[8]{};','s.rhoENext=new double[8]{};')
     compile_probe(tmp_path,f+r'''
 int main(){State s;initialise(s);auto* meta=const_cast<ugkwp::SpeciesThermoData<Real>*>(s.gasSpecies.thermo.species);meta[0].molarMass=meta[1].molarMass=Real(1e30);s.rho[0]=Real(1e-30);s.gasSpecies.rho[0]=s.gasSpecies.rho[2]=s.rho[0]*Real(.5);
-double partial[2]={s.gasSpecies.rho[0],s.gasSpecies.rho[2]};s.rhoE[0]=ugkwp::mixtureEnergy(partial,700.,s.gasSpecies.thermo);const double energy=s.rhoE[0];s.p[0]=-77;threadIdx.x=0;recoverGasPrimitivesKernel(&s);ck(s.gasSpecies.cellStatus[0]==0&&s.p[0]==0,"finite narrowed pressure zero rejected");ck(s.rhoE[0]==energy&&s.Tgas[0]==700&&s.gasSpecies.soundSpeed[0]>0,"underflow cache erased Energy authority");}
+double partial[2]={s.gasSpecies.rho[0],s.gasSpecies.rho[2]};s.rhoE[0]=ugkwp::mixtureEnergy(partial,700.,s.gasSpecies.thermo);const double energy=s.rhoE[0];s.p[0]=-77;threadIdx.x=0;recoverGasPrimitivesKernel(&s);ck(s.gasSpecies.cellStatus[0]==0&&s.p[0]>0&&std::abs(s.p[0]/(s.rho[0]*Real(8.31446261815324)/Real(1e30)*Real(700))-1)<1e-14,"FP64 pressure lost positive equation-of-state result");ck(s.rhoE[0]==energy&&s.Tgas[0]==700&&s.gasSpecies.soundSpeed[0]>0,"underflow cache erased Energy authority");}
 ''')
 
 def test_retained_gks_sides_and_full_flux_evaluate_gamma_above_five_thirds(tmp_path):

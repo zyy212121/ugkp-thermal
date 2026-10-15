@@ -3,6 +3,7 @@ from pathlib import Path
 import importlib.util
 import json
 import subprocess
+import sys
 import pytest
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -54,7 +55,7 @@ def test_import_rejects_changed_reference(tmp_path):
 
 def test_generated_files_are_reproducible():
     importer()
-    subprocess.run(["python", str(DATA / "import_h2o2.py"), "--check"], check=True, cwd=ROOT)
+    subprocess.run([sys.executable, str(DATA / "import_h2o2.py"), "--check"], check=True, cwd=ROOT)
     manifest = json.loads((DATA / "h2o2.manifest.json").read_text())
     assert manifest["reference"]["version"] == "3.1.0"
     assert manifest["reference"]["phase"] == "ohmech"

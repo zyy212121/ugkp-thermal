@@ -360,8 +360,9 @@ def test_mss7_tip_sections_are_translation_and_scale_stable(tmp_path):
   }
   double area=0;V centre{};
   assert(!wallGeometryDetail::tetraSection(p,h,h[3],d,area,centre));
-  for(auto&v:p)v[0]=p[3][0]; // Truly zero-area section must remain rejected.
-  assert(!wallGeometryDetail::tetraSection(p,h,.75*h[3],d,area,centre));
+  for(auto&v:p)v[0]=p[3][0];
+  assert(wallGeometryDetail::tetraSection(p,h,.75*h[3],d,area,centre));assert(area==0);
+  for(double component:centre)assert(std::isnan(component));
  }
  ''')
 

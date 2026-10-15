@@ -59,17 +59,18 @@ Real after[5]={s.rho[0],s.rhoUx[0],s.rhoUy[0],s.rhoUz[0],s.rhoE[0]};
 if(STRICT)ck(std::memcmp(before,after,sizeof before)==0,"strict moving retry published state");
 else{for(int k=0;k<4;++k)ck(after[k]==before[k]*(oldV[0]/newV[0]),"terminal moving bulk formula incomplete");ck(std::isnan(after[4]),"terminal moving energy formula was not evaluated");}
 // True missing consumed backing remains an error in both routes.
-s.gasGeometry.newVolume=nullptr;applyGasFluxDivergenceByCellKernel(&s,dt,STRICT);const Real missing[5]={s.rho[0],s.rhoUx[0],s.rhoUy[0],s.rhoUz[0],s.rhoE[0]};ck(s.gasSpecies.cellStatus[0]==int(ugkwp::GasTransportCode::InvalidGeometry)&&std::memcmp(after,missing,sizeof after)==0,"missing volume backing was hidden by terminal continuation");}
+s.gasGeometry.newVolume=nullptr;applyGasFluxDivergenceByCellKernel(&s,dt,STRICT);const Real missing[5]={s.rho[0],s.rhoUx[0],s.rhoUy[0],s.rhoUz[0],s.rhoE[0]};ck(s.gasSpecies.cellStatus[0]==int(ugkwp::GasTransportCode::InvalidStorage)&&std::memcmp(after,missing,sizeof after)==0,"missing volume backing was hidden by terminal continuation");}
 """.replace('STRICT','true' if strict else 'false'))
 
 
-def test_legacy_moving_cfl_guards_missing_geometry_and_uses_smaller_volume(tmp_path):
+@pytest.mark.parametrize('strict',[False,True])
+def test_legacy_moving_cfl_guards_missing_geometry_and_uses_smaller_volume(tmp_path,strict):
     compile_probe(tmp_path, fixture()+r'''
 int main(){State s;initialise(s);Real oldV[2]={1,1},newV[2]={Real(1.1),Real(.9)},sweeps[3]={Real(.1),0,0};const Real dt=Real(.001);moving(s,oldV,newV,sweeps,dt);
-for(int f=0;f<3;++f){threadIdx.x=f;computeGasCourantFieldKernel(&s,dt);}
-threadIdx.x=1;const Real expected=Real(.5)*dt*(s.gasPhiRhoE[0]+s.gasPhiRhoE[2])/newV[1];computeGasConvectiveCourantByCellKernel(&s,dt);near(s.gasFluxPositivityScale[1],expected,"moving Courant used evaluation volume rather than minimum stage volume");
-s.gasGeometry.faceSweptVolume=nullptr;threadIdx.x=0;computeGasCourantFieldKernel(&s,dt);ck(s.gasSpecies.faceStatus[0]==int(ugkwp::GasTransportCode::InvalidGeometry),"missing geometry was not a status failure");ck(std::isnan(s.gasPhiRhoE[0]),"missing geometry did not mark unavailable Co");}
-''')
+for(int f=0;f<3;++f){threadIdx.x=f;computeGasCourantFieldKernel(&s,dt,STRICT);}
+threadIdx.x=1;const Real expected=Real(.5)*dt*(s.gasPhiRhoE[0]+s.gasPhiRhoE[2])/newV[1];computeGasConvectiveCourantByCellKernel(&s,dt,STRICT);near(s.gasFluxPositivityScale[1],expected,"moving Courant used evaluation volume rather than minimum stage volume");
+s.gasGeometry.faceSweptVolume=nullptr;threadIdx.x=0;computeGasCourantFieldKernel(&s,dt,STRICT);ck(s.gasSpecies.faceStatus[0]==int(ugkwp::GasTransportCode::InvalidStorage),"missing geometry was not a storage failure");ck(std::isnan(s.gasPhiRhoE[0]),"missing geometry did not mark unavailable Co");}
+'''.replace('STRICT','true' if strict else 'false'))
 
 
 def test_transaction_preflight_applies_to_null_species_legacy_host(tmp_path):

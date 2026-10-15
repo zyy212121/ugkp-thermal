@@ -142,7 +142,7 @@ struct DeviceState
     int particleCapacity = 0;
     int particleWorkGrid = 0;
     bool particlesMayBePresent = false;
-    // Host-only progress for real restore allocation/initialization/publication.
+
     unsigned char particleWallEnergyRestoreProgress = 0;
     unsigned short particleStuckInitialisationPending = 0;
     int maxFaceWalkHops = 8;
@@ -935,7 +935,7 @@ int syncSstConfiguration(DeviceState* s, const char* name)
 
 int prepareSstOwners(DeviceState* s)
 {
-    // Shared host work bits: this bit records only unfinished owner publication.
+
     constexpr unsigned short publicationPending = 0x1000;
     auto acquire = [&](auto*& owner, const size_t count, const char* name)
     {
@@ -1918,7 +1918,7 @@ __global__ void applyParticleRadiationAffineTemperatureKernel
             continue;
         }
         const int cellI = s.pCellId[particleI];
-        // Required access errors belong to the real apply, not a second pass.
+
         if (cellI < 0 || cellI >= s.nCells)
         {
             asm("trap;");
@@ -3711,7 +3711,7 @@ extern "C" int ugkwpGpuResidentStrictUploadSourceResidualMass
     {
         return 1;
     }
-    (void)sourceFace; // Framing metadata, not a computational address.
+    (void)sourceFace;
     if (nSources > 0 && residualMass == nullptr)
     {
         setLastErrorText("missing source residual input");
@@ -3859,7 +3859,7 @@ int acquireParticleWallEffusivity(DeviceState* s, const size_t nFaces)
     if (s->particleWallEffusivityByFace != nullptr) return 0;
     if (allocate(s->particleWallEffusivityByFace, nFaces,
                  "cudaMalloc CHT particle wall effusivity") != 0) return 1;
-    // These host bits record actual unfinished initialization/publication work only.
+
     s->particleStuckInitialisationPending |= 4 | 0x800;
     return 0;
 }
@@ -3867,10 +3867,10 @@ int acquireParticleWallEffusivity(DeviceState* s, const size_t nFaces)
 cudaError_t initialiseParticleWallEffusivity(DeviceState* s, const size_t nFaces)
 {
     if ((s->particleStuckInitialisationPending & 4) == 0) return cudaSuccess;
-    // A face owner replaces the scalar fallback in every contact consumer.
-    // Seed from that same material before publishing it; actual coupled patch
-    // uploads then replace only their faces. The pending bit prevents later
-    // stuck-model reconfiguration from overwriting those coupled values.
+
+
+
+
     const GpuReal fallbackEffusivity = ::sqrt
     (
         s->particleWallDensityKgM3*s->particleWallSpecificHeatJkgK
@@ -3880,7 +3880,7 @@ cudaError_t initialiseParticleWallEffusivity(DeviceState* s, const size_t nFaces
     try
     {
         const std::vector<GpuReal> initialEffusivity(nFaces, fallbackEffusivity);
-        // Synchronous H2D staging finishes using the host vector before it dies.
+
         error = cudaMemcpy
         (
             s->particleWallEffusivityByFace, initialEffusivity.data(),
@@ -3889,7 +3889,7 @@ cudaError_t initialiseParticleWallEffusivity(DeviceState* s, const size_t nFaces
     }
     catch (const std::bad_alloc&)
     {
-        // Keep initialization pending for the existing error/retry path.
+
         return cudaErrorMemoryAllocation;
     }
     if (error == cudaSuccess)
@@ -5714,7 +5714,7 @@ extern "C" int ugkwpGpuResidentStrictConfigureParticleStuckModel
 
     if (s->particleWallEnergyRestoreProgress != 0
         && ugkpPrepareParticleWallEnergyRestore(handle) != 0) return 1;
-    // Host work bits track only newly acquired, unfinished initialization.
+
     constexpr unsigned short depositedWallEnergyInit = 0x4000;
     constexpr unsigned short reflectedWallEnergyInit = 0x8000;
     constexpr unsigned short representedAreaInit = 1;
@@ -6090,6 +6090,39 @@ extern "C" int ugkwpGpuResidentStrictUploadParticleRestartMirror
     }
 
 
+    if (nParticles < 0 || nParticles > s->particleCapacity)
+    {
+        setLastErrorText("particle restart count exceeds allocated storage");
+        return 1;
+    }
+    if
+    (
+        nParticles > 0
+     && (
+        px == nullptr || py == nullptr || pz == nullptr
+     || pux == nullptr || puy == nullptr || puz == nullptr
+     || pT == nullptr || pTheta == nullptr || pd == nullptr || pm == nullptr
+     || pThermalEnthalpyResidual == nullptr
+     || pCellId == nullptr || pStatus == nullptr || pStuck == nullptr
+     || pStuckFaceId == nullptr || pDepositionArea == nullptr
+     || pContactDuration == nullptr || pContactMaximumArea == nullptr
+     || pContactPeakFraction == nullptr
+     || (s->coldWallSolidificationEnabled != 0
+      && (pColdNodeSpecificEnthalpy == nullptr
+       || pColdRingSolidMass == nullptr
+       || pColdFrozenArea == nullptr || pColdContactAge == nullptr))
+     || (s->coldWall2DEnabled != 0
+      && (pCold2DNodeSpecificEnthalpy == nullptr
+       || pCold2DRingContactAge == nullptr
+       || pCold2DFrozenArea == nullptr))
+     || pRng == nullptr || pOrigId == nullptr
+        )
+    )
+    {
+        setLastErrorText("null particle restart mirror upload array");
+        return 1;
+    }
+
     cudaError_t err =
         cudaMemset(s->pStatus, 0, static_cast<size_t>(s->particleCapacity)*sizeof(int));
     if (err != cudaSuccess)
@@ -6182,30 +6215,7 @@ extern "C" int ugkwpGpuResidentStrictUploadParticleRestartMirror
     {
         return rebuildResidentParticleMomentsFromParticles(s, 0);
     }
-    if
-    (
-        px == nullptr || py == nullptr || pz == nullptr
-     || pux == nullptr || puy == nullptr || puz == nullptr
-     || pT == nullptr || pTheta == nullptr || pd == nullptr || pm == nullptr
-     || pThermalEnthalpyResidual == nullptr
-     || pCellId == nullptr || pStatus == nullptr || pStuck == nullptr
-     || pStuckFaceId == nullptr || pDepositionArea == nullptr
-     || pContactDuration == nullptr || pContactMaximumArea == nullptr
-     || pContactPeakFraction == nullptr
-     || (s->coldWallSolidificationEnabled != 0
-      && (pColdNodeSpecificEnthalpy == nullptr
-       || pColdRingSolidMass == nullptr
-       || pColdFrozenArea == nullptr || pColdContactAge == nullptr))
-     || (s->coldWall2DEnabled != 0
-      && (pCold2DNodeSpecificEnthalpy == nullptr
-       || pCold2DRingContactAge == nullptr
-       || pCold2DFrozenArea == nullptr))
-     || pRng == nullptr || pOrigId == nullptr
-    )
-    {
-        setLastErrorText("null particle restart mirror upload array");
-        return 1;
-    }
+
 
     const size_t n = static_cast<size_t>(nParticles);
 

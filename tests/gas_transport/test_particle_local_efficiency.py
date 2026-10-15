@@ -93,7 +93,7 @@ def test_cold_uniform_nonzero_combines_read_only_scans(tmp_path):
         'UGKWP_COLD_CARRY_HD inline ColdWallHeatPublication publishColdWallUniformSpecificHeat',
         'template<class Parameters>').replace('UGKWP_COLD_CARRY_HD', '')
     def counted(source):
-        # Count each loop body, including the final write pass. Test code only.
+
         source = re.sub(r'(for\(int j=0;j<count;\+\+j\)\s*\{)', r'\1 ++scanCount;', source)
         source = source.replace('for(int j=0;j<count;++j)nodes[j]=',
             'for(int j=0;j<count;++j){++scanCount;nodes[j]=')
@@ -176,7 +176,7 @@ def test_actual_paired_candidate_compiles_as_cuda(tmp_path):
     actual = function_slice(ROOT / 'common/GpuPairedParticleHeat.cuh',
         'struct PairedParticleHeatCandidate', '// Called from')
     code = '#include <cuda_runtime.h>\n' + prefix + 'namespace ugkwp {\n' + bound + '}\n' + actual
-    # The real state-dependent selector and all 0/8/64 branches are generated.
+
     code += '\n__global__ void candidate(DeviceState* s,PairedParticleHeatCandidate* out){*out=pairedParticleHeatCandidate(*s,0,1.);}\n'
     native_compile(tmp_path, code)
 

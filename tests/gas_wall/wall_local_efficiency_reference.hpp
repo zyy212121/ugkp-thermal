@@ -1,4 +1,4 @@
-// Frozen test-only layerRow from d6110c02745a8ad726208a426c4bb3a28233c1fd.
+
 namespace ugkwp { namespace gaswall { namespace detail {
 template<class R,int N,int M,class TableReal> UGKWP_GAS_HD inline bool referenceLayerRow(const WallInput<R,N,TableReal>& in,
  const WallModelConfig<R>& c,const LayerContext<R,N>& ctx,const R (&x)[M][N+4],const R* y,int i,R* row){

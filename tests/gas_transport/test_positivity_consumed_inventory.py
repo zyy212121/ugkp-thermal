@@ -40,7 +40,7 @@ def test_actual_inventory_is_lazy_selected_once_and_not_persistent(tmp_path):
     import subprocess
     from test_mixture_state import ROOT,HERE
     h=(ROOT/'common/operators/computeGasFluxPositivityScaleKernel.cuh').read_text()
-    # Instrument the actual selected load and existing face accesses only.
+
     h=h.replace('inventoryVolume=volumes[c];','inventoryVolume=(volumeReads++,movingReads+=ugkwp::gasMovingGeometry(s)?1:0,volumes[c]);')
     h=h.replace('s.cellFaceId[start + i]','(faceReads++,s.cellFaceId[start + i])').replace('s.cellFaceId[start+i]','(faceReads++,s.cellFaceId[start+i])')
     path=tmp_path/'counted.cuh';path.write_text(h)

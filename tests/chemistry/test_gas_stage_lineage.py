@@ -46,8 +46,8 @@ def build(folder, label, root, source):
     src = folder / (label + '.cpp')
     exe = folder / label
     if root != ROOT:
-        # Adapt only the immutable old test build to its retired output argument.
-        # The current production API and measured physical outputs stay untouched.
+
+
         source = source.replace('advanceClosedReactor(', 'testOriginalReactor(')
         source = LEGACY_CALL_ADAPTER + source
     src.write_text(source)
@@ -102,7 +102,7 @@ def test_exact_reactor_state_and_work_lineage(tmp_path, original_root, retry):
 
 
 def test_exact_h2o2_histories_and_refinement(tmp_path, original_root):
-    # Actual state, independent conservation residuals and control counters.
+
     source = H2O2_SOURCE
     original = build(tmp_path, 'original_h2o2', original_root, source)
     corrected = build(tmp_path, 'corrected_h2o2', ROOT, source)

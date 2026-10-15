@@ -30,13 +30,14 @@ if(kind==1){ck(s.gasPhiRho[1]==0&&s.gasSpecies.flux[1]==0&&s.gasSpecies.flux[4]=
     compile_probe(tmp_path,body)
 
 
-def test_internal_species_and_invalid_ale_geometry_keep_limits(tmp_path):
+@pytest.mark.parametrize('strict',[False,True])
+def test_internal_species_and_missing_volume_storage_keep_limits(tmp_path,strict):
     compile_probe(tmp_path,fixture()+r'''
 int main(){State s;initialise(s);s.maxDiffusionNumber=1;Real D[2]={Real(.02),Real(.03)};s.gasSpecies.diffusivity=D;
 s.cellPlaneCount[0]=1;s.cellFaceId[0]=0;threadIdx.x=0;computeGasDiffusionNumberKernel(&s,1.,Real(1));
 ck(std::abs(s.gasDiffusionNumber[0]-Real(.06))<Real(1e-7),"internal species bound removed");
-s.gasGeometry.enabled=true;s.gasGeometry.interval=1; // invalid geometry must fail before a zero-channel shortcut
-s.cellFaceId[0]=1;computeGasDiffusionNumberKernel(&s,1.,Real(1));
-ck(s.gasSpecies.cellStatus[0]==int(ugkwp::GasTransportCode::InvalidGeometry)&&s.gasDiffusionNumber[0]==OfGreat,"inactive channel bypassed ALE geometry gate");
+s.gasGeometry.enabled=true;s.gasGeometry.interval=1;
+s.cellFaceId[0]=1;computeGasDiffusionNumberKernel(&s,1.,Real(1),STRICT);
+ck(s.gasSpecies.cellStatus[0]==int(ugkwp::GasTransportCode::InvalidStorage)&&std::isnan(s.gasDiffusionNumber[0]),"inactive channel omitted required volume backing error");
 }
-''')
+'''.replace('STRICT','true' if strict else 'false'))

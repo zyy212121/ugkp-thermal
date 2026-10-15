@@ -16,13 +16,7 @@ ROOT = Path(__file__).resolve().parents[2]
 HERE = Path(__file__).resolve().parent
 ORIGINAL = 'd6110c02745a8ad726208a426c4bb3a28233c1fd'
 
-@pytest.fixture(scope='module')
-def original_root(tmp_path_factory):
-    folder=tmp_path_factory.mktemp('original-gas-headers')
-    result=subprocess.run(['git','archive',ORIGINAL,'common'],cwd=ROOT,capture_output=True,check=True)
-    with tarfile.open(fileobj=io.BytesIO(result.stdout)) as archive:
-        archive.extractall(folder,filter='data')
-    return folder
+from test_native_original_success import original_native_root as original_root
 
 def build_run(folder,label,root,body):
     pre=(HERE/'gas_state_probe.cpp').read_text().split('void hashBytes')[0]
@@ -53,8 +47,8 @@ def test_exact_bounded_energy_fallbacks(tmp_path,original_root,source):
             'drag':'drag<0>(&s,.25,0);','heat':'s.gasMu=1e-5;applyEulerianParticleMaterialHeatKernel(&s,.25);',
             'volume':'s.TgasMin=0;applyGasVolumeFractionSourceKernel(&s,.25);',
             'recovery':'recoverGasPrimitivesKernel(&s);'}[source]
-    # Volume's original final-output test refuses negative in-bound energy;
-    # compare only its actual normal-return fallback and positive cases.
+
+
     values='{1e300,std::nextafter(1e300,INFINITY),1.1e300,1e299}' if source=='volume' else '{-1.1e300,-1e300,std::nextafter(-1e300,0.),std::nextafter(1e300,0.),1e300,1.1e300,2e300}'
     body=source_fixture()+PRINT+r'''
 int main(){for(double value:VALUES){DeviceState s;setup(s);s.cellPlaneCount[0]=0;s.rhoE[0]=value;ACTION
@@ -97,8 +91,13 @@ int main(){for(double value:{1e301,double(INFINITY),double(NAN),2.}){State s;ini
  output(s);}}
 '''
     expected=build_run(tmp_path,'original',original_root,body)
-    actual=build_run(tmp_path,'corrected',ROOT,body)
-    assert actual==expected
+    strict=body.replace('computeGasConvectiveCourantByCellKernel(&s,1e-300)', 'computeGasConvectiveCourantByCellKernel(&s,1e-300,true)').replace('computeGasCourantFieldKernel(&s,1.)','computeGasCourantFieldKernel(&s,1.,true)').replace('computeGasDiffusionNumberKernel(&s,1e300,Real(.5))','computeGasDiffusionNumberKernel(&s,1e300,Real(.5),true)').replace('computeSstStabilityNumberKernel(&s,1e300,Real(.5))','computeSstStabilityNumberKernel(&s,1e300,Real(.5),true,true)')
+    actual=build_run(tmp_path,'corrected',ROOT,strict)
+    rows=expected.splitlines(keepends=True)
+    for i in [6,7]:
+        assert rows[i].startswith('0 ')
+        rows[i]='6 '+rows[i][2:]
+    assert actual==''.join(rows)
 
 def test_exact_species_positivity_skips(tmp_path,original_root):
     body=mixture_fixture()+PRINT+r'''

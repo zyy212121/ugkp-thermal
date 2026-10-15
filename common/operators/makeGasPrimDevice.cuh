@@ -28,6 +28,43 @@ __device__ GasPrimDevice makeGasPrimDevice
 }
 
 template<class GasState>
+__device__ bool gasCoupledFaceStorageAvailable(const GasState& s,const int f)
+{
+    if(f<0 || f>=s.nFaces)return false;
+    if(f<s.nInternalFaces)return s.faceNeighbour!=nullptr;
+    if(!s.facePeriodicPair)return false;
+    const int pair=s.facePeriodicPair[f];
+    return pair<s.nInternalFaces || pair>=s.nFaces || s.faceNeighbour;
+}
+
+template<class GasState>
+__device__ bool gasReconstructionStorageAvailable(const GasState& s,const int c,const int f)
+{
+    if(c<0 || c>=s.nCells || f<0 || f>=s.nFaces
+        || !s.rho || !s.Ux || !s.Uy || !s.Uz || !s.p
+        || (ugkwp::mixtureGasActive(s) && !s.Tgas))return false;
+    if(s.gasReconstruction!=1)return true;
+    if(f>=s.nInternalFaces)
+    {
+        if(!s.facePeriodicPair)return false;
+        const int pair=s.facePeriodicPair[f];
+        if(pair>=s.nInternalFaces && pair<s.nFaces)
+        {
+            if(!s.faceNeighbour)return false;
+            if(c==s.faceNeighbour[f] && (!s.facePeriodicDx || !s.facePeriodicDy || !s.facePeriodicDz))return false;
+        }
+    }
+    return s.Cx && s.Cy && s.Cz && s.faceCx && s.faceCy && s.faceCz
+        && s.gasGradientLimiterRho && s.gasGradientLimiterP
+        && s.gasGradientLimiterUx && s.gasGradientLimiterUy && s.gasGradientLimiterUz
+        && s.gradRhoX && s.gradRhoY && s.gradRhoZ
+        && s.gradPx && s.gradPy && s.gradPz
+        && s.gradUxX && s.gradUxY && s.gradUxZ
+        && s.gradUyX && s.gradUyY && s.gradUyZ
+        && s.gradUzX && s.gradUzY && s.gradUzZ;
+}
+
+template<class GasState>
 __device__ GasPrimDevice gasCellPrimitive(const GasState& s,const int c)
 {
     if(ugkwp::mixtureGasActive(s))

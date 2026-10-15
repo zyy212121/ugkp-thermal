@@ -152,17 +152,22 @@ ck(s.rhoE[0]==oldE&&std::isfinite(s.Tgas[0]),"underflow corrupted Energy authori
 ''')
 
 
-def test_mixed_ale_rejection_preserves_live_and_rk_energy(tmp_path):
+@pytest.mark.parametrize('strict',[False,True])
+def test_mixed_ale_numeric_candidates_and_rk_energy(tmp_path,strict):
     compile_probe(tmp_path,energy_fixture()+r'''
 int main(){State s;initialise(s);s.rhoE[0]=1e9+.03;saveGasConservativeStateKernel(&s);
 const double before=s.rhoE[0],saved=s.rhoENext[0];Real oldV[2]={1,1},newV[2]={Real(1.1),Real(.9)},sweeps[3]={Real(.1),0,0};moving(s,oldV,newV,sweeps,Real(.125));
-applyGasFluxDivergenceByCellKernel(&s,.25);ck(s.gasSpecies.cellStatus[0]==0,"finite interval difference refused");
+applyGasFluxDivergenceByCellKernel(&s,.25,STRICT);ck(s.gasSpecies.cellStatus[0]==0,"finite interval difference refused");
 const double updated=s.rhoE[0];ck(updated==before/double(newV[0])&&s.rhoENext[0]==saved,"actual interval geometry or RK save lost");
-s.gasSpecies.cellStatus[0]=0;s.gasPhiRhoE[0]=std::numeric_limits<Real>::quiet_NaN();applyGasFluxDivergenceByCellKernel(&s,.125);
-ck(s.gasSpecies.cellStatus[0]!=0&&s.rhoE[0]==updated&&s.rhoENext[0]==saved,"nonfinite candidate changed energy");
+const Real live[4]={s.rho[0],s.rhoUx[0],s.rhoUy[0],s.rhoUz[0]};
+s.gasSpecies.cellStatus[0]=0;s.gasPhiRhoE[0]=std::numeric_limits<Real>::quiet_NaN();applyGasFluxDivergenceByCellKernel(&s,.125,STRICT);
+ck(s.gasSpecies.cellStatus[0]==int(ugkwp::GasTransportCode::NonFiniteState)&&s.rhoENext[0]==saved,"numeric failure or saved energy lost");
+const Real candidate[4]={s.rho[0],s.rhoUx[0],s.rhoUy[0],s.rhoUz[0]};
+if(STRICT)ck(s.rhoE[0]==updated&&std::memcmp(live,candidate,sizeof live)==0,"strict candidate published physical fields");
+else{ck(std::isnan(s.rhoE[0]),"public energy arithmetic was not evaluated");for(int k=0;k<4;++k)ck(candidate[k]==live[k]*(oldV[0]/newV[0]),"public bulk arithmetic incomplete");}
 // RK save/restore is exercised directly, without claiming a CHT transaction layer.
-s.gasSpecies.cellStatus[0]=0;s.rhoE[0]+=.05;blendGasConservativeStateKernel(&s,1.,0.);ck(s.rhoE[0]==saved,"RK restore narrowed accepted bits");}
-''')
+s.gasSpecies.cellStatus[0]=0;s.rhoE[0]=updated+.05;blendGasConservativeStateKernel(&s,1.,0.);ck(s.rhoE[0]==saved,"RK restore narrowed accepted bits");}
+'''.replace('STRICT','true' if strict else 'false'))
 
 
 def test_double_production_kernel_preserves_small_energy_increments(tmp_path):

@@ -83,7 +83,7 @@ matching[0]=s.nCells;ck(!ugkwp::evaluateGasBoundaryLayerSlot(s,0),"inaccessible 
         body=body.replace('m.config.model=ugkwp::gaswall::BoundaryLayerModel::ConstantTransport;',f'm.config.model=ugkwp::gaswall::BoundaryLayerModel::ReactingSst;m.config.nodes={nodes};m.config.relativeTolerance=Real({tolerance});')
         body=body.replace('m.workspace=nullptr;m.workspaceCount=0;delete[] workspace;',f'delete[] workspace;m.workspace=new ugkwp::gaswall::WallWorkspace<Real,2,{capacity}>[1];m.workspaceCount=1;m.workspaceCapacity={capacity};')
     if not success:
-        # Tight precision remains diagnostic; the actual profile is published.
+
         body=body.replace("m.config.relativeTolerance=Real(1e-20);", "m.config.relativeTolerance=Real(1e-20);m.config.absoluteTolerance=0;")
         body=body.replace('ck(exchange[0].ready,"stage not published");',
             'ck(exchange[0].ready,"stage not published");'
@@ -92,8 +92,8 @@ matching[0]=s.nCells;ck(!ugkwp::evaluateGasBoundaryLayerSlot(s,0),"inaccessible 
     if missing_storage:
         body=body.replace('matching[0]=s.nCells;ck(!ugkwp::evaluateGasBoundaryLayerSlot(s,0),"inaccessible matching donor accepted");ck(s.gasSpecies.faceStatus[1]!=0&&!exchange[0].ready,"failed stage not invalidated");',
             'm.'+missing_storage+'=nullptr;ck(!ugkwp::evaluateGasBoundaryLayerSlot(s,0),"missing matching backing accepted");ck(s.gasSpecies.faceStatus[1]==int(ugkwp::GasTransportCode::InvalidStorage)&&!exchange[0].ready,"missing backing did not invalidate closure");ck(s.rho[0]==savedRho&&s.rhoE[0]==savedEnergy&&s.gasSpecies.rho[0]==savedSpecies,"missing matching backing changed physical inventory");')
-    # The original out-of-range-index tail is deliberately retained otherwise:
-    # its unchecked array access has no valid physical reference to turn green.
+
+
     compile_probe(tmp_path,src+body)
 
 

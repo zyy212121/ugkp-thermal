@@ -211,7 +211,7 @@ def test_characterize_actual_drag_publications_and_existing_model_residual(probe
                             rel_tol=0, abs_tol=4*(2**-52)*(abs(ug)+abs(up-ug)+1))
     delta = changes(o)
     # This is a positive diagnosis of a preexisting model mismatch, not a relaxed
-    # conservation acceptance threshold. High-kinetic rounding is reported separately.
+
     assert abs(delta['x']) > 1
     assert abs(delta['energy']) > 1
     for axis in 'xyz':

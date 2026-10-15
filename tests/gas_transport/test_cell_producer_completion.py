@@ -27,7 +27,7 @@ RK={
 @pytest.mark.parametrize('scenario', RK)
 def test_actual_terminal_rk_physical_channels(tmp_path, scenario):
     from test_sst_ale_audit import AUDIT as SST_AUDIT
-    # The test-owned predictor checks actual SST updates without production audit fields.
+
     setup=r'''void near(Real a,Real b,const char*m){ck(std::abs(a-b)<1e-12,m);}'''
     body=r'''s.sstConfigured=1;s.rhoK[0]=2;s.rhoOmega[0]=4;audit(s);
 threadIdx.x=0;saveGasConservativeStateKernel(&s);
@@ -190,7 +190,7 @@ if(mode==5)ck(!okay&&copies==1&&launches==0&&s.rhoK[0]==-3&&s.rhoOmega[0]==-5,"a
     compile_probe(tmp_path,legacy_fixture()+shim+helper+'namespace transport{using ::setLastError;using ::GasCourantMaxima;using ::computeGasCurrentCourant;void setLastErrorText(const char*p){last=p;}}\n'+wrapper+main)
 
 @pytest.mark.parametrize('kernel',['divergence','sst_update','convective','diffusion','sst'])
-def test_supplied_negative_incidence_offset_with_real_backing_completes(tmp_path,kernel):
+def test_supplied_incidence_slice_with_nonnegative_offset_completes(tmp_path,kernel):
     calls={
         'divergence':'s.gasPhiRho[1]=-2;applyGasFluxDivergenceByCellKernel(&s,.1);ck(s.rho[0]==2.2,"terminal supplied incidence skipped bulk formula");',
         'sst_update':'s.sstPhiRhoK[0]=-6;applySstFluxAndSourceKernel(&s,.1);ck(s.rhoK[0]!=6,"terminal supplied incidence skipped SST formula");',
@@ -199,7 +199,7 @@ def test_supplied_negative_incidence_offset_with_real_backing_completes(tmp_path
         'sst':'computeSstStabilityNumberKernel(&s,.1,Real(.5),false);ck(s.sstSourceNumber[0]>0,"terminal supplied incidence skipped stability formula");',
     }
     compile_probe(tmp_path,legacy_fixture()+r'''
-int main(){State s;initialise(s);s.sstConfigured=1;int* backing=s.cellFaceId;s.cellFaceId=backing+1;s.cellPlaneStart[0]=-1;s.cellPlaneCount[0]=2;s.cellFaceId[-1]=0;s.cellFaceId[0]=1;threadIdx.x=0;
+int main(){State s;initialise(s);s.sstConfigured=1;int* backing=s.cellFaceId;s.cellFaceId=backing+1;s.cellPlaneStart[0]=0;s.cellPlaneCount[0]=2;s.cellFaceId[0]=0;s.cellFaceId[1]=1;threadIdx.x=0;
 '''+calls[kernel]+r'''ck(s.gasSpecies.cellStatus[0]==0,"terminal metadata added a refusal");}''')
 
 @pytest.mark.parametrize('case',['omega','source'])
@@ -244,3 +244,26 @@ if(absent!=1)s.gasSpecies.flux=nullptr;if(absent!=0)s.gasSpecies.rho=nullptr;
 const Real before[]={s.rho[0],s.rhoUx[0],s.rhoUy[0],s.rhoUz[0],s.rhoE[0]};applyGasFluxDivergenceByCellKernel(&s,.1,true);
 const Real after[]={s.rho[0],s.rhoUx[0],s.rhoUy[0],s.rhoUz[0],s.rhoE[0]};ck(s.gasSpecies.cellStatus[0]==3&&std::memcmp(before,after,sizeof before)==0,"strict face-status prefix inspected unconsumed backing");}}
 ''')
+
+
+@pytest.mark.parametrize('native', [False, True])
+@pytest.mark.parametrize('kernel', ['divergence','sst_update','convective','diffusion','sst'])
+def test_incidence_before_logical_array_origin_is_resource_error(tmp_path,kernel,native):
+    mode='true' if native else 'false'
+    calls={
+        'divergence':'applyGasFluxDivergenceByCellKernel(&s,.1,MODE);',
+        'sst_update':'applySstFluxAndSourceKernel(&s,.1,MODE);',
+        'convective':'computeGasConvectiveCourantByCellKernel(&s,.1,MODE);',
+        'diffusion':'computeGasDiffusionNumberKernel(&s,.1,Real(.5),MODE);',
+        'sst':'computeSstStabilityNumberKernel(&s,.1,Real(.5),false,MODE);',
+    }
+    body=r'''
+int main(){State s;initialise(s);s.sstConfigured=1;
+int* backing=s.cellFaceId;s.cellFaceId=backing+1;s.cellPlaneStart[0]=-1;s.cellPlaneCount[0]=2;
+threadIdx.x=0;const Real before[]={s.rho[0],s.rhoUx[0],s.rhoUy[0],s.rhoUz[0],s.rhoE[0],s.rhoK[0],s.rhoOmega[0]};
+CALL
+const Real after[]={s.rho[0],s.rhoUx[0],s.rhoUy[0],s.rhoUz[0],s.rhoE[0],s.rhoK[0],s.rhoOmega[0]};
+ck(s.gasSpecies.cellStatus[0]==int(ugkwp::GasTransportCode::InvalidStorage),"logical incidence origin error not recorded");
+ck(std::memcmp(before,after,sizeof before)==0,"missing incidence changed conserved state");
+}'''.replace('CALL',calls[kernel].replace('MODE',mode))
+    compile_probe(tmp_path,legacy_fixture()+body,sanitizers=True)

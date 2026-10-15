@@ -128,6 +128,11 @@ __device__ GasPrimDevice reconstructGasCellToFace
 )
 {
     if(evaluated)*evaluated=false;
+    if(!gasReconstructionStorageAvailable(s,c,f))
+    {
+        if(!ugkwp::gasRecordFaceFailure(s,f,ugkwp::GasTransportCode::InvalidStorage))asm("trap;");
+        return GasPrimDevice{};
+    }
     if constexpr (ugkwp::GasStateTraits<GasState>::speciesCount > 0)
         if (ugkwp::mixtureGasActive(s))
         {

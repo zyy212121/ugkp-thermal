@@ -140,9 +140,16 @@ void no_duplicate_gas() {
  })==0,"completed deposit gas-only group");
  require(std::equal(s.coldH,s.coldH+8,old)&&s.pThermalEnthalpyResidual[0]==.03125,"paired gas is not exchanged twice");
  clearColdWallParticleState(s,0);require(s.pThermalEnthalpyResidual[0]==.03125,"legacy clear retains incremental carry");
- initialiseColdWallParticleState(s,0,GPU_R(3200));require(s.pThermalEnthalpyResidual[0]==.03125,"legacy activation retains incremental carry");
- clearColdWall2DParticleState(s,0);require(s.pThermalEnthalpyResidual[0]==.03125,"2D clear retains incremental carry");
- initialiseColdWall2DParticleState(s,0,GPU_R(3200));require(s.pThermalEnthalpyResidual[0]==.03125,"2D activation retains incremental carry");
+ const double initializedEnthalpy=coldWallSpecificEnthalpyJkg(GPU_R(3200),s.coldWallSolidificationParameters);
+ const double castLoss=initializedEnthalpy-double(float(initializedEnthalpy));
+ initialiseColdWallParticleState(s,0,GPU_R(3200));
+ require(s.pThermalEnthalpyResidual[0]==.03125+castLoss,"1D activation retains previous carry and cast loss");
+ near(inventory(s.coldH,8,s.pThermalEnthalpyResidual[0]),initializedEnthalpy+.03125,0.,"1D initial represented enthalpy");
+ clearColdWall2DParticleState(s,0);require(s.pThermalEnthalpyResidual[0]==.03125+castLoss,"2D clear retains incremental carry");
+ const double before2d=s.pThermalEnthalpyResidual[0];
+ initialiseColdWall2DParticleState(s,0,GPU_R(3200));
+ require(s.pThermalEnthalpyResidual[0]==before2d+castLoss,"2D activation retains previous carry and cast loss");
+ near(inventory(s.cold2DH,64,s.pThermalEnthalpyResidual[0]),initializedEnthalpy+before2d,0.,"2D initial represented enthalpy");
 }
 
 void full_2d_wrapper(double scale) {
@@ -349,10 +356,12 @@ void geometry_arithmetic() {
   const auto g=coldWall2DGeometry(GPU_R(1),GPU_R(1),area);
   require(g.valid,"finite geometry inputs retain original formula outcome");
   for(double dt:{0.,1.e-10}) {
-   DeviceState s;seed(s);std::fill(s.cold2DH,s.cold2DH+64,4000000.f);
+   DeviceState s;seed(s);std::fill(s.cold2DH,s.cold2DH+64,4000000.f);const double beforeCarry=s.pThermalEnthalpyResidual[0];
    const int failures=launch8([&]{GpuReal m=-999,t=-999,f=-999,w=-999;
     if(!advanceColdWall2DThermalGroup(s,0,threadIdx.x,255,GPU_R(1.e-12),GPU_R(3.e-9),area,GPU_R(1.e-8),dt,GPU_R(300),GPU_R(10000),GPU_R(1.e-5),GPU_R(4200),GPU_R(0),m,t,f,w))throw DeviceTrap{};
-   });require(failures==(dt==0. ? 0 : 8),"zero interval needs no geometry arithmetic; active invalid geometry propagates");
+   });require(failures==0,"consumed backing permits terminal geometry arithmetic");
+   if(dt==0.)require(s.cold2DH[0]==4000000.f&&s.pThermalEnthalpyResidual[0]==beforeCarry,"zero interval preserves original profile");
+   else require(!std::isfinite(s.pThermalEnthalpyResidual[0]),"undefined geometry remains visible in represented enthalpy");
   }
  }
  const auto signedGeometry=coldWall2DGeometry(GPU_R(-1),GPU_R(-1),GPU_R(1));
@@ -372,7 +381,8 @@ void resistance_arithmetic() {
    if(!advanceColdWall2DThermalGroup(s,0,threadIdx.x,255,GPU_R(1.e-12),GPU_R(3.e-9),GPU_R(2.e-8),area,dt,GPU_R(900),eff,GPU_R(1.e-5),GPU_R(1100),GPU_R(0),m,t,f,w))throw DeviceTrap{};
    if(threadIdx.x==0)wall=w;
   });
-  require(failures==(which==3?8:0),"infinite resistance gives zero conductance; invalid active square root propagates",failures,which);
+  require(failures==0,"terminal resistance arithmetic consumes existing backing",failures,which);
+  if(which==3)require(!std::isfinite(wall)&&!std::isfinite(s.pThermalEnthalpyResidual[0]),"invalid active square root propagates to physical outputs");
   if(which==0)require(wall>0,"ordinary actual wet wall heat remains nonzero");
   if(which>=4)require(wall==0.,"unused wall operator has actual zero wall heat");
  }
@@ -492,7 +502,7 @@ def cold_carry_binary(tmp_path_factory):
     prefix=prefix.replace('#include <thread>','#include <thread>\n#include <string>\n#include "GpuColdWall2DSolidification.H"\n#define GPU_PAIRED_PARTICLE_HEAT 1')
     prefix=prefix.replace('struct DeviceState {','struct DeviceState {\n double pThermalEnthalpyResidual[1]{}; double heatBudget[1]{}; double heatCoefficient[1]{1.}; double* particleHeatBudget=heatBudget; double* particleHeatCoefficient=heatCoefficient;\n int coldWall2DEnabled=1;\n float cold2DH[64]{}; GpuTime cold2DAge[8]{};\n float* pCold2DNodeSpecificEnthalpy=cold2DH;\n GpuTime* pCold2DRingContactAge=cold2DAge;')
     prefix=prefix.replace('struct DeviceTrap {};','struct DeviceTrap {};\nvoid __syncwarp(unsigned){lanes.arrive_and_wait();}')
-    # The host atomic adapter models a genuine missing-address error.
+
     prefix=prefix.replace('T atomicAdd(T* target,T value) {', 'T atomicAdd(T* target,T value) {if(!target)throw DeviceTrap{};')
     prefix=prefix.replace('struct DeviceState {', 'struct DeviceState {\n GpuReal epsGPrev[1]{GPU_R(.9)},V[1]{GPU_R(1)},rho[1]{GPU_R(1)},rhoUx[1]{},rhoUy[1]{},rhoUz[1]{};\n GpuReal Tgas[1]{GPU_R(4200)},p[1]{},Ux[1]{},Uy[1]{},Uz[1]{};\n GpuReal Rgas=GPU_R(287),gammaGas=GPU_R(1.4);\n double rhoE[1]{3.e6},rhoENext[1]{};\n unsigned char* compactPStuck=pStuck;int* compactPStuckFaceId=pStuckFaceId;GpuReal* compactPT=pT;\n float* compactPColdNodeSpecificEnthalpy=coldH;float* compactPCold2DNodeSpecificEnthalpy=cold2DH;\n double* compactPThermalEnthalpyResidual=pThermalEnthalpyResidual;\n')
     # All three particle kinds share one cell; face and parcel arrays have
@@ -511,7 +521,7 @@ def cold_carry_binary(tmp_path_factory):
     (build/'actual_gas_recovery.cuh').write_text('#include \"gasTransport/GasCapabilities.H\"\n#include \"gasTransport/MixtureThermo.H\"\n#include \"gasTransport/GasGeometryValidation.H\"\n'+recovery[start:end])
     prefix=prefix.replace('void clearColdWall2DParticleState(DeviceState&,int) {}','void clearColdWall2DParticleState(DeviceState&,int);')
     two=(ROOT/'common/wall/GpuColdWall2DDevice.cuh').read_text()
-    # Observe each actual step without replacing any numerical expression.
+
     two=two.replace('        ColdWallThermalReal power[', '        if(radialNode==0)observedStepTimes.push_back(stepTime);\n        ColdWallThermalReal power[')
     prefix += '\n#include <vector>\nstd::vector<double> observedStepTimes;\n'
     # Compile the complete production 2D wrapper as well as its group.

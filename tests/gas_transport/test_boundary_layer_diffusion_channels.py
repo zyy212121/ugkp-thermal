@@ -93,11 +93,12 @@ int main(){for(int turbulent:{0,1}){
 '''.replace('THERMAL', str(int(channel == 'thermal'))))
 
 
-def test_inactive_channels_still_validate_ale_geometry(tmp_path):
+@pytest.mark.parametrize('strict',[False,True])
+def test_inactive_channels_still_require_consumed_volume_storage(tmp_path,strict):
     compile_probe(tmp_path, fixture()+r'''
 int main(){State s;initialise(s);s.maxDiffusionNumber=1;
  s.cellPlaneCount[0]=1;s.cellFaceId[0]=1;s.gasGeometry.enabled=true;s.gasGeometry.interval=1;
- threadIdx.x=0;computeGasDiffusionNumberKernel(&s,1.,Real(1));
- ck(s.gasSpecies.cellStatus[0]==int(ugkwp::GasTransportCode::InvalidGeometry)&&s.gasDiffusionNumber[0]==OfGreat,"inactive channel bypassed ALE geometry gate");
+ threadIdx.x=0;computeGasDiffusionNumberKernel(&s,1.,Real(1),STRICT);
+ ck(s.gasSpecies.cellStatus[0]==int(ugkwp::GasTransportCode::InvalidStorage)&&std::isnan(s.gasDiffusionNumber[0]),"inactive channel omitted required volume backing error");
 }
-''')
+'''.replace('STRICT','true' if strict else 'false'))

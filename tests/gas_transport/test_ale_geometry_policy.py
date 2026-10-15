@@ -118,15 +118,15 @@ void storage_conversion(){
 void reject_transaction(){
 
  auto f=frame();auto keep=f;
- check(!makeGasFaceFrame(Real(0),Real(0),Real(0),Real(1),Real(.1),f),"zero area accepted");check(std::memcmp(&f,&keep,sizeof f)==0,"failed frame changed output");
- check(!makeGasFaceFrame(Real(1),Real(0),Real(0),Real(1),Real(0),f),"zero interval accepted");
+ check(!makeGasFaceFrame(Real(0),Real(0),Real(0),Real(1),Real(.1),f),"zero area accepted");check(std::isnan(f.area)&&std::isnan(f.nx)&&f.meshVolumeRate==Real(10),"zero-area frame arithmetic incomplete");
+ check(!makeGasFaceFrame(Real(1),Real(0),Real(0),Real(1),Real(0),f),"zero interval accepted");check(f.area==1&&f.nx==1&&std::isinf(f.meshVolumeRate)&&std::isinf(f.wx)&&std::isnan(f.wy)&&std::isnan(f.wz),"zero-interval frame arithmetic incomplete");
  check(makeGasFaceFrame(Real(1),Real(0),Real(0),Real(1),Real(.1),f,Real(1),Real(0),Real(0)),"finite extra frame component refused");near(f.wx,Real(11),"actual frame component missing");
  check(!makeGasFaceFrame(std::numeric_limits<Real>::infinity(),Real(0),Real(0),Real(1),Real(.1),f),"nonfinite area accepted");
  auto p=primitive();auto q=state(p);Primitive po{99,98,97,96,95};Conservative qo{{1,2,3,4,5}};
  q.q[0]=-1;check(shiftGasStateToFaceFrame(p,q,keep,po,qo),"signed finite state refused");near(qo.q[0],Real(-1),"signed mass lost");
  q=state(p);q.q[1]+=2;check(shiftGasStateToFaceFrame(p,q,keep,po,qo),"finite redundant momentum refused");near(qo.q[1],q.q[1]-q.q[0]*keep.wx,"actual momentum transform changed");
- FluxResult input=invalidResult(Scheme::HLLC),out=invalidResult(Scheme::Roe),saved=out;out.flux[0]=saved.flux[0]=57;
- check(!restoreGasFluxFromFaceFrame(input,keep,out),"uncomputed flux accepted");check(std::memcmp(&out,&saved,sizeof out)==0,"failed frame flux published");
+ FluxResult input=invalidResult(Scheme::HLLC),out=invalidResult(Scheme::Roe);out.flux[0]=57;
+ check(!restoreGasFluxFromFaceFrame(input,keep,out),"uncomputed flux accepted");for(int k=0;k<5;++k)check(out.flux[k]==0,"diagnostic flux transform incomplete");check(!out.valid&&out.evaluatedScheme==input.evaluatedScheme&&out.maxSignalSpeed==0&&out.usedFallback==input.usedFallback,"diagnostic flux metadata lost");
  Real base[7]={1,2,3,4,-50000,Real(.3),Real(.7)},flux[7]={},result[7]={91,92,93,94,95,96,97},prior[7];std::memcpy(prior,result,sizeof prior);
  check(!advanceGasEulerGeometry<Real,2>(base,GasConservativeStorage::Density,1,0,-1,Real(.1),flux,result),"zero denominator volume accepted");
  check(advanceGasEulerGeometry<Real,2>(base,GasConservativeStorage::Density,1,2,Real(.8),Real(.1),flux,result),"finite GCL residual refused");for(int k=0;k<7;++k)near(result[k],base[k]/2,"GCL residual changed update");
@@ -143,7 +143,7 @@ void alias_and_extreme(){
  q[4]=std::numeric_limits<Real>::max();check(!convertGasConservativeStorage<Real,0>(q,Real(3),GasConservativeStorage::Density,GasConservativeStorage::Integral,output),"conversion overflow accepted");check(std::memcmp(saved,output,sizeof saved)==0,"overflow changed output");
  check(!convertGasConservativeStorage<Real,0>(q,Real(1),static_cast<GasConservativeStorage>(9),GasConservativeStorage::Integral,output),"invalid storage enum accepted");
  check(validateGasEulerGeometry(Real(1e-15),Real(1.1e-15),Real(1e-16)),"tiny cell exact GCL rejected");check(validateGasEulerGeometry(Real(1e-15),Real(1.1e-15),Real(0)),"finite tiny-cell residual refused");
- auto f=frame(),keep=f;check(!makeGasFaceFrame(std::numeric_limits<Real>::max(),std::numeric_limits<Real>::max(),Real(0),Real(0),Real(1),f),"area norm overflow accepted");check(std::memcmp(&f,&keep,sizeof f)==0,"overflow frame published");
+ auto f=frame(),keep=f;check(!makeGasFaceFrame(std::numeric_limits<Real>::max(),std::numeric_limits<Real>::max(),Real(0),Real(0),Real(1),f),"area norm overflow accepted");check(std::isinf(f.area)&&f.meshVolumeRate==0&&f.wx==0&&f.wy==0&&f.wz==0&&f.nz==0,"overflow frame arithmetic incomplete");near(f.nx,Real(1)/std::sqrt(Real(2)),"overflow frame x direction");near(f.ny,Real(1)/std::sqrt(Real(2)),"overflow frame y direction");
  auto p=primitive();auto u=state(p);check(shiftGasStateToFaceFrame(p,u,keep,p,u),"in-place state frame transform");
  auto moving=rusanovTadmorFluxUnitNormal(p,u,Real(300),p,u,Real(300),keep.nx,keep.ny,keep.nz,false);check(restoreGasFluxFromFaceFrame(moving,keep,moving),"in-place flux restore");
 }

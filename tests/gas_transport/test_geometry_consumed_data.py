@@ -48,7 +48,9 @@ if(mode==4)s.gasGeometry.interval=std::numeric_limits<Real>::quiet_NaN();
 if(mode==5){s.cellPlaneStart=nullptr;s.cellPlaneCount=nullptr;s.cellFaceId=nullptr;s.faceOwner=nullptr;s.faceNeighbour=nullptr;}
 Real a=-77,b=-77;ck(ugkwp::gasGeometryCellVolumes(s,0,std::numeric_limits<Real>::quiet_NaN(),a,b)&&a==1&&b==2,"pure volume read consumed unused metadata");}
 State s;initialise(s);MOVING
-for(int mode=0;mode<3;++mode){s.gasGeometry.oldVolume=mode==0?nullptr:oldV;s.gasGeometry.newVolume=mode==1?nullptr:newV;if(mode==2)oldV[0]=std::numeric_limits<Real>::quiet_NaN();Real a=-77,b=-77;ck(!ugkwp::gasGeometryCellVolumes(s,0,.5,a,b)&&a==-77&&b==-77,"required volume read failed without an error");}}
+for(int mode=0;mode<3;++mode){s.gasGeometry.oldVolume=mode==0?nullptr:oldV;s.gasGeometry.newVolume=mode==1?nullptr:newV;if(mode==2)oldV[0]=std::numeric_limits<Real>::quiet_NaN();Real a=-77,b=-77;bool evaluated=false;ck(!ugkwp::gasGeometryCellVolumes(s,0,.5,a,b,&evaluated),"required volume diagnostic omitted");
+if(mode<2)ck(!evaluated&&a==-77&&b==-77,"missing volume backing published output");
+else ck(evaluated&&std::isnan(a)&&b==2,"nonfinite volume read was not completed");}}
 '''.replace('MOVING',MOVING))
 
 def test_live_divergence_ignores_unused_sweeps_and_interval(tmp_path):
@@ -72,7 +74,9 @@ ugkwp::GasFaceFrame<Real> frame;frame.area=-77;
 ck(ugkwp::gasGeometryFaceFrame(s,0,std::numeric_limits<Real>::quiet_NaN(),frame),"frame depended on unused cell/time data");
 ck(frame.nx==1&&frame.ny==0&&frame.nz==0&&frame.area==1&&frame.meshVolumeRate==Real(.5)&&frame.wx==Real(.5)&&frame.wy==0&&frame.wz==0,"frame incomplete");
 for(int mode=0;mode<4;++mode){s.gasGeometry.faceSweptVolume=mode==0?nullptr:sweep;s.gasGeometry.interval=mode==1?0:.5;sweep[0]=mode==2?std::numeric_limits<Real>::infinity():Real(.25);frame.area=-77;
-ck(!ugkwp::gasGeometryFaceFrame(s,mode==3?999:0,.5,frame)&&frame.area==-77,"required frame operation claimed success");}}
+bool evaluated=false;ck(!ugkwp::gasGeometryFaceFrame(s,mode==3?999:0,.5,frame,&evaluated),"required frame diagnostic omitted");
+if(mode==0||mode==3)ck(!evaluated&&frame.area==-77,"missing frame backing published output");
+else ck(evaluated&&frame.area==1&&frame.nx==1&&frame.ny==0&&frame.nz==0&&std::isinf(frame.meshVolumeRate)&&std::isinf(frame.wx)&&std::isnan(frame.wy)&&std::isnan(frame.wz),"nonfinite frame arithmetic incomplete");}}
 '''.replace('MOVING',MOVING))
 
 def test_live_moving_face_flux_ignores_unused_cell_geometry(tmp_path):
@@ -87,17 +91,47 @@ Real out[7]={s.gasPhiRho[0],s.gasPhiRhoUx[0],s.gasPhiRhoUy[0],s.gasPhiRhoUz[0],s
 ck(s.gasSpecies.faceStatus[0]==0&&std::memcmp(out,expected,sizeof out)==0,"unused dt changed complete face candidate");}
 '''.replace('MOVING',MOVING))
 
-def test_incident_address_errors_remain_in_all_live_consumers(tmp_path):
+@pytest.mark.parametrize('strict',[False,True])
+def test_consumed_nonempty_incidence_offset_is_required_storage(tmp_path,strict):
     compile_probe(tmp_path,fixture()+r'''
-int main(){for(int operation=0;operation<6;++operation)for(int bad=0;bad<4;++bad){if(bad==1&&(operation==1||operation==6))continue;State s;initialise(s);MOVING
+int main(){for(bool movingGeometry:{false,true})for(int operation=0;operation<6;++operation)for(int bad=0;bad<2;++bad){State s;initialise(s);MOVING
+s.gasGeometry.enabled=movingGeometry;
 s.sstConfigured=1;s.sstCoefficients=ugkwp::defaultSstCoefficients();s.rhoK[0]=Real(.1);s.rhoOmega[0]=1;s.k[0]=Real(.1);s.omega[0]=1;s.sstKMin=Real(1e-12);s.sstOmegaMin=Real(1e-12);
-if(bad==0)s.cellFaceId[0]=999;if(bad==1){s.faceOwner[0]=1;s.faceNeighbour[0]=-1;}if(bad==2)s.cellPlaneStart[0]=-1;if(bad==3)s.cellPlaneCount[0]=-1;
+s.cellPlaneStart[0]=bad==0?-1:0;s.cellPlaneCount[0]=1;if(bad==1)s.cellFaceId=nullptr;
 const Real before[9]={s.rho[0],s.rhoUx[0],s.rhoUy[0],s.rhoUz[0],s.rhoE[0],s.gasSpecies.rho[0],s.gasSpecies.rho[2],s.rhoK[0],s.rhoOmega[0]};
-switch(operation){case 0:applySstFluxAndSourceKernel(&s,.5);break;case 1:computeGasConvectiveCourantByCellKernel(&s,.5);break;case 2:computeGasDiffusionNumberKernel(&s,.5,.5);break;case 3:computeSstStabilityNumberKernel(&s,.5,.5);break;case 4:computeGasFluxPositivityScaleKernel(&s,.5);break;case 5:applyGasFluxDivergenceByCellKernel(&s,.5);break;}
-ck(s.gasSpecies.cellStatus[0]==int(ugkwp::GasTransportCode::InvalidGeometry),"required incident address error omitted");
+switch(operation){case 0:applySstFluxAndSourceKernel(&s,.5,STRICT);break;case 1:computeGasConvectiveCourantByCellKernel(&s,.5,STRICT);break;case 2:computeGasDiffusionNumberKernel(&s,.5,.5,STRICT);break;case 3:computeSstStabilityNumberKernel(&s,.5,.5,true,STRICT);break;case 4:computeGasFluxPositivityScaleKernel(&s,.5);break;case 5:applyGasFluxDivergenceByCellKernel(&s,.5,STRICT);break;}
+ck(s.gasSpecies.cellStatus[0]==int(ugkwp::GasTransportCode::InvalidStorage),"required incident offset error omitted");
 const Real after[9]={s.rho[0],s.rhoUx[0],s.rhoUy[0],s.rhoUz[0],s.rhoE[0],s.gasSpecies.rho[0],s.gasSpecies.rho[2],s.rhoK[0],s.rhoOmega[0]};
 ck(std::memcmp(before,after,sizeof before)==0,"address error partially published physical fields");}}
-'''.replace('MOVING',MOVING))
+'''.replace('MOVING',MOVING).replace('STRICT','true' if strict else 'false'),sanitizers=True)
+
+@pytest.mark.parametrize('strict',[False,True])
+def test_invalid_and_unowned_divergence_incidence_consumes_no_face_storage(tmp_path,strict):
+    compile_probe(tmp_path,fixture()+r'''
+int main(){for(bool movingGeometry:{false,true})for(int mode=0;mode<2;++mode){State s;initialise(s);MOVING
+s.gasGeometry.enabled=movingGeometry;s.cellPlaneCount[0]=1;
+if(mode==0)s.cellFaceId[0]=999;else{s.faceOwner[0]=1;s.faceNeighbour[0]=-1;}
+s.gasSpecies.faceStatus[0]=int(ugkwp::GasTransportCode::InvalidStorage);s.gasSpecies.flux=nullptr;
+const Real before[7]={s.rho[0],s.rhoUx[0],s.rhoUy[0],s.rhoUz[0],s.rhoE[0],s.gasSpecies.rho[0],s.gasSpecies.rho[2]};
+applyGasFluxDivergenceByCellKernel(&s,.5,STRICT);
+ck(s.gasSpecies.cellStatus[0]==0,"unused incidence consumed face storage");
+const Real after[7]={s.rho[0],s.rhoUx[0],s.rhoUy[0],s.rhoUz[0],s.rhoE[0],s.gasSpecies.rho[0],s.gasSpecies.rho[2]};
+const Real ratio=movingGeometry?Real(.5):Real(1);for(int k=0;k<7;++k)ck(after[k]==before[k]*ratio,"skipped-incidence conservative candidate incomplete");}}
+'''.replace('MOVING',MOVING).replace('STRICT','true' if strict else 'false'),sanitizers=True)
+
+@pytest.mark.parametrize('strict',[False,True])
+def test_invalid_face_incidence_is_skipped_by_live_consumers(tmp_path,strict):
+    compile_probe(tmp_path,fixture()+r'''
+int main(){for(bool movingGeometry:{false,true})for(int operation=0;operation<6;++operation){State s;initialise(s);MOVING
+s.gasGeometry.enabled=movingGeometry;s.cellPlaneCount[0]=1;s.cellFaceId[0]=999;
+s.sstConfigured=1;s.sstCoefficients=ugkwp::defaultSstCoefficients();s.rhoK[0]=Real(.1);s.rhoOmega[0]=1;s.k[0]=Real(.1);s.omega[0]=1;s.sstKMin=Real(1e-12);s.sstOmegaMin=Real(1e-12);s.maxDiffusionNumber=.25;
+const Real before[9]={s.rho[0],s.rhoUx[0],s.rhoUy[0],s.rhoUz[0],s.rhoE[0],s.gasSpecies.rho[0],s.gasSpecies.rho[2],s.rhoK[0],s.rhoOmega[0]};
+switch(operation){case 0:applySstFluxAndSourceKernel(&s,0.,STRICT);break;case 1:computeGasConvectiveCourantByCellKernel(&s,0.,STRICT);break;case 2:computeGasDiffusionNumberKernel(&s,0.,.5,STRICT);break;case 3:computeSstStabilityNumberKernel(&s,0.,.5,true,STRICT);break;case 4:computeGasFluxPositivityScaleKernel(&s,.5);break;case 5:applyGasFluxDivergenceByCellKernel(&s,0.,STRICT);break;}
+ck(s.gasSpecies.cellStatus[0]==0,"skipped face incidence required storage");
+const Real after[9]={s.rho[0],s.rhoUx[0],s.rhoUy[0],s.rhoUz[0],s.rhoE[0],s.gasSpecies.rho[0],s.gasSpecies.rho[2],s.rhoK[0],s.rhoOmega[0]};
+for(int k=0;k<9;++k){const Real ratio=movingGeometry&&((operation==0&&k>=7)||(operation==5&&k<7))?Real(.5):Real(1);ck(after[k]==before[k]*ratio,"skipped-face physical candidate incomplete");}
+if(operation==4)ck(s.gasFluxPositivityScale[0]==1&&s.gasSpecies.positivityScale[0]==1&&s.gasSpecies.positivityScale[2]==1,"empty donor sum changed limiter identity");}}
+'''.replace('MOVING',MOVING).replace('STRICT','true' if strict else 'false'),sanitizers=True)
 
 def test_positivity_only_reads_its_used_old_inventory_volume(tmp_path):
     compile_probe(tmp_path,fixture()+r'''
@@ -123,13 +157,18 @@ ck(t.gasSpecies.cellStatus[0]==0,"disabled boundary consumed unrelated addresses
 ck(operation==0?t.gasDiffusionNumber[0]==0:t.sstSourceNumber[0]==0,"disabled boundary changed stability candidate");}}
 '''.replace('MOVING',MOVING))
 
-def test_actual_opposite_cell_access_is_reported_inline(tmp_path):
+@pytest.mark.parametrize('strict',[False,True])
+def test_actual_opposite_cell_access_is_required_storage(tmp_path,strict):
     compile_probe(tmp_path,fixture()+r'''
-int main(){for(int operation=0;operation<3;++operation){State s;initialise(s);MOVING
-s.sstConfigured=1;s.sstCoefficients=ugkwp::defaultSstCoefficients();s.rhoK[0]=Real(.1);s.rhoOmega[0]=1;s.k[0]=Real(.1);s.omega[0]=1;s.faceNeighbour[0]=999;
-if(operation==0)applySstFluxAndSourceKernel(&s,.5);else if(operation==1)computeGasDiffusionNumberKernel(&s,.5,.5);else computeSstStabilityNumberKernel(&s,.5,.5);
-ck(s.gasSpecies.cellStatus[0]==int(ugkwp::GasTransportCode::InvalidGeometry),"required opposite-cell address not reported");}}
-'''.replace('MOVING',MOVING))
+int main(){for(bool movingGeometry:{false,true})for(int operation=0;operation<3;++operation)for(bool invalidOwner:{false,true}){State s;initialise(s);MOVING
+s.gasGeometry.enabled=movingGeometry;
+s.sstConfigured=1;s.sstCoefficients=ugkwp::defaultSstCoefficients();s.rhoK[0]=Real(.1);s.rhoOmega[0]=1;s.k[0]=Real(.1);s.omega[0]=1;if(invalidOwner)s.faceOwner[0]=999;else s.faceNeighbour[0]=999;
+const Real before[9]={s.rho[0],s.rhoUx[0],s.rhoUy[0],s.rhoUz[0],s.rhoE[0],s.gasSpecies.rho[0],s.gasSpecies.rho[2],s.rhoK[0],s.rhoOmega[0]};
+if(operation==0)applySstFluxAndSourceKernel(&s,.5,STRICT);else if(operation==1)computeGasDiffusionNumberKernel(&s,.5,.5,STRICT);else computeSstStabilityNumberKernel(&s,.5,.5,true,STRICT);
+ck(s.gasSpecies.cellStatus[0]==int(ugkwp::GasTransportCode::InvalidStorage),"required opposite-cell address not reported");
+const Real after[9]={s.rho[0],s.rhoUx[0],s.rhoUy[0],s.rhoUz[0],s.rhoE[0],s.gasSpecies.rho[0],s.gasSpecies.rho[2],s.rhoK[0],s.rhoOmega[0]};
+ck(std::memcmp(before,after,sizeof before)==0,"opposite-cell error partially published physical fields");}}
+'''.replace('MOVING',MOVING).replace('STRICT','true' if strict else 'false'),sanitizers=True)
 
 def test_pure_volume_and_live_divergence_have_no_proof_reads(tmp_path):
     import re
@@ -164,8 +203,8 @@ ck(helperIds==0&&helperSweeps==0&&liveIds==4,"live divergence has a new proof pa
 
 def test_empty_incidence_does_not_require_unused_offset(tmp_path):
     compile_probe(tmp_path,fixture()+r'''
-int main(){for(int operation=0;operation<6;++operation){State s;initialise(s);MOVING
-s.cellPlaneStart[0]=-1;s.cellPlaneCount[0]=0;s.cellFaceId=nullptr;s.faceOwner=nullptr;s.faceNeighbour=nullptr;
+int main(){for(int operation=0;operation<6;++operation)for(int count:{0,-1}){State s;initialise(s);MOVING
+s.cellPlaneStart[0]=-1;s.cellPlaneCount[0]=count;s.cellFaceId=nullptr;s.faceOwner=nullptr;s.faceNeighbour=nullptr;
 s.sstConfigured=1;s.sstCoefficients=ugkwp::defaultSstCoefficients();s.rhoK[0]=1;s.rhoOmega[0]=1;s.k[0]=1;s.omega[0]=1;s.sstKMin=Real(1e-12);s.sstOmegaMin=Real(1e-12);s.maxDiffusionNumber=.25;
 switch(operation){case 0:applySstFluxAndSourceKernel(&s,0.);break;case 1:computeGasConvectiveCourantByCellKernel(&s,0.);break;case 2:computeGasDiffusionNumberKernel(&s,0.,.5);break;case 3:computeSstStabilityNumberKernel(&s,0.,.5);break;case 4:computeGasFluxPositivityScaleKernel(&s,0.);break;case 5:applyGasFluxDivergenceByCellKernel(&s,0.);break;}
 ck(s.gasSpecies.cellStatus[0]==0,"empty loop required unused incidence offset");}}

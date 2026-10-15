@@ -168,7 +168,7 @@ int main(){
 
 
 def test_double_constant_wall_implementation_is_compilable(tmp_path):
-    # This checks the real function body, without changing the FP64 public adapter.
+
     source=tmp_path/'constant_impl.cpp'
     source.write_text(BASE + '\nint main(){auto implementation=&evaluateConstantTransportWallImpl<double,2,double>; (void)implementation;}\n')
     result=subprocess.run(['g++','-std=c++17','-O2','-I',str(ROOT),'-I',str(ROOT/'common'),str(source),'-o',str(source.with_suffix(''))],capture_output=True,text=True)

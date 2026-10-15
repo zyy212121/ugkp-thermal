@@ -13,8 +13,8 @@ __global__ void computeGasFluxPositivityScaleKernel(GasState* sp, const GPU_OPER
         return;
     }
 
-    // The existing nonpositive-time limiter branch is the identity for every
-    // channel; no flux sum or available inventory contributes to its factors.
+
+
     if(dt<=GPU_OPERATOR_R(0.0))
     {
         s.gasFluxPositivityScale[c]=GPU_OPERATOR_R(1.0);
@@ -29,6 +29,11 @@ __global__ void computeGasFluxPositivityScaleKernel(GasState* sp, const GPU_OPER
     GPU_OPERATOR_REAL outgoingMassFlux = GPU_OPERATOR_R(0.0);
     const int start = s.cellPlaneStart[c];
     const int count = s.cellPlaneCount[c];
+    if(count>0 && (start<0 || !s.cellFaceId))
+    {
+        if(!ugkwp::gasRecordCellFailure(s,c,ugkwp::GasTransportCode::InvalidStorage))asm("trap;");
+        return;
+    }
     for (int i = 0; i < count; ++i)
     {
         const int f = s.cellFaceId[start + i];

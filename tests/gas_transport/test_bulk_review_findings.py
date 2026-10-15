@@ -29,14 +29,16 @@ ck(!ugkwp::advanceGasEulerGeometry<Real,0>(q,ugkwp::GasConservativeStorage::Dens
 @pytest.mark.parametrize('constrained',[False,True])
 @pytest.mark.parametrize('audited',[False,True])
 @pytest.mark.parametrize('channel',['omega','k'])
-def test_moving_sst_only_required_omega_flux_can_block_k(tmp_path,constrained,audited,channel):
+def test_moving_sst_public_diagnostic_candidates_preserve_equations(tmp_path,constrained,audited,channel):
     compile_probe(tmp_path,legacy_fixture()+SETUP+AUDIT+r'''
 int main(){State s;initialise(s);wall(s);Real oldV[2]={1,1},newV[2]={1,1},sweep[3]={0,0,0};moving(s,oldV,newV,sweep,Real(.01));
-if(AUDITED)audit(s);
+if(AUDITED)audit(s);else observed.enabled=false;
 if(!CONSTRAINED){s.gasBoundaryLayer.enabled=false;s.riemannBoundaryKind[1]=0;}
 s.CHANNEL[0]=std::numeric_limits<Real>::quiet_NaN();Real sk,so;sstSourcesForCell(s,0,Real(0),sk,so);const Real beforeK=s.rhoK[0],beforeOmega=s.rhoOmega[0];Real expected=clampMin(beforeK+Real(.01)*sk,s.rho[0]*s.sstKMin);threadIdx.x=0;applySstFluxAndSourceKernel(&s,.01);
 if(CONSTRAINED&&OPTIONAL){ck(s.gasSpecies.cellStatus[0]==0,"unused omega flux blocked K");near(s.rhoK[0],expected,"complete K source missing");ck(s.rhoOmega[0]==beforeOmega,"constrained omega changed");if(AUDITED)ck(std::isnan(observed.transportOmega[0])&&std::isnan(observed.constraintOmega[0])&&std::isfinite(observed.sourceK[0]),"optional audit information fabricated or lost");}
-else ck(s.gasSpecies.cellStatus[0]!=0&&s.rhoK[0]==beforeK,"required omega failure partially published K");}
+else{ck(s.gasSpecies.cellStatus[0]==int(ugkwp::GasTransportCode::NonFiniteState),"required nonfinite flux diagnostic missing");
+if(OPTIONAL){near(s.rhoK[0],expected,"public K source incomplete");ck(std::isnan(s.rhoOmega[0]),"public omega equation was not evaluated");}
+else{ck(std::isnan(s.rhoK[0]),"public K equation was not evaluated");if(CONSTRAINED)ck(s.rhoOmega[0]==beforeOmega,"constrained omega changed on bad K flux");else near(s.rhoOmega[0],std::max(beforeOmega+Real(.01)*so,s.rho[0]*s.sstOmegaMin),"independent finite omega source missing");}}}
 '''.replace('CONSTRAINED','true' if constrained else 'false').replace('AUDITED','true' if audited else 'false').replace('CHANNEL','sstPhiRhoOmega' if channel=='omega' else 'sstPhiRhoK').replace('OPTIONAL','true' if channel=='omega' else 'false'))
 
 def test_jayatilleke_zero_ustar_actual_heat_overflow_is_error(tmp_path):
@@ -64,17 +66,12 @@ p.u=-1;ck(!ugkpgks::accumulateGksSide(p,grad,1.4,-1,a),"overflowed required GKS 
 
 @pytest.mark.parametrize('moving',[False,True])
 @pytest.mark.parametrize('missing',['index','connection'])
-def test_missing_required_incident_face_never_publishes_partial_update(tmp_path,moving,missing):
+def test_skipped_incident_face_preserves_connected_flux_update(tmp_path,moving,missing):
     compile_probe(tmp_path,fixture()+r'''
 int main(){State s;initialise(s);Real oldV[2]={1,1},newV[2]={2,2},sweep[3]={0,0,0};s.gasGeometry.enabled=MOVING;s.gasGeometry.oldVolume=oldV;s.gasGeometry.newVolume=newV;s.gasGeometry.faceSweptVolume=sweep;s.gasGeometry.interval=.5;
 MISSING;s.gasPhiRho[0]=.2;s.gasSpecies.flux[0]=.18;s.gasSpecies.flux[3]=.02;const Real before[7]={s.rho[0],s.rhoUx[0],s.rhoUy[0],s.rhoUz[0],s.rhoE[0],s.gasSpecies.rho[0],s.gasSpecies.rho[2]};threadIdx.x=0;applyGasFluxDivergenceByCellKernel(&s,.5);
 const Real after[7]={s.rho[0],s.rhoUx[0],s.rhoUy[0],s.rhoUz[0],s.rhoE[0],s.gasSpecies.rho[0],s.gasSpecies.rho[2]};
-if(MOVING&&BADINDEX){
- // Retain the old failed expectation: the later moving-status pass reads the
- // invalid face index. This illegal-input case has no valid physical oracle.
- ck(s.gasSpecies.cellStatus[0]==int(ugkwp::GasTransportCode::InvalidGeometry),"missing incident face not reported");
- for(int k=0;k<7;++k)ck(after[k]==before[k],"missing face published partial candidate");
-}else{
+{
  // The established incidence walk skips an invalid index or an unowned face.
  // Only connected face 0 contributes: independently integrate its signed flux.
  ck(s.gasSpecies.cellStatus[0]==0,"skipped incidence blocked connected flux");
@@ -85,20 +82,31 @@ if(MOVING&&BADINDEX){
 '''.replace('MOVING','true' if moving else 'false').replace('BADINDEX','true' if missing=='index' else 'false').replace('MISSING','s.cellFaceId[1]=999' if missing=='index' else 's.faceOwner[1]=1;s.faceNeighbour[1]=-1'))
 
 @pytest.mark.parametrize('volume',[-1,0])
-def test_fixed_volume_sign_continues_but_required_zero_divisor_fails(tmp_path,volume):
+@pytest.mark.parametrize('strict',[False,True])
+def test_fixed_volume_signed_and_zero_divisor_candidates(tmp_path,volume,strict):
     compile_probe(tmp_path,fixture()+r'''
-int main(){State s;initialise(s);s.V[0]=VOLUME;s.gasPhiRho[0]=.2;s.gasSpecies.flux[0]=.18;s.gasSpecies.flux[3]=.02;s.gasPhiRhoUx[0]=2;s.gasPhiRhoUy[0]=-3;s.gasPhiRhoUz[0]=4;s.gasPhiRhoE[0]=6;const Real e=s.rhoE[0];threadIdx.x=0;applyGasFluxDivergenceByCellKernel(&s,.5);
-if(VOLUME==0){ck(s.gasSpecies.cellStatus[0]!=0&&s.rho[0]==1&&s.rhoE[0]==e,"used zero volume divisor not reported");}
+int main(){State s;initialise(s);s.V[0]=VOLUME;s.gasPhiRho[0]=.2;s.gasSpecies.flux[0]=.18;s.gasSpecies.flux[3]=.02;s.gasPhiRhoUx[0]=2;s.gasPhiRhoUy[0]=-3;s.gasPhiRhoUz[0]=4;s.gasPhiRhoE[0]=6;const Real e=s.rhoE[0];const Real prior[7]={s.rho[0],s.rhoUx[0],s.rhoUy[0],s.rhoUz[0],s.rhoE[0],s.gasSpecies.rho[0],s.gasSpecies.rho[2]};threadIdx.x=0;applyGasFluxDivergenceByCellKernel(&s,.5,STRICT);
+if(VOLUME==0){if(STRICT){ck(s.gasSpecies.cellStatus[0]==int(ugkwp::GasTransportCode::InvalidGeometry),"strict zero divisor status missing");const Real after[7]={s.rho[0],s.rhoUx[0],s.rhoUy[0],s.rhoUz[0],s.rhoE[0],s.gasSpecies.rho[0],s.gasSpecies.rho[2]};ck(std::memcmp(prior,after,sizeof prior)==0,"strict zero-divisor candidate changed state");}
+else{ck(s.gasSpecies.cellStatus[0]==int(ugkwp::GasTransportCode::NonFiniteState),"public zero-divisor diagnostic missing");const Real after[7]={s.rho[0],s.rhoUx[0],s.rhoUy[0],s.rhoUz[0],s.rhoE[0],s.gasSpecies.rho[0],s.gasSpecies.rho[2]};for(int k=0;k<7;++k)ck(std::isinf(after[k])&&(k==2?after[k]>0:after[k]<0),"public signed zero-divisor arithmetic incomplete");}}
 else{ck(s.gasSpecies.cellStatus[0]==0,"finite negative volume refused");ck(s.rho[0]==Real(1)+Real(.5)*Real(.2)&&s.rhoUx[0]==1&&s.rhoUy[0]==Real(-1.5)&&s.rhoUz[0]==2&&s.rhoE[0]==e+3,"fixed signed bulk incomplete");ck(s.gasSpecies.rho[0]==Real(.9)+Real(.5)*Real(.18)&&s.gasSpecies.rho[2]==Real(.1)+Real(.5)*Real(.02),"fixed signed species incomplete");}}
-'''.replace('VOLUME',str(volume)))
+'''.replace('VOLUME',str(volume)).replace('STRICT','true' if strict else 'false'))
 
-def test_molecular_heat_overflow_reaches_actual_wall_failure(tmp_path):
+@pytest.mark.parametrize('strict',[False,True])
+def test_molecular_heat_overflow_diagnostic_and_strict_wall_paths(tmp_path,strict):
     from test_mixture_wall_function import wall_fixture
     compile_probe(tmp_path,wall_fixture()+r'''
 int main(){State s;wall(s);s.k[0]=0;s.gasMu=.01;s.Uy[0]=s.riemannBoundaryUy[1]=0;s.deltaCoeffs[1]=std::numeric_limits<Real>::max()/Real(250);
-Real mu=-77,k=-77,q=-77;int active=0;gasFaceSubgridTransportProperties(s,1,0,-1,2,Real(1),mu,k,q,active);ck(s.gasSpecies.faceStatus[1]!=0&&active==0,"actual wall consumer published infinite heat as active");
-s.gasSpecies.faceStatus[1]=0;Real m=-77,x=-77,y=-77,z=-77,e=-77;ck(!computeRiemannGasFaceFluxDevice<true>(s,1,m,x,y,z,e)&&s.gasSpecies.faceStatus[1]!=0,"full wall flux claimed complete on molecular heat overflow");}
-''')
+Real mu=-77,k=-77,q=-77;int active=0;bool evaluated=false;gasFaceSubgridTransportProperties(s,1,0,-1,2,Real(1),mu,k,q,active,STRICT,&evaluated);
+ck(s.gasSpecies.faceStatus[1]==int(ugkwp::GasTransportCode::InvalidThermodynamics),"molecular heat overflow diagnostic missing");
+if(STRICT)ck(!evaluated&&active==0&&mu==0&&k==0&&q==0,"strict wall overflow published transport");
+else{const Real cp=Real(.9)*1100+Real(.1)*1600;const Real molecular=s.gasMu*cp/s.gasPrClamped;
+const long double exactHeat=-static_cast<long double>(molecular)*(500.L-700.L)*static_cast<long double>(s.deltaCoeffs[1]);
+ck(exactHeat>std::numeric_limits<Real>::max(),"independent heat overflow witness absent");
+ck(evaluated&&active==1&&mu==0&&std::isinf(q)&&q>0,"public molecular heat arithmetic incomplete");near(k,molecular-s.gasMu*s.gasSpecies.heatCapacity[0]/s.gasPrClamped,"molecular conductivity correction differs");}
+s.gasSpecies.faceStatus[1]=0;Real m=-77,x=-77,y=-77,z=-77,e=-77;ck(!computeRiemannGasFaceFluxDevice<true>(s,1,m,x,y,z,e,STRICT)&&s.gasSpecies.faceStatus[1]!=0,"full wall flux lost heat-overflow diagnostic");
+if(STRICT)ck(m==0&&x==0&&y==0&&z==0&&e==0,"strict full wall overflow published flux");
+else{ck(m==0&&std::isfinite(x)&&y==0&&z==0&&std::isinf(e)&&e>0,"public full wall flux arithmetic incomplete");near(x,-s.p[0],"public wall pressure force changed");}}
+'''.replace('STRICT','true' if strict else 'false'))
 
 @pytest.mark.parametrize('entry',['direct','staged','finalize'])
 def test_all_gks_entries_evaluate_existing_zero_time_equations(tmp_path,entry):
@@ -167,8 +175,8 @@ for(int k=0;k<7;++k)ck(after[k]==before[k],"missing face backing published parti
 @pytest.mark.parametrize('constrained',[False,True])
 @pytest.mark.parametrize('channel',['omega','k'])
 def test_strict_sst_nonfinite_face_flux_keeps_prior_inventory(tmp_path,constrained,channel):
-    # Separate strict-path coverage. This does not certify the terminal NaN
-    # candidate in the retained legacy-failure cases as a physical solution.
+
+
     compile_probe(tmp_path,legacy_fixture()+SETUP+r'''
 int main(){State s;initialise(s);wall(s);Real oldV[2]={1,1},newV[2]={1,1},sweep[3]={0,0,0};moving(s,oldV,newV,sweep,Real(.01));
 if(!CONSTRAINED){s.gasBoundaryLayer.enabled=false;s.riemannBoundaryKind[1]=0;}

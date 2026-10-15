@@ -17,7 +17,7 @@ int main(){DeviceState actual,direct;setupNative(actual,0,0);setupNative(direct,
 }
 '''
     output=build_run(tmp_path,'nonretry-terminal',ROOT,body)
-    assert output.count('TRIAL ')==3 # one strict, one terminal, one direct reference
+    assert output.count('TRIAL ')==3
 
 
 def test_public_actual_missing_is_sticky_and_numeric_fields_commit(tmp_path):
@@ -39,7 +39,7 @@ int main(){DeviceState s;setupNative(s,0,0);s.rhoE[0]=NAN;
     build_run(tmp_path,'terminal-fields',ROOT,body)
 
 
-# Actual constant-transport model and exchange publisher, shared by terminal tests.
+
 WALL_PROBE = r'''
 struct WallProbe {
  int faces[1]={1},faceSlots[3]={-1,0,-1},ownerSlots[2]={0,-1},status[1]={0};

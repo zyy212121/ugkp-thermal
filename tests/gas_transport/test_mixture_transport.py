@@ -77,7 +77,8 @@ ck(std::abs(flux[0]-(raw0-Y[0]*(raw0+raw1)))<Real(1e-7),"unequal D correction");
 Real expected=ugkwp::speciesH(0,Real(700),s.gasSpecies.thermo)*flux[0]+ugkwp::speciesH(1,Real(700),s.gasSpecies.thermo)*flux[1];ck(std::abs(energy-expected)<Real(1e-6)*std::abs(expected),"enthalpy diffusion omitted formation energy");
 D[0]=-1;ck(ugkwp::correctedSpeciesDiffusion(Y,grad,Real(2),D,Real(0),Real(.8),Real(700),s.gasSpecies.thermo,flux,energy),"finite signed diffusion rejected");
 ck(flux[0]+flux[1]==0,"signed diffusion lost closure");
-Real prior[]={flux[0],flux[1],energy};D[0]=std::numeric_limits<Real>::quiet_NaN();ck(!ugkwp::correctedSpeciesDiffusion(Y,grad,Real(2),D,Real(0),Real(.8),Real(700),s.gasSpecies.thermo,flux,energy),"invalid diffusion accepted");ck(flux[0]==prior[0]&&flux[1]==prior[1]&&energy==prior[2],"failed diffusion published");}
+Real prior[]={flux[0],flux[1],energy};D[0]=std::numeric_limits<Real>::quiet_NaN();bool evaluated=false;ck(!ugkwp::correctedSpeciesDiffusion(Y,grad,Real(2),D,Real(0),Real(.8),Real(700),s.gasSpecies.thermo,flux,energy,true,&evaluated),"strict invalid diffusion accepted");ck(!evaluated&&flux[0]==prior[0]&&flux[1]==prior[1]&&energy==prior[2],"strict failed diffusion published");
+ck(!ugkwp::correctedSpeciesDiffusion(Y,grad,Real(2),D,Real(0),Real(.8),Real(700),s.gasSpecies.thermo,flux,energy,false,&evaluated),"nonfinite diffusion diagnostic omitted");ck(evaluated&&std::isnan(flux[0])&&std::isnan(flux[1])&&std::isnan(energy),"public nonfinite diffusion arithmetic incomplete");}
 ''')
 
 def test_actual_face_adds_unequal_diffusion_and_periodic_gradients(tmp_path):

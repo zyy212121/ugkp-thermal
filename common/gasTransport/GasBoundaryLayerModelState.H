@@ -59,6 +59,7 @@ template<class State> UGKWP_GAS_HD inline bool evaluateGasBoundaryLayerSlot(Stat
         gasRecordFaceFailure(state,face,code);
         return false;
     };
+    if(face<0 || face>=state.nFaces)return fail(GasTransportCode::InvalidStorage);
     const bool analytic=model.config.model==gaswall::BoundaryLayerModel::ConstantTransport;
     if((!analytic && (workspaceSlot<0 || workspaceSlot>=model.workspaceCount || !model.workspace))
         || !model.input || !model.output || !model.status || !model.matchingOffsets
@@ -85,9 +86,11 @@ template<class State> UGKWP_GAS_HD inline bool evaluateGasBoundaryLayerSlot(Stat
     }
     in.matching={};in.pressure=0;
     const int begin=model.matchingOffsets[slot],end=model.matchingOffsets[slot+1];
+    if(begin<end && begin<0)return fail(GasTransportCode::InvalidStorage);
     for(int item=begin;item<end;++item)
     {
         const int cell=model.matchingCells[item];
+        if(cell<0 || cell>=state.nCells)return fail(GasTransportCode::InvalidStorage);
         const Real weight=model.matchingWeights[item];
         in.pressure+=weight*state.p[cell];
         in.matching.temperature+=weight*state.Tgas[cell];

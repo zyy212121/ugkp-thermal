@@ -122,11 +122,11 @@ int main(){
  accumulatePackedMobileParticleRadiationSumsKernel(&s);
  const double packedMass=s.radiationMobileMass[0];
  const double packedTemperature=s.radiationMobileTemperatureMass[0];
- assert(std::abs(atomicTemperature/atomicMass-4100)<1e-3);
- assert(std::abs(packedTemperature/packedMass-4100)<1e-3);
+ assert(std::abs(atomicTemperature/atomicMass-4000)<1e-3);
+ assert(std::abs(packedTemperature/packedMass-4000)<1e-3);
  s.pT[0]=GpuReal(4100);s.pThermalEnthalpyResidual[0]=0;
  const double material=particleMaterialEnthalpyContribution(s,0);
- assert(std::abs(material-4100000)<1);
+ assert(std::abs(material-4000000)<1);
 }
 '''
 
@@ -148,7 +148,7 @@ def test_live_radiation_and_material_contributions(tmp_path):
     run=subprocess.run([str(exe)],text=True,capture_output=True)
     assert run.returncode==0,run.stdout+run.stderr
 
-def test_pressure_full_moment_reads_raw_cache_and_carry(tmp_path):
+def test_pressure_full_moment_uses_bounded_cache_and_adds_carry(tmp_path):
     fixture=(ROOT/'tests/fixtures/pressure/projection_cpu.cpp').read_text()
     fixture=fixture.split('void check(bool yes',1)[0]
     fixture=fixture.replace('    R pd[4]=', '    double pThermalEnthalpyResidual[4]={},compactPThermalEnthalpyResidual[4]={};\n    R pd[4]=',1)
@@ -157,7 +157,7 @@ int main(){
  DeviceState s;s.TpMax=R(4000);s.pT[0]=R(4100);s.compactPT[0]=R(4100);
  PressureReal moment[7]={};int count=0;
  accumulatePressureParticleMomentsDevice<true,false>(s,0,0,moment,count);
- if(!(count==1 && std::abs(double(moment[6])-4100)<1e-3))std::abort();
+ if(!(count==1 && std::abs(double(moment[6])-4000)<1e-3))std::abort();
  s.pT[0]=R(4000);s.pThermalEnthalpyResidual[0]=100;
  for(auto& x:moment)x=0;count=0;
  accumulatePressureParticleMomentsDevice<true,false>(s,0,0,moment,count);
@@ -165,12 +165,12 @@ int main(){
  s.compactPT[0]=R(4100);
  for(auto& x:moment)x=0;count=0;
  accumulatePressureParticleMomentsDevice<true,true>(s,0,0,moment,count);
- if(!(count==1 && std::abs(double(moment[6])-4100)<1e-3))std::abort();
+ if(!(count==1 && std::abs(double(moment[6])-4000)<1e-3))std::abort();
 }
 '''
     src=tmp_path/'pressure.cpp';src.write_text(source)
     exe=tmp_path/'pressure'
-    built=subprocess.run(['g++','-std=c++17','-O2',f'-DTEST_REAL={'double'}',
+    built=subprocess.run(['g++','-std=c++17','-O2','-DTEST_REAL=double',
                           '-I'+str(ROOT/'common'),str(src),'-o',str(exe)],text=True,capture_output=True)
     assert built.returncode==0,built.stdout+built.stderr
     run=subprocess.run([str(exe)],text=True,capture_output=True)
@@ -220,9 +220,9 @@ int main(){
    publish(s);
    ck(std::abs(double(s.momRhoHpP[0])-expected)<256.,"atomic material moment omitted live carry");
    s.pT[0]=Real(4100);s.pThermalEnthalpyResidual[0]=0;
-   const double rawExpected=double(s.pm[0])*double(particleSpecificEnthalpyDevice(s.pT[0]));
+   const double rawExpected=double(s.pm[0])*double(particleSpecificEnthalpyDevice(s.TpMax));
    publish(s);
-   ck(std::abs(double(s.momRhoHpP[0])-rawExpected)<256.,"atomic moment clamped raw outside cache");
+   ck(std::abs(double(s.momRhoHpP[0])-rawExpected)<256.,"atomic moment changed existing bounded material cache");
   }
   const auto raw=s.pT[0];const auto carry=s.pThermalEnthalpyResidual[0];
   initialiseParticleMaterialEnthalpyKernel(&s);
@@ -315,9 +315,12 @@ int main(){
  CountingLaw law;
  ugkwp::ParticleThermalCarry<double> state{300,0};
  auto publication=ugkwp::publishAffineRadiationThermalHeat(state,1,10,200.,1e308,law);
+ assert(!publication.valid&&state.temperature==300&&state.specificEnthalpyResidual==0);
+ law.enthalpyCalls=0;
+ publication=ugkwp::publishAffineRadiationThermalHeat(state,1.01,7,200.,1e308,law);
  assert(publication.valid&&!publication.limited);
  close(ugkwp::effectiveParticleEnthalpy(state,law),law.law.enthalpy(300)+law.law.enthalpyIncrement(300,10));
- assert(law.enthalpyCalls==4); // Three used by publication, one in this explicit assertion.
+ assert(law.enthalpyCalls==4);
  law.enthalpyCalls=0;state={300,0};
  auto identity=ugkwp::publishAffineRadiationThermalHeat(state,1,0,200.,1e308,law);
  assert(identity.valid&&state.temperature==300&&state.specificEnthalpyResidual==0);

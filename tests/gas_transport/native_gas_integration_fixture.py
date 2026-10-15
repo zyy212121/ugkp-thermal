@@ -3,7 +3,7 @@ import re
 from pathlib import Path
 from test_gas_advance_view import PREAMBLE
 from test_legacy_ale_transport import fixture
-from test_shared_gas_adapter import ADAPTER_PROBE
+from applications.gasUGKP.tests.test_shared_gas_adapter import ADAPTER_PROBE
 from test_current_gas_courant import launches
 ROOT=Path(__file__).resolve().parents[2]
 
@@ -61,7 +61,7 @@ template<class S,class T>void advanceGasChemistryKernel(S*s,T dt,const Real*v){i
     combined=""
     if include_combined:
         combined=function(native,'extern "C" int ugkwpGpuResidentStrictAdvance\n').split('    if (tuneFixedWorkBlockThreads',1)[0]
-        # Only the actual selected mixture branch; the legacy particle body is not a fixture fallback.
+
         combined=combined[:combined.index('    if (s->gasSpecies.mode == ugkwp::GasMode::SingleLegacy')] if '    if (s->gasSpecies.mode == ugkwp::GasMode::SingleLegacy)'in combined else combined
         end=combined.index('    if(s->gasSpecies.mode!=ugkwp::GasMode::SingleLegacy)')
         branch=function(combined[end:],'if(s->gasSpecies.mode!=ugkwp::GasMode::SingleLegacy)')

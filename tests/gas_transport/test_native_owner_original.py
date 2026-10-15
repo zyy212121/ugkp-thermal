@@ -5,7 +5,7 @@ from test_native_original_success import original_native_root, source, build_run
 
 
 def owner_call(root,name,args):
-    # Revision-correct invocation; pre-correction candidate has no owner argument.
+
     files=list((root/'common/operators').glob('*.cuh'))
     for path in files:
         match=re.search(r'(?:void|bool|ChemistryStatus|GasPrimDevice)\s+'+name+r'\s*\([^)]*\)',path.read_text())

@@ -1,4 +1,4 @@
-// Independent double physical arithmetic audit; compile with -I<repository root>.
+
 // Thresholds below are fixed forward-error budgets, not solver tolerances.
 #include "common/gasWall/WallModel.H"
 #include "common/chemistry/mechanisms/GeneratedH2O2.H"

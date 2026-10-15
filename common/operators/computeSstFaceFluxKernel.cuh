@@ -438,7 +438,7 @@ __global__ void applySstFluxAndSourceKernel
     GPU_OPERATOR_REAL volumeFlux = GPU_OPERATOR_R(0.0);
     const int start = s.cellPlaneStart[c];
     const int count = s.cellPlaneCount[c];
-    if(nativeRefinement && count>0 && start<0){if(!ugkwp::gasRecordCellFailure(s,c,ugkwp::GasTransportCode::InvalidGeometry))asm("trap;");return;}
+    if (count>0 && (start<0 || !s.cellFaceId)){if(!ugkwp::gasRecordCellFailure(s,c,ugkwp::GasTransportCode::InvalidStorage))asm("trap;");return;}
     for (int i = 0; i < count; ++i)
     {
         const int f = s.cellFaceId[start + i];
@@ -446,17 +446,17 @@ __global__ void applySstFluxAndSourceKernel
         {
             continue;
         }
-        // Omega may be constrained by this cell's later wall face. Keep its
-        // actual flux for optional accounting; the final required omega
-        // candidate, rather than this unused channel, determines failure.
+
+
+
         if(moving && (ugkwp::gasFaceFailure(s,f)!=0 || !finiteDevice(s.sstPhiRhoK[f]) || (nativeRefinement && !finiteDevice(s.sstPhiRhoOmega[f]))))
         {
             const bool recorded=ugkwp::gasRecordCellFailure(s,c,ugkwp::GasTransportCode::NonFiniteState);
             if(nativeRefinement){if(!recorded)asm("trap;");return;}
         }
         const int own=s.faceOwner[f],nei=coupledFaceNeighbour(s,f);
-        if(nativeRefinement && (own<0 || own>=s.nCells || nei>=s.nCells))
-        {if(!ugkwp::gasRecordCellFailure(s,c,ugkwp::GasTransportCode::InvalidGeometry))asm("trap;");return;}
+        if (own<0 || own>=s.nCells || nei>=s.nCells)
+        {if(!ugkwp::gasRecordCellFailure(s,c,ugkwp::GasTransportCode::InvalidStorage))asm("trap;");return;}
         const GPU_OPERATOR_REAL sign = s.faceOwner[f] == c ? -GPU_OPERATOR_R(1.0) : GPU_OPERATOR_R(1.0);
         fluxK += sign*s.sstPhiRhoK[f];
         fluxOmega += sign*s.sstPhiRhoOmega[f];
@@ -585,7 +585,7 @@ __global__ void computeGasCourantFieldKernel(GasState* sp, const GPU_OPERATOR_TI
         s.gasPhiRho[f] = mass;
     }
     const int own = s.faceOwner[f];
-    if (nativeRefinement && (own < 0 || own >= s.nCells))
+    if (own < 0 || own >= s.nCells)
     {
         s.gasPhiRhoE[f] = OfGreat;
         return;
@@ -614,7 +614,7 @@ __global__ void computeGasCourantFieldKernel(GasState* sp, const GPU_OPERATOR_TI
     if (f < s.nInternalFaces || isPeriodicFace(s, f))
     {
         const int nei = s.faceNeighbour[f];
-        if (nativeRefinement && (nei < 0 || nei >= s.nCells))
+        if (nei < 0 || nei >= s.nCells)
         {
             s.gasPhiRhoE[f] = OfGreat;
             return;
@@ -698,7 +698,7 @@ __global__ void computeGasConvectiveCourantByCellKernel
     GPU_OPERATOR_REAL sumAmaxSf = GPU_OPERATOR_R(0.0);
     const int start = s.cellPlaneStart[c];
     const int count = s.cellPlaneCount[c];
-    if(nativeRefinement && count>0 && start<0){if(!ugkwp::gasRecordCellFailure(s,c,ugkwp::GasTransportCode::InvalidGeometry))asm("trap;");return;}
+    if (count>0 && (start<0 || !s.cellFaceId)){if(!ugkwp::gasRecordCellFailure(s,c,ugkwp::GasTransportCode::InvalidStorage))asm("trap;");return;}
     for (int i = 0; i < count; ++i)
     {
         const int f = s.cellFaceId[start + i];
@@ -752,7 +752,7 @@ __global__ void computeGasDiffusionNumberKernel
     bool molecularDiffusivityComputed=false;
     const int start = s.cellPlaneStart[c];
     const int count = s.cellPlaneCount[c];
-    if(nativeRefinement && count>0 && start<0){if(!ugkwp::gasRecordCellFailure(s,c,ugkwp::GasTransportCode::InvalidGeometry))asm("trap;");return;}
+    if (count>0 && (start<0 || !s.cellFaceId)){if(!ugkwp::gasRecordCellFailure(s,c,ugkwp::GasTransportCode::InvalidStorage))asm("trap;");return;}
     for (int i = 0; i < count; ++i)
     {
         const int f = s.cellFaceId[start + i];
@@ -761,8 +761,8 @@ __global__ void computeGasDiffusionNumberKernel
         const int other = (f < s.nInternalFaces || isPeriodicFace(s, f))
           ? (s.faceOwner[f] == c ? s.faceNeighbour[f] : s.faceOwner[f])
           : -1;
-        if(nativeRefinement && other>=s.nCells)
-        {if(!ugkwp::gasRecordCellFailure(s,c,ugkwp::GasTransportCode::InvalidGeometry))asm("trap;");return;}
+        if (other>=s.nCells)
+        {if(!ugkwp::gasRecordCellFailure(s,c,ugkwp::GasTransportCode::InvalidStorage))asm("trap;");return;}
         const GPU_OPERATOR_REAL rhoFace = other >= 0
           ? GPU_OPERATOR_R(0.5)*(s.rho[c] + s.rho[other]) : s.rho[c];
         GPU_OPERATOR_REAL muTurbulent = GPU_OPERATOR_R(0.0);
@@ -870,7 +870,7 @@ __global__ void computeSstStabilityNumberKernel
     bool constrainedOmega = ugkwp::gasBoundaryLayerOwnerSlot(s,c)>=0;
     const int start = s.cellPlaneStart[c];
     const int count = s.cellPlaneCount[c];
-    if(nativeRefinement && count>0 && start<0){if(!ugkwp::gasRecordCellFailure(s,c,ugkwp::GasTransportCode::InvalidGeometry))asm("trap;");return;}
+    if (count>0 && (start<0 || !s.cellFaceId)){if(!ugkwp::gasRecordCellFailure(s,c,ugkwp::GasTransportCode::InvalidStorage))asm("trap;");return;}
     for (int i = 0; i < count; ++i)
     {
         const int f = s.cellFaceId[start + i];
@@ -878,8 +878,8 @@ __global__ void computeSstStabilityNumberKernel
         if(f>=s.nInternalFaces
             && (s.riemannBoundaryKind[f]==3 || s.riemannBoundaryKind[f]==4))continue;
         const int own=s.faceOwner[f],nei=coupledFaceNeighbour(s,f);
-        if(nativeRefinement && (own<0 || own>=s.nCells || nei>=s.nCells))
-        {if(!ugkwp::gasRecordCellFailure(s,c,ugkwp::GasTransportCode::InvalidGeometry))asm("trap;");return;}
+        if (own<0 || own>=s.nCells || nei>=s.nCells)
+        {if(!ugkwp::gasRecordCellFailure(s,c,ugkwp::GasTransportCode::InvalidStorage))asm("trap;");return;}
         const GPU_OPERATOR_REAL outwardSign = s.faceOwner[f] == c
           ? GPU_OPERATOR_R(1.0) : -GPU_OPERATOR_R(1.0);
         const GPU_OPERATOR_REAL outwardVolumeFlux =
@@ -1042,14 +1042,14 @@ __global__ void applyGasFluxDivergenceByCellKernel(GasState* sp, const GPU_OPERA
     using Energy = ugkwp::GasEnergyScalar<GasState>;
     Energy dRhoE = Energy(0);
     constexpr int Ns=ugkwp::GasStateTraits<GasState>::speciesCount;
-    // Terminal candidates finish this traversal and its publication in place;
-    // never replay a prefix that has already updated the optional budget.
+
+
     // Reuse the publication scratch for face sums. Each species retains the
     // original face accumulation order; no extra face/domain pass is added.
     GPU_OPERATOR_REAL trial[Ns>0?Ns:1]{};
     GPU_OPERATOR_REAL speciesFluxMagnitude=GPU_OPERATOR_R(0.0);
     bool repairableFlux=true;
-    // Exact binary64 epsilon, usable in CUDA without a host constexpr call.
+
     constexpr GPU_OPERATOR_REAL roundoff=GPU_OPERATOR_REAL(0x1p-52);
     if constexpr(Ns>0)
         if(ugkwp::mixtureGasActive(s))
@@ -1060,7 +1060,7 @@ __global__ void applyGasFluxDivergenceByCellKernel(GasState* sp, const GPU_OPERA
 
     const int start = s.cellPlaneStart[c];
     const int count = s.cellPlaneCount[c];
-    if(nativeRefinement && count>0 && start<0){if(!ugkwp::gasRecordCellFailure(s,c,ugkwp::GasTransportCode::InvalidGeometry))asm("trap;");return;}
+    if (count>0 && (start<0 || !s.cellFaceId)){if(!ugkwp::gasRecordCellFailure(s,c,ugkwp::GasTransportCode::InvalidStorage))asm("trap;");return;}
     for (int i = 0; i < count; ++i)
     {
         const int faceI = s.cellFaceId[start + i];
@@ -1086,8 +1086,8 @@ __global__ void applyGasFluxDivergenceByCellKernel(GasState* sp, const GPU_OPERA
         if constexpr(Ns>0)
         if(ugkwp::mixtureGasActive(s))
         {
-            // Empty/invalid/unowned incidences consume no face storage. Check
-            // each backing only when the original route reaches its read.
+
+
             if(!s.gasSpecies.faceStatus)
             {ugkwp::gasRecordCellFailure(s,c,ugkwp::GasTransportCode::InvalidStorage);return;}
             if(s.gasSpecies.faceStatus[faceI]!=0)
@@ -1137,6 +1137,8 @@ __global__ void applyGasFluxDivergenceByCellKernel(GasState* sp, const GPU_OPERA
         for(int i=0;i<count;++i)
         {
             const int f=s.cellFaceId[start+i];
+            if(f<0 || f>=s.nFaces)continue;
+            if(s.faceOwner[f]!=c && s.faceNeighbour[f]!=c)continue;
             if(ugkwp::gasFaceFailure(s,f)!=0)
             {if(!ugkwp::gasRecordCellFailure(s,c,static_cast<ugkwp::GasTransportCode>(ugkwp::gasFaceFailure(s,f))) && nativeRefinement)asm("trap;");if(nativeRefinement)return;}
         }
@@ -1253,11 +1255,11 @@ __global__ void applyGasFluxDivergenceByCellKernel(GasState* sp, const GPU_OPERA
             }
             else
             {
-            // Density and partial densities represent the same mass coordinate.
-            // Independent rounded additions otherwise accumulate a closure drift
-            // even when every face species flux sums to its total mass flux.
-            // Reconstruct one populated coordinate only within the local rounding
-            // bound; finite incoming defects keep their actual unrepaired candidate.
+
+
+
+
+
             GPU_OPERATOR_REAL beforeSum=GPU_OPERATOR_R(0.0),afterSum=GPU_OPERATOR_R(0.0);
             int dependent=Ns-1;
             bool repairable=repairableFlux;
@@ -1271,25 +1273,25 @@ __global__ void applyGasFluxDivergenceByCellKernel(GasState* sp, const GPU_OPERA
             }
             if(!(trial[dependent]>GPU_OPERATOR_R(0.0)))
                 for(int k=0;k<Ns;++k)if(trial[k]>trial[dependent])dependent=k;
-            // Only this step's actual arithmetic supplies repair capacity.
-            // An incoming closure defect does not enlarge that allowance.
+
+
             const GPU_OPERATOR_REAL bound=(GPU_OPERATOR_R(8*Ns)+GPU_OPERATOR_R(2)*count)*roundoff
                 *(fmax(rhoAfter,rhoBefore*densityRatio)+fabs(scale)*speciesFluxMagnitude);
             repairable=repairable&&finiteDevice(rhoBefore)&&rhoBefore>GPU_OPERATOR_R(0.0)
                 &&rhoAfter>GPU_OPERATOR_R(0.0)&&finiteDevice(beforeSum)&&finiteDevice(afterSum)&&finiteDevice(bound)
                 &&finiteDevice(s.gasSpecies.densityClosureTolerance)&&s.gasSpecies.densityClosureTolerance>=GPU_OPERATOR_R(0.0)
                 &&fabs(beforeSum-rhoBefore)<=s.gasSpecies.densityClosureTolerance*rhoBefore;
-            // Carry an already admissible input defect in integrated mass
-            // units; repair only fresh arithmetic drift, never erase the input
-            // discrepancy repeatedly or use it to enlarge the repair budget.
+
+
+
             const GPU_OPERATOR_REAL targetSum=rhoAfter+(beforeSum-rhoBefore)*densityRatio;
             if(repairable&&finiteDevice(targetSum)&&afterSum!=targetSum&&fabs(afterSum-targetSum)<=bound)
             {
                 GPU_OPERATOR_REAL independent=GPU_OPERATOR_R(0.0);
                 for(int k=0;k<Ns;++k)if(k!=dependent)independent+=trial[k];
                 GPU_OPERATOR_REAL replacement=targetSum-independent;
-                // A tiny positive last component may lack room for the signed
-                // roundoff. Preserve it and use a populated carrier instead.
+
+
                 if(replacement<GPU_OPERATOR_R(0.0))
                 {
                     for(int k=0;k<Ns;++k)if(trial[k]>trial[dependent])dependent=k;
@@ -1425,8 +1427,8 @@ __global__ void blendGasConservativeStateKernel
         repairable=repairable&&finiteDevice(tol)&&tol>=GPU_OPERATOR_R(0)&&finiteDevice(blendedDensity)&&blendedDensity>GPU_OPERATOR_R(0)
             &&finiteDevice(s.rhoNext[c])&&s.rhoNext[c]>GPU_OPERATOR_R(0)&&finiteDevice(s.rho[c])&&s.rho[c]>GPU_OPERATOR_R(0)
             &&fabs(sumInitial-s.rhoNext[c])<=tol*s.rhoNext[c]&&fabs(sumStage-s.rho[c])<=tol*s.rho[c];
-        // Preserve the convexly transported input defects; repair only newly
-        // introduced rounding in this RK publication, not physical imbalance.
+
+
         const GPU_OPERATOR_REAL target=blendedDensity+initialWeight*(sumInitial-s.rhoNext[c])+stageWeight*(sumStage-s.rho[c]);
         constexpr GPU_OPERATOR_REAL eps=GPU_OPERATOR_REAL(0x1p-52);
         const GPU_OPERATOR_REAL bound=GPU_OPERATOR_R(8*reviewNs)*eps*(fabs(initialWeight*s.rhoNext[c])+fabs(stageWeight*s.rho[c]));
@@ -1484,8 +1486,8 @@ __device__ void recoverGasPrimitiveCell(GasState& s, const int c, const bool nat
         auto& species = s.gasSpecies;
         if (species.mode != ugkwp::GasMode::SingleLegacy)
         {
-            // Strict retry candidates remain transactional. The final route
-            // completes primitives from conserved inputs and retains status.
+
+
             if (!species.cellStatus) { asm("trap;"); return; }
             if (nativeRefinement && species.cellStatus[c] != 0) return;
             if (!species.rho || !species.soundSpeed || !species.heatCapacity
@@ -1535,8 +1537,8 @@ __device__ void recoverGasPrimitiveCell(GasState& s, const int c, const bool nat
             if (status != ugkwp::ThermoStatus::Success)
             {
                 if(!failure)failure=int(ugkwp::GasTransportCode::InvalidThermodynamics);
-                // Status alone cannot distinguish a metadata certificate from
-                // missing backing. Only a truly evaluated T can be completed.
+
+
                 if(nativeRefinement || !temperatureEvaluated)
                 {ugkwp::gasRecordCellFailure(s,c,!nativeRefinement&&!temperatureEvaluated?ugkwp::GasTransportCode::InvalidStorage:static_cast<ugkwp::GasTransportCode>(failure));return;}
             }
@@ -1633,7 +1635,7 @@ __device__ void recoverGasPrimitiveCell(GasState& s, const int c, const bool nat
         if (repairDensity || !finiteDevice(s.rhoUz[c]/rhoSafe)) s.rhoUz[c]=rhoSafe*uz;
     }
     // A valid double inventory is authoritative; subtract/add can lose one ULP.
-    // Preserve every existing invalid/floor repair.
+
     {
         if (!finiteDevice(s.rhoE[c]-kinetic)
             || s.rhoE[c]-kinetic < minimumInternalEnergy)

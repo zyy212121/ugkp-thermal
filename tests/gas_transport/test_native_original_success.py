@@ -5,6 +5,8 @@ and common production dependencies, not only the wrapper body.
 """
 from pathlib import Path
 import io
+import hashlib
+import json
 import re
 import subprocess
 import tarfile
@@ -16,8 +18,15 @@ ORIGINAL='d6110c02745a8ad726208a426c4bb3a28233c1fd'
 @pytest.fixture(scope='module')
 def original_native_root(tmp_path_factory):
     root=tmp_path_factory.mktemp('original-native-tree')
-    archive=subprocess.check_output(['git','archive',ORIGINAL,'common','applications/gasUGKP','tests/gas_transport'],cwd=ROOT)
-    with tarfile.open(fileobj=io.BytesIO(archive)) as source:source.extractall(root,filter='data')
+    fixture = ROOT/'tests/fixtures/native_original'
+    metadata = json.loads((fixture/'provenance.json').read_text())
+    assert metadata['source_commit'] == ORIGINAL
+    archive = (fixture/'reference.tar.xz').read_bytes()
+    assert hashlib.sha256(archive).hexdigest() == metadata['archive_sha256']
+    with tarfile.open(fileobj=io.BytesIO(archive), mode='r:xz') as source:
+        source.extractall(root, filter='data')
+    for name, expected in metadata['files'].items():
+        assert hashlib.sha256((root/name).read_bytes()).hexdigest() == expected
     return root
 
 

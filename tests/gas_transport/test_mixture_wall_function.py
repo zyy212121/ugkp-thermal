@@ -94,12 +94,27 @@ ck(s.gasSpecies.faceStatus[1]==0&&std::isfinite(energy),"chemistry wall transpor
 ''')
 
 
-def test_zero_wall_viscosity_is_rejected_before_wall_algebra(tmp_path):
+@pytest.mark.parametrize('strict',[False,True])
+def test_zero_wall_viscosity_diagnostic_and_strict_wall_algebra(tmp_path,strict):
     compile_probe(tmp_path,wall_fixture()+r'''
 #include <cfenv>
 int main(){State s;wall(s);s.gasMu=0;
-Real mu=0,k=0,q=0;int active=0;
-feenableexcept(FE_DIVBYZERO|FE_INVALID|FE_OVERFLOW);
-gasFaceSubgridTransportProperties(s,1,0,-1,2,Real(1),mu,k,q,active);
-ck(s.gasSpecies.faceStatus[1]!=0,"zero wall viscosity accepted");}
-''')
+Real mu=-77,k=-77,q=-77;int active=0;bool evaluated=false;
+if(STRICT)feenableexcept(FE_DIVBYZERO|FE_INVALID|FE_OVERFLOW);
+gasFaceSubgridTransportProperties(s,1,0,-1,2,Real(1),mu,k,q,active,STRICT,&evaluated);
+ck(s.gasSpecies.faceStatus[1]==int(ugkwp::GasTransportCode::InvalidThermodynamics),"zero-viscosity diagnostic missing");
+if(STRICT)ck(!evaluated&&mu==0&&k==0&&q==0&&active==0,"strict zero-viscosity path evaluated wall algebra");
+else{
+ const long double nu=1.4916681462400413e-154L,reynolds=10.L*.5L/nu,kap=s.sstWallKappa,E=s.sstWallE;
+ long double lower=0,upper=2048;
+ for(int i=0;i<200;++i){const long double u=(lower+upper)/2,z=kap*u;
+  const long double yplus=u+(std::expm1(z)-z-z*z/2-z*z*z/6)/E;
+  if(u*yplus>reynolds)upper=u;else lower=u;}
+ const long double utau=10.L/((lower+upper)/2);
+ const long double R=ugkwp::universalGasConstant<long double>()*(.9L/.028L+.1L/.04L);
+ const long double rho=static_cast<long double>(s.p[0])/(R*500.L);
+ const long double expectedMu=rho*(utau*utau/(10.L*static_cast<long double>(s.deltaCoeffs[1])+nu)-nu);
+ ck(evaluated&&active==1&&std::isfinite(mu)&&mu>0&&k==0&&q==0,"public zero-viscosity arithmetic incomplete");
+ ck(std::abs(static_cast<long double>(mu)-expectedMu)<3e-5L*std::abs(expectedMu),"public Spalding transport differs from independent wall-law root");
+}}
+'''.replace('STRICT','true' if strict else 'false'))

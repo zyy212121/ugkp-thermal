@@ -28,17 +28,22 @@ __device__ bool computeRiemannGasFaceFluxDevice
     {
         return false;
     }
-    const int own = s.faceOwner[f];
-    if (nativeRefinement && (own < 0 || own >= s.nCells))
+    if (!s.faceOwner || !gasCoupledFaceStorageAvailable(s,f))
     {
-        if(!ugkwp::gasRecordFaceFailure(s,f,ugkwp::GasTransportCode::InvalidGeometry))asm("trap;");
+        if(!ugkwp::gasRecordFaceFailure(s,f,ugkwp::GasTransportCode::InvalidStorage))asm("trap;");
+        return false;
+    }
+    const int own = s.faceOwner[f];
+    if (own < 0 || own >= s.nCells)
+    {
+        if(!ugkwp::gasRecordFaceFailure(s,f,ugkwp::GasTransportCode::InvalidStorage))asm("trap;");
         return false;
     }
 
     const int nei = coupledFaceNeighbour(s, f);
-    if(nativeRefinement && nei>=s.nCells)
+    if(nei>=s.nCells || (nei<0 && !s.riemannBoundaryKind))
     {
-        if(!ugkwp::gasRecordFaceFailure(s,f,ugkwp::GasTransportCode::InvalidGeometry))asm("trap;");
+        if(!ugkwp::gasRecordFaceFailure(s,f,ugkwp::GasTransportCode::InvalidStorage))asm("trap;");
         return false;
     }
     const int boundaryKind = nei >= 0 ? 0 : s.riemannBoundaryKind[f];
@@ -47,6 +52,11 @@ __device__ bool computeRiemannGasFaceFluxDevice
         if (ugkwp::mixtureGasActive(s))
         {
             if (!s.gasSpecies.faceStatus) { asm("trap;"); return false; }
+            if (!s.gasSpecies.cellStatus)
+            {
+                ugkwp::gasRecordFaceFailure(s,f,ugkwp::GasTransportCode::InvalidStorage);
+                return false;
+            }
             if (s.gasSpecies.cellStatus[own]!=0 || (nei>=0 && s.gasSpecies.cellStatus[nei]!=0))
             { ugkwp::gasRecordFaceFailure(s,f,ugkwp::GasTransportCode::InvalidThermodynamics);numericalSuccess=false;if(nativeRefinement)return false; }
 
@@ -57,6 +67,11 @@ __device__ bool computeRiemannGasFaceFluxDevice
         const int slot=ugkwp::gasBoundaryLayerFaceSlot(s,f);
         if(slot>=0)
         {
+            if(boundaryKind==3 || boundaryKind==4)
+            {
+                if(!ugkwp::gasRecordFaceFailure(s,f,ugkwp::GasTransportCode::InvalidStorage))asm("trap;");
+                return false;
+            }
             const auto& wall=s.gasBoundaryLayer;
             if constexpr(MassOnly && ugkwp::GasSuppliedWallInputCapability<GasState>::value)
                 if(s.gasBoundaryLayerModel.useSuppliedWallState
@@ -309,7 +324,7 @@ __device__ bool computeRiemannGasFaceFluxDevice
         {
             numericalSuccess=false;
             ugkwp::gasRecordFaceFailure(s,f,ugkwp::GasTransportCode::UnsupportedConfiguration);
-            // schemeFromCreateCode supplies the existing actual fallback.
+
         }
         GPU_OPERATOR_REAL hllcAdcOmega = GPU_OPERATOR_R(1.0);
         if (scheme == ugkpriemann::Scheme::HLLC_ADC && !ugkwp::mixtureGasActive(s))
