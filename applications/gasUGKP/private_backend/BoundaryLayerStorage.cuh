@@ -9,6 +9,7 @@ template<class State> int releaseBoundaryLayerStorage(State& s)
     WALL_RELEASE(gasBoundaryLayer.status);WALL_RELEASE(gasBoundaryLayer.exchange);
     WALL_RELEASE(gasBoundaryLayer.sst);WALL_RELEASE(gasBoundaryLayer.speciesFlux);
     WALL_RELEASE(gasBoundaryLayerModel.input);WALL_RELEASE(gasBoundaryLayerModel.output);
+    WALL_RELEASE(gasBoundaryLayerModel.profile);
     WALL_RELEASE(gasBoundaryLayerModel.workspace);WALL_RELEASE(gasBoundaryLayerModel.status);
     WALL_RELEASE(gasBoundaryLayerModel.faces);WALL_RELEASE(gasBoundaryLayerModel.matchingOffsets);
     WALL_RELEASE(gasBoundaryLayerModel.matchingCells);WALL_RELEASE(gasBoundaryLayerModel.matchingWeights);
@@ -24,6 +25,11 @@ template<class State> int releaseBoundaryLayerStorage(State& s)
 inline int releaseBoundaryLayerStorage(DeviceState& s)
 {
     const int resident=releaseBoundaryLayerStorage<DeviceState>(s);
+    if(!resident)
+    {
+        s.gasBoundaryLayerLaunch=&launchBoundaryLayer<false>;
+        s.gasBoundaryLayerSnapshot=&sharedGasTrialDetail::snapshotWallRecords<false,DeviceState>;
+    }
     return releaseBoundaryLayerStorage(s.gasTrial.rejectedWall)|resident;
 }
 inline void discardBoundaryLayerCandidate(DeviceState* s,BoundaryLayerAllocation& candidate)

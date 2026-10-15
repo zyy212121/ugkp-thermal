@@ -120,6 +120,11 @@ struct PressureProjectionCell
     bool active, resolved;
 };
 
+struct DeviceState;
+template<bool Capture> int launchBoundaryLayer(DeviceState*);
+namespace sharedGasTrialDetail {
+template<bool Capture,class State> int snapshotWallRecords(State*,SharedGasTrialSnapshot&,bool);
+}
 struct DeviceState
 {
 #include "GpuAutomaticCsrScheduleFields.inl"
@@ -130,6 +135,9 @@ struct DeviceState
     ugkwp::GasBoundaryLayerModelState<double,ugkwp::compiledGasSpecies> gasBoundaryLayerModel;
     double *gasWallQuadratureDistance=nullptr,*gasWallQuadratureWeight=nullptr;
     double gasBoundaryLayerStageTime=0;
+    int (*gasBoundaryLayerLaunch)(DeviceState*)=&launchBoundaryLayer<false>;
+    int (*gasBoundaryLayerSnapshot)(DeviceState*,SharedGasTrialSnapshot&,bool)=
+        &sharedGasTrialDetail::snapshotWallRecords<false,DeviceState>;
     double gasThermalConductivity=-1;
 
     bool gasModelPoisoned = false;
@@ -2142,19 +2150,23 @@ constexpr double mobilePackingJacobiOmega = 0.8;
 #include "../../../common/gasNumerics/GpuPackingProjectionCooperative.cuh"
 
 #include "../../../common/GpuGasHostPolicy.cuh"
+template<bool Capture> int launchBoundaryLayer(DeviceState* s)
+{
+        const bool analytic=s->gasBoundaryLayerModel.config.model==ugkwp::gaswall::BoundaryLayerModel::ConstantTransport;
+        const int workers=analytic?s->gasBoundaryLayer.count:s->gasBoundaryLayerModel.workspaceCount,block=32;
+        if(workers<=0){setLastErrorText("boundaryLayer scratch pool is empty");return 1;}
+        evaluateGasBoundaryLayerKernel<Capture><<<(workers+block-1)/block,block,0,s->gasCaptureStream>>>(s->deviceState);
+        const auto error=cudaGetLastError();
+        if(error!=cudaSuccess){setLastError("prepare sparse boundaryLayer profiles",error);return 1;}
+        return 0;
+}
 struct GasHostPolicy:GasHostWithoutWallEnergy<double,double>
 {
     template<class HostState> static int prepareBoundaryLayer(HostState* s,double,double stageTime)
     {
         if(!s->gasBoundaryLayer.enabled)return 0;
         s->gasBoundaryLayerStageTime=stageTime;
-        const bool analytic=s->gasBoundaryLayerModel.config.model==ugkwp::gaswall::BoundaryLayerModel::ConstantTransport;
-        const int workers=analytic?s->gasBoundaryLayer.count:s->gasBoundaryLayerModel.workspaceCount,block=32;
-        if(workers<=0){setLastErrorText("boundaryLayer scratch pool is empty");return 1;}
-        evaluateGasBoundaryLayerKernel<<<(workers+block-1)/block,block,0,s->gasCaptureStream>>>(s->deviceState);
-        const auto error=cudaGetLastError();
-        if(error!=cudaSuccess){setLastError("prepare sparse boundaryLayer profiles",error);return 1;}
-        return 0;
+        return s->gasBoundaryLayerLaunch(s);
     }
 };
 #include "../../../common/GpuMobilePackingHost.cuh"
@@ -3508,6 +3520,7 @@ constexpr bool developmentProbeIncludesScheduling = true;
 
 #include "SharedGasAdapter.cuh"
 #include "BoundaryLayerAdapter.cuh"
+#include "BoundaryLayerProfileAdapter.cuh"
 
 extern "C" const char* ugkwpGpuResidentStrictLastError()
 {

@@ -6,6 +6,7 @@
 #include "GpuBackendApi.H"
 #include "gasTransport/GasModelIO.H"
 #include "gasWall/WallGeometryBuilder.H"
+#include "gasTransport/GasBoundaryLayerProfileOutput.H"
 #include <fstream>
 #include <iomanip>
 #include <limits>
@@ -24,6 +25,30 @@ class BoundaryLayerInput
     std::vector<std::string> speciesNames_;
     std::vector<int> faces_,quadratureOffsets_,matchingOffsets_,matchingCells_;
     std::vector<double> geometry_,quadratureDistance_,quadratureWeight_,matchingWeight_,speciesFlux_;
+
+    std::vector<double> profileFaceCentres_;
+    using ProfileWriter=void (BoundaryLayerInput::*)(const Time&,void*) const;
+    ProfileWriter profileWriter_=&BoundaryLayerInput::skipProfiles;
+    void skipProfiles(const Time&,void*) const {}
+    void writeProfiles(const Time& time,void* handle) const
+    {
+        std::vector<double> profiles(faces_.size()*config_.nodes*(7+config_.speciesCount));
+        double stageTime=0;
+        const int result=ugkwpGpuResidentStrictDownloadBoundaryLayerProfilesV1(handle,
+            config_.wallCount,config_.nodes,config_.speciesCount,profiles.data(),&stageTime);
+        if(result)
+        {
+            WarningInFunction<<"Cannot download boundaryLayer node profiles: "
+                <<ugkwpGpuResidentStrictLastError()<<endl;
+            return; // Optional output cannot reject an accepted physical step.
+        }
+        const fileName path=time.timePath()/"uniform"/"gasBoundaryLayerProfiles.csv";
+        std::ofstream output(path.c_str());
+        ugkwp::writeGasBoundaryLayerProfiles(output,faces_,profileFaceCentres_,geometry_,
+            speciesNames_,config_.nodes,profiles.data(),stageTime,time.value());
+        output.close();
+        if(!output)WarningInFunction<<"Cannot write boundaryLayer node profiles "<<path<<endl;
+    }
 
     static scalar coefficient(const dictionary& d,const word& name,const word& alias,scalar fallback)
     {
@@ -84,6 +109,8 @@ public:
         else if(model=="finiteRate" || model=="reactingSst")config_.model=1;
         else FatalErrorInFunction<<"Unknown boundaryLayer model '"<<model
             <<"'; valid models are constantTransport and finiteRate (reactingSst alias)"<<exit(FatalError);
+        // Read once. Subsequent timesteps never inspect the option or dictionary.
+        if(d.lookupOrDefault<bool>("writeProfiles",false))profileWriter_=&BoundaryLayerInput::writeProfiles;
         speciesNames_=gasModel.speciesNames;
         config_.speciesCount=checkedCount(speciesNames_.size(),"species count");
         const label nodes=d.lookupOrDefault<label>("nodes",24);
@@ -159,10 +186,16 @@ public:
         config_.wallCount=checkedCount(faces_.size(),"wall count");
         config_.quadratureCount=checkedCount(quadratureDistance_.size(),"quadrature count");
         config_.matchingCount=checkedCount(matchingCells_.size(),"matching count");
+        if(profileWriter_==&BoundaryLayerInput::writeProfiles)
+        {
+            profileFaceCentres_.clear();profileFaceCentres_.reserve(3*faces_.size());
+            for(const int face:faces_)
+                for(int d=0;d<3;++d)profileFaceCentres_.push_back(mesh.faceCentres()[face][d]);
+        }
         readSpeciesFlux(time,mesh);
         prepared_=true;
     }
-    void configureResident(void* handle) const
+    void configureResident(void* handle)
     {
         if(!active_)return;
         if(!prepared_)FatalErrorInFunction<<"boundaryLayer geometry is not prepared"<<exit(FatalError);
@@ -170,6 +203,16 @@ public:
             quadratureOffsets_.data(),matchingOffsets_.data(),matchingCells_.data(),geometry_.data(),
             quadratureDistance_.data(),quadratureWeight_.data(),matchingWeight_.data(),speciesFlux_.data()),
             "configure resident boundaryLayer");
+        if(profileWriter_==&BoundaryLayerInput::writeProfiles)
+        {
+            const int result=ugkwpGpuResidentStrictEnableBoundaryLayerProfilesV1(handle);
+            if(result)
+            {
+                WarningInFunction<<"Boundary-layer node output unavailable: "
+                    <<ugkwpGpuResidentStrictLastError()<<endl;
+                profileWriter_=&BoundaryLayerInput::skipProfiles;
+            }
+        }
     }
     void writeDiagnostics(const Time& time,void* handle) const
     {
@@ -205,6 +248,7 @@ public:
         }
         output.close();
         if(!output)FatalErrorInFunction<<"Cannot write boundaryLayer diagnostics "<<path<<exit(FatalError);
+        (this->*profileWriter_)(time,handle);
     }
 };
 }

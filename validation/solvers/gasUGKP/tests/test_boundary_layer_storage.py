@@ -4,6 +4,23 @@ import subprocess
 from test_shared_gas_adapter import ADAPTER_PROBE, ROOT
 
 
+def profile_dispatch_fixture(source):
+    """Host shim supplies the same startup dispatch slots as the native resident."""
+    declarations = """
+struct DeviceState;
+template<bool Capture> int launchBoundaryLayer(DeviceState*) {return 0;}
+namespace sharedGasTrialDetail {
+template<bool Capture,class State> int snapshotWallRecords(State*,SharedGasTrialSnapshot&,bool) {return 0;}
+}
+"""
+    fields = """
+ int (*gasBoundaryLayerLaunch)(DeviceState*)=&launchBoundaryLayer<false>;
+ int (*gasBoundaryLayerSnapshot)(DeviceState*,SharedGasTrialSnapshot&,bool)=
+     &sharedGasTrialDetail::snapshotWallRecords<false,DeviceState>;
+"""
+    return source.replace('struct DeviceState {', declarations+'struct DeviceState {'+fields)
+
+
 def snapshot_release_probe():
     """Use the existing production snapshot ownership functions, not a mock."""
     text=(ROOT/'applications/gasUGKP/private_backend/SharedGasTrialPolicy.cuh').read_text()
@@ -24,7 +41,7 @@ def test_boundary_layer_native_storage_is_atomic_and_scratch_bounded(tmp_path):
  int *faceOwner=nullptr,*faceNeighbour=nullptr,*gasBoundaryKind=nullptr;
  double *V=nullptr,*magSf=nullptr;
 ''')
-    body=pre+snapshot_release_probe()+r'''
+    body=profile_dispatch_fixture(pre)+snapshot_release_probe()+r'''
 static int deviceQueries=0;
 const int cudaDevAttrMultiProcessorCount=1;
 int cudaGetDevice(int*p){*p=0;return 0;}

@@ -17,6 +17,7 @@ template<class Real,int Ns,int MaxNodes=48> struct GasBoundaryLayerModelState
     void* workspace=nullptr;
     int workspaceCapacity=MaxNodes; // allocated capacity bucket: 24, 48 or 128
     gaswall::WallStatus* status=nullptr;
+    Real* profile=nullptr; // enabled-at-startup rows: y,U[3],T,k,omega,Y[Ns]
     int workspaceCount=0; // bounded pool, never one large scratch block per wall by default
     const int* faces=nullptr;
     const int* matchingOffsets=nullptr;
@@ -34,15 +35,38 @@ template<class State> struct GasBoundaryLayerModelCapability<State,
 #else
 #define UGKWP_WALL_WORKSPACE_CALL inline
 #endif
-template<class Real,int Ns,int Capacity>
+template<bool Capture=false,class Real,int Ns,int Capacity>
 UGKWP_GAS_HD UGKWP_WALL_WORKSPACE_CALL bool evaluateGasBoundaryLayerWorkspace(
     const gaswall::WallInput<Real,Ns>& input,const gaswall::WallModelConfig<Real>& config,
     gaswall::WallWorkspace<Real,Ns,Capacity>& workspace,gaswall::WallOutput<Real,Ns>& output,
-    gaswall::WallStatus& status)
-{return gaswall::evaluateWallModel(input,config,workspace,output,status);}
+    gaswall::WallStatus& status,Real* profile=nullptr)
+{
+    const bool evaluated=gaswall::evaluateWallModel(input,config,workspace,output,status);
+    if constexpr(Capture)
+    {
+        if(evaluated)
+        {
+            gaswall::detail::LayerContext<Real,Ns> context;
+            const bool available=gaswall::detail::makeContext(input,config,context);
+            for(int node=0;node<config.nodes;++node)
+            {
+                gaswall::WallProfileNode<Real,Ns> p;
+                const bool decoded=available && gaswall::reactingWallProfileNode(input,config,workspace,node,context,p);
+                Real* row=profile+node*(7+Ns);
+                row[0]=p.y;for(int d=0;d<3;++d)row[1+d]=p.velocity[d];
+                row[4]=p.temperature;row[5]=p.k;row[6]=p.omega;
+                for(int species=0;species<Ns;++species)row[7+species]=p.massFraction[species];
+                // Diagnostic decoding cannot veto a physical solve. Missing values
+                // remain explicitly unavailable instead of becoming invented zeros.
+                if(!decoded)for(int col=0;col<7+Ns;++col)row[col]=std::numeric_limits<Real>::quiet_NaN();
+            }
+        }
+    }
+    return evaluated;
+}
 #undef UGKWP_WALL_WORKSPACE_CALL
 
-template<class State> UGKWP_GAS_HD inline bool evaluateGasBoundaryLayerSlot(State& state,int slot,int workspaceSlot=0)
+template<bool Capture=false,class State> UGKWP_GAS_HD inline bool evaluateGasBoundaryLayerSlot(State& state,int slot,int workspaceSlot=0)
 {
     using Real=typename std::remove_pointer<decltype(state.rho)>::type;
     constexpr int Ns=GasStateTraits<State>::speciesCount;
@@ -134,7 +158,7 @@ template<class State> UGKWP_GAS_HD inline bool evaluateGasBoundaryLayerSlot(Stat
     if(analytic)evaluated=gaswall::evaluateConstantTransportWall(in,model.config,model.output[slot],model.status[slot]);
     else
     {
-#define WALL_EVALUATE_CAPACITY(capacity) case capacity: evaluated=evaluateGasBoundaryLayerWorkspace(in,model.config,static_cast<gaswall::WallWorkspace<Real,Ns,capacity>*>(model.workspace)[workspaceSlot],model.output[slot],model.status[slot]);break
+#define WALL_EVALUATE_CAPACITY(capacity) case capacity: evaluated=evaluateGasBoundaryLayerWorkspace<Capture>(in,model.config,static_cast<gaswall::WallWorkspace<Real,Ns,capacity>*>(model.workspace)[workspaceSlot],model.output[slot],model.status[slot],Capture?model.profile+std::size_t(slot)*model.config.nodes*(7+Ns):nullptr);break
         switch(model.workspaceCapacity)
         {
             WALL_EVALUATE_CAPACITY(24);

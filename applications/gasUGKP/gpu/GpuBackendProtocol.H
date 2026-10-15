@@ -46,7 +46,9 @@ enum class Op : std::uint32_t
     downloadSpeciesV1 = 25,
     uploadSpeciesBoundaryV1 = 26,
     configureBoundaryLayerV1 = 27,
-    downloadBoundaryLayerV1 = 28
+    downloadBoundaryLayerV1 = 28,
+    enableBoundaryLayerProfilesV1 = 29,
+    downloadBoundaryLayerProfilesV1 = 30
 };
 
 enum class GasFluxScheme : std::int32_t
@@ -915,6 +917,13 @@ inline bool boundaryLayerDiagnosticBytes(const std::uint32_t walls,
     bytes=0;
     return addBytes(bytes,walls,std::uint64_t(boundaryLayerDiagnosticScalars)*sizeof(double))
         && addBytes(bytes,walls,2ULL*species*sizeof(double));
+}
+// Seven physical scalars per real solver node, followed by all mechanism species.
+inline bool boundaryLayerProfileBytes(std::uint32_t walls,std::uint32_t nodes,
+    std::uint32_t species,std::uint64_t& bytes)
+{
+    bytes=0;
+    return addBytes(bytes,std::uint64_t(walls)*nodes,(7ULL+species)*sizeof(double));
 }
 inline bool boundaryLayerPayloadBytes(const BoundaryLayerConfigV1& a,
     std::uint32_t faces,std::uint32_t species,std::uint64_t& bytes)

@@ -1048,3 +1048,30 @@ extern "C" int ugkwpGpuResidentStrictDownloadBoundaryLayerV1
     if (bytes) std::memcpy(diagnostics,staged.data(),bytes);
     return discardResponse(s)?0:-1;
 }
+
+extern "C" int ugkwpGpuResidentStrictEnableBoundaryLayerProfilesV1(void* handle)
+{
+    ClientState* s=static_cast<ClientState*>(handle);
+    if(!s)return fail("missing resident for wall profiles");
+    if(!startRequest(s,Op::enableBoundaryLayerProfilesV1,0))return -1;
+    return finishNoPayload(s);
+}
+extern "C" int ugkwpGpuResidentStrictDownloadBoundaryLayerProfilesV1
+(void* handle,std::uint32_t walls,std::uint32_t nodes,std::uint32_t species,double* profiles,double* stageTime)
+{
+    ClientState* s=static_cast<ClientState*>(handle);
+    if(!s || !profiles || !stageTime)return fail("missing wall profile destination");
+    std::uint64_t bytes=0;
+    if(!boundaryLayerProfileBytes(walls,nodes,species,bytes) || !addArrayBytes<double>(bytes,1))
+        return fail("wall profile byte extent overflow");
+    const std::uint32_t dimensions[3]={walls,nodes,species};
+    if(!startRequest(s,Op::downloadBoundaryLayerProfilesV1,sizeof(dimensions))
+        || !sendArray(s->fd,dimensions,3))return -1;
+    std::uint64_t got=0;const int status=receiveResponse(s,got,true,bytes);
+    if(status)return status;
+    std::vector<double> staged(bytes/sizeof(double));
+    if(!receiveArray(s->fd,staged.data(),staged.size(),s))return -1;
+    *stageTime=staged[0];
+    std::copy(staged.begin()+1,staged.end(),profiles);
+    return discardResponse(s)?0:-1;
+}

@@ -112,8 +112,8 @@ int cudaMemcpy(void* dst,const void* src,std::size_t n,int){
  std::memcpy(dst,src,n);return cudaSuccess;
 }
 ''')
-    from test_boundary_layer_storage import snapshot_release_probe
-    return pre+sync+'\n'+scrub+snapshot_release_probe()+r'''
+    from test_boundary_layer_storage import snapshot_release_probe, profile_dispatch_fixture
+    return profile_dispatch_fixture(pre)+sync+'\n'+scrub+snapshot_release_probe()+r'''
 const int cudaDevAttrMultiProcessorCount=1;
 int cudaGetDevice(int*p){*p=0;return 0;}
 int cudaDeviceGetAttribute(int*p,int,int){*p=80;return 0;}
