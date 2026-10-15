@@ -1,6 +1,0 @@
-Traceback (most recent call last):
-  File "/mnt/c/Users/25094/Documents/Codex/2026-10-14/files-pasted-by-the-user-ugkp/work/r4_physical_audit.py", line 65, in <module>
-    name=sys.argv[-1];q=chemistry(name) if '--chem' in sys.argv else gas_budget(name);p=D/'artifacts'/(name+('-chemical-half-physical.json' if '--chem' in sys.argv else '-gas-physical-budget.json'));p.write_text(json.dumps(q,indent=2)+'\n');print(json.dumps({k:v for k,v in q.items() if k not in ['actual_stage_volumes','rows']}),flush=True);raise SystemExit(0 if q['pass'] else 1)
-  File "/mnt/c/Users/25094/Documents/Codex/2026-10-14/files-pasted-by-the-user-ugkp/work/r4_physical_audit.py", line 40, in chemistry
-    dt=dec(g['dt'][c]);assert dt==dec(stage['dt'])/Q(2)
-AssertionError

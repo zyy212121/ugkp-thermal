@@ -1,2 +1,0 @@
-Actual build reached both test -x checks and final echo after 184.21 s. Parent wrapper encountered unexpected EOF after its metadata capture was sanitized during execution, so actual script exit was not separately recorded. Repeat preserves unchanged source and options to obtain direct exit.
-Decision: do not repeat the successful compile/link work. Preserve wrapper=2 and child exit not separately recorded; classify stages from trace and artifacts.

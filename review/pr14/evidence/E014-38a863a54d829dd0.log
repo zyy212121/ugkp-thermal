@@ -1,6 +1,0 @@
-/workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/implementation/b5/cuda/selected-consumers.cu(27): warning #177-D: variable "OfGreat" was declared but never referenced
-  constexpr Real OfGreat=static_cast<GpuReal>(1.0)/OfSmall;
-                 ^
-
-Remark: The warnings can be suppressed with "-diag-suppress <warning-number>"
-

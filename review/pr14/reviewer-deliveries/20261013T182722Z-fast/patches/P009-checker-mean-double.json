@@ -1,7 +1,0 @@
-{
-  "classification": "test support only",
-  "production_modified": false,
-  "reason": "Numpy mean of float profile default float32 accumulator introduced checker error; independent physical mean must promote stored nodes to double. No tolerance/assertion removed; old failed results retained.",
-  "old_checker_sha256": "9325be4d12a16d129da3f79d82c7dd9df8f85d6e91ecbcbc5f2a4ff3c0ecffe1",
-  "corrected_checker_sha256": "8c4d12003e26bb5a44682a0c10ffd7bc730b449596273cb210f4938a83ca600a"
-}

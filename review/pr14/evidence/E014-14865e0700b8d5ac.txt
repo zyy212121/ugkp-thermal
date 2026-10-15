@@ -1,4 +1,0 @@
-chmt_remaining_audit_20261013/final-native-build/remaining/tmp/tmpxft_000000f1_00000000-6_GpuResidentStrict.ptx
-.version 9.1
-.target sm_80
-.address_size 64

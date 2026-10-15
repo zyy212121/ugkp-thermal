@@ -1,1 +1,0 @@
-/workspace/scratch/98b6339ec81b/chmt_remaining_audit_20261013/toolchains/cuda/bin/nvcc -std=c++17 --expt-relaxed-constexpr -arch=sm_80 -Xptxas -O0 -Iapplications/CHMT -Icommon -c compile/calorics.cu -o compile/calorics.o

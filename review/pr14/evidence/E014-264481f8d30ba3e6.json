@@ -1,5 +1,0 @@
-{
-  "exit_code": -6,
-  "stdout": "success=0 evaluated=1 flux=-0x1.eb851eb851eb8p-6,0x1.eb851eb851eb8p-6 heat=nan expected=0x1.5f9p+16\n",
-  "stderr": "coefficient count blocked actual backed enthalpy\n"
-}

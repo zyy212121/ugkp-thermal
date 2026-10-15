@@ -1,4 +1,0 @@
-/usr/bin/ld: /tmp/cc0cdzYS.o: in function `(anonymous namespace)::advanceLifecycle(chmt::HostState const&, chmt::PhysicsConfig const&, std::vector<chmt::GasPrimitive, std::allocator<chmt::GasPrimitive> > const&, double, bool)':
-test_cpu_phase_lifecycle.cpp:(.text+0x1c501): undefined reference to `chmt::applyMaterialPacketBatch(std::vector<chmt::SolidQ, std::allocator<chmt::SolidQ> > const&, std::vector<chmt::ExchangePacket, std::allocator<chmt::ExchangePacket> > const&, std::vector<chmt::SolidQ, std::allocator<chmt::SolidQ> >&, double&, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >&, bool*)'
-collect2: error: ld returned 1 exit status
-EXIT:1

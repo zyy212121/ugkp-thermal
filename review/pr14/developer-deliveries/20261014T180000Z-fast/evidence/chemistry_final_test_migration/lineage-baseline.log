@@ -1,5 +1,0 @@
-Traceback (most recent call last):
-  File "/workspace/scratch/98b6339ec81b/pr14_fast_fix_20261014/tests/chemistry/fixtures/finite_candidate_lineage/instrument.py", line 34, in <module>
-    assert s.count(needle)==1, 'missing exact duration-consumption observation seam'
-           ^^^^^^^^^^^^^^^^^^
-AssertionError: missing exact duration-consumption observation seam

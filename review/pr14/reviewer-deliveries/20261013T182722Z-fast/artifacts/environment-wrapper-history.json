@@ -1,7 +1,0 @@
-{
-  "v0_expected_sha256": "47ceda6bed4bc7e370935157181bbb6304a10d8867568511b73cfdf7781b3be5",
-  "v0_exact_bytes_recovered": false,
-  "current_script": "inputs/env.sh",
-  "current_sha256": "2e9ba1655533bb17676f60b83f3628c2409d36978b703cfa8f9251a788e31c83",
-  "diagnosis": "Original wrapper enabled set-e before sourcing OpenFOAM; exits before build. Retained5 empty failed logs/specs. Fixed environment before actual native build, not a source repair."
-}

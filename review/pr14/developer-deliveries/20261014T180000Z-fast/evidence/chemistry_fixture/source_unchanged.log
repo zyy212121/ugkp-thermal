@@ -1,9 +1,0 @@
-tests/fixtures/chemistry_trial/chemistry_trial.cu.in: OK
-tests/fixtures/chemistry_trial/prepare_chemistry_trial.py: OK
-tests/test_chemistry_trial_cuda_fixture.py: OK
-common/chemistry/LocalStiffIntegrator.H: OK
-common/operators/advanceGasChemistryKernel.cuh: OK
-common/GpuGasAdvance.cuh: OK
-applications/gasUGKP/private_backend/GpuResidentStrict.cu: OK
-applications/gasUGKP/private_backend/SharedGasTrialPolicy.cuh: OK
-applications/gasUGKP/private_backend/GasBudgetRuntime.cuh: OK

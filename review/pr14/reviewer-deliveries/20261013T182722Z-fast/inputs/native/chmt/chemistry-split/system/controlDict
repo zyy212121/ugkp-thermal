@@ -1,4 +1,0 @@
-FoamFile { version 2.0; format ascii; class dictionary; object controlDict; }
-application CHMT;
-startFrom startTime; startTime 0; stopAt endTime; endTime 1.0000000000000001e-05; deltaT 9.9999999999999995e-07;
-writeControl timeStep; writeInterval 100; writePrecision 17; runTimeModifiable false;

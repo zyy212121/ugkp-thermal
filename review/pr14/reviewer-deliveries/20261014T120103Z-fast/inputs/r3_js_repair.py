@@ -1,5 +1,0 @@
-from r3_runner import *
-source=D/'inputs/cold-start-Js-actual-native-S310.cu';assert source.exists()
-with (D/'TEST_PLAN.md').open('a') as h:h.write('\nS310首次构建命令支持失败：nvcc不识别大写Geometry.C后缀；原fatal log和argv保留。S311将同一正式Geometry.C用g++单独编译为host object再链接原S310 .cu，不改输入/source/断言/production。\n')
-geo=ROOT/'work/fixtures/Geometry-Js-S311.o';t=run('BUILD-COLD-START-JS-GEOMETRY-S311',cmd('g++','-std=c++17','-O2','-DUGKWP_GAS_SPECIES=2','-I'+str(ROOT/'applications/CHMT'),'-I'+str(ROOT/'common'),'-c',ROOT/'applications/CHMT/mesh/Geometry.C','-o',geo),[4,9,12,14,17,26,29],900,'Sameformal Geometry.C nativehostcompilation, no sourcechanges.',inputs=[ROOT/'applications/CHMT/mesh/Geometry.C'],kind='BUILD',variant='SUPPORT_S311');assert t['exit_code']==0
-binary=ROOT/'work/fixtures/cold-start-Js-S311';t=run('BUILD-COLD-START-JS-S311',cmd('nvcc','-std=c++17','-O2','-arch=sm_89','-DUGKWP_GAS_SPECIES=2','-I'+str(ROOT/'applications/CHMT'),'-I'+str(ROOT),'-I'+str(ROOT/'common'),'-I'+str(ROOT/'common/gasNumerics'),source,geo,'-o',binary),[4,9,12,14,17,26,29],900,'ActualfullnativeGPU/geometry noCUDAstubs.',inputs=[source,geo],kind='BUILD',variant='SUPPORT_S311');assert t['exit_code']==0

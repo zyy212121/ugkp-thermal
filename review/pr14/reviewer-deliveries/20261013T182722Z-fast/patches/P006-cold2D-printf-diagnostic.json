@@ -1,8 +1,0 @@
-{
-  "classification": "isolated diagnostic only",
-  "production_before_sha256": "903b5b615caa4f7aa432126c04a07c054335f04038bf941362a3078e10fe0a61",
-  "production_after_sha256": "b7b11c4adc8ae16beb5c56ff812eb64361dacda756de3fc68163ccd0e9494819",
-  "physical_equations_modified": false,
-  "hypothesis": "nonempty per-face effusivity backing remains zero on uncoupled candidate wall, first age0 gives sqrt(0)/0 and poisons paired mean correction",
-  "source_checkout_untouched": true
-}

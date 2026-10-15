@@ -1,5 +1,0 @@
-{
-  "base_commit": "82f9c016704c9822b16b87cdeeb11f5bbd44d06f",
-  "scope": "strict periodic bulk overflow normal return/status/all5+Ns bytes, single/all NaN spectral fmax/OfGreat fallback normal return/status/full output bytes",
-  "matching_stdout_sha256": "b63d188b3d81154ccc7ce0c031d379cf2b5285cc0690ea68af12075ab3ba512f"
-}

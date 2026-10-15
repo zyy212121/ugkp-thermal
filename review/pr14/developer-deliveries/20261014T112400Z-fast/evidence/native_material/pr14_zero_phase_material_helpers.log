@@ -1,5 +1,0 @@
-CPU material caloric tests passed
-CPU three-axis Darcy and reaction tests passed
-CPU real interface proposal test passed
-Boundary lag coalescing tests passed: constant refinement 1 vs 1 slabs; variable tighter controls improve forcing quadrature
-HOST_HELPERS_ONLY: actual caloric/3-D transport/interface helpers passed. OpenFOAM sparse matrix and coupled CUDA execution are separate checks.

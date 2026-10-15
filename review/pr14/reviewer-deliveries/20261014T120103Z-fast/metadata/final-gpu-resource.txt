@@ -1,2 +1,0 @@
-name, driver_version, memory.total [MiB], memory.free [MiB], temperature.gpu
-NVIDIA GeForce RTX 4060 Laptop GPU, 592.00, 8188 MiB, 7792 MiB, 61

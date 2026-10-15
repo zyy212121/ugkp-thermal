@@ -1,8 +1,0 @@
-{
-  "classification": "input admission compatibility only",
-  "reason": "Original baseline rejects three obsolete scalar wall dictionary tokens before native cold calculation and defaults GPU physics32. Remove only these tokens that PR has no consumer for; explicitly select existing baseline FP64 route. Run BOTH baseline and PR with same adapted input.",
-  "physical_inputs_modified": false,
-  "actual_consumed_defaults_retained": "wall device1800/710/100, wallT473.15, droplet/model unchanged. Does not pretend original dictionary7900/500/15 consumed.",
-  "original_failure_preserved": "logs/BASE-COLD2D.log",
-  "not_original_success_evidence": true
-}

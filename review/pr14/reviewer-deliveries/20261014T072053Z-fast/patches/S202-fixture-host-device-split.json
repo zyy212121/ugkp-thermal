@@ -1,9 +1,0 @@
-{
-  "classification": "TEST_SUPPORT",
-  "production_modified": false,
-  "original_run": "CHEM-OWNER",
-  "original_source_sha256": "87a141ad058d104daa18edaeb86acefcae4c18c3cea65325145021f6fb61c7ac",
-  "new_source_sha256": "6cf96c6b3b8d2997d0cf78a9e94a07c15aab162a49ea10c7c63fc5ce55390ed9",
-  "diagnosis": "Original fixture uses a managed DeviceState as both host canonical owner and device state. WSL limited UVM cannot host-read managed state after async kernel before synchronize. CUDA-GDB shows host prepareGasTrialTransport SIGSEGV reading that managed owner at0x204c00000. Production uses separate host canonical/device published state; new fixture follows it. Arrays and real native kernels/owner/arithmetic/assertions unchanged.",
-  "verification": "Host/device split recheck required; diagnosis only until green."
-}
