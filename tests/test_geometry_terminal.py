@@ -35,7 +35,7 @@ def test_terminal_geometry_actual_fields(tmp_path):
     build_run(tmp_path, 'terminal', probe)
 
 def test_normal_geometry_exact_fields_and_costs(tmp_path):
-    # Archive original dependencies so each pin uses its own implementation headers.
+
     import importlib.util
     spec = importlib.util.spec_from_file_location('hoists', ROOT / 'tests/test_geometry_scale_hoists.py')
     module = importlib.util.module_from_spec(spec);spec.loader.exec_module(module)
@@ -45,7 +45,7 @@ def test_normal_geometry_exact_fields_and_costs(tmp_path):
     with tarfile.open(fileobj=io.BytesIO(archive)) as tar: tar.extractall(historical, filter='data')
     outputs=[]
     for label, source in [('old', subprocess.check_output(['git','show',BASE+':'+OWNER],cwd=ROOT,text=True)), ('current',(ROOT/OWNER).read_text())]:
-        # Existing instrumentation is deliberately anchored to the public spelling.
+
         source=source.replace('rebuildTrajectorySurfaceImpl(', 'rebuildTrajectorySurface(') if label=='old' else source
         if label=='current':
             a=source.index('    bool rebuildTrajectorySurfaceImpl(');b=source.index('    bool rebuildGeometry(HostMesh& m',a)

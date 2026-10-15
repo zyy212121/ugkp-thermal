@@ -105,10 +105,10 @@ int main(){for(int model=0;model<5;++model)for(int heat:{0,1}){if(model==0&&heat
     if app == 'FSH':
         assert result['old'] == result['current']
     else:
-        # F002 intentionally changes the first face-owner initialization from
-        # zeroing device storage to one scalar-filled H2D transfer. This owner
-        # fixture supplies zero scalar material, so all data hashes still match;
-        # the real-material behavior is covered by the actual CUDA regression.
+
+
+
+
         before, after = result['old'].splitlines(), result['current'].splitlines()
         assert len(before) == len(after)
         heat = False
@@ -118,8 +118,8 @@ int main(){for(int model=0;model<5;++model)for(int heat:{0,1}){if(model==0&&heat
                 a, b = old.split(), current.split()
                 heat = a[2] == '1'
                 if heat:
-                    # allocations stay fixed, one memset becomes one H2D copy,
-                    # and exactly one temporary four-face host buffer is filled.
+
+
                     assert int(b[5]) == int(a[5]) + 1
                     assert int(b[6]) == int(a[6]) + 1
                     assert int(b[7]) == int(a[7]) - 1

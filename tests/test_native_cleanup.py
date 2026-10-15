@@ -6,14 +6,42 @@ import subprocess
 ROOT = Path(__file__).resolve().parents[1]
 
 
+CPP_NESTING_TOKENS = re.compile(
+    r'''R"(?P<delimiter>[^\s()\\]{0,16})\(.*?\)(?P=delimiter)"|"(?:\\.|[^"\\])*"|(?<!\w)(?:u8|u|U|L)?'(?:\\.|[^'\\])*'|//[^\n]*|/\*.*?\*/|[{}]''',
+    re.S,
+)
+
+
 def block(text, signature):
     start = text.index(signature)
-    brace = text.index('{', start)
-    depth, end = 1, brace + 1
-    while depth:
-        depth += (text[end] == '{') - (text[end] == '}')
-        end += 1
-    return text[start:end]
+    depth = 0
+    for token in CPP_NESTING_TOKENS.finditer(text, start):
+        value = token.group()
+        if value == '{':
+            depth += 1
+        elif value == '}':
+            depth -= 1
+            if depth == 0:
+                return text[start:token.end()]
+    raise ValueError('unterminated C++ body for '+signature)
+
+
+def test_block_keeps_cpp_literals_and_comment_braces_out_of_nesting():
+    expected=r'''void target(const char* defaultValue="{") {
+    const char* value="} escaped \" {";
+    const char* raw=R"body( } \" { )body";
+    const char brace='}';
+    /* } { } */
+    // }
+    if (defaultValue && value && raw && brace) { consume(); }
+}'''
+    assert block('void prior() {}\n'+expected+'\nvoid after() {}','void target')==expected
+    try:
+        block('void unfinished() {','void unfinished')
+    except ValueError:
+        pass
+    else:
+        raise AssertionError('unterminated C++ body accepted')
 
 
 def run_cpp(tmp_path, code, includes=()):
@@ -58,7 +86,7 @@ void counters(){copies=h2d=d2h=allocations=memsets=syncs=launches=0;failCopy=fai
 
 
 def test_saved_velocity_actual_include_prefix_bits_and_copy_failures(tmp_path):
-    # Removing count certificates must change this actual include's behavior.
+
     code = CUDA + r'''
 struct DeviceState {int particleCapacity=5,count=4;int* particleCountDevice=&count;double a[5]{},b[5]{},c[5]{};double* puxOld=a;double* puyOld=b;double* puzOld=c;};
 DeviceState* asState(void* p){return static_cast<DeviceState*>(p);}
@@ -85,7 +113,9 @@ int main(){
   DeviceState s;double x=std::numeric_limits<double>::infinity(),y=-0.,z=std::numeric_limits<double>::quiet_NaN();counters();
   assert(ugkwpGpuResidentStrictUploadParticleSavedVelocity(&s,1,&x,&y,&z)==0);assert(std::isinf(s.a[0])&&std::signbit(s.b[0])&&std::isnan(s.c[0]));
   counters();assert(ugkwpGpuResidentStrictUploadParticleSavedVelocity(&s,0,nullptr,nullptr,nullptr)==0&&copies==0);
-  assert(ugkwpGpuResidentStrictUploadParticleSavedVelocity(&s,6,&x,&y,&z)!=0&&copies==0);
+  double xx[6]{},yy[6]{},zz[6]{};
+  for(int count:{-1,6}){assert(ugkwpGpuResidentStrictUploadParticleSavedVelocity(&s,count,xx,yy,zz)!=0&&copies==0);
+   assert(ugkwpGpuResidentStrictDownloadParticleSavedVelocity(&s,count,xx,yy,zz)!=0&&copies==0);}
   assert(ugkwpGpuResidentStrictDownloadParticleSavedVelocity(&s,1,nullptr,&y,&z)!=0&&copies==0);
  }
  puts("saved velocity: exact prefix and partial-copy failures; no certificates");

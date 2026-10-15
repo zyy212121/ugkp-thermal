@@ -42,7 +42,7 @@ def make_case(path,mode):
     for region,start,T in [('solid',-1,300),('aux',-2,100)]:
         seed=path/(region+'_mesh');cases.make_case(seed,0,transverse_cells=3 if mode.startswith("pending_") else 1)
         mesh=seed/'system/blockMeshDict';text=mesh.read_text()
-        # Translate actual points, retaining connectivity and patch directions.
+
         text=text.replace('vertices ((0 0 0) (1 0 0) (1 1 0) (0 1 0) (0 0 1) (1 0 1) (1 1 1) (0 1 1))',f'vertices (({start} 0 0) ({start+1} 0 0) ({start+1} 1 0) ({start} 1 0) ({start} 0 1) ({start+1} 0 1) ({start+1} 1 1) ({start} 1 1))')
         mesh.write_text(text);p=subprocess.run(['blockMesh','-case',str(seed)],capture_output=True,text=True);assert p.returncode==0,p.stdout+p.stderr
         for base in ['constant','system','0']:(path/base/region).mkdir(parents=True,exist_ok=True)

@@ -125,8 +125,8 @@ bool responseHeader
     const std::string& overrideError = std::string()
 )
 {
-    // Complete request consumption before synchronous response publication.
-    // A send-then-receive peer must not be blocked by unread request surplus.
+
+
     if (readingFrame && !discardRequest(fd)) return false;
     std::string error;
     if (status != 0)
@@ -626,6 +626,8 @@ bool handleSavedVelocity(const int fd,const RequestHeader& request,ServerState& 
 {
     CountArgs a{};
     if (request.payloadBytes<wireBytes(a) || !readObject(fd,a)) return false;
+    if (a.count<0 || a.count>s.particleCapacity)
+        return responseHeader(fd,-1,0,"invalid saved velocity count");
 
     std::uint64_t expected=wireBytes(a);
     if (upload) addArrays(expected,a.count,sizeof(double),3);

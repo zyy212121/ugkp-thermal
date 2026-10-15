@@ -37,3 +37,24 @@ def test_run_validator_requires_complete_actual_api_matrix():
     assert runner.validate_run_output(output, 'gasUGKP', fields)['invalid_inputs'] == 4
     with pytest.raises(ValueError):
         runner.validate_run_output(output.replace(rows[0], ''), 'gasUGKP', fields)
+
+
+
+@pytest.mark.parametrize('app', ['CHT', 'FSH'])
+def test_run_validator_requires_saved_velocity_matrix_and_controls(app):
+    runner = load_runner()
+    fields = [('double', 'px')]
+    rows = ['PASS native-restart case=' + case + ' unchanged=1' for case in
+            ['negative-count', 'over-capacity', 'null-px']]
+    rows.append(f'PASS native-restart app={app} fields=1 retry=1 coldOptionalNull=1 actualCuda=1')
+    with pytest.raises(ValueError):
+        runner.validate_run_output('\n'.join(rows), app, fields)
+    matrix = ['PASS saved-velocity case='+direction+'-'+label+' unchanged=1'
+              for direction in ('upload','download')
+              for label in ('negative-count','over-capacity','null-x','null-y','null-z')]
+    controls = 'PASS saved-velocity prefix=1 empty=1 capacity=1 nonfinite=1 retry=1 actualCuda=1'
+    output = '\n'.join(rows + matrix + [controls])
+    assert runner.validate_run_output(output, app, fields)['saved_velocity_invalid_inputs'] == 10
+    for omitted in matrix + [controls]:
+        with pytest.raises(ValueError):
+            runner.validate_run_output(output.replace(omitted, ''), app, fields)

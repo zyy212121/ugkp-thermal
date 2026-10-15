@@ -42,7 +42,7 @@ struct Resident{void*handle_=this;void requireInitialised(const char*)const{}sta
 def test_constructor_configuration_fragment_preserves_lookups_without_numerical_admission(tmp_path,app):
  src=source(app);start=src.index('        const scalar collisionalRestitution =');end=src.index('        const bool csrCellLocalPathEnabled',start)
  fragment=src[start:end]
- # Same typed dictionary lookups as production. Inspect native Create separately for original clamps.
+
  code=PRE+r'''
 using label=int;
 struct dictionary{template<class T>T lookupOrDefault(const char*name,T fallback)const{std::string n(name);if(n=="gpuResidentPackingFraction")return T(2);if(n=="gpuResidentCollisionalRestitution")return T(-.25);if(n=="gpuResidentPressureKickFraction")return T(3);if(n=="gpuResidentPackingProjectionIterations")return T(0);return fallback;}};

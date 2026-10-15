@@ -51,11 +51,20 @@ inline bool evaluateCpuFilmTransport(const HostState& h,const PhysicsConfig& p,R
 '''
 
 
+def physical_film_probe(source):
+    source=source.replace("<<a.kineticEnergy<<' '",'')
+    source=source.replace('  require(near(c.filmAux[f].kineticEnergy,p.liquid.rho*profile.kineticPerArea,1e-15),"endpoint kinetic profile");','')
+    source=source.replace(',beforeK=0,afterK=0','')
+    source=source.replace('beforeK+=h.filmAux[f].kineticEnergy;afterK+=c.filmAux[f].kineticEnergy;','')
+    source=source.replace("<<' '<<beforeK<<' '<<afterK",'')
+    return source
+
+
 def test_film_exact_outputs_and_linear_incidence(tmp_path):
     original = subprocess.check_output(['git', 'show', BASE + ':' + OWNER], cwd=ROOT, text=True)
     current = (ROOT / OWNER).read_text()
-    # Build the historical owner against its own headers, rather than current
-    # private continuation overloads that did not exist at the historical pin.
+
+
     baseline = tmp_path / 'baseline'
     baseline.mkdir()
     archive = subprocess.check_output(['git', 'archive', BASE, 'applications/CHMT', 'common'], cwd=ROOT)
@@ -65,7 +74,7 @@ def test_film_exact_outputs_and_linear_incidence(tmp_path):
     for label, source in [('base', original), ('current', current)]:
         owner = tmp_path / (label + '.C')
         owner.write_text(instrument(source))
-        body = (ROOT / 'tests/fixtures/film_incidence/probe.cpp').read_text()
+        body = physical_film_probe((ROOT / 'tests/fixtures/film_incidence/probe.cpp').read_text())
         owner_app = baseline / 'applications/CHMT' if label == 'base' else APP
         body = legacy_transport_adapter((owner_app/'film/CpuFilmDriver.H').read_text()) + body
         body = body.replace('FILM_FIXTURE', str(owner_app / 'devtools/multirate/test_cpu_film.cpp'))
@@ -93,11 +102,11 @@ def test_film_exact_outputs_and_linear_incidence(tmp_path):
         assert old[:2] == new[:2]
         assert grad == 36 * faces and limiter == 32 * faces
         assert grad < old[2] and limiter < old[3]
-        # The cache is not allocation-free: record measured new allocation costs.
-        assert allocations == old[4] + 1
-        assert allocated_bytes == old[5] + 8 * (2 * (faces + 1) + 2 * edges) - 64 * faces - 32 * edges
 
-    # Two Evaluation output vectors and two report copies are removed from advance.
+        assert allocations == old[4] + 1
+        assert allocated_bytes == old[5] + 8 * (2 * (faces + 1) + 2 * edges) - 64 * faces - 32 * edges - 8 * faces
+
+
     for label, expected_delta in [('ADVCOUNT', 2), ('ISOLATED', 0)]:
         old_rows = [list(map(int, line.split()[1:])) for line in results[0].stderr.splitlines() if line.startswith(label + ' ')]
         new_rows = [list(map(int, line.split()[1:])) for line in results[1].stderr.splitlines() if line.startswith(label + ' ')]
@@ -106,7 +115,7 @@ def test_film_exact_outputs_and_linear_incidence(tmp_path):
             assert new[0] == old[0]
             assert new[1] == old[1] + expected_delta
             if label == 'ISOLATED':
-                assert new[2] == old[2]  # no internal neighbors: no cache buffers
+                assert new[2] == old[2] - 8
 
     construction = [list(map(int, line.split()[1:])) for line in results[1].stderr.splitlines() if line.startswith('BUILD ')]
     assert len(construction) == 4

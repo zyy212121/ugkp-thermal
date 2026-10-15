@@ -95,8 +95,8 @@ def graph_native():
     s=tracked_native().replace('int invalidations=0;int ugkpInvalidateGasWallEnergyGraph(void*){++invalidations;return 0;}','')
     s=s.replace('namespace\n{','void recordAccumulation(double*,const double*,const int*,int,double);\nnamespace\n{',1)
     s=s.replace('(++launches, accumulateGasWallEnergy64Kernel)','(++launches, recordAccumulation)')
-    # The helpers below record the CUDA graph API; production capture/reuse and
-    # invalidation function bodies execute verbatim.
+
+
     graph=r'''
 struct Accum {double*energy;const double*flux;const int*faces;int count;double dt;};
 struct Graph {std::vector<Accum> work;};using cudaGraph_t=Graph*;using cudaGraphExec_t=Graph*;using cudaGraphNode_t=int;

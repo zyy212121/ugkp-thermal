@@ -73,7 +73,7 @@ Real scheduledSolidVolumeFractionDevice(DeviceState&,double){return 0;}
  extra+=function(text('operators/clearColdWallParticleState.cuh'),'clearColdWallParticleState')+'\n'+function(text('wall/GpuColdWall2DDevice.cuh'),'clearColdWall2DParticleState')+'\n'
  extra+=function(text('operators/snapshotParticleGasCouplingStateKernel.cuh'),'mixSeed')+'\n'+text('operators/uniform01Device.cuh')+'\n'+text('operators/normalDevice.cuh')+'\n'+text('operators/linearScheduledValueDevice.cuh')+'\n'+text('operators/injectBoundaryParticlesKernel.cuh')
  extra+='\n'+text('GpuCellLocalThermalFields.cuh')+'\n#define GPU_PARTICLE_EXTRA_FIELDS CellLocalThermalExtraFields<'+('true,true' if carry else 'false,false')+'>\n'+text('GpuCellLocalPrimary.cuh')+'\n'+text('operators/gatherSelectedParticlesKernel.cuh')+'\n'+text('GpuParticlePayload.cuh').split('// Both scheduling policies',1)[0]+'\n'+text('GpuParticleBufferCommit.cuh')
- # Use the real manifest/copy lifecycle; physical moment contribution below receives authoritative cache+carry.
+
  extra+='\n#include "GpuParticleCaloric.H"\n'
  extra+='double particleSpecificEnthalpyDevice(Real t){return ugkwp::ParticleCaloric{}.enthalpy(double(t));}\n#include "GpuMaterialEnthalpyMoment.cuh"\n'
  extra+='Real particleMomentThetaDevice(const DeviceState&s,int i){return s.pTheta[i];}\n#define GPU_MOMENT_REAL Real\n#define GPU_MOMENT_R(x) Real(x)\n#define GPU_MOMENT_THERMAL 1\ndouble heat(DeviceState&s,int i){\n#include "GpuParticleMomentContribution.inl"\nreturn particleHeat;}\n'

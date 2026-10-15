@@ -100,7 +100,7 @@ def test_bad_numbers_use_real_initializer_and_missing_input_stays_error(tmp_path
     h.run_cpp(bad,c+r'''
 int main(){DeviceState s,d;Input i;setup(s,d);s.hostTurbulenceModel=17;i.k[0]=std::nan("17");i.k[1]=-3;i.omega[0]=std::numeric_limits<double>::infinity();i.distance[0]=-1;i.km[0]=99;i.bk[1]=std::nan("91");assert(configure(s,i)==0);assert(s.k[0]==s.sstKMin&&s.k[1]==s.sstKMin&&s.omega[0]==s.sstOmegaMin);assert(s.rhoKInitial[0]==s.rho[0]*s.sstKMin&&s.nut[1]==0);assert(s.sstWallDistance[0]==-1&&s.sstBoundaryKMode[0]==99&&std::memcmp(s.sstBoundaryK+1,i.bk+1,8)==0);assert(d.sstCoefficients.alphaK1==-.85&&d.sstWallTreatment==99);cleanup(s);assert(live.empty());}
 ''')
-    # Actual missing array branch must execute before any allocation.
+
     missing=tmp_path/'missing';missing.mkdir()
     h.run_cpp(missing,code(app).replace('i.k,i.omega,i.distance,','nullptr,i.omega,i.distance,')+r'''
 int main(){DeviceState s,d;Input i;setup(s,d);s.hostTurbulenceModel=0;counters();assert(configure(s,i)!=0&&allocations==0&&copies==0&&launches==0);}

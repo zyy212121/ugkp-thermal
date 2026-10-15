@@ -34,9 +34,26 @@ def current_storage_fixture(text, fsh):
     return text
 
 
-def compare_historical_physics(reference, current):
-    # The historical file represents float publications. This comparison bounds
-    # that reference's quantization; it is not a current solver tolerance.
+def compare_historical_physics(reference, current, preserves_seed_carry=False):
+    seed=r'^SEED target=(\S+) stored=(\S+) carry=(\S+)\n'
+    before_seed=re.findall(seed,reference,re.M);after_seed=re.findall(seed,current,re.M)
+    assert len(before_seed)==len(after_seed)
+    for old,new in zip(before_seed,after_seed):
+        target,stored,carry=map(float.fromhex,new)
+        assert math.isfinite(target) and math.isfinite(stored)
+        assert target==float.fromhex(old[0])
+        assert float.fromhex(old[2])==0.
+        assert carry==target-stored
+    reference=re.sub(seed,'',reference,flags=re.M)
+    current=re.sub(seed,'',current,flags=re.M)
+    if preserves_seed_carry:
+        assert before_seed
+        initial=float.fromhex(after_seed[0][2])
+        assert all(float.fromhex(row[2])==initial for row in after_seed)
+        for value in re.findall(r'carry=(\S+)',reference):assert float.fromhex(value)==0.
+        for value in re.findall(r'carry=(\S+)',current):assert float.fromhex(value)==initial
+        current=re.sub(r'carry=\S+','carry=0x0p+0',current)
+
     token=r'[-+]?(?:0x[0-9a-f.]+p[-+]?\d+|inf|nan)'
     before=re.findall(token,reference);after=re.findall(token,current)
     assert len(before)==len(after)
@@ -69,6 +86,21 @@ def build(folder,root,fsh):
     (folder/'actual_2d_group.cuh').write_text(two)
     prefix=(FIXTURES/'cold_prefix.cpp').read_text()
     cases=(FIXTURES/'cold_cases.cpp').read_text()
+    prefix=prefix.replace('    initialiseColdWallParticleState(s,0,s.pT[0]);',r'''
+    const auto& parameters=s.coldWallSolidificationParameters;
+    const double temperature=double(s.pT[0]);
+    const double solidus=double(parameters.meltingTemperatureK)-.5*double(parameters.mushyRangeK);
+    const double liquidus=double(parameters.meltingTemperatureK)+.5*double(parameters.mushyRangeK);
+    const auto cp=[](double t){t=std::max(2327.,std::min(4000.,t));return (153.5+.0031*(t-2327.))/.101961276;};
+    const double hSolidus=double(parameters.solidSpecificHeatJkgK)*solidus;
+    const double mushyCp=.5*(double(parameters.solidSpecificHeatJkgK)+cp(double(parameters.meltingTemperatureK)))+double(parameters.latentHeatJkg)/double(parameters.mushyRangeK);
+    const double target=temperature<=solidus?double(parameters.solidSpecificHeatJkgK)*temperature:
+        temperature<=liquidus?hSolidus+mushyCp*(temperature-solidus):
+        hSolidus+mushyCp*double(parameters.mushyRangeK)+.5*(cp(liquidus)+cp(temperature))*(temperature-liquidus);
+    initialiseColdWallParticleState(s,0,s.pT[0]);
+    for(int j=1;j<8;++j)require(s.coldH[j]==s.coldH[0],"uniform initial profile");
+    printf("SEED target=%a stored=%a carry=%a\n",target,double(s.coldH[0]),s.pThermalEnthalpyResidual[0]);
+''')
     if root.resolve()==CURRENT_ROOT.resolve():
         prefix=current_storage_fixture(prefix,fsh)
         cases=cases.replace('float(', 'ProfileStorage(').replace('for(float damage:', 'for(double damage:')
@@ -118,7 +150,7 @@ def test_cold2d_original_success_full_fields(executables,multiple):
 
 def test_masked_resistance_old_success(executables):
     fsh,before,after=executables
-    a=run(before,'resistance');b=run(after,'resistance');assert 'errors=0' in a;compare_historical_physics(a,b)
+    a=run(before,'resistance');b=run(after,'resistance');assert 'errors=0' in a;compare_historical_physics(a,b,preserves_seed_carry=True)
 
 
 def test_fsh_effusivity_complete_wrapper(executables):
@@ -129,7 +161,7 @@ def test_fsh_effusivity_complete_wrapper(executables):
 
 def test_adhesion_complete_finalizer(executables):
     fsh,before,after=executables
-    a=run(before,'adhesion');b=run(after,'adhesion');assert 'errors=0' in a;compare_historical_physics(a,b)
+    a=run(before,'adhesion');b=run(after,'adhesion');assert 'errors=0' in a;compare_historical_physics(a,b,preserves_seed_carry=True)
 
 
 def test_cold2d_terminal_extension_preserves_original_prefix(executables):
@@ -152,7 +184,7 @@ def test_cold2d_terminal_extension_preserves_original_prefix(executables):
 def test_census_bounded_actual_consumers(executables,case):
     fsh,before,after=executables
     a=run(before,case);b=run(after,case)
-    compare_historical_physics(a,b)
+    compare_historical_physics(a,b,preserves_seed_carry=(case=='contact'))
 
 
 @pytest.mark.parametrize('case',['multiplicity1d','multiplicity2d'])

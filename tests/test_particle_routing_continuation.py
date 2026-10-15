@@ -10,7 +10,7 @@ def body(path):
     return (COMMON/path).read_text().replace('#pragma once','').replace('asm("trap;");','throw std::runtime_error("production trap");')
 def function(text,name):
     a=text.index(name);a=text.rfind('\n',0,a)+1
-    # Names can be on a separate return-type line.
+
     if text[a:].startswith(name):a=text.rfind('\n',0,a-1)+1
     end=text.index('{',a)+1;depth=1
     while depth:depth+=(text[end]=='{')-(text[end]=='}');end+=1
@@ -303,7 +303,7 @@ int main(){DeviceState s;bool trapped=false;try{trackOneParticleLocalFaceWalk(s,
 }
 '''
     source='#define INCIDENT_FSH '+str(fsh)+'\n'+source
-    # The fixture uses wall includes by basename, as the original compile harness does.
+
     source=source.replace('#include "GpuSommerfeldSticking.H"','#include "wall/GpuSommerfeldSticking.H"').replace('#include "GpuFiniteWallContact.H"','#include "wall/GpuFiniteWallContact.H"').replace('#include "GpuColdWallSolidification.H"','#include "wall/GpuColdWallSolidification.H"')
     run(source,tmp_path)
 

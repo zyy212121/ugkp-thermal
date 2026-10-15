@@ -43,7 +43,7 @@ def _abi_body(source, name):
     start = source.index('extern "C" int ' + ABI)
     opening = source.index("{", start)
     depth = 0
-    # Strings and comments may contain braces; count only actual C++ braces.
+
     tokens = re.finditer(
         r'"(?:\\.|[^"\\])*"|\'(?:\\.|[^\'\\])*\'|//[^\n]*|/\*.*?\*/|[{}]',
         source[opening:],
@@ -60,7 +60,7 @@ def _abi_body(source, name):
     else:
         raise AssertionError("Unterminated production Courant ABI body")
     body = body.replace(ABI, name, 1)
-    # Replace launch syntax only. Keep every production statement and branch.
+
     body, count = re.subn(
         r"\b(\w+)<<<(.*?)>>>\s*\(",
         lambda m: f'launch("{m[1]}", {m[2]}, {m[1]}, ',
@@ -379,7 +379,7 @@ def _assert_array_reduction(run, cells, turbulence):
     maxima = [max(run["fields"][field][:cells]) for field in fields]
     expected = maxima[0]
     for value in maxima[1:]:
-        # Match the wrapper's existing fmax NaN handling, without sanitizing it.
+
         if math.isnan(expected):
             expected = value
         elif not math.isnan(value):
@@ -447,7 +447,7 @@ def test_large_and_nonfinite_computed_fields_are_returned_without_diagnostic_cop
     assert current["rc"] == 0, current["raw"]
     assert current["copies"] == 0
     assert current["error"] == ""
-    # Compare all serialized fields, including NaNs and untouched array tails.
+
     assert [line for line in current["raw"].splitlines() if line.startswith("FIELD ")] == \
         [line for line in original["raw"].splitlines() if line.startswith("FIELD ")]
     assert current["trace"] == [line for line in original["trace"] if not line.startswith("copy ")]

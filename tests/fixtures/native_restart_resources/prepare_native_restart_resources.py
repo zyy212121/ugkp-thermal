@@ -77,10 +77,50 @@ def generate(root, app):
     extras = ('in_pStuckFaceId[i]=-1;' if cold else '')
     if any(name == 'pThermalEnthalpyResidual' for _, name in fields):
         extras += 'in_pThermalEnthalpyResidual[i]=0x1p-30*(i+1);'
+    saved_velocity = r"""
+        double sx[3]={-0.0,0x1.0000000000001p0,19},sy[3]={2,-3,29},sz[3]={4,-5,39};
+        auto savedSnapshot=[&](){
+            double x[2],y[2],z[2];
+            require(PREFIXDownloadParticleSavedVelocity(handle,2,x,y,z)==0,"saved velocity snapshot");sync();
+            std::vector<unsigned char> bytes;append(bytes,x,2);append(bytes,y,2);append(bytes,z,2);return bytes;
+        };
+        require(PREFIXUploadParticleSavedVelocity(handle,2,sx,sy,sz)==0,"valid saved velocity seed");sync();
+        const auto savedOriginal=savedSnapshot(),physicalOriginal=snapshot();
+        for(bool sending:{true,false})for(int mode=0;mode<5;++mode){
+            const int n=mode==0?-1:mode==1?3:2;
+            double x[3]={11,12,13},y[3]={21,22,23},z[3]={31,32,33};
+            std::vector<unsigned char> hostBefore;append(hostBefore,x,3);append(hostBefore,y,3);append(hostBefore,z,3);
+            double* px=mode==2?nullptr:x;double* py=mode==3?nullptr:y;double* pz=mode==4?nullptr:z;
+            const int rc=sending?PREFIXUploadParticleSavedVelocity(handle,n,px,py,pz):PREFIXDownloadParticleSavedVelocity(handle,n,px,py,pz);
+            require(rc!=0,"unavailable saved velocity resource accepted");sync();
+            std::vector<unsigned char> hostAfter;append(hostAfter,x,3);append(hostAfter,y,3);append(hostAfter,z,3);
+            require(hostAfter==hostBefore,"saved velocity rejection modified host fields");
+            require(savedSnapshot()==savedOriginal,"saved velocity rejection modified device fields");
+            require(snapshot()==physicalOriginal,"saved velocity rejection modified restart fields");
+            const char* labels[]={"negative-count","over-capacity","null-x","null-y","null-z"};
+            std::cout<<"PASS saved-velocity case="<<(sending?"upload-":"download-")<<labels[mode]<<" unchanged=1\n";
+        }
+        require(PREFIXUploadParticleSavedVelocity(handle,0,nullptr,nullptr,nullptr)==0,"empty saved upload");
+        require(PREFIXDownloadParticleSavedVelocity(handle,0,nullptr,nullptr,nullptr)==0,"empty saved download");sync();
+        require(savedSnapshot()==savedOriginal,"empty saved operation modified device fields");
+        sx[0]=7.5;sy[0]=-8.5;sz[0]=9.5;
+        require(PREFIXUploadParticleSavedVelocity(handle,1,sx,sy,sz)==0,"valid saved prefix upload");sync();
+        std::vector<unsigned char> expected;append(expected,sx,2);append(expected,sy,2);append(expected,sz,2);
+        require(savedSnapshot()==expected,"saved prefix did not preserve suffix");
+        require(upload(1)==0,"one live particle for saved capacity test");sync();
+        const std::uint64_t special[3]={0x7ff8000000000123ULL,0x7ff0000000000000ULL,0x8000000000000000ULL};
+        std::memcpy(sx,&special[0],8);std::memcpy(sy,&special[1],8);std::memcpy(sz,&special[2],8);
+        require(PREFIXUploadParticleSavedVelocity(handle,2,sx,sy,sz)==0,"valid capacity saved upload");sync();
+        expected.clear();append(expected,sx,2);append(expected,sy,2);append(expected,sz,2);
+        require(savedSnapshot()==expected,"saved nonfinite bits or capacity range changed");
+        require(upload(2)==0,"restart restored after saved velocity controls");sync();snapshot();PHYSICAL_CHECKS
+        std::cout<<"PASS saved-velocity prefix=1 empty=1 capacity=1 nonfinite=1 retry=1 actualCuda=1\n";
+""" if app in ("CHT", "FSH") else ""
     code = r"""
 #include <cuda_runtime_api.h>
 #include "API"
 #include <cstring>
+#include <cstdint>
 #include <iostream>
 #include <stdexcept>
 #include <string>
@@ -150,6 +190,7 @@ int main(){
         int count=-1;
         require(PREFIXDownloadParticleRestartMirror(handle,&count,0,DOWNLOAD_ARGS)==0&&count==0,"empty resident count");
         require(upload(2)==0,"valid upload after clear");sync();snapshot();PHYSICAL_CHECKS
+        SAVED_VELOCITY
         PREFIXRelease(handle);handle=nullptr;sync();
         std::cout<<"PASS native-restart app=APP fields=FIELD_COUNT retry=1 coldOptionalNull=1 actualCuda=1\n";
         return 0;
@@ -161,7 +202,7 @@ int main(){
 }
 """
     replacements = dict(API=str(api.resolve()), PREFIX=PREFIX, APP=app,
-        CREATE_ARGS=','.join(CREATE[name] for _, name in create),
+        SAVED_VELOCITY=saved_velocity.replace('PHYSICAL_CHECKS',physical_checks), CREATE_ARGS=','.join(CREATE[name] for _, name in create),
         MESH_DATA=mesh_data, MESH_ARGS=mesh_args, DECLARATIONS=''.join(declarations),
         UPLOAD_ARGS=','.join(uploads), DOWNLOAD_ARGS=download_args,
         EXTRAS=extras, SNAPSHOT=snapshot, PHYSICAL_CHECKS=physical_checks,
@@ -182,8 +223,18 @@ def validate_run_output(output, app, fields):
              'retry=1 coldOptionalNull=1 actualCuda=1')
     if output.splitlines().count(final) != 1:
         raise ValueError('native resource driver did not complete valid retry and cleanup')
-    return dict(app=app, invalid_inputs=len(expected), fields=len(fields),
-                valid_roundtrips=3, optional_cold_null=True)
+    summary = dict(app=app, invalid_inputs=len(expected), fields=len(fields),
+                   valid_roundtrips=3, optional_cold_null=True)
+    if app in ('CHT', 'FSH'):
+        expected_saved = [direction+'-'+label for direction in ('upload','download')
+                          for label in ('negative-count','over-capacity','null-x','null-y','null-z')]
+        saved_rows = re.findall(r'^PASS saved-velocity case=(\S+) unchanged=1$', output, re.M)
+        if sorted(saved_rows) != sorted(expected_saved):
+            raise ValueError('incomplete actual saved velocity resource matrix')
+        if output.splitlines().count('PASS saved-velocity prefix=1 empty=1 capacity=1 nonfinite=1 retry=1 actualCuda=1') != 1:
+            raise ValueError('saved velocity controls did not complete')
+        summary.update(saved_velocity_invalid_inputs=len(expected_saved), saved_velocity_valid_controls=5)
+    return summary
 
 
 def sha256(path):

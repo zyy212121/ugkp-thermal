@@ -157,7 +157,7 @@ def mirror_header(app,rev=None):
     names=['downloadSstToHostMirror','downloadNutToHostMirror','writeEpsGPrevRestartMirror','writeSourceResidualRestartMirror']
     methods='\n'.join(h.block(src,'    void '+n) for n in names)
     methods+='\n'+h.block(src,'    bool readEpsGPrevRestartMirrorIfPresent')+'\n'+h.block(src,'    label writeParticleRestartMirror')
-    # Both overloaded actual full/gas-only consumer bodies, not synthetic assignment copies.
+
     offset=0
     while True:
         pos=src.find('    void downloadToHostMirror',offset)

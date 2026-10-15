@@ -35,8 +35,8 @@ def test_legacy_schema7_widths_independent_of_memory(tmp_path):
     meta = json.loads((ROOT / "common/ParticleFieldManifest.json").read_text())
     fields = sorted((f for f in meta["fields"] if f["schema7"] is not None), key=lambda f:f["schema7"])
     types = {"int":"std::int32_t", "unsigned long long":"std::uint64_t", "unsigned char":"std::uint8_t"}
-    # A synthetic widened destination exercises the real legacy decoder before
-    # native pointer changes. Disk bytes are built independently, not with it.
+
+
     declarations=[]; writes=[]; checks=[]
     for f in fields:
         old="float" if f["schema7"] in range(16,27) else f["host"]["FSH"]; new="double" if old=="float" else types.get(old,old)
@@ -144,7 +144,7 @@ bool truncated=false;try{{readCurrentPayload(bad,bound,out);}}catch(const std::r
     assert data['pColdRingSolidMass'].dtype.itemsize==8
     assert data['pT'].dtype.itemsize==8
     assert ('pThermalEnthalpyResidual' in data)==(owner=='CHT')
-    # Values with bits beyond float precision survive the real writer/reader.
+
     assert float(data['pColdRingSolidMass'][0,0]) % 1 == .25+2**-30
 
 
@@ -159,11 +159,15 @@ def test_real_lifecycle_retains_widened_bits_at_odd_destination(tmp_path,owner):
     for i,f in enumerate(fs):
         if f['host'][owner]=='double':
             code=code.replace(f'static_cast<double>({i+1}*7+j)',f'static_cast<double>({i+1}*7+j+0x1p-30)')
-    extra='copyCellLocalParticle(*s,2,9,1);\n'
+    extra=''
+    for f in fs:
+        compact=f['compact'];width=f['width']
+        extra+=f'const std::vector<std::remove_pointer_t<decltype(s->{compact})>> before_{compact}(s->{compact},s->{compact}+3*{width});\n'
+    extra+='copyCellLocalParticle(*s,2,9,1);\n'
     for f in fs:
         name=f['name'];compact=f['compact'];width=f['width']
         expected='9' if name=='pCellId' else '1' if name=='pStatus' else f's->{name}[2*{width}+j]'
-        extra+=f'for(size_t j=0;j<{width};++j){{if(s->{compact}[{width}+j]!={expected})throw std::runtime_error("odd destination {name}");if(s->{compact}[j]!=0||s->{compact}[2*{width}+j]!=0)throw std::runtime_error("neighbor overwritten {name}");}}\n'
+        extra+=f'for(size_t j=0;j<{width};++j){{if(s->{compact}[{width}+j]!={expected})throw std::runtime_error("odd destination {name}");if(s->{compact}[j]!=before_{compact}[j]||s->{compact}[2*{width}+j]!=before_{compact}[2*{width}+j])throw std::runtime_error("neighbor overwritten {name}");}}\n'
     code=code.replace('copyCellLocalParticle(*s,1,9,0);',extra+'copyCellLocalParticle(*s,1,9,0);')
     code=code.replace('std::ofstream out(argv[1],','std::ofstream out("'+str(tmp_path/'lifecycle.wire')+'",')
     compile_run(tmp_path,code,'lifecycle')
@@ -251,8 +255,8 @@ def test_actual_text_restart_area_assignment_keeps_small_and_large_double(tmp_pa
     start=source.rfind('                pDepositionArea[i] = ',0,end)
     body=source[start:end].rstrip()
     body=body[:body.rfind('}')]
-    # Only the OpenFOAM diagnostic sink is adapted; assignment and predicate
-    # are copied from the real text reader unchanged.
+
+
     body=body.replace('FatalErrorInFunction','diagnostic').replace('exit(FatalError)','reject()')
     compile_run(tmp_path,'''#include <sstream>
 #include <limits>

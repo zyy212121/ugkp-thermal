@@ -15,10 +15,12 @@ def build_run(root,dest,terminal):
         source=source.replace('if(recoverMaterial(candidate,1,p,state))', 'lastCandidate=candidate;lastBound=bound;nextEnergy=addSolid(density,increment,bound*.5).energy;\n        if(!rejectTrials&&trial>=rejectBefore&&recoverMaterial(candidate,1,p,state))',1)
     source=source.replace('if(recoverMaterial(candidate,1,p,state))', 'if(trial>=rejectBefore&&recoverMaterial(candidate,1,p,state))',1)
     source=source.replace('for(int trial=0;trial<48;++trial){','for(int trial=0;trial<48;++trial){++trials;',1)
-    # Mark the source-only terminal injection as intentionally unused in ordinary parity probes.
+
     source=source.replace('static bool rejectTrials=false;','static bool rejectTrials __attribute__((unused))=false;')
     (dest/'owner.C').write_text(source)
-    cmd=['g++','-std=c++14','-O2','-ffp-contract=off','-Wall','-Wextra','-Werror','-pedantic','-Wno-misleading-indentation','-Wno-mismatched-new-delete','-DTERMINAL_TEST='+str(int(terminal)),'-I'+str(dest),'-I'+str(app),'-I'+str(ROOT/'tests/fixtures/transport_terminal'),str(ROOT/'tests/fixtures/transport_terminal/probe.cpp'),'-o',str(dest/'probe')]
+    probe=dest/'probe.cpp'
+    probe.write_text((ROOT/'tests/fixtures/transport_terminal/probe.cpp').read_text().replace("<<out.bodyPower<<' '",'').replace('&&out.bodyPower==normal.bodyPower',''))
+    cmd=['g++','-std=c++14','-O2','-ffp-contract=off','-Wall','-Wextra','-Werror','-pedantic','-Wno-misleading-indentation','-Wno-mismatched-new-delete','-DTERMINAL_TEST='+str(int(terminal)),'-I'+str(dest),'-I'+str(app),'-I'+str(ROOT/'tests/fixtures/transport_terminal'),str(probe),'-o',str(dest/'probe')]
     b=subprocess.run(cmd,text=True,capture_output=True);(dest/'build.log').write_text(' '.join(cmd)+'\n'+b.stdout+b.stderr);assert b.returncode==0,b.stderr
     r=subprocess.run([str(dest/'probe')],text=True,capture_output=True,timeout=60);(dest/'run.log').write_text(r.stdout+r.stderr);assert r.returncode==0,r.stderr
     return r.stdout

@@ -828,7 +828,7 @@ extern "C" int ugkwpGpuResidentStrictUploadParticleSavedVelocity
 (void* handle, int count, const double* x, const double* y, const double* z)
 {
     ClientState* s=static_cast<ClientState*>(handle);
-    if (!s || (count && (!x || !y || !z)))
+    if (!s || count<0 || count>s->particleCapacity || (count && (!x || !y || !z)))
         return fail("invalid saved velocity upload");
     std::uint64_t bytes=WireCodec<CountArgs>::size;
     addArrays(bytes,count,sizeof(double),3);
@@ -843,7 +843,7 @@ extern "C" int ugkwpGpuResidentStrictDownloadParticleSavedVelocity
 (void* handle, int count, double* x, double* y, double* z)
 {
     ClientState* s=static_cast<ClientState*>(handle);
-    if (!s || (count && (!x || !y || !z)))
+    if (!s || count<0 || count>s->particleCapacity || (count && (!x || !y || !z)))
         return fail("invalid saved velocity download");
     if (!startRequest(s,Op::downloadParticleSavedVelocity,WireCodec<CountArgs>::size)
         || !sendObject(s->fd,CountArgs{count})) return -1;

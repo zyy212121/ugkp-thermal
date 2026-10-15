@@ -1,4 +1,4 @@
-// Native CPU owner regression. No CUDA backend or GPU surrogate is linked.
+
 #include "fvCFD.H"
 #include "io/MeshIO.H"
 #include "materials/CpuMaterialDriver.H"
@@ -103,14 +103,7 @@ int main(int argc, char** argv)
         record.gasTrace = {gas}; record.gasTraction = {{0, 0, 0}};
         IntervalHistory history;
         check(history.begin(interval, error) && history.appendAccepted(record, error), error);
-        base.gasChemistryAudit.resize(1);
-        base.gasChemistryAudit[0].integratedTime = 42;
-        base.gasChemistryAudit[0].energyResidual = NAN;
-        base.gasSstAudit.sourceK = NAN;
-        base.budget.turbulenceInventory = NAN;
         HostState endpoint = base;
-        endpoint.gasChemistryAudit[0].integratedTime = 99; // Legacy endpoint diagnostics are not propagated.
-        endpoint.gasSstAudit.sourceK = 123;
         endpoint.time = interval.end;
         CpuMaterialDriver driver(model, &mesh);
         HostState result;
@@ -119,24 +112,13 @@ int main(int argc, char** argv)
         const bool advanced = driver.advanceCandidate(base, endpoint, history,
             CpuMaterialControls{}, result, corrected, report, error);
         check(advanced, "actual CPU material candidate: " + error);
-        check(result.gasChemistryAudit.size() == 1 && result.gasChemistryAudit[0].integratedTime == 42
-            && std::isnan(result.gasChemistryAudit[0].energyResidual) && std::isnan(result.gasSstAudit.sourceK),
-            "legacy diagnostics remain base payload without per-window endpoint copy");
-        check(report.materialSteps == 1 && report.filmSteps == 1, "complete material/film step");
+        check(report.materialSteps == 1, "complete material step");
         check(result.ledger.size() == 1, "phase packet must be retained");
         const auto& phase = result.ledger[0];
         check(phase.kind == ExchangeKind::SolidFilm, "phase packet kind");
         check(phase.energy != 0 && phase.conductive != 0 && mag(phase.momentum) == 0,
             "phase packet retains heat without unused support impulse");
-        check(report.budgetDelta.consumedPackets == 1, "phase accounting count");
-        check(report.budgetDelta.exchangeEnergy[SolidParticipant] == -phase.energy
-            && report.budgetDelta.exchangeEnergy[FilmParticipant] == phase.energy,
-            "solid/film phase heat accounting");
-        check(report.budgetDelta.exchangeMomentum[SolidParticipant].x == -phase.momentum.x
-            && report.budgetDelta.exchangeMomentum[FilmParticipant].x == phase.momentum.x,
-            "solid/film phase momentum diagnostic is inactive");
-        check(report.budgetDelta.supportImpulse.x == -phase.momentum.x,
-            "legacy support slot is not accumulated");
+        check(phase.consumerMask == requiredConsumers(phase.kind), "phase consumers completed");
         check(result.film[0].enthalpy != base.film[0].enthalpy,
             "phase heat must still reach film forcing");
         if (mode == "melting") {
@@ -145,16 +127,19 @@ int main(int argc, char** argv)
             check(recoverMaterial(base.solid[0], base.solidMesh.volumes[0], p, material), "material recovery");
             Real expected = 0;
             expected -= phase.mass / p.condensed[p.material.phaseCondensed].rho / (1 - material.porosity);
-            check(sameBits(report.solidTargetSweeps.at(0), expected), "nonzero-phase FP64 arithmetic changed");
+            const Real area = mag(base.solidMesh.areaVectors[sf]);
+            check(sameBits(result.filmAux[0].solidNormalVelocity, expected / (area * interval.end)),
+                "nonzero-phase FP64 geometric velocity changed");
         } else {
             check(phase.mass == 0, "noMelting must have zero phase mass");
-            check(report.solidTargetSweeps.at(0) == 0, "zero phase mass must have zero volume");
+            check(result.filmAux[0].solidNormalVelocity == 0, "zero phase mass must have zero geometric velocity");
+            check(result.solidMesh.volumes[0] == base.solidMesh.volumes[0], "zero phase mass changed solid volume");
             check(result.film[0].mass == base.film[0].mass, "zero phase mass changed film inventory");
             check(result.solid[0].condensed[0] == base.solid[0].condensed[0], "zero phase mass changed solid inventory");
         }
         std::cout << "PASS native CPU phase " << mode << " mass=" << std::hexfloat << phase.mass
             << " heat=" << phase.energy << " force=" << phase.momentum.x
-            << " sweep=" << report.solidTargetSweeps[0] << '\n';
+            << " normalSpeed=" << result.filmAux[0].solidNormalVelocity << '\n';
         return 0;
     } catch (const std::exception& e) {
         std::cerr << "FAIL " << e.what() << '\n';

@@ -86,7 +86,7 @@ def test_shipped_reader_current_bytes_standalone(tmp_path, reader_path, marker):
     data = sample(marker)
     path = tmp_path / 'current.dat'
     current.write_restart(path, [data], 3, 2, cht=marker == current.CHT_MARKER)
-    # Copy only the shipped script; it must not depend on repository-relative IO.
+
     copied = tmp_path / 'standalone_reader.py'
     copied.write_bytes((ROOT / reader_path).read_bytes())
     result = subprocess.run([sys.executable, '-c',
@@ -144,7 +144,7 @@ def test_historical_transient_refinement_uses_existing_zero_default(tmp_path):
 
 
 def test_native_legacy_default_preserved_without_transient_refusal():
-    # Source witness only: full OpenFOAM runtime is not emulated here.
+
     for app in ('CHT','FSH'):
         text = (ROOT/f'applications/{app}/gpu/GpuResidentStrict.H').read_text()
         assert 'scalarField puxOld(nParticles,0.0), puyOld(nParticles,0.0), puzOld(nParticles,0.0);' in text
@@ -191,7 +191,7 @@ std::ofstream output("{rewritten}",std::ios::binary);writeCurrent(output,copy);
 @pytest.mark.parametrize('marker', ['UGKP_THERMAL_PARTICLES_SCHEMA7_T32_BIN','UGKP_THERMAL_PARTICLES_SCHEMA7_T64_BIN',current.LEGACY_CHT_MARKER])
 def test_historical_input_widths_and_current_output(tmp_path, marker):
     import struct
-    # Explicit historical reference producer; never used by application tools.
+
     data=sample(marker)
     path=tmp_path/'historical'
     with path.open('wb') as stream:

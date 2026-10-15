@@ -45,7 +45,7 @@ def test_old_success_late_grid_exact_fields_and_counts(tmp_path):
         (overlay/'InterfaceMath.H').write_text(instrument((app/'ablation/InterfaceMath.H').read_text()).replace('\"../../../common/gasWall/WallModel.H\"','\"'+str(root/'common/gasWall/WallModel.H')+'\"'))
         (overlay/'CpuSurfaceInterface.H').write_text((app/'ablation/CpuSurfaceInterface.H').read_text())
         owner=tmp_path/(label+'-owner.C');owner.write_text((app/'ablation/CpuSurfaceInterface.C').read_text())
-        # One TU shares instrumentation counters with the real CPU producer.
+
         code=(ROOT/'tests/fixtures/surface_terminal/parity.cpp').read_text()+'\n#include "'+str(owner)+'"\n'
         output.append(compile_run(tmp_path,label,code,[overlay.parent,app,root/'common']))
     assert output[0]==output[1]
@@ -58,6 +58,7 @@ def test_terminal_evaluated_candidates_and_cpu_tail(tmp_path):
     (overlay/'InterfaceMath.H').write_text(source)
     (overlay/'CpuSurfaceInterface.H').write_text((APP/'ablation/CpuSurfaceInterface.H').read_text())
     code=(ROOT/'tests/fixtures/surface_terminal/terminal.cpp').read_text()+'\n#include "'+str(APP/'ablation/CpuSurfaceInterface.C')+'"\n'
+    code=code.replace('cpu,error,nullptr,nullptr,nullptr,&numerical','cpu,error,nullptr,nullptr,&numerical')
     compile_run(tmp_path,'terminal',code,[overlay.parent])
 
 
