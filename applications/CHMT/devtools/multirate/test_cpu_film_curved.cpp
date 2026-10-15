@@ -66,7 +66,6 @@ void curvedShearTransportUsesSharedMetric() {
         h.film[f].enthalpy=mass*liquidH(p,temperature[f],100000);
         h.surface.prescribedTopTraction[f]=t*(2*p.liquidViscosity*speed[f]/.02);
         h.filmAux[f].meanVelocity=t*speed[f];h.filmAux[f].topVelocity=t*(2*speed[f]);
-        h.filmAux[f].kineticEnergy=(2.0/3)*mass*speed[f]*speed[f];
         shearPower+=h.surface.area[f]*4*p.liquidViscosity*speed[f]*speed[f]/.02;
     }
     const Real edgeSpeed=.5*dot(h.filmAux[owner].meanVelocity+h.filmAux[other].meanVelocity,co);

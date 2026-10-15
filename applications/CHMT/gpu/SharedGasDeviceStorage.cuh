@@ -582,18 +582,18 @@ public:
         return !publish||!rebound||refreshView();
     }
     bool uploadState(const HostState& state,std::string& error){
-        const std::size_t n=state.gas.size();if(view_.sstConfigured&&n&&state.sst.empty()){error="missing supplied SST inventory";return false;}std::vector<Real> rho(n),px(n),py(n),pz(n),energy(n),species(Ns*n),k(n),omega(n);
+        const std::size_t n=state.gas.size();if(!state.gasTemperature.empty()&&state.gasTemperature.size()!=n){error="missing supplied gas temperature backing";return false;}if(view_.sstConfigured&&n&&state.sst.empty()){error="missing supplied SST inventory";return false;}std::vector<Real> rho(n),px(n),py(n),pz(n),energy(n),species(Ns*n),k(n),omega(n);
         for(std::size_t c=0;c<n;++c){const auto& q=state.gas[c];const Real v=volume_[c];
             for(int s=0;s<Ns;++s)species[s*n+c]=q.species[s]/v;
             rho[c]=q.mass/v;px[c]=q.momentum.x/v;py[c]=q.momentum.y/v;pz[c]=q.momentum.z/v;energy[c]=q.energy/v;
             if(view_.sstConfigured){k[c]=state.sst[c].rhoK/v;omega[c]=state.sst[c].rhoOmega/v;}
         }
-        if(!upload(view_.rho,rho)||!upload(view_.rhoUx,px)||!upload(view_.rhoUy,py)||!upload(view_.rhoUz,pz)||!upload(view_.rhoE,energy)||(view_.gasSpecies.mode!=ugkwp::GasMode::SingleLegacy&&!upload(view_.gasSpecies.rho,species))||!upload(view_.rhoK,k)||!upload(view_.rhoOmega,omega)||!clearTrialStatus()){error=fault_.message;return false;}
+        if(!upload(view_.rho,rho)||!upload(view_.rhoUx,px)||!upload(view_.rhoUy,py)||!upload(view_.rhoUz,pz)||!upload(view_.rhoE,energy)||(!state.gasTemperature.empty()&&!upload(view_.Tgas,state.gasTemperature))||(view_.gasSpecies.mode!=ugkwp::GasMode::SingleLegacy&&!upload(view_.gasSpecies.rho,species))||!upload(view_.rhoK,k)||!upload(view_.rhoOmega,omega)||!clearTrialStatus()){error=fault_.message;return false;}
         error.clear();return true;
     }
     bool downloadState(HostState& state,std::string& error){
-        std::vector<Real> rho,px,py,pz,energy,species,k,omega;const std::size_t n=view_.nCells;
-        if(!read(view_.rho,n,rho)||!read(view_.rhoUx,n,px)||!read(view_.rhoUy,n,py)||!read(view_.rhoUz,n,pz)||!read(view_.rhoE,n,energy)||(view_.gasSpecies.mode!=ugkwp::GasMode::SingleLegacy&&!read(view_.gasSpecies.rho,Ns*n,species))){error=fault_.message;return false;}
+        std::vector<Real> rho,px,py,pz,energy,temperature,species,k,omega;const std::size_t n=view_.nCells;
+        if(!read(view_.rho,n,rho)||!read(view_.rhoUx,n,px)||!read(view_.rhoUy,n,py)||!read(view_.rhoUz,n,pz)||!read(view_.rhoE,n,energy)||!read(view_.Tgas,n,temperature)||(view_.gasSpecies.mode!=ugkwp::GasMode::SingleLegacy&&!read(view_.gasSpecies.rho,Ns*n,species))){error=fault_.message;return false;}
         auto candidate=state.gas;candidate.resize(n);
         for(std::size_t c=0;c<n;++c){auto& q=candidate[c];q.mass=rho[c]*volume_[c];q.momentum={px[c]*volume_[c],py[c]*volume_[c],pz[c]*volume_[c]};q.energy=energy[c]*volume_[c];
             for(int s=0;s<Ns;++s)q.species[s]=view_.gasSpecies.mode==ugkwp::GasMode::SingleLegacy?(s==activeSpecies_?q.mass:0):species[s*n+c]*volume_[c];
@@ -604,7 +604,7 @@ public:
             sst.resize(n);for(std::size_t c=0;c<n;++c){sst[c]={k[c]*volume_[c],omega[c]*volume_[c]};
             }
         }
-        state.gas=std::move(candidate);state.sst=std::move(sst);error.clear();return true;
+        state.gas=std::move(candidate);state.sst=std::move(sst);state.gasTemperature=std::move(temperature);error.clear();return true;
     }
 };
 }

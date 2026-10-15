@@ -69,8 +69,7 @@ bool validate(const HostState& h,const PhysicsConfig& p,Real dt,
         if(!Terminal&&(!finite(m.area[f])||m.area[f]<=0||!finite(m.normal[f])
             ||!closeEnough(mag(m.normal[f]),1,1e-12,1e-12)
             ||!finite(d.pressure)||!finite(endpointPressure(d))||!finite(d.shear)
-            ||!finite(h.filmAux[f].pressure)||!finite(h.filmAux[f].kineticEnergy)
-            ||h.filmAux[f].kineticEnergy<0)) return numericReject(error,"invalid geometry or pressure/traction trace",f,numericalFailure);
+            ||!finite(h.filmAux[f].pressure))) return numericReject(error,"invalid geometry or pressure/traction trace",f,numericalFailure);
         if(!Terminal&&(!finite(a.mass)||!finite(a.energy)||!finite(a.phaseMass)||!finite(a.phaseEnergy)
             ||!finite(a.phaseKineticOutflow)||!finite(a.interfaceKineticOutflow)
             ||!finite(a.radiationEnergy)||!finite(a.withdrawnMass)||a.withdrawnMass<0))

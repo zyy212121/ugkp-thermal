@@ -6,9 +6,7 @@
 namespace chmt {
 struct FilmProfile {
     Vec3 meanVelocity{}, topVelocity{}, bottomShear{}, baseVelocity{}, linear{}, quadratic{};
-    Real delta=0, dissipation=0, kineticPerArea=0;
-    // kineticPerArea is the UNIT-DENSITY integral 1/2 int |u|^2 dz [m^3/s^2].
-    // Multiply by actual liquid rho for J/m^2; the frozen profile API has no rho.
+    Real delta=0;
 };
 CHMT_HD inline Vec3 profileVelocity(const FilmProfile& p, Real z) {
     return p.baseVelocity+p.linear*z+p.quadratic*(z*z);
@@ -19,19 +17,15 @@ CHMT_HD inline FilmProfile filmProfile(Real delta, Real mu, Vec3 ub, Vec3 tau, V
     p.delta=delta; p.baseVelocity=ub;
     if (!Terminal&&(!finite(delta) || delta<0 || !finite(mu) || mu<=0
         || !finite(ub) || !finite(tau) || !finite(G))) {
-        p.dissipation=p.kineticPerArea=undefinedValue(); return p;
+        p.meanVelocity=p.topVelocity=p.bottomShear=p.baseVelocity=p.linear=p.quadratic=
+            {undefinedValue(),undefinedValue(),undefinedValue()};
+        return p;
     }
     p.linear=(tau-G*delta)/mu;
     p.quadratic=G/(2*mu);
     p.meanVelocity=ub+tau*(delta/(2*mu))-G*(delta*delta/(3*mu));
     p.topVelocity=profileVelocity(p,delta);
     p.bottomShear=tau-G*delta;
-    const Vec3 centred=tau-G*(delta/2);
-    p.dissipation=delta/mu*dot(centred,centred)+delta*delta*delta/(12*mu)*dot(G,G);
-    const Real d2=delta*delta, d3=d2*delta, d4=d3*delta, d5=d4*delta;
-    p.kineticPerArea=0.5*(dot(ub,ub)*delta+dot(ub,p.linear)*d2
-        +(dot(p.linear,p.linear)+2*dot(ub,p.quadratic))*d3/3
-        +dot(p.linear,p.quadratic)*d4/2+dot(p.quadratic,p.quadratic)*d5/5);
     return p;
 }
 CHMT_HD inline FilmProfile withNormalProfile(FilmProfile p, Vec3 normal, Real bottom, Real top) {
@@ -47,11 +41,6 @@ CHMT_HD inline FilmProfile withNormalProfile(FilmProfile p, Vec3 normal, Real bo
     p.quadratic-=normal*dot(p.quadratic,normal);
     p.meanVelocity=p.baseVelocity+p.linear*(p.delta/2)+p.quadratic*(p.delta*p.delta/3);
     p.topVelocity=profileVelocity(p,p.delta);
-    const Real d=p.delta;
-    p.kineticPerArea=0.5*(dot(p.baseVelocity,p.baseVelocity)*d
-        +dot(p.baseVelocity,p.linear)*d*d
-        +(dot(p.linear,p.linear)+2*dot(p.baseVelocity,p.quadratic))*d*d*d/3
-        +dot(p.linear,p.quadratic)*d*d*d*d/2+dot(p.quadratic,p.quadratic)*d*d*d*d*d/5);
     return p;
 }
 // The interface owner supplies a reference-frame normal trace independently
@@ -75,7 +64,6 @@ CHMT_HD inline bool setCoupledFilmNormalTrace(FilmAux& aux, Vec3 normal, bool we
     } else {
         next.meanVelocity=next.baseVelocity;
         next.topVelocity=next.baseVelocity;
-        next.kineticEnergy=0;
     }
     aux=next; return true;
 }
@@ -116,8 +104,7 @@ CHMT_HD inline bool recoverFilmThermalState(const FilmQ& q, Real area, Real pres
 template<bool Terminal=false>
 CHMT_HD inline bool updateFilmProfileState(FilmAux& aux, const PhysicsConfig& p, Vec3 normal,
     Vec3 shear, Vec3 pressureBodyGradient, bool coupled, DeviceStatus* status=nullptr, int index=-1) {
-    if (!Terminal&&(!finite(normal) || !closeEnough(mag(normal),1,1e-12,1e-12)
-        || !finite(aux.area) || aux.area<=0 || !finite(p.liquid.rho) || p.liquid.rho<=0)) {
+    if (!Terminal&&(!finite(normal) || !closeEnough(mag(normal),1,1e-12,1e-12))) {
         return failStatus(status,ErrorCode::InvalidInput,index,aux.area,ErrorLocation::Face);
     }
     Real bottom=dot(aux.baseVelocity,normal), top=bottom;
@@ -133,15 +120,12 @@ CHMT_HD inline bool updateFilmProfileState(FilmAux& aux, const PhysicsConfig& p,
     }
     FilmProfile profile=filmProfile<Terminal>(aux.thickness,p.liquidViscosity,aux.baseVelocity,shear,pressureBodyGradient);
     profile=withNormalProfile(profile,normal,bottom,top);
-    const Real kinetic=p.liquid.rho*aux.area*profile.kineticPerArea;
-    if (!Terminal&&(!finite(profile.meanVelocity) || !finite(profile.topVelocity) || !finite(profile.dissipation)
-        || !finite(kinetic) || kinetic<0)) {
-        return failStatus(status,ErrorCode::Nonfinite,index,kinetic,ErrorLocation::Face);
+    if (!Terminal&&(!finite(profile.meanVelocity) || !finite(profile.topVelocity))) {
+        return failStatus(status,ErrorCode::Nonfinite,index,top,ErrorLocation::Face);
     }
     FilmAux next=aux;
     next.meanVelocity=profile.meanVelocity;
     next.topVelocity=profile.topVelocity;
-    next.kineticEnergy=kinetic;
     aux=next; return true;
 }
 CHMT_HD inline Real profileKineticFlux(const FilmProfile& p, Vec3 gridVelocity, Vec3 conormal) {

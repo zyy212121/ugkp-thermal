@@ -310,7 +310,12 @@ Backend* createBackend(const ModelConfig& model,const ugkwp::GasModelConfigurati
     if(!b->storage.configure(b->model,gas,mechanism,state,error))return nullptr;
     auto& v=b->storage.hostView();v.gasFluxScheme=options.fluxScheme;v.gasReconstruction=options.reconstruction;v.gasLimiter=options.limiter;v.turbulenceModel=options.turbulenceModel;v.sstConfigured=options.turbulenceModel==3;
     if(!b->storage.refreshView()){error=b->storage.error();return nullptr;}
-    bindSharedGasStorage(*b);b->hostTurbulenceModel=options.turbulenceModel;b->hostGasFluxScheme=options.fluxScheme;b->hostGasTimeIntegrator=options.timeIntegrator;
+    bindSharedGasStorage(*b);
+    if(b->accepted.gasTemperature.empty()){
+        if(!b->storage.read(v.Tgas,b->nCells,b->accepted.gasTemperature)){error=b->storage.error();return nullptr;}
+        b->trial.gasTemperature=b->accepted.gasTemperature;
+    }
+    b->hostTurbulenceModel=options.turbulenceModel;b->hostGasFluxScheme=options.fluxScheme;b->hostGasTimeIntegrator=options.timeIntegrator;
     for(auto kind:state.gasMesh.boundaryKind)if(kind==BoundaryKind::Periodic)b->hasPeriodicFaces=1;
     error.clear();return b.release();
 }

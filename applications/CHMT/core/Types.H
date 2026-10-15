@@ -34,7 +34,7 @@ constexpr std::uint64_t defaultSpeciesNameHash() {
 constexpr std::uint64_t defaultSpeciesHash=defaultSpeciesNameHash();
 // Schema 4 adds immutable tagged gas thermo, NASA7 coefficients and entropy references.
 // Borrowed shared-thermo views are rebuilt and never serialized.
-constexpr std::uint64_t checkpointSchema=6;
+constexpr std::uint64_t checkpointSchema=7;
 
 CHMT_HD inline bool finite(Real x) { return x==x && x<=std::numeric_limits<Real>::max() && x>=-std::numeric_limits<Real>::max(); }
 CHMT_HD inline Real absValue(Real x) { return x<0 ? -x : x; }
@@ -85,7 +85,7 @@ struct FilmQ { Real mass=0,enthalpy=0,species[Ns]{}; }; // true H [J], not h_ref
 struct FilmAux {
     Real pressure=0,thickness=0,temperature=0;
     Vec3 baseVelocity{},meanVelocity{},topVelocity{},normal{};
-    Real area=0,kineticEnergy=0,normalVelocity=0,solidNormalVelocity=0,solidFront=0,gasFront=0;
+    Real area=0,normalVelocity=0,solidNormalVelocity=0,solidFront=0,gasFront=0;
     // normalVelocity/solidNormalVelocity: physical outward m/s. Fronts: accumulated normal displacement m.
 };
 struct ParticleQ {

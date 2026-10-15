@@ -15,6 +15,7 @@
 #include "mesh/SweepConstraints.H"
 #include "mesh/TrajectorySurface.H"
 #include "coupling/IntervalAudit.H"
+#include "verification/FilmInventory.H"
 #include "fvCFD.H"
 #include "fixedValueFvPatchFields.H"
 #include "zeroGradientFvPatchFields.H"
@@ -95,10 +96,10 @@ inline void physicalSnapshot(const char* label,const chmt::HostState& state,cons
     physicalValue(state.solid.size());for(const auto& q:state.solid)physicalSolid(q);
     physicalValue(state.gas.size());for(const auto& q:state.gas){physicalValue(q.mass);physicalValue(q.momentum);physicalValue(q.energy);for(auto value:q.species)physicalValue(value);}
     physicalValue(state.film.size());for(const auto& q:state.film)physicalFilm(q);
-    physicalValue(state.filmAux.size());for(const auto& a:state.filmAux){
+    physicalValue(state.filmAux.size());for(std::size_t f=0;f<state.filmAux.size();++f){const auto& a=state.filmAux[f];
         physicalValue(a.pressure);physicalValue(a.thickness);physicalValue(a.temperature);
         physicalValue(a.baseVelocity);physicalValue(a.meanVelocity);physicalValue(a.topVelocity);physicalValue(a.normal);
-        physicalValue(a.area);physicalValue(a.kineticEnergy);physicalValue(a.normalVelocity);physicalValue(a.solidNormalVelocity);physicalValue(a.solidFront);physicalValue(a.gasFront);
+        physicalValue(a.area);physicalValue(chmt::verification::filmKineticEnergy(state.film.at(f),a));physicalValue(a.normalVelocity);physicalValue(a.solidNormalVelocity);physicalValue(a.solidFront);physicalValue(a.gasFront);
     }
     physicalMesh(state.solidMesh);physicalMesh(state.gasMesh);physicalValues(state.solidSweepRemainder);
     physicalValues(state.gasVoidFraction);physicalValues(state.normalEnthalpy);physicalValues(state.normalLiquidFraction);physicalValues(state.normalAcceptedWallHeat);

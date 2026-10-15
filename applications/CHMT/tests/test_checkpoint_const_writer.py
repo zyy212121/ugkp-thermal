@@ -1,4 +1,4 @@
-"""Real writer parity and allocation census against the pre-const writer."""
+"""Real const traversal parity and allocation census against a full-state copy."""
 from pathlib import Path
 import hashlib
 import json
@@ -7,7 +7,7 @@ import subprocess
 
 APP = Path(__file__).resolve().parents[1]
 REPO = APP.parents[1]
-BASE = '3757ee0329b3d6a03ce2dca01630dd5a5edb6011'
+BASE = 'isolated-full-state-copy'
 
 
 def _probe(tmp_path, label, source):
@@ -101,12 +101,9 @@ bool measuredWriteCheckpoint(const std::string& directory,const ModelConfig& con
 
 
 def test_const_writer_exact_bytes_and_fewer_allocations(tmp_path):
-    baseline = subprocess.check_output(['git', 'show', BASE+':applications/CHMT/restart/Checkpoint.C'], cwd=REPO, text=True)
-    # Compare copy-vs-const traversal with the current metadata schema. The
-    # original unmodified old/current wire compatibility is tested separately.
-    for field in ('modelFingerprint', 'speciesFingerprint', 'schemaFingerprint'):
-        baseline = baseline.replace('a(x.'+field+');', '')
-    baseline = baseline.replace(' modelFingerprint speciesFingerprint schemaFingerprint', '')
+    baseline = (APP/'restart/Checkpoint.C').read_text()
+    baseline = baseline.replace('Encoder configData,payload;configData(config);payload(state);',
+                                'ModelConfig model=config;HostState copy=state;Encoder configData,payload;configData(model);payload(copy);')
     before = _probe(tmp_path, 'base', baseline)
     after = _probe(tmp_path, 'current', (APP/'restart/Checkpoint.C').read_text())
     receipt = dict(base=BASE, before=before, after=after)

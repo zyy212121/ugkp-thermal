@@ -1,6 +1,7 @@
 #pragma once
 // Test-only conservation oracle. It never participates in production acceptance.
 #include "coupling/IntervalAudit.H"
+#include "verification/FilmInventory.H"
 namespace chmt {
 struct WindowConservationAudit {
     Real massResidual=0,energyResidual=0,elementResidual[Ne]{};
@@ -26,8 +27,9 @@ inline bool intervalInventoryTotals(const HostState& state,const PhysicsConfig& 
     }
     if(state.film.size()!=state.filmAux.size()&&!state.film.empty())return intervalFailure(error,"film audit auxiliary count mismatch");
     for(std::size_t f=0;f<state.film.size();++f){const auto& q=state.film[f];const auto& a=state.filmAux[f];
-        if(!validFilmInventory(q)||!finite(a.pressure)||!finite(a.kineticEnergy)||!(p.liquid.rho>0))return intervalFailure(error,"invalid film physical energy audit");
-        sum.mass+=q.mass;sum.energy+=static_cast<long double>(q.enthalpy)-static_cast<long double>(a.pressure)*q.mass/p.liquid.rho+a.kineticEnergy;
+        const long double kinetic=verification::filmKineticEnergy(q,a);
+        if(!validFilmInventory(q)||!finite(a.pressure)||!std::isfinite(kinetic)||!(p.liquid.rho>0))return intervalFailure(error,"invalid film physical energy audit");
+        sum.mass+=q.mass;sum.energy+=static_cast<long double>(q.enthalpy)-static_cast<long double>(a.pressure)*q.mass/p.liquid.rho+kinetic;
         for(int s=0;s<Ns;++s)for(int e=0;e<p.nElements;++e)sum.elements[e]+=static_cast<long double>(q.species[s])*p.species[s].element[e];
     }
     if(!state.normalEnthalpy.empty())return intervalFailure(error,"multirate volume/surface audit excludes separate normal-column state");

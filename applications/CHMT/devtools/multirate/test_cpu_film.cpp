@@ -1,5 +1,6 @@
 #include "film/CpuFilmDriver.H"
 #include "film/FilmMath.H"
+#include "verification/FilmInventory.H"
 #include <cmath>
 #include <cstdlib>
 #include <iostream>
@@ -31,7 +32,6 @@ HostState state(const PhysicsConfig& p,int nx,int ny,Vec3 velocity) {
         h.filmAux[i].baseVelocity=velocity;h.filmAux[i].normal=normal;
         require(recoverFilm(q,1,100000,p,h.filmAux[i]),"fixture EOS");
         h.filmAux[i].meanVelocity=velocity;h.filmAux[i].topVelocity=velocity;
-        h.filmAux[i].kineticEnergy=.5*q.mass*dot(velocity,velocity);
         h.surface.centre.push_back(tangentX*x+tangentY*y);
         for(int direction=0;direction<2;++direction) {
             if((direction==0&&nx==1)||(direction==1&&ny==1))continue;
@@ -271,5 +271,33 @@ void twoUlpPressureOpenEdge() {
     }
 }
 
+void independentKineticInventoryFromVelocities() {
+    FilmQ q;FilmAux a;q.mass=2;
+    a.baseVelocity=a.meanVelocity=a.topVelocity={1,2,-2};
+    require(std::abs(verification::filmKineticEnergy(q,a)-9)<1e-15L,"constant profile physical kinetic inventory");
+    q.mass=3;a.baseVelocity={};a.meanVelocity={1,0,0};a.topVelocity={2,0,0};
+    require(std::abs(verification::filmKineticEnergy(q,a)-2)<1e-15L,"linear profile physical kinetic inventory");
+    q.mass=15;a.meanVelocity={2.0/3,0,0};a.topVelocity={1,0,0};
+    require(std::abs(verification::filmKineticEnergy(q,a)-4)<1e-14L,"quadratic profile physical kinetic inventory");
+    q.mass=3;a.normal={0,0,1};a.baseVelocity={1,0,99};
+    a.meanVelocity={1,0,2};a.topVelocity={1,0,3};
+    require(std::abs(verification::filmKineticEnergy(q,a)-8)<1e-14L,"coupled normal trace supplies the physical bottom velocity");
 }
-int main(){twoUlpPressureOpenEdge();transportBothTangents();pressureStorage();donorRollback();localStep();conservativeConduction();surfaceRhsOwnership();forcingAndKineticSeparation();signedOpenEdgeInflowAndOutflow();radiationAndSourceLimits();secondOrderAndPeriodicOffsets();exactDryoutRemainder();exactGasDryout();edgeSweepVolumeRate();bodySupportTopWorkOnce();rejectsMalformedGrossWithdrawals();std::cout<<"CPU film tests passed\n";}
+void profileRejectsUnavailablePhysicalInputs() {
+    auto p=physics();FilmAux a;a.area=1;a.thickness=.1;a.baseVelocity={1,0,0};
+    p.liquidViscosity=0;
+    require(!updateFilmProfileState(a,p,{0,0,1},{},{},false),"zero viscosity has no physical profile");
+    p.liquidViscosity=1;a.thickness=-.1;
+    require(!updateFilmProfileState(a,p,{0,0,1},{},{},false),"negative thickness has no physical profile");
+}
+void finiteProfileAtLargeAreaSmallThickness() {
+    auto p=physics();p.liquid.rho=4;
+    FilmAux aux;aux.area=1e308;aux.thickness=1e-308;
+    aux.baseVelocity={1,0,0};aux.meanVelocity=aux.topVelocity=aux.baseVelocity;
+    require(updateFilmProfileState(aux,p,{0,0,1},{},{},false),"finite thin-film velocity with representable physical mass");
+    require(aux.meanVelocity.x==1&&aux.meanVelocity.y==0&&aux.meanVelocity.z==0,"thin-film mean velocity");
+    require(aux.topVelocity.x==1&&aux.topVelocity.y==0&&aux.topVelocity.z==0,"thin-film top velocity");
+}
+
+}
+int main(){independentKineticInventoryFromVelocities();profileRejectsUnavailablePhysicalInputs();finiteProfileAtLargeAreaSmallThickness();twoUlpPressureOpenEdge();transportBothTangents();pressureStorage();donorRollback();localStep();conservativeConduction();surfaceRhsOwnership();forcingAndKineticSeparation();signedOpenEdgeInflowAndOutflow();radiationAndSourceLimits();secondOrderAndPeriodicOffsets();exactDryoutRemainder();exactGasDryout();edgeSweepVolumeRate();bodySupportTopWorkOnce();rejectsMalformedGrossWithdrawals();std::cout<<"CPU film tests passed\n";}

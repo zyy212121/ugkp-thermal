@@ -226,7 +226,7 @@ CHMT_HD inline bool recoverFilm(const FilmQ& q,Real area,Real pressure,const Phy
     FilmAux candidate=out;candidate.area=area;candidate.pressure=pressure;
     if(q.mass==0){
         if(!Terminal&&(q.enthalpy!=0||sum!=0))return failStatus(status,ErrorCode::Inventory,index,q.enthalpy,ErrorLocation::Face);
-        candidate.thickness=0;candidate.temperature=undefinedValue();candidate.kineticEnergy=0;
+        candidate.thickness=0;candidate.temperature=undefinedValue();
         candidate.meanVelocity=candidate.baseVelocity;candidate.topVelocity=candidate.baseVelocity;out=candidate;return true;
     }
     const Real target=q.enthalpy-q.mass*(pressure-p.liquidReferencePressure)/p.liquid.rho;
