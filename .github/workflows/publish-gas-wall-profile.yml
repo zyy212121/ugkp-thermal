@@ -1,0 +1,48 @@
+name: Publish reviewed gas wall profile output
+
+on:
+  push:
+    branches: [feature/gas-wall-profile-output-20261015]
+    paths:
+      - .github/workflows/publish-gas-wall-profile.yml
+      - .github/profile-publication/gas-wall-profile-only.patch
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          lfs: false
+          submodules: false
+          fetch-depth: 1
+      - name: Apply the reviewed incremental patch
+        shell: bash
+        env:
+          PATCH_SHA256: 6619d356f5100a8a73472ad39d852dc869314d4f2ddb1bc05d2ae7d296ccc8e2
+          EXPECTED_BASE_TREE: 586558e06f540f3b48e3b23ca93bb2527e180c3b
+          EXPECTED_TARGET_TREE: d3d7a93e49f977873f0a82c821204e2f32852689
+        run: |
+          set -euo pipefail
+          patch=.github/profile-publication/gas-wall-profile-only.patch
+          workflow=.github/workflows/publish-gas-wall-profile.yml
+          printf '%s  %s\n' "$PATCH_SHA256" "$patch" | sha256sum -c -
+          review_index="$(mktemp)"
+          rm "$review_index"
+          GIT_INDEX_FILE="$review_index" git read-tree HEAD
+          GIT_INDEX_FILE="$review_index" git rm --cached -- "$patch" "$workflow"
+          test "$(GIT_INDEX_FILE="$review_index" git write-tree)" = "$EXPECTED_BASE_TREE"
+          git apply --check --index "$patch"
+          git apply --index --whitespace=nowarn "$patch"
+          cp "$(git rev-parse --git-path index)" "$review_index"
+          GIT_INDEX_FILE="$review_index" git rm --cached -- "$patch" "$workflow"
+          test "$(GIT_INDEX_FILE="$review_index" git write-tree)" = "$EXPECTED_TARGET_TREE"
+          rm "$review_index"
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'Add reviewed gas wall profile diagnostics'
+          git push origin HEAD:refs/heads/feature/gas-wall-profile-output-20261015

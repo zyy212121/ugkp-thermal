@@ -1,0 +1,857 @@
+From 3994ddd2dc5d1ea1a710915eeff326672d7611a3 Mon Sep 17 00:00:00 2001
+From: Codex <codex@openai.com>
+Date: Fri, 16 Oct 2026 05:17:40 +0800
+Subject: [PATCH] feat(gas): capture accepted wall profiles for optional
+ write-time output
+
+---
+ applications/gasUGKP/gpu/BoundaryLayerInput.H | 46 ++++++++-
+ applications/gasUGKP/gpu/GpuBackendApi.H      |  5 +
+ applications/gasUGKP/gpu/GpuBackendClient.C   | 27 ++++++
+ applications/gasUGKP/gpu/GpuBackendProtocol.H | 11 ++-
+ .../BoundaryLayerProfileAdapter.cuh           | 48 ++++++++++
+ .../private_backend/BoundaryLayerStorage.cuh  |  6 ++
+ .../private_backend/GpuBackendServer.C        | 18 ++++
+ .../private_backend/GpuResidentStrict.cu      | 25 +++--
+ .../private_backend/SharedGasTrialPolicy.cuh  |  6 +-
+ .../gasTransport/GasBoundaryLayerModelState.H | 34 ++++++-
+ .../GasBoundaryLayerProfileOutput.H           | 32 +++++++
+ common/gasWall/WallModel.H                    | 27 ++++++
+ .../evaluateGasBoundaryLayerKernel.cuh        |  4 +-
+ .../tests/test_boundary_layer_lifecycle.py    |  4 +-
+ .../tests/test_boundary_layer_profiles.py     | 45 +++++++++
+ .../tests/test_boundary_layer_storage.py      | 19 +++-
+ .../tests/test_shared_gas_trial_policy.py     | 23 ++++-
+ .../gas_wall/test_wall_profile_output.py      | 95 +++++++++++++++++++
+ 18 files changed, 453 insertions(+), 22 deletions(-)
+ create mode 100644 applications/gasUGKP/private_backend/BoundaryLayerProfileAdapter.cuh
+ create mode 100644 common/gasTransport/GasBoundaryLayerProfileOutput.H
+ create mode 100644 validation/solvers/gasUGKP/tests/test_boundary_layer_profiles.py
+ create mode 100644 validation/tests/gas_wall/test_wall_profile_output.py
+
+diff --git a/applications/gasUGKP/gpu/BoundaryLayerInput.H b/applications/gasUGKP/gpu/BoundaryLayerInput.H
+index 2896633..b3282c9 100644
+--- a/applications/gasUGKP/gpu/BoundaryLayerInput.H
++++ b/applications/gasUGKP/gpu/BoundaryLayerInput.H
+@@ -6,6 +6,7 @@
+ #include "GpuBackendApi.H"
+ #include "gasTransport/GasModelIO.H"
+ #include "gasWall/WallGeometryBuilder.H"
++#include "gasTransport/GasBoundaryLayerProfileOutput.H"
+ #include <fstream>
+ #include <iomanip>
+ #include <limits>
+@@ -25,6 +26,30 @@ class BoundaryLayerInput
+     std::vector<int> faces_,quadratureOffsets_,matchingOffsets_,matchingCells_;
+     std::vector<double> geometry_,quadratureDistance_,quadratureWeight_,matchingWeight_,speciesFlux_;
+ 
++    std::vector<double> profileFaceCentres_;
++    using ProfileWriter=void (BoundaryLayerInput::*)(const Time&,void*) const;
++    ProfileWriter profileWriter_=&BoundaryLayerInput::skipProfiles;
++    void skipProfiles(const Time&,void*) const {}
++    void writeProfiles(const Time& time,void* handle) const
++    {
++        std::vector<double> profiles(faces_.size()*config_.nodes*(7+config_.speciesCount));
++        double stageTime=0;
++        const int result=ugkwpGpuResidentStrictDownloadBoundaryLayerProfilesV1(handle,
++            config_.wallCount,config_.nodes,config_.speciesCount,profiles.data(),&stageTime);
++        if(result)
++        {
++            WarningInFunction<<"Cannot download boundaryLayer node profiles: "
++                <<ugkwpGpuResidentStrictLastError()<<endl;
++            return; // Optional output cannot reject an accepted physical step.
++        }
++        const fileName path=time.timePath()/"uniform"/"gasBoundaryLayerProfiles.csv";
++        std::ofstream output(path.c_str());
++        ugkwp::writeGasBoundaryLayerProfiles(output,faces_,profileFaceCentres_,geometry_,
++            speciesNames_,config_.nodes,profiles.data(),stageTime,time.value());
++        output.close();
++        if(!output)WarningInFunction<<"Cannot write boundaryLayer node profiles "<<path<<endl;
++    }
++
+     static scalar coefficient(const dictionary& d,const word& name,const word& alias,scalar fallback)
+     {
+         return d.lookupOrDefault<scalar>(d.found(alias)?alias:name,fallback);
+@@ -84,6 +109,8 @@ public:
+         else if(model=="finiteRate" || model=="reactingSst")config_.model=1;
+         else FatalErrorInFunction<<"Unknown boundaryLayer model '"<<model
+             <<"'; valid models are constantTransport and finiteRate (reactingSst alias)"<<exit(FatalError);
++        // Read once. Subsequent timesteps never inspect the option or dictionary.
++        if(d.lookupOrDefault<bool>("writeProfiles",false))profileWriter_=&BoundaryLayerInput::writeProfiles;
+         speciesNames_=gasModel.speciesNames;
+         config_.speciesCount=checkedCount(speciesNames_.size(),"species count");
+         const label nodes=d.lookupOrDefault<label>("nodes",24);
+@@ -159,10 +186,16 @@ public:
+         config_.wallCount=checkedCount(faces_.size(),"wall count");
+         config_.quadratureCount=checkedCount(quadratureDistance_.size(),"quadrature count");
+         config_.matchingCount=checkedCount(matchingCells_.size(),"matching count");
++        if(profileWriter_==&BoundaryLayerInput::writeProfiles)
++        {
++            profileFaceCentres_.clear();profileFaceCentres_.reserve(3*faces_.size());
++            for(const int face:faces_)
++                for(int d=0;d<3;++d)profileFaceCentres_.push_back(mesh.faceCentres()[face][d]);
++        }
+         readSpeciesFlux(time,mesh);
+         prepared_=true;
+     }
+-    void configureResident(void* handle) const
++    void configureResident(void* handle)
+     {
+         if(!active_)return;
+         if(!prepared_)FatalErrorInFunction<<"boundaryLayer geometry is not prepared"<<exit(FatalError);
+@@ -170,6 +203,16 @@ public:
+             quadratureOffsets_.data(),matchingOffsets_.data(),matchingCells_.data(),geometry_.data(),
+             quadratureDistance_.data(),quadratureWeight_.data(),matchingWeight_.data(),speciesFlux_.data()),
+             "configure resident boundaryLayer");
++        if(profileWriter_==&BoundaryLayerInput::writeProfiles)
++        {
++            const int result=ugkwpGpuResidentStrictEnableBoundaryLayerProfilesV1(handle);
++            if(result)
++            {
++                WarningInFunction<<"Boundary-layer node output unavailable: "
++                    <<ugkwpGpuResidentStrictLastError()<<endl;
++                profileWriter_=&BoundaryLayerInput::skipProfiles;
++            }
++        }
+     }
+     void writeDiagnostics(const Time& time,void* handle) const
+     {
+@@ -205,6 +248,7 @@ public:
+         }
+         output.close();
+         if(!output)FatalErrorInFunction<<"Cannot write boundaryLayer diagnostics "<<path<<exit(FatalError);
++        (this->*profileWriter_)(time,handle);
+     }
+ };
+ }
+diff --git a/applications/gasUGKP/gpu/GpuBackendApi.H b/applications/gasUGKP/gpu/GpuBackendApi.H
+index 6da1af9..d9d62e3 100755
+--- a/applications/gasUGKP/gpu/GpuBackendApi.H
++++ b/applications/gasUGKP/gpu/GpuBackendApi.H
+@@ -235,4 +235,9 @@ extern "C" int ugkwpGpuResidentStrictConfigureBoundaryLayerV1
+ extern "C" int ugkwpGpuResidentStrictDownloadBoundaryLayerV1
+ (void* handle,std::uint32_t wallCount,std::uint32_t speciesCount,double* diagnostics);
+ 
++// Startup-only opt-in; downloaded rows are face-major, node-major y,U[3],T,k,omega,Y[Ns].
++extern "C" int ugkwpGpuResidentStrictEnableBoundaryLayerProfilesV1(void* handle);
++extern "C" int ugkwpGpuResidentStrictDownloadBoundaryLayerProfilesV1
++(void* handle,std::uint32_t walls,std::uint32_t nodes,std::uint32_t species,double* profiles,double* stageTime);
++
+ #endif
+diff --git a/applications/gasUGKP/gpu/GpuBackendClient.C b/applications/gasUGKP/gpu/GpuBackendClient.C
+index 4e035b0..269bbdb 100755
+--- a/applications/gasUGKP/gpu/GpuBackendClient.C
++++ b/applications/gasUGKP/gpu/GpuBackendClient.C
+@@ -1048,3 +1048,30 @@ extern "C" int ugkwpGpuResidentStrictDownloadBoundaryLayerV1
+     if (bytes) std::memcpy(diagnostics,staged.data(),bytes);
+     return discardResponse(s)?0:-1;
+ }
++
++extern "C" int ugkwpGpuResidentStrictEnableBoundaryLayerProfilesV1(void* handle)
++{
++    ClientState* s=static_cast<ClientState*>(handle);
++    if(!s)return fail("missing resident for wall profiles");
++    if(!startRequest(s,Op::enableBoundaryLayerProfilesV1,0))return -1;
++    return finishNoPayload(s);
++}
++extern "C" int ugkwpGpuResidentStrictDownloadBoundaryLayerProfilesV1
++(void* handle,std::uint32_t walls,std::uint32_t nodes,std::uint32_t species,double* profiles,double* stageTime)
++{
++    ClientState* s=static_cast<ClientState*>(handle);
++    if(!s || !profiles || !stageTime)return fail("missing wall profile destination");
++    std::uint64_t bytes=0;
++    if(!boundaryLayerProfileBytes(walls,nodes,species,bytes) || !addArrayBytes<double>(bytes,1))
++        return fail("wall profile byte extent overflow");
++    const std::uint32_t dimensions[3]={walls,nodes,species};
++    if(!startRequest(s,Op::downloadBoundaryLayerProfilesV1,sizeof(dimensions))
++        || !sendArray(s->fd,dimensions,3))return -1;
++    std::uint64_t got=0;const int status=receiveResponse(s,got,true,bytes);
++    if(status)return status;
++    std::vector<double> staged(bytes/sizeof(double));
++    if(!receiveArray(s->fd,staged.data(),staged.size(),s))return -1;
++    *stageTime=staged[0];
++    std::copy(staged.begin()+1,staged.end(),profiles);
++    return discardResponse(s)?0:-1;
++}
+diff --git a/applications/gasUGKP/gpu/GpuBackendProtocol.H b/applications/gasUGKP/gpu/GpuBackendProtocol.H
+index 9bad6b8..5ec025d 100755
+--- a/applications/gasUGKP/gpu/GpuBackendProtocol.H
++++ b/applications/gasUGKP/gpu/GpuBackendProtocol.H
+@@ -46,7 +46,9 @@ enum class Op : std::uint32_t
+     downloadSpeciesV1 = 25,
+     uploadSpeciesBoundaryV1 = 26,
+     configureBoundaryLayerV1 = 27,
+-    downloadBoundaryLayerV1 = 28
++    downloadBoundaryLayerV1 = 28,
++    enableBoundaryLayerProfilesV1 = 29,
++    downloadBoundaryLayerProfilesV1 = 30
+ };
+ 
+ enum class GasFluxScheme : std::int32_t
+@@ -916,6 +918,13 @@ inline bool boundaryLayerDiagnosticBytes(const std::uint32_t walls,
+     return addBytes(bytes,walls,std::uint64_t(boundaryLayerDiagnosticScalars)*sizeof(double))
+         && addBytes(bytes,walls,2ULL*species*sizeof(double));
+ }
++// Seven physical scalars per real solver node, followed by all mechanism species.
++inline bool boundaryLayerProfileBytes(std::uint32_t walls,std::uint32_t nodes,
++    std::uint32_t species,std::uint64_t& bytes)
++{
++    bytes=0;
++    return addBytes(bytes,std::uint64_t(walls)*nodes,(7ULL+species)*sizeof(double));
++}
+ inline bool boundaryLayerPayloadBytes(const BoundaryLayerConfigV1& a,
+     std::uint32_t faces,std::uint32_t species,std::uint64_t& bytes)
+ {
+diff --git a/applications/gasUGKP/private_backend/BoundaryLayerProfileAdapter.cuh b/applications/gasUGKP/private_backend/BoundaryLayerProfileAdapter.cuh
+new file mode 100644
+index 0000000..782f75e
+--- /dev/null
++++ b/applications/gasUGKP/private_backend/BoundaryLayerProfileAdapter.cuh
+@@ -0,0 +1,48 @@
++#pragma once
++// Optional diagnostic storage and strategy are selected once during startup.
++// The solve kernel captures its real workspace before the worker reuses it.
++extern "C" int ugkwpGpuResidentStrictEnableBoundaryLayerProfilesV1(void* handle)
++{
++    DeviceState* s=asState(handle);
++    if(validateState(s,"enable boundaryLayer profiles"))return 1;
++    auto& model=s->gasBoundaryLayerModel;
++    if(!s->gasBoundaryLayer.enabled || model.config.model!=ugkwp::gaswall::BoundaryLayerModel::ReactingSst)
++    {setLastErrorText("node profiles are available for finiteRate/reactingSst boundary layers");return 1;}
++    const std::size_t count=std::size_t(s->gasBoundaryLayer.count)*model.config.nodes*(7+ugkwp::compiledGasSpecies);
++    double* profile=model.profile;
++    if(!profile && allocateSharedGasZero(profile,count))
++    {model.profile=profile;return 1;}
++    auto configured=model;configured.profile=profile;
++    const cudaError_t error=cudaMemcpy(
++        reinterpret_cast<unsigned char*>(s->deviceState)+offsetof(DeviceState,gasBoundaryLayerModel),
++        &configured,sizeof(configured),cudaMemcpyHostToDevice);
++    if(error!=cudaSuccess)
++    {
++        // Preserve allocation ownership for teardown even on a failed publication.
++        model.profile=profile;
++        setLastError("publish wall profile storage",error);return 1;
++    }
++    model=configured;
++    invalidateSharedGasConfiguration(s);
++    s->gasBoundaryLayerLaunch=&launchBoundaryLayer<true>;
++    s->gasBoundaryLayerSnapshot=&sharedGasTrialDetail::snapshotWallRecords<true,DeviceState>;
++    return 0;
++}
++extern "C" int ugkwpGpuResidentStrictDownloadBoundaryLayerProfilesV1
++(void* handle,std::uint32_t walls,std::uint32_t nodes,std::uint32_t species,double* profiles,double* stageTime)
++{
++    DeviceState* s=asState(handle);
++    if(validateState(s,"download boundaryLayer profiles"))return 1;
++    const auto& model=s->gasBoundaryLayerModel;
++    if(!model.profile || !profiles || !stageTime || walls!=std::uint32_t(s->gasBoundaryLayer.count)
++        || nodes!=std::uint32_t(model.config.nodes) || species!=ugkwp::compiledGasSpecies)
++    {setLastErrorText("wall node profile storage or dimensions unavailable");return 1;}
++    std::vector<ugkwp::GasBoundaryLayerExchange<double>> exchange(walls);
++    if(copyToHost(exchange.data(),s->gasBoundaryLayer.exchange,walls,"read wall profile readiness"))return 1;
++    for(const auto& wall:exchange)if(!wall.ready)
++    {setLastErrorText("wall node profile has not yet been accepted");return 1;}
++    const std::size_t count=std::size_t(walls)*nodes*(7+species);
++    if(copyToHost(profiles,model.profile,count,"read solved wall profile nodes"))return 1;
++    *stageTime=s->gasBoundaryLayerStageTime;
++    return 0;
++}
+diff --git a/applications/gasUGKP/private_backend/BoundaryLayerStorage.cuh b/applications/gasUGKP/private_backend/BoundaryLayerStorage.cuh
+index 9a8ecb4..ba6d08c 100644
+--- a/applications/gasUGKP/private_backend/BoundaryLayerStorage.cuh
++++ b/applications/gasUGKP/private_backend/BoundaryLayerStorage.cuh
+@@ -9,6 +9,7 @@ template<class State> int releaseBoundaryLayerStorage(State& s)
+     WALL_RELEASE(gasBoundaryLayer.status);WALL_RELEASE(gasBoundaryLayer.exchange);
+     WALL_RELEASE(gasBoundaryLayer.sst);WALL_RELEASE(gasBoundaryLayer.speciesFlux);
+     WALL_RELEASE(gasBoundaryLayerModel.input);WALL_RELEASE(gasBoundaryLayerModel.output);
++    WALL_RELEASE(gasBoundaryLayerModel.profile);
+     WALL_RELEASE(gasBoundaryLayerModel.workspace);WALL_RELEASE(gasBoundaryLayerModel.status);
+     WALL_RELEASE(gasBoundaryLayerModel.faces);WALL_RELEASE(gasBoundaryLayerModel.matchingOffsets);
+     WALL_RELEASE(gasBoundaryLayerModel.matchingCells);WALL_RELEASE(gasBoundaryLayerModel.matchingWeights);
+@@ -24,6 +25,11 @@ template<class State> int releaseBoundaryLayerStorage(State& s)
+ inline int releaseBoundaryLayerStorage(DeviceState& s)
+ {
+     const int resident=releaseBoundaryLayerStorage<DeviceState>(s);
++    if(!resident)
++    {
++        s.gasBoundaryLayerLaunch=&launchBoundaryLayer<false>;
++        s.gasBoundaryLayerSnapshot=&sharedGasTrialDetail::snapshotWallRecords<false,DeviceState>;
++    }
+     return releaseBoundaryLayerStorage(s.gasTrial.rejectedWall)|resident;
+ }
+ inline void discardBoundaryLayerCandidate(DeviceState* s,BoundaryLayerAllocation& candidate)
+diff --git a/applications/gasUGKP/private_backend/GpuBackendServer.C b/applications/gasUGKP/private_backend/GpuBackendServer.C
+index 66d7f1f..4c6d8c3 100644
+--- a/applications/gasUGKP/private_backend/GpuBackendServer.C
++++ b/applications/gasUGKP/private_backend/GpuBackendServer.C
+@@ -480,6 +480,20 @@ bool handleDownloadBoundaryLayer(const int fd,const RequestHeader& request,Serve
+         && (status || writeVector(fd,output));
+ }
+ 
++bool handleDownloadBoundaryLayerProfiles(const int fd,const RequestHeader& request,ServerState& s)
++{
++    std::uint32_t dimensions[3];
++    if(!validatePayload(fd,request,sizeof(dimensions)) || !readObject(fd,dimensions[0])
++        || !readObject(fd,dimensions[1]) || !readObject(fd,dimensions[2]))return false;
++    std::uint64_t bytes=0;
++    if(!boundaryLayerProfileBytes(dimensions[0],dimensions[1],dimensions[2],bytes)
++        || !addArrayBytes<double>(bytes,1))return protocolError(fd,"wall profile byte extent overflow");
++    std::vector<double> output(bytes/sizeof(double));
++    const int status=ugkwpGpuResidentStrictDownloadBoundaryLayerProfilesV1(s.backend,
++        dimensions[0],dimensions[1],dimensions[2],output.data()+1,output.data());
++    return responseHeader(fd,status,status?0:bytes) && (status || writeVector(fd,output));
++}
++
+ bool handleConfigureSst
+ (
+     const int fd,
+@@ -815,6 +829,10 @@ bool dispatch
+         case Op::configureSst:return handleConfigureSst(fd,request,s);
+         case Op::configureBoundaryLayerV1:return handleConfigureBoundaryLayer(fd,request,s);
+         case Op::downloadBoundaryLayerV1:return handleDownloadBoundaryLayer(fd,request,s);
++        case Op::enableBoundaryLayerProfilesV1:
++            return validatePayload(fd,request,0)
++                && responseHeader(fd,ugkwpGpuResidentStrictEnableBoundaryLayerProfilesV1(s.backend),0);
++        case Op::downloadBoundaryLayerProfilesV1:return handleDownloadBoundaryLayerProfiles(fd,request,s);
+         case Op::downloadSst:return handleDownloadSst(fd,request,s);
+         case Op::release:
+         {
+diff --git a/applications/gasUGKP/private_backend/GpuResidentStrict.cu b/applications/gasUGKP/private_backend/GpuResidentStrict.cu
+index 3baf93b..3550a6c 100644
+--- a/applications/gasUGKP/private_backend/GpuResidentStrict.cu
++++ b/applications/gasUGKP/private_backend/GpuResidentStrict.cu
+@@ -120,6 +120,11 @@ struct PressureProjectionCell
+     bool active, resolved;
+ };
+ 
++struct DeviceState;
++template<bool Capture> int launchBoundaryLayer(DeviceState*);
++namespace sharedGasTrialDetail {
++template<bool Capture,class State> int snapshotWallRecords(State*,SharedGasTrialSnapshot&,bool);
++}
+ struct DeviceState
+ {
+ #include "GpuAutomaticCsrScheduleFields.inl"
+@@ -130,6 +135,9 @@ struct DeviceState
+     ugkwp::GasBoundaryLayerModelState<double,ugkwp::compiledGasSpecies> gasBoundaryLayerModel;
+     double *gasWallQuadratureDistance=nullptr,*gasWallQuadratureWeight=nullptr;
+     double gasBoundaryLayerStageTime=0;
++    int (*gasBoundaryLayerLaunch)(DeviceState*)=&launchBoundaryLayer<false>;
++    int (*gasBoundaryLayerSnapshot)(DeviceState*,SharedGasTrialSnapshot&,bool)=
++        &sharedGasTrialDetail::snapshotWallRecords<false,DeviceState>;
+     double gasThermalConductivity=-1;
+ 
+     bool gasModelPoisoned = false;
+@@ -2142,19 +2150,23 @@ constexpr double mobilePackingJacobiOmega = 0.8;
+ #include "../../../common/gasNumerics/GpuPackingProjectionCooperative.cuh"
+ 
+ #include "../../../common/GpuGasHostPolicy.cuh"
+-struct GasHostPolicy:GasHostWithoutWallEnergy<double,double>
++template<bool Capture> int launchBoundaryLayer(DeviceState* s)
+ {
+-    template<class HostState> static int prepareBoundaryLayer(HostState* s,double,double stageTime)
+-    {
+-        if(!s->gasBoundaryLayer.enabled)return 0;
+-        s->gasBoundaryLayerStageTime=stageTime;
+         const bool analytic=s->gasBoundaryLayerModel.config.model==ugkwp::gaswall::BoundaryLayerModel::ConstantTransport;
+         const int workers=analytic?s->gasBoundaryLayer.count:s->gasBoundaryLayerModel.workspaceCount,block=32;
+         if(workers<=0){setLastErrorText("boundaryLayer scratch pool is empty");return 1;}
+-        evaluateGasBoundaryLayerKernel<<<(workers+block-1)/block,block,0,s->gasCaptureStream>>>(s->deviceState);
++        evaluateGasBoundaryLayerKernel<Capture><<<(workers+block-1)/block,block,0,s->gasCaptureStream>>>(s->deviceState);
+         const auto error=cudaGetLastError();
+         if(error!=cudaSuccess){setLastError("prepare sparse boundaryLayer profiles",error);return 1;}
+         return 0;
++}
++struct GasHostPolicy:GasHostWithoutWallEnergy<double,double>
++{
++    template<class HostState> static int prepareBoundaryLayer(HostState* s,double,double stageTime)
++    {
++        if(!s->gasBoundaryLayer.enabled)return 0;
++        s->gasBoundaryLayerStageTime=stageTime;
++        return s->gasBoundaryLayerLaunch(s);
+     }
+ };
+ #include "../../../common/GpuMobilePackingHost.cuh"
+@@ -3508,6 +3520,7 @@ constexpr bool developmentProbeIncludesScheduling = true;
+ 
+ #include "SharedGasAdapter.cuh"
+ #include "BoundaryLayerAdapter.cuh"
++#include "BoundaryLayerProfileAdapter.cuh"
+ 
+ extern "C" const char* ugkwpGpuResidentStrictLastError()
+ {
+diff --git a/applications/gasUGKP/private_backend/SharedGasTrialPolicy.cuh b/applications/gasUGKP/private_backend/SharedGasTrialPolicy.cuh
+index f201759..b9bf9a5 100644
+--- a/applications/gasUGKP/private_backend/SharedGasTrialPolicy.cuh
++++ b/applications/gasUGKP/private_backend/SharedGasTrialPolicy.cuh
+@@ -73,7 +73,7 @@ inline int ensureSnapshot(DeviceState* s,SharedGasTrialSnapshot& snapshot)
+     if(rc)releaseSnapshot(snapshot);
+     return rc;
+ }
+-template<class State> int snapshotWallRecords(State* s,SharedGasTrialSnapshot& saved,bool restore)
++template<bool Capture=false,class State> int snapshotWallRecords(State* s,SharedGasTrialSnapshot& saved,bool restore)
+ {
+     if constexpr(ugkwp::GasBoundaryLayerCapability<State>::value)
+     {
+@@ -83,6 +83,8 @@ template<class State> int snapshotWallRecords(State* s,SharedGasTrialSnapshot& s
+         std::vector<Bytes> fields={{w.exchange,n*sizeof(*w.exchange)},{w.sst,n*sizeof(*w.sst)},
+             {w.status,n*sizeof(*w.status)},{w.speciesFlux,n*ugkwp::compiledGasSpecies*sizeof(double)},
+             {m.input,n*sizeof(*m.input)},{m.output,n*sizeof(*m.output)},{m.status,n*sizeof(*m.status)}};
++        if constexpr(Capture)fields.push_back({m.profile,n*m.config.nodes*
++            (7+ugkwp::compiledGasSpecies)*sizeof(double)});
+         std::size_t total=0;for(const auto& f:fields)total+=f.count;
+         if(!restore && saved.wallRecordBytes!=total)
+         {if(releaseSharedGasPointer(saved.wallRecords)){saved.valid=false;return 1;}saved.wallRecordBytes=0;}
+@@ -127,7 +129,7 @@ inline int snapshot(DeviceState* s,SharedGasTrialSnapshot& saved,bool restore)
+     if(s->gasSpecies.chemistryStatus)
+         rc|=deviceCopy(restore?s->gasSpecies.chemistryStatus:saved.chemistryStatus,
+             restore?saved.chemistryStatus:s->gasSpecies.chemistryStatus,s->nCells);
+-    rc|=snapshotWallRecords(s,saved,restore);
++    rc|=s->gasBoundaryLayerSnapshot(s,saved,restore);
+     if(!restore && !rc)saved.valid=true;
+     return rc;
+ }
+diff --git a/common/gasTransport/GasBoundaryLayerModelState.H b/common/gasTransport/GasBoundaryLayerModelState.H
+index 71cd5a4..d5e7fae 100644
+--- a/common/gasTransport/GasBoundaryLayerModelState.H
++++ b/common/gasTransport/GasBoundaryLayerModelState.H
+@@ -17,6 +17,7 @@ template<class Real,int Ns,int MaxNodes=48> struct GasBoundaryLayerModelState
+     void* workspace=nullptr;
+     int workspaceCapacity=MaxNodes; // allocated capacity bucket: 24, 48 or 128
+     gaswall::WallStatus* status=nullptr;
++    Real* profile=nullptr; // enabled-at-startup rows: y,U[3],T,k,omega,Y[Ns]
+     int workspaceCount=0; // bounded pool, never one large scratch block per wall by default
+     const int* faces=nullptr;
+     const int* matchingOffsets=nullptr;
+@@ -34,15 +35,38 @@ template<class State> struct GasBoundaryLayerModelCapability<State,
+ #else
+ #define UGKWP_WALL_WORKSPACE_CALL inline
+ #endif
+-template<class Real,int Ns,int Capacity>
++template<bool Capture=false,class Real,int Ns,int Capacity>
+ UGKWP_GAS_HD UGKWP_WALL_WORKSPACE_CALL bool evaluateGasBoundaryLayerWorkspace(
+     const gaswall::WallInput<Real,Ns>& input,const gaswall::WallModelConfig<Real>& config,
+     gaswall::WallWorkspace<Real,Ns,Capacity>& workspace,gaswall::WallOutput<Real,Ns>& output,
+-    gaswall::WallStatus& status)
+-{return gaswall::evaluateWallModel(input,config,workspace,output,status);}
++    gaswall::WallStatus& status,Real* profile=nullptr)
++{
++    const bool evaluated=gaswall::evaluateWallModel(input,config,workspace,output,status);
++    if constexpr(Capture)
++    {
++        if(evaluated)
++        {
++            gaswall::detail::LayerContext<Real,Ns> context;
++            const bool available=gaswall::detail::makeContext(input,config,context);
++            for(int node=0;node<config.nodes;++node)
++            {
++                gaswall::WallProfileNode<Real,Ns> p;
++                const bool decoded=available && gaswall::reactingWallProfileNode(input,config,workspace,node,context,p);
++                Real* row=profile+node*(7+Ns);
++                row[0]=p.y;for(int d=0;d<3;++d)row[1+d]=p.velocity[d];
++                row[4]=p.temperature;row[5]=p.k;row[6]=p.omega;
++                for(int species=0;species<Ns;++species)row[7+species]=p.massFraction[species];
++                // Diagnostic decoding cannot veto a physical solve. Missing values
++                // remain explicitly unavailable instead of becoming invented zeros.
++                if(!decoded)for(int col=0;col<7+Ns;++col)row[col]=std::numeric_limits<Real>::quiet_NaN();
++            }
++        }
++    }
++    return evaluated;
++}
+ #undef UGKWP_WALL_WORKSPACE_CALL
+ 
+-template<class State> UGKWP_GAS_HD inline bool evaluateGasBoundaryLayerSlot(State& state,int slot,int workspaceSlot=0)
++template<bool Capture=false,class State> UGKWP_GAS_HD inline bool evaluateGasBoundaryLayerSlot(State& state,int slot,int workspaceSlot=0)
+ {
+     using Real=typename std::remove_pointer<decltype(state.rho)>::type;
+     constexpr int Ns=GasStateTraits<State>::speciesCount;
+@@ -134,7 +158,7 @@ template<class State> UGKWP_GAS_HD inline bool evaluateGasBoundaryLayerSlot(Stat
+     if(analytic)evaluated=gaswall::evaluateConstantTransportWall(in,model.config,model.output[slot],model.status[slot]);
+     else
+     {
+-#define WALL_EVALUATE_CAPACITY(capacity) case capacity: evaluated=evaluateGasBoundaryLayerWorkspace(in,model.config,static_cast<gaswall::WallWorkspace<Real,Ns,capacity>*>(model.workspace)[workspaceSlot],model.output[slot],model.status[slot]);break
++#define WALL_EVALUATE_CAPACITY(capacity) case capacity: evaluated=evaluateGasBoundaryLayerWorkspace<Capture>(in,model.config,static_cast<gaswall::WallWorkspace<Real,Ns,capacity>*>(model.workspace)[workspaceSlot],model.output[slot],model.status[slot],Capture?model.profile+std::size_t(slot)*model.config.nodes*(7+Ns):nullptr);break
+         switch(model.workspaceCapacity)
+         {
+             WALL_EVALUATE_CAPACITY(24);
+diff --git a/common/gasTransport/GasBoundaryLayerProfileOutput.H b/common/gasTransport/GasBoundaryLayerProfileOutput.H
+new file mode 100644
+index 0000000..d795dc8
+--- /dev/null
++++ b/common/gasTransport/GasBoundaryLayerProfileOutput.H
+@@ -0,0 +1,32 @@
++#pragma once
++#include <ostream>
++#include <iomanip>
++#include <limits>
++#include <string>
++#include <vector>
++namespace ugkwp {
++// Shared CSV serializer: rows retain the solver's node and mechanism order.
++// stageTime labels the accepted wall solve; outputTime labels the field directory.
++inline void writeGasBoundaryLayerProfiles(std::ostream& output,
++    const std::vector<int>& faces,const std::vector<double>& centres,
++    const std::vector<double>& geometry,const std::vector<std::string>& species,
++    int nodes,const double* profiles,double stageTime,double outputTime)
++{
++    output<<std::setprecision(std::numeric_limits<double>::max_digits10);
++    output<<"face,faceX,faceY,faceZ,normalX,normalY,normalZ,node,stageTime,outputTime,y,Ux,Uy,Uz,T,k,omega";
++    for(const auto& name:species)output<<",Y_"<<name;
++    output<<'\n';
++    const std::size_t columns=7+species.size();
++    for(std::size_t slot=0;slot<faces.size();++slot)
++        for(int node=0;node<nodes;++node)
++        {
++            output<<faces[slot];
++            for(int d=0;d<3;++d)output<<','<<centres[3*slot+d];
++            for(int d=0;d<3;++d)output<<','<<geometry[7*slot+d];
++            output<<','<<node<<','<<stageTime<<','<<outputTime;
++            const double* row=profiles+(slot*nodes+node)*columns;
++            for(std::size_t col=0;col<columns;++col)output<<','<<row[col];
++            output<<'\n';
++        }
++}
++}
+diff --git a/common/gasWall/WallModel.H b/common/gasWall/WallModel.H
+index 2b78b3d..227b9d6 100644
+--- a/common/gasWall/WallModel.H
++++ b/common/gasWall/WallModel.H
+@@ -9,6 +9,33 @@ template<class R,int N,int M> UGKWP_GAS_HD inline R reactingWallProfileTemperatu
+  const WallInput<R,N>& input,const WallWorkspace<R,N,M>& workspace,int node){
+     return input.temperature+workspace.state[node][2];
+ }
++// Values decoded directly from the solved workspace, in mechanism species order.
++template<class R,int N> struct WallProfileNode {
++    R y=0,velocity[3]{},temperature=0,massFraction[N]{},k=0,omega=0;
++};
++template<class R,int N,int M> UGKWP_GAS_HD inline bool reactingWallProfileNode(
++ const WallInput<R,N>& input,const WallModelConfig<R>& config,
++ const WallWorkspace<R,N,M>& workspace,int node,const detail::LayerContext<R,N>& context,
++ WallProfileNode<R,N>& result){
++    detail::LayerPoint<R,N> point;
++    if(!detail::pointState(input,config,context,workspace.state[node],point,true))return false;
++    result.y=workspace.y[node];result.temperature=point.T;
++    for(int species=0;species<N;++species)result.massFraction[species]=point.Y[species];
++    for(int d=0;d<3;++d)result.velocity[d]=input.velocity[d]
++        +context.tangent[0][d]*point.u[0]+context.tangent[1][d]*point.u[1]
++        +input.normal[d]*(point.normalVelocity-context.wallNormal);
++    result.k=point.k;
++    // omega is singular at a no-injection wall (the solved inverse root is 0).
++    result.omega=config.enableSst?(point.z==0?std::numeric_limits<R>::infinity():point.omega):R(0);
++    return true;
++}
++template<class R,int N,int M> UGKWP_GAS_HD inline bool reactingWallProfileNode(
++ const WallInput<R,N>& input,const WallModelConfig<R>& config,
++ const WallWorkspace<R,N,M>& workspace,int node,WallProfileNode<R,N>& result){
++    detail::LayerContext<R,N> context;
++    return detail::makeContext(input,config,context)
++        && reactingWallProfileNode(input,config,workspace,node,context,result);
++}
+ template<class R,int N,int M> UGKWP_GAS_HD inline bool evaluateWallModel(
+  const WallInput<R,N>& input,const WallModelConfig<R>& config,WallWorkspace<R,N,M>& workspace,
+  WallOutput<R,N>& output,WallStatus& status){
+diff --git a/common/operators/evaluateGasBoundaryLayerKernel.cuh b/common/operators/evaluateGasBoundaryLayerKernel.cuh
+index 4d41ffc..a44d21c 100644
+--- a/common/operators/evaluateGasBoundaryLayerKernel.cuh
++++ b/common/operators/evaluateGasBoundaryLayerKernel.cuh
+@@ -2,7 +2,7 @@
+ #include "gasTransport/GasBoundaryLayerModelState.H"
+ // One sparse worker owns one bounded scratch slot and walks distinct faces.
+ // Expensive profile scratch scales with workspaceCount, not wall-face count.
+-template<class GasState>
++template<bool Capture=false,class GasState>
+ __global__ void evaluateGasBoundaryLayerKernel(GasState* state)
+ {
+     if constexpr(ugkwp::GasBoundaryLayerModelCapability<GasState>::value)
+@@ -12,6 +12,6 @@ __global__ void evaluateGasBoundaryLayerKernel(GasState* state)
+         const int workers=analytic?state->gasBoundaryLayer.count:state->gasBoundaryLayerModel.workspaceCount;
+         if(worker>=workers || !ugkwp::gasBoundaryLayerEnabled(*state))return;
+         for(int slot=worker;slot<state->gasBoundaryLayer.count;slot+=workers)
+-            ugkwp::evaluateGasBoundaryLayerSlot(*state,slot,worker);
++            ugkwp::evaluateGasBoundaryLayerSlot<Capture>(*state,slot,worker);
+     }
+ }
+diff --git a/validation/solvers/gasUGKP/tests/test_boundary_layer_lifecycle.py b/validation/solvers/gasUGKP/tests/test_boundary_layer_lifecycle.py
+index 3a71fd3..35159ef 100644
+--- a/validation/solvers/gasUGKP/tests/test_boundary_layer_lifecycle.py
++++ b/validation/solvers/gasUGKP/tests/test_boundary_layer_lifecycle.py
+@@ -112,8 +112,8 @@ int cudaMemcpy(void* dst,const void* src,std::size_t n,int){
+  std::memcpy(dst,src,n);return cudaSuccess;
+ }
+ ''')
+-    from test_boundary_layer_storage import snapshot_release_probe
+-    return pre+sync+'\n'+scrub+snapshot_release_probe()+r'''
++    from test_boundary_layer_storage import snapshot_release_probe, profile_dispatch_fixture
++    return profile_dispatch_fixture(pre)+sync+'\n'+scrub+snapshot_release_probe()+r'''
+ const int cudaDevAttrMultiProcessorCount=1;
+ int cudaGetDevice(int*p){*p=0;return 0;}
+ int cudaDeviceGetAttribute(int*p,int,int){*p=80;return 0;}
+diff --git a/validation/solvers/gasUGKP/tests/test_boundary_layer_profiles.py b/validation/solvers/gasUGKP/tests/test_boundary_layer_profiles.py
+new file mode 100644
+index 0000000..9bc3bc9
+--- /dev/null
++++ b/validation/solvers/gasUGKP/tests/test_boundary_layer_profiles.py
+@@ -0,0 +1,45 @@
++"""Native profile opt-in/download/reconfiguration using the host CUDA shim."""
++import subprocess
++from test_boundary_layer_lifecycle import _publication_probe
++from test_shared_gas_adapter import ROOT
++
++
++def test_profile_storage_is_opt_in_and_release_resets_capture_dispatch(tmp_path):
++    pre=_publication_probe().split('int main(int argc',1)[0]
++    source=pre+r'''
++#include "applications/gasUGKP/private_backend/BoundaryLayerProfileAdapter.cuh"
++int main(){
++ DeviceState state,device;state.deviceState=&device;
++ assert(!state.gasBoundaryLayerModel.profile && allocations==0);
++ assert(state.gasBoundaryLayerLaunch==&launchBoundaryLayer<false>);
++ state.gasBoundaryLayer.enabled=true;state.gasBoundaryLayer.count=2;
++ state.gasBoundaryLayerModel.config.nodes=24;
++ auto& model=state.gasBoundaryLayerModel;
++ assert(ugkwpGpuResidentStrictEnableBoundaryLayerProfilesV1(&state)==0);
++ assert(allocations==1&&model.profile==device.gasBoundaryLayerModel.profile);
++ assert(state.gasBoundaryLayerLaunch==&launchBoundaryLayer<true>);
++ assert((state.gasBoundaryLayerSnapshot==&sharedGasTrialDetail::snapshotWallRecords<true,DeviceState>));
++ const auto* allocated=model.profile;
++ assert(ugkwpGpuResidentStrictEnableBoundaryLayerProfilesV1(&state)==0&&allocations==1&&model.profile==allocated);
++ for(int i=0;i<2*24*9;++i)model.profile[i]=.5+i;
++ ugkwp::GasBoundaryLayerExchange<double> exchange[2];state.gasBoundaryLayer.exchange=exchange;
++ double rows[2*24*9],stageTime=-1;
++ assert(ugkwpGpuResidentStrictDownloadBoundaryLayerProfilesV1(&state,2,24,2,rows,&stageTime)!=0);
++ exchange[0].ready=exchange[1].ready=true;state.gasBoundaryLayerStageTime=1.125;
++ assert(ugkwpGpuResidentStrictDownloadBoundaryLayerProfilesV1(&state,2,24,2,rows,&stageTime)==0);
++ assert(stageTime==1.125);for(int i=0;i<2*24*9;++i)assert(rows[i]==.5+i);
++ state.gasBoundaryLayer.exchange=nullptr; // stack-owned shim readiness array
++ assert(releaseBoundaryLayerStorage(state)==0&&allocations==0);
++ assert(!model.profile&&state.gasBoundaryLayerLaunch==&launchBoundaryLayer<false>);
++ assert((state.gasBoundaryLayerSnapshot==&sharedGasTrialDetail::snapshotWallRecords<false,DeviceState>));
++ // Reconfigure without requesting output: no profile allocation or capture.
++ state.gasBoundaryLayer.enabled=true;state.gasBoundaryLayer.count=1;
++ assert(!model.profile&&state.gasBoundaryLayerLaunch==&launchBoundaryLayer<false>);
++ assert(releaseBoundaryLayerStorage(state)==0&&allocations==0);
++}
++'''
++    cpp=tmp_path/'profiles.cpp';cpp.write_text(source);exe=tmp_path/'profiles'
++    build=subprocess.run(['g++','-std=c++17','-O1','-I'+str(ROOT),'-I'+str(ROOT/'common'),str(cpp),'-o',str(exe)],capture_output=True,text=True)
++    assert build.returncode==0,build.stderr
++    run=subprocess.run([str(exe)],capture_output=True,text=True)
++    assert run.returncode==0,run.stderr
+diff --git a/validation/solvers/gasUGKP/tests/test_boundary_layer_storage.py b/validation/solvers/gasUGKP/tests/test_boundary_layer_storage.py
+index 92e25e3..e4843ac 100644
+--- a/validation/solvers/gasUGKP/tests/test_boundary_layer_storage.py
++++ b/validation/solvers/gasUGKP/tests/test_boundary_layer_storage.py
+@@ -4,6 +4,23 @@ import subprocess
+ from test_shared_gas_adapter import ADAPTER_PROBE, ROOT
+ 
+ 
++def profile_dispatch_fixture(source):
++    """Host shim supplies the same startup dispatch slots as the native resident."""
++    declarations = """
++struct DeviceState;
++template<bool Capture> int launchBoundaryLayer(DeviceState*) {return 0;}
++namespace sharedGasTrialDetail {
++template<bool Capture,class State> int snapshotWallRecords(State*,SharedGasTrialSnapshot&,bool) {return 0;}
++}
++"""
++    fields = """
++ int (*gasBoundaryLayerLaunch)(DeviceState*)=&launchBoundaryLayer<false>;
++ int (*gasBoundaryLayerSnapshot)(DeviceState*,SharedGasTrialSnapshot&,bool)=
++     &sharedGasTrialDetail::snapshotWallRecords<false,DeviceState>;
++"""
++    return source.replace('struct DeviceState {', declarations+'struct DeviceState {'+fields)
++
++
+ def snapshot_release_probe():
+     """Use the existing production snapshot ownership functions, not a mock."""
+     text=(ROOT/'applications/gasUGKP/private_backend/SharedGasTrialPolicy.cuh').read_text()
+@@ -24,7 +41,7 @@ def test_boundary_layer_native_storage_is_atomic_and_scratch_bounded(tmp_path):
+  int *faceOwner=nullptr,*faceNeighbour=nullptr,*gasBoundaryKind=nullptr;
+  double *V=nullptr,*magSf=nullptr;
+ ''')
+-    body=pre+snapshot_release_probe()+r'''
++    body=profile_dispatch_fixture(pre)+snapshot_release_probe()+r'''
+ static int deviceQueries=0;
+ const int cudaDevAttrMultiProcessorCount=1;
+ int cudaGetDevice(int*p){*p=0;return 0;}
+diff --git a/validation/solvers/gasUGKP/tests/test_shared_gas_trial_policy.py b/validation/solvers/gasUGKP/tests/test_shared_gas_trial_policy.py
+index 7197a33..808c987 100644
+--- a/validation/solvers/gasUGKP/tests/test_shared_gas_trial_policy.py
++++ b/validation/solvers/gasUGKP/tests/test_shared_gas_trial_policy.py
+@@ -3,10 +3,12 @@ from validation.tools.paths import SOURCE_ROOT, VALIDATION_ROOT, CASES_ROOT
+ 
+ from pathlib import Path
+ import subprocess
++import pytest
+ 
+ ROOT=SOURCE_ROOT
+ 
+-def test_trial_and_requested_interval_rollback_restore_accepted_state(tmp_path):
++@pytest.mark.parametrize("profiles",[False,True])
++def test_trial_and_requested_interval_rollback_restore_accepted_state(tmp_path,profiles):
+     scalar_fields="rho rhoUx rhoUy rhoUz rhoE Ux Uy Uz p Tgas gasFluxPositivityScale gasDiffusionNumber sstSourceNumber rhoK rhoOmega k omega nut gasBoundaryRho gasBoundaryUx gasBoundaryUy gasBoundaryUz gasBoundaryP gasBoundaryT V".split()
+     declarations="\n".join("double* "+name+"=nullptr;" for name in scalar_fields)
+     assignments="\n".join(f"double {name}[2]={{1,1}};state.{name}={name};" for name in scalar_fields)
+@@ -34,7 +36,13 @@ template<class T>int allocate(T*&p,std::size_t n,const char*){p=n?static_cast<T*
+ template<class T>int copyToDevice(T*d,const T*s,std::size_t n,const char*){if(n)std::memcpy(d,s,n*sizeof(T));return 0;}
+ template<class T>int copyToHost(T*d,const T*s,std::size_t n,const char*){if(hostCopyFailAfter==0){hostCopyFailAfter=-1;return 1;}if(hostCopyFailAfter>0)--hostCopyFailAfter;if(n)std::memcpy(d,s,n*sizeof(T));return 0;}
+ #include "applications/gasUGKP/private_backend/SharedGasTrialFields.H"
++struct DeviceState;
++namespace sharedGasTrialDetail {
++template<bool Capture,class State> int snapshotWallRecords(State*,SharedGasTrialSnapshot&,bool);
++}
+ struct DeviceState{
++ int (*gasBoundaryLayerSnapshot)(DeviceState*,SharedGasTrialSnapshot&,bool)=
++     &sharedGasTrialDetail::snapshotWallRecords<false,DeviceState>;
+  ugkwp::GasSpeciesState<double,2> gasSpecies;
+  SharedGasTrialStorage gasTrial;
+  ugkwp::GasBoundaryLayerState<double> gasBoundaryLayer;
+@@ -62,6 +70,10 @@ int main(){
+  state.gasBoundaryLayer.enabled=true;state.gasBoundaryLayer.count=1;state.gasBoundaryLayer.exchange=wallExchange;
+  state.gasBoundaryLayer.sst=wallClosure;state.gasBoundaryLayer.status=wallStatus;state.gasBoundaryLayer.speciesFlux=wallSpecies;
+  state.gasBoundaryLayerModel.input=wallInput;state.gasBoundaryLayerModel.output=wallOutput;state.gasBoundaryLayerModel.status=coreStatus;state.gasBoundaryLayerModel.faces=wallFace;
++ double profile[24*9];for(int i=0;i<24*9;++i)profile[i]=i+.25;
++ if(__PROFILES__){state.gasBoundaryLayerModel.profile=profile;
++   state.gasBoundaryLayerSnapshot=&sharedGasTrialDetail::snapshotWallRecords<true,DeviceState>;}
++ else assert(!state.gasBoundaryLayerModel.profile);
+  state.gasBoundaryLayer.preparedTime=2;state.gasBoundaryLayer.preparedInterval=.25;
+  assert(SharedGasTrialPolicy::beginInterval(&state)==0);
+  assert(SharedGasTrialPolicy::begin(&state)==0);
+@@ -72,6 +84,7 @@ int main(){
+  assert(SharedGasTrialPolicy::commit(&state)==0);
+  assert(SharedGasTrialPolicy::begin(&state)==0);
+  state.rho[0]=9;partial[0]=-1;state.gasBoundaryP[0]=8;
++ if(__PROFILES__)for(double& v:profile)v=-7;
+  wallOutput[0].conductiveHeatFlux=123;wallInput[0].temperature=555;wallExchange[0].ready=true;state.gasBoundaryLayerStageTime=9;state.gasBoundaryLayer.preparedTime=9;state.gasBoundaryLayer.preparedInterval=.01;
+  cellStatus[0]=int(ugkwp::GasTransportCode::InvalidStorage);
+  assert(SharedGasTrialPolicy::validate(&state)!=0);
+@@ -79,9 +92,15 @@ int main(){
+  SharedGasTrialPolicy::rollback(&state);
+  assert(state.rho[0]==1.1 && partial[0]==.5 && state.gasBoundaryP[0]==2);
+  assert(wallOutput[0].conductiveHeatFlux==0&&wallInput[0].temperature==0&&!wallExchange[0].ready&&state.gasBoundaryLayerStageTime==0);
++ if(__PROFILES__)for(int i=0;i<24*9;++i)assert(profile[i]==i+.25);
++ const std::size_t baseBytes=sizeof(wallExchange)+sizeof(wallClosure)+sizeof(wallStatus)
++   +sizeof(wallSpecies)+sizeof(wallInput)+sizeof(wallOutput)+sizeof(coreStatus);
++ assert(state.gasTrial.trial.wallRecordBytes==baseBytes+(__PROFILES__?sizeof(profile):0));
+  assert(!state.gasBoundaryLayer.preparedFirstStage);
+  assert(state.gasBoundaryLayer.preparedTime==2&&state.gasBoundaryLayer.preparedInterval==.25);
++ if(__PROFILES__)profile[0]=-99;
+  SharedGasTrialPolicy::rollbackInterval(&state);
++ if(__PROFILES__)assert(profile[0]==.25);
+  assert(state.rho[0]==1 && partial[0]==.4 && state.gasBoundaryP[0]==1);
+  assert(cellStatus[0]==0 && faceStatus[0]==0);
+  assert(SharedGasTrialPolicy::begin(&state)==0);
+@@ -120,7 +139,7 @@ int main(){
+  releaseSharedGasTrialStorage(state.gasTrial);
+  assert(allocations==0);
+ }
+-'''.replace('__DECLARATIONS__',declarations).replace('__ASSIGNMENTS__',assignments)
++'''.replace('__DECLARATIONS__',declarations).replace('__ASSIGNMENTS__',assignments).replace('__PROFILES__','true' if profiles else 'false')
+     source=tmp_path/"probe.cpp";source.write_text(code);binary=tmp_path/"probe"
+     build=subprocess.run(["g++","-std=c++17","-Wall","-Wextra","-Werror","-I",str(ROOT),str(source),"-o",str(binary)],capture_output=True,text=True)
+     assert build.returncode==0,build.stderr
+diff --git a/validation/tests/gas_wall/test_wall_profile_output.py b/validation/tests/gas_wall/test_wall_profile_output.py
+new file mode 100644
+index 0000000..517f862
+--- /dev/null
++++ b/validation/tests/gas_wall/test_wall_profile_output.py
+@@ -0,0 +1,95 @@
++"""Output-event profiles preserve the actual solved nodes and species ordering."""
++from test_wall_model import compile_run
++
++
++def test_actual_profile_nodes_and_dependent_species(tmp_path):
++    compile_run(tmp_path, r'''
++ Model m; WallModelConfig<double> c; c.nodes=24;
++ WallWorkspace<double,2,24> w; WallOutput<double,2> o; WallStatus status;
++ m.in.matching.massFraction[0]=.2; m.in.matching.massFraction[1]=.8;
++ m.in.velocity[0]=3; m.in.velocity[2]=-2;
++ assert(evaluateWallModel(m.in,c,w,o,status));
++ for(int node=0;node<c.nodes;++node) {
++   WallProfileNode<double,2> p;
++   assert(reactingWallProfileNode(m.in,c,w,node,p));
++   assert(p.y==w.y[node]); assert(p.temperature==m.in.temperature+w.state[node][2]);
++   assert(p.massFraction[0]==w.state[node][3]);
++   assert(p.massFraction[1]==1-w.state[node][3]);
++   assert(near(p.velocity[0],m.in.velocity[0]+w.state[node][0]));
++   assert(near(p.velocity[2],m.in.velocity[2]-w.state[node][1]));
++ }
++ ''')
++
++
++def test_capture_on_off_preserves_physical_result_and_all_species(tmp_path):
++    from test_wall_model import BASE, ROOT
++    import subprocess
++    source = tmp_path / 'capture.cpp'
++    source.write_text(BASE + r'''
++#include "common/gasTransport/GasBoundaryLayerModelState.H"
++#include <cstring>
++int main(){
++ Model m;WallModelConfig<double> c;c.nodes=24;
++ m.in.model.mode=GasMode::MixtureChemistry;
++ WallWorkspace<double,2,24> off,on;WallOutput<double,2> a,b;WallStatus sa,sb;
++ double data[24*9];for(double& x:data)x=-12345;
++ assert(ugkwp::evaluateGasBoundaryLayerWorkspace<false>(m.in,c,off,a,sa,data));
++ for(double x:data)assert(x==-12345); // default specialization performs no capture
++ assert(ugkwp::evaluateGasBoundaryLayerWorkspace<true>(m.in,c,on,b,sb,data));
++ assert(std::memcmp(&a,&b,sizeof(a))==0);
++ assert(std::memcmp(off.state,on.state,sizeof(off.state))==0);
++ assert(sa.code==sb.code&&sa.iteration==sb.iteration&&sa.residual==sb.residual);
++ for(int node=0;node<24;++node){WallProfileNode<double,2> p;
++   assert(reactingWallProfileNode(m.in,c,on,node,p));const double* row=data+9*node;
++   assert(row[0]==on.y[node]);assert(row[4]==p.temperature);
++   assert(row[7]==p.massFraction[0]&&row[8]==p.massFraction[1]);
++   assert(near(row[7]+row[8],1));
++ }
++}
++''')
++    exe=tmp_path/'capture'
++    result=subprocess.run(['g++','-std=c++17','-O2','-I'+str(ROOT),'-I'+str(ROOT/'common'),str(source),'-o',str(exe)],capture_output=True,text=True)
++    assert result.returncode==0,result.stderr
++    result=subprocess.run([str(exe)],capture_output=True,text=True)
++    assert result.returncode==0,result.stderr
++
++
++def test_csv_metadata_species_names_and_distinct_stage_write_times(tmp_path):
++    from test_wall_model import ROOT
++    import subprocess
++    import csv
++    source=tmp_path/'csv.cpp'
++    source.write_text(r'''
++#include "common/gasTransport/GasBoundaryLayerProfileOutput.H"
++#include <iostream>
++int main(){std::vector<int> faces{17};std::vector<double> centres{.1,.2,.3},geometry{0,1,0,.1,.2,1,.1};
++ std::vector<std::string> species{"air","CO2"};double rows[24*9];
++ for(int node=0;node<24;++node)for(int col=0;col<9;++col)rows[9*node+col]=100*node+col;
++ ugkwp::writeGasBoundaryLayerProfiles(std::cout,faces,centres,geometry,species,24,rows,1.125,1.25);
++}
++''')
++    exe=tmp_path/'csv'
++    subprocess.run(['g++','-std=c++17','-I'+str(ROOT),str(source),'-o',str(exe)],check=True)
++    output=subprocess.run([str(exe)],capture_output=True,text=True,check=True).stdout
++    rows=list(csv.DictReader(output.splitlines()))
++    assert len(rows)==24
++    for i,row in enumerate(rows):
++        assert int(row['face'])==17 and int(row['node'])==i
++        assert float(row['faceX'])==.1 and float(row['normalY'])==1
++        assert float(row['stageTime'])==1.125 and float(row['outputTime'])==1.25
++        assert float(row['Y_air'])==100*i+7 and float(row['Y_CO2'])==100*i+8
++
++
++def test_profile_switch_is_startup_only_and_download_stays_in_write_path():
++    from test_wall_model import ROOT
++    adapter=(ROOT/'applications/gasUGKP/gpu/BoundaryLayerInput.H').read_text()
++    driver=(ROOT/'applications/gasUGKP/diluteUgkwpFoam.C').read_text()
++    assert adapter.count('lookupOrDefault<bool>("writeProfiles",false)')==1
++    constructor=adapter.split('    BoundaryLayerInput(',1)[1].split('    bool active()',1)[0]
++    assert 'lookupOrDefault<bool>("writeProfiles",false)' in constructor
++    write=adapter.split('    void writeDiagnostics(',1)[1]
++    assert '(this->*profileWriter_)(time,handle)' in write
++    assert 'profileWriter_=&BoundaryLayerInput::skipProfiles' in adapter
++    branch=driver.split('if (runTime.writeTime())',1)[1]
++    assert 'resident.writeBoundaryLayerDiagnostics(boundaryLayerInput, runTime);' in branch
++    assert driver.count('resident.writeBoundaryLayerDiagnostics(')==1
+-- 
+2.52.0
+
