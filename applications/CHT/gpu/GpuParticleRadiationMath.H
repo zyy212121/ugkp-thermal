@@ -15,12 +15,13 @@ namespace Foam
 namespace gpuThermal
 {
 
+template<class Real>
 GPU_PARTICLE_RADIATION_HD inline bool finiteRadiationMathValue
 (
-    const GpuReal value
+    const Real value
 ) noexcept
 {
-    const GpuReal maximum = GPU_LARGE(1.7976931348623157e+308);
+    const Real maximum = std::numeric_limits<Real>::max();
     return value == value && value >= -maximum && value <= maximum;
 }
 
@@ -57,11 +58,6 @@ radiationAffineTemperatureUpdate
      || !finiteRadiationMathValue(meanTemperatureK)
      || !finiteRadiationMathValue(minimumTemperatureK)
      || !finiteRadiationMathValue(maximumTemperatureK)
-     || particleMassKg < GPU_R(0.0)
-     || !(heatFactorJkgK > GPU_R(0.0))
-     || !(minimumTemperatureK < maximumTemperatureK)
-     || meanTemperatureK < minimumTemperatureK
-     || meanTemperatureK > maximumTemperatureK
     )
     {
         return RadiationAffineTemperatureUpdate{invalid, invalid};
@@ -81,7 +77,7 @@ radiationAffineTemperatureUpdate
     if
     (
         !finiteRadiationMathValue(capacityJPerK)
-     || !(capacityJPerK > GPU_R(0.0))
+     || capacityJPerK == GPU_R(0.0)
     )
     {
         return RadiationAffineTemperatureUpdate{invalid, invalid};
@@ -98,7 +94,7 @@ radiationAffineTemperatureUpdate
     if
     (
         !finiteRadiationMathValue(availableEnergyJ)
-     || !(availableEnergyJ > GPU_R(0.0))
+     || availableEnergyJ == GPU_R(0.0)
     )
     {
         return RadiationAffineTemperatureUpdate{invalid, invalid};
@@ -108,8 +104,6 @@ radiationAffineTemperatureUpdate
     if
     (
         !finiteRadiationMathValue(fraction)
-     || !(fraction > GPU_R(0.0))
-     || fraction > GPU_R(1.0)
     )
     {
         return RadiationAffineTemperatureUpdate{invalid, invalid};
@@ -138,8 +132,6 @@ GPU_PARTICLE_RADIATION_HD inline GpuReal applyRadiationAffineTemperature
         !finiteRadiationMathValue(oldTemperatureK)
      || !finiteRadiationMathValue(update.scale)
      || !finiteRadiationMathValue(update.offset)
-     || update.scale < GPU_R(0.0)
-     || update.scale > GPU_R(1.0)
     )
     {
         return invalidRadiationMathValue();
@@ -165,8 +157,6 @@ GPU_PARTICLE_RADIATION_HD inline GpuReal radiationDeltaTemperature
         !finiteRadiationMathValue(energyJ)
      || !finiteRadiationMathValue(particleMassKg)
      || !finiteRadiationMathValue(heatFactorJkgK)
-     || particleMassKg < GPU_R(0.0)
-     || !(heatFactorJkgK > GPU_R(0.0))
     )
     {
         return invalidRadiationMathValue();
@@ -185,7 +175,7 @@ GPU_PARTICLE_RADIATION_HD inline GpuReal radiationDeltaTemperature
     if
     (
         !finiteRadiationMathValue(capacityJPerK)
-     || !(capacityJPerK > GPU_R(0.0))
+     || capacityJPerK == GPU_R(0.0)
     )
     {
         return invalidRadiationMathValue();
@@ -195,7 +185,6 @@ GPU_PARTICLE_RADIATION_HD inline GpuReal radiationDeltaTemperature
     if
     (
         !finiteRadiationMathValue(deltaTemperatureK)
-     || (energyJ != GPU_R(0.0) && deltaTemperatureK == GPU_R(0.0))
     )
     {
         return invalidRadiationMathValue();
@@ -216,8 +205,6 @@ GPU_PARTICLE_RADIATION_HD inline GpuReal radiationParticleEnergyChange
         !finiteRadiationMathValue(particleMassKg)
      || !finiteRadiationMathValue(heatFactorJkgK)
      || !finiteRadiationMathValue(deltaTemperatureK)
-     || particleMassKg < GPU_R(0.0)
-     || !(heatFactorJkgK > GPU_R(0.0))
     )
     {
         return invalidRadiationMathValue();
@@ -231,7 +218,6 @@ GPU_PARTICLE_RADIATION_HD inline GpuReal radiationParticleEnergyChange
     if
     (
         !finiteRadiationMathValue(capacityJPerK)
-     || !(capacityJPerK > GPU_R(0.0))
     )
     {
         return invalidRadiationMathValue();
@@ -241,12 +227,6 @@ GPU_PARTICLE_RADIATION_HD inline GpuReal radiationParticleEnergyChange
     if
     (
         !finiteRadiationMathValue(energyJ)
-     ||
-        (
-            particleMassKg != GPU_R(0.0)
-         && deltaTemperatureK != GPU_R(0.0)
-         && energyJ == GPU_R(0.0)
-        )
     )
     {
         return invalidRadiationMathValue();

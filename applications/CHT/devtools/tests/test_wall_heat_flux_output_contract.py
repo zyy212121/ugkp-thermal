@@ -26,6 +26,6 @@ def test_fluxes_use_their_own_integrated_ledger_intervals():
     assert "energy[faceI]/(area[faceI]*elapsedSinceRadiation)" in text
     assert "radiation().solidWallRadiationEnergyJ[patchI]" in text
     assert "peekParticleWallHeatLedgers" in text
-    assert "downloadAndResetParticleWallHeatLedgers" in text
+    assert "resetParticleWallHeatLedgers" in text
     assert "particleDepositedPreview[globalFaceI]" in text
     assert "particleReflectedPreview[globalFaceI]" in text

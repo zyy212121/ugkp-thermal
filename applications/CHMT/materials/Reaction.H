@@ -16,18 +16,20 @@ CHMT_HD inline SolidQ addSolid(const SolidQ& a, const SolidQ& b, Real scale=1) {
     return out;
 }
 
+template<bool Terminal=false>
 CHMT_HD inline bool recoverMaterial(const SolidQ& q, Real volume, const PhysicsConfig& p,
-    MaterialPrimitive& out, DeviceStatus* status=nullptr, int index=-1) {
-    if (!finite(volume) || volume<=0) {
+    MaterialPrimitive& out, DeviceStatus* status=nullptr, int index=-1,bool* numericalFailure=nullptr) {
+    if(numericalFailure)*numericalFailure=true;
+    if (!Terminal && (!finite(volume) || volume<=0)) {
         return failStatus(status,ErrorCode::InvalidInput,index,volume,ErrorLocation::Cell);
     }
     Real occupied=0, poreMass=0, poreR=0, conductivity=0;
     for (int c=0; c<Nc; ++c) {
-        if (!finite(q.condensed[c]) || q.condensed[c]<0) {
+        if (!Terminal && (!finite(q.condensed[c]) || q.condensed[c]<0)) {
             return failStatus(status,ErrorCode::Inventory,index,q.condensed[c],ErrorLocation::Cell);
         }
         if (q.condensed[c]==0) continue;
-        if (!validCondensed(p.condensed[c])) {
+        if (!Terminal && !validCondensed(p.condensed[c])) {
             return failStatus(status,ErrorCode::PropertyRange,index,c,ErrorLocation::Cell);
         }
         const Real constituentVolume=q.condensed[c]/p.condensed[c].rho;
@@ -38,26 +40,26 @@ CHMT_HD inline bool recoverMaterial(const SolidQ& q, Real volume, const PhysicsC
     if (absValue(occupied-volume)<=32*std::numeric_limits<Real>::epsilon()*maxValue(occupied,volume)) {
         phi=0; // Derived geometry roundoff only; no mass or energy is altered.
     }
-    if (!(occupied>0) || !finite(phi) || phi<p.material.minimumPorosity
-        || phi>=p.material.maximumPorosity || phi>=1) {
+    if (!Terminal && (!(occupied>0) || !finite(phi) || phi<p.material.minimumPorosity
+        || phi>=p.material.maximumPorosity || phi>=1)) {
         return failStatus(status,ErrorCode::Inventory,index,phi,ErrorLocation::Cell);
     }
     SolidQ thermal=q;
     thermal.porosity=phi;
     MaterialPrimitive next;
-    if (!recoverSolid(thermal,p,next.temperature,status,index)) return false;
+    if (!recoverSolid<Terminal>(thermal,p,next.temperature,status,index,numericalFailure)) return false;
     for (int s=0; s<Ns; ++s) {
         poreMass+=q.pore[s];
         poreR+=q.pore[s]*p.species[s].R;
     }
-    if ((poreMass>0 && phi<=0) || !finite(poreMass) || !finite(poreR)) {
+    if (!Terminal && ((poreMass>0 && phi<=0) || !finite(poreMass) || !finite(poreR))) {
         return failStatus(status,ErrorCode::Inventory,index,poreMass,ErrorLocation::Cell);
     }
     next.porosity=phi;
     next.poreDensity=phi>0 ? poreMass/(phi*volume) : 0;
     next.pressure=phi>0 ? poreR*next.temperature/(phi*volume) : 0;
     next.conductivity=conductivity+(poreMass>0 ? phi*p.gasConductivity : 0);
-    if (!finite(next.pressure) || !finite(next.conductivity) || next.conductivity<0) {
+    if (!Terminal && (!finite(next.pressure) || !finite(next.conductivity) || next.conductivity<0)) {
         return failStatus(status,ErrorCode::Nonfinite,index,next.pressure,ErrorLocation::Cell);
     }
     out=next;
@@ -69,18 +71,21 @@ CHMT_HD inline bool recoverMaterial(const SolidQ& q, Real volume, const PhysicsC
 // a midpoint-generated intermediate absent from the accepted base, even when
 // simultaneous production leaves its final inventory positive. Shared-donor
 // losses still add before applying the one conservative mechanism-wide factor.
+template<bool Terminal=false>
 CHMT_HD inline bool boundedReactionRates(const SolidQ& evaluation, const SolidQ& capacity,
     Real volume, const PhysicsConfig& p, Real dt, Real* rates,
-    DeviceStatus* status=nullptr, int index=-1) {
-    if (!finite(dt) || dt<=0 || !rates) return false;
+    DeviceStatus* status=nullptr, int index=-1,bool* numericalFailure=nullptr) {
+    if(numericalFailure)*numericalFailure=true;
+    if(!rates){if(numericalFailure)*numericalFailure=false;return false;}
+    if(!Terminal&&(!finite(dt)||dt<=0))return false;
     for (int r=0; r<Nr; ++r) rates[r]=0;
     if (!p.enableReactions) return true;
     Real T=0;
-    if (!recoverSolid(evaluation,p,T,status,index)) return false;
+    if (!recoverSolid<Terminal>(evaluation,p,T,status,index,numericalFailure)) return false;
     SolidQ consumption;
     for (int r=0; r<p.nReactions; ++r) {
-        rates[r]=reactionRate(p.reactions[r],evaluation.condensed,volume,T);
-        if (!finite(rates[r]) || rates[r]<0) return false;
+        rates[r]=reactionRate<Terminal>(p.reactions[r],evaluation.condensed,volume,T);
+        if (!Terminal&&(!finite(rates[r]) || rates[r]<0)) return false;
         for (int c=0; c<Nc; ++c) {
             consumption.condensed[c]-=rates[r]*p.reactions[r].condensedNu[c];
         }
@@ -95,15 +100,17 @@ CHMT_HD inline bool boundedReactionRates(const SolidQ& evaluation, const SolidQ&
     for (int species=0; species<Ns; ++species) if (consumption.pore[species]>0) {
         factor=minValue(factor,capacity.pore[species]/(dt*consumption.pore[species]));
     }
-    if (!finite(factor) || factor<0) return false;
+    if (!Terminal&&(!finite(factor) || factor<0)) return false;
     for (int r=0; r<p.nReactions; ++r) rates[r]*=factor;
     return true;
 }
+template<bool Terminal=false>
 CHMT_HD inline bool advanceLocalReactions(const SolidQ& base, Real volume,
     const PhysicsConfig& p, Real dt, SolidQ& out, Real* rates,
-    DeviceStatus* status=nullptr, int index=-1) {
+    DeviceStatus* status=nullptr, int index=-1,bool* numericalFailure=nullptr) {
+    if(numericalFailure)*numericalFailure=true;
     Real localRates[Nr]{};
-    if (!boundedReactionRates(base,base,volume,p,dt,localRates,status,index)) return false;
+    if (!boundedReactionRates<Terminal>(base,base,volume,p,dt,localRates,status,index,numericalFailure)) return false;
     SolidQ next=base;
     for (int r=0; r<p.nReactions; ++r) {
         const Real extent=dt*localRates[r];
@@ -113,7 +120,7 @@ CHMT_HD inline bool advanceLocalReactions(const SolidQ& base, Real volume,
     }
     for (int r=0; r<Nr; ++r) if (rates) rates[r]=localRates[r];
     MaterialPrimitive state;
-    if (!recoverMaterial(next,volume,p,state,status,index)) return false;
+    if (!recoverMaterial<Terminal>(next,volume,p,state,status,index,numericalFailure)) return false;
     next.porosity=state.porosity;
     out=next; return true;
 }
@@ -136,34 +143,41 @@ CHMT_HD inline Real seriesConductance(Real k0, Real k1, Real d0, Real d1) {
     return 1/(d0/k0+d1/k1);
 }
 
+template<bool Terminal=false>
 CHMT_HD inline bool darcyConductionFluxWithGradient(const SolidQ& left, const SolidQ& right,
     const MaterialPrimitive& a, const MaterialPrimitive& b, Real volumeA, Real volumeB,
     Real area, Real distance, Vec3 normal, Real normalPressureGradient,
     const PhysicsConfig& p, SolidQ& out) {
-    if (!(volumeA>0 && volumeB>0 && area>0 && distance>0)
-        || !finite(normal) || !finite(normalPressureGradient)) return false;
+    if (!Terminal&&(!(volumeA>0 && volumeB>0 && area>0 && distance>0)
+        || !finite(normal) || !finite(normalPressureGradient))) return false;
     SolidQ flux;
     Real volumeRate=0;
     if (p.permeability>0) {
-        if (!(p.poreViscosity>0)) return false;
+        if (!Terminal&&!(p.poreViscosity>0)) return false;
         const Real rho=0.5*(a.poreDensity+b.poreDensity);
         volumeRate=-area*p.permeability/p.poreViscosity
             *(normalPressureGradient-rho*dot(p.gravity,normal));
     }
-    if (!finite(volumeRate)) return false;
+    if (!Terminal&&!finite(volumeRate)) return false;
     const SolidQ& donor=volumeRate>=0 ? left : right;
     const MaterialPrimitive& state=volumeRate>=0 ? a : b;
     const Real volume=volumeRate>=0 ? volumeA : volumeB;
-    if (volumeRate!=0 && state.porosity<=0) return false;
+    if (!Terminal&&volumeRate!=0 && state.porosity<=0) return false;
     for (int s=0; s<Ns; ++s) {
         flux.pore[s]=state.porosity>0 ? volumeRate*donor.pore[s]/(state.porosity*volume) : 0;
         // Dry/no-Darcy faces transport no gas enthalpy. Their inactive gas
         // tables may be absent; never turn zero transport into 0*NaN.
-        if(flux.pore[s]!=0)flux.energy+=flux.pore[s]*speciesH(p.species[s],state.temperature);
+        if(flux.pore[s]!=0){
+            Real enthalpy=speciesH(p.species[s],state.temperature);
+            if(Terminal&&!finite(enthalpy)){const GasThermoAdapter<1> thermo(&p.species[s]);Real energy,capacity;
+                if(terminalSpeciesCaloric(0,state.temperature,thermo.view(),energy,capacity,&p.species[s])!=ugkwp::ThermoStatus::Success)return false;
+                enthalpy=energy+terminalGasConstant(p.species[s])*state.temperature;}
+            flux.energy+=flux.pore[s]*enthalpy;
+        }
     }
     flux.energy+=area*seriesConductance(a.conductivity,b.conductivity,distance/2,distance/2)
         *(a.temperature-b.temperature);
-    if (!finite(flux.energy)) return false;
+    if (!Terminal&&!finite(flux.energy)) return false;
     out=flux;
     return true;
 }

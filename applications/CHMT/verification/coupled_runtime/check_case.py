@@ -16,7 +16,8 @@ import struct
 
 
 # Schema 6 adds wall-model controls to configuration; the state tail is unchanged.
-FIELD_SCHEMA_HASH = 15664811910203657810
+FIELD_SCHEMA_HASH = 11438850135072464462
+FIELD_SCHEMA_HASHES = {6: FIELD_SCHEMA_HASH, 7: 17469186024084973480}
 HEADER = struct.Struct('<8sQIIIIIIQQQQ')
 ENERGY_ABS = 2e-5  # J; well below the prescribed millijoule-or-larger exchange
 MASS_ABS = 1e-10  # kg
@@ -38,7 +39,11 @@ def csv_rows(path):
         rows = []
         for row in reader:
             require(None not in row and None not in row.values(), f'{path}: incomplete CSV row')
-            values = {key: float(value) for key, value in row.items()}
+            metadata_key = 'sst_chemistry_integral_audit_collection'
+            if metadata_key in row:
+                require(row[metadata_key] == 'NOT_COLLECTED_LEGACY_CHECKPOINT_SLOTS_ONLY',
+                        f'{path}: unexpected audit collection metadata')
+            values = {key: float(value) for key, value in row.items() if key != metadata_key}
             require(all(math.isfinite(value) for value in values.values()), f'{path}: nonfinite value')
             rows.append(values)
         return rows
@@ -48,8 +53,9 @@ def checkpoint_clock(path, species_count):
     wire = Path(path).read_bytes()
     require(len(wire) >= HEADER.size, 'truncated checkpoint header')
     magic, schema, endian, real_size, ns, nc, nr, ne, field_hash, config_size, state_size, digest = HEADER.unpack_from(wire)
-    require((magic, schema, endian, real_size, ns, nc, nr, ne) == (b'CHMTCP2\0', 6, 0x01020304, 8, species_count, 2, 8, 8), 'checkpoint schema/precision/species mismatch')
-    require(field_hash == FIELD_SCHEMA_HASH, 'checkpoint field schema differs from the independently supported layout')
+    require((magic, endian, real_size, ns, nc, nr, ne) == (b'CHMTCP2\0', 0x01020304, 8, species_count, 2, 8, 8)
+            and schema in FIELD_SCHEMA_HASHES, 'checkpoint schema/precision/species mismatch')
+    require(field_hash == FIELD_SCHEMA_HASHES[schema], 'checkpoint field schema differs from the independently supported layout')
     require(config_size > 0 and state_size > 0 and HEADER.size+config_size+state_size == len(wire), 'checkpoint payload length mismatch')
     checksum = 14695981039346656037
     for byte in wire[HEADER.size:]:
@@ -59,8 +65,17 @@ def checkpoint_clock(path, species_count):
     # stores (45 + 5*Ns + Ne) binary64 values and a consumedPackets uint64.
     budget_size = (45+5*ns+ne)*8+8
     tail_size = 32+budget_size
-    require(state_size >= tail_size, 'truncated checkpoint state tail')
-    time, accepted, rejected, commit = struct.unpack_from('<dQQQ', wire, len(wire)-tail_size)
+    state_begin = HEADER.size+config_size
+    legacy_end = len(wire)
+    if wire[-8:] == b'CHMTNUM1':
+        require(state_size >= 24, 'truncated checkpoint numerical extension')
+        extension_size = struct.unpack_from('<Q', wire, len(wire)-16)[0]
+        require(8 <= extension_size <= state_size-16, 'invalid checkpoint numerical extension span')
+        legacy_end = len(wire)-16-extension_size
+        count = struct.unpack_from('<Q', wire, legacy_end)[0]
+        require(extension_size == 8+count*8, 'checkpoint numerical extension byte count mismatch')
+    require(legacy_end-state_begin >= tail_size, 'truncated checkpoint state tail')
+    time, accepted, rejected, commit = struct.unpack_from('<dQQQ', wire, legacy_end-tail_size)
     require(math.isfinite(time) and time >= 0 and accepted == commit, 'checkpoint synchronized clock/counters invalid')
     return dict(time=time, accepted_steps=accepted, commit_sequence=commit, rejected_steps=rejected)
 

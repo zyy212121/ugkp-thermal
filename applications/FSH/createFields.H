@@ -77,51 +77,6 @@ dimensionedScalar legacyRestartParcelMass
     )
 );
 
-if (!finiteScalar(rhoS.value()) || rhoS.value() <= SMALL)
-{
-    FatalErrorInFunction
-        << "ugkwpProperties: rhoS must be positive. Current rhoS = "
-        << rhoS.value() << exit(FatalError);
-}
-
-if (!finiteScalar(dS.value()) || dS.value() <= SMALL)
-{
-    FatalErrorInFunction
-        << "ugkwpProperties: dS must be positive. Current dS = "
-        << dS.value() << exit(FatalError);
-}
-
-if (!finiteScalar(parcelMass.value()) || parcelMass.value() <= SMALL)
-{
-    FatalErrorInFunction
-        << "ugkwpProperties: parcelMass must be positive. Current parcelMass = "
-        << parcelMass.value() << exit(FatalError);
-}
-
-if
-(
-    !finiteScalar(injectionParcelMass.value())
- || injectionParcelMass.value() <= SMALL
-)
-{
-    FatalErrorInFunction
-        << "ugkwpProperties: injectionParcelMass must be positive. Current "
-        << "injectionParcelMass = " << injectionParcelMass.value()
-        << exit(FatalError);
-}
-
-if
-(
-    !finiteScalar(legacyRestartParcelMass.value())
- || legacyRestartParcelMass.value() <= SMALL
-)
-{
-    FatalErrorInFunction
-        << "ugkwpProperties: legacyRestartParcelMass must be positive. "
-        << "Current legacyRestartParcelMass = "
-        << legacyRestartParcelMass.value() << exit(FatalError);
-}
-
 typeIOobject<uniformDimensionedVectorField> gravityHeader
 (
     "g",
@@ -143,17 +98,6 @@ if (gravityHeader.headerOk())
             << exit(FatalError);
     }
     gravityValue = gravityField.value();
-}
-if
-(
-    !finiteScalar(gravityValue.x())
- || !finiteScalar(gravityValue.y())
- || !finiteScalar(gravityValue.z())
-)
-{
-    FatalErrorInFunction
-        << "constant/g must contain a finite vector. Current g = "
-        << gravityValue << exit(FatalError);
 }
 
 volVectorField U

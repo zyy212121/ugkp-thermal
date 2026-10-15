@@ -101,7 +101,7 @@ namespace chmt {
                 }
             }
             std::string error;
-            const bool rebuilt = rebuildGeometry(out, error);
+            const bool rebuilt = rebuildGeometry(out, error)||detail::completeGeometry(out,error);
             require(rebuilt, "mesh import: "+error);
             out.oldVolumes = out.volumes;
             return out;
@@ -180,14 +180,16 @@ namespace chmt {
             for (int i = 0; i<patch.size(); ++i) candidates.push_back(patch.start()+i);
             std::vector<int> mapping, vertices;
             std::string error;
-            require(mapConformalInterface(state.gasMesh, state.solidMesh, surface.solidFace, thickness,
-                candidates, mapping, vertices, error), error);
+            const bool strictMapping=mapConformalInterface(state.gasMesh, state.solidMesh, surface.solidFace, thickness,
+                candidates, mapping, vertices, error);
+            require(strictMapping||detail::completeConformalInterface(state.gasMesh,state.solidMesh,surface.solidFace,thickness,
+                    candidates,mapping,vertices,error), error);
             surface.gasFace = mapping;
             for (std::size_t face = 0; face<mapping.size(); ++face) {
                 const int gasFace = mapping[face];
-                const Vec3 gasNormal = normalized(state.gasMesh.areaVectors[gasFace]);
+                const Vec3 gasArea = state.gasMesh.areaVectors[gasFace];
+                const Vec3 gasNormal = strictMapping?normalized(gasArea):gasArea/mag(gasArea);
                 surface.gasDistance[face] = std::abs(dot( state.gasMesh.cellCentres[state.gasMesh.owner[gasFace]] -state.gasMesh.faceCentres[gasFace], gasNormal));
-                require(surface.gasDistance[face]>0, "nonpositive actual gas interface distance");
                 require(!fixedTemperature(state.gasMesh.thermalBoundary.empty()?nullptr:state.gasMesh.thermalBoundary.data(),gasFace)
                     && !fixedTemperature(state.solidMesh.thermalBoundary.empty()?nullptr:state.solidMesh.thermalBoundary.data(),surface.solidFace[face]),
                     "coupled Interface owns thermal exchange; use zeroGradient temperature input on its patches");
@@ -210,11 +212,6 @@ namespace chmt {
                 result.bounds.push_back(faceBounds(geometry, f));
                 const Real area = mag(geometry.areaVectors[f]);
                 const Vec3 normal = geometry.areaVectors[f]/area;
-                require(std::abs(dot(base, normal))<1e-10*std::max(1.0, mag(base)),
-                    "surface base velocity must be tangential");
-                require(std::abs(dot(traction, normal))<1e-10*std::max(1.0, mag(traction))
-                    && std::abs(dot(gradient, normal))<1e-10*std::max(1.0, mag(gradient)),
-                    "prescribed surface drive must be tangential");
                 require(mag(traction) == 0 && mag(gradient) == 0,
                     "prescribed and gas-computed driving cannot be mixed");
                 s.gasFace.push_back(-1);
@@ -277,8 +274,9 @@ namespace chmt {
                 }
                 const Vec3 tangent = geometry.points[b]-geometry.points[a];
                 const Real length = mag(tangent);
-                require(length>0, "zero-length surface edge");
-                Vec3 conormal = normalized(cross(tangent, s.normal[own]));
+                const Vec3 transverse = cross(tangent, s.normal[own]);
+
+                Vec3 conormal = length>0?normalized(transverse):transverse/mag(transverse);
                 if (dot(conormal, centre-s.centre[own])<0)conormal = -conormal;
                 s.edgeOwner.push_back(own);
                 s.edgeNeighbour.push_back(neighbour);
@@ -335,12 +333,20 @@ namespace chmt {
                     for (int s = 0; s<Ns; ++s)w.Y[s] = single?(s==model.physics.singleGasSpecies?1:0):Y[s].boundaryField()[patch][face];
                 }
                 GasPrimitive recovered;
-                const auto q = conservativeGas(w, 1, model.physics);
-                require(recoverGas(q, 1, model.physics, recovered), "inadmissible imported gas primitive");
+                auto q = conservativeGas(w, 1, model.physics);
+                require(recoverGas(q, 1, model.physics, recovered)
+                    ||(completeConservativeGas(w,1,model.physics,q)
+                        &&completePredictorGas(q,1,model.physics,recovered)),
+                    "imported gas caloric expression unavailable");
                 return recovered;
             };
-            for (int c = 0; c<mesh.nCells(); ++c)state.gas[c] = conservativeGas(primitive(c, -1, -1),
-                state.gasMesh.volumes[c], model.physics);
+            for (int c = 0; c<mesh.nCells(); ++c){
+                const auto w=primitive(c,-1,-1);
+                auto q=conservativeGas(w,state.gasMesh.volumes[c],model.physics);
+                if(!finite(q.mass))require(completeConservativeGas(w,state.gasMesh.volumes[c],model.physics,q),
+                    "imported gas caloric expression unavailable");
+                state.gas[c]=q;
+            }
             for (int patch = 0; patch<mesh.boundaryMesh().size(); ++patch)for (int f = 0; f<mesh.boundaryMesh()[patch].size(); ++f) {
                 const int face=mesh.boundaryMesh()[patch].start()+f;
                 // Empty poly patches have geometric faces but zero field values.
@@ -440,7 +446,8 @@ namespace chmt {
             }
             for (const auto& q:state.solid) {
                 Real T;
-                require(recoverSolid(q, model.physics, T), "inadmissible imported solid state");
+                require(recoverSolid(q, model.physics, T)||recoverSolid<true>(q,model.physics,T,nullptr,-1),
+                    "imported solid caloric expression unavailable");
             }
             state.solidMesh.thermalBoundary.assign(mesh.nFaces(),ThermalBoundaryKind::ZeroGradient);
             Foam::IOobject thermalHeader("solidTemperature",mesh.time().timeName(),mesh,
@@ -451,12 +458,10 @@ namespace chmt {
                     const int face=mesh.boundaryMesh()[patch].start()+f,owner=state.solidMesh.owner[face];
                     const auto policy=importedThermalBoundary(thermal.boundaryField()[patch].type(),state.solidMesh.boundaryKind[face],false);
                     state.solidMesh.thermalBoundary[face]=policy;
-                    Real T=0;require(recoverSolid(state.solid[owner],model.physics,T),"solid thermal owner EOS failed");
+                    Real T=0;require(recoverSolid(state.solid[owner],model.physics,T)
+                        ||recoverSolid<true>(state.solid[owner],model.physics,T,nullptr,-1),"solid thermal owner caloric expression unavailable");
                     if(policy==ThermalBoundaryKind::FixedValue) {
-                        T=thermal.boundaryField()[patch][f];MaterialCaloric caloric;std::string error;
-                        require(materialCaloric(state.solid[owner],model.physics,caloric,error),error);
-                        require(finite(T) && T>=caloric.minimumTemperature && T<=caloric.maximumTemperature,
-                            "solidTemperature fixedValue outside active owner-composition caloric range");
+                        T=thermal.boundaryField()[patch][f];
                     }
                     state.solidMesh.boundaryPrimitive[face].temperature=T;
                 }

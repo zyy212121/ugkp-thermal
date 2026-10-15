@@ -10,6 +10,10 @@
 #include <string>
 #include <unistd.h>
 #include <vector>
+#include <limits>
+#include <limits.h>
+#include <new>
+#include <stdexcept>
 
 namespace
 {
@@ -31,7 +35,7 @@ bool writeAll(const int fd, const void* data, std::uint64_t bytes)
     const unsigned char* p = static_cast<const unsigned char*>(data);
     while (bytes != 0)
     {
-        const ssize_t wrote = ::write(fd, p, static_cast<std::size_t>(bytes));
+        const ssize_t wrote = ::write(fd, p, static_cast<std::size_t>(std::min<std::uint64_t>(bytes,SSIZE_MAX)));
         if (wrote < 0 && errno == EINTR) continue;
         if (wrote <= 0) return false;
         p += wrote;
@@ -40,14 +44,33 @@ bool writeAll(const int fd, const void* data, std::uint64_t bytes)
     return true;
 }
 
+thread_local bool readingFrame=false;
+thread_local std::uint64_t frameRemaining=0,frameBytes=0;
+thread_local std::string frameReadError;
 bool readAll(const int fd, void* data, std::uint64_t bytes)
 {
+    if (readingFrame && bytes>frameRemaining)
+    {
+        frameReadError="short request field at offset "+std::to_string(frameBytes-frameRemaining)
+            +": needed "+std::to_string(bytes)+" available "+std::to_string(frameRemaining);
+        return false;
+    }
+    const auto requested=bytes;
+    const auto offset=readingFrame?frameBytes-frameRemaining:0;
+
+
     unsigned char* p = static_cast<unsigned char*>(data);
     while (bytes != 0)
     {
-        const ssize_t got = ::read(fd, p, static_cast<std::size_t>(bytes));
+        const ssize_t got = ::read(fd, p, static_cast<std::size_t>(std::min<std::uint64_t>(bytes,SSIZE_MAX)));
         if (got < 0 && errno == EINTR) continue;
-        if (got <= 0) return false;
+        if (got <= 0)
+        {
+            if (readingFrame) frameReadError="request read failed at offset "+std::to_string(offset)
+                +": needed "+std::to_string(requested)+" received "+std::to_string(requested-bytes);
+            return false;
+        }
+        if (readingFrame) frameRemaining-=static_cast<std::uint64_t>(got);
         p += got;
         bytes -= static_cast<std::uint64_t>(got);
     }
@@ -57,21 +80,42 @@ bool readAll(const int fd, void* data, std::uint64_t bytes)
 template<class T>
 bool readObject(const int fd, T& value)
 {
-    return readAll(fd, &value, sizeof(T));
+    if (wireLittleEndian() && WireCodec<T>::nativeLayout)
+        return readAll(fd,&value,WireCodec<T>::size);
+    std::array<unsigned char,WireCodec<T>::size> bytes{};
+    if (!readAll(fd,bytes.data(),bytes.size())) return false;
+    WireCodec<T>::decode(bytes.data(),value); return true;
+}
+
+template<class T> bool writeObject(const int fd,const T& value)
+{
+    if (wireLittleEndian() && WireCodec<T>::nativeLayout)
+        return writeAll(fd,&value,WireCodec<T>::size);
+    const auto bytes=encodeWire(value);
+    return writeAll(fd,bytes.data(),bytes.size());
 }
 
 template<class T>
 bool readVector(const int fd, std::vector<T>& values, const std::size_t count)
 {
     values.resize(count);
-    return count == 0 || readAll(fd, values.data(), count*sizeof(T));
+    if (count && !readAll(fd,values.data(),count*sizeof(T))) return false;
+    if (!wireLittleEndian() && sizeof(T)!=1)
+        for (auto& value:values)
+        { auto* bytes=reinterpret_cast<unsigned char*>(&value); std::reverse(bytes,bytes+sizeof(T)); }
+    return true;
 }
 
 template<class T>
 bool writeVector(const int fd, const std::vector<T>& values)
 {
-    return values.empty() || writeAll(fd, values.data(), values.size()*sizeof(T));
+    if (values.empty()) return true;
+    if (wireLittleEndian() || sizeof(T)==1) return writeAll(fd,values.data(),values.size()*sizeof(T));
+    for (const auto& value:values) if (!writeObject(fd,value)) return false;
+    return true;
 }
+
+bool discardRequest(const int fd);
 
 bool responseHeader
 (
@@ -81,6 +125,9 @@ bool responseHeader
     const std::string& overrideError = std::string()
 )
 {
+
+
+    if (readingFrame && !discardRequest(fd)) return false;
     std::string error;
     if (status != 0)
     {
@@ -94,7 +141,7 @@ bool responseHeader
         magic, protocolMajor, protocolMinor, status,
         static_cast<std::uint32_t>(error.size()), payloadBytes
     };
-    return writeAll(fd, &response, sizeof(response))
+    return writeObject(fd,response)
         && (error.empty() || writeAll(fd, error.data(), error.size()));
 }
 
@@ -109,12 +156,11 @@ bool protocolError(const int fd, const std::string& message)
     return false;
 }
 
-bool addArrays(std::uint64_t& total, const std::uint64_t count,
+void addArrays(std::uint64_t& total, const std::uint64_t count,
                const std::uint64_t elementBytes, const unsigned copies)
 {
     for (unsigned i = 0; i < copies; ++i)
-        if (!addBytes(total, count, elementBytes)) return false;
-    return true;
+        addBytes(total, count, elementBytes);
 }
 
 bool validatePayload
@@ -124,8 +170,17 @@ bool validatePayload
     const std::uint64_t expected
 )
 {
-    return request.payloadBytes == expected
-        || protocolError(fd, "GPU backend request payload size mismatch");
+    return request.payloadBytes >= expected
+        || protocolError(fd, "short GPU backend request: needed "+std::to_string(expected)+" available "+std::to_string(request.payloadBytes));
+}
+
+bool discardRequest(const int fd)
+{
+    char buffer[8192];
+    while (frameRemaining)
+        if (!readAll(fd,buffer,std::min<std::uint64_t>(frameRemaining,sizeof(buffer)))) return false;
+    readingFrame=false;
+    return true;
 }
 
 template<class T>
@@ -143,74 +198,9 @@ bool handleCreate
 {
     if (state.backend != nullptr)
         return protocolError(fd, "GPU backend session was already created");
-    if (!validatePayload(fd, request, sizeof(CreateArgs))) return false;
+    if (!validatePayload(fd, request, WireCodec<CreateArgs>::size)) return false;
     CreateArgs a{};
     if (!readObject(fd, a)) return false;
-    if (a.nCells <= 0 || a.nFaces <= 0 || a.nInternalFaces < 0
-     || a.nInternalFaces > a.nFaces || a.nCellPlanes < 0
-     || a.particleCapacity < 0
-     || !std::isfinite(a.gammaGas) || a.gammaGas <= 1.0
-     || a.gammaGas > 5.0/3.0
-     || !std::isfinite(a.Rgas) || a.Rgas <= 0.0
-     || !std::isfinite(a.gasMu) || a.gasMu < 0.0
-     || !std::isfinite(a.gasPr) || a.gasPr <= 0.0
-     || a.dragModelId < 0 || a.dragModelId > 2
-     || a.particleGasHeatTransferModelId < 0
-     || a.particleGasHeatTransferModelId > 1
-     || !std::isfinite(a.dragResidualRe) || a.dragResidualRe <= 0.0
-     || !std::isfinite(a.gravityX)
-     || !std::isfinite(a.gravityY)
-     || !std::isfinite(a.gravityZ)
-     || a.gasFluxScheme < static_cast<int>(GasFluxScheme::RusanovTadmor)
-     || a.gasFluxScheme > static_cast<int>(GasFluxScheme::Slau2_2)
-     || a.gasReconstruction
-        < static_cast<int>(GasReconstruction::firstOrder)
-     || a.gasReconstruction
-        > static_cast<int>
-          (
-              GasReconstruction::OpenFoamEnergyLimitedLinear
-          )
-     || a.gasLimiter < static_cast<int>(GasLimiter::none)
-     || a.gasLimiter > static_cast<int>(GasLimiter::venkatakrishnan)
-     || a.gasTimeIntegrator < static_cast<int>(GasTimeIntegrator::Euler)
-     || a.gasTimeIntegrator > static_cast<int>(GasTimeIntegrator::SSPRK3)
-     || (a.gasRobustFallback != 0 && a.gasRobustFallback != 1)
-     || ((a.gasFluxScheme == static_cast<int>(GasFluxScheme::Hllc)
-       || a.gasFluxScheme == static_cast<int>(GasFluxScheme::Roe)
-       || a.gasFluxScheme == static_cast<int>(GasFluxScheme::Hllem))
-      && a.gasRobustFallback == 0)
-     || a.turbulenceModel < static_cast<int>(TurbulenceModel::laminar)
-     || a.turbulenceModel > static_cast<int>(TurbulenceModel::kOmegaSST)
-     || !std::isfinite(a.lesDeltaCoeff)
-     || a.lesDeltaCoeff <= 0.0
-     || !std::isfinite(a.turbulentPrandtl)
-     || a.turbulentPrandtl <= 0.0
-     || !std::isfinite(a.waleCw)
-     || a.waleCw < 0.0
-     || !std::isfinite(a.smagorinskyCs)
-     || a.smagorinskyCs < 0.0
-     || !std::isfinite(a.maxDiffusionNumber)
-     || a.maxDiffusionNumber <= 0.0
-     || (a.csrCellLocalPathEnabled != 0
-      && a.csrCellLocalPathEnabled != 1)
-     || a.csrHeavyReductionMode < 0
-     || a.csrHeavyReductionMode > 2
-     || a.csrHeavyAutoInterval < 1
-     || (a.csrWarpAggregatedBinning != 0
-      && a.csrWarpAggregatedBinning != 1)
-     || (a.particleBlockThreads != 32 && a.particleBlockThreads != 64
-      && a.particleBlockThreads != 128 && a.particleBlockThreads != 256)
-     || (a.reductionBlockThreads != 32 && a.reductionBlockThreads != 64
-      && a.reductionBlockThreads != 128 && a.reductionBlockThreads != 256)
-     || (!a.csrCellLocalPathEnabled
-      && (a.csrHeavyReductionMode != 0 || a.csrWarpAggregatedBinning))
-     || (a.jammingPressureEnabled != 0 && a.jammingPressureEnabled != 1)
-     || a.packingProjectionIterations < 1
-     || (a.jammingPressureEnabled != 0
-      && (!std::isfinite(a.packingFraction)
-       || a.packingFraction <= 0.0 || a.packingFraction >= 1.0)))
-        return protocolError(fd, "invalid GPU backend create arguments");
-
     const int status = ugkwpGpuResidentStrictCreate
     (
         a.nCells, a.nFaces, a.nInternalFaces, a.nCellPlanes,
@@ -250,13 +240,13 @@ bool handleCreate
 bool handleMesh(const int fd, const RequestHeader& request, ServerState& s)
 {
     std::uint64_t expected = 0;
-    if (!addArrays(expected, s.nFaces, sizeof(int), 3)
-     || !addArrays(expected, s.nCells, sizeof(double), 5)
-     || !addArrays(expected, s.nFaces, sizeof(double), 12)
-     || !addArrays(expected, s.nCells, sizeof(int), 2)
-     || !addArrays(expected, s.nCellPlanes, sizeof(int), 3)
-     || !addArrays(expected, s.nCellPlanes, sizeof(double), 6)
-     || !validatePayload(fd, request, expected)) return false;
+    addArrays(expected, s.nFaces, sizeof(int), 3);
+    addArrays(expected, s.nCells, sizeof(double), 5);
+    addArrays(expected, s.nFaces, sizeof(double), 12);
+    addArrays(expected, s.nCells, sizeof(int), 2);
+    addArrays(expected, s.nCellPlanes, sizeof(int), 3);
+    addArrays(expected, s.nCellPlanes, sizeof(double), 6);
+    if (!validatePayload(fd, request, expected)) return false;
 
     std::vector<int> owner, neighbour, facePeriodicPair, planeStart,
         planeCount, faceId, faceNeighbor, faceKind;
@@ -298,13 +288,12 @@ bool handleBoundarySources
 )
 {
     CountArgs a{};
-    if (request.payloadBytes < sizeof(a) || !readObject(fd, a)) return false;
-    if (!validCount(a.count, s.nFaces))
-        return protocolError(fd, "invalid GPU boundary source count");
-    std::uint64_t expected = sizeof(a);
-    if (!addArrays(expected,a.count,sizeof(int),2)
-     || !addArrays(expected,a.count,sizeof(double),10)
-     || !validatePayload(fd,request,expected)) return false;
+    if (request.payloadBytes < wireBytes(a) || !readObject(fd, a)) return false;
+
+    std::uint64_t expected = wireBytes(a);
+    addArrays(expected,a.count,sizeof(int),2);
+    addArrays(expected,a.count,sizeof(double),10);
+    if (!validatePayload(fd,request,expected)) return false;
     std::vector<int> cell,face;
     std::vector<double> px,py,pz,ux,uy,uz,t,theta,d,massRate;
 #define READ(VEC) do { if (!readVector(fd,(VEC),a.count)) return false; } while(false)
@@ -325,20 +314,12 @@ bool handleScheduledInletConfiguration
 )
 {
     ScheduledInletConfigArgs a{};
-    if (request.payloadBytes < sizeof(a) || !readObject(fd,a)) return false;
-    if
-    (
-        a.count <= 0 || !validCount(a.count,s.nFaces)
-     || a.nPressureRows <= 0 || a.nVolumeFractionRows <= 0
-    )
-        return protocolError(fd,"invalid scheduled inlet configuration count");
-    std::uint64_t expected = sizeof(a);
-    if
-    (
-        !addArrayBytes<int>(expected,a.count)
-     || !addArrayBytes<double>(expected,2ULL*a.nPressureRows)
-     || !addArrayBytes<double>(expected,2ULL*a.nVolumeFractionRows)
-    ) return protocolError(fd,"scheduled inlet configuration is too large");
+    if (request.payloadBytes < wireBytes(a) || !readObject(fd,a)) return false;
+
+    std::uint64_t expected = wireBytes(a);
+    addArrayBytes<int>(expected,a.count);
+    addArrayBytes<double>(expected,2ULL*a.nPressureRows);
+    addArrayBytes<double>(expected,2ULL*a.nVolumeFractionRows);
     if (!validatePayload(fd,request,expected)) return false;
     std::vector<int> faces;
     std::vector<double> pressureTimes, pressureValues;
@@ -367,20 +348,18 @@ bool handleDownloadResidual
 )
 {
     CountArgs a{};
-    if (!validatePayload(fd,request,sizeof(a)) || !readObject(fd,a)) return false;
-    if (!validCount(a.count,s.nFaces))
-        return protocolError(fd,"invalid source residual capacity");
+    if (!validatePayload(fd,request,wireBytes(a)) || !readObject(fd,a)) return false;
+
     int count = 0;
     std::vector<int> faces(a.count);
     std::vector<double> residual(a.count);
     const int status = ugkwpGpuResidentStrictDownloadSourceResidualMass
     (s.backend,&count,a.count,ptr(faces),ptr(residual));
     if (status != 0) return responseHeader(fd,status,0);
-    if (count < 0 || (a.count != 0 && count > a.count))
-        return protocolError(fd,"backend returned an invalid residual count");
-    const std::uint64_t bytes = sizeof(count)
+
+    const std::uint64_t bytes = wireBytes(count)
       +(a.count==0?0:std::uint64_t(count)*(sizeof(int)+sizeof(double)));
-    if (!responseHeader(fd,0,bytes) || !writeAll(fd,&count,sizeof(count))) return false;
+    if (!responseHeader(fd,0,bytes) || !writeObject(fd,count)) return false;
     if (a.count != 0)
     {
         faces.resize(count); residual.resize(count);
@@ -395,10 +374,9 @@ bool handleUploadResidual
 )
 {
     CountArgs a{};
-    if (request.payloadBytes < sizeof(a) || !readObject(fd,a)) return false;
-    if (!validCount(a.count,s.nFaces))
-        return protocolError(fd,"invalid source residual count");
-    const std::uint64_t expected=sizeof(a)+std::uint64_t(a.count)*(sizeof(int)+sizeof(double));
+    if (request.payloadBytes < wireBytes(a) || !readObject(fd,a)) return false;
+
+    const std::uint64_t expected=wireBytes(a)+std::uint64_t(a.count)*(sizeof(int)+sizeof(double));
     if (!validatePayload(fd,request,expected)) return false;
     std::vector<int> faces; std::vector<double> residual;
     if (!readVector(fd,faces,a.count) || !readVector(fd,residual,a.count)) return false;
@@ -413,9 +391,9 @@ bool handleGasBoundary
 )
 {
     std::uint64_t expected=0;
-    if (!addArrays(expected,s.nFaces,sizeof(int),6)
-     || !addArrays(expected,s.nFaces,sizeof(double),9)
-     || !validatePayload(fd,request,expected)) return false;
+    addArrays(expected,s.nFaces,sizeof(int),6);
+    addArrays(expected,s.nFaces,sizeof(double),9);
+    if (!validatePayload(fd,request,expected)) return false;
     std::vector<int> kind,rhoFix,uFix,pFix,tFix,pWave;
     std::vector<double> gamma,fieldInf,lInf,rho,ux,uy,uz,p,t;
 #define READ(VEC) do { if(!readVector(fd,(VEC),s.nFaces)) return false; } while(false)
@@ -447,7 +425,7 @@ bool handleUploadFields
 bool handleAdvance(const int fd,const RequestHeader& request,ServerState& s)
 {
     AdvanceArgs a{};
-    if(!validatePayload(fd,request,sizeof(a)) || !readObject(fd,a)) return false;
+    if(!validatePayload(fd,request,wireBytes(a)) || !readObject(fd,a)) return false;
     const int status=ugkwpGpuResidentStrictAdvance(s.backend,a.dt,a.simulationTime);
     return responseHeader(fd,status,0);
 }
@@ -460,18 +438,15 @@ bool handleConfigureSst
 )
 {
     SstConfigArgs a{};
-    if (request.payloadBytes < sizeof(a) || !readObject(fd, a))
+    if (request.payloadBytes < wireBytes(a) || !readObject(fd, a))
     {
         return false;
     }
-    std::uint64_t expected = sizeof(a);
-    if
-    (
-        !addArrays(expected, s.nCells, sizeof(double), 3)
-     || !addArrays(expected, s.nFaces, sizeof(int), 2)
-     || !addArrays(expected, s.nFaces, sizeof(double), 2)
-     || !validatePayload(fd, request, expected)
-    )
+    std::uint64_t expected = wireBytes(a);
+    addArrays(expected, s.nCells, sizeof(double), 3);
+    addArrays(expected, s.nFaces, sizeof(int), 2);
+    addArrays(expected, s.nFaces, sizeof(double), 2);
+    if (!validatePayload(fd, request, expected))
     {
         return false;
     }
@@ -537,20 +512,20 @@ bool handleDownloadSst
 bool handleCourant(const int fd,const RequestHeader& request,ServerState& s)
 {
     CourantArgs a{};
-    if(!validatePayload(fd,request,sizeof(a)) || !readObject(fd,a)) return false;
+    if(!validatePayload(fd,request,wireBytes(a)) || !readObject(fd,a)) return false;
     double maxCo=0;
     const int status=ugkwpGpuResidentStrictComputeGasCourant
     (
         s.backend,a.dt,a.targetMaxCo,a.scheduleTime,&maxCo
     );
     if(status!=0) return responseHeader(fd,status,0);
-    return responseHeader(fd,0,sizeof(maxCo)) && writeAll(fd,&maxCo,sizeof(maxCo));
+    return responseHeader(fd,0,sizeof(maxCo)) && writeObject(fd,maxCo);
 }
 
 bool handleGasOnly(const int fd,const RequestHeader& request,ServerState& s)
 {
     AdvanceArgs a{};
-    if(!validatePayload(fd,request,sizeof(a)) || !readObject(fd,a)) return false;
+    if(!validatePayload(fd,request,wireBytes(a)) || !readObject(fd,a)) return false;
     const int status=ugkwpGpuResidentStrictAdvanceGasOnly
     (s.backend,a.dt,a.simulationTime);
     return responseHeader(fd,status,0);
@@ -601,34 +576,22 @@ bool handleConfigureParticleStuckModel
     ParticleStuckConfigArgs a{};
     if
     (
-        request.payloadBytes < sizeof(a)
+        request.payloadBytes < wireBytes(a)
      || !readObject(fd, a)
-     || a.nFaces != s.nFaces
     )
     {
         return protocolError(fd, "invalid particle stuck-model header");
     }
     const std::uint64_t expected =
-        sizeof(a) + std::uint64_t(s.nFaces)*sizeof(unsigned char);
+        wireBytes(a) + std::uint64_t(a.nFaces)*sizeof(unsigned char);
     if (!validatePayload(fd, request, expected))
     {
         return false;
     }
     std::vector<unsigned char> mask;
-    if (!readVector(fd, mask, s.nFaces))
+    if (!readVector(fd, mask, a.nFaces))
     {
         return false;
-    }
-    for (const unsigned char value : mask)
-    {
-        if (value > 4)
-        {
-            return protocolError
-            (
-                fd,
-                "particle stuck-model face type must be in [0,4]"
-            );
-        }
     }
     const int rc = ugkwpGpuResidentStrictConfigureParticleStuckModel
     (
@@ -662,10 +625,12 @@ bool handleConfigureParticleStuckModel
 bool handleSavedVelocity(const int fd,const RequestHeader& request,ServerState& s,bool upload)
 {
     CountArgs a{};
-    if (request.payloadBytes<sizeof(a) || !readObject(fd,a)) return false;
-    if (!validCount(a.count,s.particleCapacity)) return protocolError(fd,"invalid saved velocity count");
-    std::uint64_t expected=sizeof(a);
-    if (upload && !addArrays(expected,a.count,sizeof(double),3)) return false;
+    if (request.payloadBytes<wireBytes(a) || !readObject(fd,a)) return false;
+    if (a.count<0 || a.count>s.particleCapacity)
+        return responseHeader(fd,-1,0,"invalid saved velocity count");
+
+    std::uint64_t expected=wireBytes(a);
+    if (upload) addArrays(expected,a.count,sizeof(double),3);
     if (!validatePayload(fd,request,expected)) return false;
     std::vector<double> x(a.count),y(a.count),z(a.count);
     if (upload && (!readVector(fd,x,a.count) || !readVector(fd,y,a.count) || !readVector(fd,z,a.count))) return false;
@@ -673,7 +638,7 @@ bool handleSavedVelocity(const int fd,const RequestHeader& request,ServerState& 
         ? ugkwpGpuResidentStrictUploadParticleSavedVelocity(s.backend,a.count,ptr(x),ptr(y),ptr(z))
         : ugkwpGpuResidentStrictDownloadParticleSavedVelocity(s.backend,a.count,ptr(x),ptr(y),ptr(z));
     if (rc!=0 || upload) return responseHeader(fd,rc,0);
-    std::uint64_t bytes=0;if (!addArrays(bytes,a.count,sizeof(double),3)) return false;
+    std::uint64_t bytes=0;addArrays(bytes,a.count,sizeof(double),3);
     return responseHeader(fd,0,bytes) && writeVector(fd,x) && writeVector(fd,y) && writeVector(fd,z);
 }
 
@@ -683,21 +648,20 @@ bool handleUploadParticles
 )
 {
     CountArgs a{};
-    if(request.payloadBytes<sizeof(a) || !readObject(fd,a)) return false;
-    if(!validCount(a.count,s.particleCapacity))
-        return protocolError(fd,"invalid particle restart upload count");
-    std::uint64_t expected=sizeof(a);
-    if(!addArrays(expected,a.count,sizeof(double),10)
-     || !addArrays(expected,a.count,sizeof(int),3)
-     || !addArrays(expected,a.count,sizeof(unsigned char),1)
-     || !addArrays(expected,a.count,sizeof(float),95)
-     || !addArrays(expected,a.count,sizeof(unsigned long long),2)
-     || !validatePayload(fd,request,expected)) return false;
+    if(request.payloadBytes<wireBytes(a) || !readObject(fd,a)) return false;
+
+    std::uint64_t expected=wireBytes(a);
+    addArrays(expected,a.count,sizeof(double),10);
+    addArrays(expected,a.count,sizeof(int),3);
+    addArrays(expected,a.count,sizeof(unsigned char),1);
+    addArrays(expected,a.count,sizeof(double),95);
+    addArrays(expected,a.count,sizeof(unsigned long long),2);
+    if (!validatePayload(fd,request,expected)) return false;
     std::vector<std::vector<double>> d(10);
     for(auto& v:d) if(!readVector(fd,v,a.count)) return false;
     std::vector<int> cell,status,stuckFaceId;
     std::vector<unsigned char> stuck;
-    std::vector<float> depositionArea,contactDuration,contactMaximumArea,
+    std::vector<double> depositionArea,contactDuration,contactMaximumArea,
         contactPeakFraction,coldNodeSpecificEnthalpy,coldRingSolidMass,
         coldFrozenArea,coldContactAge,cold2DNodeSpecificEnthalpy,
         cold2DRingContactAge,cold2DFrozenArea;
@@ -709,12 +673,12 @@ bool handleUploadParticles
      ||!readVector(fd,contactDuration,a.count)
      ||!readVector(fd,contactMaximumArea,a.count)
      ||!readVector(fd,contactPeakFraction,a.count)
-     ||!readVector(fd,coldNodeSpecificEnthalpy,a.count*8)
-     ||!readVector(fd,coldRingSolidMass,a.count*8)
+     ||!readVector(fd,coldNodeSpecificEnthalpy,std::size_t(a.count)*8)
+     ||!readVector(fd,coldRingSolidMass,std::size_t(a.count)*8)
      ||!readVector(fd,coldFrozenArea,a.count)
      ||!readVector(fd,coldContactAge,a.count)
-     ||!readVector(fd,cold2DNodeSpecificEnthalpy,a.count*64)
-     ||!readVector(fd,cold2DRingContactAge,a.count*8)
+     ||!readVector(fd,cold2DNodeSpecificEnthalpy,std::size_t(a.count)*64)
+     ||!readVector(fd,cold2DRingContactAge,std::size_t(a.count)*8)
      ||!readVector(fd,cold2DFrozenArea,a.count)
      ||!readVector(fd,rng,a.count)
      ||!readVector(fd,origId,a.count)) return false;
@@ -736,19 +700,18 @@ bool handleDownloadParticles
 )
 {
     CountArgs a{};
-    if(!validatePayload(fd,request,sizeof(a)) || !readObject(fd,a)) return false;
-    if(!validCount(a.count,s.particleCapacity))
-        return protocolError(fd,"invalid particle restart download capacity");
+    if(!validatePayload(fd,request,wireBytes(a)) || !readObject(fd,a)) return false;
+
     int count=0;
     std::vector<std::vector<double>> d(10,std::vector<double>(a.count));
     std::vector<int> cell(a.count),status(a.count),stuckFaceId(a.count);
     std::vector<unsigned char> stuck(a.count);
-    std::vector<float> depositionArea(a.count),contactDuration(a.count),
+    std::vector<double> depositionArea(a.count),contactDuration(a.count),
         contactMaximumArea(a.count),contactPeakFraction(a.count),
-        coldNodeSpecificEnthalpy(a.count*8),coldRingSolidMass(a.count*8),
+        coldNodeSpecificEnthalpy(std::size_t(a.count)*8),coldRingSolidMass(std::size_t(a.count)*8),
         coldFrozenArea(a.count),coldContactAge(a.count),
-        cold2DNodeSpecificEnthalpy(a.count*64),
-        cold2DRingContactAge(a.count*8),cold2DFrozenArea(a.count);
+        cold2DNodeSpecificEnthalpy(std::size_t(a.count)*64),
+        cold2DRingContactAge(std::size_t(a.count)*8),cold2DFrozenArea(a.count);
     std::vector<unsigned long long> rng(a.count),origId(a.count);
     const int rc=ugkwpGpuResidentStrictDownloadParticleRestartMirror
     (s.backend,&count,a.count,ptr(d[0]),ptr(d[1]),ptr(d[2]),ptr(d[3]),ptr(d[4]),
@@ -760,26 +723,25 @@ bool handleDownloadParticles
      ptr(cold2DNodeSpecificEnthalpy),ptr(cold2DRingContactAge),
      ptr(cold2DFrozenArea),ptr(rng),ptr(origId));
     if(rc!=0) return responseHeader(fd,rc,0);
-    if(count<0 || count>s.particleCapacity || (a.count!=0 && count>a.count))
-        return protocolError(fd,"backend returned an invalid particle count");
+
     std::uint64_t per=0;
     addArrays(per,1,sizeof(double),10); addArrays(per,1,sizeof(int),3);
     addArrays(per,1,sizeof(unsigned char),1);
-    addArrays(per,1,sizeof(float),95);
+    addArrays(per,1,sizeof(double),95);
     addArrays(per,1,sizeof(unsigned long long),2);
-    const std::uint64_t bytes=sizeof(count)+(a.count==0?0:std::uint64_t(count)*per);
-    if(!responseHeader(fd,0,bytes)||!writeAll(fd,&count,sizeof(count))) return false;
+    const std::uint64_t bytes=wireBytes(count)+(a.count==0?0:std::uint64_t(count)*per);
+    if(!responseHeader(fd,0,bytes)||!writeObject(fd,count)) return false;
     if(a.count==0) return true;
     for(auto& v:d){v.resize(count);if(!writeVector(fd,v))return false;}
     cell.resize(count);status.resize(count);stuck.resize(count);
     stuckFaceId.resize(count);depositionArea.resize(count);
     contactDuration.resize(count);contactMaximumArea.resize(count);
     contactPeakFraction.resize(count);
-    coldNodeSpecificEnthalpy.resize(count*8);
-    coldRingSolidMass.resize(count*8);
+    coldNodeSpecificEnthalpy.resize(std::size_t(count)*8);
+    coldRingSolidMass.resize(std::size_t(count)*8);
     coldFrozenArea.resize(count);coldContactAge.resize(count);
-    cold2DNodeSpecificEnthalpy.resize(count*64);
-    cold2DRingContactAge.resize(count*8);cold2DFrozenArea.resize(count);
+    cold2DNodeSpecificEnthalpy.resize(std::size_t(count)*64);
+    cold2DRingContactAge.resize(std::size_t(count)*8);cold2DFrozenArea.resize(count);
     rng.resize(count);origId.resize(count);
     return writeVector(fd,cell)&&writeVector(fd,status)&&writeVector(fd,stuck)
         &&writeVector(fd,stuckFaceId)&&writeVector(fd,depositionArea)
@@ -927,13 +889,19 @@ int main(int argc,char** argv)
     {
         RequestHeader request{};
         if(!readObject(fd,request)) break;
-        if(request.magicValue!=magic || request.major!=protocolMajor
-         || request.minor!=protocolMinor || request.payloadBytes>maxPayloadBytes)
+        readingFrame=true; frameBytes=frameRemaining=request.payloadBytes; frameReadError.clear();
+        try
         {
-            protocolError(fd,"invalid or incompatible GPU backend request header");
-            break;
+            if(!dispatch(fd,request,state,done) || !discardRequest(fd))
+            {
+                if (!frameReadError.empty()) (void)responseHeader(fd,-1,0,frameReadError);
+                break;
+            }
         }
-        if(!dispatch(fd,request,state,done)) break;
+        catch (const std::bad_alloc&)
+        { (void)responseHeader(fd,-1,0,"GPU backend request storage allocation failed"); break; }
+        catch (const std::length_error& error)
+        { (void)responseHeader(fd,-1,0,std::string("GPU backend required storage extent: ")+error.what()); break; }
     }
     if(state.backend!=nullptr) ugkwpGpuResidentStrictRelease(state.backend);
     ::close(fd);

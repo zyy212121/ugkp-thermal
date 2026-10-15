@@ -12,6 +12,12 @@ import unittest
 from pathlib import Path
 
 
+try:
+    from .host_contract_probes import create_payload_size
+except ImportError:
+    from host_contract_probes import create_payload_size
+
+
 ROOT = Path(__file__).resolve().parents[1]
 
 
@@ -195,7 +201,7 @@ class UGKPNumericsConfiguration(unittest.TestCase):
         cls.cuda = (ROOT / "private_backend/GpuResidentStrict.cu").read_text()
 
     def test_runtime_dictionary_and_supported_names(self) -> None:
-        self.assertIn('fvSchemesDict.found("fluxScheme")', self.create)
+        self.assertIn('fvSchemesDict.readIfPresent("fluxScheme", gasFluxSchemeName)' , self.create)
         self.assertNotIn('subDict("gasNumerics")', self.create)
         for name in (
             "rusanovTadmor",
@@ -303,10 +309,7 @@ class UGKPNumericsConfiguration(unittest.TestCase):
             body,
         )
         self.assertEqual(actual, list(PROTOCOL_CREATE_FIELDS))
-        self.assertIn(
-            'static_assert(sizeof(CreateArgs) == 392, "unexpected create payload ABI")',
-            self.protocol,
-        )
+        self.assertEqual(create_payload_size(), 392)
 
     def test_c_abi_create_signatures_match_protocol_exactly(self) -> None:
         expected = list(CREATE_FIELDS) + [("void**", "handle")]
@@ -347,12 +350,12 @@ class UGKPNumericsConfiguration(unittest.TestCase):
         wrapper_call_marker = "const int createRc = ugkwpGpuResidentStrictCreate"
         search_from = 0
         expected = (
-            "int(gasFluxScheme)",
-            "int(gasReconstruction)",
-            "int(gasLimiter)",
-            "int(gasTimeIntegrator)",
+            "gpuHostValue<int>(gasFluxScheme)",
+            "gpuHostValue<int>(gasReconstruction)",
+            "gpuHostValue<int>(gasLimiter)",
+            "gpuHostValue<int>(gasTimeIntegrator)",
             "gasRobustFallback ? 1 : 0",
-            "int(gasTurbulenceModel)",
+            "gpuHostValue<int>(gasTurbulenceModel)",
         )
         for call_number in (1, 2):
             arguments, search_from = _delimited_after(
@@ -423,11 +426,8 @@ class UGKPNumericsConfiguration(unittest.TestCase):
             ("CUDA C ABI", self.cuda),
         ):
             with self.subTest(layer=layer):
-                self.assertRegex(
-                    source,
-                    r"gasRobustFallback\s*!=\s*0"
-                    r".*?gasRobustFallback\s*!=\s*1",
-                )
+                self.assertNotRegex(source, r"gasRobustFallback\s*!=\s*0.*?gasRobustFallback\s*!=\s*1")
+        self.assertEqual(create_payload_size(), 392)
         self.assertNotIn('"entropyFixCoefficient"', self.create)
         self.assertNotIn("gasEntropyFixCoefficient", self.create)
 

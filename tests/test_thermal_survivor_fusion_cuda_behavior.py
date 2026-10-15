@@ -4,8 +4,8 @@ import pytest
 
 ROOT = Path(__file__).resolve().parents[1]
 
-@pytest.mark.parametrize("branch,bits", [("FSH", 64), ("CHT", 32), ("CHT", 64)])
-def test_exact_survivor_pipeline_preserves_thermal_state(tmp_path, branch, bits):
+@pytest.mark.parametrize('branch', ['FSH', 'CHT'])
+def test_exact_survivor_pipeline_preserves_thermal_state(tmp_path, branch):
     nvcc = Path("/usr/local/cuda/bin/nvcc")
     smi = Path("/usr/lib/wsl/lib/nvidia-smi")
     if not nvcc.is_file() or not smi.is_file():
@@ -14,7 +14,7 @@ def test_exact_survivor_pipeline_preserves_thermal_state(tmp_path, branch, bits)
         pytest.skip("CUDA GPU unavailable")
     result = subprocess.run(
         ["python3", str(ROOT / "tests/fixtures/thermal_workers/fused_pipeline.py"),
-         str(ROOT), str(tmp_path), branch, str(bits)],
+         str(ROOT), str(tmp_path), branch],
         capture_output=True, text=True, timeout=240,
     )
     assert result.returncode == 0, result.stdout + result.stderr

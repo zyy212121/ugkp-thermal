@@ -1,5 +1,6 @@
 #include "GpuBackendApi.H"
 #include "GpuBackendProtocol.H"
+#include "../../../common/gasTransport/GasBuildConfig.H"
 
 #include <cerrno>
 #include <cmath>
@@ -24,6 +25,8 @@ using namespace ugkwpGpuIpc;
 struct ClientState
 {
     int fd = -1;
+    bool responseActive = false;
+    std::uint64_t responseRemaining = 0;
     pid_t childPid = -1;
     int nCells = 0;
     int nFaces = 0;
@@ -68,8 +71,14 @@ bool writeAll(const int fd, const void* data, std::uint64_t bytes)
     return true;
 }
 
-bool readAll(const int fd, void* data, std::uint64_t bytes)
+bool readAll(const int fd, void* data, std::uint64_t bytes, ClientState* state = nullptr)
 {
+    if (state && state->responseActive && bytes>state->responseRemaining)
+    {
+        lastError="short response field: needed "+std::to_string(bytes)+" available "+std::to_string(state->responseRemaining);
+        return false;
+    }
+    const auto requested=bytes;
     unsigned char* p = static_cast<unsigned char*>(data);
     while (bytes != 0)
     {
@@ -84,7 +93,7 @@ bool readAll(const int fd, void* data, std::uint64_t bytes)
         }
         if (got == 0)
         {
-            lastError = "GPU backend exited or closed its IPC channel";
+            lastError = "GPU backend exited or closed its IPC channel: needed "+std::to_string(requested)+" received "+std::to_string(requested-bytes);
             return false;
         }
         if (got < 0)
@@ -93,6 +102,7 @@ bool readAll(const int fd, void* data, std::uint64_t bytes)
                       + std::strerror(errno);
             return false;
         }
+        if (state && state->responseActive) state->responseRemaining-=static_cast<std::uint64_t>(got);
         p += got;
         bytes -= static_cast<std::uint64_t>(got);
     }
@@ -102,7 +112,19 @@ bool readAll(const int fd, void* data, std::uint64_t bytes)
 template<class T>
 bool sendObject(const int fd, const T& value)
 {
-    return writeAll(fd, &value, sizeof(T));
+    if (wireLittleEndian() && WireCodec<T>::nativeLayout)
+        return writeAll(fd,&value,WireCodec<T>::size);
+    const auto bytes=encodeWire(value);
+    return writeAll(fd, bytes.data(), bytes.size());
+}
+
+template<class T> bool receiveObject(const int fd,T& value,ClientState* state = nullptr)
+{
+    if (wireLittleEndian() && WireCodec<T>::nativeLayout)
+        return readAll(fd,&value,WireCodec<T>::size,state);
+    std::array<unsigned char,WireCodec<T>::size> bytes{};
+    if (!readAll(fd,bytes.data(),bytes.size(),state)) return false;
+    WireCodec<T>::decode(bytes.data(),value); return true;
 }
 
 template<class T>
@@ -117,11 +139,14 @@ bool sendArray(const int fd, const T* values, const std::uint64_t count)
         lastError = "null array passed to GPU backend IPC";
         return false;
     }
-    return writeAll(fd, values, count*sizeof(T));
+    if (wireLittleEndian() || sizeof(T)==1) return writeAll(fd,values,count*sizeof(T));
+    for (std::uint64_t i=0;i<count;++i)
+    { const auto bytes=encodeWire(values[i]); if (!writeAll(fd,bytes.data(),bytes.size())) return false; }
+    return true;
 }
 
 template<class T>
-bool receiveArray(const int fd, T* values, const std::uint64_t count)
+bool receiveArray(const int fd, T* values, const std::uint64_t count, ClientState* state = nullptr)
 {
     if (count == 0)
     {
@@ -132,7 +157,24 @@ bool receiveArray(const int fd, T* values, const std::uint64_t count)
         lastError = "null output array passed to GPU backend IPC";
         return false;
     }
-    return readAll(fd, values, count*sizeof(T));
+    if (!readAll(fd,values,count*sizeof(T),state)) return false;
+    if (!wireLittleEndian() && sizeof(T)!=1)
+        for (std::uint64_t i=0;i<count;++i)
+        { auto* bytes=reinterpret_cast<unsigned char*>(values+i); std::reverse(bytes,bytes+sizeof(T)); }
+    return true;
+}
+
+bool discardResponse(ClientState* state)
+{
+    if (!state->responseActive) return true;
+    char buffer[8192];
+    while (state->responseRemaining)
+    {
+        const auto n=std::min<std::uint64_t>(state->responseRemaining,sizeof(buffer));
+        if (!readAll(state->fd,buffer,n,state)) return false;
+    }
+    state->responseActive=false;
+    return true;
 }
 
 bool startRequest(ClientState* state, const Op op, const std::uint64_t bytes)
@@ -142,11 +184,7 @@ bool startRequest(ClientState* state, const Op op, const std::uint64_t bytes)
         lastError = "invalid GPU backend client handle";
         return false;
     }
-    if (bytes > maxPayloadBytes)
-    {
-        lastError = "GPU backend request exceeds protocol payload limit";
-        return false;
-    }
+    if (!discardResponse(state)) return false;
     const RequestHeader header
     {
         magic, protocolMajor, protocolMinor,
@@ -164,37 +202,28 @@ int receiveResponse
 )
 {
     ResponseHeader response{};
-    if (!readAll(state->fd, &response, sizeof(response)))
+    if (!receiveObject(state->fd, response))
     {
         return -1;
     }
-    if
-    (
-        response.magicValue != magic
-     || response.major != protocolMajor
-     || response.minor != protocolMinor
-     || response.errorBytes > 1024U*1024U
-     || response.payloadBytes > maxPayloadBytes
-    )
-    {
-        return fail("invalid or incompatible GPU backend response header");
-    }
-
     std::string backendError(response.errorBytes, '\0');
     if (response.errorBytes != 0 && !readAll(state->fd, &backendError[0], response.errorBytes))
     {
         return -1;
     }
+    state->responseRemaining=response.payloadBytes;
+    state->responseActive=true;
     if (response.status != 0)
     {
+        if (!discardResponse(state)) return -1;
         lastError = backendError.empty()
           ? "GPU backend returned an unspecified error"
           : backendError;
         return response.status;
     }
-    if (requireExact && response.payloadBytes != expectedBytes)
+    if (requireExact && response.payloadBytes < expectedBytes)
     {
-        return fail("GPU backend response payload size mismatch");
+        return fail("short GPU backend response: needed "+std::to_string(expectedBytes)+" available "+std::to_string(response.payloadBytes));
     }
     payloadBytes = response.payloadBytes;
     lastError = "no GPU backend client error";
@@ -204,7 +233,8 @@ int receiveResponse
 int finishNoPayload(ClientState* state)
 {
     std::uint64_t bytes = 0;
-    return receiveResponse(state, bytes, true, 0);
+    const int status=receiveResponse(state, bytes, true, 0);
+    return status ? status : (discardResponse(state)?0:-1);
 }
 
 std::string backendExecutablePath()
@@ -264,6 +294,8 @@ bool spawnBackend(ClientState& state)
 
     ::close(sockets[1]);
     state.fd = sockets[0];
+    state.responseActive=false;
+    state.responseRemaining=0;
     state.childPid = child;
     return true;
 }
@@ -320,75 +352,7 @@ extern "C" int ugkwpGpuResidentStrictCreate
     void** handle
 )
 {
-    if (handle == nullptr || nCells <= 0 || nFaces <= 0
-     || nInternalFaces < 0 || nInternalFaces > nFaces || nCellPlanes < 0
-     || particleCapacity < 0
-     || !std::isfinite(gammaGas) || gammaGas <= 1.0 || gammaGas > 5.0/3.0
-     || !std::isfinite(Rgas) || Rgas <= 0.0
-     || !std::isfinite(gasMu) || gasMu < 0.0
-     || !std::isfinite(gasPr) || gasPr <= 0.0
-     || gasFluxScheme < static_cast<int>(GasFluxScheme::RusanovTadmor)
-     || gasFluxScheme > static_cast<int>(GasFluxScheme::Slau2_2)
-     || gasReconstruction < static_cast<int>(GasReconstruction::firstOrder)
-     || gasReconstruction
-        > static_cast<int>
-          (
-              GasReconstruction::OpenFoamEnergyLimitedLinear
-          )
-     || gasLimiter < static_cast<int>(GasLimiter::none)
-     || gasLimiter > static_cast<int>(GasLimiter::venkatakrishnan)
-     || gasTimeIntegrator < static_cast<int>(GasTimeIntegrator::Euler)
-     || gasTimeIntegrator > static_cast<int>(GasTimeIntegrator::SSPRK3)
-     || (gasRobustFallback != 0 && gasRobustFallback != 1)
-     || ((gasFluxScheme == static_cast<int>(GasFluxScheme::Hllc)
-       || gasFluxScheme == static_cast<int>(GasFluxScheme::Roe)
-       || gasFluxScheme == static_cast<int>(GasFluxScheme::Hllem))
-      && gasRobustFallback == 0)
-     || turbulenceModel < static_cast<int>(TurbulenceModel::laminar)
-     || turbulenceModel > static_cast<int>(TurbulenceModel::kOmegaSST)
-     || !std::isfinite(lesDeltaCoeff)
-     || lesDeltaCoeff <= 0.0
-     || !std::isfinite(turbulentPrandtl)
-     || turbulentPrandtl <= 0.0
-     || !std::isfinite(waleCw)
-     || waleCw < 0.0
-     || !std::isfinite(smagorinskyCs)
-     || smagorinskyCs < 0.0
-     || !std::isfinite(maxDiffusionNumber)
-     || maxDiffusionNumber <= 0.0
-     || (csrCellLocalPathEnabled != 0 && csrCellLocalPathEnabled != 1)
-     || csrHeavyReductionMode < 0
-     || csrHeavyReductionMode > 2
-     || csrHeavyAutoInterval < 1
-     || (particleBlockThreads != 32 && particleBlockThreads != 64
-      && particleBlockThreads != 128 && particleBlockThreads != 256)
-     || (reductionBlockThreads != 32 && reductionBlockThreads != 64
-      && reductionBlockThreads != 128 && reductionBlockThreads != 256)
-     || (csrWarpAggregatedBinning != 0 && csrWarpAggregatedBinning != 1)
-     || (csrSplitPreDirectoryEnabled != 0 && csrSplitPreDirectoryEnabled != 1)
-     || (!csrCellLocalPathEnabled
-      && (csrHeavyReductionMode != 0 || csrWarpAggregatedBinning))
-     || dragModel < 0
-     || dragModel > 2
-     || particleGasHeatTransferModelId < 0
-     || particleGasHeatTransferModelId > 1
-     || !std::isfinite(dragParameter0)
-     || !std::isfinite(dragParameter1)
-     || !std::isfinite(dragParameter2)
-     || !std::isfinite(dragParameter3)
-     || (dragModel == 1 && dragParameter0 <= 0.0)
-     || !std::isfinite(gravityX)
-     || !std::isfinite(gravityY)
-     || !std::isfinite(gravityZ)
-     || (jammingPressureEnabled != 0 && jammingPressureEnabled != 1)
-     || packingProjectionIterations < 1
-     || (jammingPressureEnabled != 0
-      && (!std::isfinite(packingFraction)
-       || packingFraction <= 0.0 || packingFraction >= 1.0)))
-    {
-        return fail("invalid GPU backend create arguments");
-    }
-
+    if (handle == nullptr) return fail("missing backend output handle");
     ClientState* state = new ClientState;
     state->nCells = nCells;
     state->nFaces = nFaces;
@@ -426,7 +390,7 @@ extern "C" int ugkwpGpuResidentStrictCreate
         dragParameter0, dragParameter1, dragParameter2, dragParameter3,
         gravityX, gravityY, gravityZ
     };
-    if (!startRequest(state, Op::create, sizeof(args)) || !sendObject(state->fd, args))
+    if (!startRequest(state, Op::create, wireBytes(args)) || !sendObject(state->fd, args))
     {
         const std::string savedError = lastError;
         ugkwpGpuResidentStrictRelease(state);
@@ -504,9 +468,9 @@ extern "C" int ugkwpGpuResidentStrictUploadBoundarySources
 )
 {
     ClientState* s = static_cast<ClientState*>(handle);
-    if (s == nullptr || count < 0 || count > s->nFaces)
+    if (s == nullptr || count < 0)
         return fail("invalid GPU boundary source count");
-    std::uint64_t bytes = sizeof(CountArgs);
+    std::uint64_t bytes = WireCodec<CountArgs>::size;
     if (!addArrays(bytes, count, sizeof(int), 2)
      || !addArrays(bytes, count, sizeof(double), 10)
      || !startRequest(s, Op::uploadBoundarySources, bytes)
@@ -530,7 +494,7 @@ extern "C" int ugkwpGpuResidentStrictConfigureScheduledInlet
     ClientState* s = static_cast<ClientState*>(handle);
     if
     (
-        s == nullptr || count <= 0 || count > s->nFaces
+        s == nullptr || count <= 0
      || nPressureRows <= 0 || nVolumeFractionRows <= 0
     )
         return fail("invalid scheduled inlet configuration counts");
@@ -538,7 +502,7 @@ extern "C" int ugkwpGpuResidentStrictConfigureScheduledInlet
     {
         count, nPressureRows, nVolumeFractionRows, inletTemperature
     };
-    std::uint64_t bytes = sizeof(args);
+    std::uint64_t bytes = wireBytes(args);
     if
     (
         !addArrays(bytes, count, sizeof(int), 1)
@@ -564,24 +528,24 @@ extern "C" int ugkwpGpuResidentStrictDownloadSourceResidualMass
     ClientState* s = static_cast<ClientState*>(handle);
     if (s == nullptr || nSources == nullptr || maxSources < 0)
         return fail("invalid source residual download arguments");
-    if (!startRequest(s, Op::downloadSourceResidualMass, sizeof(CountArgs))
+    if (!startRequest(s, Op::downloadSourceResidualMass, WireCodec<CountArgs>::size)
      || !sendObject(s->fd, CountArgs{maxSources})) return -1;
     std::uint64_t payload = 0;
     const int status = receiveResponse(s, payload, false, 0);
     if (status != 0) return status;
     int count = 0;
-    if (payload < sizeof(count) || !readAll(s->fd, &count, sizeof(count))) return -1;
-    const std::uint64_t expected = sizeof(count)
+    if (payload < wireBytes(count) || !receiveObject(s->fd, count,s)) return -1;
+    const std::uint64_t expected = wireBytes(count)
       + (maxSources == 0 ? 0 : std::uint64_t(count)*(sizeof(int) + sizeof(double)));
-    if (count < 0 || (maxSources != 0 && count > maxSources) || payload != expected)
+    if (count < 0 || (maxSources != 0 && count > maxSources) || payload < expected)
         return fail("invalid source residual response");
     *nSources = count;
     if (maxSources != 0)
     {
-        if (!receiveArray(s->fd, sourceFace, count)
-         || !receiveArray(s->fd, residualMass, count)) return -1;
+        if (!receiveArray(s->fd, sourceFace, count,s)
+         || !receiveArray(s->fd, residualMass, count,s)) return -1;
     }
-    return 0;
+    return discardResponse(s)?0:-1;
 }
 
 extern "C" int ugkwpGpuResidentStrictUploadSourceResidualMass
@@ -590,9 +554,9 @@ extern "C" int ugkwpGpuResidentStrictUploadSourceResidualMass
 )
 {
     ClientState* s = static_cast<ClientState*>(handle);
-    if (s == nullptr || count < 0 || count > s->nFaces)
+    if (s == nullptr || count < 0)
         return fail("invalid source residual upload count");
-    const std::uint64_t bytes = sizeof(CountArgs)
+    const std::uint64_t bytes = WireCodec<CountArgs>::size
       + std::uint64_t(count)*(sizeof(int) + sizeof(double));
     if (!startRequest(s, Op::uploadSourceResidualMass, bytes)
      || !sendObject(s->fd, CountArgs{count})
@@ -648,7 +612,7 @@ extern "C" int ugkwpGpuResidentStrictAdvance
 {
     ClientState* s = static_cast<ClientState*>(handle);
     const AdvanceArgs args{dt, simulationTime};
-    if (!startRequest(s, Op::advance, sizeof(args)) || !sendObject(s->fd, args))
+    if (!startRequest(s, Op::advance, wireBytes(args)) || !sendObject(s->fd, args))
         return -1;
     return finishNoPayload(s);
 }
@@ -707,7 +671,7 @@ extern "C" int ugkwpGpuResidentStrictConfigureSst
         a1, b1, c1, kMin, omegaMin, maxSourceNumber,
         wallTreatment, wallKappa, wallE, wallCmu
     };
-    std::uint64_t bytes = sizeof(args);
+    std::uint64_t bytes = wireBytes(args);
     if
     (
         !addArrays(bytes, s->nCells, sizeof(double), 3)
@@ -756,14 +720,14 @@ extern "C" int ugkwpGpuResidentStrictDownloadSst
     }
     if
     (
-        !receiveArray(s->fd, k, s->nCells)
-     || !receiveArray(s->fd, omega, s->nCells)
-     || !receiveArray(s->fd, nut, s->nCells)
+        !receiveArray(s->fd, k, s->nCells,s)
+     || !receiveArray(s->fd, omega, s->nCells,s)
+     || !receiveArray(s->fd, nut, s->nCells,s)
     )
     {
         return -1;
     }
-    return 0;
+    return discardResponse(s)?0:-1;
 }
 
 extern "C" int ugkwpGpuResidentStrictComputeGasCourant
@@ -772,19 +736,19 @@ extern "C" int ugkwpGpuResidentStrictComputeGasCourant
     ClientState* s = static_cast<ClientState*>(handle);
     if (maxCo == nullptr) return fail("null gas Courant output");
     const CourantArgs args{dt, targetMaxCo, scheduleTime};
-    if (!startRequest(s, Op::computeGasCourant, sizeof(args))
+    if (!startRequest(s, Op::computeGasCourant, wireBytes(args))
      || !sendObject(s->fd, args)) return -1;
     std::uint64_t bytes = 0;
     const int status = receiveResponse(s, bytes, true, sizeof(double));
     if (status != 0) return status;
-    return readAll(s->fd, maxCo, sizeof(double)) ? 0 : -1;
+    return receiveArray(s->fd,maxCo,1,s) && discardResponse(s) ? 0 : -1;
 }
 
 extern "C" int ugkwpGpuResidentStrictAdvanceGasOnly
 (void* handle, double dt, double simulationTime)
 {
     ClientState* s = static_cast<ClientState*>(handle);
-    if (!startRequest(s, Op::advanceGasOnly, sizeof(AdvanceArgs))
+    if (!startRequest(s, Op::advanceGasOnly, WireCodec<AdvanceArgs>::size)
      || !sendObject(s->fd, AdvanceArgs{dt, simulationTime})) return -1;
     return finishNoPayload(s);
 }
@@ -809,8 +773,8 @@ extern "C" int ugkwpGpuResidentStrictDownloadFields
         rhoUsx,rhoUsy,rhoUsz,rhoEs,rhoDs,rhoHp,Usx,Usy,Usz,theta,Tp,
         dMeanCell};
     for (double* values : fields)
-        if (!receiveArray(s->fd, values, s->nCells)) return -1;
-    return 0;
+        if (!receiveArray(s->fd, values, s->nCells,s)) return -1;
+    return discardResponse(s)?0:-1;
 }
 
 extern "C" int ugkwpGpuResidentStrictDownloadGasBoundaryFields
@@ -827,8 +791,8 @@ extern "C" int ugkwpGpuResidentStrictDownloadGasBoundaryFields
     if (status != 0) return status;
     double* fields[] = {rho,ux,uy,uz,p,t};
     for (double* values : fields)
-        if (!receiveArray(s->fd, values, s->nFaces)) return -1;
-    return 0;
+        if (!receiveArray(s->fd, values, s->nFaces,s)) return -1;
+    return discardResponse(s)?0:-1;
 }
 
 extern "C" int ugkwpGpuResidentStrictUploadParticleRestartMirror
@@ -842,9 +806,9 @@ extern "C" int ugkwpGpuResidentStrictUploadParticleRestartMirror
 )
 {
     ClientState* s = static_cast<ClientState*>(handle);
-    if (s == nullptr || count < 0 || count > s->particleCapacity)
+    if (s == nullptr || count < 0)
         return fail("invalid particle restart upload count");
-    std::uint64_t bytes = sizeof(CountArgs);
+    std::uint64_t bytes = WireCodec<CountArgs>::size;
     if (!addArrays(bytes, count, sizeof(double), 10)
      || !addArrays(bytes, count, sizeof(int), 2)
      || !addArrays(bytes, count, sizeof(unsigned long long), 2)
@@ -870,35 +834,34 @@ extern "C" int ugkwpGpuResidentStrictDownloadParticleRestartMirror
 )
 {
     ClientState* s = static_cast<ClientState*>(handle);
-    if (s == nullptr || nParticles == nullptr || maxParticles < 0
-     || maxParticles > s->particleCapacity)
+    if (s == nullptr || nParticles == nullptr || maxParticles < 0)
         return fail("invalid particle restart download arguments");
-    if (!startRequest(s, Op::downloadParticleRestartMirror, sizeof(CountArgs))
+    if (!startRequest(s, Op::downloadParticleRestartMirror, WireCodec<CountArgs>::size)
      || !sendObject(s->fd, CountArgs{maxParticles})) return -1;
     std::uint64_t payload = 0;
     const int status = receiveResponse(s, payload, false, 0);
     if (status != 0) return status;
     int count = 0;
-    if (payload < sizeof(count) || !readAll(s->fd, &count, sizeof(count))) return -1;
+    if (payload < wireBytes(count) || !receiveObject(s->fd, count,s)) return -1;
     std::uint64_t perParticle = 0;
     addArrays(perParticle, 1, sizeof(double), 10);
     addArrays(perParticle, 1, sizeof(int), 2);
     addArrays(perParticle, 1, sizeof(unsigned long long), 2);
-    const std::uint64_t expected = sizeof(count)
+    const std::uint64_t expected = wireBytes(count)
       + (maxParticles == 0 ? 0 : std::uint64_t(count)*perParticle);
-    if (count < 0 || count > s->particleCapacity
-     || (maxParticles != 0 && count > maxParticles) || payload != expected)
+    if (count < 0
+     || (maxParticles != 0 && count > maxParticles) || payload < expected)
         return fail("invalid particle restart response");
     *nParticles = count;
-    if (maxParticles == 0) return 0;
+    if (maxParticles == 0) return discardResponse(s)?0:-1;
     double* doubles[] = {px,py,pz,pux,puy,puz,pT,pTheta,pd,pm};
     for (double* values : doubles)
-        if (!receiveArray(s->fd, values, count)) return -1;
-    if (!receiveArray(s->fd, pCellId, count)
-     || !receiveArray(s->fd, pStatus, count)
-     || !receiveArray(s->fd, pRng, count)
-     || !receiveArray(s->fd, pOrigId, count)) return -1;
-    return 0;
+        if (!receiveArray(s->fd, values, count,s)) return -1;
+    if (!receiveArray(s->fd, pCellId, count,s)
+     || !receiveArray(s->fd, pStatus, count,s)
+     || !receiveArray(s->fd, pRng, count,s)
+     || !receiveArray(s->fd, pOrigId, count,s)) return -1;
+    return discardResponse(s)?0:-1;
 }
 
 extern "C" int ugkwpGpuResidentStrictDownloadEpsGPrev
@@ -910,7 +873,7 @@ extern "C" int ugkwpGpuResidentStrictDownloadEpsGPrev
     std::uint64_t got = 0;
     const int status = receiveResponse(s, got, true, bytes);
     if (status != 0) return status;
-    return receiveArray(s->fd, epsGPrev, s->nCells) ? 0 : -1;
+    return receiveArray(s->fd, epsGPrev, s->nCells,s) && discardResponse(s) ? 0 : -1;
 }
 
 extern "C" int ugkwpGpuResidentStrictUploadEpsGPrev
@@ -932,7 +895,7 @@ extern "C" int ugkwpGpuResidentStrictDownloadNut
     std::uint64_t got = 0;
     const int status = receiveResponse(s, got, true, bytes);
     if (status != 0) return status;
-    return receiveArray(s->fd, nut, s->nCells) ? 0 : -1;
+    return receiveArray(s->fd, nut, s->nCells,s) && discardResponse(s) ? 0 : -1;
 }
 
 extern "C" void ugkwpGpuResidentStrictRelease(void* handle)
@@ -945,6 +908,8 @@ extern "C" void ugkwpGpuResidentStrictRelease(void* handle)
         {
             (void)finishNoPayload(s);
         }
+        s->responseActive=false;
+        s->responseRemaining=0;
         ::close(s->fd);
         s->fd = -1;
     }
@@ -964,14 +929,12 @@ extern "C" int ugkwpGpuResidentStrictQueryGasModelCapabilitiesV1
     if (!capabilities) return fail("null gas model capabilities output");
     if (!startRequest(s,Op::queryGasModelCapabilitiesV1,0)) return -1;
     std::uint64_t bytes=0;
-    const int status=receiveResponse(s,bytes,true,sizeof(*capabilities));
+    const int status=receiveResponse(s,bytes,true,wireBytes(*capabilities));
     if(status!=0) return status;
     GasModelCapabilitiesV1 result{};
-    if(!readAll(s->fd,&result,sizeof(result))) return -1;
-    if(result.version!=gasModelApiVersion || result.reserved!=0 || result.compiledSpecies==0)
-        return fail("incompatible gas model capability version");
+    if(!receiveObject(s->fd, result,s)) return -1;
     *capabilities=result;
-    return 0;
+    return discardResponse(s)?0:-1;
 }
 extern "C" int ugkwpGpuResidentStrictConfigureGasModelV1
 (void* handle,const ugkwpGpuIpc::GasModelConfigureArgsV1* configuration,
@@ -980,7 +943,6 @@ extern "C" int ugkwpGpuResidentStrictConfigureGasModelV1
     ClientState* s=static_cast<ClientState*>(handle);
     if(!s || !configuration || !modelText || (configuration->mechanismBytes && !mechanismText))
         return fail("invalid gas model configuration input");
-    if(s->gasModelConfigured) return fail("gas model identity is immutable after configuration");
     std::uint64_t bytes=0;
     if(!gasModelPayloadBytes(*configuration,configuration->speciesCount,bytes))
         return fail("invalid gas model payload size or identity");
@@ -991,7 +953,7 @@ extern "C" int ugkwpGpuResidentStrictConfigureGasModelV1
     if(status==0)
     {
         s->gasModelConfigured=true;
-        s->gasSpeciesIdentity={configuration->version,configuration->speciesCount,
+        s->gasSpeciesIdentity={configuration->version,ugkwp::compiledGasSpecies,
             configuration->speciesOrderHash,configuration->thermoHash,configuration->mechanismHash};
     }
     return status;
@@ -1001,11 +963,10 @@ extern "C" int ugkwpGpuResidentStrictUploadSpeciesV1
 {
     ClientState* s=static_cast<ClientState*>(handle);
     std::uint64_t bytes=0;
-    if(!s || !identity || !speciesDensity || !s->gasModelConfigured
-       || !sameGasSpeciesIdentity(*identity,s->gasSpeciesIdentity)
-       || !gasSpeciesPayloadBytes(*identity,s->nCells,bytes)) return fail("species upload identity mismatch");
+    if(!s || !identity || !speciesDensity
+       || !gasSpeciesPayloadBytes(GasSpeciesIdentityV1{0,ugkwp::compiledGasSpecies,0,0,0},s->nCells,bytes)) return fail("species upload identity mismatch");
     if(!startRequest(s,Op::uploadSpeciesV1,bytes) || !sendObject(s->fd,*identity)
-       || !sendArray(s->fd,speciesDensity,std::uint64_t(s->nCells)*identity->speciesCount)) return -1;
+       || !sendArray(s->fd,speciesDensity,std::uint64_t(s->nCells)*ugkwp::compiledGasSpecies)) return -1;
     return finishNoPayload(s);
 }
 extern "C" int ugkwpGpuResidentStrictDownloadSpeciesV1
@@ -1013,22 +974,20 @@ extern "C" int ugkwpGpuResidentStrictDownloadSpeciesV1
 {
     ClientState* s=static_cast<ClientState*>(handle);
     std::uint64_t bytes=0;
-    if(!s || !identity || !speciesDensity || !s->gasModelConfigured
-       || !sameGasSpeciesIdentity(*identity,s->gasSpeciesIdentity)
-       || !gasSpeciesPayloadBytes(*identity,s->nCells,bytes)) return fail("species download identity mismatch");
-    if(!startRequest(s,Op::downloadSpeciesV1,sizeof(*identity)) || !sendObject(s->fd,*identity)) return -1;
+    if(!s || !identity || !speciesDensity
+       || !gasSpeciesPayloadBytes(GasSpeciesIdentityV1{0,ugkwp::compiledGasSpecies,0,0,0},s->nCells,bytes)) return fail("species download identity mismatch");
+    if(!startRequest(s,Op::downloadSpeciesV1,wireBytes(*identity)) || !sendObject(s->fd,*identity)) return -1;
     std::uint64_t got=0;
     const int status=receiveResponse(s,got,true,bytes);
     if(status!=0) return status;
     GasSpeciesIdentityV1 returned{};
-    if(!readAll(s->fd,&returned,sizeof(returned))) return -1;
-    if(!sameGasSpeciesIdentity(*identity,returned)) return fail("backend returned mismatched species identity");
+    if(!receiveObject(s->fd, returned,s)) return -1;
     // Do not expose an interrupted wire payload as accepted species output.
-    const std::size_t count=std::uint64_t(s->nCells)*identity->speciesCount;
+    const std::size_t count=std::uint64_t(s->nCells)*ugkwp::compiledGasSpecies;
     std::vector<double> staged(count);
-    if(!receiveArray(s->fd,staged.data(),count)) return -1;
+    if(!receiveArray(s->fd,staged.data(),count,s)) return -1;
     std::memcpy(speciesDensity,staged.data(),count*sizeof(double));
-    return 0;
+    return discardResponse(s)?0:-1;
 }
 extern "C" int ugkwpGpuResidentStrictUploadSpeciesBoundaryV1
 (void* handle,const ugkwpGpuIpc::GasSpeciesIdentityV1* identity,
@@ -1036,13 +995,12 @@ extern "C" int ugkwpGpuResidentStrictUploadSpeciesBoundaryV1
 {
     ClientState* s=static_cast<ClientState*>(handle);
     std::uint64_t bytes=0;
-    if(!s || !identity || !compositionFixed || !massFraction || !s->gasModelConfigured
-       || !sameGasSpeciesIdentity(*identity,s->gasSpeciesIdentity)
-       || !gasSpeciesPayloadBytes(*identity,s->nFaces,bytes)
+    if(!s || !identity || !compositionFixed || !massFraction
+       || !gasSpeciesPayloadBytes(GasSpeciesIdentityV1{0,ugkwp::compiledGasSpecies,0,0,0},s->nFaces,bytes)
        || !addArrayBytes<int>(bytes,s->nFaces)) return fail("species boundary upload identity mismatch");
     if(!startRequest(s,Op::uploadSpeciesBoundaryV1,bytes) || !sendObject(s->fd,*identity)
        || !sendArray(s->fd,compositionFixed,s->nFaces)
-       || !sendArray(s->fd,massFraction,std::uint64_t(s->nFaces)*identity->speciesCount)) return -1;
+       || !sendArray(s->fd,massFraction,std::uint64_t(s->nFaces)*ugkwp::compiledGasSpecies)) return -1;
     return finishNoPayload(s);
 }
 
@@ -1053,9 +1011,15 @@ extern "C" int ugkwpGpuResidentStrictConfigureBoundaryLayerV1
  const double* matchingWeight,const double* speciesFlux)
 {
     ClientState* s=static_cast<ClientState*>(handle);std::uint64_t bytes=0;
-    if(!s || !config || !faces || !quadratureOffsets || !matchingOffsets || !matchingCells
+    if(!s || !config) return fail("missing boundaryLayer handle or configuration");
+    if (!config->wallCount)
+    {
+        if (!startRequest(s,Op::configureBoundaryLayerV1,wireBytes(*config)) || !sendObject(s->fd,*config)) return -1;
+        return finishNoPayload(s);
+    }
+    if(!faces || !quadratureOffsets || !matchingOffsets || !matchingCells
         || !geometry || (config->quadratureCount&&(!quadratureDistance||!quadratureWeight)) || !matchingWeight || !speciesFlux
-        || !s->gasModelConfigured || !boundaryLayerPayloadBytes(*config,s->nFaces,s->gasSpeciesIdentity.speciesCount,bytes))
+        || !boundaryLayerPayloadBytes(*config,s->nFaces,s->gasSpeciesIdentity.speciesCount,bytes))
         return fail("invalid boundaryLayer configuration request");
     const auto& a=*config;
     if(!startRequest(s,Op::configureBoundaryLayerV1,bytes) || !sendObject(s->fd,a)
@@ -1070,14 +1034,17 @@ extern "C" int ugkwpGpuResidentStrictDownloadBoundaryLayerV1
 (void* handle,std::uint32_t walls,std::uint32_t species,double* diagnostics)
 {
     ClientState* s=static_cast<ClientState*>(handle);
-    if(!s || !diagnostics || !walls || !species || !s->gasModelConfigured
-        || species!=s->gasSpeciesIdentity.speciesCount || walls>std::uint32_t(s->nFaces))
+    if(!s || (walls && !diagnostics))
         return fail("invalid boundaryLayer diagnostic request");
+    std::uint64_t bytes=0;
+    if (!boundaryLayerDiagnosticBytes(walls,species,bytes))
+        return fail("boundaryLayer diagnostic byte extent overflow");
+    const std::uint64_t count=bytes/sizeof(double);
     const std::uint32_t dimensions[2]={walls,species};
     if(!startRequest(s,Op::downloadBoundaryLayerV1,sizeof(dimensions)) || !sendArray(s->fd,dimensions,2))return -1;
-    const std::uint64_t count=std::uint64_t(walls)*(boundaryLayerDiagnosticScalars+2ULL*species);
-    std::uint64_t got=0;const int status=receiveResponse(s,got,true,count*sizeof(double));
+    std::uint64_t got=0;const int status=receiveResponse(s,got,true,bytes);
     if(status)return status;
-    std::vector<double> staged(count);if(!receiveArray(s->fd,staged.data(),count))return -1;
-    std::memcpy(diagnostics,staged.data(),count*sizeof(double));return 0;
+    std::vector<double> staged(count);if(!receiveArray(s->fd,staged.data(),count,s))return -1;
+    if (bytes) std::memcpy(diagnostics,staged.data(),bytes);
+    return discardResponse(s)?0:-1;
 }

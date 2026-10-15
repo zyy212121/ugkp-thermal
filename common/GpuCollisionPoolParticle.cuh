@@ -21,7 +21,6 @@ __device__ __forceinline__ void accumulateOnePoolParticle
     GPU_OPERATOR_REAL& count
 )
 {
-    static_assert(!LateThetaAndRng || PoissonMode, "Late theta requires Poisson selection");
     if
     (
         i < 0

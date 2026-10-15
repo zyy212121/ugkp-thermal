@@ -63,9 +63,8 @@ Real scalarFlux(const State&s,int k){
 '''.replace("ALLOCATE", allocations)
 
 
-@pytest.mark.parametrize("bits", [32, 64])
 @pytest.mark.parametrize("scheme", [1, 2])
-def test_absent_species_does_not_close_or_zero_pressure_flux(tmp_path, bits, scheme):
+def test_absent_species_does_not_close_or_zero_pressure_flux(tmp_path, scheme):
     compile_probe(tmp_path, closure_fixture() + r'''
 int main(){State s;initialise(s);s.gasFluxScheme=SCHEME;face(s);
     ck(s.gasSpecies.flux[6]==0,"absent species carries convective closure residual");
@@ -76,12 +75,11 @@ int main(){State s;initialise(s);s.gasFluxScheme=SCHEME;face(s);
     threadIdx.x=0;applyGasFluxPositivityScaleKernel(&s);
     ck(s.gasPhiRhoUx[0]==pressure,"zero-inventory roundoff suppressed pressure flux");
 }
-'''.replace("SCHEME", str(scheme)), bits)
+'''.replace("SCHEME", str(scheme)))
 
 
-@pytest.mark.parametrize("bits", [32, 64])
 @pytest.mark.parametrize("scheme", [1, 2])
-def test_populated_last_convective_arithmetic_and_one_sided_inflow(tmp_path, bits, scheme):
+def test_populated_last_convective_arithmetic_and_one_sided_inflow(tmp_path, scheme):
     compile_probe(tmp_path, closure_fixture() + r'''
 int main(){
     for(int emptySide=-1;emptySide<2;++emptySide){State s;initialise(s);s.gasFluxScheme=SCHEME;
@@ -99,22 +97,20 @@ int main(){
         }
     }
 }
-'''.replace("SCHEME", str(scheme)), bits)
+'''.replace("SCHEME", str(scheme)))
 
 
-@pytest.mark.parametrize("bits", [32, 64])
-def test_absent_species_gradient_stays_exactly_zero(tmp_path, bits):
+def test_absent_species_gradient_stays_exactly_zero(tmp_path):
     compile_probe(tmp_path, closure_fixture() + r'''
 int main(){State s;initialise(s);
     for(int c=0;c<2;++c){threadIdx.x=c;computeGasPrimitiveGradientsKernel(&s);
         ck(s.gasSpecies.gradX[4+c]==0&&s.gasSpecies.gradY[4+c]==0&&s.gasSpecies.gradZ[4+c]==0,"absent species carries gradient closure residual");
         ck(s.gasSpecies.gradX[c]+s.gasSpecies.gradX[2+c]==0,"populated gradient sum not closed");}
 }
-''', bits)
+''')
 
 
-@pytest.mark.parametrize("bits", [32, 64])
-def test_gradient_preserves_populated_last_and_one_sided_species(tmp_path, bits):
+def test_gradient_preserves_populated_last_and_one_sided_species(tmp_path):
     compile_probe(tmp_path, closure_fixture() + r'''
 int main(){State s;initialise(s);s.gasSpecies.rho[5]=Real(.3);s.gasSpecies.rho[3]=1-s.gasSpecies.rho[1]-s.gasSpecies.rho[5];recover(s,1);
     for(int c=0;c<2;++c){threadIdx.x=c;computeGasPrimitiveGradientsKernel(&s);}
@@ -124,11 +120,10 @@ int main(){State s;initialise(s);s.gasSpecies.rho[5]=Real(.3);s.gasSpecies.rho[3
     ck(sameBits(s.gasSpecies.gradX[1],raw[0])&&sameBits(s.gasSpecies.gradX[3],raw[1]),"populated-last gradient arithmetic changed");
     ck(sameBits(s.gasSpecies.gradX[5],-(raw[0]+raw[1])),"populated-last gradient closure changed");
 }
-''', bits)
+''')
 
 
-@pytest.mark.parametrize("bits", [32, 64])
-def test_absent_diffusion_species_zero_and_final_enthalpy(tmp_path, bits):
+def test_absent_diffusion_species_zero_and_final_enthalpy(tmp_path):
     compile_probe(tmp_path, closure_fixture() + r'''
 int main(){State s;initialise(s);
     for(int sample=0;sample<2;++sample){
@@ -140,11 +135,10 @@ int main(){State s;initialise(s);
         ck(energy==expected,"enthalpy was not computed from final corrected diffusion");
     }
 }
-''', bits)
+''')
 
 
-@pytest.mark.parametrize("bits", [32, 64])
-def test_diffusion_keeps_populated_last_arithmetic_and_zero_face_inflow(tmp_path, bits):
+def test_diffusion_keeps_populated_last_arithmetic_and_zero_face_inflow(tmp_path):
     compile_probe(tmp_path, closure_fixture() + r'''
 int main(){State s;initialise(s);Real D[3]={Real(.03),Real(.01),Real(.07)};
     for(int absent=0;absent<2;++absent){Real y[3]={Real(.1),absent?Real(.9):Real(.7),absent?Real(0):Real(.2)},grad[3]={Real(.17),Real(-.11),Real(-.06)},j[3],energy;
@@ -156,4 +150,4 @@ int main(){State s;initialise(s);Real D[3]={Real(.03),Real(.01),Real(.07)};
         ck(energy==expected,"final diffusion enthalpy mismatch");
     }
 }
-''', bits)
+''')

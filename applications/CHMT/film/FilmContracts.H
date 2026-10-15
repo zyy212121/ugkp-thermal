@@ -13,7 +13,7 @@ struct FilmProfileRequest {
 struct FilmProfileResult {
     Vec3 meanVelocity{},topVelocity{},bottomShear{};
     Vec3 volumeFlux{},massFlux{},enthalpyFlux{};
-    Real dissipation=0,boundaryWork=0,kineticEnergyPerArea=0;
+    Real boundaryWork=0;
     int nSamples=0;
     Vec3 velocity[FilmContractMaxSamples]{};
 };
@@ -44,16 +44,14 @@ CHMT_HD inline bool evaluateFilmContractMath(const FilmProfileRequest& in, FilmP
     if (!finite(in.rho) || in.rho<=0 || !finite(in.h) || in.nSamples<0
         || in.nSamples>FilmContractMaxSamples) return false;
     const FilmProfile p=filmProfile(in.delta,in.mu,in.baseVelocity,in.topShear,in.pressureBodyGradient);
-    if (!finite(p.dissipation) || !finite(p.kineticPerArea)) return false;
+    if (!finite(p.meanVelocity) || !finite(p.topVelocity) || !finite(p.bottomShear)) return false;
     FilmProfileResult next;
     next.meanVelocity=p.meanVelocity; next.topVelocity=p.topVelocity; next.bottomShear=p.bottomShear;
     next.volumeFlux=p.meanVelocity*in.delta;
     next.massFlux=next.volumeFlux*in.rho;
     next.enthalpyFlux=next.massFlux*in.h;
-    next.dissipation=p.dissipation;
     // Boundary traction work; pressure/body-gradient work is a separate term.
     next.boundaryWork=dot(in.topShear,p.topVelocity)-dot(p.bottomShear,in.baseVelocity);
-    next.kineticEnergyPerArea=in.rho*p.kineticPerArea;
     next.nSamples=in.nSamples;
     for (int i=0; i<in.nSamples; ++i) {
         if (!finite(in.z[i]) || in.z[i]<0 || in.z[i]>in.delta) return false;

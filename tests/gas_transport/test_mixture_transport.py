@@ -35,8 +35,7 @@ for(int c=0;c<2;++c){threadIdx.x=c;applyGasFluxDivergenceByCellKernel(&s,dt);rec
 }
 '''.replace('ALLOCATE',allocations)
 
-@pytest.mark.parametrize('bits',[32,64])
-def test_actual_chain_preserves_formation_contact_temperature(tmp_path,bits):
+def test_actual_chain_preserves_formation_contact_temperature(tmp_path):
     compile_probe(tmp_path,fixture()+r'''
 int main(){State s;initialise(s);Real beforeE=s.rhoE[0]+s.rhoE[1];transport(s,1e-5);
 for(int c=0;c<2;++c){ck(s.gasSpecies.cellStatus[c]==0,"trial status");ck(std::abs(s.Tgas[c]-700)<Real(.03),"formation diffusion heated stationary contact");}
@@ -44,10 +43,9 @@ ck(s.gasSpecies.rho[0]<Real(.9)&&s.gasSpecies.rho[1]>Real(.1),"species numerical
 ck(std::abs(s.rhoE[0]+s.rhoE[1]-beforeE)<Real(1e-6)*std::abs(beforeE),"total energy changed");
 for(int k=0;k<2;++k)ck(std::abs(s.gasSpecies.rho[2*k]+s.gasSpecies.rho[2*k+1]-1)<Real(2e-6),"species not conserved");
 ck(std::abs(s.gasSpecies.flux[0]+s.gasSpecies.flux[3]-s.gasPhiRho[0])<Real(2e-6),"mass flux closure");}
-''',bits)
+''')
 
-@pytest.mark.parametrize('bits',[32,64])
-def test_zero_mass_flux_species_donors_scale_all_components(tmp_path,bits):
+def test_zero_mass_flux_species_donors_scale_all_components(tmp_path):
     compile_probe(tmp_path,fixture()+r'''
 int main(){State s;initialise(s);s.gasSpecies.rho[0]=Real(.001);s.gasSpecies.rho[2]=Real(.999);
 s.gasSpecies.flux[0]=2;s.gasSpecies.flux[3]=-2;s.gasPhiRho[0]=0;s.gasPhiRhoE[0]=123;
@@ -58,20 +56,18 @@ ck(s.gasSpecies.flux[3]==-s.gasSpecies.flux[0],"scale broke species closure");
 ck(std::abs(s.gasPhiRhoE[0]/123-s.gasSpecies.flux[0]/2)<Real(1e-7),"energy and species scaled differently");
 for(int c=0;c<2;++c){threadIdx.x=c;applyGasFluxDivergenceByCellKernel(&s,.1);}
 ck(s.gasSpecies.rho[0]>=0,"negative depleted species");}
-''',bits)
+''')
 
-@pytest.mark.parametrize('bits',[32,64])
-def test_species_runge_kutta_and_periodic_use_existing_kernels(tmp_path,bits):
+def test_species_runge_kutta_and_periodic_use_existing_kernels(tmp_path):
     compile_probe(tmp_path,fixture()+r'''
 int main(){State s;initialise(s);for(int c=0;c<2;++c){threadIdx.x=c;saveGasConservativeStateKernel(&s);}
 s.gasSpecies.rho[0]=.5;s.gasSpecies.rho[2]=.5;threadIdx.x=0;blendGasConservativeStateKernel(&s,Real(.75),Real(.25));
 ck(std::abs(s.gasSpecies.rho[0]-Real(.8))<Real(1e-7),"species RK missing");
 s.nFaces=2;s.nInternalFaces=0;s.facePeriodicPair[0]=1;s.facePeriodicPair[1]=0;s.gasSpecies.flux[0]=2;s.gasSpecies.flux[1]=-4;s.gasSpecies.flux[2]=-2;s.gasSpecies.flux[3]=4;
 threadIdx.x=0;enforcePeriodicGasFluxAntisymmetryKernel(&s);ck(s.gasSpecies.flux[0]==3&&s.gasSpecies.flux[1]==-3&&s.gasSpecies.flux[2]==-3&&s.gasSpecies.flux[3]==3,"periodic species antisymmetry missing");}
-''',bits)
+''')
 
-@pytest.mark.parametrize('bits',[32,64])
-def test_species_diffusion_is_zero_sum_and_carries_formation_enthalpy(tmp_path,bits):
+def test_species_diffusion_is_zero_sum_and_carries_formation_enthalpy(tmp_path):
     compile_probe(tmp_path,fixture()+r'''
 #include "gasTransport/SpeciesDiffusion.H"
 int main(){State s;initialise(s);Real Y[2]={.25,.75},grad[2]={1,-1},D[2]={.01,.03},flux[2]={99,98},energy=97;
@@ -79,11 +75,13 @@ ck(ugkwp::correctedSpeciesDiffusion(Y,grad,Real(2),D,Real(.004),Real(.8),Real(70
 Real raw0=-2*(D[0]+Real(.005)),raw1=2*(D[1]+Real(.005));
 ck(std::abs(flux[0]-(raw0-Y[0]*(raw0+raw1)))<Real(1e-7),"unequal D correction");ck(flux[0]+flux[1]==0,"diffusion total mass nonzero");
 Real expected=ugkwp::speciesH(0,Real(700),s.gasSpecies.thermo)*flux[0]+ugkwp::speciesH(1,Real(700),s.gasSpecies.thermo)*flux[1];ck(std::abs(energy-expected)<Real(1e-6)*std::abs(expected),"enthalpy diffusion omitted formation energy");
-Real prior[]={flux[0],flux[1],energy};D[0]=-1;ck(!ugkwp::correctedSpeciesDiffusion(Y,grad,Real(2),D,Real(0),Real(.8),Real(700),s.gasSpecies.thermo,flux,energy),"invalid diffusion accepted");ck(flux[0]==prior[0]&&flux[1]==prior[1]&&energy==prior[2],"failed diffusion published");}
-''',bits)
+D[0]=-1;ck(ugkwp::correctedSpeciesDiffusion(Y,grad,Real(2),D,Real(0),Real(.8),Real(700),s.gasSpecies.thermo,flux,energy),"finite signed diffusion rejected");
+ck(flux[0]+flux[1]==0,"signed diffusion lost closure");
+Real prior[]={flux[0],flux[1],energy};D[0]=std::numeric_limits<Real>::quiet_NaN();bool evaluated=false;ck(!ugkwp::correctedSpeciesDiffusion(Y,grad,Real(2),D,Real(0),Real(.8),Real(700),s.gasSpecies.thermo,flux,energy,true,&evaluated),"strict invalid diffusion accepted");ck(!evaluated&&flux[0]==prior[0]&&flux[1]==prior[1]&&energy==prior[2],"strict failed diffusion published");
+ck(!ugkwp::correctedSpeciesDiffusion(Y,grad,Real(2),D,Real(0),Real(.8),Real(700),s.gasSpecies.thermo,flux,energy,false,&evaluated),"nonfinite diffusion diagnostic omitted");ck(evaluated&&std::isnan(flux[0])&&std::isnan(flux[1])&&std::isnan(energy),"public nonfinite diffusion arithmetic incomplete");}
+''')
 
-@pytest.mark.parametrize('bits',[32,64])
-def test_actual_face_adds_unequal_diffusion_and_periodic_gradients(tmp_path,bits):
+def test_actual_face_adds_unequal_diffusion_and_periodic_gradients(tmp_path):
     compile_probe(tmp_path,fixture()+r'''
 int main(){State a,b;initialise(a);initialise(b);Real D[2]={.01,.03};b.gasSpecies.diffusivity=D;
 for(int c=0;c<2;++c){threadIdx.x=c;computeGasPrimitiveGradientsKernel(&a);computeGasPrimitiveGradientsKernel(&b);}
@@ -93,18 +91,17 @@ ck(std::abs(j0-Real(.016))<Real(5e-5),"actual corrected Fick flux missing");ck(s
 ck(a.gasPhiRho[0]==b.gasPhiRho[0],"bulk mass gained diffusion");Real h0=ugkwp::speciesH(0,Real(700),b.gasSpecies.thermo),h1=ugkwp::speciesH(1,Real(700),b.gasSpecies.thermo);Real expected=(h0-h1)*Real(.016);
 ck(std::abs((b.gasPhiRhoE[0]-a.gasPhiRhoE[0])-expected)<Real(2e-3)*std::abs(expected),"actual energy diffusion missing");
 ck(b.gasSpecies.gradX[0]!=0&&b.gasSpecies.gradX[0]+b.gasSpecies.gradX[2]==0,"common species Green-Gauss gradients missing");}
-''',bits)
+''')
 
-@pytest.mark.parametrize('bits',[32,64])
-def test_boundary_uses_composition_eos_and_rejects_redundant_inputs(tmp_path,bits):
+def test_boundary_uses_composition_eos_and_rejects_redundant_inputs(tmp_path):
     compile_probe(tmp_path,fixture()+r'''
 int main(){State s;initialise(s);auto*metadata=const_cast<ugkwp::SpeciesThermoData<Real>*>(s.gasSpecies.thermo.species);metadata[1].molarMass=.044;
 s.riemannBoundaryKind[1]=0;s.riemannBoundaryPFix[1]=1;s.riemannBoundaryTFix[1]=1;s.riemannBoundaryP[1]=101325;s.riemannBoundaryT[1]=500;s.gasSpecies.compositionBoundaryFixed[1]=1;s.gasSpecies.boundaryMassFraction[1]=.25;s.gasSpecies.boundaryMassFraction[4]=.75;
 GasPrimDevice owner{s.rho[0],0,0,0,s.p[0],s.Tgas[0]};auto b=riemannBoundaryState(s,1,owner);Real Y[2]={.25,.75};Real expectedR=ugkwp::mixtureGasConstant(Y,s.gasSpecies.thermo);
 ck(s.gasSpecies.faceStatus[1]==0&&std::abs(b.rho-101325/(expectedR*500))<Real(1e-6),"boundary used scalar R");
 s.Rgas=1;s.gammaGas=9;auto again=riemannBoundaryState(s,1,owner);ck(again.rho==b.rho&&again.T==b.T,"bootstrap EOS leaked into boundary");
-s.riemannBoundaryRhoFix[1]=1;s.riemannBoundaryRho[1]=100;riemannBoundaryState(s,1,owner);ck(s.gasSpecies.faceStatus[1]!=0,"inconsistent redundant rho/p/T accepted");}
-''',bits)
+s.riemannBoundaryRhoFix[1]=1;s.riemannBoundaryRho[1]=100;auto redundant=riemannBoundaryState(s,1,owner);ck(s.gasSpecies.faceStatus[1]==0&&redundant.rho==b.rho,"finite redundant inputs did not preserve p/T precedence");}
+''')
 
 def test_explicit_conductivity_is_independent_of_caloric_cp(tmp_path):
     compile_probe(tmp_path,fixture()+r'''
@@ -114,8 +111,7 @@ ck(molecularGasConductivity(s)==Real(.42),"direct conductivity changed with cp")
 ck(molecularGasConductivity(s)==20,"legacy conductivity fallback changed");}
 ''')
 
-@pytest.mark.parametrize('bits',[32,64])
-def test_fixed_composition_boundary_has_corrected_diffusion(tmp_path,bits):
+def test_fixed_composition_boundary_has_corrected_diffusion(tmp_path):
     compile_probe(tmp_path,fixture()+r'''
 int main(){State a,b;initialise(a);initialise(b);Real D[2]={.01,.03};b.gasSpecies.diffusivity=D;
 for(auto*s:{&a,&b}){s->riemannBoundaryKind[1]=0;s->riemannBoundaryPFix[1]=1;s->riemannBoundaryTFix[1]=1;s->riemannBoundaryP[1]=s->p[0];s->riemannBoundaryT[1]=700;s->gasSpecies.compositionBoundaryFixed[1]=1;s->gasSpecies.boundaryMassFraction[1]=.25;s->gasSpecies.boundaryMassFraction[4]=.75;}
@@ -123,10 +119,9 @@ for(int c=0;c<2;++c){threadIdx.x=c;computeGasPrimitiveGradientsKernel(&a);comput
 computeGasInternalFaceFluxKernel<false>(&a,1e-6);computeGasInternalFaceFluxKernel<false>(&b,1e-6);
 ck(b.gasSpecies.faceStatus[1]==0,"boundary rejected");Real j=b.gasSpecies.flux[1]-a.gasSpecies.flux[1];ck(std::abs(j-Real(.0195))<Real(2e-5),"fixed boundary species diffusion omitted");
 ck(std::abs((b.gasPhiRhoE[1]-a.gasPhiRhoE[1])-Real(-58500))<Real(100),"fixed boundary enthalpy diffusion omitted");}
-''',bits)
+''')
 
-@pytest.mark.parametrize('bits',[32,64])
-def test_hll_shared_scheme_uses_matching_species_and_energy_waves(tmp_path,bits):
+def test_hll_shared_scheme_uses_matching_species_and_energy_waves(tmp_path):
     compile_probe(tmp_path,fixture()+r'''
 int main(){State s;initialise(s);s.gasFluxScheme=2;transport(s,1e-5);
 for(int c=0;c<2;++c){ck(s.gasSpecies.cellStatus[c]==0,"HLL mixture rejected");ck(std::abs(s.Tgas[c]-700)<Real(.03),"HLL formation-contact heating");}
@@ -138,10 +133,9 @@ auto now=hllKurganovFluxUnitNormal(l,ul,al,r,ur,ar,Real(1),Real(0),Real(0),false
 for(int k=0;k<5;++k)ck(old.flux[k]==now.flux[k],"HLL legacy reduction");
 Real species=hllConservativeComponentFlux(Real(.3)*l.ux,Real(.2)*r.ux,Real(.3),Real(.2),l.ux,r.ux,al,ar);
 ck(std::abs(species-Real(.3)*l.ux)<Real(1e-4),"HLL supersonic scalar upwind");}
-''',bits)
+''')
 
-@pytest.mark.parametrize('bits',[32,64])
-def test_euler_ale_uniform_state_satisfies_gcl_and_conservation(tmp_path,bits):
+def test_euler_ale_uniform_state_satisfies_gcl_and_conservation(tmp_path):
     compile_probe(tmp_path,fixture()+r'''
 int main(){State s;initialise(s);for(int c=0;c<2;++c){s.gasSpecies.rho[c]=.4;s.gasSpecies.rho[2+c]=.6;Real partial[2]={.4,.6};s.rhoE[c]=ugkwp::mixtureEnergy(partial,Real(700),s.gasSpecies.thermo);threadIdx.x=c;recoverGasPrimitivesKernel(&s);}
 // Two moving transmissive endpoints with a uniform state: outward sweeps sum
@@ -152,11 +146,10 @@ s.gasGeometry.enabled=true;s.gasGeometry.oldVolume=oldV;s.gasGeometry.newVolume=
 Real oldE=s.rhoE[0];transport(s,.001);
 for(int c=0;c<2;++c){ck(s.gasSpecies.cellStatus[c]==0,"ALE rejected valid geometry");ck(std::abs(s.rho[c]-1)<Real(2e-6),"ALE uniform density GCL");ck(std::abs(s.Tgas[c]-700)<Real(.03),"ALE uniform thermal GCL");ck(std::abs(s.rhoE[c]-oldE)<Real(2e-6)*std::abs(oldE),"ALE uniform energy GCL");}
 ck(s.V[0]==1,"operator unexpectedly published endpoint geometry");
-State bad;initialise(bad);bad.gasGeometry=s.gasGeometry;Real wrongV[2]={1.2,1.1};bad.gasGeometry.newVolume=wrongV;Real before=bad.rho[0];threadIdx.x=0;applyGasFluxDivergenceByCellKernel(&bad,.001);ck(bad.gasSpecies.cellStatus[0]!=0&&bad.rho[0]==before,"bad GCL modified conserved state");}
-''',bits)
+State bad;initialise(bad);bad.gasGeometry=s.gasGeometry;Real wrongV[2]={1.2,1.1};bad.gasGeometry.newVolume=wrongV;Real before=bad.rho[0];threadIdx.x=0;applyGasFluxDivergenceByCellKernel(&bad,.001);ck(bad.gasSpecies.cellStatus[0]==0&&bad.rho[0]==before/wrongV[0],"finite GCL residual blocked actual volume ratio");}
+''')
 
-@pytest.mark.parametrize('bits',[32,64])
-def test_single_legacy_explicit_conductivity_drives_actual_face_flux(tmp_path,bits):
+def test_single_legacy_explicit_conductivity_drives_actual_face_flux(tmp_path):
     compile_probe(tmp_path,fixture()+r'''
 int main(){State a,b;initialise(a);initialise(b);
 for(auto* s:{&a,&b}){s->gasSpecies.mode=ugkwp::GasMode::SingleLegacy;s->gasMu=0;s->gasThermalConductivity=0;
@@ -164,4 +157,4 @@ for(int c=0;c<2;++c){s->Tgas[c]=600+200*c;s->p[c]=s->rho[c]*s->Rgas*s->Tgas[c];s
 b.gasThermalConductivity=.42;threadIdx.x=0;computeGasInternalFaceFluxKernel<false>(&a,1e-6);computeGasInternalFaceFluxKernel<false>(&b,1e-6);
 ck(std::abs((b.gasPhiRhoE[0]-a.gasPhiRhoE[0])-Real(-84))<Real(4),"single legacy explicit conductivity missing when viscosity zero");
 ck(a.gasPhiRho[0]==b.gasPhiRho[0]&&a.gasPhiRhoUx[0]==b.gasPhiRhoUx[0],"conductivity changed nonthermal fluxes");}
-''',bits)
+''')

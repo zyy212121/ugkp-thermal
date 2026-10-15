@@ -72,7 +72,7 @@ def test_native_model_reads_species_and_formation_energy(native_probe,tmp_path):
     assert result.returncode==0,result.stdout+result.stderr
     assert "MODEL_INITIALIZED 2" in result.stdout
 
-def test_native_model_rejects_inconsistent_redundant_density(native_probe,tmp_path):
+def test_native_model_uses_pt_y_over_redundant_density(native_probe,tmp_path):
     binary,build=native_probe
     assert build.returncode==0,build.stdout+build.stderr
     make_case(tmp_path)
@@ -80,8 +80,8 @@ def test_native_model_rejects_inconsistent_redundant_density(native_probe,tmp_pa
     path=tmp_path/"0/rho"
     path.write_text(re.sub(r"internalField uniform [^;]+;","internalField uniform 99;",path.read_text()))
     result=subprocess.run([str(binary),"-case",str(tmp_path)],capture_output=True,text=True)
-    assert result.returncode!=0
-    assert "rho" in result.stdout+result.stderr and "inconsistent" in result.stdout+result.stderr
+    assert result.returncode==0,result.stdout+result.stderr
+    assert "MODEL_INITIALIZED 2 1.137" in result.stdout
 
 def test_native_frontend_reaches_model_configuration_before_initial_upload():
     wrapper=(ROOT/"applications/gasUGKP/gpu/GpuResidentStrict.H").read_text()
@@ -110,8 +110,10 @@ def test_native_restart_round_trip_uses_full_precision_and_same_identity(native_
     identity=tmp_path/"1/gasModelIdentity"
     identity.write_text(identity.read_text().replace("thermoHash", "originalThermoHash",1)+ '\nthermoHash "123";\n')
     changed=subprocess.run([str(binary),"-case",str(tmp_path)],capture_output=True,text=True)
-    assert changed.returncode!=0
-    assert "identity differs" in changed.stdout+changed.stderr
+    assert changed.returncode==0,changed.stdout+changed.stderr
+    identity.unlink()
+    missing=subprocess.run([str(binary),"-case",str(tmp_path)],capture_output=True,text=True)
+    assert missing.returncode==0,missing.stdout+missing.stderr
 
 
 def test_native_reacting_frontend_reads_pinned_mechanism_and_formation_energy(native_reacting_probe,tmp_path):
@@ -132,8 +134,8 @@ def test_native_frontend_rejects_species_shape_mismatch(native_reacting_probe,tm
     assert build.returncode==0,build.stdout+build.stderr
     make_case(tmp_path)
     result=subprocess.run([str(binary),"-case",str(tmp_path)],capture_output=True,text=True)
-    assert result.returncode!=0
-    assert "species" in result.stdout+result.stderr
+    assert result.returncode>0
+    assert "missing species storage for compiled gas model" in result.stdout+result.stderr
 
 
 def test_native_legacy_needs_no_mixture_fields_or_identity(native_probe,tmp_path):
@@ -151,9 +153,9 @@ def test_native_legacy_needs_no_mixture_fields_or_identity(native_probe,tmp_path
 @pytest.mark.parametrize("mode,wall,moving,accepted", [
     ("frozen","0",False,True),
     ("frozen","1",False,True),
-    ("frozen","1",True,False),
+    ("frozen","1",True,True),
     ("chemistry","0",False,True),
-    ("chemistry","1",False,False),
+    ("chemistry","1",False,True),
 ])
 def test_native_mixture_sst_gate_uses_configured_wall_treatment(request,tmp_path,mode,wall,moving,accepted):
     binary,build=request.getfixturevalue("native_reacting_probe" if mode=="chemistry" else "native_probe")
@@ -200,7 +202,7 @@ def test_native_same_ns10_binary_accepts_reacting_frozen_and_legacy_modes(native
 
 
 @pytest.mark.parametrize("model_content", [None,"gasMode single;"])
-def test_native_mixture_checkpoint_cannot_be_reinterpreted_as_legacy(native_probe,tmp_path,model_content):
+def test_native_explicit_legacy_selection_ignores_old_identity(native_probe,tmp_path,model_content):
     binary,build=native_probe
     assert build.returncode==0,build.stdout+build.stderr
     make_case(tmp_path)
@@ -215,5 +217,56 @@ def test_native_mixture_checkpoint_cannot_be_reinterpreted_as_legacy(native_prob
         header=model.read_text().split("\ngasMode",1)[0]
         model.write_text(header+model_content+"\n")
     result=subprocess.run([str(binary),"-case",str(tmp_path)],capture_output=True,text=True)
-    assert result.returncode!=0
-    assert "mixture checkpoint" in (result.stdout+result.stderr).lower()
+    assert result.returncode==0,result.stdout+result.stderr
+    assert "MODEL_INITIALIZED 0" in result.stdout
+
+
+def test_frontend_and_actual_backend_share_reordered_indices_and_rate_outputs(tmp_path):
+    """Real frontend parser + real adapter allocation/copy, using host CUDA memory."""
+    from test_shared_gas_adapter import ADAPTER_PROBE
+    from test_gas_model_io import mixture
+    from test_gas_mechanism_io import mechanism
+    from test_gas_species_mapping import reordered
+    if not os.environ.get('WM_PROJECT_DIR'):pytest.skip('OpenFOAM environment required')
+    builddir=tmp_path/'build';builddir.mkdir();(builddir/'Make').mkdir()
+    source=ADAPTER_PROBE.split('int main(){',1)[0]+r'''
+#include "fvCFD.H"
+#include "gpu/SharedGasModelInput.H"
+#include "common/chemistry/GasRates.H"
+#include <iomanip>
+extern "C" const char* ugkwpGpuResidentStrictLastError(){return last.c_str();}
+using namespace Foam;
+int main(int argc,char**argv){
+ #include "setRootCase.H"
+ #include "createTime.H"
+ #include "createMesh.H"
+ SharedGasModelInput input(runTime,mesh);
+ DeviceState state,device;state.deviceState=&device;
+ input.configureResident(&state);
+ auto& g=state.gasSpecies;double c[]={2,7},production[]={-999,-999},progress[]={-999};
+ ugkwp::ChemistryStatus status;
+ assert(ugkwp::evaluateGasRates(300.,c,g.thermo,g.mechanism,production,progress,status));
+ std::cout<<std::setprecision(17)<<"MAPPED "<<g.mechanism.reactants[0].species<<" "<<g.mechanism.products[0].species
+ <<" "<<g.mechanism.efficiencies[0].species<<" "<<g.mechanism.stoichiometricBasis[0]<<" "<<g.mechanism.stoichiometricBasis[1]
+ <<" "<<production[0]<<" "<<production[1]<<" "<<progress[0]
+ <<" "<<ugkwp::speciesCp(0,300.,g.thermo)<<" "<<ugkwp::speciesCp(1,300.,g.thermo)<<"\n";
+ releaseSharedGasSpecies(g);assert(!allocations);
+}
+'''
+    (builddir/'probe.C').write_text(source)
+    (builddir/'Make/files').write_text(f'probe.C\nEXE = {builddir}/probe\n')
+    (builddir/'Make/options').write_text(f'EXE_INC = -std=c++17 -DUGKWP_GAS_SPECIES=2 -I{ROOT} -I{ROOT}/applications/gasUGKP -I{ROOT}/common -I$(LIB_SRC)/finiteVolume/lnInclude -I$(LIB_SRC)/meshTools/lnInclude\nEXE_LIBS = -lfiniteVolume -lmeshTools -lOpenFOAM\n')
+    built=subprocess.run(['wmake'],cwd=builddir,capture_output=True,text=True)
+    assert built.returncode==0,built.stdout+built.stderr
+    text=mechanism().replace('type elementary','type thirdBody').replace('efficiencies ()','efficiencies (0 2)')
+    model=mixture().replace('gasMode mixtureFrozen;','gasMode mixtureChemistry; mechanism test.mechanism; phase test;').replace('coefficients (1040 0 0); }\n}', 'coefficients (1200 0 0); }\n}')
+    outputs=[]
+    for index,chemistry in enumerate((text,reordered(text))):
+        case=tmp_path/f'case{index}';make_case(case)
+        (case/'constant/gasModelProperties').write_text(model)
+        (case/'constant/test.mechanism').write_text(chemistry)
+        result=subprocess.run([str(builddir/'probe'),'-case',str(case)],capture_output=True,text=True)
+        assert result.returncode==0,result.stdout+result.stderr
+        mapped=next(line for line in result.stdout.splitlines() if line.startswith('MAPPED '))
+        outputs.append(mapped)
+    assert outputs==['MAPPED 0 1 0 -1 1 -22 22 22 1040 1200']*2

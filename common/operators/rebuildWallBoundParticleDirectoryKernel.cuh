@@ -39,24 +39,12 @@ __global__ void finalizeParticleWallContactAreaScaleKernel(DeviceState* sp)
             s.particleWallRepresentedContactArea[faceI];
         const GPU_OPERATOR_REAL maximumArea =
             s.particleWallMaximumCoverage*s.magSf[faceI];
-        if
-        (
-            !finiteDevice(representedArea)
-         || !finiteDevice(maximumArea)
-         || representedArea < GPU_OPERATOR_R(0.0)
-         || !(maximumArea > GPU_OPERATOR_R(0.0))
-        )
-        {
-            asm("trap;");
-        }
+
         if (representedArea > maximumArea)
         {
             scale = maximumArea/representedArea;
         }
     }
-    if (!(scale > GPU_OPERATOR_R(0.0)) || scale > GPU_OPERATOR_R(1.0))
-    {
-        asm("trap;");
-    }
+
     s.particleWallContactAreaScale[faceI] = scale;
 }

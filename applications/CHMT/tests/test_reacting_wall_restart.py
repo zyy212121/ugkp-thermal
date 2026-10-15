@@ -1,7 +1,7 @@
 from pathlib import Path
 import subprocess
 APP=Path(__file__).resolve().parents[1]
-def test_wall_solver_controls_are_restart_identity(tmp_path):
+def test_wall_solver_metadata_does_not_refuse_restart(tmp_path):
     # Exercise the real checkpoint round-trip fixture with additional changes
     # to the new model identity, rather than inspecting serializer source text.
     source=(APP/'tests/test_restart.cpp').read_text()

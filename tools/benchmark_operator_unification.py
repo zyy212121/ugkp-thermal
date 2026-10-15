@@ -8,13 +8,12 @@ case-specific parameter is written to production code.
 from pathlib import Path
 import argparse,hashlib,json,os,re,resource,statistics,subprocess
 
-def build(root,out,app,bits):
+def build(root,out,app):
     source=root/'applications'/app/('gpu' if app=='CHT' else 'private_backend')
     raw=(source/'GpuResidentStrict.cu').read_text().replace('#include "GpuAutomaticCsrScheduleFields.inl"', (root/"common/GpuAutomaticCsrScheduleFields.inl").read_text() if (root/"common/GpuAutomaticCsrScheduleFields.inl").is_file() else "");a=raw.index('struct DeviceState');b=raw.index('\n};',a)
     fields=re.findall(r'^\s*((?:unsigned\s+)?(?:long long|char)|double|float|int|GpuReal|GpuTime|GpuWallEnergy)\*\s+(\w+)\s*=',raw[a:b],re.M)
-    fields=[(ty,n) for ty,n in fields if n not in ['diagnosticPreTransportParticleCount','sourceInjectedCount'] and (bits==32 or not n.startswith('flatPressure'))]
+    fields=[(ty,n) for ty,n in fields if n not in ['diagnosticPreTransportParticleCount','sourceInjectedCount'] and not n.startswith('flatPressure')]
     code='#include "GpuResidentStrict.cu"\n#include <cstdio>\n#include <cstdlib>\n#include <new>\n#include <cmath>\n'
-    if app=='CHT' and bits==32:code+='using namespace ugkwpCudaFp32;\n'
     code+=r'''
 template<class T>void mem(T*&p,int n){if(cudaMallocManaged(&p,n*sizeof(T))!=cudaSuccess)abort();for(int i=0;i<n;i++)::new(static_cast<void*>(p+i)) T{};}
 void check(cudaError_t e){if(e!=cudaSuccess){printf("FAIL CUDA %s\n",cudaGetErrorString(e));exit(10);}}
@@ -78,7 +77,7 @@ check(cudaEventDestroy(start));check(cudaEventDestroy(stop));if(graphTiming)chec
         if header.is_file() and header.suffix in ('.H','.cuh','.inl'):digest.update(header.read_bytes())
     signature=digest.hexdigest();stamp=out/'source.sha256'
     if exe.is_file() and stamp.is_file() and stamp.read_text()==signature:return exe
-    cmd=['/usr/local/cuda/bin/nvcc','-std=c++17','-O3','-arch=sm_89','--fmad='+('false' if app=='CHT' else 'true'),'-DUGKWP_GPU_REAL_BITS='+str(bits),'-I'+str(source),'-I'+str(root/'common'),'-I'+str(root/'applications'/app/'gpu'),str(cu),'-o',str(exe)]
+    cmd=['/usr/local/cuda/bin/nvcc','-std=c++17','-O3','-arch=sm_89','--fmad='+('false' if app=='CHT' else 'true'),'-I'+str(source),'-I'+str(root/'common'),'-I'+str(root/'applications'/app/'gpu'),str(cu),'-o',str(exe)]
     if app=='CHT':cmd.append(str(source/'GpuWallEnergy64.cu'))
     with (out/'build.log').open('w') as log:q=subprocess.run(cmd,stdout=log,stderr=subprocess.STDOUT)
     if q.returncode:raise RuntimeError((out/'build.log').read_text()[-5000:])
@@ -97,23 +96,23 @@ def main():
     resource.setrlimit(resource.RLIMIT_STACK,(requested if hard==resource.RLIM_INFINITY else min(requested,hard),hard))
     resource.setrlimit(resource.RLIMIT_CORE,(0,0))
     output=args.output.resolve();output.mkdir(parents=True,exist_ok=True);rows=[];summary=[]
-    for app,bits in [('gasUGKP',64),('FSH',64),('CHT',64),('CHT',32)]:
-        binaries={version:build(getattr(args,version).resolve(),output/(app+str(bits))/version,app,bits) for version in ('before','after')}
-        print('built',app,bits,flush=True)
+    for app in ['gasUGKP', 'FSH', 'CHT']:
+        binaries={version:build(getattr(args,version).resolve(),output/(app+str(64))/version,app) for version in ('before','after')}
+        print('built',app,64,flush=True)
         if args.build_only:continue
         for cells in args.loads:
             for rep in range(args.repeats):
                 values={}
                 for version in (('before','after') if rep%2==0 else ('after','before')):
-                    values[version]=run(binaries[version],cells,output/(app+str(bits))/f'{cells}-{rep}-{version}.log',args.graph)
+                    values[version]=run(binaries[version],cells,output/(app+str(64))/f'{cells}-{rep}-{version}.log',args.graph)
                 for name in values['before']:
                     old,new=values['before'][name],values['after'][name]
-                    rows.append(dict(app=app,bits=bits,cells=cells,particles=128*cells,repeat=rep,kernel=name,timing='graph' if args.graph else 'launch',before_ms=old,after_ms=new,speedup=old/new))
+                    rows.append(dict(app=app,bits=64,cells=cells,particles=128*cells,repeat=rep,kernel=name,timing='graph' if args.graph else 'launch',before_ms=old,after_ms=new,speedup=old/new))
                 (output/'samples.json').write_text(json.dumps(rows,indent=2)+'\n')
             for name in values['before']:
-                samples=[r for r in rows if r['app']==app and r['bits']==bits and r['cells']==cells and r['kernel']==name]
+                samples=[r for r in rows if r['app']==app and r['bits']==64 and r['cells']==cells and r['kernel']==name]
                 ratios=[s['speedup'] for s in samples]
-                result=dict(app=app,bits=bits,cells=cells,particles=128*cells,kernel=name,pairs=len(samples),median_speedup=statistics.median(ratios),minimum=min(ratios),maximum=max(ratios))
+                result=dict(app=app,bits=64,cells=cells,particles=128*cells,kernel=name,pairs=len(samples),median_speedup=statistics.median(ratios),minimum=min(ratios),maximum=max(ratios))
                 summary.append(result);print(json.dumps(result),flush=True)
             (output/'summary.json').write_text(json.dumps(summary,indent=2)+'\n')
     return 0

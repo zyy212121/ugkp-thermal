@@ -2,7 +2,7 @@ from pathlib import Path
 import re,sys,subprocess,os
 root=Path(sys.argv[1]).resolve()
 P=Path(sys.argv[2]).resolve()
-branch,bits,mode=sys.argv[3],int(sys.argv[4]),'candidate'
+branch,mode=sys.argv[3],'candidate'
 for name in ['tests','bin','logs']:(P/name).mkdir(parents=True,exist_ok=True)
 folder='private_backend' if branch=='FSH' else 'gpu';src=root/'applications'/branch/folder/'GpuResidentStrict.cu'
 s=src.read_text().replace('#include "GpuAutomaticCsrScheduleFields.inl"', (root/"common/GpuAutomaticCsrScheduleFields.inl").read_text() if (root/"common/GpuAutomaticCsrScheduleFields.inl").is_file() else "");a=s.index('struct DeviceState');b=s.index('\n};',a);d=s[a:b]
@@ -125,8 +125,6 @@ text+=r"""
 }
 """
 
-if branch=='CHT' and bits==32:
- text=text.replace('#include <cstdio>', 'using namespace ugkwpCudaFp32;\n#include <cstdio>')
 text=text.replace('for(int block:{32,64,128,256})', 'for(int heavy:{0,1})for(int block:{32,64,128,256})')
 text=text.replace('s->coldWallSolidificationEnabled=flags&1;', 's->csrHeavyReductionEnabled=heavy;s->coldWallSolidificationEnabled=flags&1;')
 text=text.replace(' CHECK(launchCsrSegmentedMomentReduction(&host,block,true)==0);', r"""
@@ -191,9 +189,8 @@ if branch=='FSH':
  for view,label in [('false','ORIGINAL'),('true','COMPACT')]:
   projection=projection.replace('PRESSURE_'+label,'applyCollisionalPressureProjectionKernel<false,'+view+'><<<4,block,8*(block/32)*sizeof(GpuReal)>>>(s,.01);')
 else:
- if bits==32:text=text.replace('mem(s->csrReductionTasks,129);', 'mem(s->flatPressureParameters,4*13);mem(s->flatPressureFlags,4*2);mem(s->csrReductionTasks,129);')
  for view,label in [('false','ORIGINAL'),('true','COMPACT')]:
-  projection=projection.replace('PRESSURE_'+label,'launchFlatPressure<false,'+view+'>(s,s,.01,FlatPressureSegment::full);')
+  projection=projection.replace('PRESSURE_'+label,'applyCollisionalPressureProjectionKernel<false,'+view+'><<<4,128,4*4*sizeof(GpuReal)>>>(s,.01);')
 tail=tail.replace(' for(int c=0;c<=4;++c)',projection+'\n for(int c=0;c<=4;++c)')
 text=text.replace(' CHECK(*s->wallBoundParticleCountDevice==wall);',tail.replace('TAIL',call))
 if mode != 'baseline':
@@ -230,13 +227,13 @@ text=text.replace('  clearParticleCellBinsKernel<<<1,32>>>(s);', r"""
 """)
 
 text=text.replace('shared moment queue','S1/L2 common moment kernel')
-f=P/'tests'/f'exact13_{branch}_{bits}_{mode}.cu';f.write_text(text);exe=P/'bin'/f'exact13_{branch}_{bits}_{mode}'
-cmd=['/usr/local/cuda/bin/nvcc','-std=c++17','-O3','-arch='+os.environ.get('UGKWP_CUDA_ARCH','sm_89'),('--fmad=true' if branch=='FSH' else '--fmad=false'),'-DUGKWP_GPU_REAL_BITS='+str(bits),'-I'+str(src.parent),'-I'+str(root/'common'),'-I'+str(root/'applications/FSH/gpu'),'-I'+str(root/'applications/CHT/thermal'),str(f),'-o',str(exe)]
+f=P/'tests'/f'exact13_{branch}_{64}_{mode}.cu';f.write_text(text);exe=P/'bin'/f'exact13_{branch}_{64}_{mode}'
+cmd=['/usr/local/cuda/bin/nvcc','-std=c++17','-O3','-arch='+os.environ.get('UGKWP_CUDA_ARCH','sm_89'),('--fmad=true' if branch=='FSH' else '--fmad=false'),'-I'+str(src.parent),'-I'+str(root/'common'),'-I'+str(root/'applications/FSH/gpu'),'-I'+str(root/'applications/CHT/thermal'),str(f),'-o',str(exe)]
 if branch=='CHT':cmd.append(str(root/'applications/CHT/gpu/GpuWallEnergy64.cu'))
 cmd.append('-DFUSED13')
-log=P/'logs'/f'fixture_{branch}_{bits}_{mode}_build.log'
+log=P/'logs'/f'fixture_{branch}_{64}_{mode}_build.log'
 with log.open('w') as out:q=subprocess.run(cmd,stdout=out,stderr=subprocess.STDOUT)
-print('BUILD',branch,bits,mode,q.returncode,flush=True)
+print('BUILD',branch,64,mode,q.returncode,flush=True)
 if q.returncode:print(log.read_text()[-5000:]);sys.exit(q.returncode)
 if os.environ.get('UGKP_CUDA_BUILD_ONLY')=='1':print('BUILD ONLY: GPU execution deferred');sys.exit(0)
-q=subprocess.run([str(exe)],capture_output=True,text=True);(P/'logs'/f'fixture_{branch}_{bits}_{mode}_run.log').write_text(q.stdout+q.stderr);print(q.stdout+q.stderr);sys.exit(q.returncode)
+q=subprocess.run([str(exe)],capture_output=True,text=True);(P/'logs'/f'fixture_{branch}_{64}_{mode}_run.log').write_text(q.stdout+q.stderr);print(q.stdout+q.stderr);sys.exit(q.returncode)

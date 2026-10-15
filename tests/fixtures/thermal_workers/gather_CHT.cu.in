@@ -32,17 +32,17 @@ int *pStuckFaceId, *compactPStuckFaceId;
 unsigned long long *pRng, *compactPRng;
 unsigned long long *pOrigId, *compactPOrigId;
 double *pContactAge, *compactPContactAge;
-float *pDepositionArea, *compactPDepositionArea;
+double *pDepositionArea, *compactPDepositionArea;
 double *pContactDuration, *compactPContactDuration;
-float *pContactMaximumArea, *compactPContactMaximumArea;
-float *pContactPeakFraction, *compactPContactPeakFraction;
+double *pContactMaximumArea, *compactPContactMaximumArea;
+double *pContactPeakFraction, *compactPContactPeakFraction;
 float *pColdNodeSpecificEnthalpy, *compactPColdNodeSpecificEnthalpy;
-float *pColdRingSolidMass, *compactPColdRingSolidMass;
-float *pColdFrozenArea, *compactPColdFrozenArea;
+double *pColdRingSolidMass, *compactPColdRingSolidMass;
+double *pColdFrozenArea, *compactPColdFrozenArea;
 double *pColdContactAge, *compactPColdContactAge;
 float *pCold2DNodeSpecificEnthalpy, *compactPCold2DNodeSpecificEnthalpy;
 double *pCold2DRingContactAge, *compactPCold2DRingContactAge;
-float *pCold2DFrozenArea, *compactPCold2DFrozenArea;
+double *pCold2DFrozenArea, *compactPCold2DFrozenArea;
 };
 namespace Foam { namespace gpuThermal {
  constexpr int coldWallAxialNodeCount=8,coldWallRadialRingCount=8,coldWall2DNodeCount=64,coldWall2DRadialNodeCount=8,particleWallMobile=0;
@@ -72,17 +72,17 @@ alloc(s->pStuckFaceId, capacity*1); alloc(s->compactPStuckFaceId, capacity*1); f
 alloc(s->pRng, capacity*1); alloc(s->compactPRng, capacity*1); for(int j=0;j<capacity*1;++j) s->pRng[j]=static_cast<unsigned long long>(j%97+15);
 alloc(s->pOrigId, capacity*1); alloc(s->compactPOrigId, capacity*1); for(int j=0;j<capacity*1;++j) s->pOrigId[j]=static_cast<unsigned long long>(j%97+16);
 alloc(s->pContactAge, capacity*1); alloc(s->compactPContactAge, capacity*1); for(int j=0;j<capacity*1;++j) s->pContactAge[j]=static_cast<double>(j%97+17);
-alloc(s->pDepositionArea, capacity*1); alloc(s->compactPDepositionArea, capacity*1); for(int j=0;j<capacity*1;++j) s->pDepositionArea[j]=static_cast<float>(j%97+18);
+alloc(s->pDepositionArea, capacity*1); alloc(s->compactPDepositionArea, capacity*1); for(int j=0;j<capacity*1;++j) s->pDepositionArea[j]=static_cast<double>(j%97+18);
 alloc(s->pContactDuration, capacity*1); alloc(s->compactPContactDuration, capacity*1); for(int j=0;j<capacity*1;++j) s->pContactDuration[j]=static_cast<double>(j%97+19);
-alloc(s->pContactMaximumArea, capacity*1); alloc(s->compactPContactMaximumArea, capacity*1); for(int j=0;j<capacity*1;++j) s->pContactMaximumArea[j]=static_cast<float>(j%97+20);
-alloc(s->pContactPeakFraction, capacity*1); alloc(s->compactPContactPeakFraction, capacity*1); for(int j=0;j<capacity*1;++j) s->pContactPeakFraction[j]=static_cast<float>(j%97+21);
+alloc(s->pContactMaximumArea, capacity*1); alloc(s->compactPContactMaximumArea, capacity*1); for(int j=0;j<capacity*1;++j) s->pContactMaximumArea[j]=static_cast<double>(j%97+20);
+alloc(s->pContactPeakFraction, capacity*1); alloc(s->compactPContactPeakFraction, capacity*1); for(int j=0;j<capacity*1;++j) s->pContactPeakFraction[j]=static_cast<double>(j%97+21);
 alloc(s->pColdNodeSpecificEnthalpy, capacity*8); alloc(s->compactPColdNodeSpecificEnthalpy, capacity*8); for(int j=0;j<capacity*8;++j) s->pColdNodeSpecificEnthalpy[j]=static_cast<float>(j%97+22);
-alloc(s->pColdRingSolidMass, capacity*8); alloc(s->compactPColdRingSolidMass, capacity*8); for(int j=0;j<capacity*8;++j) s->pColdRingSolidMass[j]=static_cast<float>(j%97+23);
-alloc(s->pColdFrozenArea, capacity*1); alloc(s->compactPColdFrozenArea, capacity*1); for(int j=0;j<capacity*1;++j) s->pColdFrozenArea[j]=static_cast<float>(j%97+24);
+alloc(s->pColdRingSolidMass, capacity*8); alloc(s->compactPColdRingSolidMass, capacity*8); for(int j=0;j<capacity*8;++j) s->pColdRingSolidMass[j]=static_cast<double>(j%97+23);
+alloc(s->pColdFrozenArea, capacity*1); alloc(s->compactPColdFrozenArea, capacity*1); for(int j=0;j<capacity*1;++j) s->pColdFrozenArea[j]=static_cast<double>(j%97+24);
 alloc(s->pColdContactAge, capacity*1); alloc(s->compactPColdContactAge, capacity*1); for(int j=0;j<capacity*1;++j) s->pColdContactAge[j]=static_cast<double>(j%97+25);
 alloc(s->pCold2DNodeSpecificEnthalpy, capacity*64); alloc(s->compactPCold2DNodeSpecificEnthalpy, capacity*64); for(int j=0;j<capacity*64;++j) s->pCold2DNodeSpecificEnthalpy[j]=static_cast<float>(j%97+26);
 alloc(s->pCold2DRingContactAge, capacity*8); alloc(s->compactPCold2DRingContactAge, capacity*8); for(int j=0;j<capacity*8;++j) s->pCold2DRingContactAge[j]=static_cast<double>(j%97+27);
-alloc(s->pCold2DFrozenArea, capacity*1); alloc(s->compactPCold2DFrozenArea, capacity*1); for(int j=0;j<capacity*1;++j) s->pCold2DFrozenArea[j]=static_cast<float>(j%97+28);
+alloc(s->pCold2DFrozenArea, capacity*1); alloc(s->compactPCold2DFrozenArea, capacity*1); for(int j=0;j<capacity*1;++j) s->pCold2DFrozenArea[j]=static_cast<double>(j%97+28);
 alloc(s->puxOld,capacity);alloc(s->compactPuxOld,capacity);for(int j=0;j<capacity;++j)s->puxOld[j]=static_cast<Real>(j%97+104);
 cudaMemset(s->compactPuxOld,0,capacity*sizeof(Real));
 alloc(s->puyOld,capacity);alloc(s->compactPuyOld,capacity);for(int j=0;j<capacity;++j)s->puyOld[j]=static_cast<Real>(j%97+205);
@@ -120,17 +120,17 @@ cudaMemset(s->compactPStuckFaceId,0,capacity*1*sizeof(int));
 cudaMemset(s->compactPRng,0,capacity*1*sizeof(unsigned long long));
 cudaMemset(s->compactPOrigId,0,capacity*1*sizeof(unsigned long long));
 cudaMemset(s->compactPContactAge,0,capacity*1*sizeof(double));
-cudaMemset(s->compactPDepositionArea,0,capacity*1*sizeof(float));
+cudaMemset(s->compactPDepositionArea,0,capacity*1*sizeof(double));
 cudaMemset(s->compactPContactDuration,0,capacity*1*sizeof(double));
-cudaMemset(s->compactPContactMaximumArea,0,capacity*1*sizeof(float));
-cudaMemset(s->compactPContactPeakFraction,0,capacity*1*sizeof(float));
+cudaMemset(s->compactPContactMaximumArea,0,capacity*1*sizeof(double));
+cudaMemset(s->compactPContactPeakFraction,0,capacity*1*sizeof(double));
 cudaMemset(s->compactPColdNodeSpecificEnthalpy,0,capacity*8*sizeof(float));
-cudaMemset(s->compactPColdRingSolidMass,0,capacity*8*sizeof(float));
-cudaMemset(s->compactPColdFrozenArea,0,capacity*1*sizeof(float));
+cudaMemset(s->compactPColdRingSolidMass,0,capacity*8*sizeof(double));
+cudaMemset(s->compactPColdFrozenArea,0,capacity*1*sizeof(double));
 cudaMemset(s->compactPColdContactAge,0,capacity*1*sizeof(double));
 cudaMemset(s->compactPCold2DNodeSpecificEnthalpy,0,capacity*64*sizeof(float));
 cudaMemset(s->compactPCold2DRingContactAge,0,capacity*8*sizeof(double));
-cudaMemset(s->compactPCold2DFrozenArea,0,capacity*1*sizeof(float));
+cudaMemset(s->compactPCold2DFrozenArea,0,capacity*1*sizeof(double));
  cudaMemset(s->published,0,capacity*sizeof(int));cudaDeviceSynchronize();
  // CURRENT_PAYLOAD_LAUNCH_BEGIN
  for(int dst=0;dst<(int)expected.size();++dst)s->sortedParticleIndex[dst]=expected[dst];
@@ -206,7 +206,7 @@ for(int dst=0;dst<(int)expected.size();++dst) for(int j=0;j<1;++j) {
   if (s->compactPContactAge[dst*1+j]!=want) {fprintf(stderr,"payload mismatch pContactAge dst=%d j=%d flags=%d pattern=%d block=%d n=%d\n",dst,j,flags,pattern,B,n);exit(3);}
  }
 for(int dst=0;dst<(int)expected.size();++dst) for(int j=0;j<1;++j) {
-  float want=(true)?s->pDepositionArea[expected[dst]*1+j]:static_cast<float>(0);
+  double want=(true)?s->pDepositionArea[expected[dst]*1+j]:static_cast<double>(0);
   if (s->compactPDepositionArea[dst*1+j]!=want) {fprintf(stderr,"payload mismatch pDepositionArea dst=%d j=%d flags=%d pattern=%d block=%d n=%d\n",dst,j,flags,pattern,B,n);exit(3);}
  }
 for(int dst=0;dst<(int)expected.size();++dst) for(int j=0;j<1;++j) {
@@ -214,11 +214,11 @@ for(int dst=0;dst<(int)expected.size();++dst) for(int j=0;j<1;++j) {
   if (s->compactPContactDuration[dst*1+j]!=want) {fprintf(stderr,"payload mismatch pContactDuration dst=%d j=%d flags=%d pattern=%d block=%d n=%d\n",dst,j,flags,pattern,B,n);exit(3);}
  }
 for(int dst=0;dst<(int)expected.size();++dst) for(int j=0;j<1;++j) {
-  float want=(true)?s->pContactMaximumArea[expected[dst]*1+j]:static_cast<float>(0);
+  double want=(true)?s->pContactMaximumArea[expected[dst]*1+j]:static_cast<double>(0);
   if (s->compactPContactMaximumArea[dst*1+j]!=want) {fprintf(stderr,"payload mismatch pContactMaximumArea dst=%d j=%d flags=%d pattern=%d block=%d n=%d\n",dst,j,flags,pattern,B,n);exit(3);}
  }
 for(int dst=0;dst<(int)expected.size();++dst) for(int j=0;j<1;++j) {
-  float want=(true)?s->pContactPeakFraction[expected[dst]*1+j]:static_cast<float>(0);
+  double want=(true)?s->pContactPeakFraction[expected[dst]*1+j]:static_cast<double>(0);
   if (s->compactPContactPeakFraction[dst*1+j]!=want) {fprintf(stderr,"payload mismatch pContactPeakFraction dst=%d j=%d flags=%d pattern=%d block=%d n=%d\n",dst,j,flags,pattern,B,n);exit(3);}
  }
 for(int dst=0;dst<(int)expected.size();++dst) for(int j=0;j<8;++j) {
@@ -226,11 +226,11 @@ for(int dst=0;dst<(int)expected.size();++dst) for(int j=0;j<8;++j) {
   if (s->compactPColdNodeSpecificEnthalpy[dst*8+j]!=want) {fprintf(stderr,"payload mismatch pColdNodeSpecificEnthalpy dst=%d j=%d flags=%d pattern=%d block=%d n=%d\n",dst,j,flags,pattern,B,n);exit(3);}
  }
 for(int dst=0;dst<(int)expected.size();++dst) for(int j=0;j<8;++j) {
-  float want=((flags&1))?s->pColdRingSolidMass[expected[dst]*8+j]:static_cast<float>(0);
+  double want=((flags&1))?s->pColdRingSolidMass[expected[dst]*8+j]:static_cast<double>(0);
   if (s->compactPColdRingSolidMass[dst*8+j]!=want) {fprintf(stderr,"payload mismatch pColdRingSolidMass dst=%d j=%d flags=%d pattern=%d block=%d n=%d\n",dst,j,flags,pattern,B,n);exit(3);}
  }
 for(int dst=0;dst<(int)expected.size();++dst) for(int j=0;j<1;++j) {
-  float want=((flags&1))?s->pColdFrozenArea[expected[dst]*1+j]:static_cast<float>(0);
+  double want=((flags&1))?s->pColdFrozenArea[expected[dst]*1+j]:static_cast<double>(0);
   if (s->compactPColdFrozenArea[dst*1+j]!=want) {fprintf(stderr,"payload mismatch pColdFrozenArea dst=%d j=%d flags=%d pattern=%d block=%d n=%d\n",dst,j,flags,pattern,B,n);exit(3);}
  }
 for(int dst=0;dst<(int)expected.size();++dst) for(int j=0;j<1;++j) {
@@ -246,7 +246,7 @@ for(int dst=0;dst<(int)expected.size();++dst) for(int j=0;j<8;++j) {
   if (s->compactPCold2DRingContactAge[dst*8+j]!=want) {fprintf(stderr,"payload mismatch pCold2DRingContactAge dst=%d j=%d flags=%d pattern=%d block=%d n=%d\n",dst,j,flags,pattern,B,n);exit(3);}
  }
 for(int dst=0;dst<(int)expected.size();++dst) for(int j=0;j<1;++j) {
-  float want=((flags&2))?s->pCold2DFrozenArea[expected[dst]*1+j]:static_cast<float>(0);
+  double want=((flags&2))?s->pCold2DFrozenArea[expected[dst]*1+j]:static_cast<double>(0);
   if (s->compactPCold2DFrozenArea[dst*1+j]!=want) {fprintf(stderr,"payload mismatch pCold2DFrozenArea dst=%d j=%d flags=%d pattern=%d block=%d n=%d\n",dst,j,flags,pattern,B,n);exit(3);}
  }
 for(int dst=0;dst<(int)expected.size();++dst){if(s->compactPuxOld[dst]!=s->puxOld[expected[dst]]){fprintf(stderr,"payload old-velocity mismatch puxOld dst=%d\n",dst);exit(3);}}

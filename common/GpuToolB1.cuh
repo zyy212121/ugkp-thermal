@@ -11,8 +11,8 @@ int measureToolB1Candidate
     Launch launch,
     cudaEvent_t start,
     cudaEvent_t stop,
-    float& median,
-    float& measuredTotal
+    double& median,
+    double& measuredTotal
 )
 {
     for (int run = 0; run < toolB1WarmupRuns; ++run)
@@ -28,7 +28,7 @@ int measureToolB1Candidate
         setLastError("ToolB1 warmup", err);
         return 1;
     }
-    std::vector<float> samples;
+    std::vector<double> samples;
     samples.reserve(toolB1MeasuredRuns);
     for (int run = 0; run < toolB1MeasuredRuns; ++run)
     {
@@ -55,8 +55,8 @@ int measureToolB1Candidate
             setLastError("ToolB1 CUDA event measurement", err);
             return 1;
         }
-        samples.push_back(elapsed);
-        measuredTotal += elapsed;
+        samples.push_back(static_cast<double>(elapsed));
+        measuredTotal += static_cast<double>(elapsed);
     }
     const size_t middle = samples.size()/2;
     std::nth_element
@@ -100,9 +100,9 @@ int tuneFixedWorkBlockThreads
 
     int bestCellBlock = 0;
     int bestFaceBlock = 0;
-    float bestCellMs = 0.0f;
-    float bestFaceMs = 0.0f;
-    float measuredTotal = 0.0f;
+    double bestCellMs = 0.0;
+    double bestFaceMs = 0.0;
+    double measuredTotal = 0.0;
     for (const int block : candidates)
     {
         int occupancy = 0;
@@ -124,7 +124,7 @@ int tuneFixedWorkBlockThreads
         {
             continue;
         }
-        float median = 0.0f;
+        double median = 0.0;
         if
         (
             measureToolB1Candidate

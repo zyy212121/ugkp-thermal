@@ -18,17 +18,6 @@ class GpuBoundaryScheduleTable
 {
     List<Tuple2<scalar, scalar>> rows_;
 
-    void requireValid(const char* context) const
-    {
-        if (!validRows(rows_))
-        {
-            FatalErrorInFunction
-                << context << ": schedule requires at least one finite row, "
-                << "strictly increasing non-negative times, and finite values"
-                << exit(FatalError);
-        }
-    }
-
 public:
     explicit GpuBoundaryScheduleTable
     (
@@ -37,7 +26,6 @@ public:
     :
         rows_(rows)
     {
-        requireValid("in-memory GPU boundary schedule");
     }
 
     explicit GpuBoundaryScheduleTable(const fileName& path)
@@ -52,34 +40,6 @@ public:
                 << exit(FatalError);
         }
         input >> rows_;
-        requireValid(path.c_str());
-    }
-
-    static bool validRows(const List<Tuple2<scalar, scalar>>& rows)
-    {
-        if (rows.empty())
-        {
-            return false;
-        }
-
-        scalar previousTime = -1;
-        forAll(rows, i)
-        {
-            const scalar timeValue = rows[i].first();
-            const scalar value = rows[i].second();
-            if
-            (
-                !std::isfinite(timeValue)
-             || !std::isfinite(value)
-             || timeValue < 0
-             || (i > 0 && timeValue <= previousTime)
-            )
-            {
-                return false;
-            }
-            previousTime = timeValue;
-        }
-        return true;
     }
 
     label size() const

@@ -167,27 +167,15 @@ __device__ void relaxOneParticleToResidentGas
     )
     {
         const int stuckFaceId = s.pStuckFaceId[i];
-        const GPU_OPERATOR_REAL storedDepositionArea =
-            static_cast<GPU_OPERATOR_REAL>(s.pDepositionArea[i]);
         if
         (
             stuckFaceId < 0
          || stuckFaceId >= s.nFaces
-         || s.particleStuckCandidateMask[stuckFaceId] == 0
-         || !(storedDepositionArea > GPU_OPERATOR_R(0.0))
+
         )
         {
             asm("trap;");
         }
-        const GPU_OPERATOR_REAL contactAreaScale =
-            s.particleWallContactAreaScale[stuckFaceId];
-        if (!(contactAreaScale > GPU_OPERATOR_R(0.0)) || contactAreaScale > GPU_OPERATOR_R(1.0))
-        {
-            asm("trap;");
-        }
-        if (!coldWallContact)
-        {
-            asm("trap;");
-        }
+
     }
 }

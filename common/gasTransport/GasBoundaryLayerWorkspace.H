@@ -1,6 +1,8 @@
 #pragma once
 #include <cstddef>
 #include <algorithm>
+#include <cstdint>
+#include <limits>
 #include "../gasWall/WallModelTypes.H"
 namespace ugkwp {
 struct BoundaryLayerWorkspaceSizing
@@ -11,24 +13,25 @@ struct BoundaryLayerWorkspaceSizing
 // Initialization-only policy. One warp per SM is a starting configuration,
 // not an occupancy or throughput guarantee; explicit slots permit tuning.
 inline BoundaryLayerWorkspaceSizing resolveBoundaryLayerWorkspace(
-    int faces,int requestedSlots,int multiprocessors,std::size_t freeBytes,std::size_t bytesPerWorkspace)
+    int faces,std::uint32_t requestedSlots,int multiprocessors,std::size_t freeBytes,std::size_t bytesPerWorkspace)
 {
     BoundaryLayerWorkspaceSizing result;
-    if(faces<=0 || requestedSlots<0 || requestedSlots>4096 || bytesPerWorkspace==0)return result;
+    if(faces<=0 || bytesPerWorkspace==0)return result;
     if(requestedSlots==0)
     {
-        if(multiprocessors<=0)return result;
         result.budget=std::min(freeBytes/8,std::size_t(1)<<30);
-        const std::size_t desired=std::size_t(multiprocessors)*32;
-        result.slots=int(std::min({std::size_t(faces),desired,std::size_t(4096),result.budget/bytesPerWorkspace}));
+        const std::size_t desired=std::size_t(std::max(multiprocessors,1))*32;
+        result.slots=int(std::min({std::size_t(faces),desired,std::size_t(4096),std::max(std::size_t(1),result.budget/bytesPerWorkspace)}));
     }
     else
     {
         result.budget=freeBytes;
-        const int slots=std::min(faces,requestedSlots);
-        if(std::size_t(slots)>freeBytes/bytesPerWorkspace)return result;
-        result.slots=slots;
+        result.slots=int(std::min(std::uint32_t(faces),requestedSlots));
     }
+
+
+    if(std::size_t(result.slots)>std::numeric_limits<std::size_t>::max()/bytesPerWorkspace)
+    {result.slots=0;return result;}
     result.bytes=std::size_t(result.slots)*bytesPerWorkspace;
     return result;
 }

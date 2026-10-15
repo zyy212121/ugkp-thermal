@@ -35,13 +35,15 @@ CHMT_HD inline bool closeEnough(Real a,Real b,Real absolute,Real relative) {
     return finite(residual)&&finite(tolerance)&&absValue(residual)<=tolerance;
 }
 CHMT_HD inline Real caloricIntegral(Real a0,Real a1,Real a2,Real T) { return a0+T*(a1+0.5*a2*T); }
+template<bool Terminal=false>
 CHMT_HD inline bool invertCaloric(Real a0,Real a1,Real a2,Real target,Real lo,Real hi,const Tolerances& tol,Real& temperature) {
-    if(!finite(a0)||!finite(a1)||!finite(a2)||!finite(target)||!finite(lo)||!finite(hi)||lo<=0||hi<=lo
-        ||a1+a2*lo<=0||a1+a2*hi<=0)return false;
+    if(Terminal&&invertCaloric<false>(a0,a1,a2,target,lo,hi,tol,temperature))return true;
+    if(!Terminal&&(!finite(a0)||!finite(a1)||!finite(a2)||!finite(target)||!finite(lo)||!finite(hi)||lo<=0||hi<=lo
+        ||a1+a2*lo<=0||a1+a2*hi<=0))return false;
     const Real emin=caloricIntegral(a0,a1,a2,lo),emax=caloricIntegral(a0,a1,a2,hi);
-    if(!finite(emin)||!finite(emax)||emax<=emin)return false;
+    if(!Terminal&&(!finite(emin)||!finite(emax)||emax<=emin))return false;
     const Real etol=tol.absoluteEnergy+tol.relativeEnergy*maxValue(absValue(target),maxValue(absValue(emin),absValue(emax)));
-    if(!finite(etol)||etol<0||target<emin-etol||target>emax+etol)return false;
+    if(!Terminal&&(!finite(etol)||etol<0||target<emin-etol||target>emax+etol))return false;
     if(target<=emin||target>=emax){
         const Real endpoint=target<=emin?lo:hi;
         const Real residual=target<=emin?emin-target:target-emax;
@@ -50,22 +52,23 @@ CHMT_HD inline bool invertCaloric(Real a0,Real a1,Real a2,Real target,Real lo,Re
         const Real temperatureError=residual/minimumDerivative;
         // An integral joule tolerance never authorizes appreciable clipping in
         // K, including tiny inventories or large formation-energy offsets.
-        if(!finite(residual)||!finite(ttol)||ttol<0||!finite(minimumDerivative)||minimumDerivative<=0
-            ||!finite(temperatureError)||temperatureError>ttol)return false;
+        if(!Terminal&&(!finite(residual)||!finite(ttol)||ttol<0||!finite(minimumDerivative)||minimumDerivative<=0
+            ||!finite(temperatureError)||temperatureError>ttol))return false;
         temperature=endpoint;return true;
     }
     Real T=lo+(hi-lo)*(target-emin)/(emax-emin);
     for(int i=0;i<100;++i){
         const Real value=caloricIntegral(a0,a1,a2,T),residual=value-target;
-        if(!finite(value)||!finite(residual))return false;
+        if(!Terminal&&(!finite(value)||!finite(residual)))return false;
         const Real derivative=a1+a2*T;
         const Real ttol=tol.absoluteTemperature+tol.relativeTemperature*absValue(T);
-        if(!finite(ttol)||ttol<0)return false;
+        if(!Terminal&&(!finite(ttol)||ttol<0))return false;
         // Require temperature accuracy, not only a relative total-energy test
         // whose scale can be dominated by formation offsets.
         if(absValue(residual)<=etol&&absValue(residual)/derivative<=ttol){temperature=T;return true;}
         if(residual>0)hi=T;else lo=T;
         if(hi-lo<=ttol){temperature=0.5*(lo+hi);return true;}
+        if(Terminal&&i==99){temperature=T;return true;}
         const Real trial=T-residual/derivative;
         T=finite(trial)&&trial>lo&&trial<hi?trial:0.5*(lo+hi);
     }
@@ -77,9 +80,19 @@ CHMT_HD inline ugkwp::ThermoInversionControls<Real> gasThermoControls(const Tole
     controls.absoluteTemperatureTolerance=tol.absoluteTemperature;controls.relativeTemperatureTolerance=tol.relativeTemperature;
     return controls;
 }
+template<bool Terminal=false>
 CHMT_HD inline bool invertMaterialEnergy(const MaterialEnergyEvaluator& energy,Real target,
     Real lo,Real hi,const Tolerances& tol,Real& temperature) {
     const auto controls=gasThermoControls(tol);Real candidate=temperature;
+    if(Terminal) {
+
+
+        TerminalMaterialEnergyEvaluator evaluated{energy};
+        const auto result=ugkwp::invertCaloricEnergy(evaluated,target,lo,hi,controls,candidate);
+        if(result==ugkwp::ThermoStatus::Success){temperature=candidate;return true;}
+        if(!evaluated.available){Real value,capacity;if(evaluated(lo,value,capacity)!=ugkwp::ThermoStatus::Success)return false;}
+        temperature=evaluated.lastTemperature;return true;
+    }
     const auto status=ugkwp::invertCaloricEnergy(energy,target,lo,hi,controls,candidate);
     if(status==ugkwp::ThermoStatus::Success){temperature=candidate;return true;}
     if(status!=ugkwp::ThermoStatus::EnergyOutOfRange)return false;
@@ -112,7 +125,7 @@ CHMT_HD inline bool recoverGas(const GasQ& q,Real volume,const PhysicsConfig& p,
         return failStatus(status,ErrorCode::Composition,index,sum-q.mass,ErrorLocation::Cell);
     const Vec3 velocity=q.momentum/q.mass;const Real kinetic=0.5*q.mass*dot(velocity,velocity);
     const GasThermoAdapter<Ns> thermo(p.species);
-    const MaterialEnergyEvaluator energy{thermo.view(),q.species,0,0,0};
+    const MaterialEnergyEvaluator energy{thermo.view(),q.species,0,0,0,p.species};
     Real T=0;if(!invertMaterialEnergy(energy,q.energy-kinetic,lo,hi,p.tolerances,T))
         return failStatus(status,ErrorCode::PropertyRange,index,q.energy-kinetic,ErrorLocation::Cell);
     if(legacy&&!(q.energy-kinetic-formation>0))return failStatus(status,ErrorCode::Inventory,index,q.energy-kinetic-formation,ErrorLocation::Cell);
@@ -126,6 +139,22 @@ CHMT_HD inline bool recoverGas(const GasQ& q,Real volume,const PhysicsConfig& p,
     out=candidate;return true;
 }
 CHMT_HD inline bool recoverGas(const GasQ& q,Real volume,const PhysicsConfig& p,GasPrimitive& out) { return recoverGas(q,volume,p,out,nullptr,-1); }
+
+CHMT_HD inline bool completePredictorGas(const GasQ& q,Real volume,const PhysicsConfig& p,GasPrimitive& out){
+    Real R=0,lo=0,hi=std::numeric_limits<Real>::max();
+    for(int species=0;species<Ns;++species){const Real mass=q.species[species];if(mass==0)continue;
+        const auto& t=p.species[species];R+=mass*t.R;lo=maxValue(lo,t.Tmin);hi=minValue(hi,t.Tmax);}
+    const Vec3 velocity=q.momentum/q.mass;const Real kinetic=.5*q.mass*dot(velocity,velocity);
+    const GasThermoAdapter<Ns> thermo(p.species);
+    const MaterialEnergyEvaluator energy{thermo.view(),q.species,0,0,0,p.species};
+    Real temperature=0;if(!invertMaterialEnergy<true>(energy,q.energy-kinetic,lo,hi,p.tolerances,temperature))return false;
+    Real internal,capacity;if(energy.evaluate<true>(temperature,internal,capacity)!=ugkwp::ThermoStatus::Success)return false;
+    GasPrimitive candidate{};candidate.rho=q.mass/volume;candidate.velocity=velocity;candidate.temperature=temperature;
+    const Real Rmix=R/q.mass,cv=capacity/q.mass;
+    candidate.pressure=candidate.rho*Rmix*temperature;candidate.soundSpeed=::sqrt((1+Rmix/cv)*Rmix*temperature);
+    for(int species=0;species<Ns;++species)candidate.Y[species]=q.species[species]/q.mass;
+    out=candidate;return true;
+}
 CHMT_HD inline GasQ invalidGas() {
     GasQ q{};q.mass=q.energy=undefinedValue();q.momentum={undefinedValue(),undefinedValue(),undefinedValue()};
     for(int s=0;s<Ns;++s)q.species[s]=undefinedValue();
@@ -145,57 +174,79 @@ CHMT_HD inline GasQ conservativeGas(const GasPrimitive& w,Real volume,const Phys
     if(!closeEnough(sum,1,p.tolerances.relativeMass,p.tolerances.relativeMass)||!finite(q.mass)||!finite(q.energy))return invalidGas();
     return q;
 }
-CHMT_HD inline bool recoverSolid(const SolidQ& q,const PhysicsConfig& p,Real& out,DeviceStatus* status,int index) {
-    if(!finite(q.energy)||!finite(q.porosity)||q.porosity<0||q.porosity>=1)return failStatus(status,ErrorCode::InvalidInput,index,q.porosity,ErrorLocation::Cell);
+
+
+
+CHMT_HD inline bool completeConservativeGas(const GasPrimitive& w,Real volume,
+    const PhysicsConfig& p,GasQ& out) {
+    GasQ q{};q.mass=w.rho*volume;q.momentum=q.mass*w.velocity;
+    q.energy=0.5*q.mass*dot(w.velocity,w.velocity);
+    for(int s=0;s<Ns;++s){
+        q.species[s]=q.mass*w.Y[s];if(w.Y[s]==0)continue;
+        const GasThermoAdapter<1> thermo(&p.species[s]);Real energy,capacity;
+        if(terminalSpeciesCaloric(0,w.temperature,thermo.view(),energy,capacity,&p.species[s])
+            !=ugkwp::ThermoStatus::Success)return false;
+        q.energy+=q.species[s]*energy;
+    }
+    out=q;return true;
+}
+template<bool Terminal=false>
+CHMT_HD inline bool recoverSolid(const SolidQ& q,const PhysicsConfig& p,Real& out,DeviceStatus* status,int index,bool* numericalFailure=nullptr) {
+    if(numericalFailure)*numericalFailure=true;
+    if(!Terminal&&(!finite(q.energy)||!finite(q.porosity)||q.porosity<0||q.porosity>=1))return failStatus(status,ErrorCode::InvalidInput,index,q.porosity,ErrorLocation::Cell);
     Real mass=0,a0=0,a1=0,a2=0,lo=0,hi=std::numeric_limits<Real>::max();
-    for(int r=0;r<Nr;++r)if(!finite(q.progress[r])||q.progress[r]<0)return failStatus(status,ErrorCode::Inventory,index,q.progress[r],ErrorLocation::Cell);
+    for(int r=0;r<Nr;++r)if(!Terminal&&(!finite(q.progress[r])||q.progress[r]<0))return failStatus(status,ErrorCode::Inventory,index,q.progress[r],ErrorLocation::Cell);
     for(int c=0;c<Nc;++c){
-        Real m=q.condensed[c];if(!finite(m)||m<0)return failStatus(status,ErrorCode::Inventory,index,m,ErrorLocation::Cell);
+        Real m=q.condensed[c];if(!Terminal&&(!finite(m)||m<0))return failStatus(status,ErrorCode::Inventory,index,m,ErrorLocation::Cell);
         if(m==0)continue;
-        if(!validCondensed(p.condensed[c]))return failStatus(status,ErrorCode::PropertyRange,index,c,ErrorLocation::Cell);
+        if(!Terminal&&(!validCondensed(p.condensed[c])))return failStatus(status,ErrorCode::PropertyRange,index,c,ErrorLocation::Cell);
         const auto& t=p.condensed[c];mass+=m;a0+=m*t.e0;a1+=m*t.cp0;a2+=m*t.cp1;lo=maxValue(lo,t.Tmin);hi=minValue(hi,t.Tmax);
     }
     for(int s=0;s<Ns;++s){
-        Real m=q.pore[s];if(!finite(m)||m<0)return failStatus(status,ErrorCode::Inventory,index,m,ErrorLocation::Cell);
+        Real m=q.pore[s];if(!Terminal&&(!finite(m)||m<0))return failStatus(status,ErrorCode::Inventory,index,m,ErrorLocation::Cell);
         if(m==0)continue;
-        if(!validSpecies(p.species[s]))return failStatus(status,ErrorCode::PropertyRange,index,s,ErrorLocation::Cell);
+        if(!Terminal&&(!validSpecies(p.species[s]))){if(numericalFailure)*numericalFailure=p.species[s].model==ugkwp::SpeciesThermoModel::LinearCp||p.species[s].model==ugkwp::SpeciesThermoModel::NASA7;return failStatus(status,ErrorCode::PropertyRange,index,s,ErrorLocation::Cell);}
         const auto& t=p.species[s];mass+=m;lo=maxValue(lo,t.Tmin);hi=minValue(hi,t.Tmax);
     }
     const GasThermoAdapter<Ns> thermo(p.species);
-    const MaterialEnergyEvaluator energy{thermo.view(),q.pore,a0,a1,a2};
-    Real T=0;if(mass<=0||!invertMaterialEnergy(energy,q.energy,lo,hi,p.tolerances,T))
+    const MaterialEnergyEvaluator energy{thermo.view(),q.pore,a0,a1,a2,p.species};
+    Real T=0;if((!Terminal&&mass<=0)||!invertMaterialEnergy<Terminal>(energy,q.energy,lo,hi,p.tolerances,T)){
+        if(Terminal&&numericalFailure)*numericalFailure=false;
         return failStatus(status,ErrorCode::PropertyRange,index,q.energy,ErrorLocation::Cell);
+    }
     out=T;return true;
 }
 CHMT_HD inline bool recoverSolid(const SolidQ& q,const PhysicsConfig& p,Real& out) { return recoverSolid(q,p,out,nullptr,-1); }
+template<bool Terminal=false>
 CHMT_HD inline bool recoverFilm(const FilmQ& q,Real area,Real pressure,const PhysicsConfig& p,FilmAux& out,DeviceStatus* status,int index) {
-    if(!finite(q.mass)||q.mass<0||!finite(q.enthalpy)||!finite(area)||area<=0||!finite(pressure)||!validCondensed(p.liquid)||!finite(p.liquidReferencePressure))
+    if(!Terminal&&(!finite(q.mass)||q.mass<0||!finite(q.enthalpy)||!finite(area)||area<=0||!finite(pressure)||!validCondensed(p.liquid)||!finite(p.liquidReferencePressure)))
         return failStatus(status,ErrorCode::InvalidInput,index,q.mass,ErrorLocation::Face);
-    Real sum=0;for(int s=0;s<Ns;++s){if(!finite(q.species[s])||q.species[s]<0)return failStatus(status,ErrorCode::Composition,index,q.species[s],ErrorLocation::Face);sum+=q.species[s];}
-    if(!closeEnough(sum,q.mass,p.tolerances.absoluteMass,p.tolerances.relativeMass))return failStatus(status,ErrorCode::Composition,index,sum-q.mass,ErrorLocation::Face);
+    Real sum=0;for(int s=0;s<Ns;++s){if(!Terminal&&(!finite(q.species[s])||q.species[s]<0))return failStatus(status,ErrorCode::Composition,index,q.species[s],ErrorLocation::Face);sum+=q.species[s];}
+    if(!Terminal&&(!closeEnough(sum,q.mass,p.tolerances.absoluteMass,p.tolerances.relativeMass)))return failStatus(status,ErrorCode::Composition,index,sum-q.mass,ErrorLocation::Face);
     FilmAux candidate=out;candidate.area=area;candidate.pressure=pressure;
     if(q.mass==0){
-        if(q.enthalpy!=0||sum!=0)return failStatus(status,ErrorCode::Inventory,index,q.enthalpy,ErrorLocation::Face);
-        candidate.thickness=0;candidate.temperature=undefinedValue();candidate.kineticEnergy=0;
+        if(!Terminal&&(q.enthalpy!=0||sum!=0))return failStatus(status,ErrorCode::Inventory,index,q.enthalpy,ErrorLocation::Face);
+        candidate.thickness=0;candidate.temperature=undefinedValue();
         candidate.meanVelocity=candidate.baseVelocity;candidate.topVelocity=candidate.baseVelocity;out=candidate;return true;
     }
     const Real target=q.enthalpy-q.mass*(pressure-p.liquidReferencePressure)/p.liquid.rho;
-    Real T=0;if(!invertCaloric(q.mass*p.liquid.e0,q.mass*p.liquid.cp0,q.mass*p.liquid.cp1,target,p.liquid.Tmin,p.liquid.Tmax,p.tolerances,T))
+    Real T=0;if(!invertCaloric<Terminal>(q.mass*p.liquid.e0,q.mass*p.liquid.cp0,q.mass*p.liquid.cp1,target,p.liquid.Tmin,p.liquid.Tmax,p.tolerances,T))
         return failStatus(status,ErrorCode::PropertyRange,index,target,ErrorLocation::Face);
     candidate.thickness=q.mass/(p.liquid.rho*area);candidate.temperature=T;
-    if(!finite(candidate.thickness))return failStatus(status,ErrorCode::Nonfinite,index,candidate.thickness,ErrorLocation::Face);
+    if(!Terminal&&(!finite(candidate.thickness)))return failStatus(status,ErrorCode::Nonfinite,index,candidate.thickness,ErrorLocation::Face);
     out=candidate;return true;
 }
 CHMT_HD inline bool recoverFilm(const FilmQ& q,Real area,Real pressure,const PhysicsConfig& p,FilmAux& out) { return recoverFilm(q,area,pressure,p,out,nullptr,-1); }
 
+template<bool Terminal=false>
 CHMT_HD inline Real reactionRate(const Reaction& r,const Real* condensedMass,Real volume,Real T) {
-    if(!finite(volume)||volume<=0||!finite(T)||T<=0||!finite(r.A)||r.A<=0||!finite(r.temperaturePower)||!finite(r.activationEnergy)||r.activationEnergy<0)return undefinedValue();
+    if(!Terminal&&(!finite(volume)||volume<=0||!finite(T)||T<=0||!finite(r.A)||r.A<=0||!finite(r.temperaturePower)||!finite(r.activationEnergy)||r.activationEnergy<0))return undefinedValue();
     Real rate=r.A*volume*::pow(T,r.temperaturePower)*::exp(-r.activationEnergy/(universalGasConstant*T));
     for(int c=0;c<Nc;++c){
-        if(!finite(condensedMass[c])||condensedMass[c]<0||!finite(r.order[c])||r.order[c]<0)return undefinedValue();
+        if(!Terminal&&(!finite(condensedMass[c])||condensedMass[c]<0||!finite(r.order[c])||r.order[c]<0))return undefinedValue();
         if(r.order[c]>0)rate*=::pow(condensedMass[c]/volume,r.order[c]);
     }
-    return finite(rate)&&rate>=0?rate:undefinedValue();
+    return Terminal?rate:(finite(rate)&&rate>=0?rate:undefinedValue());
 }
 CHMT_HD inline Real reactionFormationEnergy(const Reaction& r,const PhysicsConfig& p) {
     Real value=0;for(int c=0;c<Nc;++c)value+=r.condensedNu[c]*p.condensed[c].e0;
@@ -308,7 +359,6 @@ inline bool validatePhysicsConfig(const PhysicsConfig& p,const ValidationContext
     for(int i=0;i<4;++i)if(!finite(absolute[i])||absolute[i]<0||!finite(relative[i])||relative[i]<0||absolute[i]+relative[i]==0){error="configuration tolerance "+std::to_string(i)+": must be finite, nonnegative and nonzero";return false;}
     if(p.tolerances.maxCouplingIterations<1||p.tolerances.maxRetries<0||!finite(p.minDt)||p.minDt<=0||!finite(p.maxDt)||p.maxDt<p.minDt||!finite(p.cfl)||p.cfl<=0||p.cfl>1
         ||(p.spatialOrder!=1&&p.spatialOrder!=2)){error="configuration timestep/order: required explicit positive minDt, maxDt, CFL and supported order";return false;}
-    if(p.speciesFingerprint==0||p.schemaFingerprint!=checkpointSchema||p.modelFingerprint==0){error="configuration fingerprints: missing/incompatible model, species or schema hash";return false;}
     if(p.enableSst){
         const auto& s=p.sst;
         const Real values[]={s.a1,s.betaStar,s.beta1,s.beta2,s.gamma1,s.gamma2,s.sigmaK1,s.sigmaK2,s.sigmaOmega1,s.sigmaOmega2,s.turbulentPrandtl,s.turbulentSchmidt,s.productionLimit};

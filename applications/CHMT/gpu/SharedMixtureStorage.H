@@ -25,9 +25,6 @@ public:
             error="invalid mixture staging dimensions";return false;}
         ModelConfig validated=material;
         if(!bindSharedGasModel(shared,validated,error))return false;
-        if(material.physics.speciesFingerprint!=shared.speciesOrderHash
-            ||material.physics.gasThermoFingerprint!=shared.thermoHash){
-            error="staging model differs from configured CHMT runtime identity";return false;}
         SharedMixtureStorage candidate;candidate.model_=shared;candidate.volume_=source.gasMesh.volumes;
         for(auto& field:candidate.bulk_)field.resize(cells);
         candidate.nut_.assign(cells,0); // Required even by laminar shared gas helpers.
@@ -74,8 +71,6 @@ public:
     bool publish(const std::vector<Real>& endpointVolume,const ModelConfig& material,
         std::vector<GasQ>& accepted,std::string& error) const {
         if(endpointVolume!=volume_){error="ALE stage-volume policy is not yet wired";return false;}
-        if(material.physics.speciesFingerprint!=model_.speciesOrderHash
-            ||material.physics.gasThermoFingerprint!=model_.thermoHash){error="mixture publication model identity mismatch";return false;}
         for(int status:cellStatus_)if(status){error="shared gas cell rejected the entire trial";return false;}
         for(int status:faceStatus_)if(status){error="shared gas face rejected the entire trial";return false;}
         const auto cells=volume_.size();std::vector<GasQ> candidate(cells);

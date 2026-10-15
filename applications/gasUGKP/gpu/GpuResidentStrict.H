@@ -26,6 +26,10 @@
 #include <fstream>
 #include <limits>
 #include <sstream>
+#include <algorithm>
+#include <cstring>
+#include <type_traits>
+#include <vector>
 
 namespace Foam
 {
@@ -341,6 +345,41 @@ extern "C" int ugkwpGpuResidentStrictDownloadNut
 extern "C" void ugkwpGpuResidentStrictRelease(void* handle);
 extern "C" const char* ugkwpGpuResidentStrictLastError();
 
+
+
+template<class To,class From>
+inline To gpuHostValue(const From value)
+{
+    if (std::numeric_limits<To>::is_integer
+        && (static_cast<long double>(value)<static_cast<long double>(std::numeric_limits<To>::lowest())
+            || static_cast<long double>(value)>static_cast<long double>(std::numeric_limits<To>::max())))
+        FatalErrorInFunction<<"Consumed index cannot be represented by the GPU C ABI: "
+            <<static_cast<long double>(value)<<exit(FatalError);
+    return static_cast<To>(value);
+}
+
+
+
+template<class To>
+class GpuHostReadView
+{
+    Field<To> converted_;
+    const To* values_;
+public:
+    template<class From> explicit GpuHostReadView(const UList<From>& values)
+    {
+        if (std::is_same<To,From>::value)
+            values_=reinterpret_cast<const To*>(values.begin());
+        else
+        {
+            converted_.setSize(values.size());
+            forAll(values,i) converted_[i]=gpuHostValue<To>(values[i]);
+            values_=converted_.begin();
+        }
+    }
+    const To* begin() const {return values_;}
+};
+
 class GpuResidentStrictBase
 {
 protected:
@@ -438,7 +477,6 @@ protected:
         const dictionary* particleWallProps
     )
     {
-        ensureStorage();
         ensureFieldSizes(mesh, rho, rhoU, rhoE, U, p, Tgas, epsS, rhoUs, rhoEs, rhoDs, rhoHp, Us, theta, Tp, dMeanCell);
 
         const label nCells = mesh.nCells();
@@ -454,27 +492,11 @@ protected:
         residentMesh_ = &mesh;
         legacyRestartParcelMass_ = legacyRestartParcelMass;
 
-        if (particleCapacity < 0)
-        {
-            FatalErrorInFunction
-                << "gpuResidentParticleCapacity must be non-negative. Current value = "
-                << particleCapacity << exit(FatalError);
-        }
 
-        if (maxFaceWalkHops <= 0)
-        {
-            FatalErrorInFunction
-                << "gpuResidentMaxFaceWalkHops must be positive. Current value = "
-                << maxFaceWalkHops << exit(FatalError);
-        }
 
-        if (!enableParticleModule && particleCapacity != 0)
-        {
-            FatalErrorInFunction
-                << "GpuGasResidentSolver must not allocate particle storage. "
-                << "particleCapacity = " << particleCapacity
-                << exit(FatalError);
-        }
+
+
+
 
         void* raw = nullptr;
         const bool collisionalPressureEnabled =
@@ -528,53 +550,8 @@ protected:
                                                                       
                                                                          
 
-        if
-        (
-            !finiteMirrorScalar(collisionalRestitution)
-         || collisionalRestitution < scalar(0)
-         || collisionalRestitution > scalar(1)
-        )
-        {
-            FatalErrorInFunction
-                << "gpuResidentCollisionalRestitution must be finite and in "
-                << "[0, 1]. Current value = " << collisionalRestitution
-                << exit(FatalError);
-        }
-        if
-        (
-            !finiteMirrorScalar(pressureKickFraction)
-         || pressureKickFraction <= scalar(0)
-         || pressureKickFraction > scalar(1)
-        )
-        {
-            FatalErrorInFunction
-                << "gpuResidentPressureKickFraction must be finite and in "
-                << "(0, 1]. Current value = " << pressureKickFraction
-                << exit(FatalError);
-        }
-        if
-        (
-            !finiteMirrorScalar(packingFraction)
-         || packingFraction <= scalar(0)
-         || packingFraction >= scalar(1)
-        )
-        {
-            FatalErrorInFunction
-                << "Invalid GPU resident mobile packing-projection parameter: "
-                << "packingFraction=" << packingFraction
-                << exit(FatalError);
-        }
-        if (packingProjectionIterations < 1)
-        {
-            FatalErrorInFunction
-                << "gpuResidentPackingProjectionIterations must be a "
-                << "positive integer. Current value = "
-                << packingProjectionIterations
-                << exit(FatalError);
-        }
-
         const bool csrCellLocalPathEnabled = scheduling.csrCellLocalPath;
-        const int csrHeavyReductionMode = int(scheduling.heavyReductionMode);
+        const int csrHeavyReductionMode = gpuHostValue<int>(scheduling.heavyReductionMode);
         const bool csrWarpAggregatedBinning =
             scheduling.warpAggregatedBinning;
         const bool csrSplitPreDirectoryEnabled =
@@ -596,19 +573,19 @@ protected:
 
         const int createRc = ugkwpGpuResidentStrictCreate
         (
-            int(nCells),
-            int(nFaces),
-            int(nInternalFaces),
-            int(nCellPlanes),
-            int(particleCapacity),
-            int(maxFaceWalkHops),
+            gpuHostValue<int>(nCells),
+            gpuHostValue<int>(nFaces),
+            gpuHostValue<int>(nInternalFaces),
+            gpuHostValue<int>(nCellPlanes),
+            gpuHostValue<int>(particleCapacity),
+            gpuHostValue<int>(maxFaceWalkHops),
             injectionParcelMass,
             rngSeed,
             gammaGas,
             RgasValue,
             rhoSolid,
             solveParticleTemperature ? 1 : 0,
-            int(particleGasHeatTransferModelId),
+            gpuHostValue<int>(particleGasHeatTransferModelId),
             particleThermalRho,
             particleCp,
             gasMu,
@@ -629,13 +606,13 @@ protected:
             pressureKickFraction,
             jammingPressureEnabled ? 1 : 0,
             packingFraction,
-            int(packingProjectionIterations),
-            int(gasFluxScheme),
-            int(gasReconstruction),
-            int(gasLimiter),
-            int(gasTimeIntegrator),
+            gpuHostValue<int>(packingProjectionIterations),
+            gpuHostValue<int>(gasFluxScheme),
+            gpuHostValue<int>(gasReconstruction),
+            gpuHostValue<int>(gasLimiter),
+            gpuHostValue<int>(gasTimeIntegrator),
             gasRobustFallback ? 1 : 0,
-            int(gasTurbulenceModel),
+            gpuHostValue<int>(gasTurbulenceModel),
             lesDeltaCoeff,
             turbulentPrandtl,
             waleCw,
@@ -643,12 +620,12 @@ protected:
             maxDiffusionNumber,
             csrCellLocalPathEnabled ? 1 : 0,
             csrHeavyReductionMode,
-            int(scheduling.heavyReductionAutoInterval),
-            int(scheduling.particleBlockThreads),
-            int(scheduling.reductionBlockThreads),
+            gpuHostValue<int>(scheduling.heavyReductionAutoInterval),
+            gpuHostValue<int>(scheduling.particleBlockThreads),
+            gpuHostValue<int>(scheduling.reductionBlockThreads),
             csrWarpAggregatedBinning ? 1 : 0,
             csrSplitPreDirectoryEnabled ? 1 : 0,
-            int(dragModel),
+            gpuHostValue<int>(dragModel),
             dragParameters[0],
             dragParameters[1],
             dragParameters[2],
@@ -691,93 +668,6 @@ protected:
                 TpMin
             );
         }
-        if (enableParticleModule)
-        {
-            const fileName restartPath = particleRestartFile(runTime);
-            const bool hasParticleRestart = isFile(restartPath);
-            label restartParticleCount = -1;
-            if (hasParticleRestart)
-            {
-                std::ifstream restartHeaderStream(restartPath.c_str());
-                string restartHeader;
-                if (!(restartHeaderStream >> restartHeader))
-                {
-                    FatalErrorInFunction
-                        << "Invalid GPU resident particle restart mirror: "
-                        << restartPath << exit(FatalError);
-                }
-                if (restartHeader == "UGKP_PARTICLES_SCHEMA4")
-                {
-                    if (!(restartHeaderStream >> restartParticleCount))
-                    {
-                        FatalErrorInFunction
-                            << "Invalid GPU resident particle restart count: "
-                        << restartPath << exit(FatalError);
-                    }
-                }
-                else if
-                (
-                    restartHeader == "UGKP_PARTICLES_SCHEMA5_BIN"
-                 || restartHeader == "UGKP_PARTICLES_SCHEMA1_BIN"
-                )
-                {
-                    label binaryChunkParticles = 0;
-                    if
-                    (
-                        !(restartHeaderStream
-                            >> restartParticleCount
-                            >> binaryChunkParticles)
-                     || binaryChunkParticles <= 0
-                    )
-                    {
-                        FatalErrorInFunction
-                            << "Invalid GPU resident binary particle restart "
-                            << "header: " << restartPath << exit(FatalError);
-                    }
-                }
-                else
-                {
-                    FatalErrorInFunction
-                        << "Unsupported GPU resident particle restart format: "
-                        << restartPath << exit(FatalError);
-                }
-                if (restartParticleCount > particleCapacity)
-                {
-                    FatalErrorInFunction
-                        << "GPU resident particle restart count exceeds "
-                        << "gpuResidentParticleCapacity: count="
-                        << restartParticleCount << ", capacity="
-                        << particleCapacity << ", file=" << restartPath
-                        << exit(FatalError);
-                }
-            }
-
-            scalar initialSolidVolume = 0;
-            const scalarField& epsI = epsS.primitiveField();
-            const scalarField& V = mesh.V();
-            forAll(epsI, cellI)
-            {
-                initialSolidVolume += max(epsI[cellI], scalar(0))*V[cellI];
-            }
-            reduce(initialSolidVolume, sumOp<scalar>());
-
-            if
-            (
-                initialSolidVolume > SMALL
-             && (!hasParticleRestart || restartParticleCount == 0)
-            )
-            {
-                FatalErrorInFunction
-                    << "GPU resident particle mode uses particles as the solid "
-                    << "primary state. Non-zero initial epsilonS was found, "
-                    << "but the GPU particle restart is absent or empty. "
-                    << "Provide a non-empty gpuResidentStrictParticles.dat; "
-                    << "macroscopic solid fields are never converted back into "
-                    << "particles."
-                    << exit(FatalError);
-            }
-        }
-
         uploadFields(rho, rhoU, rhoE, U, p, Tgas);
 
         if (enableParticleModule)
@@ -826,7 +716,6 @@ protected:
         SharedGasModelInput* gasModel = nullptr
     )
     {
-        ensureStorage();
         ensureGasFieldSizes(mesh, rho, rhoU, rhoE, U, p, Tgas);
 
         const label nCells = mesh.nCells();
@@ -841,22 +730,17 @@ protected:
         hostMirrorFaces_ = nFaces;
         residentMesh_ = &mesh;
 
-        if (maxFaceWalkHops <= 0)
-        {
-            FatalErrorInFunction
-                << "gpuResidentMaxFaceWalkHops must be positive. Current value = "
-                << maxFaceWalkHops << exit(FatalError);
-        }
+
 
         void* raw = nullptr;
         const int createRc = ugkwpGpuResidentStrictCreate
         (
-            int(nCells),
-            int(nFaces),
-            int(nInternalFaces),
-            int(nCellPlanes),
+            gpuHostValue<int>(nCells),
+            gpuHostValue<int>(nFaces),
+            gpuHostValue<int>(nInternalFaces),
+            gpuHostValue<int>(nCellPlanes),
             0,
-            int(maxFaceWalkHops),
+            gpuHostValue<int>(maxFaceWalkHops),
             scalar(1),
             rngSeed,
             gammaGas,
@@ -885,22 +769,22 @@ protected:
             0,
             scalar(0.63),
             20,
-            int(gasFluxScheme),
-            int(gasReconstruction),
-            int(gasLimiter),
-            int(gasTimeIntegrator),
+            gpuHostValue<int>(gasFluxScheme),
+            gpuHostValue<int>(gasReconstruction),
+            gpuHostValue<int>(gasLimiter),
+            gpuHostValue<int>(gasTimeIntegrator),
             gasRobustFallback ? 1 : 0,
-            int(gasTurbulenceModel),
+            gpuHostValue<int>(gasTurbulenceModel),
             lesDeltaCoeff,
             turbulentPrandtl,
             waleCw,
             smagorinskyCs,
             maxDiffusionNumber,
             scheduling.csrCellLocalPath ? 1 : 0,
-            int(scheduling.heavyReductionMode),
-            int(scheduling.heavyReductionAutoInterval),
-            int(scheduling.particleBlockThreads),
-            int(scheduling.reductionBlockThreads),
+            gpuHostValue<int>(scheduling.heavyReductionMode),
+            gpuHostValue<int>(scheduling.heavyReductionAutoInterval),
+            gpuHostValue<int>(scheduling.particleBlockThreads),
+            gpuHostValue<int>(scheduling.reductionBlockThreads),
             scheduling.warpAggregatedBinning ? 1 : 0,
             scheduling.splitPreDirectory ? 1 : 0,
             0,
@@ -965,10 +849,10 @@ public:
         requireInitialised("configure SST");
         if
         (
-            residentMesh_ != &mesh
-         || k.size() != mesh.nCells()
-         || omega.size() != mesh.nCells()
-         || wallDistance.size() != mesh.nCells()
+            k.size() < hostMirrorCells_
+         || omega.size() < hostMirrorCells_
+         || wallDistance.size() < hostMirrorCells_
+         || mesh.nFaces() < hostMirrorFaces_
         )
         {
             FatalErrorInFunction
@@ -976,10 +860,10 @@ public:
                 << exit(FatalError);
         }
 
-        labelList boundaryKMode(mesh.nFaces(), 0);
-        labelList boundaryOmegaMode(mesh.nFaces(), 0);
-        scalarField boundaryK(mesh.nFaces(), kMin);
-        scalarField boundaryOmega(mesh.nFaces(), omegaMin);
+        List<int> boundaryKMode(mesh.nFaces(), 0);
+        List<int> boundaryOmegaMode(mesh.nFaces(), 0);
+        Field<double> boundaryK(mesh.nFaces(), kMin);
+        Field<double> boundaryOmega(mesh.nFaces(), omegaMin);
         forAll(mesh.boundary(), patchI)
         {
             const polyPatch& patch = mesh.boundaryMesh()[patchI];
@@ -1065,13 +949,13 @@ public:
                 kMin,
                 omegaMin,
                 maxSourceNumber,
-                int(wallTreatment),
+                gpuHostValue<int>(wallTreatment),
                 wallKappa,
                 wallE,
                 wallCmu,
-                k.primitiveField().begin(),
-                omega.primitiveField().begin(),
-                wallDistance.primitiveField().begin(),
+                GpuHostReadView<double>(k.primitiveField()).begin(),
+                GpuHostReadView<double>(omega.primitiveField()).begin(),
+                GpuHostReadView<double>(wallDistance.primitiveField()).begin(),
                 boundaryKMode.begin(),
                 boundaryOmegaMode.begin(),
                 boundaryK.begin(),
@@ -1085,8 +969,6 @@ public:
         const fvMesh& mesh,const volScalarField& temperature)
     {
         requireInitialised("configure boundaryLayer");
-        if(residentMesh_!=&mesh)
-            FatalErrorInFunction<<"boundaryLayer must use the resident mesh"<<exit(FatalError);
         input.prepare(time,mesh,temperature);
         input.configureResident(handle_);
     }
@@ -1106,15 +988,10 @@ public:
     )
     {
         requireInitialised("download SST fields");
-        if (!runTime.writeTime())
-        {
-            FatalErrorInFunction
-                << "SST fields may only be downloaded at writeTime()."
-                << exit(FatalError);
-        }
-        scalarField kValues(hostMirrorCells_);
-        scalarField omegaValues(hostMirrorCells_);
-        scalarField nutValues(hostMirrorCells_);
+
+        Field<double> kValues(hostMirrorCells_);
+        Field<double> omegaValues(hostMirrorCells_);
+        Field<double> nutValues(hostMirrorCells_);
         check
         (
             ugkwpGpuResidentStrictDownloadSst
@@ -1126,9 +1003,6 @@ public:
             ),
             "download GPU resident explicit SST"
         );
-        validateMirrorScalar("k", kValues);
-        validateMirrorScalar("omega", omegaValues);
-        validateMirrorScalar("nut", nutValues);
         assignScalar(k, kValues);
         assignScalar(omega, omegaValues);
         assignScalar(nut, nutValues);
@@ -1142,22 +1016,6 @@ public:
     ) const
     {
         requireInitialised("computeGasCourant");
-        if
-        (
-            !finiteMirrorScalar(dt)
-         || dt <= SMALL
-         || !finiteMirrorScalar(targetMaxCo)
-         || targetMaxCo <= SMALL
-         || !finiteMirrorScalar(scheduleTime)
-         || scheduleTime < scalar(0)
-        )
-        {
-            FatalErrorInFunction
-                << "computeGasCourant requires positive finite dt and "
-                << "targetMaxCo. dt=" << dt
-                << ", targetMaxCo=" << targetMaxCo
-                << exit(FatalError);
-        }
         double maxCo = 0.0;
         check
         (
@@ -1181,30 +1039,14 @@ public:
     )
     {
         requireInitialised("downloadNutToHostMirror");
-        if (!runTime.writeTime())
-        {
-            FatalErrorInFunction
-                << "downloadNutToHostMirror is only allowed at writeTime(). "
-                << "LES diagnostics remain GPU resident between write times."
-                << exit(FatalError);
-        }
 
-        scalarField nutF(hostMirrorCells_);
+
+        Field<double> nutF(hostMirrorCells_);
         check
         (
             ugkwpGpuResidentStrictDownloadNut(handle_, nutF.begin()),
             "download GPU resident nut field to host mirror"
         );
-        validateMirrorScalar("nut", nutF);
-        forAll(nutF, cellI)
-        {
-            if (nutF[cellI] < scalar(0))
-            {
-                FatalErrorInFunction
-                    << "GPU resident nut is negative at cell " << cellI
-                    << ": " << nutF[cellI] << exit(FatalError);
-            }
-        }
         assignScalar(nut, nutF);
         nut.correctBoundaryConditions();
     }
@@ -1222,19 +1064,14 @@ public:
         requireInitialised("configureScheduledInlet");
         if
         (
-            faceIds.empty()
-         || !finiteMirrorScalar(inletTemperature)
-         || inletTemperature <= SMALL
-         || pressureTimes.empty()
-         || pressureTimes.size() != pressureValues.size()
-         || volumeFractionTimes.empty()
-         || volumeFractionTimes.size() != volumeFractionValues.size()
+            (!faceIds.empty() && pressureTimes.empty())
+         || pressureTimes.size() > pressureValues.size()
+         || (!faceIds.empty() && volumeFractionTimes.empty())
+         || volumeFractionTimes.size() > volumeFractionValues.size()
         )
         {
             FatalErrorInFunction
-                << "Scheduled inlet configuration requires non-empty faces, "
-                << "positive finite inlet temperature, and non-empty "
-                << "time/value tables with matching sizes"
+                << "Scheduled inlet is missing required interpolation samples"
                 << exit(FatalError);
         }
 
@@ -1243,15 +1080,15 @@ public:
             ugkwpGpuResidentStrictConfigureScheduledInlet
             (
                 handle_,
-                int(faceIds.size()),
-                reinterpret_cast<const int*>(faceIds.begin()),
+                gpuHostValue<int>(faceIds.size()),
+                GpuHostReadView<int>(faceIds).begin(),
                 inletTemperature,
-                int(pressureTimes.size()),
-                pressureTimes.begin(),
-                pressureValues.begin(),
-                int(volumeFractionTimes.size()),
-                volumeFractionTimes.begin(),
-                volumeFractionValues.begin()
+                gpuHostValue<int>(pressureTimes.size()),
+                GpuHostReadView<double>(pressureTimes).begin(),
+                GpuHostReadView<double>(pressureValues).begin(),
+                gpuHostValue<int>(volumeFractionTimes.size()),
+                GpuHostReadView<double>(volumeFractionTimes).begin(),
+                GpuHostReadView<double>(volumeFractionValues).begin()
             ),
             "configure GPU resident scheduled inlet"
         );
@@ -1288,38 +1125,31 @@ public:
     )
     {
         requireInitialised("downloadToHostMirror");
-        if (!runTime.writeTime())
-        {
-            FatalErrorInFunction
-                << "downloadToHostMirror is only allowed at writeTime(). "
-                << "Active GPU resident state must not be mirrored to CPU "
-                << "between write/restart boundaries."
-                << exit(FatalError);
-        }
 
-        scalarField rhoF(hostMirrorCells_);
-        scalarField rhoUxF(hostMirrorCells_);
-        scalarField rhoUyF(hostMirrorCells_);
-        scalarField rhoUzF(hostMirrorCells_);
-        scalarField rhoEF(hostMirrorCells_);
-        scalarField UxF(hostMirrorCells_);
-        scalarField UyF(hostMirrorCells_);
-        scalarField UzF(hostMirrorCells_);
-        scalarField pF(hostMirrorCells_);
-        scalarField TgasF(hostMirrorCells_);
-        scalarField epsSF(hostMirrorCells_);
-        scalarField rhoUsxF(hostMirrorCells_);
-        scalarField rhoUsyF(hostMirrorCells_);
-        scalarField rhoUszF(hostMirrorCells_);
-        scalarField rhoEsF(hostMirrorCells_);
-        scalarField rhoDsF(hostMirrorCells_);
-        scalarField rhoHpF(hostMirrorCells_);
-        scalarField UsxF(hostMirrorCells_);
-        scalarField UsyF(hostMirrorCells_);
-        scalarField UszF(hostMirrorCells_);
-        scalarField thetaF(hostMirrorCells_);
-        scalarField TpF(hostMirrorCells_);
-        scalarField dMeanF(hostMirrorCells_);
+
+        Field<double> rhoF(hostMirrorCells_);
+        Field<double> rhoUxF(hostMirrorCells_);
+        Field<double> rhoUyF(hostMirrorCells_);
+        Field<double> rhoUzF(hostMirrorCells_);
+        Field<double> rhoEF(hostMirrorCells_);
+        Field<double> UxF(hostMirrorCells_);
+        Field<double> UyF(hostMirrorCells_);
+        Field<double> UzF(hostMirrorCells_);
+        Field<double> pF(hostMirrorCells_);
+        Field<double> TgasF(hostMirrorCells_);
+        Field<double> epsSF(hostMirrorCells_);
+        Field<double> rhoUsxF(hostMirrorCells_);
+        Field<double> rhoUsyF(hostMirrorCells_);
+        Field<double> rhoUszF(hostMirrorCells_);
+        Field<double> rhoEsF(hostMirrorCells_);
+        Field<double> rhoDsF(hostMirrorCells_);
+        Field<double> rhoHpF(hostMirrorCells_);
+        Field<double> UsxF(hostMirrorCells_);
+        Field<double> UsyF(hostMirrorCells_);
+        Field<double> UszF(hostMirrorCells_);
+        Field<double> thetaF(hostMirrorCells_);
+        Field<double> TpF(hostMirrorCells_);
+        Field<double> dMeanF(hostMirrorCells_);
 
         check
         (
@@ -1353,21 +1183,6 @@ public:
             "download GPU resident fields to host mirror"
         );
 
-        validateMirrorScalar("rho", rhoF);
-        validateMirrorVector("rhoU", rhoUxF, rhoUyF, rhoUzF);
-        validateMirrorScalar("rhoE", rhoEF);
-        validateMirrorVector("U", UxF, UyF, UzF);
-        validateMirrorScalar("p", pF);
-        validateMirrorScalar("T", TgasF);
-        validateMirrorScalar("epsilonS", epsSF);
-        validateMirrorVector("rhoUs", rhoUsxF, rhoUsyF, rhoUszF);
-        validateMirrorScalar("rhoEs", rhoEsF);
-        validateMirrorScalar("rhoDs", rhoDsF);
-        validateMirrorScalar("rhoHp", rhoHpF);
-        validateMirrorVector("Us", UsxF, UsyF, UszF);
-        validateMirrorScalar("theta", thetaF);
-        validateMirrorScalar("Tp", TpF);
-        validateMirrorScalar("dMeanCell", dMeanF);
 
         assignScalar(rho, rhoF);
         assignVector(rhoU, rhoUxF, rhoUyF, rhoUzF);
@@ -1398,9 +1213,27 @@ public:
         const fileName& restartFile
     ) const
     {
-        const std::streamsize bytes =
-            static_cast<std::streamsize>(count)*sizeof(T);
-        os.write(reinterpret_cast<const char*>(values), bytes);
+        using Wire = typename std::conditional<std::is_floating_point<T>::value,
+            double, typename std::conditional<(sizeof(T)>4),std::uint64_t,T>::type>::type;
+        const std::streamsize bytes=static_cast<std::streamsize>(count)*sizeof(Wire);
+        const std::uint32_t endian=1;
+        const bool little=*reinterpret_cast<const unsigned char*>(&endian)==1;
+        if (sizeof(T)==sizeof(Wire) && little)
+            os.write(reinterpret_cast<const char*>(values),bytes);
+        else
+        {
+            std::vector<Wire> wire(count);
+            for (label i=0;i<count;++i)
+            {
+                wire[i]=static_cast<Wire>(values[i]);
+                if (!little)
+                {
+                    auto* first=reinterpret_cast<unsigned char*>(&wire[i]);
+                    std::reverse(first,first+sizeof(Wire));
+                }
+            }
+            os.write(reinterpret_cast<const char*>(wire.data()),bytes);
+        }
         if (!os.good())
         {
             FatalErrorInFunction
@@ -1413,14 +1246,7 @@ public:
     label writeParticleRestartMirror(const Time& runTime) const
     {
         requireInitialised("writeParticleRestartMirror");
-        if (!runTime.writeTime())
-        {
-            FatalErrorInFunction
-                << "writeParticleRestartMirror is only allowed at writeTime(). "
-                << "Particle SoA must remain GPU resident between restart "
-                << "boundaries."
-                << exit(FatalError);
-        }
+
 
         int nParticles = 0;
         check
@@ -1448,18 +1274,18 @@ public:
             "query GPU resident particle restart mirror count"
         );
 
-        scalarField px(nParticles);
-        scalarField py(nParticles);
-        scalarField pz(nParticles);
-        scalarField pux(nParticles);
-        scalarField puy(nParticles);
-        scalarField puz(nParticles);
-        scalarField pT(nParticles);
-        scalarField pTheta(nParticles);
-        scalarField pd(nParticles);
-        scalarField pm(nParticles);
-        labelList pCellId(nParticles);
-        labelList pStatus(nParticles);
+        Field<double> px(nParticles);
+        Field<double> py(nParticles);
+        Field<double> pz(nParticles);
+        Field<double> pux(nParticles);
+        Field<double> puy(nParticles);
+        Field<double> puz(nParticles);
+        Field<double> pT(nParticles);
+        Field<double> pTheta(nParticles);
+        Field<double> pd(nParticles);
+        Field<double> pm(nParticles);
+        List<int> pCellId(nParticles);
+        List<int> pStatus(nParticles);
         List<unsigned long long> pRng(nParticles);
         List<unsigned long long> pOrigId(nParticles);
 
@@ -1482,8 +1308,8 @@ public:
                     pTheta.begin(),
                     pd.begin(),
                     pm.begin(),
-                    reinterpret_cast<int*>(pCellId.begin()),
-                    reinterpret_cast<int*>(pStatus.begin()),
+                    pCellId.begin(),
+                    pStatus.begin(),
                     pRng.begin(),
                     pOrigId.begin()
                 ),
@@ -1502,20 +1328,6 @@ public:
             FatalErrorInFunction
                 << "Cannot write GPU resident particle restart mirror: "
                 << restartFile << exit(FatalError);
-        }
-
-        if (sizeof(scalar) != 8 || sizeof(label) != 4)
-        {
-            FatalErrorInFunction
-                << "UGKP weighted binary restart requires 8-byte scalar "
-                << "and 4-byte label" << exit(FatalError);
-        }
-        const std::uint32_t endianMarker = 1u;
-        if (*reinterpret_cast<const unsigned char*>(&endianMarker) != 1u)
-        {
-            FatalErrorInFunction
-                << "UGKP weighted binary restart requires a little-endian host"
-                << exit(FatalError);
         }
 
         const label binaryChunkParticles = 262144;
@@ -1565,14 +1377,9 @@ public:
     {
         requireInitialised("writeEpsGPrevRestartMirror");
 
-        if (!runTime.writeTime())
-        {
-            FatalErrorInFunction
-                << "writeEpsGPrevRestartMirror is only allowed at writeTime()."
-                << exit(FatalError);
-        }
 
-        scalarField epsGPrev(hostMirrorCells_, scalar(1));
+
+        Field<double> epsGPrev(hostMirrorCells_, scalar(1));
 
         check
         (
@@ -1606,12 +1413,7 @@ public:
     void writeSourceResidualRestartMirror(const Time& runTime) const
     {
         requireInitialised("writeSourceResidualRestartMirror");
-        if (!runTime.writeTime())
-        {
-            FatalErrorInFunction
-                << "writeSourceResidualRestartMirror is only allowed at writeTime()."
-                << exit(FatalError);
-        }
+
 
         int nSources = 0;
         check
@@ -1623,8 +1425,8 @@ public:
             "query GPU resident source residual count"
         );
 
-        labelList sourceFace(nSources);
-        scalarField residualMass(nSources);
+        List<int> sourceFace(nSources);
+        Field<double> residualMass(nSources);
         if (nSources > 0)
         {
             check
@@ -1634,7 +1436,7 @@ public:
                     handle_,
                     &nSources,
                     nSources,
-                    reinterpret_cast<int*>(sourceFace.begin()),
+                    sourceFace.begin(),
                     residualMass.begin()
                 ),
                 "download GPU resident source residual mass"
@@ -1674,17 +1476,6 @@ protected:
         return runTime.timePath()/"gpuResidentStrictSourceResidual.dat";
     }
 
-    static void ensureStorage()
-    {
-        if (sizeof(scalar) != sizeof(double) || sizeof(label) != sizeof(int))
-        {
-            FatalErrorInFunction
-                << "GPU resident strict mode currently requires DP scalar "
-                << "storage and 32-bit labels."
-                << exit(FatalError);
-        }
-    }
-
     void requireInitialised(const char* action) const
     {
         if (handle_ == nullptr)
@@ -1714,7 +1505,7 @@ protected:
         const char* name
     )
     {
-        if (field.primitiveField().size() != mesh.nCells())
+        if (field.primitiveField().size() < mesh.nCells())
         {
             FatalErrorInFunction
                 << "GPU resident strict field size mismatch for " << name
@@ -1731,7 +1522,7 @@ protected:
         const char* name
     )
     {
-        if (field.primitiveField().size() != mesh.nCells())
+        if (field.primitiveField().size() < mesh.nCells())
         {
             FatalErrorInFunction
                 << "GPU resident strict field size mismatch for " << name
@@ -1799,18 +1590,20 @@ protected:
 
     static void packScalar
     (
-        scalarField& out,
+        Field<double>& out,
         const volScalarField& field
     )
     {
-        out = field.primitiveField();
+        const auto& values=field.primitiveField();
+        out.setSize(values.size());
+        forAll(values,i) out[i]=values[i];
     }
 
     static void packVector
     (
-        scalarField& x,
-        scalarField& y,
-        scalarField& z,
+        Field<double>& x,
+        Field<double>& y,
+        Field<double>& z,
         const volVectorField& field
     )
     {
@@ -1830,22 +1623,25 @@ protected:
     static void assignScalar
     (
         volScalarField& field,
-        const scalarField& values
+        const Field<double>& values
     )
     {
-        field.primitiveFieldRef() = values;
+        auto& target=field.primitiveFieldRef();
+        if (target.size()<values.size()) target.setSize(values.size());
+        forAll(values,i) target[i]=values[i];
     }
 
     static void assignVector
     (
         volVectorField& field,
-        const scalarField& x,
-        const scalarField& y,
-        const scalarField& z
+        const Field<double>& x,
+        const Field<double>& y,
+        const Field<double>& z
     )
     {
         vectorField& values = field.primitiveFieldRef();
-        forAll(values, i)
+        if (values.size()<x.size()) values.setSize(x.size());
+        forAll(x, i)
         {
             values[i] = vector(x[i], y[i], z[i]);
         }
@@ -1853,54 +1649,7 @@ protected:
 
     static bool finiteMirrorScalar(const scalar value)
     {
-        return (value == value) && (mag(value) < GREAT);
-    }
-
-    static void validateMirrorScalar
-    (
-        const word& name,
-        const scalarField& values
-    )
-    {
-        forAll(values, i)
-        {
-            if (!finiteMirrorScalar(values[i]))
-            {
-                FatalErrorInFunction
-                    << "GPU resident strict downloaded a non-finite scalar "
-                    << "mirror value before write: field=" << name
-                    << " cell=" << i
-                    << " value=" << values[i]
-                    << exit(FatalError);
-            }
-        }
-    }
-
-    static void validateMirrorVector
-    (
-        const word& name,
-        const scalarField& x,
-        const scalarField& y,
-        const scalarField& z
-    )
-    {
-        forAll(x, i)
-        {
-            if
-            (
-                !finiteMirrorScalar(x[i])
-             || !finiteMirrorScalar(y[i])
-             || !finiteMirrorScalar(z[i])
-            )
-            {
-                FatalErrorInFunction
-                    << "GPU resident strict downloaded a non-finite vector "
-                    << "mirror value before write: field=" << name
-                    << " cell=" << i
-                    << " value=(" << x[i] << ' ' << y[i] << ' ' << z[i] << ')'
-                    << exit(FatalError);
-            }
-        }
+        return std::isfinite(value);
     }
 
     void downloadGasBoundaryToHostMirror
@@ -1913,12 +1662,12 @@ protected:
     {
         const fvMesh& mesh = rho.mesh();
         const label nFaces = mesh.nFaces();
-        scalarField rhoB(nFaces, scalar(0));
-        scalarField UxB(nFaces, scalar(0));
-        scalarField UyB(nFaces, scalar(0));
-        scalarField UzB(nFaces, scalar(0));
-        scalarField pB(nFaces, scalar(0));
-        scalarField TB(nFaces, scalar(0));
+        Field<double> rhoB(nFaces, scalar(0));
+        Field<double> UxB(nFaces, scalar(0));
+        Field<double> UyB(nFaces, scalar(0));
+        Field<double> UzB(nFaces, scalar(0));
+        Field<double> pB(nFaces, scalar(0));
+        Field<double> TB(nFaces, scalar(0));
 
         check
         (
@@ -1948,16 +1697,12 @@ protected:
             const bool UIsInletOutlet =
                 isA<inletOutletFvPatchField<vector>>(UPatch);
 
-            if
-            (
-                rhoPatch.size() != size
-             || UPatch.size() != size
-             || pPatch.size() != size
-             || TPatch.size() != size
-            )
-            {
-                continue;
-            }
+
+
+            if (rhoPatch.size()<size) rhoPatch.setSize(size);
+            if (UPatch.size()<size) UPatch.setSize(size);
+            if (pPatch.size()<size) pPatch.setSize(size);
+            if (TPatch.size()<size) TPatch.setSize(size);
 
             for (label i = 0; i < size; ++i)
             {
@@ -1989,9 +1734,27 @@ protected:
         const fileName& restartFile
     )
     {
-        const std::streamsize bytes =
-            static_cast<std::streamsize>(count)*sizeof(T);
-        is.read(reinterpret_cast<char*>(values), bytes);
+        using Wire = typename std::conditional<std::is_floating_point<T>::value,
+            double, typename std::conditional<(sizeof(T)>4),std::uint64_t,T>::type>::type;
+        const std::streamsize bytes=static_cast<std::streamsize>(count)*sizeof(Wire);
+        const std::uint32_t endian=1;
+        const bool little=*reinterpret_cast<const unsigned char*>(&endian)==1;
+        if (sizeof(T)==sizeof(Wire) && little)
+            is.read(reinterpret_cast<char*>(values),bytes);
+        else
+        {
+            std::vector<Wire> wire(count);
+            is.read(reinterpret_cast<char*>(wire.data()),bytes);
+            if (is && is.gcount()==bytes) for (label i=0;i<count;++i)
+            {
+                if (!little)
+                {
+                    auto* first=reinterpret_cast<unsigned char*>(&wire[i]);
+                    std::reverse(first,first+sizeof(Wire));
+                }
+                values[i]=static_cast<T>(wire[i]);
+            }
+        }
         if (!is || is.gcount() != bytes)
         {
             FatalErrorInFunction
@@ -2016,53 +1779,34 @@ protected:
         );
         string restartHeader;
         label nParticles = 0;
-        if (!(is >> restartHeader >> nParticles) || nParticles < 0)
+        if (!(is >> restartHeader >> nParticles))
         {
             FatalErrorInFunction
                 << "Unsupported or invalid GPU resident particle restart "
                 << "format: " << restartFile << exit(FatalError);
         }
 
-        label binaryChunkParticles = 0;
         const bool legacyBinaryRestart =
             restartHeader == "UGKP_PARTICLES_SCHEMA5_BIN";
-        const bool weightedBinaryRestart =
-            restartHeader == "UGKP_PARTICLES_SCHEMA1_BIN";
         const bool binaryRestart =
-            legacyBinaryRestart || weightedBinaryRestart;
-        if
-        (
-            restartHeader != "UGKP_PARTICLES_SCHEMA4"
-         && !binaryRestart
-        )
-        {
-            FatalErrorInFunction
-                << "Unsupported or invalid GPU resident particle restart "
-                << "format: " << restartFile << exit(FatalError);
-        }
-        if
-        (
-            binaryRestart
-         && (!(is >> binaryChunkParticles) || binaryChunkParticles <= 0)
-        )
-        {
-            FatalErrorInFunction
-                << "Invalid binary restart chunk count in "
-                << restartFile << exit(FatalError);
-        }
+            restartHeader.find("_BIN") != string::npos;
 
-        scalarField px(nParticles);
-        scalarField py(nParticles);
-        scalarField pz(nParticles);
-        scalarField pux(nParticles);
-        scalarField puy(nParticles);
-        scalarField puz(nParticles);
-        scalarField pT(nParticles);
-        scalarField pTheta(nParticles);
-        scalarField pd(nParticles);
-        scalarField pm(nParticles, legacyRestartParcelMass_);
-        labelList pCellId(nParticles);
-        labelList pStatus(nParticles);
+
+
+        const bool weightedBinaryRestart =
+            binaryRestart && !legacyBinaryRestart;
+        Field<double> px(nParticles);
+        Field<double> py(nParticles);
+        Field<double> pz(nParticles);
+        Field<double> pux(nParticles);
+        Field<double> puy(nParticles);
+        Field<double> puz(nParticles);
+        Field<double> pT(nParticles);
+        Field<double> pTheta(nParticles);
+        Field<double> pd(nParticles);
+        Field<double> pm(nParticles, legacyRestartParcelMass_);
+        List<int> pCellId(nParticles);
+        List<int> pStatus(nParticles);
         List<unsigned long long> pRng(nParticles);
         List<unsigned long long> pOrigId(nParticles);
 
@@ -2099,48 +1843,8 @@ protected:
         }
         else
         {
-            if (sizeof(scalar) != 8)
-            {
-                FatalErrorInFunction
-                    << "binary restart scalar width mismatch"
-                    << exit(FatalError);
-            }
-            if (sizeof(label) != 4)
-            {
-                FatalErrorInFunction
-                    << "binary restart label width mismatch"
-                    << exit(FatalError);
-            }
-            if (sizeof(unsigned long long) != 8)
-            {
-                FatalErrorInFunction
-                    << "binary restart unsigned width mismatch"
-                    << exit(FatalError);
-            }
-            const std::uint32_t endianMarker = 1u;
-            if
-            (
-                *reinterpret_cast<const unsigned char*>(&endianMarker)
-             != 1u
-            )
-            {
-                FatalErrorInFunction
-                    << "binary restart requires a little-endian host"
-                    << exit(FatalError);
-            }
-
-            char newline = 0;
-            is.get(newline);
-            if (newline == '\r')
-            {
-                is.get(newline);
-            }
-            if (newline != '\n')
-            {
-                FatalErrorInFunction
-                    << "Invalid binary particle restart header terminator in "
-                    << restartFile << exit(FatalError);
-            }
+            string headerSuffix;
+            std::getline(is,headerSuffix);
 
             label offset = 0;
             while (offset < nParticles)
@@ -2157,10 +1861,7 @@ protected:
                 const label remaining = nParticles - offset;
                 if
                 (
-                    chunkCount == 0u
-                 || chunkCount
-                  > static_cast<std::uint32_t>(binaryChunkParticles)
-                 || chunkCount > static_cast<std::uint32_t>(remaining)
+                    chunkCount > static_cast<std::uint32_t>(remaining)
                 )
                 {
                     FatalErrorInFunction
@@ -2188,23 +1889,7 @@ protected:
                 readBinaryParticleBlock(is, pOrigId.begin() + offset, count, "pOrigId", restartFile);
                 offset += count;
             }
-            if (is.peek() != std::char_traits<char>::eof())
-            {
-                FatalErrorInFunction
-                    << "Invalid binary restart trailing data in "
-                    << restartFile << exit(FatalError);
-            }
-        }
 
-        for (label i = 0; i < nParticles; ++i)
-        {
-            if (!std::isfinite(pm[i]) || pm[i] <= scalar(0))
-            {
-                FatalErrorInFunction
-                    << "Invalid particle statistical mass in " << restartFile
-                    << " at particle " << i << ": pm=" << pm[i]
-                    << exit(FatalError);
-            }
         }
 
         check
@@ -2212,7 +1897,7 @@ protected:
             ugkwpGpuResidentStrictUploadParticleRestartMirror
             (
                 handle_,
-                int(nParticles),
+                gpuHostValue<int>(nParticles),
                 px.begin(),
                 py.begin(),
                 pz.begin(),
@@ -2223,8 +1908,8 @@ protected:
                 pTheta.begin(),
                 pd.begin(),
                 pm.begin(),
-                reinterpret_cast<const int*>(pCellId.begin()),
-                reinterpret_cast<const int*>(pStatus.begin()),
+                pCellId.begin(),
+                pStatus.begin(),
                 pRng.begin(),
                 pOrigId.begin()
             ),
@@ -2250,7 +1935,7 @@ protected:
                 << epsGPrevFile << exit(FatalError);
         }
 
-        if (nCells != hostMirrorCells_)
+        if (nCells < hostMirrorCells_)
         {
             FatalErrorInFunction
                 << "GPU resident epsGPrev restart mirror cell count mismatch: "
@@ -2258,10 +1943,10 @@ protected:
                 << ", got " << nCells << exit(FatalError);
         }
 
-        scalarField epsGPrev(hostMirrorCells_);
+        Field<double> epsGPrev(hostMirrorCells_);
         forAll(epsGPrev, cellI)
         {
-            scalar value = scalar(1);
+            double value = 1;
             if (!(epsGIs >> value))
             {
                 FatalErrorInFunction
@@ -2270,12 +1955,12 @@ protected:
                     << exit(FatalError);
             }
 
-            if (!finiteMirrorScalar(value))
+            if (!std::isfinite(value))
             {
                 value = scalar(1);
             }
 
-            epsGPrev[cellI] = min(max(value, scalar(0)), scalar(1));
+            epsGPrev[cellI] = std::min(std::max(value,0.0),1.0);
         }
 
         check
@@ -2305,8 +1990,6 @@ protected:
         if
         (
             !(is >> version >> nSources)
-         || version != "UGKP_SOURCE_RESIDUAL_SCHEMA1"
-         || nSources < 0
         )
         {
             FatalErrorInFunction
@@ -2314,15 +1997,13 @@ protected:
                 << restartFile << exit(FatalError);
         }
 
-        labelList sourceFace(nSources);
-        scalarField residualMass(nSources);
+        List<int> sourceFace(nSources);
+        Field<double> residualMass(nSources);
         for (label i = 0; i < nSources; ++i)
         {
             if
             (
                 !(is >> sourceFace[i] >> residualMass[i])
-             || !finiteMirrorScalar(residualMass[i])
-             || residualMass[i] < scalar(0)
             )
             {
                 FatalErrorInFunction
@@ -2336,8 +2017,8 @@ protected:
             ugkwpGpuResidentStrictUploadSourceResidualMass
             (
                 handle_,
-                int(nSources),
-                reinterpret_cast<const int*>(sourceFace.begin()),
+                gpuHostValue<int>(nSources),
+                sourceFace.begin(),
                 residualMass.begin()
             ),
             "upload GPU resident source residual mass"
@@ -2357,36 +2038,36 @@ protected:
         const label nInternalFaces = mesh.nInternalFaces();
         const label nCells = mesh.nCells();
 
-        labelList faceOwner(nFaces);
-        labelList faceNeighbour(nFaces, -1);
-        labelList facePeriodicPair(nFaces, -1);
-        scalarField facePeriodicDx(nFaces, scalar(0));
-        scalarField facePeriodicDy(nFaces, scalar(0));
-        scalarField facePeriodicDz(nFaces, scalar(0));
-        scalarField Cx(nCells);
-        scalarField Cy(nCells);
-        scalarField Cz(nCells);
-        scalarField faceCx(nFaces);
-        scalarField faceCy(nFaces);
-        scalarField faceCz(nFaces);
-        scalarField Sfx(nFaces);
-        scalarField Sfy(nFaces);
-        scalarField Sfz(nFaces);
-        scalarField magSf(nFaces);
-        scalarField deltaCoeffs(nFaces, scalar(0));
-        scalarField faceWeight(nFaces, scalar(0.5));
-        scalarField cellLength(nCells);
-        labelList cellPlaneStart(nCells);
-        labelList cellPlaneCount(nCells);
-        labelList cellFaceId(nCellPlanes);
-        labelList cellFaceNeighbor(nCellPlanes);
-        labelList cellFaceKind(nCellPlanes);
-        scalarField cellFaceRestitution(nCellPlanes);
-        scalarField cellFaceTangential(nCellPlanes);
-        scalarField planeNx(nCellPlanes);
-        scalarField planeNy(nCellPlanes);
-        scalarField planeNz(nCellPlanes);
-        scalarField planeD(nCellPlanes);
+        List<int> faceOwner(nFaces);
+        List<int> faceNeighbour(nFaces, -1);
+        List<int> facePeriodicPair(nFaces, -1);
+        Field<double> facePeriodicDx(nFaces, scalar(0));
+        Field<double> facePeriodicDy(nFaces, scalar(0));
+        Field<double> facePeriodicDz(nFaces, scalar(0));
+        Field<double> Cx(nCells);
+        Field<double> Cy(nCells);
+        Field<double> Cz(nCells);
+        Field<double> faceCx(nFaces);
+        Field<double> faceCy(nFaces);
+        Field<double> faceCz(nFaces);
+        Field<double> Sfx(nFaces);
+        Field<double> Sfy(nFaces);
+        Field<double> Sfz(nFaces);
+        Field<double> magSf(nFaces);
+        Field<double> deltaCoeffs(nFaces, scalar(0));
+        Field<double> faceWeight(nFaces, scalar(0.5));
+        Field<double> cellLength(nCells);
+        List<int> cellPlaneStart(nCells);
+        List<int> cellPlaneCount(nCells);
+        List<int> cellFaceId(nCellPlanes);
+        List<int> cellFaceNeighbor(nCellPlanes);
+        List<int> cellFaceKind(nCellPlanes);
+        Field<double> cellFaceRestitution(nCellPlanes);
+        Field<double> cellFaceTangential(nCellPlanes);
+        Field<double> planeNx(nCellPlanes);
+        Field<double> planeNy(nCellPlanes);
+        Field<double> planeNz(nCellPlanes);
+        Field<double> planeD(nCellPlanes);
 
         const labelList& owner = mesh.faceOwner();
         const labelList& neighbour = mesh.faceNeighbour();
@@ -2400,61 +2081,22 @@ protected:
         const scalarField& internalWeights =
             mesh.surfaceInterpolation::weights().primitiveField();
 
-        scalarField particleBoundaryCoeff(mesh.boundaryMesh().size(), scalar(1));
+        Field<double> particleBoundaryCoeff(mesh.boundaryMesh().size(), scalar(1));
         if (particleWallProps != nullptr)
         {
             scalar defaultCoeff =
                 particleWallProps->lookupOrDefault<scalar>("particleWallDefault", scalar(1));
-            if
-            (
-                !finiteMirrorScalar(defaultCoeff)
-             || defaultCoeff < scalar(0)
-             || defaultCoeff > scalar(1)
-            )
-            {
-                FatalErrorInFunction
-                    << "ugkwpProperties: particleWallDefault must be finite "
-                    << "and in [0, 1]. Current value = " << defaultCoeff
-                    << exit(FatalError);
-            }
-
             if (particleWallProps->found("particleWallCoeffs"))
             {
                 const dictionary& coeffDict =
                     particleWallProps->subDict("particleWallCoeffs");
                 const scalar dictDefault =
                     coeffDict.lookupOrDefault<scalar>("default", defaultCoeff);
-                if
-                (
-                    !finiteMirrorScalar(dictDefault)
-                 || dictDefault < scalar(0)
-                 || dictDefault > scalar(1)
-                )
-                {
-                    FatalErrorInFunction
-                        << "ugkwpProperties/particleWallCoeffs: default must "
-                        << "be finite and in [0, 1]. Current value = "
-                        << dictDefault << exit(FatalError);
-                }
-
                 forAll(particleBoundaryCoeff, patchI)
                 {
                     const word& patchName = mesh.boundaryMesh()[patchI].name();
                     const scalar coeff =
                         coeffDict.lookupOrDefault<scalar>(patchName, dictDefault);
-                    if
-                    (
-                        !finiteMirrorScalar(coeff)
-                     || coeff < scalar(0)
-                     || coeff > scalar(1)
-                    )
-                    {
-                        FatalErrorInFunction
-                            << "ugkwpProperties/particleWallCoeffs: coefficient "
-                            << "for patch " << patchName
-                            << " must be finite and in [0, 1]. Current value = "
-                            << coeff << exit(FatalError);
-                    }
                     particleBoundaryCoeff[patchI] = coeff;
                 }
             }
@@ -2512,16 +2154,7 @@ protected:
                     << "not accept a rotational or scaled transform. Patch '"
                     << pp.name() << "'." << exit(FatalError);
             }
-            if (cpp.size() != cpp.nbrPatch().size())
-            {
-                FatalErrorInFunction
-                    << "UGKP serial pure-translation cyclic support "
-                    << "requires one-to-one conformal face pairing. Patch '"
-                    << pp.name() << "' has " << cpp.size()
-                    << " faces and neighbour patch '" << cpp.nbrPatch().name()
-                    << "' has " << cpp.nbrPatch().size() << '.'
-                    << exit(FatalError);
-            }
+
 
             forAll(cpp, patchFaceI)
             {
@@ -2539,32 +2172,6 @@ protected:
                         << "Invalid serial cyclic pair for face " << faceI
                         << " on patch '" << pp.name() << "'. Paired face = "
                         << pairFaceI << exit(FatalError);
-                }
-
-                const vector mappedPairCentre =
-                    cpp.transform().transformPosition(faceCentres[pairFaceI]);
-                const scalar geometryTolerance =
-                    scalar(1e-8)
-                   *max
-                    (
-                        mag(faceCentres[faceI])
-                      + mag(faceCentres[pairFaceI]),
-                        scalar(1)
-                    );
-                if
-                (
-                    mag(mappedPairCentre - faceCentres[faceI])
-                        > geometryTolerance
-                 || mag(faceAreas[faceI] + faceAreas[pairFaceI])
-                        > scalar(1e-8)
-                         *max(magFaceAreas[faceI], scalar(1))
-                )
-                {
-                    FatalErrorInFunction
-                        << "UGKP serial pure-translation cyclic face "
-                        << faceI << " on patch '" << pp.name()
-                        << " failed paired centre/area validation."
-                        << exit(FatalError);
                 }
 
                 const vector neighbourToLocal =
@@ -2688,13 +2295,13 @@ protected:
             ugkwpGpuResidentStrictUploadMesh
             (
                 handle_,
-                reinterpret_cast<const int*>(faceOwner.begin()),
-                reinterpret_cast<const int*>(faceNeighbour.begin()),
-                reinterpret_cast<const int*>(facePeriodicPair.begin()),
+                faceOwner.begin(),
+                faceNeighbour.begin(),
+                facePeriodicPair.begin(),
                 facePeriodicDx.begin(),
                 facePeriodicDy.begin(),
                 facePeriodicDz.begin(),
-                volumes.begin(),
+                GpuHostReadView<double>(volumes).begin(),
                 Cx.begin(),
                 Cy.begin(),
                 Cz.begin(),
@@ -2708,11 +2315,11 @@ protected:
                 deltaCoeffs.begin(),
                 faceWeight.begin(),
                 cellLength.begin(),
-                reinterpret_cast<const int*>(cellPlaneStart.begin()),
-                reinterpret_cast<const int*>(cellPlaneCount.begin()),
-                reinterpret_cast<const int*>(cellFaceId.begin()),
-                reinterpret_cast<const int*>(cellFaceNeighbor.begin()),
-                reinterpret_cast<const int*>(cellFaceKind.begin()),
+                cellPlaneStart.begin(),
+                cellPlaneCount.begin(),
+                cellFaceId.begin(),
+                cellFaceNeighbor.begin(),
+                cellFaceKind.begin(),
                 cellFaceRestitution.begin(),
                 cellFaceTangential.begin(),
                 planeNx.begin(),
@@ -2738,21 +2345,21 @@ protected:
     )
     {
         const label nFaces = mesh.nFaces();
-        labelList kind(nFaces, 0);
-        labelList rhoFix(nFaces, 0);
-        labelList UFix(nFaces, 0);
-        labelList pFix(nFaces, 0);
-        labelList TFix(nFaces, 0);
-        labelList pWave(nFaces, 0);
-        scalarField pWaveGamma(nFaces, scalar(0));
-        scalarField pWaveFieldInf(nFaces, scalar(0));
-        scalarField pWaveLInf(nFaces, scalar(-GREAT));
-        scalarField bRho(nFaces, scalar(0));
-        scalarField bUx(nFaces, scalar(0));
-        scalarField bUy(nFaces, scalar(0));
-        scalarField bUz(nFaces, scalar(0));
-        scalarField bP(nFaces, scalar(0));
-        scalarField bT(nFaces, scalar(0));
+        List<int> kind(nFaces, 0);
+        List<int> rhoFix(nFaces, 0);
+        List<int> UFix(nFaces, 0);
+        List<int> pFix(nFaces, 0);
+        List<int> TFix(nFaces, 0);
+        List<int> pWave(nFaces, 0);
+        Field<double> pWaveGamma(nFaces, scalar(0));
+        Field<double> pWaveFieldInf(nFaces, scalar(0));
+        Field<double> pWaveLInf(nFaces, scalar(-GREAT));
+        Field<double> bRho(nFaces, scalar(0));
+        Field<double> bUx(nFaces, scalar(0));
+        Field<double> bUy(nFaces, scalar(0));
+        Field<double> bUz(nFaces, scalar(0));
+        Field<double> bP(nFaces, scalar(0));
+        Field<double> bT(nFaces, scalar(0));
 
         forAll(mesh.boundaryMesh(), patchI)
         {
@@ -2817,10 +2424,10 @@ protected:
             if
             (
                 patchKind == 4
-             || rho.boundaryField()[patchI].size() != size
-             || U.boundaryField()[patchI].size() != size
-             || p.boundaryField()[patchI].size() != size
-             || Tgas.boundaryField()[patchI].size() != size
+             || rho.boundaryField()[patchI].size() < size
+             || U.boundaryField()[patchI].size() < size
+             || p.boundaryField()[patchI].size() < size
+             || Tgas.boundaryField()[patchI].size() < size
             )
             {
                 for (label i = 0; i < size; ++i)
@@ -2876,11 +2483,8 @@ protected:
             if
             (
                 strictOpenFoamGasBoundaries
-             && patchKind
-                == static_cast<label>
-                (
-                    ugkpboundary::PatchGeometry::standard
-                )
+             && (patchKind == static_cast<label>(ugkpboundary::PatchGeometry::standard)
+                 || patchKind == static_cast<label>(ugkpboundary::PatchGeometry::wall))
              &&
                 (
                     rhoOperator
@@ -2906,60 +2510,6 @@ protected:
                     << "inletOutlet(U only), and "
                     << "waveTransmissive(p only)."
                     << exit(FatalError);
-            }
-
-            if
-            (
-                strictOpenFoamGasBoundaries
-             && patchKind
-                == static_cast<label>
-                (
-                    ugkpboundary::PatchGeometry::wall
-                )
-            )
-            {
-                if
-                (
-                    UOperator
-                 != ugkpboundary::VelocityOperator::fixedValue
-                )
-                {
-                    FatalErrorInFunction
-                        << "OpenFOAM wall patch requires noSlip or fixedValue U"
-                        << " in UGKP. Patch '" << pp.name()
-                        << "' uses U type '"
-                        << U.boundaryField()[patchI].type() << "'."
-                        << exit(FatalError);
-                }
-                if
-                (
-                    pOperator
-                        != ugkpboundary::ScalarOperator::zeroGradient
-                 || (
-                        rhoOperator
-                            != ugkpboundary::ScalarOperator::zeroGradient
-                     && rhoOperator
-                            != ugkpboundary::ScalarOperator::calculated
-                    )
-                 || (
-                        TOperator
-                            != ugkpboundary::ScalarOperator::fixedValue
-                     && TOperator
-                            != ugkpboundary::ScalarOperator::zeroGradient
-                    )
-                )
-                {
-                    FatalErrorInFunction
-                        << "Unsupported OpenFOAM gas boundary field on wall "
-                        << "patch '" << pp.name() << "': rho="
-                        << rho.boundaryField()[patchI].type()
-                        << ", p=" << p.boundaryField()[patchI].type()
-                        << ", T=" << Tgas.boundaryField()[patchI].type()
-                        << ". UGKP wall support is p zeroGradient, rho "
-                        << "zeroGradient/calculated, and T "
-                        << "fixedValue/zeroGradient."
-                        << exit(FatalError);
-                }
             }
 
             const label rhoFixes =
@@ -3004,43 +2554,6 @@ protected:
                 waveLInf = wavePatch.lInf();
             }
 
-            if
-            (
-                !mixtureThermodynamics
-             && patchKind != 2
-             && rhoFixes != 0
-             && pFixes != 0
-             && TFixes != 0
-            )
-            {
-                for (label i = 0; i < size; ++i)
-                {
-                    const scalar expectedT =
-                        pPatch[i]
-                       /max(rhoPatch[i]*RgasValue, scalar(VSMALL));
-                    const scalar relativeEosError =
-                        mag(TPatch[i] - expectedT)
-                       /max(max(mag(TPatch[i]), mag(expectedT)), scalar(1));
-                    if
-                    (
-                        !std::isfinite(expectedT)
-                     || !std::isfinite(relativeEosError)
-                     || relativeEosError > scalar(1e-8)
-                    )
-                    {
-                        FatalErrorInFunction
-                            << "Boundary patch '" << pp.name() << "' fixes "
-                            << "rho, p and T simultaneously, but face " << i
-                            << " violates p=rho*R*T. Uploaded values are rho="
-                            << rhoPatch[i] << ", p=" << pPatch[i]
-                            << ", T=" << TPatch[i] << ", R=" << RgasValue
-                            << ". Fix two independent thermodynamic values "
-                            << "or make all three EOS-consistent."
-                            << exit(FatalError);
-                    }
-                }
-            }
-
             for (label i = 0; i < size; ++i)
             {
                 const label faceI = start + i;
@@ -3067,12 +2580,12 @@ protected:
             ugkwpGpuResidentStrictUploadGasBoundaryFields
             (
                 handle_,
-                reinterpret_cast<const int*>(kind.begin()),
-                reinterpret_cast<const int*>(rhoFix.begin()),
-                reinterpret_cast<const int*>(UFix.begin()),
-                reinterpret_cast<const int*>(pFix.begin()),
-                reinterpret_cast<const int*>(TFix.begin()),
-                reinterpret_cast<const int*>(pWave.begin()),
+                kind.begin(),
+                rhoFix.begin(),
+                UFix.begin(),
+                pFix.begin(),
+                TFix.begin(),
+                pWave.begin(),
                 pWaveGamma.begin(),
                 pWaveFieldInf.begin(),
                 pWaveLInf.begin(),
@@ -3209,18 +2722,18 @@ protected:
             }
         }
 
-        labelList sourceCellList(sourceCell.size());
-        labelList sourceFaceList(sourceFace.size());
-        scalarField sourcePxField(sourcePx.size());
-        scalarField sourcePyField(sourcePy.size());
-        scalarField sourcePzField(sourcePz.size());
-        scalarField sourceUxField(sourceUx.size());
-        scalarField sourceUyField(sourceUy.size());
-        scalarField sourceUzField(sourceUz.size());
-        scalarField sourceTField(sourceT.size());
-        scalarField sourceThetaField(sourceTheta.size());
-        scalarField sourceDField(sourceD.size());
-        scalarField sourceMassRateField(sourceMassRate.size());
+        List<int> sourceCellList(sourceCell.size());
+        List<int> sourceFaceList(sourceFace.size());
+        Field<double> sourcePxField(sourcePx.size());
+        Field<double> sourcePyField(sourcePy.size());
+        Field<double> sourcePzField(sourcePz.size());
+        Field<double> sourceUxField(sourceUx.size());
+        Field<double> sourceUyField(sourceUy.size());
+        Field<double> sourceUzField(sourceUz.size());
+        Field<double> sourceTField(sourceT.size());
+        Field<double> sourceThetaField(sourceTheta.size());
+        Field<double> sourceDField(sourceD.size());
+        Field<double> sourceMassRateField(sourceMassRate.size());
 
         forAll(sourceCellList, i)
         {
@@ -3243,9 +2756,9 @@ protected:
             ugkwpGpuResidentStrictUploadBoundarySources
             (
                 handle_,
-                int(sourceCellList.size()),
-                reinterpret_cast<const int*>(sourceCellList.begin()),
-                reinterpret_cast<const int*>(sourceFaceList.begin()),
+                gpuHostValue<int>(sourceCellList.size()),
+                sourceCellList.begin(),
+                sourceFaceList.begin(),
                 sourcePxField.begin(),
                 sourcePyField.begin(),
                 sourcePzField.begin(),
@@ -3272,16 +2785,16 @@ protected:
         const volScalarField& Tgas
     )
     {
-        scalarField rhoF;
-        scalarField rhoUxF;
-        scalarField rhoUyF;
-        scalarField rhoUzF;
-        scalarField rhoEF;
-        scalarField UxF;
-        scalarField UyF;
-        scalarField UzF;
-        scalarField pF;
-        scalarField TgasF;
+        Field<double> rhoF;
+        Field<double> rhoUxF;
+        Field<double> rhoUyF;
+        Field<double> rhoUzF;
+        Field<double> rhoEF;
+        Field<double> UxF;
+        Field<double> UyF;
+        Field<double> UzF;
+        Field<double> pF;
+        Field<double> TgasF;
 
         packScalar(rhoF, rho);
         packVector(rhoUxF, rhoUyF, rhoUzF, rhoU);
@@ -3320,16 +2833,16 @@ protected:
         const volScalarField& Tgas
     )
     {
-        scalarField rhoF;
-        scalarField rhoUxF;
-        scalarField rhoUyF;
-        scalarField rhoUzF;
-        scalarField rhoEF;
-        scalarField UxF;
-        scalarField UyF;
-        scalarField UzF;
-        scalarField pF;
-        scalarField TgasF;
+        Field<double> rhoF;
+        Field<double> rhoUxF;
+        Field<double> rhoUyF;
+        Field<double> rhoUzF;
+        Field<double> rhoEF;
+        Field<double> UxF;
+        Field<double> UyF;
+        Field<double> UzF;
+        Field<double> pF;
+        Field<double> TgasF;
 
         packScalar(rhoF, rho);
         packVector(rhoUxF, rhoUyF, rhoUzF, rhoU);
@@ -3481,26 +2994,19 @@ public:
     )
     {
         requireInitialised("downloadToHostMirror");
-        if (!runTime.writeTime())
-        {
-            FatalErrorInFunction
-                << "downloadToHostMirror is only allowed at writeTime(). "
-                << "Active GPU resident state must not be mirrored to CPU "
-                << "between write/restart boundaries."
-                << exit(FatalError);
-        }
 
-        scalarField rhoF(hostMirrorCells_);
-        scalarField rhoUxF(hostMirrorCells_);
-        scalarField rhoUyF(hostMirrorCells_);
-        scalarField rhoUzF(hostMirrorCells_);
-        scalarField rhoEF(hostMirrorCells_);
-        scalarField UxF(hostMirrorCells_);
-        scalarField UyF(hostMirrorCells_);
-        scalarField UzF(hostMirrorCells_);
-        scalarField pF(hostMirrorCells_);
-        scalarField TgasF(hostMirrorCells_);
-        scalarField zero(hostMirrorCells_);
+
+        Field<double> rhoF(hostMirrorCells_);
+        Field<double> rhoUxF(hostMirrorCells_);
+        Field<double> rhoUyF(hostMirrorCells_);
+        Field<double> rhoUzF(hostMirrorCells_);
+        Field<double> rhoEF(hostMirrorCells_);
+        Field<double> UxF(hostMirrorCells_);
+        Field<double> UyF(hostMirrorCells_);
+        Field<double> UzF(hostMirrorCells_);
+        Field<double> pF(hostMirrorCells_);
+        Field<double> TgasF(hostMirrorCells_);
+        Field<double> zero(hostMirrorCells_);
 
         check
         (
@@ -3534,12 +3040,6 @@ public:
             "download GPU resident pure-gas fields to host mirror"
         );
 
-        validateMirrorScalar("rho", rhoF);
-        validateMirrorVector("rhoU", rhoUxF, rhoUyF, rhoUzF);
-        validateMirrorScalar("rhoE", rhoEF);
-        validateMirrorVector("U", UxF, UyF, UzF);
-        validateMirrorScalar("p", pF);
-        validateMirrorScalar("T", TgasF);
 
         assignScalar(rho, rhoF);
         assignVector(rhoU, rhoUxF, rhoUyF, rhoUzF);

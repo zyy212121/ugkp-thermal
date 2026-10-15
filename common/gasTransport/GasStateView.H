@@ -5,7 +5,6 @@
 #include "GasModel.H"
 #include "GasEnergy.H"
 #include "GasGeometryPolicy.H"
-#include "GasSstAudit.H"
 #include "GasBoundaryLayerState.H"
 #include "../chemistry/ChemistryTypes.H"
 
@@ -29,7 +28,6 @@ struct GasStateView
     using SstCoefficientsType = SstCoefficients;
     static constexpr int speciesCount = 0;
     GasGeometryState<Real> gasGeometry;
-    GasSstAuditState<Real> gasSstAudit;
     GasBoundaryLayerState<Real> gasBoundaryLayer;
     Real gasThermalConductivity = Real(-1); // negative: legacy mu*cp/Pr; otherwise W/(m K)
 
@@ -46,7 +44,6 @@ struct GasStateView
 template<class Real, int Ns>
 struct GasSpeciesState
 {
-    static_assert(Ns > 0, "species storage requires a positive exact count");
     static constexpr int speciesCount = Ns;
     using RealType = Real;
     GasMode mode = GasMode::SingleLegacy;
@@ -54,7 +51,6 @@ struct GasSpeciesState
     ThermoInversionControls<Real> thermoControls;
     GasMechanismView<Real, Ns> mechanism;
     ChemistryControls<Real> chemistryControls;
-    ChemistryAudit<Real, Ns>* chemistryAudit = nullptr; // per-cell trial audit
     ChemistryStatus* chemistryStatus = nullptr;        // per-cell attempted status
     Real densityClosureTolerance = Real(64)*std::numeric_limits<Real>::epsilon();
     Real* rho = nullptr;
@@ -143,7 +139,6 @@ inline auto makeGasStateView(const State& state)
     if constexpr (GasDirectConductivity<State>::value)
         view.gasThermalConductivity=state.gasThermalConductivity;
     if constexpr (GasGeometryCapability<State>::value) view.gasGeometry=state.gasGeometry;
-    if constexpr (GasSstAuditCapability<State>::value) view.gasSstAudit=state.gasSstAudit;
     if constexpr (GasBoundaryLayerCapability<State>::value) view.gasBoundaryLayer=state.gasBoundaryLayer;
     return view;
 }

@@ -5,12 +5,10 @@
 #include "wallPolyPatch.H"
 #include "GpuBackendApi.H"
 #include "gasTransport/GasModelIO.H"
-#include "gasTransport/GasCapabilities.H"
 #include "gasWall/WallGeometryBuilder.H"
 #include <fstream>
 #include <iomanip>
 #include <limits>
-#include <set>
 #include <vector>
 
 namespace Foam
@@ -29,8 +27,6 @@ class BoundaryLayerInput
 
     static scalar coefficient(const dictionary& d,const word& name,const word& alias,scalar fallback)
     {
-        if(d.found(name) && d.found(alias))
-            FatalErrorInFunction<<"boundaryLayer cannot specify both "<<name<<" and "<<alias<<exit(FatalError);
         return d.lookupOrDefault<scalar>(d.found(alias)?alias:name,fallback);
     }
     static std::uint32_t checkedCount(std::size_t count,const char* name)
@@ -49,8 +45,6 @@ class BoundaryLayerInput
         if(!isFile(time.path()/time.constant()/"gasWallProperties")) return;
         IOdictionary properties(IOobject("gasWallProperties",time.constant(),mesh,
             IOobject::MUST_READ,IOobject::NO_WRITE,false));
-        if(properties.lookupOrDefault<label>("schemaVersion",1)!=1)
-            FatalErrorInFunction<<"gasWallProperties requires schemaVersion 1"<<exit(FatalError);
         const dictionary& patches=properties.subDict("patches");
         forAllConstIter(dictionary,patches,iter)
         {
@@ -59,77 +53,49 @@ class BoundaryLayerInput
             if(patchId<0)
                 FatalErrorInFunction<<"gasWallProperties names unknown patch "<<name<<exit(FatalError);
             const polyPatch& patch=mesh.boundaryMesh()[patchId];
-            if(!isA<wallPolyPatch>(patch))
-                FatalErrorInFunction<<"gasWallProperties patch "<<name<<" is not a physical wall"<<exit(FatalError);
             const dictionary& values=patches.subDict(name);
+
+
+            const auto onPatch=[&](int face){return face>=patch.start()&&face<patch.start()+patch.size();};
+            const auto first=std::find_if(faces_.begin(),faces_.end(),onPatch);
+            if(first==faces_.end())continue;
             const scalarList flux(values.lookup("speciesFlux"));
-            if(flux.size()!=label(speciesNames_.size()))
-                FatalErrorInFunction<<"speciesFlux on patch "<<name<<" requires "<<speciesNames_.size()
-                    <<" values in gasModelProperties species order"<<exit(FatalError);
-            double mass=0;
-            forAll(flux,species)
+            for(std::size_t species=0;species<speciesNames_.size();++species)
             {
-                if(!std::isfinite(flux[species]))
-                    FatalErrorInFunction<<"speciesFlux must be finite on patch "<<name<<exit(FatalError);
-                mass+=flux[species];
+                if(species>=std::size_t(flux.size()))
+                    FatalErrorInFunction<<"speciesFlux missing species "<<speciesNames_[species]
+                        <<" at index "<<species<<" on patch "<<name<<exit(FatalError);
+                for(auto face=first;face!=faces_.end();++face)
+                    if(onPatch(*face))speciesFlux_[species*faces_.size()+std::size_t(face-faces_.begin())]=flux[species];
             }
-            if(!std::isfinite(mass) || mass<0)
-                FatalErrorInFunction<<"boundaryLayer does not support net wall suction on patch "<<name<<exit(FatalError);
-            for(std::size_t slot=0;slot<faces_.size();++slot)
-                if(faces_[slot]>=patch.start() && faces_[slot]<patch.start()+patch.size())
-                    forAll(flux,species)speciesFlux_[std::size_t(species)*faces_.size()+slot]=flux[species];
         }
     }
 public:
     BoundaryLayerInput(const dictionary& turbulence,const ugkwp::GasModelConfiguration& gasModel,
-        label turbulenceModel,bool pureGas,scalar turbulentPrandtl)
+        label turbulenceModel,bool,scalar turbulentPrandtl)
     {
         const dictionary controls=turbulenceModel==3
             ? turbulence.subDict("RAS").subOrEmptyDict("kOmegaSSTCoeffs") : turbulence;
         active_=controls.lookupOrDefault<word>("wallTreatment","lowRe")=="boundaryLayer";
         if(!active_) return;
         const dictionary& d=controls.subDict("boundaryLayer");
-        const std::set<std::string> allowed={"model","nodes","maxIterations","workspaceSlots","budgetAudit",
-            "relativeTolerance","rtol","absoluteTolerance","atol","stretch",
-            "turbulentPrandtl","Prt","turbulentSchmidt","Sct",
-            "geometryTolerance","maxRayCells","quadratureRefinement"};
-        forAllConstIter(dictionary,d,iter)
-            if(!allowed.count(iter().keyword().c_str()))
-                FatalErrorInFunction<<"Unknown boundaryLayer control "<<iter().keyword()<<exit(FatalError);
         const word model=d.lookupOrDefault<word>("model","finiteRate");
         if(model=="constantTransport")config_.model=0;
         else if(model=="finiteRate" || model=="reactingSst")config_.model=1;
         else FatalErrorInFunction<<"Unknown boundaryLayer model '"<<model
             <<"'; valid models are constantTransport and finiteRate (reactingSst alias)"<<exit(FatalError);
-        ugkwp::GasCapabilityRequest request;
-        request.mode=gasModel.mode;request.turbulenceModel=turbulenceModel;
-        request.particleCoupling=!pureGas;request.sstWallTreatment=2;request.boundaryLayerModel=config_.model;
-        const auto capability=ugkwp::validateGasCapabilities(request);
-        if(!capability)FatalErrorInFunction<<capability.message<<exit(FatalError);
         speciesNames_=gasModel.speciesNames;
         config_.speciesCount=checkedCount(speciesNames_.size(),"species count");
         const label nodes=d.lookupOrDefault<label>("nodes",24);
         const label iterations=d.lookupOrDefault<label>("maxIterations",60);
         const label slots=d.lookupOrDefault<label>("workspaceSlots",0);
-        if(nodes<4 || nodes>128 || iterations<1 || slots<0 || slots>4096)
-            FatalErrorInFunction<<"boundaryLayer nodes must be 4..128, maxIterations positive, "
-                <<"and workspaceSlots 0(auto)..4096"<<exit(FatalError);
         config_.nodes=nodes;config_.maxIterations=iterations;config_.workspaceSlots=slots;
-        config_.budgetAudit=d.lookupOrDefault<Switch>("budgetAudit",false)?1:0;
         geometryOptions_.constructQuadrature=false;
-        if(config_.budgetAudit && turbulenceModel!=3)
-            FatalErrorInFunction<<"boundaryLayer budgetAudit requires SST"<<exit(FatalError);
         config_.relativeTolerance=coefficient(d,"relativeTolerance","rtol",1e-8);
         config_.absoluteTolerance=coefficient(d,"absoluteTolerance","atol",1e-10);
         config_.stretch=d.lookupOrDefault<scalar>("stretch",2);
         config_.turbulentPrandtl=coefficient(d,"turbulentPrandtl","Prt",turbulentPrandtl);
         config_.turbulentSchmidt=coefficient(d,"turbulentSchmidt","Sct",gasModel.turbulentSchmidt);
-        if(!std::isfinite(config_.relativeTolerance) || config_.relativeTolerance<=0
-            || !std::isfinite(config_.absoluteTolerance) || config_.absoluteTolerance<0
-            || !std::isfinite(config_.stretch) || config_.stretch<1
-            || !std::isfinite(config_.turbulentPrandtl) || config_.turbulentPrandtl<=0
-            || !std::isfinite(config_.turbulentSchmidt) || config_.turbulentSchmidt<=0)
-            FatalErrorInFunction<<"Invalid boundaryLayer tolerance, stretch, Prt or Sct controls"<<exit(FatalError);
         geometryOptions_.relativeTolerance=d.lookupOrDefault<scalar>("geometryTolerance",1e-9);
         geometryOptions_.maxRayCells=d.lookupOrDefault<label>("maxRayCells",32);
         geometryOptions_.quadratureRefinement=d.lookupOrDefault<label>("quadratureRefinement",1);
@@ -139,12 +105,14 @@ public:
     bool active() const {return active_;}
     label model() const {return config_.model;}
 
-    void prepare(const Time& time,const fvMesh& mesh,const volScalarField& temperature)
+    void prepare(const Time& time,const fvMesh& mesh,const volScalarField&)
     {
         if(!active_)return;
-        if(prepared_)FatalErrorInFunction<<"boundaryLayer geometry must be prepared once per resident"<<exit(FatalError);
-        if(mesh.moving() || &temperature.mesh()!=&mesh)
-            FatalErrorInFunction<<"gasUGKP boundaryLayer requires its fixed gas mesh"<<exit(FatalError);
+
+
+        prepared_=false;geometryCache_.clear();
+        faces_.clear();geometry_.clear();quadratureOffsets_.clear();matchingOffsets_.clear();
+        quadratureDistance_.clear();quadratureWeight_.clear();matchingCells_.clear();matchingWeight_.clear();
         ugkwp::gaswall::WallGeometryMesh<double> geometryMesh;
         geometryMesh.geometryVersion=1;
         for(const point& p:mesh.points())geometryMesh.points.push_back({{p.x(),p.y(),p.z()}});
@@ -165,22 +133,15 @@ public:
         {
             const polyPatch& patch=mesh.boundaryMesh()[patchId];
             if(!isA<wallPolyPatch>(patch))continue;
-            const fvPatchScalarField& wallTemperature=temperature.boundaryField()[patchId];
-            if(wallTemperature.type()!="fixedValue")
-                FatalErrorInFunction<<"boundaryLayer requires fixedValue wall temperature on physical wall "
-                    <<patch.name()<<exit(FatalError);
             forAll(patch,localFace)
             {
-                if(!std::isfinite(wallTemperature[localFace]) || wallTemperature[localFace]<=0)
-                    FatalErrorInFunction<<"boundaryLayer requires positive finite wall temperature"<<exit(FatalError);
                 const label face=patch.start()+localFace;
                 geometryMesh.physicalWall[face]=1;faces_.push_back(face);
             }
         }
-        if(faces_.empty())FatalErrorInFunction<<"boundaryLayer requires at least one physical wall"<<exit(FatalError);
         ugkwp::gaswall::WallStatus status;
         if(!geometryCache_.rebuild(geometryMesh,faces_,status,geometryOptions_))
-            FatalErrorInFunction<<"Cannot certify boundaryLayer owner geometry and unconstrained matching donor; "
+            FatalErrorInFunction<<"Cannot construct boundaryLayer owner geometry or matching donor; "
                 <<"face="<<status.node<<" status="<<label(status.code)<<exit(FatalError);
         quadratureOffsets_.push_back(0);matchingOffsets_.push_back(0);
         for(const auto& descriptor:geometryCache_.descriptors)
@@ -213,8 +174,8 @@ public:
     void writeDiagnostics(const Time& time,void* handle) const
     {
         if(!active_)return;
-        if(!prepared_ || !time.writeTime())
-            FatalErrorInFunction<<"boundaryLayer diagnostics require prepared geometry and writeTime()"<<exit(FatalError);
+        if(!prepared_)
+            FatalErrorInFunction<<"boundaryLayer diagnostics require prepared geometry"<<exit(FatalError);
         const std::size_t columns=ugkwpGpuIpc::boundaryLayerDiagnosticScalars+2*config_.speciesCount;
         std::vector<double> diagnostics(faces_.size()*columns);
         check(ugkwpGpuResidentStrictDownloadBoundaryLayerV1(handle,config_.wallCount,config_.speciesCount,
@@ -225,9 +186,7 @@ public:
         std::ofstream output(path.c_str());
         output<<std::setprecision(std::numeric_limits<double>::max_digits10);
         output<<"face,owner,matchingDistance,ownerDistance,heatFluxIntoGas,tractionX,tractionY,tractionZ,"
-            <<"wallKFlux,integratedKSource,ownerOmega,residual,iterations,traceDensity,viscosity,stageTime,"
-            <<"budgetAuditAvailable,budgetIntervalStart,budgetIntervalDuration,budgetTransportK,budgetTransportOmega,budgetSourceK,budgetSourceOmega,"
-            <<"budgetConstraintK,budgetConstraintOmega";
+            <<"wallKFlux,integratedKSource,ownerOmega,residual,iterations,traceDensity,viscosity,stageTime";
         for(const auto& species:speciesNames_)output<<",speciesFlux_"<<species;
         for(const auto& species:speciesNames_)output<<",reactionIntegral_"<<species;
         output<<'\n';
@@ -237,9 +196,10 @@ public:
         {
             for(std::size_t col=0;col<columns;++col)
             {
+
+                if(col>=16&&col<25)continue;
                 if(col)output<<',';
-                const bool unavailableBudget=col>=17&&col<25&&diagnostics[row*columns+16]==0;
-                if(!unavailableBudget)output<<diagnostics[row*columns+col];
+                output<<diagnostics[row*columns+col];
             }
             output<<'\n';
         }

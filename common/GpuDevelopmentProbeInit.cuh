@@ -60,16 +60,6 @@ int initialiseDevelopmentProbe(DeviceState* owner)
         shutdownDevelopmentProbe();
         return 1;
     }
-    if (configuredLog[0] != '/')
-    {
-        setLastErrorText
-        (
-            "UGKP_DEV_PROBE_LOG must be an absolute path"
-        );
-        shutdownDevelopmentProbe();
-        return 1;
-    }
-
     if (const char* configuredInterval = std::getenv("UGKP_DEV_PROBE_INTERVAL"))
     {
         errno = 0;

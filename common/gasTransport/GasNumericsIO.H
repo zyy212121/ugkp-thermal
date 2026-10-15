@@ -30,12 +30,7 @@ inline GasNumericsConfiguration readGasNumericsConfiguration
     const dictionary* gpuSolutionControls = nullptr
 )
 {
-if (!fvSchemesDict.found("fluxScheme"))
-{
-    FatalErrorInFunction
-        << "system/fvSchemes must define top-level fluxScheme."
-        << exit(FatalError);
-}
+
 word gasFluxSchemeName("Kurganov");
 word gasReconstructionName("firstOrder");
 word gasLimiterName("none");
@@ -49,13 +44,7 @@ Switch gasRobustFallback(true);
         fvSchemesDict.subDict("ddtSchemes");
     ITstream ddtScheme(ddtSchemes.lookup("default"));
     ddtScheme >> gasTimeIntegratorName;
-    if (ddtScheme.nRemainingTokens() != 0)
-    {
-        FatalErrorInFunction
-            << "ddtSchemes/default must contain one explicit time scheme "
-            << "(Euler, SSPRK2 or SSPRK3)."
-            << exit(FatalError);
-    }
+
 
     const dictionary& gradSchemes =
         fvSchemesDict.subDict("gradSchemes");
@@ -67,7 +56,6 @@ Switch gasRobustFallback(true);
     (
         gradIntegration != "Gauss"
      || gradInterpolation != "linear"
-     || gradDefault.nRemainingTokens() != 0
     )
     {
         FatalErrorInFunction
@@ -88,7 +76,6 @@ Switch gasRobustFallback(true);
     if
     (
         defaultInterpolation != "linear"
-     || interpolationDefault.nRemainingTokens() != 0
     )
     {
         FatalErrorInFunction
@@ -105,7 +92,6 @@ Switch gasRobustFallback(true);
     if
     (
         defaultSnGrad != "corrected"
-     || snGradDefault.nRemainingTokens() != 0
     )
     {
         FatalErrorInFunction
@@ -129,7 +115,6 @@ Switch gasRobustFallback(true);
         laplacianIntegration != "Gauss"
      || laplacianInterpolation != "linear"
      || laplacianCorrection != "corrected"
-     || laplacianDefault.nRemainingTokens() != 0
     )
     {
         FatalErrorInFunction
@@ -166,12 +151,7 @@ Switch gasRobustFallback(true);
             {
                 scheme >> coefficient;
             }
-            if (scheme.nRemainingTokens() != 0)
-            {
-                FatalErrorInFunction
-                    << entryName << " contains unsupported trailing "
-                    << "scheme coefficients." << exit(FatalError);
-            }
+
             return interpolation;
         };
 
@@ -239,7 +219,7 @@ Switch gasRobustFallback(true);
     else
     {
         FatalErrorInFunction
-            << "Unsupported OpenFOAM divSchemes combination. The verified "
+            << "No implemented OpenFOAM divSchemes combination for this selection. The "
             << "GPU path currently accepts one of: (i) Gauss upwind for "
             << "div(phi,U) with Gauss upwind for div(phi,e), div(phi,K), "
             << "and div(phi,(p|rho)); (ii) Gauss upwind for div(phi,U) "
@@ -388,13 +368,7 @@ else
         << "SSPRK2 and SSPRK3." << exit(FatalError);
 }
 
-if (!gasRobustFallback && gasFluxScheme >= 4)
-{
-    FatalErrorInFunction
-        << "fvSolution/UGKP robustFallback must remain true for "
-        << "contact-resolving and AUSM-family fluxes."
-        << exit(FatalError);
-}
+
 
     return GasNumericsConfiguration
     {

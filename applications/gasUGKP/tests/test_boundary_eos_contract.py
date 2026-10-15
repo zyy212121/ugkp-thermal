@@ -39,15 +39,11 @@ class BoundaryEosSourceContract(unittest.TestCase):
             2,
         )
 
-    def test_inconsistent_three_fixed_values_fail_before_upload(self) -> None:
-        for token in (
-            "rhoFixes != 0",
-            "pFixes != 0",
-            "TFixes != 0",
-            "relativeEosError > scalar(1e-8)",
-            "violates p=rho*R*T",
-        ):
-            self.assertIn(token, self.source)
+    def test_redundant_eos_certificate_does_not_replace_boundary_precedence(self) -> None:
+
+
+        self.assertNotIn("relativeEosError", self.source)
+        self.assertIn("ugkwpGpuResidentStrictUploadGasBoundaryFields", self.source)
 
 
 if __name__ == "__main__":

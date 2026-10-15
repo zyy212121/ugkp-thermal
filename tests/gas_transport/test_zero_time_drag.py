@@ -4,8 +4,7 @@ from test_mixture_state import compile_probe
 from test_legacy_ale_transport import fixture
 
 
-@pytest.mark.parametrize('bits', [32, 64])
-def test_zero_time_drag_preserves_homogeneous_conserved_bits(tmp_path, bits):
+def test_zero_time_drag_preserves_homogeneous_conserved_bits(tmp_path):
     compile_probe(tmp_path, fixture()+r'''
 struct DeviceState:State{
  Real epsSMin=1e-10,rhoSolid=1000,particleDiameterFallback=.001;
@@ -24,4 +23,4 @@ s.momRhoUPx[0]=s.momRhoP[0]*s.Ux[0];s.momRhoEP[0]=Real(.5)*s.momRhoP[0]*s.Ux[0]*
 const Real rho=s.rho[0],mx=s.rhoUx[0],energy=s.rhoE[0];drag<0>(&s,0.,0);
 ck(std::memcmp(&rho,s.rho,sizeof rho)==0&&std::memcmp(&mx,s.rhoUx,sizeof mx)==0&&std::memcmp(&energy,s.rhoE,sizeof energy)==0,"zero-time drag changed conserved inventory bits");
 ck(s.thetaDragAlpha[0]==1&&s.couplingUxOld[0]==s.Ux[0],"zero-time drag did not refresh required coupling caches");}
-''', bits)
+''')

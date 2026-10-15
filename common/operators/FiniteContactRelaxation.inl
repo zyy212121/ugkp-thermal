@@ -12,10 +12,6 @@
         if
         (
             faceI < 0 || faceI >= s.nFaces
-         || s.particleStuckCandidateMask[faceI] == 0
-         || !(duration > GPU_OPERATOR_R(0.0)) || !(maximumArea > GPU_OPERATOR_R(0.0))
-         || !(peakTimeFraction > GPU_OPERATOR_R(0.0)) || !(peakTimeFraction < GPU_OPERATOR_R(1.0))
-         || damageArea < GPU_OPERATOR_R(0.0)
         )
         {
             asm("trap;");
@@ -78,15 +74,7 @@
                     s, i, s.gasBoundaryT[faceI], physicalMass, s.pm[i],
                     conductanceTimeIntegral, 0
                 );
-            if
-            (
-                contactAreaMid < GPU_OPERATOR_R(0.0) || !(wallEffusivity > GPU_OPERATOR_R(0.0))
-             || !material.valid || !(physicalMass > GPU_OPERATOR_R(0.0))
-             || !(conductanceTimeIntegral >= GPU_OPERATOR_R(0.0)) || !result.valid
-            )
-            {
-                asm("trap;");
-            }
+
             commitParticleFiniteContactThermalCandidateDevice(s, i, result, 0);
             atomicAddParticleWallEnergyByFace
             (
@@ -135,10 +123,6 @@
             const GPU_OPERATOR_REAL equilibriumArea =
                 capillary.equilibriumContactAreaM2;
             const GPU_OPERATOR_REAL targetContactArea = fmin(equilibriumArea, maximumArea);
-            if (!coldWallContact)
-            {
-                asm("trap;");
-            }
             longDepositArea =
                 fmax(targetContactArea, frozenArea) - damageArea;
             detach = !(effectiveContactArea > GPU_OPERATOR_R(0.0));
@@ -150,10 +134,7 @@
                     kinematicArea <= targetContactArea
                  || !(kinematicArea > GPU_OPERATOR_R(0.0))
                 );
-            if (!capillary.valid)
-            {
-                asm("trap;");
-            }
+
         }
 
         if (detach)
@@ -165,10 +146,10 @@
             s.pStuckFaceId[i] = -1;
             s.pTheta[i] = GPU_OPERATOR_R(0.0);
             GPU_RESET_CONTACT_AGE(s, i)
-            s.pDepositionArea[i] = 0.0f;
-            s.pContactDuration[i] = 0.0f;
-            s.pContactMaximumArea[i] = 0.0f;
-            s.pContactPeakFraction[i] = 0.0f;
+            s.pDepositionArea[i] = 0.0;
+            s.pContactDuration[i] = 0.0;
+            s.pContactMaximumArea[i] = 0.0;
+            s.pContactPeakFraction[i] = 0.0;
             clearColdWallParticleState(s, i);
             clearColdWall2DParticleState(s, i);
         }
@@ -177,7 +158,7 @@
             s.pStuck[i] = Foam::gpuThermal::particleWallDeposited;
             s.pTheta[i] = GPU_OPERATOR_R(0.0);
             GPU_RESET_CONTACT_AGE(s, i)
-            s.pDepositionArea[i] = static_cast<float>(longDepositArea);
+            s.pDepositionArea[i] = longDepositArea;
             s.puxOld[i] = GPU_OPERATOR_R(0.0);
             s.puyOld[i] = GPU_OPERATOR_R(0.0);
             s.puzOld[i] = GPU_OPERATOR_R(0.0);

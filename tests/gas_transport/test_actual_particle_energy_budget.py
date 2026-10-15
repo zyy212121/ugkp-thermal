@@ -31,7 +31,7 @@ struct DeviceState:State{
  Real pTheta[1]={},pT[1]={300},pm[1]={100},pd[1]={Real(.001)};
  Real invRhoSolid=Real(.001),gasPrOneThird=0;
  int dragModelId=1,particleWallHeatTransferEnabled=0;
- float pContactDuration[1]={},pContactMaximumArea[1]={},pContactPeakFraction[1]={},pDepositionArea[1]={},pColdFrozenArea[1]={};
+ double pContactDuration[1]={},pContactMaximumArea[1]={},pContactPeakFraction[1]={},pDepositionArea[1]={},pColdFrozenArea[1]={};
  Time pContactAge[1]={};
  Real *particleWallEffusivityByFace=nullptr,particleWallDensityKgM3=0,particleWallSpecificHeatJkgK=0,particleWallConductivityWmK=0;
  Real particleWallReflectionHeatTransferEfficiency=0,particleWallContactAreaScale[3]={};
@@ -98,12 +98,12 @@ FIELDS = ('eps', 'rho', 'gx', 'gy', 'gz', 'ge', 'mass', 'px', 'py', 'pz',
           'gas_ux_cache', 'gas_uy_cache', 'gas_uz_cache')
 
 
-@pytest.fixture(params=[32, 64], ids=['mixed32', 'fp64'])
+@pytest.fixture()
 def probe(tmp_path, request):
-    return compile_particle_probe(tmp_path, request.param), request.param
+    return compile_particle_probe(tmp_path), 64
 
 
-def compile_particle_probe(tmp_path, bits, baseline=None):
+def compile_particle_probe(tmp_path, baseline=None):
     source = particle_fixture()
     if baseline:
         source = source.replace('GasStateView<Real,Time,ugkwp::SstCoefficients,double>',
@@ -115,8 +115,7 @@ def compile_particle_probe(tmp_path, bits, baseline=None):
     path = tmp_path / 'particle_budget.cpp'
     path.write_text(legacy[:legacy.index('void hashBytes')] + source)
     exe = tmp_path / 'particle_budget'
-    result = subprocess.run(['g++', '-std=c++17', '-O0', f'-DUGKWP_GPU_REAL_BITS={bits}',
-                             '-I'+str(HERE), '-I'+str(root/'common'),
+    result = subprocess.run(['g++', '-std=c++17', '-O0', '-I'+str(HERE), '-I'+str(root/'common'),
                              '-I'+str(root/'common/gasNumerics'), str(path), '-o', str(exe)],
                             capture_output=True, text=True)
     assert result.returncode == 0, result.stdout + result.stderr
@@ -159,35 +158,35 @@ def changes(observation):
     return {key: float(after[key]-before[key]) for key in before}
 
 
-def assert_publications(o, bits):
+def assert_publications(o):
     """Moment publication is checked too, without using it as the total oracle."""
     for stage in ('before', 'after'):
         s = o[stage]
         assert s['mass'] == 100
         assert math.isclose(s['published_h'], s['mass']*1000*s['temperature'],
-                            rel_tol=2e-7 if bits == 32 else 3e-16)
+                            rel_tol=3e-16)
         assert math.isclose(s['published_mechanical'], float(budget(s)['mechanical']),
-                            rel_tol=2e-7 if bits == 32 else 3e-16, abs_tol=1e-20)
+                            rel_tol=3e-16, abs_tol=1e-20)
         for axis in 'xyz':
             assert math.isclose(s['published_p'+axis], s['mass']*s['p'+axis],
-                                rel_tol=1e-7 if bits == 32 else 2e-16, abs_tol=1e-12)
+                                rel_tol=2e-16, abs_tol=1e-12)
     assert changes(o)['mass'] == 0
 
 
 @pytest.mark.parametrize('scenario', [0, 1], ids=['zero_time', 'zero_exchange'])
 def test_actual_particle_and_gas_zero_exchange_budgets(probe, scenario):
-    exe, bits = probe
+    exe, _ = probe
     o = observe(exe, scenario)
-    assert_publications(o, bits)
+    assert_publications(o)
     assert o['after'] == o['before']
     assert all(value == 0 for value in changes(o).values())
 
 
 @pytest.mark.parametrize('scenario', [2, 3], ids=['finite_drag', 'high_kinetic_drag'])
 def test_characterize_actual_drag_publications_and_existing_model_residual(probe, scenario):
-    exe, bits = probe
+    exe, _ = probe
     o = observe(exe, scenario)
-    assert_publications(o, bits)
+    assert_publications(o)
     a, b = o['before'], o['after']
     ms, mg, dt = a['mass'], a['eps']*a['rho'], o['dt']
     alpha = math.exp(-dt)
@@ -209,22 +208,22 @@ def test_characterize_actual_drag_publications_and_existing_model_residual(probe
         expected_energy += .5*ms*(frozen_particle-coupled_particle)*(frozen_particle+coupled_particle)
         # Explicit particle publication checks distinguish it from intended gas-side state.
         assert math.isclose(b['p'+axis], frozen_particle,
-                            rel_tol=0, abs_tol=4*(2**-23 if bits == 32 else 2**-52)*(abs(ug)+abs(up-ug)+1))
+                            rel_tol=0, abs_tol=4*(2**-52)*(abs(ug)+abs(up-ug)+1))
     delta = changes(o)
     # This is a positive diagnosis of a preexisting model mismatch, not a relaxed
-    # conservation acceptance threshold. High-kinetic FP32 rounding is reported separately.
+
     assert abs(delta['x']) > 1
     assert abs(delta['energy']) > 1
     for axis in 'xyz':
-        tolerance = (400 if scenario == 3 else .0001) if bits == 32 else .000001
+        tolerance = .000001
         assert abs(delta[axis]-expected_momentum[axis]) < tolerance
     # A forward-error bound scales with the stored mechanical background and
     # native precision. It diagnoses model identity, not energy conservation.
-    native_epsilon = 2**(-23 if bits == 32 else -52)
+    native_epsilon = 2**(-52)
     mechanical_scale = float(budget(a)['mechanical'])
     arithmetic_budget = 4*native_epsilon*(1+mechanical_scale)+1.2e-7
     assert abs(delta['energy']-expected_energy) < arithmetic_budget
-    print(json.dumps({'bits': bits, 'scenario': scenario, 'actual': delta,
+    print(json.dumps({'bits': 64, 'scenario': scenario, 'actual': delta,
                       'analytic_model_energy_residual': expected_energy,
                       'arithmetic_remainder': delta['energy']-expected_energy,
                       'particle_velocity_publication_remainder': particle_publication_remainder,
@@ -233,9 +232,9 @@ def test_characterize_actual_drag_publications_and_existing_model_residual(probe
 
 
 def test_actual_theta_publication_is_measured_in_total_budget(probe):
-    exe, bits = probe
+    exe, _ = probe
     o = observe(exe, 4)
-    assert_publications(o, bits)
+    assert_publications(o)
     a, b = o['before'], o['after']
     assert 0 < b['theta'] < a['theta']
     assert b['temperature'] == a['temperature']
@@ -243,14 +242,14 @@ def test_actual_theta_publication_is_measured_in_total_budget(probe):
     assert delta['x'] == delta['y'] == delta['z'] == 0
     # The gas gain is compared with the actual particle theta write, not alpha*dI.
     assert abs(delta['energy']) < 1.2e-7
-    print(json.dumps({'bits': bits, 'scenario': 4, 'actual': delta}, sort_keys=True))
+    print(json.dumps({'bits': 64, 'scenario': 4, 'actual': delta}, sort_keys=True))
 
 
 @pytest.mark.parametrize('scenario', [5, 6], ids=['finite_heat', 'sub_ulp_particle_heat'])
 def test_characterize_actual_temperature_and_material_publication_heat_residual(probe, scenario):
-    exe, bits = probe
+    exe, _ = probe
     o = observe(exe, scenario)
-    assert_publications(o, bits)
+    assert_publications(o)
     a, b = o['before'], o['after']
     rate = 12*o['conductivity']/(o['rhoSolid']*1000*o['diameter']**2)
     expected_temperature = o['tg']+(a['temperature']-o['tg'])*math.exp(-rate*o['dt'])
@@ -260,40 +259,33 @@ def test_characterize_actual_temperature_and_material_publication_heat_residual(
     model_gas_loss = cg*cs/(cg+cs)*(o['tg']-a['temperature'])*(-math.expm1(-rate*(1+cs/cg)*o['dt']))
     delta = changes(o)
     assert delta['x'] == delta['y'] == delta['z'] == 0
-    assert math.isclose(b['temperature'], expected_temperature, rel_tol=2e-7 if bits == 32 else 3e-16)
+    assert math.isclose(b['temperature'], expected_temperature, rel_tol=3e-16)
     if scenario == 5:
         assert delta['energy'] > 100000
-        assert abs(delta['energy']-(model_particle_gain-model_gas_loss)) < (3 if bits == 32 else 1e-6)
-    elif bits == 32:
-        assert b['temperature'] == a['temperature']
-        assert b['published_h'] == a['published_h']
-        assert delta['enthalpy'] == 0
-        assert -.1 < delta['energy'] < -.001
-        assert abs(delta['energy']+model_gas_loss) < 1.2e-7
+        assert abs(delta['energy']-(model_particle_gain-model_gas_loss)) < (1e-6)
     else:
         assert b['temperature'] > a['temperature']
         assert abs(delta['energy']) < 1.2e-7
-    print(json.dumps({'bits': bits, 'scenario': scenario, 'actual': delta,
+    print(json.dumps({'bits': 64, 'scenario': scenario, 'actual': delta,
                       'analytic_model_energy_residual': model_particle_gain-model_gas_loss,
                       'particle_publication_remainder': delta['enthalpy']-model_particle_gain}, sort_keys=True))
 
 
-@pytest.mark.parametrize('bits', [32, 64])
-def test_optional_exact_baseline_particle_publication_evidence(tmp_path, bits):
+def test_optional_exact_baseline_particle_publication_evidence(tmp_path):
     baseline = os.environ.get('UGKWP_PARTICLE_BUDGET_BASELINE_ROOT')
     if not baseline:
         pytest.skip('Set UGKWP_PARTICLE_BUDGET_BASELINE_ROOT to the exact baseline snapshot')
-    exe = compile_particle_probe(tmp_path, bits, baseline)
+    exe = compile_particle_probe(tmp_path, baseline)
     current_path = tmp_path / 'current'
     current_path.mkdir()
-    current_exe = compile_particle_probe(current_path, bits)
+    current_exe = compile_particle_probe(current_path)
     for scenario in range(7):
         o = observe(exe, scenario)
-        assert_publications(o, bits)
+        assert_publications(o)
         current = observe(current_exe, scenario)
         for field in ('mass', 'px', 'py', 'pz', 'theta', 'temperature',
                       'published_h', 'published_mechanical', 'published_px',
                       'published_py', 'published_pz'):
             assert o['after'][field] == current['after'][field]
-        print(json.dumps({'baseline': str(baseline), 'bits': bits, 'scenario': scenario,
+        print(json.dumps({'baseline': str(baseline), 'bits': 64, 'scenario': scenario,
                           'actual': changes(o), 'before': o['before'], 'after': o['after']}, sort_keys=True))

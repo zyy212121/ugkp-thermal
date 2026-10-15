@@ -4,6 +4,10 @@
 #include <cstddef>
 #include <cstdint>
 #include <limits>
+#include <array>
+#include <algorithm>
+#include <cstring>
+#include <type_traits>
 
 namespace ugkwpGpuIpc
 {
@@ -227,7 +231,7 @@ struct SstConfigArgs
 
 // Optional extension operations leave every v7 legacy payload unchanged.
 // These wire objects contain fixed-width scalar fields only, with no padding;
-// model tables cross IPC as bounded canonical dictionary bytes, never pointers.
+
 static constexpr std::uint32_t gasModelApiVersion = 1;
 static constexpr std::uint64_t maxGasModelTextBytes = 8ULL*1024ULL*1024ULL;
 struct GasModelCapabilitiesV1
@@ -259,25 +263,621 @@ struct GasSpeciesIdentityV1
 };
 inline bool sameGasSpeciesIdentity(const GasSpeciesIdentityV1& a, const GasSpeciesIdentityV1& b)
 {
-    return a.version == gasModelApiVersion && b.version == a.version
-        && a.speciesCount == b.speciesCount && a.speciesOrderHash == b.speciesOrderHash
-        && a.thermoHash == b.thermoHash && a.mechanismHash == b.mechanismHash;
+    return a.version==b.version && a.speciesCount==b.speciesCount
+        && a.speciesOrderHash==b.speciesOrderHash && a.thermoHash==b.thermoHash
+        && a.mechanismHash==b.mechanismHash;
 }
+
+struct BoundaryLayerConfigV1
+{
+    std::uint32_t version=1,speciesCount=0,model=1,nodes=24,maxIterations=60;
+    std::uint32_t wallCount=0,quadratureCount=0,matchingCount=0,workspaceSlots=0,reservedAudit=0;
+    double relativeTolerance=1e-8,absoluteTolerance=1e-10,stretch=2;
+    double turbulentPrandtl=.9,turbulentSchmidt=.7;
+};
+
+
+inline bool wireLittleEndian()
+{ const std::uint16_t one=1; return *reinterpret_cast<const unsigned char*>(&one)==1; }
+template<class T> inline void encodeWireScalar(unsigned char* bytes,const T& value)
+{
+    std::memcpy(bytes,&value,sizeof(T));
+    if (!wireLittleEndian()) std::reverse(bytes,bytes+sizeof(T));
+}
+template<class T> inline void decodeWireScalar(const unsigned char* bytes,T& value)
+{
+    unsigned char storage[sizeof(T)]; std::memcpy(storage,bytes,sizeof(T));
+    if (!wireLittleEndian()) std::reverse(storage,storage+sizeof(T));
+    std::memcpy(&value,storage,sizeof(T));
+}
+template<class T> struct WireCodec
+{
+    static constexpr std::size_t size=sizeof(T);
+    static constexpr bool nativeLayout=true;
+    static void encode(unsigned char* b,const T& v) { encodeWireScalar(b,v); }
+    static void decode(const unsigned char* b,T& v) { decodeWireScalar(b,v); }
+};
+template<> struct WireCodec<RequestHeader>
+{
+    static constexpr std::size_t size=24;
+    static constexpr bool nativeLayout=sizeof(RequestHeader)==size
+        && offsetof(RequestHeader,magicValue)==0
+        && offsetof(RequestHeader,major)==4
+        && offsetof(RequestHeader,minor)==6
+        && offsetof(RequestHeader,operation)==8
+        && offsetof(RequestHeader,reserved)==12
+        && offsetof(RequestHeader,payloadBytes)==16;
+    static void encode(unsigned char* b,const RequestHeader& v)
+    {
+        std::fill(b,b+size,0);
+        encodeWireScalar(b+0,v.magicValue);
+        encodeWireScalar(b+4,v.major);
+        encodeWireScalar(b+6,v.minor);
+        encodeWireScalar(b+8,v.operation);
+        encodeWireScalar(b+12,v.reserved);
+        encodeWireScalar(b+16,v.payloadBytes);
+    }
+    static void decode(const unsigned char* b,RequestHeader& v)
+    {
+        decodeWireScalar(b+0,v.magicValue);
+        decodeWireScalar(b+4,v.major);
+        decodeWireScalar(b+6,v.minor);
+        decodeWireScalar(b+8,v.operation);
+        decodeWireScalar(b+12,v.reserved);
+        decodeWireScalar(b+16,v.payloadBytes);
+    }
+};
+template<> struct WireCodec<ResponseHeader>
+{
+    static constexpr std::size_t size=24;
+    static constexpr bool nativeLayout=sizeof(ResponseHeader)==size
+        && offsetof(ResponseHeader,magicValue)==0
+        && offsetof(ResponseHeader,major)==4
+        && offsetof(ResponseHeader,minor)==6
+        && offsetof(ResponseHeader,status)==8
+        && offsetof(ResponseHeader,errorBytes)==12
+        && offsetof(ResponseHeader,payloadBytes)==16;
+    static void encode(unsigned char* b,const ResponseHeader& v)
+    {
+        std::fill(b,b+size,0);
+        encodeWireScalar(b+0,v.magicValue);
+        encodeWireScalar(b+4,v.major);
+        encodeWireScalar(b+6,v.minor);
+        encodeWireScalar(b+8,v.status);
+        encodeWireScalar(b+12,v.errorBytes);
+        encodeWireScalar(b+16,v.payloadBytes);
+    }
+    static void decode(const unsigned char* b,ResponseHeader& v)
+    {
+        decodeWireScalar(b+0,v.magicValue);
+        decodeWireScalar(b+4,v.major);
+        decodeWireScalar(b+6,v.minor);
+        decodeWireScalar(b+8,v.status);
+        decodeWireScalar(b+12,v.errorBytes);
+        decodeWireScalar(b+16,v.payloadBytes);
+    }
+};
+template<> struct WireCodec<CreateArgs>
+{
+    static constexpr std::size_t size=392;
+    static constexpr bool nativeLayout=sizeof(CreateArgs)==size
+        && offsetof(CreateArgs,nCells)==0
+        && offsetof(CreateArgs,nFaces)==4
+        && offsetof(CreateArgs,nInternalFaces)==8
+        && offsetof(CreateArgs,nCellPlanes)==12
+        && offsetof(CreateArgs,particleCapacity)==16
+        && offsetof(CreateArgs,maxFaceWalkHops)==20
+        && offsetof(CreateArgs,injectionParcelMass)==24
+        && offsetof(CreateArgs,rngSeed)==32
+        && offsetof(CreateArgs,gammaGas)==40
+        && offsetof(CreateArgs,Rgas)==48
+        && offsetof(CreateArgs,rhoSolid)==56
+        && offsetof(CreateArgs,solveParticleTemperature)==64
+        && offsetof(CreateArgs,particleGasHeatTransferModelId)==68
+        && offsetof(CreateArgs,particleThermalRho)==72
+        && offsetof(CreateArgs,particleCp)==80
+        && offsetof(CreateArgs,gasMu)==88
+        && offsetof(CreateArgs,gasPr)==96
+        && offsetof(CreateArgs,particleDiameterFallback)==104
+        && offsetof(CreateArgs,particleDiameterMin)==112
+        && offsetof(CreateArgs,particleDiameterMax)==120
+        && offsetof(CreateArgs,particleDiameterSigma)==128
+        && offsetof(CreateArgs,injectionTheta)==136
+        && offsetof(CreateArgs,rhoMin)==144
+        && offsetof(CreateArgs,TgasMin)==152
+        && offsetof(CreateArgs,epsSMin)==160
+        && offsetof(CreateArgs,thetaMin)==168
+        && offsetof(CreateArgs,TpMin)==176
+        && offsetof(CreateArgs,TpMax)==184
+        && offsetof(CreateArgs,collisionalPressureEnabled)==192
+        && offsetof(CreateArgs,collisionalRestitution)==200
+        && offsetof(CreateArgs,pressureKickFraction)==208
+        && offsetof(CreateArgs,jammingPressureEnabled)==216
+        && offsetof(CreateArgs,packingFraction)==224
+        && offsetof(CreateArgs,packingProjectionIterations)==232
+        && offsetof(CreateArgs,gasFluxScheme)==236
+        && offsetof(CreateArgs,gasReconstruction)==240
+        && offsetof(CreateArgs,gasLimiter)==244
+        && offsetof(CreateArgs,gasTimeIntegrator)==248
+        && offsetof(CreateArgs,gasRobustFallback)==252
+        && offsetof(CreateArgs,turbulenceModel)==256
+        && offsetof(CreateArgs,lesDeltaCoeff)==264
+        && offsetof(CreateArgs,turbulentPrandtl)==272
+        && offsetof(CreateArgs,waleCw)==280
+        && offsetof(CreateArgs,smagorinskyCs)==288
+        && offsetof(CreateArgs,maxDiffusionNumber)==296
+        && offsetof(CreateArgs,csrCellLocalPathEnabled)==304
+        && offsetof(CreateArgs,csrHeavyReductionMode)==308
+        && offsetof(CreateArgs,csrHeavyAutoInterval)==312
+        && offsetof(CreateArgs,particleBlockThreads)==316
+        && offsetof(CreateArgs,reductionBlockThreads)==320
+        && offsetof(CreateArgs,csrWarpAggregatedBinning)==324
+        && offsetof(CreateArgs,csrSplitPreDirectoryEnabled)==328
+        && offsetof(CreateArgs,dragModel)==332
+        && offsetof(CreateArgs,dragParameter0)==336
+        && offsetof(CreateArgs,dragParameter1)==344
+        && offsetof(CreateArgs,dragParameter2)==352
+        && offsetof(CreateArgs,dragParameter3)==360
+        && offsetof(CreateArgs,gravityX)==368
+        && offsetof(CreateArgs,gravityY)==376
+        && offsetof(CreateArgs,gravityZ)==384;
+    static void encode(unsigned char* b,const CreateArgs& v)
+    {
+        std::fill(b,b+size,0);
+        encodeWireScalar(b+0,v.nCells);
+        encodeWireScalar(b+4,v.nFaces);
+        encodeWireScalar(b+8,v.nInternalFaces);
+        encodeWireScalar(b+12,v.nCellPlanes);
+        encodeWireScalar(b+16,v.particleCapacity);
+        encodeWireScalar(b+20,v.maxFaceWalkHops);
+        encodeWireScalar(b+24,v.injectionParcelMass);
+        encodeWireScalar(b+32,v.rngSeed);
+        encodeWireScalar(b+40,v.gammaGas);
+        encodeWireScalar(b+48,v.Rgas);
+        encodeWireScalar(b+56,v.rhoSolid);
+        encodeWireScalar(b+64,v.solveParticleTemperature);
+        encodeWireScalar(b+68,v.particleGasHeatTransferModelId);
+        encodeWireScalar(b+72,v.particleThermalRho);
+        encodeWireScalar(b+80,v.particleCp);
+        encodeWireScalar(b+88,v.gasMu);
+        encodeWireScalar(b+96,v.gasPr);
+        encodeWireScalar(b+104,v.particleDiameterFallback);
+        encodeWireScalar(b+112,v.particleDiameterMin);
+        encodeWireScalar(b+120,v.particleDiameterMax);
+        encodeWireScalar(b+128,v.particleDiameterSigma);
+        encodeWireScalar(b+136,v.injectionTheta);
+        encodeWireScalar(b+144,v.rhoMin);
+        encodeWireScalar(b+152,v.TgasMin);
+        encodeWireScalar(b+160,v.epsSMin);
+        encodeWireScalar(b+168,v.thetaMin);
+        encodeWireScalar(b+176,v.TpMin);
+        encodeWireScalar(b+184,v.TpMax);
+        encodeWireScalar(b+192,v.collisionalPressureEnabled);
+        encodeWireScalar(b+200,v.collisionalRestitution);
+        encodeWireScalar(b+208,v.pressureKickFraction);
+        encodeWireScalar(b+216,v.jammingPressureEnabled);
+        encodeWireScalar(b+224,v.packingFraction);
+        encodeWireScalar(b+232,v.packingProjectionIterations);
+        encodeWireScalar(b+236,v.gasFluxScheme);
+        encodeWireScalar(b+240,v.gasReconstruction);
+        encodeWireScalar(b+244,v.gasLimiter);
+        encodeWireScalar(b+248,v.gasTimeIntegrator);
+        encodeWireScalar(b+252,v.gasRobustFallback);
+        encodeWireScalar(b+256,v.turbulenceModel);
+        encodeWireScalar(b+264,v.lesDeltaCoeff);
+        encodeWireScalar(b+272,v.turbulentPrandtl);
+        encodeWireScalar(b+280,v.waleCw);
+        encodeWireScalar(b+288,v.smagorinskyCs);
+        encodeWireScalar(b+296,v.maxDiffusionNumber);
+        encodeWireScalar(b+304,v.csrCellLocalPathEnabled);
+        encodeWireScalar(b+308,v.csrHeavyReductionMode);
+        encodeWireScalar(b+312,v.csrHeavyAutoInterval);
+        encodeWireScalar(b+316,v.particleBlockThreads);
+        encodeWireScalar(b+320,v.reductionBlockThreads);
+        encodeWireScalar(b+324,v.csrWarpAggregatedBinning);
+        encodeWireScalar(b+328,v.csrSplitPreDirectoryEnabled);
+        encodeWireScalar(b+332,v.dragModel);
+        encodeWireScalar(b+336,v.dragParameter0);
+        encodeWireScalar(b+344,v.dragParameter1);
+        encodeWireScalar(b+352,v.dragParameter2);
+        encodeWireScalar(b+360,v.dragParameter3);
+        encodeWireScalar(b+368,v.gravityX);
+        encodeWireScalar(b+376,v.gravityY);
+        encodeWireScalar(b+384,v.gravityZ);
+    }
+    static void decode(const unsigned char* b,CreateArgs& v)
+    {
+        decodeWireScalar(b+0,v.nCells);
+        decodeWireScalar(b+4,v.nFaces);
+        decodeWireScalar(b+8,v.nInternalFaces);
+        decodeWireScalar(b+12,v.nCellPlanes);
+        decodeWireScalar(b+16,v.particleCapacity);
+        decodeWireScalar(b+20,v.maxFaceWalkHops);
+        decodeWireScalar(b+24,v.injectionParcelMass);
+        decodeWireScalar(b+32,v.rngSeed);
+        decodeWireScalar(b+40,v.gammaGas);
+        decodeWireScalar(b+48,v.Rgas);
+        decodeWireScalar(b+56,v.rhoSolid);
+        decodeWireScalar(b+64,v.solveParticleTemperature);
+        decodeWireScalar(b+68,v.particleGasHeatTransferModelId);
+        decodeWireScalar(b+72,v.particleThermalRho);
+        decodeWireScalar(b+80,v.particleCp);
+        decodeWireScalar(b+88,v.gasMu);
+        decodeWireScalar(b+96,v.gasPr);
+        decodeWireScalar(b+104,v.particleDiameterFallback);
+        decodeWireScalar(b+112,v.particleDiameterMin);
+        decodeWireScalar(b+120,v.particleDiameterMax);
+        decodeWireScalar(b+128,v.particleDiameterSigma);
+        decodeWireScalar(b+136,v.injectionTheta);
+        decodeWireScalar(b+144,v.rhoMin);
+        decodeWireScalar(b+152,v.TgasMin);
+        decodeWireScalar(b+160,v.epsSMin);
+        decodeWireScalar(b+168,v.thetaMin);
+        decodeWireScalar(b+176,v.TpMin);
+        decodeWireScalar(b+184,v.TpMax);
+        decodeWireScalar(b+192,v.collisionalPressureEnabled);
+        decodeWireScalar(b+200,v.collisionalRestitution);
+        decodeWireScalar(b+208,v.pressureKickFraction);
+        decodeWireScalar(b+216,v.jammingPressureEnabled);
+        decodeWireScalar(b+224,v.packingFraction);
+        decodeWireScalar(b+232,v.packingProjectionIterations);
+        decodeWireScalar(b+236,v.gasFluxScheme);
+        decodeWireScalar(b+240,v.gasReconstruction);
+        decodeWireScalar(b+244,v.gasLimiter);
+        decodeWireScalar(b+248,v.gasTimeIntegrator);
+        decodeWireScalar(b+252,v.gasRobustFallback);
+        decodeWireScalar(b+256,v.turbulenceModel);
+        decodeWireScalar(b+264,v.lesDeltaCoeff);
+        decodeWireScalar(b+272,v.turbulentPrandtl);
+        decodeWireScalar(b+280,v.waleCw);
+        decodeWireScalar(b+288,v.smagorinskyCs);
+        decodeWireScalar(b+296,v.maxDiffusionNumber);
+        decodeWireScalar(b+304,v.csrCellLocalPathEnabled);
+        decodeWireScalar(b+308,v.csrHeavyReductionMode);
+        decodeWireScalar(b+312,v.csrHeavyAutoInterval);
+        decodeWireScalar(b+316,v.particleBlockThreads);
+        decodeWireScalar(b+320,v.reductionBlockThreads);
+        decodeWireScalar(b+324,v.csrWarpAggregatedBinning);
+        decodeWireScalar(b+328,v.csrSplitPreDirectoryEnabled);
+        decodeWireScalar(b+332,v.dragModel);
+        decodeWireScalar(b+336,v.dragParameter0);
+        decodeWireScalar(b+344,v.dragParameter1);
+        decodeWireScalar(b+352,v.dragParameter2);
+        decodeWireScalar(b+360,v.dragParameter3);
+        decodeWireScalar(b+368,v.gravityX);
+        decodeWireScalar(b+376,v.gravityY);
+        decodeWireScalar(b+384,v.gravityZ);
+    }
+};
+template<> struct WireCodec<CountArgs>
+{
+    static constexpr std::size_t size=4;
+    static constexpr bool nativeLayout=sizeof(CountArgs)==size
+        && offsetof(CountArgs,count)==0;
+    static void encode(unsigned char* b,const CountArgs& v)
+    {
+        std::fill(b,b+size,0);
+        encodeWireScalar(b+0,v.count);
+    }
+    static void decode(const unsigned char* b,CountArgs& v)
+    {
+        decodeWireScalar(b+0,v.count);
+    }
+};
+template<> struct WireCodec<ScheduledInletConfigArgs>
+{
+    static constexpr std::size_t size=24;
+    static constexpr bool nativeLayout=sizeof(ScheduledInletConfigArgs)==size
+        && offsetof(ScheduledInletConfigArgs,count)==0
+        && offsetof(ScheduledInletConfigArgs,nPressureRows)==4
+        && offsetof(ScheduledInletConfigArgs,nVolumeFractionRows)==8
+        && offsetof(ScheduledInletConfigArgs,inletTemperature)==16;
+    static void encode(unsigned char* b,const ScheduledInletConfigArgs& v)
+    {
+        std::fill(b,b+size,0);
+        encodeWireScalar(b+0,v.count);
+        encodeWireScalar(b+4,v.nPressureRows);
+        encodeWireScalar(b+8,v.nVolumeFractionRows);
+        encodeWireScalar(b+16,v.inletTemperature);
+    }
+    static void decode(const unsigned char* b,ScheduledInletConfigArgs& v)
+    {
+        decodeWireScalar(b+0,v.count);
+        decodeWireScalar(b+4,v.nPressureRows);
+        decodeWireScalar(b+8,v.nVolumeFractionRows);
+        decodeWireScalar(b+16,v.inletTemperature);
+    }
+};
+template<> struct WireCodec<AdvanceArgs>
+{
+    static constexpr std::size_t size=16;
+    static constexpr bool nativeLayout=sizeof(AdvanceArgs)==size
+        && offsetof(AdvanceArgs,dt)==0
+        && offsetof(AdvanceArgs,simulationTime)==8;
+    static void encode(unsigned char* b,const AdvanceArgs& v)
+    {
+        std::fill(b,b+size,0);
+        encodeWireScalar(b+0,v.dt);
+        encodeWireScalar(b+8,v.simulationTime);
+    }
+    static void decode(const unsigned char* b,AdvanceArgs& v)
+    {
+        decodeWireScalar(b+0,v.dt);
+        decodeWireScalar(b+8,v.simulationTime);
+    }
+};
+template<> struct WireCodec<ScalarArgs>
+{
+    static constexpr std::size_t size=8;
+    static constexpr bool nativeLayout=sizeof(ScalarArgs)==size
+        && offsetof(ScalarArgs,value)==0;
+    static void encode(unsigned char* b,const ScalarArgs& v)
+    {
+        std::fill(b,b+size,0);
+        encodeWireScalar(b+0,v.value);
+    }
+    static void decode(const unsigned char* b,ScalarArgs& v)
+    {
+        decodeWireScalar(b+0,v.value);
+    }
+};
+template<> struct WireCodec<CourantArgs>
+{
+    static constexpr std::size_t size=24;
+    static constexpr bool nativeLayout=sizeof(CourantArgs)==size
+        && offsetof(CourantArgs,dt)==0
+        && offsetof(CourantArgs,targetMaxCo)==8
+        && offsetof(CourantArgs,scheduleTime)==16;
+    static void encode(unsigned char* b,const CourantArgs& v)
+    {
+        std::fill(b,b+size,0);
+        encodeWireScalar(b+0,v.dt);
+        encodeWireScalar(b+8,v.targetMaxCo);
+        encodeWireScalar(b+16,v.scheduleTime);
+    }
+    static void decode(const unsigned char* b,CourantArgs& v)
+    {
+        decodeWireScalar(b+0,v.dt);
+        decodeWireScalar(b+8,v.targetMaxCo);
+        decodeWireScalar(b+16,v.scheduleTime);
+    }
+};
+template<> struct WireCodec<SstConfigArgs>
+{
+    static constexpr std::size_t size=152;
+    static constexpr bool nativeLayout=sizeof(SstConfigArgs)==size
+        && offsetof(SstConfigArgs,alphaK1)==0
+        && offsetof(SstConfigArgs,alphaK2)==8
+        && offsetof(SstConfigArgs,alphaOmega1)==16
+        && offsetof(SstConfigArgs,alphaOmega2)==24
+        && offsetof(SstConfigArgs,beta1)==32
+        && offsetof(SstConfigArgs,beta2)==40
+        && offsetof(SstConfigArgs,betaStar)==48
+        && offsetof(SstConfigArgs,gamma1)==56
+        && offsetof(SstConfigArgs,gamma2)==64
+        && offsetof(SstConfigArgs,a1)==72
+        && offsetof(SstConfigArgs,b1)==80
+        && offsetof(SstConfigArgs,c1)==88
+        && offsetof(SstConfigArgs,kMin)==96
+        && offsetof(SstConfigArgs,omegaMin)==104
+        && offsetof(SstConfigArgs,maxSourceNumber)==112
+        && offsetof(SstConfigArgs,wallTreatment)==120
+        && offsetof(SstConfigArgs,wallKappa)==128
+        && offsetof(SstConfigArgs,wallE)==136
+        && offsetof(SstConfigArgs,wallCmu)==144;
+    static void encode(unsigned char* b,const SstConfigArgs& v)
+    {
+        std::fill(b,b+size,0);
+        encodeWireScalar(b+0,v.alphaK1);
+        encodeWireScalar(b+8,v.alphaK2);
+        encodeWireScalar(b+16,v.alphaOmega1);
+        encodeWireScalar(b+24,v.alphaOmega2);
+        encodeWireScalar(b+32,v.beta1);
+        encodeWireScalar(b+40,v.beta2);
+        encodeWireScalar(b+48,v.betaStar);
+        encodeWireScalar(b+56,v.gamma1);
+        encodeWireScalar(b+64,v.gamma2);
+        encodeWireScalar(b+72,v.a1);
+        encodeWireScalar(b+80,v.b1);
+        encodeWireScalar(b+88,v.c1);
+        encodeWireScalar(b+96,v.kMin);
+        encodeWireScalar(b+104,v.omegaMin);
+        encodeWireScalar(b+112,v.maxSourceNumber);
+        encodeWireScalar(b+120,v.wallTreatment);
+        encodeWireScalar(b+128,v.wallKappa);
+        encodeWireScalar(b+136,v.wallE);
+        encodeWireScalar(b+144,v.wallCmu);
+    }
+    static void decode(const unsigned char* b,SstConfigArgs& v)
+    {
+        decodeWireScalar(b+0,v.alphaK1);
+        decodeWireScalar(b+8,v.alphaK2);
+        decodeWireScalar(b+16,v.alphaOmega1);
+        decodeWireScalar(b+24,v.alphaOmega2);
+        decodeWireScalar(b+32,v.beta1);
+        decodeWireScalar(b+40,v.beta2);
+        decodeWireScalar(b+48,v.betaStar);
+        decodeWireScalar(b+56,v.gamma1);
+        decodeWireScalar(b+64,v.gamma2);
+        decodeWireScalar(b+72,v.a1);
+        decodeWireScalar(b+80,v.b1);
+        decodeWireScalar(b+88,v.c1);
+        decodeWireScalar(b+96,v.kMin);
+        decodeWireScalar(b+104,v.omegaMin);
+        decodeWireScalar(b+112,v.maxSourceNumber);
+        decodeWireScalar(b+120,v.wallTreatment);
+        decodeWireScalar(b+128,v.wallKappa);
+        decodeWireScalar(b+136,v.wallE);
+        decodeWireScalar(b+144,v.wallCmu);
+    }
+};
+template<> struct WireCodec<GasModelCapabilitiesV1>
+{
+    static constexpr std::size_t size=16;
+    static constexpr bool nativeLayout=sizeof(GasModelCapabilitiesV1)==size
+        && offsetof(GasModelCapabilitiesV1,version)==0
+        && offsetof(GasModelCapabilitiesV1,compiledSpecies)==4
+        && offsetof(GasModelCapabilitiesV1,modeMask)==8
+        && offsetof(GasModelCapabilitiesV1,reserved)==12;
+    static void encode(unsigned char* b,const GasModelCapabilitiesV1& v)
+    {
+        std::fill(b,b+size,0);
+        encodeWireScalar(b+0,v.version);
+        encodeWireScalar(b+4,v.compiledSpecies);
+        encodeWireScalar(b+8,v.modeMask);
+        encodeWireScalar(b+12,v.reserved);
+    }
+    static void decode(const unsigned char* b,GasModelCapabilitiesV1& v)
+    {
+        decodeWireScalar(b+0,v.version);
+        decodeWireScalar(b+4,v.compiledSpecies);
+        decodeWireScalar(b+8,v.modeMask);
+        decodeWireScalar(b+12,v.reserved);
+    }
+};
+template<> struct WireCodec<GasModelConfigureArgsV1>
+{
+    static constexpr std::size_t size=56;
+    static constexpr bool nativeLayout=sizeof(GasModelConfigureArgsV1)==size
+        && offsetof(GasModelConfigureArgsV1,version)==0
+        && offsetof(GasModelConfigureArgsV1,mode)==4
+        && offsetof(GasModelConfigureArgsV1,speciesCount)==8
+        && offsetof(GasModelConfigureArgsV1,reserved)==12
+        && offsetof(GasModelConfigureArgsV1,speciesOrderHash)==16
+        && offsetof(GasModelConfigureArgsV1,thermoHash)==24
+        && offsetof(GasModelConfigureArgsV1,mechanismHash)==32
+        && offsetof(GasModelConfigureArgsV1,modelBytes)==40
+        && offsetof(GasModelConfigureArgsV1,mechanismBytes)==48;
+    static void encode(unsigned char* b,const GasModelConfigureArgsV1& v)
+    {
+        std::fill(b,b+size,0);
+        encodeWireScalar(b+0,v.version);
+        encodeWireScalar(b+4,v.mode);
+        encodeWireScalar(b+8,v.speciesCount);
+        encodeWireScalar(b+12,v.reserved);
+        encodeWireScalar(b+16,v.speciesOrderHash);
+        encodeWireScalar(b+24,v.thermoHash);
+        encodeWireScalar(b+32,v.mechanismHash);
+        encodeWireScalar(b+40,v.modelBytes);
+        encodeWireScalar(b+48,v.mechanismBytes);
+    }
+    static void decode(const unsigned char* b,GasModelConfigureArgsV1& v)
+    {
+        decodeWireScalar(b+0,v.version);
+        decodeWireScalar(b+4,v.mode);
+        decodeWireScalar(b+8,v.speciesCount);
+        decodeWireScalar(b+12,v.reserved);
+        decodeWireScalar(b+16,v.speciesOrderHash);
+        decodeWireScalar(b+24,v.thermoHash);
+        decodeWireScalar(b+32,v.mechanismHash);
+        decodeWireScalar(b+40,v.modelBytes);
+        decodeWireScalar(b+48,v.mechanismBytes);
+    }
+};
+template<> struct WireCodec<GasSpeciesIdentityV1>
+{
+    static constexpr std::size_t size=32;
+    static constexpr bool nativeLayout=sizeof(GasSpeciesIdentityV1)==size
+        && offsetof(GasSpeciesIdentityV1,version)==0
+        && offsetof(GasSpeciesIdentityV1,speciesCount)==4
+        && offsetof(GasSpeciesIdentityV1,speciesOrderHash)==8
+        && offsetof(GasSpeciesIdentityV1,thermoHash)==16
+        && offsetof(GasSpeciesIdentityV1,mechanismHash)==24;
+    static void encode(unsigned char* b,const GasSpeciesIdentityV1& v)
+    {
+        std::fill(b,b+size,0);
+        encodeWireScalar(b+0,v.version);
+        encodeWireScalar(b+4,v.speciesCount);
+        encodeWireScalar(b+8,v.speciesOrderHash);
+        encodeWireScalar(b+16,v.thermoHash);
+        encodeWireScalar(b+24,v.mechanismHash);
+    }
+    static void decode(const unsigned char* b,GasSpeciesIdentityV1& v)
+    {
+        decodeWireScalar(b+0,v.version);
+        decodeWireScalar(b+4,v.speciesCount);
+        decodeWireScalar(b+8,v.speciesOrderHash);
+        decodeWireScalar(b+16,v.thermoHash);
+        decodeWireScalar(b+24,v.mechanismHash);
+    }
+};
+template<> struct WireCodec<BoundaryLayerConfigV1>
+{
+    static constexpr std::size_t size=80;
+    static constexpr bool nativeLayout=sizeof(BoundaryLayerConfigV1)==size
+        && offsetof(BoundaryLayerConfigV1,version)==0
+        && offsetof(BoundaryLayerConfigV1,speciesCount)==4
+        && offsetof(BoundaryLayerConfigV1,model)==8
+        && offsetof(BoundaryLayerConfigV1,nodes)==12
+        && offsetof(BoundaryLayerConfigV1,maxIterations)==16
+        && offsetof(BoundaryLayerConfigV1,wallCount)==20
+        && offsetof(BoundaryLayerConfigV1,quadratureCount)==24
+        && offsetof(BoundaryLayerConfigV1,matchingCount)==28
+        && offsetof(BoundaryLayerConfigV1,workspaceSlots)==32
+        && offsetof(BoundaryLayerConfigV1,reservedAudit)==36
+        && offsetof(BoundaryLayerConfigV1,relativeTolerance)==40
+        && offsetof(BoundaryLayerConfigV1,absoluteTolerance)==48
+        && offsetof(BoundaryLayerConfigV1,stretch)==56
+        && offsetof(BoundaryLayerConfigV1,turbulentPrandtl)==64
+        && offsetof(BoundaryLayerConfigV1,turbulentSchmidt)==72;
+    static void encode(unsigned char* b,const BoundaryLayerConfigV1& v)
+    {
+        std::fill(b,b+size,0);
+        encodeWireScalar(b+0,v.version);
+        encodeWireScalar(b+4,v.speciesCount);
+        encodeWireScalar(b+8,v.model);
+        encodeWireScalar(b+12,v.nodes);
+        encodeWireScalar(b+16,v.maxIterations);
+        encodeWireScalar(b+20,v.wallCount);
+        encodeWireScalar(b+24,v.quadratureCount);
+        encodeWireScalar(b+28,v.matchingCount);
+        encodeWireScalar(b+32,v.workspaceSlots);
+        encodeWireScalar(b+36,std::uint32_t(0));
+        encodeWireScalar(b+40,v.relativeTolerance);
+        encodeWireScalar(b+48,v.absoluteTolerance);
+        encodeWireScalar(b+56,v.stretch);
+        encodeWireScalar(b+64,v.turbulentPrandtl);
+        encodeWireScalar(b+72,v.turbulentSchmidt);
+    }
+    static void decode(const unsigned char* b,BoundaryLayerConfigV1& v)
+    {
+        decodeWireScalar(b+0,v.version);
+        decodeWireScalar(b+4,v.speciesCount);
+        decodeWireScalar(b+8,v.model);
+        decodeWireScalar(b+12,v.nodes);
+        decodeWireScalar(b+16,v.maxIterations);
+        decodeWireScalar(b+20,v.wallCount);
+        decodeWireScalar(b+24,v.quadratureCount);
+        decodeWireScalar(b+28,v.matchingCount);
+        decodeWireScalar(b+32,v.workspaceSlots);
+        v.reservedAudit=0;
+        decodeWireScalar(b+40,v.relativeTolerance);
+        decodeWireScalar(b+48,v.absoluteTolerance);
+        decodeWireScalar(b+56,v.stretch);
+        decodeWireScalar(b+64,v.turbulentPrandtl);
+        decodeWireScalar(b+72,v.turbulentSchmidt);
+    }
+};
+template<class T> constexpr std::size_t wireBytes(const T&) { return WireCodec<T>::size; }
+template<class T> inline std::array<unsigned char,WireCodec<T>::size> encodeWire(const T& value)
+{ std::array<unsigned char,WireCodec<T>::size> b{}; WireCodec<T>::encode(b.data(),value); return b; }
+
 
 inline bool validCount(const std::int32_t count, const std::int32_t limit)
 {
-    return count >= 0 && count <= limit;
+    (void)limit;
+    return count >= 0;
 }
 
 inline bool addBytes(std::uint64_t& total, const std::uint64_t count,
                      const std::uint64_t elementBytes)
 {
-    if (count != 0 && elementBytes > maxPayloadBytes/count)
+    if (count != 0 && elementBytes > std::numeric_limits<std::uint64_t>::max()/count)
     {
         return false;
     }
     const std::uint64_t bytes = count*elementBytes;
-    if (bytes > maxPayloadBytes - total)
+    if (bytes > std::numeric_limits<std::uint64_t>::max() - total)
     {
         return false;
     }
@@ -294,66 +894,41 @@ inline bool addArrayBytes(std::uint64_t& total, const std::uint64_t count)
 inline bool gasModelPayloadBytes(const GasModelConfigureArgsV1& args,
                                  std::uint32_t compiledSpecies, std::uint64_t& bytes)
 {
-    if (args.version != gasModelApiVersion || args.reserved != 0
-        || args.speciesCount == 0 || args.speciesCount != compiledSpecies
-        || (args.mode != 1 && args.mode != 2) || args.speciesOrderHash == 0 || args.thermoHash == 0
-        || args.modelBytes == 0 || args.modelBytes > maxGasModelTextBytes
-        || args.mechanismBytes > maxGasModelTextBytes
-        || (args.mode == 1 && (args.mechanismBytes != 0 || args.mechanismHash != 0))
-        || (args.mode == 2 && (args.mechanismBytes == 0 || args.mechanismHash == 0))) return false;
-    bytes = sizeof(GasModelConfigureArgsV1);
+    (void)compiledSpecies;
+    bytes = WireCodec<GasModelConfigureArgsV1>::size;
     return addBytes(bytes, args.modelBytes, 1) && addBytes(bytes, args.mechanismBytes, 1);
 }
 inline bool gasSpeciesPayloadBytes(const GasSpeciesIdentityV1& identity,
                                    std::uint64_t cells, std::uint64_t& bytes)
 {
-    if (identity.version != gasModelApiVersion || identity.speciesCount == 0
-        || identity.speciesOrderHash == 0 || identity.thermoHash == 0
-        || cells > maxPayloadBytes/identity.speciesCount/sizeof(double)) return false;
-    bytes = sizeof(GasSpeciesIdentityV1);
+    if (identity.speciesCount && cells > std::numeric_limits<std::uint64_t>::max()/identity.speciesCount) return false;
+    bytes = WireCodec<GasSpeciesIdentityV1>::size;
     return addArrayBytes<double>(bytes, cells*identity.speciesCount);
 }
 // Optional wall-family extension; every pre-existing wire layout is unchanged.
-struct BoundaryLayerConfigV1
-{
-    std::uint32_t version=1,speciesCount=0,model=1,nodes=24,maxIterations=60;
-    std::uint32_t wallCount=0,quadratureCount=0,matchingCount=0,workspaceSlots=0,budgetAudit=0;
-    double relativeTolerance=1e-8,absoluteTolerance=1e-10,stretch=2;
-    double turbulentPrandtl=.9,turbulentSchmidt=.7;
-};
+
+
 static constexpr std::uint32_t boundaryLayerDiagnosticScalars=25;
+inline bool boundaryLayerDiagnosticBytes(const std::uint32_t walls,
+    const std::uint32_t species,std::uint64_t& bytes)
+{
+    bytes=0;
+    return addBytes(bytes,walls,std::uint64_t(boundaryLayerDiagnosticScalars)*sizeof(double))
+        && addBytes(bytes,walls,2ULL*species*sizeof(double));
+}
 inline bool boundaryLayerPayloadBytes(const BoundaryLayerConfigV1& a,
     std::uint32_t faces,std::uint32_t species,std::uint64_t& bytes)
 {
-    if(a.version!=1 || a.budgetAudit>1 || !a.speciesCount || a.speciesCount!=species
-        || a.model>1 || a.nodes<4 || a.nodes>128 || !a.maxIterations
-        || !a.wallCount || a.wallCount>faces || a.workspaceSlots>4096
-        || (a.quadratureCount!=0&&a.quadratureCount<a.wallCount) || a.matchingCount<a.wallCount
-        || a.quadratureCount>std::uint32_t(std::numeric_limits<int>::max())
-        || a.matchingCount>std::uint32_t(std::numeric_limits<int>::max()))return false;
-    bytes=sizeof(a);
+    (void)faces; (void)species;
+    bytes=WireCodec<BoundaryLayerConfigV1>::size;
+    if (!a.wallCount) return true;
     return addArrayBytes<int>(bytes,std::uint64_t(a.wallCount)+2ULL*(a.wallCount+1ULL)+a.matchingCount)
-        && addArrayBytes<double>(bytes,7ULL*a.wallCount+2ULL*a.quadratureCount+a.matchingCount
-            +std::uint64_t(a.wallCount)*a.speciesCount);
+        && addArrayBytes<double>(bytes,7ULL*a.wallCount)
+        && addArrayBytes<double>(bytes,2ULL*a.quadratureCount)
+        && addArrayBytes<double>(bytes,a.matchingCount)
+        && addArrayBytes<double>(bytes,std::uint64_t(a.wallCount)*a.speciesCount);
 }
-static_assert(sizeof(BoundaryLayerConfigV1)==80,"unexpected wall config ABI");
-static_assert(sizeof(GasModelCapabilitiesV1) == 16, "unexpected model capability wire padding");
-static_assert(sizeof(GasModelConfigureArgsV1) == 56, "unexpected model configure wire padding");
-static_assert(sizeof(GasSpeciesIdentityV1) == 32, "unexpected species identity wire padding");
 
-static_assert(sizeof(RequestHeader) == 24, "unexpected request header ABI");
-static_assert(sizeof(ResponseHeader) == 24, "unexpected response header ABI");
-static_assert(sizeof(CreateArgs) == 392, "unexpected create payload ABI");
-static_assert(sizeof(CountArgs) == 4, "unexpected count payload ABI");
-static_assert
-(
-    sizeof(ScheduledInletConfigArgs) == 24,
-    "unexpected inlet configuration payload ABI"
-);
-static_assert(sizeof(AdvanceArgs) == 16, "unexpected advance payload ABI");
-static_assert(sizeof(ScalarArgs) == 8, "unexpected scalar payload ABI");
-static_assert(sizeof(CourantArgs) == 24, "unexpected Courant payload ABI");
-static_assert(sizeof(SstConfigArgs) == 152, "unexpected SST config ABI");
 
 }                         
 

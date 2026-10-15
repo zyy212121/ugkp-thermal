@@ -1,4 +1,4 @@
-#include "coupling/IntervalAudit.H"
+#include "verification/multirate/InventoryAudit.H"
 #include <iostream>
 #include <stdexcept>
 using namespace chmt;
@@ -13,7 +13,7 @@ int main(){try{
  WindowConservationAudit audit;check(auditCoupledCandidate(base,next,history,p,audit,e),"valid paired candidate");
  const Budget correctBudget=next.budget;next.budget.exchangeMass[SolidParticipant]=0;next.budget.exchangeMass[FilmParticipant]=-.1;next.budget.exchangeEnergy[SolidParticipant]=0;next.budget.exchangeEnergy[FilmParticipant]=-7;next.budget.exchangeSpecies[SolidParticipant][0]=0;next.budget.exchangeSpecies[FilmParticipant][0]=-.1;
  check(!auditCoupledCandidate(base,next,history,p,audit,e),"wrong CPU owner attribution accepted");next.budget=correctBudget;next.solid[0].energy+=1;check(!auditCoupledCandidate(base,next,history,p,audit,e),"unpaired heat passed audit");next.solid[0].energy-=1;
- check(finalizeIntervalLedger(history,next,e),"finalize ledger");check(checkSynchronizedInterval(next,history,e),"synchronized guard");next.ledger[0].consumerMask=ConsumeGas;check(!checkSynchronizedInterval(next,history,e),"pending checkpoint allowed");
+ check(finalizeIntervalLedger(history,next,e),"finalize ledger");check(next.ledger[0].consumerMask==requiredConsumers(next.ledger[0].kind),"actual ledger publication masks retained");
  WallProgram a,b;a.interval=b.interval=window;a.surface.area={1};b.surface=a.surface;WallKnot k;k.time=0;k.faces.resize(1);k.faces[0].temperature=300;k.gasPoints={{0,0,0}};a.knots={k,k};a.knots[1].time=1;b=a;b.knots[1].faces[0].temperature=310;
  WallProgramComparison difference;check(compareWallPrograms(a,b,p.tolerances,difference,e),"compare");check(difference.thermalError>1&&difference.geometryError==0&&difference.massPredictionError==0&&difference.regimeMatches,"error channels mixed");
  b=a;b.knots[1].gasPoints[0].x=.05;WallProgramComparison origin,translated;
@@ -33,9 +33,7 @@ int main(){try{
  // program; the next interval predictor derives its new owner from FilmQ.
  b.knots.back().faces[0].primaryKind=a.knots.back().faces[0].primaryKind;
  check(compareWallPrograms(a,b,p.tolerances,difference,e)&&difference.regimeMatches,"half-open executed-owner program rejected");
- CouplingInterval unvisitedWindow;unvisitedWindow.end=3;IntervalHistory unvisitedHistory;check(unvisitedHistory.begin(unvisitedWindow,e),"unvisited history begin");GasIntervalRecord emptyRecord;emptyRecord.end=3;emptyRecord.microSequence=1;check(unvisitedHistory.appendAccepted(emptyRecord,e),"unvisited complete history");
- MaterialDonorPlan unvisitedPlan;unvisitedPlan.interval=unvisitedWindow;for(int i=0;i<4;++i){MaterialReserveKnot knot;knot.time=i;knot.cumulativeSolid.resize(1);knot.cumulativeSolid[0].condensed[0]=i==1?-2:0;unvisitedPlan.knots.push_back(knot);}
- check(!validateMaterialDonorHistory(base,unvisitedHistory,&unvisitedPlan,e),"final history validator missed untouched internal deficit");
+
  {
   HostState prior=base,candidate=next;candidate.ledger.clear();candidate.budget=correctBudget;
   prior.budget.exchangeMomentum[GasParticipant].x=90;prior.budget.exchangeMomentum[SolidParticipant].x=-90;

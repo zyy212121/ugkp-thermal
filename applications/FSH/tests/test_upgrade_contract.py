@@ -133,8 +133,10 @@ def test_every_fsh_particle_lifecycle_keeps_deposition_state() -> None:
 def test_offline_fsh_refinement_tool_preserves_extended_state() -> None:
     restart_tool = source("tools/fsh_particle_restart.py")
     refine_tool = source("tools/refine_fsh_particle_cells.py")
+    assert "field_specs(FSH_MARKER)" in restart_tool
+    layout_source = (ROOT.parents[1] / "common/thermal_particle_restart_schema7.py").read_text()
     for token in ("pm", "pStuck", "pStuckFaceId", "pDepositionArea"):
-        assert token in restart_tool and token in refine_tool
+        assert token in layout_source and token in refine_tool
     for token in ("mass", "mom_x", "mom_y", "mom_z", "energy", "mass_d", "mass_T"):
         assert token in refine_tool
 

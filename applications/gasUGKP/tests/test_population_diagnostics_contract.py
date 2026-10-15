@@ -1,8 +1,9 @@
+from source_contract_utils import read_source
 from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parents[1]
-CUDA = (ROOT / "private_backend" / "GpuResidentStrict.cu").read_text()
+CUDA = read_source(ROOT / "private_backend" / "GpuResidentStrict.cu")
 
 
 def test_schema_three_records_population_clustering_and_launch_geometry():

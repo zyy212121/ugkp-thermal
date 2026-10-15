@@ -45,17 +45,17 @@ struct ConstView
     const std::uint64_t* pOrigId;
     const std::uint8_t* pStuck;
     const std::int32_t* pStuckFaceId;
-    const float* pDepositionArea;
+    const double* pDepositionArea;
     const double* pContactDuration;
-    const float* pContactMaximumArea;
-    const float* pContactPeakFraction;
+    const double* pContactMaximumArea;
+    const double* pContactPeakFraction;
     const float* pColdNodeSpecificEnthalpy;
-    const float* pColdRingSolidMass;
-    const float* pColdFrozenArea;
+    const double* pColdRingSolidMass;
+    const double* pColdFrozenArea;
     const double* pColdContactAge;
     const float* pCold2DNodeSpecificEnthalpy;
     const double* pCold2DRingContactAge;
-    const float* pCold2DFrozenArea;
+    const double* pCold2DFrozenArea;
     const double* puxOld;
     const double* puyOld;
     const double* puzOld;
@@ -81,17 +81,17 @@ struct MutableView
     std::uint64_t* pOrigId;
     std::uint8_t* pStuck;
     std::int32_t* pStuckFaceId;
-    float* pDepositionArea;
+    double* pDepositionArea;
     double* pContactDuration;
-    float* pContactMaximumArea;
-    float* pContactPeakFraction;
+    double* pContactMaximumArea;
+    double* pContactPeakFraction;
     float* pColdNodeSpecificEnthalpy;
-    float* pColdRingSolidMass;
-    float* pColdFrozenArea;
+    double* pColdRingSolidMass;
+    double* pColdFrozenArea;
     double* pColdContactAge;
     float* pCold2DNodeSpecificEnthalpy;
     double* pCold2DRingContactAge;
-    float* pCold2DFrozenArea;
+    double* pCold2DFrozenArea;
     double* puxOld;
     double* puyOld;
     double* puzOld;
@@ -133,55 +133,6 @@ inline void clearColdWall2DRange
     );
 }
 
-inline bool hostIsLittleEndian()
-{
-    const std::uint16_t marker = 1u;
-    return *reinterpret_cast<const std::uint8_t*>(&marker) == 1u;
-}
-
-inline void validateHostRepresentation()
-{
-    if
-    (
-        !hostIsLittleEndian()
-     || sizeof(double) != 8u
-     || sizeof(float) != 4u
-     || sizeof(std::int32_t) != 4u
-     || sizeof(std::uint64_t) != 8u
-    )
-    {
-        throw std::runtime_error
-        (
-            "UGKP FSH restart requires little-endian IEEE binary64/binary32 "
-            "and 32-bit integer storage"
-        );
-    }
-}
-
-template<class T>
-inline void writeArray
-(
-    std::ostream& os,
-    const T* values,
-    const std::size_t begin,
-    const std::size_t count
-)
-{
-    if (count == 0u)
-    {
-        return;
-    }
-    os.write
-    (
-        reinterpret_cast<const char*>(values + begin),
-        static_cast<std::streamsize>(count*sizeof(T))
-    );
-    if (!os.good())
-    {
-        throw std::runtime_error("failed writing UGKP FSH restart chunk");
-    }
-}
-
 template<class T>
 inline void readArray
 (
@@ -195,15 +146,7 @@ inline void readArray
     {
         return;
     }
-    is.read
-    (
-        reinterpret_cast<char*>(values + begin),
-        static_cast<std::streamsize>(count*sizeof(T))
-    );
-    if (!is.good())
-    {
-        throw std::runtime_error("truncated UGKP FSH restart chunk");
-    }
+    gpuThermalRestart::readArray(is, values, begin, count);
 }
 
 template<class Disk, class Memory>
@@ -213,216 +156,6 @@ inline void readConvertedArray(std::istream& is, Memory* values, std::size_t beg
     readArray(is, staging.data(), 0u, count);
     for (std::size_t i=0; i<count; ++i) values[begin+i] = static_cast<Memory>(staging[i]);
 }
-template<class Disk, class Memory>
-inline void writeConvertedArray(std::ostream& os, const Memory* values, std::size_t begin, std::size_t count)
-{
-    std::vector<Disk> staging(count);
-    for (std::size_t i=0; i<count; ++i) staging[i] = static_cast<Disk>(values[begin+i]);
-    writeArray(os, staging.data(), 0u, count);
-}
-
-inline void writeV4(std::ostream& os, const ConstView& v)
-{
-    validateHostRepresentation();
-    os << schema4FormatName << ' ' << v.count << ' '
-       << maximumChunkParticles << '\n';
-    if (!os.good())
-    {
-        throw std::runtime_error("failed writing UGKP FSH restart header");
-    }
-
-    for (std::size_t begin = 0u; begin < v.count;)
-    {
-        const std::uint32_t chunk = static_cast<std::uint32_t>
-        (
-            std::min<std::size_t>(maximumChunkParticles, v.count - begin)
-        );
-        writeArray(os, &chunk, 0u, 1u);
-        writeArray(os, v.px, begin, chunk);
-        writeArray(os, v.py, begin, chunk);
-        writeArray(os, v.pz, begin, chunk);
-        writeArray(os, v.pux, begin, chunk);
-        writeArray(os, v.puy, begin, chunk);
-        writeArray(os, v.puz, begin, chunk);
-        writeArray(os, v.pT, begin, chunk);
-        writeArray(os, v.pTheta, begin, chunk);
-        writeArray(os, v.pd, begin, chunk);
-        writeArray(os, v.pm, begin, chunk);
-        writeArray(os, v.pCellId, begin, chunk);
-        writeArray(os, v.pStatus, begin, chunk);
-        writeArray(os, v.pRng, begin, chunk);
-        writeArray(os, v.pOrigId, begin, chunk);
-        writeArray(os, v.pStuck, begin, chunk);
-        writeArray(os, v.pStuckFaceId, begin, chunk);
-        writeArray(os, v.pDepositionArea, begin, chunk);
-        writeConvertedArray<float>(os, v.pContactDuration, begin, chunk);
-        writeArray(os, v.pContactMaximumArea, begin, chunk);
-        writeArray(os, v.pContactPeakFraction, begin, chunk);
-        writeArray
-        (
-            os,
-            v.pColdNodeSpecificEnthalpy,
-            begin*coldWallAxialNodeCount,
-            chunk*coldWallAxialNodeCount
-        );
-        writeArray
-        (
-            os,
-            v.pColdRingSolidMass,
-            begin*coldWallRadialRingCount,
-            chunk*coldWallRadialRingCount
-        );
-        writeArray(os, v.pColdFrozenArea, begin, chunk);
-        writeConvertedArray<float>(os, v.pColdContactAge, begin, chunk);
-        begin += chunk;
-    }
-}
-
-inline void writeV5(std::ostream& os, const ConstView& v)
-{
-    validateHostRepresentation();
-    os << schema5FormatName << ' ' << v.count << ' '
-       << maximumChunkParticles << '\n';
-    if (!os.good())
-    {
-        throw std::runtime_error("failed writing UGKP FSH restart header");
-    }
-
-    for (std::size_t begin = 0u; begin < v.count;)
-    {
-        const std::uint32_t chunk = static_cast<std::uint32_t>
-        (
-            std::min<std::size_t>(maximumChunkParticles, v.count - begin)
-        );
-        writeArray(os, &chunk, 0u, 1u);
-        writeArray(os, v.px, begin, chunk);
-        writeArray(os, v.py, begin, chunk);
-        writeArray(os, v.pz, begin, chunk);
-        writeArray(os, v.pux, begin, chunk);
-        writeArray(os, v.puy, begin, chunk);
-        writeArray(os, v.puz, begin, chunk);
-        writeArray(os, v.pT, begin, chunk);
-        writeArray(os, v.pTheta, begin, chunk);
-        writeArray(os, v.pd, begin, chunk);
-        writeArray(os, v.pm, begin, chunk);
-        writeArray(os, v.pCellId, begin, chunk);
-        writeArray(os, v.pStatus, begin, chunk);
-        writeArray(os, v.pRng, begin, chunk);
-        writeArray(os, v.pOrigId, begin, chunk);
-        writeArray(os, v.pStuck, begin, chunk);
-        writeArray(os, v.pStuckFaceId, begin, chunk);
-        writeArray(os, v.pDepositionArea, begin, chunk);
-        writeConvertedArray<float>(os, v.pContactDuration, begin, chunk);
-        writeArray(os, v.pContactMaximumArea, begin, chunk);
-        writeArray(os, v.pContactPeakFraction, begin, chunk);
-        writeArray
-        (
-            os,
-            v.pColdNodeSpecificEnthalpy,
-            begin*coldWallAxialNodeCount,
-            chunk*coldWallAxialNodeCount
-        );
-        writeArray
-        (
-            os,
-            v.pColdRingSolidMass,
-            begin*coldWallRadialRingCount,
-            chunk*coldWallRadialRingCount
-        );
-        writeArray(os, v.pColdFrozenArea, begin, chunk);
-        writeConvertedArray<float>(os, v.pColdContactAge, begin, chunk);
-        writeArray
-        (
-            os,
-            v.pCold2DNodeSpecificEnthalpy,
-            begin*coldWall2DNodeCount,
-            chunk*coldWall2DNodeCount
-        );
-        writeConvertedArray<float>
-        (
-            os,
-            v.pCold2DRingContactAge,
-            begin*coldWall2DRadialNodeCount,
-            chunk*coldWall2DRadialNodeCount
-        );
-        writeArray(os, v.pCold2DFrozenArea, begin, chunk);
-        begin += chunk;
-    }
-}
-
-inline void writeV6(std::ostream& os, const ConstView& v)
-{
-    validateHostRepresentation();
-    os << formatName << ' ' << v.count << ' '
-       << maximumChunkParticles << '\n';
-    if (!os.good())
-    {
-        throw std::runtime_error("failed writing UGKP FSH restart header");
-    }
-
-    for (std::size_t begin = 0u; begin < v.count;)
-    {
-        const std::uint32_t chunk = static_cast<std::uint32_t>
-        (
-            std::min<std::size_t>(maximumChunkParticles, v.count - begin)
-        );
-        writeArray(os, &chunk, 0u, 1u);
-        writeArray(os, v.px, begin, chunk);
-        writeArray(os, v.py, begin, chunk);
-        writeArray(os, v.pz, begin, chunk);
-        writeArray(os, v.pux, begin, chunk);
-        writeArray(os, v.puy, begin, chunk);
-        writeArray(os, v.puz, begin, chunk);
-        writeArray(os, v.pT, begin, chunk);
-        writeArray(os, v.pTheta, begin, chunk);
-        writeArray(os, v.pd, begin, chunk);
-        writeArray(os, v.pm, begin, chunk);
-        writeArray(os, v.pCellId, begin, chunk);
-        writeArray(os, v.pStatus, begin, chunk);
-        writeArray(os, v.pRng, begin, chunk);
-        writeArray(os, v.pOrigId, begin, chunk);
-        writeArray(os, v.pStuck, begin, chunk);
-        writeArray(os, v.pStuckFaceId, begin, chunk);
-        writeArray(os, v.pDepositionArea, begin, chunk);
-        writeArray(os, v.pContactDuration, begin, chunk);
-        writeArray(os, v.pContactMaximumArea, begin, chunk);
-        writeArray(os, v.pContactPeakFraction, begin, chunk);
-        writeArray
-        (
-            os,
-            v.pColdNodeSpecificEnthalpy,
-            begin*coldWallAxialNodeCount,
-            chunk*coldWallAxialNodeCount
-        );
-        writeArray
-        (
-            os,
-            v.pColdRingSolidMass,
-            begin*coldWallRadialRingCount,
-            chunk*coldWallRadialRingCount
-        );
-        writeArray(os, v.pColdFrozenArea, begin, chunk);
-        writeArray(os, v.pColdContactAge, begin, chunk);
-        writeArray
-        (
-            os,
-            v.pCold2DNodeSpecificEnthalpy,
-            begin*coldWall2DNodeCount,
-            chunk*coldWall2DNodeCount
-        );
-        writeArray
-        (
-            os,
-            v.pCold2DRingContactAge,
-            begin*coldWall2DRadialNodeCount,
-            chunk*coldWall2DRadialNodeCount
-        );
-        writeArray(os, v.pCold2DFrozenArea, begin, chunk);
-        begin += chunk;
-    }
-}
-
-
 inline void readV1Payload
 (
     std::istream& is,
@@ -430,15 +163,7 @@ inline void readV1Payload
     const MutableView& v
 )
 {
-    validateHostRepresentation();
-    if
-    (
-        declaredMaximumChunk == 0u
-     || declaredMaximumChunk > maximumChunkParticles
-    )
-    {
-        throw std::runtime_error("invalid UGKP FSH restart chunk bound");
-    }
+    (void)declaredMaximumChunk;
 
     char separator = '\0';
     is.get(separator);
@@ -459,7 +184,7 @@ inline void readV1Payload
         if
         (
             chunk == 0u
-         || chunk > declaredMaximumChunk
+
          || static_cast<std::size_t>(chunk) > v.count - begin
         )
         {
@@ -481,7 +206,7 @@ inline void readV1Payload
         readArray(is, v.pOrigId, begin, chunk);
         readArray(is, v.pStuck, begin, chunk);
         readArray(is, v.pStuckFaceId, begin, chunk);
-        readArray(is, v.pDepositionArea, begin, chunk);
+        gpuThermalRestart::readConverted<float>(is, v.pDepositionArea, begin, chunk);
         std::fill
         (
             v.pContactDuration + begin,
@@ -530,11 +255,6 @@ inline void readV1Payload
         begin += chunk;
     }
 
-    char trailing = '\0';
-    if (is.get(trailing))
-    {
-        throw std::runtime_error("trailing data in UGKP FSH restart file");
-    }
 }
 
 inline void readV2Payload
@@ -544,15 +264,7 @@ inline void readV2Payload
     const MutableView& v
 )
 {
-    validateHostRepresentation();
-    if
-    (
-        declaredMaximumChunk == 0u
-     || declaredMaximumChunk > maximumChunkParticles
-    )
-    {
-        throw std::runtime_error("invalid gasUGKP5 FSH restart chunk bound");
-    }
+    (void)declaredMaximumChunk;
     char separator = '\0';
     is.get(separator);
     if (separator == '\r') is.get(separator);
@@ -567,7 +279,7 @@ inline void readV2Payload
         readArray(is, &chunk, 0u, 1u);
         if
         (
-            chunk == 0u || chunk > declaredMaximumChunk
+            chunk == 0u
          || static_cast<std::size_t>(chunk) > v.count - begin
         )
         {
@@ -589,9 +301,9 @@ inline void readV2Payload
         readArray(is, v.pOrigId, begin, chunk);
         readArray(is, v.pStuck, begin, chunk);
         readArray(is, v.pStuckFaceId, begin, chunk);
-        readArray(is, v.pDepositionArea, begin, chunk);
+        gpuThermalRestart::readConverted<float>(is, v.pDepositionArea, begin, chunk);
         readConvertedArray<float>(is, v.pContactDuration, begin, chunk);
-        readArray(is, v.pContactMaximumArea, begin, chunk);
+        gpuThermalRestart::readConverted<float>(is, v.pContactMaximumArea, begin, chunk);
         for (std::size_t i = begin; i < begin + chunk; ++i)
         {
             v.pContactPeakFraction[i] =
@@ -626,11 +338,6 @@ inline void readV2Payload
         clearColdWall2DRange(v, begin, chunk);
         begin += chunk;
     }
-    char trailing = '\0';
-    if (is.get(trailing))
-    {
-        throw std::runtime_error("trailing data in gasUGKP5 FSH restart file");
-    }
 }
 
 inline void readV3Payload
@@ -640,15 +347,7 @@ inline void readV3Payload
     const MutableView& v
 )
 {
-    validateHostRepresentation();
-    if
-    (
-        declaredMaximumChunk == 0u
-     || declaredMaximumChunk > maximumChunkParticles
-    )
-    {
-        throw std::runtime_error("invalid UGKP FSH schema-3 restart chunk bound");
-    }
+    (void)declaredMaximumChunk;
     char separator = '\0';
     is.get(separator);
     if (separator == '\r') is.get(separator);
@@ -663,7 +362,7 @@ inline void readV3Payload
         readArray(is, &chunk, 0u, 1u);
         if
         (
-            chunk == 0u || chunk > declaredMaximumChunk
+            chunk == 0u
          || static_cast<std::size_t>(chunk) > v.count - begin
         )
         {
@@ -685,10 +384,10 @@ inline void readV3Payload
         readArray(is, v.pOrigId, begin, chunk);
         readArray(is, v.pStuck, begin, chunk);
         readArray(is, v.pStuckFaceId, begin, chunk);
-        readArray(is, v.pDepositionArea, begin, chunk);
+        gpuThermalRestart::readConverted<float>(is, v.pDepositionArea, begin, chunk);
         readConvertedArray<float>(is, v.pContactDuration, begin, chunk);
-        readArray(is, v.pContactMaximumArea, begin, chunk);
-        readArray(is, v.pContactPeakFraction, begin, chunk);
+        gpuThermalRestart::readConverted<float>(is, v.pContactMaximumArea, begin, chunk);
+        gpuThermalRestart::readConverted<float>(is, v.pContactPeakFraction, begin, chunk);
         std::fill
         (
             v.pColdNodeSpecificEnthalpy + begin*coldWallAxialNodeCount,
@@ -718,11 +417,6 @@ inline void readV3Payload
         clearColdWall2DRange(v, begin, chunk);
         begin += chunk;
     }
-    char trailing = '\0';
-    if (is.get(trailing))
-    {
-        throw std::runtime_error("trailing data in UGKP FSH schema-3 restart file");
-    }
 }
 
 inline void readV4Payload
@@ -732,15 +426,7 @@ inline void readV4Payload
     const MutableView& v
 )
 {
-    validateHostRepresentation();
-    if
-    (
-        declaredMaximumChunk == 0u
-     || declaredMaximumChunk > maximumChunkParticles
-    )
-    {
-        throw std::runtime_error("invalid UGKP FSH schema-4 restart chunk bound");
-    }
+    (void)declaredMaximumChunk;
     char separator = '\0';
     is.get(separator);
     if (separator == '\r') is.get(separator);
@@ -755,7 +441,7 @@ inline void readV4Payload
         readArray(is, &chunk, 0u, 1u);
         if
         (
-            chunk == 0u || chunk > declaredMaximumChunk
+            chunk == 0u
          || static_cast<std::size_t>(chunk) > v.count - begin
         )
         {
@@ -777,33 +463,28 @@ inline void readV4Payload
         readArray(is, v.pOrigId, begin, chunk);
         readArray(is, v.pStuck, begin, chunk);
         readArray(is, v.pStuckFaceId, begin, chunk);
-        readArray(is, v.pDepositionArea, begin, chunk);
+        gpuThermalRestart::readConverted<float>(is, v.pDepositionArea, begin, chunk);
         readConvertedArray<float>(is, v.pContactDuration, begin, chunk);
-        readArray(is, v.pContactMaximumArea, begin, chunk);
-        readArray(is, v.pContactPeakFraction, begin, chunk);
-        readArray
+        gpuThermalRestart::readConverted<float>(is, v.pContactMaximumArea, begin, chunk);
+        gpuThermalRestart::readConverted<float>(is, v.pContactPeakFraction, begin, chunk);
+        gpuThermalRestart::readConverted<float>
         (
             is,
             v.pColdNodeSpecificEnthalpy,
             begin*coldWallAxialNodeCount,
             chunk*coldWallAxialNodeCount
         );
-        readArray
+        gpuThermalRestart::readConverted<float>
         (
             is,
             v.pColdRingSolidMass,
             begin*coldWallRadialRingCount,
             chunk*coldWallRadialRingCount
         );
-        readArray(is, v.pColdFrozenArea, begin, chunk);
+        gpuThermalRestart::readConverted<float>(is, v.pColdFrozenArea, begin, chunk);
         readConvertedArray<float>(is, v.pColdContactAge, begin, chunk);
         clearColdWall2DRange(v, begin, chunk);
         begin += chunk;
-    }
-    char trailing = '\0';
-    if (is.get(trailing))
-    {
-        throw std::runtime_error("trailing data in UGKP FSH schema-4 restart file");
     }
 }
 
@@ -814,15 +495,7 @@ inline void readV5Payload
     const MutableView& v
 )
 {
-    validateHostRepresentation();
-    if
-    (
-        declaredMaximumChunk == 0u
-     || declaredMaximumChunk > maximumChunkParticles
-    )
-    {
-        throw std::runtime_error("invalid UGKP FSH schema-5 restart chunk bound");
-    }
+    (void)declaredMaximumChunk;
     char separator = '\0';
     is.get(separator);
     if (separator == '\r') is.get(separator);
@@ -840,7 +513,7 @@ inline void readV5Payload
         readArray(is, &chunk, 0u, 1u);
         if
         (
-            chunk == 0u || chunk > declaredMaximumChunk
+            chunk == 0u
          || static_cast<std::size_t>(chunk) > v.count - begin
         )
         {
@@ -865,27 +538,27 @@ inline void readV5Payload
         readArray(is, v.pOrigId, begin, chunk);
         readArray(is, v.pStuck, begin, chunk);
         readArray(is, v.pStuckFaceId, begin, chunk);
-        readArray(is, v.pDepositionArea, begin, chunk);
+        gpuThermalRestart::readConverted<float>(is, v.pDepositionArea, begin, chunk);
         readConvertedArray<float>(is, v.pContactDuration, begin, chunk);
-        readArray(is, v.pContactMaximumArea, begin, chunk);
-        readArray(is, v.pContactPeakFraction, begin, chunk);
-        readArray
+        gpuThermalRestart::readConverted<float>(is, v.pContactMaximumArea, begin, chunk);
+        gpuThermalRestart::readConverted<float>(is, v.pContactPeakFraction, begin, chunk);
+        gpuThermalRestart::readConverted<float>
         (
             is,
             v.pColdNodeSpecificEnthalpy,
             begin*coldWallAxialNodeCount,
             chunk*coldWallAxialNodeCount
         );
-        readArray
+        gpuThermalRestart::readConverted<float>
         (
             is,
             v.pColdRingSolidMass,
             begin*coldWallRadialRingCount,
             chunk*coldWallRadialRingCount
         );
-        readArray(is, v.pColdFrozenArea, begin, chunk);
+        gpuThermalRestart::readConverted<float>(is, v.pColdFrozenArea, begin, chunk);
         readConvertedArray<float>(is, v.pColdContactAge, begin, chunk);
-        readArray
+        gpuThermalRestart::readConverted<float>
         (
             is,
             v.pCold2DNodeSpecificEnthalpy,
@@ -899,16 +572,8 @@ inline void readV5Payload
             begin*coldWall2DRadialNodeCount,
             chunk*coldWall2DRadialNodeCount
         );
-        readArray(is, v.pCold2DFrozenArea, begin, chunk);
+        gpuThermalRestart::readConverted<float>(is, v.pCold2DFrozenArea, begin, chunk);
         begin += chunk;
-    }
-    char trailing = '\0';
-    if (is.get(trailing))
-    {
-        throw std::runtime_error
-        (
-            "trailing data in UGKP FSH schema-5 restart file"
-        );
     }
 }
 
@@ -919,15 +584,7 @@ inline void readV6Payload
     const MutableView& v
 )
 {
-    validateHostRepresentation();
-    if
-    (
-        declaredMaximumChunk == 0u
-     || declaredMaximumChunk > maximumChunkParticles
-    )
-    {
-        throw std::runtime_error("invalid UGKP FSH schema-6 restart chunk bound");
-    }
+    (void)declaredMaximumChunk;
     char separator = '\0';
     is.get(separator);
     if (separator == '\r') is.get(separator);
@@ -945,7 +602,7 @@ inline void readV6Payload
         readArray(is, &chunk, 0u, 1u);
         if
         (
-            chunk == 0u || chunk > declaredMaximumChunk
+            chunk == 0u
          || static_cast<std::size_t>(chunk) > v.count - begin
         )
         {
@@ -970,27 +627,27 @@ inline void readV6Payload
         readArray(is, v.pOrigId, begin, chunk);
         readArray(is, v.pStuck, begin, chunk);
         readArray(is, v.pStuckFaceId, begin, chunk);
-        readArray(is, v.pDepositionArea, begin, chunk);
+        gpuThermalRestart::readConverted<float>(is, v.pDepositionArea, begin, chunk);
         readArray(is, v.pContactDuration, begin, chunk);
-        readArray(is, v.pContactMaximumArea, begin, chunk);
-        readArray(is, v.pContactPeakFraction, begin, chunk);
-        readArray
+        gpuThermalRestart::readConverted<float>(is, v.pContactMaximumArea, begin, chunk);
+        gpuThermalRestart::readConverted<float>(is, v.pContactPeakFraction, begin, chunk);
+        gpuThermalRestart::readConverted<float>
         (
             is,
             v.pColdNodeSpecificEnthalpy,
             begin*coldWallAxialNodeCount,
             chunk*coldWallAxialNodeCount
         );
-        readArray
+        gpuThermalRestart::readConverted<float>
         (
             is,
             v.pColdRingSolidMass,
             begin*coldWallRadialRingCount,
             chunk*coldWallRadialRingCount
         );
-        readArray(is, v.pColdFrozenArea, begin, chunk);
+        gpuThermalRestart::readConverted<float>(is, v.pColdFrozenArea, begin, chunk);
         readArray(is, v.pColdContactAge, begin, chunk);
-        readArray
+        gpuThermalRestart::readConverted<float>
         (
             is,
             v.pCold2DNodeSpecificEnthalpy,
@@ -1004,22 +661,12 @@ inline void readV6Payload
             begin*coldWall2DRadialNodeCount,
             chunk*coldWall2DRadialNodeCount
         );
-        readArray(is, v.pCold2DFrozenArea, begin, chunk);
+        gpuThermalRestart::readConverted<float>(is, v.pCold2DFrozenArea, begin, chunk);
         begin += chunk;
-    }
-    char trailing = '\0';
-    if (is.get(trailing))
-    {
-        throw std::runtime_error
-        (
-            "trailing data in UGKP FSH schema-6 restart file"
-        );
     }
 }
 
 static const char* const schema7FormatName = gpuThermalRestart::marker<double>();
-inline void writeV7(std::ostream& os,const ConstView& v)
-{ gpuThermalRestart::write<double>(os,v); }
 inline void readV7Payload(std::istream& is,std::uint32_t bound,const MutableView& v)
 {
     gpuThermalRestart::readPayload<double>(is,bound,v);
@@ -1030,110 +677,38 @@ inline void readV7Payload(std::istream& is,std::uint32_t bound,const MutableView
 // Schema 8 retains all schema 7 fields and appends one binary64 carry per
 // particle to each chunk. No old field type, order or caloric meaning changes.
 static const char* const schema8FormatName = "UGKP_CHT_PARTICLES_SCHEMA8_THERMAL_CARRY_BIN";
-template<class View, class Fn>
-inline void fieldsV8(const View& v, std::size_t begin, std::size_t count, Fn fn)
-{
-    gpuThermalRestart::fields(v, begin, count, fn);
-    fn(v.pThermalEnthalpyResidual, begin, count);
-}
-template<class View>
-inline void validateThermalCarryV8(const View& v)
-{
-    gpuThermalRestart::validate(v);
-    if (v.count && v.pThermalEnthalpyResidual == nullptr)
-        throw std::runtime_error("missing schema8 thermal enthalpy residual");
-    for (std::size_t i = 0; i < v.count; ++i)
-        if (!std::isfinite(v.pThermalEnthalpyResidual[i]))
-            throw std::runtime_error("nonfinite schema8 thermal enthalpy residual");
-}
-// Schema8 carries represented thermal authority across a backend precision
-// change. Canonicalize the host mirror to target pT storage before upload and
-// keep the lost ordinary H(T) bits in its double residual. Active cold profiles
-// already store wire-float node enthalpies; their pT is only a derived cache.
-// Call only for schema8. Older schemas intentionally migrate with carry zero.
-inline void prepareSchema8ThermalAuthorityForPrecision
-(
-    const MutableView& v,
-    const int targetPrecision,
-    const unsigned char* wallInteractionByFace,
-    const std::size_t nFaces
-)
-{
-    if (targetPrecision != 32 && targetPrecision != 64)
-        throw std::runtime_error("invalid schema8 target precision");
-    if (targetPrecision == 64) return;
-    if (v.count && (!v.pT || !v.pThermalEnthalpyResidual || !v.pStuck || !v.pStuckFaceId))
-        throw std::runtime_error("missing schema8 thermal state");
-    const ugkwp::ParticleCaloric ordinaryCaloric;
-    for (std::size_t i = 0; i < v.count; ++i)
-    {
-        const double wireTemperature = v.pT[i];
-        const double storedTemperature = static_cast<double>(static_cast<float>(wireTemperature));
-        const int face = v.pStuckFaceId[i];
-        const unsigned char interaction = wallInteractionByFace && face >= 0
-            && static_cast<std::size_t>(face) < nFaces ? wallInteractionByFace[face] : 0;
-        // Codes match the existing configured coldWall1D/2D face-mask ABI.
-        const bool activeColdProfile = v.pStuck[i] != 0 && (interaction == 3 || interaction == 4);
-        const double rebasedResidual = activeColdProfile ? v.pThermalEnthalpyResidual[i]
-            : v.pThermalEnthalpyResidual[i]
-                + (ordinaryCaloric.enthalpy(wireTemperature) - ordinaryCaloric.enthalpy(storedTemperature));
-        if (!std::isfinite(storedTemperature) || !std::isfinite(rebasedResidual))
-            throw std::runtime_error("schema8 thermal state is not representable");
-        v.pT[i] = storedTemperature;
-        v.pThermalEnthalpyResidual[i] = rebasedResidual;
-    }
-}
-
-inline void writeV8(std::ostream& os, const ConstView& v)
-{
-    gpuThermalRestart::representation();
-    gpuThermalRestart::timeType<double>(v);
-    validateThermalCarryV8(v);
-    os << schema8FormatName << ' ' << v.count << ' ' << maximumChunkParticles << '\n';
-    for (std::size_t begin = 0; begin < v.count;)
-    {
-        const std::uint32_t chunk = std::min<std::size_t>(maximumChunkParticles, v.count - begin);
-        os.write(reinterpret_cast<const char*>(&chunk), sizeof(chunk));
-        fieldsV8(v, begin, chunk, [&](const auto* values, std::size_t first, std::size_t n)
-        {
-            os.write(reinterpret_cast<const char*>(values + first), n*sizeof(*values));
-            if (!os.good()) throw std::runtime_error("failed writing schema8 chunk");
-        });
-        begin += chunk;
-    }
-    if (!os.good()) throw std::runtime_error("failed writing schema8 header");
-}
 inline void readV8Payload(std::istream& is, std::uint32_t bound, const MutableView& v)
 {
-    gpuThermalRestart::representation();
     gpuThermalRestart::timeType<double>(v);
-    if (!bound || bound > maximumChunkParticles)
-        throw std::runtime_error("invalid schema8 chunk bound");
+    (void)bound;
     char separator = 0;
     is.get(separator);
     if (separator == '\r') is.get(separator);
     if (separator != '\n') throw std::runtime_error("invalid schema8 header terminator");
-    fieldsV8(v, 0u, v.count, [](auto* values, std::size_t, std::size_t n)
-    { if (n && !values) throw std::runtime_error("missing schema8 destination"); });
     for (std::size_t begin = 0; begin < v.count;)
     {
         std::uint32_t chunk = 0;
-        is.read(reinterpret_cast<char*>(&chunk), sizeof(chunk));
-        if (!is.good() || !chunk || chunk > bound || chunk > v.count - begin)
+        gpuThermalRestart::readArray(is, &chunk, 0, 1);
+        if (!is.good() || !chunk || chunk > v.count - begin)
             throw std::runtime_error("invalid schema8 chunk size");
-        fieldsV8(v, begin, chunk, [&](auto* values, std::size_t first, std::size_t n)
+        gpuThermalRestart::wireFields<double>(v, begin, chunk, [&](auto* values, std::size_t first, std::size_t n, auto disk)
         {
-            is.read(reinterpret_cast<char*>(values + first), n*sizeof(*values));
-            if (!is.good()) throw std::runtime_error("truncated schema8 chunk");
+            gpuThermalRestart::readConverted<decltype(disk)>(is, values, first, n);
         });
+        gpuThermalRestart::readArray(is, v.pThermalEnthalpyResidual, begin, chunk);
         begin += chunk;
     }
-    if (is.peek() != std::char_traits<char>::eof())
-        throw std::runtime_error("trailing schema8 data");
-    validateThermalCarryV8(v);
+
 }
 
-}                           
-}                  
+
+static const char* const currentFormatName = gpuThermalRestart::currentChtMarker;
+inline void writeCurrent(std::ostream& os,const ConstView& v)
+{ gpuThermalRestart::writeCurrent<true>(os,currentFormatName,v); }
+inline void readCurrentPayload(std::istream& is,std::uint32_t bound,const MutableView& v)
+{ gpuThermalRestart::readCurrentPayload<true>(is,bound,v); }
+
+}
+}
 
 #endif

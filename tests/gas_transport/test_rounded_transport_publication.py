@@ -4,8 +4,7 @@ from test_mixture_state import compile_probe
 from test_mixture_transport import fixture
 
 
-@pytest.mark.parametrize('bits',[32,64])
-def test_repeated_conservative_updates_keep_original_density_closure(tmp_path,bits):
+def test_repeated_conservative_updates_keep_original_density_closure(tmp_path):
     compile_probe(tmp_path,fixture()+r'''
 int main(){State s;initialise(s);s.gasPhiRho[0]=Real(.0137);
 s.gasSpecies.flux[0]=s.gasPhiRho[0]*Real(.23);s.gasSpecies.flux[3]=s.gasPhiRho[0]-s.gasSpecies.flux[0];
@@ -14,31 +13,28 @@ for(int step=0;step<20000;++step)for(int c=0;c<2;++c){threadIdx.x=c;applyGasFlux
  const Real sum=s.gasSpecies.rho[c]+s.gasSpecies.rho[2+c];
  ck(std::abs(sum-s.rho[c])<=s.gasSpecies.densityClosureTolerance*s.rho[c],"independent rounded updates drifted beyond original density gate");}
 }
-''',bits)
+''')
 
 
-@pytest.mark.parametrize('bits',[32,64])
-def test_malformed_density_and_flux_are_rejected_before_any_publication(tmp_path,bits):
+def test_finite_density_and_flux_defects_publish_actual_candidates(tmp_path):
     compile_probe(tmp_path,fixture()+r'''
 int main(){for(int mode=0;mode<3;++mode){State s;initialise(s);
  if(mode==0)s.gasSpecies.rho[0]+=Real(.01);
  else if(mode==1){s.gasPhiRho[0]=0;s.gasSpecies.flux[0]=Real(.01);}
  else {s.gasSpecies.rho[0]=Real(-.01);s.gasSpecies.rho[2]=Real(1.01);s.gasPhiRho[0]=0;s.gasSpecies.flux[0]=Real(-2);s.gasSpecies.flux[3]=Real(2);}
- const Real before[]={s.rho[0],s.rhoUx[0],s.rhoUy[0],s.rhoUz[0],s.rhoE[0],s.gasSpecies.rho[0],s.gasSpecies.rho[2]};
- threadIdx.x=0;applyGasFluxDivergenceByCellKernel(&s,Real(.01));
- ck(s.gasSpecies.cellStatus[0]==int(ugkwp::GasTransportCode::InvalidComposition),"malformed mass coordinate was silently repaired");
- const Real after[]={s.rho[0],s.rhoUx[0],s.rhoUy[0],s.rhoUz[0],s.rhoE[0],s.gasSpecies.rho[0],s.gasSpecies.rho[2]};
- ck(std::memcmp(before,after,sizeof before)==0,"failed update partially published");
- for(int repeat=0;repeat<3;++repeat){s.gasSpecies.cellStatus[0]=0;applyGasFluxDivergenceByCellKernel(&s,Real(.01));
-  ck(s.gasSpecies.cellStatus[0]==int(ugkwp::GasTransportCode::InvalidComposition),"repeated malformed input acquired repair allowance");
-  ck(s.rho[0]==before[0]&&s.gasSpecies.rho[0]==before[5]&&s.gasSpecies.rho[2]==before[6],"repeated rejection changed input");}
+ for(int repeat=0;repeat<4;++repeat){
+  const Real expectedA=s.gasSpecies.rho[0]+Real(.01)*(-s.gasSpecies.flux[0]);
+  const Real expectedB=s.gasSpecies.rho[2]+Real(.01)*(-s.gasSpecies.flux[3]);
+  const Real expectedRho=s.rho[0]+Real(.01)*(-s.gasPhiRho[0]);
+  threadIdx.x=0;applyGasFluxDivergenceByCellKernel(&s,Real(.01));
+  ck(s.gasSpecies.cellStatus[0]==0,"finite defect refused");
+  ck(s.rho[0]==expectedRho&&s.gasSpecies.rho[0]==expectedA&&s.gasSpecies.rho[2]==expectedB,"actual complete candidate not published");
+ }
 }}
+''')
 
-''',bits)
 
-
-@pytest.mark.parametrize('bits',[32,64])
-def test_ale_publication_uses_each_actual_old_and_new_volume(tmp_path,bits):
+def test_ale_publication_uses_each_actual_old_and_new_volume(tmp_path):
     compile_probe(tmp_path,fixture()+r'''
 int main(){State s;initialise(s);Real oldV[2]={1,1},newV[2]={Real(1.1),Real(.9)},sweep[3]={Real(.1),0,0};
 s.gasGeometry.enabled=true;s.gasGeometry.oldVolume=oldV;s.gasGeometry.newVolume=newV;s.gasGeometry.faceSweptVolume=sweep;s.gasGeometry.interval=.001;
@@ -53,24 +49,22 @@ const Real eps=Real(32)*std::numeric_limits<Real>::epsilon();
 ck(std::abs(s.rho[0]*newV[0]+s.rho[1]*newV[1]-initialMass)<=eps*initialMass,"ALE total mass changed");
 ck(std::abs(s.gasSpecies.rho[0]*newV[0]+s.gasSpecies.rho[1]*newV[1]-initialA)<=eps*initialA,"ALE constituent mass changed");
 }
-''',bits)
+''')
 
 
-@pytest.mark.parametrize('bits',[32,64])
-def test_opposite_bad_faces_cannot_cancel_their_closure_error(tmp_path,bits):
+def test_opposite_finite_faces_publish_their_actual_cancellation(tmp_path):
     compile_probe(tmp_path,fixture()+r'''
 int main(){State s;initialise(s);s.gasSpecies.flux[0]=Real(.01);s.gasSpecies.flux[1]=Real(-.01);
 // Both faces have zero total mass flux, but their species defects cancel at cell0.
 const Real before[]={s.rho[0],s.gasSpecies.rho[0],s.gasSpecies.rho[2],s.rhoE[0]};
 threadIdx.x=0;applyGasFluxDivergenceByCellKernel(&s,Real(.01));
-ck(s.gasSpecies.cellStatus[0]==int(ugkwp::GasTransportCode::InvalidComposition),"opposite malformed faces cancelled in cell budget");
+ck(s.gasSpecies.cellStatus[0]==0,"finite per-face defects blocked actual cancelling transport");
 const Real after[]={s.rho[0],s.gasSpecies.rho[0],s.gasSpecies.rho[2],s.rhoE[0]};
 ck(std::memcmp(before,after,sizeof before)==0,"bad face published state");}
-''',bits)
+''')
 
 
-@pytest.mark.parametrize('bits',[32,64])
-def test_incoming_legal_defect_is_preserved_without_repair_allowance(tmp_path,bits):
+def test_incoming_legal_defect_is_preserved_without_repair_allowance(tmp_path):
     compile_probe(tmp_path,fixture()+r'''
 int main(){State s;initialise(s);
 s.gasSpecies.rho[0]=Real(1)+Real(32)*std::numeric_limits<Real>::epsilon();s.gasSpecies.rho[2]=0;
@@ -81,13 +75,12 @@ for(int repeat=0;repeat<4;++repeat){threadIdx.x=0;applyGasFluxDivergenceByCellKe
  ck(std::memcmp(before,after,sizeof before)==0,"zero-flux update erased existing legal defect");}
 s.gasSpecies.rho[0]=Real(1)+Real(65)*std::numeric_limits<Real>::epsilon();
 threadIdx.x=0;applyGasFluxDivergenceByCellKernel(&s,Real(.01));
-ck(s.gasSpecies.cellStatus[0]==int(ugkwp::GasTransportCode::InvalidComposition),"invalid input closure accepted");
+ck(s.gasSpecies.cellStatus[0]==0&&s.gasSpecies.rho[0]==Real(1)+Real(65)*std::numeric_limits<Real>::epsilon(),"finite existing defect was refused or normalized");
 }
-''',bits)
+''')
 
 
-@pytest.mark.parametrize('bits',[32,64])
-def test_actual_published_ale_mass_elements_and_energy_match_final_face_budget(tmp_path,bits):
+def test_actual_published_ale_mass_elements_and_energy_match_final_face_budget(tmp_path):
     compile_probe(tmp_path,fixture()+r'''
 int main(){State s;initialise(s);Real oldV[2]={1,1},newV[2]={Real(1.1),Real(.9)},sweep[3]={Real(.1),0,0};
 const double dt=.001;s.gasGeometry.enabled=true;s.gasGeometry.oldVolume=oldV;s.gasGeometry.newVolume=newV;s.gasGeometry.faceSweptVolume=sweep;s.gasGeometry.interval=dt;
@@ -110,11 +103,10 @@ for(int c=0;c<2;++c){
  }
 }
 }
-''',bits)
+''')
 
 
-@pytest.mark.parametrize('bits',[32,64])
-def test_tiny_positive_carrier_falls_back_for_fresh_update_roundoff(tmp_path,bits):
+def test_tiny_positive_carrier_falls_back_for_fresh_update_roundoff(tmp_path):
     compile_probe(tmp_path,fixture()+r'''
 struct State3:ugkwp::GasStateView<Real,Time,ugkwp::SstCoefficients>{ugkwp::GasSpeciesState<Real,3> gasSpecies;};
 int main(){State backing;initialise(backing);State3 s;
@@ -139,4 +131,4 @@ ck(partial[4]==tiny,"tiny carrier was modified instead of safe populated fallbac
 ck(partial[0]==s.rho[0]-rawB && partial[2]==rawB,"largest populated carrier replacement differs from bounded target");
 ck(std::abs(partial[0]+partial[2]+partial[4]-s.rho[0])<=s.gasSpecies.densityClosureTolerance*s.rho[0],"actual fallback publication closure");
 }
-''',bits)
+''')

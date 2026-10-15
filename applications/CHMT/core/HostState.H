@@ -39,8 +39,8 @@ struct HostStageGeometry {
     std::vector<Real> oldVolume{},newVolume{},evaluationVolume{},sweptVolume{};
     std::vector<Vec3> areaVector{},cellCentre{},faceCentre{},oldPoints{},newPoints{};
 };
-// Accepted cumulative diagnostics from the common SST source/transport owner.
-// Net source is not relabelled as gross production or dissipation.
+
+
 struct GasSstIntegralAudit {
     Real transportK=0,transportOmega=0,sourceK=0,sourceOmega=0,constraintK=0,constraintOmega=0;
 };
@@ -49,8 +49,9 @@ struct HostState {
     Real nextDt=0,lastAcceptedDt=0;
 
     HostMesh gasMesh{},solidMesh{};SurfaceMesh surface{};
-    std::vector<ugkwp::ChemistryAudit<Real,Ns>> gasChemistryAudit{}; // accepted cumulative cell diagnostics only
+    std::vector<ugkwp::ChemistryAudit<Real,Ns>> gasChemistryAudit{};
     std::vector<GasQ> gas{};std::vector<SolidQ> solid{};std::vector<FilmQ> film{};
+    std::vector<Real> gasTemperature{};
     std::vector<FilmAux> filmAux{};std::vector<ParticleQ> particles{};std::vector<SstQ> sst{};
     // Numerical geometry carry, indexed by surface.solidFace [signed m^3]:
     // cumulative physical consumed-volume target minus measured actual sweep.

@@ -1,13 +1,12 @@
 import os
 from pathlib import Path
 import re,subprocess,sys
-root=Path(sys.argv[1]);out=Path(sys.argv[2]);app=sys.argv[3];bits=int(sys.argv[4]);out.mkdir(parents=True,exist_ok=True)
+root=Path(sys.argv[1]);out=Path(sys.argv[2]);app=sys.argv[3];out.mkdir(parents=True,exist_ok=True)
 src=root/f'applications/{app}/{"gpu" if app=="CHT" else "private_backend"}'
 t=(src/'GpuResidentStrict.cu').read_text().replace('#include "GpuAutomaticCsrScheduleFields.inl"', (root/"common/GpuAutomaticCsrScheduleFields.inl").read_text() if (root/"common/GpuAutomaticCsrScheduleFields.inl").is_file() else "");a=t.index('struct DeviceState');b=t.index('\n};',a)
 fields=re.findall(r'^\s*((?:unsigned\s+)?(?:long long|char)|double|float|int|GpuReal|GpuTime|GpuWallEnergy)\*\s+(\w+)\s*=',t[a:b],re.M)
 fields=[(ty,n) for ty,n in fields if not n.startswith('flatPressure') and n not in ['diagnosticPreTransportParticleCount','sourceInjectedCount']]
 code='#define UGKP_DEVELOPMENT_PROBES 1\n#include "GpuResidentStrict.cu"\n#include <cstdio>\n#include <new>\n#include <cstdlib>\n#include <cmath>\n#include <set>\n'
-if app=='CHT' and bits==32:code+='using namespace ugkwpCudaFp32;\n'
 code+=r'''
 template<class T>void mem(T*&p){if(cudaMallocManaged(&p,256*sizeof(T))!=cudaSuccess)abort();for(int i=0;i<256;i++)::new(static_cast<void*>(p+i)) T{};}
 void deviceSync(){auto e=cudaDeviceSynchronize();if(e!=cudaSuccess){printf("CUDA %s\n",cudaGetErrorString(e));exit(10);}}
@@ -50,7 +49,7 @@ puts("PASS diagnostic detects position, metadata and mass faults");
 RADIATION
 return 0;}
 '''
-code=code.replace('ALLOC','\n'.join('mem(s->'+n+');' for _,n in fields)).replace('TOL','2e-6' if bits==32 else '2e-9')
+code=code.replace('ALLOC','\n'.join('mem(s->'+n+');' for _,n in fields)).replace('TOL','2e-9')
 code=code.replace('STUCK_INIT','s->pStuck[i]=(i%3==0);' if app!='gasUGKP' else '').replace('IS_STUCK','s->pStuck[i]!=0' if app!='gasUGKP' else 'false').replace('STUCK_CHECK','near(s->packingStuckRho[c],stuck,"packing constraint mass");' if app!='gasUGKP' else '').replace('INJECT_CONTACT','ck(s->pStuck[i]==0&&s->pStuckFaceId[i]==-1,"injected contact reset");' if app!='gasUGKP' else '')
 radiation=r'''
 s->solveParticleTemperature=1;s->particleCapacity=8;*s->particleCountDevice=8;double expected[2][4]={};
@@ -65,8 +64,8 @@ for(int c=0;c<2;c++){near(s->radiationMobileMass[c],expected[c][0],"packed radia
 puts("PASS atomic/packed radiation mobile membership and all-alive material enthalpy");
 '''
 code=code.replace('RADIATION',radiation if app=='CHT' else '')
-f=out/'extended.cu';f.write_text(code);exe=out/'extended';cmd=[str(Path(os.environ.get('CUDA_HOME','/usr/local/cuda'))/'bin/nvcc'),'-std=c++17','-O3','-arch='+os.environ.get('UGKWP_CUDA_ARCH','sm_89'),'--fmad='+('false' if app=='CHT' else 'true'),'-DUGKWP_GPU_REAL_BITS='+str(bits),'-I'+str(src),'-I'+str(root/'common'),'-I'+str(root/'applications'/app/'gpu'),str(f),'-o',str(exe)]
+f=out/'extended.cu';f.write_text(code);exe=out/'extended';cmd=[str(Path(os.environ.get('CUDA_HOME','/usr/local/cuda'))/'bin/nvcc'),'-std=c++17','-O3','-arch='+os.environ.get('UGKWP_CUDA_ARCH','sm_89'),'--fmad='+('false' if app=='CHT' else 'true'),'-I'+str(src),'-I'+str(root/'common'),'-I'+str(root/'applications'/app/'gpu'),str(f),'-o',str(exe)]
 if app=='CHT':cmd.append(str(src/'GpuWallEnergy64.cu'))
 with (out/'build.log').open('w') as log:q=subprocess.run(cmd,stdout=log,stderr=subprocess.STDOUT)
 if q.returncode:print((out/'build.log').read_text()[-6000:]);sys.exit(q.returncode)
-q=subprocess.run([str(exe)],capture_output=True,text=True);(out/'run.log').write_text(q.stdout+q.stderr);print(app,bits,q.stdout,q.stderr);sys.exit(q.returncode)
+q=subprocess.run([str(exe)],capture_output=True,text=True);(out/'run.log').write_text(q.stdout+q.stderr);print(app,64,q.stdout,q.stderr);sys.exit(q.returncode)

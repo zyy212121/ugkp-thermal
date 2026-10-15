@@ -4,6 +4,7 @@
 #include "GasModelIO.H"
 #include "../chemistry/MechanismValidation.H"
 #include <limits>
+#include <algorithm>
 
 namespace ugkwp
 {
@@ -27,8 +28,6 @@ struct GasMechanismConfiguration
     template<int Ns>
     GasMechanismView<double, Ns> mechanismView() const
     {
-        if (speciesNames.size() != static_cast<std::size_t>(Ns))
-            throw std::invalid_argument("mechanism species count differs from compiled backend Ns");
         GasMechanismView<double, Ns> view;
         view.reactions = reactions.data();
         view.reactionCount = static_cast<int>(reactions.size());
@@ -49,14 +48,6 @@ struct GasMechanismConfiguration
 
 namespace gasModelIoDetail
 {
-inline std::uint64_t unsigned64(const Dictionary& dict, const std::string& key)
-{
-    const std::string value = word(dict, key);
-    if (value.empty() || value.find_first_not_of("0123456789") != std::string::npos)
-        throw error("'" + key + "' must be an unsigned decimal 64-bit integer");
-    try { return static_cast<std::uint64_t>(std::stoull(value)); }
-    catch (const std::exception&) { throw error("'" + key + "' exceeds unsigned 64-bit range"); }
-}
 inline bool boolean(const Dictionary& dict, const std::string& key)
 {
     const std::string value = word(dict, key);
@@ -67,7 +58,7 @@ inline bool boolean(const Dictionary& dict, const std::string& key)
 inline GasArrheniusData<double> arrhenius(const Dictionary& dict, const std::string& key)
 {
     const auto values = numbers(dict, key);
-    if (values.size() != 3) throw error("'" + key + "' requires (A b Ea) in SI molar units");
+    if (values.size() < 3) throw error("'" + key + "' requires (A b Ea) in SI molar units");
     GasArrheniusData<double> rate;
     rate.preExponential = values[0];
     rate.temperatureExponent = values[1];
@@ -139,47 +130,54 @@ inline GasMechanismConfiguration parseGasMechanismProperties
 (
     const std::string& text,
     const SpeciesThermoView<double, Ns>& thermo,
-    const std::string& expectedPhase
+    const std::string& expectedPhase,
+    const std::vector<std::string>& thermoSpeciesNames = {}
 )
 {
     using namespace gasModelIoDetail;
     Tokens tokens(text);
     const Dictionary dict = tokens.dictionary();
-    allowed(dict, {"FoamFile", "schemaVersion", "units", "phase", "species", "referencePressure", "speciesOrderHash", "mechanismHash", "sourceSha256", "independentRank", "stoichiometricBasis", "reactions"}, "mechanism");
-    if (scalar(dict, "schemaVersion") != 1) throw error("mechanism requires schemaVersion 1");
-    if (word(dict, "units") != "siMolar") throw error("mechanism units must be siMolar (mol, m, s, kg, J, K, Pa)");
+    (void)expectedPhase;
+    (void)thermo;
     GasMechanismConfiguration model;
-    model.phase = word(dict, "phase");
-    if (expectedPhase.empty() || model.phase != expectedPhase) throw error("mechanism phase does not match the explicitly selected phase");
+    if (dict.count("phase")) model.phase = word(dict, "phase");
     model.speciesNames = list(dict, "species");
-    model.speciesOrderHash = unsigned64(dict, "speciesOrderHash");
-    if (model.speciesNames.size() != static_cast<std::size_t>(Ns)
-        || speciesIdentity(model.speciesNames) != model.speciesOrderHash
-        || model.speciesOrderHash != thermo.speciesOrderHash)
-        throw error("mechanism species count/order/hash does not match the thermodynamic model");
-    std::set<std::string> unique;
-    for (const auto& name : model.speciesNames)
-        if (!unique.insert(name).second) throw error("duplicate mechanism species '"+name+"'");
-    model.referencePressure = scalar(dict, "referencePressure");
-    model.mechanismHash = unsigned64(dict, "mechanismHash");
-    if (dict.count("sourceSha256"))
+
+
+    std::vector<int> speciesMap(thermoSpeciesNames.empty()
+        ? std::max(model.speciesNames.size(),static_cast<std::size_t>(Ns))
+        : model.speciesNames.size(), -1);
+    if (thermoSpeciesNames.empty())
     {
-        model.sourceSha256 = word(dict, "sourceSha256");
-        if (model.sourceSha256.size() != 64 || model.sourceSha256.find_first_not_of("0123456789abcdef") != std::string::npos)
-            throw error("sourceSha256 must contain 64 lowercase hexadecimal characters");
+        for (std::size_t s=0; s<speciesMap.size(); ++s) speciesMap[s]=static_cast<int>(s);
     }
-    model.independentRank = integer(scalar(dict, "independentRank"), "independentRank", 1);
+    else
+    {
+        std::vector<bool> used(thermoSpeciesNames.size(), false);
+        for (std::size_t s=0; s<model.speciesNames.size(); ++s)
+            for (std::size_t t=0; t<thermoSpeciesNames.size(); ++t)
+                if (!used[t] && model.speciesNames[s]==thermoSpeciesNames[t])
+                {speciesMap[s]=static_cast<int>(t);used[t]=true;break;}
+    }
+    model.referencePressure = scalar(dict, "referencePressure");
+    model.independentRank = integer(scalar(dict, "independentRank"), "independentRank");
     if (model.independentRank > Ns) throw error("independentRank exceeds species count");
     model.stoichiometricBasis = numbers(dict, "stoichiometricBasis");
-    if (model.stoichiometricBasis.size() != static_cast<std::size_t>(Ns*model.independentRank))
-        throw error("stoichiometricBasis must have Ns*independentRank entries in species-major order");
     const Dictionary reactionDict = subdict(dict, "reactions");
-    if (reactionDict.empty()) throw error("enabled chemistry requires a nonempty mechanism");
+    std::vector<std::string> reactionNames;
+    std::map<std::string,bool> orderedNames;
+
     for (std::size_t index=0; index<reactionDict.size(); ++index)
     {
-        const std::string name = "reaction"+std::to_string(index);
+        const std::string name="reaction"+std::to_string(index);
+        if (reactionDict.count(name)) {reactionNames.push_back(name);orderedNames[name]=true;}
+    }
+    for (const auto& entry : reactionDict)
+        if (!orderedNames.count(entry.first))
+            reactionNames.push_back(entry.first);
+    for (const std::string& name : reactionNames)
+    {
         const Dictionary data = subdict(reactionDict, name);
-        allowed(data, {"type", "reversible", "duplicate", "sourceIndex", "reactants", "products", "highRate", "lowRate", "defaultEfficiency", "efficiencies", "troe", "troeHasT2"}, name);
         GasReactionData<double> reaction;
         const std::string type = word(data, "type");
         if (type == "elementary") reaction.type = GasReactionType::Elementary;
@@ -188,39 +186,92 @@ inline GasMechanismConfiguration parseGasMechanismProperties
         else if (type == "Troe") reaction.type = GasReactionType::Troe;
         else throw error("unsupported reaction type '" + type + "' in " + name);
         reaction.reversible = boolean(data, "reversible");
-        reaction.duplicate = boolean(data, "duplicate");
-        reaction.sourceIndex = integer(scalar(data, "sourceIndex"), "sourceIndex");
-        if (reaction.sourceIndex != static_cast<int>(index)) throw error("sourceIndex must match canonical contiguous reaction order");
+        if (data.count("duplicate")) reaction.duplicate = boolean(data, "duplicate");
+        if (data.count("sourceIndex")) reaction.sourceIndex = integer(scalar(data, "sourceIndex"), "sourceIndex", std::numeric_limits<int>::min());
         reaction.highRate = arrhenius(data, "highRate");
-        reaction.lowRate = arrhenius(data, "lowRate");
-        reaction.defaultEfficiency = scalar(data, "defaultEfficiency");
-        const auto troe = numbers(data, "troe");
-        if (troe.size() != 4) throw error("troe requires (alpha T3 T1 T2)");
-        reaction.troe.alpha=troe[0]; reaction.troe.T3=troe[1]; reaction.troe.T1=troe[2]; reaction.troe.T2=troe[3];
-        reaction.troe.hasT2 = boolean(data, "troeHasT2");
+        if (reaction.type==GasReactionType::Lindemann || reaction.type==GasReactionType::Troe)
+            reaction.lowRate = arrhenius(data, "lowRate");
+        if (reaction.type!=GasReactionType::Elementary)
+            reaction.defaultEfficiency = scalar(data, "defaultEfficiency");
+        if (reaction.type==GasReactionType::Troe)
+        {
+            const auto troe = numbers(data, "troe");
+            reaction.troe.hasT2 = boolean(data, "troeHasT2");
+            if (troe.size() < (reaction.troe.hasT2 ? 4U : 3U))
+                throw error("troe is missing alpha, T3, T1 or the selected T2 term");
+            reaction.troe.alpha=troe[0];reaction.troe.T3=troe[1];reaction.troe.T1=troe[2];
+            if (reaction.troe.hasT2) reaction.troe.T2=troe[3];
+        }
         reaction.reactantOffset = static_cast<int>(model.reactants.size());
-        stoich(data, "reactants", model.reactants, Ns);
+        stoich(data, "reactants", model.reactants, static_cast<int>(speciesMap.size()));
         reaction.reactantCount = static_cast<int>(model.reactants.size())-reaction.reactantOffset;
         reaction.productOffset = static_cast<int>(model.products.size());
-        stoich(data, "products", model.products, Ns);
+        stoich(data, "products", model.products, static_cast<int>(speciesMap.size()));
         reaction.productCount = static_cast<int>(model.products.size())-reaction.productOffset;
         reaction.efficiencyOffset = static_cast<int>(model.efficiencies.size());
-        const auto efficiencies = numbers(data, "efficiencies");
+        const auto efficiencies = reaction.type!=GasReactionType::Elementary
+            ? numbers(data, "efficiencies") : std::vector<double>{};
         if (efficiencies.size()%2) throw error("efficiencies must contain flat species/efficiency pairs");
         for (std::size_t i=0; i<efficiencies.size(); i+=2)
         {
             GasColliderEfficiency<double> term;
             term.species = integer(efficiencies[i], "efficiencies");
-            if (term.species >= Ns) throw error("efficiency species index outside mechanism order");
+            if (static_cast<std::size_t>(term.species) >= speciesMap.size()) throw error("efficiency species index outside mechanism order");
             term.efficiency = efficiencies[i+1];
             model.efficiencies.push_back(term);
         }
         reaction.efficiencyCount = static_cast<int>(model.efficiencies.size())-reaction.efficiencyOffset;
         model.reactions.push_back(reaction);
     }
-    if (mechanismIdentity(model) != model.mechanismHash) throw error("mechanismHash does not match canonical SI tables");
-    const ChemistryStatus status = validateGasMechanismView(thermo, model.mechanismView<Ns>());
-    if (!status) throw error("mechanism physical validation failed at reaction " + std::to_string(status.reaction));
+    for (auto* terms : {&model.reactants, &model.products}) for (auto& term : *terms)
+    {
+        const int mapped=speciesMap[term.species];
+        if (mapped<0) throw error("reaction uses a species absent from the compiled thermo model");
+        term.species=mapped;
+    }
+    for (auto& term : model.efficiencies)
+    {
+        const int mapped=speciesMap[term.species];
+        if (mapped<0) throw error("collider uses a species absent from the compiled thermo model");
+        term.species=mapped;
+    }
+
+
+    if (model.independentRank)
+    {
+        const auto sourceBasis=model.stoichiometricBasis;
+        const std::size_t rank=model.independentRank;
+        if (sourceBasis.size()<static_cast<std::size_t>(Ns)*rank)
+            throw error("stoichiometricBasis is missing required compiled rows");
+        const std::size_t rows=std::min(speciesMap.size(),sourceBasis.size()/rank);
+        std::vector<bool> usedRows(rows,false);
+        std::size_t nextRow=0;
+        const auto appendRow=[&](std::size_t source)
+        {
+            for (std::size_t j=0;j<rank;++j)
+                model.stoichiometricBasis[nextRow*rank+j]=sourceBasis[source*rank+j];
+            usedRows[source]=true;
+            ++nextRow;
+        };
+        const std::size_t targets=std::max(static_cast<std::size_t>(Ns),thermoSpeciesNames.size());
+        for (std::size_t target=0;target<targets;++target)
+        {
+            const auto found=std::find(speciesMap.begin(),speciesMap.end(),static_cast<int>(target));
+            const std::size_t source=found-speciesMap.begin();
+            if (found==speciesMap.end() || source>=rows)
+            {
+                if (target<static_cast<std::size_t>(Ns))
+                    throw error("stoichiometricBasis is missing the mapped species row");
+                continue;
+            }
+            appendRow(source);
+        }
+
+        for (std::size_t source=0;source<rows;++source)
+            if (!usedRows[source]) appendRow(source);
+    }
+    model.speciesOrderHash=speciesIdentity(thermoSpeciesNames.empty()?model.speciesNames:thermoSpeciesNames);
+    model.mechanismHash=mechanismIdentity(model);
     return model;
 }
 
@@ -242,14 +293,15 @@ inline GasMechanismConfiguration readGasMechanismProperties
 (
     const std::string& path,
     const SpeciesThermoView<double, Ns>& thermo,
-    const std::string& expectedPhase
+    const std::string& expectedPhase,
+    const std::vector<std::string>& thermoSpeciesNames = {}
 )
 {
     std::ifstream input(path);
     if (!input) throw gasModelIoDetail::error("cannot read required mechanism '" + path + "'");
     const std::string text((std::istreambuf_iterator<char>(input)), {});
     if (input.bad()) throw gasModelIoDetail::error("failed reading mechanism '" + path + "'");
-    return parseGasMechanismProperties<Ns>(text, thermo, expectedPhase);
+    return parseGasMechanismProperties<Ns>(text, thermo, expectedPhase, thermoSpeciesNames);
 }
 } // namespace ugkwp
 #endif

@@ -44,8 +44,10 @@ __global__ void accumulatePoissonPoolSplitSegmentKernel
     const GPU_OPERATOR_REAL prob = cellCollisionProbability;
     if (prob <= GPU_OPERATOR_R(0.0)) return;
     GPU_OPERATOR_REAL sums[8] = {};
-    for (int pos = start + threadIdx.x; pos < end; pos += blockDim.x)
+    for (unsigned int cursor = static_cast<unsigned int>(start) + threadIdx.x;
+         cursor < static_cast<unsigned int>(end); cursor += blockDim.x)
     {
+        const int pos = static_cast<int>(cursor);
         const int i = DirectParticleIndex
           ? pos
           : s.sortedParticleIndex[pos];

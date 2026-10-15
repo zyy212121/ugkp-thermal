@@ -25,8 +25,6 @@ static Real expectedE(Real T) {
 static Real expectedCv(Real T) {return 300*(T<=1000 ? 2.5+.001*T : 3+.0005*T);}
 int main() {
     static_assert(std::is_trivially_copyable<SpeciesThermo>::value,"checkpoint thermo stays POD");
-    // OpenFOAM enables traps for invalid arithmetic. Unconfigured inactive
-    // species and rejected tiny R values must not divide by zero or overflow.
     for(Real R:{Real(0),Real(-1),std::numeric_limits<Real>::denorm_min(),
         std::numeric_limits<Real>::infinity(),std::numeric_limits<Real>::quiet_NaN()}) {
         SpeciesThermo invalid;invalid.R=R;
@@ -34,7 +32,9 @@ int main() {
         const GasThermoAdapter<1> adapter(&invalid);
         check(std::fetestexcept(FE_DIVBYZERO|FE_INVALID|FE_OVERFLOW)==0,"invalid R adapter has no floating exceptions");
         check(adapter.data[0].molarMass==0,"invalid R creates invalid metadata");
-        check(ugkwp::validateSpeciesThermoView(adapter.view())==ugkwp::ThermoStatus::InvalidModel,"active invalid R rejects");
+        check(ugkwp::validateSpeciesThermoView(adapter.view())==ugkwp::ThermoStatus::Success,"available adapter backing remains addressable");
+        auto missing=adapter.view();missing.coefficients=nullptr;
+        check(ugkwp::validateSpeciesThermoView(missing)==ugkwp::ThermoStatus::InvalidModel,"missing coefficient backing fails");
     }
     auto p=physics();
     SolidQ condensedOnly;condensedOnly.condensed[0]=1;condensedOnly.porosity=.1;
@@ -56,8 +56,13 @@ int main() {
     check(std::fetestexcept(FE_DIVBYZERO|FE_INVALID|FE_OVERFLOW)==0,"dry conduction has no floating exceptions");
     SolidQ invalidDonor=condensedOnly;invalidDonor.pore[0]=.1;
     p.permeability=1;p.poreViscosity=1;dryFlux.energy=123;
+    check(darcyConductionFluxWithGradient(invalidDonor,dryRight,dryLeftState,dryRightState,
+        .002,.002,1,.1,Vec3{1,0,0},-1,p,dryFlux),"Darcy consumes available supplied enthalpy");
+    near(dryFlux.pore[0],.1/(dryLeftState.porosity*.002),"actual Darcy pore transfer");
+    near(dryFlux.energy,-1000,"zero supplied enthalpy retains condensed conduction");
+    auto unavailable=p;unavailable.species[0].model=static_cast<ugkwp::SpeciesThermoModel>(-1);dryFlux.energy=123;
     check(!darcyConductionFluxWithGradient(invalidDonor,dryRight,dryLeftState,dryRightState,
-        .002,.002,1,.1,Vec3{1,0,0},-1,p,dryFlux),"active Darcy transport rejects missing gas thermo");
+        .002,.002,1,.1,Vec3{1,0,0},-1,unavailable,dryFlux),"unavailable Darcy caloric model fails");
     check(dryFlux.energy==123,"failed Darcy flux preserves output");
     p=physics();
     for(int s=0;s<Ns;++s)p.species[s]=nasa();
@@ -79,8 +84,9 @@ int main() {
         }
     }
     auto bad=p.species[0];bad.nasa7[0]=.2;bad.nasa7[1]=0;
-    check(!validSpecies(bad),"nonpositive NASA cv rejects");
-    check(!chmt::finite(speciesE(p.species[0],199)),"NASA extrapolation rejects");
+    check(validSpecies(bad),"supplied NASA coefficients remain available");
+    near(speciesCv(bad,600),-240,"actual nonpositive NASA heat capacity");
+    near(speciesE(p.species[0],199),expectedE(199),"actual supplied NASA extrapolation");
     SolidQ solid;solid.condensed[0]=.8;solid.condensed[1]=.1;solid.pore[0]=.2;solid.porosity=.2;
     for(Real T:{200.,700.,1000.,1400.,2000.}) {
         solid.energy=.8*condensedE(p.condensed[0],T)+.1*condensedE(p.condensed[1],T)+.2*expectedE(T);

@@ -22,6 +22,8 @@ from ugkp_particle_restart import (
     iter_restart_chunks,
     sha256,
     write_ugkp_restart,
+    CHT_MARKER,
+    input_metadata,
 )
 
 
@@ -295,6 +297,7 @@ def refine_restart(
     if not source.is_file():
         raise FileNotFoundError(source)
 
+    source_metadata = input_metadata(source)
     source_hash_before = sha256(source)
     before, source_ids, source_rng = scan_restart(source, legacy_parcel_mass)
     missing = sorted(cells - set(before.counts))
@@ -378,7 +381,8 @@ def refine_restart(
     _atomic_text(conservation_csv, "\n".join(csv_lines) + "\n")
 
     manifest: dict[str, object] = {
-        "format": "UGKP_PARTICLES_SCHEMA1_BIN",
+        "format": CHT_MARKER,
+        **source_metadata,
         "source": str(source),
         "source_sha256": source_hash_before,
         "output": str(output),
@@ -416,10 +420,6 @@ def main() -> None:
     parser.add_argument("--capacity-reserve-fraction", type=float, default=0.05)
     parser.add_argument("--capacity-reserve-minimum", type=int, default=100000)
     parser.add_argument("--tolerance", type=float, default=5.0e-13)
-    parser.add_argument(
-        "--output-schema", type=int,
-        help="FSH output schema when the source is UGKP_FSH_PARTICLES (default: preserve input)",
-    )
     args = parser.parse_args()
     with args.source.open("rb") as stream:
         source_header = stream.readline().decode("ascii", errors="replace").split()
@@ -441,12 +441,9 @@ def main() -> None:
             args.capacity_reserve_fraction,
             args.capacity_reserve_minimum,
             args.tolerance,
-            args.output_schema,
         )
         print(json.dumps(manifest, sort_keys=True))
         return
-    if args.output_schema is not None:
-        raise ValueError("--output-schema is only valid for UGKP_FSH_PARTICLES input")
     manifest = refine_restart(
         args.source,
         args.output,

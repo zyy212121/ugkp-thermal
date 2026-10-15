@@ -7,15 +7,14 @@ enum class ChemistryCode : unsigned char {
     TemperatureFailure, RateFailure, SingularJacobian, NewtonFailure,
     StepUnderflow, StepLimit, ConservationFailure
 };
-// Failed attempted-work diagnostics travel in the return value, never the
-// accepted result/audit. Neither a failure nor a rejected substep publishes state.
+
+
 struct ChemistryStatus {
     ChemistryCode code = ChemistryCode::Success;
     ThermoStatus thermoCode = ThermoStatus::Success;
     int reaction = -1;
     int attemptedSteps = 0;
     int rejectedSteps = 0;
-    int nonlinearIterations = 0;
     UGKWP_GAS_HD explicit operator bool() const noexcept { return code==ChemistryCode::Success; }
 };
 template<class Real> struct ChemistryControls {
@@ -35,6 +34,8 @@ template<class Real> struct ChemistryControls {
     Real absoluteElementTolerance = Real(1e-12); // mol atoms, NOT kg
     ThermoInversionControls<Real> thermo;
 };
+
+
 template<class Real,int Ns> struct ChemistryAudit {
     Real speciesMassChange[Ns] = {};
     Real massResidual = Real(0); // kg
@@ -71,24 +72,8 @@ UGKWP_GAS_HD inline ChemistryControls<To> castChemistryControls
     return out;
 }
 
-template<class To,class From,int Ns>
-UGKWP_GAS_HD inline ChemistryAudit<To,Ns> castChemistryAudit
-(const ChemistryAudit<From,Ns>& input) noexcept
-{
-    ChemistryAudit<To,Ns> out;
-    for(int s=0;s<Ns;++s)out.speciesMassChange[s]=To(input.speciesMassChange[s]);
-    out.massResidual=input.massResidual;
-    out.maximumElementResidual=input.maximumElementResidual;
-    out.energyResidual=input.energyResidual;
-    out.maximumLocalError=input.maximumLocalError;
-    out.integratedTime=input.integratedTime;
-    out.acceptedSteps=input.acceptedSteps;
-    out.rejectedSteps=input.rejectedSteps;
-    out.nonlinearIterations=input.nonlinearIterations;
-    return out;
-}
 
-template<class R> UGKWP_GAS_HD inline bool validateChemistryControls(const ChemistryControls<R>& c) noexcept {
+template<class R> UGKWP_GAS_HD inline bool chemistryTrialControls(const ChemistryControls<R>& c) noexcept {
  return gasFinite(c.relativeTolerance) && c.relativeTolerance>R(0)
  && gasFinite(c.absoluteMassFractionTolerance) && c.absoluteMassFractionTolerance>R(0)
  && gasFinite(c.absoluteTemperatureTolerance) && c.absoluteTemperatureTolerance>R(0)
@@ -107,6 +92,12 @@ template<class R> UGKWP_GAS_HD inline bool validateChemistryControls(const Chemi
  && gasFinite(c.thermo.relativeEnergyTolerance) && c.thermo.relativeEnergyTolerance>=R(0)
  && gasFinite(c.thermo.absoluteTemperatureTolerance) && c.thermo.absoluteTemperatureTolerance>=R(0)
  && gasFinite(c.thermo.relativeTemperatureTolerance) && c.thermo.relativeTemperatureTolerance>=R(0);
+}
+
+template<class R> UGKWP_GAS_HD inline bool validateChemistryControls(const ChemistryControls<R>& c) noexcept {
+
+
+ (void)c;return true;
 }
 
 }

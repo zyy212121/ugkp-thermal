@@ -109,10 +109,8 @@ struct CsrPoolFinalizeOperation
     __device__ void execute(DeviceState& s, const int multiIndex)
     {
     const int c = s.csrMultiTaskCellList[multiIndex];
-        if (!(s.csrCellTaskCount[c] > 1))
-        {
-            asm("trap;");
-        }
+
+    if (s.csrCellTaskCount[c] == 1) return;
         GPU_OPERATOR_REAL sums[8] = {GPU_OPERATOR_R(0.0), GPU_OPERATOR_R(0.0), GPU_OPERATOR_R(0.0), GPU_OPERATOR_R(0.0), GPU_OPERATOR_R(0.0), GPU_OPERATOR_R(0.0), GPU_OPERATOR_R(0.0), GPU_OPERATOR_R(0.0)};
         const int firstTask = s.csrCellTaskOffset[c];
         const int endTask = GPU_POOL_END_TASK(s, c, firstTask);

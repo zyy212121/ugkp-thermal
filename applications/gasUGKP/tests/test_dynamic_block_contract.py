@@ -1,15 +1,23 @@
 from __future__ import annotations
+from source_contract_utils import read_source, function_block
+
 
 import re
 import unittest
 from pathlib import Path
 
 
+try:
+    from .host_contract_probes import create_payload_size
+except ImportError:
+    from host_contract_probes import create_payload_size
+
+
 ROOT = Path(__file__).resolve().parents[1]
 
 
 def read(relative: str) -> str:
-    return (ROOT / relative).read_text(encoding="utf-8")
+    return read_source(ROOT / relative)
 
 
 class UGKPIdentityContract(unittest.TestCase):
@@ -47,7 +55,7 @@ class UGKPBlockConfigurationContract(unittest.TestCase):
         for text in (api, protocol, client, server, cuda):
             self.assertIn("particleBlockThreads", text)
             self.assertIn("reductionBlockThreads", text)
-        self.assertIn("sizeof(CreateArgs) == 392", protocol)
+        self.assertEqual(create_payload_size(), 392)
         self.assertIn("s->particleBlockThreads = particleBlockThreads", cuda)
         self.assertIn("s->reductionBlockThreads = reductionBlockThreads", cuda)
 
@@ -65,7 +73,10 @@ class UGKPBlockConfigurationContract(unittest.TestCase):
         self.assertIn("cudaOccupancyMaxActiveBlocksPerMultiprocessor", cuda)
         self.assertIn("cudaDevAttrMaxThreadsPerBlock", cuda)
         self.assertIn("cudaDevAttrMaxBlocksPerMultiprocessor", cuda)
-        self.assertIn("s->multiprocessorCount*s->particleBlocksPerSm", cuda)
+        occupancy = function_block(cuda, "configureParticleLaunchGeometry")
+        grid = function_block(cuda, "setParticleWorkGridFromResidency")
+        self.assertIn("setParticleWorkGridFromResidency(s, s->particleBlocksPerSm)", occupancy)
+        self.assertIn("s->multiprocessorCount*residentBlocks", grid)
         self.assertIn("s->multiprocessorCount*s->heavyBlocksPerSm", cuda)
 
 
@@ -94,7 +105,9 @@ class UGKPHeavyContract(unittest.TestCase):
         self.assertIn("s.lightBlocksPerSm", cuda)
         self.assertIn("s.preBaseCellOffset[s.nCells]", cuda)
         self.assertIn("s.cellParticleOffset[s.nCells]", cuda)
-        self.assertIn("baseCount + injectionCount <= s.csrHeavyCellThreshold", cuda)
+        tasks = function_block(cuda, "countCsrReductionTasksKernel")
+        self.assertIn("const int totalCount = baseCount + injectionCount;", tasks)
+        self.assertIn("totalCount > 0 ? 1 + (totalCount - 1)/tile : 0", tasks)
         self.assertIn("s.csrHeavyTileParticles = static_cast<int>(threshold)", cuda)
         self.assertIn("s->nBoundarySources == 0", cuda)
 

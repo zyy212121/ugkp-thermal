@@ -6,7 +6,8 @@ template<class GasState>
 __global__ void computeGasPrimitiveGradientsKernel
 (
     GasState* sp,
-    const bool refreshSstCourantSensor = false
+    const bool refreshSstCourantSensor = false,
+    const bool nativeRefinement=false
 )
 {
     GasState& s = *sp;
@@ -23,7 +24,7 @@ __global__ void computeGasPrimitiveGradientsKernel
     GPU_OPERATOR_REAL gpx = GPU_OPERATOR_R(0.0), gpy = GPU_OPERATOR_R(0.0), gpz = GPU_OPERATOR_R(0.0);
     GPU_OPERATOR_REAL gtx = GPU_OPERATOR_R(0.0), gty = GPU_OPERATOR_R(0.0), gtz = GPU_OPERATOR_R(0.0);
     const bool refreshSensor = refreshSstCourantSensor
-      && s.sstConfigured != 0 && s.gasFluxScheme == 7;
+      && s.sstConfigured != 0 && s.gasFluxScheme == 7 && !ugkwp::mixtureGasActive(s);
     const GPU_OPERATOR_REAL centrePressure = refreshSensor
       ? clampMin(s.p[c], OfSmall) : GPU_OPERATOR_R(1.0);
     GPU_OPERATOR_REAL sensor = GPU_OPERATOR_R(1.0);
@@ -61,7 +62,7 @@ __global__ void computeGasPrimitiveGradientsKernel
                 );
                 otherPressure = clampMin
                 (
-                    riemannBoundaryState(s, f, centre).p, OfSmall
+                    riemannBoundaryState(s, f, centre,nullptr,nativeRefinement).p, OfSmall
                 );
             }
             const GPU_OPERATOR_REAL ratio = clampRange
@@ -76,7 +77,7 @@ __global__ void computeGasPrimitiveGradientsKernel
         const GPU_OPERATOR_REAL sy = sign*s.Sfy[f];
         const GPU_OPERATOR_REAL sz = sign*s.Sfz[f];
         const GasPrimDevice qf =
-            riemannFacePrimitiveForGradient(s, c, f);
+            riemannFacePrimitiveForGradient(s, c, f,nativeRefinement);
         grx += qf.rho*sx; gry += qf.rho*sy; grz += qf.rho*sz;
         guxx += qf.ux*sx; guxy += qf.ux*sy; guxz += qf.ux*sz;
         guyx += qf.uy*sx; guyy += qf.uy*sy; guyz += qf.uy*sz;
@@ -261,7 +262,7 @@ __device__ GPU_OPERATOR_REAL sstPredictorMassFlux(const GasState& s, const int f
 }
 
 template<class GasState>
-__device__ void applySstWallFunctionStateCell(GasState& s, const int c, const bool allowUnprepared=false)
+__device__ void applySstWallFunctionStateCell(GasState& s, const int c, const bool allowUnprepared=false, const bool nativeRefinement=false)
 {
     if
     (
@@ -272,7 +273,6 @@ __device__ void applySstWallFunctionStateCell(GasState& s, const int c, const bo
         return;
     }
 
-    const GPU_OPERATOR_REAL beforeK=s.rhoK[c],beforeOmega=s.rhoOmega[c];
     if constexpr(ugkwp::GasBoundaryLayerCapability<GasState>::value)
     {
         const int slot=ugkwp::gasBoundaryLayerOwnerSlot(s,c);
@@ -281,11 +281,13 @@ __device__ void applySstWallFunctionStateCell(GasState& s, const int c, const bo
             if(!ugkwp::gasBoundaryLayerSlotReady(s,slot))
             {if(allowUnprepared)return;if(!ugkwp::gasRecordCellFailure(s,c,ugkwp::GasTransportCode::InvalidStorage))asm("trap;");return;}
             const GPU_OPERATOR_REAL target=s.gasBoundaryLayer.sst[slot].ownerOmega;
-            if(!finiteDevice(target) || !(target>GPU_OPERATOR_R(0.0)))
-            {if(!ugkwp::gasRecordCellFailure(s,c,ugkwp::GasTransportCode::NonFiniteState))asm("trap;");return;}
+            if(!finiteDevice(target) || (nativeRefinement && !(target>GPU_OPERATOR_R(0))))
+            {
+                const bool recorded=ugkwp::gasRecordCellFailure(s,c,ugkwp::GasTransportCode::NonFiniteState);
+                if(nativeRefinement){if(!recorded)asm("trap;");return;}
+            }
             s.omega[c]=clampMin(target,s.sstOmegaMin);
             s.rhoOmega[c]=clampMin(s.rho[c],s.rhoMin)*s.omega[c];
-            ugkwp::gasSstAuditConstraint(s,c,beforeK,beforeOmega);
             return;
         }
     }
@@ -318,20 +320,19 @@ __device__ void applySstWallFunctionStateCell(GasState& s, const int c, const bo
         s.omega[c] = omegaTarget;
         s.rhoOmega[c] = rhoSafe*omegaTarget;
     }
-    ugkwp::gasSstAuditConstraint(s,c,beforeK,beforeOmega);
 }
 
 template<class GasState>
-__global__ void applySstWallFunctionStateKernel(GasState* sp, const bool allowUnprepared=false)
+__global__ void applySstWallFunctionStateKernel(GasState* sp, const bool allowUnprepared=false, const bool nativeRefinement=false)
 {
     applySstWallFunctionStateCell
     (
-        *sp, blockIdx.x*blockDim.x + threadIdx.x, allowUnprepared
+        *sp, blockIdx.x*blockDim.x + threadIdx.x, allowUnprepared,nativeRefinement
     );
 }
 
 template<class GasState>
-__global__ void initialiseSstConservativeStateKernel(GasState* sp)
+__global__ void initialiseSstConservativeStateKernel(GasState* sp, bool initializeInventory=true)
 {
     GasState& s = *sp;
     const int c = blockIdx.x*blockDim.x + threadIdx.x;
@@ -347,7 +348,7 @@ __global__ void initialiseSstConservativeStateKernel(GasState* sp)
             s.sstWallE
         );
     }
-    if (c >= s.nCells || s.sstConfigured == 0)
+    if (!initializeInventory || c >= s.nCells || s.sstConfigured == 0)
     {
         return;
     }
@@ -365,13 +366,12 @@ __global__ void initialiseSstConservativeStateKernel(GasState* sp)
 }
 
 template<class GasState>
-__device__ void recoverSstPrimitiveCell(GasState& s, const int c)
+__device__ void recoverSstPrimitiveCell(GasState& s, const int c, const bool nativeRefinement=false)
 {
     if (c >= s.nCells || s.sstConfigured == 0)
     {
         return;
     }
-    const GPU_OPERATOR_REAL beforeK=s.rhoK[c],beforeOmega=s.rhoOmega[c];
     const GPU_OPERATOR_REAL rhoSafe = clampMin(s.rho[c], s.rhoMin);
     const GPU_OPERATOR_REAL rhoKFloor = rhoSafe*s.sstKMin;
     const GPU_OPERATOR_REAL rhoOmegaFloor = rhoSafe*s.sstOmegaMin;
@@ -380,7 +380,6 @@ __device__ void recoverSstPrimitiveCell(GasState& s, const int c)
         clampMin(finiteOr(s.rhoOmega[c], rhoOmegaFloor), rhoOmegaFloor);
     s.k[c] = s.rhoK[c]/rhoSafe;
     s.omega[c] = s.rhoOmega[c]/rhoSafe;
-    ugkwp::gasSstAuditConstraint(s,c,beforeK,beforeOmega);
     if (s.sstWallTreatment == 0 || s.sstWallTreatment == 1
         || (s.sstWallTreatment == 2 && (ugkwp::gasBoundaryLayerOwnerSlot(s,c)<0
             || ugkwp::gasBoundaryLayerSlotReady(s,ugkwp::gasBoundaryLayerOwnerSlot(s,c)))))
@@ -389,12 +388,12 @@ __device__ void recoverSstPrimitiveCell(GasState& s, const int c)
         // blends. Refresh the target from recovered k and the current gas state
         // (including wall viscosity); do not freeze k or the gas equations.
         // This is an explicit stage constraint, not an implicit OF10 solve.
-        applySstWallFunctionStateCell(s, c);
+        applySstWallFunctionStateCell(s, c,false,nativeRefinement);
     }
 }
 
 template<class GasState>
-__global__ void recoverSstPrimitivesKernel(GasState* sp)
+__global__ void recoverSstPrimitivesKernel(GasState* sp, const bool nativeRefinement=false)
 {
-    recoverSstPrimitiveCell(*sp, blockIdx.x*blockDim.x + threadIdx.x);
+    recoverSstPrimitiveCell(*sp, blockIdx.x*blockDim.x + threadIdx.x,nativeRefinement);
 }

@@ -140,28 +140,18 @@ int main()
     require(zero.scale == scalar(1) && zero.residualJ == scalar(0),
         "zero transaction must retain unit scale");
 
-    requireFailure
+    const auto negativeScale = conservativeBoundaryEnergyScale
     (
-        []()
-        {
-            conservativeBoundaryEnergyScale
-            (
-                scalar(60), scalar(100), scalar(160), scalar(1e-12)
-            );
-        },
-        "negative boundary scale must be rejected"
+        scalar(60), scalar(100), scalar(160), scalar(1e-12)
     );
-    requireFailure
+    require(near(negativeScale.scale, scalar(-0.6), scalar(1e-14)),
+        "finite negative boundary scale must follow the actual division");
+    const auto amplifyingScale = conservativeBoundaryEnergyScale
     (
-        []()
-        {
-            conservativeBoundaryEnergyScale
-            (
-                scalar(-120), scalar(100), scalar(220), scalar(1e-12)
-            );
-        },
-        "boundary-energy amplification must be rejected"
+        scalar(-120), scalar(100), scalar(220), scalar(1e-12)
     );
+    require(near(amplifyingScale.scale, scalar(1.2), scalar(1e-14)),
+        "finite amplifying boundary scale must follow the actual division");
     requireFailure
     (
         []()

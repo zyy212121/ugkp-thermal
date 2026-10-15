@@ -118,10 +118,8 @@ __device__ void trackOneParticleLocalFaceWalk(DeviceState& s, const int i, const
             const int globalFaceId = s.cellFaceId[plane];
             if
             (
-                s.particleStuckModelConfigured == 0
-             || globalFaceId < 0
+                globalFaceId < 0
              || globalFaceId >= s.nFaces
-             || s.particleStuckCandidateMask[globalFaceId] == 0
             )
             {
                 asm("trap;");
@@ -146,10 +144,7 @@ __device__ void trackOneParticleLocalFaceWalk(DeviceState& s, const int i, const
                     s.pd[i],
                     s.sommerfeldThreshold
                 );
-            if (!impact.valid)
-            {
-                asm("trap;");
-            }
+
             const Foam::gpuThermal::FiniteWallContactImpact finiteImpact =
                 Foam::gpuThermal::evaluateFiniteWallContactImpact
                 (
@@ -158,16 +153,10 @@ __device__ void trackOneParticleLocalFaceWalk(DeviceState& s, const int i, const
                     normalSpeed,
                     s.particleWallContactAngleCosine
                 );
-            if
-            (
-                !finiteImpact.valid
-             || finiteImpact.contactDurationS > static_cast<GPU_OPERATOR_REAL>(FLT_MAX)
-             || finiteImpact.maximumAreaM2 > static_cast<GPU_OPERATOR_REAL>(FLT_MAX)
-             || finiteImpact.peakTimeFraction > static_cast<GPU_OPERATOR_REAL>(FLT_MAX)
-            )
-            {
-                asm("trap;");
-            }
+            const auto contactDuration = GPU_CONTACT_DURATION(finiteImpact.contactDurationS);
+            const double contactMaximumArea = finiteImpact.maximumAreaM2;
+            const auto contactPeakFraction = GPU_CONTACT_PEAK(finiteImpact.peakTimeFraction);
+
             const GPU_OPERATOR_REAL eps = GPU_OPERATOR_R(1.0e-9)*clampMin(s.cellLength[c], GPU_OPERATOR_R(1.0e-12));
             x = GPU_WALL_COORDINATE(xHit, eps, nx);
             y = GPU_WALL_COORDINATE(yHit, eps, ny);
@@ -194,11 +183,11 @@ __device__ void trackOneParticleLocalFaceWalk(DeviceState& s, const int i, const
             GPU_RESET_CONTACT_AGE(s, i)
             s.pDepositionArea[i] = 0.0f;
             s.pContactDuration[i] =
-                GPU_CONTACT_DURATION(finiteImpact.contactDurationS);
+                contactDuration;
             s.pContactMaximumArea[i] =
-                static_cast<float>(finiteImpact.maximumAreaM2);
+                contactMaximumArea;
             s.pContactPeakFraction[i] =
-                GPU_CONTACT_PEAK(finiteImpact.peakTimeFraction);
+                contactPeakFraction;
             if
             (
                 wallInteractionType

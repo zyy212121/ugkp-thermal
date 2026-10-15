@@ -1,15 +1,22 @@
 #!/usr/bin/env python3
                                                                      
 
+from source_contract_utils import read_source
 from pathlib import Path
 import unittest
+
+
+try:
+    from .host_contract_probes import scheduling_rows
+except ImportError:
+    from host_contract_probes import scheduling_rows
 
 
 ROOT = Path(__file__).resolve().parents[1]
 
 
 def source(relative: str) -> str:
-    return (ROOT / relative).read_text(encoding="utf-8", errors="strict")
+    return read_source(ROOT / relative)
 
 
 class ParticleCellPathRuntimeContract(unittest.TestCase):
@@ -48,19 +55,13 @@ class ParticleCellPathRuntimeContract(unittest.TestCase):
             "value.warpAggregatedBinning = value.csrLevel != GpuCsrLevel::L0",
             shared,
         )
-        for text in (client, server, cuda):
-            self.assertRegex(
-                text,
-                r"!\s*(?:a\.)?csrCellLocalPathEnabled[\s\S]{0,160}"
-                r"csrHeavyReductionMode[\s\S]{0,160}"
-                r"csrWarpAggregatedBinning",
-            )
+        self.assertEqual(scheduling_rows(), [(0,0,0,0,0,128,128),(1,1,0,1,1,128,128),(2,1,1,1,1,128,128),(3,1,2,1,1,128,128),(0,0,0,0,0,128,128)])
 
     def test_both_execution_paths_are_present(self) -> None:
         cuda = source("private_backend/GpuResidentStrict.cu")
         for symbol in (
-            "applyCollisionalPressureProjectionCellAtomicKernel",
-            "applyCollisionalPressureProjectionParticlesAtomicKernel",
+            "preparePressureProjectionCacheKernel",
+            "applyCachedPressureProjectionParticlesKernel",
             "accumulateParticlePoolAtomicKernel",
             "clearParticleMomentsAndCountsAtomicKernel",
             "accumulateParticleMomentsAtomicKernel",
@@ -77,7 +78,7 @@ class ParticleCellPathRuntimeContract(unittest.TestCase):
         )
         self.assertIn("binParticlesByCell", cuda)
         self.assertIn("accumulateParticleMomentsSegmentedKernel", cuda)
-        self.assertIn("gatherCellLocalParticlesKernel", cuda)
+        self.assertIn("gatherCellLocalParticlePayloadKernel", cuda)
 
     def test_runtime_banner_identifies_the_selected_path(self) -> None:
         wrapper = source("gpu/GpuResidentStrict.H")

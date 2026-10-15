@@ -440,17 +440,14 @@ UGKP_GKS_HD bool solveFiveByFive
 )
 {
     double augmented[5][6];
-    double scale = 0.0;
     for (int i = 0; i < 5; ++i)
     {
         for (int j = 0; j < 5; ++j)
         {
             augmented[i][j] = matrix[i][j];
-            scale = maximum(scale, absolute(matrix[i][j]));
         }
         augmented[i][5] = rhs[i];
     }
-    const double pivotFloor = maximum(scale*1.0e-14, 1.0e-300);
 
     for (int column = 0; column < 5; ++column)
     {
@@ -465,7 +462,7 @@ UGKP_GKS_HD bool solveFiveByFive
                 pivotMagnitude = candidate;
             }
         }
-        if (!finiteValue(pivotMagnitude) || pivotMagnitude <= pivotFloor)
+        if (!finiteValue(pivotMagnitude) || pivotMagnitude == 0.0)
         {
             return false;
         }
@@ -529,7 +526,7 @@ UGKP_GKS_HD bool solveMomentCoefficients
     for (int i = 0; i < 5; ++i)
     {
         const double diagonal = absolute(matrix[i][i]);
-        if (!finiteValue(diagonal) || diagonal <= 1.0e-300)
+        if (!finiteValue(diagonal) || diagonal == 0.0)
         {
             return false;
         }
@@ -667,9 +664,9 @@ UGKP_GKS_HD bool primitiveFromConservative
 {
     if
     (
-        !finiteValue(conservative[0]) || conservative[0] <= 0.0
-     || !finiteValue(gamma) || gamma <= 1.0
-     || !finiteValue(gasConstant) || gasConstant <= 0.0
+        !finiteValue(conservative[0]) || conservative[0] == 0.0
+     || !finiteValue(gamma)
+     || !finiteValue(gasConstant) || gasConstant == 0.0
     )
     {
         return false;
@@ -686,7 +683,7 @@ UGKP_GKS_HD bool primitiveFromConservative
     return
         finiteValue(state.u) && finiteValue(state.v)
      && finiteValue(state.w) && finiteValue(state.p)
-     && finiteValue(state.T) && state.p > 0.0 && state.T > 0.0;
+     && finiteValue(state.T);
 }
 
 UGKP_GKS_HD bool analyticMomentCoefficients
@@ -699,8 +696,7 @@ UGKP_GKS_HD bool analyticMomentCoefficients
 {
     if
     (
-        state.rho <= 0.0 || state.p <= 0.0
-     || gamma <= 1.0 || gamma > 5.0/3.0 + 1.0e-12
+        state.rho == 0.0 || state.p == 0.0 || gamma == 1.0
     )
     {
         return false;
@@ -860,11 +856,11 @@ UGKP_GKS_ENTRY FullGksResult fullSecondOrderFlux
 
     if
     (
-        left.rho <= 0.0 || right.rho <= 0.0
-     || left.p <= 0.0 || right.p <= 0.0
-     || gamma <= 1.0 || gamma > 5.0/3.0 + 1.0e-12
-     || gasConstant <= 0.0 || molecularViscosity < 0.0
-     || prandtl <= 0.0 || dt <= 0.0 || numericalDissipationTau < 0.0
+        left.rho == 0.0 || right.rho == 0.0
+     || left.p == 0.0 || right.p == 0.0
+     || gamma == 1.0
+     || gasConstant == 0.0
+     || prandtl == 0.0
     )
     {
         return result;
@@ -1157,6 +1153,7 @@ UGKP_GKS_ENTRY bool accumulateGksSide
     for (int component = 0; component < 5; ++component)
     {
         accumulation.interfaceConservative[component] += values[component];
+        if (!finiteValue(accumulation.interfaceConservative[component])) return false;
     }
 
     for (int direction = 0; direction < 3; ++direction)
@@ -1169,6 +1166,7 @@ UGKP_GKS_ENTRY bool accumulateGksSide
         {
             accumulation.interfaceDerivative[direction][component]
               += values[component];
+            if (!finiteValue(accumulation.interfaceDerivative[direction][component])) return false;
         }
     }
 
@@ -1176,16 +1174,19 @@ UGKP_GKS_ENTRY bool accumulateGksSide
     for (int component = 0; component < 5; ++component)
     {
         accumulation.freeFlux[component] += values[component];
+        if (!finiteValue(accumulation.freeFlux[component])) return false;
     }
     fixedCoefficientMoment<1, 0, 0>(half, temporal, values);
     for (int component = 0; component < 5; ++component)
     {
         accumulation.freeTemporalFlux[component] += values[component];
+        if (!finiteValue(accumulation.freeTemporalFlux[component])) return false;
     }
     fixedSpatialCoefficientMoment<true>(half, spatial, values);
     for (int component = 0; component < 5; ++component)
     {
         accumulation.freeSpatialFlux[component] += values[component];
+        if (!finiteValue(accumulation.freeSpatialFlux[component])) return false;
     }
     return true;
 }
@@ -1211,9 +1212,9 @@ UGKP_GKS_ENTRY FullGksResult finalizeGksFlux
     }
     if
     (
-        gamma <= 1.0 || gamma > 5.0/3.0 + 1.0e-12
-     || gasConstant <= 0.0 || molecularViscosity < 0.0
-     || prandtl <= 0.0 || dt <= 0.0 || numericalDissipationTau < 0.0
+        gamma == 1.0
+     || gasConstant == 0.0
+     || prandtl == 0.0
     )
     {
         return result;
@@ -1353,11 +1354,11 @@ UGKP_GKS_ENTRY FullGksResult fullSecondOrderFluxStaged
     }
     if
     (
-        left.rho <= 0.0 || right.rho <= 0.0
-     || left.p <= 0.0 || right.p <= 0.0
-     || gamma <= 1.0 || gamma > 5.0/3.0 + 1.0e-12
-     || gasConstant <= 0.0 || molecularViscosity < 0.0
-     || prandtl <= 0.0 || dt <= 0.0 || numericalDissipationTau < 0.0
+        left.rho == 0.0 || right.rho == 0.0
+     || left.p == 0.0 || right.p == 0.0
+     || gamma == 1.0
+     || gasConstant == 0.0
+     || prandtl == 0.0
     )
     {
         return result;

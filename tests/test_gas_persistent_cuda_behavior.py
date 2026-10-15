@@ -11,6 +11,6 @@ def test_gas_nonempty_queue_reuse_and_exact_coverage(tmp_path):
     if not Path(smi).is_file() or subprocess.run([smi, '-L'], capture_output=True).returncode:
         pytest.skip('CUDA GPU required')
     q = subprocess.run(['python3', str(ROOT / 'tests/fixtures/shared_operators/collision_behavior.py'),
-                        str(ROOT), str(tmp_path), 'gasUGKP', '64'], capture_output=True, text=True, timeout=240)
+                        str(ROOT), str(tmp_path), 'gasUGKP'], capture_output=True, text=True, timeout=240)
     assert q.returncode == 0, q.stdout + q.stderr
     assert 'PASS collision pool CPU moments' in q.stdout

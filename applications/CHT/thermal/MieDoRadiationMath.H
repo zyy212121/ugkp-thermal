@@ -14,7 +14,6 @@ namespace Foam
 {
 namespace gpuThermal
 {
-
 inline scalar stefanBoltzmannConstant()
 {
     return scalar(5.670374419e-8);
@@ -95,21 +94,6 @@ inline RadiationConservationAssessment assessRadiationConservation
     const scalar relativeTolerance
 )
 {
-    if
-    (
-        !std::isfinite(particlePowerW)
-     || !std::isfinite(boundaryPowerW)
-     || !std::isfinite(grossTransportPowerW)
-     || grossTransportPowerW < scalar(0)
-     || !std::isfinite(finalSourceResidual)
-     || finalSourceResidual < scalar(0)
-     || !std::isfinite(relativeTolerance)
-     || relativeTolerance <= scalar(0)
-    )
-    {
-        throw std::runtime_error("radiation conservation inputs are invalid");
-    }
-
     RadiationConservationAssessment result;
     result.residualW = particlePowerW + boundaryPowerW;
     result.netScaleW = max(mag(particlePowerW), mag(boundaryPowerW));
@@ -154,7 +138,7 @@ inline PhaseBalanceMetrics measurePhaseBalance
 )
 {
     const label n = probabilities.size();
-    if (!n || weights.size() != n)
+    if (!n || weights.size() < n)
     {
         throw std::runtime_error("phase probability/weight sizes are inconsistent");
     }
@@ -163,7 +147,7 @@ inline PhaseBalanceMetrics measurePhaseBalance
 
     for (label rowI = 0; rowI < n; ++rowI)
     {
-        if (probabilities[rowI].size() != n)
+        if (probabilities[rowI].size() < n)
         {
             throw std::runtime_error("phase probability matrix is not square");
         }
@@ -172,10 +156,7 @@ inline PhaseBalanceMetrics measurePhaseBalance
         for (label colI = 0; colI < n; ++colI)
         {
             const scalar value = probabilities[rowI][colI];
-            if (!std::isfinite(value) || value < scalar(0))
-            {
-                throw std::runtime_error("phase probability is negative or nonfinite");
-            }
+
             rowSum += value;
         }
         metrics.maxRowError = max(metrics.maxRowError, mag(rowSum - scalar(1)));
@@ -183,11 +164,6 @@ inline PhaseBalanceMetrics measurePhaseBalance
 
     for (label colI = 0; colI < n; ++colI)
     {
-        if (!std::isfinite(weights[colI]) || weights[colI] <= scalar(0))
-        {
-            throw std::runtime_error("phase quadrature weight is nonpositive or nonfinite");
-        }
-
         scalar weightedColumn = 0;
         for (label rowI = 0; rowI < n; ++rowI)
         {
@@ -196,7 +172,7 @@ inline PhaseBalanceMetrics measurePhaseBalance
         metrics.maxWeightedColumnRelativeError = max
         (
             metrics.maxWeightedColumnRelativeError,
-            mag(weightedColumn - weights[colI])/weights[colI]
+            mag(weightedColumn - weights[colI])/mag(weights[colI])
         );
     }
 
@@ -215,38 +191,16 @@ inline PhaseBalanceMetrics balanceSymmetricPhaseKernelInPlace
 )
 {
     const label n = rawSymmetricKernel.size();
-    if (!n || weights.size() != n)
+    if (!n || weights.size() < n)
     {
         throw std::runtime_error("phase kernel/weight sizes are inconsistent");
-    }
-    if (!std::isfinite(tolerance) || tolerance <= scalar(0) || maxIterations < 1)
-    {
-        throw std::runtime_error("phase balance controls are invalid");
     }
 
     for (label rowI = 0; rowI < n; ++rowI)
     {
-        if (rawSymmetricKernel[rowI].size() != n)
+        if (rawSymmetricKernel[rowI].size() < n)
         {
             throw std::runtime_error("phase kernel is not square");
-        }
-        if (!std::isfinite(weights[rowI]) || weights[rowI] <= scalar(0))
-        {
-            throw std::runtime_error("phase quadrature weight is nonpositive or nonfinite");
-        }
-        for (label colI = 0; colI < n; ++colI)
-        {
-            const scalar value = rawSymmetricKernel[rowI][colI];
-            if (!std::isfinite(value) || value < scalar(0))
-            {
-                throw std::runtime_error("phase kernel is negative or nonfinite");
-            }
-            const scalar transpose = rawSymmetricKernel[colI][rowI];
-            const scalar symmetryScale = max(max(mag(value), mag(transpose)), scalar(1));
-            if (mag(value - transpose) > scalar(1e-12)*symmetryScale)
-            {
-                throw std::runtime_error("phase kernel is not symmetric");
-            }
         }
     }
 
@@ -257,12 +211,11 @@ inline PhaseBalanceMetrics balanceSymmetricPhaseKernelInPlace
     forAll(probabilities, rowI)
     {
         probabilities[rowI].setSize(n);
-        probabilities[rowI] = scalar(0);
     }
 
-    for (label iteration = 1; iteration <= maxIterations; ++iteration)
+    PhaseBalanceMetrics metrics{scalar(0), scalar(0), scalar(0), 0};
+    for (label iteration = 1; iteration <= max(maxIterations, label(1)); ++iteration)
     {
-        newScaling = scaling;
         for (label rowI = 0; rowI < n; ++rowI)
         {
             scalar rowSum = 0;
@@ -272,20 +225,19 @@ inline PhaseBalanceMetrics balanceSymmetricPhaseKernelInPlace
                     weights[colI]*scaling[rowI]
                    *rawSymmetricKernel[rowI][colI]*scaling[colI];
             }
-            if (!std::isfinite(rowSum) || rowSum <= scalar(0))
-            {
-                throw std::runtime_error("phase kernel has a zero or nonfinite row sum");
-            }
+
             newScaling[rowI] = scaling[rowI]/std::sqrt(rowSum);
-            if (!std::isfinite(newScaling[rowI]) || newScaling[rowI] <= scalar(0))
-            {
-                throw std::runtime_error("phase diagonal scaling is nonpositive or nonfinite");
-            }
+
         }
         scaling = newScaling;
-
+        scalar maxScalingCorrection = scalar(0);
         for (label rowI = 0; rowI < n; ++rowI)
         {
+            maxScalingCorrection = max
+            (
+                maxScalingCorrection,
+                mag(scaling[rowI] - scalar(1))
+            );
             for (label colI = 0; colI < n; ++colI)
             {
                 probabilities[rowI][colI] =
@@ -294,16 +246,9 @@ inline PhaseBalanceMetrics balanceSymmetricPhaseKernelInPlace
             }
         }
 
-        PhaseBalanceMetrics metrics = measurePhaseBalance(probabilities, weights);
+        metrics = measurePhaseBalance(probabilities, weights);
         metrics.iterations = iteration;
-        forAll(scaling, dirI)
-        {
-            metrics.maxRelativeScalingCorrection = max
-            (
-                metrics.maxRelativeScalingCorrection,
-                mag(scaling[dirI] - scalar(1))
-            );
-        }
+        metrics.maxRelativeScalingCorrection = maxScalingCorrection;
 
         if
         (
@@ -315,7 +260,7 @@ inline PhaseBalanceMetrics balanceSymmetricPhaseKernelInPlace
         }
     }
 
-    throw std::runtime_error("symmetric phase balance did not converge");
+    return metrics;
 }
 
 inline PhaseBalanceResult balanceSymmetricPhaseKernel

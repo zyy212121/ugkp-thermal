@@ -1,3 +1,4 @@
+from source_contract_utils import read_source, function_block
 import re
 import unittest
 from pathlib import Path
@@ -142,10 +143,10 @@ class MobilePackingProjectionMathTests(unittest.TestCase):
 class MobilePackingProjectionSourceContractTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        cls.source = CUDA_SOURCE.read_text(encoding="utf-8")
-        cls.header = MIRROR_HEADER.read_text(encoding="utf-8")
-        cls.packing_algebra = PACKING_ALGEBRA.read_text(encoding="utf-8")
-        cls.packing_cooperative = PACKING_COOPERATIVE.read_text(encoding="utf-8")
+        cls.source = read_source(CUDA_SOURCE)
+        cls.header = read_source(MIRROR_HEADER)
+        cls.packing_algebra = read_source(PACKING_ALGEBRA)
+        cls.packing_cooperative = read_source(PACKING_COOPERATIVE)
 
     def test_singular_jamming_equation_of_state_is_removed(self):
         self.assertNotIn("jammingPressureFromEpsilonDevice", self.source)
@@ -157,7 +158,10 @@ class MobilePackingProjectionSourceContractTests(unittest.TestCase):
         end = self.source.index("normalizeMobilePackingMomentsKernel", start)
         body = self.source[start:end]
         self.assertIn("s.pStatus[i] != 1", body)
-        self.assertNotIn("pStuck", body)
+        self.assertIn("#define GPU_OPERATOR_THERMAL 0", self.source)
+        thermal = re.search(r"#if GPU_OPERATOR_THERMAL\n[\s\S]*?#endif", body)
+        self.assertIsNotNone(thermal)
+        self.assertNotIn("pStuck", body[:thermal.start()]+body[thermal.end():])
         self.assertIn("continue;", body)
         self.assertIn("s.mobilePackingRho", body)
 
@@ -314,7 +318,9 @@ class MobilePackingProjectionSourceContractTests(unittest.TestCase):
         start = self.source.index("int applyCollisionalPressureKick")
         end = self.source.index("int applyMobilePackingProjection", start)
         body = self.source[start:end]
-        self.assertIn("if (!s->collisionalPressureEnabled)", body)
+        self.assertIn("launchCommonPressureKick<AnalyticPressureLaunch>", body)
+        body = function_block(self.source, "launchCommonPressureKick")
+        self.assertIn("if(!s->collisionalPressureEnabled)", body)
         self.assertNotIn("jammingPressureEnabled", body)
 
     def test_frontend_keeps_controls_without_unsolicited_startup_report(self):
@@ -324,7 +330,7 @@ class MobilePackingProjectionSourceContractTests(unittest.TestCase):
         self.assertNotIn("legacy jamming-pressure entries are ignored", self.header)
 
     def test_protocol_minor_marks_semantic_change(self):
-        protocol = PROTOCOL_HEADER.read_text(encoding="utf-8")
+        protocol = read_source(PROTOCOL_HEADER)
         self.assertIn("protocolMinor = 0", protocol)
 
 

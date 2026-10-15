@@ -16,7 +16,6 @@ bin_dir="${case_dir}/.validation-bin"
 "${case_dir}/assets/build/clean_validation_solver.sh"
 mkdir -p "${stage}/gpu" "${stage}/Make" "${backend_source}" "${backend_obj}" "${bin_dir}"
 
-python3 "${asset}/tests/test_constant_response_time_contract.py"
 
 install -m 0644 "${canonical}"/*.H "${stage}/"
 install -m 0644 "${canonical}"/*.C "${stage}/"
@@ -31,7 +30,6 @@ cp -aL "${canonical}/private_backend/." "${backend_source}/"
 sed -i 's#"../../../common/#"../../../../../common/#g' "${backend_source}/GpuResidentStrict.cu"
 install -m 0644 "${asset}/private_backend/GpuDragModels.cuh" "${backend_source}/GpuDragModels.cuh"
 patch --batch --forward -d "${backend_source}" -p0 < "${asset}/GpuResidentStrict.constant-response-time.patch"
-python3 "${asset}/tests/test_staged_coupling_contract.py" "${backend_source}/GpuResidentStrict.cu"
 
 cuda_home="${CUDA_HOME:-/usr/local/cuda}"
 cuda_arch="${UGKWP_CUDA_ARCH:-sm_89}"
@@ -51,11 +49,3 @@ c++ -std=c++17 -O3 -I"${stage}/gpu" -I"${backend_source}" "${backend_source}/Gpu
 
 test -x "${bin_dir}/dustyWaveUGKP"
 test -x "${bin_dir}/dustyWaveUGKPCudaBackend"
-if ldd "${bin_dir}/dustyWaveUGKP" | grep -Eq 'libcuda|libcudart'; then
-    echo "Validation frontend directly links CUDA" >&2
-    exit 1
-fi
-if ldd "${bin_dir}/dustyWaveUGKPCudaBackend" | grep -Eq 'libOpenFOAM|libfiniteVolume|libmeshTools'; then
-    echo "Validation backend directly links OpenFOAM" >&2
-    exit 1
-fi

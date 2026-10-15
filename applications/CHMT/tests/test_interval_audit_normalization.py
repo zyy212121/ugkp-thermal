@@ -6,7 +6,7 @@ import pytest
 
 APP = Path(__file__).resolve().parents[1]
 SOURCE = r'''
-#include "coupling/IntervalAudit.H"
+#include "verification/multirate/InventoryAudit.H"
 #include <iomanip>
 #include <iostream>
 #include <stdexcept>

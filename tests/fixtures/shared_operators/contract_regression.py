@@ -78,7 +78,7 @@ class Contracts(unittest.TestCase):
             result = run(tool, '--root', copied, '--cpu', '--output', out / 'wrong-wire-order')
             self.assertNotEqual(result.returncode, 0, result.stdout)
             # Even changing the metadata and regenerating both sides cannot silently
-            # change schema7. The real codec must still match the frozen binary golden.
+
             import json
             metadata = copied / 'common/ParticleFieldManifest.json'
             manifest = json.loads(metadata.read_text())
@@ -90,15 +90,15 @@ class Contracts(unittest.TestCase):
             self.assertEqual(generated.returncode, 0, generated.stdout + generated.stderr)
             result = run(tool, '--root', copied, '--cpu', '--output', out / 'mutated-wire-schema')
             self.assertNotEqual(result.returncode, 0, result.stdout)
-            self.assertIn('schema7 binary golden mismatch', result.stdout + result.stderr)
+            self.assertIn('current particle binary golden mismatch', result.stdout + result.stderr)
 
     def test_contact_fixture_can_reuse_output(self):
         script = ROOT / 'tests/fixtures/shared_operators/contact_age_theta.py'
         with tempfile.TemporaryDirectory(prefix='age-contract-') as tmp:
             out = Path(tmp) / 'fixture'
-            for app, bits in [('FSH',64),('CHT',32),('CHT',64)]:
+            for app in ['FSH', 'CHT']:
                 for _ in range(2):
-                    result = run(script, ROOT, out / (app+str(bits)), app, bits, '--prepare-only')
+                    result = run(script, ROOT, out / (app+str(64)), app, '--prepare-only')
                     self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
 
 

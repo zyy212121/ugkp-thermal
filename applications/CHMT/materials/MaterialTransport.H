@@ -6,24 +6,30 @@ namespace chmt {
 struct MaterialTransportResult {
     std::vector<SolidQ> rates,faceFlux;
     std::vector<Vec3> poreVelocity;
-    Real dtLimit=std::numeric_limits<Real>::max(),bodyPower=0;
+    Real dtLimit=std::numeric_limits<Real>::max();
 };
 bool filmThicknessFromMass(Real mass,Real area,Real density,Real& thickness);
 bool filmSweepsCompatible(Real oldMass,Real newMass,Real density,Real gasOutwardSweep,Real solidOutwardSweep,Real sideSweep,const Tolerances&);
-bool applyMaterialPacketBatch(const std::vector<SolidQ>&,const std::vector<ExchangePacket>&,std::vector<SolidQ>&,Real& numericalMassRoundoff,std::string&);
+bool applyMaterialPacketBatch(const std::vector<SolidQ>&,const std::vector<ExchangePacket>&,std::vector<SolidQ>&,std::string&,bool* numericalFailure=nullptr);
 bool materialPointsClose(const HostMesh&,const std::vector<Vec3>&,const Tolerances&);
 bool materialSweepsCompatible(const HostMesh&,const SurfaceMesh&,const std::vector<Real>& targets,const std::vector<Real>& actual,const Tolerances&);
 // Conservative physical Darcy + ALE transport only. Conduction is exclusively
 // the OpenFOAM implicit operator; reactions have their independent local clock.
 bool evaluateMaterialTransport(const HostMesh&,const std::vector<SolidQ>&,
     const PhysicsConfig&,const std::vector<Real>& sweptVolumes,Real geometryInterval,
-    Real transportCfl,MaterialTransportResult&,std::string&);
+    Real transportCfl,MaterialTransportResult&,std::string&,bool* numericalFailure=nullptr);
 // First-order conservative chemistry with an extent-Jacobian bound and a
 // full-versus-two-half-step local defect check. reactionCfl controls local
 // rate/thermal variation, not a global error guarantee. Failure leaves both
 // output and acceptedSubsteps untouched; estimator trials are not counted.
 bool advanceMaterialReactions(const SolidQ&,Real volume,const PhysicsConfig&,Real interval,
     Real maxSubstep,Real reactionCfl,int maxSubsteps,SolidQ&,
-    std::uint64_t& acceptedSubsteps,std::string&);
+    std::uint64_t& acceptedSubsteps,std::string&,bool* numericalFailure=nullptr);
+namespace detail {
+bool completeMaterialTransport(const HostMesh&,const std::vector<SolidQ>&,const PhysicsConfig&,const std::vector<Real>&,Real,Real,MaterialTransportResult&,std::string&,bool*);
+bool completeFilmThicknessFromMass(Real,Real,Real,Real&);
+bool completeMaterialPacketBatch(const std::vector<SolidQ>&,const std::vector<ExchangePacket>&,std::vector<SolidQ>&,std::string&,bool*);
+bool completeMaterialReactions(const SolidQ&,Real,const PhysicsConfig&,Real,Real,Real,int,SolidQ&,std::uint64_t&,std::string&,bool*);
+}
 }
 #endif

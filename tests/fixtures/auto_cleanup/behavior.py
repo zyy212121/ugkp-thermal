@@ -1,23 +1,22 @@
 """CUDA dispatch/face oracles and positive-area, full-dt frozen cold wrappers.
 
-Use --generate-only after the precision argument for host-only source checks.
+Use --generate-only after the application argument for host-only source checks.
 """
 from pathlib import Path
 import json,re,resource,subprocess,sys
 
 def main():
-    root,out,app,bits=Path(sys.argv[1]),Path(sys.argv[2]),sys.argv[3],int(sys.argv[4])
+    root,out,app=Path(sys.argv[1]),Path(sys.argv[2]),sys.argv[3]
     out.mkdir(parents=True,exist_ok=True)
     source=root/'applications'/app/('gpu' if app=='CHT' else 'private_backend')
     raw=(source/'GpuResidentStrict.cu').read_text().replace('#include "GpuAutomaticCsrScheduleFields.inl"', (root/"common/GpuAutomaticCsrScheduleFields.inl").read_text() if (root/"common/GpuAutomaticCsrScheduleFields.inl").is_file() else "");start=raw.index('struct DeviceState');end=raw.index('\n};',start)
     fields=re.findall(r'^\s*((?:unsigned\s+)?(?:long long|char)|double|float|int|GpuReal|GpuTime|GpuWallEnergy)\*\s+(\w+)\s*=',raw[start:end],re.M)
-    fields=[(ty,name) for ty,name in fields if name not in ['diagnosticPreTransportParticleCount','sourceInjectedCount'] and (bits==32 or not name.startswith('flatPressure'))]
+    fields=[(ty,name) for ty,name in fields if name not in ['diagnosticPreTransportParticleCount','sourceInjectedCount'] and not name.startswith('flatPressure')]
     frozen=json.loads(Path(__file__).with_name('cleanup_baseline.json').read_text())
     oldface=frozen['ordered_face'].replace('pressureDeltaFromLimitedFaces','baseline_pressureDeltaFromLimitedFaces')
-    oldcold='' if app=='gasUGKP' else frozen['cold'+str(bits)].replace('relaxColdWall1DParticlesToResidentGasKernel','baseline_relaxColdWall')
+    oldcold='' if app=='gasUGKP' else frozen['cold64'].replace('relaxColdWall1DParticlesToResidentGasKernel','baseline_relaxColdWall')
     if app=='FSH':oldcold=oldcold.replace('s.pContactAge[','s.pTheta[')
     code='#include "GpuResidentStrict.cu"\n#include <cstdio>\n#include <cstdlib>\n#include <cstring>\n#include <new>\n'
-    if app=='CHT' and bits==32:code+='using namespace ugkwpCudaFp32;\n'
     code+=oldface+'\n'+oldcold+r'''
 void ck(bool x,const char*m){if(!x){printf("FAIL %s\n",m);exit(2);}}
 void check(cudaError_t e){ck(e==cudaSuccess,cudaGetErrorString(e));}
@@ -116,9 +115,9 @@ puts("PASS positive-area full-dt cold-wall outer kernel bitwise, finite/deposite
 '''
     code=code.replace('COLD_TEST',cold)
     cu=out/'auto_cleanup.cu';cu.write_text(code);exe=out/'auto_cleanup'
-    if '--generate-only' in sys.argv[5:]:return 0
+    if '--generate-only' in sys.argv[4:]:return 0
     soft,hard=resource.getrlimit(resource.RLIMIT_STACK);resource.setrlimit(resource.RLIMIT_STACK,(min(128*1024*1024,hard) if hard!=resource.RLIM_INFINITY else 128*1024*1024,hard));resource.setrlimit(resource.RLIMIT_CORE,(0,0))
-    cmd=['/usr/local/cuda/bin/nvcc','-std=c++17','-O3','-arch=sm_89','--fmad='+('false' if app=='CHT' else 'true'),'-DUGKWP_GPU_REAL_BITS='+str(bits),'-I'+str(source),'-I'+str(root/'common'),'-I'+str(root/'applications'/app/'gpu'),str(cu),'-o',str(exe)]
+    cmd=['/usr/local/cuda/bin/nvcc','-std=c++17','-O3','-arch=sm_89','--fmad='+('false' if app=='CHT' else 'true'),'-I'+str(source),'-I'+str(root/'common'),'-I'+str(root/'applications'/app/'gpu'),str(cu),'-o',str(exe)]
     if app=='CHT':cmd.append(str(source/'GpuWallEnergy64.cu'))
     with (out/'build.log').open('w') as log:q=subprocess.run(cmd,stdout=log,stderr=subprocess.STDOUT)
     if q.returncode:print((out/'build.log').read_text()[-5000:]);return q.returncode

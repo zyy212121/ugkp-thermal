@@ -21,7 +21,7 @@ __device__ __forceinline__ PairedParticleHeatCandidate pairedParticleHeatCandida
  const double conductancePerMass=6.*nu*double(molecularGasConductivity(s))/(double(s.rhoSolid)*d*d);
  const double Tg=double(clampMin(s.couplingTgasOld[c],s.TgasMin));
  const int count=particleColdProfileNodeCountDevice(s,i);
- const double equilibriumIncrement=law.enthalpyIncrement(Ti,Tg-Ti);
+ const double equilibriumIncrement=count==8 ? law.enthalpyIncrement(Ti,Tg-Ti) : 0.;
  if(count==8 && Tg!=Ti){
   const double secant=equilibriumIncrement/(Tg-Ti);
   if(secant>0.)cp=secant;
@@ -34,14 +34,18 @@ __device__ __forceinline__ PairedParticleHeatCandidate pairedParticleHeatCandida
   // is recorded by that existing solver, not replaced by a uniform source.
   // Existing phase-changing substeps guarantee positive H/T but not a
   // local temperature maximum principle across a sharp Cp transition.
-  const double storageEpsilon=sizeof(GpuReal)==sizeof(float)?0x1p-23:0x1p-52;
+  const double storageEpsilon=0x1p-52;
   const double roundoffGuard=1.+64.*storageEpsilon;
   const double upper=conductancePerMass*double(dt)*(Tg>0.?Tg:0.)*roundoffGuard;
   return {double(s.pm[i])*cp,double(s.pm[i])*cp*a,upper};
  }
  double deltaT=a*(Tg-Ti);
- if(deltaT<double(s.TpMin)-Ti)deltaT=double(s.TpMin)-Ti;
- if(deltaT>double(s.TpMax)-Ti)deltaT=double(s.TpMax)-Ti;
+ const double lowerT=double(s.TpMin)-Ti;
+ const double upperT=double(s.TpMax)-Ti;
+ const double lower=lowerT<0.?lowerT:0.;
+ const double upper=upperT>0.?upperT:0.;
+ if(deltaT<lower)deltaT=lower;
+ if(deltaT>upper)deltaT=upper;
  // Evaluate the small component last, so residual heat is consumed rather than
  // being rounded away in a large H+carry subtraction.
  double dh=law.enthalpyIncrement(Ti,deltaT);

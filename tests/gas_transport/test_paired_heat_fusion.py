@@ -68,7 +68,6 @@ template<class GasState> GpuReal molecularGasConductivity(const GasState& s){++t
 #include "operators/clearColdWallParticleState.cuh"
 #include "actual_cold_2d_clear.cuh"
 #include "actual_rng.cuh"
-void sincos(float x,float* s,float* c){*s=std::sin(x);*c=std::cos(x);}
 #include "operators/normalDevice.cuh"
 #include "operators/appendSelectedStuckParticleIndex.cuh"
 #include "GpuCollisionPoolSampling.cuh"
@@ -312,9 +311,9 @@ int main(int argc,char**argv){
 '''
 
 
-@pytest.fixture(scope='module', params=[32, 64])
-def fusion_binary(request, tmp_path_factory):
-    build = tmp_path_factory.mktemp(f'paired_heat_fusion_{request.param}')
+@pytest.fixture(scope='module')
+def fusion_binary( tmp_path_factory):
+    build = tmp_path_factory.mktemp(f'paired_heat_fusion_64')
     fixture = (ROOT/'tests/fixtures/cold_wall_contact_routes.cpp').read_text()
     prefix = fixture[:fixture.index('#include "operators/particleSpecificHeatDevice.cuh"')]
     prefix = prefix.replace('[1]', '[16]').replace('coldH[8]', 'coldH[128]').replace('coldRing[8]', 'coldRing[128]')
@@ -343,8 +342,7 @@ def fusion_binary(request, tmp_path_factory):
     source = build/'fusion.cpp'
     source.write_text(prefix + INCLUDES + helpers + HARNESS)
     exe = build/'fusion'
-    run = subprocess.run(['g++','-std=c++20','-O2','-pthread',f'-DUGKWP_GPU_REAL_BITS={request.param}',
-        '-DROUTE_FSH=0','-I'+str(build),'-I'+str(ROOT/'common'),'-I'+str(ROOT/'common/wall'),
+    run = subprocess.run(['g++','-std=c++20','-O2','-pthread','-DROUTE_FSH=0','-I'+str(build),'-I'+str(ROOT/'common'),'-I'+str(ROOT/'common/wall'),
         '-I'+str(ROOT/'tests/gas_transport'),str(source),'-o',str(exe)],capture_output=True,text=True,timeout=90)
     assert run.returncode == 0, run.stdout + run.stderr
     return exe

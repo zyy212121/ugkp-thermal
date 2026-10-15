@@ -54,3 +54,37 @@ def test_bounded_wall_storage_and_current_device_matching(tmp_path):
     src=tmp_path/'storage.cpp';src.write_text(source);exe=tmp_path/'storage'
     subprocess.run(['g++','-std=c++17','-O2','-I'+str(tmp_path),'-I'+str(APP),'-I'+str(ROOT),'-I'+str(ROOT/'common'),str(src),'-o',str(exe)],check=True)
     subprocess.run([str(exe)],check=True)
+
+
+def test_completed_numeric_wall_download_and_real_copy_failures(tmp_path):
+    stub=runpy.run_path(str(APP/'tests/test_shared_device_storage.py'))['STUB']
+    stub=stub.replace('inline int cudaMemcpy(void*d,const void*s,size_t n,int){std::memcpy(d,s,n);return 0;}',
+        'inline int failRead=-1,reads=0;inline int cudaMemcpy(void*d,const void*s,size_t n,int kind){if(kind==cudaMemcpyDeviceToHost){++reads;if(failRead==0){failRead=-1;return 3;}if(failRead>0)--failRead;}std::memcpy(d,s,n);return 0;}')
+    (tmp_path/'cuda_runtime.h').write_text(stub)
+    source=storage_source();source=source[:source.index(' // A moving-geometry rebuild')]+r'''
+ h.surface.area[0]=0;assert(storage.prepareWallBoundary(knot,h.surface,error));
+ assert(v.gasBoundaryLayerModel.input[0].massFlux[0]==0);
+ h.surface.area[0]=1;assert(storage.prepareWallBoundary(knot,h.surface,error));
+ v.Tgas[1]=std::numeric_limits<chmt::Real>::infinity();
+ assert(ugkwp::evaluateGasBoundaryLayerSlot(v,0,0));
+ assert(v.gasBoundaryLayer.exchange[0].ready&&v.gasBoundaryLayer.status[0]!=0);
+ std::vector<ugkwp::gaswall::WallOutput<chmt::Real,chmt::Ns>> outputs;std::vector<chmt::GasWallMatchingSample> matching;
+ reads=0;assert(storage.downloadWallOutputs(outputs,matching));assert(reads==3);
+ assert(std::isinf(outputs[0].conductiveHeatFlux)&&outputs[0].traceTemperature==600);
+ assert(std::isinf(matching[0].state.temperature)&&matching[0].pressure==100000&&matching[0].mechanicalPressure==0);
+ for(int failed=0;failed<3;++failed){failRead=failed;assert(!storage.downloadWallOutputs(outputs,matching));}
+ failRead=-1;v.gasBoundaryLayerModel.input[0].model.thermo.coefficients=nullptr;
+ // evaluateSlot samples the actual current tables again; remove the true source.
+ auto table=v.gasSpecies.thermo.coefficients;v.gasSpecies.thermo.coefficients=nullptr;
+ assert(!ugkwp::evaluateGasBoundaryLayerSlot(v,0,0));assert(!v.gasBoundaryLayer.exchange[0].ready);
+ assert(!storage.downloadWallOutputs(outputs,matching));assert(storage.wallModelFailed());
+ v.gasSpecies.thermo.coefficients=table;
+ assert(ugkwp::evaluateGasBoundaryLayerSlot(v,0,0));assert(storage.downloadWallOutputs(outputs,matching));
+}
+'''
+    src=tmp_path/'download.cpp';src.write_text(source);exe=tmp_path/'download'
+    cmd=['g++','-std=c++17','-O1','-I'+str(tmp_path),'-I'+str(APP),'-I'+str(ROOT),'-I'+str(ROOT/'common'),str(src),'-o',str(exe)]
+    (tmp_path/'command.txt').write_text(' '.join(cmd));built=subprocess.run(cmd,capture_output=True,text=True)
+    (tmp_path/'build.log').write_text(built.stdout+built.stderr);assert built.returncode==0,built.stderr
+    run=subprocess.run([str(exe)],capture_output=True,text=True);(tmp_path/'run.log').write_text(run.stdout+run.stderr)
+    assert run.returncode==0,run.stdout+run.stderr

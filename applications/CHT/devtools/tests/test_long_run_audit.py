@@ -7,6 +7,7 @@ from devtools.audit_cht_long_run import (
     TEMPERATURE_BINS,
     histogram,
     particle_values_are_finite,
+    thermal_state_metrics,
     validate_distinct_run_inputs,
     validate_physical_parameters,
     validate_solver_log,
@@ -15,6 +16,19 @@ from devtools.audit_cht_long_run import (
 
 
 class LongRunAuditTests(unittest.TestCase):
+    def test_restart_metrics_do_not_require_removed_contact_summary(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            state = Path(temporary) / "thermalState"
+            state.write_text(
+                "exchangeSequence 7; completedTimeIndex 5; "
+                "completedSimulationTimeS 3; previousExchangeSimulationTimeS 1;\n",
+                encoding="utf-8",
+            )
+            metrics = thermal_state_metrics(state)
+            self.assertEqual(metrics["exchange_sequence"], 7)
+            self.assertEqual(metrics["completed_simulation_time"], 3)
+            self.assertNotIn("particle_contact_energy_j", metrics)
+
     def test_baseline_repeat_envelope_is_fail_closed(self):
         self.assertTrue(within_envelope(100.0, 100.0, 100.0000001)[0])
         self.assertFalse(within_envelope(100.0, 100.0, 100.001)[0])

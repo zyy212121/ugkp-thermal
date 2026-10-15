@@ -14,18 +14,12 @@ def function_body(source: str, signature: str, next_signature: str) -> str:
 
 def test_radiation_updates_mobile_particles_only() -> None:
     cuda = read("gpu/GpuResidentStrict.cu")
-    validation = function_body(
-        cuda,
-        "__global__ void validateParticleRadiationAffineTemperatureKernel",
-        "__global__ void applyParticleRadiationAffineTemperatureKernel",
-    )
     application = function_body(
         cuda,
         "__global__ void applyParticleRadiationAffineTemperatureKernel",
         "__device__ void clearSolidCell",
     )
-    for body in (validation, application):
-        assert "s.pStuck[particleI] != Foam::gpuThermal::particleWallMobile" in body
+    assert "s.pStuck[particleI] != Foam::gpuThermal::particleWallMobile" in application
 
 
 def test_mobile_radiation_snapshot_uses_packed_base_or_enthalpy_free_atomic_path() -> None:

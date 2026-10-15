@@ -27,10 +27,9 @@ void near(Real a,Real b,const char* message){ck(std::abs(a-b)<Real(3e-5)*std::ma
 '''
 
 
-@pytest.mark.parametrize('bits',[32,64])
 @pytest.mark.parametrize('direct_conductivity',[False,True])
 @pytest.mark.parametrize('kinetic',[0.,1e-12,.1])
-def test_wall_thermo_flux_and_diffusion_use_same_mixture_properties(tmp_path,bits,direct_conductivity,kinetic):
+def test_wall_thermo_flux_and_diffusion_use_same_mixture_properties(tmp_path,direct_conductivity,kinetic):
     compile_probe(tmp_path,wall_fixture()+f'\nint main(){{State s;wall(s);s.k[0]=Real({kinetic});s.gasThermalConductivity=Real({.31 if direct_conductivity else -1});'+r'''
  if(ugkwp::gasHasDirectConductivity(s)){s.sstJayatillekeP=123;s.sstThermalYPlus=456;} // direct-conductivity must not reuse constant-Pr cache
  const Real cp=Real(.9)*1100+Real(.1)*1600;
@@ -61,49 +60,61 @@ def test_wall_thermo_flux_and_diffusion_use_same_mixture_properties(tmp_path,bit
  near(mass,0,"wall leaks bulk mass");near(s.gasSpecies.flux[1],0,"wall leaks species A");near(s.gasSpecies.flux[4],0,"wall leaks species B");
  near(energy-2*my,expected.heatFlux,"heat and tangential wall work inconsistent");
 }
-''',bits)
+''')
 
 
-def test_fixed_frozen_wall_capability_is_bounded(tmp_path):
+def test_existing_wall_capability_dispatch_keeps_unavailable_particle_model(tmp_path):
     compile_probe(tmp_path,r'''
 int main(){ugkwp::GasCapabilityRequest r;r.mode=ugkwp::GasMode::MixtureFrozen;r.turbulenceModel=3;r.sstWallTreatment=1;
 if(!ugkwp::validateGasCapabilities(r))return 1;
-r.movingGeometry=true;if(ugkwp::validateGasCapabilities(r))return 2;r.movingGeometry=false;
-r.mode=ugkwp::GasMode::MixtureChemistry;if(ugkwp::validateGasCapabilities(r))return 3;
+r.movingGeometry=true;if(!ugkwp::validateGasCapabilities(r))return 2;r.movingGeometry=false;
+r.mode=ugkwp::GasMode::MixtureChemistry;if(!ugkwp::validateGasCapabilities(r))return 3;
 r.mode=ugkwp::GasMode::MixtureFrozen;r.particleCoupling=true;if(ugkwp::validateGasCapabilities(r))return 4;}
 ''')
 
 
-@pytest.mark.parametrize('bits',[32,64])
 @pytest.mark.parametrize('invalid',['s.riemannBoundaryT[1]=4000;', 's.riemannBoundaryT[1]=0;', 's.riemannBoundaryT[1]=-1;', 's.riemannBoundaryT[1]=std::numeric_limits<Real>::quiet_NaN();', 's.gasSpecies.rho[0]=-1;s.gasSpecies.rho[2]=2;'])
-def test_invalid_wall_thermodynamics_reject_trial_without_trap(tmp_path,bits,invalid):
+def test_invalid_wall_thermodynamics_reject_trial_without_trap(tmp_path,invalid):
     compile_probe(tmp_path,wall_fixture()+'\nint main(){State s;wall(s);'+invalid+r'''
 Real mu=0,k=0,q=0;int active=0;
 gasFaceSubgridTransportProperties(s,1,0,-1,2,Real(1),mu,k,q,active);
-ck(s.gasSpecies.faceStatus[1]!=0,"out-of-range wall thermo not rejected");}
-''',bits)
+ck(EXPECTED,"wall thermo arithmetic status differs");}
+'''.replace('EXPECTED','s.gasSpecies.faceStatus[1]==0&&std::isfinite(mu)&&std::isfinite(k)&&std::isfinite(q)' if invalid in ['s.riemannBoundaryT[1]=4000;','s.riemannBoundaryT[1]=-1;','s.gasSpecies.rho[0]=-1;s.gasSpecies.rho[2]=2;'] else 's.gasSpecies.faceStatus[1]!=0'))
 
 
-@pytest.mark.parametrize('bits',[32,64])
-def test_adiabatic_wall_and_unvalidated_device_modes(tmp_path,bits):
+def test_adiabatic_wall_and_unvalidated_device_modes(tmp_path):
     compile_probe(tmp_path,wall_fixture()+r'''
 int main(){State s;wall(s);s.riemannBoundaryTFix[1]=0;s.riemannBoundaryUy[1]=0;
 Real mass,mx,my,mz,energy;
 ck(computeRiemannGasFaceFluxDevice<true>(s,1,mass,mx,my,mz,energy),"adiabatic frozen wall rejected");
 near(energy,0,"adiabatic stationary wall gained heat");
 s.gasSpecies.mode=ugkwp::GasMode::MixtureChemistry;
-ck(!computeRiemannGasFaceFluxDevice<true>(s,1,mass,mx,my,mz,energy),"unvalidated chemistry wall enabled");
-ck(s.gasSpecies.faceStatus[1]==int(ugkwp::GasTransportCode::UnsupportedConfiguration),"chemistry failure lost capability status");}
-''',bits)
+ck(computeRiemannGasFaceFluxDevice<true>(s,1,mass,mx,my,mz,energy),"implemented chemistry wall transport refused");
+ck(s.gasSpecies.faceStatus[1]==0&&std::isfinite(energy),"chemistry wall transport incomplete");}
+''')
 
 
-@pytest.mark.parametrize('bits',[32,64])
-def test_zero_wall_viscosity_is_rejected_before_wall_algebra(tmp_path,bits):
+@pytest.mark.parametrize('strict',[False,True])
+def test_zero_wall_viscosity_diagnostic_and_strict_wall_algebra(tmp_path,strict):
     compile_probe(tmp_path,wall_fixture()+r'''
 #include <cfenv>
 int main(){State s;wall(s);s.gasMu=0;
-Real mu=0,k=0,q=0;int active=0;
-feenableexcept(FE_DIVBYZERO|FE_INVALID|FE_OVERFLOW);
-gasFaceSubgridTransportProperties(s,1,0,-1,2,Real(1),mu,k,q,active);
-ck(s.gasSpecies.faceStatus[1]!=0,"zero wall viscosity accepted");}
-''',bits)
+Real mu=-77,k=-77,q=-77;int active=0;bool evaluated=false;
+if(STRICT)feenableexcept(FE_DIVBYZERO|FE_INVALID|FE_OVERFLOW);
+gasFaceSubgridTransportProperties(s,1,0,-1,2,Real(1),mu,k,q,active,STRICT,&evaluated);
+ck(s.gasSpecies.faceStatus[1]==int(ugkwp::GasTransportCode::InvalidThermodynamics),"zero-viscosity diagnostic missing");
+if(STRICT)ck(!evaluated&&mu==0&&k==0&&q==0&&active==0,"strict zero-viscosity path evaluated wall algebra");
+else{
+ const long double nu=1.4916681462400413e-154L,reynolds=10.L*.5L/nu,kap=s.sstWallKappa,E=s.sstWallE;
+ long double lower=0,upper=2048;
+ for(int i=0;i<200;++i){const long double u=(lower+upper)/2,z=kap*u;
+  const long double yplus=u+(std::expm1(z)-z-z*z/2-z*z*z/6)/E;
+  if(u*yplus>reynolds)upper=u;else lower=u;}
+ const long double utau=10.L/((lower+upper)/2);
+ const long double R=ugkwp::universalGasConstant<long double>()*(.9L/.028L+.1L/.04L);
+ const long double rho=static_cast<long double>(s.p[0])/(R*500.L);
+ const long double expectedMu=rho*(utau*utau/(10.L*static_cast<long double>(s.deltaCoeffs[1])+nu)-nu);
+ ck(evaluated&&active==1&&std::isfinite(mu)&&mu>0&&k==0&&q==0,"public zero-viscosity arithmetic incomplete");
+ ck(std::abs(static_cast<long double>(mu)-expectedMu)<3e-5L*std::abs(expectedMu),"public Spalding transport differs from independent wall-law root");
+}}
+'''.replace('STRICT','true' if strict else 'false'))

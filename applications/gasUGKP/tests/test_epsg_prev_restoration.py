@@ -1,3 +1,4 @@
+from source_contract_utils import read_source
 import unittest
 from pathlib import Path
 
@@ -22,7 +23,7 @@ class GasVolumeSourceMath(unittest.TestCase):
 class GasVolumeSourceOrderingContract(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:
-        source = CUDA.read_text(encoding="utf-8")
+        source = read_source(CUDA)
         begin = source.index("__global__ void applyGasVolumeFractionSourceKernel")
         end = source.index("__global__ void applyEulerianGasSolidDragKernel", begin)
         cls.body = source[begin:end]

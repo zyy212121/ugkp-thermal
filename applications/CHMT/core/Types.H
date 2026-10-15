@@ -18,7 +18,6 @@
 namespace chmt {
 using Real = double;
 constexpr int Ns=ugkwp::compiledGasSpecies, Nc=2, Nr=8, Ne=8;
-static_assert(Ns>0, "At least one compiled gas species is required");
 constexpr Real universalGasConstant=8.31446261815324; // J/(mol K)
 // Default labels exist only for synthetic component fixtures. The production
 // species identity is the immutable runtime model name/order hash.
@@ -35,7 +34,7 @@ constexpr std::uint64_t defaultSpeciesNameHash() {
 constexpr std::uint64_t defaultSpeciesHash=defaultSpeciesNameHash();
 // Schema 4 adds immutable tagged gas thermo, NASA7 coefficients and entropy references.
 // Borrowed shared-thermo views are rebuilt and never serialized.
-constexpr std::uint64_t checkpointSchema=6;
+constexpr std::uint64_t checkpointSchema=7;
 
 CHMT_HD inline bool finite(Real x) { return x==x && x<=std::numeric_limits<Real>::max() && x>=-std::numeric_limits<Real>::max(); }
 CHMT_HD inline Real absValue(Real x) { return x<0 ? -x : x; }
@@ -82,15 +81,11 @@ CHMT_HD inline GasQ& operator+=(GasQ& a,const GasQ& b) { a=a+b;return a; }
 struct GasPrimitive { Real rho=0;Vec3 velocity{};Real temperature=0,pressure=0,soundSpeed=0;Real Y[Ns]{}; };
 struct GasGradient { Vec3 rho{},velocity[3]{},temperature{},pressure{},Y[Ns]{}; };
 struct SolidQ { Real condensed[Nc]{},progress[Nr]{},pore[Ns]{},energy=0,porosity=0; };
-struct FilmRateBudget {
-    Real bodyPower=0,supportPower=0,prescribedTopPower=0,radiationPower=0;
-    Real edgeEnergyOutflow=0,edgeKineticOutflow=0,interfaceKineticOutflow=0,dissipationPower=0;
-}; // W: external powers input-positive, edge/interface fluxes outward-positive.
 struct FilmQ { Real mass=0,enthalpy=0,species[Ns]{}; }; // true H [J], not h_ref inventory.
 struct FilmAux {
     Real pressure=0,thickness=0,temperature=0;
     Vec3 baseVelocity{},meanVelocity{},topVelocity{},normal{};
-    Real area=0,kineticEnergy=0,normalVelocity=0,solidNormalVelocity=0,solidFront=0,gasFront=0;
+    Real area=0,normalVelocity=0,solidNormalVelocity=0,solidFront=0,gasFront=0;
     // normalVelocity/solidNormalVelocity: physical outward m/s. Fronts: accumulated normal displacement m.
 };
 struct ParticleQ {
@@ -114,7 +109,6 @@ struct SpeciesThermo {
     Real referencePressure=101325,referenceTemperature=0,referenceEntropy=0;
     bool hasEntropyReference=false;
 };
-static_assert(std::is_trivially_copyable<SpeciesThermo>::value,"Thermo configuration contains no borrowed storage");
 struct CondensedThermo { Real rho=0,cp0=0,cp1=0,e0=0,conductivity=0,Tmin=0,Tmax=0,element[Ne]{}; };
 struct Reaction {
     Real A=0,temperaturePower=0,activationEnergy=0,condensedNu[Nc]{},gasNu[Ns]{},order[Nc]{};
@@ -161,18 +155,16 @@ struct Tolerances {
 };
 struct Budget {
     Real boundaryMass=0,boundarySpecies[Ns]{},boundaryElements[Ne]{},boundaryEnergy=0;
-    Vec3 boundaryMomentum{},supportImpulse{};
+    Vec3 boundaryMomentum{};
+    Vec3 supportImpulse{};
     Real supportWork=0,bodyWork=0,radiation=0,gclResidual=0;
     Real exchangeMass[NParticipants]{},exchangeSpecies[NParticipants][Ns]{},exchangeEnergy[NParticipants]{};
     Vec3 exchangeMomentum[NParticipants]{};
     Real filmPressureVolume=0,filmKineticAdvection=0,filmKineticStorage=0,filmReducedResidual=0,filmKineticDefect=0;
     Real thinLayerGeometryDefect=0,thinLayerStressDefect=0,numericalEnergyResidual=0;
-    Real turbulenceOmegaConstraint=0; // accepted omega-only constraint inventory changes [kg/s].
+    Real turbulenceOmegaConstraint=0;
     Real turbulenceInventory=0,turbulenceProduction=0,turbulenceDissipation=0,turbulenceBoundaryFlux=0;
     std::uint64_t consumedPackets=0;
 };
-static_assert(std::is_trivially_copyable<GasQ>::value,"GasQ device ABI");
-static_assert(std::is_trivially_copyable<ExchangePacket>::value,"ExchangePacket device ABI");
-static_assert(std::is_trivially_copyable<Budget>::value,"Budget device ABI");
 } // namespace chmt
 #endif

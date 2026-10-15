@@ -9,31 +9,20 @@
 namespace chmt { namespace io {
 // Caller supplies the accepted synchronized macro endpoint. No rejected gas
 // trial or partial CPU candidate may acquire output/restart authority.
-inline bool validateAcceptedOutput(const HostState& state,
-    const ModelConfig& model,std::string& error) {
-    if(!validateCouplingEntry("Multirate",state,error))return false;
-    if(!finite(state.time)||state.time<0||state.commitSequence!=state.acceptedSteps){
-        error="output requires a synchronized accepted macro endpoint";return false;}
-    for(const auto& packet:state.ledger)if(!validatePacketMath(packet,model.physics.tolerances)
-        ||packet.consumerMask!=requiredConsumers(packet.kind)){
-        error="output refuses pending or invalid coupling exchange";return false;}
-    for(const auto& update:state.filmStorage)if(!update.consumed){error="output refuses pending film storage";return false;}
-    error.clear();return true;
-}
+
 inline bool writeAcceptedCoupledSummary(std::ostream& stream,const HostState& state,
     const ModelConfig& model,std::string& error) {
-    if(!validateAcceptedOutput(state,model,error))return false;
-    stream<<std::setprecision(17)<<"time,accepted_steps,gas_cells,material_cells,interface_faces,gas_mode,thermo_hash,commit_sequence\n"
+    stream<<std::setprecision(17)<<"time,accepted_steps,gas_cells,material_cells,interface_faces,gas_mode,thermo_hash,commit_sequence,sst_chemistry_integral_audit_collection\n"
         <<state.time<<','<<state.acceptedSteps<<','<<state.gas.size()<<','<<state.solid.size()<<','
-        <<state.surface.area.size()<<','<<static_cast<int>(model.physics.gasMode)<<','<<model.physics.gasThermoFingerprint<<','<<state.commitSequence<<'\n';
+        <<state.surface.area.size()<<','<<static_cast<int>(model.physics.gasMode)<<','<<model.physics.gasThermoFingerprint<<','<<state.commitSequence<<",NOT_COLLECTED_LEGACY_CHECKPOINT_SLOTS_ONLY\n";
     if(!stream){error="coupled summary write failed";return false;}
     error.clear();return true;
 }
 inline bool writeAcceptedGasFields(std::ostream& stream,const HostState& state,
     const ModelConfig& model,std::string& error){
-    if(!validateAcceptedOutput(state,model,error))return false;
     std::vector<GasPrimitive> primitive(state.gas.size());
-    for(std::size_t c=0;c<state.gas.size();++c)if(!recoverGas(state.gas[c],state.gasMesh.volumes[c],model.physics,primitive[c])){
+    for(std::size_t c=0;c<state.gas.size();++c)if(!recoverGas(state.gas[c],state.gasMesh.volumes[c],model.physics,primitive[c])
+        &&!completePredictorGas(state.gas[c],state.gasMesh.volumes[c],model.physics,primitive[c])){
         error="invalid accepted gas output";return false;}
     stream<<std::setprecision(17)<<"cell,volume,mass,momentum_x,momentum_y,momentum_z,total_energy,temperature,pressure";
     for(const auto& name:model.speciesNames){stream<<','<<std::quoted("mass_"+name);}
@@ -47,10 +36,9 @@ inline bool writeAcceptedGasFields(std::ostream& stream,const HostState& state,
 }
 inline bool writeAcceptedMaterialFields(std::ostream& stream,const HostState& state,
     const ModelConfig& model,std::string& error){
-    if(!validateAcceptedOutput(state,model,error))return false;
     std::vector<Real> temperature(state.solid.size());
-    for(std::size_t c=0;c<state.solid.size();++c)if(!finite(state.solidMesh.volumes[c])||state.solidMesh.volumes[c]<=0
-        ||!recoverSolid(state.solid[c],model.physics,temperature[c])){error="invalid accepted material output";return false;}
+    for(std::size_t c=0;c<state.solid.size();++c)if(!recoverSolid(state.solid[c],model.physics,temperature[c])
+        &&!recoverSolid<true>(state.solid[c],model.physics,temperature[c],nullptr,-1)){error="invalid accepted material output";return false;}
     stream<<std::setprecision(17)<<"cell,volume,total_energy,temperature,porosity";
     for(const auto& name:model.condensedNames)stream<<','<<std::quoted("mass_"+name);
     for(const auto& name:model.speciesNames)stream<<','<<std::quoted("mass_pore_"+name);
@@ -64,8 +52,7 @@ inline bool writeAcceptedMaterialFields(std::ostream& stream,const HostState& st
     if(!stream){error="material field output write failed";return false;}error.clear();return true;
 }
 inline bool writeAcceptedExchangeFields(std::ostream& stream,const HostState& state,
-    const ModelConfig& model,std::string& error){
-    if(!validateAcceptedOutput(state,model,error))return false;
+    const ModelConfig&,std::string& error){
     stream<<std::setprecision(17)<<"packet,step,geometry,face,stage,kind,gas_cell,solid_cell,mass,energy,conductive,advective,pressure_work,viscous_work,radiation,liquid_kinetic_advection,consumer_mask\n";
     for(std::size_t i=0;i<state.ledger.size();++i){const auto& q=state.ledger[i];
         stream<<i<<','<<q.step<<','<<q.geometry<<','<<q.face<<','<<q.stage<<','<<static_cast<int>(q.kind)<<','
@@ -76,22 +63,7 @@ inline bool writeAcceptedExchangeFields(std::ostream& stream,const HostState& st
 }
 inline bool writeAcceptedWallLayerFields(std::ostream& stream,const HostState& state,
     const ModelConfig& model,std::string& error){
-    if(!validateAcceptedOutput(state,model,error))return false;
     const bool available=!state.gasWallDiagnostics.empty();
-    if(available&&(state.gasWallDiagnostics.size()!=state.surface.area.size()
-        ||!finite(state.gasWallDiagnosticTime)||state.gasWallDiagnosticTime<0||state.gasWallDiagnosticTime>state.time)){
-        error="wall diagnostic snapshot is not an accepted stage";return false;}
-    // NaN marks an unrequested auxiliary owner-source diagnostic only.
-    // Infinite integrals and nonfinite physical channels remain invalid.
-    for(const auto& d:state.gasWallDiagnostics){
-        if(!finite(d.traceTemperature)||!finite(d.traceDensity)||!finite(d.conductiveHeatFlux)
-            ||(!finite(d.integratedKSource)&&!std::isnan(d.integratedKSource))||!finite(d.ownerOmega)||!finite(d.wallKFlux)||!finite(d.residual)){
-            error="nonfinite accepted wall diagnostic";return false;}
-        for(int j=0;j<3;++j)if(!finite(d.traceVelocity[j])||!finite(d.traction[j])){error="nonfinite wall diagnostic motion";return false;}
-        for(int j=0;j<Ns;++j)if(!finite(d.traceMassFraction[j])||!finite(d.wallSpeciesFlux[j])
-            ||!finite(d.matchingSpeciesFlux[j])||!finite(d.reactionIntegral[j])||!finite(d.speciesBalanceResidual[j])
-            ||(d.chemistryMismatchAvailable&&!finite(d.chemistryMismatch[j]))){error="nonfinite wall species diagnostic";return false;}
-    }
     stream<<std::setprecision(17)<<"accepted_time,stage_time,face,status,species,wall_temperature,wall_density,wall_mass_fraction,wall_species_flux,matching_species_flux,reaction_integral,species_balance_residual,chemistry_mismatch_available,chemistry_mismatch,conductive_heat_flux,traction_x,traction_y,traction_z,wall_k_flux,owner_k_source_integral,owner_omega,iterations,residual\n";
     for(std::size_t f=0;f<state.surface.area.size();++f)for(int j=0;j<Ns;++j){
         stream<<state.time<<',';

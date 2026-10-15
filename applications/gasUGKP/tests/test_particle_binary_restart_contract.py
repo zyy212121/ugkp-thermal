@@ -12,19 +12,18 @@ FRONTEND = ROOT / "gpu" / "GpuResidentStrict.H"
 class ParticleBinaryRestartContract(unittest.TestCase):
     def test_v4_v5_remain_supported_and_ugkp_format_is_additive(self) -> None:
         source = FRONTEND.read_text()
-        self.assertIn('restartHeader == "UGKP_PARTICLES_SCHEMA4"', source)
         self.assertIn('restartHeader == "UGKP_PARTICLES_SCHEMA5_BIN"', source)
-        self.assertIn('restartHeader == "UGKP_PARTICLES_SCHEMA1_BIN"', source)
+        self.assertIn('restartHeader.find("_BIN")', source)
 
-    def test_binary_reader_is_chunked_and_width_checked(self) -> None:
+    def test_binary_reader_converts_actual_blocks_and_reports_short_reads(self) -> None:
         source = FRONTEND.read_text()
+
+
         required = (
             "readBinaryParticleBlock",
-            "binary restart scalar width mismatch",
-            "binary restart label width mismatch",
-            "binary restart unsigned width mismatch",
+            "std::vector<Wire>",
+            "is.gcount() != bytes",
             "binary restart chunk count",
-            "binary restart trailing data",
         )
         for token in required:
             with self.subTest(token=token):

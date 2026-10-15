@@ -1,4 +1,6 @@
 from __future__ import annotations
+from source_contract_utils import read_source
+
 
 import re
 import importlib.util
@@ -31,7 +33,7 @@ class UnifiedSchedulingToolsContract(unittest.TestCase):
     def test_shared_configuration_exists_and_reads_scheduling_dictionary(self) -> None:
         shared = ROOT / "common/GpuSchedulingConfiguration.H"
         self.assertTrue(shared.is_file())
-        text = shared.read_text(encoding="utf-8")
+        text = read_source(shared)
         for token in (
             "gpuResidentPureGasOnly",
             "gpuCsrLevel",
@@ -44,13 +46,13 @@ class UnifiedSchedulingToolsContract(unittest.TestCase):
         self.assertRegex(text, r"reductionBlockThreads\s*=\s*128")
         self.assertNotIn('"gpuFixedWorkBlockThreads"', text)
         for name, (reader, _, _) in BRANCHES.items():
-            source = reader.read_text(encoding="utf-8")
+            source = read_source(reader)
             self.assertIn('"schedulingProperties"', source, name)
             self.assertIn("GpuSchedulingConfiguration", source, name)
 
     def test_three_backends_store_distinct_b1_b2_b3(self) -> None:
         for name, (_, _, cuda_path) in BRANCHES.items():
-            cuda = cuda_path.read_text(encoding="utf-8")
+            cuda = read_source(cuda_path)
             self.assertIn("fixedCellBlockThreads", cuda, name)
             self.assertIn("fixedFaceBlockThreads", cuda, name)
             self.assertIn("fixedWorkBlockTuned", cuda, name)
@@ -59,13 +61,13 @@ class UnifiedSchedulingToolsContract(unittest.TestCase):
             self.assertRegex(cuda, r"tuneFixedWorkBlockThreads\s*\(", name)
 
     def test_tool_b1_uses_deferred_cuda_event_measurement(self) -> None:
-        shared_tool = (ROOT / "common/GpuToolB1.cuh").read_text(encoding="utf-8")
+        shared_tool = read_source(ROOT / "common/GpuToolB1.cuh")
         candidate_pattern = re.compile(
             r"\{\s*32\s*,\s*64\s*,\s*96\s*,\s*128\s*,\s*160\s*,"
             r"\s*192\s*,\s*224\s*,\s*256\s*\}"
         )
         for name, (_, _, cuda_path) in BRANCHES.items():
-            cuda = cuda_path.read_text(encoding="utf-8")
+            cuda = read_source(cuda_path)
             implementation = cuda if name == "gasUGKP" else cuda + shared_tool
             self.assertRegex(implementation, candidate_pattern, name)
             self.assertRegex(implementation, r"toolB1WarmupRuns\s*=\s*1", name)
@@ -111,13 +113,11 @@ class UnifiedSchedulingToolsContract(unittest.TestCase):
             self.assertIn("tuneFixedWorkBlockThreads", advance.group("body"), name)
 
     def test_l2_retains_backend_tool_b3(self) -> None:
-        shared = (ROOT / "common/GpuSchedulingConfiguration.H").read_text(
-            encoding="utf-8"
-        )
+        shared = read_source(ROOT / "common/GpuSchedulingConfiguration.H")
         self.assertIn("gpuCsrHeavyReductionAutoInterval", shared)
         for name, (_, header_path, cuda_path) in BRANCHES.items():
-            header = header_path.read_text(encoding="utf-8")
-            cuda = cuda_path.read_text(encoding="utf-8")
+            header = read_source(header_path)
+            cuda = read_source(cuda_path)
             self.assertIn("GpuSchedulingConfiguration", header, name)
             self.assertIn("runToolB3", cuda, name)
             self.assertIn("csrHeavyReductionMode", cuda, name)
@@ -126,7 +126,7 @@ class UnifiedSchedulingToolsContract(unittest.TestCase):
 
     def test_periodic_flux_corrections_are_guarded_by_mesh_flag(self) -> None:
         for name, (_, _, cuda_path) in BRANCHES.items():
-            cuda = cuda_path.read_text(encoding="utf-8")
+            cuda = read_source(cuda_path)
             self.assertIn("hasPeriodicFaces", cuda, name)
             self.assertRegex(
                 cuda,
@@ -156,15 +156,13 @@ class UnifiedSchedulingToolsContract(unittest.TestCase):
         for case in cases:
             scheduling = case / "constant/schedulingProperties"
             self.assertTrue(scheduling.is_file(), str(case))
-            schedule_text = scheduling.read_text(encoding="utf-8")
-            particle_text = (case / "constant/particleProperties").read_text(
-                encoding="utf-8"
-            )
+            schedule_text = read_source(scheduling)
+            particle_text = read_source(case / "constant/particleProperties")
             for key in moved:
                 self.assertNotRegex(particle_text, rf"\b{key}\b", str(case))
             self.assertRegex(
                 schedule_text,
-                r"(?m)^\s*gpuCsrLevel\s+(?:L0|L1|L2)\s*;",
+                r"(?m)^\s*gpuCsrLevel\s+(?:L0|L1|L2|auto)\s*;",
                 str(case),
             )
 
@@ -192,10 +190,8 @@ class UnifiedSchedulingToolsContract(unittest.TestCase):
             )
             module.migrate(particle)
             module.migrate(particle)
-            schedule_text = (constant / "schedulingProperties").read_text(
-                encoding="utf-8"
-            )
-            particle_text = particle.read_text(encoding="utf-8")
+            schedule_text = read_source(constant / "schedulingProperties")
+            particle_text = read_source(particle)
             self.assertRegex(schedule_text, r"(?m)^gpuCsrLevel\s+L2;")
             for key in (
                 "gpuResidentStrict",

@@ -4,20 +4,27 @@ import subprocess
 from test_shared_gas_adapter import ADAPTER_PROBE, ROOT
 
 
+def snapshot_release_probe():
+    """Use the existing production snapshot ownership functions, not a mock."""
+    text=(ROOT/'applications/gasUGKP/private_backend/SharedGasTrialPolicy.cuh').read_text()
+    release=text[text.index('inline int releaseSnapshot('):text.index('inline int ensureSnapshot(')]
+    storage=text[text.index('inline int releaseSharedGasTrialStorage('):text.index('struct SharedGasTrialPolicy')]
+    return 'namespace sharedGasTrialDetail {\n'+release+'}\n'+storage
+
+
 def test_boundary_layer_native_storage_is_atomic_and_scratch_bounded(tmp_path):
     pre=ADAPTER_PROBE.split('int main(){',1)[0]
     pre=pre.replace('#include <cassert>', '#include "common/gasTransport/GasBoundaryLayerModelState.H"\n#include "applications/gasUGKP/private_backend/SharedGasTrialFields.H"\n#include <cassert>')
     pre=pre.replace(' double* rho=nullptr;', ''' double* rho=nullptr;
  ugkwp::GasBoundaryLayerState<double> gasBoundaryLayer;
  ugkwp::GasBoundaryLayerModelState<double,ugkwp::compiledGasSpecies> gasBoundaryLayerModel;
- ugkwp::GasSstAuditState<double> gasSstAudit;
  SharedGasTrialStorage gasTrial;
  double *gasWallQuadratureDistance=nullptr,*gasWallQuadratureWeight=nullptr;
  double gasBoundaryLayerStageTime=0;
  int *faceOwner=nullptr,*faceNeighbour=nullptr,*gasBoundaryKind=nullptr;
  double *V=nullptr,*magSf=nullptr;
 ''')
-    body=pre+r'''
+    body=pre+snapshot_release_probe()+r'''
 static int deviceQueries=0;
 const int cudaDevAttrMultiProcessorCount=1;
 int cudaGetDevice(int*p){*p=0;return 0;}
@@ -33,40 +40,36 @@ state.gasSpecies.mode=ugkwp::GasMode::MixtureFrozen;state.gasSpecies.diffusivity
 ugkwpGpuIpc::BoundaryLayerConfigV1 a;a.model=0;a.speciesCount=2;a.wallCount=1;a.quadratureCount=1;a.matchingCount=1;a.workspaceSlots=64;
 int faces[]={0},offset[]={0,1},match[]={1};double geometry[]={1,0,0,.5,1.5,1,.5},qd[]={.5},qw[]={1},mw[]={1},flux[]={.2,.1};
 auto configure=[&](){return ugkwpGpuResidentStrictConfigureBoundaryLayerV1(&state,&a,faces,offset,offset,match,geometry,qd,qw,mw,flux);};
-double oldSnapshot[1]{};
-for(int level=0;level<2;++level){auto& snapshot=level?state.gasTrial.interval:state.gasTrial.trial;snapshot.cells=oldSnapshot;
-assert(configure()!=0);assert(!state.gasBoundaryLayer.enabled&&allocations==0&&snapshot.cells==oldSnapshot);snapshot.cells=nullptr;}
-geometry[5]=2;assert(configure()!=0);assert(!state.gasBoundaryLayer.enabled&&allocations==0);geometry[5]=1;
+// Existing transaction storage is replaced when the wall layout changes.
+{auto& snapshot=state.gasTrial.trial;
+assert(!allocateSharedGasZero(snapshot.cells,1));assert(configure()==0);assert(!snapshot.cells);releaseBoundaryLayerStorage(state);assert(allocations==0);}
+geometry[5]=2;assert(configure()==0);assert(state.gasBoundaryLayerModel.input[0].quadrature.volume==2);releaseBoundaryLayerStorage(state);geometry[5]=1;
 failAfter=5;assert(configure()!=0);assert(!state.gasBoundaryLayer.enabled&&allocations==0);failAfter=-1;
 assert(configure()==0);assert(state.gasBoundaryLayer.enabled&&device.gasBoundaryLayer.enabled);
 assert(state.gasBoundaryLayerModel.workspaceCount==0&&!state.gasBoundaryLayerModel.workspace&&deviceQueries==0);assert(state.gasBoundaryLayer.faceSlot[0]==0&&state.gasBoundaryLayer.faceSlot[1]==-1);
 assert(state.gasBoundaryLayer.ownerSlot[0]==0&&state.gasBoundaryLayer.ownerSlot[1]==-1);
 assert(state.gasBoundaryLayer.exchange[0].massReady&&!state.gasBoundaryLayer.exchange[0].ready);
-assert(std::abs(state.gasBoundaryLayer.exchange[0].mass+.3)<1e-14);assert(!state.gasSstAudit.enabled);
-const int live=allocations;assert(configure()!=0&&allocations==live);
+assert(std::abs(state.gasBoundaryLayer.exchange[0].mass+.3)<1e-14);
+const int live=allocations;assert(configure()==0&&allocations==live);
 releaseBoundaryLayerStorage(state);assert(allocations==0);
 a.model=1;a.nodes=96;a.workspaceSlots=0;state.hostTurbulenceModel=3;assert(configure()==0);
 assert(deviceQueries==1&&state.gasBoundaryLayerModel.workspaceCount==1&&state.gasBoundaryLayerModel.workspaceCapacity==128&&state.gasBoundaryLayerModel.workspace);
-const int unauditedAllocations=allocations;assert(!state.gasSstAudit.enabled&&!state.gasSstAudit.sourceK);
+const int unauditedAllocations=allocations;
 releaseBoundaryLayerStorage(state);assert(allocations==0);
-a.budgetAudit=1;assert(configure()==0);assert(state.gasSstAudit.enabled&&state.gasSstAudit.sourceK&&allocations==unauditedAllocations+13);
-state.gasBoundaryLayer.exchange[0].ready=true;state.gasSstAudit.transportK[0]=7;state.gasSstAudit.sourceOmega[0]=11;
+assert(configure()==0&&allocations==unauditedAllocations);state.gasBoundaryLayer.exchange[0].ready=true;
+state.gasBoundaryLayerModel.output[0].wallSpeciesFlux[0]=7;state.gasBoundaryLayerModel.output[0].reactionIntegral[1]=11;
 double diagnostics[ugkwpGpuIpc::boundaryLayerDiagnosticScalars+4];
 assert(ugkwpGpuResidentStrictDownloadBoundaryLayerV1(&state,1,2,diagnostics)==0);
-assert(diagnostics[16]==1&&diagnostics[17]==0&&diagnostics[18]==0&&diagnostics[19]==7&&diagnostics[22]==11);
+assert(ugkwpGpuIpc::boundaryLayerDiagnosticScalars==25&&diagnostics[25]==7&&diagnostics[28]==11);
+for(int j=16;j<25;++j)assert(diagnostics[j]==0);
 releaseBoundaryLayerStorage(state);assert(allocations==0);
-a.budgetAudit=0;assert(configure()==0);state.gasBoundaryLayer.exchange[0].ready=true;
-assert(ugkwpGpuResidentStrictDownloadBoundaryLayerV1(&state,1,2,diagnostics)==0);
-assert(diagnostics[16]==0);for(int j=17;j<25;++j)assert(std::isnan(diagnostics[j]));
-releaseBoundaryLayerStorage(state);assert(allocations==0);
-// Production requests no auxiliary source points, even when coarse audit is enabled.
+// Production requests no auxiliary source points or cell-wide audit arrays.
 a.quadratureCount=0;int emptyQ[]={0,0};
 assert(ugkwpGpuResidentStrictConfigureBoundaryLayerV1(&state,&a,faces,emptyQ,offset,match,geometry,nullptr,nullptr,mw,flux)==0);
 assert(!state.gasWallQuadratureDistance&&!state.gasWallQuadratureWeight);
 const auto& input=state.gasBoundaryLayerModel.input[0];assert(!input.quadrature.distance&&!input.quadrature.volumeWeight&&input.quadrature.count==0&&input.quadrature.volume==1&&input.quadrature.firstMoment==.5);
 assert(allocations==unauditedAllocations-2);releaseBoundaryLayerStorage(state);assert(allocations==0);
-a.budgetAudit=1;assert(ugkwpGpuResidentStrictConfigureBoundaryLayerV1(&state,&a,faces,emptyQ,offset,match,geometry,nullptr,nullptr,mw,flux)==0);
-assert(state.gasSstAudit.enabled&&!state.gasWallQuadratureDistance&&!state.gasWallQuadratureWeight);releaseBoundaryLayerStorage(state);assert(allocations==0);
+
 }
 '''
     source=tmp_path/'probe.cpp';exe=tmp_path/'probe';source.write_text(body)

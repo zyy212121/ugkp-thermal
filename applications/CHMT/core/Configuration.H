@@ -65,7 +65,6 @@ struct PhysicsConfig {
     ReconstructionMode reconstruction=ReconstructionMode::LimitedLinear;
     SstConfig sst{};Tolerances tolerances{};
     Real minDt=0,maxDt=0,cfl=0;int spatialOrder=2;
-    std::uint64_t modelFingerprint=0,speciesFingerprint=defaultSpeciesHash,schemaFingerprint=checkpointSchema;
 };
 inline bool validateWallModelConfig(const PhysicsConfig& p,std::string& error) {
     const auto& w=p.wallModel;using namespace ugkwp::gaswall;
@@ -90,7 +89,6 @@ struct ModelConfig {
     std::array<std::string,Ne> elementNames{};
     std::string modelName{},materialSource{},mechanismSource{},sourceFingerprint{},baseCommit{};
     std::string gasMechanismSource{},gasMechanismSourceSha256{},gasPhase{};
-    std::string modelFingerprint{},speciesFingerprint{},schemaFingerprint{};
     ModelConfig() { for(int s=0;s<Ns;++s)speciesNames[s]="S"+std::to_string(s); }
 };
 template<class Names>
@@ -104,11 +102,7 @@ inline bool validateSpeciesSet(const ModelConfig& config,std::string& error) {
         if(config.speciesNames[s].empty()){error="empty runtime gas species name";return false;}
         for(int j=0;j<s;++j)if(config.speciesNames[s]==config.speciesNames[j]){error="duplicate runtime gas species name";return false;}
     }
-    if(config.physics.speciesFingerprint!=speciesOrderHash(config.speciesNames)){
-        error="configuration runtime species name/order hash mismatch";return false;
-    }
     error.clear();return true;
 }
-static_assert(std::is_trivially_copyable<PhysicsConfig>::value,"PhysicsConfig must be copied to CUDA without STL");
 } // namespace chmt
 #endif

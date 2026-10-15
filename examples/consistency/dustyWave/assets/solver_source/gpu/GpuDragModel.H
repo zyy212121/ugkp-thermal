@@ -73,12 +73,7 @@ public:
         const dictionary& coeffs =
             dict.subDict("GidaspowErgunWenYuCoeffs");
         const scalar residualRe = readScalar(coeffs.lookup("residualRe"));
-        if (!std::isfinite(residualRe) || residualRe <= 0)
-        {
-            FatalErrorInFunction
-                << "GidaspowErgunWenYu residualRe must be finite and positive, "
-                << "received " << residualRe << exit(FatalError);
-        }
+
         parameters_[0] = residualRe;
     }
 
@@ -118,14 +113,6 @@ public:
         (
             dict.lookup("gpuResidentParticleResponseTime")
         );
-        const word heatTransferModel
-        (
-            dict.lookupOrDefault<word>
-            (
-                "gpuResidentHeatTransferModel",
-                "RanzMarshall"
-            )
-        );
         const scalar particleThermalResponseTime = readScalar
         (
             dict.lookup("gpuResidentParticleThermalResponseTime")
@@ -134,39 +121,6 @@ public:
         (
             dict.lookup("gpuResidentGasHeatCapacity")
         );
-
-        if (!std::isfinite(particleResponseTime) || particleResponseTime <= 0)
-        {
-            FatalErrorInFunction
-                << "gpuResidentParticleResponseTime must be finite and "
-                << "positive, received " << particleResponseTime
-                << exit(FatalError);
-        }
-        if (heatTransferModel != "constantResponseTime")
-        {
-            FatalErrorInFunction
-                << "The constant-response-time validation model "
-                << "requires gpuResidentHeatTransferModel "
-                << "constantResponseTime, received " << heatTransferModel
-                << exit(FatalError);
-        }
-        if
-        (
-            !std::isfinite(particleThermalResponseTime)
-         || particleThermalResponseTime <= 0
-        )
-        {
-            FatalErrorInFunction
-                << "gpuResidentParticleThermalResponseTime must be finite "
-                << "and positive, received " << particleThermalResponseTime
-                << exit(FatalError);
-        }
-        if (!std::isfinite(gasHeatCapacity) || gasHeatCapacity <= 0)
-        {
-            FatalErrorInFunction
-                << "gpuResidentGasHeatCapacity must be finite and positive, "
-                << "received " << gasHeatCapacity << exit(FatalError);
-        }
 
         parameters_[0] = particleResponseTime;
         parameters_[1] = particleThermalResponseTime;

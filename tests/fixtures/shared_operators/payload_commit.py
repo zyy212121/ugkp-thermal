@@ -1,7 +1,7 @@
 import os
 from pathlib import Path
 import sys,re,subprocess
-root=Path(sys.argv[1]);out=Path(sys.argv[2]);app=sys.argv[3];bits=int(sys.argv[4]);out.mkdir(parents=True,exist_ok=True)
+root=Path(sys.argv[1]);out=Path(sys.argv[2]);app=sys.argv[3];out.mkdir(parents=True,exist_ok=True)
 fixture=(root/f'tests/fixtures/thermal_workers/gather_{app}.cu.in').read_text()
 fixture=fixture.replace('int nCells,','int *compactCountDevice,*particleCountDevice;\n int nCells,')
 fixture=fixture.replace('const int capacity=3*n+16;', 'const int capacity=3*n+16;')
@@ -15,7 +15,7 @@ else:
   a=t.index('__global__ void '+name);i=t.index('{',a)+1;depth=1
   while depth:depth+=(t[i]=='{')-(t[i]=='}');i+=1
   code+='\n'+t[a:i]+'\n'
-fixture=fixture.replace('@PARTICLE_COPY_HOOK@',code).replace('@REAL_TYPE@','float' if bits==32 else 'double')
+fixture=fixture.replace('@PARTICLE_COPY_HOOK@',code).replace('@REAL_TYPE@','double')
 start=fixture.index(' // CURRENT_PAYLOAD_LAUNCH_BEGIN')
 end=fixture.index(' auto e=cudaDeviceSynchronize()',start)
 fixture=fixture[:start]+" if(cudaDeviceSynchronize()!=cudaSuccess)exit(12);for(int dst=0;dst<(int)expected.size();dst++)s->sortedParticleIndex[dst]=expected[dst];*s->compactCountDevice=expected.size();gatherSelectedParticlesKernel<<<32,128>>>(s);\n"+fixture[end:]
@@ -42,4 +42,4 @@ f=out/'payload_commit.cu';f.write_text(fixture);exe=out/'payload_commit';cmd=[st
 with (out/'build.log').open('w') as log:q=subprocess.run(cmd,stdout=log,stderr=subprocess.STDOUT)
 if q.returncode:print((out/'build.log').read_text()[-5000:]);sys.exit(q.returncode)
 if os.environ.get('UGKP_CUDA_BUILD_ONLY')=='1':print('BUILD ONLY: GPU execution deferred');sys.exit(0)
-q=subprocess.run([str(exe)],capture_output=True,text=True);(out/'run.log').write_text(q.stdout+q.stderr);print(app,bits,len(pairs),q.stdout,q.stderr);sys.exit(q.returncode)
+q=subprocess.run([str(exe)],capture_output=True,text=True);(out/'run.log').write_text(q.stdout+q.stderr);print(app,64,len(pairs),q.stdout,q.stderr);sys.exit(q.returncode)

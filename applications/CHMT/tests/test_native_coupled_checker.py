@@ -37,7 +37,7 @@ def checkpoint(path, time, step):
     digest = 14695981039346656037
     for byte in body:
         digest = ((digest ^ byte) * 1099511628211) & ((1 << 64) - 1)
-    path.write_bytes(struct.pack('<8sQIIIIIIQQQQ', b'CHMTCP2\0', 6, 0x01020304, 8, 2, 2, 8, 8, 15664811910203657810, len(model), len(state), digest) + body)
+    path.write_bytes(struct.pack('<8sQIIIIIIQQQQ', b'CHMTCP2\0', 6, 0x01020304, 8, 2, 2, 8, 8, 11438850135072464462, len(model), len(state), digest) + body)
 
 
 def synthetic_case(tmp_path, intervals=2):
@@ -192,7 +192,8 @@ def test_chemistry_generator_starts_reactive_not_inert(tmp_path):
     assert spec['gas_thermo']['H2']['model'] == 'NASA7'
 
 
-def test_independent_clock_reads_production_checkpoint(tmp_path):
+@pytest.mark.parametrize('temperatures', [False, True])
+def test_independent_clock_reads_production_checkpoint(tmp_path, temperatures):
     checker = load_checker()
     source = tmp_path/'write.cpp'
     source.write_text(r'''
@@ -204,19 +205,20 @@ def test_independent_clock_reads_production_checkpoint(tmp_path):
 #include <iostream>
 int main(int argc,char** argv){
     if(argc!=2)return 2;
-    chmt::ModelConfig model;model.physics=chmt_test::physics();model.physics.enableGas=false;model.physics.modelFingerprint=17;
+    chmt::ModelConfig model;model.physics=chmt_test::physics();model.physics.enableGas=false;
     chmt::HostState h;h.solidMesh=twoHexahedra(0);auto& m=h.solidMesh;
     m.oldPoints=m.referencePoints=m.points;m.oldVolumes=m.volumes;
     m.boundaryPrimitive.resize(m.owner.size());m.boundarySst.resize(m.owner.size());
     h.solid.resize(m.volumes.size());
     for(std::size_t c=0;c<h.solid.size();++c){h.solid[c].condensed[0]=1000*m.volumes[c];h.solid[c].energy=h.solid[c].condensed[0]*chmt::condensedE(model.physics.condensed[0],300);}
+    GAS_TEMPERATURE_PAYLOAD
     h.time=.125;h.acceptedSteps=h.commitSequence=1;h.rejectedSteps=7;h.nextDt=.001;h.lastAcceptedDt=.125;
     for(auto& g:h.solidStages){g.interval=.125;g.geometryVersion=m.geometryVersion;g.topologyHash=m.topologyHash;
         g.oldVolume=g.newVolume=g.evaluationVolume=m.volumes;g.sweptVolume.assign(m.owner.size(),0);g.areaVector=m.areaVectors;
         g.cellCentre=m.cellCentres;g.faceCentre=m.faceCentres;g.oldPoints=g.newPoints=m.points;}
     std::string error;if(!chmt::writeCheckpoint(argv[1],model,h,error)){std::cerr<<error;return 1;}
 }
-''')
+'''.replace('GAS_TEMPERATURE_PAYLOAD', 'h.gasTemperature={600.25,600.75};' if temperatures else ''))
     binary = tmp_path/'write'
     build = subprocess.run(['g++', '-std=c++17', '-O1', '-I'+str(APP), str(source), str(APP/'restart/Checkpoint.C'), str(APP/'mesh/Geometry.C'), '-o', str(binary)], capture_output=True, text=True)
     assert build.returncode == 0, build.stderr
@@ -362,3 +364,26 @@ def test_single_output_requires_mode_zero(tmp_path):
     for n in range(3):
         mutate_csv(case/f'chmtOutput/accepted-{n}.csv','gas_mode','0')
     checker.check_case(case)
+
+
+def test_accepts_explicit_uncollected_audit_metadata(tmp_path):
+    checker = load_checker()
+    case = synthetic_case(tmp_path)
+    for n in range(3):
+        mutate_csv(case/f'chmtOutput/accepted-{n}.csv',
+                   'sst_chemistry_integral_audit_collection',
+                   'NOT_COLLECTED_LEGACY_CHECKPOINT_SLOTS_ONLY')
+    report = checker.check_case(case)
+    assert report['final_time'] == .001
+    assert report['gas_energy_change'] == pytest.approx(-.6, abs=1e-8)
+
+
+def test_uncollected_metadata_does_not_hide_invalid_physical_evidence(tmp_path):
+    checker = load_checker()
+    case = synthetic_case(tmp_path)
+    mutate_csv(case/'chmtOutput/accepted-2.csv',
+               'sst_chemistry_integral_audit_collection',
+               'NOT_COLLECTED_LEGACY_CHECKPOINT_SLOTS_ONLY')
+    mutate_csv(case/'chmtOutput/gas-2.csv', 'temperature', 'nan')
+    with pytest.raises(ValueError, match='nonfinite'):
+        checker.check_case(case)

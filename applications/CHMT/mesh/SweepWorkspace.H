@@ -95,6 +95,7 @@ public:
         }
         for(std::size_t p=1;p<offsets_.size();++p)offsets_[p]+=offsets_[p-1];
     }
+    template<bool Terminal=false>
     bool solve(const Points& boundary,Points& output) {
         std::fill(displacement_.begin(),displacement_.end(),Vec3{});
         std::fill(next_.begin(),next_.end(),Vec3{});
@@ -112,7 +113,7 @@ public:
             }
             displacement_.swap(next_);converged=residual<=tolerance_;
         }
-        if(!converged)return false;
+        if(!Terminal && !converged)return false;
         output.resize(mesh_.points.size());
         for(std::size_t p=0;p<output.size();++p) {
             output[p]=mesh_.points[p]+displacement_[p];

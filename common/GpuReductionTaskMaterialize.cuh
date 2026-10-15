@@ -19,7 +19,7 @@ __global__ void materializeCsrReductionTasksKernel
         {
             continue;
         }
-        if (taskStart < 0 || taskStart > s.csrHeavyTaskCapacity - nTasks)
+        if (taskStart < 0)
         {
             asm("trap;");
         }
@@ -45,7 +45,7 @@ __global__ void materializeCsrReductionTasksKernel
                 writeCsrReductionTask
                 (
                     s, taskStart + localTask, c, taskBegin,
-                    min(end, taskBegin + tile),
+                    taskBegin + min(tile, end - taskBegin),
                     CsrReductionTaskSource::fullIndexed
                 );
             }
@@ -72,29 +72,25 @@ __global__ void materializeCsrReductionTasksKernel
             (
                 int taskBegin = 0;
                 taskBegin < totalCount;
-                taskBegin += tile
+                taskBegin += min(tile, totalCount - taskBegin)
             )
             {
                 writeCsrReductionTask
                 (
                     s, taskStart + localTask++, c, taskBegin,
-                    min(totalCount, taskBegin + tile),
+                    taskBegin + min(tile, totalCount - taskBegin),
                     CsrReductionTaskSource::splitLogical
                 );
-            }
-            if (localTask != nTasks)
-            {
-                asm("trap;");
             }
 #if GPU_DIRECTORY_HAS_BASE_ONLY
             continue;
         }
-        for (int taskBegin = baseBegin; taskBegin < baseEnd; taskBegin += tile)
+        for (int taskBegin = baseBegin; taskBegin < baseEnd; taskBegin += min(tile, baseEnd - taskBegin))
         {
             writeCsrReductionTask
             (
                 s, taskStart + localTask++, c, taskBegin,
-                min(baseEnd, taskBegin + tile),
+                taskBegin + min(tile, baseEnd - taskBegin),
                 CsrReductionTaskSource::splitBaseDirect
             );
         }
@@ -106,19 +102,15 @@ __global__ void materializeCsrReductionTasksKernel
         (
             int taskBegin = injectionBegin;
             taskBegin < injectionEnd;
-            taskBegin += tile
+            taskBegin += min(tile, injectionEnd - taskBegin)
         )
         {
             writeCsrReductionTask
             (
                 s, taskStart + localTask++, c, taskBegin,
-                min(injectionEnd, taskBegin + tile),
+                taskBegin + min(tile, injectionEnd - taskBegin),
                 CsrReductionTaskSource::splitInjectionIndexed
             );
-        }
-        if (localTask != nTasks)
-        {
-            asm("trap;");
         }
 #endif
     }

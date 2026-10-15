@@ -1,4 +1,5 @@
 #include "GpuPrecisionTypes.H"
+#include <type_traits>
 #include "GpuColdWallThermalCarry.cuh"
 #ifndef GPU_THERMAL_GPU_COLD_WALL_2D_DEVICE_CUH
 #define GPU_THERMAL_GPU_COLD_WALL_2D_DEVICE_CUH
@@ -47,7 +48,7 @@ __device__ void clearColdWall2DParticleState
         particleI*Foam::gpuThermal::coldWall2DRadialNodeCount;
     for (int node = 0; node < Foam::gpuThermal::coldWall2DNodeCount; ++node)
     {
-        s.pCold2DNodeSpecificEnthalpy[nodeBase + node] = 0.0f;
+        s.pCold2DNodeSpecificEnthalpy[nodeBase + node] = 0.0;
     }
     for
     (
@@ -56,9 +57,9 @@ __device__ void clearColdWall2DParticleState
         ++ring
     )
     {
-        s.pCold2DRingContactAge[ringBase + ring] = 0.0f;
+        s.pCold2DRingContactAge[ringBase + ring] = 0.0;
     }
-    s.pCold2DFrozenArea[particleI] = 0.0f;
+    s.pCold2DFrozenArea[particleI] = 0.0;
 }
 
 __device__ void initialiseColdWall2DParticleState
@@ -70,8 +71,7 @@ __device__ void initialiseColdWall2DParticleState
 {
     if
     (
-        s.coldWall2DEnabled == 0
-     || s.pCold2DNodeSpecificEnthalpy == nullptr
+        s.pCold2DNodeSpecificEnthalpy == nullptr
      || s.pCold2DRingContactAge == nullptr
      || s.pCold2DFrozenArea == nullptr
     )
@@ -91,7 +91,7 @@ __device__ void initialiseColdWall2DParticleState
     for (int node = 0; node < Foam::gpuThermal::coldWall2DNodeCount; ++node)
     {
         s.pCold2DNodeSpecificEnthalpy[nodeBase + node] =
-            static_cast<float>(initialEnthalpy);
+            static_cast<typename std::remove_reference<decltype(s.pCold2DNodeSpecificEnthalpy[0])>::type>(initialEnthalpy);
     }
     for
     (
@@ -100,9 +100,15 @@ __device__ void initialiseColdWall2DParticleState
         ++ring
     )
     {
-        s.pCold2DRingContactAge[ringBase + ring] = 0.0f;
+        s.pCold2DRingContactAge[ringBase + ring] = 0.0;
     }
-    s.pCold2DFrozenArea[particleI] = 0.0f;
+#ifdef GPU_PAIRED_PARTICLE_HEAT
+
+
+    s.pThermalEnthalpyResidual[particleI] += double(initialEnthalpy)
+      - double(s.pCold2DNodeSpecificEnthalpy[nodeBase]);
+#endif
+    s.pCold2DFrozenArea[particleI] = 0.0;
 }
 
 __device__ bool advanceColdWall2DThermalGroup
@@ -134,27 +140,15 @@ __device__ bool advanceColdWall2DThermalGroup
             physicalMassKg,
             maximumAreaM2
         );
-    if
-    (
-        !geometry.valid
+
+    const bool backingValid = s.pCold2DNodeSpecificEnthalpy != nullptr
+     && s.pCold2DRingContactAge != nullptr
+     && s.pCold2DFrozenArea != nullptr
 #ifdef GPU_PAIRED_PARTICLE_HEAT
-     || s.pThermalEnthalpyResidual == nullptr
-     || !(s.pm[particleI]>GPU_R(0.0))
-     || !Foam::gpuThermal::finiteColdWallValue(s.pm[particleI])
+     && s.pThermalEnthalpyResidual != nullptr
 #endif
-     || !(intrinsicContactAreaM2 > GPU_R(0.0))
-     || intrinsicContactAreaM2 > maximumAreaM2
-     || !(deltaTSeconds >= GPU_R(0.0))
-     || !(wallTemperatureK > GPU_R(0.0))
-     || !(wallEffusivity > GPU_R(0.0))
-     || !(thermalAreaFactor > GPU_R(0.0))
-     || thermalAreaFactor > GPU_R(1.0)
-     || !(gasTemperatureK > GPU_R(0.0))
-     || gasConductanceWK < GPU_R(0.0)
-    )
-    {
-        return false;
-    }
+     ;
+    if (!__all_sync(groupMask, backingValid)) return false;
 
     const int nodeBase =
         particleI*Foam::gpuThermal::coldWall2DNodeCount
@@ -166,7 +160,6 @@ __device__ bool advanceColdWall2DThermalGroup
     double localOldMean=0.0;
 #endif
     ColdWallThermalReal enthalpy[Foam::gpuThermal::coldWall2DAxialNodeCount];
-    int localStateValid = 1;
     for
     (
         int axialNode = 0;
@@ -182,14 +175,8 @@ __device__ bool advanceColdWall2DThermalGroup
         localOldMean += enthalpy[axialNode]/64.0;
         enthalpy[axialNode] += oldCarry;
 #endif
-        localStateValid = localStateValid
-         && Foam::gpuThermal::finiteColdWallValue(enthalpy[axialNode])
-         && enthalpy[axialNode] >= GPU_R(0.0);
     }
-    if (!__all_sync(groupMask, localStateValid))
-    {
-        return false;
-    }
+
 #ifdef GPU_PAIRED_PARTICLE_HEAT
     const double oldMean=coldWall2DGroupSum(localOldMean,groupMask)+oldCarry;
     if(deltaTSeconds==0.0) {
@@ -203,32 +190,31 @@ __device__ bool advanceColdWall2DThermalGroup
     (
         s.pCold2DRingContactAge[ringBase + radialNode]
     );
-    localStateValid =
-        Foam::gpuThermal::finiteColdWallValue(ringContactAgeS)
-     && ringContactAgeS >= GPU_R(0.0);
-    if (!__all_sync(groupMask, localStateValid))
-    {
-        return false;
-    }
+
     const ColdWallThermalReal wetAreaM2 = Foam::gpuThermal::coldWall2DRingWetAreaM2
     (
         geometry,
         intrinsicContactAreaM2,
         radialNode
     );
-    GpuTime remainingTime = deltaTSeconds;
+    const GpuTime timeDirection = deltaTSeconds < 0.0 ? -1.0 : 1.0;
+    GpuTime remainingTime = ::fabs(deltaTSeconds);
     GpuTime elapsedTime = GPU_R(0.0);
     ColdWallThermalReal localWallEnergyJ = GPU_R(0.0);
 #ifdef GPU_PAIRED_PARTICLE_HEAT
     double localGasEnergyJ=0.0;
 #endif
-    int substep = 0;
-    while (remainingTime > GPU_R(0.0) && substep < 256)
+
+
+    int substep = deltaTSeconds < 0.0 ? 256 : 0;
+    GpuTime remainingCorrection = 0.0;
+
+    const bool nonfiniteInterval = !Foam::gpuThermal::finiteColdWallValue(deltaTSeconds);
+    while (remainingTime > GPU_R(0.0) || remainingCorrection < 0.0 || nonfiniteInterval)
     {
         ColdWallThermalReal temperature[Foam::gpuThermal::coldWall2DAxialNodeCount];
         ColdWallThermalReal conductivity[Foam::gpuThermal::coldWall2DAxialNodeCount];
         ColdWallThermalReal apparentCp[Foam::gpuThermal::coldWall2DAxialNodeCount];
-        localStateValid = 1;
         for
         (
             int axialNode = 0;
@@ -260,26 +246,6 @@ __device__ bool advanceColdWall2DThermalGroup
                     temperature[axialNode],
                     s.coldWallSolidificationParameters
                 );
-            localStateValid = localStateValid
-             && Foam::gpuThermal::finiteColdWallValue
-                (
-                    temperature[axialNode]
-                )
-             && Foam::gpuThermal::finiteColdWallValue
-                (
-                    conductivity[axialNode]
-                )
-             && Foam::gpuThermal::finiteColdWallValue
-                (
-                    apparentCp[axialNode]
-                )
-             && temperature[axialNode] > GPU_R(0.0)
-             && conductivity[axialNode] > GPU_R(0.0)
-             && apparentCp[axialNode] > GPU_R(0.0);
-        }
-        if (!__all_sync(groupMask, localStateValid))
-        {
-            return false;
         }
 
         const GpuTime localAge = ringContactAgeS + elapsedTime;
@@ -394,8 +360,9 @@ __device__ bool advanceColdWall2DThermalGroup
                 const GpuTime stableTime =
                     GPU_R(0.45)*geometry.nodeMassKg*apparentCp[axialNode]
                    /conductanceSum;
-                minimumStableTime = stableTime < minimumStableTime
-                  ? stableTime : minimumStableTime;
+                const GpuTime stableMagnitude = ::fabs(stableTime);
+                minimumStableTime = stableMagnitude < minimumStableTime
+                  ? stableMagnitude : minimumStableTime;
             }
         }
         minimumStableTime = coldWall2DGroupMin
@@ -403,16 +370,17 @@ __device__ bool advanceColdWall2DThermalGroup
             minimumStableTime,
             groupMask
         );
-        const GpuTime stepTime = minimumStableTime < remainingTime
-          ? minimumStableTime : remainingTime;
-        if
-        (
-            !(stepTime > GPU_R(0.0))
-         || !Foam::gpuThermal::finiteColdWallValue(stepTime)
-        )
-        {
-            return false;
-        }
+        const GpuTime availableTime = substep < 256
+          ? remainingTime : remainingTime - remainingCorrection;
+        const GpuTime stableMagnitude = minimumStableTime < availableTime
+          ? minimumStableTime : availableTime;
+
+
+        const GpuTime stepMagnitude = !nonfiniteInterval
+          && stableMagnitude > GPU_R(0.0)
+          && Foam::gpuThermal::finiteColdWallValue(stableMagnitude)
+          ? stableMagnitude : availableTime;
+        const GpuTime stepTime = timeDirection*stepMagnitude;
 
         ColdWallThermalReal power[Foam::gpuThermal::coldWall2DAxialNodeCount];
         for
@@ -533,7 +501,6 @@ __device__ bool advanceColdWall2DThermalGroup
             }
             power[axialNode] = nodePower;
         }
-        localStateValid = 1;
         for
         (
             int axialNode = 0;
@@ -543,25 +510,31 @@ __device__ bool advanceColdWall2DThermalGroup
         {
             enthalpy[axialNode] +=
                 stepTime*power[axialNode]/geometry.nodeMassKg;
-            localStateValid = localStateValid
-             && Foam::gpuThermal::finiteColdWallValue(enthalpy[axialNode])
-             && enthalpy[axialNode] >= GPU_R(0.0);
         }
-        if (!__all_sync(groupMask, localStateValid))
+
+        if (nonfiniteInterval)
         {
-            return false;
+            elapsedTime += stepTime;
+            break;
         }
-        elapsedTime += stepTime;
-        remainingTime -= stepTime;
-        if (remainingTime < GPU_R(1.0e-12)*deltaTSeconds)
+        if (substep < 256)
         {
-            remainingTime = GPU_R(0.0);
+            elapsedTime += stepTime;
+            remainingTime -= stepTime;
+            if (remainingTime < GPU_R(1.0e-12)*deltaTSeconds)
+            {
+                remainingTime = GPU_R(0.0);
+            }
+            ++substep;
         }
-        ++substep;
-    }
-    if (remainingTime > GPU_R(0.0))
-    {
-        return false;
+        else
+        {
+            const GpuTime correctedStep = -stepMagnitude - remainingCorrection;
+            const GpuTime nextRemaining = remainingTime + correctedStep;
+            remainingCorrection = (nextRemaining - remainingTime) - correctedStep;
+            remainingTime = nextRemaining;
+            elapsedTime = timeDirection*((::fabs(deltaTSeconds)-remainingTime)+remainingCorrection);
+        }
     }
 
 #ifdef GPU_PAIRED_PARTICLE_HEAT
@@ -582,13 +555,6 @@ __device__ bool advanceColdWall2DThermalGroup
     const double storageChange=coldWall2DGroupSum(localStorageChange,groupMask);
     const double nextCarry=(oldCarry-storageChange)+meanIncrement;
     const double actualSpecificChange=storageChange+(nextCarry-oldCarry);
-    bool publishValid=::fabs(nextCarry)<=DBL_MAX;
-    for(int node=0;node<8;++node) {
-        const float stored=ugkwp::coldWallStoredEnthalpyFloor(enthalpy[node]);
-        const double effective=double(stored)+nextCarry;
-        publishValid=publishValid && stored>0.0f && effective>0.0 && effective<=FLT_MAX;
-    }
-    if(!__all_sync(groupMask,publishValid))return false;
     if(radialNode==0)s.pThermalEnthalpyResidual[particleI]=nextCarry;
     // Phase and output caches use exactly the published float profile + carry.
     for(int node=0;node<8;++node) {
@@ -607,7 +573,7 @@ __device__ bool advanceColdWall2DThermalGroup
     {
 #ifndef GPU_PAIRED_PARTICLE_HEAT
         s.pCold2DNodeSpecificEnthalpy[nodeBase + axialNode] =
-            static_cast<float>(enthalpy[axialNode]);
+            enthalpy[axialNode];
 #endif
         localEnthalpySum += enthalpy[axialNode];
     }
@@ -675,7 +641,7 @@ __device__ bool advanceColdWall2DThermalGroup
         frozenFootprintAreaM2 = candidateFrozenArea > oldFrozenArea
           ? candidateFrozenArea : oldFrozenArea;
         s.pCold2DFrozenArea[particleI] =
-            static_cast<float>(frozenFootprintAreaM2);
+            frozenFootprintAreaM2;
     }
     frozenFootprintAreaM2 = __shfl_sync
     (
@@ -708,18 +674,8 @@ __device__ bool advanceColdWall2DThermalGroup
             s.coldWallSolidificationParameters
         );
     wallEnergyJ = coldWall2DGroupSum(localWallEnergyJ, groupMask);
-    const bool outputValid =
-        Foam::gpuThermal::finiteColdWallValue(meanTemperatureK)
-     && Foam::gpuThermal::finiteColdWallValue(surfaceTemperatureK)
-     && Foam::gpuThermal::finiteColdWallValue(frozenFootprintAreaM2)
-     && Foam::gpuThermal::finiteColdWallValue(wallEnergyJ)
-     && meanTemperatureK > GPU_R(0.0)
-     && surfaceTemperatureK > GPU_R(0.0)
-     && frozenFootprintAreaM2 >= GPU_R(0.0)
-     && frozenFootprintAreaM2 <= maximumAreaM2;
-    if(!__all_sync(groupMask,outputValid))return false;
 #ifdef GPU_PAIRED_PARTICLE_HEAT
-    if(radialNode==0 && gasConductanceWK>GPU_R(0.0) && s.particleHeatBudget!=nullptr) {
+    if(radialNode==0 && gasConductanceWK!=GPU_R(0.0)) {
         const int cell=s.pCellId[particleI];
         // This is the actual accepted inventory delta. Wall heat is external
         // to the gas-particle pair, and is added back using its published value.
@@ -742,7 +698,6 @@ __global__ void relaxColdWall2DParticlesToResidentGasKernel
         s.coldWall2DEnabled == 0
      || blockDim.x < Foam::gpuThermal::coldWall2DRadialNodeCount
      || blockDim.x%Foam::gpuThermal::coldWall2DRadialNodeCount != 0
-     || blockDim.x%32 != 0
     )
     {
         return;
@@ -895,13 +850,6 @@ __global__ void relaxColdWall2DParticlesToResidentGasKernel
 #ifdef GPU_PAIRED_PARTICLE_HEAT
                 const double scaledConductance=double(gasConductanceWK)*s.particleHeatCoefficient[cellI];
                 gasConductanceWK=static_cast<GpuReal>(scaledConductance);
-                // Do not round a conservative cell budget scale upwards.
-                if(double(gasConductanceWK)>scaledConductance)
-#if UGKWP_GPU_REAL_BITS == 32
-                    gasConductanceWK=::nextafterf(gasConductanceWK,GPU_R(0.0));
-#else
-                    gasConductanceWK=::nextafter(gasConductanceWK,GPU_R(0.0));
-#endif
 #endif
             }
             wallEffusivity = s.particleWallEffusivityByFace != nullptr
@@ -924,22 +872,7 @@ __global__ void relaxColdWall2DParticlesToResidentGasKernel
             damageAreaM2 = static_cast<GpuReal>(s.pDepositionArea[particleI]);
             const GpuReal contactAreaScale =
                 s.particleWallContactAreaScale[wallFaceI];
-            if
-            (
-                !(physicalMassKg > GPU_R(0.0))
-             || !(parcelMultiplicity > GPU_R(0.0))
-             || !(wallEffusivity > GPU_R(0.0))
-             || !(maximumAreaM2 > GPU_R(0.0))
-             || !(durationS > GPU_R(0.0))
-             || !(peakTimeFraction > GPU_R(0.0))
-             || !(peakTimeFraction < GPU_R(1.0))
-             || damageAreaM2 < GPU_R(0.0)
-             || !(contactAreaScale > GPU_R(0.0))
-             || contactAreaScale > GPU_R(1.0)
-            )
-            {
-                asm("trap;");
-            }
+
             if (finiteContact)
             {
                 age0S = clampRange
@@ -1091,10 +1024,7 @@ __global__ void relaxColdWall2DParticlesToResidentGasKernel
                         s.particleWallAdhesionEnergyScale,
                         s.particleWallContactAngleCosine
                     );
-                if (!capillary.valid)
-                {
-                    asm("trap;");
-                }
+
                 const GpuReal targetContactAreaM2 = fmin
                 (
                     capillary.equilibriumContactAreaM2,
@@ -1122,25 +1052,17 @@ __global__ void relaxColdWall2DParticlesToResidentGasKernel
                 s.pStuck[particleI] = Foam::gpuThermal::particleWallMobile;
                 s.pStuckFaceId[particleI] = -1;
                 s.pContactAge[particleI] = GPU_R(0.0);
-                s.pDepositionArea[particleI] = 0.0f;
-                s.pContactDuration[particleI] = 0.0f;
-                s.pContactMaximumArea[particleI] = 0.0f;
-                s.pContactPeakFraction[particleI] = 0.0f;
+                s.pDepositionArea[particleI] = 0.0;
+                s.pContactDuration[particleI] = 0.0;
+                s.pContactMaximumArea[particleI] = 0.0;
+                s.pContactPeakFraction[particleI] = 0.0;
             }
             else if (transition == 2)
             {
-                if
-                (
-                    !(longDepositAreaM2 > GPU_R(0.0))
-                 || longDepositAreaM2 > static_cast<GpuReal>(FLT_MAX)
-                )
-                {
-                    asm("trap;");
-                }
                 s.pStuck[particleI] = Foam::gpuThermal::particleWallDeposited;
                 s.pContactAge[particleI] = GPU_R(0.0);
                 s.pDepositionArea[particleI] =
-                    static_cast<float>(longDepositAreaM2);
+                    longDepositAreaM2;
                 s.puxOld[particleI] = GPU_R(0.0);
                 s.puyOld[particleI] = GPU_R(0.0);
                 s.puzOld[particleI] = GPU_R(0.0);
@@ -1159,16 +1081,16 @@ __global__ void relaxColdWall2DParticlesToResidentGasKernel
                 ++axialNode
             )
             {
-                s.pCold2DNodeSpecificEnthalpy[nodeBase + axialNode] = 0.0f;
+                s.pCold2DNodeSpecificEnthalpy[nodeBase + axialNode] = 0.0;
             }
             s.pCold2DRingContactAge
             [
                 particleI*Foam::gpuThermal::coldWall2DRadialNodeCount
               + radialNode
-            ] = 0.0f;
+            ] = 0.0;
             if (radialNode == 0)
             {
-                s.pCold2DFrozenArea[particleI] = 0.0f;
+                s.pCold2DFrozenArea[particleI] = 0.0;
             }
         }
     }

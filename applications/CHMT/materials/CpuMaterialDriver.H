@@ -6,6 +6,8 @@
 #include "../../../common/gasTransport/GasMechanismIO.H"
 namespace Foam {class fvMesh;}
 namespace chmt {
+namespace detail {struct ConductionContinuation;}
+enum class MaterialFailureOrigin { None,ConductionNumerical,ReactionNumerical,FilmNumerical,SurfaceNumerical,GeometryNumerical,TransportNumerical,OwnerNumerical,LocalSourceNumerical };
 struct CpuMaterialControls {
     Real maxSubstep=0,transportCfl=.4,reactionCfl=.1,reactionMaxSubstep=0;
     Real driveRelativeTolerance=.05,driveSourceFraction=.05,driveTractionScale=1;
@@ -13,18 +15,21 @@ struct CpuMaterialControls {
     Real nonlinearRelativeTolerance=1e-10,energyAbsoluteTolerance=1e-10,energyRelativeTolerance=1e-10;
 };
 struct CpuMaterialReport {
-    std::uint64_t boundaryDriveSamples=0,materialRhsEvaluations=0;
-    std::uint64_t materialSteps=0,reactionSteps=0,filmSteps=0,linearSolves=0;
-    bool recoverable=true,geometryCorrection=false;Real eventTime=0,numericalMassRoundoff=0;
-    int nonlinearIterations=0;Real energyResidual=0,minimumTemperature=std::numeric_limits<Real>::max();
-    Budget budgetDelta{};MaterialDonorPlan donorPlan{};
-    std::vector<Real> solidTargetSweeps{};
+    MaterialFailureOrigin failureOrigin=MaterialFailureOrigin::None;
+    std::uint64_t materialSteps=0;
+    bool recoverable=true,geometryCorrection=false;Real eventTime=0,eventDuration=0;
+    MaterialDonorPlan donorPlan{};
 };
 // Owns CPU numerical machinery, not a second copy of accepted inventories.
 // Candidate solve never mutates the accepted native mesh: it builds an unregistered full-topology fvMesh for the real sparse solve.
-// Successful output merges exact gasEndpoint inventories/budget with CPU changes once.
+
 class CpuMaterialDriver {
     struct Implementation;std::unique_ptr<Implementation> data_;
+    friend struct detail::ConductionContinuation;
+    bool predictWallImpl(const HostState&,const CouplingInterval&,WallProgram&,std::string&,CpuMaterialReport*,bool)const;
+    bool advanceCandidateImpl(const HostState&,const HostState&,const IntervalHistory&,
+        const CpuMaterialControls&,HostState&,WallProgram&,CpuMaterialReport&,
+        std::string&,const WallProgram*,bool terminalMaterial);
 public:
     CpuMaterialDriver(const ModelConfig&,Foam::fvMesh* actualSolidMesh);
     CpuMaterialDriver(const ModelConfig&,Foam::fvMesh* actualSolidMesh,const ugkwp::GasMechanismConfiguration* mechanism);

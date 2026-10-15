@@ -1,7 +1,7 @@
 
 from pathlib import Path
 import re,subprocess,sys,os
-root=Path(sys.argv[1]).resolve();p=Path(sys.argv[2]).resolve();branch=sys.argv[3];bits=int(sys.argv[4]);mode=sys.argv[5] if len(sys.argv)>5 else "split"
+root=Path(sys.argv[1]).resolve();p=Path(sys.argv[2]).resolve();branch=sys.argv[3];mode=sys.argv[4] if len(sys.argv)>4 else "split"
 for name in ['tests','bin','logs']:(p/name).mkdir(parents=True,exist_ok=True)
 folder='private_backend' if branch in ['gasUGKP','FSH'] else 'gpu'
 src=root/'applications'/branch/folder/'GpuResidentStrict.cu'
@@ -9,9 +9,8 @@ raw=src.read_text().replace('#include "GpuAutomaticCsrScheduleFields.inl"', (roo
 ptr=re.findall(r'^\s*((?:unsigned\s+)?(?:long long|char)|double|float|int|unsigned int|GpuReal|GpuTime|GpuWallEnergy)\*\s+(\w+)\s*=',d,re.M)
 ptr=[(t,n) for t,n in ptr if n not in ['diagnosticPreTransportParticleCount','sourceInjectedCount']]
 if branch == 'gasUGKP' and mode == 'unsorted':ptr.append(('PressureProjectionCell','pressureProjectionCache'))
-if bits!=32:ptr=[(t,n) for t,n in ptr if not n.startswith('flatPressure')]
+ptr=[(t,n) for t,n in ptr if not n.startswith('flatPressure')]
 txt='#include "GpuResidentStrict.cu"\n#include <cstdio>\n#include <new>\n#include <cstdlib>\n'
-if branch=='CHT' and bits==32:txt+='using namespace ugkwpCudaFp32;\n'
 txt+=r'''
 template<class T> void mem(T*&p,int n){if(cudaMallocManaged(&p,sizeof(T)*n)!=cudaSuccess)std::abort();for(int i=0;i<n;++i)::new(static_cast<void*>(p+i)) T{};}
 #define CHECK(x) do {if(!(x)){printf("FAIL line%d %s\n",__LINE__,#x);return 1;}}while(0)
@@ -66,19 +65,18 @@ if mode == 'unsorted':
 
 txt=txt.replace('THERMAL_INIT','s->pStuck[i]=0;' if branch!='gasUGKP' else '')
 txt=txt.replace('PHYSICS','AnalyticPressureLaunch' if branch=='gasUGKP' else 'ConstrainedPressureLaunch<true>')
-txt=txt.replace('TOL','2e-6' if bits==32 else '2e-12')
-f=p/'tests'/f'pressure_balance_{branch}{bits}.cu';f.write_text(txt)
-exe=p/'bin'/f'pressure_balance_{branch}{bits}'
-cmd=[str(Path(os.environ.get('CUDA_HOME','/usr/local/cuda'))/'bin/nvcc'),'-std=c++17','-O3','-arch='+os.environ.get('UGKWP_CUDA_ARCH','sm_89'),'--fmad='+('false' if branch=='CHT' else 'true'),'-DUGKWP_GPU_REAL_BITS='+str(bits),'-I'+str(src.parent),'-I'+str(root/'common'),'-I'+str(root/('applications/gasUGKP/gpu' if branch=='gasUGKP' else 'applications/FSH/gpu')),str(f),'-o',str(exe)]
-if branch=='CHT' and bits==32:cmd.append('-DUGKP_DEVELOPMENT_PROBES=1')
+txt=txt.replace('TOL','2e-12')
+f=p/'tests'/f'pressure_balance_{branch}{64}.cu';f.write_text(txt)
+exe=p/'bin'/f'pressure_balance_{branch}{64}'
+cmd=[str(Path(os.environ.get('CUDA_HOME','/usr/local/cuda'))/'bin/nvcc'),'-std=c++17','-O3','-arch='+os.environ.get('UGKWP_CUDA_ARCH','sm_89'),'--fmad='+('false' if branch=='CHT' else 'true'),'-I'+str(src.parent),'-I'+str(root/'common'),'-I'+str(root/('applications/gasUGKP/gpu' if branch=='gasUGKP' else 'applications/FSH/gpu')),str(f),'-o',str(exe)]
 if branch=='CHT':cmd.append(str(root/'applications/CHT/gpu/GpuWallEnergy64.cu'))
-log=p/'logs'/f'pressure_balance_{branch}{bits}_build.log'
+log=p/'logs'/f'pressure_balance_{branch}{64}_build.log'
 with log.open('w') as out:q=subprocess.run(cmd,stdout=out,stderr=subprocess.STDOUT)
-print('BUILD',branch,bits,q.returncode,flush=True)
+print('BUILD',branch,64,q.returncode,flush=True)
 if q.returncode:print(log.read_text()[-3500:]);raise SystemExit(q.returncode)
 if os.environ.get("UGKP_PRESSURE_FIXTURE_COMPILE_ONLY") == "1":
     print("COMPILE_ONLY: GPU execution intentionally omitted", flush=True)
     raise SystemExit(0)
 q=subprocess.run([str(exe)],capture_output=True,text=True)
-(p/'logs'/f'pressure_balance_{branch}{bits}_run.log').write_text(q.stdout+q.stderr)
+(p/'logs'/f'pressure_balance_{branch}{64}_run.log').write_text(q.stdout+q.stderr)
 print('RUN_RETURN',q.returncode,q.stdout+q.stderr);raise SystemExit(q.returncode)

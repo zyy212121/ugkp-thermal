@@ -3,6 +3,7 @@
 #define GPU_THERMAL_GPU_ALUMINA_PROPERTIES_H
 
 #include <cmath>
+#include <limits>
 #include <cfloat>
 
 #if defined(__CUDACC__)
@@ -15,7 +16,6 @@ namespace Foam
 {
 namespace gpuThermal
 {
-
 constexpr GpuReal aluminaPropertyTemperatureMinK = GPU_R(2327.0);
 constexpr GpuReal aluminaPropertyTemperatureMaxK = GPU_R(4000.0);
 constexpr GpuReal aluminaMolarMassKgMol = GPU_R(0.101961276);
@@ -34,9 +34,11 @@ struct AluminaLiquidProperties
     GpuReal thermalConductivityWmK;
 };
 
-GPU_ALUMINA_HD inline bool finiteAluminaValue(const GpuReal value) noexcept
+template<class Real>
+GPU_ALUMINA_HD inline bool finiteAluminaValue(const Real value) noexcept
 {
-    return value == value && value >= -GPU_REAL_MAX && value <= GPU_REAL_MAX;
+    return value == value && value >= -std::numeric_limits<Real>::max()
+        && value <= std::numeric_limits<Real>::max();
 }
 
 GPU_ALUMINA_HD inline GpuReal clampAlumina
@@ -54,10 +56,6 @@ GPU_ALUMINA_HD inline GpuReal aluminaSpecificHeatJkgK
     const GpuReal temperatureK
 ) noexcept
 {
-    if (!finiteAluminaValue(temperatureK) || !(temperatureK > GPU_R(0.0)))
-    {
-        return GPU_R(0.0);
-    }
     const GpuReal boundedTemperatureK = clampAlumina
     (
         temperatureK,
@@ -77,11 +75,6 @@ GPU_ALUMINA_HD inline GpuReal aluminaSpecificEnthalpyJkg
     const GpuReal temperatureK
 ) noexcept
 {
-    if (!finiteAluminaValue(temperatureK) || temperatureK < GPU_R(0.0))
-    {
-        return -GPU_R(1.0);
-    }
-
     const GpuReal cpMin = aluminaSpecificHeatJkgK
     (
         aluminaPropertyTemperatureMinK
@@ -118,15 +111,6 @@ GPU_ALUMINA_HD inline GpuReal aluminaTemperatureFromSpecificEnthalpyK
     const GpuReal specificEnthalpyJkg
 ) noexcept
 {
-    if
-    (
-        !finiteAluminaValue(specificEnthalpyJkg)
-     || specificEnthalpyJkg < GPU_R(0.0)
-    )
-    {
-        return -GPU_R(1.0);
-    }
-
     const GpuReal cpMin = aluminaSpecificHeatJkgK
     (
         aluminaPropertyTemperatureMinK
@@ -164,11 +148,6 @@ GPU_ALUMINA_HD inline AluminaLiquidProperties liquidAluminaProperties
     const GpuReal particleTemperatureK
 ) noexcept
 {
-    if (!finiteAluminaValue(particleTemperatureK) || !(particleTemperatureK > GPU_R(0.0)))
-    {
-        return {false, GPU_R(0.0), GPU_R(0.0), GPU_R(0.0), GPU_R(0.0), GPU_R(0.0), GPU_R(0.0)};
-    }
-
     const GpuReal temperatureK = clampAlumina
     (
         particleTemperatureK,
@@ -198,11 +177,11 @@ GPU_ALUMINA_HD inline AluminaLiquidProperties liquidAluminaProperties
     {
         valid,
         temperatureK,
-        valid ? densityKgM3 : GPU_R(0.0),
-        valid ? viscosityPaS : GPU_R(0.0),
-        valid ? surfaceTensionNM : GPU_R(0.0),
-        valid ? specificHeatJkgK : GPU_R(0.0),
-        valid ? thermalConductivityWmK : GPU_R(0.0)
+        densityKgM3,
+        viscosityPaS,
+        surfaceTensionNM,
+        specificHeatJkgK,
+        thermalConductivityWmK
     };
 }
 

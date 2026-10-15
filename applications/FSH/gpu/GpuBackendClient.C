@@ -14,6 +14,7 @@
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <unistd.h>
+#include <algorithm>
 
 namespace
 {
@@ -23,6 +24,8 @@ using namespace ugkwpGpuIpc;
 struct ClientState
 {
     int fd = -1;
+    bool responseActive = false;
+    std::uint64_t responseRemaining = 0;
     pid_t childPid = -1;
     int nCells = 0;
     int nFaces = 0;
@@ -65,8 +68,14 @@ bool writeAll(const int fd, const void* data, std::uint64_t bytes)
     return true;
 }
 
-bool readAll(const int fd, void* data, std::uint64_t bytes)
+bool readAll(const int fd, void* data, std::uint64_t bytes, ClientState* state = nullptr)
 {
+    if (state && state->responseActive && bytes>state->responseRemaining)
+    {
+        lastError="short response field: needed "+std::to_string(bytes)+" available "+std::to_string(state->responseRemaining);
+        return false;
+    }
+    const auto requested=bytes;
     unsigned char* p = static_cast<unsigned char*>(data);
     while (bytes != 0)
     {
@@ -81,7 +90,7 @@ bool readAll(const int fd, void* data, std::uint64_t bytes)
         }
         if (got == 0)
         {
-            lastError = "GPU backend exited or closed its IPC channel";
+            lastError = "GPU backend exited or closed its IPC channel: needed "+std::to_string(requested)+" received "+std::to_string(requested-bytes);
             return false;
         }
         if (got < 0)
@@ -90,6 +99,7 @@ bool readAll(const int fd, void* data, std::uint64_t bytes)
                       + std::strerror(errno);
             return false;
         }
+        if (state && state->responseActive) state->responseRemaining-=static_cast<std::uint64_t>(got);
         p += got;
         bytes -= static_cast<std::uint64_t>(got);
     }
@@ -99,7 +109,19 @@ bool readAll(const int fd, void* data, std::uint64_t bytes)
 template<class T>
 bool sendObject(const int fd, const T& value)
 {
-    return writeAll(fd, &value, sizeof(T));
+    if (wireLittleEndian() && WireCodec<T>::nativeLayout)
+        return writeAll(fd,&value,WireCodec<T>::size);
+    const auto bytes=encodeWire(value);
+    return writeAll(fd, bytes.data(), bytes.size());
+}
+
+template<class T> bool receiveObject(const int fd,T& value,ClientState* state = nullptr)
+{
+    if (wireLittleEndian() && WireCodec<T>::nativeLayout)
+        return readAll(fd,&value,WireCodec<T>::size,state);
+    std::array<unsigned char,WireCodec<T>::size> bytes{};
+    if (!readAll(fd,bytes.data(),bytes.size(),state)) return false;
+    WireCodec<T>::decode(bytes.data(),value); return true;
 }
 
 template<class T>
@@ -114,11 +136,14 @@ bool sendArray(const int fd, const T* values, const std::uint64_t count)
         lastError = "null array passed to GPU backend IPC";
         return false;
     }
-    return writeAll(fd, values, count*sizeof(T));
+    if (wireLittleEndian() || sizeof(T)==1) return writeAll(fd,values,count*sizeof(T));
+    for (std::uint64_t i=0;i<count;++i)
+    { const auto bytes=encodeWire(values[i]); if (!writeAll(fd,bytes.data(),bytes.size())) return false; }
+    return true;
 }
 
 template<class T>
-bool receiveArray(const int fd, T* values, const std::uint64_t count)
+bool receiveArray(const int fd, T* values, const std::uint64_t count, ClientState* state = nullptr)
 {
     if (count == 0)
     {
@@ -129,7 +154,24 @@ bool receiveArray(const int fd, T* values, const std::uint64_t count)
         lastError = "null output array passed to GPU backend IPC";
         return false;
     }
-    return readAll(fd, values, count*sizeof(T));
+    if (!readAll(fd,values,count*sizeof(T),state)) return false;
+    if (!wireLittleEndian() && sizeof(T)!=1)
+        for (std::uint64_t i=0;i<count;++i)
+        { auto* bytes=reinterpret_cast<unsigned char*>(values+i); std::reverse(bytes,bytes+sizeof(T)); }
+    return true;
+}
+
+bool discardResponse(ClientState* state)
+{
+    if (!state->responseActive) return true;
+    char buffer[8192];
+    while (state->responseRemaining)
+    {
+        const auto n=std::min<std::uint64_t>(state->responseRemaining,sizeof(buffer));
+        if (!readAll(state->fd,buffer,n,state)) return false;
+    }
+    state->responseActive=false;
+    return true;
 }
 
 bool startRequest(ClientState* state, const Op op, const std::uint64_t bytes)
@@ -139,11 +181,7 @@ bool startRequest(ClientState* state, const Op op, const std::uint64_t bytes)
         lastError = "invalid GPU backend client handle";
         return false;
     }
-    if (bytes > maxPayloadBytes)
-    {
-        lastError = "GPU backend request exceeds protocol payload limit";
-        return false;
-    }
+    if (!discardResponse(state)) return false;
     const RequestHeader header
     {
         magic, protocolMajor, protocolMinor,
@@ -161,37 +199,28 @@ int receiveResponse
 )
 {
     ResponseHeader response{};
-    if (!readAll(state->fd, &response, sizeof(response)))
+    if (!receiveObject(state->fd, response))
     {
         return -1;
     }
-    if
-    (
-        response.magicValue != magic
-     || response.major != protocolMajor
-     || response.minor != protocolMinor
-     || response.errorBytes > 1024U*1024U
-     || response.payloadBytes > maxPayloadBytes
-    )
-    {
-        return fail("invalid or incompatible GPU backend response header");
-    }
-
     std::string backendError(response.errorBytes, '\0');
     if (response.errorBytes != 0 && !readAll(state->fd, &backendError[0], response.errorBytes))
     {
         return -1;
     }
+    state->responseRemaining=response.payloadBytes;
+    state->responseActive=true;
     if (response.status != 0)
     {
+        if (!discardResponse(state)) return -1;
         lastError = backendError.empty()
           ? "GPU backend returned an unspecified error"
           : backendError;
         return response.status;
     }
-    if (requireExact && response.payloadBytes != expectedBytes)
+    if (requireExact && response.payloadBytes < expectedBytes)
     {
-        return fail("GPU backend response payload size mismatch");
+        return fail("short GPU backend response: needed "+std::to_string(expectedBytes)+" available "+std::to_string(response.payloadBytes));
     }
     payloadBytes = response.payloadBytes;
     lastError = "no GPU backend client error";
@@ -201,7 +230,8 @@ int receiveResponse
 int finishNoPayload(ClientState* state)
 {
     std::uint64_t bytes = 0;
-    return receiveResponse(state, bytes, true, 0);
+    const int status=receiveResponse(state, bytes, true, 0);
+    return status ? status : (discardResponse(state)?0:-1);
 }
 
 std::string backendExecutablePath()
@@ -261,22 +291,17 @@ bool spawnBackend(ClientState& state)
 
     ::close(sockets[1]);
     state.fd = sockets[0];
+    state.responseActive=false;
+    state.responseRemaining=0;
     state.childPid = child;
     return true;
 }
 
-bool addArrays(std::uint64_t& total, const std::uint64_t count,
+void addArrays(std::uint64_t& total, const std::uint64_t count,
                const std::uint64_t elementBytes, const unsigned copies)
 {
     for (unsigned i = 0; i < copies; ++i)
-    {
-        if (!addBytes(total, count, elementBytes))
-        {
-            lastError = "GPU backend payload size overflow";
-            return false;
-        }
-    }
-    return true;
+        addBytes(total, count, elementBytes);
 }
 
 }             
@@ -314,68 +339,7 @@ extern "C" int ugkwpGpuResidentStrictCreate
     void** handle
 )
 {
-    if (handle == nullptr || nCells <= 0 || nFaces <= 0
-     || nInternalFaces < 0 || nInternalFaces > nFaces || nCellPlanes < 0
-     || particleCapacity < 0
-     || !std::isfinite(gammaGas) || gammaGas <= 1.0 || gammaGas > 5.0/3.0
-     || !std::isfinite(Rgas) || Rgas <= 0.0
-     || !std::isfinite(gasMu) || gasMu < 0.0
-     || !std::isfinite(gasPr) || gasPr <= 0.0
-     || dragModelId < 0 || dragModelId > 2
-     || particleGasHeatTransferModelId < 0
-     || particleGasHeatTransferModelId > 1
-     || !std::isfinite(dragResidualRe) || dragResidualRe <= 0.0
-     || !std::isfinite(gravityX)
-     || !std::isfinite(gravityY)
-     || !std::isfinite(gravityZ)
-     || gasFluxScheme < static_cast<int>(GasFluxScheme::RusanovTadmor)
-     || gasFluxScheme > static_cast<int>(GasFluxScheme::Slau2_2)
-     || gasReconstruction < static_cast<int>(GasReconstruction::firstOrder)
-     || gasReconstruction
-        > static_cast<int>
-          (
-              GasReconstruction::OpenFoamEnergyLimitedLinear
-          )
-     || gasLimiter < static_cast<int>(GasLimiter::none)
-     || gasLimiter > static_cast<int>(GasLimiter::venkatakrishnan)
-     || gasTimeIntegrator < static_cast<int>(GasTimeIntegrator::Euler)
-     || gasTimeIntegrator > static_cast<int>(GasTimeIntegrator::SSPRK3)
-     || (gasRobustFallback != 0 && gasRobustFallback != 1)
-     || ((gasFluxScheme == static_cast<int>(GasFluxScheme::Hllc)
-       || gasFluxScheme == static_cast<int>(GasFluxScheme::Roe)
-       || gasFluxScheme == static_cast<int>(GasFluxScheme::Hllem))
-      && gasRobustFallback == 0)
-     || turbulenceModel < static_cast<int>(TurbulenceModel::laminar)
-     || turbulenceModel > static_cast<int>(TurbulenceModel::kOmegaSST)
-     || !std::isfinite(lesDeltaCoeff)
-     || lesDeltaCoeff <= 0.0
-     || !std::isfinite(turbulentPrandtl)
-     || turbulentPrandtl <= 0.0
-     || !std::isfinite(waleCw)
-     || waleCw < 0.0
-     || !std::isfinite(smagorinskyCs)
-     || smagorinskyCs < 0.0
-     || !std::isfinite(maxDiffusionNumber)
-     || maxDiffusionNumber <= 0.0
-     || (csrCellLocalPathEnabled != 0 && csrCellLocalPathEnabled != 1)
-     || csrHeavyReductionMode < 0 || csrHeavyReductionMode > 2
-     || csrHeavyAutoInterval < 1
-     || (csrWarpAggregatedBinning != 0 && csrWarpAggregatedBinning != 1)
-     || (particleBlockThreads != 32 && particleBlockThreads != 64
-      && particleBlockThreads != 128 && particleBlockThreads != 256)
-     || (reductionBlockThreads != 32 && reductionBlockThreads != 64
-      && reductionBlockThreads != 128 && reductionBlockThreads != 256)
-     || (!csrCellLocalPathEnabled
-      && (csrHeavyReductionMode != 0 || csrWarpAggregatedBinning))
-     || (jammingPressureEnabled != 0 && jammingPressureEnabled != 1)
-     || packingProjectionIterations < 1
-     || (jammingPressureEnabled != 0
-      && (!std::isfinite(packingFraction)
-       || packingFraction <= 0.0 || packingFraction >= 1.0)))
-    {
-        return fail("invalid GPU backend create arguments");
-    }
-
+    if (handle == nullptr) return fail("missing backend output handle");
     ClientState* state = new ClientState;
     state->nCells = nCells;
     state->nFaces = nFaces;
@@ -410,7 +374,7 @@ extern "C" int ugkwpGpuResidentStrictCreate
         csrHeavyAutoInterval, particleBlockThreads,
         reductionBlockThreads, csrWarpAggregatedBinning
     };
-    if (!startRequest(state, Op::create, sizeof(args)) || !sendObject(state->fd, args))
+    if (!startRequest(state, Op::create, wireBytes(args)) || !sendObject(state->fd, args))
     {
         const std::string savedError = lastError;
         ugkwpGpuResidentStrictRelease(state);
@@ -450,13 +414,13 @@ extern "C" int ugkwpGpuResidentStrictUploadMesh
     ClientState* s = static_cast<ClientState*>(handle);
     if (s == nullptr) return fail("invalid GPU backend client handle");
     std::uint64_t bytes = 0;
-    if (!addArrays(bytes, s->nFaces, sizeof(int), 3)
-     || !addArrays(bytes, s->nCells, sizeof(double), 5)
-     || !addArrays(bytes, s->nFaces, sizeof(double), 12)
-     || !addArrays(bytes, s->nCells, sizeof(int), 2)
-     || !addArrays(bytes, s->nCellPlanes, sizeof(int), 3)
-     || !addArrays(bytes, s->nCellPlanes, sizeof(double), 6)
-     || !startRequest(s, Op::uploadMesh, bytes)) return -1;
+    addArrays(bytes, s->nFaces, sizeof(int), 3);
+    addArrays(bytes, s->nCells, sizeof(double), 5);
+    addArrays(bytes, s->nFaces, sizeof(double), 12);
+    addArrays(bytes, s->nCells, sizeof(int), 2);
+    addArrays(bytes, s->nCellPlanes, sizeof(int), 3);
+    addArrays(bytes, s->nCellPlanes, sizeof(double), 6);
+    if (!startRequest(s, Op::uploadMesh, bytes)) return -1;
 #define SEND(P,N) do { if (!sendArray(s->fd, (P), (N))) return -1; } while (false)
     SEND(faceOwner, s->nFaces); SEND(faceNeighbour, s->nFaces);
     SEND(facePeriodicPair, s->nFaces);
@@ -488,13 +452,12 @@ extern "C" int ugkwpGpuResidentStrictUploadBoundarySources
 )
 {
     ClientState* s = static_cast<ClientState*>(handle);
-    if (s == nullptr || count < 0 || count > s->nFaces)
+    if (s == nullptr)
         return fail("invalid GPU boundary source count");
-    std::uint64_t bytes = sizeof(CountArgs);
-    if (!addArrays(bytes, count, sizeof(int), 2)
-     || !addArrays(bytes, count, sizeof(double), 10)
-     || !startRequest(s, Op::uploadBoundarySources, bytes)
-     || !sendObject(s->fd, CountArgs{count})) return -1;
+    std::uint64_t bytes = WireCodec<CountArgs>::size;
+    addArrays(bytes, count, sizeof(int), 2);
+    addArrays(bytes, count, sizeof(double), 10);
+    if (!startRequest(s, Op::uploadBoundarySources, bytes) || !sendObject(s->fd, CountArgs{count})) return -1;
 #define SEND(P) do { if (!sendArray(s->fd, (P), count)) return -1; } while (false)
     SEND(sourceCell); SEND(sourceFace); SEND(sourcePx); SEND(sourcePy);
     SEND(sourcePz); SEND(sourceUx); SEND(sourceUy); SEND(sourceUz);
@@ -519,58 +482,8 @@ extern "C" int ugkwpGpuResidentStrictConfigureParticleStuckModel
 )
 {
     ClientState* s = static_cast<ClientState*>(handle);
-    if
-    (
-        s == nullptr
-     || nFaces != s->nFaces
-     || candidateFaceMask == nullptr
-     || (heatTransferEnabled != 0 && heatTransferEnabled != 1)
-     || !std::isfinite(sommerfeldThreshold)
-     || !std::isfinite(maximumCoverage)
-     || !std::isfinite(depositionHeatTransferEfficiency)
-     || !std::isfinite(reflectionHeatTransferEfficiency)
-     || !std::isfinite(adhesionEnergyScale)
-     || !std::isfinite(wallDensityKgM3)
-     || !std::isfinite(wallSpecificHeatJkgK)
-     || !std::isfinite(wallConductivityWmK)
-     || !std::isfinite(contactAngleDegree)
-     || !std::isfinite(meltingTemperatureK)
-     || !std::isfinite(mushyRangeK)
-     || !std::isfinite(latentHeatJkg)
-     || !std::isfinite(solidDensityKgM3)
-     || !std::isfinite(solidSpecificHeatJkgK)
-     || !std::isfinite(solidThermalConductivityWmK)
-     || !std::isfinite(pinningThicknessFraction)
-     || !std::isfinite(interfaceResistanceM2KW)
-     || sommerfeldThreshold <= 0.0
-     || maximumCoverage <= 0.0
-     || maximumCoverage > 1.0
-     || depositionHeatTransferEfficiency <= 0.0
-     || depositionHeatTransferEfficiency > 1.0
-     || reflectionHeatTransferEfficiency <= 0.0
-     || reflectionHeatTransferEfficiency > 1.0
-     || adhesionEnergyScale <= 0.0
-     || wallDensityKgM3 <= 0.0
-     || wallSpecificHeatJkgK <= 0.0
-     || wallConductivityWmK <= 0.0
-     || contactAngleDegree <= 0.0
-     || contactAngleDegree >= 180.0
-     || (wallTransientResistance != 0 && wallTransientResistance != 1)
-     || nonlinearIterations < 1
-     || nonlinearIterations > 12
-     || meltingTemperatureK <= 0.0
-     || mushyRangeK <= 0.0
-     || latentHeatJkg <= 0.0
-     || solidDensityKgM3 <= 0.0
-     || solidSpecificHeatJkgK <= 0.0
-     || solidThermalConductivityWmK <= 0.0
-     || pinningThicknessFraction <= 0.0
-     || pinningThicknessFraction > 1.0
-     || interfaceResistanceM2KW < 0.0
-    )
-    {
-        return fail("invalid particle stuck-model configuration");
-    }
+    if (!s || (nFaces && !candidateFaceMask))
+        return fail("missing stuck-model handle or face mask extent");
     const ParticleStuckConfigArgs args
     {
         nFaces,
@@ -596,7 +509,7 @@ extern "C" int ugkwpGpuResidentStrictConfigureParticleStuckModel
         interfaceResistanceM2KW
     };
     const std::uint64_t bytes =
-        sizeof(args) + std::uint64_t(nFaces)*sizeof(unsigned char);
+        wireBytes(args) + std::uint64_t(nFaces)*sizeof(unsigned char);
     if
     (
         !startRequest(s, Op::configureParticleStuckModel, bytes)
@@ -618,30 +531,23 @@ extern "C" int ugkwpGpuResidentStrictConfigureScheduledInlet
 )
 {
     ClientState* s = static_cast<ClientState*>(handle);
-    if
-    (
-        s == nullptr || count <= 0 || count > s->nFaces
-     || nPressureRows <= 0 || nVolumeFractionRows <= 0
-    )
+    if (s == nullptr)
         return fail("invalid scheduled inlet configuration counts");
     const ScheduledInletConfigArgs args
     {
         count, nPressureRows, nVolumeFractionRows, inletTemperature
     };
-    std::uint64_t bytes = sizeof(args);
-    if
-    (
-        !addArrays(bytes, count, sizeof(int), 1)
-     || !addArrays(bytes, nPressureRows, sizeof(double), 2)
-     || !addArrays(bytes, nVolumeFractionRows, sizeof(double), 2)
-     || !startRequest(s, Op::configureScheduledInlet, bytes)
+    std::uint64_t bytes = wireBytes(args);
+    addArrays(bytes, count, sizeof(int), 1);
+    addArrays(bytes, nPressureRows, sizeof(double), 2);
+    addArrays(bytes, nVolumeFractionRows, sizeof(double), 2);
+    if (!startRequest(s, Op::configureScheduledInlet, bytes)
      || !sendObject(s->fd, args)
      || !sendArray(s->fd, faceIds, count)
      || !sendArray(s->fd, pressureTimes, nPressureRows)
      || !sendArray(s->fd, pressureValues, nPressureRows)
      || !sendArray(s->fd, volumeFractionTimes, nVolumeFractionRows)
-     || !sendArray(s->fd, volumeFractionValues, nVolumeFractionRows)
-    ) return -1;
+     || !sendArray(s->fd, volumeFractionValues, nVolumeFractionRows)) return -1;
     return finishNoPayload(s);
 }
 
@@ -652,26 +558,26 @@ extern "C" int ugkwpGpuResidentStrictDownloadSourceResidualMass
 )
 {
     ClientState* s = static_cast<ClientState*>(handle);
-    if (s == nullptr || nSources == nullptr || maxSources < 0)
+    if (s == nullptr || nSources == nullptr)
         return fail("invalid source residual download arguments");
-    if (!startRequest(s, Op::downloadSourceResidualMass, sizeof(CountArgs))
+    if (!startRequest(s, Op::downloadSourceResidualMass, WireCodec<CountArgs>::size)
      || !sendObject(s->fd, CountArgs{maxSources})) return -1;
     std::uint64_t payload = 0;
     const int status = receiveResponse(s, payload, false, 0);
     if (status != 0) return status;
     int count = 0;
-    if (payload < sizeof(count) || !readAll(s->fd, &count, sizeof(count))) return -1;
-    const std::uint64_t expected = sizeof(count)
+    if (payload < wireBytes(count) || !receiveObject(s->fd, count,s)) return -1;
+    const std::uint64_t expected = wireBytes(count)
       + (maxSources == 0 ? 0 : std::uint64_t(count)*(sizeof(int) + sizeof(double)));
-    if (count < 0 || (maxSources != 0 && count > maxSources) || payload != expected)
+    if (payload < expected)
         return fail("invalid source residual response");
     *nSources = count;
     if (maxSources != 0)
     {
-        if (!receiveArray(s->fd, sourceFace, count)
-         || !receiveArray(s->fd, residualMass, count)) return -1;
+        if (!receiveArray(s->fd, sourceFace, count,s)
+         || !receiveArray(s->fd, residualMass, count,s)) return -1;
     }
-    return 0;
+    return discardResponse(s)?0:-1;
 }
 
 extern "C" int ugkwpGpuResidentStrictUploadSourceResidualMass
@@ -680,9 +586,9 @@ extern "C" int ugkwpGpuResidentStrictUploadSourceResidualMass
 )
 {
     ClientState* s = static_cast<ClientState*>(handle);
-    if (s == nullptr || count < 0 || count > s->nFaces)
+    if (s == nullptr)
         return fail("invalid source residual upload count");
-    const std::uint64_t bytes = sizeof(CountArgs)
+    const std::uint64_t bytes = WireCodec<CountArgs>::size
       + std::uint64_t(count)*(sizeof(int) + sizeof(double));
     if (!startRequest(s, Op::uploadSourceResidualMass, bytes)
      || !sendObject(s->fd, CountArgs{count})
@@ -703,9 +609,9 @@ extern "C" int ugkwpGpuResidentStrictUploadGasBoundaryFields
     ClientState* s = static_cast<ClientState*>(handle);
     if (s == nullptr) return fail("invalid GPU backend client handle");
     std::uint64_t bytes = 0;
-    if (!addArrays(bytes, s->nFaces, sizeof(int), 6)
-     || !addArrays(bytes, s->nFaces, sizeof(double), 9)
-     || !startRequest(s, Op::uploadGasBoundaryFields, bytes)) return -1;
+    addArrays(bytes, s->nFaces, sizeof(int), 6);
+    addArrays(bytes, s->nFaces, sizeof(double), 9);
+    if (!startRequest(s, Op::uploadGasBoundaryFields, bytes)) return -1;
 #define SEND(P) do { if (!sendArray(s->fd, (P), s->nFaces)) return -1; } while (false)
     SEND(kind); SEND(rhoFix); SEND(uFix); SEND(pFix); SEND(tFix); SEND(pWave);
     SEND(pWaveGamma); SEND(pWaveFieldInf); SEND(pWaveLInf); SEND(rho);
@@ -725,8 +631,8 @@ extern "C" int ugkwpGpuResidentStrictUploadFields
     ClientState* s = static_cast<ClientState*>(handle);
     if (s == nullptr) return fail("invalid GPU backend client handle");
     std::uint64_t bytes = 0;
-    if (!addArrays(bytes, s->nCells, sizeof(double), 10)
-     || !startRequest(s, Op::uploadFields, bytes)) return -1;
+    addArrays(bytes, s->nCells, sizeof(double), 10);
+    if (!startRequest(s, Op::uploadFields, bytes)) return -1;
     const double* fields[] = {rho,rhoUx,rhoUy,rhoUz,rhoE,Ux,Uy,Uz,p,Tgas};
     for (const double* values : fields)
         if (!sendArray(s->fd, values, s->nCells)) return -1;
@@ -738,7 +644,7 @@ extern "C" int ugkwpGpuResidentStrictAdvance
 {
     ClientState* s = static_cast<ClientState*>(handle);
     const AdvanceArgs args{dt, simulationTime};
-    if (!startRequest(s, Op::advance, sizeof(args)) || !sendObject(s->fd, args))
+    if (!startRequest(s, Op::advance, wireBytes(args)) || !sendObject(s->fd, args))
         return -1;
     return finishNoPayload(s);
 }
@@ -797,13 +703,11 @@ extern "C" int ugkwpGpuResidentStrictConfigureSst
         a1, b1, c1, kMin, omegaMin, maxSourceNumber,
         wallTreatment, wallKappa, wallE, wallCmu
     };
-    std::uint64_t bytes = sizeof(args);
-    if
-    (
-        !addArrays(bytes, s->nCells, sizeof(double), 3)
-     || !addArrays(bytes, s->nFaces, sizeof(int), 2)
-     || !addArrays(bytes, s->nFaces, sizeof(double), 2)
-     || !startRequest(s, Op::configureSst, bytes)
+    std::uint64_t bytes = wireBytes(args);
+    addArrays(bytes, s->nCells, sizeof(double), 3);
+    addArrays(bytes, s->nFaces, sizeof(int), 2);
+    addArrays(bytes, s->nFaces, sizeof(double), 2);
+    if (!startRequest(s, Op::configureSst, bytes)
      || !sendObject(s->fd, args)
      || !sendArray(s->fd, k, s->nCells)
      || !sendArray(s->fd, omega, s->nCells)
@@ -811,8 +715,7 @@ extern "C" int ugkwpGpuResidentStrictConfigureSst
      || !sendArray(s->fd, boundaryKMode, s->nFaces)
      || !sendArray(s->fd, boundaryOmegaMode, s->nFaces)
      || !sendArray(s->fd, boundaryK, s->nFaces)
-     || !sendArray(s->fd, boundaryOmega, s->nFaces)
-    )
+     || !sendArray(s->fd, boundaryOmega, s->nFaces))
     {
         return -1;
     }
@@ -846,14 +749,14 @@ extern "C" int ugkwpGpuResidentStrictDownloadSst
     }
     if
     (
-        !receiveArray(s->fd, k, s->nCells)
-     || !receiveArray(s->fd, omega, s->nCells)
-     || !receiveArray(s->fd, nut, s->nCells)
+        !receiveArray(s->fd, k, s->nCells,s)
+     || !receiveArray(s->fd, omega, s->nCells,s)
+     || !receiveArray(s->fd, nut, s->nCells,s)
     )
     {
         return -1;
     }
-    return 0;
+    return discardResponse(s)?0:-1;
 }
 
 extern "C" int ugkwpGpuResidentStrictComputeGasCourant
@@ -862,19 +765,19 @@ extern "C" int ugkwpGpuResidentStrictComputeGasCourant
     ClientState* s = static_cast<ClientState*>(handle);
     if (maxCo == nullptr) return fail("null gas Courant output");
     const CourantArgs args{dt, targetMaxCo, scheduleTime};
-    if (!startRequest(s, Op::computeGasCourant, sizeof(args))
+    if (!startRequest(s, Op::computeGasCourant, wireBytes(args))
      || !sendObject(s->fd, args)) return -1;
     std::uint64_t bytes = 0;
     const int status = receiveResponse(s, bytes, true, sizeof(double));
     if (status != 0) return status;
-    return readAll(s->fd, maxCo, sizeof(double)) ? 0 : -1;
+    return receiveArray(s->fd,maxCo,1,s) && discardResponse(s) ? 0 : -1;
 }
 
 extern "C" int ugkwpGpuResidentStrictAdvanceGasOnly
 (void* handle, double dt, double simulationTime)
 {
     ClientState* s = static_cast<ClientState*>(handle);
-    if (!startRequest(s, Op::advanceGasOnly, sizeof(AdvanceArgs))
+    if (!startRequest(s, Op::advanceGasOnly, WireCodec<AdvanceArgs>::size)
      || !sendObject(s->fd, AdvanceArgs{dt, simulationTime})) return -1;
     return finishNoPayload(s);
 }
@@ -899,8 +802,8 @@ extern "C" int ugkwpGpuResidentStrictDownloadFields
         rhoUsx,rhoUsy,rhoUsz,rhoEs,rhoDs,rhoHp,Usx,Usy,Usz,theta,Tp,
         dMeanCell};
     for (double* values : fields)
-        if (!receiveArray(s->fd, values, s->nCells)) return -1;
-    return 0;
+        if (!receiveArray(s->fd, values, s->nCells,s)) return -1;
+    return discardResponse(s)?0:-1;
 }
 
 extern "C" int ugkwpGpuResidentStrictDownloadGasBoundaryFields
@@ -917,8 +820,8 @@ extern "C" int ugkwpGpuResidentStrictDownloadGasBoundaryFields
     if (status != 0) return status;
     double* fields[] = {rho,ux,uy,uz,p,t};
     for (double* values : fields)
-        if (!receiveArray(s->fd, values, s->nFaces)) return -1;
-    return 0;
+        if (!receiveArray(s->fd, values, s->nFaces,s)) return -1;
+    return discardResponse(s)?0:-1;
 }
 
 extern "C" int ugkwpGpuResidentStrictUploadParticleSavedVelocity
@@ -927,11 +830,13 @@ extern "C" int ugkwpGpuResidentStrictUploadParticleSavedVelocity
     ClientState* s=static_cast<ClientState*>(handle);
     if (!s || count<0 || count>s->particleCapacity || (count && (!x || !y || !z)))
         return fail("invalid saved velocity upload");
-    std::uint64_t bytes=sizeof(CountArgs);
-    if (!addArrays(bytes,count,sizeof(double),3)
-        || !startRequest(s,Op::uploadParticleSavedVelocity,bytes)
-        || !sendObject(s->fd,CountArgs{count}) || !sendArray(s->fd,x,count)
-        || !sendArray(s->fd,y,count) || !sendArray(s->fd,z,count)) return -1;
+    std::uint64_t bytes=WireCodec<CountArgs>::size;
+    addArrays(bytes,count,sizeof(double),3);
+    if (!startRequest(s,Op::uploadParticleSavedVelocity,bytes)
+     || !sendObject(s->fd,CountArgs{count})
+     || !sendArray(s->fd,x,count)
+     || !sendArray(s->fd,y,count)
+     || !sendArray(s->fd,z,count)) return -1;
     return finishNoPayload(s);
 }
 extern "C" int ugkwpGpuResidentStrictDownloadParticleSavedVelocity
@@ -940,13 +845,13 @@ extern "C" int ugkwpGpuResidentStrictDownloadParticleSavedVelocity
     ClientState* s=static_cast<ClientState*>(handle);
     if (!s || count<0 || count>s->particleCapacity || (count && (!x || !y || !z)))
         return fail("invalid saved velocity download");
-    if (!startRequest(s,Op::downloadParticleSavedVelocity,sizeof(CountArgs))
+    if (!startRequest(s,Op::downloadParticleSavedVelocity,WireCodec<CountArgs>::size)
         || !sendObject(s->fd,CountArgs{count})) return -1;
     std::uint64_t bytes=0,expected=0;addArrays(expected,count,sizeof(double),3);
     const int status=receiveResponse(s,bytes,true,expected);
     if (status!=0) return status;
-    return receiveArray(s->fd,x,count) && receiveArray(s->fd,y,count)
-        && receiveArray(s->fd,z,count) ? 0 : -1;
+    return receiveArray(s->fd,x,count,s) && receiveArray(s->fd,y,count,s)
+        && receiveArray(s->fd,z,count,s) && discardResponse(s) ? 0 : -1;
 }
 
 extern "C" int ugkwpGpuResidentStrictUploadParticleRestartMirror
@@ -956,30 +861,29 @@ extern "C" int ugkwpGpuResidentStrictUploadParticleRestartMirror
     const double* puz, const double* pT, const double* pTheta,
     const double* pd, const double* pm, const int* pCellId,
     const int* pStatus, const unsigned char* pStuck,
-    const int* pStuckFaceId, const float* pDepositionArea,
-    const float* pContactDuration, const float* pContactMaximumArea,
-    const float* pContactPeakFraction,
-    const float* pColdNodeSpecificEnthalpy,
-    const float* pColdRingSolidMass,
-    const float* pColdFrozenArea,
-    const float* pColdContactAge,
-    const float* pCold2DNodeSpecificEnthalpy,
-    const float* pCold2DRingContactAge,
-    const float* pCold2DFrozenArea,
+    const int* pStuckFaceId, const double* pDepositionArea,
+    const double* pContactDuration, const double* pContactMaximumArea,
+    const double* pContactPeakFraction,
+    const double* pColdNodeSpecificEnthalpy,
+    const double* pColdRingSolidMass,
+    const double* pColdFrozenArea,
+    const double* pColdContactAge,
+    const double* pCold2DNodeSpecificEnthalpy,
+    const double* pCold2DRingContactAge,
+    const double* pCold2DFrozenArea,
     const unsigned long long* pRng, const unsigned long long* pOrigId
 )
 {
     ClientState* s = static_cast<ClientState*>(handle);
-    if (s == nullptr || count < 0 || count > s->particleCapacity)
+    if (s == nullptr)
         return fail("invalid particle restart upload count");
-    std::uint64_t bytes = sizeof(CountArgs);
-    if (!addArrays(bytes, count, sizeof(double), 10)
-     || !addArrays(bytes, count, sizeof(int), 3)
-     || !addArrays(bytes, count, sizeof(unsigned char), 1)
-     || !addArrays(bytes, count, sizeof(float), 95)
-     || !addArrays(bytes, count, sizeof(unsigned long long), 2)
-     || !startRequest(s, Op::uploadParticleRestartMirror, bytes)
-     || !sendObject(s->fd, CountArgs{count})) return -1;
+    std::uint64_t bytes = WireCodec<CountArgs>::size;
+    addArrays(bytes, count, sizeof(double), 10);
+    addArrays(bytes, count, sizeof(int), 3);
+    addArrays(bytes, count, sizeof(unsigned char), 1);
+    addArrays(bytes, count, sizeof(double), 95);
+    addArrays(bytes, count, sizeof(unsigned long long), 2);
+    if (!startRequest(s, Op::uploadParticleRestartMirror, bytes) || !sendObject(s->fd, CountArgs{count})) return -1;
     const double* doubles[] = {px,py,pz,pux,puy,puz,pT,pTheta,pd,pm};
     for (const double* values : doubles)
         if (!sendArray(s->fd, values, count)) return -1;
@@ -991,12 +895,12 @@ extern "C" int ugkwpGpuResidentStrictUploadParticleRestartMirror
      || !sendArray(s->fd, pContactDuration, count)
      || !sendArray(s->fd, pContactMaximumArea, count)
      || !sendArray(s->fd, pContactPeakFraction, count)
-     || !sendArray(s->fd, pColdNodeSpecificEnthalpy, count*8)
-     || !sendArray(s->fd, pColdRingSolidMass, count*8)
+     || !sendArray(s->fd, pColdNodeSpecificEnthalpy, std::uint64_t(count)*8)
+     || !sendArray(s->fd, pColdRingSolidMass, std::uint64_t(count)*8)
      || !sendArray(s->fd, pColdFrozenArea, count)
      || !sendArray(s->fd, pColdContactAge, count)
-     || !sendArray(s->fd, pCold2DNodeSpecificEnthalpy, count*64)
-     || !sendArray(s->fd, pCold2DRingContactAge, count*8)
+     || !sendArray(s->fd, pCold2DNodeSpecificEnthalpy, std::uint64_t(count)*64)
+     || !sendArray(s->fd, pCold2DRingContactAge, std::uint64_t(count)*8)
      || !sendArray(s->fd, pCold2DFrozenArea, count)
      || !sendArray(s->fd, pRng, count)
      || !sendArray(s->fd, pOrigId, count)) return -1;
@@ -1008,65 +912,63 @@ extern "C" int ugkwpGpuResidentStrictDownloadParticleRestartMirror
     void* handle, int* nParticles, int maxParticles, double* px, double* py,
     double* pz, double* pux, double* puy, double* puz, double* pT,
     double* pTheta, double* pd, double* pm, int* pCellId, int* pStatus,
-    unsigned char* pStuck, int* pStuckFaceId, float* pDepositionArea,
-    float* pContactDuration, float* pContactMaximumArea,
-    float* pContactPeakFraction,
-    float* pColdNodeSpecificEnthalpy,
-    float* pColdRingSolidMass,
-    float* pColdFrozenArea,
-    float* pColdContactAge,
-    float* pCold2DNodeSpecificEnthalpy,
-    float* pCold2DRingContactAge,
-    float* pCold2DFrozenArea,
+    unsigned char* pStuck, int* pStuckFaceId, double* pDepositionArea,
+    double* pContactDuration, double* pContactMaximumArea,
+    double* pContactPeakFraction,
+    double* pColdNodeSpecificEnthalpy,
+    double* pColdRingSolidMass,
+    double* pColdFrozenArea,
+    double* pColdContactAge,
+    double* pCold2DNodeSpecificEnthalpy,
+    double* pCold2DRingContactAge,
+    double* pCold2DFrozenArea,
     unsigned long long* pRng,
     unsigned long long* pOrigId
 )
 {
     ClientState* s = static_cast<ClientState*>(handle);
-    if (s == nullptr || nParticles == nullptr || maxParticles < 0
-     || maxParticles > s->particleCapacity)
+    if (s == nullptr || nParticles == nullptr)
         return fail("invalid particle restart download arguments");
-    if (!startRequest(s, Op::downloadParticleRestartMirror, sizeof(CountArgs))
+    if (!startRequest(s, Op::downloadParticleRestartMirror, WireCodec<CountArgs>::size)
      || !sendObject(s->fd, CountArgs{maxParticles})) return -1;
     std::uint64_t payload = 0;
     const int status = receiveResponse(s, payload, false, 0);
     if (status != 0) return status;
     int count = 0;
-    if (payload < sizeof(count) || !readAll(s->fd, &count, sizeof(count))) return -1;
+    if (payload < wireBytes(count) || !receiveObject(s->fd, count,s)) return -1;
     std::uint64_t perParticle = 0;
     addArrays(perParticle, 1, sizeof(double), 10);
     addArrays(perParticle, 1, sizeof(int), 3);
     addArrays(perParticle, 1, sizeof(unsigned char), 1);
-    addArrays(perParticle, 1, sizeof(float), 95);
+    addArrays(perParticle, 1, sizeof(double), 95);
     addArrays(perParticle, 1, sizeof(unsigned long long), 2);
-    const std::uint64_t expected = sizeof(count)
+    const std::uint64_t expected = wireBytes(count)
       + (maxParticles == 0 ? 0 : std::uint64_t(count)*perParticle);
-    if (count < 0 || count > s->particleCapacity
-     || (maxParticles != 0 && count > maxParticles) || payload != expected)
+    if (payload < expected)
         return fail("invalid particle restart response");
     *nParticles = count;
-    if (maxParticles == 0) return 0;
+    if (maxParticles == 0) return discardResponse(s)?0:-1;
     double* doubles[] = {px,py,pz,pux,puy,puz,pT,pTheta,pd,pm};
     for (double* values : doubles)
-        if (!receiveArray(s->fd, values, count)) return -1;
-    if (!receiveArray(s->fd, pCellId, count)
-     || !receiveArray(s->fd, pStatus, count)
-     || !receiveArray(s->fd, pStuck, count)
-     || !receiveArray(s->fd, pStuckFaceId, count)
-     || !receiveArray(s->fd, pDepositionArea, count)
-     || !receiveArray(s->fd, pContactDuration, count)
-     || !receiveArray(s->fd, pContactMaximumArea, count)
-     || !receiveArray(s->fd, pContactPeakFraction, count)
-     || !receiveArray(s->fd, pColdNodeSpecificEnthalpy, count*8)
-     || !receiveArray(s->fd, pColdRingSolidMass, count*8)
-     || !receiveArray(s->fd, pColdFrozenArea, count)
-     || !receiveArray(s->fd, pColdContactAge, count)
-     || !receiveArray(s->fd, pCold2DNodeSpecificEnthalpy, count*64)
-     || !receiveArray(s->fd, pCold2DRingContactAge, count*8)
-     || !receiveArray(s->fd, pCold2DFrozenArea, count)
-     || !receiveArray(s->fd, pRng, count)
-     || !receiveArray(s->fd, pOrigId, count)) return -1;
-    return 0;
+        if (!receiveArray(s->fd, values, count,s)) return -1;
+    if (!receiveArray(s->fd, pCellId, count,s)
+     || !receiveArray(s->fd, pStatus, count,s)
+     || !receiveArray(s->fd, pStuck, count,s)
+     || !receiveArray(s->fd, pStuckFaceId, count,s)
+     || !receiveArray(s->fd, pDepositionArea, count,s)
+     || !receiveArray(s->fd, pContactDuration, count,s)
+     || !receiveArray(s->fd, pContactMaximumArea, count,s)
+     || !receiveArray(s->fd, pContactPeakFraction, count,s)
+     || !receiveArray(s->fd, pColdNodeSpecificEnthalpy, std::uint64_t(count)*8,s)
+     || !receiveArray(s->fd, pColdRingSolidMass, std::uint64_t(count)*8,s)
+     || !receiveArray(s->fd, pColdFrozenArea, count,s)
+     || !receiveArray(s->fd, pColdContactAge, count,s)
+     || !receiveArray(s->fd, pCold2DNodeSpecificEnthalpy, std::uint64_t(count)*64,s)
+     || !receiveArray(s->fd, pCold2DRingContactAge, std::uint64_t(count)*8,s)
+     || !receiveArray(s->fd, pCold2DFrozenArea, count,s)
+     || !receiveArray(s->fd, pRng, count,s)
+     || !receiveArray(s->fd, pOrigId, count,s)) return -1;
+    return discardResponse(s)?0:-1;
 }
 
 extern "C" int ugkwpGpuResidentStrictDownloadEpsGPrev
@@ -1078,7 +980,7 @@ extern "C" int ugkwpGpuResidentStrictDownloadEpsGPrev
     std::uint64_t got = 0;
     const int status = receiveResponse(s, got, true, bytes);
     if (status != 0) return status;
-    return receiveArray(s->fd, epsGPrev, s->nCells) ? 0 : -1;
+    return receiveArray(s->fd, epsGPrev, s->nCells,s) && discardResponse(s) ? 0 : -1;
 }
 
 extern "C" int ugkwpGpuResidentStrictUploadEpsGPrev
@@ -1100,7 +1002,7 @@ extern "C" int ugkwpGpuResidentStrictDownloadNut
     std::uint64_t got = 0;
     const int status = receiveResponse(s, got, true, bytes);
     if (status != 0) return status;
-    return receiveArray(s->fd, nut, s->nCells) ? 0 : -1;
+    return receiveArray(s->fd, nut, s->nCells,s) && discardResponse(s) ? 0 : -1;
 }
 
 extern "C" int ugkwpGpuResidentStrictDownloadAndResetParticleWallHeatLedgers
@@ -1115,7 +1017,7 @@ extern "C" int ugkwpGpuResidentStrictDownloadAndResetParticleWallHeatLedgers
     if
     (
         s == nullptr
-     || nFaces != s->nFaces
+     || nFaces < s->nFaces
      || depositedWallEnergyJ == nullptr
      || reflectedWallEnergyJ == nullptr
     )
@@ -1123,7 +1025,7 @@ extern "C" int ugkwpGpuResidentStrictDownloadAndResetParticleWallHeatLedgers
         return fail("invalid particle-wall heat-ledger download request");
     }
     const std::uint64_t bytes =
-        2ULL*std::uint64_t(nFaces)*sizeof(double);
+        2ULL*std::uint64_t(s->nFaces)*sizeof(double);
     if
     (
         !startRequest(s, Op::downloadAndResetParticleWallHeatLedgers, 0)
@@ -1137,11 +1039,11 @@ extern "C" int ugkwpGpuResidentStrictDownloadAndResetParticleWallHeatLedgers
     {
         return status;
     }
-    if (!receiveArray(s->fd, depositedWallEnergyJ, nFaces))
+    if (!receiveArray(s->fd, depositedWallEnergyJ, s->nFaces,s))
     {
         return -1;
     }
-    return receiveArray(s->fd, reflectedWallEnergyJ, nFaces) ? 0 : -1;
+    return receiveArray(s->fd, reflectedWallEnergyJ, s->nFaces,s) && discardResponse(s) ? 0 : -1;
 }
 
 extern "C" void ugkwpGpuResidentStrictRelease(void* handle)
@@ -1154,6 +1056,8 @@ extern "C" void ugkwpGpuResidentStrictRelease(void* handle)
         {
             (void)finishNoPayload(s);
         }
+        s->responseActive=false;
+        s->responseRemaining=0;
         ::close(s->fd);
         s->fd = -1;
     }

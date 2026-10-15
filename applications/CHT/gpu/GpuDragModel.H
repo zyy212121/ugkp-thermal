@@ -56,7 +56,6 @@ public:
     }
 };
 
-
 class GpuSchillerNaumannDragModel final : public GpuDragModel
 {
     word modelName_;
@@ -87,7 +86,6 @@ public:
     }
 };
 
-
 class GpuGidaspowErgunWenYuDragModel final : public GpuDragModel
 {
     word modelName_;
@@ -103,12 +101,7 @@ public:
         const dictionary& coeffs =
             dict.subDict("GidaspowErgunWenYuCoeffs");
         const scalar residualRe = readScalar(coeffs.lookup("residualRe"));
-        if (!std::isfinite(residualRe) || residualRe <= 0)
-        {
-            FatalErrorInFunction
-                << "GidaspowErgunWenYu residualRe must be finite and positive, "
-                << "received " << residualRe << exit(FatalError);
-        }
+
         parameters_[0] = residualRe;
     }
 
@@ -127,7 +120,6 @@ public:
         return parameters_;
     }
 };
-
 
 inline autoPtr<GpuDragModel> GpuDragModel::New(const dictionary& dict)
 {

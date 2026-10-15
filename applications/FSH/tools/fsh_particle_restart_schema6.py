@@ -1,12 +1,12 @@
+"""Historical FSH1..6 input decoder. No current output is written here."""
 #!/usr/bin/env python3
 
 from __future__ import annotations
 
 import hashlib
-import os
 import struct
 from pathlib import Path
-from typing import Iterable, Iterator
+from typing import Iterator
 
 import numpy as np
 
@@ -196,33 +196,6 @@ def iter_restart_chunks(path: Path, legacy_parcel_mass: float | None = None,
         if stream.read(1):
             raise ValueError(f"{path}: trailing data after final particle chunk")
 
-
-def write_fsh_restart(path: Path, chunks: Iterable[dict[str, np.ndarray]],
-                      total_particles: int, chunk_particles: int = 262144,
-                      schema: int = 1) -> None:
-    path = Path(path)
-    if (total_particles < 0 or chunk_particles < 1
-            or chunk_particles > MAXIMUM_CHUNK_PARTICLES):
-        raise ValueError("invalid particle count or chunk size")
-    specs = _field_specs(schema)
-    emitted = 0
-    with path.open("xb") as stream:
-        stream.write(f"UGKP_FSH_PARTICLES_SCHEMA{schema}_BIN {total_particles} {chunk_particles}\n".encode("ascii"))
-        for input_chunk in chunks:
-            input_count = len(input_chunk["pm"])
-            input_chunk = _normalise(input_chunk, input_count)
-            _validate_chunk(input_chunk, path)
-            for start in range(0, input_count, chunk_particles):
-                count = min(chunk_particles, input_count - start)
-                stream.write(struct.pack("<I", count))
-                stop = start + count
-                for name, dtype, _ in specs:
-                    np.ascontiguousarray(input_chunk[name][start:stop], dtype=dtype).tofile(stream)
-                emitted += count
-        if emitted != total_particles:
-            raise ValueError(f"output declared {total_particles} particles but wrote {emitted}")
-        stream.flush()
-        os.fsync(stream.fileno())
 
 
 def collect_restart(path: Path, legacy_parcel_mass: float | None = None) -> dict[str, np.ndarray]:

@@ -149,15 +149,15 @@ class RiemannBoundaryGradientSourceContract(unittest.TestCase):
             r"s\.riemannBoundaryPWave\[f\]\s*!=\s*0\s*;",
         )
         self.assertIn(
-            "return riemannBoundaryState(s, f, centre);",
+            "return riemannBoundaryState(s, f, centre,nullptr,nativeRefinement);",
             self.face_gradient,
         )
         self.assertIn(
-            "riemannFacePrimitiveForGradient(s, c, f)",
+            "riemannFacePrimitiveForGradient(s, c, f,nativeRefinement)",
             self.gradient_kernel,
         )
         self.assertIn(
-            "riemannFacePrimitiveForGradient(s, c, f)",
+            "riemannFacePrimitiveForGradient(s, c, f,nativeRefinement)",
             self.limiter_kernel,
         )
 
@@ -177,7 +177,7 @@ class RiemannBoundaryGradientSourceContract(unittest.TestCase):
         for name in active_gas_functions:
             with self.subTest(function=name):
                 body = code_only(function_block(self.source, name))
-                self.assertNotRegex(body, r"\bs\.gasBoundary(?!Layer\b)[A-Z]")
+                self.assertNotRegex(body, rf"\bs\.gasBoundary(?:{'|'.join(BOUNDARY_FIELDS)})\b")
 
     def test_convective_courant_matches_rho_central_cell_sum(self) -> None:
         self.assertIn("spectralRadius*area", self.courant_kernel)
@@ -186,11 +186,11 @@ class RiemannBoundaryGradientSourceContract(unittest.TestCase):
         self.assertIn("computeRiemannGasFaceFluxDevice<false, true>", self.courant_kernel)
         self.assertIn("s.gasPhiRho[f] = mass;", self.courant_kernel)
         self.assertIn(
-            "s.gasPhiRhoE[f] = finiteDevice(amaxSf) ? amaxSf : OfGreat;",
+            "s.gasPhiRhoE[f] = nativeRefinement && !finiteDevice(amaxSf) ? OfGreat : amaxSf;",
             self.courant_kernel,
         )
         self.assertIn(
-            "sumAmaxSf += finiteOr(s.gasPhiRhoE[f], OfGreat);",
+            "sumAmaxSf += nativeRefinement?finiteOr(s.gasPhiRhoE[f], OfGreat):s.gasPhiRhoE[f];",
             self.cell_courant_kernel,
         )
         self.assertRegex(
@@ -219,7 +219,7 @@ class RiemannBoundaryGradientSourceContract(unittest.TestCase):
             self.boundary_state,
         )
         self.assertIn(
-            "riemannExteriorStateForFace(s, f, left)",
+            "riemannExteriorStateForFace(s, f, left,nativeRefinement)",
             self.face_flux,
         )
 

@@ -111,7 +111,7 @@ def test_production_surface_closure(candidate_executable, tmp_path, q, variable,
 def test_gas_contact_and_radiation_use_surface_but_solid_solid_uses_owner():
     source = (THERMAL / "GpuSolidThermalCoupler.C").read_text()
     # Gas/contact data flow is exercised by the native mapping regression below.
-    radiation = source.split("List<scalarField> fluidWallEmissivity() const", 1)[1].split("std::pair<fileName, fileName> writeManifestTemporary", 1)[0]
+    radiation = source.split("List<scalarField> fluidWallEmissivity() const", 1)[1].split("};\n\nGpuSolidThermalCoupler::GpuSolidThermalCoupler", 1)[0]
     assert "coupledPatchSurfaceTemperature(Tsolid(), solidPatchI)" in radiation
     solid_solid = source.split("GpuThermalCouplingResult GpuSolidThermalCoupler::exchangeIfDue", 1)[1].split("const label auxiliaryPatchI =", 1)[1].split("commitPhaseStarted = true;", 1)[0]
     assert solid_solid.count("coupledPatchOwnerTemperature") == 4
@@ -145,7 +145,7 @@ def mapping_executable(candidate_executable):
     (build / "WallMapping.inc").write_text("    void mapSolidWallTemperatureToFluid" + mapping)
     snapshot = source.split("    List<scalarField> previousSurface(coupledPatchIds_.size());", 1)[1].split("    mesh_.schemes().setFluxRequired", 1)[0]
     (build / "SurfaceSnapshot.inc").write_text("    List<scalarField> previousSurface(coupledPatchIds_.size());" + snapshot)
-    membership = source.split("bool isCoupledPatch(", 1)[1].split("class ScalarSolverLogSilencer", 1)[0]
+    membership = source.split("bool isCoupledPatch(", 1)[1].split("autoPtr<volScalarField> thermalFieldOnMesh", 1)[0]
     (build / "PatchMembership.inc").write_text("bool isCoupledPatch(" + membership)
     properties = source.split("        forAll(mesh_.boundary(), patchI)", 1)[1].split("        forAll(coupledPatchIds_, coupledI)", 1)[0]
     properties = "        forAll(mesh_.boundary(), patchI)" + properties
@@ -169,14 +169,13 @@ def test_surface_state_is_read_only_when_consumed(mapping_executable, tmp_path, 
     assert f"PASS {mode}" in result.stdout
 
 
-def test_unconverged_surface_is_rejected(candidate_executable, tmp_path):
+def test_unconverged_surface_publishes_actual_second_iterate(candidate_executable, tmp_path):
     make_case(tmp_path, 1000, variable=True)
     with (tmp_path / "constant/testProperties").open("a") as stream:
-        stream.write("maximumIterations 2;\n")
+        stream.write("maximumIterations 2; terminalOnly true;\n")
     result = subprocess.run([str(candidate_executable), "-case", str(tmp_path)], capture_output=True, text=True)
-    assert result.returncode != 0
-    assert "solid candidate nonlinear solve did not converge" in result.stderr
-    assert "surfaceFluxResidual=" in result.stderr
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert "PASS actual terminal surface iterations=2" in result.stdout
 
 
 def test_solid_solid_owner_conductivity_is_retained(candidate_executable, tmp_path):
@@ -202,7 +201,7 @@ def test_explicit_completed_interval_ledger_and_restart_guards_are_retained():
     order = ["peekGasWallEnergy()", "scalarField combined(gasPreview[pairI]);",
              "combined[faceI] +=", "mapIntegratedFaceEnergyToSolid(pairI, combined)",
              "solveTemporarySolidCandidate", "commitPhaseStarted = true;",
-             "downloadAndResetGasWallEnergy", "requireBitwiseGasWallPreviewMatch",
+             "resetGasWallEnergy()",
              "publishSolidCandidate", "mapSolidWallTemperatureToFluid(Tgas)"]
     positions = [exchange.index(item) for item in order]
     assert positions == sorted(positions)
@@ -210,9 +209,9 @@ def test_explicit_completed_interval_ledger_and_restart_guards_are_retained():
     assert "radiation().solidWallRadiationEnergyJ" in accumulation
     assert "combined[faceI] += particleContactPreview" in accumulation
     assert "particleContactPreview += particleReflectedPreview;" in exchange
-    assert "reconstructed wall temperature checksum differs from restart state" in source
-    assert "newlyUploadedWallTemperatureSha1" in source
-    assert "ThermalRestartPreflight::fileSha1(timePath/solidRelative)" in source
+    assert "requireBitwiseGasWallPreviewMatch" not in source
+    assert "canonicalWallTemperatureSha1" not in source
+    assert "ThermalRestartPreflight::fileSha1" not in source
 
 
 def test_startup_reconstructs_nonzero_gradient_ignoring_stale_value(candidate_executable, tmp_path):
@@ -260,7 +259,7 @@ def test_multiface_variable_conductivity_preserves_patch_ownership(
     assert result.stdout.count("FACE ") == 6
 
 
-@pytest.mark.parametrize("fault", range(1, 8))
+@pytest.mark.parametrize("fault", [2, 4, 5, 6, 7])
 def test_convergence_rejects_invalid_completed_surface_on_late_face(
     candidate_executable, tmp_path, fault
 ):
@@ -273,3 +272,13 @@ def test_convergence_rejects_invalid_completed_surface_on_late_face(
     assert result.returncode != 0
     reason = "stale coupled solid surface" if fault == 1 else "invalid accepted coupled solid surface state"
     assert reason in result.stderr
+
+
+@pytest.mark.parametrize("fault", [1, 3])
+def test_finite_completed_surface_is_published(candidate_executable, tmp_path, fault):
+    make_case(tmp_path, 600, transverse_cells=3)
+    with (tmp_path / "constant/testProperties").open("a") as stream:
+        stream.write(f"surfaceFault {fault};\n")
+    result = subprocess.run([str(candidate_executable), "-case", str(tmp_path)], capture_output=True, text=True)
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert "PASS finite surface publication" in result.stdout

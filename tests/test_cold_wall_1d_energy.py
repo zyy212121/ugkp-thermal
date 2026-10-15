@@ -1,4 +1,4 @@
-"""Host execution of the real shared enthalpy helper, in both precisions."""
+"""Host execution of the real shared enthalpy helper, in double precision."""
 from pathlib import Path
 import subprocess
 
@@ -8,12 +8,12 @@ import pytest
 ROOT = Path(__file__).resolve().parents[1]
 
 
-@pytest.fixture(scope="module", params=[32, 64])
+@pytest.fixture(scope='module')
 def cold_wall_executable(request, tmp_path_factory):
-    executable = tmp_path_factory.mktemp(f"cold_wall_{request.param}") / "energy_test"
+    executable = tmp_path_factory.mktemp(f"cold_wall_{64}") / "energy_test"
     result = subprocess.run(
         ["g++", "-std=c++17", "-O2", "-Wall", "-Wextra", "-Werror", "-pedantic",
-         f"-DUGKWP_GPU_REAL_BITS={request.param}", "-I", str(ROOT / "common"),
+         "-I", str(ROOT / "common"),
          "-I", str(ROOT / "common/wall"),
          str(ROOT / "tests/fixtures/cold_wall_1d_energy_test.cpp"), "-o", str(executable)],
         capture_output=True, text=True,
@@ -30,8 +30,7 @@ def test_cold_wall_enthalpy_equation(cold_wall_executable, mode):
     assert result.returncode == 0, result.stdout + result.stderr
 
 
-@pytest.mark.parametrize("bits", [32, 64])
-def test_shared_cuda_wrapper_cpp_syntax(tmp_path, bits):
+def test_shared_cuda_wrapper_cpp_syntax(tmp_path):
     """Compile the actual wrapper body with declared intrinsics; no GPU emulation."""
     source = tmp_path / "wrapper.cpp"
     source.write_text(r'''
@@ -45,7 +44,7 @@ unsigned __ballot_sync(unsigned, int);
 int __ffs(unsigned);
 struct DeviceState {
     int coldWallSolidificationEnabled;
-    float *pColdNodeSpecificEnthalpy, *pColdRingSolidMass, *pColdFrozenArea;
+    double *pColdNodeSpecificEnthalpy, *pColdRingSolidMass, *pColdFrozenArea;
     GpuTime* pColdContactAge;
     Foam::gpuThermal::ColdWallSolidificationParameters coldWallSolidificationParameters;
 };
@@ -56,16 +55,11 @@ void instantiate(DeviceState& state) {
     advanceColdWall1DThermalGroup(state, 0, 0, 255, GPU_R(1e-12), GPU_R(3e-9),
         GPU_R(2e-8), GPU_R(1e-8), 1e-5, GPU_R(.4), 1e-7, GPU_R(300),
         GPU_R(13000), GPU_R(.1), GPU_R(1500), GPU_R(3e-4), temperature, area, energy);
-#if UGKWP_GPU_REAL_BITS == 32
-    advanceColdWall1DThermalGroup<true>(state, 0, 0, 255, GPU_R(1e-12), GPU_R(3e-9),
-        GPU_R(2e-8), GPU_R(1e-8), 1e-5, GPU_R(.4), 1e-7, GPU_R(300),
-        GPU_R(13000), GPU_R(.1), GPU_R(1500), GPU_R(3e-4), temperature, area, energy);
-#endif
 }
 ''')
     result = subprocess.run(
         ["g++", "-std=c++17", "-fsyntax-only", "-Wall", "-Wextra", "-Werror",
-         f"-DUGKWP_GPU_REAL_BITS={bits}", "-I", str(ROOT / "common"),
+         "-I", str(ROOT / "common"),
          "-I", str(ROOT / "common/wall"), str(source)], capture_output=True, text=True,
     )
     assert result.returncode == 0, result.stdout + result.stderr
@@ -86,7 +80,7 @@ def test_cuda_assembly_uses_one_bulk_source_and_old_enthalpy():
     assert "s.particleGasHeatTransferModelId != 0" in inputs
     assert "gasConductanceWK = __shfl_sync(mask, gasConductanceWK, 0, 8)" in inputs
     wrappers = (ROOT / "common/wall/GpuColdWall1DDevice.cuh").read_text()
-    assert wrappers.count('#include "GpuColdWall1DAdvance.inl"') == 2
+    assert wrappers.count('#include "GpuColdWall1DAdvance.inl"') == 1
     for application, backend in [("FSH", "private_backend"), ("CHT", "gpu")]:
         caller = (ROOT / "applications" / application / backend / "GpuResidentStrict.cu").read_text()
         assert '#include "../../../common/wall/GpuColdWall1DDevice.cuh"' in caller

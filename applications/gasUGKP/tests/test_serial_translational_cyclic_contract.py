@@ -1,3 +1,4 @@
+from source_contract_utils import read_source
 from pathlib import Path
 
 
@@ -5,7 +6,7 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 def read(relative: str) -> str:
-    return (ROOT / relative).read_text(encoding="utf-8")
+    return read_source(ROOT / relative)
 
 
 def test_frontend_builds_pure_translation_pair_topology():
@@ -54,7 +55,7 @@ def test_split_dpre_lifecycle_is_still_explicit():
 
 def test_scope_remains_fail_closed():
     source = read("gpu/GpuResidentStrict.H")
-    for unsupported in ("rotational", "one-to-one conformal"):
-        assert unsupported in source
+    assert "rotational" in source
     assert "cpp.transform().transforms()" in source
-    assert "cpp.size() != cpp.nbrPatch().size()" in source
+    for consumed_address in ("pairFaceI < nInternalFaces", "pairFaceI >= nFaces", "owner[pairFaceI] < 0", "owner[pairFaceI] >= nCells"):
+        assert consumed_address in source

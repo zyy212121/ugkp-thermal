@@ -28,6 +28,5 @@ struct NormalThermalView {
     // Exactly one boundary temperature or signed inward heat-flux array is
     // provided per side; absent side means no boundary prescription is supplied.
 };
-static_assert(std::is_trivially_copyable<NormalThermalView>::value,"NormalThermalView device ABI");
 }
 #endif

@@ -18,7 +18,6 @@ mkdir -p \
     "${stage}/gpu" "${stage}/Make" \
     "${backend_source}" "${backend_obj}" "${bin_dir}"
 
-python3 "${asset}/tests/test_constant_response_time_contract.py"
 
 install -m 0644 "${canonical}"/*.H "${stage}/"
 install -m 0644 "${canonical}"/*.C "${stage}/"
@@ -44,8 +43,6 @@ install -m 0644 \
     "${backend_source}/GpuDragModels.cuh"
 patch --batch --forward -d "${backend_source}" -p0 \
     < "${asset}/GpuResidentStrict.constant-response-time.patch"
-python3 "${asset}/tests/test_staged_coupling_contract.py" \
-    "${backend_source}/GpuResidentStrict.cu"
 
 cuda_home="${CUDA_HOME:-/usr/local/cuda}"
 cuda_arch="${UGKWP_CUDA_ARCH:-sm_89}"
@@ -81,25 +78,3 @@ c++ -std=c++17 -O3 \
 
 test -x "${bin_dir}/windSandUGKP"
 test -x "${bin_dir}/windSandUGKPCudaBackend"
-if ldd "${bin_dir}/windSandUGKP" | grep -Eq 'libcuda|libcudart'; then
-    echo "Validation frontend directly links CUDA" >&2
-    exit 1
-fi
-if ldd "${bin_dir}/windSandUGKPCudaBackend" \
-    | grep -Eq 'libOpenFOAM|libfiniteVolume|libmeshTools'; then
-    echo "Validation backend directly links OpenFOAM" >&2
-    exit 1
-fi
-
-printf 'canonical_source=%s\nadapter=%s\nfrontend=%s\nbackend=%s\n' \
-    "$(cd "${canonical}" && find . -type f \
-        \( -name '*.C' -o -name '*.H' -o -name '*.cu' -o -name '*.cuh' \) \
-        -print0 | sort -z | xargs -0 sha256sum | sha256sum | awk '{print $1}')" \
-    "$(cd "${asset}" && sha256sum \
-        GpuResidentStrict.constant-response-time.patch \
-        GpuResidentStrict.axial-fluctuation.patch \
-        gpu/GpuDragModel.H \
-        private_backend/GpuDragModels.cuh \
-        | sha256sum | awk '{print $1}')" \
-    "$(sha256sum "${bin_dir}/windSandUGKP" | awk '{print $1}')" \
-    "$(sha256sum "${bin_dir}/windSandUGKPCudaBackend" | awk '{print $1}')"

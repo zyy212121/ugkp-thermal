@@ -7,7 +7,7 @@ from pathlib import Path
 import subprocess
 
 APP=Path(__file__).resolve().parents[1]
-EXCLUDED={'.build','__pycache__','lnInclude'}
+EXCLUDED={'.build','.pytest_cache','__pycache__','lnInclude'}
 def digest(data):return hashlib.sha256(data).hexdigest()
 def audit(verify_reference=False):
     manifest=json.loads((APP/'docs/restoration-source-manifest.json').read_text())

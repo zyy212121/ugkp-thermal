@@ -184,7 +184,7 @@ template<class Real> UGKWP_SST_HD inline Real sstCrossDiffusion
     const SstCoefficientsT<Real>& coefficients
 )
 {
-    const Real omegaSafe = sstPositive(omega, (sizeof(Real)==4?Real(1e-30):Real(1e-300)));
+    const Real omegaSafe = sstPositive(omega, Real(1e-300));
     return
         Real(2.0)*coefficients.alphaOmega2*gradKDotGradOmega/omegaSafe;
 }
@@ -208,8 +208,8 @@ template<class Real> UGKWP_SST_HD inline Real sstF1
 )
 {
     const Real kSafe = sstPositive(k, Real(0.0));
-    const Real omegaSafe = sstPositive(omega, (sizeof(Real)==4?Real(1e-30):Real(1e-300)));
-    const Real ySafe = sstPositive(wallDistance, (sizeof(Real)==4?Real(1e-30):Real(1e-300)));
+    const Real omegaSafe = sstPositive(omega, Real(1e-300));
+    const Real ySafe = sstPositive(wallDistance, Real(1e-300));
     const Real ySquared = ySafe*ySafe;
     const Real cdPlus = sstMaximum(cdKOmega, Real(1.0e-10));
     const Real viscousArgument = Real(500.0)*nu/(ySquared*omegaSafe);
@@ -249,8 +249,8 @@ template<class Real> UGKWP_SST_HD inline Real sstF2
 )
 {
     const Real kSafe = sstPositive(k, Real(0.0));
-    const Real omegaSafe = sstPositive(omega, (sizeof(Real)==4?Real(1e-30):Real(1e-300)));
-    const Real ySafe = sstPositive(wallDistance, (sizeof(Real)==4?Real(1e-30):Real(1e-300)));
+    const Real omegaSafe = sstPositive(omega, Real(1e-300));
+    const Real ySafe = sstPositive(wallDistance, Real(1e-300));
     const Real ySquared = ySafe*ySafe;
     const Real argument = sstMinimum(
         sstMaximum(
@@ -283,7 +283,7 @@ template<class Real> UGKWP_SST_HD inline Real sstNut
 )
 {
     const Real denominator = sstMaximum(
-        coefficients.a1*sstPositive(omega, (sizeof(Real)==4?Real(1e-30):Real(1e-300))),
+        coefficients.a1*sstPositive(omega, Real(1e-300)),
         coefficients.b1*f2*std::sqrt(sstPositive(s2, Real(0.0)))
     );
     return coefficients.a1*sstPositive(k, Real(0.0))/denominator;
@@ -432,7 +432,7 @@ template<class Real> UGKWP_SST_HD inline Real sstLowReWallOmega
     const SstCoefficientsT<Real>& coefficients
 )
 {
-    const Real ySafe = sstPositive(wallDistance, (sizeof(Real)==4?Real(1e-30):Real(1e-300)));
+    const Real ySafe = sstPositive(wallDistance, Real(1e-300));
     return Real(6.0)*nu/(coefficients.beta1*ySafe*ySafe);
 }
 

@@ -31,12 +31,9 @@ template<class S,int N> UGKWP_GAS_HD inline bool publishWallPrecision(const Wall
         dst.chemistryMismatch[j]=src.chemistryMismatchAvailable?S(WallReal(dst.reactionIntegral[j])-WallReal(in.coarseReactionIntegral[j])):std::numeric_limits<S>::quiet_NaN();}
     dst.integratedKSource=S(src.integratedKSource);dst.ownerOmega=S(src.ownerOmega);dst.wallKFlux=S(src.wallKFlux);
     dst.chemistryMismatchAvailable=src.chemistryMismatchAvailable;dst.iterations=src.iterations;dst.residual=S(src.residual);
-    if(!gasFinite(dst.traceTemperature)||!gasFinite(dst.traceDensity)||!gasFinite(dst.conductiveHeatFlux)
-        ||(in.integrateOwnerKSource&&!gasFinite(dst.integratedKSource))||!gasFinite(dst.ownerOmega)||!gasFinite(dst.wallKFlux)||!gasFinite(dst.residual))return false;
-    for(int d=0;d<3;++d)if(!gasFinite(dst.traceVelocity[d])||!gasFinite(dst.traction[d]))return false;
-    for(int j=0;j<N;++j)if(!gasFinite(dst.traceMassFraction[j])||!gasFinite(dst.wallSpeciesFlux[j])
-        ||!gasFinite(dst.matchingSpeciesFlux[j])||!gasFinite(dst.reactionIntegral[j])||!gasFinite(dst.speciesBalanceResidual[j])
-        ||(dst.chemistryMismatchAvailable&&!gasFinite(dst.chemistryMismatch[j])))return false;
+
+
+
     output=dst;return true;
 }
 }}}

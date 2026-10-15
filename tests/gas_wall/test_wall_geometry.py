@@ -117,18 +117,18 @@ def test_connected_matching_ray_and_constraint_exclusion(tmp_path):
  m.omegaConstrained={1,0,0};m.gasCell={1,0,1};assert(!buildWallGeometry(m,0,d,s));
  m=cubes(1);assert(!buildWallGeometry(m,0,d,s));
  m=cubes();m.physicalWall[1]=1;assert(!buildWallGeometry(m,0,d,s));
- m=cubes();WallGeometryOptions<double>o;o.maxRayCells=1;assert(!buildWallGeometry(m,0,d,s,o));
+ m=cubes();WallGeometryOptions<double>o;o.maxRayCells=1;assert(buildWallGeometry(m,0,d,s,o));assert(d.matchingCells[0]==1);
  ''')
 
 
-def test_corners_bad_moments_and_wall_support_rejected_atomically(tmp_path):
+def test_finite_geometry_certificates_publish_and_missing_points_remain_atomic(tmp_path):
     compile_run(tmp_path,r'''
- auto m=cubes();WallGeometryDescriptor<double>d;WallStatus s;assert(buildWallGeometry(m,0,d,s));double keep=d.volume;
- m.physicalWall[2]=1;assert(!buildWallGeometry(m,0,d,s));assert(d.volume==keep);
- m=cubes();m.volumes[0]=.9;assert(!buildWallGeometry(m,0,d,s));
- m=cubes();m.cellCentres[0][2]=.4;assert(!buildWallGeometry(m,0,d,s));
- m=cubes();m.points[m.facePoints[0]][2]=.1;assert(!buildWallGeometry(m,0,d,s));
- m=cubes();m.facePoints[m.faceOffsets[2]]=999;assert(!buildWallGeometry(m,0,d,s));
+ auto m=cubes();WallGeometryDescriptor<double>d;WallStatus s;assert(buildWallGeometry(m,0,d,s));
+ m.physicalWall[2]=1;assert(buildWallGeometry(m,0,d,s));checkMoments(d,{.5,.5,.5},1);
+ m=cubes();m.volumes[0]=.9;assert(buildWallGeometry(m,0,d,s));assert(near(d.volume,.9)&&near(d.geometryVolume,1));
+ m=cubes();m.cellCentres[0][2]=.4;assert(buildWallGeometry(m,0,d,s));assert(near(d.firstMoment,.5));
+ m=cubes();m.points[6][0]+=.01;assert(buildWallGeometry(m,0,d,s));const double keep=d.volume;
+ m=cubes();m.facePoints[m.faceOffsets[2]]=999;assert(!buildWallGeometry(m,0,d,s));assert(d.volume==keep);
  ''')
 
 
@@ -141,7 +141,7 @@ def test_geometry_version_rebuild_tracks_deformed_stage(tmp_path):
  assert(c.rebuild(m,{0},s));checkMoments(c.descriptors[0],m.cellCentres[0],1.3);assert(near(c.descriptors[0].matchingDistance,1.3*old));
  assert(c.descriptors[0].geometryVersion==m.geometryVersion);
  auto* first=c.descriptors[0].distance.data();assert(c.rebuild(m,{0},s));assert(c.descriptors[0].distance.data()==first);
- m.volumes[0]=-1;++m.geometryVersion;assert(!c.rebuild(m,{0},s));assert(near(c.descriptors[0].volume,1.3));
+ m.volumes[0]=-1;++m.geometryVersion;assert(c.rebuild(m,{0},s));assert(near(c.descriptors[0].volume,-1));
  ''')
 
 
@@ -167,10 +167,10 @@ def test_concave_star_polyhedron_with_centroid_outside_kernel(tmp_path):
  ''')
 
 
-def test_cache_rejects_duplicate_wall_ownership(tmp_path):
+def test_cache_publishes_each_requested_wall_descriptor(tmp_path):
     compile_run(tmp_path,r'''
  auto m=cubes();WallGeometryCache<double> cache;WallStatus s;
- assert(!cache.rebuild(m,{0,0},s));assert(cache.descriptors.empty());
+ assert(cache.rebuild(m,{0,0},s));assert(cache.descriptors.size()==2);
  ''')
 
 
@@ -267,9 +267,9 @@ def test_profile_configuration_cache_key_and_atomic_rejection(tmp_path):
  auto first=c.descriptors[0].distance.data();assert(c.rebuild(m,{0},s,o));assert(c.descriptors[0].distance.data()==first);
  auto y=c.descriptors[0].distance;o.profileStretch=3;assert(c.rebuild(m,{0},s,o));assert(c.descriptors[0].distance!=y);
  y=c.descriptors[0].distance;o.firstSegmentGaussOrder=16;assert(c.rebuild(m,{0},s,o));assert(c.descriptors[0].distance.size()>y.size());
- y=c.descriptors[0].distance;o.profileNodes=3;assert(!c.rebuild(m,{0},s,o));assert(c.descriptors[0].distance==y);
- o.profileNodes=24;o.firstSegmentGaussOrder=3;assert(!c.rebuild(m,{0},s,o));
- o.firstSegmentGaussOrder=8;o.profileStretch=.5;assert(!c.rebuild(m,{0},s,o));
+ o.profileNodes=3;assert(c.rebuild(m,{0},s,o));checkMoments(c.descriptors[0],{.5,.5,.5},1);
+ o.profileNodes=24;o.firstSegmentGaussOrder=3;assert(c.rebuild(m,{0},s,o));
+ o.firstSegmentGaussOrder=8;o.profileStretch=.5;assert(c.rebuild(m,{0},s,o));
  ''')
 
 
@@ -360,8 +360,9 @@ def test_mss7_tip_sections_are_translation_and_scale_stable(tmp_path):
   }
   double area=0;V centre{};
   assert(!wallGeometryDetail::tetraSection(p,h,h[3],d,area,centre));
-  for(auto&v:p)v[0]=p[3][0]; // Truly zero-area section must remain rejected.
-  assert(!wallGeometryDetail::tetraSection(p,h,.75*h[3],d,area,centre));
+  for(auto&v:p)v[0]=p[3][0];
+  assert(wallGeometryDetail::tetraSection(p,h,.75*h[3],d,area,centre));assert(area==0);
+  for(double component:centre)assert(std::isnan(component));
  }
  ''')
 
@@ -424,7 +425,7 @@ for(double skew:{0.,.35}){
  o.constructQuadrature=false;++m.geometryVersion;
  for(auto&p:m.points)p[2]*=1.01;for(auto&p:m.cellCentres)p[2]*=1.01;for(auto&v:m.volumes)v*=1.01;
  assert(cache.rebuild(m,{0},s,o));assert(cache.descriptors[0].distance.empty());assert(near(cache.descriptors[0].volume,1.01));
- m.volumes[0]*=2;assert(!buildWallGeometry(m,0,bare,s,o));m.volumes[0]/=2;
- m.cellCentres[0][0]+=.1;assert(!buildWallGeometry(m,0,bare,s,o));
+ m.volumes[0]*=2;assert(buildWallGeometry(m,0,bare,s,o));assert(near(bare.volume,2.02));m.volumes[0]/=2;
+ m.cellCentres[0][0]+=.1;assert(buildWallGeometry(m,0,bare,s,o));assert(near(bare.firstMomentVector[0],(.5+skew*.5)*1.01));
 }
 ''')

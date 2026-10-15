@@ -6,6 +6,8 @@
 #include <cmath>
 #include <iomanip>
 namespace {
+template<class State> Real physicalEnergy(const State& h,const PhysicsConfig& p) {Real value=0;for(std::size_t f=0;f<h.film.size();++f)value+=h.film[f].enthalpy-h.filmAux[f].pressure*h.film[f].mass/p.liquid.rho;return value;}
+
 PhysicsConfig curvedFilmPhysics() {
     PhysicsConfig p;p.enableFilm=true;p.spatialOrder=1;p.liquid.rho=1000;p.liquid.cp0=1000;
     p.liquid.Tmin=100;p.liquid.Tmax=1500;p.liquidViscosity=1;return p;
@@ -39,8 +41,8 @@ void curvedConductionConservesPhysicalEnergy() {
     CpuFilmCandidate c;const bool ok=advanceCpuFilmCandidate(h,p,.01,std::vector<CpuFilmForcing>(h.film.size()),curvedDrive(h),c,error);
     require(ok,"curved conduction: "+error);
     require(c.filmAux[0].temperature>400&&c.filmAux[1].temperature<600,"curved shared edge conducts hot to cold");
-    require(absValue(c.report.internalEnergyAfter-c.report.internalEnergyBefore)<1e-8,"curved internal edge conserves physical energy");
-    require(absValue(c.report.reducedEnergyResidual)<1e-8,"curved conduction energy residual");
+    require(absValue(physicalEnergy(c,p)-physicalEnergy(h,p))<1e-8,"curved internal edge conserves physical energy");
+    require(c.film[0].mass==h.film[0].mass&&c.film[1].mass==h.film[1].mass,"curved conduction preserves actual mass");
 }
 
 void retainInternalEdges(SurfaceMesh& m) {
@@ -64,27 +66,23 @@ void curvedShearTransportUsesSharedMetric() {
         h.film[f].enthalpy=mass*liquidH(p,temperature[f],100000);
         h.surface.prescribedTopTraction[f]=t*(2*p.liquidViscosity*speed[f]/.02);
         h.filmAux[f].meanVelocity=t*speed[f];h.filmAux[f].topVelocity=t*(2*speed[f]);
-        h.filmAux[f].kineticEnergy=(2.0/3)*mass*speed[f]*speed[f];
         shearPower+=h.surface.area[f]*4*p.liquidViscosity*speed[f]*speed[f]/.02;
     }
     const Real edgeSpeed=.5*dot(h.filmAux[owner].meanVelocity+h.filmAux[other].meanVelocity,co);
     const Real massFlux=1000*.02*h.surface.edgeLength[0]*edgeSpeed;
     const Real hFlux=massFlux*(p.liquid.cp0*temperature[owner]+100000/p.liquid.rho);
-    // Integral of (1/2 rho |u|^2)(u dot conormal) for u(z)=2 U z/delta.
-    const Vec3 no=h.surface.normal[owner],to=normalized(co-no*dot(co,no));
-    const Real kineticFlux=1000*.02*h.surface.edgeLength[0]*std::pow(speed[owner],3)*dot(to,co);
     CpuFilmCandidate c;std::string error;const bool ok=advanceCpuFilmCandidate(h,p,dt,std::vector<CpuFilmForcing>(2),curvedDrive(h),c,error);
     require(ok,"nonzero curved shear transport: "+error);
-    require(absValue(c.report.edgeFlux[0].mass-massFlux)<1e-12,"curved mass flux uses independently projected adjacent velocities");
-    require(absValue(c.report.edgeFlux[0].species[0]-massFlux)<1e-12,"curved species donor flux");
-    require(absValue(c.report.edgeFlux[0].enthalpy-hFlux)<1e-8,"curved physical enthalpy edge flux");
+    std::vector<FilmQ> rates;
+    require(evaluateCpuFilmTransport(h,p,dt,curvedDrive(h),rates,error),"actual curved transport RHS: "+error);
+    require(absValue((-rates[owner].mass)-massFlux)<1e-12,"curved mass flux uses independently projected adjacent velocities");
+    require(absValue((-rates[owner].species[0])-massFlux)<1e-12,"curved species donor flux");
+    require(absValue((-rates[owner].enthalpy)-hFlux)<1e-8,"curved physical enthalpy edge flux");
     require(absValue(c.film[owner].mass-h.film[owner].mass+dt*massFlux)<1e-12,"curved owner loses signed edge mass");
     require(absValue(c.film[other].mass-h.film[other].mass-dt*massFlux)<1e-12,"curved neighbour receives the same edge mass");
-    require(absValue(c.report.rateBudget[owner].edgeKineticOutflow-kineticFlux)<1e-12,"curved kinetic flux uses the same shared metric");
-    require(absValue(c.report.rateBudget[other].edgeKineticOutflow+kineticFlux)<1e-12,"curved kinetic edge transfer antisymmetric");
-    require(absValue(c.report.budgetDelta.supportWork-dt*shearPower)<1e-10,"curved shear work and internal pressure work close");
-    require(absValue(c.report.internalEnergyAfter-c.report.internalEnergyBefore-dt*shearPower)<1e-8,"curved film energy changes only by external shear work");
-    require(absValue(c.report.reducedEnergyResidual)<1e-8,"curved transport and work budget residual");
+    require(absValue(rates[owner].mass+rates[other].mass)<1e-12,"curved actual mass RHS antisymmetric");
+    require(absValue(physicalEnergy(c,p)-physicalEnergy(h,p)-dt*shearPower)<1e-8,"curved film energy changes only by external shear work");
+    require(absValue((-rates[owner].enthalpy)+(-rates[other].enthalpy))<1e-8,"curved actual internal edge heat flux antisymmetric");
 }
 void hingeProjectionHasSecondOrderAngularConsistency() {
     const auto p=curvedFilmPhysics();Real previous=0;
@@ -104,10 +102,12 @@ void hingeProjectionHasSecondOrderAngularConsistency() {
         }
         CpuFilmCandidate c;const bool ok=advanceCpuFilmCandidate(h,p,.001,std::vector<CpuFilmForcing>(2),curvedDrive(h),c,error);
         require(ok,"angular refinement transport: "+error);
+        std::vector<FilmQ> rates;
+        require(evaluateCpuFilmTransport(h,p,.001,curvedDrive(h),rates,error),"actual angular transport RHS: "+error);
         const Real intrinsic=1000*.02*h.surface.edgeLength[0]*.2;
         const Real normalCosine=dot(h.surface.normal[0],h.surface.normal[1]);
         const Real expectedRatio=std::sqrt((1+normalCosine)/2);
-        const Real ratio=c.report.edgeFlux[0].mass/intrinsic;
+        const Real ratio=(-rates[h.surface.edgeOwner[0]].mass)/intrinsic;
         require(absValue(ratio-expectedRatio)<1e-12,"shared-hinge projection matches independent half-angle geometry");
         const Real errorMagnitude=1-ratio;require(errorMagnitude>0,"nonzero curved projection error is disclosed");
         if(previous>0)require(previous/errorMagnitude>3.9&&previous/errorMagnitude<4.1,"hinge flux error vanishes quadratically with curvature angle");

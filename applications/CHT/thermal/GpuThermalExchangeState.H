@@ -52,7 +52,6 @@ struct ThermalExchangeRestartState
     bool solidStateUpdated{false};
     bool wallTemperatureUploaded{false};
     bool particleMomentsRebuilt{false};
-    scalar particleContactEnergyJ{0};
 };
 
 struct ThermalExchangeWriteDecision

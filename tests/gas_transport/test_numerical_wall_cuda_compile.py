@@ -7,15 +7,14 @@ import pytest
 
 ROOT=Path(__file__).resolve().parents[2]
 
-@pytest.mark.parametrize('bits',[32,64])
-def test_source_number_compiles_as_native_device_function(tmp_path,bits):
+def test_source_number_compiles_as_native_device_function(tmp_path):
     nvcc=os.environ.get('NVCC') or shutil.which('nvcc')
     if not nvcc:
         pytest.skip('CUDA compiler not installed; this test never claims CUDA runtime')
     source=(ROOT/'common/operators/computeSstFaceFluxKernel.cuh').read_text()
     start=source.index('template<class GasState>\n__device__ GPU_OPERATOR_REAL sstKSourceNumber')
     end=source.index('template<class GasState>\n__global__ void applySstFluxAndSourceKernel',start)
-    real='float' if bits==32 else 'double'
+    real='double'
     pre=r'''
 #include <cuda_runtime.h>
 #include <cmath>
@@ -34,8 +33,7 @@ __device__ R clampMin(R a,R b){return fmax(a,b);}
     assert run.returncode==0,run.stdout+run.stderr
 
 
-@pytest.mark.parametrize('bits',[32,64])
-def test_sst_source_callers_retain_double_time_products(tmp_path,bits):
+def test_sst_source_callers_retain_double_time_products(tmp_path):
     from test_mixture_state import compile_probe
     from test_legacy_ale_transport import fixture
     compile_probe(tmp_path,fixture()+r'''
@@ -60,11 +58,10 @@ int main(){
       <Real(8)*std::numeric_limits<Real>::epsilon(),"update source-time product narrowed");
  }
 }
-''',bits)
+''')
 
 
-@pytest.mark.parametrize('bits',[32,64])
-def test_full_sst_source_kernels_compile_with_double_time(tmp_path,bits):
+def test_full_sst_source_kernels_compile_with_double_time(tmp_path):
     """Instantiate both production callers, not only the scalar helper.
 
     In FP32, the stored k number and the double-time omega expression used to
@@ -91,7 +88,6 @@ void launchSstSourceChecks(NativeSstState* state,Time dt)
 '''
     path=tmp_path/'sst_sources.cu';path.write_text(source)
     run=subprocess.run([nvcc,'-std=c++17','-arch=sm_89',
-        f'-DUGKWP_GPU_REAL_BITS={bits}',
         '-I'+str(ROOT/'common'),'-I'+str(ROOT/'common/gpu'),
         '-I'+str(ROOT/'common/gasNumerics'),'-I'+str(ROOT/'tests/gas_transport'),
         '-c',str(path),'-o',str(tmp_path/'sst_sources.o')],

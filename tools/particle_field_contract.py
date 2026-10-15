@@ -75,7 +75,25 @@ def calls(text, name):
                     break
 
 
-def build_probe(root, meta, app, bits):
+def lambda_definition(text, name):
+    """Keep the constructor's actual acquisition/initialization helper body."""
+    match = re.search(r'\bauto\s+' + re.escape(name) + r'\s*=\s*\[[^]]*\]\s*\([^;{}]*\)\s*\{', text)
+    if not match:
+        raise ValueError('missing constructor helper: ' + name)
+    level = 1
+    for index in range(match.end(), len(text)):
+        if text[index] == '{':
+            level += 1
+        elif text[index] == '}':
+            level -= 1
+            if level == 0:
+                if not re.match(r'\s*;', text[index + 1:]):
+                    raise ValueError('unclosed constructor helper: ' + name)
+                return text[match.start():index + 1] + ';'
+    raise ValueError('unclosed constructor helper: ' + name)
+
+
+def build_probe(root, meta, app):
     source = root / 'applications' / app / ('gpu' if app == 'CHT' else 'private_backend') / 'GpuResidentStrict.cu'
     text = source.read_text()
     state = text[text.index('struct DeviceState'):]
@@ -107,19 +125,35 @@ def build_probe(root, meta, app, bits):
         upload += function_body(saved, 'ugkwpGpuResidentStrictUploadParticleSavedVelocity')
         download += function_body(saved, 'ugkwpGpuResidentStrictDownloadParticleSavedVelocity')
     alloc_calls, release_calls, upload_calls, download_calls, aliases = [], [], [], [], {}
+    reference_aliases, helper_allocations, helper_initialisations = {}, [], []
+    constructor = function_body(text, 'ugkwpGpuResidentStrictConfigureParticleStuckModel') if app != 'gasUGKP' else ''
     for f in storage_fields:
         for name in (f['name'], f['compact']):
             if not name:
                 continue
             selected = [call for call in calls(text, 'allocate') if re.match(r'allocate\s*\(\s*s->'+name+r'\s*,', call)]
             if not selected and f['group'].startswith('COLD'):
-                matches = re.findall(r's->' + name + r'\s*=\s*(\w+)\s*;', text)
-                matches = [n for n in matches if n != 'nullptr']
-                if len(matches) != 1:
-                    raise ValueError(f'{app}: cold installation is not unique for {name}')
-                alias = matches[0]
-                aliases[name] = alias
-                selected = [call for call in calls(text, 'allocate') if re.match(r'allocate\s*\(\s*'+alias+r'\s*,', call)]
+                references = re.findall(r'^\s*([\w ]+)\*&\s*(\w+)\s*=\s*s->' + name + r'\s*;', constructor, re.M)
+                if references:
+                    if len(references) != 1 or references[0][0].strip() != pointers[name]:
+                        raise ValueError(f'{app}: missing/wrong cold owner reference for {name}')
+                    _, alias = references[0]
+                    aliases[name] = alias
+                    reference_aliases[name] = alias
+                    selected = [call for call in calls(constructor, 'acquire') if re.match(r'acquire\s*\(\s*'+alias+r'\s*,', call)]
+                    helper_allocations += selected
+                    initialisations = [call for call in calls(constructor, 'initialise') if re.match(r'initialise\s*\(\s*'+alias+r'\s*,', call)]
+                    if selected and not re.search(r',\s*0\s*\)$', selected[0]) and len(initialisations) != 1:
+                        raise ValueError(f'{app}: initialization closure for {name}: expected one, got {len(initialisations)}')
+                    helper_initialisations += initialisations
+                else:
+                    matches = re.findall(r's->' + name + r'\s*=\s*(\w+)\s*;', text)
+                    matches = [n for n in matches if n != 'nullptr']
+                    if len(matches) != 1:
+                        raise ValueError(f'{app}: cold installation is not unique for {name}')
+                    alias = matches[0]
+                    aliases[name] = alias
+                    selected = [call for call in calls(text, 'allocate') if re.match(r'allocate\s*\(\s*'+alias+r'\s*,', call)]
             if len(selected) != 1:
                 raise ValueError(f'{app}: allocation closure for {name}: expected one, got {len(selected)}')
             alloc_calls += selected
@@ -136,12 +170,29 @@ def build_probe(root, meta, app, bits):
             download_calls += down
     if len(upload_calls) != len(fields) or len(download_calls) != len(fields):
         raise ValueError(f'{app}: transfer closure mismatch: {len(fields)} fields, {len(upload_calls)} uploads, {len(download_calls)} downloads')
+    memset_calls = []
+    for call in calls(text, 'cudaMemset'):
+        target = re.match(r'cudaMemset\s*\(\s*(?:s->)?(\w+)\s*,', call)
+        if target and target.group(1) in (names | set(aliases.values())):
+            memset_calls.append(call)
+    helpers = ''
+    helper_state = ''
+    if helper_allocations:
+        helpers = '\n'.join(re.findall(r'constexpr unsigned short\s+\w+\s*=[^;]+;', constructor)) + '\n'
+        helpers += '\n'.join(lambda_definition(constructor, name) for name in
+                             ('pending', 'markPending', 'clearPending', 'acquire', 'initialise')) + '\n'
+        for name in sorted(set(re.findall(r's->(\w+)', helpers)) - names):
+            declaration = re.search(r'^\s*([\w ]+)\s+' + name + r'\s*=\s*([^;]+);', state, re.M)
+            if not declaration:
+                raise ValueError(f'{app}: missing constructor helper state: {name}')
+            helper_state += f'{declaration[1].strip()} {name}={declaration[2]};\n'
     code = r'''
 #include <algorithm>
 #include <cassert>
 #include <cstddef>
 #include <cstdint>
 #include <cstdlib>
+#include <cstring>
 #include <fstream>
 #include <iostream>
 #include <map>
@@ -160,11 +211,18 @@ constexpr int coldWallAxialNodeCount=8, coldWallRadialRingCount=8,
 constexpr unsigned char particleWallMobile=0;
 } namespace gpuWall { template<class S> void publishWallBoundParticleIndex(S&,int){} } }
 std::map<void*,size_t> live;
+std::map<void*,size_t> liveBytes;
+using cudaError_t=int;constexpr cudaError_t cudaSuccess=0;
+size_t memsetCount=0;
 template<class T> int allocate(T*& p,size_t n,const char*) {
- if(p) throw std::runtime_error("duplicate allocation"); p=new T[n]{};live[p]=n;return 0;
+ if(p) throw std::runtime_error("duplicate allocation"); p=new T[n]{};live[p]=n;liveBytes[p]=n*sizeof(T);return 0;
+}
+int cudaMemset(void* p,int value,std::size_t bytes) {
+ if(!p || liveBytes.at(p)!=bytes) throw std::runtime_error("memset byte closure");
+ ++memsetCount;std::memset(p,value,bytes);return 0;
 }
 template<class T> void release(T*& p) {
- if(!p || !live.erase(p)) throw std::runtime_error("invalid release"); delete[] p;p=nullptr;
+ if(!p || !live.erase(p) || !liveBytes.erase(p)) throw std::runtime_error("invalid release"); delete[] p;p=nullptr;
 }
 template<class T,class U> int copyToDevice(T* d,const U* s,size_t n,const char*) {
  if(!d || live.at(d)!=n) throw std::runtime_error("upload size mismatch");
@@ -175,33 +233,45 @@ template<class T,class U> int copyToHost(T* d,const U* s,size_t n,const char*) {
  std::copy(s,s+n,d);return 0;
 }
 '''
-    code += f'using GpuReal={"float" if bits==32 else "double"};using GpuTime=double;\n'
-    code += 'struct DeviceState { int coldWallSolidificationEnabled=1,coldWall2DEnabled=1;\n'
-    code += ''.join(f'{pointers[n]}* {n}=nullptr;\n' for n in sorted(names)) + '};\n'
+    code += f'using GpuReal={"double"};using GpuTime=double;\n'
+    code += 'struct DeviceState { int coldWallSolidificationEnabled=1,coldWall2DEnabled=1,particleCapacity=3;\n'
+    code += ''.join(f'{pointers[n]}* {n}=nullptr;\n' for n in sorted(names)) + helper_state + '};\n'
     if app != 'gasUGKP':
         code += '#include "GpuCellLocalThermalFields.cuh"\n'
-        code += f'using ProbeExtra=CellLocalThermalExtraFields<{"true" if app=="CHT" else "false"}, {"true" if app=="FSH" else "false"}>;\n#define GPU_PARTICLE_EXTRA_FIELDS ProbeExtra\n'
+        adapter = re.search(r'#define GPU_PARTICLE_EXTRA_FIELDS (CellLocalThermalExtraFields<[^>]+>)', text).group(1)
+        code += f'using ProbeExtra={adapter};\n#define GPU_PARTICLE_EXTRA_FIELDS ProbeExtra\n'
     code += '#include "GpuCellLocalPrimary.cuh"\n#include "operators/swapParticlePointerDevice.cuh"\n'
     commit = (root / 'common/GpuParticleBufferCommit.cuh').read_text()
     code += 'void swapParticleBuffersDevice(DeviceState& s) {' + function_body(commit, 'swapParticleBuffersDevice') + '}\n'
     code += '#include "GpuParticleRestartTheta.H"\n' if app == 'CHT' else ''
     if app != 'gasUGKP':
         code += '#include "GpuThermalParticleRestartCodec.H"\nstruct View {size_t count=3;\n'
-        code += ''.join(f'{f["host"][app]}* {f["name"]};\n' for f in fields if f['schema7'] is not None) + '};\n'
+        code += ''.join(f'{f["host"][app]}* {f["name"]};\n' for f in fields if (f['schema7'] is not None or f['name']=='pThermalEnthalpyResidual')) + '};\n'
     code += 'int main(int argc,char**argv){try{DeviceState state;auto*s=&state;const size_t np=3,n=3,particleCapacity=3,count=3;\n'
     for constant in ('coldNodeStorage', 'coldRingStorage', 'cold2DNodeStorage', 'cold2DRingStorage'):
         match = re.search(r'const size_t '+constant+r'\s*=[^;]+;', text)
         if match:
             code += match.group(0) + '\n'
+    code += helpers
     for name, alias in aliases.items():
-        code += f'{pointers[name]}* {alias}=nullptr;\n'
+        code += f'{pointers[name]}*& {alias}=s->{name};\n' if name in reference_aliases else f'{pointers[name]}* {alias}=nullptr;\n'
     code += ''.join(call + ';\n' for call in alloc_calls)
-    code += ''.join(f's->{name}={alias};\n' for name, alias in aliases.items())
+    code += ''.join(f's->{name}={alias};\n' for name, alias in aliases.items() if name not in reference_aliases)
+    code += ''.join(call + ';\n' for call in memset_calls)
+    code += ''.join(call + ';\n' for call in helper_initialisations)
     for f in storage_fields:
         for name in (f['name'], f['compact']):
             if not name:
                 continue
             code += f'if(!s->{name} || live.at(s->{name})!=n*{f["width"]}) throw std::runtime_error("allocation closure: {name}");\n'
+    if helper_allocations:
+
+
+        code += 'const size_t retainedCount=live.size(),retainedMemsets=memsetCount;\n'
+        code += ''.join(f's->{name}[0]=7;\n' for name in reference_aliases)
+        code += ''.join(call + ';\n' for call in helper_allocations + helper_initialisations)
+        code += 'if(live.size()!=retainedCount || memsetCount!=retainedMemsets) throw std::runtime_error("initialization changed retained cold storage");\n'
+        code += ''.join(f'if(s->{name}[0]!=7) throw std::runtime_error("initialization changed retained cold storage: {name}");\n' for name in reference_aliases)
     for index, f in enumerate(fields):
         name, typ, width = f['name'], f['host'][app], f['width']
         code += f'std::vector<{typ}> h_{name}(n*{width}); auto* {name}=h_{name}.data();\n'
@@ -235,12 +305,13 @@ template<class T,class U> int copyToHost(T* d,const U* s,size_t n,const char*) {
             continue
         code += f'for(size_t j=0;j<n*{f["width"]};++j) if({name}[j]!=static_cast<{f["host"][app]}>({index+1}*7+j)) throw std::runtime_error("roundtrip: {name}");\n'
     if app != 'gasUGKP':
-        code += 'View v;\n' + ''.join(f'v.{f["name"]}={f["name"]};\n' for f in fields if f['schema7'] is not None)
-        disk_time = 'float' if app == 'FSH' else 'double'
-        code += f'std::ostringstream wire(std::ios::binary);Foam::gpuThermalRestart::write<{disk_time}>(wire,v);\n'
+        code += 'View v;\n' + ''.join(f'v.{f["name"]}={f["name"]};\n' for f in fields if (f['schema7'] is not None or f['name']=='pThermalEnthalpyResidual'))
+        has_carry = 'true' if app == 'CHT' else 'false'
+        marker = 'currentChtMarker' if app == 'CHT' else 'currentFshMarker'
+        code += f'std::ostringstream wire(std::ios::binary);Foam::gpuThermalRestart::writeCurrent<{has_carry}>(wire,Foam::gpuThermalRestart::{marker},v);\n'
         code += 'std::ofstream out(argv[1],std::ios::binary);out<<wire.str();out.close();\n'
         code += 'std::istringstream input(wire.str(),std::ios::binary);std::string marker;size_t total;std::uint32_t bound;input>>marker>>total>>bound;\n'
-        code += f'Foam::gpuThermalRestart::readPayload<{disk_time}>(input,bound,v);\n'
+        code += f'Foam::gpuThermalRestart::readCurrentPayload<{has_carry}>(input,bound,v);\n'
     code += ''.join(f'auto* old_{f["name"]}=s->{f["name"]};auto* next_{f["name"]}=s->{f["compact"]};\n' for f in fields)
     code += 'swapParticleBuffersDevice(*s);\n'
     code += ''.join(f'if(s->{f["name"]}!=next_{f["name"]} || s->{f["compact"]}!=old_{f["name"]}) throw std::runtime_error("swap closure: {f["name"]}");\n' for f in fields)
@@ -275,25 +346,24 @@ def main():
             raise ValueError('generated field registry drift: ' + name)
     if args.cpu and (not args.output or root == args.output.resolve() or root in args.output.resolve().parents):
         ap.error('--cpu needs --output outside the checkout')
-    golden_path = root / 'tests/fixtures/shared_operators/schema7_wire_golden.json'
+    golden_path = root / 'tests/fixtures/shared_operators/current_particle_wire_golden.json'
     golden = json.loads(golden_path.read_text()) if golden_path.is_file() else {}
     for app in ('gasUGKP', 'FSH', 'CHT'):
         if not (root / 'applications' / app).is_dir():
             continue
-        for bits in ((32, 64) if app == 'CHT' else (64,)):
-            code = build_probe(root, meta, app, bits)
-            if args.cpu:
-                args.output.mkdir(parents=True, exist_ok=True)
-                label = app + str(bits)
-                cpp, exe, wire = (args.output / (label + ext) for ext in ('.cpp', '.probe', '.wire'))
-                cpp.write_text(code)
-                subprocess.run(['g++', '-std=c++17', '-O0', '-I'+str(root/'common'), str(cpp), '-o', str(exe)], check=True)
-                subprocess.run([str(exe), str(wire)], check=True)
-                if app != 'gasUGKP':
-                    digest = hashlib.sha256(wire.read_bytes()).hexdigest()
-                    if golden.get(label) != digest:
-                        raise ValueError(f'{label}: schema7 binary golden mismatch ({digest})')
-            print(f'PASS {app}{bits} field declaration/allocation/release/transfer closure')
+        code = build_probe(root, meta, app)
+        if args.cpu:
+            args.output.mkdir(parents=True, exist_ok=True)
+            label = app + str(64)
+            cpp, exe, wire = (args.output / (label + ext) for ext in ('.cpp', '.probe', '.wire'))
+            cpp.write_text(code)
+            subprocess.run(['g++', '-std=c++17', '-O0', '-I'+str(root/'common'), str(cpp), '-o', str(exe)], check=True)
+            subprocess.run([str(exe), str(wire)], check=True)
+            if app != 'gasUGKP':
+                digest = hashlib.sha256(wire.read_bytes()).hexdigest()
+                if golden.get(label) != digest:
+                    raise ValueError(f'{label}: current particle binary golden mismatch ({digest})')
+        print(f'PASS {app}{64} field declaration/allocation/release/transfer closure')
     return 0
 
 

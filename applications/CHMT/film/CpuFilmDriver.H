@@ -22,18 +22,9 @@ struct CpuFilmDrive {
     Real bottomNormalVelocity=0,topNormalVelocity=0;
     Real interfaceNormalVelocity=0,solidNormalVelocity=0;
 };
-struct CpuFilmReport {
-    Budget budgetDelta{};
-    Real internalEnergyBefore=0,internalEnergyAfter=0;
-    Real reducedEnergyResidual=0,kineticDefect=0,numericalMassRoundoff=0;
-    bool phaseEvent=false;
-    std::vector<FilmQ> edgeFlux{}; // Rates, owner-outward, evaluated once per edge.
-    std::vector<FilmRateBudget> rateBudget{};
-};
 struct CpuFilmCandidate {
     std::vector<FilmQ> film{};
     std::vector<FilmAux> filmAux{};
-    CpuFilmReport report{};
 };
 // Finalize the CPU-owned SolidFilm packet at an exactly empty film event,
 // including depletion caused entirely by accepted gas packets. The remaining
@@ -42,26 +33,32 @@ struct CpuFilmCandidate {
 // the accepted non-phase forcing. Outputs remain unchanged on failure.
 bool finalizeCpuFilmPhasePacket(const FilmQ& accepted,Real acceptedPressure,
     const FilmQ& localRate,const CpuFilmForcing& primary,Real dt,Vec3 bottomVelocity,
-    const PhysicsConfig&,ExchangePacket& phase,bool& exactEvent,std::string& error);
+    const PhysicsConfig&,ExchangePacket& phase,bool& exactEvent,std::string& error,bool* numericalFailure=nullptr);
 // One first-order conservative CPU substep. Inputs and output remain untouched
 // on failure. The caller owns adaptive subcycling, event alignment and publication.
 // Coupled wet faces require real pressure, traction and explicit normal traces.
 bool advanceCpuFilmCandidate(const HostState&,const PhysicsConfig&,Real dt,
     const std::vector<CpuFilmForcing>&,const std::vector<CpuFilmDrive>&,
-    CpuFilmCandidate&,std::string& error);
+    CpuFilmCandidate&,std::string& error,bool* numericalFailure=nullptr);
 // Interface-owner RHS: suppresses top and bottom interface work and excludes all
 // integrated transfers; retains edge transport, body work and standalone radiation.
-// Rates/budgets are published together only after a successful evaluation.
+
 bool evaluateCpuFilmTransport(const HostState&,const PhysicsConfig&,Real dt,
     const std::vector<CpuFilmDrive>&,std::vector<FilmQ>& rates,
-    std::vector<FilmRateBudget>& budgets,std::string& error,
+    std::string& error,
     std::vector<FilmAux>* refreshedAux=nullptr,
     std::vector<Vec3>* pressureGradient=nullptr,
-    std::vector<Real>* sideMeshVolumeRate=nullptr);
+    std::vector<Real>* sideMeshVolumeRate=nullptr,bool* numericalFailure=nullptr);
 // Local material restrictions only. forcing is integrated over forcingInterval;
 // dt is also restricted to that supplied interval and maxDt. No gas CFL is used.
 bool estimateCpuFilmStep(const HostState&,const PhysicsConfig&,
     const std::vector<CpuFilmForcing>&,const std::vector<CpuFilmDrive>&,
-    Real forcingInterval,Real maxDt,Real& dt,std::string& error);
+    Real forcingInterval,Real maxDt,Real& dt,std::string& error,bool* numericalFailure=nullptr);
+namespace detail {
+bool completeCpuFilmPhasePacket(const FilmQ&,Real,const FilmQ&,const CpuFilmForcing&,Real,Vec3,const PhysicsConfig&,ExchangePacket&,bool&,std::string&,bool*);
+bool completeCpuFilmCandidate(const HostState&,const PhysicsConfig&,Real,const std::vector<CpuFilmForcing>&,const std::vector<CpuFilmDrive>&,CpuFilmCandidate&,std::string&,bool*);
+bool completeCpuFilmTransport(const HostState&,const PhysicsConfig&,Real,const std::vector<CpuFilmDrive>&,std::vector<FilmQ>&,std::string&,std::vector<FilmAux>*,std::vector<Vec3>*,std::vector<Real>*,bool*);
+bool completeCpuFilmStep(const HostState&,const PhysicsConfig&,const std::vector<CpuFilmForcing>&,const std::vector<CpuFilmDrive>&,Real,Real,Real&,std::string&,bool*);
+}
 }
 #endif

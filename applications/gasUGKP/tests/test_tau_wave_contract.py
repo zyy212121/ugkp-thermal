@@ -1,6 +1,8 @@
                                                                            
 
 from __future__ import annotations
+from source_contract_utils import read_source
+
 
 import re
 import unittest
@@ -19,7 +21,7 @@ CUDA_SOURCE = ROOT / "private_backend" / "GpuResidentStrict.cu"
 class ObsoleteGksPathExclusionContract(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:
-        cls.source = CUDA_SOURCE.read_text(encoding="utf-8")
+        cls.source = read_source(CUDA_SOURCE)
         cls.active_code = code_only(cls.source)
         cls.face_flux = function_block(
             cls.source, "computeRiemannGasFaceFluxDevice"
@@ -60,7 +62,7 @@ class ObsoleteGksPathExclusionContract(unittest.TestCase):
 class GasTimeIntegrationSourceContract(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:
-        cls.source = CUDA_SOURCE.read_text(encoding="utf-8")
+        cls.source = read_source(CUDA_SOURCE)
         cls.dispatch = function_block(cls.source, "advanceGasFluxStage")
         cls.euler_substage = function_block(
             cls.source, "advanceGasEulerSubstage"
@@ -72,7 +74,7 @@ class GasTimeIntegrationSourceContract(unittest.TestCase):
             r"if\s*\(\s*s->hostGasTimeIntegrator\s*==\s*1\s*\)",
         )
         self.assertEqual(euler_branch.count("advanceGasEulerSubstage"), 1)
-        self.assertIn("return advanceGasEulerSubstage(s, dt);", euler_branch)
+        self.assertIn("return advanceGasEulerSubstage(s, dt, dt, simulationTime, nativeRefinement);", euler_branch)
         self.assertNotIn("saveGasConservativeStateKernel", euler_branch)
 
     def test_ssprk2_and_ssprk3_use_gas_conservative_stage_storage(self) -> None:
@@ -84,15 +86,15 @@ class GasTimeIntegrationSourceContract(unittest.TestCase):
             "one Euler call site plus the two/three SSPRK call sites are required",
         )
         self.assertIn(
-            "blendGasRungeKuttaStage(s, 0.5, 0.5)", active_dispatch
+            "blendGasRungeKuttaStage(s, static_cast<double>(0.5), static_cast<double>(0.5), nativeRefinement)", active_dispatch
         )
         self.assertIn(
-            "blendGasRungeKuttaStage(s, 0.75, 0.25)", active_dispatch
+            "blendGasRungeKuttaStage(s, static_cast<double>(0.75), static_cast<double>(0.25), nativeRefinement)", active_dispatch
         )
         self.assertRegex(
             active_dispatch,
             r"blendGasRungeKuttaStage\s*\(\s*s\s*,\s*"
-            r"1\.0\s*/\s*3\.0\s*,\s*2\.0\s*/\s*3\.0\s*\)",
+            r"static_cast<double>\(1\.0\)\s*/\s*static_cast<double>\(3\.0\)\s*,\s*static_cast<double>\(2\.0\)\s*/\s*static_cast<double>\(3\.0\)\s*,\s*nativeRefinement\s*\)",
         )
 
     def test_gas_runge_kutta_stages_do_not_advance_particles(self) -> None:

@@ -17,30 +17,32 @@ struct DeviceState {
  ugkwp::GasSpeciesState<double,2> gasSpecies;ugkwp::GasBoundaryLayerState<double> gasBoundaryLayer;
  ugkwp::SstCoefficients sstCoefficients;DeviceState*deviceState=this;
  int hostTurbulenceModel=3,nCells=2,nFaces=2,fixedCellBlockThreads=128,hostGasFluxScheme=1,hostGasReconstruction=0,hostGasLimiter=0,hostGasTimeIntegrator=1,particleCapacity=0;
- int sstWallTreatment=2,sstConfigured=1;
+ int sstWallTreatment=2,sstConfigured=0;
  double sstKMin=1e-12,sstOmegaMin=1e-12,sstMaxSourceNumber=.25,sstWallKappa=.41,sstWallE=9.8,sstWallCmu=.09;
  double k[2]{},omega[2]{},sstWallDistance[2]{},sstBoundaryK[2]{},sstBoundaryOmega[2]{};int sstBoundaryKMode[2]{},sstBoundaryOmegaMode[2]{};
 };
 DeviceState*asState(void*p){return static_cast<DeviceState*>(p);}int validateState(DeviceState*,const char*){return 0;}
 void setLastErrorText(const char*s){std::puts(s);}void setLastError(const char*,int){}
-int copies=0;
+int copies=0,initializations=0;
 template<class T>int copyToDevice(T*d,const T*s,std::size_t n,const char*){++copies;std::memcpy(d,s,n*sizeof(T));return 0;}
-int syncSstConfiguration(DeviceState*,const char*){return 0;}void initialiseSstConservativeStateKernel(DeviceState*){}
+int syncSstConfiguration(DeviceState*,const char*,bool=false){return 0;}void initialiseSstConservativeStateKernel(DeviceState*,bool initialize=true){if(initialize)++initializations;}
 '''
 
 def test_sst_configuration_precedes_boundary_layer_without_changing_legacy_reconfiguration(tmp_path):
     backend=(ROOT/'applications/gasUGKP/private_backend/GpuResidentStrict.cu').read_text()
     start=backend.index('extern "C" int ugkwpGpuResidentStrictConfigureSst')
-    stop=backend.index('extern "C" int ugkwpGpuResidentStrictComputeGasCourant',start)
-    body=re.sub(r'<<<[\s\S]*?>>>','',backend[start:stop])
+    body=re.sub(r'<<<[\s\S]*?>>>','',_native_function(backend,'extern "C" int ugkwpGpuResidentStrictConfigureSst'))
     adapter=(ROOT/'applications/gasUGKP/private_backend/SharedGasAdapter.cuh').read_text()
-    helper=adapter[adapter.index('inline ugkwp::GasCapabilityRequest sharedGasCapabilityRequest'):adapter.index('inline bool sharedGasIdentityMatches')]
+    helper=adapter[adapter.index('inline ugkwp::GasCapabilityRequest sharedGasCapabilityRequest'):adapter.index('inline bool sharedGasViewRollbackFailed')]
+    storage=(ROOT/'applications/gasUGKP/private_backend/SharedGasStorage.cuh').read_text()
+    helper=storage[storage.index('#include <limits>'):storage.index('template<class T>\nint releaseSharedGasPointer')]+helper
     main=r'''int main(){DeviceState s;s.gasSpecies.mode=ugkwp::GasMode::MixtureFrozen;
  double k[]={1,1},omega[]={2,2},distance[]={.1,.1},boundary[]={0,0};int mode[]={0,0};
  auto configure=[&](int family){return ugkwpGpuResidentStrictConfigureSst(&s,1,1,1,1,.075,.083,.09,.55,.44,.31,1,10,1e-12,1e-12,.25,family,.41,9.8,.09,k,omega,distance,mode,mode,boundary,boundary);};
  assert(configure(2)==0&&s.sstWallTreatment==2&&s.k[0]==1); // legal startup SST setup
  s.gasBoundaryLayer.enabled=true;s.k[0]=7;const int before=copies;
- for(int family:{0,1,2}){assert(configure(family)!=0);assert(s.sstWallTreatment==2&&s.k[0]==7&&copies==before);}
+ for(int family:{0,1,2}){assert(configure(family)==0);assert(s.sstWallTreatment==family&&s.k[0]==7);}
+ assert(copies==before+15&&initializations==1);
  // A separate legacy resident retains its historical repeat-configuration path.
  DeviceState legacy;s=legacy;s.deviceState=&s;s.gasSpecies.mode=ugkwp::GasMode::SingleLegacy;
  assert(configure(1)==0&&s.sstWallTreatment==1);k[0]=3;
@@ -77,7 +79,7 @@ def _publication_probe():
     pre = pre.replace(' double* rho=nullptr;', ''' double* rho=nullptr;
  ugkwp::GasBoundaryLayerState<double> gasBoundaryLayer;
  ugkwp::GasBoundaryLayerModelState<double,ugkwp::compiledGasSpecies> gasBoundaryLayerModel;
- ugkwp::GasSstAuditState<double> gasSstAudit;SharedGasTrialStorage gasTrial;
+ SharedGasTrialStorage gasTrial;
  double *gasWallQuadratureDistance=nullptr,*gasWallQuadratureWeight=nullptr;
  double gasBoundaryLayerStageTime=0,gasThermalConductivity=-1;
  int *faceOwner=nullptr,*faceNeighbour=nullptr,*gasBoundaryKind=nullptr,*riemannBoundaryKind=nullptr;
@@ -108,7 +110,8 @@ int cudaMemcpy(void* dst,const void* src,std::size_t n,int){
  std::memcpy(dst,src,n);return cudaSuccess;
 }
 ''')
-    return pre+sync+'\n'+scrub+r'''
+    from test_boundary_layer_storage import snapshot_release_probe
+    return pre+sync+'\n'+scrub+snapshot_release_probe()+r'''
 const int cudaDevAttrMultiProcessorCount=1;
 int cudaGetDevice(int*p){*p=0;return 0;}
 int cudaDeviceGetAttribute(int*p,int,int){*p=80;return 0;}
@@ -118,7 +121,7 @@ int cudaMemGetInfo(std::size_t*f,std::size_t*t){*f=*t=std::size_t(8)<<30;return 
 void checkUnrelated(const DeviceState& before,const DeviceState& after){
  bool changed[sizeof(DeviceState)]{};
 #define ALLOWED(field) for(std::size_t i=offsetof(DeviceState,field);i<offsetof(DeviceState,field)+sizeof(before.field);++i)changed[i]=true
- ALLOWED(gasBoundaryLayer);ALLOWED(gasBoundaryLayerModel);ALLOWED(gasSstAudit);
+ ALLOWED(gasBoundaryLayer);ALLOWED(gasBoundaryLayerModel);
  ALLOWED(gasWallQuadratureDistance);ALLOWED(gasWallQuadratureWeight);ALLOWED(sstWallTreatment);
 #undef ALLOWED
  const auto*a=reinterpret_cast<const unsigned char*>(&before);const auto*b=reinterpret_cast<const unsigned char*>(&after);
@@ -149,26 +152,23 @@ int main(int argc,char**argv){assert(argc==4);const int model=std::atoi(argv[1])
  // then call the public wall configuration ABI. No restoration of scrubbed data.
  scrubHostCalculationScalars(&state);assert(state.gasMu==0&&state.gasPrClamped==0&&state.gasFluxScheme==0);
  residentTarget=&device;residentBytes=sizeof(device);if(failPublication==-2)state.deviceState=nullptr;
- ugkwpGpuIpc::BoundaryLayerConfigV1 cfg;cfg.budgetAudit=audit;cfg.model=model;cfg.nodes=32;cfg.speciesCount=2;cfg.wallCount=1;cfg.quadratureCount=1;cfg.matchingCount=1;cfg.workspaceSlots=1;
+ ugkwpGpuIpc::BoundaryLayerConfigV1 cfg;cfg.reservedAudit=audit;cfg.model=model;cfg.nodes=32;cfg.speciesCount=2;cfg.wallCount=1;cfg.quadratureCount=1;cfg.matchingCount=1;cfg.workspaceSlots=1;
  int faces[]={0},offset[]={0,1},match[]={1};double geometry[]={0,1,0,.004,.01,4e-7,1.6e-9},qd[]={.004},qw[]={4e-7},mw[]={1},flux[]={0,0};
  auto configure=[&](){return ugkwpGpuResidentStrictConfigureBoundaryLayerV1(&state,&cfg,faces,offset,offset,match,geometry,qd,qw,mw,flux);};
  const int rc=configure();checkUnrelated(before,device);
  if(failPublication!=-1){assert(rc!=0&&state.gasModelPoisoned);assert(publicationAttempts==(failPublication==-2?0:failPublication+1));
   const int calls=publicationAttempts,live=allocations;assert(configure()!=0&&publicationAttempts==calls&&allocations==live);
- }else{assert(rc==0&&!state.gasModelPoisoned&&device.gasBoundaryLayer.enabled&&publicationAttempts==6);
-  assert(device.gasSstAudit.enabled==bool(audit));
-  assert(bool(device.gasSstAudit.transportK)==bool(audit));
+ }else{assert(rc==0&&!state.gasModelPoisoned&&device.gasBoundaryLayer.enabled&&publicationAttempts==5);
   assert(device.gasMu==2e-5&&device.gasPrClamped==.5&&device.gasFluxScheme==2);
   assert(ugkwp::evaluateGasBoundaryLayerSlot(device,0));
   assert(device.gasBoundaryLayer.exchange[0].ready&&std::isfinite(device.gasBoundaryLayerModel.output[0].conductiveHeatFlux));
   if(model)assert(device.gasBoundaryLayerModel.output[0].reactionIntegral[0]<-1e-8);
   assert(state.gasMu==0&&state.gasPrClamped==0&&state.gasFluxScheme==0);
   const int calls=publicationAttempts,live=allocations;
-  assert(configure()!=0&&publicationAttempts==calls&&allocations==live);
+  assert(configure()==0&&publicationAttempts==calls+5&&allocations==live);
  }
  releaseBoundaryLayerStorage(state);assert(allocations==0);
- assert(!state.gasBoundaryLayer.enabled&&!state.gasBoundaryLayerModel.input&&!state.gasSstAudit.enabled);
- assert(!state.gasSstAudit.transportK&&!state.gasSstAudit.volume);
+ assert(!state.gasBoundaryLayer.enabled&&!state.gasBoundaryLayerModel.input);
  releaseBoundaryLayerStorage(state);assert(allocations==0);
 }
 '''
@@ -188,7 +188,7 @@ def publication_probe(tmp_path_factory):
 
 
 @pytest.mark.parametrize('model,audit',[(0,0),(1,0),(1,1)])
-@pytest.mark.parametrize('failed_publication',[-2,-1,0,1,2,3,4,5])
+@pytest.mark.parametrize('failed_publication',[-2,-1,0,1,2,3,4])
 def test_wall_publication_preserves_scrubbed_device_state_and_poisons_partial_copy(publication_probe,model,audit,failed_publication):
     run=subprocess.run([str(publication_probe),str(model),str(failed_publication),str(audit)],capture_output=True,text=True)
     assert run.returncode==0,run.stdout+run.stderr

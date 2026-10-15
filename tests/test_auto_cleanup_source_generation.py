@@ -12,13 +12,11 @@ ROOT = Path(__file__).resolve().parents[1]
 FIXTURES = ROOT / "tests/fixtures/auto_cleanup"
 
 
-@pytest.mark.parametrize("app,bits", [
-    ("gasUGKP", 64), ("FSH", 64), ("CHT", 64), ("CHT", 32),
-])
-def test_generate_cleanup_source_without_cuda(tmp_path, app, bits):
+@pytest.mark.parametrize('app', ['gasUGKP', 'FSH', 'CHT'])
+def test_generate_cleanup_source_without_cuda(tmp_path, app):
     result = subprocess.run(
         [sys.executable, str(FIXTURES / "behavior.py"), str(ROOT),
-         str(tmp_path), app, str(bits), "--generate-only"],
+         str(tmp_path), app, "--generate-only"],
         capture_output=True, text=True, timeout=30,
     )
     assert result.returncode == 0, result.stdout + result.stderr
@@ -35,7 +33,7 @@ def test_generate_cleanup_source_without_cuda(tmp_path, app, bits):
         assert "baseline_relaxColdWall" not in generated
         return
 
-    old_cold = frozen[f"cold{bits}"].replace(
+    old_cold = frozen[f"cold{64}"].replace(
         "relaxColdWall1DParticlesToResidentGasKernel", "baseline_relaxColdWall",
     )
     if app == "FSH":
@@ -79,8 +77,7 @@ def test_generate_cleanup_source_without_cuda(tmp_path, app, bits):
     )
     executable = tmp_path / "oracle_domain"
     compile_result = subprocess.run(
-        ["g++", "-std=c++17", f"-DUGKWP_GPU_REAL_BITS={bits}",
-         "-I", str(ROOT / "common"), "-I", str(ROOT / "common/wall"),
+        ["g++", "-std=c++17", "-I", str(ROOT / "common"), "-I", str(ROOT / "common/wall"),
          str(probe), "-o", str(executable)],
         capture_output=True, text=True, timeout=30,
     )

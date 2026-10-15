@@ -33,13 +33,19 @@ def manifest(app):
             resolved=next((p.resolve() for p in candidates if p.is_file()),None)
             if resolved is not None and (root/'common') in resolved.parents:
                 common[str(resolved.relative_to(root))]=sha(resolved); pending.append(resolved)
-    git=subprocess.run(['git','-C',str(root),'rev-parse','HEAD'],text=True,capture_output=True)
-    if git.returncode: raise ValueError('build requires the actual git checkout revision')
-    status=subprocess.run(['git','-C',str(root),'status','--porcelain','--untracked-files=all','--','applications/CHMT','common'],text=True,capture_output=True,check=True)
-    dirty_paths=[line for line in status.stdout.splitlines() if not any(part in EXCLUDED for part in Path(line[3:]).parts)]
+    try:
+        git=subprocess.run(['git','-C',str(root),'rev-parse','HEAD'],text=True,capture_output=True)
+        available=git.returncode==0
+        commit=git.stdout.strip() if available else 'UNKNOWN'
+        dirty_paths=[]
+        if available:
+            status=subprocess.run(['git','-C',str(root),'status','--porcelain','--untracked-files=all','--','applications/CHMT','common'],text=True,capture_output=True,check=True)
+            dirty_paths=[line for line in status.stdout.splitlines() if not any(part in EXCLUDED for part in Path(line[3:]).parts)]
+    except FileNotFoundError:
+        available=False; commit='UNKNOWN'; dirty_paths=[]
     identity={'upstream_base':UPSTREAM_BASE,'chmt_sources':files,'direct_and_transitive_common_sources':dict(sorted(common.items()))}
     return {**identity,'source_fingerprint':hashlib.sha256(encoded(identity)).hexdigest(),
-            'solver_commit':git.stdout.strip(),'dirty':bool(dirty_paths),'dirty_paths':dirty_paths}
+            'solver_commit':commit,'git_identity_available':available,'dirty':bool(dirty_paths) if available else None,'dirty_paths':dirty_paths}
 
 
 def main():

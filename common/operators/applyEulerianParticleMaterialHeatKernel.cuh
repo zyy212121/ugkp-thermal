@@ -54,7 +54,11 @@ __global__ void applyEulerianParticleMaterialHeatKernel
             s.TpMin,
             s.TpMax
         );
-    const GPU_OPERATOR_REAL particleCp = particleSpecificHeatDevice(tpAvg);
+
+
+    const GPU_OPERATOR_REAL particleCp = tpAvg > GPU_OPERATOR_R(0.0)
+        && Foam::gpuThermal::finiteAluminaValue(tpAvg)
+      ? particleSpecificHeatDevice(tpAvg) : GPU_OPERATOR_R(0.0);
     if (!(particleCp > GPU_OPERATOR_R(0.0)))
     {
         return;

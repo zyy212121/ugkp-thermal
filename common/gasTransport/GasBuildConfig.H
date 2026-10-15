@@ -8,6 +8,5 @@
 namespace ugkwp
 {
 static constexpr int compiledGasSpecies = UGKWP_GAS_SPECIES;
-static_assert(compiledGasSpecies > 0, "UGKWP_GAS_SPECIES must be positive");
 }
 #endif

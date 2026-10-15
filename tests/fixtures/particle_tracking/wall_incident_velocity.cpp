@@ -20,20 +20,18 @@
 #define GPU_OPERATOR_THERMAL 1
 #define GPU_PERIODIC_FACE_KIND 6
 #if INCIDENT_FSH
-#define GPU_GEOMETRY_ROUNDING_AWARE 0
 #define GPU_WALL_COORDINATE(hit, eps, normal) hit - eps*normal
 #define GPU_PERIODIC_COORDINATE(hit, shift, eps, normal) hit - shift + eps*normal
 #define GPU_RESET_CONTACT_AGE(s, i)
-#define GPU_CONTACT_DURATION(value) static_cast<float>(value)
-#define GPU_CONTACT_PEAK(value) static_cast<float>(value)
-using ContactTime = float;
+#define GPU_CONTACT_DURATION(value) static_cast<double>(value)
+#define GPU_CONTACT_PEAK(value) static_cast<double>(value)
+using ContactTime = double;
 #else
-#define GPU_GEOMETRY_ROUNDING_AWARE (UGKWP_GPU_REAL_BITS == 32)
 #define GPU_WALL_COORDINATE(hit, eps, normal) insideFaceCoordinate(hit, normal, eps)
 #define GPU_PERIODIC_COORDINATE(hit, shift, eps, normal) insideFaceCoordinate(hit-shift, -normal, eps)
 #define GPU_RESET_CONTACT_AGE(s, i) s.pContactAge[i] = GpuTime(0);
 #define GPU_CONTACT_DURATION(value) static_cast<GpuTime>(value)
-#define GPU_CONTACT_PEAK(value) Foam::gpuThermal::finiteContactPeakFractionForStorage(value)
+#define GPU_CONTACT_PEAK(value) static_cast<double>(value)
 using ContactTime = GpuTime;
 #endif
 
@@ -66,7 +64,7 @@ struct DeviceState
     GpuReal gasBoundaryUx[6] = {}, gasBoundaryUy[6] = {}, gasBoundaryUz[6] = {};
     GpuReal sommerfeldThreshold = GPU_R(20);
     GpuReal particleWallContactAngleCosine = GPU_R(-0.8191520442889918);
-    float pDepositionArea[1] = {}, pContactMaximumArea[1] = {}, pContactPeakFraction[1] = {};
+    double pDepositionArea[1] = {}, pContactMaximumArea[1] = {}, pContactPeakFraction[1] = {};
     GpuTime pContactAge[1] = {0.25};
     ContactTime pContactDuration[1] = {};
     GpuReal gasMu = GPU_R(1.8e-5), rhoSolid = GPU_R(3000), invRhoSolid = GPU_R(1.0/3000);
@@ -103,7 +101,7 @@ void require(bool condition, const char* message)
 
 void near(double actual, double expected, const char* message)
 {
-    const double tolerance = UGKWP_GPU_REAL_BITS == 32 ? 2e-6 : 2e-12;
+    const double tolerance = 2e-12;
     if (!std::isfinite(actual) || std::abs(actual - expected) > tolerance*std::max(std::abs(expected), 1e-20))
     {
         std::fprintf(stderr, "FAIL: %s: actual=%.17g expected=%.17g\n", message, actual, expected);
@@ -143,7 +141,7 @@ void checkContact(DeviceState& s, GpuTime dt, int face, int cell, Incident incid
     near(s.puyOld[0], incident.y-factor*ny, "saved rebound y uses current segment");
     near(s.puzOld[0], incident.z-factor*nz, "saved rebound z uses current segment");
     near(s.pContactDuration[0], GPU_CONTACT_DURATION(expected.contactDurationS), "contact duration");
-    near(s.pContactMaximumArea[0], static_cast<float>(expected.maximumAreaM2), "contact maximum area");
+    near(s.pContactMaximumArea[0], static_cast<double>(expected.maximumAreaM2), "contact maximum area");
     near(s.pContactPeakFraction[0], GPU_CONTACT_PEAK(expected.peakTimeFraction), "contact peak fraction");
     require(s.pContactDuration[0] > 0 && s.pContactMaximumArea[0] > 0
         && s.pContactPeakFraction[0] > 0 && s.pContactPeakFraction[0] < 1,
@@ -244,12 +242,15 @@ void run(const char* scenario, unsigned char model, bool deposit)
         incident = {GPU_R(-1), GPU_R(2), 0};
         dt = 3; face = 1;
     }
+    else if (is("candidate_identity"))
+    {
+        s.particleStuckModelConfigured=0;model=0;
+    }
     else if (std::strncmp(scenario, "invalid_", 8) == 0)
     {
         if (is("invalid_relative_speed")) { s.gasBoundaryUx[0] = incident.x; }
         else if (is("invalid_diameter")) { s.pd[0] = GPU_R(1e-6); }
         else if (is("invalid_temperature")) { s.pT[0] = GPU_R(-1); }
-        else if (is("invalid_candidate")) { s.particleStuckCandidateMask[0] = 0; }
         else { require(false, "known invalid scenario"); }
         bool trapped = false;
         try { trackOneParticleLocalFaceWalk(s, 0, dt); }
@@ -282,10 +283,10 @@ int main(int argc, char** argv)
     catch (const DeviceTrap& trap)
     {
         std::fprintf(stderr, "FAIL: unexpected production trap at line %d (%s, FP%d)\n",
-                     trap.line, argv[1], UGKWP_GPU_REAL_BITS);
+                     trap.line, argv[1], 64);
         return 1;
     }
     std::printf("PASS %s model=%s deposit=%s FP%d %s\n", argv[1], argc > 2 ? argv[2] : "-",
-                argc > 3 ? argv[3] : "-", UGKWP_GPU_REAL_BITS, INCIDENT_FSH ? "FSH" : "CHT");
+                argc > 3 ? argv[3] : "-", 64, INCIDENT_FSH ? "FSH" : "CHT");
     return 0;
 }

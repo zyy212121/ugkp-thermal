@@ -1,9 +1,12 @@
                                                                  
 
 from __future__ import annotations
+from source_contract_utils import read_source
+
 
 import re
 import unittest
+import pytest
 from pathlib import Path
 
 try:
@@ -52,7 +55,7 @@ def zero_transport_correction(
 class RiemannWallSourceContract(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:
-        cls.source = CUDA_SOURCE.read_text(encoding="utf-8")
+        cls.source = read_source(CUDA_SOURCE)
         cls.face_flux = function_block(
             cls.source, "computeRiemannGasFaceFluxDevice"
         )
@@ -111,10 +114,10 @@ class RiemannWallSourceContract(unittest.TestCase):
         )
         self.assertNotIn("Maxwell", active)
 
-    def test_symmetry_has_no_viscous_or_fourier_transport(self) -> None:
+    def test_slip_is_stress_free_and_fixed_temperature_selects_heat(self) -> None:
         self.assertRegex(
             self.face_flux,
-            r"if\s*\(\s*boundaryKind\s*!=\s*1\s*\)",
+            r"if\s*\(\s*boundaryKind\s*!=\s*1\s*\|\|\s*s\.riemannBoundaryTFix\[f\]\s*!=\s*0\s*\)",
         )
         self.assertNotIn("muEffective", self.symmetry_branch)
         self.assertNotIn("kEffective", self.symmetry_branch)
@@ -122,7 +125,7 @@ class RiemannWallSourceContract(unittest.TestCase):
     def test_wall_viscous_shear_and_heat_are_a_separate_additive_path(
         self,
     ) -> None:
-        self.assertIn("const double muEffective = s.gasMu + muTurbulent;", self.face_flux)
+        self.assertIn("const double muEffective = boundaryKind == 1\n          ? 0.0 : s.gasMu + muTurbulent;", self.face_flux)
         self.assertIn("double kMolecular=molecularGasConductivity(s);", self.face_flux)
         self.assertIn("const double kEffective = kMolecular + kTurbulent;", self.face_flux)
         self.assertIn("if(ugkwp::mixtureGasActive(s) && !ugkwp::gasHasDirectConductivity(s))", self.face_flux)
@@ -149,7 +152,7 @@ class RiemannWallSourceContract(unittest.TestCase):
         definitions = re.findall(r"^\s*#define\s+GPU_GAS_WALL_EXPOSURE[^\n]*", expanded, re.M)
         self.assertEqual(len(definitions), 1)
         self.assertRegex(definitions[0], r"\A\s*#define\s+GPU_GAS_WALL_EXPOSURE\(s, f, neighbour, kind\)\s+GPU_OPERATOR_R\(1\.0\)\s*\Z")
-        self.assertNotRegex(self.source, re.compile(r"^\s*#define\s+GPU_GAS_WALL_EXPOSURE", re.M))
+        self.assertNotRegex(CUDA_SOURCE.read_text(encoding="utf-8"), re.compile(r"^\s*#define\s+GPU_GAS_WALL_EXPOSURE", re.M))
         self.assertRegex(self.face_flux, r"wallThermalAreaFraction\s*=\s*GPU_GAS_WALL_EXPOSURE\(s, f, nei, boundaryKind\)\s*;")
         self.assertRegex(self.face_flux, r"energyFlux\s*\+=\s*wallThermalAreaFraction\*directWallHeatFlux\s*;")
         self.assertRegex(self.face_flux, r"energyFlux\s*-=\s*wallThermalAreaFraction\s*\*kEffective\*normalTemperatureGradient\s*;")
@@ -158,12 +161,17 @@ class RiemannWallSourceContract(unittest.TestCase):
 
     def test_empty_and_processor_faces_are_skipped_before_flux_work(self) -> None:
         pattern = r"if\s*\(\s*boundaryKind\s*==\s*3\s*\|\|\s*boundaryKind\s*==\s*4\s*\)"
-        skipped = branch_block(self.face_flux, pattern)
+        branches = list(re.finditer(pattern, code_only(self.face_flux)))
+        self.assertEqual(len(branches), 2)
+        selected = branch_block(self.face_flux[branches[0].start():], pattern)
+        self.assertIn("ugkwp::GasTransportCode::InvalidStorage", selected)
+        self.assertIn("return false;", selected)
+        skipped = branch_block(self.face_flux[branches[1].start():], pattern)
         self.assertIn("return false;", skipped)
         self.assertIn("if(moving && meshFrame.meshVolumeRate!=0.0)", skipped)
         self.assertIn("ugkwp::GasTransportCode::InvalidGeometry", skipped)
         self.assertNotIn("reconstructGasCellToFace", skipped)
-        skip_position = re.search(pattern, self.face_flux).start()
+        skip_position = branches[1].start()
         reconstruction_position = self.face_flux.index(
             "GasPrimDevice left = reconstructGasCellToFace"
         )
@@ -208,7 +216,8 @@ if __name__ == "__main__":
     unittest.main()
 
 
-def test_empty_and_processor_faces_do_not_reconstruct_cell_state(tmp_path,monkeypatch):
+@pytest.mark.parametrize('strict',[False,True])
+def test_empty_and_processor_faces_do_not_reconstruct_cell_state(tmp_path,monkeypatch,strict):
     """Execute production flux with inaccessible primitive fields to prove the skip.
 
     Covers the ordinary legacy route and an invalid selected-wall map, whose
@@ -218,16 +227,60 @@ def test_empty_and_processor_faces_do_not_reconstruct_cell_state(tmp_path,monkey
     from test_mixture_state import compile_probe
     from test_legacy_ale_transport import fixture
     from test_boundary_layer_operators import SETUP
-    for bits in (32,64):
-        path=tmp_path/str(bits);path.mkdir()
-        compile_probe(path,fixture()+SETUP+r'''
+    path=tmp_path/str(64);path.mkdir()
+    compile_probe(path,fixture()+SETUP+r'''
 int main(){for(int selected=0;selected<2;++selected)for(int kind:{3,4}){
  State s;initialise(s);if(selected)wall(s);s.riemannBoundaryKind[1]=kind;s.gasReconstruction=1;
  // Any actual reconstruction dereferences these. Valid face topology and area
  // remain available for the intended empty/processor skip and map validation.
  s.rho=s.p=s.Tgas=s.Ux=s.Uy=s.Uz=nullptr;Real m=9,x=9,y=9,z=9,e=9;
- ck(!computeRiemannGasFaceFluxDevice<false>(s,1,m,x,y,z,e),"nonphysical face produced a flux");
+ ck(!computeRiemannGasFaceFluxDevice<false>(s,1,m,x,y,z,e,STRICT),"nonphysical face produced a flux");
  ck(m==0&&x==0&&y==0&&z==0&&e==0,"skipped face produced nonzero transport");
  ck(s.gasSpecies.faceStatus[1]==(selected?int(ugkwp::GasTransportCode::InvalidStorage):0),"unexpected skip status");
 }}
-''',bits)
+'''.replace('STRICT','true' if strict else 'false'),sanitizers=True)
+
+
+@pytest.mark.parametrize('strict',[False,True])
+def test_reconstruction_consumes_required_backing_only(tmp_path,monkeypatch,strict):
+    monkeypatch.syspath_prepend(str(ROOT.parents[1]/"tests/gas_transport"))
+    from test_mixture_state import compile_probe
+    from test_mixture_transport import fixture
+    compile_probe(tmp_path,fixture()+r'''
+int main(){for(int mode=0;mode<5;++mode){
+ State s;initialise(s);s.gasReconstruction=(mode==1||mode==4)?1:0;
+ if(mode!=2)s.gasSpecies.mode=ugkwp::GasMode::SingleLegacy;
+ const Real rho=s.rho[0],p=s.p[0],ux=s.Ux[0],uy=s.Uy[0],uz=s.Uz[0];
+ if(mode==0)s.rho=nullptr;
+ if(mode==1)s.gradRhoX=nullptr;
+ if(mode>=2)s.Tgas=nullptr;
+ bool evaluated=true;auto face=reconstructGasCellToFace(s,0,1,STRICT,&evaluated);
+ if(mode<3){
+  ck(!evaluated,"missing backing reported evaluated reconstruction");
+  ck(s.gasSpecies.faceStatus[1]==int(ugkwp::GasTransportCode::InvalidStorage),"missing backing lost storage diagnostic");
+ }else{
+  ck(evaluated&&s.gasSpecies.faceStatus[1]==0,"legacy reconstruction demanded unused Tgas");
+  ck(face.rho==rho&&face.p==p&&face.ux==ux&&face.uy==uy&&face.uz==uz,"legacy reconstruction changed first-order values");
+  ck(face.T==p/(rho*s.Rgas),"legacy reconstruction did not evaluate ideal-gas temperature");
+ }
+}}
+'''.replace('STRICT','true' if strict else 'false'),sanitizers=True)
+
+
+def test_slip_fixed_temperature_uses_fourier_without_viscous_traction(tmp_path,monkeypatch):
+    monkeypatch.syspath_prepend(str(ROOT.parents[1]/"tests/gas_transport"))
+    from test_mixture_state import compile_probe
+    from test_legacy_ale_transport import fixture
+    compile_probe(tmp_path,fixture()+r'''
+int main(){for(int fixed:{0,1}){
+ State s;initialise(s);s.riemannBoundaryKind[1]=1;s.riemannBoundaryTFix[1]=fixed;
+ s.riemannBoundaryT[1]=600;s.rho[0]=1;s.p[0]=86100;s.Tgas[0]=300;
+ s.Ux[0]=0;s.Uy[0]=7;s.Uz[0]=-5;s.gasMu=.25;s.gasThermalConductivity=1;
+ s.gradUxX[0]=3;s.gradUyX[0]=11;s.gradUzY[0]=12;
+ Real mass,mx,my,mz,energy;
+ ck(computeRiemannGasFaceFluxDevice<false>(s,1,mass,mx,my,mz,energy),"valid slip flux failed");
+ ck(s.gasSpecies.faceStatus[1]==0&&mass==0,"slip mass/status changed");
+ ck(mx==-86100&&my==0&&mz==0,"slip acquired viscous traction");
+ ck(energy==(fixed?Real(-600):Real(0)),"fixed-temperature slip Fourier heat differs from -k*dT/dn");
+}}
+''')

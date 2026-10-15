@@ -1,10 +1,9 @@
 import os
 from pathlib import Path
 import sys,subprocess
-root=Path(sys.argv[1]);out=Path(sys.argv[2]);app=sys.argv[3];bits=int(sys.argv[4]);out.mkdir(parents=True,exist_ok=True)
+root=Path(sys.argv[1]);out=Path(sys.argv[2]);app=sys.argv[3];out.mkdir(parents=True,exist_ok=True)
 src=root/f'applications/{app}/{"gpu" if app=="CHT" else "private_backend"}'
 code='#include "GpuResidentStrict.cu"\n#include <cstdio>\n#include <new>\n#include <cstdlib>\n#include <cmath>\n'
-if app=='CHT' and bits==32:code+='using namespace ugkwpCudaFp32;\n'
 code+=r'''
 template<class T>void alloc(T*&p,int n){if(cudaMallocManaged(&p,n*sizeof(T))!=cudaSuccess)exit(10);for(int i=0;i<n;i++)::new(static_cast<void*>(p+i)) T{};}
 void deviceSync(){auto e=cudaDeviceSynchronize();if(e!=cudaSuccess){printf("CUDA %s\n",cudaGetErrorString(e));exit(11);}}
@@ -54,9 +53,9 @@ code=code.replace('MALLOC','\n'.join('alloc(m->'+f+',40);' for f in fields))
 code=code.replace('STUCK_INIT','m->pStuck[i]=(i%3==0);' if app!='gasUGKP' else '').replace('THETA_REF','(i%3==0?0.:.125)' if app!='gasUGKP' else '.125')
 wall='alloc(s->wallEnergy.gasWallEnergy,4);alloc(s->wallEnergy.gasWallEnergyMask,4);alloc(s->wallEnergy.gasWallFlux,4);alloc(s->gasBoundaryKind,4);s->wallEnergy.gasWallEnergyMask[1]=1;s->gasBoundaryKind[1]=2;s->gasPhiRho[1]=1;s->gasPhiRhoE[1]=20;s->gasFluxPositivityScale[0]=.25;applyGasFluxPositivityScaleKernel<<<1,32>>>(s);deviceSync();check(s->gasPhiRhoE[1],5,"wall limited energy");check(s->wallEnergy.gasWallFlux[1],5,"published wall limited energy");'
 code=code.replace('GRAVITY_KERNEL','applyGasGravitySourceKernel' if app=='gasUGKP' else 'applyGasGravityKernel')
-code=code.replace('WALL_TEST',wall if app=='CHT' else '').replace('TOL','2e-6' if bits==32 else '2e-12')
-f=out/'operator_contract.cu';f.write_text(code);exe=out/'operator_contract';cmd=[str(Path(os.environ.get('CUDA_HOME','/usr/local/cuda'))/'bin/nvcc'),'-std=c++17','-O3','-arch='+os.environ.get('UGKWP_CUDA_ARCH','sm_89'),'--fmad='+('false' if app=='CHT' else 'true'),'-DUGKWP_GPU_REAL_BITS='+str(bits),'-I'+str(src),'-I'+str(root/'common'),'-I'+str(root/'applications'/app/'gpu'),str(f),'-o',str(exe)]
+code=code.replace('WALL_TEST',wall if app=='CHT' else '').replace('TOL','2e-12')
+f=out/'operator_contract.cu';f.write_text(code);exe=out/'operator_contract';cmd=[str(Path(os.environ.get('CUDA_HOME','/usr/local/cuda'))/'bin/nvcc'),'-std=c++17','-O3','-arch='+os.environ.get('UGKWP_CUDA_ARCH','sm_89'),'--fmad='+('false' if app=='CHT' else 'true'),'-I'+str(src),'-I'+str(root/'common'),'-I'+str(root/'applications'/app/'gpu'),str(f),'-o',str(exe)]
 if app=='CHT':cmd.append(str(src/'GpuWallEnergy64.cu'))
 with (out/'build.log').open('w') as log:q=subprocess.run(cmd,stdout=log,stderr=subprocess.STDOUT)
 if q.returncode:print((out/'build.log').read_text()[-6000:]);sys.exit(q.returncode)
-q=subprocess.run([str(exe)],capture_output=True,text=True);(out/'run.log').write_text(q.stdout+q.stderr);print(app,bits,q.stdout,q.stderr);sys.exit(q.returncode)
+q=subprocess.run([str(exe)],capture_output=True,text=True);(out/'run.log').write_text(q.stdout+q.stderr);print(app,64,q.stdout,q.stderr);sys.exit(q.returncode)

@@ -1,6 +1,6 @@
 """CPU executions of the host/device per-face convex pressure algebra.
 
-These tests compile the production template for float and double. They exercise
+These tests compile the production template for double. They exercise
 local endpoints and the convex decomposition after arbitrary shared-face minima;
 they do not claim to execute a CUDA kernel or reproduce its reduction ordering.
 """
@@ -166,18 +166,18 @@ int main(int argc,char** argv) {
 }
 '''
 
-@pytest.fixture(scope="module", params=["float", "double"])
-def executable(request, tmp_path_factory):
+@pytest.fixture(scope="module")
+def executable(tmp_path_factory):
     assert HEADER.exists(), "production host/device convex pressure helper is missing"
     compiler = shutil.which("g++")
     if compiler is None:
         pytest.skip("g++ is required to exercise the production C++ header")
-    directory = tmp_path_factory.mktemp("pressure_convex_" + request.param)
+    directory = tmp_path_factory.mktemp("pressure_convex_" + 'double')
     source = directory / "check.cpp"
     source.write_text(CPP)
     binary = directory / "check"
     command = [compiler, "-std=c++17", "-O2", "-Wall", "-Wextra", "-pedantic",
-               "-DTEST_REAL=" + request.param, "-I", str(ROOT / "common"), str(source), "-o", str(binary)]
+               "-DTEST_REAL=" + 'double', "-I", str(ROOT / "common"), str(source), "-o", str(binary)]
     build = subprocess.run(command, capture_output=True, text=True)
     assert build.returncode == 0, build.stdout + build.stderr
     return binary

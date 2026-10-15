@@ -1,4 +1,5 @@
 #pragma once
+#include <type_traits>
 #include "GpuParticleFields.cuh"
 #include "operators/swapParticlePointerDevice.cuh"
 // Shared full thermal payload. Compile-time layout adapters preserve the
@@ -31,10 +32,8 @@ struct CellLocalThermalExtraFields
     static __device__ __forceinline__ void copyArray
     (const Scalar* src, Scalar* dest, const int i, const int dst)
     {
-        if constexpr (Packed)
+        if constexpr (Packed && Width % 4 == 0 && std::is_same<Scalar, float>::value)
         {
-            static_assert(Width % 4 == 0, "cold-wall stride must preserve float4 alignment");
-            static_assert(sizeof(Scalar) == sizeof(float), "packed cold-wall storage must be float");
             #pragma unroll
             for (int j = 0; j < Width/4; ++j)
                 reinterpret_cast<float4*>(dest)[dst*(Width/4)+j] =

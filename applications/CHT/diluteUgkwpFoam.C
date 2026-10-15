@@ -1,4 +1,3 @@
-#include "gpu/GpuPrecisionApi.H"
 #include "fvCFD.H"
 #include "physicoChemicalConstants.H"
 #include "zeroGradientFvPatchFields.H"
@@ -21,28 +20,8 @@
 
 using namespace Foam;
 
-
 namespace
 {
-inline void requireLosslessGasEnergyRestartPrecision(const dictionary& control)
-{
-    // rhoE is authoritative DP storage even when other resident fields are FP32.
-    // OpenFOAM defaults to ASCII; require an explicit round-trip precision there.
-    const word format = control.lookupOrDefault<word>("writeFormat", "ascii");
-    if
-    (
-        format == "ascii"
-     && control.lookupOrDefault<label>("writePrecision", 0)
-        < static_cast<label>(std::numeric_limits<scalar>::max_digits10)
-    )
-    {
-        FatalErrorInFunction
-            << "Authoritative gas rhoE restart requires writeFormat binary "
-            << "or explicit ASCII writePrecision >= "
-            << std::numeric_limits<scalar>::max_digits10
-            << exit(FatalError);
-    }
-}
 
 #ifdef UGKWP_USE_CUDA
 inline bool finiteScalar(const scalar x)
@@ -61,18 +40,12 @@ int main(int argc, char *argv[])
 {
     #include "setRootCase.H"
     #include "createTime.H"
-    requireLosslessGasEnergyRestartPrecision(runTime.controlDict());
+
     const scalar configuredWriteInterval =
         runTime.controlDict().lookup<scalar>("writeInterval");
     const bool writeAtThermalCoupling =
         configuredWriteInterval == scalar(-1);
-    if (configuredWriteInterval <= scalar(0) && !writeAtThermalCoupling)
-    {
-        FatalErrorInFunction
-            << "CHT writeInterval must be positive or exactly -1 for "
-            << "thermal-coupling writes."
-            << exit(FatalError);
-    }
+
     Info<< "CHT: weighted-parcel directly linked GPU-Riemann-GKP/CHT solver" << nl;
     IOdictionary particlePropertiesFile
     (
@@ -125,12 +98,7 @@ int main(int argc, char *argv[])
     }
 
 #ifdef UGKWP_USE_CUDA
-    if (ugkwpGpuSelectPrecision(gpuScheduling.precision) != 0)
-    {
-        FatalErrorInFunction << "Cannot select GPU precision" << exit(FatalError);
-    }
-    Info<< "GPU precision: physical=" << gpuScheduling.precision
-        << " time=64 wallEnergyAccumulation=64 (schedulingProperties gpuPrecision; default 32)" << nl;
+    Info<< "GPU precision physical=64 time=64 wallEnergyAccumulation=64" << nl;
 #endif
     constexpr bool gpuResidentStrict = true;
     const bool gpuResidentPureGasOnly = gpuScheduling.pureGasOnly;
@@ -169,48 +137,6 @@ int main(int argc, char *argv[])
             << "host mirrors, restart, and log."
             << exit(FatalError);
 #else
-        const bool forbiddenPartialOffload =
-            ugkwpProps.lookupOrDefault<bool>("useCudaGas", false)
-         || ugkwpProps.lookupOrDefault<bool>("useCudaGasFused", false)
-         || ugkwpProps.lookupOrDefault<bool>("useCudaSolid", false)
-         || ugkwpProps.lookupOrDefault<bool>("useCudaParticleMoments", false)
-         || ugkwpProps.lookupOrDefault<bool>("useCudaParticleMomentsBinned", false)
-         || ugkwpProps.lookupOrDefault<bool>("useCudaParticleAdvanceInterior", false)
-         || ugkwpProps.lookupOrDefault<bool>("useCudaCollisionThermalizer", false)
-         || ugkwpProps.lookupOrDefault<bool>("useCudaCoupling", false)
-         || ugkwpProps.lookupOrDefault<bool>("useGpuRuntimeSkeleton", false)
-         || ugkwpProps.lookupOrDefault<bool>("useGpuRuntimePersistent", false)
-         || ugkwpProps.lookupOrDefault<bool>("cudaBenchmarkBatchMode", false);
-
-        if (forbiddenPartialOffload)
-        {
-            FatalErrorInFunction
-                << "GPU-resident execution rejects the legacy partial CUDA "
-                << "offload switches. The strict path owns all active state "
-                << "in one GPU resident driver; do not combine it with "
-                << "useCudaGas/useCudaSolid/useCudaParticle*"
-                << "/useCudaCoupling/useGpuRuntime*/cudaBenchmarkBatchMode."
-                << exit(FatalError);
-        }
-
-        if (ugkwpProps.lookupOrDefault<bool>("useCudaRepresentativeMerge", false))
-        {
-            FatalErrorInFunction
-                << "GPU-resident execution currently rejects "
-                << "useCudaRepresentativeMerge. gasUGKP supports explicit "
-                << "restart-persistent parcel weights, but not in-step "
-                << "representative merging."
-                << exit(FatalError);
-        }
-
-        if (ugkwpProps.lookupOrDefault<bool>("cudaCollisionUseCpuRandomBridge", false))
-        {
-            FatalErrorInFunction
-                << "GPU-resident execution rejects cudaCollisionUseCpuRandomBridge. "
-                << "Random state must be device resident."
-                << exit(FatalError);
-        }
-
         const label gpuResidentParticleCapacity =
             gpuScheduling.particleCapacity;
 
@@ -333,30 +259,6 @@ int main(int argc, char *argv[])
             const fvPatchScalarField& inletT =
                 Tgas.boundaryField()[scheduledInletPatchId];
             gpuResidentInletTemperature = inletT[0];
-            if
-            (
-                !finiteScalar(gpuResidentInletTemperature)
-             || gpuResidentInletTemperature <= SMALL
-            )
-            {
-                FatalErrorInFunction
-                    << "Scheduled inlet T boundary must be positive and finite"
-                    << exit(FatalError);
-            }
-            forAll(inletT, faceI)
-            {
-                if
-                (
-                    !finiteScalar(inletT[faceI])
-                 || mag(inletT[faceI] - gpuResidentInletTemperature)
-                    > 1e-9*gpuResidentInletTemperature
-                )
-                {
-                    FatalErrorInFunction
-                        << "Scheduled inlet requires uniform T boundary on "
-                        << gpuResidentInletPatch << exit(FatalError);
-                }
-            }
 
             scheduledInletFaceIds.setSize(scheduledInletPatch.size());
             forAll(scheduledInletFaceIds, faceI)
@@ -561,7 +463,6 @@ int main(int argc, char *argv[])
                     << " elapsed=" << runTime.elapsedClockTime() << endl;
             }
 
-
                 resident.advanceOneStep
                 (
                     runTime.deltaTValue(),
@@ -570,7 +471,7 @@ int main(int argc, char *argv[])
 
                 if (runTime.writeTime())
                 {
-                    requireLosslessGasEnergyRestartPrecision(runTime.controlDict());
+
                     resident.downloadToHostMirror
                     (
                         runTime,
@@ -637,22 +538,7 @@ int main(int argc, char *argv[])
                     false
                 )
             );
-            if
-            (
-                solidRegionProperties.lookupOrDefault<label>
-                (
-                    "schemaVersion", -1
-                ) != 1
-             || radiationProperties.lookupOrDefault<label>
-                (
-                    "schemaVersion", -1
-                ) != 1
-            )
-            {
-                FatalErrorInFunction
-                    << "solidRegionProperties and radiationProperties require "
-                    << "schemaVersion 1." << exit(FatalError);
-            }
+
             resolvedSolidThermalConfiguration = solidRegionProperties;
             dictionary& resolvedCoupling =
                 resolvedSolidThermalConfiguration.subDict
@@ -850,7 +736,6 @@ int main(int argc, char *argv[])
                     << " elapsed=" << runTime.elapsedClockTime() << endl;
             }
 
-
             resident.advanceOneStep
             (
                 runTime.deltaTValue(),
@@ -902,7 +787,7 @@ int main(int argc, char *argv[])
             {
                 const bool thermalCouplingWrite =
                     writeAtThermalCoupling && thermalCoupledThisStep;
-                requireLosslessGasEnergyRestartPrecision(runTime.controlDict());
+
                 if (gasTurbulenceModel == 3)
                 {
                     resident.downloadSstToHostMirror

@@ -153,10 +153,9 @@ int main(){
  printf("stiff_unequal_equilibrium_error=%.17g storage_ulp=%.17g\n",equilibriumError,storageUlp);
 }
 '''
-@pytest.mark.parametrize('bits',[32,64])
-def test_actual_production_heat_transaction(tmp_path,bits):
+def test_actual_production_heat_transaction(tmp_path):
  p=tmp_path/'production.cpp';prefix=(ROOT/'tests/gas_transport/gas_state_probe.cpp').read_text().split('void hashBytes',1)[0];p.write_text(prefix+SOURCE);exe=tmp_path/'production'
- r=subprocess.run(['g++','-std=c++17','-O2',f'-DUGKWP_GPU_REAL_BITS={bits}','-I'+str(ROOT/'common'),'-I'+str(ROOT/'common/gpu'),'-I'+str(ROOT/'common/gasNumerics'),'-I'+str(ROOT/'tests/gas_transport'),str(p),'-o',str(exe)],capture_output=True,text=True)
+ r=subprocess.run(['g++','-std=c++17','-O2','-I'+str(ROOT/'common'),'-I'+str(ROOT/'common/gpu'),'-I'+str(ROOT/'common/gasNumerics'),'-I'+str(ROOT/'tests/gas_transport'),str(p),'-o',str(exe)],capture_output=True,text=True)
  assert r.returncode==0,r.stdout+r.stderr
  r=subprocess.run([str(exe)],capture_output=True,text=True)
  assert r.returncode==0,r.stdout+r.stderr
@@ -202,13 +201,11 @@ int main(){
 }
 '''
 
-@pytest.mark.parametrize('bits',[32,64])
-def test_actual_paired_floor_matches_gas_recovery(tmp_path,bits):
+def test_actual_paired_floor_matches_gas_recovery(tmp_path):
     prefix=(ROOT/'tests/gas_transport/gas_state_probe.cpp').read_text().split('void hashBytes',1)[0]
     source=SOURCE.split('int main(){',1)[0]+EOS_FLOOR_MAIN
     path=tmp_path/'floor.cpp';path.write_text(prefix+source);exe=tmp_path/'floor'
-    result=subprocess.run(['g++','-std=c++17','-O2',f'-DUGKWP_GPU_REAL_BITS={bits}',
-        '-I'+str(ROOT/'common'),'-I'+str(ROOT/'common/gpu'),'-I'+str(ROOT/'common/gasNumerics'),
+    result=subprocess.run(['g++','-std=c++17','-O2','-I'+str(ROOT/'common'),'-I'+str(ROOT/'common/gpu'),'-I'+str(ROOT/'common/gasNumerics'),
         '-I'+str(ROOT/'tests/gas_transport'),str(path),'-o',str(exe)],capture_output=True,text=True)
     assert result.returncode==0,result.stdout+result.stderr
     result=subprocess.run([str(exe)],capture_output=True,text=True)

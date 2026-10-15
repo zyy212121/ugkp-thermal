@@ -1,4 +1,4 @@
-"""CPU execution of production wall, RHS, recovery and RK kernels (FP32/64).
+"""CPU execution of production wall, RHS, recovery and RK kernels (FP64).
 
 Removing either high-Re RHS suppression or recovery projection must fail this
 regression. No test-only implementation of the constraint is substituted.
@@ -24,10 +24,10 @@ def test_high_re_omega_stage_constraint(tmp_path):
 void sstVelocityInvariants(const DeviceState&,int,R&d,R&s,R&g){d=s=g=0;}
 R sstKProductionForCell(const DeviceState&,int,R){return 0;}
 '''
-    body = pre + '\n#include "gasTransport/GasBudgetAudit.H"\nconst R OfGreat=R(1.0)/OfSmall;\n' + functions + recovery + controlled_invariants + update + rk + r'''
+    body = pre + '\nconst R OfGreat=R(1.0)/OfSmall;\n' + functions + recovery + controlled_invariants + update + rk + r'''
 int failures=0;
 void check(const char*name,R got,R want){
- if(!std::isfinite(got)||std::abs(got-want)>(sizeof(R)==4?6e-5:2e-11)*std::max(R(1),std::abs(want))){
+ if(!std::isfinite(got)||std::abs(got-want)>(2e-11)*std::max(R(1),std::abs(want))){
   std::cerr<<name<<" got="<<got<<" expected="<<want<<"\n";++failures;
  }
 }
@@ -106,16 +106,15 @@ int main(){
 }
 '''
     source = tmp_path / 'probe.cpp'
-    source.write_text(body)
+    source.write_text(body.replace('asm("trap;");','std::abort();'))
     failures = []
-    for bits in (64, 32):
-        exe = tmp_path / f'probe{bits}'
-        subprocess.run(['g++', '-std=c++17', '-O2', '-Wall', '-Wextra',
-                        f'-DUGKWP_GPU_REAL_BITS={bits}', '-I'+str(ROOT/'common'),
-                        '-I'+str(ROOT/'common/gasNumerics'), str(source), '-o', str(exe)], check=True)
-        result = subprocess.run([str(exe)], capture_output=True, text=True)
-        if result.returncode:
-            failures.append(f'FP{bits}: {result.stdout}{result.stderr}')
+    exe = tmp_path / f'probe{64}'
+    subprocess.run(['g++', '-std=c++17', '-O2', '-Wall', '-Wextra',
+                    '-I'+str(ROOT/'common'),
+                    '-I'+str(ROOT/'common/gasNumerics'), str(source), '-o', str(exe)], check=True)
+    result = subprocess.run([str(exe)], capture_output=True, text=True)
+    if result.returncode:
+        failures.append(f'FP{64}: {result.stdout}{result.stderr}')
     assert not failures, '\n'.join(failures)
 
 

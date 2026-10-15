@@ -9,10 +9,10 @@
 struct DeviceState
 {
     int coldWallSolidificationEnabled;
-    float* pColdNodeSpecificEnthalpy;
-    float* pColdRingSolidMass;
-    float* pColdFrozenArea;
-    float* pColdContactAge;
+    double* pColdNodeSpecificEnthalpy;
+    double* pColdRingSolidMass;
+    double* pColdFrozenArea;
+    double* pColdContactAge;
     Foam::gpuThermal::ColdWallSolidificationParameters
         coldWallSolidificationParameters;
 };
@@ -92,33 +92,30 @@ int main()
     const double duration = 8.0e-6;
     const double peakFraction = 0.42;
     const double dt = 7.5e-8;
-    float* node = nullptr;
-    float* ring = nullptr;
-    float* frozen = nullptr;
-    float* age = nullptr;
+    double* node = nullptr;
+    double* ring = nullptr;
+    double* frozen = nullptr;
+    double* age = nullptr;
     double* output = nullptr;
     DeviceState* state = nullptr;
-    cudaMallocManaged(&node, 8*sizeof(float));
-    cudaMallocManaged(&ring, 8*sizeof(float));
-    cudaMallocManaged(&frozen, sizeof(float));
-    cudaMallocManaged(&age, sizeof(float));
+    cudaMallocManaged(&node, 8*sizeof(*node));
+    cudaMallocManaged(&ring, 8*sizeof(*ring));
+    cudaMallocManaged(&frozen, sizeof(*frozen));
+    cudaMallocManaged(&age, sizeof(*age));
     cudaMallocManaged(&output, 4*sizeof(double));
     cudaMallocManaged(&state, sizeof(DeviceState));
-    const float initialEnthalpy = static_cast<float>
-    (
-        coldWallSpecificEnthalpyJkg(3500.0, parameters)
-    );
+    const double initialEnthalpy = coldWallSpecificEnthalpyJkg(3500.0, parameters);
     double serialNode[8];
     double serialRing[8];
     for (int i = 0; i < 8; ++i)
     {
         node[i] = initialEnthalpy;
-        ring[i] = 0.0f;
+        ring[i] = 0.0;
         serialNode[i] = static_cast<double>(node[i]);
         serialRing[i] = 0.0;
     }
-    *frozen = 0.0f;
-    *age = 0.0f;
+    *frozen = 0.0;
+    *age = 0.0;
     *state = {1, node, ring, frozen, age, parameters};
     double serialAge = 0.0;
     double serialFrozen = 0.0;
@@ -179,14 +176,6 @@ int main()
         );
         for (int i = 0; i < 8; ++i)
         {
-            serialNode[i] = static_cast<double>
-            (
-                static_cast<float>(serialNode[i])
-            );
-            serialRing[i] = static_cast<double>
-            (
-                static_cast<float>(serialRing[i])
-            );
             maximumRelativeError = std::max
             (
                 maximumRelativeError,
@@ -194,8 +183,6 @@ int main()
                /std::max(1.0, std::fabs(serialNode[i]))
             );
         }
-        serialAge = static_cast<double>(static_cast<float>(serialAge));
-        serialFrozen = static_cast<double>(static_cast<float>(serialFrozen));
     }
     std::printf("maximumRelativeError=%.17g\n", maximumRelativeError);
     return maximumRelativeError <= 2.0e-10 ? 0 : 4;

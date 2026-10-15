@@ -1,5 +1,4 @@
-// Independent physical arithmetic audit. Compile twice with
-// -DUGKWP_GPU_REAL_BITS=32 / 64 and -I<repository root>.
+
 // Thresholds below are fixed forward-error budgets, not solver tolerances.
 #include "common/gasWall/WallModel.H"
 #include "common/chemistry/mechanisms/GeneratedH2O2.H"
@@ -115,8 +114,8 @@ void frameGaugeAudit(){
   // the exactly corresponding algebraic reference, then bound that closure.
   const L expectedPhysical=absolute+L(ctx.energyReference)*(L(ctx.mass)-sumSpecies);
   const L relPhysical=std::abs(physical-expectedPhysical)/std::max(L(1),std::abs(expectedPhysical));
-  assert(relGauge<(sizeof(R)==4?2e-6L:1e-12L));
-  assert(relPhysical<(sizeof(R)==4?2e-6L:1e-12L));
+  assert(relGauge<(1e-12L));
+  assert(relPhysical<(1e-12L));
   assert(std::abs(conditioned)>100); // Formation/differential-diffusion energy retained.
   WallWorkspace<R,2,4> work;work.state[1][2]=R(3e-6);assert(reactingWallProfileTemperature(in,work,1)==R(in.temperature+work.state[1][2]));
   maxGauge=std::max(maxGauge,relGauge);maxPhysical=std::max(maxPhysical,relPhysical);++count;

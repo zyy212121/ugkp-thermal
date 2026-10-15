@@ -59,16 +59,20 @@ template<class State> UGKWP_GAS_HD inline bool evaluateGasBoundaryLayerSlot(Stat
         gasRecordFaceFailure(state,face,code);
         return false;
     };
+    if(face<0 || face>=state.nFaces)return fail(GasTransportCode::InvalidStorage);
     const bool analytic=model.config.model==gaswall::BoundaryLayerModel::ConstantTransport;
     if((!analytic && (workspaceSlot<0 || workspaceSlot>=model.workspaceCount || !model.workspace))
         || !model.input || !model.output || !model.status || !model.matchingOffsets
-        || !model.matchingCells || !model.matchingWeights || !wall.sst || !wall.speciesFlux)
+        || !model.matchingCells || !model.matchingWeights || !wall.sst || !wall.speciesFlux
+        || !state.rho || !state.p || !state.Tgas || !state.Ux || !state.Uy || !state.Uz
+        || !state.gasSpecies.rho || !state.magSf
+        || (model.config.enableSst&&(!state.k||!state.omega)))
         return fail(GasTransportCode::InvalidStorage);
-    if(face<0 || face>=state.nFaces || state.faceOwner[face]<0 || state.faceOwner[face]>=state.nCells
-        || state.faceNeighbour[face]>=0 || state.riemannBoundaryKind[face]!=2)
-        return fail(GasTransportCode::InvalidGeometry);
-    if(!mixtureGasActive(state) || (!model.useSuppliedWallState && !state.riemannBoundaryTFix[face]) || !state.gasSpecies.diffusivity)
-        return fail(GasTransportCode::UnsupportedConfiguration);
+    if(!state.gasSpecies.diffusivity || (!model.useSuppliedWallState &&
+        (!state.riemannBoundaryT || !state.riemannBoundaryUFix
+         || (state.riemannBoundaryUFix[face] && (!state.riemannBoundaryUx
+             || !state.riemannBoundaryUy || !state.riemannBoundaryUz)))))
+        return fail(GasTransportCode::InvalidStorage);
     auto& in=model.input[slot];
     // Coarse SST audit does not consume the auxiliary profile integral.
     // Direct BVP research calls can opt in, but production never requests it.
@@ -82,16 +86,12 @@ template<class State> UGKWP_GAS_HD inline bool evaluateGasBoundaryLayerSlot(Stat
     }
     in.matching={};in.pressure=0;
     const int begin=model.matchingOffsets[slot],end=model.matchingOffsets[slot+1];
-    if(begin<0 || end<=begin || end-begin>32)return fail(GasTransportCode::InvalidGeometry);
-    Real sumWeight=0;
+    if(begin<end && begin<0)return fail(GasTransportCode::InvalidStorage);
     for(int item=begin;item<end;++item)
     {
         const int cell=model.matchingCells[item];
+        if(cell<0 || cell>=state.nCells)return fail(GasTransportCode::InvalidStorage);
         const Real weight=model.matchingWeights[item];
-        if(cell<0 || cell>=state.nCells || gasBoundaryLayerOwnerSlot(state,cell)>=0
-            || !gasFinite(weight) || !(weight>0) || !gasFinite(state.rho[cell]) || !(state.rho[cell]>0)
-            || gasCellFailure(state,cell)!=0)return fail(GasTransportCode::InvalidGeometry);
-        sumWeight+=weight;
         in.pressure+=weight*state.p[cell];
         in.matching.temperature+=weight*state.Tgas[cell];
         in.matching.velocity[0]+=weight*state.Ux[cell];
@@ -105,33 +105,31 @@ template<class State> UGKWP_GAS_HD inline bool evaluateGasBoundaryLayerSlot(Stat
         for(int species=0;species<Ns;++species)
             in.matching.massFraction[species]+=weight*state.gasSpecies.rho[species*state.nCells+cell]/state.rho[cell];
     }
-    if(gaswall::detail::abs(sumWeight-Real(1))>Real(128)*std::numeric_limits<Real>::epsilon())
-        return fail(GasTransportCode::InvalidGeometry);
     in.model.thermo=state.gasSpecies.thermo;
     in.model.mechanism=state.gasSpecies.mechanism;
     in.model.mode=state.gasSpecies.mode;
     in.model.viscosity=state.gasMu;
+    if(!in.model.thermo.species||!in.model.thermo.coefficients)return fail(GasTransportCode::InvalidStorage);
     Real matchingCp=0;
-    for(int species=0;species<Ns;++species)matchingCp+=in.matching.massFraction[species]
-        *speciesCp(species,in.matching.temperature,in.model.thermo);
+    for(int species=0;species<Ns;++species){bool available=false;
+        const Real cp=gaswall::detail::wallProperty<false>(species,in.matching.temperature,in.model.thermo,&available);
+        if(!available)return fail(GasTransportCode::InvalidStorage);
+        matchingCp+=in.matching.massFraction[species]*cp;}
     in.model.conductivity=gasHasDirectConductivity(state)?state.gasThermalConductivity
         :state.gasMu*matchingCp/state.gasPrClamped;
     in.model.molecularPrandtl=gasHasDirectConductivity(state)?Real(0):state.gasPrClamped;
     in.model.sstCoefficients=state.sstCoefficients;
     for(int species=0;species<Ns;++species)in.model.diffusivity[species]=state.gasSpecies.diffusivity[species];
-    const int owner=state.faceOwner[face];
-    Real volume=state.V[owner],normalSweepRate=0;
+    Real normalSweepRate=0;
     if constexpr(GasGeometryCapability<State>::value)
         if(gasMovingGeometry(state))
         {
             GasFaceFrame<Real> frame;
-            if(!gasGeometryFaceFrame(state,face,state.gasGeometry.interval,frame) || !state.gasGeometry.oldVolume)
-                return fail(GasTransportCode::InvalidGeometry);
-            volume=state.gasGeometry.oldVolume[owner];
+            bool frameAvailable=false;
+            gasGeometryFaceFrame(state,face,state.gasGeometry.interval,frame,&frameAvailable);
+            if(!frameAvailable)return fail(GasTransportCode::InvalidStorage);
             normalSweepRate=frame.wx*in.normal[0]+frame.wy*in.normal[1]+frame.wz*in.normal[2];
         }
-    if(!gasFinite(volume) || !(volume>0) || gaswall::detail::abs(volume-in.quadrature.volume)
-        >Real(256)*std::numeric_limits<Real>::epsilon()*volume)return fail(GasTransportCode::InvalidGeometry);
     bool evaluated=false;
     if(analytic)evaluated=gaswall::evaluateConstantTransportWall(in,model.config,model.output[slot],model.status[slot]);
     else
@@ -147,10 +145,9 @@ template<class State> UGKWP_GAS_HD inline bool evaluateGasBoundaryLayerSlot(Stat
 #undef WALL_EVALUATE_CAPACITY
     }
     if(!evaluated)
-        return fail(model.status[slot].code==gaswall::WallCode::Unsupported
-            ?GasTransportCode::UnsupportedConfiguration:GasTransportCode::BoundaryLayerFailure);
+        return fail(GasTransportCode::InvalidStorage);
     if(!publishGasBoundaryLayerOutput(state,slot,in,model.output[slot],state.magSf[face],normalSweepRate))
-        return fail(GasTransportCode::NonFiniteState);
+        return fail(GasTransportCode::InvalidStorage);
     return true;
 }
 }

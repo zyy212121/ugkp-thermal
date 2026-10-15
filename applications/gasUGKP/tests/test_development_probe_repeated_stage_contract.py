@@ -12,7 +12,7 @@ def test_probe_accumulates_repeated_stage_intervals():
     assert "stageStartEvents[ProbeStageCount][ProbeMaxOccurrences]" in CUDA
     assert "stageStopEvents[ProbeStageCount][ProbeMaxOccurrences]" in CUDA
     assert "stageOccurrenceCount[ProbeStageCount]" in CUDA
-    assert "sample.stageMs[stage] += elapsedMs" in CUDA
+    assert "sample.stageMs[stage] += static_cast<double>(elapsedMs)" in CUDA
     assert "events[static_cast<int>(stage) + 1]" not in CUDA
 
 

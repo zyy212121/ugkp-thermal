@@ -30,7 +30,7 @@ int main(){
  in.hasSolid=true;in.solidVolume=1;in.dt=.01;in.baseVelocity={0,2,0};
  in.useAcceptedFlux=true;in.useSweptGeometry=true;in.acceptedGasSpecies[0]=.000024;in.acceptedGasSpecies[1]=.000006;in.acceptedCondensed[0]=.00003;
  MaterialPrimitive material;material.temperature=500;material.conductivity=2;
- tracked=reinterpret_cast<void*>(&evaluateInterfaceGasClosure);
+ tracked=reinterpret_cast<void*>(&evaluateInterfaceGasClosure<false>);
  for(int variant=0;variant<6;++variant){
   auto input=in;auto config=p;Real temperature=600;
   if(variant==1)temperature=620;

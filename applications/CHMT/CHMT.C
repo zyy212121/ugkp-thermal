@@ -40,7 +40,6 @@ int main(int argc,char** argv) {
         chmt::io::require(bool(backend),error);
         chmt::CpuMaterialDriver material(input.model,input.solidMesh.get(),&input.gasMechanism);
         const chmt::Real end=time.controlDict().lookup<Foam::scalar>("endTime");
-        chmt::io::require(chmt::finite(end)&&end>=input.state.time,"invalid requested final time");
         const Foam::fileName directory=time.path()/chmt::io::text(properties,"outputDirectory","chmtOutput");
         chmt::io::require(!Foam::isDir(directory)&&!Foam::isFile(directory),"output directory already exists");
         chmt::io::require(Foam::mkDir(directory),"cannot create coupled output directory");
@@ -63,7 +62,7 @@ int main(int argc,char** argv) {
         publish();
         while(input.state.time<end){
             chmt::WindowEvolutionReport report;
-            chmt::io::require(chmt::advanceCoupledWindow(*backend,material,input.model,input.coupling,input.material,end,true,input.state,report,error),error);
+            chmt::io::require(chmt::advanceCoupledWindow(*backend,material,input.model,input.coupling,input.material,end,false,input.state,report,error),error);
             publish();
             std::cout<<"CHMT accepted time="<<input.state.time<<" gas microsteps="<<report.acceptedGasMicrosteps<<" material solves="<<report.materialSolves<<'\n';
         }

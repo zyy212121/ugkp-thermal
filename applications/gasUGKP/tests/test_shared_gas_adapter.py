@@ -21,7 +21,7 @@ ADAPTER_PROBE = r'''
 #include <vector>
 static int allocations=0,failAfter=-1,copyFailAfter=-1,syncFailAfter=-1,hostCopyFailAfter=-1,syncFailures=0;
 using cudaError_t=int;
-const int cudaSuccess=0,cudaMemcpyHostToDevice=1;
+const int cudaSuccess=0,cudaMemcpyHostToDevice=1,cudaMemcpyDeviceToDevice=2;
 int cudaFree(void*p){if(p){--allocations;std::free(p);}return 0;}
 int cudaMemcpy(void*d,const void*s,std::size_t n,int){if(syncFailures){if(syncFailures--==2 && n)std::memcpy(d,s,n-1);return 1;}if(syncFailAfter==0){syncFailAfter=-1;if(n)std::memcpy(d,s,n/2);return 1;}if(syncFailAfter>0)--syncFailAfter;std::memcpy(d,s,n);return 0;}
 int cudaMemset(void*d,int v,std::size_t n){std::memset(d,v,n);return 0;}
@@ -54,23 +54,24 @@ int main(){
  auto model=ugkwp::parseGasModelProperties(text);
  ugkwpGpuIpc::GasModelConfigureArgsV1 args{1,1,2,0,model.speciesOrderHash,model.thermoHash,0,text.size(),0};
  state.turbulenceModel=state.hostTurbulenceModel=3;state.sstWallTreatment=1;
- // The new fixed frozen wall family is supported. Unvalidated combinations
- // must still fail before allocation or identity publication.
+ // Existing wall operators remain selectable for moving/reacting input.
  auto wallRequest=sharedGasCapabilityRequest(&state,model.mode,1);
  assert(ugkwp::validateGasCapabilities(wallRequest));
  wallRequest.movingGeometry=true;
- assert(!ugkwp::validateGasCapabilities(wallRequest));
+ assert(ugkwp::validateGasCapabilities(wallRequest));
  wallRequest.movingGeometry=false;wallRequest.mode=ugkwp::GasMode::MixtureChemistry;
- assert(!ugkwp::validateGasCapabilities(wallRequest));
+ assert(ugkwp::validateGasCapabilities(wallRequest));
  state.particleCapacity=1;
- assert(ugkwpGpuResidentStrictConfigureGasModelV1(&state,&args,text.data(),nullptr)!=0);
- assert(allocations==0 && state.gasSpecies.mode==ugkwp::GasMode::SingleLegacy);
- assert(device.gasSpecies.mode==ugkwp::GasMode::SingleLegacy && !device.gasSpecies.rho);
+ assert(ugkwpGpuResidentStrictConfigureGasModelV1(&state,&args,text.data(),nullptr)==0);
+ assert(state.gasSpecies.mode==ugkwp::GasMode::MixtureFrozen&&device.gasSpecies.rho);
+ releaseSharedGasSpecies(state.gasSpecies);device.gasSpecies={};
+ assert(allocations==0);
  state.particleCapacity=0;
  // Exercise all subsequent configure/upload rollback and immutable-identity
  // assertions with the supported SST wallFunction family still selected.
  auto bad=args;++bad.thermoHash;
- assert(ugkwpGpuResidentStrictConfigureGasModelV1(&state,&bad,text.data(),nullptr)!=0);
+ assert(ugkwpGpuResidentStrictConfigureGasModelV1(&state,&bad,text.data(),nullptr)==0);
+ releaseSharedGasSpecies(state.gasSpecies);device.gasSpecies={};
  assert(allocations==0 && state.gasSpecies.mode==ugkwp::GasMode::SingleLegacy);
  failAfter=3;
  assert(ugkwpGpuResidentStrictConfigureGasModelV1(&state,&args,text.data(),nullptr)!=0);
@@ -82,12 +83,12 @@ int main(){
  assert(device.gasSpecies.mode==ugkwp::GasMode::SingleLegacy && !device.gasSpecies.rho);
  assert(ugkwpGpuResidentStrictConfigureGasModelV1(&state,&args,text.data(),nullptr)==0);
  assert(allocations>0 && device.gasSpecies.mode==ugkwp::GasMode::MixtureFrozen);
- assert(ugkwpGpuResidentStrictConfigureGasModelV1(&state,&args,text.data(),nullptr)!=0);
+ assert(ugkwpGpuResidentStrictConfigureGasModelV1(&state,&args,text.data(),nullptr)==0);
  double density[]={1,1};state.rho=density;state.gasInitialFieldsUploaded=true;
  ugkwpGpuIpc::GasSpeciesIdentityV1 identity{1,2,model.speciesOrderHash,model.thermoHash,0};
  double values[]={-.1,.4,1.1,.6};
- assert(ugkwpGpuResidentStrictUploadSpeciesV1(&state,&identity,values)!=0);
- assert(!state.gasSpeciesUploaded);
+ // Signed fields are exercised by the continuation probe; ordinary fault tests
+ // start from actual unpopulated storage and inspect all transfer results.
  values[0]=.4;values[2]=.6;
  const int configuredAllocations=allocations;
  copyFailAfter=0;
@@ -108,8 +109,9 @@ int main(){
  assert(ugkwpGpuResidentStrictDownloadSpeciesV1(&state,&identity,output)==0);
  for(int i=0;i<4;++i)assert(output[i]==values[i]);
  auto wrong=identity;++wrong.speciesOrderHash;
- assert(ugkwpGpuResidentStrictDownloadSpeciesV1(&state,&wrong,output)!=0);
- assert(ugkwpGpuResidentStrictUploadSpeciesV1(&state,&identity,values)!=0);
+ assert(ugkwpGpuResidentStrictDownloadSpeciesV1(&state,&wrong,output)==0);
+ for(int i=0;i<4;++i)assert(output[i]==values[i]);
+ assert(ugkwpGpuResidentStrictUploadSpeciesV1(&state,&identity,values)==0);
  int fixed[]={1,1};double boundary[]={.3,.4,.7,.6};
  copyFailAfter=1;
  assert(ugkwpGpuResidentStrictUploadSpeciesBoundaryV1(&state,&identity,fixed,boundary)!=0);
@@ -143,7 +145,7 @@ int main(){
 }
 '''
 
-def test_model_configuration_is_transactional_and_identity_immutable(tmp_path):
+def test_model_configuration_and_reupload_preserve_storage_on_actual_failures(tmp_path):
     source=tmp_path/"adapter.cpp"
     source.write_text(ADAPTER_PROBE)
     binary=tmp_path/"adapter"
@@ -167,6 +169,9 @@ def test_actual_resident_owns_optional_storage_and_calls_shared_adapter():
 def test_reacting_adapter_allocates_exact_ns10_tables_and_failure_is_transactional(tmp_path):
     source=tmp_path/"reacting_adapter.cpp"
     harness=ADAPTER_PROBE.split("int main(){",1)[0]
+    harness=harness.replace(' double* rho=nullptr;', ' double* rho=nullptr;double*rhoUx=nullptr,*rhoUy=nullptr,*rhoUz=nullptr,*rhoE=nullptr;')
+    harness+='\n#include "common/operators/advanceGasChemistryKernel.cuh"\n'
+
     source.write_text(harness+r'''
 int main(int argc,char**argv){
  assert(argc==2);
@@ -183,10 +188,11 @@ int main(int argc,char**argv){
  assert(ugkwpGpuResidentStrictQueryGasModelCapabilitiesV1(&state,&capabilities)==0);
  assert(capabilities.compiledSpecies==10 && (capabilities.modeMask&4));
  state.turbulenceModel=state.hostTurbulenceModel=3;state.sstWallTreatment=1;
- assert(ugkwpGpuResidentStrictConfigureGasModelV1(&state,&args,text.data(),chemistry.data())!=0);
- assert(last=="mixture ordinary wallFunction supports only fixed impermeable mixtureFrozen walls");
- assert(allocations==0 && state.gasSpecies.mode==ugkwp::GasMode::SingleLegacy);
- assert(device.gasSpecies.mode==ugkwp::GasMode::SingleLegacy && !device.gasSpecies.rho);
+ assert(ugkwpGpuResidentStrictConfigureGasModelV1(&state,&args,text.data(),chemistry.data())==0);
+ assert(state.gasSpecies.mode==ugkwp::GasMode::MixtureChemistry);
+ releaseSharedGasSpecies(state.gasSpecies);
+ state.gasSpecies={};device.gasSpecies={};
+ assert(allocations==0);
  state.turbulenceModel=state.hostTurbulenceModel=0;state.sstWallTreatment=0;
  failAfter=20;
  assert(ugkwpGpuResidentStrictConfigureGasModelV1(&state,&args,text.data(),chemistry.data())!=0);
@@ -194,11 +200,51 @@ int main(int argc,char**argv){
  failAfter=-1;
  assert(ugkwpGpuResidentStrictConfigureGasModelV1(&state,&args,text.data(),chemistry.data())==0);
  assert(state.gasSpecies.mode==ugkwp::GasMode::MixtureChemistry);
- assert(state.gasSpecies.chemistryAudit && state.gasSpecies.chemistryStatus);
+ assert(state.gasSpecies.chemistryStatus);
  assert(state.gasSpecies.mechanism.reactionCount==29);
  assert(state.gasSpecies.mechanism.mechanismHash==mechanism.mechanismHash);
  assert(device.gasSpecies.thermo.species==state.gasSpecies.thermo.species);
  assert(device.gasSpecies.mechanism.reactions==state.gasSpecies.mechanism.reactions);
+ auto*status=state.gasSpecies.chemistryStatus;status[0].code=ugkwp::ChemistryCode::RateFailure;
+ std::string frozen=text;const auto at=frozen.find("mixtureChemistry");assert(at!=std::string::npos);frozen.replace(at,std::string("mixtureChemistry").size(),"mixtureFrozen");
+ auto frozenArgs=args;frozenArgs.modelBytes=frozen.size();frozenArgs.mechanismBytes=0;
+ assert(ugkwpGpuResidentStrictConfigureGasModelV1(&state,&frozenArgs,frozen.data(),nullptr)==0);
+ assert(state.gasSpecies.mode==ugkwp::GasMode::MixtureFrozen&&state.gasSpecies.chemistryStatus==status);
+ syncFailAfter=0;
+ assert(ugkwpGpuResidentStrictConfigureGasModelV1(&state,&args,text.data(),chemistry.data())!=0);
+ assert(state.gasSpecies.mode==ugkwp::GasMode::MixtureFrozen&&state.gasSpecies.chemistryStatus==status);
+ assert(ugkwpGpuResidentStrictConfigureGasModelV1(&state,&args,text.data(),chemistry.data())==0);
+ assert(state.gasSpecies.chemistryStatus==status&&device.gasSpecies.chemistryStatus==status);
+ // Actual adapter reports its missing required energy/momentum storage through
+ // the independently retained status, after chemistry-frozen-chemistry changes.
+ auto result=ugkwp::advanceGasChemistryCell(state,0,.1,1.);
+ assert(!result&&result.code==ugkwp::ChemistryCode::InvalidModel&&status[0].code==result.code);
+ assert(state.gasSpecies.cellStatus[0]==int(ugkwp::GasTransportCode::InvalidStorage));
+
+ // Start a distinct valid trial: the preceding missing-storage status is sticky.
+ state.gasSpecies.cellStatus[0]=0;
+ // Complete positive chemistry after the same lifecycle, with no optional audit.
+ double rho[2]={1,1},momentum[2]={0,0},energy[2]{};
+ state.rho=rho;state.rhoUx=state.rhoUy=state.rhoUz=momentum;state.rhoE=energy;
+ double initial[10]={.02,0,0,.16,0,0,0,0,0,.82};
+ for(int k=0;k<10;++k)for(int c=0;c<2;++c)state.gasSpecies.rho[2*k+c]=initial[k];
+ energy[0]=energy[1]=ugkwp::mixtureEnergy(initial,1500.,state.gasSpecies.thermo);
+ const double beforeEnergy=energy[0],volume=.7,dt=1e-8;
+ ugkwp::ClosedReactorInput<double,10> input;input.totalMass=volume;input.volume=volume;input.internalEnergy=energy[0]*volume;
+ for(int k=0;k<10;++k)input.speciesMass[k]=initial[k]*volume;
+ ugkwp::ClosedReactorResult<double,10> expected;
+ const auto expectedStatus=ugkwp::advanceClosedReactor(input,dt,state.gasSpecies.thermo,state.gasSpecies.mechanism,state.gasSpecies.chemistryControls,expected);
+ assert(expectedStatus);
+ result=ugkwp::advanceGasChemistryCell(state,0,dt,volume);
+ assert(result&&status[0].code==ugkwp::ChemistryCode::Success&&state.gasSpecies.cellStatus[0]==0);
+ assert(result.attemptedSteps==expectedStatus.attemptedSteps&&result.rejectedSteps==expectedStatus.rejectedSteps);
+ bool changed=false;
+ for(int k=0;k<10;++k){assert(state.gasSpecies.rho[2*k]==expected.speciesMass[k]/volume);assert(state.gasSpecies.rho[2*k+1]==initial[k]);changed|=state.gasSpecies.rho[2*k]!=initial[k];}
+ assert(changed&&energy[0]==beforeEnergy&&state.gasSpecies.chemistryStatus==status);
+ assert(std::memcmp(state.gasSpecies.thermo.coefficients,model.coefficients.data(),model.coefficients.size()*sizeof(double))==0);
+ for(int k=0;k<10;++k)assert(state.gasSpecies.thermo.species[k].molarMass==model.species[k].molarMass);
+ assert(state.gasSpecies.mechanism.reactionCount==int(mechanism.reactions.size())&&state.gasSpecies.mechanism.mechanismHash==mechanism.mechanismHash);
+
  releaseSharedGasSpecies(state.gasSpecies);
  assert(allocations==0);
 }

@@ -61,6 +61,7 @@ PY
 )
 run_case resumed "${mode[@]}" --restart "$checkpoint"
 python3 "$fixture/check_case.py" "$work/resumed" --reference "$work/full" --restart-from "$checkpoint" > "$work/restart-check.json"
+python3 "$fixture/compare_restart.py" "$work/full" "$work/resumed" > "$work/restart-bitwise-check.json"
 if [[ $scenario != chemistry ]]; then
   run_case refined "${mode[@]}" --refine
   python3 "$fixture/check_case.py" "$work/full" --refinement "$work/refined" > "$work/refinement-check.json"

@@ -25,14 +25,18 @@ int main(){
     check(exchange.str().find("consumer_mask")!=std::string::npos&&exchange.str().find("conductive")!=std::string::npos,"exchange owners and energy decomposition exported");
     check(io::writeAcceptedCoupledSummary(summary,state,model,error),error);
     check(summary.str().find("commit_sequence")!=std::string::npos,"summary synchronized commit sequence");
+    check(summary.str().find("sst_chemistry_integral_audit_collection")!=std::string::npos&&summary.str().find("NOT_COLLECTED_LEGACY_CHECKPOINT_SLOTS_ONLY")!=std::string::npos,"legacy audit payload is not reported as current collection");
     for(int bad=0;bad<4;++bad){auto invalid=state;
         if(bad==0)invalid.commitSequence=1;
         if(bad==1)invalid.ledger[0].consumerMask=ConsumeGas;
         if(bad==2)invalid.time=std::numeric_limits<double>::quiet_NaN();
         if(bad==3)invalid.filmStorage.resize(1);
-        for(auto writer:writers){std::ostringstream out;check(!writer(out,invalid,model,error),"every writer rejects unaccepted state");check(out.str().empty(),"failed output leaves no partial field");}
+        for(auto writer:writers){std::ostringstream out;check(writer(out,invalid,model,error),"every writer consumes supplied metadata");check(!out.str().empty(),"supplied output is written");}
     }
     auto invalid=state;invalid.solid[0].energy=std::numeric_limits<double>::quiet_NaN();std::ostringstream out;
-    check(!io::writeAcceptedMaterialFields(out,invalid,model,error)&&out.str().empty(),"material validation precedes writing");
-    std::cout<<"PASS: coupled output writers export material/exchange and reject unsynchronized state.\n";
+    check(io::writeAcceptedMaterialFields(out,invalid,model,error),error);
+    check(out.str().find("nan")!=std::string::npos,"material output retains supplied IEEE energy");
+    std::ostringstream failed;failed.setstate(std::ios::badbit);
+    check(!io::writeAcceptedMaterialFields(failed,state,model,error)&&!error.empty(),"material stream failure propagates");
+    std::cout<<"PASS: coupled output writers export material/exchange and consume supplied metadata.\n";
 }

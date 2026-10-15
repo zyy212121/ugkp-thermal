@@ -24,8 +24,10 @@ __device__ void accumulateCsrHeavyPoolTask
 
     if (!PoissonMode || collisionProbability > GPU_OPERATOR_R(0.0))
     {
-        for (int pos = begin + threadIdx.x; pos < end; pos += blockDim.x)
-        {
+        for (unsigned int cursor = static_cast<unsigned int>(begin) + threadIdx.x;
+         cursor < static_cast<unsigned int>(end); cursor += blockDim.x)
+    {
+        const int pos = static_cast<int>(cursor);
             const int i = directParticleIndex
               ? pos
               : s.sortedParticleIndex[pos];

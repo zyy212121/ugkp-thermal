@@ -4,7 +4,7 @@
 #include <string>
 #include <stdexcept>
 namespace chmt {
-inline ThermalBoundaryKind importedThermalBoundary(const std::string& type,BoundaryKind kind,bool gas) {
+inline ThermalBoundaryKind importedThermalBoundary(const std::string& type,BoundaryKind kind,bool          ) {
     if(kind==BoundaryKind::Periodic) {
         if(type=="cyclic")return ThermalBoundaryKind::ZeroGradient;
     } else if(kind==BoundaryKind::Empty) {
@@ -12,9 +12,6 @@ inline ThermalBoundaryKind importedThermalBoundary(const std::string& type,Bound
     } else if(kind==BoundaryKind::Interface) {
         if(type=="zeroGradient")return ThermalBoundaryKind::ZeroGradient;
     } else if(type=="fixedValue" || type=="zeroGradient") {
-        if(gas && ((kind==BoundaryKind::Inlet && type!="fixedValue")
-            || (kind==BoundaryKind::Outlet && type!="zeroGradient")))
-            throw std::runtime_error("gas Inlet requires fixedValue T; Outlet requires zeroGradient T");
         return type=="fixedValue"?ThermalBoundaryKind::FixedValue:ThermalBoundaryKind::ZeroGradient;
     }
     throw std::runtime_error("unsupported thermal patch operator "+type+" for selected boundary kind");

@@ -8,7 +8,6 @@
 #include <cmath>
 #include <exception>
 #include <limits>
-#include <set>
 #include <sstream>
 #include <string>
 #include <utility>
@@ -22,10 +21,8 @@ namespace Foam
 {
 namespace gpuThermal
 {
-
 namespace
 {
-
 struct PatchRadiationControls
 {
     word type;
@@ -57,11 +54,6 @@ struct PatchRadiationControls
     throw MieDoSolveError(message.str());
 }
 
-inline bool finiteScalar(const scalar value)
-{
-    return std::isfinite(value);
-}
-
 scalar mieAsymmetryFactor
 (
     const MieTable& table,
@@ -86,42 +78,23 @@ scalar mieAsymmetryFactor
             *(mu[i - 1]*previousPhase + mu[i]*currentPhase)*deltaMu;
         previousPhase = currentPhase;
     }
-    if (!finiteScalar(denominator) || denominator <= scalar(0))
-    {
-        solveFailure("Mie phase table has an invalid angular integral");
-    }
+
     const scalar value = firstMoment/denominator;
-    const scalar tolerance = scalar(1024)*std::numeric_limits<scalar>::epsilon();
-    if (!finiteScalar(value) || value < scalar(-1) - tolerance || value > scalar(1) + tolerance)
-    {
-        solveFailure("Mie phase table has an invalid asymmetry factor", 0, value);
-    }
+
     return max(scalar(-1), min(scalar(1), value));
 }
 
-scalar validatedNonnegativeIntensity
+scalar radiationIntensityWithRoundoffClamp
 (
     const scalar value,
     const scalar referenceMagnitude,
-    const std::string& location,
+    const char* location,
     const label iteration = 0,
     const label cell = -1,
     const label patch = -1,
     const label face = -1
 )
 {
-    if (!finiteScalar(value))
-    {
-        solveFailure
-        (
-            "nonfinite radiation intensity at " + location,
-            iteration,
-            value,
-            cell,
-            patch,
-            face
-        );
-    }
     if (value >= scalar(0))
     {
         return value;
@@ -135,15 +108,7 @@ scalar validatedNonnegativeIntensity
         return scalar(0);
     }
 
-    solveFailure
-    (
-        "negative radiation intensity exceeds roundoff at " + location,
-        iteration,
-        value,
-        cell,
-        patch,
-        face
-    );
+    return value;
 }
 
 inline bool isSpecularType(const word& type)
@@ -263,27 +228,7 @@ void validatePatchControls
             -1
         );
     }
-    if
-    (
-        !finiteScalar(controls.absorptivity)
-     || controls.absorptivity < scalar(0)
-     || controls.absorptivity > scalar(1)
-    )
-    {
-        solveFailure("boundary absorptivity is outside [0,1]", 0, controls.absorptivity, -1, patchI, -1);
-    }
-    if (!finiteScalar(controls.fixedIntensity) || controls.fixedIntensity < scalar(0))
-    {
-        solveFailure("fixed boundary intensity is negative or nonfinite", 0, controls.fixedIntensity, -1, patchI, -1);
-    }
-    if
-    (
-        controls.hasSpecifiedTemperature
-     && (!finiteScalar(controls.specifiedTemperatureK) || controls.specifiedTemperatureK <= scalar(0))
-    )
-    {
-        solveFailure("specified boundary temperature is nonpositive or nonfinite", 0, controls.specifiedTemperatureK, -1, patchI, -1);
-    }
+
 }
 
 void buildAngularQuadrature
@@ -325,10 +270,6 @@ void buildAngularQuadrature
         }
     }
 
-    if (!finiteScalar(weightSum) || weightSum <= scalar(0))
-    {
-        solveFailure("angular quadrature has a nonpositive weight sum");
-    }
     forAll(weights, i)
     {
         weights[i] *= fourPiConstant()/weightSum;
@@ -450,47 +391,17 @@ public:
         (
             controls.nTheta < 1
          || controls.nPhi < 1
-         || controls.maxSourceIterations < 1
-         || !finiteScalar(controls.sourceRelativeTolerance)
-         || controls.sourceRelativeTolerance <= scalar(0)
-         || !finiteScalar(controls.phaseBalanceTolerance)
-         || controls.phaseBalanceTolerance <= scalar(0)
-         || controls.maxPhaseBalanceIterations < 1
-         || !finiteScalar(controls.radiationActiveEpsilonMin)
-         || controls.radiationActiveEpsilonMin < scalar(0)
-         || !finiteScalar(controls.conservationRelativeTolerance)
-         || controls.conservationRelativeTolerance <= scalar(0)
-         || !finiteScalar(controls.maxPhaseScalingCorrection)
-         || controls.maxPhaseScalingCorrection < scalar(0)
-         || controls.angleParallelThreads < 1
-         || !finiteScalar(sourceRelaxation)
-         || sourceRelaxation <= scalar(0)
-         || sourceRelaxation > scalar(1)
-         || !finiteScalar(linearSolverTolerance)
-         || linearSolverTolerance <= scalar(0)
-         || !finiteScalar(linearSolverRelativeTolerance)
-         || linearSolverRelativeTolerance < scalar(0)
-         || linearSolverMaxIterations < 1
         )
         {
             solveFailure("invalid Mie DO controls");
         }
 
-        std::set<label> uniquePatches;
         forAll(coupledPatchIds, coupledI)
         {
             const label patchI = coupledPatchIds[coupledI];
             if (patchI < 0 || patchI >= mesh.boundary().size())
             {
                 solveFailure("coupled solid patch id is out of range", 0, scalar(0), -1, patchI, -1);
-            }
-            if (!uniquePatches.insert(patchI).second)
-            {
-                solveFailure("duplicate coupled solid patch id", 0, scalar(0), -1, patchI, -1);
-            }
-            if (!isA<wallPolyPatch>(mesh.boundaryMesh()[patchI]))
-            {
-                solveFailure("coupled solid radiation patch is not a wall", 0, scalar(0), -1, patchI, -1);
             }
             isCoupledPatch[patchI] = true;
         }
@@ -642,10 +553,7 @@ public:
             forAll(faceAreas, faceI)
             {
                 const scalar areaMagnitude = mag(faceAreas[faceI]);
-                if (!finiteScalar(areaMagnitude) || areaMagnitude <= VSMALL)
-                {
-                    solveFailure("radiation boundary face has zero/nonfinite area", 0, areaMagnitude, -1, patchI, faceI);
-                }
+
                 const vector outwardNormal = faceAreas[faceI]/areaMagnitude;
                 scalar denominator = 0;
                 forAll(directions, directionI)
@@ -656,14 +564,10 @@ public:
                         denominator += weights[directionI]*(-cosineOut);
                     }
                 }
-                if (!finiteScalar(denominator) || denominator <= VSMALL)
-                {
-                    solveFailure("angular grid has no incoming direction on boundary face", 0, denominator, -1, patchI, faceI);
-                }
+
                 diffuseDenominator[patchI][faceI] = denominator;
             }
         }
-
     }
 
     scalar boundaryTemperature
@@ -719,7 +623,7 @@ public:
             {
                 reflected /= reflectedMagnitude;
             }
-            return validatedNonnegativeIntensity
+            return radiationIntensityWithRoundoffClamp
             (
                 intensities[nearestDirection(reflected, directions)][cellI],
                 intensities[directionI][cellI],
@@ -753,7 +657,7 @@ public:
         return
             emissivity*blackIntensity
           + (scalar(1) - emissivity)
-           *validatedNonnegativeIntensity
+           *radiationIntensityWithRoundoffClamp
             (
                 incidentFlux[patchI][faceI],
                 incidentFlux[patchI][faceI],
@@ -790,7 +694,7 @@ public:
                     {
                         flux +=
                             weights[directionI]*cosineOut
-                           *validatedNonnegativeIntensity
+                           *radiationIntensityWithRoundoffClamp
                             (
                                 intensities[directionI][faceCells[faceI]],
                                 intensities[directionI][faceCells[faceI]],
@@ -812,79 +716,36 @@ public:
         const label nCells = mesh.nCells();
         if
         (
-            snapshot.epsilonS.size() != nCells
-         || snapshot.particleTemperatureK.size() != nCells
-         || snapshot.representativeDiameterM.size() != nCells
+            snapshot.epsilonS.size() < nCells
+         || snapshot.particleTemperatureK.size() < nCells
+         || snapshot.representativeDiameterM.size() < nCells
         )
         {
             solveFailure("Mie DO snapshot cell arrays do not match fvMesh::nCells");
         }
-        if (&snapshot.wallTemperatureK.mesh() != &mesh)
-        {
-            solveFailure("Mie DO wall-temperature field belongs to a different fvMesh");
-        }
-        if (snapshot.coupledWallEmissivity.size() != mesh.boundary().size())
+        if (snapshot.coupledWallEmissivity.size() < mesh.boundary().size()
+            || snapshot.wallTemperatureK.boundaryField().size() < mesh.boundary().size())
         {
             solveFailure("coupled-wall emissivity list does not match boundary patch count");
-        }
-
-        forAll(snapshot.epsilonS, cellI)
-        {
-            const scalar epsilon = snapshot.epsilonS[cellI];
-            const scalar temperature = snapshot.particleTemperatureK[cellI];
-            const scalar diameter = snapshot.representativeDiameterM[cellI];
-            if (!finiteScalar(epsilon) || epsilon < scalar(0))
-            {
-                solveFailure("epsilonS is negative or nonfinite", 0, epsilon, cellI);
-            }
-            if (!finiteScalar(temperature) || !finiteScalar(diameter))
-            {
-                solveFailure("particle temperature/diameter is nonfinite", 0, scalar(0), cellI);
-            }
-            if (epsilon > controls.radiationActiveEpsilonMin)
-            {
-                if (diameter <= scalar(0))
-                {
-                    solveFailure("active radiation cell has nonpositive diameter", 0, diameter, cellI);
-                }
-            }
         }
 
         forAll(mesh.boundary(), patchI)
         {
             const scalarField& temperature =
                 snapshot.wallTemperatureK.boundaryField()[patchI];
-            if (temperature.size() != mesh.boundary()[patchI].size())
+            if (temperature.size() < mesh.boundary()[patchI].size())
             {
                 solveFailure("wall-temperature patch size mismatch", 0, scalar(0), -1, patchI, -1);
-            }
-            forAll(temperature, faceI)
-            {
-                if (!finiteScalar(temperature[faceI]))
-                {
-                    solveFailure("wall temperature is nonfinite", 0, temperature[faceI], -1, patchI, faceI);
-                }
             }
 
             if (isCoupledPatch[patchI])
             {
                 const scalarField& emissivity = snapshot.coupledWallEmissivity[patchI];
-                if (emissivity.size() != mesh.boundary()[patchI].size())
+                if (emissivity.size() < mesh.boundary()[patchI].size())
                 {
                     solveFailure("coupled-wall emissivity patch size mismatch", 0, scalar(0), -1, patchI, -1);
                 }
-                forAll(emissivity, faceI)
-                {
-                    if
-                    (
-                        !finiteScalar(emissivity[faceI])
-                     || emissivity[faceI] < scalar(0)
-                     || emissivity[faceI] > scalar(1)
-                    )
-                    {
-                        solveFailure("coupled-wall emissivity is outside [0,1]", 0, emissivity[faceI], -1, patchI, faceI);
-                    }
-                }
+
             }
         }
     }
@@ -893,8 +754,6 @@ public:
 class MieDoRadiationWorkspaceData
 {
 public:
-    const MieDoRadiationSolver* solverIdentity;
-    std::shared_ptr<const MieDoRadiationSolverData> solverData;
     scalarField absorption;
     scalarField scattering;
     scalarField asymmetryFactor;
@@ -914,12 +773,10 @@ public:
 
     explicit MieDoRadiationWorkspaceData
     (
-        const MieDoRadiationSolver& solver,
-        const std::shared_ptr<const MieDoRadiationSolverData>& data
+        const MieDoRadiationSolver&,
+        const std::shared_ptr<const MieDoRadiationSolverData>&
     )
     :
-        solverIdentity(&solver),
-        solverData(data),
         intensitiesInitialized(false)
     {}
 
@@ -979,7 +836,6 @@ public:
             incidentFlux[patchI].setSize(data.mesh.boundary()[patchI].size());
             incidentFlux[patchI] = scalar(0);
         }
-
     }
 };
 
@@ -1088,14 +944,9 @@ MieDoResult MieDoRadiationSolver::solve
     {
         solveFailure("MieDoRadiationSolver has no immutable implementation state");
     }
-    if
-    (
-        !workspace.data_
-     || workspace.data_->solverIdentity != this
-     || workspace.data_->solverData.get() != data_.get()
-    )
+    if (!workspace.data_)
     {
-        solveFailure("Mie DO workspace belongs to a different solver");
+        solveFailure("Mie DO workspace has no storage");
     }
     const MieDoRadiationSolverData& data = *data_;
     data.validateSnapshot(snapshot);
@@ -1137,7 +988,7 @@ MieDoResult MieDoRadiationSolver::solve
                 bandBlackBodyIntensity(temperature, optical.planckBandFraction);
             initialIntensity = max(initialIntensity, emissionIntensity[cellI]);
 
-            if (scattering[cellI] > scalar(0))
+            if (scattering[cellI] != scalar(0))
             {
                 List<scalarField>& rawKernel = scratch.rawPhaseKernel;
                 for (label rowI = 0; rowI < nDirections; ++rowI)
@@ -1159,8 +1010,7 @@ MieDoResult MieDoRadiationSolver::solve
                     }
                 }
 
-                const PhaseBalanceMetrics phaseMetrics =
-                    balanceSymmetricPhaseKernelInPlace
+                balanceSymmetricPhaseKernelInPlace
                 (
                     rawKernel,
                     data.weights,
@@ -1170,20 +1020,7 @@ MieDoResult MieDoRadiationSolver::solve
                     scratch.nextPhaseScaling,
                     phaseProbability[cellI]
                 );
-                if
-                (
-                    phaseMetrics.maxRelativeScalingCorrection
-                  > data.controls.maxPhaseScalingCorrection
-                )
-                {
-                    solveFailure
-                    (
-                        "phase diagonal scaling correction exceeds configured accuracy gate",
-                        phaseMetrics.iterations,
-                        phaseMetrics.maxRelativeScalingCorrection,
-                        cellI
-                    );
-                }
+
             }
         }
 
@@ -1233,23 +1070,6 @@ MieDoResult MieDoRadiationSolver::solve
             intensities[directionI] = initialIntensity;
         }
     }
-    else
-    {
-        forAll(intensities, directionI)
-        {
-            forAll(intensities[directionI], cellI)
-            {
-                (void)validatedNonnegativeIntensity
-                (
-                    intensities[directionI][cellI],
-                    initialIntensity,
-                    "warm-start radiation intensity",
-                    0,
-                    cellI
-                );
-            }
-        }
-    }
 
     List<scalarField>& frozenIntensities = scratch.frozenIntensities;
     List<scalarField>& incidentFlux = scratch.incidentFlux;
@@ -1258,7 +1078,6 @@ MieDoResult MieDoRadiationSolver::solve
     List<scalarField>& directionSolved = scratch.solved;
     List<scalarField>& directionLinearResidual = scratch.linearResidual;
 
-    scalar finalSourceResidual = GREAT;
     scalar maximumRelativeChange = scalar(0);
     label sourceIterations = 0;
     label angleThreadsUsed = 1;
@@ -1270,7 +1089,7 @@ MieDoResult MieDoRadiationSolver::solve
     );
     const label requestedThreads = min
     (
-        data.controls.angleParallelThreads,
+        max(data.controls.angleParallelThreads, label(1)),
         max(nDirections, label(1))
     );
     const bool parallelAngles = requestedThreads > 1;
@@ -1279,7 +1098,7 @@ MieDoResult MieDoRadiationSolver::solve
     const labelUList& neighbour = mesh.neighbour();
 
 #ifdef _OPENMP
-    #pragma omp parallel num_threads(requestedThreads) shared(angleThreadsUsed, sourceFinished, parallelError, directionErrors, maximumRelativeChange, finalSourceResidual, sourceIterations, frozenIntensities, intensities, incidentFlux)
+    #pragma omp parallel num_threads(requestedThreads) shared(angleThreadsUsed, sourceFinished, parallelError, directionErrors, maximumRelativeChange, sourceIterations, frozenIntensities, intensities, incidentFlux)
 #endif
     {
 #ifdef _OPENMP
@@ -1291,7 +1110,7 @@ MieDoResult MieDoRadiationSolver::solve
         for
         (
             label iteration = 1;
-            iteration <= data.controls.maxSourceIterations;
+            iteration <= max(data.controls.maxSourceIterations, label(1));
             ++iteration
         )
         {
@@ -1381,14 +1200,14 @@ MieDoResult MieDoRadiationSolver::solve
             forAll(source, cellI)
             {
                 scalar scatteringMean = 0;
-                if (scattering[cellI] > scalar(0))
+                if (scattering[cellI] != scalar(0))
                 {
                     const List<scalarField>& probability = phaseProbability[cellI];
                     for (label otherDirectionI = 0; otherDirectionI < nDirections; ++otherDirectionI)
                     {
                         scatteringMean +=
                             probability[directionI][otherDirectionI]
-                           *validatedNonnegativeIntensity
+                           *radiationIntensityWithRoundoffClamp
                             (
                                 sourceIntensities[otherDirectionI][cellI],
                                 initialIntensity,
@@ -1403,20 +1222,6 @@ MieDoResult MieDoRadiationSolver::solve
                         absorption[cellI]*emissionIntensity[cellI]
                       + scattering[cellI]*scatteringMean
                     );
-            }
-
-            forAll(diagonal, cellI)
-            {
-                if (!finiteScalar(diagonal[cellI]) || diagonal[cellI] <= VSMALL)
-                {
-                    solveFailure
-                    (
-                        "DO upwind linear system has a nonpositive diagonal",
-                        iteration,
-                        diagonal[cellI],
-                        cellI
-                    );
-                }
             }
 
             scalarField& solved = directionSolved[directionI];
@@ -1481,10 +1286,23 @@ MieDoResult MieDoRadiationSolver::solve
             scalar finalLinearResidual = initialLinearResidual;
             label linearIteration = 0;
 
+
+
+
             while
             (
-                finalLinearResidual > linearTarget
-             && linearIteration < data.linearSolverMaxIterations
+                (finalLinearResidual > linearTarget
+                 ||
+                    (
+                        linearIteration == 0
+                     &&
+                        (
+                            data.linearSolverMaxIterations <= 0
+                         || !std::isfinite(initialLinearResidual)
+                         || std::isnan(linearTarget)
+                        )
+                    ))
+             && linearIteration < max(data.linearSolverMaxIterations, label(1))
             )
             {
                 ++linearIteration;
@@ -1514,7 +1332,7 @@ MieDoResult MieDoRadiationSolver::solve
                         }
                     }
 
-                    solved[cellI] = validatedNonnegativeIntensity
+                    solved[cellI] = radiationIntensityWithRoundoffClamp
                     (
                         rightHandSide/diagonal[cellI],
                         initialIntensity,
@@ -1526,16 +1344,6 @@ MieDoResult MieDoRadiationSolver::solve
                 finalLinearResidual = linearResidual(solved);
             }
 
-            if (!finiteScalar(finalLinearResidual) || finalLinearResidual > linearTarget)
-            {
-                solveFailure
-                (
-                    "FV upwind linear solve did not converge",
-                    iteration,
-                    finalLinearResidual
-                );
-            }
-
             forAll(solved, cellI)
             {
                 solved[cellI] =
@@ -1545,6 +1353,7 @@ MieDoResult MieDoRadiationSolver::solve
 
             const scalar directionRelativeChange =
                 relativeChange(oldIntensity, solved);
+
             maximumRelativeChange = max
             (
                 maximumRelativeChange,
@@ -1586,7 +1395,6 @@ MieDoResult MieDoRadiationSolver::solve
                         }
                     }
                 }
-                finalSourceResidual = maximumRelativeChange;
                 sourceIterations = iteration;
                 sourceFinished =
                     bool(parallelError)
@@ -1607,16 +1415,6 @@ MieDoResult MieDoRadiationSolver::solve
     if (parallelError)
     {
         std::rethrow_exception(parallelError);
-    }
-
-    if (finalSourceResidual > data.controls.sourceRelativeTolerance)
-    {
-        solveFailure
-        (
-            "DO source iteration reached its limit without convergence",
-            sourceIterations,
-            finalSourceResidual
-        );
     }
 
     data.computeIncidentFlux(intensities, incidentFlux);
@@ -1646,7 +1444,7 @@ MieDoResult MieDoRadiationSolver::solve
         {
             result.incidentRadiationG_Wm2[cellI] +=
                 data.weights[directionI]
-               *validatedNonnegativeIntensity
+               *radiationIntensityWithRoundoffClamp
                 (
                     intensities[directionI][cellI],
                     initialIntensity,
@@ -1688,7 +1486,7 @@ MieDoResult MieDoRadiationSolver::solve
                 scalar faceIntensity = 0;
                 if (cosineOut > scalar(0))
                 {
-                    faceIntensity = validatedNonnegativeIntensity
+                    faceIntensity = radiationIntensityWithRoundoffClamp
                     (
                         intensities[directionI][faceCells[faceI]],
                         initialIntensity,

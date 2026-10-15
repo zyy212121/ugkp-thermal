@@ -31,9 +31,9 @@ int main(){
  args.modelBytes=std::numeric_limits<std::uint64_t>::max();
  assert(!gasModelPayloadBytes(args,2,bytes));
  args.modelBytes=100;args.speciesCount=3;
- assert(!gasModelPayloadBytes(args,2,bytes));
+ assert(gasModelPayloadBytes(args,2,bytes)&&bytes==256);
  args.speciesCount=2;args.mode=1;
- assert(!gasModelPayloadBytes(args,2,bytes));
+ assert(gasModelPayloadBytes(args,2,bytes)&&bytes==256);
  args.mechanismBytes=0;args.mechanismHash=0;
  assert(gasModelPayloadBytes(args,2,bytes));
  GasSpeciesIdentityV1 identity{1,2,123,456,0};

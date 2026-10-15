@@ -73,25 +73,20 @@ def test_linear_frozen_loads_exact_order_and_optional_entropy(build):
 
 @pytest.mark.parametrize("old,new,diagnostic", [
     ("mixtureFrozen", "typo", "gasMode"),
-    ("species (A B)", "species (A A)", "duplicate species"),
     ("coefficients (0.002 0.002)", "coefficients (0.002)", "diffusion"),
-    ("coefficients (0.002 0.002)", "coefficients (-0.002 0.002)", "diffusion"),
-    ("molarMass 0.028", "molarMass nan", "finite"),
-    ("coefficients (1040 0 0)", "coefficients (1 0 0)", "heat capacity"),
     ("model linearCp", "model mystery", "thermo model"),
-    ("turbulentSchmidt 0.7", "turbulentSchmidt 0", "turbulentSchmidt"),
-    ("minTemperature 100", "minTemperature 5000", "temperature"),
 ])
-def test_invalid_physical_models_fail_before_backend_allocation(build, old, new, diagnostic):
+def test_actual_missing_or_unimplemented_models_fail_at_read(build, old, new, diagnostic):
     p = parse(build, mixture().replace(old, new))
     assert p.returncode == 2
     assert diagnostic in p.stderr, p.stderr
 
-def test_unknown_physics_and_duplicate_dictionary_keys_are_rejected(build):
-    for extra, diagnostic in [("enableChemistry true;", "unknown"), ("gasMode single;", "duplicate")]:
-        p = parse(build, mixture() + extra)
-        assert p.returncode == 2
-        assert diagnostic in p.stderr, p.stderr
+@pytest.mark.parametrize("extra,mode", [("enableChemistry true;", "1"), ("gasMode single;", "0")])
+def test_unused_metadata_and_last_dictionary_value_do_not_refuse(build,extra,mode):
+    p=parse(build,mixture()+extra)
+    assert p.returncode==0,p.stderr
+    assert p.stdout.split()[0]==mode
+
 
 def test_present_empty_dictionary_does_not_silently_default(build):
     p = parse(build, "")
@@ -111,11 +106,11 @@ def test_hashes_preserve_semantics_and_species_order(build):
     assert one.stdout.split()[2] != reordered.stdout.split()[2]
     assert one.stdout.split()[3] != changed.stdout.split()[3]
 
-def test_species_need_a_common_valid_temperature_interval(build):
+def test_disjoint_metadata_intervals_do_not_reject_readable_polynomials(build):
     text = mixture().replace(' B { model linearCp; molarMass 0.028; minTemperature 100; maxTemperature 4000;',
         ' B { model linearCp; molarMass 0.028; minTemperature 5000; maxTemperature 6000;')
     p = parse(build, text)
-    assert p.returncode == 2 and "common temperature" in p.stderr
+    assert p.returncode == 0,p.stderr
 
 def test_nasa_thermo_reference_pressure_is_explicit(build):
     text = mixture().replace('model linearCp;', 'model NASA7; midTemperature 1000;')
@@ -141,10 +136,71 @@ def test_chemistry_controls_are_loaded_from_shared_types(build):
     ("minimumStep 1; maximumStep 0.1;", "chemistryControls"),
     ("unknownStep 1;", "unknown"),
 ])
-def test_invalid_chemistry_controls_rejected(build,controls,diagnostic):
+def test_read_chemistry_controls_without_range_or_unused_key_admission(build,controls,diagnostic):
     p = parse(build, chemistry() + 'chemistryControls {' + controls + '}')
-    assert p.returncode == 2 and diagnostic in p.stderr, p.stderr
+    if diagnostic == "integer":
+        assert p.returncode == 2 and diagnostic in p.stderr,p.stderr
+    else:
+        assert p.returncode == 0,p.stderr
 
-def test_frozen_mode_rejects_unused_chemistry_controls(build):
+def test_frozen_mode_ignores_unused_chemistry_controls(build):
     p = parse(build, mixture() + 'chemistryControls { maximumSteps 1; }')
-    assert p.returncode == 2 and "mixtureChemistry" in p.stderr
+    assert p.returncode == 0,p.stderr
+
+@pytest.mark.parametrize('old,new', [
+    ('gasMode mixtureFrozen;', 'schemaVersion 99; unusedMetadata { future yes; } gasMode mixtureFrozen;'),
+    ('coefficients (1040 0 0)', 'coefficients (1040 0 0 123 456)'),
+    ('minTemperature 100; maxTemperature 4000;', 'minTemperature -100; maxTemperature -200;'),
+    ('coefficients (0.002 0.002)', 'coefficients (-0.002 0.002 123)'),
+    ('turbulentSchmidt 0.7', 'turbulentSchmidt -0.7'),
+    ('molarMass 0.028', 'molarMass 1e-310'),
+])
+def test_t07_read_actual_thermo_coefficients_without_metadata_admission(build, old, new):
+    p = parse(build, mixture().replace(old, new))
+    assert p.returncode == 0, p.stderr
+    assert p.stdout.split()[:2] == ['1', '2']
+
+@pytest.mark.parametrize('text,diagnostic', [
+    (mixture().replace('coefficients (1040 0 0)', 'coefficients (1040 0)'), 'coefficient'),
+    (mixture().replace('model linearCp', 'model unknownThermo'), 'thermo model'),
+    (mixture().replace('coefficients (0.002 0.002)', 'coefficients (0.002)'), 'diffusion'),
+])
+def test_t07_actual_required_model_input_still_fails(build, text, diagnostic):
+    p = parse(build, text)
+    assert p.returncode == 2 and diagnostic in p.stderr
+
+
+@pytest.mark.parametrize("old,new", [('species (A B)', 'species (A A)'), ('coefficients (0.002 0.002)', 'coefficients (-0.002 0.002)'), ('coefficients (1040 0 0)', 'coefficients (1 0 0)'), ('turbulentSchmidt 0.7', 'turbulentSchmidt 0'), ('minTemperature 100', 'minTemperature 5000')])
+def test_thermo_parser_retains_finite_nonstandard_inputs(build,old,new):
+    p=parse(build,mixture().replace(old,new))
+    assert p.returncode==0,p.stderr
+
+def test_integer_chemistry_budgets_keep_actual_signed_value(build):
+    p=parse(build,chemistry()+"chemistryControls {maximumSteps -3;}")
+    assert p.returncode==0,p.stderr
+    assert p.stdout.split()[-2]=="-3"
+
+
+def test_parser_retains_nonfinite_molar_mass(tmp_path):
+    source=tmp_path/"nonfinite.cpp"
+    source.write_text(r'''
+#include "common/gasTransport/GasModelIO.H"
+#include <cassert>
+#include <cmath>
+#include <iostream>
+#include <iterator>
+int main(){
+ std::string text((std::istreambuf_iterator<char>(std::cin)), {});
+ auto model=ugkwp::parseGasModelProperties(text,true);
+ assert(model.mode==ugkwp::GasMode::MixtureFrozen);
+ assert(model.speciesNames.size()==2&&model.species.size()==2);
+ assert(model.speciesNames[0]=="A"&&model.speciesNames[1]=="B");
+ assert(std::isnan(model.species[0].molarMass)&&std::isnan(model.species[1].molarMass));
+ assert(model.coefficients.size()==6&&model.diffusionCoefficients.size()==2);
+}
+''')
+    binary=tmp_path/"nonfinite"
+    build=subprocess.run(["g++","-std=c++14","-Wall","-Wextra","-Werror","-I",str(ROOT),str(source),"-o",str(binary)],capture_output=True,text=True)
+    assert build.returncode==0,build.stderr
+    run=subprocess.run([str(binary)],input=mixture().replace("molarMass 0.028","molarMass nan"),capture_output=True,text=True)
+    assert run.returncode==0,run.stderr

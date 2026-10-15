@@ -1,0 +1,502 @@
+
+
+#include "GpuResidentStrict.cu"
+#include <new>
+#include <cstring>
+#include <vector>
+
+namespace chemistryTrialTest {
+using namespace ugkwp;
+std::vector<void*> allocated;
+std::vector<DeviceState*> fixtures;
+void check(bool value,const char* message) {
+    if(!value){std::fprintf(stderr,"FAIL %s: %s\n",message,lastError);std::exit(11);}
+}
+void cudaCheck(cudaError_t error) {
+    if(error!=cudaSuccess){std::fprintf(stderr,"CUDA %s\n",cudaGetErrorString(error));std::exit(12);}
+}
+void sync(){cudaCheck(cudaGetLastError());cudaCheck(cudaDeviceSynchronize());}
+template<class T> void testMem(T*& pointer,int count=8) {
+    cudaCheck(cudaMallocManaged(&pointer,std::size_t(count)*sizeof(T)));
+    allocated.push_back(pointer);
+    for(int i=0;i<count;++i)::new(static_cast<void*>(pointer+i)) T{};
+}
+template<class T> void testTable(const T*& pointer,const T* input,int count) {
+    T* data=nullptr;testMem(data,count);std::memcpy(data,input,std::size_t(count)*sizeof(T));pointer=data;
+}
+DeviceState* fixture() {
+    static_assert(ugkwp::compiledGasSpecies==2,"fixture uses a two-species mechanism");
+
+
+
+    DeviceState* s=new DeviceState;fixtures.push_back(s);
+    cudaCheck(cudaMalloc(&s->deviceState,sizeof(DeviceState)));
+    allocated.push_back(s->deviceState);
+ALLOCATE_NATIVE_FIELDS
+    s->nCells=2;s->nFaces=3;s->nInternalFaces=1;
+    s->fixedCellBlockThreads=s->fixedFaceBlockThreads=32;
+    s->gasTimeIntegrator=s->hostGasTimeIntegrator=1;
+    s->gasFluxScheme=s->hostGasFluxScheme=1;s->gasReconstruction=s->hostGasReconstruction=0;
+    s->gasLimiter=s->hostGasLimiter=0;s->hostTurbulenceModel=s->turbulenceModel=0;
+    s->gammaGas=1.4;s->Rgas=universalGasConstant<double>()/.028;s->gasCp=1000;
+    s->gasMu=0;s->gasPrClamped=.7;s->rhoMin=1e-12;s->TgasMin=1e-9;s->maxDiffusionNumber=.25;
+    s->sstCoefficients=defaultSstCoefficients();s->sstKMin=1e-12;s->sstOmegaMin=1e-9;
+    s->sstMaxSourceNumber=.25;s->turbulentPrandtl=.9;
+    auto& g=s->gasSpecies;g.mode=GasMode::MixtureChemistry;
+#define CHEM_MEM(field) testMem(g.field)
+    CHEM_MEM(rho);CHEM_MEM(initial);CHEM_MEM(flux);CHEM_MEM(gradX);CHEM_MEM(gradY);CHEM_MEM(gradZ);
+    CHEM_MEM(limiter);CHEM_MEM(boundaryMassFraction);CHEM_MEM(compositionBoundaryFixed);
+    CHEM_MEM(positivityScale);CHEM_MEM(soundSpeed);CHEM_MEM(heatCapacity);CHEM_MEM(gasConstant);
+    CHEM_MEM(cellStatus);CHEM_MEM(faceStatus);CHEM_MEM(chemistryStatus);
+#undef CHEM_MEM
+    SpeciesThermoData<double> species[2];double coefficients[6]={1000,0,0,1000,0,0};
+    double elements[2]={1,1},basis[2]={-1,1};
+    for(int k=0;k<2;++k){species[k].coefficientOffset=3*k;species[k].molarMass=.028;
+        species[k].minTemperature=200;species[k].maxTemperature=4000;
+        species[k].referencePressure=101325;species[k].referenceTemperature=300;
+        species[k].referenceEntropy=1500;species[k].hasEntropyReference=true;}
+    testTable(g.thermo.species,species,2);testTable(g.thermo.coefficients,coefficients,6);
+    testTable(g.thermo.elementComposition,elements,2);g.thermo.coefficientCount=6;g.thermo.elementCount=1;
+    GasReactionData<double> reaction[1];GasStoichTerm<double> reactants[1],products[1];
+    reaction[0].reactantCount=reaction[0].productCount=1;reaction[0].highRate.preExponential=2;
+    reactants[0].species=0;reactants[0].coefficient=1;products[0].species=1;products[0].coefficient=1;
+    testTable(g.mechanism.reactions,reaction,1);testTable(g.mechanism.reactants,reactants,1);
+    testTable(g.mechanism.products,products,1);testTable(g.mechanism.stoichiometricBasis,basis,2);
+    g.mechanism.reactionCount=g.mechanism.reactantTermCount=g.mechanism.productTermCount=1;
+    g.mechanism.independentRank=1;g.mechanism.referencePressure=101325;
+    g.chemistryControls.initialStep=g.chemistryControls.maximumStep=1e-6;
+    g.chemistryControls.maximumSteps=1;
+    for(int c=0;c<2;++c){s->V[c]=.001;s->Cx[c]=c;s->cellLength[c]=1;
+        s->rho[c]=28;s->Tgas[c]=700;s->p[c]=28*s->Rgas*700;
+        s->rhoE[c]=28*(1000-s->Rgas)*700;g.rho[c]=28;
+        s->cellPlaneStart[c]=2*c;s->cellPlaneCount[c]=2;s->sstWallDistance[c]=.5;
+        g.chemistryStatus[c].attemptedSteps=0;}
+    s->cellFaceId[0]=0;s->cellFaceId[1]=1;s->cellFaceId[2]=0;s->cellFaceId[3]=2;
+    for(int f=0;f<3;++f){s->faceOwner[f]=f==2?1:0;s->faceNeighbour[f]=f==0?1:-1;
+        s->facePeriodicPair[f]=-1;s->magSf[f]=1;s->Sfx[f]=f==1?-1:1;
+        s->faceCx[f]=f==0?.5:f==1?-.5:1.5;s->faceWeight[f]=.5;s->deltaCoeffs[f]=f==0?1:2;
+        s->gasBoundaryKind[f]=s->riemannBoundaryKind[f]=f==0?0:1;s->gasHllcAdcSensor[f]=1;}
+    g.rho[7]=918273.125;g.cellStatus[7]=123456;g.chemistryStatus[7].attemptedSteps=123456;
+    cudaCheck(cudaMemcpy(s->deviceState,s,sizeof(DeviceState),cudaMemcpyHostToDevice));
+    return s;
+}
+bool sameBits(double x,double y){return std::memcmp(&x,&y,sizeof(double))==0;}
+void comparePhysicalFields(const DeviceState* left,const DeviceState* right) {
+    sync();auto a=sharedGasTrialDetail::cellFields(const_cast<DeviceState*>(left));
+    auto b=sharedGasTrialDetail::cellFields(const_cast<DeviceState*>(right));
+    check(a.size()==b.size(),"accepted cell field count differs");
+    for(std::size_t k=0;k<a.size();++k)
+        check(a[k].count==b[k].count && bool(a[k].pointer)==bool(b[k].pointer) && (!a[k].pointer ||
+            std::memcmp(a[k].pointer,b[k].pointer,a[k].count*sizeof(double))==0),"accepted cell fields differ");
+    a=sharedGasTrialDetail::faceFields(const_cast<DeviceState*>(left));
+    b=sharedGasTrialDetail::faceFields(const_cast<DeviceState*>(right));
+    check(a.size()==b.size(),"accepted face field count differs");
+    for(std::size_t k=0;k<a.size();++k)
+        check(a[k].count==b[k].count && bool(a[k].pointer)==bool(b[k].pointer) && (!a[k].pointer ||
+            std::memcmp(a[k].pointer,b[k].pointer,a[k].count*sizeof(double))==0),"accepted face fields differ");
+ }
+void compare(const DeviceState* left,const DeviceState* right) {
+    comparePhysicalFields(left,right);
+    check(std::memcmp(left->gasSpecies.faceStatus,right->gasSpecies.faceStatus,
+        left->nFaces*sizeof(int))==0,"accepted face statuses differ");
+    for(int c=0;c<2;++c){
+        const auto& sx=left->gasSpecies.chemistryStatus[c];const auto& sy=right->gasSpecies.chemistryStatus[c];
+        check(sx.code==sy.code&&sx.thermoCode==sy.thermoCode&&sx.reaction==sy.reaction
+            &&sx.attemptedSteps==sy.attemptedSteps&&sx.rejectedSteps==sy.rejectedSteps,
+            "accepted full physical-control chemistry status differs");
+        check(left->gasSpecies.cellStatus[c]==right->gasSpecies.cellStatus[c],"accepted cell status differs");
+        std::printf("FULL_STATUS c=%d code=%d thermo=%d reaction=%d attempted=%d rejected=%d\n",
+            c,int(sx.code),int(sx.thermoCode),sx.reaction,sx.attemptedSteps,sx.rejectedSteps);
+    }
+}
+
+
+std::vector<double> physicalInventory(const DeviceState* s){
+    sync();std::vector<double> values;double mass=0.,energy=0.;
+    double speciesMass[compiledGasSpecies]={};
+    for(int c=0;c<s->nCells;++c){const double volume=s->V[c];
+        const double cellMass=s->rho[c]*volume,cellEnergy=s->rhoE[c]*volume;
+        values.push_back(volume);values.push_back(cellMass);values.push_back(cellEnergy);
+        values.push_back(s->rhoUx[c]*volume);values.push_back(s->rhoUy[c]*volume);values.push_back(s->rhoUz[c]*volume);
+        mass+=cellMass;energy+=cellEnergy;
+        for(int k=0;k<compiledGasSpecies;++k){const double partial=s->gasSpecies.rho[k*s->nCells+c]*volume;
+            values.push_back(partial);speciesMass[k]+=partial;}
+    }
+    double volumeSum=0.,px=0.,py=0.,pz=0.;
+    for(int c=0;c<s->nCells;++c){volumeSum+=s->V[c];px+=s->rhoUx[c]*s->V[c];
+        py+=s->rhoUy[c]*s->V[c];pz+=s->rhoUz[c]*s->V[c];}
+    values.push_back(volumeSum);values.push_back(px);values.push_back(py);values.push_back(pz);
+    values.push_back(mass);values.push_back(energy);
+    for(int k=0;k<compiledGasSpecies;++k)values.push_back(speciesMass[k]);
+    return values;
+}
+void compareInventory(const DeviceState* left,const DeviceState* right){
+    const auto x=physicalInventory(left),y=physicalInventory(right);
+    check(x.size()==y.size()&&std::memcmp(x.data(),y.data(),x.size()*sizeof(double))==0,
+        "physical mass/species/energy/momentum inventory differs");
+    for(std::size_t k=0;k<x.size();++k)std::printf("PHYSICAL_INVENTORY index=%zu value=%a\n",k,x[k]);
+}
+struct TracePolicy:SharedGasTrialPolicy {
+    static int begins,commits,rollbacks,stepLimits,terminalStages;
+    static std::vector<double> sourceDurations,acceptedDurations;
+    static double currentDuration;
+    static void clear(){begins=commits=rollbacks=stepLimits=terminalStages=0;
+        currentDuration=0.;sourceDurations.clear();acceptedDurations.clear();}
+    static int begin(DeviceState* s){++begins;return SharedGasTrialPolicy::begin(s);}
+    static int validate(DeviceState* s,bool native=false){
+        const int rc=SharedGasTrialPolicy::validate(s,native);
+        if(rc && native && s->gasSpecies.chemistryStatus[0].code==ChemistryCode::StepLimit){
+            ++stepLimits;check(retryable(s)&&continueTerminal(s),"chemistry StepLimit did not reach owner retry");}
+        return rc;
+    }
+    static int applySources(DeviceState* s,double dt,bool native=false){
+        currentDuration=dt;sourceDurations.push_back(dt);if(!native)++terminalStages;
+        return SharedGasTrialPolicy::applySources(s,dt,native);
+    }
+    static int commit(DeviceState* s){const int rc=SharedGasTrialPolicy::commit(s);
+        if(!rc){++commits;acceptedDurations.push_back(currentDuration);}return rc;}
+    static void rollback(DeviceState* s){++rollbacks;SharedGasTrialPolicy::rollback(s);}
+};
+int TracePolicy::begins=0,TracePolicy::commits=0,TracePolicy::rollbacks=0,TracePolicy::stepLimits=0,TracePolicy::terminalStages=0;
+std::vector<double> TracePolicy::sourceDurations,TracePolicy::acceptedDurations;
+double TracePolicy::currentDuration=0.;
+double prepareOwner(DeviceState* s,double dt,double time){
+    double co=0.;check(ugkwpGpuResidentStrictComputeGasCourant(s,dt,.5,time,&co)==0,
+        "real native Courant preparation");sync();
+    check(s->gasTrial.targetMaxCo==.5,"original targetMaxCo changed");
+    std::printf("OWNER_INPUT request=%a targetMaxCo=%a measuredCo=%a\n",dt,s->gasTrial.targetMaxCo,co);
+    return co;
+}
+void startReference(DeviceState* reference,double requestedDt,double time){
+    check(SharedGasTrialPolicy::beginInterval(reference)==0,"begin reference requested interval");
+}
+void finishReference(DeviceState* reference){
+    check(SharedGasTrialPolicy::commitInterval(reference)==0,"commit reference requested interval");
+}
+void ownerTests(){
+    const double requestedDt=4e-6,time=2.;
+    auto* actual=fixture();auto* reference=fixture();
+    check(prepareOwner(actual,requestedDt,time)>.5,"original requested interval lost actual CFL refinement");
+    prepareOwner(reference,requestedDt,time);TracePolicy::clear();
+    GasRequestedIntervalControls<double> controls;
+    check(advanceGasRequestedInterval<TracePolicy>(actual,requestedDt,time,controls)==0,"requested interval did not complete");
+    std::printf("OWNER_TRACE begins=%d commits=%d rollbacks=%d stepLimits=%d terminal=%d\n",
+        TracePolicy::begins,TracePolicy::commits,TracePolicy::rollbacks,TracePolicy::stepLimits,TracePolicy::terminalStages);
+    check(TracePolicy::begins==TracePolicy::commits+TracePolicy::rollbacks&&TracePolicy::commits>1
+        &&TracePolicy::rollbacks>0&&TracePolicy::stepLimits>0&&TracePolicy::terminalStages==0,
+        "owner did not complete genuine native refinement after chemistry StepLimit");
+    check(TracePolicy::acceptedDurations.size()==std::size_t(TracePolicy::commits),"accepted trace count differs");
+    startReference(reference,requestedDt,time);
+    double elapsed=0.;for(double dt:TracePolicy::acceptedDurations){
+        std::printf("OWNER_ACCEPT dt=%a stamp=%a\n",dt,time+elapsed);
+        check(dt>0.&&dt<requestedDt,"accepted owner duration did not shrink");
+        check(advanceGasTrial<SharedGasTrialPolicy>(reference,dt,time+elapsed,true)==0,
+            "explicit accepted native partition failed");elapsed+=dt;
+    }
+    check(elapsed==requestedDt,"accepted native partition did not cover exact requested interval");
+    finishReference(reference);compare(actual,reference);compareInventory(actual,reference);
+    std::puts("PASS requested owner accepted trace: full interval, cell/face fields, physical/control statuses and physical inventories");
+
+    actual=fixture();reference=fixture();prepareOwner(actual,requestedDt,time);prepareOwner(reference,requestedDt,time);
+    TracePolicy::clear();controls.maximumAttempts=1;
+    check(advanceGasRequestedInterval<TracePolicy>(actual,requestedDt,time,controls)==0,"exhausted owner did not complete terminal interval");
+    check(TracePolicy::begins==2&&TracePolicy::rollbacks==1&&TracePolicy::commits==1
+        &&TracePolicy::stepLimits==1&&TracePolicy::terminalStages==1,"terminal fallback trace differs");
+    check(TracePolicy::acceptedDurations.size()==1&&TracePolicy::acceptedDurations[0]==requestedDt,
+        "terminal accepted duration differs");
+    startReference(reference,requestedDt,time);
+    check(advanceGasTrial<SharedGasTrialPolicy>(reference,requestedDt,time,false)==0,"direct public completion failed");
+    finishReference(reference);compare(actual,reference);compareInventory(actual,reference);
+    std::puts("PASS terminal owner completion: complete original public state, physical/control statuses and physical inventories");
+
+
+
+    const double successfulDt=1e-6;
+    actual=fixture();reference=fixture();
+    check(prepareOwner(actual,successfulDt,time)<=.5,"original success control exceeds actual CFL");
+    prepareOwner(reference,successfulDt,time);TracePolicy::clear();controls={};
+    check(advanceGasRequestedInterval<TracePolicy>(actual,successfulDt,time,controls)==0,"original successful requested interval failed");
+    check(TracePolicy::begins==1&&TracePolicy::commits==1&&TracePolicy::rollbacks==0
+        &&TracePolicy::stepLimits==0&&TracePolicy::terminalStages==0,"original successful interval partition changed");
+    check(TracePolicy::acceptedDurations.size()==1&&TracePolicy::acceptedDurations[0]==successfulDt,
+        "original successful interval duration changed");
+    startReference(reference,successfulDt,time);
+    check(advanceGasTrial<SharedGasTrialPolicy>(reference,successfulDt,time,false)==0,"original success public control failed");
+    finishReference(reference);compare(actual,reference);compareInventory(actual,reference);
+    std::puts("PASS original successful requested interval: real Courant owner/public control, full fields/control statuses/physical inventories");
+
+    actual=fixture();reference=fixture();
+    advanceGasChemistryKernel<<<1,32>>>(actual->deviceState,successfulDt,actual->V,true);
+    advanceGasChemistryKernel<<<1,32>>>(reference->deviceState,successfulDt,reference->V,false);sync();
+    for(int c=0;c<2;++c)check(actual->gasSpecies.chemistryStatus[c]&&reference->gasSpecies.chemistryStatus[c],
+        "original direct chemistry success control failed");
+    compare(actual,reference);compareInventory(actual,reference);
+    std::puts("PASS original direct chemistry success: native/public fields, full physical/control statuses and physical inventories");
+}
+
+void publicEulerReference(DeviceState* s,double dt,double time){
+    check(s->hostGasTimeIntegrator==1&&s->hostTurbulenceModel==0&&!s->hasPeriodicFaces
+        &&!ugkwp::gasBoundaryLayerEnabled(*s),"public reference requires its fixed Euler fixture");
+    startReference(s,dt,time);
+    check(SharedGasTrialPolicy::begin(s)==0,"public reference begin");
+    const int cb=s->fixedCellBlockThreads,fb=s->fixedFaceBlockThreads;
+    const int cg=(s->nCells+cb-1)/cb,fg=(s->nFaces+fb-1)/fb;
+    auto* d=s->deviceState;
+    advanceGasChemistryKernel<<<cg,cb>>>(d,dt*.5,s->V,false);cudaCheck(cudaGetLastError());
+    recoverGasPrimitivesKernel<<<cg,cb>>>(d,false);cudaCheck(cudaGetLastError());
+    check(SharedGasTrialPolicy::validate(s,false)==0,"public reference first half");
+    recoverGasPrimitivesKernel<<<cg,cb>>>(d,false);cudaCheck(cudaGetLastError());
+    updateLegacyGasBoundaryMirrorKernel<<<fg,fb>>>(d,time);cudaCheck(cudaGetLastError());
+    recoverGasPrimitivesKernel<<<cg,cb>>>(d,false);cudaCheck(cudaGetLastError());
+    updateRiemannBoundaryMirrorKernel<<<fg,fb>>>(d);cudaCheck(cudaGetLastError());
+    computeGasPrimitiveGradientsKernel<<<cg,cb>>>(d,false,false);cudaCheck(cudaGetLastError());
+    computeGasGradientLimiterKernel<<<cg,cb>>>(d,false);cudaCheck(cudaGetLastError());
+    computeGasEddyViscosityKernel<<<cg,cb>>>(d);cudaCheck(cudaGetLastError());
+    computeGasInternalFaceFluxKernel<false><<<fg,fb>>>(d,dt,false);cudaCheck(cudaGetLastError());
+    check(GasHostPolicy::applyFaceSources(s,dt,time)==0,"public reference face sources");
+    computeGasFluxPositivityScaleKernel<<<cg,cb>>>(d,dt);cudaCheck(cudaGetLastError());
+    applyGasFluxPositivityScaleKernel<<<fg,fb>>>(d,false);cudaCheck(cudaGetLastError());
+    check(GasHostPolicy::accumulateWallEnergy(s,dt)==0,"public reference wall source");
+    applyGasFluxDivergenceByCellKernel<<<cg,cb>>>(d,dt,false);cudaCheck(cudaGetLastError());
+    recoverGasPrimitivesKernel<<<cg,cb>>>(d,false);cudaCheck(cudaGetLastError());
+    check(SharedGasTrialPolicy::validate(s,false)==0,"public reference transport");
+    check(SharedGasTrialPolicy::applySources(s,dt,false)==0,"public reference cell sources");
+    advanceGasChemistryKernel<<<cg,cb>>>(d,dt*.5,s->V,false);cudaCheck(cudaGetLastError());
+    recoverGasPrimitivesKernel<<<cg,cb>>>(d,false);cudaCheck(cudaGetLastError());
+    check(SharedGasTrialPolicy::validate(s,false)==0,"public reference second half");
+    updateLegacyGasBoundaryMirrorKernel<<<fg,fb>>>(d,time+dt);cudaCheck(cudaGetLastError());
+    updateRiemannBoundaryMirrorKernel<<<fg,fb>>>(d);cudaCheck(cudaGetLastError());
+    updateWaveTransmissivePressureBoundaryKernel<<<fg,fb>>>(d,dt);cudaCheck(cudaGetLastError());
+    check(SharedGasTrialPolicy::validate(s,false)==0,"public reference final boundary");
+    check(SharedGasTrialPolicy::commit(s)==0,"public reference commit");
+    finishReference(s);
+}
+void failedCellTests(){
+    for(int kind=0;kind<16;++kind){auto* s=fixture();auto& g=s->gasSpecies;
+        g.chemistryControls.maximumRejectedSteps=0;
+        if(kind==1)g.thermo.species=nullptr;
+        if(kind==2)g.thermo.coefficients=nullptr;
+        if(kind==3)g.mechanism.stoichiometricBasis=nullptr;
+        if(kind==4)g.mechanism.reactions=nullptr;
+        if(kind==5)g.mechanism.reactants=nullptr;
+        if(kind==6)g.mechanism.products=nullptr;
+        if(kind==7)g.thermo.coefficientCount=1;
+        if(kind==8){auto* basis=const_cast<double*>(g.mechanism.stoichiometricBasis);basis[0]=basis[1]=0;}
+        if(kind==9)const_cast<GasReactionData<double>*>(g.mechanism.reactions)[0].highRate.preExponential=NAN;
+
+        if(kind==10){g.mechanism.reactants=nullptr;g.chemistryControls.maximumRejectedSteps=100;}
+        if(kind==11){auto& reaction=const_cast<GasReactionData<double>*>(g.mechanism.reactions)[0];
+            reaction.type=GasReactionType::ThirdBody;reaction.efficiencyCount=1;g.mechanism.efficiencyCount=1;}
+        if(kind==12)const_cast<SpeciesThermoData<double>*>(g.thermo.species)[0].model=static_cast<SpeciesThermoModel>(255);
+        if(kind==13)g.chemistryControls.maximumNewtonIterations=0;
+        if(kind==15){g.thermo.coefficientCount=1;g.mechanism.stoichiometricBasis=nullptr;}
+        const double savedSpecies[4]={g.rho[0],g.rho[1],g.rho[2],g.rho[3]};
+        const auto savedInventory=physicalInventory(s);
+        const double* volume=kind==14?nullptr:s->V;
+        const double interval=kind==15?0.:2e-6;
+        cudaCheck(cudaMemcpy(s->deviceState,s,sizeof(DeviceState),cudaMemcpyHostToDevice));
+        advanceGasChemistryKernel<<<1,32>>>(s->deviceState,interval,volume,true);sync();
+        check(!g.chemistryStatus[0],"failed native cell reported success");
+        check(std::memcmp(savedSpecies,g.rho,sizeof(savedSpecies))==0,"failed native cell published species");
+        const auto failedInventory=physicalInventory(s);
+        check(savedInventory.size()==failedInventory.size()
+            &&std::memcmp(savedInventory.data(),failedInventory.data(),savedInventory.size()*sizeof(double))==0,
+            "failed native cell changed physical inventory");
+        check(SharedGasTrialPolicy::validate(s,true)!=0,"failed cell passed shared validation");
+        const bool unavailable=(kind>=1&&kind<=6)||kind==10||kind==11||kind==12||kind==14;
+        check((g.cellStatus[0]==int(GasTransportCode::InvalidStorage))==unavailable,"actual unavailable model classification differs");
+        check(SharedGasTrialPolicy::continueTerminal(s)==!unavailable,"metadata/numerical failure lost terminal route");
+        if(kind==0||kind==9)check(SharedGasTrialPolicy::retryable(s),"numerical chemistry lost native retry");
+        if(unavailable)check(!SharedGasTrialPolicy::retryable(s),"missing consumed backing became retryable");
+
+        std::printf("PASS failed-cell kind=%d code=%d thermo=%d retry=%d terminal=%d\n",kind,int(g.chemistryStatus[0].code),int(g.chemistryStatus[0].thermoCode),int(SharedGasTrialPolicy::retryable(s)),int(SharedGasTrialPolicy::continueTerminal(s)));
+        if(kind==7||kind==15){
+            check(g.chemistryStatus[0].code==ChemistryCode::InvalidModel,"thermo model status lost");
+            ChemistryStatus savedStatus[2]={g.chemistryStatus[0],g.chemistryStatus[1]};
+            auto* replayActual=fixture();auto* replayReference=fixture();
+            for(auto* peer:{replayActual,replayReference}){
+                peer->gasSpecies.chemistryControls.maximumRejectedSteps=0;
+                peer->gasSpecies.thermo.coefficientCount=1;
+                if(kind==15)peer->gasSpecies.mechanism.stoichiometricBasis=nullptr;
+                cudaCheck(cudaMemcpy(peer->deviceState,peer,sizeof(DeviceState),cudaMemcpyHostToDevice));
+            }
+            TracePolicy::clear();GasRequestedIntervalControls<double> controls;
+            check(advanceGasRequestedInterval<TracePolicy>(replayActual,interval,2.,controls)==0,
+                "metadata public requested interval failed");
+            check(TracePolicy::begins==(kind==7?2:1)&&TracePolicy::rollbacks==(kind==7?1:0)
+                &&TracePolicy::commits==1&&TracePolicy::terminalStages==1,
+                "metadata owner terminal sequence differs");
+            check(TracePolicy::acceptedDurations.size()==1&&TracePolicy::acceptedDurations[0]==interval,
+                "metadata public owner did not complete its full interval");
+            publicEulerReference(replayReference,interval,2.);
+            compare(replayActual,replayReference);compareInventory(replayActual,replayReference);
+            for(int c=0;c<s->nCells;++c){const auto& x=g.chemistryStatus[c];const auto& y=savedStatus[c];
+                check(x.code==y.code&&x.thermoCode==y.thermoCode&&x.reaction==y.reaction
+                    &&x.attemptedSteps==y.attemptedSteps&&x.rejectedSteps==y.rejectedSteps,
+                    "public replay overwrote original failed status");}
+            const auto afterReplay=physicalInventory(s);
+            check(savedInventory.size()==afterReplay.size()
+                &&std::memcmp(savedInventory.data(),afterReplay.data(),savedInventory.size()*sizeof(double))==0,
+                "public replay changed original failed inventory");
+            std::printf("PASS public-replay kind=%d fullPublicOwner=1 explicitEulerReference=1 originalFailurePreserved=1 interval=%a begins=%d commits=%d rollbacks=%d terminal=%d\n",
+                kind,interval,TracePolicy::begins,TracePolicy::commits,TracePolicy::rollbacks,TracePolicy::terminalStages);
+        }
+    }
+}
+
+
+
+void failedTransactionTests(){
+    auto* successful=fixture();
+    advanceGasChemistryKernel<<<1,32>>>(successful->deviceState,1e-6,successful->V,true);sync();
+    check(bool(successful->gasSpecies.chemistryStatus[0]),"independent original direct control failed");
+    check(successful->gasSpecies.chemistryStatus[0].attemptedSteps==1
+        &&successful->gasSpecies.chemistryStatus[0].rejectedSteps==0,"independent successful control step counts changed");
+    for(int kind=0;kind<16;++kind){auto* s=fixture();auto& g=s->gasSpecies;
+        g.chemistryControls.maximumRejectedSteps=0;
+        if(kind==1)g.thermo.species=nullptr;
+        if(kind==2)g.thermo.coefficients=nullptr;
+        if(kind==3)g.mechanism.stoichiometricBasis=nullptr;
+        if(kind==4)g.mechanism.reactions=nullptr;
+        if(kind==5)g.mechanism.reactants=nullptr;
+        if(kind==6)g.mechanism.products=nullptr;
+        if(kind==7)g.thermo.coefficientCount=1;
+        if(kind==8){auto* basis=const_cast<double*>(g.mechanism.stoichiometricBasis);basis[0]=basis[1]=0;}
+        if(kind==9)const_cast<GasReactionData<double>*>(g.mechanism.reactions)[0].highRate.preExponential=NAN;
+
+        if(kind==10){g.mechanism.reactants=nullptr;g.chemistryControls.maximumRejectedSteps=100;}
+        if(kind==11){auto& reaction=const_cast<GasReactionData<double>*>(g.mechanism.reactions)[0];
+            reaction.type=GasReactionType::ThirdBody;reaction.efficiencyCount=1;g.mechanism.efficiencyCount=1;}
+        if(kind==12)const_cast<SpeciesThermoData<double>*>(g.thermo.species)[0].model=static_cast<SpeciesThermoModel>(255);
+        if(kind==13)g.chemistryControls.maximumNewtonIterations=0;
+        if(kind==15){g.thermo.coefficientCount=1;g.mechanism.stoichiometricBasis=nullptr;}
+
+        auto* reference=fixture();const double interval=kind==15?0.:2e-6;
+        startReference(s,interval,2.);startReference(reference,interval,2.);
+        check(SharedGasTrialPolicy::begin(s)==0,"real failed transaction begin");
+        const double* volume=kind==14?nullptr:s->V;
+        cudaCheck(cudaMemcpy(s->deviceState,s,sizeof(DeviceState),cudaMemcpyHostToDevice));
+        advanceGasChemistryKernel<<<1,32>>>(s->deviceState,interval,volume,true);sync();
+        using TC=decltype(g.chemistryStatus[0].thermoCode);
+        auto code=ChemistryCode::InvalidModel;auto thermo=TC::Success;
+        int reaction=-1,attempted=0,rejected=0;
+        if(kind==0){code=ChemistryCode::StepLimit;attempted=1;}
+        if(kind==1||kind==2||kind==7||kind==12||kind==15)thermo=TC::InvalidModel;
+        if(kind==4){attempted=rejected=1;}
+        if(kind==5||kind==6||kind==9||kind==11){code=ChemistryCode::RateFailure;reaction=0;attempted=rejected=1;}
+        if(kind==10){code=ChemistryCode::StepLimit;reaction=0;attempted=rejected=1;}
+        if(kind==13)code=ChemistryCode::InvalidControls;
+        const bool unavailable=(kind>=1&&kind<=6)||kind==10||kind==11||kind==12||kind==14;
+        const bool retry=kind==0||kind==9;
+        for(int c=0;c<s->nCells;++c){const auto& q=g.chemistryStatus[c];
+            std::printf("FAIL_STATUS kind=%d cell=%d code=%d thermo=%d reaction=%d attempted=%d rejected=%d cellStatus=%d\n",
+                kind,c,int(q.code),int(q.thermoCode),q.reaction,q.attemptedSteps,q.rejectedSteps,g.cellStatus[c]);
+            check(q.code==code&&q.thermoCode==thermo&&q.reaction==reaction
+                &&q.attemptedSteps==attempted&&q.rejectedSteps==rejected,
+                "full failure-specific ChemistryStatus mismatch");
+            check(g.cellStatus[c]==int(unavailable?GasTransportCode::InvalidStorage:GasTransportCode::ChemistryFailure),"full failure-specific cell status");
+        }
+        auto fields=sharedGasTrialDetail::cellFields(s),control=sharedGasTrialDetail::cellFields(reference);
+        check(fields.size()==control.size(),"failure cell field count");
+        for(std::size_t k=0;k<fields.size();++k)check(fields[k].count==control[k].count
+            &&bool(fields[k].pointer)==bool(control[k].pointer)&&(!fields[k].pointer
+            ||std::memcmp(fields[k].pointer,control[k].pointer,fields[k].count*sizeof(double))==0),"failure leaked transaction cell state");
+        fields=sharedGasTrialDetail::faceFields(s);control=sharedGasTrialDetail::faceFields(reference);
+        check(fields.size()==control.size(),"failure face field count");
+        for(std::size_t k=0;k<fields.size();++k)check(fields[k].count==control[k].count
+            &&bool(fields[k].pointer)==bool(control[k].pointer)&&(!fields[k].pointer
+            ||std::memcmp(fields[k].pointer,control[k].pointer,fields[k].count*sizeof(double))==0),"failure leaked transaction face state");
+        check(std::memcmp(s->gasSpecies.faceStatus,reference->gasSpecies.faceStatus,
+            s->nFaces*sizeof(int))==0,"failure changed untouched face status");
+        compareInventory(s,reference);
+        check(SharedGasTrialPolicy::validate(s,true)!=0,"failure transaction validate falsely succeeds");
+        check(SharedGasTrialPolicy::retryable(s)==retry&&SharedGasTrialPolicy::continueTerminal(s)==!unavailable,"failure native decision flags");
+        const bool savedRetry=s->gasTrial.retryableFailure,savedTerminal=s->gasTrial.terminalContinuation;
+        SharedGasTrialPolicy::rollback(s);sync();compare(s,reference);compareInventory(s,reference);
+        check(s->gasTrial.trial.valid&&s->gasTrial.interval.valid,"rollback lost valid snapshots");
+        check(s->gasTrial.retryableFailure==savedRetry&&s->gasTrial.terminalContinuation==savedTerminal
+            &&!s->gasModelPoisoned,"rollback changed native decision flags or poisoned owner");
+        std::printf("PASS failed-transaction kind=%d bothCellsFullStatus=1 allCellFaceState=1 physicalControlStatus=1 physicalInventory=1 rollbackRestored=1 retry=%d terminal=%d\n",kind,int(savedRetry),int(savedTerminal));
+    }
+}
+
+
+void missingFaceAddressTests(){
+    for(bool native:{false,true}){
+        auto* s=fixture();auto* reference=fixture();
+        s->faceOwner[0]=s->nCells;
+        cudaCheck(cudaMemcpy(s->deviceState,s,sizeof(DeviceState),cudaMemcpyHostToDevice));
+        computeGasInternalFaceFluxKernel<false><<<1,32>>>(s->deviceState,1e-6,native);sync();
+        check(s->gasSpecies.faceStatus[0]==int(GasTransportCode::InvalidStorage),
+            "missing logical face owner did not report actual storage");
+        check(SharedGasTrialPolicy::validate(s,native)!=0&&!SharedGasTrialPolicy::retryable(s)
+            &&!SharedGasTrialPolicy::continueTerminal(s),"missing face owner entered numerical continuation");
+        compareInventory(s,reference);
+        std::printf("PASS missing-face-owner native=%d actualMissingResource=1 unchangedInventory=1\n",int(native));
+    }
+    for(bool native:{false,true}){
+        auto* s=fixture();s->facePeriodicPair[1]=s->nFaces;
+        double* fields[]={s->gasPhiRho,s->gasPhiRhoUx,s->gasPhiRhoUy,s->gasPhiRhoUz,
+            s->gasPhiRhoE,s->gasSpecies.flux};
+        double saved[6][8];
+        for(int k=0;k<6;++k)for(int i=0;i<8;++i)
+            saved[k][i]=fields[k][i]=100.*k+i+.5;
+        cudaCheck(cudaMemcpy(s->deviceState,s,sizeof(DeviceState),cudaMemcpyHostToDevice));
+        enforcePeriodicGasFluxAntisymmetryKernel<<<1,32>>>(s->deviceState,native);sync();
+        check(s->gasSpecies.faceStatus[1]==int(GasTransportCode::InvalidStorage)
+            &&s->gasSpecies.faceStatus[s->nFaces]==0,"missing periodic pair status owner differs");
+        for(int k=0;k<6;++k)check(std::memcmp(fields[k],saved[k],sizeof(saved[k]))==0,
+            "missing periodic pair published flux");
+        check(SharedGasTrialPolicy::validate(s,native)!=0&&!SharedGasTrialPolicy::retryable(s)
+            &&!SharedGasTrialPolicy::continueTerminal(s),"missing periodic pair entered numerical continuation");
+        std::printf("PASS missing-periodic-pair native=%d actualMissingResource=1 unchangedPairFlux=1\n",int(native));
+    }
+}
+
+void storageFailureTests(){
+    const char* names[]={"positivity","euler","sst"};
+    for(int entry=0;entry<3;++entry)for(bool native:{false,true}){
+        auto* s=fixture();auto* reference=fixture();
+        if(entry==2){
+            s->sstConfigured=reference->sstConfigured=1;
+            s->hostTurbulenceModel=reference->hostTurbulenceModel=3;
+            s->turbulenceModel=reference->turbulenceModel=3;
+        }
+        const int savedStart=s->cellPlaneStart[0],savedCount=s->cellPlaneCount[0];
+        auto* savedFaces=s->cellFaceId;
+        s->cellFaceId=savedFaces+1;s->cellPlaneStart[0]=-1;s->cellPlaneCount[0]=1;
+        cudaCheck(cudaMemcpy(s->deviceState,s,sizeof(DeviceState),cudaMemcpyHostToDevice));
+        if(entry==0)computeGasFluxPositivityScaleKernel<<<1,1>>>(s->deviceState,1e-6);
+        if(entry==1)applyGasFluxDivergenceByCellKernel<<<1,1>>>(s->deviceState,1e-6,native);
+        if(entry==2)applySstFluxAndSourceKernel<<<1,1>>>(s->deviceState,1e-6,native);
+        sync();
+        check(s->gasSpecies.cellStatus[0]==int(GasTransportCode::InvalidStorage)
+            &&s->gasSpecies.cellStatus[1]==0,"negative logical offset did not report actual storage");
+        s->cellFaceId=savedFaces;s->cellPlaneStart[0]=savedStart;s->cellPlaneCount[0]=savedCount;
+        cudaCheck(cudaMemcpy(s->deviceState,s,sizeof(DeviceState),cudaMemcpyHostToDevice));
+        comparePhysicalFields(s,reference);compareInventory(s,reference);
+        check(SharedGasTrialPolicy::validate(s,native)!=0&&!SharedGasTrialPolicy::retryable(s)
+            &&!SharedGasTrialPolicy::continueTerminal(s),"negative offset entered numerical continuation");
+        check(s->cellFaceId==savedFaces&&s->cellPlaneStart[0]==savedStart
+            &&s->cellPlaneCount[0]==savedCount,"negative offset fixture metadata not restored");
+        std::printf("PASS storage-failure entry=%s native=%d code=%d unchangedState=1 offsetRestored=1\n",
+            names[entry],int(native),s->gasSpecies.cellStatus[0]);
+    }
+}
+void cleanup(){sync();for(auto* s:fixtures){
+    check(s->gasSpecies.rho[7]==918273.125&&s->gasSpecies.cellStatus[7]==123456
+        &&s->gasSpecies.chemistryStatus[7].attemptedSteps==123456,"canary overwritten");
+    check(releaseSharedGasTrialStorage(s->gasTrial)==0,"snapshot release failed");
+    delete s;}
+    for(auto it=allocated.rbegin();it!=allocated.rend();++it)cudaCheck(cudaFree(*it));
+}
+}
+int main(int argc,char** argv){setvbuf(stdout,nullptr,_IONBF,0);
+    if(argc>1&&std::strcmp(argv[1],"--storage-only")==0){
+        chemistryTrialTest::storageFailureTests();chemistryTrialTest::cleanup();
+        std::puts("PASS real CUDA storage failure controls");return 0;
+    }
+    chemistryTrialTest::ownerTests();
+    chemistryTrialTest::failedCellTests();chemistryTrialTest::failedTransactionTests();
+    chemistryTrialTest::missingFaceAddressTests();chemistryTrialTest::storageFailureTests();chemistryTrialTest::cleanup();
+    std::puts("PASS real CUDA chemistry Trial routing, owner retry, terminal completion and unavailable-resource controls");}

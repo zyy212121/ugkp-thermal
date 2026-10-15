@@ -1,16 +1,10 @@
 #pragma once
 #include <cstddef>
 // Allocation ownership only; closure mathematics belongs to the shared core.
-struct BoundaryLayerAllocation
+template<class State> int releaseBoundaryLayerStorage(State& s)
 {
-    ugkwp::GasBoundaryLayerState<double> gasBoundaryLayer;
-    ugkwp::GasBoundaryLayerModelState<double,ugkwp::compiledGasSpecies> gasBoundaryLayerModel;
-    ugkwp::GasSstAuditState<double> gasSstAudit;
-    double *gasWallQuadratureDistance=nullptr,*gasWallQuadratureWeight=nullptr;
-};
-template<class State> void releaseBoundaryLayerStorage(State& s)
-{
-#define WALL_RELEASE(field) releaseSharedGasPointer(s.field)
+    int result=0;
+#define WALL_RELEASE(field) result|=releaseSharedGasPointer(s.field)
     WALL_RELEASE(gasBoundaryLayer.faceSlot);WALL_RELEASE(gasBoundaryLayer.ownerSlot);
     WALL_RELEASE(gasBoundaryLayer.status);WALL_RELEASE(gasBoundaryLayer.exchange);
     WALL_RELEASE(gasBoundaryLayer.sst);WALL_RELEASE(gasBoundaryLayer.speciesFlux);
@@ -19,21 +13,32 @@ template<class State> void releaseBoundaryLayerStorage(State& s)
     WALL_RELEASE(gasBoundaryLayerModel.faces);WALL_RELEASE(gasBoundaryLayerModel.matchingOffsets);
     WALL_RELEASE(gasBoundaryLayerModel.matchingCells);WALL_RELEASE(gasBoundaryLayerModel.matchingWeights);
     WALL_RELEASE(gasWallQuadratureDistance);WALL_RELEASE(gasWallQuadratureWeight);
-    WALL_RELEASE(gasSstAudit.transportK);WALL_RELEASE(gasSstAudit.transportOmega);
-    WALL_RELEASE(gasSstAudit.sourceK);WALL_RELEASE(gasSstAudit.sourceOmega);
-    WALL_RELEASE(gasSstAudit.constraintK);WALL_RELEASE(gasSstAudit.constraintOmega);
-    WALL_RELEASE(gasSstAudit.initialTransportK);WALL_RELEASE(gasSstAudit.initialTransportOmega);
-    WALL_RELEASE(gasSstAudit.initialSourceK);WALL_RELEASE(gasSstAudit.initialSourceOmega);
-    WALL_RELEASE(gasSstAudit.initialConstraintK);WALL_RELEASE(gasSstAudit.initialConstraintOmega);
-    WALL_RELEASE(gasSstAudit.volume);
 #undef WALL_RELEASE
-    s.gasBoundaryLayer={};s.gasBoundaryLayerModel={};s.gasSstAudit={};
+    if(!result){s.gasBoundaryLayer={};s.gasBoundaryLayerModel={};}
+    return result;
+}
+
+
+
+
+inline int releaseBoundaryLayerStorage(DeviceState& s)
+{
+    const int resident=releaseBoundaryLayerStorage<DeviceState>(s);
+    return releaseBoundaryLayerStorage(s.gasTrial.rejectedWall)|resident;
+}
+inline void discardBoundaryLayerCandidate(DeviceState* s,BoundaryLayerAllocation& candidate)
+{
+    if(releaseBoundaryLayerStorage(candidate))
+    {
+        s->gasTrial.rejectedWall=candidate;candidate={};s->gasModelPoisoned=true;
+    }
 }
 
 // Configure-only publication. Uploading initial fields deliberately scrubs the
 // host calculation scalars, so copying the complete DeviceState here would
 // destroy valid device physics/numerics. Publish only this extension's fields.
-// No trial may exist yet. The enabled wall view is copied last; on any copy
+
+
 // failure the caller poisons the resident and retains ownership until destroy.
 inline int syncBoundaryLayerConfiguration(DeviceState* state)
 {
@@ -50,7 +55,6 @@ inline int syncBoundaryLayerConfiguration(DeviceState* state)
         } \
     } while(false)
     WALL_PUBLISH(gasBoundaryLayerModel);
-    WALL_PUBLISH(gasSstAudit);
     WALL_PUBLISH(gasWallQuadratureDistance);
     WALL_PUBLISH(gasWallQuadratureWeight);
     WALL_PUBLISH(sstWallTreatment);

@@ -13,8 +13,11 @@ struct ColdWallHeatPublication { bool valid; double acceptedSpecificHeat; };
 // Equal-mass nodes: the one persistent scalar is a uniform specific-enthalpy
 // correction, never a second copy of the profile or an unbounded heat ledger.
 UGKWP_COLD_CARRY_HD inline float coldWallStoredEnthalpyFloor(double target) {
+
+ if(target>double(FLT_MAX))return FLT_MAX;
+ if(target<-double(FLT_MAX))return -FLT_MAX;
  float stored=static_cast<float>(target);
- if(double(stored)>target)stored=::nextafterf(stored,0.0f);
+ if(double(stored)>target)stored=::nextafterf(stored,-INFINITY);
  return stored;
 }
 // Leave only the double-arithmetic cancellation margin before crediting a
@@ -33,26 +36,26 @@ UGKWP_COLD_CARRY_HD inline ColdWallHeatPublication publishColdWallUniformSpecifi
 (float* nodes, int count, double& residual, double specificHeat) {
  if (!nodes || count<=0 || !(::fabs(residual)<=DBL_MAX)
      || !(::fabs(specificHeat)<=DBL_MAX)) return {false,0.0};
+ if (specificHeat==0.0) {
+  for(int j=0;j<count;++j) {
+   const double effective=double(nodes[j])+residual;
+   if(!(::fabs(effective)<=DBL_MAX)) return {false,0.0};
+  }
+  return {true,0.0};
+ }
+ const double correction=residual+specificHeat;
+ double storageChange=0.0;
  for(int j=0;j<count;++j) {
   const double effective=double(nodes[j])+residual;
-  if(!(nodes[j]>0.0f) || !(effective>0.0) || !(effective<=FLT_MAX)) return {false,0.0};
- }
- if (specificHeat==0.0) return {true,0.0};
- const double correction=residual+specificHeat;
- double storageChange=0.0,minimumStored=DBL_MAX,maximumStored=0.;
- for(int j=0;j<count;++j) {
+  if(!(::fabs(effective)<=DBL_MAX)) return {false,0.0};
   const double target=double(nodes[j])+correction;
   const float stored=coldWallStoredEnthalpyFloor(target);
-  if(!(target>0.0) || !(target<=FLT_MAX) || !(stored>0.0f)) return {false,0.0};
+  if(!(::fabs(target)<=DBL_MAX) || !(::fabs(stored)<=FLT_MAX)) return {false,0.0};
   storageChange+=(double(stored)-double(nodes[j]))/count;
-  if(double(stored)<minimumStored)minimumStored=stored;
-  if(double(stored)>maximumStored)maximumStored=stored;
  }
  const double next=(residual-storageChange)+specificHeat;
  const double accepted=storageChange+(next-residual);
- // Validate the actual shared-mean representation BEFORE any component write.
- if(!(::fabs(next)<=DBL_MAX) || !(minimumStored+next>0.)
-    || !(maximumStored+next<=FLT_MAX))return {false,0.};
+ if(!(::fabs(next)<=DBL_MAX) || !(::fabs(accepted)<=DBL_MAX))return {false,0.};
  for(int j=0;j<count;++j)nodes[j]=coldWallStoredEnthalpyFloor(double(nodes[j])+correction);
  residual=next;
  return {true,accepted};

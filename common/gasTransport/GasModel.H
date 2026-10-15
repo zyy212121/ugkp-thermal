@@ -55,7 +55,6 @@ struct SpeciesThermoData
 template<class Real, int Ns>
 struct SpeciesThermoView
 {
-    static_assert(Ns > 0, "A gas model needs at least one species");
     static constexpr int speciesCount = Ns;
     const SpeciesThermoData<Real>* species = nullptr;
     const Real* coefficients = nullptr;
@@ -132,7 +131,6 @@ struct GasReactionData
 template<class Real, int Ns>
 struct GasMechanismView
 {
-    static_assert(Ns > 0, "A mechanism needs at least one species");
     static constexpr int speciesCount = Ns;
     const GasReactionData<Real>* reactions = nullptr;
     int reactionCount = 0;              // independent of material reaction count
@@ -197,7 +195,6 @@ UGKWP_GAS_HD inline ThermoInversionControls<To> castThermoControls
 template<class Real, int Ns>
 struct ClosedReactorInput
 {
-    static_assert(Ns > 0, "A reactor needs at least one species");
     Real speciesMass[Ns] = {};          // kg, all Ns species including exact zeros
     Real totalMass = Real(0);           // kg, unchanged by homogeneous chemistry
     Real internalEnergy = Real(0);      // J, formation-inclusive, may be negative

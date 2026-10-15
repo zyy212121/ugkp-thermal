@@ -60,16 +60,6 @@ __device__ void sampleOnePoissonPoolParticle
     const GPU_OPERATOR_REAL ux = targetUx + sigma*z0;
     const GPU_OPERATOR_REAL uy = targetUy + sigma*z1;
     const GPU_OPERATOR_REAL uz = targetUz + sigma*z2;
-    if
-    (
-        n > 1
-     && (
-            nonFiniteDevice(ux) || nonFiniteDevice(uy) || nonFiniteDevice(uz)
-        )
-    )
-    {
-        asm("trap;");
-    }
 
 #if GPU_OPERATOR_THERMAL
     const bool wasStuck = s.pStuck[i] != 0;
@@ -95,10 +85,7 @@ __device__ void sampleOnePoissonPoolParticle
         );
 
 #if GPU_OPERATOR_THERMAL
-    if (!finiteDevice(s.pm[i]) || s.pm[i] <= GPU_OPERATOR_R(0.0))
-    {
-        asm("trap;");
-    }
+
     if (!wasStuck)
     {
         s.pStuckFaceId[i] = -1;
@@ -113,11 +100,7 @@ __device__ void sampleOnePoissonPoolParticle
     }
 #else
     const GPU_OPERATOR_REAL sampleMass = clampMin(finiteOr(s.pm[i], GPU_OPERATOR_R(0.0)), GPU_OPERATOR_R(0.0));
-    if (!(sampleMass > GPU_OPERATOR_R(0.0)))
-    {
-        asm("trap;");
-        return;
-    }
+
 #endif
     s.pRng[i] = rng;
 

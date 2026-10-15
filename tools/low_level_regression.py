@@ -29,14 +29,14 @@ def build(label,cmd,exe):
     if q.returncode:print(log.read_text()[-5000:]);sys.exit(1)
     executables.append((label,exe))
 fixture=ROOT/'tests/fixtures/low_level'
-for label,real,pruned,fmad in [('gas64','double',1,True),('FSH64','double',0,True),('CHT64','double',0,False),('CHT32','float',0,False)]:
+for label,real,pruned,fmad in [('gas64','double',1,True),('FSH64','double',0,True),('CHT64','double',0,False),]:
     d=out/label;d.mkdir(exist_ok=True)
     text=(fixture/'reduction.cu.in').read_text()
     for key,value in {'REAL':real,'PRUNED':str(pruned),'LABEL':'gas' if pruned else 'thermal'}.items():text=text.replace('@'+key+'@',value)
     source=d/'reduction.cu';source.write_text(text);exe=d/'reduction'
     build(label+'-bitwise',[str(nvcc),'-std=c++17','-O3','-arch='+arch,'--fmad='+str(fmad).lower(),'-I'+str(ROOT/'common'),'-I'+str(fixture),str(source),'-o',str(exe)],exe)
-for app,bits in [('FSH',64),('CHT',64),('CHT',32)]:
-    label=app+str(bits);d=out/label;real='float' if bits==32 else 'double'
+for app in ['FSH', 'CHT']:
+    label=app+str(64);d=out/label;real='double'
     thermal=(ROOT/'common/GpuCellLocalThermalFields.cuh').read_text()
     primary=(ROOT/'common/GpuCellLocalPrimary.cuh').read_text()
     hook=thermal+'\n#define GPU_PARTICLE_EXTRA_FIELDS CellLocalThermalExtraFields<'+('false, false' if app=='FSH' else 'true, true')+'>\n'+primary
@@ -44,7 +44,7 @@ for app,bits in [('FSH',64),('CHT',64),('CHT',32)]:
     build(label+'-payload',[str(nvcc),'-std=c++17','-O3','-arch='+arch,'--fmad='+str(app=='FSH').lower(),'-I'+str(ROOT/'common'),str(source),'-o',str(exe)],exe)
     for generator in ['tests/fixtures/shared_operators/payload_commit.py']+(['tests/fixtures/thermal_workers/s1_pipeline.py'] if args.integration else []):
         target=d/Path(generator).stem;env=dict(os.environ,UGKP_CUDA_BUILD_ONLY='1')
-        cmd=[sys.executable,str(ROOT/generator),str(ROOT),str(target),app,str(bits)]
+        cmd=[sys.executable,str(ROOT/generator),str(ROOT),str(target),app]
         log=out/(label+'-'+Path(generator).stem+'.build.log')
         with log.open('w') as f:q=subprocess.run(cmd,env=env,stdout=f,stderr=subprocess.STDOUT)
         matches=list(target.rglob('payload_commit' if 'payload_commit' in generator else 'exact13_*'))

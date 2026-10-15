@@ -1,9 +1,8 @@
 from pathlib import Path
 import subprocess,sys
 ROOT=Path(__file__).resolve().parents[1]
-def test_managed_source_and_field_contracts(tmp_path):
-    # The standalone inventory gate is mandatory even when paired-repo
-    # integration fixtures are unavailable in this checkout.
+def test_explicit_managed_source_and_field_audits(tmp_path):
+
     commands=[[sys.executable,str(ROOT/'tools/managed_mirrors.py')]]
     if (ROOT/'applications/FSH').is_dir():
         commands+=[[sys.executable,str(ROOT/'tests/fixtures/source_contract_regression.py'),str(ROOT)]]

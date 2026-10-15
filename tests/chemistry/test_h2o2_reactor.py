@@ -13,12 +13,21 @@ SOURCE=r'''
 #include "common/chemistry/mechanisms/GeneratedH2O2.H"
 #include <iostream>
 #include <iomanip>
+#include <cmath>
+#include <algorithm>
 int main(){using namespace ugkwp;GeneratedH2O2<double> table;const auto thermo=table.thermoView();const auto mechanism=table.mechanismView();
 ClosedReactorInput<double,10> base;std::cin>>base.volume;for(double& x:base.speciesMass){std::cin>>x;base.totalMass+=x;}double T,tolerance;int count;std::cin>>T>>tolerance>>count;base.internalEnergy=mixtureEnergy(base.speciesMass,T,thermo);ChemistryControls<double> controls;controls.relativeTolerance=tolerance;controls.absoluteMassFractionTolerance=1e-14;controls.absoluteTemperatureTolerance=1e-6;controls.maximumSteps=100000;controls.maximumRejectedSteps=1000;double time=0;std::cout<<std::setprecision(17);
-for(int k=0;k<count;++k){double target;std::cin>>target;ClosedReactorResult<double,10> out;ChemistryAudit<double,10> audit;auto status=advanceClosedReactor(base,target-time,thermo,mechanism,controls,out,audit);
-if(!status){std::cerr<<"code="<<int(status.code)<<" reaction="<<status.reaction<<" target="<<target<<" attempted="<<status.attemptedSteps<<" rejected="<<status.rejectedSteps<<" nonlinear="<<status.nonlinearIterations<<'\n';return 1;}
+for(int k=0;k<count;++k){double target;std::cin>>target;ClosedReactorResult<double,10> out;auto status=advanceClosedReactor(base,target-time,thermo,mechanism,controls,out);
+if(!status){std::cerr<<"code="<<int(status.code)<<" reaction="<<status.reaction<<" target="<<target<<" attempted="<<status.attemptedSteps<<" rejected="<<status.rejectedSteps<<'\n';return 1;}
 double mol=0;for(int s=0;s<10;++s)mol+=out.speciesMass[s]/thermo.species[s].molarMass;double p=mol*universalGasConstant<double>()*out.temperature/base.volume;
-std::cout<<target<<' '<<out.temperature<<' '<<p;for(double mass:out.speciesMass)std::cout<<' '<<mass/base.totalMass;std::cout<<' '<<audit.massResidual<<' '<<audit.maximumElementResidual<<' '<<audit.energyResidual<<' '<<audit.acceptedSteps<<' '<<audit.rejectedSteps<<'\n';
+// Test-only invariants measured from actual published physical state.
+double massResidual=-base.totalMass,maximumElementResidual=0;
+for(double mass:out.speciesMass)massResidual+=mass;
+for(int e=0;e<thermo.elementCount;++e){double before=0,after=0;
+ for(int s=0;s<10;++s){const double atoms=thermo.elementComposition[s*thermo.elementCount+e]/thermo.species[s].molarMass;before+=base.speciesMass[s]*atoms;after+=out.speciesMass[s]*atoms;}
+ maximumElementResidual=std::max(maximumElementResidual,std::abs(after-before));}
+const double energyResidual=mixtureEnergy(out.speciesMass,out.temperature,thermo)-base.internalEnergy;
+std::cout<<target<<' '<<out.temperature<<' '<<p;for(double mass:out.speciesMass)std::cout<<' '<<mass/base.totalMass;std::cout<<' '<<massResidual<<' '<<maximumElementResidual<<' '<<energyResidual<<' '<<status.attemptedSteps<<' '<<status.rejectedSteps<<'\n';
 for(int s=0;s<10;++s)base.speciesMass[s]=out.speciesMass[s];
 time=target;}
 }

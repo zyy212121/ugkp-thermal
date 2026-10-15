@@ -1,5 +1,6 @@
 #pragma once
 #include <cuda_runtime.h>
+#include <cstddef>
 
 struct GpuWallEnergyState
 {
@@ -13,9 +14,15 @@ struct GpuWallEnergyState
     unsigned char* gasWallEnergyMask = nullptr;
     double* gasWallFlux = nullptr;
     int* enabledFaceIds = nullptr;
+    size_t enabledFaceCapacity = 0;
+
+    int* retiredFaceIds = nullptr;
     double* particleWallDepositedEnergy = nullptr;
     double* particleWallReflectedEnergy = nullptr;
 };
+
+extern "C" int ugkpInvalidateGasWallEnergyGraph(void*);
+extern "C" int ugkpPrepareParticleWallEnergyRestore(void*);
 
 int ugkpAccumulateGasWallEnergy64(GpuWallEnergyState*, double, cudaStream_t);
 void ugkpReleaseGasWallEnergy64(GpuWallEnergyState*);

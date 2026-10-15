@@ -3,12 +3,12 @@ from pathlib import Path
 import subprocess,sys
 import pytest
 ROOT=Path(__file__).resolve().parents[1]
-@pytest.fixture(scope='module',params=[('FSH',64),('CHT',64),('CHT',32)],ids=['FSH64','CHT64','CHT32'])
+@pytest.fixture(scope='module',params=['FSH','CHT',],ids=['FSH64','CHT64'])
 def consumer(request,tmp_path_factory):
     if not Path('/usr/local/cuda/bin/nvcc').is_file():pytest.skip('CUDA compiler and device required')
-    app,bits=request.param
-    out=tmp_path_factory.mktemp(f'thermal-auto-{app}-{bits}')
-    q=subprocess.run([sys.executable,str(ROOT/'tests/fixtures/gas_auto/gas_auto_pool.py'),str(ROOT),str(out),app,str(bits)],capture_output=True,text=True,timeout=600)
+    app=request.param
+    out=tmp_path_factory.mktemp(f'thermal-auto-{app}-{64}')
+    q=subprocess.run([sys.executable,str(ROOT/'tests/fixtures/gas_auto/gas_auto_pool.py'),str(ROOT),str(out),app],capture_output=True,text=True,timeout=600)
     assert q.returncode==0,q.stdout+q.stderr
     return out/'gas_auto_pool'
 @pytest.mark.parametrize('block',[32,64,128])

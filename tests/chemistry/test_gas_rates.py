@@ -48,20 +48,21 @@ int main(){
  double wp[2],wm[2];assert(evaluateGasRates(700.001,c,a.t,a.m,wp,nullptr,st));assert(evaluateGasRates(699.999,c,a.t,a.m,wm,nullptr,st));assert(near(dt[1],(wp[1]-wm[1])/.002,1e-7));
  a=Model();a.t.species=a.sp;a.t.coefficients=a.coef;a.t.elementComposition=a.elements;a.m.reactions=a.rx;a.m.reactants=a.re;a.m.products=a.pr;a.m.stoichiometricBasis=a.basis;
  a.m.reactionCount=2;a.rx[0].duplicate=a.rx[1].duplicate=true;c[0]=3;c[1]=0;assert(evaluateGasRates(700.,c,a.t,a.m,w,q,st));assert(near(w[1],12));
- // Invalid metadata and rates are diagnosed without partially publishing outputs.
- w[0]=99;w[1]=98;q[0]=97;c[0]=-1;assert(!evaluateGasRates(700.,c,a.t,a.m,w,q,st));assert(w[0]==99 && w[1]==98 && q[0]==97);c[0]=3;
- a.pr[0].coefficient=2;assert(!validateGasMechanismView(a.t,a.m));a.pr[0].coefficient=1;
- a.basis[1]=2;assert(!validateGasMechanismView(a.t,a.m));a.basis[1]=1;
- a.m.speciesOrderHash=2;assert(!validateGasMechanismView(a.t,a.m));a.m.speciesOrderHash=1;
- a.rx[0].duplicate=false;assert(!validateGasMechanismView(a.t,a.m));a.rx[0].duplicate=true;
- a.m.reactionCount=1;assert(!validateGasMechanismView(a.t,a.m));a.rx[0].duplicate=false;
- a.pr[0].species=0;assert(!validateGasMechanismView(a.t,a.m));a.pr[0].species=1;
+ // Numerical declarations and integer powers of signed concentrations continue.
+ w[0]=99;w[1]=98;q[0]=97;c[0]=-1;assert(evaluateGasRates(700.,c,a.t,a.m,w,q,st));assert(w[0]==4 && w[1]==-4 && q[0]==-2);c[0]=3;
+ a.pr[0].coefficient=2;assert(validateGasMechanismView(a.t,a.m));a.pr[0].coefficient=1;
+ a.basis[1]=2;assert(validateGasMechanismView(a.t,a.m));a.basis[1]=1;
+ a.m.speciesOrderHash=2;assert(validateGasMechanismView(a.t,a.m));a.m.speciesOrderHash=1;
+ a.rx[0].duplicate=false;assert(validateGasMechanismView(a.t,a.m));a.rx[0].duplicate=true;
+ a.m.reactionCount=1;assert(validateGasMechanismView(a.t,a.m));a.rx[0].duplicate=false;
+ a.pr[0].species=0;assert(validateGasMechanismView(a.t,a.m));a.pr[0].species=1;
  a.rx[0].reversible=true;a.rx[0].highRate.preExponential=0;c[0]=3;c[1]=1;
  assert(evaluateGasRateDerivatives(700.,c,a.t,a.m,jac,dt,st));for(double v:jac)assert(v==0);for(double v:dt)assert(v==0);
  a.rx[0].highRate.preExponential=std::exp(-300.);a.coef[5]=800*universalGasConstant<double>()*700/.028;c[0]=1;c[1]=0;
  assert(evaluateGasRates(700.,c,a.t,a.m,w,q,st));assert(near(w[1],std::exp(-300.)));
  assert(evaluateGasRateDerivatives(700.,c,a.t,a.m,jac,dt,st));assert(near(jac[3],-std::exp(500.),1e-10));
- a.rx[0].highRate.preExponential=2;a.sp[0].hasEntropyReference=false;assert(!validateGasMechanismView(a.t,a.m));
+ a.rx[0].highRate.preExponential=2;a.sp[0].hasEntropyReference=false;assert(validateGasMechanismView(a.t,a.m));
+ c[1]=1;w[0]=99;w[1]=98;assert(!evaluateGasRates(700.,c,a.t,a.m,w,nullptr,st));assert(std::isinf(w[0])&&w[0]>0&&std::isinf(w[1])&&w[1]<0);
 }
 '''
 def test_rates_validation_and_derivatives(tmp_path):

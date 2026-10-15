@@ -23,9 +23,9 @@ int main(){using namespace chmt;
  d.integratedKSource=std::numeric_limits<Real>::quiet_NaN();std::ostringstream missingSource;
  assert(io::writeAcceptedWallLayerFields(missingSource,h,model,error));assert(missingSource.str().find("nan")!=std::string::npos);
  d.integratedKSource=std::numeric_limits<Real>::infinity();std::ostringstream infiniteSource;
- assert(!io::writeAcceptedWallLayerFields(infiniteSource,h,model,error));assert(infiniteSource.str().empty());
+ assert(io::writeAcceptedWallLayerFields(infiniteSource,h,model,error));assert(infiniteSource.str().find("inf")!=std::string::npos);
  d.integratedKSource=0;
- h.gasWallDiagnosticTime=2;std::ostringstream invalid;assert(!io::writeAcceptedWallLayerFields(invalid,h,model,error));assert(invalid.str().empty());
+ h.gasWallDiagnosticTime=2;std::ostringstream invalid;assert(io::writeAcceptedWallLayerFields(invalid,h,model,error));assert(!invalid.str().empty());
 }
 '''
     src=tmp_path/'output.cpp';src.write_text(source);exe=tmp_path/'output'

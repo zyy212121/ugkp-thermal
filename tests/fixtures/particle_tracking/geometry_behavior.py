@@ -52,9 +52,9 @@ int main(int argc,char**argv){
   const double speed2=double(s.puy[0])*s.puy[0]+double(s.puz[0])*s.puz[0];
   printf("axis live=%d y=%.17g z=%.17g vy=%.17g vz=%.17g speed2=%.17g mass=%.17g\n",s.pStatus[0],double(s.py[0]),double(s.pz[0]),double(s.puy[0]),double(s.puz[0]),speed2,double(s.pm[0]));
   if(s.pStatus[0]!=1){fprintf(stderr,"FAIL: axis-crossing particle was deleted despite512 hops\n");return 1;}
-  const double posTol=sizeof(GpuReal)==4?2e-10:2e-10;
+  const double posTol=2e-10;
   if(fabs(double(s.py[0])-2e-6)>posTol||fabs(double(s.pz[0]))>posTol){fprintf(stderr,"FAIL: specular wedge axis-crossing final position\n");return 2;}
-  if(fabs(speed2-10000)>(sizeof(GpuReal)==4?.1:1e-7)||s.pm[0]!=GPU_R(2)){fprintf(stderr,"FAIL: elastic reflection mass/energy\n");return 3;}
+  if(fabs(speed2-10000)>(1e-7)||s.pm[0]!=GPU_R(2)){fprintf(stderr,"FAIL: elastic reflection mass/energy\n");return 3;}
  }else if (!std::strcmp(mode,"planar")){
   s.cellPlaneCount[0]=1;s.planeNy[0]=GPU_R(-1);s.cellFaceRestitution[0]=GPU_R(.5);
   s.py[0]=GPU_R(.25);s.puy[0]=s.puyOld[0]=GPU_R(-1);trackOneParticleLocalFaceWalk(s,0,.5);
@@ -62,12 +62,21 @@ int main(int argc,char**argv){
  }else if (!std::strcmp(mode,"outflow")){
   s.cellPlaneCount[0]=1;s.planeNx[0]=GPU_R(1);s.planeD[0]=GPU_R(1);s.faceCx[0]=GPU_R(1);s.cellFaceKind[0]=3;
   s.px[0]=GPU_R(.9);s.pux[0]=s.puxOld[0]=GPU_R(1);trackOneParticleLocalFaceWalk(s,0,.2);if(s.pStatus[0]!=0)return 5;
+ }else if (!std::strcmp(mode,"long_walk")){
+  s.cellPlaneCount[0]=2;s.planeNx[0]=GPU_R(1);s.planeNx[1]=GPU_R(-1);
+  s.planeD[0]=GPU_R(1);s.planeD[1]=GPU_R(0);s.faceCx[0]=GPU_R(1);s.faceCx[1]=GPU_R(0);
+  for(int budget:{-1,0,1,32}){
+   s.maxFaceWalkHops=budget;s.pStatus[0]=1;s.px[0]=GPU_R(.25);s.pux[0]=s.puxOld[0]=GPU_R(1);
+   trackOneParticleLocalFaceWalk(s,0,300.5);
+   // Exhaustion originally returned normally with deletion, not a refusal.
+   if(s.pStatus[0]!=0||s.px[0]!=GPU_R(.25)||s.pm[0]!=GPU_R(2)){fprintf(stderr,"changed original hop exhaustion budget=%d x=%.17g live=%d\n",budget,double(s.px[0]),s.pStatus[0]);return 7;}
+  }
  }else return 6;
  printf("PASS %s\n",mode);return 0;
 }
 """
 results=[]
-for app,bits in [('gas',64),('FSH',64),('CHT',64),('CHT',32)]:
+for app in ['gas', 'FSH', 'CHT']:
  if not (ROOT/f'applications/{"gasUGKP" if app=="gas" else app}').exists():continue
  pfx=prefix.replace('PRECISION',str(ROOT/'common/GpuPrecisionTypes.H'))
  header=(ROOT/f'applications/{"gasUGKP" if app=="gas" else app}/gpu/GpuResidentStrict.H').read_text()
@@ -75,11 +84,10 @@ for app,bits in [('gas',64),('FSH',64),('CHT',64),('CHT',32)]:
  boundary_body=header[left+1:right]
  if (ROOT/'common/GpuParticleBoundaryModel.H').exists():pfx+='\n#include "'+str(ROOT/'common/GpuParticleBoundaryModel.H')+'"\nusing namespace Foam;\n'
  pfx+='\nGpuReal wedgeRestitution(){ int kind=-1; GpuReal restitution=GPU_R(-1); '+boundary_body+' return restitution; }\n'
- pfx+='\n#define GPU_GEOMETRY_ROUNDING_AWARE '+('1' if app=='CHT' and bits==32 else '0')+'\n'
  geometry='#include "'+str(ROOT/'common/operators/pointInsideCell.cuh')+'"\n'
  if app=='CHT':pfx+='\n#undef GPU_WALL_COORDINATE\n#define GPU_WALL_COORDINATE(hit,eps,normal) insideFaceCoordinate(hit,normal,eps)\n'
- cpp=OUT/f'{app}{bits}.cpp';exe=OUT/f'{app}{bits}';cpp.write_text(pfx+'\n'+geometry+'\n'+(ROOT/'common/GpuParticleTransport.cuh').read_text()+'\n'+main)
- q=subprocess.run(['g++','-std=c++17','-O2','-ffp-contract=off','-DUGKWP_GPU_REAL_BITS='+str(bits),'-I'+str(ROOT/'common'),str(cpp),'-o',str(exe)],capture_output=True,text=True);assert q.returncode==0,q.stderr
- for mode in ['axis','planar','outflow']:
-  q=subprocess.run([str(exe),mode],capture_output=True,text=True);r={'app':app,'bits':bits,'mode':mode,'returncode':q.returncode,'stdout':q.stdout,'stderr':q.stderr};results.append(r);print(r,flush=True)
+ cpp=OUT/f'{app}{64}.cpp';exe=OUT/f'{app}{64}';cpp.write_text(pfx+'\n'+geometry+'\n'+(ROOT/'common/GpuParticleTransport.cuh').read_text()+'\n'+main)
+ q=subprocess.run(['g++','-std=c++17','-O2','-ffp-contract=off','-I'+str(ROOT/'common'),str(cpp),'-o',str(exe)],capture_output=True,text=True);assert q.returncode==0,q.stderr
+ for mode in ['axis','planar','outflow','long_walk']:
+  q=subprocess.run([str(exe),mode],capture_output=True,text=True);r={'app':app,'bits':64,'mode':mode,'returncode':q.returncode,'stdout':q.stdout,'stderr':q.stderr};results.append(r);print(r,flush=True)
 (OUT/'results.json').write_text(json.dumps(results,indent=2));sys.exit(int(any(x['returncode'] for x in results)))

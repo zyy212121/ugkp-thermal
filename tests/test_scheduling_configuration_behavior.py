@@ -1,6 +1,6 @@
 """Exercise the real OpenFOAM dictionary parser and production scheduling header.
 
-Checks formal bundles, automatic heavy scheduling and rejected research inputs.
+Checks formal bundles, automatic heavy scheduling and legacy input fallback.
 No CUDA device or case computation is used.
 """
 from pathlib import Path
@@ -15,10 +15,16 @@ def parser(tmp_path_factory):
     source=out/'parse.C'
     source.write_text(r"""
 #include "GpuSchedulingConfiguration.H"
+#include "gpu/GpuBoundarySchedule.H"
 #include "IStringStream.H"
 int main(int argc,char** argv) {
     Foam::IStringStream input(argv[1]);
     Foam::dictionary properties(input);
+    if(argc>2){
+      Foam::List<Foam::Tuple2<Foam::scalar,Foam::scalar>> rows(properties.lookup("rows"));
+      Foam::GpuBoundaryScheduleTable table(rows);Foam::scalarField times,values;table.copyColumns(times,values);
+      Foam::Info << "ROWS " << table.size();forAll(times,i)Foam::Info << ' ' << times[i] << ':' << values[i];Foam::Info << '\n';return 0;
+    }
     const auto v=Foam::readGpuSchedulingConfiguration(properties);
     Foam::Info << "FLAGS " << int(v.csrLevel) << ' '
       << v.csrCellLocalPath << ' ' << v.warpAggregatedBinning << ' '
@@ -47,33 +53,43 @@ def test_formal_levels_preserve_operator_bundles(parser,level,flags):
     assert 'FLAGS '+flags in q.stdout,q.stdout
 
 @pytest.mark.parametrize('variant',['L0','L1','L2','E1','E2','T1','T2','S1','S2'])
-def test_research_entry_is_rejected_even_for_matching_levels(parser,variant):
+def test_legacy_research_entry_does_not_override_selected_level(parser,variant):
     q=run(parser,f'gpuCsrLevel L2; gpuResearchVariant {variant};')
-    assert q.returncode!=0,'thermal accepted research override: '+q.stdout
-    assert 'gpuResearchVariant' in q.stdout+q.stderr
+    assert q.returncode==0,q.stdout+q.stderr
+    assert 'FLAGS 2 1 1 1 1' in q.stdout
 
 @pytest.mark.parametrize('level',['E1','E2','T1','T2','S1','S2','bad'])
-def test_only_three_formal_level_names_are_accepted(parser,level):
+def test_unknown_scheduling_labels_use_existing_l0(parser,level):
     q=run(parser,f'gpuCsrLevel {level};')
-    assert q.returncode!=0,'thermal accepted non-formal level: '+q.stdout
-    assert 'gpuCsrLevel' in q.stdout+q.stderr
+    assert q.returncode==0,q.stdout+q.stderr
+    assert 'FLAGS 0 0 0 0 0' in q.stdout
 
-def test_automatic_interval_is_rejected(parser):
+def test_unused_automatic_interval_does_not_reject_l1(parser):
     q=run(parser,'gpuCsrLevel L1; gpuCsrHeavyReductionAutoInterval 100;')
-    assert q.returncode!=0,q.stdout
-    assert 'gpuCsrHeavyReductionAutoInterval' in q.stdout+q.stderr
+    assert q.returncode==0,q.stdout+q.stderr
+    assert 'FLAGS 1 1 1 1 0' in q.stdout
 
-def test_migration_rejects_unsupported_inputs_before_writing(tmp_path):
+@pytest.mark.parametrize('config,expected', [('gpuCsrLevel E1;', 'L0'), ('gpuCsrLevel L2;\ngpuResearchVariant S2;', 'L2')])
+def test_migration_keeps_successful_current_input_fallback(tmp_path,config,expected):
+    import importlib.util
+    spec=importlib.util.spec_from_file_location('thermal_migration_success',ROOT/'tools/migrate_scheduling_properties.py')
+    module=importlib.util.module_from_spec(spec);spec.loader.exec_module(module)
+    particle=tmp_path/'particleProperties';particle.write_text('parcelMass 5e-9;\n')
+    schedule=tmp_path/'schedulingProperties';schedule.write_text(config+'\n')
+    module.migrate(particle)
+    assert module.scalar_value(schedule.read_text(),'gpuCsrLevel')==expected
+    assert 'gpuResearchVariant' not in schedule.read_text()+particle.read_text()
+    assert particle.read_text()=='parcelMass 5e-9;\n'
+
+def test_migration_reports_actual_zero_divisor_before_writing(tmp_path):
     import importlib.util
     spec=importlib.util.spec_from_file_location('thermal_migration',ROOT/'tools/migrate_scheduling_properties.py')
     module=importlib.util.module_from_spec(spec);spec.loader.exec_module(module)
-    for config in ['gpuCsrLevel E1;','gpuCsrLevel L2;\ngpuResearchVariant S2;','gpuCsrLevel auto;\ngpuCsrHeavyReductionAutoInterval 0;']:
-        case=tmp_path/'constant';case.mkdir(exist_ok=True)
-        particle=case/'particleProperties';particle.write_text('parcelMass 5e-9;\n')
-        schedule=case/'schedulingProperties';schedule.write_text(config+'\n')
-        before=(particle.read_bytes(),schedule.read_bytes())
-        with pytest.raises(ValueError):module.migrate(particle)
-        assert (particle.read_bytes(),schedule.read_bytes())==before
+    particle=tmp_path/'particleProperties';particle.write_text('parcelMass 5e-9;\n')
+    schedule=tmp_path/'schedulingProperties';schedule.write_text('gpuCsrLevel auto;\ngpuCsrHeavyReductionAutoInterval 0;\n')
+    before=(particle.read_bytes(),schedule.read_bytes())
+    with pytest.raises(ValueError,match='zero modulo divisor'):module.migrate(particle)
+    assert (particle.read_bytes(),schedule.read_bytes())==before
 
 @pytest.mark.parametrize('interval',[1,100,1000])
 def test_auto_retains_L1_operations_and_selects_existing_automatic_mode(parser,interval):
@@ -86,8 +102,8 @@ def test_auto_uses_existing_default_interval(parser):
     assert q.returncode==0,q.stdout+q.stderr
     assert 'FLAGS 3 1 1 1 2 100' in q.stdout
 
-@pytest.mark.parametrize('interval',[0,-1])
-def test_auto_rejects_nonpositive_interval(parser,interval):
+@pytest.mark.parametrize('interval',[0])
+def test_auto_reports_undefined_zero_divisor(parser,interval):
     q=run(parser,f'gpuCsrLevel auto; gpuCsrHeavyReductionAutoInterval {interval};')
     assert q.returncode!=0
     assert 'gpuCsrHeavyReductionAutoInterval' in q.stdout+q.stderr
@@ -104,3 +120,30 @@ def test_migration_preserves_auto_and_inspection_interval(tmp_path,legacy):
     assert module.scalar_value(schedule.read_text(),'gpuCsrLevel')=='auto'
     assert module.scalar_value(schedule.read_text(),'gpuCsrHeavyReductionAutoInterval')=='1000'
     assert 'parcelMass 5e-9;' in particle.read_text()
+
+@pytest.mark.parametrize('config', ['', 'gpuResidentMaxFaceWalkHops 0;', 'gpuResidentMaxFaceWalkHops -7;', 'gpuResidentCourantUpdateInterval -3;', 'gpuResidentMaxDeltaTGrowth -0.5;', 'gpuPrecision 16;', 'gpuParticleBlockThreads 24;', 'gpuReductionBlockThreads 96;'])
+def test_policy_only_fields_do_not_refuse_existing_schedule(parser,config):
+    q=run(parser,config)
+    assert q.returncode==0,q.stdout+q.stderr
+    assert 'FLAGS 0 0 0 0 0' in q.stdout
+
+@pytest.mark.parametrize('interval',[-1,-100])
+def test_negative_auto_interval_retains_unsigned_modulo_input(parser,interval):
+    q=run(parser,f'gpuCsrLevel auto; gpuCsrHeavyReductionAutoInterval {interval};')
+    assert q.returncode==0,q.stdout+q.stderr
+    assert f'FLAGS 3 1 1 1 2 {interval}' in q.stdout
+
+def test_negative_actual_particle_capacity_remains_error(parser):
+    q=run(parser,'gpuResidentParticleCapacity -1;')
+    assert q.returncode!=0
+
+@pytest.mark.parametrize('rows,expected', [('()', 'ROWS 0'), ('((-2 -3) (0 1))','ROWS 2 -2:-3 0:1'), ('((2 3) (1 -5) (1 7))','ROWS 3 2:3 1:-5 1:7')])
+def test_table_propagates_actual_empty_signed_unsorted_columns(parser,rows,expected):
+    q=subprocess.run([str(parser),f'rows {rows};','table'],capture_output=True,text=True)
+    assert q.returncode==0,q.stdout+q.stderr
+    assert expected in q.stdout
+
+@pytest.mark.parametrize('rows',['((0))','((0 1) (1))'])
+def test_table_missing_required_pair_member_still_errors(parser,rows):
+    q=subprocess.run([str(parser),f'rows {rows};','table'],capture_output=True,text=True)
+    assert q.returncode!=0

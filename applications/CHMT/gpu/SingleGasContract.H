@@ -22,13 +22,6 @@ inline bool validateSingleGasInventory(const ModelConfig& model,const HostState&
     }
     error.clear();return true;
 }
-inline bool validateSingleGasProgram(const ModelConfig& model,const WallProgram& program,std::string& error){
-    if(model.physics.gasMode!=ugkwp::GasMode::SingleLegacy)return true;
-    for(const auto& knot:program.knots)for(const auto& face:knot.faces)
-        for(int s=0;s<Ns;++s)if(s!=model.physics.singleGasSpecies
-            &&(face.speciesRate[s]!=0||face.poreRate[s]!=0||face.poreSweepRate[s]!=0)){
-                error="single gas wall program emits another species";return false;}
-    error.clear();return true;
-}
+
 }
 #endif

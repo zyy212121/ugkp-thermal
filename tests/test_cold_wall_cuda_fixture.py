@@ -9,11 +9,11 @@ import pytest
 ROOT = Path(__file__).resolve().parents[1]
 
 
-@pytest.mark.parametrize("app,bits", [("gasUGKP", 64), ("FSH", 64), ("CHT", 64), ("CHT", 32)])
-def test_corrected_cold_wall_fixture_preserves_other_frozen_oracles(tmp_path, app, bits):
+@pytest.mark.parametrize('app', ['gasUGKP', 'FSH', 'CHT'])
+def test_corrected_cold_wall_fixture_preserves_other_frozen_oracles(tmp_path, app):
     result = subprocess.run(
         [sys.executable, str(ROOT / "tests/fixtures/operator_unification/differential.py"),
-         str(ROOT), str(tmp_path), app, str(bits), "--generate-only"],
+         str(ROOT), str(tmp_path), app, "--generate-only"],
         capture_output=True, text=True, timeout=30,
     )
     assert result.returncode == 0, result.stdout + result.stderr
@@ -41,7 +41,7 @@ def test_corrected_cold_wall_fixture_preserves_other_frozen_oracles(tmp_path, ap
         assert "uniform gas-only analytic exponential" in source
         assert "particle enthalpy + wall heat - gas input conservation" in source
         assert "rejected scalar ring mass unchanged" in source
-        assert ("advanceColdWall1DThermalGroup<true>" in source) == (bits == 32)
+        assert "advanceColdWall1DThermalGroup<true>" not in source
     else:
         assert "coldScalar" not in source
     for placeholder in ["COLD_CALLS", "COLD_TEST", "WALL_TEST", "PRESSURE_TEST", "EXTRA_KERNELS", "STABLE_MODES"]:

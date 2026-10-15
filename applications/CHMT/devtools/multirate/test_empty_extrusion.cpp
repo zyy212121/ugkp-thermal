@@ -110,7 +110,7 @@ void coupledEmptyTrajectory() {
 }
 void restartRepresentation() {
     ModelConfig model;auto& physics=model.physics;physics.enableGas=false;
-    physics.minDt=1e-9;physics.maxDt=1;physics.cfl=.4;physics.modelFingerprint=1;
+    physics.minDt=1e-9;physics.maxDt=1;physics.cfl=.4;
     for(int c=0;c<Nc;++c){auto& t=physics.condensed[c];t.rho=1000;t.cp0=1000;t.conductivity=2;t.Tmin=100;t.Tmax=2000;}
     HostState state;state.solidMesh=emptyMesh();auto& mesh=state.solidMesh;
     mesh.oldPoints=mesh.referencePoints=mesh.points;mesh.oldVolumes=mesh.volumes;

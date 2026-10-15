@@ -1,6 +1,21 @@
 {
   "schema": 1,
   "disk_schema": 7,
+  "disk_schema_role": "Historical schema7 ordinal map; current output layouts are owner-specific.",
+  "current_disk_layouts": {
+    "CHT": {
+      "marker": "UGKP_CHT_PARTICLES_SCHEMA9_FLOAT_COLD_PROFILES_BIN",
+      "field_order": "schema7 ordinals followed by pThermalEnthalpyResidual",
+      "scalar_types": "host.CHT; only the 8/64-node enthalpy profiles are float",
+      "bytes_per_particle": 613
+    },
+    "FSH": {
+      "marker": "UGKP_FSH_PARTICLES_SCHEMA8_FP64_FIELDS_BIN",
+      "field_order": "schema7 ordinals",
+      "scalar_types": "host.FSH; all physical fields are double",
+      "bytes_per_particle": 893
+    }
+  },
   "scope": "Resident particle payload and listed per-step scratch fields; cold-wall failure rollback is not modeled.",
   "fields": [
     {
@@ -362,12 +377,12 @@
       "width": 1,
       "width_symbol": "1",
       "storage": {
-        "FSH": "float",
-        "CHT": "float"
+        "FSH": "double",
+        "CHT": "double"
       },
       "host": {
-        "FSH": "float",
-        "CHT": "float"
+        "FSH": "double",
+        "CHT": "double"
       },
       "schema7": 16
     },
@@ -379,11 +394,11 @@
       "width": 1,
       "width_symbol": "1",
       "storage": {
-        "FSH": "float",
+        "FSH": "double",
         "CHT": "double"
       },
       "host": {
-        "FSH": "float",
+        "FSH": "double",
         "CHT": "double"
       },
       "schema7": 17
@@ -396,12 +411,12 @@
       "width": 1,
       "width_symbol": "1",
       "storage": {
-        "FSH": "float",
-        "CHT": "float"
+        "FSH": "double",
+        "CHT": "double"
       },
       "host": {
-        "FSH": "float",
-        "CHT": "float"
+        "FSH": "double",
+        "CHT": "double"
       },
       "schema7": 18
     },
@@ -413,12 +428,12 @@
       "width": 1,
       "width_symbol": "1",
       "storage": {
-        "FSH": "float",
-        "CHT": "float"
+        "FSH": "double",
+        "CHT": "double"
       },
       "host": {
-        "FSH": "float",
-        "CHT": "float"
+        "FSH": "double",
+        "CHT": "double"
       },
       "schema7": 19
     },
@@ -430,12 +445,12 @@
       "width": 1,
       "width_symbol": "1",
       "storage": {
-        "FSH": "float",
-        "CHT": "float"
+        "FSH": "double",
+        "CHT": "double"
       },
       "host": {
-        "FSH": "float",
-        "CHT": "float"
+        "FSH": "double",
+        "CHT": "double"
       },
       "schema7": 22
     },
@@ -447,11 +462,11 @@
       "width": 1,
       "width_symbol": "1",
       "storage": {
-        "FSH": "float",
+        "FSH": "double",
         "CHT": "double"
       },
       "host": {
-        "FSH": "float",
+        "FSH": "double",
         "CHT": "double"
       },
       "schema7": 23
@@ -464,12 +479,12 @@
       "width": 1,
       "width_symbol": "1",
       "storage": {
-        "FSH": "float",
-        "CHT": "float"
+        "FSH": "double",
+        "CHT": "double"
       },
       "host": {
-        "FSH": "float",
-        "CHT": "float"
+        "FSH": "double",
+        "CHT": "double"
       },
       "schema7": 26
     },
@@ -481,11 +496,11 @@
       "width": 8,
       "width_symbol": "Foam::gpuThermal::coldWallAxialNodeCount",
       "storage": {
-        "FSH": "float",
+        "FSH": "double",
         "CHT": "float"
       },
       "host": {
-        "FSH": "float",
+        "FSH": "double",
         "CHT": "float"
       },
       "schema7": 20
@@ -498,12 +513,12 @@
       "width": 8,
       "width_symbol": "Foam::gpuThermal::coldWallRadialRingCount",
       "storage": {
-        "FSH": "float",
-        "CHT": "float"
+        "FSH": "double",
+        "CHT": "double"
       },
       "host": {
-        "FSH": "float",
-        "CHT": "float"
+        "FSH": "double",
+        "CHT": "double"
       },
       "schema7": 21
     },
@@ -515,11 +530,11 @@
       "width": 64,
       "width_symbol": "Foam::gpuThermal::coldWall2DNodeCount",
       "storage": {
-        "FSH": "float",
+        "FSH": "double",
         "CHT": "float"
       },
       "host": {
-        "FSH": "float",
+        "FSH": "double",
         "CHT": "float"
       },
       "schema7": 24
@@ -532,11 +547,11 @@
       "width": 8,
       "width_symbol": "Foam::gpuThermal::coldWall2DRadialNodeCount",
       "storage": {
-        "FSH": "float",
+        "FSH": "double",
         "CHT": "double"
       },
       "host": {
-        "FSH": "float",
+        "FSH": "double",
         "CHT": "double"
       },
       "schema7": 25

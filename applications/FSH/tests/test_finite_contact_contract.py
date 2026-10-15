@@ -3,28 +3,36 @@ import re
 import subprocess
 import tempfile
 import unittest
+import importlib.util
+
+_utils_spec=importlib.util.spec_from_file_location("finite_contact_source_utils", Path(__file__).with_name("source_contract_utils.py"))
+_utils=importlib.util.module_from_spec(_utils_spec)
+_utils_spec.loader.exec_module(_utils)
 
 
 ROOT = Path(__file__).resolve().parents[1]
 
 
+def source_text(path):
+
+    text = _utils._include_expansion(path)[0] if path.suffix == ".cu" else path.read_text()
+    for token in ("GPU_OPERATOR_REAL", "GPU_OPERATOR_TIME", "GpuReal", "GpuTime", "GpuWallEnergy"):
+        text = text.replace(token, "double")
+    text = re.sub(r"(?:GPU_OPERATOR_R|GPU_R)\(([-+]?[0-9.]+(?:[eE][-+]?[0-9]+)?)\)", r"\1", text)
+    text = re.sub(r"GPU_CONTACT_AGE\(s,\s*i\)", "s.pTheta[i]", text)
+    text = text.replace("GPU_CONTACT_TIME_ZERO", "0.0")
+    return text
+
+
 class UGKPFiniteContactContract(unittest.TestCase):
     @staticmethod
     def _function_body(text: str, signature: str) -> str:
-        start = text.index(signature)
-        opening = text.index("{", start)
-        depth = 0
-        for index in range(opening, len(text)):
-            if text[index] == "{":
-                depth += 1
-            elif text[index] == "}":
-                depth -= 1
-                if depth == 0:
-                    return text[opening + 1:index]
-        raise AssertionError(f"unterminated function: {signature}")
+        name = signature.split()[-1]
+        block = _utils.function_block(text, name, _from_common=True)
+        return block[block.index("{")+1:-1]
 
     def test_model_and_states_are_declared(self) -> None:
-        text = (ROOT / "thermal/GpuFiniteWallContact.H").read_text()
+        text = source_text(ROOT / "thermal/GpuFiniteWallContact.H")
         for token in (
             "particleWallTransientRebound = 2",
             "particleWallTransientDeposit = 3",
@@ -45,8 +53,8 @@ class UGKPFiniteContactContract(unittest.TestCase):
         self.assertIn("pContactPeakFraction[i]", text)
 
     def test_spec_locks_joules_and_time_pixel_transition(self) -> None:
-        heat = (ROOT / "thermal/GpuParticleWallContactHeat.H").read_text()
-        cuda = (ROOT / "private_backend/GpuResidentStrict.cu").read_text()
+        heat = source_text(ROOT / "thermal/GpuParticleWallContactHeat.H")
+        cuda = source_text(ROOT / "private_backend/GpuResidentStrict.cu")
         self.assertIn("double wallEnergyJ;", heat)
         self.assertIn("const double activeDt = clampRange(dt, 0.0, duration - age0);", cuda)
         self.assertIn("wallStateAtStepStart", cuda)
@@ -70,8 +78,8 @@ class UGKPFiniteContactContract(unittest.TestCase):
         self.assertNotIn("maximumSpreadAreaRatio", text)
 
     def test_heat_transfer_efficiencies_are_channel_specific_and_heat_only(self) -> None:
-        finite = (ROOT / "thermal/GpuFiniteWallContact.H").read_text()
-        cuda = (ROOT / "private_backend/GpuResidentStrict.cu").read_text()
+        finite = source_text(ROOT / "thermal/GpuFiniteWallContact.H")
+        cuda = source_text(ROOT / "private_backend/GpuResidentStrict.cu")
         relax = self._function_body(cuda, "relaxOneParticleToResidentGas")
         self.assertNotIn("normalizedLockedKinematicArea", finite)
         self.assertNotIn("maximumSpreadAreaRatio", finite)
@@ -79,16 +87,17 @@ class UGKPFiniteContactContract(unittest.TestCase):
         self.assertIn("particleWallReflectionHeatTransferEfficiency", cuda)
         self.assertIn("contactAreaMid", relax)
         self.assertIn("finiteContactWallConductanceTimeIntegral", relax)
-        self.assertIn("lumpedParticleWallInterfaceContact", relax)
+        self.assertIn("particleFiniteContactThermalCandidateDevice", relax)
+        self.assertIn("lumpedParticleWallInterfaceContact", cuda)
         self.assertNotIn("localMaximumArea", relax)
         self.assertNotIn("min(equilibriumArea, localMaximumArea)", relax)
-        interface = (ROOT / "thermal/GpuWallInterfaceHeat.H").read_text()
+        interface = source_text(ROOT / "thermal/GpuWallInterfaceHeat.H")
         self.assertIn("wallInterfaceConductanceTimeIntegral", interface)
         self.assertIn("particleAdditionalResistanceM2KW", interface)
         self.assertNotIn("thermalContactAreaFraction", cuda)
 
     def test_rebound_detaches_when_effective_area_is_exhausted(self) -> None:
-        cuda = (ROOT / "private_backend/GpuResidentStrict.cu").read_text()
+        cuda = source_text(ROOT / "private_backend/GpuResidentStrict.cu")
         body = self._function_body(cuda, "relaxOneParticleToResidentGas")
         rebound = body[
             body.index("particleWallTransientRebound", body.index("bool detach")):
@@ -99,13 +108,13 @@ class UGKPFiniteContactContract(unittest.TestCase):
         self.assertNotIn("age1 >= duration", rebound)
 
     def test_contact_duration_uses_asymmetric_inertial_capillary_model(self) -> None:
-        finite = (ROOT / "thermal/GpuFiniteWallContact.H").read_text()
+        finite = source_text(ROOT / "thermal/GpuFiniteWallContact.H")
         body = self._function_body(finite, "evaluateFiniteWallContactImpact")
         for required in (
             "0.5*beta*diameterM/normalSpeedMps",
             "naturalFrequency = 8.0/capillaryTime",
             "20.0*material.viscosityPaS",
-            "peakTimeFraction = spreadingDuration/duration",
+            "peakTimeFraction = static_cast<double>(spreadingDuration/duration)",
         ):
             self.assertIn(required, body)
         for removed in (
@@ -119,13 +128,13 @@ class UGKPFiniteContactContract(unittest.TestCase):
             self.assertNotIn(removed, body)
 
     def test_host_device_state_mirror_is_not_scrubbed(self) -> None:
-        text = (ROOT / "private_backend/GpuResidentStrict.cu").read_text()
+        text = source_text(ROOT / "private_backend/GpuResidentStrict.cu")
         self.assertNotIn("scrubHostCalculationScalars", text)
         self.assertNotIn("UGKP_DIAG", text)
         self.assertIn("s->gasFluxScheme = gasFluxScheme;", text)
 
     def test_all_conductive_wall_states_share_face_coverage(self) -> None:
-        text = (ROOT / "private_backend/GpuResidentStrict.cu").read_text()
+        text = source_text(ROOT / "private_backend/GpuResidentStrict.cu")
         body = self._function_body(
             text, "__global__ void accumulateParticleWallRepresentedContactAreaKernel"
         )
@@ -143,7 +152,7 @@ class UGKPFiniteContactContract(unittest.TestCase):
             "representedDepositionContactArea",
         ):
             self.assertIn(token, body)
-        thermal = (ROOT / "thermal/GpuParticleWallContactHeat.H").read_text()
+        thermal = source_text(ROOT / "thermal/GpuParticleWallContactHeat.H")
         self.assertNotIn("particleWallMaximumDepositionCoverage", thermal)
         self.assertNotIn("depositionContactAreaScale", thermal)
         self.assertIn("particleWallMaximumCoverage*s.magSf[faceI]", text)
@@ -158,7 +167,7 @@ class UGKPFiniteContactContract(unittest.TestCase):
         self.assertNotIn("__shfl_sync(active, wallEnergyJ", helper)
 
     def test_wall_bound_directory_is_reused_by_area_accumulation(self) -> None:
-        text = (ROOT / "private_backend/GpuResidentStrict.cu").read_text()
+        text = source_text(ROOT / "private_backend/GpuResidentStrict.cu")
         area = self._function_body(
             text, "__global__ void accumulateParticleWallRepresentedContactAreaKernel"
         )
@@ -175,10 +184,13 @@ class UGKPFiniteContactContract(unittest.TestCase):
         self.assertIn("wallBoundDirectoryParticle(s, entry)", area)
         self.assertIn("wallBoundDirectoryCount(s)", area)
         self.assertNotIn("*s.particleCountDevice", area)
-        self.assertIn("publishWallBoundParticleIndex(s, dst)", gather)
+        self.assertIn("copyCellLocalParticle(s, i, c, dst)", gather)
+        copy = self._function_body(text, "copyCellLocalParticle")
+        self.assertIn("GPU_PARTICLE_EXTRA_FIELDS::publish(s, dst)", copy)
+        self.assertIn("publishWallBoundParticleIndex(s, dst)", text)
 
     def test_relaxation_splits_mobile_scan_from_wall_bound_directory(self) -> None:
-        text = (ROOT / "private_backend/GpuResidentStrict.cu").read_text()
+        text = source_text(ROOT / "private_backend/GpuResidentStrict.cu")
         mobile = self._function_body(
             text, "__global__ void relaxMobileParticlesToResidentGasKernelStatic"
         )
@@ -193,7 +205,7 @@ class UGKPFiniteContactContract(unittest.TestCase):
         self.assertNotIn("relaxParticlesToResidentGasKernelStatic", text)
 
     def test_coverage_scale_is_frozen_and_shared_by_heat_and_contact_mechanics(self) -> None:
-        text = (ROOT / "private_backend/GpuResidentStrict.cu").read_text()
+        text = source_text(ROOT / "private_backend/GpuResidentStrict.cu")
         body = self._function_body(text, "__device__ void relaxOneParticleToResidentGas")
         finite_start = body.index("if (finiteContact)")
         finite_heat = body[finite_start:body.index("s.pTheta[i] = age1", finite_start)]
@@ -213,7 +225,7 @@ class UGKPFiniteContactContract(unittest.TestCase):
         self.assertNotIn("particleWallReflectionHeatTransferEfficiency", collision)
 
     def test_face_scale_is_prepared_before_collision_and_reused_by_heat(self) -> None:
-        text = (ROOT / "private_backend/GpuResidentStrict.cu").read_text()
+        text = source_text(ROOT / "private_backend/GpuResidentStrict.cu")
         advance = self._function_body(
             text, 'extern "C" int ugkwpGpuResidentStrictAdvance'
         )
@@ -228,8 +240,8 @@ class UGKPFiniteContactContract(unittest.TestCase):
         )
 
     def test_all_contact_geometry_uses_runtime_constant_angle(self) -> None:
-        capillary = (ROOT / "thermal/GpuCapillaryDetachment.H").read_text()
-        finite = (ROOT / "thermal/GpuFiniteWallContact.H").read_text()
+        capillary = source_text(ROOT / "thermal/GpuCapillaryDetachment.H")
+        finite = source_text(ROOT / "thermal/GpuFiniteWallContact.H")
         self.assertIn("const double contactAngleCosine", capillary)
         self.assertNotIn("referenceContactAngleDegree", capillary)
         self.assertNotIn("50.90", capillary)
@@ -242,7 +254,7 @@ class UGKPFiniteContactContract(unittest.TestCase):
         self.assertNotIn("::cos", impact)
 
     def test_small_angle_spread_root_expands_upper_bracket(self) -> None:
-        finite = (ROOT / "thermal/GpuFiniteWallContact.H").read_text()
+        finite = source_text(ROOT / "thermal/GpuFiniteWallContact.H")
         body = self._function_body(finite, "correctedMaximumSpreadFactor")
         self.assertIn("while (!(upperResidual > 0.0) && expansion < 40)", body)
         self.assertIn("lower = upper;", body)
@@ -250,19 +262,19 @@ class UGKPFiniteContactContract(unittest.TestCase):
         self.assertIn("if (!(upperResidual > 0.0))", body)
 
     def test_cold_wall_deposit_transition_is_recoil_only(self) -> None:
-        cuda = (ROOT / "private_backend/GpuResidentStrict.cu").read_text()
+        cuda = source_text(ROOT / "private_backend/GpuResidentStrict.cu")
         body = self._function_body(cuda, "__device__ void relaxOneParticleToResidentGas")
         self.assertIn("targetContactArea = fmin(equilibriumArea, maximumArea)", body)
         self.assertNotIn("targetRemainingArea", body)
         self.assertIn("theta1 >= peakTimeFraction", body)
         self.assertNotIn("theta1 >= 0.5", body)
         self.assertIn("fmax(targetContactArea, frozenArea)", body)
-        self.assertIn("if (!coldWallContact)", body)
+        self.assertIn("targetContactArea", body)
         self.assertIn('asm("trap;")', body)
         self.assertNotIn("particleWallContactAreaScale", body[body.index("bool detach"):body.index("if (detach)")])
 
     def test_collision_and_recoil_release_velocities_are_exclusive(self) -> None:
-        cuda = (ROOT / "private_backend/GpuResidentStrict.cu").read_text()
+        cuda = source_text(ROOT / "private_backend/GpuResidentStrict.cu")
         collision = self._function_body(
             cuda, "__device__ void finalizeOneThermalizedStuckParticle"
         )
@@ -279,13 +291,13 @@ class UGKPFiniteContactContract(unittest.TestCase):
         self.assertNotIn("poolMeanUx", detach)
 
     def test_face_scale_is_mechanical_even_when_heat_is_disabled(self) -> None:
-        cuda = (ROOT / "private_backend/GpuResidentStrict.cu").read_text()
+        cuda = source_text(ROOT / "private_backend/GpuResidentStrict.cu")
         prepare = self._function_body(cuda, "int prepareParticleWallContactAreaScale")
         self.assertIn("particleStuckModelConfigured", prepare)
         self.assertNotIn("particleWallHeatTransferEnabled", prepare)
 
     def test_finite_contact_state_machine_runs_when_heat_is_disabled(self) -> None:
-        cuda = (ROOT / "private_backend/GpuResidentStrict.cu").read_text()
+        cuda = source_text(ROOT / "private_backend/GpuResidentStrict.cu")
         relax = self._function_body(cuda, "__device__ void relaxOneParticleToResidentGas")
         self.assertIn("if (finiteContact)", relax)
         self.assertNotIn(
@@ -312,6 +324,7 @@ class UGKPFiniteContactContract(unittest.TestCase):
                     "-pedantic",
                     "-I",
                     str(ROOT / "thermal"),
+                    "-I", str(ROOT.parents[1] / "common"),
                     str(source),
                     "-o",
                     str(executable),

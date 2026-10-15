@@ -95,14 +95,25 @@ LifecycleStep advanceLifecycle(const HostState& h,const PhysicsConfig& p,const s
     }
     MaterialTransportResult transport;require(evaluateMaterialTransport(h.solidMesh,h.solid,p,ss,dt,.4,transport,error),"lifecycle material ALE: "+error);
     for(int c=0;c<2;++c)next.solid[c]=addSolid(h.solid[c],transport.rates[c],dt);
-    Real numerical=0;std::vector<SolidQ> applied;require(applyMaterialPacketBatch(next.solid,packets,applied,numerical,error),"actual material packet batch: "+error);next.solid=applied;
+    std::vector<SolidQ> applied;require(applyMaterialPacketBatch(next.solid,packets,applied,error),"actual material packet batch: "+error);next.solid=applied;
     HostState filmState=h;filmState.surface=next.surface;CpuFilmCandidate film;
     Real admitted=0;
     require(estimateCpuFilmStep(filmState,p,force,drive,dt,dt,admitted,error),"production lifecycle film step bound: "+error);
     require(admitted>=dt*(1-32*std::numeric_limits<Real>::epsilon()),"lifecycle interval admitted by production film controller");
     const bool filmOk=advanceCpuFilmCandidate(filmState,p,dt,force,drive,film,error);
     require(filmOk,"CPU lifecycle film: "+error);
-    out.phaseEvent=film.report.phaseEvent;out.filmResidual=film.report.reducedEnergyResidual;out.storage=film.report.budgetDelta.filmPressureVolume;
+
+    std::vector<FilmQ> filmRates;
+    require(evaluateCpuFilmTransport(filmState,p,dt,drive,filmRates,error),"lifecycle actual film RHS: "+error);
+    for(std::size_t f=0;f<film.film.size();++f){
+        out.phaseEvent=out.phaseEvent||((filmState.film[f].mass==0)!=(film.film[f].mass==0));
+        const Real oldPV=filmState.filmAux[f].pressure*filmState.film[f].mass/p.liquid.rho;
+        const Real newPV=film.filmAux[f].pressure*film.film[f].mass/p.liquid.rho;
+        out.storage+=newPV-oldPV;
+        out.filmResidual+=(film.film[f].enthalpy-newPV)-(filmState.film[f].enthalpy-oldPV)
+            -dt*filmRates[f].enthalpy-force[f].energy-force[f].phaseEnergy-force[f].radiationEnergy
+            -force[f].interfaceKineticOutflow-force[f].phaseKineticOutflow;
+    }
     next.film=film.film;next.filmAux=film.filmAux;next.time=h.time+dt;
     for(int f=0;f<2;++f){next.filmAux[f].solidFront=aux[f].solidFront;next.filmAux[f].gasFront=aux[f].gasFront;MaterialPrimitive m;
         require(recoverMaterial(next.solid[f],next.solidMesh.volumes[f],p,m),"lifecycle endpoint material");next.solid[f].porosity=m.porosity;}
@@ -167,8 +178,11 @@ void nonlinearFilmCaloricAndPressure() {
     CpuFilmCandidate c;std::string error;
     require(advanceCpuFilmCandidate(h,p,1,force,drive,c,error),"nonlinear caloric film candidate: "+error);
     for(const auto& a:c.filmAux)require(absValue(a.temperature-expectedT)<1e-9,"quadratic caloric heating plus independent pressure storage");
-    require(absValue(c.report.budgetDelta.filmPressureVolume-20000)<1e-8,"variable pressure pV storage exactly once");
-    require(absValue(c.report.reducedEnergyResidual)<1e-7,"nonlinear film physical energy residual");
+    Real storage=0,residual=0;
+    for(std::size_t f=0;f<c.film.size();++f){const Real pv0=h.filmAux[f].pressure*h.film[f].mass/p.liquid.rho,pv1=c.filmAux[f].pressure*c.film[f].mass/p.liquid.rho;
+        storage+=pv1-pv0;residual+=(c.film[f].enthalpy-pv1)-(h.film[f].enthalpy-pv0)-force[f].energy;}
+    require(absValue(storage-20000)<1e-8,"actual variable pressure pV storage exactly once");
+    require(absValue(residual)<1e-7,"independent nonlinear film physical energy residual");
 }
 void dryBirthFromGasPackets() {
     auto p=lifecyclePhysics();p.material.enableMelting=true;const auto h=lifecycleState(p,0);

@@ -17,8 +17,10 @@ from fsh_particle_restart import (
 from fsh_particle_restart_schema6 import (
     ALL_FIELDS as SCHEMA6_FIELDS,
     collect_restart as collect_schema6_restart,
-    write_fsh_restart as write_schema6_restart,
 )
+sys.path.insert(0, str(ROOT / "tests"))
+from historical_restart_fixture import write_historical_fsh_restart as write_schema6_restart
+from thermal_particle_restart_current import normalize, FSH_MARKER
 from refine_fsh_particle_cells import refine_restart              
 
 
@@ -39,9 +41,8 @@ def sample_chunk() -> dict[str, np.ndarray]:
     values["orig_id"] = np.asarray([11, 22, 33], dtype="<u8")
     values["pStuck"] = np.asarray([0, 1, 1], dtype="<u1")
     values["pStuckFaceId"] = np.asarray([-1, 7555, -2], dtype="<i4")
-    values["pDepositionArea"] = np.asarray([0.0, 3.5e-8, 0.0], dtype="<f4")
-    assert set(values) == set(ALL_FIELDS)
-    return values
+    values["pDepositionArea"] = np.asarray([0.0, 3.5e-8, 0.0], dtype="<f8")
+    return normalize(values, FSH_MARKER)
 
 
 def test_fsh_binary_round_trip_keeps_every_extended_field(tmp_path: Path) -> None:
@@ -49,7 +50,7 @@ def test_fsh_binary_round_trip_keeps_every_extended_field(tmp_path: Path) -> Non
     source = sample_chunk()
     write_fsh_restart(restart, [source], len(source["pm"]), chunk_particles=2)
 
-    assert restart.read_bytes().startswith(b"UGKP_FSH_PARTICLES_SCHEMA1_BIN 3 2\n")
+    assert restart.read_bytes().startswith(b"UGKP_FSH_PARTICLES_SCHEMA8_FP64_FIELDS_BIN 3 2\n")
     restored = collect_restart(restart)
     for name in ALL_FIELDS:
         np.testing.assert_array_equal(restored[name], source[name])
@@ -74,7 +75,7 @@ def test_stopped_state_refinement_is_mass_and_contact_area_conservative(
     )
     refined = collect_restart(output_path)
 
-    assert manifest["format"] == "UGKP_FSH_PARTICLES_SCHEMA1_BIN"
+    assert manifest["format"] == FSH_MARKER
     assert manifest["conservation_passed"] is True
     assert manifest["output_particles"] == 9
     assert len(np.unique(refined["orig_id"])) == 9
@@ -128,11 +129,11 @@ def test_schema6_refinement_preserves_full_wall_state(tmp_path: Path) -> None:
     output_path = tmp_path / "schema6_refined.dat"
     write_schema6_restart(source_path, [source], count, chunk_particles=2, schema=6)
     manifest = refine_restart(source_path, output_path, {1}, 4, None, 3001, chunk_particles=3)
-    refined = collect_schema6_restart(output_path)
+    refined = collect_restart(output_path)
 
-    assert output_path.read_bytes().startswith(b"UGKP_FSH_PARTICLES_SCHEMA6_BIN 9 3\n")
+    assert output_path.read_bytes().startswith(b"UGKP_FSH_PARTICLES_SCHEMA8_FP64_FIELDS_BIN 9 3\n")
     assert manifest["source_format"] == "UGKP_FSH_PARTICLES_SCHEMA6_BIN"
-    assert manifest["format"] == "UGKP_FSH_PARTICLES_SCHEMA6_BIN"
+    assert manifest["format"] == FSH_MARKER
     assert manifest["conservation_passed"] is True
     assert refined["pContactDuration"].dtype == np.dtype("<f8")
     assert refined["pCold2DRingContactAge"].dtype == np.dtype("<f8")

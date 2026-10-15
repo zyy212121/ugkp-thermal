@@ -21,7 +21,8 @@ __device__ void correctOnePoissonThermalizedParticle
     {
         if (s.pStuck[i] == 0)
         {
-            asm("trap;");
+            correctOnePoissonThermalizedParticlePath<false>(s, i, applyThetaDrag);
+            return;
         }
     }
     else if (s.pStuck[i] != 0)
@@ -151,14 +152,7 @@ __device__ void correctOnePoissonThermalizedParticle
         ((s.puy[i] - targetUy) - sampleMeanDeltaY);
     const GPU_OPERATOR_REAL correctedUz = targetUz + scale*
         ((s.puz[i] - targetUz) - sampleMeanDeltaZ);
-    if
-    (
-        nonFiniteDevice(correctedUx) || nonFiniteDevice(correctedUy)
-     || nonFiniteDevice(correctedUz)
-    )
-    {
-        asm("trap;");
-    }
+
 #if GPU_OPERATOR_THERMAL
     finalizeOneThermalizedParticlePath<StuckPath>
     (

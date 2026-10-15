@@ -44,13 +44,7 @@ uniformDimensionedVectorField g
     dimensionedVector("g", dimAcceleration, vector::zero)
 );
 
-if (g.dimensions() != dimAcceleration)
-{
-    FatalErrorInFunction
-        << "constant/g must have acceleration dimensions "
-        << dimAcceleration << "; current dimensions are "
-        << g.dimensions() << exit(FatalError);
-}
+
 
 if
 (
@@ -187,51 +181,6 @@ dimensionedScalar legacyRestartParcelMass
     )
 );
 
-if (!finiteScalar(rhoS.value()) || rhoS.value() <= SMALL)
-{
-    FatalErrorInFunction
-        << "ugkwpProperties: rhoS must be positive. Current rhoS = "
-        << rhoS.value() << exit(FatalError);
-}
-
-if (!finiteScalar(dS.value()) || dS.value() <= SMALL)
-{
-    FatalErrorInFunction
-        << "ugkwpProperties: dS must be positive. Current dS = "
-        << dS.value() << exit(FatalError);
-}
-
-if (!finiteScalar(parcelMass.value()) || parcelMass.value() <= SMALL)
-{
-    FatalErrorInFunction
-        << "ugkwpProperties: parcelMass must be positive. Current parcelMass = "
-        << parcelMass.value() << exit(FatalError);
-}
-
-if
-(
-    !finiteScalar(injectionParcelMass.value())
- || injectionParcelMass.value() <= SMALL
-)
-{
-    FatalErrorInFunction
-        << "ugkwpProperties: injectionParcelMass must be positive. Current "
-        << "injectionParcelMass = " << injectionParcelMass.value()
-        << exit(FatalError);
-}
-
-if
-(
-    !finiteScalar(legacyRestartParcelMass.value())
- || legacyRestartParcelMass.value() <= SMALL
-)
-{
-    FatalErrorInFunction
-        << "ugkwpProperties: legacyRestartParcelMass must be positive. "
-        << "Current legacyRestartParcelMass = "
-        << legacyRestartParcelMass.value() << exit(FatalError);
-}
-
 volVectorField U
 (
     IOobject("U", runTime.timeName(), mesh, IOobject::MUST_READ, IOobject::AUTO_WRITE),
@@ -307,35 +256,6 @@ volScalarField nut
     ),
     zeroGradientFvPatchScalarField::typeName
 );
-
-IOobject kFieldHeader
-(
-    "k",
-    runTime.timeName(),
-    mesh,
-    IOobject::READ_IF_PRESENT,
-    IOobject::NO_WRITE,
-    false
-);
-IOobject omegaFieldHeader
-(
-    "omega",
-    runTime.timeName(),
-    mesh,
-    IOobject::READ_IF_PRESENT,
-    IOobject::NO_WRITE,
-    false
-);
-if
-(
-    gasTurbulenceModel == 3
- && (!kFieldHeader.headerOk() || !omegaFieldHeader.headerOk())
-)
-{
-    FatalErrorInFunction
-        << "kOmegaSST requires readable volScalarField files k and omega "
-        << "at time " << runTime.timeName() << exit(FatalError);
-}
 
 volScalarField k
 (

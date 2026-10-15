@@ -1,4 +1,6 @@
 from __future__ import annotations
+from source_contract_utils import read_source, function_block, braced_block
+
 
 import re
 import unittest
@@ -17,35 +19,23 @@ BRANCHES = {"gasUGKP": (UNIFIED_ROOT / 'applications/gasUGKP/gpu/GpuResidentStri
 class SegmentedTaskQueueFamilyContract(unittest.TestCase):
     @staticmethod
     def _braced_block(text: str, anchor: str) -> str:
-        start = text.index(anchor)
-        opening = text.index("{", start)
-        depth = 0
-        for index in range(opening, len(text)):
-            if text[index] == "{":
-                depth += 1
-            elif text[index] == "}":
-                depth -= 1
-                if depth == 0:
-                    return text[opening + 1 : index]
-        raise AssertionError(f"unterminated block after {anchor}")
+        return braced_block(text,anchor)
 
     @staticmethod
     def _implementation_text(cuda_path: Path) -> str:
         return "\n".join(
-            [cuda_path.read_text(encoding="utf-8")]
-            + [path.read_text(encoding="utf-8") for path in SHARED_WORKERS]
+            [read_source(cuda_path)]
+            + [read_source(path) for path in SHARED_WORKERS]
         )
 
     def test_l2_requires_the_cell_local_cpcst_path(self) -> None:
-        shared = (
-            UNIFIED_ROOT / "common/GpuSchedulingConfiguration.H"
-        ).read_text(encoding="utf-8")
+        shared = read_source(UNIFIED_ROOT / "common/GpuSchedulingConfiguration.H")
         self.assertIn("value.csrCellLocalPath = value.csrLevel != GpuCsrLevel::L0", shared)
         self.assertIn("value.warpAggregatedBinning = value.csrLevel != GpuCsrLevel::L0", shared)
         self.assertIn("value.splitPreDirectory = value.csrLevel != GpuCsrLevel::L0", shared)
         self.assertIn("value.csrLevel == GpuCsrLevel::L2", shared)
         for name, (header_path, _) in BRANCHES.items():
-            header = header_path.read_text(encoding="utf-8")
+            header = read_source(header_path)
             self.assertIn("GpuSchedulingConfiguration", header, name)
 
     def test_l2_materializes_only_nonempty_tasks_and_fuses_publication(self) -> None:
@@ -101,39 +91,35 @@ class SegmentedTaskQueueFamilyContract(unittest.TestCase):
 
     def test_l2_advance_does_not_launch_dead_light_reductions(self) -> None:
         for name, (_, cuda_path) in BRANCHES.items():
-            cuda = cuda_path.read_text(encoding="utf-8")
-            advance = re.search(
-                r"int\s+ugkwpGpuResidentStrictAdvance\s*\([\s\S]*?\n\}",
-                cuda,
-            )
+            cuda = read_source(cuda_path)
+            advance = function_block(cuda,"ugkwpGpuResidentStrictAdvance")
             self.assertIsNotNone(advance, name)
-            collision = advance.group(0).split(
-                "UGKP_DEV_PROBE_ENTER(ProbeCollisionPool);", 1
-            )[1].split("UGKP_DEV_PROBE_LEAVE(ProbeCollisionPool);", 1)[0]
-            moments = advance.group(0).split(
-                "UGKP_DEV_PROBE_ENTER(ProbeMoments);", 1
-            )[1].split("UGKP_DEV_PROBE_LEAVE(ProbeMoments);", 1)[0]
+            collision = advance.split("UGKP_DEV_PROBE_ENTER(ProbeCollisionPool);",1)[1].split("UGKP_DEV_PROBE_LEAVE(ProbeCollisionPool);",1)[0]
+            stage = advance.split("UGKP_DEV_PROBE_ENTER(ProbeMoments);",1)[1].split("UGKP_DEV_PROBE_LEAVE(ProbeMoments);",1)[0]
+            self.assertIn("launchPostTransportMomentPipeline",stage,name)
+            moments = function_block(cuda,"launchPostTransportMomentPipeline")
             heavy_anchor = "if (s->csrHeavyReductionEnabled != 0)"
             collision_heavy = self._braced_block(collision, heavy_anchor)
             moments_heavy = self._braced_block(moments, heavy_anchor)
             self.assertIn("launchCsrHeavyPoolReduction", collision_heavy, name)
             self.assertNotIn("accumulatePoissonPool", collision_heavy, name)
-            self.assertIn("launchCsrHeavyMomentReduction", moments_heavy, name)
+            self.assertIn("launchCommonSegmentedMomentReduction", moments_heavy, name)
             self.assertNotIn("accumulateParticleMoments", moments_heavy, name)
 
     def test_zero_collision_probability_skips_eight_component_reduction(self) -> None:
-        pool = BRANCHES["gasUGKP"][1].read_text(encoding="utf-8")
+        pool = read_source(BRANCHES["gasUGKP"][1])
         body = self._braced_block(
             pool, "if (PoissonMode && collisionProbability <= 0.0)"
         )
         self.assertNotIn("blockReduceComponentSums", body)
-        self.assertIn("csrHeavyPartials", body)
+        self.assertIn("zeroPoolPartial(s, task)", body)
+        zero = function_block(pool, "zeroPoolPartial")
+        self.assertIn("publishPoolPartial(s, task, zero)", zero)
+        self.assertIn("csrHeavyPartials", function_block(pool, "publishPoolPartial"))
         self.assertIn("return", body)
 
     def test_pool_worker_selects_logical_or_single_source_once_per_task(self) -> None:
-        pool = BRANCHES["gasUGKP"][1].read_text(
-            encoding="utf-8"
-        )
+        pool = read_source(BRANCHES["gasUGKP"][1])
         worker = self._braced_block(
             pool, "struct CsrPoolOperation"
         )
@@ -143,23 +129,27 @@ class SegmentedTaskQueueFamilyContract(unittest.TestCase):
         )
         self.assertIn("const bool directParticleIndex", worker)
         self.assertNotIn("descriptor.source", worker)
-        self.assertIn("DirectoryKind == HeavyDirectoryKind::splitBaseAndInjection", worker)
+        self.assertIn("GPU_POOL_SPLIT_DIRECTORY", worker)
+        self.assertIn("#define GPU_POOL_SPLIT_DIRECTORY (DirectoryKind == HeavyDirectoryKind::splitBaseAndInjection)", pool)
 
     def test_workers_route_through_the_shared_persistent_protocol(self) -> None:
-        cuda = BRANCHES["gasUGKP"][1].read_text()
-        shared = (UNIFIED_ROOT / "common/CsrPersistentQueue.cuh").read_text()
+        cuda = read_source(BRANCHES["gasUGKP"][1])
+        shared = read_source(UNIFIED_ROOT / "common/CsrPersistentQueue.cuh")
         self.assertIn("atomicAdd(s.csrHeavyTaskCursor, 1)", shared)
         for stage in ("Pool", "Moment"):
             worker = self._braced_block(cuda, "__global__ void accumulateCsrSegmented" + stage + "TasksPersistentKernel")
             self.assertIn("runCsrPersistentQueue", worker)
             self.assertNotIn("atomicAdd", worker)
             launch = self._braced_block(cuda, "int launchCsrSegmented" + stage + "Reduction")
+            if stage == "Moment":
+                self.assertIn("launchCommonSegmentedMomentReduction", launch)
+                launch = function_block(cuda, "launchCommonSegmentedMomentReduction")
             self.assertIn("resetCsrPersistentQueue(s)", launch)
 
 
     def test_l2_occupancy_queries_the_executed_segmented_workers(self) -> None:
         for name, (_, cuda_path) in BRANCHES.items():
-            cuda = cuda_path.read_text(encoding="utf-8")
+            cuda = read_source(cuda_path)
             occupancy_name = (
                 "configureParticleLaunchGeometry"
                 if name == "gasUGKP"

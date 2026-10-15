@@ -11,10 +11,9 @@ def test_global_dependencies_cover_boundary_layer_host_namespace(tmp_path):
 #include "GpuGasOperatorDependencies.cuh"
 namespace application_precision_wrapper {
 #include "gasTransport/GasBoundaryLayerHost.H"
-#include "gasTransport/GasBudgetAudit.H"
 static_assert(ugkwp::GasStateTraits<int>::speciesCount==0,"nested namespace masks global gas traits");
-static_assert(std::is_same<ugkwp::GasBudgetAuditState,::ugkwp::GasBudgetAuditState>::value,
-              "budget namespace owner must be global");
+static_assert(std::is_same<ugkwp::GasStateTraits<int>,::ugkwp::GasStateTraits<int>>::value,
+              "state traits namespace owner must be global");
 }
 int main(){}
 ''')

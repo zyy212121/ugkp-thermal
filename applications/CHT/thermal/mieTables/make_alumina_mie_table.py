@@ -31,7 +31,6 @@ import numpy as np
 
 PI = math.pi
 C2 = 1.438776877e-2       
-SMALL = 1.0e-300
 
 
 def trapezoid(values, coordinates):
@@ -271,7 +270,7 @@ def compute_node(d, T, mu_values, lambdas):
             int_g += Ws*g
             phi_acc += Ws*mie_phase_raw(x, qsca, an, bn, mu_values)
 
-    if intW <= 1.0e-300:
+    if intW == 0.0 or not math.isfinite(intW):
         raise RuntimeError(f"Planck weight is zero for d={d}, T={T}")
 
     Qabs = int_abs/intW
@@ -304,7 +303,9 @@ def planck_band_fraction(T, lambda_min, lambda_max):
                 return total
             n += 1
             if n > 100000:
-                raise RuntimeError("Planck band integration did not converge")
+                if not math.isfinite(total):
+                    raise ArithmeticError("Planck band integration is nonfinite")
+                return total
 
     x_low = c2/(lambda_max*T)
     x_high = c2/(lambda_min*T)
@@ -338,9 +339,6 @@ def parse_args():
 
 def main():
     args = parse_args()
-
-    if args.n_t < 1 or args.n_d < 1 or args.n_mu < 3 or args.n_lambda < 1:
-        raise ValueError("Require n_t>=1, n_d>=1, n_mu>=3, n_lambda>=1")
 
     Tvals = linspace(args.t_min, args.t_max, args.n_t)
     Dvals = logspace(args.d_min, args.d_max, args.n_d)

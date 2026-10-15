@@ -1,33 +1,58 @@
 #pragma once
 // Application-owned allocation only. All physical evaluations remain common.
 // Include after the resident allocation/copy/error helpers.
-template<class T>
-void releaseSharedGasPointer(const T*& pointer)
+#include <limits>
+#include <type_traits>
+#include <utility>
+template<class State,class=void>struct SharedGasGraphStorage:std::false_type{};
+template<class State>struct SharedGasGraphStorage<State,std::void_t<decltype(std::declval<State>().gasGraphDt)>>:std::true_type{};
+template<class State,class=void>struct SharedGasSnapshotStorage:std::false_type{};
+template<class State>struct SharedGasSnapshotStorage<State,std::void_t<decltype(std::declval<State>().gasTrial.trial.valid),decltype(std::declval<State>().gasTrial.interval.valid)>>:std::true_type{};
+template<class State>void invalidateSharedGasConfiguration(State* state,bool recapture=true)
 {
-    if(pointer) { cudaFree(const_cast<T*>(pointer)); pointer=nullptr; }
+
+
+
+    if constexpr(SharedGasGraphStorage<State>::value)
+        if(recapture)state->gasGraphDt=std::numeric_limits<double>::quiet_NaN();
+    if constexpr(SharedGasSnapshotStorage<State>::value)
+        state->gasTrial.trial.valid=state->gasTrial.interval.valid=false;
+    if constexpr(ugkwp::GasBoundaryLayerCapability<State>::value)
+        state->gasBoundaryLayer.preparedFirstStage=false;
 }
 template<class T>
-void releaseSharedGasPointer(T*& pointer)
+int releaseSharedGasPointer(const T*& pointer)
 {
-    if(pointer) { cudaFree(pointer); pointer=nullptr; }
+    if(pointer){const auto error=cudaFree(const_cast<T*>(pointer));
+        if(error!=cudaSuccess){setLastError("free shared gas storage",error);return 1;}pointer=nullptr;}
+    return 0;
+}
+template<class T>
+int releaseSharedGasPointer(T*& pointer)
+{
+    if(pointer){const auto error=cudaFree(pointer);
+        if(error!=cudaSuccess){setLastError("free shared gas storage",error);return 1;}pointer=nullptr;}
+    return 0;
 }
 template<class Real,int Ns>
-void releaseSharedGasSpecies(ugkwp::GasSpeciesState<Real,Ns>& state)
+int releaseSharedGasSpecies(ugkwp::GasSpeciesState<Real,Ns>& state)
 {
-#define RELEASE_SHARED(Name) releaseSharedGasPointer(state.Name)
+    int result=0;
+#define RELEASE_SHARED(Name) result|=releaseSharedGasPointer(state.Name)
     RELEASE_SHARED(rho); RELEASE_SHARED(initial); RELEASE_SHARED(flux);
     RELEASE_SHARED(gradX); RELEASE_SHARED(gradY); RELEASE_SHARED(gradZ);
     RELEASE_SHARED(limiter); RELEASE_SHARED(boundaryMassFraction);
     RELEASE_SHARED(compositionBoundaryFixed); RELEASE_SHARED(positivityScale);
     RELEASE_SHARED(diffusivity); RELEASE_SHARED(soundSpeed); RELEASE_SHARED(heatCapacity);
     RELEASE_SHARED(gasConstant); RELEASE_SHARED(cellStatus); RELEASE_SHARED(faceStatus);
-    RELEASE_SHARED(chemistryAudit); RELEASE_SHARED(chemistryStatus);
+    RELEASE_SHARED(chemistryStatus);
     RELEASE_SHARED(thermo.species); RELEASE_SHARED(thermo.coefficients);
     RELEASE_SHARED(thermo.elementComposition); RELEASE_SHARED(mechanism.reactions);
     RELEASE_SHARED(mechanism.reactants); RELEASE_SHARED(mechanism.products);
     RELEASE_SHARED(mechanism.efficiencies); RELEASE_SHARED(mechanism.stoichiometricBasis);
 #undef RELEASE_SHARED
-    state=ugkwp::GasSpeciesState<Real,Ns>{};
+    if(!result)state=ugkwp::GasSpeciesState<Real,Ns>{};
+    return result;
 }
 template<class T>
 int allocateSharedGasZero(T*& pointer,std::size_t count)
