@@ -12,12 +12,15 @@ import sys
 def validate_run_output(output):
     paths=('full','mass-exchange','mass-supplied-null','mass-supplied-unready')
     failures=re.findall(r'^PASS wall-slot path=(\S+) native=(\d+) count=(-?\d+) slot=(-?\d+) invalidStorage=1 unchangedPhysical=1$',output,re.M)
-    expected=[(path,str(native),str(count),str(slot)) for path in paths for native in (0,1) for count,slot in ((2,2),(2,9),(0,0))]
+    expected=[(path,str(native),str(count),str(slot)) for path in paths for native in (0,1) for count,slot in ((2,2),(2,3),(2,9),(0,0))]
     if sorted(failures)!=sorted(expected):raise ValueError('incomplete invalid-slot matrix')
     positive=re.findall(r'^PASS wall-last path=(\S+) native=(\d+) unusedOptional=1 mass=\S+ energy=\S+$',output,re.M)
     if sorted(positive)!=sorted((path,str(native)) for path in paths for native in (0,1)):raise ValueError('incomplete last-slot control matrix')
-    if output.splitlines().count('PASS real CUDA wall-slot resources invalid=24 valid=8 retries=24')!=1:raise ValueError('missing completed resource matrix')
-    return dict(invalid=24,valid=8,retries=24)
+    negative=re.findall(r'^PASS wall-negative path=(full|mass-only) native=(\d+) slot=(-?\d+) reference=(disabled|unselected) fluxBitsEqual=1 speciesBitsEqual=1 statusUnchanged=1$',output,re.M)
+    expected_negative=[(path,str(native),str(slot),reference) for path in ('full','mass-only') for native in (0,1) for slot in (-1,-7) for reference in ('disabled','unselected')]
+    if sorted(negative)!=sorted(expected_negative):raise ValueError('incomplete negative-slot reference matrix')
+    if output.splitlines().count('PASS real CUDA wall-slot resources invalid=32 valid=8 retries=32 negative=8 negativeComparisons=16')!=1:raise ValueError('missing completed resource matrix')
+    return dict(invalid=32,valid=8,retries=32,negative=8,negative_comparisons=16)
 
 def main():
     parser=argparse.ArgumentParser(description=__doc__)
