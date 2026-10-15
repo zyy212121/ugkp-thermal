@@ -51,7 +51,11 @@ class SharedGasDeviceStorage {
     bool sstInitialized_=false,poisoned_=false;
     std::unique_ptr<SharedGasDeviceStorage> rejected_;
     Buffer<unsigned char> previousWorkspace_;
-    std::vector<Real> volume_,wallFaceArea_;
+    std::vector<Real> volume_,wallFaceArea_,temperatureStaging_;
+    bool readTemperature(std::size_t n){
+        temperatureStaging_.resize(n);
+        return !n||fault_.check(cudaMemcpy(temperatureStaging_.data(),view_.Tgas,n*sizeof(Real),cudaMemcpyDeviceToHost),"download shared gas field");
+    }
     Tolerances geometryTolerances_;
     int activeSpecies_=-1;
     std::unique_ptr<WallClosureHost> wallGeometry_;
@@ -133,7 +137,7 @@ class SharedGasDeviceStorage {
         wallWorkspace_.rebindFault(fault_);
         previousWorkspace_.rebindFault(fault_);
     }
-    // Only transfer ownership, never snapshot or copy live cell/face fields.
+
     void exchangeResident(SharedGasDeviceStorage& other,bool mesh,bool wall){
 #define UGKWP_GAS_STATE_FIELD(Type,Name) if(mesh||!meshField(#Name))owner_##Name.swap(other.owner_##Name);
 #include "../../../common/gasTransport/GasStateFields.inc"
@@ -312,7 +316,7 @@ public:
         if(retain){next->view_=view_;next->sstInitialized_=sstInitialized_;next->geometryVersion_=geometryVersion_;
             next->exchangeResident(*this,sameMesh,sameWall);
             if(importSst){next->owner_rhoK.swap(owner_rhoK);next->owner_rhoOmega.swap(owner_rhoOmega);}}
-        // Keep the published device-view address stable, including layout replacement.
+
         next->device_.swap(device_);next->wallWorkspace_.swap(wallWorkspace_);
         next->rebindOwners();rebindOwners();
         bool publishing=false,prepared=false;
@@ -329,7 +333,7 @@ public:
             }else if(retain)discardUnpublishedOptional();
             fault_.message=error;return false;
         }
-        // Commit owner addresses only after the complete view has been published.
+
         next->exchangeResident(*this,true,true);next->exchangeTables(*this);
         next->device_.swap(device_);next->wallWorkspace_.swap(wallWorkspace_);
         view_=next->view_;identity_=next->identity_;thermoIdentity_=next->thermoIdentity_;mechanismIdentity_=next->mechanismIdentity_;
@@ -517,8 +521,8 @@ public:
             if(f<modelStatus.size())fault_.message+=" wall code "+std::to_string(int(modelStatus[f].code))+" node "+std::to_string(modelStatus[f].node)+" iteration "+std::to_string(modelStatus[f].iteration)+" residual "+(std::isfinite(modelStatus[f].residual)?std::to_string(modelStatus[f].residual):"NOT_AVAILABLE");
             return false;
         }
-        // Existing sparse read proves an actual exchange was published. Co may
-        // retain this lagged mass until the normal next stage updates it.
+
+
         wallMassPublished_=true;
         if(!wallOutput_.download(output,nullptr)||!wallInput_.download(inputs,nullptr))return false;
         matching.resize(inputs.size());for(std::size_t f=0;f<inputs.size();++f){matching[f].pressure=inputs[f].pressure;matching[f].mechanicalPressure=0;matching[f].state=inputs[f].matching;}return true;
@@ -527,9 +531,9 @@ public:
         const std::size_t nc=mesh.volumes.size(),nf=mesh.owner.size();
         const bool rebound=owner_V.values.size()!=nc||owner_faceOwner.values.size()!=nf
             ||owner_cellFaceId.values.size()!=mesh.cellFaces.size();
-        // Geometry-only updates own geometry extents. They do not invent gas
-        // inventories or reinterpret resident cell numbering; configure imports
-        // an explicitly supplied HostState when the physical layout changes.
+
+
+
 #define UGKWP_GAS_STATE_FIELD(Type,Name) if(meshField(#Name)&&!owner_##Name.allocate(view_.Name,count(#Name,nc,nf,mesh.cellFaces.size()),fault_))return false;
 #include "../../../common/gasTransport/GasStateFields.inc"
 #undef UGKWP_GAS_STATE_FIELD
@@ -592,8 +596,8 @@ public:
         error.clear();return true;
     }
     bool downloadState(HostState& state,std::string& error){
-        std::vector<Real> rho,px,py,pz,energy,temperature,species,k,omega;const std::size_t n=view_.nCells;
-        if(!read(view_.rho,n,rho)||!read(view_.rhoUx,n,px)||!read(view_.rhoUy,n,py)||!read(view_.rhoUz,n,pz)||!read(view_.rhoE,n,energy)||!read(view_.Tgas,n,temperature)||(view_.gasSpecies.mode!=ugkwp::GasMode::SingleLegacy&&!read(view_.gasSpecies.rho,Ns*n,species))){error=fault_.message;return false;}
+        std::vector<Real> rho,px,py,pz,energy,species,k,omega;const std::size_t n=view_.nCells;
+        if(!read(view_.rho,n,rho)||!read(view_.rhoUx,n,px)||!read(view_.rhoUy,n,py)||!read(view_.rhoUz,n,pz)||!read(view_.rhoE,n,energy)||!readTemperature(n)||(view_.gasSpecies.mode!=ugkwp::GasMode::SingleLegacy&&!read(view_.gasSpecies.rho,Ns*n,species))){error=fault_.message;return false;}
         auto candidate=state.gas;candidate.resize(n);
         for(std::size_t c=0;c<n;++c){auto& q=candidate[c];q.mass=rho[c]*volume_[c];q.momentum={px[c]*volume_[c],py[c]*volume_[c],pz[c]*volume_[c]};q.energy=energy[c]*volume_[c];
             for(int s=0;s<Ns;++s)q.species[s]=view_.gasSpecies.mode==ugkwp::GasMode::SingleLegacy?(s==activeSpecies_?q.mass:0):species[s*n+c]*volume_[c];
@@ -604,7 +608,7 @@ public:
             sst.resize(n);for(std::size_t c=0;c<n;++c){sst[c]={k[c]*volume_[c],omega[c]*volume_[c]};
             }
         }
-        state.gas=std::move(candidate);state.sst=std::move(sst);state.gasTemperature=std::move(temperature);error.clear();return true;
+        state.gas=std::move(candidate);state.sst=std::move(sst);state.gasTemperature.swap(temperatureStaging_);error.clear();return true;
     }
 };
 }
