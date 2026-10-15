@@ -3,10 +3,12 @@ from validation.tools.paths import SOURCE_ROOT, VALIDATION_ROOT, CASES_ROOT
 
 from pathlib import Path
 import subprocess
+import pytest
 
 ROOT=SOURCE_ROOT
 
-def test_trial_and_requested_interval_rollback_restore_accepted_state(tmp_path):
+@pytest.mark.parametrize("profiles",[False,True])
+def test_trial_and_requested_interval_rollback_restore_accepted_state(tmp_path,profiles):
     scalar_fields="rho rhoUx rhoUy rhoUz rhoE Ux Uy Uz p Tgas gasFluxPositivityScale gasDiffusionNumber sstSourceNumber rhoK rhoOmega k omega nut gasBoundaryRho gasBoundaryUx gasBoundaryUy gasBoundaryUz gasBoundaryP gasBoundaryT V".split()
     declarations="\n".join("double* "+name+"=nullptr;" for name in scalar_fields)
     assignments="\n".join(f"double {name}[2]={{1,1}};state.{name}={name};" for name in scalar_fields)
@@ -34,7 +36,13 @@ template<class T>int allocate(T*&p,std::size_t n,const char*){p=n?static_cast<T*
 template<class T>int copyToDevice(T*d,const T*s,std::size_t n,const char*){if(n)std::memcpy(d,s,n*sizeof(T));return 0;}
 template<class T>int copyToHost(T*d,const T*s,std::size_t n,const char*){if(hostCopyFailAfter==0){hostCopyFailAfter=-1;return 1;}if(hostCopyFailAfter>0)--hostCopyFailAfter;if(n)std::memcpy(d,s,n*sizeof(T));return 0;}
 #include "applications/gasUGKP/private_backend/SharedGasTrialFields.H"
+struct DeviceState;
+namespace sharedGasTrialDetail {
+template<bool Capture,class State> int snapshotWallRecords(State*,SharedGasTrialSnapshot&,bool);
+}
 struct DeviceState{
+ int (*gasBoundaryLayerSnapshot)(DeviceState*,SharedGasTrialSnapshot&,bool)=
+     &sharedGasTrialDetail::snapshotWallRecords<false,DeviceState>;
  ugkwp::GasSpeciesState<double,2> gasSpecies;
  SharedGasTrialStorage gasTrial;
  ugkwp::GasBoundaryLayerState<double> gasBoundaryLayer;
@@ -62,6 +70,10 @@ int main(){
  state.gasBoundaryLayer.enabled=true;state.gasBoundaryLayer.count=1;state.gasBoundaryLayer.exchange=wallExchange;
  state.gasBoundaryLayer.sst=wallClosure;state.gasBoundaryLayer.status=wallStatus;state.gasBoundaryLayer.speciesFlux=wallSpecies;
  state.gasBoundaryLayerModel.input=wallInput;state.gasBoundaryLayerModel.output=wallOutput;state.gasBoundaryLayerModel.status=coreStatus;state.gasBoundaryLayerModel.faces=wallFace;
+ double profile[24*9];for(int i=0;i<24*9;++i)profile[i]=i+.25;
+ if(__PROFILES__){state.gasBoundaryLayerModel.profile=profile;
+   state.gasBoundaryLayerSnapshot=&sharedGasTrialDetail::snapshotWallRecords<true,DeviceState>;}
+ else assert(!state.gasBoundaryLayerModel.profile);
  state.gasBoundaryLayer.preparedTime=2;state.gasBoundaryLayer.preparedInterval=.25;
  assert(SharedGasTrialPolicy::beginInterval(&state)==0);
  assert(SharedGasTrialPolicy::begin(&state)==0);
@@ -72,6 +84,7 @@ int main(){
  assert(SharedGasTrialPolicy::commit(&state)==0);
  assert(SharedGasTrialPolicy::begin(&state)==0);
  state.rho[0]=9;partial[0]=-1;state.gasBoundaryP[0]=8;
+ if(__PROFILES__)for(double& v:profile)v=-7;
  wallOutput[0].conductiveHeatFlux=123;wallInput[0].temperature=555;wallExchange[0].ready=true;state.gasBoundaryLayerStageTime=9;state.gasBoundaryLayer.preparedTime=9;state.gasBoundaryLayer.preparedInterval=.01;
  cellStatus[0]=int(ugkwp::GasTransportCode::InvalidStorage);
  assert(SharedGasTrialPolicy::validate(&state)!=0);
@@ -79,9 +92,15 @@ int main(){
  SharedGasTrialPolicy::rollback(&state);
  assert(state.rho[0]==1.1 && partial[0]==.5 && state.gasBoundaryP[0]==2);
  assert(wallOutput[0].conductiveHeatFlux==0&&wallInput[0].temperature==0&&!wallExchange[0].ready&&state.gasBoundaryLayerStageTime==0);
+ if(__PROFILES__)for(int i=0;i<24*9;++i)assert(profile[i]==i+.25);
+ const std::size_t baseBytes=sizeof(wallExchange)+sizeof(wallClosure)+sizeof(wallStatus)
+   +sizeof(wallSpecies)+sizeof(wallInput)+sizeof(wallOutput)+sizeof(coreStatus);
+ assert(state.gasTrial.trial.wallRecordBytes==baseBytes+(__PROFILES__?sizeof(profile):0));
  assert(!state.gasBoundaryLayer.preparedFirstStage);
  assert(state.gasBoundaryLayer.preparedTime==2&&state.gasBoundaryLayer.preparedInterval==.25);
+ if(__PROFILES__)profile[0]=-99;
  SharedGasTrialPolicy::rollbackInterval(&state);
+ if(__PROFILES__)assert(profile[0]==.25);
  assert(state.rho[0]==1 && partial[0]==.4 && state.gasBoundaryP[0]==1);
  assert(cellStatus[0]==0 && faceStatus[0]==0);
  assert(SharedGasTrialPolicy::begin(&state)==0);
@@ -120,7 +139,7 @@ int main(){
  releaseSharedGasTrialStorage(state.gasTrial);
  assert(allocations==0);
 }
-'''.replace('__DECLARATIONS__',declarations).replace('__ASSIGNMENTS__',assignments)
+'''.replace('__DECLARATIONS__',declarations).replace('__ASSIGNMENTS__',assignments).replace('__PROFILES__','true' if profiles else 'false')
     source=tmp_path/"probe.cpp";source.write_text(code);binary=tmp_path/"probe"
     build=subprocess.run(["g++","-std=c++17","-Wall","-Wextra","-Werror","-I",str(ROOT),str(source),"-o",str(binary)],capture_output=True,text=True)
     assert build.returncode==0,build.stderr

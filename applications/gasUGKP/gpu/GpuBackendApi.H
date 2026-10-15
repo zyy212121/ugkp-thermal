@@ -235,4 +235,9 @@ extern "C" int ugkwpGpuResidentStrictConfigureBoundaryLayerV1
 extern "C" int ugkwpGpuResidentStrictDownloadBoundaryLayerV1
 (void* handle,std::uint32_t wallCount,std::uint32_t speciesCount,double* diagnostics);
 
+// Startup-only opt-in; downloaded rows are face-major, node-major y,U[3],T,k,omega,Y[Ns].
+extern "C" int ugkwpGpuResidentStrictEnableBoundaryLayerProfilesV1(void* handle);
+extern "C" int ugkwpGpuResidentStrictDownloadBoundaryLayerProfilesV1
+(void* handle,std::uint32_t walls,std::uint32_t nodes,std::uint32_t species,double* profiles,double* stageTime);
+
 #endif

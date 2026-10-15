@@ -73,7 +73,7 @@ inline int ensureSnapshot(DeviceState* s,SharedGasTrialSnapshot& snapshot)
     if(rc)releaseSnapshot(snapshot);
     return rc;
 }
-template<class State> int snapshotWallRecords(State* s,SharedGasTrialSnapshot& saved,bool restore)
+template<bool Capture=false,class State> int snapshotWallRecords(State* s,SharedGasTrialSnapshot& saved,bool restore)
 {
     if constexpr(ugkwp::GasBoundaryLayerCapability<State>::value)
     {
@@ -83,6 +83,8 @@ template<class State> int snapshotWallRecords(State* s,SharedGasTrialSnapshot& s
         std::vector<Bytes> fields={{w.exchange,n*sizeof(*w.exchange)},{w.sst,n*sizeof(*w.sst)},
             {w.status,n*sizeof(*w.status)},{w.speciesFlux,n*ugkwp::compiledGasSpecies*sizeof(double)},
             {m.input,n*sizeof(*m.input)},{m.output,n*sizeof(*m.output)},{m.status,n*sizeof(*m.status)}};
+        if constexpr(Capture)fields.push_back({m.profile,n*m.config.nodes*
+            (7+ugkwp::compiledGasSpecies)*sizeof(double)});
         std::size_t total=0;for(const auto& f:fields)total+=f.count;
         if(!restore && saved.wallRecordBytes!=total)
         {if(releaseSharedGasPointer(saved.wallRecords)){saved.valid=false;return 1;}saved.wallRecordBytes=0;}
@@ -127,7 +129,7 @@ inline int snapshot(DeviceState* s,SharedGasTrialSnapshot& saved,bool restore)
     if(s->gasSpecies.chemistryStatus)
         rc|=deviceCopy(restore?s->gasSpecies.chemistryStatus:saved.chemistryStatus,
             restore?saved.chemistryStatus:s->gasSpecies.chemistryStatus,s->nCells);
-    rc|=snapshotWallRecords(s,saved,restore);
+    rc|=s->gasBoundaryLayerSnapshot(s,saved,restore);
     if(!restore && !rc)saved.valid=true;
     return rc;
 }

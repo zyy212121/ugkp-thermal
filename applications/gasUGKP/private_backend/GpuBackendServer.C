@@ -480,6 +480,20 @@ bool handleDownloadBoundaryLayer(const int fd,const RequestHeader& request,Serve
         && (status || writeVector(fd,output));
 }
 
+bool handleDownloadBoundaryLayerProfiles(const int fd,const RequestHeader& request,ServerState& s)
+{
+    std::uint32_t dimensions[3];
+    if(!validatePayload(fd,request,sizeof(dimensions)) || !readObject(fd,dimensions[0])
+        || !readObject(fd,dimensions[1]) || !readObject(fd,dimensions[2]))return false;
+    std::uint64_t bytes=0;
+    if(!boundaryLayerProfileBytes(dimensions[0],dimensions[1],dimensions[2],bytes)
+        || !addArrayBytes<double>(bytes,1))return protocolError(fd,"wall profile byte extent overflow");
+    std::vector<double> output(bytes/sizeof(double));
+    const int status=ugkwpGpuResidentStrictDownloadBoundaryLayerProfilesV1(s.backend,
+        dimensions[0],dimensions[1],dimensions[2],output.data()+1,output.data());
+    return responseHeader(fd,status,status?0:bytes) && (status || writeVector(fd,output));
+}
+
 bool handleConfigureSst
 (
     const int fd,
@@ -815,6 +829,10 @@ bool dispatch
         case Op::configureSst:return handleConfigureSst(fd,request,s);
         case Op::configureBoundaryLayerV1:return handleConfigureBoundaryLayer(fd,request,s);
         case Op::downloadBoundaryLayerV1:return handleDownloadBoundaryLayer(fd,request,s);
+        case Op::enableBoundaryLayerProfilesV1:
+            return validatePayload(fd,request,0)
+                && responseHeader(fd,ugkwpGpuResidentStrictEnableBoundaryLayerProfilesV1(s.backend),0);
+        case Op::downloadBoundaryLayerProfilesV1:return handleDownloadBoundaryLayerProfiles(fd,request,s);
         case Op::downloadSst:return handleDownloadSst(fd,request,s);
         case Op::release:
         {
