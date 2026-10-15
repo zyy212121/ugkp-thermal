@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
                                                                              
 
+from source_contract_utils import read_source, braced_block
 from pathlib import Path
 import re
 import unittest
@@ -9,9 +10,7 @@ from source_contract_utils import function_block
 
 
 ROOT = Path(__file__).resolve().parents[1]
-CUDA = (ROOT / "private_backend" / "GpuResidentStrict.cu").read_text(
-    encoding="utf-8", errors="strict"
-)
+CUDA = read_source(ROOT / "private_backend" / "GpuResidentStrict.cu")
 
 
 class CompactionGeneratedDpreContract(unittest.TestCase):
@@ -31,17 +30,18 @@ class CompactionGeneratedDpreContract(unittest.TestCase):
 
     def test_preparation_bins_only_the_appended_injection_range(self) -> None:
         prepare = function_block(CUDA, "preparePreTransportParticleDirectory")
-        count = function_block(CUDA, "countInjectedParticlesByCellKernel")
-        scatter = function_block(CUDA, "scatterInjectedParticlesByCellKernel")
+        count = function_block(CUDA, "countSplitPreInjectionParticlesKernel")
+        scatter = function_block(CUDA, "scatterSplitPreInjectionParticlesKernel")
 
         self.assertIn("preBaseDirectoryReady", prepare)
         self.assertIn("binParticlesByCell", prepare)
         preparation_body = prepare[prepare.index("const int cellGrid") :]
         fallback_body = prepare[: prepare.index("const int cellGrid")]
-        self.assertIn("if (s->preBaseDirectoryReady == 0)", fallback_body)
+        self.assertIn("s->preBaseDirectoryReady == 0", fallback_body)
         self.assertNotIn("csrHeavyReductionEnabled", fallback_body)
-        self.assertEqual(fallback_body.count("binParticlesByCell"), 2)
-        self.assertIn("csrSplitPreDirectoryEnabled", fallback_body)
+        self.assertEqual(fallback_body.count("binParticlesByCell"), 1)
+        self.assertIn("!splitParticleDirectoryEnabled(s)", fallback_body)
+        self.assertIn("csrSplitPreDirectoryEnabled", function_block(CUDA, "splitParticleDirectoryEnabled"))
         self.assertNotIn("binParticlesByCell", preparation_body)
         for body in (count, scatter):
             self.assertIn("preBaseParticleCountDevice", body)
@@ -50,18 +50,18 @@ class CompactionGeneratedDpreContract(unittest.TestCase):
 
     def test_injection_tail_honours_warp_aggregated_binning(self) -> None:
         prepare = function_block(CUDA, "preparePreTransportParticleDirectory")
-        count = function_block(CUDA, "countInjectedParticlesByCellKernel")
-        scatter = function_block(CUDA, "scatterInjectedParticlesByCellKernel")
+        count = function_block(CUDA, "countSplitPreInjectionParticlesKernel")
+        scatter = function_block(CUDA, "scatterSplitPreInjectionParticlesKernel")
 
         for body in (count, scatter):
             self.assertIn("WarpAggregated", body)
             self.assertIn("__ballot_sync", body)
             self.assertIn("__match_any_sync", body)
         self.assertIn("csrWarpAggregatedBinning", prepare)
-        self.assertIn("countInjectedParticlesByCellKernel<true>", prepare)
-        self.assertIn("countInjectedParticlesByCellKernel<false>", prepare)
-        self.assertIn("scatterInjectedParticlesByCellKernel<true>", prepare)
-        self.assertIn("scatterInjectedParticlesByCellKernel<false>", prepare)
+        self.assertIn("countSplitPreInjectionParticlesKernel<true>", prepare)
+        self.assertIn("countSplitPreInjectionParticlesKernel<false>", prepare)
+        self.assertIn("scatterSplitPreInjectionParticlesKernel<true>", prepare)
+        self.assertIn("scatterSplitPreInjectionParticlesKernel<false>", prepare)
 
     def test_source_free_split_pre_skips_empty_injection_work(self) -> None:
         prepare = function_block(CUDA, "preparePreTransportParticleDirectory")
@@ -84,10 +84,10 @@ class CompactionGeneratedDpreContract(unittest.TestCase):
 
     def test_heavy_preparation_preserves_base_and_injection_segments(self) -> None:
         prepare = function_block(CUDA, "preparePreTransportParticleDirectory")
-        self.assertIn("prepareSplitPreCsrHeavyReductionTasks", prepare)
+        self.assertIn("prepareParticleDirectoryTasks", prepare)
 
         split_tasks = function_block(
-            CUDA, "prepareSplitPreCsrHeavyReductionTasks"
+            CUDA, "prepareParticleDirectoryTasks"
         )
         self.assertNotIn("binParticlesByCell", split_tasks)
         self.assertIn("prepareCsrSegmentedReductionTasks", split_tasks)
@@ -118,7 +118,7 @@ class CompactionGeneratedDpreContract(unittest.TestCase):
         self.assertIn("if constexpr (HeavyReductionEnabled)", light_pool)
         self.assertRegex(
             light_pool,
-            r"if constexpr \(HeavyReductionEnabled\)\s*\{\s*return;\s*\}",
+            r"if constexpr \(HeavyReductionEnabled\)\s*return;",
         )
         self.assertIn("preBaseCellOffset", light_pool)
         self.assertIn("cellParticleOffset", light_pool)
@@ -133,6 +133,8 @@ class CompactionGeneratedDpreContract(unittest.TestCase):
         pressure = function_block(CUDA, "applyCollisionalPressureProjectionKernel")
         self.assertIn("SplitDirectory", pressure)
         self.assertNotIn("const int useSplitPreDirectory", pressure)
+        self.assertIn("runCellPressureProjection<AnalyticPressureOperation", pressure)
+        pressure = function_block(CUDA, "runCellPressureProjection")
         self.assertIn("preBaseCellOffset", pressure)
         self.assertIn("cellParticleOffset", pressure)
         self.assertIn("sortedParticleIndex", pressure)
@@ -159,6 +161,10 @@ class CompactionGeneratedDpreContract(unittest.TestCase):
         advance = function_block(CUDA, "ugkwpGpuResidentStrictAdvance")
         # Cached projection visits the complete active particle buffer, covering
         # both base and injected particles without a second directory traversal.
+        self.assertIn("launchCommonPressureKick<AnalyticPressureLaunch>", pressure_launch)
+        protocol = function_block(CUDA,"launchCommonPressureKick")
+        self.assertIn("LaunchBackend::projectUnsorted", protocol)
+        pressure_launch = braced_block(CUDA,"struct AnalyticPressureLaunch")
         self.assertIn("preparePressureProjectionCacheKernel", pressure_launch)
         self.assertIn("applyCachedPressureProjectionParticlesKernel", pressure_launch)
         self.assertLess(
@@ -189,7 +195,7 @@ class CompactionGeneratedDpreContract(unittest.TestCase):
 
         advance = function_block(CUDA, "ugkwpGpuResidentStrictAdvance")
         self.assertIn("prepareParticleDirectoryAndSchedule", advance)
-        host = (ROOT / "../../common/GpuParticleDirectoryHost.cuh").read_text()
+        host = read_source(ROOT / "../../common/GpuParticleDirectoryHost.cuh")
         entry = function_block(host, "prepareParticleDirectoryAndSchedule")
         self.assertLess(entry.index("preparePreTransportParticleDirectory"), entry.index("runAutomaticCsrSchedule"))
         self.assertIn("captureCompactedPreBaseOffsetsKernel", advance)

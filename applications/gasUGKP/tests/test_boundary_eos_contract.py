@@ -40,8 +40,8 @@ class BoundaryEosSourceContract(unittest.TestCase):
         )
 
     def test_redundant_eos_certificate_does_not_replace_boundary_precedence(self) -> None:
-        # Real numeric/flag publication is exercised by
-        # test_native_gas_input_continuation::test_t07_existing_boundary_precedence_uploads_actual_values.
+
+
         self.assertNotIn("relativeEosError", self.source)
         self.assertIn("ugkwpGpuResidentStrictUploadGasBoundaryFields", self.source)
 

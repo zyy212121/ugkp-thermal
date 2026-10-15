@@ -1,6 +1,8 @@
                                                                         
 
 from __future__ import annotations
+from source_contract_utils import read_source
+
 
 import unittest
 from pathlib import Path
@@ -13,13 +15,13 @@ class OpenFoamCaseConfigurationContract(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:
         cls.create = (
-            (ROOT / "readGpuGasConfiguration.H").read_text(encoding="utf-8")
+            read_source(ROOT / "readGpuGasConfiguration.H")
             + "\n"
-            + (ROOT.parents[1] / "common/gasTransport/GasNumericsIO.H").read_text()
+            + read_source(ROOT.parents[1] / "common/gasTransport/GasNumericsIO.H")
             + "\n"
-            + (ROOT / "createFields.H").read_text(encoding="utf-8")
+            + read_source(ROOT / "createFields.H")
         )
-        cls.solver = (ROOT / "diluteUgkwpFoam.C").read_text(encoding="utf-8")
+        cls.solver = read_source(ROOT / "diluteUgkwpFoam.C")
 
     def test_gas_thermodynamics_come_from_fluid_properties(self) -> None:
         self.assertIn('"fluidProperties"', self.create)
@@ -88,9 +90,7 @@ class OpenFoamCaseConfigurationContract(unittest.TestCase):
         self.assertIn('"epsilonS on patch "', validation)
 
     def test_scheduled_inlet_density_is_derived_from_p_and_t(self) -> None:
-        cuda = (ROOT / "private_backend/GpuResidentStrict.cu").read_text(
-            encoding="utf-8"
-        )
+        cuda = read_source(ROOT / "private_backend/GpuResidentStrict.cu")
         self.assertIn("scheduledPressureDevice(s, simulationTime)", cuda)
         self.assertIn(
             "pressure/clampMin(s.Rgas*temperature, OfSmall)",

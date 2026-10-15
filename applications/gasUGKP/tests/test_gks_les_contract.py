@@ -7,6 +7,8 @@
    
 
 from __future__ import annotations
+from source_contract_utils import read_source
+
 
 import math
 import re
@@ -18,6 +20,12 @@ try:
     from .source_contract_utils import code_only, function_block
 except ImportError:
     from source_contract_utils import code_only, function_block
+
+
+try:
+    from .host_contract_probes import create_payload_size, scheduling_rows
+except ImportError:
+    from host_contract_probes import create_payload_size, scheduling_rows
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -110,7 +118,7 @@ def read(relative: str) -> str:
     path = ROOT / relative
     if not path.is_file():
         raise AssertionError(f"required UGKP file is missing: {relative}")
-    return path.read_text(encoding="utf-8", errors="replace")
+    return read_source(path)
 
 
 def csr_heavy_tasks(
@@ -256,7 +264,7 @@ class SourceContractTests(unittest.TestCase):
         create_fields = (
             read("readGpuGasConfiguration.H")
             + "\n"
-            + (ROOT.parents[1] / "common/gasTransport/GasNumericsIO.H").read_text()
+            + read_source(ROOT.parents[1] / "common/gasTransport/GasNumericsIO.H")
             + "\n"
             + read("createFields.H")
         )
@@ -302,8 +310,8 @@ class SourceContractTests(unittest.TestCase):
         for text in rejection_contracts:
             with self.subTest(rejection=text):
                 self.assertIn(text, create_fields)
-        # Real false-fallback, defaults and signed input values are covered by
-        # test_shared_gas_numerics_io and test_native_gas_input_continuation.
+
+
         self.assertNotIn('"entropyFixCoefficient"', create_fields)
         self.assertNotIn("gasEntropyFixCoefficient", create_fields)
 
@@ -349,7 +357,7 @@ class SourceContractTests(unittest.TestCase):
             ],
         )
         self.assertIn('protocolMinor = 0', protocol)
-        self.assertIn('sizeof(CreateArgs) == 392', protocol)
+        self.assertEqual(create_payload_size(), 392)
         self.assertRegex(
             protocol,
             r"struct\s+CourantArgs\s*\{\s*double\s+dt\s*;\s*double\s+targetMaxCo\s*;\s*double\s+scheduleTime\s*;\s*\};",
@@ -371,11 +379,10 @@ class SourceContractTests(unittest.TestCase):
         protocol = read("gpu/GpuBackendProtocol.H")
         cuda = read("private_backend/GpuResidentStrict.cu")
         for token in (
-            "gpuCsrCellLocalPath",
-            "gpuCsrHeavyReduction",
+            "gpuCsrLevel",
+            "gpuCsrHeavyReductionAutoInterval",
             "gpuParticleBlockThreads",
             "gpuReductionBlockThreads",
-            "gpuCsrWarpAggregatedBinning",
         ):
             with self.subTest(token=token):
                 self.assertIn(token, scheduling)
@@ -390,6 +397,7 @@ class SourceContractTests(unittest.TestCase):
             with self.subTest(field=field):
                 self.assertIn(field, protocol)
                 self.assertIn(field, cuda)
+        self.assertEqual(scheduling_rows(), [(0,0,0,0,0,128,128),(1,1,0,1,1,128,128),(2,1,1,1,1,128,128),(3,1,2,1,1,128,128),(0,0,0,0,0,128,128)])
         self.assertEqual(
             mirror.count("Particle cell path: csrCellLocalPath="),
             1,
@@ -405,7 +413,7 @@ class SourceContractTests(unittest.TestCase):
         cuda = "\n".join(
             (
                 read("private_backend/GpuResidentStrict.cu"),
-                (ROOT.parents[1] / "common/CsrPersistentQueue.cuh").read_text(),
+                read_source(ROOT.parents[1] / "common/CsrPersistentQueue.cuh"),
             )
         )
         for token in (
@@ -421,7 +429,7 @@ class SourceContractTests(unittest.TestCase):
             "__match_any_sync",
             "groupMask",
             "laneRank",
-            "1 + (count - 1)/s.csrHeavyTileParticles",
+            "1 + (count - 1)/tile",
         ):
             with self.subTest(token=token):
                 self.assertIn(token, cuda)
@@ -433,7 +441,7 @@ class SourceContractTests(unittest.TestCase):
             cuda,
             r"cudaMemcpy(?:Async)?\s*\([^;]*csrHeavyTaskCount",
         )
-        self.assertIn("ToolB3 occupancy decision", cuda)
+        self.assertIn("runAutomaticCsrSchedule", function_block(cuda, "runToolB3"))
 
     def test_validation_cases_select_the_expected_models(self) -> None:
         laminar_root = ROOT / "examples/gks_flux_validation"
@@ -514,7 +522,7 @@ class SourceContractTests(unittest.TestCase):
 
     def test_face_kernel_specialization_preserves_laminar_and_les_paths(self) -> None:
         cuda = read("private_backend/GpuResidentStrict.cu")
-        self.assertIn("template<bool IncludeTurbulence>", cuda)
+        self.assertIn("template<bool IncludeTurbulence, bool MassOnly = false, class GasState>", cuda)
         self.assertIn("if constexpr (IncludeTurbulence)", cuda)
         self.assertIn("s->hostTurbulenceModel == 0", cuda)
         self.assertIn(
@@ -537,19 +545,23 @@ class SourceContractTests(unittest.TestCase):
             r"tauWave|tauJump|numericalDissipationTau|physicalTau|ugkpgks",
         )
         self.assertIn(
-            "const double muEffective = s.gasMu + muTurbulent;",
+            "const double muEffective = boundaryKind == 1\n          ? 0.0 : s.gasMu + muTurbulent;",
             face_flux,
         )
         self.assertIn(
-            "molecularGasConductivity(s) + kTurbulent",
+            "const double kEffective = kMolecular + kTurbulent;",
+            face_flux,
+        )
+        self.assertIn(
+            "double kMolecular=molecularGasConductivity(s);",
             face_flux,
         )
         self.assertIn("momentumFluxX -= traction.x;", face_flux)
         self.assertIn("momentumFluxY -= traction.y;", face_flux)
         self.assertIn("momentumFluxZ -= traction.z;", face_flux)
-        self.assertIn(
-            "energyFlux -= kEffective*normalTemperatureGradient;",
+        self.assertRegex(
             face_flux,
+            r"energyFlux\s*-=\s*wallThermalAreaFraction\s*\*kEffective\*normalTemperatureGradient;",
         )
         viscous_block = face_flux[
             face_flux.index("const double muEffective"):
@@ -620,8 +632,8 @@ class SourceContractTests(unittest.TestCase):
         gradient = function_block(cuda, "computeGasPrimitiveGradientsKernel")
         boundary = function_block(cuda, "riemannFacePrimitiveForGradient")
         limiter = function_block(cuda, "computeGasGradientLimiterKernel")
-        self.assertIn("riemannFacePrimitiveForGradient(s, c, f)", gradient)
-        self.assertIn("riemannFacePrimitiveForGradient(s, c, f)", limiter)
+        self.assertIn("riemannFacePrimitiveForGradient(s, c, f,nativeRefinement)", gradient)
+        self.assertIn("riemannFacePrimitiveForGradient(s, c, f,nativeRefinement)", limiter)
         self.assertNotRegex(
             code_only(boundary + gradient + limiter),
             r"\bs\.gasBoundary[A-Z]",

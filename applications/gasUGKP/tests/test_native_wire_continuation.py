@@ -130,8 +130,8 @@ bool failed=false;try{readVXPayload(bad,99999999,out);}catch(const std::exceptio
 
 @pytest.mark.parametrize('app',['gasUGKP','FSH'])
 def test_actual_server_decodes_extra_bytes_then_next_frame_and_short_field(tmp_path,app):
-    # Real handler, framing counters and required field reads; only the external
-    # CUDA backend API is a spy. It records every decoded scalar handed to it.
+
+
     run_cpp(tmp_path,f'#define main backend_main\n#include "applications/{app}/private_backend/GpuBackendServer.C"\n#undef main\n'+r'''
 #include <cassert>
 #include <sys/socket.h>
@@ -229,9 +229,9 @@ int main(){using namespace ugkwpGpuIpc;int sockets[2];assert(socketpair(AF_UNIX,
 std::thread peer([&]{RequestHeader h{};assert(receiveObject(sockets[1],h));assert(h.operation==unsigned(Op::downloadFields));
 assert(sendObject(sockets[1],ResponseHeader{magic+1,88,99,0,0,23*3*sizeof(double)+2}));
 for(int f=0;f<23;++f){double v[]={f+.125,f+.25,f+.5};assert(sendArray(sockets[1],v,3));}assert(writeAll(sockets[1],"xx",2));
-assert(receiveObject(sockets[1],h));std::string error(1024*1024+7,'e');
+assert(receiveObject(sockets[1],h));AdvanceArgs request{};assert(receiveObject(sockets[1],request));assert(request.dt==.1&&request.simulationTime==1);std::string error(1024*1024+7,'e');
 assert(sendObject(sockets[1],ResponseHeader{magic+1,88,99,7,unsigned(error.size()),3}));assert(writeAll(sockets[1],error.data(),error.size()));assert(writeAll(sockets[1],"abc",3));
-assert(receiveObject(sockets[1],h));assert(sendObject(sockets[1],ResponseHeader{magic,protocolMajor,protocolMinor,0,0,0}));close(sockets[1]);});
+assert(receiveObject(sockets[1],h));assert(receiveObject(sockets[1],request));assert(request.dt==.1&&request.simulationTime==1.1);assert(sendObject(sockets[1],ResponseHeader{magic,protocolMajor,protocolMinor,0,0,0}));close(sockets[1]);});
 double out[23][3];for(auto&f:out)for(double&x:f)x=-999;
 assert(ugkwpGpuResidentStrictDownloadFields(&s,out[0],out[1],out[2],out[3],out[4],out[5],out[6],out[7],out[8],out[9],out[10],out[11],out[12],out[13],out[14],out[15],out[16],out[17],out[18],out[19],out[20],out[21],out[22])==0);
 for(int f=0;f<23;++f){assert(out[f][0]==f+.125&&out[f][1]==f+.25&&out[f][2]==f+.5);}assert(!s.responseActive&&s.responseRemaining==0);
@@ -325,8 +325,8 @@ ResponseHeader response{};assert(readObject(sockets[1],response));assert(respons
 def test_fsh_profile_resizing_executes_wide_actual_products(tmp_path):
     source=(ROOT/'applications/FSH/private_backend/GpuBackendServer.C').read_text()
     start=source.index('    coldNodeSpecificEnthalpy.resize(');end=source.index('    return writeVector',start)
-    # Execute the production resize arithmetic with a bounded extent recorder;
-    # no multi-gigabyte physical allocation or source-text assertion is needed.
+
+
     run_cpp(tmp_path,r'''
 #include <cassert>
 #include <climits>

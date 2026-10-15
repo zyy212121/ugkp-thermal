@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
                                                                             
 
+from source_contract_utils import read_source
 from pathlib import Path
 import re
 import unittest
@@ -13,7 +14,7 @@ def source(relative: str) -> str:
     path = ROOT / relative
     if not path.is_file():
         raise AssertionError(f"required gasUGKP file is missing: {relative}")
-    return path.read_text(encoding="utf-8", errors="replace")
+    return read_source(path)
 
 
 ACTIVE_INTERFACE = (
@@ -102,13 +103,17 @@ class UGKPInterfaceContract(unittest.TestCase):
         server = source("private_backend/GpuBackendServer.C")
         cuda = source("private_backend/GpuResidentStrict.cu")
 
-        # Real supplied values and required-error controls are in test_native_gas_input_continuation.
         self.assertNotIn("gammaG.value() > scalar(5.0/3.0)", fields)
         for text, prefix in ((client, ""), (server, "a."), (cuda, "")):
             with self.subTest(layer=prefix or "C ABI"):
-                self.assertRegex(text, rf"{re.escape(prefix)}gammaGas\s*>\s*5\.0/3\.0")
-                self.assertRegex(text, rf"{re.escape(prefix)}gasMu\s*<\s*0\.0")
-                self.assertRegex(text, rf"{re.escape(prefix)}gasPr\s*<=\s*0\.0")
+                for field in ("gammaGas", "Rgas", "gasMu", "gasPr"):
+                    self.assertIn(prefix + field, text)
+                self.assertNotRegex(text, rf"{re.escape(prefix)}gammaGas\s*>\s*5\.0/3\.0")
+                self.assertNotRegex(text, rf"{re.escape(prefix)}gasMu\s*<\s*0\.0")
+                self.assertNotRegex(text, rf"{re.escape(prefix)}gasPr\s*<=\s*0\.0")
+        self.assertIn("s->gammaGas = gammaGas;", cuda)
+        self.assertIn("s->gasMu = gasMu;", cuda)
+        self.assertIn("s->gasPrClamped = gasPr < 1.0e-12 ? 1.0e-12 : gasPr;", cuda)
 
 
 if __name__ == "__main__":

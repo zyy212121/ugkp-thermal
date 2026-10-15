@@ -189,8 +189,8 @@ def _actual_sst_code(rev=None):
     sys.path.insert(0,str(ROOT/'tests'))
     import test_sst_owner_lifecycle as owner
     if rev is None:
-        # Current-path fault tests must not require an unavailable historical tree.
-        # Extract the actual current SST allocations, retaining the helper's 22-slot check.
+
+
         current=owner.source('gasUGKP')
         alloc=owner.h.block(current,'int allocateFields(')
         slots=re.findall(r'allocate\(s->(\w+), (nc|nf), "(cudaMalloc SST [^"]+)"\)',alloc)
@@ -240,17 +240,29 @@ int main(){DeviceState s,d;Input i;allocateOriginal(s);setup(s,d);s.gasSpecies.m
 
 
 def test_native_first_sst_original_bits_and_transfer_order(tmp_path):
-    import json
     main=r'''
 void word(double value){unsigned long long bits;std::memcpy(&bits,&value,8);std::cout<<" "<<bits;}
 int main(){DeviceState s,d;Input i;allocateOriginal(s);setup(s,d);s.gasSpecies.mode=ugkwp::GasMode::MixtureFrozen;counters();assert(configure(s,i)==0);complete(s,d,i);
  for(auto*p:{s.k,s.omega,s.rhoK,s.rhoOmega,s.rhoKInitial,s.rhoOmegaInitial,s.nut,s.sstWallDistance})for(int q=0;q<2;++q)word(p[q]);word(d.sstJayatillekeP);word(d.sstThermalYPlus);
  std::cout<<"\nCOST "<<allocations<<" "<<memsets<<" "<<copies<<" "<<copiedBytes<<" "<<launches<<" "<<syncs<<"\n";for(auto&e:events)std::cout<<e<<"\n";cleanup(s);assert(live.empty());}
 '''
-    results={}
-    for label,rev in [('original','bb1057e40856f9562ff60ce31cae51e35f1f3d8b'),('current',None)]:
-        c,h=_actual_sst_code(rev);d=tmp_path/label;d.mkdir();results[label]=h.run_cpp(d,c+main)
-    (tmp_path/'parity.json').write_text(json.dumps(results,indent=2));assert results['original']==results['current']
+
+    c,h=_actual_sst_code()
+    result=h.run_cpp(tmp_path,c+main)
+    lines=result.splitlines()
+    expected_bits=[
+        4599075939470750515,4604480259023595110,4611686018427387904,4613937818241073152,
+        4600427019358961664,4602903999154015436,4612811918334230528,4612248968380809216,
+        4600427019358961664,4602903999154015436,4612811918334230528,4612248968380809216,
+        0,0,4602678819172646912,4603579539098121011,13835124156674735100,4623202829888442977,
+    ]
+    assert list(map(int,lines[0].split()))==expected_bits
+    assert lines[1:]==[
+        "COST 0 0 8 296 1 1",
+        "copy 1 16","copy 1 16","copy 1 16","copy 1 12","copy 1 12",
+        "copy 1 24","copy 1 24","copy 1 176","launch","sync",
+    ]
+    (tmp_path/'run.log').write_text(result)
 
 
 @pytest.mark.parametrize('failure',range(1,9))

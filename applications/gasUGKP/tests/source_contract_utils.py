@@ -76,7 +76,7 @@ def function_block(source: str, name: str, _from_common: bool = False) -> str:
                                                                               
 
     cleaned = code_only(source)
-    pattern = re.compile(rf"\b{re.escape(name)}\s*\(")
+    pattern = re.compile(rf"\b{re.escape(name)}\s*(?:(?:#else\s+(?:template[^\n]*\n)?__global__\s+void\s+\w+\s*)?#endif\s*)?\(")
     for match in pattern.finditer(cleaned):
         open_brace = cleaned.find("{", match.end())
         semicolon = cleaned.find(";", match.end())
@@ -131,7 +131,7 @@ def _source_paths():
             if p.is_file():paths.append((p,p.read_text()))
     return repo,paths
 
-def _expand_repo_source(path, repo, app):
+def _expand_repo_source(path, repo, app, preserve_includes=False):
     repo=repo.resolve(); stack=set(); once=set(); guards=set(); trace=[]
     include_dirs=[repo/'common',repo/'applications'/app/'gpu',repo/'applications'/app/'private_backend',repo/'applications'/app/'thermal']
     def expand(p):
@@ -152,7 +152,8 @@ def _expand_repo_source(path, repo, app):
             if len(options)>1:raise ValueError('Ambiguous quoted include: '+str(p)+' '+name+' '+str(options))
             if not options:return match[0]
             trace.append(dict(parent=str(p.relative_to(repo)),include=name,resolved=str(options[0].relative_to(repo)),line=text[:match.start()].count('\n')+1))
-            return expand(options[0])
+            body=expand(options[0])
+            return match[0]+'\n'+body if preserve_includes else body
         try:return re.sub(r'^\s*#include\s+"([^"]+)"[^\n]*$',include,text,flags=re.M)
         finally:stack.remove(p)
     return expand(path),trace
@@ -182,3 +183,35 @@ def _lookup_included_function(source,name):
         body = body.replace("GPU_OPERATOR_REAL", "double").replace("GPU_OPERATOR_TIME", "double")
         body = re.sub(r"\bGPU_OPERATOR_R\(([-+]?[0-9.]+(?:[eE][-+]?[0-9]+)?)\)", r"\1", body)
     return body
+
+
+@lru_cache(maxsize=8)
+def read_source(path):
+    path=Path(path).resolve()
+    original=path.read_text(encoding="utf-8")
+    if path.name!="GpuResidentStrict.cu" and path.suffix not in {".cuh",".inl",".inc"}:
+        return original
+    repo=Path(__file__).resolve().parents[3]
+    source,_=_expand_repo_source(path,repo,path.relative_to(repo).parts[1],True)
+    for macro in ["GPU_OPERATOR_REAL","GPU_OPERATOR_TIME"]:
+        match=re.search(r"^#define\s+"+macro+r"\s+([^\n]+)$",original,re.M)
+        if match:
+            source=re.sub(r"\b"+macro+r"\b",match[1],source)
+    if re.search(r"^#define\s+GPU_OPERATOR_R\(x\)\s+x\s*$",original,re.M):
+        source=re.sub(r"\bGPU_OPERATOR_R\(([-+]?[0-9.]+(?:[eE][-+]?[0-9]+)?)\)",r"\1",source)
+    return source
+
+
+def braced_block(source,anchor):
+    definition=re.fullmatch(r"(?:int|__global__\s+void|__device__\s+(?:__forceinline__\s+)?void)\s+(\w+)",anchor)
+    if definition:
+        body=function_block(source,definition[1])
+        return body[body.index("{")+1:-1]
+    cleaned=code_only(source)
+    start=cleaned.index(anchor)
+    opening=cleaned.index("{",start)
+    depth=0
+    for index in range(opening,len(cleaned)):
+        depth+=(cleaned[index]=="{")-(cleaned[index]=="}")
+        if depth==0:return source[opening+1:index]
+    raise AssertionError("unterminated block after "+anchor)

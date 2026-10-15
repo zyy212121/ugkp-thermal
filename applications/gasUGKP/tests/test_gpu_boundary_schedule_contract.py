@@ -1,3 +1,4 @@
+from source_contract_utils import read_source
 import pathlib
 import re
 import unittest
@@ -17,14 +18,10 @@ CUDA = (
 class GpuBoundaryScheduleContract(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:
-        cls.main = (ROOT / "diluteUgkwpFoam.C").read_text(encoding="utf-8")
-        cls.header = (ROOT / "gpu" / "GpuResidentStrict.H").read_text(
-            encoding="utf-8"
-        )
-        cls.api = (ROOT / "gpu" / "GpuBackendApi.H").read_text(
-            encoding="utf-8"
-        )
-        cls.cuda = CUDA.read_text(encoding="utf-8")
+        cls.main = read_source(ROOT / "diluteUgkwpFoam.C")
+        cls.header = read_source(ROOT / "gpu" / "GpuResidentStrict.H")
+        cls.api = read_source(ROOT / "gpu" / "GpuBackendApi.H")
+        cls.cuda = read_source(CUDA)
 
     def test_schedule_is_configured_once_and_not_dispatched_per_step(self) -> None:
         self.assertIn("configureScheduledInlet", self.main)
@@ -32,9 +29,7 @@ class GpuBoundaryScheduleContract(unittest.TestCase):
         self.assertNotIn("updateScheduledInlet", self.main)
 
     def test_complete_tables_are_exposed_and_uploaded(self) -> None:
-        schedule = (ROOT / "gpu" / "GpuBoundarySchedule.H").read_text(
-            encoding="utf-8"
-        )
+        schedule = read_source(ROOT / "gpu" / "GpuBoundarySchedule.H")
         self.assertIn("copyColumns", schedule)
         self.assertIn("pressureTimes", self.main)
         self.assertIn("pressureValues", self.main)

@@ -2,6 +2,8 @@
                                                                      
 
 from __future__ import annotations
+from source_contract_utils import read_source
+
 
 from math import exp, isclose
 from pathlib import Path
@@ -15,7 +17,7 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 def read(relative: str) -> str:
-    return (ROOT / relative).read_text(encoding="utf-8")
+    return read_source(ROOT / relative)
 
 
 def schiller_naumann_inverse_tau(
@@ -77,8 +79,8 @@ def test_host_factory_keeps_explicit_gidaspow_model_and_supplied_coeffs() -> Non
     assert 'modelName_("GidaspowErgunWenYu")' in host
     assert 'subDict("GidaspowErgunWenYuCoeffs")' in host
     assert 'lookup("residualRe")' in host
-    # Signed-value construction and actual parameter parity are executable in
-    # test_gas_frontend_selection_continuation (all three headers).
+
+
     assert "parameters_[0] = residualRe;" in host
     assert "return 1;" in host
     assert 'selected == "GidaspowErgunWenYu"' in host
@@ -110,17 +112,19 @@ def test_protocol_carries_drag_and_gravity_as_pod() -> None:
         assert field in protocol
 
 
-def test_every_backend_boundary_accepts_only_defined_model_ids() -> None:
+def test_every_backend_boundary_forwards_the_supplied_drag_model() -> None:
     for relative in (
         "gpu/GpuBackendClient.C",
         "private_backend/GpuBackendServer.C",
         "private_backend/GpuResidentStrict.cu",
     ):
         source = read(relative)
-        assert "dragModel < 0" in source
-        assert "dragModel > 2" in source
-        assert "dragModel == 1" in source
-        assert "dragParameter0 <= 0.0" in source
+        for field in ("dragModel", "dragParameter0", "dragParameter1", "dragParameter2", "dragParameter3"):
+            assert field in source
+        assert "dragModel < 0" not in source
+        assert "dragModel > 2" not in source
+        assert "dragParameter0 <= 0.0" not in source
+    assert "s->hostDragModel = dragModel;" in read("private_backend/GpuResidentStrict.cu")
 
 
 def test_device_drag_model_is_static_and_shared_by_both_consumers() -> None:
@@ -138,7 +142,8 @@ def test_device_drag_model_is_static_and_shared_by_both_consumers() -> None:
     relax_one = function_block(core, "relaxOneParticleToResidentGas")
     relax_kernel = function_block(core, "relaxParticlesToResidentGasKernel")
     assert "template<class DragModel>" in core[: core.index(coupling)]
-    assert "DragModel::inverseResponseTime" in coupling
+    assert "cellDragInverseTime<DragModel>" in coupling
+    assert "DragModel::inverseResponseTime" in function_block(core, "cellDragInverseTime")
     assert "DragModel::inverseResponseTime" in relax_one
     assert "relaxOneParticleToResidentGas<DragModel>" in relax_kernel
 
@@ -155,10 +160,10 @@ def test_model_switch_occurs_only_in_host_launch_helpers() -> None:
     assert "GidaspowErgunWenYuDeviceDrag" in relax_launch
     assert "case 1:" in coupling_launch
     assert "case 1:" in relax_launch
-    assert "dragModel" not in function_block(
+    assert "switch" not in function_block(
         core, "applyEulerianGasSolidDragKernel"
     )
-    assert "dragModel" not in function_block(
+    assert "switch" not in function_block(
         core, "relaxParticlesToResidentGasKernel"
     )
 
@@ -167,12 +172,14 @@ def test_gravity_uses_exact_gas_energy_and_particle_drag_impulse() -> None:
     core = read("private_backend/GpuResidentStrict.cu")
     gas = function_block(core, "applyGasGravitySourceKernel")
     particle = function_block(core, "relaxOneParticleToResidentGas")
-    assert "0.5*rho*dt*dt*gravitySquared" in gas
-    assert "momX*gx + momY*gy + momZ*gz" in gas
+    assert "applyGasGravityCell<false>" in gas
+    gas = function_block(core, "applyGasGravityCell")
+    assert "0.5*rho*dt*dt*g2" in gas
+    assert "mx*gx+my*gy+mz*gz" in gas
     assert "s.gravityX" in particle
     assert "s.gravityY" in particle
     assert "s.gravityZ" in particle
-    assert "(1.0 - alpha)/(invTauDrag + 1.0e-300)" in particle
+    assert "(1.0 - alpha)/(invTauDrag + GPU_OPERATOR_TINY(1.0e-300))" in particle
 
 
 def test_schiller_naumann_reference_values_are_continuous_and_finite() -> None:

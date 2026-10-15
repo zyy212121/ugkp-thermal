@@ -134,8 +134,8 @@ def test_native_frontend_rejects_species_shape_mismatch(native_reacting_probe,tm
     assert build.returncode==0,build.stdout+build.stderr
     make_case(tmp_path)
     result=subprocess.run([str(binary),"-case",str(tmp_path)],capture_output=True,text=True)
-    assert result.returncode!=0
-    assert "species" in result.stdout+result.stderr
+    assert result.returncode>0
+    assert "missing species storage for compiled gas model" in result.stdout+result.stderr
 
 
 def test_native_legacy_needs_no_mixture_fields_or_identity(native_probe,tmp_path):

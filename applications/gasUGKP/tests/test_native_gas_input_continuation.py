@@ -54,7 +54,7 @@ BODIES = {
     'ugkwpGpuResidentStrictDownloadSourceResidualMass': '*nSources=0;return 0;',
 }
 BODIES['ugkwpGpuResidentStrictUploadParticleRestartMirror'] += 'if(std::getenv("VERIFY_PARTICLE")&&nParticles){if(nParticles!=1||px[0]!=.125||py[0]!=2||pz[0]!=3||pux[0]!=4||puy[0]!=5||puz[0]!=6||pT[0]!=300||pTheta[0]!=8||pd[0]!=.001||pm[0]!=(std::getenv("LEGACY_PARTICLE")?2:3)||pCellId[0]!=0||pStatus[0]!=1||pRng[0]!=11||pOrigId[0]!=12)return 8;}return 0;'
-# The original recording body ended with return0; place the tuple assertion before it.
+
 BODIES['ugkwpGpuResidentStrictUploadParticleRestartMirror']=BODIES['ugkwpGpuResidentStrictUploadParticleRestartMirror'].replace('return 0;if(std::getenv("VERIFY_PARTICLE")','if(std::getenv("VERIFY_PARTICLE")')
 BODIES['ugkwpGpuResidentStrictDownloadSst']='for(int i=0;i<cells;++i){k[i]=-2-i;omega[i]=-3-i;nut[i]=-4-i;}return 0;'
 BODIES['ugkwpGpuResidentStrictDownloadParticleRestartMirror']='*nParticles=1;if(!maxParticles)return 0;px[0]=.125;py[0]=2;pz[0]=3;pux[0]=4;puy[0]=5;puz[0]=6;pT[0]=300;pTheta[0]=8;pd[0]=.001;pm[0]=3;pCellId[0]=0;pStatus[0]=1;pRng[0]=11;pOrigId[0]=12;return 0;'

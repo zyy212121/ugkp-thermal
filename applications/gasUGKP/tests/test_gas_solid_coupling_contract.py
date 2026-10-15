@@ -1,3 +1,4 @@
+from source_contract_utils import read_source
 import unittest
 from pathlib import Path
 
@@ -9,7 +10,7 @@ CUDA = ROOT / "private_backend" / "GpuResidentStrict.cu"
 class GasSolidCouplingContract(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:
-        cls.source = CUDA.read_text(encoding="utf-8")
+        cls.source = read_source(CUDA)
         volume_begin = cls.source.index(
             "__global__ void applyGasVolumeFractionSourceKernel"
         )
@@ -49,7 +50,7 @@ class GasSolidCouplingContract(unittest.TestCase):
 
     def test_volume_source_includes_pressure_work(self) -> None:
         self.assertIn(
-            "enerGOld*massScale + dt*cepsG*pressureOld",
+            "enerGOld*massScale+dt*cepsG*pressureOld",
             self.volume,
         )
         self.assertIn("s.rhoE[c] = enerGCandidate;", self.volume)
@@ -66,10 +67,10 @@ class GasSolidCouplingContract(unittest.TestCase):
         required = (
             "const double mg = epsG*rhoG;",
             "const double momGX0 = epsG*s.rhoUx[c];",
-            "const double enerG0 = epsG*s.rhoE[c];",
+            "const Energy enerG0 = Energy(epsG)*s.rhoE[c];",
             "const double kW = dt*invTauDragCell*(1.0 + ms/(mg + OfSmall));",
             "s.rhoUx[c] = rhoG*ugNewX;",
-            "s.rhoE[c] = (kgNew + igAfter + diss)/epsGsafe;",
+            "s.rhoE[c] = (kgNew + igAfter + diss)/Energy(epsGsafe);",
         )
         for statement in required:
             self.assertIn(statement, self.drag)
@@ -92,7 +93,7 @@ class GasSolidCouplingContract(unittest.TestCase):
 
     def test_heat_uses_apparent_capacity_and_intrinsic_writeback(self) -> None:
         self.assertIn("const double gasCapacity = epsG*rhoG*gasCv;", self.heat)
-        self.assertIn("rhoEold - dHp/epsGsafe", self.heat)
+        self.assertIn("rhoEold - Energy(dHp)/Energy(epsGsafe)", self.heat)
         eps_g = 0.61
         rho_energy = 18.0
         particle_enthalpy = 7.0

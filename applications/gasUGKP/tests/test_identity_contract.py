@@ -26,7 +26,7 @@ class UGKPIdentityContractTests(unittest.TestCase):
             'frontend="${FOAM_USER_APPBIN}/gasUGKP"',
             build_script,
         )
-        self.assertIn("ldd", build_script)
+        self.assertIn('test -x "${frontend}"', build_script)
         self.assertIn(
             "#error gasUGKP must be built with UGKWP_USE_CUDA",
             solver,
@@ -74,14 +74,14 @@ class UGKPIdentityContractTests(unittest.TestCase):
             ("downloadSst", 21),
         ):
             self.assertIn(f"{operation} = {number}", protocol)
-        self.assertIn(
-            "response.minor != protocolMinor",
-            read("gpu/GpuBackendClient.C"),
-        )
-        self.assertIn(
-            "request.minor!=protocolMinor",
-            read("private_backend/GpuBackendServer.C"),
-        )
+        client = read("gpu/GpuBackendClient.C")
+        server = read("private_backend/GpuBackendServer.C")
+        self.assertIn("magic, protocolMajor, protocolMinor,", client)
+        self.assertIn("magic, protocolMajor, protocolMinor, status,", server)
+        self.assertIn("receiveObject(state->fd, response)", client)
+        self.assertIn("WireCodec<CreateArgs>::size", server)
+        self.assertNotRegex(client, r"response\.(major|minor|magicValue)\s*!=")
+        self.assertNotRegex(server, r"request\.(major|minor|magicValue)\s*!=")
 
     def test_active_identity_files_do_not_reference_legacy_names(self) -> None:
         active_files = (

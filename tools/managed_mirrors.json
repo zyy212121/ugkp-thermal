@@ -1601,6 +1601,7 @@
       "tools/managed_mirrors.json"
     ],
     "ugkp-thermal": [
+      "applications/gasUGKP/tests/host_contract_probes.py",
       "applications/gasUGKP/tests/source_contract_utils.py",
       "applications/gasUGKP/tests/test_budget_reconfiguration_continuation.py",
       "applications/gasUGKP/tests/test_common_gas_numerics_source_contract.py",

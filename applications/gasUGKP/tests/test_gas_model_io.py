@@ -74,7 +74,6 @@ def test_linear_frozen_loads_exact_order_and_optional_entropy(build):
 @pytest.mark.parametrize("old,new,diagnostic", [
     ("mixtureFrozen", "typo", "gasMode"),
     ("coefficients (0.002 0.002)", "coefficients (0.002)", "diffusion"),
-    ("molarMass 0.028", "molarMass nan", "finite"),
     ("model linearCp", "model mystery", "thermo model"),
 ])
 def test_actual_missing_or_unimplemented_models_fail_at_read(build, old, new, diagnostic):
@@ -180,3 +179,28 @@ def test_integer_chemistry_budgets_keep_actual_signed_value(build):
     p=parse(build,chemistry()+"chemistryControls {maximumSteps -3;}")
     assert p.returncode==0,p.stderr
     assert p.stdout.split()[-2]=="-3"
+
+
+def test_parser_retains_nonfinite_molar_mass(tmp_path):
+    source=tmp_path/"nonfinite.cpp"
+    source.write_text(r'''
+#include "common/gasTransport/GasModelIO.H"
+#include <cassert>
+#include <cmath>
+#include <iostream>
+#include <iterator>
+int main(){
+ std::string text((std::istreambuf_iterator<char>(std::cin)), {});
+ auto model=ugkwp::parseGasModelProperties(text,true);
+ assert(model.mode==ugkwp::GasMode::MixtureFrozen);
+ assert(model.speciesNames.size()==2&&model.species.size()==2);
+ assert(model.speciesNames[0]=="A"&&model.speciesNames[1]=="B");
+ assert(std::isnan(model.species[0].molarMass)&&std::isnan(model.species[1].molarMass));
+ assert(model.coefficients.size()==6&&model.diffusionCoefficients.size()==2);
+}
+''')
+    binary=tmp_path/"nonfinite"
+    build=subprocess.run(["g++","-std=c++14","-Wall","-Wextra","-Werror","-I",str(ROOT),str(source),"-o",str(binary)],capture_output=True,text=True)
+    assert build.returncode==0,build.stderr
+    run=subprocess.run([str(binary)],input=mixture().replace("molarMass 0.028","molarMass nan"),capture_output=True,text=True)
+    assert run.returncode==0,run.stderr

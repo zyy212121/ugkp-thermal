@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
                                                                  
 
+from source_contract_utils import read_source, function_block
 from pathlib import Path
 import unittest
 
@@ -11,9 +12,7 @@ ROOT = Path(__file__).resolve().parents[1]
 class CollisionSamplingContract(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:
-        cls.cuda = (ROOT / "private_backend/GpuResidentStrict.cu").read_text(
-            encoding="utf-8", errors="strict"
-        )
+        cls.cuda = read_source(ROOT / "private_backend/GpuResidentStrict.cu")
 
     def test_only_first_poisson_collision_pool_is_sampled(self) -> None:
         self.assertNotIn(
@@ -32,22 +31,24 @@ class CollisionSamplingContract(unittest.TestCase):
         start = self.cuda.index("__device__ void relaxOneParticleToResidentGas")
         end = self.cuda.index("__global__ void relaxParticlesToResidentGasKernel", start)
         body = self.cuda[start:end]
-        self.assertIn("finiteOr(s.thetaDragAlpha[c], 1.0)", body)
-        self.assertIn("s.pTheta[i] = unresolvedTheta*alphaTheta;", body)
+        self.assertIn("decayParticleUnresolvedTheta(s, i, c)", body)
+        decay = function_block(self.cuda, "decayParticleUnresolvedTheta")
+        self.assertIn("finiteOr(s.thetaDragAlpha[c], 1.0)", decay)
+        self.assertIn("s.pTheta[i] = theta*alpha;", decay)
 
     def test_collision_sampling_preserves_heterogeneous_particle_mass(self) -> None:
         start = self.cuda.index("__device__ void sampleOnePoissonPoolParticle")
         end = self.cuda.index("__global__ void samplePoissonPoolParticlesKernel", start)
         body = self.cuda[start:end]
-        self.assertIn("const double m =", body)
-        self.assertIn("const double sampleDeltaX = s.pux[i] - targetUx;", body)
-        self.assertIn("const double sampleDeltaY = s.puy[i] - targetUy;", body)
-        self.assertIn("const double sampleDeltaZ = s.puz[i] - targetUz;", body)
-        self.assertIn("m*sampleDeltaX", body)
-        self.assertIn("m*sampleDeltaY", body)
-        self.assertIn("m*sampleDeltaZ", body)
+        self.assertIn("const double sampleMass =", body)
+        self.assertIn("const double sampleFluctuationX = s.pux[i] - targetUx;", body)
+        self.assertIn("const double sampleFluctuationY = s.puy[i] - targetUy;", body)
+        self.assertIn("const double sampleFluctuationZ = s.puz[i] - targetUz;", body)
+        self.assertIn("sampleMass*sampleFluctuationX", body)
+        self.assertIn("sampleMass*sampleFluctuationY", body)
+        self.assertIn("sampleMass*sampleFluctuationZ", body)
         self.assertIn(
-            "m*sqr3(sampleDeltaX, sampleDeltaY, sampleDeltaZ)", body
+            "sampleMass*sqr3\n        (\n            sampleFluctuationX,\n            sampleFluctuationY,\n            sampleFluctuationZ\n        )", body
         )
         self.assertNotIn("s.pm[i] =", body)
 
@@ -64,8 +65,8 @@ class CollisionSamplingContract(unittest.TestCase):
         self.assertIn("1.5*poolMass*targetTheta", body)
         self.assertIn("const double meanParticleMass =", body)
         self.assertIn("poolMass/static_cast<double>(n);", body)
-        self.assertIn("thermal <= OfSmall*meanParticleMass", body)
-        self.assertNotIn("thermal <= OfSmall)", body)
+        self.assertIn("sampleFluctuationEnergy <= OfSmall*meanParticleMass", body)
+        self.assertNotIn("sampleFluctuationEnergy <= OfSmall)", body)
         self.assertIn("s.pTheta[i] = targetTheta;", body)
         self.assertNotIn("const double invN", body)
 

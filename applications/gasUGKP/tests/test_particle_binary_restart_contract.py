@@ -17,8 +17,8 @@ class ParticleBinaryRestartContract(unittest.TestCase):
 
     def test_binary_reader_converts_actual_blocks_and_reports_short_reads(self) -> None:
         source = FRONTEND.read_text()
-        # Actual full tuples, width conversion, zero chunks and missing bytes
-        # execute in test_native_gas_input_continuation.
+
+
         required = (
             "readBinaryParticleBlock",
             "std::vector<Wire>",

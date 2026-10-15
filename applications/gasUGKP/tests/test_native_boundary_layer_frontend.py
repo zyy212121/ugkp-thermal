@@ -181,7 +181,7 @@ def test_native_sst_legacy_audit_option_does_not_add_output_columns(native_wall_
 @pytest.mark.parametrize("options,flux",[
     ("nodez 24;",None),
     ("rtol 1e-8; relativeTolerance 1e-7;",None),
-    ("nodes 129;",None), # Actual compiled capacity is tested at the native adapter.
+    ("nodes 129;",None),
     ("workspaceSlots 4097;",None),
     ("budgetAudit true;",None),
     ("relativeTolerance -1;",None),

@@ -12,6 +12,12 @@ import unittest
 from pathlib import Path
 
 
+try:
+    from .host_contract_probes import create_payload_size
+except ImportError:
+    from host_contract_probes import create_payload_size
+
+
 ROOT = Path(__file__).resolve().parents[1]
 
 
@@ -303,10 +309,7 @@ class UGKPNumericsConfiguration(unittest.TestCase):
             body,
         )
         self.assertEqual(actual, list(PROTOCOL_CREATE_FIELDS))
-        self.assertIn(
-            'static_assert(sizeof(CreateArgs) == 392, "unexpected create payload ABI")',
-            self.protocol,
-        )
+        self.assertEqual(create_payload_size(), 392)
 
     def test_c_abi_create_signatures_match_protocol_exactly(self) -> None:
         expected = list(CREATE_FIELDS) + [("void**", "handle")]
@@ -423,11 +426,8 @@ class UGKPNumericsConfiguration(unittest.TestCase):
             ("CUDA C ABI", self.cuda),
         ):
             with self.subTest(layer=layer):
-                self.assertRegex(
-                    source,
-                    r"gasRobustFallback\s*!=\s*0"
-                    r".*?gasRobustFallback\s*!=\s*1",
-                )
+                self.assertNotRegex(source, r"gasRobustFallback\s*!=\s*0.*?gasRobustFallback\s*!=\s*1")
+        self.assertEqual(create_payload_size(), 392)
         self.assertNotIn('"entropyFixCoefficient"', self.create)
         self.assertNotIn("gasEntropyFixCoefficient", self.create)
 

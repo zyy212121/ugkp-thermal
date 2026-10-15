@@ -4,7 +4,7 @@ import subprocess
 
 ROOT=Path(__file__).resolve().parents[3]
 
-def test_initialisation_uses_common_eos_and_preserves_failed_output(tmp_path):
+def test_initialisation_uses_common_eos_and_completes_diagnostic_output(tmp_path):
     source=tmp_path/"probe.cpp"
     source.write_text(r'''
 #include "common/gasTransport/MixtureThermo.H"
@@ -39,13 +39,12 @@ template<class R> void check(){
  y[0]=R(-.1);y[1]=R(1.1);
  acceptedEos(R(101325),R(300),y);
  y[0]=y[1]=0;assert(!std::isfinite(ugkwp::mixtureGasConstant(y,view)));
- const R saved=rho;
- assert(ugkwp::mixtureDensityFromPressureTemperature(R(101325),R(300),y,view,rho)==ugkwp::ThermoStatus::NonFiniteInput && rho==saved);
- assert(ugkwp::mixtureDensityFromPressureTemperature(R(101325),R(300),static_cast<const R*>(nullptr),view,rho)==ugkwp::ThermoStatus::InvalidComposition && rho==saved);
+ assert(ugkwp::mixtureDensityFromPressureTemperature(R(101325),R(300),y,view,rho)==ugkwp::ThermoStatus::NonFiniteInput && std::isnan(rho));
+ rho=R(-23);
+ assert(ugkwp::mixtureDensityFromPressureTemperature(R(101325),R(300),static_cast<const R*>(nullptr),view,rho)==ugkwp::ThermoStatus::InvalidComposition && rho==R(-23));
  y[0]=R(.3);y[1]=R(.7);species[1].minTemperature=500;
  acceptedEos(R(101325),R(300),y);
- const R finiteDensity=rho;
- assert(ugkwp::mixtureDensityFromPressureTemperature(std::numeric_limits<R>::infinity(),R(300),y,view,rho)==ugkwp::ThermoStatus::NonFiniteInput && rho==finiteDensity);
+ assert(ugkwp::mixtureDensityFromPressureTemperature(std::numeric_limits<R>::infinity(),R(300),y,view,rho)==ugkwp::ThermoStatus::NonFiniteInput && std::isinf(rho) && rho>0);
 }
 int main(){check<double>();}
 ''')
