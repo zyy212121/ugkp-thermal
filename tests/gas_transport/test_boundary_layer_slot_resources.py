@@ -8,16 +8,16 @@ def wall_fixture():
     old='struct State:ugkwp::GasStateView<Real,Time,ugkwp::SstCoefficients>{ugkwp::GasSpeciesState<Real,2> gasSpecies;};'
     new='#include "gasTransport/GasBoundaryLayerModelState.H"\nstruct State:ugkwp::GasStateView<Real,Time,ugkwp::SstCoefficients>{ugkwp::GasSpeciesState<Real,2> gasSpecies;ugkwp::GasBoundaryLayerModelState<Real,2> gasBoundaryLayerModel;};'
     assert source.count(old)==1
-    return source.replace(old,new)
+    return '#include <vector>\n#include <cstring>\n'+source.replace(old,new)
 
 
 @pytest.mark.parametrize('native',[False,True])
 @pytest.mark.parametrize('route',[0,1,2])
 def test_selected_wall_slot_requires_allocated_extent(tmp_path,native,route):
     code=r"""
-int main(){for(int mode=0;mode<3;++mode){
+int main(){for(int mode=0;mode<4;++mode){
  State s;initialise(s);s.gasReconstruction=0;s.riemannBoundaryKind[1]=2;
- const int count=mode==2?0:1,slot=mode==0?count:mode==1?count+4:0;
+ const int count=mode==3?0:1,slot=mode==0?count:mode==1?count+1:mode==2?count+4:0;
  int slots[3]={-1,slot,-1};auto&w=s.gasBoundaryLayer;w.enabled=true;w.count=count;w.faceSlot=slots;
  std::vector<ugkwp::GasBoundaryLayerExchange<Real>> exchanges(count);
  std::vector<ugkwp::gaswall::WallInput<Real,2>> inputs(count);
@@ -55,4 +55,34 @@ int main(){State s;initialise(s);s.gasReconstruction=0;s.riemannBoundaryKind[1]=
  else for(int k=1;k<5;++k)ck(out[k]==0,"mass-only consumer read unused flux");
 }
 """.replace('ROUTE',str(route)).replace('MASS_ONLY','true' if route else 'false').replace('NATIVE','true' if native else 'false')
+    compile_probe(tmp_path,wall_fixture()+code,sanitizers=True)
+
+
+
+@pytest.mark.parametrize('native',[False,True])
+@pytest.mark.parametrize('mass_only',[False,True])
+@pytest.mark.parametrize('slot',[-1,-7])
+def test_negative_wall_slot_matches_unselected_face_bits(tmp_path,native,mass_only,slot):
+    code=r"""
+int main(){State reference,actual;initialise(reference);initialise(actual);
+ int referenceSlots[3]={-1,-1,-1},actualSlots[3]={-1,SLOT,-1};
+ for(State* state:{&reference,&actual}){
+  auto&w=state->gasBoundaryLayer;w.count=0;w.exchange=nullptr;w.speciesFlux=nullptr;
+  w.status=nullptr;w.sst=nullptr;w.ownerSlot=nullptr;
+  state->gasBoundaryLayerModel.useSuppliedWallState=true;
+  state->gasBoundaryLayerModel.input=nullptr;
+  for(int i=0;i<6;++i)state->gasSpecies.flux[i]=91.25+i;
+ }
+ reference.gasBoundaryLayer.enabled=false;reference.gasBoundaryLayer.faceSlot=referenceSlots;
+ actual.gasBoundaryLayer.enabled=true;actual.gasBoundaryLayer.faceSlot=actualSlots;
+ Real expected[5]={11,12,13,14,15},observed[5]={11,12,13,14,15};
+ const bool a=computeRiemannGasFaceFluxDevice<false,MASS_ONLY>(reference,1,expected[0],expected[1],expected[2],expected[3],expected[4],NATIVE);
+ const bool b=computeRiemannGasFaceFluxDevice<false,MASS_ONLY>(actual,1,observed[0],observed[1],observed[2],observed[3],observed[4],NATIVE);
+ ck(a&&b,"unselected face did not complete");
+ ck(std::memcmp(expected,observed,sizeof(expected))==0,"negative slot changed unselected face flux bits");
+ ck(std::memcmp(reference.gasSpecies.flux,actual.gasSpecies.flux,6*sizeof(Real))==0,"negative slot changed species flux bits");
+ ck(std::memcmp(reference.gasSpecies.faceStatus,actual.gasSpecies.faceStatus,3*sizeof(int))==0,"negative slot changed face statuses");
+ ck(std::memcmp(reference.gasSpecies.cellStatus,actual.gasSpecies.cellStatus,2*sizeof(int))==0,"negative slot changed cell statuses");
+}
+""".replace('SLOT',str(slot)).replace('MASS_ONLY','true' if mass_only else 'false').replace('NATIVE','true' if native else 'false')
     compile_probe(tmp_path,wall_fixture()+code,sanitizers=True)
