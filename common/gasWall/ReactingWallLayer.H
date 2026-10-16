@@ -45,6 +45,44 @@ template<class R,int N,class TableReal> UGKWP_GAS_HD UGKWP_WALL_DEVICE_LEAF bool
 }
 
 
+// Jacobian rows only need a five-node window around one perturbed node.
+// Keep pristine pointState results private to its assembling thread; reaction
+// and the distinct node/interval SST gradients always operate on fresh copies.
+template<class R,int N> struct LayerPointCache {
+    int first;LayerPoint<R,N> points[5];unsigned char status[5]{};
+    UGKWP_GAS_HD explicit LayerPointCache(int begin):first(begin){}
+    UGKWP_GAS_HD void invalidate(int node){status[node-first]=0;}
+};
+template<class R,int N> struct CachedLayerRow {
+    const R* values;LayerPointCache<R,N>* cache;int node;
+    UGKWP_GAS_HD R operator[](int component)const{return values[component];}
+};
+template<class R,int N,class Rows> struct CachedLayerRows {
+    const Rows& rows;mutable LayerPointCache<R,N> cache;
+    UGKWP_GAS_HD CachedLayerRows(const Rows& values,int node)
+        :rows(values),cache(node>1?node-2:0){}
+    UGKWP_GAS_HD CachedLayerRow<R,N> operator[](int node)const{return {rows[node],&cache,node};}
+    UGKWP_GAS_HD void invalidate(int node){cache.invalidate(node);}
+};
+template<class R,int N,class TableReal> UGKWP_GAS_HD inline bool loadBasePoint(
+ const WallInput<R,N,TableReal>& in,const WallModelConfig<R>& c,const LayerContext<R,N>& ctx,
+ const R* row,LayerPoint<R,N>& point,const bool terminalProfile=false){
+    return pointState(in,c,ctx,row,point,terminalProfile);
+}
+template<class R,int N,class TableReal> UGKWP_GAS_HD inline bool loadBasePoint(
+ const WallInput<R,N,TableReal>& in,const WallModelConfig<R>& c,const LayerContext<R,N>& ctx,
+ const CachedLayerRow<R,N>& row,LayerPoint<R,N>& point,const bool terminalProfile=false){
+    if(terminalProfile)return pointState(in,c,ctx,row.values,point,true);
+    auto& cache=*row.cache;const int slot=row.node-cache.first;
+    if(!cache.status[slot]){
+        // pointState accumulates Cp, so every refill starts from a zero object.
+        cache.points[slot]=LayerPoint<R,N>{};
+        cache.status[slot]=pointState(in,c,ctx,row.values,cache.points[slot])?1:2;
+    }
+    if(cache.status[slot]!=1)return false;
+    point=cache.points[slot];return true;
+}
+
 template<class R,int N,class TableReal> UGKWP_GAS_HD UGKWP_WALL_DEVICE_LEAF bool pointReaction(const WallInput<R,N,TableReal>& in,LayerPoint<R,N>& p,const bool terminalProfile=false){
     if(in.model.mode!=GasMode::MixtureChemistry)return true;
     if(!in.model.thermo.species)return false;
@@ -124,18 +162,18 @@ template<class R,int N,class TableReal> UGKWP_GAS_HD inline bool layerFlux(const
 }
 template<class R,int N,class TableReal,class Rows> UGKWP_GAS_HD inline bool evaluatePoint(const WallInput<R,N,TableReal>& in,
  const WallModelConfig<R>& c,const LayerContext<R,N>& ctx,const Rows& x,const R* y,int index,LayerPoint<R,N>& p,const bool terminalProfile=false){
-    if(!pointState(in,c,ctx,x[index],p,terminalProfile)||!pointReaction(in,p,terminalProfile))return false;
+    if(!loadBasePoint(in,c,ctx,x[index],p,terminalProfile)||!pointReaction(in,p,terminalProfile))return false;
     if(c.enableSst&&index>0){const int l=index-1,r=index+1<c.nodes?index+1:index;LayerPoint<R,N> a,b;
-        if(!pointState(in,c,ctx,x[l],a,terminalProfile)||!pointState(in,c,ctx,x[r],b,terminalProfile))return false;
+        if(!loadBasePoint(in,c,ctx,x[l],a,terminalProfile)||!loadBasePoint(in,c,ctx,x[r],b,terminalProfile))return false;
         pointSst(in,c,y[index],a,b,y[r]-y[l],p,y[index]-y[l]);}
     return true;
 }
 // Flux values at a face depend on endpoint gradients through SST eddy viscosity.
 // Use a two-point strain/gradient consistently, preserving a three-node residual
 // stencil and block-tridiagonal Newton system.
-template<class R,int N,class TableReal> UGKWP_GAS_HD UGKWP_WALL_DEVICE_LEAF bool intervalFlux(const WallInput<R,N,TableReal>& in,const WallModelConfig<R>& c,
- const LayerContext<R,N>& ctx,const R* xa,const R* xb,R ya,R yb,LayerFlux<R,N>& f,const bool terminalProfile=false){
-    LayerPoint<R,N> a,b;if(!pointState(in,c,ctx,xa,a,terminalProfile)||!pointState(in,c,ctx,xb,b,terminalProfile))return false;
+template<class R,int N,class TableReal,class RowA,class RowB> UGKWP_GAS_HD UGKWP_WALL_DEVICE_LEAF bool intervalFlux(const WallInput<R,N,TableReal>& in,const WallModelConfig<R>& c,
+ const LayerContext<R,N>& ctx,const RowA& xa,const RowB& xb,R ya,R yb,LayerFlux<R,N>& f,const bool terminalProfile=false){
+    LayerPoint<R,N> a,b;if(!loadBasePoint(in,c,ctx,xa,a,terminalProfile)||!loadBasePoint(in,c,ctx,xb,b,terminalProfile))return false;
     const auto originalA=a,originalB=b;
     pointSst(in,c,ya,originalA,originalB,yb-ya,a);pointSst(in,c,yb,originalA,originalB,yb-ya,b);
     return layerFlux(in,c,ctx,a,b,yb-ya,f,ya,yb,terminalProfile);
@@ -167,7 +205,7 @@ template<class R,int N,class TableReal,class Rows> UGKWP_GAS_HD UGKWP_WALL_DEVIC
     for(int j=0;j<N-1;++j){const int s=ctx.independent[j];row[3+j]=(right.species[s]-left.species[s]-volume*p.source[s])/ctx.scale[3+j];}
     if(!c.enableSst){row[K]=x[i][K];row[Z]=x[i][Z]-R(1);return true;}
     row[K]=(right.k-left.k-volume*p.sourceK)/ctx.scale[K];
-    if(i==1){LayerPoint<R,N> a;if(!pointState(in,c,ctx,x[i-1],a))return false;
+    if(i==1){LayerPoint<R,N> a;if(!loadBasePoint(in,c,ctx,x[i-1],a))return false;
         row[Z]=p.z-a.z-y[1]*::sqrt(a.rho*in.model.sstCoefficients.beta1/(R(6)*in.model.viscosity));}
     else {const R yl=(y[i-1]+y[i])/R(2),yr=(y[i]+y[i+1])/R(2);
       const R fit=omegaDestructionFit(y[i],yl,yr);
@@ -223,6 +261,7 @@ template<class R,int N,int M,class TableReal> UGKWP_GAS_HD inline bool assembleJ
  const WallInput<R,N,TableReal>& in,const WallModelConfig<R>& c,const LayerContext<R,N>& ctx,
  WallWorkspace<R,N,M>& w,int j){
     constexpr int B=N+4;PerturbedLayerState<R,N> perturbed(w.state,j);
+    CachedLayerRows<R,N,PerturbedLayerState<R,N>> cached(perturbed,j);
 
         // A local simplex tangent basis remains feasible even when the globally
         // dependent species and an independent species are both exactly zero.
@@ -241,8 +280,9 @@ template<class R,int N,int M,class TableReal> UGKWP_GAS_HD inline bool assembleJ
             bool valid=false;R rows[3][B]{};const int start=j>0?j-1:0,end=j+1<c.nodes?j+1:c.nodes-1;
             for(int attempt=0;attempt<2&&!valid;++attempt){perturbed.row[col]=old+h;
                 if(transfer)perturbed.row[donor]=oldDonor-h;
+                cached.invalidate(j);
                 valid=true;
-                for(int i=start;i<=end;++i)if(!layerRow(in,c,ctx,perturbed,w.y,i,rows[i-start])){valid=false;break;}
+                for(int i=start;i<=end;++i)if(!layerRow(in,c,ctx,cached,w.y,i,rows[i-start])){valid=false;break;}
                 if(!valid){perturbed.row[col]=old;if(transfer)perturbed.row[donor]=oldDonor;h=species?h/R(2):-h;}}
             const R actualStep=perturbed.row[col]-old;
             const R donorStep=transfer?oldDonor-perturbed.row[donor]:R(0);
