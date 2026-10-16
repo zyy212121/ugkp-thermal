@@ -64,3 +64,19 @@ s.gasSpecies.faceStatus[1]=0;s.gasSpecies.boundaryMassFraction[1]=1;s.gasSpecies
 riemannBoundaryState(s,1,p,nullptr,true);ck(s.gasSpecies.faceStatus[1]!=0,"physical thermo range relaxed");
 }
 ''')
+
+def test_native_pure_mixture_step_conserves_inventories_after_roundoff_closure(tmp_path):
+    compile_probe(tmp_path,fixture()+r'''
+int main(){State s;initialise(s);s.gasReconstruction=1;
+for(int c=0;c<2;++c){s.rho[c]=1;s.gasSpecies.rho[c]=c?Real(1):std::nextafter(Real(1),Real(2));s.gasSpecies.rho[2+c]=0;
+Real r[2]={s.gasSpecies.rho[c],0};s.rhoE[c]=ugkwp::mixtureEnergy(r,Real(700),s.gasSpecies.thermo);threadIdx.x=c;recoverGasPrimitivesKernel(&s,true);ck(s.gasSpecies.cellStatus[c]==0,"valid recovered inventory rejected");}
+const Real mass=s.rho[0]+s.rho[1],energy=s.rhoE[0]+s.rhoE[1],species=s.gasSpecies.rho[0]+s.gasSpecies.rho[1];
+for(int c=0;c<2;++c){threadIdx.x=c;computeGasPrimitiveGradientsKernel(&s,false,true);computeGasGradientLimiterKernel(&s,true);}
+for(int f=0;f<3;++f){threadIdx.x=f;computeGasInternalFaceFluxKernel<false>(&s,1e-7,true);ck(s.gasSpecies.faceStatus[f]==0,"closure-valid native flux rejected");ck(s.gasSpecies.flux[3+f]==0,"absent species flux created");ck(s.gasSpecies.flux[f]==s.gasPhiRho[f],"pure mass flux not closed");}
+for(int c=0;c<2;++c){threadIdx.x=c;applyGasFluxDivergenceByCellKernel(&s,1e-7,true);recoverGasPrimitivesKernel(&s,true);ck(s.gasSpecies.cellStatus[c]==0,"native update rejected");ck(s.gasSpecies.rho[2+c]==0,"absent species inventory created");}
+const Real eps=std::numeric_limits<Real>::epsilon();
+ck(std::abs(s.rho[0]+s.rho[1]-mass)<=4*eps*mass,"total mass changed");
+ck(std::abs(s.rhoE[0]+s.rhoE[1]-energy)<=4*eps*std::abs(energy),"total energy changed");
+ck(std::abs(s.gasSpecies.rho[0]+s.gasSpecies.rho[1]-species)<=4*eps*species,"species inventory changed");
+}
+''')
