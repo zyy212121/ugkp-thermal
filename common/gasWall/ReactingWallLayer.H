@@ -560,7 +560,8 @@ template<class R,int N,int M,class TableReal,class Team=detail::SerialWallTeam> 
 
 
     team.sync();
-    bool seeded=strictMechanism&&seedSstLayer(in,c,ctx,w,team);
+    bool seeded=false;
+    if(team.leader())seeded=strictMechanism&&seedSstLayer(in,c,ctx,w,SerialWallTeam{});
     if(team.leader()&&c.enableSst&&seeded){
         // Initialize the auxiliary nonlinear profile at a shear-based scale.
         // This changes neither matching/owner k nor any physical equation.
