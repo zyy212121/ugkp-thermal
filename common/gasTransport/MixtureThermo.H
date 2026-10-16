@@ -17,6 +17,32 @@ UGKWP_GAS_HD inline bool gasFinite(const Real x) noexcept
         && x >= -(std::numeric_limits<Real>::max)();
 }
 
+// Recovery already admits independently transported densities within its
+// configured closure tolerance. Construct a disposable composition on the
+// simplex from that same accepted inventory, without modifying any inventory.
+// Close on the largest component so roundoff cannot create an absent species.
+// Invalid inventories are left to the existing caller validation unchanged.
+template<class Real,int Ns>
+UGKWP_GAS_HD inline bool mixtureMassFractionsFromDensities(
+    const Real* partial,Real density,Real closureTolerance,Real* fractions) noexcept
+{
+    if(!partial||!fractions||!gasFinite(density)||!(density>Real(0))
+        ||!gasFinite(closureTolerance)||closureTolerance<Real(0))return false;
+    Real total=0;int dependent=0;
+    for(int k=0;k<Ns;++k){
+        if(!gasFinite(partial[k])||partial[k]<Real(0))return false;
+        total+=partial[k];if(partial[k]>partial[dependent])dependent=k;
+    }
+    if(!gasFinite(total)||!(total>Real(0))
+        ||::fabs(total-density)>closureTolerance*density)return false;
+    Real local[Ns],sum=0;
+    for(int k=0;k<Ns;++k)if(k!=dependent){local[k]=partial[k]/total;sum+=local[k];}
+    local[dependent]=Real(1)-sum;
+    if(!gasFinite(local[dependent])||local[dependent]<Real(0)||local[dependent]>Real(1))return false;
+    for(int k=0;k<Ns;++k)fractions[k]=local[k];
+    return true;
+}
+
 namespace gasThermoDetail
 {
 template<class Real> UGKWP_GAS_HD inline Real absValue(Real x) noexcept

@@ -147,6 +147,16 @@ __device__ GasPrimDevice riemannBoundaryState
                 Y[k]=fixedY?s.gasSpecies.boundaryMassFraction[k*s.nFaces+f]
                     :(extrapolatedMassFraction?extrapolatedMassFraction[k]
                         :s.gasSpecies.rho[k*s.nCells+own]/s.rho[own]);
+            bool outsideSimplex=false;
+            if(nativeRefinement && !fixedY && !extrapolatedMassFraction)
+                for(int k=0;k<Ns;++k)outsideSimplex=outsideSimplex || !ugkwp::gasFinite(Y[k])
+                    || Y[k]<GPU_OPERATOR_R(0.0) || Y[k]>GPU_OPERATOR_R(1.0);
+            if(outsideSimplex){
+                GPU_OPERATOR_REAL partial[Ns];
+                for(int k=0;k<Ns;++k)partial[k]=s.gasSpecies.rho[k*s.nCells+own];
+                ugkwp::mixtureMassFractionsFromDensities<GPU_OPERATOR_REAL,Ns>(partial,s.rho[own],
+                    s.gasSpecies.densityClosureTolerance,Y);
+            }
             const GPU_OPERATOR_REAL R=ugkwp::mixtureGasConstant(Y,s.gasSpecies.thermo);
             if(s.riemannBoundaryUFix[f]==3 || s.riemannBoundaryPWave[f]!=0 || s.nScheduledInletFaces>0)
             {ugkwp::gasRecordFaceFailure(s,f,ugkwp::GasTransportCode::UnsupportedConfiguration);if(nativeRefinement)return ownerState;}
