@@ -1,6 +1,6 @@
 # OpenFOAM diagnostics and single-pass advancement
 
-Status: implementation and validation in progress. This report does not certify absence of every retry path. Final build revision, tests, remaining mechanisms and the post-publication audit are filled before/after the corresponding operations actually complete.
+Status: full native build passed at 9ed4ff10; the C++14-only client correction edc536ef was rebuilt and produced identical binaries. See 工作报告.md for exact evidence and 遗留与例外.md for acknowledged gaps. Post-publication audit is pending. This report does not certify absence of every retry path.
 
 ## Requested semantics
 
