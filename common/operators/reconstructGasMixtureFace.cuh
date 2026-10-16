@@ -28,6 +28,26 @@ __device__ bool reconstructGasMixtureFace
     GPU_OPERATOR_REAL yc[Ns],dy[Ns];
     for(int k=0;k<Ns;++k)
     {yc[k]=s.gasSpecies.rho[k*s.nCells+c]/centre.rho;dy[k]=GPU_OPERATOR_R(0.0);}
+    int dependent=Ns-1;
+    GPU_OPERATOR_REAL independentSum=GPU_OPERATOR_R(0.0);
+    bool centreOutsideSimplex=false;
+    if(nativeRefinement){
+        for(int k=0;k<Ns;++k){
+            centreOutsideSimplex=centreOutsideSimplex || !ugkwp::gasFinite(yc[k])
+                || yc[k]<GPU_OPERATOR_R(0.0) || yc[k]>GPU_OPERATOR_R(1.0);
+            if(k+1<Ns)independentSum+=yc[k];
+        }
+        centreOutsideSimplex=centreOutsideSimplex || independentSum>GPU_OPERATOR_R(1.0);
+    }
+    // Retain the arithmetic of already admissible states. Only inconsistent
+    // disposable compositions need the same closure accepted by recovery.
+    if(nativeRefinement && centreOutsideSimplex){
+        GPU_OPERATOR_REAL partial[Ns];
+        for(int k=0;k<Ns;++k)partial[k]=s.gasSpecies.rho[k*s.nCells+c];
+        if(ugkwp::mixtureMassFractionsFromDensities<GPU_OPERATOR_REAL,Ns>(partial,centre.rho,
+            s.gasSpecies.densityClosureTolerance,yc))
+            for(int k=0;k<Ns;++k)if(yc[k]>yc[dependent])dependent=k;
+    }
     if(s.gasReconstruction!=1)
     {output=centre;for(int k=0;k<Ns;++k)massFractions[k]=yc[k];if(evaluated)*evaluated=true;return true;}
     if(!gasCoupledFaceStorageAvailable(s,f))
@@ -84,10 +104,14 @@ __device__ bool reconstructGasMixtureFace
         bool valid=complete&&candidate.rho>=s.rhoMin&&candidate.p>GPU_OPERATOR_R(0.0);
         for(int k=0;k<Ns;++k)
         {
-            y[k]=k+1==Ns?GPU_OPERATOR_R(1.0)-sum:yc[k]+alpha*dy[k];
+            if(k==dependent)continue;
+            y[k]=yc[k]+alpha*dy[k];
             sum+=y[k];complete=complete&&ugkwp::gasFinite(y[k]);
             valid=valid&&ugkwp::gasFinite(y[k])&&y[k]>=GPU_OPERATOR_R(0.0)&&y[k]<=GPU_OPERATOR_R(1.0);
         }
+        y[dependent]=GPU_OPERATOR_R(1.0)-sum;
+        complete=complete&&ugkwp::gasFinite(y[dependent]);
+        valid=valid&&ugkwp::gasFinite(y[dependent])&&y[dependent]>=GPU_OPERATOR_R(0.0)&&y[dependent]<=GPU_OPERATOR_R(1.0);
         if(complete && (!nativeRefinement || valid))
         {
             const auto R=ugkwp::mixtureGasConstant(y,s.gasSpecies.thermo);
