@@ -41,10 +41,17 @@ int main(){unsigned seed=4321;for(int index=0;index<=SELECTED;++index){auto rand
 def build_run(tmp,label,root,selected):
     copy=tmp/label;shutil.copytree(root/'common',copy/'common')
     p=copy/'common/gasWall/ReactingWallLayer.H';s=p.read_text()
-    s=s.replace('if(!valid){w.state[j][col]=old;',
-        'std::printf("DERIV %d %d %d %d %a\\n",j,col,attempt,valid,double(h));if(!valid){w.state[j][col]=old;')
-    s=s.replace('R next=0;if(allResidual(in,c,ctx,w.trial,w.y,w.residual,next)&&next<norm)',
-        'R next=0;const bool validTrial=allResidual(in,c,ctx,w.trial,w.y,w.residual,next);std::printf("LINE %d %d %a %d %a\\n",iteration,line,double(alpha),validTrial,double(next));if(validTrial&&next<norm)')
+    # Instrument the same mathematical probes in both storage implementations.
+    row='perturbed.row[col]' if 'struct PerturbedLayerState' in s else 'w.state[j][col]'
+    needle='if(!valid){'+row+'=old;'
+    assert s.count(needle)==1
+    s=s.replace(needle,
+        'std::printf("DERIV %d %d %d %d %a\\n",j,col,attempt,valid,double(h));'+needle)
+    call='allResidual(in,c,ctx,w.trial,w.y,w.residual,next'+(',team' if 'class Team=detail::SerialWallTeam' in s else '')+')'
+    needle='R next=0;if('+call+'&&next<norm)'
+    assert s.count(needle)==1
+    s=s.replace(needle,
+        'R next=0;const bool validTrial='+call+';std::printf("LINE %d %d %a %d %a\\n",iteration,line,double(alpha),validTrial,double(next));if(validTrial&&next<norm)')
     s=s.replace('    R norm=0;',
         '    std::puts("SEED");for(int i=0;i<c.nodes;++i){for(int j=0;j<N+4;++j)std::printf("%a ",double(w.state[i][j]));std::puts("");}\n    R norm=0;')
     p.write_text(s)

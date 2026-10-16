@@ -2150,16 +2150,25 @@ constexpr double mobilePackingJacobiOmega = 0.8;
 #include "../../../common/gasNumerics/GpuPackingProjectionCooperative.cuh"
 
 #include "../../../common/GpuGasHostPolicy.cuh"
+
+namespace
+{
+// Define the callback in the same internal namespace as its forward declaration.
 template<bool Capture> int launchBoundaryLayer(DeviceState* s)
 {
         const bool analytic=s->gasBoundaryLayerModel.config.model==ugkwp::gaswall::BoundaryLayerModel::ConstantTransport;
         const int workers=analytic?s->gasBoundaryLayer.count:s->gasBoundaryLayerModel.workspaceCount,block=32;
         if(workers<=0){setLastErrorText("boundaryLayer scratch pool is empty");return 1;}
-        evaluateGasBoundaryLayerKernel<Capture><<<(workers+block-1)/block,block,0,s->gasCaptureStream>>>(s->deviceState);
+        if(analytic)
+            evaluateGasBoundaryLayerKernel<Capture><<<(workers+block-1)/block,block,0,s->gasCaptureStream>>>(s->deviceState);
+        else
+            evaluateGasBoundaryLayerTeamKernel<Capture><<<workers,ugkwp::gaswall::detail::wallWarpWidth,0,s->gasCaptureStream>>>(s->deviceState);
         const auto error=cudaGetLastError();
         if(error!=cudaSuccess){setLastError("prepare sparse boundaryLayer profiles",error);return 1;}
         return 0;
 }
+} // namespace
+
 struct GasHostPolicy:GasHostWithoutWallEnergy<double,double>
 {
     template<class HostState> static int prepareBoundaryLayer(HostState* s,double,double stageTime)

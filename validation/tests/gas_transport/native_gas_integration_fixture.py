@@ -36,6 +36,23 @@ struct DeviceState:State{
  std::vector<cudaGraphNode_t>gasGraphTimeNodes;std::vector<cudaKernelNodeParams>gasGraphTimeParams;
 };
 '''
+    # Match the selected revision's real startup callback interface. The older
+    # immutable oracle revision predates it and retains its original host shape.
+    callbacks='int (*gasBoundaryLayerLaunch)(DeviceState*)'
+    if callbacks in native:
+        declarations="""
+struct DeviceState;
+template<bool Capture> int launchBoundaryLayer(DeviceState*);
+namespace sharedGasTrialDetail {
+template<bool Capture,class State> int snapshotWallRecords(State*,SharedGasTrialSnapshot&,bool);
+}
+"""
+        fields="""
+ int (*gasBoundaryLayerLaunch)(DeviceState*)=&launchBoundaryLayer<false>;
+ int (*gasBoundaryLayerSnapshot)(DeviceState*,SharedGasTrialSnapshot&,bool)=
+     &sharedGasTrialDetail::snapshotWallRecords<false,DeviceState>;
+"""
+        host=host.replace('struct DeviceState:State{',declarations+'struct DeviceState:State{'+fields)
     h=h[:a]+host+h[b:]
     graph=PREAMBLE.split('#ifdef LEGACY_REFERENCE',1)[0].replace('using cudaError_t=int;','').replace('cudaSuccess=0,','')
     graph=re.sub(r'void setLastError(?:Text)?\([^\n]+\n','',graph)
@@ -56,6 +73,21 @@ template<class S,class T>void advanceGasChemistryKernel(S*s,T dt,const Real*v){i
     if 'nativeRefinement' in (root/'common/operators/advanceGasChemistryKernel.cuh').read_text():
         api=api.replace('const Real*v){','const Real*v,bool nativeRefinement=false){').replace('(*s,c,dt,v[c]);','(*s,c,dt,v[c],nativeRefinement);')
     api=api.replace("SQR3_FUNCTION",function((root/"common/operators/publishScheduledInletConfigurationKernel.cuh").read_text(),"__device__ GPU_OPERATOR_REAL sqr3"))
+    if callbacks in native:
+        if 'evaluateGasBoundaryLayerTeamKernel' in native:
+            # Host CUDA shims execute the real scalar math once per CTA owner;
+            # cooperative math/barriers have separate threaded oracle tests.
+            api+=r'''
+template<bool Capture,class GasState> void evaluateGasBoundaryLayerTeamKernel(GasState* state){
+ if(threadIdx.x)return;
+ const int worker=blockIdx.x,workers=state->gasBoundaryLayerModel.workspaceCount;
+ if(worker>=workers || !ugkwp::gasBoundaryLayerEnabled(*state))return;
+ for(int slot=worker;slot<state->gasBoundaryLayer.count;slot+=workers)
+  ugkwp::evaluateGasBoundaryLayerSlot<Capture>(*state,slot,worker);
+}
+'''
+        api+=launches(function(native,'template<bool Capture> int launchBoundaryLayer(DeviceState* s)'))
+
     gravity=function(native,'__global__ void applyGasGravitySourceKernel')+'\n'+function(native,'int applyGasGravitySource\n')
     policy='#include "GpuGasHostPolicy.cuh"\n'+function(native,'struct GasHostPolicy:')+';\n'
     sst=function(native,'int syncSstConfiguration')+'\n'+function(native,'extern "C" int ugkwpGpuResidentStrictConfigureSst')
