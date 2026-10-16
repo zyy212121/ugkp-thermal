@@ -404,13 +404,13 @@ UGKWP_GAS_HD inline ThermoStatus invertCaloricEnergy
         if(status!=ThermoStatus::Success)return status;
         residual=energy-internalEnergy;
         if(!gasFinite(residual)) {
-            recordFatal(diagnostics,makeRecord(Code::NonFinite,30600,0,0,EntityKind::None,-1,-1,residual,0,0,Quantity::InternalEnergy));
+            if(diagnostics)recordFatal(diagnostics,makeRecord(Code::NonFinite,30600,0,0,EntityKind::None,-1,-1,residual,0,0,Quantity::InternalEnergy));
             return ThermoStatus::NonFiniteInput;
         }
         if(capacity==Real(0))return failure(diagnostics,ThermoStatus::NonPositiveHeatCapacity,Code::ZeroDenominator,-1,capacity,Quantity::Denominator);
         const Real correction=residual/capacity;
         if(!gasFinite(correction)) {
-            recordFatal(diagnostics,makeRecord(Code::NonFinite,30601,0,0,EntityKind::None,-1,-1,correction,0,0,Quantity::Temperature));
+            if(diagnostics)recordFatal(diagnostics,makeRecord(Code::NonFinite,30601,0,0,EntityKind::None,-1,-1,correction,0,0,Quantity::Temperature));
             return ThermoStatus::NonFiniteInput;
         }
         const Real tolerance=controls.absoluteTemperatureTolerance+controls.relativeTemperatureTolerance*absValue(trial);

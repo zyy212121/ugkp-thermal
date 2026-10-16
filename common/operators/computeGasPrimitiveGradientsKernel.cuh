@@ -77,7 +77,12 @@ __global__ void computeGasPrimitiveGradientsKernel
         const GPU_OPERATOR_REAL sz = sign*s.Sfz[f];
         const GasPrimDevice qf =
             riemannFacePrimitiveForGradient(s, c, f,nativeRefinement);
-        if(!finiteDevice(qf.rho)||!finiteDevice(qf.T))return;
+        if(!gasProducerScalarValid(s,c,qf.rho,30125)
+            ||!gasProducerScalarValid(s,c,qf.ux,30126)
+            ||!gasProducerScalarValid(s,c,qf.uy,30127)
+            ||!gasProducerScalarValid(s,c,qf.uz,30128)
+            ||!gasProducerScalarValid(s,c,qf.p,30129)
+            ||!gasProducerScalarValid(s,c,qf.T,30130,true))return;
         grx += qf.rho*sx; gry += qf.rho*sy; grz += qf.rho*sz;
         guxx += qf.ux*sx; guxy += qf.ux*sy; guxz += qf.ux*sz;
         guyx += qf.uy*sx; guyy += qf.uy*sy; guyz += qf.uy*sz;
