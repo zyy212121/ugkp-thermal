@@ -92,7 +92,7 @@ public:
         failureStatus_={};
         void* workspace=nullptr;int capacity=0;
         if(config.model!=ugkwp::gaswall::BoundaryLayerModel::ConstantTransport){
-            if((config.nodes<4||config.nodes>128)){error="wall profile nodes outside supported range";return false;}
+            if((config.nodes<2||config.nodes>128)){error="wall profile nodes outside supported range";return false;}
             if(config.nodes<=24){if(!smallWorkspace_)smallWorkspace_.reset(new ugkwp::gaswall::WallWorkspace<Real,Ns,24>);workspace=smallWorkspace_.get();capacity=24;}
             else if(config.nodes<=48){if(!mediumWorkspace_)mediumWorkspace_.reset(new ugkwp::gaswall::WallWorkspace<Real,Ns,48>);workspace=mediumWorkspace_.get();capacity=48;}
             else{if(!largeWorkspace_)largeWorkspace_.reset(new ugkwp::gaswall::WallWorkspace<Real,Ns,128>);workspace=largeWorkspace_.get();capacity=128;}

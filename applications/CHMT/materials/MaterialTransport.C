@@ -41,7 +41,7 @@ bool reconstruct(const HostMesh& m,const std::vector<SolidQ>& q,const PhysicsCon
         Symmetric3 matrix;Vec3 rhs{};Real lo=value,hi=value;
         for(int e=m.cellFaceOffsets[cell];e<m.cellFaceOffsets[cell+1];++e){const int f=m.cellFaces[e],other=otherCell(m,cell,f);if(other<0)continue;
             const Real v=component(q[other],k)/m.volumes[other];addLeastSquares(matrix,rhs,displacement(m,cell,f,other),v-value);lo=minValue(lo,v);hi=maxValue(hi,v);}
-        const Real change=dot(solveLeastSquares(matrix,rhs),offset);setComponent(increment,k,change);
+        const Real change=dot(solveLeastSquares(matrix,rhs),offset);if(!finite(change))return false;setComponent(increment,k,change);
         if(p.reconstruction==ReconstructionMode::LimitedLinear)bound=minValue(bound,materialReconstructionLimiter(value,lo,hi,change));
     }
     SolidQ candidate=addSolid(density,increment,bound);candidate.porosity=q[cell].porosity;MaterialPrimitive state;
@@ -127,10 +127,11 @@ bool evaluateMaterialTransportImpl(const HostMesh& m,const std::vector<SolidQ>& 
             const Vec3 dx=displacement(m,c,f,other);addLeastSquares(matrix,rhs,dx,primitive[other].pressure-primitive[c].pressure);
             const Real distance=mag(dx);if(!(distance>0)){error="coincident material cell centres";return false;}
         }
-        const Vec3 grad=solveLeastSquares(matrix,rhs);pressureGradient[c]=grad;const auto& a=primitive[c];
+        const Vec3 grad=solveLeastSquares(matrix,rhs);if(!finite(grad)){error="nonfinite material pressure gradient";return false;}pressureGradient[c]=grad;const auto& a=primitive[c];
         for(int e=m.cellFaceOffsets[c];e<m.cellFaceOffsets[c+1];++e){const int f=m.cellFaces[e],other=otherCell(m,c,f);
             if(other<0||m.boundaryKind[f]==BoundaryKind::Empty||m.boundaryKind[f]==BoundaryKind::Interface)continue;
             gradientSensitivity[c]+=darcyGradientSensitivity(matrix,displacement(m,c,f,other));}
+        if(!finite(gradientSensitivity[c])){error="nonfinite material gradient sensitivity";return false;}
         if(p.permeability>0&&a.porosity>0){if(!(p.poreViscosity>0)){error="invalid Darcy viscosity";return false;}
             result.poreVelocity[c]=(p.gravity*a.poreDensity-grad)*(p.permeability/(p.poreViscosity*a.porosity));}
     }
@@ -197,13 +198,15 @@ bool advanceMaterialReactionsImpl(const SolidQ& base,Real volume,const PhysicsCo
     SolidQ state=base;MaterialPrimitive material;if(!recoverMaterial<false>(state,volume,p,material,nullptr,-1,numericalFailure)){error="reaction base EOS invalid";return false;}
     if(!p.enableReactions){out=base;accepted=0;error.clear();return true;}
     Real elapsed=0;std::uint64_t count=0;
-    while(elapsed<interval){if(count>=static_cast<std::uint64_t>(maximum)){error="reaction local substep limit reached";return false;}
+    while(elapsed<interval){
+        if(count==static_cast<std::uint64_t>(maximum))reportPhysicsWarning(p,ugkp::diagnostics::Code::AccuracyResidual,30900,count,maximum,count);
+        if(count==std::numeric_limits<std::uint64_t>::max()){error="reaction local substep counter overflow";return false;}
         const Real maximumStep=minValue(interval-elapsed,maxStep>0?maxStep:interval);
         SolidQ trial;Real dt=0;bool active=false;
         if(!reactionStepCandidate(state,volume,p,maximumStep,cfl,trial,dt,active,numericalFailure)){
             error="reaction local EOS/admissibility failure";return false;}
         if(!active){out=state;accepted=count;error.clear();return true;}
-        if(elapsed+dt==elapsed){
+        if(!finite(dt)||!(dt>0)||!finite(elapsed+dt)||elapsed+dt==elapsed){
             error="reaction local timestep cannot advance time";return false;
         }
         state=trial;elapsed+=dt;++count;

@@ -1,5 +1,6 @@
 // Exports gas primitive-gradient kernels and the SST wall-distance/viscosity helper used by them.
 #pragma once
+#include "gasStencilDiagnostics.cuh"
 #include "gasTransport/GasGeometryValidation.H"
 // One operator implementation; scalar/time adapters are compile-time only.
 template<class GasState>
@@ -30,13 +31,11 @@ __global__ void computeGasPrimitiveGradientsKernel
     GPU_OPERATOR_REAL sensor = GPU_OPERATOR_R(1.0);
     const int start = s.cellPlaneStart[c];
     const int count = s.cellPlaneCount[c];
+    if(!gasStencilRangeValid(s,c,start,count))return;
     for (int i = 0; i < count; ++i)
     {
         const int f = s.cellFaceId[start + i];
-        if (f < 0 || f >= s.nFaces)
-        {
-            continue;
-        }
+        if(!gasStencilFaceValid(s,c,f))return;
         if (refreshSensor)
         {
             // Same pressure-ratio stencil as computeGasHllcAdcSensorKernel,
@@ -78,6 +77,7 @@ __global__ void computeGasPrimitiveGradientsKernel
         const GPU_OPERATOR_REAL sz = sign*s.Sfz[f];
         const GasPrimDevice qf =
             riemannFacePrimitiveForGradient(s, c, f,nativeRefinement);
+        if(!finiteDevice(qf.rho)||!finiteDevice(qf.T))return;
         grx += qf.rho*sx; gry += qf.rho*sy; grz += qf.rho*sz;
         guxx += qf.ux*sx; guxy += qf.ux*sy; guxz += qf.ux*sz;
         guyx += qf.uy*sx; guyy += qf.uy*sy; guyz += qf.uy*sz;
@@ -115,7 +115,7 @@ __global__ void computeGasPrimitiveGradientsKernel
                 for(int i=0;i<count;++i)
                 {
                     const int f=s.cellFaceId[start+i];
-                    if(f<0||f>=s.nFaces)continue;
+                    if(!gasStencilFaceValid(s,c,f))return;
                     const int own=s.faceOwner[f],nei=coupledFaceNeighbour(s,f);
                     const GPU_OPERATOR_REAL sign=own==c?GPU_OPERATOR_R(1.0):-GPU_OPERATOR_R(1.0);
                     GPU_OPERATOR_REAL value=centre;
@@ -264,6 +264,8 @@ __device__ GPU_OPERATOR_REAL sstPredictorMassFlux(const GasState& s, const int f
 template<class GasState>
 __device__ void applySstWallFunctionStateCell(GasState& s, const int c, const bool allowUnprepared=false, const bool nativeRefinement=false)
 {
+    // A prior producer already diagnosed the fatal; retain its evidence until completion.
+    if(ugkp::diagnostics::hasFatal(s.diagnostics))return;
     if
     (
         c >= s.nCells
@@ -295,9 +297,11 @@ __device__ void applySstWallFunctionStateCell(GasState& s, const int c, const bo
     int wallCount = 0;
     const int start = s.cellPlaneStart[c];
     const int count = s.cellPlaneCount[c];
+    if(!gasStencilRangeValid(s,c,start,count))return;
     for (int i = 0; i < count; ++i)
     {
         const int f = s.cellFaceId[start + i];
+        if(!gasStencilFaceValid(s,c,f))return;
         if
         (
             f >= s.nInternalFaces
@@ -311,6 +315,7 @@ __device__ void applySstWallFunctionStateCell(GasState& s, const int c, const bo
     }
     if (wallCount > 0)
     {
+        if(!gasProducerScalarValid(s,c,omegaSum,30050))return;
         const GPU_OPERATOR_REAL rhoSafe = clampMin(s.rho[c], s.rhoMin);
         const GPU_OPERATOR_REAL omegaTarget = clampMin
         (
@@ -353,9 +358,12 @@ __global__ void initialiseSstConservativeStateKernel(GasState* sp, bool initiali
         return;
     }
     const GPU_OPERATOR_REAL rhoSafe = clampMin(s.rho[c], s.rhoMin);
+    if(!gasProducerScalarValid(s,c,s.rho[c],30051)||!gasProducerScalarValid(s,c,s.k[c],30114)
+        ||!gasProducerScalarValid(s,c,s.omega[c],30115))return;
     const GPU_OPERATOR_REAL kSafe = clampMin(finiteOr(s.k[c], s.sstKMin), s.sstKMin);
     const GPU_OPERATOR_REAL omegaSafe =
         clampMin(finiteOr(s.omega[c], s.sstOmegaMin), s.sstOmegaMin);
+    if(!gasProducerScalarValid(s,c,rhoSafe*kSafe,30052)||!gasProducerScalarValid(s,c,rhoSafe*omegaSafe,30116))return;
     s.k[c] = kSafe;
     s.omega[c] = omegaSafe;
     s.rhoK[c] = rhoSafe*kSafe;
@@ -368,11 +376,15 @@ __global__ void initialiseSstConservativeStateKernel(GasState* sp, bool initiali
 template<class GasState>
 __device__ void recoverSstPrimitiveCell(GasState& s, const int c, const bool nativeRefinement=false)
 {
+    // A prior producer already diagnosed the fatal; retain its evidence until completion.
+    if(ugkp::diagnostics::hasFatal(s.diagnostics))return;
     if (c >= s.nCells || s.sstConfigured == 0)
     {
         return;
     }
     const GPU_OPERATOR_REAL rhoSafe = clampMin(s.rho[c], s.rhoMin);
+    if(!gasProducerScalarValid(s,c,s.rho[c],30053)||!gasProducerScalarValid(s,c,s.rhoK[c],30117)
+        ||!gasProducerScalarValid(s,c,s.rhoOmega[c],30118))return;
     const GPU_OPERATOR_REAL rhoKFloor = rhoSafe*s.sstKMin;
     const GPU_OPERATOR_REAL rhoOmegaFloor = rhoSafe*s.sstOmegaMin;
     s.rhoK[c] = clampMin(finiteOr(s.rhoK[c], rhoKFloor), rhoKFloor);

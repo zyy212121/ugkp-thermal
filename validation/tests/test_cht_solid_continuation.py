@@ -31,7 +31,7 @@ def thermal_probe(tmp_path_factory):
     owners=['GpuSolidThermalProperties','GpuSolidThermalCoupler','GpuSolidPatchMapper','GpuThermalExchangeState']
     for name in owners:
         if name=='GpuSolidThermalCoupler':
-            source=(THERMAL/(name+'.C')).read_text().replace('linearPerformance = equation.solve();','linearPerformance = equation.solve(); t14LinearResidual=linearPerformance.finalResidual(); t14LinearIterations=linearPerformance.nIterations(); t14LinearConverged=linearPerformance.converged();')
+            source=(THERMAL/(name+'.C')).read_text().replace('linearPerformance = equation.solve();','linearPerformance = equation.solve(); if (std::getenv("UGKP_TEST_LINEAR_NAN")) linearPerformance.finalResidual() = std::numeric_limits<scalar>::quiet_NaN(); t14LinearResidual=linearPerformance.finalResidual(); t14LinearIterations=linearPerformance.nIterations(); t14LinearConverged=linearPerformance.converged();')
             (build/f'{name}.C').write_text('double t14LinearResidual=0; int t14LinearIterations=0; bool t14LinearConverged=false;\n'+source)
         elif name=='GpuThermalExchangeState':(build/f'{name}.C').write_text(observe_restart((THERMAL/(name+'.C')).read_text()))
         else:(build/f'{name}.C').write_text(f'#include "{THERMAL/name}.C"\n')
@@ -56,7 +56,7 @@ def execute(probe,path,mode,extra=''):
     env=os.environ.copy();env.pop('FOAM_SIGFPE',None)
     return subprocess.run([str(probe),'-case',str(path)],text=True,capture_output=True,env=env)
 
-@pytest.mark.parametrize('mode',['property_overflow','diagnostic_overflow','ordinary','atomic_directory','linear_one','nearest_rounding','properties','unordered','reversed_axis','duplicate_endpoint','clamp','nonoverlap','signed','absorbed','candidate_one','candidate_zero','rebind','mapper','pending','state','state_machine'])
+@pytest.mark.parametrize('mode',['diagnostic_overflow','ordinary','atomic_directory','linear_one','nearest_rounding','properties','unordered','reversed_axis','duplicate_endpoint','clamp','nonoverlap','absorbed','candidate_one','candidate_zero','rebind','mapper','pending','state','state_machine'])
 def test_actual_thermal_continuation(thermal_probe,tmp_path,mode):
     p=execute(thermal_probe,tmp_path,mode)
     assert p.returncode==0,p.stdout+p.stderr
@@ -67,3 +67,32 @@ def test_actual_required_data_and_io_errors(thermal_probe,tmp_path,mode):
     p=execute(thermal_probe,tmp_path,mode)
     assert p.returncode==0,p.stdout+p.stderr
     assert 'PASS '+mode in p.stdout
+
+
+@pytest.mark.parametrize('mode',['property_overflow','signed','negative_temperature','nan_temperature','zero_property'])
+def test_consumed_physical_errors(thermal_probe,tmp_path,mode):
+    p=execute(thermal_probe,tmp_path,mode)
+    assert p.returncode != 0, p.stdout+p.stderr
+    assert 'invalid consumed solid' in p.stdout+p.stderr
+
+@pytest.mark.parametrize('mode',['ordinary','candidate_one','linear_one'])
+def test_warning_output_only(thermal_probe,tmp_path,mode,monkeypatch):
+    monkeypatch.delenv('UGKP_DIAGNOSTIC_WARNINGS',raising=False)
+    enabled=execute(thermal_probe,tmp_path/'enabled',mode)
+    monkeypatch.setenv('UGKP_DIAGNOSTIC_WARNINGS','0')
+    disabled=execute(thermal_probe,tmp_path/'disabled',mode)
+    assert enabled.returncode == disabled.returncode == 0, enabled.stdout+enabled.stderr+disabled.stdout+disabled.stderr
+    if mode != 'ordinary':
+        assert 'retaining computed candidate' in enabled.stdout+enabled.stderr
+    assert 'retaining computed candidate' not in disabled.stdout+disabled.stderr
+    def parity(output): return [line for line in output.splitlines() if line.startswith('PARITY')]
+    assert parity(enabled.stdout) == parity(disabled.stdout)
+
+
+def test_native_nonfinite_linear_error(thermal_probe,tmp_path,monkeypatch):
+    monkeypatch.setenv('UGKP_TEST_LINEAR_NAN','1')
+    p=execute(thermal_probe,tmp_path,'candidate_one')
+    assert p.returncode != 0
+    assert 'solid linear solve returned a nonfinite residual' in p.stdout+p.stderr
+    assert 'finalResidual=nan' in p.stdout+p.stderr
+    assert 'time=' in p.stdout+p.stderr

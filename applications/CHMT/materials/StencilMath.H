@@ -8,6 +8,7 @@ namespace chmt {
     };
     CHMT_HD inline void addLeastSquares(Symmetric3& m, Vec3& b, Vec3 dx, Real difference) {
         const Real d2 = dot(dx, dx);
+        if (!finite(d2)||!finite(difference)) { b={undefinedValue(),undefinedValue(),undefinedValue()}; return; }
         if (!(d2>0))return;
         const Real w = 1/d2;
         m.xx += w*dx.x*dx.x;
@@ -25,7 +26,9 @@ namespace chmt {
         Real a[3][3] = {{m.xx, m.xy, m.xz}, {m.xy, m.yy, m.yz}, {m.xz, m.yz, m.zz}};
         Real vectors[3][3] = {{1, 0, 0}, {0, 1, 0}, {0, 0, 1}};
         const Real scale = maxValue(m.xx, maxValue(m.yy, m.zz));
-        if (!(scale>0) || !finite(scale) || !finite(rhs))return {};
+        if (!finite(m.xx)||!finite(m.xy)||!finite(m.xz)||!finite(m.yy)||!finite(m.yz)||!finite(m.zz)||!finite(rhs))
+            return {undefinedValue(),undefinedValue(),undefinedValue()};
+        if (!(scale>0))return {};
         const Real roundoff = 8*std::numeric_limits<Real>::epsilon()*scale;
         for (int iteration = 0; iteration<32; ++iteration) {
             int p = 0, q = 1;
@@ -56,6 +59,8 @@ namespace chmt {
                 vectors[k][q] = sn*kp+c*kq;
             }
         }
+        for(int i=0;i<3;++i)for(int j=0;j<3;++j)if(!finite(a[i][j])||!finite(vectors[i][j]))
+            return {undefinedValue(),undefinedValue(),undefinedValue()};
         const Real largest = maxValue(a[0][0], maxValue(a[1][1], a[2][2]));
         const Real cutoff = 64*std::numeric_limits<Real>::epsilon()*largest;
         Vec3 solution{};

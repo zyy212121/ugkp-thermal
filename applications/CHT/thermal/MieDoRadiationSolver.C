@@ -1,6 +1,7 @@
 #include "MieDoRadiationSolver.H"
 
 #include "MieDoRadiationMath.H"
+#include "ThermalHostDiagnostics.H"
 #include "Pstream.H"
 #include "surfaceFields.H"
 #include "wallPolyPatch.H"
@@ -95,6 +96,11 @@ scalar radiationIntensityWithRoundoffClamp
     const label face = -1
 )
 {
+    if (!std::isfinite(value))
+    {
+        solveFailure(std::string("nonfinite radiation intensity at ") + location,
+            iteration, value, cell, patch, face);
+    }
     if (value >= scalar(0))
     {
         return value;
@@ -108,7 +114,8 @@ scalar radiationIntensityWithRoundoffClamp
         return scalar(0);
     }
 
-    return value;
+    solveFailure(std::string("negative radiation intensity beyond roundoff at ") + location,
+        iteration, value, cell, patch, face);
 }
 
 inline bool isSpecularType(const word& type)
@@ -1010,7 +1017,7 @@ MieDoResult MieDoRadiationSolver::solve
                     }
                 }
 
-                balanceSymmetricPhaseKernelInPlace
+                const PhaseBalanceMetrics phaseMetrics = balanceSymmetricPhaseKernelInPlace
                 (
                     rawKernel,
                     data.weights,
@@ -1020,6 +1027,23 @@ MieDoResult MieDoRadiationSolver::solve
                     scratch.nextPhaseScaling,
                     phaseProbability[cellI]
                 );
+                if
+                (
+                    (phaseMetrics.maxRowError > data.controls.phaseBalanceTolerance
+                     || phaseMetrics.maxWeightedColumnRelativeError
+                        > data.controls.phaseBalanceTolerance)
+                 && hostDiagnosticWarningsEnabled()
+                )
+                {
+                    WarningInFunction
+                        << "DO phase balance iteration budget exhausted; time="
+                        << mesh.time().timeName() << "; cell=" << cellI
+                        << "; iterations=" << phaseMetrics.iterations
+                        << "; rowResidual=" << phaseMetrics.maxRowError
+                        << "; columnResidual=" << phaseMetrics.maxWeightedColumnRelativeError
+                        << "; limit=" << data.controls.phaseBalanceTolerance
+                        << "; retaining computed phase probabilities" << endl;
+                }
 
             }
         }
@@ -1078,6 +1102,10 @@ MieDoResult MieDoRadiationSolver::solve
     List<scalarField>& directionSolved = scratch.solved;
     List<scalarField>& directionLinearResidual = scratch.linearResidual;
 
+    scalarField warningLinearResidual(nDirections, scalar(0));
+    scalarField warningLinearLimit(nDirections, scalar(0));
+    labelList warningLinearIteration(nDirections, 0);
+    labelList warningSourceIteration(nDirections, 0);
     scalar maximumRelativeChange = scalar(0);
     label sourceIterations = 0;
     label angleThreadsUsed = 1;
@@ -1344,6 +1372,14 @@ MieDoResult MieDoRadiationSolver::solve
                 finalLinearResidual = linearResidual(solved);
             }
 
+            if (finalLinearResidual > linearTarget)
+            {
+                warningLinearResidual[directionI] = finalLinearResidual;
+                warningLinearLimit[directionI] = linearTarget;
+                warningLinearIteration[directionI] = linearIteration;
+                warningSourceIteration[directionI] = iteration;
+            }
+
             forAll(solved, cellI)
             {
                 solved[cellI] =
@@ -1415,6 +1451,33 @@ MieDoResult MieDoRadiationSolver::solve
     if (parallelError)
     {
         std::rethrow_exception(parallelError);
+    }
+
+    if (hostDiagnosticWarningsEnabled())
+    {
+        forAll(warningLinearIteration, directionI)
+        {
+            if (warningLinearIteration[directionI] > 0)
+            {
+                WarningInFunction
+                    << "DO linear iteration budget exhausted; time=" << mesh.time().timeName()
+                    << "; direction=" << directionI
+                    << "; sourceIteration=" << warningSourceIteration[directionI]
+                    << "; linearIterations=" << warningLinearIteration[directionI]
+                    << "; residual=" << warningLinearResidual[directionI]
+                    << "; limit=" << warningLinearLimit[directionI]
+                    << "; retaining computed intensity" << endl;
+            }
+        }
+        if (maximumRelativeChange > data.controls.sourceRelativeTolerance)
+        {
+            WarningInFunction
+                << "DO source iteration budget exhausted; time=" << mesh.time().timeName()
+                << "; iterations=" << sourceIterations
+                << "; residual=" << maximumRelativeChange
+                << "; limit=" << data.controls.sourceRelativeTolerance
+                << "; retaining computed intensities" << endl;
+        }
     }
 
     data.computeIncidentFlux(intensities, incidentFlux);

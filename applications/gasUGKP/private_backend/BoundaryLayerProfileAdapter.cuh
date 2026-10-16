@@ -38,10 +38,11 @@ extern "C" int ugkwpGpuResidentStrictDownloadBoundaryLayerProfilesV1
     {setLastErrorText("wall node profile storage or dimensions unavailable");return 1;}
     std::vector<ugkwp::GasBoundaryLayerExchange<double>> exchange(walls);
     if(copyToHost(exchange.data(),s->gasBoundaryLayer.exchange,walls,"read wall profile readiness"))return 1;
+    if(s->diagnosticOwner->completeReadback(0,walls!=0))return 1;
     for(const auto& wall:exchange)if(!wall.ready)
     {setLastErrorText("wall node profile has not yet been accepted");return 1;}
     const std::size_t count=std::size_t(walls)*nodes*(7+species);
     if(copyToHost(profiles,model.profile,count,"read solved wall profile nodes"))return 1;
     *stageTime=s->gasBoundaryLayerStageTime;
-    return s->diagnosticOwner->completeReadback();
+    return s->diagnosticOwner->completeReadback(0,count!=0);
 }

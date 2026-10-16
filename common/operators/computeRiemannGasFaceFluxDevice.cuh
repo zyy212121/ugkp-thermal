@@ -1,4 +1,5 @@
 #pragma once
+#include "gasStencilDiagnostics.cuh"
 #include "gasTransport/SpeciesDiffusion.H"
 #include "gasTransport/GasGeometryValidation.H"
 #ifndef GPU_GAS_WALL_EXPOSURE
@@ -52,6 +53,8 @@ __device__ bool computeRiemannGasFaceFluxDevice
         return false;
     }
     const int boundaryKind = nei >= 0 ? 0 : s.riemannBoundaryKind[f];
+    if(nei<0 && (boundaryKind==1 || boundaryKind==2) && s.riemannBoundaryTFix[f]
+        && !gasProducerScalarValid(s,own,s.riemannBoundaryT[f],30030,true))return false;
     if constexpr (ugkwp::GasStateTraits<GasState>::speciesCount > 0)
     {
         if (ugkwp::mixtureGasActive(s))
@@ -287,6 +290,7 @@ __device__ bool computeRiemannGasFaceFluxDevice
                     neighbourCentre.uz - ownerCentre.uz,
                     neighbourCentre.p - ownerCentre.p
                 };
+                ugkpcharacteristic::Failure characteristicFailure;
                 ugkpcharacteristic::limitFacePair
                 (
                     leftIncrement,
@@ -297,8 +301,17 @@ __device__ bool computeRiemannGasFaceFluxDevice
                     nz,
                     roe.density,
                     roe.soundSpeed,
-                    s.faceWeight[f]
+                    s.faceWeight[f], &characteristicFailure
                 );
+                if(characteristicFailure.failed)
+                {
+                    using namespace ugkp::diagnostics;
+                    const auto code=characteristicFailure.zeroDenominator?Code::ZeroDenominator:
+                        (::isfinite(characteristicFailure.value)?Code::InvalidPhysicalState:Code::NonFinite);
+                    recordFatal(s.diagnostics,makeRecord(code,30401,26,0,EntityKind::Face,f,
+                        characteristicFailure.component,characteristicFailure.value,0,0,Quantity::LinearSystem));
+                    return false;
+                }
                 left = makeGasPrimDevice
                 (
                     ownerCentre.rho + leftIncrement.rho,

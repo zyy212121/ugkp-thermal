@@ -2,6 +2,8 @@
 #define CHMT_IO_MESHIO_H
 #include "configuration/InputValues.H"
 #include "mesh/Geometry.H"
+#include "DiagnosticsFoam.H"
+#include "DiagnosticsCatalogue.H"
 #include "core/ThermalBoundary.H"
 #include "materials/MaterialCaloric.H"
 #include "cyclicPolyPatch.H"
@@ -101,7 +103,9 @@ namespace chmt {
                 }
             }
             std::string error;
-            const bool rebuilt = rebuildGeometry(out, error);
+            ugkp::diagnostics::DeviceContext diagnostics{};
+            const bool rebuilt = rebuildGeometry(out, error,&diagnostics);
+            ugkp::diagnostics::dispatch(ugkp::diagnostics::takeSnapshot(diagnostics,ugkp::diagnostics::sourceCatalogue()),ugkp::diagnostics::makeFoamSink());
             require(rebuilt, "mesh import: "+error);
             out.oldVolumes = out.volumes;
             return out;

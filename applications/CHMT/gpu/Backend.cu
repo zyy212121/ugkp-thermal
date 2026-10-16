@@ -432,9 +432,11 @@ static bool advanceGasMicrostepImpl(Backend& b,Real cap,GasMicroReport& report,s
     const auto metadataLaunch=cudaGetLastError();
     if(metadataLaunch!=cudaSuccess){error=std::string("gas diagnostic metadata launch: ")+cudaGetErrorString(metadataLaunch);return false;}
     const Real remaining=boundedWindowDuration(nextGasWallKnotLocal(b.program,b.elapsed),b.elapsed);
+    if(!finite(cap)||!finite(b.model.physics.maxDt)||!finite(remaining)||!finite(b.nextGasSeed)||b.nextGasSeed<0
+        ||!finite(b.trial.lastAcceptedDt)||b.trial.lastAcceptedDt<0){error="invalid gas timestep input or seed";return false;}
     Real referenceDt=minValue(cap,minValue(b.model.physics.maxDt,remaining));
     if(b.nextGasSeed>0)referenceDt=minValue(referenceDt,b.nextGasSeed);
-    if(!(referenceDt>0)||b.elapsed+referenceDt==b.elapsed)referenceDt=remaining;
+    if(!finite(referenceDt)||!(referenceDt>0)||b.elapsed+referenceDt==b.elapsed){error="gas reference timestep is nonfinite, nonpositive or nonadvancing";return false;}
     b.microBase=b.trial;b.microDt=referenceDt;b.error.clear();transport::lastError.clear();
     if(prepareCoupledGeometry(&b)!=0){error=b.error;return false;}
     transport::GasCourantMaxima co;
@@ -445,7 +447,8 @@ static bool advanceGasMicrostepImpl(Backend& b,Real cap,GasMicroReport& report,s
     const Real selectedDt=gasCoMaxStep(referenceDt,b.model.physics.cfl,co.maximum,growthBase);
 
 
-    const Real dt=selectedDt>0 && b.elapsed+selectedDt!=b.elapsed?selectedDt:referenceDt;
+    if(!finite(selectedDt)||!(selectedDt>0)||b.elapsed+selectedDt==b.elapsed){error="gas CFL-selected timestep is nonfinite, nonpositive or nonadvancing";return false;}
+    const Real dt=selectedDt;
     if(dt!=referenceDt){b.microDt=dt;if(prepareCoupledGeometry(&b)!=0){error=b.error;return false;}}
     b.microGeometryPrepared=true;
     if(transport::advanceGasTrial<transport::CoupledTrialPolicy>(&b,dt,b.microTime)!=0){

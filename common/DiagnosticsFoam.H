@@ -15,7 +15,8 @@ inline void foamFatal(void*, const Record& record, const SourceDescriptor* sourc
 }
 inline void foamWarning(void*, const WarningSummary& warning, const SourceDescriptor* source) {
     std::ostringstream message;
-    message << formatRecord(warning.sample,source) << " occurrences=" << warning.count;
+    message << "historical representative sample: " << formatRecord(warning.sample,source)
+        << " new occurrences=" << warning.count;
     if(warning.overflow)message << " (counter saturated; additional occurrences were not counted)";
     if (!Foam::Pstream::master()) {
         // Foam::Warning filters non-master ranks. Use OpenFOAM's rank-prefixed

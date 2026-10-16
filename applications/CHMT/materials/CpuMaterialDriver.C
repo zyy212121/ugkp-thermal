@@ -32,7 +32,7 @@ void materialWarning(const HostState& state,ugkp::diagnostics::Code code,const c
 Foam::pointField foamPoints(const std::vector<Vec3>& points){Foam::pointField result(points.size());for(std::size_t i=0;i<points.size();++i)result[i]=Foam::point(points[i].x,points[i].y,points[i].z);return result;}
 bool controlsValid(const CpuMaterialControls& c){return (finite(c.maxSubstep)&&c.maxSubstep>=0&&((finite(c.transportCfl)&&c.transportCfl>0&&c.transportCfl<=1))
     &&((finite(c.reactionCfl)&&c.reactionCfl>0&&c.reactionCfl<=1&&finite(c.reactionMaxSubstep)&&c.reactionMaxSubstep>=0))
-    &&finite(c.driveRelativeTolerance)&&c.driveRelativeTolerance>=0&&finite(c.driveSourceFraction)&&c.driveSourceFraction>0&&c.driveSourceFraction<=1
+    &&finite(c.driveRelativeTolerance)&&c.driveRelativeTolerance>=0&&finite(c.driveSourceFraction)&&c.driveSourceFraction>0
     &&finite(c.driveTractionScale)&&c.driveTractionScale>0&&(c.maxSubsteps>0)&&((c.nonlinearMaxIterations>0&&finite(c.nonlinearRelativeTolerance)&&c.nonlinearRelativeTolerance>=0
     &&finite(c.energyAbsoluteTolerance)&&c.energyAbsoluteTolerance>=0&&finite(c.energyRelativeTolerance)&&c.energyRelativeTolerance>=0)));}
 bool nativeConduction(Foam::fvMesh& acceptedMesh,const HostState& old,HostState& next,const PhysicsConfig& p,
@@ -303,7 +303,8 @@ bool CpuMaterialDriver::advanceCandidateImpl(const HostState& base,const HostSta
         std::vector<GasWallMatchingSample> endpointMatching;bool endpointMatchingReady=false;
         while(elapsed<windowEnd){
             if(p.diagnostics)ugkp::diagnostics::beginOperation(*p.diagnostics,window.identity.sequence,base.acceptedSteps,state.time);
-            if(accumulated.materialSteps>=static_cast<std::uint64_t>(controls.maxSubsteps)){error="CPU material substep limit reached";report=accumulated;report.failureOrigin=MaterialFailureOrigin::LocalSourceNumerical;return false;}
+            if(accumulated.materialSteps==static_cast<std::uint64_t>(controls.maxSubsteps))materialWarning(state,ugkp::diagnostics::Code::AccuracyResidual,"CPU material substep warning budget exceeded; advancing calculation retained",accumulated.materialSteps,controls.maxSubsteps);
+            if(accumulated.materialSteps==std::numeric_limits<std::uint64_t>::max()){error="CPU material substep counter overflow";return false;}
             Real dt=std::min(boundedWindowDuration(windowEnd,elapsed),controls.maxSubstep>0?controls.maxSubstep:interval);
             // Only a real regime change forces alignment with a gas-history knot.
             // Ordinary gas micro boundaries do not determine the material clock.
@@ -337,7 +338,7 @@ bool CpuMaterialDriver::advanceCandidateImpl(const HostState& base,const HostSta
             }
             dt=std::min(dt,transport.dtLimit);
             do {
-                if(!(dt>0)){lastFailure=MaterialFailureOrigin::LocalSourceNumerical;error="CPU material substep does not advance";break;}
+                if(!finite(dt)||!(dt>0)||elapsed+dt==elapsed){lastFailure=MaterialFailureOrigin::LocalSourceNumerical;error="CPU material substep does not advance";break;}
                 error.clear();trial=state;trialElapsed=elapsed+dt;trial.time=windowAbsolute(window.begin,trialElapsed);trialCursor=cursor;
                 if(!trialCursor.takeThroughLocal(trialElapsed,packets,radiation,error))break;
 

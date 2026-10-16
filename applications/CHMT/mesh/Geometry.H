@@ -4,7 +4,7 @@
 namespace chmt {
     // Geometry routines mutate only on success. Vertices follow straight paths
     // over this stage; an arbitrary time trajectory must be split into stages.
-    bool rebuildGeometry(HostMesh&, std::string& error);
+    bool rebuildGeometry(HostMesh&, std::string& error,ugkp::diagnostics::DeviceContext* diagnostics=nullptr);
     // Canonical static/moving interface correspondence. Base-vertex normals and
     // thickness are area weighted over the selected solid faces. Gas vertices
     // must equal X_s + n_vertex*delta_vertex with reversed cyclic face topology.
@@ -18,7 +18,7 @@ namespace chmt {
     // Moving stages require an analytic orientation/convex-half-space certificate.
     // Uncertifiable concave/folded motion is rejected; no sample-only acceptance.
     // Configured tolerances bound GCL and periodic swept-volume residuals only;
-    // topology, orientation and area-closure validity remain independent.
+    // topology and orientation validity remain independent; finite area-closure residuals warn.
     bool makeStageGeometry(const HostMesh&, const std::vector<Vec3>&, double, HostMesh&, std::vector<double>&,
         std::string&, const Tolerances& tolerances=Tolerances{}, bool* numericalFailure=nullptr);
     bool makeStageAreaVectors(const HostMesh&, const std::vector<Vec3>&, std::vector<Vec3>&, std::string&);

@@ -151,6 +151,8 @@ bool reconstruct(std::size_t f,Vec3 offset,const Evaluation& e,const SurfaceMesh
     FilmQ increment;increment.mass=dot(surfaceGradient(f,0,e,m),offset);
     increment.enthalpy=dot(surfaceGradient(f,1,e,m),offset);
     for(int s=0;s<Ns;++s)increment.species[s]=dot(surfaceGradient(f,s+2,e,m),offset);
+    if(!finite(increment.mass)||!finite(increment.enthalpy))return false;
+    for(int s=0;s<Ns;++s)if(!finite(increment.species[s]))return false;
     Real scale=1;
     if(p.reconstruction==ReconstructionMode::LimitedLinear) {
         for(int component=0;component<Ns+2;++component) {
@@ -224,6 +226,7 @@ bool recoverAndProfile(const HostState& h,const PhysicsConfig& p,
     }
     for(std::size_t f=0;f<n;++f) {
         const Vec3 normal=m.normal[f];Vec3 gradient=surfaceGradient(f,-1,e,m);
+        if(!finite(gradient))return numericReject(error,"nonfinite film pressure gradient",f,numericalFailure);
         if(!m.prescribedPressureGradient.empty())gradient+=m.prescribedPressureGradient[f];
         e.gradient[f]=gradient-normal*dot(gradient,normal);
         const Vec3 G=e.gradient[f]-(p.gravity-normal*dot(p.gravity,normal))*p.liquid.rho;
@@ -443,7 +446,7 @@ bool estimateCpuFilmStepImpl(const HostState& h,const PhysicsConfig& p,
             }
         }
     }
-    if((!finite(dt)||dt<=0))return numericReject(error,"local source/donor/thermal event requires alignment",0,numericalFailure);
+    if((!finite(dt)||dt<0))return numericReject(error,"invalid local source/donor/thermal estimate",0,numericalFailure);
     output=dt;error.clear();return true;
 }
 

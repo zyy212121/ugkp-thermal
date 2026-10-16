@@ -52,9 +52,11 @@ int main(){try{std::cout<<std::setprecision(17);auto p=config();const double h=.
  check(std::abs(control.sensitivity-2000)<1e-10&&std::abs(control.dtLimit-5e-5)<1e-16,"shared extent Jacobian includes generated-intermediate coupling in inverse seconds");
  SolidQ candidate;double dt=0;bool active=false;check(reactionStepCandidate(initial(p),.001,p,.001,.1,candidate,dt,active)&&active&&dt<=5e-5,"legacy timestep helper rejects original one-millisecond chemical step");
  check(candidate.energy==initial(p).energy,"shared device candidate keeps formation-inclusive energy exactly");
+ ugkp::diagnostics::DeviceContext invalidDiagnostics{};p.diagnostics=&invalidDiagnostics;
  SolidQ failedCandidate=initial(p);double failedStep=123;bool failedActive=true;
  check(!reactionStepCandidate(initial(p),.001,p,0,.1,failedCandidate,failedStep,failedActive)
      &&failedCandidate.energy==initial(p).energy&&failedCandidate.condensed[0]==.8&&failedStep==123&&failedActive,"shared candidate failure leaves all output arguments unchanged");
+ p.diagnostics=nullptr;
  double legacyPrevious=1;for(double cfl:{.1,.05,.025}){const auto q=legacyMidpointChain(p,h,cfl),tiny=legacyMidpointChain(p,h,cfl,1e-15);const double error=std::abs(q.condensed[1]-exactB);std::cout<<"legacy_midpoint "<<cfl<<' '<<error<<'\n';check(error<legacyPrevious*.4,"legacy midpoint participant math retains second-order CFL refinement");
  check(std::abs(q.condensed[1]-tiny.condensed[1])<2e-12,"legacy midpoint zero/tiny intermediate continuity");
  check(q.energy==initial(p).energy&&std::abs(q.condensed[0]+q.condensed[1]+q.pore[0]-.9)<1e-12,"legacy midpoint assembly conserves mass and formation energy");legacyPrevious=error;}
@@ -78,13 +80,12 @@ int main(){try{std::cout<<std::setprecision(17);auto p=config();const double h=.
  p=config();p.nReactions=1;p.reactions[0].A=1/std::sqrt(.001);p.reactions[0].order[0]=.5;
  auto depleted=solve(p,initial(p),2,.1);
  check(depleted.q.condensed[0]==0&&depleted.steps<10000,"fractional finite-time depletion terminates conservatively without a minimum-step stall");
- p=config();SolidQ rollback=initial(p,.5,.2,.1),unchanged=rollback;std::uint64_t count=777;std::string error;
- const bool limited=advanceMaterialReactions(initial(p),.001,p,.001,0,.1,1,rollback,count,error);
- bool unchangedOutput=rollback.energy==unchanged.energy&&rollback.porosity==unchanged.porosity;
- for(int c=0;c<Nc;++c)unchangedOutput=unchangedOutput&&rollback.condensed[c]==unchanged.condensed[c];
- for(int s=0;s<Ns;++s)unchangedOutput=unchangedOutput&&rollback.pore[s]==unchanged.pore[s];
- for(int r=0;r<Nr;++r)unchangedOutput=unchangedOutput&&rollback.progress[r]==unchanged.progress[r];
- check(!limited&&unchangedOutput&&count==777&&error=="reaction local substep limit reached","maxSubsteps failure is transactional for output and accepted count");
+ p=config();ugkp::diagnostics::DeviceContext diagnostics{};p.diagnostics=&diagnostics;
+ SolidQ beyondBudget;std::uint64_t count=0;std::string error;
+ const bool limited=advanceMaterialReactions(initial(p),.001,p,.001,0,.1,1,beyondBudget,count,error);
+ check(limited&&count>1&&error.empty()&&diagnostics.warnings[1].count==1&&!diagnostics.fatalClaim,"maxSubsteps warns once and retains advancing physical steps");
+ const auto unrestricted=solve(p,initial(p),.001,.1);
+ check(beyondBudget.energy==unrestricted.q.energy&&beyondBudget.condensed[0]==unrestricted.q.condensed[0]&&beyondBudget.condensed[1]==unrestricted.q.condensed[1]&&count==unrestricted.steps,"warning budget does not change reaction result");
  p=config();p.nReactions=1;p.reactions[0].A=1000;SolidQ inactive;count=999;
  const bool quiet=advanceMaterialReactions(initial(p,0,.8,.1),.001,p,1000,0,.1,3,inactive,count,error);
  check(quiet&&count<=1&&inactive.condensed[0]==0&&inactive.condensed[1]==.8,"entirely inactive stiff mechanism avoids pointless substeps");

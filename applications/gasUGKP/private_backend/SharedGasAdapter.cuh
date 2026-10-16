@@ -199,7 +199,7 @@ extern "C" int ugkwpGpuResidentStrictDownloadSpeciesV1
     std::vector<double> staged(std::size_t(state->nCells)*ugkwp::compiledGasSpecies);
     if(copyToHost(staged.data(),state->gasSpecies.rho,staged.size(),"download accepted species density"))return 1;
     std::copy(staged.begin(),staged.end(),values);
-    return state->diagnosticOwner->completeReadback();
+    return state->diagnosticOwner->completeReadback(0,!staged.empty());
 }
 extern "C" int ugkwpGpuResidentStrictUploadSpeciesBoundaryV1
 (void* handle,const ugkwpGpuIpc::GasSpeciesIdentityV1* identity,const int* fixed,const double* values)

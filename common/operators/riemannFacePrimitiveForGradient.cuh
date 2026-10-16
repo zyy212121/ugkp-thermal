@@ -1,4 +1,5 @@
 #pragma once
+#include "gasStencilDiagnostics.cuh"
 #include "GpuCellNeighbour.cuh"
 // One operator implementation; scalar/time adapters are compile-time only.
 template<class GasState>
@@ -10,6 +11,21 @@ __device__ GasPrimDevice riemannFacePrimitiveForGradient
     const bool nativeRefinement=false
 )
 {
+    const GasPrimDevice invalid={GPU_OPERATOR_REAL(NAN),GPU_OPERATOR_REAL(NAN),GPU_OPERATOR_REAL(NAN),
+        GPU_OPERATOR_REAL(NAN),GPU_OPERATOR_REAL(NAN),GPU_OPERATOR_REAL(NAN)};
+    if(c<0 || c>=s.nCells){gasStencilIndexFailure(s,c,c,30040);return invalid;}
+    if(!gasStencilFaceValid(s,c,f))return invalid;
+    if(!gasProducerScalarValid(s,c,s.Tgas[c],30041,true))return invalid;
+    if(f>=s.nInternalFaces && !isPeriodicFace(s,f))
+    {
+        const int kind=s.riemannBoundaryKind[f];
+        if((kind==1 || kind==2) && s.riemannBoundaryTFix[f]
+            && !gasProducerScalarValid(s,c,s.riemannBoundaryT[f],30042,true))return invalid;
+        if(kind==2 && s.riemannBoundaryUFix[f]
+            && (!gasProducerScalarValid(s,c,s.riemannBoundaryUx[f],30043)
+                ||!gasProducerScalarValid(s,c,s.riemannBoundaryUy[f],30112)
+                ||!gasProducerScalarValid(s,c,s.riemannBoundaryUz[f],30113)))return invalid;
+    }
     GasPrimDevice centre = gasCellPrimitive(s,c);
     centre.T = clampMin(finiteOr(s.Tgas[c], centre.T), s.TgasMin);
     if (f < s.nInternalFaces || isPeriodicFace(s, f))
@@ -19,8 +35,9 @@ __device__ GasPrimDevice riemannFacePrimitiveForGradient
         const int other = oppositeCellAcrossFace(c, own, nei);
         if (other < 0 || other >= s.nCells)
         {
-            return centre;
+            gasStencilIndexFailure(s,c,other,30044);return invalid;
         }
+        if(!gasProducerScalarValid(s,c,s.Tgas[other],30045,true))return invalid;
         GasPrimDevice adjacent = gasCellPrimitive(s,other);
         adjacent.T = clampMin
         (

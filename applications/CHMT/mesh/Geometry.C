@@ -84,7 +84,7 @@ namespace chmt {
             }
             return true;
         }
-        bool geometryInPlace(HostMesh& m, std::string& error,empty_detail::Extrusion* extrusion=nullptr,bool* numericalFailure=nullptr) {
+        bool geometryInPlace(HostMesh& m, std::string& error,empty_detail::Extrusion* extrusion=nullptr,bool* numericalFailure=nullptr,ugkp::diagnostics::DeviceContext* diagnostics=nullptr) {
             if(numericalFailure)*numericalFailure=true;
             if(extrusion)*extrusion=empty_detail::Extrusion{};
             const int nf = static_cast<int>(m.owner.size()), np = static_cast<int>(m.points.size());
@@ -192,8 +192,9 @@ namespace chmt {
                         count.second += (a<b?1:-1)*sign;}
                     }
                 }
-                if ((vertices.size()<4 || mag(closure)>1e-10*areaSum))return errorAt(error,
-                    "open/degenerate cell geometry", c);
+                if (vertices.size()<4)return errorAt(error,"degenerate cell geometry",c);
+                if(!finite(closure)||!finite(areaSum))return errorAt(error,"nonfinite cell area closure",c);
+                if(mag(closure)>1e-10*areaSum)geometryWarning(diagnostics,mag(closure),1e-10*areaSum,c,true,ugkp::diagnostics::EntityKind::Cell);
                 for (const auto& edge:edges)if ((edge.second.first != 2
                     || edge.second.second != 0))return errorAt(error, "nonclosed/nonmanifold cell edges", c);
                 Vec3 ref{};
@@ -417,9 +418,9 @@ namespace chmt {
             return true;
         }
     }
-    bool rebuildGeometryImpl(HostMesh& mesh, std::string& error,bool* numericalFailure) {
+    bool rebuildGeometryImpl(HostMesh& mesh, std::string& error,bool* numericalFailure,ugkp::diagnostics::DeviceContext* diagnostics=nullptr) {
         HostMesh candidate = mesh;
-        if (!geometryInPlace(candidate, error,nullptr,numericalFailure))return false;
+        if (!geometryInPlace(candidate, error,nullptr,numericalFailure,diagnostics))return false;
         mesh = std::move(candidate);
         return true;
     }
@@ -460,10 +461,10 @@ namespace chmt {
             "topology-changing point count unsupported", -1);
         HostMesh old = accepted;
         empty_detail::Extrusion extrusion;
-        if (!geometryInPlace(old, error,&extrusion,numericalFailure) || (!empty_detail::trajectory(old,extrusion,endpoint,error)))return false;
+        if (!geometryInPlace(old, error,&extrusion,numericalFailure,tol.diagnostics) || (!empty_detail::trajectory(old,extrusion,endpoint,error)))return false;
         HostMesh candidate = old;
         candidate.points = endpoint;
-        if (!geometryInPlace(candidate, error,nullptr,numericalFailure))return false;
+        if (!geometryInPlace(candidate, error,nullptr,numericalFailure,tol.diagnostics))return false;
         if ((candidate.topologyHash != old.topologyHash))return errorAt(error, "topology change unsupported", -1);
         {
         if (!certifyLinearTrajectory(old, endpoint, error))return false;
@@ -471,7 +472,7 @@ namespace chmt {
         HostMesh mid = old;
         for (std::size_t p = 0; p<endpoint.size(); ++p)mid.points[p] = extrusion.axis<0?
             (old.points[p]+endpoint[p])*.5:old.points[p]+(endpoint[p]-old.points[p])*.5;
-        if (!geometryInPlace(mid, error))return false;
+        if (!geometryInPlace(mid, error,nullptr,numericalFailure,tol.diagnostics))return false;
         // Cell volume is a cubic polynomial along linear vertex trajectories.
         // Check its interior extrema as well as endpoints, so two inversions
         // between sampling times cannot escape an endpoint/midpoint-only test.
@@ -482,7 +483,7 @@ namespace chmt {
             twoThird.points[p] = extrusion.axis<0?old.points[p]/3+endpoint[p]*(2.0/3):
                 old.points[p]+(endpoint[p]-old.points[p])*(2.0/3);
         }
-        if (!geometryInPlace(oneThird, error) || !geometryInPlace(twoThird, error))return false;
+        if (!geometryInPlace(oneThird, error,nullptr,numericalFailure,tol.diagnostics) || !geometryInPlace(twoThird, error,nullptr,numericalFailure,tol.diagnostics))return false;
         for (int c = 0; c<static_cast<int>(old.volumes.size()); ++c) {
             Real v0 = old.volumes[c], v1 = oneThird.volumes[c], v2 = twoThird.volumes[c],
                 v3 = candidate.volumes[c];
@@ -519,7 +520,8 @@ namespace chmt {
             }
             const Real limit = tol.absoluteGeometry+tol.relativeGeometry*std::max(old.volumes[c],
                 candidate.volumes[c]);
-            if (mag(closure)>1e-10*a)return errorAt(error,"independent stage area closure failed",c);
+            if(!finite(closure)||!finite(a))return errorAt(error,"nonfinite stage area closure",c);
+            if (mag(closure)>1e-10*a)geometryWarning(tol.diagnostics,mag(closure),1e-10*a,c,true,ugkp::diagnostics::EntityKind::Cell);
             if (absValue(candidate.volumes[c]-old.volumes[c]-sum)>limit)
                 geometryWarning(tol.diagnostics,candidate.volumes[c]-old.volumes[c]-sum,limit,c,true,ugkp::diagnostics::EntityKind::Cell);
         }
@@ -740,7 +742,7 @@ namespace chmt {
             for (Real tolerance:controls.faceVolumeTolerance)if((!finite(tolerance)||tolerance<=0))
                 return reject(SweepConstraintStatus::InvalidInput,"invalid per-face swept-volume error ceiling");
             HostMesh worldOld=input;
-            if (!rebuildGeometryImpl(worldOld,error,numericalFailure)) return false;
+            if (!rebuildGeometryImpl(worldOld,error,numericalFailure,tolerances.diagnostics)) return false;
             // Solve displacements in a local frame. Repeated endpoint updates
             // must not lose significant bits merely because the mesh is remote
             // from the coordinate origin. Final certification still uses the
@@ -753,7 +755,7 @@ namespace chmt {
                     maxValue(absValue(point.y),absValue(point.z))));
                 point-=origin;
             }
-            if (!rebuildGeometryImpl(old,error,numericalFailure)) return false;
+            if (!rebuildGeometryImpl(old,error,numericalFailure,tolerances.diagnostics)) return false;
             const Real coordinateUncertainty=std::numeric_limits<Real>::epsilon()*coordinateMagnitude;
             std::set<int> used;
             std::vector<Real> sweepScale;
@@ -1352,8 +1354,8 @@ namespace chmt {
             || !reference.gasMapOffsets.empty() || !reference.gasMapFaces.empty() || !reference.gasMapWeights.empty()))
             return errorAt(error,"nonconformal/invalid trajectory surface mapping unsupported",-1);
         HostMesh oldSolid=acceptedSolid,oldGas=acceptedGas,endSolid=solidEndpoint,endGas=gasEndpoint;
-        if (!rebuildGeometryImpl(oldSolid,error,numericalFailure) || !rebuildGeometryImpl(oldGas,error,numericalFailure)
-            || !rebuildGeometryImpl(endSolid,error,numericalFailure) || !rebuildGeometryImpl(endGas,error,numericalFailure)) return false;
+        if (!rebuildGeometryImpl(oldSolid,error,numericalFailure,tolerances.diagnostics) || !rebuildGeometryImpl(oldGas,error,numericalFailure,tolerances.diagnostics)
+            || !rebuildGeometryImpl(endSolid,error,numericalFailure,tolerances.diagnostics) || !rebuildGeometryImpl(endGas,error,numericalFailure,tolerances.diagnostics)) return false;
         if ((oldSolid.topologyHash!=endSolid.topologyHash || oldGas.topologyHash!=endGas.topologyHash))
             return errorAt(error,"surface trajectory topology change unsupported",-1);
         HostMesh solid,gas; std::vector<Real> actual;
@@ -1446,7 +1448,7 @@ namespace chmt {
         }
         output=std::move(surface); error.clear(); return true;
     }
-    bool rebuildGeometry(HostMesh& m,std::string& e) {return rebuildGeometryImpl(m,e,nullptr);}
+    bool rebuildGeometry(HostMesh& m,std::string& e,ugkp::diagnostics::DeviceContext* diagnostics) {return rebuildGeometryImpl(m,e,nullptr,diagnostics);}
     bool makeStageAreaVectors(const HostMesh& m,const std::vector<Vec3>& p,std::vector<Vec3>& a,std::string& e) {
         return makeStageAreaVectorsImpl(m,p,a,e,nullptr);
     }
@@ -1482,7 +1484,7 @@ namespace chmt {
             || accepted.filmAux.size() != reference.solidFace.size()))return errorAt(error,
             "coupled surface/film size mismatch", -1);
         HostMesh oldSolid = accepted.solidMesh, oldGas = accepted.gasMesh;
-        if (!rebuildGeometryImpl(oldSolid,error,numericalFailure) || !rebuildGeometryImpl(oldGas,error,numericalFailure))return false;
+        if (!rebuildGeometryImpl(oldSolid,error,numericalFailure,tolerances.diagnostics) || !rebuildGeometryImpl(oldGas,error,numericalFailure,tolerances.diagnostics))return false;
         if (ns == 0) {
             std::vector<Real>s; HostMesh gas,solid;
             if (!makeStageGeometryImpl(oldGas,oldGas.points,dt,gas,s,error,tolerances,numericalFailure) || !makeStageGeometryImpl(oldSolid,oldSolid.points,dt,solid,s,error,tolerances,numericalFailure))return false;

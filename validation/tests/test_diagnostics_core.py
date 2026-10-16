@@ -103,6 +103,7 @@ def test_catalogue_has_unique_real_source_locations():
         assert 0<int(line)<=len(lines),(site,path,line)
         assert re.search(r'\b'+site+r'\b',lines[int(line)-1]),(site,path,line)
         name=function.split('::')[-1]
+        assert name not in ('if','constexpr','for','while','switch'),(site,function)
         assert re.search(r'\b'+re.escape(name)+r'\s*(?:<[^>]*>)?\s*\(',source),(site,function)
         assert description
 
@@ -149,7 +150,8 @@ def test_production_diagnostic_callsite_ids_are_unique():
     import re
     positions={'makeRecord':1,'wallFatal':2,'wallWarning':2,'reportPhysicsWarning':2,
                'clipPhysicsMassFraction':2,'gasRecordFaceFailure':3,
-               'gasRecordEvaluatedFaceFailure':3,'gasRecordTransportDiagnostic':4,'failure':1}
+               'gasRecordEvaluatedFaceFailure':3,'gasRecordTransportDiagnostic':4,'failure':1,
+               'gasEddyFinite':3,'gasProducerScalarValid':3,'gasStencilIndexFailure':3}
     seen={}
     for folder in ('common','applications'):
         for path in sorted((ROOT/folder).rglob('*')):

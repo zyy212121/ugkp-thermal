@@ -78,12 +78,31 @@ __device__ bool reconstructGasMixtureFace
         const auto adjacent=gasCellPrimitive(s,other);
         const GPU_OPERATOR_REAL rl=sqrt(centre.rho),rr=sqrt(adjacent.rho);
         const GPU_OPERATOR_REAL sound=(rl*s.gasSpecies.soundSpeed[c]+rr*s.gasSpecies.soundSpeed[other])/(rl+rr);
+        if(s.magSf[f]==GPU_OPERATOR_R(0.0))
+        {
+            recordFatal(s.diagnostics,makeRecord(Code::ZeroDenominator,30402,21,0,EntityKind::Face,f,-1,s.magSf[f],0,0,Quantity::Denominator));
+            return false;
+        }
+        if(!::isfinite(s.faceWeight[f]))
+        {
+            recordFatal(s.diagnostics,makeRecord(Code::NonFinite,30403,21,0,EntityKind::Face,f,-1,s.faceWeight[f],0,0,Quantity::LinearSystem));
+            return false;
+        }
         const GPU_OPERATOR_REAL weight=clampRange(s.faceWeight[f],GPU_OPERATOR_R(0.0),GPU_OPERATOR_R(1.0));
+        ugkpcharacteristic::Failure characteristicFailure;
         increment=ugkpcharacteristic::limitOneSide(increment,
             ugkpcharacteristic::Increment{adjacent.rho-centre.rho,adjacent.ux-centre.ux,
                 adjacent.uy-centre.uy,adjacent.uz-centre.uz,adjacent.p-centre.p},
             s.Sfx[f]/s.magSf[f],s.Sfy[f]/s.magSf[f],s.Sfz[f]/s.magSf[f],
-            rl*rr,sound,c==s.faceOwner[f]?GPU_OPERATOR_R(1.0)-weight:weight);
+            rl*rr,sound,c==s.faceOwner[f]?GPU_OPERATOR_R(1.0)-weight:weight, &characteristicFailure);
+        if(characteristicFailure.failed)
+        {
+            const auto code=characteristicFailure.zeroDenominator?Code::ZeroDenominator:
+                (::isfinite(characteristicFailure.value)?Code::InvalidPhysicalState:Code::NonFinite);
+            recordFatal(s.diagnostics,makeRecord(code,30400,21,0,EntityKind::Face,f,
+                characteristicFailure.component,characteristicFailure.value,0,0,Quantity::LinearSystem));
+            return false;
+        }
     }
     for(int k=0;k<Ns;++k)
     {

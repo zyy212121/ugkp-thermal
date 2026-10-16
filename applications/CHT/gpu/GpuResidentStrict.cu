@@ -5164,11 +5164,11 @@ extern "C" int ugkwpGpuResidentStrictAdvanceGasOnly
     {
         const int block = s->fixedCellBlockThreads;
         const int grid = (s->nCells + block - 1)/block;
-        applyGasGravityKernel<<<grid, block>>>(s->deviceState, dt);
+        applyGasOnlyGravityKernel<<<grid, block>>>(s->deviceState, dt);
         cudaError_t err = cudaGetLastError();
         if (err != cudaSuccess)
         {
-            setLastError("applyGasGravityKernel gas-only launch", err);
+            setLastError("applyGasOnlyGravityKernel gas-only launch", err);
             return 1;
         }
         recoverGasPrimitivesKernel<<<grid, block>>>(s->deviceState);

@@ -30,6 +30,7 @@ try
     std::vector<double> areas(s->nFaces);
     if(copyToHost(owners.data(),s->faceOwner,owners.size(),"read wall owners")
         || copyToHost(areas.data(),s->magSf,areas.size(),"read wall areas"))return 1;
+    if(s->diagnosticOwner->completeReadback(0,!owners.empty()))return 1;
     std::vector<int> faceSlot(s->nFaces,-1),ownerSlot(s->nCells,-1);
     for(unsigned slot=0;slot<a.wallCount;++slot)
     {
@@ -141,6 +142,7 @@ extern "C" int ugkwpGpuResidentStrictDownloadBoundaryLayerV1
         || copyToHost(exchange.data(),s->gasBoundaryLayer.exchange,walls,"read wall readiness")
         || copyToHost(faces.data(),s->gasBoundaryLayerModel.faces,walls,"read wall face map")
         || copyToHost(owners.data(),s->faceOwner,owners.size(),"read wall owner map"))return 1;
+    if(s->diagnosticOwner->completeReadback(0,walls!=0||!owners.empty()))return 1;
     const unsigned columns=ugkwpGpuIpc::boundaryLayerDiagnosticScalars+2*species;
     std::vector<double> result(std::size_t(walls)*columns);
     for(unsigned slot=0;slot<walls;++slot)
@@ -153,5 +155,5 @@ extern "C" int ugkwpGpuResidentStrictDownloadBoundaryLayerV1
 
         for(unsigned k=0;k<species;++k){r[25+k]=o.wallSpeciesFlux[k];r[25+species+k]=o.reactionIntegral[k];}
     }
-    std::copy(result.begin(),result.end(),diagnostics);return s->diagnosticOwner->completeReadback();
+    std::copy(result.begin(),result.end(),diagnostics);return 0;
 }

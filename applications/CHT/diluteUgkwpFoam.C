@@ -5,6 +5,7 @@
 #include "uniformDimensionedFields.H"
 #include "ProgressLogging.H"
 #include <limits>
+#include <exception>
 
 #ifndef UGKWP_USE_CUDA
 #error CHT must be built with UGKWP_USE_CUDA; use tool/CHT/build_cuda_solver.sh from the source root
@@ -42,6 +43,8 @@ int main(int argc, char *argv[])
     #include "setRootCase.H"
     #include "createTime.H"
 
+    try
+    {
     const label progressLogInterval =
         ugkwp::logging::progressLogInterval(runTime.controlDict());
 
@@ -506,7 +509,12 @@ int main(int argc, char *argv[])
                         resident.downloadNutToHostMirror(runTime, nut);
                     }
 
-                    runTime.write();
+                    if (!runTime.write())
+                    {
+                        FatalIOErrorInFunction(runTime.controlDict())
+                            << "OpenFOAM field write failed; time=" << runTime.timeName()
+                            << exit(FatalIOError);
+                    }
                 }
             }
 
@@ -874,7 +882,12 @@ int main(int argc, char *argv[])
                         dMeanCell
                     );
 
-                    runTime.write();
+                    if (!runTime.write())
+                    {
+                        FatalIOErrorInFunction(runTime.controlDict())
+                            << "OpenFOAM field write failed; time=" << runTime.timeName()
+                            << exit(FatalIOError);
+                    }
                     (void)resident.writeParticleRestartMirror(runTime);
                 }
             }
@@ -901,5 +914,13 @@ int main(int argc, char *argv[])
         << exit(FatalError);
 #endif
 
+    return 1;
+    }
+    catch (const std::exception& error)
+    {
+        FatalErrorInFunction
+            << "CHT host operation failed; time=" << runTime.timeName()
+            << "; cause=" << error.what() << exit(FatalError);
+    }
     return 1;
 }
