@@ -3,6 +3,9 @@
 #include "GasGeometryValidation.H"
 #include "GasBoundaryLayerWorkspace.H"
 #include "../gasWall/WallModel.H"
+#if defined(__CUDACC__)
+#include "../gasWall/WallCudaTeam.cuh"
+#endif
 
 namespace ugkwp
 {
@@ -35,16 +38,42 @@ template<class State> struct GasBoundaryLayerModelCapability<State,
 #else
 #define UGKWP_WALL_WORKSPACE_CALL inline
 #endif
-template<bool Capture=false,class Real,int Ns,int Capacity>
+// Type dispatch keeps scalar and borrowed-precision entrypoints independent of
+// the cooperative FP64 implementation without adding a C++17-only branch.
+template<class Real,int Ns,int Capacity,class Team>
+UGKWP_GAS_HD inline bool evaluateGasBoundaryLayerModelWithTeam(
+    const gaswall::WallInput<Real,Ns>& input,const gaswall::WallModelConfig<Real>& config,
+    gaswall::WallWorkspace<Real,Ns,Capacity>& workspace,gaswall::WallOutput<Real,Ns>& output,
+    gaswall::WallStatus& status,const Team& team,std::true_type)
+{
+    bool evaluated=false;
+    if(team.leader())evaluated=gaswall::evaluateWallModel(input,config,workspace,output,status);
+    return team.broadcast(evaluated);
+}
+template<class Real,int Ns,int Capacity,class Team>
+UGKWP_GAS_HD inline bool evaluateGasBoundaryLayerModelWithTeam(
+    const gaswall::WallInput<Real,Ns>& input,const gaswall::WallModelConfig<Real>& config,
+    gaswall::WallWorkspace<Real,Ns,Capacity>& workspace,gaswall::WallOutput<Real,Ns>& output,
+    gaswall::WallStatus& status,const Team& team,std::false_type)
+{
+    if(config.model==gaswall::BoundaryLayerModel::ReactingSst)
+        return gaswall::evaluateReactingWallLayerImpl(input,config,workspace,output,status,team);
+    // Preserve the central router for analytic, unsupported and future models.
+    return evaluateGasBoundaryLayerModelWithTeam(input,config,workspace,output,status,team,std::true_type{});
+}
+template<bool Capture=false,class Real,int Ns,int Capacity,class Team>
 UGKWP_GAS_HD UGKWP_WALL_WORKSPACE_CALL bool evaluateGasBoundaryLayerWorkspace(
     const gaswall::WallInput<Real,Ns>& input,const gaswall::WallModelConfig<Real>& config,
     gaswall::WallWorkspace<Real,Ns,Capacity>& workspace,gaswall::WallOutput<Real,Ns>& output,
-    gaswall::WallStatus& status,Real* profile=nullptr)
+    gaswall::WallStatus& status,Real* profile,const Team& team)
 {
-    const bool evaluated=gaswall::evaluateWallModel(input,config,workspace,output,status);
+    using ScalarExecution=std::integral_constant<bool,
+        std::is_same<Team,gaswall::detail::SerialWallTeam>::value
+        || !std::is_same<Real,gaswall::WallReal>::value>;
+    const bool evaluated=evaluateGasBoundaryLayerModelWithTeam(input,config,workspace,output,status,team,ScalarExecution{});
     if constexpr(Capture)
     {
-        if(evaluated)
+        if(evaluated && team.leader())
         {
             gaswall::detail::LayerContext<Real,Ns> context;
             const bool available=gaswall::detail::makeContext(input,config,context);
@@ -62,13 +91,23 @@ UGKWP_GAS_HD UGKWP_WALL_WORKSPACE_CALL bool evaluateGasBoundaryLayerWorkspace(
             }
         }
     }
+    team.sync();
     return evaluated;
+}
+// Preserve the original callable six-argument entrypoint, including function pointers.
+template<bool Capture=false,class Real,int Ns,int Capacity>
+UGKWP_GAS_HD inline bool evaluateGasBoundaryLayerWorkspace(
+    const gaswall::WallInput<Real,Ns>& input,const gaswall::WallModelConfig<Real>& config,
+    gaswall::WallWorkspace<Real,Ns,Capacity>& workspace,gaswall::WallOutput<Real,Ns>& output,
+    gaswall::WallStatus& status,Real* profile=nullptr)
+{
+    return evaluateGasBoundaryLayerWorkspace<Capture>(input,config,workspace,output,status,profile,
+        gaswall::detail::SerialWallTeam{});
 }
 #undef UGKWP_WALL_WORKSPACE_CALL
 
-template<bool Capture=false,class State> UGKWP_GAS_HD inline bool evaluateGasBoundaryLayerSlot(State& state,int slot,int workspaceSlot=0)
+template<class State,class Real> UGKWP_GAS_HD inline bool prepareGasBoundaryLayerInput(State& state,int slot,int workspaceSlot,Real& normalSweepRate)
 {
-    using Real=typename std::remove_pointer<decltype(state.rho)>::type;
     constexpr int Ns=GasStateTraits<State>::speciesCount;
     auto& wall=state.gasBoundaryLayer;
     auto& model=state.gasBoundaryLayerModel;
@@ -144,7 +183,7 @@ template<bool Capture=false,class State> UGKWP_GAS_HD inline bool evaluateGasBou
     in.model.molecularPrandtl=gasHasDirectConductivity(state)?Real(0):state.gasPrClamped;
     in.model.sstCoefficients=state.sstCoefficients;
     for(int species=0;species<Ns;++species)in.model.diffusivity[species]=state.gasSpecies.diffusivity[species];
-    Real normalSweepRate=0;
+    normalSweepRate=0;
     if constexpr(GasGeometryCapability<State>::value)
         if(gasMovingGeometry(state))
         {
@@ -154,11 +193,35 @@ template<bool Capture=false,class State> UGKWP_GAS_HD inline bool evaluateGasBou
             if(!frameAvailable)return fail(GasTransportCode::InvalidStorage);
             normalSweepRate=frame.wx*in.normal[0]+frame.wy*in.normal[1]+frame.wz*in.normal[2];
         }
+    return true;
+}
+
+template<bool Capture=false,class State,class Team>
+UGKWP_GAS_HD inline bool evaluateGasBoundaryLayerSlot(State& state,int slot,int workspaceSlot,const Team& team)
+{
+    using Real=typename std::remove_pointer<decltype(state.rho)>::type;
+    constexpr int Ns=GasStateTraits<State>::speciesCount;
+    Real normalSweepRate=0;bool prepared=false;
+    if(team.leader())prepared=prepareGasBoundaryLayerInput(state,slot,workspaceSlot,normalSweepRate);
+    if(!team.broadcast(prepared))return false;
+    auto& wall=state.gasBoundaryLayer;auto& model=state.gasBoundaryLayerModel;
+    const int face=model.faces[slot];
+    auto fail=[&](GasTransportCode code)
+    {
+        if(team.leader()){wall.status[slot]=int(code);gasRecordFaceFailure(state,face,code);}
+        return false;
+    };
+    auto& in=model.input[slot];
+    const bool analytic=model.config.model==gaswall::BoundaryLayerModel::ConstantTransport;
     bool evaluated=false;
-    if(analytic)evaluated=gaswall::evaluateConstantTransportWall(in,model.config,model.output[slot],model.status[slot]);
+    if(analytic)
+    {
+        if(team.leader())evaluated=gaswall::evaluateConstantTransportWall(in,model.config,model.output[slot],model.status[slot]);
+        evaluated=team.broadcast(evaluated);
+    }
     else
     {
-#define WALL_EVALUATE_CAPACITY(capacity) case capacity: evaluated=evaluateGasBoundaryLayerWorkspace<Capture>(in,model.config,static_cast<gaswall::WallWorkspace<Real,Ns,capacity>*>(model.workspace)[workspaceSlot],model.output[slot],model.status[slot],Capture?model.profile+std::size_t(slot)*model.config.nodes*(7+Ns):nullptr);break
+#define WALL_EVALUATE_CAPACITY(capacity) case capacity: evaluated=evaluateGasBoundaryLayerWorkspace<Capture>(in,model.config,static_cast<gaswall::WallWorkspace<Real,Ns,capacity>*>(model.workspace)[workspaceSlot],model.output[slot],model.status[slot],Capture?model.profile+std::size_t(slot)*model.config.nodes*(7+Ns):nullptr,team);break
         switch(model.workspaceCapacity)
         {
             WALL_EVALUATE_CAPACITY(24);
@@ -170,8 +233,16 @@ template<bool Capture=false,class State> UGKWP_GAS_HD inline bool evaluateGasBou
     }
     if(!evaluated)
         return fail(GasTransportCode::InvalidStorage);
-    if(!publishGasBoundaryLayerOutput(state,slot,in,model.output[slot],state.magSf[face],normalSweepRate))
-        return fail(GasTransportCode::InvalidStorage);
+    bool published=false;
+    if(team.leader())published=publishGasBoundaryLayerOutput(state,slot,in,model.output[slot],state.magSf[face],normalSweepRate);
+    if(!team.broadcast(published))return fail(GasTransportCode::InvalidStorage);
     return true;
+}
+
+// Keep the original scalar signature and defaults; cooperative calls are explicit.
+template<bool Capture=false,class State>
+UGKWP_GAS_HD inline bool evaluateGasBoundaryLayerSlot(State& state,int slot,int workspaceSlot=0)
+{
+    return evaluateGasBoundaryLayerSlot<Capture>(state,slot,workspaceSlot,gaswall::detail::SerialWallTeam{});
 }
 }

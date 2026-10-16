@@ -32,7 +32,9 @@ int ownerSlot[2]={0,-1};s.gasBoundaryLayer.enabled=true;s.gasBoundaryLayer.count
 @pytest.mark.parametrize('analytic',[False,True])
 def test_actual_sparse_kernel_covers_faces_once_per_scratch_slot(tmp_path,analytic):
     header=(ROOT/'common/operators/evaluateGasBoundaryLayerKernel.cuh').read_text()
-    header=header.replace('ugkwp::evaluateGasBoundaryLayerSlot(*state,slot,worker)','recordSlot(*state,slot,worker)')
+    needle='ugkwp::evaluateGasBoundaryLayerSlot<Capture>(*state,slot,worker)'
+    assert header.count(needle)==1
+    header=header.replace(needle,'recordSlot(*state,slot,worker)')
     compile_probe(tmp_path,fixture()+r'''
 #include "gasTransport/GasBoundaryLayerModelState.H"
 struct WorkerState:State{ugkwp::GasBoundaryLayerModelState<Real,2> gasBoundaryLayerModel;};

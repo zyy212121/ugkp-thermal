@@ -15,3 +15,28 @@ __global__ void evaluateGasBoundaryLayerKernel(GasState* state)
             ugkwp::evaluateGasBoundaryLayerSlot<Capture>(*state,slot,worker);
     }
 }
+
+#if defined(__CUDACC__)
+#include "gasWall/WallCudaTeam.cuh"
+// Full CTA entry/exit is uniform even when nodes<32 or an evaluation fails.
+template<bool Capture,class GasState>
+__device__ inline void evaluateGasBoundaryLayerTeamWorker(GasState*,
+    std::false_type){}
+template<bool Capture,class GasState>
+__device__ inline void evaluateGasBoundaryLayerTeamWorker(GasState* state,
+    std::true_type)
+{
+    const int worker=blockIdx.x,workers=state->gasBoundaryLayerModel.workspaceCount;
+    if(worker>=workers || !ugkwp::gasBoundaryLayerEnabled(*state))return;
+    const ugkwp::gaswall::detail::CudaWallTeam team{};
+    for(int slot=worker;slot<state->gasBoundaryLayer.count;slot+=workers)
+        ugkwp::evaluateGasBoundaryLayerSlot<Capture>(*state,slot,worker,team);
+}
+// Node-parallel nonlinear BVP; scalar/analytic kernel remains available above.
+template<bool Capture=false,class GasState>
+__global__ __launch_bounds__(ugkwp::gaswall::detail::wallWarpWidth) void evaluateGasBoundaryLayerTeamKernel(GasState* state)
+{
+    evaluateGasBoundaryLayerTeamWorker<Capture>(state,
+        typename ugkwp::GasBoundaryLayerModelCapability<GasState>::type{});
+}
+#endif

@@ -1,5 +1,6 @@
 #pragma once
 #include "WallPrecision.H"
+#include "WallExecution.H"
 #include "WallLayerMath.H"
 #include "WallThermoMath.H"
 #include "../gasTransport/SpeciesDiffusion.H"
@@ -43,6 +44,44 @@ template<class R,int N,class TableReal> UGKWP_GAS_HD UGKWP_WALL_DEVICE_LEAF bool
     return true;
 }
 
+
+// Jacobian rows only need a five-node window around one perturbed node.
+// Keep pristine pointState results private to its assembling thread; reaction
+// and the distinct node/interval SST gradients always operate on fresh copies.
+template<class R,int N> struct LayerPointCache {
+    int first;LayerPoint<R,N> points[5];unsigned char status[5]{};
+    UGKWP_GAS_HD explicit LayerPointCache(int begin):first(begin){}
+    UGKWP_GAS_HD void invalidate(int node){status[node-first]=0;}
+};
+template<class R,int N> struct CachedLayerRow {
+    const R* values;LayerPointCache<R,N>* cache;int node;
+    UGKWP_GAS_HD R operator[](int component)const{return values[component];}
+};
+template<class R,int N,class Rows> struct CachedLayerRows {
+    const Rows& rows;mutable LayerPointCache<R,N> cache;
+    UGKWP_GAS_HD CachedLayerRows(const Rows& values,int node)
+        :rows(values),cache(node>1?node-2:0){}
+    UGKWP_GAS_HD CachedLayerRow<R,N> operator[](int node)const{return {rows[node],&cache,node};}
+    UGKWP_GAS_HD void invalidate(int node){cache.invalidate(node);}
+};
+template<class R,int N,class TableReal> UGKWP_GAS_HD inline bool loadBasePoint(
+ const WallInput<R,N,TableReal>& in,const WallModelConfig<R>& c,const LayerContext<R,N>& ctx,
+ const R* row,LayerPoint<R,N>& point,const bool terminalProfile=false){
+    return pointState(in,c,ctx,row,point,terminalProfile);
+}
+template<class R,int N,class TableReal> UGKWP_GAS_HD inline bool loadBasePoint(
+ const WallInput<R,N,TableReal>& in,const WallModelConfig<R>& c,const LayerContext<R,N>& ctx,
+ const CachedLayerRow<R,N>& row,LayerPoint<R,N>& point,const bool terminalProfile=false){
+    if(terminalProfile)return pointState(in,c,ctx,row.values,point,true);
+    auto& cache=*row.cache;const int slot=row.node-cache.first;
+    if(!cache.status[slot]){
+        // pointState accumulates Cp, so every refill starts from a zero object.
+        cache.points[slot]=LayerPoint<R,N>{};
+        cache.status[slot]=pointState(in,c,ctx,row.values,cache.points[slot])?1:2;
+    }
+    if(cache.status[slot]!=1)return false;
+    point=cache.points[slot];return true;
+}
 
 template<class R,int N,class TableReal> UGKWP_GAS_HD UGKWP_WALL_DEVICE_LEAF bool pointReaction(const WallInput<R,N,TableReal>& in,LayerPoint<R,N>& p,const bool terminalProfile=false){
     if(in.model.mode!=GasMode::MixtureChemistry)return true;
@@ -121,26 +160,26 @@ template<class R,int N,class TableReal> UGKWP_GAS_HD inline bool layerFlux(const
 
     return terminalProfile||(gasFinite(f.energy)&&gasFinite(f.k));
 }
-template<class R,int N,int M,class TableReal> UGKWP_GAS_HD inline bool evaluatePoint(const WallInput<R,N,TableReal>& in,
- const WallModelConfig<R>& c,const LayerContext<R,N>& ctx,const R (&x)[M][N+4],const R* y,int index,LayerPoint<R,N>& p,const bool terminalProfile=false){
-    if(!pointState(in,c,ctx,x[index],p,terminalProfile)||!pointReaction(in,p,terminalProfile))return false;
+template<class R,int N,class TableReal,class Rows> UGKWP_GAS_HD inline bool evaluatePoint(const WallInput<R,N,TableReal>& in,
+ const WallModelConfig<R>& c,const LayerContext<R,N>& ctx,const Rows& x,const R* y,int index,LayerPoint<R,N>& p,const bool terminalProfile=false){
+    if(!loadBasePoint(in,c,ctx,x[index],p,terminalProfile)||!pointReaction(in,p,terminalProfile))return false;
     if(c.enableSst&&index>0){const int l=index-1,r=index+1<c.nodes?index+1:index;LayerPoint<R,N> a,b;
-        if(!pointState(in,c,ctx,x[l],a,terminalProfile)||!pointState(in,c,ctx,x[r],b,terminalProfile))return false;
+        if(!loadBasePoint(in,c,ctx,x[l],a,terminalProfile)||!loadBasePoint(in,c,ctx,x[r],b,terminalProfile))return false;
         pointSst(in,c,y[index],a,b,y[r]-y[l],p,y[index]-y[l]);}
     return true;
 }
 // Flux values at a face depend on endpoint gradients through SST eddy viscosity.
 // Use a two-point strain/gradient consistently, preserving a three-node residual
 // stencil and block-tridiagonal Newton system.
-template<class R,int N,class TableReal> UGKWP_GAS_HD UGKWP_WALL_DEVICE_LEAF bool intervalFlux(const WallInput<R,N,TableReal>& in,const WallModelConfig<R>& c,
- const LayerContext<R,N>& ctx,const R* xa,const R* xb,R ya,R yb,LayerFlux<R,N>& f,const bool terminalProfile=false){
-    LayerPoint<R,N> a,b;if(!pointState(in,c,ctx,xa,a,terminalProfile)||!pointState(in,c,ctx,xb,b,terminalProfile))return false;
+template<class R,int N,class TableReal,class RowA,class RowB> UGKWP_GAS_HD UGKWP_WALL_DEVICE_LEAF bool intervalFlux(const WallInput<R,N,TableReal>& in,const WallModelConfig<R>& c,
+ const LayerContext<R,N>& ctx,const RowA& xa,const RowB& xb,R ya,R yb,LayerFlux<R,N>& f,const bool terminalProfile=false){
+    LayerPoint<R,N> a,b;if(!loadBasePoint(in,c,ctx,xa,a,terminalProfile)||!loadBasePoint(in,c,ctx,xb,b,terminalProfile))return false;
     const auto originalA=a,originalB=b;
     pointSst(in,c,ya,originalA,originalB,yb-ya,a);pointSst(in,c,yb,originalA,originalB,yb-ya,b);
     return layerFlux(in,c,ctx,a,b,yb-ya,f,ya,yb,terminalProfile);
 }
-template<class R,int N,int M,class TableReal> UGKWP_GAS_HD UGKWP_WALL_DEVICE_LEAF bool layerRow(const WallInput<R,N,TableReal>& in,
- const WallModelConfig<R>& c,const LayerContext<R,N>& ctx,const R (&x)[M][N+4],const R* y,int i,R* row){
+template<class R,int N,class TableReal,class Rows> UGKWP_GAS_HD UGKWP_WALL_DEVICE_LEAF bool layerRow(const WallInput<R,N,TableReal>& in,
+ const WallModelConfig<R>& c,const LayerContext<R,N>& ctx,const Rows& x,const R* y,int i,R* row){
     constexpr int K=N+2,Z=N+3;
     for(int j=0;j<N+4;++j)row[j]=0;
     if(i==c.nodes-1){row[0]=x[i][0]-ctx.edgeU[0];row[1]=x[i][1]-ctx.edgeU[1];row[2]=x[i][2]-(in.matching.temperature-in.temperature);
@@ -166,7 +205,7 @@ template<class R,int N,int M,class TableReal> UGKWP_GAS_HD UGKWP_WALL_DEVICE_LEA
     for(int j=0;j<N-1;++j){const int s=ctx.independent[j];row[3+j]=(right.species[s]-left.species[s]-volume*p.source[s])/ctx.scale[3+j];}
     if(!c.enableSst){row[K]=x[i][K];row[Z]=x[i][Z]-R(1);return true;}
     row[K]=(right.k-left.k-volume*p.sourceK)/ctx.scale[K];
-    if(i==1){LayerPoint<R,N> a;if(!pointState(in,c,ctx,x[i-1],a))return false;
+    if(i==1){LayerPoint<R,N> a;if(!loadBasePoint(in,c,ctx,x[i-1],a))return false;
         row[Z]=p.z-a.z-y[1]*::sqrt(a.rho*in.model.sstCoefficients.beta1/(R(6)*in.model.viscosity));}
     else {const R yl=(y[i-1]+y[i])/R(2),yr=(y[i]+y[i+1])/R(2);
       const R fit=omegaDestructionFit(y[i],yl,yr);
@@ -176,10 +215,30 @@ template<class R,int N,int M,class TableReal> UGKWP_GAS_HD UGKWP_WALL_DEVICE_LEA
     for(int j=0;j<N+4;++j)if(!gasFinite(row[j]))return false;
     return true;
 }
-template<class R,int N,int M,class TableReal> UGKWP_GAS_HD inline bool allResidual(const WallInput<R,N,TableReal>& in,
- const WallModelConfig<R>& c,const LayerContext<R,N>& ctx,const R (&x)[M][N+4],const R* y,R (&f)[M][N+4],R& norm){
-    norm=0;for(int i=0;i<c.nodes;++i){if(!layerRow(in,c,ctx,x,y,i,f[i]))return false;
-        for(int j=0;j<N+4;++j)norm=max(norm,abs(f[i][j]));}return true;
+template<class R,int N,int M,class TableReal,class Team=SerialWallTeam>
+UGKWP_GAS_HD inline bool allResidual(const WallInput<R,N,TableReal>& in,
+ const WallModelConfig<R>& c,const LayerContext<R,N>& ctx,const R (&x)[M][N+4],const R* y,
+ R (&f)[M][N+4],R& norm,const Team& team=Team{}){
+    if(std::is_same<Team,SerialWallTeam>::value){
+        norm=0;for(int i=0;i<c.nodes;++i){if(!layerRow(in,c,ctx,x,y,i,f[i]))return false;
+            for(int j=0;j<N+4;++j)norm=max(norm,abs(f[i][j]));}
+        return true;
+    }
+    bool valid=true;
+    for(int i=team.rank();i<c.nodes;i+=team.size())
+        if(!layerRow(in,c,ctx,x,y,i,f[i])){valid=false;break;}
+    if(!team.all(valid)){
+        // Preserve the original partial norm on a rejected trial as well.
+        // Only the failure path repeats a serial scan; successful rows stay parallel.
+        if(team.leader()){norm=0;for(int i=0;i<c.nodes;++i){
+            if(!layerRow(in,c,ctx,x,y,i,f[i]))break;
+            for(int j=0;j<N+4;++j)norm=max(norm,abs(f[i][j]));}}
+        norm=team.broadcast(norm);return false;
+    }
+    // Retain the original node/component order, including max/NaN semantics.
+    if(team.leader()){norm=0;for(int i=0;i<c.nodes;++i)
+        for(int j=0;j<N+4;++j)norm=max(norm,abs(f[i][j]));}
+    norm=team.broadcast(norm);return true;
 }
 template<class R,int B> UGKWP_GAS_HD inline bool eliminateBlock(R (&a)[B][B],R (&upper)[B][B],R* rhs){
     for(int col=0;col<B;++col){int pivot=col;for(int row=col+1;row<B;++row)if(abs(a[row][col])>abs(a[pivot][col]))pivot=row;
@@ -190,19 +249,28 @@ template<class R,int B> UGKWP_GAS_HD inline bool eliminateBlock(R (&a)[B][B],R (
         for(int row=0;row<B;++row)if(row!=col){const R factor=a[row][col];for(int k=0;k<B;++k){a[row][k]-=factor*a[col][k];upper[row][k]-=factor*upper[col][k];}rhs[row]-=factor*rhs[col];}}
     return true;
 }
-template<class R,int N,int M,class TableReal> UGKWP_GAS_HD inline bool newtonStep(const WallInput<R,N,TableReal>& in,
- const WallModelConfig<R>& c,const LayerContext<R,N>& ctx,WallWorkspace<R,N,M>& w){
-    constexpr int B=N+4;
-    for(int i=0;i<c.nodes;++i)for(int row=0;row<B;++row){w.delta[i][row]=-w.residual[i][row];for(int col=0;col<B;++col)w.lower[i][row][col]=w.diagonal[i][row][col]=w.upper[i][row][col]=0;}
-    for(int j=0;j<c.nodes;++j){
+// A thread owns one perturbed node and its three Jacobian blocks. The view
+// overlays only that node; neighboring evaluations read the immutable iterate.
+template<class R,int N> struct PerturbedLayerState {
+    const R (*state)[N+4];int node;R row[N+4];
+    UGKWP_GAS_HD PerturbedLayerState(const R (*values)[N+4],int index):state(values),node(index){
+        for(int col=0;col<N+4;++col)row[col]=values[index][col];}
+    UGKWP_GAS_HD const R* operator[](int index)const{return index==node?row:state[index];}
+};
+template<class R,int N,int M,class TableReal> UGKWP_GAS_HD inline bool assembleJacobianNode(
+ const WallInput<R,N,TableReal>& in,const WallModelConfig<R>& c,const LayerContext<R,N>& ctx,
+ WallWorkspace<R,N,M>& w,int j){
+    constexpr int B=N+4;PerturbedLayerState<R,N> perturbed(w.state,j);
+    CachedLayerRows<R,N,PerturbedLayerState<R,N>> cached(perturbed,j);
+
         // A local simplex tangent basis remains feasible even when the globally
         // dependent species and an independent species are both exactly zero.
-        R sum=0;for(int k=3;k<N+2;++k)sum+=w.state[j][k];
+        R sum=0;for(int k=3;k<N+2;++k)sum+=perturbed.row[k];
         R donorMass=R(1)-sum;int donor=-1;
-        for(int k=3;k<N+2;++k)if(w.state[j][k]>donorMass){donorMass=w.state[j][k];donor=k;}
+        for(int k=3;k<N+2;++k)if(perturbed.row[k]>donorMass){donorMass=perturbed.row[k];donor=k;}
         for(int pass=0;pass<B;++pass){const int col=donor>=3?(pass==3?donor:(pass==donor?3:pass)):pass;
             const bool species=col>=3&&col<N+2,transfer=species&&donor>=3&&col!=donor;
-            const R old=w.state[j][col],oldDonor=transfer?w.state[j][donor]:R(0);
+            const R old=perturbed.row[col],oldDonor=transfer?perturbed.row[donor]:R(0);
             const R rootEpsilon=::sqrt(std::numeric_limits<R>::epsilon());
             R variableScale=col==2?R(100):R(1);
             if(c.enableSst&&col==N+2)variableScale=::sqrt(in.matching.k)*rootEpsilon;
@@ -210,14 +278,15 @@ template<class R,int N,int M,class TableReal> UGKWP_GAS_HD inline bool newtonSte
             R h=rootEpsilon*max(abs(old),variableScale);
             if(species){h=min(h,donorMass/R(4));if(col==donor)h=-h;}
             bool valid=false;R rows[3][B]{};const int start=j>0?j-1:0,end=j+1<c.nodes?j+1:c.nodes-1;
-            for(int attempt=0;attempt<2&&!valid;++attempt){w.state[j][col]=old+h;
-                if(transfer)w.state[j][donor]=oldDonor-h;
+            for(int attempt=0;attempt<2&&!valid;++attempt){perturbed.row[col]=old+h;
+                if(transfer)perturbed.row[donor]=oldDonor-h;
+                cached.invalidate(j);
                 valid=true;
-                for(int i=start;i<=end;++i)if(!layerRow(in,c,ctx,w.state,w.y,i,rows[i-start])){valid=false;break;}
-                if(!valid){w.state[j][col]=old;if(transfer)w.state[j][donor]=oldDonor;h=species?h/R(2):-h;}}
-            const R actualStep=w.state[j][col]-old;
-            const R donorStep=transfer?oldDonor-w.state[j][donor]:R(0);
-            w.state[j][col]=old;if(transfer)w.state[j][donor]=oldDonor;
+                for(int i=start;i<=end;++i)if(!layerRow(in,c,ctx,cached,w.y,i,rows[i-start])){valid=false;break;}
+                if(!valid){perturbed.row[col]=old;if(transfer)perturbed.row[donor]=oldDonor;h=species?h/R(2):-h;}}
+            const R actualStep=perturbed.row[col]-old;
+            const R donorStep=transfer?oldDonor-perturbed.row[donor]:R(0);
+            perturbed.row[col]=old;if(transfer)perturbed.row[donor]=oldDonor;
             if(!valid||actualStep==0)return false;
             for(int i=start;i<=end;++i)for(int row=0;row<B;++row){const R forward=(rows[i-start][row]-w.residual[i][row])/actualStep;
                 R derivative=forward;
@@ -227,7 +296,11 @@ template<class R,int N,int M,class TableReal> UGKWP_GAS_HD inline bool newtonSte
                 if(transfer)derivative+=(donorStep/actualStep)*block[donor];
                 block[col]=derivative;}
         }
-    }
+        return true;
+}
+template<class R,int N,int M> UGKWP_GAS_HD inline bool solveLayerNewtonSystem(
+ const WallModelConfig<R>& c,WallWorkspace<R,N,M>& w){
+    constexpr int B=N+4;
     for(int i=0;i<c.nodes;++i){if(i>0){for(int row=0;row<B;++row){R correction=0;for(int k=0;k<B;++k)correction+=w.lower[i][row][k]*w.delta[i-1][k];w.delta[i][row]-=correction;
           for(int col=0;col<B;++col){R sum=0;for(int k=0;k<B;++k)sum+=w.lower[i][row][k]*w.upper[i-1][k][col];w.diagonal[i][row][col]-=sum;}}}
         if(!eliminateBlock(w.diagonal[i],w.upper[i],w.delta[i]))return false;}
@@ -240,6 +313,21 @@ template<class R,int N,int M,class TableReal> UGKWP_GAS_HD inline bool newtonSte
         for(int j=3;j<N+2;++j)if(w.state[i][j]==0&&w.delta[i][j]<0&&-w.delta[i][j]<=roundoff)w.delta[i][j]=0;}
 
     return true;
+}
+template<class R,int N,int M,class TableReal,class Team=SerialWallTeam>
+UGKWP_GAS_HD inline bool newtonStep(const WallInput<R,N,TableReal>& in,
+ const WallModelConfig<R>& c,const LayerContext<R,N>& ctx,WallWorkspace<R,N,M>& w,const Team& team=Team{}){
+    constexpr int B=N+4;
+    for(int i=team.rank();i<c.nodes;i+=team.size())for(int row=0;row<B;++row){
+        w.delta[i][row]=-w.residual[i][row];
+        for(int col=0;col<B;++col)w.lower[i][row][col]=w.diagonal[i][row][col]=w.upper[i][row][col]=0;}
+    team.sync();bool valid=true;
+    for(int j=team.rank();j<c.nodes;j+=team.size())
+        if(!assembleJacobianNode(in,c,ctx,w,j)){valid=false;break;}
+    if(!team.all(valid))return false;
+    // Preserve partial pivoting, block-Thomas elimination and back substitution.
+    bool solved=false;if(team.leader())solved=solveLayerNewtonSystem(c,w);
+    return team.broadcast(solved);
 }
 template<class R,int N,class TableReal> UGKWP_GAS_HD inline bool makeContext(const WallInput<R,N,TableReal>& in,const WallModelConfig<R>& c,LayerContext<R,N>& ctx){
     int axis=0;if(abs(in.normal[1])<abs(in.normal[axis]))axis=1;if(abs(in.normal[2])<abs(in.normal[axis]))axis=2;
@@ -263,9 +351,10 @@ template<class R,int N,class TableReal> UGKWP_GAS_HD inline bool makeContext(con
     ctx.scale[N+2]=max(R(1e-12),(ctx.mass+in.model.viscosity/L)*max(R(1),in.matching.k));ctx.scale[N+3]=rho;
     (void)c;return true;
 }
-template<class R,int N,int M> UGKWP_GAS_HD inline bool seedScalar(
+template<class R,int N,int M> UGKWP_GAS_HD inline bool seedScalarUsingScratch(
  const WallModelConfig<R>& c,WallWorkspace<R,N,M>& w,int variable,int diffusion,int source,int sink,
- R mass,R leftValue,R rightValue,int first=0){
+ R mass,R leftValue,R rightValue,int first,int scratchRow){
+    // Each system owns a distinct upper-recurrence row.
     for(int i=first;i<c.nodes;++i){R low=0,diagonal=1,upper=0,rhs=0;
         if(i==first)rhs=leftValue;
         else if(i==c.nodes-1)rhs=rightValue;
@@ -273,27 +362,77 @@ template<class R,int N,int M> UGKWP_GAS_HD inline bool seedScalar(
             const R dr=(w.seed[i+1][diffusion]+w.seed[i][diffusion])/(R(2)*(w.y[i+1]-w.y[i]));
             const R volume=(w.y[i+1]-w.y[i-1])/R(2);
             low=-dl-mass;upper=-dr;diagonal=dl+dr+mass+(sink>=0?w.seed[i][sink]*volume:R(0));rhs=source>=0?w.seed[i][source]*volume:R(0);}
-        if(i>first){diagonal-=low*w.upper[i-1][0][0];rhs-=low*w.delta[i-1][variable];}
+        if(i>first){diagonal-=low*w.upper[i-1][scratchRow][0];rhs-=low*w.delta[i-1][variable];}
         if(!gasFinite(diagonal)||diagonal<=0)return false;
-        w.upper[i][0][0]=upper/diagonal;w.delta[i][variable]=rhs/diagonal;}
-    for(int i=c.nodes-2;i>=first;--i)w.delta[i][variable]-=w.upper[i][0][0]*w.delta[i+1][variable];
+        w.upper[i][scratchRow][0]=upper/diagonal;w.delta[i][variable]=rhs/diagonal;}
+    for(int i=c.nodes-2;i>=first;--i)w.delta[i][variable]-=w.upper[i][scratchRow][0]*w.delta[i+1][variable];
     return true;
+}
+template<class R,int N,int M> UGKWP_GAS_HD inline bool seedScalar(
+ const WallModelConfig<R>& c,WallWorkspace<R,N,M>& w,int variable,int diffusion,int source,int sink,
+ R mass,R leftValue,R rightValue,int first=0){
+    if(!seedScalarUsingScratch(c,w,variable,diffusion,source,sink,mass,leftValue,rightValue,first,0))return false;
+    return true;
+}
+template<class R,int N,int M,class Team> UGKWP_GAS_HD inline bool solveSeedSystemsWithTeam(
+ const WallModelConfig<R>& c,WallWorkspace<R,N,M>& w,R mass,R edgeU0,R edgeU1,R edgeK,
+ R firstOmega,R edgeOmega,const Team& team,std::true_type){
+    // Preserve scalar short-circuit order and the original scratch row exactly.
+    const bool solved=seedScalar(c,w,0,0,-1,-1,mass,R(0),edgeU0)
+        &&seedScalar(c,w,1,0,-1,-1,mass,R(0),edgeU1)
+        &&seedScalar(c,w,N+2,1,3,4,mass,R(0),edgeK)
+        &&seedScalar(c,w,N+3,2,5,6,mass,firstOmega,edgeOmega,1);
+    return team.broadcast(solved);
+}
+template<class R,int N,int M,class Team> UGKWP_GAS_HD inline bool solveSeedSystemsWithTeam(
+ const WallModelConfig<R>& c,WallWorkspace<R,N,M>& w,R mass,R edgeU0,R edgeU1,R edgeK,
+ R firstOmega,R edgeOmega,const Team& team,std::false_type){
+    // Four independent tridiagonal systems, one recurrence row per variable.
+    // This scratch is dead before Newton zeros/rebuilds all Jacobian blocks.
+    bool solved=true;
+    for(int job=team.rank();job<4;job+=team.size()){
+        const int variable=job<2?job:N+job,diffusion=job<2?0:job-1;
+        const int source=job<2?-1:2*job-1,sink=job<2?-1:2*job;
+        const int first=job==3?1:0;
+        const R leftValue=job==3?firstOmega:R(0);
+        const R rightValue=job==0?edgeU0:(job==1?edgeU1:(job==2?edgeK:edgeOmega));
+        // One common callsite keeps the participating lanes in the same SIMT
+        // recurrence body rather than serializing four divergent call bodies.
+        const bool ok=seedScalarUsingScratch(c,w,variable,diffusion,source,sink,
+            mass,leftValue,rightValue,first,variable);
+        if(!ok){solved=false;break;}
+    }
+    return team.all(solved);
+}
+template<class R,int N,int M,class Team> UGKWP_GAS_HD inline bool solveSeedSystemsWithTeam(
+ const WallModelConfig<R>& c,WallWorkspace<R,N,M>& w,R mass,R edgeU0,R edgeU1,R edgeK,
+ R firstOmega,R edgeOmega,const Team& team){
+    return solveSeedSystemsWithTeam(c,w,mass,edgeU0,edgeU1,edgeK,firstOmega,edgeOmega,team,
+        typename std::is_same<Team,SerialWallTeam>::type{});
 }
 // Positive transport/destruction Picard iteration is only a Newton initializer.
 // Its upwind convection and first-node asymptotic profile never authorize a
 
 
-template<class R,int N,int M,class TableReal> UGKWP_GAS_HD inline bool seedSstLayer(const WallInput<R,N,TableReal>& in,
- const WallModelConfig<R>& c,const LayerContext<R,N>& ctx,WallWorkspace<R,N,M>& w){
+template<class R,int N,int M,class TableReal,class Team=SerialWallTeam> UGKWP_GAS_HD inline bool seedSstLayer(const WallInput<R,N,TableReal>& in,
+ const WallModelConfig<R>& c,const LayerContext<R,N>& ctx,WallWorkspace<R,N,M>& w,const Team& team=Team{}){
     if(!c.enableSst)return true;
     const int K=N+2,Z=N+3;const auto& coefficients=in.model.sstCoefficients;
-    LayerPoint<R,N> wall;if(!pointState(in,c,ctx,w.state[0],wall))return false;
-    const R slope=::sqrt(wall.rho*coefficients.beta1/(R(6)*in.model.viscosity));
-    for(int i=1;i<c.nodes;++i){const R omega=R(1)/(slope*slope*w.y[i]*w.y[i])+in.matching.omega;
+    R wallRho=0,slope=0;bool wallValid=false;
+    if(team.leader()){
+        LayerPoint<R,N> wall;wallValid=pointState(in,c,ctx,w.state[0],wall);
+        if(wallValid){wallRho=wall.rho;slope=::sqrt(wallRho*coefficients.beta1/(R(6)*in.model.viscosity));}
+    }
+    if(!team.broadcast(wallValid))return false;
+    slope=team.broadcast(slope);
+    for(int i=1+team.rank();i<c.nodes;i+=team.size()){const R omega=R(1)/(slope*slope*w.y[i]*w.y[i])+in.matching.omega;
         w.state[i][Z]=R(1)/::sqrt(omega);}
-    w.state[c.nodes-1][Z]=R(1)/::sqrt(in.matching.omega);
+    team.sync();
+    if(team.leader())w.state[c.nodes-1][Z]=R(1)/::sqrt(in.matching.omega);
+    team.sync();
     for(int iteration=0;iteration<200;++iteration){
-        for(int i=0;i<c.nodes;++i){LayerPoint<R,N> p;if(!evaluatePoint(in,c,ctx,w.state,w.y,i,p))return false;
+        bool valid=true;
+        for(int i=team.rank();i<c.nodes;i+=team.size()){LayerPoint<R,N> p;if(!evaluatePoint(in,c,ctx,w.state,w.y,i,p)){valid=false;break;}
             w.seed[i][0]=in.model.viscosity+p.rho*p.nut;
             w.seed[i][1]=in.model.viscosity+p.rho*sstAlphaK(p.f1,coefficients)*p.nut;
             w.seed[i][2]=in.model.viscosity+p.rho*sstAlphaOmega(p.f1,coefficients)*p.nut;
@@ -304,24 +443,37 @@ template<class R,int N,int M,class TableReal> UGKWP_GAS_HD inline bool seedSstLa
             w.seed[i][5]=max(R(0),omegaRest);
             w.seed[i][6]=p.rho*sstBeta(p.f1,coefficients)*p.omega+(p.omega>0?max(R(0),-omegaRest)/p.omega:R(0));
             w.seed[i][7]=p.omega;}
-        LayerFlux<R,N> first;if(!intervalFlux(in,c,ctx,w.state[0],w.state[1],w.y[0],w.y[1],first))return false;
-        R wallZ=0;if(ctx.mass>0){R tau2=0;for(int d=0;d<2;++d){const R tau=-first.momentum[d];tau2+=tau*tau;}
-            const R ut=::sqrt(::sqrt(tau2)/wall.rho);if(!(ut>0))return false;const R vp=ctx.mass/(wall.rho*ut);
-            wallZ=::sqrt(in.model.viscosity/wall.rho/(ut*ut)*vp*(R(1)+R(5)*vp)/R(25));}
-        const R firstZ=wallZ+w.y[1]*slope,firstOmega=R(1)/(firstZ*firstZ);
-        if(!seedScalar(c,w,0,0,-1,-1,ctx.mass,R(0),ctx.edgeU[0])
-            ||!seedScalar(c,w,1,0,-1,-1,ctx.mass,R(0),ctx.edgeU[1])
-            ||!seedScalar(c,w,K,1,3,4,ctx.mass,R(0),in.matching.k)
-            ||!seedScalar(c,w,Z,2,5,6,ctx.mass,firstOmega,in.matching.omega,1))return false;
-        R change=0;
+        if(!team.all(valid))return false;
+        // Boundary physics is uniform for this wall: evaluate it once, then
+        // broadcast only the value needed by the independent omega recurrence.
+        R wallZ=0,firstZ=0,firstOmega=0;bool boundaryValid=false;
+        if(team.leader()){
+            LayerFlux<R,N> first;boundaryValid=intervalFlux(in,c,ctx,w.state[0],w.state[1],w.y[0],w.y[1],first);
+            if(boundaryValid){
+                if(ctx.mass>0){R tau2=0;for(int d=0;d<2;++d){const R tau=-first.momentum[d];tau2+=tau*tau;}
+                    const R ut=::sqrt(::sqrt(tau2)/wallRho);boundaryValid=ut>0;
+                    if(boundaryValid){const R vp=ctx.mass/(wallRho*ut);
+                        wallZ=::sqrt(in.model.viscosity/wallRho/(ut*ut)*vp*(R(1)+R(5)*vp)/R(25));}}
+                if(boundaryValid){firstZ=wallZ+w.y[1]*slope;firstOmega=R(1)/(firstZ*firstZ);}
+            }
+        }
+        if(!team.broadcast(boundaryValid))return false;
+        firstOmega=team.broadcast(firstOmega);
+        if(!solveSeedSystemsWithTeam(c,w,ctx.mass,ctx.edgeU[0],ctx.edgeU[1],
+            in.matching.k,firstOmega,in.matching.omega,team))return false;
+        R change=0;bool updated=true;
+        if(team.leader()){
         for(int i=1;i<c.nodes-1;++i){for(int d=0;d<2;++d){change=max(change,abs(w.delta[i][d]-w.state[i][d])/max(R(1),abs(ctx.edgeU[d])));w.state[i][d]=(w.state[i][d]+w.delta[i][d])/R(2);}
-            if(w.delta[i][K]<0||w.delta[i][Z]<=0)return false;
+            if(w.delta[i][K]<0||w.delta[i][Z]<=0){updated=false;break;}
             const R oldK=w.state[i][K]*w.state[i][K],oldOmega=w.seed[i][7];
             change=max(change,abs(w.delta[i][K]-oldK)/max(R(1),in.matching.k));
             change=max(change,abs(w.delta[i][Z]-oldOmega)/oldOmega);
             w.state[i][K]=::sqrt((oldK+w.delta[i][K])/R(2));w.state[i][Z]=R(1)/::sqrt((oldOmega+w.delta[i][Z])/R(2));
-            if(!gasFinite(w.state[i][K])||!gasFinite(w.state[i][Z]))return false;}
-        w.state[0][Z]=wallZ;if(c.nodes>2)w.state[1][Z]=firstZ;
+            if(!gasFinite(w.state[i][K])||!gasFinite(w.state[i][Z])){updated=false;break;}}
+        if(updated){w.state[0][Z]=wallZ;if(c.nodes>2)w.state[1][Z]=firstZ;}
+        }
+        if(!team.broadcast(updated))return false;
+        change=team.broadcast(change);
         if(change<R(1e-5))break;
     }
     return true;
@@ -387,16 +539,17 @@ template<class R,int N,int M,class TableReal> UGKWP_GAS_HD inline bool publishLa
 }
 } // detail
 
-template<class R,int N,int M,class TableReal> UGKWP_GAS_HD inline bool evaluateReactingWallLayerImpl(
- const WallInput<R,N,TableReal>& in,const WallModelConfig<R>& c,WallWorkspace<R,N,M>& w,WallOutput<R,N>& output,WallStatus& status){
+template<class R,int N,int M,class TableReal,class Team=detail::SerialWallTeam> UGKWP_GAS_HD inline bool evaluateReactingWallLayerImpl(
+ const WallInput<R,N,TableReal>& in,const WallModelConfig<R>& c,WallWorkspace<R,N,M>& w,WallOutput<R,N>& output,WallStatus& status,const Team& team=Team{}){
     using namespace detail;
-    if(!validateInput(in,c,status))return false;
-    if(in.model.mode!=GasMode::MixtureFrozen&&in.model.mode!=GasMode::MixtureChemistry&&in.model.mode!=GasMode::SingleLegacy)return fail(status,WallCode::Unsupported);
-    if(c.enableSst&&(!gasFinite(in.matching.k)||!gasFinite(in.matching.omega)))status.code=WallCode::InvalidInput;
+    bool inputValid=false;if(team.leader())inputValid=validateInput(in,c,status);
+    if(!team.broadcast(inputValid))return false;
+    if(in.model.mode!=GasMode::MixtureFrozen&&in.model.mode!=GasMode::MixtureChemistry&&in.model.mode!=GasMode::SingleLegacy){if(team.leader())fail(status,WallCode::Unsupported);return false;}
+    if(team.leader()&&c.enableSst&&(!gasFinite(in.matching.k)||!gasFinite(in.matching.omega)))status.code=WallCode::InvalidInput;
     const bool strictMechanism=in.model.mode!=GasMode::MixtureChemistry
         ||bool(validateGasMechanismView(in.model.thermo,in.model.mechanism));
-    LayerContext<R,N> ctx;if(!makeContext(in,c,ctx))return fail(status,WallCode::InvalidThermodynamics);
-    for(int i=0;i<c.nodes;++i){const R eta=R(i)/R(c.nodes-1),f=::pow(eta,c.stretch);w.y[i]=in.matchingDistance*f;
+    LayerContext<R,N> ctx;if(!team.all(makeContext(in,c,ctx))){if(team.leader())fail(status,WallCode::InvalidThermodynamics);return false;}
+    for(int i=team.rank();i<c.nodes;i+=team.size()){const R eta=R(i)/R(c.nodes-1),f=::pow(eta,c.stretch);w.y[i]=in.matchingDistance*f;
         w.state[i][0]=f*ctx.edgeU[0];w.state[i][1]=f*ctx.edgeU[1];
         w.state[i][2]=f*(in.matching.temperature-in.temperature);
         for(int j=0;j<N-1;++j)w.state[i][3+j]=in.matching.massFraction[ctx.independent[j]];
@@ -406,8 +559,10 @@ template<class R,int N,int M,class TableReal> UGKWP_GAS_HD inline bool evaluateR
         if(c.enableSst)for(int j=0;j<N+4;++j)w.trial[i][j]=w.state[i][j];}
 
 
-    bool seeded=strictMechanism&&seedSstLayer(in,c,ctx,w);
-    if(c.enableSst&&seeded){
+    team.sync();
+    bool seeded=false;
+    if(team.leader())seeded=strictMechanism&&seedSstLayer(in,c,ctx,w,SerialWallTeam{});
+    if(team.leader()&&c.enableSst&&seeded){
         // Initialize the auxiliary nonlinear profile at a shear-based scale.
         // This changes neither matching/owner k nor any physical equation.
         // A near-zero sqrt(k) seed can make Newton cross its zero derivative
@@ -421,33 +576,38 @@ template<class R,int N,int M,class TableReal> UGKWP_GAS_HD inline bool evaluateR
             w.state[i][N+2]=::sqrt(w.state[i][N+2]*w.state[i][N+2]+R(4)*eta*(R(1)-eta)*kScale);
             seeded=seeded&&gasFinite(w.state[i][N+2]);}
     }
-    if(c.enableSst&&!seeded)for(int i=0;i<c.nodes;++i)for(int j=0;j<N+4;++j)w.state[i][j]=w.trial[i][j];
+    seeded=team.broadcast(seeded);
+    if(c.enableSst&&!seeded)for(int i=team.rank();i<c.nodes;i+=team.size())for(int j=0;j<N+4;++j)w.state[i][j]=w.trial[i][j];
+    team.sync();
     R norm=0;
-    const bool measured=strictMechanism&&allResidual(in,c,ctx,w.state,w.y,w.residual,norm);
+    const bool measured=strictMechanism&&allResidual(in,c,ctx,w.state,w.y,w.residual,norm,team);
     if(!measured)norm=std::numeric_limits<R>::quiet_NaN();
     const R tolerance=c.absoluteTolerance+c.relativeTolerance;
     int iteration=0;
     if(measured)for(;;){
         if(norm<=tolerance||iteration>=c.maxIterations)break;
-        if(!newtonStep(in,c,ctx,w))break;
+        if(!newtonStep(in,c,ctx,w,team))break;
         R alpha=1;bool accepted=false;
-        for(int line=0;line<40;++line){for(int i=0;i<c.nodes;++i)for(int j=0;j<N+4;++j)w.trial[i][j]=w.state[i][j]+alpha*w.delta[i][j];
-            R next=0;if(allResidual(in,c,ctx,w.trial,w.y,w.residual,next)&&next<norm){for(int i=0;i<c.nodes;++i)for(int j=0;j<N+4;++j)w.state[i][j]=w.trial[i][j];norm=next;accepted=true;break;}
+        for(int line=0;line<40;++line){for(int i=team.rank();i<c.nodes;i+=team.size())for(int j=0;j<N+4;++j)w.trial[i][j]=w.state[i][j]+alpha*w.delta[i][j];
+            team.sync();
+            R next=0;if(allResidual(in,c,ctx,w.trial,w.y,w.residual,next,team)&&next<norm){for(int i=team.rank();i<c.nodes;i+=team.size())for(int j=0;j<N+4;++j)w.state[i][j]=w.trial[i][j];team.sync();norm=next;accepted=true;break;}
             alpha*=R(.5);}
         if(!accepted){
 
 
-            if(!allResidual(in,c,ctx,w.state,w.y,w.residual,norm))norm=std::numeric_limits<R>::quiet_NaN();
+            if(!allResidual(in,c,ctx,w.state,w.y,w.residual,norm,team))norm=std::numeric_limits<R>::quiet_NaN();
             break;
         }
         ++iteration;
     }
-    status.iteration=iteration;status.residual=double(norm);
+    if(team.leader()){status.iteration=iteration;status.residual=double(norm);}
 
 
     const bool terminalProfile=true;
-    if(!publishLayer(in,c,ctx,w,iteration,norm,output,terminalProfile))return fail(status,WallCode::InadmissibleState);
-    return true;
+    bool published=false;
+    if(team.leader()){published=publishLayer(in,c,ctx,w,iteration,norm,output,terminalProfile);
+        if(!published)fail(status,WallCode::InadmissibleState);}
+    return team.broadcast(published);
 }
 // Keep the original <R,N,M> entry-point spelling while deducing borrowed tables.
 template<class R,int N,int M,class TableReal=R> UGKWP_GAS_HD inline typename std::enable_if<std::is_same<R,WallReal>::value,bool>::type evaluateReactingWallLayer(
