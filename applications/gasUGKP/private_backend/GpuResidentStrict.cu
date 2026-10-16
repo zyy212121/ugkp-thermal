@@ -2150,6 +2150,10 @@ constexpr double mobilePackingJacobiOmega = 0.8;
 #include "../../../common/gasNumerics/GpuPackingProjectionCooperative.cuh"
 
 #include "../../../common/GpuGasHostPolicy.cuh"
+
+namespace
+{
+// Define the callback in the same internal namespace as its forward declaration.
 template<bool Capture> int launchBoundaryLayer(DeviceState* s)
 {
         const bool analytic=s->gasBoundaryLayerModel.config.model==ugkwp::gaswall::BoundaryLayerModel::ConstantTransport;
@@ -2160,6 +2164,8 @@ template<bool Capture> int launchBoundaryLayer(DeviceState* s)
         if(error!=cudaSuccess){setLastError("prepare sparse boundaryLayer profiles",error);return 1;}
         return 0;
 }
+} // namespace
+
 struct GasHostPolicy:GasHostWithoutWallEnergy<double,double>
 {
     template<class HostState> static int prepareBoundaryLayer(HostState* s,double,double stageTime)
