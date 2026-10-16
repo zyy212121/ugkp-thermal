@@ -5,6 +5,10 @@ template<bool SanitizeInputs, bool Diagnose = !SanitizeInputs>
 __device__ __forceinline__ void applyGasGravityCell
 (DeviceState& s, const int c, const GPU_OPERATOR_TIME dt)
 {
+    if constexpr (Diagnose)
+    {
+        if(ugkp::diagnostics::hasFatal(s.diagnostics)) return;
+    }
     using Energy = ugkwp::GasEnergyScalar<DeviceState>;
     GPU_OPERATOR_REAL rho=s.rho[c], mx=s.rhoUx[c], my=s.rhoUy[c], mz=s.rhoUz[c];
     Energy energy=s.rhoE[c];

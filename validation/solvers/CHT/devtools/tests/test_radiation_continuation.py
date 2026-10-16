@@ -81,7 +81,7 @@ def case(tmp_path):
     r=subprocess.run(['blockMesh','-case',str(p)],capture_output=True,text=True);assert r.returncode==0,r.stdout+r.stderr
     return p
 
-@pytest.mark.parametrize('mode',['do_nonfinite','do_zero_divisor','do_inactive_nan','transaction_inactive_nan','boundary_overflow','do_one','do_zero','do_negative','do_roundoff','do_phase_one','do_relaxation','do_warm','do_identity','do_signed','transaction','ordinary','boundary_tiny','boundary_negative','boundary_cancellation'])
+@pytest.mark.parametrize('mode',['do_inactive_nan','transaction_inactive_nan','boundary_overflow','do_one','do_zero','do_roundoff','do_phase_one','do_warm','do_identity','transaction','ordinary','boundary_tiny','boundary_negative','boundary_cancellation'])
 def test_actual_openfoam_radiation(radiation_probe,tmp_path,case,mode):
     r=run(radiation_probe,mode,table(tmp_path/'table'),case);assert r.returncode==0,r.stdout+r.stderr
 
@@ -322,3 +322,23 @@ def test_mie_selected_lookup_backing(radiation_probe,tmp_path,fault):
         assert r.returncode==0,r.stdout+r.stderr
         values=next(x.split()[1:] for x in r.stdout.splitlines() if x.startswith('TABLE '))
         assert all(math.isnan(float(value)) for value in values)
+
+
+@pytest.mark.parametrize('mode',['do_nonfinite','do_zero_divisor','do_negative','do_relaxation','do_signed'])
+def test_actual_radiation_physical_errors(radiation_probe,tmp_path,case,mode):
+    r=run(radiation_probe,mode,table(tmp_path/'table'),case)
+    assert r.returncode != 0
+    assert ('negative radiation intensity' if mode in ('do_negative','do_relaxation','do_signed') else 'nonfinite radiation intensity') in r.stdout+r.stderr
+
+@pytest.mark.parametrize('mode',['do_one','do_phase_one','do_parallel'])
+def test_radiation_warning_output_only(radiation_probe,tmp_path,case,mode,monkeypatch):
+    path=table(tmp_path/'table')
+    monkeypatch.delenv('UGKP_DIAGNOSTIC_WARNINGS',raising=False)
+    enabled=run(radiation_probe,mode,path,case)
+    monkeypatch.setenv('UGKP_DIAGNOSTIC_WARNINGS','0')
+    disabled=run(radiation_probe,mode,path,case)
+    assert enabled.returncode == disabled.returncode == 0, enabled.stdout+enabled.stderr+disabled.stdout+disabled.stderr
+    assert 'iteration budget exhausted' in enabled.stdout+enabled.stderr
+    assert 'iteration budget exhausted' not in disabled.stdout+disabled.stderr
+    rows=lambda p: [line for line in p.stdout.splitlines() if line.startswith('RESULT_')]
+    assert rows(enabled) and rows(enabled)==rows(disabled)

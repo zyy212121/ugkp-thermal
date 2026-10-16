@@ -1550,8 +1550,9 @@ __device__ void recoverGasPrimitiveCell(GasState& s, const int c, const bool nat
     }
     {
         // Preserve the established homogeneous legacy numerical path.
-    const GPU_OPERATOR_REAL conserved[]={s.rho[c],s.rhoUx[c],s.rhoUy[c],s.rhoUz[c],s.rhoE[c]};
-    for(int k=0;k<5;++k)if(!gasProducerScalarValid(s,c,conserved[k],30010))return;
+    const GPU_OPERATOR_REAL conserved[]={s.rho[c],s.rhoUx[c],s.rhoUy[c],s.rhoUz[c]};
+    for(int k=0;k<4;++k)if(!gasProducerScalarValid(s,c,conserved[k],30010))return;
+    if(!gasProducerScalarValid(s,c,s.rhoE[c],30124))return;
     if(ugkwp::gasMovingGeometry(s))
     {
         if(nativeRefinement && ugkwp::gasCellFailure(s,c)!=0)return;

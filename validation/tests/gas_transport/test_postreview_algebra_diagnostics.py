@@ -88,3 +88,15 @@ applyGasGravityCell<true,true>(gas,0,.2);applyGasGravityCell<true>(particle,0,.2
 ck(!ugkp::diagnostics::hasFatal(&d),"finite gravity rejected");
 ck(gas.rhoE[0]==particle.rhoE[0]&&gas.rhoUx[0]==particle.rhoUx[0],"finite gravity math changed");}}
 ''')
+
+@pytest.mark.parametrize('mode',['false','true,true'])
+def test_diagnosed_gravity_preserves_state_after_prior_physical_error(tmp_path,mode):
+    compile_probe(tmp_path,source_fixture()+r'''
+int main(){DeviceState s;setup(s);ugkp::diagnostics::DeviceContext d{};s.diagnostics=&d;
+using namespace ugkp::diagnostics;
+recordFatal(&d,makeRecord(Code::NonFinite,991,991,0,EntityKind::Cell,0,-1,NAN,0,0,Quantity::Density));
+s.gravityX=1;const double energy=s.rhoE[0];const Real momentum=s.rhoUx[0];
+applyGasGravityCell<MODE>(s,0,.5);
+ck(s.rhoE[0]==energy&&s.rhoUx[0]==momentum,"gravity published after prior physical error");
+ck(d.firstFatal.sourceSiteId==991,"gravity overwrote first producer record");}
+'''.replace('MODE',mode))
