@@ -83,6 +83,32 @@ template<class R,int N,class TableReal> UGKWP_GAS_HD inline bool loadBasePoint(
     point=cache.points[slot];return true;
 }
 
+// A sequential seed sweep needs only the current node and its two neighbors.
+// Cache lazily in first-use order, so an invalid node preserves partial writes.
+// Each sweep owns a new cache: no entry survives an update of the iterate.
+template<class R,int N> struct SeedLayerRow {
+    const R* values;LayerPoint<R,N>* points;int* nodes;unsigned char* status;int node;
+};
+template<class R,int N,class Rows> struct SeedLayerRows {
+    const Rows& rows;mutable LayerPoint<R,N> points[3];
+    mutable int nodes[3]{-1,-1,-1};mutable unsigned char status[3]{};
+    UGKWP_GAS_HD explicit SeedLayerRows(const Rows& values):rows(values){}
+    UGKWP_GAS_HD SeedLayerRow<R,N> operator[](int node)const{return {rows[node],points,nodes,status,node};}
+};
+template<class R,int N,class TableReal> UGKWP_GAS_HD inline bool loadBasePoint(
+ const WallInput<R,N,TableReal>& in,const WallModelConfig<R>& c,const LayerContext<R,N>& ctx,
+ const SeedLayerRow<R,N>& row,LayerPoint<R,N>& point,const bool terminalProfile=false){
+    if(terminalProfile)return pointState(in,c,ctx,row.values,point,true);
+    const int slot=row.node%3;
+    if(row.nodes[slot]!=row.node){
+        row.nodes[slot]=row.node;row.points[slot]=LayerPoint<R,N>{};
+        row.status[slot]=pointState(in,c,ctx,row.values,row.points[slot])?1:2;
+    }
+    if(row.status[slot]!=1)return false;
+    // Reaction and node SST closure modify this copy, never the cached base.
+    point=row.points[slot];return true;
+}
+
 template<class R,int N,class TableReal> UGKWP_GAS_HD UGKWP_WALL_DEVICE_LEAF bool pointReaction(const WallInput<R,N,TableReal>& in,LayerPoint<R,N>& p,const bool terminalProfile=false){
     if(in.model.mode!=GasMode::MixtureChemistry)return true;
     if(!in.model.thermo.species)return false;
@@ -432,7 +458,8 @@ template<class R,int N,int M,class TableReal,class Team=SerialWallTeam> UGKWP_GA
     team.sync();
     for(int iteration=0;iteration<200;++iteration){
         bool valid=true;
-        for(int i=team.rank();i<c.nodes;i+=team.size()){LayerPoint<R,N> p;if(!evaluatePoint(in,c,ctx,w.state,w.y,i,p)){valid=false;break;}
+        const SeedLayerRows<R,N,decltype(w.state)> base(w.state);
+        for(int i=team.rank();i<c.nodes;i+=team.size()){LayerPoint<R,N> p;if(!evaluatePoint(in,c,ctx,base,w.y,i,p)){valid=false;break;}
             w.seed[i][0]=in.model.viscosity+p.rho*p.nut;
             w.seed[i][1]=in.model.viscosity+p.rho*sstAlphaK(p.f1,coefficients)*p.nut;
             w.seed[i][2]=in.model.viscosity+p.rho*sstAlphaOmega(p.f1,coefficients)*p.nut;
