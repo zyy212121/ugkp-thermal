@@ -88,7 +88,7 @@ template<class R> UGKWP_GAS_HD inline R expRatio(R x){return abs(x)<R(1e-5)?R(1)
 
 template<class R,int N,class T> UGKWP_GAS_HD inline bool wallFatal(const WallInput<R,N,T>& in,
  ugkp::diagnostics::Code code,unsigned site,double value=0,unsigned quantity=0,int component=-1){
-    ugkp::diagnostics::recordFatal(in.diagnostics,ugkp::diagnostics::makeRecord(code,site,23,in.diagnosticNode,
+    if(in.diagnostics)ugkp::diagnostics::recordFatal(in.diagnostics,ugkp::diagnostics::makeRecord(code,site,23,in.diagnosticNode,
         ugkp::diagnostics::EntityKind::Face,in.diagnosticEntity,component,value,0,0,quantity));
     return false;
 }

@@ -150,10 +150,6 @@ UGKWP_GAS_HD inline ChemistryStatus advanceGasChemistryCell
             const Real clipped=gasThermoDetail::maxValue(Real(0),gasThermoDetail::minValue(Real(1),y));
             if(y!=clipped)recordWarning(state.diagnostics,makeRecord(Code::FiniteYClip,10033,22,0,EntityKind::Cell,cell,s,y,0,clipped,Quantity::MassFraction));
             densitySum += partialDensity;
-            if(!gasFinite(densitySum)){
-                recordFatal(state.diagnostics,makeRecord(Code::NonFinite,10034,22,0,EntityKind::Cell,cell,s,densitySum,0,0,Quantity::Conservation));
-                status.code=ChemistryCode::NonFiniteInput;return status;
-            }
             input.speciesMass[s] = (clipped!=y?clipped*density:partialDensity)*stageVolume;
         }
         const Real inputDensityDefect = densitySum - density;

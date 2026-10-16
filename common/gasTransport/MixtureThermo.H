@@ -132,9 +132,12 @@ UGKWP_GAS_HD inline ThermoStatus evaluateSpecies
         local.h=available>=3?c[2]+temperature*(c[0]+Real(.5)*c[1]*temperature):invalidValue<Real>();
         local.entropy=invalidValue<Real>();
         if(data.hasEntropyReference) {
-            if(temperature==Real(0) || data.referenceTemperature<=Real(0))
-                return failure(view.diagnostics,ThermoStatus::NonFiniteInput,Code::ZeroDenominator,species,temperature,Quantity::Temperature);
-            local.entropy=data.referenceEntropy+c[0]*::log(temperature/data.referenceTemperature)+c[1]*(temperature-data.referenceTemperature);
+            if(temperature==Real(0) || data.referenceTemperature<=Real(0)) {
+                if(CompleteEntropy)
+                    return failure(view.diagnostics,ThermoStatus::NonFiniteInput,Code::ZeroDenominator,species,temperature,Quantity::Temperature);
+            } else {
+                local.entropy=data.referenceEntropy+c[0]*::log(temperature/data.referenceTemperature)+c[1]*(temperature-data.referenceTemperature);
+            }
         }
     } else {
         local.cp=R*(c[0]+temperature*(c[1]+temperature*(c[2]+temperature*(c[3]+temperature*c[4]))));

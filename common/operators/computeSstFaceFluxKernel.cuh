@@ -16,8 +16,16 @@ __device__ void gasCellPhysicalDiagnostic(const GasState& s,int c,unsigned op,
     unsigned quantity=ugkp::diagnostics::Quantity::Unspecified)
 {
     using namespace ugkp::diagnostics;
-    if(s.diagnostics)recordFatal(s.diagnostics,makeRecord(code,2620,op,0,
-        EntityKind::Cell,c,component,double(value),0,0,quantity));
+    const auto record=makeRecord(code,2620,op,0,
+        EntityKind::Cell,c,component,double(value),0,0,quantity);
+    if(s.diagnostics)recordFatal(s.diagnostics,record);
+    if(isWarning(code))return;
+    // Preserve the coarse channel even when the detailed context is optional.
+    // Record detail first so transport propagation cannot replace its provenance.
+    const bool recorded=ugkwp::gasRecordCellFailure(s,c,code==Code::NonFinite
+        ? ugkwp::GasTransportCode::NonFiniteState
+        : ugkwp::GasTransportCode::InvalidThermodynamics);
+    if(!recorded && !s.diagnostics)recordFatal(nullptr,record);
 }
 template<class GasState,class Scalar>
 __device__ void gasCellResidualDiagnostic(const GasState& s,int c,unsigned op,
@@ -1487,8 +1495,8 @@ __device__ void recoverGasPrimitiveCell(GasState& s, const int c, const bool nat
                     partialDensity[k]=density*clipped;
                 }
             }
-            if(!ugkwp::gasFinite(densitySum))
-            {gasCellPhysicalDiagnostic(s,c,30,ugkp::diagnostics::Code::NonFinite,densitySum);return;}
+            // This pre-clip total is conservation-audit data only. Thermodynamics
+            // below consumes the individually validated, finite clipped densities.
             if(fabs(densitySum-density)>species.densityClosureTolerance*density)
                 gasCellResidualDiagnostic(s,c,30,densitySum,density);
             const Energy ux = Energy(s.rhoUx[c])/density;

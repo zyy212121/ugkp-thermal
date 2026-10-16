@@ -560,12 +560,19 @@ template<class R,int N,int M,class TableReal> UGKWP_GAS_HD inline bool publishLa
         out.ownerOmega=R(1)/(z*z);}
 
 
-    if(!gasFinite(out.conductiveHeatFlux)||!gasFinite(out.wallKFlux)||!gasFinite(out.ownerOmega)
-        ||(in.integrateOwnerKSource&&!gasFinite(out.integratedKSource)))return wallFatal(in,ugkp::diagnostics::Code::NonFinite,2426,out.conductiveHeatFlux);
+    if(!gasFinite(out.conductiveHeatFlux))return wallFatal(in,ugkp::diagnostics::Code::NonFinite,2426,out.conductiveHeatFlux);
+    if(!gasFinite(out.wallKFlux))return wallFatal(in,ugkp::diagnostics::Code::NonFinite,31300,out.wallKFlux);
+    if(!gasFinite(out.ownerOmega))return wallFatal(in,ugkp::diagnostics::Code::NonFinite,31301,out.ownerOmega);
+    // The owner integral is auxiliary output, never a physical SST source.
+    if(in.integrateOwnerKSource&&!gasFinite(out.integratedKSource))
+        wallWarning(in,ugkp::diagnostics::Code::AccuracyResidual,2429,out.integratedKSource,std::numeric_limits<R>::max());
     for(int d=0;d<3;++d)if(!gasFinite(out.traction[d]))return wallFatal(in,ugkp::diagnostics::Code::NonFinite,10018,out.traction[d],0,d);
     for(int j=0;j<N;++j){
-        if(!gasFinite(out.speciesBalanceResidual[j]))return wallFatal(in,ugkp::diagnostics::Code::NonFinite,10019,out.speciesBalanceResidual[j],0,j);
-        if(abs(out.speciesBalanceResidual[j])>c.absoluteTolerance+c.relativeTolerance)
+        // Guard the physical fluxes, not overflow in their diagnostic difference.
+        if(!gasFinite(out.wallSpeciesFlux[j]))return wallFatal(in,ugkp::diagnostics::Code::NonFinite,10019,out.wallSpeciesFlux[j],0,j);
+        if(!gasFinite(out.matchingSpeciesFlux[j]))return wallFatal(in,ugkp::diagnostics::Code::NonFinite,31302,out.matchingSpeciesFlux[j],0,j);
+        if(!gasFinite(out.reactionIntegral[j]))return wallFatal(in,ugkp::diagnostics::Code::NonFinite,31303,out.reactionIntegral[j],0,j);
+        if(!gasFinite(out.speciesBalanceResidual[j])||abs(out.speciesBalanceResidual[j])>c.absoluteTolerance+c.relativeTolerance)
             wallWarning(in,ugkp::diagnostics::Code::ConservationResidual,2427,out.speciesBalanceResidual[j],c.absoluteTolerance+c.relativeTolerance,0,j);
     }
     out.iterations=iterations;out.residual=norm;output=out;return true;

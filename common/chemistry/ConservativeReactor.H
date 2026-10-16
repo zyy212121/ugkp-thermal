@@ -141,6 +141,7 @@ template<class R,int N,class TableReal=R> struct ReactorContext {
    const bool derivatives=evaluateGasRateDerivatives(temperature,c,thermo,mechanism,jc,jt,st,&available);
    if(!derivatives)return st;
    const int rank=mechanism.independentRank;
+   if(rank==0){if(evaluated)*evaluated=true;return st;}
    R cv=mixtureHeatCapacity(masses,temperature,thermo);
 
 
