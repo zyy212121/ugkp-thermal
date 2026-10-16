@@ -809,9 +809,16 @@ CHMT_HD inline bool assembleSurfacePackets(const SurfacePhysicsInput& input,
             +scale*result.radiationFlux;
         if (phase.mass<0 && -phase.mass>=available.mass && available.mass>=0) {
             for (int s=0; s<Ns; ++s) {
-                if (!closeEnough(available.species[s],available.mass*p.material.phaseFilmY[s],
+                const Real expected=available.mass*p.material.phaseFilmY[s];
+                const Real residual=available.species[s]-expected;
+                const Real tolerance=p.tolerances.absoluteMass+p.tolerances.relativeMass
+                    *maxValue(absValue(available.species[s]),absValue(expected));
+                if(!finite(available.species[s])||!finite(expected)||!finite(residual)||!finite(tolerance))
+                    return failStatus(status,ErrorCode::Nonfinite,face,residual,ErrorLocation::Face);
+                if (!closeEnough(available.species[s],expected,
                     p.tolerances.absoluteMass,p.tolerances.relativeMass)) {
-                    failStatus(status,ErrorCode::Composition,face,available.species[s],ErrorLocation::Face);
+                    reportPhysicsWarning(p,ugkp::diagnostics::Code::ConservationResidual,30901,
+                        residual,tolerance,residual,s);
                 }
             }
             phase.mass=-available.mass;

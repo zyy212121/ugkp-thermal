@@ -332,6 +332,8 @@ def test_actual_radiation_physical_errors(radiation_probe,tmp_path,case,mode):
 
 @pytest.mark.parametrize('mode',['do_one','do_phase_one','do_parallel'])
 def test_radiation_warning_output_only(radiation_probe,tmp_path,case,mode,monkeypatch):
+    if mode == 'do_parallel' and not os.environ.get('T13_OPENMP'):
+        pytest.skip('separate real OpenMP build')
     path=table(tmp_path/'table')
     monkeypatch.delenv('UGKP_DIAGNOSTIC_WARNINGS',raising=False)
     enabled=run(radiation_probe,mode,path,case)

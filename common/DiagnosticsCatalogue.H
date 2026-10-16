@@ -308,7 +308,8 @@ inline std::vector<SourceDescriptor> sourceCatalogue() {
         {30501,"common/GpuGravityUpdate.cuh","applyGasGravityCell",57,"nonfinite gravity update result"},
         {30600,"common/gasTransport/MixtureThermo.H","invertCaloricEnergy",407,"nonfinite caloric energy residual"},
         {30601,"common/gasTransport/MixtureThermo.H","invertCaloricEnergy",413,"nonfinite caloric temperature correction"},
-        {30900,"applications/CHMT/materials/MaterialTransport.C","advanceMaterialReactionsImpl",202,"finite material substep budget exceeded; computed advancement retained"}
+        {30900,"applications/CHMT/materials/MaterialTransport.C","advanceMaterialReactionsImpl",202,"finite material substep budget exceeded; computed advancement retained"},
+        {30901,"applications/CHMT/ablation/InterfaceMath.H","assembleSurfacePackets",820,"finite phase-composition conservation residual; computed phase packet retained"}
     };
 }
 }} // namespace ugkp::diagnostics

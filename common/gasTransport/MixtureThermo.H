@@ -165,7 +165,7 @@ template<class Real, int Ns, class TableReal> \
 UGKWP_GAS_HD inline Real Name \
 (int species,Real temperature,const SpeciesThermoView<TableReal,Ns>& view) noexcept \
 { \
-    gasThermoDetail::SpeciesValues<Real> values; \
+    gasThermoDetail::SpeciesValues<Real> values{}; \
     if(gasThermoDetail::evaluateSpecies<Real,Ns,TableReal,false,NeedH,NeedS>(species,temperature,view,values)!=ThermoStatus::Success) \
         return gasThermoDetail::invalidValue<Real>(); \
     if(!gasFinite(values.Member)) { \
