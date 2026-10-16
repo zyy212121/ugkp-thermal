@@ -127,7 +127,7 @@ bool sendObject(const int fd, const T& value)
 
 template<class T> bool receiveObject(const int fd,T& value,ClientState* state = nullptr)
 {
-    if constexpr (std::is_same<T,ResponseHeader>::value) {
+    if (std::is_same<T,ResponseHeader>::value) {
         std::array<unsigned char,WireCodec<T>::size> bytes{};
         if(!readAll(fd,bytes.data(),8,state))return false;
         std::uint32_t receivedMagic;std::uint16_t major,minor;
