@@ -214,7 +214,6 @@ UGKWP_GAS_HD inline bool evaluateGasBoundaryLayerSlot(State& state,int slot,int 
         return false;
     };
     auto& in=model.input[slot];
-    in.diagnostics=state.diagnostics;in.diagnosticEntity=face;
     const bool analytic=model.config.model==gaswall::BoundaryLayerModel::ConstantTransport;
     bool evaluated=false;
     if(analytic)

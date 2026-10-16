@@ -74,3 +74,15 @@ def test_wall_full_newton_sst_converges_without_fatal(tmp_path):
    assert(o.ownerOmega>0&&o.traction[0]>0&&std::isfinite(o.integratedKSource));
  }
  ''')
+
+
+def test_cooperative_wall_diagnostic_binding_is_leader_owned():
+    from pathlib import Path
+    root=Path(__file__).resolve().parents[3]
+    text=(root/'common/gasTransport/GasBoundaryLayerModelState.H').read_text()
+    binding='in.diagnostics=state.diagnostics;in.diagnosticEntity=face;'
+    assert text.count(binding)==1
+    slot=text[text.index('UGKWP_GAS_HD inline bool evaluateGasBoundaryLayerSlot'):]
+    assert binding not in slot
+    assert 'if(team.leader())prepared=prepareGasBoundaryLayerInput' in slot
+    assert 'if(!team.broadcast(prepared))return false;' in slot
