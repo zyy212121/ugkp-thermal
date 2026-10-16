@@ -1,0 +1,125 @@
+UGKP 通用 GPU 架构优化 — 交付报告
+生成时间：2026-10-16T10:55:52.206510+00:00
+
+最终候选保留 Sol 的壁面 workspace/team 映射与节点并行，新增线程私有的不可变物性缓存，并按实测默认 FMA 差异将 SST 种子模块恢复串行执行。没有按案例、网格尺寸、24节点或某种工况做特判。平板流仅作为代码等价与吞吐工具，没有审查案例物理结果。
+PR：https://github.com/zyy212121/ugkp-thermal/pull/17
+当前交付是可审查的开发版本；未自动合并、未覆盖共享安装、未启动四案例长算。
+
+1. 正式库、main 与源码身份
+正式库：https://github.com/zyy212121/ugkp-thermal
+正式本地库：/home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal
+开始与提交前再次fetch，origin/main均为56e1dc6cbe66fb957f9d69acb35d3ad0fc70182b。正式本地HEAD=231fe3fdc5c91eace476e49a613efec1bc75db37，落后527提交；其README.md及tests/test_bentsrm_wall_postprocessing.py用户修改保留。
+实验库仅含六行namespace修复；Sol工作树未提交的14文件完整补丁已逐文件核实并提交为B。原Sol补丁SHA256=6df199cc97ad73ca2c2dd709551c39ce08fc87bd9f3b7d97d5f00a3be192c627，2350文件与历史accepted/final清单逐一相同。历史清单文件SHA=b910fbb463a51d74845ed8fc5733b29509603948640759cd8cdf182052901e80。新清单使用包含路径/大小/链接类型的格式，所以清单文件哈希不同不等于源码不同。
+所有版本的完整逐文件清单、独立补丁、二进制SHA在版本与二进制身份.json和源码清单与独立补丁.zip。
+
+A: b5e8dbc558741fd8f3d289232a23aa2096c9d71c (2343文件)
+  源码：/home/lss/arc3696-work/astra-architecture-20261016/A
+  分支：astra/architecture-a-20261016
+  backend SHA256：31eeea9ad8b264919cbaa720bb4d27b5777f96990532ccf0ff9f0224eb3ddcc0
+B: 821bd78c2cdd3ba58a1f11f3336eecbb7aec4b21 (2350文件)
+  源码：/home/lss/arc3696-work/astra-architecture-20261016/B
+  分支：astra/architecture-b-20261016
+  backend SHA256：bda444edb50a022b1f55d4aa501a11767bd8bbb3edb212c1ff2f908cbb6fd051
+B-restored: 0f5f1eb582e3674de2bf298a0bd215e72f0ec276 (2350文件)
+  源码：/home/lss/arc3696-work/astra-architecture-20261016/B-seed
+  分支：astra/architecture-b-restored-20261016
+  backend SHA256：60a68f35d8180045d24bdb77e2a3fda1c0ec8dfcc49ab7cf84ecba9b9171c564
+C-cache: cfae6e0c97d7a21e6009dd7ae42e9ae8847e29d4 (2352文件)
+  源码：/home/lss/arc3696-work/astra-architecture-20261016/C
+  分支：astra/generic-wall-cache-20261016
+  backend SHA256：499e9ec418594157818d6e0fae3f74324259edf16d0d289dc8d3735ad7c8409c
+C-final: ac7cd9facc8e7557bde9f7b70e5de0afd98b8299 (2352文件)
+  源码：/home/lss/arc3696-work/astra-architecture-20261016/C-seed
+  分支：astra/generic-wall-cache-validated-20261016
+  backend SHA256：2b6b9d78051087e9b73822f8226d188e11cf4c92c60064b3057500e5e7c03c25
+
+A=main+最小namespace修复；B=原Sol最终uniform-work；C-cache=纯缓存实验；B-restored/B-seed=B+种子串行回退、无缓存；C-final/C-seed=最终缓存+相同种子回退。最终PR包含B快照、缓存提交cfae6e0c、种子回退提交ac7cd9fa三项可追踪提交。B-restored是隔离缓存贡献的可运行基线，不混同历史block14候选。
+实际GPU为RTX4060 Laptop，sm_89；CUDA13.1.115，FP64，Ns=2生产后端。A/B/B-restored/C-cache/C-final前端SHA均为2ff85ff4cac4750019a3dda5f4bb372903cbeb4a841aed26a954b48eb41cb8f2。各后端隔离构建exit0。C-final共享CHMT调用方亦构建exit0，CHMT SHA=6d1a807e40aeb24a27f3af3dceff9b2362daf5a084f0d4f701c8bcb624f0ca9b。已有编译警告保留，不称零警告构建。
+
+2. 改动分类与选择理由
+main已有：剖面输出、generation/time/dt匹配的首阶段wall reuse、bulk SoA及既有状态验证/回滚语义。均未重复计为本轮收益。
+Sol保留：最小namespace编译修复；一个完整32-lane CTA拥有一个workspace；节点/雅可比并行；不可变PerturbedLayerState；原标量兼容入口；共享物理方程。未仅修改block尺寸，未强制限寄存器。
+Sol按证据回退：默认FMA下A/B真实GPU fixture有112/300记录不同，ARC12/24、small5/24落盘文件不同。B scalar与A一致、关闭FMA后A/B一致，真实seed探针在Newton之前复现差异，但这不能当成默认结果已被接受。最终仅让leader以SerialWallTeam执行整个SST seed，保留外层sync/broadcast、后续节点并行和缓存。未关闭生产FMA或增加容差。
+本轮新增：Jacobian线程私有的五节点懒缓存，保存pointState原始值；每次扰动尝试只失效被扰动节点；reaction、节点三点SST、区间二点SST各用副本；重填先清零cp，失败缓存不发布半成品；donor-first、实际步长、两次尝试、失败/terminal写入顺序保留。公共头只有一套方程实现。
+纯构造计数（CPU fixture）：Ns2/24/SST从2826降至234；二次尝试2829→235；Ns3/33反应/纯donor4620→357。它们不是GPU加速率。
+未实施P1/P3/P4：nsys显示wall约99%的GPU kernel时间，D2D及D2H传输很小，先优化缓存有直接依据。B-restored与最终C team均168寄存器；capture=true栈4048→5040B，capture=false3648→4640B。LOCAL=0不代表没有栈访问。未进行初值改变、launch调参或Graph改写。
+
+3. 已执行验证及边界
+B及C-cache各自复跑原指定CPU集合841项：195+283+210+153，全部通过，0 failed/error/skipped。保留原6项排除，不是全仓库测试；组1/2各有既有pytest pythonpath配置警告。
+新增缓存RED在真实旧实现上225 passed/1 failed（构造次数2826未达到目标）；最终扩展矩阵450 passed，包含先前226项，不能累加。涵盖Ns2/3、节点2/3/4/24/32/33/48/65、SST/反应、纯donor、部分写入、NaN和第二次尝试。
+独立缓存审查：648次C++14+ASan/UBSan执行，事件顺序与完整Jacobian位模式一致，无报告。最终种子回退后另外执行52组完整A scalar CPU oracle对照及43项seed/terminal/continuation/入口回归，全部通过。最终提交未再把841集合整套重复一遍；前述841结果明确归属于B与C-cache。
+最终C默认FMA真实CUDA workspace fixture：300/300及extra-workers6/6与A逐位一致；Ns2/10、节点16/24/32/40/65、capacity24/48/128、capture on/off、workspace循环复用及尾批；90个重复/相同输入组稳定。
+最终C分别运行memcheck、racecheck、synccheck，均exit0、0 errors/0 hazards，各150条记录与未插桩对应记录逐位一致。零报告不能证明全部可能的global竞态不存在。
+最终完整solver：两冻结负载各3次12步，无profiler运行，A/B-restored/C-final的每组24个落盘状态/壁面诊断文件均逐字节一致，time/dt/Co相同；同版本独立重复也相同。无新容差，无物理收敛声明。
+真实host-only诊断副本：A/B/C-cache及最终C两负载各12步均12 intervals/12 trials/12 accepted、0重试/0回滚；诊断与各自未插桩控制的24输出和steps/time/dt/Co一致。插桩只存在证据源码副本，不进入PR。
+真实CUDA requested-interval owner回滚：最终C原4控制实际运行，requested4e-6产生8 trials、4 rollbacks、4 accepted子步；按接受分段重放后cell/face状态及质量、组分、能量、动量库存精确一致，terminal fallback控制通过。C-cache另执行原完整16类failed transaction等验证。该fixture不启用boundary-layer wall，因此启用wall/profile的强制失败全求解器回滚尚未覆盖。
+尚未执行：四案例完整长算、其他代表性物理阶段、CHMT实际GPU案例、所有GPU/编译器组合、活跃wall/profile完整回滚场景。物理实验结果审查按用户要求不在本任务范围。
+Nsight Compute尝试失败：ERR_NVGPUCTRPERM，无GPU性能计数器权限。命令与失败日志在evidence/runs/B-arc-ncu。未扩大系统权限；没有实际occupancy、local load/store或stall数据。
+
+4. 同条件短测性能（每负载/版本3次独立进程，各12步）
+最终矩阵共24次，A/B/B-restored/C-final轮换顺序，前2步仍计入全过程，另报告末10步。统一benchmark-only frontend SHA=4d4fdd6002a9dc33561658a60b32a20f2de96277a821f1dda345853210ba6a9a，显式指定各backend。仅外部限制步数并增加计时/最终输出，原输入控制条件不改。最终矩阵启动前GPU与编译/pytest进程均已空闲；三轮不足以完全平衡四个位置，亦不构成长期热稳态或置信区间。
+案例来源：当前案例目录是ZIP解包（无.git），ZIP标识对应934e43babc92090528ec11a4f11cca3ae9acb853；没有虚构案例checkout。ARC输入从当前runtime冻结，保留writeInterval=.0005/runTimeModifiable=true/maxCo=.7及24节点输出；另一负载从现有测试生成器默认96×48生成，仅打开已有profile输出。两负载分别固定输入，逐次重哈希核验。
+以下时间为3次run中位数[min,max]，单位秒；全过程含初始化及最终输出。
+
+arc-M0p55-current
+  A: 全过程 30.250633 [30.034443, 30.261806]；12步推进 29.533794 [29.463805, 29.652634]；末10步 24.627527 [24.470673, 24.671299]；初始化 0.347122 [0.311968, 0.457599]；输出 0.182536 [0.168096, 0.201307]
+  B: 全过程 11.590282 [11.491599, 11.640190]；12步推进 10.917232 [10.846335, 10.955764]；末10步 8.833213 [8.780224, 8.891544]；初始化 0.399545 [0.354438, 0.432240]；输出 0.199358 [0.152440, 0.209646]
+  B-seed: 全过程 20.812936 [20.711839, 20.955452]；12步推进 20.133792 [20.122037, 20.165634]；末10步 16.385998 [16.296473, 16.413773]；初始化 0.443995 [0.303778, 0.470995]；输出 0.168393 [0.164415, 0.243828]
+  C-seed: 全过程 19.761494 [19.710609, 20.068052]；12步推进 19.101480 [19.052083, 19.232051]；末10步 15.553778 [15.481387, 15.566320]；初始化 0.406564 [0.403817, 0.504615]；输出 0.177645 [0.162513, 0.200535]
+  纯缓存贡献 C/B-restored 全过程: 吞吐 1.05321x，耗时降低 5.052%
+  纯缓存贡献 C/B-restored 末10步: 吞吐 1.05351x，耗时降低 5.079%
+  最终相对main+修复 C/A 全过程: 吞吐 1.53079x，耗时降低 34.674%
+  最终相对main+修复 C/A 末10步: 吞吐 1.58338x，耗时降低 36.844%
+  最终相对原Sol（含等价性回退代价）C/B 全过程: 吞吐 0.58651x，耗时降低 -70.501%
+  最终相对原Sol（含等价性回退代价）C/B 末10步: 吞吐 0.56791x，耗时降低 -76.083%
+  A末10步遥测：功率run中位数 32.87W，样本范围31.59–36.81W；SM 2610.0–2625.0MHz；温度72.0–77.0°C；GPU利用率run中位数100.0%，每run样本数[116, 117, 116]。
+  B末10步遥测：功率run中位数 41.17W，样本范围29.25–47.16W；SM 2610.0–2625.0MHz；温度64.0–80.0°C；GPU利用率run中位数100.0%，每run样本数[43, 44, 43]。
+  B-seed末10步遥测：功率run中位数 39.26W，样本范围30.25–48.46W；SM 2610.0–2625.0MHz；温度68.0–81.0°C；GPU利用率run中位数100.0%，每run样本数[80, 79, 76]。
+  C-seed末10步遥测：功率run中位数 40.20W，样本范围31.46–50.96W；SM 2610.0–2625.0MHz；温度71.0–79.0°C；GPU利用率run中位数100.0%，每run样本数[72, 72, 72]。
+  各版本每run实际accepted物理推进量（秒）：0.0000012000000000000002
+
+flatplate-fixed-96x48
+  A: 全过程 8.185134 [8.081511, 8.292983]；12步推进 7.835712 [7.686026, 7.835804]；末10步 6.521765 [6.381080, 6.524312]；初始化 0.236083 [0.212859, 0.283986]；输出 0.053197 [0.047995, 0.063333]
+  B: 全过程 1.417321 [1.367106, 1.769920]；12步推进 1.051663 [1.008991, 1.071290]；末10步 0.838606 [0.833130, 0.868786]；初始化 0.229427 [0.228510, 0.567118]；输出 0.047551 [0.043408, 0.050024]
+  B-seed: 全过程 3.774264 [3.672518, 3.885091]；12步推进 3.392841 [3.272567, 3.407487]；末10步 2.767091 [2.716342, 2.827207]；初始化 0.244618 [0.232092, 0.330533]；输出 0.051242 [0.048719, 0.051911]
+  C-seed: 全过程 3.675760 [3.672740, 3.774875]；12步推进 3.289233 [3.266929, 3.296757]；末10步 2.730237 [2.709489, 2.737581]；初始化 0.261821 [0.236356, 0.337715]；输出 0.050760 [0.047278, 0.052804]
+  纯缓存贡献 C/B-restored 全过程: 吞吐 1.02680x，耗时降低 2.610%
+  纯缓存贡献 C/B-restored 末10步: 吞吐 1.01350x，耗时降低 1.332%
+  最终相对main+修复 C/A 全过程: 吞吐 2.22679x，耗时降低 55.092%
+  最终相对main+修复 C/A 末10步: 吞吐 2.38872x，耗时降低 58.137%
+  最终相对原Sol（含等价性回退代价）C/B 全过程: 吞吐 0.38559x，耗时降低 -159.346%
+  最终相对原Sol（含等价性回退代价）C/B 末10步: 吞吐 0.30716x，耗时降低 -225.568%
+  A末10步遥测：功率run中位数 32.44W，样本范围32.26–33.6W；SM 2610.0–2610.0MHz；温度78.0–78.0°C；GPU利用率run中位数100.0%，每run样本数[30, 31, 31]。
+  B末10步遥测：功率run中位数 41.52W，样本范围38.0–41.96W；SM 2610.0–2610.0MHz；温度76.0–80.0°C；GPU利用率run中位数96.5%，每run样本数[4, 4, 4]。
+  B-seed末10步遥测：功率run中位数 40.55W，样本范围28.06–41.86W；SM 2610.0–2610.0MHz；温度75.0–80.0°C；GPU利用率run中位数99.0%，每run样本数[13, 14, 14]。
+  C-seed末10步遥测：功率run中位数 40.74W，样本范围36.8–42.12W；SM 2610.0–2610.0MHz；温度77.0–80.0°C；GPU利用率run中位数99.0%，每run样本数[13, 13, 13]。
+  各版本每run实际accepted物理推进量（秒）：0.00001170217953093764
+
+最终small的三次范围重叠且第一轮C略慢，当前数据不能证明稳定的小负载收益。最终版本适合进入代码审查：其已观察默认数值等价恢复，大负载缓存收益在三次重复中一致；未据此直接推广长算。
+功率约200ms采样，短窗口样本少且传感器有滞后，只作并行负载的粗线索；不能把瓦数/利用率直接换算成吞吐或声称已达到硬件上限。串行种子及栈成本仍是后续通用优化候选，但本轮不以破坏默认等价换取功率或速度。
+旧18次C-cache矩阵独立保留在性能短测汇总.json：ARC C-cache/B全过程1.11355x，small末10步1.06806x但全过程0.73142x；含初始化波动，且部分旧ARC run与CPU回归并发。不用这些数字替换最终候选数据。
+
+5. 分阶段定位（带profiler，不能作生产吞吐）
+A-arc-nsys-12: wall=29.436996s；其他bulk=0.085980s；recovery=0.014407s；Courant字段kernel=0.031831s；D2D=0.001901s；D2H=0.005648s；GPU活动包络内空闲=0.216508s。
+B-arc-nsys-12: wall=10.703438s；其他bulk=0.085939s；recovery=0.014346s；Courant字段kernel=0.031780s；D2D=0.001894s；D2H=0.005746s；GPU活动包络内空闲=0.241416s。
+B-seed-arc-nsys-12: wall=20.081434s；其他bulk=0.085875s；recovery=0.014357s；Courant字段kernel=0.031742s；D2D=0.001892s；D2H=0.005046s；GPU活动包络内空闲=0.181124s。
+C-arc-nsys-12: wall=9.647486s；其他bulk=0.086139s；recovery=0.014369s；Courant字段kernel=0.031836s；D2D=0.001893s；D2H=0.005391s；GPU活动包络内空闲=0.183638s。
+C-seed-arc-nsys-12: wall=18.997797s；其他bulk=0.085989s；recovery=0.014362s；Courant字段kernel=0.031761s；D2D=0.001898s；D2H=0.005540s；GPU活动包络内空闲=0.200658s。
+D2D为全部设备复制，未加范围标记独占归因为snapshot；D2H包含诊断、Courant回传及输出。validation的同步时间主要包含等待wall，不能直接称为validation自身成本；CPU gap定义为首末GPU活动包络减kernel/memcpy/memset区间并集，包含host工作、launch间隙、I/O和profiler开销，无法唯一归因。详见分阶段计时.json与原始nsys报告。
+
+6. 复现入口与证据位置
+WSL隔离根：/home/lss/arc3696-work/astra-architecture-20261016
+Windows工作区：C:/Users/25094/Documents/Codex/2026-10-16/1-uniform-work-accepted-source-manifest
+附件已逐字节保存work/requirements/Astra_UGKP_main与Sol基线_架构优化启动prompt.txt，SHA256=58eb354ede20c0c497cb3bb0fffde95e62590688ab5e3ab1f2559c0c31b4d1c4；每次上下文恢复先读附件，再读outputs/任务进度记录.txt。
+源码恢复：从已推送的astra/architecture-a-20261016、astra/architecture-b-restored-20261016、astra/generic-wall-cache-validated-20261016各建独立worktree；B及C-cache提交是最终分支祖先。不要覆盖正式库用户工作树。
+构建（WSL）：bash /mnt/c/Users/25094/Documents/Codex/2026-10-16/1-uniform-work-accepted-source-manifest/work/build_isolated.sh C-seed
+CHMT构建（WSL）：bash /mnt/c/Users/25094/Documents/Codex/2026-10-16/1-uniform-work-accepted-source-manifest/work/build_chmt.sh C-seed
+单次短测先source /opt/openfoam10/etc/bashrc；然后python3 work/run_short_benchmark.py C-seed arc-M0p55-current NEW_UNIQUE_RUN_ID --steps 12（使用工作区脚本绝对路径，run id必须新建）。
+GPU fixture：NVCC=/usr/local/cuda-13.1/bin/nvcc bash evidence/gpu-wall-fixture/build.sh "$ROOT/C-seed" NEW_C 1 true；该命令在隔离根执行；具体运行argv和三种sanitizer命令见logs/C-seed*.run.json，输出文件应使用新的名字保留旧证据。
+CPU原选集：evidence/cpu-B/commands.json、cpu-C/commands.json记录94文件集合、原6排除及baseline环境；新增450和最终seed回归命令见evidence/p2-expanded与seed-serial-diagnostic。历史oracle所需Git对象和particle基线应按记录保留，不能在改变HEAD后把git-show-HEAD的结果冒称固定B oracle。
+性能完整计划/命令：evidence/performance-final/plan.json、work/run_final_matrix.py；脚本拒绝覆盖既有证据，重跑应另设输出根/run前缀。CPU汇总：python3 work/summarize_performance.py --matrix final。
+诊断与回滚：evidence/interval-diagnostics/；完整wall GPU记录：evidence/gpu-wall-fixture/；逐run输入/二进制哈希、steps、solver日志及功率：evidence/runs/；原始Nsight报告亦在对应run目录。
+原库与共享安装最终核验见原库与共享安装保全核验.json：三个原工作树全部文件/HEAD/完整补丁未变，共享前后端哈希未变。
+可复现命令与验证证据.zip含冻结输入、测试fixture、脚本、原始文本日志、对比记录和各文件SHA；编译后二进制、全量运行输出及nsys原始二进制报告保留在上述WSL目录，以避免重复打包大型中间文件。
+
+后续：先审查PR。若要部署或开展代表性更长阶段，应另行选择运行窗口；本任务没有自动执行部署、合并或长算。
