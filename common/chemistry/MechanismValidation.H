@@ -12,21 +12,19 @@ template<class R,int N,class TableReal,bool Complete=true> UGKWP_GAS_HD inline b
     if(evaluated)*evaluated=false;
     bool finite=true;
     const int rank=m.independentRank;
-    if((rank>0 && (!q || !m.stoichiometricBasis)) || (!Complete && (rank<0 || rank>N))) return false;
+    if((rank>0 && (!q || !m.stoichiometricBasis)) || (rank<0 || rank>N)) return false;
     for(int j=0;j<rank;++j) {
-        for(int s=0;s<N;++s) { R v=m.stoichiometricBasis[s*rank+j]; if(!gasFinite(v)){finite=false;if(!Complete)return false;}q[s*N+j]=v; }
+        for(int s=0;s<N;++s) { R v=m.stoichiometricBasis[s*rank+j]; if(!gasFinite(v))return false;q[s*N+j]=v; }
         for(int pass=0;pass<2;++pass) for(int k=0;k<j;++k) {
             R dot=0;for(int s=0;s<N;++s)dot+=q[s*N+j]*q[s*N+k];
             for(int s=0;s<N;++s)q[s*N+j]-=dot*q[s*N+k];
         }
-        R norm=0;for(int s=0;s<N;++s)norm+=q[s*N+j]*q[s*N+j];
-        if(!gasFinite(norm) || norm==R(0)) {
-            R scale=0;for(int s=0;s<N;++s)scale=gasThermoDetail::maxValue(scale,gasThermoDetail::absValue(q[s*N+j]));
-            if(!gasFinite(scale) || scale==R(0)){finite=false;if(!Complete)return false;}
-            norm=0;for(int s=0;s<N;++s){const R value=q[s*N+j]/scale;norm+=value*value;}
-            norm=::sqrt(norm);
-            for(int s=0;s<N;++s)q[s*N+j]=(q[s*N+j]/scale)/norm;
-        } else {norm=::sqrt(norm);for(int s=0;s<N;++s)q[s*N+j]/=norm;}
+        R scale=0;for(int s=0;s<N;++s)scale=gasThermoDetail::maxValue(scale,gasThermoDetail::absValue(q[s*N+j]));
+        if(!gasFinite(scale) || scale==R(0))return false;
+        R norm=0;for(int s=0;s<N;++s){const R value=q[s*N+j]/scale;norm+=value*value;}
+        norm=::sqrt(norm);
+        for(int s=0;s<N;++s)q[s*N+j]=(q[s*N+j]/scale)/norm;
+
     }
     if(evaluated)*evaluated=true;
     return finite;
@@ -37,11 +35,8 @@ namespace gasChemistryDetail {
 
 template<class R,int N,bool Complete=true> UGKWP_GAS_HD inline bool reactionInputAvailable
 (const GasMechanismView<R,N>& m,int r) noexcept {
-    if(!m.reactions || (!Complete && (r<0 || r>=m.reactionCount)))return false;
+    if(!m.reactions || r<0 || r>=m.reactionCount)return false;
     const auto& a=m.reactions[r];
-    if(Complete)return (a.reactantCount<=0 || m.reactants)
-        && (a.productCount<=0 || m.products)
-        && (a.type==GasReactionType::Elementary || a.efficiencyCount<=0 || m.efficiencies);
     if(!validRange(a.reactantOffset,a.reactantCount,m.reactantTermCount)
       || !validRange(a.productOffset,a.productCount,m.productTermCount)
       || (a.reactantCount && !m.reactants) || (a.productCount && !m.products)

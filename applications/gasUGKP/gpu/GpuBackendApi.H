@@ -240,4 +240,10 @@ extern "C" int ugkwpGpuResidentStrictEnableBoundaryLayerProfilesV1(void* handle)
 extern "C" int ugkwpGpuResidentStrictDownloadBoundaryLayerProfilesV1
 (void* handle,std::uint32_t walls,std::uint32_t nodes,std::uint32_t species,double* profiles,double* stageTime);
 
+#include "../../../common/DiagnosticsHost.H"
+extern "C" int ugkwpGpuResidentStrictSetDiagnosticOperation(void*,std::uint64_t,std::int64_t,double);
+extern "C" void ugkwpGpuResidentStrictReleaseDiagnostics(void*,ugkp::diagnostics::Snapshot*);
+extern "C" int ugkwpGpuResidentStrictCollectDiagnostics(void*,ugkp::diagnostics::Snapshot*);
+extern "C" void ugkwpGpuResidentStrictSetDiagnosticSink(void*,const ugkp::diagnostics::HostSink*);
+
 #endif

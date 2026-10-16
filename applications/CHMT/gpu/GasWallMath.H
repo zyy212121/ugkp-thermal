@@ -52,7 +52,7 @@ CHMT_HD inline bool evaluateGasWall(const GasWallInput& in,const SurfacePacketId
             if(in.preparedMatching)reuse=reuse&&same(in.preparedMatching->massFraction[s],in.wallContext.matching.massFraction[s]);
             mass+=species[s];}
         if(reuse){
-            if(!makeInterfacePrimitive<true>(layer.traceMassFraction,in.temperature,in.wallContext.matchingPressure,in.velocity,
+            if(!makeInterfacePrimitive(layer.traceMassFraction,in.temperature,in.wallContext.matchingPressure,in.velocity,
                 in.normal,in.normalSpeed,mass,p,closure.trace))return false;
             const Vec3 preparedVelocity={layer.traceVelocity[0],layer.traceVelocity[1],layer.traceVelocity[2]};
             if(finite(preparedVelocity)&&finite(closure.trace.velocity))
@@ -77,14 +77,8 @@ CHMT_HD inline bool evaluateGasWall(const GasWallInput& in,const SurfacePacketId
             closure.conductiveHeatFlux=layer.conductiveHeatFlux;}
     }
     if(!reuse){
-        bool evaluated=p.wallModel.family==ugkwp::gaswall::WallFamily::BoundaryLayer
-            ?evaluateInterfaceGasClosure<true>(in.bulk,in.gradient,in.temperature,in.gasDistance,in.velocity,in.normal,
-                in.normalSpeed,species,p.tolerances.absoluteMass/(in.dt*in.gasArea),p,in.wallContext,closure)
-            :evaluateInterfaceGasClosure(in.bulk,in.gradient,in.temperature,in.gasDistance,in.velocity,in.normal,
-                in.normalSpeed,species,p.tolerances.absoluteMass/(in.dt*in.gasArea),p,in.wallContext,closure);
-        if(!evaluated && p.wallModel.family==ugkwp::gaswall::WallFamily::LowRe)
-            evaluated=evaluateInterfaceGasClosure<true>(in.bulk,in.gradient,in.temperature,in.gasDistance,in.velocity,in.normal,
-                in.normalSpeed,species,p.tolerances.absoluteMass/(in.dt*in.gasArea),p,in.wallContext,closure);
+        const bool evaluated=evaluateInterfaceGasClosure(in.bulk,in.gradient,in.temperature,in.gasDistance,in.velocity,in.normal,
+            in.normalSpeed,species,p.tolerances.absoluteMass/(in.dt*in.gasArea),p,in.wallContext,closure);
         if(!evaluated)return false;
     }
     result.trace=closure.trace;result.traction=closure.traction;result.layer=closure.layer;
@@ -95,8 +89,7 @@ CHMT_HD inline bool evaluateGasWall(const GasWallInput& in,const SurfacePacketId
     result.pore=surfacePacketIdentity(identity.solidCell>=0?ExchangeKind::PoreGas:in.primaryKind,identity);
     const Real kinetic=.5*dot(result.trace.velocity,result.trace.velocity);
     for(int s=0;s<Ns;++s){
-        const GasThermoAdapter<1> thermo(&p.species[s],
-            p.wallModel.family==ugkwp::gaswall::WallFamily::BoundaryLayer);
+        const GasThermoAdapter<1> thermo(&p.species[s]);
         const Real h=p.wallModel.family==ugkwp::gaswall::WallFamily::BoundaryLayer
             ?ugkwp::gaswall::detail::wallProperty<true>(0,in.temperature,thermo.view())
             :speciesH(p.species[s],in.temperature);

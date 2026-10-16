@@ -137,6 +137,7 @@ template<class State,class Real> UGKWP_GAS_HD inline bool prepareGasBoundaryLaye
              || !state.riemannBoundaryUy || !state.riemannBoundaryUz)))))
         return fail(GasTransportCode::InvalidStorage);
     auto& in=model.input[slot];
+    in.diagnostics=state.diagnostics;in.diagnosticEntity=face;
     // Coarse SST audit does not consume the auxiliary profile integral.
     // Direct BVP research calls can opt in, but production never requests it.
     in.integrateOwnerKSource=false;
@@ -169,6 +170,7 @@ template<class State,class Real> UGKWP_GAS_HD inline bool prepareGasBoundaryLaye
             in.matching.massFraction[species]+=weight*state.gasSpecies.rho[species*state.nCells+cell]/state.rho[cell];
     }
     in.model.thermo=state.gasSpecies.thermo;
+    in.model.thermo.diagnostics=state.diagnostics;
     in.model.mechanism=state.gasSpecies.mechanism;
     in.model.mode=state.gasSpecies.mode;
     in.model.viscosity=state.gasMu;
@@ -212,6 +214,7 @@ UGKWP_GAS_HD inline bool evaluateGasBoundaryLayerSlot(State& state,int slot,int 
         return false;
     };
     auto& in=model.input[slot];
+    in.diagnostics=state.diagnostics;in.diagnosticEntity=face;
     const bool analytic=model.config.model==gaswall::BoundaryLayerModel::ConstantTransport;
     bool evaluated=false;
     if(analytic)

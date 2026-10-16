@@ -6,7 +6,6 @@
 #include "../../../common/gasTransport/GasMechanismIO.H"
 namespace Foam {class fvMesh;}
 namespace chmt {
-namespace detail {struct ConductionContinuation;}
 enum class MaterialFailureOrigin { None,ConductionNumerical,ReactionNumerical,FilmNumerical,SurfaceNumerical,GeometryNumerical,TransportNumerical,OwnerNumerical,LocalSourceNumerical };
 struct CpuMaterialControls {
     Real maxSubstep=0,transportCfl=.4,reactionCfl=.1,reactionMaxSubstep=0;
@@ -17,7 +16,7 @@ struct CpuMaterialControls {
 struct CpuMaterialReport {
     MaterialFailureOrigin failureOrigin=MaterialFailureOrigin::None;
     std::uint64_t materialSteps=0;
-    bool recoverable=true,geometryCorrection=false;Real eventTime=0,eventDuration=0;
+    bool recoverable=false,geometryCorrection=false;Real eventTime=0,eventDuration=0;
     MaterialDonorPlan donorPlan{};
 };
 // Owns CPU numerical machinery, not a second copy of accepted inventories.
@@ -25,11 +24,9 @@ struct CpuMaterialReport {
 
 class CpuMaterialDriver {
     struct Implementation;std::unique_ptr<Implementation> data_;
-    friend struct detail::ConductionContinuation;
-    bool predictWallImpl(const HostState&,const CouplingInterval&,WallProgram&,std::string&,CpuMaterialReport*,bool)const;
+    bool predictWallImpl(const HostState&,const CouplingInterval&,WallProgram&,std::string&,CpuMaterialReport*,const PhysicsConfig&)const;
     bool advanceCandidateImpl(const HostState&,const HostState&,const IntervalHistory&,
-        const CpuMaterialControls&,HostState&,WallProgram&,CpuMaterialReport&,
-        std::string&,const WallProgram*,bool terminalMaterial);
+        const CpuMaterialControls&,HostState&,WallProgram&,CpuMaterialReport&,std::string&,const WallProgram*,const PhysicsConfig&);
 public:
     CpuMaterialDriver(const ModelConfig&,Foam::fvMesh* actualSolidMesh);
     CpuMaterialDriver(const ModelConfig&,Foam::fvMesh* actualSolidMesh,const ugkwp::GasMechanismConfiguration* mechanism);

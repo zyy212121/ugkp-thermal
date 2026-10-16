@@ -1,5 +1,6 @@
 #pragma once
 #include <type_traits>
+#include "../Diagnostics.H"
 #include <limits>
 #include <utility>
 #include "GasModel.H"
@@ -27,6 +28,7 @@ struct GasStateView
     using TimeType = Time;
     using SstCoefficientsType = SstCoefficients;
     static constexpr int speciesCount = 0;
+    ugkp::diagnostics::DeviceContext* diagnostics = nullptr;
     GasGeometryState<Real> gasGeometry;
     GasBoundaryLayerState<Real> gasBoundaryLayer;
     Real gasThermalConductivity = Real(-1); // negative: legacy mu*cp/Pr; otherwise W/(m K)
@@ -133,6 +135,7 @@ inline auto makeGasStateView(const State& state)
     static_assert(std::is_same<decltype(state.rhoE), decltype(state.rhoENext)>::value,
         "live and RK gas energy must have identical storage types");
     GasStateView<Real, Time, SstCoefficients, Energy> view{};
+    view.diagnostics = state.diagnostics;
 #define UGKWP_GAS_STATE_FIELD(Type, Name) view.Name = state.Name;
 #include "GasStateFields.inc"
 #undef UGKWP_GAS_STATE_FIELD

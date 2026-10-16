@@ -1,3 +1,4 @@
+#include "../../../common/DiagnosticsCodec.H"
 #include "GpuBackendApi.H"
 #include "GpuBackendProtocol.H"
 
@@ -23,6 +24,8 @@ using namespace ugkwpGpuIpc;
 struct ServerState
 {
     void* backend = nullptr;
+    bool terminalDiagnostic = false;
+    ugkp::diagnostics::Snapshot finalDiagnostics;
     int nCells = 0;
     int nFaces = 0;
     int nInternalFaces = 0;
@@ -80,6 +83,20 @@ bool readAll(const int fd, void* data, std::uint64_t bytes)
 template<class T>
 bool readObject(const int fd, T& value)
 {
+    if constexpr (std::is_same<T,RequestHeader>::value) {
+        std::array<unsigned char,WireCodec<T>::size> bytes{};
+        if(!readAll(fd,bytes.data(),8))return false;
+        std::uint32_t receivedMagic;std::uint16_t major,minor;
+        decodeWireScalar(bytes.data(),receivedMagic);decodeWireScalar(bytes.data()+4,major);decodeWireScalar(bytes.data()+6,minor);
+        if(receivedMagic!=magic || major!=protocolMajor || minor!=protocolMinor) {
+            frameReadError="GPU backend request framing/version mismatch: expected "+std::to_string(protocolMajor)+"."+std::to_string(protocolMinor)
+                +", received "+std::to_string(major)+"."+std::to_string(minor);
+            return false;
+        }
+        if(!readAll(fd,bytes.data()+8,bytes.size()-8))return false;
+        WireCodec<T>::decode(bytes.data(),value);return true;
+    }
+
     if (wireLittleEndian() && WireCodec<T>::nativeLayout)
         return readAll(fd,&value,WireCodec<T>::size);
     std::array<unsigned char,WireCodec<T>::size> bytes{};
@@ -120,6 +137,7 @@ bool discardRequest(const int fd);
 bool responseHeader
 (
     const int fd,
+    ServerState& s,
     const int status,
     const std::uint64_t payloadBytes,
     const std::string& overrideError = std::string()
@@ -128,8 +146,13 @@ bool responseHeader
 
 
     if (readingFrame && !discardRequest(fd)) return false;
+    ugkp::diagnostics::Snapshot snapshot=s.finalDiagnostics;
+    int replyStatus=status;
+    if(s.backend && ugkwpGpuResidentStrictCollectDiagnostics(s.backend,&snapshot)) replyStatus=replyStatus?replyStatus:1;
+    if(snapshot.hasFatal) {s.terminalDiagnostic=true;replyStatus=replyStatus?replyStatus:1;}
+    const auto diagnostics=ugkp::diagnostics::encode(snapshot);
     std::string error;
-    if (status != 0)
+    if (replyStatus != 0)
     {
         if (!overrideError.empty()) error = overrideError;
         else if (const char* backendError = ugkwpGpuResidentStrictLastError())
@@ -138,21 +161,24 @@ bool responseHeader
     }
     const ResponseHeader response
     {
-        magic, protocolMajor, protocolMinor, status,
-        static_cast<std::uint32_t>(error.size()), payloadBytes
+        magic, protocolMajor, protocolMinor, replyStatus,
+        static_cast<std::uint32_t>(error.size()), replyStatus?0:payloadBytes,
+        static_cast<std::uint64_t>(diagnostics.size())
     };
     return writeObject(fd,response)
-        && (error.empty() || writeAll(fd, error.data(), error.size()));
+        && (error.empty() || writeAll(fd, error.data(), error.size()))
+        && (diagnostics.empty() || writeAll(fd,diagnostics.data(),diagnostics.size()))
+        && !s.terminalDiagnostic;
 }
 
-bool success(const int fd)
+bool success(const int fd,ServerState& s)
 {
-    return responseHeader(fd, 0, 0);
+    return responseHeader(fd,s, 0, 0);
 }
 
-bool protocolError(const int fd, const std::string& message)
+bool protocolError(const int fd,ServerState& s, const std::string& message)
 {
-    (void)responseHeader(fd, -1, 0, message);
+    (void)responseHeader(fd,s, -1, 0, message);
     return false;
 }
 
@@ -166,12 +192,13 @@ void addArrays(std::uint64_t& total, const std::uint64_t count,
 bool validatePayload
 (
     const int fd,
+    ServerState& s,
     const RequestHeader& request,
     const std::uint64_t expected
 )
 {
     return request.payloadBytes >= expected
-        || protocolError(fd, "short GPU backend request: needed "+std::to_string(expected)+" available "+std::to_string(request.payloadBytes));
+        || protocolError(fd,s, "short GPU backend request: needed "+std::to_string(expected)+" available "+std::to_string(request.payloadBytes));
 }
 
 bool discardRequest(const int fd)
@@ -197,8 +224,8 @@ bool handleCreate
 )
 {
     if (state.backend != nullptr)
-        return protocolError(fd, "GPU backend session was already created");
-    if (!validatePayload(fd, request, WireCodec<CreateArgs>::size)) return false;
+        return protocolError(fd,state, "GPU backend session was already created");
+    if (!validatePayload(fd,state, request, WireCodec<CreateArgs>::size)) return false;
     CreateArgs a{};
     if (!readObject(fd, a)) return false;
     const int status = ugkwpGpuResidentStrictCreate
@@ -234,7 +261,7 @@ bool handleCreate
         state.nCellPlanes = a.nCellPlanes;
         state.particleCapacity = a.particleCapacity;
     }
-    return responseHeader(fd, status, 0);
+    return responseHeader(fd,state, status, 0);
 }
 
 bool handleMesh(const int fd, const RequestHeader& request, ServerState& s)
@@ -246,7 +273,7 @@ bool handleMesh(const int fd, const RequestHeader& request, ServerState& s)
     addArrays(expected, s.nCells, sizeof(int), 2);
     addArrays(expected, s.nCellPlanes, sizeof(int), 3);
     addArrays(expected, s.nCellPlanes, sizeof(double), 6);
-    if (!validatePayload(fd, request, expected)) return false;
+    if (!validatePayload(fd,s, request, expected)) return false;
 
     std::vector<int> owner, neighbour, facePeriodicPair, planeStart,
         planeCount, faceId, faceNeighbor, faceKind;
@@ -279,7 +306,7 @@ bool handleMesh(const int fd, const RequestHeader& request, ServerState& s)
         ptr(planeCount), ptr(faceId), ptr(faceNeighbor), ptr(faceKind),
         ptr(restitution), ptr(tangential), ptr(nx), ptr(ny), ptr(nz), ptr(d)
     );
-    return responseHeader(fd, status, 0);
+    return responseHeader(fd,s, status, 0);
 }
 
 bool handleBoundarySources
@@ -293,7 +320,7 @@ bool handleBoundarySources
     std::uint64_t expected = wireBytes(a);
     addArrays(expected,a.count,sizeof(int),2);
     addArrays(expected,a.count,sizeof(double),10);
-    if (!validatePayload(fd,request,expected)) return false;
+    if (!validatePayload(fd,s,request,expected)) return false;
     std::vector<int> cell,face;
     std::vector<double> px,py,pz,ux,uy,uz,t,theta,d,massRate;
 #define READ(VEC) do { if (!readVector(fd,(VEC),a.count)) return false; } while(false)
@@ -305,7 +332,7 @@ bool handleBoundarySources
         s.backend,a.count,ptr(cell),ptr(face),ptr(px),ptr(py),ptr(pz),ptr(ux),
         ptr(uy),ptr(uz),ptr(t),ptr(theta),ptr(d),ptr(massRate)
     );
-    return responseHeader(fd,status,0);
+    return responseHeader(fd,s,status,0);
 }
 
 bool handleScheduledInletConfiguration
@@ -320,7 +347,7 @@ bool handleScheduledInletConfiguration
     addArrayBytes<int>(expected,a.count);
     addArrayBytes<double>(expected,2ULL*a.nPressureRows);
     addArrayBytes<double>(expected,2ULL*a.nVolumeFractionRows);
-    if (!validatePayload(fd,request,expected)) return false;
+    if (!validatePayload(fd,s,request,expected)) return false;
     std::vector<int> faces;
     std::vector<double> pressureTimes, pressureValues;
     std::vector<double> volumeFractionTimes, volumeFractionValues;
@@ -339,7 +366,7 @@ bool handleScheduledInletConfiguration
         a.nVolumeFractionRows,ptr(volumeFractionTimes),
         ptr(volumeFractionValues)
     );
-    return responseHeader(fd,status,0);
+    return responseHeader(fd,s,status,0);
 }
 
 bool handleDownloadResidual
@@ -348,18 +375,18 @@ bool handleDownloadResidual
 )
 {
     CountArgs a{};
-    if (!validatePayload(fd,request,wireBytes(a)) || !readObject(fd,a)) return false;
+    if (!validatePayload(fd,s,request,wireBytes(a)) || !readObject(fd,a)) return false;
 
     int count = 0;
     std::vector<int> faces(a.count);
     std::vector<double> residual(a.count);
     const int status = ugkwpGpuResidentStrictDownloadSourceResidualMass
     (s.backend,&count,a.count,ptr(faces),ptr(residual));
-    if (status != 0) return responseHeader(fd,status,0);
+    if (status != 0) return responseHeader(fd,s,status,0);
 
     const std::uint64_t bytes = wireBytes(count)
       +(a.count==0?0:std::uint64_t(count)*(sizeof(int)+sizeof(double)));
-    if (!responseHeader(fd,0,bytes) || !writeObject(fd,count)) return false;
+    if (!responseHeader(fd,s,0,bytes) || !writeObject(fd,count)) return false;
     if (a.count != 0)
     {
         faces.resize(count); residual.resize(count);
@@ -377,12 +404,12 @@ bool handleUploadResidual
     if (request.payloadBytes < wireBytes(a) || !readObject(fd,a)) return false;
 
     const std::uint64_t expected=wireBytes(a)+std::uint64_t(a.count)*(sizeof(int)+sizeof(double));
-    if (!validatePayload(fd,request,expected)) return false;
+    if (!validatePayload(fd,s,request,expected)) return false;
     std::vector<int> faces; std::vector<double> residual;
     if (!readVector(fd,faces,a.count) || !readVector(fd,residual,a.count)) return false;
     const int status=ugkwpGpuResidentStrictUploadSourceResidualMass
     (s.backend,a.count,ptr(faces),ptr(residual));
-    return responseHeader(fd,status,0);
+    return responseHeader(fd,s,status,0);
 }
 
 bool handleGasBoundary
@@ -393,7 +420,7 @@ bool handleGasBoundary
     std::uint64_t expected=0;
     addArrays(expected,s.nFaces,sizeof(int),6);
     addArrays(expected,s.nFaces,sizeof(double),9);
-    if (!validatePayload(fd,request,expected)) return false;
+    if (!validatePayload(fd,s,request,expected)) return false;
     std::vector<int> kind,rhoFix,uFix,pFix,tFix,pWave;
     std::vector<double> gamma,fieldInf,lInf,rho,ux,uy,uz,p,t;
 #define READ(VEC) do { if(!readVector(fd,(VEC),s.nFaces)) return false; } while(false)
@@ -404,7 +431,7 @@ bool handleGasBoundary
     const int status=ugkwpGpuResidentStrictUploadGasBoundaryFields
     (s.backend,ptr(kind),ptr(rhoFix),ptr(uFix),ptr(pFix),ptr(tFix),ptr(pWave),
      ptr(gamma),ptr(fieldInf),ptr(lInf),ptr(rho),ptr(ux),ptr(uy),ptr(uz),ptr(p),ptr(t));
-    return responseHeader(fd,status,0);
+    return responseHeader(fd,s,status,0);
 }
 
 bool handleUploadFields
@@ -413,21 +440,21 @@ bool handleUploadFields
 )
 {
     const std::uint64_t expected=std::uint64_t(s.nCells)*10*sizeof(double);
-    if (!validatePayload(fd,request,expected)) return false;
+    if (!validatePayload(fd,s,request,expected)) return false;
     std::vector<std::vector<double>> f(10);
     for(auto& v:f) if(!readVector(fd,v,s.nCells)) return false;
     const int status=ugkwpGpuResidentStrictUploadFields
     (s.backend,ptr(f[0]),ptr(f[1]),ptr(f[2]),ptr(f[3]),ptr(f[4]),ptr(f[5]),
      ptr(f[6]),ptr(f[7]),ptr(f[8]),ptr(f[9]));
-    return responseHeader(fd,status,0);
+    return responseHeader(fd,s,status,0);
 }
 
 bool handleAdvance(const int fd,const RequestHeader& request,ServerState& s)
 {
     AdvanceArgs a{};
-    if(!validatePayload(fd,request,wireBytes(a)) || !readObject(fd,a)) return false;
+    if(!validatePayload(fd,s,request,wireBytes(a)) || !readObject(fd,a)) return false;
     const int status=ugkwpGpuResidentStrictAdvance(s.backend,a.dt,a.simulationTime);
-    return responseHeader(fd,status,0);
+    return responseHeader(fd,s,status,0);
 }
 
 bool handleConfigureSst
@@ -446,7 +473,7 @@ bool handleConfigureSst
     addArrays(expected, s.nCells, sizeof(double), 3);
     addArrays(expected, s.nFaces, sizeof(int), 2);
     addArrays(expected, s.nFaces, sizeof(double), 2);
-    if (!validatePayload(fd, request, expected))
+    if (!validatePayload(fd,s, request, expected))
     {
         return false;
     }
@@ -478,7 +505,7 @@ bool handleConfigureSst
         ptr(boundaryKMode), ptr(boundaryOmegaMode),
         ptr(boundaryK), ptr(boundaryOmega)
     );
-    return responseHeader(fd, status, 0);
+    return responseHeader(fd,s, status, 0);
 }
 
 bool handleDownloadSst
@@ -488,7 +515,7 @@ bool handleDownloadSst
     ServerState& s
 )
 {
-    if (!validatePayload(fd, request, 0))
+    if (!validatePayload(fd,s, request, 0))
     {
         return false;
     }
@@ -499,11 +526,11 @@ bool handleDownloadSst
     );
     if (status != 0)
     {
-        return responseHeader(fd, status, 0);
+        return responseHeader(fd,s, status, 0);
     }
     const std::uint64_t bytes =
         3ULL*static_cast<std::uint64_t>(s.nCells)*sizeof(double);
-    return responseHeader(fd, 0, bytes)
+    return responseHeader(fd,s, 0, bytes)
         && writeVector(fd, k)
         && writeVector(fd, omega)
         && writeVector(fd, nut);
@@ -512,23 +539,23 @@ bool handleDownloadSst
 bool handleCourant(const int fd,const RequestHeader& request,ServerState& s)
 {
     CourantArgs a{};
-    if(!validatePayload(fd,request,wireBytes(a)) || !readObject(fd,a)) return false;
+    if(!validatePayload(fd,s,request,wireBytes(a)) || !readObject(fd,a)) return false;
     double maxCo=0;
     const int status=ugkwpGpuResidentStrictComputeGasCourant
     (
         s.backend,a.dt,a.targetMaxCo,a.scheduleTime,&maxCo
     );
-    if(status!=0) return responseHeader(fd,status,0);
-    return responseHeader(fd,0,sizeof(maxCo)) && writeObject(fd,maxCo);
+    if(status!=0) return responseHeader(fd,s,status,0);
+    return responseHeader(fd,s,0,sizeof(maxCo)) && writeObject(fd,maxCo);
 }
 
 bool handleGasOnly(const int fd,const RequestHeader& request,ServerState& s)
 {
     AdvanceArgs a{};
-    if(!validatePayload(fd,request,wireBytes(a)) || !readObject(fd,a)) return false;
+    if(!validatePayload(fd,s,request,wireBytes(a)) || !readObject(fd,a)) return false;
     const int status=ugkwpGpuResidentStrictAdvanceGasOnly
     (s.backend,a.dt,a.simulationTime);
-    return responseHeader(fd,status,0);
+    return responseHeader(fd,s,status,0);
 }
 
 bool handleDownloadFields
@@ -536,16 +563,16 @@ bool handleDownloadFields
     const int fd,const RequestHeader& request,ServerState& s
 )
 {
-    if(!validatePayload(fd,request,0)) return false;
+    if(!validatePayload(fd,s,request,0)) return false;
     std::vector<std::vector<double>> f(23,std::vector<double>(s.nCells));
     const int status=ugkwpGpuResidentStrictDownloadFields
     (s.backend,ptr(f[0]),ptr(f[1]),ptr(f[2]),ptr(f[3]),ptr(f[4]),ptr(f[5]),
      ptr(f[6]),ptr(f[7]),ptr(f[8]),ptr(f[9]),ptr(f[10]),ptr(f[11]),ptr(f[12]),
      ptr(f[13]),ptr(f[14]),ptr(f[15]),ptr(f[16]),ptr(f[17]),ptr(f[18]),
      ptr(f[19]),ptr(f[20]),ptr(f[21]),ptr(f[22]));
-    if(status!=0) return responseHeader(fd,status,0);
+    if(status!=0) return responseHeader(fd,s,status,0);
     const std::uint64_t bytes=std::uint64_t(s.nCells)*23*sizeof(double);
-    if(!responseHeader(fd,0,bytes)) return false;
+    if(!responseHeader(fd,s,0,bytes)) return false;
     for(const auto& v:f) if(!writeVector(fd,v)) return false;
     return true;
 }
@@ -555,13 +582,13 @@ bool handleDownloadGasBoundary
     const int fd,const RequestHeader& request,ServerState& s
 )
 {
-    if(!validatePayload(fd,request,0)) return false;
+    if(!validatePayload(fd,s,request,0)) return false;
     std::vector<std::vector<double>> f(6,std::vector<double>(s.nFaces));
     const int status=ugkwpGpuResidentStrictDownloadGasBoundaryFields
     (s.backend,ptr(f[0]),ptr(f[1]),ptr(f[2]),ptr(f[3]),ptr(f[4]),ptr(f[5]));
-    if(status!=0) return responseHeader(fd,status,0);
+    if(status!=0) return responseHeader(fd,s,status,0);
     const std::uint64_t bytes=std::uint64_t(s.nFaces)*6*sizeof(double);
-    if(!responseHeader(fd,0,bytes)) return false;
+    if(!responseHeader(fd,s,0,bytes)) return false;
     for(const auto& v:f) if(!writeVector(fd,v)) return false;
     return true;
 }
@@ -580,11 +607,11 @@ bool handleConfigureParticleStuckModel
      || !readObject(fd, a)
     )
     {
-        return protocolError(fd, "invalid particle stuck-model header");
+        return protocolError(fd,s, "invalid particle stuck-model header");
     }
     const std::uint64_t expected =
         wireBytes(a) + std::uint64_t(a.nFaces)*sizeof(unsigned char);
-    if (!validatePayload(fd, request, expected))
+    if (!validatePayload(fd,s, request, expected))
     {
         return false;
     }
@@ -619,7 +646,7 @@ bool handleConfigureParticleStuckModel
         a.pinningThicknessFraction,
         a.interfaceResistanceM2KW
     );
-    return responseHeader(fd, rc, 0);
+    return responseHeader(fd,s, rc, 0);
 }
 
 bool handleSavedVelocity(const int fd,const RequestHeader& request,ServerState& s,bool upload)
@@ -627,19 +654,19 @@ bool handleSavedVelocity(const int fd,const RequestHeader& request,ServerState& 
     CountArgs a{};
     if (request.payloadBytes<wireBytes(a) || !readObject(fd,a)) return false;
     if (a.count<0 || a.count>s.particleCapacity)
-        return responseHeader(fd,-1,0,"invalid saved velocity count");
+        return responseHeader(fd,s,-1,0,"invalid saved velocity count");
 
     std::uint64_t expected=wireBytes(a);
     if (upload) addArrays(expected,a.count,sizeof(double),3);
-    if (!validatePayload(fd,request,expected)) return false;
+    if (!validatePayload(fd,s,request,expected)) return false;
     std::vector<double> x(a.count),y(a.count),z(a.count);
     if (upload && (!readVector(fd,x,a.count) || !readVector(fd,y,a.count) || !readVector(fd,z,a.count))) return false;
     const int rc=upload
         ? ugkwpGpuResidentStrictUploadParticleSavedVelocity(s.backend,a.count,ptr(x),ptr(y),ptr(z))
         : ugkwpGpuResidentStrictDownloadParticleSavedVelocity(s.backend,a.count,ptr(x),ptr(y),ptr(z));
-    if (rc!=0 || upload) return responseHeader(fd,rc,0);
+    if (rc!=0 || upload) return responseHeader(fd,s,rc,0);
     std::uint64_t bytes=0;addArrays(bytes,a.count,sizeof(double),3);
-    return responseHeader(fd,0,bytes) && writeVector(fd,x) && writeVector(fd,y) && writeVector(fd,z);
+    return responseHeader(fd,s,0,bytes) && writeVector(fd,x) && writeVector(fd,y) && writeVector(fd,z);
 }
 
 bool handleUploadParticles
@@ -656,7 +683,7 @@ bool handleUploadParticles
     addArrays(expected,a.count,sizeof(unsigned char),1);
     addArrays(expected,a.count,sizeof(double),95);
     addArrays(expected,a.count,sizeof(unsigned long long),2);
-    if (!validatePayload(fd,request,expected)) return false;
+    if (!validatePayload(fd,s,request,expected)) return false;
     std::vector<std::vector<double>> d(10);
     for(auto& v:d) if(!readVector(fd,v,a.count)) return false;
     std::vector<int> cell,status,stuckFaceId;
@@ -691,7 +718,7 @@ bool handleUploadParticles
      ptr(coldFrozenArea),ptr(coldContactAge),
      ptr(cold2DNodeSpecificEnthalpy),ptr(cold2DRingContactAge),
      ptr(cold2DFrozenArea),ptr(rng),ptr(origId));
-    return responseHeader(fd,rc,0);
+    return responseHeader(fd,s,rc,0);
 }
 
 bool handleDownloadParticles
@@ -700,7 +727,7 @@ bool handleDownloadParticles
 )
 {
     CountArgs a{};
-    if(!validatePayload(fd,request,wireBytes(a)) || !readObject(fd,a)) return false;
+    if(!validatePayload(fd,s,request,wireBytes(a)) || !readObject(fd,a)) return false;
 
     int count=0;
     std::vector<std::vector<double>> d(10,std::vector<double>(a.count));
@@ -722,7 +749,7 @@ bool handleDownloadParticles
      ptr(coldFrozenArea),ptr(coldContactAge),
      ptr(cold2DNodeSpecificEnthalpy),ptr(cold2DRingContactAge),
      ptr(cold2DFrozenArea),ptr(rng),ptr(origId));
-    if(rc!=0) return responseHeader(fd,rc,0);
+    if(rc!=0) return responseHeader(fd,s,rc,0);
 
     std::uint64_t per=0;
     addArrays(per,1,sizeof(double),10); addArrays(per,1,sizeof(int),3);
@@ -730,7 +757,7 @@ bool handleDownloadParticles
     addArrays(per,1,sizeof(double),95);
     addArrays(per,1,sizeof(unsigned long long),2);
     const std::uint64_t bytes=wireBytes(count)+(a.count==0?0:std::uint64_t(count)*per);
-    if(!responseHeader(fd,0,bytes)||!writeObject(fd,count)) return false;
+    if(!responseHeader(fd,s,0,bytes)||!writeObject(fd,count)) return false;
     if(a.count==0) return true;
     for(auto& v:d){v.resize(count);if(!writeVector(fd,v))return false;}
     cell.resize(count);status.resize(count);stuck.resize(count);
@@ -758,32 +785,32 @@ bool handleDownloadParticles
 bool handleDownloadEpsGPrev
 (const int fd,const RequestHeader& request,ServerState& s)
 {
-    if(!validatePayload(fd,request,0)) return false;
+    if(!validatePayload(fd,s,request,0)) return false;
     std::vector<double> values(s.nCells);
     const int rc=ugkwpGpuResidentStrictDownloadEpsGPrev(s.backend,ptr(values));
-    if(rc!=0) return responseHeader(fd,rc,0);
-    return responseHeader(fd,0,values.size()*sizeof(double))&&writeVector(fd,values);
+    if(rc!=0) return responseHeader(fd,s,rc,0);
+    return responseHeader(fd,s,0,values.size()*sizeof(double))&&writeVector(fd,values);
 }
 
 bool handleUploadEpsGPrev
 (const int fd,const RequestHeader& request,ServerState& s)
 {
     const std::uint64_t expected=std::uint64_t(s.nCells)*sizeof(double);
-    if(!validatePayload(fd,request,expected)) return false;
+    if(!validatePayload(fd,s,request,expected)) return false;
     std::vector<double> values;
     if(!readVector(fd,values,s.nCells)) return false;
     const int rc=ugkwpGpuResidentStrictUploadEpsGPrev(s.backend,ptr(values));
-    return responseHeader(fd,rc,0);
+    return responseHeader(fd,s,rc,0);
 }
 
 bool handleDownloadNut
 (const int fd,const RequestHeader& request,ServerState& s)
 {
-    if(!validatePayload(fd,request,0)) return false;
+    if(!validatePayload(fd,s,request,0)) return false;
     std::vector<double> values(s.nCells);
     const int rc=ugkwpGpuResidentStrictDownloadNut(s.backend,ptr(values));
-    if(rc!=0) return responseHeader(fd,rc,0);
-    return responseHeader(fd,0,values.size()*sizeof(double))&&writeVector(fd,values);
+    if(rc!=0) return responseHeader(fd,s,rc,0);
+    return responseHeader(fd,s,0,values.size()*sizeof(double))&&writeVector(fd,values);
 }
 
 bool handleDownloadAndResetParticleWallHeatLedgers
@@ -793,7 +820,7 @@ bool handleDownloadAndResetParticleWallHeatLedgers
     ServerState& s
 )
 {
-    if (!validatePayload(fd, request, 0))
+    if (!validatePayload(fd,s, request, 0))
     {
         return false;
     }
@@ -809,12 +836,12 @@ bool handleDownloadAndResetParticleWallHeatLedgers
         );
     if (rc != 0)
     {
-        return responseHeader(fd, rc, 0);
+        return responseHeader(fd,s, rc, 0);
     }
     const std::uint64_t responseBytes =
         (depositedValues.size() + reflectedValues.size())*sizeof(double);
     return
-        responseHeader(fd, 0, responseBytes)
+        responseHeader(fd,s, 0, responseBytes)
      && writeVector(fd, depositedValues)
      && writeVector(fd, reflectedValues);
 }
@@ -826,7 +853,12 @@ bool dispatch
 {
     const Op op=static_cast<Op>(request.operation);
     if(op!=Op::create && s.backend==nullptr)
-        return protocolError(fd,"GPU backend request arrived before create");
+        return protocolError(fd,s,"GPU backend request arrived before create");
+    if(s.backend && op!=Op::release) {
+        const int metadataStatus=ugkwpGpuResidentStrictSetDiagnosticOperation(s.backend,
+            request.diagnosticSequence,request.diagnosticStep,request.diagnosticTime);
+        if(metadataStatus)return responseHeader(fd,s,metadataStatus,0);
+    }
     switch(op)
     {
         case Op::create:return handleCreate(fd,request,s);
@@ -858,11 +890,11 @@ bool dispatch
             return handleDownloadAndResetParticleWallHeatLedgers(fd,request,s);
         case Op::release:
         {
-            if(!validatePayload(fd,request,0)) return false;
-            ugkwpGpuResidentStrictRelease(s.backend); s.backend=nullptr;
-            done=true; return success(fd);
+            if(!validatePayload(fd,s,request,0)) return false;
+            ugkwpGpuResidentStrictReleaseDiagnostics(s.backend,&s.finalDiagnostics); s.backend=nullptr;
+            done=true; return success(fd,s);
         }
-        default:return protocolError(fd,"unknown GPU backend operation");
+        default:return protocolError(fd,s,"unknown GPU backend operation");
     }
 }
 
@@ -888,20 +920,23 @@ int main(int argc,char** argv)
     while(!done)
     {
         RequestHeader request{};
-        if(!readObject(fd,request)) break;
+        if(!readObject(fd,request)) {
+            if(!frameReadError.empty())(void)responseHeader(fd,state,-1,0,frameReadError);
+            break;
+        }
         readingFrame=true; frameBytes=frameRemaining=request.payloadBytes; frameReadError.clear();
         try
         {
             if(!dispatch(fd,request,state,done) || !discardRequest(fd))
             {
-                if (!frameReadError.empty()) (void)responseHeader(fd,-1,0,frameReadError);
+                if (!frameReadError.empty()) (void)responseHeader(fd,state,-1,0,frameReadError);
                 break;
             }
         }
         catch (const std::bad_alloc&)
-        { (void)responseHeader(fd,-1,0,"GPU backend request storage allocation failed"); break; }
+        { (void)responseHeader(fd,state,-1,0,"GPU backend request storage allocation failed"); break; }
         catch (const std::length_error& error)
-        { (void)responseHeader(fd,-1,0,std::string("GPU backend required storage extent: ")+error.what()); break; }
+        { (void)responseHeader(fd,state,-1,0,std::string("GPU backend required storage extent: ")+error.what()); break; }
     }
     if(state.backend!=nullptr) ugkwpGpuResidentStrictRelease(state.backend);
     ::close(fd);

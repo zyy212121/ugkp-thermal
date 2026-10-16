@@ -2,6 +2,21 @@
 #include "gasTransport/GasStateView.H"
 #include "gasTransport/GasCapabilities.H"
 #include "gasTransport/GasGeometryValidation.H"
+// Called only after an actual face evaluation fails, never for a residual
+// certificate. Preserve the original status as the observed diagnostic value.
+template<class GasState>
+__device__ bool gasRecordEvaluatedFaceFailure(const GasState& s,int f,
+    ugkwp::GasTransportCode code,unsigned site=2610)
+{
+    using namespace ugkp::diagnostics;
+    if(s.diagnostics && code!=ugkwp::GasTransportCode::UnsupportedConfiguration)
+        recordFatal(s.diagnostics,makeRecord(
+            code==ugkwp::GasTransportCode::NonFiniteState?Code::NonFinite:
+            code==ugkwp::GasTransportCode::InvalidStorage?Code::MissingOperator:Code::InvalidPhysicalState,
+            site,26,0,EntityKind::Face,f,-1,int(code)));
+    const bool legacyRecorded=ugkwp::gasRecordFaceFailure(s,f,code);
+    return legacyRecorded || (s.diagnostics && code!=ugkwp::GasTransportCode::UnsupportedConfiguration);
+}
 // One operator implementation; scalar/time adapters are compile-time only.
 __device__ GasPrimDevice makeGasPrimDevice
 (
@@ -83,9 +98,9 @@ __device__ bool gasBoundaryMeshNormalSpeed(const GasState& s,const int f,GPU_OPE
             bool evaluated=false;
             if(!ugkwp::gasGeometryFaceFrame(s,f,s.gasGeometry.interval,frame,&evaluated))
             {
-                if(!ugkwp::gasRecordFaceFailure(s,f,evaluated?ugkwp::GasTransportCode::InvalidGeometry:ugkwp::GasTransportCode::InvalidStorage)
+                if(!gasRecordEvaluatedFaceFailure(s,f,evaluated?ugkwp::GasTransportCode::InvalidGeometry:ugkwp::GasTransportCode::InvalidStorage)
                     && (nativeRefinement || !evaluated))asm("trap;");
-                if(nativeRefinement || !evaluated)return false;
+                return false;
             }
             normalSpeed=frame.meshVolumeRate/frame.area;
         }
@@ -147,15 +162,16 @@ __device__ GasPrimDevice riemannBoundaryState
                 Y[k]=fixedY?s.gasSpecies.boundaryMassFraction[k*s.nFaces+f]
                     :(extrapolatedMassFraction?extrapolatedMassFraction[k]
                         :s.gasSpecies.rho[k*s.nCells+own]/s.rho[own]);
-            bool outsideSimplex=false;
-            if(nativeRefinement && !fixedY && !extrapolatedMassFraction)
-                for(int k=0;k<Ns;++k)outsideSimplex=outsideSimplex || !ugkwp::gasFinite(Y[k])
-                    || Y[k]<GPU_OPERATOR_R(0.0) || Y[k]>GPU_OPERATOR_R(1.0);
-            if(outsideSimplex){
-                GPU_OPERATOR_REAL partial[Ns];
-                for(int k=0;k<Ns;++k)partial[k]=s.gasSpecies.rho[k*s.nCells+own];
-                ugkwp::mixtureMassFractionsFromDensities<GPU_OPERATOR_REAL,Ns>(partial,s.rho[own],
-                    s.gasSpecies.densityClosureTolerance,Y);
+            for(int k=0;k<Ns;++k)
+            {
+                using namespace ugkp::diagnostics;
+                if(!ugkwp::gasFinite(Y[k]))
+                {
+                    recordFatal(s.diagnostics,makeRecord(Code::NonFinite,2603,26,0,EntityKind::Face,f,k,Y[k],0,0,Quantity::MassFraction));
+                    return ownerState;
+                }
+                const auto before=Y[k];Y[k]=clampRange(before,GPU_OPERATOR_R(0),GPU_OPERATOR_R(1));
+                if(before!=Y[k])recordWarning(s.diagnostics,makeRecord(Code::FiniteYClip,2605,26,0,EntityKind::Face,f,k,before,Y[k],Y[k],Quantity::MassFraction));
             }
             const GPU_OPERATOR_REAL R=ugkwp::mixtureGasConstant(Y,s.gasSpecies.thermo);
             if(s.riemannBoundaryUFix[f]==3 || s.riemannBoundaryPWave[f]!=0 || s.nScheduledInletFaces>0)
@@ -165,7 +181,8 @@ __device__ GasPrimDevice riemannBoundaryState
             if(s.riemannBoundaryUFix[f]==3)
             {
                 GPU_OPERATOR_REAL energy,cv;bool evaluated=false;
-                ugkwp::evaluateMixtureEnergy(Y,ownerState.T,s.gasSpecies.thermo,energy,cv,&evaluated);
+                const auto caloric=ugkwp::evaluateMixtureEnergy(Y,ownerState.T,s.gasSpecies.thermo,energy,cv,&evaluated);
+                if(caloric!=ugkwp::ThermoStatus::Success){gasRecordEvaluatedFaceFailure(s,f,ugkwp::GasTransportCode::InvalidThermodynamics,10045);return ownerState;}
                 if(!evaluated){ugkwp::gasRecordFaceFailure(s,f,ugkwp::GasTransportCode::InvalidStorage);return ownerState;}
                 const GPU_OPERATOR_REAL area=clampMin(s.magSf[f],OfSmall);
                 const auto boundary=ugkpboundary::totalConditionInletState
@@ -189,14 +206,18 @@ __device__ GasPrimDevice riemannBoundaryState
             const auto status=nativeRefinement
                 ? ugkwp::mixtureDensityFromPressureTemperatureImpl<true>(out.p,out.T,Y,s.gasSpecies.thermo,density,s.gasSpecies.densityClosureTolerance)
                 : ugkwp::mixtureDensityFromPressureTemperature(out.p,out.T,Y,s.gasSpecies.thermo,density,s.gasSpecies.densityClosureTolerance);
-            if(status!=ugkwp::ThermoStatus::Success || (nativeRefinement && rf&&pf&&tf
-                && fabs(density-out.rho)>s.gasSpecies.densityClosureTolerance*density))
-            {ugkwp::gasRecordFaceFailure(s,f,ugkwp::GasTransportCode::InvalidThermodynamics);if(nativeRefinement)return ownerState;}
+            if(status!=ugkwp::ThermoStatus::Success)
+            {gasRecordEvaluatedFaceFailure(s,f,ugkwp::GasTransportCode::InvalidThermodynamics,10046);return ownerState;}
+            if(rf&&pf&&tf && fabs(density-out.rho)>s.gasSpecies.densityClosureTolerance*density)
+                ugkp::diagnostics::recordWarning(s.diagnostics,ugkp::diagnostics::makeRecord(
+                    ugkp::diagnostics::Code::ConservationResidual,2604,26,0,
+                    ugkp::diagnostics::EntityKind::Face,f,-1,out.rho,density,out.rho,
+                    ugkp::diagnostics::Quantity::Density));
             out.rho=density;
             if(useRiemannBoundaryVelocity(s,f,ownerState,nativeRefinement))
             {out.ux=s.riemannBoundaryUx[f];out.uy=s.riemannBoundaryUy[f];out.uz=s.riemannBoundaryUz[f];}
             if(!ugkwp::gasFinite(out.ux)||!ugkwp::gasFinite(out.uy)||!ugkwp::gasFinite(out.uz))
-            {ugkwp::gasRecordFaceFailure(s,f,ugkwp::GasTransportCode::NonFiniteState);if(nativeRefinement)return ownerState;}
+            {gasRecordEvaluatedFaceFailure(s,f,ugkwp::GasTransportCode::NonFiniteState,10047);return ownerState;}
             return out;
         }
     }

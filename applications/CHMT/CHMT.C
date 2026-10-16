@@ -1,3 +1,4 @@
+#include "DiagnosticsFoam.H"
 #include "configuration/CouplingInput.H"
 #include "ProgressLogging.H"
 #include "io/CoupledOutput.H"
@@ -41,6 +42,7 @@ int main(int argc,char** argv) {
         std::unique_ptr<chmt::Backend,void(*)(chmt::Backend*)> backend(
             chmt::createBackend(input.model,input.gasModel,input.gasMechanism,options,input.state,error),chmt::destroyBackend);
         chmt::io::require(bool(backend),error);
+        chmt::setDiagnosticsSink(*backend,ugkp::diagnostics::makeFoamSink());
         chmt::CpuMaterialDriver material(input.model,input.solidMesh.get(),&input.gasMechanism);
         const chmt::Real end=time.controlDict().lookup<Foam::scalar>("endTime");
         const Foam::fileName directory=time.path()/chmt::io::text(properties,"outputDirectory","chmtOutput");

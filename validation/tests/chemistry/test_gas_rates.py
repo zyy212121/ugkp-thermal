@@ -64,7 +64,7 @@ int main(){
  assert(evaluateGasRates(700.,c,a.t,a.m,w,q,st));assert(near(w[1],std::exp(-300.)));
  assert(evaluateGasRateDerivatives(700.,c,a.t,a.m,jac,dt,st));assert(near(jac[3],-std::exp(500.),1e-10));
  a.rx[0].highRate.preExponential=2;a.sp[0].hasEntropyReference=false;assert(validateGasMechanismView(a.t,a.m));
- c[1]=1;w[0]=99;w[1]=98;assert(!evaluateGasRates(700.,c,a.t,a.m,w,nullptr,st));assert(std::isinf(w[0])&&w[0]>0&&std::isinf(w[1])&&w[1]<0);
+ c[1]=1;w[0]=99;w[1]=98;assert(!evaluateGasRates(700.,c,a.t,a.m,w,nullptr,st));assert(w[0]==99 && w[1]==98); // Fatal evaluator failure never publishes Inf.
 }
 '''
 def test_rates_validation_and_derivatives(tmp_path):

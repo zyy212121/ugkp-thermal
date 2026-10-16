@@ -15,7 +15,7 @@ template<bool Terminal=false>
 CHMT_HD inline FilmProfile filmProfile(Real delta, Real mu, Vec3 ub, Vec3 tau, Vec3 G) {
     FilmProfile p;
     p.delta=delta; p.baseVelocity=ub;
-    if (!Terminal&&(!finite(delta) || delta<0 || !finite(mu) || mu<=0
+    if ((!finite(delta) || delta<0 || !finite(mu) || mu<=0
         || !finite(ub) || !finite(tau) || !finite(G))) {
         p.meanVelocity=p.topVelocity=p.bottomShear=p.baseVelocity=p.linear=p.quadratic=
             {undefinedValue(),undefinedValue(),undefinedValue()};
@@ -48,17 +48,17 @@ CHMT_HD inline FilmProfile withNormalProfile(FilmProfile p, Vec3 normal, Real bo
 template<bool Terminal=false>
 CHMT_HD inline bool setCoupledFilmNormalTrace(FilmAux& aux, Vec3 normal, bool wet,
     Real bottom, Real top, DeviceStatus* status=nullptr, int index=-1) {
-    if (!Terminal&&(!finite(normal) || !closeEnough(mag(normal),1,1e-12,1e-12) || !finite(aux.baseVelocity))) {
+    if ((!finite(normal) || !closeEnough(mag(normal),1,1e-12,1e-12) || !finite(aux.baseVelocity))) {
         return failStatus(status,ErrorCode::InvalidInput,index,0,ErrorLocation::Face);
     }
     FilmAux next=aux;
     if (wet) {
-        if (!Terminal&&(!finite(bottom) || !finite(top) || !finite(aux.meanVelocity) || !finite(aux.topVelocity))) {
+        if ((!finite(bottom) || !finite(top) || !finite(aux.meanVelocity) || !finite(aux.topVelocity))) {
             return failStatus(status,ErrorCode::Nonfinite,index,top,ErrorLocation::Face);
         }
         next.meanVelocity+=normal*(0.5*(bottom+top)-dot(aux.meanVelocity,normal));
         next.topVelocity+=normal*(top-dot(aux.topVelocity,normal));
-        if (!Terminal&&(!finite(next.meanVelocity) || !finite(next.topVelocity))) {
+        if ((!finite(next.meanVelocity) || !finite(next.topVelocity))) {
             return failStatus(status,ErrorCode::Nonfinite,index,top,ErrorLocation::Face);
         }
     } else {
@@ -74,17 +74,17 @@ template<bool Terminal=false>
 CHMT_HD inline bool recoverFilmThermalState(const FilmQ& q, Real area, Real pressure,
     const PhysicsConfig& p, Vec3 normal, bool coupled, FilmAux& aux,
     DeviceStatus* status=nullptr, int index=-1) {
-    if (!Terminal&&(!finite(normal) || !closeEnough(mag(normal),1,1e-12,1e-12) || !finite(aux.baseVelocity))) {
+    if ((!finite(normal) || !closeEnough(mag(normal),1,1e-12,1e-12) || !finite(aux.baseVelocity))) {
         return failStatus(status,ErrorCode::InvalidInput,index,0,ErrorLocation::Face);
     }
     Real meanNormal=0, topNormal=0;
     if (coupled) {
-        if (!Terminal&&(!finite(aux.meanVelocity) || !finite(aux.topVelocity))) {
+        if ((!finite(aux.meanVelocity) || !finite(aux.topVelocity))) {
             return failStatus(status,ErrorCode::Nonfinite,index,0,ErrorLocation::Face);
         }
         meanNormal=dot(aux.meanVelocity,normal);
         topNormal=dot(aux.topVelocity,normal);
-        if (!Terminal&&(!finite(meanNormal) || !finite(topNormal))) {
+        if ((!finite(meanNormal) || !finite(topNormal))) {
             return failStatus(status,ErrorCode::Nonfinite,index,topNormal,ErrorLocation::Face);
         }
     }
@@ -94,7 +94,7 @@ CHMT_HD inline bool recoverFilmThermalState(const FilmQ& q, Real area, Real pres
     if (coupled) {
         next.meanVelocity+=normal*(meanNormal-dot(next.meanVelocity,normal));
         next.topVelocity+=normal*(topNormal-dot(next.topVelocity,normal));
-        if (!Terminal&&(!finite(next.meanVelocity) || !finite(next.topVelocity))) {
+        if ((!finite(next.meanVelocity) || !finite(next.topVelocity))) {
             return failStatus(status,ErrorCode::Nonfinite,index,topNormal,ErrorLocation::Face);
         }
     }
@@ -104,23 +104,23 @@ CHMT_HD inline bool recoverFilmThermalState(const FilmQ& q, Real area, Real pres
 template<bool Terminal=false>
 CHMT_HD inline bool updateFilmProfileState(FilmAux& aux, const PhysicsConfig& p, Vec3 normal,
     Vec3 shear, Vec3 pressureBodyGradient, bool coupled, DeviceStatus* status=nullptr, int index=-1) {
-    if (!Terminal&&(!finite(normal) || !closeEnough(mag(normal),1,1e-12,1e-12))) {
+    if ((!finite(normal) || !closeEnough(mag(normal),1,1e-12,1e-12))) {
         return failStatus(status,ErrorCode::InvalidInput,index,aux.area,ErrorLocation::Face);
     }
     Real bottom=dot(aux.baseVelocity,normal), top=bottom;
     if (coupled) {
-        if (!Terminal&&(!finite(aux.meanVelocity) || !finite(aux.topVelocity))) {
+        if ((!finite(aux.meanVelocity) || !finite(aux.topVelocity))) {
             return failStatus(status,ErrorCode::Nonfinite,index,0,ErrorLocation::Face);
         }
         top=dot(aux.topVelocity,normal);
         bottom=2*dot(aux.meanVelocity,normal)-top;
     }
-    if (!Terminal&&(!finite(bottom) || !finite(top))) {
+    if ((!finite(bottom) || !finite(top))) {
         return failStatus(status,ErrorCode::Nonfinite,index,top,ErrorLocation::Face);
     }
     FilmProfile profile=filmProfile<Terminal>(aux.thickness,p.liquidViscosity,aux.baseVelocity,shear,pressureBodyGradient);
     profile=withNormalProfile(profile,normal,bottom,top);
-    if (!Terminal&&(!finite(profile.meanVelocity) || !finite(profile.topVelocity))) {
+    if ((!finite(profile.meanVelocity) || !finite(profile.topVelocity))) {
         return failStatus(status,ErrorCode::Nonfinite,index,top,ErrorLocation::Face);
     }
     FilmAux next=aux;

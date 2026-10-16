@@ -5,6 +5,7 @@ namespace ugkwp { namespace gaswall { namespace detail {
 // are promoted; no mechanism copy, pointer reinterpretation, or allocation.
 template<class S,int N> UGKWP_GAS_HD inline WallInput<WallReal,N,S> wallComputationInput(const WallInput<S,N>& src){
     WallInput<WallReal,N,S> dst;
+    dst.diagnostics=src.diagnostics;dst.diagnosticEntity=src.diagnosticEntity;dst.diagnosticNode=src.diagnosticNode;
     dst.pressure=src.pressure;dst.temperature=src.temperature;
     dst.matchingDistance=src.matchingDistance;dst.ownerDistance=src.ownerDistance;
     dst.matching.temperature=src.matching.temperature;dst.matching.k=src.matching.k;dst.matching.omega=src.matching.omega;

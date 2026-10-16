@@ -25,7 +25,6 @@ extern "C" int ugkwpGpuResidentStrictEnableBoundaryLayerProfilesV1(void* handle)
     model=configured;
     invalidateSharedGasConfiguration(s);
     s->gasBoundaryLayerLaunch=&launchBoundaryLayer<true>;
-    s->gasBoundaryLayerSnapshot=&sharedGasTrialDetail::snapshotWallRecords<true,DeviceState>;
     return 0;
 }
 extern "C" int ugkwpGpuResidentStrictDownloadBoundaryLayerProfilesV1
@@ -44,5 +43,5 @@ extern "C" int ugkwpGpuResidentStrictDownloadBoundaryLayerProfilesV1
     const std::size_t count=std::size_t(walls)*nodes*(7+species);
     if(copyToHost(profiles,model.profile,count,"read solved wall profile nodes"))return 1;
     *stageTime=s->gasBoundaryLayerStageTime;
-    return 0;
+    return s->diagnosticOwner->completeReadback();
 }

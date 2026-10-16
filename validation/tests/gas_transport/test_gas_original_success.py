@@ -7,6 +7,7 @@ from validation.tools.paths import SOURCE_ROOT, VALIDATION_ROOT, CASES_ROOT
 
 from pathlib import Path
 import io
+import re
 import subprocess
 import tarfile
 import pytest
@@ -22,6 +23,8 @@ from test_native_original_success import original_native_root as original_root
 
 def build_run(folder,label,root,body):
     pre=((VALIDATION_ROOT / 'tests/gas_transport/gas_state_probe.cpp')).read_text().split('void hashBytes')[0]
+    if not (root/"common/Diagnostics.H").exists():
+        body=re.sub(r"^s\.diagnostics=.*;\n", "", body, flags=re.MULTILINE)
     src=folder/(label+'.cpp');exe=folder/label;src.write_text(pre+body)
     cmd=['g++','-std=c++17','-O2','-ffp-contract=off','-I'+str(root/'common'),'-I'+str(root/'common/gasNumerics'),'-I'+str(HERE),str(src),'-o',str(exe)]
     result=subprocess.run(cmd,capture_output=True,text=True)
@@ -113,26 +116,28 @@ for(int k=0;k<4;++k)std::printf("%a ",double(s.gasSpecies.positivityScale[k]));s
     assert actual==expected
 
 @pytest.mark.parametrize('field',['energy','momentum','sst'])
-def test_exact_blend_normal_return_publication(tmp_path,original_root,field):
+def test_nonfinite_blend_records_without_publication(tmp_path,field):
     set_field={'energy':'s.rhoE[0]=s.rhoENext[0]=std::numeric_limits<double>::infinity();',
                'momentum':'s.rhoUx[0]=s.rhoUxNext[0]=std::numeric_limits<Real>::infinity();',
                'sst':'s.sstConfigured=1;s.rhoK[0]=s.rhoKInitial[0]=std::numeric_limits<Real>::infinity();'}[field]
     body=source_fixture()+PRINT+r'''
 int main(){DeviceState s;setup(s);saveGasConservativeStateKernel(&s);SET_FIELD
-blendGasConservativeStateKernel(&s,.5,.5);output(s);}
+ugkp::diagnostics::DeviceContext diagnostics{};s.diagnostics=&diagnostics;
+const auto omega=s.rhoOmega[0];blendGasConservativeStateKernel(&s,.5,.5);
+ck(ugkp::diagnostics::hasFatal(&diagnostics),"nonfinite blend not diagnosed");
+ck(s.rhoOmega[0]==omega,"failed blend published later fields");}
 '''.replace('SET_FIELD',set_field)
-    expected=build_run(tmp_path,'original',original_root,body)
-    actual=build_run(tmp_path,'corrected',ROOT,body)
-    assert actual==expected
+    build_run(tmp_path,'corrected',ROOT,body)
 
 @pytest.mark.parametrize('field',['energy','momentum'])
-def test_exact_fixed_divergence_normal_return(tmp_path,original_root,field):
+def test_nonfinite_fixed_divergence_records_without_publication(tmp_path,field):
     set_field={'energy':'s.rhoE[0]=std::numeric_limits<double>::infinity();',
                'momentum':'s.rhoUx[0]=std::numeric_limits<Real>::infinity();'}[field]
     body=source_fixture()+PRINT+r'''
 int main(){DeviceState s;setup(s);SET_FIELD
-applyGasFluxDivergenceByCellKernel(&s,.01);output(s);}
+ugkp::diagnostics::DeviceContext diagnostics{};s.diagnostics=&diagnostics;
+const auto density=s.rho[0];applyGasFluxDivergenceByCellKernel(&s,.01);
+ck(ugkp::diagnostics::hasFatal(&diagnostics),"nonfinite divergence not diagnosed");
+ck(s.rho[0]==density,"failed divergence published state");}
 '''.replace('SET_FIELD',set_field)
-    expected=build_run(tmp_path,'original',original_root,body)
-    actual=build_run(tmp_path,'corrected',ROOT,body)
-    assert actual==expected
+    build_run(tmp_path,'corrected',ROOT,body)

@@ -153,5 +153,5 @@ extern "C" int ugkwpGpuResidentStrictDownloadBoundaryLayerV1
 
         for(unsigned k=0;k<species;++k){r[25+k]=o.wallSpeciesFlux[k];r[25+species+k]=o.reactionIntegral[k];}
     }
-    std::copy(result.begin(),result.end(),diagnostics);return 0;
+    std::copy(result.begin(),result.end(),diagnostics);return s->diagnosticOwner->completeReadback();
 }

@@ -2,16 +2,22 @@
 #define CHMT_MATERIALS_REACTIONSTEPCONTROL_H
 #include "materials/Reaction.H"
 namespace chmt {
+CHMT_HD inline bool reactionControlFailure(const PhysicsConfig& p,ugkp::diagnostics::Code code,
+    unsigned site,Real value,int component=-1,unsigned quantity=ugkp::diagnostics::Quantity::Unspecified) {
+    using namespace ugkp::diagnostics;
+    recordFatal(p.diagnostics,makeRecord(code,site,4,0,EntityKind::Cell,-1,component,value,0,0,quantity));
+    return false;
+}
 // Shared host/device timestep mathematics. No state is committed by these
 // helpers: CPU chemistry and the retained CUDA explicit controller use the same
-// constant-U rate bound and the same conservative Euler defect estimator.
+// constant-U rate bound and conservative Euler advancement.
 struct ReactionStepControl {
     Real temperature=0,capacity=0,massTolerance=0,dtLimit=std::numeric_limits<Real>::max();
     Real sensitivity=0,extentEnergy[Nr]{},stoichiometricMass[Nr]{};
     bool active=false;
 };
 // A first-order factor has a finite derivative at zero. Singular fractional
-// factors have no finite Jacobian bound; the trial-step defect controls them.
+// factors have no finite Jacobian bound; inventory limiting still applies.
 CHMT_HD inline Real reactionMassDerivative(const Reaction& reaction,int component,const SolidQ& q,
     Real volume,Real temperature,Real rate) {
     const Real order=reaction.order[component],mass=q.condensed[component];
@@ -24,22 +30,23 @@ CHMT_HD inline Real reactionMassDerivative(const Reaction& reaction,int componen
         derivative*=::pow(q.condensed[k]/volume,reaction.order[k]);
     return derivative;
 }
-template<bool Terminal=false>
 CHMT_HD inline bool reactionStepControl(const SolidQ& state,Real volume,const PhysicsConfig& p,
     Real cfl,ReactionStepControl& output,bool* numericalFailure=nullptr) {
     if(numericalFailure)*numericalFailure=true;
-    if(!Terminal&&(!(cfl>0&&cfl<=1)||p.nReactions<0||p.nReactions>Nr))return false;
-    MaterialPrimitive material;if(!recoverMaterial<Terminal>(state,volume,p,material,nullptr,-1,numericalFailure))return false;
+    if(!(cfl>0&&cfl<=1))return reactionControlFailure(p,finite(cfl)?ugkp::diagnostics::Code::InvalidPhysicalState:ugkp::diagnostics::Code::NonFinite,4110,cfl);
+    if(p.nReactions<0||p.nReactions>Nr)return reactionControlFailure(p,ugkp::diagnostics::Code::InvalidIndex,4111,p.nReactions);
+    MaterialPrimitive material;if(!recoverMaterial<false>(state,volume,p,material,nullptr,-1,numericalFailure))return false;
     ReactionStepControl c;c.temperature=material.temperature;
     Real mass=0,a1=0,a2=0;
     for(int k=0;k<Nc;++k){mass+=state.condensed[k];a1+=state.condensed[k]*p.condensed[k].cp0;a2+=state.condensed[k]*p.condensed[k].cp1;}
-    for(int s=0;s<Ns;++s){mass+=state.pore[s];if(state.pore[s]>0)a1+=state.pore[s]*(Terminal?terminalSpeciesCv(p.species[s],c.temperature):speciesCv(p.species[s],c.temperature));}
+    for(int s=0;s<Ns;++s){mass+=state.pore[s];if(state.pore[s]>0)a1+=state.pore[s]*(speciesCv(p.species[s],c.temperature));}
     c.capacity=a1+a2*c.temperature;c.massTolerance=maxValue(p.tolerances.absoluteMass,64*std::numeric_limits<Real>::epsilon()*mass);
-    if(!Terminal&&(!(c.capacity>0)||!finite(c.capacity)||!finite(c.massTolerance)||c.massTolerance<0))return false;
+    if(!(c.capacity>0)||!finite(c.capacity))return reactionControlFailure(p,!finite(c.capacity)?ugkp::diagnostics::Code::NonFinite:c.capacity==0?ugkp::diagnostics::Code::ZeroDenominator:ugkp::diagnostics::Code::InvalidPhysicalState,4112,c.capacity);
+    if(!finite(c.massTolerance)||c.massTolerance<0)return reactionControlFailure(p,!finite(c.massTolerance)?ugkp::diagnostics::Code::NonFinite:ugkp::diagnostics::Code::InvalidPhysicalState,4113,c.massTolerance);
     if(!p.enableReactions){output=c;return true;}
     SolidQ loss;Real stageRates[Nr]{};bool negligible[Nr]{};
-    for(int r=0;r<p.nReactions;++r){const auto& reaction=p.reactions[r];const Real rate=reactionRate<Terminal>(reaction,state.condensed,volume,c.temperature);
-        if(!Terminal&&(!finite(rate)||rate<0))return false;
+    for(int r=0;r<p.nReactions;++r){const auto& reaction=p.reactions[r];const Real rate=reactionRate<false>(reaction,state.condensed,volume,c.temperature);
+        if(!finite(rate)||rate<0)return reactionControlFailure(p,!finite(rate)?ugkp::diagnostics::Code::NonFinite:ugkp::diagnostics::Code::InvalidPhysicalState,4114,rate,r);
         stageRates[r]=rate;c.active=c.active||rate>0;
         Real donorExtent=std::numeric_limits<Real>::max();bool fractionalDonor=false;
         for(int k=0;k<Nc;++k){const Real nu=reaction.condensedNu[k];loss.condensed[k]+=rate*maxValue(0,-nu);c.extentEnergy[r]+=nu*condensedE(p.condensed[k],c.temperature);
@@ -48,7 +55,7 @@ CHMT_HD inline bool reactionStepControl(const SolidQ& state,Real volume,const Ph
         for(int s=0;s<Ns;++s){const Real nu=reaction.gasNu[s];loss.pore[s]+=rate*maxValue(0,-nu);c.extentEnergy[r]+=nu*speciesE(p.species[s],c.temperature);
             c.stoichiometricMass[r]+=absValue(nu);if(nu<0)donorExtent=minValue(donorExtent,state.pore[s]/(-nu));}
         // Only tolerance-sized fractional donor changes may bypass a singular
-        // bound at extinction. The aggregate limiter and defect still apply;
+        // bound at extinction. The aggregate limiter still applies;
         // no component inventory is clipped, discarded, or artificially seeded.
         negligible[r]=fractionalDonor&&rate>0&&donorExtent*c.stoichiometricMass[r]<=c.massTolerance;
     }
@@ -63,59 +70,29 @@ CHMT_HD inline bool reactionStepControl(const SolidQ& state,Real volume,const Ph
         for(int j=0;j<p.nReactions;++j){Real entry=-dT*c.extentEnergy[j]/c.capacity;
             for(int k=0;k<Nc;++k)entry+=dm[k]*p.reactions[j].condensedNu[k];
             row+=absValue(entry);}
-        if(!Terminal&&(!finite(row)))return false;
+        if(!finite(row))return reactionControlFailure(p,ugkp::diagnostics::Code::NonFinite,4115,row,r);
         c.sensitivity=maxValue(c.sensitivity,row);
     }
     for(int k=0;k<Nc;++k)if(loss.condensed[k]>0&&state.condensed[k]>c.massTolerance)c.dtLimit=minValue(c.dtLimit,cfl*state.condensed[k]/loss.condensed[k]);
     for(int s=0;s<Ns;++s)if(loss.pore[s]>0&&state.pore[s]>c.massTolerance)c.dtLimit=minValue(c.dtLimit,cfl*state.pore[s]/loss.pore[s]);
     if(c.sensitivity>0)c.dtLimit=minValue(c.dtLimit,cfl/c.sensitivity);
-    if(!Terminal&&(!(c.dtLimit>0)||!finite(c.dtLimit)))return false;
+    if(!(c.dtLimit>0)||!finite(c.dtLimit))return reactionControlFailure(p,!finite(c.dtLimit)?ugkp::diagnostics::Code::NonFinite:ugkp::diagnostics::Code::InvalidPhysicalState,4116,c.dtLimit);
     output=c;return true;
 }
-// Select one admissible local step. The full Euler state is returned; the two
-// half steps are only an error estimate, not a change to the accepted method.
-// Failure leaves output, step and active unchanged. The bounded retry loop is
-// shared with CUDA timestep selection, not a second GPU chemistry integrator.
-
-
-
-CHMT_HD inline bool completeReactionStep(const SolidQ& state,Real volume,const PhysicsConfig& p,
-    Real maximumStep,Real        ,SolidQ& output,Real& step,bool& active,bool* numericalFailure) {
-    SolidQ full;Real rates[Nr]{};
-    if(!advanceLocalReactions<true>(state,volume,p,maximumStep,full,rates,nullptr,-1,numericalFailure))return false;
-    output=full;step=maximumStep;active=true;return true;
-}
-template<bool Terminal=false>
+// Advance one full conservative Euler step selected from the rate/CFL bound.
+// There is no defect-estimator integration or failed-step repetition.
 CHMT_HD inline bool reactionStepCandidate(const SolidQ& state,Real volume,const PhysicsConfig& p,
     Real maximumStep,Real cfl,SolidQ& output,Real& step,bool& active,bool* numericalFailure=nullptr) {
-    if(Terminal){
-        if(reactionStepCandidate<false>(state,volume,p,maximumStep,cfl,output,step,active,numericalFailure))return true;
-        return completeReactionStep(state,volume,p,maximumStep,cfl,output,step,active,numericalFailure);
-    }
     if(numericalFailure)*numericalFailure=true;
-    if(!(maximumStep>0)||!finite(maximumStep))return false;
+    if(!(maximumStep>0)||!finite(maximumStep))return reactionControlFailure(p,!finite(maximumStep)?ugkp::diagnostics::Code::NonFinite:ugkp::diagnostics::Code::InvalidPhysicalState,4117,maximumStep);
     ReactionStepControl c;if(!reactionStepControl(state,volume,p,cfl,c,numericalFailure))return false;
     if(!c.active){output=state;step=maximumStep;active=false;return true;}
-    Real dt=minValue(maximumStep,c.dtLimit);
-    for(int retry=0;retry<40;++retry){if(!finite(dt)||!(dt>0)||dt/2==0)break;
-        SolidQ full,half,refined;Real rates[Nr]{},unused[Nr]{};MaterialPrimitive fullState,refinedState;
-        if(advanceLocalReactions(state,volume,p,dt,full,rates,nullptr,-1,numericalFailure)
-            &&advanceLocalReactions(state,volume,p,dt/2,half,unused,nullptr,-1,numericalFailure)
-            &&advanceLocalReactions(half,volume,p,dt/2,refined,unused,nullptr,-1,numericalFailure)
-            &&recoverMaterial(full,volume,p,fullState,nullptr,-1,numericalFailure)&&recoverMaterial(refined,volume,p,refinedState,nullptr,-1,numericalFailure)){
-            Real defect=0,variation=0,thermalVariation=0;
-            for(int k=0;k<Nc;++k)defect+=absValue(full.condensed[k]-refined.condensed[k]);
-            for(int s=0;s<Ns;++s)defect+=absValue(full.pore[s]-refined.pore[s]);
-            for(int r=0;r<p.nReactions;++r){variation+=dt*rates[r]*c.stoichiometricMass[r];thermalVariation+=dt*rates[r]*absValue(c.extentEnergy[r])/c.capacity;}
-            const Real temperatureTolerance=p.tolerances.absoluteTemperature+p.tolerances.relativeTemperature
-                *maxValue(absValue(fullState.temperature),absValue(refinedState.temperature));
-            if(defect<=Real(.25)*cfl*variation+c.massTolerance
-                &&absValue(fullState.temperature-refinedState.temperature)<=Real(.25)*cfl*thermalVariation+temperatureTolerance){
-                output=full;step=dt;active=true;return true;}
-        }
-        dt*=.5;
-    }
-    return false;
+    const Real dt=minValue(maximumStep,c.dtLimit);
+    SolidQ full;Real rates[Nr]{};
+    if(!advanceLocalReactions(state,volume,p,dt,full,rates,nullptr,-1,numericalFailure))return false;
+    MaterialPrimitive endpoint;
+    if(!recoverMaterial(full,volume,p,endpoint,nullptr,-1,numericalFailure))return false;
+    output=full;step=dt;active=true;return true;
 }
 }
 #endif

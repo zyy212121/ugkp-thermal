@@ -27,16 +27,6 @@ namespace chmt {
     bool surfaceAreaMetricChange(const SurfaceMesh&, std::vector<Real>&, std::string&);
     bool integrateSurfaceEdgeSweep(const HostMesh&, const std::vector<Vec3>&, int faceOwner, int faceNeighbour,
         int pointA, int pointB, int segments, Real&, std::string&);
-    namespace detail {
-    bool completeConformalInterface(const HostMesh&,const HostMesh&,const std::vector<int>&,
-        const std::vector<Real>&,const std::vector<int>&,std::vector<int>&,std::vector<int>&,std::string&);
-    bool completeGeometry(HostMesh&,std::string&,bool* numericalFailure=nullptr);
-    bool completeStageAreaVectors(const HostMesh&,const std::vector<Vec3>&,std::vector<Vec3>&,std::string&,bool* numericalFailure=nullptr);
-    bool completeStageGeometry(const HostMesh&,const std::vector<Vec3>&,double,HostMesh&,std::vector<double>&,
-        std::string&,const Tolerances& =Tolerances{},bool* numericalFailure=nullptr);
-    bool completeHarmonicPointMotion(const HostMesh&,const std::vector<Vec3>&,const std::vector<unsigned char>&,
-        std::vector<Vec3>&,std::string&,bool* numericalFailure=nullptr);
-    }
     Real maximumGclResidual(const HostMesh& oldMesh, const HostMesh& newMesh, const std::vector<Real>& sweeps);
 }
 #endif

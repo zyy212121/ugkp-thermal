@@ -10,7 +10,7 @@ struct MaterialCaloric {
     template<bool Terminal=false>
     Real energy(Real T) const {
         Real result=caloricIntegral(a0,a1,a2,T);
-        for(int s=0;s<Ns;++s)if(pore[s]>0)result+=pore[s]*(Terminal?terminalSpeciesE(gas[s],T):speciesE(gas[s],T));
+        for(int s=0;s<Ns;++s)if(pore[s]>0)result+=pore[s]*speciesE(gas[s],T);
         return result;
     }
     template<bool Terminal=false>
@@ -32,21 +32,21 @@ inline bool materialCaloric(const SolidQ& q,const PhysicsConfig& p,
     MaterialCaloric c; c.maximumTemperature=std::numeric_limits<Real>::max(); Real mass=0;
     for(int i=0;i<Nc;++i){
         const Real m=q.condensed[i];const auto& t=p.condensed[i];
-        if(!Terminal&&(!finite(m)||m<0)){error="negative/nonfinite condensed caloric inventory";return false;}
+        if((!finite(m)||m<0)){error="negative/nonfinite condensed caloric inventory";return false;}
         if(m==0)continue;
-        if(!Terminal&&!validCondensed(t)){error="invalid active condensed caloric table";return false;}
+        if(!validCondensed(t)){error="invalid active condensed caloric table";return false;}
         c.a0+=m*t.e0;c.a1+=m*t.cp0;c.a2+=m*t.cp1;mass+=m;
         c.minimumTemperature=maxValue(c.minimumTemperature,t.Tmin);c.maximumTemperature=minValue(c.maximumTemperature,t.Tmax);
     }
     for(int i=0;i<Ns;++i){
         const Real m=q.pore[i];const auto& t=p.species[i];
-        if(!Terminal&&(!finite(m)||m<0)){error="negative/nonfinite pore caloric inventory";return false;}
+        if((!finite(m)||m<0)){error="negative/nonfinite pore caloric inventory";return false;}
         if(m==0)continue;
-        if(Terminal?(t.model!=ugkwp::SpeciesThermoModel::LinearCp&&t.model!=ugkwp::SpeciesThermoModel::NASA7):!validSpecies(t)){if(numericalFailure)*numericalFailure=t.model==ugkwp::SpeciesThermoModel::LinearCp||t.model==ugkwp::SpeciesThermoModel::NASA7;error="invalid active pore caloric table";return false;}
+        if(!validSpecies(t)){if(numericalFailure)*numericalFailure=t.model==ugkwp::SpeciesThermoModel::LinearCp||t.model==ugkwp::SpeciesThermoModel::NASA7;error="invalid active pore caloric table";return false;}
         c.gas[i]=t;c.pore[i]=m;mass+=m;
         c.minimumTemperature=maxValue(c.minimumTemperature,t.Tmin);c.maximumTemperature=minValue(c.maximumTemperature,t.Tmax);
     }
-    if(!Terminal&&(!(mass>0)||!finite(c.a0)||!finite(c.a1)||!finite(c.a2)
+    if((!(mass>0)||!finite(c.a0)||!finite(c.a1)||!finite(c.a2)
         ||!(c.maximumTemperature>c.minimumTemperature)||!(c.capacity(c.minimumTemperature)>0)
         ||!(c.capacity(c.maximumTemperature)>0))) {error="inadmissible material caloric state";return false;}
     out=c;error.clear();return true;

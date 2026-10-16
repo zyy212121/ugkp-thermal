@@ -250,7 +250,7 @@ void twoUlpPressureOpenEdge() {
     for(int f=0;f<2;++f){const Real pressure=f?pressure1:pressure0;auto& q=h.film[f];q.mass=.0025;q.species[0]=q.mass*.2;q.species[1]=q.mass-q.species[0];q.enthalpy=q.mass*liquidH(p,350,pressure);h.filmAux[f].normal=n;require(recoverFilm(q,.25,pressure,p,h.filmAux[f]),"two-ulp fixture thermal inventory");d[f].pressure=d[f].endpointPressure=pressure;d[f].hasCoupledNormalTrace=true;forcing[f].topWorkIncluded=forcing[f].bottomWorkIncluded=true;}
     const Real fullDt=1.2207031249998656e-7;
     for(int halves:{0,30}){const Real requested=std::ldexp(fullDt,-halves);std::string error;std::vector<FilmQ> rates;std::vector<FilmAux> profiles;
-        require(detail::completeCpuFilmTransport(h,p,requested,d,rates,error,&profiles,nullptr,nullptr,nullptr),"two-ulp actual profile observation: "+error);
+        require(evaluateCpuFilmTransport(h,p,requested,d,rates,error,&profiles,nullptr,nullptr,nullptr),"two-ulp actual profile observation: "+error);
         const Real signedLengthRate=h.surface.edgeLength[0]*dot(profiles[0].meanVelocity,h.surface.edgeConormal[0]);
         require(std::isfinite(signedLengthRate)&&signedLengthRate<0,"two-ulp pressure difference produces strictly negative finite open-edge rate");
         const bool ordinaryTransport=evaluateCpuFilmTransport(h,p,requested,d,rates,error);

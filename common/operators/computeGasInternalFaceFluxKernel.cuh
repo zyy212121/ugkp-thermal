@@ -65,11 +65,12 @@ __global__ void enforcePeriodicGasFluxAntisymmetryKernel(GasState* sp, const boo
     const GPU_OPERATOR_REAL rhoUy = GPU_OPERATOR_R(0.5)*(s.gasPhiRhoUy[f] - s.gasPhiRhoUy[pair]);
     const GPU_OPERATOR_REAL rhoUz = GPU_OPERATOR_R(0.5)*(s.gasPhiRhoUz[f] - s.gasPhiRhoUz[pair]);
     const GPU_OPERATOR_REAL rhoE = GPU_OPERATOR_R(0.5)*(s.gasPhiRhoE[f] - s.gasPhiRhoE[pair]);
-    if(!nativeRefinement && (!ugkwp::gasFinite(rho)||!ugkwp::gasFinite(rhoUx)||!ugkwp::gasFinite(rhoUy)
+    if((!ugkwp::gasFinite(rho)||!ugkwp::gasFinite(rhoUx)||!ugkwp::gasFinite(rhoUy)
         ||!ugkwp::gasFinite(rhoUz)||!ugkwp::gasFinite(rhoE)))
     {
         ugkwp::gasRecordFaceFailure(s,f,ugkwp::GasTransportCode::NonFiniteState);
         ugkwp::gasRecordFaceFailure(s,pair,ugkwp::GasTransportCode::NonFiniteState);
+        return;
     }
     if(nativeRefinement)
     {
@@ -87,18 +88,20 @@ __global__ void enforcePeriodicGasFluxAntisymmetryKernel(GasState* sp, const boo
             for(int k=0;k<Ns;++k)
             {
                 const auto* flux=s.gasSpecies.flux+k*s.nFaces;
-                if(!nativeRefinement && (!ugkwp::gasFinite(flux[f])||!ugkwp::gasFinite(flux[pair])))
+                if((!ugkwp::gasFinite(flux[f])||!ugkwp::gasFinite(flux[pair])))
                 {
                     ugkwp::gasRecordFaceFailure(s,f,ugkwp::GasTransportCode::NonFiniteState);
                     ugkwp::gasRecordFaceFailure(s,pair,ugkwp::GasTransportCode::NonFiniteState);
+                    return;
                 }
                 valid=valid&&ugkwp::gasFinite(flux[f])&&ugkwp::gasFinite(flux[pair]);
                 sumF+=flux[f];sumPair+=flux[pair];magF+=fabs(flux[f]);magPair+=fabs(flux[pair]);
                 value[k]=GPU_OPERATOR_R(.5)*(flux[f]-flux[pair]);
-                if(!nativeRefinement && !ugkwp::gasFinite(value[k]))
+                if(!ugkwp::gasFinite(value[k]))
                 {
                     if(!ugkwp::gasRecordFaceFailure(s,f,ugkwp::GasTransportCode::NonFiniteState))asm("trap;");
                     ugkwp::gasRecordFaceFailure(s,pair,ugkwp::GasTransportCode::NonFiniteState);
+                    return;
                 }
                 sum+=value[k];mag+=fabs(value[k]);
             }
@@ -135,11 +138,19 @@ __global__ void enforcePeriodicGasFluxAntisymmetryKernel(GasState* sp, const boo
                 valid=valid&&carrier>=0;
                 if(valid)value[carrier]=replacement;
             }
-            if(nativeRefinement && !valid)
+            if(!ugkwp::gasFinite(sumF)||!ugkwp::gasFinite(sumPair)||!ugkwp::gasFinite(sum)
+                ||!ugkwp::gasFinite(magF)||!ugkwp::gasFinite(magPair)||!ugkwp::gasFinite(mag))
             {
-                ugkwp::gasRecordFaceFailure(s,f,ugkwp::GasTransportCode::InvalidComposition);
-                ugkwp::gasRecordFaceFailure(s,pair,ugkwp::GasTransportCode::InvalidComposition);
+                using namespace ugkp::diagnostics;
+                const double value=!ugkwp::gasFinite(sumF)?sumF:!ugkwp::gasFinite(sumPair)?sumPair:!ugkwp::gasFinite(sum)?sum:!ugkwp::gasFinite(magF)?magF:!ugkwp::gasFinite(magPair)?magPair:mag;
+                if(s.diagnostics)recordFatal(s.diagnostics,makeRecord(Code::NonFinite,2670,31,0,EntityKind::Face,f,-1,value));
                 return;
+            }
+            if(!valid)
+            {
+                using namespace ugkp::diagnostics;
+                recordWarning(s.diagnostics,makeRecord(Code::ConservationResidual,2671,31,0,
+                    EntityKind::Face,f,-1,sum,rho,sum,Quantity::Conservation));
             }
             for(int k=0;k<Ns;++k)
             {

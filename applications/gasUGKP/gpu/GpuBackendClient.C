@@ -1,3 +1,4 @@
+#include "../../../common/DiagnosticsCodec.H"
 #include "GpuBackendApi.H"
 #include "GpuBackendProtocol.H"
 #include "../../../common/gasTransport/GasBuildConfig.H"
@@ -25,6 +26,12 @@ using namespace ugkwpGpuIpc;
 struct ClientState
 {
     int fd = -1;
+    bool terminalDiagnostic = false;
+    std::uint64_t diagnosticSequence=0;
+    std::int64_t diagnosticStep=-1;
+    double diagnosticTime=0;
+    ugkp::diagnostics::Snapshot diagnostics;
+    ugkp::diagnostics::HostSink diagnosticSink;
     bool responseActive = false;
     std::uint64_t responseRemaining = 0;
     pid_t childPid = -1;
@@ -120,6 +127,20 @@ bool sendObject(const int fd, const T& value)
 
 template<class T> bool receiveObject(const int fd,T& value,ClientState* state = nullptr)
 {
+    if constexpr (std::is_same<T,ResponseHeader>::value) {
+        std::array<unsigned char,WireCodec<T>::size> bytes{};
+        if(!readAll(fd,bytes.data(),8,state))return false;
+        std::uint32_t receivedMagic;std::uint16_t major,minor;
+        decodeWireScalar(bytes.data(),receivedMagic);decodeWireScalar(bytes.data()+4,major);decodeWireScalar(bytes.data()+6,minor);
+        if(receivedMagic!=magic || major!=protocolMajor || minor!=protocolMinor) {
+            lastError="GPU backend response framing/version mismatch: expected "+std::to_string(protocolMajor)+"."+std::to_string(protocolMinor)
+                +", received "+std::to_string(major)+"."+std::to_string(minor);
+            return false;
+        }
+        if(!readAll(fd,bytes.data()+8,bytes.size()-8,state))return false;
+        WireCodec<T>::decode(bytes.data(),value);return true;
+    }
+
     if (wireLittleEndian() && WireCodec<T>::nativeLayout)
         return readAll(fd,&value,WireCodec<T>::size,state);
     std::array<unsigned char,WireCodec<T>::size> bytes{};
@@ -184,11 +205,13 @@ bool startRequest(ClientState* state, const Op op, const std::uint64_t bytes)
         lastError = "invalid GPU backend client handle";
         return false;
     }
+    if (state->terminalDiagnostic && op!=Op::release) {lastError="GPU backend has a fatal diagnostic";return false;}
     if (!discardResponse(state)) return false;
     const RequestHeader header
     {
         magic, protocolMajor, protocolMinor,
-        static_cast<std::uint32_t>(op), 0U, bytes
+        static_cast<std::uint32_t>(op), 0U, bytes,
+        state->diagnosticSequence,state->diagnosticStep,state->diagnosticTime
     };
     return sendObject(state->fd, header);
 }
@@ -211,15 +234,26 @@ int receiveResponse
     {
         return -1;
     }
+    std::vector<std::uint8_t> diagnosticBytes(response.diagnosticBytes);
+    if(!diagnosticBytes.empty() && !readAll(state->fd,diagnosticBytes.data(),diagnosticBytes.size())) return -1;
+    state->diagnostics=ugkp::diagnostics::Snapshot{};
+    if(!diagnosticBytes.empty()) {
+        std::string decodeError;
+        if(!ugkp::diagnostics::decode(diagnosticBytes.data(),diagnosticBytes.size(),state->diagnostics,decodeError))
+            return fail("GPU backend diagnostic envelope: "+decodeError);
+    }
+    state->terminalDiagnostic=state->diagnostics.hasFatal;
+    if(state->diagnosticSink.fatal || state->diagnosticSink.warning)
+        ugkp::diagnostics::dispatch(state->diagnostics,state->diagnosticSink);
     state->responseRemaining=response.payloadBytes;
     state->responseActive=true;
-    if (response.status != 0)
+    if (response.status != 0 || state->terminalDiagnostic)
     {
         if (!discardResponse(state)) return -1;
         lastError = backendError.empty()
           ? "GPU backend returned an unspecified error"
           : backendError;
-        return response.status;
+        return response.status ? response.status : -1;
     }
     if (requireExact && response.payloadBytes < expectedBytes)
     {
@@ -898,7 +932,7 @@ extern "C" int ugkwpGpuResidentStrictDownloadNut
     return receiveArray(s->fd, nut, s->nCells,s) && discardResponse(s) ? 0 : -1;
 }
 
-extern "C" void ugkwpGpuResidentStrictRelease(void* handle)
+extern "C" void ugkwpGpuResidentStrictReleaseDiagnostics(void* handle,ugkp::diagnostics::Snapshot* snapshot)
 {
     ClientState* s = static_cast<ClientState*>(handle);
     if (s == nullptr) return;
@@ -919,6 +953,7 @@ extern "C" void ugkwpGpuResidentStrictRelease(void* handle)
         while (::waitpid(s->childPid, &childStatus, 0) < 0 && errno == EINTR) {}
         s->childPid = -1;
     }
+    if(snapshot)*snapshot=s->diagnostics;
     delete s;
 }
 
@@ -1074,4 +1109,30 @@ extern "C" int ugkwpGpuResidentStrictDownloadBoundaryLayerProfilesV1
     *stageTime=staged[0];
     std::copy(staged.begin()+1,staged.end(),profiles);
     return discardResponse(s)?0:-1;
+}
+
+extern "C" void ugkwpGpuResidentStrictSetDiagnosticSink(void* handle,const ugkp::diagnostics::HostSink* sink)
+{
+    auto* state=static_cast<ClientState*>(handle);
+    if(state && sink) state->diagnosticSink=*sink;
+}
+extern "C" int ugkwpGpuResidentStrictCollectDiagnostics(void* handle,ugkp::diagnostics::Snapshot* snapshot)
+{
+    auto* state=static_cast<ClientState*>(handle);
+    if(!state || !snapshot)return 1;
+    *snapshot=state->diagnostics;
+    return snapshot->hasFatal ? 1 : 0;
+}
+
+extern "C" void ugkwpGpuResidentStrictRelease(void* handle)
+{
+    ugkwpGpuResidentStrictReleaseDiagnostics(handle,nullptr);
+}
+
+extern "C" int ugkwpGpuResidentStrictSetDiagnosticOperation(void* handle,std::uint64_t sequence,std::int64_t step,double time)
+{
+    auto* state=static_cast<ClientState*>(handle);
+    if(!state)return -1;
+    state->diagnosticSequence=sequence;state->diagnosticStep=step;state->diagnosticTime=time;
+    return 0;
 }

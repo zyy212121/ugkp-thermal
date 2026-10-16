@@ -27,6 +27,9 @@
 #include <vector>
 namespace chmt {
 struct Backend {
+    ugkp::diagnostics::GpuOwner diagnostics;
+    ugkp::diagnostics::DeviceContext hostDiagnostics{};
+    ugkp::diagnostics::HostSink diagnosticSink;
     ModelConfig model;GasExecutionOptions options;HostState accepted,trial,microBase;
     HostMesh endpointGas,endpointSolid;SurfaceMesh endpointSurface;HostStageGeometry gasStage,solidStage;
     SharedGasDeviceStorage storage;WallProgram program;IntervalHistory history;MaterialDonorReserve reserve;
@@ -52,7 +55,7 @@ inline void bindSharedGasStorage(Backend& b){
     b.deviceState=b.storage.deviceView();b.nCells=view.nCells;b.nFaces=view.nFaces;
 }
 inline WindowTime coupledStageTime(const Backend& b){return b.elapsed+(b.gasStageIndex==0?0:b.gasStageIndex==1?b.microDt:.5*b.microDt);}
-bool restoreGasSnapshot(Backend&,const HostState&,std::string&);
+bool loadGasWindowState(Backend&,const HostState&,std::string&);
 int prepareCoupledGeometry(Backend*);
 int finishCoupledGeometry(Backend*);
 int prepareCoupledBoundaryLayer(Backend*,Real,Real);
@@ -90,6 +93,7 @@ struct GasPrimDevice {double rho,ux,uy,uz,p,T;};
 
 template<class State>
 __global__ void refreshCoupledWallFluxKernel(State* state){
+    if(!ugkp::diagnostics::blockMayProceed(state->diagnostics))return;
     const int slot=blockIdx.x*blockDim.x+threadIdx.x;
     if(slot>=state->gasBoundaryLayer.count)return;
     const int face=state->gasBoundaryLayerModel.faces[slot];
@@ -134,12 +138,7 @@ struct CoupledTrialPolicy {
         if(b->gasBoundaryLayer.enabled){b->trial.gasWallDiagnostics=b->preparedWallLayers;b->trial.gasWallDiagnosticTime=b->stageTime;}
         b->trial.time=b->record.end;return 0;
     }
-    static void rollback(Backend* b){
-        std::string rollbackError;
-        if(!restoreGasSnapshot(*b,b->microBase,rollbackError)){
-            b->error+="; rollback failed: "+rollbackError;
-        }
-    }
+
 };
 }}
 namespace chmt {
@@ -148,6 +147,7 @@ bool readBulk(Backend& b,std::vector<GasPrimitive>& primitive,std::vector<GasGra
     const auto& v=b.storage.hostView();const std::size_t n=b.nCells;std::vector<Real> rho,T,p,ux,uy,uz,sound,Y;
     const bool mixture=v.gasSpecies.mode!=ugkwp::GasMode::SingleLegacy;
     if(!b.storage.read(v.rho,n,rho)||!b.storage.read(v.Tgas,n,T)||!b.storage.read(v.p,n,p)||!b.storage.read(v.Ux,n,ux)||!b.storage.read(v.Uy,n,uy)||!b.storage.read(v.Uz,n,uz)||(mixture&&(!b.storage.read(v.gasSpecies.soundSpeed,n,sound)||!b.storage.read(v.gasSpecies.rho,Ns*n,Y))))return false;
+    if(!b.storage.observeDiagnostics())return false;
     primitive.resize(n);gradient.resize(n);
     for(std::size_t c=0;c<n;++c){auto& w=primitive[c];w.rho=rho[c];w.temperature=T[c];w.pressure=p[c];w.velocity={ux[c],uy[c],uz[c]};w.soundSpeed=mixture?sound[c]:std::sqrt(v.gammaGas*p[c]/rho[c]);for(int s=0;s<Ns;++s)w.Y[s]=mixture?Y[s*n+c]/rho[c]:(s==b.model.physics.singleGasSpecies?1:0);}
     const Real* components[]={v.gradRhoX,v.gradRhoY,v.gradRhoZ,v.gradTX,v.gradTY,v.gradTZ,v.gradPx,v.gradPy,v.gradPz,v.gradUxX,v.gradUxY,v.gradUxZ,v.gradUyX,v.gradUyY,v.gradUyZ,v.gradUzX,v.gradUzY,v.gradUzZ};
@@ -160,7 +160,7 @@ bool fluxes(Backend& b,std::vector<GasQ>& values,bool writing){
     auto& v=b.storage.hostView();const int nf=b.nFaces;Real* field[]={v.gasPhiRho,v.gasPhiRhoUx,v.gasPhiRhoUy,v.gasPhiRhoUz,v.gasPhiRhoE};
     if(!writing)values.assign(nf,GasQ{});
     for(int j=0;j<5;++j){std::vector<Real>a(nf);if(writing){for(int f=0;f<nf;++f){const auto&q=values[f];a[f]=j==0?q.mass:j==1?q.momentum.x:j==2?q.momentum.y:j==3?q.momentum.z:q.energy;}if(!b.storage.write(field[j],a))return false;}
-        else {if(!b.storage.read(field[j],nf,a))return false;for(int f=0;f<nf;++f){auto&q=values[f];if(j==0)q.mass=a[f];else if(j==1)q.momentum.x=a[f];else if(j==2)q.momentum.y=a[f];else if(j==3)q.momentum.z=a[f];else q.energy=a[f];}}}
+        else {if(!b.storage.read(field[j],nf,a))return false;if(j==0&&!b.storage.observeDiagnostics())return false;for(int f=0;f<nf;++f){auto&q=values[f];if(j==0)q.mass=a[f];else if(j==1)q.momentum.x=a[f];else if(j==2)q.momentum.y=a[f];else if(j==3)q.momentum.z=a[f];else q.energy=a[f];}}}
     if(v.gasSpecies.mode==ugkwp::GasMode::SingleLegacy){
         if(!writing)for(auto& q:values)q.species[b.model.physics.singleGasSpecies]=q.mass;
         return true;
@@ -177,14 +177,11 @@ int prepareCoupledGeometry(Backend* b){
         WallKnot endpoint;if(!sampleGasWallProgramLocal(b->program,b->elapsed+b->microDt,endpoint,b->error))return 1;
         const auto& tolerance=b->model.physics.tolerances;
         auto stage=[&](const HostMesh& old,const std::vector<Vec3>& points,HostMesh& next,std::vector<Real>& sweep){
-            return makeStageGeometry(old,points,b->microDt,next,sweep,b->error,tolerance)
-                ||detail::completeStageGeometry(old,points,b->microDt,next,sweep,b->error,tolerance);
+            return makeStageGeometry(old,points,b->microDt,next,sweep,b->error,tolerance);
         };
         if(!stage(base.gasMesh,endpoint.gasPoints,b->endpointGas,gasSweep)
             ||!stage(base.solidMesh,endpoint.solidPoints,b->endpointSolid,solidSweep))return 1;
-        if(!rebuildTrajectorySurface(base,b->endpointGas,b->endpointSolid,b->microDt,b->endpointSurface,b->error,tolerance)
-            &&!detail::completeTrajectorySurface(base.gasMesh,base.solidMesh,base.surface,b->endpointGas,b->endpointSolid,
-                b->microDt,b->endpointSurface,b->error,tolerance))return 1;
+        if(!rebuildTrajectorySurface(base,b->endpointGas,b->endpointSolid,b->microDt,b->endpointSurface,b->error,tolerance))return 1;
     }
     auto trace=[&](const HostMesh& old,const HostMesh& end,const std::vector<Real>& sweep,HostStageGeometry& out){
         out.interval=b->microDt;out.geometryVersion=end.geometryVersion;out.topologyHash=end.topologyHash;
@@ -282,14 +279,14 @@ int accountCoupledFaces(Backend* b,Real ledgerDt){
     }
     ++b->gasStageIndex;return 0;
 }
-bool restoreGasSnapshot(Backend& b,const HostState& snapshot,std::string& error){
+bool loadGasWindowState(Backend& b,const HostState& snapshot,std::string& error){
     b.storage.beginOperation();
     b.microGeometryPrepared=false;b.preparedWallReady=false;ugkwp::invalidateGasBoundaryLayerPreparation(b);
     if(b.gasBoundaryLayer.enabled&&b.model.physics.meshMotion.policy!=MeshMotionPolicy::Static)b.storage.invalidateWallGeometry();
     if(!b.storage.uploadGeometry(snapshot.gasMesh,false)||!b.storage.clearGeometry()
         ||!b.storage.uploadState(snapshot,error)){
         b.poisoned=b.storage.runtimeFailure();if(error.empty())error=b.storage.error();
-        if(error.empty())error="failed to restore common gas geometry/state";return false;
+        if(error.empty())error="failed to load gas-window geometry/state";return false;
     }
     bindSharedGasStorage(b);b.trial=snapshot;error.clear();return true;
 }
@@ -302,10 +299,16 @@ Backend* createBackend(const ModelConfig& model,const ugkwp::GasModelConfigurati
     ugkwp::GasCapabilityRequest request;request.mode=gas.mode;request.fluxScheme=options.fluxScheme;request.reconstruction=options.reconstruction;request.limiter=options.limiter;request.timeIntegrator=options.timeIntegrator;request.turbulenceModel=options.turbulenceModel;request.sstWallTreatment=int(model.physics.wallModel.family);request.boundaryLayerModel=int(model.physics.wallModel.model);request.movingGeometry=model.physics.meshMotion.policy!=MeshMotionPolicy::Static;request.particleCoupling=model.physics.enableParticles;
     const auto supported=ugkwp::validateGasCapabilities(request);if(!supported){error=supported.message;return nullptr;}
     if(gas.mode!=ugkwp::GasMode::SingleLegacy
-        && ((options.fluxScheme!=1&&options.fluxScheme!=2)||(options.reconstruction!=0&&options.reconstruction!=1)))
-        std::fprintf(stderr,"CHMT mixture requested flux=%d reconstruction=%d; effective flux=%d reconstruction=%d (existing fallback)\n",
-            options.fluxScheme,options.reconstruction,options.fluxScheme==2?2:1,options.reconstruction==1?1:0);
+        && ((options.fluxScheme!=1&&options.fluxScheme!=2)||(options.reconstruction!=0&&options.reconstruction!=1))) {
+        error="selected mixture gas operator is unavailable";return nullptr;
+    }
     std::unique_ptr<Backend> b(new Backend);b->model=model;b->options=options;b->accepted=b->trial=state;
+    const auto diagnosticInit=b->diagnostics.initialise();
+    if(diagnosticInit!=cudaSuccess){error=std::string("allocate gas diagnostics: ")+cudaGetErrorString(diagnosticInit);return nullptr;}
+    ugkp::diagnostics::reset(b->hostDiagnostics,state.commitSequence,b->diagnostics.instanceId(),state.acceptedSteps,state.time);
+    b->model.physics.diagnostics=&b->hostDiagnostics;
+    b->model.physics.tolerances.diagnostics=&b->hostDiagnostics;
+    b->storage.bindDiagnostics(b->diagnostics);
     b->model.physics.enableSst=options.turbulenceModel==3;
     if(!b->storage.configure(b->model,gas,mechanism,state,error))return nullptr;
     auto& v=b->storage.hostView();v.gasFluxScheme=options.fluxScheme;v.gasReconstruction=options.reconstruction;v.gasLimiter=options.limiter;v.turbulenceModel=options.turbulenceModel;v.sstConfigured=options.turbulenceModel==3;
@@ -320,22 +323,52 @@ Backend* createBackend(const ModelConfig& model,const ugkwp::GasModelConfigurati
     error.clear();return b.release();
 }
 void destroyBackend(Backend* backend)noexcept{delete backend;}
-bool beginGasWindow(Backend& b,const WallProgram& program,std::string& error){
-    if(b.poisoned){error="gas backend is unusable after failed device rollback";return false;}
+static bool dispatchHostDiagnostics(Backend&);
+void setDiagnosticsSink(Backend& b,const ugkp::diagnostics::HostSink& sink){
+    b.diagnosticSink=sink;b.diagnostics.setSink(sink);
+    dispatchHostDiagnostics(b);
+}
+static bool dispatchHostDiagnostics(Backend& b){
+    const auto snapshot=ugkp::diagnostics::takeSnapshot(b.hostDiagnostics,ugkp::diagnostics::sourceCatalogue(),"ugkp-diagnostics-v1");
+    if(!b.diagnosticSink.fatal&&!b.diagnosticSink.warning)return !snapshot.hasFatal;
+    ugkp::diagnostics::dispatch(snapshot,b.diagnosticSink);
+    if(snapshot.hasFatal)return false;
+    ugkp::diagnostics::reset(b.hostDiagnostics,b.hostDiagnostics.operationSequence,b.diagnostics.instanceId(),b.hostDiagnostics.step,b.hostDiagnostics.simulationTime);
+    return true;
+}
+static bool beginGasWindowImpl(Backend& b,const WallProgram& program,std::string& error){
+    if(b.poisoned){error="gas backend is unusable after a failed device operation";return false;}
     b.trial=b.accepted;b.program=program;
     if(!b.history.begin(program.interval,error)||!b.reserve.reset(b.accepted.solid,b.accepted.film,b.accepted.time,error))return false;
     if(!program.donorPlan.knots.empty()&&!b.reserve.setPlan(program.donorPlan,error))return false;
-    if(!restoreGasSnapshot(b,b.accepted,error))return false;b.elapsed=WindowTime{};b.nextGasSeed=b.accepted.nextDt>0?b.accepted.nextDt:b.accepted.lastAcceptedDt;return true;
+    if(!loadGasWindowState(b,b.accepted,error))return false;b.elapsed=WindowTime{};b.nextGasSeed=b.accepted.nextDt>0?b.accepted.nextDt:b.accepted.lastAcceptedDt;return true;
 }
 
+bool beginGasWindow(Backend& b,const WallProgram& program,std::string& error){
+    ugkp::diagnostics::beginOperation(b.hostDiagnostics,program.interval.identity.sequence,b.accepted.acceptedSteps,program.interval.begin);
+    const bool success=beginGasWindowImpl(b,program,error);
+    const bool healthy=dispatchHostDiagnostics(b);
+    if(!healthy&&error.empty())error="fatal host gas-window diagnostic";
+    return success&&healthy;
+}
 struct CoupledCourantMaximum {
     __host__ __device__ double operator()(double a,double b)const{return a!=a?a:b!=b?b:fmax(a,b);}
 };
 struct CoupledCourantValue {double value;bool unavailable;unsigned char initializedTail[7]{};};
 struct CoupledCourantRead {
-    const double* field;const int* status;
+    const double* field;const int* status;const ugkp::diagnostics::DeviceContext* diagnostics;
     __host__ __device__ CoupledCourantValue operator()(int cell)const{
+        // This is the reduction identity, never a replacement physical state.
+        // The host discards the reduction after observing the fatal latch.
+        if(ugkp::diagnostics::hasFatal(diagnostics))return {-std::numeric_limits<double>::infinity(),false};
         return {field[cell],status&&status[cell]==int(ugkwp::GasTransportCode::InvalidStorage)};
+    }
+};
+struct CoupledScalarRead {
+    const double* field;const ugkp::diagnostics::DeviceContext* diagnostics;
+    __host__ __device__ double operator()(int cell)const{
+        if(ugkp::diagnostics::hasFatal(diagnostics))return -std::numeric_limits<double>::infinity();
+        return field[cell];
     }
 };
 struct CoupledCourantReduce {
@@ -363,11 +396,17 @@ static bool currentGasCourant(Backend& b,Real referenceDt,transport::GasCourantM
 
                 const auto first=thrust::make_counting_iterator(0);
                 const auto reduced=thrust::transform_reduce(thrust::cuda::par(b.courantReductionStorage).on(stream),first,first+count,
-                    CoupledCourantRead{field,v.gasSpecies.cellStatus},
+                    CoupledCourantRead{field,v.gasSpecies.cellStatus,b.diagnostics.device()},
                     CoupledCourantValue{-std::numeric_limits<double>::infinity(),false},CoupledCourantReduce{});
+                if(!b.storage.observeDiagnostics())return 1;
                 if(reduced.unavailable){transport::setLastErrorText("current Co consumed input unavailable");return 1;}
                 value=reduced.value;
-            }else value=thrust::reduce(thrust::cuda::par(b.courantReductionStorage).on(stream),thrust::device_pointer_cast(field),thrust::device_pointer_cast(field)+count,-std::numeric_limits<double>::infinity(),CoupledCourantMaximum{});
+            }else {
+                const auto first=thrust::make_counting_iterator(0);
+                value=thrust::transform_reduce(thrust::cuda::par(b.courantReductionStorage).on(stream),first,first+count,
+                    CoupledScalarRead{field,b.diagnostics.device()},-std::numeric_limits<double>::infinity(),CoupledCourantMaximum{});
+                if(!b.storage.observeDiagnostics())return 1;
+            }
         }
         catch(const std::exception& e){transport::setLastErrorText(e.what());return 1;}
         const auto code=cudaGetLastError();if(code!=cudaSuccess){transport::setLastError("gas Courant maximum reduction",code);return 1;}return 0;
@@ -377,14 +416,21 @@ static bool currentGasCourant(Backend& b,Real referenceDt,transport::GasCourantM
     bool restored=true;if(sst){restored=copy(v.rhoK,v.rhoKInitial);restored=copy(v.rhoOmega,v.rhoOmegaInitial)&&restored;}
     return status==0&&restored;
 }
-bool advanceGasMicrostep(Backend& b,Real cap,GasMicroReport& report,std::string& error){
+static bool advanceGasMicrostepImpl(Backend& b,Real cap,GasMicroReport& report,std::string& error){
     report={};report.recoverable=false;
-    if(b.poisoned){error="gas backend is unusable after failed device rollback";return false;}
+    if(b.poisoned){error="gas backend is unusable after a failed device operation";return false;}
     if(b.history.complete()||b.elapsed==intervalDuration(b.program.interval)){
         report.time=b.trial.time;report.localTime=b.elapsed;report.nextGasDt=b.nextGasSeed;
         report.microSequence=b.history.records().size();error.clear();return true;
     }
     b.microTime=windowAbsolute(b.program.interval.begin,b.elapsed);
+    const auto diagnosticSequence=b.history.records().size()+1;
+    // acceptedSteps is the zero-based completed global-step count. This launch
+    // precedes all producers on their stream and adds no synchronization/copy.
+    ugkp::diagnostics::beginOperation(b.hostDiagnostics,diagnosticSequence,b.trial.acceptedSteps,b.microTime);
+    ugkp::diagnostics::beginOperationKernel<<<1,1,0,b.gasCaptureStream>>>(b.diagnostics.device(),diagnosticSequence,b.trial.acceptedSteps,b.microTime);
+    const auto metadataLaunch=cudaGetLastError();
+    if(metadataLaunch!=cudaSuccess){error=std::string("gas diagnostic metadata launch: ")+cudaGetErrorString(metadataLaunch);return false;}
     const Real remaining=boundedWindowDuration(nextGasWallKnotLocal(b.program,b.elapsed),b.elapsed);
     Real referenceDt=minValue(cap,minValue(b.model.physics.maxDt,remaining));
     if(b.nextGasSeed>0)referenceDt=minValue(referenceDt,b.nextGasSeed);
@@ -393,7 +439,7 @@ bool advanceGasMicrostep(Backend& b,Real cap,GasMicroReport& report,std::string&
     if(prepareCoupledGeometry(&b)!=0){error=b.error;return false;}
     transport::GasCourantMaxima co;
     if(!currentGasCourant(b,referenceDt,co)){
-        error=b.error.empty()?transport::lastError:b.error;std::string restoreError;if(!restoreGasSnapshot(b,b.microBase,restoreError))error+="; "+restoreError;return false;
+        error=b.error.empty()?transport::lastError:b.error;return false;
     }
     const Real growthBase=b.trial.lastAcceptedDt>0?b.trial.lastAcceptedDt:referenceDt;
     const Real selectedDt=gasCoMaxStep(referenceDt,b.model.physics.cfl,co.maximum,growthBase);
@@ -410,27 +456,34 @@ bool advanceGasMicrostep(Backend& b,Real cap,GasMicroReport& report,std::string&
         b.record.gasTrace.push_back(b.stageBulk[cell]);b.record.gasGradient.push_back(b.stageGradient[cell]);b.record.gasTraction.push_back(b.faceRates[f].traction);}
     if(b.gasBoundaryLayer.enabled)b.record.gasWallMatching=b.preparedMatching;
     MaterialDonorReserve::Transaction reservation;
-    if(!b.reserve.prepare(b.record,reservation,b.error)){transport::CoupledTrialPolicy::rollback(&b);error=b.error;return false;}
-    if(!b.history.appendAccepted(b.record,error)){transport::CoupledTrialPolicy::rollback(&b);if(b.poisoned)error=b.error;return false;}
+    if(!b.reserve.prepare(b.record,reservation,b.error)){error=b.error;return false;}
+    if(!b.history.appendAccepted(b.record,error))return false;
     b.reserve.commitPrepared(std::move(reservation));b.elapsed=b.record.localEnd;
     b.trial.gasStages={{b.gasStage,b.gasStage}};b.trial.solidStages={{b.solidStage,b.solidStage}};
     b.nextGasSeed=minValue(b.model.physics.maxDt,1.05*dt);b.trial.nextDt=b.nextGasSeed;b.trial.lastAcceptedDt=dt;
     report.acceptedDt=dt;report.nextGasDt=b.nextGasSeed;report.time=b.trial.time;report.localTime=b.elapsed;report.microSequence=b.record.microSequence;error.clear();return true;
 }
+bool advanceGasMicrostep(Backend& b,Real cap,GasMicroReport& report,std::string& error){
+    const bool success=advanceGasMicrostepImpl(b,cap,report,error);
+    const bool hostHealthy=dispatchHostDiagnostics(b);
+    if(!hostHealthy && error.empty())error="fatal host gas diagnostic";
+    return success&&hostHealthy;
+}
 bool gasWindowHistory(const Backend& b,IntervalHistory& out,std::string& error){out=b.history;error.clear();return true;}
 bool gasWindowStageGeometry(const Backend& b,std::array<HostStageGeometry,2>& gas,std::array<HostStageGeometry,2>& solid,std::string& error){gas=b.trial.gasStages;solid=b.trial.solidStages;error.clear();return true;}
 bool downloadGasWindow(const Backend& b,HostState& out,std::string& error){out=b.trial;error.clear();return true;}
-bool rollbackGasWindow(Backend& b,std::string& error){
-    if(b.poisoned){error="gas backend is unusable after failed device rollback";return false;}
-    if(!restoreGasSnapshot(b,b.accepted,error))return false;
-    return true;
-}
-bool commitGasWindow(Backend& b,const HostState& candidate,std::string& error){
-    if(b.poisoned){error="gas backend is unusable after failed device rollback";return false;}
+static bool commitGasWindowImpl(Backend& b,const HostState& candidate,std::string& error){
+    if(b.poisoned){error="gas backend is unusable after a failed device operation";return false;}
     // Prepare all throwing host copies before touching device/publication state.
     HostState newAccepted=candidate,newTrial=candidate;
     if(!b.storage.uploadState(candidate,error))return false;
     b.accepted=std::move(newAccepted);b.trial=std::move(newTrial);error.clear();return true;
+}
+bool commitGasWindow(Backend& b,const HostState& candidate,std::string& error){
+    const bool success=commitGasWindowImpl(b,candidate,error);
+    const bool healthy=dispatchHostDiagnostics(b);
+    if(!healthy&&error.empty())error="fatal host gas-window commit diagnostic";
+    return success&&healthy;
 }
 bool downloadState(const Backend& b,HostState& out,std::string& error){out=b.accepted;error.clear();return true;}
 }

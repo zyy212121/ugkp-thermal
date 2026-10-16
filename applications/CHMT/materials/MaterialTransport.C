@@ -19,45 +19,19 @@ Vec3 displacement(const HostMesh& m,int cell,int face,int other){
 }
 Real component(const SolidQ& q,int i){if(i<Nc)return q.condensed[i];i-=Nc;if(i<Ns)return q.pore[i];i-=Ns;if(i<Nr)return q.progress[i];return q.energy;}
 void setComponent(SolidQ& q,int i,Real x){if(i<Nc){q.condensed[i]=x;return;}i-=Nc;if(i<Ns){q.pore[i]=x;return;}i-=Ns;if(i<Nr){q.progress[i]=x;return;}q.energy=x;}
-template<bool Terminal=false>
 bool validMesh(const HostMesh& m,std::size_t cells,std::string& error){
     const std::size_t nf=m.owner.size();
-    if(Terminal){
-        if(m.volumes.size()<cells||m.neighbour.size()<nf||m.boundaryKind.size()<nf||m.cellFaceOffsets.size()<cells+1){
-            error="material transport consumed mesh storage missing";return false;}
-        for(std::size_t c=0;c<cells;++c)if(m.cellFaceOffsets[c]<m.cellFaceOffsets[c+1]
-            &&(m.cellFaces.empty()||m.cellFaceSigns.empty())){
-            error="material transport consumed incidence storage missing";return false;}
-        for(std::size_t f=0;f<nf;++f){
-            const auto kind=m.boundaryKind[f];
-            if(kind==BoundaryKind::Periodic&&f>=m.periodicPartner.size()){
-                error="material transport consumed periodic partner missing";return false;}
-            if(kind!=BoundaryKind::Interface&&kind!=BoundaryKind::Empty
-                &&(f>=m.areaVectors.size()||f>=m.faceCentres.size()||m.cellCentres.empty())){
-                error="material transport consumed face geometry missing";return false;}
-        }
-        return true;
-    }
-    if(m.volumes.size()!=cells||m.cellCentres.size()!=cells||m.neighbour.size()!=nf||m.areaVectors.size()!=nf
-        ||m.faceCentres.size()!=nf||m.boundaryKind.size()!=nf||m.periodicPartner.size()!=nf
-        ||m.cellFaceOffsets.size()!=cells+1||m.cellFaces.size()!=m.cellFaceSigns.size()
-        ||m.cellFaceOffsets.empty()||m.cellFaceOffsets.front()!=0
-        ||m.cellFaceOffsets.back()!=static_cast<int>(m.cellFaces.size())){error="material transport mesh/addressing size mismatch";return false;}
-    for(std::size_t c=0;c<cells;++c)if(!(m.volumes[c]>0)||!finite(m.volumes[c])||!finite(m.cellCentres[c])
-        ||m.cellFaceOffsets[c]>m.cellFaceOffsets[c+1]){error="invalid material cell geometry";return false;}
+    if(m.volumes.size()!=cells||m.cellCentres.size()!=cells||m.neighbour.size()!=nf||m.areaVectors.size()!=nf||m.faceCentres.size()!=nf||m.boundaryKind.size()!=nf||m.periodicPartner.size()!=nf||m.cellFaceOffsets.size()!=cells+1||m.cellFaces.size()!=m.cellFaceSigns.size()||m.cellFaceOffsets.empty()||m.cellFaceOffsets.front()!=0||m.cellFaceOffsets.back()!=static_cast<int>(m.cellFaces.size())){error="material transport mesh/addressing size mismatch";return false;}
+    for(std::size_t c=0;c<cells;++c)if(!(m.volumes[c]>0)||!finite(m.volumes[c])||!finite(m.cellCentres[c])||m.cellFaceOffsets[c]>m.cellFaceOffsets[c+1]){error="invalid material cell geometry";return false;}
     for(std::size_t f=0;f<nf;++f){const int o=m.owner[f],n=m.neighbour[f];
-        if(o<0||o>=static_cast<int>(cells)||n< -1||n>=static_cast<int>(cells)||!finite(m.areaVectors[f])
-            ||!(mag(m.areaVectors[f])>0)||!finite(m.faceCentres[f])){error="invalid material face geometry";return false;}
+        if(o<0||o>=static_cast<int>(cells)||n< -1||n>=static_cast<int>(cells)||!finite(m.areaVectors[f])||!(mag(m.areaVectors[f])>0)||!finite(m.faceCentres[f])){error="invalid material face geometry";return false;}
         if(m.boundaryKind[f]==BoundaryKind::Periodic){const int pair=m.periodicPartner[f];
-            if(pair<0||pair>=static_cast<int>(nf)||m.periodicPartner[pair]!=static_cast<int>(f)
-                ||m.boundaryKind[pair]!=BoundaryKind::Periodic){error="invalid material cyclic pairing";return false;}}
+            if(pair<0||pair>=static_cast<int>(nf)||m.periodicPartner[pair]!=static_cast<int>(f)||m.boundaryKind[pair]!=BoundaryKind::Periodic){error="invalid material cyclic pairing";return false;}}
     }
     for(std::size_t c=0;c<cells;++c)for(int e=m.cellFaceOffsets[c];e<m.cellFaceOffsets[c+1];++e){const int f=m.cellFaces[e];
-        if(f<0||f>=static_cast<int>(nf)||(m.cellFaceSigns[e]!=1&&m.cellFaceSigns[e]!=-1)
-            ||(m.cellFaceSigns[e]==1?m.owner[f]!=static_cast<int>(c):m.neighbour[f]!=static_cast<int>(c))){error="invalid material cell-face incidence";return false;}}
+        if(f<0||f>=static_cast<int>(nf)||(m.cellFaceSigns[e]!=1&&m.cellFaceSigns[e]!=-1)||(m.cellFaceSigns[e]==1?m.owner[f]!=static_cast<int>(c):m.neighbour[f]!=static_cast<int>(c))){error="invalid material cell-face incidence";return false;}}
     return true;
 }
-template<bool Terminal=false>
 bool reconstruct(const HostMesh& m,const std::vector<SolidQ>& q,const PhysicsConfig& p,
     int cell,int face,SolidQ& out){
     const int image=m.owner[face]==cell?face:(m.boundaryKind[face]==BoundaryKind::Periodic?m.periodicPartner[face]:face);
@@ -70,27 +44,23 @@ bool reconstruct(const HostMesh& m,const std::vector<SolidQ>& q,const PhysicsCon
         const Real change=dot(solveLeastSquares(matrix,rhs),offset);setComponent(increment,k,change);
         if(p.reconstruction==ReconstructionMode::LimitedLinear)bound=minValue(bound,materialReconstructionLimiter(value,lo,hi,change));
     }
-    for(int trial=0;trial<48;++trial){SolidQ candidate=addSolid(density,increment,bound);candidate.porosity=q[cell].porosity;MaterialPrimitive state;
-        if(recoverMaterial(candidate,1,p,state)){candidate.porosity=state.porosity;out=candidate;return true;}
-        if(Terminal&&trial==47){if(!recoverMaterial<true>(candidate,1,p,state))return false;candidate.porosity=state.porosity;out=candidate;return true;}
-        bound*=.5;}
-    return false;
+    SolidQ candidate=addSolid(density,increment,bound);candidate.porosity=q[cell].porosity;MaterialPrimitive state;
+    if(!recoverMaterial(candidate,1,p,state))return false;
+    candidate.porosity=state.porosity;out=candidate;return true;
 }
 } // namespace
-template<bool Terminal>
 bool filmThicknessFromMassImpl(Real mass,Real area,Real density,Real& thickness){
-    if(!Terminal&&(!finite(mass)||mass<0||!finite(area)||area<=0||!finite(density)||density<=0))return false;
-    const Real value=mass/(density*area);if(!Terminal&&!finite(value))return false;thickness=value;return true;
+    if((!finite(mass)||mass<0||!finite(area)||area<=0||!finite(density)||density<=0))return false;
+    const Real value=mass/(density*area);if(!finite(value))return false;thickness=value;return true;
 }
-bool filmThicknessFromMass(Real mass,Real area,Real density,Real& thickness){return filmThicknessFromMassImpl<false>(mass,area,density,thickness);}
-namespace detail {bool completeFilmThicknessFromMass(Real mass,Real area,Real density,Real& thickness){return filmThicknessFromMassImpl<true>(mass,area,density,thickness);}}
+bool filmThicknessFromMass(Real mass,Real area,Real density,Real& thickness){return filmThicknessFromMassImpl(mass,area,density,thickness);}
+
 bool filmSweepsCompatible(Real oldMass,Real newMass,Real density,Real gasOutwardSweep,Real solidOutwardSweep,Real sideSweep,const Tolerances& tol){
     if(!finite(oldMass)||oldMass<0||!finite(newMass)||newMass<0||!finite(density)||density<=0)return false;
     const Real expected=(newMass-oldMass)/density,actual=-gasOutwardSweep-solidOutwardSweep+sideSweep;
     const Real roundoff=64*std::numeric_limits<Real>::epsilon()*maxValue(oldMass/density,absValue(expected));
     return finite(actual)&&absValue(actual-expected)<=tol.absoluteGeometry+tol.relativeGeometry*maxValue(absValue(actual),absValue(expected))+roundoff;
 }
-template<bool Terminal>
 bool applyMaterialPacketBatchImpl(const std::vector<SolidQ>& base,const std::vector<ExchangePacket>& packets,std::vector<SolidQ>& output,std::string& error,bool* numericalFailure){
     if(numericalFailure)*numericalFailure=false;
     std::vector<SolidQ> next=base;
@@ -99,28 +69,24 @@ bool applyMaterialPacketBatchImpl(const std::vector<SolidQ>& base,const std::vec
         for(int species=0;species<Ns;++species){sum[cell][Nc+species]=base[cell].pore[species];scale[cell][Nc+species]=absValue(base[cell].pore[species]);}sum[cell][Nc+Ns]=base[cell].energy;}
     // Scatter each actual packet once. No full-domain scan per gas record.
     for(const auto& packet:packets)if(requiredConsumers(packet.kind)&ConsumeSolid){
-        if(!Terminal&&(packet.solidCell<0||static_cast<std::size_t>(packet.solidCell)>=base.size())){if(numericalFailure)*numericalFailure=true;error="material packet owner invalid";return false;}
+        if((packet.solidCell<0||static_cast<std::size_t>(packet.solidCell)>=base.size())){if(numericalFailure)*numericalFailure=true;error="material packet owner invalid";return false;}
         const std::size_t cell=packet.solidCell;const auto delta=packetDelta(packet);++operations[cell];sum[cell][Nc+Ns]+=delta.solid.energy;
         for(int c=0;c<Nc;++c){sum[cell][c]+=delta.solid.condensed[c];scale[cell][c]+=absValue(delta.solid.condensed[c]);}
         for(int species=0;species<Ns;++species){sum[cell][Nc+species]+=delta.solid.pore[species];scale[cell][Nc+species]+=absValue(delta.solid.pore[species]);}}
     for(std::size_t cell=0;cell<base.size();++cell){for(int component=0;component<Nc+Ns;++component){Real value=static_cast<Real>(sum[cell][component]);
             if(value<0){const long double bound=(operations[cell]+2)*std::numeric_limits<Real>::epsilon()*scale[cell][component];
-                if(-sum[cell][component]>bound){if(!Terminal){if(numericalFailure)*numericalFailure=true;error="material packet batch exceeds physical donor inventory";return false;}}
+                if(-sum[cell][component]>bound){{if(numericalFailure)*numericalFailure=true;error="material packet batch exceeds physical donor inventory";return false;}}
                 else {value=0;}
             }
-            if(!Terminal&&!finite(value)){if(numericalFailure)*numericalFailure=true;error="nonfinite material packet result";return false;}
+            if(!finite(value)){if(numericalFailure)*numericalFailure=true;error="nonfinite material packet result";return false;}
             if(component<Nc)next[cell].condensed[component]=value;else next[cell].pore[component-Nc]=value;}
-        next[cell].energy=static_cast<Real>(sum[cell][Nc+Ns]);if(!Terminal&&!finite(next[cell].energy)){if(numericalFailure)*numericalFailure=true;error="nonfinite material packet energy";return false;}}
+        next[cell].energy=static_cast<Real>(sum[cell][Nc+Ns]);if(!finite(next[cell].energy)){if(numericalFailure)*numericalFailure=true;error="nonfinite material packet energy";return false;}}
     output=std::move(next);error.clear();return true;
 }
 bool applyMaterialPacketBatch(const std::vector<SolidQ>& base,const std::vector<ExchangePacket>& packets,std::vector<SolidQ>& output,std::string& error,bool* numericalFailure){
-    return applyMaterialPacketBatchImpl<false>(base,packets,output,error,numericalFailure);
+    return applyMaterialPacketBatchImpl(base,packets,output,error,numericalFailure);
 }
-namespace detail {
-bool completeMaterialPacketBatch(const std::vector<SolidQ>& base,const std::vector<ExchangePacket>& packets,std::vector<SolidQ>& output,std::string& error,bool* numericalFailure){
-    return applyMaterialPacketBatchImpl<true>(base,packets,output,error,numericalFailure);
-}
-}
+
 bool materialPointsClose(const HostMesh& a,const std::vector<Vec3>& b,const Tolerances& tol){
     if(a.points.size()!=b.size())return false;
     Real length=0;
@@ -140,36 +106,32 @@ bool materialSweepsCompatible(const HostMesh& mesh,const SurfaceMesh& surface,co
         if(!finite(actual[face])||!finite(targets[f])||absValue(actual[face]-targets[f])>tolerance)return false;}
     return true;
 }
-template<bool Terminal>
 bool evaluateMaterialTransportImpl(const HostMesh& m,const std::vector<SolidQ>& q,const PhysicsConfig& p,
     const std::vector<Real>& swept,Real interval,Real cfl,MaterialTransportResult& output,std::string& error,bool* numericalFailure){
-    if(numericalFailure)*numericalFailure=!Terminal;
-    if(!Terminal&&(!(interval>0)||!finite(interval)||!(cfl>0&&cfl<=1)||(!swept.empty()&&swept.size()!=m.owner.size()))){error="invalid material transport interval/control";return false;}
+    if(numericalFailure)*numericalFailure=true;
+    if((!(interval>0)||!finite(interval)||!(cfl>0&&cfl<=1)||(!swept.empty()&&swept.size()!=m.owner.size()))){error="invalid material transport interval/control";return false;}
 
     if(q.empty()){output=MaterialTransportResult{};error.clear();return true;}
-    if(!validMesh<Terminal>(m,q.size(),error)){
-        if(!Terminal&&numericalFailure){std::string missing;*numericalFailure=validMesh<true>(m,q.size(),missing);}
+    if(!validMesh(m,q.size(),error)){
         return false;
     }
-    if(Terminal&&!swept.empty())for(std::size_t f=0;f<m.owner.size();++f)
-        if(m.boundaryKind[f]!=BoundaryKind::Interface&&m.boundaryKind[f]!=BoundaryKind::Empty&&f>=swept.size()){
-            error="material transport consumed sweeps missing";return false;}
+
     MaterialTransportResult result;result.rates.resize(q.size());result.poreVelocity.resize(q.size());result.faceFlux.resize(m.owner.size());
     std::vector<MaterialPrimitive> primitive(q.size());std::vector<SolidQ> outgoing(q.size());
     std::vector<Vec3> pressureGradient(q.size());std::vector<Real> gradientSensitivity(q.size());
-    for(std::size_t c=0;c<q.size();++c)if(!recoverMaterial<Terminal>(q[c],m.volumes[c],p,primitive[c])){error="material transport EOS recovery failed in cell "+std::to_string(c);return false;}
+    for(std::size_t c=0;c<q.size();++c)if(!recoverMaterial<false>(q[c],m.volumes[c],p,primitive[c])){error="material transport EOS recovery failed in cell "+std::to_string(c);return false;}
     for(std::size_t c=0;c<q.size();++c){Symmetric3 matrix;Vec3 rhs{};
         for(int e=m.cellFaceOffsets[c];e<m.cellFaceOffsets[c+1];++e){const int f=m.cellFaces[e],other=otherCell(m,c,f);
             if(m.boundaryKind[f]==BoundaryKind::Empty||m.boundaryKind[f]==BoundaryKind::Interface)continue;
             if(other<0)continue;
             const Vec3 dx=displacement(m,c,f,other);addLeastSquares(matrix,rhs,dx,primitive[other].pressure-primitive[c].pressure);
-            const Real distance=mag(dx);if(!Terminal&&!(distance>0)){error="coincident material cell centres";return false;}
+            const Real distance=mag(dx);if(!(distance>0)){error="coincident material cell centres";return false;}
         }
         const Vec3 grad=solveLeastSquares(matrix,rhs);pressureGradient[c]=grad;const auto& a=primitive[c];
         for(int e=m.cellFaceOffsets[c];e<m.cellFaceOffsets[c+1];++e){const int f=m.cellFaces[e],other=otherCell(m,c,f);
             if(other<0||m.boundaryKind[f]==BoundaryKind::Empty||m.boundaryKind[f]==BoundaryKind::Interface)continue;
             gradientSensitivity[c]+=darcyGradientSensitivity(matrix,displacement(m,c,f,other));}
-        if(p.permeability>0&&a.porosity>0){if(!Terminal&&!(p.poreViscosity>0)){error="invalid Darcy viscosity";return false;}
+        if(p.permeability>0&&a.porosity>0){if(!(p.poreViscosity>0)){error="invalid Darcy viscosity";return false;}
             result.poreVelocity[c]=(p.gravity*a.poreDensity-grad)*(p.permeability/(p.poreViscosity*a.porosity));}
     }
     // Both neighboring least-squares stencils are needed by the corrected
@@ -182,7 +144,7 @@ bool evaluateMaterialTransportImpl(const HostMesh& m,const std::vector<SolidQ>& 
             if(other<0)continue;
             const Real area=mag(m.areaVectors[f]);const Vec3 normal=m.areaVectors[f]*(m.cellFaceSigns[e]/area);
             Real inverseLength=0;
-            if(!darcyPressureStencilInverseLength<Terminal>(displacement(m,c,f,other),normal,
+            if(!darcyPressureStencilInverseLength<false>(displacement(m,c,f,other),normal,
                 gradientSensitivity[c],gradientSensitivity[other],inverseLength)){error="invalid material Darcy stencil geometry";return false;}
             if(storage>0)pressureRate+=darcyPressureRelaxation(storage,p.permeability,p.poreViscosity,
                 maxValue(primitive[c].poreDensity,primitive[other].poreDensity),area,1/inverseLength);
@@ -193,22 +155,19 @@ bool evaluateMaterialTransportImpl(const HostMesh& m,const std::vector<SolidQ>& 
         if(kind==BoundaryKind::Interface||kind==BoundaryKind::Empty)continue;
         if(kind==BoundaryKind::Periodic){if(static_cast<int>(f)>m.periodicPartner[f])continue;right=m.owner[m.periodicPartner[f]];}
         const Real area=mag(m.areaVectors[f]),meshRate=swept.empty()?0:swept[f]/interval;const Vec3 normal=m.areaVectors[f]/area;
-        if(!Terminal&&!finite(meshRate)){error="nonfinite material ALE sweep";return false;}
-        SolidQ density;if(!reconstruct<Terminal>(m,q,p,meshRate<=0||right<0?left:right,f,density)){error="material ALE reconstruction failed";return false;}
+        if(!finite(meshRate)){error="nonfinite material ALE sweep";return false;}
+        SolidQ density;if(!reconstruct(m,q,p,meshRate<=0||right<0?left:right,f,density)){error="material ALE reconstruction failed";return false;}
         SolidQ flux=materialAleFlux(density,1,meshRate);
         if(right>=0){const Vec3 dx=displacement(m,left,f,right);const Real distance=dot(dx,normal);MaterialPrimitive a=primitive[left],b=primitive[right];
             a.conductivity=b.conductivity=0;SolidQ physical;
             Real normalPressureGradient=0;
-            if(!darcyNormalPressureGradient<Terminal>(dx,normal,b.pressure-a.pressure,
-                pressureGradient[left],pressureGradient[right],normalPressureGradient)
-                ||!darcyConductionFluxWithGradient<Terminal>(q[left],q[right],a,b,m.volumes[left],m.volumes[right],area,distance,normal,normalPressureGradient,p,physical)){error="invalid material Darcy face";return false;}
+            if(!darcyNormalPressureGradient<false>(dx,normal,b.pressure-a.pressure,
+                pressureGradient[left],pressureGradient[right],normalPressureGradient)||!darcyConductionFluxWithGradient<false>(q[left],q[right],a,b,m.volumes[left],m.volumes[right],area,distance,normal,normalPressureGradient,p,physical)){error="invalid material Darcy face";return false;}
             if(p.spatialOrder==2&&p.permeability>0){const Real volumeRate=-area*p.permeability/p.poreViscosity*(normalPressureGradient-.5*(a.poreDensity+b.poreDensity)*dot(p.gravity,normal));
                 SolidQ reconstructed;MaterialPrimitive recovered;
-                if(!reconstruct<Terminal>(m,q,p,volumeRate>=0?left:right,f,reconstructed)||!recoverMaterial<Terminal>(reconstructed,1,p,recovered)){error="material Darcy reconstruction failed";return false;}
+                if(!reconstruct(m,q,p,volumeRate>=0?left:right,f,reconstructed)||!recoverMaterial<false>(reconstructed,1,p,recovered)){error="material Darcy reconstruction failed";return false;}
                 physical.energy=0;for(int s=0;s<Ns;++s){physical.pore[s]=recovered.porosity>0?volumeRate*reconstructed.pore[s]/recovered.porosity:0;Real enthalpy=speciesH(p.species[s],recovered.temperature);
-                    if(Terminal&&!finite(enthalpy)){const GasThermoAdapter<1> thermo(&p.species[s]);Real energy,capacity;
-                        if(terminalSpeciesCaloric(0,recovered.temperature,thermo.view(),energy,capacity,&p.species[s])!=ugkwp::ThermoStatus::Success){error="material Darcy caloric expression unavailable";return false;}
-                        enthalpy=energy+terminalGasConstant(p.species[s])*recovered.temperature;}
+
                     physical.energy+=physical.pore[s]*enthalpy;}}
             flux=addSolid(flux,physical);
         }
@@ -223,50 +182,38 @@ bool evaluateMaterialTransportImpl(const HostMesh& m,const std::vector<SolidQ>& 
         for(int k=0;k<Nc;++k)if(outgoing[c].condensed[k]>0)result.dtLimit=minValue(result.dtLimit,cfl*q[c].condensed[k]/outgoing[c].condensed[k]);
         for(int s=0;s<Ns;++s)if(outgoing[c].pore[s]>0)result.dtLimit=minValue(result.dtLimit,cfl*q[c].pore[s]/outgoing[c].pore[s]);
     }
-    if(!Terminal&&(!finite(result.dtLimit)||result.dtLimit<=0)){error="invalid material transport timestep";return false;}
+    if((!finite(result.dtLimit)||result.dtLimit<=0)){error="invalid material transport timestep";return false;}
     output=std::move(result);if(numericalFailure)*numericalFailure=false;error.clear();return true;
 }
 bool evaluateMaterialTransport(const HostMesh& m,const std::vector<SolidQ>& q,const PhysicsConfig& p,
     const std::vector<Real>& swept,Real interval,Real cfl,MaterialTransportResult& output,std::string& error,bool* numericalFailure){
-    return evaluateMaterialTransportImpl<false>(m,q,p,swept,interval,cfl,output,error,numericalFailure);
+    return evaluateMaterialTransportImpl(m,q,p,swept,interval,cfl,output,error,numericalFailure);
 }
-namespace detail {
-bool completeMaterialTransport(const HostMesh& m,const std::vector<SolidQ>& q,const PhysicsConfig& p,
-    const std::vector<Real>& swept,Real interval,Real cfl,MaterialTransportResult& output,std::string& error,bool* numericalFailure){
-    return evaluateMaterialTransportImpl<true>(m,q,p,swept,interval,cfl,output,error,numericalFailure);
-}
-}
-template<bool Terminal>
+
 bool advanceMaterialReactionsImpl(const SolidQ& base,Real volume,const PhysicsConfig& p,Real interval,
     Real maxStep,Real cfl,int maximum,SolidQ& out,std::uint64_t& accepted,std::string& error,bool* numericalFailure){
     if(numericalFailure)*numericalFailure=true;
-    if(!Terminal&&(!(interval>0)||!finite(interval)||maxStep<0||!finite(maxStep)||!(cfl>0&&cfl<=1)||maximum<=0)){error="invalid reaction local control";return false;}
-    SolidQ state=base;MaterialPrimitive material;if(!recoverMaterial<Terminal>(state,volume,p,material,nullptr,-1,numericalFailure)){error="reaction base EOS invalid";return false;}
+    if((!(interval>0)||!finite(interval)||maxStep<0||!finite(maxStep)||!(cfl>0&&cfl<=1)||maximum<=0)){error="invalid reaction local control";return false;}
+    SolidQ state=base;MaterialPrimitive material;if(!recoverMaterial<false>(state,volume,p,material,nullptr,-1,numericalFailure)){error="reaction base EOS invalid";return false;}
     if(!p.enableReactions){out=base;accepted=0;error.clear();return true;}
     Real elapsed=0;std::uint64_t count=0;
-    while(elapsed<interval){if(!Terminal&&count>=static_cast<std::uint64_t>(maximum)){error="reaction local substep limit reached";return false;}
+    while(elapsed<interval){if(count>=static_cast<std::uint64_t>(maximum)){error="reaction local substep limit reached";return false;}
         const Real maximumStep=minValue(interval-elapsed,maxStep>0?maxStep:interval);
         SolidQ trial;Real dt=0;bool active=false;
-        if(!reactionStepCandidate<Terminal>(state,volume,p,maximumStep,cfl,trial,dt,active,numericalFailure)){
-            error="reaction local EOS/accuracy/admissibility rejection";return false;}
+        if(!reactionStepCandidate(state,volume,p,maximumStep,cfl,trial,dt,active,numericalFailure)){
+            error="reaction local EOS/admissibility failure";return false;}
         if(!active){out=state;accepted=count;error.clear();return true;}
         if(elapsed+dt==elapsed){
-            if(!Terminal){error="reaction local timestep cannot advance time";return false;}
-            if(!completeReactionStep(state,volume,p,maximumStep,cfl,trial,dt,active,numericalFailure))return false;
+            error="reaction local timestep cannot advance time";return false;
         }
         state=trial;elapsed+=dt;++count;
-        if(!Terminal&&interval-elapsed<=8*std::numeric_limits<Real>::epsilon()*interval)elapsed=interval;
+        if(interval-elapsed<=8*std::numeric_limits<Real>::epsilon()*interval)elapsed=interval;
     }
     out=state;accepted=count;error.clear();return true;
 }
 bool advanceMaterialReactions(const SolidQ& base,Real volume,const PhysicsConfig& p,Real interval,
     Real maxStep,Real cfl,int maximum,SolidQ& out,std::uint64_t& accepted,std::string& error,bool* numericalFailure){
-    return advanceMaterialReactionsImpl<false>(base,volume,p,interval,maxStep,cfl,maximum,out,accepted,error,numericalFailure);
+    return advanceMaterialReactionsImpl(base,volume,p,interval,maxStep,cfl,maximum,out,accepted,error,numericalFailure);
 }
-namespace detail {
-bool completeMaterialReactions(const SolidQ& base,Real volume,const PhysicsConfig& p,Real interval,
-    Real maxStep,Real cfl,int maximum,SolidQ& out,std::uint64_t& accepted,std::string& error,bool* numericalFailure){
-    return advanceMaterialReactionsImpl<true>(base,volume,p,interval,maxStep,cfl,maximum,out,accepted,error,numericalFailure);
-}
-}
+
 } // namespace chmt

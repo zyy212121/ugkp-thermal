@@ -30,17 +30,19 @@ r.movingGeometry=true;r.timeIntegrator=1;if(!ugkwp::validateGasCapabilities(r))r
 r.timeIntegrator=2;if(!ugkwp::validateGasCapabilities(r))return 3;}
 ''')
 
-def test_muscl_face_simplex_and_eos_are_jointly_admissible(tmp_path):
+def test_muscl_face_uses_one_limited_reconstruction_and_consistent_eos(tmp_path):
     compile_probe(tmp_path,fixture()+r'''
 int main(){State s;initialise(s);s.gasReconstruction=1;s.gasLimiter=0;
 auto* m=const_cast<ugkwp::SpeciesThermoData<Real>*>(s.gasSpecies.thermo.species);m[1].molarMass=.044;
 for(int c=0;c<2;++c){Real r[2]={s.gasSpecies.rho[c],s.gasSpecies.rho[2+c]};s.rhoE[c]=ugkwp::mixtureEnergy(r,Real(700),s.gasSpecies.thermo);threadIdx.x=c;recoverGasPrimitivesKernel(&s);computeGasPrimitiveGradientsKernel(&s);}
-// Overshoots in Y and p must contract one face state rather than repair cells.
+// The original slope limiter remains; no later candidate-alpha search is used.
 s.gasSpecies.gradX[0]=-20;s.gasSpecies.gradX[2]=20;s.gradPx[0]=-100*s.p[0];
 threadIdx.x=0;computeGasGradientLimiterKernel(&s);Real before[3]={s.rho[0],s.rhoE[0],s.gasSpecies.rho[0]};
 Real y[2];GasPrimDevice p;ck(reconstructGasMixtureFace(s,0,1,p,y),"joint admissibility failed");
 ck(y[0]>=0&&y[1]>=0&&y[0]+y[1]==1,"reconstructed simplex violated");
-ck(p.T>=100&&p.T<=3000&&p.p>0&&p.rho>0,"reconstructed thermodynamic range violated");
+ck(std::isfinite(p.T)&&p.T>=0&&p.p>0&&p.rho>0,"reconstructed state is not finite");
+const Real requestedP=s.p[0]+s.gasGradientLimiterP[0]*s.gradPx[0]*(s.faceCx[1]-s.Cx[0]);
+ck(p.p==requestedP,"a candidate-alpha search changed the limited pressure increment");
 Real R=ugkwp::mixtureGasConstant(y,s.gasSpecies.thermo);ck(std::abs(p.p-p.rho*R*p.T)<Real(1e-6)*p.p,"face EOS inconsistent");
 ck(s.rho[0]==before[0]&&s.rhoE[0]==before[1]&&s.gasSpecies.rho[0]==before[2],"face reconstruction repaired conserved inputs");
 // Extrapolated boundary composition follows reconstructed owner composition.

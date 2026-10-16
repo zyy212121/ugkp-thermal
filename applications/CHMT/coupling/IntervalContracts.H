@@ -310,36 +310,15 @@ public:
 
 };
 
-enum class WindowDecision { Accept,Replay,Shorten,Reject };
-struct WindowAssessment {
-    bool regimeConsistent=true,geometryMatches=true;
-    bool recoverable=true;
-    Real predictionError=0;
-};
+// Select the physical coupling interval once. There is no failed-window
+// shortening, replay epoch, or residual acceptance controller.
 class CouplingWindowController {
-    CouplingInterval interval_{};CouplingControls controls_{};
-    int iterations_=0,retries_=0;bool ready_=false;
+    CouplingInterval interval_{};
 public:
     const CouplingInterval& interval()const{return interval_;}
-    int iterations()const{return iterations_;}int retries()const{return retries_;}
     bool begin(Real time,Real target,std::uint64_t sequence,const CouplingControls& controls,std::string& error){
         CouplingInterval next;next.identity.sequence=sequence;next.begin=time;next.end=std::min(target,time+controls.interval);
-        interval_=next;controls_=controls;iterations_=1;retries_=0;ready_=true;error.clear();return true;
-    }
-    WindowDecision assess(const WindowAssessment& a)const{
-        if(!ready_||!a.recoverable||!finite(a.predictionError)||a.predictionError<0)return WindowDecision::Reject;
-        if(!a.regimeConsistent||!a.geometryMatches)return WindowDecision::Replay;
-        if(controls_.enforcePredictionAccuracy&&a.predictionError>controls_.predictionTolerance)return WindowDecision::Replay;
-        return WindowDecision::Accept;
-    }
-    bool replay(std::string& error){
-        if(!ready_||iterations_>=controls_.maxWindowIterations)return intervalFailure(error,"coupling replay limit reached");
-        ++iterations_;++interval_.identity.epoch;error.clear();return true;
-    }
-    bool shorten(Real interval,std::string& error){
-        if(!ready_||retries_>=controls_.maxWindowRetries)return intervalFailure(error,"coupling retry limit reached");
-        const Real endpoint=interval_.begin+interval;
-        interval_.end=endpoint;++interval_.identity.epoch;++retries_;iterations_=1;error.clear();return true;
+        interval_=next;error.clear();return true;
     }
 };
 } // namespace chmt

@@ -101,7 +101,7 @@ namespace chmt {
                 }
             }
             std::string error;
-            const bool rebuilt = rebuildGeometry(out, error)||detail::completeGeometry(out,error);
+            const bool rebuilt = rebuildGeometry(out, error);
             require(rebuilt, "mesh import: "+error);
             out.oldVolumes = out.volumes;
             return out;
@@ -182,13 +182,12 @@ namespace chmt {
             std::string error;
             const bool strictMapping=mapConformalInterface(state.gasMesh, state.solidMesh, surface.solidFace, thickness,
                 candidates, mapping, vertices, error);
-            require(strictMapping||detail::completeConformalInterface(state.gasMesh,state.solidMesh,surface.solidFace,thickness,
-                    candidates,mapping,vertices,error), error);
+            require(strictMapping, error);
             surface.gasFace = mapping;
             for (std::size_t face = 0; face<mapping.size(); ++face) {
                 const int gasFace = mapping[face];
                 const Vec3 gasArea = state.gasMesh.areaVectors[gasFace];
-                const Vec3 gasNormal = strictMapping?normalized(gasArea):gasArea/mag(gasArea);
+                const Vec3 gasNormal = normalized(gasArea);
                 surface.gasDistance[face] = std::abs(dot( state.gasMesh.cellCentres[state.gasMesh.owner[gasFace]] -state.gasMesh.faceCentres[gasFace], gasNormal));
                 require(!fixedTemperature(state.gasMesh.thermalBoundary.empty()?nullptr:state.gasMesh.thermalBoundary.data(),gasFace)
                     && !fixedTemperature(state.solidMesh.thermalBoundary.empty()?nullptr:state.solidMesh.thermalBoundary.data(),surface.solidFace[face]),
@@ -334,16 +333,14 @@ namespace chmt {
                 }
                 GasPrimitive recovered;
                 auto q = conservativeGas(w, 1, model.physics);
-                require(recoverGas(q, 1, model.physics, recovered)
-                    ||(completeConservativeGas(w,1,model.physics,q)
-                        &&completePredictorGas(q,1,model.physics,recovered)),
+                require(recoverGas(q, 1, model.physics, recovered),
                     "imported gas caloric expression unavailable");
                 return recovered;
             };
             for (int c = 0; c<mesh.nCells(); ++c){
                 const auto w=primitive(c,-1,-1);
                 auto q=conservativeGas(w,state.gasMesh.volumes[c],model.physics);
-                if(!finite(q.mass))require(completeConservativeGas(w,state.gasMesh.volumes[c],model.physics,q),
+                require(finite(q.mass)&&finite(q.energy),
                     "imported gas caloric expression unavailable");
                 state.gas[c]=q;
             }
@@ -446,7 +443,7 @@ namespace chmt {
             }
             for (const auto& q:state.solid) {
                 Real T;
-                require(recoverSolid(q, model.physics, T)||recoverSolid<true>(q,model.physics,T,nullptr,-1),
+                require(recoverSolid(q, model.physics, T),
                     "imported solid caloric expression unavailable");
             }
             state.solidMesh.thermalBoundary.assign(mesh.nFaces(),ThermalBoundaryKind::ZeroGradient);
@@ -458,8 +455,7 @@ namespace chmt {
                     const int face=mesh.boundaryMesh()[patch].start()+f,owner=state.solidMesh.owner[face];
                     const auto policy=importedThermalBoundary(thermal.boundaryField()[patch].type(),state.solidMesh.boundaryKind[face],false);
                     state.solidMesh.thermalBoundary[face]=policy;
-                    Real T=0;require(recoverSolid(state.solid[owner],model.physics,T)
-                        ||recoverSolid<true>(state.solid[owner],model.physics,T,nullptr,-1),"solid thermal owner caloric expression unavailable");
+                    Real T=0;require(recoverSolid(state.solid[owner],model.physics,T),"solid thermal owner caloric expression unavailable");
                     if(policy==ThermalBoundaryKind::FixedValue) {
                         T=thermal.boundaryField()[patch][f];
                     }

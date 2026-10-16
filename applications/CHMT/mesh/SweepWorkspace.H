@@ -1,5 +1,6 @@
 #ifndef CHMT_MESH_SWEEP_WORKSPACE_H
 #define CHMT_MESH_SWEEP_WORKSPACE_H
+#include "mesh/GeometryDiagnostics.H"
 #include "core/HostState.H"
 #include <algorithm>
 #include <memory>
@@ -95,12 +96,12 @@ public:
         }
         for(std::size_t p=1;p<offsets_.size();++p)offsets_[p]+=offsets_[p-1];
     }
-    template<bool Terminal=false>
-    bool solve(const Points& boundary,Points& output) {
+    bool solve(const Points& boundary,Points& output,ugkp::diagnostics::DeviceContext* diagnostics=nullptr) {
         std::fill(displacement_.begin(),displacement_.end(),Vec3{});
         std::fill(next_.begin(),next_.end(),Vec3{});
         for(std::size_t p=0;p<fixed_.size();++p)if(fixed_[p])displacement_[p]=boundary[p];
         bool converged=mesh_.points.empty();
+        Real finalResidual=0;
         for(int iteration=0;iteration<20000 && !converged;++iteration) {
             Real residual=0;
             for(std::size_t p=0;p<fixed_.size();++p) {
@@ -109,11 +110,12 @@ public:
                 for(std::size_t k=offsets_[p];k<offsets_[p+1];++k)
                     weighted+=displacement_[edges_[k].second]*weights_[k];
                 next_[p]=weighted/totals_[p];
+                if(!finite(next_[p]))return false;
                 residual=std::max(residual,mag(next_[p]-displacement_[p]));
             }
-            displacement_.swap(next_);converged=residual<=tolerance_;
+            displacement_.swap(next_);finalResidual=residual;converged=residual<=tolerance_;
         }
-        if(!Terminal && !converged)return false;
+        if(!converged)geometryWarning(diagnostics,finalResidual,tolerance_,-1,false);
         output.resize(mesh_.points.size());
         for(std::size_t p=0;p<output.size();++p) {
             output[p]=mesh_.points[p]+displacement_[p];
