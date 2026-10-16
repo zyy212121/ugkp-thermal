@@ -1,4 +1,5 @@
 #include "configuration/CouplingInput.H"
+#include "ProgressLogging.H"
 #include "io/CoupledOutput.H"
 #include "io/MultirateEvolution.H"
 #include "gpu/Backend.H"
@@ -16,6 +17,8 @@ int main(int argc,char** argv) {
         if(args.optionFound("build-info")){std::cout<<CHMT_BUILD_MANIFEST_JSON<<'\n';return 0;}
         if(!args.checkRootCase())return 2;
         Foam::Time time(Foam::Time::controlDictName,args);
+        const Foam::label progressLogInterval =
+            ugkwp::logging::progressLogInterval(time.controlDict());
         Foam::IOdictionary properties(Foam::IOobject("chmtProperties",time.constant(),time,
             Foam::IOobject::MUST_READ,Foam::IOobject::NO_WRITE));
         chmt::io::CoupledCaseInput input;chmt::io::readCoupledCase(time,properties,input);
@@ -64,7 +67,20 @@ int main(int argc,char** argv) {
             chmt::WindowEvolutionReport report;
             chmt::io::require(chmt::advanceCoupledWindow(*backend,material,input.model,input.coupling,input.material,end,false,input.state,report,error),error);
             publish();
-            std::cout<<"CHMT accepted time="<<input.state.time<<" gas microsteps="<<report.acceptedGasMicrosteps<<" material solves="<<report.materialSolves<<'\n';
+            if
+            (
+                ugkwp::logging::progressLogDue
+                (
+                    input.state.acceptedSteps,
+                    progressLogInterval
+                )
+            )
+            {
+                std::cout << "CHMT_REPRO step=" << input.state.acceptedSteps
+                    << " time=" << input.state.time
+                    << " gasMicrosteps=" << report.acceptedGasMicrosteps
+                    << " materialSolves=" << report.materialSolves << std::endl;
+            }
         }
         return 0;
 #endif

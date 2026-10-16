@@ -4,6 +4,7 @@
 #include "wallDist.H"
 #include "uniformDimensionedFields.H"
 #include "gasTransport/GasNumericsIO.H"
+#include "ProgressLogging.H"
 
 #ifndef UGKWP_USE_CUDA
 #error gasUGKP must be built with UGKWP_USE_CUDA; use private_backend/build_private_backend.sh
@@ -38,6 +39,9 @@ int main(int argc, char *argv[])
 {
     #include "setRootCase.H"
     #include "createTime.H"
+
+    const label progressLogInterval =
+        ugkwp::logging::progressLogInterval(runTime.controlDict());
     Info<< "gasUGKP: weighted-parcel configurable-block dynamic-heavy separated-backend GPU solver" << nl;
     #include "createMesh.H"
     #include "createFields.H"
@@ -378,6 +382,18 @@ int main(int argc, char *argv[])
                     );
                 }
 
+                if
+                (
+                    ugkwp::logging::progressLogDue
+                    (
+                        runTime.timeIndex(),
+                        progressLogInterval
+                    )
+                )
+                {
+                    ugkwp::logging::writeProgressLog(runTime);
+                }
+
                 if (runTime.writeTime())
                 {
                     resident.downloadToHostMirror
@@ -408,10 +424,6 @@ int main(int argc, char *argv[])
                     }
 
                     runTime.write();
-                    Info<< "runTime = " << runTime.elapsedClockTime()
-                        << " simulationTime = " << runTime.timeName()
-                        << " particleCount = " << 0
-                        << " CoMax = " << lastMeasuredCo << endl;
                 }
             }
 
@@ -532,6 +544,18 @@ int main(int argc, char *argv[])
                 runTime.value()
             );
 
+            if
+            (
+                ugkwp::logging::progressLogDue
+                (
+                    runTime.timeIndex(),
+                    progressLogInterval
+                )
+            )
+            {
+                ugkwp::logging::writeProgressLog(runTime);
+            }
+
             if (runTime.writeTime())
             {
                 resident.downloadToHostMirror
@@ -569,12 +593,7 @@ int main(int argc, char *argv[])
                 }
 
                 runTime.write();
-                const label currentParticleCount =
-                    resident.writeParticleRestartMirror(runTime);
-                Info<< "runTime = " << runTime.elapsedClockTime()
-                    << " simulationTime = " << runTime.timeName()
-                    << " particleCount = " << currentParticleCount
-                    << " CoMax = " << lastMeasuredCo << endl;
+                (void)resident.writeParticleRestartMirror(runTime);
             }
         }
 

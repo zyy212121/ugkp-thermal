@@ -3,6 +3,7 @@
 #include "zeroGradientFvPatchFields.H"
 #include "wallDist.H"
 #include "uniformDimensionedFields.H"
+#include "ProgressLogging.H"
 #include <limits>
 
 #ifndef UGKWP_USE_CUDA
@@ -40,6 +41,9 @@ int main(int argc, char *argv[])
 {
     #include "setRootCase.H"
     #include "createTime.H"
+
+    const label progressLogInterval =
+        ugkwp::logging::progressLogInterval(runTime.controlDict());
 
     const scalar configuredWriteInterval =
         runTime.controlDict().lookup<scalar>("writeInterval");
@@ -455,19 +459,24 @@ int main(int argc, char *argv[])
                 }
 
                 runTime++;
-            if (runTime.timeIndex() % 5000 == 0)
-            {
-                Info<< "UGKP_REPRO step=" << runTime.timeIndex()
-                    << " time=" << runTime.timeName()
-                    << " dt=" << runTime.deltaTValue()
-                    << " elapsed=" << runTime.elapsedClockTime() << endl;
-            }
 
                 resident.advanceOneStep
                 (
                     runTime.deltaTValue(),
                     runTime.value()
                 );
+
+                if
+                (
+                    ugkwp::logging::progressLogDue
+                    (
+                        runTime.timeIndex(),
+                        progressLogInterval
+                    )
+                )
+                {
+                    ugkwp::logging::writeProgressLog(runTime);
+                }
 
                 if (runTime.writeTime())
                 {
@@ -498,10 +507,6 @@ int main(int argc, char *argv[])
                     }
 
                     runTime.write();
-                    Info<< "runTime = " << runTime.elapsedClockTime()
-                        << " simulationTime = " << runTime.timeName()
-                        << " particleCount = " << 0
-                        << " CoMax = " << lastMeasuredCo << endl;
                 }
             }
 
@@ -728,13 +733,6 @@ int main(int argc, char *argv[])
             }
 
             runTime++;
-            if (runTime.timeIndex() % 5000 == 0)
-            {
-                Info<< "UGKP_REPRO step=" << runTime.timeIndex()
-                    << " time=" << runTime.timeName()
-                    << " dt=" << runTime.deltaTValue()
-                    << " elapsed=" << runTime.elapsedClockTime() << endl;
-            }
 
             resident.advanceOneStep
             (
@@ -768,15 +766,37 @@ int main(int argc, char *argv[])
                 if (coupling.coupled)
                 {
                     thermalCoupledThisStep = true;
-                    Info<< "runTime = " << runTime.elapsedClockTime()
-                        << " simulationTime = " << runTime.timeName()
-                        << " particleCount = " << coupling.particleCount
-                        << " CoMax = " << lastMeasuredCo
-                        << " CHTdeltaT = " << coupling.elapsedCouplingTimeS
-                        << " radiationCoupled = "
-                        << coupling.radiationCoupled
-                        << endl;
+                    if
+                    (
+                        ugkwp::logging::progressLogDue
+                        (
+                            runTime.timeIndex(),
+                            progressLogInterval
+                        )
+                    )
+                    {
+                        Info<< "runTime = " << runTime.elapsedClockTime()
+                            << " simulationTime = " << runTime.timeName()
+                            << " particleCount = " << coupling.particleCount
+                            << " CoMax = " << lastMeasuredCo
+                            << " CHTdeltaT = " << coupling.elapsedCouplingTimeS
+                            << " radiationCoupled = "
+                            << coupling.radiationCoupled
+                            << endl;
+                    }
                 }
+            }
+
+            if
+            (
+                ugkwp::logging::progressLogDue
+                (
+                    runTime.timeIndex(),
+                    progressLogInterval
+                )
+            )
+            {
+                ugkwp::logging::writeProgressLog(runTime);
             }
 
             if
@@ -834,7 +854,6 @@ int main(int argc, char *argv[])
                 }
                 else
                 {
-                    label currentParticleCount = 0;
                     resident.downloadToHostMirror
                     (
                         runTime,
@@ -856,12 +875,7 @@ int main(int argc, char *argv[])
                     );
 
                     runTime.write();
-                    currentParticleCount =
-                        resident.writeParticleRestartMirror(runTime);
-                    Info<< "runTime = " << runTime.elapsedClockTime()
-                        << " simulationTime = " << runTime.timeName()
-                        << " particleCount = " << currentParticleCount
-                        << " CoMax = " << lastMeasuredCo << endl;
+                    (void)resident.writeParticleRestartMirror(runTime);
                 }
             }
         }
