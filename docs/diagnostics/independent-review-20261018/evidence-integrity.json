@@ -1,0 +1,10 @@
+{
+  "zip_sha256": "bf40b889b81ff9b6e865beacda6ae952a363e98ada7ef04e7749abde0114f9a9",
+  "zip_bytes": 18751017,
+  "members": 994,
+  "crc_check": "passed",
+  "member_sha256_check": "passed",
+  "credential_pattern_scan": "no matches",
+  "source_commit": "563826725cf3e5930e4bb6ee7b742aaa763685d6",
+  "test_commit": "95da82a2b20309b5327599bbc8c3f3d0d6de4856"
+}

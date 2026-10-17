@@ -1,0 +1,218 @@
+[
+  {
+    "file": "applications/CHMT/coupling/ExchangeLedger.C",
+    "hunk": "@@ -46 +46 @@ CHMT_HD inline bool validatePacketMath(const ExchangePacket& p,const Tolerances&"
+  },
+  {
+    "file": "applications/CHMT/coupling/ExchangeLedger.C",
+    "hunk": "@@ -63 +63 @@ CHMT_HD inline bool validatePacketMath(const ExchangePacket& p,const Tolerances&"
+  },
+  {
+    "file": "applications/CHMT/coupling/ExchangeLedger.C",
+    "hunk": "@@ -80 +79,0 @@ CHMT_HD inline bool validGasInventory(const GasQ& q,ugkp::diagnostics::DeviceCon"
+  },
+  {
+    "file": "applications/CHMT/coupling/ExchangeLedger.C",
+    "hunk": "@@ -90 +89 @@ CHMT_HD inline bool validSolidInventory(const SolidQ& q,ugkp::diagnostics::Devic"
+  },
+  {
+    "file": "applications/CHMT/coupling/ExchangeLedger.C",
+    "hunk": "@@ -98 +96,0 @@ CHMT_HD inline bool validFilmInventory(const FilmQ& q,bool pendingStorage=false,"
+  },
+  {
+    "file": "applications/CHMT/materials/CpuMaterialDriver.C",
+    "hunk": "@@ -108 +108 @@ bool nativeConduction(Foam::fvMesh& acceptedMesh,const HostState& old,HostState&"
+  },
+  {
+    "file": "applications/CHMT/materials/CpuMaterialDriver.C",
+    "hunk": "@@ -110 +110 @@ bool nativeConduction(Foam::fvMesh& acceptedMesh,const HostState& old,HostState&"
+  },
+  {
+    "file": "applications/CHMT/materials/CpuMaterialDriver.C",
+    "hunk": "@@ -116 +116 @@ bool nativeConduction(Foam::fvMesh& acceptedMesh,const HostState& old,HostState&"
+  },
+  {
+    "file": "applications/CHMT/materials/CpuMaterialDriver.C",
+    "hunk": "@@ -134 +134 @@ bool baseTrace(const HostState& base,const PhysicsConfig& p,std::vector<GasPrimi"
+  },
+  {
+    "file": "applications/CHMT/materials/CpuMaterialDriver.C",
+    "hunk": "@@ -139,2 +139,2 @@ bool baseTrace(const HostState& base,const PhysicsConfig& p,std::vector<GasPrimi"
+  },
+  {
+    "file": "applications/CHMT/materials/Thermodynamics.H",
+    "hunk": "@@ -129,2 +129,11 @@ CHMT_HD inline bool recoverGas(const GasQ& q,Real volume,const PhysicsConfig& p,"
+  },
+  {
+    "file": "applications/CHMT/materials/Thermodynamics.H",
+    "hunk": "@@ -135 +144,2 @@ CHMT_HD inline bool recoverGas(const GasQ& q,Real volume,const PhysicsConfig& p,"
+  },
+  {
+    "file": "applications/CHMT/mesh/Geometry.C",
+    "hunk": "@@ -875 +875 @@ namespace chmt {"
+  },
+  {
+    "file": "applications/CHMT/mesh/Geometry.C",
+    "hunk": "@@ -883 +883 @@ namespace chmt {"
+  },
+  {
+    "file": "applications/CHMT/mesh/GeometryDiagnostics.H",
+    "hunk": "@@ -3,0 +4,2 @@"
+  },
+  {
+    "file": "applications/CHMT/mesh/GeometryDiagnostics.H",
+    "hunk": "@@ -4,0 +7,9 @@ namespace chmt {"
+  },
+  {
+    "file": "applications/CHT/gpu/GpuResidentStrict.cu",
+    "hunk": "@@ -0,0 +1 @@"
+  },
+  {
+    "file": "applications/CHT/gpu/GpuResidentStrict.cu",
+    "hunk": "@@ -3387,0 +3389,10 @@ extern \"C\" int ugkwpGpuResidentStrictUploadMesh"
+  },
+  {
+    "file": "applications/CHT/gpu/GpuResidentStrict.cu",
+    "hunk": "@@ -3720 +3731 @@ extern \"C\" int ugkwpGpuResidentStrictDownloadSourceResidualMass"
+  },
+  {
+    "file": "applications/CHT/gpu/GpuResidentStrict.cu",
+    "hunk": "@@ -5646 +5657 @@ extern \"C\" int ugkwpGpuResidentStrictDownloadGasBoundaryFields"
+  },
+  {
+    "file": "applications/CHT/gpu/GpuResidentStrict.cu",
+    "hunk": "@@ -6093 +6104 @@ extern \"C\" int ugkwpGpuResidentStrictDownloadSst"
+  },
+  {
+    "file": "applications/FSH/private_backend/GpuResidentStrict.cu",
+    "hunk": "@@ -0,0 +1 @@"
+  },
+  {
+    "file": "applications/FSH/private_backend/GpuResidentStrict.cu",
+    "hunk": "@@ -2805,0 +2807,10 @@ extern \"C\" int ugkwpGpuResidentStrictUploadMesh"
+  },
+  {
+    "file": "applications/gasUGKP/private_backend/GpuResidentStrict.cu",
+    "hunk": "@@ -0,0 +1 @@"
+  },
+  {
+    "file": "applications/gasUGKP/private_backend/GpuResidentStrict.cu",
+    "hunk": "@@ -4046,0 +4048,10 @@ extern \"C\" int ugkwpGpuResidentStrictUploadMesh"
+  },
+  {
+    "file": "common/DiagnosticsCatalogue.H",
+    "hunk": "@@ -9 +9 @@ inline std::vector<SourceDescriptor> sourceCatalogue() {"
+  },
+  {
+    "file": "common/DiagnosticsCatalogue.H",
+    "hunk": "@@ -20,4 +20,4 @@ inline std::vector<SourceDescriptor> sourceCatalogue() {"
+  },
+  {
+    "file": "common/DiagnosticsCatalogue.H",
+    "hunk": "@@ -77,3 +77,3 @@ inline std::vector<SourceDescriptor> sourceCatalogue() {"
+  },
+  {
+    "file": "common/DiagnosticsCatalogue.H",
+    "hunk": "@@ -82 +82 @@ inline std::vector<SourceDescriptor> sourceCatalogue() {"
+  },
+  {
+    "file": "common/DiagnosticsCatalogue.H",
+    "hunk": "@@ -92,5 +92,5 @@ inline std::vector<SourceDescriptor> sourceCatalogue() {"
+  },
+  {
+    "file": "common/DiagnosticsCatalogue.H",
+    "hunk": "@@ -98 +98 @@ inline std::vector<SourceDescriptor> sourceCatalogue() {"
+  },
+  {
+    "file": "common/DiagnosticsCatalogue.H",
+    "hunk": "@@ -101,2 +101,2 @@ inline std::vector<SourceDescriptor> sourceCatalogue() {"
+  },
+  {
+    "file": "common/DiagnosticsCatalogue.H",
+    "hunk": "@@ -130,2 +130,2 @@ inline std::vector<SourceDescriptor> sourceCatalogue() {"
+  },
+  {
+    "file": "common/DiagnosticsCatalogue.H",
+    "hunk": "@@ -141,6 +141,6 @@ inline std::vector<SourceDescriptor> sourceCatalogue() {"
+  },
+  {
+    "file": "common/DiagnosticsCatalogue.H",
+    "hunk": "@@ -162,2 +162,2 @@ inline std::vector<SourceDescriptor> sourceCatalogue() {"
+  },
+  {
+    "file": "common/DiagnosticsCatalogue.H",
+    "hunk": "@@ -185,0 +186 @@ inline std::vector<SourceDescriptor> sourceCatalogue() {"
+  },
+  {
+    "file": "common/DiagnosticsCatalogue.H",
+    "hunk": "@@ -247,8 +248,8 @@ inline std::vector<SourceDescriptor> sourceCatalogue() {"
+  },
+  {
+    "file": "common/DiagnosticsCatalogue.H",
+    "hunk": "@@ -289,7 +290,10 @@ inline std::vector<SourceDescriptor> sourceCatalogue() {"
+  },
+  {
+    "file": "common/DiagnosticsCatalogue.H",
+    "hunk": "@@ -297 +301 @@ inline std::vector<SourceDescriptor> sourceCatalogue() {"
+  },
+  {
+    "file": "common/DiagnosticsCatalogue.H",
+    "hunk": "@@ -299 +303 @@ inline std::vector<SourceDescriptor> sourceCatalogue() {"
+  },
+  {
+    "file": "common/DiagnosticsCatalogue.H",
+    "hunk": "@@ -319,12 +323,12 @@ inline std::vector<SourceDescriptor> sourceCatalogue() {"
+  },
+  {
+    "file": "common/DiagnosticsCatalogue.H",
+    "hunk": "@@ -343 +347 @@ inline std::vector<SourceDescriptor> sourceCatalogue() {"
+  },
+  {
+    "file": "common/gasTransport/GasMeshUploadValidation.H",
+    "hunk": "@@ -0,0 +1,24 @@"
+  },
+  {
+    "file": "common/gasTransport/MixtureThermo.H",
+    "hunk": "@@ -42,2 +42,2 @@ UGKWP_GAS_HD inline bool mixtureMassFractionsFromDensities("
+  },
+  {
+    "file": "common/gasTransport/MixtureThermo.H",
+    "hunk": "@@ -49 +49 @@ UGKWP_GAS_HD inline bool mixtureMassFractionsFromDensities("
+  },
+  {
+    "file": "common/gasTransport/MixtureThermo.H",
+    "hunk": "@@ -149 +149 @@ UGKWP_GAS_HD inline ThermoStatus evaluateSpecies"
+  },
+  {
+    "file": "common/gasTransport/MixtureThermo.H",
+    "hunk": "@@ -294 +294 @@ UGKWP_GAS_HD inline Real mixtureGasConstant"
+  },
+  {
+    "file": "common/gasTransport/SpeciesDiffusion.H",
+    "hunk": "@@ -21 +21 @@ UGKWP_GAS_HD inline bool correctedSpeciesDiffusion"
+  },
+  {
+    "file": "common/operators/advanceGasChemistryKernel.cuh",
+    "hunk": "@@ -133 +133,2 @@ UGKWP_GAS_HD inline ChemistryStatus advanceGasChemistryCell"
+  },
+  {
+    "file": "common/operators/advanceGasChemistryKernel.cuh",
+    "hunk": "@@ -177 +178,4 @@ UGKWP_GAS_HD inline ChemistryStatus advanceGasChemistryCell"
+  },
+  {
+    "file": "common/operators/advanceGasChemistryKernel.cuh",
+    "hunk": "@@ -221,2 +225,2 @@ UGKWP_GAS_HD inline ChemistryStatus advanceGasChemistryCell"
+  },
+  {
+    "file": "common/operators/advanceGasChemistryKernel.cuh",
+    "hunk": "@@ -228 +232 @@ UGKWP_GAS_HD inline ChemistryStatus advanceGasChemistryCell"
+  },
+  {
+    "file": "common/operators/computeSstFaceFluxKernel.cuh",
+    "hunk": "@@ -557,4 +557,5 @@ __global__ void applySstFluxAndSourceKernel"
+  },
+  {
+    "file": "common/operators/gasFaceSubgridTransportProperties.cuh",
+    "hunk": "@@ -214,4 +214,5 @@ __device__ void gasFaceSubgridTransportProperties"
+  }
+]

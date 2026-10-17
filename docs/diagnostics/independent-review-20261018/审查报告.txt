@@ -1,0 +1,81 @@
+PR #19 独立审查、修复与验证
+审查日期：2026-10-17 至 2026-10-18（Asia/Shanghai）
+
+结论：可以合并。结论针对计算源码 563826725cf3e5930e4bb6ee7b742aaa763685d6 及其仅增加/规范测试的 95da82a2b20309b5327599bbc8c3f3d0d6de4856；后续本报告与证据提交没有计算源码变更。原始 PR 不应原样合并，已确认的诊断语义/错误现场/同步问题已在本轮修复。此为技术结论，不是执行合并授权。开发报告只作为索引；下列结果来自本次独立源码追踪、复现、编译和运行。
+
+1. 版本与隔离
+开始远端 main：7c696b19b5510ef94cfbbf7eb837a00c29d74f0d。
+开始远端 PR：42188aa3cc5d3a34e5cfde759d62c75ebc8ab022。
+原报告计算源码：52d053406a2b7f59b5ca529e43efd04ed0e75384；本次没有用这个旧源码代替 PR 头验证。
+本轮计算源码修复：563826725cf3e5930e4bb6ee7b742aaa763685d6。
+补充温度迭代上限测试：e6239a8fd41cdf7af3251d64c1bd8872746072e3，仅增加测试，不改变计算源码。
+第一次本地合并：1430d07cba1958a7b12296c624a24754d4bd48f7。
+最终计算/测试合并：a78662e7bcb6dc9301d0167f92e8823308132cdd；树 d7b06752a257a098f7a71e55b5734e103a05a056，与 95da82a2 完整文件树一致。95da82a2 仅规范两行新测试空白；e6239a8f 只补充两项测试。没有冲突，没有向 main 推送，也没有执行远端 PR 合并。
+报告/证据后续提交不改变上述计算源码；最终推送身份由发布记录和 PR 提交历史给出。完整最终差异225文件已复查，见 final-diff-review-index.json 与 final-complete-diff.patch；该清单不是动态覆盖率。
+
+正式库 /home/lss/OpenFOAM/lss-10/applications/solvers/ugkp-thermal 仅做读取：HEAD 为 7c696b19，工作树干净，common/ 和 applications/ 的 main 跟踪源码逐文件一致。生产 gasUGKP SHA256 为 81a62f10b53784baeec74170000b83a5714616f061c00d562748411b1db9470a，backend 为 62c3b4adc7b48f9b9cf19207db11a653672953e09436c80b32485918a44d105d。开始/结束记录另附。
+现有 ugkp-thermal-test 有 4737 项未提交条目；完整差异已另存，没有清理或覆盖。其内部新建独立网络 clone pr19-review-20261017，再由该 clone 创建 main、fixes、merge 工作树；不共享正式库 Git 状态。
+各测试树的 FOAM_USER_APPBIN/LIBBIN、CUDA/XDG 缓存独立；临时目录和算例在 pr19-evidence-20261017 下。构建没有写入正式安装目录。GPU 运行前查询没有生产计算进程；没有停止、重启或改动任何生产任务。
+
+2. 原始 PR 问题与修复
+以下 P2 问题均影响规定的诊断语义或错误定位；不能因原报告专项通过而忽略。
+
+R1 化学密度总和审计溢出：advanceGasChemistryKernel.cuh，site10037。每个候选密度有限时，总和 Inf 原来使完整更新失败。复现 rho/partial=1e308、volume=1e-300、interval=0。改为守恒 warning，单个物理输出非有限仍 error。证据 chemistry-overflow.cpp、chemistry-test-red.log、chemistry-test-green.log；test_review_diagnostic_sum.py。
+R2 组分与壁面审计溢出：MixtureThermo.H site10001、gasFaceSubgridTransportProperties.cuh site2659/2660。按定义截断的有限组分已经可用，原始组分和溢出不能再 veto。保留真实零分母与无效物性错误。证据 overflow-extra-red/green.log、reviewer-gas/red.log/green.log；test_review_overflow.py、test_review_sst_wall_audits.py。
+R3 SST 更新后活动比值溢出：computeSstFaceFluxKernel.cuh site2611。有限源项约1.712e280除以极小正库存得Inf，仅此比值原来阻断物理更新。调用链证明下一次 Courant 查询会重新计算稳定性预测量；只将本次更新后审计改为 warning，没有改稳定性预测或时间步公式。真实 helper 回归同时核对有限物理输出。
+R4 CHMT 交换包及库存审计：ExchangeLedger.C。有限 conductive=1e308、advective=-1e308 时绝对尺度溢出；gas/film/solid 的分量总和也可溢出。审计改 warning，不改变包、库存或消费者执行；真实非法分量仍 error。证据 reviewer-chmt/packet_overflow.log、inventory-sum-red/green.log。CpuMaterialDriver.C 的全域能量残差窄化溢出同样不再触发 fatal；物理温度/能量恢复和线性求解错误检查保留。后者为源码依赖审查修复，未声称取得整域极端溢出的动态复现；该小分支的判断依据是 residual 仅进入收敛/报告条件，实际发布能量仍经既有恢复检查，完整编译和相关材料测试均通过。
+R5 CHMT 几何归一化残差：Geometry.C/GeometryDiagnostics.H。未移动的有效几何除以极小正容差使诊断比值溢出，原来拒绝几何。只对诊断显示比值用扩展精度并限制到可表示最大值，不改变点、体积、约束或容差；负/NaN 容差仍 error。真实 constrainFaceSweeps 对照见 reviewer-chmt/geometry_overflow.log、repair-final.log。
+R6 错误现场丢失：MixtureThermo.H、SpeciesDiffusion.H、advanceGasChemistryKernel.cuh、CHMT Thermodynamics.H/CpuMaterialDriver.C。修复把 cp 溢出报告为温度300、NaN密度报告为Schmidt0.7、异常时间间隔报告为体积，以及材料恢复只报告0的问题。保留实际异常值、分量和可用单元身份；没有将 error 降为 warning。证据 provenance-red/green.log、chemistry-provenance-red/green.log、reviewer-chmt/repair-final.log。
+R7 CHT 空下载新增同步：三个 DownloadSourceResidualMass/DownloadGasBoundaryFields/DownloadSst 的 n=0 路径仍执行诊断伴随复制。改为 completeReadback(...,n!=0)，与 gasUGKP/FSH 一致。9项真实控制流测试通过；cht-readback-red/green.log。
+R8 历史拓扑边界漏洞：cellPlaneStart=8,count=1 对8个槽位越界。main 和原始PR均由 ASAN 复现（stencil-main.log、reviewer-gas/stencil_bounds.log），不能归为 PR 新引入。三个 resident 上传入口在已知分配长度处校验真实范围，通过现有主机错误分发报告；无新增设备同步。空 count0 保持允许，整数加法溢出通过减法检查避免。test_review_stencil_upload.py 检验实际 helper、整数边界和三个上传调用点。
+
+3. 重点调用链与剩余机制
+30420：混合气总条件、压力波和计划入口在 producer 记录 MissingOperator；面通量调用方检查 sticky fatal，stage/IPC 收集并返回错误，主机 OpenFOAM FatalError 退出。三种类型×两种模式真实 helper/通量测试及普通混合气、旧单气体对照通过。真实 GPU 计划入口在 warning 开/关时均 exit1、site30420；不是仅写 coarse status 后零通量继续。
+
+已删除的失败恢复：气相时间区间减半/重放/回滚；化学整步与两半步比较接受、Newton回溯；壁面残差下降线搜索、失败seed恢复、第二候选Jacobian；面重构alpha候选；备用组分守恒载体；可选择的物性备用实现。未发现本轮审查路径仍有可选择的 production backup。
+允许的历史直接回退：既有 Riemann 分支、旧单气体总条件 owner 值回退；既有有限密度/内能底值、有限正性限制和湍流限制。逐路径清单见 reviewer-gas/review.md 和 reviewer-chmt/CHMT_REVIEW.md。旧 finiteDevice 的人为“大有限数当无效”替换不作为必须逐位保留的物理算法。
+数学迭代：SDIRK Newton、带主元线性消元、壁面 Picard/块三对角/Newton、Spalding/Jayatilleke 根求解、caloric 带括区保护的根迭代、几何投影。它们没有失败后重放物理时间区间。
+必要错误检查：实际缺失算子/存储、非法索引、非有限被消费的物理量、零分母、非法热状态及实际分配失败。粒子运动/碰撞/辐射恢复机制在范围外；共享气相重力、能量、热交换调用方仍检查，没有因文件共享而排除。
+
+warning 开关只控制主机输出。设备计算、组分截断和错误记录不依赖开关。首错由原子claim保存；主机只在既有完成点读取。CUDA graph并发记录、销毁/下载、IPC及MPI测试覆盖该生命周期，但不把诊断位置总数解释成全库动态覆盖率。生产上下文未提供的独立辅助调用仍需调用者接收 bool/status；不能把可选诊断指针为空等同于已经输出 OpenFOAM 错误。
+
+4. 验证与数值边界
+工具链：OpenFOAM10，GCC11.4，CUDA13.1.115，OpenMPI4.1.2，sm_89，Ns2。完整命令见同目录 evidence.zip 中 env*.sh/build*.sh/suite*.sh/native-diagnostics*.sh 及命令清单。
+原始 PR 完整四求解器+两backend构建通过。原始33文件专项173 passed/3 skipped；三个跳过是测试硬编码工具链位置，不是没有GPU。修复测试路径发现后，真实 OF/CUDA/MPI 测试全部实际执行。
+修复56382672：33文件加新增测试194 passed；实际本地合并树同样194 passed。另新增两种模式温度迭代上限测试通过；它排除了一次审查怀疑，未修改计算代码。
+最终计算源码完整构建通过。正常GPU短算 warning 开/关24文件逐字节一致；修复后与原始PR正常短算24文件逐字节一致。真实MissingOperator在开/关两模式均Fatal。memcheck 0 errors、racecheck 0 hazards、synccheck 0 errors。MPI非主rank错误经MPI_ABORT退出1；预期fatal退出不是测试失败。
+main基线广泛测试1729 passed/4 failed/4 skipped，四个失败逐项在 affected-main.xml 中留证。PR发现性广泛运行416 failed/1287 passed/4 skipped/127 errors；该运行发生在修复过程中，不冒充最终冻结版本验证。最终冻结计算源码广泛运行：1363 passed、406 failed、68 errors、4 skipped，1040.23秒（退出码1），见 affected-final.log/XML。474项失败/错误均保留逐项分类 affected-final-classification.json，没有新增未分类节点。它不是全绿测试；主要类别为旧失败恢复/有限组分/表域行为断言、提取fixture依赖或已删除接口，另有四项main历史失败。不能将“有分类”误读为所有旧接口测试已迁移。
+发现性失败分类见 affected-classification-updated.json，冻结版本分类见 affected-final-classification.json，保留每个原始断言、分类依据和main对应结果。按需修正了缺诊断字段/提取依赖、错误拓扑fixture及非法温度/零Cp/零主元预期；没有放宽正常数值断言或恢复失败重试。
+
+正常main对照：相同12步输入、独立同工具链构建。主流量最大差：rho 2.884e-6，p 0.4972Pa，T 6.704e-4K，U分量0.005512m/s；k与omega最大差相对于main最大值约1.239%和1.163%。完整逐字段有限性、Linf/L2在 normal-original-physical-fields.json。该比较核验了输出差异，不能当作绝对物理正确性证明或长期稳定性保证。
+化学单步SDIRK与旧自适应精度不同：dt=.25,k=2时质量误差9.1481e-5，独立SDIRK公式完全吻合；固定时间步逐次减半呈二阶约4倍收敛。未恢复整步/两半步控制。H2O2旧测试的七种失败定位到单次Newton的负中间浓度，属于删除非法候选恢复后的可计算范围变化；不能称为与旧算法相同的化学鲁棒性。
+没有长算或受控性能A/B结论；短算耗时与编译/CPU测试并行，不能据此宣称提速。GPU诊断race/sync覆盖真实并发记录路径，不等于所有求解器内核已做完整race认证。
+
+5. 证据和结束核验
+证据包仅收录本任务源码复现、测试命令、日志、版本记录及必要算例，不含认证凭据。SHA256清单和zip校验单独提供。正式库及生产二进制结束复核、远端引用、推送状态在发布记录中填写。未经用户明确确认，不执行远端合并。
+
+6. 原16项的独立核验入口
+1 单一carrier：single_pass_species_closure/postreview_algebra的真实周期/SST路径。
+2 壁面margin/凹凸构造：wall_geometry_single_construction/ray_distinguishable_geometry，源码确认无失败换原点。
+3 Geometry薄正体积/真实退化：geometry_policy_cleanup，另补极小正容差诊断溢出复现。
+4 workspace预算：CHMT完整diff与geometry政策测试；保留实际分配失败，无固定256MiB政策门槛。
+5 壁层池：boundary_layer_workspace及CHT remaining paths；真实GPU短算完成工作区分配/复用。
+6 材料域/孔隙率/CFL：chmt_material_domain_diagnostics，有限表外行为与非法物理值分开。
+7 界面/膜法向与Empty：同上及几何测试；未实现表示仍是MissingOperator，未偷换零通量。
+8 共享CHT气相重力：cht_remaining_paths，含零粒子气相路径，未因粒子文件位置排除。
+9 壁函数终端：wall_function_terminal；有限预算warning，真实非法值error，不恢复备用求解。
+10 导热配置：conductivity_selection；显式configured与旧有限负sentinel分开。
+11 固体外推：cht_remaining_paths；输出开关不改变外推运算。
+12 辅助I/O：cht_remaining_paths及实际源代码close/flush/FatalIOError追踪。
+13 矩阵/几何现场：dense_failure_provenance，另补本轮物性、化学输入与材料cell实际值。
+14 离线Mie：mie_generator_physics，合法退化极限与非法归一化分开。
+15 物理窄化：wall_precision_terminal；物理量溢出error、诊断量溢出warning。
+16 auxiliary inventory/normal-column：chmt_material_domain_diagnostics；另补gas/film/solid审计和溢出回归。
+上述核验不等于每个几何/材料配置都进行了GPU动态覆盖。
+
+7. 明确限制与合并理由
+专项和集成测试证明本轮要求的关键路径与修复；广泛旧测试不是全绿，已按实际输入/状态传播逐项说明。正常化学单步精度和负中间状态处理有意改变，不能承诺沿用旧生产时间步会取得旧精度或旧失败恢复能力。正常平板短算有限且修复前后完全一致，main差异已量化；没有长算、全面物理审定或性能A/B结论。
+另一个明确成本差异：test_bulk_diffusion_cost的O0源码读计数从每轮2次变为4次，来自新增有限值检查与max累加各读取一次D。独立探针保持下一轮读取新D的数值断言并通过（diffusivity-read-count.log）。没有把它误归为编译环境故障，也没有据此宣称机器级内存访问/性能不变；本轮未将这项微观读计数作为合并阻塞。
+本轮没有剩余已复现且未修复的关键正确性缺陷。辅助接口的bool/status仍要求调用者处理，部分泛型物性错误定位到species而非虚构未知cell；报告明确其可得现场，不把目录登记数当作全覆盖。最终建议基于上述明确范围和证据，不是“所有有限初值均可完成”的保证。
+
+最终95da82a2测试树与main本地合并复测：196 passed in 142.21s，exit0（suite-merge-publish.log）。
