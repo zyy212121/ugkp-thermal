@@ -58,7 +58,7 @@ template<class R> inline Vec<R> sub(const Vec<R>&a,const Vec<R>&b){return {{a[0]
 template<class R> inline Vec<R> mul(const Vec<R>&a,R b){return {{a[0]*b,a[1]*b,a[2]*b}};}
 template<class R> inline R dot(const Vec<R>&a,const Vec<R>&b){return a[0]*b[0]+a[1]*b[1]+a[2]*b[2];}
 template<class R> inline Vec<R> cross(const Vec<R>&a,const Vec<R>&b){return {{a[1]*b[2]-a[2]*b[1],a[2]*b[0]-a[0]*b[2],a[0]*b[1]-a[1]*b[0]}};}
-template<class R> inline R norm(const Vec<R>&a){return std::sqrt(dot(a,a));}
+template<class R> inline R norm(const Vec<R>&a){return std::hypot(std::hypot(a[0],a[1]),a[2]);}
 template<class R> inline bool finite(const Vec<R>&a){return gasFinite(a[0])&&gasFinite(a[1])&&gasFinite(a[2]);}
 template<class R> struct Triangle {int a,b,c;};
 template<class R> struct Face {std::vector<Triangle<R>> triangles;Vec<R> normal{},centre{};R scale=0;};
@@ -79,10 +79,10 @@ template<class R> bool triangulate(const WallGeometryMesh<R>&m,int f,Face<R>&out
         const Vec<R> a=sub(m.points[ring[i]],anchor),b=sub(m.points[ring[(i+1)%ring.size()]],anchor);
         area=add(area,cross(a,b));out.scale=std::max(out.scale,norm(a));
     }
-    const R amag=norm(area),eps=R(128)*std::numeric_limits<R>::epsilon();
-    if(!(out.scale>0)||!(amag>eps*out.scale*out.scale))return false;
+    const R amag=norm(area);
+    if(!(out.scale>0)||!(amag>0))return false;
     out.normal=mul(area,R(1)/amag);
-    const R atol=eps*out.scale*out.scale;
+    const R atol=0; // Geometric orientation uses the represented sign, without an area floor.
     // A repeated vertex, crossing edge or self-touching boundary is not a face.
     for(std::size_t i=0;i<ring.size();++i)for(std::size_t j=i+1;j<ring.size();++j){
         if(ring[i]==ring[j])return false;
@@ -182,7 +182,7 @@ template<class R> bool cellSeed(const WallGeometryMesh<R>&m,const Context<R>&ctx
         const R distance=std::abs(dot(sub(seed,ctx.faces[f].centre),ctx.faces[f].normal));
         if(distance>0)separation=std::min(separation,distance);
     }
-    const R margin=std::max(R(.01)*separation,R(256)*std::numeric_limits<R>::epsilon()*scale);
+    const R margin=R(.01)*separation;
     for(int pass=0;pass<256;++pass){
         bool good=true;
         for(int f:ctx.cellFaces[cell]){
@@ -310,14 +310,15 @@ template<class R> bool profileOwnerQuadrature(const std::vector<std::array<Vec<R
 template<class R> bool rayTriangle(const Vec<R>&o,const Vec<R>&n,const Vec<R>&a,const Vec<R>&b,const Vec<R>&c,R&time){
     const Vec<R> e1=sub(b,a),e2=sub(c,a),p=cross(n,e2);const R det=dot(e1,p);
     const R eps=R(256)*std::numeric_limits<R>::epsilon();
-    if(std::abs(det)<=eps*norm(e1)*norm(e2))return false;
+    // A finite shallow crossing still intersects the represented triangle.
+    if(det==R(0))return false;
     const Vec<R> delta=sub(o,a),q=cross(delta,e1);
     const R u=dot(delta,p)/det,v=dot(n,q)/det;
     if(u<-eps||v<-eps||u+v>R(1)+eps)return false;
     time=dot(e2,q)/det;return gasFinite(time);
 }
 template<class R> bool matching(const WallGeometryMesh<R>&m,const Context<R>&ctx,WallGeometryDescriptor<R>&d,WallStatus&s,const WallGeometryOptions<R>&,R scale){
-    const R tol=R(1024)*std::numeric_limits<R>::epsilon()*scale;
+    (void)scale; // Distinct represented ray positions are not merged by mesh size.
     R entry=0;int cell=d.ownerCell;
 
 
@@ -326,14 +327,20 @@ template<class R> bool matching(const WallGeometryMesh<R>&m,const Context<R>&ctx
         if(cell<0||(!m.gasCell.empty()&&!m.gasCell[cell]))return invalid(s,d.wallFace);
         R exit=std::numeric_limits<R>::max();int exitFace=-1;bool ambiguous=false;
         for(int f:ctx.cellFaces[cell])for(const auto&t:ctx.faces[f].triangles){
-            R hit=0;if(!rayTriangle(d.origin,d.normal,m.points[t.a],m.points[t.b],m.points[t.c],hit)||hit<=entry+tol)continue;
-            if(hit<exit-tol){exit=hit;exitFace=f;ambiguous=false;}
-            else if(std::abs(hit-exit)<=tol&&f!=exitFace){ambiguous=true;}
+            // Exit crossings follow the current cell's outward triangle winding.
+            // Ingress triangles (including the starting wall) cannot be exits,
+            // even when their computed ray position rounds just above entry.
+            const auto triangleNormal=cross(sub(m.points[t.b],m.points[t.a]),sub(m.points[t.c],m.points[t.a]));
+            const R crossing=dot(d.normal,triangleNormal)*(m.owner[f]==cell?R(1):R(-1));
+            if(crossing<=0)continue;
+            R hit=0;if(!rayTriangle(d.origin,d.normal,m.points[t.a],m.points[t.b],m.points[t.c],hit)||hit<=entry)continue;
+            if(hit<exit){exit=hit;exitFace=f;ambiguous=false;}
+            else if(hit==exit&&f!=exitFace){ambiguous=true;}
         }
         if(exitFace<0||ambiguous)return invalid(s,d.wallFace);
         const R lower=std::max(entry,d.maximumOwnerDistance);
-        if(cell!=d.ownerCell&&!ctx.constrained[cell]&&exit>lower+R(4)*tol){
-            d.matchingDistance=(lower+exit)/R(2);d.matchingPoint=add(d.origin,mul(d.normal,d.matchingDistance));
+        if(cell!=d.ownerCell&&!ctx.constrained[cell]&&exit>lower){
+            d.matchingDistance=lower+(exit-lower)/R(2);d.matchingPoint=add(d.origin,mul(d.normal,d.matchingDistance));
             d.matchingDonorDistance=norm(sub(m.cellCentres[cell],d.matchingPoint));
             d.matchingCells.push_back(cell);d.matchingWeights.push_back(R(1));return true;
         }
