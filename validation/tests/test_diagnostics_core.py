@@ -200,3 +200,20 @@ def test_cuda_fatal_read_is_load_not_atomic_rmw(tmp_path):
     code=ptx.read_text()
     assert 'atom.global.add' not in code
     assert 'ld.relaxed.gpu.b32' in code or 'ld.relaxed.gpu.global.u32' in code
+
+
+def test_native_gas_boundary_layer_input_compiles(tmp_path):
+    """Compile the real OF frontend adapter, not a mock of its diagnostic API."""
+    if not ENV.exists() and not os.environ.get('WM_PROJECT_DIR'):
+        pytest.skip('configured OpenFOAM toolchain unavailable')
+    source=tmp_path/'boundary_layer_input.cpp'
+    source.write_text('#include "BoundaryLayerInput.H"\n')
+    setup=f'source {ENV} >/dev/null 2>&1' if ENV.exists() else ':'
+    command=f'''{setup}
+    g++ -std=c++14 -fsyntax-only -DNoRepository -DWM_DP -DWM_LABEL_SIZE=32 \\
+      -DUGKWP_USE_CUDA -DUGKWP_GAS_SPECIES=2 \\
+      -I$WM_PROJECT_DIR/src/finiteVolume/lnInclude -I$WM_PROJECT_DIR/src/meshTools/lnInclude \\
+      -I$WM_PROJECT_DIR/src/OpenFOAM/lnInclude -I$WM_PROJECT_DIR/src/OSspecific/POSIX/lnInclude \\
+      -I{ROOT}/common -I{ROOT}/applications/gasUGKP/gpu {source}
+    '''
+    run(['bash','-c',command])

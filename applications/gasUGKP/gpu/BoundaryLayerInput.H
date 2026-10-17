@@ -170,7 +170,7 @@ public:
             }
         }
         ugkwp::gaswall::WallStatus status;
-        ugkp::diagnostics::reset(geometryDiagnostics_);
+        ugkp::diagnostics::reset(geometryDiagnostics_,0,0,time.timeIndex(),time.value());
         geometryOptions_.diagnostics=&geometryDiagnostics_;
         if(!geometryCache_.rebuild(geometryMesh,faces_,status,geometryOptions_))
             FatalErrorInFunction<<"Cannot construct boundaryLayer owner geometry or matching donor; "
